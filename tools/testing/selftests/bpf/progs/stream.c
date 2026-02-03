@@ -234,4 +234,25 @@ int stream_arena_callback_fault(void *ctx)
 	return 0;
 }
 
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_print_stack_kfunc(void *ctx)
+{
+	return bpf_stream_print_stack(BPF_STDERR);
+}
+
+SEC("syscall")
+__success __retval(-2)
+int stream_print_stack_invalid_id(void *ctx)
+{
+	/* Try to pass an invalid stream ID. */
+	return bpf_stream_print_stack((enum bpf_stream_id)0xbadcafe);
+}
+
 char _license[] SEC("license") = "GPL";
