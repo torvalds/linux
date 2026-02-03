@@ -1648,7 +1648,6 @@ chk_stale_nr()
 	local stale_min=$2
 	local stale_max=$3
 	local stale_delta=$4
-	local dump_stats
 	local stale_nr
 	local recover_nr
 
@@ -1664,15 +1663,10 @@ chk_stale_nr()
 		fail_test "got $stale_nr stale[s] $recover_nr recover[s], " \
 		     " expected stale in range [$stale_min..$stale_max]," \
 		     " stale-recover delta $stale_delta"
-		dump_stats=1
+		echo $ns stats
+		ip -n $ns -s link show
 	else
 		print_ok
-	fi
-
-	if [ "${dump_stats}" = 1 ]; then
-		echo $ns stats
-		ip netns exec $ns ip -s link show
-		ip netns exec $ns nstat -as | grep MPTcp
 	fi
 }
 
