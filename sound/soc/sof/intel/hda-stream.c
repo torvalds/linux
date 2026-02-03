@@ -210,8 +210,8 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 }
 
 /* get next unused stream */
-struct hdac_ext_stream *
-hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
+static struct hdac_ext_stream *
+_hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags, bool pair)
 {
 	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -233,7 +233,14 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 			if (hda_stream->host_reserved)
 				continue;
 
+			if (pair && hext_stream->link_locked)
+				continue;
+
 			s->opened = true;
+
+			if (pair)
+				hext_stream->link_locked = true;
+
 			break;
 		}
 	}
@@ -264,14 +271,27 @@ hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
 	return hext_stream;
 }
 
+struct hdac_ext_stream *
+hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags)
+{
+	return _hda_dsp_stream_get(sdev, direction, flags, false);
+}
+
+struct hdac_ext_stream *
+hda_dsp_stream_pair_get(struct snd_sof_dev *sdev, int direction, u32 flags)
+{
+	return _hda_dsp_stream_get(sdev, direction, flags, true);
+}
+
 /* free a stream */
-int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
+static int _hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag, bool pair)
 {
 	const struct sof_intel_dsp_desc *chip_info =  get_chip_info(sdev->pdata);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_stream *hext_stream;
+	struct hdac_ext_stream *link_stream;
 	struct hdac_stream *s;
 	bool dmi_l1_enable = true;
 	bool found = false;
@@ -292,6 +312,8 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 		if (s->direction == direction && s->stream_tag == stream_tag) {
 			s->opened = false;
 			found = true;
+			if (pair)
+				link_stream = hext_stream;
 		} else if (!(hda_stream->flags & SOF_HDA_STREAM_DMI_L1_COMPATIBLE)) {
 			dmi_l1_enable = false;
 		}
@@ -312,7 +334,20 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 		return -ENODEV;
 	}
 
+	if (pair)
+		snd_hdac_ext_stream_release(link_stream, HDAC_EXT_STREAM_TYPE_LINK);
+
 	return 0;
+}
+
+int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
+{
+	return _hda_dsp_stream_put(sdev, direction, stream_tag, false);
+}
+
+int hda_dsp_stream_pair_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
+{
+	return _hda_dsp_stream_put(sdev, direction, stream_tag, true);
 }
 
 static int hda_dsp_stream_reset(struct snd_sof_dev *sdev, struct hdac_stream *hstream)

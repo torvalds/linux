@@ -694,7 +694,10 @@ u64 hda_dsp_get_stream_ldp(struct snd_sof_dev *sdev,
 
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
+struct hdac_ext_stream *
+	hda_dsp_stream_pair_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
+int hda_dsp_stream_pair_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
 int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       struct hdac_ext_stream *hext_stream,
 			       int enable, u32 size);
