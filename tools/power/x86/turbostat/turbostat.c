@@ -3150,7 +3150,7 @@ void get_perf_llc_stats(int cpu, struct llc_stats *llc)
 	actual_read_size = read(fd_llc_percpu[cpu], &r, expected_read_size);
 
 	if (actual_read_size == -1)
-		err(-1, "%s(cpu%d,) %d,,%ld\n", __func__, cpu, fd_llc_percpu[cpu], expected_read_size);
+		err(-1, "%s(cpu%d,) %d,,%ld", __func__, cpu, fd_llc_percpu[cpu], expected_read_size);
 
 	llc->references = r.llc.references;
 	llc->misses = r.llc.misses;
@@ -6134,7 +6134,7 @@ static int update_effective_str(bool startup)
 
 	pos = fgets(buf, 1024, fp);
 	if (!pos)
-		err(1, "%s: file read failed\n", PATH_EFFECTIVE_CPUS);
+		err(1, "%s: file read failed", PATH_EFFECTIVE_CPUS);
 
 	fclose(fp);
 
@@ -6151,7 +6151,7 @@ static void update_effective_set(bool startup)
 	update_effective_str(startup);
 
 	if (parse_cpu_str(cpu_effective_str, cpu_effective_set, cpu_effective_setsize))
-		err(1, "%s: cpu str malformat %s\n", PATH_EFFECTIVE_CPUS, cpu_effective_str);
+		err(1, "%s: cpu str malformat %s", PATH_EFFECTIVE_CPUS, cpu_effective_str);
 }
 
 void linux_perf_init(void);
@@ -6818,7 +6818,7 @@ int check_for_cap_sys_rawio(void)
 
 free_and_exit:
 	if (cap_free(caps) == -1)
-		err(-6, "cap_free\n");
+		err(-6, "cap_free");
 
 	return ret;
 }
@@ -7021,7 +7021,7 @@ static void probe_intel_uncore_frequency_cluster(void)
 		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", i);
 
 		if (access(path_base, R_OK))
-			err(1, "%s: %s\n", __func__, path_base);
+			err(1, "%s: %s", __func__, path_base);
 
 		sprintf(path, "%s/package_id", path_base);
 		package_id = read_sysfs_int(path);
