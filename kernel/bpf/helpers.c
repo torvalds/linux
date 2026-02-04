@@ -1427,9 +1427,23 @@ static int bpf_async_update_prog_callback(struct bpf_async_cb *cb,
 	return 0;
 }
 
+static DEFINE_PER_CPU(struct bpf_async_cb *, async_cb_running);
+
 static int bpf_async_schedule_op(struct bpf_async_cb *cb, enum bpf_async_op op,
 				 u64 nsec, u32 timer_mode)
 {
+	/*
+	 * Do not schedule another operation on this cpu if it's in irq_work
+	 * callback that is processing async_cmds queue. Otherwise the following
+	 * loop is possible:
+	 * bpf_timer_start() -> bpf_async_schedule_op() -> irq_work_queue().
+	 * irqrestore -> bpf_async_irq_worker() -> tracepoint -> bpf_timer_start().
+	 */
+	if (this_cpu_read(async_cb_running) == cb) {
+		bpf_async_refcount_put(cb);
+		return -EDEADLK;
+	}
+
 	struct bpf_async_cmd *cmd = kmalloc_nolock(sizeof(*cmd), 0, NUMA_NO_NODE);
 
 	if (!cmd) {
@@ -1628,6 +1642,7 @@ static void bpf_async_irq_worker(struct irq_work *work)
 		return;
 
 	list = llist_reverse_order(list);
+	this_cpu_write(async_cb_running, cb);
 	llist_for_each_safe(pos, n, list) {
 		struct bpf_async_cmd *cmd;
 
@@ -1635,6 +1650,7 @@ static void bpf_async_irq_worker(struct irq_work *work)
 		bpf_async_process_op(cb, cmd->op, cmd->nsec, cmd->mode);
 		kfree_nolock(cmd);
 	}
+	this_cpu_write(async_cb_running, NULL);
 }
 
 static void bpf_async_cancel_and_free(struct bpf_async_kern *async)
