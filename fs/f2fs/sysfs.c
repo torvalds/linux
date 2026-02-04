@@ -969,6 +969,21 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "critical_task_priority")) {
+		if (t < NICE_TO_PRIO(MIN_NICE) || t > NICE_TO_PRIO(MAX_NICE))
+			return -EINVAL;
+		if (!capable(CAP_SYS_NICE))
+			return -EPERM;
+		sbi->critical_task_priority = t;
+		if (sbi->cprc_info.f2fs_issue_ckpt)
+			set_user_nice(sbi->cprc_info.f2fs_issue_ckpt,
+					PRIO_TO_NICE(sbi->critical_task_priority));
+		if (sbi->gc_thread && sbi->gc_thread->f2fs_gc_task)
+			set_user_nice(sbi->gc_thread->f2fs_gc_task,
+					PRIO_TO_NICE(sbi->critical_task_priority));
+		return count;
+	}
+
 	__sbi_store_value(a, sbi, ptr + a->offset, t);
 
 	return count;
@@ -1288,6 +1303,7 @@ F2FS_SBI_GENERAL_RW_ATTR(bggc_io_aware);
 F2FS_SBI_GENERAL_RW_ATTR(max_lock_elapsed_time);
 F2FS_SBI_GENERAL_RW_ATTR(lock_duration_priority);
 F2FS_SBI_GENERAL_RW_ATTR(adjust_lock_priority);
+F2FS_SBI_GENERAL_RW_ATTR(critical_task_priority);
 
 /* STAT_INFO ATTR */
 #ifdef CONFIG_F2FS_STAT_FS
@@ -1496,6 +1512,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(max_lock_elapsed_time),
 	ATTR_LIST(lock_duration_priority),
 	ATTR_LIST(adjust_lock_priority),
+	ATTR_LIST(critical_task_priority),
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs);

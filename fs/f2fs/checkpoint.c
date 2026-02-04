@@ -2158,6 +2158,8 @@ int f2fs_start_ckpt_thread(struct f2fs_sb_info *sbi)
 	}
 
 	set_task_ioprio(cprc->f2fs_issue_ckpt, cprc->ckpt_thread_ioprio);
+	set_user_nice(cprc->f2fs_issue_ckpt,
+			PRIO_TO_NICE(sbi->critical_task_priority));
 
 	return 0;
 }

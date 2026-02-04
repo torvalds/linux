@@ -987,3 +987,11 @@ Contact:	"Chao Yu" <chao@kernel.org>
 Description:	f2fs can tune priority of thread which has entered into critical region covered by
 		f2fs rwsemphore lock. This sysfs entry can be used to control priority value, the
 		range is [100,139], by default the value is 120.
+
+What:		/sys/fs/f2fs/<disk>/critical_task_priority
+Date:		February 2026
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	It can be used to tune priority of f2fs critical task, e.g. f2fs_ckpt, f2fs_gc
+		threads, limitation as below:
+		- it requires user has CAP_SYS_NICE capability.
+		- the range is [100, 139], by default the value is 100.
