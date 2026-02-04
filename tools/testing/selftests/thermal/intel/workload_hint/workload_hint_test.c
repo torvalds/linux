@@ -12,6 +12,7 @@
 
 #define WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/notification_delay_ms"
 #define WORKLOAD_ENABLE_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/workload_hint_enable"
+#define WORKLOAD_SLOW_ENABLE_ATTRIBUTE "/sys/bus/pci/devices/0000:00:04.0/workload_hint/workload_slow_hint_enable"
 #define WORKLOAD_TYPE_INDEX_ATTRIBUTE  "/sys/bus/pci/devices/0000:00:04.0/workload_hint/workload_type_index"
 
 static const char * const workload_types[] = {
@@ -22,6 +23,9 @@ static const char * const workload_types[] = {
 	NULL
 };
 
+static int wlt_slow;
+static char *wlt_enable_attr;
+
 #define WORKLOAD_TYPE_MAX_INDEX	3
 
 void workload_hint_exit(int signum)
@@ -30,7 +34,7 @@ void workload_hint_exit(int signum)
 
 	/* Disable feature via sysfs knob */
 
-	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
+	fd = open(wlt_enable_attr, O_RDWR);
 	if (fd < 0) {
 		perror("Unable to open workload type feature enable file");
 		exit(1);
@@ -46,6 +50,26 @@ void workload_hint_exit(int signum)
 	close(fd);
 }
 
+static void update_delay(char *delay_str)
+{
+	int fd;
+
+	printf("Setting notification delay in ms to %s\n", delay_str);
+
+	fd = open(WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
+	if (fd < 0) {
+		perror("Unable to open workload notification delay");
+		exit(1);
+	}
+
+	if (write(fd, delay_str, strlen(delay_str)) < 0) {
+		perror("Can't set delay");
+		exit(1);
+	}
+
+	close(fd);
+}
+
 int main(int argc, char **argv)
 {
 	struct pollfd ufd;
@@ -54,32 +78,26 @@ int main(int argc, char **argv)
 	char delay_str[64];
 	int delay = 0;
 
-	printf("Usage: workload_hint_test [notification delay in milli seconds]\n");
+	printf("Usage: workload_hint_test [notification delay in milli seconds][slow]\n");
 
 	if (argc > 1) {
-		ret = sscanf(argv[1], "%d", &delay);
-		if (ret < 0) {
-			printf("Invalid delay\n");
-			exit(1);
+		int i;
+
+		for (i = 1; i < argc; ++i) {
+			if (!strcmp(argv[i], "slow")) {
+				wlt_slow = 1;
+				continue;
+			}
+
+			ret = sscanf(argv[1], "%d", &delay);
+			if (ret < 0) {
+				printf("Invalid delay\n");
+				exit(1);
+			}
+
+			sprintf(delay_str, "%s\n", argv[1]);
+			update_delay(delay_str);
 		}
-
-		printf("Setting notification delay to %d ms\n", delay);
-		if (delay < 0)
-			exit(1);
-
-		sprintf(delay_str, "%s\n", argv[1]);
-		fd = open(WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
-		if (fd < 0) {
-			perror("Unable to open workload notification delay");
-			exit(1);
-		}
-
-		if (write(fd, delay_str, strlen(delay_str)) < 0) {
-			perror("Can't set delay");
-			exit(1);
-		}
-
-		close(fd);
 	}
 
 	if (signal(SIGINT, workload_hint_exit) == SIG_IGN)
@@ -89,8 +107,13 @@ int main(int argc, char **argv)
 	if (signal(SIGTERM, workload_hint_exit) == SIG_IGN)
 		signal(SIGTERM, SIG_IGN);
 
+	if (wlt_slow)
+		wlt_enable_attr = WORKLOAD_SLOW_ENABLE_ATTRIBUTE;
+	else
+		wlt_enable_attr = WORKLOAD_ENABLE_ATTRIBUTE;
+
 	/* Enable feature via sysfs knob */
-	fd = open(WORKLOAD_ENABLE_ATTRIBUTE, O_RDWR);
+	fd = open(wlt_enable_attr, O_RDWR);
 	if (fd < 0) {
 		perror("Unable to open workload type feature enable file");
 		exit(1);
@@ -144,6 +167,13 @@ int main(int argc, char **argv)
 			ret = sscanf(index_str, "%d", &index);
 			if (ret < 0)
 				break;
+
+			if (wlt_slow) {
+				if (index & 0x10)
+					printf("workload type slow:%s\n", "power");
+				else
+					printf("workload type slow:%s\n", "performance");
+			}
 
 			index &= 0x0f;
 			if (index > WORKLOAD_TYPE_MAX_INDEX)
