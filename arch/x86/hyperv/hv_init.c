@@ -558,7 +558,6 @@ void __init hyperv_init(void)
 		memunmap(src);
 
 		hv_remap_tsc_clocksource();
-		hv_root_crash_init();
 		hv_sleep_notifiers_register();
 	} else {
 		hypercall_msr.guest_physical_address = vmalloc_to_pfn(hv_hypercall_pg);
@@ -566,6 +565,9 @@ void __init hyperv_init(void)
 	}
 
 	hv_set_hypercall_pg(hv_hypercall_pg);
+
+	if (hv_root_partition())        /* after set hypercall pg */
+		hv_root_crash_init();
 
 skip_hypercall_pg_init:
 	/*
