@@ -243,11 +243,11 @@ static ssize_t amdgpu_set_power_dpm_state(struct device *dev,
 	enum amd_pm_state_type  state;
 	int ret;
 
-	if (strncmp("battery", buf, strlen("battery")) == 0)
+	if (sysfs_streq(buf, "battery"))
 		state = POWER_STATE_TYPE_BATTERY;
-	else if (strncmp("balanced", buf, strlen("balanced")) == 0)
+	else if (sysfs_streq(buf, "balanced"))
 		state = POWER_STATE_TYPE_BALANCED;
-	else if (strncmp("performance", buf, strlen("performance")) == 0)
+	else if (sysfs_streq(buf, "performance"))
 		state = POWER_STATE_TYPE_PERFORMANCE;
 	else
 		return -EINVAL;
@@ -363,29 +363,28 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 	enum amd_dpm_forced_level level;
 	int ret = 0;
 
-	if (strncmp("low", buf, strlen("low")) == 0) {
+	if (sysfs_streq(buf, "low"))
 		level = AMD_DPM_FORCED_LEVEL_LOW;
-	} else if (strncmp("high", buf, strlen("high")) == 0) {
+	else if (sysfs_streq(buf, "high"))
 		level = AMD_DPM_FORCED_LEVEL_HIGH;
-	} else if (strncmp("auto", buf, strlen("auto")) == 0) {
+	else if (sysfs_streq(buf, "auto"))
 		level = AMD_DPM_FORCED_LEVEL_AUTO;
-	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
+	else if (sysfs_streq(buf, "manual"))
 		level = AMD_DPM_FORCED_LEVEL_MANUAL;
-	} else if (strncmp("profile_exit", buf, strlen("profile_exit")) == 0) {
+	else if (sysfs_streq(buf, "profile_exit"))
 		level = AMD_DPM_FORCED_LEVEL_PROFILE_EXIT;
-	} else if (strncmp("profile_standard", buf, strlen("profile_standard")) == 0) {
+	else if (sysfs_streq(buf, "profile_standard"))
 		level = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD;
-	} else if (strncmp("profile_min_sclk", buf, strlen("profile_min_sclk")) == 0) {
+	else if (sysfs_streq(buf, "profile_min_sclk"))
 		level = AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK;
-	} else if (strncmp("profile_min_mclk", buf, strlen("profile_min_mclk")) == 0) {
+	else if (sysfs_streq(buf, "profile_min_mclk"))
 		level = AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK;
-	} else if (strncmp("profile_peak", buf, strlen("profile_peak")) == 0) {
+	else if (sysfs_streq(buf, "profile_peak"))
 		level = AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
-	} else if (strncmp("perf_determinism", buf, strlen("perf_determinism")) == 0) {
+	else if (sysfs_streq(buf, "perf_determinism"))
 		level = AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM;
-	}  else {
+	else
 		return -EINVAL;
-	}
 
 	ret = amdgpu_pm_get_access(adev);
 	if (ret < 0)
