@@ -650,7 +650,7 @@ static bool mshv_handle_gpa_intercept(struct mshv_vp *vp)
 		return false;
 
 	/* Only movable memory ranges are supported for GPA intercepts */
-	if (region->type == MSHV_REGION_TYPE_MEM_MOVABLE)
+	if (region->mreg_type == MSHV_REGION_TYPE_MEM_MOVABLE)
 		ret = mshv_region_handle_gfn_fault(region, gfn);
 	else
 		ret = false;
@@ -1193,12 +1193,12 @@ static int mshv_partition_create_region(struct mshv_partition *partition,
 		return PTR_ERR(rg);
 
 	if (is_mmio)
-		rg->type = MSHV_REGION_TYPE_MMIO;
+		rg->mreg_type = MSHV_REGION_TYPE_MMIO;
 	else if (mshv_partition_encrypted(partition) ||
 		 !mshv_region_movable_init(rg))
-		rg->type = MSHV_REGION_TYPE_MEM_PINNED;
+		rg->mreg_type = MSHV_REGION_TYPE_MEM_PINNED;
 	else
-		rg->type = MSHV_REGION_TYPE_MEM_MOVABLE;
+		rg->mreg_type = MSHV_REGION_TYPE_MEM_MOVABLE;
 
 	rg->partition = partition;
 
@@ -1315,7 +1315,7 @@ mshv_map_user_memory(struct mshv_partition *partition,
 	if (ret)
 		return ret;
 
-	switch (region->type) {
+	switch (region->mreg_type) {
 	case MSHV_REGION_TYPE_MEM_PINNED:
 		ret = mshv_prepare_pinned_region(region);
 		break;

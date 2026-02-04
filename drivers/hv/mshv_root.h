@@ -82,16 +82,16 @@ enum mshv_region_type {
 
 struct mshv_mem_region {
 	struct hlist_node hnode;
-	struct kref refcount;
+	struct kref mreg_refcount;
 	u64 nr_pages;
 	u64 start_gfn;
 	u64 start_uaddr;
 	u32 hv_map_flags;
 	struct mshv_partition *partition;
-	enum mshv_region_type type;
-	struct mmu_interval_notifier mni;
-	struct mutex mutex;	/* protects region pages remapping */
-	struct page *pages[];
+	enum mshv_region_type mreg_type;
+	struct mmu_interval_notifier mreg_mni;
+	struct mutex mreg_mutex;	/* protects region pages remapping */
+	struct page *mreg_pages[];
 };
 
 struct mshv_irq_ack_notifier {
