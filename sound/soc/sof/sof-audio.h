@@ -354,7 +354,9 @@ struct snd_sof_pcm {
 	struct snd_sof_pcm_stream stream[2];
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
+	struct snd_sof_platform_stream_params platform_params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
+	bool setup_done[2]; /* the setup of the SOF PCM device is done */
 	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
 
 	/* Must be last - ends in a flex-array member. */
@@ -676,6 +678,11 @@ int sof_widget_list_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 			  struct snd_pcm_hw_params *fe_params,
 			  struct snd_sof_platform_stream_params *platform_params,
 			  int dir);
+int sof_widget_list_prepare(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
+			    struct snd_pcm_hw_params *fe_params,
+			    struct snd_sof_platform_stream_params *platform_params,
+			    int dir);
+void sof_widget_list_unprepare(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_widget_list_free(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm, int dir);
 int sof_pcm_dsp_pcm_free(struct snd_pcm_substream *substream, struct snd_sof_dev *sdev,
 			 struct snd_sof_pcm *spcm);
