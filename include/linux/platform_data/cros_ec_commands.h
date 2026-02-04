@@ -2028,7 +2028,7 @@ struct lightbar_program {
 struct lightbar_program_ex {
 	uint8_t size;
 	uint16_t offset;
-	uint8_t data[0];
+	uint8_t data[];
 } __ec_todo_packed;
 
 struct ec_params_lightbar {
