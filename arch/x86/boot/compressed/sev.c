@@ -28,17 +28,17 @@
 #include "sev.h"
 
 static struct ghcb boot_ghcb_page __aligned(PAGE_SIZE);
-struct ghcb *boot_ghcb;
+struct ghcb *boot_ghcb __section(".data");
 
 #undef __init
 #define __init
 
 #define __BOOT_COMPRESSED
 
-u8 snp_vmpl;
-u16 ghcb_version;
+u8 snp_vmpl __section(".data");
+u16 ghcb_version __section(".data");
 
-u64 boot_svsm_caa_pa;
+u64 boot_svsm_caa_pa __section(".data");
 
 /* Include code for early handlers */
 #include "../../boot/startup/sev-shared.c"
