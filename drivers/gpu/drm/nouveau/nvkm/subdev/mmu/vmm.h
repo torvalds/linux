@@ -9,7 +9,8 @@ union nvkm_pte_tracker {
 	struct {
 		u32 sparse:1;
 		u32 spte_valid:1;
-		u32 padding:14;
+		u32 lpte_valid:1;
+		u32 lptes:13;
 		u32 sptes:16;
 	} s;
 };
