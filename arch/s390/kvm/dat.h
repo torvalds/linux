@@ -361,6 +361,11 @@ struct dat_walk {
 	void *priv;
 };
 
+struct ptval_param {
+	unsigned char offset : 6;
+	unsigned char len : 2;
+};
+
 /**
  * _pte() - Useful constructor for union pte
  * @pfn: the pfn this pte should point to.
@@ -459,6 +464,32 @@ struct kvm_s390_mmu_cache {
 	short int n_rmaps;
 };
 
+struct guest_fault {
+	gfn_t gfn;		/* Guest frame */
+	kvm_pfn_t pfn;		/* Host PFN */
+	struct page *page;	/* Host page */
+	union pte *ptep;	/* Used to resolve the fault, or NULL */
+	union crste *crstep;	/* Used to resolve the fault, or NULL */
+	bool writable;		/* Mapping is writable */
+	bool write_attempt;	/* Write access attempted */
+	bool attempt_pfault;	/* Attempt a pfault first */
+	bool valid;		/* This entry contains valid data */
+	void (*callback)(struct guest_fault *f);
+	void *priv;
+};
+
+/*
+ *	0	1	2	3	4	5	6	7
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ *  0	|				|	    PGT_ADDR		|
+ *  8	|	 VMADDR		|					|
+ * 16	|								|
+ * 24	|								|
+ */
+#define MKPTVAL(o, l) ((struct ptval_param) { .offset = (o), .len = ((l) + 1) / 2 - 1})
+#define PTVAL_PGT_ADDR	MKPTVAL(4, 8)
+#define PTVAL_VMADDR	MKPTVAL(8, 6)
+
 union pgste __must_check __dat_ptep_xchg(union pte *ptep, union pgste pgste, union pte new,
 					 gfn_t gfn, union asce asce, bool uses_skeys);
 bool dat_crstep_xchg_atomic(union crste *crstep, union crste old, union crste new, gfn_t gfn,
@@ -472,6 +503,7 @@ int dat_entry_walk(struct kvm_s390_mmu_cache *mc, gfn_t gfn, union asce asce, in
 		   int walk_level, union crste **last, union pte **ptepp);
 void dat_free_level(struct crst_table *table, bool owns_ptes);
 struct crst_table *dat_alloc_crst_sleepable(unsigned long init);
+int dat_set_asce_limit(struct kvm_s390_mmu_cache *mc, union asce *asce, int newtype);
 int dat_get_storage_key(union asce asce, gfn_t gfn, union skey *skey);
 int dat_set_storage_key(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 			union skey skey, bool nq);
@@ -479,6 +511,16 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 			     union skey skey, union skey *oldkey, bool nq, bool mr, bool mc);
 int dat_reset_reference_bit(union asce asce, gfn_t gfn);
 long dat_reset_skeys(union asce asce, gfn_t start);
+
+unsigned long dat_get_ptval(struct page_table *table, struct ptval_param param);
+void dat_set_ptval(struct page_table *table, struct ptval_param param, unsigned long val);
+
+int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gfn_t end,
+		 u16 type, u16 param);
+int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn);
+bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end);
+int dat_link(struct kvm_s390_mmu_cache *mc, union asce asce, int level,
+	     bool uses_skeys, struct guest_fault *f);
 
 int kvm_s390_mmu_cache_topup(struct kvm_s390_mmu_cache *mc);
 
@@ -878,6 +920,23 @@ static inline void dat_crstep_clear(union crste *crstep, gfn_t gfn, union asce a
 static inline int get_level(union crste *crstep, union pte *ptep)
 {
 	return ptep ? TABLE_TYPE_PAGE_TABLE : crstep->h.tt;
+}
+
+static inline int dat_delete_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start,
+				  unsigned long npages)
+{
+	return dat_set_slot(mc, asce, start, start + npages, _DAT_TOKEN_PIC, PGM_ADDRESSING);
+}
+
+static inline int dat_create_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start,
+				  unsigned long npages)
+{
+	return dat_set_slot(mc, asce, start, start + npages, _DAT_TOKEN_NONE, 0);
+}
+
+static inline bool crste_is_ucas(union crste crste)
+{
+	return is_pmd(crste) && crste.h.i && crste.h.fc0.tl == 1 && crste.h.fc == 0;
 }
 
 #endif /* __KVM_S390_DAT_H */

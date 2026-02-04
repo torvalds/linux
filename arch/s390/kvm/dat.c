@@ -102,6 +102,38 @@ void dat_free_level(struct crst_table *table, bool owns_ptes)
 	dat_free_crst(table);
 }
 
+int dat_set_asce_limit(struct kvm_s390_mmu_cache *mc, union asce *asce, int newtype)
+{
+	struct crst_table *table;
+	union crste crste;
+
+	while (asce->dt > newtype) {
+		table = dereference_asce(*asce);
+		crste = table->crstes[0];
+		if (crste.h.fc)
+			return 0;
+		if (!crste.h.i) {
+			asce->rsto = crste.h.fc0.to;
+			dat_free_crst(table);
+		} else {
+			crste.h.tt--;
+			crst_table_init((void *)table, crste.val);
+		}
+		asce->dt--;
+	}
+	while (asce->dt < newtype) {
+		crste = _crste_fc0(asce->rsto, asce->dt + 1);
+		table = dat_alloc_crst_noinit(mc);
+		if (!table)
+			return -ENOMEM;
+		crst_table_init((void *)table, _CRSTE_HOLE(crste.h.tt).val);
+		table->crstes[0] = crste;
+		asce->rsto = __pa(table) >> PAGE_SHIFT;
+		asce->dt++;
+	}
+	return 0;
+}
+
 /**
  * dat_crstep_xchg() - Exchange a gmap CRSTE with another.
  * @crstep: Pointer to the CRST entry
@@ -824,4 +856,261 @@ long dat_reset_skeys(union asce asce, gfn_t start)
 	};
 
 	return _dat_walk_gfn_range(start, asce_end(asce), asce, &ops, DAT_WALK_IGN_HOLES, NULL);
+}
+
+struct slot_priv {
+	unsigned long token;
+	struct kvm_s390_mmu_cache *mc;
+};
+
+static long _dat_slot_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
+{
+	struct slot_priv *p = walk->priv;
+	union crste dummy = { .val = p->token };
+	union pte new_pte, pte = READ_ONCE(*ptep);
+
+	new_pte = _PTE_TOK(dummy.tok.type, dummy.tok.par);
+
+	/* Table entry already in the desired state. */
+	if (pte.val == new_pte.val)
+		return 0;
+
+	dat_ptep_xchg(ptep, new_pte, gfn, walk->asce, false);
+	return 0;
+}
+
+static long _dat_slot_crste(union crste *crstep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
+{
+	union crste new_crste, crste = READ_ONCE(*crstep);
+	struct slot_priv *p = walk->priv;
+
+	new_crste.val = p->token;
+	new_crste.h.tt = crste.h.tt;
+
+	/* Table entry already in the desired state. */
+	if (crste.val == new_crste.val)
+		return 0;
+
+	/* This table entry needs to be updated. */
+	if (walk->start <= gfn && walk->end >= next) {
+		dat_crstep_xchg_atomic(crstep, crste, new_crste, gfn, walk->asce);
+		/* A lower level table was present, needs to be freed. */
+		if (!crste.h.fc && !crste.h.i) {
+			if (is_pmd(crste))
+				dat_free_pt(dereference_pmd(crste.pmd));
+			else
+				dat_free_level(dereference_crste(crste), true);
+		}
+		return 0;
+	}
+
+	/* A lower level table is present, things will handled there. */
+	if (!crste.h.fc && !crste.h.i)
+		return 0;
+	/* Split (install a lower level table), and handle things there. */
+	return dat_split_crste(p->mc, crstep, gfn, walk->asce, false);
+}
+
+static const struct dat_walk_ops dat_slot_ops = {
+	.pte_entry = _dat_slot_pte,
+	.crste_ops = { _dat_slot_crste, _dat_slot_crste, _dat_slot_crste, _dat_slot_crste, },
+};
+
+int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gfn_t end,
+		 u16 type, u16 param)
+{
+	struct slot_priv priv = {
+		.token = _CRSTE_TOK(0, type, param).val,
+		.mc = mc,
+	};
+
+	return _dat_walk_gfn_range(start, end, asce, &dat_slot_ops,
+				   DAT_WALK_IGN_HOLES | DAT_WALK_ANY, &priv);
+}
+
+static void pgste_set_unlock_multiple(union pte *first, int n, union pgste *pgstes)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (!pgstes[i].pcl)
+			break;
+		pgste_set_unlock(first + i, pgstes[i]);
+	}
+}
+
+static bool pgste_get_trylock_multiple(union pte *first, int n, union pgste *pgstes)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (!pgste_get_trylock(first + i, pgstes + i))
+			break;
+	}
+	if (i == n)
+		return true;
+	pgste_set_unlock_multiple(first, n, pgstes);
+	return false;
+}
+
+unsigned long dat_get_ptval(struct page_table *table, struct ptval_param param)
+{
+	union pgste pgstes[4] = {};
+	unsigned long res = 0;
+	int i, n;
+
+	n = param.len + 1;
+
+	while (!pgste_get_trylock_multiple(table->ptes + param.offset, n, pgstes))
+		cpu_relax();
+
+	for (i = 0; i < n; i++)
+		res = res << 16 | pgstes[i].val16;
+
+	pgste_set_unlock_multiple(table->ptes + param.offset, n, pgstes);
+	return res;
+}
+
+void dat_set_ptval(struct page_table *table, struct ptval_param param, unsigned long val)
+{
+	union pgste pgstes[4] = {};
+	int i, n;
+
+	n = param.len + 1;
+
+	while (!pgste_get_trylock_multiple(table->ptes + param.offset, n, pgstes))
+		cpu_relax();
+
+	for (i = param.len; i >= 0; i--) {
+		pgstes[i].val16 = val;
+		val = val >> 16;
+	}
+
+	pgste_set_unlock_multiple(table->ptes + param.offset, n, pgstes);
+}
+
+static long _dat_test_young_pte(union pte *ptep, gfn_t start, gfn_t end, struct dat_walk *walk)
+{
+	return ptep->s.y;
+}
+
+static long _dat_test_young_crste(union crste *crstep, gfn_t start, gfn_t end,
+				  struct dat_walk *walk)
+{
+	return crstep->h.fc && crstep->s.fc1.y;
+}
+
+static const struct dat_walk_ops test_age_ops = {
+	.pte_entry = _dat_test_young_pte,
+	.pmd_entry = _dat_test_young_crste,
+	.pud_entry = _dat_test_young_crste,
+};
+
+/**
+ * dat_test_age_gfn() - Test young.
+ * @asce: The ASCE whose address range is to be tested.
+ * @start: The first guest frame of the range to check.
+ * @end: The guest frame after the last in the range.
+ *
+ * Context: called by KVM common code with the kvm mmu write lock held.
+ *
+ * Return: %true if any page in the given range is young, otherwise %false.
+ */
+bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end)
+{
+	return _dat_walk_gfn_range(start, end, asce, &test_age_ops, 0, NULL) > 0;
+}
+
+int dat_link(struct kvm_s390_mmu_cache *mc, union asce asce, int level,
+	     bool uses_skeys, struct guest_fault *f)
+{
+	union crste oldval, newval;
+	union pte newpte, oldpte;
+	union pgste pgste;
+	int rc = 0;
+
+	rc = dat_entry_walk(mc, f->gfn, asce, DAT_WALK_ALLOC_CONTINUE, level, &f->crstep, &f->ptep);
+	if (rc == -EINVAL || rc == -ENOMEM)
+		return rc;
+	if (rc)
+		return -EAGAIN;
+
+	if (WARN_ON_ONCE(unlikely(get_level(f->crstep, f->ptep) > level)))
+		return -EINVAL;
+
+	if (f->ptep) {
+		pgste = pgste_get_lock(f->ptep);
+		oldpte = *f->ptep;
+		newpte = _pte(f->pfn, f->writable, f->write_attempt | oldpte.s.d, !f->page);
+		newpte.s.sd = oldpte.s.sd;
+		oldpte.s.sd = 0;
+		if (oldpte.val == _PTE_EMPTY.val || oldpte.h.pfra == f->pfn) {
+			pgste = __dat_ptep_xchg(f->ptep, pgste, newpte, f->gfn, asce, uses_skeys);
+			if (f->callback)
+				f->callback(f);
+		} else {
+			rc = -EAGAIN;
+		}
+		pgste_set_unlock(f->ptep, pgste);
+	} else {
+		oldval = READ_ONCE(*f->crstep);
+		newval = _crste_fc1(f->pfn, oldval.h.tt, f->writable,
+				    f->write_attempt | oldval.s.fc1.d);
+		newval.s.fc1.sd = oldval.s.fc1.sd;
+		if (oldval.val != _CRSTE_EMPTY(oldval.h.tt).val &&
+		    crste_origin_large(oldval) != crste_origin_large(newval))
+			return -EAGAIN;
+		if (!dat_crstep_xchg_atomic(f->crstep, oldval, newval, f->gfn, asce))
+			return -EAGAIN;
+		if (f->callback)
+			f->callback(f);
+	}
+
+	return rc;
+}
+
+static long dat_set_pn_crste(union crste *crstep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
+{
+	union crste crste = READ_ONCE(*crstep);
+	int *n = walk->priv;
+
+	if (!crste.h.fc || crste.h.i || crste.h.p)
+		return 0;
+
+	*n = 2;
+	if (crste.s.fc1.prefix_notif)
+		return 0;
+	crste.s.fc1.prefix_notif = 1;
+	dat_crstep_xchg(crstep, crste, gfn, walk->asce);
+	return 0;
+}
+
+static long dat_set_pn_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
+{
+	int *n = walk->priv;
+	union pgste pgste;
+
+	pgste = pgste_get_lock(ptep);
+	if (!ptep->h.i && !ptep->h.p) {
+		pgste.prefix_notif = 1;
+		*n += 1;
+	}
+	pgste_set_unlock(ptep, pgste);
+	return 0;
+}
+
+int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn)
+{
+	static const struct dat_walk_ops ops = {
+		.pte_entry = dat_set_pn_pte,
+		.pmd_entry = dat_set_pn_crste,
+		.pud_entry = dat_set_pn_crste,
+	};
+
+	int n = 0;
+
+	_dat_walk_gfn_range(gfn, gfn + 2, asce, &ops, DAT_WALK_IGN_HOLES, &n);
+	if (n != 2)
+		return -EAGAIN;
+	return 0;
 }
