@@ -2004,6 +2004,25 @@ sof_ipc4_prepare_dai_copier(struct snd_sof_dev *sdev, struct snd_sof_dai *dai,
 	return ret;
 }
 
+static void sof_ipc4_host_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+				 struct snd_sof_platform_stream_params *platform_params)
+{
+	struct sof_ipc4_copier *ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+	struct sof_ipc4_copier_data *copier_data = &ipc4_copier->data;
+	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+	u32 host_dma_id = platform_params->stream_tag - 1;
+
+	if (pipeline->use_chain_dma) {
+		pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_HOST_ID_MASK;
+		pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_HOST_ID(host_dma_id);
+		return;
+	}
+
+	copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
+	copier_data->gtw_cfg.node_id |=	SOF_IPC4_NODE_INDEX(host_dma_id);
+}
+
 static int
 sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			       struct snd_pcm_hw_params *fe_params,
@@ -3929,4 +3948,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.dai_get_param = sof_ipc4_dai_get_param,
 	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
 	.link_setup = sof_ipc4_link_setup,
+	.host_config = sof_ipc4_host_config,
 };

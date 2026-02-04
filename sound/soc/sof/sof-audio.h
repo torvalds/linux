@@ -209,6 +209,7 @@ struct sof_ipc_tplg_widget_ops {
  * @widget_setup: Function pointer for setting up setup in the DSP
  * @widget_free: Function pointer for freeing widget in the DSP
  * @dai_config: Function pointer for sending DAI config IPC to the DSP
+ * @host_config: Function pointer for setting the DMA ID for host widgets
  * @dai_get_param: Function pointer for getting the DAI parameter
  * @set_up_all_pipelines: Function pointer for setting up all topology pipelines
  * @tear_down_all_pipelines: Function pointer for tearing down all topology pipelines
@@ -230,6 +231,8 @@ struct sof_ipc_tplg_ops {
 	int (*widget_free)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 	int (*dai_config)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 			  unsigned int flags, struct snd_sof_dai_config_data *data);
+	void (*host_config)(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			    struct snd_sof_platform_stream_params *platform_params);
 	int (*dai_get_param)(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int param_type);
 	int (*set_up_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
 	int (*tear_down_all_pipelines)(struct snd_sof_dev *sdev, bool verify);
