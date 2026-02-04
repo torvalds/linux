@@ -116,6 +116,41 @@ int sdca_asoc_count_component(struct device *dev, struct sdca_function_data *fun
 }
 EXPORT_SYMBOL_NS(sdca_asoc_count_component, "SND_SOC_SDCA");
 
+static int ge_put_enum_double(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct device *dev = component->dev;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int *item = ucontrol->value.enumerated.item;
+	unsigned int reg = e->reg;
+	int ret;
+
+	reg &= ~SDW_SDCA_CTL_CSEL(0x3F);
+	reg |= SDW_SDCA_CTL_CSEL(SDCA_CTL_GE_DETECTED_MODE);
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume writing %s: %d\n",
+			kcontrol->id.name, ret);
+		return ret;
+	}
+
+	ret = snd_soc_component_read(component, reg);
+	pm_runtime_put(dev);
+	if (ret < 0)
+		return ret;
+	else if (ret <= SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS)
+		return -EBUSY;
+
+	ret = snd_soc_enum_item_to_val(e, item[0]);
+	if (ret <= SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS)
+		return -EINVAL;
+
+	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+}
+
 static int entity_early_parse_ge(struct device *dev,
 				 struct sdca_function_data *function,
 				 struct sdca_entity *entity)
@@ -192,7 +227,7 @@ static int entity_early_parse_ge(struct device *dev,
 	kctl->name = control_name;
 	kctl->info = snd_soc_info_enum_double;
 	kctl->get = snd_soc_dapm_get_enum_double;
-	kctl->put = snd_soc_dapm_put_enum_double;
+	kctl->put = ge_put_enum_double;
 	kctl->private_value = (unsigned long)soc_enum;
 
 	entity->ge.kctl = kctl;

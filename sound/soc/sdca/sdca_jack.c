@@ -105,7 +105,7 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 
 		ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
 
-		ret = kctl->put(kctl, ucontrol);
+		ret = snd_soc_dapm_put_enum_double(kctl, ucontrol);
 		if (ret < 0) {
 			dev_err(dev, "failed to update selected mode: %d\n", ret);
 			return ret;
