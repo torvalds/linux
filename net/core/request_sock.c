@@ -17,30 +17,6 @@
 #include <net/request_sock.h>
 
 /*
- * Maximum number of SYN_RECV sockets in queue per LISTEN socket.
- * One SYN_RECV socket costs about 80bytes on a 32bit machine.
- * It would be better to replace it with a global counter for all sockets
- * but then some measure against one socket starving all other sockets
- * would be needed.
- *
- * The minimum value of it is 128. Experiments with real servers show that
- * it is absolutely not enough even at 100conn/sec. 256 cures most
- * of problems.
- * This value is adjusted to 128 for low memory machines,
- * and it will increase in proportion to the memory of machine.
- * Note : Dont forget somaxconn that may limit backlog too.
- */
-
-void reqsk_queue_alloc(struct request_sock_queue *queue)
-{
-	queue->fastopenq.rskq_rst_head = NULL;
-	queue->fastopenq.rskq_rst_tail = NULL;
-	queue->fastopenq.qlen = 0;
-
-	queue->rskq_accept_head = NULL;
-}
-
-/*
  * This function is called to set a Fast Open socket's "fastopen_rsk" field
  * to NULL when a TFO socket no longer needs to access the request_sock.
  * This happens only after 3WHS has been either completed or aborted (e.g.,
