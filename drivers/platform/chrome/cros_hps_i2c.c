@@ -46,7 +46,9 @@ static int hps_release(struct inode *inode, struct file *file)
 					       struct hps_drvdata, misc_device);
 	struct device *dev = &hps->client->dev;
 
-	return pm_runtime_put(dev);
+	pm_runtime_put(dev);
+
+	return 0;
 }
 
 static const struct file_operations hps_fops = {

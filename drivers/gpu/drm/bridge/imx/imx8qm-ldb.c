@@ -280,9 +280,7 @@ static void imx8qm_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
 	clk_disable_unprepare(imx8qm_ldb->clk_bypass);
 	clk_disable_unprepare(imx8qm_ldb->clk_pixel);
 
-	ret = pm_runtime_put(dev);
-	if (ret < 0)
-		DRM_DEV_ERROR(dev, "failed to put runtime PM: %d\n", ret);
+	pm_runtime_put(dev);
 }
 
 static const u32 imx8qm_ldb_bus_output_fmts[] = {
