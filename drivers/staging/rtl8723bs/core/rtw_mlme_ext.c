@@ -1323,11 +1323,10 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		spin_lock_bh(&pstat->lock);
 		kfree(pstat->passoc_req);
 		pstat->assoc_req_len = 0;
-		pstat->passoc_req =  rtw_zmalloc(pkt_len);
-		if (pstat->passoc_req) {
-			memcpy(pstat->passoc_req, pframe, pkt_len);
+		pstat->passoc_req = kmemdup(pframe, pkt_len, GFP_ATOMIC);
+		if (pstat->passoc_req)
 			pstat->assoc_req_len = pkt_len;
-		}
+
 		spin_unlock_bh(&pstat->lock);
 
 		/* 3-(1) report sta add event */

@@ -129,11 +129,9 @@ void rtw_buf_update(u8 **buf, u32 *buf_len, u8 *src, u32 src_len)
 		goto keep_ori;
 
 	/* duplicate src */
-	dup = rtw_malloc(src_len);
-	if (dup) {
+	dup = kmemdup(src, src_len, GFP_ATOMIC);
+	if (dup)
 		dup_len = src_len;
-		memcpy(dup, src, dup_len);
-	}
 
 keep_ori:
 	ori = *buf;
