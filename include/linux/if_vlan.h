@@ -594,8 +594,17 @@ static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 	}
 }
 
+struct vlan_type_depth {
+	__be16 type;
+	u16 depth;
+};
+
+struct vlan_type_depth __vlan_get_protocol_offset(const struct sk_buff *skb,
+						  __be16 type,
+						  int mac_offset);
+
 /**
- * __vlan_get_protocol_offset() - get protocol EtherType.
+ * vlan_get_protocol_offset_inline() - get protocol EtherType.
  * @skb: skbuff to query
  * @type: first vlan protocol
  * @mac_offset: MAC offset
@@ -604,40 +613,24 @@ static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
  * Returns: the EtherType of the packet, regardless of whether it is
  * vlan encapsulated (normal or hardware accelerated) or not.
  */
-static inline __be16 __vlan_get_protocol_offset(const struct sk_buff *skb,
-						__be16 type,
-						int mac_offset,
-						int *depth)
+static inline
+__be16 vlan_get_protocol_offset_inline(const struct sk_buff *skb,
+				       __be16 type,
+				       int mac_offset,
+				       int *depth)
 {
-	unsigned int vlan_depth = skb->mac_len, parse_depth = VLAN_MAX_DEPTH;
-
-	/* if type is 802.1Q/AD then the header should already be
-	 * present at mac_len - VLAN_HLEN (if mac_len > 0), or at
-	 * ETH_HLEN otherwise
-	 */
 	if (eth_type_vlan(type)) {
-		if (vlan_depth) {
-			if (WARN_ON(vlan_depth < VLAN_HLEN))
-				return 0;
-			vlan_depth -= VLAN_HLEN;
-		} else {
-			vlan_depth = ETH_HLEN;
-		}
-		do {
-			struct vlan_hdr vhdr, *vh;
+		struct vlan_type_depth res;
 
-			vh = skb_header_pointer(skb, mac_offset + vlan_depth,
-						sizeof(vhdr), &vhdr);
-			if (unlikely(!vh || !--parse_depth))
-				return 0;
+		res = __vlan_get_protocol_offset(skb, type, mac_offset);
 
-			type = vh->h_vlan_encapsulated_proto;
-			vlan_depth += VLAN_HLEN;
-		} while (eth_type_vlan(type));
+		if (depth && res.type)
+			*depth = res.depth;
+		return res.type;
 	}
 
 	if (depth)
-		*depth = vlan_depth;
+		*depth = skb->mac_len;
 
 	return type;
 }
@@ -645,7 +638,7 @@ static inline __be16 __vlan_get_protocol_offset(const struct sk_buff *skb,
 static inline __be16 __vlan_get_protocol(const struct sk_buff *skb, __be16 type,
 					 int *depth)
 {
-	return __vlan_get_protocol_offset(skb, type, 0, depth);
+	return vlan_get_protocol_offset_inline(skb, type, 0, depth);
 }
 
 /**
