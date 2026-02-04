@@ -31,7 +31,6 @@ SEC("tp_btf/hrtimer_cancel")
 int BPF_PROG(tp_hrtimer_cancel, struct hrtimer *hrtimer)
 {
 	struct bpf_timer *timer;
-	static bool called = false;
 	int key = 0;
 
 	if (!in_timer_start)
@@ -42,13 +41,9 @@ int BPF_PROG(tp_hrtimer_cancel, struct hrtimer *hrtimer)
 
 	/*
 	 * Call bpf_timer_start() from the tracepoint within hrtimer logic
-	 * on the same timer to make sure it doesn't deadlock,
-	 * and do it once.
+	 * on the same timer to make sure it doesn't deadlock.
 	 */
-	if (!called) {
-		called = true;
-		bpf_timer_start(timer, 1000000000, 0);
-	}
+	bpf_timer_start(timer, 1000000000, 0);
 	return 0;
 }
 
