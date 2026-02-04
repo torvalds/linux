@@ -34,28 +34,6 @@ static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
 	free_swap_and_cache(entry);
 }
 
-static inline pgste_t pgste_get_lock(pte_t *ptep)
-{
-	unsigned long value = 0;
-#ifdef CONFIG_PGSTE
-	unsigned long *ptr = (unsigned long *)(ptep + PTRS_PER_PTE);
-
-	do {
-		value = __atomic64_or_barrier(PGSTE_PCL_BIT, ptr);
-	} while (value & PGSTE_PCL_BIT);
-	value |= PGSTE_PCL_BIT;
-#endif
-	return __pgste(value);
-}
-
-static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
-{
-#ifdef CONFIG_PGSTE
-	barrier();
-	WRITE_ONCE(*(unsigned long *)(ptep + PTRS_PER_PTE), pgste_val(pgste) & ~PGSTE_PCL_BIT);
-#endif
-}
-
 /**
  * gmap_helper_zap_one_page() - discard a page if it was swapped.
  * @mm: the mm
@@ -68,9 +46,7 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 {
 	struct vm_area_struct *vma;
-	unsigned long pgstev;
 	spinlock_t *ptl;
-	pgste_t pgste;
 	pte_t *ptep;
 
 	mmap_assert_locked(mm);
@@ -85,18 +61,8 @@ void gmap_helper_zap_one_page(struct mm_struct *mm, unsigned long vmaddr)
 	if (unlikely(!ptep))
 		return;
 	if (pte_swap(*ptep)) {
-		preempt_disable();
-		pgste = pgste_get_lock(ptep);
-		pgstev = pgste_val(pgste);
-
-		if ((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED ||
-		    (pgstev & _PGSTE_GPS_ZERO)) {
-			ptep_zap_softleaf_entry(mm, softleaf_from_pte(*ptep));
-			pte_clear(mm, vmaddr, ptep);
-		}
-
-		pgste_set_unlock(ptep, pgste);
-		preempt_enable();
+		ptep_zap_softleaf_entry(mm, softleaf_from_pte(*ptep));
+		pte_clear(mm, vmaddr, ptep);
 	}
 	pte_unmap_unlock(ptep, ptl);
 }

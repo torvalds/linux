@@ -26,7 +26,6 @@
 #include <linux/uaccess.h>
 #include <asm/sclp.h>
 #include <asm/isc.h>
-#include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/airq.h>
 #include <asm/tpi.h>
@@ -34,6 +33,7 @@
 #include "gaccess.h"
 #include "trace-s390.h"
 #include "pci.h"
+#include "gmap.h"
 
 #define PFAULT_INIT 0x0600
 #define PFAULT_DONE 0x0680
@@ -2632,12 +2632,12 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_APF_ENABLE:
 		if (kvm_is_ucontrol(dev->kvm))
 			return -EINVAL;
-		dev->kvm->arch.gmap->pfault_enabled = 1;
+		set_bit(GMAP_FLAG_PFAULT_ENABLED, &dev->kvm->arch.gmap->flags);
 		break;
 	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
 		if (kvm_is_ucontrol(dev->kvm))
 			return -EINVAL;
-		dev->kvm->arch.gmap->pfault_enabled = 0;
+		clear_bit(GMAP_FLAG_PFAULT_ENABLED, &dev->kvm->arch.gmap->flags);
 		/*
 		 * Make sure no async faults are in transition when
 		 * clearing the queues. So we don't need to worry
