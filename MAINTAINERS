@@ -22390,7 +22390,6 @@ M:	Tzung-Bi Shih <tzungbi@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/base/revocable.c
-F:	drivers/base/revocable_test.c
 F:	include/linux/revocable.h
 
 RFKILL
