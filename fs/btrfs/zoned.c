@@ -2386,6 +2386,9 @@ bool btrfs_zone_activate(struct btrfs_block_group *block_group)
 	if (!btrfs_is_zoned(block_group->fs_info))
 		return true;
 
+	if (unlikely(btrfs_is_testing(fs_info)))
+		return true;
+
 	map = block_group->physical_map;
 
 	spin_lock(&fs_info->zone_active_bgs_lock);
