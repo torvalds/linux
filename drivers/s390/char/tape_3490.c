@@ -795,8 +795,7 @@ static struct ccw_driver tape_3490_driver = {
 	.int_class = IRQIO_TAP,
 };
 
-static int
-tape_3490_init (void)
+int tape_3490_init(void)
 {
 	int rc;
 
@@ -816,8 +815,7 @@ tape_3490_init (void)
 	return rc;
 }
 
-static void
-tape_3490_exit(void)
+void tape_3490_exit(void)
 {
 	ccw_driver_unregister(&tape_3490_driver);
 
@@ -825,9 +823,3 @@ tape_3490_exit(void)
 }
 
 MODULE_DEVICE_TABLE(ccw, tape_3490_ids);
-MODULE_AUTHOR("(C) 2001-2002 IBM Deutschland Entwicklung GmbH");
-MODULE_DESCRIPTION("Linux on zSeries channel attached 3490 tape device driver");
-MODULE_LICENSE("GPL");
-
-module_init(tape_3490_init);
-module_exit(tape_3490_exit);

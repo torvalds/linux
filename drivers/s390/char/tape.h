@@ -274,6 +274,10 @@ extern void tapechar_exit(void);
 extern int  tapechar_setup_device(struct tape_device *);
 extern void tapechar_cleanup_device(struct tape_device *);
 
+/* Externals from tape_3490.c */
+extern int tape_3490_init(void);
+extern void tape_3490_exit(void);
+
 /* tape initialisation functions */
 #ifdef CONFIG_PROC_FS
 extern void tape_proc_init (void);
