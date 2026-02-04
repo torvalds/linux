@@ -1194,7 +1194,7 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 	pwlanhdr = (struct ieee80211_hdr *)pframe;
 
 	ori_len = BIP_AAD_SIZE + pattrib->pktlen;
-	tmp_buf = BIP_AAD = rtw_zmalloc(ori_len);
+	tmp_buf = BIP_AAD = kzalloc(ori_len, GFP_ATOMIC);
 	subtype = GetFrameSubType(pframe); /* bit(7)~bit(2) */
 
 	if (!BIP_AAD)
@@ -1698,8 +1698,7 @@ struct xmit_frame *rtw_alloc_xmitframe_once(struct xmit_priv *pxmitpriv)
 	struct xmit_frame *pxframe = NULL;
 	u8 *alloc_addr;
 
-	alloc_addr = rtw_zmalloc(sizeof(struct xmit_frame) + 4);
-
+	alloc_addr = kzalloc(sizeof(*pxframe) + 4, GFP_ATOMIC);
 	if (!alloc_addr)
 		goto exit;
 
@@ -1870,8 +1869,7 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 	pxmitpriv->hwxmits = NULL;
 
-	pxmitpriv->hwxmits = rtw_zmalloc(sizeof(struct hw_xmit) * pxmitpriv->hwxmit_entry);
-
+	pxmitpriv->hwxmits = kcalloc(pxmitpriv->hwxmit_entry, sizeof(*hwxmits), GFP_ATOMIC);
 	if (!pxmitpriv->hwxmits)
 		return _FAIL;
 

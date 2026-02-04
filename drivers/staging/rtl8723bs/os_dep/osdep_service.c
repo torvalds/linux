@@ -218,13 +218,8 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = rtw_malloc(struct_size(cbuf, bufs, size));
-
-	if (cbuf) {
-		cbuf->write = 0;
-		cbuf->read = 0;
-		cbuf->size = size;
-	}
+	cbuf = kzalloc(struct_size(cbuf, bufs, size), GFP_KERNEL);
+	cbuf->size = size;
 
 	return cbuf;
 }
