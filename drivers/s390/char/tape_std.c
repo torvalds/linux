@@ -22,7 +22,6 @@
 #include <asm/types.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
-#include <asm/tape390.h>
 
 #define TAPE_DBF_AREA	tape_core_dbf
 
@@ -114,36 +113,6 @@ tape_std_unassign (struct tape_device *device)
 	} else {
 		DBF_EVENT(3, "%08x: Tape unassigned\n", device->cdev_id);
 	}
-	tape_free_request(request);
-	return rc;
-}
-
-/*
- * TAPE390_DISPLAY: Show a string on the tape display.
- */
-int
-tape_std_display(struct tape_device *device, struct display_struct *disp)
-{
-	struct tape_request *request;
-	int rc;
-
-	request = tape_alloc_request(2, 17);
-	if (IS_ERR(request)) {
-		DBF_EVENT(3, "TAPE: load display failed\n");
-		return PTR_ERR(request);
-	}
-	request->op = TO_DIS;
-
-	*(unsigned char *) request->cpdata = disp->cntrl;
-	DBF_EVENT(5, "TAPE: display cntrl=%04x\n", disp->cntrl);
-	memcpy(((unsigned char *) request->cpdata) + 1, disp->message1, 8);
-	memcpy(((unsigned char *) request->cpdata) + 9, disp->message2, 8);
-	ASCEBC(((unsigned char*) request->cpdata) + 1, 16);
-
-	tape_ccw_cc(request->cpaddr, LOAD_DISPLAY, 17, request->cpdata);
-	tape_ccw_end(request->cpaddr + 1, NOP, 0, NULL);
-
-	rc = tape_do_io_interruptible(device, request);
 	tape_free_request(request);
 	return rc;
 }
@@ -696,7 +665,6 @@ tape_std_process_eov(struct tape_device *device)
 
 EXPORT_SYMBOL(tape_std_assign);
 EXPORT_SYMBOL(tape_std_unassign);
-EXPORT_SYMBOL(tape_std_display);
 EXPORT_SYMBOL(tape_std_read_block_id);
 EXPORT_SYMBOL(tape_std_mtload);
 EXPORT_SYMBOL(tape_std_mtsetblk);
