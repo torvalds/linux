@@ -956,7 +956,6 @@ free_opp:
 /* Initializes OPP tables based on new bindings */
 static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 {
-	struct device_node *np;
 	int ret, count = 0;
 	struct dev_pm_opp *opp;
 
@@ -971,13 +970,12 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 	}
 
 	/* We have opp-table node now, iterate over it and add OPPs */
-	for_each_available_child_of_node(opp_table->np, np) {
+	for_each_available_child_of_node_scoped(opp_table->np, np) {
 		opp = _opp_add_static_v2(opp_table, dev, np);
 		if (IS_ERR(opp)) {
 			ret = PTR_ERR(opp);
 			dev_err(dev, "%s: Failed to add OPP, %d\n", __func__,
 				ret);
-			of_node_put(np);
 			goto remove_static_opp;
 		} else if (opp) {
 			count++;
