@@ -108,6 +108,7 @@ union pte {
 #define _PAGE_SD 0x002
 
 /* Needed as macro to perform atomic operations */
+#define PGSTE_PCL_BIT		0x0080000000000000UL	/* PCL lock, HW bit */
 #define PGSTE_CMMA_D_BIT	0x0000000000008000UL	/* CMMA dirty soft-bit */
 
 enum pgste_gps_usage {

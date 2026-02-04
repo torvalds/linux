@@ -37,12 +37,6 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 	return __huge_ptep_get_and_clear(mm, addr, ptep);
 }
 
-static inline void arch_clear_hugetlb_flags(struct folio *folio)
-{
-	clear_bit(PG_arch_1, &folio->flags.f);
-}
-#define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
-
 #define __HAVE_ARCH_HUGE_PTE_CLEAR
 static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, unsigned long sz)

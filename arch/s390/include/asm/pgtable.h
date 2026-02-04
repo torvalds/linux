@@ -413,28 +413,6 @@ void setup_protection_map(void);
  * SW-bits: y young, d dirty, r read, w write
  */
 
-/* Page status table bits for virtualization */
-#define PGSTE_ACC_BITS	0xf000000000000000UL
-#define PGSTE_FP_BIT	0x0800000000000000UL
-#define PGSTE_PCL_BIT	0x0080000000000000UL
-#define PGSTE_HR_BIT	0x0040000000000000UL
-#define PGSTE_HC_BIT	0x0020000000000000UL
-#define PGSTE_GR_BIT	0x0004000000000000UL
-#define PGSTE_GC_BIT	0x0002000000000000UL
-#define PGSTE_ST2_MASK	0x0000ffff00000000UL
-#define PGSTE_UC_BIT	0x0000000000008000UL	/* user dirty (migration) */
-#define PGSTE_IN_BIT	0x0000000000004000UL	/* IPTE notify bit */
-#define PGSTE_VSIE_BIT	0x0000000000002000UL	/* ref'd in a shadow table */
-
-/* Guest Page State used for virtualization */
-#define _PGSTE_GPS_ZERO			0x0000000080000000UL
-#define _PGSTE_GPS_NODAT		0x0000000040000000UL
-#define _PGSTE_GPS_USAGE_MASK		0x0000000003000000UL
-#define _PGSTE_GPS_USAGE_STABLE		0x0000000000000000UL
-#define _PGSTE_GPS_USAGE_UNUSED		0x0000000001000000UL
-#define _PGSTE_GPS_USAGE_POT_VOLATILE	0x0000000002000000UL
-#define _PGSTE_GPS_USAGE_VOLATILE	_PGSTE_GPS_USAGE_MASK
-
 /*
  * A user page table pointer has the space-switch-event bit, the
  * private-space-control bit and the storage-alteration-event-control
@@ -566,15 +544,6 @@ static inline bool mm_pmd_folded(struct mm_struct *mm)
 }
 #define mm_pmd_folded(mm) mm_pmd_folded(mm)
 
-static inline int mm_has_pgste(struct mm_struct *mm)
-{
-#ifdef CONFIG_PGSTE
-	if (unlikely(mm->context.has_pgste))
-		return 1;
-#endif
-	return 0;
-}
-
 static inline int mm_is_protected(struct mm_struct *mm)
 {
 #if IS_ENABLED(CONFIG_KVM)
@@ -582,16 +551,6 @@ static inline int mm_is_protected(struct mm_struct *mm)
 		return 1;
 #endif
 	return 0;
-}
-
-static inline pgste_t clear_pgste_bit(pgste_t pgste, unsigned long mask)
-{
-	return __pgste(pgste_val(pgste) & ~mask);
-}
-
-static inline pgste_t set_pgste_bit(pgste_t pgste, unsigned long mask)
-{
-	return __pgste(pgste_val(pgste) | mask);
 }
 
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
@@ -634,15 +593,6 @@ static inline int mm_forbids_zeropage(struct mm_struct *mm)
 {
 #if IS_ENABLED(CONFIG_KVM)
 	if (!mm->context.allow_cow_sharing)
-		return 1;
-#endif
-	return 0;
-}
-
-static inline int mm_uses_skeys(struct mm_struct *mm)
-{
-#ifdef CONFIG_PGSTE
-	if (mm->context.uses_skeys)
 		return 1;
 #endif
 	return 0;
@@ -1356,44 +1306,12 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	if (pte_same(*ptep, entry))
 		return 0;
-	if (cpu_has_rdp() && !mm_has_pgste(vma->vm_mm) && pte_allow_rdp(*ptep, entry))
+	if (cpu_has_rdp() && pte_allow_rdp(*ptep, entry))
 		ptep_reset_dat_prot(vma->vm_mm, addr, ptep, entry);
 	else
 		ptep_xchg_direct(vma->vm_mm, addr, ptep, entry);
 	return 1;
 }
-
-/*
- * Additional functions to handle KVM guest page tables
- */
-void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep, pte_t entry);
-void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
-		    pte_t *ptep, int prot, unsigned long bit);
-void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep , int reset);
-void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
-		    pte_t *sptep, pte_t *tptep, pte_t pte);
-void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep);
-
-bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long address,
-			    pte_t *ptep);
-int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
-			  unsigned char key, bool nq);
-int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
-			       unsigned char key, unsigned char *oldkey,
-			       bool nq, bool mr, bool mc);
-int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr);
-int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
-			  unsigned char *key);
-
-int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
-				unsigned long bits, unsigned long value);
-int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
-int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
-			unsigned long *oldpte, unsigned long *oldpgste);
 
 #define pgprot_writecombine	pgprot_writecombine
 pgprot_t pgprot_writecombine(pgprot_t prot);
@@ -1409,23 +1327,12 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 {
 	if (pte_present(entry))
 		entry = clear_pte_bit(entry, __pgprot(_PAGE_UNUSED));
-	if (mm_has_pgste(mm)) {
-		for (;;) {
-			ptep_set_pte_at(mm, addr, ptep, entry);
-			if (--nr == 0)
-				break;
-			ptep++;
-			entry = __pte(pte_val(entry) + PAGE_SIZE);
-			addr += PAGE_SIZE;
-		}
-	} else {
-		for (;;) {
-			set_pte(ptep, entry);
-			if (--nr == 0)
-				break;
-			ptep++;
-			entry = __pte(pte_val(entry) + PAGE_SIZE);
-		}
+	for (;;) {
+		set_pte(ptep, entry);
+		if (--nr == 0)
+			break;
+		ptep++;
+		entry = __pte(pte_val(entry) + PAGE_SIZE);
 	}
 }
 #define set_ptes set_ptes
@@ -2025,19 +1932,5 @@ extern pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc);
 
 #define pmd_pgtable(pmd) \
 	((pgtable_t)__va(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE))
-
-static inline unsigned long gmap_pgste_get_pgt_addr(unsigned long *pgt)
-{
-	unsigned long *pgstes, res;
-
-	pgstes = pgt + _PAGE_ENTRIES;
-
-	res = (pgstes[0] & PGSTE_ST2_MASK) << 16;
-	res |= pgstes[1] & PGSTE_ST2_MASK;
-	res |= (pgstes[2] & PGSTE_ST2_MASK) >> 16;
-	res |= (pgstes[3] & PGSTE_ST2_MASK) >> 32;
-
-	return res;
-}
 
 #endif /* _S390_PAGE_H */
