@@ -13,6 +13,21 @@
 #include "sof-audio.h"
 #include "ops.h"
 
+/*
+ * Check if a DAI widget is an aggregated DAI. Aggregated DAI's have names ending in numbers
+ * starting with 0. For example: in the case of a SDW speaker with 2 amps, the topology contains
+ * 2 DAI's names alh-copier.SDW1.Playback.0 and alh-copier-SDW1.Playback.1. In this case, only the
+ * DAI alh-copier.SDW1.Playback.0 is set up in the firmware. The other DAI,
+ * alh-copier.SDW1.Playback.1 in topology is for the sake of completeness to show aggregation for
+ * the speaker amp and does not need any firmware configuration.
+ */
+static bool is_aggregated_dai(struct snd_sof_widget *swidget)
+{
+	return (WIDGET_IS_DAI(swidget->id) &&
+		isdigit(swidget->widget->name[strlen(swidget->widget->name) - 1]) &&
+		swidget->widget->name[strlen(swidget->widget->name) - 1] != '0');
+}
+
 static bool is_virtual_widget(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *widget,
 			      const char *func)
 {
@@ -402,8 +417,9 @@ sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widg
 	if (is_virtual_widget(sdev, widget, __func__))
 		return;
 
-	/* skip if the widget is in use or if it is already unprepared */
-	if (!swidget || !swidget->prepared || swidget->use_count > 0)
+	/* skip if the widget in use or already unprepared or is an aggregated DAI */
+	if (!swidget || !swidget->prepared || swidget->use_count > 0 ||
+	    is_aggregated_dai(swidget))
 		goto sink_unprepare;
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
@@ -447,6 +463,10 @@ sof_prepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget
 		return 0;
 
 	if (!swidget || !widget_ops[widget->id].ipc_prepare || swidget->prepared)
+		goto sink_prepare;
+
+	/* skip aggregated DAIs */
+	if (is_aggregated_dai(swidget))
 		goto sink_prepare;
 
 	/* prepare the source widget */
@@ -493,6 +513,7 @@ static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dap
 				    int dir, struct snd_sof_pcm *spcm)
 {
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
+	struct snd_sof_widget *swidget;
 	struct snd_soc_dapm_path *p;
 	int err;
 	int ret = 0;
@@ -500,8 +521,11 @@ static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dap
 	if (is_virtual_widget(sdev, widget, __func__))
 		return 0;
 
-	if (widget->dobj.private) {
-		err = sof_widget_free(sdev, widget->dobj.private);
+	swidget = widget->dobj.private;
+
+	/* no need to free aggregated DAI widgets */
+	if (swidget && !is_aggregated_dai(swidget)) {
+		err = sof_widget_free(sdev, swidget);
 		if (err < 0)
 			ret = err;
 	}
@@ -545,7 +569,10 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 	if (swidget) {
 		int i;
 
-		ret = sof_widget_setup(sdev, widget->dobj.private);
+		if (is_aggregated_dai(swidget))
+			goto sink_setup;
+
+		ret = sof_widget_setup(sdev, swidget);
 		if (ret < 0)
 			return ret;
 
