@@ -121,6 +121,7 @@ struct net {
 	 * it is critical that it is on a read_mostly cache line.
 	 */
 	u32			hash_mix;
+	bool			is_dying;
 
 	struct net_device       *loopback_dev;          /* The loopback */
 
