@@ -769,6 +769,7 @@ extern cpumask_var_t __read_mostly tracing_buffer_mask;
 extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 
 extern unsigned long tracing_thresh;
+extern struct workqueue_struct *trace_init_wq __initdata;
 
 /* PID filtering */
 
