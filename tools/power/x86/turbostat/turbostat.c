@@ -8157,6 +8157,9 @@ void decode_feature_control_msr(void)
 	if (no_msr)
 		return;
 
+	if (quiet)
+		return;
+
 	if (!get_msr(base_cpu, MSR_IA32_FEAT_CTL, &msr))
 		fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
 			base_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
@@ -8921,7 +8924,7 @@ void process_cpuid()
 	if (!quiet)
 		decode_misc_enable_msr();
 
-	if (max_level >= 0x7 && !quiet) {
+	if (max_level >= 0x7) {
 		int has_sgx;
 
 		ecx = 0;
@@ -8930,9 +8933,10 @@ void process_cpuid()
 
 		has_sgx = ebx & (1 << 2);
 
-		is_hybrid = edx & (1 << 15);
+		is_hybrid = !!(edx & (1 << 15));
 
-		fprintf(outf, "CPUID(7): %sSGX %sHybrid\n", has_sgx ? "" : "No-", is_hybrid ? "" : "No-");
+		if (!quiet)
+			fprintf(outf, "CPUID(7): %sSGX %sHybrid\n", has_sgx ? "" : "No-", is_hybrid ? "" : "No-");
 
 		if (has_sgx)
 			decode_feature_control_msr();
