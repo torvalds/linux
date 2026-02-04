@@ -3369,6 +3369,10 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 	if (update->sharpening_required)
 		stream->sharpening_required = *update->sharpening_required;
+
+	if (update->drr_trigger_mode) {
+		stream->drr_trigger_mode = *update->drr_trigger_mode;
+	}
 }
 
 static void backup_planes_and_stream_state(
