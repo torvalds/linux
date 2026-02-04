@@ -281,7 +281,7 @@ static int expected_folio_refs(struct folio *folio)
  *          (it's the same logic as split_folio()), and the folio must be
  *          locked.
  */
-static int __make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
+int __make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
 {
 	int expected, cc = 0;
 
@@ -311,6 +311,7 @@ static int __make_folio_secure(struct folio *folio, struct uv_cb_header *uvcb)
 		return -EAGAIN;
 	return uvcb->rc == 0x10a ? -ENXIO : -EINVAL;
 }
+EXPORT_SYMBOL(__make_folio_secure);
 
 static int make_folio_secure(struct mm_struct *mm, struct folio *folio, struct uv_cb_header *uvcb)
 {
@@ -339,7 +340,7 @@ static int make_folio_secure(struct mm_struct *mm, struct folio *folio, struct u
  *		   but another attempt can be made;
  *	   -EINVAL in case of other folio splitting errors. See split_folio().
  */
-static int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio)
+int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio)
 {
 	int rc, tried_splits;
 
@@ -411,6 +412,7 @@ static int s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio)
 	}
 	return -EAGAIN;
 }
+EXPORT_SYMBOL_GPL(s390_wiggle_split_folio);
 
 int make_hva_secure(struct mm_struct *mm, unsigned long hva, struct uv_cb_header *uvcb)
 {
