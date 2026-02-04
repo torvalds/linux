@@ -28,11 +28,11 @@
 #define GPR_ENET_QOS_CLK_TX_CLK_SEL	(0x1 << 20)
 #define GPR_ENET_QOS_RGMII_EN		(0x1 << 21)
 
-#define MX93_GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(3, 0)
 #define MX93_GPR_ENET_QOS_INTF_SEL_MASK		GENMASK(3, 1)
-#define MX93_GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 0)
-#define MX93_GPR_ENET_QOS_CLK_SEL_MASK		BIT_MASK(0)
-#define MX93_GPR_CLK_SEL_OFFSET			(4)
+#define MX93_GPR_ENET_QOS_ENABLE		BIT(0)
+
+#define MX93_ENET_CLK_SEL_OFFSET		(4)
+#define MX93_ENET_QOS_CLK_TX_SEL_MASK		BIT_MASK(0)
 
 #define DMA_BUS_MODE			0x00001000
 #define DMA_BUS_MODE_SFT_RESET		(0x1 << 0)
@@ -95,17 +95,18 @@ static int imx93_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 	if (phy_intf_sel == PHY_INTF_SEL_RMII && dwmac->rmii_refclk_ext) {
 		ret = regmap_clear_bits(dwmac->intf_regmap,
 					dwmac->intf_reg_off +
-					MX93_GPR_CLK_SEL_OFFSET,
-					MX93_GPR_ENET_QOS_CLK_SEL_MASK);
+					MX93_ENET_CLK_SEL_OFFSET,
+					MX93_ENET_QOS_CLK_TX_SEL_MASK);
 		if (ret)
 			return ret;
 	}
 
 	val = FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
-	      MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	      MX93_GPR_ENET_QOS_ENABLE;
 
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-				  MX93_GPR_ENET_QOS_INTF_MODE_MASK, val);
+				  MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+				  MX93_GPR_ENET_QOS_ENABLE, val);
 };
 
 static int imx_dwmac_clks_config(void *priv, bool enabled)
@@ -205,7 +206,8 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	old_ctrl = readl(dwmac->base_addr + MAC_CTRL_REG);
 	ctrl = old_ctrl & ~CTRL_SPEED_MASK;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, 0);
+			   MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+			   MX93_GPR_ENET_QOS_ENABLE, 0);
 	writel(ctrl, dwmac->base_addr + MAC_CTRL_REG);
 
 	 /* Ensure the settings for CTRL are applied. */
@@ -213,9 +215,10 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 
 	usleep_range(10, 20);
 	iface &= MX93_GPR_ENET_QOS_INTF_SEL_MASK;
-	iface |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	iface |= MX93_GPR_ENET_QOS_ENABLE;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
-			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, iface);
+			   MX93_GPR_ENET_QOS_INTF_SEL_MASK |
+			   MX93_GPR_ENET_QOS_ENABLE, iface);
 
 	writel(old_ctrl, dwmac->base_addr + MAC_CTRL_REG);
 }
