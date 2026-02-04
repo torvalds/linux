@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * memfd_create system call and file sealing support
  *
  * Code was originally included in shmem.c, and broken out to facilitate
  * use by hugetlbfs as well as tmpfs.
- *
- * This file is released under the GPL.
  */
 
 #include <linux/fs.h>

@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mm/rmap.c - physical to virtual reverse mappings
  *
  * Copyright 2001, Rik van Riel <riel@conectiva.com.br>
- * Released under the General Public License (GPL).
  *
  * Simple, low overhead reverse mapping scheme.
  * Please try to keep this thing as modular as possible.

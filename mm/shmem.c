@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Resizable virtual memory filesystem for Linux.
  *
@@ -17,8 +18,6 @@
  *
  * tiny-shmem:
  * Copyright (c) 2004, 2008 Matt Mackall <mpm@selenic.com>
- *
- * This file is released under the GPL.
  */
 
 #include <linux/fs.h>
