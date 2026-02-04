@@ -63,9 +63,9 @@ Here are the main features of EROFS:
  - Support POSIX.1e ACLs by using extended attributes;
 
  - Support transparent data compression as an option:
-   LZ4, MicroLZMA and DEFLATE algorithms can be used on a per-file basis; In
-   addition, inplace decompression is also supported to avoid bounce compressed
-   buffers and unnecessary page cache thrashing.
+   LZ4, MicroLZMA, DEFLATE and Zstandard algorithms can be used on a per-file
+   basis; In addition, inplace decompression is also supported to avoid bounce
+   compressed buffers and unnecessary page cache thrashing.
 
  - Support chunk-based data deduplication and rolling-hash compressed data
    deduplication;
