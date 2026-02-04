@@ -16,6 +16,7 @@
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/string_helpers.h>
@@ -792,6 +793,48 @@ static int control_limit_kctl(struct device *dev,
 	return 0;
 }
 
+static int volatile_get_volsw(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct device *dev = component->dev;
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume reading %s: %d\n",
+			kcontrol->id.name, ret);
+		return ret;
+	}
+
+	ret = snd_soc_get_volsw(kcontrol, ucontrol);
+
+	pm_runtime_put(dev);
+
+	return ret;
+}
+
+static int volatile_put_volsw(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct device *dev = component->dev;
+	int ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to resume writing %s: %d\n",
+			kcontrol->id.name, ret);
+		return ret;
+	}
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+
+	pm_runtime_put(dev);
+
+	return ret;
+}
+
 static int populate_control(struct device *dev,
 			    struct sdca_function_data *function,
 			    struct sdca_entity *entity,
@@ -849,8 +892,13 @@ static int populate_control(struct device *dev,
 	(*kctl)->private_value = (unsigned long)mc;
 	(*kctl)->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	(*kctl)->info = snd_soc_info_volsw;
-	(*kctl)->get = snd_soc_get_volsw;
-	(*kctl)->put = snd_soc_put_volsw;
+	if (control->is_volatile) {
+		(*kctl)->get = volatile_get_volsw;
+		(*kctl)->put = volatile_put_volsw;
+	} else {
+		(*kctl)->get = snd_soc_get_volsw;
+		(*kctl)->put = snd_soc_put_volsw;
+	}
 
 	if (readonly_control(control))
 		(*kctl)->access = SNDRV_CTL_ELEM_ACCESS_READ;
