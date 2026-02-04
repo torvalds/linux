@@ -3330,6 +3330,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	char debug_name[16];
 	int i, rc;
 
+	mutex_init(&kvm->arch.pv.import_lock);
+
 	rc = -EINVAL;
 #ifdef CONFIG_KVM_S390_UCONTROL
 	if (type & ~KVM_VM_S390_UCONTROL)

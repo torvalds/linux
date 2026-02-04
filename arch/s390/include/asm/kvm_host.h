@@ -630,6 +630,8 @@ struct kvm_s390_pv {
 	void *set_aside;
 	struct list_head need_cleanup;
 	struct mmu_notifier mmu_notifier;
+	/* Protects against concurrent import-like operations */
+	struct mutex import_lock;
 };
 
 struct kvm_arch {
