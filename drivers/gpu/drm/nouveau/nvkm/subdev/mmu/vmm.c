@@ -387,7 +387,7 @@ nvkm_vmm_sparse_ptes(const struct nvkm_vmm_desc *desc,
 	} else
 	if (desc->type == LPT) {
 		union nvkm_pte_tracker sparse = { .s.sparse = 1 };
-		memset(&pgt->pte[ptei].u, sparse.u, ptes);
+		memset32(&pgt->pte[ptei].u, sparse.u, ptes);
 	}
 }
 
@@ -399,7 +399,7 @@ nvkm_vmm_sparse_unref_ptes(struct nvkm_vmm_iter *it, bool pfn, u32 ptei, u32 pte
 		memset(&pt->pde[ptei], 0x00, sizeof(pt->pde[0]) * ptes);
 	else
 	if (it->desc->type == LPT)
-		memset(&pt->pte[ptei].u, 0x00, sizeof(pt->pte[0]) * ptes);
+		memset32(&pt->pte[ptei].u, 0x00, ptes);
 	return nvkm_vmm_unref_ptes(it, pfn, ptei, ptes);
 }
 
@@ -458,7 +458,7 @@ nvkm_vmm_ref_hwpt(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgd, u32 pdei)
 					desc->func->sparse(vmm, pt, pteb, ptes);
 				else
 					desc->func->invalid(vmm, pt, pteb, ptes);
-				memset(&pgt->pte[pteb], 0x00, ptes);
+				memset32(&pgt->pte[pteb].u, 0x00, ptes);
 			} else {
 				desc->func->unmap(vmm, pt, pteb, ptes);
 				while (ptes--)

@@ -5,11 +5,12 @@
 enum nvkm_memory_target;
 
 union nvkm_pte_tracker {
-	u8 u;
+	u32 u;
 	struct {
-		u8 sparse:1;
-		u8 spte_valid:1;
-		u8 sptes:6;
+		u32 sparse:1;
+		u32 spte_valid:1;
+		u32 padding:14;
+		u32 sptes:16;
 	} s;
 };
 
