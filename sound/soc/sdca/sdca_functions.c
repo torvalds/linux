@@ -2029,6 +2029,7 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 	num_sets = fwnode_property_count_u32(function_node,
 					     "mipi-sdca-file-set-id-list");
 	if (num_sets == 0 || num_sets == -EINVAL) {
+		dev_dbg(dev, "%pfwP: file set id list missing\n", function_node);
 		return 0;
 	} else if (num_sets < 0) {
 		dev_err(dev, "%pfwP: failed to read file set list: %d\n",
