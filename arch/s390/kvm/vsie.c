@@ -652,7 +652,7 @@ void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
  *          - -EAGAIN if the caller can retry immediately
  *          - -ENOMEM if out of memory
  */
-static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	u64 prefix = scb_s->prefix << GUEST_PREFIX_SHIFT;
@@ -667,10 +667,9 @@ static int map_prefix(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	/* with mso/msl, the prefix lies at offset *mso* */
 	prefix += scb_s->mso;
 
-	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, prefix, NULL);
+	rc = kvm_s390_shadow_fault(vcpu, sg, prefix, NULL);
 	if (!rc && (scb_s->ecb & ECB_TE))
-		rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-					   prefix + PAGE_SIZE, NULL);
+		rc = kvm_s390_shadow_fault(vcpu, sg, prefix + PAGE_SIZE, NULL);
 	/*
 	 * We don't have to mprotect, we will be called for all unshadows.
 	 * SIE will detect if protection applies and trigger a validity.
@@ -951,7 +950,7 @@ static int inject_fault(struct kvm_vcpu *vcpu, __u16 code, __u64 vaddr,
  *          - > 0 if control has to be given to guest 2
  *          - < 0 if an error occurred
  */
-static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	int rc;
 
@@ -960,8 +959,7 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		return inject_fault(vcpu, PGM_PROTECTION,
 				    current->thread.gmap_teid.addr * PAGE_SIZE, 1);
 
-	rc = kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-				   current->thread.gmap_teid.addr * PAGE_SIZE, NULL);
+	rc = kvm_s390_shadow_fault(vcpu, sg, current->thread.gmap_teid.addr * PAGE_SIZE, NULL);
 	if (rc > 0) {
 		rc = inject_fault(vcpu, rc,
 				  current->thread.gmap_teid.addr * PAGE_SIZE,
@@ -978,12 +976,10 @@ static int handle_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *
  * Will ignore any errors. The next SIE fault will do proper fault handling.
  */
-static void handle_last_fault(struct kvm_vcpu *vcpu,
-			      struct vsie_page *vsie_page)
+static void handle_last_fault(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	if (vsie_page->fault_addr)
-		kvm_s390_shadow_fault(vcpu, vsie_page->gmap,
-				      vsie_page->fault_addr, NULL);
+		kvm_s390_shadow_fault(vcpu, sg, vsie_page->fault_addr, NULL);
 	vsie_page->fault_addr = 0;
 }
 
@@ -1065,7 +1061,7 @@ static u64 vsie_get_register(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page,
 	}
 }
 
-static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	unsigned long pei_dest, pei_src, src, dest, mask, prefix;
@@ -1083,8 +1079,8 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	src = vsie_get_register(vcpu, vsie_page, scb_s->ipb >> 16) & mask;
 	src = _kvm_s390_real_to_abs(prefix, src) + scb_s->mso;
 
-	rc_dest = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, dest, &pei_dest);
-	rc_src = kvm_s390_shadow_fault(vcpu, vsie_page->gmap, src, &pei_src);
+	rc_dest = kvm_s390_shadow_fault(vcpu, sg, dest, &pei_dest);
+	rc_src = kvm_s390_shadow_fault(vcpu, sg, src, &pei_src);
 	/*
 	 * Either everything went well, or something non-critical went wrong
 	 * e.g. because of a race. In either case, simply retry.
@@ -1144,7 +1140,7 @@ static int vsie_handle_mvpg(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *          - > 0 if control has to be given to guest 2
  *          - < 0 if an error occurred
  */
-static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page, struct gmap *sg)
 	__releases(vcpu->kvm->srcu)
 	__acquires(vcpu->kvm->srcu)
 {
@@ -1153,7 +1149,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	int guest_bp_isolation;
 	int rc = 0;
 
-	handle_last_fault(vcpu, vsie_page);
+	handle_last_fault(vcpu, vsie_page, sg);
 
 	kvm_vcpu_srcu_read_unlock(vcpu);
 
@@ -1191,7 +1187,7 @@ xfer_to_guest_mode_check:
 			goto xfer_to_guest_mode_check;
 		}
 		guest_timing_enter_irqoff();
-		rc = kvm_s390_enter_exit_sie(scb_s, vcpu->run->s.regs.gprs, vsie_page->gmap->asce);
+		rc = kvm_s390_enter_exit_sie(scb_s, vcpu->run->s.regs.gprs, sg->asce);
 		guest_timing_exit_irqoff();
 		local_irq_enable();
 	}
@@ -1215,7 +1211,7 @@ skip_sie:
 	if (rc > 0)
 		rc = 0; /* we could still have an icpt */
 	else if (current->thread.gmap_int_code)
-		return handle_fault(vcpu, vsie_page);
+		return handle_fault(vcpu, vsie_page, sg);
 
 	switch (scb_s->icptcode) {
 	case ICPT_INST:
@@ -1233,7 +1229,7 @@ skip_sie:
 		break;
 	case ICPT_PARTEXEC:
 		if (scb_s->ipa == 0xb254)
-			rc = vsie_handle_mvpg(vcpu, vsie_page);
+			rc = vsie_handle_mvpg(vcpu, vsie_page, sg);
 		break;
 	}
 	return rc;
@@ -1330,15 +1326,17 @@ static void unregister_shadow_scb(struct kvm_vcpu *vcpu)
 static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
+	struct gmap *sg;
 	int rc = 0;
 
 	while (1) {
 		rc = acquire_gmap_shadow(vcpu, vsie_page);
+		sg = vsie_page->gmap;
 		if (!rc)
-			rc = map_prefix(vcpu, vsie_page);
+			rc = map_prefix(vcpu, vsie_page, sg);
 		if (!rc) {
 			update_intervention_requests(vsie_page);
-			rc = do_vsie_run(vcpu, vsie_page);
+			rc = do_vsie_run(vcpu, vsie_page, sg);
 		}
 		atomic_andnot(PROG_BLOCK_SIE, &scb_s->prog20);
 
