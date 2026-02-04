@@ -866,6 +866,14 @@ struct snd_soc_dai_driver skl_dai[] = {
 		.channels_max = 4,
 	},
 },
+{
+	/* Virtual CPU DAI for Echo reference */
+	.name = "Loopback Virtual Pin",
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+},
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 {
 	.name = "iDisp1 Pin",
