@@ -1369,8 +1369,6 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
 void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry);
 void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void ptep_notify(struct mm_struct *mm, unsigned long addr,
-		 pte_t *ptep, unsigned long bits);
 int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
 		    pte_t *ptep, int prot, unsigned long bit);
 void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
@@ -1396,9 +1394,6 @@ int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
 int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
 int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			unsigned long *oldpte, unsigned long *oldpgste);
-void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr);
-void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr);
-void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
 #define pgprot_writecombine	pgprot_writecombine
 pgprot_t pgprot_writecombine(pgprot_t prot);
@@ -2023,9 +2018,6 @@ extern int __vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t p
 extern int vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot);
 extern void vmem_unmap_4k_page(unsigned long addr);
 extern pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc);
-extern int s390_enable_sie(void);
-extern int s390_enable_skey(void);
-extern void s390_reset_cmma(struct mm_struct *mm);
 
 /* s390 has a private copy of get unmapped area to deal with cache synonyms */
 #define HAVE_ARCH_UNMAPPED_AREA
