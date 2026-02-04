@@ -444,6 +444,7 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 				     enum btrfs_reserve_flush_enum flush)
 {
 	struct btrfs_fs_info *fs_info = space_info->fs_info;
+	bool has_per_profile;
 	u64 profile;
 	u64 avail;
 	u64 data_chunk_size;
@@ -454,19 +455,21 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 	else
 		profile = btrfs_metadata_alloc_profile(fs_info);
 
-	avail = atomic64_read(&fs_info->free_chunk_space);
+	has_per_profile = btrfs_get_per_profile_avail(fs_info, profile, &avail);
+	if (!has_per_profile) {
+		avail = atomic64_read(&fs_info->free_chunk_space);
 
-	/*
-	 * If we have dup, raid1 or raid10 then only half of the free
-	 * space is actually usable.  For raid56, the space info used
-	 * doesn't include the parity drive, so we don't have to
-	 * change the math
-	 */
-	factor = btrfs_bg_type_to_factor(profile);
-	avail = div_u64(avail, factor);
-	if (avail == 0)
-		return 0;
-
+		/*
+		 * If we have dup, raid1 or raid10 then only half of the free
+		 * space is actually usable.  For raid56, the space info used
+		 * doesn't include the parity drive, so we don't have to
+		 * change the math
+		 */
+		factor = btrfs_bg_type_to_factor(profile);
+		avail = div_u64(avail, factor);
+		if (avail == 0)
+			return 0;
+	}
 	data_chunk_size = calc_effective_data_chunk_size(fs_info);
 
 	/*
