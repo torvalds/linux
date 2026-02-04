@@ -694,7 +694,10 @@ u64 hda_dsp_get_stream_ldp(struct snd_sof_dev *sdev,
 
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
+struct hdac_ext_stream *
+	hda_dsp_stream_pair_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
+int hda_dsp_stream_pair_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
 int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 			       struct hdac_ext_stream *hext_stream,
 			       int enable, u32 size);
@@ -901,6 +904,14 @@ int sdw_hda_dai_hw_free(struct snd_pcm_substream *substream,
 
 int sdw_hda_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			struct snd_soc_dai *cpu_dai);
+
+struct hdac_ext_stream *
+hda_data_stream_prepare(struct device *dev, unsigned int format, unsigned int size,
+			struct snd_dma_buffer *dmab, bool persistent_buffer, int direction,
+			bool is_iccmax, bool pair);
+
+int hda_data_stream_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
+			    bool persistent_buffer, struct hdac_ext_stream *hext_stream, bool pair);
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
