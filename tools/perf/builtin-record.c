@@ -1403,6 +1403,7 @@ try_again:
 			}
 #endif
 			if (report_error || verbose > 0) {
+				evsel__open_strerror(pos, &opts->target, errno, msg, sizeof(msg));
 				ui__error("Failure to open event '%s' on PMU '%s' which will be "
 					  "removed.\n%s\n",
 					  evsel__name(pos), evsel__pmu_name(pos), msg);
