@@ -1427,10 +1427,22 @@ static int bpf_async_update_prog_callback(struct bpf_async_cb *cb,
 	return 0;
 }
 
+static DEFINE_PER_CPU(struct bpf_async_cb *, async_cb_running);
+
 static int bpf_async_schedule_op(struct bpf_async_cb *cb, enum bpf_async_op op,
 				 u64 nsec, u32 timer_mode)
 {
-	WARN_ON_ONCE(!in_hardirq());
+	/*
+	 * Do not schedule another operation on this cpu if it's in irq_work
+	 * callback that is processing async_cmds queue. Otherwise the following
+	 * loop is possible:
+	 * bpf_timer_start() -> bpf_async_schedule_op() -> irq_work_queue().
+	 * irqrestore -> bpf_async_irq_worker() -> tracepoint -> bpf_timer_start().
+	 */
+	if (this_cpu_read(async_cb_running) == cb) {
+		bpf_async_refcount_put(cb);
+		return -EDEADLK;
+	}
 
 	struct bpf_async_cmd *cmd = kmalloc_nolock(sizeof(*cmd), 0, NUMA_NO_NODE);
 
@@ -1473,6 +1485,11 @@ static const struct bpf_func_proto bpf_timer_set_callback_proto = {
 	.arg2_type	= ARG_PTR_TO_FUNC,
 };
 
+static bool defer_timer_wq_op(void)
+{
+	return in_hardirq() || irqs_disabled();
+}
+
 BPF_CALL_3(bpf_timer_start, struct bpf_async_kern *, async, u64, nsecs, u64, flags)
 {
 	struct bpf_hrtimer *t;
@@ -1500,7 +1517,7 @@ BPF_CALL_3(bpf_timer_start, struct bpf_async_kern *, async, u64, nsecs, u64, fla
 	if (!refcount_inc_not_zero(&t->cb.refcnt))
 		return -ENOENT;
 
-	if (!in_hardirq()) {
+	if (!defer_timer_wq_op()) {
 		hrtimer_start(&t->timer, ns_to_ktime(nsecs), mode);
 		bpf_async_refcount_put(&t->cb);
 		return 0;
@@ -1524,7 +1541,7 @@ BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, async)
 	bool inc = false;
 	int ret = 0;
 
-	if (in_hardirq())
+	if (defer_timer_wq_op())
 		return -EOPNOTSUPP;
 
 	t = READ_ONCE(async->timer);
@@ -1625,6 +1642,7 @@ static void bpf_async_irq_worker(struct irq_work *work)
 		return;
 
 	list = llist_reverse_order(list);
+	this_cpu_write(async_cb_running, cb);
 	llist_for_each_safe(pos, n, list) {
 		struct bpf_async_cmd *cmd;
 
@@ -1632,6 +1650,7 @@ static void bpf_async_irq_worker(struct irq_work *work)
 		bpf_async_process_op(cb, cmd->op, cmd->nsec, cmd->mode);
 		kfree_nolock(cmd);
 	}
+	this_cpu_write(async_cb_running, NULL);
 }
 
 static void bpf_async_cancel_and_free(struct bpf_async_kern *async)
@@ -1650,7 +1669,7 @@ static void bpf_async_cancel_and_free(struct bpf_async_kern *async)
 	 * refcnt. Either synchronously or asynchronously in irq_work.
 	 */
 
-	if (!in_hardirq()) {
+	if (!defer_timer_wq_op()) {
 		bpf_async_process_op(cb, BPF_ASYNC_CANCEL, 0, 0);
 	} else {
 		(void)bpf_async_schedule_op(cb, BPF_ASYNC_CANCEL, 0, 0);
@@ -3161,7 +3180,7 @@ __bpf_kfunc int bpf_wq_start(struct bpf_wq *wq, unsigned int flags)
 	if (!refcount_inc_not_zero(&w->cb.refcnt))
 		return -ENOENT;
 
-	if (!in_hardirq()) {
+	if (!defer_timer_wq_op()) {
 		schedule_work(&w->work);
 		bpf_async_refcount_put(&w->cb);
 		return 0;
@@ -4461,7 +4480,7 @@ __bpf_kfunc int bpf_timer_cancel_async(struct bpf_timer *timer)
 	if (!refcount_inc_not_zero(&cb->refcnt))
 		return -ENOENT;
 
-	if (!in_hardirq()) {
+	if (!defer_timer_wq_op()) {
 		struct bpf_hrtimer *t = container_of(cb, struct bpf_hrtimer, cb);
 
 		ret = hrtimer_try_to_cancel(&t->timer);
