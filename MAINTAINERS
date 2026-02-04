@@ -335,7 +335,7 @@ F:	tools/power/acpi/
 ACPI FOR ARM64 (ACPI/arm64)
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 M:	Hanjun Guo <guohanjun@huawei.com>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-acpi@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -351,7 +351,7 @@ F:	drivers/acpi/riscv/
 F:	include/linux/acpi_rimt.h
 
 ACPI PCC(Platform Communication Channel) MAILBOX DRIVER
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-acpi@vger.kernel.org
 S:	Supported
 F:	drivers/mailbox/pcc.c
@@ -2747,14 +2747,14 @@ F:	arch/arm/include/asm/hardware/dec21285.h
 F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
-M:	Shawn Guo <shawnguo@kernel.org>
+M:	Frank Li <Frank.Li@nxp.com>
 M:	Sascha Hauer <s.hauer@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Fabio Estevam <festevam@gmail.com>
 L:	imx@lists.linux.dev
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/frank.li/linux.git
 F:	Documentation/devicetree/bindings/firmware/fsl*
 F:	Documentation/devicetree/bindings/firmware/nxp*
 F:	arch/arm/boot/dts/nxp/imx/
@@ -2769,22 +2769,22 @@ N:	mxs
 N:	\bmxc[^\d]
 
 ARM/FREESCALE LAYERSCAPE ARM ARCHITECTURE
-M:	Shawn Guo <shawnguo@kernel.org>
+M:	Frank Li <Frank.Li@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/frank.li/linux.git
 F:	arch/arm/boot/dts/nxp/ls/
 F:	arch/arm64/boot/dts/freescale/fsl-*
 F:	arch/arm64/boot/dts/freescale/qoriq-*
 
 ARM/FREESCALE VYBRID ARM ARCHITECTURE
-M:	Shawn Guo <shawnguo@kernel.org>
+M:	Frank Li <Frank.Li@nxp.com>
 M:	Sascha Hauer <s.hauer@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	Stefan Agner <stefan@agner.ch>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/frank.li/linux.git
 F:	arch/arm/boot/dts/nxp/vf/
 F:	arch/arm/mach-imx/*vf610*
 
@@ -3681,7 +3681,7 @@ N:	uniphier
 
 ARM/VERSATILE EXPRESS PLATFORM
 M:	Liviu Dudau <liviu.dudau@arm.com>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -6513,7 +6513,7 @@ F:	drivers/i2c/busses/i2c-cp2615.c
 
 CPU FREQUENCY DRIVERS - VEXPRESS SPC ARM BIG LITTLE
 M:	Viresh Kumar <viresh.kumar@linaro.org>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
@@ -6609,7 +6609,7 @@ F:	include/linux/platform_data/cpuidle-exynos.h
 
 CPUIDLE DRIVER - ARM PSCI
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 M:	Ulf Hansson <ulf.hansson@linaro.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -9815,7 +9815,7 @@ F:	include/uapi/linux/firewire*.h
 F:	tools/firewire/
 
 FIRMWARE FRAMEWORK FOR ARMV8-A
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/firmware/arm_ffa/
@@ -10513,7 +10513,7 @@ S:	Maintained
 F:	scripts/gendwarfksyms/
 
 GENERIC ARCHITECTURE TOPOLOGY
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/base/arch_topology.c
@@ -11374,6 +11374,11 @@ S:	Maintained
 F:	Documentation/ABI/testing/sysfs-devices-platform-kunpeng_hccs
 F:	drivers/soc/hisilicon/kunpeng_hccs.c
 F:	drivers/soc/hisilicon/kunpeng_hccs.h
+
+HISILICON SOC HHA DRIVER
+M:	Yushan Wang <wangyushan12@huawei.com>
+S:	Maintained
+F:	drivers/cache/hisi_soc_hha.c
 
 HISILICON LPC BUS DRIVER
 M:	Jay Fang <f.fangjian@huawei.com>
@@ -15100,7 +15105,7 @@ F:	drivers/mailbox/arm_mhuv2.c
 F:	include/linux/mailbox/arm_mhuv2_message.h
 
 MAILBOX ARM MHUv3
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 M:	Cristian Marussi <cristian.marussi@arm.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -20577,7 +20582,7 @@ F:	drivers/pinctrl/pinctrl-amd.c
 PIN CONTROLLER - FREESCALE
 M:	Dong Aisheng <aisheng.dong@nxp.com>
 M:	Fabio Estevam <festevam@gmail.com>
-M:	Shawn Guo <shawnguo@kernel.org>
+M:	Frank Li <Frank.Li@nxp.com>
 M:	Jacky Bai <ping.bai@nxp.com>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 R:	NXP S32 Linux Team <s32@nxp.com>
@@ -23630,7 +23635,7 @@ F:	include/uapi/linux/sed*
 SECURE MONITOR CALL(SMC) CALLING CONVENTION (SMCCC)
 M:	Mark Rutland <mark.rutland@arm.com>
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/firmware/smccc/
@@ -25394,7 +25399,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
 F:	drivers/mfd/syscon.c
 
 SYSTEM CONTROL & POWER/MANAGEMENT INTERFACE (SCPI/SCMI) Message Protocol drivers
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 R:	Cristian Marussi <cristian.marussi@arm.com>
 L:	arm-scmi@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -26546,7 +26551,7 @@ F:	samples/tsm-mr/
 
 TRUSTED SERVICES TEE DRIVER
 M:	Balint Dobszay <balint.dobszay@arm.com>
-M:	Sudeep Holla <sudeep.holla@arm.com>
+M:	Sudeep Holla <sudeep.holla@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	trusted-services@lists.trustedfirmware.org
 S:	Maintained
