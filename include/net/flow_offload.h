@@ -526,7 +526,7 @@ static inline bool flow_rule_has_enc_control_flags(const u32 enc_ctrl_flags,
  *
  * Return: true if control flags are set, false otherwise.
  */
-static inline bool flow_rule_match_has_control_flags(struct flow_rule *rule,
+static inline bool flow_rule_match_has_control_flags(const struct flow_rule *rule,
 						     struct netlink_ext_ack *extack)
 {
 	struct flow_match_control match;
@@ -718,7 +718,7 @@ struct flow_offload_action {
 struct flow_offload_action *offload_action_alloc(unsigned int num_actions);
 
 static inline struct flow_rule *
-flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
+flow_cls_offload_flow_rule(const struct flow_cls_offload *flow_cmd)
 {
 	return flow_cmd->rule;
 }
