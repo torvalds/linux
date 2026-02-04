@@ -134,14 +134,15 @@ static int uv_destroy(unsigned long paddr)
  */
 int uv_destroy_folio(struct folio *folio)
 {
+	unsigned long i;
 	int rc;
 
-	/* Large folios cannot be secure */
-	if (unlikely(folio_test_large(folio)))
-		return 0;
-
 	folio_get(folio);
-	rc = uv_destroy(folio_to_phys(folio));
+	for (i = 0; i < (1 << folio_order(folio)); i++) {
+		rc = uv_destroy(folio_to_phys(folio) + i * PAGE_SIZE);
+		if (rc)
+			break;
+	}
 	if (!rc)
 		clear_bit(PG_arch_1, &folio->flags.f);
 	folio_put(folio);
@@ -183,14 +184,15 @@ EXPORT_SYMBOL_GPL(uv_convert_from_secure);
  */
 int uv_convert_from_secure_folio(struct folio *folio)
 {
+	unsigned long i;
 	int rc;
 
-	/* Large folios cannot be secure */
-	if (unlikely(folio_test_large(folio)))
-		return 0;
-
 	folio_get(folio);
-	rc = uv_convert_from_secure(folio_to_phys(folio));
+	for (i = 0; i < (1 << folio_order(folio)); i++) {
+		rc = uv_convert_from_secure(folio_to_phys(folio) + i * PAGE_SIZE);
+		if (rc)
+			break;
+	}
 	if (!rc)
 		clear_bit(PG_arch_1, &folio->flags.f);
 	folio_put(folio);
