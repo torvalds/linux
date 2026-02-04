@@ -492,40 +492,6 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	return err;
 }
 
-static int mlx5e_create_umr_ksm_mkey(struct mlx5_core_dev *mdev,
-				     u64 nentries, u8 log_entry_size,
-				     u32 *umr_mkey)
-{
-	int inlen;
-	void *mkc;
-	u32 *in;
-	int err;
-
-	inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
-
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
-
-	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
-
-	MLX5_SET(mkc, mkc, free, 1);
-	MLX5_SET(mkc, mkc, umr_en, 1);
-	MLX5_SET(mkc, mkc, lw, 1);
-	MLX5_SET(mkc, mkc, lr, 1);
-	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_KSM);
-	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
-	MLX5_SET(mkc, mkc, qpn, 0xffffff);
-	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.hw_objs.pdn);
-	MLX5_SET(mkc, mkc, translations_octword_size, nentries);
-	MLX5_SET(mkc, mkc, log_page_size, log_entry_size);
-	MLX5_SET64(mkc, mkc, len, nentries << log_entry_size);
-	err = mlx5_core_create_mkey(mdev, umr_mkey, in, inlen);
-
-	kvfree(in);
-	return err;
-}
-
 static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq *rq)
 {
 	u32 xsk_chunk_size = rq->xsk_pool ? rq->xsk_pool->chunk_size : 0;
@@ -549,29 +515,6 @@ static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq 
 				    rq->mpwqe.umr_mode, xsk_chunk_size);
 	rq->mpwqe.umr_mkey_be = cpu_to_be32(umr_mkey);
 	return err;
-}
-
-static int mlx5e_create_rq_hd_umr_mkey(struct mlx5_core_dev *mdev,
-				       u16 hd_per_wq, __be32 *umr_mkey)
-{
-	u32 max_ksm_size = BIT(MLX5_CAP_GEN(mdev, log_max_klm_list_size));
-	u32 mkey;
-	int err;
-
-	if (max_ksm_size < hd_per_wq) {
-		mlx5_core_err(mdev, "max ksm list size 0x%x is smaller than shampo header buffer list size 0x%x\n",
-			      max_ksm_size, hd_per_wq);
-		return -EINVAL;
-	}
-
-	err = mlx5e_create_umr_ksm_mkey(mdev, hd_per_wq,
-					MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE,
-					&mkey);
-	if (err)
-		return err;
-
-	*umr_mkey = cpu_to_be32(mkey);
-	return 0;
 }
 
 static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
@@ -754,145 +697,169 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 				  xdp_frag_size);
 }
 
-static int mlx5e_rq_shampo_hd_info_alloc(struct mlx5e_rq *rq, u16 hd_per_wq,
-					 int node)
+static void mlx5e_release_rq_hd_pages(struct mlx5e_rq *rq,
+				      struct mlx5e_shampo_hd *shampo)
+
 {
-	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+	for (int i = 0; i < shampo->nentries; i++) {
+		struct mlx5e_dma_info *info = &shampo->hd_buf_pages[i];
 
-	shampo->hd_per_wq = hd_per_wq;
+		if (!info->page)
+			continue;
 
-	shampo->bitmap = bitmap_zalloc_node(hd_per_wq, GFP_KERNEL, node);
-	shampo->pages = kvzalloc_node(array_size(hd_per_wq,
-						 sizeof(*shampo->pages)),
-				      GFP_KERNEL, node);
-	if (!shampo->bitmap || !shampo->pages)
-		goto err_nomem;
+		dma_unmap_page(rq->pdev, info->addr, PAGE_SIZE,
+			       rq->buff.map_dir);
+		__free_page(info->page);
+	}
+}
+
+static int mlx5e_alloc_rq_hd_pages(struct mlx5e_rq *rq, int node,
+				   struct mlx5e_shampo_hd *shampo)
+{
+	int err, i;
+
+	for (i = 0; i < shampo->nentries; i++) {
+		struct page *page = alloc_pages_node(node, GFP_KERNEL, 0);
+		dma_addr_t addr;
+
+		if (!page) {
+			err = -ENOMEM;
+			goto err_free_pages;
+		}
+
+		addr = dma_map_page(rq->pdev, page, 0, PAGE_SIZE,
+				    rq->buff.map_dir);
+		err = dma_mapping_error(rq->pdev, addr);
+		if (err) {
+			__free_page(page);
+			goto err_free_pages;
+		}
+
+		shampo->hd_buf_pages[i].page = page;
+		shampo->hd_buf_pages[i].addr = addr;
+	}
 
 	return 0;
 
-err_nomem:
-	kvfree(shampo->pages);
-	bitmap_free(shampo->bitmap);
+err_free_pages:
+	mlx5e_release_rq_hd_pages(rq, shampo);
 
-	return -ENOMEM;
+	return err;
 }
 
-static void mlx5e_rq_shampo_hd_info_free(struct mlx5e_rq *rq)
+static int mlx5e_create_rq_hd_mkey(struct mlx5_core_dev *mdev,
+				   struct mlx5e_shampo_hd *shampo)
 {
-	kvfree(rq->mpwqe.shampo->pages);
-	bitmap_free(rq->mpwqe.shampo->bitmap);
+	enum mlx5e_mpwrq_umr_mode umr_mode = MLX5E_MPWRQ_UMR_MODE_ALIGNED;
+	struct mlx5_mtt *mtt;
+	void *mkc, *in;
+	int inlen, err;
+	u32 octwords;
+
+	octwords = mlx5e_mpwrq_umr_octowords(shampo->nentries, umr_mode);
+	inlen = MLX5_FLEXIBLE_INLEN(mdev, MLX5_ST_SZ_BYTES(create_mkey_in),
+				    MLX5_OCTWORD, octwords);
+	if (inlen < 0)
+		return inlen;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
+	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_MTT);
+	mlx5e_mkey_set_relaxed_ordering(mdev, mkc);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.hw_objs.pdn);
+	MLX5_SET64(mkc, mkc, len, shampo->hd_buf_size);
+	MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
+	MLX5_SET(mkc, mkc, translations_octword_size, octwords);
+	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
+		 octwords);
+
+	mtt = MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
+	for (int i = 0; i < shampo->nentries; i++)
+		mtt[i].ptag = cpu_to_be64(shampo->hd_buf_pages[i].addr);
+
+	err = mlx5_core_create_mkey(mdev, &shampo->mkey, in, inlen);
+
+	kvfree(in);
+	return err;
 }
 
 static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
 				struct mlx5e_params *params,
 				struct mlx5e_rq_param *rqp,
 				struct mlx5e_rq *rq,
-				u32 *pool_size,
 				int node)
 {
-	void *wqc = MLX5_ADDR_OF(rqc, rqp->rqc, wq);
-	u8 log_hd_per_page, log_hd_entry_size;
-	u16 hd_per_wq, hd_per_wqe;
-	u32 hd_pool_size;
-	int wq_size;
-	int err;
+	struct mlx5e_shampo_hd *shampo;
+	int nentries, err, shampo_sz;
+	u32 hd_per_wq, hd_buf_size;
 
 	if (!test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
 		return 0;
 
-	rq->mpwqe.shampo = kvzalloc_node(sizeof(*rq->mpwqe.shampo),
-					 GFP_KERNEL, node);
-	if (!rq->mpwqe.shampo)
+	hd_per_wq = mlx5e_shampo_hd_per_wq(mdev, params, rqp);
+	hd_buf_size = hd_per_wq * BIT(MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE);
+	nentries = hd_buf_size / PAGE_SIZE;
+	if (!nentries) {
+		mlx5_core_err(mdev, "SHAMPO header buffer size %u < %lu\n",
+			      hd_buf_size, PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	shampo_sz = struct_size(shampo, hd_buf_pages, nentries);
+	shampo = kvzalloc_node(shampo_sz, GFP_KERNEL, node);
+	if (!shampo)
 		return -ENOMEM;
 
-	/* split headers data structures */
-	hd_per_wq = mlx5e_shampo_hd_per_wq(mdev, params, rqp);
-	err = mlx5e_rq_shampo_hd_info_alloc(rq, hd_per_wq, node);
+	shampo->hd_per_wq = hd_per_wq;
+	shampo->hd_buf_size = hd_buf_size;
+	shampo->nentries = nentries;
+	err = mlx5e_alloc_rq_hd_pages(rq, node, shampo);
 	if (err)
-		goto err_shampo_hd_info_alloc;
+		goto err_free;
 
-	err = mlx5e_create_rq_hd_umr_mkey(mdev, hd_per_wq,
-					  &rq->mpwqe.shampo->mkey_be);
+	err = mlx5e_create_rq_hd_mkey(mdev, shampo);
 	if (err)
-		goto err_umr_mkey;
-
-	hd_per_wqe = mlx5e_shampo_hd_per_wqe(mdev, params, rqp);
-	wq_size = BIT(MLX5_GET(wq, wqc, log_wq_sz));
-
-	BUILD_BUG_ON(MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE > PAGE_SHIFT);
-	if (hd_per_wqe >= MLX5E_SHAMPO_WQ_HEADER_PER_PAGE) {
-		log_hd_per_page = MLX5E_SHAMPO_LOG_WQ_HEADER_PER_PAGE;
-		log_hd_entry_size = MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
-	} else {
-		log_hd_per_page = order_base_2(hd_per_wqe);
-		log_hd_entry_size = order_base_2(PAGE_SIZE / hd_per_wqe);
-	}
-
-	rq->mpwqe.shampo->hd_per_wqe = hd_per_wqe;
-	rq->mpwqe.shampo->hd_per_page = BIT(log_hd_per_page);
-	rq->mpwqe.shampo->log_hd_per_page = log_hd_per_page;
-	rq->mpwqe.shampo->log_hd_entry_size = log_hd_entry_size;
-
-	hd_pool_size = (hd_per_wqe * wq_size) >> log_hd_per_page;
-
-	if (netif_rxq_has_unreadable_mp(rq->netdev, rq->ix)) {
-		/* Separate page pool for shampo headers */
-		struct page_pool_params pp_params = { };
-
-		pp_params.order     = 0;
-		pp_params.flags     = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
-		pp_params.pool_size = hd_pool_size;
-		pp_params.nid       = node;
-		pp_params.dev       = rq->pdev;
-		pp_params.napi      = rq->cq.napi;
-		pp_params.netdev    = rq->netdev;
-		pp_params.dma_dir   = rq->buff.map_dir;
-		pp_params.max_len   = PAGE_SIZE;
-
-		rq->hd_page_pool = page_pool_create(&pp_params);
-		if (IS_ERR(rq->hd_page_pool)) {
-			err = PTR_ERR(rq->hd_page_pool);
-			rq->hd_page_pool = NULL;
-			goto err_hds_page_pool;
-		}
-	} else {
-		/* Common page pool, reserve space for headers. */
-		*pool_size += hd_pool_size;
-		rq->hd_page_pool = NULL;
-	}
+		goto err_release_pages;
 
 	/* gro only data structures */
 	rq->hw_gro_data = kvzalloc_node(sizeof(*rq->hw_gro_data), GFP_KERNEL, node);
 	if (!rq->hw_gro_data) {
 		err = -ENOMEM;
-		goto err_hw_gro_data;
+		goto err_destroy_mkey;
 	}
+
+	rq->mpwqe.shampo = shampo;
 
 	return 0;
 
-err_hw_gro_data:
-	page_pool_destroy(rq->hd_page_pool);
-err_hds_page_pool:
-	mlx5_core_destroy_mkey(mdev, be32_to_cpu(rq->mpwqe.shampo->mkey_be));
-err_umr_mkey:
-	mlx5e_rq_shampo_hd_info_free(rq);
-err_shampo_hd_info_alloc:
-	kvfree(rq->mpwqe.shampo);
+err_destroy_mkey:
+	mlx5_core_destroy_mkey(mdev, shampo->mkey);
+err_release_pages:
+	mlx5e_release_rq_hd_pages(rq, shampo);
+err_free:
+	kvfree(shampo);
+
 	return err;
 }
 
 static void mlx5e_rq_free_shampo(struct mlx5e_rq *rq)
 {
-	if (!test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
+	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
+
+	if (!shampo)
 		return;
 
 	kvfree(rq->hw_gro_data);
-	if (rq->hd_page_pool != rq->page_pool)
-		page_pool_destroy(rq->hd_page_pool);
-	mlx5e_rq_shampo_hd_info_free(rq);
-	mlx5_core_destroy_mkey(rq->mdev,
-			       be32_to_cpu(rq->mpwqe.shampo->mkey_be));
-	kvfree(rq->mpwqe.shampo);
+	mlx5_core_destroy_mkey(rq->mdev, shampo->mkey);
+	mlx5e_release_rq_hd_pages(rq, shampo);
+	kvfree(shampo);
 }
 
 static int mlx5e_alloc_rq(struct mlx5e_params *params,
@@ -970,7 +937,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		if (err)
 			goto err_rq_mkey;
 
-		err = mlx5_rq_shampo_alloc(mdev, params, rqp, rq, &pool_size, node);
+		err = mlx5_rq_shampo_alloc(mdev, params, rqp, rq, node);
 		if (err)
 			goto err_free_mpwqe_info;
 
@@ -1165,8 +1132,7 @@ int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param, u16 q_cou
 	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
 		MLX5_SET(wq, wq, log_headers_buffer_entry_num,
 			 order_base_2(rq->mpwqe.shampo->hd_per_wq));
-		MLX5_SET(wq, wq, headers_mkey,
-			 be32_to_cpu(rq->mpwqe.shampo->mkey_be));
+		MLX5_SET(wq, wq, headers_mkey, rq->mpwqe.shampo->mkey);
 	}
 
 	mlx5_fill_page_frag_array(&rq->wq_ctrl.buf,
@@ -1326,14 +1292,6 @@ void mlx5e_free_rx_missing_descs(struct mlx5e_rq *rq)
 	rq->mpwqe.actual_wq_head = wq->head;
 	rq->mpwqe.umr_in_progress = 0;
 	rq->mpwqe.umr_completed = 0;
-
-	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
-		struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
-		u16 len;
-
-		len = (shampo->pi - shampo->ci) & shampo->hd_per_wq;
-		mlx5e_shampo_fill_umr(rq, len);
-	}
 }
 
 void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
@@ -1356,9 +1314,6 @@ void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
 			mlx5_wq_ll_pop(wq, wqe_ix_be,
 				       &wqe->next.next_wqe_index);
 		}
-
-		if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
-			mlx5e_shampo_dealloc_hd(rq);
 	} else {
 		struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 		u16 missing = mlx5_wq_cyc_missing(wq);
