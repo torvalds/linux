@@ -2,7 +2,7 @@
 /*
  * Intel Ice Lake PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2018, 2022 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  *	    Mika Westerberg <mika.westerberg@linux.intel.com>
  */

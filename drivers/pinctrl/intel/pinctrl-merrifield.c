@@ -2,7 +2,7 @@
 /*
  * Intel Merrifield SoC pinctrl driver
  *
- * Copyright (C) 2016, Intel Corporation
+ * Copyright (C) 2016 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 

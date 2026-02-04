@@ -2,7 +2,7 @@
 /*
  * Intel Lynxpoint PCH pinctrl/GPIO driver
  *
- * Copyright (c) 2012, 2019, Intel Corporation
+ * Copyright (C) 2012-2019 Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */

@@ -2,7 +2,7 @@
 /*
  * Cherryview/Braswell pinctrl driver
  *
- * Copyright (C) 2014, 2020 Intel Corporation
+ * Copyright (C) 2014-2020 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  *
  * This driver is based on the original Cherryview GPIO driver by
