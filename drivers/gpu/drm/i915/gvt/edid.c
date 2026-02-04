@@ -535,16 +535,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 					i2c_edid->edid_available = true;
 			}
 		}
-	} else if ((op & 0x1) == DP_AUX_I2C_WRITE) {
-		/* TODO
-		 * We only support EDID reading from I2C_over_AUX. And
-		 * we do not expect the index mode to be used. Right now
-		 * the WRITE operation is ignored. It is good enough to
-		 * support the gfx driver to do EDID access.
-		 */
-	} else {
-		if (drm_WARN_ON(&i915->drm, (op & 0x1) != DP_AUX_I2C_READ))
-			return;
+	} else if ((op & 0x1) == DP_AUX_I2C_READ) {
 		if (drm_WARN_ON(&i915->drm, msg_length != 4))
 			return;
 		if (i2c_edid->edid_available && i2c_edid->target_selected) {
@@ -553,6 +544,13 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 			aux_data_for_write = (val << 16);
 		} else
 			aux_data_for_write = (0xff << 16);
+	} else {
+		/* TODO
+		 * We only support EDID reading from I2C_over_AUX. And
+		 * we do not expect the index mode to be used. Right now
+		 * the WRITE operation is ignored. It is good enough to
+		 * support the gfx driver to do EDID access.
+		 */
 	}
 	/* write the return value in AUX_CH_DATA reg which includes:
 	 * ACK of I2C_WRITE
