@@ -4,6 +4,15 @@
 #include <core/memory.h>
 enum nvkm_memory_target;
 
+union nvkm_pte_tracker {
+	u8 u;
+	struct {
+		u8 sparse:1;
+		u8 spte_valid:1;
+		u8 sptes:6;
+	} s;
+};
+
 struct nvkm_vmm_pt {
 	/* Some GPUs have a mapping level with a dual page tables to
 	 * support large and small pages in the same address-range.
@@ -44,10 +53,7 @@ struct nvkm_vmm_pt {
 	 *
 	 * This information is used to manage LPTE state transitions.
 	 */
-#define NVKM_VMM_PTE_SPARSE 0x80
-#define NVKM_VMM_PTE_VALID  0x40
-#define NVKM_VMM_PTE_SPTES  0x3f
-	u8 pte[];
+	union nvkm_pte_tracker pte[];
 };
 
 typedef void (*nvkm_vmm_pxe_func)(struct nvkm_vmm *,
