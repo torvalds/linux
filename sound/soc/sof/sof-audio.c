@@ -269,6 +269,10 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 	    is_virtual_widget(sdev, sink_widget->widget, __func__))
 		return 0;
 
+	/* skip route if source/sink widget is not set up */
+	if (!src_widget->use_count || !sink_widget->use_count)
+		return 0;
+
 	/* find route matching source and sink widgets */
 	list_for_each_entry(sroute, &sdev->route_list, list)
 		if (sroute->src_widget == src_widget && sroute->sink_widget == sink_widget) {
@@ -297,10 +301,34 @@ int sof_route_setup(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *wsourc
 	return 0;
 }
 
+static bool sof_widget_in_same_direction(struct snd_sof_widget *swidget, int dir)
+{
+	return swidget->spipe->direction == dir;
+}
+
+static int sof_set_up_same_dir_widget_routes(struct snd_sof_dev *sdev,
+					     struct snd_soc_dapm_widget *wsource,
+					     struct snd_soc_dapm_widget *wsink)
+{
+	struct snd_sof_widget *src_widget = wsource->dobj.private;
+	struct snd_sof_widget *sink_widget = wsink->dobj.private;
+
+	/*
+	 * skip setting up route if source and sink are in different directions (ex. playback and
+	 * echo ref) if the direction is set in topology. These will be set up later. It is enough
+	 * to check if the direction_valid is set for one of the widgets as all widgets will have
+	 * the direction set in topology if one is set.
+	 */
+	if (sink_widget->spipe && sink_widget->spipe->direction_valid &&
+	    !sof_widget_in_same_direction(sink_widget, src_widget->spipe->direction))
+		return 0;
+
+	return sof_route_setup(sdev, wsource, wsink);
+}
+
 static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 					  struct snd_soc_dapm_widget_list *list, int dir)
 {
-	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_soc_dapm_widget *widget;
 	struct snd_sof_route *sroute;
 	struct snd_soc_dapm_path *p;
@@ -323,7 +351,8 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 					continue;
 
 				if (p->sink->dobj.private) {
-					ret = sof_route_setup(sdev, widget, p->sink);
+					ret = sof_set_up_same_dir_widget_routes(sdev, widget,
+										p->sink);
 					if (ret < 0)
 						return ret;
 				}
@@ -339,7 +368,8 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 					continue;
 
 				if (p->source->dobj.private) {
-					ret = sof_route_setup(sdev, p->source, widget);
+					ret = sof_set_up_same_dir_widget_routes(sdev, p->source,
+										widget);
 					if (ret < 0)
 						return ret;
 				}
@@ -355,7 +385,6 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 	 */
 	list_for_each_entry(sroute, &sdev->route_list, list) {
 		bool src_widget_in_dapm_list, sink_widget_in_dapm_list;
-		struct snd_sof_widget *swidget;
 
 		if (sroute->setup)
 			continue;
@@ -364,39 +393,36 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 		sink_widget_in_dapm_list = widget_in_list(list, sroute->sink_widget->widget);
 
 		/*
-		 * if both source and sink are in the DAPM list, the route must already have been
-		 * set up above. And if neither are in the DAPM list, the route shouldn't be
-		 * handled now.
+		 * no need to set up the route if both the source and sink widgets are not in the
+		 * DAPM list
 		 */
-		if (src_widget_in_dapm_list == sink_widget_in_dapm_list)
+		if (!src_widget_in_dapm_list && !sink_widget_in_dapm_list)
 			continue;
 
 		/*
-		 * At this point either the source widget or the sink widget is in the DAPM list
-		 * with a route that might need to be set up. Check the use_count of the widget
-		 * that is not in the DAPM list to confirm if it is in use currently before setting
-		 * up the route.
+		 * set up the route only if both the source and sink widgets are in the DAPM list
+		 * but are in different directions. The ones in the same direction would already
+		 * have been set up in the previous loop.
 		 */
-		if (src_widget_in_dapm_list)
-			swidget = sroute->sink_widget;
-		else
-			swidget = sroute->src_widget;
+		if (src_widget_in_dapm_list && sink_widget_in_dapm_list) {
+			struct snd_sof_widget *src_widget, *sink_widget;
 
-		scoped_guard(mutex, &swidget->setup_mutex) {
-			if (!swidget->use_count)
+			src_widget = sroute->src_widget->widget->dobj.private;
+			sink_widget = sroute->sink_widget->widget->dobj.private;
+
+			/*
+			 * it is enough to check if the direction_valid is set for one of the
+			 * widgets as all widgets will have the direction set in topology if one
+			 * is set.
+			 */
+			if (src_widget && sink_widget &&
+			    src_widget->spipe && src_widget->spipe->direction_valid &&
+			    sof_widget_in_same_direction(sink_widget, src_widget->spipe->direction))
 				continue;
-
-			if (tplg_ops && tplg_ops->route_setup) {
-				/*
-				 * this route will get freed when either the
-				 * source widget or the sink widget is freed
-				 * during hw_free
-				 */
-				ret = tplg_ops->route_setup(sdev, sroute);
-				if (!ret)
-					sroute->setup = true;
-			}
 		}
+
+		ret = sof_route_setup(sdev, sroute->src_widget->widget,
+				      sroute->sink_widget->widget);
 
 		if (ret < 0)
 			return ret;
@@ -407,7 +433,7 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 
 static void
 sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget *widget,
-			      struct snd_soc_dapm_widget_list *list)
+			      struct snd_soc_dapm_widget_list *list, int dir)
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_sof_widget *swidget = widget->dobj.private;
@@ -417,9 +443,15 @@ sof_unprepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widg
 	if (is_virtual_widget(sdev, widget, __func__))
 		return;
 
-	/* skip if the widget in use or already unprepared or is an aggregated DAI */
-	if (!swidget || !swidget->prepared || swidget->use_count > 0 ||
-	    is_aggregated_dai(swidget))
+	if (!swidget)
+		goto sink_unprepare;
+
+	if (swidget->spipe && swidget->spipe->direction_valid &&
+	    !sof_widget_in_same_direction(swidget, dir))
+		return;
+
+	/* skip widgets in use, those already unprepared or aggregated DAIs */
+	if (!swidget->prepared || swidget->use_count > 0 || is_aggregated_dai(swidget))
 		goto sink_unprepare;
 
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
@@ -434,9 +466,10 @@ sink_unprepare:
 	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 		if (!widget_in_list(list, p->sink))
 			continue;
+
 		if (!p->walking && p->sink->dobj.private) {
 			p->walking = true;
-			sof_unprepare_widgets_in_path(sdev, p->sink, list);
+			sof_unprepare_widgets_in_path(sdev, p->sink, list, dir);
 			p->walking = false;
 		}
 	}
@@ -458,15 +491,20 @@ sof_prepare_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dapm_widget
 	if (is_virtual_widget(sdev, widget, __func__))
 		return 0;
 
+	if (!swidget)
+		goto sink_prepare;
+
 	widget_ops = tplg_ops ? tplg_ops->widget : NULL;
 	if (!widget_ops)
 		return 0;
 
-	if (!swidget || !widget_ops[widget->id].ipc_prepare || swidget->prepared)
-		goto sink_prepare;
+	if (swidget->spipe && swidget->spipe->direction_valid &&
+	    !sof_widget_in_same_direction(swidget, dir))
+		return 0;
 
-	/* skip aggregated DAIs */
-	if (is_aggregated_dai(swidget))
+	/* skip widgets already prepared or aggregated DAI widgets*/
+	if (!widget_ops[widget->id].ipc_prepare || swidget->prepared ||
+	    is_aggregated_dai(swidget))
 		goto sink_prepare;
 
 	/* prepare the source widget */
@@ -484,6 +522,7 @@ sink_prepare:
 	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 		if (!widget_in_list(list, p->sink))
 			continue;
+
 		if (!p->walking && p->sink->dobj.private) {
 			p->walking = true;
 			ret = sof_prepare_widgets_in_path(sdev, p->sink,  fe_params,
@@ -513,7 +552,7 @@ static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dap
 				    int dir, struct snd_sof_pcm *spcm)
 {
 	struct snd_soc_dapm_widget_list *list = spcm->stream[dir].list;
-	struct snd_sof_widget *swidget;
+	struct snd_sof_widget *swidget = widget->dobj.private;
 	struct snd_soc_dapm_path *p;
 	int err;
 	int ret = 0;
@@ -521,15 +560,21 @@ static int sof_free_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_dap
 	if (is_virtual_widget(sdev, widget, __func__))
 		return 0;
 
-	swidget = widget->dobj.private;
+	if (!swidget)
+		goto sink_free;
 
-	/* no need to free aggregated DAI widgets */
-	if (swidget && !is_aggregated_dai(swidget)) {
-		err = sof_widget_free(sdev, swidget);
-		if (err < 0)
-			ret = err;
-	}
+	if (swidget->spipe && swidget->spipe->direction_valid &&
+	    !sof_widget_in_same_direction(swidget, dir))
+		return 0;
 
+	/* skip aggregated DAIs */
+	if (is_aggregated_dai(swidget))
+		goto sink_free;
+
+	err = sof_widget_free(sdev, widget->dobj.private);
+	if (err < 0)
+		ret = err;
+sink_free:
 	/* free all widgets in the sink paths even in case of error to keep use counts balanced */
 	snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 		if (!p->walking) {
@@ -569,6 +614,11 @@ static int sof_set_up_widgets_in_path(struct snd_sof_dev *sdev, struct snd_soc_d
 	if (swidget) {
 		int i;
 
+		if (swidget->spipe && swidget->spipe->direction_valid &&
+		    !sof_widget_in_same_direction(swidget, dir))
+			return 0;
+
+		/* skip aggregated DAIs */
 		if (is_aggregated_dai(swidget))
 			goto sink_setup;
 
@@ -634,15 +684,13 @@ sof_walk_widgets_in_order(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 		return 0;
 
 	for_each_dapm_widgets(list, i, widget) {
-		if (is_virtual_widget(sdev, widget, __func__))
-			continue;
-
-		/* starting widget for playback is AIF type */
+		/* starting widget for playback is of AIF type */
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK && widget->id != snd_soc_dapm_aif_in)
 			continue;
 
 		/* starting widget for capture is DAI type */
-		if (dir == SNDRV_PCM_STREAM_CAPTURE && widget->id != snd_soc_dapm_dai_out)
+		if (dir == SNDRV_PCM_STREAM_CAPTURE && widget->id != snd_soc_dapm_dai_out &&
+		    widget->id != snd_soc_dapm_output)
 			continue;
 
 		switch (op) {
@@ -672,7 +720,7 @@ sof_walk_widgets_in_order(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm,
 			break;
 		}
 		case SOF_WIDGET_UNPREPARE:
-			sof_unprepare_widgets_in_path(sdev, widget, list);
+			sof_unprepare_widgets_in_path(sdev, widget, list, dir);
 			break;
 		default:
 			dev_err(sdev->dev, "Invalid widget op %d\n", op);
