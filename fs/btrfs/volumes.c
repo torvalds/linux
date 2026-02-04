@@ -392,6 +392,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 	INIT_LIST_HEAD(&fs_devs->alloc_list);
 	INIT_LIST_HEAD(&fs_devs->fs_list);
 	INIT_LIST_HEAD(&fs_devs->seed_list);
+	spin_lock_init(&fs_devs->per_profile_lock);
 
 	if (fsid) {
 		memcpy(fs_devs->fsid, fsid, BTRFS_FSID_SIZE);
@@ -5385,6 +5386,169 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 	if (di_a->total_avail < di_b->total_avail)
 		return 1;
 	return 0;
+}
+
+/*
+ * Return 0 if we allocated any virtual(*) chunk, and restore the size to
+ * @allocated.
+ * Return -ENOSPC if we have no more space to allocate virtual chunk
+ *
+ * *: A virtual chunk is a chunk that only exists during per-profile available
+ *    estimation.
+ *    Those numbers won't really take on-disk space, but only to emulate
+ *    chunk allocator behavior to get accurate estimation on available space.
+ *
+ *    Another difference is, a virtual chunk has no size limit and doesn't care
+ *    about holes in the device tree, allowing us to exhaust device space
+ *    much faster.
+ */
+static int alloc_virtual_chunk(struct btrfs_fs_info *fs_info,
+			       struct btrfs_device_info *devices_info,
+			       enum btrfs_raid_types type,
+			       u64 *allocated)
+{
+	const struct btrfs_raid_attr *raid_attr = &btrfs_raid_array[type];
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	u64 stripe_size;
+	int ndevs = 0;
+
+	lockdep_assert_held(&fs_info->chunk_mutex);
+
+	/* Go through devices to collect their unallocated space. */
+	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list) {
+		u64 avail;
+
+		if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
+					&device->dev_state) ||
+		    test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state))
+			continue;
+
+		if (device->total_bytes > device->bytes_used +
+				device->per_profile_allocated)
+			avail = device->total_bytes - device->bytes_used -
+				device->per_profile_allocated;
+		else
+			avail = 0;
+
+		avail = round_down(avail, fs_info->sectorsize);
+
+		/* And exclude the [0, 1M) reserved space. */
+		if (avail > BTRFS_DEVICE_RANGE_RESERVED)
+			avail -= BTRFS_DEVICE_RANGE_RESERVED;
+		else
+			avail = 0;
+
+		/*
+		 * Not enough to support a single stripe, this device
+		 * can not be utilized for chunk allocation.
+		 */
+		if (avail < BTRFS_STRIPE_LEN)
+			continue;
+
+		/*
+		 * Unlike chunk allocator, we don't care about stripe or hole
+		 * size, so here we use @avail directly.
+		 */
+		devices_info[ndevs].dev_offset = 0;
+		devices_info[ndevs].total_avail = avail;
+		devices_info[ndevs].max_avail = avail;
+		devices_info[ndevs].dev = device;
+		++ndevs;
+	}
+	sort(devices_info, ndevs, sizeof(struct btrfs_device_info),
+	     btrfs_cmp_device_info, NULL);
+	ndevs = rounddown(ndevs, raid_attr->devs_increment);
+	if (ndevs < raid_attr->devs_min)
+		return -ENOSPC;
+	if (raid_attr->devs_max)
+		ndevs = min(ndevs, (int)raid_attr->devs_max);
+	else
+		ndevs = min(ndevs, (int)BTRFS_MAX_DEVS(fs_info));
+
+	/*
+	 * Stripe size will be determined by the device with the least
+	 * unallocated space.
+	 */
+	stripe_size = devices_info[ndevs - 1].total_avail;
+
+	for (int i = 0; i < ndevs; i++)
+		devices_info[i].dev->per_profile_allocated += stripe_size;
+	*allocated = div_u64(stripe_size * (ndevs - raid_attr->nparity),
+			     raid_attr->ncopies);
+	return 0;
+}
+
+static int calc_one_profile_avail(struct btrfs_fs_info *fs_info,
+				  enum btrfs_raid_types type,
+				  u64 *result_ret)
+{
+	struct btrfs_device_info *devices_info = NULL;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	u64 allocated;
+	u64 result = 0;
+	int ret = 0;
+
+	lockdep_assert_held(&fs_info->chunk_mutex);
+	ASSERT(type >= 0 && type < BTRFS_NR_RAID_TYPES);
+
+	/* Not enough devices, quick exit, just update the result. */
+	if (fs_devices->rw_devices < btrfs_raid_array[type].devs_min) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	devices_info = kcalloc(fs_devices->rw_devices, sizeof(*devices_info),
+			       GFP_NOFS);
+	if (!devices_info) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	/* Clear virtual chunk used space for each device. */
+	list_for_each_entry(device, &fs_devices->alloc_list, dev_alloc_list)
+		device->per_profile_allocated = 0;
+
+	while (!alloc_virtual_chunk(fs_info, devices_info, type, &allocated))
+		result += allocated;
+
+out:
+	kfree(devices_info);
+	if (ret < 0 && ret != -ENOSPC)
+		return ret;
+	*result_ret = result;
+	return 0;
+}
+
+/* Update the per-profile available space array. */
+void btrfs_update_per_profile_avail(struct btrfs_fs_info *fs_info)
+{
+	u64 results[BTRFS_NR_RAID_TYPES];
+	int ret;
+
+	/*
+	 * Zoned is more complex as we can not simply get the amount of
+	 * available space for each device.
+	 */
+	if (btrfs_is_zoned(fs_info))
+		goto error;
+
+	for (int i = 0; i < BTRFS_NR_RAID_TYPES; i++) {
+		ret = calc_one_profile_avail(fs_info, i, &results[i]);
+		if (ret < 0)
+			goto error;
+	}
+
+	spin_lock(&fs_info->fs_devices->per_profile_lock);
+	for (int i = 0; i < BTRFS_NR_RAID_TYPES; i++)
+		fs_info->fs_devices->per_profile_avail[i] = results[i];
+	spin_unlock(&fs_info->fs_devices->per_profile_lock);
+	return;
+error:
+	spin_lock(&fs_info->fs_devices->per_profile_lock);
+	for (int i = 0; i < BTRFS_NR_RAID_TYPES; i++)
+		fs_info->fs_devices->per_profile_avail[i] = U64_MAX;
+	spin_unlock(&fs_info->fs_devices->per_profile_lock);
 }
 
 static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
