@@ -1186,6 +1186,34 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_echoref_dailink(struct snd_soc_card *card,
+				  struct snd_soc_dai_link **dai_links, int *be_id)
+{
+	struct device *dev = card->dev;
+	int ret;
+	char *name = devm_kasprintf(dev, GFP_KERNEL, "Loopback_Virtual");
+
+	if (!name)
+		return -ENOMEM;
+
+	/*
+	 * use dummy DAI names as this won't be connected to an actual DAI but just to establish a
+	 * fe <-> be connection for loopback capture for echo reference
+	 */
+	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
+					    0, 1, "Loopback Virtual Pin", "dummy",
+					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
+					    1, NULL, NULL);
+	if (ret)
+		return ret;
+
+	(*dai_links)++;
+
+	dev_dbg(dev, "Added echo reference DAI link\n");
+
+	return 0;
+}
+
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1294,8 +1322,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_end;
 	}
 
-	/* allocate BE dailinks */
-	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num;
+	/*
+	 * allocate BE dailinks, add an extra DAI link for echo reference capture.
+	 * This should be the last DAI link and it is expected both for monolithic
+	 * and functional SOF topologies to support echo reference.
+	 */
+	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num + 1;
 	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
 	if (!dai_links) {
 		ret = -ENOMEM;
@@ -1342,6 +1374,13 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		ret = create_bt_dailinks(card, &dai_links, &be_id);
 		if (ret)
 			goto err_end;
+	}
+
+	/* dummy echo ref link. keep this as the last DAI link. The DAI link ID does not matter */
+	ret = create_echoref_dailink(card, &dai_links, &be_id);
+	if (ret) {
+		dev_err(dev, "failed to create echo ref dai link: %d\n", ret);
+		goto err_end;
 	}
 
 	WARN_ON(codec_conf != card->codec_conf + card->num_configs);
