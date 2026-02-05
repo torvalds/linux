@@ -1257,7 +1257,7 @@ static void bpf_async_cb_rcu_tasks_trace_free(struct rcu_head *rcu)
 			retry = true;
 		break;
 	case BPF_ASYNC_TYPE_WQ:
-		if (!cancel_work(&w->work))
+		if (!cancel_work(&w->work) && work_busy(&w->work))
 			retry = true;
 		break;
 	}
