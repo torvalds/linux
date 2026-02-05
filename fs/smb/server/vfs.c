@@ -31,6 +31,7 @@
 #include "ndr.h"
 #include "auth.h"
 #include "misc.h"
+#include "stats.h"
 
 #include "smb_common.h"
 #include "mgmt/share_config.h"
@@ -384,6 +385,7 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 	}
 
 	filp->f_pos = *pos;
+	ksmbd_counter_add(KSMBD_COUNTER_READ_BYTES, (s64)nbytes);
 	return nbytes;
 }
 
@@ -521,6 +523,7 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 			pr_err("fsync failed for filename = %pD, err = %d\n",
 			       fp->filp, err);
 	}
+	ksmbd_counter_add(KSMBD_COUNTER_WRITE_BYTES, (s64)*written);
 
 out:
 	return err;

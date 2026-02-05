@@ -41,7 +41,6 @@ struct ksmbd_session {
 
 	bool				sign;
 	bool				enc;
-	bool				is_anonymous;
 
 	int				state;
 	__u8				*Preauth_HashValue;
@@ -62,6 +61,9 @@ struct ksmbd_session {
 	unsigned long			last_active;
 	rwlock_t			tree_conns_lock;
 
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry		*proc_entry;
+#endif
 	atomic_t			refcnt;
 	struct rw_semaphore		rpc_lock;
 };
@@ -111,4 +113,5 @@ void ksmbd_session_rpc_close(struct ksmbd_session *sess, int id);
 int ksmbd_session_rpc_method(struct ksmbd_session *sess, int id);
 void ksmbd_user_session_get(struct ksmbd_session *sess);
 void ksmbd_user_session_put(struct ksmbd_session *sess);
+int create_proc_sessions(void);
 #endif /* __USER_SESSION_MANAGEMENT_H__ */
