@@ -70,8 +70,23 @@ static int smb_direct_send_credit_target = 255;
 /* The maximum single message size can be sent to remote peer */
 static int smb_direct_max_send_size = 1364;
 
-/*  The maximum fragmented upper-layer payload receive size supported */
-static int smb_direct_max_fragmented_recv_size = 1024 * 1024;
+/*
+ * The maximum fragmented upper-layer payload receive size supported
+ *
+ * Assume max_payload_per_credit is
+ * smb_direct_receive_credit_max - 24 = 1340
+ *
+ * The maximum number would be
+ * smb_direct_receive_credit_max * max_payload_per_credit
+ *
+ *                       1340 * 255 = 341700 (0x536C4)
+ *
+ * The minimum value from the spec is 131072 (0x20000)
+ *
+ * For now we use the logic we used before:
+ *                 (1364 * 255) / 2 = 173910 (0x2A756)
+ */
+static int smb_direct_max_fragmented_recv_size = (1364 * 255) / 2;
 
 /*  The maximum single-message size which can be received */
 static int smb_direct_max_receive_size = 1364;
@@ -2531,6 +2546,29 @@ static int smb_direct_prepare(struct ksmbd_transport *t)
 				  le32_to_cpu(req->max_receive_size));
 	sp->max_fragmented_send_size =
 		le32_to_cpu(req->max_fragmented_size);
+	/*
+	 * The maximum fragmented upper-layer payload receive size supported
+	 *
+	 * Assume max_payload_per_credit is
+	 * smb_direct_receive_credit_max - 24 = 1340
+	 *
+	 * The maximum number would be
+	 * smb_direct_receive_credit_max * max_payload_per_credit
+	 *
+	 *                       1340 * 255 = 341700 (0x536C4)
+	 *
+	 * The minimum value from the spec is 131072 (0x20000)
+	 *
+	 * For now we use the logic we used before:
+	 *                 (1364 * 255) / 2 = 173910 (0x2A756)
+	 *
+	 * We need to adjust this here in case the peer
+	 * lowered sp->max_recv_size.
+	 *
+	 * TODO: instead of adjusting max_fragmented_recv_size
+	 * we should adjust the number of available buffers,
+	 * but for now we keep the current logic.
+	 */
 	sp->max_fragmented_recv_size =
 		(sp->recv_credit_max * sp->max_recv_size) / 2;
 	sc->recv_io.credits.target = le16_to_cpu(req->credits_requested);
