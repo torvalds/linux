@@ -9,6 +9,7 @@
 #ifndef __CS35L56_H
 #define __CS35L56_H
 
+#include <linux/bits.h>
 #include <linux/debugfs.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/regulator/consumer.h>
@@ -26,6 +27,9 @@ struct snd_ctl_elem_value;
 #define CS35L56_GLOBAL_ENABLES				0x0002014
 #define CS35L56_BLOCK_ENABLES				0x0002018
 #define CS35L56_BLOCK_ENABLES2				0x000201C
+#define CS35L56_SYNC_GPIO1_CFG				0x0002410
+#define CS35L56_ASP2_DIO_GPIO13_CFG			0x0002440
+#define CS35L56_UPDATE_REGS				0x0002A0C
 #define CS35L56_REFCLK_INPUT				0x0002C04
 #define CS35L56_GLOBAL_SAMPLE_RATE			0x0002C0C
 #define CS35L56_OTP_MEM_53				0x00300D4
@@ -65,6 +69,9 @@ struct snd_ctl_elem_value;
 #define CS35L56_IRQ1_MASK_8				0x000E0AC
 #define CS35L56_IRQ1_MASK_18				0x000E0D4
 #define CS35L56_IRQ1_MASK_20				0x000E0DC
+#define CS35L56_GPIO_STATUS1				0x000F000
+#define CS35L56_GPIO1_CTRL1				0x000F008
+#define CS35L56_GPIO13_CTRL1				0x000F038
 #define CS35L56_MIXER_NGATE_CH1_CFG			0x0010004
 #define CS35L56_MIXER_NGATE_CH2_CFG			0x0010008
 #define CS35L56_DSP_MBOX_1_RAW				0x0011000
@@ -130,6 +137,17 @@ struct snd_ctl_elem_value;
 #define CS35L56_MTLREVID_MASK				0x0000000F
 #define CS35L56_REVID_B0				0x000000B0
 
+/* PAD_INTF */
+#define CS35L56_PAD_GPIO_PULL_MASK			GENMASK(3, 2)
+#define CS35L56_PAD_GPIO_IE				BIT(0)
+
+#define CS35L56_PAD_PULL_NONE				0
+#define CS35L56_PAD_PULL_UP				1
+#define CS35L56_PAD_PULL_DOWN				2
+
+/* UPDATE_REGS */
+#define CS35L56_UPDT_GPIO_PRES				BIT(6)
+
 /* ASP_ENABLES1 */
 #define CS35L56_ASP_RX2_EN_SHIFT			17
 #define CS35L56_ASP_RX1_EN_SHIFT			16
@@ -184,6 +202,12 @@ struct snd_ctl_elem_value;
 
 /* MIXER_NGATE_CHn_CFG */
 #define CS35L56_AUX_NGATE_CHn_EN			0x00000001
+
+/* GPIOn_CTRL1 */
+#define CS35L56_GPIO_DIR_MASK				BIT(31)
+#define CS35L56_GPIO_FN_MASK				GENMASK(2, 0)
+
+#define CS35L56_GPIO_FN_GPIO				0x00000001
 
 /* Mixer input sources */
 #define CS35L56_INPUT_SRC_NONE				0x00
@@ -279,6 +303,7 @@ struct snd_ctl_elem_value;
 #define CS35L56_HALO_STATE_TIMEOUT_US			250000
 #define CS35L56_RESET_PULSE_MIN_US			1100
 #define CS35L56_WAKE_HOLD_TIME_US			1000
+#define CS35L56_PAD_PULL_SETTLE_US			10
 
 #define CS35L56_CALIBRATION_POLL_US			(100 * USEC_PER_MSEC)
 #define CS35L56_CALIBRATION_TIMEOUT_US			(5 * USEC_PER_SEC)
@@ -288,6 +313,9 @@ struct snd_ctl_elem_value;
 
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5
+
+#define CS35L56_MAX_GPIO				13
+#define CS35L63_MAX_GPIO				9
 
 /* Additional margin for SYSTEM_RESET to control port ready on SPI */
 #define CS35L56_SPI_RESET_TO_PORT_READY_US (CS35L56_CONTROL_PORT_READY_US + 2500)
@@ -338,6 +366,10 @@ struct cs35l56_base {
 	const struct cirrus_amp_cal_controls *calibration_controls;
 	struct dentry *debugfs;
 	u64 silicon_uid;
+	u8 onchip_spkid_gpios[5];
+	u8 num_onchip_spkid_gpios;
+	u8 onchip_spkid_pulls[5];
+	u8 num_onchip_spkid_pulls;
 };
 
 static inline bool cs35l56_is_otp_register(unsigned int reg)
@@ -413,6 +445,11 @@ void cs35l56_warn_if_firmware_missing(struct cs35l56_base *cs35l56_base);
 void cs35l56_log_tuning(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base);
+int cs35l56_check_and_save_onchip_spkid_gpios(struct cs35l56_base *cs35l56_base,
+					      const u32 *gpios, int num_gpios,
+					      const u32 *pulls, int num_pulls);
+int cs35l56_configure_onchip_spkid_pads(struct cs35l56_base *cs35l56_base);
+int cs35l56_read_onchip_spkid(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_bclk_freq_id(unsigned int freq);
 void cs35l56_fill_supply_names(struct regulator_bulk_data *data);
 
