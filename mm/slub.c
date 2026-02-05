@@ -898,6 +898,9 @@ static inline unsigned long get_orig_size(struct kmem_cache *s, void *object)
  */
 static inline bool need_slab_obj_exts(struct kmem_cache *s)
 {
+	if (s->flags & SLAB_NO_OBJ_EXT)
+		return false;
+
 	if (memcg_kmem_online() && (s->flags & SLAB_ACCOUNT))
 		return true;
 
