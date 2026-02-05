@@ -1257,7 +1257,7 @@ static void bpf_async_cb_rcu_tasks_trace_free(struct rcu_head *rcu)
 			retry = true;
 		break;
 	case BPF_ASYNC_TYPE_WQ:
-		if (!cancel_work(&w->work))
+		if (!cancel_work(&w->work) && work_busy(&w->work))
 			retry = true;
 		break;
 	}
@@ -1664,6 +1664,7 @@ static void bpf_async_cancel_and_free(struct bpf_async_kern *async)
 	if (!cb)
 		return;
 
+	bpf_async_update_prog_callback(cb, NULL, NULL);
 	/*
 	 * No refcount_inc_not_zero(&cb->refcnt) here. Dropping the last
 	 * refcnt. Either synchronously or asynchronously in irq_work.
