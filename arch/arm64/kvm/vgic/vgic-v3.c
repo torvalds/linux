@@ -880,6 +880,20 @@ void noinstr kvm_compute_ich_hcr_trap_bits(struct alt_instr *alt,
 	*updptr = cpu_to_le32(insn);
 }
 
+void vgic_v3_enable_cpuif_traps(void)
+{
+	u64 traps = vgic_ich_hcr_trap_bits();
+
+	if (traps) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s%s], reduced performance)\n",
+			 (traps & ICH_HCR_EL2_TALL0) ? "G0" : "",
+			 (traps & ICH_HCR_EL2_TALL1) ? "G1" : "",
+			 (traps & ICH_HCR_EL2_TC)    ? "C"  : "",
+			 (traps & ICH_HCR_EL2_TDIR)  ? "D"  : "");
+		static_branch_enable(&vgic_v3_cpuif_trap);
+	}
+}
+
 /**
  * vgic_v3_probe - probe for a VGICv3 compatible interrupt controller
  * @info:	pointer to the GIC description
@@ -891,7 +905,6 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 {
 	u64 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
 	bool has_v2;
-	u64 traps;
 	int ret;
 
 	has_v2 = ich_vtr_el2 >> 63;
@@ -955,15 +968,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_EL2_SEIS;
 	}
 
-	traps = vgic_ich_hcr_trap_bits();
-	if (traps) {
-		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s%s], reduced performance)\n",
-			 (traps & ICH_HCR_EL2_TALL0) ? "G0" : "",
-			 (traps & ICH_HCR_EL2_TALL1) ? "G1" : "",
-			 (traps & ICH_HCR_EL2_TC)    ? "C"  : "",
-			 (traps & ICH_HCR_EL2_TDIR)  ? "D"  : "");
-		static_branch_enable(&vgic_v3_cpuif_trap);
-	}
+	vgic_v3_enable_cpuif_traps();
 
 	kvm_vgic_global_state.vctrl_base = NULL;
 	kvm_vgic_global_state.type = VGIC_V3;

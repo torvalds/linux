@@ -2335,15 +2335,15 @@ static bool can_trap_icv_dir_el1(const struct arm64_cpu_capabilities *entry,
 
 	BUILD_BUG_ON(ARM64_HAS_ICH_HCR_EL2_TDIR <= ARM64_HAS_GICV3_CPUIF);
 	BUILD_BUG_ON(ARM64_HAS_ICH_HCR_EL2_TDIR <= ARM64_HAS_GICV5_LEGACY);
-	if (!this_cpu_has_cap(ARM64_HAS_GICV3_CPUIF) &&
-	    !is_midr_in_range_list(has_vgic_v3))
-		return false;
-
 	if (!is_hyp_mode_available())
 		return false;
 
 	if (this_cpu_has_cap(ARM64_HAS_GICV5_LEGACY))
 		return true;
+
+	if (!this_cpu_has_cap(ARM64_HAS_GICV3_CPUIF) &&
+	    !is_midr_in_range_list(has_vgic_v3))
+		return false;
 
 	if (is_kernel_in_hyp_mode())
 		res.a1 = read_sysreg_s(SYS_ICH_VTR_EL2);
