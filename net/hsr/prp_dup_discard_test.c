@@ -15,12 +15,15 @@ struct prp_test_data {
 
 static struct prp_test_data *build_prp_test_data(struct kunit *test)
 {
+	size_t block_sz;
+
 	struct prp_test_data *data = kunit_kzalloc(test,
 		sizeof(struct prp_test_data), GFP_USER);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, data);
 
-	data->node.block_buf = kunit_kcalloc(test, HSR_MAX_SEQ_BLOCKS,
-					     sizeof(struct hsr_seq_block),
+	data->node.seq_port_cnt = 1;
+	block_sz = hsr_seq_block_size(&data->node);
+	data->node.block_buf = kunit_kcalloc(test, HSR_MAX_SEQ_BLOCKS, block_sz,
 					     GFP_ATOMIC);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, data->node.block_buf);
 
@@ -30,8 +33,6 @@ static struct prp_test_data *build_prp_test_data(struct kunit *test)
 	data->frame.node_src = &data->node;
 	data->frame.port_rcv = &data->port_rcv;
 	data->port_rcv.type = HSR_PT_SLAVE_A;
-	data->node.seq_out[HSR_PT_MASTER] = 0;
-	data->node.time_out[HSR_PT_MASTER] = jiffies;
 	data->port.type = HSR_PT_MASTER;
 
 	return data;
@@ -48,7 +49,7 @@ static void check_prp_frame_seen(struct kunit *test, struct prp_test_data *data,
 	KUNIT_EXPECT_NOT_NULL(test, block);
 
 	seq_bit = sequence_nr & HSR_SEQ_BLOCK_MASK;
-	KUNIT_EXPECT_TRUE(test, test_bit(seq_bit, block->seq_nrs));
+	KUNIT_EXPECT_TRUE(test, test_bit(seq_bit, block->seq_nrs[0]));
 }
 
 static void check_prp_frame_unseen(struct kunit *test,
@@ -62,7 +63,7 @@ static void check_prp_frame_unseen(struct kunit *test,
 	KUNIT_EXPECT_NOT_NULL(test, block);
 
 	seq_bit = sequence_nr & HSR_SEQ_BLOCK_MASK;
-	KUNIT_EXPECT_FALSE(test, test_bit(seq_bit, block->seq_nrs));
+	KUNIT_EXPECT_FALSE(test, test_bit(seq_bit, block->seq_nrs[0]));
 }
 
 static void prp_dup_discard_forward(struct kunit *test)
@@ -73,30 +74,20 @@ static void prp_dup_discard_forward(struct kunit *test)
 	data->frame.sequence_nr = 2;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
-	KUNIT_EXPECT_EQ(test, jiffies, data->node.time_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 }
 
 static void prp_dup_discard_drop_duplicate(struct kunit *test)
 {
 	struct prp_test_data *data = build_prp_test_data(test);
-	unsigned long time = jiffies - 10;
 
 	data->frame.sequence_nr = 2;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
-	data->node.time_out[HSR_PT_MASTER] = time;
 
 	KUNIT_EXPECT_EQ(test, 1,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
-	KUNIT_EXPECT_EQ(test, time, data->node.time_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 }
 
@@ -123,9 +114,6 @@ static void prp_dup_discard_entry_timeout(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
-	KUNIT_EXPECT_EQ(test, jiffies, data->node.time_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 	check_prp_frame_unseen(test, data, 7);
 }
@@ -139,16 +127,12 @@ static void prp_dup_discard_out_of_sequence(struct kunit *test)
 	data->frame.sequence_nr = 9;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 
 	/* 1st old frame, should be accepted */
 	data->frame.sequence_nr = 8;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 
 	/* 2nd frame should be dropped */
@@ -162,8 +146,6 @@ static void prp_dup_discard_out_of_sequence(struct kunit *test)
 	data->port_rcv.type = HSR_PT_SLAVE_A;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 
 	/* and next one is dropped */
@@ -178,20 +160,14 @@ static void prp_dup_discard_lan_b_late(struct kunit *test)
 	/* LAN B is behind */
 	struct prp_test_data *data = build_prp_test_data(test);
 
-	data->node.seq_out[HSR_PT_MASTER] = 8;
-
 	data->frame.sequence_nr = 9;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 
 	data->frame.sequence_nr = 10;
 	KUNIT_EXPECT_EQ(test, 0,
 			prp_register_frame_out(&data->port, &data->frame));
-	KUNIT_EXPECT_EQ(test, data->frame.sequence_nr,
-			data->node.seq_out[HSR_PT_MASTER]);
 	check_prp_frame_seen(test, data, data->frame.sequence_nr);
 
 	data->frame.sequence_nr = 9;
