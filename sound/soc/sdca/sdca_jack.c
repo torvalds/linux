@@ -41,9 +41,10 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 	struct jack_state *state = interrupt->priv;
 	struct snd_kcontrol *kctl = state->kctl;
 	struct snd_ctl_elem_value *ucontrol __free(kfree) = NULL;
-	struct soc_enum *soc_enum;
 	unsigned int reg, val;
 	int ret;
+
+	guard(rwsem_write)(rwsem);
 
 	if (!kctl) {
 		const char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s %s",
@@ -54,15 +55,11 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 			return -ENOMEM;
 
 		kctl = snd_soc_component_get_kcontrol(component, name);
-		if (!kctl) {
+		if (!kctl)
 			dev_dbg(dev, "control not found: %s\n", name);
-			return -ENOENT;
-		}
-
-		state->kctl = kctl;
+		else
+			state->kctl = kctl;
 	}
-
-	soc_enum = (struct soc_enum *)kctl->private_value;
 
 	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
 			   interrupt->control->sel, 0);
@@ -73,13 +70,12 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 		return ret;
 	}
 
+	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
+			   SDCA_CTL_GE_SELECTED_MODE, 0);
+
 	switch (val) {
 	case SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS:
 	case SDCA_DETECTED_MODE_JACK_UNKNOWN:
-		reg = SDW_SDCA_CTL(interrupt->function->desc->adr,
-				   interrupt->entity->id,
-				   SDCA_CTL_GE_SELECTED_MODE, 0);
-
 		/*
 		 * Selected mode is not normally marked as volatile register
 		 * (RW), but here force a read from the hardware. If the
@@ -100,21 +96,29 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 
 	dev_dbg(dev, "%s: %#x\n", interrupt->name, val);
 
-	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
-	if (!ucontrol)
-		return -ENOMEM;
+	if (kctl) {
+		struct soc_enum *soc_enum = (struct soc_enum *)kctl->private_value;
 
-	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
+		ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
+		if (!ucontrol)
+			return -ENOMEM;
 
-	down_write(rwsem);
-	ret = kctl->put(kctl, ucontrol);
-	up_write(rwsem);
-	if (ret < 0) {
-		dev_err(dev, "failed to update selected mode: %d\n", ret);
-		return ret;
+		ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
+
+		ret = snd_soc_dapm_put_enum_double(kctl, ucontrol);
+		if (ret < 0) {
+			dev_err(dev, "failed to update selected mode: %d\n", ret);
+			return ret;
+		}
+
+		snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
+	} else {
+		ret = regmap_write(interrupt->function_regmap, reg, val);
+		if (ret) {
+			dev_err(dev, "failed to write selected mode: %d\n", ret);
+			return ret;
+		}
 	}
-
-	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 
 	return sdca_jack_report(interrupt);
 }

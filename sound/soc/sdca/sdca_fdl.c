@@ -256,8 +256,7 @@ static int fdl_load_file(struct sdca_interrupt *interrupt,
 		    tmp->file_length != firmware->size) {
 			dev_err(dev, "bad disk SWF size\n");
 		} else if (!swf || swf->file_version <= tmp->file_version) {
-			dev_dbg(dev, "using SWF from disk: %x-%x-%x\n",
-				tmp->vendor_id, tmp->file_id, tmp->file_version);
+			dev_dbg(dev, "using SWF from disk\n");
 			swf = tmp;
 		}
 	}
@@ -266,6 +265,9 @@ static int fdl_load_file(struct sdca_interrupt *interrupt,
 		dev_err(dev, "failed to locate SWF\n");
 		return -ENOENT;
 	}
+
+	dev_info(dev, "loading SWF: %x-%x-%x\n",
+		 swf->vendor_id, swf->file_id, swf->file_version);
 
 	ret = sdca_ump_write_message(dev, interrupt->device_regmap,
 				     interrupt->function_regmap,
