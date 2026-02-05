@@ -1276,12 +1276,24 @@ static void bpf_async_cb_rcu_tasks_trace_free(struct rcu_head *rcu)
 	bpf_async_cb_rcu_free(rcu);
 }
 
+static void worker_for_call_rcu(struct irq_work *work)
+{
+	struct bpf_async_cb *cb = container_of(work, struct bpf_async_cb, worker);
+
+	call_rcu_tasks_trace(&cb->rcu, bpf_async_cb_rcu_tasks_trace_free);
+}
+
 static void bpf_async_refcount_put(struct bpf_async_cb *cb)
 {
 	if (!refcount_dec_and_test(&cb->refcnt))
 		return;
 
-	call_rcu_tasks_trace(&cb->rcu, bpf_async_cb_rcu_tasks_trace_free);
+	if (irqs_disabled()) {
+		cb->worker = IRQ_WORK_INIT(worker_for_call_rcu);
+		irq_work_queue(&cb->worker);
+	} else {
+		call_rcu_tasks_trace(&cb->rcu, bpf_async_cb_rcu_tasks_trace_free);
+	}
 }
 
 static void bpf_async_cancel_and_free(struct bpf_async_kern *async);
