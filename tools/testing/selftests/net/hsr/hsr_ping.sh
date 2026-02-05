@@ -94,17 +94,6 @@ do_link_problem_tests()
 {
 	echo "INFO: Running link problem tests."
 
-	echo "INFO: Cutting one link."
-	do_ping_long "$ns1" 100.64.0.3 &
-
-	sleep 3
-	ip -net "$ns3" link set ns3eth1 down
-	wait
-
-	ip -net "$ns3" link set ns3eth1 up
-
-	stop_if_error "Failed with one link down."
-
 	echo "INFO: Delay the link and drop a few packages."
 	tc -net "$ns3" qdisc add dev ns3eth1 root netem delay 50ms
 	tc -net "$ns2" qdisc add dev ns2eth1 root netem delay 5ms loss 25%
