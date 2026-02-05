@@ -53,7 +53,7 @@ struct phy_port *phy_of_parse_port(struct device_node *dn)
 	enum ethtool_link_medium medium;
 	struct phy_port *port;
 	const char *med_str;
-	u32 pairs = 0, mediums = 0;
+	u32 pairs = 0;
 	int ret;
 
 	ret = fwnode_property_read_string(fwnode, "media", &med_str);
@@ -85,17 +85,12 @@ struct phy_port *phy_of_parse_port(struct device_node *dn)
 		return ERR_PTR(-EINVAL);
 	}
 
-	mediums |= BIT(medium);
-
-	if (!mediums)
-		return ERR_PTR(-EINVAL);
-
 	port = phy_port_alloc();
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
 	port->pairs = pairs;
-	port->mediums = mediums;
+	port->mediums = BIT(medium);
 
 	return port;
 }
