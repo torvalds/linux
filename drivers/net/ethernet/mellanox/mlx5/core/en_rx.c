@@ -1087,11 +1087,24 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 	return i;
 }
 
+static void mlx5e_reclaim_mpwqe_pages(struct mlx5e_rq *rq, int head,
+				      int reclaim)
+{
+	struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
+
+	for (int i = 0; i < reclaim; i++) {
+		head = mlx5_wq_ll_get_wqe_next_ix(wq, head);
+
+		mlx5e_dealloc_rx_mpwqe(rq, head);
+	}
+}
+
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 {
 	struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
 	u8  umr_completed = rq->mpwqe.umr_completed;
 	struct mlx5e_icosq *sq = rq->icosq;
+	bool reclaimed = false;
 	int alloc_err = 0;
 	u8  missing, i;
 	u16 head;
@@ -1126,11 +1139,20 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 		/* Deferred free for better page pool cache usage. */
 		mlx5e_free_rx_mpwqe(rq, wi);
 
+retry:
 		alloc_err = rq->xsk_pool ? mlx5e_xsk_alloc_rx_mpwqe(rq, head) :
 					   mlx5e_alloc_rx_mpwqe(rq, head);
+		if (unlikely(alloc_err)) {
+			int reclaim = i - 1;
 
-		if (unlikely(alloc_err))
-			break;
+			if (reclaimed || !reclaim)
+				break;
+
+			mlx5e_reclaim_mpwqe_pages(rq, head, reclaim);
+			reclaimed = true;
+
+			goto retry;
+		}
 		head = mlx5_wq_ll_get_wqe_next_ix(wq, head);
 	} while (--i);
 
@@ -1574,7 +1596,7 @@ static inline bool mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      struct mlx5e_rq *rq,
 				      struct sk_buff *skb)
 {
-	u8 lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
+	u8 lro_num_seg = get_cqe_lro_num_seg(cqe);
 	struct mlx5e_rq_stats *stats = rq->stats;
 	struct net_device *netdev = rq->netdev;
 
@@ -2057,6 +2079,15 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	u16 linear_data_len;
 	u16 linear_hr;
 	void *va;
+
+	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
+		u8 lro_num_seg = get_cqe_lro_num_seg(cqe);
+
+		if (lro_num_seg <= 1) {
+			rq->stats->oversize_pkts_sw_drop++;
+			return NULL;
+		}
+	}
 
 	prog = rcu_dereference(rq->xdp_prog);
 
