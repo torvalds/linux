@@ -24,7 +24,7 @@
 
 #define PASID_FLAG_NESTED		BIT(1)
 #define PASID_FLAG_PAGE_SNOOP		BIT(2)
-#define PASID_FLAG_PWSNP		BIT(2)
+#define PASID_FLAG_PWSNP		BIT(3)
 
 /*
  * The PASID_FLAG_FL5LP flag Indicates using 5-level paging for first-
