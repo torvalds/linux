@@ -427,7 +427,7 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 		if (pkcs7->have_authattrs) {
 #ifdef CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA
 			if (pkcs7->authattrs_rej_waivable) {
-				pr_warn("Waived invalid module sig (has authattrs)\n");
+				pr_warn_once("Waived invalid module sig (has authattrs)\n");
 				break;
 			}
 #endif
