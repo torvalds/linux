@@ -255,8 +255,7 @@ static int mshv_ioctl_passthru_hvcall(struct mshv_partition *partition,
 		if (!hv_result_needs_memory(status))
 			ret = hv_result_to_errno(status);
 		else
-			ret = hv_call_deposit_pages(NUMA_NO_NODE,
-						    pt_id, 1);
+			ret = hv_deposit_memory(pt_id, status);
 	} while (!ret);
 
 	args.status = hv_result(status);
