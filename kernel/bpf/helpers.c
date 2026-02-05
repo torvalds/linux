@@ -1664,6 +1664,7 @@ static void bpf_async_cancel_and_free(struct bpf_async_kern *async)
 	if (!cb)
 		return;
 
+	bpf_async_update_prog_callback(cb, NULL, NULL);
 	/*
 	 * No refcount_inc_not_zero(&cb->refcnt) here. Dropping the last
 	 * refcnt. Either synchronously or asynchronously in irq_work.
