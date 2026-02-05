@@ -919,6 +919,16 @@ struct request_sock *inet_reqsk_alloc(const struct request_sock_ops *ops,
 }
 EXPORT_SYMBOL(inet_reqsk_alloc);
 
+void __reqsk_free(struct request_sock *req)
+{
+	req->rsk_ops->destructor(req);
+	if (req->rsk_listener)
+		sock_put(req->rsk_listener);
+	kfree(req->saved_syn);
+	kmem_cache_free(req->rsk_ops->slab, req);
+}
+EXPORT_SYMBOL_GPL(__reqsk_free);
+
 static struct request_sock *inet_reqsk_clone(struct request_sock *req,
 					     struct sock *sk)
 {
@@ -1312,6 +1322,15 @@ static int inet_ulp_can_listen(const struct sock *sk)
 		return -EINVAL;
 
 	return 0;
+}
+
+static void reqsk_queue_alloc(struct request_sock_queue *queue)
+{
+	queue->fastopenq.rskq_rst_head = NULL;
+	queue->fastopenq.rskq_rst_tail = NULL;
+	queue->fastopenq.qlen = 0;
+
+	queue->rskq_accept_head = NULL;
 }
 
 int inet_csk_listen_start(struct sock *sk)
