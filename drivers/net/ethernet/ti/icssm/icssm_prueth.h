@@ -15,6 +15,7 @@
 
 #include "icssm_switch.h"
 #include "icssm_prueth_ptp.h"
+#include "icssm_prueth_fdb_tbl.h"
 
 /* ICSSM size of redundancy tag */
 #define ICSSM_LRE_TAG_SIZE	6
@@ -181,10 +182,12 @@ enum pruss_device {
  * struct prueth_private_data - PRU Ethernet private data
  * @driver_data: PRU Ethernet device name
  * @fw_pru: firmware names to be used for PRUSS ethernet usecases
+ * @support_switch: boolean to indicate if switch is enabled
  */
 struct prueth_private_data {
 	enum pruss_device driver_data;
 	const struct prueth_firmware fw_pru[PRUSS_NUM_PRUS];
+	bool support_switch;
 };
 
 struct prueth_emac_stats {
@@ -221,15 +224,18 @@ struct prueth_emac {
 	const char *phy_id;
 	u32 msg_enable;
 	u8 mac_addr[6];
+	unsigned char mc_filter_mask[ETH_ALEN]; /* for multicast filtering */
 	phy_interface_t phy_if;
 
 	/* spin lock used to protect
 	 * during link configuration
 	 */
 	spinlock_t lock;
+	spinlock_t addr_lock;   /* serialize access to VLAN/MC filter table */
 
 	struct hrtimer tx_hrtimer;
 	struct prueth_emac_stats stats;
+	int offload_fwd_mark;
 };
 
 struct prueth {
@@ -248,15 +254,27 @@ struct prueth {
 	struct prueth_emac *emac[PRUETH_NUM_MACS];
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
 
+	struct net_device *hw_bridge_dev;
+	struct fdb_tbl *fdb_tbl;
+
+	struct notifier_block prueth_netdevice_nb;
+	struct notifier_block prueth_switchdev_nb;
+	struct notifier_block prueth_switchdev_bl_nb;
+
 	unsigned int eth_type;
 	size_t ocmc_ram_size;
 	u8 emac_configured;
+	u8 br_members;
 };
+
+extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
 
 void icssm_parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 			     struct prueth_packet_info *pkt_info);
 int icssm_emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			 struct prueth_packet_info *pkt_info,
 			 const struct prueth_queue_info *rxqueue);
-
+void icssm_emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash);
+void icssm_emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash);
+u8 icssm_emac_get_mc_hash(u8 *mac, u8 *mask);
 #endif /* __NET_TI_PRUETH_H */
