@@ -201,7 +201,7 @@ struct kvm_s2_mmu {
 	 * host to parse the guest S2.
 	 * This either contains:
 	 * - the virtual VTTBR programmed by the guest hypervisor with
-         *   CnP cleared
+	 *   CnP cleared
 	 * - The value 1 (VMID=0, BADDR=0, CnP=1) if invalid
 	 *
 	 * We also cache the full VTCR which gets used for TLB invalidation,
@@ -734,11 +734,11 @@ struct cpu_sve_state {
 struct kvm_host_data {
 #define KVM_HOST_DATA_FLAG_HAS_SPE			0
 #define KVM_HOST_DATA_FLAG_HAS_TRBE			1
-#define KVM_HOST_DATA_FLAG_TRBE_ENABLED			4
-#define KVM_HOST_DATA_FLAG_EL1_TRACING_CONFIGURED	5
-#define KVM_HOST_DATA_FLAG_VCPU_IN_HYP_CONTEXT		6
-#define KVM_HOST_DATA_FLAG_L1_VNCR_MAPPED		7
-#define KVM_HOST_DATA_FLAG_HAS_BRBE			8
+#define KVM_HOST_DATA_FLAG_TRBE_ENABLED			2
+#define KVM_HOST_DATA_FLAG_EL1_TRACING_CONFIGURED	3
+#define KVM_HOST_DATA_FLAG_VCPU_IN_HYP_CONTEXT		4
+#define KVM_HOST_DATA_FLAG_L1_VNCR_MAPPED		5
+#define KVM_HOST_DATA_FLAG_HAS_BRBE			6
 	unsigned long flags;
 
 	struct kvm_cpu_context host_ctxt;

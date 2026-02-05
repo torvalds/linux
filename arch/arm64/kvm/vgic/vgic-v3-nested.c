@@ -57,7 +57,7 @@ static int lr_map_idx_to_shadow_idx(struct shadow_if *shadow_if, int idx)
  * as the L1 guest is in charge of provisioning the interrupts via its own
  * view of the ICH_LR*_EL2 registers, which conveniently live in the VNCR
  * page.  This means that the flow described above does work (there is no
- * state to rebuild in the L0 hypervisor), and that most things happed on L2
+ * state to rebuild in the L0 hypervisor), and that most things happen on L2
  * load/put:
  *
  * - on L2 load: move the in-memory L1 vGIC configuration into a shadow,

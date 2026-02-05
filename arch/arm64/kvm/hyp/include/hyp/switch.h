@@ -59,10 +59,8 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	 * If FP/ASIMD is not implemented, FPEXC is UNDEFINED and any access to
 	 * it will cause an exception.
 	 */
-	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd()) {
+	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd())
 		write_sysreg(1 << 30, fpexc32_el2);
-		isb();
-	}
 }
 
 static inline void __activate_cptr_traps_nvhe(struct kvm_vcpu *vcpu)
@@ -495,7 +493,7 @@ static inline void fpsimd_lazy_switch_to_host(struct kvm_vcpu *vcpu)
 	/*
 	 * When the guest owns the FP regs, we know that guest+hyp traps for
 	 * any FPSIMD/SVE/SME features exposed to the guest have been disabled
-	 * by either fpsimd_lazy_switch_to_guest() or kvm_hyp_handle_fpsimd()
+	 * by either __activate_cptr_traps() or kvm_hyp_handle_fpsimd()
 	 * prior to __guest_entry(). As __guest_entry() guarantees a context
 	 * synchronization event, we don't need an ISB here to avoid taking
 	 * traps for anything that was exposed to the guest.
