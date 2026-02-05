@@ -5,6 +5,7 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <kunit/static_stub.h>
 #include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
@@ -1630,6 +1631,8 @@ int cs35l56_configure_onchip_spkid_pads(struct cs35l56_base *cs35l56_base)
 	int num_gpios, num_pulls;
 	int i, ret;
 
+	KUNIT_STATIC_STUB_REDIRECT(cs35l56_configure_onchip_spkid_pads, cs35l56_base);
+
 	if (cs35l56_base->num_onchip_spkid_gpios == 0)
 		return 0;
 
@@ -1679,6 +1682,8 @@ int cs35l56_read_onchip_spkid(struct cs35l56_base *cs35l56_base)
 	int num_gpios;
 	int speaker_id = 0;
 	int i, ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs35l56_read_onchip_spkid, cs35l56_base);
 
 	if (cs35l56_base->num_onchip_spkid_gpios == 0)
 		return -ENOENT;

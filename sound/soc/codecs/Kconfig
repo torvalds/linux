@@ -936,6 +936,20 @@ config SND_SOC_CS35L56_TEST
 	help
 	  This builds KUnit tests for the Cirrus Logic cs35l56
 	  codec driver.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
+
+config SND_SOC_CS35L56_SHARED_TEST
+	tristate "KUnit test for Cirrus Logic cs35l56-shared" if !KUNIT_ALL_TESTS
+	depends on SND_SOC_CS35L56_SHARED && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the Cirrus Logic cs35l56-shared
+	  module.
+
 	  For more information on KUnit and unit tests in general,
 	  please refer to the KUnit documentation in
 	  Documentation/dev-tools/kunit/.
