@@ -193,7 +193,7 @@ static int io_import_umem(struct io_zcrx_ifq *ifq,
 		return PTR_ERR(pages);
 
 	ret = sg_alloc_table_from_pages(&mem->page_sg_table, pages, nr_pages,
-					0, nr_pages << PAGE_SHIFT,
+					0, (unsigned long)nr_pages << PAGE_SHIFT,
 					GFP_KERNEL_ACCOUNT);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
