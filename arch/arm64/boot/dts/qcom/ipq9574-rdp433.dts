@@ -55,6 +55,10 @@
 	status = "okay";
 };
 
+&qpic_nand {
+	status = "okay";
+};
+
 &tlmm {
 
 	pcie1_default: pcie1-default-state {
