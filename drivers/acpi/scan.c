@@ -1000,15 +1000,11 @@ static int acpi_bus_extract_wakeup_device_power_package(struct acpi_device *dev)
 	return err;
 }
 
-/* Do not use a button for S5 wakeup */
-#define ACPI_AVOID_WAKE_FROM_S5		BIT(0)
-
 static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 {
 	static const struct acpi_device_id button_device_ids[] = {
-		{"PNP0C0C", 0},				/* Power button */
-		{"PNP0C0D", ACPI_AVOID_WAKE_FROM_S5},	/* Lid */
-		{"PNP0C0E", ACPI_AVOID_WAKE_FROM_S5},	/* Sleep button */
+		{"PNP0C0D", 0},	/* Lid */
+		{"PNP0C0E", 0},	/* Sleep button */
 		{"", 0},
 	};
 	struct acpi_device_wakeup *wakeup = &device->wakeup;
@@ -1017,16 +1013,9 @@ static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 
 	wakeup->flags.notifier_present = 0;
 
-	/* Power button, Lid switch always enable wakeup */
 	match = acpi_match_acpi_device(button_device_ids, device);
-	if (match) {
-		if ((match->driver_data & ACPI_AVOID_WAKE_FROM_S5) &&
-		    wakeup->sleep_state == ACPI_STATE_S5)
-			wakeup->sleep_state = ACPI_STATE_S4;
-		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
-		device_set_wakeup_capable(&device->dev, true);
-		return true;
-	}
+	if (match && wakeup->sleep_state == ACPI_STATE_S5)
+		wakeup->sleep_state = ACPI_STATE_S4;
 
 	status = acpi_setup_gpe_for_wake(device->handle, wakeup->gpe_device,
 					 wakeup->gpe_number);
@@ -1469,6 +1458,7 @@ static void acpi_set_pnp_ids(acpi_handle handle, struct acpi_device_pnp *pnp,
 		break;
 	case ACPI_BUS_TYPE_THERMAL:
 		acpi_add_id(pnp, ACPI_THERMAL_HID);
+		pnp->type.platform_id = 1;
 		break;
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		acpi_add_id(pnp, ACPI_BUTTON_HID_POWERF);
@@ -2349,7 +2339,8 @@ static int acpi_bus_attach(struct acpi_device *device, void *first_pass)
 	if (ret < 0)
 		return 0;
 
-	if (device->pnp.type.platform_id || device->flags.enumeration_by_parent)
+	if (device->pnp.type.platform_id || device->pnp.type.backlight ||
+	    device->flags.enumeration_by_parent)
 		acpi_default_enumeration(device);
 	else
 		acpi_device_set_enumerated(device);
@@ -2590,8 +2581,8 @@ static void acpi_scan_postponed(void)
 
 static void acpi_scan_claim_resources(struct acpi_device *adev)
 {
-	struct list_head resource_list = LIST_HEAD_INIT(resource_list);
 	struct resource_entry *rentry;
+	LIST_HEAD(resource_list);
 	unsigned int count = 0;
 	const char *regionid;
 
@@ -2647,7 +2638,6 @@ static void acpi_scan_claim_resources(struct acpi_device *adev)
 exit:
 	acpi_dev_free_resource_list(&resource_list);
 }
-
 
 static int __init acpi_reserve_motherboard_resources(void)
 {
@@ -2741,38 +2731,27 @@ int acpi_bus_register_early_device(int type)
 	if (result)
 		return result;
 
-	device->flags.match_driver = true;
-	return device_attach(&device->dev);
+	acpi_default_enumeration(device);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_bus_register_early_device);
 
+static void acpi_bus_add_fixed_device_object(enum acpi_bus_device_type type)
+{
+	struct acpi_device *adev = NULL;
+
+	acpi_add_single_object(&adev, NULL, type, false);
+	if (adev)
+		acpi_default_enumeration(adev);
+}
+
 static void acpi_bus_scan_fixed(void)
 {
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
-		struct acpi_device *adev = NULL;
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON))
+		acpi_bus_add_fixed_device_object(ACPI_BUS_TYPE_POWER_BUTTON);
 
-		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_POWER_BUTTON,
-				       false);
-		if (adev) {
-			adev->flags.match_driver = true;
-			if (device_attach(&adev->dev) >= 0)
-				device_init_wakeup(&adev->dev, true);
-			else
-				dev_dbg(&adev->dev, "No driver\n");
-		}
-	}
-
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON)) {
-		struct acpi_device *adev = NULL;
-
-		acpi_add_single_object(&adev, NULL, ACPI_BUS_TYPE_SLEEP_BUTTON,
-				       false);
-		if (adev) {
-			adev->flags.match_driver = true;
-			if (device_attach(&adev->dev) < 0)
-				dev_dbg(&adev->dev, "No driver\n");
-		}
-	}
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_SLEEP_BUTTON))
+		acpi_bus_add_fixed_device_object(ACPI_BUS_TYPE_SLEEP_BUTTON);
 }
 
 static void __init acpi_get_spcr_uart_addr(void)
