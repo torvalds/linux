@@ -618,17 +618,4 @@ static struct pci_driver com20020pci_driver = {
 	.remove		= com20020pci_remove,
 };
 
-static int __init com20020pci_init(void)
-{
-	if (BUGLVL(D_NORMAL))
-		pr_info("%s\n", "COM20020 PCI support");
-	return pci_register_driver(&com20020pci_driver);
-}
-
-static void __exit com20020pci_cleanup(void)
-{
-	pci_unregister_driver(&com20020pci_driver);
-}
-
-module_init(com20020pci_init)
-module_exit(com20020pci_cleanup)
+module_pci_driver(com20020pci_driver);
