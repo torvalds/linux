@@ -117,6 +117,9 @@ static void init_numa_data(struct lock_contention *con)
 	long last = -1;
 	int ret;
 
+	if (!con->btf)
+		return;
+
 	/*
 	 * 'struct zone' is embedded in 'struct pglist_data' as an array.
 	 * As we may not have full information of the struct zone in the
