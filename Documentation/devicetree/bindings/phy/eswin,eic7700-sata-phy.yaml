@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/eswin,eic7700-sata-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Eswin EIC7700 SoC SATA PHY
+
+maintainers:
+  - Yulin Lu <luyulin@eswincomputing.com>
+  - Huan He <hehuan1@eswincomputing.com>
+
+properties:
+  compatible:
+    const: eswin,eic7700-sata-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: phy
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    items:
+      - const: port
+      - const: phy
+
+  eswin,tx-amplitude-tuning:
+    description: This adjusts the transmitter amplitude signal, and its value
+      is derived from eye diagram tuning. The three values correspond to Gen1,
+      Gen2, and Gen3 parameters respectively.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Gen1 parameter.
+        minimum: 0
+        maximum: 0x7f
+      - description: Gen2 parameter.
+        minimum: 0
+        maximum: 0x7f
+      - description: Gen3 parameter.
+        minimum: 0
+        maximum: 0x7f
+    default: [0, 0, 0]
+
+  eswin,tx-preemph-tuning:
+    description: This adjusts the transmitter de-emphasis signal, and its value
+      is derived from eye diagram tuning. The three values correspond to Gen1,
+      Gen2, and Gen3 parameters respectively.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      - description: Gen1 parameter.
+        minimum: 0
+        maximum: 0x3f
+      - description: Gen2 parameter.
+        minimum: 0
+        maximum: 0x3f
+      - description: Gen3 parameter.
+        minimum: 0
+        maximum: 0x3f
+    default: [0, 0, 0]
+
+  "#phy-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - "#phy-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    sata-phy@50440300 {
+        compatible = "eswin,eic7700-sata-phy";
+        reg = <0x50440300 0x40>;
+        clocks = <&hspcrg 17>;
+        clock-names = "phy";
+        resets = <&hspcrg 0>, <&hspcrg 1>;
+        reset-names = "port", "phy";
+        #phy-cells = <0>;
+    };
