@@ -61,8 +61,36 @@ test_dwarf() {
     fi
 }
 
+test_lbr() {
+    echo "Inline unwinding LBR verification test"
+    if [ ! -f /sys/bus/event_source/devices/cpu/caps/branches ] &&
+       [ ! -f /sys/bus/event_source/devices/cpu_core/caps/branches ]
+    then
+        echo "Skip: only x86 CPUs support LBR"
+        return
+    fi
+
+    # Record data. Currently only dwarf callchains support inlined functions.
+    perf record --call-graph lbr -e cycles:u -o "${perf_data}" -- perf test -w inlineloop 1
+
+    # Check output with inline (default) and srcline
+    perf script -i "${perf_data}" --fields +srcline > "${perf_script_txt}"
+
+    # Expect the leaf and middle functions to occur on lines in the 20s, with
+    # the non-inlined parent function on a line in the 30s.
+    if grep -q "inlineloop.c:2. (inlined)" "${perf_script_txt}" &&
+       grep -q "inlineloop.c:3.$" "${perf_script_txt}"
+    then
+        echo "Inline unwinding lbr verification test [Success]"
+    else
+        echo "Inline unwinding lbr verification test [Failed missing inlined functions]"
+        err=1
+    fi
+}
+
 test_fp
 test_dwarf
+test_lbr
 
 cleanup
 exit $err
