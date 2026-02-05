@@ -11,10 +11,16 @@ ALL_TESTS="
 	test_cut_link_hsrv1
 	test_clean_prp
 	test_cut_link_prp
+	test_packet_loss_prp
+	test_high_packet_loss_prp
+	test_reordering_prp
 "
 
-# The tests are running ping for 5sec with a relatively short interval with a
-# cut link, which should be recoverable by HSR/PRP.
+# The tests are running ping for 5sec with a relatively short interval in
+# different scenarios with faulty links (cut links, packet loss, delay,
+# reordering) that should be recoverable by HSR/PRP. The ping interval (10ms)
+# is short enough that the base delay (50ms) leads to a queue in the netem
+# qdiscs which is needed for reordering.
 
 setup_hsr_topo()
 {
@@ -160,6 +166,7 @@ check_ping()
 {
 	local node="$1"
 	local dst="$2"
+	local accepted_dups="$3"
 	local ping_args="-q -i 0.01 -c 400"
 
 	log_info "Running ping $node -> $dst"
@@ -178,7 +185,9 @@ check_ping()
 		loss="${BASH_REMATCH[1]}"
 	fi
 
-	check_err "$dups" "Unexpected duplicate packets (${dups})"
+	if [ "$dups" -gt "$accepted_dups" ]; then
+		check_err 1 "Unexpected duplicate packets (${dups})"
+	fi
 	if [ "$loss" != "0%" ]; then
 		check_err 1 "Unexpected packet loss (${loss})"
 	fi
@@ -197,7 +206,7 @@ test_clean()
 		return
 	fi
 
-	check_ping "$node1" "100.64.0.2"
+	check_ping "$node1" "100.64.0.2" 0
 
 	log_test "${tname}"
 }
@@ -237,7 +246,7 @@ test_cut_link()
 		log_info "Cutting link"
 		ip -net "$node1" link set vethB down
 	) &
-	check_ping "$node1" "100.64.0.2"
+	check_ping "$node1" "100.64.0.2" 0
 
 	wait
 	log_test "${tname}"
@@ -257,6 +266,66 @@ test_cut_link_hsrv1()
 test_cut_link_prp()
 {
 	test_cut_link "PRP"
+}
+
+test_packet_loss()
+{
+	local proto="$1"
+	local loss="$2"
+
+	RET=0
+	tname="${FUNCNAME[0]} - ${proto}, ${loss}"
+
+	setup_topo "$proto"
+	if ((RET != ksft_pass)); then
+		log_test "${tname} setup"
+		return
+	fi
+
+	# Packet loss with lower delay makes sure the packets on the lossy link
+	# arrive first.
+	tc -net "$node1" qdisc add dev vethA root netem delay 50ms
+	tc -net "$node1" qdisc add dev vethB root netem delay 20ms loss "$loss"
+
+	check_ping "$node1" "100.64.0.2" 40
+
+	log_test "${tname}"
+}
+
+test_packet_loss_prp()
+{
+	test_packet_loss "PRP" "20%"
+}
+
+test_high_packet_loss_prp()
+{
+	test_packet_loss "PRP" "80%"
+}
+
+test_reordering()
+{
+	local proto="$1"
+
+	RET=0
+	tname="${FUNCNAME[0]} - ${proto}"
+
+	setup_topo "$proto"
+	if ((RET != ksft_pass)); then
+		log_test "${tname} setup"
+		return
+	fi
+
+	tc -net "$node1" qdisc add dev vethA root netem delay 50ms
+	tc -net "$node1" qdisc add dev vethB root netem delay 50ms reorder 20%
+
+	check_ping "$node1" "100.64.0.2" 40
+
+	log_test "${tname}"
+}
+
+test_reordering_prp()
+{
+	test_reordering "PRP"
 }
 
 cleanup()
