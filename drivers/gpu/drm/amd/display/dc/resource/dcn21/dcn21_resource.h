@@ -51,6 +51,7 @@ bool dcn21_fast_validate_bw(
 		int *pipe_cnt_out,
 		int *pipe_split_from,
 		int *vlevel_out,
-		enum dc_validate_mode validate_mode);
+		enum dc_validate_mode validate_mode,
+		bool allow_self_refresh_only);
 
 #endif /* _DCN21_RESOURCE_H_ */

@@ -772,7 +772,8 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 			    int *pipe_cnt_out,
 			    int *pipe_split_from,
 			    int *vlevel_out,
-			    enum dc_validate_mode validate_mode)
+			    enum dc_validate_mode validate_mode,
+			    bool allow_self_refresh_only)
 {
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
@@ -803,18 +804,23 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
 	if (vlevel > context->bw_ctx.dml.soc.num_states) {
-		/*
-		 * If mode is unsupported or there's still no p-state support then
-		 * fall back to favoring voltage.
-		 *
-		 * We don't actually support prefetch mode 2, so require that we
-		 * at least support prefetch mode 1.
-		 */
-		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
-					dm_allow_self_refresh;
-		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
-		if (vlevel > context->bw_ctx.dml.soc.num_states)
+
+		if (allow_self_refresh_only) {
+			/*
+			 * If mode is unsupported or there's still no p-state support then
+			 * fall back to favoring voltage.
+			 *
+			 * We don't actually support prefetch mode 2, so require that we
+			 * at least support prefetch mode 1.
+			 */
+			context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
+						dm_allow_self_refresh;
+			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+			if (vlevel > context->bw_ctx.dml.soc.num_states)
+				goto validate_fail;
+		} else {
 			goto validate_fail;
+		}
 	}
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
