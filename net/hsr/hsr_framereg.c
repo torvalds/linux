@@ -11,6 +11,7 @@
  * Same code handles filtering of duplicates for PRP as well.
  */
 
+#include <kunit/visibility.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
@@ -35,7 +36,6 @@ static bool seq_nr_after(u16 a, u16 b)
 
 #define seq_nr_before(a, b)		seq_nr_after((b), (a))
 #define seq_nr_before_or_eq(a, b)	(!seq_nr_after((a), (b)))
-#define PRP_DROP_WINDOW_LEN 32768
 
 bool hsr_addr_is_redbox(struct hsr_priv *hsr, unsigned char *addr)
 {
@@ -126,13 +126,29 @@ void hsr_del_self_node(struct hsr_priv *hsr)
 		kfree_rcu(old, rcu_head);
 }
 
+static void hsr_free_node(struct hsr_node *node)
+{
+	xa_destroy(&node->seq_blocks);
+	kfree(node->block_buf);
+	kfree(node);
+}
+
+static void hsr_free_node_rcu(struct rcu_head *rn)
+{
+	struct hsr_node *node = container_of(rn, struct hsr_node, rcu_head);
+
+	hsr_free_node(node);
+}
+
 void hsr_del_nodes(struct list_head *node_db)
 {
 	struct hsr_node *node;
 	struct hsr_node *tmp;
 
-	list_for_each_entry_safe(node, tmp, node_db, mac_list)
-		kfree(node);
+	list_for_each_entry_safe(node, tmp, node_db, mac_list) {
+		list_del(&node->mac_list);
+		hsr_free_node(node);
+	}
 }
 
 void prp_handle_san_frame(bool san, enum hsr_port_type port,
@@ -158,7 +174,7 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 				     u16 seq_out, bool san,
 				     enum hsr_port_type rx_port)
 {
-	struct hsr_node *new_node, *node;
+	struct hsr_node *new_node, *node = NULL;
 	unsigned long now;
 	int i;
 
@@ -169,6 +185,14 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	ether_addr_copy(new_node->macaddress_A, addr);
 	spin_lock_init(&new_node->seq_out_lock);
 
+	new_node->block_buf = kcalloc(HSR_MAX_SEQ_BLOCKS,
+				      sizeof(struct hsr_seq_block),
+				      GFP_ATOMIC);
+	if (!new_node->block_buf)
+		goto free;
+
+	xa_init(&new_node->seq_blocks);
+
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
 	 */
@@ -176,11 +200,7 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	for (i = 0; i < HSR_PT_PORTS; i++) {
 		new_node->time_in[i] = now;
 		new_node->time_out[i] = now;
-	}
-	for (i = 0; i < HSR_PT_PORTS; i++) {
 		new_node->seq_out[i] = seq_out;
-		new_node->seq_expected[i] = seq_out + 1;
-		new_node->seq_start[i] = seq_out + 1;
 	}
 
 	if (san && hsr->proto_ops->handle_san_frame)
@@ -199,6 +219,8 @@ static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
 	return new_node;
 out:
 	spin_unlock_bh(&hsr->list_lock);
+	kfree(new_node->block_buf);
+free:
 	kfree(new_node);
 	return node;
 }
@@ -280,6 +302,62 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
 			    san, rx_port);
 }
 
+static bool hsr_seq_block_is_old(struct hsr_seq_block *block)
+{
+	unsigned long expiry = msecs_to_jiffies(HSR_ENTRY_FORGET_TIME);
+
+	return time_is_before_jiffies(block->time + expiry);
+}
+
+static void hsr_forget_seq_block(struct hsr_node *node,
+				 struct hsr_seq_block *block)
+{
+	if (block->time)
+		xa_erase(&node->seq_blocks, block->block_idx);
+	block->time = 0;
+}
+
+/* Get the currently active sequence number block. If there is no block yet, or
+ * the existing one is expired, a new block is created. The idea is to maintain
+ * a "sparse bitmap" where a bitmap for the whole sequence number space is
+ * split into blocks and not all blocks exist all the time. The blocks can
+ * expire after time (in low traffic situations) or when they are replaced in
+ * the backing fixed size buffer (in high traffic situations).
+ */
+VISIBLE_IF_KUNIT struct hsr_seq_block *hsr_get_seq_block(struct hsr_node *node,
+							 u16 block_idx)
+{
+	struct hsr_seq_block *block, *res;
+
+	block = xa_load(&node->seq_blocks, block_idx);
+
+	if (block && hsr_seq_block_is_old(block)) {
+		hsr_forget_seq_block(node, block);
+		block = NULL;
+	}
+
+	if (!block) {
+		block = &node->block_buf[node->next_block];
+		hsr_forget_seq_block(node, block);
+
+		memset(block, 0, sizeof(*block));
+		block->time = jiffies;
+		block->block_idx = block_idx;
+
+		res = xa_store(&node->seq_blocks, block_idx, block, GFP_ATOMIC);
+		if (xa_is_err(res)) {
+			block->time = 0;
+			return NULL;
+		}
+
+		node->next_block =
+			(node->next_block + 1) & (HSR_MAX_SEQ_BLOCKS - 1);
+	}
+
+	return block;
+}
+EXPORT_SYMBOL_IF_KUNIT(hsr_get_seq_block);
+
 /* Use the Supervision frame's info about an eventual macaddress_B for merging
  * nodes that has previously had their macaddress_B registered as a separate
  * node.
@@ -288,16 +366,18 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 {
 	struct hsr_node *node_curr = frame->node_src;
 	struct hsr_port *port_rcv = frame->port_rcv;
+	struct hsr_seq_block *src_blk, *merge_blk;
 	struct hsr_priv *hsr = port_rcv->hsr;
-	struct hsr_sup_payload *hsr_sp;
 	struct hsr_sup_tlv *hsr_sup_tlv;
+	struct hsr_sup_payload *hsr_sp;
 	struct hsr_node *node_real;
 	struct sk_buff *skb = NULL;
 	struct list_head *node_db;
 	struct ethhdr *ethhdr;
-	int i;
-	unsigned int pull_size = 0;
 	unsigned int total_pull_size = 0;
+	unsigned int pull_size = 0;
+	unsigned long idx;
+	int i;
 
 	/* Here either frame->skb_hsr or frame->skb_prp should be
 	 * valid as supervision frame always will have protocol
@@ -391,6 +471,18 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 		if (seq_nr_after(node_curr->seq_out[i], node_real->seq_out[i]))
 			node_real->seq_out[i] = node_curr->seq_out[i];
 	}
+
+	xa_for_each(&node_curr->seq_blocks, idx, src_blk) {
+		if (hsr_seq_block_is_old(src_blk))
+			continue;
+
+		merge_blk = hsr_get_seq_block(node_real, src_blk->block_idx);
+		if (!merge_blk)
+			continue;
+		merge_blk->time = min(merge_blk->time, src_blk->time);
+		bitmap_or(merge_blk->seq_nrs, merge_blk->seq_nrs,
+			  src_blk->seq_nrs, HSR_SEQ_BLOCK_SIZE);
+	}
 	spin_unlock_bh(&node_real->seq_out_lock);
 	node_real->addr_B_port = port_rcv->type;
 
@@ -398,7 +490,7 @@ void hsr_handle_sup_frame(struct hsr_frame_info *frame)
 	if (!node_curr->removed) {
 		list_del_rcu(&node_curr->mac_list);
 		node_curr->removed = true;
-		kfree_rcu(node_curr, rcu_head);
+		call_rcu(&node_curr->rcu_head, hsr_free_node_rcu);
 	}
 	spin_unlock_bh(&hsr->list_lock);
 
@@ -505,17 +597,12 @@ int hsr_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame)
 	return 0;
 }
 
-/* Adaptation of the PRP duplicate discard algorithm described in wireshark
- * wiki (https://wiki.wireshark.org/PRP)
- *
- * A drop window is maintained for both LANs with start sequence set to the
- * first sequence accepted on the LAN that has not been seen on the other LAN,
- * and expected sequence set to the latest received sequence number plus one.
- *
- * When a frame is received on either LAN it is compared against the received
- * frames on the other LAN. If it is outside the drop window of the other LAN
- * the frame is accepted and the drop window is updated.
- * The drop window for the other LAN is reset.
+/* PRP duplicate discard algorithm: we maintain a bitmap where we set a bit for
+ * every seen sequence number. The bitmap is split into blocks and the block
+ * management is detailed in hsr_get_seq_block(). In any case, we err on the
+ * side of accepting a packet, as the specification requires the algorithm to
+ * be "designed such that it never rejects a legitimate frame, while occasional
+ * acceptance of a duplicate can be tolerated." (IEC 62439-3:2021, 4.1.10.3).
  *
  * 'port' is the outgoing interface
  * 'frame' is the frame to be sent
@@ -526,18 +613,21 @@ int hsr_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame)
  */
 int prp_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame)
 {
-	enum hsr_port_type other_port;
-	enum hsr_port_type rcv_port;
+	u16 sequence_nr, seq_bit, block_idx;
+	struct hsr_seq_block *block;
 	struct hsr_node *node;
-	u16 sequence_diff;
-	u16 sequence_exp;
-	u16 sequence_nr;
 
-	/* out-going frames are always in order
-	 * and can be checked the same way as for HSR
-	 */
-	if (frame->port_rcv->type == HSR_PT_MASTER)
-		return hsr_register_frame_out(port, frame);
+	node = frame->node_src;
+	sequence_nr = frame->sequence_nr;
+
+	/* out-going frames are always in order */
+	if (frame->port_rcv->type == HSR_PT_MASTER) {
+		spin_lock_bh(&node->seq_out_lock);
+		node->time_out[port->type] = jiffies;
+		node->seq_out[port->type] = sequence_nr;
+		spin_unlock_bh(&node->seq_out_lock);
+		return 0;
+	}
 
 	/* for PRP we should only forward frames from the slave ports
 	 * to the master port
@@ -545,52 +635,28 @@ int prp_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame)
 	if (port->type != HSR_PT_MASTER)
 		return 1;
 
-	node = frame->node_src;
-	sequence_nr = frame->sequence_nr;
-	sequence_exp = sequence_nr + 1;
-	rcv_port = frame->port_rcv->type;
-	other_port = rcv_port == HSR_PT_SLAVE_A ? HSR_PT_SLAVE_B :
-				 HSR_PT_SLAVE_A;
-
 	spin_lock_bh(&node->seq_out_lock);
-	if (time_is_before_jiffies(node->time_out[port->type] +
-	    msecs_to_jiffies(HSR_ENTRY_FORGET_TIME)) ||
-	    (node->seq_start[rcv_port] == node->seq_expected[rcv_port] &&
-	     node->seq_start[other_port] == node->seq_expected[other_port])) {
-		/* the node hasn't been sending for a while
-		 * or both drop windows are empty, forward the frame
-		 */
-		node->seq_start[rcv_port] = sequence_nr;
-	} else if (seq_nr_before(sequence_nr, node->seq_expected[other_port]) &&
-		   seq_nr_before_or_eq(node->seq_start[other_port], sequence_nr)) {
-		/* drop the frame, update the drop window for the other port
-		 * and reset our drop window
-		 */
-		node->seq_start[other_port] = sequence_exp;
-		node->seq_expected[rcv_port] = sequence_exp;
-		node->seq_start[rcv_port] = node->seq_expected[rcv_port];
-		spin_unlock_bh(&node->seq_out_lock);
-		return 1;
-	}
 
-	/* update the drop window for the port where this frame was received
-	 * and clear the drop window for the other port
-	 */
-	node->seq_start[other_port] = node->seq_expected[other_port];
-	node->seq_expected[rcv_port] = sequence_exp;
-	sequence_diff = sequence_exp - node->seq_start[rcv_port];
-	if (sequence_diff > PRP_DROP_WINDOW_LEN)
-		node->seq_start[rcv_port] = sequence_exp - PRP_DROP_WINDOW_LEN;
+	block_idx = hsr_seq_block_index(sequence_nr);
+	block = hsr_get_seq_block(node, block_idx);
+	if (!block)
+		goto out_new;
+
+	seq_bit = hsr_seq_block_bit(sequence_nr);
+	if (__test_and_set_bit(seq_bit, block->seq_nrs))
+		goto out_seen;
 
 	node->time_out[port->type] = jiffies;
 	node->seq_out[port->type] = sequence_nr;
+out_new:
 	spin_unlock_bh(&node->seq_out_lock);
 	return 0;
-}
 
-#if IS_MODULE(CONFIG_PRP_DUP_DISCARD_KUNIT_TEST)
-EXPORT_SYMBOL(prp_register_frame_out);
-#endif
+out_seen:
+	spin_unlock_bh(&node->seq_out_lock);
+	return 1;
+}
+EXPORT_SYMBOL_IF_KUNIT(prp_register_frame_out);
 
 static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 				      struct hsr_node *node)
@@ -672,7 +738,7 @@ void hsr_prune_nodes(struct timer_list *t)
 				list_del_rcu(&node->mac_list);
 				node->removed = true;
 				/* Note that we need to free this entry later: */
-				kfree_rcu(node, rcu_head);
+				call_rcu(&node->rcu_head, hsr_free_node_rcu);
 			}
 		}
 	}
@@ -706,7 +772,7 @@ void hsr_prune_proxy_nodes(struct timer_list *t)
 				list_del_rcu(&node->mac_list);
 				node->removed = true;
 				/* Note that we need to free this entry later: */
-				kfree_rcu(node, rcu_head);
+				call_rcu(&node->rcu_head, hsr_free_node_rcu);
 			}
 		}
 	}

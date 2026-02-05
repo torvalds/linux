@@ -74,9 +74,27 @@ bool hsr_is_node_in_db(struct list_head *node_db,
 
 int prp_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+struct hsr_seq_block *hsr_get_seq_block(struct hsr_node *node, u16 block_idx);
+#endif
+
+#define HSR_SEQ_BLOCK_SHIFT 7 /* 128 bits */
+#define HSR_SEQ_BLOCK_SIZE (1 << HSR_SEQ_BLOCK_SHIFT)
+#define HSR_SEQ_BLOCK_MASK (HSR_SEQ_BLOCK_SIZE - 1)
+#define HSR_MAX_SEQ_BLOCKS 64
+
+#define hsr_seq_block_index(sequence_nr) ((sequence_nr) >> HSR_SEQ_BLOCK_SHIFT)
+#define hsr_seq_block_bit(sequence_nr) ((sequence_nr) & HSR_SEQ_BLOCK_MASK)
+
+struct hsr_seq_block {
+	unsigned long		time;
+	u16			block_idx;
+	DECLARE_BITMAP(seq_nrs, HSR_SEQ_BLOCK_SIZE);
+};
+
 struct hsr_node {
 	struct list_head	mac_list;
-	/* Protect R/W access to seq_out */
+	/* Protect R/W access to seq_out and seq_blocks */
 	spinlock_t		seq_out_lock;
 	unsigned char		macaddress_A[ETH_ALEN];
 	unsigned char		macaddress_B[ETH_ALEN];
@@ -91,8 +109,9 @@ struct hsr_node {
 	u16			seq_out[HSR_PT_PORTS];
 	bool			removed;
 	/* PRP specific duplicate handling */
-	u16			seq_expected[HSR_PT_PORTS];
-	u16			seq_start[HSR_PT_PORTS];
+	struct xarray		seq_blocks;
+	struct hsr_seq_block	*block_buf;
+	unsigned int		next_block;
 	struct rcu_head		rcu_head;
 };
 
