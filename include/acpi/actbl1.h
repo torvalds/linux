@@ -37,6 +37,7 @@
 #define ACPI_SIG_DBGP           "DBGP"	/* Debug Port table */
 #define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_DRTM           "DRTM"	/* Dynamic Root of Trust for Measurement table */
+#define ACPI_SIG_DTPR           "DTPR"	/* DMA TXT Protection Ranges table */
 #define ACPI_SIG_ECDT           "ECDT"	/* Embedded Controller Boot Resources Table */
 #define ACPI_SIG_EINJ           "EINJ"	/* Error Injection table */
 #define ACPI_SIG_ERST           "ERST"	/* Error Record Serialization Table */
@@ -997,6 +998,262 @@ struct acpi_drtm_resource_list {
 struct acpi_drtm_dps_id {
 	u32 dps_id_length;
 	u8 dps_id[16];
+};
+
+/*******************************************************************************
+ *
+ * DTPR - DMA TXT Protection Ranges Table
+ *        Version 1
+ *
+ * Conforms to "Intel® Trusted Execution Technology (Intel® TXT) DMA Protection
+ *              Ranges",
+ * Revision 0.73, August 2021
+ *
+ ******************************************************************************/
+
+struct acpi_table_dtpr {
+	struct acpi_table_header header;
+	u32 flags;		/* 36 */
+	u32 ins_cnt;
+};
+
+struct acpi_tpr_array {
+	u64 base;
+};
+
+struct acpi_tpr_instance {
+	u32 flags;
+	u32 tpr_cnt;
+};
+
+struct acpi_tpr_aux_sr {
+	u32 srl_cnt;
+};
+
+/*
+ * TPRn_BASE (ACPI_TPRN_BASE_REG)
+ *
+ * Specifies the start address of TPRn region. TPR region address and size must
+ * be with 1MB resolution. These bits are compared with the result of the
+ * TPRn_LIMIT[63:20], which is applied to the incoming address, to
+ * determine if an access fall within the TPRn defined region.
+ *
+ * Minimal TPRn_Base resolution is 1MB. Applied to the incoming address, to
+ * determine if an access fall within the TPRn defined region. Width is
+ * determined by a bus width which can be obtained via CPUID
+ * function 0x80000008.
+ */
+
+typedef u64 ACPI_TPRN_BASE_REG;
+
+/* TPRn_BASE Register Bit Masks */
+
+/* Bit 3 - RW: access: 1 == RO, 0 == RW register (for TPR must be RW) */
+#define ACPI_TPRN_BASE_RW_SHIFT        3
+
+#define ACPI_TPRN_BASE_RW_MASK         ((u64) 1 << ACPI_TPRN_BASE_RW_SHIFT)
+
+/*
+ * Bit 4 - Enable: 0 – TPRn address range enabled;
+ *                 1 – TPRn address range disabled.
+ */
+#define ACPI_TPRN_BASE_ENABLE_SHIFT    4
+
+#define ACPI_TPRN_BASE_ENABLE_MASK     ((u64) 1 << ACPI_TPRN_BASE_ENABLE_SHIFT)
+
+/* Bits 63:20 - tpr_base_rw */
+#define ACPI_TPRN_BASE_ADDR_SHIFT      20
+
+#define ACPI_TPRN_BASE_ADDR_MASK       ((u64) 0xFFFFFFFFFFF << \
+			 ACPI_TPRN_BASE_ADDR_SHIFT)
+
+/* TPRn_BASE Register Bit Handlers*/
+
+/*
+ * GET_TPRN_BASE_RW:
+ *
+ * Read RW bit from TPRn Base register - bit 3.
+ *
+ * Input:
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ *
+ * Output:
+ *
+ * Returns RW bit value (u64).
+ */
+#define GET_TPRN_BASE_RW(reg)     (((u64) reg & ACPI_TPRN_BASE_RW_MASK) >>  \
+					  ACPI_TPRN_BASE_RW_SHIFT)
+
+/*
+ * GET_TPRN_BASE_ENABLE:
+ *
+ * Read Enable bit from TPRn Base register - bit 4.
+ *
+ * Input:
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ *
+ * Output:
+ *
+ * Returns Enable bit value (u64).
+ */
+#define GET_TPRN_BASE_ENABLE(reg) (((u64) reg & ACPI_TPRN_BASE_ENABLE_MASK) \
+							 >> ACPI_TPRN_BASE_ENABLE_SHIFT)
+
+/*
+ * GET_TPRN_BASE_ADDR:
+ *
+ * Read TPRn Base Register address from bits 63:20.
+ *
+ * Input:
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ *
+ * Output:
+ *
+ * Returns TPRn Base Register address (u64).
+ */
+#define GET_TPRN_BASE_ADDR(reg)   (((u64) reg & ACPI_TPRN_BASE_ADDR_MASK)   \
+								   >> ACPI_TPRN_BASE_ADDR_SHIFT)
+
+/*
+ * SET_TPRN_BASE_RW:
+ *
+ * Set RW bit in TPRn Base register - bit 3.
+ *
+ * Input:
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ * - val (represents RW value to be set (u64))
+ */
+#define SET_TPRN_BASE_RW(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,     \
+										ACPI_TPRN_BASE_RW_SHIFT,       \
+										ACPI_TPRN_BASE_RW_MASK, val);
+
+/*
+ * SET_TPRN_BASE_ENABLE:
+ *
+ * Set Enable bit in TPRn Base register - bit 4.
+ *
+ * Input:
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ * - val (represents Enable value to be set (u64))
+ */
+#define SET_TPRN_BASE_ENABLE(reg, val) ACPI_REGISTER_INSERT_VALUE(reg, \
+										ACPI_TPRN_BASE_ENABLE_SHIFT,   \
+										ACPI_TPRN_BASE_ENABLE_MASK, val);
+
+/*
+ * SET_TPRN_BASE_ADDR:
+ *
+ * Set TPRn Base Register address - bits 63:20
+ *
+ * Input
+ * - reg (represents TPRn Base Register (ACPI_TPRN_BASE_REG))
+ * - val (represents address value to be set (u64))
+ */
+#define SET_TPRN_BASE_ADDR(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,   \
+										ACPI_TPRN_BASE_ADDR_SHIFT,     \
+										ACPI_TPRN_BASE_ADDR_MASK, val);
+
+/*
+ * TPRn_LIMIT
+ *
+ * This register defines an isolated region of memory that can be enabled
+ * to prohibit certain system agents from accessing memory. When an agent
+ * sends a request upstream, whether snooped or not, a TPR prevents that
+ * transaction from changing the state of memory.
+ *
+ * Minimal TPRn_Limit resolution is 1MB. Width is determined by a bus width.
+ */
+
+typedef u64 ACPI_TPRN_LIMIT_REG;
+
+/* TPRn_LIMIT Register Bit Masks */
+
+/* Bit 3 - RW: access: 1 == RO, 0 == RW register (for TPR must be RW) */
+#define ACPI_TPRN_LIMIT_RW_SHIFT   3
+
+#define ACPI_TPRN_LIMIT_RW_MASK    ((u64) 1 << ACPI_TPRN_LIMIT_RW_SHIFT)
+
+/* Bits 63:20 - tpr_limit_rw */
+#define ACPI_TPRN_LIMIT_ADDR_SHIFT 20
+
+#define ACPI_TPRN_LIMIT_ADDR_MASK  ((u64) 0xFFFFFFFFFFF << \
+								   ACPI_TPRN_LIMIT_ADDR_SHIFT)
+
+/* TPRn_LIMIT Register Bit Handlers*/
+
+/*
+ * GET_TPRN_LIMIT_RW:
+ *
+ * Read RW bit from TPRn Limit register - bit 3.
+ *
+ * Input:
+ * - reg (represents TPRn Limit Register (ACPI_TPRN_LIMIT_REG))
+ *
+ * Output:
+ *
+ * Returns RW bit value (u64).
+ */
+#define GET_TPRN_LIMIT_RW(reg)    (((u64) reg & ACPI_TPRN_LIMIT_RW_MASK)    \
+								   >> ACPI_TPRN_LIMIT_RW_SHIFT)
+
+/*
+ * GET_TPRN_LIMIT_ADDR:
+ *
+ * Read TPRn Limit Register address from bits 63:20.
+ *
+ * Input:
+ * - reg (represents TPRn Limit Register (ACPI_TPRN_LIMIT_REG))
+ *
+ * Output:
+ *
+ * Returns TPRn Limit Register address (u64).
+ */
+#define GET_TPRN_LIMIT_ADDR(reg)  (((u64) reg & ACPI_TPRN_LIMIT_ADDR_MASK)  \
+								   >> ACPI_TPRN_LIMIT_ADDR_SHIFT)
+
+/*
+ * SET_TPRN_LIMIT_RW:
+ *
+ * Set RW bit in TPRn Limit register - bit 3.
+ *
+ * Input:
+ * - reg (represents TPRn Limit Register (ACPI_TPRN_LIMIT_REG))
+ * - val (represents RW value to be set (u64))
+ */
+#define SET_TPRN_LIMIT_RW(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,            \
+										ACPI_TPRN_LIMIT_RW_SHIFT,              \
+										ACPI_TPRN_LIMIT_RW_MASK, val);
+
+/*
+ * SET_TPRN_LIMIT_ADDR:
+ *
+ * Set TPRn Limit Register address - bits 63:20.
+ *
+ * Input:
+ * - reg (represents TPRn Limit Register (ACPI_TPRN_LIMIT_REG))
+ * - val (represents address value to be set (u64))
+ */
+#define SET_TPRN_LIMIT_ADDR(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,          \
+										ACPI_TPRN_LIMIT_ADDR_SHIFT,            \
+										ACPI_TPRN_LIMIT_ADDR_MASK, val);
+
+/*
+ * SERIALIZE_REQUEST
+ *
+ * This register is used to request serialization of non-coherent DMA
+ * transactions. OS shall  issue it before changing of TPR settings
+ * (base / size).
+ */
+
+struct acpi_tpr_serialize_request {
+	u64 sr_register;
+	/*
+	 * BIT 1 - Status of serialization request (RO)
+	 *         0 == register idle, 1 == serialization in progress
+	 * BIT 2 - Control field to initiate serialization (RW)
+	 *         0 == normal, 1 == initialize serialization
+	 * (self-clear to allow multiple serialization requests)
+	 */
 };
 
 /*******************************************************************************

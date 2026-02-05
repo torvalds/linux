@@ -10,6 +10,7 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acinterp.h"
+#include <acpi/acoutput.h>
 #include "acparser.h"
 #include "amlcode.h"
 
@@ -51,8 +52,7 @@ ACPI_MODULE_NAME("exoparg3")
 acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object **operand = &walk_state->operands[0];
-	struct acpi_signal_fatal_info *fatal;
-	acpi_status status = AE_OK;
+	struct acpi_signal_fatal_info fatal;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_3A_0T_0R,
 				acpi_ps_get_opcode_name(walk_state->opcode));
@@ -60,28 +60,30 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 	switch (walk_state->opcode) {
 	case AML_FATAL_OP:	/* Fatal (fatal_type fatal_code fatal_arg) */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "FatalOp: Type %X Code %X Arg %X "
-				  "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-				  (u32)operand[0]->integer.value,
-				  (u32)operand[1]->integer.value,
-				  (u32)operand[2]->integer.value));
+		fatal.type = (u32)operand[0]->integer.value;
+		fatal.code = (u32)operand[1]->integer.value;
+		fatal.argument = (u32)operand[2]->integer.value;
 
-		fatal = ACPI_ALLOCATE(sizeof(struct acpi_signal_fatal_info));
-		if (fatal) {
-			fatal->type = (u32) operand[0]->integer.value;
-			fatal->code = (u32) operand[1]->integer.value;
-			fatal->argument = (u32) operand[2]->integer.value;
-		}
+		ACPI_BIOS_ERROR((AE_INFO,
+				 "Fatal ACPI BIOS error (Type 0x%X Code 0x%X Arg 0x%X)\n",
+				 fatal.type, fatal.code, fatal.argument));
 
 		/* Always signal the OS! */
 
-		status = acpi_os_signal(ACPI_SIGNAL_FATAL, fatal);
+		acpi_os_signal(ACPI_SIGNAL_FATAL, &fatal);
 
-		/* Might return while OS is shutting down, just continue */
-
-		ACPI_FREE(fatal);
-		goto cleanup;
+#ifndef ACPI_CONTINUE_ON_FATAL
+		/*
+		 * Might return while OS is shutting down, so abort the AML execution
+		 * by returning an error.
+		 */
+		return_ACPI_STATUS(AE_ERROR);
+#else
+		/*
+		 * The alstests require that the Fatal() opcode does not return an error.
+		 */
+		return_ACPI_STATUS(AE_OK);
+#endif
 
 	case AML_EXTERNAL_OP:
 		/*
@@ -93,21 +95,16 @@ acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 		 * wrong if an external opcode ever gets here.
 		 */
 		ACPI_ERROR((AE_INFO, "Executed External Op"));
-		status = AE_OK;
-		goto cleanup;
+
+		return_ACPI_STATUS(AE_OK);
 
 	default:
 
 		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 
-		status = AE_AML_BAD_OPCODE;
-		goto cleanup;
+		return_ACPI_STATUS(AE_AML_BAD_OPCODE);
 	}
-
-cleanup:
-
-	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
