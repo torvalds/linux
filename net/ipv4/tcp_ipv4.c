@@ -2109,14 +2109,6 @@ no_coalesce:
 }
 EXPORT_IPV6_MOD(tcp_add_backlog);
 
-int tcp_filter(struct sock *sk, struct sk_buff *skb, enum skb_drop_reason *reason)
-{
-	struct tcphdr *th = (struct tcphdr *)skb->data;
-
-	return sk_filter_trim_cap(sk, skb, th->doff * 4, reason);
-}
-EXPORT_IPV6_MOD(tcp_filter);
-
 static void tcp_v4_restore_cb(struct sk_buff *skb)
 {
 	memmove(IPCB(skb), &TCP_SKB_CB(skb)->header.h4,
