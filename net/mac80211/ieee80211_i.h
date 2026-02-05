@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -394,9 +394,10 @@ enum ieee80211_conn_mode {
 	IEEE80211_CONN_MODE_VHT,
 	IEEE80211_CONN_MODE_HE,
 	IEEE80211_CONN_MODE_EHT,
+	IEEE80211_CONN_MODE_UHR,
 };
 
-#define IEEE80211_CONN_MODE_HIGHEST	IEEE80211_CONN_MODE_EHT
+#define IEEE80211_CONN_MODE_HIGHEST	IEEE80211_CONN_MODE_UHR
 
 enum ieee80211_conn_bw_limit {
 	IEEE80211_CONN_BW_LIMIT_20,
@@ -1099,7 +1100,7 @@ struct ieee80211_link_data {
 	int ap_power_level; /* in dBm */
 
 	bool radar_required;
-	struct wiphy_delayed_work dfs_cac_timer_work;
+	struct wiphy_hrtimer_work dfs_cac_timer_work;
 
 	union {
 		struct ieee80211_link_data_managed mgd;
@@ -1824,6 +1825,8 @@ struct ieee802_11_elems {
 	const struct ieee80211_multi_link_elem *ml_epcs;
 	const struct ieee80211_bandwidth_indication *bandwidth_indication;
 	const struct ieee80211_ttlm_elem *ttlm[IEEE80211_TTLM_MAX_CNT];
+	const struct ieee80211_uhr_cap *uhr_cap;
+	const struct ieee80211_uhr_operation *uhr_operation;
 
 	/* not the order in the psd values is per element, not per chandef */
 	struct ieee80211_parsed_tpe tpe;
@@ -1848,6 +1851,8 @@ struct ieee802_11_elems {
 	u8 country_elem_len;
 	u8 bssid_index_len;
 	u8 eht_cap_len;
+	u8 uhr_cap_len;
+	u8 uhr_operation_len;
 
 	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
 	size_t ml_basic_len;
@@ -2691,6 +2696,9 @@ int ieee80211_put_eht_cap(struct sk_buff *skb,
 			  struct ieee80211_sub_if_data *sdata,
 			  const struct ieee80211_supported_band *sband,
 			  const struct ieee80211_conn_settings *conn);
+int ieee80211_put_uhr_cap(struct sk_buff *skb,
+			  struct ieee80211_sub_if_data *sdata,
+			  const struct ieee80211_supported_band *sband);
 int ieee80211_put_reg_conn(struct sk_buff *skb,
 			   enum ieee80211_channel_flags flags);
 
@@ -2835,6 +2843,8 @@ void ieee80211_destroy_frag_cache(struct ieee80211_fragment_cache *cache);
 
 u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata);
 
+void ieee80211_rx_eml_op_mode_notif(struct ieee80211_sub_if_data *sdata,
+				    struct sk_buff *skb);
 void
 ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
@@ -2865,6 +2875,13 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_mgmt *mgmt, size_t len);
 void ieee80211_stop_mbssid(struct ieee80211_sub_if_data *sdata);
+
+void
+ieee80211_uhr_cap_ie_to_sta_uhr_cap(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_supported_band *sband,
+				    const struct ieee80211_uhr_cap *uhr_cap,
+				    u8 uhr_cap_len,
+				    struct link_sta_info *link_sta);
 
 #if IS_ENABLED(CONFIG_MAC80211_KUNIT_TEST)
 #define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)

@@ -3928,6 +3928,14 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 					      u.action.u.epcs))
 				goto invalid;
 			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
+			if (sdata->vif.type != NL80211_IFTYPE_AP)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.eml_omn))
+				goto invalid;
+			goto queue;
 		default:
 			break;
 		}
@@ -5516,6 +5524,32 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 				      status->eht.gi > NL80211_RATE_INFO_EHT_GI_3_2,
 				      "Rate marked as an EHT rate but data is invalid: MCS:%d, NSS:%d, GI:%d\n",
 				      status->rate_idx, status->nss, status->eht.gi))
+				goto drop;
+			break;
+		case RX_ENC_UHR:
+			if (WARN_ONCE(!(status->rate_idx <= 15 ||
+					status->rate_idx == 17 ||
+					status->rate_idx == 19 ||
+					status->rate_idx == 20 ||
+					status->rate_idx == 23) ||
+				      !status->nss ||
+				      status->nss > 8 ||
+				      status->uhr.gi > NL80211_RATE_INFO_EHT_GI_3_2,
+				      "Rate marked as a UHR rate but data is invalid: MCS:%d, NSS:%d, GI:%d\n",
+				      status->rate_idx, status->nss, status->uhr.gi))
+				goto drop;
+			if (WARN_ONCE(status->uhr.elr &&
+				      (status->nss != 1 || status->rate_idx > 1 ||
+				       status->uhr.gi != NL80211_RATE_INFO_EHT_GI_1_6 ||
+				       status->bw != RATE_INFO_BW_20 || status->uhr.im),
+				      "bad UHR ELR MCS MCS:%d, NSS:%d, GI:%d, BW:%d, IM:%d\n",
+				      status->rate_idx, status->nss, status->uhr.gi,
+				      status->bw, status->uhr.im))
+				goto drop;
+			if (WARN_ONCE(status->uhr.im &&
+				      (status->nss != 1 || status->rate_idx == 15),
+				      "bad UHR IM MCS MCS:%d, NSS:%d\n",
+				      status->rate_idx, status->nss))
 				goto drop;
 			break;
 		default:

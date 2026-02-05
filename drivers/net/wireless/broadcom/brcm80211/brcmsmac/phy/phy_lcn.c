@@ -4790,7 +4790,7 @@ void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 	wlc_lcnphy_calib_modes(pi, PHY_PERICAL_PHYINIT);
 }
 
-static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
+static void wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 {
 	s8 txpwr = 0;
 	int i;
@@ -4879,8 +4879,6 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 				sprom->ant_available_bg);
 	}
 	pi_lcn->lcnphy_cck_dig_filt_type = -1;
-
-	return true;
 }
 
 void wlc_2064_vco_cal(struct brcms_phy *pi)
@@ -4992,10 +4990,7 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 	pi->pi_fptr.radioloftget = wlc_lcnphy_get_radio_loft;
 	pi->pi_fptr.detach = wlc_phy_detach_lcnphy;
 
-	if (!wlc_phy_txpwr_srom_read_lcnphy(pi)) {
-		kfree(pi->u.pi_lcnphy);
-		return false;
-	}
+	wlc_phy_txpwr_srom_read_lcnphy(pi);
 
 	if (LCNREV_IS(pi->pubpi.phy_rev, 1)) {
 		if (pi_lcn->lcnphy_tempsense_option == 3) {

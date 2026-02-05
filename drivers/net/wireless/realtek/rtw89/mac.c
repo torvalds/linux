@@ -1554,6 +1554,7 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 
 		rtw89_mac_update_scoreboard(rtwdev, MAC_AX_NOTIFY_TP_MAJOR);
+		rtw89_mac_clr_aon_intr(rtwdev);
 	} else {
 		clear_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		clear_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
@@ -4373,6 +4374,12 @@ static const struct rtw89_port_reg rtw89_port_base_ax = {
 		    R_AX_PORT_HGQ_WINDOW_CFG + 3},
 };
 
+static const struct rtw89_mac_mu_gid_addr rtw89_mac_mu_gid_addr_ax = {
+	.position_en = {R_AX_GID_POSITION_EN0, R_AX_GID_POSITION_EN1},
+	.position = {R_AX_GID_POSITION0, R_AX_GID_POSITION1,
+		     R_AX_GID_POSITION2, R_AX_GID_POSITION3},
+};
+
 static void rtw89_mac_check_packet_ctrl(struct rtw89_dev *rtwdev,
 					struct rtw89_vif_link *rtwvif_link, u8 type)
 {
@@ -6769,6 +6776,8 @@ void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev,
 void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *conf)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_mac_mu_gid_addr *addr = mac->mu_gid;
 	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
 	struct rtw89_vif_link *rtwvif_link;
 	u8 mac_idx;
@@ -6788,20 +6797,20 @@ void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *
 
 	p = (__le32 *)conf->mu_group.membership;
 	rtw89_write32(rtwdev,
-		      rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION_EN0, mac_idx),
+		      rtw89_mac_reg_by_idx(rtwdev, addr->position_en[0], mac_idx),
 		      le32_to_cpu(p[0]));
 	rtw89_write32(rtwdev,
-		      rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION_EN1, mac_idx),
+		      rtw89_mac_reg_by_idx(rtwdev, addr->position_en[1], mac_idx),
 		      le32_to_cpu(p[1]));
 
 	p = (__le32 *)conf->mu_group.position;
-	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION0, mac_idx),
+	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, addr->position[0], mac_idx),
 		      le32_to_cpu(p[0]));
-	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION1, mac_idx),
+	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, addr->position[1], mac_idx),
 		      le32_to_cpu(p[1]));
-	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION2, mac_idx),
+	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, addr->position[2], mac_idx),
 		      le32_to_cpu(p[2]));
-	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, R_AX_GID_POSITION3, mac_idx),
+	rtw89_write32(rtwdev, rtw89_mac_reg_by_idx(rtwdev, addr->position[3], mac_idx),
 		      le32_to_cpu(p[3]));
 }
 
@@ -7281,6 +7290,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.port_base = &rtw89_port_base_ax,
 	.agg_len_ht = R_AX_AGG_LEN_HT_0,
 	.ps_status = R_AX_PPWRBIT_SETTING,
+	.mu_gid = &rtw89_mac_mu_gid_addr_ax,
 
 	.muedca_ctrl = {
 		.addr = R_AX_MUEDCA_EN,
@@ -7303,6 +7313,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.sys_init = sys_init_ax,
 	.trx_init = trx_init_ax,
 	.preload_init = preload_init_set_ax,
+	.clr_aon_intr = NULL,
 	.err_imr_ctrl = err_imr_ctrl_ax,
 	.mac_func_en = NULL,
 	.hci_func_en = rtw89_mac_hci_func_en_ax,

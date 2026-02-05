@@ -1267,15 +1267,15 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool include_bb = !!chip->bbmcu_nr;
-	bool disable_intr_for_dlfw = false;
+	bool disable_intr_for_dlfw = true;
 	struct ieee80211_sta *wow_sta;
 	struct rtw89_sta_link *rtwsta_link = NULL;
 	struct rtw89_sta *rtwsta;
 	bool is_conn = true;
 	int ret;
 
-	if (chip_id == RTL8852C || chip_id == RTL8922A)
-		disable_intr_for_dlfw = true;
+	if (chip->chip_gen == RTW89_CHIP_AX && chip_id != RTL8852C)
+		disable_intr_for_dlfw = false;
 
 	wow_sta = ieee80211_find_sta(wow_vif, wow_vif->cfg.ap_addr);
 	if (wow_sta) {

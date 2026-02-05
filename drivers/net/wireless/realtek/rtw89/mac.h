@@ -1015,6 +1015,11 @@ struct rtw89_mac_size_set {
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;
 
+struct rtw89_mac_mu_gid_addr {
+	u32 position_en[2];
+	u32 position[4];
+};
+
 struct rtw89_mac_gen_def {
 	u32 band1_offset;
 	u32 filter_model_addr;
@@ -1025,6 +1030,7 @@ struct rtw89_mac_gen_def {
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
 	u32 ps_status;
+	const struct rtw89_mac_mu_gid_addr *mu_gid;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
@@ -1039,6 +1045,7 @@ struct rtw89_mac_gen_def {
 	int (*trx_init)(struct rtw89_dev *rtwdev);
 	int (*preload_init)(struct rtw89_dev *rtwdev, u8 mac_idx,
 			    enum rtw89_qta_mode mode);
+	void (*clr_aon_intr)(struct rtw89_dev *rtwdev);
 	void (*err_imr_ctrl)(struct rtw89_dev *rtwdev, bool en);
 	int (*mac_func_en)(struct rtw89_dev *rtwdev);
 	void (*hci_func_en)(struct rtw89_dev *rtwdev);
@@ -1136,6 +1143,14 @@ rtw89_write16_idx(struct rtw89_dev *rtwdev, u32 addr, u16 data, u8 band)
 	addr = rtw89_mac_reg_by_idx(rtwdev, addr, band);
 
 	rtw89_write16(rtwdev, addr, data);
+}
+
+static inline void
+rtw89_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask, u32 data, u8 band)
+{
+	addr = rtw89_mac_reg_by_idx(rtwdev, addr, band);
+
+	rtw89_write32_mask(rtwdev, addr, mask, data);
 }
 
 static inline
@@ -1249,6 +1264,14 @@ int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 
 	return mac->check_mac_en(rtwdev, band, sel);
+}
+
+static inline void rtw89_mac_clr_aon_intr(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (mac->clr_aon_intr)
+		mac->clr_aon_intr(rtwdev);
 }
 
 int rtw89_mac_write_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 val);

@@ -572,4 +572,4 @@ static inline bool ieee80211_s1g_check_tim(const struct ieee80211_tim_ie *tim,
 	}
 }
 
-#endif /* LINUX_IEEE80211_H */
+#endif /* LINUX_IEEE80211_S1G_H */

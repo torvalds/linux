@@ -558,6 +558,17 @@ struct ieee80211_mle_tdls_common_info {
 
 #define IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR	0x0010
 
+#define IEEE80211_EML_CTRL_EMLSR_MODE		BIT(0)
+#define IEEE80211_EML_CTRL_EMLMR_MODE		BIT(1)
+#define IEEE80211_EML_CTRL_EMLSR_PARAM_UPDATE	BIT(2)
+#define IEEE80211_EML_CTRL_INDEV_COEX_ACT	BIT(3)
+
+#define IEEE80211_EML_EMLSR_PAD_DELAY		0x07
+#define IEEE80211_EML_EMLSR_TRANS_DELAY		0x38
+
+#define IEEE80211_EML_EMLMR_RX_MCS_MAP		0xf0
+#define IEEE80211_EML_EMLMR_TX_MCS_MAP		0x0f
+
 /* no fixed fields in PRIO_ACCESS */
 
 /**
@@ -1179,4 +1190,4 @@ static inline u32 ieee80211_eml_trans_timeout_in_us(u16 eml_cap)
 				 _data + ieee80211_mle_common_size(_data),\
 				 _len - ieee80211_mle_common_size(_data))
 
-#endif /* LINUX_IEEE80211_H */
+#endif /* LINUX_IEEE80211_EHT_H */

@@ -60,6 +60,28 @@ static enum rtw89_subband rtw89_get_subband_type(enum rtw89_band band,
 	}
 }
 
+static enum rtw89_tx_comp_band rtw89_get_tx_comp_band(enum rtw89_band band,
+						      u8 center_chan)
+{
+	switch (band) {
+	default:
+	case RTW89_BAND_2G:
+		return RTW89_TX_COMP_BAND_2GHZ;
+	case RTW89_BAND_5G:
+		if (center_chan < 149)
+			return RTW89_TX_COMP_BAND_5GHZ_L;
+		else
+			return RTW89_TX_COMP_BAND_5GHZ_H;
+	case RTW89_BAND_6G:
+		if (center_chan < 65)
+			return RTW89_TX_COMP_BAND_5GHZ_H;
+		else if (center_chan < 193)
+			return RTW89_TX_COMP_BAND_6GHZ_M;
+		else
+			return RTW89_TX_COMP_BAND_6GHZ_UH;
+	}
+}
+
 static enum rtw89_sc_offset rtw89_get_primary_chan_idx(enum rtw89_bandwidth bw,
 						       u32 center_freq,
 						       u32 primary_freq)
@@ -123,6 +145,7 @@ void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 
 	chan->freq = center_freq;
 	chan->subband_type = rtw89_get_subband_type(band, center_chan);
+	chan->tx_comp_band = rtw89_get_tx_comp_band(band, center_chan);
 	chan->pri_ch_idx = rtw89_get_primary_chan_idx(bandwidth, center_freq,
 						      primary_freq);
 	chan->pri_sb_idx = rtw89_get_primary_sb_idx(center_chan, primary_chan,
@@ -349,8 +372,8 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 	if (unlikely(!rtwvif_link->chanctx_assigned))
 		return;
 
-	cur = rtw89_vif_get_link_inst(rtwvif, 0);
-	if (!cur || !cur->chanctx_assigned)
+	cur = rtw89_get_designated_link(rtwvif);
+	if (unlikely(!cur) || !cur->chanctx_assigned)
 		return;
 
 	if (cur == rtwvif_link)
@@ -499,8 +522,8 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	}
 
 	/* To be consistent with legacy behavior, expect the first active role
-	 * which uses RTW89_CHANCTX_0 to put at position 0, and make its first
-	 * link instance take RTW89_CHANCTX_0. (normalizing)
+	 * which uses RTW89_CHANCTX_0 to put at position 0 and its designated
+	 * link take RTW89_CHANCTX_0. (normalizing)
 	 */
 	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
 		for (i = 0; i < role->links_inst_valid_num; i++) {

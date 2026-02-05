@@ -332,6 +332,15 @@ static int validate_nan_cluster_id(const struct nlattr *attr,
 	return 0;
 }
 
+static int validate_uhr_capa(const struct nlattr *attr,
+			     struct netlink_ext_ack *extack)
+{
+	const u8 *data = nla_data(attr);
+	unsigned int len = nla_len(attr);
+
+	return ieee80211_uhr_capa_size_ok(data, len, false);
+}
+
 /* policy for the attributes */
 static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR];
 
@@ -934,6 +943,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_BSS_PARAM] = { .type = NLA_FLAG },
 	[NL80211_ATTR_S1G_PRIMARY_2MHZ] = { .type = NLA_FLAG },
 	[NL80211_ATTR_EPP_PEER] = { .type = NLA_FLAG },
+	[NL80211_ATTR_UHR_CAPABILITY] =
+		NLA_POLICY_VALIDATE_FN(NLA_BINARY, validate_uhr_capa, 255),
+	[NL80211_ATTR_DISABLE_UHR] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -1318,6 +1330,9 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 			goto nla_put_failure;
 		if ((chan->flags & IEEE80211_CHAN_S1G_NO_PRIMARY) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_NO_UHR) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_UHR))
 			goto nla_put_failure;
 	}
 
@@ -1954,6 +1969,7 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 {
 	const struct ieee80211_sta_he_cap *he_cap = &iftdata->he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap = &iftdata->eht_cap;
+	const struct ieee80211_sta_uhr_cap *uhr_cap = &iftdata->uhr_cap;
 
 	if (nl80211_put_iftypes(msg, NL80211_BAND_IFTYPE_ATTR_IFTYPES,
 				iftdata->types_mask))
@@ -2002,6 +2018,14 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 			    mcs_nss_size, &eht_cap->eht_mcs_nss_supp) ||
 		    nla_put(msg, NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE,
 			    ppe_thresh_size, eht_cap->eht_ppe_thres))
+			return -ENOBUFS;
+	}
+
+	if (uhr_cap->has_uhr) {
+		if (nla_put(msg, NL80211_BAND_IFTYPE_ATTR_UHR_CAP_MAC,
+			    sizeof(uhr_cap->mac), &uhr_cap->mac) ||
+		    nla_put(msg, NL80211_BAND_IFTYPE_ATTR_UHR_CAP_PHY,
+			    sizeof(uhr_cap->phy), &uhr_cap->phy))
 			return -ENOBUFS;
 	}
 
@@ -6462,6 +6486,17 @@ static int nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 						cap->datalen - 1))
 			return -EINVAL;
 	}
+
+	cap = cfg80211_find_ext_elem(WLAN_EID_EXT_UHR_OPER, ies, ies_len);
+	if (cap) {
+		if (!cap->datalen)
+			return -EINVAL;
+		params->uhr_oper = (void *)(cap->data + 1);
+		if (!ieee80211_uhr_oper_size_ok((const u8 *)params->uhr_oper,
+						cap->datalen - 1, true))
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -6591,6 +6626,9 @@ static int nl80211_validate_ap_phy_operation(struct cfg80211_ap_settings *params
 
 	if ((params->eht_cap || params->eht_oper) &&
 	    (channel->flags & IEEE80211_CHAN_NO_EHT))
+		return -EOPNOTSUPP;
+
+	if (params->uhr_oper && (channel->flags & IEEE80211_CHAN_NO_UHR))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -7175,7 +7213,8 @@ bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info, int attr)
 		break;
 	case RATE_INFO_BW_EHT_RU:
 		rate_flg = 0;
-		WARN_ON(!(info->flags & RATE_INFO_FLAGS_EHT_MCS));
+		WARN_ON(!(info->flags & RATE_INFO_FLAGS_EHT_MCS) &&
+			!(info->flags & RATE_INFO_FLAGS_UHR_MCS));
 		break;
 	}
 
@@ -7227,6 +7266,23 @@ bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info, int attr)
 		if (info->bw == RATE_INFO_BW_EHT_RU &&
 		    nla_put_u8(msg, NL80211_RATE_INFO_EHT_RU_ALLOC,
 			       info->eht_ru_alloc))
+			return false;
+	} else if (info->flags & RATE_INFO_FLAGS_UHR_MCS) {
+		if (nla_put_u8(msg, NL80211_RATE_INFO_UHR_MCS, info->mcs))
+			return false;
+		if (nla_put_u8(msg, NL80211_RATE_INFO_EHT_NSS, info->nss))
+			return false;
+		if (nla_put_u8(msg, NL80211_RATE_INFO_EHT_GI, info->eht_gi))
+			return false;
+		if (info->bw == RATE_INFO_BW_EHT_RU &&
+		    nla_put_u8(msg, NL80211_RATE_INFO_EHT_RU_ALLOC,
+			       info->eht_ru_alloc))
+			return false;
+		if (info->flags & RATE_INFO_FLAGS_UHR_ELR_MCS &&
+		    nla_put_flag(msg, NL80211_RATE_INFO_UHR_ELR))
+			return false;
+		if (info->flags & RATE_INFO_FLAGS_UHR_IM &&
+		    nla_put_flag(msg, NL80211_RATE_INFO_UHR_IM))
 			return false;
 	}
 
@@ -8101,7 +8157,8 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 		if (params->ext_capab || params->link_sta_params.ht_capa ||
 		    params->link_sta_params.vht_capa ||
 		    params->link_sta_params.he_capa ||
-		    params->link_sta_params.eht_capa)
+		    params->link_sta_params.eht_capa ||
+		    params->link_sta_params.uhr_capa)
 			return -EINVAL;
 		if (params->sta_flags_mask & BIT(NL80211_STA_FLAG_SPP_AMSDU))
 			return -EINVAL;
@@ -8319,6 +8376,16 @@ static int nl80211_set_station_tdls(struct genl_info *info,
 							false))
 				return -EINVAL;
 		}
+	}
+
+	if (info->attrs[NL80211_ATTR_UHR_CAPABILITY]) {
+		if (!params->link_sta_params.eht_capa)
+			return -EINVAL;
+
+		params->link_sta_params.uhr_capa =
+			nla_data(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
+		params->link_sta_params.uhr_capa_len =
+			nla_len(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
 	}
 
 	if (info->attrs[NL80211_ATTR_S1G_CAPABILITY])
@@ -8641,6 +8708,16 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	if (info->attrs[NL80211_ATTR_UHR_CAPABILITY]) {
+		if (!params.link_sta_params.eht_capa)
+			return -EINVAL;
+
+		params.link_sta_params.uhr_capa =
+			nla_data(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
+		params.link_sta_params.uhr_capa_len =
+			nla_len(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
+	}
+
 	if (info->attrs[NL80211_ATTR_EML_CAPABILITY]) {
 		params.eml_cap_present = true;
 		params.eml_cap =
@@ -8700,10 +8777,11 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		params.link_sta_params.ht_capa = NULL;
 		params.link_sta_params.vht_capa = NULL;
 
-		/* HE and EHT require WME */
+		/* HE, EHT and UHR require WME */
 		if (params.link_sta_params.he_capa_len ||
 		    params.link_sta_params.he_6ghz_capa ||
-		    params.link_sta_params.eht_capa_len)
+		    params.link_sta_params.eht_capa_len ||
+		    params.link_sta_params.uhr_capa_len)
 			return -EINVAL;
 	}
 
@@ -12376,6 +12454,9 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_EHT]))
 		req.flags |= ASSOC_REQ_DISABLE_EHT;
 
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_UHR]))
+		req.flags |= ASSOC_REQ_DISABLE_UHR;
+
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
 		memcpy(&req.vht_capa_mask,
 		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]),
@@ -13247,6 +13328,9 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_EHT]))
 		connect.flags |= ASSOC_REQ_DISABLE_EHT;
+
+	if (nla_get_flag(info->attrs[NL80211_ATTR_DISABLE_UHR]))
+		connect.flags |= ASSOC_REQ_DISABLE_UHR;
 
 	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
 		memcpy(&connect.vht_capa_mask,
@@ -17678,6 +17762,16 @@ nl80211_add_mod_link_station(struct sk_buff *skb, struct genl_info *info,
 							false))
 				return -EINVAL;
 		}
+	}
+
+	if (info->attrs[NL80211_ATTR_UHR_CAPABILITY]) {
+		if (!params.eht_capa)
+			return -EINVAL;
+
+		params.uhr_capa =
+			nla_data(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
+		params.uhr_capa_len =
+			nla_len(info->attrs[NL80211_ATTR_UHR_CAPABILITY]);
 	}
 
 	if (info->attrs[NL80211_ATTR_HE_6GHZ_CAPABILITY])

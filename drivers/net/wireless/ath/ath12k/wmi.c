@@ -126,6 +126,14 @@ struct wmi_tlv_mgmt_rx_parse {
 	bool frame_buf_done;
 };
 
+struct wmi_pdev_set_obss_bitmap_arg {
+	u32 tlv_tag;
+	u32 pdev_id;
+	u32 cmd_id;
+	const u32 *bitmap;
+	const char *label;
+};
+
 static const struct ath12k_wmi_tlv_policy ath12k_wmi_tlv_policies[] = {
 	[WMI_TAG_ARRAY_BYTE] = { .min_len = 0 },
 	[WMI_TAG_ARRAY_UINT32] = { .min_len = 0 },
@@ -3558,6 +3566,140 @@ ath12k_wmi_send_obss_spr_cmd(struct ath12k *ar, u32 vdev_id,
 		dev_kfree_skb(skb);
 	}
 	return ret;
+}
+
+u32 ath12k_wmi_build_obss_pd(const struct ath12k_wmi_obss_pd_arg *arg)
+{
+	u32 param_val = 0;
+
+	param_val |= u32_encode_bits((u8)arg->srg_th, GENMASK(15, 8));
+	param_val |= u32_encode_bits((u8)arg->non_srg_th, GENMASK(7, 0));
+
+	if (arg->srp_support)
+		param_val |= ATH12K_OBSS_PD_THRESHOLD_IN_DBM;
+
+	if (arg->srg_enabled && arg->srp_support)
+		param_val |= ATH12K_OBSS_PD_SRG_EN;
+
+	if (arg->non_srg_enabled)
+		param_val |= ATH12K_OBSS_PD_NON_SRG_EN;
+
+	return param_val;
+}
+
+static int ath12k_wmi_pdev_set_obss_bitmap(struct ath12k *ar,
+					   const struct wmi_pdev_set_obss_bitmap_arg *arg)
+{
+	struct wmi_pdev_obss_pd_bitmap_cmd *cmd;
+	struct ath12k_wmi_pdev *wmi = ar->wmi;
+	const int len = sizeof(*cmd);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_pdev_obss_pd_bitmap_cmd *)skb->data;
+	cmd->tlv_header = ath12k_wmi_tlv_cmd_hdr(arg->tlv_tag, len);
+	cmd->pdev_id = cpu_to_le32(arg->pdev_id);
+	memcpy(cmd->bitmap, arg->bitmap, sizeof(cmd->bitmap));
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
+		   "wmi set pdev %u %s %08x %08x\n",
+		   arg->pdev_id, arg->label, arg->bitmap[0], arg->bitmap[1]);
+
+	ret = ath12k_wmi_cmd_send(wmi, skb, arg->cmd_id);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to send %s: %d\n", arg->label, ret);
+		dev_kfree_skb(skb);
+	}
+
+	return ret;
+}
+
+int ath12k_wmi_pdev_set_srg_bss_color_bitmap(struct ath12k *ar,
+					     u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_SRG_BSS_COLOR_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_SRG_BSS_COLOR_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "SRG bss color bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
+}
+
+int ath12k_wmi_pdev_set_srg_partial_bssid_bitmap(struct ath12k *ar,
+						 u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_SRG_PARTIAL_BSSID_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_SRG_PARTIAL_BSSID_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "SRG partial bssid bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
+}
+
+int ath12k_wmi_pdev_srg_obss_color_enable_bitmap(struct ath12k *ar,
+						 u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "SRG obss color enable bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
+}
+
+int ath12k_wmi_pdev_srg_obss_bssid_enable_bitmap(struct ath12k *ar,
+						 u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "SRG obss bssid enable bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
+}
+
+int ath12k_wmi_pdev_non_srg_obss_color_enable_bitmap(struct ath12k *ar,
+						     u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_NON_SRG_OBSS_COLOR_ENABLE_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "non SRG obss color enable bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
+}
+
+int ath12k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(struct ath12k *ar,
+						     u32 pdev_id, const u32 *bitmap)
+{
+	struct wmi_pdev_set_obss_bitmap_arg arg = {
+		.tlv_tag = WMI_TAG_PDEV_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMD,
+		.pdev_id = pdev_id,
+		.cmd_id = WMI_PDEV_SET_NON_SRG_OBSS_BSSID_ENABLE_BITMAP_CMDID,
+		.bitmap = bitmap,
+		.label = "non SRG obss bssid enable bitmap",
+	};
+
+	return ath12k_wmi_pdev_set_obss_bitmap(ar, &arg);
 }
 
 int ath12k_wmi_obss_color_cfg_cmd(struct ath12k *ar, u32 vdev_id,

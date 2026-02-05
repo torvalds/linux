@@ -189,6 +189,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 
 	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
 		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
+	else if (RTW89_CHK_FW_FEATURE(LPS_ML_INFO_V1, &rtwdev->fw))
+		rtw89_fw_h2c_lps_ml_cmn_info_v1(rtwdev, rtwvif);
 	else
 		rtw89_fw_h2c_lps_ml_cmn_info(rtwdev, rtwvif);
 

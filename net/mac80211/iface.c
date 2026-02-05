@@ -565,7 +565,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa.finalize_work);
 	wiphy_work_cancel(local->hw.wiphy,
 			  &sdata->deflink.color_change_finalize_work);
-	wiphy_delayed_work_cancel(local->hw.wiphy,
+	wiphy_hrtimer_work_cancel(local->hw.wiphy,
 				  &sdata->deflink.dfs_cac_timer_work);
 
 	if (sdata->wdev.links[0].cac_started) {
@@ -1668,7 +1668,15 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_PROTECTED_EHT) {
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		if (sdata->vif.type == NL80211_IFTYPE_AP) {
+			switch (mgmt->u.action.u.eml_omn.action_code) {
+			case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
+				ieee80211_rx_eml_op_mode_notif(sdata, skb);
+				break;
+			default:
+				break;
+			}
+		} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			switch (mgmt->u.action.u.ttlm_req.action_code) {
 			case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
 				ieee80211_process_neg_ttlm_req(sdata, mgmt,

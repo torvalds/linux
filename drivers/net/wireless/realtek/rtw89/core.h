@@ -23,6 +23,7 @@ struct rtw89_efuse_block_cfg;
 struct rtw89_h2c_rf_tssi;
 struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
+struct rtw89_phy_calc_efuse_gain;
 struct rtw89_debugfs;
 struct rtw89_regd_data;
 struct rtw89_wow_cam_info;
@@ -112,6 +113,16 @@ enum rtw89_subband {
 
 	RTW89_SUBBAND_NR,
 	RTW89_SUBBAND_2GHZ_5GHZ_NR = RTW89_CH_5G_BAND_4 + 1,
+};
+
+enum rtw89_tx_comp_band {
+	RTW89_TX_COMP_BAND_2GHZ,
+	RTW89_TX_COMP_BAND_5GHZ_L,
+	RTW89_TX_COMP_BAND_5GHZ_H,
+	RTW89_TX_COMP_BAND_6GHZ_M,
+	RTW89_TX_COMP_BAND_6GHZ_UH,
+
+	RTW89_TX_COMP_BAND_NR,
 };
 
 enum rtw89_gain_offset {
@@ -990,6 +1001,7 @@ struct rtw89_chan {
 	 */
 	u32 freq;
 	enum rtw89_subband subband_type;
+	enum rtw89_tx_comp_band tx_comp_band;
 	enum rtw89_sc_offset pri_ch_idx;
 	u8 pri_sb_idx;
 };
@@ -3822,6 +3834,11 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	void (*digital_pwr_comp)(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx);
+	void (*calc_rx_gain_normal)(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_rf_path path,
+				    enum rtw89_phy_idx phy_idx,
+				    struct rtw89_phy_calc_efuse_gain *calc);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
@@ -4761,6 +4778,7 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_ADDR_CAM_V0,
 	RTW89_FW_FEATURE_SER_L1_BY_EVENT,
 	RTW89_FW_FEATURE_SIM_SER_L0L1_BY_HALT_H2C,
+	RTW89_FW_FEATURE_LPS_ML_INFO_V1,
 
 	NUM_OF_RTW89_FW_FEATURES,
 };
@@ -4824,6 +4842,7 @@ struct rtw89_fw_elm_info {
 	const struct rtw89_regd_data *regd;
 	const struct rtw89_fw_element_hdr *afe;
 	const struct rtw89_fw_element_hdr *diag_mac;
+	const struct rtw89_fw_element_hdr *tx_comp;
 };
 
 enum rtw89_fw_mss_dev_type {
@@ -5686,7 +5705,7 @@ struct rtw89_env_monitor_info {
 	u16 ifs_clm_cckfa;
 	u16 ifs_clm_cckcca_excl_fa;
 	u16 ifs_clm_total_ifs;
-	u8 ifs_clm_his[RTW89_IFS_CLM_NUM];
+	u16 ifs_clm_his[RTW89_IFS_CLM_NUM];
 	u16 ifs_clm_avg[RTW89_IFS_CLM_NUM];
 	u16 ifs_clm_cca[RTW89_IFS_CLM_NUM];
 	u8 ifs_clm_tx_ratio;
@@ -5885,6 +5904,12 @@ struct rtw89_phy_efuse_gain {
 	s8 offset_base[RTW89_PHY_NUM]; /* S(8, 4) */
 	s8 rssi_base[RTW89_PHY_NUM]; /* S(8, 4) */
 	s8 comp[RF_PATH_MAX][RTW89_SUBBAND_NR]; /* S(8, 0) */
+};
+
+struct rtw89_phy_calc_efuse_gain {
+	s8 cck_mean_gain_bias;
+	s8 cck_rpl_ofst;
+	s8 rssi_ofst;
 };
 
 #define RTW89_MAX_PATTERN_NUM             18
@@ -7339,6 +7364,19 @@ static inline void rtw89_chip_digital_pwr_comp(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->digital_pwr_comp)
 		chip->ops->digital_pwr_comp(rtwdev, phy_idx);
+}
+
+static inline
+void rtw89_chip_calc_rx_gain_normal(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_rf_path path,
+				    enum rtw89_phy_idx phy_idx,
+				    struct rtw89_phy_calc_efuse_gain *calc)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->calc_rx_gain_normal)
+		chip->ops->calc_rx_gain_normal(rtwdev, chan, path, phy_idx, calc);
 }
 
 static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,

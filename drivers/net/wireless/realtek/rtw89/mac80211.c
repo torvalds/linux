@@ -1438,9 +1438,9 @@ static void rtw89_ops_channel_switch_beacon(struct ieee80211_hw *hw,
 
 	BUILD_BUG_ON(RTW89_MLD_NON_STA_LINK_NUM != 1);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "chsw bcn: find no link on HW-0\n");
+		rtw89_err(rtwdev, "chsw bcn: find no designated link\n");
 		return;
 	}
 

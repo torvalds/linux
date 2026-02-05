@@ -763,6 +763,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_be = {
 	.isr_rdu = B_BE_RDU_CH1_INT_V1 | B_BE_RDU_CH0_INT_V1,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
+	.isr_sps_ocp = 0,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
 };
@@ -772,6 +773,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_be_v1 = {
 	.isr_rdu = B_BE_PCIE_RDU_CH1_INT | B_BE_PCIE_RDU_CH0_INT,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
+	.isr_sps_ocp = B_BE_SPS_OCP_INT | B_BE_SPSANA_OCP_INT,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
 };
