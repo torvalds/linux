@@ -169,12 +169,18 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 
 		iov[0].iov_base = mid->resp_buf;
 		iov[0].iov_len = len;
-		/* FIXME: add code to kill session */
+
 		rc = cifs_verify_signature(&rqst, server,
 					   mid->sequence_number);
-		if (rc)
+		if (rc) {
 			cifs_server_dbg(VFS, "SMB signature verification returned error = %d\n",
 				 rc);
+
+			if (!(server->sec_mode & SECMODE_SIGN_REQUIRED)) {
+				cifs_reconnect(server, true);
+				return rc;
+			}
+		}
 	}
 
 	/* BB special case reconnect tid and uid here? */
