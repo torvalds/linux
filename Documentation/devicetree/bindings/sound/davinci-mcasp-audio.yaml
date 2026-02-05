@@ -40,10 +40,32 @@ properties:
   tdm-slots:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      number of channels over one serializer
-      the property is ignored in DIT mode
+      Number of channels over one serializer. This property
+      specifies the TX playback TDM slot count, along with default RX slot count
+      if tdm-slots-rx is not specified.
+      The property is ignored in DIT mode.
     minimum: 2
     maximum: 32
+
+  tdm-slots-rx:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Number of RX capture channels over one serializer. If specified,
+      allows independent RX TDM slot count separate from TX. Requires
+      ti,async-mode to be enabled for independent TX/RX clock rates.
+      The property is ignored in DIT mode.
+    minimum: 2
+    maximum: 32
+
+  ti,async-mode:
+    description:
+      Specify to allow independent TX & RX clocking,
+      to enable audio playback & record with different sampling rate,
+      and different number of bits per frame.
+      if property is omitted, TX and RX will share same bit clock and frame clock signals,
+      thus RX need to use same bits per frame and sampling rate as TX in synchronous mode.
+      the property is ignored in DIT mode (as DIT is TX-only)
+    type: boolean
 
   serial-dir:
     description:
@@ -125,7 +147,21 @@ properties:
 
   auxclk-fs-ratio:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: ratio of AUCLK and FS rate if applicable
+    description:
+      Ratio of AUCLK and FS rate if applicable. This property specifies
+      the TX ratio, along with default RX ratio if auxclk-fs-ratio-rx
+      is not specified.
+      When not specified, the inputted system clock frequency via set_sysclk
+      callback by the machine driver is used for divider calculation.
+
+  auxclk-fs-ratio-rx:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Ratio of AUCLK and FS rate for RX. If specified, allows
+      for a different RX ratio. Requires ti,async-mode to be
+      enabled when the ratio differs from auxclk-fs-ratio.
+      When not specified, it defaults to the value of auxclk-fs-ratio.
+      The property is ignored in DIT mode.
 
   gpio-controller: true
 
@@ -170,13 +206,37 @@ allOf:
   - $ref: dai-common.yaml#
   - if:
       properties:
-        opmode:
+        op-mode:
           enum:
             - 0
-
     then:
       required:
         - tdm-slots
+
+  - if:
+      properties:
+        op-mode:
+          const: 1
+    then:
+      properties:
+        tdm-slots: false
+        tdm-slots-rx: false
+        ti,async-mode: false
+        auxclk-fs-ratio-rx: false
+
+  - if:
+      required:
+        - tdm-slots-rx
+    then:
+      required:
+        - ti,async-mode
+
+  - if:
+      required:
+        - auxclk-fs-ratio-rx
+    then:
+      required:
+        - ti,async-mode
 
 unevaluatedProperties: false
 
@@ -190,6 +250,7 @@ examples:
       interrupt-names = "tx", "rx";
       op-mode = <0>;		/* MCASP_IIS_MODE */
       tdm-slots = <2>;
+      ti,async-mode;
       dmas = <&main_udmap 0xc400>, <&main_udmap 0x4400>;
       dma-names = "tx", "rx";
       serial-dir = <
