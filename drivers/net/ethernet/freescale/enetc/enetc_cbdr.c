@@ -74,10 +74,6 @@ int enetc4_setup_cbdr(struct enetc_si *si)
 	if (!user->ring)
 		return -ENOMEM;
 
-	/* set CBDR cache attributes */
-	enetc_wr(hw, ENETC_SICAR2,
-		 ENETC_SICAR_RD_COHERENT | ENETC_SICAR_WR_COHERENT);
-
 	regs.pir = hw->reg + ENETC_SICBDRPIR;
 	regs.cir = hw->reg + ENETC_SICBDRCIR;
 	regs.mr = hw->reg + ENETC_SICBDRMR;
