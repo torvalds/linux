@@ -743,6 +743,8 @@ static int __init gicv5_irs_init(struct device_node *node)
 	 * be consistent across IRSes by the architecture.
 	 */
 	if (list_empty(&irs_nodes)) {
+		idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR0);
+		gicv5_global_data.virt_capable = !FIELD_GET(GICV5_IRS_IDR0_VIRT, idr);
 
 		idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
 		irs_setup_pri_bits(idr);
