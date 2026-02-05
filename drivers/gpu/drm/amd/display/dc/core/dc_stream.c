@@ -522,8 +522,10 @@ bool dc_stream_program_cursor_position(
 			struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
 			/* trigger event on first pipe with current stream */
-			if (stream == pipe_ctx->stream) {
-				pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
+			if (stream == pipe_ctx->stream &&
+				pipe_ctx->stream_res.tg->funcs->program_manual_trigger) {
+				pipe_ctx->stream_res.tg->funcs->program_manual_trigger(
+					pipe_ctx->stream_res.tg);
 				break;
 			}
 		}
