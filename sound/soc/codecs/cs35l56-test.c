@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/pci_ids.h>
+#include <linux/property.h>
+#include <linux/seq_buf.h>
 #include <linux/soundwire/sdw.h>
 #include <sound/cs35l56.h>
 #include <sound/cs-amp-lib.h>
@@ -23,16 +25,46 @@
 KUNIT_DEFINE_ACTION_WRAPPER(faux_device_destroy_wrapper, faux_device_destroy,
 			    struct faux_device *)
 
+KUNIT_DEFINE_ACTION_WRAPPER(software_node_unregister_node_group_wrapper,
+			    software_node_unregister_node_group,
+			    const struct software_node * const *)
+
+KUNIT_DEFINE_ACTION_WRAPPER(software_node_unregister_wrapper,
+			    software_node_unregister,
+			    const struct software_node *)
+
+KUNIT_DEFINE_ACTION_WRAPPER(device_remove_software_node_wrapper,
+			    device_remove_software_node,
+			    struct device *)
+
 struct cs35l56_test_priv {
 	struct faux_device *amp_dev;
 	struct cs35l56_private *cs35l56_priv;
 
 	const char *ssidexv2;
+
+	bool read_onchip_spkid_called;
+	bool configure_onchip_spkid_pads_called;
 };
 
 struct cs35l56_test_param {
 	u8 type;
 	u8 rev;
+
+	s32 spkid_gpios[4];
+	s32 spkid_pulls[4];
+};
+
+static const struct software_node cs35l56_test_dev_sw_node =
+	SOFTWARE_NODE("SWD1", NULL, NULL);
+
+static const struct software_node cs35l56_test_af01_sw_node =
+	SOFTWARE_NODE("AF01", NULL, &cs35l56_test_dev_sw_node);
+
+static const struct software_node *cs35l56_test_dev_and_af01_node_group[] = {
+	&cs35l56_test_dev_sw_node,
+	&cs35l56_test_af01_sw_node,
+	NULL
 };
 
 static const char *cs35l56_test_devm_get_vendor_specific_variant_id_none(struct device *dev,
@@ -232,6 +264,190 @@ static void cs35l56_test_l56_b0_ssidexv2_ignored_suffix_sdw(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, cs35l56->fallback_fw_suffix, "l1u5");
 }
 
+/*
+ * Test that cs35l56_process_xu_properties() correctly parses the GPIO and
+ * pull values from properties into the arrays in struct cs35l56_base.
+ *
+ * This test creates the node tree:
+ *
+ * Node("SWD1") { // top-level device node
+ *	Node("AF01") {
+ *		Node("mipi-sdca-function-expansion-subproperties") {
+ *			property: "01fa-spk-id-gpios-onchip"
+ *			property: 01fa-spk-id-gpios-onchip-pull
+ *		}
+ *	}
+ * }
+ *
+ * Note that in ACPI "mipi-sdca-function-expansion-subproperties" is
+ * a special _DSD property that points to a Device(EXT0) node but behaves
+ * as an alias of the EXT0 node. The equivalent in software nodes is to
+ * create a Node named "mipi-sdca-function-expansion-subproperties" with
+ * the properties.
+ *
+ */
+static void cs35l56_test_parse_xu_onchip_spkid(struct kunit *test)
+{
+	const struct cs35l56_test_param *param = test->param_value;
+	struct cs35l56_test_priv *priv = test->priv;
+	struct cs35l56_private *cs35l56 = priv->cs35l56_priv;
+	struct software_node *ext0_node;
+	int num_gpios = 0;
+	int num_pulls = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_gpios); i++, num_gpios++) {
+		if (param->spkid_gpios[i] < 0)
+			break;
+	}
+	KUNIT_ASSERT_LE(test, num_gpios, ARRAY_SIZE(cs35l56->base.onchip_spkid_gpios));
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_pulls); i++, num_pulls++) {
+		if (param->spkid_pulls[i] < 0)
+			break;
+	}
+	KUNIT_ASSERT_LE(test, num_pulls, ARRAY_SIZE(cs35l56->base.onchip_spkid_pulls));
+
+	const struct property_entry ext0_props[] = {
+		PROPERTY_ENTRY_U32_ARRAY_LEN("01fa-spk-id-gpios-onchip",
+					     param->spkid_gpios, num_gpios),
+		PROPERTY_ENTRY_U32_ARRAY_LEN("01fa-spk-id-gpios-onchip-pull",
+					     param->spkid_pulls, num_pulls),
+		{ }
+	};
+
+	KUNIT_ASSERT_EQ(test,
+			software_node_register_node_group(cs35l56_test_dev_and_af01_node_group),
+			0);
+	KUNIT_ASSERT_EQ(test,
+			kunit_add_action_or_reset(test,
+						  software_node_unregister_node_group_wrapper,
+						  cs35l56_test_dev_and_af01_node_group),
+			0);
+
+	ext0_node = kunit_kzalloc(test, sizeof(*ext0_node), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ext0_node);
+	*ext0_node = SOFTWARE_NODE("mipi-sdca-function-expansion-subproperties",
+				    ext0_props, &cs35l56_test_af01_sw_node);
+
+	KUNIT_ASSERT_EQ(test, software_node_register(ext0_node), 0);
+	KUNIT_ASSERT_EQ(test,
+			kunit_add_action_or_reset(test,
+						  software_node_unregister_wrapper,
+						  ext0_node),
+			0);
+
+	KUNIT_ASSERT_EQ(test,
+			device_add_software_node(cs35l56->base.dev, &cs35l56_test_dev_sw_node), 0);
+	KUNIT_ASSERT_EQ(test, 0,
+			kunit_add_action_or_reset(test,
+						  device_remove_software_node_wrapper,
+						  cs35l56->base.dev));
+
+	KUNIT_EXPECT_EQ(test, cs35l56_process_xu_properties(cs35l56), 0);
+
+	KUNIT_EXPECT_EQ(test, cs35l56->base.num_onchip_spkid_gpios, num_gpios);
+	KUNIT_EXPECT_EQ(test, cs35l56->base.num_onchip_spkid_pulls, num_pulls);
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_gpios); i++) {
+		if (param->spkid_gpios[i] < 0)
+			break;
+
+		/*
+		 * cs35l56_process_xu_properties() stores the GPIO numbers
+		 * zero-based, which is one less than the value in the property.
+		 */
+		KUNIT_EXPECT_EQ_MSG(test, cs35l56->base.onchip_spkid_gpios[i],
+				    param->spkid_gpios[i] - 1,
+				    "i=%d", i);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_pulls); i++) {
+		if (param->spkid_pulls[i] < 0)
+			break;
+
+		KUNIT_EXPECT_EQ_MSG(test, cs35l56->base.onchip_spkid_pulls[i],
+				    param->spkid_pulls[i], "i=%d", i);
+	}
+}
+
+static int cs35l56_test_dummy_read_onchip_spkid(struct cs35l56_base *cs35l56_base)
+{
+	struct kunit *test = kunit_get_current_test();
+	struct cs35l56_test_priv *priv = test->priv;
+
+	priv->read_onchip_spkid_called = true;
+
+	return 4;
+}
+
+static int cs35l56_test_dummy_configure_onchip_spkid_pads(struct cs35l56_base *cs35l56_base)
+{
+	struct kunit *test = kunit_get_current_test();
+	struct cs35l56_test_priv *priv = test->priv;
+
+	priv->configure_onchip_spkid_pads_called = true;
+
+	return 0;
+}
+
+static void cs35l56_test_set_fw_name_reads_onchip_spkid(struct kunit *test)
+{
+	struct cs35l56_test_priv *priv = test->priv;
+	struct cs35l56_private *cs35l56 = priv->cs35l56_priv;
+
+	/* Provide some on-chip GPIOs for spkid */
+	cs35l56->base.onchip_spkid_gpios[0] = 1;
+	cs35l56->base.num_onchip_spkid_gpios = 1;
+
+	cs35l56->speaker_id = -ENOENT;
+
+	kunit_activate_static_stub(test,
+				   cs35l56_configure_onchip_spkid_pads,
+				   cs35l56_test_dummy_configure_onchip_spkid_pads);
+	kunit_activate_static_stub(test,
+				   cs35l56_read_onchip_spkid,
+				   cs35l56_test_dummy_read_onchip_spkid);
+
+	priv->configure_onchip_spkid_pads_called = false;
+	priv->read_onchip_spkid_called = false;
+	KUNIT_EXPECT_EQ(test, cs35l56_set_fw_name(cs35l56->component), 0);
+	KUNIT_EXPECT_TRUE(test, priv->configure_onchip_spkid_pads_called);
+	KUNIT_EXPECT_TRUE(test, priv->read_onchip_spkid_called);
+	KUNIT_EXPECT_EQ(test, cs35l56->speaker_id,
+			cs35l56_test_dummy_read_onchip_spkid(&cs35l56->base));
+}
+
+static void cs35l56_test_set_fw_name_preserves_spkid_with_onchip_gpios(struct kunit *test)
+{
+	struct cs35l56_test_priv *priv = test->priv;
+	struct cs35l56_private *cs35l56 = priv->cs35l56_priv;
+
+	/* Provide some on-chip GPIOs for spkid */
+	cs35l56->base.onchip_spkid_gpios[0] = 1;
+	cs35l56->base.num_onchip_spkid_gpios = 1;
+
+	/* Simulate that the driver already got a spkid from somewhere */
+	cs35l56->speaker_id = 15;
+
+	KUNIT_EXPECT_EQ(test, cs35l56_set_fw_name(cs35l56->component), 0);
+	KUNIT_EXPECT_EQ(test, cs35l56->speaker_id, 15);
+}
+
+static void cs35l56_test_set_fw_name_preserves_spkid_without_onchip_gpios(struct kunit *test)
+{
+	struct cs35l56_test_priv *priv = test->priv;
+	struct cs35l56_private *cs35l56 = priv->cs35l56_priv;
+
+	cs35l56->base.num_onchip_spkid_gpios = 0;
+
+	/* Simulate that the driver already got a spkid from somewhere */
+	cs35l56->speaker_id = 15;
+
+	KUNIT_EXPECT_EQ(test, cs35l56_set_fw_name(cs35l56->component), 0);
+	KUNIT_EXPECT_EQ(test, cs35l56->speaker_id, 15);
+}
+
 static int cs35l56_test_case_init_common(struct kunit *test)
 {
 	struct cs35l56_test_priv *priv;
@@ -263,6 +479,7 @@ static int cs35l56_test_case_init_common(struct kunit *test)
 	cs35l56->component = kunit_kzalloc(test, sizeof(*cs35l56->component), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, cs35l56->component);
 	cs35l56->component->dev = cs35l56->base.dev;
+	snd_soc_component_set_drvdata(cs35l56->component, cs35l56);
 
 	cs35l56->component->card = kunit_kzalloc(test, sizeof(*cs35l56->component->card),
 						 GFP_KERNEL);
@@ -299,6 +516,50 @@ static int cs35l56_test_case_init_soundwire(struct kunit *test)
 	return 0;
 }
 
+static void cs35l56_test_gpio_param_desc(const struct cs35l56_test_param *param, char *desc)
+{
+	DECLARE_SEQ_BUF(gpios, 1 + (2 * ARRAY_SIZE(param->spkid_gpios)));
+	DECLARE_SEQ_BUF(pulls, 1 + (2 * ARRAY_SIZE(param->spkid_pulls)));
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_gpios); i++) {
+		if (param->spkid_gpios[i] < 0)
+			break;
+
+		seq_buf_printf(&gpios, "%s%d", (i == 0) ? "" : ",", param->spkid_gpios[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(param->spkid_pulls); i++) {
+		if (param->spkid_pulls[i] < 0)
+			break;
+
+		seq_buf_printf(&pulls, "%s%d", (i == 0) ? "" : ",", param->spkid_pulls[i]);
+	}
+
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "gpios:{%s} pulls:{%s}",
+		 seq_buf_str(&gpios), seq_buf_str(&pulls));
+}
+
+static const struct cs35l56_test_param cs35l56_test_onchip_spkid_cases[] = {
+	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { 1, -1 }, },
+	{ .spkid_gpios = { 1, -1 },		.spkid_pulls = { 2, -1 }, },
+
+	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { 1, -1 }, },
+	{ .spkid_gpios = { 7, -1 },		.spkid_pulls = { 2, -1 }, },
+
+	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { 1, 1, -1 }, },
+	{ .spkid_gpios = { 1, 7, -1 },		.spkid_pulls = { 2, 2, -1 }, },
+
+	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { 1, 1, -1 }, },
+	{ .spkid_gpios = { 7, 1, -1 },		.spkid_pulls = { 2, 2, -1 }, },
+
+	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { 1, 1, 1, -1 }, },
+	{ .spkid_gpios = { 3, 7, 1, -1 },	.spkid_pulls = { 2, 2, 2, -1 }, },
+};
+KUNIT_ARRAY_PARAM(cs35l56_test_onchip_spkid,
+		  cs35l56_test_onchip_spkid_cases,
+		  cs35l56_test_gpio_param_desc);
+
 static void cs35l56_test_type_rev_param_desc(const struct cs35l56_test_param *param,
 					     char *desc)
 {
@@ -331,6 +592,13 @@ static struct kunit_case cs35l56_test_cases_soundwire[] = {
 			 cs35l56_test_type_rev_ex_b0_gen_params),
 	KUNIT_CASE(cs35l56_test_l56_b0_ssidexv2_ignored_suffix_sdw),
 
+	KUNIT_CASE_PARAM(cs35l56_test_parse_xu_onchip_spkid,
+			 cs35l56_test_onchip_spkid_gen_params),
+
+	KUNIT_CASE(cs35l56_test_set_fw_name_reads_onchip_spkid),
+	KUNIT_CASE(cs35l56_test_set_fw_name_preserves_spkid_with_onchip_gpios),
+	KUNIT_CASE(cs35l56_test_set_fw_name_preserves_spkid_without_onchip_gpios),
+
 	{ } /* terminator */
 };
 
@@ -338,6 +606,10 @@ static struct kunit_case cs35l56_test_cases_not_soundwire[] = {
 	KUNIT_CASE_PARAM(cs35l56_test_suffix_i2cspi, cs35l56_test_type_rev_all_gen_params),
 	KUNIT_CASE_PARAM(cs35l56_test_ssidexv2_suffix_i2cspi,
 			 cs35l56_test_type_rev_all_gen_params),
+
+	KUNIT_CASE(cs35l56_test_set_fw_name_reads_onchip_spkid),
+	KUNIT_CASE(cs35l56_test_set_fw_name_preserves_spkid_with_onchip_gpios),
+	KUNIT_CASE(cs35l56_test_set_fw_name_preserves_spkid_without_onchip_gpios),
 
 	{ } /* terminator */
 };
@@ -360,6 +632,7 @@ kunit_test_suites(
 );
 
 MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_DESCRIPTION("KUnit test for Cirrus Logic cs35l56 codec driver");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
