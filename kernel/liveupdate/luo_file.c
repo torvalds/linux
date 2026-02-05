@@ -402,8 +402,6 @@ static void luo_file_unfreeze_one(struct luo_file_set *file_set,
 
 		luo_file->fh->ops->unfreeze(&args);
 	}
-
-	luo_file->serialized_data = 0;
 }
 
 static void __luo_file_unfreeze(struct luo_file_set *file_set,
