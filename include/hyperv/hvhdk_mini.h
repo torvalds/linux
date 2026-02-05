@@ -7,6 +7,8 @@
 
 #include "hvgdk_mini.h"
 
+#define HV_MAX_CONTIGUOUS_ALLOCATION_PAGES	8
+
 /*
  * Doorbell connection_info flags.
  */
