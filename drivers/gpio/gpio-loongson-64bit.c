@@ -263,7 +263,7 @@ static int loongson_gpio_init_irqchip(struct platform_device *pdev,
 	chip->irq.num_parents = data->intr_num;
 	chip->irq.parents = devm_kcalloc(&pdev->dev, data->intr_num,
 					 sizeof(*chip->irq.parents), GFP_KERNEL);
-	if (!chip->parent)
+	if (!chip->irq.parents)
 		return -ENOMEM;
 
 	for (i = 0; i < data->intr_num; i++) {
