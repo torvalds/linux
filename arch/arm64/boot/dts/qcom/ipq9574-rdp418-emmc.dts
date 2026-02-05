@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: BSD-3-Clause-Clear
+/*
+ * IPQ9574 RDP418 (eMMC variant) board device tree source
+ *
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ */
+
+/dts-v1/;
+
+#include "ipq9574-rdp-common.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ9574/AP-AL02-C2 (eMMC)";
+	compatible = "qcom,ipq9574-ap-al02-c2-emmc", "qcom,ipq9574";
+
+};
+
+&sdhc_1 {
+	status = "okay";
+};
