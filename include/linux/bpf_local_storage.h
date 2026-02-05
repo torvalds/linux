@@ -68,6 +68,11 @@ struct bpf_local_storage_data {
 	u8 data[] __aligned(8);
 };
 
+#define SELEM_MAP_UNLINKED	(1 << 0)
+#define SELEM_STORAGE_UNLINKED	(1 << 1)
+#define SELEM_UNLINKED		(SELEM_MAP_UNLINKED | SELEM_STORAGE_UNLINKED)
+#define SELEM_TOFREE		(1 << 2)
+
 /* Linked to bpf_local_storage and bpf_local_storage_map */
 struct bpf_local_storage_elem {
 	struct hlist_node map_node;	/* Linked to bpf_local_storage_map */
@@ -80,8 +85,9 @@ struct bpf_local_storage_elem {
 						 * after raw_spin_unlock
 						 */
 	};
+	atomic_t state;
 	bool use_kmalloc_nolock;
-	/* 7 bytes hole */
+	/* 3 bytes hole */
 	/* The data is stored in another cacheline to minimize
 	 * the number of cachelines access during a cache hit.
 	 */
@@ -97,6 +103,7 @@ struct bpf_local_storage {
 	struct rcu_head rcu;
 	rqspinlock_t lock;	/* Protect adding/removing from the "list" */
 	u64 mem_charge;		/* Copy of mem charged to owner. Protected by "lock" */
+	refcount_t owner_refcnt;/* Used to pin owner when map_free is uncharging */
 	bool use_kmalloc_nolock;
 };
 
