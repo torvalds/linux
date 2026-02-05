@@ -2423,8 +2423,14 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 	}
 
 	if (callee) {
-		/* Add LBR ip from first entries.to */
-		ip = entries[0].to;
+		/*
+		 * Set the (first) leaf function's IP to sample->ip (the
+		 * location of the sample) but if not recorded use entries.to
+		 */
+		if (sample->ip)
+			ip = sample->ip;
+		else
+			ip = entries[0].to;
 		flags = &entries[0].flags;
 		*branch_from = entries[0].from;
 		err = add_callchain_ip(thread, cursor, parent,
@@ -2477,8 +2483,14 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 	}
 
 	if (lbr_nr > 0) {
-		/* Add LBR ip from first entries.to */
-		ip = entries[0].to;
+		/*
+		 * Set the (first) leaf function's IP to sample->ip (the
+		 * location of the sample) but if not recorded use entries.to
+		 */
+		if (sample->ip)
+			ip = sample->ip;
+		else
+			ip = entries[0].to;
 		flags = &entries[0].flags;
 		*branch_from = entries[0].from;
 		err = add_callchain_ip(thread, cursor, parent,
