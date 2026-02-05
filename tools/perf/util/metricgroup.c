@@ -1562,8 +1562,6 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 {
 	const struct pmu_metrics_table *table = pmu_metrics_table__find();
 
-	if (!table)
-		return -EINVAL;
 	if (hardware_aware_grouping)
 		pr_debug("Use hardware aware grouping instead of traditional metric grouping method\n");
 
@@ -1601,22 +1599,16 @@ static int metricgroup__has_metric_or_groups_callback(const struct pmu_metric *p
 
 bool metricgroup__has_metric_or_groups(const char *pmu, const char *metric_or_groups)
 {
-	const struct pmu_metrics_table *tables[2] = {
-		pmu_metrics_table__find(),
-		pmu_metrics_table__default(),
-	};
+	const struct pmu_metrics_table *table = pmu_metrics_table__find();
 	struct metricgroup__has_metric_data data = {
 		.pmu = pmu,
 		.metric_or_groups = metric_or_groups,
 	};
 
-	for (size_t i = 0; i < ARRAY_SIZE(tables); i++) {
-		if (pmu_metrics_table__for_each_metric(tables[i],
-							metricgroup__has_metric_or_groups_callback,
-							&data))
-			return true;
-	}
-	return false;
+	return pmu_metrics_table__for_each_metric(table,
+						  metricgroup__has_metric_or_groups_callback,
+						  &data)
+		? true : false;
 }
 
 static int metricgroup__topdown_max_level_callback(const struct pmu_metric *pm,
