@@ -49,8 +49,8 @@ static inline u8 *fec_buffer_rs_message(struct dm_verity *v,
  * the corrected bytes into fio->output starting from out_pos.
  */
 static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
-			   struct dm_verity_fec_io *fio, u64 rsb, int byte_index,
-			   unsigned int out_pos, int neras)
+			   struct dm_verity_fec_io *fio, u64 rsb,
+			   int target_region, unsigned int out_pos, int neras)
 {
 	int r, corrected = 0, res;
 	struct dm_buffer *buf;
@@ -120,7 +120,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		corrected += res;
-		fio->output[out_pos++] = msg_buf[byte_index];
+		fio->output[out_pos++] = msg_buf[target_region];
 
 		if (out_pos >= v->fec->block_size)
 			goto done;
@@ -158,10 +158,10 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
  * fits into buffers. Check for erasure locations if @neras is non-NULL.
  */
 static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
-			 u64 rsb, u64 target, unsigned int out_pos, int *neras)
+			 u64 rsb, unsigned int out_pos, int *neras)
 {
 	bool is_zero;
-	int i, j, target_index = -1;
+	int i, j;
 	struct dm_buffer *buf;
 	struct dm_bufio_client *bufio;
 	struct dm_verity_fec_io *fio = io->fec_io;
@@ -183,14 +183,6 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 */
 	for (i = 0; i < v->fec->rs_k; i++) {
 		ileaved = rsb + i * (v->fec->region_blocks << v->data_dev_block_bits);
-
-		/*
-		 * target is the data block we want to correct, target_index is
-		 * the index of this block within the rs_k RS blocks
-		 */
-		if (ileaved == target)
-			target_index = i;
-
 		block = ileaved >> v->data_dev_block_bits;
 		bufio = v->fec->data_bufio;
 
@@ -252,8 +244,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 done:
 		dm_bufio_release(buf);
 	}
-
-	return target_index;
+	return 0;
 }
 
 /*
@@ -320,22 +311,26 @@ static int fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 		      const u8 *want_digest, bool use_erasures)
 {
 	int r, neras = 0;
-	unsigned int out_pos;
-	u64 offset = target_block << v->data_dev_block_bits;
+	unsigned int target_region, out_pos;
 	u64 rsb;
 
-	div64_u64_rem(offset, v->fec->region_blocks << v->data_dev_block_bits,
-		      &rsb);
+	target_region = div64_u64_rem(
+		target_block << v->data_dev_block_bits,
+		v->fec->region_blocks << v->data_dev_block_bits, &rsb);
+	if (WARN_ON_ONCE(target_region >= v->fec->rs_k))
+		/* target_block is out-of-bounds.  Should never happen. */
+		return -EIO;
 
 	for (out_pos = 0; out_pos < v->fec->block_size;) {
 		fec_init_bufs(v, fio);
 
-		r = fec_read_bufs(v, io, rsb, offset, out_pos,
+		r = fec_read_bufs(v, io, rsb, out_pos,
 				  use_erasures ? &neras : NULL);
 		if (unlikely(r < 0))
 			return r;
 
-		r = fec_decode_bufs(v, io, fio, rsb, r, out_pos, neras);
+		r = fec_decode_bufs(v, io, fio, rsb, target_region,
+				    out_pos, neras);
 		if (r < 0)
 			return r;
 
