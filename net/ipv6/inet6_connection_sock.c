@@ -25,6 +25,7 @@
 #include <net/sock_reuseport.h>
 
 struct dst_entry *inet6_csk_route_req(const struct sock *sk,
+				      struct dst_entry *dst,
 				      struct flowi6 *fl6,
 				      const struct request_sock *req,
 				      u8 proto)
@@ -32,7 +33,6 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
-	struct dst_entry *dst;
 
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->flowi6_proto = proto;
@@ -48,10 +48,11 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	fl6->flowi6_uid = sk_uid(sk);
 	security_req_classify_flow(req, flowi6_to_flowi_common(fl6));
 
-	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
-	if (IS_ERR(dst))
-		return NULL;
-
+	if (!dst) {
+		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
+		if (IS_ERR(dst))
+			return NULL;
+	}
 	return dst;
 }
 

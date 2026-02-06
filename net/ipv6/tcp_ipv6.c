@@ -539,7 +539,7 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 	u8 tclass;
 
 	/* First, grab a route. */
-	if (!dst && (dst = inet6_csk_route_req(sk, fl6, req,
+	if (!dst && (dst = inet6_csk_route_req(sk, NULL, fl6, req,
 					       IPPROTO_TCP)) == NULL)
 		goto done;
 
@@ -789,7 +789,7 @@ static struct dst_entry *tcp_v6_route_req(const struct sock *sk,
 	if (security_inet_conn_request(sk, skb, req))
 		return NULL;
 
-	return inet6_csk_route_req(sk, &fl->u.ip6, req, IPPROTO_TCP);
+	return inet6_csk_route_req(sk, NULL, &fl->u.ip6, req, IPPROTO_TCP);
 }
 
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
@@ -1318,12 +1318,12 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 					 struct request_sock *req_unhash,
 					 bool *own_req)
 {
-	struct inet_request_sock *ireq;
-	struct ipv6_pinfo *newnp;
 	const struct ipv6_pinfo *np = tcp_inet6_sk(sk);
+	struct inet_request_sock *ireq;
 	struct ipv6_txoptions *opt;
 	struct inet_sock *newinet;
 	bool found_dup_sk = false;
+	struct ipv6_pinfo *newnp;
 	struct tcp_sock *newtp;
 	struct sock *newsk;
 #ifdef CONFIG_TCP_MD5SIG
@@ -1392,11 +1392,9 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	if (sk_acceptq_is_full(sk))
 		goto exit_overflow;
 
-	if (!dst) {
-		dst = inet6_csk_route_req(sk, &fl6, req, IPPROTO_TCP);
-		if (!dst)
-			goto exit;
-	}
+	dst = inet6_csk_route_req(sk, dst, &fl6, req, IPPROTO_TCP);
+	if (!dst)
+		goto exit;
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (!newsk)
@@ -1412,6 +1410,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	inet6_sk_rx_dst_set(newsk, skb);
 
 	newinet = inet_sk(newsk);
+	newinet->cork.fl.u.ip6 = fl6;
 	newinet->pinet6 = tcp_inet6_sk(newsk);
 	newinet->ipv6_fl_list = NULL;
 	newinet->inet_opt = NULL;
