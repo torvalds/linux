@@ -72,17 +72,10 @@ static int psb_fbdev_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static void psb_fbdev_fb_destroy(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
-	struct drm_framebuffer *fb = fb_helper->fb;
-	struct drm_gem_object *obj = fb->obj[0];
 
 	drm_fb_helper_fini(fb_helper);
 
-	drm_framebuffer_unregister_private(fb);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-
-	drm_gem_object_put(obj);
-
+	drm_client_buffer_delete(fb_helper->buffer);
 	drm_client_release(&fb_helper->client);
 }
 
@@ -105,18 +98,20 @@ static const struct drm_fb_helper_funcs psb_fbdev_fb_helper_funcs = {
 int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 				 struct drm_fb_helper_surface_size *sizes)
 {
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_client_dev *client = &fb_helper->client;
+	struct drm_device *dev = client->dev;
+	struct drm_file *file = client->file;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct fb_info *info = fb_helper->info;
 	u32 fourcc, pitch;
 	u64 size;
 	const struct drm_format_info *format;
-	struct drm_framebuffer *fb;
-	struct drm_mode_fb_cmd2 mode_cmd = { };
-	int ret;
+	struct drm_client_buffer *buffer;
 	struct psb_gem_object *backing;
 	struct drm_gem_object *obj;
+	u32 handle;
+	int ret;
 
 	/* No 24-bit packed mode */
 	if (sizes->surface_bpp == 24) {
@@ -148,20 +143,20 @@ try_psb_gem_create:
 	}
 	obj = &backing->base;
 
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-	mode_cmd.pixel_format = fourcc;
-	mode_cmd.pitches[0] = pitch;
-	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-
-	fb = psb_framebuffer_create(dev, format, &mode_cmd, obj);
-	if (IS_ERR(fb)) {
-		ret = PTR_ERR(fb);
+	ret = drm_gem_handle_create(file, obj, &handle);
+	if (ret)
 		goto err_drm_gem_object_put;
+
+	buffer = drm_client_buffer_create(client, sizes->surface_width, sizes->surface_height,
+					  fourcc, handle, pitch);
+	if (IS_ERR(buffer)) {
+		ret = PTR_ERR(buffer);
+		goto err_drm_gem_handle_delete;
 	}
 
 	fb_helper->funcs = &psb_fbdev_fb_helper_funcs;
-	fb_helper->fb = fb;
+	fb_helper->buffer = buffer;
+	fb_helper->fb = buffer->fb;
 
 	info->fbops = &psb_fbdev_fb_ops;
 
@@ -182,10 +177,18 @@ try_psb_gem_create:
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
-	dev_dbg(dev->dev, "allocated %dx%d fb\n", fb->width, fb->height);
+	dev_dbg(dev->dev, "allocated %dx%d fb\n", buffer->fb->width, buffer->fb->height);
+
+	/* The handle is only needed for creating the framebuffer.*/
+	drm_gem_handle_delete(file, handle);
+
+	/* The framebuffer still holds a references on the GEM object. */
+	drm_gem_object_put(obj);
 
 	return 0;
 
+err_drm_gem_handle_delete:
+	drm_gem_handle_delete(file, handle);
 err_drm_gem_object_put:
 	drm_gem_object_put(obj);
 	return ret;
