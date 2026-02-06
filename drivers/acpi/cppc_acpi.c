@@ -854,6 +854,16 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	per_cpu(cpu_pcc_subspace_idx, pr->id) = pcc_subspace_id;
 
 	/*
+	 * In CPPC v1, DESIRED_PERF is mandatory. In CPPC v2, it is optional
+	 * only when AUTO_SEL_ENABLE is supported.
+	 */
+	if (!CPC_SUPPORTED(&cpc_ptr->cpc_regs[DESIRED_PERF]) &&
+	    (!osc_sb_cppc2_support_acked ||
+	     !CPC_SUPPORTED(&cpc_ptr->cpc_regs[AUTO_SEL_ENABLE])))
+		pr_warn("Desired perf. register is mandatory if CPPC v2 is not supported "
+			"or autonomous selection is disabled\n");
+
+	/*
 	 * Initialize the remaining cpc_regs as unsupported.
 	 * Example: In case FW exposes CPPC v2, the below loop will initialize
 	 * LOWEST_FREQ and NOMINAL_FREQ regs as unsupported
