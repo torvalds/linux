@@ -97,4 +97,11 @@ landlock_upgrade_handled_access_masks(struct access_masks access_masks)
 	return access_masks;
 }
 
+/* Checks the subset relation between access masks. */
+static inline bool access_mask_subset(access_mask_t subset,
+				      access_mask_t superset)
+{
+	return (subset | superset) == superset;
+}
+
 #endif /* _SECURITY_LANDLOCK_ACCESS_H */
