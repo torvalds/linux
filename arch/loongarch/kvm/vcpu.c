@@ -652,6 +652,8 @@ static int _kvm_setcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 val)
 
 static int _kvm_get_cpucfg_mask(int id, u64 *v)
 {
+	unsigned int config;
+
 	if (id < 0 || id >= KVM_MAX_CPUCFG_REGS)
 		return -EINVAL;
 
@@ -684,9 +686,17 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 		if (cpu_has_ptw)
 			*v |= CPUCFG2_PTW;
 
+		config = read_cpucfg(LOONGARCH_CPUCFG2);
+		*v |= config & (CPUCFG2_FRECIPE | CPUCFG2_DIV32 | CPUCFG2_LAM_BH);
+		*v |= config & (CPUCFG2_LAMCAS | CPUCFG2_LLACQ_SCREL | CPUCFG2_SCQ);
 		return 0;
 	case LOONGARCH_CPUCFG3:
-		*v = GENMASK(16, 0);
+		*v = GENMASK(23, 0);
+
+		/* VM does not support memory order and SFB setting */
+		config = read_cpucfg(LOONGARCH_CPUCFG3);
+		*v &= config & ~(CPUCFG3_SFB);
+		*v &= config & ~(CPUCFG3_ALDORDER_CAP | CPUCFG3_ASTORDER_CAP | CPUCFG3_SLDORDER_CAP);
 		return 0;
 	case LOONGARCH_CPUCFG4:
 	case LOONGARCH_CPUCFG5:
@@ -717,6 +727,7 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 static int kvm_check_cpucfg(int id, u64 val)
 {
 	int ret;
+	u32 host;
 	u64 mask = 0;
 
 	ret = _kvm_get_cpucfg_mask(id, &mask);
@@ -746,9 +757,16 @@ static int kvm_check_cpucfg(int id, u64 val)
 			/* LASX architecturally implies LSX and FP but val does not satisfy that */
 			return -EINVAL;
 		return 0;
+	case LOONGARCH_CPUCFG3:
+		host = read_cpucfg(LOONGARCH_CPUCFG3);
+		if ((val & CPUCFG3_RVAMAX) > (host & CPUCFG3_RVAMAX))
+			return -EINVAL;
+		if ((val & CPUCFG3_SPW_LVL) > (host & CPUCFG3_SPW_LVL))
+			return -EINVAL;
+		return 0;
 	case LOONGARCH_CPUCFG6:
 		if (val & CPUCFG6_PMP) {
-			u32 host = read_cpucfg(LOONGARCH_CPUCFG6);
+			host = read_cpucfg(LOONGARCH_CPUCFG6);
 			if ((val & CPUCFG6_PMBITS) != (host & CPUCFG6_PMBITS))
 				return -EINVAL;
 			if ((val & CPUCFG6_PMNUM) > (host & CPUCFG6_PMNUM))
