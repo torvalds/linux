@@ -659,10 +659,18 @@ static int qcom_ethqos_serdes_powerup(struct net_device *ndev, void *priv)
 		return ret;
 
 	ret = phy_power_on(ethqos->serdes_phy);
-	if (ret)
+	if (ret) {
+		phy_exit(ethqos->serdes_phy);
 		return ret;
+	}
 
-	return phy_set_speed(ethqos->serdes_phy, ethqos->serdes_speed);
+	ret = phy_set_speed(ethqos->serdes_phy, ethqos->serdes_speed);
+	if (ret) {
+		phy_power_off(ethqos->serdes_phy);
+		phy_exit(ethqos->serdes_phy);
+	}
+
+	return ret;
 }
 
 static void qcom_ethqos_serdes_powerdown(struct net_device *ndev, void *priv)
