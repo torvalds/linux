@@ -59,7 +59,6 @@ u32 rtw_read32(struct adapter *adapter, u32 addr)
 	_read32 = pintfhdl->io_ops._read32;
 
 	return _read32(pintfhdl, addr);
-
 }
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
