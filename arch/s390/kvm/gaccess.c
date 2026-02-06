@@ -1287,7 +1287,10 @@ static int walk_guest_tables(struct gmap *sg, unsigned long saddr, struct pgtwal
 	union asce asce;
 	int rc;
 
+	if (!parent)
+		return -EAGAIN;
 	kvm = parent->kvm;
+	WARN_ON(!kvm);
 	asce = sg->guest_asce;
 	entries = get_entries(w);
 
