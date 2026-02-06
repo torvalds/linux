@@ -54,6 +54,7 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 	case IOC_OPAL_REVERT_LSP:
 	case IOC_OPAL_SET_SID_PW:
 	case IOC_OPAL_REACTIVATE_LSP:
+	case IOC_OPAL_LR_SET_START_LEN:
 		return true;
 	}
 	return false;
