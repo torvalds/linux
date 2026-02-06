@@ -171,12 +171,12 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	/* Accessed stolen memory directly */
 	info->screen_base = dev_priv->vram_addr + backing->offset;
-	info->screen_size = size;
+	info->screen_size = obj->size;
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
 	info->fix.smem_start = dev_priv->stolen_base + backing->offset;
-	info->fix.smem_len = size;
+	info->fix.smem_len = obj->size;
 	info->fix.ywrapstep = 0;
 	info->fix.ypanstep = 0;
 	info->fix.mmio_start = pci_resource_start(pdev, 0);
