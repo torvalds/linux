@@ -4,9 +4,9 @@
 #include "../kvm-stat.h"
 #include "../evsel.h"
 #include "../env.h"
-#include <asm/svm.h>
-#include <asm/vmx.h>
-#include <asm/kvm.h>
+#include "../../arch/x86/include/uapi/asm/svm.h"
+#include "../../arch/x86/include/uapi/asm/vmx.h"
+#include "../../arch/x86/include/uapi/asm/kvm.h"
 #include <subcmd/parse-options.h>
 
 define_exit_reasons_table(vmx_exit_reasons, VMX_EXIT_REASONS);
