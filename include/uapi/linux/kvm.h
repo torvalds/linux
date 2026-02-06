@@ -1227,6 +1227,7 @@ struct kvm_s390_keyop {
 	__u64 guest_addr;
 	__u8  key;
 	__u8  operation;
+	__u8  pad[6];
 };
 
 /*
