@@ -320,14 +320,29 @@ const fn offset_valid<U>(offset: usize, size: usize) -> bool {
     }
 }
 
-/// Marker trait indicating that an I/O backend supports operations of a certain type.
+/// Trait indicating that an I/O backend supports operations of a certain type and providing an
+/// implementation for these operations.
 ///
 /// Different I/O backends can implement this trait to expose only the operations they support.
 ///
 /// For example, a PCI configuration space may implement `IoCapable<u8>`, `IoCapable<u16>`,
 /// and `IoCapable<u32>`, but not `IoCapable<u64>`, while an MMIO region on a 64-bit
 /// system might implement all four.
-pub trait IoCapable<T> {}
+pub trait IoCapable<T> {
+    /// Performs an I/O read of type `T` at `address` and returns the result.
+    ///
+    /// # Safety
+    ///
+    /// The range `[address..address + size_of::<T>()]` must be within the bounds of `Self`.
+    unsafe fn io_read(&self, address: usize) -> T;
+
+    /// Performs an I/O write of `value` at `address`.
+    ///
+    /// # Safety
+    ///
+    /// The range `[address..address + size_of::<T>()]` must be within the bounds of `Self`.
+    unsafe fn io_write(&self, value: T, address: usize);
+}
 
 /// Types implementing this trait (e.g. MMIO BARs or PCI config regions)
 /// can perform I/O operations on regions of memory.
@@ -369,146 +384,198 @@ pub trait Io {
 
     /// Fallible 8-bit read with runtime bounds check.
     #[inline(always)]
-    fn try_read8(&self, _offset: usize) -> Result<u8>
+    fn try_read8(&self, offset: usize) -> Result<u8>
     where
         Self: IoCapable<u8>,
     {
-        build_error!("Backend does not support fallible 8-bit read")
+        let address = self.io_addr::<u8>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        Ok(unsafe { self.io_read(address) })
     }
 
     /// Fallible 16-bit read with runtime bounds check.
     #[inline(always)]
-    fn try_read16(&self, _offset: usize) -> Result<u16>
+    fn try_read16(&self, offset: usize) -> Result<u16>
     where
         Self: IoCapable<u16>,
     {
-        build_error!("Backend does not support fallible 16-bit read")
+        let address = self.io_addr::<u16>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        Ok(unsafe { self.io_read(address) })
     }
 
     /// Fallible 32-bit read with runtime bounds check.
     #[inline(always)]
-    fn try_read32(&self, _offset: usize) -> Result<u32>
+    fn try_read32(&self, offset: usize) -> Result<u32>
     where
         Self: IoCapable<u32>,
     {
-        build_error!("Backend does not support fallible 32-bit read")
+        let address = self.io_addr::<u32>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        Ok(unsafe { self.io_read(address) })
     }
 
     /// Fallible 64-bit read with runtime bounds check.
     #[inline(always)]
-    fn try_read64(&self, _offset: usize) -> Result<u64>
+    fn try_read64(&self, offset: usize) -> Result<u64>
     where
         Self: IoCapable<u64>,
     {
-        build_error!("Backend does not support fallible 64-bit read")
+        let address = self.io_addr::<u64>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        Ok(unsafe { self.io_read(address) })
     }
 
     /// Fallible 8-bit write with runtime bounds check.
     #[inline(always)]
-    fn try_write8(&self, _value: u8, _offset: usize) -> Result
+    fn try_write8(&self, value: u8, offset: usize) -> Result
     where
         Self: IoCapable<u8>,
     {
-        build_error!("Backend does not support fallible 8-bit write")
+        let address = self.io_addr::<u8>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(value, address) };
+        Ok(())
     }
 
     /// Fallible 16-bit write with runtime bounds check.
     #[inline(always)]
-    fn try_write16(&self, _value: u16, _offset: usize) -> Result
+    fn try_write16(&self, value: u16, offset: usize) -> Result
     where
         Self: IoCapable<u16>,
     {
-        build_error!("Backend does not support fallible 16-bit write")
+        let address = self.io_addr::<u16>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(value, address) };
+        Ok(())
     }
 
     /// Fallible 32-bit write with runtime bounds check.
     #[inline(always)]
-    fn try_write32(&self, _value: u32, _offset: usize) -> Result
+    fn try_write32(&self, value: u32, offset: usize) -> Result
     where
         Self: IoCapable<u32>,
     {
-        build_error!("Backend does not support fallible 32-bit write")
+        let address = self.io_addr::<u32>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(value, address) };
+        Ok(())
     }
 
     /// Fallible 64-bit write with runtime bounds check.
     #[inline(always)]
-    fn try_write64(&self, _value: u64, _offset: usize) -> Result
+    fn try_write64(&self, value: u64, offset: usize) -> Result
     where
         Self: IoCapable<u64>,
     {
-        build_error!("Backend does not support fallible 64-bit write")
+        let address = self.io_addr::<u64>(offset)?;
+
+        // SAFETY: `address` has been validated by `io_addr`.
+        unsafe { self.io_write(value, address) };
+        Ok(())
     }
 
     /// Infallible 8-bit read with compile-time bounds check.
     #[inline(always)]
-    fn read8(&self, _offset: usize) -> u8
+    fn read8(&self, offset: usize) -> u8
     where
         Self: IoKnownSize + IoCapable<u8>,
     {
-        build_error!("Backend does not support infallible 8-bit read")
+        let address = self.io_addr_assert::<u8>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_read(address) }
     }
 
     /// Infallible 16-bit read with compile-time bounds check.
     #[inline(always)]
-    fn read16(&self, _offset: usize) -> u16
+    fn read16(&self, offset: usize) -> u16
     where
         Self: IoKnownSize + IoCapable<u16>,
     {
-        build_error!("Backend does not support infallible 16-bit read")
+        let address = self.io_addr_assert::<u16>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_read(address) }
     }
 
     /// Infallible 32-bit read with compile-time bounds check.
     #[inline(always)]
-    fn read32(&self, _offset: usize) -> u32
+    fn read32(&self, offset: usize) -> u32
     where
         Self: IoKnownSize + IoCapable<u32>,
     {
-        build_error!("Backend does not support infallible 32-bit read")
+        let address = self.io_addr_assert::<u32>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_read(address) }
     }
 
     /// Infallible 64-bit read with compile-time bounds check.
     #[inline(always)]
-    fn read64(&self, _offset: usize) -> u64
+    fn read64(&self, offset: usize) -> u64
     where
         Self: IoKnownSize + IoCapable<u64>,
     {
-        build_error!("Backend does not support infallible 64-bit read")
+        let address = self.io_addr_assert::<u64>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_read(address) }
     }
 
     /// Infallible 8-bit write with compile-time bounds check.
     #[inline(always)]
-    fn write8(&self, _value: u8, _offset: usize)
+    fn write8(&self, value: u8, offset: usize)
     where
         Self: IoKnownSize + IoCapable<u8>,
     {
-        build_error!("Backend does not support infallible 8-bit write")
+        let address = self.io_addr_assert::<u8>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(value, address) }
     }
 
     /// Infallible 16-bit write with compile-time bounds check.
     #[inline(always)]
-    fn write16(&self, _value: u16, _offset: usize)
+    fn write16(&self, value: u16, offset: usize)
     where
         Self: IoKnownSize + IoCapable<u16>,
     {
-        build_error!("Backend does not support infallible 16-bit write")
+        let address = self.io_addr_assert::<u16>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(value, address) }
     }
 
     /// Infallible 32-bit write with compile-time bounds check.
     #[inline(always)]
-    fn write32(&self, _value: u32, _offset: usize)
+    fn write32(&self, value: u32, offset: usize)
     where
         Self: IoKnownSize + IoCapable<u32>,
     {
-        build_error!("Backend does not support infallible 32-bit write")
+        let address = self.io_addr_assert::<u32>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(value, address) }
     }
 
     /// Infallible 64-bit write with compile-time bounds check.
     #[inline(always)]
-    fn write64(&self, _value: u64, _offset: usize)
+    fn write64(&self, value: u64, offset: usize)
     where
         Self: IoKnownSize + IoCapable<u64>,
     {
-        build_error!("Backend does not support infallible 64-bit write")
+        let address = self.io_addr_assert::<u64>(offset);
+
+        // SAFETY: `address` has been validated by `io_addr_assert`.
+        unsafe { self.io_write(value, address) }
     }
 }
 
@@ -534,14 +601,36 @@ pub trait IoKnownSize: Io {
     }
 }
 
-// MMIO regions support 8, 16, and 32-bit accesses.
-impl<const SIZE: usize> IoCapable<u8> for Mmio<SIZE> {}
-impl<const SIZE: usize> IoCapable<u16> for Mmio<SIZE> {}
-impl<const SIZE: usize> IoCapable<u32> for Mmio<SIZE> {}
+/// Implements [`IoCapable`] on `$mmio` for `$ty` using `$read_fn` and `$write_fn`.
+macro_rules! impl_mmio_io_capable {
+    ($mmio:ident, $(#[$attr:meta])* $ty:ty, $read_fn:ident, $write_fn:ident) => {
+        $(#[$attr])*
+        impl<const SIZE: usize> IoCapable<$ty> for $mmio<SIZE> {
+            unsafe fn io_read(&self, address: usize) -> $ty {
+                // SAFETY: By the trait invariant `address` is a valid address for MMIO operations.
+                unsafe { bindings::$read_fn(address as *const c_void) }
+            }
 
+            unsafe fn io_write(&self, value: $ty, address: usize) {
+                // SAFETY: By the trait invariant `address` is a valid address for MMIO operations.
+                unsafe { bindings::$write_fn(value, address as *mut c_void) }
+            }
+        }
+    };
+}
+
+// MMIO regions support 8, 16, and 32-bit accesses.
+impl_mmio_io_capable!(Mmio, u8, readb, writeb);
+impl_mmio_io_capable!(Mmio, u16, readw, writew);
+impl_mmio_io_capable!(Mmio, u32, readl, writel);
 // MMIO regions on 64-bit systems also support 64-bit accesses.
-#[cfg(CONFIG_64BIT)]
-impl<const SIZE: usize> IoCapable<u64> for Mmio<SIZE> {}
+impl_mmio_io_capable!(
+    Mmio,
+    #[cfg(CONFIG_64BIT)]
+    u64,
+    readq,
+    writeq
+);
 
 impl<const SIZE: usize> Io for Mmio<SIZE> {
     /// Returns the base address of this mapping.

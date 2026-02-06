@@ -142,10 +142,41 @@ macro_rules! call_config_write {
     };
 }
 
+/// Implements [`IoCapable`] on [`ConfigSpace`] for `$ty` using `$read_fn` and `$write_fn`.
+macro_rules! impl_config_space_io_capable {
+    ($ty:ty, $read_fn:ident, $write_fn:ident) => {
+        impl<'a, S: ConfigSpaceKind> IoCapable<$ty> for ConfigSpace<'a, S> {
+            unsafe fn io_read(&self, address: usize) -> $ty {
+                let mut val: $ty = 0;
+
+                // Return value from C function is ignored in infallible accessors.
+                let _ret =
+                    // SAFETY: By the type invariant `self.pdev` is a valid address.
+                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                    // so the value always fits within `i32` without truncation or sign change.
+                    unsafe { bindings::$read_fn(self.pdev.as_raw(), address as i32, &mut val) };
+
+                val
+            }
+
+            unsafe fn io_write(&self, value: $ty, address: usize) {
+                // Return value from C function is ignored in infallible accessors.
+                let _ret =
+                    // SAFETY: By the type invariant `self.pdev` is a valid address.
+                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                    // so the value always fits within `i32` without truncation or sign change.
+                    unsafe { bindings::$write_fn(self.pdev.as_raw(), address as i32, value) };
+            }
+        }
+    };
+}
+
 // PCI configuration space supports 8, 16, and 32-bit accesses.
-impl<'a, S: ConfigSpaceKind> IoCapable<u8> for ConfigSpace<'a, S> {}
-impl<'a, S: ConfigSpaceKind> IoCapable<u16> for ConfigSpace<'a, S> {}
-impl<'a, S: ConfigSpaceKind> IoCapable<u32> for ConfigSpace<'a, S> {}
+impl_config_space_io_capable!(u8, pci_read_config_byte, pci_write_config_byte);
+impl_config_space_io_capable!(u16, pci_read_config_word, pci_write_config_word);
+impl_config_space_io_capable!(u32, pci_read_config_dword, pci_write_config_dword);
 
 impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
     /// Returns the base address of the I/O region. It is always 0 for configuration space.
