@@ -742,3 +742,69 @@ impl<const SIZE: usize> Mmio<SIZE> {
         call_mmio_write(writeq_relaxed) <- u64
     );
 }
+
+/// [`Mmio`] wrapper using relaxed accessors.
+///
+/// This type provides an implementation of [`Io`] that uses relaxed I/O MMIO operands instead of
+/// the regular ones.
+///
+/// See [`Mmio::relaxed`] for a usage example.
+#[repr(transparent)]
+pub struct RelaxedMmio<const SIZE: usize = 0>(Mmio<SIZE>);
+
+impl<const SIZE: usize> Io for RelaxedMmio<SIZE> {
+    #[inline]
+    fn addr(&self) -> usize {
+        self.0.addr()
+    }
+
+    #[inline]
+    fn maxsize(&self) -> usize {
+        self.0.maxsize()
+    }
+}
+
+impl<const SIZE: usize> IoKnownSize for RelaxedMmio<SIZE> {
+    const MIN_SIZE: usize = SIZE;
+}
+
+impl<const SIZE: usize> Mmio<SIZE> {
+    /// Returns a [`RelaxedMmio`] reference that performs relaxed I/O operations.
+    ///
+    /// Relaxed accessors do not provide ordering guarantees with respect to DMA or memory accesses
+    /// and can be used when such ordering is not required.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use kernel::io::{
+    ///     Io,
+    ///     Mmio,
+    ///     RelaxedMmio,
+    /// };
+    ///
+    /// fn do_io(io: &Mmio<0x100>) {
+    ///     // The access is performed using `readl_relaxed` instead of `readl`.
+    ///     let v = io.relaxed().read32(0x10);
+    /// }
+    ///
+    /// ```
+    pub fn relaxed(&self) -> &RelaxedMmio<SIZE> {
+        // SAFETY: `RelaxedMmio` is `#[repr(transparent)]` over `Mmio`, so `Mmio<SIZE>` and
+        // `RelaxedMmio<SIZE>` have identical layout.
+        unsafe { core::mem::transmute(self) }
+    }
+}
+
+// MMIO regions support 8, 16, and 32-bit accesses.
+impl_mmio_io_capable!(RelaxedMmio, u8, readb_relaxed, writeb_relaxed);
+impl_mmio_io_capable!(RelaxedMmio, u16, readw_relaxed, writew_relaxed);
+impl_mmio_io_capable!(RelaxedMmio, u32, readl_relaxed, writel_relaxed);
+// MMIO regions on 64-bit systems also support 64-bit accesses.
+impl_mmio_io_capable!(
+    RelaxedMmio,
+    #[cfg(CONFIG_64BIT)]
+    u64,
+    readq_relaxed,
+    writeq_relaxed
+);
