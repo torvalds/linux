@@ -635,7 +635,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	 * hash device after the hash blocks.
 	 */
 
-	hash_blocks = v->hash_blocks - v->hash_start;
+	hash_blocks = v->hash_end - v->hash_start;
 
 	/*
 	 * Require matching block sizes for data and hash devices for
