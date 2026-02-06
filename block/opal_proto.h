@@ -226,6 +226,7 @@ enum opal_lockingstate {
 enum opal_parameter {
 	OPAL_SUM_SET_LIST = 0x060000,
 	OPAL_SUM_RANGE_POLICY = 0x060001,
+	OPAL_SUM_ADMIN1_PIN = 0x060002,
 };
 
 enum opal_revertlsp {
