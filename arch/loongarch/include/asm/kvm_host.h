@@ -265,6 +265,11 @@ static inline void writel_sw_gcsr(struct loongarch_csrs *csr, int reg, unsigned 
 	csr->csrs[reg] = val;
 }
 
+static inline bool kvm_guest_has_msgint(struct kvm_vcpu_arch *arch)
+{
+	return arch->cpucfg[1] & CPUCFG1_MSGINT;
+}
+
 static inline bool kvm_guest_has_fpu(struct kvm_vcpu_arch *arch)
 {
 	return arch->cpucfg[2] & CPUCFG2_FP;
