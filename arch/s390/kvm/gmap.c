@@ -1179,6 +1179,8 @@ static int gmap_protect_asce_top_level(struct kvm_s390_mmu_cache *mc, struct gma
  * The shadow table will be removed automatically on any change to the
  * PTE mapping for the source table.
  *
+ * The returned shadow gmap will be returned with one extra reference.
+ *
  * Return: A guest address space structure, ERR_PTR(-ENOMEM) if out of memory,
  * ERR_PTR(-EAGAIN) if the caller has to retry and ERR_PTR(-EFAULT) if the
  * parent gmap table could not be protected.
@@ -1189,10 +1191,13 @@ struct gmap *gmap_create_shadow(struct kvm_s390_mmu_cache *mc, struct gmap *pare
 	struct gmap *sg, *new;
 	int rc;
 
-	scoped_guard(spinlock, &parent->children_lock)
+	scoped_guard(spinlock, &parent->children_lock) {
 		sg = gmap_find_shadow(parent, asce, edat_level);
-	if (sg)
-		return sg;
+		if (sg) {
+			gmap_get(sg);
+			return sg;
+		}
+	}
 	/* Create a new shadow gmap. */
 	new = gmap_new(parent->kvm, asce.r ? 1UL << (64 - PAGE_SHIFT) : asce_end(asce));
 	if (!new)
@@ -1206,6 +1211,7 @@ struct gmap *gmap_create_shadow(struct kvm_s390_mmu_cache *mc, struct gmap *pare
 		sg = gmap_find_shadow(parent, asce, edat_level);
 		if (sg) {
 			gmap_put(new);
+			gmap_get(sg);
 			return sg;
 		}
 		if (asce.r) {
@@ -1219,15 +1225,18 @@ struct gmap *gmap_create_shadow(struct kvm_s390_mmu_cache *mc, struct gmap *pare
 			}
 			gmap_add_child(parent, new);
 			/* Nothing to protect, return right away. */
+			gmap_get(new);
 			return new;
 		}
 	}
 
+	gmap_get(new);
 	new->parent = parent;
 	/* Protect while inserting, protects against invalidation races. */
 	rc = gmap_protect_asce_top_level(mc, new);
 	if (rc) {
 		new->parent = NULL;
+		gmap_put(new);
 		gmap_put(new);
 		return ERR_PTR(rc);
 	}

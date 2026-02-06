@@ -1256,6 +1256,7 @@ static struct gmap *acquire_gmap_shadow(struct kvm_vcpu *vcpu, struct vsie_page 
 			release_gmap_shadow(vsie_page);
 		}
 	}
+again:
 	gmap = gmap_create_shadow(vcpu->arch.mc, vcpu->kvm->arch.gmap, asce, edat);
 	if (IS_ERR(gmap))
 		return gmap;
@@ -1263,11 +1264,14 @@ static struct gmap *acquire_gmap_shadow(struct kvm_vcpu *vcpu, struct vsie_page 
 		/* unlikely race condition, remove the previous shadow */
 		if (vsie_page->gmap_cache.gmap)
 			release_gmap_shadow(vsie_page);
+		if (!gmap->parent) {
+			gmap_put(gmap);
+			goto again;
+		}
 		vcpu->kvm->stat.gmap_shadow_create++;
 		list_add(&vsie_page->gmap_cache.list, &gmap->scb_users);
 		vsie_page->gmap_cache.gmap = gmap;
 		prefix_unmapped(vsie_page);
-		gmap_get(gmap);
 	}
 	return gmap;
 }
