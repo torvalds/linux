@@ -9,6 +9,7 @@ LOCAL_HDRS += $(wildcard *.h)
 src_test := $(wildcard *_test.c)
 
 TEST_GEN_PROGS := $(src_test:.c=)
+TEST_GEN_PROGS += fs_bench
 
 TEST_GEN_PROGS_EXTENDED := \
 	true \
