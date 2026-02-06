@@ -46,11 +46,11 @@ static inline u8 *fec_buffer_rs_message(struct dm_verity *v,
 
 /*
  * Decode all RS codewords whose message bytes were loaded into fio->bufs.  Copy
- * the corrected bytes into fio->output starting from block_offset.
+ * the corrected bytes into fio->output starting from out_pos.
  */
 static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			   struct dm_verity_fec_io *fio, u64 rsb, int byte_index,
-			   unsigned int block_offset, int neras)
+			   unsigned int out_pos, int neras)
 {
 	int r, corrected = 0, res;
 	struct dm_buffer *buf;
@@ -67,7 +67,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 * block_size is always a power of 2, but roots might not be.  Note that
 	 * when it's not, a codeword's parity bytes can span a block boundary.
 	 */
-	parity_block = (rsb + block_offset) * v->fec->roots;
+	parity_block = (rsb + out_pos) * v->fec->roots;
 	parity_pos = parity_block & (v->fec->block_size - 1);
 	parity_block >>= v->data_dev_block_bits;
 	par = dm_bufio_read_with_ioprio(v->fec->bufio, parity_block, &buf,
@@ -120,10 +120,9 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		corrected += res;
-		fio->output[block_offset] = msg_buf[byte_index];
+		fio->output[out_pos++] = msg_buf[byte_index];
 
-		block_offset++;
-		if (block_offset >= v->fec->block_size)
+		if (out_pos >= v->fec->block_size)
 			goto done;
 	}
 done:
@@ -159,8 +158,7 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
  * fits into buffers. Check for erasure locations if @neras is non-NULL.
  */
 static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
-			 u64 rsb, u64 target, unsigned int block_offset,
-			 int *neras)
+			 u64 rsb, u64 target, unsigned int out_pos, int *neras)
 {
 	bool is_zero;
 	int i, j, target_index = -1;
@@ -243,9 +241,9 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 
 		/*
 		 * deinterleave and copy the bytes that fit into bufs,
-		 * starting from block_offset
+		 * starting from out_pos
 		 */
-		src_pos = block_offset;
+		src_pos = out_pos;
 		fec_for_each_buffer_rs_message(fio, n, j) {
 			if (src_pos >= v->fec->block_size)
 				goto done;
@@ -317,21 +315,21 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 			  const u8 *want_digest, bool use_erasures)
 {
 	int r, neras = 0;
-	unsigned int pos;
+	unsigned int out_pos;
 
-	for (pos = 0; pos < v->fec->block_size;) {
+	for (out_pos = 0; out_pos < v->fec->block_size;) {
 		fec_init_bufs(v, fio);
 
-		r = fec_read_bufs(v, io, rsb, offset, pos,
+		r = fec_read_bufs(v, io, rsb, offset, out_pos,
 				  use_erasures ? &neras : NULL);
 		if (unlikely(r < 0))
 			return r;
 
-		r = fec_decode_bufs(v, io, fio, rsb, r, pos, neras);
+		r = fec_decode_bufs(v, io, fio, rsb, r, out_pos, neras);
 		if (r < 0)
 			return r;
 
-		pos += fio->nbufs << DM_VERITY_FEC_BUF_RS_BITS;
+		out_pos += fio->nbufs << DM_VERITY_FEC_BUF_RS_BITS;
 	}
 
 	/* Always re-validate the corrected block against the expected hash */
