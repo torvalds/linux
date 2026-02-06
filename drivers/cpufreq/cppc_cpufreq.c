@@ -985,16 +985,21 @@ store_energy_performance_preference_val(struct cpufreq_policy *policy,
 	return count;
 }
 
+CPPC_CPUFREQ_ATTR_RW_U64(perf_limited, cppc_get_perf_limited,
+			 cppc_set_perf_limited)
+
 cpufreq_freq_attr_ro(freqdomain_cpus);
 cpufreq_freq_attr_rw(auto_select);
 cpufreq_freq_attr_rw(auto_act_window);
 cpufreq_freq_attr_rw(energy_performance_preference_val);
+cpufreq_freq_attr_rw(perf_limited);
 
 static struct freq_attr *cppc_cpufreq_attr[] = {
 	&freqdomain_cpus,
 	&auto_select,
 	&auto_act_window,
 	&energy_performance_preference_val,
+	&perf_limited,
 	NULL,
 };
 

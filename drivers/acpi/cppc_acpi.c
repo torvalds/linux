@@ -1979,6 +1979,62 @@ int cppc_set_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls)
 EXPORT_SYMBOL_GPL(cppc_set_perf);
 
 /**
+ * cppc_get_perf_limited - Get the Performance Limited register value.
+ * @cpu: CPU from which to get Performance Limited register.
+ * @perf_limited: Pointer to store the Performance Limited value.
+ *
+ * The returned value contains sticky status bits indicating platform-imposed
+ * performance limitations.
+ *
+ * Return: 0 for success, -EIO on failure, -EOPNOTSUPP if not supported.
+ */
+int cppc_get_perf_limited(int cpu, u64 *perf_limited)
+{
+	return cppc_get_reg_val(cpu, PERF_LIMITED, perf_limited);
+}
+EXPORT_SYMBOL_GPL(cppc_get_perf_limited);
+
+/**
+ * cppc_set_perf_limited() - Clear bits in the Performance Limited register.
+ * @cpu: CPU on which to write register.
+ * @bits_to_clear: Bitmask of bits to clear in the perf_limited register.
+ *
+ * The Performance Limited register contains two sticky bits set by platform:
+ *   - Bit 0 (Desired_Excursion): Set when delivered performance is constrained
+ *     below desired performance. Not used when Autonomous Selection is enabled.
+ *   - Bit 1 (Minimum_Excursion): Set when delivered performance is constrained
+ *     below minimum performance.
+ *
+ * These bits are sticky and remain set until OSPM explicitly clears them.
+ * This function only allows clearing bits (the platform sets them).
+ *
+ * Return: 0 for success, -EINVAL for invalid bits, -EIO on register
+ *         access failure, -EOPNOTSUPP if not supported.
+ */
+int cppc_set_perf_limited(int cpu, u64 bits_to_clear)
+{
+	u64 current_val, new_val;
+	int ret;
+
+	/* Only bits 0 and 1 are valid */
+	if (bits_to_clear & ~CPPC_PERF_LIMITED_MASK)
+		return -EINVAL;
+
+	if (!bits_to_clear)
+		return 0;
+
+	ret = cppc_get_perf_limited(cpu, &current_val);
+	if (ret)
+		return ret;
+
+	/* Clear the specified bits */
+	new_val = current_val & ~bits_to_clear;
+
+	return cppc_set_reg_val(cpu, PERF_LIMITED, new_val);
+}
+EXPORT_SYMBOL_GPL(cppc_set_perf_limited);
+
+/**
  * cppc_get_transition_latency - returns frequency transition latency in ns
  * @cpu_num: CPU number for per_cpu().
  *
