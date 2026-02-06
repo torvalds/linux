@@ -825,7 +825,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	struct in6_addr *final_p, final;
+	struct in6_addr *final_p;
 	struct dst_entry *dst;
 	struct flowi6 *fl6;
 
@@ -847,7 +847,7 @@ int inet6_sk_rebuild_header(struct sock *sk)
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(fl6));
 
 	rcu_read_lock();
-	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
+	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &np->final);
 	rcu_read_unlock();
 
 	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
