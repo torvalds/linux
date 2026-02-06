@@ -109,56 +109,52 @@ int psb_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct fb_info *info = fb_helper->info;
+	u32 fourcc, pitch;
+	u64 size;
+	const struct drm_format_info *format;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = { };
-	int size;
 	int ret;
 	struct psb_gem_object *backing;
 	struct drm_gem_object *obj;
-	u32 bpp, depth;
 
 	/* No 24-bit packed mode */
 	if (sizes->surface_bpp == 24) {
 		sizes->surface_bpp = 32;
 		sizes->surface_depth = 24;
 	}
-	bpp = sizes->surface_bpp;
-	depth = sizes->surface_depth;
 
-	/*
-	 * If the mode does not fit in 32 bit then switch to 16 bit to get
-	 * a console on full resolution. The X mode setting server will
-	 * allocate its own 32-bit GEM framebuffer.
-	 */
-	size = ALIGN(sizes->surface_width * DIV_ROUND_UP(bpp, 8), 64) *
-		     sizes->surface_height;
-	size = ALIGN(size, PAGE_SIZE);
-
-	if (size > dev_priv->vram_stolen_size) {
-		sizes->surface_bpp = 16;
-		sizes->surface_depth = 16;
-	}
-	bpp = sizes->surface_bpp;
-	depth = sizes->surface_depth;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * DIV_ROUND_UP(bpp, 8), 64);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
+try_psb_gem_create:
+	fourcc = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
+	format = drm_get_format_info(dev, fourcc, DRM_FORMAT_MOD_LINEAR);
+	pitch = ALIGN(drm_format_info_min_pitch(format, 0, sizes->surface_width), SZ_64);
+	size = ALIGN(pitch * sizes->surface_height, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT with stolen page backing */
 	backing = psb_gem_create(dev, size, "fb", true, PAGE_SIZE);
-	if (IS_ERR(backing))
-		return PTR_ERR(backing);
+	if (IS_ERR(backing)) {
+		ret = PTR_ERR(backing);
+		if (ret == -EBUSY && sizes->surface_bpp > 16) {
+			/*
+			 * If the mode does not fit in 32 bit then switch to 16 bit to
+			 * get a console on full resolution. User-space compositors will
+			 * allocate their own 32-bit framebuffers.
+			 */
+			sizes->surface_bpp = 16;
+			sizes->surface_depth = 16;
+			goto try_psb_gem_create;
+		}
+		return ret;
+	}
 	obj = &backing->base;
 
-	fb = psb_framebuffer_create(dev,
-				    drm_get_format_info(dev, mode_cmd.pixel_format,
-							mode_cmd.modifier[0]),
-				    &mode_cmd, obj);
+	mode_cmd.width = sizes->surface_width;
+	mode_cmd.height = sizes->surface_height;
+	mode_cmd.pixel_format = fourcc;
+	mode_cmd.pitches[0] = pitch;
+	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
+
+	fb = psb_framebuffer_create(dev, format, &mode_cmd, obj);
 	if (IS_ERR(fb)) {
 		ret = PTR_ERR(fb);
 		goto err_drm_gem_object_put;
