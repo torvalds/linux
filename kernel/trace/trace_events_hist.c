@@ -6531,6 +6531,26 @@ static bool existing_hist_update_only(char *glob,
 	return updated;
 }
 
+/*
+ * Set or disable using the per CPU trace_buffer_event when possible.
+ */
+static int tracing_set_filter_buffering(struct trace_array *tr, bool set)
+{
+	guard(mutex)(&trace_types_lock);
+
+	if (set && tr->no_filter_buffering_ref++)
+		return 0;
+
+	if (!set) {
+		if (WARN_ON_ONCE(!tr->no_filter_buffering_ref))
+			return -EINVAL;
+
+		--tr->no_filter_buffering_ref;
+	}
+
+	return 0;
+}
+
 static int hist_register_trigger(char *glob,
 				 struct event_trigger_data *data,
 				 struct trace_event_file *file)
