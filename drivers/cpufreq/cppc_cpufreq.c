@@ -287,6 +287,21 @@ static inline void cppc_freq_invariance_exit(void)
 }
 #endif /* CONFIG_ACPI_CPPC_CPUFREQ_FIE */
 
+static void cppc_cpufreq_update_perf_limits(struct cppc_cpudata *cpu_data,
+					    struct cpufreq_policy *policy)
+{
+	struct cppc_perf_caps *caps = &cpu_data->perf_caps;
+	u32 min_perf, max_perf;
+
+	min_perf = cppc_khz_to_perf(caps, policy->min);
+	max_perf = cppc_khz_to_perf(caps, policy->max);
+
+	cpu_data->perf_ctrls.min_perf =
+		clamp_t(u32, min_perf, caps->lowest_perf, caps->highest_perf);
+	cpu_data->perf_ctrls.max_perf =
+		clamp_t(u32, max_perf, caps->lowest_perf, caps->highest_perf);
+}
+
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 				   unsigned int target_freq,
 				   unsigned int relation)
@@ -298,6 +313,8 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	cpu_data->perf_ctrls.desired_perf =
 			cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
+	cppc_cpufreq_update_perf_limits(cpu_data, policy);
+
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
@@ -322,8 +339,9 @@ static unsigned int cppc_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	desired_perf = cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
 	cpu_data->perf_ctrls.desired_perf = desired_perf;
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	cppc_cpufreq_update_perf_limits(cpu_data, policy);
 
+	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
 	if (ret) {
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
 			 cpu, ret);
@@ -868,6 +886,27 @@ static ssize_t store_auto_select(struct cpufreq_policy *policy,
 		return ret;
 
 	cpu_data->perf_ctrls.auto_sel = val;
+
+	if (val) {
+		u32 old_min_perf = cpu_data->perf_ctrls.min_perf;
+		u32 old_max_perf = cpu_data->perf_ctrls.max_perf;
+
+		/*
+		 * When enabling autonomous selection, program MIN_PERF and
+		 * MAX_PERF from current policy limits so that the platform
+		 * uses the correct performance bounds immediately.
+		 */
+		cppc_cpufreq_update_perf_limits(cpu_data, policy);
+
+		ret = cppc_set_perf(policy->cpu, &cpu_data->perf_ctrls);
+		if (ret) {
+			cpu_data->perf_ctrls.min_perf = old_min_perf;
+			cpu_data->perf_ctrls.max_perf = old_max_perf;
+			cppc_set_auto_sel(policy->cpu, false);
+			cpu_data->perf_ctrls.auto_sel = false;
+			return ret;
+		}
+	}
 
 	return count;
 }
