@@ -52,7 +52,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			   struct dm_verity_fec_io *fio, u64 index_in_region,
 			   int target_region, unsigned int out_pos, int neras)
 {
-	int r, corrected = 0, res;
+	int r = 0, corrected = 0, res;
 	struct dm_buffer *buf;
 	unsigned int n, i, j, parity_pos, to_copy;
 	uint16_t par_buf[DM_VERITY_FEC_MAX_ROOTS];
@@ -118,9 +118,8 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 				 NULL, neras, fio->erasures, 0, NULL);
 		if (res < 0) {
 			r = res;
-			goto error;
+			goto done;
 		}
-
 		corrected += res;
 		fio->output[out_pos++] = msg_buf[target_region];
 
@@ -128,16 +127,14 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			goto done;
 	}
 done:
-	r = corrected;
-error:
 	dm_bufio_release(buf);
 
 	if (r < 0 && neras)
 		DMERR_LIMIT("%s: FEC %llu: failed to correct: %d",
 			    v->data_dev->name, index_in_region, r);
-	else if (r > 0)
+	else if (r == 0 && corrected > 0)
 		DMWARN_LIMIT("%s: FEC %llu: corrected %d errors",
-			     v->data_dev->name, index_in_region, r);
+			     v->data_dev->name, index_in_region, corrected);
 
 	return r;
 }
