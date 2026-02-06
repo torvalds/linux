@@ -1347,18 +1347,13 @@ traceon_trigger(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file) {
-		if (tracer_tracing_is_on(file->tr))
-			return;
-
-		tracer_tracing_on(file->tr);
-		return;
-	}
-
-	if (tracing_is_on())
+	if (WARN_ON_ONCE(!file))
 		return;
 
-	tracing_on();
+	if (tracer_tracing_is_on(file->tr))
+		return;
+
+	tracer_tracing_on(file->tr);
 }
 
 static bool
@@ -1368,13 +1363,11 @@ traceon_count_func(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file) {
-		if (tracer_tracing_is_on(file->tr))
-			return false;
-	} else {
-		if (tracing_is_on())
-			return false;
-	}
+	if (WARN_ON_ONCE(!file))
+		return false;
+
+	if (tracer_tracing_is_on(file->tr))
+		return false;
 
 	if (!data->count)
 		return false;
@@ -1392,18 +1385,13 @@ traceoff_trigger(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file) {
-		if (!tracer_tracing_is_on(file->tr))
-			return;
-
-		tracer_tracing_off(file->tr);
-		return;
-	}
-
-	if (!tracing_is_on())
+	if (WARN_ON_ONCE(!file))
 		return;
 
-	tracing_off();
+	if (!tracer_tracing_is_on(file->tr))
+		return;
+
+	tracer_tracing_off(file->tr);
 }
 
 static bool
@@ -1413,13 +1401,11 @@ traceoff_count_func(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file) {
-		if (!tracer_tracing_is_on(file->tr))
-			return false;
-	} else {
-		if (!tracing_is_on())
-			return false;
-	}
+	if (WARN_ON_ONCE(!file))
+		return false;
+
+	if (!tracer_tracing_is_on(file->tr))
+		return false;
 
 	if (!data->count)
 		return false;
@@ -1481,10 +1467,10 @@ snapshot_trigger(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file)
-		tracing_snapshot_instance(file->tr);
-	else
-		tracing_snapshot();
+	if (WARN_ON_ONCE(!file))
+		return;
+
+	tracing_snapshot_instance(file->tr);
 }
 
 static int
@@ -1570,10 +1556,10 @@ stacktrace_trigger(struct event_trigger_data *data,
 {
 	struct trace_event_file *file = data->private_data;
 
-	if (file)
-		__trace_stack(file->tr, tracing_gen_ctx_dec(), STACK_SKIP);
-	else
-		trace_dump_stack(STACK_SKIP);
+	if (WARN_ON_ONCE(!file))
+		return;
+
+	__trace_stack(file->tr, tracing_gen_ctx_dec(), STACK_SKIP);
 }
 
 static int
