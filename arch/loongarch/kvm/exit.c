@@ -820,8 +820,10 @@ static int kvm_handle_lasx_disabled(struct kvm_vcpu *vcpu, int ecode)
 
 static int kvm_handle_lbt_disabled(struct kvm_vcpu *vcpu, int ecode)
 {
-	if (kvm_own_lbt(vcpu))
+	if (!kvm_guest_has_lbt(&vcpu->arch))
 		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+	else
+		kvm_own_lbt(vcpu);
 
 	return RESUME_GUEST;
 }
