@@ -823,7 +823,7 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 {
 	int ret, i;
 	int xcc_inst_per_aid = 4;
-	uint16_t xcc_mask;
+	uint16_t xcc_mask, sdma_mask = 0;
 
 	xcc_mask = adev->gfx.xcc_mask;
 	adev->aid_mask = 0;
@@ -833,10 +833,12 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 	}
 
 	adev->sdma.num_inst_per_xcc = 2;
-	adev->sdma.num_instances =
-		NUM_XCC(adev->gfx.xcc_mask) * adev->sdma.num_inst_per_xcc;
-	adev->sdma.sdma_mask =
-		GENMASK(adev->sdma.num_instances - 1, 0);
+	for_each_inst(i, adev->gfx.xcc_mask)
+		sdma_mask |=
+			GENMASK(adev->sdma.num_inst_per_xcc - 1, 0) <<
+			(i * adev->sdma.num_inst_per_xcc);
+	adev->sdma.sdma_mask = sdma_mask;
+	adev->sdma.num_instances = NUM_XCC(adev->sdma.sdma_mask);
 
 	ret = soc_v1_0_xcp_mgr_init(adev);
 	if (ret)
