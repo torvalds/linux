@@ -3116,6 +3116,27 @@ static int opal_setup_locking_range_start_length(struct opal_dev *dev,
 	return ret;
 }
 
+static int opal_enable_disable_range(struct opal_dev *dev,
+			     struct opal_user_lr_setup *opal_lrs)
+{
+	const struct opal_step lr_steps[] = {
+		{ start_auth_opal_session, &opal_lrs->session },
+		{ setup_enable_range, opal_lrs },
+		{ end_opal_session, }
+	};
+	int ret;
+
+	ret = opal_get_key(dev, &opal_lrs->session.opal_key);
+	if (ret)
+		return ret;
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, lr_steps, ARRAY_SIZE(lr_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	return ret;
+}
+
 static int opal_locking_range_status(struct opal_dev *dev,
 			  struct opal_lr_status *opal_lrst,
 			  void __user *data)
@@ -3458,6 +3479,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_LR_SET_START_LEN:
 		ret = opal_setup_locking_range_start_length(dev, p);
+		break;
+	case IOC_OPAL_ENABLE_DISABLE_LR:
+		ret = opal_enable_disable_range(dev, p);
 		break;
 
 	default:
