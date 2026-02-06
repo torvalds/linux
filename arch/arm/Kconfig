@@ -1719,12 +1719,14 @@ endmenu
 config ARCH_CC_CAN_LINK
 	bool
 	default $(cc_can_link_user,-mlittle-endian) if CPU_LITTLE_ENDIAN
-	default $(cc_can_link_user,-mbig-endian) if CPU_BIG_ENDIAN
+	default $(cc_can_link_user,-mbig-endian -mbe8) if CPU_ENDIAN_BE8
+	default $(cc_can_link_user,-mbig-endian -mbe32) if CPU_ENDIAN_BE32
 
 config ARCH_USERFLAGS
 	string
 	default "-mlittle-endian" if CPU_LITTLE_ENDIAN
-	default "-mbig-endian" if CPU_BIG_ENDIAN
+	default "-mbig-endian -mbe8" if CPU_ENDIAN_BE8
+	default "-mbig-endian -mbe32" if CPU_ENDIAN_BE32
 
 menu "Power management options"
 
