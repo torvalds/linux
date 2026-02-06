@@ -12,6 +12,8 @@
 #include "octep_config.h"
 #include "octep_main.h"
 
+static void octep_oq_free_ring_buffers(struct octep_oq *oq);
+
 static void octep_oq_reset_indices(struct octep_oq *oq)
 {
 	oq->host_read_idx = 0;
@@ -170,11 +172,15 @@ static int octep_setup_oq(struct octep_device *oct, int q_no)
 		goto oq_fill_buff_err;
 
 	octep_oq_reset_indices(oq);
-	oct->hw_ops.setup_oq_regs(oct, q_no);
+	if (oct->hw_ops.setup_oq_regs(oct, q_no))
+		goto oq_setup_err;
+
 	oct->num_oqs++;
 
 	return 0;
 
+oq_setup_err:
+	octep_oq_free_ring_buffers(oq);
 oq_fill_buff_err:
 	vfree(oq->buff_info);
 	oq->buff_info = NULL;
