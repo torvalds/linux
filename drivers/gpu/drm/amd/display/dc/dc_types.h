@@ -1194,6 +1194,8 @@ struct replay_config {
 	union replay_optimization replay_optimization;
 	/* Replay sub feature Frame Skipping is supported */
 	bool frame_skip_supported;
+	/* Replay Received Frame Skipping Error HPD. */
+	bool received_frame_skipping_error_hpd;
 };
 
 /* Replay feature flags*/

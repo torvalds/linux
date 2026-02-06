@@ -1374,7 +1374,7 @@ union dpcd_replay_configuration {
 		unsigned char DESYNC_ERROR_STATUS              : 1;
 		unsigned char SINK_DEVICE_REPLAY_STATUS        : 3;
 		unsigned char SINK_FRAME_LOCKED                : 2;
-		unsigned char RESERVED                         : 1;
+		unsigned char FRAME_SKIPPING_ERROR_STATUS      : 1;
 	} bits;
 	unsigned char raw;
 };
