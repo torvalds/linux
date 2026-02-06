@@ -306,16 +306,26 @@ static void fec_init_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 }
 
 /*
- * Decode all RS blocks in a single data block and return the target block
- * (indicated by @offset) in fio->output. If @use_erasures is non-zero, uses
- * hashes to locate erasures.
+ * Try to correct the message (data or hash) block at index @target_block.
+ *
+ * If @use_erasures is true, use verity hashes to locate erasures.  This makes
+ * the error correction slower but up to twice as capable.
+ *
+ * On success, return 0 and write the corrected block to @fio->output.  0 is
+ * returned only if the digest of the corrected block matches @want_digest; this
+ * is critical to ensure that FEC can't cause dm-verity to return bad data.
  */
-static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
-			  struct dm_verity_fec_io *fio, u64 rsb, u64 offset,
-			  const u8 *want_digest, bool use_erasures)
+static int fec_decode(struct dm_verity *v, struct dm_verity_io *io,
+		      struct dm_verity_fec_io *fio, u64 target_block,
+		      const u8 *want_digest, bool use_erasures)
 {
 	int r, neras = 0;
 	unsigned int out_pos;
+	u64 offset = target_block << v->data_dev_block_bits;
+	u64 rsb;
+
+	div64_u64_rem(offset, v->fec->region_blocks << v->data_dev_block_bits,
+		      &rsb);
 
 	for (out_pos = 0; out_pos < v->fec->block_size;) {
 		fec_init_bufs(v, fio);
@@ -353,7 +363,6 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 {
 	int r;
 	struct dm_verity_fec_io *fio;
-	u64 offset, rsb;
 
 	if (!verity_fec_is_enabled(v))
 		return -EOPNOTSUPP;
@@ -371,32 +380,13 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 		block = block - v->hash_start + v->data_blocks;
 
 	/*
-	 * For RS(n, k), the continuous FEC data is divided into blocks of k
-	 * bytes. Since block size may not be divisible by k, the last block
-	 * is zero padded when decoding.
-	 *
-	 * Each byte of the block is covered by a different RS(n, k) code,
-	 * and each code is interleaved over k blocks to make it less likely
-	 * that bursty corruption will leave us in unrecoverable state.
-	 */
-
-	offset = block << v->data_dev_block_bits;
-
-	/*
-	 * The base RS block we can feed to the interleaver to find out all
-	 * blocks required for decoding.
-	 */
-	div64_u64_rem(offset, v->fec->region_blocks << v->data_dev_block_bits,
-		      &rsb);
-
-	/*
 	 * Locating erasures is slow, so attempt to recover the block without
 	 * them first. Do a second attempt with erasures if the corruption is
 	 * bad enough.
 	 */
-	r = fec_decode_rsb(v, io, fio, rsb, offset, want_digest, false);
+	r = fec_decode(v, io, fio, block, want_digest, false);
 	if (r < 0) {
-		r = fec_decode_rsb(v, io, fio, rsb, offset, want_digest, true);
+		r = fec_decode(v, io, fio, block, want_digest, true);
 		if (r < 0)
 			goto done;
 	}
