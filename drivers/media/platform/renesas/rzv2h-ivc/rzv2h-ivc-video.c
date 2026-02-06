@@ -153,14 +153,13 @@ static void rzv2h_ivc_transfer_buffer(struct work_struct *work)
 	scoped_guard(spinlock_irqsave, &ivc->buffers.lock) {
 		buf = list_first_entry_or_null(&ivc->buffers.queue,
 					       struct rzv2h_ivc_buf, queue);
+		if (!buf)
+			return;
+
+		list_del(&buf->queue);
+		ivc->buffers.curr = buf;
 	}
 
-	if (!buf)
-		return;
-
-	list_del(&buf->queue);
-
-	ivc->buffers.curr = buf;
 	buf->addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_SADDL_P0, buf->addr);
 
