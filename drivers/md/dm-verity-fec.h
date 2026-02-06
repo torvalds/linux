@@ -11,8 +11,8 @@
 #include "dm-verity.h"
 #include <linux/rslib.h>
 
-/* Reed-Solomon(M, N) parameters */
-#define DM_VERITY_FEC_RSM		255
+/* Reed-Solomon(n, k) parameters */
+#define DM_VERITY_FEC_RS_N	255
 #define DM_VERITY_FEC_MIN_ROOTS	2	/* RS(255, 253): ~0.8% space overhead */
 #define DM_VERITY_FEC_MAX_ROOTS	24	/* RS(255, 231): ~10% space overhead */
 
@@ -34,8 +34,8 @@ struct dm_verity_fec {
 	sector_t blocks;	/* number of blocks covered */
 	sector_t rounds;	/* number of interleaving rounds */
 	sector_t hash_blocks;	/* blocks covered after v->hash_start */
-	unsigned char roots;	/* number of parity bytes, M-N of RS(M, N) */
-	unsigned char rsn;	/* N of RS(M, N) */
+	unsigned char roots;	/* parity bytes per RS codeword, n-k of RS(n, k) */
+	unsigned char rs_k;	/* message bytes per RS codeword, k of RS(n, k) */
 	mempool_t fio_pool;	/* mempool for dm_verity_fec_io */
 	mempool_t rs_pool;	/* mempool for fio->rs */
 	mempool_t prealloc_pool;	/* mempool for preallocated buffers */

@@ -29,7 +29,7 @@ static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
 {
 	u32 mod;
 
-	mod = do_div(offset, v->fec->rsn);
+	mod = do_div(offset, v->fec->rs_k);
 	return offset + mod * (v->fec->rounds << v->data_dev_block_bits);
 }
 
@@ -50,7 +50,7 @@ static inline u8 *fec_buffer_rs_block(struct dm_verity *v,
 				      struct dm_verity_fec_io *fio,
 				      unsigned int i, unsigned int j)
 {
-	return &fio->bufs[i][j * v->fec->rsn];
+	return &fio->bufs[i][j * v->fec->rs_k];
 }
 
 /*
@@ -129,7 +129,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		/* Decode an RS block using Reed-Solomon */
-		res = decode_rs8(fio->rs, block, par_buf, v->fec->rsn,
+		res = decode_rs8(fio->rs, block, par_buf, v->fec->rs_k,
 				 NULL, neras, fio->erasures, 0, NULL);
 		if (res < 0) {
 			r = res;
@@ -197,15 +197,15 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		return -EINVAL;
 
 	/*
-	 * read each of the rsn data blocks that are part of the RS block, and
+	 * read each of the rs_k data blocks that are part of the RS block, and
 	 * interleave contents to available bufs
 	 */
-	for (i = 0; i < v->fec->rsn; i++) {
-		ileaved = fec_interleave(v, rsb * v->fec->rsn + i);
+	for (i = 0; i < v->fec->rs_k; i++) {
+		ileaved = fec_interleave(v, rsb * v->fec->rs_k + i);
 
 		/*
 		 * target is the data block we want to correct, target_index is
-		 * the index of this block within the rsn RS blocks
+		 * the index of this block within the rs_k RS blocks
 		 */
 		if (ileaved == target)
 			target_index = i;
@@ -322,7 +322,7 @@ static void fec_init_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 	unsigned int n;
 
 	fec_for_each_buffer(fio, n)
-		memset(fio->bufs[n], 0, v->fec->rsn << DM_VERITY_FEC_BUF_RS_BITS);
+		memset(fio->bufs[n], 0, v->fec->rs_k << DM_VERITY_FEC_BUF_RS_BITS);
 
 	memset(fio->erasures, 0, sizeof(fio->erasures));
 }
@@ -394,12 +394,12 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 		block = block - v->hash_start + v->data_blocks;
 
 	/*
-	 * For RS(M, N), the continuous FEC data is divided into blocks of N
-	 * bytes. Since block size may not be divisible by N, the last block
+	 * For RS(n, k), the continuous FEC data is divided into blocks of k
+	 * bytes. Since block size may not be divisible by k, the last block
 	 * is zero padded when decoding.
 	 *
-	 * Each byte of the block is covered by a different RS(M, N) code,
-	 * and each code is interleaved over N blocks to make it less likely
+	 * Each byte of the block is covered by a different RS(n, k) code,
+	 * and each code is interleaved over k blocks to make it less likely
 	 * that bursty corruption will leave us in unrecoverable state.
 	 */
 
@@ -650,7 +650,7 @@ int verity_fec_ctr(struct dm_verity *v)
 		ti->error = "Missing " DM_VERITY_OPT_FEC_ROOTS;
 		return -EINVAL;
 	}
-	f->rsn = DM_VERITY_FEC_RSM - f->roots;
+	f->rs_k = DM_VERITY_FEC_RS_N - f->roots;
 
 	if (!f->blocks) {
 		ti->error = "Missing " DM_VERITY_OPT_FEC_BLOCKS;
@@ -658,7 +658,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	}
 
 	f->rounds = f->blocks;
-	if (sector_div(f->rounds, f->rsn))
+	if (sector_div(f->rounds, f->rs_k))
 		f->rounds++;
 
 	/*
@@ -730,7 +730,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	}
 
 	f->cache = kmem_cache_create("dm_verity_fec_buffers",
-				     f->rsn << DM_VERITY_FEC_BUF_RS_BITS,
+				     f->rs_k << DM_VERITY_FEC_BUF_RS_BITS,
 				     0, 0, NULL);
 	if (!f->cache) {
 		ti->error = "Cannot create FEC buffer cache";
