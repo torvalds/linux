@@ -196,6 +196,9 @@ struct drm_client_buffer {
 };
 
 struct drm_client_buffer *
+drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
+			 u32 format, u32 handle, u32 pitch);
+struct drm_client_buffer *
 drm_client_buffer_create_dumb(struct drm_client_dev *client, u32 width, u32 height, u32 format);
 void drm_client_buffer_delete(struct drm_client_buffer *buffer);
 int drm_client_buffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect);
