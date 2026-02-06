@@ -49,7 +49,7 @@ static inline u8 *fec_buffer_rs_message(struct dm_verity *v,
  * the corrected bytes into fio->output starting from out_pos.
  */
 static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
-			   struct dm_verity_fec_io *fio, u64 rsb,
+			   struct dm_verity_fec_io *fio, u64 index_in_region,
 			   int target_region, unsigned int out_pos, int neras)
 {
 	int r, corrected = 0, res;
@@ -67,14 +67,16 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 * block_size is always a power of 2, but roots might not be.  Note that
 	 * when it's not, a codeword's parity bytes can span a block boundary.
 	 */
-	parity_block = (rsb + out_pos) * v->fec->roots;
+	parity_block = ((index_in_region << v->data_dev_block_bits) + out_pos) *
+		       v->fec->roots;
 	parity_pos = parity_block & (v->fec->block_size - 1);
 	parity_block >>= v->data_dev_block_bits;
 	par = dm_bufio_read_with_ioprio(v->fec->bufio, parity_block, &buf,
 					bio->bi_ioprio);
 	if (IS_ERR(par)) {
 		DMERR("%s: FEC %llu: parity read failed (block %llu): %ld",
-		      v->data_dev->name, rsb, parity_block, PTR_ERR(par));
+		      v->data_dev->name, index_in_region, parity_block,
+		      PTR_ERR(par));
 		return PTR_ERR(par);
 	}
 
@@ -103,8 +105,8 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 							bio->bi_ioprio);
 			if (IS_ERR(par)) {
 				DMERR("%s: FEC %llu: parity read failed (block %llu): %ld",
-				      v->data_dev->name, rsb, parity_block,
-				      PTR_ERR(par));
+				      v->data_dev->name, index_in_region,
+				      parity_block, PTR_ERR(par));
 				return PTR_ERR(par);
 			}
 			for (; j < v->fec->roots; j++)
@@ -132,10 +134,10 @@ error:
 
 	if (r < 0 && neras)
 		DMERR_LIMIT("%s: FEC %llu: failed to correct: %d",
-			    v->data_dev->name, (unsigned long long)rsb, r);
+			    v->data_dev->name, index_in_region, r);
 	else if (r > 0)
 		DMWARN_LIMIT("%s: FEC %llu: corrected %d errors",
-			     v->data_dev->name, (unsigned long long)rsb, r);
+			     v->data_dev->name, index_in_region, r);
 
 	return r;
 }
@@ -158,14 +160,14 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
  * fits into buffers. Check for erasure locations if @neras is non-NULL.
  */
 static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
-			 u64 rsb, unsigned int out_pos, int *neras)
+			 u64 index_in_region, unsigned int out_pos, int *neras)
 {
 	bool is_zero;
 	int i, j;
 	struct dm_buffer *buf;
 	struct dm_bufio_client *bufio;
 	struct dm_verity_fec_io *fio = io->fec_io;
-	u64 block, ileaved;
+	u64 block;
 	u8 *bbuf;
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
 	unsigned int n, src_pos;
@@ -182,8 +184,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 * interleave contents to available bufs
 	 */
 	for (i = 0; i < v->fec->rs_k; i++) {
-		ileaved = rsb + i * (v->fec->region_blocks << v->data_dev_block_bits);
-		block = ileaved >> v->data_dev_block_bits;
+		block = i * v->fec->region_blocks + index_in_region;
 		bufio = v->fec->data_bufio;
 
 		if (block >= v->data_blocks) {
@@ -203,9 +204,8 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		bbuf = dm_bufio_read_with_ioprio(bufio, block, &buf, bio->bi_ioprio);
 		if (IS_ERR(bbuf)) {
 			DMWARN_LIMIT("%s: FEC %llu: read failed (%llu): %ld",
-				     v->data_dev->name,
-				     (unsigned long long)rsb,
-				     (unsigned long long)block, PTR_ERR(bbuf));
+				     v->data_dev->name, index_in_region, block,
+				     PTR_ERR(bbuf));
 
 			/* assume the block is corrupted */
 			if (neras && *neras <= v->fec->roots)
@@ -312,11 +312,16 @@ static int fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 {
 	int r, neras = 0;
 	unsigned int target_region, out_pos;
-	u64 rsb;
+	u64 index_in_region;
 
-	target_region = div64_u64_rem(
-		target_block << v->data_dev_block_bits,
-		v->fec->region_blocks << v->data_dev_block_bits, &rsb);
+	/*
+	 * Compute 'target_region', the index of the region the target block is
+	 * in; and 'index_in_region', the index of the target block within its
+	 * region.  The latter value is also the index within its region of each
+	 * message block that shares its RS codewords with the target block.
+	 */
+	target_region = div64_u64_rem(target_block, v->fec->region_blocks,
+				      &index_in_region);
 	if (WARN_ON_ONCE(target_region >= v->fec->rs_k))
 		/* target_block is out-of-bounds.  Should never happen. */
 		return -EIO;
@@ -324,12 +329,12 @@ static int fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	for (out_pos = 0; out_pos < v->fec->block_size;) {
 		fec_init_bufs(v, fio);
 
-		r = fec_read_bufs(v, io, rsb, out_pos,
+		r = fec_read_bufs(v, io, index_in_region, out_pos,
 				  use_erasures ? &neras : NULL);
 		if (unlikely(r < 0))
 			return r;
 
-		r = fec_decode_bufs(v, io, fio, rsb, target_region,
+		r = fec_decode_bufs(v, io, fio, index_in_region, target_region,
 				    out_pos, neras);
 		if (r < 0)
 			return r;
@@ -344,7 +349,7 @@ static int fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 
 	if (memcmp(io->tmp_digest, want_digest, v->digest_size)) {
 		DMERR_LIMIT("%s: FEC %llu: failed to correct (%d erasures)",
-			    v->data_dev->name, (unsigned long long)rsb, neras);
+			    v->data_dev->name, index_in_region, neras);
 		return -EILSEQ;
 	}
 
