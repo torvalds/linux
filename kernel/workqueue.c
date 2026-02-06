@@ -7571,6 +7571,10 @@ static DEFINE_PER_CPU(unsigned long, wq_watchdog_touched_cpu) = INITIAL_JIFFIES;
 static unsigned int wq_panic_on_stall = CONFIG_BOOTPARAM_WQ_STALL_PANIC;
 module_param_named(panic_on_stall, wq_panic_on_stall, uint, 0644);
 
+static unsigned int wq_panic_on_stall_time;
+module_param_named(panic_on_stall_time, wq_panic_on_stall_time, uint, 0644);
+MODULE_PARM_DESC(panic_on_stall_time, "Panic if stall exceeds this many seconds (0=disabled)");
+
 /*
  * Show workers that might prevent the processing of pending work items.
  * The only candidates are CPU-bound workers in the running state.
@@ -7622,7 +7626,12 @@ static void show_cpu_pools_hogs(void)
 	rcu_read_unlock();
 }
 
-static void panic_on_wq_watchdog(void)
+/*
+ * It triggers a panic in two scenarios: when the total number of stalls
+ * exceeds a threshold, and when a stall lasts longer than
+ * wq_panic_on_stall_time
+ */
+static void panic_on_wq_watchdog(unsigned int stall_time_sec)
 {
 	static unsigned int wq_stall;
 
@@ -7630,6 +7639,8 @@ static void panic_on_wq_watchdog(void)
 		wq_stall++;
 		BUG_ON(wq_stall >= wq_panic_on_stall);
 	}
+
+	BUG_ON(wq_panic_on_stall_time && stall_time_sec >= wq_panic_on_stall_time);
 }
 
 static void wq_watchdog_reset_touched(void)
@@ -7644,10 +7655,12 @@ static void wq_watchdog_reset_touched(void)
 static void wq_watchdog_timer_fn(struct timer_list *unused)
 {
 	unsigned long thresh = READ_ONCE(wq_watchdog_thresh) * HZ;
+	unsigned int max_stall_time = 0;
 	bool lockup_detected = false;
 	bool cpu_pool_stall = false;
 	unsigned long now = jiffies;
 	struct worker_pool *pool;
+	unsigned int stall_time;
 	int pi;
 
 	if (!thresh)
@@ -7681,14 +7694,15 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		/* did we stall? */
 		if (time_after(now, ts + thresh)) {
 			lockup_detected = true;
+			stall_time = jiffies_to_msecs(now - pool_ts) / 1000;
+			max_stall_time = max(max_stall_time, stall_time);
 			if (pool->cpu >= 0 && !(pool->flags & POOL_BH)) {
 				pool->cpu_stall = true;
 				cpu_pool_stall = true;
 			}
 			pr_emerg("BUG: workqueue lockup - pool");
 			pr_cont_pool_info(pool);
-			pr_cont(" stuck for %us!\n",
-				jiffies_to_msecs(now - pool_ts) / 1000);
+			pr_cont(" stuck for %us!\n", stall_time);
 		}
 
 
@@ -7701,7 +7715,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 		show_cpu_pools_hogs();
 
 	if (lockup_detected)
-		panic_on_wq_watchdog();
+		panic_on_wq_watchdog(max_stall_time);
 
 	wq_watchdog_reset_touched();
 	mod_timer(&wq_watchdog_timer, jiffies + thresh);
