@@ -87,7 +87,7 @@ nvkm_oproxy_uevent(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_oproxy_fini(struct nvkm_object *object, bool suspend)
+nvkm_oproxy_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
 	int ret;

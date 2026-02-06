@@ -1920,20 +1920,20 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 
 	/* Make sure restore workers don't access the BO any more */
 	mutex_lock(&process_info->lock);
-	list_del(&mem->validate_list);
+	if (!list_empty(&mem->validate_list))
+		list_del_init(&mem->validate_list);
 	mutex_unlock(&process_info->lock);
-
-	/* Cleanup user pages and MMU notifiers */
-	if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
-		amdgpu_hmm_unregister(mem->bo);
-		mutex_lock(&process_info->notifier_lock);
-		amdgpu_hmm_range_free(mem->range);
-		mutex_unlock(&process_info->notifier_lock);
-	}
 
 	ret = reserve_bo_and_cond_vms(mem, NULL, BO_VM_ALL, &ctx);
 	if (unlikely(ret))
 		return ret;
+
+	/* Cleanup user pages and MMU notifiers */
+	if (amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm)) {
+		amdgpu_hmm_unregister(mem->bo);
+		amdgpu_hmm_range_free(mem->range);
+		mem->range = NULL;
+	}
 
 	amdgpu_amdkfd_remove_eviction_fence(mem->bo,
 					process_info->eviction_fence);

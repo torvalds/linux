@@ -65,7 +65,7 @@ nv44_mpeg_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 }
 
 static int
-nv44_mpeg_chan_fini(struct nvkm_object *object, bool suspend)
+nv44_mpeg_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 
 	struct nv44_mpeg_chan *chan = nv44_mpeg_chan(object);

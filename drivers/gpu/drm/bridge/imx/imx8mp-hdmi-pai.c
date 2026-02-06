@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <drm/bridge/dw_hdmi.h>
 #include <sound/asoundef.h>
@@ -33,6 +34,7 @@
 
 struct imx8mp_hdmi_pai {
 	struct regmap	*regmap;
+	struct device	*dev;
 };
 
 static void imx8mp_hdmi_pai_enable(struct dw_hdmi *dw_hdmi, int channel,
@@ -42,6 +44,9 @@ static void imx8mp_hdmi_pai_enable(struct dw_hdmi *dw_hdmi, int channel,
 	const struct dw_hdmi_plat_data *pdata = dw_hdmi_to_plat_data(dw_hdmi);
 	struct imx8mp_hdmi_pai *hdmi_pai = pdata->priv_audio;
 	int val;
+
+	if (pm_runtime_resume_and_get(hdmi_pai->dev) < 0)
+		return;
 
 	/* PAI set control extended */
 	val =  WTMK_HIGH(3) | WTMK_LOW(3);
@@ -85,6 +90,8 @@ static void imx8mp_hdmi_pai_disable(struct dw_hdmi *dw_hdmi)
 
 	/* Stop PAI */
 	regmap_write(hdmi_pai->regmap, HTX_PAI_CTRL, 0);
+
+	pm_runtime_put_sync(hdmi_pai->dev);
 }
 
 static const struct regmap_config imx8mp_hdmi_pai_regmap_config = {
@@ -101,6 +108,7 @@ static int imx8mp_hdmi_pai_bind(struct device *dev, struct device *master, void 
 	struct imx8mp_hdmi_pai *hdmi_pai;
 	struct resource *res;
 	void __iomem *base;
+	int ret;
 
 	hdmi_pai = devm_kzalloc(dev, sizeof(*hdmi_pai), GFP_KERNEL);
 	if (!hdmi_pai)
@@ -120,6 +128,13 @@ static int imx8mp_hdmi_pai_bind(struct device *dev, struct device *master, void 
 	plat_data->enable_audio = imx8mp_hdmi_pai_enable;
 	plat_data->disable_audio = imx8mp_hdmi_pai_disable;
 	plat_data->priv_audio = hdmi_pai;
+
+	hdmi_pai->dev = dev;
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable PM runtime: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
