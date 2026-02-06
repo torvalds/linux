@@ -181,6 +181,11 @@ static void kvm_update_stolen_time(struct kvm_vcpu *vcpu)
 	}
 
 	st = (struct kvm_steal_time __user *)ghc->hva;
+	if (kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_PREEMPT)) {
+		unsafe_put_user(0, &st->preempted, out);
+		vcpu->arch.st.preempted = 0;
+	}
+
 	unsafe_get_user(version, &st->version, out);
 	if (version & 1)
 		version += 1; /* first time write, random junk */
@@ -1795,10 +1800,56 @@ out:
 	return 0;
 }
 
+static void kvm_vcpu_set_pv_preempted(struct kvm_vcpu *vcpu)
+{
+	gpa_t gpa;
+	struct gfn_to_hva_cache *ghc;
+	struct kvm_memslots *slots;
+	struct kvm_steal_time __user *st;
+
+	gpa = vcpu->arch.st.guest_addr;
+	if (!(gpa & KVM_STEAL_PHYS_VALID))
+		return;
+
+	/* vCPU may be preempted for many times */
+	if (vcpu->arch.st.preempted)
+		return;
+
+	/* This happens on process exit */
+	if (unlikely(current->mm != vcpu->kvm->mm))
+		return;
+
+	gpa &= KVM_STEAL_PHYS_MASK;
+	ghc = &vcpu->arch.st.cache;
+	slots = kvm_memslots(vcpu->kvm);
+	if (slots->generation != ghc->generation || gpa != ghc->gpa) {
+		if (kvm_gfn_to_hva_cache_init(vcpu->kvm, ghc, gpa, sizeof(*st))) {
+			ghc->gpa = INVALID_GPA;
+			return;
+		}
+	}
+
+	st = (struct kvm_steal_time __user *)ghc->hva;
+	unsafe_put_user(KVM_VCPU_PREEMPTED, &st->preempted, out);
+	vcpu->arch.st.preempted = KVM_VCPU_PREEMPTED;
+out:
+	mark_page_dirty_in_slot(vcpu->kvm, ghc->memslot, gpa_to_gfn(ghc->gpa));
+}
+
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
-	int cpu;
+	int cpu, idx;
 	unsigned long flags;
+
+	if (vcpu->preempted && kvm_guest_has_pv_feature(vcpu, KVM_FEATURE_PREEMPT)) {
+		/*
+		 * Take the srcu lock as memslots will be accessed to check
+		 * the gfn cache generation against the memslots generation.
+		 */
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+		kvm_vcpu_set_pv_preempted(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	}
 
 	local_irq_save(flags);
 	cpu = smp_processor_id();
