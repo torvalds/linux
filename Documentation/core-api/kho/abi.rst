@@ -22,6 +22,12 @@ memblock preservation ABI
 .. kernel-doc:: include/linux/kho/abi/memblock.h
    :doc: memblock kexec handover ABI
 
+KHO persistent memory tracker ABI
+=================================
+
+.. kernel-doc:: include/linux/kho/abi/kexec_handover.h
+  :doc: KHO persistent memory tracker
+
 See Also
 ========
 
