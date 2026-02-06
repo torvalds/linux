@@ -45,15 +45,6 @@ static inline u8 *fec_buffer_rs_message(struct dm_verity *v,
 }
 
 /*
- * Return the index of the current RS message when called inside
- * fec_for_each_buffer_rs_message.
- */
-static inline unsigned int fec_buffer_rs_index(unsigned int i, unsigned int j)
-{
-	return (i << DM_VERITY_FEC_BUF_RS_BITS) + j;
-}
-
-/*
  * Decode all RS codewords whose message bytes were loaded into fio->bufs.  Copy
  * the corrected bytes into fio->output starting from block_offset.
  */
@@ -179,7 +170,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	u64 block, ileaved;
 	u8 *bbuf;
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
-	unsigned int n, k;
+	unsigned int n, src_pos;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
 	if (neras)
@@ -254,13 +245,11 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		 * deinterleave and copy the bytes that fit into bufs,
 		 * starting from block_offset
 		 */
+		src_pos = block_offset;
 		fec_for_each_buffer_rs_message(fio, n, j) {
-			k = fec_buffer_rs_index(n, j) + block_offset;
-
-			if (k >= v->fec->block_size)
+			if (src_pos >= v->fec->block_size)
 				goto done;
-
-			fec_buffer_rs_message(v, fio, n, j)[i] = bbuf[k];
+			fec_buffer_rs_message(v, fio, n, j)[i] = bbuf[src_pos++];
 		}
 done:
 		dm_bufio_release(buf);
