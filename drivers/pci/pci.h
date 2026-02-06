@@ -245,6 +245,7 @@ void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_power_up_and_verify_state(struct pci_dev *pci_dev);
 void pci_pm_init(struct pci_dev *dev);
 void pci_ea_init(struct pci_dev *dev);
+bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub);
 void pci_msi_init(struct pci_dev *dev);
 void pci_msix_init(struct pci_dev *dev);
 bool pci_bridge_d3_possible(struct pci_dev *dev);
@@ -379,8 +380,40 @@ extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mmio_size;
 extern unsigned long pci_hotplug_mmio_pref_size;
 extern unsigned long pci_hotplug_bus_size;
-extern unsigned long pci_cardbus_io_size;
-extern unsigned long pci_cardbus_mem_size;
+
+static inline bool pci_is_cardbus_bridge(struct pci_dev *dev)
+{
+	return dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
+}
+#ifdef CONFIG_CARDBUS
+unsigned long pci_cardbus_resource_alignment(struct resource *res);
+int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
+				struct list_head *realloc_head);
+int pci_cardbus_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
+				   u32 buses, int max,
+				   unsigned int available_buses, int pass);
+int pci_setup_cardbus(char *str);
+
+#else
+static inline unsigned long pci_cardbus_resource_alignment(struct resource *res)
+{
+	return 0;
+}
+static inline int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
+					      struct list_head *realloc_head)
+{
+	return -EOPNOTSUPP;
+}
+static inline int pci_cardbus_scan_bridge_extend(struct pci_bus *bus,
+						 struct pci_dev *dev,
+						 u32 buses, int max,
+						 unsigned int available_buses,
+						 int pass)
+{
+	return max;
+}
+static inline int pci_setup_cardbus(char *str) { return -ENOENT; }
+#endif /* CONFIG_CARDBUS */
 
 /**
  * pci_match_one_device - Tell if a PCI device structure has a matching
@@ -443,6 +476,10 @@ void __pci_size_stdbars(struct pci_dev *dev, int count,
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg, u32 *sizes);
 void pci_configure_ari(struct pci_dev *dev);
+
+int pci_dev_res_add_to_list(struct list_head *head, struct pci_dev *dev,
+			    struct resource *res, resource_size_t add_size,
+			    resource_size_t min_align);
 void __pci_bus_size_bridges(struct pci_bus *bus,
 			struct list_head *realloc_head);
 void __pci_bus_assign_resources(const struct pci_bus *bus,
@@ -455,6 +492,11 @@ void pci_walk_bus_locked(struct pci_bus *top,
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
 bool pci_resource_is_optional(const struct pci_dev *dev, int resno);
+static inline bool pci_resource_is_bridge_win(int resno)
+{
+	return resno >= PCI_BRIDGE_RESOURCES &&
+	       resno <= PCI_BRIDGE_RESOURCE_END;
+}
 
 /**
  * pci_resource_num - Reverse lookup resource number from device resources
@@ -478,6 +520,7 @@ static inline int pci_resource_num(const struct pci_dev *dev,
 	return resno;
 }
 
+void pbus_validate_busn(struct pci_bus *bus);
 struct resource *pbus_select_window(struct pci_bus *bus,
 				    const struct resource *res);
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
@@ -926,8 +969,6 @@ static inline void pci_restore_ptm_state(struct pci_dev *dev) { }
 static inline void pci_suspend_ptm(struct pci_dev *dev) { }
 static inline void pci_resume_ptm(struct pci_dev *dev) { }
 #endif
-
-unsigned long pci_cardbus_resource_alignment(struct resource *);
 
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 						     struct resource *res)

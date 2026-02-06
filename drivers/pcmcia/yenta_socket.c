@@ -779,7 +779,7 @@ static void yenta_allocate_resources(struct yenta_socket *socket)
 			   IORESOURCE_MEM,
 			   PCI_CB_MEMORY_BASE_1, PCI_CB_MEMORY_LIMIT_1);
 	if (program)
-		pci_setup_cardbus(socket->dev->subordinate);
+		pci_setup_cardbus_bridge(socket->dev->subordinate);
 }
 
 
