@@ -161,6 +161,7 @@ enum hwsim_commands {
  *	Adds one radio for each band. Number of supported channels will be set for
  *	each radio instead of for the wiphy.
  * @HWSIM_ATTR_SUPPORT_NAN_DEVICE: support NAN Device virtual interface (flag)
+ * @HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR: background radar/CAC support (flag)
  * @__HWSIM_ATTR_MAX: enum limit
  */
 enum hwsim_attrs {
@@ -195,6 +196,7 @@ enum hwsim_attrs {
 	HWSIM_ATTR_PMSR_RESULT,
 	HWSIM_ATTR_MULTI_RADIO,
 	HWSIM_ATTR_SUPPORT_NAN_DEVICE,
+	HWSIM_ATTR_SUPPORT_BACKGROUND_RADAR,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)
