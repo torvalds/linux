@@ -1435,6 +1435,8 @@ static int spinand_support_vendor_ops(struct spinand_device *spinand,
 {
 	int i;
 
+	if (!info->vendor_ops)
+		return 0;
 	/*
 	 * The vendor ops array is only used in order to verify this chip and all its memory
 	 * operations are supported. If we see patterns emerging, we could ideally name these
