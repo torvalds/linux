@@ -1066,9 +1066,6 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_device *device = battery->device;
 	struct power_supply *old;
 
-	if (!battery)
-		return;
-
 	guard(mutex)(&battery->update_lock);
 
 	old = battery->bat;
