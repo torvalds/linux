@@ -140,7 +140,7 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 	SMU_SCALAR(SMU_MATTR(SYSTEM_CLOCK_COUNTER), SMU_MUNIT(TIME_1),         \
 		   SMU_MTYPE(U64), system_clock_counter);                      \
 	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
-		   SMU_MTYPE(U32), accumulation_counter);                      \
+		   SMU_MTYPE(U64), accumulation_counter);                      \
 	SMU_SCALAR(SMU_MATTR(PROCHOT_RESIDENCY_ACC), SMU_MUNIT(NONE),          \
 		   SMU_MTYPE(U32), prochot_residency_acc);                     \
 	SMU_SCALAR(SMU_MATTR(PPT_RESIDENCY_ACC), SMU_MUNIT(NONE),              \
