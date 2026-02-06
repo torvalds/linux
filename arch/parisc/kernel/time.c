@@ -16,6 +16,7 @@
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
 #include <asm/processor.h>
+#include <asm/pdcpat.h>
 
 static u64 cr16_clock_freq;
 static unsigned long clocktick;
@@ -97,6 +98,22 @@ void parisc_clockevent_init(void)
 	cd->event_handler = parisc_event_handler;
 
 	clockevents_config_and_register(cd, cr16_clock_freq, min_delta, max_delta);
+}
+
+static void parisc_find_64bit_counter(void)
+{
+#ifdef CONFIG_64BIT
+	uint64_t *pclock;
+	unsigned long freq, unique;
+	int ret;
+
+	ret = pdc_pat_pd_get_platform_counter(&pclock, &freq, &unique);
+	if (ret == PDC_OK)
+		pr_info("64-bit counter found at %px, freq: %lu, unique: %lu\n",
+			pclock, freq, unique);
+	else
+		pr_info("64-bit counter not found.\n");
+#endif
 }
 
 unsigned long notrace profile_pc(struct pt_regs *regs)
@@ -212,6 +229,9 @@ void __init time_init(void)
 	sched_clock_register(read_cr16_sched_clock, BITS_PER_LONG, cr16_clock_freq);
 
 	parisc_clockevent_init();
+
+	/* check for free-running 64-bit platform counter */
+	parisc_find_64bit_counter();
 
 	/* register at clocksource framework */
 	clocksource_register_hz(&clocksource_cr16, cr16_clock_freq);
