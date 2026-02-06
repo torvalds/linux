@@ -1721,7 +1721,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	u32 reg;
 
 	/* initialize mdio bus */
-	priv->mii_bus = mdiobus_alloc();
+	priv->mii_bus = devm_mdiobus_alloc(priv->dev);
 	if (!priv->mii_bus)
 		return -EIO;
 
@@ -1747,19 +1747,14 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 
 	mdio_np = of_get_child_by_name(np, "mdio");
 
-	err = of_mdiobus_register(priv->mii_bus, mdio_np);
+	err = devm_of_mdiobus_register(priv->dev, priv->mii_bus, mdio_np);
+	of_node_put(mdio_np);
 	if (err) {
 		dev_err(priv->dev, "Cannot register MDIO bus!\n");
-		goto err_register_mdiobus;
+		return err;
 	}
 
-	of_node_put(mdio_np);
-
 	return 0;
-
-err_register_mdiobus:
-	mdiobus_free(priv->mii_bus);
-	return err;
 }
 
 static void ftgmac100_phy_disconnect(struct net_device *netdev)
@@ -1776,17 +1771,6 @@ static void ftgmac100_phy_disconnect(struct net_device *netdev)
 
 	if (priv->use_ncsi)
 		fixed_phy_unregister(phydev);
-}
-
-static void ftgmac100_destroy_mdio(struct net_device *netdev)
-{
-	struct ftgmac100 *priv = netdev_priv(netdev);
-
-	if (!priv->mii_bus)
-		return;
-
-	mdiobus_unregister(priv->mii_bus);
-	mdiobus_free(priv->mii_bus);
 }
 
 static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
@@ -2092,7 +2076,6 @@ err:
 	ftgmac100_phy_disconnect(netdev);
 	if (priv->ndev)
 		ncsi_unregister_dev(priv->ndev);
-	ftgmac100_destroy_mdio(netdev);
 	return err;
 }
 
@@ -2114,7 +2097,6 @@ static void ftgmac100_remove(struct platform_device *pdev)
 	cancel_work_sync(&priv->reset_task);
 
 	ftgmac100_phy_disconnect(netdev);
-	ftgmac100_destroy_mdio(netdev);
 }
 
 static const struct ftgmac100_match_data ftgmac100_match_data_ast2400 = {
