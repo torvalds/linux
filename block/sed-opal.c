@@ -1581,7 +1581,7 @@ static int setup_locking_range_start_length(struct opal_dev *dev, void *data)
 
 static int response_get_column(const struct parsed_resp *resp,
 			       int *iter,
-			       u8 column,
+			       u64 column,
 			       u64 *value)
 {
 	const struct opal_resp_tok *tok;
@@ -1599,7 +1599,7 @@ static int response_get_column(const struct parsed_resp *resp,
 	n++;
 
 	if (response_get_u64(resp, n) != column) {
-		pr_debug("Token %d does not match expected column %u.\n",
+		pr_debug("Token %d does not match expected column %llu.\n",
 			 n, column);
 		return OPAL_INVAL_PARAM;
 	}
