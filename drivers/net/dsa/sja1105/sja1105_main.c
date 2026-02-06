@@ -2841,7 +2841,7 @@ static void sja1105_mirror_del(struct dsa_switch *ds, int port,
 }
 
 static int sja1105_port_policer_add(struct dsa_switch *ds, int port,
-				    struct dsa_mall_policer_tc_entry *policer)
+				    const struct flow_action_police *policer)
 {
 	struct sja1105_l2_policing_entry *policing;
 	struct sja1105_private *priv = ds->priv;
@@ -2852,7 +2852,7 @@ static int sja1105_port_policer_add(struct dsa_switch *ds, int port,
 	 * the value of RATE bytes divided by 64, up to a maximum of SMAX
 	 * bytes.
 	 */
-	policing[port].rate = div_u64(512 * policer->rate_bytes_per_sec,
+	policing[port].rate = div_u64(512 * policer->rate_bytes_ps,
 				      1000000);
 	policing[port].smax = policer->burst;
 

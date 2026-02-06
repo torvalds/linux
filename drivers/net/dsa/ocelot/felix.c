@@ -2003,11 +2003,11 @@ static int felix_cls_flower_stats(struct dsa_switch *ds, int port,
 }
 
 static int felix_port_policer_add(struct dsa_switch *ds, int port,
-				  struct dsa_mall_policer_tc_entry *policer)
+				  const struct flow_action_police *policer)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_policer pol = {
-		.rate = div_u64(policer->rate_bytes_per_sec, 1000) * 8,
+		.rate = div_u64(policer->rate_bytes_ps, 1000) * 8,
 		.burst = policer->burst,
 	};
 

@@ -1459,8 +1459,8 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 	struct netlink_ext_ack *extack = cls->common.extack;
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_user_priv *p = netdev_priv(dev);
-	struct dsa_mall_policer_tc_entry *policer;
 	struct dsa_mall_tc_entry *mall_tc_entry;
+	struct flow_action_police *policer;
 	struct dsa_switch *ds = dp->ds;
 	struct flow_action_entry *act;
 	int err;
@@ -1497,8 +1497,7 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 	mall_tc_entry->cookie = cls->cookie;
 	mall_tc_entry->type = DSA_PORT_MALL_POLICER;
 	policer = &mall_tc_entry->policer;
-	policer->rate_bytes_per_sec = act->police.rate_bytes_ps;
-	policer->burst = act->police.burst;
+	*policer = act->police;
 
 	err = ds->ops->port_policer_add(ds, dp->index, policer);
 	if (err) {

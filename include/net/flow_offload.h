@@ -231,6 +231,21 @@ struct flow_action_cookie *flow_action_cookie_create(void *data,
 						     gfp_t gfp);
 void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
+struct flow_action_police {
+	u32 burst;
+	u64 rate_bytes_ps;
+	u64 peakrate_bytes_ps;
+	u32 avrate;
+	u16 overhead;
+	u64 burst_pkt;
+	u64 rate_pkt_ps;
+	u32 mtu;
+	struct {
+		enum flow_action_id act_id;
+		u32 extval;
+	} exceed, notexceed;
+};
+
 struct flow_action_entry {
 	enum flow_action_id		id;
 	u32				hw_index;
@@ -275,20 +290,7 @@ struct flow_action_entry {
 			u32			trunc_size;
 			bool			truncate;
 		} sample;
-		struct {				/* FLOW_ACTION_POLICE */
-			u32			burst;
-			u64			rate_bytes_ps;
-			u64			peakrate_bytes_ps;
-			u32			avrate;
-			u16			overhead;
-			u64			burst_pkt;
-			u64			rate_pkt_ps;
-			u32			mtu;
-			struct {
-				enum flow_action_id	act_id;
-				u32			extval;
-			} exceed, notexceed;
-		} police;
+		struct flow_action_police police;	/* FLOW_ACTION_POLICE */
 		struct {				/* FLOW_ACTION_CT */
 			int action;
 			u16 zone;
