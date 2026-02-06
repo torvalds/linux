@@ -31,7 +31,7 @@ static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
 	u32 mod;
 
 	mod = do_div(offset, v->fec->rs_k);
-	return offset + mod * (v->fec->rounds << v->data_dev_block_bits);
+	return offset + mod * (v->fec->region_blocks << v->data_dev_block_bits);
 }
 
 /* Loop over each allocated buffer. */
@@ -405,13 +405,13 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	 */
 
 	offset = block << v->data_dev_block_bits;
-	res = div64_u64(offset, v->fec->rounds << v->data_dev_block_bits);
+	res = div64_u64(offset, v->fec->region_blocks << v->data_dev_block_bits);
 
 	/*
 	 * The base RS block we can feed to the interleaver to find out all
 	 * blocks required for decoding.
 	 */
-	rsb = offset - res * (v->fec->rounds << v->data_dev_block_bits);
+	rsb = offset - res * (v->fec->region_blocks << v->data_dev_block_bits);
 
 	/*
 	 * Locating erasures is slow, so attempt to recover the block without
@@ -659,15 +659,15 @@ int verity_fec_ctr(struct dm_verity *v)
 		return -EINVAL;
 	}
 
-	f->rounds = f->blocks;
-	if (sector_div(f->rounds, f->rs_k))
-		f->rounds++;
+	f->region_blocks = f->blocks;
+	if (sector_div(f->region_blocks, f->rs_k))
+		f->region_blocks++;
 
 	/*
 	 * Due to optional metadata, f->blocks can be larger than
 	 * data_blocks and hash_blocks combined.
 	 */
-	if (f->blocks < v->data_blocks + hash_blocks || !f->rounds) {
+	if (f->blocks < v->data_blocks + hash_blocks || !f->region_blocks) {
 		ti->error = "Invalid " DM_VERITY_OPT_FEC_BLOCKS;
 		return -EINVAL;
 	}
@@ -693,7 +693,7 @@ int verity_fec_ctr(struct dm_verity *v)
 
 	dm_bufio_set_sector_offset(f->bufio, f->start << (v->data_dev_block_bits - SECTOR_SHIFT));
 
-	if (dm_bufio_get_device_size(f->bufio) < f->rounds * f->roots) {
+	if (dm_bufio_get_device_size(f->bufio) < f->region_blocks * f->roots) {
 		ti->error = "FEC device is too small";
 		return -E2BIG;
 	}

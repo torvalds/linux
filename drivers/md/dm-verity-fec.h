@@ -32,7 +32,7 @@ struct dm_verity_fec {
 	size_t block_size;	/* size of data, hash, and parity blocks in bytes */
 	sector_t start;		/* parity data start in blocks */
 	sector_t blocks;	/* number of blocks covered */
-	sector_t rounds;	/* number of interleaving rounds */
+	sector_t region_blocks; /* blocks per region: ceil(blocks / rs_k) */
 	sector_t hash_blocks;	/* blocks covered after v->hash_start */
 	unsigned char roots;	/* parity bytes per RS codeword, n-k of RS(n, k) */
 	unsigned char rs_k;	/* message bytes per RS codeword, k of RS(n, k) */
