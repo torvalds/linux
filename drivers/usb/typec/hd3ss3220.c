@@ -208,6 +208,9 @@ static void hd3ss3220_regulator_control(struct hd3ss3220 *hd3ss3220, bool on)
 {
 	int ret;
 
+	if (regulator_is_enabled(hd3ss3220->vbus) == on)
+		return;
+
 	if (on)
 		ret = regulator_enable(hd3ss3220->vbus);
 	else
