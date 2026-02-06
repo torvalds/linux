@@ -534,10 +534,10 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 			if (ret)
 				goto exit;
 
-			mcp->rxbuf_idx = 0;
-			mcp->rxbuf = data->block;
-			mcp->txbuf[0] = MCP2221_I2C_GET_DATA;
-			ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
+			ret = mcp_i2c_smbus_read(mcp, NULL,
+						MCP2221_I2C_RD_RPT_START,
+						addr, data->block[0] + 1,
+						data->block);
 			if (ret)
 				goto exit;
 		} else {
@@ -553,14 +553,14 @@ static int mcp_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	case I2C_SMBUS_I2C_BLOCK_DATA:
 		if (read_write == I2C_SMBUS_READ) {
 			ret = mcp_smbus_write(mcp, addr, command, NULL,
-						0, MCP2221_I2C_WR_NO_STOP, 1);
+						0, MCP2221_I2C_WR_NO_STOP, 0);
 			if (ret)
 				goto exit;
 
-			mcp->rxbuf_idx = 0;
-			mcp->rxbuf = data->block;
-			mcp->txbuf[0] = MCP2221_I2C_GET_DATA;
-			ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
+			ret = mcp_i2c_smbus_read(mcp, NULL,
+						MCP2221_I2C_RD_RPT_START,
+						addr, data->block[0],
+						&data->block[1]);
 			if (ret)
 				goto exit;
 		} else {
