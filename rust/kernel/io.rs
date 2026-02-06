@@ -701,46 +701,6 @@ impl<const SIZE: usize> Mmio<SIZE> {
         // SAFETY: `Mmio` is a transparent wrapper around `MmioRaw`.
         unsafe { &*core::ptr::from_ref(raw).cast() }
     }
-
-    io_define_read!(infallible, pub read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
-    io_define_read!(infallible, pub read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
-    io_define_read!(infallible, pub read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
-    io_define_read!(
-        infallible,
-        #[cfg(CONFIG_64BIT)]
-        pub read64_relaxed,
-        call_mmio_read(readq_relaxed) -> u64
-    );
-
-    io_define_read!(fallible, pub try_read8_relaxed, call_mmio_read(readb_relaxed) -> u8);
-    io_define_read!(fallible, pub try_read16_relaxed, call_mmio_read(readw_relaxed) -> u16);
-    io_define_read!(fallible, pub try_read32_relaxed, call_mmio_read(readl_relaxed) -> u32);
-    io_define_read!(
-        fallible,
-        #[cfg(CONFIG_64BIT)]
-        pub try_read64_relaxed,
-        call_mmio_read(readq_relaxed) -> u64
-    );
-
-    io_define_write!(infallible, pub write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
-    io_define_write!(infallible, pub write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
-    io_define_write!(infallible, pub write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
-    io_define_write!(
-        infallible,
-        #[cfg(CONFIG_64BIT)]
-        pub write64_relaxed,
-        call_mmio_write(writeq_relaxed) <- u64
-    );
-
-    io_define_write!(fallible, pub try_write8_relaxed, call_mmio_write(writeb_relaxed) <- u8);
-    io_define_write!(fallible, pub try_write16_relaxed, call_mmio_write(writew_relaxed) <- u16);
-    io_define_write!(fallible, pub try_write32_relaxed, call_mmio_write(writel_relaxed) <- u32);
-    io_define_write!(
-        fallible,
-        #[cfg(CONFIG_64BIT)]
-        pub try_write64_relaxed,
-        call_mmio_write(writeq_relaxed) <- u64
-    );
 }
 
 /// [`Mmio`] wrapper using relaxed accessors.
