@@ -1304,9 +1304,8 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 	int i;
 
 	hdev = pdata->hw_pdata;
-	link_mask = hdev->info.link_mask;
 
-	if (!link_mask) {
+	if (!hdev->info.link_mask) {
 		dev_info(sdev->dev, "SoundWire links not enabled\n");
 		return NULL;
 	}
@@ -1337,7 +1336,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		 * link_mask supported by hw and then go on searching
 		 * link_adr
 		 */
-		if (~link_mask & mach->link_mask)
+		if (~hdev->info.link_mask & mach->link_mask)
 			continue;
 
 		/* No need to match adr if there is no links defined */

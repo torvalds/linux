@@ -18,6 +18,8 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 
+#include "../cs_dsp.h"
+
 KUNIT_DEFINE_ACTION_WRAPPER(_put_device_wrapper, put_device, struct device *);
 KUNIT_DEFINE_ACTION_WRAPPER(_cs_dsp_remove_wrapper, cs_dsp_remove, struct cs_dsp *);
 
@@ -989,11 +991,9 @@ static void wmfw_v2_coeff_description_exceeds_block(struct kunit *test)
 
 static void cs_dsp_wmfw_err_test_exit(struct kunit *test)
 {
-	/*
-	 * Testing error conditions can produce a lot of log output
-	 * from cs_dsp error messages, so rate limit the test cases.
-	 */
-	usleep_range(200, 500);
+	cs_dsp_suppress_err_messages = false;
+	cs_dsp_suppress_warn_messages = false;
+	cs_dsp_suppress_info_messages = false;
 }
 
 static int cs_dsp_wmfw_err_test_common_init(struct kunit *test, struct cs_dsp *dsp,
@@ -1072,7 +1072,19 @@ static int cs_dsp_wmfw_err_test_common_init(struct kunit *test, struct cs_dsp *d
 		return ret;
 
 	/* Automatically call cs_dsp_remove() when test case ends */
-	return kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	ret = kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	if (ret)
+		return ret;
+
+	/*
+	 * Testing error conditions can produce a lot of log output
+	 * from cs_dsp error messages, so suppress messages.
+	 */
+	cs_dsp_suppress_err_messages = true;
+	cs_dsp_suppress_warn_messages = true;
+	cs_dsp_suppress_info_messages = true;
+
+	return 0;
 }
 
 static int cs_dsp_wmfw_err_test_halo_init(struct kunit *test)
