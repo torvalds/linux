@@ -7637,10 +7637,14 @@ static void panic_on_wq_watchdog(unsigned int stall_time_sec)
 
 	if (wq_panic_on_stall) {
 		wq_stall++;
-		BUG_ON(wq_stall >= wq_panic_on_stall);
+		if (wq_stall >= wq_panic_on_stall)
+			panic("workqueue: %u stall(s) exceeded threshold %u\n",
+			      wq_stall, wq_panic_on_stall);
 	}
 
-	BUG_ON(wq_panic_on_stall_time && stall_time_sec >= wq_panic_on_stall_time);
+	if (wq_panic_on_stall_time && stall_time_sec >= wq_panic_on_stall_time)
+		panic("workqueue: stall lasted %us, exceeding threshold %us\n",
+		      stall_time_sec, wq_panic_on_stall_time);
 }
 
 static void wq_watchdog_reset_touched(void)
