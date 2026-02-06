@@ -56,6 +56,7 @@ static inline bool is_sed_ioctl(unsigned int cmd)
 	case IOC_OPAL_REACTIVATE_LSP:
 	case IOC_OPAL_LR_SET_START_LEN:
 	case IOC_OPAL_ENABLE_DISABLE_LR:
+	case IOC_OPAL_GET_SUM_STATUS:
 		return true;
 	}
 	return false;

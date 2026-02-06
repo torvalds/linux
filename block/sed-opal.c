@@ -1757,6 +1757,12 @@ static int start_anybodyASP_opal_session(struct opal_dev *dev, void *data)
 					  OPAL_ADMINSP_UID, NULL, 0);
 }
 
+static int start_anybodyLSP_opal_session(struct opal_dev *dev, void *data)
+{
+	return start_generic_opal_session(dev, OPAL_ANYBODY_UID,
+					  OPAL_LOCKINGSP_UID, NULL, 0);
+}
+
 static int start_SIDASP_opal_session(struct opal_dev *dev, void *data)
 {
 	int ret;
@@ -3389,6 +3395,156 @@ static int opal_get_geometry(struct opal_dev *dev, void __user *data)
 	return 0;
 }
 
+static int get_sum_ranges(struct opal_dev *dev, void *data)
+{
+	const char *lr_uid;
+	size_t lr_uid_len;
+	u64 val;
+	const struct opal_resp_tok *tok;
+	int err, tok_n = 2;
+	struct opal_sum_ranges *sranges = data;
+	const __u8 lr_all[OPAL_MAX_LRS] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+
+	err = generic_get_columns(dev, opaluid[OPAL_LOCKING_INFO_TABLE], OPAL_SUM_SET_LIST,
+				  OPAL_SUM_RANGE_POLICY);
+	if (err) {
+		pr_debug("Couldn't get locking info table columns %d to %d.\n",
+			 OPAL_SUM_SET_LIST, OPAL_SUM_RANGE_POLICY);
+		return err;
+	}
+
+	tok = response_get_token(&dev->parsed, tok_n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_STARTNAME)) {
+		pr_debug("Unexpected response token type %d.\n", tok_n);
+		return OPAL_INVAL_PARAM;
+	}
+	tok_n++;
+
+	if (response_get_u64(&dev->parsed, tok_n) != OPAL_SUM_SET_LIST) {
+		pr_debug("Token %d does not match expected column %u.\n",
+			 tok_n, OPAL_SUM_SET_LIST);
+		return OPAL_INVAL_PARAM;
+	}
+	tok_n++;
+
+	tok = response_get_token(&dev->parsed, tok_n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	/*
+	 * The OPAL_SUM_SET_LIST response contains two distinct values:
+	 *
+	 *  - the list of individual locking ranges (UIDs) put in SUM. The list
+	 *    may also be empty signaling the SUM is disabled.
+	 *
+	 *  - the Locking table UID if the entire Locking table is put in SUM.
+	 */
+	if (response_token_matches(tok, OPAL_STARTLIST)) {
+		sranges->num_lrs = 0;
+
+		tok_n++;
+		tok = response_get_token(&dev->parsed, tok_n);
+		if (IS_ERR(tok))
+			return PTR_ERR(tok);
+
+		while (!response_token_matches(tok, OPAL_ENDLIST)) {
+			lr_uid_len = response_get_string(&dev->parsed, tok_n, &lr_uid);
+			if (lr_uid_len != OPAL_UID_LENGTH) {
+				pr_debug("Unexpected response token type %d.\n", tok_n);
+				return OPAL_INVAL_PARAM;
+			}
+
+			if (memcmp(lr_uid, opaluid[OPAL_LOCKINGRANGE_GLOBAL], OPAL_UID_LENGTH)) {
+				if (lr_uid[5] != LOCKING_RANGE_NON_GLOBAL) {
+					pr_debug("Unexpected byte %d at LR UUID position 5.\n",
+						 lr_uid[5]);
+					return OPAL_INVAL_PARAM;
+				}
+				sranges->lr[sranges->num_lrs++] = lr_uid[7];
+			} else
+				sranges->lr[sranges->num_lrs++] = 0;
+
+			tok_n++;
+			tok = response_get_token(&dev->parsed, tok_n);
+			if (IS_ERR(tok))
+				return PTR_ERR(tok);
+		}
+	} else {
+		/* Only OPAL_LOCKING_TABLE UID is an alternative to OPAL_STARTLIST here. */
+		lr_uid_len = response_get_string(&dev->parsed, tok_n, &lr_uid);
+		if (lr_uid_len != OPAL_UID_LENGTH) {
+			pr_debug("Unexpected response token type %d.\n", tok_n);
+			return OPAL_INVAL_PARAM;
+		}
+
+		if (memcmp(lr_uid, opaluid[OPAL_LOCKING_TABLE], OPAL_UID_LENGTH)) {
+			pr_debug("Unexpected response UID.\n");
+			return OPAL_INVAL_PARAM;
+		}
+
+		/* sed-opal kernel API already provides following limit in Activate command */
+		sranges->num_lrs = OPAL_MAX_LRS;
+		memcpy(sranges->lr, lr_all, OPAL_MAX_LRS);
+	}
+	tok_n++;
+
+	tok = response_get_token(&dev->parsed, tok_n);
+	if (IS_ERR(tok))
+		return PTR_ERR(tok);
+
+	if (!response_token_matches(tok, OPAL_ENDNAME)) {
+		pr_debug("Unexpected response token type %d.\n", tok_n);
+		return OPAL_INVAL_PARAM;
+	}
+	tok_n++;
+
+	err = response_get_column(&dev->parsed, &tok_n, OPAL_SUM_RANGE_POLICY, &val);
+	if (err)
+		return err;
+
+	sranges->range_policy = val ? 1 : 0;
+
+	return 0;
+}
+
+static int opal_get_sum_ranges(struct opal_dev *dev, struct opal_sum_ranges *opal_sum_rngs,
+			       void __user *data)
+{
+	const struct opal_step admin_steps[] = {
+		{ start_admin1LSP_opal_session, &opal_sum_rngs->key },
+		{ get_sum_ranges, opal_sum_rngs },
+		{ end_opal_session, }
+	}, anybody_steps[] = {
+		{ start_anybodyLSP_opal_session, NULL },
+		{ get_sum_ranges, opal_sum_rngs },
+		{ end_opal_session, }
+	};
+	int ret;
+
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	if (opal_sum_rngs->key.key_len)
+		/* Use Admin1 session (authenticated by PIN) to retrieve LockingInfo columns */
+		ret = execute_steps(dev, admin_steps, ARRAY_SIZE(admin_steps));
+	else
+		/* Use Anybody session (no key) to retrieve LockingInfo columns */
+		ret = execute_steps(dev, anybody_steps, ARRAY_SIZE(anybody_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	/* skip session info when copying back to uspace */
+	if (!ret && copy_to_user(data + offsetof(struct opal_sum_ranges, num_lrs),
+				(void *)opal_sum_rngs + offsetof(struct opal_sum_ranges, num_lrs),
+				sizeof(*opal_sum_rngs) - offsetof(struct opal_sum_ranges, num_lrs))) {
+		pr_debug("Error copying SUM ranges info to userspace\n");
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
 int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 {
 	void *p;
@@ -3482,6 +3638,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_ENABLE_DISABLE_LR:
 		ret = opal_enable_disable_range(dev, p);
+		break;
+	case IOC_OPAL_GET_SUM_STATUS:
+		ret = opal_get_sum_ranges(dev, p, arg);
 		break;
 
 	default:

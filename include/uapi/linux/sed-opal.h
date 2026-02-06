@@ -111,6 +111,18 @@ struct opal_lr_status {
 	__u8  align[4];
 };
 
+struct opal_sum_ranges {
+	/*
+	 * Initiate Admin1 session if key_len > 0,
+	 * use Anybody session otherwise.
+	 */
+	struct opal_key key;
+	__u8 num_lrs;
+	__u8 lr[OPAL_MAX_LRS];
+	__u8 range_policy;
+	__u8 align[5]; /* Align to 8 byte boundary */
+};
+
 struct opal_lock_unlock {
 	struct opal_session_info session;
 	__u32 l_state;
@@ -232,5 +244,6 @@ struct opal_revert_lsp {
 #define IOC_OPAL_REACTIVATE_LSP     _IOW('p', 242, struct opal_lr_react)
 #define IOC_OPAL_LR_SET_START_LEN   _IOW('p', 243, struct opal_user_lr_setup)
 #define IOC_OPAL_ENABLE_DISABLE_LR  _IOW('p', 244, struct opal_user_lr_setup)
+#define IOC_OPAL_GET_SUM_STATUS     _IOW('p', 245, struct opal_sum_ranges)
 
 #endif /* _UAPI_SED_OPAL_H */
