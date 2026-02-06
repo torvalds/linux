@@ -215,7 +215,6 @@ macro_rules! call_mmio_write {
 /// * `$c_fn:ident` - The backend-specific C function or identifier to be passed into the
 ///   `$call_macro`.
 /// * `$type_name:ty` - The Rust type of the value being read (e.g., `u8`, `u32`).
-#[macro_export]
 macro_rules! io_define_read {
     (infallible, $(#[$attr:meta])* $vis:vis $name:ident, $call_macro:ident($c_fn:ident) ->
      $type_name:ty) => {
@@ -249,7 +248,6 @@ macro_rules! io_define_read {
         }
     };
 }
-pub use io_define_read;
 
 /// Generates an accessor method for writing to an I/O backend.
 ///
@@ -274,7 +272,6 @@ pub use io_define_read;
 ///   `$call_macro`.
 /// * `$type_name:ty` - The Rust type of the value being written (e.g., `u8`, `u32`). Note the use
 ///   of `<-` before the type to denote a write operation.
-#[macro_export]
 macro_rules! io_define_write {
     (infallible, $(#[$attr:meta])* $vis:vis $name:ident, $call_macro:ident($c_fn:ident) <-
      $type_name:ty) => {
@@ -306,7 +303,6 @@ macro_rules! io_define_write {
         }
     };
 }
-pub use io_define_write;
 
 /// Checks whether an access of type `U` at the given `offset`
 /// is valid within this region.
