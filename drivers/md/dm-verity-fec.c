@@ -154,8 +154,21 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
 }
 
 /*
- * Read data blocks that are part of the RS block and deinterleave as much as
- * fits into buffers. Check for erasure locations if @neras is non-NULL.
+ * Read the message block at index @index_in_region within each of the
+ * @v->fec->rs_k regions and deinterleave their contents into @io->fec_io->bufs.
+ *
+ * @target_block gives the index of specific block within this sequence that is
+ * being corrected, relative to the start of all the FEC message blocks.
+ *
+ * @out_pos gives the current output position, i.e. the position in (each) block
+ * from which to start the deinterleaving.  Deinterleaving continues until
+ * either end-of-block is reached or there's no more buffer space.
+ *
+ * If @neras is non-NULL, then also use verity hashes and the presence/absence
+ * of I/O errors to determine which of the message blocks in the sequence are
+ * likely to be incorrect.  Write the number of such blocks to *@neras and the
+ * indices of the corresponding RS message bytes in [0, k - 1] to
+ * @io->fec_io->erasures, up to a limit of @v->fec->roots + 1 such blocks.
  */
 static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			 u64 target_block, u64 index_in_region,
@@ -178,11 +191,11 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	if (WARN_ON(v->digest_size > sizeof(want_digest)))
 		return -EINVAL;
 
-	/*
-	 * read each of the rs_k data blocks that are part of the RS block, and
-	 * interleave contents to available bufs
-	 */
 	for (i = 0; i < v->fec->rs_k; i++) {
+		/*
+		 * Read the block from region i.  It contains the i'th message
+		 * byte of the target block's RS codewords.
+		 */
 		block = i * v->fec->region_blocks + index_in_region;
 		bufio = v->fec->data_bufio;
 
@@ -231,8 +244,9 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		/*
-		 * deinterleave and copy the bytes that fit into bufs,
-		 * starting from out_pos
+		 * Deinterleave the bytes of the block, starting from 'out_pos',
+		 * into the i'th byte of the RS message buffers.  Stop when
+		 * end-of-block is reached or there are no more buffers.
 		 */
 		src_pos = out_pos;
 		fec_for_each_buffer_rs_message(fio, n, j) {
