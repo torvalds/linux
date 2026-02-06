@@ -23,17 +23,6 @@ static inline unsigned int fec_max_nbufs(struct dm_verity *v)
 	return 1 << (v->data_dev_block_bits - DM_VERITY_FEC_BUF_RS_BITS);
 }
 
-/*
- * Return an interleaved offset for a byte in RS block.
- */
-static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
-{
-	u32 mod;
-
-	mod = do_div(offset, v->fec->rs_k);
-	return offset + mod * (v->fec->region_blocks << v->data_dev_block_bits);
-}
-
 /* Loop over each allocated buffer. */
 #define fec_for_each_buffer(io, __i) \
 	for (__i = 0; __i < (io)->nbufs; __i++)
@@ -204,7 +193,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 * interleave contents to available bufs
 	 */
 	for (i = 0; i < v->fec->rs_k; i++) {
-		ileaved = fec_interleave(v, rsb * v->fec->rs_k + i);
+		ileaved = rsb + i * (v->fec->region_blocks << v->data_dev_block_bits);
 
 		/*
 		 * target is the data block we want to correct, target_index is
