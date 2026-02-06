@@ -32,7 +32,7 @@ struct pci_config_window *pci_host_common_ecam_create(struct device *dev,
 
 	err = of_address_to_resource(dev->of_node, 0, &cfgres);
 	if (err) {
-		dev_err(dev, "missing \"reg\" property\n");
+		dev_err(dev, "missing or malformed \"reg\" property\n");
 		return ERR_PTR(err);
 	}
 
