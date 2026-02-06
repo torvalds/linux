@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 
-/**
+/*
  * Generic defines required for registration with and submissions to the GuC
  * scheduler. Includes engine class/instance defines and context attributes
  * (id, priority, etc)
