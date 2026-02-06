@@ -81,13 +81,11 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &np->final);
 	rcu_read_unlock();
 
-	dst = __sk_dst_check(sk, np->dst_cookie);
-	if (!dst) {
-		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
 
-		if (!IS_ERR(dst))
-			ip6_dst_store(sk, dst, false, false);
-	}
+	if (!IS_ERR(dst))
+		ip6_dst_store(sk, dst, false, false);
+
 	return dst;
 }
 
@@ -98,19 +96,21 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	struct dst_entry *dst;
 	int res;
 
-	dst = inet6_csk_route_socket(sk, fl6);
-	if (IS_ERR(dst)) {
-		WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
-		sk->sk_route_caps = 0;
-		kfree_skb(skb);
-		return PTR_ERR(dst);
+	dst = __sk_dst_check(sk, np->dst_cookie);
+	if (unlikely(!dst)) {
+		dst = inet6_csk_route_socket(sk, fl6);
+		if (IS_ERR(dst)) {
+			WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
+			sk->sk_route_caps = 0;
+			kfree_skb(skb);
+			return PTR_ERR(dst);
+		}
+		/* Restore final destination back after routing done */
+		fl6->daddr = sk->sk_v6_daddr;
 	}
 
 	rcu_read_lock();
 	skb_dst_set_noref(skb, dst);
-
-	/* Restore final destination back after routing done */
-	fl6->daddr = sk->sk_v6_daddr;
 
 	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
 		       np->tclass, READ_ONCE(sk->sk_priority));
