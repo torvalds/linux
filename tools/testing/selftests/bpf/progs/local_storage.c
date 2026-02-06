@@ -62,7 +62,6 @@ SEC("lsm/inode_unlink")
 int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 {
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
-	struct bpf_local_storage *local_storage;
 	struct local_storage *storage;
 	struct task_struct *task;
 	bool is_self_unlink;
@@ -88,15 +87,10 @@ int BPF_PROG(unlink_hook, struct inode *dir, struct dentry *victim)
 	if (!storage || storage->value)
 		return 0;
 
-	if (bpf_task_storage_delete(&task_storage_map, task))
+	if (bpf_task_storage_delete(&task_storage_map2, task))
 		return 0;
 
-	/* Ensure that the task_storage_map is disconnected from the storage.
-	 * The storage memory should not be freed back to the
-	 * bpf_mem_alloc.
-	 */
-	local_storage = task->bpf_storage;
-	if (!local_storage || local_storage->smap)
+	if (bpf_task_storage_delete(&task_storage_map, task))
 		return 0;
 
 	task_storage_result = 0;
@@ -164,16 +158,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	if (bpf_sk_storage_delete(&sk_storage_map2, sk))
 		return 0;
 
-	storage = bpf_sk_storage_get(&sk_storage_map2, sk, 0,
-				     BPF_LOCAL_STORAGE_GET_F_CREATE);
-	if (!storage)
-		return 0;
-
 	if (bpf_sk_storage_delete(&sk_storage_map, sk))
-		return 0;
-
-	/* Ensure that the sk_storage_map is disconnected from the storage. */
-	if (!sk->sk_bpf_storage || sk->sk_bpf_storage->smap)
 		return 0;
 
 	sk_storage_result = 0;
