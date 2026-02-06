@@ -1518,7 +1518,7 @@ static inline int enable_global_lr(struct opal_dev *dev, u8 *uid,
 	return err;
 }
 
-static int setup_locking_range(struct opal_dev *dev, void *data)
+static int setup_enable_range(struct opal_dev *dev, void *data)
 {
 	u8 uid[OPAL_UID_LENGTH];
 	struct opal_user_lr_setup *setup = data;
@@ -1532,38 +1532,47 @@ static int setup_locking_range(struct opal_dev *dev, void *data)
 
 	if (lr == 0)
 		err = enable_global_lr(dev, uid, setup);
-	else {
-		err = cmd_start(dev, uid, opalmethod[OPAL_SET]);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_VALUES);
-		add_token_u8(&err, dev, OPAL_STARTLIST);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_RANGESTART);
-		add_token_u64(&err, dev, setup->range_start);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_RANGELENGTH);
-		add_token_u64(&err, dev, setup->range_length);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_READLOCKENABLED);
-		add_token_u64(&err, dev, !!setup->RLE);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-
-		add_token_u8(&err, dev, OPAL_STARTNAME);
-		add_token_u8(&err, dev, OPAL_WRITELOCKENABLED);
-		add_token_u64(&err, dev, !!setup->WLE);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-
-		add_token_u8(&err, dev, OPAL_ENDLIST);
-		add_token_u8(&err, dev, OPAL_ENDNAME);
-	}
+	else
+		err = generic_lr_enable_disable(dev, uid, !!setup->RLE, !!setup->WLE, 0, 0);
 	if (err) {
-		pr_debug("Error building Setup Locking range command.\n");
+		pr_debug("Failed to create enable lr command.\n");
+		return err;
+	}
+
+	return finalize_and_send(dev, parse_and_check_status);
+}
+
+static int setup_locking_range_start_length(struct opal_dev *dev, void *data)
+{
+	int err;
+	u8 uid[OPAL_UID_LENGTH];
+	struct opal_user_lr_setup *setup = data;
+
+	err = build_locking_range(uid, sizeof(uid), setup->session.opal_key.lr);
+	if (err)
+		return err;
+
+	err = cmd_start(dev, uid, opalmethod[OPAL_SET]);
+
+	add_token_u8(&err, dev, OPAL_STARTNAME);
+	add_token_u8(&err, dev, OPAL_VALUES);
+	add_token_u8(&err, dev, OPAL_STARTLIST);
+
+	add_token_u8(&err, dev, OPAL_STARTNAME);
+	add_token_u8(&err, dev, OPAL_RANGESTART);
+	add_token_u64(&err, dev, setup->range_start);
+	add_token_u8(&err, dev, OPAL_ENDNAME);
+
+	add_token_u8(&err, dev, OPAL_STARTNAME);
+	add_token_u8(&err, dev, OPAL_RANGELENGTH);
+	add_token_u64(&err, dev, setup->range_length);
+	add_token_u8(&err, dev, OPAL_ENDNAME);
+
+	add_token_u8(&err, dev, OPAL_ENDLIST);
+	add_token_u8(&err, dev, OPAL_ENDNAME);
+
+	if (err) {
+		pr_debug("Error building Setup Locking RangeStartLength command.\n");
 		return err;
 	}
 
@@ -3058,7 +3067,12 @@ static int opal_setup_locking_range(struct opal_dev *dev,
 {
 	const struct opal_step lr_steps[] = {
 		{ start_auth_opal_session, &opal_lrs->session },
-		{ setup_locking_range, opal_lrs },
+		{ setup_locking_range_start_length, opal_lrs },
+		{ setup_enable_range, opal_lrs },
+		{ end_opal_session, }
+	}, lr_global_steps[] = {
+		{ start_auth_opal_session, &opal_lrs->session },
+		{ setup_enable_range, opal_lrs },
 		{ end_opal_session, }
 	};
 	int ret;
@@ -3068,7 +3082,10 @@ static int opal_setup_locking_range(struct opal_dev *dev,
 		return ret;
 	mutex_lock(&dev->dev_lock);
 	setup_opal_dev(dev);
-	ret = execute_steps(dev, lr_steps, ARRAY_SIZE(lr_steps));
+	if (opal_lrs->session.opal_key.lr == 0)
+		ret = execute_steps(dev, lr_global_steps, ARRAY_SIZE(lr_global_steps));
+	else
+		ret = execute_steps(dev, lr_steps, ARRAY_SIZE(lr_steps));
 	mutex_unlock(&dev->dev_lock);
 
 	return ret;
