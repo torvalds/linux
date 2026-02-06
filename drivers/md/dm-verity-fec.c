@@ -377,7 +377,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 {
 	int r;
 	struct dm_verity_fec_io *fio;
-	u64 offset, res, rsb;
+	u64 offset, rsb;
 
 	if (!verity_fec_is_enabled(v))
 		return -EOPNOTSUPP;
@@ -405,13 +405,13 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 	 */
 
 	offset = block << v->data_dev_block_bits;
-	res = div64_u64(offset, v->fec->region_blocks << v->data_dev_block_bits);
 
 	/*
 	 * The base RS block we can feed to the interleaver to find out all
 	 * blocks required for decoding.
 	 */
-	rsb = offset - res * (v->fec->region_blocks << v->data_dev_block_bits);
+	div64_u64_rem(offset, v->fec->region_blocks << v->data_dev_block_bits,
+		      &rsb);
 
 	/*
 	 * Locating erasures is slow, so attempt to recover the block without
