@@ -12,111 +12,25 @@
 #include "framebuffer.h"
 #include "psb_drv.h"
 
-static const struct drm_framebuffer_funcs psb_fb_funcs = {
-	.destroy = drm_gem_fb_destroy,
-	.create_handle = drm_gem_fb_create_handle,
-};
-
-/**
- *	psb_framebuffer_init	-	initialize a framebuffer
- *	@dev: our DRM device
- *	@fb: framebuffer to set up
- *	@mode_cmd: mode description
- *	@obj: backing object
- *
- *	Configure and fill in the boilerplate for our frame buffer. Return
- *	0 on success or an error code if we fail.
- */
-static int psb_framebuffer_init(struct drm_device *dev,
-					struct drm_framebuffer *fb,
-					const struct drm_format_info *info,
-					const struct drm_mode_fb_cmd2 *mode_cmd,
-					struct drm_gem_object *obj)
+static struct drm_framebuffer *
+psb_user_framebuffer_create(struct drm_device *dev, struct drm_file *filp,
+			    const struct drm_format_info *info,
+			    const struct drm_mode_fb_cmd2 *cmd)
 {
-	int ret;
-
 	/*
 	 * Reject unknown formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
 	if (!info->depth || info->cpp[0] > 4)
-		return -EINVAL;
-
-	if (mode_cmd->pitches[0] & 63)
-		return -EINVAL;
-
-	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
-	fb->obj[0] = obj;
-	ret = drm_framebuffer_init(dev, fb, &psb_fb_funcs);
-	if (ret) {
-		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-/**
- *	psb_framebuffer_create	-	create a framebuffer backed by gt
- *	@dev: our DRM device
- *	@info: pixel format information
- *	@mode_cmd: the description of the requested mode
- *	@obj: the backing object
- *
- *	Create a framebuffer object backed by the gt, and fill in the
- *	boilerplate required
- *
- *	TODO: review object references
- */
-struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
-					       const struct drm_format_info *info,
-					       const struct drm_mode_fb_cmd2 *mode_cmd,
-					       struct drm_gem_object *obj)
-{
-	struct drm_framebuffer *fb;
-	int ret;
-
-	fb = kzalloc_obj(*fb);
-	if (!fb)
-		return ERR_PTR(-ENOMEM);
-
-	ret = psb_framebuffer_init(dev, fb, info, mode_cmd, obj);
-	if (ret) {
-		kfree(fb);
-		return ERR_PTR(ret);
-	}
-	return fb;
-}
-
-/**
- *	psb_user_framebuffer_create	-	create framebuffer
- *	@dev: our DRM device
- *	@filp: client file
- *	@cmd: mode request
- *
- *	Create a new framebuffer backed by a userspace GEM object
- */
-static struct drm_framebuffer *psb_user_framebuffer_create
-			(struct drm_device *dev, struct drm_file *filp,
-			 const struct drm_format_info *info,
-			 const struct drm_mode_fb_cmd2 *cmd)
-{
-	struct drm_gem_object *obj;
-	struct drm_framebuffer *fb;
+		return ERR_PTR(-EINVAL);
 
 	/*
-	 *	Find the GEM object and thus the gtt range object that is
-	 *	to back this space
+	 * Pitch must be aligned to 64 bytes.
 	 */
-	obj = drm_gem_object_lookup(filp, cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
+	if (cmd->pitches[0] & 63)
+		return ERR_PTR(-EINVAL);
 
-	/* Let the core code do all the work */
-	fb = psb_framebuffer_create(dev, info, cmd, obj);
-	if (IS_ERR(fb))
-		drm_gem_object_put(obj);
-
-	return fb;
+	return drm_gem_fb_create(dev, filp, info, cmd);
 }
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {
