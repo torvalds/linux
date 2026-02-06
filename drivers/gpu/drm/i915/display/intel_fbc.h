@@ -56,7 +56,6 @@ void intel_fbc_prepare_dirty_rect(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 void intel_fbc_dirty_rect_update_noarm(struct intel_dsb *dsb,
 				       struct intel_plane *plane);
-bool
-intel_fbc_is_enable_pixel_normalizer(const struct intel_plane_state *plane_state);
+bool intel_fbc_need_pixel_normalizer(const struct intel_plane_state *plane_state);
 
 #endif /* __INTEL_FBC_H__ */

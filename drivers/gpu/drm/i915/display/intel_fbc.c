@@ -1215,13 +1215,15 @@ static bool xe3p_lpd_fbc_pixel_format_is_valid(const struct intel_plane_state *p
 	}
 }
 
-bool
-intel_fbc_is_enable_pixel_normalizer(const struct intel_plane_state *plane_state)
+bool intel_fbc_need_pixel_normalizer(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 
-	return DISPLAY_VER(display) >= 35 &&
-	       xe3p_lpd_fbc_fp16_format_is_valid(plane_state);
+	if (HAS_PIXEL_NORMALIZER(display) &&
+	    xe3p_lpd_fbc_fp16_format_is_valid(plane_state))
+		return true;
+
+	return false;
 }
 
 static bool pixel_format_is_valid(const struct intel_plane_state *plane_state)

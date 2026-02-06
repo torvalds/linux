@@ -891,23 +891,20 @@ static void icl_plane_disable_sel_fetch_arm(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, SEL_FETCH_PLANE_CTL(pipe, plane->id), 0);
 }
 
-static void x3p_lpd_plane_update_pixel_normalizer(struct intel_dsb *dsb,
-						  struct intel_plane *plane,
-						  bool enable)
+static bool plane_has_normalizer(struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(plane);
-	enum intel_fbc_id fbc_id = skl_fbc_id_for_pipe(plane->pipe);
-	u32 val;
 
-	/* Only HDR planes have pixel normalizer and don't matter if no FBC */
-	if (!skl_plane_has_fbc(display, fbc_id, plane->id))
-		return;
+	return HAS_PIXEL_NORMALIZER(display) && icl_is_hdr_plane(display, plane->id);
+}
 
-	val = enable ? PLANE_PIXEL_NORMALIZE_NORM_FACTOR(PLANE_PIXEL_NORMALIZE_NORM_FACTOR_1_0) |
-		       PLANE_PIXEL_NORMALIZE_ENABLE : 0;
+static u32 pixel_normalizer_value(const struct intel_plane_state *plane_state)
+{
+	if (!intel_fbc_need_pixel_normalizer(plane_state))
+		return 0;
 
-	intel_de_write_dsb(display, dsb,
-			   PLANE_PIXEL_NORMALIZE(plane->pipe, plane->id), val);
+	return PLANE_PIXEL_NORMALIZE_ENABLE |
+	       PLANE_PIXEL_NORMALIZE_NORM_FACTOR(PLANE_PIXEL_NORMALIZE_NORM_FACTOR_1_0);
 }
 
 static void
@@ -926,8 +923,9 @@ icl_plane_disable_arm(struct intel_dsb *dsb,
 
 	icl_plane_disable_sel_fetch_arm(dsb, plane, crtc_state);
 
-	if (DISPLAY_VER(display) >= 35)
-		x3p_lpd_plane_update_pixel_normalizer(dsb, plane, false);
+	if (plane_has_normalizer(plane))
+		intel_de_write_dsb(display, dsb,
+				   PLANE_PIXEL_NORMALIZE(plane->pipe, plane->id), 0);
 
 	intel_de_write_dsb(display, dsb, PLANE_CTL(pipe, plane_id), 0);
 	intel_de_write_dsb(display, dsb, PLANE_SURF(pipe, plane_id), 0);
@@ -1676,11 +1674,13 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 
 	/*
 	 * In order to have FBC for fp16 formats pixel normalizer block must be
-	 * active. Check if pixel normalizer block need to be enabled for FBC.
-	 * If needed, use normalization factor as 1.0 and enable the block.
+	 * active. For FP16 formats, use normalization factor as 1.0 and enable
+	 * the block.
 	 */
-	if (intel_fbc_is_enable_pixel_normalizer(plane_state))
-		x3p_lpd_plane_update_pixel_normalizer(dsb, plane, true);
+	if (plane_has_normalizer(plane))
+		intel_de_write_dsb(display, dsb,
+				   PLANE_PIXEL_NORMALIZE(plane->pipe, plane->id),
+				   pixel_normalizer_value(plane_state));
 
 	/*
 	 * The control register self-arms if the plane was previously
