@@ -11,11 +11,12 @@
 #define DM_MSG_PREFIX	"verity-fec"
 
 /*
- * When correcting a data block, the FEC code performs optimally when it can
- * collect all the associated RS blocks at the same time.  As each byte is part
- * of a different RS block, there are '1 << data_dev_block_bits' RS blocks.
- * There are '1 << DM_VERITY_FEC_BUF_RS_BITS' RS blocks per buffer, so that
- * gives '1 << (data_dev_block_bits - DM_VERITY_FEC_BUF_RS_BITS)' buffers.
+ * When correcting a block, the FEC implementation performs optimally when it
+ * can collect all the associated RS codewords at the same time.  As each byte
+ * is part of a different codeword, there are '1 << data_dev_block_bits'
+ * codewords.  Each buffer has space for the message bytes for
+ * '1 << DM_VERITY_FEC_BUF_RS_BITS' codewords, so that gives
+ * '1 << (data_dev_block_bits - DM_VERITY_FEC_BUF_RS_BITS)' buffers.
  */
 static inline unsigned int fec_max_nbufs(struct dm_verity *v)
 {
@@ -37,25 +38,26 @@ static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
 #define fec_for_each_buffer(io, __i) \
 	for (__i = 0; __i < (io)->nbufs; __i++)
 
-/* Loop over each RS block in each allocated buffer. */
-#define fec_for_each_buffer_rs_block(io, __i, __j) \
+/* Loop over each RS message in each allocated buffer. */
+/* To stop early, use 'goto', not 'break' (since this uses nested loops). */
+#define fec_for_each_buffer_rs_message(io, __i, __j) \
 	fec_for_each_buffer(io, __i) \
 		for (__j = 0; __j < 1 << DM_VERITY_FEC_BUF_RS_BITS; __j++)
 
 /*
- * Return a pointer to the current RS block when called inside
- * fec_for_each_buffer_rs_block.
+ * Return a pointer to the current RS message when called inside
+ * fec_for_each_buffer_rs_message.
  */
-static inline u8 *fec_buffer_rs_block(struct dm_verity *v,
-				      struct dm_verity_fec_io *fio,
-				      unsigned int i, unsigned int j)
+static inline u8 *fec_buffer_rs_message(struct dm_verity *v,
+					struct dm_verity_fec_io *fio,
+					unsigned int i, unsigned int j)
 {
 	return &fio->bufs[i][j * v->fec->rs_k];
 }
 
 /*
- * Return an index to the current RS block when called inside
- * fec_for_each_buffer_rs_block.
+ * Return the index of the current RS message when called inside
+ * fec_for_each_buffer_rs_message.
  */
 static inline unsigned int fec_buffer_rs_index(unsigned int i, unsigned int j)
 {
@@ -63,8 +65,8 @@ static inline unsigned int fec_buffer_rs_index(unsigned int i, unsigned int j)
 }
 
 /*
- * Decode all RS blocks from buffers and copy corrected bytes into fio->output
- * starting from block_offset.
+ * Decode all RS codewords whose message bytes were loaded into fio->bufs.  Copy
+ * the corrected bytes into fio->output starting from block_offset.
  */
 static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 			   struct dm_verity_fec_io *fio, u64 rsb, int byte_index,
@@ -74,7 +76,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	struct dm_buffer *buf;
 	unsigned int n, i, j, parity_pos, to_copy;
 	uint16_t par_buf[DM_VERITY_FEC_MAX_ROOTS];
-	u8 *par, *block;
+	u8 *par, *msg_buf;
 	u64 parity_block;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 
@@ -97,11 +99,12 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	}
 
 	/*
-	 * Decode the RS blocks we have in bufs. Each RS block results in
-	 * one corrected target byte and consumes fec->roots parity bytes.
+	 * Decode the RS codewords whose message bytes are in bufs. Each RS
+	 * codeword results in one corrected target byte and consumes fec->roots
+	 * parity bytes.
 	 */
-	fec_for_each_buffer_rs_block(fio, n, i) {
-		block = fec_buffer_rs_block(v, fio, n, i);
+	fec_for_each_buffer_rs_message(fio, n, i) {
+		msg_buf = fec_buffer_rs_message(v, fio, n, i);
 
 		/*
 		 * Copy the next 'roots' parity bytes to 'par_buf', reading
@@ -128,8 +131,8 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 				par_buf[j] = par[parity_pos++];
 		}
 
-		/* Decode an RS block using Reed-Solomon */
-		res = decode_rs8(fio->rs, block, par_buf, v->fec->rs_k,
+		/* Decode an RS codeword using the Reed-Solomon library. */
+		res = decode_rs8(fio->rs, msg_buf, par_buf, v->fec->rs_k,
 				 NULL, neras, fio->erasures, 0, NULL);
 		if (res < 0) {
 			r = res;
@@ -137,7 +140,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		}
 
 		corrected += res;
-		fio->output[block_offset] = block[byte_index];
+		fio->output[block_offset] = msg_buf[byte_index];
 
 		block_offset++;
 		if (block_offset >= 1 << v->data_dev_block_bits)
@@ -185,7 +188,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	struct dm_bufio_client *bufio;
 	struct dm_verity_fec_io *fio = io->fec_io;
 	u64 block, ileaved;
-	u8 *bbuf, *rs_block;
+	u8 *bbuf;
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
 	unsigned int n, k;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
@@ -262,14 +265,13 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		 * deinterleave and copy the bytes that fit into bufs,
 		 * starting from block_offset
 		 */
-		fec_for_each_buffer_rs_block(fio, n, j) {
+		fec_for_each_buffer_rs_message(fio, n, j) {
 			k = fec_buffer_rs_index(n, j) + block_offset;
 
 			if (k >= 1 << v->data_dev_block_bits)
 				goto done;
 
-			rs_block = fec_buffer_rs_block(v, fio, n, j);
-			rs_block[i] = bbuf[k];
+			fec_buffer_rs_message(v, fio, n, j)[i] = bbuf[k];
 		}
 done:
 		dm_bufio_release(buf);

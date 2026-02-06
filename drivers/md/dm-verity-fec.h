@@ -17,7 +17,7 @@
 #define DM_VERITY_FEC_MAX_ROOTS	24	/* RS(255, 231): ~10% space overhead */
 
 /* buffers for deinterleaving and decoding */
-#define DM_VERITY_FEC_BUF_RS_BITS	4	/* 1 << RS blocks per buffer */
+#define DM_VERITY_FEC_BUF_RS_BITS	4 /* log2(RS messages per buffer) */
 
 #define DM_VERITY_OPT_FEC_DEV		"use_fec_from_device"
 #define DM_VERITY_OPT_FEC_BLOCKS	"fec_blocks"
@@ -52,10 +52,10 @@ struct dm_verity_fec_io {
 	unsigned int level;		/* recursion level */
 	unsigned int nbufs;		/* number of buffers allocated */
 	/*
-	 * Buffers for deinterleaving RS blocks.  Each buffer has space for
-	 * the data bytes of (1 << DM_VERITY_FEC_BUF_RS_BITS) RS blocks.  The
-	 * array length is fec_max_nbufs(v), and we try to allocate that many
-	 * buffers.  However, in low-memory situations we may be unable to
+	 * Buffers for deinterleaving RS codewords.  Each buffer has space for
+	 * the message bytes of (1 << DM_VERITY_FEC_BUF_RS_BITS) RS codewords.
+	 * The array length is fec_max_nbufs(v), and we try to allocate that
+	 * many buffers.  However, in low-memory situations we may be unable to
 	 * allocate all buffers.  'nbufs' holds the number actually allocated.
 	 */
 	u8 *bufs[];
