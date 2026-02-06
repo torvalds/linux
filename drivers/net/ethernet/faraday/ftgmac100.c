@@ -1877,11 +1877,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 		return irq;
 
 	/* setup net_device */
-	netdev = alloc_etherdev(sizeof(*priv));
-	if (!netdev) {
-		err = -ENOMEM;
-		goto err_alloc_etherdev;
-	}
+	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*priv));
+	if (!netdev)
+		return -ENOMEM;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
@@ -2080,8 +2078,6 @@ err_setup_mdio:
 err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
-	free_netdev(netdev);
-err_alloc_etherdev:
 	return err;
 }
 
@@ -2112,7 +2108,6 @@ static void ftgmac100_remove(struct platform_device *pdev)
 	release_resource(priv->res);
 
 	netif_napi_del(&priv->napi);
-	free_netdev(netdev);
 }
 
 static const struct ftgmac100_match_data ftgmac100_match_data_ast2400 = {
