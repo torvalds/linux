@@ -194,6 +194,7 @@ static void kvm_init_gcsr_flag(void)
 	set_gcsr_sw_flag(LOONGARCH_CSR_PERFCNTR3);
 
 	if (cpu_has_msgint) {
+		set_gcsr_hw_flag(LOONGARCH_CSR_IPR);
 		set_gcsr_hw_flag(LOONGARCH_CSR_ISR0);
 		set_gcsr_hw_flag(LOONGARCH_CSR_ISR1);
 		set_gcsr_hw_flag(LOONGARCH_CSR_ISR2);

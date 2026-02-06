@@ -1681,6 +1681,7 @@ static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_LLBCTL);
 
 	if (kvm_guest_has_msgint(&vcpu->arch)) {
+		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_IPR);
 		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR0);
 		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR1);
 		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR2);
@@ -1777,6 +1778,7 @@ static int _kvm_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN3);
 
 	if (kvm_guest_has_msgint(&vcpu->arch)) {
+		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_IPR);
 		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR0);
 		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR1);
 		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR2);
