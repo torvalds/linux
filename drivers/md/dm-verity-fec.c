@@ -84,11 +84,11 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	 * Compute the index of the first parity block that will be needed and
 	 * the starting position in that block.  Then read that block.
 	 *
-	 * io_size is always a power of 2, but roots might not be.  Note that
+	 * block_size is always a power of 2, but roots might not be.  Note that
 	 * when it's not, a codeword's parity bytes can span a block boundary.
 	 */
 	parity_block = (rsb + block_offset) * v->fec->roots;
-	parity_pos = parity_block & (v->fec->io_size - 1);
+	parity_pos = parity_block & (v->fec->block_size - 1);
 	parity_block >>= v->data_dev_block_bits;
 	par = dm_bufio_read_with_ioprio(v->fec->bufio, parity_block, &buf,
 					bio->bi_ioprio);
@@ -110,7 +110,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		 * Copy the next 'roots' parity bytes to 'par_buf', reading
 		 * another parity block if needed.
 		 */
-		to_copy = min(v->fec->io_size - parity_pos, v->fec->roots);
+		to_copy = min(v->fec->block_size - parity_pos, v->fec->roots);
 		for (j = 0; j < to_copy; j++)
 			par_buf[j] = par[parity_pos++];
 		if (to_copy < v->fec->roots) {
@@ -143,7 +143,7 @@ static int fec_decode_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		fio->output[block_offset] = msg_buf[byte_index];
 
 		block_offset++;
-		if (block_offset >= 1 << v->data_dev_block_bits)
+		if (block_offset >= v->fec->block_size)
 			goto done;
 	}
 done:
@@ -167,7 +167,7 @@ error:
 static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
 			  const u8 *want_digest, const u8 *data)
 {
-	if (unlikely(verity_hash(v, io, data, 1 << v->data_dev_block_bits,
+	if (unlikely(verity_hash(v, io, data, v->fec->block_size,
 				 io->tmp_digest)))
 		return 0;
 
@@ -268,7 +268,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 		fec_for_each_buffer_rs_message(fio, n, j) {
 			k = fec_buffer_rs_index(n, j) + block_offset;
 
-			if (k >= 1 << v->data_dev_block_bits)
+			if (k >= v->fec->block_size)
 				goto done;
 
 			fec_buffer_rs_message(v, fio, n, j)[i] = bbuf[k];
@@ -341,7 +341,7 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 	int r, neras = 0;
 	unsigned int pos;
 
-	for (pos = 0; pos < 1 << v->data_dev_block_bits; ) {
+	for (pos = 0; pos < v->fec->block_size;) {
 		fec_init_bufs(v, fio);
 
 		r = fec_read_bufs(v, io, rsb, offset, pos,
@@ -357,8 +357,7 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 	}
 
 	/* Always re-validate the corrected block against the expected hash */
-	r = verity_hash(v, io, fio->output, 1 << v->data_dev_block_bits,
-			io->tmp_digest);
+	r = verity_hash(v, io, fio->output, v->fec->block_size, io->tmp_digest);
 	if (unlikely(r < 0))
 		return r;
 
@@ -426,7 +425,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 			goto done;
 	}
 
-	memcpy(dest, fio->output, 1 << v->data_dev_block_bits);
+	memcpy(dest, fio->output, v->fec->block_size);
 	atomic64_inc(&v->fec->corrected);
 
 done:
@@ -647,6 +646,7 @@ int verity_fec_ctr(struct dm_verity *v)
 		ti->error = "Block sizes must match to use FEC";
 		return -EINVAL;
 	}
+	f->block_size = 1 << v->data_dev_block_bits;
 
 	if (!f->roots) {
 		ti->error = "Missing " DM_VERITY_OPT_FEC_ROOTS;
@@ -684,10 +684,7 @@ int verity_fec_ctr(struct dm_verity *v)
 		return -E2BIG;
 	}
 
-	f->io_size = 1 << v->data_dev_block_bits;
-
-	f->bufio = dm_bufio_client_create(f->dev->bdev,
-					  f->io_size,
+	f->bufio = dm_bufio_client_create(f->dev->bdev, f->block_size,
 					  1, 0, NULL, NULL, 0);
 	if (IS_ERR(f->bufio)) {
 		ti->error = "Cannot initialize FEC bufio client";
@@ -701,8 +698,7 @@ int verity_fec_ctr(struct dm_verity *v)
 		return -E2BIG;
 	}
 
-	f->data_bufio = dm_bufio_client_create(v->data_dev->bdev,
-					       1 << v->data_dev_block_bits,
+	f->data_bufio = dm_bufio_client_create(v->data_dev->bdev, f->block_size,
 					       1, 0, NULL, NULL, 0);
 	if (IS_ERR(f->data_bufio)) {
 		ti->error = "Cannot initialize FEC data bufio client";
@@ -749,7 +745,7 @@ int verity_fec_ctr(struct dm_verity *v)
 
 	/* Preallocate an output buffer for each thread */
 	ret = mempool_init_kmalloc_pool(&f->output_pool, num_online_cpus(),
-					1 << v->data_dev_block_bits);
+					f->block_size);
 	if (ret) {
 		ti->error = "Cannot allocate FEC output pool";
 		return ret;
