@@ -155,6 +155,7 @@ enum opal_method {
 	OPAL_AUTHENTICATE,
 	OPAL_RANDOM,
 	OPAL_ERASE,
+	OPAL_REACTIVATE,
 };
 
 enum opal_token {

@@ -74,6 +74,19 @@ struct opal_lr_act {
 	__u8 align[2]; /* Align to 8 byte boundary */
 };
 
+struct opal_lr_react {
+	struct opal_key key;
+	struct opal_key new_admin_key; /* Set new Admin1 PIN if key_len is > 0 */
+	__u8 num_lrs; /*
+		       * Configure selected ranges (from lr[]) in SUM.
+		       * If num_lrs > 0 the 'entire_table' must be 0
+		       */
+	__u8 lr[OPAL_MAX_LRS];
+	__u8 range_policy; /* Set RangeStartRangeLengthPolicy parameter */
+	__u8 entire_table; /* Set all locking objects in SUM */
+	__u8 align[4]; /* Align to 8 byte boundary */
+};
+
 struct opal_session_info {
 	__u32 sum;
 	__u32 who;
@@ -216,5 +229,6 @@ struct opal_revert_lsp {
 #define IOC_OPAL_DISCOVERY          _IOW('p', 239, struct opal_discovery)
 #define IOC_OPAL_REVERT_LSP         _IOW('p', 240, struct opal_revert_lsp)
 #define IOC_OPAL_SET_SID_PW         _IOW('p', 241, struct opal_new_pw)
+#define IOC_OPAL_REACTIVATE_LSP     _IOW('p', 242, struct opal_lr_react)
 
 #endif /* _UAPI_SED_OPAL_H */

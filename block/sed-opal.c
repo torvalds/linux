@@ -220,6 +220,8 @@ static const u8 opalmethod[][OPAL_METHOD_LENGTH] = {
 		{ 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x06, 0x01 },
 	[OPAL_ERASE] =
 		{ 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x08, 0x03 },
+	[OPAL_REACTIVATE] =
+		{ 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x08, 0x01 },
 };
 
 static int end_opal_session_error(struct opal_dev *dev);
@@ -2287,6 +2289,74 @@ static int activate_lsp(struct opal_dev *dev, void *data)
 	return finalize_and_send(dev, parse_and_check_status);
 }
 
+static int reactivate_lsp(struct opal_dev *dev, void *data)
+{
+	struct opal_lr_react *opal_react = data;
+	u8 user_lr[OPAL_UID_LENGTH];
+	int err, i;
+
+	err = cmd_start(dev, opaluid[OPAL_THISSP_UID],
+			opalmethod[OPAL_REACTIVATE]);
+
+	if (err) {
+		pr_debug("Error building Reactivate LockingSP command.\n");
+		return err;
+	}
+
+	/*
+	 * If neither 'entire_table' nor 'num_lrs' is set, the device
+	 * gets reactivated with SUM disabled. Only Admin1PIN will change
+	 * if set.
+	 */
+	if (opal_react->entire_table) {
+		/* Entire Locking table (all locking ranges) will be put in SUM. */
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u64(&err, dev, OPAL_SUM_SET_LIST);
+		add_token_bytestring(&err, dev, opaluid[OPAL_LOCKING_TABLE], OPAL_UID_LENGTH);
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+	} else if (opal_react->num_lrs) {
+		/* Subset of Locking table (selected locking range(s)) to be put in SUM */
+		err = build_locking_range(user_lr, sizeof(user_lr),
+					  opal_react->lr[0]);
+		if (err)
+			return err;
+
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u64(&err, dev, OPAL_SUM_SET_LIST);
+
+		add_token_u8(&err, dev, OPAL_STARTLIST);
+		add_token_bytestring(&err, dev, user_lr, OPAL_UID_LENGTH);
+		for (i = 1; i < opal_react->num_lrs; i++) {
+			user_lr[7] = opal_react->lr[i];
+			add_token_bytestring(&err, dev, user_lr, OPAL_UID_LENGTH);
+		}
+		add_token_u8(&err, dev, OPAL_ENDLIST);
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+	}
+
+	/* Skipping the rangle policy parameter is same as setting its value to zero */
+	if (opal_react->range_policy && (opal_react->num_lrs || opal_react->entire_table)) {
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u64(&err, dev, OPAL_SUM_RANGE_POLICY);
+		add_token_u8(&err, dev, 1);
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+	}
+
+	/*
+	 * Optional parameter. If set, it changes the Admin1 PIN even when SUM
+	 * is being disabled.
+	 */
+	if (opal_react->new_admin_key.key_len) {
+		add_token_u8(&err, dev, OPAL_STARTNAME);
+		add_token_u64(&err, dev, OPAL_SUM_ADMIN1_PIN);
+		add_token_bytestring(&err, dev, opal_react->new_admin_key.key,
+				     opal_react->new_admin_key.key_len);
+		add_token_u8(&err, dev, OPAL_ENDNAME);
+	}
+
+	return finalize_and_send(dev, parse_and_check_status);
+}
+
 /* Determine if we're in the Manufactured Inactive or Active state */
 static int get_lsp_lifecycle(struct opal_dev *dev, void *data)
 {
@@ -2957,6 +3027,32 @@ static int opal_activate_lsp(struct opal_dev *dev,
 	return ret;
 }
 
+static int opal_reactivate_lsp(struct opal_dev *dev,
+			       struct opal_lr_react *opal_lr_react)
+{
+	const struct opal_step active_steps[] = {
+		{ start_admin1LSP_opal_session, &opal_lr_react->key },
+		{ reactivate_lsp, opal_lr_react },
+		/* No end_opal_session. The controller terminates the session */
+	};
+	int ret;
+
+	/* use either 'entire_table' parameter or set of locking ranges */
+	if (opal_lr_react->num_lrs > OPAL_MAX_LRS ||
+	    (opal_lr_react->num_lrs && opal_lr_react->entire_table))
+		return -EINVAL;
+
+	ret = opal_get_key(dev, &opal_lr_react->key);
+	if (ret)
+		return ret;
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, active_steps, ARRAY_SIZE(active_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	return ret;
+}
+
 static int opal_setup_locking_range(struct opal_dev *dev,
 				    struct opal_user_lr_setup *opal_lrs)
 {
@@ -3314,6 +3410,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_SET_SID_PW:
 		ret = opal_set_new_sid_pw(dev, p);
+		break;
+	case IOC_OPAL_REACTIVATE_LSP:
+		ret = opal_reactivate_lsp(dev, p);
 		break;
 
 	default:
