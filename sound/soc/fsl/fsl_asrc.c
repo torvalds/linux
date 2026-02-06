@@ -1078,6 +1078,26 @@ static unsigned int fsl_asrc_get_output_fifo_size(struct fsl_asrc_pair *pair)
 	return val >> ASRFSTi_OUTPUT_FIFO_SHIFT;
 }
 
+static bool fsl_asrc_m2m_output_ready(struct fsl_asrc_pair *pair)
+{
+	struct fsl_asrc *asrc = pair->asrc;
+	enum asrc_pair_index index = pair->index;
+	u32 val;
+	int ret;
+
+	/* Check output fifo status if it exceeds the watermark. */
+	ret = regmap_read_poll_timeout(asrc->regmap, REG_ASRFST(index), val,
+				       (ASRFSTi_OUTPUT_FIFO_FILL(val) >= ASRC_M2M_OUTPUTFIFO_WML),
+				       1, 1000);
+
+	if (ret) {
+		pair_warn("output is not ready\n");
+		return false;
+	}
+
+	return true;
+}
+
 static int fsl_asrc_m2m_prepare(struct fsl_asrc_pair *pair)
 {
 	struct fsl_asrc_pair_priv *pair_priv = pair->private;
@@ -1275,6 +1295,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 
 	asrc_priv->soc = of_device_get_match_data(&pdev->dev);
 	asrc->use_edma = asrc_priv->soc->use_edma;
+	asrc->start_before_dma = asrc_priv->soc->start_before_dma;
 	asrc->get_dma_channel = fsl_asrc_get_dma_channel;
 	asrc->request_pair = fsl_asrc_request_pair;
 	asrc->release_pair = fsl_asrc_release_pair;
@@ -1289,6 +1310,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	asrc->m2m_get_maxburst = fsl_asrc_m2m_get_maxburst;
 	asrc->m2m_pair_resume = fsl_asrc_m2m_pair_resume;
 	asrc->m2m_get_cap = fsl_asrc_m2m_get_cap;
+	asrc->m2m_output_ready = fsl_asrc_m2m_output_ready;
 
 	if (of_device_is_compatible(np, "fsl,imx35-asrc")) {
 		asrc_priv->clk_map[IN] = input_clk_map_imx35;

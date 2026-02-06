@@ -257,6 +257,8 @@
 #define ASRFSTi_OUTPUT_FIFO_WIDTH	7
 #define ASRFSTi_OUTPUT_FIFO_SHIFT	12
 #define ASRFSTi_OUTPUT_FIFO_MASK	(((1 << ASRFSTi_OUTPUT_FIFO_WIDTH) - 1) << ASRFSTi_OUTPUT_FIFO_SHIFT)
+#define ASRFSTi_OUTPUT_FIFO_FILL(v)	\
+	(((v) & ASRFSTi_OUTPUT_FIFO_MASK) >> ASRFSTi_OUTPUT_FIFO_SHIFT)
 #define ASRFSTi_IAEi_SHIFT		11
 #define ASRFSTi_IAEi_MASK		(1 << ASRFSTi_IAEi_SHIFT)
 #define ASRFSTi_IAEi			(1 << ASRFSTi_IAEi_SHIFT)
@@ -432,10 +434,12 @@ struct dma_block {
  *
  * @use_edma: using edma as dma device or not
  * @channel_bits: width of ASRCNCR register for each pair
+ * @start_before_dma: start asrc before dma
  */
 struct fsl_asrc_soc_data {
 	bool use_edma;
 	unsigned int channel_bits;
+	bool start_before_dma;
 };
 
 /**

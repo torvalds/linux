@@ -107,6 +107,7 @@ struct fsl_asrc_pair {
  * @asrc_rate: default sample rate for ASoC Back-Ends
  * @asrc_format: default sample format for ASoC Back-Ends
  * @use_edma: edma is used
+ * @start_before_dma: start asrc before dma
  * @get_dma_channel: function pointer
  * @request_pair: function pointer
  * @release_pair: function pointer
@@ -116,6 +117,7 @@ struct fsl_asrc_pair {
  * @m2m_start: function pointer
  * @m2m_unprepare: function pointer
  * @m2m_stop: function pointer
+ * @m2m_output_ready: function pointer, check output fifo ready or not
  * @m2m_calc_out_len: function pointer
  * @m2m_get_maxburst: function pointer
  * @m2m_pair_suspend: function pointer
@@ -143,6 +145,7 @@ struct fsl_asrc {
 	int asrc_rate;
 	snd_pcm_format_t asrc_format;
 	bool use_edma;
+	bool start_before_dma;
 
 	struct dma_chan *(*get_dma_channel)(struct fsl_asrc_pair *pair, bool dir);
 	int (*request_pair)(int channels, struct fsl_asrc_pair *pair);
@@ -154,6 +157,7 @@ struct fsl_asrc {
 	int (*m2m_start)(struct fsl_asrc_pair *pair);
 	int (*m2m_unprepare)(struct fsl_asrc_pair *pair);
 	int (*m2m_stop)(struct fsl_asrc_pair *pair);
+	bool (*m2m_output_ready)(struct fsl_asrc_pair *pair);
 
 	int (*m2m_calc_out_len)(struct fsl_asrc_pair *pair, int input_buffer_length);
 	int (*m2m_get_maxburst)(u8 dir, struct fsl_asrc_pair *pair);
