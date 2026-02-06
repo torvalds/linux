@@ -2447,6 +2447,29 @@ int annotate_check_args(void)
 	return 0;
 }
 
+static int arch__dwarf_regnum(const struct arch *arch, const char *str)
+{
+	const char *p;
+	char *regname, *q;
+	int reg;
+
+	p = strchr(str, arch->objdump.register_char);
+	if (p == NULL)
+		return -1;
+
+	regname = strdup(p);
+	if (regname == NULL)
+		return -1;
+
+	q = strpbrk(regname, ",) ");
+	if (q)
+		*q = '\0';
+
+	reg = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
+	free(regname);
+	return reg;
+}
+
 /*
  * Get register number and access offset from the given instruction.
  * It assumes AT&T x86 asm format like OFFSET(REG).  Maybe it needs
@@ -2457,7 +2480,6 @@ static int extract_reg_offset(const struct arch *arch, const char *str,
 			      struct annotated_op_loc *op_loc)
 {
 	char *p;
-	char *regname;
 
 	if (arch->objdump.register_char == 0)
 		return -1;
@@ -2482,31 +2504,14 @@ static int extract_reg_offset(const struct arch *arch, const char *str,
 	}
 
 	op_loc->offset = strtol(str, &p, 0);
-
-	p = strchr(p, arch->objdump.register_char);
-	if (p == NULL)
+	op_loc->reg1 = arch__dwarf_regnum(arch, p);
+	if (op_loc->reg1 == -1)
 		return -1;
-
-	regname = strdup(p);
-	if (regname == NULL)
-		return -1;
-
-	op_loc->reg1 = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
-	free(regname);
 
 	/* Get the second register */
-	if (op_loc->multi_regs) {
-		p = strchr(p + 1, arch->objdump.register_char);
-		if (p == NULL)
-			return -1;
+	if (op_loc->multi_regs)
+		op_loc->reg2 = arch__dwarf_regnum(arch, p + 1);
 
-		regname = strdup(p);
-		if (regname == NULL)
-			return -1;
-
-		op_loc->reg2 = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
-		free(regname);
-	}
 	return 0;
 }
 
@@ -2585,7 +2590,8 @@ int annotate_get_insn_location(const struct arch *arch, struct disasm_line *dl,
 			op_loc->multi_regs = multi_regs;
 			extract_reg_offset(arch, insn_str, op_loc);
 		} else {
-			char *s, *p = NULL;
+			const char *s = insn_str;
+			char *p = NULL;
 
 			if (arch__is_x86(arch)) {
 				/* FIXME: Handle other segment registers */
@@ -2599,21 +2605,14 @@ int annotate_get_insn_location(const struct arch *arch, struct disasm_line *dl,
 				}
 			}
 
-			s = strdup(insn_str);
-			if (s == NULL)
-				return -1;
-
 			if (*s == arch->objdump.register_char) {
-				op_loc->reg1 = get_dwarf_regnum(s,
-								arch->id.e_machine,
-								arch->id.e_flags);
+				op_loc->reg1 = arch__dwarf_regnum(arch, s);
 			}
 			else if (*s == arch->objdump.imm_char) {
 				op_loc->offset = strtol(s + 1, &p, 0);
 				if (p && p != s + 1)
 					op_loc->imm = true;
 			}
-			free(s);
 		}
 	}
 
