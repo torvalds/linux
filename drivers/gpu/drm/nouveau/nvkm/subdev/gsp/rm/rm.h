@@ -78,7 +78,7 @@ struct nvkm_rm_api {
 	} *device;
 
 	const struct nvkm_rm_api_fbsr {
-		int (*suspend)(struct nvkm_gsp *);
+		int (*suspend)(struct nvkm_gsp *, bool runtime);
 		void (*resume)(struct nvkm_gsp *);
 	} *fbsr;
 

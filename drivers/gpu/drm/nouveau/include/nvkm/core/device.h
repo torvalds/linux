@@ -2,6 +2,7 @@
 #ifndef __NVKM_DEVICE_H__
 #define __NVKM_DEVICE_H__
 #include <core/oclass.h>
+#include <core/suspend_state.h>
 #include <core/intr.h>
 enum nvkm_subdev_type;
 
@@ -93,7 +94,7 @@ struct nvkm_device_func {
 	void *(*dtor)(struct nvkm_device *);
 	int (*preinit)(struct nvkm_device *);
 	int (*init)(struct nvkm_device *);
-	void (*fini)(struct nvkm_device *, bool suspend);
+	void (*fini)(struct nvkm_device *, enum nvkm_suspend_state suspend);
 	int (*irq)(struct nvkm_device *);
 	resource_size_t (*resource_addr)(struct nvkm_device *, enum nvkm_bar_id);
 	resource_size_t (*resource_size)(struct nvkm_device *, enum nvkm_bar_id);

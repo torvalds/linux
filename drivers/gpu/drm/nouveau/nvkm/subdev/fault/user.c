@@ -56,7 +56,7 @@ nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_ufault_fini(struct nvkm_object *object, bool suspend)
+nvkm_ufault_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
 	buffer->fault->func->buffer.fini(buffer);

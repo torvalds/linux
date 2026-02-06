@@ -90,7 +90,7 @@ nvkm_bar_bar2_init(struct nvkm_device *device)
 }
 
 static int
-nvkm_bar_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_bar_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_bar *bar = nvkm_bar(subdev);
 
