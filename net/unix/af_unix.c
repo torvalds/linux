@@ -1650,10 +1650,9 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr_unsized *uad
 
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
-	/* First of all allocate resources.
-	 * If we will make it after state is locked,
-	 * we will have to recheck all again in any case.
-	 */
+	err = prepare_peercred(&peercred);
+	if (err)
+		goto out;
 
 	/* create new sock for complete connection */
 	newsk = unix_create1(net, NULL, 0, sock->type);
@@ -1661,10 +1660,6 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr_unsized *uad
 		err = PTR_ERR(newsk);
 		goto out;
 	}
-
-	err = prepare_peercred(&peercred);
-	if (err)
-		goto out;
 
 	/* Allocate skb for sending to listening sock */
 	skb = sock_wmalloc(newsk, 1, 0, GFP_KERNEL);
