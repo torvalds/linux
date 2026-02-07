@@ -374,6 +374,7 @@ properties:
               - qcom,qcs6490-rb3gen2
               - radxa,dragon-q6a
               - shift,otter
+              - thundercomm,minipc-g1iot
               - thundercomm,rubikpi3
           - const: qcom,qcm6490
 
