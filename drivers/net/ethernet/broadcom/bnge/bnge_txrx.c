@@ -1463,9 +1463,6 @@ netdev_tx_t bnge_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 	}
 
-	if (unlikely(ipv6_hopopt_jumbo_remove(skb)))
-		goto tx_free;
-
 	last_frag = skb_shinfo(skb)->nr_frags;
 
 	txbd = &txr->tx_desc_ring[TX_RING(bn, prod)][TX_IDX(prod)];
