@@ -3853,7 +3853,7 @@ void site_survey(struct adapter *padapter)
 			/* rtw_hal_set_hwreg(padapter, HW_VAR_TXPAUSE, (u8 *)(&val8)); */
 
 			/* config MSR */
-			Set_MSR(padapter, (pmlmeinfo->state & 0x3));
+			set_msr(padapter, (pmlmeinfo->state & 0x3));
 
 			initialgain = 0xff; /* restore RX GAIN */
 			rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
@@ -4070,7 +4070,7 @@ void start_create_ibss(struct adapter *padapter)
 
 		/* set msr to WIFI_FW_ADHOC_STATE */
 		pmlmeinfo->state = WIFI_FW_ADHOC_STATE;
-		Set_MSR(padapter, (pmlmeinfo->state & 0x3));
+		set_msr(padapter, (pmlmeinfo->state & 0x3));
 
 		/* issue beacon */
 		if (send_beacon(padapter) == _FAIL) {
@@ -4109,7 +4109,7 @@ void start_clnt_join(struct adapter *padapter)
 	caps = rtw_get_capability((struct wlan_bssid_ex *)pnetwork);
 	update_capinfo(padapter, caps);
 	if (caps&WLAN_CAPABILITY_ESS) {
-		Set_MSR(padapter, WIFI_FW_STATION_STATE);
+		set_msr(padapter, WIFI_FW_STATION_STATE);
 
 		val8 = (pmlmeinfo->auth_algo == dot11AuthAlgrthm_8021X) ? 0xcc : 0xcf;
 
@@ -4136,7 +4136,7 @@ void start_clnt_join(struct adapter *padapter)
 
 		pmlmeinfo->state = WIFI_FW_AUTH_NULL | WIFI_FW_STATION_STATE;
 	} else if (caps&WLAN_CAPABILITY_IBSS) { /* adhoc client */
-		Set_MSR(padapter, WIFI_FW_ADHOC_STATE);
+		set_msr(padapter, WIFI_FW_ADHOC_STATE);
 
 		val8 = 0xcf;
 		rtw_hal_set_hwreg(padapter, HW_VAR_SEC_CFG, (u8 *)(&val8));
@@ -4742,7 +4742,7 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, null_addr);
 
 	/* set MSR to no link state -> infra. mode */
-	Set_MSR(padapter, _HW_STATE_STATION_);
+	set_msr(padapter, _HW_STATE_STATION_);
 
 	pmlmeinfo->state = WIFI_FW_NULL_STATE;
 
@@ -5185,7 +5185,7 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 	}
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_SET_OPMODE, (u8 *)(&type));
-	/* Set_MSR(padapter, type); */
+	/* set_msr(padapter, type); */
 
 	if (psetop->mode == Ndis802_11APMode) {
 		/*  Do this after port switch to */
@@ -5279,8 +5279,8 @@ u8 join_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		timer_delete_sync(&pmlmeext->link_timer);
 
 		/* set MSR to nolink -> infra. mode */
-		/* Set_MSR(padapter, _HW_STATE_NOLINK_); */
-		Set_MSR(padapter, _HW_STATE_STATION_);
+		/* set_msr(padapter, _HW_STATE_NOLINK_); */
+		set_msr(padapter, _HW_STATE_STATION_);
 
 
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_DISCONNECT, NULL);
@@ -5543,7 +5543,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 
 		/* set MSR to no link state */
-		Set_MSR(padapter, _HW_STATE_NOLINK_);
+		set_msr(padapter, _HW_STATE_NOLINK_);
 
 		val8 = 1; /* under site survey */
 		rtw_hal_set_hwreg(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));

@@ -687,7 +687,7 @@ void start_bss_network(struct adapter *padapter)
 	}
 
 	/* set MSR to AP_Mode */
-	Set_MSR(padapter, _HW_STATE_AP_);
+	set_msr(padapter, _HW_STATE_AP_);
 
 	/* Set BSSID REG */
 	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pnetwork->mac_address);

@@ -1944,7 +1944,7 @@ static void hw_var_set_opmode(struct adapter *padapter, u8 variable, u8 *val)
 		rtw_write8(padapter, REG_BCN_CTRL, val8);
 
 		/*  set net_type */
-		Set_MSR(padapter, mode);
+		set_msr(padapter, mode);
 
 		if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
 			{
