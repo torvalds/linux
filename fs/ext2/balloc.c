@@ -201,7 +201,7 @@ static void group_adjust_blocks(struct super_block *sb, int group_no,
  * windows(start, end). Otherwise, it will only print out the "bad" windows,
  * those windows that overlap with their immediate neighbors.
  */
-#if 1
+#ifdef EXT2FS_DEBUG
 static void __rsv_window_dump(struct rb_root *root, int verbose,
 			      const char *fn)
 {
@@ -248,7 +248,7 @@ restart:
 	__rsv_window_dump((root), (verbose), __func__)
 #else
 #define rsv_window_dump(root, verbose) do {} while (0)
-#endif
+#endif /* EXT2FS_DEBUG */
 
 /**
  * goal_in_my_reservation()
