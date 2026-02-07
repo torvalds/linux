@@ -489,7 +489,7 @@ static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
 	if (ctx->pdata->has_vddio) {
 		ctx->vddio = devm_regulator_get(dev, "vddio");
 		if (IS_ERR(ctx->vddio))
-			return dev_err_probe(dev, ret, "Failed to get VDDIO\n");
+			return dev_err_probe(dev, PTR_ERR(ctx->vddio), "Failed to get VDDIO\n");
 	}
 
 	ctx->bt_gpio = devm_gpiod_get_optional(dev, "bt-enable", GPIOD_OUT_LOW);
