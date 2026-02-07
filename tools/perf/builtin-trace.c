@@ -21,7 +21,6 @@
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
 #endif
-#include "util/bpf_map.h"
 #include "util/rlimit.h"
 #include "builtin.h"
 #include "util/cgroup.h"
