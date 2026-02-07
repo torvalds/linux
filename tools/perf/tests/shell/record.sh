@@ -261,7 +261,7 @@ test_uid() {
 test_leader_sampling() {
   echo "Basic leader sampling test"
   events="{cycles,cycles}:Su"
-  [ $(uname -m) = "s390x" ] && {
+  [ "$(uname -m)" = "s390x" ] && {
     [ ! -d /sys/devices/cpum_sf ] && {
       echo "No CPUMF [Skipped record]"
       return
