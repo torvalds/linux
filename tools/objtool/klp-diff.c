@@ -364,11 +364,40 @@ static int correlate_symbols(struct elfs *e)
 	struct symbol *file1_sym, *file2_sym;
 	struct symbol *sym1, *sym2;
 
-	/* Correlate locals */
-	for (file1_sym = first_file_symbol(e->orig),
-	     file2_sym = first_file_symbol(e->patched); ;
-	     file1_sym = next_file_symbol(e->orig, file1_sym),
-	     file2_sym = next_file_symbol(e->patched, file2_sym)) {
+	file1_sym = first_file_symbol(e->orig);
+	file2_sym = first_file_symbol(e->patched);
+
+	/*
+	 * Correlate any locals before the first FILE symbol.  This has been
+	 * seen when LTO inexplicably strips the initramfs_data.o FILE symbol
+	 * due to the file only containing data and no code.
+	 */
+	for_each_sym(e->orig, sym1) {
+		if (sym1 == file1_sym || !is_local_sym(sym1))
+			break;
+
+		if (dont_correlate(sym1))
+			continue;
+
+		for_each_sym(e->patched, sym2) {
+			if (sym2 == file2_sym || !is_local_sym(sym2))
+				break;
+
+			if (sym2->twin || dont_correlate(sym2))
+				continue;
+
+			if (strcmp(sym1->demangled_name, sym2->demangled_name))
+				continue;
+
+			sym1->twin = sym2;
+			sym2->twin = sym1;
+			break;
+		}
+	}
+
+	/* Correlate locals after the first FILE symbol */
+	for (; ; file1_sym = next_file_symbol(e->orig, file1_sym),
+		 file2_sym = next_file_symbol(e->patched, file2_sym)) {
 
 		if (!file1_sym && file2_sym) {
 			ERROR("FILE symbol mismatch: NULL != %s", file2_sym->name);
@@ -1436,7 +1465,7 @@ static int clone_special_sections(struct elfs *e)
 }
 
 /*
- * Create __klp_objects and __klp_funcs sections which are intermediate
+ * Create .init.klp_objects and .init.klp_funcs sections which are intermediate
  * sections provided as input to the patch module's init code for building the
  * klp_patch, klp_object and klp_func structs for the livepatch API.
  */

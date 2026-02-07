@@ -249,6 +249,10 @@ validate_config() {
 	[[ -v CONFIG_GCC_PLUGIN_RANDSTRUCT ]] &&	\
 		die "kernel option 'CONFIG_GCC_PLUGIN_RANDSTRUCT' not supported"
 
+	[[ -v CONFIG_AS_IS_LLVM ]] &&				\
+		[[ "$CONFIG_AS_VERSION" -lt 200000 ]] &&	\
+		die "Clang assembler version < 20 not supported"
+
 	return 0
 }
 
