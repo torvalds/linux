@@ -11,6 +11,7 @@
 #include <linux/crypto.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/engine.h>
@@ -29,7 +30,7 @@ struct data_queue {
 	char name[32];
 
 	struct crypto_engine *engine;
-	struct tasklet_struct done_task;
+	struct work_struct done_work;
 };
 
 struct virtio_crypto {
