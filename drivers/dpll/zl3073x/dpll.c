@@ -916,46 +916,9 @@ zl3073x_dpll_output_pin_frequency_get(const struct dpll_pin *dpll_pin,
 				      struct netlink_ext_ack *extack)
 {
 	struct zl3073x_dpll *zldpll = dpll_priv;
-	struct zl3073x_dev *zldev = zldpll->dev;
 	struct zl3073x_dpll_pin *pin = pin_priv;
-	const struct zl3073x_synth *synth;
-	const struct zl3073x_out *out;
-	u32 synth_freq;
-	u8 out_id;
 
-	out_id = zl3073x_output_pin_out_get(pin->id);
-	out = zl3073x_out_state_get(zldev, out_id);
-
-	/* Get attached synth frequency */
-	synth = zl3073x_synth_state_get(zldev, zl3073x_out_synth_get(out));
-	synth_freq = zl3073x_synth_freq_get(synth);
-
-	switch (zl3073x_out_signal_format_get(out)) {
-	case ZL_OUTPUT_MODE_SIGNAL_FORMAT_2_NDIV:
-	case ZL_OUTPUT_MODE_SIGNAL_FORMAT_2_NDIV_INV:
-		/* In case of divided format we have to distiguish between
-		 * given output pin type.
-		 *
-		 * For P-pin the resulting frequency is computed as simple
-		 * division of synth frequency and output divisor.
-		 *
-		 * For N-pin we have to divide additionally by divisor stored
-		 * in esync_n_period output mailbox register that is used as
-		 * N-pin divisor for these modes.
-		 */
-		*frequency = synth_freq / out->div;
-
-		if (!zl3073x_dpll_is_p_pin(pin))
-			*frequency = (u32)*frequency / out->esync_n_period;
-
-		break;
-	default:
-		/* In other modes the resulting frequency is computed as
-		 * division of synth frequency and output divisor.
-		 */
-		*frequency = synth_freq / out->div;
-		break;
-	}
+	*frequency = zl3073x_dev_output_pin_freq_get(zldpll->dev, pin->id);
 
 	return 0;
 }
