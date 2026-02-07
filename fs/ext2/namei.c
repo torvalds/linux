@@ -14,8 +14,6 @@
  *
  * The only non-static object here is ext2_dir_inode_operations.
  *
- * TODO: get rid of kmap() use, add readahead.
- *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
  * Laboratoire MASI - Institut Blaise Pascal
