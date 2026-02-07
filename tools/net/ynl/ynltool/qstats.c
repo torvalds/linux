@@ -568,6 +568,65 @@ exit_free_qstats:
 	return ret;
 }
 
+static int do_hw_gro(int argc, char **argv __attribute__((unused)))
+{
+	struct netdev_qstats_get_list *qstats;
+
+	if (argc > 0) {
+		p_err("hw-gro command takes no arguments");
+		return -1;
+	}
+
+	qstats = qstats_dump(0);
+	if (!qstats)
+		return -1;
+
+	if (json_output)
+		jsonw_start_array(json_wtr);
+
+	ynl_dump_foreach(qstats, qs) {
+		char ifname[IF_NAMESIZE];
+		const char *name;
+		double savings;
+
+		if (!qs->_present.rx_packets ||
+		    !qs->_present.rx_hw_gro_packets ||
+		    !qs->_present.rx_hw_gro_wire_packets)
+			continue;
+
+		if (!qs->rx_packets)
+			continue;
+
+		/* How many skbs did we avoid allocating thanks to HW GRO */
+		savings = (double)(qs->rx_hw_gro_wire_packets -
+				   qs->rx_hw_gro_packets) /
+			qs->rx_packets * 100.0;
+
+		name = if_indextoname(qs->ifindex, ifname);
+
+		if (json_output) {
+			jsonw_start_object(json_wtr);
+			jsonw_uint_field(json_wtr, "ifindex", qs->ifindex);
+			if (name)
+				jsonw_string_field(json_wtr, "ifname", name);
+			jsonw_float_field(json_wtr, "savings", savings);
+			jsonw_end_object(json_wtr);
+		} else {
+			if (name)
+				printf("%s", name);
+			else
+				printf("ifindex:%u", qs->ifindex);
+			printf(": %.1f%% savings\n", savings);
+		}
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);
+
+	netdev_qstats_get_list_free(qstats);
+	return 0;
+}
+
 static int do_help(int argc __attribute__((unused)),
 		   char **argv __attribute__((unused)))
 {
@@ -577,9 +636,10 @@ static int do_help(int argc __attribute__((unused)),
 	}
 
 	fprintf(stderr,
-		"Usage: %s qstats { COMMAND | help }\n"
-		"       %s qstats [ show ] [ OPTIONS ]\n"
-		"       %s qstats balance\n"
+		"Usage: %1$s qstats { COMMAND | help }\n"
+		"       %1$s qstats [ show ] [ OPTIONS ]\n"
+		"       %1$s qstats balance\n"
+		"       %1$s qstats hw-gro\n"
 		"\n"
 		"       OPTIONS := { scope queue | group-by { device | queue } }\n"
 		"\n"
@@ -588,9 +648,14 @@ static int do_help(int argc __attribute__((unused)),
 		"       show scope queue      - Display per-queue statistics\n"
 		"       show group-by device  - Display device-aggregated statistics (default)\n"
 		"       show group-by queue   - Display per-queue statistics\n"
-		"       balance               - Analyze traffic distribution balance.\n"
+		"\n"
+		"  Analysis:\n"
+		"       balance               - Traffic distribution between queues.\n"
+		"       hw-gro                - HW GRO effectiveness analysis\n"
+		"                               - savings - delta between packets received\n"
+		"                                 on the wire and packets seen by the kernel.\n"
 		"",
-		bin_name, bin_name, bin_name);
+		bin_name);
 
 	return 0;
 }
@@ -598,6 +663,7 @@ static int do_help(int argc __attribute__((unused)),
 static const struct cmd qstats_cmds[] = {
 	{ "show",	do_show },
 	{ "balance",	do_balance },
+	{ "hw-gro",	do_hw_gro },
 	{ "help",	do_help },
 	{ 0 }
 };
