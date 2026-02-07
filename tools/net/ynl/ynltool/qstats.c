@@ -237,13 +237,47 @@ static void print_plain_qstats(struct netdev_qstats_get_list *qstats)
 	}
 }
 
-static int do_show(int argc, char **argv)
+static struct netdev_qstats_get_list *
+qstats_dump(enum netdev_qstats_scope scope)
 {
 	struct netdev_qstats_get_list *qstats;
 	struct netdev_qstats_get_req *req;
 	struct ynl_error yerr;
 	struct ynl_sock *ys;
-	int ret = 0;
+
+	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
+	if (!ys) {
+		p_err("YNL: %s", yerr.msg);
+		return NULL;
+	}
+
+	req = netdev_qstats_get_req_alloc();
+	if (!req) {
+		p_err("failed to allocate qstats request");
+		goto err_close;
+	}
+
+	if (scope)
+		netdev_qstats_get_req_set_scope(req, scope);
+
+	qstats = netdev_qstats_get_dump(ys, req);
+	netdev_qstats_get_req_free(req);
+	if (!qstats) {
+		p_err("failed to get queue stats: %s", ys->err.msg);
+		goto err_close;
+	}
+
+	ynl_sock_destroy(ys);
+	return qstats;
+
+err_close:
+	ynl_sock_destroy(ys);
+	return NULL;
+}
+
+static int do_show(int argc, char **argv)
+{
+	struct netdev_qstats_get_list *qstats;
 
 	/* Parse options */
 	while (argc > 0) {
@@ -268,29 +302,9 @@ static int do_show(int argc, char **argv)
 		}
 	}
 
-	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
-	if (!ys) {
-		p_err("YNL: %s", yerr.msg);
+	qstats = qstats_dump(scope);
+	if (!qstats)
 		return -1;
-	}
-
-	req = netdev_qstats_get_req_alloc();
-	if (!req) {
-		p_err("failed to allocate qstats request");
-		ret = -1;
-		goto exit_close;
-	}
-
-	if (scope)
-		netdev_qstats_get_req_set_scope(req, scope);
-
-	qstats = netdev_qstats_get_dump(ys, req);
-	netdev_qstats_get_req_free(req);
-	if (!qstats) {
-		p_err("failed to get queue stats: %s", ys->err.msg);
-		ret = -1;
-		goto exit_close;
-	}
 
 	/* Print the stats as returned by the kernel */
 	if (json_output)
@@ -299,9 +313,7 @@ static int do_show(int argc, char **argv)
 		print_plain_qstats(qstats);
 
 	netdev_qstats_get_list_free(qstats);
-exit_close:
-	ynl_sock_destroy(ys);
-	return ret;
+	return 0;
 }
 
 static void compute_stats(__u64 *values, unsigned int count,
@@ -406,10 +418,7 @@ static int cmp_ifindex_type(const void *a, const void *b)
 static int do_balance(int argc, char **argv __attribute__((unused)))
 {
 	struct netdev_qstats_get_list *qstats;
-	struct netdev_qstats_get_req *req;
 	struct netdev_qstats_get_rsp **sorted;
-	struct ynl_error yerr;
-	struct ynl_sock *ys;
 	unsigned int count = 0;
 	unsigned int i, j;
 	int ret = 0;
@@ -419,29 +428,9 @@ static int do_balance(int argc, char **argv __attribute__((unused)))
 		return -1;
 	}
 
-	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
-	if (!ys) {
-		p_err("YNL: %s", yerr.msg);
+	qstats = qstats_dump(NETDEV_QSTATS_SCOPE_QUEUE);
+	if (!qstats)
 		return -1;
-	}
-
-	req = netdev_qstats_get_req_alloc();
-	if (!req) {
-		p_err("failed to allocate qstats request");
-		ret = -1;
-		goto exit_close;
-	}
-
-	/* Always use queue scope for balance analysis */
-	netdev_qstats_get_req_set_scope(req, NETDEV_QSTATS_SCOPE_QUEUE);
-
-	qstats = netdev_qstats_get_dump(ys, req);
-	netdev_qstats_get_req_free(req);
-	if (!qstats) {
-		p_err("failed to get queue stats: %s", ys->err.msg);
-		ret = -1;
-		goto exit_close;
-	}
 
 	/* Count and sort queues */
 	ynl_dump_foreach(qstats, qs)
@@ -576,8 +565,6 @@ exit_free_sorted:
 	free(sorted);
 exit_free_qstats:
 	netdev_qstats_get_list_free(qstats);
-exit_close:
-	ynl_sock_destroy(ys);
 	return ret;
 }
 
