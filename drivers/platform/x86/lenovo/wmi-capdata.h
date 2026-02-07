@@ -9,8 +9,8 @@
 #include <linux/types.h>
 
 #define LWMI_SUPP_VALID		BIT(0)
-#define LWMI_SUPP_MAY_GET	(LWMI_SUPP_VALID | BIT(1))
-#define LWMI_SUPP_MAY_SET	(LWMI_SUPP_VALID | BIT(2))
+#define LWMI_SUPP_GET		BIT(1)
+#define LWMI_SUPP_SET		BIT(2)
 
 #define LWMI_ATTR_DEV_ID_MASK	GENMASK(31, 24)
 #define LWMI_ATTR_FEAT_ID_MASK	GENMASK(23, 16)

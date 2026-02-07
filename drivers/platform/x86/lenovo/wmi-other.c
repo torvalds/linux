@@ -216,7 +216,7 @@ static umode_t lwmi_om_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_t
 
 		switch (attr) {
 		case hwmon_fan_target:
-			if (!(priv->fan_info[channel].supported & LWMI_SUPP_MAY_SET))
+			if (!(priv->fan_info[channel].supported & LWMI_SUPP_SET))
 				return 0;
 
 			if (relax_fan_constraint ||
@@ -233,7 +233,7 @@ static umode_t lwmi_om_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_t
 			return 0;
 		case hwmon_fan_div:
 		case hwmon_fan_input:
-			visible = priv->fan_info[channel].supported & LWMI_SUPP_MAY_GET;
+			visible = priv->fan_info[channel].supported & LWMI_SUPP_GET;
 			break;
 		case hwmon_fan_min:
 			visible = priv->fan_info[channel].min_rpm >= 0;
