@@ -1054,15 +1054,15 @@ void symsrc__destroy(struct symsrc *ss)
 	close(ss->fd);
 }
 
-bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
+static bool elf__needs_adjust_symbols(const GElf_Ehdr *ehdr)
 {
 	/*
 	 * Usually vmlinux is an ELF file with type ET_EXEC for most
 	 * architectures; except Arm64 kernel is linked with option
 	 * '-share', so need to check type ET_DYN.
 	 */
-	return ehdr.e_type == ET_EXEC || ehdr.e_type == ET_REL ||
-	       ehdr.e_type == ET_DYN;
+	return ehdr->e_type == ET_EXEC || ehdr->e_type == ET_REL ||
+	       ehdr->e_type == ET_DYN;
 }
 
 static Elf *read_gnu_debugdata(struct dso *dso, Elf *elf, const char *name, int *fd_ret)
@@ -1235,7 +1235,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	if (dso__kernel(dso) == DSO_SPACE__USER)
 		ss->adjust_symbols = true;
 	else
-		ss->adjust_symbols = elf__needs_adjust_symbols(ehdr);
+		ss->adjust_symbols = elf__needs_adjust_symbols(&ehdr);
 
 	ss->name   = strdup(name);
 	if (!ss->name) {
