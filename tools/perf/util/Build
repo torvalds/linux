@@ -149,7 +149,6 @@ endif
 perf-util-y += cs-etm-base.o
 
 perf-util-y += parse-branch-options.o
-perf-util-y += dump-insn.o
 perf-util-y += parse-regs-options.o
 perf-util-y += parse-sublevel-options.o
 perf-util-y += term.o
