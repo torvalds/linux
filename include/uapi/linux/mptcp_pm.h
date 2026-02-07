@@ -11,7 +11,7 @@
 #define MPTCP_PM_VER	1
 
 /**
- * enum mptcp_event_type
+ * enum mptcp_event_type - Netlink MPTCP event types
  * @MPTCP_EVENT_UNSPEC: unused event
  * @MPTCP_EVENT_CREATED: A new MPTCP connection has been created. It is the
  *   good time to allocate memory and send ADD_ADDR if needed. Depending on the
