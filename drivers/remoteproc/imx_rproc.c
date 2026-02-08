@@ -617,7 +617,7 @@ static int imx_rproc_prepare(struct rproc *rproc)
 
 		err = of_reserved_mem_region_to_resource(np, i++, &res);
 		if (err)
-			return 0;
+			break;
 
 		/*
 		 * Ignore the first memory region which will be used vdev buffer.
