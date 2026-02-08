@@ -331,17 +331,18 @@ struct trace_array {
 	struct array_buffer	array_buffer;
 #ifdef CONFIG_TRACER_MAX_TRACE
 	/*
-	 * The max_buffer is used to snapshot the trace when a maximum
+	 * The snapshot_buffer is used to snapshot the trace when a maximum
 	 * latency is reached, or when the user initiates a snapshot.
 	 * Some tracers will use this to store a maximum trace while
 	 * it continues examining live traces.
 	 *
-	 * The buffers for the max_buffer are set up the same as the array_buffer
-	 * When a snapshot is taken, the buffer of the max_buffer is swapped
-	 * with the buffer of the array_buffer and the buffers are reset for
-	 * the array_buffer so the tracing can continue.
+	 * The buffers for the snapshot_buffer are set up the same as the
+	 * array_buffer. When a snapshot is taken, the buffer of the
+	 * snapshot_buffer is swapped with the buffer of the array_buffer
+	 * and the buffers are reset for the array_buffer so the tracing can
+	 * continue.
 	 */
-	struct array_buffer	max_buffer;
+	struct array_buffer	snapshot_buffer;
 	bool			allocated_snapshot;
 	spinlock_t		snapshot_trigger_lock;
 	unsigned int		snapshot;
