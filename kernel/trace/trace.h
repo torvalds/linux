@@ -2279,6 +2279,37 @@ static inline void sanitize_event_name(char *name)
 			*name = '_';
 }
 
+#ifdef CONFIG_STACKTRACE
+void __ftrace_trace_stack(struct trace_array *tr,
+			  struct trace_buffer *buffer,
+			  unsigned int trace_ctx,
+			  int skip, struct pt_regs *regs);
+
+static __always_inline void ftrace_trace_stack(struct trace_array *tr,
+					       struct trace_buffer *buffer,
+					       unsigned int trace_ctx,
+					       int skip, struct pt_regs *regs)
+{
+	if (!(tr->trace_flags & TRACE_ITER(STACKTRACE)))
+		return;
+
+	__ftrace_trace_stack(tr, buffer, trace_ctx, skip, regs);
+}
+#else
+static inline void __ftrace_trace_stack(struct trace_array *tr,
+					struct trace_buffer *buffer,
+					unsigned int trace_ctx,
+					int skip, struct pt_regs *regs)
+{
+}
+static inline void ftrace_trace_stack(struct trace_array *tr,
+				      struct trace_buffer *buffer,
+				      unsigned long trace_ctx,
+				      int skip, struct pt_regs *regs)
+{
+}
+#endif
+
 /*
  * This is a generic way to read and write a u64 value from a file in tracefs.
  *

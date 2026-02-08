@@ -1032,32 +1032,6 @@ static inline void trace_access_lock_init(void)
 
 #endif
 
-#ifdef CONFIG_STACKTRACE
-static void __ftrace_trace_stack(struct trace_array *tr,
-				 struct trace_buffer *buffer,
-				 unsigned int trace_ctx,
-				 int skip, struct pt_regs *regs);
-static inline void ftrace_trace_stack(struct trace_array *tr,
-				      struct trace_buffer *buffer,
-				      unsigned int trace_ctx,
-				      int skip, struct pt_regs *regs);
-
-#else
-static inline void __ftrace_trace_stack(struct trace_array *tr,
-					struct trace_buffer *buffer,
-					unsigned int trace_ctx,
-					int skip, struct pt_regs *regs)
-{
-}
-static inline void ftrace_trace_stack(struct trace_array *tr,
-				      struct trace_buffer *buffer,
-				      unsigned long trace_ctx,
-				      int skip, struct pt_regs *regs)
-{
-}
-
-#endif
-
 void tracer_tracing_on(struct trace_array *tr)
 {
 	if (tr->array_buffer.buffer)
@@ -2964,10 +2938,10 @@ struct ftrace_stacks {
 static DEFINE_PER_CPU(struct ftrace_stacks, ftrace_stacks);
 static DEFINE_PER_CPU(int, ftrace_stack_reserve);
 
-static void __ftrace_trace_stack(struct trace_array *tr,
-				 struct trace_buffer *buffer,
-				 unsigned int trace_ctx,
-				 int skip, struct pt_regs *regs)
+void __ftrace_trace_stack(struct trace_array *tr,
+			  struct trace_buffer *buffer,
+			  unsigned int trace_ctx,
+			  int skip, struct pt_regs *regs)
 {
 	struct ring_buffer_event *event;
 	unsigned int size, nr_entries;
@@ -3048,17 +3022,6 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 	barrier();
 	__this_cpu_dec(ftrace_stack_reserve);
 	trace_clear_recursion(bit);
-}
-
-static inline void ftrace_trace_stack(struct trace_array *tr,
-				      struct trace_buffer *buffer,
-				      unsigned int trace_ctx,
-				      int skip, struct pt_regs *regs)
-{
-	if (!(tr->trace_flags & TRACE_ITER(STACKTRACE)))
-		return;
-
-	__ftrace_trace_stack(tr, buffer, trace_ctx, skip, regs);
 }
 
 void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
