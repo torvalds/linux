@@ -100,7 +100,8 @@ FEATURE_TESTS_BASIC :=                  \
         disassembler-four-args		\
         disassembler-init-styled	\
         file-handle			\
-        libopenssl
+        libopenssl			\
+        rust
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
 # of all feature tests
@@ -149,7 +150,8 @@ FEATURE_DISPLAY ?=              \
          bpf			\
          libaio			\
          libzstd		\
-         libopenssl
+         libopenssl		\
+         rust
 
 #
 # Declare group members of a feature to display the logical OR of the detection

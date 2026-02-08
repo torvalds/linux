@@ -60,6 +60,7 @@ struct feature_status supported_features[] = {
 	FEATURE_STATUS("numa_num_possible_cpus", HAVE_LIBNUMA_SUPPORT),
 	FEATURE_STATUS("zlib", HAVE_ZLIB_SUPPORT),
 	FEATURE_STATUS("zstd", HAVE_ZSTD_SUPPORT),
+	FEATURE_STATUS("rust", HAVE_RUST_SUPPORT),
 
 	/* this should remain at end, to know the array end */
 	FEATURE_STATUS(NULL, _)
