@@ -67,7 +67,7 @@
  * insertions into the ring-buffer such as trace_printk could occurred
  * at the same time, giving false positive or negative results.
  */
-static bool __read_mostly tracing_selftest_running;
+bool __read_mostly tracing_selftest_running;
 
 /*
  * If boot-time tracing including tracers/events via kernel cmdline
@@ -83,7 +83,6 @@ void __init disable_tracing_selftest(const char *reason)
 	}
 }
 #else
-#define tracing_selftest_running	0
 #define tracing_selftest_disabled	0
 #endif
 

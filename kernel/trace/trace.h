@@ -863,6 +863,7 @@ extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
+extern bool __read_mostly tracing_selftest_running;
 /*
  * Tracer data references selftest functions that only occur
  * on boot up. These can be __init functions. Thus, when selftests
@@ -875,6 +876,7 @@ static inline void __init disable_tracing_selftest(const char *reason)
 }
 /* Tracers are seldom changed. Optimize when selftests are disabled. */
 #define __tracer_data		__read_mostly
+#define tracing_selftest_running	0
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
