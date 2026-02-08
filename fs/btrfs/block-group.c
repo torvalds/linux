@@ -728,7 +728,7 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	u64 total_found = 0;
-	u64 last = 0;
+	u64 last = block_group->start;
 	u32 nritems;
 	int ret;
 	bool wakeup = true;
@@ -737,7 +737,6 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	if (!path)
 		return -ENOMEM;
 
-	last = max_t(u64, block_group->start, BTRFS_SUPER_INFO_OFFSET);
 	extent_root = btrfs_extent_root(fs_info, last);
 	if (unlikely(!extent_root)) {
 		btrfs_err(fs_info,
