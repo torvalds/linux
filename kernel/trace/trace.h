@@ -2131,6 +2131,7 @@ extern const char *__stop___tracepoint_str[];
 
 void trace_printk_control(bool enabled);
 void trace_printk_start_comm(void);
+void trace_printk_start_stop_comm(int enabled);
 int trace_keep_overwrite(struct tracer *tracer, u64 mask, int set);
 int set_tracer_flag(struct trace_array *tr, u64 mask, int enabled);
 
