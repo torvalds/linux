@@ -2133,7 +2133,7 @@ struct thread_data {
 	unsigned long long counter[MAX_ADDED_THREAD_COUNTERS];
 	unsigned long long perf_counter[MAX_ADDED_THREAD_COUNTERS];
 	unsigned long long pmt_counter[PMT_MAX_ADDED_THREAD_COUNTERS];
-} *thread_even, *thread_odd;
+};
 
 struct core_data {
 	int first_cpu;
@@ -2147,7 +2147,7 @@ struct core_data {
 	unsigned long long counter[MAX_ADDED_CORE_COUNTERS];
 	unsigned long long perf_counter[MAX_ADDED_CORE_COUNTERS];
 	unsigned long long pmt_counter[PMT_MAX_ADDED_CORE_COUNTERS];
-} *core_even, *core_odd;
+};
 
 struct pkg_data {
 	int first_cpu;
@@ -2182,10 +2182,10 @@ struct pkg_data {
 	unsigned long long counter[MAX_ADDED_PACKAGE_COUNTERS];
 	unsigned long long perf_counter[MAX_ADDED_PACKAGE_COUNTERS];
 	unsigned long long pmt_counter[PMT_MAX_ADDED_PACKAGE_COUNTERS];
-} *package_even, *package_odd;
+};
 
-#define ODD_COUNTERS thread_odd, core_odd, package_odd
-#define EVEN_COUNTERS thread_even, core_even, package_even
+#define ODD_COUNTERS odd.threads, odd.cores, odd.packages
+#define EVEN_COUNTERS even.threads, even.cores, even.packages
 
 #define GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no)	      \
 	((thread_base) +						      \
@@ -2382,11 +2382,11 @@ static void free_sys_msr_counters(void)
 	sys.added_package_counters -= free_msr_counters_(&sys.pp);
 }
 
-struct system_summary {
+struct counters {
 	struct thread_data *threads;
 	struct core_data *cores;
 	struct pkg_data *packages;
-} average;
+} average, even, odd;
 
 struct platform_counters {
 	struct rapl_counter energy_psys;	/* MSR_PLATFORM_ENERGY_STATUS */
@@ -3142,7 +3142,7 @@ int dump_counters(PER_THREAD_PARAMS)
 {
 	int i;
 	struct msr_counter *mp;
-	struct platform_counters *pplat_cnt = p == package_odd ? &platform_counters_odd : &platform_counters_even;
+	struct platform_counters *pplat_cnt = p == odd.packages ? &platform_counters_odd : &platform_counters_even;
 
 	outp += sprintf(outp, "t %p, c %p, p %p\n", t, c, p);
 
@@ -4800,7 +4800,7 @@ void write_rapl_counter(struct rapl_counter *rc, struct rapl_counter_info_t *rci
 
 int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct pkg_data *p)
 {
-	struct platform_counters *pplat_cnt = p == package_odd ? &platform_counters_odd : &platform_counters_even;
+	struct platform_counters *pplat_cnt = p == odd.packages ? &platform_counters_odd : &platform_counters_even;
 	unsigned long long perf_data[NUM_RAPL_COUNTERS + 1];
 	struct rapl_counter_info_t *rci;
 
@@ -5973,21 +5973,21 @@ void free_all_buffers(void)
 		perf_lcore_set = NULL;
 	}
 
-	free(thread_even);
-	free(core_even);
-	free(package_even);
+	free(even.threads);
+	free(even.cores);
+	free(even.packages);
 
-	thread_even = NULL;
-	core_even = NULL;
-	package_even = NULL;
+	even.threads = NULL;
+	even.cores = NULL;
+	even.packages = NULL;
 
-	free(thread_odd);
-	free(core_odd);
-	free(package_odd);
+	free(odd.threads);
+	free(odd.cores);
+	free(odd.packages);
 
-	thread_odd = NULL;
-	core_odd = NULL;
-	package_odd = NULL;
+	odd.threads = NULL;
+	odd.cores = NULL;
+	odd.packages = NULL;
 
 	free(output_buffer);
 	output_buffer = NULL;
@@ -9687,50 +9687,50 @@ void topology_probe(bool startup)
 
 }
 
-void allocate_counters_1(struct thread_data **t, struct core_data **c, struct pkg_data **p)
+void allocate_counters_1(struct counters *counters)
 {
-	*t = calloc(1, sizeof(struct thread_data));
-	if (*t == NULL)
+	counters->threads = calloc(1, sizeof(struct thread_data));
+	if (counters->threads == NULL)
 		goto error;
 
-	*c = calloc(1, sizeof(struct core_data));
-	if (*c == NULL)
+	counters->cores = calloc(1, sizeof(struct core_data));
+	if (counters->cores == NULL)
 		goto error;
 
-	*p = calloc(1, sizeof(struct pkg_data));
-	if (*p == NULL)
+	counters->packages = calloc(1, sizeof(struct pkg_data));
+	if (counters->packages == NULL)
 		goto error;
 
 	return;
 error:
 	err(1, "calloc counters_1");
 }
-void allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data **p)
+void allocate_counters(struct counters *counters)
 {
 	int i;
 	int num_cores = topo.cores_per_node * topo.nodes_per_pkg * topo.num_packages;
 	int num_threads = topo.threads_per_core * num_cores;
 
-	*t = calloc(num_threads, sizeof(struct thread_data));
-	if (*t == NULL)
+	counters->threads = calloc(num_threads, sizeof(struct thread_data));
+	if (counters->threads == NULL)
 		goto error;
 
 	for (i = 0; i < num_threads; i++)
-		(*t)[i].cpu_id = -1;
+		(counters->threads)[i].cpu_id = -1;
 
-	*c = calloc(num_cores, sizeof(struct core_data));
-	if (*c == NULL)
+	counters->cores = calloc(num_cores, sizeof(struct core_data));
+	if (counters->cores == NULL)
 		goto error;
 
 	for (i = 0; i < num_cores; i++)
-		(*c)[i].first_cpu = -1;
+		(counters->cores)[i].first_cpu = -1;
 
-	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
-	if (*p == NULL)
+	counters->packages = calloc(topo.num_packages, sizeof(struct pkg_data));
+	if (counters->packages == NULL)
 		goto error;
 
 	for (i = 0; i < topo.num_packages; i++)
-		(*p)[i].first_cpu = -1;
+		(counters->packages)[i].first_cpu = -1;
 
 	return;
 error:
@@ -9831,9 +9831,9 @@ void setup_all_buffers(bool startup)
 	topology_probe(startup);
 	allocate_irq_buffers();
 	allocate_fd_percpu();
-	allocate_counters_1(&average.threads, &average.cores, &average.packages);
-	allocate_counters(&thread_even, &core_even, &package_even);
-	allocate_counters(&thread_odd, &core_odd, &package_odd);
+	allocate_counters_1(&average);
+	allocate_counters(&even);
+	allocate_counters(&odd);
 	allocate_output_buffer();
 	for_all_proc_cpus(initialize_counters);
 	topology_update();
