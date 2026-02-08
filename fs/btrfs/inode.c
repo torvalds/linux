@@ -2012,6 +2012,13 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	 */
 
 	csum_root = btrfs_csum_root(root->fs_info, io_start);
+	if (unlikely(!csum_root)) {
+		btrfs_err(root->fs_info,
+			  "missing csum root for extent at bytenr %llu", io_start);
+		ret = -EUCLEAN;
+		goto out;
+	}
+
 	ret = btrfs_lookup_csums_list(csum_root, io_start,
 				      io_start + args->file_extent.num_bytes - 1,
 				      NULL, nowait);
@@ -2749,10 +2756,17 @@ static int add_pending_csums(struct btrfs_trans_handle *trans,
 	int ret;
 
 	list_for_each_entry(sum, list, list) {
-		trans->adding_csums = true;
-		if (!csum_root)
+		if (!csum_root) {
 			csum_root = btrfs_csum_root(trans->fs_info,
 						    sum->logical);
+			if (unlikely(!csum_root)) {
+				btrfs_err(trans->fs_info,
+				  "missing csum root for extent at bytenr %llu",
+					  sum->logical);
+				return -EUCLEAN;
+			}
+		}
+		trans->adding_csums = true;
 		ret = btrfs_csum_file_blocks(trans, csum_root, sum);
 		trans->adding_csums = false;
 		if (ret)

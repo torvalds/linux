@@ -5654,6 +5654,14 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 	LIST_HEAD(list);
 	int ret;
 
+	if (unlikely(!csum_root)) {
+		btrfs_mark_ordered_extent_error(ordered);
+		btrfs_err(fs_info,
+			  "missing csum root for extent at bytenr %llu",
+			  disk_bytenr);
+		return -EUCLEAN;
+	}
+
 	ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 				      disk_bytenr + ordered->num_bytes - 1,
 				      &list, false);

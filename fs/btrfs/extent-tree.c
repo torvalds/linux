@@ -1974,8 +1974,15 @@ static int cleanup_ref_head(struct btrfs_trans_handle *trans,
 			struct btrfs_root *csum_root;
 
 			csum_root = btrfs_csum_root(fs_info, head->bytenr);
-			ret = btrfs_del_csums(trans, csum_root, head->bytenr,
-					      head->num_bytes);
+			if (unlikely(!csum_root)) {
+				btrfs_err(fs_info,
+					  "missing csum root for extent at bytenr %llu",
+					  head->bytenr);
+				ret = -EUCLEAN;
+			} else {
+				ret = btrfs_del_csums(trans, csum_root, head->bytenr,
+						      head->num_bytes);
+			}
 		}
 	}
 
@@ -3147,6 +3154,15 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 		struct btrfs_root *csum_root;
 
 		csum_root = btrfs_csum_root(trans->fs_info, bytenr);
+		if (unlikely(!csum_root)) {
+			ret = -EUCLEAN;
+			btrfs_abort_transaction(trans, ret);
+			btrfs_err(trans->fs_info,
+				  "missing csum root for extent at bytenr %llu",
+				  bytenr);
+			return ret;
+		}
+
 		ret = btrfs_del_csums(trans, csum_root, bytenr, num_bytes);
 		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);

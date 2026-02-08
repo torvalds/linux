@@ -1627,6 +1627,10 @@ static int backup_super_roots(struct btrfs_fs_info *info)
 			btrfs_err(info, "missing extent root for extent at bytenr 0");
 			return -EUCLEAN;
 		}
+		if (unlikely(!csum_root)) {
+			btrfs_err(info, "missing csum root for extent at bytenr 0");
+			return -EUCLEAN;
+		}
 
 		btrfs_set_backup_extent_root(root_backup,
 					     extent_root->node->start);
