@@ -114,7 +114,7 @@ DEFINE_PER_CPU(bool, trace_taskinfo_save);
  * of the tracer is successful. But that is the only place that sets
  * this back to zero.
  */
-static int tracing_disabled = 1;
+int tracing_disabled = 1;
 
 cpumask_var_t __read_mostly	tracing_buffer_mask;
 
@@ -3423,7 +3423,7 @@ int __trace_array_vprintk(struct trace_buffer *buffer,
 	unsigned int trace_ctx;
 	char *tbuffer;
 
-	if (tracing_disabled)
+	if (unlikely(tracing_disabled))
 		return 0;
 
 	/* Don't pollute graph traces with trace_vprintk internals */
@@ -4763,11 +4763,6 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 
 	filp->private_data = inode->i_private;
 	return 0;
-}
-
-bool tracing_is_disabled(void)
-{
-	return (tracing_disabled) ? true: false;
 }
 
 /*
@@ -7609,7 +7604,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	unsigned long ip;
 	char *buf;
 
-	if (tracing_disabled)
+	if (unlikely(tracing_disabled))
 		return -EINVAL;
 
 	if (!(tr->trace_flags & TRACE_ITER(MARKERS)))
@@ -7689,7 +7684,7 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	ssize_t written = -ENODEV;
 	char *buf;
 
-	if (tracing_disabled)
+	if (unlikely(tracing_disabled))
 		return -EINVAL;
 
 	if (!(tr->trace_flags & TRACE_ITER(MARKERS)))

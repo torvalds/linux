@@ -2268,7 +2268,7 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	struct event_subsystem *system = NULL;
 	int ret;
 
-	if (tracing_is_disabled())
+	if (unlikely(tracing_disabled))
 		return -ENODEV;
 
 	/* Make sure the system still exists */

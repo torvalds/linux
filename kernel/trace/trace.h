@@ -657,6 +657,8 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 	return iter->buffer_iter ? iter->buffer_iter[cpu] : NULL;
 }
 
+extern int tracing_disabled;
+
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void tracing_reset_online_cpus(struct array_buffer *buf);
@@ -668,7 +670,6 @@ int tracing_release_generic_tr(struct inode *inode, struct file *file);
 int tracing_open_file_tr(struct inode *inode, struct file *filp);
 int tracing_release_file_tr(struct inode *inode, struct file *filp);
 int tracing_single_release_file_tr(struct inode *inode, struct file *filp);
-bool tracing_is_disabled(void);
 bool tracer_tracing_is_on(struct trace_array *tr);
 void tracer_tracing_on(struct trace_array *tr);
 void tracer_tracing_off(struct trace_array *tr);

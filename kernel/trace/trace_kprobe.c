@@ -2083,7 +2083,7 @@ static __init int kprobe_trace_self_tests_init(void)
 	struct trace_kprobe *tk;
 	struct trace_event_file *file;
 
-	if (tracing_is_disabled())
+	if (unlikely(tracing_disabled))
 		return -ENODEV;
 
 	if (tracing_selftest_disabled)
