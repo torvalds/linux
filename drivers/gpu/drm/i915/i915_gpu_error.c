@@ -686,7 +686,7 @@ static void err_print_guc_ctb(struct drm_i915_error_state_buf *m,
 }
 
 /* This list includes registers that are useful in debugging GuC hangs. */
-const struct {
+static const struct {
 	u32 start;
 	u32 count;
 } guc_hw_reg_state[] = {

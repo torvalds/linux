@@ -94,12 +94,14 @@ def _configure_rps(cfg, rps_cpus):
     mask = 0
     for cpu in rps_cpus:
         mask |= (1 << cpu)
-    mask = hex(mask)[2:]
+
+    mask = hex(mask)
 
     # Set RPS bitmap for all rx queues
     for rps_file in glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*/rps_cpus"):
         with open(rps_file, "w", encoding="utf-8") as fp:
-            fp.write(mask)
+            # sysfs expects hex without '0x' prefix, toeplitz.c needs the prefix
+            fp.write(mask[2:])
 
     return mask
 

@@ -28,6 +28,10 @@ static bool sleep_no_lps0 __read_mostly;
 module_param(sleep_no_lps0, bool, 0644);
 MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
 
+static bool check_lps0_constraints __read_mostly;
+module_param(check_lps0_constraints, bool, 0644);
+MODULE_PARM_DESC(check_lps0_constraints, "Check LPS0 device constraints");
+
 static const struct acpi_device_id lps0_device_ids[] = {
 	{"PNP0D80", },
 	{"", },
@@ -515,7 +519,8 @@ static struct acpi_scan_handler lps0_handler = {
 
 static int acpi_s2idle_begin_lps0(void)
 {
-	if (pm_debug_messages_on && !lpi_constraints_table) {
+	if (lps0_device_handle && !sleep_no_lps0 && check_lps0_constraints &&
+	    !lpi_constraints_table) {
 		if (acpi_s2idle_vendor_amd())
 			lpi_device_get_constraints_amd();
 		else
@@ -539,7 +544,7 @@ static int acpi_s2idle_prepare_late_lps0(void)
 	if (!lps0_device_handle || sleep_no_lps0)
 		return 0;
 
-	if (pm_debug_messages_on)
+	if (check_lps0_constraints)
 		lpi_check_constraints();
 
 	/* Screen off */

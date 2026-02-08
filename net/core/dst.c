@@ -68,6 +68,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->lwtstate = NULL;
 	rcuref_init(&dst->__rcuref, 1);
 	INIT_LIST_HEAD(&dst->rt_uncached);
+	dst->rt_uncached_list = NULL;
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;

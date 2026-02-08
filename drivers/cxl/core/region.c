@@ -759,7 +759,7 @@ static ssize_t extended_linear_cache_size_show(struct device *dev,
 	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
 	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
 		return rc;
-	return sysfs_emit(buf, "%#llx\n", p->cache_size);
+	return sysfs_emit(buf, "%pap\n", &p->cache_size);
 }
 static DEVICE_ATTR_RO(extended_linear_cache_size);
 
@@ -3118,7 +3118,7 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled = NULL;
-	u64 dpa_offset, hpa_offset, hpa;
+	u64 base, dpa_offset, hpa_offset, hpa;
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
@@ -3136,8 +3136,14 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	ways_to_eiw(p->interleave_ways, &eiw);
 	granularity_to_eig(p->interleave_granularity, &eig);
 
-	dpa_offset = dpa - cxl_dpa_resource_start(cxled);
+	base = cxl_dpa_resource_start(cxled);
+	if (base == RESOURCE_SIZE_MAX)
+		return ULLONG_MAX;
+
+	dpa_offset = dpa - base;
 	hpa_offset = cxl_calculate_hpa_offset(dpa_offset, pos, eiw, eig);
+	if (hpa_offset == ULLONG_MAX)
+		return ULLONG_MAX;
 
 	/* Apply the hpa_offset to the region base address */
 	hpa = hpa_offset + p->res->start + p->cache_size;
@@ -3145,6 +3151,9 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	/* Root decoder translation overrides typical modulo decode */
 	if (cxlrd->ops.hpa_to_spa)
 		hpa = cxlrd->ops.hpa_to_spa(cxlrd, hpa);
+
+	if (hpa == ULLONG_MAX)
+		return ULLONG_MAX;
 
 	if (!cxl_resource_contains_addr(p->res, hpa)) {
 		dev_dbg(&cxlr->dev,
@@ -3170,7 +3179,8 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_endpoint_decoder *cxled;
-	u64 hpa, hpa_offset, dpa_offset;
+	u64 hpa_offset = offset;
+	u64 dpa, dpa_offset;
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
@@ -3187,10 +3197,13 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	 * CXL HPA is assumed to equal SPA.
 	 */
 	if (cxlrd->ops.spa_to_hpa) {
-		hpa = cxlrd->ops.spa_to_hpa(cxlrd, p->res->start + offset);
-		hpa_offset = hpa - p->res->start;
-	} else {
-		hpa_offset = offset;
+		hpa_offset = cxlrd->ops.spa_to_hpa(cxlrd, p->res->start + offset);
+		if (hpa_offset == ULLONG_MAX) {
+			dev_dbg(&cxlr->dev, "HPA not found for %pr offset %#llx\n",
+				p->res, offset);
+			return -ENXIO;
+		}
+		hpa_offset -= p->res->start;
 	}
 
 	pos = cxl_calculate_position(hpa_offset, eiw, eig);
@@ -3207,8 +3220,13 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 		cxled = p->targets[i];
 		if (cxled->pos != pos)
 			continue;
+
+		dpa = cxl_dpa_resource_start(cxled);
+		if (dpa != RESOURCE_SIZE_MAX)
+			dpa += dpa_offset;
+
 		result->cxlmd = cxled_to_memdev(cxled);
-		result->dpa = cxl_dpa_resource_start(cxled) + dpa_offset;
+		result->dpa = dpa;
 
 		return 0;
 	}

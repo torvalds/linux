@@ -75,9 +75,16 @@ EXPORT_SYMBOL_FOR_MODULES(cxl_do_xormap_calc, "cxl_translate");
 
 static u64 cxl_apply_xor_maps(struct cxl_root_decoder *cxlrd, u64 addr)
 {
-	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
+	int hbiw = cxlrd->cxlsd.nr_targets;
+	struct cxl_cxims_data *cximsd;
 
-	return cxl_do_xormap_calc(cximsd, addr, cxlrd->cxlsd.nr_targets);
+	/* No xormaps for host bridge interleave ways of 1 or 3 */
+	if (hbiw == 1 || hbiw == 3)
+		return addr;
+
+	cximsd = cxlrd->platform_data;
+
+	return cxl_do_xormap_calc(cximsd, addr, hbiw);
 }
 
 struct cxl_cxims_context {

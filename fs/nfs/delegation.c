@@ -149,7 +149,7 @@ static int nfs4_do_check_delegation(struct inode *inode, fmode_t type,
 int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
 	if (S_ISDIR(inode->i_mode) && !directory_delegations)
-		nfs_inode_evict_delegation(inode);
+		nfs4_inode_set_return_delegation_on_close(inode);
 	return nfs4_do_check_delegation(inode, type, flags, true);
 }
 
@@ -581,6 +581,10 @@ static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation 
 	if (delegation == NULL)
 		return 0;
 
+	/* Directory delegations don't require any state recovery */
+	if (!S_ISREG(inode->i_mode))
+		goto out_return;
+
 	if (!issync)
 		mode |= O_NONBLOCK;
 	/* Recall of any remaining application leases */
@@ -604,6 +608,7 @@ static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation 
 		goto out;
 	}
 
+out_return:
 	err = nfs_do_return_delegation(inode, delegation, issync);
 out:
 	/* Refcount matched in nfs_start_delegation_return_locked() */

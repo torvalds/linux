@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+#
+# Copyright (c) 2025 Valve Corporation.
+#
+---
+name: dev-energymodel
+
+doc: |
+  Energy model netlink interface to notify its changes.
+
+protocol: genetlink
+
+uapi-header: linux/dev_energymodel.h
+
+definitions:
+  -
+    type: flags
+    name: perf-state-flags
+    entries:
+      -
+        name: perf-state-inefficient
+        doc: >-
+          The performance state is inefficient. There is in this perf-domain,
+          another performance state with a higher frequency but a lower or
+          equal power cost.
+  -
+    type: flags
+    name: perf-domain-flags
+    entries:
+      -
+        name: perf-domain-microwatts
+        doc: >-
+          The power values are in micro-Watts or some other scale.
+      -
+        name: perf-domain-skip-inefficiencies
+        doc: >-
+          Skip inefficient states when estimating energy consumption.
+      -
+        name: perf-domain-artificial
+        doc: >-
+          The power values are artificial and might be created by platform
+          missing real power information.
+
+attribute-sets:
+  -
+    name: perf-domain
+    doc: >-
+      Information on a single performance domains.
+    attributes:
+      -
+        name: pad
+        type: pad
+      -
+        name: perf-domain-id
+        type: u32
+        doc: >-
+          A unique ID number for each performance domain.
+      -
+        name: flags
+        type: u64
+        doc: >-
+          Bitmask of performance domain flags.
+        enum: perf-domain-flags
+      -
+        name: cpus
+        type: u64
+        multi-attr: true
+        doc: >-
+          CPUs that belong to this performance domain.
+  -
+    name: perf-table
+    doc: >-
+      Performance states table.
+    attributes:
+      -
+        name: perf-domain-id
+        type: u32
+        doc: >-
+          A unique ID number for each performance domain.
+      -
+        name: perf-state
+        type: nest
+        nested-attributes: perf-state
+        multi-attr: true
+  -
+    name: perf-state
+    doc: >-
+      Performance state of a performance domain.
+    attributes:
+      -
+        name: pad
+        type: pad
+      -
+        name: performance
+        type: u64
+        doc: >-
+          CPU performance (capacity) at a given frequency.
+      -
+        name: frequency
+        type: u64
+        doc: >-
+          The frequency in KHz, for consistency with CPUFreq.
+      -
+        name: power
+        type: u64
+        doc: >-
+          The power consumed at this level (by 1 CPU or by a registered
+          device). It can be a total power: static and dynamic.
+      -
+        name: cost
+        type: u64
+        doc: >-
+          The cost coefficient associated with this level, used during energy
+          calculation. Equal to: power * max_frequency / frequency.
+      -
+        name: flags
+        type: u64
+        doc: >-
+          Bitmask of performance state flags.
+        enum: perf-state-flags
+
+operations:
+  list:
+    -
+      name: get-perf-domains
+      attribute-set: perf-domain
+      doc: Get the list of information for all performance domains.
+      do:
+        request:
+          attributes:
+            - perf-domain-id
+        reply:
+          attributes: &perf-domain-attrs
+            - pad
+            - perf-domain-id
+            - flags
+            - cpus
+      dump:
+        reply:
+          attributes: *perf-domain-attrs
+    -
+      name: get-perf-table
+      attribute-set: perf-table
+      doc: Get the energy model table of a performance domain.
+      do:
+        request:
+          attributes:
+            - perf-domain-id
+        reply:
+          attributes:
+            - perf-domain-id
+            - perf-state
+    -
+      name: perf-domain-created
+      doc: A performance domain is created.
+      notify: get-perf-table
+      mcgrp: event
+    -
+      name: perf-domain-updated
+      doc: A performance domain is updated.
+      notify: get-perf-table
+      mcgrp: event
+    -
+      name: perf-domain-deleted
+      doc: A performance domain is deleted.
+      attribute-set: perf-table
+      event:
+        attributes:
+          - perf-domain-id
+      mcgrp: event
+
+mcast-groups:
+  list:
+    -
+      name: event

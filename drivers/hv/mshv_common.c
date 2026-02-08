@@ -142,6 +142,7 @@ int hv_call_get_partition_property(u64 partition_id,
 }
 EXPORT_SYMBOL_GPL(hv_call_get_partition_property);
 
+#ifdef CONFIG_X86
 /*
  * Corresponding sleep states have to be initialized in order for a subsequent
  * HVCALL_ENTER_SLEEP_STATE call to succeed. Currently only S5 state as per
@@ -237,3 +238,4 @@ void hv_machine_power_off(void)
 	BUG();
 
 }
+#endif

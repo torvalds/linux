@@ -44,6 +44,7 @@ properties:
       - items:
           - enum:
               - fsl,imx94-sai
+              - fsl,imx952-sai
           - const: fsl,imx95-sai
 
   reg:

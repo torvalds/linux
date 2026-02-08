@@ -375,7 +375,7 @@ void amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * @start_page: first page to map in the GART aperture
  * @num_pages: number of pages to be mapped
  * @flags: page table entry flags
- * @dst: CPU address of the GART table
+ * @dst: valid CPU address of GART table, cannot be null
  *
  * Binds a BO that is allocated in VRAM to the GART page table
  * (all ASICs).
@@ -396,7 +396,7 @@ void amdgpu_gart_map_vram_range(struct amdgpu_device *adev, uint64_t pa,
 		return;
 
 	for (i = 0; i < num_pages; ++i) {
-		amdgpu_gmc_set_pte_pde(adev, adev->gart.ptr,
+		amdgpu_gmc_set_pte_pde(adev, dst,
 			start_page + i, pa + AMDGPU_GPU_PAGE_SIZE * i, flags);
 	}
 

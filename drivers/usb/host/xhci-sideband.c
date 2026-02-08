@@ -210,7 +210,6 @@ xhci_sideband_remove_endpoint(struct xhci_sideband *sb,
 		return -ENODEV;
 
 	__xhci_sideband_remove_endpoint(sb, ep);
-	xhci_initialize_ring_info(ep->ring);
 
 	return 0;
 }

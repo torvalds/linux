@@ -55,15 +55,6 @@ const struct drm_format_info *drm_sysfb_get_format_si(struct drm_device *dev,
 #endif
 
 /*
- * Input parsing
- */
-
-int drm_sysfb_get_validated_int(struct drm_device *dev, const char *name,
-				u64 value, u32 max);
-int drm_sysfb_get_validated_int0(struct drm_device *dev, const char *name,
-				 u64 value, u32 max);
-
-/*
  * Display modes
  */
 

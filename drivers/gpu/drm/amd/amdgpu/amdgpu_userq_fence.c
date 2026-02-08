@@ -141,6 +141,8 @@ static void amdgpu_userq_walk_and_drop_fence_drv(struct xarray *xa)
 void
 amdgpu_userq_fence_driver_free(struct amdgpu_usermode_queue *userq)
 {
+	dma_fence_put(userq->last_fence);
+
 	amdgpu_userq_walk_and_drop_fence_drv(&userq->fence_drv_xa);
 	xa_destroy(&userq->fence_drv_xa);
 	/* Drop the fence_drv reference held by user queue */
@@ -471,6 +473,9 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	struct drm_exec exec;
 	u64 wptr;
 
+	if (!amdgpu_userq_enabled(dev))
+		return -ENOTSUPP;
+
 	num_syncobj_handles = args->num_syncobj_handles;
 	syncobj_handles = memdup_user(u64_to_user_ptr(args->syncobj_handles),
 				      size_mul(sizeof(u32), num_syncobj_handles));
@@ -652,6 +657,9 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	u16 num_points, num_fences = 0;
 	int r, i, rentry, wentry, cnt;
 	struct drm_exec exec;
+
+	if (!amdgpu_userq_enabled(dev))
+		return -ENOTSUPP;
 
 	num_read_bo_handles = wait_info->num_bo_read_handles;
 	bo_handles_read = memdup_user(u64_to_user_ptr(wait_info->bo_read_handles),

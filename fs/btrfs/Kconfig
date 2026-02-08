@@ -115,6 +115,10 @@ config BTRFS_EXPERIMENTAL
 
 	  - extent tree v2 - complex rework of extent tracking
 
-	  - large folio support
+	  - large folio and block size (> page size) support
+
+	  - shutdown ioctl and auto-degradation support
+
+	  - asynchronous checksum generation for data writes
 
 	  If unsure, say N.
