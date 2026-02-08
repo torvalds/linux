@@ -817,6 +817,18 @@ static inline void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
 }
 #endif /* CONFIG_STACKTRACE */
 
+#ifdef CONFIG_TRACER_MAX_TRACE
+static inline bool tracer_uses_snapshot(struct tracer *tracer)
+{
+	return tracer->use_max_tr;
+}
+#else
+static inline bool tracer_uses_snapshot(struct tracer *tracer)
+{
+	return false;
+}
+#endif
+
 void trace_last_func_repeats(struct trace_array *tr,
 			     struct trace_func_repeats *last_info,
 			     unsigned int trace_ctx);
