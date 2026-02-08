@@ -6,12 +6,14 @@ set -e
 
 # The logic below follows the same line as the annotate test, but looks for a
 # data type profiling manifestation
-testtype="# data-type: struct Buf"
+
+# Values in testtypes and testprogs should match
+testtypes=("# data-type: struct Buf" "# data-type: struct _buf")
+testprogs=("perf test -w code_with_type" "perf test -w datasym")
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 perfout=$(mktemp /tmp/__perf_test.perf.out.XXXXX)
-testprog="perf test -w code_with_type"
 
 cleanup() {
   rm -rf "${perfdata}" "${perfout}"
@@ -29,12 +31,23 @@ trap trap_cleanup EXIT TERM INT
 
 test_basic_annotate() {
   mode=$1
-  echo "${mode} perf annotate test"
+  runtime=$2
+
+  echo "${mode} ${runtime} perf annotate test"
+
+  case "x${runtime}" in
+    "xRust")
+    index=0 ;;
+
+    "xC")
+    index=1 ;;
+  esac
+
   if [ "x${mode}" == "xBasic" ]
   then
-    perf mem record -o "${perfdata}" ${testprog} 2> /dev/null
+    perf mem record -o "${perfdata}" ${testprogs[$index]} 2> /dev/null
   else
-    perf mem record -o - ${testprog} 2> /dev/null > "${perfdata}"
+    perf mem record -o - ${testprogs[$index]} 2> /dev/null > "${perfdata}"
   fi
   if [ "x$?" != "x0" ]
   then
@@ -52,7 +65,7 @@ test_basic_annotate() {
   fi
 
   # check if it has the target data type
-  if ! grep -q "${testtype}" "${perfout}"
+  if ! grep -q "${testtypes[$index]}" "${perfout}"
   then
     echo "${mode} annotate [Failed: missing target data type]"
     cat "${perfout}"
@@ -62,8 +75,10 @@ test_basic_annotate() {
   echo "${mode} annotate test [Success]"
 }
 
-test_basic_annotate Basic
-test_basic_annotate Pipe
+test_basic_annotate Basic Rust
+test_basic_annotate Pipe Rust
+test_basic_annotate Basic C
+test_basic_annotate Pipe C
 
 cleanup
 exit $err
