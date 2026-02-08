@@ -996,6 +996,29 @@ static int invoke_bpf_prog(struct bpf_tramp_link *l, int args_off, int retval_of
 	return ret;
 }
 
+static int invoke_bpf(struct bpf_tramp_links *tl, int args_off, int retval_off,
+		      int run_ctx_off, int func_meta_off, bool save_ret, u64 func_meta,
+		      int cookie_off, struct rv_jit_context *ctx)
+{
+	int i, cur_cookie = (cookie_off - args_off) / 8;
+
+	for (i = 0; i < tl->nr_links; i++) {
+		int err;
+
+		if (bpf_prog_calls_session_cookie(tl->links[i])) {
+			u64 meta = func_meta | ((u64)cur_cookie << BPF_TRAMP_COOKIE_INDEX_SHIFT);
+
+			emit_store_stack_imm64(RV_REG_T1, -func_meta_off, meta, ctx);
+			cur_cookie--;
+		}
+		err = invoke_bpf_prog(tl->links[i], args_off, retval_off, run_ctx_off,
+				      save_ret, ctx);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 					 const struct btf_func_model *m,
 					 struct bpf_tramp_links *tlinks,
@@ -1005,13 +1028,15 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	int i, ret, offset;
 	int *branches_off = NULL;
 	int stack_size = 0, nr_arg_slots = 0;
-	int retval_off, args_off, nregs_off, ip_off, run_ctx_off, sreg_off, stk_arg_off;
+	int retval_off, args_off, func_meta_off, ip_off, run_ctx_off, sreg_off, stk_arg_off;
+	int cookie_off, cookie_cnt;
 	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
 	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
 	struct bpf_tramp_links *fmod_ret = &tlinks[BPF_TRAMP_MODIFY_RETURN];
 	bool is_struct_ops = flags & BPF_TRAMP_F_INDIRECT;
 	void *orig_call = func_addr;
 	bool save_ret;
+	u64 func_meta;
 	u32 insn;
 
 	/* Two types of generated trampoline stack layout:
@@ -1042,9 +1067,13 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	 *                  [ ...               ]
 	 * FP - args_off    [ arg1              ]
 	 *
-	 * FP - nregs_off   [ regs count        ]
+	 * FP - func_meta_off [ regs count, etc ]
 	 *
 	 * FP - ip_off      [ traced func	] BPF_TRAMP_F_IP_ARG
+	 *
+	 *                  [ stack cookie N    ]
+	 *                  [ ...               ]
+	 * FP - cookie_off  [ stack cookie 1    ]
 	 *
 	 * FP - run_ctx_off [ bpf_tramp_run_ctx ]
 	 *
@@ -1077,13 +1106,19 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	stack_size += nr_arg_slots * 8;
 	args_off = stack_size;
 
+	/* function metadata, such as regs count */
 	stack_size += 8;
-	nregs_off = stack_size;
+	func_meta_off = stack_size;
 
 	if (flags & BPF_TRAMP_F_IP_ARG) {
 		stack_size += 8;
 		ip_off = stack_size;
 	}
+
+	cookie_cnt = bpf_fsession_cookie_cnt(tlinks);
+	/* room for session cookies */
+	stack_size += cookie_cnt * 8;
+	cookie_off = stack_size;
 
 	stack_size += round_up(sizeof(struct bpf_tramp_run_ctx), 8);
 	run_ctx_off = stack_size;
@@ -1132,9 +1167,18 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	if (flags & BPF_TRAMP_F_IP_ARG)
 		emit_store_stack_imm64(RV_REG_T1, -ip_off, (u64)func_addr, ctx);
 
-	emit_store_stack_imm64(RV_REG_T1, -nregs_off, nr_arg_slots, ctx);
+	func_meta = nr_arg_slots;
+	emit_store_stack_imm64(RV_REG_T1, -func_meta_off, func_meta, ctx);
 
 	store_args(nr_arg_slots, args_off, ctx);
+
+	if (bpf_fsession_cnt(tlinks)) {
+		/* clear all session cookies' value */
+		for (i = 0; i < cookie_cnt; i++)
+			emit_sd(RV_REG_FP, -cookie_off + 8 * i, RV_REG_ZERO, ctx);
+		/* clear return value to make sure fentry always get 0 */
+		emit_sd(RV_REG_FP, -retval_off, RV_REG_ZERO, ctx);
+	}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
 		emit_imm(RV_REG_A0, ctx->insns ? (const s64)im : RV_MAX_COUNT_IMM, ctx);
@@ -1143,9 +1187,9 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 			return ret;
 	}
 
-	for (i = 0; i < fentry->nr_links; i++) {
-		ret = invoke_bpf_prog(fentry->links[i], args_off, retval_off, run_ctx_off,
-				      flags & BPF_TRAMP_F_RET_FENTRY_RET, ctx);
+	if (fentry->nr_links) {
+		ret = invoke_bpf(fentry, args_off, retval_off, run_ctx_off, func_meta_off,
+				 flags & BPF_TRAMP_F_RET_FENTRY_RET, func_meta, cookie_off, ctx);
 		if (ret)
 			return ret;
 	}
@@ -1192,9 +1236,14 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		*(u32 *)(ctx->insns + branches_off[i]) = insn;
 	}
 
-	for (i = 0; i < fexit->nr_links; i++) {
-		ret = invoke_bpf_prog(fexit->links[i], args_off, retval_off,
-				      run_ctx_off, false, ctx);
+	/* set "is_return" flag for fsession */
+	func_meta |= (1ULL << BPF_TRAMP_IS_RETURN_SHIFT);
+	if (bpf_fsession_cnt(tlinks))
+		emit_store_stack_imm64(RV_REG_T1, -func_meta_off, func_meta, ctx);
+
+	if (fexit->nr_links) {
+		ret = invoke_bpf(fexit, args_off, retval_off, run_ctx_off, func_meta_off,
+				 false, func_meta, cookie_off, ctx);
 		if (ret)
 			goto out;
 	}
@@ -2093,4 +2142,9 @@ bool bpf_jit_inlines_helper_call(s32 imm)
 	default:
 		return false;
 	}
+}
+
+bool bpf_jit_supports_fsession(void)
+{
+	return true;
 }
