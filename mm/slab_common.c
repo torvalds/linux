@@ -1604,11 +1604,8 @@ static bool kfree_rcu_sheaf(void *obj)
 		return false;
 
 	s = slab->slab_cache;
-	if (s->cpu_sheaves) {
-		if (likely(!IS_ENABLED(CONFIG_NUMA) ||
-			   slab_nid(slab) == numa_mem_id()))
-			return __kfree_rcu_sheaf(s, obj);
-	}
+	if (likely(!IS_ENABLED(CONFIG_NUMA) || slab_nid(slab) == numa_mem_id()))
+		return __kfree_rcu_sheaf(s, obj);
 
 	return false;
 }
@@ -2112,7 +2109,7 @@ EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
  */
 void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
 {
-	if (s->cpu_sheaves) {
+	if (cache_has_sheaves(s)) {
 		flush_rcu_sheaves_on_cache(s);
 		rcu_barrier();
 	}
