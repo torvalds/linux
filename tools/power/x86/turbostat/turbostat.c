@@ -2143,7 +2143,6 @@ struct core_data {
 	unsigned long long mc6_us;	/* duplicate as per-core for now, even though per module */
 	unsigned int core_temp_c;
 	struct rapl_counter core_energy;	/* MSR_CORE_ENERGY_STAT */
-	unsigned int core_id;
 	unsigned long long core_throt_cnt;
 	unsigned long long counter[MAX_ADDED_CORE_COUNTERS];
 	unsigned long long perf_counter[MAX_ADDED_CORE_COUNTERS];
@@ -3178,7 +3177,7 @@ int dump_counters(PER_THREAD_PARAMS)
 	}
 
 	if (c && is_cpu_first_thread_in_core(t, c)) {
-		outp += sprintf(outp, "core: %d\n", c->core_id);
+		outp += sprintf(outp, "core: %d\n", cpus[t->cpu_id].core_id);
 		outp += sprintf(outp, "c3: %016llX\n", c->c3);
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
 		outp += sprintf(outp, "c7: %016llX\n", c->c7);
@@ -3387,7 +3386,7 @@ int format_counters(PER_THREAD_PARAMS)
 		}
 		if (DO_BIC(BIC_Core)) {
 			if (c)
-				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), c->core_id);
+				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), cpus[t->cpu_id].core_id);
 			else
 				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		}
@@ -5284,7 +5283,7 @@ int get_counters(PER_THREAD_PARAMS)
 		return -10;
 
 	for (i = 0, pp = sys.pmt_cp; pp; i++, pp = pp->next)
-		c->pmt_counter[i] = pmt_read_counter(pp, c->core_id);
+		c->pmt_counter[i] = pmt_read_counter(pp, cpus[t->cpu_id].core_id);
 
 	/* collect package counters only for 1st core in package */
 	if (!is_cpu_first_core_in_package(t, p))
@@ -9705,10 +9704,8 @@ void allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_
 	if (*c == NULL)
 		goto error;
 
-	for (i = 0; i < num_cores; i++) {
-		(*c)[i].core_id = -1;
+	for (i = 0; i < num_cores; i++)
 		(*c)[i].first_cpu = -1;
-	}
 
 	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
 	if (*p == NULL)
@@ -9753,8 +9750,6 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 		if (pkg_base[pkg_id].first_cpu < 0)
 			pkg_base[pkg_id].first_cpu = t->cpu_id;
 	}
-
-	c->core_id = core_id;
 }
 
 int initialize_counters(int cpu_id)
