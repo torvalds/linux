@@ -625,6 +625,8 @@ static int acpi_button_probe(struct platform_device *pdev)
 		goto err_remove_fs;
 	}
 
+	device_init_wakeup(&pdev->dev, true);
+
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		status = acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
@@ -655,11 +657,11 @@ static int acpi_button_probe(struct platform_device *pdev)
 		lid_device = device;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
 	pr_info("%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
 err_input_unregister:
+	device_init_wakeup(&pdev->dev, false);
 	input_unregister_device(input);
 err_remove_fs:
 	acpi_button_remove_fs(button);
@@ -690,6 +692,8 @@ static void acpi_button_remove(struct platform_device *pdev)
 		break;
 	}
 	acpi_os_wait_events_complete();
+
+	device_init_wakeup(&pdev->dev, false);
 
 	acpi_button_remove_fs(button);
 	input_unregister_device(button->input);
