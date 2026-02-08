@@ -4,7 +4,7 @@
 #ifndef _BNGE_NETDEV_H_
 #define _BNGE_NETDEV_H_
 
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/refcount.h>
 #include "bnge_db.h"

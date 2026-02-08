@@ -3,7 +3,7 @@
 #ifndef __BNG_TLV_H__
 #define __BNG_TLV_H__
 
-#include "roce_hsi.h"
+#include "bng_roce_hsi.h"
 
 struct roce_tlv {
 	struct tlv tlv;

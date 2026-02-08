@@ -5134,6 +5134,7 @@ M:	Vikas Gupta <vikas.gupta@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/broadcom/bnge/
+F:	include/linux/bnge/hsi.h
 
 BROADCOM BRCM80211 IEEE802.11 WIRELESS DRIVERS
 M:	Arend van Spriel <arend.vanspriel@broadcom.com>

@@ -2,7 +2,7 @@
 // Copyright (c) 2025 Broadcom.
 #include <linux/pci.h>
 
-#include "roce_hsi.h"
+#include "bng_roce_hsi.h"
 #include "bng_res.h"
 #include "bng_fw.h"
 #include "bng_sp.h"

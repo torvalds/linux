@@ -4,7 +4,7 @@
 #ifndef _BNGE_TXRX_H_
 #define _BNGE_TXRX_H_
 
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 #include "bnge_netdev.h"
 
 static inline u32 bnge_tx_avail(struct bnge_net *bn,
