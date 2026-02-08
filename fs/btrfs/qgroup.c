@@ -3740,6 +3740,14 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 	mutex_lock(&fs_info->qgroup_rescan_lock);
 	extent_root = btrfs_extent_root(fs_info,
 				fs_info->qgroup_rescan_progress.objectid);
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for extent at bytenr %llu",
+			  fs_info->qgroup_rescan_progress.objectid);
+		mutex_unlock(&fs_info->qgroup_rescan_lock);
+		return -EUCLEAN;
+	}
+
 	ret = btrfs_search_slot_for_read(extent_root,
 					 &fs_info->qgroup_rescan_progress,
 					 path, 1, 0);

@@ -1591,7 +1591,7 @@ static int find_newest_super_backup(struct btrfs_fs_info *info)
  * this will bump the backup pointer by one when it is
  * done
  */
-static void backup_super_roots(struct btrfs_fs_info *info)
+static int backup_super_roots(struct btrfs_fs_info *info)
 {
 	const int next_backup = info->backup_root_index;
 	struct btrfs_root_backup *root_backup;
@@ -1622,6 +1622,11 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	if (!btrfs_fs_incompat(info, EXTENT_TREE_V2)) {
 		struct btrfs_root *extent_root = btrfs_extent_root(info, 0);
 		struct btrfs_root *csum_root = btrfs_csum_root(info, 0);
+
+		if (unlikely(!extent_root)) {
+			btrfs_err(info, "missing extent root for extent at bytenr 0");
+			return -EUCLEAN;
+		}
 
 		btrfs_set_backup_extent_root(root_backup,
 					     extent_root->node->start);
@@ -1670,6 +1675,8 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	memcpy(&info->super_copy->super_roots,
 	       &info->super_for_commit->super_roots,
 	       sizeof(*root_backup) * BTRFS_NUM_BACKUP_ROOTS);
+
+	return 0;
 }
 
 /*
@@ -4051,8 +4058,11 @@ int write_all_supers(struct btrfs_fs_info *fs_info, int max_mirrors)
 	 * not from fsync where the tree roots in fs_info have not
 	 * been consistent on disk.
 	 */
-	if (max_mirrors == 0)
-		backup_super_roots(fs_info);
+	if (max_mirrors == 0) {
+		ret = backup_super_roots(fs_info);
+		if (ret < 0)
+			return ret;
+	}
 
 	sb = fs_info->super_for_commit;
 	dev_item = &sb->dev_item;

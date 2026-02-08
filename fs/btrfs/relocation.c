@@ -4954,6 +4954,12 @@ static int do_remap_reloc_trans(struct btrfs_fs_info *fs_info,
 	struct btrfs_space_info *sinfo = src_bg->space_info;
 
 	extent_root = btrfs_extent_root(fs_info, src_bg->start);
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for block group at offset %llu",
+			  src_bg->start);
+		return -EUCLEAN;
+	}
 
 	trans = btrfs_start_transaction(extent_root, 0);
 	if (IS_ERR(trans))
@@ -5306,6 +5312,13 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	int ret;
 	bool bg_is_ro = false;
 
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for block group at offset %llu",
+			  group_start);
+		return -EUCLEAN;
+	}
+
 	/*
 	 * This only gets set if we had a half-deleted snapshot on mount.  We
 	 * cannot allow relocation to start while we're still trying to clean up
@@ -5536,11 +5549,16 @@ int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 		goto out;
 	}
 
+	rc->extent_root = btrfs_extent_root(fs_info, 0);
+	if (unlikely(!rc->extent_root)) {
+		btrfs_err(fs_info, "missing extent root for extent at bytenr 0");
+		ret = -EUCLEAN;
+		goto out;
+	}
+
 	ret = reloc_chunk_start(fs_info);
 	if (ret < 0)
 		goto out_end;
-
-	rc->extent_root = btrfs_extent_root(fs_info, 0);
 
 	set_reloc_control(rc);
 
