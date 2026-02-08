@@ -551,6 +551,26 @@ static int ocelot_port_stop(struct net_device *dev)
 	return 0;
 }
 
+static bool ocelot_xmit_timestamp(struct ocelot *ocelot, int port,
+				  struct sk_buff *skb, u32 *rew_op)
+{
+	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		struct sk_buff *clone = NULL;
+
+		if (ocelot_port_txtstamp_request(ocelot, port, skb, &clone)) {
+			kfree_skb(skb);
+			return false;
+		}
+
+		if (clone)
+			OCELOT_SKB_CB(skb)->clone = clone;
+
+		*rew_op = ocelot_ptp_rew_op(skb);
+	}
+
+	return true;
+}
+
 static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
@@ -563,20 +583,8 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	    !ocelot_can_inject(ocelot, 0))
 		return NETDEV_TX_BUSY;
 
-	/* Check if timestamping is needed */
-	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		struct sk_buff *clone = NULL;
-
-		if (ocelot_port_txtstamp_request(ocelot, port, skb, &clone)) {
-			kfree_skb(skb);
-			return NETDEV_TX_OK;
-		}
-
-		if (clone)
-			OCELOT_SKB_CB(skb)->clone = clone;
-
-		rew_op = ocelot_ptp_rew_op(skb);
-	}
+	if (!ocelot_xmit_timestamp(ocelot, port, skb, &rew_op))
+		return NETDEV_TX_OK;
 
 	if (static_branch_unlikely(&ocelot_fdma_enabled)) {
 		ocelot_fdma_inject_frame(ocelot, port, rew_op, skb, dev);
