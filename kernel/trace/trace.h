@@ -1568,6 +1568,47 @@ char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 			    const char __user *ptr, size_t size,
 			    trace_user_buf_copy copy_func, void *data);
 
+static __always_inline void
+trace_event_setup(struct ring_buffer_event *event,
+		  int type, unsigned int trace_ctx)
+{
+	struct trace_entry *ent = ring_buffer_event_data(event);
+
+	tracing_generic_entry_update(ent, type, trace_ctx);
+}
+
+static __always_inline struct ring_buffer_event *
+__trace_buffer_lock_reserve(struct trace_buffer *buffer,
+			  int type,
+			  unsigned long len,
+			  unsigned int trace_ctx)
+{
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(buffer, len);
+	if (event != NULL)
+		trace_event_setup(event, type, trace_ctx);
+
+	return event;
+}
+
+static __always_inline void
+__buffer_unlock_commit(struct trace_buffer *buffer, struct ring_buffer_event *event)
+{
+	__this_cpu_write(trace_taskinfo_save, true);
+
+	/* If this is the temp buffer, we need to commit fully */
+	if (this_cpu_read(trace_buffered_event) == event) {
+		/* Length is in event->array[0] */
+		ring_buffer_write(buffer, event->array[0], &event->array[1]);
+		/* Release the temp buffer */
+		this_cpu_dec(trace_buffered_event_cnt);
+		/* ring_buffer_unlock_commit() enables preemption */
+		preempt_enable_notrace();
+	} else
+		ring_buffer_unlock_commit(buffer);
+}
+
 static inline void
 __trace_event_discard_commit(struct trace_buffer *buffer,
 			     struct ring_buffer_event *event)
