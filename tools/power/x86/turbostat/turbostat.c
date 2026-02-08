@@ -2394,13 +2394,13 @@ struct platform_counters {
 } platform_counters_odd, platform_counters_even;
 
 struct cpu_topology {
+	int core_id;
 	int package_id;
 	int die_id;
 	int l3_id;
 	int logical_cpu_id;
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
-	int physical_core_id;
 	int thread_id;
 	int type;
 	cpu_set_t *put_ids;	/* Processing Unit/Thread IDs */
@@ -2658,7 +2658,7 @@ unsigned int cpu_to_domain(const struct perf_counter_info *pc, int cpu)
 		return cpu;
 
 	case SCOPE_CORE:
-		return cpus[cpu].physical_core_id;
+		return cpus[cpu].core_id;
 
 	case SCOPE_PACKAGE:
 		return cpus[cpu].package_id;
@@ -5180,7 +5180,7 @@ static inline int get_rapl_domain_id(int cpu)
 		return cpus[cpu].package_id;
 
 	/* Compute the system-wide unique core-id for @cpu */
-	rapl_core_id = cpus[cpu].physical_core_id;
+	rapl_core_id = cpus[cpu].core_id;
 	rapl_core_id += cpus[cpu].package_id * nr_cores_per_package;
 
 	return rapl_core_id;
@@ -6216,7 +6216,7 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 			if ((map >> shift) & 0x1) {
 				so = shift + offset;
 				sib_core = get_core_id(so);
-				if (sib_core == thiscpu->physical_core_id) {
+				if (sib_core == thiscpu->core_id) {
 					CPU_SET_S(so, size, thiscpu->put_ids);
 					if ((so != cpu) && (cpus[so].thread_id < 0))
 						cpus[so].thread_id = thread_id++;
@@ -8948,7 +8948,7 @@ void cstate_perf_init_(bool soft_c1)
 			if (cpu_is_not_allowed(cpu))
 				continue;
 
-			const int core_id = cpus[cpu].physical_core_id;
+			const int core_id = cpus[cpu].core_id;
 			const int pkg_id = cpus[cpu].package_id;
 
 			assert(core_id < cores_visited_elems);
@@ -9629,9 +9629,9 @@ void topology_probe(bool startup)
 			topo.max_node_num = cpus[i].physical_node_id;
 
 		/* get core information */
-		cpus[i].physical_core_id = get_core_id(i);
-		if (cpus[i].physical_core_id > max_core_id)
-			max_core_id = cpus[i].physical_core_id;
+		cpus[i].core_id = get_core_id(i);
+		if (cpus[i].core_id > max_core_id)
+			max_core_id = cpus[i].core_id;
 
 		/* get thread information */
 		siblings = get_thread_siblings(&cpus[i]);
@@ -9683,7 +9683,7 @@ void topology_probe(bool startup)
 		fprintf(outf,
 			"cpu %d pkg %d die %d l3 %d node %d lnode %d core %d thread %d\n",
 			i, cpus[i].package_id, cpus[i].die_id, cpus[i].l3_id,
-			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].physical_core_id, cpus[i].thread_id);
+			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].core_id, cpus[i].thread_id);
 	}
 
 }
@@ -9731,7 +9731,7 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 {
 	int pkg_id = cpus[cpu_id].package_id;
 	int node_id = cpus[cpu_id].logical_node_id;
-	int core_id = cpus[cpu_id].physical_core_id;
+	int core_id = cpus[cpu_id].core_id;
 	int thread_id = cpus[cpu_id].thread_id;
 	struct thread_data *t;
 	struct core_data *c;
