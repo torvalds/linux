@@ -2383,9 +2383,9 @@ static void free_sys_msr_counters(void)
 }
 
 struct system_summary {
-	struct thread_data threads;
-	struct core_data cores;
-	struct pkg_data packages;
+	struct thread_data *threads;
+	struct core_data *cores;
+	struct pkg_data *packages;
 } average;
 
 struct platform_counters {
@@ -3308,7 +3308,7 @@ int format_counters(PER_THREAD_PARAMS)
 	char *delim = "\t";
 	int printed = 0;
 
-	if (t == &average.threads) {
+	if (t == average.threads) {
 		pplat_cnt = count & 1 ? &platform_counters_odd : &platform_counters_even;
 		++count;
 	}
@@ -3322,7 +3322,7 @@ int format_counters(PER_THREAD_PARAMS)
 		return 0;
 
 	/*if not summary line and --cpu is used */
-	if ((t != &average.threads) && (cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
+	if ((t != average.threads) && (cpu_subset && !CPU_ISSET_S(t->cpu_id, cpu_subset_size, cpu_subset)))
 		return 0;
 
 	if (DO_BIC(BIC_USEC)) {
@@ -3342,7 +3342,7 @@ int format_counters(PER_THREAD_PARAMS)
 	tsc = t->tsc * tsc_tweak;
 
 	/* topo columns, print blanks on 1st (average) line */
-	if (t == &average.threads) {
+	if (t == average.threads) {
 		if (DO_BIC(BIC_Package))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Die))
@@ -3723,10 +3723,10 @@ int format_counters(PER_THREAD_PARAMS)
 		}
 	}
 
-	if (DO_BIC(BIC_SysWatt) && (t == &average.threads))
+	if (DO_BIC(BIC_SysWatt) && (t == average.threads))
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
 				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_WATTS, interval_float));
-	if (DO_BIC(BIC_Sys_J) && (t == &average.threads))
+	if (DO_BIC(BIC_Sys_J) && (t == average.threads))
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
 				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_JOULES, interval_float));
 
@@ -3766,7 +3766,7 @@ void format_all_counters(PER_THREAD_PARAMS)
 	if ((!count || (header_iterations && !(count % header_iterations))) || !summary_only)
 		print_header("\t");
 
-	format_counters(&average.threads, &average.cores, &average.packages);
+	format_counters(average.threads, average.cores, average.packages);
 
 	count++;
 
@@ -4170,78 +4170,78 @@ int sum_counters(PER_THREAD_PARAMS)
 
 	/* copy un-changing apic_id's */
 	if (DO_BIC(BIC_APIC))
-		average.threads.apic_id = t->apic_id;
+		average.threads->apic_id = t->apic_id;
 	if (DO_BIC(BIC_X2APIC))
-		average.threads.x2apic_id = t->x2apic_id;
+		average.threads->x2apic_id = t->x2apic_id;
 
 	/* remember first tv_begin */
-	if (average.threads.tv_begin.tv_sec == 0)
-		average.threads.tv_begin = procsysfs_tv_begin;
+	if (average.threads->tv_begin.tv_sec == 0)
+		average.threads->tv_begin = procsysfs_tv_begin;
 
 	/* remember last tv_end */
-	average.threads.tv_end = t->tv_end;
+	average.threads->tv_end = t->tv_end;
 
-	average.threads.tsc += t->tsc;
-	average.threads.aperf += t->aperf;
-	average.threads.mperf += t->mperf;
-	average.threads.c1 += t->c1;
+	average.threads->tsc += t->tsc;
+	average.threads->aperf += t->aperf;
+	average.threads->mperf += t->mperf;
+	average.threads->c1 += t->c1;
 
-	average.threads.instr_count += t->instr_count;
+	average.threads->instr_count += t->instr_count;
 
-	average.threads.irq_count += t->irq_count;
-	average.threads.nmi_count += t->nmi_count;
-	average.threads.smi_count += t->smi_count;
+	average.threads->irq_count += t->irq_count;
+	average.threads->nmi_count += t->nmi_count;
+	average.threads->smi_count += t->smi_count;
 
-	average.threads.llc.references += t->llc.references;
-	average.threads.llc.misses += t->llc.misses;
+	average.threads->llc.references += t->llc.references;
+	average.threads->llc.misses += t->llc.misses;
 
-	average.threads.l2.references += t->l2.references;
-	average.threads.l2.hits += t->l2.hits;
+	average.threads->l2.references += t->l2.references;
+	average.threads->l2.hits += t->l2.hits;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
-		average.threads.counter[i] += t->counter[i];
+		average.threads->counter[i] += t->counter[i];
 	}
 
 	for (i = 0, pp = sys.perf_tp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			continue;
-		average.threads.perf_counter[i] += t->perf_counter[i];
+		average.threads->perf_counter[i] += t->perf_counter[i];
 	}
 
 	for (i = 0, ppmt = sys.pmt_tp; ppmt; i++, ppmt = ppmt->next) {
-		average.threads.pmt_counter[i] += t->pmt_counter[i];
+		average.threads->pmt_counter[i] += t->pmt_counter[i];
 	}
 
 	/* sum per-core values only for 1st thread in core */
 	if (!is_cpu_first_thread_in_core(t, c))
 		return 0;
 
-	average.cores.c3 += c->c3;
-	average.cores.c6 += c->c6;
-	average.cores.c7 += c->c7;
-	average.cores.mc6_us += c->mc6_us;
+	average.cores->c3 += c->c3;
+	average.cores->c6 += c->c6;
+	average.cores->c7 += c->c7;
+	average.cores->mc6_us += c->mc6_us;
 
-	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
-	average.cores.core_throt_cnt = MAX(average.cores.core_throt_cnt, c->core_throt_cnt);
+	average.cores->core_temp_c = MAX(average.cores->core_temp_c, c->core_temp_c);
+	average.cores->core_throt_cnt = MAX(average.cores->core_throt_cnt, c->core_throt_cnt);
 
-	rapl_counter_accumulate(&average.cores.core_energy, &c->core_energy);
+	rapl_counter_accumulate(&average.cores->core_energy, &c->core_energy);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
-		average.cores.counter[i] += c->counter[i];
+		average.cores->counter[i] += c->counter[i];
 	}
 
 	for (i = 0, pp = sys.perf_cp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			continue;
-		average.cores.perf_counter[i] += c->perf_counter[i];
+		average.cores->perf_counter[i] += c->perf_counter[i];
 	}
 
 	for (i = 0, ppmt = sys.pmt_cp; ppmt; i++, ppmt = ppmt->next) {
-		average.cores.pmt_counter[i] += c->pmt_counter[i];
+		average.cores->pmt_counter[i] += c->pmt_counter[i];
 	}
 
 	/* sum per-pkg values only for 1st core in pkg */
@@ -4249,63 +4249,63 @@ int sum_counters(PER_THREAD_PARAMS)
 		return 0;
 
 	if (DO_BIC(BIC_Totl_c0))
-		average.packages.pkg_wtd_core_c0 += p->pkg_wtd_core_c0;
+		average.packages->pkg_wtd_core_c0 += p->pkg_wtd_core_c0;
 	if (DO_BIC(BIC_Any_c0))
-		average.packages.pkg_any_core_c0 += p->pkg_any_core_c0;
+		average.packages->pkg_any_core_c0 += p->pkg_any_core_c0;
 	if (DO_BIC(BIC_GFX_c0))
-		average.packages.pkg_any_gfxe_c0 += p->pkg_any_gfxe_c0;
+		average.packages->pkg_any_gfxe_c0 += p->pkg_any_gfxe_c0;
 	if (DO_BIC(BIC_CPUGFX))
-		average.packages.pkg_both_core_gfxe_c0 += p->pkg_both_core_gfxe_c0;
+		average.packages->pkg_both_core_gfxe_c0 += p->pkg_both_core_gfxe_c0;
 
-	average.packages.pc2 += p->pc2;
+	average.packages->pc2 += p->pc2;
 	if (DO_BIC(BIC_Pkgpc3))
-		average.packages.pc3 += p->pc3;
+		average.packages->pc3 += p->pc3;
 	if (DO_BIC(BIC_Pkgpc6))
-		average.packages.pc6 += p->pc6;
+		average.packages->pc6 += p->pc6;
 	if (DO_BIC(BIC_Pkgpc7))
-		average.packages.pc7 += p->pc7;
-	average.packages.pc8 += p->pc8;
-	average.packages.pc9 += p->pc9;
-	average.packages.pc10 += p->pc10;
-	average.packages.die_c6 += p->die_c6;
+		average.packages->pc7 += p->pc7;
+	average.packages->pc8 += p->pc8;
+	average.packages->pc9 += p->pc9;
+	average.packages->pc10 += p->pc10;
+	average.packages->die_c6 += p->die_c6;
 
-	average.packages.cpu_lpi = p->cpu_lpi;
-	average.packages.sys_lpi = p->sys_lpi;
+	average.packages->cpu_lpi = p->cpu_lpi;
+	average.packages->sys_lpi = p->sys_lpi;
 
-	rapl_counter_accumulate(&average.packages.energy_pkg, &p->energy_pkg);
-	rapl_counter_accumulate(&average.packages.energy_dram, &p->energy_dram);
-	rapl_counter_accumulate(&average.packages.energy_cores, &p->energy_cores);
-	rapl_counter_accumulate(&average.packages.energy_gfx, &p->energy_gfx);
+	rapl_counter_accumulate(&average.packages->energy_pkg, &p->energy_pkg);
+	rapl_counter_accumulate(&average.packages->energy_dram, &p->energy_dram);
+	rapl_counter_accumulate(&average.packages->energy_cores, &p->energy_cores);
+	rapl_counter_accumulate(&average.packages->energy_gfx, &p->energy_gfx);
 
-	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
-	average.packages.uncore_mhz = p->uncore_mhz;
-	average.packages.gfx_mhz = p->gfx_mhz;
-	average.packages.gfx_act_mhz = p->gfx_act_mhz;
-	average.packages.sam_mc6_ms = p->sam_mc6_ms;
-	average.packages.sam_mhz = p->sam_mhz;
-	average.packages.sam_act_mhz = p->sam_act_mhz;
+	average.packages->gfx_rc6_ms = p->gfx_rc6_ms;
+	average.packages->uncore_mhz = p->uncore_mhz;
+	average.packages->gfx_mhz = p->gfx_mhz;
+	average.packages->gfx_act_mhz = p->gfx_act_mhz;
+	average.packages->sam_mc6_ms = p->sam_mc6_ms;
+	average.packages->sam_mhz = p->sam_mhz;
+	average.packages->sam_act_mhz = p->sam_act_mhz;
 
-	average.packages.pkg_temp_c = MAX(average.packages.pkg_temp_c, p->pkg_temp_c);
+	average.packages->pkg_temp_c = MAX(average.packages->pkg_temp_c, p->pkg_temp_c);
 
-	rapl_counter_accumulate(&average.packages.rapl_pkg_perf_status, &p->rapl_pkg_perf_status);
-	rapl_counter_accumulate(&average.packages.rapl_dram_perf_status, &p->rapl_dram_perf_status);
+	rapl_counter_accumulate(&average.packages->rapl_pkg_perf_status, &p->rapl_pkg_perf_status);
+	rapl_counter_accumulate(&average.packages->rapl_dram_perf_status, &p->rapl_dram_perf_status);
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if ((mp->format == FORMAT_RAW) && (topo.num_packages == 0))
-			average.packages.counter[i] = p->counter[i];
+			average.packages->counter[i] = p->counter[i];
 		else
-			average.packages.counter[i] += p->counter[i];
+			average.packages->counter[i] += p->counter[i];
 	}
 
 	for (i = 0, pp = sys.perf_pp; pp; i++, pp = pp->next) {
 		if ((pp->format == FORMAT_RAW) && (topo.num_packages == 0))
-			average.packages.perf_counter[i] = p->perf_counter[i];
+			average.packages->perf_counter[i] = p->perf_counter[i];
 		else
-			average.packages.perf_counter[i] += p->perf_counter[i];
+			average.packages->perf_counter[i] += p->perf_counter[i];
 	}
 
 	for (i = 0, ppmt = sys.pmt_pp; ppmt; i++, ppmt = ppmt->next) {
-		average.packages.pmt_counter[i] += p->pmt_counter[i];
+		average.packages->pmt_counter[i] += p->pmt_counter[i];
 	}
 
 	return 0;
@@ -4322,117 +4322,117 @@ void compute_average(PER_THREAD_PARAMS)
 	struct perf_counter_info *pp;
 	struct pmt_counter *ppmt;
 
-	clear_counters(&average.threads, &average.cores, &average.packages);
+	clear_counters(average.threads, average.cores, average.packages);
 
 	for_all_cpus(sum_counters, t, c, p);
 
 	/* Use the global time delta for the average. */
-	average.threads.tv_delta = tv_delta;
+	average.threads->tv_delta = tv_delta;
 
-	average.threads.tsc /= topo.allowed_cpus;
-	average.threads.aperf /= topo.allowed_cpus;
-	average.threads.mperf /= topo.allowed_cpus;
-	average.threads.instr_count /= topo.allowed_cpus;
-	average.threads.c1 /= topo.allowed_cpus;
+	average.threads->tsc /= topo.allowed_cpus;
+	average.threads->aperf /= topo.allowed_cpus;
+	average.threads->mperf /= topo.allowed_cpus;
+	average.threads->instr_count /= topo.allowed_cpus;
+	average.threads->c1 /= topo.allowed_cpus;
 
-	if (average.threads.irq_count > 9999999)
+	if (average.threads->irq_count > 9999999)
 		sums_need_wide_columns = 1;
-	if (average.threads.nmi_count > 9999999)
+	if (average.threads->nmi_count > 9999999)
 		sums_need_wide_columns = 1;
 
-	average.cores.c3 /= topo.allowed_cores;
-	average.cores.c6 /= topo.allowed_cores;
-	average.cores.c7 /= topo.allowed_cores;
-	average.cores.mc6_us /= topo.allowed_cores;
+	average.cores->c3 /= topo.allowed_cores;
+	average.cores->c6 /= topo.allowed_cores;
+	average.cores->c7 /= topo.allowed_cores;
+	average.cores->mc6_us /= topo.allowed_cores;
 
 	if (DO_BIC(BIC_Totl_c0))
-		average.packages.pkg_wtd_core_c0 /= topo.allowed_packages;
+		average.packages->pkg_wtd_core_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Any_c0))
-		average.packages.pkg_any_core_c0 /= topo.allowed_packages;
+		average.packages->pkg_any_core_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_GFX_c0))
-		average.packages.pkg_any_gfxe_c0 /= topo.allowed_packages;
+		average.packages->pkg_any_gfxe_c0 /= topo.allowed_packages;
 	if (DO_BIC(BIC_CPUGFX))
-		average.packages.pkg_both_core_gfxe_c0 /= topo.allowed_packages;
+		average.packages->pkg_both_core_gfxe_c0 /= topo.allowed_packages;
 
-	average.packages.pc2 /= topo.allowed_packages;
+	average.packages->pc2 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc3))
-		average.packages.pc3 /= topo.allowed_packages;
+		average.packages->pc3 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc6))
-		average.packages.pc6 /= topo.allowed_packages;
+		average.packages->pc6 /= topo.allowed_packages;
 	if (DO_BIC(BIC_Pkgpc7))
-		average.packages.pc7 /= topo.allowed_packages;
+		average.packages->pc7 /= topo.allowed_packages;
 
-	average.packages.pc8 /= topo.allowed_packages;
-	average.packages.pc9 /= topo.allowed_packages;
-	average.packages.pc10 /= topo.allowed_packages;
-	average.packages.die_c6 /= topo.allowed_packages;
+	average.packages->pc8 /= topo.allowed_packages;
+	average.packages->pc9 /= topo.allowed_packages;
+	average.packages->pc10 /= topo.allowed_packages;
+	average.packages->die_c6 /= topo.allowed_packages;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
 		if (mp->type == COUNTER_ITEMS) {
-			if (average.threads.counter[i] > 9999999)
+			if (average.threads->counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 			continue;
 		}
-		average.threads.counter[i] /= topo.allowed_cpus;
+		average.threads->counter[i] /= topo.allowed_cpus;
 	}
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
 		if (mp->type == COUNTER_ITEMS) {
-			if (average.cores.counter[i] > 9999999)
+			if (average.cores->counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.cores.counter[i] /= topo.allowed_cores;
+		average.cores->counter[i] /= topo.allowed_cores;
 	}
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
 			continue;
 		if (mp->type == COUNTER_ITEMS) {
-			if (average.packages.counter[i] > 9999999)
+			if (average.packages->counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.packages.counter[i] /= topo.allowed_packages;
+		average.packages->counter[i] /= topo.allowed_packages;
 	}
 
 	for (i = 0, pp = sys.perf_tp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			continue;
 		if (pp->type == COUNTER_ITEMS) {
-			if (average.threads.perf_counter[i] > 9999999)
+			if (average.threads->perf_counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 			continue;
 		}
-		average.threads.perf_counter[i] /= topo.allowed_cpus;
+		average.threads->perf_counter[i] /= topo.allowed_cpus;
 	}
 	for (i = 0, pp = sys.perf_cp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			continue;
 		if (pp->type == COUNTER_ITEMS) {
-			if (average.cores.perf_counter[i] > 9999999)
+			if (average.cores->perf_counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.cores.perf_counter[i] /= topo.allowed_cores;
+		average.cores->perf_counter[i] /= topo.allowed_cores;
 	}
 	for (i = 0, pp = sys.perf_pp; pp; i++, pp = pp->next) {
 		if (pp->format == FORMAT_RAW)
 			continue;
 		if (pp->type == COUNTER_ITEMS) {
-			if (average.packages.perf_counter[i] > 9999999)
+			if (average.packages->perf_counter[i] > 9999999)
 				sums_need_wide_columns = 1;
 		}
-		average.packages.perf_counter[i] /= topo.allowed_packages;
+		average.packages->perf_counter[i] /= topo.allowed_packages;
 	}
 
 	for (i = 0, ppmt = sys.pmt_tp; ppmt; i++, ppmt = ppmt->next) {
-		average.threads.pmt_counter[i] /= topo.allowed_cpus;
+		average.threads->pmt_counter[i] /= topo.allowed_cpus;
 	}
 	for (i = 0, ppmt = sys.pmt_cp; ppmt; i++, ppmt = ppmt->next) {
-		average.cores.pmt_counter[i] /= topo.allowed_cores;
+		average.cores->pmt_counter[i] /= topo.allowed_cores;
 	}
 	for (i = 0, ppmt = sys.pmt_pp; ppmt; i++, ppmt = ppmt->next) {
-		average.packages.pmt_counter[i] /= topo.allowed_packages;
+		average.packages->pmt_counter[i] /= topo.allowed_packages;
 	}
 }
 
@@ -9687,6 +9687,24 @@ void topology_probe(bool startup)
 
 }
 
+void allocate_counters_1(struct thread_data **t, struct core_data **c, struct pkg_data **p)
+{
+	*t = calloc(1, sizeof(struct thread_data));
+	if (*t == NULL)
+		goto error;
+
+	*c = calloc(1, sizeof(struct core_data));
+	if (*c == NULL)
+		goto error;
+
+	*p = calloc(1, sizeof(struct pkg_data));
+	if (*p == NULL)
+		goto error;
+
+	return;
+error:
+	err(1, "calloc counters_1");
+}
 void allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data **p)
 {
 	int i;
@@ -9813,6 +9831,7 @@ void setup_all_buffers(bool startup)
 	topology_probe(startup);
 	allocate_irq_buffers();
 	allocate_fd_percpu();
+	allocate_counters_1(&average.threads, &average.cores, &average.packages);
 	allocate_counters(&thread_even, &core_even, &package_even);
 	allocate_counters(&thread_odd, &core_odd, &package_odd);
 	allocate_output_buffer();
