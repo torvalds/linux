@@ -3243,10 +3243,9 @@ void trace_printk_init_buffers(void)
 	/*
 	 * trace_printk_init_buffers() can be called by modules.
 	 * If that happens, then we need to start cmdline recording
-	 * directly here. If the global_trace.buffer is already
-	 * allocated here, then this was called by module code.
+	 * directly here.
 	 */
-	if (global_trace.array_buffer.buffer)
+	if (system_state == SYSTEM_RUNNING)
 		tracing_start_cmdline_record();
 }
 EXPORT_SYMBOL_GPL(trace_printk_init_buffers);
