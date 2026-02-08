@@ -1071,7 +1071,8 @@ int __trace_array_puts(struct trace_array *tr, unsigned long ip,
 	if (!(tr->trace_flags & TRACE_ITER(PRINTK)))
 		return 0;
 
-	if (unlikely(tracing_selftest_running && tr == &global_trace))
+	if (unlikely(tracing_selftest_running &&
+		     (tr->flags & TRACE_ARRAY_FL_GLOBAL)))
 		return 0;
 
 	if (unlikely(tracing_disabled))
@@ -3386,7 +3387,7 @@ out_nobuffer:
 int trace_array_vprintk(struct trace_array *tr,
 			unsigned long ip, const char *fmt, va_list args)
 {
-	if (tracing_selftest_running && tr == &global_trace)
+	if (tracing_selftest_running && (tr->flags & TRACE_ARRAY_FL_GLOBAL))
 		return 0;
 
 	return __trace_array_vprintk(tr->array_buffer.buffer, ip, fmt, args);
@@ -3422,7 +3423,7 @@ int trace_array_printk(struct trace_array *tr,
 		return -ENOENT;
 
 	/* This is only allowed for created instances */
-	if (tr == &global_trace)
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		return 0;
 
 	if (!(tr->trace_flags & TRACE_ITER(PRINTK)))
@@ -3449,7 +3450,7 @@ int trace_array_init_printk(struct trace_array *tr)
 		return -ENOENT;
 
 	/* This is only allowed for created instances */
-	if (tr == &global_trace)
+	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		return -EINVAL;
 
 	return alloc_percpu_trace_buffer();
