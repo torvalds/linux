@@ -3234,7 +3234,7 @@ void trace_printk_init_buffers(void)
 	pr_warn("**********************************************************\n");
 
 	/* Expand the buffers to set size */
-	if (tracing_update_buffers(&global_trace) < 0)
+	if (tracing_update_buffers(NULL) < 0)
 		pr_err("Failed to expand tracing buffers for trace_printk() calls\n");
 	else
 		buffers_allocated = 1;
@@ -6185,6 +6185,9 @@ static void update_last_data(struct trace_array *tr)
 int tracing_update_buffers(struct trace_array *tr)
 {
 	int ret = 0;
+
+	if (!tr)
+		tr = &global_trace;
 
 	guard(mutex)(&trace_types_lock);
 
