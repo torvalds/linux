@@ -91,6 +91,7 @@ static int show_proc_session(struct seq_file *m, void *v)
 	ksmbd_user_session_get(sess);
 
 	i = 0;
+	down_read(&sess->chann_lock);
 	xa_for_each(&sess->ksmbd_chann_list, id, chan) {
 #if IS_ENABLED(CONFIG_IPV6)
 		if (chan->conn->inet_addr)
@@ -129,6 +130,7 @@ static int show_proc_session(struct seq_file *m, void *v)
 		}
 		i++;
 	}
+	up_read(&sess->chann_lock);
 
 	seq_printf(m, "%-20s\t%d\n", "channels", i);
 
@@ -205,22 +207,24 @@ static int show_proc_sessions(struct seq_file *m, void *v)
 
 	down_read(&sessions_table_lock);
 	hash_for_each(sessions_table, i, session, hlist) {
+		down_read(&session->chann_lock);
 		xa_for_each(&session->ksmbd_chann_list, id, chan) {
-		down_read(&chan->conn->session_lock);
-		ksmbd_user_session_get(session);
+			down_read(&chan->conn->session_lock);
+			ksmbd_user_session_get(session);
 
-		if (chan->conn->inet_addr)
-			seq_printf(m, " %-40pI4", &chan->conn->inet_addr);
-		else
-			seq_printf(m, " %-40pI6c", &chan->conn->inet6_addr);
-		seq_printf(m, " %-15s %-10llu %-10s\n",
-			   session_user_name(session),
-			   session->id,
-			   session_state_string(session));
+			if (chan->conn->inet_addr)
+				seq_printf(m, " %-40pI4", &chan->conn->inet_addr);
+			else
+				seq_printf(m, " %-40pI6c", &chan->conn->inet6_addr);
+			seq_printf(m, " %-15s %-10llu %-10s\n",
+				   session_user_name(session),
+				   session->id,
+				   session_state_string(session));
 
-		ksmbd_user_session_put(session);
-		up_read(&chan->conn->session_lock);
-	}
+			ksmbd_user_session_put(session);
+			up_read(&chan->conn->session_lock);
+		}
+		up_read(&session->chann_lock);
 	}
 	up_read(&sessions_table_lock);
 	return 0;
