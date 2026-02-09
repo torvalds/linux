@@ -1028,19 +1028,20 @@ long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
 	return freed;
 }
 
-static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_locked);
+static void __wait_on_freeing_inode(struct inode *inode, bool hash_locked, bool rcu_locked);
+
 /*
  * Called with the inode lock held.
  */
 static struct inode *find_inode(struct super_block *sb,
 				struct hlist_head *head,
 				int (*test)(struct inode *, void *),
-				void *data, bool is_inode_hash_locked,
+				void *data, bool hash_locked,
 				bool *isnew)
 {
 	struct inode *inode = NULL;
 
-	if (is_inode_hash_locked)
+	if (hash_locked)
 		lockdep_assert_held(&inode_hash_lock);
 	else
 		lockdep_assert_not_held(&inode_hash_lock);
@@ -1054,7 +1055,7 @@ repeat:
 			continue;
 		spin_lock(&inode->i_lock);
 		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode, is_inode_hash_locked);
+			__wait_on_freeing_inode(inode, hash_locked, true);
 			goto repeat;
 		}
 		if (unlikely(inode_state_read(inode) & I_CREATING)) {
@@ -1078,11 +1079,11 @@ repeat:
  */
 static struct inode *find_inode_fast(struct super_block *sb,
 				struct hlist_head *head, unsigned long ino,
-				bool is_inode_hash_locked, bool *isnew)
+				bool hash_locked, bool *isnew)
 {
 	struct inode *inode = NULL;
 
-	if (is_inode_hash_locked)
+	if (hash_locked)
 		lockdep_assert_held(&inode_hash_lock);
 	else
 		lockdep_assert_not_held(&inode_hash_lock);
@@ -1096,7 +1097,7 @@ repeat:
 			continue;
 		spin_lock(&inode->i_lock);
 		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE)) {
-			__wait_on_freeing_inode(inode, is_inode_hash_locked);
+			__wait_on_freeing_inode(inode, hash_locked, true);
 			goto repeat;
 		}
 		if (unlikely(inode_state_read(inode) & I_CREATING)) {
@@ -1832,16 +1833,13 @@ int insert_inode_locked(struct inode *inode)
 	while (1) {
 		struct inode *old = NULL;
 		spin_lock(&inode_hash_lock);
+repeat:
 		hlist_for_each_entry(old, head, i_hash) {
 			if (old->i_ino != ino)
 				continue;
 			if (old->i_sb != sb)
 				continue;
 			spin_lock(&old->i_lock);
-			if (inode_state_read(old) & (I_FREEING | I_WILL_FREE)) {
-				spin_unlock(&old->i_lock);
-				continue;
-			}
 			break;
 		}
 		if (likely(!old)) {
@@ -1851,6 +1849,11 @@ int insert_inode_locked(struct inode *inode)
 			spin_unlock(&inode->i_lock);
 			spin_unlock(&inode_hash_lock);
 			return 0;
+		}
+		if (inode_state_read(old) & (I_FREEING | I_WILL_FREE)) {
+			__wait_on_freeing_inode(old, true, false);
+			old = NULL;
+			goto repeat;
 		}
 		if (unlikely(inode_state_read(old) & I_CREATING)) {
 			spin_unlock(&old->i_lock);
@@ -2522,16 +2525,18 @@ EXPORT_SYMBOL(inode_needs_sync);
  * wake_up_bit(&inode->i_state, __I_NEW) after removing from the hash list
  * will DTRT.
  */
-static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_locked)
+static void __wait_on_freeing_inode(struct inode *inode, bool hash_locked, bool rcu_locked)
 {
 	struct wait_bit_queue_entry wqe;
 	struct wait_queue_head *wq_head;
+
+	VFS_BUG_ON(!hash_locked && !rcu_locked);
 
 	/*
 	 * Handle racing against evict(), see that routine for more details.
 	 */
 	if (unlikely(inode_unhashed(inode))) {
-		WARN_ON(is_inode_hash_locked);
+		WARN_ON(hash_locked);
 		spin_unlock(&inode->i_lock);
 		return;
 	}
@@ -2539,23 +2544,22 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
 	wq_head = inode_bit_waitqueue(&wqe, inode, __I_NEW);
 	prepare_to_wait_event(wq_head, &wqe.wq_entry, TASK_UNINTERRUPTIBLE);
 	spin_unlock(&inode->i_lock);
-	rcu_read_unlock();
-	if (is_inode_hash_locked)
+	if (rcu_locked)
+		rcu_read_unlock();
+	if (hash_locked)
 		spin_unlock(&inode_hash_lock);
 	schedule();
 	finish_wait(wq_head, &wqe.wq_entry);
-	if (is_inode_hash_locked)
+	if (hash_locked)
 		spin_lock(&inode_hash_lock);
-	rcu_read_lock();
+	if (rcu_locked)
+		rcu_read_lock();
 }
 
 static __initdata unsigned long ihash_entries;
 static int __init set_ihash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	ihash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &ihash_entries) == 0;
 }
 __setup("ihash_entries=", set_ihash_entries);
 
@@ -3005,24 +3009,45 @@ umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 EXPORT_SYMBOL(mode_strip_sgid);
 
 #ifdef CONFIG_DEBUG_VFS
-/*
- * Dump an inode.
+/**
+ * dump_inode - dump an inode.
+ * @inode: inode to dump
+ * @reason: reason for dumping
  *
- * TODO: add a proper inode dumping routine, this is a stub to get debug off the
- * ground.
- *
- * TODO: handle getting to fs type with get_kernel_nofault()?
- * See dump_mapping() above.
+ * If inode is an invalid pointer, we don't want to crash accessing it,
+ * so probe everything depending on it carefully with get_kernel_nofault().
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb;
+	struct file_system_type *s_type;
+	const char *fs_name_ptr;
+	char fs_name[32] = {};
+	umode_t mode;
+	unsigned short opflags;
+	unsigned int flags;
+	unsigned int state;
+	int count;
 
-	pr_warn("%s encountered for inode %px\n"
-		"fs %s mode %ho opflags 0x%hx flags 0x%x state 0x%x count %d\n",
-		reason, inode, sb->s_type->name, inode->i_mode, inode->i_opflags,
-		inode->i_flags, inode_state_read_once(inode), atomic_read(&inode->i_count));
+	if (get_kernel_nofault(sb, &inode->i_sb) ||
+	    get_kernel_nofault(mode, &inode->i_mode) ||
+	    get_kernel_nofault(opflags, &inode->i_opflags) ||
+	    get_kernel_nofault(flags, &inode->i_flags)) {
+		pr_warn("%s: unreadable inode:%px\n", reason, inode);
+		return;
+	}
+
+	state = inode_state_read_once(inode);
+	count = atomic_read(&inode->i_count);
+
+	if (!sb ||
+	    get_kernel_nofault(s_type, &sb->s_type) || !s_type ||
+	    get_kernel_nofault(fs_name_ptr, &s_type->name) || !fs_name_ptr ||
+	    strncpy_from_kernel_nofault(fs_name, fs_name_ptr, sizeof(fs_name) - 1) < 0)
+		strscpy(fs_name, "<unknown, sb unreadable>");
+
+	pr_warn("%s: inode:%px fs:%s mode:%ho opflags:%#x flags:%#x state:%#x count:%d\n",
+		reason, inode, fs_name, mode, opflags, flags, state, count);
 }
-
 EXPORT_SYMBOL(dump_inode);
 #endif

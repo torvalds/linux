@@ -1323,10 +1323,8 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 static inline unsigned int fuse_wr_pages(loff_t pos, size_t len,
 				     unsigned int max_pages)
 {
-	return min_t(unsigned int,
-		     ((pos + len - 1) >> PAGE_SHIFT) -
-		     (pos >> PAGE_SHIFT) + 1,
-		     max_pages);
+	return min(((pos + len - 1) >> PAGE_SHIFT) - (pos >> PAGE_SHIFT) + 1,
+		   max_pages);
 }
 
 static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
@@ -1607,7 +1605,7 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 			struct folio *folio = page_folio(pages[i]);
 			unsigned int offset = start +
 				(folio_page_idx(folio, pages[i]) << PAGE_SHIFT);
-			unsigned int len = min_t(unsigned int, ret, PAGE_SIZE - start);
+			unsigned int len = umin(ret, PAGE_SIZE - start);
 
 			ap->descs[ap->num_folios].offset = offset;
 			ap->descs[ap->num_folios].length = len;

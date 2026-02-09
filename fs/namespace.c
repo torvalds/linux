@@ -49,20 +49,14 @@ static unsigned int mp_hash_shift __ro_after_init;
 static __initdata unsigned long mhash_entries;
 static int __init set_mhash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	mhash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &mhash_entries) == 0;
 }
 __setup("mhash_entries=", set_mhash_entries);
 
 static __initdata unsigned long mphash_entries;
 static int __init set_mphash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	mphash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &mphash_entries) == 0;
 }
 __setup("mphash_entries=", set_mphash_entries);
 

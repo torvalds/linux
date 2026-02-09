@@ -624,8 +624,9 @@ config SCHED_HW_PRESSURE
 	  arch_update_hw_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
-	bool "BSD Process Accounting"
+	bool "BSD Process Accounting (DEPRECATED)"
 	depends on MULTIUSER
+	default n
 	help
 	  If you say Y here, a user level program will be able to instruct the
 	  kernel (via a special system call) to write process accounting
@@ -635,7 +636,9 @@ config BSD_PROCESS_ACCT
 	  command name, memory usage, controlling terminal etc. (the complete
 	  list is in the struct acct in <file:include/linux/acct.h>).  It is
 	  up to the user level program to do useful things with this
-	  information.  This is generally a good idea, so say Y.
+	  information.  This mechanism is antiquated and has significant
+	  scalability issues.  You probably want to use eBPF instead.  Say
+	  N unless you really need this.
 
 config BSD_PROCESS_ACCT_V3
 	bool "BSD Process Accounting version 3 file format"

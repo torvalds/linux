@@ -641,13 +641,9 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 		value = NULL;
 		flags = XATTR_REPLACE;
 	} else {
-		size = posix_acl_xattr_size(acl->a_count);
-		value = kmalloc(size, GFP_NOFS);
+		value = posix_acl_to_xattr(&init_user_ns, acl, &size, GFP_NOFS);
 		if (!value)
 			return -ENOMEM;
-		err = posix_acl_to_xattr(&init_user_ns, acl, value, size);
-		if (err < 0)
-			goto out;
 		flags = 0;
 	}
 

@@ -879,7 +879,7 @@ static bool try_to_unlazy(struct nameidata *nd)
 {
 	struct dentry *parent = nd->path.dentry;
 
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+	VFS_BUG_ON(!(nd->flags & LOOKUP_RCU));
 
 	if (unlikely(nd->flags & LOOKUP_CACHED)) {
 		drop_links(nd);
@@ -919,7 +919,8 @@ out:
 static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry)
 {
 	int res;
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+
+	VFS_BUG_ON(!(nd->flags & LOOKUP_RCU));
 
 	if (unlikely(nd->flags & LOOKUP_CACHED)) {
 		drop_links(nd);
@@ -1630,9 +1631,6 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	unsigned int flags = dentry->d_flags;
-
-	if (likely(!(flags & DCACHE_MANAGED_DENTRY)))
-		return true;
 
 	if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 		return false;

@@ -1813,7 +1813,7 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 			goto out_iput;
 
 		folio_offset = ((index - folio->index) << PAGE_SHIFT) + offset;
-		nr_bytes = min_t(unsigned, num, folio_size(folio) - folio_offset);
+		nr_bytes = min(num, folio_size(folio) - folio_offset);
 		nr_pages = (offset + nr_bytes + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 		err = fuse_copy_folio(cs, &folio, folio_offset, nr_bytes, 0);

@@ -1467,7 +1467,7 @@ static ssize_t iter_to_pipe(struct iov_iter *from,
 
 		n = DIV_ROUND_UP(left + start, PAGE_SIZE);
 		for (i = 0; i < n; i++) {
-			int size = min_t(int, left, PAGE_SIZE - start);
+			int size = umin(left, PAGE_SIZE - start);
 
 			buf.page = pages[i];
 			buf.offset = start;

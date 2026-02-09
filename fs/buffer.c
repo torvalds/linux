@@ -2354,7 +2354,7 @@ bool block_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 	if (!head)
 		return false;
 	blocksize = head->b_size;
-	to = min_t(unsigned, folio_size(folio) - from, count);
+	to = min(folio_size(folio) - from, count);
 	to = from + to;
 	if (from < blocksize && to > folio_size(folio) - blocksize)
 		return false;
@@ -2947,6 +2947,10 @@ bool try_to_free_buffers(struct folio *folio)
 	BUG_ON(!folio_test_locked(folio));
 	if (folio_test_writeback(folio))
 		return false;
+
+	/* Misconfigured folio check */
+	if (WARN_ON_ONCE(!folio_buffers(folio)))
+		return true;
 
 	if (mapping == NULL) {		/* can this still happen? */
 		ret = drop_buffers(folio, &buffers_to_free);

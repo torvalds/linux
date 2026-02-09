@@ -44,8 +44,9 @@ posix_acl_from_xattr(struct user_namespace *user_ns, const void *value,
 }
 #endif
 
-int posix_acl_to_xattr(struct user_namespace *user_ns,
-		       const struct posix_acl *acl, void *buffer, size_t size);
+extern void *posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
+				size_t *sizep, gfp_t gfp);
+
 static inline const char *posix_acl_xattr_name(int type)
 {
 	switch (type) {
