@@ -100,8 +100,7 @@ FEATURE_TESTS_BASIC :=                  \
         disassembler-four-args		\
         disassembler-init-styled	\
         file-handle			\
-        libopenssl			\
-        rust
+        libopenssl
 
 # FEATURE_TESTS_BASIC + FEATURE_TESTS_EXTRA is the complete list
 # of all feature tests
