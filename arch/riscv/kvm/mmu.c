@@ -305,6 +305,142 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	return pte_young(ptep_get(ptep));
 }
 
+static bool fault_supports_gstage_huge_mapping(struct kvm_memory_slot *memslot,
+					       unsigned long hva)
+{
+	hva_t uaddr_start, uaddr_end;
+	gpa_t gpa_start;
+	size_t size;
+
+	size = memslot->npages * PAGE_SIZE;
+	uaddr_start = memslot->userspace_addr;
+	uaddr_end = uaddr_start + size;
+
+	gpa_start = memslot->base_gfn << PAGE_SHIFT;
+
+	/*
+	 * Pages belonging to memslots that don't have the same alignment
+	 * within a PMD for userspace and GPA cannot be mapped with g-stage
+	 * PMD entries, because we'll end up mapping the wrong pages.
+	 *
+	 * Consider a layout like the following:
+	 *
+	 *    memslot->userspace_addr:
+	 *    +-----+--------------------+--------------------+---+
+	 *    |abcde|fgh  vs-stage block  |    vs-stage block tv|xyz|
+	 *    +-----+--------------------+--------------------+---+
+	 *
+	 *    memslot->base_gfn << PAGE_SHIFT:
+	 *      +---+--------------------+--------------------+-----+
+	 *      |abc|def  g-stage block  |    g-stage block   |tvxyz|
+	 *      +---+--------------------+--------------------+-----+
+	 *
+	 * If we create those g-stage blocks, we'll end up with this incorrect
+	 * mapping:
+	 *   d -> f
+	 *   e -> g
+	 *   f -> h
+	 */
+	if ((gpa_start & (PMD_SIZE - 1)) != (uaddr_start & (PMD_SIZE - 1)))
+		return false;
+
+	/*
+	 * Next, let's make sure we're not trying to map anything not covered
+	 * by the memslot. This means we have to prohibit block size mappings
+	 * for the beginning and end of a non-block aligned and non-block sized
+	 * memory slot (illustrated by the head and tail parts of the
+	 * userspace view above containing pages 'abcde' and 'xyz',
+	 * respectively).
+	 *
+	 * Note that it doesn't matter if we do the check using the
+	 * userspace_addr or the base_gfn, as both are equally aligned (per
+	 * the check above) and equally sized.
+	 */
+	return (hva >= ALIGN(uaddr_start, PMD_SIZE)) && (hva < ALIGN_DOWN(uaddr_end, PMD_SIZE));
+}
+
+static int get_hva_mapping_size(struct kvm *kvm,
+				unsigned long hva)
+{
+	int size = PAGE_SIZE;
+	unsigned long flags;
+	pgd_t pgd;
+	p4d_t p4d;
+	pud_t pud;
+	pmd_t pmd;
+
+	/*
+	 * Disable IRQs to prevent concurrent tear down of host page tables,
+	 * e.g. if the primary MMU promotes a P*D to a huge page and then frees
+	 * the original page table.
+	 */
+	local_irq_save(flags);
+
+	/*
+	 * Read each entry once.  As above, a non-leaf entry can be promoted to
+	 * a huge page _during_ this walk.  Re-reading the entry could send the
+	 * walk into the weeks, e.g. p*d_leaf() returns false (sees the old
+	 * value) and then p*d_offset() walks into the target huge page instead
+	 * of the old page table (sees the new value).
+	 */
+	pgd = pgdp_get(pgd_offset(kvm->mm, hva));
+	if (pgd_none(pgd))
+		goto out;
+
+	p4d = p4dp_get(p4d_offset(&pgd, hva));
+	if (p4d_none(p4d) || !p4d_present(p4d))
+		goto out;
+
+	pud = pudp_get(pud_offset(&p4d, hva));
+	if (pud_none(pud) || !pud_present(pud))
+		goto out;
+
+	if (pud_leaf(pud)) {
+		size = PUD_SIZE;
+		goto out;
+	}
+
+	pmd = pmdp_get(pmd_offset(&pud, hva));
+	if (pmd_none(pmd) || !pmd_present(pmd))
+		goto out;
+
+	if (pmd_leaf(pmd))
+		size = PMD_SIZE;
+
+out:
+	local_irq_restore(flags);
+	return size;
+}
+
+static unsigned long transparent_hugepage_adjust(struct kvm *kvm,
+						 struct kvm_memory_slot *memslot,
+						 unsigned long hva,
+						 kvm_pfn_t *hfnp, gpa_t *gpa)
+{
+	kvm_pfn_t hfn = *hfnp;
+
+	/*
+	 * Make sure the adjustment is done only for THP pages. Also make
+	 * sure that the HVA and GPA are sufficiently aligned and that the
+	 * block map is contained within the memslot.
+	 */
+	if (fault_supports_gstage_huge_mapping(memslot, hva)) {
+		int sz;
+
+		sz = get_hva_mapping_size(kvm, hva);
+		if (sz < PMD_SIZE)
+			return sz;
+
+		*gpa &= PMD_MASK;
+		hfn &= ~(PTRS_PER_PMD - 1);
+		*hfnp = hfn;
+
+		return PMD_SIZE;
+	}
+
+	return PAGE_SIZE;
+}
+
 int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 		      gpa_t gpa, unsigned long hva, bool is_write,
 		      struct kvm_gstage_mapping *out_map)
@@ -397,6 +533,10 @@ int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 
 	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
+
+	/* Check if we are backed by a THP and thus use block mapping if possible */
+	if (vma_pagesize == PAGE_SIZE)
+		vma_pagesize = transparent_hugepage_adjust(kvm, memslot, hva, &hfn, &gpa);
 
 	if (writable) {
 		mark_page_dirty_in_slot(kvm, memslot, gfn);
