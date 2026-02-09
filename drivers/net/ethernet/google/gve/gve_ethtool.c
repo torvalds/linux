@@ -938,7 +938,7 @@ static int gve_get_ts_info(struct net_device *netdev,
 
 	ethtool_op_get_ts_info(netdev, info);
 
-	if (priv->nic_timestamp_supported) {
+	if (gve_is_clock_enabled(priv)) {
 		info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
 					 SOF_TIMESTAMPING_RAW_HARDWARE;
 

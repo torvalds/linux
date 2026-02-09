@@ -74,4 +74,10 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56);
 int cs35l56_init(struct cs35l56_private *cs35l56);
 void cs35l56_remove(struct cs35l56_private *cs35l56);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56);
+int cs35l56_set_fw_name(struct snd_soc_component *component);
+int cs35l56_process_xu_properties(struct cs35l56_private *cs35l56);
+#endif
+
 #endif /* ifndef CS35L56_H */

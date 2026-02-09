@@ -1806,16 +1806,6 @@ err:
 	return -ENOMEM;
 }
 
-static int vhca_id_show(struct seq_file *file, void *priv)
-{
-	struct mlx5_core_dev *dev = file->private;
-
-	seq_printf(file, "0x%x\n", MLX5_CAP_GEN(dev, vhca_id));
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(vhca_id);
-
 static int mlx5_notifiers_init(struct mlx5_core_dev *dev)
 {
 	int err;
@@ -1884,7 +1874,7 @@ int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	priv->numa_node = dev_to_node(mlx5_core_dma_dev(dev));
 	priv->dbg.dbg_root = debugfs_create_dir(dev_name(dev->device),
 						mlx5_debugfs_root);
-	debugfs_create_file("vhca_id", 0400, priv->dbg.dbg_root, dev, &vhca_id_fops);
+
 	INIT_LIST_HEAD(&priv->traps);
 
 	err = mlx5_cmd_init(dev);
@@ -2021,6 +2011,8 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 			      err);
 		goto err_init_one;
 	}
+
+	mlx5_vhca_debugfs_init(dev);
 
 	pci_save_state(pdev);
 	return 0;

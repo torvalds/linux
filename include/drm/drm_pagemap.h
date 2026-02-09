@@ -209,6 +209,19 @@ struct drm_pagemap_devmem_ops {
 			   struct dma_fence *pre_migrate_fence);
 };
 
+#if IS_ENABLED(CONFIG_ZONE_DEVICE)
+
+struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page);
+
+#else
+
+static inline struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page)
+{
+	return NULL;
+}
+
+#endif /* IS_ENABLED(CONFIG_ZONE_DEVICE) */
+
 /**
  * struct drm_pagemap_devmem - Structure representing a GPU SVM device memory allocation
  *
@@ -233,6 +246,8 @@ struct drm_pagemap_devmem {
 	struct dma_fence *pre_migrate_fence;
 };
 
+#if IS_ENABLED(CONFIG_ZONE_DEVICE)
+
 int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 				  struct mm_struct *mm,
 				  unsigned long start, unsigned long end,
@@ -242,8 +257,6 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation);
 
 const struct dev_pagemap_ops *drm_pagemap_pagemap_ops_get(void);
-
-struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page);
 
 void drm_pagemap_devmem_init(struct drm_pagemap_devmem *devmem_allocation,
 			     struct device *dev, struct mm_struct *mm,
@@ -255,5 +268,7 @@ int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 			    unsigned long start, unsigned long end,
 			    struct mm_struct *mm,
 			    unsigned long timeslice_ms);
+
+#endif /* IS_ENABLED(CONFIG_ZONE_DEVICE) */
 
 #endif

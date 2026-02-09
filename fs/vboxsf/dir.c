@@ -186,6 +186,7 @@ const struct file_operations vboxsf_dir_fops = {
 	.release = vboxsf_dir_release,
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,
+	.setlease = simple_nosetlease,
 };
 
 /*

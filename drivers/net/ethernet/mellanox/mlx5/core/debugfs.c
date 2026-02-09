@@ -613,3 +613,19 @@ void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 		cq->dbg = NULL;
 	}
 }
+
+static int vhca_id_show(struct seq_file *file, void *priv)
+{
+	struct mlx5_core_dev *dev = file->private;
+
+	seq_printf(file, "0x%x\n", MLX5_CAP_GEN(dev, vhca_id));
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(vhca_id);
+
+void mlx5_vhca_debugfs_init(struct mlx5_core_dev *dev)
+{
+	debugfs_create_file("vhca_id", 0400, dev->priv.dbg.dbg_root, dev,
+			    &vhca_id_fops);
+}

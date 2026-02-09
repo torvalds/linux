@@ -1147,14 +1147,14 @@ int nfc_register_device(struct nfc_dev *dev)
 EXPORT_SYMBOL(nfc_register_device);
 
 /**
- * nfc_unregister_device - unregister a nfc device in the nfc subsystem
+ * nfc_unregister_rfkill - unregister a nfc device in the rfkill subsystem
  *
  * @dev: The nfc device to unregister
  */
-void nfc_unregister_device(struct nfc_dev *dev)
+void nfc_unregister_rfkill(struct nfc_dev *dev)
 {
-	int rc;
 	struct rfkill *rfk = NULL;
+	int rc;
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
@@ -1175,7 +1175,16 @@ void nfc_unregister_device(struct nfc_dev *dev)
 		rfkill_unregister(rfk);
 		rfkill_destroy(rfk);
 	}
+}
+EXPORT_SYMBOL(nfc_unregister_rfkill);
 
+/**
+ * nfc_remove_device - remove a nfc device in the nfc subsystem
+ *
+ * @dev: The nfc device to remove
+ */
+void nfc_remove_device(struct nfc_dev *dev)
+{
 	if (dev->ops->check_presence) {
 		timer_delete_sync(&dev->check_pres_timer);
 		cancel_work_sync(&dev->check_pres_work);
@@ -1187,6 +1196,18 @@ void nfc_unregister_device(struct nfc_dev *dev)
 	nfc_devlist_generation++;
 	device_del(&dev->dev);
 	mutex_unlock(&nfc_devlist_mutex);
+}
+EXPORT_SYMBOL(nfc_remove_device);
+
+/**
+ * nfc_unregister_device - unregister a nfc device in the nfc subsystem
+ *
+ * @dev: The nfc device to unregister
+ */
+void nfc_unregister_device(struct nfc_dev *dev)
+{
+	nfc_unregister_rfkill(dev);
+	nfc_remove_device(dev);
 }
 EXPORT_SYMBOL(nfc_unregister_device);
 

@@ -1150,7 +1150,7 @@ fec_restart(struct net_device *ndev)
 	u32 rcntl = FEC_RCR_MII;
 
 	if (OPT_ARCH_HAS_MAX_FL)
-		rcntl |= (fep->netdev->mtu + ETH_HLEN + ETH_FCS_LEN) << 16;
+		rcntl |= (fep->netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN) << 16;
 
 	if (fep->bufdesc_ex)
 		fec_ptp_save_state(fep);
@@ -1285,12 +1285,13 @@ fec_restart(struct net_device *ndev)
 
 		/* When Jumbo Frame is enabled, the FIFO may not be large enough
 		 * to hold an entire frame. In such cases, if the MTU exceeds
-		 * (PKT_MAXBUF_SIZE - ETH_HLEN - ETH_FCS_LEN), configure the interface
-		 * to operate in cut-through mode, triggered by the FIFO threshold.
+		 * (PKT_MAXBUF_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN), configure
+		 * the interface to operate in cut-through mode, triggered by
+		 * the FIFO threshold.
 		 * Otherwise, enable the ENET store-and-forward mode.
 		 */
 		if ((fep->quirks & FEC_QUIRK_JUMBO_FRAME) &&
-		    (ndev->mtu > (PKT_MAXBUF_SIZE - ETH_HLEN - ETH_FCS_LEN)))
+		    (ndev->mtu > (PKT_MAXBUF_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN)))
 			writel(0xF, fep->hwp + FEC_X_WMRK);
 		else
 			writel(FEC_TXWMRK_STRFWD, fep->hwp + FEC_X_WMRK);
@@ -4037,7 +4038,7 @@ static int fec_change_mtu(struct net_device *ndev, int new_mtu)
 	if (netif_running(ndev))
 		return -EBUSY;
 
-	order = get_order(new_mtu + ETH_HLEN + ETH_FCS_LEN
+	order = get_order(new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN
 			  + FEC_DRV_RESERVE_SPACE);
 	fep->rx_frame_size = (PAGE_SIZE << order) - FEC_DRV_RESERVE_SPACE;
 	fep->pagepool_order = order;
@@ -4588,7 +4589,7 @@ fec_probe(struct platform_device *pdev)
 	else
 		fep->max_buf_size = PKT_MAXBUF_SIZE;
 
-	ndev->max_mtu = fep->max_buf_size - ETH_HLEN - ETH_FCS_LEN;
+	ndev->max_mtu = fep->max_buf_size - VLAN_ETH_HLEN - ETH_FCS_LEN;
 
 	ret = register_netdev(ndev);
 	if (ret)

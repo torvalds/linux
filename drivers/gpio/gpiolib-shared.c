@@ -515,7 +515,7 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 {
 	struct gpio_shared_entry *entry;
 	struct gpio_shared_ref *ref;
-	unsigned long *flags;
+	struct gpio_desc *desc;
 	int ret;
 
 	list_for_each_entry(entry, &gpio_shared_list, list) {
@@ -543,15 +543,17 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 		if (list_count_nodes(&entry->refs) <= 1)
 			continue;
 
-		flags = &gdev->descs[entry->offset].flags;
+		desc = &gdev->descs[entry->offset];
 
-		__set_bit(GPIOD_FLAG_SHARED, flags);
+		__set_bit(GPIOD_FLAG_SHARED, &desc->flags);
 		/*
 		 * Shared GPIOs are not requested via the normal path. Make
 		 * them inaccessible to anyone even before we register the
 		 * chip.
 		 */
-		__set_bit(GPIOD_FLAG_REQUESTED, flags);
+		ret = gpiod_request_commit(desc, "shared");
+		if (ret)
+			return ret;
 
 		pr_debug("GPIO %u owned by %s is shared by multiple consumers\n",
 			 entry->offset, gpio_device_get_label(gdev));
@@ -562,8 +564,10 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 				 ref->con_id ?: "(none)");
 
 			ret = gpio_shared_make_adev(gdev, entry, ref);
-			if (ret)
+			if (ret) {
+				gpiod_free_commit(desc);
 				return ret;
+			}
 		}
 	}
 
@@ -578,6 +582,8 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		if (!device_match_fwnode(&gdev->dev, entry->fwnode))
 			continue;
+
+		gpiod_free_commit(&gdev->descs[entry->offset]);
 
 		list_for_each_entry(ref, &entry->refs, list) {
 			guard(mutex)(&ref->lock);

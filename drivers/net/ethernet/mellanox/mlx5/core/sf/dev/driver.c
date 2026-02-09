@@ -76,6 +76,7 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto init_one_err;
 	}
 
+	mlx5_vhca_debugfs_init(mdev);
 	return 0;
 
 init_one_err:

@@ -66,11 +66,19 @@ static int mtk_ddc_check_and_rise_low_bus(struct mtk_hdmi_ddc *ddc)
 	return 0;
 }
 
-static int mtk_ddc_wr_one(struct mtk_hdmi_ddc *ddc, u16 addr_id,
-			  u16 offset_id, u8 *wr_data)
+static int mtk_ddcm_write_hdmi(struct mtk_hdmi_ddc *ddc, u16 addr_id,
+			       u16 offset_id, u16 data_cnt, u8 *wr_data)
 {
 	u32 val;
-	int ret;
+	int ret, i;
+
+	/* Don't allow transfer with a size over than the transfer fifo size
+	 * (16 byte)
+	 */
+	if (data_cnt > 16) {
+		dev_err(ddc->dev, "Invalid DDCM write request\n");
+		return -EINVAL;
+	}
 
 	/* If down, rise bus for write operation */
 	mtk_ddc_check_and_rise_low_bus(ddc);
@@ -78,16 +86,21 @@ static int mtk_ddc_wr_one(struct mtk_hdmi_ddc *ddc, u16 addr_id,
 	regmap_update_bits(ddc->regs, HPD_DDC_CTRL, HPD_DDC_DELAY_CNT,
 			   FIELD_PREP(HPD_DDC_DELAY_CNT, DDC2_DLY_CNT));
 
+	/* In case there is no payload data, just do a single write for the
+	 * address only
+	 */
 	if (wr_data) {
-		regmap_write(ddc->regs, SI2C_CTRL,
-			     FIELD_PREP(SI2C_ADDR, SI2C_ADDR_READ) |
-			     FIELD_PREP(SI2C_WDATA, *wr_data) |
-			     SI2C_WR);
+		/* Fill transfer fifo with payload data */
+		for (i = 0; i < data_cnt; i++) {
+			regmap_write(ddc->regs, SI2C_CTRL,
+				     FIELD_PREP(SI2C_ADDR, SI2C_ADDR_READ) |
+				     FIELD_PREP(SI2C_WDATA, wr_data[i]) |
+				     SI2C_WR);
+		}
 	}
-
 	regmap_write(ddc->regs, DDC_CTRL,
 		     FIELD_PREP(DDC_CTRL_CMD, DDC_CMD_SEQ_WRITE) |
-		     FIELD_PREP(DDC_CTRL_DIN_CNT, wr_data == NULL ? 0 : 1) |
+		     FIELD_PREP(DDC_CTRL_DIN_CNT, wr_data == NULL ? 0 : data_cnt) |
 		     FIELD_PREP(DDC_CTRL_OFFSET, offset_id) |
 		     FIELD_PREP(DDC_CTRL_ADDR, addr_id));
 	usleep_range(1000, 1250);
@@ -96,6 +109,11 @@ static int mtk_ddc_wr_one(struct mtk_hdmi_ddc *ddc, u16 addr_id,
 				       !(val & DDC_I2C_IN_PROG), 500, 1000);
 	if (ret) {
 		dev_err(ddc->dev, "DDC I2C write timeout\n");
+
+		/* Abort transfer if it is still in progress */
+		regmap_update_bits(ddc->regs, DDC_CTRL, DDC_CTRL_CMD,
+				   FIELD_PREP(DDC_CTRL_CMD, DDC_CMD_ABORT_XFER));
+
 		return ret;
 	}
 
@@ -179,6 +197,11 @@ static int mtk_ddcm_read_hdmi(struct mtk_hdmi_ddc *ddc, u16 uc_dev,
 					       500 * (temp_length + 5));
 		if (ret) {
 			dev_err(ddc->dev, "Timeout waiting for DDC I2C\n");
+
+			/* Abort transfer if it is still in progress */
+			regmap_update_bits(ddc->regs, DDC_CTRL, DDC_CTRL_CMD,
+					   FIELD_PREP(DDC_CTRL_CMD, DDC_CMD_ABORT_XFER));
+
 			return ret;
 		}
 
@@ -250,24 +273,9 @@ static int mtk_hdmi_fg_ddc_data_read(struct mtk_hdmi_ddc *ddc, u16 b_dev,
 static int mtk_hdmi_ddc_fg_data_write(struct mtk_hdmi_ddc *ddc, u16 b_dev,
 				      u8 data_addr, u16 data_cnt, u8 *pr_data)
 {
-	int i, ret;
-
 	regmap_set_bits(ddc->regs, HDCP2X_POL_CTRL, HDCP2X_DIS_POLL_EN);
-	/*
-	 * In case there is no payload data, just do a single write for the
-	 * address only
-	 */
-	if (data_cnt == 0)
-		return mtk_ddc_wr_one(ddc, b_dev, data_addr, NULL);
 
-	i = 0;
-	do {
-		ret = mtk_ddc_wr_one(ddc, b_dev, data_addr + i, pr_data + i);
-		if (ret)
-			return ret;
-	} while (++i < data_cnt);
-
-	return 0;
+	return mtk_ddcm_write_hdmi(ddc, b_dev, data_addr, data_cnt, pr_data);
 }
 
 static int mtk_hdmi_ddc_v2_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)

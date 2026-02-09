@@ -36,7 +36,11 @@ struct hwerr_info {
 	time64_t timestamp;
 };
 
-static struct hwerr_info hwerr_data[HWERR_RECOV_MAX];
+/*
+ * The hwerr_data[] array is declared with global scope so that it remains
+ * accessible to vmcoreinfo even when Link Time Optimization (LTO) is enabled.
+ */
+struct hwerr_info hwerr_data[HWERR_RECOV_MAX];
 
 Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
 			  void *data, size_t data_len)

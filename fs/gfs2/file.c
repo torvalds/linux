@@ -1608,6 +1608,7 @@ const struct file_operations gfs2_dir_fops = {
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
 	.llseek		= default_llseek,
+	.setlease	= simple_nosetlease,
 	.fop_flags	= FOP_ASYNC_LOCK,
 };
 

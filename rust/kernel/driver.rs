@@ -99,23 +99,43 @@ use crate::{acpi, device, of, str::CStr, try_pin_init, types::Opaque, ThisModule
 use core::pin::Pin;
 use pin_init::{pin_data, pinned_drop, PinInit};
 
+/// Trait describing the layout of a specific device driver.
+///
+/// This trait describes the layout of a specific driver structure, such as `struct pci_driver` or
+/// `struct platform_driver`.
+///
+/// # Safety
+///
+/// Implementors must guarantee that:
+/// - `DriverType` is `repr(C)`,
+/// - `DriverData` is the type of the driver's device private data.
+/// - `DriverType` embeds a valid `struct device_driver` at byte offset `DEVICE_DRIVER_OFFSET`.
+pub unsafe trait DriverLayout {
+    /// The specific driver type embedding a `struct device_driver`.
+    type DriverType: Default;
+
+    /// The type of the driver's device private data.
+    type DriverData;
+
+    /// Byte offset of the embedded `struct device_driver` within `DriverType`.
+    ///
+    /// This must correspond exactly to the location of the embedded `struct device_driver` field.
+    const DEVICE_DRIVER_OFFSET: usize;
+}
+
 /// The [`RegistrationOps`] trait serves as generic interface for subsystems (e.g., PCI, Platform,
 /// Amba, etc.) to provide the corresponding subsystem specific implementation to register /
-/// unregister a driver of the particular type (`RegType`).
+/// unregister a driver of the particular type (`DriverType`).
 ///
-/// For instance, the PCI subsystem would set `RegType` to `bindings::pci_driver` and call
+/// For instance, the PCI subsystem would set `DriverType` to `bindings::pci_driver` and call
 /// `bindings::__pci_register_driver` from `RegistrationOps::register` and
 /// `bindings::pci_unregister_driver` from `RegistrationOps::unregister`.
 ///
 /// # Safety
 ///
-/// A call to [`RegistrationOps::unregister`] for a given instance of `RegType` is only valid if a
-/// preceding call to [`RegistrationOps::register`] has been successful.
-pub unsafe trait RegistrationOps {
-    /// The type that holds information about the registration. This is typically a struct defined
-    /// by the C portion of the kernel.
-    type RegType: Default;
-
+/// A call to [`RegistrationOps::unregister`] for a given instance of `DriverType` is only valid if
+/// a preceding call to [`RegistrationOps::register`] has been successful.
+pub unsafe trait RegistrationOps: DriverLayout {
     /// Registers a driver.
     ///
     /// # Safety
@@ -123,7 +143,7 @@ pub unsafe trait RegistrationOps {
     /// On success, `reg` must remain pinned and valid until the matching call to
     /// [`RegistrationOps::unregister`].
     unsafe fn register(
-        reg: &Opaque<Self::RegType>,
+        reg: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result;
@@ -134,7 +154,7 @@ pub unsafe trait RegistrationOps {
     ///
     /// Must only be called after a preceding successful call to [`RegistrationOps::register`] for
     /// the same `reg`.
-    unsafe fn unregister(reg: &Opaque<Self::RegType>);
+    unsafe fn unregister(reg: &Opaque<Self::DriverType>);
 }
 
 /// A [`Registration`] is a generic type that represents the registration of some driver type (e.g.
@@ -146,7 +166,7 @@ pub unsafe trait RegistrationOps {
 #[pin_data(PinnedDrop)]
 pub struct Registration<T: RegistrationOps> {
     #[pin]
-    reg: Opaque<T::RegType>,
+    reg: Opaque<T::DriverType>,
 }
 
 // SAFETY: `Registration` has no fields or methods accessible via `&Registration`, so it is safe to
@@ -157,17 +177,51 @@ unsafe impl<T: RegistrationOps> Sync for Registration<T> {}
 // any thread, so `Registration` is `Send`.
 unsafe impl<T: RegistrationOps> Send for Registration<T> {}
 
-impl<T: RegistrationOps> Registration<T> {
+impl<T: RegistrationOps + 'static> Registration<T> {
+    extern "C" fn post_unbind_callback(dev: *mut bindings::device) {
+        // SAFETY: The driver core only ever calls the post unbind callback with a valid pointer to
+        // a `struct device`.
+        //
+        // INVARIANT: `dev` is valid for the duration of the `post_unbind_callback()`.
+        let dev = unsafe { &*dev.cast::<device::Device<device::CoreInternal>>() };
+
+        // `remove()` and all devres callbacks have been completed at this point, hence drop the
+        // driver's device private data.
+        //
+        // SAFETY: By the safety requirements of the `Driver` trait, `T::DriverData` is the
+        // driver's device private data type.
+        drop(unsafe { dev.drvdata_obtain::<T::DriverData>() });
+    }
+
+    /// Attach generic `struct device_driver` callbacks.
+    fn callbacks_attach(drv: &Opaque<T::DriverType>) {
+        let ptr = drv.get().cast::<u8>();
+
+        // SAFETY:
+        // - `drv.get()` yields a valid pointer to `Self::DriverType`.
+        // - Adding `DEVICE_DRIVER_OFFSET` yields the address of the embedded `struct device_driver`
+        //   as guaranteed by the safety requirements of the `Driver` trait.
+        let base = unsafe { ptr.add(T::DEVICE_DRIVER_OFFSET) };
+
+        // CAST: `base` points to the offset of the embedded `struct device_driver`.
+        let base = base.cast::<bindings::device_driver>();
+
+        // SAFETY: It is safe to set the fields of `struct device_driver` on initialization.
+        unsafe { (*base).p_cb.post_unbind_rust = Some(Self::post_unbind_callback) };
+    }
+
     /// Creates a new instance of the registration object.
     pub fn new(name: &'static CStr, module: &'static ThisModule) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            reg <- Opaque::try_ffi_init(|ptr: *mut T::RegType| {
+            reg <- Opaque::try_ffi_init(|ptr: *mut T::DriverType| {
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write.
-                unsafe { ptr.write(T::RegType::default()) };
+                unsafe { ptr.write(T::DriverType::default()) };
 
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write, and it has
                 // just been initialised above, so it's also valid for read.
-                let drv = unsafe { &*(ptr as *const Opaque<T::RegType>) };
+                let drv = unsafe { &*(ptr as *const Opaque<T::DriverType>) };
+
+                Self::callbacks_attach(drv);
 
                 // SAFETY: `drv` is guaranteed to be pinned until `T::unregister`.
                 unsafe { T::register(drv, name, module) }

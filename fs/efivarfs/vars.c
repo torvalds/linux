@@ -552,7 +552,7 @@ int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
 	err = __efivar_entry_get(entry, attributes, size, data);
 	efivar_unlock();
 
-	return 0;
+	return err;
 }
 
 /**

@@ -1364,7 +1364,9 @@ struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
 				      (bytenr + BTRFS_SUPER_INFO_SIZE) >> PAGE_SHIFT);
 	}
 
+	filemap_invalidate_lock(mapping);
 	page = read_cache_page_gfp(mapping, bytenr >> PAGE_SHIFT, GFP_NOFS);
+	filemap_invalidate_unlock(mapping);
 	if (IS_ERR(page))
 		return ERR_CAST(page);
 
@@ -7257,6 +7259,7 @@ static int read_one_dev(struct extent_buffer *leaf,
 			return -EINVAL;
 		}
 	}
+	set_bit(BTRFS_DEV_STATE_ITEM_FOUND, &device->dev_state);
 	set_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state) &&
 	   !test_bit(BTRFS_DEV_STATE_REPLACE_TGT, &device->dev_state)) {
@@ -8080,6 +8083,45 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 
 	/* Ensure all chunks have corresponding dev extents */
 	return verify_chunk_dev_extent_mapping(fs_info);
+}
+
+/*
+ * Ensure that all devices registered in the fs have their device items in the
+ * chunk tree.
+ *
+ * Return true if unexpected device is found.
+ * Return false otherwise.
+ */
+bool btrfs_verify_dev_items(const struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *seed_devs;
+	struct btrfs_device *dev;
+	bool ret = false;
+
+	mutex_lock(&uuid_mutex);
+	list_for_each_entry(dev, &fs_info->fs_devices->devices, dev_list) {
+		if (!test_bit(BTRFS_DEV_STATE_ITEM_FOUND, &dev->dev_state)) {
+			btrfs_err(fs_info,
+			"devid %llu path %s is registered but not found in chunk tree",
+				  dev->devid, btrfs_dev_name(dev));
+			ret = true;
+		}
+	}
+	list_for_each_entry(seed_devs, &fs_info->fs_devices->seed_list, seed_list) {
+		list_for_each_entry(dev, &seed_devs->devices, dev_list) {
+			if (!test_bit(BTRFS_DEV_STATE_ITEM_FOUND, &dev->dev_state)) {
+				btrfs_err(fs_info,
+			"devid %llu path %s is registered but not found in chunk tree",
+					  dev->devid, btrfs_dev_name(dev));
+				ret = true;
+			}
+		}
+	}
+	mutex_unlock(&uuid_mutex);
+	if (ret)
+		btrfs_err(fs_info,
+"remove the above devices or use 'btrfs device scan --forget <dev>' to unregister them before mount");
+	return ret;
 }
 
 /*

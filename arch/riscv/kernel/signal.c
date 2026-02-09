@@ -145,14 +145,14 @@ struct arch_ext_priv {
 	long (*save)(struct pt_regs *regs, void __user *sc_vec);
 };
 
-struct arch_ext_priv arch_ext_list[] = {
+static struct arch_ext_priv arch_ext_list[] = {
 	{
 		.magic = RISCV_V_MAGIC,
 		.save = &save_v_state,
 	},
 };
 
-const size_t nr_arch_exts = ARRAY_SIZE(arch_ext_list);
+static const size_t nr_arch_exts = ARRAY_SIZE(arch_ext_list);
 
 static long restore_sigcontext(struct pt_regs *regs,
 	struct sigcontext __user *sc)
@@ -297,7 +297,7 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 		} else {
 			err |= __put_user(arch_ext->magic, &sc_ext_ptr->magic);
 			err |= __put_user(ext_size, &sc_ext_ptr->size);
-			sc_ext_ptr = (void *)sc_ext_ptr + ext_size;
+			sc_ext_ptr = (void __user *)sc_ext_ptr + ext_size;
 		}
 	}
 	/* Write zero to fp-reserved space and check it on restore_sigcontext */

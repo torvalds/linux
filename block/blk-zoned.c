@@ -1957,6 +1957,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 
 	disk->nr_zones = args->nr_zones;
 	if (args->nr_conv_zones >= disk->nr_zones) {
+		queue_limits_cancel_update(q);
 		pr_warn("%s: Invalid number of conventional zones %u / %u\n",
 			disk->disk_name, args->nr_conv_zones, disk->nr_zones);
 		ret = -ENODEV;

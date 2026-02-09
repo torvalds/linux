@@ -451,8 +451,6 @@ struct ieee80211_mgd_assoc_data {
 		struct ieee80211_conn_settings conn;
 
 		u16 status;
-
-		bool disabled;
 	} link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);

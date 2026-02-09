@@ -5,13 +5,16 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <kunit/static_stub.h>
 #include <linux/array_size.h>
+#include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/firmware/cirrus/wmfw.h>
 #include <linux/fs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kstrtox.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
@@ -182,6 +185,8 @@ static bool cs35l56_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L56_OTP_MEM_53:
 	case CS35L56_OTP_MEM_54:
 	case CS35L56_OTP_MEM_55:
+	case CS35L56_SYNC_GPIO1_CFG ... CS35L56_ASP2_DIO_GPIO13_CFG:
+	case CS35L56_UPDATE_REGS:
 	case CS35L56_ASP1_ENABLES1:
 	case CS35L56_ASP1_CONTROL1:
 	case CS35L56_ASP1_CONTROL2:
@@ -213,6 +218,7 @@ static bool cs35l56_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L56_IRQ1_MASK_8:
 	case CS35L56_IRQ1_MASK_18:
 	case CS35L56_IRQ1_MASK_20:
+	case CS35L56_GPIO_STATUS1 ... CS35L56_GPIO13_CTRL1:
 	case CS35L56_MIXER_NGATE_CH1_CFG:
 	case CS35L56_MIXER_NGATE_CH2_CFG:
 	case CS35L56_DSP_VIRTUAL1_MBOX_1:
@@ -262,6 +268,8 @@ static bool cs35l56_common_volatile_reg(unsigned int reg)
 	case CS35L56_GLOBAL_ENABLES:		   /* owned by firmware */
 	case CS35L56_BLOCK_ENABLES:		   /* owned by firmware */
 	case CS35L56_BLOCK_ENABLES2:		   /* owned by firmware */
+	case CS35L56_SYNC_GPIO1_CFG ... CS35L56_ASP2_DIO_GPIO13_CFG:
+	case CS35L56_UPDATE_REGS:
 	case CS35L56_REFCLK_INPUT:		   /* owned by firmware */
 	case CS35L56_GLOBAL_SAMPLE_RATE:	   /* owned by firmware */
 	case CS35L56_DACPCM1_INPUT:		   /* owned by firmware */
@@ -272,6 +280,7 @@ static bool cs35l56_common_volatile_reg(unsigned int reg)
 	case CS35L56_IRQ1_EINT_1 ... CS35L56_IRQ1_EINT_8:
 	case CS35L56_IRQ1_EINT_18:
 	case CS35L56_IRQ1_EINT_20:
+	case CS35L56_GPIO_STATUS1 ... CS35L56_GPIO13_CTRL1:
 	case CS35L56_MIXER_NGATE_CH1_CFG:
 	case CS35L56_MIXER_NGATE_CH2_CFG:
 	case CS35L56_DSP_VIRTUAL1_MBOX_1:
@@ -1551,6 +1560,169 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, "SND_SOC_CS35L56_SHARED");
+
+int cs35l56_check_and_save_onchip_spkid_gpios(struct cs35l56_base *cs35l56_base,
+					      const u32 *gpios, int num_gpios,
+					      const u32 *pulls, int num_pulls)
+{
+	int max_gpio;
+	int ret = 0;
+	int i;
+
+	if ((num_gpios > ARRAY_SIZE(cs35l56_base->onchip_spkid_gpios)) ||
+	    (num_pulls > ARRAY_SIZE(cs35l56_base->onchip_spkid_pulls)))
+		return -EOVERFLOW;
+
+	switch (cs35l56_base->type) {
+	case 0x54:
+	case 0x56:
+	case 0x57:
+		max_gpio = CS35L56_MAX_GPIO;
+		break;
+	default:
+		max_gpio = CS35L63_MAX_GPIO;
+		break;
+	}
+
+	for (i = 0; i < num_gpios; i++) {
+		if (gpios[i] < 1 || gpios[i] > max_gpio) {
+			dev_err(cs35l56_base->dev, "Invalid spkid GPIO %d\n", gpios[i]);
+			/* Keep going so we log all bad values */
+			ret = -EINVAL;
+		}
+
+		/* Change to zero-based */
+		cs35l56_base->onchip_spkid_gpios[i] = gpios[i] - 1;
+	}
+
+	for (i = 0; i < num_pulls; i++) {
+		switch (pulls[i]) {
+		case 0:
+			cs35l56_base->onchip_spkid_pulls[i] = CS35L56_PAD_PULL_NONE;
+			break;
+		case 1:
+			cs35l56_base->onchip_spkid_pulls[i] = CS35L56_PAD_PULL_UP;
+			break;
+		case 2:
+			cs35l56_base->onchip_spkid_pulls[i] = CS35L56_PAD_PULL_DOWN;
+			break;
+		default:
+			dev_err(cs35l56_base->dev, "Invalid spkid pull %d\n", pulls[i]);
+			/* Keep going so we log all bad values */
+			ret = -EINVAL;
+			break;
+		}
+	}
+	if (ret)
+		return ret;
+
+	cs35l56_base->num_onchip_spkid_gpios = num_gpios;
+	cs35l56_base->num_onchip_spkid_pulls = num_pulls;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_check_and_save_onchip_spkid_gpios, "SND_SOC_CS35L56_SHARED");
+
+/* Caller must pm_runtime resume before calling this function */
+int cs35l56_configure_onchip_spkid_pads(struct cs35l56_base *cs35l56_base)
+{
+	struct regmap *regmap = cs35l56_base->regmap;
+	unsigned int addr_offset, val;
+	int num_gpios, num_pulls;
+	int i, ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs35l56_configure_onchip_spkid_pads, cs35l56_base);
+
+	if (cs35l56_base->num_onchip_spkid_gpios == 0)
+		return 0;
+
+	num_gpios = min(cs35l56_base->num_onchip_spkid_gpios,
+			ARRAY_SIZE(cs35l56_base->onchip_spkid_gpios));
+	num_pulls = min(cs35l56_base->num_onchip_spkid_pulls,
+			ARRAY_SIZE(cs35l56_base->onchip_spkid_pulls));
+
+	for (i = 0; i < num_gpios; i++) {
+		addr_offset = cs35l56_base->onchip_spkid_gpios[i] * sizeof(u32);
+
+		/* Set unspecified pulls to NONE */
+		if (i < num_pulls) {
+			val = FIELD_PREP(CS35L56_PAD_GPIO_PULL_MASK,
+					 cs35l56_base->onchip_spkid_pulls[i]);
+		} else {
+			val = FIELD_PREP(CS35L56_PAD_GPIO_PULL_MASK, CS35L56_PAD_PULL_NONE);
+		}
+
+		ret = regmap_update_bits(regmap, CS35L56_SYNC_GPIO1_CFG + addr_offset,
+					 CS35L56_PAD_GPIO_PULL_MASK | CS35L56_PAD_GPIO_IE,
+					 val | CS35L56_PAD_GPIO_IE);
+		if (ret) {
+			dev_err(cs35l56_base->dev, "GPIO%d set pad fail: %d\n",
+				cs35l56_base->onchip_spkid_gpios[i] + 1, ret);
+			return ret;
+		}
+	}
+
+	ret = regmap_write(regmap, CS35L56_UPDATE_REGS, CS35L56_UPDT_GPIO_PRES);
+	if (ret) {
+		dev_err(cs35l56_base->dev, "UPDT_GPIO_PRES failed:%d\n", ret);
+		return ret;
+	}
+
+	usleep_range(CS35L56_PAD_PULL_SETTLE_US, CS35L56_PAD_PULL_SETTLE_US * 2);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_configure_onchip_spkid_pads, "SND_SOC_CS35L56_SHARED");
+
+/* Caller must pm_runtime resume before calling this function */
+int cs35l56_read_onchip_spkid(struct cs35l56_base *cs35l56_base)
+{
+	struct regmap *regmap = cs35l56_base->regmap;
+	unsigned int addr_offset, val;
+	int num_gpios;
+	int speaker_id = 0;
+	int i, ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs35l56_read_onchip_spkid, cs35l56_base);
+
+	if (cs35l56_base->num_onchip_spkid_gpios == 0)
+		return -ENOENT;
+
+	num_gpios = min(cs35l56_base->num_onchip_spkid_gpios,
+			ARRAY_SIZE(cs35l56_base->onchip_spkid_gpios));
+
+	for (i = 0; i < num_gpios; i++) {
+		addr_offset = cs35l56_base->onchip_spkid_gpios[i] * sizeof(u32);
+
+		ret = regmap_update_bits(regmap, CS35L56_GPIO1_CTRL1 + addr_offset,
+					 CS35L56_GPIO_DIR_MASK | CS35L56_GPIO_FN_MASK,
+					 CS35L56_GPIO_DIR_MASK | CS35L56_GPIO_FN_GPIO);
+		if (ret) {
+			dev_err(cs35l56_base->dev, "GPIO%u set func fail: %d\n",
+				cs35l56_base->onchip_spkid_gpios[i] + 1, ret);
+			return ret;
+		}
+	}
+
+	ret = regmap_read(regmap, CS35L56_GPIO_STATUS1, &val);
+	if (ret) {
+		dev_err(cs35l56_base->dev, "GPIO%d status read failed: %d\n",
+			cs35l56_base->onchip_spkid_gpios[i] + 1, ret);
+		return ret;
+	}
+
+	for (i = 0; i < num_gpios; i++) {
+		speaker_id <<= 1;
+
+		if (val & BIT(cs35l56_base->onchip_spkid_gpios[i]))
+			speaker_id |= 1;
+	}
+
+	dev_dbg(cs35l56_base->dev, "Onchip GPIO Speaker ID = %d\n", speaker_id);
+
+	return speaker_id;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_read_onchip_spkid, "SND_SOC_CS35L56_SHARED");
 
 static const u32 cs35l56_bclk_valid_for_pll_freq_table[] = {
 	[0x0C] = 128000,

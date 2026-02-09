@@ -37,6 +37,8 @@ struct mmap_state {
 	bool check_ksm_early :1;
 	/* If we map new, hold the file rmap lock on mapping. */
 	bool hold_file_rmap_lock :1;
+	/* If .mmap_prepare changed the file, we don't need to pin. */
+	bool file_doesnt_need_get :1;
 };
 
 #define MMAP_STATE(name, mm_, vmi_, addr_, len_, pgoff_, vm_flags_, file_) \
@@ -2450,7 +2452,9 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 	struct vma_iterator *vmi = map->vmi;
 	int error;
 
-	vma->vm_file = get_file(map->file);
+	vma->vm_file = map->file;
+	if (!map->file_doesnt_need_get)
+		get_file(map->file);
 
 	if (!map->file->f_op->mmap)
 		return 0;
@@ -2638,7 +2642,10 @@ static int call_mmap_prepare(struct mmap_state *map,
 
 	/* Update fields permitted to be changed. */
 	map->pgoff = desc->pgoff;
-	map->file = desc->vm_file;
+	if (desc->vm_file != map->file) {
+		map->file_doesnt_need_get = true;
+		map->file = desc->vm_file;
+	}
 	map->vm_flags = desc->vm_flags;
 	map->page_prot = desc->page_prot;
 	/* User-defined fields. */

@@ -19,6 +19,7 @@ config SND_SOC_FSL_ASRC
 
 config SND_SOC_FSL_SAI
 	tristate "Synchronous Audio Interface (SAI) module support"
+	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	select REGMAP_MMIO
 	select SND_SOC_IMX_PCM_DMA if SND_IMX_SOC != n
 	select SND_SOC_GENERIC_DMAENGINE_PCM
@@ -32,7 +33,6 @@ config SND_SOC_FSL_SAI
 config SND_SOC_FSL_MQS
 	tristate "Medium Quality Sound (MQS) module support"
 	depends on SND_SOC_FSL_SAI
-	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	select REGMAP_MMIO
 	help
 	  Say Y if you want to add Medium Quality Sound (MQS)
@@ -309,6 +309,7 @@ config SND_SOC_IMX_SGTL5000
 
 config SND_SOC_FSL_ASOC_CARD
 	tristate "Generic ASoC Sound Card with ASRC support"
+	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	depends on OF && I2C
 	# enforce SND_SOC_FSL_ASOC_CARD=m if SND_AC97_CODEC=m:
 	depends on SND_AC97_CODEC || SND_AC97_CODEC=n
@@ -330,6 +331,7 @@ config SND_SOC_FSL_ASOC_CARD
 
 config SND_SOC_IMX_AUDMIX
 	tristate "SoC Audio support for i.MX boards with AUDMIX"
+	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	select SND_SOC_FSL_AUDMIX
 	select SND_SOC_FSL_SAI
 	help
@@ -339,6 +341,7 @@ config SND_SOC_IMX_AUDMIX
 
 config SND_SOC_IMX_HDMI
 	tristate "SoC Audio support for i.MX boards with HDMI port"
+	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	select SND_SOC_FSL_SAI
 	select SND_SOC_FSL_AUD2HTX
 	select SND_SOC_HDMI_CODEC
@@ -364,6 +367,7 @@ config SND_SOC_IMX_RPMSG
 config SND_SOC_IMX_CARD
 	tristate "SoC Audio Graph Sound Card support for i.MX boards"
 	depends on OF && I2C
+	depends on IMX_SCMI_MISC_DRV || !IMX_SCMI_MISC_DRV
 	select SND_SOC_AK4458
 	select SND_SOC_AK5558
 	select SND_SOC_IMX_PCM_DMA

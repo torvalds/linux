@@ -54,6 +54,7 @@
 &mdio0 {
 	pinctrl-0 = <&miim_a_pins>;
 	pinctrl-names = "default";
+	reset-gpios = <&gpio 53 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	ext_phy0: ethernet-phy@7 {

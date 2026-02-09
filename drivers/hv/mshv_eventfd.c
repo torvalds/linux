@@ -388,7 +388,7 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 {
 	struct eventfd_ctx *eventfd = NULL, *resamplefd = NULL;
 	struct mshv_irqfd *irqfd, *tmp;
-	unsigned int events;
+	__poll_t events;
 	int ret;
 	int idx;
 

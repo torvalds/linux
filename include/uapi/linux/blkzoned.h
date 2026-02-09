@@ -81,7 +81,8 @@ enum blk_zone_cond {
 	BLK_ZONE_COND_FULL	= 0xE,
 	BLK_ZONE_COND_OFFLINE	= 0xF,
 
-	BLK_ZONE_COND_ACTIVE	= 0xFF,
+	BLK_ZONE_COND_ACTIVE	= 0xFF, /* added in Linux 6.19 */
+#define BLK_ZONE_COND_ACTIVE	BLK_ZONE_COND_ACTIVE
 };
 
 /**
@@ -100,7 +101,8 @@ enum blk_zone_report_flags {
 	BLK_ZONE_REP_CAPACITY	= (1U << 0),
 
 	/* Input flags */
-	BLK_ZONE_REP_CACHED	= (1U << 31),
+	BLK_ZONE_REP_CACHED	= (1U << 31), /* added in Linux 6.19 */
+#define BLK_ZONE_REP_CACHED	BLK_ZONE_REP_CACHED
 };
 
 /**

@@ -23,13 +23,22 @@ use core::{
 /// An adapter for the registration of auxiliary drivers.
 pub struct Adapter<T: Driver>(T);
 
-// SAFETY: A call to `unregister` for a given instance of `RegType` is guaranteed to be valid if
+// SAFETY:
+// - `bindings::auxiliary_driver` is a C type declared as `repr(C)`.
+// - `T` is the type of the driver's device private data.
+// - `struct auxiliary_driver` embeds a `struct device_driver`.
+// - `DEVICE_DRIVER_OFFSET` is the correct byte offset to the embedded `struct device_driver`.
+unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
+    type DriverType = bindings::auxiliary_driver;
+    type DriverData = T;
+    const DEVICE_DRIVER_OFFSET: usize = core::mem::offset_of!(Self::DriverType, driver);
+}
+
+// SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
 // a preceding call to `register` has been successful.
 unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
-    type RegType = bindings::auxiliary_driver;
-
     unsafe fn register(
-        adrv: &Opaque<Self::RegType>,
+        adrv: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result {
@@ -41,14 +50,14 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
             (*adrv.get()).id_table = T::ID_TABLE.as_ptr();
         }
 
-        // SAFETY: `adrv` is guaranteed to be a valid `RegType`.
+        // SAFETY: `adrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
             bindings::__auxiliary_driver_register(adrv.get(), module.0, name.as_char_ptr())
         })
     }
 
-    unsafe fn unregister(adrv: &Opaque<Self::RegType>) {
-        // SAFETY: `adrv` is guaranteed to be a valid `RegType`.
+    unsafe fn unregister(adrv: &Opaque<Self::DriverType>) {
+        // SAFETY: `adrv` is guaranteed to be a valid `DriverType`.
         unsafe { bindings::auxiliary_driver_unregister(adrv.get()) }
     }
 }
@@ -87,7 +96,9 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        drop(unsafe { adev.as_ref().drvdata_obtain::<T>() });
+        let data = unsafe { adev.as_ref().drvdata_borrow::<T>() };
+
+        T::unbind(adev, data);
     }
 }
 
@@ -187,6 +198,20 @@ pub trait Driver {
     ///
     /// Called when an auxiliary device is matches a corresponding driver.
     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
+
+    /// Auxiliary driver unbind.
+    ///
+    /// Called when a [`Device`] is unbound from its bound [`Driver`]. Implementing this callback
+    /// is optional.
+    ///
+    /// This callback serves as a place for drivers to perform teardown operations that require a
+    /// `&Device<Core>` or `&Device<Bound>` reference. For instance, drivers may try to perform I/O
+    /// operations to gracefully tear down the device.
+    ///
+    /// Otherwise, release operations for driver resources should be performed in `Self::drop`.
+    fn unbind(dev: &Device<device::Core>, this: Pin<&Self>) {
+        let _ = (dev, this);
+    }
 }
 
 /// The auxiliary device representation.

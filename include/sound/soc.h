@@ -1076,7 +1076,7 @@ struct snd_soc_card {
 	struct list_head dobj_list;
 
 	/* Generic DAPM context for the card */
-	struct snd_soc_dapm_context dapm;
+	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_dapm_stats dapm_stats;
 
 #ifdef CONFIG_DEBUG_FS
@@ -1136,7 +1136,7 @@ static inline int snd_soc_card_is_instantiated(struct snd_soc_card *card)
 
 static inline struct snd_soc_dapm_context *snd_soc_card_to_dapm(struct snd_soc_card *card)
 {
-	return &card->dapm;
+	return card->dapm;
 }
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */

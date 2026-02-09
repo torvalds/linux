@@ -88,7 +88,7 @@ patternProperties:
                 pcie1_clkreq, pcie1_wakeup, pmic0, pmic1, ptp, ptp_clk,
                 ptp_trig, pwm0, pwm1, pwm2, pwm3, rgmii, sdio0, sdio_sb, smi,
                 spi_cs1, spi_cs2, spi_cs3, spi_quad, uart1, uart2,
-                usb2_drvvbus1, usb32_drvvbus ]
+                usb2_drvvbus1, usb32_drvvbus0 ]
 
       function:
         enum: [ drvbus, emmc, gpio, i2c, jtag, led, mii, mii_err, onewire,

@@ -763,7 +763,7 @@ void amdgpu_fence_save_wptr(struct amdgpu_fence *af)
 }
 
 static void amdgpu_ring_backup_unprocessed_command(struct amdgpu_ring *ring,
-						   u64 start_wptr, u32 end_wptr)
+						   u64 start_wptr, u64 end_wptr)
 {
 	unsigned int first_idx = start_wptr & ring->buf_mask;
 	unsigned int last_idx = end_wptr & ring->buf_mask;

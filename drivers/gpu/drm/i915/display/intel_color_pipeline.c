@@ -34,9 +34,17 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 		return ret;
 
 	list->type = colorop->base.base.id;
-	list->name = kasprintf(GFP_KERNEL, "Color Pipeline %d", colorop->base.base.id);
 
 	/* TODO: handle failures and clean up */
+	prev_op = &colorop->base;
+
+	colorop = intel_colorop_create(INTEL_PLANE_CB_CSC);
+	ret = drm_plane_colorop_ctm_3x4_init(dev, &colorop->base, plane,
+					     DRM_COLOROP_FLAG_ALLOW_BYPASS);
+	if (ret)
+		return ret;
+
+	drm_colorop_set_next_property(prev_op, &colorop->base);
 	prev_op = &colorop->base;
 
 	if (DISPLAY_VER(display) >= 35 &&
@@ -55,15 +63,6 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 		prev_op = &colorop->base;
 	}
 
-	colorop = intel_colorop_create(INTEL_PLANE_CB_CSC);
-	ret = drm_plane_colorop_ctm_3x4_init(dev, &colorop->base, plane,
-					     DRM_COLOROP_FLAG_ALLOW_BYPASS);
-	if (ret)
-		return ret;
-
-	drm_colorop_set_next_property(prev_op, &colorop->base);
-	prev_op = &colorop->base;
-
 	colorop = intel_colorop_create(INTEL_PLANE_CB_POST_CSC_LUT);
 	ret = drm_plane_colorop_curve_1d_lut_init(dev, &colorop->base, plane,
 						  PLANE_GAMMA_SIZE,
@@ -74,6 +73,8 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 
 	drm_colorop_set_next_property(prev_op, &colorop->base);
 
+	list->name = kasprintf(GFP_KERNEL, "Color Pipeline %d", list->type);
+
 	return 0;
 }
 
@@ -81,9 +82,10 @@ int intel_color_pipeline_plane_init(struct drm_plane *plane, enum pipe pipe)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_display *display = to_intel_display(dev);
-	struct drm_prop_enum_list pipelines[MAX_COLOR_PIPELINES];
+	struct drm_prop_enum_list pipelines[MAX_COLOR_PIPELINES] = {};
 	int len = 0;
-	int ret;
+	int ret = 0;
+	int i;
 
 	/* Currently expose pipeline only for HDR planes */
 	if (!icl_is_hdr_plane(display, to_intel_plane(plane)->id))
@@ -92,8 +94,14 @@ int intel_color_pipeline_plane_init(struct drm_plane *plane, enum pipe pipe)
 	/* Add pipeline consisting of transfer functions */
 	ret = _intel_color_pipeline_plane_init(plane, &pipelines[len], pipe);
 	if (ret)
-		return ret;
+		goto out;
 	len++;
 
-	return drm_plane_create_color_pipeline_property(plane, pipelines, len);
+	ret = drm_plane_create_color_pipeline_property(plane, pipelines, len);
+
+	for (i = 0; i < len; i++)
+		kfree(pipelines[i].name);
+
+out:
+	return ret;
 }

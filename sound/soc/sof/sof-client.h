@@ -50,6 +50,9 @@ const struct sof_ipc_fw_version *sof_client_get_fw_version(struct sof_client_dev
 size_t sof_client_get_ipc_max_payload_size(struct sof_client_dev *cdev);
 enum sof_ipc_type sof_client_get_ipc_type(struct sof_client_dev *cdev);
 
+/* DSP/firmware boot request */
+int sof_client_boot_dsp(struct sof_client_dev *cdev);
+
 /* module refcount management of SOF core */
 int sof_client_core_module_get(struct sof_client_dev *cdev);
 void sof_client_core_module_put(struct sof_client_dev *cdev);

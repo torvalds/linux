@@ -253,15 +253,21 @@ static int asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_task
 	reinit_completion(&pair->complete[IN]);
 	reinit_completion(&pair->complete[OUT]);
 
+	if (asrc->start_before_dma)
+		asrc->m2m_start(pair);
+
 	/* Submit DMA request */
 	dmaengine_submit(pair->desc[IN]);
 	dma_async_issue_pending(pair->desc[IN]->chan);
 	if (out_dma_len > 0) {
+		if (asrc->start_before_dma && asrc->m2m_output_ready)
+			asrc->m2m_output_ready(pair);
 		dmaengine_submit(pair->desc[OUT]);
 		dma_async_issue_pending(pair->desc[OUT]->chan);
 	}
 
-	asrc->m2m_start(pair);
+	if (!asrc->start_before_dma)
+		asrc->m2m_start(pair);
 
 	if (!wait_for_completion_interruptible_timeout(&pair->complete[IN], 10 * HZ)) {
 		dev_err(dev, "out DMA task timeout\n");

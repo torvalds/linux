@@ -2182,12 +2182,7 @@ int efx_mcdi_rx_pull_rss_context_config(struct efx_nic *efx,
 
 int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
 {
-	int rc;
-
-	mutex_lock(&efx->net_dev->ethtool->rss_lock);
-	rc = efx_mcdi_rx_pull_rss_context_config(efx, &efx->rss_context);
-	mutex_unlock(&efx->net_dev->ethtool->rss_lock);
-	return rc;
+	return efx_mcdi_rx_pull_rss_context_config(efx, &efx->rss_context);
 }
 
 void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)

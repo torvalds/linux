@@ -157,22 +157,22 @@ static const struct reg_default halo_register_defaults[] = {
 };
 
 static const struct regmap_range halo_readable_registers[] = {
-	regmap_reg_range(0x2000000, 0x2005fff), /* XM_PACKED */
+	regmap_reg_range(0x2000000, 0x208fff0), /* XM_PACKED */
 	regmap_reg_range(0x25e0000, 0x25e004f), /* SYSINFO */
 	regmap_reg_range(0x25e2000, 0x25e2047), /* SYSINFO */
-	regmap_reg_range(0x2800000, 0x2807fff), /* XM */
+	regmap_reg_range(0x2800000, 0x28bfff4), /* XM */
 	regmap_reg_range(0x2b80000, 0x2bc700b), /* CORE CTRL */
-	regmap_reg_range(0x2c00000, 0x2c047f3), /* YM_PACKED */
-	regmap_reg_range(0x3400000, 0x3405ff7), /* YM */
+	regmap_reg_range(0x2c00000, 0x2c8fff0), /* YM_PACKED */
+	regmap_reg_range(0x3400000, 0x34bfff4), /* YM */
 	regmap_reg_range(0x3800000, 0x3804fff), /* PM_PACKED */
 };
 
 static const struct regmap_range halo_writeable_registers[] = {
-	regmap_reg_range(0x2000000, 0x2005fff), /* XM_PACKED */
-	regmap_reg_range(0x2800000, 0x2807fff), /* XM */
+	regmap_reg_range(0x2000000, 0x208fff0), /* XM_PACKED */
+	regmap_reg_range(0x2800000, 0x28bfff4), /* XM */
 	regmap_reg_range(0x2b80000, 0x2bc700b), /* CORE CTRL */
-	regmap_reg_range(0x2c00000, 0x2c047f3), /* YM_PACKED */
-	regmap_reg_range(0x3400000, 0x3405ff7), /* YM */
+	regmap_reg_range(0x2c00000, 0x2c8fff0), /* YM_PACKED */
+	regmap_reg_range(0x3400000, 0x34bfff4), /* YM */
 	regmap_reg_range(0x3800000, 0x3804fff), /* PM_PACKED */
 };
 

@@ -40,6 +40,12 @@
 #define RTQ9128_REG_EFUSE_DATA	0xE0
 #define RTQ9128_REG_VENDOR_ID	0xF9
 
+#define RTQ9154_REG_CH1_VOL	0x34
+#define RTQ9154_REG_CH2_VOL	0x33
+#define RTQ9154_REG_CH3_VOL	0x32
+#define RTQ9154_REG_CH4_VOL	0x31
+#define RTQ9154_REG_AUTOULQM	0xAD
+
 #define RTQ9128_CHSTAT_VAL_MASK	GENMASK(1, 0)
 #define RTQ9128_DOLEN_MASK	GENMASK(7, 6)
 #define RTQ9128_TDMSRCIN_MASK	GENMASK(5, 4)
@@ -48,6 +54,7 @@
 #define RTQ9128_MSMUTE_MASK	BIT(0)
 #define RTQ9128_DIE_CHECK_MASK	GENMASK(4, 0)
 #define RTQ9128_VENDOR_ID_MASK	GENMASK(19, 8)
+#define RTQ9128_MODEL_ID_MASK	GENMASK(7, 4)
 
 #define RTQ9128_SOFT_RESET_VAL	0x80
 #define RTQ9128_VENDOR_ID_VAL	0x470
@@ -56,6 +63,15 @@
 #define RTQ9128_TKA470B_VAL	0
 #define RTQ9128_RTQ9128DH_VAL	0x0F
 #define RTQ9128_RTQ9128DL_VAL	0x10
+#define RTQ9154_MODEL_ID	0x08
+
+#define RTQ9154_AUTOULQM_VAL	0x82
+
+enum rtq9128_chip_model {
+	CHIP_MODEL_RTQ9128 = 0,
+	CHIP_MODEL_RTQ9154,
+	CHIP_MODEL_MAX
+};
 
 struct rtq9128_data {
 	struct gpio_desc *enable;
@@ -63,6 +79,7 @@ struct rtq9128_data {
 	int tdm_slots;
 	int tdm_slot_width;
 	bool tdm_input_data2_select;
+	enum rtq9128_chip_model chip_model;
 };
 
 struct rtq9128_init_reg {
@@ -251,6 +268,28 @@ static const struct soc_enum rtq9128_out4_phase_enum =
 	SOC_ENUM_SINGLE(RTQ9128_REG_PLLTRI_GEN2, 0, ARRAY_SIZE(phase_select_text),
 			phase_select_text);
 
+static const struct soc_enum rtq9154_ch1_si_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_SDI_SEL, 0, ARRAY_SIZE(source_select_text),
+			source_select_text);
+static const struct soc_enum rtq9154_ch2_si_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_SDI_SEL, 2, ARRAY_SIZE(source_select_text),
+			source_select_text);
+static const struct soc_enum rtq9154_ch3_si_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_SDI_SEL, 4, ARRAY_SIZE(source_select_text),
+			source_select_text);
+static const struct soc_enum rtq9154_ch4_si_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_SDI_SEL, 6, ARRAY_SIZE(source_select_text),
+			source_select_text);
+static const struct soc_enum rtq9154_out1_phase_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_PLLTRI_GEN2, 0, ARRAY_SIZE(phase_select_text),
+			phase_select_text);
+static const struct soc_enum rtq9154_out2_phase_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_PLLTRI_GEN2, 4, ARRAY_SIZE(phase_select_text),
+			phase_select_text);
+static const struct soc_enum rtq9154_out3_phase_enum =
+	SOC_ENUM_SINGLE(RTQ9128_REG_PLLTRI_GEN1, 0, ARRAY_SIZE(phase_select_text),
+			phase_select_text);
+
 /*
  * In general usage, DVDD could be 1P8V, 3P0V or 3P3V.
  * This DVDD undervoltage protection is to prevent from the abnormal power
@@ -283,10 +322,33 @@ static const struct snd_kcontrol_new rtq9128_snd_ctrls[] = {
 	SOC_ENUM("DVDD UV Threshold Select", rtq9128_dvdduv_select_enum),
 };
 
+static const struct snd_kcontrol_new rtq9154_snd_ctrls[] = {
+	SOC_SINGLE_TLV("MS Volume", RTQ9128_REG_MS_VOL, 2, 511, 1, dig_tlv),
+	SOC_SINGLE_TLV("CH1 Volume", RTQ9154_REG_CH1_VOL, 2, 511, 1, dig_tlv),
+	SOC_SINGLE_TLV("CH2 Volume", RTQ9154_REG_CH2_VOL, 2, 511, 1, dig_tlv),
+	SOC_SINGLE_TLV("CH3 Volume", RTQ9154_REG_CH3_VOL, 2, 511, 1, dig_tlv),
+	SOC_SINGLE_TLV("CH4 Volume", RTQ9154_REG_CH4_VOL, 2, 511, 1, dig_tlv),
+	SOC_SINGLE_TLV("SPK Gain Volume", RTQ9128_REG_MISC, 0, 5, 0, spkgain_tlv),
+	SOC_SINGLE("PBTL12 Switch", RTQ9128_REG_MISC, 4, 1, 0),
+	SOC_SINGLE("PBTL34 Switch", RTQ9128_REG_MISC, 5, 1, 0),
+	SOC_SINGLE("Spread Spectrum Switch", RTQ9128_REG_PWM_SS_OPT, 7, 1, 0),
+	SOC_SINGLE("SDO Select", RTQ9128_REG_SDO_SEL, 0, 15, 0),
+	SOC_ENUM("CH1 SI Select", rtq9154_ch1_si_enum),
+	SOC_ENUM("CH2 SI Select", rtq9154_ch2_si_enum),
+	SOC_ENUM("CH3 SI Select", rtq9154_ch3_si_enum),
+	SOC_ENUM("CH4 SI Select", rtq9154_ch4_si_enum),
+	SOC_ENUM("PWM FREQ Select", rtq9128_pwm_freq_enum),
+	SOC_ENUM("OUT1 Phase Select", rtq9154_out1_phase_enum),
+	SOC_ENUM("OUT2 Phase Select", rtq9154_out2_phase_enum),
+	SOC_ENUM("OUT3 Phase Select", rtq9154_out3_phase_enum),
+	SOC_ENUM("DVDD UV Threshold Select", rtq9128_dvdduv_select_enum),
+};
+
 static int rtq9128_dac_power_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 				   int event)
 {
 	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
+	struct rtq9128_data *data = snd_soc_component_get_drvdata(comp);
 	unsigned int shift, mask;
 	int ret;
 
@@ -300,6 +362,10 @@ static int rtq9128_dac_power_event(struct snd_soc_dapm_widget *w, struct snd_kco
 		shift = 2;
 	else
 		shift = 0;
+
+	/* Compared to RTQ9128, RTQ9154 use the reverse order for DACx bitfield location */
+	if (data->chip_model == CHIP_MODEL_RTQ9154)
+		shift = 6 - shift;
 
 	mask = RTQ9128_CHSTAT_VAL_MASK << shift;
 
@@ -352,7 +418,7 @@ static const struct snd_soc_dapm_route rtq9128_dapm_routes[] = {
 static const struct rtq9128_init_reg rtq9128_tka470b_tables[] = {
 	{ 0xA0, 0xEF },
 	{ 0x0D, 0x00 },
-	{ 0x03, 0x05 },
+	{ 0x03, 0x45 },
 	{ 0x05, 0x31 },
 	{ 0x06, 0x23 },
 	{ 0x70, 0x11 },
@@ -367,7 +433,7 @@ static const struct rtq9128_init_reg rtq9128_tka470b_tables[] = {
 
 static const struct rtq9128_init_reg rtq9128_dh_tables[] = {
 	{ 0x0F, 0x00 },
-	{ 0x03, 0x0D },
+	{ 0x03, 0x4D },
 	{ 0xB2, 0xFF },
 	{ 0xB3, 0xFF },
 	{ 0x30, 0x180 },
@@ -378,7 +444,7 @@ static const struct rtq9128_init_reg rtq9128_dh_tables[] = {
 
 static const struct rtq9128_init_reg rtq9128_dl_tables[] = {
 	{ 0x0F, 0x00 },
-	{ 0x03, 0x0D },
+	{ 0x03, 0x4D },
 	{ 0x30, 0x180 },
 	{ 0x8A, 0x55 },
 	{ 0x72, 0x00 },
@@ -387,6 +453,7 @@ static const struct rtq9128_init_reg rtq9128_dl_tables[] = {
 
 static int rtq9128_component_probe(struct snd_soc_component *comp)
 {
+	struct rtq9128_data *data = snd_soc_component_get_drvdata(comp);
 	const struct rtq9128_init_reg *table, *curr;
 	size_t table_size;
 	unsigned int val;
@@ -421,6 +488,14 @@ static int rtq9128_component_probe(struct snd_soc_component *comp)
 			return ret;
 	}
 
+
+	if (data->chip_model == CHIP_MODEL_RTQ9154) {
+		/* Enable RTQ9154 Specific AUTO ULQM feature */
+		ret = snd_soc_component_write(comp, RTQ9154_REG_AUTOULQM, RTQ9154_AUTOULQM_VAL);
+		if (ret < 0)
+			return ret;
+	}
+
 	pm_runtime_mark_last_busy(comp->dev);
 	pm_runtime_put(comp->dev);
 
@@ -431,6 +506,18 @@ static const struct snd_soc_component_driver rtq9128_comp_driver = {
 	.probe = rtq9128_component_probe,
 	.controls = rtq9128_snd_ctrls,
 	.num_controls = ARRAY_SIZE(rtq9128_snd_ctrls),
+	.dapm_widgets = rtq9128_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(rtq9128_dapm_widgets),
+	.dapm_routes = rtq9128_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(rtq9128_dapm_routes),
+	.use_pmdown_time = 1,
+	.endianness = 1,
+};
+
+static const struct snd_soc_component_driver rtq9154_comp_driver = {
+	.probe = rtq9128_component_probe,
+	.controls = rtq9154_snd_ctrls,
+	.num_controls = ARRAY_SIZE(rtq9154_snd_ctrls),
 	.dapm_widgets = rtq9128_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rtq9128_dapm_widgets),
 	.dapm_routes = rtq9128_dapm_routes,
@@ -679,7 +766,8 @@ static int rtq9128_probe(struct i2c_client *i2c)
 	struct device *dev = &i2c->dev;
 	struct rtq9128_data *data;
 	struct regmap *regmap;
-	unsigned int venid;
+	unsigned int veninfo, venid, chip_model;
+	const struct snd_soc_component_driver *comp_drv;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -712,13 +800,25 @@ static int rtq9128_probe(struct i2c_client *i2c)
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap), "Failed to init regmap\n");
 
-	ret = regmap_read(regmap, RTQ9128_REG_VENDOR_ID, &venid);
+	ret = regmap_read(regmap, RTQ9128_REG_VENDOR_ID, &veninfo);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get vendor id\n");
 
-	venid = FIELD_GET(RTQ9128_VENDOR_ID_MASK, venid);
+	venid = FIELD_GET(RTQ9128_VENDOR_ID_MASK, veninfo);
 	if (venid != RTQ9128_VENDOR_ID_VAL)
 		return dev_err_probe(dev, -ENODEV, "Vendor ID not match (0x%x)\n", venid);
+
+	chip_model = FIELD_GET(RTQ9128_MODEL_ID_MASK, veninfo);
+	switch (chip_model) {
+	case RTQ9154_MODEL_ID:
+		data->chip_model = CHIP_MODEL_RTQ9154;
+		comp_drv = &rtq9154_comp_driver;
+		break;
+	default:
+		data->chip_model = CHIP_MODEL_RTQ9128;
+		comp_drv = &rtq9128_comp_driver;
+		break;
+	}
 
 	pm_runtime_set_active(dev);
 	pm_runtime_mark_last_busy(dev);
@@ -726,7 +826,7 @@ static int rtq9128_probe(struct i2c_client *i2c)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable pm runtime\n");
 
-	return devm_snd_soc_register_component(dev, &rtq9128_comp_driver, &rtq9128_dai, 1);
+	return devm_snd_soc_register_component(dev, comp_drv, &rtq9128_dai, 1);
 }
 
 static int rtq9128_pm_runtime_suspend(struct device *dev)

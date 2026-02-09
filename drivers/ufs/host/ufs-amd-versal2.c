@@ -367,7 +367,7 @@ static int ufs_versal2_hce_enable_notify(struct ufs_hba *hba,
 {
 	int ret = 0;
 
-	if (status == PRE_CHANGE) {
+	if (status == POST_CHANGE) {
 		ret = ufs_versal2_phy_init(hba);
 		if (ret)
 			dev_err(hba->dev, "Phy init failed (%d)\n", ret);

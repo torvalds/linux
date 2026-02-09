@@ -57,6 +57,7 @@ extern const int decoded_link_width[8];
 
 #define DECODE_GEN_SPEED(gen_speed_idx)		(decoded_link_speed[gen_speed_idx])
 #define DECODE_LANE_WIDTH(lane_width_idx)	(decoded_link_width[lane_width_idx])
+#define SMU_V14_SOFT_FREQ_ROUND(x)	((x) + 1)
 
 struct smu_14_0_max_sustainable_clocks {
 	uint32_t display_clock;

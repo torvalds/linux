@@ -114,11 +114,11 @@ static void io_waitid_remove_wq(struct io_kiocb *req)
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
 	struct wait_queue_head *head;
 
-	head = READ_ONCE(iw->head);
+	head = smp_load_acquire(&iw->head);
 	if (head) {
 		struct io_waitid_async *iwa = req->async_data;
 
-		iw->head = NULL;
+		smp_store_release(&iw->head, NULL);
 		spin_lock_irq(&head->lock);
 		list_del_init(&iwa->wo.child_wait.entry);
 		spin_unlock_irq(&head->lock);
@@ -246,7 +246,7 @@ static int io_waitid_wait(struct wait_queue_entry *wait, unsigned mode,
 		return 0;
 
 	list_del_init(&wait->entry);
-	iw->head = NULL;
+	smp_store_release(&iw->head, NULL);
 
 	/* cancel is in progress */
 	if (atomic_fetch_inc(&iw->refs) & IO_WAITID_REF_MASK)

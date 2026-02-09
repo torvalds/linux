@@ -14,7 +14,7 @@
 #elif defined(__riscv) && __riscv_xlen == 64
 #include "../../../../arch/riscv/kernel/vdso/vgetrandom-chacha.S"
 #elif defined(__s390x__)
-#include "../../../../arch/s390/kernel/vdso64/vgetrandom-chacha.S"
+#include "../../../../arch/s390/kernel/vdso/vgetrandom-chacha.S"
 #elif defined(__x86_64__)
 #include "../../../../arch/x86/entry/vdso/vgetrandom-chacha.S"
 #endif

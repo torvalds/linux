@@ -901,7 +901,7 @@ static void print_graph_retval(struct trace_seq *s, struct ftrace_graph_ent_entr
 		trace_seq_printf(s, "%ps", func);
 
 		if (args_size >= FTRACE_REGS_MAX_ARGS * sizeof(long)) {
-			print_function_args(s, entry->args, (unsigned long)func);
+			print_function_args(s, FGRAPH_ENTRY_ARGS(entry), (unsigned long)func);
 			trace_seq_putc(s, ';');
 		} else
 			trace_seq_puts(s, "();");

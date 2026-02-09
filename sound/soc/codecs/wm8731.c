@@ -471,11 +471,9 @@ static int wm8731_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (wm8731->mclk) {
-			ret = clk_prepare_enable(wm8731->mclk);
-			if (ret)
-				return ret;
-		}
+		ret = clk_prepare_enable(wm8731->mclk);
+		if (ret)
+			return ret;
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -494,8 +492,7 @@ static int wm8731_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, WM8731_PWR, reg | 0x0040);
 		break;
 	case SND_SOC_BIAS_OFF:
-		if (wm8731->mclk)
-			clk_disable_unprepare(wm8731->mclk);
+		clk_disable_unprepare(wm8731->mclk);
 		snd_soc_component_write(component, WM8731_PWR, 0xffff);
 		regulator_bulk_disable(ARRAY_SIZE(wm8731->supplies),
 				       wm8731->supplies);

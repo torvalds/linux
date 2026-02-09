@@ -2,7 +2,7 @@
 //
 // TAS2781 HDA Shared Lib for I2C&SPI driver
 //
-// Copyright 2025 Texas Instruments, Inc.
+// Copyright 2025 - 2026 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 
@@ -159,7 +159,6 @@ static void tas2781_apply_calib(struct tasdevice_priv *p)
 		r->tlimit_reg = cali_reg[4];
 	}
 
-	p->is_user_space_calidata = true;
 	cali_data->total_sz = p->ndev * (cali_data->cali_dat_sz_per_dev + 1);
 }
 
@@ -216,6 +215,12 @@ int tas2781_save_calibration(struct tas2781_hda *hda)
 				status = -ENOMEM;
 				continue;
 			}
+			/*
+			 * Set to an invalid value before the calibrated data
+			 * is stored into it, for the default value is 0, which
+			 * means the first device.
+			 */
+			data[0] = 0xff;
 			/* Get variable contents into buffer */
 			status = efi.get_variable(efi_name[i], &efi_guid,
 				&attr, &cali_data->total_sz, data);

@@ -59,7 +59,7 @@ use proc_macro::TokenStream;
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// use kernel::prelude::*;
 ///
 /// module!{

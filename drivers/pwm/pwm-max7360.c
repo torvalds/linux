@@ -153,6 +153,7 @@ static int max7360_pwm_read_waveform(struct pwm_chip *chip,
 }
 
 static const struct pwm_ops max7360_pwm_ops = {
+	.sizeof_wfhw = sizeof(struct max7360_pwm_waveform),
 	.request = max7360_pwm_request,
 	.round_waveform_tohw = max7360_pwm_round_waveform_tohw,
 	.round_waveform_fromhw = max7360_pwm_round_waveform_fromhw,

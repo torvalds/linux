@@ -851,6 +851,7 @@ static struct folio *__iomap_get_folio(struct iomap_iter *iter,
 		}
 
 		folio_get(folio);
+		folio_wait_stable(folio);
 		return folio;
 	}
 

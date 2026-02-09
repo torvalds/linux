@@ -678,7 +678,7 @@ static int rxgk_issue_challenge(struct rxrpc_connection *conn)
 
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	if (ret > 0)
-		conn->peer->last_tx_at = ktime_get_seconds();
+		rxrpc_peer_mark_tx(conn->peer);
 	__free_page(page);
 
 	if (ret < 0) {

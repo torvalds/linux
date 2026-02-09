@@ -2147,11 +2147,14 @@ static void mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow,
 
 static void mlx5e_tc_del_fdb_peers_flow(struct mlx5e_tc_flow *flow)
 {
+	struct mlx5_devcom_comp_dev *devcom;
+	struct mlx5_devcom_comp_dev *pos;
+	struct mlx5_eswitch *peer_esw;
 	int i;
 
-	for (i = 0; i < MLX5_MAX_PORTS; i++) {
-		if (i == mlx5_get_dev_index(flow->priv->mdev))
-			continue;
+	devcom = flow->priv->mdev->priv.eswitch->devcom;
+	mlx5_devcom_for_each_peer_entry(devcom, peer_esw, pos) {
+		i = mlx5_get_dev_index(peer_esw->dev);
 		mlx5e_tc_del_fdb_peer_flow(flow, i);
 	}
 }
@@ -5513,12 +5516,16 @@ int mlx5e_tc_num_filters(struct mlx5e_priv *priv, unsigned long flags)
 
 void mlx5e_tc_clean_fdb_peer_flows(struct mlx5_eswitch *esw)
 {
+	struct mlx5_devcom_comp_dev *devcom;
+	struct mlx5_devcom_comp_dev *pos;
 	struct mlx5e_tc_flow *flow, *tmp;
+	struct mlx5_eswitch *peer_esw;
 	int i;
 
-	for (i = 0; i < MLX5_MAX_PORTS; i++) {
-		if (i == mlx5_get_dev_index(esw->dev))
-			continue;
+	devcom = esw->devcom;
+
+	mlx5_devcom_for_each_peer_entry(devcom, peer_esw, pos) {
+		i = mlx5_get_dev_index(peer_esw->dev);
 		list_for_each_entry_safe(flow, tmp, &esw->offloads.peer_flows[i], peer[i])
 			mlx5e_tc_del_fdb_peers_flow(flow);
 	}

@@ -223,7 +223,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			goto err_free;
 	}
 
-	if (map->num_reg_defaults && map->cache_ops->populate) {
+	if (map->cache_ops->populate &&
+	    (map->num_reg_defaults || map->reg_default_cb)) {
 		dev_dbg(map->dev, "Populating %s cache\n", map->cache_ops->name);
 		map->lock(map->lock_arg);
 		ret = map->cache_ops->populate(map);

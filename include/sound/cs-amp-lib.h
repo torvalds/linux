@@ -58,6 +58,9 @@ int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_
 int cs_amp_set_efi_calibration_data(struct device *dev, int amp_index, int num_amps,
 				    const struct cirrus_amp_cal_data *in_data);
 int cs_amp_get_vendor_spkid(struct device *dev);
+const char *cs_amp_devm_get_vendor_specific_variant_id(struct device *dev,
+						       int ssid_vendor,
+						       int ssid_device);
 struct dentry *cs_amp_create_debugfs(struct device *dev);
 
 static inline u64 cs_amp_cal_target_u64(const struct cirrus_amp_cal_data *data)

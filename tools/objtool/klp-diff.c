@@ -1425,9 +1425,6 @@ static int clone_special_sections(struct elfs *e)
 {
 	struct section *patched_sec;
 
-	if (create_fake_symbols(e->patched))
-		return -1;
-
 	for_each_sec(e->patched, patched_sec) {
 		if (is_special_section(patched_sec)) {
 			if (clone_special_section(e, patched_sec))
@@ -1702,6 +1699,17 @@ int cmd_klp_diff(int argc, const char **argv)
 
 	e.out = elf_create_file(&e.orig->ehdr, argv[2]);
 	if (!e.out)
+		return -1;
+
+	/*
+	 * Special section fake symbols are needed so that individual special
+	 * section entries can be extracted by clone_special_sections().
+	 *
+	 * Note the fake symbols are also needed by clone_included_functions()
+	 * because __WARN_printf() call sites add references to bug table
+	 * entries in the calling functions.
+	 */
+	if (create_fake_symbols(e.patched))
 		return -1;
 
 	if (clone_included_functions(&e))

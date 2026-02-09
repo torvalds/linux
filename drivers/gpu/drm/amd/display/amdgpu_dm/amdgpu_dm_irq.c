@@ -915,12 +915,18 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 		struct amdgpu_dm_connector *amdgpu_dm_connector;
 		const struct dc_link *dc_link;
 
-		use_polling |= connector->polled != DRM_CONNECTOR_POLL_HPD;
-
 		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 			continue;
 
 		amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+
+		/*
+		 * Analog connectors may be hot-plugged unlike other connector
+		 * types that don't support HPD. Only poll analog connectors.
+		 */
+		use_polling |=
+			amdgpu_dm_connector->dc_link &&
+			dc_connector_supports_analog(amdgpu_dm_connector->dc_link->link_id.id);
 
 		dc_link = amdgpu_dm_connector->dc_link;
 

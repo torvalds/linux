@@ -9,14 +9,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <poll.h>
 #include <linux/errqueue.h>
 #include <linux/kernel.h>
+#include <linux/sockios.h>
+#include <linux/time64.h>
 #include <errno.h>
 
 #include "control.h"
+#include "timeout.h"
 #include "vsock_test_zerocopy.h"
 #include "msg_zerocopy_common.h"
 
@@ -354,5 +358,75 @@ void test_stream_msgzcopy_empty_errq_server(const struct test_opts *opts)
 	}
 
 	control_expectln("DONE");
+	close(fd);
+}
+
+#define GOOD_COPY_LEN	128	/* net/vmw_vsock/virtio_transport_common.c */
+
+void test_stream_msgzcopy_mangle_client(const struct test_opts *opts)
+{
+	char sbuf1[PAGE_SIZE + 1], sbuf2[GOOD_COPY_LEN];
+	unsigned long hash;
+	struct pollfd fds;
+	int fd, i;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_zerocopy_check(fd);
+
+	memset(sbuf1, 'x', sizeof(sbuf1));
+	send_buf(fd, sbuf1, sizeof(sbuf1), 0, sizeof(sbuf1));
+
+	for (i = 0; i < sizeof(sbuf2); i++)
+		sbuf2[i] = rand() & 0xff;
+
+	send_buf(fd, sbuf2, sizeof(sbuf2), MSG_ZEROCOPY, sizeof(sbuf2));
+
+	hash = hash_djb2(sbuf2, sizeof(sbuf2));
+	control_writeulong(hash);
+
+	fds.fd = fd;
+	fds.events = 0;
+
+	if (poll(&fds, 1, TIMEOUT * MSEC_PER_SEC) != 1 ||
+	    !(fds.revents & POLLERR)) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+void test_stream_msgzcopy_mangle_server(const struct test_opts *opts)
+{
+	unsigned long local_hash, remote_hash;
+	char rbuf[PAGE_SIZE + 1];
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Wait, don't race the (buggy) skbs coalescence. */
+	vsock_ioctl_int(fd, SIOCINQ, PAGE_SIZE + 1 + GOOD_COPY_LEN);
+
+	/* Discard the first packet. */
+	recv_buf(fd, rbuf, PAGE_SIZE + 1, 0, PAGE_SIZE + 1);
+
+	recv_buf(fd, rbuf, GOOD_COPY_LEN, 0, GOOD_COPY_LEN);
+	remote_hash = control_readulong();
+	local_hash = hash_djb2(rbuf, GOOD_COPY_LEN);
+
+	if (local_hash != remote_hash) {
+		fprintf(stderr, "Data received corrupted\n");
+		exit(EXIT_FAILURE);
+	}
+
 	close(fd);
 }

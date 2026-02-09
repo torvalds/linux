@@ -14,7 +14,8 @@
 
 	joystick_mux_controller: mux-controller {
 		compatible = "gpio-mux";
-		pinctrl = <&mux_en_pins>;
+		pinctrl-0 = <&mux_en_pins>;
+		pinctrl-names = "default";
 		#mux-control-cells = <0>;
 
 		mux-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>,

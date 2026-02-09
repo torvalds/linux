@@ -985,7 +985,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
         self.peek(Direction::Prev)
     }
 
-    /// Access the previous node without moving the cursor.
+    /// Access the next node without moving the cursor.
     pub fn peek_next(&self) -> Option<(&K, &V)> {
         self.peek(Direction::Next)
     }
@@ -1130,7 +1130,7 @@ pub struct IterMut<'a, K, V> {
 }
 
 // SAFETY: The [`IterMut`] has exclusive access to both `K` and `V`, so it is sufficient to require them to be `Send`.
-// The iterator only gives out immutable references to the keys, but since the iterator has excusive access to those same
+// The iterator only gives out immutable references to the keys, but since the iterator has exclusive access to those same
 // keys, `Send` is sufficient. `Sync` would be okay, but it is more restrictive to the user.
 unsafe impl<'a, K: Send, V: Send> Send for IterMut<'a, K, V> {}
 

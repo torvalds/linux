@@ -22,8 +22,16 @@
 
 #include "tlv320adcx140.h"
 
+static const char *const adcx140_supply_names[] = {
+	"avdd",
+	"iovdd",
+};
+
+#define ADCX140_NUM_SUPPLIES ARRAY_SIZE(adcx140_supply_names)
+
 struct adcx140_priv {
 	struct regulator *supply_areg;
+	struct regulator_bulk_data supplies[ADCX140_NUM_SUPPLIES];
 	struct gpio_desc *gpio_reset;
 	struct regmap *regmap;
 	struct device *dev;
@@ -121,6 +129,34 @@ static const struct reg_default adcx140_reg_defaults[] = {
 	{ ADCX140_DEV_STS1, 0x80 },
 };
 
+static const struct regmap_range adcx140_wr_ranges[] = {
+	regmap_reg_range(ADCX140_PAGE_SELECT, ADCX140_SLEEP_CFG),
+	regmap_reg_range(ADCX140_SHDN_CFG, ADCX140_SHDN_CFG),
+	regmap_reg_range(ADCX140_ASI_CFG0, ADCX140_ASI_CFG2),
+	regmap_reg_range(ADCX140_ASI_CH1, ADCX140_MST_CFG1),
+	regmap_reg_range(ADCX140_CLK_SRC, ADCX140_CLK_SRC),
+	regmap_reg_range(ADCX140_PDMCLK_CFG, ADCX140_GPO_CFG3),
+	regmap_reg_range(ADCX140_GPO_VAL, ADCX140_GPO_VAL),
+	regmap_reg_range(ADCX140_GPI_CFG0, ADCX140_GPI_CFG1),
+	regmap_reg_range(ADCX140_GPI_MON, ADCX140_GPI_MON),
+	regmap_reg_range(ADCX140_INT_CFG, ADCX140_INT_MASK0),
+	regmap_reg_range(ADCX140_BIAS_CFG, ADCX140_CH4_CFG4),
+	regmap_reg_range(ADCX140_CH5_CFG2, ADCX140_CH5_CFG4),
+	regmap_reg_range(ADCX140_CH6_CFG2, ADCX140_CH6_CFG4),
+	regmap_reg_range(ADCX140_CH7_CFG2, ADCX140_CH7_CFG4),
+	regmap_reg_range(ADCX140_CH8_CFG2, ADCX140_CH8_CFG4),
+	regmap_reg_range(ADCX140_DSP_CFG0, ADCX140_DRE_CFG0),
+	regmap_reg_range(ADCX140_AGC_CFG0, ADCX140_AGC_CFG0),
+	regmap_reg_range(ADCX140_IN_CH_EN, ADCX140_PWR_CFG),
+	regmap_reg_range(ADCX140_PHASE_CALIB, ADCX140_PHASE_CALIB),
+	regmap_reg_range(0x7e, 0x7e),
+};
+
+static const struct regmap_access_table adcx140_wr_table = {
+	.yes_ranges = adcx140_wr_ranges,
+	.n_yes_ranges = ARRAY_SIZE(adcx140_wr_ranges),
+};
+
 static const struct regmap_range_cfg adcx140_ranges[] = {
 	{
 		.range_min = 0,
@@ -156,6 +192,7 @@ static const struct regmap_config adcx140_i2c_regmap = {
 	.num_ranges = ARRAY_SIZE(adcx140_ranges),
 	.max_register = 12 * 128,
 	.volatile_reg = adcx140_volatile,
+	.wr_table = &adcx140_wr_table,
 };
 
 /* Digital Volume control. From -100 to 27 dB in 0.5 dB steps */
@@ -184,6 +221,13 @@ static SOC_ENUM_SINGLE_DECL(decimation_filter_enum, ADCX140_DSP_CFG0, 4,
 static const struct snd_kcontrol_new decimation_filter_controls[] = {
 	SOC_DAPM_ENUM("Decimation Filter", decimation_filter_enum),
 };
+
+static const char * const channel_summation_text[] = {
+	"Disabled", "2 Channel", "4 Channel"
+};
+
+static SOC_ENUM_SINGLE_DECL(channel_summation_enum, ADCX140_DSP_CFG0, 2,
+			    channel_summation_text);
 
 static const char * const pdmclk_text[] = {
 	"2.8224 MHz", "1.4112 MHz", "705.6 kHz", "5.6448 MHz"
@@ -672,6 +716,10 @@ static const struct snd_kcontrol_new adcx140_snd_controls[] = {
 	SOC_SINGLE_TLV("Digital CH8 Out Volume", ADCX140_CH8_CFG2,
 			0, 0xff, 0, dig_vol_tlv),
 	ADCX140_PHASE_CALIB_SWITCH("Phase Calibration Switch"),
+
+	SOC_SINGLE("Biquads Per Channel", ADCX140_DSP_CFG1, 5, 3, 0),
+
+	SOC_ENUM("Channel Summation", channel_summation_enum),
 };
 
 static int adcx140_reset(struct adcx140_priv *adcx140)
@@ -1073,19 +1121,91 @@ out:
 	return ret;
 }
 
+static int adcx140_pwr_off(struct adcx140_priv *adcx140)
+{
+	int ret;
+
+	regcache_cache_only(adcx140->regmap, true);
+	regcache_mark_dirty(adcx140->regmap);
+
+	/* Assert the reset GPIO */
+	gpiod_set_value_cansleep(adcx140->gpio_reset, 0);
+
+	/*
+	 * Datasheet - TLV320ADC3140 Rev. B, TLV320ADC5140 Rev. A,
+	 * TLV320ADC6140 Rev. A 8.4.1:
+	 * wait for hw shutdown (25ms) + >= 1ms
+	 */
+	usleep_range(30000, 100000);
+
+	/* Power off the regulators, `avdd` and `iovdd` */
+	ret = regulator_bulk_disable(ARRAY_SIZE(adcx140->supplies),
+				     adcx140->supplies);
+	if (ret) {
+		dev_err(adcx140->dev, "Failed to disable supplies: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int adcx140_pwr_on(struct adcx140_priv *adcx140)
+{
+	int ret;
+
+	/* Power on the regulators, `avdd` and `iovdd` */
+	ret = regulator_bulk_enable(ARRAY_SIZE(adcx140->supplies),
+					adcx140->supplies);
+	if (ret) {
+		dev_err(adcx140->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	/* De-assert the reset GPIO */
+	gpiod_set_value_cansleep(adcx140->gpio_reset, 1);
+
+	/*
+	 * Datasheet - TLV320ADC3140 Rev. B, TLV320ADC5140 Rev. A,
+	 * TLV320ADC6140 Rev. A 8.4.2:
+	 * wait >= 10 ms after entering sleep mode.
+	 */
+	usleep_range(10000, 100000);
+
+	regcache_cache_only(adcx140->regmap, false);
+
+	/* Flush the regcache */
+	ret = regcache_sync(adcx140->regmap);
+	if (ret) {
+		dev_err(adcx140->dev, "Failed to restore register map: %d\n",
+			ret);
+		return  ret;
+	}
+
+	return 0;
+}
+
 static int adcx140_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	enum snd_soc_bias_level prev_level = snd_soc_dapm_get_bias_level(dapm);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
+		if (prev_level == SND_SOC_BIAS_STANDBY)
+			adcx140_pwr_ctrl(adcx140, true);
+		break;
 	case SND_SOC_BIAS_STANDBY:
-		adcx140_pwr_ctrl(adcx140, true);
+		if (prev_level == SND_SOC_BIAS_PREPARE)
+			adcx140_pwr_ctrl(adcx140, false);
+		if (prev_level == SND_SOC_BIAS_OFF)
+			return adcx140_pwr_on(adcx140);
 		break;
 	case SND_SOC_BIAS_OFF:
-		adcx140_pwr_ctrl(adcx140, false);
+		if (prev_level == SND_SOC_BIAS_STANDBY)
+			return adcx140_pwr_off(adcx140);
 		break;
 	}
 
@@ -1151,6 +1271,16 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 	adcx140->phase_calib_on = false;
 	adcx140->dev = &i2c->dev;
 
+	for (int i = 0; i < ADCX140_NUM_SUPPLIES; i++)
+		adcx140->supplies[i].supply = adcx140_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ADCX140_NUM_SUPPLIES,
+				 adcx140->supplies);
+	if (ret) {
+		dev_err_probe(&i2c->dev, ret, "Failed to request supplies\n");
+		return ret;
+	}
+
 	adcx140->gpio_reset = devm_gpiod_get_optional(adcx140->dev,
 						      "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(adcx140->gpio_reset))
@@ -1185,6 +1315,8 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 			ret);
 		return ret;
 	}
+
+	regcache_cache_only(adcx140->regmap, true);
 
 	i2c_set_clientdata(i2c, adcx140);
 

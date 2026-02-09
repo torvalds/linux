@@ -35,7 +35,7 @@
 struct sprd_gpio {
 	struct gpio_chip chip;
 	void __iomem *base;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	int irq;
 };
 
@@ -54,7 +54,7 @@ static void sprd_gpio_update(struct gpio_chip *chip, unsigned int offset,
 	unsigned long flags;
 	u32 tmp;
 
-	spin_lock_irqsave(&sprd_gpio->lock, flags);
+	raw_spin_lock_irqsave(&sprd_gpio->lock, flags);
 	tmp = readl_relaxed(base + reg);
 
 	if (val)
@@ -63,7 +63,7 @@ static void sprd_gpio_update(struct gpio_chip *chip, unsigned int offset,
 		tmp &= ~BIT(SPRD_GPIO_BIT(offset));
 
 	writel_relaxed(tmp, base + reg);
-	spin_unlock_irqrestore(&sprd_gpio->lock, flags);
+	raw_spin_unlock_irqrestore(&sprd_gpio->lock, flags);
 }
 
 static int sprd_gpio_read(struct gpio_chip *chip, unsigned int offset, u16 reg)
@@ -236,7 +236,7 @@ static int sprd_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(sprd_gpio->base))
 		return PTR_ERR(sprd_gpio->base);
 
-	spin_lock_init(&sprd_gpio->lock);
+	raw_spin_lock_init(&sprd_gpio->lock);
 
 	sprd_gpio->chip.label = dev_name(&pdev->dev);
 	sprd_gpio->chip.ngpio = SPRD_GPIO_NR;

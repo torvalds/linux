@@ -68,24 +68,24 @@ static void bin_load_with_unknown_blocks(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xf5, 0,
+				      0xf5, 0, 0,
 				      random_data, sizeof(random_data));
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xf500, 0,
+				      0xf500, 0, 0,
 				      random_data, sizeof(random_data));
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xc300, 0,
+				      0xc300, 0, 0,
 				      random_data, sizeof(random_data));
 
 	/* Add a single payload to be written to DSP memory */
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      WMFW_ADSP2_YM, 0,
+				      WMFW_ADSP2_YM, 0, 0,
 				      payload_data, payload_size_bytes);
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -279,7 +279,7 @@ static void bin_too_short_for_block_header(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      NULL, 0);
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -311,7 +311,7 @@ static void bin_too_short_for_block_payload(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      payload, sizeof(payload));
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -343,7 +343,7 @@ static void bin_block_payload_len_garbage(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      &payload, sizeof(payload));
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);

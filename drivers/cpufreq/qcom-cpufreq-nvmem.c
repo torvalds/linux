@@ -263,6 +263,7 @@ static const struct of_device_id qcom_cpufreq_ipq806x_match_list[] __maybe_unuse
 	{ .compatible = "qcom,ipq8066", .data = (const void *)QCOM_ID_IPQ8066 },
 	{ .compatible = "qcom,ipq8068", .data = (const void *)QCOM_ID_IPQ8068 },
 	{ .compatible = "qcom,ipq8069", .data = (const void *)QCOM_ID_IPQ8069 },
+	{ /* sentinel */ }
 };
 
 static int qcom_cpufreq_ipq8064_name_version(struct device *cpu_dev,

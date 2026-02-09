@@ -74,6 +74,37 @@ allOf:
             - description: aggre UFS CARD AXI clock
             - description: RPMH CC IPA clock
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sa8775p-config-noc
+              - qcom,sa8775p-dc-noc
+              - qcom,sa8775p-gem-noc
+              - qcom,sa8775p-gpdsp-anoc
+              - qcom,sa8775p-lpass-ag-noc
+              - qcom,sa8775p-mmss-noc
+              - qcom,sa8775p-nspa-noc
+              - qcom,sa8775p-nspb-noc
+              - qcom,sa8775p-pcie-anoc
+              - qcom,sa8775p-system-noc
+    then:
+      properties:
+        clocks: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sa8775p-clk-virt
+              - qcom,sa8775p-mc-virt
+    then:
+      properties:
+        reg: false
+        clocks: false
+
 unevaluatedProperties: false
 
 examples:

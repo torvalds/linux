@@ -173,7 +173,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	/* Sleep for 300 ms miniumum */
+	/* Sleep for 300 ms minimum */
 	usleep_range(300000, 350000);
 
 	regmap_write(rt5682->regmap, RT5682_I2C_MODE, 0x1);

@@ -2880,8 +2880,9 @@ enum nl80211_commands {
  *	index. If the userspace includes more RNR elements than number of
  *	MBSSID elements then these will be added in every EMA beacon.
  *
- * @NL80211_ATTR_MLO_LINK_DISABLED: Flag attribute indicating that the link is
- *	disabled.
+ * @NL80211_ATTR_MLO_LINK_DISABLED: Unused. It was used to indicate that a link
+ *	is disabled during association. However, the AP will send the
+ *	information by including a TTLM in the association response.
  *
  * @NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA: Include BSS usage data, i.e.
  *	include BSSes that can only be used in restricted scenarios and/or

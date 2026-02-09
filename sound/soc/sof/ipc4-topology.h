@@ -150,6 +150,8 @@ struct sof_ipc4_copier_config_set_sink_format {
  * @use_chain_dma: flag to indicate if the firmware shall use chained DMA
  * @msg: message structure for pipeline
  * @skip_during_fe_trigger: skip triggering this pipeline during the FE DAI trigger
+ * @direction_valid: flag indicating if valid direction is set in topology
+ * @direction: pipeline direction set in topology if direction_valid is true
  */
 struct sof_ipc4_pipeline {
 	uint32_t priority;
@@ -160,6 +162,8 @@ struct sof_ipc4_pipeline {
 	bool use_chain_dma;
 	struct sof_ipc4_msg msg;
 	bool skip_during_fe_trigger;
+	bool direction_valid;
+	u32 direction;
 };
 
 /**
@@ -368,19 +372,24 @@ struct sof_ipc4_control_data {
 
 #define SOF_IPC4_SWITCH_CONTROL_PARAM_ID	200
 #define SOF_IPC4_ENUM_CONTROL_PARAM_ID		201
+#define SOF_IPC4_BYTES_CONTROL_PARAM_ID		202
 
 /**
  * struct sof_ipc4_control_msg_payload - IPC payload for kcontrol parameters
  * @id: unique id of the control
- * @num_elems: Number of elements in the chanv array
+ * @num_elems: Number of elements in the chanv array or number of bytes in data
  * @reserved: reserved for future use, must be set to 0
  * @chanv: channel ID and value array
+ * @data: binary payload
  */
 struct sof_ipc4_control_msg_payload {
 	uint16_t id;
 	uint16_t num_elems;
 	uint32_t reserved[4];
-	DECLARE_FLEX_ARRAY(struct sof_ipc4_ctrl_value_chan, chanv);
+	union {
+		DECLARE_FLEX_ARRAY(struct sof_ipc4_ctrl_value_chan, chanv);
+		DECLARE_FLEX_ARRAY(uint8_t, data);
+	};
 } __packed;
 
 /**

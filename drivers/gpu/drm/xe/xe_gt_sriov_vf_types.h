@@ -41,10 +41,10 @@ struct xe_gt_sriov_vf_runtime {
 };
 
 /**
- * xe_gt_sriov_vf_migration - VF migration data.
+ * struct xe_gt_sriov_vf_migration - VF migration data.
  */
 struct xe_gt_sriov_vf_migration {
-	/** @migration: VF migration recovery worker */
+	/** @worker: VF migration recovery worker */
 	struct work_struct worker;
 	/** @lock: Protects recovery_queued, teardown */
 	spinlock_t lock;

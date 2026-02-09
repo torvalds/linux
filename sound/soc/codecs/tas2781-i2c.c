@@ -2,7 +2,7 @@
 //
 // ALSA SoC Texas Instruments TAS2563/TAS2781 Audio Smart Amplifier
 //
-// Copyright (C) 2022 - 2025 Texas Instruments Incorporated
+// Copyright (C) 2022 - 2026 Texas Instruments Incorporated
 // https://www.ti.com
 //
 // The TAS2563/TAS2781 driver implements a flexible and configurable
@@ -255,8 +255,6 @@ static int tasdev_cali_data_get(struct snd_kcontrol *kcontrol,
 	int rc;
 
 	guard(mutex)(&priv->codec_lock);
-	if (!priv->is_user_space_calidata)
-		return -1;
 
 	if (!p->r0_reg)
 		return -1;
@@ -654,7 +652,6 @@ static int tasdev_cali_data_put(struct snd_kcontrol *kcontrol,
 		}
 	}
 	i += 2;
-	priv->is_user_space_calidata = true;
 
 	if (priv->dspbin_typ == TASDEV_BASIC) {
 		p->r0_reg = TASDEVICE_REG(src[i], src[i + 1], src[i + 2]);
@@ -1444,7 +1441,11 @@ static int tasdevice_create_cali_ctrls(struct tasdevice_priv *priv)
 		GFP_KERNEL);
 	if (!cali_data->data)
 		return -ENOMEM;
-
+	/*
+	 * Set to an invalid value before the calibrated data is stored into
+	 * it, for the default value is 0, which means the first device.
+	 */
+	cali_data->data[0] = 0xff;
 	if (priv->chip_id == TAS2781) {
 		struct soc_bytes_ext *ext_cali_start;
 		char *cali_start_name;

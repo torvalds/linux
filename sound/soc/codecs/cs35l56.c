@@ -5,6 +5,8 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <kunit/static_stub.h>
+#include <kunit/visibility.h>
 #include <linux/acpi.h>
 #include <linux/array_size.h>
 #include <linux/completion.h>
@@ -1107,43 +1109,98 @@ static const struct snd_kcontrol_new cs35l56_cal_data_restore_controls[] = {
 			SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
-static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
+VISIBLE_IF_KUNIT int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
 {
+	unsigned short vendor, device;
+	const char *vendor_id;
+	int ret;
+
 	if (cs35l56->dsp.fwf_suffix)
 		return 0;
 
-	if (!cs35l56->sdw_peripheral)
-		return 0;
+	if (cs35l56->sdw_peripheral) {
+		cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+							 "l%uu%u",
+							 cs35l56->sdw_link_num,
+							 cs35l56->sdw_unique_id);
+		if (!cs35l56->dsp.fwf_suffix)
+			return -ENOMEM;
 
-	cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
-						 "l%uu%u",
-						 cs35l56->sdw_link_num,
-						 cs35l56->sdw_unique_id);
-	if (!cs35l56->dsp.fwf_suffix)
-		return -ENOMEM;
+		/*
+		 * There are published firmware files for L56 B0 silicon using
+		 * the ALSA prefix as the filename suffix. Default to trying these
+		 * first, with the new SoundWire suffix as a fallback.
+		 * None of these older systems use a vendor-specific ID.
+		 */
+		if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0)) {
+			cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
+			cs35l56->dsp.fwf_suffix = cs35l56->component->name_prefix;
+
+			return 0;
+		}
+	}
 
 	/*
-	 * There are published firmware files for L56 B0 silicon using
-	 * the ALSA prefix as the filename suffix. Default to trying these
-	 * first, with the new name as an alternate.
+	 * Some manufacturers use the same SSID on multiple products and have
+	 * a vendor-specific qualifier to distinguish different models.
+	 * Models with the same SSID but different qualifier might require
+	 * different audio firmware, or they might all have the same audio
+	 * firmware.
+	 * Try searching for a firmware with this qualifier first, else
+	 * fallback to standard naming.
 	 */
-	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0)) {
-		cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
-		cs35l56->dsp.fwf_suffix = cs35l56->component->name_prefix;
+	if (snd_soc_card_get_pci_ssid(cs35l56->component->card, &vendor, &device) < 0) {
+		vendor_id = cs_amp_devm_get_vendor_specific_variant_id(cs35l56->base.dev, -1, -1);
+	} else {
+		vendor_id = cs_amp_devm_get_vendor_specific_variant_id(cs35l56->base.dev,
+								       vendor, device);
+	}
+	ret = PTR_ERR_OR_ZERO(vendor_id);
+	if (ret == -ENOENT)
+		return 0;
+	else if (ret)
+		return ret;
+
+	if (vendor_id) {
+		if (cs35l56->dsp.fwf_suffix)
+			cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
+		else
+			cs35l56->fallback_fw_suffix = cs35l56->component->name_prefix;
+
+		cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+							 "%s-%s",
+							 vendor_id,
+							 cs35l56->fallback_fw_suffix);
+		if (!cs35l56->dsp.fwf_suffix)
+			return -ENOMEM;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_set_fw_suffix);
 
-static int cs35l56_component_probe(struct snd_soc_component *component)
+VISIBLE_IF_KUNIT int cs35l56_set_fw_name(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
-	struct dentry *debugfs_root = component->debugfs_root;
 	unsigned short vendor, device;
 	int ret;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
+	if ((cs35l56->speaker_id < 0) && cs35l56->base.num_onchip_spkid_gpios) {
+		PM_RUNTIME_ACQUIRE(cs35l56->base.dev, pm);
+		ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+		if (ret)
+			return ret;
+
+		ret = cs35l56_configure_onchip_spkid_pads(&cs35l56->base);
+		if (ret)
+			return ret;
+
+		ret = cs35l56_read_onchip_spkid(&cs35l56->base);
+		if (ret < 0)
+			return ret;
+
+		cs35l56->speaker_id = ret;
+	}
 
 	if (!cs35l56->dsp.system_name &&
 	    (snd_soc_card_get_pci_ssid(component->card, &vendor, &device) == 0)) {
@@ -1164,6 +1221,19 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 			return -ENOMEM;
 	}
 
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_set_fw_name);
+
+static int cs35l56_component_probe(struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct dentry *debugfs_root = component->debugfs_root;
+	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
+
 	if (!wait_for_completion_timeout(&cs35l56->init_completion,
 					 msecs_to_jiffies(5000))) {
 		dev_err(cs35l56->base.dev, "%s: init_completion timed out\n", __func__);
@@ -1175,6 +1245,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 		return -ENOMEM;
 
 	cs35l56->component = component;
+	ret = cs35l56_set_fw_name(component);
+	if (ret)
+		return ret;
+
 	ret = cs35l56_set_fw_suffix(cs35l56);
 	if (ret)
 		return ret;
@@ -1488,6 +1562,105 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 	return 0;
 }
 
+static int cs35l56_read_fwnode_u32_array(struct device *dev,
+					struct fwnode_handle *parent_node,
+					const char *prop_name,
+					int max_count,
+					u32 *dest)
+{
+	int count, ret;
+
+	count = fwnode_property_count_u32(parent_node, prop_name);
+	if ((count == 0) || (count == -EINVAL) || (count == -ENODATA)) {
+		dev_dbg(dev, "%s not found in %s\n", prop_name, fwnode_get_name(parent_node));
+		return 0;
+	}
+
+	if (count < 0) {
+		dev_err(dev, "Get %s error:%d\n", prop_name, count);
+		return count;
+	}
+
+	if (count > max_count) {
+		dev_err(dev, "%s too many entries (%d)\n", prop_name, count);
+		return -EOVERFLOW;
+	}
+
+	ret = fwnode_property_read_u32_array(parent_node, prop_name, dest, count);
+	if (ret) {
+		dev_err(dev, "Error reading %s: %d\n", prop_name, ret);
+		return ret;
+	}
+
+	return count;
+}
+
+static int cs35l56_process_xu_onchip_speaker_id(struct cs35l56_private *cs35l56,
+						struct fwnode_handle *ext_node)
+{
+	static const char * const gpio_name = "01fa-spk-id-gpios-onchip";
+	static const char * const pull_name = "01fa-spk-id-gpios-onchip-pull";
+	u32 gpios[5], pulls[5];
+	int num_gpios, num_pulls;
+	int ret;
+
+	static_assert(ARRAY_SIZE(gpios) == ARRAY_SIZE(cs35l56->base.onchip_spkid_gpios));
+	static_assert(ARRAY_SIZE(pulls) == ARRAY_SIZE(cs35l56->base.onchip_spkid_pulls));
+
+	num_gpios = cs35l56_read_fwnode_u32_array(cs35l56->base.dev, ext_node, gpio_name,
+						  ARRAY_SIZE(gpios), gpios);
+	if (num_gpios < 1)
+		return num_gpios;
+
+	num_pulls = cs35l56_read_fwnode_u32_array(cs35l56->base.dev, ext_node, pull_name,
+						  ARRAY_SIZE(pulls), pulls);
+	if (num_pulls < 0)
+		return num_pulls;
+
+	if (num_pulls != num_gpios) {
+		dev_warn(cs35l56->base.dev, "%s count(%d) != %s count(%d)\n",
+			pull_name, num_pulls, gpio_name, num_gpios);
+	}
+
+	ret = cs35l56_check_and_save_onchip_spkid_gpios(&cs35l56->base,
+							gpios, num_gpios,
+							pulls, num_pulls);
+	if (ret) {
+		return dev_err_probe(cs35l56->base.dev, ret, "Error in %s/%s\n",
+				     gpio_name, pull_name);
+	}
+
+	return 0;
+}
+
+VISIBLE_IF_KUNIT int cs35l56_process_xu_properties(struct cs35l56_private *cs35l56)
+{
+	struct fwnode_handle *ext_node = NULL;
+	struct fwnode_handle *link;
+	int ret;
+
+	if (!cs35l56->sdw_peripheral)
+		return 0;
+
+	fwnode_for_each_child_node(dev_fwnode(cs35l56->base.dev), link) {
+		ext_node = fwnode_get_named_child_node(link,
+						       "mipi-sdca-function-expansion-subproperties");
+		if (ext_node) {
+			fwnode_handle_put(link);
+			break;
+		}
+	}
+
+	if (!ext_node)
+		return 0;
+
+	ret = cs35l56_process_xu_onchip_speaker_id(cs35l56, ext_node);
+	fwnode_handle_put(ext_node);
+
+	return ret;
+}
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_process_xu_properties);
+
 static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 {
 	struct device *dev = cs35l56->base.dev;
@@ -1666,6 +1839,10 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 
 	ret = cs35l56_get_firmware_uid(cs35l56);
 	if (ret != 0)
+		goto err;
+
+	ret = cs35l56_process_xu_properties(cs35l56);
+	if (ret)
 		goto err;
 
 	ret = cs35l56_dsp_init(cs35l56);
