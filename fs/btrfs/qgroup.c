@@ -4883,10 +4883,6 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 		reloc_eb = NULL;
 		goto free_out;
 	}
-	if (unlikely(!extent_buffer_uptodate(reloc_eb))) {
-		ret = -EIO;
-		goto free_out;
-	}
 
 	ret = qgroup_trace_subtree_swap(trans, reloc_eb, subvol_eb,
 			block->last_snapshot, block->trace_leaf);

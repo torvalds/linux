@@ -1042,12 +1042,10 @@ struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 		check.owner_root = btrfs_root_id(root);
 
 		old = read_tree_block(fs_info, logical, &check);
-		if (WARN_ON(IS_ERR(old) || !extent_buffer_uptodate(old))) {
-			if (!IS_ERR(old))
-				free_extent_buffer(old);
+		if (WARN_ON(IS_ERR(old))) {
 			btrfs_warn(fs_info,
-				   "failed to read tree block %llu from get_old_root",
-				   logical);
+				   "failed to read tree block %llu from get_old_root: %ld",
+				   logical, PTR_ERR(old));
 		} else {
 			struct tree_mod_elem *tm2;
 

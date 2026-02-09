@@ -2024,11 +2024,6 @@ static int btrfs_replay_log(struct btrfs_fs_info *fs_info,
 		btrfs_put_root(log_tree_root);
 		return ret;
 	}
-	if (unlikely(!extent_buffer_uptodate(log_tree_root->node))) {
-		btrfs_err(fs_info, "failed to read log tree");
-		btrfs_put_root(log_tree_root);
-		return -EIO;
-	}
 
 	/* returns with log_tree_root freed on success */
 	ret = btrfs_recover_log_trees(log_tree_root);
@@ -2627,11 +2622,6 @@ static int load_super_root(struct btrfs_root *root, u64 bytenr, u64 gen, int lev
 		ret = PTR_ERR(root->node);
 		root->node = NULL;
 		return ret;
-	}
-	if (unlikely(!extent_buffer_uptodate(root->node))) {
-		free_extent_buffer(root->node);
-		root->node = NULL;
-		return -EIO;
 	}
 
 	btrfs_set_root_node(&root->root_item, root->node);
