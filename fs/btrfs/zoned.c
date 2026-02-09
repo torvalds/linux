@@ -1231,6 +1231,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	struct btrfs_key found_key;
+	const u64 bg_end = btrfs_block_group_end(cache);
 	int ret;
 	u64 length;
 
@@ -1253,7 +1254,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	if (!path)
 		return -ENOMEM;
 
-	key.objectid = cache->start + cache->length;
+	key.objectid = bg_end;
 	key.type = 0;
 	key.offset = 0;
 
@@ -1282,7 +1283,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 		length = fs_info->nodesize;
 
 	if (unlikely(!(found_key.objectid >= cache->start &&
-		       found_key.objectid + length <= cache->start + cache->length))) {
+		       found_key.objectid + length <= bg_end))) {
 		return -EUCLEAN;
 	}
 	*offset_ret = found_key.objectid + length - cache->start;
@@ -1437,16 +1438,30 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
 
 	if (unlikely(zone_info[0].alloc_offset == WP_MISSING_DEV)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[0].physical);
 		return -EIO;
 	}
 	if (unlikely(zone_info[1].alloc_offset == WP_MISSING_DEV)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[1].physical);
 		return -EIO;
+	}
+
+	/*
+	 * When the last extent is removed, last_alloc can be smaller than the other write
+	 * pointer. In that case, last_alloc should be moved to the corresponding write
+	 * pointer position.
+	 */
+	for (int i = 0; i < map->num_stripes; i++) {
+		if (zone_info[i].alloc_offset == WP_CONVENTIONAL)
+			continue;
+		if (last_alloc <= zone_info[i].alloc_offset) {
+			last_alloc = zone_info[i].alloc_offset;
+			break;
+		}
 	}
 
 	if (zone_info[0].alloc_offset == WP_CONVENTIONAL)
@@ -1456,7 +1471,7 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 		zone_info[1].alloc_offset = last_alloc;
 
 	if (unlikely(zone_info[0].alloc_offset != zone_info[1].alloc_offset)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: write pointer offset mismatch of zones in DUP profile");
 		return -EIO;
 	}
@@ -1489,6 +1504,21 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 
 	/* In case a device is missing we have a cap of 0, so don't use it. */
 	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
+
+	/*
+	 * When the last extent is removed, last_alloc can be smaller than the other write
+	 * pointer. In that case, last_alloc should be moved to the corresponding write
+	 * pointer position.
+	 */
+	for (i = 0; i < map->num_stripes; i++) {
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
+		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+			continue;
+		if (last_alloc <= zone_info[i].alloc_offset) {
+			last_alloc = zone_info[i].alloc_offset;
+			break;
+		}
+	}
 
 	for (i = 0; i < map->num_stripes; i++) {
 		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
@@ -1531,13 +1561,44 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 	u64 stripe_nr = 0, stripe_offset = 0;
+	u64 prev_offset = 0;
 	u32 stripe_index = 0;
+	bool has_partial = false, has_conventional = false;
 
 	if ((map->type & BTRFS_BLOCK_GROUP_DATA) && !fs_info->stripe_root) {
 		btrfs_err(fs_info, "zoned: data %s needs raid-stripe-tree",
 			  btrfs_bg_type_to_raid_name(map->type));
 		return -EINVAL;
 	}
+
+	/*
+	 * When the last extent is removed, last_alloc can be smaller than the other write
+	 * pointer. In that case, last_alloc should be moved to the corresponding write
+	 * pointer position.
+	 */
+	for (int i = 0; i < map->num_stripes; i++) {
+		u64 alloc;
+
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
+		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+			continue;
+
+		stripe_nr = zone_info[i].alloc_offset >> BTRFS_STRIPE_LEN_SHIFT;
+		stripe_offset = zone_info[i].alloc_offset & BTRFS_STRIPE_LEN_MASK;
+		if (stripe_offset == 0 && stripe_nr > 0) {
+			stripe_nr--;
+			stripe_offset = BTRFS_STRIPE_LEN;
+		}
+		alloc = ((stripe_nr * map->num_stripes + i) << BTRFS_STRIPE_LEN_SHIFT) +
+			stripe_offset;
+		last_alloc = max(last_alloc, alloc);
+
+		/* Partially written stripe found. It should be last. */
+		if (zone_info[i].alloc_offset & BTRFS_STRIPE_LEN_MASK)
+			break;
+	}
+	stripe_nr = 0;
+	stripe_offset = 0;
 
 	if (last_alloc) {
 		u32 factor = map->num_stripes;
@@ -1552,7 +1613,7 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 			continue;
 
 		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
-
+			has_conventional = true;
 			zone_info[i].alloc_offset = btrfs_stripe_nr_to_offset(stripe_nr);
 
 			if (stripe_index > i)
@@ -1560,6 +1621,28 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 			else if (stripe_index == i)
 				zone_info[i].alloc_offset += stripe_offset;
 		}
+
+		/* Verification */
+		if (i != 0) {
+			if (unlikely(prev_offset < zone_info[i].alloc_offset)) {
+				btrfs_err(fs_info,
+				"zoned: stripe position disorder found in block group %llu",
+					  bg->start);
+				return -EIO;
+			}
+
+			if (unlikely(has_partial &&
+				     (zone_info[i].alloc_offset & BTRFS_STRIPE_LEN_MASK))) {
+				btrfs_err(fs_info,
+				"zoned: multiple partial written stripe found in block group %llu",
+					  bg->start);
+				return -EIO;
+			}
+		}
+		prev_offset = zone_info[i].alloc_offset;
+
+		if ((zone_info[i].alloc_offset & BTRFS_STRIPE_LEN_MASK) != 0)
+			has_partial = true;
 
 		if (test_bit(0, active) != test_bit(i, active)) {
 			if (unlikely(!btrfs_zone_activate(bg)))
@@ -1572,6 +1655,19 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 		bg->alloc_offset += zone_info[i].alloc_offset;
 	}
 
+	/* Check if all devices stay in the same stripe row. */
+	if (unlikely(zone_info[0].alloc_offset -
+		     zone_info[map->num_stripes - 1].alloc_offset > BTRFS_STRIPE_LEN)) {
+		btrfs_err(fs_info, "zoned: stripe gap too large in block group %llu", bg->start);
+		return -EIO;
+	}
+
+	if (unlikely(has_conventional && bg->alloc_offset < last_alloc)) {
+		btrfs_err(fs_info, "zoned: allocated extent stays beyond write pointers %llu %llu",
+			  bg->alloc_offset, last_alloc);
+		return -EIO;
+	}
+
 	return 0;
 }
 
@@ -1582,14 +1678,71 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 					 u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
+	u64 AUTO_KFREE(raid0_allocs);
 	u64 stripe_nr = 0, stripe_offset = 0;
 	u32 stripe_index = 0;
+	bool has_partial = false, has_conventional = false;
+	u64 prev_offset = 0;
 
 	if ((map->type & BTRFS_BLOCK_GROUP_DATA) && !fs_info->stripe_root) {
 		btrfs_err(fs_info, "zoned: data %s needs raid-stripe-tree",
 			  btrfs_bg_type_to_raid_name(map->type));
 		return -EINVAL;
 	}
+
+	raid0_allocs = kcalloc(map->num_stripes / map->sub_stripes, sizeof(*raid0_allocs),
+			       GFP_NOFS);
+	if (!raid0_allocs)
+		return -ENOMEM;
+
+	/*
+	 * When the last extent is removed, last_alloc can be smaller than the other write
+	 * pointer. In that case, last_alloc should be moved to the corresponding write
+	 * pointer position.
+	 */
+	for (int i = 0; i < map->num_stripes; i += map->sub_stripes) {
+		u64 alloc = zone_info[i].alloc_offset;
+
+		for (int j = 1; j < map->sub_stripes; j++) {
+			int idx = i + j;
+
+			if (zone_info[idx].alloc_offset == WP_MISSING_DEV ||
+			    zone_info[idx].alloc_offset == WP_CONVENTIONAL)
+				continue;
+			if (alloc == WP_MISSING_DEV || alloc == WP_CONVENTIONAL) {
+				alloc = zone_info[idx].alloc_offset;
+			} else if (unlikely(zone_info[idx].alloc_offset != alloc)) {
+				btrfs_err(fs_info,
+				"zoned: write pointer mismatch found in block group %llu",
+					  bg->start);
+				return -EIO;
+			}
+		}
+
+		raid0_allocs[i / map->sub_stripes] = alloc;
+		if (alloc == WP_CONVENTIONAL)
+			continue;
+		if (unlikely(alloc == WP_MISSING_DEV)) {
+			btrfs_err(fs_info,
+			"zoned: cannot recover write pointer of block group %llu due to missing device",
+				  bg->start);
+			return -EIO;
+		}
+
+		stripe_nr = alloc >> BTRFS_STRIPE_LEN_SHIFT;
+		stripe_offset = alloc & BTRFS_STRIPE_LEN_MASK;
+		if (stripe_offset == 0 && stripe_nr > 0) {
+			stripe_nr--;
+			stripe_offset = BTRFS_STRIPE_LEN;
+		}
+
+		alloc = ((stripe_nr * (map->num_stripes / map->sub_stripes) +
+			  (i / map->sub_stripes)) <<
+			 BTRFS_STRIPE_LEN_SHIFT) + stripe_offset;
+		last_alloc = max(last_alloc, alloc);
+	}
+	stripe_nr = 0;
+	stripe_offset = 0;
 
 	if (last_alloc) {
 		u32 factor = map->num_stripes / map->sub_stripes;
@@ -1600,24 +1753,51 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 	}
 
 	for (int i = 0; i < map->num_stripes; i++) {
-		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
-			continue;
+		int idx = i / map->sub_stripes;
+
+		if (raid0_allocs[idx] == WP_CONVENTIONAL) {
+			has_conventional = true;
+			raid0_allocs[idx] = btrfs_stripe_nr_to_offset(stripe_nr);
+
+			if (stripe_index > idx)
+				raid0_allocs[idx] += BTRFS_STRIPE_LEN;
+			else if (stripe_index == idx)
+				raid0_allocs[idx] += stripe_offset;
+		}
+
+		if ((i % map->sub_stripes) == 0) {
+			/* Verification */
+			if (i != 0) {
+				if (unlikely(prev_offset < raid0_allocs[idx])) {
+					btrfs_err(fs_info,
+					"zoned: stripe position disorder found in block group %llu",
+						  bg->start);
+					return -EIO;
+				}
+
+				if (unlikely(has_partial &&
+					     (raid0_allocs[idx] & BTRFS_STRIPE_LEN_MASK))) {
+					btrfs_err(fs_info,
+					"zoned: multiple partial written stripe found in block group %llu",
+						  bg->start);
+					return -EIO;
+				}
+			}
+			prev_offset = raid0_allocs[idx];
+
+			if ((raid0_allocs[idx] & BTRFS_STRIPE_LEN_MASK) != 0)
+				has_partial = true;
+		}
+
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
+		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+			zone_info[i].alloc_offset = raid0_allocs[idx];
 
 		if (test_bit(0, active) != test_bit(i, active)) {
 			if (unlikely(!btrfs_zone_activate(bg)))
 				return -EIO;
-		} else {
-			if (test_bit(0, active))
-				set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &bg->runtime_flags);
-		}
-
-		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
-			zone_info[i].alloc_offset = btrfs_stripe_nr_to_offset(stripe_nr);
-
-			if (stripe_index > (i / map->sub_stripes))
-				zone_info[i].alloc_offset += BTRFS_STRIPE_LEN;
-			else if (stripe_index == (i / map->sub_stripes))
-				zone_info[i].alloc_offset += stripe_offset;
+		} else if (test_bit(0, active)) {
+			set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &bg->runtime_flags);
 		}
 
 		if ((i % map->sub_stripes) == 0) {
@@ -1626,7 +1806,77 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 		}
 	}
 
+	/* Check if all devices stay in the same stripe row. */
+	if (unlikely(zone_info[0].alloc_offset -
+		     zone_info[map->num_stripes - 1].alloc_offset > BTRFS_STRIPE_LEN)) {
+		btrfs_err(fs_info, "zoned: stripe gap too large in block group %llu",
+			  bg->start);
+		return -EIO;
+	}
+
+	if (unlikely(has_conventional && bg->alloc_offset < last_alloc)) {
+		btrfs_err(fs_info, "zoned: allocated extent stays beyond write pointers %llu %llu",
+			  bg->alloc_offset, last_alloc);
+		return -EIO;
+	}
+
 	return 0;
+}
+
+EXPORT_FOR_TESTS
+int btrfs_load_block_group_by_raid_type(struct btrfs_block_group *bg,
+					struct btrfs_chunk_map *map,
+					struct zone_info *zone_info,
+					unsigned long *active, u64 last_alloc)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	u64 profile;
+	int ret;
+
+	profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	switch (profile) {
+	case 0: /* single */
+		ret = btrfs_load_block_group_single(bg, &zone_info[0], active);
+		break;
+	case BTRFS_BLOCK_GROUP_DUP:
+		ret = btrfs_load_block_group_dup(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID1:
+	case BTRFS_BLOCK_GROUP_RAID1C3:
+	case BTRFS_BLOCK_GROUP_RAID1C4:
+		ret = btrfs_load_block_group_raid1(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID0:
+		ret = btrfs_load_block_group_raid0(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID10:
+		ret = btrfs_load_block_group_raid10(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID5:
+	case BTRFS_BLOCK_GROUP_RAID6:
+	default:
+		btrfs_err(fs_info, "zoned: profile %s not yet supported",
+			  btrfs_bg_type_to_raid_name(map->type));
+		return -EINVAL;
+	}
+
+	if (ret == -EIO && profile != 0 && profile != BTRFS_BLOCK_GROUP_RAID0 &&
+	    profile != BTRFS_BLOCK_GROUP_RAID10) {
+		/*
+		 * Detected broken write pointer.  Make this block group
+		 * unallocatable by setting the allocation pointer at the end of
+		 * allocatable region. Relocating this block group will fix the
+		 * mismatch.
+		 *
+		 * Currently, we cannot handle RAID0 or RAID10 case like this
+		 * because we don't have a proper zone_capacity value. But,
+		 * reading from this block group won't work anyway by a missing
+		 * stripe.
+		 */
+		bg->alloc_offset = bg->zone_capacity;
+	}
+
+	return ret;
 }
 
 int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
@@ -1641,7 +1891,6 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
-	u64 profile;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
@@ -1701,53 +1950,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		}
 	}
 
-	profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-	switch (profile) {
-	case 0: /* single */
-		ret = btrfs_load_block_group_single(cache, &zone_info[0], active);
-		break;
-	case BTRFS_BLOCK_GROUP_DUP:
-		ret = btrfs_load_block_group_dup(cache, map, zone_info, active,
-						 last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID1:
-	case BTRFS_BLOCK_GROUP_RAID1C3:
-	case BTRFS_BLOCK_GROUP_RAID1C4:
-		ret = btrfs_load_block_group_raid1(cache, map, zone_info,
-						   active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID0:
-		ret = btrfs_load_block_group_raid0(cache, map, zone_info,
-						   active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID10:
-		ret = btrfs_load_block_group_raid10(cache, map, zone_info,
-						    active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID5:
-	case BTRFS_BLOCK_GROUP_RAID6:
-	default:
-		btrfs_err(fs_info, "zoned: profile %s not yet supported",
-			  btrfs_bg_type_to_raid_name(map->type));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (ret == -EIO && profile != 0 && profile != BTRFS_BLOCK_GROUP_RAID0 &&
-	    profile != BTRFS_BLOCK_GROUP_RAID10) {
-		/*
-		 * Detected broken write pointer.  Make this block group
-		 * unallocatable by setting the allocation pointer at the end of
-		 * allocatable region. Relocating this block group will fix the
-		 * mismatch.
-		 *
-		 * Currently, we cannot handle RAID0 or RAID10 case like this
-		 * because we don't have a proper zone_capacity value. But,
-		 * reading from this block group won't work anyway by a missing
-		 * stripe.
-		 */
-		cache->alloc_offset = cache->zone_capacity;
-	}
+	ret = btrfs_load_block_group_by_raid_type(cache, map, zone_info, active, last_alloc);
 
 out:
 	/* Reject non SINGLE data profiles without RST */
@@ -2028,7 +2231,7 @@ int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 
 	if (block_group) {
 		if (block_group->start > eb->start ||
-		    block_group->start + block_group->length <= eb->start) {
+		    btrfs_block_group_end(block_group) <= eb->start) {
 			btrfs_put_block_group(block_group);
 			block_group = NULL;
 			ctx->zoned_bg = NULL;
@@ -2248,7 +2451,7 @@ out_unlock:
 static void wait_eb_writebacks(struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	const u64 end = block_group->start + block_group->length;
+	const u64 end = btrfs_block_group_end(block_group);
 	struct extent_buffer *eb;
 	unsigned long index, start = (block_group->start >> fs_info->nodesize_bits);
 
@@ -2983,4 +3186,59 @@ int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num
 	}
 
 	return 0;
+}
+
+void btrfs_show_zoned_stats(struct btrfs_fs_info *fs_info, struct seq_file *seq)
+{
+	struct btrfs_block_group *bg;
+	u64 data_reloc_bg;
+	u64 treelog_bg;
+
+	seq_puts(seq, "\n  zoned statistics:\n");
+
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	seq_printf(seq, "\tactive block-groups: %zu\n",
+			     list_count_nodes(&fs_info->zone_active_bgs));
+	spin_unlock(&fs_info->zone_active_bgs_lock);
+
+	spin_lock(&fs_info->unused_bgs_lock);
+	seq_printf(seq, "\t  reclaimable: %zu\n",
+			     list_count_nodes(&fs_info->reclaim_bgs));
+	seq_printf(seq, "\t  unused: %zu\n", list_count_nodes(&fs_info->unused_bgs));
+	spin_unlock(&fs_info->unused_bgs_lock);
+
+	seq_printf(seq,"\t  need reclaim: %s\n",
+		   str_true_false(btrfs_zoned_should_reclaim(fs_info)));
+
+	data_reloc_bg = data_race(fs_info->data_reloc_bg);
+	if (data_reloc_bg)
+		seq_printf(seq, "\tdata relocation block-group: %llu\n",
+			   data_reloc_bg);
+	treelog_bg = data_race(fs_info->treelog_bg);
+	if (treelog_bg)
+		seq_printf(seq, "\ttree-log block-group: %llu\n", treelog_bg);
+
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	seq_puts(seq, "\tactive zones:\n");
+	list_for_each_entry(bg, &fs_info->zone_active_bgs, active_bg_list) {
+		u64 start;
+		u64 alloc_offset;
+		u64 used;
+		u64 reserved;
+		u64 zone_unusable;
+		const char *typestr = btrfs_space_info_type_str(bg->space_info);
+
+		spin_lock(&bg->lock);
+		start = bg->start;
+		alloc_offset = bg->alloc_offset;
+		used = bg->used;
+		reserved = bg->reserved;
+		zone_unusable = bg->zone_unusable;
+		spin_unlock(&bg->lock);
+
+		seq_printf(seq,
+			   "\t  start: %llu, wp: %llu used: %llu, reserved: %llu, unusable: %llu (%s)\n",
+			   start, alloc_offset, used, reserved, zone_unusable, typestr);
+	}
+	spin_unlock(&fs_info->zone_active_bgs_lock);
 }

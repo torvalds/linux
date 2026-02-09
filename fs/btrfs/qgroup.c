@@ -346,6 +346,42 @@ int btrfs_verify_qgroup_counts(const struct btrfs_fs_info *fs_info, u64 qgroupid
 }
 #endif
 
+static bool squota_check_parent_usage(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *parent)
+{
+	u64 excl_sum = 0;
+	u64 rfer_sum = 0;
+	u64 excl_cmpr_sum = 0;
+	u64 rfer_cmpr_sum = 0;
+	struct btrfs_qgroup_list *glist;
+	int nr_members = 0;
+	bool mismatch;
+
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
+		return false;
+	if (btrfs_qgroup_level(parent->qgroupid) == 0)
+		return false;
+
+	/* Eligible parent qgroup. Squota; level > 0; empty members list. */
+	list_for_each_entry(glist, &parent->members, next_member) {
+		excl_sum += glist->member->excl;
+		rfer_sum += glist->member->rfer;
+		excl_cmpr_sum += glist->member->excl_cmpr;
+		rfer_cmpr_sum += glist->member->rfer_cmpr;
+		nr_members++;
+	}
+	mismatch = (parent->excl != excl_sum || parent->rfer != rfer_sum ||
+		    parent->excl_cmpr != excl_cmpr_sum || parent->rfer_cmpr != excl_cmpr_sum);
+
+	WARN(mismatch,
+	     "parent squota qgroup %hu/%llu has mismatched usage from its %d members. "
+	     "%llu %llu %llu %llu vs %llu %llu %llu %llu\n",
+	     btrfs_qgroup_level(parent->qgroupid),
+	     btrfs_qgroup_subvolid(parent->qgroupid), nr_members, parent->excl,
+	     parent->rfer, parent->excl_cmpr, parent->rfer_cmpr, excl_sum,
+	     rfer_sum, excl_cmpr_sum, rfer_cmpr_sum);
+	return mismatch;
+}
+
 __printf(2, 3)
 static void qgroup_mark_inconsistent(struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
@@ -658,7 +694,6 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 static int add_qgroup_relation_item(struct btrfs_trans_handle *trans, u64 src,
 				    u64 dst)
 {
-	int ret;
 	struct btrfs_root *quota_root = trans->fs_info->quota_root;
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
@@ -671,8 +706,7 @@ static int add_qgroup_relation_item(struct btrfs_trans_handle *trans, u64 src,
 	key.type = BTRFS_QGROUP_RELATION_KEY;
 	key.offset = dst;
 
-	ret = btrfs_insert_empty_item(trans, quota_root, path, &key, 0);
-	return ret;
+	return btrfs_insert_empty_item(trans, quota_root, path, &key, 0);
 }
 
 static int del_qgroup_relation_item(struct btrfs_trans_handle *trans, u64 src,
@@ -797,9 +831,7 @@ static int del_qgroup_item(struct btrfs_trans_handle *trans, u64 qgroupid)
 	if (ret > 0)
 		return -ENOENT;
 
-	ret = btrfs_del_item(trans, quota_root, path);
-
-	return ret;
+	return btrfs_del_item(trans, quota_root, path);
 }
 
 static int update_qgroup_limit_item(struct btrfs_trans_handle *trans,
@@ -1562,6 +1594,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst
 		goto out;
 	}
 	ret = quick_update_accounting(fs_info, src, dst, 1);
+	squota_check_parent_usage(fs_info, parent);
 	spin_unlock(&fs_info->qgroup_lock);
 out:
 	kfree(prealloc);
@@ -1580,10 +1613,8 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	int ret = 0;
 	int ret2;
 
-	if (!fs_info->quota_root) {
-		ret = -ENOTCONN;
-		goto out;
-	}
+	if (!fs_info->quota_root)
+		return -ENOTCONN;
 
 	member = find_qgroup_rb(fs_info, src);
 	parent = find_qgroup_rb(fs_info, dst);
@@ -1605,10 +1636,10 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 delete_item:
 	ret = del_qgroup_relation_item(trans, src, dst);
 	if (ret < 0 && ret != -ENOENT)
-		goto out;
+		return ret;
 	ret2 = del_qgroup_relation_item(trans, dst, src);
 	if (ret2 < 0 && ret2 != -ENOENT)
-		goto out;
+		return ret2;
 
 	/* At least one deletion succeeded, return 0 */
 	if (!ret || !ret2)
@@ -1618,9 +1649,11 @@ delete_item:
 		spin_lock(&fs_info->qgroup_lock);
 		del_relation_rb(fs_info, src, dst);
 		ret = quick_update_accounting(fs_info, src, dst, -1);
+		ASSERT(parent);
+		squota_check_parent_usage(fs_info, parent);
 		spin_unlock(&fs_info->qgroup_lock);
 	}
-out:
+
 	return ret;
 }
 
@@ -1679,6 +1712,36 @@ out:
 	return ret;
 }
 
+static bool can_delete_parent_qgroup(struct btrfs_qgroup *qgroup)
+
+{
+	ASSERT(btrfs_qgroup_level(qgroup->qgroupid));
+	return list_empty(&qgroup->members);
+}
+
+/*
+ * Return true if we can delete the squota qgroup and false otherwise.
+ *
+ * Rules for whether we can delete:
+ *
+ * A subvolume qgroup can be removed iff the subvolume is fully deleted, which
+ * is iff there is 0 usage in the qgroup.
+ *
+ * A higher level qgroup can be removed iff it has no members.
+ * Note: We audit its usage to warn on inconsitencies without blocking deletion.
+ */
+static bool can_delete_squota_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup)
+{
+	ASSERT(btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE);
+
+	if (btrfs_qgroup_level(qgroup->qgroupid) > 0) {
+		squota_check_parent_usage(fs_info, qgroup);
+		return can_delete_parent_qgroup(qgroup);
+	}
+
+	return !(qgroup->rfer || qgroup->excl || qgroup->rfer_cmpr || qgroup->excl_cmpr);
+}
+
 /*
  * Return 0 if we can not delete the qgroup (not empty or has children etc).
  * Return >0 if we can delete the qgroup.
@@ -1689,23 +1752,13 @@ static int can_delete_qgroup(struct btrfs_fs_info *fs_info, struct btrfs_qgroup 
 	struct btrfs_key key;
 	BTRFS_PATH_AUTO_FREE(path);
 
-	/*
-	 * Squota would never be inconsistent, but there can still be case
-	 * where a dropped subvolume still has qgroup numbers, and squota
-	 * relies on such qgroup for future accounting.
-	 *
-	 * So for squota, do not allow dropping any non-zero qgroup.
-	 */
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE &&
-	    (qgroup->rfer || qgroup->excl || qgroup->excl_cmpr || qgroup->rfer_cmpr))
-		return 0;
+	/* Since squotas cannot be inconsistent, they have special rules for deletion. */
+	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE)
+		return can_delete_squota_qgroup(fs_info, qgroup);
 
 	/* For higher level qgroup, we can only delete it if it has no child. */
-	if (btrfs_qgroup_level(qgroup->qgroupid)) {
-		if (!list_empty(&qgroup->members))
-			return 0;
-		return 1;
-	}
+	if (btrfs_qgroup_level(qgroup->qgroupid))
+		return can_delete_parent_qgroup(qgroup);
 
 	/*
 	 * For level-0 qgroups, we can only delete it if it has no subvolume
@@ -2433,13 +2486,11 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 
 		/* This node is old, no need to trace */
 		if (child_gen < last_snapshot)
-			goto out;
+			return ret;
 
 		eb = btrfs_read_node_slot(eb, parent_slot);
-		if (IS_ERR(eb)) {
-			ret = PTR_ERR(eb);
-			goto out;
-		}
+		if (IS_ERR(eb))
+			return PTR_ERR(eb);
 
 		dst_path->nodes[cur_level] = eb;
 		dst_path->slots[cur_level] = 0;
@@ -2484,7 +2535,7 @@ cleanup:
 		dst_path->slots[cur_level] = 0;
 		dst_path->locks[cur_level] = 0;
 	}
-out:
+
 	return ret;
 }
 
@@ -2596,10 +2647,8 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 			return ret;
 	}
 
-	if (root_level == 0) {
-		ret = btrfs_qgroup_trace_leaf_items(trans, root_eb);
-		return ret;
-	}
+	if (root_level == 0)
+		return btrfs_qgroup_trace_leaf_items(trans, root_eb);
 
 	path = btrfs_alloc_path();
 	if (!path)

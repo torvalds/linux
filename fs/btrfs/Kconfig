@@ -4,11 +4,8 @@ config BTRFS_FS
 	tristate "Btrfs filesystem support"
 	select BLK_CGROUP_PUNT_BIO
 	select CRC32
-	select CRYPTO
-	select CRYPTO_CRC32C
-	select CRYPTO_XXHASH
-	select CRYPTO_SHA256
-	select CRYPTO_BLAKE2B
+	select CRYPTO_LIB_BLAKE2B
+	select CRYPTO_LIB_SHA256
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	select LZO_COMPRESS
@@ -18,6 +15,7 @@ config BTRFS_FS
 	select FS_IOMAP
 	select RAID6_PQ
 	select XOR_BLOCKS
+	select XXHASH
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 	help
@@ -106,9 +104,6 @@ config BTRFS_EXPERIMENTAL
 
 	  - send stream protocol v3 - fs-verity support
 
-	  - checksum offload mode - sysfs knob to affect when checksums are
-	                            calculated (at IO time, or in a thread)
-
 	  - raid-stripe-tree - additional mapping of extents to devices to
 			       support RAID1* profiles on zoned devices,
 			       RAID56 not yet supported
@@ -120,5 +115,7 @@ config BTRFS_EXPERIMENTAL
 	  - shutdown ioctl and auto-degradation support
 
 	  - asynchronous checksum generation for data writes
+
+	  - remap-tree - logical address remapping tree
 
 	  If unsure, say N.

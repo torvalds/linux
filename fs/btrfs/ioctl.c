@@ -1107,7 +1107,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 				bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
-	int ret = 0;
+	int ret;
 	struct qstr qname = QSTR_INIT(name, strlen(name));
 
 	if (!S_ISDIR(file_inode(file)->i_mode))
@@ -1115,7 +1115,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 
 	ret = mnt_want_write_file(file);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (strchr(name, '/')) {
 		ret = -EINVAL;
@@ -1167,7 +1167,6 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 	}
 out_drop_write:
 	mnt_drop_write_file(file);
-out:
 	return ret;
 }
 
@@ -1283,14 +1282,14 @@ static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
 	struct btrfs_trans_handle *trans;
 	u64 root_flags;
 	u64 flags;
-	int ret = 0;
+	int ret;
 
 	if (!inode_owner_or_capable(file_mnt_idmap(file), inode))
 		return -EPERM;
 
 	ret = mnt_want_write_file(file);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (btrfs_ino(BTRFS_I(inode)) != BTRFS_FIRST_FREE_OBJECTID) {
 		ret = -EINVAL;
@@ -1359,7 +1358,6 @@ out_drop_sem:
 	up_write(&fs_info->subvol_sem);
 out_drop_write:
 	mnt_drop_write_file(file);
-out:
 	return ret;
 }
 
@@ -1425,10 +1423,8 @@ static noinline int copy_to_sk(struct btrfs_path *path,
 			continue;
 
 		if (sizeof(sh) + item_len > *buf_size) {
-			if (*num_found) {
-				ret = 1;
-				goto out;
-			}
+			if (*num_found)
+				return 1;
 
 			/*
 			 * return one empty item back for v1, which does not
@@ -1440,10 +1436,8 @@ static noinline int copy_to_sk(struct btrfs_path *path,
 			ret = -EOVERFLOW;
 		}
 
-		if (sizeof(sh) + item_len + *sk_offset > *buf_size) {
-			ret = 1;
-			goto out;
-		}
+		if (sizeof(sh) + item_len + *sk_offset > *buf_size)
+			return 1;
 
 		sh.objectid = key->objectid;
 		sh.type = key->type;
@@ -1457,10 +1451,8 @@ static noinline int copy_to_sk(struct btrfs_path *path,
 		 * problem. Otherwise we'll fault and then copy the buffer in
 		 * properly this next time through
 		 */
-		if (copy_to_user_nofault(ubuf + *sk_offset, &sh, sizeof(sh))) {
-			ret = 0;
-			goto out;
-		}
+		if (copy_to_user_nofault(ubuf + *sk_offset, &sh, sizeof(sh)))
+			return 0;
 
 		*sk_offset += sizeof(sh);
 
@@ -1472,22 +1464,20 @@ static noinline int copy_to_sk(struct btrfs_path *path,
 			 */
 			if (read_extent_buffer_to_user_nofault(leaf, up,
 						item_off, item_len)) {
-				ret = 0;
 				*sk_offset -= sizeof(sh);
-				goto out;
+				return 0;
 			}
 
 			*sk_offset += item_len;
 		}
 		(*num_found)++;
 
-		if (ret) /* -EOVERFLOW from above */
-			goto out;
+		/* -EOVERFLOW from above. */
+		if (ret)
+			return ret;
 
-		if (*num_found >= sk->nr_items) {
-			ret = 1;
-			goto out;
-		}
+		if (*num_found >= sk->nr_items)
+			return 1;
 	}
 advance_key:
 	ret = 0;
@@ -1507,7 +1497,7 @@ advance_key:
 		key->objectid++;
 	} else
 		ret = 1;
-out:
+
 	/*
 	 *  0: all items from this leaf copied, continue with next
 	 *  1: * more items can be copied, but unused buffer is too small
@@ -4931,7 +4921,7 @@ out_acct:
 
 int btrfs_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
-	if (unlikely(btrfs_is_shutdown(inode_to_fs_info(file_inode(cmd->file)))))
+	if (btrfs_is_shutdown(inode_to_fs_info(file_inode(cmd->file))))
 		return -EIO;
 
 	switch (cmd->cmd_op) {

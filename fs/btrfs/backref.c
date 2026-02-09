@@ -3609,10 +3609,8 @@ int btrfs_backref_finish_upper_links(struct btrfs_backref_cache *cache,
 		}
 
 		rb_node = rb_simple_insert(&cache->rb_root, &upper->simple_node);
-		if (unlikely(rb_node)) {
+		if (unlikely(rb_node))
 			btrfs_backref_panic(cache->fs_info, upper->bytenr, -EEXIST);
-			return -EUCLEAN;
-		}
 
 		list_add_tail(&edge->list[UPPER], &upper->lower);
 

@@ -232,19 +232,19 @@ static void btrfs_dequeue_delayed_node(struct btrfs_delayed_root *root,
 }
 
 static struct btrfs_delayed_node *btrfs_first_delayed_node(
-			struct btrfs_delayed_root *delayed_root,
+			struct btrfs_fs_info *fs_info,
 			struct btrfs_ref_tracker *tracker)
 {
 	struct btrfs_delayed_node *node;
 
-	spin_lock(&delayed_root->lock);
-	node = list_first_entry_or_null(&delayed_root->node_list,
+	spin_lock(&fs_info->delayed_root.lock);
+	node = list_first_entry_or_null(&fs_info->delayed_root.node_list,
 					struct btrfs_delayed_node, n_list);
 	if (node) {
 		refcount_inc(&node->refs);
 		btrfs_delayed_node_ref_tracker_alloc(node, tracker, GFP_ATOMIC);
 	}
-	spin_unlock(&delayed_root->lock);
+	spin_unlock(&fs_info->delayed_root.lock);
 
 	return node;
 }
@@ -257,7 +257,7 @@ static struct btrfs_delayed_node *btrfs_next_delayed_node(
 	struct list_head *p;
 	struct btrfs_delayed_node *next = NULL;
 
-	delayed_root = node->root->fs_info->delayed_root;
+	delayed_root = &node->root->fs_info->delayed_root;
 	spin_lock(&delayed_root->lock);
 	if (!test_bit(BTRFS_DELAYED_NODE_IN_LIST, &node->flags)) {
 		/* not in the list */
@@ -287,7 +287,7 @@ static void __btrfs_release_delayed_node(
 	if (!delayed_node)
 		return;
 
-	delayed_root = delayed_node->root->fs_info->delayed_root;
+	delayed_root = &delayed_node->root->fs_info->delayed_root;
 
 	mutex_lock(&delayed_node->mutex);
 	if (delayed_node->count)
@@ -425,7 +425,7 @@ static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
 		delayed_node->index_cnt = ins->index + 1;
 
 	delayed_node->count++;
-	atomic_inc(&delayed_node->root->fs_info->delayed_root->items);
+	atomic_inc(&delayed_node->root->fs_info->delayed_root.items);
 	return 0;
 }
 
@@ -443,7 +443,6 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 {
 	struct btrfs_delayed_node *delayed_node = delayed_item->delayed_node;
 	struct rb_root_cached *root;
-	struct btrfs_delayed_root *delayed_root;
 
 	/* Not inserted, ignore it. */
 	if (RB_EMPTY_NODE(&delayed_item->rb_node))
@@ -451,8 +450,6 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 
 	/* If it's in a rbtree, then we need to have delayed node locked. */
 	lockdep_assert_held(&delayed_node->mutex);
-
-	delayed_root = delayed_node->root->fs_info->delayed_root;
 
 	if (delayed_item->type == BTRFS_DELAYED_INSERTION_ITEM)
 		root = &delayed_node->ins_root;
@@ -462,8 +459,7 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 	rb_erase_cached(&delayed_item->rb_node, root);
 	RB_CLEAR_NODE(&delayed_item->rb_node);
 	delayed_node->count--;
-
-	finish_one_item(delayed_root);
+	finish_one_item(&delayed_node->root->fs_info->delayed_root);
 }
 
 static void btrfs_release_delayed_item(struct btrfs_delayed_item *item)
@@ -980,30 +976,21 @@ static int btrfs_delete_delayed_items(struct btrfs_trans_handle *trans,
 
 static void btrfs_release_delayed_inode(struct btrfs_delayed_node *delayed_node)
 {
-	struct btrfs_delayed_root *delayed_root;
-
 	if (delayed_node &&
 	    test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		ASSERT(delayed_node->root);
 		clear_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 		delayed_node->count--;
-
-		delayed_root = delayed_node->root->fs_info->delayed_root;
-		finish_one_item(delayed_root);
+		finish_one_item(&delayed_node->root->fs_info->delayed_root);
 	}
 }
 
 static void btrfs_release_delayed_iref(struct btrfs_delayed_node *delayed_node)
 {
-
 	if (test_and_clear_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags)) {
-		struct btrfs_delayed_root *delayed_root;
-
 		ASSERT(delayed_node->root);
 		delayed_node->count--;
-
-		delayed_root = delayed_node->root->fs_info->delayed_root;
-		finish_one_item(delayed_root);
+		finish_one_item(&delayed_node->root->fs_info->delayed_root);
 	}
 }
 
@@ -1137,8 +1124,8 @@ __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	ret = btrfs_record_root_in_trans(trans, node->root);
 	if (ret)
 		return ret;
-	ret = btrfs_update_delayed_inode(trans, node->root, path, node);
-	return ret;
+
+	return btrfs_update_delayed_inode(trans, node->root, path, node);
 }
 
 /*
@@ -1150,7 +1137,6 @@ __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_ref_tracker curr_delayed_node_tracker, prev_delayed_node_tracker;
 	struct btrfs_path *path;
@@ -1168,9 +1154,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	block_rsv = trans->block_rsv;
 	trans->block_rsv = &fs_info->delayed_block_rsv;
 
-	delayed_root = fs_info->delayed_root;
-
-	curr_node = btrfs_first_delayed_node(delayed_root, &curr_delayed_node_tracker);
+	curr_node = btrfs_first_delayed_node(fs_info, &curr_delayed_node_tracker);
 	while (curr_node && (!count || nr--)) {
 		ret = __btrfs_commit_inode_delayed_items(trans, path,
 							 curr_node);
@@ -1417,7 +1401,7 @@ void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info)
 	struct btrfs_ref_tracker delayed_node_tracker;
 	struct btrfs_delayed_node *node;
 
-	node = btrfs_first_delayed_node( fs_info->delayed_root, &delayed_node_tracker);
+	node = btrfs_first_delayed_node(fs_info, &delayed_node_tracker);
 	if (WARN_ON(node)) {
 		btrfs_delayed_node_ref_tracker_free(node,
 						    &delayed_node_tracker);
@@ -1440,7 +1424,7 @@ static bool could_end_wait(struct btrfs_delayed_root *delayed_root, int seq)
 
 void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_delayed_root *delayed_root = fs_info->delayed_root;
+	struct btrfs_delayed_root *delayed_root = &fs_info->delayed_root;
 
 	if ((atomic_read(&delayed_root->items) < BTRFS_DELAYED_BACKGROUND) ||
 		btrfs_workqueue_normal_congested(fs_info->delayed_workers))
@@ -1970,7 +1954,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 	fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 	set_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 	delayed_node->count++;
-	atomic_inc(&root->fs_info->delayed_root->items);
+	atomic_inc(&root->fs_info->delayed_root.items);
 release_node:
 	mutex_unlock(&delayed_node->mutex);
 	btrfs_release_delayed_node(delayed_node, &delayed_node_tracker);
@@ -2012,7 +1996,7 @@ int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode)
 	mutex_lock(&delayed_node->mutex);
 	if (!test_and_set_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags)) {
 		delayed_node->count++;
-		atomic_inc(&fs_info->delayed_root->items);
+		atomic_inc(&fs_info->delayed_root.items);
 	}
 	mutex_unlock(&delayed_node->mutex);
 	btrfs_release_delayed_node(delayed_node, &delayed_node_tracker);
@@ -2118,8 +2102,7 @@ void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info)
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_ref_tracker curr_delayed_node_tracker, prev_delayed_node_tracker;
 
-	curr_node = btrfs_first_delayed_node(fs_info->delayed_root,
-					     &curr_delayed_node_tracker);
+	curr_node = btrfs_first_delayed_node(fs_info, &curr_delayed_node_tracker);
 	while (curr_node) {
 		__btrfs_kill_delayed_node(curr_node);
 
