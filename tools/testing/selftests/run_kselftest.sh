@@ -30,6 +30,7 @@ Usage: $0 [OPTIONS]
   -s | --summary		Print summary with detailed log in output.log (conflict with -p)
   -p | --per-test-log		Print test log in /tmp with each test name (conflict with -s)
   -t | --test COLLECTION:TEST	Run TEST from COLLECTION
+  -S | --skip COLLECTION:TEST	Skip TEST from COLLECTION
   -c | --collection COLLECTION	Run all tests from COLLECTION
   -l | --list			List the available collection:test entries
   -d | --dry-run		Don't actually run any tests
@@ -43,6 +44,7 @@ EOF
 
 COLLECTIONS=""
 TESTS=""
+SKIP=""
 dryrun=""
 kselftest_override_timeout=""
 ERROR_ON_FAIL=true
@@ -57,6 +59,9 @@ while true; do
 			shift ;;
 		-t | --test)
 			TESTS="$TESTS $2"
+			shift 2 ;;
+		-S | --skip)
+			SKIP="$SKIP $2"
 			shift 2 ;;
 		-c | --collection)
 			COLLECTIONS="$COLLECTIONS $2"
@@ -108,6 +113,12 @@ if [ -n "$TESTS" ]; then
 		valid="$valid $found"
 	done
 	available="$(echo "$valid" | sed -e 's/ /\n/g')"
+fi
+# Remove tests to be skipped from available list
+if [ -n "$SKIP" ]; then
+	for skipped in $SKIP ; do
+		available="$(echo "$available" | grep -v "^${skipped}$")"
+	done
 fi
 
 kselftest_failures_file="$(mktemp --tmpdir kselftest-failures-XXXXXX)"
