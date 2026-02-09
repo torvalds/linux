@@ -141,6 +141,11 @@ void dm_cache_metadata_set_read_only(struct dm_cache_metadata *cmd);
 void dm_cache_metadata_set_read_write(struct dm_cache_metadata *cmd);
 int dm_cache_metadata_abort(struct dm_cache_metadata *cmd);
 
+/*
+ * Query method.  Was the metadata cleanly shut down when opened?
+ */
+int dm_cache_metadata_clean_when_opened(struct dm_cache_metadata *cmd, bool *result);
+
 /*----------------------------------------------------------------*/
 
 #endif /* DM_CACHE_METADATA_H */

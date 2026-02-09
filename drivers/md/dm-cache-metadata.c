@@ -1813,3 +1813,12 @@ out:
 
 	return r;
 }
+
+int dm_cache_metadata_clean_when_opened(struct dm_cache_metadata *cmd, bool *result)
+{
+	READ_LOCK(cmd);
+	*result = cmd->clean_when_opened;
+	READ_UNLOCK(cmd);
+
+	return 0;
+}
