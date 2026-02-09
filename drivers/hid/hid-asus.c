@@ -1540,10 +1540,8 @@ static struct hid_driver asus_driver = {
 	.remove			= asus_remove,
 	.input_mapping          = asus_input_mapping,
 	.input_configured       = asus_input_configured,
-#ifdef CONFIG_PM
-	.reset_resume           = asus_reset_resume,
-	.resume					= asus_resume,
-#endif
+	.reset_resume           = pm_ptr(asus_reset_resume),
+	.resume			= pm_ptr(asus_resume),
 	.event			= asus_event,
 	.raw_event		= asus_raw_event
 };

@@ -1983,7 +1983,6 @@ hid_hw_start_fail:
 	return retval;
 }
 
-#ifdef CONFIG_PM
 static int logi_dj_reset_resume(struct hid_device *hdev)
 {
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
@@ -1994,7 +1993,6 @@ static int logi_dj_reset_resume(struct hid_device *hdev)
 	logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
 	return 0;
 }
-#endif
 
 static void logi_dj_remove(struct hid_device *hdev)
 {
@@ -2150,9 +2148,7 @@ static struct hid_driver logi_djreceiver_driver = {
 	.probe = logi_dj_probe,
 	.remove = logi_dj_remove,
 	.raw_event = logi_dj_raw_event,
-#ifdef CONFIG_PM
-	.reset_resume = logi_dj_reset_resume,
-#endif
+	.reset_resume = pm_ptr(logi_dj_reset_resume),
 };
 
 module_hid_driver(logi_djreceiver_driver);
