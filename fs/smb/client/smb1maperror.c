@@ -1,12 +1,11 @@
-/* smb1maperror.c: description
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
  *
- * Copyright (C) 2025 Red Hat, Inc. All Rights Reserved.
- * Written by David Howells (dhowells@redhat.com)
+ *   Copyright (c) International Business Machines  Corp., 2002,2008
+ *   Author(s): Steve French (sfrench@us.ibm.com)
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
+ *   Error mapping routines from Samba libsmb/errormap.c
+ *   Copyright (C) Andrew Tridgell 2001
  */
 
 #include "cifsproto.h"
