@@ -60,7 +60,7 @@ struct ksmbd_session {
 
 	struct ksmbd_file_table		file_table;
 	unsigned long			last_active;
-	rwlock_t			tree_conns_lock;
+	struct rw_semaphore		tree_conns_lock;
 
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry		*proc_entry;

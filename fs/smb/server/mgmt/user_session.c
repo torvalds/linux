@@ -135,6 +135,7 @@ static int show_proc_session(struct seq_file *m, void *v)
 	seq_printf(m, "%-20s\t%d\n", "channels", i);
 
 	i = 0;
+	down_read(&sess->tree_conns_lock);
 	xa_for_each(&sess->tree_conns, id, tree_conn) {
 		share_conf = tree_conn->share_conf;
 		seq_printf(m, "%-20s\t%s\t%8d", "share",
@@ -145,6 +146,7 @@ static int show_proc_session(struct seq_file *m, void *v)
 			seq_printf(m, " %s ", "disk");
 		seq_putc(m, '\n');
 	}
+	up_read(&sess->tree_conns_lock);
 
 	ksmbd_user_session_put(sess);
 	return 0;
@@ -673,8 +675,8 @@ static struct ksmbd_session *__session_create(int protocol)
 	xa_init(&sess->ksmbd_chann_list);
 	xa_init(&sess->rpc_handle_list);
 	sess->sequence_number = 1;
-	rwlock_init(&sess->tree_conns_lock);
 	atomic_set(&sess->refcnt, 2);
+	init_rwsem(&sess->tree_conns_lock);
 	init_rwsem(&sess->rpc_lock);
 	init_rwsem(&sess->chann_lock);
 
