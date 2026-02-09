@@ -96,6 +96,7 @@ static ssize_t get_modalias(char *buffer, size_t buffer_size)
 		{ "ct",  DMI_CHASSIS_TYPE },
 		{ "cvr", DMI_CHASSIS_VERSION },
 		{ "sku", DMI_PRODUCT_SKU },
+		{ "pfa", DMI_PRODUCT_FAMILY },
 		{ NULL,  DMI_NONE }
 	};
 
