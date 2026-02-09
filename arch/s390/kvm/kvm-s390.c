@@ -2589,9 +2589,9 @@ static int kvm_s390_handle_pv(struct kvm *kvm, struct kvm_pv_cmd *cmd)
 		if (copy_from_user(&parms, argp, sizeof(parms)))
 			break;
 
-		/* Currently restricted to 8KB */
+		/* Currently restricted to 1MiB */
 		r = -EINVAL;
-		if (parms.length > PAGE_SIZE * 2)
+		if (parms.length > SZ_1M)
 			break;
 
 		r = -ENOMEM;
