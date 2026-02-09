@@ -121,8 +121,6 @@ typedef __u32			xfs_nlink_t;
 
 #define ENOATTR		ENODATA		/* Attribute not found */
 #define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */
-#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
-#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
 
 #define __return_address __builtin_return_address(0)
 

@@ -55,6 +55,7 @@
 #define	ENOSR		82	/* Out of streams resources */
 #define	ETIME		83	/* Timer expired */
 #define	EBADMSG		84	/* Not a data message */
+#define	EFSBADCRC	EBADMSG	/* Bad CRC detected */
 #define	EPROTO		85	/* Protocol error */
 #define	ENODATA		86	/* No data available */
 #define	ENOSTR		87	/* Device not a stream */
@@ -96,6 +97,7 @@
 #define	EREMCHG		115	/* Remote address changed */
 
 #define	EUCLEAN		117	/* Structure needs cleaning */
+#define	EFSCORRUPTED	EUCLEAN	/* Filesystem is corrupted */
 #define	ENOTNAM		118	/* Not a XENIX named type file */
 #define	ENAVAIL		119	/* No XENIX semaphores available */
 #define	EISNAM		120	/* Is a named type file */

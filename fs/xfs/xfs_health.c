@@ -20,6 +20,8 @@
 #include "xfs_quota_defs.h"
 #include "xfs_rtgroup.h"
 
+#include <linux/fserror.h>
+
 static void
 xfs_health_unmount_group(
 	struct xfs_group	*xg,
@@ -111,6 +113,8 @@ xfs_fs_mark_sick(
 	spin_lock(&mp->m_sb_lock);
 	mp->m_fs_sick |= mask;
 	spin_unlock(&mp->m_sb_lock);
+
+	fserror_report_metadata(mp->m_super, -EFSCORRUPTED, GFP_NOFS);
 }
 
 /* Mark per-fs metadata as having been checked and found unhealthy by fsck. */
@@ -126,6 +130,8 @@ xfs_fs_mark_corrupt(
 	mp->m_fs_sick |= mask;
 	mp->m_fs_checked |= mask;
 	spin_unlock(&mp->m_sb_lock);
+
+	fserror_report_metadata(mp->m_super, -EFSCORRUPTED, GFP_NOFS);
 }
 
 /* Mark a per-fs metadata healed. */
@@ -198,6 +204,8 @@ xfs_group_mark_sick(
 	spin_lock(&xg->xg_state_lock);
 	xg->xg_sick |= mask;
 	spin_unlock(&xg->xg_state_lock);
+
+	fserror_report_metadata(xg->xg_mount->m_super, -EFSCORRUPTED, GFP_NOFS);
 }
 
 /*
@@ -215,6 +223,8 @@ xfs_group_mark_corrupt(
 	xg->xg_sick |= mask;
 	xg->xg_checked |= mask;
 	spin_unlock(&xg->xg_state_lock);
+
+	fserror_report_metadata(xg->xg_mount->m_super, -EFSCORRUPTED, GFP_NOFS);
 }
 
 /*
@@ -287,6 +297,8 @@ xfs_inode_mark_sick(
 	spin_lock(&VFS_I(ip)->i_lock);
 	inode_state_clear(VFS_I(ip), I_DONTCACHE);
 	spin_unlock(&VFS_I(ip)->i_lock);
+
+	fserror_report_file_metadata(VFS_I(ip), -EFSCORRUPTED, GFP_NOFS);
 }
 
 /* Mark inode metadata as having been checked and found unhealthy by fsck. */
@@ -311,6 +323,8 @@ xfs_inode_mark_corrupt(
 	spin_lock(&VFS_I(ip)->i_lock);
 	inode_state_clear(VFS_I(ip), I_DONTCACHE);
 	spin_unlock(&VFS_I(ip)->i_lock);
+
+	fserror_report_file_metadata(VFS_I(ip), -EFSCORRUPTED, GFP_NOFS);
 }
 
 /* Mark parts of an inode healed. */

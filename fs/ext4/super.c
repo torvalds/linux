@@ -48,6 +48,7 @@
 #include <linux/fsnotify.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/fserror.h>
 
 #include "ext4.h"
 #include "ext4_extents.h"	/* Needed for trace points definition */
@@ -824,7 +825,8 @@ void __ext4_error(struct super_block *sb, const char *function,
 		       sb->s_id, function, line, current->comm, &vaf);
 		va_end(args);
 	}
-	fsnotify_sb_error(sb, NULL, error ? error : EFSCORRUPTED);
+	fserror_report_metadata(sb, error ? -abs(error) : -EFSCORRUPTED,
+				GFP_ATOMIC);
 
 	ext4_handle_error(sb, force_ro, error, 0, block, function, line);
 }
@@ -856,7 +858,9 @@ void __ext4_error_inode(struct inode *inode, const char *function,
 			       current->comm, &vaf);
 		va_end(args);
 	}
-	fsnotify_sb_error(inode->i_sb, inode, error ? error : EFSCORRUPTED);
+	fserror_report_file_metadata(inode,
+				     error ? -abs(error) : -EFSCORRUPTED,
+				     GFP_ATOMIC);
 
 	ext4_handle_error(inode->i_sb, false, error, inode->i_ino, block,
 			  function, line);
@@ -896,7 +900,7 @@ void __ext4_error_file(struct file *file, const char *function,
 			       current->comm, path, &vaf);
 		va_end(args);
 	}
-	fsnotify_sb_error(inode->i_sb, inode, EFSCORRUPTED);
+	fserror_report_file_metadata(inode, -EFSCORRUPTED, GFP_ATOMIC);
 
 	ext4_handle_error(inode->i_sb, false, EFSCORRUPTED, inode->i_ino, block,
 			  function, line);
@@ -965,7 +969,8 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 		printk(KERN_CRIT "EXT4-fs error (device %s) in %s:%d: %s\n",
 		       sb->s_id, function, line, errstr);
 	}
-	fsnotify_sb_error(sb, NULL, errno ? errno : EFSCORRUPTED);
+	fserror_report_metadata(sb, errno ? -abs(errno) : -EFSCORRUPTED,
+				GFP_ATOMIC);
 
 	ext4_handle_error(sb, false, -errno, 0, 0, function, line);
 }
