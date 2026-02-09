@@ -4489,6 +4489,7 @@ script_found:
 	if (generate_script_lang) {
 		struct stat perf_stat;
 		int input;
+		char *filename = strdup("perf-script");
 
 		if (output_set_by_user()) {
 			fprintf(stderr,
@@ -4516,17 +4517,32 @@ script_found:
 		}
 
 		scripting_ops = script_spec__lookup(generate_script_lang);
+		if (!scripting_ops && ends_with(generate_script_lang, ".py")) {
+			scripting_ops = script_spec__lookup("python");
+			free(filename);
+			filename = strdup(generate_script_lang);
+			filename[strlen(filename) - 3] = '\0';
+		} else if (!scripting_ops && ends_with(generate_script_lang, ".pl")) {
+			scripting_ops = script_spec__lookup("perl");
+			free(filename);
+			filename = strdup(generate_script_lang);
+			filename[strlen(filename) - 3] = '\0';
+		}
 		if (!scripting_ops) {
-			fprintf(stderr, "invalid language specifier");
+			fprintf(stderr, "invalid language specifier '%s'\n", generate_script_lang);
 			err = -ENOENT;
 			goto out_delete;
 		}
+		if (!filename) {
+			err = -ENOMEM;
+			goto out_delete;
+		}
 #ifdef HAVE_LIBTRACEEVENT
-		err = scripting_ops->generate_script(session->tevent.pevent,
-						     "perf-script");
+		err = scripting_ops->generate_script(session->tevent.pevent, filename);
 #else
-		err = scripting_ops->generate_script(NULL, "perf-script");
+		err = scripting_ops->generate_script(NULL, filename);
 #endif
+		free(filename);
 		goto out_delete;
 	}
 
