@@ -228,6 +228,7 @@ TEST_GEN_PROGS_loongarch += kvm_page_table_test
 TEST_GEN_PROGS_loongarch += memslot_modification_stress_test
 TEST_GEN_PROGS_loongarch += memslot_perf_test
 TEST_GEN_PROGS_loongarch += set_memory_region_test
+TEST_GEN_PROGS_loongarch += steal_time
 
 SPLIT_TESTS += arch_timer
 SPLIT_TESTS += get-reg-list
