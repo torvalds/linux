@@ -736,6 +736,7 @@ static int octep_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		octep_vdpa_assign_barspace(vf_pdev, pdev, index);
 		if (++index == num_vfs) {
 			done = true;
+			pci_dev_put(vf_pdev);
 			break;
 		}
 	}

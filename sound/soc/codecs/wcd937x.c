@@ -2763,11 +2763,6 @@ static int wcd937x_bind(struct device *dev)
 	wcd937x->sdw_priv[AIF1_CAP] = dev_get_drvdata(wcd937x->txdev);
 	wcd937x->sdw_priv[AIF1_CAP]->wcd937x = wcd937x;
 	wcd937x->tx_sdw_dev = dev_to_sdw_dev(wcd937x->txdev);
-	if (!wcd937x->tx_sdw_dev) {
-		dev_err(dev, "could not get txslave with matching of dev\n");
-		ret = -EINVAL;
-		goto err_put_txdev;
-	}
 
 	/*
 	 * As TX is the main CSR reg interface, which should not be suspended first.
@@ -2866,7 +2861,7 @@ static int wcd937x_add_slave_components(struct wcd937x_priv *wcd937x,
 		dev_err(dev, "Couldn't parse phandle to qcom,rx-device!\n");
 		return -ENODEV;
 	}
-	of_node_get(wcd937x->rxnode);
+
 	component_match_add_release(dev, matchptr, component_release_of,
 				    component_compare_of, wcd937x->rxnode);
 
@@ -2875,7 +2870,7 @@ static int wcd937x_add_slave_components(struct wcd937x_priv *wcd937x,
 		dev_err(dev, "Couldn't parse phandle to qcom,tx-device\n");
 			return -ENODEV;
 	}
-	of_node_get(wcd937x->txnode);
+
 	component_match_add_release(dev, matchptr, component_release_of,
 				    component_compare_of, wcd937x->txnode);
 

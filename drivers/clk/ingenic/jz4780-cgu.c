@@ -803,6 +803,6 @@ static void __init jz4780_cgu_init(struct device_node *np)
 		return;
 	}
 
-	ingenic_cgu_register_syscore_ops(cgu);
+	ingenic_cgu_register_syscore(cgu);
 }
 CLK_OF_DECLARE_DRIVER(jz4780_cgu, "ingenic,jz4780-cgu", jz4780_cgu_init);

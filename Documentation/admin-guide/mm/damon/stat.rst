@@ -10,6 +10,8 @@ on the system's entire physical memory using DAMON, and provides simplified
 access monitoring results statistics, namely idle time percentiles and
 estimated memory bandwidth.
 
+.. _damon_stat_monitoring_accuracy_overhead:
+
 Monitoring Accuracy and Overhead
 ================================
 
@@ -17,9 +19,11 @@ DAMON_STAT uses monitoring intervals :ref:`auto-tuning
 <damon_design_monitoring_intervals_autotuning>` to make its accuracy high and
 overhead minimum.  It auto-tunes the intervals aiming 4 % of observable access
 events to be captured in each snapshot, while limiting the resulting sampling
-events to be 5 milliseconds in minimum and 10 seconds in maximum.  On a few
+interval to be 5 milliseconds in minimum and 10 seconds in maximum.  On a few
 production server systems, it resulted in consuming only 0.x % single CPU time,
-while capturing reasonable quality of access patterns.
+while capturing reasonable quality of access patterns.  The tuning-resulting
+intervals can be retrieved via ``aggr_interval_us`` :ref:`parameter
+<damon_stat_aggr_interval_us>`.
 
 Interface: Module Parameters
 ============================
@@ -41,6 +45,18 @@ You can enable DAMON_STAT by setting the value of this parameter as ``Y``.
 Setting it as ``N`` disables DAMON_STAT.  The default value is set by
 ``CONFIG_DAMON_STAT_ENABLED_DEFAULT`` build config option.
 
+.. _damon_stat_aggr_interval_us:
+
+aggr_interval_us
+----------------
+
+Auto-tuned aggregation time interval in microseconds.
+
+Users can read the aggregation interval of DAMON that is being used by the
+DAMON instance for DAMON_STAT.  It is :ref:`auto-tuned
+<damon_stat_monitoring_accuracy_overhead>` and therefore the value is
+dynamically changed.
+
 estimated_memory_bandwidth
 --------------------------
 
@@ -58,12 +74,13 @@ memory_idle_ms_percentiles
 Per-byte idle time (milliseconds) percentiles of the system.
 
 DAMON_STAT calculates how long each byte of the memory was not accessed until
-now (idle time), based on the current DAMON results snapshot.  If DAMON found a
-region of access frequency (nr_accesses) larger than zero, every byte of the
-region gets zero idle time.  If a region has zero access frequency
-(nr_accesses), how long the region was keeping the zero access frequency (age)
-becomes the idle time of every byte of the region.  Then, DAMON_STAT exposes
-the percentiles of the idle time values via this read-only parameter.  Reading
-the parameter returns 101 idle time values in milliseconds, separated by comma.
+now (idle time), based on the current DAMON results snapshot.  For regions
+having access frequency (nr_accesses) larger than zero, how long the current
+access frequency level was kept multiplied by ``-1`` becomes the idlee time of
+every byte of the region.  If a region has zero access frequency (nr_accesses),
+how long the region was keeping the zero access frequency (age) becomes the
+idle time of every byte of the region.  Then, DAMON_STAT exposes the
+percentiles of the idle time values via this read-only parameter.  Reading the
+parameter returns 101 idle time values in milliseconds, separated by comma.
 Each value represents 0-th, 1st, 2nd, 3rd, ..., 99th and 100th percentile idle
 times.

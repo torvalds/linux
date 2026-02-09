@@ -4,7 +4,11 @@
 //!
 //! This module contains PCI class codes, Vendor IDs, and supporting types.
 
-use crate::{bindings, error::code::EINVAL, error::Error, fmt, prelude::*};
+use crate::{
+    bindings,
+    fmt,
+    prelude::*, //
+};
 
 /// PCI device class codes.
 ///

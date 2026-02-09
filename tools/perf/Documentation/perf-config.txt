@@ -452,6 +452,9 @@ call-graph.*::
 		kernel space is controlled not by this option but by the
 		kernel config (CONFIG_UNWINDER_*).
 
+		The 'defer' mode can be used with 'fp' mode to enable deferred
+		user callchains (like 'fp,defer').
+
 	call-graph.dump-size::
 		The size of stack to dump in order to do post-unwinding. Default is 8192 (byte).
 		When using dwarf into record-mode, the default size will be used if omitted.

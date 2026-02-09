@@ -184,7 +184,9 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 	} while (1);
 
 	/* slow path, try all io-wq's */
+	__set_current_state(TASK_RUNNING);
 	io_ring_submit_lock(ctx, issue_flags);
+	mutex_lock(&ctx->tctx_lock);
 	ret = -ENOENT;
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
 		ret = io_async_cancel_one(node->task->io_uring, cd);
@@ -194,6 +196,7 @@ static int __io_async_cancel(struct io_cancel_data *cd,
 			nr++;
 		}
 	}
+	mutex_unlock(&ctx->tctx_lock);
 	io_ring_submit_unlock(ctx, issue_flags);
 	return all ? nr : ret;
 }
@@ -484,6 +487,7 @@ static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 	bool ret = false;
 
 	mutex_lock(&ctx->uring_lock);
+	mutex_lock(&ctx->tctx_lock);
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
 		struct io_uring_task *tctx = node->task->io_uring;
 
@@ -496,6 +500,7 @@ static __cold bool io_uring_try_cancel_iowq(struct io_ring_ctx *ctx)
 		cret = io_wq_cancel_cb(tctx->io_wq, io_cancel_ctx_cb, ctx, true);
 		ret |= (cret != IO_WQ_CANCEL_NOTFOUND);
 	}
+	mutex_unlock(&ctx->tctx_lock);
 	mutex_unlock(&ctx->uring_lock);
 
 	return ret;

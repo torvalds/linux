@@ -12,7 +12,7 @@
 #define UNWIND_HINT(type, sp_reg, sp_offset, signal)		\
 	"987: \n\t"						\
 	".pushsection .discard.unwind_hints\n\t"		\
-	ANNOTATE_DATA_SPECIAL					\
+	ANNOTATE_DATA_SPECIAL "\n\t"				\
 	/* struct unwind_hint */				\
 	".long 987b - .\n\t"					\
 	".short " __stringify(sp_offset) "\n\t"			\

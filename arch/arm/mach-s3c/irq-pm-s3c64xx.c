@@ -58,7 +58,7 @@ static struct irq_grp_save {
 
 static u32 irq_uart_mask[SERIAL_SAMSUNG_UARTS];
 
-static int s3c64xx_irq_pm_suspend(void)
+static int s3c64xx_irq_pm_suspend(void *data)
 {
 	struct irq_grp_save *grp = eint_grp_save;
 	int i;
@@ -79,7 +79,7 @@ static int s3c64xx_irq_pm_suspend(void)
 	return 0;
 }
 
-static void s3c64xx_irq_pm_resume(void)
+static void s3c64xx_irq_pm_resume(void *data)
 {
 	struct irq_grp_save *grp = eint_grp_save;
 	int i;
@@ -100,9 +100,13 @@ static void s3c64xx_irq_pm_resume(void)
 	S3C_PMDBG("%s: IRQ configuration restored\n", __func__);
 }
 
-static struct syscore_ops s3c64xx_irq_syscore_ops = {
+static const struct syscore_ops s3c64xx_irq_syscore_ops = {
 	.suspend = s3c64xx_irq_pm_suspend,
 	.resume	 = s3c64xx_irq_pm_resume,
+};
+
+static struct syscore s3c64xx_irq_syscore = {
+	.ops = &s3c64xx_irq_syscore_ops,
 };
 
 static __init int s3c64xx_syscore_init(void)
@@ -111,7 +115,7 @@ static __init int s3c64xx_syscore_init(void)
 	if (of_have_populated_dt() || !soc_is_s3c64xx())
 		return 0;
 
-	register_syscore_ops(&s3c64xx_irq_syscore_ops);
+	register_syscore(&s3c64xx_irq_syscore);
 
 	return 0;
 }

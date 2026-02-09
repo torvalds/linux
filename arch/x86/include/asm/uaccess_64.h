@@ -72,7 +72,7 @@ static inline void __user *mask_user_address(const void __user *ptr)
 	return ret;
 }
 #define masked_user_access_begin(x) ({				\
-	__auto_type __masked_ptr = (x);				\
+	auto __masked_ptr = (x);				\
 	__masked_ptr = mask_user_address(__masked_ptr);		\
 	__uaccess_begin(); __masked_ptr; })
 

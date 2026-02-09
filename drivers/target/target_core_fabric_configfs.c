@@ -697,7 +697,7 @@ static void target_fabric_port_release(struct config_item *item)
 	struct se_lun *lun = container_of(to_config_group(item),
 					  struct se_lun, lun_group);
 
-	kfree_rcu(lun, rcu_head);
+	call_rcu(&lun->rcu_head, target_tpg_free_lun);
 }
 
 static struct configfs_item_operations target_fabric_port_item_ops = {

@@ -642,10 +642,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sm8550/a740_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sm8550/a740_zap.mbn";
 };
 
 &i2c_master_hub_0 {

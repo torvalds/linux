@@ -55,7 +55,7 @@
 #include <ynl.h>
 #include "ethtool-user.h"
 
-#include "../../../kselftest.h"
+#include "kselftest.h"
 #include "../../../net/lib/ksft.h"
 
 #define TOEPLITZ_KEY_MIN_LEN	40

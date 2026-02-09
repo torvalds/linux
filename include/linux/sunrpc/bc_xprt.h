@@ -25,12 +25,14 @@ void xprt_init_bc_request(struct rpc_rqst *req, struct rpc_task *task,
 void xprt_free_bc_request(struct rpc_rqst *req);
 int xprt_setup_backchannel(struct rpc_xprt *, unsigned int min_reqs);
 void xprt_destroy_backchannel(struct rpc_xprt *, unsigned int max_reqs);
+void xprt_enqueue_bc_request(struct rpc_rqst *req);
 
 /* Socket backchannel transport methods */
 int xprt_setup_bc(struct rpc_xprt *xprt, unsigned int min_reqs);
 void xprt_destroy_bc(struct rpc_xprt *xprt, unsigned int max_reqs);
 void xprt_free_bc_rqst(struct rpc_rqst *req);
 unsigned int xprt_bc_max_slots(struct rpc_xprt *xprt);
+void xprt_svc_destroy_nullify_bc(struct rpc_xprt *xprt, struct svc_serv **serv);
 
 /*
  * Determine if a shared backchannel is in use
@@ -67,6 +69,11 @@ static inline void set_bc_enabled(struct svc_serv *serv)
 
 static inline void xprt_free_bc_request(struct rpc_rqst *req)
 {
+}
+
+static inline void xprt_svc_destroy_nullify_bc(struct rpc_xprt *xprt, struct svc_serv **serv)
+{
+	svc_destroy(serv);
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 #endif /* _LINUX_SUNRPC_BC_XPRT_H */

@@ -3416,10 +3416,6 @@ static void myri10ge_watchdog(struct work_struct *work)
 		 * nic was resumed from power saving mode.
 		 */
 		pci_restore_state(mgp->pdev);
-
-		/* save state again for accounting reasons */
-		pci_save_state(mgp->pdev);
-
 	} else {
 		/* if we get back -1's from our slot, perhaps somebody
 		 * powered off our card.  Don't try to reset it in

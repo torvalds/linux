@@ -29,7 +29,6 @@
 #include "pinctrl-starfive-jh7110.h"
 
 #define JH7110_AON_NGPIO		4
-#define JH7110_AON_GC_BASE		64
 
 #define JH7110_AON_REGS_NUM		37
 
@@ -138,7 +137,6 @@ static const struct jh7110_pinctrl_soc_info jh7110_aon_pinctrl_info = {
 	.pins		= jh7110_aon_pins,
 	.npins		= ARRAY_SIZE(jh7110_aon_pins),
 	.ngpios		= JH7110_AON_NGPIO,
-	.gc_base	= JH7110_AON_GC_BASE,
 	.dout_reg_base	= JH7110_AON_DOUT,
 	.dout_mask	= GENMASK(3, 0),
 	.doen_reg_base	= JH7110_AON_DOEN,

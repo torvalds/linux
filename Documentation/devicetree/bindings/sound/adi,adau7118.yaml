@@ -4,7 +4,6 @@
 $id: http://devicetree.org/schemas/sound/adi,adau7118.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-
 title: Analog Devices ADAU7118 8 Channel PDM to I2S/TDM Converter
 
 maintainers:

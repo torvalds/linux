@@ -481,7 +481,7 @@ static void mana_serv_reset(struct pci_dev *pdev)
 		/* Perform PCI rescan on device if we failed on HWC */
 		dev_err(&pdev->dev, "MANA service: resume failed, rescanning\n");
 		mana_serv_rescan(pdev);
-		goto out;
+		return;
 	}
 
 	if (ret)

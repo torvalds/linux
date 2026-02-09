@@ -17,6 +17,10 @@
 #include "clkc.h"
 #include "reset.h"
 
+/* Must be equal to the last clock/reset ID increased by one */
+#define CLKS_NR	(TMPV770X_CLK_VIIFBS1_PROC + 1)
+#define RESETS_NR	(TMPV770X_RESET_VIIFBS1_L1ISP + 1)
+
 static DEFINE_SPINLOCK(tmpv770x_clk_lock);
 static DEFINE_SPINLOCK(tmpv770x_rst_lock);
 
@@ -26,6 +30,10 @@ static const struct clk_parent_data clks_parent_data[] = {
 
 static const struct clk_parent_data pietherplls_parent_data[] = {
 	{ .fw_name = "pietherpll", .name = "pietherpll", },
+};
+
+static const struct clk_parent_data pidnnplls_parent_data[] = {
+	{ .fw_name = "pidnnpll", .name = "pidnnpll", },
 };
 
 static const struct visconti_fixed_clk fixed_clk_tables[] = {
@@ -62,6 +70,41 @@ static const struct visconti_clk_gate_table pietherpll_clk_gate_tables[] = {
 		pietherplls_parent_data, ARRAY_SIZE(pietherplls_parent_data),
 		CLK_SET_RATE_PARENT, 0x34, 0x134, 7, 4,
 		TMPV770X_RESET_PIETHER_125M, },
+};
+
+static const struct visconti_clk_gate_table pidnnpll_clk_gate_tables[] = {
+	{ TMPV770X_CLK_VIIFBS0, "viifbs0",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 1, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS0_PROC, "viifbs0_proc",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 18, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS0_L1ISP, "viifbs0_l1isp",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 17, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS0_L2ISP, "viifbs0_l2isp",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 16, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS1, "viifbs1",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 5, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS1_PROC, "viifbs1_proc",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 22, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS1_L1ISP, "viifbs1_l1isp",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 21, 1,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIFBS1_L2ISP, "viifbs1_l2isp",
+		pidnnplls_parent_data, ARRAY_SIZE(pidnnplls_parent_data),
+		0, 0x58, 0x158, 20, 1,
+		NO_RESET, },
 };
 
 static const struct visconti_clk_gate_table clk_gate_tables[] = {
@@ -185,6 +228,22 @@ static const struct visconti_clk_gate_table clk_gate_tables[] = {
 		clks_parent_data, ARRAY_SIZE(clks_parent_data),
 		0, 0x14, 0x114, 0, 4,
 		TMPV770X_RESET_SBUSCLK, },
+	{ TMPV770X_CLK_VIIF0_CFGCLK, "csi2rx0cfg",
+		clks_parent_data, ARRAY_SIZE(clks_parent_data),
+		0, 0x58, 0x158, 0, 24,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIF0_APBCLK, "csi2rx0apb",
+		clks_parent_data, ARRAY_SIZE(clks_parent_data),
+		0, 0x58, 0x158, 2, 4,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIF1_CFGCLK, "csi2rx1cfg",
+		clks_parent_data, ARRAY_SIZE(clks_parent_data),
+		0, 0x58, 0x158, 4, 24,
+		NO_RESET, },
+	{ TMPV770X_CLK_VIIF1_APBCLK, "csi2rx1apb",
+		clks_parent_data, ARRAY_SIZE(clks_parent_data),
+		0, 0x58, 0x158, 6, 4,
+		NO_RESET, },
 };
 
 static const struct visconti_reset_data clk_reset_data[] = {
@@ -220,6 +279,14 @@ static const struct visconti_reset_data clk_reset_data[] = {
 	[TMPV770X_RESET_PIPCMIF]	= { 0x464, 0x564, 0, },
 	[TMPV770X_RESET_PICKMON]	= { 0x410, 0x510, 8, },
 	[TMPV770X_RESET_SBUSCLK]	= { 0x414, 0x514, 0, },
+	[TMPV770X_RESET_VIIFBS0]	= { 0x458, 0x558, 0, },
+	[TMPV770X_RESET_VIIFBS0_APB]	= { 0x458, 0x558, 1, },
+	[TMPV770X_RESET_VIIFBS0_L2ISP]	= { 0x458, 0x558, 16, },
+	[TMPV770X_RESET_VIIFBS0_L1ISP]	= { 0x458, 0x558, 17, },
+	[TMPV770X_RESET_VIIFBS1]	= { 0x458, 0x558, 4, },
+	[TMPV770X_RESET_VIIFBS1_APB]	= { 0x458, 0x558, 5, },
+	[TMPV770X_RESET_VIIFBS1_L2ISP]	= { 0x458, 0x558, 20, },
+	[TMPV770X_RESET_VIIFBS1_L1ISP]	= { 0x458, 0x558, 21, },
 };
 
 static int visconti_clk_probe(struct platform_device *pdev)
@@ -234,12 +301,12 @@ static int visconti_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	ctx = visconti_init_clk(dev, regmap, TMPV770X_NR_CLK);
+	ctx = visconti_init_clk(dev, regmap, CLKS_NR);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	ret = visconti_register_reset_controller(dev, regmap, clk_reset_data,
-						 TMPV770X_NR_RESET,
+						 RESETS_NR,
 						 &visconti_reset_ops,
 						 &tmpv770x_rst_lock);
 	if (ret) {
@@ -269,6 +336,14 @@ static int visconti_clk_probe(struct platform_device *pdev)
 				    clk_reset_data, &tmpv770x_clk_lock);
 	if (ret) {
 		dev_err(dev, "Failed to register pietherpll clock gate: %d\n", ret);
+		return ret;
+	}
+
+	ret = visconti_clk_register_gates(ctx, pidnnpll_clk_gate_tables,
+				    ARRAY_SIZE(pidnnpll_clk_gate_tables),
+				    clk_reset_data, &tmpv770x_clk_lock);
+	if (ret) {
+		dev_err(dev, "Failed to register pidnnpll clock gate: %d\n", ret);
 		return ret;
 	}
 

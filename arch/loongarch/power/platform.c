@@ -72,10 +72,10 @@ static int __init loongson3_acpi_suspend_init(void)
 	status = acpi_evaluate_integer(NULL, "\\SADR", NULL, &suspend_addr);
 	if (ACPI_FAILURE(status) || !suspend_addr) {
 		pr_info("ACPI S3 supported with hardware register default\n");
-		loongson_sysconf.suspend_addr = (u64)default_suspend_addr;
+		loongson_sysconf.suspend_addr = (unsigned long)default_suspend_addr;
 	} else {
 		pr_info("ACPI S3 supported with Loongson ACPI SADR extension\n");
-		loongson_sysconf.suspend_addr = (u64)phys_to_virt(PHYSADDR(suspend_addr));
+		loongson_sysconf.suspend_addr = (unsigned long)phys_to_virt(PHYSADDR(suspend_addr));
 	}
 #endif
 	return 0;

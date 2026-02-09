@@ -8,7 +8,7 @@ title: Qualcomm SC8180x PCI Express Root Complex
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description:
   Qualcomm SC8180x SoC PCIe root complex controller is based on the Synopsys

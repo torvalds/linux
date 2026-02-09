@@ -329,7 +329,7 @@ static struct osnoise_data {
 	u64	print_stack;		/* print IRQ stack if total > */
 	int	timerlat_tracer;	/* timerlat tracer */
 #endif
-	bool	tainted;		/* infor users and developers about a problem */
+	bool	tainted;		/* info users and developers about a problem */
 } osnoise_data = {
 	.sample_period			= DEFAULT_SAMPLE_PERIOD,
 	.sample_runtime			= DEFAULT_SAMPLE_RUNTIME,
@@ -738,7 +738,7 @@ cond_move_thread_delta_start(struct osnoise_variables *osn_var, u64 duration)
 /*
  * get_int_safe_duration - Get the duration of a window
  *
- * The irq, softirq and thread varaibles need to have its duration without
+ * The irq, softirq and thread variables need to have its duration without
  * the interference from higher priority interrupts. Instead of keeping a
  * variable to discount the interrupt interference from these variables, the
  * starting time of these variables are pushed forward with the interrupt's
@@ -1460,7 +1460,7 @@ static int run_osnoise(void)
 	stop_in = osnoise_data.stop_tracing * NSEC_PER_USEC;
 
 	/*
-	 * Start timestemp
+	 * Start timestamp
 	 */
 	start = time_get();
 
@@ -1881,7 +1881,7 @@ static int timerlat_main(void *data)
 	tlat->kthread = current;
 	osn_var->pid = current->pid;
 	/*
-	 * Anotate the arrival time.
+	 * Annotate the arrival time.
 	 */
 	tlat->abs_period = hrtimer_cb_get_time(&tlat->timer);
 
@@ -1978,7 +1978,7 @@ static void stop_per_cpu_kthreads(void)
 }
 
 /*
- * start_kthread - Start a workload tread
+ * start_kthread - Start a workload thread
  */
 static int start_kthread(unsigned int cpu)
 {
@@ -2705,7 +2705,7 @@ static int osnoise_create_cpu_timerlat_fd(struct dentry *top_dir)
 	 * Why not using tracing instance per_cpu/ dir?
 	 *
 	 * Because osnoise/timerlat have a single workload, having
-	 * multiple files like these are wast of memory.
+	 * multiple files like these are waste of memory.
 	 */
 	per_cpu = tracefs_create_dir("per_cpu", top_dir);
 	if (!per_cpu)

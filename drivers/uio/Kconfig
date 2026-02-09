@@ -164,4 +164,16 @@ config UIO_DFL
 	    opae-sdk/tools/libopaeuio/
 
 	  If you compile this as a module, it will be called uio_dfl.
+
+config UIO_PCI_GENERIC_SVA
+	tristate "Generic driver for PCI Express that supports sva"
+	depends on PCI && IOMMU_SVA
+	help
+	  Userspace I/O driver for PCI devices that support Shared Virtual
+	  Addressing (SVA), enabling direct use of user-space virtual
+	  addresses in device DMA operations via IOMMU hardware.
+
+	  This driver binds to PCI devices and exposes them to userspace
+	  via the UIO framework.
+
 endif

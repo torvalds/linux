@@ -554,7 +554,7 @@ static void binder_alloc_test_exit(struct kunit *test)
 static struct kunit_case binder_alloc_test_cases[] = {
 	KUNIT_CASE(binder_alloc_test_init_freelist),
 	KUNIT_CASE(binder_alloc_test_mmap),
-	KUNIT_CASE(binder_alloc_exhaustive_test),
+	KUNIT_CASE_SLOW(binder_alloc_exhaustive_test),
 	{}
 };
 

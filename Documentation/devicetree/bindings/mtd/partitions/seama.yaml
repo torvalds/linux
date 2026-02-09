@@ -18,7 +18,7 @@ allOf:
   - $ref: partition.yaml#
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 properties:
   compatible:

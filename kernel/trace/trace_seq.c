@@ -15,7 +15,7 @@
  * 
  * A write to the buffer will either succeed or fail. That is, unlike
  * sprintf() there will not be a partial write (well it may write into
- * the buffer but it wont update the pointers). This allows users to
+ * the buffer but it won't update the pointers). This allows users to
  * try to write something into the trace_seq buffer and if it fails
  * they can flush it and try again.
  *

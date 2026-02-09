@@ -178,6 +178,7 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 	pt_dump_seq_printf(st->seq, REG "-" REG " ", st->start_address, addr - 1);
 	pt_dump_seq_printf(st->seq, " " REG " ", st->start_pa);
 	pt_dump_size(st->seq, addr - st->start_address);
+	pt_dump_seq_printf(st->seq, "%s ", pg_level[st->level].name);
 }
 
 static void note_prot_wx(struct pg_state *st, unsigned long addr)

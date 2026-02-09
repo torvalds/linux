@@ -142,7 +142,7 @@ static bool is_not(const char *str)
 }
 
 /**
- * struct prog_entry - a singe entry in the filter program
+ * struct prog_entry - a single entry in the filter program
  * @target:	     Index to jump to on a branch (actually one minus the index)
  * @when_to_branch:  The value of the result of the predicate to do a branch
  * @pred:	     The predicate to execute.

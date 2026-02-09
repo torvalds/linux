@@ -16,7 +16,7 @@
 #include <fcntl.h>
 
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /*
  * Maximum address range mapped with a single mmap()

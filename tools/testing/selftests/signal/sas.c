@@ -19,7 +19,7 @@
 #include <errno.h>
 #include <sys/auxv.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "current_stack_pointer.h"
 
 #ifndef SS_AUTODISARM

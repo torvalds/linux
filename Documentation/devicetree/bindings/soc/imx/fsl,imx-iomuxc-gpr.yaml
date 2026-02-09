@@ -51,6 +51,22 @@ properties:
     type: object
     $ref: /schemas/mux/reg-mux.yaml
 
+patternProperties:
+  "^ipu[12]_csi[01]_mux$":
+    type: object
+    $ref: /schemas/media/video-mux.yaml
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: fsl,imx6q-iomuxc-gpr
+    then:
+      patternProperties:
+        '^ipu[12]_csi[01]_mux$': false
+
 additionalProperties: false
 
 required:

@@ -736,9 +736,9 @@ static int tb_init_port(struct tb_port *port)
 			port->cap_usb4 = cap;
 
 		/*
-		 * USB4 ports the buffers allocated for the control path
+		 * USB4 port buffers allocated for the control path
 		 * can be read from the path config space. Legacy
-		 * devices we use hard-coded value.
+		 * devices use hard-coded value.
 		 */
 		if (port->cap_usb4) {
 			struct tb_regs_hop hop;
@@ -3221,7 +3221,7 @@ int tb_switch_configure_link(struct tb_switch *sw)
  * @sw: Switch whose link is unconfigured
  *
  * Sets the link unconfigured so the @sw will be disconnected if the
- * domain exists sleep.
+ * domain exits sleep.
  */
 void tb_switch_unconfigure_link(struct tb_switch *sw)
 {

@@ -7,7 +7,7 @@
  * matches userspace expectations.
  */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <err.h>
 #include <signal.h>
 #include <asm/unistd.h>

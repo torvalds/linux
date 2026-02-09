@@ -605,68 +605,6 @@ sdev_show_##field (struct device *dev, struct device_attribute *attr,	\
 	sdev_show_function(field, format_string)			\
 static DEVICE_ATTR(field, S_IRUGO, sdev_show_##field, NULL);
 
-
-/*
- * sdev_rw_attr: create a function and attribute variable for a
- * read/write field.
- */
-#define sdev_rw_attr(field, format_string)				\
-	sdev_show_function(field, format_string)				\
-									\
-static ssize_t								\
-sdev_store_##field (struct device *dev, struct device_attribute *attr,	\
-		    const char *buf, size_t count)			\
-{									\
-	struct scsi_device *sdev;					\
-	sdev = to_scsi_device(dev);					\
-	sscanf (buf, format_string, &sdev->field);			\
-	return count;							\
-}									\
-static DEVICE_ATTR(field, S_IRUGO | S_IWUSR, sdev_show_##field, sdev_store_##field);
-
-/* Currently we don't export bit fields, but we might in future,
- * so leave this code in */
-#if 0
-/*
- * sdev_rd_attr: create a function and attribute variable for a
- * read/write bit field.
- */
-#define sdev_rw_attr_bit(field)						\
-	sdev_show_function(field, "%d\n")					\
-									\
-static ssize_t								\
-sdev_store_##field (struct device *dev, struct device_attribute *attr,	\
-		    const char *buf, size_t count)			\
-{									\
-	int ret;							\
-	struct scsi_device *sdev;					\
-	ret = scsi_sdev_check_buf_bit(buf);				\
-	if (ret >= 0)	{						\
-		sdev = to_scsi_device(dev);				\
-		sdev->field = ret;					\
-		ret = count;						\
-	}								\
-	return ret;							\
-}									\
-static DEVICE_ATTR(field, S_IRUGO | S_IWUSR, sdev_show_##field, sdev_store_##field);
-
-/*
- * scsi_sdev_check_buf_bit: return 0 if buf is "0", return 1 if buf is "1",
- * else return -EINVAL.
- */
-static int scsi_sdev_check_buf_bit(const char *buf)
-{
-	if ((buf[1] == '\0') || ((buf[1] == '\n') && (buf[2] == '\0'))) {
-		if (buf[0] == '1')
-			return 1;
-		else if (buf[0] == '0')
-			return 0;
-		else
-			return -EINVAL;
-	} else
-		return -EINVAL;
-}
-#endif
 /*
  * Create the actual show/store functions and data structures.
  */
@@ -710,10 +648,14 @@ static ssize_t
 sdev_store_timeout (struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
-	struct scsi_device *sdev;
-	int timeout;
-	sdev = to_scsi_device(dev);
-	sscanf (buf, "%d\n", &timeout);
+	struct scsi_device *sdev = to_scsi_device(dev);
+	int ret, timeout;
+
+	ret = kstrtoint(buf, 0, &timeout);
+	if (ret)
+		return ret;
+	if (timeout <= 0)
+		return -EINVAL;
 	blk_queue_rq_timeout(sdev->request_queue, timeout * HZ);
 	return count;
 }
@@ -1406,6 +1348,9 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 	int error;
 	struct scsi_target *starget = sdev->sdev_target;
 
+	if (WARN_ON_ONCE(scsi_device_is_pseudo_dev(sdev)))
+		return -EINVAL;
+
 	error = scsi_target_add(starget);
 	if (error)
 		return error;
@@ -1513,7 +1458,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	kref_put(&sdev->host->tagset_refcnt, scsi_mq_free_tags);
 	cancel_work_sync(&sdev->requeue_work);
 
-	if (sdev->host->hostt->sdev_destroy)
+	if (!scsi_device_is_pseudo_dev(sdev) && sdev->host->hostt->sdev_destroy)
 		sdev->host->hostt->sdev_destroy(sdev);
 	transport_destroy_device(dev);
 

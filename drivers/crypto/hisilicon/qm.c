@@ -991,7 +991,7 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 		return;
 	poll_data = &qm->poll_data[cqn];
 
-	while (QM_EQE_PHASE(dw0) != qm->status.eqc_phase) {
+	do {
 		poll_data->qp_finish_id[eqe_num] = dw0 & QM_EQE_CQN_MASK;
 		eqe_num++;
 
@@ -1004,11 +1004,10 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 			qm->status.eq_head++;
 		}
 
-		if (eqe_num == (eq_depth >> 1) - 1)
-			break;
-
 		dw0 = le32_to_cpu(eqe->dw0);
-	}
+		if (QM_EQE_PHASE(dw0) != qm->status.eqc_phase)
+			break;
+	} while (eqe_num < (eq_depth >> 1) - 1);
 
 	poll_data->eqe_num = eqe_num;
 	queue_work(qm->wq, &poll_data->work);
@@ -3032,11 +3031,36 @@ static void qm_put_pci_res(struct hisi_qm *qm)
 	pci_release_mem_regions(pdev);
 }
 
+static void hisi_mig_region_clear(struct hisi_qm *qm)
+{
+	u32 val;
+
+	/* Clear migration region set of PF */
+	if (qm->fun_type == QM_HW_PF && qm->ver > QM_HW_V3) {
+		val = readl(qm->io_base + QM_MIG_REGION_SEL);
+		val &= ~QM_MIG_REGION_EN;
+		writel(val, qm->io_base + QM_MIG_REGION_SEL);
+	}
+}
+
+static void hisi_mig_region_enable(struct hisi_qm *qm)
+{
+	u32 val;
+
+	/* Select migration region of PF */
+	if (qm->fun_type == QM_HW_PF && qm->ver > QM_HW_V3) {
+		val = readl(qm->io_base + QM_MIG_REGION_SEL);
+		val |= QM_MIG_REGION_EN;
+		writel(val, qm->io_base + QM_MIG_REGION_SEL);
+	}
+}
+
 static void hisi_qm_pci_uninit(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
 
 	pci_free_irq_vectors(pdev);
+	hisi_mig_region_clear(qm);
 	qm_put_pci_res(qm);
 	pci_disable_device(pdev);
 }
@@ -5752,6 +5776,7 @@ int hisi_qm_init(struct hisi_qm *qm)
 		goto err_free_qm_memory;
 
 	qm_cmd_init(qm);
+	hisi_mig_region_enable(qm);
 
 	return 0;
 
@@ -5890,6 +5915,7 @@ static int qm_rebuild_for_resume(struct hisi_qm *qm)
 	}
 
 	qm_cmd_init(qm);
+	hisi_mig_region_enable(qm);
 	hisi_qm_dev_err_init(qm);
 	/* Set the doorbell timeout to QM_DB_TIMEOUT_CFG ns. */
 	writel(QM_DB_TIMEOUT_SET, qm->io_base + QM_DB_TIMEOUT_CFG);

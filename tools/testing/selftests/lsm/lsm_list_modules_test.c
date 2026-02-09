@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "common.h"
 
 TEST(size_null_lsm_list_modules)

@@ -35,9 +35,6 @@ properties:
     minItems: 2
     maxItems: 5  # Should be enough
 
-  reg:
-    maxItems: 1
-
   reg-io-width:
     description:
       The size (in bytes) of the IO accesses that should be performed

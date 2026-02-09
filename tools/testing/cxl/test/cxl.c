@@ -15,6 +15,7 @@
 #include "mock.h"
 
 static int interleave_arithmetic;
+static bool extended_linear_cache;
 
 #define FAKE_QTG_ID	42
 
@@ -25,6 +26,9 @@ static int interleave_arithmetic;
 #define NR_CXL_SWITCH_PORTS 2
 #define NR_CXL_PORT_DECODERS 8
 #define NR_BRIDGES (NR_CXL_HOST_BRIDGES + NR_CXL_SINGLE_HOST + NR_CXL_RCH)
+
+#define MOCK_AUTO_REGION_SIZE_DEFAULT SZ_512M
+static int mock_auto_region_size = MOCK_AUTO_REGION_SIZE_DEFAULT;
 
 static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
@@ -426,6 +430,22 @@ static struct cxl_mock_res *alloc_mock_res(resource_size_t size, int align)
 	return res;
 }
 
+/* Only update CFMWS0 as this is used by the auto region. */
+static void cfmws_elc_update(struct acpi_cedt_cfmws *window, int index)
+{
+	if (!extended_linear_cache)
+		return;
+
+	if (index != 0)
+		return;
+
+	/*
+	 * The window size should be 2x of the CXL region size where half is
+	 * DRAM and half is CXL
+	 */
+	window->window_size = mock_auto_region_size * 2;
+}
+
 static int populate_cedt(void)
 {
 	struct cxl_mock_res *res;
@@ -450,6 +470,7 @@ static int populate_cedt(void)
 	for (i = cfmws_start; i <= cfmws_end; i++) {
 		struct acpi_cedt_cfmws *window = mock_cfmws[i];
 
+		cfmws_elc_update(window, i);
 		res = alloc_mock_res(window->window_size, SZ_256M);
 		if (!res)
 			return -ENOMEM;
@@ -589,6 +610,25 @@ mock_acpi_evaluate_integer(acpi_handle handle, acpi_string pathname,
 
 	*data = host_bridge_index(adev);
 	return AE_OK;
+}
+
+static int
+mock_hmat_get_extended_linear_cache_size(struct resource *backing_res,
+					 int nid, resource_size_t *cache_size)
+{
+	struct acpi_cedt_cfmws *window = mock_cfmws[0];
+	struct resource cfmws0_res =
+		DEFINE_RES_MEM(window->base_hpa, window->window_size);
+
+	if (!extended_linear_cache ||
+	    !resource_contains(&cfmws0_res, backing_res)) {
+		return hmat_get_extended_linear_cache_size(backing_res,
+							   nid, cache_size);
+	}
+
+	*cache_size = mock_auto_region_size;
+
+	return 0;
 }
 
 static struct pci_bus mock_pci_bus[NR_BRIDGES];
@@ -738,7 +778,6 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	struct cxl_endpoint_decoder *cxled;
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_port *port, *iter;
-	const int size = SZ_512M;
 	struct cxl_memdev *cxlmd;
 	struct cxl_dport *dport;
 	struct device *dev;
@@ -781,9 +820,11 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	}
 
 	base = window->base_hpa;
+	if (extended_linear_cache)
+		base += mock_auto_region_size;
 	cxld->hpa_range = (struct range) {
 		.start = base,
-		.end = base + size - 1,
+		.end = base + mock_auto_region_size - 1,
 	};
 
 	cxld->interleave_ways = 2;
@@ -792,7 +833,8 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 	cxld->flags = CXL_DECODER_F_ENABLE;
 	cxled->state = CXL_DECODER_STATE_AUTO;
 	port->commit_end = cxld->id;
-	devm_cxl_dpa_reserve(cxled, 0, size / cxld->interleave_ways, 0);
+	devm_cxl_dpa_reserve(cxled, 0,
+			     mock_auto_region_size / cxld->interleave_ways, 0);
 	cxld->commit = mock_decoder_commit;
 	cxld->reset = mock_decoder_reset;
 
@@ -841,7 +883,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 		cxld->interleave_granularity = 4096;
 		cxld->hpa_range = (struct range) {
 			.start = base,
-			.end = base + size - 1,
+			.end = base + mock_auto_region_size - 1,
 		};
 		put_device(dev);
 	}
@@ -995,37 +1037,6 @@ static int get_port_array(struct cxl_port *port,
 	return 0;
 }
 
-static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
-{
-	struct platform_device **array;
-	int i, array_size;
-	int rc;
-
-	rc = get_port_array(port, &array, &array_size);
-	if (rc)
-		return rc;
-
-	for (i = 0; i < array_size; i++) {
-		struct platform_device *pdev = array[i];
-		struct cxl_dport *dport;
-
-		if (pdev->dev.parent != port->uport_dev) {
-			dev_dbg(&port->dev, "%s: mismatch parent %s\n",
-				dev_name(port->uport_dev),
-				dev_name(pdev->dev.parent));
-			continue;
-		}
-
-		dport = devm_cxl_add_dport(port, &pdev->dev, pdev->id,
-					   CXL_RESOURCE_NONE);
-
-		if (IS_ERR(dport))
-			return PTR_ERR(dport);
-	}
-
-	return 0;
-}
-
 static struct cxl_dport *mock_cxl_add_dport_by_dev(struct cxl_port *port,
 						   struct device *dport_dev)
 {
@@ -1114,9 +1125,10 @@ static struct cxl_mock_ops cxl_mock_ops = {
 	.acpi_pci_find_root = mock_acpi_pci_find_root,
 	.devm_cxl_switch_port_decoders_setup = mock_cxl_switch_port_decoders_setup,
 	.devm_cxl_endpoint_decoders_setup = mock_cxl_endpoint_decoders_setup,
-	.devm_cxl_port_enumerate_dports = mock_cxl_port_enumerate_dports,
 	.cxl_endpoint_parse_cdat = mock_cxl_endpoint_parse_cdat,
 	.devm_cxl_add_dport_by_dev = mock_cxl_add_dport_by_dev,
+	.hmat_get_extended_linear_cache_size =
+		mock_hmat_get_extended_linear_cache_size,
 	.list = LIST_HEAD_INIT(cxl_mock_ops.list),
 };
 
@@ -1606,6 +1618,8 @@ static __exit void cxl_test_exit(void)
 
 module_param(interleave_arithmetic, int, 0444);
 MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
+module_param(extended_linear_cache, bool, 0444);
+MODULE_PARM_DESC(extended_linear_cache, "Enable extended linear cache support");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");

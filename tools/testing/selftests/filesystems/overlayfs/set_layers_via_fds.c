@@ -12,7 +12,7 @@
 #include <sys/mount.h>
 #include <unistd.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../../pidfd/pidfd.h"
 #include "log.h"
 #include "../utils.h"

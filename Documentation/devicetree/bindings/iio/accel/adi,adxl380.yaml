@@ -11,16 +11,19 @@ maintainers:
   - Antoniu Miclaus <antoniu.miclaus@analog.com>
 
 description: |
-  The ADXL380/ADXL382 is a low noise density, low power, 3-axis
-  accelerometer with selectable measurement ranges. The ADXL380
-  supports the ±4 g, ±8 g, and ±16 g ranges, and the ADXL382 supports
-  ±15 g, ±30 g, and ±60 g ranges.
+  The ADXL380/ADXL382 and ADXL318/ADXL319 are low noise density,
+  low power, 3-axis accelerometers with selectable measurement ranges.
+  The ADXL380 and ADXL318 support the ±4 g, ±8 g, and ±16 g ranges,
+  while the ADXL382 and ADXL319 support ±15 g, ±30 g, and ±60 g ranges.
 
+  https://www.analog.com/en/products/adxl318.html
   https://www.analog.com/en/products/adxl380.html
 
 properties:
   compatible:
     enum:
+      - adi,adxl318
+      - adi,adxl319
       - adi,adxl380
       - adi,adxl382
 

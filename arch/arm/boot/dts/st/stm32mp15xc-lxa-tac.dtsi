@@ -493,9 +493,6 @@ baseboard_eeprom: &sip_eeprom {
 	phys = <&usbphyc_port1 0>;
 	phy-names = "usb2-phy";
 
-	vusb_d-supply = <&vdd_usb>;
-	vusb_a-supply = <&reg18>;
-
 	g-rx-fifo-size = <512>;
 	g-np-tx-fifo-size = <32>;
 	g-tx-fifo-size = <128 128 64 16 16 16 16 16>;

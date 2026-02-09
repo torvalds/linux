@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "synctest.h"
 
 static int run_test(int (*test)(void), char *name)

@@ -2419,6 +2419,7 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 	}
 	pev->nargs = 0;
 	zfree(&pev->args);
+	nsinfo__zput(pev->nsi);
 }
 
 #define strdup_or_goto(str, label)	\
@@ -3767,12 +3768,11 @@ void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs)
 	/* Loop 3: cleanup and free trace events  */
 	for (i = 0; i < npevs; i++) {
 		pev = &pevs[i];
-		for (j = 0; j < pevs[i].ntevs; j++)
-			clear_probe_trace_event(&pevs[i].tevs[j]);
-		zfree(&pevs[i].tevs);
-		pevs[i].ntevs = 0;
-		nsinfo__zput(pev->nsi);
-		clear_perf_probe_event(&pevs[i]);
+		for (j = 0; j < pev->ntevs; j++)
+			clear_probe_trace_event(&pev->tevs[j]);
+		zfree(&pev->tevs);
+		pev->ntevs = 0;
+		clear_perf_probe_event(pev);
 	}
 }
 

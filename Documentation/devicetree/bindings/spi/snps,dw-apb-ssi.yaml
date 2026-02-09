@@ -121,7 +121,7 @@ properties:
   num-cs:
     default: 4
     minimum: 1
-    maximum: 4
+    maximum: 16
 
   dmas:
     items:
@@ -153,14 +153,14 @@ properties:
       provides an interface to override the native DWC SSI CS control.
 
 patternProperties:
-  "@[0-9a-f]+$":
+  "@[0-9a-f]$":
     type: object
     additionalProperties: true
 
     properties:
       reg:
         minimum: 0
-        maximum: 3
+        maximum: 0xf
 
 unevaluatedProperties: false
 

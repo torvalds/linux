@@ -17,6 +17,8 @@ struct rv_interface {
 #define rv_create_file			tracefs_create_file
 #define rv_remove			tracefs_remove
 
+DEFINE_FREE(rv_remove, struct dentry *, if (_T) rv_remove(_T));
+
 #define MAX_RV_MONITOR_NAME_SIZE	32
 #define MAX_RV_REACTOR_NAME_SIZE	32
 
@@ -30,10 +32,10 @@ bool rv_is_container_monitor(struct rv_monitor *mon);
 bool rv_is_nested_monitor(struct rv_monitor *mon);
 
 #ifdef CONFIG_RV_REACTORS
-int reactor_populate_monitor(struct rv_monitor *mon);
+int reactor_populate_monitor(struct rv_monitor *mon, struct dentry *root);
 int init_rv_reactors(struct dentry *root_dir);
 #else
-static inline int reactor_populate_monitor(struct rv_monitor *mon)
+static inline int reactor_populate_monitor(struct rv_monitor *mon, struct dentry *root)
 {
 	return 0;
 }

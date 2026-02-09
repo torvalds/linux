@@ -172,15 +172,15 @@ do {									\
 
 #define __put_user(x, ptr)						\
 ({									\
-	__auto_type __pu_ptr = (ptr);					\
-	typeof(*__pu_ptr) __pu_val = (typeof(*__pu_ptr))(x);		\
+	auto __pu_ptr = (ptr);						\
+	auto __pu_val = (typeof(*__pu_ptr))(x);				\
 	__put_user_common(__pu_val, __pu_ptr);				\
 })
 
 #define put_user(x, ptr)						\
 ({									\
-	__auto_type __pu_ptr = (ptr);					\
-	typeof(*__pu_ptr) __pu_val = (typeof(*__pu_ptr))(x);		\
+	auto __pu_ptr = (ptr);						\
+	auto __pu_val = (typeof(*__pu_ptr))(x);				\
 	access_ok(__pu_ptr, sizeof(*__pu_ptr)) ?			\
 		__put_user_common(__pu_val, __pu_ptr) :			\
 		-EFAULT;						\

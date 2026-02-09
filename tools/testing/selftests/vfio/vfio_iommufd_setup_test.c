@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <uapi/linux/types.h>
 #include <linux/limits.h>
 #include <linux/sizes.h>
 #include <linux/vfio.h>
@@ -10,8 +9,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include <vfio_util.h>
-#include "../kselftest_harness.h"
+#include <libvfio.h>
+#include "kselftest_harness.h"
 
 static const char iommu_dev_path[] = "/dev/iommu";
 static const char *cdev_path;

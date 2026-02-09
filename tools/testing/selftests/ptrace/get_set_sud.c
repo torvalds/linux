@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

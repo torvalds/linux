@@ -764,6 +764,17 @@ Description:
 		participate in load balancing. These CPUs are set by
 		boot parameter "isolcpus=".
 
+What:		/sys/devices/system/cpu/housekeeping
+Date:		Oct 2025
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		(RO) the list of logical CPUs that are designated by the kernel as
+		"housekeeping". Each CPU are responsible for handling essential
+		system-wide background tasks, including RCU callbacks, delayed
+		timer callbacks, and unbound workqueues, minimizing scheduling
+		jitter on low-latency, isolated CPUs. These CPUs are set when boot
+		parameter "isolcpus=nohz" or "nohz_full=" is specified.
+
 What:		/sys/devices/system/cpu/crash_hotplug
 Date:		Aug 2023
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>

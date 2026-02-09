@@ -30,7 +30,7 @@ struct configfs_buffer {
 	size_t			count;
 	loff_t			pos;
 	char			* page;
-	struct configfs_item_operations	* ops;
+	const struct configfs_item_operations	*ops;
 	struct mutex		mutex;
 	int			needs_read_fill;
 	bool			read_in_progress;

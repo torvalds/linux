@@ -120,6 +120,36 @@
 #define R_LARCH_ADD_ULEB128			107
 #define R_LARCH_SUB_ULEB128			108
 #define R_LARCH_64_PCREL			109
+#define R_LARCH_CALL36				110
+#define R_LARCH_TLS_DESC_PC_HI20		111
+#define R_LARCH_TLS_DESC_PC_LO12		112
+#define R_LARCH_TLS_DESC64_PC_LO20		113
+#define R_LARCH_TLS_DESC64_PC_HI12		114
+#define R_LARCH_TLS_DESC_HI20			115
+#define R_LARCH_TLS_DESC_LO12			116
+#define R_LARCH_TLS_DESC64_LO20			117
+#define R_LARCH_TLS_DESC64_HI12			118
+#define R_LARCH_TLS_DESC_LD			119
+#define R_LARCH_TLS_DESC_CALL			120
+#define R_LARCH_TLS_LE_HI20_R			121
+#define R_LARCH_TLS_LE_ADD_R			122
+#define R_LARCH_TLS_LE_LO12_R			123
+#define R_LARCH_TLS_LD_PCREL20_S2		124
+#define R_LARCH_TLS_GD_PCREL20_S2		125
+#define R_LARCH_TLS_DESC_PCREL20_S2		126
+#define R_LARCH_CALL30				127
+#define R_LARCH_PCADD_HI20			128
+#define R_LARCH_PCADD_LO12			129
+#define R_LARCH_GOT_PCADD_HI20			130
+#define R_LARCH_GOT_PCADD_LO12			131
+#define R_LARCH_TLS_IE_PCADD_HI20		132
+#define R_LARCH_TLS_IE_PCADD_LO12		133
+#define R_LARCH_TLS_LD_PCADD_HI20		134
+#define R_LARCH_TLS_LD_PCADD_LO12		135
+#define R_LARCH_TLS_GD_PCADD_HI20		136
+#define R_LARCH_TLS_GD_PCADD_LO12		137
+#define R_LARCH_TLS_DESC_PCADD_HI20		138
+#define R_LARCH_TLS_DESC_PCADD_LO12		139
 
 #ifndef ELF_ARCH
 
@@ -156,6 +186,7 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef double elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
+void loongarch_dump_regs32(u32 *uregs, const struct pt_regs *regs);
 void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 
 #ifdef CONFIG_32BIT

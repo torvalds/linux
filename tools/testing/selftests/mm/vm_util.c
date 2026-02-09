@@ -9,7 +9,7 @@
 #include <linux/fs.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 
 #define PMD_SIZE_FILE_PATH "/sys/kernel/mm/transparent_hugepage/hpage_pmd_size"
@@ -447,6 +447,11 @@ bool check_vmflag_io(void *addr)
 bool check_vmflag_pfnmap(void *addr)
 {
 	return check_vmflag(addr, "pf");
+}
+
+bool check_vmflag_guard(void *addr)
+{
+	return check_vmflag(addr, "gu");
 }
 
 bool softdirty_supported(void)

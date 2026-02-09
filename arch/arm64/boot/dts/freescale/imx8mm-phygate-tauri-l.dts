@@ -452,7 +452,7 @@
 
 	pinctrl_usbotg1: usbotg1grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO13_USB1_OTG_OC	0x80
+			MX8MM_IOMUXC_GPIO1_IO13_USB1_OTG_OC	0x00
 		>;
 	};
 

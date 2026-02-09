@@ -457,7 +457,7 @@ out_err:
 
 int
 cifs_atomic_open(struct inode *inode, struct dentry *direntry,
-		 struct file *file, unsigned oflags, umode_t mode)
+		 struct file *file, unsigned int oflags, umode_t mode)
 {
 	int rc;
 	unsigned int xid;
@@ -471,7 +471,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct cifs_open_info_data buf = {};
 
 	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	/*
 	 * Posix open is only called (at lookup time) for file create now. For
@@ -589,7 +589,7 @@ int cifs_create(struct mnt_idmap *idmap, struct inode *inode,
 		 inode, direntry, direntry);
 
 	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb)))) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_forced_shutdown);
 		goto out_free_xid;
 	}
 
@@ -631,7 +631,7 @@ int cifs_mknod(struct mnt_idmap *idmap, struct inode *inode,
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))

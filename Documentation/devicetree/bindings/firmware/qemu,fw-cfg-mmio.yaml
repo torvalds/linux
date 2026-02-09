@@ -23,7 +23,6 @@ description: |
   The authoritative guest-side hardware interface documentation to the fw_cfg
   device can be found in "docs/specs/fw_cfg.txt" in the QEMU source tree.
 
-
 properties:
   compatible:
     const: qemu,fw-cfg-mmio

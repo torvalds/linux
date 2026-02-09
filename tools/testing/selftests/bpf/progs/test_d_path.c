@@ -17,6 +17,7 @@ int rets_close[MAX_FILES] = {};
 
 int called_stat = 0;
 int called_close = 0;
+int path_match_fallocate = 0;
 
 SEC("fentry/security_inode_getattr")
 int BPF_PROG(prog_stat, struct path *path, struct kstat *stat,
@@ -59,6 +60,28 @@ int BPF_PROG(prog_close, struct file *file, void *id)
 
 	rets_close[cnt] = ret;
 	cnt_close++;
+	return 0;
+}
+
+SEC("fentry/vfs_fallocate")
+int BPF_PROG(prog_fallocate, struct file *file, int mode, loff_t offset, loff_t len)
+{
+	pid_t pid = bpf_get_current_pid_tgid() >> 32;
+	int ret = 0;
+	char path_fallocate[MAX_PATH_LEN] = {};
+
+	if (pid != my_pid)
+		return 0;
+
+	ret = bpf_d_path(&file->f_path,
+			 path_fallocate, MAX_PATH_LEN);
+	if (ret < 0)
+		return 0;
+
+	if (!path_fallocate[0])
+		return 0;
+
+	path_match_fallocate = 1;
 	return 0;
 }
 

@@ -21,7 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define TESTS_EXPECTED 54
 #define TEST_NAME_LEN (PATH_MAX * 4)

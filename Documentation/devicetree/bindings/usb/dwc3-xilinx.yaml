@@ -47,6 +47,7 @@ properties:
       - const: ref_clk
 
   resets:
+    minItems: 1
     description:
       A list of phandles for resets listed in reset-names.
 
@@ -56,6 +57,7 @@ properties:
       - description: USB APB reset
 
   reset-names:
+    minItems: 1
     items:
       - const: usb_crst
       - const: usb_hibrst
@@ -94,6 +96,26 @@ required:
   - clock-names
   - resets
   - reset-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - xlnx,versal-dwc3
+    then:
+      properties:
+        resets:
+          maxItems: 1
+        reset-names:
+          maxItems: 1
+    else:
+      properties:
+        resets:
+          minItems: 3
+        reset-names:
+          minItems: 3
 
 additionalProperties: false
 

@@ -8,16 +8,11 @@
 #define __PERF_AUXTRACE_H
 
 #include <sys/types.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <stddef.h>
 #include <stdio.h> // FILE
-#include <linux/list.h>
 #include <linux/perf_event.h>
 #include <linux/types.h>
-#include <perf/cpumap.h>
-#include <asm/bitsperlong.h>
 #include <asm/barrier.h>
+#include <perf/cpumap.h>
 
 union perf_event;
 struct perf_session;
@@ -459,8 +454,6 @@ struct addr_filters {
 
 struct auxtrace_cache;
 
-#ifdef HAVE_AUXTRACE_SUPPORT
-
 u64 compat_auxtrace_mmap__read_head(struct auxtrace_mmap *mm);
 int compat_auxtrace_mmap__write_tail(struct auxtrace_mmap *mm, u64 tail);
 
@@ -615,11 +608,14 @@ void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
 
-int perf_event__process_auxtrace_info(struct perf_session *session,
+int perf_event__process_auxtrace_info(const struct perf_tool *tool,
+				      struct perf_session *session,
 				      union perf_event *event);
-s64 perf_event__process_auxtrace(struct perf_session *session,
+s64 perf_event__process_auxtrace(const struct perf_tool *tool,
+				 struct perf_session *session,
 				 union perf_event *event);
-int perf_event__process_auxtrace_error(struct perf_session *session,
+int perf_event__process_auxtrace_error(const struct perf_tool *tool,
+				       struct perf_session *session,
 				       union perf_event *event);
 int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 			       const char *str, int unset);
@@ -648,6 +644,7 @@ void auxtrace__free_events(struct perf_session *session);
 void auxtrace__free(struct perf_session *session);
 bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 				 struct evsel *evsel);
+u64 auxtrace_synth_id_range_start(struct evsel *evsel);
 
 #define ITRACE_HELP \
 "				i[period]:    		synthesize instructions events\n" \
@@ -701,213 +698,5 @@ void itrace_synth_opts__clear_time_range(struct itrace_synth_opts *opts)
 	opts->ptime_range = NULL;
 	opts->range_num = 0;
 }
-
-#else
-#include "debug.h"
-
-static inline struct auxtrace_record *
-auxtrace_record__init(struct evlist *evlist __maybe_unused,
-		      int *err)
-{
-	*err = 0;
-	return NULL;
-}
-
-static inline
-void auxtrace_record__free(struct auxtrace_record *itr __maybe_unused)
-{
-}
-
-static inline
-int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
-			     struct evlist *evlist __maybe_unused,
-			     struct record_opts *opts __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-int perf_event__process_auxtrace_info(struct perf_session *session __maybe_unused,
-				      union perf_event *event __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-s64 perf_event__process_auxtrace(struct perf_session *session __maybe_unused,
-				 union perf_event *event __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-int perf_event__process_auxtrace_error(struct perf_session *session __maybe_unused,
-				       union perf_event *event __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-void perf_session__auxtrace_error_inc(struct perf_session *session
-				      __maybe_unused,
-				      union perf_event *event
-				      __maybe_unused)
-{
-}
-
-static inline
-void events_stats__auxtrace_error_warn(const struct events_stats *stats
-				       __maybe_unused)
-{
-}
-
-static inline
-int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts __maybe_unused,
-			       const char *str __maybe_unused, int unset __maybe_unused)
-{
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-static inline
-int itrace_parse_synth_opts(const struct option *opt __maybe_unused,
-			    const char *str __maybe_unused,
-			    int unset __maybe_unused)
-{
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-static inline
-int auxtrace_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
-				    struct record_opts *opts __maybe_unused,
-				    const char *str)
-{
-	if (!str)
-		return 0;
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-static inline
-int auxtrace_parse_sample_options(struct auxtrace_record *itr __maybe_unused,
-				  struct evlist *evlist __maybe_unused,
-				  struct record_opts *opts __maybe_unused,
-				  const char *str)
-{
-	if (!str)
-		return 0;
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-static inline
-int auxtrace_parse_aux_action(struct evlist *evlist __maybe_unused)
-{
-	pr_err("AUX area tracing not supported\n");
-	return -EINVAL;
-}
-
-static inline
-int auxtrace__process_event(struct perf_session *session __maybe_unused,
-			    union perf_event *event __maybe_unused,
-			    struct perf_sample *sample __maybe_unused,
-			    const struct perf_tool *tool __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-void auxtrace__dump_auxtrace_sample(struct perf_session *session __maybe_unused,
-				    struct perf_sample *sample __maybe_unused)
-{
-}
-
-static inline
-int auxtrace__flush_events(struct perf_session *session __maybe_unused,
-			   const struct perf_tool *tool __maybe_unused)
-{
-	return 0;
-}
-
-static inline
-void auxtrace__free_events(struct perf_session *session __maybe_unused)
-{
-}
-
-static inline
-void auxtrace_cache__free(struct auxtrace_cache *auxtrace_cache __maybe_unused)
-{
-}
-
-static inline
-void auxtrace__free(struct perf_session *session __maybe_unused)
-{
-}
-
-static inline
-int auxtrace_index__write(int fd __maybe_unused,
-			  struct list_head *head __maybe_unused)
-{
-	return -EINVAL;
-}
-
-static inline
-int auxtrace_index__process(int fd __maybe_unused,
-			    u64 size __maybe_unused,
-			    struct perf_session *session __maybe_unused,
-			    bool needs_swap __maybe_unused)
-{
-	return -EINVAL;
-}
-
-static inline
-void auxtrace_index__free(struct list_head *head __maybe_unused)
-{
-}
-
-static inline
-bool auxtrace__evsel_is_auxtrace(struct perf_session *session __maybe_unused,
-				 struct evsel *evsel __maybe_unused)
-{
-	return false;
-}
-
-static inline
-int auxtrace_parse_filters(struct evlist *evlist __maybe_unused)
-{
-	return 0;
-}
-
-int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
-			struct auxtrace_mmap_params *mp,
-			void *userpg, int fd);
-void auxtrace_mmap__munmap(struct auxtrace_mmap *mm);
-void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
-				off_t auxtrace_offset,
-				unsigned int auxtrace_pages,
-				bool auxtrace_overwrite);
-void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist,
-				   struct evsel *evsel, int idx);
-
-#define ITRACE_HELP ""
-
-static inline
-void itrace_synth_opts__set_time_range(struct itrace_synth_opts *opts
-				       __maybe_unused,
-				       struct perf_time_interval *ptime_range
-				       __maybe_unused,
-				       int range_num __maybe_unused)
-{
-}
-
-static inline
-void itrace_synth_opts__clear_time_range(struct itrace_synth_opts *opts
-					 __maybe_unused)
-{
-}
-
-#endif
 
 #endif

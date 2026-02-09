@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static inline void tracefs_unmount(void)
 {

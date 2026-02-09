@@ -37,7 +37,7 @@
 				      3000 1>;
 	};
 
-	ir_recv {
+	ir-receiver {
 		compatible = "gpio-ir-receiver";
 		gpios = <&gpio3 18 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";

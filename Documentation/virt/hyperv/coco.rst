@@ -178,7 +178,7 @@ These Hyper-V and VMBus memory pages are marked as decrypted:
 
 * VMBus monitor pages
 
-* Synthetic interrupt controller (synic) related pages (unless supplied by
+* Synthetic interrupt controller (SynIC) related pages (unless supplied by
   the paravisor)
 
 * Per-cpu hypercall input and output pages (unless running with a paravisor)
@@ -231,6 +231,143 @@ emulate the access. So in a CoCo VM, these functions must make a hypercall
 with arguments explicitly describing the access. See
 _hv_pcifront_read_config() and _hv_pcifront_write_config() and the
 "use_calls" flag indicating to use hypercalls.
+
+Confidential VMBus
+------------------
+The confidential VMBus enables the confidential guest not to interact with
+the untrusted host partition and the untrusted hypervisor. Instead, the guest
+relies on the trusted paravisor to communicate with the devices processing
+sensitive data. The hardware (SNP or TDX) encrypts the guest memory and the
+register state while measuring the paravisor image using the platform security
+processor to ensure trusted and confidential computing.
+
+Confidential VMBus provides a secure communication channel between the guest
+and the paravisor, ensuring that sensitive data is protected from hypervisor-
+level access through memory encryption and register state isolation.
+
+Confidential VMBus is an extension of Confidential Computing (CoCo) VMs
+(a.k.a. "Isolated" VMs in Hyper-V terminology). Without Confidential VMBus,
+guest VMBus device drivers (the "VSC"s in VMBus terminology) communicate
+with VMBus servers (the VSPs) running on the Hyper-V host. The
+communication must be through memory that has been decrypted so the
+host can access it. With Confidential VMBus, one or more of the VSPs reside
+in the trusted paravisor layer in the guest VM. Since the paravisor layer also
+operates in encrypted memory, the memory used for communication with
+such VSPs does not need to be decrypted and thereby exposed to the
+Hyper-V host. The paravisor is responsible for communicating securely
+with the Hyper-V host as necessary.
+
+The data is transferred directly between the VM and a vPCI device (a.k.a.
+a PCI pass-thru device, see :doc:`vpci`) that is directly assigned to VTL2
+and that supports encrypted memory. In such a case, neither the host partition
+nor the hypervisor has any access to the data. The guest needs to establish
+a VMBus connection only with the paravisor for the channels that process
+sensitive data, and the paravisor abstracts the details of communicating
+with the specific devices away providing the guest with the well-established
+VSP (Virtual Service Provider) interface that has had support in the Hyper-V
+drivers for a decade.
+
+In the case the device does not support encrypted memory, the paravisor
+provides bounce-buffering, and although the data is not encrypted, the backing
+pages aren't mapped into the host partition through SLAT. While not impossible,
+it becomes much more difficult for the host partition to exfiltrate the data
+than it would be with a conventional VMBus connection where the host partition
+has direct access to the memory used for communication.
+
+Here is the data flow for a conventional VMBus connection (`C` stands for the
+client or VSC, `S` for the server or VSP, the `DEVICE` is a physical one, might
+be with multiple virtual functions)::
+
+  +---- GUEST ----+       +----- DEVICE ----+        +----- HOST -----+
+  |               |       |                 |        |                |
+  |               |       |                 |        |                |
+  |               |       |                 ==========                |
+  |               |       |                 |        |                |
+  |               |       |                 |        |                |
+  |               |       |                 |        |                |
+  +----- C -------+       +-----------------+        +------- S ------+
+         ||                                                   ||
+         ||                                                   ||
+  +------||------------------ VMBus --------------------------||------+
+  |                     Interrupts, MMIO                              |
+  +-------------------------------------------------------------------+
+
+and the Confidential VMBus connection::
+
+  +---- GUEST --------------- VTL0 ------+               +-- DEVICE --+
+  |                                      |               |            |
+  | +- PARAVISOR --------- VTL2 -----+   |               |            |
+  | |     +-- VMBus Relay ------+    ====+================            |
+  | |     |   Interrupts, MMIO  |    |   |               |            |
+  | |     +-------- S ----------+    |   |               +------------+
+  | |               ||               |   |
+  | +---------+     ||               |   |
+  | |  Linux  |     ||    OpenHCL    |   |
+  | |  kernel |     ||               |   |
+  | +---- C --+-----||---------------+   |
+  |       ||        ||                   |
+  +-------++------- C -------------------+               +------------+
+          ||                                             |    HOST    |
+          ||                                             +---- S -----+
+  +-------||----------------- VMBus ---------------------------||-----+
+  |                     Interrupts, MMIO                              |
+  +-------------------------------------------------------------------+
+
+An implementation of the VMBus relay that offers the Confidential VMBus
+channels is available in the OpenVMM project as a part of the OpenHCL
+paravisor. Please refer to
+
+  * https://openvmm.dev/, and
+  * https://github.com/microsoft/openvmm
+
+for more information about the OpenHCL paravisor.
+
+A guest that is running with a paravisor must determine at runtime if
+Confidential VMBus is supported by the current paravisor. The x86_64-specific
+approach relies on the CPUID Virtualization Stack leaf; the ARM64 implementation
+is expected to support the Confidential VMBus unconditionally when running
+ARM CCA guests.
+
+Confidential VMBus is a characteristic of the VMBus connection as a whole,
+and of each VMBus channel that is created. When a Confidential VMBus
+connection is established, the paravisor provides the guest the message-passing
+path that is used for VMBus device creation and deletion, and it provides a
+per-CPU synthetic interrupt controller (SynIC) just like the SynIC that is
+offered by the Hyper-V host. Each VMBus device that is offered to the guest
+indicates the degree to which it participates in Confidential VMBus. The offer
+indicates if the device uses encrypted ring buffers, and if the device uses
+encrypted memory for DMA that is done outside the ring buffer. These settings
+may be different for different devices using the same Confidential VMBus
+connection.
+
+Although these settings are separate, in practice it'll always be encrypted
+ring buffer only, or both encrypted ring buffer and external data. If a channel
+is offered by the paravisor with confidential VMBus, the ring buffer can always
+be encrypted since it's strictly for communication between the VTL2 paravisor
+and the VTL0 guest. However, other memory regions are often used for e.g. DMA,
+so they need to be accessible by the underlying hardware, and must be
+unencrypted (unless the device supports encrypted memory). Currently, there are
+not any VSPs in OpenHCL that support encrypted external memory, but future
+versions are expected to enable this capability.
+
+Because some devices on a Confidential VMBus may require decrypted ring buffers
+and DMA transfers, the guest must interact with two SynICs -- the one provided
+by the paravisor and the one provided by the Hyper-V host when Confidential
+VMBus is not offered. Interrupts are always signaled by the paravisor SynIC,
+but the guest must check for messages and for channel interrupts on both SynICs.
+
+In the case of a confidential VMBus, regular SynIC access by the guest is
+intercepted by the paravisor (this includes various MSRs such as the SIMP and
+SIEFP, as well as hypercalls like HvPostMessage and HvSignalEvent). If the
+guest actually wants to communicate with the hypervisor, it has to use special
+mechanisms (GHCB page on SNP, or tdcall on TDX). Messages can be of either
+kind: with confidential VMBus, messages use the paravisor SynIC, and if the
+guest chose to communicate directly to the hypervisor, they use the hypervisor
+SynIC. For interrupt signaling, some channels may be running on the host
+(non-confidential, using the VMBus relay) and use the hypervisor SynIC, and
+some on the paravisor and use its SynIC. The RelIDs are coordinated by the
+OpenHCL VMBus server and are guaranteed to be unique regardless of whether
+the channel originated on the host or the paravisor.
 
 load_unaligned_zeropad()
 ------------------------

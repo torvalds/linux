@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdbool.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "mlock2.h"
 
 struct vm_boundaries {

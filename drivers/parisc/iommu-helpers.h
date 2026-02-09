@@ -14,7 +14,7 @@
 static inline unsigned int
 iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents, 
 		unsigned long hint,
-		void (*iommu_io_pdir_entry)(__le64 *, space_t, unsigned long,
+		void (*iommu_io_pdir_entry)(__le64 *, space_t, phys_addr_t,
 					    unsigned long))
 {
 	struct scatterlist *dma_sg = startsg;	/* pointer to current DMA */
@@ -28,7 +28,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 	 dma_sg--;
 
 	while (nents-- > 0) {
-		unsigned long vaddr;
+		phys_addr_t paddr;
 		long size;
 
 		DBG_RUN_SG(" %d : %08lx %p/%05x\n", nents,
@@ -67,7 +67,7 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 		
 		BUG_ON(pdirp == NULL);
 		
-		vaddr = (unsigned long)sg_virt(startsg);
+		paddr = sg_phys(startsg);
 		sg_dma_len(dma_sg) += startsg->length;
 		size = startsg->length + dma_offset;
 		dma_offset = 0;
@@ -76,8 +76,8 @@ iommu_fill_pdir(struct ioc *ioc, struct scatterlist *startsg, int nents,
 #endif
 		do {
 			iommu_io_pdir_entry(pdirp, KERNEL_SPACE, 
-					    vaddr, hint);
-			vaddr += IOVP_SIZE;
+					    paddr, hint);
+			paddr += IOVP_SIZE;
 			size -= IOVP_SIZE;
 			pdirp++;
 		} while(unlikely(size > 0));

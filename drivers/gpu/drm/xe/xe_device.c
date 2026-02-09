@@ -1056,7 +1056,7 @@ static void tdf_request_sync(struct xe_device *xe)
 		 * transient and need to be flushed..
 		 */
 		if (xe_mmio_wait32(&gt->mmio, XE2_TDF_CTRL, TRANSIENT_FLUSH_REQUEST, 0,
-				   150, NULL, false))
+				   300, NULL, false))
 			xe_gt_err_once(gt, "TD flush timeout\n");
 
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);

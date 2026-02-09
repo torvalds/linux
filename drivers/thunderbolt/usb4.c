@@ -284,7 +284,7 @@ int usb4_switch_setup(struct tb_switch *sw)
 		val |= ROUTER_CS_5_PTO;
 		/*
 		 * xHCI can be enabled if PCIe tunneling is supported
-		 * and the parent does not have any USB3 dowstream
+		 * and the parent does not have any USB3 downstream
 		 * adapters (so we cannot do USB 3.x tunneling).
 		 */
 		if (xhci)
@@ -1342,7 +1342,7 @@ static int usb4_port_write_data(struct tb_port *port, const void *data,
  * usb4_port_sb_read() - Read from sideband register
  * @port: USB4 port to read
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @reg: Sideband register index
  * @buf: Buffer where the sideband data is copied
  * @size: Size of @buf
@@ -1395,7 +1395,7 @@ int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target, u8 index
  * usb4_port_sb_write() - Write to sideband register
  * @port: USB4 port to write
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @reg: Sideband register index
  * @buf: Data to write
  * @size: Size of @buf
@@ -1527,7 +1527,7 @@ int usb4_port_router_offline(struct tb_port *port)
 }
 
 /**
- * usb4_port_router_online() - Put the USB4 port back to online
+ * usb4_port_router_online() - Put the USB4 port back online
  * @port: USB4 port
  *
  * Makes the USB4 port functional again.
@@ -1692,10 +1692,10 @@ int usb4_port_asym_start(struct tb_port *port)
 }
 
 /**
- * usb4_port_margining_caps() - Read USB4 port marginig capabilities
+ * usb4_port_margining_caps() - Read USB4 port margining capabilities
  * @port: USB4 port
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @caps: Array with at least two elements to hold the results
  * @ncaps: Number of elements in the caps array
  *
@@ -1721,7 +1721,7 @@ int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
  * usb4_port_hw_margin() - Run hardware lane margining on port
  * @port: USB4 port
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @params: Parameters for USB4 hardware margining
  * @results: Array to hold the results
  * @nresults: Number of elements in the results array
@@ -1769,7 +1769,7 @@ int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
  * usb4_port_sw_margin() - Run software lane margining on port
  * @port: USB4 port
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @params: Parameters for USB4 software margining
  * @results: Data word for the operation completion data
  *
@@ -1819,7 +1819,7 @@ int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
  * usb4_port_sw_margin_errors() - Read the software margining error counters
  * @port: USB4 port
  * @target: Sideband target
- * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @index: Retimer index if target is %USB4_SB_TARGET_RETIMER
  * @errors: Error metadata is copied here.
  *
  * This reads back the software margining error counters from the port.
@@ -1853,7 +1853,7 @@ static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
  * @port: USB4 port
  * @index: Retimer index
  *
- * Enables sideband channel transations on SBTX. Can be used when USB4
+ * Enables sideband channel transactions on SBTX. Can be used when USB4
  * link does not go up, for example if there is no device connected.
  *
  * Return: %0 on success, negative errno otherwise.
@@ -1882,7 +1882,7 @@ int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
  * @port: USB4 port
  * @index: Retimer index
  *
- * Disables sideband channel transations on SBTX. The reverse of
+ * Disables sideband channel transactions on SBTX. The reverse of
  * usb4_port_retimer_set_inbound_sbtx().
  *
  * Return: %0 on success, negative errno otherwise.
@@ -1981,7 +1981,7 @@ int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
  * @index: Retimer index
  * @address: Start offset
  *
- * Exlicitly sets NVM write offset. Normally when writing to NVM this is
+ * Explicitly sets NVM write offset. Normally when writing to NVM this is
  * done automatically by usb4_port_retimer_nvm_write().
  *
  * Return: %0 on success, negative errno otherwise.
@@ -2190,7 +2190,7 @@ usb4_usb3_port_max_bandwidth(const struct tb_port *port, unsigned int bw)
 }
 
 /**
- * usb4_usb3_port_max_link_rate() - Maximum support USB3 link rate
+ * usb4_usb3_port_max_link_rate() - Maximum supported USB3 link rate
  * @port: USB3 adapter port
  *
  * Return: Maximum supported link rate of a USB3 adapter in Mb/s.

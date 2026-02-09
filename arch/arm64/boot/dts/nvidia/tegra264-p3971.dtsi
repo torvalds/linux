@@ -1,4 +1,112 @@
 // SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 
 / {
+	bus@0 {
+		aconnect@9000000 {
+			status = "okay";
+
+			dma-controller@9440000 {
+				status = "okay";
+			};
+
+			ahub@9630000 {
+				status = "okay";
+
+				i2s@9280000 {
+					status = "okay";
+				};
+
+				i2s@9290000 {
+					status = "okay";
+				};
+
+				i2s@92b0000 {
+					status = "okay";
+				};
+			};
+
+			interrupt-controller@9960000 {
+				status = "okay";
+			};
+		};
+	};
+
+	bus@8800000000 {
+		hda@90b0000 {
+			nvidia,model = "NVIDIA Jetson Thor AGX HDA";
+			status = "okay";
+		};
+	};
+
+	sound {
+		status = "okay";
+
+		dais = /* ADMAIF (FE) Ports */
+		       <&admaif0_port>, <&admaif1_port>, <&admaif2_port>, <&admaif3_port>,
+		       <&admaif4_port>, <&admaif5_port>, <&admaif6_port>, <&admaif7_port>,
+		       <&admaif8_port>, <&admaif9_port>, <&admaif10_port>, <&admaif11_port>,
+		       <&admaif12_port>, <&admaif13_port>, <&admaif14_port>, <&admaif15_port>,
+		       <&admaif16_port>, <&admaif17_port>, <&admaif18_port>, <&admaif19_port>,
+		       <&admaif20_port>, <&admaif21_port>, <&admaif22_port>, <&admaif23_port>,
+		       <&admaif24_port>, <&admaif25_port>, <&admaif26_port>, <&admaif27_port>,
+		       <&admaif28_port>, <&admaif29_port>, <&admaif30_port>, <&admaif31_port>,
+		       /* XBAR Ports */
+		       <&xbar_i2s1_port>, <&xbar_i2s2_port>, <&xbar_i2s4_port>,
+		       <&xbar_sfc1_in_port>, <&xbar_sfc2_in_port>,
+		       <&xbar_sfc3_in_port>, <&xbar_sfc4_in_port>,
+		       <&xbar_mvc1_in_port>, <&xbar_mvc2_in_port>,
+		       <&xbar_amx1_in1_port>, <&xbar_amx1_in2_port>,
+		       <&xbar_amx1_in3_port>, <&xbar_amx1_in4_port>,
+		       <&xbar_amx2_in1_port>, <&xbar_amx2_in2_port>,
+		       <&xbar_amx2_in3_port>, <&xbar_amx2_in4_port>,
+		       <&xbar_amx3_in1_port>, <&xbar_amx3_in2_port>,
+		       <&xbar_amx3_in3_port>, <&xbar_amx3_in4_port>,
+		       <&xbar_amx4_in1_port>, <&xbar_amx4_in2_port>,
+		       <&xbar_amx4_in3_port>, <&xbar_amx4_in4_port>,
+		       <&xbar_amx5_in1_port>, <&xbar_amx5_in2_port>,
+		       <&xbar_amx5_in3_port>, <&xbar_amx5_in4_port>,
+		       <&xbar_amx6_in1_port>, <&xbar_amx6_in2_port>,
+		       <&xbar_amx6_in3_port>, <&xbar_amx6_in4_port>,
+		       <&xbar_adx1_in_port>, <&xbar_adx2_in_port>,
+		       <&xbar_adx3_in_port>, <&xbar_adx4_in_port>,
+		       <&xbar_adx5_in_port>, <&xbar_adx6_in_port>,
+		       <&xbar_mix_in1_port>, <&xbar_mix_in2_port>,
+		       <&xbar_mix_in3_port>, <&xbar_mix_in4_port>,
+		       <&xbar_mix_in5_port>, <&xbar_mix_in6_port>,
+		       <&xbar_mix_in7_port>, <&xbar_mix_in8_port>,
+		       <&xbar_mix_in9_port>, <&xbar_mix_in10_port>,
+		       <&xbar_asrc_in1_port>, <&xbar_asrc_in2_port>,
+		       <&xbar_asrc_in3_port>, <&xbar_asrc_in4_port>,
+		       <&xbar_asrc_in5_port>, <&xbar_asrc_in6_port>,
+		       <&xbar_asrc_in7_port>,
+		       <&xbar_ope1_in_port>,
+		       /* HW accelerators */
+		       <&sfc1_out_port>, <&sfc2_out_port>,
+		       <&sfc3_out_port>, <&sfc4_out_port>,
+		       <&mvc1_out_port>, <&mvc2_out_port>,
+		       <&amx1_out_port>, <&amx2_out_port>,
+		       <&amx3_out_port>, <&amx4_out_port>,
+		       <&amx5_out_port>, <&amx6_out_port>,
+		       <&adx1_out1_port>, <&adx1_out2_port>,
+		       <&adx1_out3_port>, <&adx1_out4_port>,
+		       <&adx2_out1_port>, <&adx2_out2_port>,
+		       <&adx2_out3_port>, <&adx2_out4_port>,
+		       <&adx3_out1_port>, <&adx3_out2_port>,
+		       <&adx3_out3_port>, <&adx3_out4_port>,
+		       <&adx4_out1_port>, <&adx4_out2_port>,
+		       <&adx4_out3_port>, <&adx4_out4_port>,
+		       <&adx5_out1_port>, <&adx5_out2_port>,
+		       <&adx5_out3_port>, <&adx5_out4_port>,
+		       <&adx6_out1_port>, <&adx6_out2_port>,
+		       <&adx6_out3_port>, <&adx6_out4_port>,
+		       <&mix_out1_port>, <&mix_out2_port>, <&mix_out3_port>,
+		       <&mix_out4_port>, <&mix_out5_port>,
+		       <&asrc_out1_port>, <&asrc_out2_port>, <&asrc_out3_port>,
+		       <&asrc_out4_port>, <&asrc_out5_port>, <&asrc_out6_port>,
+		       <&ope1_out_port>,
+		       /* BE I/O Ports */
+		       <&i2s1_port>, <&i2s2_port>, <&i2s4_port>;
+
+		label = "NVIDIA Jetson Thor AGX APE";
+	};
 };

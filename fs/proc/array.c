@@ -537,27 +537,27 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 	if (permitted && (!whole || num_threads < 2))
 		wchan = !task_is_running(task);
 
-	scoped_seqlock_read (&sig->stats_lock, ss_lock_irqsave) {
-		cmin_flt = sig->cmin_flt;
-		cmaj_flt = sig->cmaj_flt;
-		cutime = sig->cutime;
-		cstime = sig->cstime;
-		cgtime = sig->cgtime;
+	scoped_guard(rcu) {
+		scoped_seqlock_read (&sig->stats_lock, ss_lock_irqsave) {
+			cmin_flt = sig->cmin_flt;
+			cmaj_flt = sig->cmaj_flt;
+			cutime = sig->cutime;
+			cstime = sig->cstime;
+			cgtime = sig->cgtime;
 
-		if (whole) {
-			struct task_struct *t;
+			if (whole) {
+				struct task_struct *t;
 
-			min_flt = sig->min_flt;
-			maj_flt = sig->maj_flt;
-			gtime = sig->gtime;
+				min_flt = sig->min_flt;
+				maj_flt = sig->maj_flt;
+				gtime = sig->gtime;
 
-			rcu_read_lock();
-			__for_each_thread(sig, t) {
-				min_flt += t->min_flt;
-				maj_flt += t->maj_flt;
-				gtime += task_gtime(t);
+				__for_each_thread(sig, t) {
+					min_flt += t->min_flt;
+					maj_flt += t->maj_flt;
+					gtime += task_gtime(t);
+				}
 			}
-			rcu_read_unlock();
 		}
 	}
 

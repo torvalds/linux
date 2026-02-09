@@ -346,11 +346,11 @@ static int sm4_xts_crypt(struct skcipher_request *req, bool encrypt)
 		tail = 0;
 	}
 
-	while ((nbytes = walk.nbytes) >= SM4_BLOCK_SIZE) {
-		if (nbytes < walk.total)
-			nbytes &= ~(SM4_BLOCK_SIZE - 1);
+	scoped_ksimd() {
+		while ((nbytes = walk.nbytes) >= SM4_BLOCK_SIZE) {
+			if (nbytes < walk.total)
+				nbytes &= ~(SM4_BLOCK_SIZE - 1);
 
-		scoped_ksimd() {
 			if (encrypt)
 				sm4_ce_xts_enc(ctx->key1.rkey_enc, walk.dst.virt.addr,
 						walk.src.virt.addr, walk.iv, nbytes,
@@ -359,32 +359,30 @@ static int sm4_xts_crypt(struct skcipher_request *req, bool encrypt)
 				sm4_ce_xts_dec(ctx->key1.rkey_dec, walk.dst.virt.addr,
 						walk.src.virt.addr, walk.iv, nbytes,
 						rkey2_enc);
+
+			rkey2_enc = NULL;
+
+			err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+			if (err)
+				return err;
 		}
 
-		rkey2_enc = NULL;
+		if (likely(tail == 0))
+			return 0;
 
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		/* handle ciphertext stealing */
+
+		dst = src = scatterwalk_ffwd(sg_src, req->src, subreq.cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst, subreq.cryptlen);
+
+		skcipher_request_set_crypt(&subreq, src, dst,
+					   SM4_BLOCK_SIZE + tail, req->iv);
+
+		err = skcipher_walk_virt(&walk, &subreq, false);
 		if (err)
 			return err;
-	}
 
-	if (likely(tail == 0))
-		return 0;
-
-	/* handle ciphertext stealing */
-
-	dst = src = scatterwalk_ffwd(sg_src, req->src, subreq.cryptlen);
-	if (req->dst != req->src)
-		dst = scatterwalk_ffwd(sg_dst, req->dst, subreq.cryptlen);
-
-	skcipher_request_set_crypt(&subreq, src, dst, SM4_BLOCK_SIZE + tail,
-				   req->iv);
-
-	err = skcipher_walk_virt(&walk, &subreq, false);
-	if (err)
-		return err;
-
-	scoped_ksimd() {
 		if (encrypt)
 			sm4_ce_xts_enc(ctx->key1.rkey_enc, walk.dst.virt.addr,
 					walk.src.virt.addr, walk.iv, walk.nbytes,

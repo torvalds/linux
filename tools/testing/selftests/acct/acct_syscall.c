@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/wait.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int main(void)
 {

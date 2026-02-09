@@ -294,6 +294,8 @@ struct smb3_fs_context {
 	bool domainauto:1;
 	bool rdma:1;
 	bool multichannel:1;
+	bool multichannel_specified:1; /* true if user specified multichannel or nomultichannel */
+	bool max_channels_specified:1; /* true if user specified max_channels */
 	bool use_client_guid:1;
 	/* reuse existing guid for multichannel */
 	u8 client_guid[SMB2_CLIENT_GUID_SIZE];

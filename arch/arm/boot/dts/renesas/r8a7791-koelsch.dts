@@ -301,6 +301,16 @@
 		clock-frequency = <12000000>;
 	};
 
+	composite-in {
+		compatible = "composite-video-connector";
+
+		port {
+			composite_con_in: endpoint {
+				remote-endpoint = <&adv7180_in>;
+			};
+		};
+	};
+
 	hdmi-out {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -383,13 +393,25 @@
 		};
 
 		composite-in@20 {
-			compatible = "adi,adv7180";
+			compatible = "adi,adv7180cp";
 			reg = <0x20>;
 
-			port {
-				adv7180: endpoint {
-					bus-width = <8>;
-					remote-endpoint = <&vin1ep>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					adv7180_in: endpoint {
+						remote-endpoint = <&composite_con_in>;
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+					adv7180_out: endpoint {
+						remote-endpoint = <&vin1ep>;
+					};
 				};
 			};
 		};
@@ -900,7 +922,7 @@
 
 	port {
 		vin1ep: endpoint {
-			remote-endpoint = <&adv7180>;
+			remote-endpoint = <&adv7180_out>;
 			bus-width = <8>;
 		};
 	};

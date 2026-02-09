@@ -311,8 +311,9 @@ struct cifs_open_parms;
 struct cifs_credits;
 
 struct smb_version_operations {
-	int (*send_cancel)(struct TCP_Server_Info *, struct smb_rqst *,
-			   struct mid_q_entry *);
+	int (*send_cancel)(struct cifs_ses *ses, struct TCP_Server_Info *server,
+			   struct smb_rqst *rqst, struct mid_q_entry *mid,
+			   unsigned int xid);
 	bool (*compare_fids)(struct cifsFileInfo *, struct cifsFileInfo *);
 	/* setup request: allocate mid, sign message */
 	struct mid_q_entry *(*setup_request)(struct cifs_ses *,
@@ -346,13 +347,14 @@ struct smb_version_operations {
 	/* map smb to linux error */
 	int (*map_error)(char *, bool);
 	/* find mid corresponding to the response message */
-	struct mid_q_entry * (*find_mid)(struct TCP_Server_Info *, char *);
-	void (*dump_detail)(void *buf, struct TCP_Server_Info *ptcp_info);
+	struct mid_q_entry *(*find_mid)(struct TCP_Server_Info *server, char *buf);
+	void (*dump_detail)(void *buf, size_t buf_len, struct TCP_Server_Info *ptcp_info);
 	void (*clear_stats)(struct cifs_tcon *);
 	void (*print_stats)(struct seq_file *m, struct cifs_tcon *);
 	void (*dump_share_caps)(struct seq_file *, struct cifs_tcon *);
 	/* verify the message */
-	int (*check_message)(char *, unsigned int, struct TCP_Server_Info *);
+	int (*check_message)(char *buf, unsigned int pdu_len, unsigned int len,
+			     struct TCP_Server_Info *server);
 	bool (*is_oplock_break)(char *, struct TCP_Server_Info *);
 	int (*handle_cancelled_mid)(struct mid_q_entry *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *server,
@@ -636,8 +638,7 @@ struct smb_version_operations {
 
 #define HEADER_SIZE(server) (server->vals->header_size)
 #define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
-#define HEADER_PREAMBLE_SIZE(server) (server->vals->header_preamble_size)
-#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1 - HEADER_PREAMBLE_SIZE(server))
+#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1)
 
 /**
  * CIFS superblock mount flags (mnt_cifs_flags) to consider when
@@ -744,6 +745,7 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	unsigned long neg_start; /* when negotiate started (jiffies) */
+	unsigned long reconn_delay; /* when resched session and tcon reconnect */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
 #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
 #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
@@ -832,9 +834,9 @@ struct TCP_Server_Info {
 	char dns_dom[CIFS_MAX_DOMAINNAME_LEN + 1];
 };
 
-static inline bool is_smb1(struct TCP_Server_Info *server)
+static inline bool is_smb1(const struct TCP_Server_Info *server)
 {
-	return HEADER_PREAMBLE_SIZE(server) != 0;
+	return server->vals->protocol_id == SMB10_PROT_ID;
 }
 
 static inline void cifs_server_lock(struct TCP_Server_Info *server)
@@ -973,16 +975,16 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
  * of kvecs to handle the receive, though that should only need to be done
  * once.
  */
-#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP) + 4)
+#define CIFS_MAX_WSIZE ((1<<24) - 1 - sizeof(WRITE_REQ))
+#define CIFS_MAX_RSIZE ((1<<24) - sizeof(READ_RSP))
 
 /*
  * When the server doesn't allow large posix writes, only allow a rsize/wsize
  * of 2^17-1 minus the size of the call header. That allows for a read or
  * write up to the maximum size described by RFC1002.
  */
-#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
-#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
+#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ))
+#define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP))
 
 /*
  * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
@@ -1659,7 +1661,7 @@ static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
  * Returns zero on a successful receive, or an error. The receive state in
  * the TCP_Server_Info will also be updated.
  */
-typedef int (mid_receive_t)(struct TCP_Server_Info *server,
+typedef int (*mid_receive_t)(struct TCP_Server_Info *server,
 			    struct mid_q_entry *mid);
 
 /*
@@ -1670,37 +1672,38 @@ typedef int (mid_receive_t)(struct TCP_Server_Info *server,
  * - it will be called by cifsd, with no locks held
  * - the mid will be removed from any lists
  */
-typedef void (mid_callback_t)(struct mid_q_entry *mid);
+typedef void (*mid_callback_t)(struct TCP_Server_Info *srv, struct mid_q_entry *mid);
 
 /*
  * This is the protopyte for mid handle function. This is called once the mid
  * has been recognized after decryption of the message.
  */
-typedef int (mid_handle_t)(struct TCP_Server_Info *server,
+typedef int (*mid_handle_t)(struct TCP_Server_Info *server,
 			    struct mid_q_entry *mid);
 
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
-	struct kref refcount;
-	struct TCP_Server_Info *server;	/* server corresponding to this mid */
+	refcount_t refcount;
 	__u64 mid;		/* multiplex id */
 	__u16 credits;		/* number of credits consumed by this mid */
 	__u16 credits_received;	/* number of credits from the response */
 	__u32 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
+	unsigned int sr_flags;	/* Flags passed to send_recv() */
 	unsigned long when_alloc;  /* when mid was created */
 #ifdef CONFIG_CIFS_STATS2
 	unsigned long when_sent; /* time when smb send finished */
 	unsigned long when_received; /* when demux complete (taken off wire) */
 #endif
-	mid_receive_t *receive; /* call receive callback */
-	mid_callback_t *callback; /* call completion callback */
-	mid_handle_t *handle; /* call handle mid callback */
+	mid_receive_t receive;	/* call receive callback */
+	mid_callback_t callback; /* call completion callback */
+	mid_handle_t handle;	/* call handle mid callback */
 	void *callback_data;	  /* general purpose pointer for callback */
 	struct task_struct *creator;
 	void *resp_buf;		/* pointer to received SMB header */
 	unsigned int resp_buf_size;
+	u32 response_pdu_len;
 	int mid_state;	/* wish this were enum but can not pass to wait_event */
 	int mid_rc;		/* rc for MID_RC */
 	__le16 command;		/* smb command code */
@@ -1899,6 +1902,8 @@ enum cifs_writable_file_flags {
 #define   CIFS_TRANSFORM_REQ      0x0800 /* transform request before sending */
 #define   CIFS_NO_SRV_RSP         0x1000 /* there is no server response */
 #define   CIFS_COMPRESS_REQ       0x4000 /* compress request before sending */
+#define   CIFS_INTERRUPTIBLE_WAIT 0x8000 /* Interruptible wait (e.g. lock request) */
+#define   CIFS_WINDOWS_LOCK       0x10000 /* We're trying to get a Windows lock */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001
@@ -2104,7 +2109,7 @@ extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
-extern mempool_t *cifs_mid_poolp;
+extern mempool_t cifs_mid_pool;
 extern mempool_t cifs_io_request_pool;
 extern mempool_t cifs_io_subrequest_pool;
 
@@ -2114,7 +2119,7 @@ extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
 extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
-#endif /* CIFS_ALLOW_INSECURE_LEGACY */
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
 extern struct smb_version_values smbdefault_values;
@@ -2202,94 +2207,6 @@ static inline void move_cifs_info_to_smb2(struct smb2_file_all_info *dst, const 
 	dst->FileNameLength = src->FileNameLength;
 }
 
-static inline int cifs_get_num_sgs(const struct smb_rqst *rqst,
-				   int num_rqst,
-				   const u8 *sig)
-{
-	unsigned int len, skip;
-	unsigned int nents = 0;
-	unsigned long addr;
-	size_t data_size;
-	int i, j;
-
-	/*
-	 * The first rqst has a transform header where the first 20 bytes are
-	 * not part of the encrypted blob.
-	 */
-	skip = 20;
-
-	/* Assumes the first rqst has a transform header as the first iov.
-	 * I.e.
-	 * rqst[0].rq_iov[0]  is transform header
-	 * rqst[0].rq_iov[1+] data to be encrypted/decrypted
-	 * rqst[1+].rq_iov[0+] data to be encrypted/decrypted
-	 */
-	for (i = 0; i < num_rqst; i++) {
-		data_size = iov_iter_count(&rqst[i].rq_iter);
-
-		/* We really don't want a mixture of pinned and unpinned pages
-		 * in the sglist.  It's hard to keep track of which is what.
-		 * Instead, we convert to a BVEC-type iterator higher up.
-		 */
-		if (data_size &&
-		    WARN_ON_ONCE(user_backed_iter(&rqst[i].rq_iter)))
-			return -EIO;
-
-		/* We also don't want to have any extra refs or pins to clean
-		 * up in the sglist.
-		 */
-		if (data_size &&
-		    WARN_ON_ONCE(iov_iter_extract_will_pin(&rqst[i].rq_iter)))
-			return -EIO;
-
-		for (j = 0; j < rqst[i].rq_nvec; j++) {
-			struct kvec *iov = &rqst[i].rq_iov[j];
-
-			addr = (unsigned long)iov->iov_base + skip;
-			if (is_vmalloc_or_module_addr((void *)addr)) {
-				len = iov->iov_len - skip;
-				nents += DIV_ROUND_UP(offset_in_page(addr) + len,
-						      PAGE_SIZE);
-			} else {
-				nents++;
-			}
-			skip = 0;
-		}
-		if (data_size)
-			nents += iov_iter_npages(&rqst[i].rq_iter, INT_MAX);
-	}
-	nents += DIV_ROUND_UP(offset_in_page(sig) + SMB2_SIGNATURE_SIZE, PAGE_SIZE);
-	return nents;
-}
-
-/* We can not use the normal sg_set_buf() as we will sometimes pass a
- * stack object as buf.
- */
-static inline void cifs_sg_set_buf(struct sg_table *sgtable,
-				   const void *buf,
-				   unsigned int buflen)
-{
-	unsigned long addr = (unsigned long)buf;
-	unsigned int off = offset_in_page(addr);
-
-	addr &= PAGE_MASK;
-	if (is_vmalloc_or_module_addr((void *)addr)) {
-		do {
-			unsigned int len = min_t(unsigned int, buflen, PAGE_SIZE - off);
-
-			sg_set_page(&sgtable->sgl[sgtable->nents++],
-				    vmalloc_to_page((void *)addr), len, off);
-
-			off = 0;
-			addr += PAGE_SIZE;
-			buflen -= len;
-		} while (buflen);
-	} else {
-		sg_set_page(&sgtable->sgl[sgtable->nents++],
-			    virt_to_page((void *)addr), buflen, off);
-	}
-}
-
 #define CIFS_OPARMS(_cifs_sb, _tcon, _path, _da, _cd, _co, _mode) \
 	((struct cifs_open_parms) { \
 		.tcon = _tcon, \
@@ -2351,9 +2268,10 @@ static inline bool cifs_netbios_name(const char *name, size_t namelen)
  * Execute mid callback atomically - ensures callback runs exactly once
  * and prevents sleeping in atomic context.
  */
-static inline void mid_execute_callback(struct mid_q_entry *mid)
+static inline void mid_execute_callback(struct TCP_Server_Info *server,
+					struct mid_q_entry *mid)
 {
-	void (*callback)(struct mid_q_entry *mid);
+	mid_callback_t callback;
 
 	spin_lock(&mid->mid_lock);
 	callback = mid->callback;
@@ -2361,12 +2279,38 @@ static inline void mid_execute_callback(struct mid_q_entry *mid)
 	spin_unlock(&mid->mid_lock);
 
 	if (callback)
-		callback(mid);
+		callback(server, mid);
 }
 
 #define CIFS_REPARSE_SUPPORT(tcon) \
 	((tcon)->posix_extensions || \
 	 (le32_to_cpu((tcon)->fsAttrInfo.Attributes) & \
 	  FILE_SUPPORTS_REPARSE_POINTS))
+
+struct cifs_calc_sig_ctx {
+	struct md5_ctx *md5;
+	struct hmac_sha256_ctx *hmac;
+	struct shash_desc *shash;
+};
+
+#define CIFS_RECONN_DELAY_SECS	30
+#define CIFS_MAX_RECONN_DELAY	(4 * CIFS_RECONN_DELAY_SECS)
+
+static inline void cifs_queue_server_reconn(struct TCP_Server_Info *server)
+{
+	if (!delayed_work_pending(&server->reconnect)) {
+		WRITE_ONCE(server->reconn_delay, 0);
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
+	}
+}
+
+static inline void cifs_requeue_server_reconn(struct TCP_Server_Info *server)
+{
+	unsigned long delay = READ_ONCE(server->reconn_delay);
+
+	delay = umin(delay + CIFS_RECONN_DELAY_SECS, CIFS_MAX_RECONN_DELAY);
+	WRITE_ONCE(server->reconn_delay, delay);
+	queue_delayed_work(cifsiod_wq, &server->reconnect, delay * HZ);
+}
 
 #endif	/* _CIFS_GLOB_H */

@@ -1936,10 +1936,8 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 	u8 *buffer = NULL;
 	int rv;
 	unsigned int is_in, pipe;
-	unsigned long res;
 
-	res = copy_from_user(&request, arg, sizeof(struct usbtmc_ctrlrequest));
-	if (res)
+	if (copy_from_user(&request, arg, sizeof(struct usbtmc_ctrlrequest)))
 		return -EFAULT;
 
 	if (request.req.wLength > USBTMC_BUFSIZE)
@@ -1956,9 +1954,8 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 
 		if (!is_in) {
 			/* Send control data to device */
-			res = copy_from_user(buffer, request.data,
-					     request.req.wLength);
-			if (res) {
+			if (copy_from_user(buffer, request.data,
+					   request.req.wLength)) {
 				rv = -EFAULT;
 				goto exit;
 			}
@@ -1984,8 +1981,7 @@ static int usbtmc_ioctl_request(struct usbtmc_device_data *data,
 
 	if (rv && is_in) {
 		/* Read control data from device */
-		res = copy_to_user(request.data, buffer, rv);
-		if (res)
+		if (copy_to_user(request.data, buffer, rv))
 			rv = -EFAULT;
 	}
 

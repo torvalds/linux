@@ -1171,8 +1171,9 @@ static void __init pnv_arch300_idle_init(void)
 	u64 max_residency_ns = 0;
 	int i;
 
-	/* stop is not really architected, we only have p9,p10 drivers */
-	if (!pvr_version_is(PVR_POWER10) && !pvr_version_is(PVR_POWER9))
+	/* stop is not really architected, we only have p9,p10 and p11 drivers */
+	if (!pvr_version_is(PVR_POWER9) && !pvr_version_is(PVR_POWER10) &&
+		!pvr_version_is(PVR_POWER11))
 		return;
 
 	/*
@@ -1189,8 +1190,8 @@ static void __init pnv_arch300_idle_init(void)
 		struct pnv_idle_states_t *state = &pnv_idle_states[i];
 		u64 psscr_rl = state->psscr_val & PSSCR_RL_MASK;
 
-		/* No deep loss driver implemented for POWER10 yet */
-		if (pvr_version_is(PVR_POWER10) &&
+		/* No deep loss driver implemented for POWER10 and POWER11 yet */
+		if ((pvr_version_is(PVR_POWER10) || pvr_version_is(PVR_POWER11)) &&
 				state->flags & (OPAL_PM_TIMEBASE_STOP|OPAL_PM_LOSE_FULL_CONTEXT))
 			continue;
 

@@ -30,7 +30,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <include/vdso/time64.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define ADJ_SETOFFSET 0x0100
 

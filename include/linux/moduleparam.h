@@ -26,6 +26,9 @@
 
 /* Generic info of form tag = "info" */
 #define MODULE_INFO(tag, info)					  \
+	static_assert(						  \
+		sizeof(info) - 1 == __builtin_strlen(info),	  \
+		"MODULE_INFO(" #tag ", ...) contains embedded NUL byte"); \
 	static const char __UNIQUE_ID(modinfo)[]			  \
 		__used __section(".modinfo") __aligned(1)		  \
 		= __MODULE_INFO_PREFIX __stringify(tag) "=" info

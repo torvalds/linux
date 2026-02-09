@@ -14,7 +14,7 @@
 
 #include <linux/perf_event.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define RB_SIZE		0x3000
 #define AUX_SIZE	0x10000

@@ -19,7 +19,7 @@ char bnge_driver_name[] = DRV_NAME;
 static const struct {
 	char *name;
 } board_info[] = {
-	[BCM57708] = { "Broadcom BCM57708 50Gb/100Gb/200Gb/400Gb/800Gb Ethernet" },
+	[BCM57708] = { "Broadcom BCM57708 ThorUltra 50Gb/100Gb/200Gb/400Gb/800Gb Ethernet" },
 };
 
 static const struct pci_device_id bnge_pci_tbl[] = {
@@ -41,6 +41,11 @@ static void bnge_print_device_info(struct pci_dev *pdev, enum board_idx idx)
 
 bool bnge_aux_registered(struct bnge_dev *bd)
 {
+	struct bnge_auxr_dev *ba_dev = bd->auxr_dev;
+
+	if (ba_dev && ba_dev->auxr_info->msix_requested)
+		return true;
+
 	return false;
 }
 
@@ -312,15 +317,19 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&bd->db_lock);
 #endif
 
+	bnge_rdma_aux_device_init(bd);
+
 	rc = bnge_alloc_irqs(bd);
 	if (rc) {
 		dev_err(&pdev->dev, "Error IRQ allocation rc = %d\n", rc);
-		goto err_config_uninit;
+		goto err_uninit_auxr;
 	}
 
 	rc = bnge_netdev_alloc(bd, max_irqs);
 	if (rc)
 		goto err_free_irq;
+
+	bnge_rdma_aux_device_add(bd);
 
 	pci_save_state(pdev);
 
@@ -328,6 +337,9 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_free_irq:
 	bnge_free_irqs(bd);
+
+err_uninit_auxr:
+	bnge_rdma_aux_device_uninit(bd);
 
 err_config_uninit:
 	bnge_net_uninit_dflt_config(bd);
@@ -354,9 +366,13 @@ static void bnge_remove_one(struct pci_dev *pdev)
 {
 	struct bnge_dev *bd = pci_get_drvdata(pdev);
 
+	bnge_rdma_aux_device_del(bd);
+
 	bnge_netdev_free(bd);
 
 	bnge_free_irqs(bd);
+
+	bnge_rdma_aux_device_uninit(bd);
 
 	bnge_net_uninit_dflt_config(bd);
 

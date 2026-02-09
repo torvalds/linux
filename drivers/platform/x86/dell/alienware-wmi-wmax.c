@@ -90,6 +90,30 @@ static struct awcc_quirks empty_quirks;
 
 static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 	{
+		.ident = "Alienware 16 Area-51",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware 16 Area-51"),
+		},
+		.driver_data = &g_series_quirks,
+	},
+	{
+		.ident = "Alienware 16X Aurora",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware 16X Aurora"),
+		},
+		.driver_data = &g_series_quirks,
+	},
+	{
+		.ident = "Alienware 18 Area-51",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware 18 Area-51"),
+		},
+		.driver_data = &g_series_quirks,
+	},
+	{
 		.ident = "Alienware 16 Aurora",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
@@ -160,6 +184,14 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware x15"),
 		},
 		.driver_data = &generic_quirks,
+	},
+	{
+		.ident = "Alienware x16",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware x16"),
+		},
+		.driver_data = &g_series_quirks,
 	},
 	{
 		.ident = "Alienware x17",
@@ -235,11 +267,6 @@ enum AWCC_THERMAL_TABLES {
 	AWCC_THERMAL_TABLE_USTT			= 0xA,
 };
 
-enum AWCC_SPECIAL_THERMAL_CODES {
-	AWCC_SPECIAL_PROFILE_CUSTOM		= 0x00,
-	AWCC_SPECIAL_PROFILE_GMODE		= 0xAB,
-};
-
 enum AWCC_TEMP_SENSOR_TYPES {
 	AWCC_TEMP_SENSOR_CPU			= 0x01,
 	AWCC_TEMP_SENSOR_FRONT			= 0x03,
@@ -266,17 +293,18 @@ enum AWCC_FAN_TYPES {
 };
 
 enum awcc_thermal_profile {
-	AWCC_PROFILE_USTT_BALANCED,
-	AWCC_PROFILE_USTT_BALANCED_PERFORMANCE,
-	AWCC_PROFILE_USTT_COOL,
-	AWCC_PROFILE_USTT_QUIET,
-	AWCC_PROFILE_USTT_PERFORMANCE,
-	AWCC_PROFILE_USTT_LOW_POWER,
-	AWCC_PROFILE_LEGACY_QUIET,
-	AWCC_PROFILE_LEGACY_BALANCED,
-	AWCC_PROFILE_LEGACY_BALANCED_PERFORMANCE,
-	AWCC_PROFILE_LEGACY_PERFORMANCE,
-	AWCC_PROFILE_LAST,
+	AWCC_PROFILE_SPECIAL_CUSTOM			= 0x00,
+	AWCC_PROFILE_LEGACY_QUIET			= 0x96,
+	AWCC_PROFILE_LEGACY_BALANCED			= 0x97,
+	AWCC_PROFILE_LEGACY_BALANCED_PERFORMANCE	= 0x98,
+	AWCC_PROFILE_LEGACY_PERFORMANCE			= 0x99,
+	AWCC_PROFILE_USTT_BALANCED			= 0xA0,
+	AWCC_PROFILE_USTT_BALANCED_PERFORMANCE		= 0xA1,
+	AWCC_PROFILE_USTT_COOL				= 0xA2,
+	AWCC_PROFILE_USTT_QUIET				= 0xA3,
+	AWCC_PROFILE_USTT_PERFORMANCE			= 0xA4,
+	AWCC_PROFILE_USTT_LOW_POWER			= 0xA5,
+	AWCC_PROFILE_SPECIAL_GMODE			= 0xAB,
 };
 
 struct wmax_led_args {
@@ -330,19 +358,6 @@ struct awcc_priv {
 	unsigned long temp_sensors[AWCC_ID_BITMAP_LONGS];
 
 	u32 gpio_count;
-};
-
-static const enum platform_profile_option awcc_mode_to_platform_profile[AWCC_PROFILE_LAST] = {
-	[AWCC_PROFILE_USTT_BALANCED]			= PLATFORM_PROFILE_BALANCED,
-	[AWCC_PROFILE_USTT_BALANCED_PERFORMANCE]	= PLATFORM_PROFILE_BALANCED_PERFORMANCE,
-	[AWCC_PROFILE_USTT_COOL]			= PLATFORM_PROFILE_COOL,
-	[AWCC_PROFILE_USTT_QUIET]			= PLATFORM_PROFILE_QUIET,
-	[AWCC_PROFILE_USTT_PERFORMANCE]			= PLATFORM_PROFILE_PERFORMANCE,
-	[AWCC_PROFILE_USTT_LOW_POWER]			= PLATFORM_PROFILE_LOW_POWER,
-	[AWCC_PROFILE_LEGACY_QUIET]			= PLATFORM_PROFILE_QUIET,
-	[AWCC_PROFILE_LEGACY_BALANCED]			= PLATFORM_PROFILE_BALANCED,
-	[AWCC_PROFILE_LEGACY_BALANCED_PERFORMANCE]	= PLATFORM_PROFILE_BALANCED_PERFORMANCE,
-	[AWCC_PROFILE_LEGACY_PERFORMANCE]		= PLATFORM_PROFILE_PERFORMANCE,
 };
 
 static struct awcc_quirks *awcc;
@@ -562,21 +577,41 @@ const struct attribute_group wmax_deepsleep_attribute_group = {
 /*
  * AWCC Helpers
  */
-static bool is_awcc_thermal_profile_id(u8 code)
+static int awcc_profile_to_pprof(enum awcc_thermal_profile profile,
+				 enum platform_profile_option *pprof)
 {
-	u8 table = FIELD_GET(AWCC_THERMAL_TABLE_MASK, code);
-	u8 mode = FIELD_GET(AWCC_THERMAL_MODE_MASK, code);
+	switch (profile) {
+	case AWCC_PROFILE_SPECIAL_CUSTOM:
+		*pprof = PLATFORM_PROFILE_CUSTOM;
+		break;
+	case AWCC_PROFILE_LEGACY_QUIET:
+	case AWCC_PROFILE_USTT_QUIET:
+		*pprof = PLATFORM_PROFILE_QUIET;
+		break;
+	case AWCC_PROFILE_LEGACY_BALANCED:
+	case AWCC_PROFILE_USTT_BALANCED:
+		*pprof = PLATFORM_PROFILE_BALANCED;
+		break;
+	case AWCC_PROFILE_LEGACY_BALANCED_PERFORMANCE:
+	case AWCC_PROFILE_USTT_BALANCED_PERFORMANCE:
+		*pprof = PLATFORM_PROFILE_BALANCED_PERFORMANCE;
+		break;
+	case AWCC_PROFILE_LEGACY_PERFORMANCE:
+	case AWCC_PROFILE_USTT_PERFORMANCE:
+	case AWCC_PROFILE_SPECIAL_GMODE:
+		*pprof = PLATFORM_PROFILE_PERFORMANCE;
+		break;
+	case AWCC_PROFILE_USTT_COOL:
+		*pprof = PLATFORM_PROFILE_COOL;
+		break;
+	case AWCC_PROFILE_USTT_LOW_POWER:
+		*pprof = PLATFORM_PROFILE_LOW_POWER;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	if (mode >= AWCC_PROFILE_LAST)
-		return false;
-
-	if (table == AWCC_THERMAL_TABLE_LEGACY && mode >= AWCC_PROFILE_LEGACY_QUIET)
-		return true;
-
-	if (table == AWCC_THERMAL_TABLE_USTT && mode <= AWCC_PROFILE_USTT_LOW_POWER)
-		return true;
-
-	return false;
+	return 0;
 }
 
 static int awcc_wmi_command(struct wmi_device *wdev, u32 method_id,
@@ -1225,24 +1260,7 @@ static int awcc_platform_profile_get(struct device *dev,
 	if (ret)
 		return ret;
 
-	switch (out_data) {
-	case AWCC_SPECIAL_PROFILE_CUSTOM:
-		*profile = PLATFORM_PROFILE_CUSTOM;
-		return 0;
-	case AWCC_SPECIAL_PROFILE_GMODE:
-		*profile = PLATFORM_PROFILE_PERFORMANCE;
-		return 0;
-	default:
-		break;
-	}
-
-	if (!is_awcc_thermal_profile_id(out_data))
-		return -ENODATA;
-
-	out_data = FIELD_GET(AWCC_THERMAL_MODE_MASK, out_data);
-	*profile = awcc_mode_to_platform_profile[out_data];
-
-	return 0;
+	return awcc_profile_to_pprof(out_data, profile);
 }
 
 static int awcc_platform_profile_set(struct device *dev,
@@ -1279,7 +1297,6 @@ static int awcc_platform_profile_probe(void *drvdata, unsigned long *choices)
 {
 	enum platform_profile_option profile;
 	struct awcc_priv *priv = drvdata;
-	enum awcc_thermal_profile mode;
 	u8 id, offset = 0;
 	int ret;
 
@@ -1301,15 +1318,20 @@ static int awcc_platform_profile_probe(void *drvdata, unsigned long *choices)
 		if (ret)
 			return ret;
 
-		if (!is_awcc_thermal_profile_id(id)) {
+		/*
+		 * G-Mode profile ID is not listed consistently across modeles
+		 * that support it, therefore we handle it through quirks.
+		 */
+		if (id == AWCC_PROFILE_SPECIAL_GMODE)
+			continue;
+
+		ret = awcc_profile_to_pprof(id, &profile);
+		if (ret) {
 			dev_dbg(&priv->wdev->dev, "Unmapped thermal profile ID 0x%02x\n", id);
 			continue;
 		}
 
-		mode = FIELD_GET(AWCC_THERMAL_MODE_MASK, id);
-		profile = awcc_mode_to_platform_profile[mode];
 		priv->supported_profiles[profile] = id;
-
 		__set_bit(profile, choices);
 	}
 
@@ -1318,14 +1340,14 @@ static int awcc_platform_profile_probe(void *drvdata, unsigned long *choices)
 
 	if (awcc->gmode) {
 		priv->supported_profiles[PLATFORM_PROFILE_PERFORMANCE] =
-			AWCC_SPECIAL_PROFILE_GMODE;
+			AWCC_PROFILE_SPECIAL_GMODE;
 
 		__set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
 	}
 
 	/* Every model supports the "custom" profile */
 	priv->supported_profiles[PLATFORM_PROFILE_CUSTOM] =
-		AWCC_SPECIAL_PROFILE_CUSTOM;
+		AWCC_PROFILE_SPECIAL_CUSTOM;
 
 	__set_bit(PLATFORM_PROFILE_CUSTOM, choices);
 

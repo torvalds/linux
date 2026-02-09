@@ -1136,8 +1136,11 @@ static void set_dte_bit(struct dev_table_entry *dte, u8 bit)
 static bool __reuse_device_table(struct amd_iommu *iommu)
 {
 	struct amd_iommu_pci_seg *pci_seg = iommu->pci_seg;
-	u32 lo, hi, old_devtb_size;
+	struct dev_table_entry *old_dev_tbl_entry;
+	u32 lo, hi, old_devtb_size, devid;
 	phys_addr_t old_devtb_phys;
+	u16 dom_id;
+	bool dte_v;
 	u64 entry;
 
 	/* Each IOMMU use separate device table with the same size */
@@ -1171,6 +1174,22 @@ static bool __reuse_device_table(struct amd_iommu *iommu)
 	if (pci_seg->old_dev_tbl_cpy == NULL) {
 		pr_err("Failed to remap memory for reusing old device table!\n");
 		return false;
+	}
+
+	for (devid = 0; devid <= pci_seg->last_bdf; devid++) {
+		old_dev_tbl_entry = &pci_seg->old_dev_tbl_cpy[devid];
+		dte_v = FIELD_GET(DTE_FLAG_V, old_dev_tbl_entry->data[0]);
+		dom_id = FIELD_GET(DEV_DOMID_MASK, old_dev_tbl_entry->data[1]);
+
+		if (!dte_v || !dom_id)
+			continue;
+		/*
+		 * ID reservation can fail with -ENOSPC when there
+		 * are multiple devices present in the same domain,
+		 * hence check only for -ENOMEM.
+		 */
+		if (amd_iommu_pdom_id_reserve(dom_id, GFP_KERNEL) == -ENOMEM)
+			return false;
 	}
 
 	return true;
@@ -1710,13 +1729,22 @@ static struct amd_iommu_pci_seg *__init alloc_pci_segment(u16 id,
 	list_add_tail(&pci_seg->list, &amd_iommu_pci_seg_list);
 
 	if (alloc_dev_table(pci_seg))
-		return NULL;
+		goto err_free_pci_seg;
 	if (alloc_alias_table(pci_seg))
-		return NULL;
+		goto err_free_dev_table;
 	if (alloc_rlookup_table(pci_seg))
-		return NULL;
+		goto err_free_alias_table;
 
 	return pci_seg;
+
+err_free_alias_table:
+	free_alias_table(pci_seg);
+err_free_dev_table:
+	free_dev_table(pci_seg);
+err_free_pci_seg:
+	list_del(&pci_seg->list);
+	kfree(pci_seg);
+	return NULL;
 }
 
 static struct amd_iommu_pci_seg *__init get_pci_segment(u16 id,
@@ -2251,6 +2279,9 @@ static void print_iommu_info(void)
 
 		if (check_feature(FEATURE_SNP))
 			pr_cont(" SNP");
+
+		if (check_feature2(FEATURE_SEVSNPIO_SUP))
+			pr_cont(" SEV-TIO");
 
 		pr_cont("\n");
 	}
@@ -3024,7 +3055,7 @@ static void disable_iommus(void)
  * disable suspend until real resume implemented
  */
 
-static void amd_iommu_resume(void)
+static void amd_iommu_resume(void *data)
 {
 	struct amd_iommu *iommu;
 
@@ -3038,7 +3069,7 @@ static void amd_iommu_resume(void)
 	amd_iommu_enable_interrupts();
 }
 
-static int amd_iommu_suspend(void)
+static int amd_iommu_suspend(void *data)
 {
 	/* disable IOMMUs to go out of the way for BIOS */
 	disable_iommus();
@@ -3046,9 +3077,13 @@ static int amd_iommu_suspend(void)
 	return 0;
 }
 
-static struct syscore_ops amd_iommu_syscore_ops = {
+static const struct syscore_ops amd_iommu_syscore_ops = {
 	.suspend = amd_iommu_suspend,
 	.resume = amd_iommu_resume,
+};
+
+static struct syscore amd_iommu_syscore = {
+	.ops = &amd_iommu_syscore_ops,
 };
 
 static void __init free_iommu_resources(void)
@@ -3111,8 +3146,7 @@ static bool __init check_ioapic_information(void)
 
 static void __init free_dma_resources(void)
 {
-	ida_destroy(&pdom_ids);
-
+	amd_iommu_pdom_id_destroy();
 	free_unity_maps();
 }
 
@@ -3395,7 +3429,7 @@ static int __init state_next(void)
 		init_state = IOMMU_ENABLED;
 		break;
 	case IOMMU_ENABLED:
-		register_syscore_ops(&amd_iommu_syscore_ops);
+		register_syscore(&amd_iommu_syscore);
 		iommu_snp_enable();
 		ret = amd_iommu_init_pci();
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_PCI_INIT;
@@ -3498,12 +3532,12 @@ int __init amd_iommu_enable(void)
 
 void amd_iommu_disable(void)
 {
-	amd_iommu_suspend();
+	amd_iommu_suspend(NULL);
 }
 
 int amd_iommu_reenable(int mode)
 {
-	amd_iommu_resume();
+	amd_iommu_resume(NULL);
 
 	return 0;
 }
@@ -4015,4 +4049,10 @@ int amd_iommu_snp_disable(void)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(amd_iommu_snp_disable);
+
+bool amd_iommu_sev_tio_supported(void)
+{
+	return check_feature2(FEATURE_SEVSNPIO_SUP);
+}
+EXPORT_SYMBOL_GPL(amd_iommu_sev_tio_supported);
 #endif

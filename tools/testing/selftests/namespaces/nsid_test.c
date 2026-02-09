@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/nsfs.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 /* Fixture for tests that create child processes */
 FIXTURE(nsid) {

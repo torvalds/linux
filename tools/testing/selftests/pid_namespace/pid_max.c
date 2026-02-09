@@ -13,7 +13,7 @@
 #include <sys/mount.h>
 #include <sys/wait.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../pidfd/pidfd.h"
 
 #define __STACK_SIZE (8 * 1024 * 1024)

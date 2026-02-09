@@ -40,10 +40,15 @@ static const char dm_snapshot_merge_target_name[] = "snapshot-merge";
 #define DM_TRACKED_CHUNK_HASH(x)	((unsigned long)(x) & \
 					 (DM_TRACKED_CHUNK_HASH_SIZE - 1))
 
+struct dm_hlist_head {
+	struct hlist_head head;
+	spinlock_t lock;
+};
+
 struct dm_exception_table {
 	uint32_t hash_mask;
 	unsigned int hash_shift;
-	struct hlist_bl_head *table;
+	struct dm_hlist_head *table;
 };
 
 struct dm_snapshot {
@@ -628,8 +633,8 @@ static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk);
 
 /* Lock to protect access to the completed and pending exception hash tables. */
 struct dm_exception_table_lock {
-	struct hlist_bl_head *complete_slot;
-	struct hlist_bl_head *pending_slot;
+	spinlock_t *complete_slot;
+	spinlock_t *pending_slot;
 };
 
 static void dm_exception_table_lock_init(struct dm_snapshot *s, chunk_t chunk,
@@ -638,20 +643,20 @@ static void dm_exception_table_lock_init(struct dm_snapshot *s, chunk_t chunk,
 	struct dm_exception_table *complete = &s->complete;
 	struct dm_exception_table *pending = &s->pending;
 
-	lock->complete_slot = &complete->table[exception_hash(complete, chunk)];
-	lock->pending_slot = &pending->table[exception_hash(pending, chunk)];
+	lock->complete_slot = &complete->table[exception_hash(complete, chunk)].lock;
+	lock->pending_slot = &pending->table[exception_hash(pending, chunk)].lock;
 }
 
 static void dm_exception_table_lock(struct dm_exception_table_lock *lock)
 {
-	hlist_bl_lock(lock->complete_slot);
-	hlist_bl_lock(lock->pending_slot);
+	spin_lock_nested(lock->complete_slot, 1);
+	spin_lock_nested(lock->pending_slot, 2);
 }
 
 static void dm_exception_table_unlock(struct dm_exception_table_lock *lock)
 {
-	hlist_bl_unlock(lock->pending_slot);
-	hlist_bl_unlock(lock->complete_slot);
+	spin_unlock(lock->pending_slot);
+	spin_unlock(lock->complete_slot);
 }
 
 static int dm_exception_table_init(struct dm_exception_table *et,
@@ -661,13 +666,15 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 
 	et->hash_shift = hash_shift;
 	et->hash_mask = size - 1;
-	et->table = kvmalloc_array(size, sizeof(struct hlist_bl_head),
+	et->table = kvmalloc_array(size, sizeof(struct dm_hlist_head),
 				   GFP_KERNEL);
 	if (!et->table)
 		return -ENOMEM;
 
-	for (i = 0; i < size; i++)
-		INIT_HLIST_BL_HEAD(et->table + i);
+	for (i = 0; i < size; i++) {
+		INIT_HLIST_HEAD(&et->table[i].head);
+		spin_lock_init(&et->table[i].lock);
+	}
 
 	return 0;
 }
@@ -675,16 +682,17 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 static void dm_exception_table_exit(struct dm_exception_table *et,
 				    struct kmem_cache *mem)
 {
-	struct hlist_bl_head *slot;
+	struct dm_hlist_head *slot;
 	struct dm_exception *ex;
-	struct hlist_bl_node *pos, *n;
+	struct hlist_node *pos;
 	int i, size;
 
 	size = et->hash_mask + 1;
 	for (i = 0; i < size; i++) {
 		slot = et->table + i;
 
-		hlist_bl_for_each_entry_safe(ex, pos, n, slot, hash_list) {
+		hlist_for_each_entry_safe(ex, pos, &slot->head, hash_list) {
+			hlist_del(&ex->hash_list);
 			kmem_cache_free(mem, ex);
 			cond_resched();
 		}
@@ -700,7 +708,7 @@ static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk)
 
 static void dm_remove_exception(struct dm_exception *e)
 {
-	hlist_bl_del(&e->hash_list);
+	hlist_del(&e->hash_list);
 }
 
 /*
@@ -710,12 +718,11 @@ static void dm_remove_exception(struct dm_exception *e)
 static struct dm_exception *dm_lookup_exception(struct dm_exception_table *et,
 						chunk_t chunk)
 {
-	struct hlist_bl_head *slot;
-	struct hlist_bl_node *pos;
+	struct hlist_head *slot;
 	struct dm_exception *e;
 
-	slot = &et->table[exception_hash(et, chunk)];
-	hlist_bl_for_each_entry(e, pos, slot, hash_list)
+	slot = &et->table[exception_hash(et, chunk)].head;
+	hlist_for_each_entry(e, slot, hash_list)
 		if (chunk >= e->old_chunk &&
 		    chunk <= e->old_chunk + dm_consecutive_chunk_count(e))
 			return e;
@@ -762,18 +769,17 @@ static void free_pending_exception(struct dm_snap_pending_exception *pe)
 static void dm_insert_exception(struct dm_exception_table *eh,
 				struct dm_exception *new_e)
 {
-	struct hlist_bl_head *l;
-	struct hlist_bl_node *pos;
+	struct hlist_head *l;
 	struct dm_exception *e = NULL;
 
-	l = &eh->table[exception_hash(eh, new_e->old_chunk)];
+	l = &eh->table[exception_hash(eh, new_e->old_chunk)].head;
 
 	/* Add immediately if this table doesn't support consecutive chunks */
 	if (!eh->hash_shift)
 		goto out;
 
 	/* List is ordered by old_chunk */
-	hlist_bl_for_each_entry(e, pos, l, hash_list) {
+	hlist_for_each_entry(e, l, hash_list) {
 		/* Insert after an existing chunk? */
 		if (new_e->old_chunk == (e->old_chunk +
 					 dm_consecutive_chunk_count(e) + 1) &&
@@ -804,13 +810,13 @@ out:
 		 * Either the table doesn't support consecutive chunks or slot
 		 * l is empty.
 		 */
-		hlist_bl_add_head(&new_e->hash_list, l);
+		hlist_add_head(&new_e->hash_list, l);
 	} else if (new_e->old_chunk < e->old_chunk) {
 		/* Add before an existing exception */
-		hlist_bl_add_before(&new_e->hash_list, &e->hash_list);
+		hlist_add_before(&new_e->hash_list, &e->hash_list);
 	} else {
 		/* Add to l's tail: e is the last exception in this slot */
-		hlist_bl_add_behind(&new_e->hash_list, &e->hash_list);
+		hlist_add_behind(&new_e->hash_list, &e->hash_list);
 	}
 }
 
@@ -820,7 +826,6 @@ out:
  */
 static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 {
-	struct dm_exception_table_lock lock;
 	struct dm_snapshot *s = context;
 	struct dm_exception *e;
 
@@ -833,17 +838,7 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	/* Consecutive_count is implicitly initialised to zero */
 	e->new_chunk = new;
 
-	/*
-	 * Although there is no need to lock access to the exception tables
-	 * here, if we don't then hlist_bl_add_head(), called by
-	 * dm_insert_exception(), will complain about accessing the
-	 * corresponding list without locking it first.
-	 */
-	dm_exception_table_lock_init(s, old, &lock);
-
-	dm_exception_table_lock(&lock);
 	dm_insert_exception(&s->complete, e);
-	dm_exception_table_unlock(&lock);
 
 	return 0;
 }
@@ -873,7 +868,7 @@ static int calc_max_buckets(void)
 	/* use a fixed size of 2MB */
 	unsigned long mem = 2 * 1024 * 1024;
 
-	mem /= sizeof(struct hlist_bl_head);
+	mem /= sizeof(struct dm_hlist_head);
 
 	return mem;
 }

@@ -141,7 +141,7 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 
 	if (this_cpu_has(X86_FEATURE_XSAVE)) {
 		uint64_t supported_xcr0 = this_cpu_supported_xcr0();
-		uint8_t buffer[4096];
+		uint8_t buffer[PAGE_SIZE];
 
 		memset(buffer, 0xcc, sizeof(buffer));
 

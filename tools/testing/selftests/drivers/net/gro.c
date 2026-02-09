@@ -57,7 +57,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 #include "../../net/lib/ksft.h"
 
 #define DPORT 8000

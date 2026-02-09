@@ -20,7 +20,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define DELAY 2
 

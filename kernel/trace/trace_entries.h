@@ -80,11 +80,11 @@ FTRACE_ENTRY(funcgraph_entry, ftrace_graph_ent_entry,
 	F_STRUCT(
 		__field_struct(	struct ftrace_graph_ent,	graph_ent	)
 		__field_packed(	unsigned long,	graph_ent,	func		)
-		__field_packed(	unsigned int,	graph_ent,	depth		)
+		__field_packed(	unsigned long,	graph_ent,	depth		)
 		__dynamic_array(unsigned long,	args				)
 	),
 
-	F_printk("--> %ps (%u)", (void *)__entry->func, __entry->depth)
+	F_printk("--> %ps (%lu)", (void *)__entry->func, __entry->depth)
 );
 
 #ifdef CONFIG_FUNCTION_GRAPH_RETADDR
@@ -95,13 +95,14 @@ FTRACE_ENTRY_PACKED(fgraph_retaddr_entry, fgraph_retaddr_ent_entry,
 	TRACE_GRAPH_RETADDR_ENT,
 
 	F_STRUCT(
-		__field_struct(	struct fgraph_retaddr_ent,	graph_ent	)
-		__field_packed(	unsigned long,	graph_ent,	func		)
-		__field_packed(	unsigned int,	graph_ent,	depth		)
-		__field_packed(	unsigned long,	graph_ent,	retaddr		)
+		__field_struct(	struct fgraph_retaddr_ent,	graph_rent	)
+		__field_packed(	unsigned long,	graph_rent.ent,	func		)
+		__field_packed(	unsigned long,	graph_rent.ent,	depth		)
+		__field_packed(	unsigned long,	graph_rent,	retaddr		)
+		__dynamic_array(unsigned long,	args				)
 	),
 
-	F_printk("--> %ps (%u) <- %ps", (void *)__entry->func, __entry->depth,
+	F_printk("--> %ps (%lu) <- %ps", (void *)__entry->func, __entry->depth,
 		(void *)__entry->retaddr)
 );
 

@@ -128,9 +128,17 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	unsigned int i;
 	int ret = 1;
 
-	/* Careful in RCU mode */
-	if (!inode)
+	if (!inode) {
+		/*
+		 * Lookup of negative dentries will call ovl_dentry_init_flags()
+		 * with NULL upperdentry and NULL oe, resulting in the
+		 * DCACHE_OP*_REVALIDATE flags being cleared.  Hence the only
+		 * way to get a negative inode is due to a race with dentry
+		 * destruction.
+		 */
+		WARN_ON(!(flags & LOOKUP_RCU));
 		return -ECHILD;
+	}
 
 	oe = OVL_I_E(inode);
 	lowerstack = ovl_lowerstack(oe);

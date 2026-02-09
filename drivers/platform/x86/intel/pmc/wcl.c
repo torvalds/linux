@@ -11,6 +11,9 @@
 
 #include "core.h"
 
+/* PMC SSRAM PMT Telemetry GUIDS */
+#define PCDN_LPM_REQ_GUID 0x33747648
+
 static const struct pmc_bit_map wcl_pcdn_pfear_map[] = {
 	{"PMC_0",               BIT(0)},
 	{"FUSE_OSSE",           BIT(1)},
@@ -453,6 +456,17 @@ static const struct pmc_reg_map wcl_pcdn_reg_map = {
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
 	.s0ix_blocker_maps = wcl_pcdn_blk_maps,
 	.s0ix_blocker_offset = LNL_S0IX_BLOCKER_OFFSET,
+	.num_s0ix_blocker = WCL_NUM_S0IX_BLOCKER,
+	.blocker_req_offset = WCL_BLK_REQ_OFFSET,
+	.lpm_req_guid = PCDN_LPM_REQ_GUID,
+};
+
+static struct pmc_info wcl_pmc_info_list[] = {
+	{
+		.devid	= PMC_DEVID_WCL_PCDN,
+		.map	= &wcl_pcdn_reg_map,
+	},
+	{}
 };
 
 #define WCL_NPU_PCI_DEV                0xfd3e
@@ -479,8 +493,12 @@ static int wcl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 }
 
 struct pmc_dev_info wcl_pmc_dev = {
+	.pci_func = 2,
+	.regmap_list = wcl_pmc_info_list,
 	.map = &wcl_pcdn_reg_map,
+	.sub_req_show = &pmc_core_substate_blk_req_fops,
 	.suspend = cnl_suspend,
 	.resume = wcl_resume,
 	.init = wcl_core_init,
+	.sub_req = pmc_core_pmt_get_blk_sub_req,
 };

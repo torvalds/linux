@@ -4467,32 +4467,6 @@ qla2xxx_msix_rsp_q(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t
-qla2xxx_msix_rsp_q_hs(int irq, void *dev_id)
-{
-	struct qla_hw_data *ha;
-	struct qla_qpair *qpair;
-	struct device_reg_24xx __iomem *reg;
-	unsigned long flags;
-
-	qpair = dev_id;
-	if (!qpair) {
-		ql_log(ql_log_info, NULL, 0x505b,
-		    "%s: NULL response queue pointer.\n", __func__);
-		return IRQ_NONE;
-	}
-	ha = qpair->hw;
-
-	reg = &ha->iobase->isp24;
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	queue_work(ha->wq, &qpair->q_work);
-
-	return IRQ_HANDLED;
-}
-
 /* Interrupt handling helpers. */
 
 struct qla_init_msix_entry {
@@ -4505,7 +4479,6 @@ static const struct qla_init_msix_entry msix_entries[] = {
 	{ "rsp_q", qla24xx_msix_rsp_q },
 	{ "atio_q", qla83xx_msix_atio_q },
 	{ "qpair_multiq", qla2xxx_msix_rsp_q },
-	{ "qpair_multiq_hs", qla2xxx_msix_rsp_q_hs },
 };
 
 static const struct qla_init_msix_entry qla82xx_msix_entries[] = {
@@ -4792,9 +4765,10 @@ free_irqs:
 }
 
 int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
-	struct qla_msix_entry *msix, int vector_type)
+	struct qla_msix_entry *msix)
 {
-	const struct qla_init_msix_entry *intr = &msix_entries[vector_type];
+	const struct qla_init_msix_entry *intr =
+		&msix_entries[QLA_MSIX_QPAIR_MULTIQ_RSP_Q];
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	int ret;
 

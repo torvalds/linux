@@ -170,7 +170,7 @@ static int cdx_unregister_device(struct device *dev,
 	return 0;
 }
 
-static void cdx_unregister_devices(struct bus_type *bus)
+static void cdx_unregister_devices(const struct bus_type *bus)
 {
 	/* Reset all the devices attached to cdx bus */
 	bus_for_each_dev(bus, NULL, NULL, cdx_unregister_device);
@@ -651,7 +651,7 @@ static struct attribute *cdx_bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cdx_bus);
 
-struct bus_type cdx_bus_type = {
+const struct bus_type cdx_bus_type = {
 	.name		= "cdx",
 	.match		= cdx_bus_match,
 	.probe		= cdx_probe,

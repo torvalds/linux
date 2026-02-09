@@ -971,6 +971,12 @@
 			status = "disabled";
 		};
 
+		refgen: regulator@162f000 {
+			compatible = "qcom,sm6375-refgen-regulator",
+				     "qcom,sm8250-refgen-regulator";
+			reg = <0x0 0x0162f000 0x0 0x84>;
+		};
+
 		spmi_bus: spmi@1c40000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0 0x01c40000 0 0x1100>,

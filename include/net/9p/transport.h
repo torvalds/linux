@@ -14,6 +14,13 @@
 #define P9_DEF_MIN_RESVPORT	(665U)
 #define P9_DEF_MAX_RESVPORT	(1023U)
 
+#define P9_FD_PORT 564
+
+#define P9_RDMA_PORT		5640
+#define P9_RDMA_SQ_DEPTH	32
+#define P9_RDMA_RQ_DEPTH	32
+#define P9_RDMA_TIMEOUT		30000		/* 30 seconds */
+
 /**
  * struct p9_trans_module - transport module interface
  * @list: used to maintain a list of currently available transports
@@ -24,6 +31,9 @@
  *                   we're less flexible when choosing the response message
  *                   size in this case
  * @def: set if this transport should be considered the default
+ * @supports_vmalloc: set if this transport can work with vmalloc'd buffers
+ *                    (non-physically contiguous memory). Transports requiring
+ *                    DMA should leave this as false.
  * @create: member function to create a new connection on this transport
  * @close: member function to discard a connection on this transport
  * @request: member function to issue a request to the transport
@@ -43,10 +53,11 @@ struct p9_trans_module {
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
 	bool pooled_rbuffers;
-	int def;		/* this transport should be default */
+	bool def;		/* this transport should be default */
+	bool supports_vmalloc;	/* can work with vmalloc'd buffers */
 	struct module *owner;
 	int (*create)(struct p9_client *client,
-		      const char *devname, char *args);
+		      struct fs_context *fc);
 	void (*close)(struct p9_client *client);
 	int (*request)(struct p9_client *client, struct p9_req_t *req);
 	int (*cancel)(struct p9_client *client, struct p9_req_t *req);

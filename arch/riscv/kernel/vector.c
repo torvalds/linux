@@ -66,6 +66,8 @@ void __init riscv_v_setup_ctx_cache(void)
 	if (!(has_vector() || has_xtheadvector()))
 		return;
 
+	update_regset_vector_info(riscv_v_vsize);
+
 	riscv_v_user_cachep = kmem_cache_create_usercopy("riscv_vector_ctx",
 							 riscv_v_vsize, 16, SLAB_PANIC,
 							 0, riscv_v_vsize, NULL);

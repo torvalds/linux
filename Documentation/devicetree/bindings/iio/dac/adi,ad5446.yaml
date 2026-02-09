@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5446.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5446 and similar DACs
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+  - Nuno Sá <nuno.sa@analog.com>
+
+description:
+  Digital to Analog Converter devices supporting both SPI and I2C interfaces.
+  These devices feature a range of resolutions from 8-bit to 16-bit.
+
+properties:
+  compatible:
+    oneOf:
+      - description: SPI DACs
+        enum:
+          - adi,ad5300
+          - adi,ad5310
+          - adi,ad5320
+          - adi,ad5444
+          - adi,ad5446
+          - adi,ad5450
+          - adi,ad5451
+          - adi,ad5452
+          - adi,ad5453
+          - adi,ad5512a
+          - adi,ad5541a
+          - adi,ad5542
+          - adi,ad5542a
+          - adi,ad5543
+          - adi,ad5553
+          - adi,ad5600
+          - adi,ad5601
+          - adi,ad5611
+          - adi,ad5621
+          - adi,ad5641
+          - adi,ad5620-2500
+          - adi,ad5620-1250
+          - adi,ad5640-2500
+          - adi,ad5640-1250
+          - adi,ad5660-2500
+          - adi,ad5660-1250
+          - adi,ad5662
+          - ti,dac081s101
+          - ti,dac101s101
+          - ti,dac121s101
+      - description: I2C DACs
+        enum:
+          - adi,ad5301
+          - adi,ad5311
+          - adi,ad5321
+          - adi,ad5602
+          - adi,ad5612
+          - adi,ad5622
+
+  reg:
+    maxItems: 1
+
+  vcc-supply:
+    description:
+      Reference voltage supply. If not supplied, devices with internal
+      voltage reference will use that.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad5300
+              - adi,ad5310
+              - adi,ad5320
+              - adi,ad5444
+              - adi,ad5446
+              - adi,ad5450
+              - adi,ad5451
+              - adi,ad5452
+              - adi,ad5453
+              - adi,ad5512a
+              - adi,ad5541a
+              - adi,ad5542
+              - adi,ad5542a
+              - adi,ad5543
+              - adi,ad5553
+              - adi,ad5600
+              - adi,ad5601
+              - adi,ad5611
+              - adi,ad5621
+              - adi,ad5641
+              - adi,ad5620-2500
+              - adi,ad5620-1250
+              - adi,ad5640-2500
+              - adi,ad5640-1250
+              - adi,ad5660-2500
+              - adi,ad5660-1250
+              - adi,ad5662
+              - ti,dac081s101
+              - ti,dac101s101
+              - ti,dac121s101
+    then:
+      allOf:
+        - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@0 {
+            compatible = "adi,ad5446";
+            reg = <0>;
+            vcc-supply = <&dac_vref>;
+        };
+    };
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dac@42 {
+            compatible = "adi,ad5622";
+            reg = <0x42>;
+            vcc-supply = <&dac_vref>;
+        };
+    };
+...

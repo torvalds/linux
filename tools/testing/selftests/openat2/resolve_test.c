@@ -14,7 +14,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "helpers.h"
 
 /*

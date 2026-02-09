@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event tracing - enable/disable with top level files
-# requires: available_events set_event events/enable
+# requires: set_event events/enable
+# flags: instance
 
 do_reset() {
     echo > set_event

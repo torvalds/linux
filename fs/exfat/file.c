@@ -25,6 +25,8 @@ static int exfat_cont_expand(struct inode *inode, loff_t size)
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_chain clu;
 
+	truncate_pagecache(inode, i_size_read(inode));
+
 	ret = inode_newsize_ok(inode, size);
 	if (ret)
 		return ret;
@@ -638,6 +640,9 @@ static ssize_t exfat_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 		return -EIO;
 
 	inode_lock(inode);
+
+	if (pos > i_size_read(inode))
+		truncate_pagecache(inode, i_size_read(inode));
 
 	valid_size = ei->valid_size;
 

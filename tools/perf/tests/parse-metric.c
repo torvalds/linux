@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <errno.h>
 #include <string.h>
 #include <perf/cpumap.h>
 #include <perf/evlist.h>
@@ -40,8 +41,6 @@ static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 		count = find_value(evsel->name, vals);
 		evsel->supported = true;
 		evsel->stats->aggr->counts.val = count;
-		if (evsel__name_is(evsel, "duration_time"))
-			update_stats(&walltime_nsecs_stats, count);
 	}
 }
 

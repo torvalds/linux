@@ -76,14 +76,14 @@ static int amd_pmf_set_cnqf(struct amd_pmf_dev *dev, int src, int idx,
 
 	pc = &config_store.mode_set[src][idx].power_control;
 
-	amd_pmf_send_cmd(dev, SET_SPL, false, pc->spl, NULL);
-	amd_pmf_send_cmd(dev, SET_FPPT, false, pc->fppt, NULL);
-	amd_pmf_send_cmd(dev, SET_SPPT, false, pc->sppt, NULL);
-	amd_pmf_send_cmd(dev, SET_SPPT_APU_ONLY, false, pc->sppt_apu_only, NULL);
-	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false, pc->stt_min, NULL);
-	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
+	amd_pmf_send_cmd(dev, SET_SPL, SET_CMD, pc->spl, NULL);
+	amd_pmf_send_cmd(dev, SET_FPPT, SET_CMD, pc->fppt, NULL);
+	amd_pmf_send_cmd(dev, SET_SPPT, SET_CMD, pc->sppt, NULL);
+	amd_pmf_send_cmd(dev, SET_SPPT_APU_ONLY, SET_CMD, pc->sppt_apu_only, NULL);
+	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, SET_CMD, pc->stt_min, NULL);
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, SET_CMD,
 			 fixp_q88_fromint(pc->stt_skin_temp[STT_TEMP_APU]), NULL);
-	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, SET_CMD,
 			 fixp_q88_fromint(pc->stt_skin_temp[STT_TEMP_HS2]), NULL);
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_SET_FAN_IDX))

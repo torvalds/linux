@@ -229,11 +229,11 @@ static void setup_ptwalker(void)
 	if (cpu_has_ptw)
 		pwctl1 |= CSR_PWCTL1_PTW;
 
-	csr_write64(pwctl0, LOONGARCH_CSR_PWCTL0);
-	csr_write64(pwctl1, LOONGARCH_CSR_PWCTL1);
-	csr_write64((long)swapper_pg_dir, LOONGARCH_CSR_PGDH);
-	csr_write64((long)invalid_pg_dir, LOONGARCH_CSR_PGDL);
-	csr_write64((long)smp_processor_id(), LOONGARCH_CSR_TMID);
+	csr_write(pwctl0, LOONGARCH_CSR_PWCTL0);
+	csr_write(pwctl1, LOONGARCH_CSR_PWCTL1);
+	csr_write((long)swapper_pg_dir, LOONGARCH_CSR_PGDH);
+	csr_write((long)invalid_pg_dir, LOONGARCH_CSR_PGDL);
+	csr_write((long)smp_processor_id(), LOONGARCH_CSR_TMID);
 }
 
 static void output_pgtable_bits_defines(void)
@@ -251,8 +251,10 @@ static void output_pgtable_bits_defines(void)
 	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
 	pr_define("_PAGE_PRESENT_SHIFT %d\n", _PAGE_PRESENT_SHIFT);
 	pr_define("_PAGE_WRITE_SHIFT %d\n", _PAGE_WRITE_SHIFT);
+#ifdef CONFIG_64BIT
 	pr_define("_PAGE_NO_READ_SHIFT %d\n", _PAGE_NO_READ_SHIFT);
 	pr_define("_PAGE_NO_EXEC_SHIFT %d\n", _PAGE_NO_EXEC_SHIFT);
+#endif
 	pr_define("PFN_PTE_SHIFT %d\n", PFN_PTE_SHIFT);
 	pr_debug("\n");
 }

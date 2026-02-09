@@ -205,7 +205,7 @@ static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain
 				cur_cmap_i = next_cmap_i;
 			}
 
-			err = exfat_clear_bitmap(inode, clu, (sync && IS_DIRSYNC(inode)));
+			err = exfat_clear_bitmap(sb, clu, (sync && IS_DIRSYNC(inode)));
 			if (err)
 				break;
 			clu++;
@@ -233,7 +233,7 @@ static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain
 				cur_cmap_i = next_cmap_i;
 			}
 
-			if (exfat_clear_bitmap(inode, clu, (sync && IS_DIRSYNC(inode))))
+			if (exfat_clear_bitmap(sb, clu, (sync && IS_DIRSYNC(inode))))
 				break;
 
 			if (sbi->options.discard) {
@@ -409,7 +409,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 		}
 
 		/* update allocation bitmap */
-		if (exfat_set_bitmap(inode, new_clu, sync_bmap)) {
+		if (exfat_set_bitmap(sb, new_clu, sync_bmap)) {
 			ret = -EIO;
 			goto free_cluster;
 		}

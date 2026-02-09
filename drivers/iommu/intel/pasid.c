@@ -366,7 +366,7 @@ static void pasid_pte_config_first_level(struct intel_iommu *iommu,
 
 	pasid_set_domain_id(pte, did);
 	pasid_set_address_width(pte, iommu->agaw);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	pasid_set_page_snoop(pte, flags & PASID_FLAG_PWSNP);
 
 	/* Setup Present and PASID Granular Transfer Type: */
 	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_FL_ONLY);
@@ -461,19 +461,22 @@ int intel_pasid_replace_first_level(struct intel_iommu *iommu,
  */
 static void pasid_pte_config_second_level(struct intel_iommu *iommu,
 					  struct pasid_entry *pte,
-					  u64 pgd_val, int agaw, u16 did,
-					  bool dirty_tracking)
+					  struct dmar_domain *domain, u16 did)
 {
+	struct pt_iommu_vtdss_hw_info pt_info;
+
 	lockdep_assert_held(&iommu->lock);
 
+	pt_iommu_vtdss_hw_info(&domain->sspt, &pt_info);
 	pasid_clear_entry(pte);
 	pasid_set_domain_id(pte, did);
-	pasid_set_slptr(pte, pgd_val);
-	pasid_set_address_width(pte, agaw);
+	pasid_set_slptr(pte, pt_info.ssptptr);
+	pasid_set_address_width(pte, pt_info.aw);
 	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_SL_ONLY);
 	pasid_set_fault_enable(pte);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
-	if (dirty_tracking)
+	pasid_set_page_snoop(pte, !(domain->sspt.vtdss_pt.common.features &
+				    BIT(PT_FEAT_DMA_INCOHERENT)));
+	if (domain->dirty_tracking)
 		pasid_set_ssade(pte);
 
 	pasid_set_present(pte);
@@ -484,9 +487,8 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 				   struct device *dev, u32 pasid)
 {
 	struct pasid_entry *pte;
-	struct dma_pte *pgd;
-	u64 pgd_val;
 	u16 did;
+
 
 	/*
 	 * If hardware advertises no support for second level
@@ -498,8 +500,6 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 		return -EINVAL;
 	}
 
-	pgd = domain->pgd;
-	pgd_val = virt_to_phys(pgd);
 	did = domain_id_iommu(domain, iommu);
 
 	spin_lock(&iommu->lock);
@@ -514,8 +514,7 @@ int intel_pasid_setup_second_level(struct intel_iommu *iommu,
 		return -EBUSY;
 	}
 
-	pasid_pte_config_second_level(iommu, pte, pgd_val, domain->agaw,
-				      did, domain->dirty_tracking);
+	pasid_pte_config_second_level(iommu, pte, domain, did);
 	spin_unlock(&iommu->lock);
 
 	pasid_flush_caches(iommu, pte, pasid, did);
@@ -529,8 +528,6 @@ int intel_pasid_replace_second_level(struct intel_iommu *iommu,
 				     u32 pasid)
 {
 	struct pasid_entry *pte, new_pte;
-	struct dma_pte *pgd;
-	u64 pgd_val;
 	u16 did;
 
 	/*
@@ -543,13 +540,9 @@ int intel_pasid_replace_second_level(struct intel_iommu *iommu,
 		return -EINVAL;
 	}
 
-	pgd = domain->pgd;
-	pgd_val = virt_to_phys(pgd);
 	did = domain_id_iommu(domain, iommu);
 
-	pasid_pte_config_second_level(iommu, &new_pte, pgd_val,
-				      domain->agaw, did,
-				      domain->dirty_tracking);
+	pasid_pte_config_second_level(iommu, &new_pte, domain, did);
 
 	spin_lock(&iommu->lock);
 	pte = intel_pasid_get_entry(dev, pasid);
@@ -747,9 +740,11 @@ static void pasid_pte_config_nestd(struct intel_iommu *iommu,
 				   struct dmar_domain *s2_domain,
 				   u16 did)
 {
-	struct dma_pte *pgd = s2_domain->pgd;
+	struct pt_iommu_vtdss_hw_info pt_info;
 
 	lockdep_assert_held(&iommu->lock);
+
+	pt_iommu_vtdss_hw_info(&s2_domain->sspt, &pt_info);
 
 	pasid_clear_entry(pte);
 
@@ -770,11 +765,12 @@ static void pasid_pte_config_nestd(struct intel_iommu *iommu,
 	if (s2_domain->force_snooping)
 		pasid_set_pgsnp(pte);
 
-	pasid_set_slptr(pte, virt_to_phys(pgd));
+	pasid_set_slptr(pte, pt_info.ssptptr);
 	pasid_set_fault_enable(pte);
 	pasid_set_domain_id(pte, did);
-	pasid_set_address_width(pte, s2_domain->agaw);
-	pasid_set_page_snoop(pte, !!ecap_smpwc(iommu->ecap));
+	pasid_set_address_width(pte, pt_info.aw);
+	pasid_set_page_snoop(pte, !(s2_domain->sspt.vtdss_pt.common.features &
+				    BIT(PT_FEAT_DMA_INCOHERENT)));
 	if (s2_domain->dirty_tracking)
 		pasid_set_ssade(pte);
 	pasid_set_translation_type(pte, PASID_ENTRY_PGTT_NESTED);

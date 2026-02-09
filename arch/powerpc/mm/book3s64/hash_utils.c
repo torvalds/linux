@@ -47,6 +47,7 @@
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>
+#include <asm/pgalloc.h>
 #include <asm/types.h>
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
@@ -449,6 +450,7 @@ static __init void hash_kfence_map_pool(void)
 {
 	unsigned long kfence_pool_start, kfence_pool_end;
 	unsigned long prot = pgprot_val(PAGE_KERNEL);
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	if (!kfence_pool)
 		return;
@@ -459,6 +461,7 @@ static __init void hash_kfence_map_pool(void)
 	BUG_ON(htab_bolt_mapping(kfence_pool_start, kfence_pool_end,
 				    kfence_pool, prot, mmu_linear_psize,
 				    mmu_kernel_ssize));
+	update_page_count(mmu_linear_psize, KFENCE_POOL_SIZE >> pshift);
 	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
 }
 
@@ -952,7 +955,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	block_size = be64_to_cpu(addr_prop[1]);
 	if (block_size != (16 * GB))
 		return 0;
-	printk(KERN_INFO "Huge page(16GB) memory: "
+	pr_info("Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
 	if (phys_addr + block_size * expected_pages <= memblock_end_of_DRAM()) {
@@ -1135,7 +1138,7 @@ static void __init htab_init_page_sizes(void)
 		mmu_vmemmap_psize = mmu_virtual_psize;
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	printk(KERN_DEBUG "Page orders: linear mapping = %d, "
+	pr_info("Page orders: linear mapping = %d, "
 	       "virtual = %d, io = %d"
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	       ", vmemmap = %d"
@@ -1234,6 +1237,7 @@ int hash__create_section_mapping(unsigned long start, unsigned long end,
 				 int nid, pgprot_t prot)
 {
 	int rc;
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	if (end >= H_VMALLOC_START) {
 		pr_warn("Outside the supported range\n");
@@ -1251,17 +1255,22 @@ int hash__create_section_mapping(unsigned long start, unsigned long end,
 					      mmu_kernel_ssize);
 		BUG_ON(rc2 && (rc2 != -ENOENT));
 	}
+	update_page_count(mmu_linear_psize, (end - start) >> pshift);
 	return rc;
 }
 
 int hash__remove_section_mapping(unsigned long start, unsigned long end)
 {
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
+
 	int rc = htab_remove_mapping(start, end, mmu_linear_psize,
 				     mmu_kernel_ssize);
 
 	if (resize_hpt_for_hotplug(memblock_phys_mem_size()) == -ENOSPC)
 		pr_warn("Hash collision while resizing HPT\n");
 
+	if (!rc)
+		update_page_count(mmu_linear_psize, -((end - start) >> pshift));
 	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
@@ -1302,19 +1311,26 @@ static void __init htab_initialize(void)
 	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long prot;
-	phys_addr_t base = 0, size = 0, end;
+	phys_addr_t base = 0, size = 0, end, limit = MEMBLOCK_ALLOC_ANYWHERE;
 	u64 i;
+	unsigned int pshift = mmu_psize_defs[mmu_linear_psize].shift;
 
 	DBG(" -> htab_initialize()\n");
+
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		limit = ppc64_rma_size;
 
 	if (mmu_has_feature(MMU_FTR_1T_SEGMENT)) {
 		mmu_kernel_ssize = MMU_SEGSIZE_1T;
 		mmu_highuser_ssize = MMU_SEGSIZE_1T;
-		printk(KERN_INFO "Using 1TB segments\n");
+		pr_info("Using 1TB segments\n");
 	}
 
 	if (stress_slb_enabled)
 		static_branch_enable(&stress_slb_key);
+
+	if (no_slb_preload)
+		static_branch_enable(&no_slb_preload_key);
 
 	if (stress_hpt_enabled) {
 		unsigned long tmp;
@@ -1322,7 +1338,7 @@ static void __init htab_initialize(void)
 		// Too early to use nr_cpu_ids, so use NR_CPUS
 		tmp = memblock_phys_alloc_range(sizeof(struct stress_hpt_struct) * NR_CPUS,
 						__alignof__(struct stress_hpt_struct),
-						0, MEMBLOCK_ALLOC_ANYWHERE);
+						MEMBLOCK_LOW_LIMIT, limit);
 		memset((void *)tmp, 0xff, sizeof(struct stress_hpt_struct) * NR_CPUS);
 		stress_hpt_struct = __va(tmp);
 
@@ -1356,11 +1372,10 @@ static void __init htab_initialize(void)
 			mmu_hash_ops.hpte_clear_all();
 #endif
 	} else {
-		unsigned long limit = MEMBLOCK_ALLOC_ANYWHERE;
 
 		table = memblock_phys_alloc_range(htab_size_bytes,
 						  htab_size_bytes,
-						  0, limit);
+						  MEMBLOCK_LOW_LIMIT, limit);
 		if (!table)
 			panic("ERROR: Failed to allocate %pa bytes below %pa\n",
 			      &htab_size_bytes, &limit);
@@ -1392,8 +1407,8 @@ static void __init htab_initialize(void)
 		size = end - base;
 		base = (unsigned long)__va(base);
 
-		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
-		    base, size, prot);
+		pr_debug("creating mapping for region: 0x%pa..0x%pa (prot: %lx)\n",
+				&base, &size, prot);
 
 		if ((base + size) >= H_VMALLOC_START) {
 			pr_warn("Outside the supported range\n");
@@ -1402,6 +1417,8 @@ static void __init htab_initialize(void)
 
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
+
+		update_page_count(mmu_linear_psize, size >> pshift);
 	}
 	hash_kfence_map_pool();
 	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
@@ -1423,6 +1440,8 @@ static void __init htab_initialize(void)
 		BUG_ON(htab_bolt_mapping(tce_alloc_start, tce_alloc_end,
 					 __pa(tce_alloc_start), prot,
 					 mmu_linear_psize, mmu_kernel_ssize));
+		update_page_count(mmu_linear_psize,
+				  (tce_alloc_end - tce_alloc_start) >> pshift);
 	}
 
 
@@ -1867,7 +1886,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea,
 			 * in vmalloc space, so switch vmalloc
 			 * to 4k pages
 			 */
-			printk(KERN_ALERT "Reducing vmalloc segment "
+			pr_alert("Reducing vmalloc segment "
 			       "to 4kB pages because of "
 			       "non-cacheable mapping\n");
 			psize = mmu_vmalloc_psize = MMU_PAGE_4K;
@@ -2432,6 +2451,8 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n")
 
 static int __init hash64_debugfs(void)
 {
+	if (radix_enabled())
+		return 0;
 	debugfs_create_file("hpt_order", 0600, arch_debugfs_dir, NULL,
 			    &fops_hpt_order);
 	return 0;

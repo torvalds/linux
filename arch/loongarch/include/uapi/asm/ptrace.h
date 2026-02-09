@@ -61,8 +61,13 @@ struct user_lbt_state {
 struct user_watch_state {
 	__u64 dbg_info;
 	struct {
+#if __BITS_PER_LONG == 32
+		__u32    addr;
+		__u32    mask;
+#else
 		__u64    addr;
 		__u64    mask;
+#endif
 		__u32    ctrl;
 		__u32    pad;
 	} dbg_regs[8];
@@ -71,8 +76,13 @@ struct user_watch_state {
 struct user_watch_state_v2 {
 	__u64 dbg_info;
 	struct {
+#if __BITS_PER_LONG == 32
+		__u32    addr;
+		__u32    mask;
+#else
 		__u64    addr;
 		__u64    mask;
+#endif
 		__u32    ctrl;
 		__u32    pad;
 	} dbg_regs[14];

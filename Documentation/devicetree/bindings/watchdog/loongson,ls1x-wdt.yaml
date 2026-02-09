@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/loongson,ls1x-wdt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Loongson-1 Watchdog Timer
+title: Loongson Watchdog Timer
 
 maintainers:
   - Keguang Zhang <keguang.zhang@gmail.com>
@@ -17,6 +17,7 @@ properties:
     enum:
       - loongson,ls1b-wdt
       - loongson,ls1c-wdt
+      - loongson,ls2k0300-wdt
 
   reg:
     maxItems: 1

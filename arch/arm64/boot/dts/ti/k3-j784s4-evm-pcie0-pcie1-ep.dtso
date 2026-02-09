@@ -75,5 +75,6 @@
 		dma-coherent;
 		phys = <&serdes0_pcie1_link>;
 		phy-names = "pcie-phy";
+		bootph-all;
 	};
 };

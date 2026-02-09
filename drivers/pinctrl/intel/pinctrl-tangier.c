@@ -562,8 +562,7 @@ static int tng_pinctrl_probe(struct platform_device *pdev,
 
 	tp->pctldev = devm_pinctrl_register(dev, &tp->pctldesc, tp);
 	if (IS_ERR(tp->pctldev))
-		return dev_err_probe(dev, PTR_ERR(tp->pctldev),
-				     "failed to register pinctrl driver\n");
+		return dev_err_probe(dev, PTR_ERR(tp->pctldev), "failed to register pinctrl\n");
 
 	return 0;
 }

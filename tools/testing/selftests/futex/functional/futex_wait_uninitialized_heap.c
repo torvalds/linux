@@ -30,7 +30,7 @@
 #include <libgen.h>
 
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define WAIT_US 5000000
 

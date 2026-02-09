@@ -190,7 +190,6 @@ MODULE_PARM_DESC(rx_timeout, "Rx timeout, 1-255");
  * @port:		Pointer to the UART port
  * @uartclk:		Reference clock
  * @pclk:		APB clock
- * @cdns_uart_driver:	Pointer to UART driver
  * @baud:		Current baud rate
  * @clk_rate_change_nb:	Notifier block for clock changes
  * @quirks:		Flags for RXBS support.
@@ -204,7 +203,6 @@ struct cdns_uart {
 	struct uart_port	*port;
 	struct clk		*uartclk;
 	struct clk		*pclk;
-	struct uart_driver	*cdns_uart_driver;
 	unsigned int		baud;
 	struct notifier_block	clk_rate_change_nb;
 	u32			quirks;
@@ -430,10 +428,17 @@ static void cdns_uart_handle_tx(void *dev_id)
 	struct tty_port *tport = &port->state->port;
 	unsigned int numbytes;
 	unsigned char ch;
+	ktime_t rts_delay;
 
 	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		/* Disable the TX Empty interrupt */
 		writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IDR);
+		/* Set RTS line after delay */
+		if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED) {
+			cdns_uart->tx_timer.function = &cdns_rs485_rx_callback;
+			rts_delay = ns_to_ktime(cdns_calc_after_tx_delay(cdns_uart));
+			hrtimer_start(&cdns_uart->tx_timer, rts_delay, HRTIMER_MODE_REL);
+		}
 		return;
 	}
 
@@ -450,13 +455,6 @@ static void cdns_uart_handle_tx(void *dev_id)
 
 	/* Enable the TX Empty interrupt */
 	writel(CDNS_UART_IXR_TXEMPTY, cdns_uart->port->membase + CDNS_UART_IER);
-
-	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED &&
-	    (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))) {
-		hrtimer_update_function(&cdns_uart->tx_timer, cdns_rs485_rx_callback);
-		hrtimer_start(&cdns_uart->tx_timer,
-			      ns_to_ktime(cdns_calc_after_tx_delay(cdns_uart)), HRTIMER_MODE_REL);
-	}
 }
 
 /**
@@ -1465,7 +1463,6 @@ static struct console cdns_uart_console = {
 static int cdns_uart_suspend(struct device *device)
 {
 	struct uart_port *port = dev_get_drvdata(device);
-	struct cdns_uart *cdns_uart = port->private_data;
 	int may_wake;
 
 	may_wake = device_may_wakeup(device);
@@ -1489,7 +1486,7 @@ static int cdns_uart_suspend(struct device *device)
 	 * Call the API provided in serial_core.c file which handles
 	 * the suspend.
 	 */
-	return uart_suspend_port(cdns_uart->cdns_uart_driver, port);
+	return uart_suspend_port(&cdns_uart_uart_driver, port);
 }
 
 /**
@@ -1550,7 +1547,7 @@ static int cdns_uart_resume(struct device *device)
 		uart_port_unlock_irqrestore(port, flags);
 	}
 
-	return uart_resume_port(cdns_uart->cdns_uart_driver, port);
+	return uart_resume_port(&cdns_uart_uart_driver, port);
 }
 #endif /* ! CONFIG_PM_SLEEP */
 static int __maybe_unused cdns_runtime_suspend(struct device *dev)
@@ -1685,8 +1682,6 @@ static int cdns_uart_probe(struct platform_device *pdev)
 			return rc;
 		}
 	}
-
-	cdns_uart_data->cdns_uart_driver = &cdns_uart_uart_driver;
 
 	match = of_match_node(cdns_uart_of_match, pdev->dev.of_node);
 	if (match && match->data) {
@@ -1862,7 +1857,7 @@ err_out_clk_dis_pclk:
 	clk_disable_unprepare(cdns_uart_data->pclk);
 err_out_unregister_driver:
 	if (!instances)
-		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
+		uart_unregister_driver(&cdns_uart_uart_driver);
 	return rc;
 }
 
@@ -1880,7 +1875,7 @@ static void cdns_uart_remove(struct platform_device *pdev)
 	clk_notifier_unregister(cdns_uart_data->uartclk,
 			&cdns_uart_data->clk_rate_change_nb);
 #endif
-	uart_remove_one_port(cdns_uart_data->cdns_uart_driver, port);
+	uart_remove_one_port(&cdns_uart_uart_driver, port);
 	port->mapbase = 0;
 	clk_disable_unprepare(cdns_uart_data->uartclk);
 	clk_disable_unprepare(cdns_uart_data->pclk);
@@ -1896,7 +1891,7 @@ static void cdns_uart_remove(struct platform_device *pdev)
 	reset_control_assert(cdns_uart_data->rstc);
 
 	if (!--instances)
-		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
+		uart_unregister_driver(&cdns_uart_uart_driver);
 }
 
 static struct platform_driver cdns_uart_platform_driver = {

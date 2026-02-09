@@ -11,8 +11,6 @@
 #ifndef _COMMON_SMB_GLOB_H
 #define _COMMON_SMB_GLOB_H
 
-#define SMB1_PROTO_NUMBER		cpu_to_le32(0x424d53ff)
-
 struct smb_version_values {
 	char		*version_string;
 	__u16		protocol_id;
@@ -26,7 +24,6 @@ struct smb_version_values {
 	__u32		exclusive_lock_type;
 	__u32		shared_lock_type;
 	__u32		unlock_lock_type;
-	size_t		header_preamble_size;
 	size_t		header_size;
 	size_t		max_header_size;
 	size_t		read_rsp_size;

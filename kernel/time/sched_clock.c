@@ -296,6 +296,11 @@ int sched_clock_suspend(void)
 	return 0;
 }
 
+static int sched_clock_syscore_suspend(void *data)
+{
+	return sched_clock_suspend();
+}
+
 void sched_clock_resume(void)
 {
 	struct clock_read_data *rd = &cd.read_data[0];
@@ -305,14 +310,23 @@ void sched_clock_resume(void)
 	rd->read_sched_clock = cd.actual_read_sched_clock;
 }
 
-static struct syscore_ops sched_clock_ops = {
-	.suspend	= sched_clock_suspend,
-	.resume		= sched_clock_resume,
+static void sched_clock_syscore_resume(void *data)
+{
+	sched_clock_resume();
+}
+
+static const struct syscore_ops sched_clock_syscore_ops = {
+	.suspend	= sched_clock_syscore_suspend,
+	.resume		= sched_clock_syscore_resume,
+};
+
+static struct syscore sched_clock_syscore = {
+	.ops = &sched_clock_syscore_ops,
 };
 
 static int __init sched_clock_syscore_init(void)
 {
-	register_syscore_ops(&sched_clock_ops);
+	register_syscore(&sched_clock_syscore);
 
 	return 0;
 }

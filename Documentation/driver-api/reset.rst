@@ -218,4 +218,3 @@ devm_reset_controller_register().
                reset_controller_register
                reset_controller_unregister
                devm_reset_controller_register
-               reset_controller_add_lookup

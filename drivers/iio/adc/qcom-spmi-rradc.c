@@ -769,7 +769,7 @@ static int rradc_read_raw(struct iio_dev *indio_dev,
 static int rradc_read_label(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, char *label)
 {
-	return snprintf(label, PAGE_SIZE, "%s\n",
+	return sysfs_emit(label, "%s\n",
 			rradc_chans[chan->address].label);
 }
 

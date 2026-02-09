@@ -193,6 +193,7 @@ SYM_FUNC_START(__sie64a)
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r14) # copy thread flags
 	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
 	mvi	__TI_sie(%r14),1
+	stosm	__SF_SIE_IRQ(%r15),0x03		# enable interrupts
 	lctlg	%c1,%c1,__SF_SIE_GUEST_ASCE(%r15) # load primary asce
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
@@ -216,6 +217,7 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__LC_CURRENT(%r14)
 	mvi	__TI_sie(%r14),0
 SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
+	stnsm	__SF_SIE_IRQ(%r15),0xfc		# disable interrupts
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	xgr	%r0,%r0				# clear guest registers to

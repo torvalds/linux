@@ -281,6 +281,15 @@ static int tcf_mirred_to_dev(struct sk_buff *skb, struct tcf_mirred *m,
 
 	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
 
+	if (dev == skb->dev && want_ingress == at_ingress) {
+		pr_notice_once("tc mirred: Loop (%s:%s --> %s:%s)\n",
+			       netdev_name(skb->dev),
+			       at_ingress ? "ingress" : "egress",
+			       netdev_name(dev),
+			       want_ingress ? "ingress" : "egress");
+		goto err_cant_do;
+	}
+
 	/* All mirred/redirected skbs should clear previous ct info */
 	nf_reset_ct(skb_to_send);
 	if (want_ingress && !at_ingress) /* drop dst for egress -> ingress */

@@ -216,7 +216,7 @@ static const char *mt6360_channel_labels[MT6360_CHAN_MAX] = {
 static int mt6360_adc_read_label(struct iio_dev *iio_dev, const struct iio_chan_spec *chan,
 				 char *label)
 {
-	return snprintf(label, PAGE_SIZE, "%s\n", mt6360_channel_labels[chan->channel]);
+	return sysfs_emit(label, "%s\n", mt6360_channel_labels[chan->channel]);
 }
 
 static const struct iio_info mt6360_adc_iio_info = {

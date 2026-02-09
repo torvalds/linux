@@ -14,7 +14,7 @@ description: The STMicroelectronics sensor devices are pretty straight-forward
 
 maintainers:
   - Denis Ciocca <denis.ciocca@st.com>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 properties:
   compatible:

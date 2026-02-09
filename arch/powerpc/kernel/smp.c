@@ -1085,6 +1085,29 @@ static int __init init_big_cores(void)
 	return 0;
 }
 
+/*
+ * die_mask and die_id are only available on systems which support
+ * multiple coregroups within a same package. On all other systems, die_mask
+ * would be same as package mask and die_id would be set to -1.
+ */
+const struct cpumask *cpu_die_mask(int cpu)
+{
+	if (has_coregroup_support())
+		return per_cpu(cpu_coregroup_map, cpu);
+	else
+		return cpu_node_mask(cpu);
+}
+EXPORT_SYMBOL_GPL(cpu_die_mask);
+
+int cpu_die_id(int cpu)
+{
+	if (has_coregroup_support())
+		return cpu_to_coregroup_id(cpu);
+	else
+		return -1;
+}
+EXPORT_SYMBOL_GPL(cpu_die_id);
+
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int cpu, num_threads;

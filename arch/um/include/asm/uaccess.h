@@ -15,11 +15,6 @@
 	(((unsigned long) (addr) < TASK_SIZE) && \
 	 (((unsigned long) (addr) + (size)) < TASK_SIZE))
 
-#define __access_ok_vsyscall(addr, size) \
-	  (((unsigned long) (addr) >= FIXADDR_USER_START) && \
-	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
-	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr)))
-
 #define __addr_range_nowrap(addr, size) \
 	((unsigned long) (addr) <= ((unsigned long) (addr) + (size)))
 
@@ -40,9 +35,7 @@ static inline int __access_ok(const void __user *ptr, unsigned long size);
 static inline int __access_ok(const void __user *ptr, unsigned long size)
 {
 	unsigned long addr = (unsigned long)ptr;
-	return __addr_range_nowrap(addr, size) &&
-		(__under_task_size(addr, size) ||
-		 __access_ok_vsyscall(addr, size));
+	return __addr_range_nowrap(addr, size) && __under_task_size(addr, size);
 }
 
 #define __get_kernel_nofault(dst, src, type, err_label)			\

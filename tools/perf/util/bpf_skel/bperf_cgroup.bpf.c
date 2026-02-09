@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 // Copyright (c) 2021 Facebook
 // Copyright (c) 2021 Google
+#include "bperf_cgroup.h"
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-
-#define MAX_LEVELS  10  // max cgroup hierarchy level: arbitrary
-#define MAX_EVENTS  32  // max events per cgroup: arbitrary
 
 // NOTE: many of map and global data will be modified before loading
 //       from the userspace (perf tool) using the skeleton helpers.
@@ -97,7 +95,7 @@ static inline int get_cgroup_v1_idx(__u32 *cgrps, int size)
 	cgrp = BPF_CORE_READ(p, cgroups, subsys[perf_subsys_id], cgroup);
 	level = BPF_CORE_READ(cgrp, level);
 
-	for (cnt = 0; i < MAX_LEVELS; i++) {
+	for (cnt = 0; i < BPERF_CGROUP__MAX_LEVELS; i++) {
 		__u64 cgrp_id;
 
 		if (i > level)
@@ -123,7 +121,7 @@ static inline int get_cgroup_v2_idx(__u32 *cgrps, int size)
 	__u32 *elem;
 	int cnt;
 
-	for (cnt = 0; i < MAX_LEVELS; i++) {
+	for (cnt = 0; i < BPERF_CGROUP__MAX_LEVELS; i++) {
 		__u64 cgrp_id = bpf_get_current_ancestor_cgroup_id(i);
 
 		if (cgrp_id == 0)
@@ -148,17 +146,17 @@ static int bperf_cgroup_count(void)
 	register int c = 0;
 	struct bpf_perf_event_value val, delta, *prev_val, *cgrp_val;
 	__u32 cpu = bpf_get_smp_processor_id();
-	__u32 cgrp_idx[MAX_LEVELS];
+	__u32 cgrp_idx[BPERF_CGROUP__MAX_LEVELS];
 	int cgrp_cnt;
 	__u32 key, cgrp;
 	long err;
 
 	if (use_cgroup_v2)
-		cgrp_cnt = get_cgroup_v2_idx(cgrp_idx, MAX_LEVELS);
+		cgrp_cnt = get_cgroup_v2_idx(cgrp_idx, BPERF_CGROUP__MAX_LEVELS);
 	else
-		cgrp_cnt = get_cgroup_v1_idx(cgrp_idx, MAX_LEVELS);
+		cgrp_cnt = get_cgroup_v1_idx(cgrp_idx, BPERF_CGROUP__MAX_LEVELS);
 
-	for ( ; idx < MAX_EVENTS; idx++) {
+	for ( ; idx < BPERF_CGROUP__MAX_EVENTS; idx++) {
 		if (idx == num_events)
 			break;
 
@@ -186,7 +184,7 @@ static int bperf_cgroup_count(void)
 			delta.enabled = val.enabled - prev_val->enabled;
 			delta.running = val.running - prev_val->running;
 
-			for (c = 0; c < MAX_LEVELS; c++) {
+			for (c = 0; c < BPERF_CGROUP__MAX_LEVELS; c++) {
 				if (c == cgrp_cnt)
 					break;
 

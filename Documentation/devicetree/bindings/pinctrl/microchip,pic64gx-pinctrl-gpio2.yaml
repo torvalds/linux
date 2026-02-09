@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/microchip,pic64gx-pinctrl-gpio2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC64GX GPIO2 Mux
+
+maintainers:
+  - Conor Dooley <conor.dooley@microchip.com>
+
+description:
+  The "GPIO2 Mux" determines whether GPIO2 or select other functions are
+  available on package pins on PIC64GX. Some of these functions must be
+  mapped to this mux via iomux0 for settings here to have any impact.
+
+properties:
+  compatible:
+    const: microchip,pic64gx-pinctrl-gpio2
+
+  reg:
+    maxItems: 1
+
+  pinctrl-use-default: true
+
+patternProperties:
+  '^mux-':
+    type: object
+    $ref: pinmux-node.yaml
+    additionalProperties: false
+
+    properties:
+      function:
+        description:
+          A string containing the name of the function to mux to the group.
+        enum: [ mdio0, mdio1, spi0, can0, pcie, qspi, uart3, uart4, can1, uart2, gpio ]
+
+      groups:
+        description:
+          An array of strings. Each string contains the name of a group.
+        items:
+          enum: [ mdio0, mdio1, spi0, can0, pcie, qspi, uart3, uart4, can1, uart2,
+                  gpio_mdio0, gpio_mdio1, gpio_spi0, gpio_can0, gpio_pcie,
+                  gpio_qspi, gpio_uart3, gpio_uart4, gpio_can1, gpio_uart2 ]
+
+    required:
+      - function
+      - groups
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    pinctrl@41000000 {
+      compatible = "microchip,pic64gx-pinctrl-gpio2";
+      reg = <0x41000000 0x4>;
+      pinctrl-use-default;
+      pinctrl-names = "default";
+      pinctrl-0 = <&mdio0_gpio2>, <&mdio1_gpio2>, <&spi0_gpio2>, <&qspi_gpio2>,
+                  <&uart3_gpio2>, <&uart4_gpio2>, <&can1_gpio2>, <&can0_gpio2>,
+                  <&uart2_gpio2>;
+
+      mux-gpio2 {
+        function = "gpio";
+        groups = "gpio_mdio1", "gpio_spi0", "gpio_can0", "gpio_pcie",
+                 "gpio_qspi", "gpio_uart3", "gpio_uart4", "gpio_can1";
+      };
+    };
+
+...

@@ -18,7 +18,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^gpio@[0-9a-f]+$"
+    pattern: '^gpio@[0-9a-f]+$'
 
   compatible:
     enum:
@@ -26,10 +26,10 @@ properties:
       - mscc,ocelot-sgpio
       - mscc,luton-sgpio
 
-  "#address-cells":
+  '#address-cells':
     const: 1
 
-  "#size-cells":
+  '#size-cells':
     const: 0
 
   reg:
@@ -76,7 +76,7 @@ properties:
       - const: switch
 
 patternProperties:
-  "^gpio@[0-1]$":
+  '^gpio@[0-1]$':
     type: object
     properties:
       compatible:
@@ -132,8 +132,8 @@ required:
   - reg
   - clocks
   - microchip,sgpio-port-ranges
-  - "#address-cells"
-  - "#size-cells"
+  - '#address-cells'
+  - '#size-cells'
 
 examples:
   - |

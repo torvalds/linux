@@ -30,7 +30,6 @@ properties:
       - items:
           - description: Phandle to the HDMI transmitter node.
 
-
   samsung,audio-routing:
     description: |
       List of the connections between audio components; each entry is

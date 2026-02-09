@@ -2,8 +2,8 @@
 
 /dts-v1/;
 
-#include "x1p42100.dtsi"
-#include "x1e80100-pmics.dtsi"
+#include "purwa.dtsi"
+#include "hamoa-pmics.dtsi"
 #include "x1-hp-omnibook-x14.dtsi"
 /delete-node/ &pmc8380_6;
 /delete-node/ &pmc8380_6_thermal;

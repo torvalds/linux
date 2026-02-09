@@ -136,9 +136,9 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 			return ret;
 		}
 
-		mutex_lock(&ctx->uring_lock);
+		mutex_lock(&ctx->tctx_lock);
 		list_add(&node->ctx_node, &ctx->tctx_list);
-		mutex_unlock(&ctx->uring_lock);
+		mutex_unlock(&ctx->tctx_lock);
 	}
 	return 0;
 }
@@ -176,9 +176,9 @@ __cold void io_uring_del_tctx_node(unsigned long index)
 	WARN_ON_ONCE(current != node->task);
 	WARN_ON_ONCE(list_empty(&node->ctx_node));
 
-	mutex_lock(&node->ctx->uring_lock);
+	mutex_lock(&node->ctx->tctx_lock);
 	list_del(&node->ctx_node);
-	mutex_unlock(&node->ctx->uring_lock);
+	mutex_unlock(&node->ctx->tctx_lock);
 
 	if (tctx->last == node->ctx)
 		tctx->last = NULL;

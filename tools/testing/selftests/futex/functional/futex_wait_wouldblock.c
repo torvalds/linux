@@ -24,7 +24,7 @@
 
 #include "futextest.h"
 #include "futex2test.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define timeout_ns 100000
 

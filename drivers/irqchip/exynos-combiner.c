@@ -200,12 +200,13 @@ static void __init combiner_init(void __iomem *combiner_base,
 
 /**
  * combiner_suspend - save interrupt combiner state before suspend
+ * @data: syscore context
  *
  * Save the interrupt enable set register for all combiner groups since
  * the state is lost when the system enters into a sleep state.
  *
  */
-static int combiner_suspend(void)
+static int combiner_suspend(void *data)
 {
 	int i;
 
@@ -218,12 +219,13 @@ static int combiner_suspend(void)
 
 /**
  * combiner_resume - restore interrupt combiner state after resume
+ * @data: syscore context
  *
  * Restore the interrupt enable set register for all combiner groups since
  * the state is lost when the system enters into a sleep state on suspend.
  *
  */
-static void combiner_resume(void)
+static void combiner_resume(void *data)
 {
 	int i;
 
@@ -240,9 +242,13 @@ static void combiner_resume(void)
 #define combiner_resume		NULL
 #endif
 
-static struct syscore_ops combiner_syscore_ops = {
+static const struct syscore_ops combiner_syscore_ops = {
 	.suspend	= combiner_suspend,
 	.resume		= combiner_resume,
+};
+
+static struct syscore combiner_syscore = {
+	.ops = &combiner_syscore_ops,
 };
 
 static int __init combiner_of_init(struct device_node *np,
@@ -264,7 +270,7 @@ static int __init combiner_of_init(struct device_node *np,
 
 	combiner_init(combiner_base, np);
 
-	register_syscore_ops(&combiner_syscore_ops);
+	register_syscore(&combiner_syscore);
 
 	return 0;
 }

@@ -9,7 +9,7 @@ title: Qualcomm Shared Memory Point 2 Point
 maintainers:
   - Andy Gross <agross@kernel.org>
   - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   The Shared Memory Point to Point (SMP2P) protocol facilitates communication

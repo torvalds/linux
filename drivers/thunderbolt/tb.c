@@ -322,7 +322,7 @@ static int tb_enable_tmu(struct tb_switch *sw)
 
 	/*
 	 * If both routers at the end of the link are v2 we simply
-	 * enable the enhanched uni-directional mode. That covers all
+	 * enable the enhanced uni-directional mode. That covers all
 	 * the CL states. For v1 and before we need to use the normal
 	 * rate to allow CL1 (when supported). Otherwise we keep the TMU
 	 * running at the highest accuracy.
@@ -538,7 +538,7 @@ static struct tb_tunnel *tb_find_first_usb3_tunnel(struct tb *tb,
  * @src_port: Source protocol adapter
  * @dst_port: Destination protocol adapter
  * @port: USB4 port the consumed bandwidth is calculated
- * @consumed_up: Consumed upsream bandwidth (Mb/s)
+ * @consumed_up: Consumed upstream bandwidth (Mb/s)
  * @consumed_down: Consumed downstream bandwidth (Mb/s)
  *
  * Calculates consumed USB3 and PCIe bandwidth at @port between path
@@ -589,7 +589,7 @@ static int tb_consumed_usb3_pcie_bandwidth(struct tb *tb,
  * @src_port: Source protocol adapter
  * @dst_port: Destination protocol adapter
  * @port: USB4 port the consumed bandwidth is calculated
- * @consumed_up: Consumed upsream bandwidth (Mb/s)
+ * @consumed_up: Consumed upstream bandwidth (Mb/s)
  * @consumed_down: Consumed downstream bandwidth (Mb/s)
  *
  * Calculates consumed DP bandwidth at @port between path from @src_port
@@ -1115,7 +1115,7 @@ static int tb_configure_asym(struct tb *tb, struct tb_port *src_port,
 
 		/*
 		 * Here requested + consumed > threshold so we need to
-		 * transtion the link into asymmetric now.
+		 * transition the link into asymmetric now.
 		 */
 		ret = tb_switch_set_link_width(up->sw, width_up);
 		if (ret) {
@@ -1936,7 +1936,7 @@ static void tb_dp_tunnel_active(struct tb_tunnel *tunnel, void *data)
 			 */
 			tb_recalc_estimated_bandwidth(tb);
 			/*
-			 * In case of DP tunnel exists, change host
+			 * In case DP tunnel exists, change host
 			 * router's 1st children TMU mode to HiFi for
 			 * CL0s to work.
 			 */
@@ -2636,7 +2636,7 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 				 * the 10s already expired and we should
 				 * give the reserved back to others).
 				 */
-				mod_delayed_work(system_wq, &group->release_work,
+				mod_delayed_work(system_percpu_wq, &group->release_work,
 					msecs_to_jiffies(TB_RELEASE_BW_TIMEOUT));
 			}
 		}
@@ -2786,8 +2786,8 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 			 * There is no request active so this means the
 			 * BW allocation mode was enabled from graphics
 			 * side. At this point we know that the graphics
-			 * driver has read the DRPX capabilities so we
-			 * can offer an better bandwidth estimatation.
+			 * driver has read the DPRX capabilities so we
+			 * can offer better bandwidth estimation.
 			 */
 			tb_port_dbg(in, "DPTX enabled bandwidth allocation mode, updating estimated bandwidth\n");
 			tb_recalc_estimated_bandwidth(tb);

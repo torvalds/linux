@@ -4862,7 +4862,7 @@ static int con_font_get(struct vc_data *vc, struct console_font_op *op)
 			return ret;
 	}
 
-	c = (font.width+7)/8 * vpitch * font.charcount;
+	c = DIV_ROUND_UP(font.width, 8) * vpitch * font.charcount;
 
 	if (op->data && font.charcount > op->charcount)
 		return -ENOSPC;
@@ -4894,7 +4894,7 @@ static int con_font_set(struct vc_data *vc, const struct console_font_op *op)
 		return -EINVAL;
 	if (vpitch < op->height)
 		return -EINVAL;
-	size = (op->width+7)/8 * vpitch * op->charcount;
+	size = DIV_ROUND_UP(op->width, 8) * vpitch * op->charcount;
 	if (size > max_font_size)
 		return -ENOSPC;
 

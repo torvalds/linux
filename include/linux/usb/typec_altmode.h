@@ -173,6 +173,19 @@ typec_altmode_get_svdm_version(struct typec_altmode *altmode)
 }
 
 /**
+ * typec_altmode_get_data_role - Get port data role
+ * @altmode: Handle to the alternate mode
+ *
+ * Alt Mode drivers should only issue Enter Mode through the port if they are
+ * the DFP.
+ */
+static inline enum typec_data_role
+typec_altmode_get_data_role(struct typec_altmode *altmode)
+{
+	return typec_get_data_role(typec_altmode2port(altmode));
+}
+
+/**
  * struct typec_altmode_driver - USB Type-C alternate mode device driver
  * @id_table: Null terminated array of SVIDs
  * @probe: Callback for device binding

@@ -1144,6 +1144,7 @@ static bool vdo_uses_device(struct vdo *vdo, const void *context)
 /**
  * get_thread_id_for_phase() - Get the thread id for the current phase of the admin operation in
  *                             progress.
+ * @vdo: The vdo.
  */
 static thread_id_t __must_check get_thread_id_for_phase(struct vdo *vdo)
 {
@@ -1188,9 +1189,9 @@ static struct vdo_completion *prepare_admin_completion(struct vdo *vdo,
 /**
  * advance_phase() - Increment the phase of the current admin operation and prepare the admin
  *                   completion to run on the thread for the next phase.
- * @vdo: The on which an admin operation is being performed
+ * @vdo: The vdo on which an admin operation is being performed.
  *
- * Return: The current phase
+ * Return: The current phase.
  */
 static u32 advance_phase(struct vdo *vdo)
 {

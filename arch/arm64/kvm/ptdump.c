@@ -31,27 +31,46 @@ static const struct ptdump_prot_bits stage2_pte_bits[] = {
 		.val	= PTE_VALID,
 		.set	= " ",
 		.clear	= "F",
-	}, {
+	},
+	{
 		.mask	= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_R,
 		.val	= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_R,
 		.set	= "R",
 		.clear	= " ",
-	}, {
+	},
+	{
 		.mask	= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W,
 		.val	= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W,
 		.set	= "W",
 		.clear	= " ",
-	}, {
+	},
+	{
 		.mask	= KVM_PTE_LEAF_ATTR_HI_S2_XN,
-		.val	= KVM_PTE_LEAF_ATTR_HI_S2_XN,
-		.set	= "NX",
-		.clear	= "x ",
-	}, {
+		.val	= 0b00UL << __bf_shf(KVM_PTE_LEAF_ATTR_HI_S2_XN),
+		.set	= "px ux ",
+	},
+	{
+		.mask	= KVM_PTE_LEAF_ATTR_HI_S2_XN,
+		.val	= 0b01UL << __bf_shf(KVM_PTE_LEAF_ATTR_HI_S2_XN),
+		.set	= "PXNux ",
+	},
+	{
+		.mask	= KVM_PTE_LEAF_ATTR_HI_S2_XN,
+		.val	= 0b10UL << __bf_shf(KVM_PTE_LEAF_ATTR_HI_S2_XN),
+		.set	= "PXNUXN",
+	},
+	{
+		.mask	= KVM_PTE_LEAF_ATTR_HI_S2_XN,
+		.val	= 0b11UL << __bf_shf(KVM_PTE_LEAF_ATTR_HI_S2_XN),
+		.set	= "px UXN",
+	},
+	{
 		.mask	= KVM_PTE_LEAF_ATTR_LO_S2_AF,
 		.val	= KVM_PTE_LEAF_ATTR_LO_S2_AF,
 		.set	= "AF",
 		.clear	= "  ",
-	}, {
+	},
+	{
 		.mask	= PMD_TYPE_MASK,
 		.val	= PMD_TYPE_SECT,
 		.set	= "BLK",

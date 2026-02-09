@@ -17,7 +17,7 @@
 #include <sys/ioctl.h>
 
 #include "../user_events/user_events_selftests.h" /* share tracefs setup */
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define TRACEFS_ROOT "/sys/kernel/tracing"
 

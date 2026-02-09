@@ -14,7 +14,7 @@
 #include <regex.h>
 #include <sys/stat.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "alsa-local.h"
 
 #define SYSFS_ROOT "/sys"

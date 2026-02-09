@@ -54,6 +54,13 @@
 /** Frequency (in jiffies) of request timeout checks, if opted into */
 extern const unsigned long fuse_timeout_timer_freq;
 
+/*
+ * Dentries invalidation workqueue period, in seconds.  The value of this
+ * parameter shall be >= FUSE_DENTRY_INVAL_FREQ_MIN seconds, or 0 (zero), in
+ * which case no workqueue will be created.
+ */
+extern unsigned inval_wq __read_mostly;
+
 /** Maximum of max_pages received in init_out */
 extern unsigned int fuse_max_pages_limit;
 /*
@@ -232,6 +239,11 @@ enum {
 	FUSE_I_BTIME,
 	/* Wants or already has page cache IO */
 	FUSE_I_CACHE_IO_MODE,
+	/*
+	 * Client has exclusive access to the inode, either because fs is local
+	 * or the fuse server has an exclusive "lease" on distributed fs
+	 */
+	FUSE_I_EXCLUSIVE,
 };
 
 struct fuse_conn;
@@ -642,6 +654,8 @@ struct fuse_conn {
 	/** Current epoch for up-to-date dentries */
 	atomic_t epoch;
 
+	struct work_struct epoch_work;
+
 	struct rcu_head rcu;
 
 	/** The user id for this mount */
@@ -1038,7 +1052,7 @@ static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
 	return get_fuse_mount_super(inode->i_sb)->fc;
 }
 
-static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
+static inline struct fuse_inode *get_fuse_inode(const struct inode *inode)
 {
 	return container_of(inode, struct fuse_inode, inode);
 }
@@ -1078,6 +1092,13 @@ static inline void fuse_make_bad(struct inode *inode)
 static inline bool fuse_is_bad(struct inode *inode)
 {
 	return unlikely(test_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state));
+}
+
+static inline bool fuse_inode_is_exclusive(const struct inode *inode)
+{
+	const struct fuse_inode *fi = get_fuse_inode(inode);
+
+	return test_bit(FUSE_I_EXCLUSIVE, &fi->state);
 }
 
 static inline struct folio **fuse_folios_alloc(unsigned int nfolios, gfp_t flags,
@@ -1268,6 +1289,11 @@ void fuse_wait_aborted(struct fuse_conn *fc);
 
 /* Check if any requests timed out */
 void fuse_check_timeout(struct work_struct *work);
+
+void fuse_dentry_tree_init(void);
+void fuse_dentry_tree_cleanup(void);
+
+void fuse_epoch_work(struct work_struct *work);
 
 /**
  * Invalidate inode attributes

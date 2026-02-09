@@ -76,11 +76,11 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 		return 0;
 
 	if (!*target)
-		return -EIO;
+		return smb_EIO(smb_eio_trace_null_pointers);
 
 	len = strlen(*target);
 	if (!len)
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_sym_target_len, len);
 
 	/*
 	 * If this is directory symlink and it does not have trailing slash then
@@ -104,7 +104,7 @@ int smb2_fix_symlink_target_type(char **target, bool directory, struct cifs_sb_i
 	 * both Windows and Linux systems. So return an error for such symlink.
 	 */
 	if (!directory && (*target)[len-1] == '/')
-		return -EIO;
+		return smb_EIO(smb_eio_trace_sym_slash);
 
 	return 0;
 }
@@ -140,7 +140,8 @@ int smb2_parse_symlink_response(struct cifs_sb_info *cifs_sb, const struct kvec 
 					 cifs_sb);
 }
 
-int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32 *oplock, void *buf)
+int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
+		   __u32 *oplock, void *buf)
 {
 	int rc;
 	__le16 *smb2_path;

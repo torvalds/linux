@@ -3,7 +3,7 @@
 #include <linux/limits.h>
 #include <signal.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "cgroup_util.h"
 
 static int idle_process_fn(const char *cgroup, void *arg)

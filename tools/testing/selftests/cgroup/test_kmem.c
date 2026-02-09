@@ -14,7 +14,7 @@
 #include <sys/sysinfo.h>
 #include <pthread.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "cgroup_util.h"
 
 

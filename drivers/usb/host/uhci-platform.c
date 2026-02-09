@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 
 static int uhci_platform_init(struct usb_hcd *hcd)
 {
@@ -67,6 +68,7 @@ static const struct hc_driver uhci_platform_hc_driver = {
 static int uhci_hcd_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	bool dma_mask_64 = false;
 	struct usb_hcd *hcd;
 	struct uhci_hcd	*uhci;
 	struct resource *res;
@@ -80,7 +82,11 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	 * Since shared usb code relies on it, set it here for now.
 	 * Once we have dma capability bindings this can go away.
 	 */
-	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (of_device_get_match_data(&pdev->dev))
+		dma_mask_64 = true;
+
+	ret = dma_coerce_mask_and_coherent(&pdev->dev,
+		dma_mask_64 ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
@@ -113,7 +119,8 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 		}
 		if (of_device_is_compatible(np, "aspeed,ast2400-uhci") ||
 		    of_device_is_compatible(np, "aspeed,ast2500-uhci") ||
-		    of_device_is_compatible(np, "aspeed,ast2600-uhci")) {
+		    of_device_is_compatible(np, "aspeed,ast2600-uhci") ||
+		    of_device_is_compatible(np, "aspeed,ast2700-uhci")) {
 			uhci->is_aspeed = 1;
 			dev_info(&pdev->dev,
 				 "Enabled Aspeed implementation workarounds\n");
@@ -132,17 +139,28 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 		goto err_rmr;
 	}
 
+	uhci->rsts = devm_reset_control_array_get_optional_shared(&pdev->dev);
+	if (IS_ERR(uhci->rsts)) {
+		ret = PTR_ERR(uhci->rsts);
+		goto err_clk;
+	}
+	ret = reset_control_deassert(uhci->rsts);
+	if (ret)
+		goto err_clk;
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_clk;
+		goto err_reset;
 
 	ret = usb_add_hcd(hcd, ret, IRQF_SHARED);
 	if (ret)
-		goto err_clk;
+		goto err_reset;
 
 	device_wakeup_enable(hcd->self.controller);
 	return 0;
 
+err_reset:
+	reset_control_assert(uhci->rsts);
 err_clk:
 	clk_disable_unprepare(uhci->clk);
 err_rmr:
@@ -156,6 +174,7 @@ static void uhci_hcd_platform_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
+	reset_control_assert(uhci->rsts);
 	clk_disable_unprepare(uhci->clk);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -178,6 +197,7 @@ static void uhci_hcd_platform_shutdown(struct platform_device *op)
 static const struct of_device_id platform_uhci_ids[] = {
 	{ .compatible = "generic-uhci", },
 	{ .compatible = "platform-uhci", },
+	{ .compatible = "aspeed,ast2700-uhci", .data = (void *)1 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, platform_uhci_ids);

@@ -79,7 +79,7 @@
 			reg = <0x4 0x0 0x40>;
 		};
 
-		wdt@4,2000 {
+		watchdog@4,2000 {
 			compatible = "gef,sbc310-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x2000 0x8>;
@@ -87,7 +87,7 @@
 			interrupt-parent = <&gef_pic>;
 		};
 /*
-		wdt@4,2010 {
+		watchdog@4,2010 {
 			compatible = "gef,sbc310-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x2010 0x8>;

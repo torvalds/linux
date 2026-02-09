@@ -24,7 +24,8 @@ struct sg_table;
 
 /**
  * struct iio_buffer_access_funcs - access functions for buffers.
- * @store_to:		actually store stuff to the buffer
+ * @store_to:		actually store stuff to the buffer - must be safe to
+ *			call from any context (e.g. must not sleep).
  * @read:		try to get a specified number of bytes (must exist)
  * @data_available:	indicates how much data is available for reading from
  *			the buffer.

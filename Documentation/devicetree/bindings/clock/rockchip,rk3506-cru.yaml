@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/rockchip,rk3506-cru.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip RK3506 Clock and Reset Unit (CRU)
+
+maintainers:
+  - Finley Xiao <finley.xiao@rock-chips.com>
+  - Heiko Stuebner <heiko@sntech.de>
+
+description:
+  The RK3506 CRU generates the clock and also implements reset for SoC
+  peripherals.
+
+properties:
+  compatible:
+    const: rockchip,rk3506-cru
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+  "#reset-cells":
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: xin
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+  - "#reset-cells"
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@ff9a0000 {
+      compatible = "rockchip,rk3506-cru";
+      reg = <0xff9a0000 0x20000>;
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      clocks = <&xin24m>;
+      clock-names = "xin";
+    };

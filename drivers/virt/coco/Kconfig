@@ -3,6 +3,7 @@
 # Confidential computing related collateral
 #
 
+if VIRT_DRIVERS
 source "drivers/virt/coco/efi_secret/Kconfig"
 
 source "drivers/virt/coco/pkvm-guest/Kconfig"
@@ -14,3 +15,7 @@ source "drivers/virt/coco/tdx-guest/Kconfig"
 source "drivers/virt/coco/arm-cca-guest/Kconfig"
 
 source "drivers/virt/coco/guest/Kconfig"
+endif
+
+config TSM
+	bool

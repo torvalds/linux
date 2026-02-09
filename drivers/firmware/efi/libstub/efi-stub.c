@@ -56,7 +56,7 @@ static struct screen_info *setup_graphics(void)
 {
 	struct screen_info *si, tmp = {};
 
-	if (efi_setup_gop(&tmp) != EFI_SUCCESS)
+	if (efi_setup_graphics(&tmp, NULL) != EFI_SUCCESS)
 		return NULL;
 
 	si = alloc_screen_info();

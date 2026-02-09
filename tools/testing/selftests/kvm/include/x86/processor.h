@@ -1441,7 +1441,7 @@ enum pg_level {
 	PG_LEVEL_2M,
 	PG_LEVEL_1G,
 	PG_LEVEL_512G,
-	PG_LEVEL_NUM
+	PG_LEVEL_256T
 };
 
 #define PG_LEVEL_SHIFT(_level) ((_level - 1) * 9 + 12)

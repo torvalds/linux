@@ -16,9 +16,46 @@ test_default_stat() {
   echo "Basic stat command test [Success]"
 }
 
+test_null_stat() {
+  echo "Null stat command test"
+  if ! perf stat --null true 2>&1 | grep -E -q "Performance counter stats for 'true':"
+  then
+    echo "Null stat command test [Failed]"
+    err=1
+    return
+  fi
+  echo "Null stat command test [Success]"
+}
+
+find_offline_cpu() {
+  for i in $(seq 1 4096)
+  do
+    if [[ ! -f /sys/devices/system/cpu/cpu$i/online || \
+          $(cat /sys/devices/system/cpu/cpu$i/online) == "0" ]]
+    then
+      echo $i
+      return
+    fi
+  done
+  echo "Failed to find offline CPU"
+  exit 1
+}
+
+test_offline_cpu_stat() {
+  cpu=$(find_offline_cpu)
+  echo "Offline CPU stat command test (cpu $cpu)"
+  if ! perf stat "-C$cpu" -e cycles true 2>&1 | grep -E -q "No supported events found."
+  then
+    echo "Offline CPU stat command test [Failed]"
+    err=1
+    return
+  fi
+  echo "Offline CPU stat command test [Success]"
+}
+
 test_stat_record_report() {
   echo "stat record and report test"
-  if ! perf stat record -o - true | perf stat report -i - 2>&1 | \
+  if ! perf stat record -e task-clock -o - true | perf stat report -i - 2>&1 | \
     grep -E -q "Performance counter stats for 'pipe':"
   then
     echo "stat record and report test [Failed]"
@@ -30,7 +67,7 @@ test_stat_record_report() {
 
 test_stat_record_script() {
   echo "stat record and script test"
-  if ! perf stat record -o - true | perf script -i - 2>&1 | \
+  if ! perf stat record -e task-clock -o - true | perf script -i - 2>&1 | \
     grep -E -q "CPU[[:space:]]+THREAD[[:space:]]+VAL[[:space:]]+ENA[[:space:]]+RUN[[:space:]]+TIME[[:space:]]+EVENT"
   then
     echo "stat record and script test [Failed]"
@@ -196,7 +233,7 @@ test_hybrid() {
   fi
 
   # Run default Perf stat
-  cycles_events=$(perf stat -- true 2>&1 | grep -E "/cycles/[uH]*|  cycles[:uH]*  " -c)
+  cycles_events=$(perf stat -a -- sleep 0.1 2>&1 | grep -E "/cpu-cycles/[uH]*|  cpu-cycles[:uH]*  " -c)
 
   # The expectation is that default output will have a cycles events on each
   # hybrid PMU. In situations with no cycles PMU events, like virtualized, this
@@ -212,6 +249,8 @@ test_hybrid() {
 }
 
 test_default_stat
+test_null_stat
+test_offline_cpu_stat
 test_stat_record_report
 test_stat_record_script
 test_stat_repeat_weak_groups

@@ -25,7 +25,7 @@
 #undef SCHED_FLAG_KEEP_ALL
 #undef SCHED_FLAG_UTIL_CLAMP
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "../clone3/clone3_selftests.h"
 
 #ifndef FD_PIDFS_ROOT

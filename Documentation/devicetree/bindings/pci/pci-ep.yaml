@@ -11,7 +11,7 @@ description: |
 
 maintainers:
   - Kishon Vijay Abraham I <kishon@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 properties:
   $nodename:

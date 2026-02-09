@@ -1505,10 +1505,6 @@ static int pm4125_bind(struct device *dev)
 	struct device_link *devlink;
 	int ret;
 
-	/* Initialize device pointers to NULL for safe cleanup */
-	pm4125->rxdev = NULL;
-	pm4125->txdev = NULL;
-
 	/* Give the soundwire subdevices some more time to settle */
 	usleep_range(15000, 15010);
 
@@ -1537,13 +1533,7 @@ static int pm4125_bind(struct device *dev)
 
 	pm4125->sdw_priv[AIF1_CAP] = dev_get_drvdata(pm4125->txdev);
 	pm4125->sdw_priv[AIF1_CAP]->pm4125 = pm4125;
-
 	pm4125->tx_sdw_dev = dev_to_sdw_dev(pm4125->txdev);
-	if (!pm4125->tx_sdw_dev) {
-		dev_err(dev, "could not get txslave with matching of dev\n");
-		ret = -EINVAL;
-		goto error_put_tx;
-	}
 
 	/*
 	 * As TX is the main CSR reg interface, which should not be suspended first.
@@ -1624,11 +1614,8 @@ static void pm4125_unbind(struct device *dev)
 	device_link_remove(dev, pm4125->rxdev);
 	device_link_remove(pm4125->rxdev, pm4125->txdev);
 
-	/* Release device references acquired in bind */
-	if (pm4125->txdev)
-		put_device(pm4125->txdev);
-	if (pm4125->rxdev)
-		put_device(pm4125->rxdev);
+	put_device(pm4125->txdev);
+	put_device(pm4125->rxdev);
 
 	component_unbind_all(dev, pm4125);
 }

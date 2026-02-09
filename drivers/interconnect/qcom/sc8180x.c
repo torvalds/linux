@@ -14,1331 +14,1331 @@
 
 #include "bcm-voter.h"
 #include "icc-rpmh.h"
-#include "sc8180x.h"
+
+static struct qcom_icc_node mas_qhm_a1noc_cfg;
+static struct qcom_icc_node mas_xm_ufs_card;
+static struct qcom_icc_node mas_xm_ufs_g4;
+static struct qcom_icc_node mas_xm_ufs_mem;
+static struct qcom_icc_node mas_xm_usb3_0;
+static struct qcom_icc_node mas_xm_usb3_1;
+static struct qcom_icc_node mas_xm_usb3_2;
+static struct qcom_icc_node mas_qhm_a2noc_cfg;
+static struct qcom_icc_node mas_qhm_qdss_bam;
+static struct qcom_icc_node mas_qhm_qspi;
+static struct qcom_icc_node mas_qhm_qspi1;
+static struct qcom_icc_node mas_qhm_qup0;
+static struct qcom_icc_node mas_qhm_qup1;
+static struct qcom_icc_node mas_qhm_qup2;
+static struct qcom_icc_node mas_qhm_sensorss_ahb;
+static struct qcom_icc_node mas_qxm_crypto;
+static struct qcom_icc_node mas_qxm_ipa;
+static struct qcom_icc_node mas_xm_emac;
+static struct qcom_icc_node mas_xm_pcie3_0;
+static struct qcom_icc_node mas_xm_pcie3_1;
+static struct qcom_icc_node mas_xm_pcie3_2;
+static struct qcom_icc_node mas_xm_pcie3_3;
+static struct qcom_icc_node mas_xm_qdss_etr;
+static struct qcom_icc_node mas_xm_sdc2;
+static struct qcom_icc_node mas_xm_sdc4;
+static struct qcom_icc_node mas_qxm_camnoc_hf0_uncomp;
+static struct qcom_icc_node mas_qxm_camnoc_hf1_uncomp;
+static struct qcom_icc_node mas_qxm_camnoc_sf_uncomp;
+static struct qcom_icc_node mas_qnm_npu;
+static struct qcom_icc_node mas_qnm_snoc;
+static struct qcom_icc_node mas_qhm_cnoc_dc_noc;
+static struct qcom_icc_node mas_acm_apps;
+static struct qcom_icc_node mas_acm_gpu_tcu;
+static struct qcom_icc_node mas_acm_sys_tcu;
+static struct qcom_icc_node mas_qhm_gemnoc_cfg;
+static struct qcom_icc_node mas_qnm_cmpnoc;
+static struct qcom_icc_node mas_qnm_gpu;
+static struct qcom_icc_node mas_qnm_mnoc_hf;
+static struct qcom_icc_node mas_qnm_mnoc_sf;
+static struct qcom_icc_node mas_qnm_pcie;
+static struct qcom_icc_node mas_qnm_snoc_gc;
+static struct qcom_icc_node mas_qnm_snoc_sf;
+static struct qcom_icc_node mas_qxm_ecc;
+static struct qcom_icc_node mas_llcc_mc;
+static struct qcom_icc_node mas_qhm_mnoc_cfg;
+static struct qcom_icc_node mas_qxm_camnoc_hf0;
+static struct qcom_icc_node mas_qxm_camnoc_hf1;
+static struct qcom_icc_node mas_qxm_camnoc_sf;
+static struct qcom_icc_node mas_qxm_mdp0;
+static struct qcom_icc_node mas_qxm_mdp1;
+static struct qcom_icc_node mas_qxm_rot;
+static struct qcom_icc_node mas_qxm_venus0;
+static struct qcom_icc_node mas_qxm_venus1;
+static struct qcom_icc_node mas_qxm_venus_arm9;
+static struct qcom_icc_node mas_qhm_snoc_cfg;
+static struct qcom_icc_node mas_qnm_aggre1_noc;
+static struct qcom_icc_node mas_qnm_aggre2_noc;
+static struct qcom_icc_node mas_qnm_gemnoc;
+static struct qcom_icc_node mas_qxm_pimem;
+static struct qcom_icc_node mas_xm_gic;
+static struct qcom_icc_node mas_qup_core_0;
+static struct qcom_icc_node mas_qup_core_1;
+static struct qcom_icc_node mas_qup_core_2;
+static struct qcom_icc_node slv_qns_a1noc_snoc;
+static struct qcom_icc_node slv_srvc_aggre1_noc;
+static struct qcom_icc_node slv_qns_a2noc_snoc;
+static struct qcom_icc_node slv_qns_pcie_mem_noc;
+static struct qcom_icc_node slv_srvc_aggre2_noc;
+static struct qcom_icc_node slv_qns_camnoc_uncomp;
+static struct qcom_icc_node slv_qns_cdsp_mem_noc;
+static struct qcom_icc_node slv_qhs_a1_noc_cfg;
+static struct qcom_icc_node slv_qhs_a2_noc_cfg;
+static struct qcom_icc_node slv_qhs_ahb2phy_refgen_center;
+static struct qcom_icc_node slv_qhs_ahb2phy_refgen_east;
+static struct qcom_icc_node slv_qhs_ahb2phy_refgen_west;
+static struct qcom_icc_node slv_qhs_ahb2phy_south;
+static struct qcom_icc_node slv_qhs_aop;
+static struct qcom_icc_node slv_qhs_aoss;
+static struct qcom_icc_node slv_qhs_camera_cfg;
+static struct qcom_icc_node slv_qhs_clk_ctl;
+static struct qcom_icc_node slv_qhs_compute_dsp;
+static struct qcom_icc_node slv_qhs_cpr_cx;
+static struct qcom_icc_node slv_qhs_cpr_mmcx;
+static struct qcom_icc_node slv_qhs_cpr_mx;
+static struct qcom_icc_node slv_qhs_crypto0_cfg;
+static struct qcom_icc_node slv_qhs_ddrss_cfg;
+static struct qcom_icc_node slv_qhs_display_cfg;
+static struct qcom_icc_node slv_qhs_emac_cfg;
+static struct qcom_icc_node slv_qhs_glm;
+static struct qcom_icc_node slv_qhs_gpuss_cfg;
+static struct qcom_icc_node slv_qhs_imem_cfg;
+static struct qcom_icc_node slv_qhs_ipa;
+static struct qcom_icc_node slv_qhs_mnoc_cfg;
+static struct qcom_icc_node slv_qhs_npu_cfg;
+static struct qcom_icc_node slv_qhs_pcie0_cfg;
+static struct qcom_icc_node slv_qhs_pcie1_cfg;
+static struct qcom_icc_node slv_qhs_pcie2_cfg;
+static struct qcom_icc_node slv_qhs_pcie3_cfg;
+static struct qcom_icc_node slv_qhs_pdm;
+static struct qcom_icc_node slv_qhs_pimem_cfg;
+static struct qcom_icc_node slv_qhs_prng;
+static struct qcom_icc_node slv_qhs_qdss_cfg;
+static struct qcom_icc_node slv_qhs_qspi_0;
+static struct qcom_icc_node slv_qhs_qspi_1;
+static struct qcom_icc_node slv_qhs_qupv3_east0;
+static struct qcom_icc_node slv_qhs_qupv3_east1;
+static struct qcom_icc_node slv_qhs_qupv3_west;
+static struct qcom_icc_node slv_qhs_sdc2;
+static struct qcom_icc_node slv_qhs_sdc4;
+static struct qcom_icc_node slv_qhs_security;
+static struct qcom_icc_node slv_qhs_snoc_cfg;
+static struct qcom_icc_node slv_qhs_spss_cfg;
+static struct qcom_icc_node slv_qhs_tcsr;
+static struct qcom_icc_node slv_qhs_tlmm_east;
+static struct qcom_icc_node slv_qhs_tlmm_south;
+static struct qcom_icc_node slv_qhs_tlmm_west;
+static struct qcom_icc_node slv_qhs_tsif;
+static struct qcom_icc_node slv_qhs_ufs_card_cfg;
+static struct qcom_icc_node slv_qhs_ufs_mem0_cfg;
+static struct qcom_icc_node slv_qhs_ufs_mem1_cfg;
+static struct qcom_icc_node slv_qhs_usb3_0;
+static struct qcom_icc_node slv_qhs_usb3_1;
+static struct qcom_icc_node slv_qhs_usb3_2;
+static struct qcom_icc_node slv_qhs_venus_cfg;
+static struct qcom_icc_node slv_qhs_vsense_ctrl_cfg;
+static struct qcom_icc_node slv_srvc_cnoc;
+static struct qcom_icc_node slv_qhs_gemnoc;
+static struct qcom_icc_node slv_qhs_llcc;
+static struct qcom_icc_node slv_qhs_mdsp_ms_mpu_cfg;
+static struct qcom_icc_node slv_qns_ecc;
+static struct qcom_icc_node slv_qns_gem_noc_snoc;
+static struct qcom_icc_node slv_qns_llcc;
+static struct qcom_icc_node slv_srvc_gemnoc;
+static struct qcom_icc_node slv_srvc_gemnoc1;
+static struct qcom_icc_node slv_ebi;
+static struct qcom_icc_node slv_qns2_mem_noc;
+static struct qcom_icc_node slv_qns_mem_noc_hf;
+static struct qcom_icc_node slv_srvc_mnoc;
+static struct qcom_icc_node slv_qhs_apss;
+static struct qcom_icc_node slv_qns_cnoc;
+static struct qcom_icc_node slv_qns_gemnoc_gc;
+static struct qcom_icc_node slv_qns_gemnoc_sf;
+static struct qcom_icc_node slv_qxs_imem;
+static struct qcom_icc_node slv_qxs_pimem;
+static struct qcom_icc_node slv_srvc_snoc;
+static struct qcom_icc_node slv_xs_pcie_0;
+static struct qcom_icc_node slv_xs_pcie_1;
+static struct qcom_icc_node slv_xs_pcie_2;
+static struct qcom_icc_node slv_xs_pcie_3;
+static struct qcom_icc_node slv_xs_qdss_stm;
+static struct qcom_icc_node slv_xs_sys_tcu_cfg;
+static struct qcom_icc_node slv_qup_core_0;
+static struct qcom_icc_node slv_qup_core_1;
+static struct qcom_icc_node slv_qup_core_2;
 
 static struct qcom_icc_node mas_qhm_a1noc_cfg = {
 	.name = "mas_qhm_a1noc_cfg",
-	.id = SC8180X_MASTER_A1NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_SERVICE_A1NOC }
+	.link_nodes = { &slv_srvc_aggre1_noc },
 };
 
 static struct qcom_icc_node mas_xm_ufs_card = {
 	.name = "mas_xm_ufs_card",
-	.id = SC8180X_MASTER_UFS_CARD,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_ufs_g4 = {
 	.name = "mas_xm_ufs_g4",
-	.id = SC8180X_MASTER_UFS_GEN4,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_ufs_mem = {
 	.name = "mas_xm_ufs_mem",
-	.id = SC8180X_MASTER_UFS_MEM,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_usb3_0 = {
 	.name = "mas_xm_usb3_0",
-	.id = SC8180X_MASTER_USB3,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_usb3_1 = {
 	.name = "mas_xm_usb3_1",
-	.id = SC8180X_MASTER_USB3_1,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_usb3_2 = {
 	.name = "mas_xm_usb3_2",
-	.id = SC8180X_MASTER_USB3_2,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a1noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_a2noc_cfg = {
 	.name = "mas_qhm_a2noc_cfg",
-	.id = SC8180X_MASTER_A2NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_SERVICE_A2NOC }
+	.link_nodes = { &slv_srvc_aggre2_noc },
 };
 
 static struct qcom_icc_node mas_qhm_qdss_bam = {
 	.name = "mas_qhm_qdss_bam",
-	.id = SC8180X_MASTER_QDSS_BAM,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_qspi = {
 	.name = "mas_qhm_qspi",
-	.id = SC8180X_MASTER_QSPI_0,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_qspi1 = {
 	.name = "mas_qhm_qspi1",
-	.id = SC8180X_MASTER_QSPI_1,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_qup0 = {
 	.name = "mas_qhm_qup0",
-	.id = SC8180X_MASTER_QUP_0,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_qup1 = {
 	.name = "mas_qhm_qup1",
-	.id = SC8180X_MASTER_QUP_1,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_qup2 = {
 	.name = "mas_qhm_qup2",
-	.id = SC8180X_MASTER_QUP_2,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_sensorss_ahb = {
 	.name = "mas_qhm_sensorss_ahb",
-	.id = SC8180X_MASTER_SENSORS_AHB,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qxm_crypto = {
 	.name = "mas_qxm_crypto",
-	.id = SC8180X_MASTER_CRYPTO_CORE_0,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qxm_ipa = {
 	.name = "mas_qxm_ipa",
-	.id = SC8180X_MASTER_IPA,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_emac = {
 	.name = "mas_xm_emac",
-	.id = SC8180X_MASTER_EMAC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_pcie3_0 = {
 	.name = "mas_xm_pcie3_0",
-	.id = SC8180X_MASTER_PCIE,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_ANOC_PCIE_GEM_NOC }
+	.link_nodes = { &slv_qns_pcie_mem_noc },
 };
 
 static struct qcom_icc_node mas_xm_pcie3_1 = {
 	.name = "mas_xm_pcie3_1",
-	.id = SC8180X_MASTER_PCIE_1,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_ANOC_PCIE_GEM_NOC }
+	.link_nodes = { &slv_qns_pcie_mem_noc },
 };
 
 static struct qcom_icc_node mas_xm_pcie3_2 = {
 	.name = "mas_xm_pcie3_2",
-	.id = SC8180X_MASTER_PCIE_2,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_ANOC_PCIE_GEM_NOC }
+	.link_nodes = { &slv_qns_pcie_mem_noc },
 };
 
 static struct qcom_icc_node mas_xm_pcie3_3 = {
 	.name = "mas_xm_pcie3_3",
-	.id = SC8180X_MASTER_PCIE_3,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_ANOC_PCIE_GEM_NOC }
+	.link_nodes = { &slv_qns_pcie_mem_noc },
 };
 
 static struct qcom_icc_node mas_xm_qdss_etr = {
 	.name = "mas_xm_qdss_etr",
-	.id = SC8180X_MASTER_QDSS_ETR,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_sdc2 = {
 	.name = "mas_xm_sdc2",
-	.id = SC8180X_MASTER_SDCC_2,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_xm_sdc4 = {
 	.name = "mas_xm_sdc4",
-	.id = SC8180X_MASTER_SDCC_4,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_SLV }
+	.link_nodes = { &slv_qns_a2noc_snoc },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_hf0_uncomp = {
 	.name = "mas_qxm_camnoc_hf0_uncomp",
-	.id = SC8180X_MASTER_CAMNOC_HF0_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_CAMNOC_UNCOMP }
+	.link_nodes = { &slv_qns_camnoc_uncomp },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_hf1_uncomp = {
 	.name = "mas_qxm_camnoc_hf1_uncomp",
-	.id = SC8180X_MASTER_CAMNOC_HF1_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_CAMNOC_UNCOMP }
+	.link_nodes = { &slv_qns_camnoc_uncomp },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_sf_uncomp = {
 	.name = "mas_qxm_camnoc_sf_uncomp",
-	.id = SC8180X_MASTER_CAMNOC_SF_UNCOMP,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_CAMNOC_UNCOMP }
+	.link_nodes = { &slv_qns_camnoc_uncomp },
 };
 
 static struct qcom_icc_node mas_qnm_npu = {
 	.name = "mas_qnm_npu",
-	.id = SC8180X_MASTER_NPU,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_CDSP_MEM_NOC }
+	.link_nodes = { &slv_qns_cdsp_mem_noc },
 };
 
 static struct qcom_icc_node mas_qnm_snoc = {
 	.name = "mas_qnm_snoc",
-	.id = SC8180X_SNOC_CNOC_MAS,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 56,
-	.links = { SC8180X_SLAVE_TLMM_SOUTH,
-		   SC8180X_SLAVE_CDSP_CFG,
-		   SC8180X_SLAVE_SPSS_CFG,
-		   SC8180X_SLAVE_CAMERA_CFG,
-		   SC8180X_SLAVE_SDCC_4,
-		   SC8180X_SLAVE_AHB2PHY_CENTER,
-		   SC8180X_SLAVE_SDCC_2,
-		   SC8180X_SLAVE_PCIE_2_CFG,
-		   SC8180X_SLAVE_CNOC_MNOC_CFG,
-		   SC8180X_SLAVE_EMAC_CFG,
-		   SC8180X_SLAVE_QSPI_0,
-		   SC8180X_SLAVE_QSPI_1,
-		   SC8180X_SLAVE_TLMM_EAST,
-		   SC8180X_SLAVE_SNOC_CFG,
-		   SC8180X_SLAVE_AHB2PHY_EAST,
-		   SC8180X_SLAVE_GLM,
-		   SC8180X_SLAVE_PDM,
-		   SC8180X_SLAVE_PCIE_1_CFG,
-		   SC8180X_SLAVE_A2NOC_CFG,
-		   SC8180X_SLAVE_QDSS_CFG,
-		   SC8180X_SLAVE_DISPLAY_CFG,
-		   SC8180X_SLAVE_TCSR,
-		   SC8180X_SLAVE_UFS_MEM_0_CFG,
-		   SC8180X_SLAVE_CNOC_DDRSS,
-		   SC8180X_SLAVE_PCIE_0_CFG,
-		   SC8180X_SLAVE_QUP_1,
-		   SC8180X_SLAVE_QUP_2,
-		   SC8180X_SLAVE_NPU_CFG,
-		   SC8180X_SLAVE_CRYPTO_0_CFG,
-		   SC8180X_SLAVE_GRAPHICS_3D_CFG,
-		   SC8180X_SLAVE_VENUS_CFG,
-		   SC8180X_SLAVE_TSIF,
-		   SC8180X_SLAVE_IPA_CFG,
-		   SC8180X_SLAVE_CLK_CTL,
-		   SC8180X_SLAVE_SECURITY,
-		   SC8180X_SLAVE_AOP,
-		   SC8180X_SLAVE_AHB2PHY_WEST,
-		   SC8180X_SLAVE_AHB2PHY_SOUTH,
-		   SC8180X_SLAVE_SERVICE_CNOC,
-		   SC8180X_SLAVE_UFS_CARD_CFG,
-		   SC8180X_SLAVE_USB3_1,
-		   SC8180X_SLAVE_USB3_2,
-		   SC8180X_SLAVE_PCIE_3_CFG,
-		   SC8180X_SLAVE_RBCPR_CX_CFG,
-		   SC8180X_SLAVE_TLMM_WEST,
-		   SC8180X_SLAVE_A1NOC_CFG,
-		   SC8180X_SLAVE_AOSS,
-		   SC8180X_SLAVE_PRNG,
-		   SC8180X_SLAVE_VSENSE_CTRL_CFG,
-		   SC8180X_SLAVE_QUP_0,
-		   SC8180X_SLAVE_USB3,
-		   SC8180X_SLAVE_RBCPR_MMCX_CFG,
-		   SC8180X_SLAVE_PIMEM_CFG,
-		   SC8180X_SLAVE_UFS_MEM_1_CFG,
-		   SC8180X_SLAVE_RBCPR_MX_CFG,
-		   SC8180X_SLAVE_IMEM_CFG }
+	.link_nodes = { &slv_qhs_tlmm_south,
+			&slv_qhs_compute_dsp,
+			&slv_qhs_spss_cfg,
+			&slv_qhs_camera_cfg,
+			&slv_qhs_sdc4,
+			&slv_qhs_ahb2phy_refgen_center,
+			&slv_qhs_sdc2,
+			&slv_qhs_pcie2_cfg,
+			&slv_qhs_mnoc_cfg,
+			&slv_qhs_emac_cfg,
+			&slv_qhs_qspi_0,
+			&slv_qhs_qspi_1,
+			&slv_qhs_tlmm_east,
+			&slv_qhs_snoc_cfg,
+			&slv_qhs_ahb2phy_refgen_east,
+			&slv_qhs_glm,
+			&slv_qhs_pdm,
+			&slv_qhs_pcie1_cfg,
+			&slv_qhs_a2_noc_cfg,
+			&slv_qhs_qdss_cfg,
+			&slv_qhs_display_cfg,
+			&slv_qhs_tcsr,
+			&slv_qhs_ufs_mem0_cfg,
+			&slv_qhs_ddrss_cfg,
+			&slv_qhs_pcie0_cfg,
+			&slv_qhs_qupv3_east0,
+			&slv_qhs_qupv3_east1,
+			&slv_qhs_npu_cfg,
+			&slv_qhs_crypto0_cfg,
+			&slv_qhs_gpuss_cfg,
+			&slv_qhs_venus_cfg,
+			&slv_qhs_tsif,
+			&slv_qhs_ipa,
+			&slv_qhs_clk_ctl,
+			&slv_qhs_security,
+			&slv_qhs_aop,
+			&slv_qhs_ahb2phy_refgen_west,
+			&slv_qhs_ahb2phy_south,
+			&slv_srvc_cnoc,
+			&slv_qhs_ufs_card_cfg,
+			&slv_qhs_usb3_1,
+			&slv_qhs_usb3_2,
+			&slv_qhs_pcie3_cfg,
+			&slv_qhs_cpr_cx,
+			&slv_qhs_tlmm_west,
+			&slv_qhs_a1_noc_cfg,
+			&slv_qhs_aoss,
+			&slv_qhs_prng,
+			&slv_qhs_vsense_ctrl_cfg,
+			&slv_qhs_qupv3_west,
+			&slv_qhs_usb3_0,
+			&slv_qhs_cpr_mmcx,
+			&slv_qhs_pimem_cfg,
+			&slv_qhs_ufs_mem1_cfg,
+			&slv_qhs_cpr_mx,
+			&slv_qhs_imem_cfg },
 };
 
 static struct qcom_icc_node mas_qhm_cnoc_dc_noc = {
 	.name = "mas_qhm_cnoc_dc_noc",
-	.id = SC8180X_MASTER_CNOC_DC_NOC,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC_CFG,
-		   SC8180X_SLAVE_GEM_NOC_CFG }
+	.link_nodes = { &slv_qhs_llcc,
+			&slv_qhs_gemnoc },
 };
 
 static struct qcom_icc_node mas_acm_apps = {
 	.name = "mas_acm_apps",
-	.id = SC8180X_MASTER_AMPSS_M0,
 	.channels = 4,
 	.buswidth = 64,
 	.num_links = 3,
-	.links = { SC8180X_SLAVE_ECC,
-		   SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_ecc,
+			&slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_acm_gpu_tcu = {
 	.name = "mas_acm_gpu_tcu",
-	.id = SC8180X_MASTER_GPU_TCU,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_acm_sys_tcu = {
 	.name = "mas_acm_sys_tcu",
-	.id = SC8180X_MASTER_SYS_TCU,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_qhm_gemnoc_cfg = {
 	.name = "mas_qhm_gemnoc_cfg",
-	.id = SC8180X_MASTER_GEM_NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 3,
-	.links = { SC8180X_SLAVE_SERVICE_GEM_NOC_1,
-		   SC8180X_SLAVE_SERVICE_GEM_NOC,
-		   SC8180X_SLAVE_MSS_PROC_MS_MPU_CFG }
+	.link_nodes = { &slv_srvc_gemnoc1,
+			&slv_srvc_gemnoc,
+			&slv_qhs_mdsp_ms_mpu_cfg },
 };
 
 static struct qcom_icc_node mas_qnm_cmpnoc = {
 	.name = "mas_qnm_cmpnoc",
-	.id = SC8180X_MASTER_COMPUTE_NOC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 3,
-	.links = { SC8180X_SLAVE_ECC,
-		   SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_ecc,
+			&slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_qnm_gpu = {
 	.name = "mas_qnm_gpu",
-	.id = SC8180X_MASTER_GRAPHICS_3D,
 	.channels = 4,
 	.buswidth = 32,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_qnm_mnoc_hf = {
 	.name = "mas_qnm_mnoc_hf",
-	.id = SC8180X_MASTER_MNOC_HF_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_LLCC }
+	.link_nodes = { &slv_qns_llcc },
 };
 
 static struct qcom_icc_node mas_qnm_mnoc_sf = {
 	.name = "mas_qnm_mnoc_sf",
-	.id = SC8180X_MASTER_MNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_qnm_pcie = {
 	.name = "mas_qnm_pcie",
-	.id = SC8180X_MASTER_GEM_NOC_PCIE_SNOC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_LLCC,
-		   SC8180X_SLAVE_GEM_NOC_SNOC }
+	.link_nodes = { &slv_qns_llcc,
+			&slv_qns_gem_noc_snoc },
 };
 
 static struct qcom_icc_node mas_qnm_snoc_gc = {
 	.name = "mas_qnm_snoc_gc",
-	.id = SC8180X_MASTER_SNOC_GC_MEM_NOC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_LLCC }
+	.link_nodes = { &slv_qns_llcc },
 };
 
 static struct qcom_icc_node mas_qnm_snoc_sf = {
 	.name = "mas_qnm_snoc_sf",
-	.id = SC8180X_MASTER_SNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_LLCC }
+	.link_nodes = { &slv_qns_llcc },
 };
 
 static struct qcom_icc_node mas_qxm_ecc = {
 	.name = "mas_qxm_ecc",
-	.id = SC8180X_MASTER_ECC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_LLCC }
+	.link_nodes = { &slv_qns_llcc },
 };
 
 static struct qcom_icc_node mas_llcc_mc = {
 	.name = "mas_llcc_mc",
-	.id = SC8180X_MASTER_LLCC,
 	.channels = 8,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_EBI_CH0 }
+	.link_nodes = { &slv_ebi },
 };
 
 static struct qcom_icc_node mas_qhm_mnoc_cfg = {
 	.name = "mas_qhm_mnoc_cfg",
-	.id = SC8180X_MASTER_CNOC_MNOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_SERVICE_MNOC }
+	.link_nodes = { &slv_srvc_mnoc },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_hf0 = {
 	.name = "mas_qxm_camnoc_hf0",
-	.id = SC8180X_MASTER_CAMNOC_HF0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_HF_MEM_NOC }
+	.link_nodes = { &slv_qns_mem_noc_hf },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_hf1 = {
 	.name = "mas_qxm_camnoc_hf1",
-	.id = SC8180X_MASTER_CAMNOC_HF1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_HF_MEM_NOC }
+	.link_nodes = { &slv_qns_mem_noc_hf },
 };
 
 static struct qcom_icc_node mas_qxm_camnoc_sf = {
 	.name = "mas_qxm_camnoc_sf",
-	.id = SC8180X_MASTER_CAMNOC_SF,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_SF_MEM_NOC }
+	.link_nodes = { &slv_qns2_mem_noc },
 };
 
 static struct qcom_icc_node mas_qxm_mdp0 = {
 	.name = "mas_qxm_mdp0",
-	.id = SC8180X_MASTER_MDP_PORT0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_HF_MEM_NOC }
+	.link_nodes = { &slv_qns_mem_noc_hf },
 };
 
 static struct qcom_icc_node mas_qxm_mdp1 = {
 	.name = "mas_qxm_mdp1",
-	.id = SC8180X_MASTER_MDP_PORT1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_HF_MEM_NOC }
+	.link_nodes = { &slv_qns_mem_noc_hf },
 };
 
 static struct qcom_icc_node mas_qxm_rot = {
 	.name = "mas_qxm_rot",
-	.id = SC8180X_MASTER_ROTATOR,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_SF_MEM_NOC }
+	.link_nodes = { &slv_qns2_mem_noc },
 };
 
 static struct qcom_icc_node mas_qxm_venus0 = {
 	.name = "mas_qxm_venus0",
-	.id = SC8180X_MASTER_VIDEO_P0,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_SF_MEM_NOC }
+	.link_nodes = { &slv_qns2_mem_noc },
 };
 
 static struct qcom_icc_node mas_qxm_venus1 = {
 	.name = "mas_qxm_venus1",
-	.id = SC8180X_MASTER_VIDEO_P1,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_SF_MEM_NOC }
+	.link_nodes = { &slv_qns2_mem_noc },
 };
 
 static struct qcom_icc_node mas_qxm_venus_arm9 = {
 	.name = "mas_qxm_venus_arm9",
-	.id = SC8180X_MASTER_VIDEO_PROC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_MNOC_SF_MEM_NOC }
+	.link_nodes = { &slv_qns2_mem_noc },
 };
 
 static struct qcom_icc_node mas_qhm_snoc_cfg = {
 	.name = "mas_qhm_snoc_cfg",
-	.id = SC8180X_MASTER_SNOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_SERVICE_SNOC }
+	.link_nodes = { &slv_srvc_snoc },
 };
 
 static struct qcom_icc_node mas_qnm_aggre1_noc = {
 	.name = "mas_qnm_aggre1_noc",
-	.id = SC8180X_A1NOC_SNOC_MAS,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 6,
-	.links = { SC8180X_SLAVE_SNOC_GEM_NOC_SF,
-		   SC8180X_SLAVE_PIMEM,
-		   SC8180X_SLAVE_OCIMEM,
-		   SC8180X_SLAVE_APPSS,
-		   SC8180X_SNOC_CNOC_SLV,
-		   SC8180X_SLAVE_QDSS_STM }
+	.link_nodes = { &slv_qns_gemnoc_sf,
+			&slv_qxs_pimem,
+			&slv_qxs_imem,
+			&slv_qhs_apss,
+			&slv_qns_cnoc,
+			&slv_xs_qdss_stm },
 };
 
 static struct qcom_icc_node mas_qnm_aggre2_noc = {
 	.name = "mas_qnm_aggre2_noc",
-	.id = SC8180X_A2NOC_SNOC_MAS,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 11,
-	.links = { SC8180X_SLAVE_SNOC_GEM_NOC_SF,
-		   SC8180X_SLAVE_PIMEM,
-		   SC8180X_SLAVE_PCIE_3,
-		   SC8180X_SLAVE_OCIMEM,
-		   SC8180X_SLAVE_APPSS,
-		   SC8180X_SLAVE_PCIE_2,
-		   SC8180X_SNOC_CNOC_SLV,
-		   SC8180X_SLAVE_PCIE_0,
-		   SC8180X_SLAVE_PCIE_1,
-		   SC8180X_SLAVE_TCU,
-		   SC8180X_SLAVE_QDSS_STM }
+	.link_nodes = { &slv_qns_gemnoc_sf,
+			&slv_qxs_pimem,
+			&slv_xs_pcie_3,
+			&slv_qxs_imem,
+			&slv_qhs_apss,
+			&slv_xs_pcie_2,
+			&slv_qns_cnoc,
+			&slv_xs_pcie_0,
+			&slv_xs_pcie_1,
+			&slv_xs_sys_tcu_cfg,
+			&slv_xs_qdss_stm },
 };
 
 static struct qcom_icc_node mas_qnm_gemnoc = {
 	.name = "mas_qnm_gemnoc",
-	.id = SC8180X_MASTER_GEM_NOC_SNOC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 6,
-	.links = { SC8180X_SLAVE_PIMEM,
-		   SC8180X_SLAVE_OCIMEM,
-		   SC8180X_SLAVE_APPSS,
-		   SC8180X_SNOC_CNOC_SLV,
-		   SC8180X_SLAVE_TCU,
-		   SC8180X_SLAVE_QDSS_STM }
+	.link_nodes = { &slv_qxs_pimem,
+			&slv_qxs_imem,
+			&slv_qhs_apss,
+			&slv_qns_cnoc,
+			&slv_xs_sys_tcu_cfg,
+			&slv_xs_qdss_stm },
 };
 
 static struct qcom_icc_node mas_qxm_pimem = {
 	.name = "mas_qxm_pimem",
-	.id = SC8180X_MASTER_PIMEM,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_SNOC_GEM_NOC_GC,
-		   SC8180X_SLAVE_OCIMEM }
+	.link_nodes = { &slv_qns_gemnoc_gc,
+			&slv_qxs_imem },
 };
 
 static struct qcom_icc_node mas_xm_gic = {
 	.name = "mas_xm_gic",
-	.id = SC8180X_MASTER_GIC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 2,
-	.links = { SC8180X_SLAVE_SNOC_GEM_NOC_GC,
-		   SC8180X_SLAVE_OCIMEM }
+	.link_nodes = { &slv_qns_gemnoc_gc,
+			&slv_qxs_imem },
 };
 
 static struct qcom_icc_node mas_qup_core_0 = {
 	.name = "mas_qup_core_0",
-	.id = SC8180X_MASTER_QUP_CORE_0,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_QUP_CORE_0 }
+	.link_nodes = { &slv_qup_core_0 },
 };
 
 static struct qcom_icc_node mas_qup_core_1 = {
 	.name = "mas_qup_core_1",
-	.id = SC8180X_MASTER_QUP_CORE_1,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_QUP_CORE_1 }
+	.link_nodes = { &slv_qup_core_1 },
 };
 
 static struct qcom_icc_node mas_qup_core_2 = {
 	.name = "mas_qup_core_2",
-	.id = SC8180X_MASTER_QUP_CORE_2,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_SLAVE_QUP_CORE_2 }
+	.link_nodes = { &slv_qup_core_2 },
 };
 
 static struct qcom_icc_node slv_qns_a1noc_snoc = {
 	.name = "slv_qns_a1noc_snoc",
-	.id = SC8180X_A1NOC_SNOC_SLV,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_A1NOC_SNOC_MAS }
+	.link_nodes = { &mas_qnm_aggre1_noc },
 };
 
 static struct qcom_icc_node slv_srvc_aggre1_noc = {
 	.name = "slv_srvc_aggre1_noc",
-	.id = SC8180X_SLAVE_SERVICE_A1NOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qns_a2noc_snoc = {
 	.name = "slv_qns_a2noc_snoc",
-	.id = SC8180X_A2NOC_SNOC_SLV,
 	.channels = 1,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SC8180X_A2NOC_SNOC_MAS }
+	.link_nodes = { &mas_qnm_aggre2_noc },
 };
 
 static struct qcom_icc_node slv_qns_pcie_mem_noc = {
 	.name = "slv_qns_pcie_mem_noc",
-	.id = SC8180X_SLAVE_ANOC_PCIE_GEM_NOC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_GEM_NOC_PCIE_SNOC }
+	.link_nodes = { &mas_qnm_pcie },
 };
 
 static struct qcom_icc_node slv_srvc_aggre2_noc = {
 	.name = "slv_srvc_aggre2_noc",
-	.id = SC8180X_SLAVE_SERVICE_A2NOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qns_camnoc_uncomp = {
 	.name = "slv_qns_camnoc_uncomp",
-	.id = SC8180X_SLAVE_CAMNOC_UNCOMP,
 	.channels = 1,
 	.buswidth = 32
 };
 
 static struct qcom_icc_node slv_qns_cdsp_mem_noc = {
 	.name = "slv_qns_cdsp_mem_noc",
-	.id = SC8180X_SLAVE_CDSP_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_COMPUTE_NOC }
+	.link_nodes = { &mas_qnm_cmpnoc },
 };
 
 static struct qcom_icc_node slv_qhs_a1_noc_cfg = {
 	.name = "slv_qhs_a1_noc_cfg",
-	.id = SC8180X_SLAVE_A1NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_A1NOC_CFG }
+	.link_nodes = { &mas_qhm_a1noc_cfg },
 };
 
 static struct qcom_icc_node slv_qhs_a2_noc_cfg = {
 	.name = "slv_qhs_a2_noc_cfg",
-	.id = SC8180X_SLAVE_A2NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_A2NOC_CFG }
+	.link_nodes = { &mas_qhm_a2noc_cfg },
 };
 
 static struct qcom_icc_node slv_qhs_ahb2phy_refgen_center = {
 	.name = "slv_qhs_ahb2phy_refgen_center",
-	.id = SC8180X_SLAVE_AHB2PHY_CENTER,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ahb2phy_refgen_east = {
 	.name = "slv_qhs_ahb2phy_refgen_east",
-	.id = SC8180X_SLAVE_AHB2PHY_EAST,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ahb2phy_refgen_west = {
 	.name = "slv_qhs_ahb2phy_refgen_west",
-	.id = SC8180X_SLAVE_AHB2PHY_WEST,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ahb2phy_south = {
 	.name = "slv_qhs_ahb2phy_south",
-	.id = SC8180X_SLAVE_AHB2PHY_SOUTH,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_aop = {
 	.name = "slv_qhs_aop",
-	.id = SC8180X_SLAVE_AOP,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_aoss = {
 	.name = "slv_qhs_aoss",
-	.id = SC8180X_SLAVE_AOSS,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_camera_cfg = {
 	.name = "slv_qhs_camera_cfg",
-	.id = SC8180X_SLAVE_CAMERA_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_clk_ctl = {
 	.name = "slv_qhs_clk_ctl",
-	.id = SC8180X_SLAVE_CLK_CTL,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_compute_dsp = {
 	.name = "slv_qhs_compute_dsp",
-	.id = SC8180X_SLAVE_CDSP_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_cpr_cx = {
 	.name = "slv_qhs_cpr_cx",
-	.id = SC8180X_SLAVE_RBCPR_CX_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_cpr_mmcx = {
 	.name = "slv_qhs_cpr_mmcx",
-	.id = SC8180X_SLAVE_RBCPR_MMCX_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_cpr_mx = {
 	.name = "slv_qhs_cpr_mx",
-	.id = SC8180X_SLAVE_RBCPR_MX_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_crypto0_cfg = {
 	.name = "slv_qhs_crypto0_cfg",
-	.id = SC8180X_SLAVE_CRYPTO_0_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ddrss_cfg = {
 	.name = "slv_qhs_ddrss_cfg",
-	.id = SC8180X_SLAVE_CNOC_DDRSS,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_CNOC_DC_NOC }
+	.link_nodes = { &mas_qhm_cnoc_dc_noc },
 };
 
 static struct qcom_icc_node slv_qhs_display_cfg = {
 	.name = "slv_qhs_display_cfg",
-	.id = SC8180X_SLAVE_DISPLAY_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_emac_cfg = {
 	.name = "slv_qhs_emac_cfg",
-	.id = SC8180X_SLAVE_EMAC_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_glm = {
 	.name = "slv_qhs_glm",
-	.id = SC8180X_SLAVE_GLM,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_gpuss_cfg = {
 	.name = "slv_qhs_gpuss_cfg",
-	.id = SC8180X_SLAVE_GRAPHICS_3D_CFG,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_qhs_imem_cfg = {
 	.name = "slv_qhs_imem_cfg",
-	.id = SC8180X_SLAVE_IMEM_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ipa = {
 	.name = "slv_qhs_ipa",
-	.id = SC8180X_SLAVE_IPA_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_mnoc_cfg = {
 	.name = "slv_qhs_mnoc_cfg",
-	.id = SC8180X_SLAVE_CNOC_MNOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_CNOC_MNOC_CFG }
+	.link_nodes = { &mas_qhm_mnoc_cfg },
 };
 
 static struct qcom_icc_node slv_qhs_npu_cfg = {
 	.name = "slv_qhs_npu_cfg",
-	.id = SC8180X_SLAVE_NPU_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pcie0_cfg = {
 	.name = "slv_qhs_pcie0_cfg",
-	.id = SC8180X_SLAVE_PCIE_0_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pcie1_cfg = {
 	.name = "slv_qhs_pcie1_cfg",
-	.id = SC8180X_SLAVE_PCIE_1_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pcie2_cfg = {
 	.name = "slv_qhs_pcie2_cfg",
-	.id = SC8180X_SLAVE_PCIE_2_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pcie3_cfg = {
 	.name = "slv_qhs_pcie3_cfg",
-	.id = SC8180X_SLAVE_PCIE_3_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pdm = {
 	.name = "slv_qhs_pdm",
-	.id = SC8180X_SLAVE_PDM,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_pimem_cfg = {
 	.name = "slv_qhs_pimem_cfg",
-	.id = SC8180X_SLAVE_PIMEM_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_prng = {
 	.name = "slv_qhs_prng",
-	.id = SC8180X_SLAVE_PRNG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qdss_cfg = {
 	.name = "slv_qhs_qdss_cfg",
-	.id = SC8180X_SLAVE_QDSS_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qspi_0 = {
 	.name = "slv_qhs_qspi_0",
-	.id = SC8180X_SLAVE_QSPI_0,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qspi_1 = {
 	.name = "slv_qhs_qspi_1",
-	.id = SC8180X_SLAVE_QSPI_1,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qupv3_east0 = {
 	.name = "slv_qhs_qupv3_east0",
-	.id = SC8180X_SLAVE_QUP_1,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qupv3_east1 = {
 	.name = "slv_qhs_qupv3_east1",
-	.id = SC8180X_SLAVE_QUP_2,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_qupv3_west = {
 	.name = "slv_qhs_qupv3_west",
-	.id = SC8180X_SLAVE_QUP_0,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_sdc2 = {
 	.name = "slv_qhs_sdc2",
-	.id = SC8180X_SLAVE_SDCC_2,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_sdc4 = {
 	.name = "slv_qhs_sdc4",
-	.id = SC8180X_SLAVE_SDCC_4,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_security = {
 	.name = "slv_qhs_security",
-	.id = SC8180X_SLAVE_SECURITY,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_snoc_cfg = {
 	.name = "slv_qhs_snoc_cfg",
-	.id = SC8180X_SLAVE_SNOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_SNOC_CFG }
+	.link_nodes = { &mas_qhm_snoc_cfg },
 };
 
 static struct qcom_icc_node slv_qhs_spss_cfg = {
 	.name = "slv_qhs_spss_cfg",
-	.id = SC8180X_SLAVE_SPSS_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_tcsr = {
 	.name = "slv_qhs_tcsr",
-	.id = SC8180X_SLAVE_TCSR,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_tlmm_east = {
 	.name = "slv_qhs_tlmm_east",
-	.id = SC8180X_SLAVE_TLMM_EAST,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_tlmm_south = {
 	.name = "slv_qhs_tlmm_south",
-	.id = SC8180X_SLAVE_TLMM_SOUTH,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_tlmm_west = {
 	.name = "slv_qhs_tlmm_west",
-	.id = SC8180X_SLAVE_TLMM_WEST,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_tsif = {
 	.name = "slv_qhs_tsif",
-	.id = SC8180X_SLAVE_TSIF,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ufs_card_cfg = {
 	.name = "slv_qhs_ufs_card_cfg",
-	.id = SC8180X_SLAVE_UFS_CARD_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ufs_mem0_cfg = {
 	.name = "slv_qhs_ufs_mem0_cfg",
-	.id = SC8180X_SLAVE_UFS_MEM_0_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_ufs_mem1_cfg = {
 	.name = "slv_qhs_ufs_mem1_cfg",
-	.id = SC8180X_SLAVE_UFS_MEM_1_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_usb3_0 = {
 	.name = "slv_qhs_usb3_0",
-	.id = SC8180X_SLAVE_USB3,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_usb3_1 = {
 	.name = "slv_qhs_usb3_1",
-	.id = SC8180X_SLAVE_USB3_1,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_usb3_2 = {
 	.name = "slv_qhs_usb3_2",
-	.id = SC8180X_SLAVE_USB3_2,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_venus_cfg = {
 	.name = "slv_qhs_venus_cfg",
-	.id = SC8180X_SLAVE_VENUS_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_vsense_ctrl_cfg = {
 	.name = "slv_qhs_vsense_ctrl_cfg",
-	.id = SC8180X_SLAVE_VSENSE_CTRL_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_srvc_cnoc = {
 	.name = "slv_srvc_cnoc",
-	.id = SC8180X_SLAVE_SERVICE_CNOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_gemnoc = {
 	.name = "slv_qhs_gemnoc",
-	.id = SC8180X_SLAVE_GEM_NOC_CFG,
 	.channels = 1,
 	.buswidth = 4,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_GEM_NOC_CFG }
+	.link_nodes = { &mas_qhm_gemnoc_cfg },
 };
 
 static struct qcom_icc_node slv_qhs_llcc = {
 	.name = "slv_qhs_llcc",
-	.id = SC8180X_SLAVE_LLCC_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_mdsp_ms_mpu_cfg = {
 	.name = "slv_qhs_mdsp_ms_mpu_cfg",
-	.id = SC8180X_SLAVE_MSS_PROC_MS_MPU_CFG,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qns_ecc = {
 	.name = "slv_qns_ecc",
-	.id = SC8180X_SLAVE_ECC,
 	.channels = 1,
 	.buswidth = 32
 };
 
 static struct qcom_icc_node slv_qns_gem_noc_snoc = {
 	.name = "slv_qns_gem_noc_snoc",
-	.id = SC8180X_SLAVE_GEM_NOC_SNOC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_GEM_NOC_SNOC }
+	.link_nodes = { &mas_qnm_gemnoc },
 };
 
 static struct qcom_icc_node slv_qns_llcc = {
 	.name = "slv_qns_llcc",
-	.id = SC8180X_SLAVE_LLCC,
 	.channels = 8,
 	.buswidth = 16,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_LLCC }
+	.link_nodes = { &mas_llcc_mc },
 };
 
 static struct qcom_icc_node slv_srvc_gemnoc = {
 	.name = "slv_srvc_gemnoc",
-	.id = SC8180X_SLAVE_SERVICE_GEM_NOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_srvc_gemnoc1 = {
 	.name = "slv_srvc_gemnoc1",
-	.id = SC8180X_SLAVE_SERVICE_GEM_NOC_1,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_ebi = {
 	.name = "slv_ebi",
-	.id = SC8180X_SLAVE_EBI_CH0,
 	.channels = 8,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qns2_mem_noc = {
 	.name = "slv_qns2_mem_noc",
-	.id = SC8180X_SLAVE_MNOC_SF_MEM_NOC,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_MNOC_SF_MEM_NOC }
+	.link_nodes = { &mas_qnm_mnoc_sf },
 };
 
 static struct qcom_icc_node slv_qns_mem_noc_hf = {
 	.name = "slv_qns_mem_noc_hf",
-	.id = SC8180X_SLAVE_MNOC_HF_MEM_NOC,
 	.channels = 2,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_MNOC_HF_MEM_NOC }
+	.link_nodes = { &mas_qnm_mnoc_hf },
 };
 
 static struct qcom_icc_node slv_srvc_mnoc = {
 	.name = "slv_srvc_mnoc",
-	.id = SC8180X_SLAVE_SERVICE_MNOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qhs_apss = {
 	.name = "slv_qhs_apss",
-	.id = SC8180X_SLAVE_APPSS,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_qns_cnoc = {
 	.name = "slv_qns_cnoc",
-	.id = SC8180X_SNOC_CNOC_SLV,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_SNOC_CNOC_MAS }
+	.link_nodes = { &mas_qnm_snoc },
 };
 
 static struct qcom_icc_node slv_qns_gemnoc_gc = {
 	.name = "slv_qns_gemnoc_gc",
-	.id = SC8180X_SLAVE_SNOC_GEM_NOC_GC,
 	.channels = 1,
 	.buswidth = 8,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_SNOC_GC_MEM_NOC }
+	.link_nodes = { &mas_qnm_snoc_gc },
 };
 
 static struct qcom_icc_node slv_qns_gemnoc_sf = {
 	.name = "slv_qns_gemnoc_sf",
-	.id = SC8180X_SLAVE_SNOC_GEM_NOC_SF,
 	.channels = 1,
 	.buswidth = 32,
 	.num_links = 1,
-	.links = { SC8180X_MASTER_SNOC_SF_MEM_NOC }
+	.link_nodes = { &mas_qnm_snoc_sf },
 };
 
 static struct qcom_icc_node slv_qxs_imem = {
 	.name = "slv_qxs_imem",
-	.id = SC8180X_SLAVE_OCIMEM,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_qxs_pimem = {
 	.name = "slv_qxs_pimem",
-	.id = SC8180X_SLAVE_PIMEM,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_srvc_snoc = {
 	.name = "slv_srvc_snoc",
-	.id = SC8180X_SLAVE_SERVICE_SNOC,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_xs_pcie_0 = {
 	.name = "slv_xs_pcie_0",
-	.id = SC8180X_SLAVE_PCIE_0,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_xs_pcie_1 = {
 	.name = "slv_xs_pcie_1",
-	.id = SC8180X_SLAVE_PCIE_1,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_xs_pcie_2 = {
 	.name = "slv_xs_pcie_2",
-	.id = SC8180X_SLAVE_PCIE_2,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_xs_pcie_3 = {
 	.name = "slv_xs_pcie_3",
-	.id = SC8180X_SLAVE_PCIE_3,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_xs_qdss_stm = {
 	.name = "slv_xs_qdss_stm",
-	.id = SC8180X_SLAVE_QDSS_STM,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_xs_sys_tcu_cfg = {
 	.name = "slv_xs_sys_tcu_cfg",
-	.id = SC8180X_SLAVE_TCU,
 	.channels = 1,
 	.buswidth = 8
 };
 
 static struct qcom_icc_node slv_qup_core_0 = {
 	.name = "slv_qup_core_0",
-	.id = SC8180X_SLAVE_QUP_CORE_0,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qup_core_1 = {
 	.name = "slv_qup_core_1",
-	.id = SC8180X_SLAVE_QUP_CORE_1,
 	.channels = 1,
 	.buswidth = 4
 };
 
 static struct qcom_icc_node slv_qup_core_2 = {
 	.name = "slv_qup_core_2",
-	.id = SC8180X_SLAVE_QUP_CORE_2,
 	.channels = 1,
 	.buswidth = 4
 };

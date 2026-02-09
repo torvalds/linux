@@ -17,6 +17,7 @@
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_migration.h"
 #include "xe_gt_sriov_printk.h"
+#include "xe_guc.h"
 #include "xe_guc_buf.h"
 #include "xe_guc_ct.h"
 #include "xe_migrate.h"
@@ -1023,6 +1024,12 @@ static void action_ring_cleanup(void *arg)
 	ptr_ring_cleanup(r, destroy_pf_packet);
 }
 
+static void pf_gt_migration_check_support(struct xe_gt *gt)
+{
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) < MAKE_GUC_VER(70, 54, 0))
+		xe_sriov_pf_migration_disable(gt_to_xe(gt), "requires GuC version >= 70.54.0");
+}
+
 /**
  * xe_gt_sriov_pf_migration_init() - Initialize support for VF migration.
  * @gt: the &xe_gt
@@ -1038,6 +1045,8 @@ int xe_gt_sriov_pf_migration_init(struct xe_gt *gt)
 	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_PF(xe));
+
+	pf_gt_migration_check_support(gt);
 
 	if (!pf_migration_supported(gt))
 		return 0;

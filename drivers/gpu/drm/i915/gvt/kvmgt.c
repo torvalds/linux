@@ -1141,6 +1141,122 @@ static int intel_vgpu_set_irqs(struct intel_vgpu *vgpu, u32 flags,
 	return func(vgpu, index, start, count, flags, data);
 }
 
+static int intel_vgpu_ioctl_get_region_info(struct vfio_device *vfio_dev,
+					    struct vfio_region_info *info,
+					    struct vfio_info_cap *caps)
+{
+	struct vfio_region_info_cap_sparse_mmap *sparse = NULL;
+	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
+	int nr_areas = 1;
+	int cap_type_id;
+	unsigned int i;
+	int ret;
+
+	switch (info->index) {
+	case VFIO_PCI_CONFIG_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = vgpu->gvt->device_info.cfg_space_size;
+		info->flags = VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
+		break;
+	case VFIO_PCI_BAR0_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = vgpu->cfg_space.bar[info->index].size;
+		if (!info->size) {
+			info->flags = 0;
+			break;
+		}
+
+		info->flags = VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
+		break;
+	case VFIO_PCI_BAR1_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = 0;
+		info->flags = 0;
+		break;
+	case VFIO_PCI_BAR2_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->flags = VFIO_REGION_INFO_FLAG_CAPS |
+			      VFIO_REGION_INFO_FLAG_MMAP |
+			      VFIO_REGION_INFO_FLAG_READ |
+			      VFIO_REGION_INFO_FLAG_WRITE;
+		info->size = gvt_aperture_sz(vgpu->gvt);
+
+		sparse = kzalloc(struct_size(sparse, areas, nr_areas),
+				 GFP_KERNEL);
+		if (!sparse)
+			return -ENOMEM;
+
+		sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
+		sparse->header.version = 1;
+		sparse->nr_areas = nr_areas;
+		cap_type_id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
+		sparse->areas[0].offset =
+			PAGE_ALIGN(vgpu_aperture_offset(vgpu));
+		sparse->areas[0].size = vgpu_aperture_sz(vgpu);
+		break;
+
+	case VFIO_PCI_BAR3_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = 0;
+		info->flags = 0;
+
+		gvt_dbg_core("get region info bar:%d\n", info->index);
+		break;
+
+	case VFIO_PCI_ROM_REGION_INDEX:
+	case VFIO_PCI_VGA_REGION_INDEX:
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = 0;
+		info->flags = 0;
+
+		gvt_dbg_core("get region info index:%d\n", info->index);
+		break;
+	default: {
+		struct vfio_region_info_cap_type cap_type = {
+			.header.id = VFIO_REGION_INFO_CAP_TYPE,
+			.header.version = 1
+		};
+
+		if (info->index >= VFIO_PCI_NUM_REGIONS + vgpu->num_regions)
+			return -EINVAL;
+		info->index = array_index_nospec(
+			info->index, VFIO_PCI_NUM_REGIONS + vgpu->num_regions);
+
+		i = info->index - VFIO_PCI_NUM_REGIONS;
+
+		info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+		info->size = vgpu->region[i].size;
+		info->flags = vgpu->region[i].flags;
+
+		cap_type.type = vgpu->region[i].type;
+		cap_type.subtype = vgpu->region[i].subtype;
+
+		ret = vfio_info_add_capability(caps, &cap_type.header,
+					       sizeof(cap_type));
+		if (ret)
+			return ret;
+	}
+	}
+
+	if ((info->flags & VFIO_REGION_INFO_FLAG_CAPS) && sparse) {
+		ret = -EINVAL;
+		if (cap_type_id == VFIO_REGION_INFO_CAP_SPARSE_MMAP) {
+			ret = vfio_info_add_capability(
+				caps, &sparse->header,
+				struct_size(sparse, areas, sparse->nr_areas));
+		}
+		if (ret) {
+			kfree(sparse);
+			return ret;
+		}
+	}
+
+	kfree(sparse);
+	return 0;
+}
+
 static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -1169,152 +1285,6 @@ static long intel_vgpu_ioctl(struct vfio_device *vfio_dev, unsigned int cmd,
 		return copy_to_user((void __user *)arg, &info, minsz) ?
 			-EFAULT : 0;
 
-	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
-		struct vfio_region_info info;
-		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
-		unsigned int i;
-		int ret;
-		struct vfio_region_info_cap_sparse_mmap *sparse = NULL;
-		int nr_areas = 1;
-		int cap_type_id;
-
-		minsz = offsetofend(struct vfio_region_info, offset);
-
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		if (info.argsz < minsz)
-			return -EINVAL;
-
-		switch (info.index) {
-		case VFIO_PCI_CONFIG_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = vgpu->gvt->device_info.cfg_space_size;
-			info.flags = VFIO_REGION_INFO_FLAG_READ |
-				     VFIO_REGION_INFO_FLAG_WRITE;
-			break;
-		case VFIO_PCI_BAR0_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = vgpu->cfg_space.bar[info.index].size;
-			if (!info.size) {
-				info.flags = 0;
-				break;
-			}
-
-			info.flags = VFIO_REGION_INFO_FLAG_READ |
-				     VFIO_REGION_INFO_FLAG_WRITE;
-			break;
-		case VFIO_PCI_BAR1_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = 0;
-			info.flags = 0;
-			break;
-		case VFIO_PCI_BAR2_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.flags = VFIO_REGION_INFO_FLAG_CAPS |
-					VFIO_REGION_INFO_FLAG_MMAP |
-					VFIO_REGION_INFO_FLAG_READ |
-					VFIO_REGION_INFO_FLAG_WRITE;
-			info.size = gvt_aperture_sz(vgpu->gvt);
-
-			sparse = kzalloc(struct_size(sparse, areas, nr_areas),
-					 GFP_KERNEL);
-			if (!sparse)
-				return -ENOMEM;
-
-			sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
-			sparse->header.version = 1;
-			sparse->nr_areas = nr_areas;
-			cap_type_id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
-			sparse->areas[0].offset =
-					PAGE_ALIGN(vgpu_aperture_offset(vgpu));
-			sparse->areas[0].size = vgpu_aperture_sz(vgpu);
-			break;
-
-		case VFIO_PCI_BAR3_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = 0;
-			info.flags = 0;
-
-			gvt_dbg_core("get region info bar:%d\n", info.index);
-			break;
-
-		case VFIO_PCI_ROM_REGION_INDEX:
-		case VFIO_PCI_VGA_REGION_INDEX:
-			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-			info.size = 0;
-			info.flags = 0;
-
-			gvt_dbg_core("get region info index:%d\n", info.index);
-			break;
-		default:
-			{
-				struct vfio_region_info_cap_type cap_type = {
-					.header.id = VFIO_REGION_INFO_CAP_TYPE,
-					.header.version = 1 };
-
-				if (info.index >= VFIO_PCI_NUM_REGIONS +
-						vgpu->num_regions)
-					return -EINVAL;
-				info.index =
-					array_index_nospec(info.index,
-							VFIO_PCI_NUM_REGIONS +
-							vgpu->num_regions);
-
-				i = info.index - VFIO_PCI_NUM_REGIONS;
-
-				info.offset =
-					VFIO_PCI_INDEX_TO_OFFSET(info.index);
-				info.size = vgpu->region[i].size;
-				info.flags = vgpu->region[i].flags;
-
-				cap_type.type = vgpu->region[i].type;
-				cap_type.subtype = vgpu->region[i].subtype;
-
-				ret = vfio_info_add_capability(&caps,
-							&cap_type.header,
-							sizeof(cap_type));
-				if (ret)
-					return ret;
-			}
-		}
-
-		if ((info.flags & VFIO_REGION_INFO_FLAG_CAPS) && sparse) {
-			ret = -EINVAL;
-			if (cap_type_id == VFIO_REGION_INFO_CAP_SPARSE_MMAP)
-				ret = vfio_info_add_capability(&caps,
-					&sparse->header,
-					struct_size(sparse, areas,
-						    sparse->nr_areas));
-			if (ret) {
-				kfree(sparse);
-				return ret;
-			}
-		}
-
-		if (caps.size) {
-			info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
-			if (info.argsz < sizeof(info) + caps.size) {
-				info.argsz = sizeof(info) + caps.size;
-				info.cap_offset = 0;
-			} else {
-				vfio_info_cap_shift(&caps, sizeof(info));
-				if (copy_to_user((void __user *)arg +
-						  sizeof(info), caps.buf,
-						  caps.size)) {
-					kfree(caps.buf);
-					kfree(sparse);
-					return -EFAULT;
-				}
-				info.cap_offset = sizeof(info);
-			}
-
-			kfree(caps.buf);
-		}
-
-		kfree(sparse);
-		return copy_to_user((void __user *)arg, &info, minsz) ?
-			-EFAULT : 0;
 	} else if (cmd == VFIO_DEVICE_GET_IRQ_INFO) {
 		struct vfio_irq_info info;
 
@@ -1477,6 +1447,7 @@ static const struct vfio_device_ops intel_vgpu_dev_ops = {
 	.write		= intel_vgpu_write,
 	.mmap		= intel_vgpu_mmap,
 	.ioctl		= intel_vgpu_ioctl,
+	.get_region_info_caps = intel_vgpu_ioctl_get_region_info,
 	.dma_unmap	= intel_vgpu_dma_unmap,
 	.bind_iommufd	= vfio_iommufd_emulated_bind,
 	.unbind_iommufd = vfio_iommufd_emulated_unbind,

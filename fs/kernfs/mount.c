@@ -298,6 +298,7 @@ static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *k
 	if (info->root->flags & KERNFS_ROOT_SUPPORT_EXPORTOP)
 		sb->s_export_op = &kernfs_export_ops;
 	sb->s_time_gran = 1;
+	sb->s_maxbytes  = MAX_LFS_FILESIZE;
 
 	/* sysfs dentries and inodes don't require IO to create */
 	sb->s_shrink->seeks = 0;

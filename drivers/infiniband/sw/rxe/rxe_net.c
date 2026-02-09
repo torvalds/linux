@@ -20,6 +20,86 @@
 
 static struct rxe_recv_sockets recv_sockets;
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+/*
+ * lockdep can detect false positive circular dependencies
+ * when there are user-space socket API users or in kernel
+ * users switching between a tcp and rdma transport.
+ * Maybe also switching between siw and rxe may cause
+ * problems as per default sockets are only classified
+ * by family and not by ip protocol. And there might
+ * be different locks used between the application
+ * and the low level sockets.
+ *
+ * Problems were seen with ksmbd.ko and cifs.ko,
+ * switching transports, use git blame to find
+ * more details.
+ */
+static struct lock_class_key rxe_recv_sk_key[2];
+static struct lock_class_key rxe_recv_slock_key[2];
+#endif /* CONFIG_DEBUG_LOCK_ALLOC */
+
+static inline void rxe_reclassify_recv_socket(struct socket *sock)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct sock *sk = sock->sk;
+
+	if (WARN_ON_ONCE(!sock_allow_reclassification(sk)))
+		return;
+
+	switch (sk->sk_family) {
+	case AF_INET:
+		sock_lock_init_class_and_name(sk,
+					      "slock-AF_INET-RDMA-RXE-RECV",
+					      &rxe_recv_slock_key[0],
+					      "sk_lock-AF_INET-RDMA-RXE-RECV",
+					      &rxe_recv_sk_key[0]);
+		break;
+	case AF_INET6:
+		sock_lock_init_class_and_name(sk,
+					      "slock-AF_INET6-RDMA-RXE-RECV",
+					      &rxe_recv_slock_key[1],
+					      "sk_lock-AF_INET6-RDMA-RXE-RECV",
+					      &rxe_recv_sk_key[1]);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return;
+	}
+	/*
+	 * sock_lock_init_class_and_name() calls
+	 * sk_owner_set(sk, THIS_MODULE); in order
+	 * to make sure the referenced global
+	 * variables rxe_recv_slock_key and
+	 * rxe_recv_sk_key are not removed
+	 * before the socket is closed.
+	 *
+	 * However this prevents rxe_net_exit()
+	 * from being called and 'rmmod rdma_rxe'
+	 * is refused because of the references.
+	 *
+	 * For the global sockets in recv_sockets,
+	 * we are sure that rxe_net_exit() will call
+	 * rxe_release_udp_tunnel -> udp_tunnel_sock_release.
+	 *
+	 * So we don't need the additional reference to
+	 * our own (THIS_MODULE).
+	 */
+	sk_owner_put(sk);
+	/*
+	 * We also call sk_owner_clear() otherwise
+	 * sk_owner_put(sk) in sk_prot_free will
+	 * fail, which is called via
+	 * sk_free -> __sk_free -> sk_destruct
+	 * and sk_destruct calls __sk_destruct
+	 * directly or via call_rcu()
+	 * so sk_prot_free() might be called
+	 * after rxe_net_exit().
+	 */
+	sk_owner_clear(sk);
+#endif /* CONFIG_DEBUG_LOCK_ALLOC */
+}
+
 static struct dst_entry *rxe_find_route4(struct rxe_qp *qp,
 					 struct net_device *ndev,
 					 struct in_addr *saddr,
@@ -192,6 +272,7 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 	err = udp_sock_create(net, &udp_cfg, &sock);
 	if (err < 0)
 		return ERR_PTR(err);
+	rxe_reclassify_recv_socket(sock);
 
 	tnl_cfg.encap_type = 1;
 	tnl_cfg.encap_rcv = rxe_udp_encap_recv;

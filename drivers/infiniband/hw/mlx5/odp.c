@@ -97,33 +97,28 @@ struct mlx5_pagefault {
  * a pagefault. */
 #define MMU_NOTIFIER_TIMEOUT 1000
 
-#define MLX5_IMR_MTT_BITS (30 - PAGE_SHIFT)
-#define MLX5_IMR_MTT_SHIFT (MLX5_IMR_MTT_BITS + PAGE_SHIFT)
-#define MLX5_IMR_MTT_ENTRIES BIT_ULL(MLX5_IMR_MTT_BITS)
-#define MLX5_IMR_MTT_SIZE BIT_ULL(MLX5_IMR_MTT_SHIFT)
-#define MLX5_IMR_MTT_MASK (~(MLX5_IMR_MTT_SIZE - 1))
-
-#define MLX5_KSM_PAGE_SHIFT MLX5_IMR_MTT_SHIFT
-
 static u64 mlx5_imr_ksm_entries;
+static u64 mlx5_imr_mtt_entries;
+static u64 mlx5_imr_mtt_size;
+static u8 mlx5_imr_mtt_shift;
+static u8 mlx5_imr_ksm_page_shift;
 
-static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
+static void populate_ksm(struct mlx5_ksm *pksm, size_t idx, size_t nentries,
 			struct mlx5_ib_mr *imr, int flags)
 {
 	struct mlx5_core_dev *dev = mr_to_mdev(imr)->mdev;
-	struct mlx5_klm *end = pklm + nentries;
-	int step = MLX5_CAP_ODP(dev, mem_page_fault) ? MLX5_IMR_MTT_SIZE : 0;
+	struct mlx5_ksm *end = pksm + nentries;
+	u64 step = MLX5_CAP_ODP(dev, mem_page_fault) ? mlx5_imr_mtt_size : 0;
 	__be32 key = MLX5_CAP_ODP(dev, mem_page_fault) ?
 			     cpu_to_be32(imr->null_mmkey.key) :
 			     mr_to_mdev(imr)->mkeys.null_mkey;
 	u64 va =
-		MLX5_CAP_ODP(dev, mem_page_fault) ? idx * MLX5_IMR_MTT_SIZE : 0;
+		MLX5_CAP_ODP(dev, mem_page_fault) ? idx * mlx5_imr_mtt_size : 0;
 
 	if (flags & MLX5_IB_UPD_XLT_ZAP) {
-		for (; pklm != end; pklm++, idx++, va += step) {
-			pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
-			pklm->key = key;
-			pklm->va = cpu_to_be64(va);
+		for (; pksm != end; pksm++, idx++, va += step) {
+			pksm->key = key;
+			pksm->va = cpu_to_be64(va);
 		}
 		return;
 	}
@@ -147,16 +142,15 @@ static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	 */
 	lockdep_assert_held(&to_ib_umem_odp(imr->umem)->umem_mutex);
 
-	for (; pklm != end; pklm++, idx++, va += step) {
+	for (; pksm != end; pksm++, idx++, va += step) {
 		struct mlx5_ib_mr *mtt = xa_load(&imr->implicit_children, idx);
 
-		pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
 		if (mtt) {
-			pklm->key = cpu_to_be32(mtt->ibmr.lkey);
-			pklm->va = cpu_to_be64(idx * MLX5_IMR_MTT_SIZE);
+			pksm->key = cpu_to_be32(mtt->ibmr.lkey);
+			pksm->va = cpu_to_be64(idx * mlx5_imr_mtt_size);
 		} else {
-			pklm->key = key;
-			pklm->va = cpu_to_be64(va);
+			pksm->key = key;
+			pksm->va = cpu_to_be64(va);
 		}
 	}
 }
@@ -201,7 +195,7 @@ int mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
 			  struct mlx5_ib_mr *mr, int flags)
 {
 	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
-		populate_klm(xlt, idx, nentries, mr, flags);
+		populate_ksm(xlt, idx, nentries, mr, flags);
 		return 0;
 	} else {
 		return populate_mtt(xlt, idx, nentries, mr, flags);
@@ -226,7 +220,7 @@ static void free_implicit_child_mr_work(struct work_struct *work)
 
 	mutex_lock(&odp_imr->umem_mutex);
 	mlx5r_umr_update_xlt(mr->parent,
-			     ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT, 1, 0,
+			     ib_umem_start(odp) >> mlx5_imr_mtt_shift, 1, 0,
 			     MLX5_IB_UPD_XLT_INDIRECT | MLX5_IB_UPD_XLT_ATOMIC);
 	mutex_unlock(&odp_imr->umem_mutex);
 	mlx5_ib_dereg_mr(&mr->ibmr, NULL);
@@ -237,7 +231,7 @@ static void free_implicit_child_mr_work(struct work_struct *work)
 static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
-	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
+	unsigned long idx = ib_umem_start(odp) >> mlx5_imr_mtt_shift;
 	struct mlx5_ib_mr *imr = mr->parent;
 
 	/*
@@ -265,7 +259,7 @@ static void destroy_unused_implicit_child_mr(struct mlx5_ib_mr *mr)
 
 	/* Freeing a MR is a sleeping operation, so bounce to a work queue */
 	INIT_WORK(&mr->odp_destroy.work, free_implicit_child_mr_work);
-	queue_work(system_unbound_wq, &mr->odp_destroy.work);
+	queue_work(system_dfl_wq, &mr->odp_destroy.work);
 }
 
 static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
@@ -425,7 +419,10 @@ static void internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	if (MLX5_CAP_GEN(dev->mdev, fixed_buffer_size) &&
 	    MLX5_CAP_GEN(dev->mdev, null_mkey) &&
 	    MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset) &&
-	    !MLX5_CAP_GEN(dev->mdev, umr_indirect_mkey_disabled))
+	    !MLX5_CAP_GEN(dev->mdev, umr_indirect_mkey_disabled) &&
+	    mlx5_imr_ksm_entries != 0 &&
+	    !(mlx5_imr_ksm_page_shift >
+	      get_max_log_entity_size_cap(dev, MLX5_MKC_ACCESS_MODE_KSM)))
 		caps->general_caps |= IB_ODP_SUPPORT_IMPLICIT;
 }
 
@@ -476,14 +473,14 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	int err;
 
 	odp = ib_umem_odp_alloc_child(to_ib_umem_odp(imr->umem),
-				      idx * MLX5_IMR_MTT_SIZE,
-				      MLX5_IMR_MTT_SIZE, &mlx5_mn_ops);
+				      idx * mlx5_imr_mtt_size,
+				      mlx5_imr_mtt_size, &mlx5_mn_ops);
 	if (IS_ERR(odp))
 		return ERR_CAST(odp);
 
 	mr = mlx5_mr_cache_alloc(dev, imr->access_flags,
 				 MLX5_MKC_ACCESS_MODE_MTT,
-				 MLX5_IMR_MTT_ENTRIES);
+				 mlx5_imr_mtt_entries);
 	if (IS_ERR(mr)) {
 		ib_umem_odp_release(odp);
 		return mr;
@@ -495,7 +492,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	mr->umem = &odp->umem;
 	mr->ibmr.lkey = mr->mmkey.key;
 	mr->ibmr.rkey = mr->mmkey.key;
-	mr->ibmr.iova = idx * MLX5_IMR_MTT_SIZE;
+	mr->ibmr.iova = idx * mlx5_imr_mtt_size;
 	mr->parent = imr;
 	odp->private = mr;
 
@@ -506,7 +503,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 	refcount_set(&mr->mmkey.usecount, 2);
 
 	err = mlx5r_umr_update_xlt(mr, 0,
-				   MLX5_IMR_MTT_ENTRIES,
+				   mlx5_imr_mtt_entries,
 				   PAGE_SHIFT,
 				   MLX5_IB_UPD_XLT_ZAP |
 				   MLX5_IB_UPD_XLT_ENABLE);
@@ -611,7 +608,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct mlx5_ib_mr *imr;
 	int err;
 
-	if (!mlx5r_umr_can_load_pas(dev, MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
+	if (!mlx5r_umr_can_load_pas(dev, mlx5_imr_mtt_entries * PAGE_SIZE))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
@@ -647,7 +644,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 
 	err = mlx5r_umr_update_xlt(imr, 0,
 				   mlx5_imr_ksm_entries,
-				   MLX5_KSM_PAGE_SHIFT,
+				   mlx5_imr_ksm_page_shift,
 				   MLX5_IB_UPD_XLT_INDIRECT |
 				   MLX5_IB_UPD_XLT_ZAP |
 				   MLX5_IB_UPD_XLT_ENABLE);
@@ -750,20 +747,20 @@ static int pagefault_implicit_mr(struct mlx5_ib_mr *imr,
 				 struct ib_umem_odp *odp_imr, u64 user_va,
 				 size_t bcnt, u32 *bytes_mapped, u32 flags)
 {
-	unsigned long end_idx = (user_va + bcnt - 1) >> MLX5_IMR_MTT_SHIFT;
+	unsigned long end_idx = (user_va + bcnt - 1) >> mlx5_imr_mtt_shift;
 	unsigned long upd_start_idx = end_idx + 1;
 	unsigned long upd_len = 0;
 	unsigned long npages = 0;
 	int err;
 	int ret;
 
-	if (unlikely(user_va >= mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE ||
-		     mlx5_imr_ksm_entries * MLX5_IMR_MTT_SIZE - user_va < bcnt))
+	if (unlikely(user_va >= mlx5_imr_ksm_entries * mlx5_imr_mtt_size ||
+		     mlx5_imr_ksm_entries * mlx5_imr_mtt_size - user_va < bcnt))
 		return -EFAULT;
 
 	/* Fault each child mr that intersects with our interval. */
 	while (bcnt) {
-		unsigned long idx = user_va >> MLX5_IMR_MTT_SHIFT;
+		unsigned long idx = user_va >> mlx5_imr_mtt_shift;
 		struct ib_umem_odp *umem_odp;
 		struct mlx5_ib_mr *mtt;
 		u64 len;
@@ -1924,9 +1921,25 @@ void mlx5_ib_odp_cleanup_one(struct mlx5_ib_dev *dev)
 
 int mlx5_ib_odp_init(void)
 {
-	mlx5_imr_ksm_entries = BIT_ULL(get_order(TASK_SIZE) -
-				       MLX5_IMR_MTT_BITS);
+	u32 log_va_pages = ilog2(TASK_SIZE) - PAGE_SHIFT;
+	u8 mlx5_imr_mtt_bits;
 
+	/* 48 is default ARM64 VA space and covers X86 4-level paging which is 47 */
+	if (log_va_pages <= 48 - PAGE_SHIFT)
+		mlx5_imr_mtt_shift = 30;
+	/* 56 is x86-64, 5-level paging */
+	else if (log_va_pages <= 56 - PAGE_SHIFT)
+		mlx5_imr_mtt_shift = 34;
+	else
+		return 0;
+
+	mlx5_imr_mtt_size = BIT_ULL(mlx5_imr_mtt_shift);
+	mlx5_imr_mtt_bits = mlx5_imr_mtt_shift - PAGE_SHIFT;
+	mlx5_imr_mtt_entries = BIT_ULL(mlx5_imr_mtt_bits);
+	mlx5_imr_ksm_entries = BIT_ULL(get_order(TASK_SIZE) -
+				       mlx5_imr_mtt_bits);
+
+	mlx5_imr_ksm_page_shift = mlx5_imr_mtt_shift;
 	return 0;
 }
 
@@ -2093,6 +2106,6 @@ int mlx5_ib_advise_mr_prefetch(struct ib_pd *pd,
 		destroy_prefetch_work(work);
 		return rc;
 	}
-	queue_work(system_unbound_wq, &work->work);
+	queue_work(system_dfl_wq, &work->work);
 	return 0;
 }

@@ -360,6 +360,84 @@ static const struct device_type sink_pps_type = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Standard Power Range (SPR) Adjustable Voltage Supply (AVS) */
+
+static ssize_t
+spr_avs_9v_to_15v_max_current_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%umA\n",
+			  pdo_spr_avs_apdo_9v_to_15v_max_current_ma(to_pdo(dev)->pdo));
+}
+
+static ssize_t
+spr_avs_15v_to_20v_max_current_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%umA\n",
+			  pdo_spr_avs_apdo_15v_to_20v_max_current_ma(to_pdo(dev)->pdo));
+}
+
+static ssize_t
+spr_avs_src_peak_current_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "%u\n",
+			  pdo_spr_avs_apdo_src_peak_current(to_pdo(dev)->pdo));
+}
+
+static struct device_attribute spr_avs_9v_to_15v_max_current_attr = {
+	.attr = {
+		.name = "maximum_current_9V_to_15V",
+		.mode = 0444,
+	},
+	.show = spr_avs_9v_to_15v_max_current_show,
+};
+
+static struct device_attribute spr_avs_15v_to_20v_max_current_attr = {
+	.attr = {
+		.name = "maximum_current_15V_to_20V",
+		.mode = 0444,
+	},
+	.show = spr_avs_15v_to_20v_max_current_show,
+};
+
+static struct device_attribute spr_avs_src_peak_current_attr = {
+	.attr = {
+		.name = "peak_current",
+		.mode = 0444,
+	},
+	.show = spr_avs_src_peak_current_show,
+};
+
+static struct attribute *source_spr_avs_attrs[] = {
+	&spr_avs_9v_to_15v_max_current_attr.attr,
+	&spr_avs_15v_to_20v_max_current_attr.attr,
+	&spr_avs_src_peak_current_attr.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(source_spr_avs);
+
+static const struct device_type source_spr_avs_type = {
+	.name = "pdo",
+	.release = pdo_release,
+	.groups = source_spr_avs_groups,
+};
+
+static struct attribute *sink_spr_avs_attrs[] = {
+	&spr_avs_9v_to_15v_max_current_attr.attr,
+	&spr_avs_15v_to_20v_max_current_attr.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(sink_spr_avs);
+
+static const struct device_type sink_spr_avs_type = {
+	.name = "pdo",
+	.release = pdo_release,
+	.groups = sink_spr_avs_groups,
+};
+
+/* -------------------------------------------------------------------------- */
 
 static const char * const supply_name[] = {
 	[PDO_TYPE_FIXED] = "fixed_supply",
@@ -368,7 +446,8 @@ static const char * const supply_name[] = {
 };
 
 static const char * const apdo_supply_name[] = {
-	[APDO_TYPE_PPS]  = "programmable_supply",
+	[APDO_TYPE_PPS]      = "programmable_supply",
+	[APDO_TYPE_SPR_AVS]  = "spr_adjustable_voltage_supply",
 };
 
 static const struct device_type *source_type[] = {
@@ -378,7 +457,8 @@ static const struct device_type *source_type[] = {
 };
 
 static const struct device_type *source_apdo_type[] = {
-	[APDO_TYPE_PPS]  = &source_pps_type,
+	[APDO_TYPE_PPS]     = &source_pps_type,
+	[APDO_TYPE_SPR_AVS] = &source_spr_avs_type,
 };
 
 static const struct device_type *sink_type[] = {
@@ -388,7 +468,8 @@ static const struct device_type *sink_type[] = {
 };
 
 static const struct device_type *sink_apdo_type[] = {
-	[APDO_TYPE_PPS]  = &sink_pps_type,
+	[APDO_TYPE_PPS]     = &sink_pps_type,
+	[APDO_TYPE_SPR_AVS] = &sink_spr_avs_type,
 };
 
 /* REVISIT: Export when EPR_*_Capabilities need to be supported. */
@@ -407,8 +488,12 @@ static int add_pdo(struct usb_power_delivery_capabilities *cap, u32 pdo, int pos
 	p->object_position = position;
 
 	if (pdo_type(pdo) == PDO_TYPE_APDO) {
-		/* FIXME: Only PPS supported for now! Skipping others. */
-		if (pdo_apdo_type(pdo) > APDO_TYPE_PPS) {
+		/*
+		 * FIXME: Only PPS, SPR_AVS supported for now!
+		 * Skipping others.
+		 */
+		if (pdo_apdo_type(pdo) != APDO_TYPE_PPS &&
+		    pdo_apdo_type(pdo) != APDO_TYPE_SPR_AVS) {
 			dev_warn(&cap->dev, "Unknown APDO type. PDO 0x%08x\n", pdo);
 			kfree(p);
 			return 0;

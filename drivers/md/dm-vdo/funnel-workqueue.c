@@ -372,6 +372,13 @@ static int make_simple_work_queue(const char *thread_name_prefix, const char *na
 /**
  * vdo_make_work_queue() - Create a work queue; if multiple threads are requested, completions will
  *                         be distributed to them in round-robin fashion.
+ * @thread_name_prefix: A prefix for the thread names to identify them as a vdo thread.
+ * @name: A base name to identify this queue.
+ * @owner: The vdo_thread structure to manage this queue.
+ * @type: The type of queue to create.
+ * @thread_count: The number of actual threads handling this queue.
+ * @thread_privates: An array of private contexts, one for each thread; may be NULL.
+ * @queue_ptr: A pointer to return the new work queue.
  *
  * Each queue is associated with a struct vdo_thread which has a single vdo thread id. Regardless
  * of the actual number of queues and threads allocated here, code outside of the queue

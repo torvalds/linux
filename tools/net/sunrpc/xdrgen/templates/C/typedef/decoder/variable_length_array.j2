@@ -23,4 +23,4 @@ xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ classifier }}{{ name }} *ptr
 		if (!xdrgen_decode_{{ type }}(xdr, &ptr->element[i]))
 			return false;
 	return true;
-};
+}

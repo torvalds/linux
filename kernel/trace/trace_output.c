@@ -420,7 +420,7 @@ static int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 		}
 		mmap_read_unlock(mm);
 	}
-	if (ret && ((sym_flags & TRACE_ITER_SYM_ADDR) || !file))
+	if (ret && ((sym_flags & TRACE_ITER(SYM_ADDR)) || !file))
 		trace_seq_printf(s, " <" IP_FMT ">", ip);
 	return !trace_seq_has_overflowed(s);
 }
@@ -433,9 +433,9 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 		goto out;
 	}
 
-	trace_seq_print_sym(s, ip, sym_flags & TRACE_ITER_SYM_OFFSET);
+	trace_seq_print_sym(s, ip, sym_flags & TRACE_ITER(SYM_OFFSET));
 
-	if (sym_flags & TRACE_ITER_SYM_ADDR)
+	if (sym_flags & TRACE_ITER(SYM_ADDR))
 		trace_seq_printf(s, " <" IP_FMT ">", ip);
 
  out:
@@ -569,7 +569,7 @@ static int
 lat_print_timestamp(struct trace_iterator *iter, u64 next_ts)
 {
 	struct trace_array *tr = iter->tr;
-	unsigned long verbose = tr->trace_flags & TRACE_ITER_VERBOSE;
+	unsigned long verbose = tr->trace_flags & TRACE_ITER(VERBOSE);
 	unsigned long in_ns = iter->iter_flags & TRACE_FILE_TIME_IN_NS;
 	unsigned long long abs_ts = iter->ts - iter->array_buffer->time_start;
 	unsigned long long rel_ts = next_ts - iter->ts;
@@ -636,7 +636,7 @@ int trace_print_context(struct trace_iterator *iter)
 
 	trace_seq_printf(s, "%16s-%-7d ", comm, entry->pid);
 
-	if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
+	if (tr->trace_flags & TRACE_ITER(RECORD_TGID)) {
 		unsigned int tgid = trace_find_tgid(entry->pid);
 
 		if (!tgid)
@@ -647,7 +647,7 @@ int trace_print_context(struct trace_iterator *iter)
 
 	trace_seq_printf(s, "[%03d] ", iter->cpu);
 
-	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
+	if (tr->trace_flags & TRACE_ITER(IRQ_INFO))
 		trace_print_lat_fmt(s, entry);
 
 	trace_print_time(s, iter, iter->ts);
@@ -661,7 +661,7 @@ int trace_print_lat_context(struct trace_iterator *iter)
 	struct trace_entry *entry, *next_entry;
 	struct trace_array *tr = iter->tr;
 	struct trace_seq *s = &iter->seq;
-	unsigned long verbose = (tr->trace_flags & TRACE_ITER_VERBOSE);
+	unsigned long verbose = (tr->trace_flags & TRACE_ITER(VERBOSE));
 	u64 next_ts;
 
 	next_entry = trace_find_next_entry(iter, NULL, &next_ts);
@@ -950,7 +950,9 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 	int offset;
 	int len;
 	int ret;
+	int i;
 	void *pos;
+	char *str;
 
 	list_for_each_entry_reverse(field, head, link) {
 		trace_seq_printf(&iter->seq, " %s=", field->name);
@@ -977,8 +979,29 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 				trace_seq_puts(&iter->seq, "<OVERFLOW>");
 				break;
 			}
-			pos = (void *)iter->ent + offset;
-			trace_seq_printf(&iter->seq, "%.*s", len, (char *)pos);
+			str = (char *)iter->ent + offset;
+			/* Check if there's any non printable strings */
+			for (i = 0; i < len; i++) {
+				if (str[i] && !(isascii(str[i]) && isprint(str[i])))
+					break;
+			}
+			if (i < len) {
+				for (i = 0; i < len; i++) {
+					if (isascii(str[i]) && isprint(str[i]))
+						trace_seq_putc(&iter->seq, str[i]);
+					else
+						trace_seq_putc(&iter->seq, '.');
+				}
+				trace_seq_puts(&iter->seq, " (");
+				for (i = 0; i < len; i++) {
+					if (i)
+						trace_seq_putc(&iter->seq, ':');
+					trace_seq_printf(&iter->seq, "%02x", str[i]);
+				}
+				trace_seq_putc(&iter->seq, ')');
+			} else {
+				trace_seq_printf(&iter->seq, "%.*s", len, str);
+			}
 			break;
 		case FILTER_PTR_STRING:
 			if (!iter->fmt_size)
@@ -1127,7 +1150,7 @@ static void print_fn_trace(struct trace_seq *s, unsigned long ip,
 	if (args)
 		print_function_args(s, args, ip);
 
-	if ((flags & TRACE_ITER_PRINT_PARENT) && parent_ip) {
+	if ((flags & TRACE_ITER(PRINT_PARENT)) && parent_ip) {
 		trace_seq_puts(s, " <-");
 		seq_print_ip_sym(s, parent_ip, flags);
 	}
@@ -1417,7 +1440,7 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 	trace_seq_puts(s, "<user stack trace>\n");
 
-	if (tr->trace_flags & TRACE_ITER_SYM_USEROBJ) {
+	if (tr->trace_flags & TRACE_ITER(SYM_USEROBJ)) {
 		struct task_struct *task;
 		/*
 		 * we do the lookup on the thread group leader,

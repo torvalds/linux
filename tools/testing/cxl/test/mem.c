@@ -250,22 +250,21 @@ static void mes_add_event(struct mock_event_store *mes,
  * Vary the number of events returned to simulate events occuring while the
  * logs are being read.
  */
-static int ret_limit = 0;
+static atomic_t event_counter = ATOMIC_INIT(0);
 
 static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_get_event_payload *pl;
 	struct mock_event_log *log;
-	u16 nr_overflow;
+	int ret_limit;
 	u8 log_type;
 	int i;
 
 	if (cmd->size_in != sizeof(log_type))
 		return -EINVAL;
 
-	ret_limit = (ret_limit + 1) % CXL_TEST_EVENT_RET_MAX;
-	if (!ret_limit)
-		ret_limit = 1;
+	/* Vary return limit from 1 to CXL_TEST_EVENT_RET_MAX */
+	ret_limit = (atomic_inc_return(&event_counter) % CXL_TEST_EVENT_RET_MAX) + 1;
 
 	if (cmd->size_out < struct_size(pl, records, ret_limit))
 		return -EINVAL;
@@ -299,7 +298,7 @@ static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 		u64 ns;
 
 		pl->flags |= CXL_GET_EVENT_FLAG_OVERFLOW;
-		pl->overflow_err_count = cpu_to_le16(nr_overflow);
+		pl->overflow_err_count = cpu_to_le16(log->nr_overflow);
 		ns = ktime_get_real_ns();
 		ns -= 5000000000; /* 5s ago */
 		pl->first_overflow_timestamp = cpu_to_le64(ns);

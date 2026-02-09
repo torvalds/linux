@@ -234,7 +234,7 @@ int __must_check __cdx_driver_register(struct cdx_driver *cdx_driver,
  */
 void cdx_driver_unregister(struct cdx_driver *cdx_driver);
 
-extern struct bus_type cdx_bus_type;
+extern const struct bus_type cdx_bus_type;
 
 /**
  * cdx_dev_reset - Reset CDX device

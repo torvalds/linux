@@ -579,13 +579,13 @@
 
 &cpsw_port1 {
 	bootph-all;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy0>;
 	status = "okay";
 };
 
 &cpsw_port2 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy3>;
 	status = "okay";
 };
@@ -607,6 +607,9 @@
 &tscadc0 {
 	/* ADC is reserved for R5 usage */
 	status = "reserved";
+
+	dmas = <&main_bcdma 0 0x440f 0>, <&main_bcdma 0 0x4410 0>;
+	dma-names = "fifo0", "fifo1";
 
 	adc {
 		ti,adc-channels = <0 1 2 3 4 5 6 7>;

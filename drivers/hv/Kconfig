@@ -17,7 +17,8 @@ config HYPERV
 
 config HYPERV_VTL_MODE
 	bool "Enable Linux to boot in VTL context"
-	depends on (X86_64 || ARM64) && HYPERV
+	depends on (X86_64 && HAVE_STATIC_CALL) || ARM64
+	depends on HYPERV
 	depends on SMP
 	default n
 	help
@@ -75,10 +76,36 @@ config MSHV_ROOT
 	depends on PAGE_SIZE_4KB
 	select EVENTFD
 	select VIRT_XFER_TO_GUEST_WORK
+	select HMM_MIRROR
+	select MMU_NOTIFIER
 	default n
 	help
 	  Select this option to enable support for booting and running as root
 	  partition on Microsoft Hyper-V.
+
+	  If unsure, say N.
+
+config MSHV_VTL
+	tristate "Microsoft Hyper-V VTL driver"
+	depends on X86_64 && HYPERV_VTL_MODE
+	depends on HYPERV_VMBUS
+	# Mapping VTL0 memory to a userspace process in VTL2 is supported in OpenHCL.
+	# VTL2 for OpenHCL makes use of Huge Pages to improve performance on VMs,
+	# specially with large memory requirements.
+	depends on TRANSPARENT_HUGEPAGE
+	# MTRRs are controlled by VTL0, and are not specific to individual VTLs.
+	# Therefore, do not attempt to access or modify MTRRs here.
+	depends on !MTRR
+	select CPUMASK_OFFSTACK
+	select VIRT_XFER_TO_GUEST_WORK
+	default n
+	help
+	  Select this option to enable Hyper-V VTL driver support.
+	  This driver provides interfaces for Virtual Machine Manager (VMM) running in VTL2
+	  userspace to create VTLs and partitions, setup and manage VTL0 memory and
+	  allow userspace to make direct hypercalls. This also allows to map VTL0's address
+	  space to a usermode process in VTL2 and supports getting new VMBus messages and channel
+	  events in VTL2.
 
 	  If unsure, say N.
 

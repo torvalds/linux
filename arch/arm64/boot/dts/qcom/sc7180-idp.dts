@@ -39,6 +39,7 @@
  *
  */
 
+/delete-node/ &gpu_zap_shader;
 /delete-node/ &hyp_mem;
 /delete-node/ &xbl_mem;
 /delete-node/ &aop_mem;

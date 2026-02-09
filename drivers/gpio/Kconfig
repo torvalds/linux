@@ -737,7 +737,6 @@ config GPIO_TB10X
 	depends on ARC_PLAT_TB10X || COMPILE_TEST
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
-	select OF_GPIO
 
 config GPIO_TEGRA
 	tristate "NVIDIA Tegra GPIO support"
@@ -1568,6 +1567,7 @@ config GPIO_QIXIS_FPGA
 	tristate "NXP QIXIS FPGA GPIO support"
 	depends on MFD_SIMPLE_MFD_I2C || COMPILE_TEST
 	select GPIO_REGMAP
+	select REGMAP_MMIO
 	help
 	  This enables support for the GPIOs found in the QIXIS FPGA which is
 	  integrated on some NXP Layerscape boards such as LX2160ARDB and

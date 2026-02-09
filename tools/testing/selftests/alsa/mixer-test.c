@@ -25,7 +25,7 @@
 #include <poll.h>
 #include <stdint.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "alsa-local.h"
 
 #define TESTS_PER_CONTROL 7

@@ -893,9 +893,9 @@ pub trait Driver {
 ///     fn probe(
 ///         pdev: &platform::Device<Core>,
 ///         _id_info: Option<&Self::IdInfo>,
-///     ) -> Result<Pin<KBox<Self>>> {
+///     ) -> impl PinInit<Self, Error> {
 ///         cpufreq::Registration::<SampleDriver>::new_foreign_owned(pdev.as_ref())?;
-///         Ok(KBox::new(Self {}, GFP_KERNEL)?.into())
+///         Ok(Self {})
 ///     }
 /// }
 /// ```

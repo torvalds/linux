@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define EVENTFD_TEST_ITERATIONS 100000UL
 

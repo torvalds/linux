@@ -161,12 +161,10 @@ typedef struct fd_prepare class_fd_prepare_t;
 /* Do not use directly. */
 static inline void class_fd_prepare_destructor(const struct fd_prepare *fdf)
 {
-	if (unlikely(fdf->err)) {
-		if (likely(fdf->__fd >= 0))
-			put_unused_fd(fdf->__fd);
-		if (unlikely(!IS_ERR_OR_NULL(fdf->__file)))
-			fput(fdf->__file);
-	}
+	if (unlikely(fdf->__fd >= 0))
+		put_unused_fd(fdf->__fd);
+	if (unlikely(!IS_ERR_OR_NULL(fdf->__file)))
+		fput(fdf->__file);
 }
 
 /* Do not use directly. */
@@ -230,7 +228,8 @@ static inline int class_fd_prepare_lock_err(const struct fd_prepare *fdf)
 		VFS_WARN_ON_ONCE(fdp->__fd < 0);               \
 		VFS_WARN_ON_ONCE(IS_ERR_OR_NULL(fdp->__file)); \
 		fd_install(fdp->__fd, fdp->__file);            \
-		fdp->__fd;                                     \
+		retain_and_null_ptr(fdp->__file);              \
+		take_fd(fdp->__fd);                            \
 	})
 
 /* Do not use directly. */

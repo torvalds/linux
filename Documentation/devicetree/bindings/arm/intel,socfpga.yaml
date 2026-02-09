@@ -21,10 +21,17 @@ properties:
               - intel,socfpga-agilex-n6000
               - intel,socfpga-agilex-socdk
           - const: intel,socfpga-agilex
+      - description: Agilex3 boards
+        items:
+          - enum:
+              - intel,socfpga-agilex3-socdk
+          - const: intel,socfpga-agilex3
+          - const: intel,socfpga-agilex5
       - description: Agilex5 boards
         items:
           - enum:
               - intel,socfpga-agilex5-socdk
+              - intel,socfpga-agilex5-socdk-013b
               - intel,socfpga-agilex5-socdk-nand
           - const: intel,socfpga-agilex5
 

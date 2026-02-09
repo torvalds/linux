@@ -590,7 +590,7 @@ static void ipmmu_domain_free(struct iommu_domain *io_domain)
 }
 
 static int ipmmu_attach_device(struct iommu_domain *io_domain,
-			       struct device *dev)
+			       struct device *dev, struct iommu_domain *old)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct ipmmu_vmsa_device *mmu = to_ipmmu(dev);
@@ -637,17 +637,17 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 }
 
 static int ipmmu_iommu_identity_attach(struct iommu_domain *identity_domain,
-				       struct device *dev)
+				       struct device *dev,
+				       struct iommu_domain *old)
 {
-	struct iommu_domain *io_domain = iommu_get_domain_for_dev(dev);
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct ipmmu_vmsa_domain *domain;
 	unsigned int i;
 
-	if (io_domain == identity_domain || !io_domain)
+	if (old == identity_domain || !old)
 		return 0;
 
-	domain = to_vmsa_domain(io_domain);
+	domain = to_vmsa_domain(old);
 	for (i = 0; i < fwspec->num_ids; ++i)
 		ipmmu_utlb_disable(domain, fwspec->ids[i]);
 
@@ -719,6 +719,8 @@ static int ipmmu_init_platform_device(struct device *dev,
 		return -ENODEV;
 
 	dev_iommu_priv_set(dev, platform_get_drvdata(ipmmu_pdev));
+
+	put_device(&ipmmu_pdev->dev);
 
 	return 0;
 }

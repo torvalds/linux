@@ -209,6 +209,7 @@
 		reg = <0x1d>;
 		interrupts-extended = <&irqpin3 2 IRQ_TYPE_LEVEL_HIGH>,
 				      <&irqpin3 3 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "INT1", "INT2";
 	};
 
 	rtc@32 {

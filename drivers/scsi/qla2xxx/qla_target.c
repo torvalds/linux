@@ -104,8 +104,6 @@ static void qlt_response_pkt(struct scsi_qla_host *ha, struct rsp_que *rsp,
 	response_t *pkt);
 static int qlt_issue_task_mgmt(struct fc_port *sess, u64 lun,
 	int fn, void *iocb, int flags);
-static void qlt_send_term_exchange(struct qla_qpair *, struct qla_tgt_cmd
-	*cmd, struct atio_from_isp *atio, int ha_locked, int ul_abort);
 static void qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 	struct atio_from_isp *atio, uint16_t status, int qfull);
 static void qlt_disable_vha(struct scsi_qla_host *vha);
@@ -135,20 +133,6 @@ static mempool_t *qla_tgt_mgmt_cmd_mempool;
 static struct workqueue_struct *qla_tgt_wq;
 static DEFINE_MUTEX(qla_tgt_mutex);
 static LIST_HEAD(qla_tgt_glist);
-
-static const char *prot_op_str(u32 prot_op)
-{
-	switch (prot_op) {
-	case TARGET_PROT_NORMAL:	return "NORMAL";
-	case TARGET_PROT_DIN_INSERT:	return "DIN_INSERT";
-	case TARGET_PROT_DOUT_INSERT:	return "DOUT_INSERT";
-	case TARGET_PROT_DIN_STRIP:	return "DIN_STRIP";
-	case TARGET_PROT_DOUT_STRIP:	return "DOUT_STRIP";
-	case TARGET_PROT_DIN_PASS:	return "DIN_PASS";
-	case TARGET_PROT_DOUT_PASS:	return "DOUT_PASS";
-	default:			return "UNKNOWN";
-	}
-}
 
 /* This API intentionally takes dest as a parameter, rather than returning
  * int value to avoid caller forgetting to issue wmb() after the store */
@@ -226,6 +210,10 @@ static void qlt_queue_unknown_atio(scsi_qla_host_t *vha,
 	struct qla_tgt_sess_op *u;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
 	unsigned long flags;
+	unsigned int add_cdb_len = 0;
+
+	/* atio must be the last member of qla_tgt_sess_op for add_cdb_len */
+	BUILD_BUG_ON(offsetof(struct qla_tgt_sess_op, atio) + sizeof(u->atio) != sizeof(*u));
 
 	if (tgt->tgt_stop) {
 		ql_dbg(ql_dbg_async, vha, 0x502c,
@@ -234,12 +222,17 @@ static void qlt_queue_unknown_atio(scsi_qla_host_t *vha,
 		goto out_term;
 	}
 
-	u = kzalloc(sizeof(*u), GFP_ATOMIC);
+	if (atio->u.raw.entry_type == ATIO_TYPE7 &&
+	    atio->u.isp24.fcp_cmnd.task_mgmt_flags == 0)
+		add_cdb_len =
+			((unsigned int) atio->u.isp24.fcp_cmnd.add_cdb_len) * 4;
+
+	u = kzalloc(sizeof(*u) + add_cdb_len, GFP_ATOMIC);
 	if (u == NULL)
 		goto out_term;
 
 	u->vha = vha;
-	memcpy(&u->atio, atio, sizeof(*atio));
+	memcpy(&u->atio, atio, sizeof(*atio) + add_cdb_len);
 	INIT_LIST_HEAD(&u->cmd_list);
 
 	spin_lock_irqsave(&vha->cmd_list_lock, flags);
@@ -252,7 +245,7 @@ out:
 	return;
 
 out_term:
-	qlt_send_term_exchange(vha->hw->base_qpair, NULL, atio, ha_locked, 0);
+	qlt_send_term_exchange(vha->hw->base_qpair, NULL, atio, ha_locked);
 	goto out;
 }
 
@@ -271,7 +264,7 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 			    "Freeing unknown %s %p, because of Abort\n",
 			    "ATIO_TYPE7", u);
 			qlt_send_term_exchange(vha->hw->base_qpair, NULL,
-			    &u->atio, ha_locked, 0);
+			    &u->atio, ha_locked);
 			goto abort;
 		}
 
@@ -285,7 +278,7 @@ static void qlt_try_to_dequeue_unknown_atios(struct scsi_qla_host *vha,
 			    "Freeing unknown %s %p, because tgt is being stopped\n",
 			    "ATIO_TYPE7", u);
 			qlt_send_term_exchange(vha->hw->base_qpair, NULL,
-			    &u->atio, ha_locked, 0);
+			    &u->atio, ha_locked);
 		} else {
 			ql_dbg(ql_dbg_async + ql_dbg_verbose, vha, 0x503d,
 			    "Reschedule u %p, vha %p, host %p\n", u, vha, host);
@@ -1909,6 +1902,10 @@ static void qlt_24xx_retry_term_exchange(struct scsi_qla_host *vha,
 	 * ABTS response. So, in it ID fields are reversed.
 	 */
 
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0xe082,
+	    "qla_target(%d): tag %u: Sending TERM EXCH CTIO for ABTS\n",
+	    vha->vp_idx, le32_to_cpu(entry->exchange_addr_to_abort));
+
 	ctio->entry_type = CTIO_TYPE7;
 	ctio->entry_count = 1;
 	ctio->nport_handle = entry->nport_handle;
@@ -1987,8 +1984,12 @@ static void abort_cmds_for_lun(struct scsi_qla_host *vha, u64 lun, be_id_t s_id)
 		cmd_key = sid_to_key(cmd->atio.u.isp24.fcp_hdr.s_id);
 		cmd_lun = scsilun_to_int(
 			(struct scsi_lun *)&cmd->atio.u.isp24.fcp_cmnd.lun);
-		if (cmd_key == key && cmd_lun == lun)
+		if (cmd_key == key && cmd_lun == lun) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe085,
+			    "qla_target(%d): tag %lld: aborted by TMR\n",
+			    vha->vp_idx, cmd->se_cmd.tag);
 			cmd->aborted = 1;
+		}
 	}
 	spin_unlock_irqrestore(&vha->cmd_list_lock, flags);
 }
@@ -2017,7 +2018,6 @@ static void qlt_do_tmr_work(struct work_struct *work)
 	struct qla_hw_data *ha = mcmd->vha->hw;
 	int rc;
 	uint32_t tag;
-	unsigned long flags;
 
 	switch (mcmd->tmr_func) {
 	case QLA_TGT_ABTS:
@@ -2032,34 +2032,12 @@ static void qlt_do_tmr_work(struct work_struct *work)
 	    mcmd->tmr_func, tag);
 
 	if (rc != 0) {
-		spin_lock_irqsave(mcmd->qpair->qp_lock_ptr, flags);
-		switch (mcmd->tmr_func) {
-		case QLA_TGT_ABTS:
-			mcmd->fc_tm_rsp = FCP_TMF_REJECTED;
-			qlt_build_abts_resp_iocb(mcmd);
-			break;
-		case QLA_TGT_LUN_RESET:
-		case QLA_TGT_CLEAR_TS:
-		case QLA_TGT_ABORT_TS:
-		case QLA_TGT_CLEAR_ACA:
-		case QLA_TGT_TARGET_RESET:
-			qlt_send_busy(mcmd->qpair, &mcmd->orig_iocb.atio,
-			    qla_sam_status);
-			break;
-
-		case QLA_TGT_ABORT_ALL:
-		case QLA_TGT_NEXUS_LOSS_SESS:
-		case QLA_TGT_NEXUS_LOSS:
-			qlt_send_notify_ack(mcmd->qpair,
-			    &mcmd->orig_iocb.imm_ntfy, 0, 0, 0, 0, 0, 0);
-			break;
-		}
-		spin_unlock_irqrestore(mcmd->qpair->qp_lock_ptr, flags);
-
 		ql_dbg(ql_dbg_tgt_mgt, mcmd->vha, 0xf052,
 		    "qla_target(%d):  tgt_ops->handle_tmr() failed: %d\n",
 		    mcmd->vha->vp_idx, rc);
-		mempool_free(mcmd, qla_tgt_mgmt_cmd_mempool);
+		mcmd->flags |= QLA24XX_MGMT_LLD_OWNED;
+		mcmd->fc_tm_rsp = FCP_TMF_FAILED;
+		qlt_xmit_tm_rsp(mcmd);
 	}
 }
 
@@ -2247,6 +2225,21 @@ void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *mcmd)
 EXPORT_SYMBOL(qlt_free_mcmd);
 
 /*
+ * If the upper layer knows about this mgmt cmd, then call its ->free_cmd()
+ * callback, which will eventually call qlt_free_mcmd().  Otherwise, call
+ * qlt_free_mcmd() directly.
+ */
+void qlt_free_ul_mcmd(struct qla_hw_data *ha, struct qla_tgt_mgmt_cmd *mcmd)
+{
+	if (!mcmd)
+		return;
+	if (mcmd->flags & QLA24XX_MGMT_LLD_OWNED)
+		qlt_free_mcmd(mcmd);
+	else
+		ha->tgt.tgt_ops->free_mcmd(mcmd);
+}
+
+/*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then
  * reacquire
  */
@@ -2338,12 +2331,12 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 			"RESET-TMR online/active/old-count/new-count = %d/%d/%d/%d.\n",
 			vha->flags.online, qla2x00_reset_active(vha),
 			mcmd->reset_count, qpair->chip_reset);
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 		return;
 	}
 
-	if (mcmd->flags == QLA24XX_MGMT_SEND_NACK) {
+	if (mcmd->flags & QLA24XX_MGMT_SEND_NACK) {
 		switch (mcmd->orig_iocb.imm_ntfy.u.isp24.status_subcode) {
 		case ELS_LOGO:
 		case ELS_PRLO:
@@ -2376,7 +2369,7 @@ void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *mcmd)
 	 * qlt_xmit_tm_rsp() returns here..
 	 */
 	if (free_mcmd)
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 }
@@ -2443,7 +2436,7 @@ out_err:
 	return -1;
 }
 
-static void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
+void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd)
 {
 	struct qla_hw_data *ha;
 	struct qla_qpair *qpair;
@@ -3218,12 +3211,7 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	uint32_t full_req_cnt = 0;
 	unsigned long flags = 0;
 	int res;
-
-	if (!qpair->fw_started || (cmd->reset_count != qpair->chip_reset) ||
-	    (cmd->sess && cmd->sess->deleted)) {
-		cmd->state = QLA_TGT_STATE_PROCESSED;
-		return 0;
-	}
+	int pre_xmit_res;
 
 	ql_dbg_qp(ql_dbg_tgt, qpair, 0xe018,
 	    "is_send_status=%d, cmd->bufflen=%d, cmd->sg_cnt=%d, cmd->dma_data_direction=%d se_cmd[%p] qp %d\n",
@@ -3231,32 +3219,42 @@ int qlt_xmit_response(struct qla_tgt_cmd *cmd, int xmit_type,
 	    1 : 0, cmd->bufflen, cmd->sg_cnt, cmd->dma_data_direction,
 	    &cmd->se_cmd, qpair->id);
 
-	res = qlt_pre_xmit_response(cmd, &prm, xmit_type, scsi_status,
+	pre_xmit_res = qlt_pre_xmit_response(cmd, &prm, xmit_type, scsi_status,
 	    &full_req_cnt);
-	if (unlikely(res != 0)) {
-		return res;
-	}
+	/*
+	 * Check pre_xmit_res later because we want to check other errors
+	 * first.
+	 */
+
+	/* Begin timer on the first call, not on SRR retry. */
+	if (likely(cmd->jiffies_at_hw_st_entry == 0))
+		cmd->jiffies_at_hw_st_entry = get_jiffies_64();
 
 	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+
+	if (unlikely(cmd->sent_term_exchg ||
+		     cmd->sess->deleted ||
+		     !qpair->fw_started ||
+		     cmd->reset_count != qpair->chip_reset)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe101,
+		    "qla_target(%d): tag %lld: skipping send response for aborted cmd\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+		qlt_unmap_sg(vha, cmd);
+		cmd->state = QLA_TGT_STATE_PROCESSED;
+		vha->hw->tgt.tgt_ops->free_cmd(cmd);
+		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+		return 0;
+	}
+
+	/* Check for errors from qlt_pre_xmit_response(). */
+	res = pre_xmit_res;
+	if (unlikely(res))
+		goto out_unmap_unlock;
 
 	if (xmit_type == QLA_TGT_XMIT_STATUS)
 		qpair->tgt_counters.core_qla_snd_status++;
 	else
 		qpair->tgt_counters.core_qla_que_buf++;
-
-	if (!qpair->fw_started || cmd->reset_count != qpair->chip_reset) {
-		/*
-		 * Either the port is not online or this request was from
-		 * previous life, just abort the processing.
-		 */
-		cmd->state = QLA_TGT_STATE_PROCESSED;
-		ql_dbg_qp(ql_dbg_async, qpair, 0xe101,
-			"RESET-RSP online/active/old-count/new-count = %d/%d/%d/%d.\n",
-			vha->flags.online, qla2x00_reset_active(vha),
-			cmd->reset_count, qpair->chip_reset);
-		res = 0;
-		goto out_unmap_unlock;
-	}
 
 	/* Does F/W have an IOCBs for this request */
 	res = qlt_check_reserve_free_req(qpair, full_req_cnt);
@@ -3372,7 +3370,12 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	struct qla_tgt_prm prm;
 	unsigned long flags = 0;
 	int res = 0;
+	int pci_map_res;
 	struct qla_qpair *qpair = cmd->qpair;
+
+	/* Begin timer on the first call, not on SRR retry. */
+	if (likely(cmd->jiffies_at_hw_st_entry == 0))
+		cmd->jiffies_at_hw_st_entry = get_jiffies_64();
 
 	memset(&prm, 0, sizeof(prm));
 	prm.cmd = cmd;
@@ -3380,28 +3383,37 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	prm.sg = NULL;
 	prm.req_cnt = 1;
 
-	if (!qpair->fw_started || (cmd->reset_count != qpair->chip_reset) ||
-	    (cmd->sess && cmd->sess->deleted)) {
-		/*
-		 * Either the port is not online or this request was from
-		 * previous life, just abort the processing.
-		 */
+	/* Calculate number of entries and segments required */
+	pci_map_res = qlt_pci_map_calc_cnt(&prm);
+	/*
+	 * Check pci_map_res later because we want to check other errors first.
+	 */
+
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+
+	if (unlikely(cmd->sent_term_exchg ||
+		     cmd->sess->deleted ||
+		     !qpair->fw_started ||
+		     cmd->reset_count != qpair->chip_reset)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe102,
+		    "qla_target(%d): tag %lld: skipping data-out for aborted cmd\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+		qlt_unmap_sg(vha, cmd);
 		cmd->aborted = 1;
 		cmd->write_data_transferred = 0;
 		cmd->state = QLA_TGT_STATE_DATA_IN;
+		cmd->jiffies_at_hw_st_entry = 0;
 		vha->hw->tgt.tgt_ops->handle_data(cmd);
-		ql_dbg_qp(ql_dbg_async, qpair, 0xe102,
-			"RESET-XFR online/active/old-count/new-count = %d/%d/%d/%d.\n",
-			vha->flags.online, qla2x00_reset_active(vha),
-			cmd->reset_count, qpair->chip_reset);
+		spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 		return 0;
 	}
 
-	/* Calculate number of entries and segments required */
-	if (qlt_pci_map_calc_cnt(&prm) != 0)
-		return -EAGAIN;
+	/* Check for errors from qlt_pci_map_calc_cnt(). */
+	if (unlikely(pci_map_res != 0)) {
+		res = -EAGAIN;
+		goto out_unlock_free_unmap;
+	}
 
-	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
 	/* Does F/W have an IOCBs for this request */
 	res = qlt_check_reserve_free_req(qpair, prm.req_cnt);
 	if (res != 0)
@@ -3438,6 +3450,7 @@ int qlt_rdy_to_xfer(struct qla_tgt_cmd *cmd)
 	return res;
 
 out_unlock_free_unmap:
+	cmd->jiffies_at_hw_st_entry = 0;
 	qlt_unmap_sg(vha, cmd);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
@@ -3457,7 +3470,6 @@ qlt_handle_dif_error(struct qla_qpair *qpair, struct qla_tgt_cmd *cmd,
 	uint8_t		*ep = &sts->expected_dif[0];
 	uint64_t	lba = cmd->se_cmd.t_task_lba;
 	uint8_t scsi_status, sense_key, asc, ascq;
-	unsigned long flags;
 	struct scsi_qla_host *vha = cmd->vha;
 
 	cmd->trc_flags |= TRC_DIF_ERR;
@@ -3528,16 +3540,14 @@ out:
 	case QLA_TGT_STATE_NEED_DATA:
 		/* handle_data will load DIF error code  */
 		cmd->state = QLA_TGT_STATE_DATA_IN;
+		cmd->jiffies_at_hw_st_entry = 0;
 		vha->hw->tgt.tgt_ops->handle_data(cmd);
 		break;
 	default:
-		spin_lock_irqsave(&cmd->cmd_lock, flags);
-		if (cmd->aborted) {
-			spin_unlock_irqrestore(&cmd->cmd_lock, flags);
+		if (cmd->sent_term_exchg) {
 			vha->hw->tgt.tgt_ops->free_cmd(cmd);
 			break;
 		}
-		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
 		qlt_send_resp_ctio(qpair, cmd, scsi_status, sense_key, asc,
 		    ascq);
@@ -3611,6 +3621,62 @@ static void qlt_send_term_imm_notif(struct scsi_qla_host *vha,
 }
 
 /*
+ * Handle a SRR that had been previously associated with a command when the
+ * command has been aborted or otherwise cannot process the SRR.
+ *
+ * If reject is true, then attempt to reject the SRR.  Otherwise abort the
+ * immediate notify exchange.
+ */
+void qlt_srr_abort(struct qla_tgt_cmd *cmd, bool reject)
+{
+	struct scsi_qla_host *vha = cmd->vha;
+	struct qla_tgt_srr *srr = cmd->srr;
+
+	if (srr->imm_ntfy_recvd) {
+		if (reject)
+			srr->reject = true;
+		else
+			srr->aborted = true;
+
+		if (srr->ctio_recvd) {
+			/*
+			 * The SRR should already be scheduled for processing,
+			 * and the SRR processing code should see that the cmd
+			 * has been aborted and take appropriate action.  In
+			 * addition, the cmd refcount should have been
+			 * incremented, preventing the cmd from being freed
+			 * until SRR processing is done.
+			 */
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1102e,
+			    "qla_target(%d): tag %lld: %s: SRR already scheduled\n",
+			    vha->vp_idx, cmd->se_cmd.tag, __func__);
+		} else {
+			struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+			unsigned long flags;
+
+			/* Shedule processing for the SRR immediate notify. */
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1102f,
+			    "qla_target(%d): tag %lld: %s: schedule SRR %s\n",
+			    vha->vp_idx, cmd->se_cmd.tag, __func__,
+			    reject ? "reject" : "abort");
+			cmd->srr = NULL;
+			srr->cmd = NULL;
+			spin_lock_irqsave(&tgt->srr_lock, flags);
+			list_add_tail(&srr->srr_list_entry, &tgt->srr_list);
+			queue_work(qla_tgt_wq, &tgt->srr_work);
+			spin_unlock_irqrestore(&tgt->srr_lock, flags);
+		}
+	} else {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11030,
+		    "qla_target(%d): tag %lld: %s: no IMM SRR; free SRR\n",
+		    vha->vp_idx, cmd->se_cmd.tag, __func__);
+		cmd->srr = NULL;
+		kfree(srr);
+	}
+}
+EXPORT_SYMBOL(qlt_srr_abort);
+
+/*
  * If hardware_lock held on entry, might drop it, then reaquire
  * This function sends the appropriate CTIO to ISP 2xxx or 24xx
  */
@@ -3618,43 +3684,61 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 	struct qla_tgt_cmd *cmd,
 	struct atio_from_isp *atio)
 {
-	struct scsi_qla_host *vha = qpair->vha;
 	struct ctio7_to_24xx *ctio24;
-	struct qla_hw_data *ha = vha->hw;
-	request_t *pkt;
-	int ret = 0;
+	struct scsi_qla_host *vha;
+	uint16_t loop_id;
 	uint16_t temp;
 
-	ql_dbg(ql_dbg_tgt, vha, 0xe009, "Sending TERM EXCH CTIO (ha=%p)\n", ha);
-
-	if (cmd)
+	if (cmd) {
 		vha = cmd->vha;
+		loop_id = cmd->loop_id;
+	} else {
+		port_id_t id = be_to_port_id(atio->u.isp24.fcp_hdr.s_id);
+		struct qla_hw_data *ha;
+		struct fc_port *sess;
+		unsigned long flags;
 
-	pkt = (request_t *)qla2x00_alloc_iocbs_ready(qpair, NULL);
-	if (pkt == NULL) {
+		vha = qpair->vha;
+		ha = vha->hw;
+
+		/*
+		 * CTIO7_NHANDLE_UNRECOGNIZED works when aborting an idle
+		 * command but not when aborting a command with an active CTIO
+		 * exchange.
+		 */
+		loop_id = CTIO7_NHANDLE_UNRECOGNIZED;
+		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+		sess = qla2x00_find_fcport_by_nportid(vha, &id, 1);
+		if (sess)
+			loop_id = sess->loop_id;
+		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+	}
+
+	if (cmd) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe009,
+		    "qla_target(%d): tag %lld: Sending TERM EXCH CTIO state %d cmd_sent_to_fw %u\n",
+		    vha->vp_idx, cmd->se_cmd.tag, cmd->state,
+		    cmd->cmd_sent_to_fw);
+	} else {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe009,
+		    "qla_target(%d): tag %u: Sending TERM EXCH CTIO (no cmd)\n",
+		    vha->vp_idx, le32_to_cpu(atio->u.isp24.exchange_addr));
+	}
+
+	ctio24 = qla2x00_alloc_iocbs_ready(qpair, NULL);
+	if (!ctio24) {
 		ql_dbg(ql_dbg_tgt, vha, 0xe050,
 		    "qla_target(%d): %s failed: unable to allocate "
 		    "request packet\n", vha->vp_idx, __func__);
 		return -ENOMEM;
 	}
 
-	if (cmd != NULL) {
-		if (cmd->state < QLA_TGT_STATE_PROCESSED) {
-			ql_dbg(ql_dbg_tgt, vha, 0xe051,
-			    "qla_target(%d): Terminating cmd %p with "
-			    "incorrect state %d\n", vha->vp_idx, cmd,
-			    cmd->state);
-		} else
-			ret = 1;
-	}
-
 	qpair->tgt_counters.num_term_xchg_sent++;
-	pkt->entry_count = 1;
-	pkt->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
 
-	ctio24 = (struct ctio7_to_24xx *)pkt;
 	ctio24->entry_type = CTIO_TYPE7;
-	ctio24->nport_handle = cpu_to_le16(CTIO7_NHANDLE_UNRECOGNIZED);
+	ctio24->entry_count = 1;
+	ctio24->handle = QLA_TGT_SKIP_HANDLE | CTIO_COMPLETION_HANDLE_MARK;
+	ctio24->nport_handle = cpu_to_le16(loop_id);
 	ctio24->timeout = cpu_to_le16(QLA_TGT_TIMEOUT);
 	ctio24->vp_index = vha->vp_idx;
 	ctio24->initiator_id = be_id_to_le(atio->u.isp24.fcp_hdr.s_id);
@@ -3671,12 +3755,25 @@ static int __qlt_send_term_exchange(struct qla_qpair *qpair,
 		qpair->reqq_start_iocbs(qpair);
 	else
 		qla2x00_start_iocbs(vha, qpair->req);
-	return ret;
+	return 0;
 }
 
-static void qlt_send_term_exchange(struct qla_qpair *qpair,
-	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked,
-	int ul_abort)
+/*
+ * Aborting a command that is active in the FW (i.e. cmd->cmd_sent_to_fw == 1)
+ * will usually trigger the FW to send a completion CTIO with error status,
+ * and the driver will then call the ->handle_data() or ->free_cmd() callbacks.
+ * This can be used to clear a command that is locked up in the FW unless there
+ * is something more seriously wrong.
+ *
+ * Aborting a command that is not active in the FW (i.e.
+ * cmd->cmd_sent_to_fw == 0) will not directly trigger any callbacks.  Instead,
+ * when the target mode midlevel calls qlt_rdy_to_xfer() or
+ * qlt_xmit_response(), the driver will see that the cmd has been aborted and
+ * call the appropriate callback immediately without performing the requested
+ * operation.
+ */
+void qlt_send_term_exchange(struct qla_qpair *qpair,
+	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked)
 {
 	struct scsi_qla_host *vha;
 	unsigned long flags = 0;
@@ -3700,10 +3797,14 @@ static void qlt_send_term_exchange(struct qla_qpair *qpair,
 		qlt_alloc_qfull_cmd(vha, atio, 0, 0);
 
 done:
-	if (cmd && !ul_abort && !cmd->aborted) {
-		if (cmd->sg_mapped)
-			qlt_unmap_sg(vha, cmd);
-		vha->hw->tgt.tgt_ops->free_cmd(cmd);
+	if (cmd) {
+		/*
+		 * Set this even if -ENOMEM above, since term exchange will be
+		 * sent eventually...
+		 */
+		cmd->sent_term_exchg = 1;
+		cmd->aborted = 1;
+		cmd->jiffies_at_term_exchg = jiffies;
 	}
 
 	if (!ha_locked)
@@ -3711,6 +3812,7 @@ done:
 
 	return;
 }
+EXPORT_SYMBOL(qlt_send_term_exchange);
 
 static void qlt_init_term_exchange(struct scsi_qla_host *vha)
 {
@@ -3761,38 +3863,35 @@ static void qlt_chk_exch_leak_thresh_hold(struct scsi_qla_host *vha)
 
 int qlt_abort_cmd(struct qla_tgt_cmd *cmd)
 {
-	struct qla_tgt *tgt = cmd->tgt;
-	struct scsi_qla_host *vha = tgt->vha;
-	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct scsi_qla_host *vha = cmd->vha;
+	struct qla_qpair *qpair = cmd->qpair;
 	unsigned long flags;
 
+	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
+
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf014,
-	    "qla_target(%d): terminating exchange for aborted cmd=%p "
-	    "(se_cmd=%p, tag=%llu)", vha->vp_idx, cmd, &cmd->se_cmd,
-	    se_cmd->tag);
+	    "qla_target(%d): tag %lld: cmd being aborted (state %d) %s; %s\n",
+	    vha->vp_idx, cmd->se_cmd.tag, cmd->state,
+	    cmd->cmd_sent_to_fw ? "sent to fw" : "not sent to fw",
+	    cmd->aborted ? "aborted" : "not aborted");
 
-	spin_lock_irqsave(&cmd->cmd_lock, flags);
-	if (cmd->aborted) {
-		if (cmd->sg_mapped)
-			qlt_unmap_sg(vha, cmd);
-
-		spin_unlock_irqrestore(&cmd->cmd_lock, flags);
-		/*
-		 * It's normal to see 2 calls in this path:
-		 *  1) XFER Rdy completion + CMD_T_ABORT
-		 *  2) TCM TMR - drain_state_list
-		 */
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf016,
-		    "multiple abort. %p transport_state %x, t_state %x, "
-		    "se_cmd_flags %x\n", cmd, cmd->se_cmd.transport_state,
-		    cmd->se_cmd.t_state, cmd->se_cmd.se_cmd_flags);
-		return -EIO;
+	if (cmd->state != QLA_TGT_STATE_DONE && !cmd->sent_term_exchg) {
+		if (!qpair->fw_started ||
+		    cmd->reset_count != qpair->chip_reset) {
+			/*
+			 * Chip was reset; just pretend that we sent the term
+			 * exchange.
+			 */
+			cmd->sent_term_exchg = 1;
+			cmd->aborted = 1;
+			cmd->jiffies_at_term_exchg = jiffies;
+		} else {
+			qlt_send_term_exchange(qpair, cmd, &cmd->atio, 1);
+		}
 	}
-	cmd->aborted = 1;
-	cmd->trc_flags |= TRC_ABORT;
-	spin_unlock_irqrestore(&cmd->cmd_lock, flags);
 
-	qlt_send_term_exchange(cmd->qpair, cmd, &cmd->atio, 0, 1);
+	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL(qlt_abort_cmd);
@@ -3812,54 +3911,99 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 		qlt_decr_num_pend_cmds(cmd->vha);
 
 	BUG_ON(cmd->sg_mapped);
+	if (unlikely(cmd->free_sg)) {
+		cmd->free_sg = 0;
+		qlt_free_sg(cmd);
+	}
+	if (unlikely(cmd->srr))
+		qlt_srr_abort(cmd, false);
+
+	if (unlikely(cmd->aborted ||
+		     (cmd->trc_flags & (TRC_CTIO_STRANGE | TRC_CTIO_ERR |
+					TRC_SRR_CTIO | TRC_SRR_IMM)))) {
+		ql_dbg(ql_dbg_tgt_mgt, cmd->vha, 0xe086,
+		    "qla_target(%d): tag %lld: free cmd (trc_flags %x, aborted %u, sent_term_exchg %u, rsp_sent %u)\n",
+		    cmd->vha->vp_idx, cmd->se_cmd.tag,
+		    cmd->trc_flags, cmd->aborted, cmd->sent_term_exchg,
+		    cmd->rsp_sent);
+	}
+
+	if (unlikely(cmd->cdb != &cmd->atio.u.isp24.fcp_cmnd.cdb[0])) {
+		kfree(cmd->cdb);
+		cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+		cmd->cdb_len = 16;
+	}
+
 	cmd->jiffies_at_free = get_jiffies_64();
 
 	if (!sess || !sess->se_sess) {
 		WARN_ON(1);
 		return;
 	}
-	cmd->jiffies_at_free = get_jiffies_64();
 	cmd->vha->hw->tgt.tgt_ops->rel_cmd(cmd);
 }
 EXPORT_SYMBOL(qlt_free_cmd);
 
 /*
- * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
+ * Process a CTIO response for a SCSI command that failed due to SRR.
+ *
+ * qpair->qp_lock_ptr supposed to be held on entry
  */
-static int qlt_term_ctio_exchange(struct qla_qpair *qpair, void *ctio,
-	struct qla_tgt_cmd *cmd, uint32_t status)
+static int qlt_prepare_srr_ctio(struct qla_qpair *qpair,
+	struct qla_tgt_cmd *cmd)
 {
-	int term = 0;
-	struct scsi_qla_host *vha = qpair->vha;
+	struct scsi_qla_host *vha = cmd->vha;
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_tgt_srr *srr;
 
-	if (cmd->se_cmd.prot_op)
-		ql_dbg(ql_dbg_tgt_dif, vha, 0xe013,
-		    "Term DIF cmd: lba[0x%llx|%lld] len[0x%x] "
-		    "se_cmd=%p tag[%x] op %#x/%s",
-		     cmd->lba, cmd->lba,
-		     cmd->num_blks, &cmd->se_cmd,
-		     cmd->atio.u.isp24.exchange_addr,
-		     cmd->se_cmd.prot_op,
-		     prot_op_str(cmd->se_cmd.prot_op));
+	cmd->trc_flags |= TRC_SRR_CTIO;
 
-	if (ctio != NULL) {
-		struct ctio7_from_24xx *c = (struct ctio7_from_24xx *)ctio;
+	srr = cmd->srr;
+	if (srr != NULL) {
+		/* qlt_prepare_srr_imm() was called first. */
 
-		term = !(c->flags &
-		    cpu_to_le16(OF_TERM_EXCH));
-	} else
-		term = 1;
+		WARN_ON(srr->ctio_recvd);
+		WARN_ON(!srr->imm_ntfy_recvd);
 
-	if (term)
-		qlt_send_term_exchange(qpair, cmd, &cmd->atio, 1, 0);
+		if (vha->hw->tgt.tgt_ops->get_cmd_ref(cmd)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11037,
+			    "qla_target(%d): tag %lld: unable to get cmd ref for SRR processing\n",
+			    vha->vp_idx, cmd->se_cmd.tag);
+			qlt_srr_abort(cmd, true);
+			return -ESHUTDOWN;
+		}
 
-	return term;
+		srr->ctio_recvd = true;
+
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100f,
+		    "qla_target(%d): tag %lld: Scheduling SRR work\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+
+		/* Schedule the srr for processing in qlt_handle_srr(). */
+		/* IRQ is already OFF */
+		spin_lock(&tgt->srr_lock);
+		list_add_tail(&srr->srr_list_entry, &tgt->srr_list);
+		queue_work_on(cmd->se_cmd.cpuid, qla_tgt_wq, &tgt->srr_work);
+		spin_unlock(&tgt->srr_lock);
+		return 0;
+	}
+
+	srr = kzalloc(sizeof(*srr), GFP_ATOMIC);
+	if (!srr)
+		return -ENOMEM;
+
+	/* Expect qlt_prepare_srr_imm() to be called. */
+	srr->ctio_recvd = true;
+	srr->cmd = cmd;
+	srr->reset_count = cmd->reset_count;
+	cmd->srr = srr;
+	return 0;
 }
-
 
 /* ha->hardware_lock supposed to be held on entry */
 static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
-	struct rsp_que *rsp, uint32_t handle, void *ctio)
+	struct rsp_que *rsp, uint32_t handle, uint8_t cmd_type,
+	const void *ctio)
 {
 	void *cmd = NULL;
 	struct req_que *req;
@@ -3882,29 +4026,97 @@ static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 
 	h &= QLA_CMD_HANDLE_MASK;
 
-	if (h != QLA_TGT_NULL_HANDLE) {
-		if (unlikely(h >= req->num_outstanding_cmds)) {
-			ql_dbg(ql_dbg_tgt, vha, 0xe052,
-			    "qla_target(%d): Wrong handle %x received\n",
-			    vha->vp_idx, handle);
-			return NULL;
-		}
-
-		cmd = req->outstanding_cmds[h];
-		if (unlikely(cmd == NULL)) {
-			ql_dbg(ql_dbg_async, vha, 0xe053,
-			    "qla_target(%d): Suspicious: unable to find the command with handle %x req->id %d rsp->id %d\n",
-				vha->vp_idx, handle, req->id, rsp->id);
-			return NULL;
-		}
-		req->outstanding_cmds[h] = NULL;
-	} else if (ctio != NULL) {
+	if (h == QLA_TGT_NULL_HANDLE) {
 		/* We can't get loop ID from CTIO7 */
 		ql_dbg(ql_dbg_tgt, vha, 0xe054,
 		    "qla_target(%d): Wrong CTIO received: QLA24xx doesn't "
 		    "support NULL handles\n", vha->vp_idx);
 		return NULL;
 	}
+	if (unlikely(h >= req->num_outstanding_cmds)) {
+		ql_dbg(ql_dbg_tgt, vha, 0xe052,
+		    "qla_target(%d): Wrong handle %x received\n",
+		    vha->vp_idx, handle);
+		return NULL;
+	}
+
+	/*
+	 * We passed a numeric handle for a cmd to the hardware, and the
+	 * hardware passed the handle back to us.  Look up the associated cmd,
+	 * and validate that the cmd_type and exchange address match what the
+	 * caller expects.  This guards against buggy HBA firmware that returns
+	 * the same CTIO multiple times.
+	 */
+
+	cmd = req->outstanding_cmds[h];
+
+	if (unlikely(cmd == NULL)) {
+		if (cmd_type == TYPE_TGT_CMD) {
+			__le32 ctio_exchange_addr =
+				((const struct ctio7_from_24xx *)ctio)->
+				exchange_address;
+
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe053,
+			    "qla_target(%d): tag %u: handle %x: cmd detached; ignoring CTIO (handle %x req->id %d rsp->id %d)\n",
+			    vha->vp_idx, le32_to_cpu(ctio_exchange_addr), h,
+			    handle, req->id, rsp->id);
+		} else {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe053,
+			    "qla_target(%d): cmd detached; ignoring CTIO (handle %x req->id %d rsp->id %d)\n",
+			    vha->vp_idx, handle, req->id, rsp->id);
+		}
+		return NULL;
+	}
+
+	if (unlikely(((srb_t *)cmd)->cmd_type != cmd_type)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0xe087,
+		    "qla_target(%d): handle %x: cmd detached; ignoring CTIO (cmd_type mismatch)\n",
+		    vha->vp_idx, h);
+		return NULL;
+	}
+
+	switch (cmd_type) {
+	case TYPE_TGT_CMD: {
+		__le32 ctio_exchange_addr =
+			((const struct ctio7_from_24xx *)ctio)->
+			exchange_address;
+		__le32 cmd_exchange_addr =
+			((struct qla_tgt_cmd *)cmd)->
+			atio.u.isp24.exchange_addr;
+
+		BUILD_BUG_ON(offsetof(struct ctio7_from_24xx,
+				      exchange_address) !=
+			     offsetof(struct ctio_crc_from_fw,
+				      exchange_address));
+
+		if (unlikely(ctio_exchange_addr != cmd_exchange_addr)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe088,
+			    "qla_target(%d): tag %u: handle %x: cmd detached; ignoring CTIO (exchange address mismatch)\n",
+			    vha->vp_idx, le32_to_cpu(ctio_exchange_addr), h);
+			return NULL;
+		}
+		break;
+	}
+
+	case TYPE_TGT_TMCMD: {
+		__le32 ctio_exchange_addr =
+			((const struct abts_resp_from_24xx_fw *)ctio)->
+			exchange_address;
+		__le32 cmd_exchange_addr =
+			((struct qla_tgt_mgmt_cmd *)cmd)->
+			orig_iocb.abts.exchange_address;
+
+		if (unlikely(ctio_exchange_addr != cmd_exchange_addr)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0xe089,
+			    "qla_target(%d): ABTS: handle %x: cmd detached; ignoring CTIO (exchange address mismatch)\n",
+			    vha->vp_idx, h);
+			return NULL;
+		}
+		break;
+	}
+	}
+
+	req->outstanding_cmds[h] = NULL;
 
 	return cmd;
 }
@@ -3913,12 +4125,13 @@ static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
 static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
-    struct rsp_que *rsp, uint32_t handle, uint32_t status, void *ctio)
+	struct rsp_que *rsp, uint32_t handle, uint32_t status,
+	struct ctio7_from_24xx *ctio)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct se_cmd *se_cmd;
 	struct qla_tgt_cmd *cmd;
 	struct qla_qpair *qpair = rsp->qpair;
+	uint16_t ctio_flags;
 
 	if (handle & CTIO_INTERMEDIATE_HANDLE_MARK) {
 		/* That could happen only in case of an error/reset/abort */
@@ -3930,45 +4143,92 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 		return;
 	}
 
-	cmd = qlt_ctio_to_cmd(vha, rsp, handle, ctio);
-	if (cmd == NULL)
-		return;
+	ctio_flags = le16_to_cpu(ctio->flags);
 
-	if ((le16_to_cpu(((struct ctio7_from_24xx *)ctio)->flags) & CTIO7_FLAGS_DATA_OUT) &&
-	    cmd->sess) {
-		qlt_chk_edif_rx_sa_delete_pending(vha, cmd->sess,
-		    (struct ctio7_from_24xx *)ctio);
+	cmd = qlt_ctio_to_cmd(vha, rsp, handle, TYPE_TGT_CMD, ctio);
+	if (unlikely(cmd == NULL)) {
+		if ((handle & ~QLA_TGT_HANDLE_MASK) == QLA_TGT_SKIP_HANDLE &&
+		    (ctio_flags & 0xe1ff) == (CTIO7_FLAGS_STATUS_MODE_1 |
+		     CTIO7_FLAGS_TERMINATE)) {
+			u32 tag = le32_to_cpu(ctio->exchange_address);
+
+			if (status == CTIO_SUCCESS)
+				ql_dbg(ql_dbg_tgt_mgt, vha, 0xe083,
+				    "qla_target(%d): tag %u: term exchange successful\n",
+				    vha->vp_idx, tag);
+			else
+				ql_dbg(ql_dbg_tgt_mgt, vha, 0xe084,
+				    "qla_target(%d): tag %u: term exchange failed; status = 0x%x\n",
+				    vha->vp_idx, tag, status);
+		}
+		return;
 	}
 
-	se_cmd = &cmd->se_cmd;
+	if ((ctio_flags & CTIO7_FLAGS_DATA_OUT) && cmd->sess)
+		qlt_chk_edif_rx_sa_delete_pending(vha, cmd->sess, ctio);
+
 	cmd->cmd_sent_to_fw = 0;
 
 	qlt_unmap_sg(vha, cmd);
 
 	if (unlikely(status != CTIO_SUCCESS)) {
+		u8 op = cmd->cdb ? cmd->cdb[0] : 0;
+		bool term_exchg = false;
+
+		/*
+		 * If the hardware terminated the exchange, then we don't need
+		 * to send an explicit term exchange message.
+		 */
+		if (ctio_flags & OF_TERM_EXCH) {
+			cmd->sent_term_exchg = 1;
+			cmd->aborted = 1;
+			cmd->jiffies_at_term_exchg = jiffies;
+		}
+
 		switch (status & 0xFFFF) {
 		case CTIO_INVALID_RX_ID:
+			term_exchg = true;
 			if (printk_ratelimit())
 				dev_info(&vha->hw->pdev->dev,
-				    "qla_target(%d): CTIO with INVALID_RX_ID ATIO attr %x CTIO Flags %x|%x\n",
-				    vha->vp_idx, cmd->atio.u.isp24.attr,
+				    "qla_target(%d): tag %lld, op %x: CTIO with INVALID_RX_ID status 0x%x received (state %d, port %8phC, LUN %lld, ATIO attr %x, CTIO Flags %x|%x)\n",
+				    vha->vp_idx, cmd->se_cmd.tag, op,
+				    status, cmd->state, cmd->sess->port_name,
+				    cmd->unpacked_lun, cmd->atio.u.isp24.attr,
 				    ((cmd->ctio_flags >> 9) & 0xf),
 				    cmd->ctio_flags);
-
 			break;
+
 		case CTIO_LIP_RESET:
 		case CTIO_TARGET_RESET:
 		case CTIO_ABORTED:
-			/* driver request abort via Terminate exchange */
+			term_exchg = true;
+			fallthrough;
 		case CTIO_TIMEOUT:
-			/* They are OK */
+		{
+			const char *status_str;
+
+			switch (status & 0xFFFF) {
+			case CTIO_LIP_RESET:
+				status_str = "LIP_RESET";
+				break;
+			case CTIO_TARGET_RESET:
+				status_str = "TARGET_RESET";
+				break;
+			case CTIO_ABORTED:
+				status_str = "ABORTED";
+				break;
+			case CTIO_TIMEOUT:
+			default:
+				status_str = "TIMEOUT";
+				break;
+			}
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf058,
-			    "qla_target(%d): CTIO with "
-			    "status %#x received, state %x, se_cmd %p, "
-			    "(LIP_RESET=e, ABORTED=2, TARGET_RESET=17, "
-			    "TIMEOUT=b, INVALID_RX_ID=8)\n", vha->vp_idx,
-			    status, cmd->state, se_cmd);
+			    "qla_target(%d): tag %lld, op %x: CTIO with %s status 0x%x received (state %d, port %8phC, LUN %lld)\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op,
+			    status_str, status, cmd->state,
+			    cmd->sess->port_name, cmd->unpacked_lun);
 			break;
+		}
 
 		case CTIO_PORT_LOGGED_OUT:
 		case CTIO_PORT_UNAVAILABLE:
@@ -3977,11 +4237,13 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 				(status & 0xFFFF) == CTIO_PORT_LOGGED_OUT;
 
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf059,
-			    "qla_target(%d): CTIO with %s status %x "
-			    "received (state %x, se_cmd %p)\n", vha->vp_idx,
+			    "qla_target(%d): tag %lld, op %x: CTIO with %s status 0x%x received (state %d, port %8phC, LUN %lld)\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op,
 			    logged_out ? "PORT LOGGED OUT" : "PORT UNAVAILABLE",
-			    status, cmd->state, se_cmd);
+			    status, cmd->state, cmd->sess->port_name,
+			    cmd->unpacked_lun);
 
+			term_exchg = true;
 			if (logged_out && cmd->sess) {
 				/*
 				 * Session is already logged out, but we need
@@ -3996,18 +4258,30 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 			}
 			break;
 		}
+
+		case CTIO_SRR_RECEIVED:
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100e,
+			    "qla_target(%d): tag %lld, op %x: CTIO with SRR status 0x%x received (state %d, port %8phC, LUN %lld, bufflen %d)\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op, status,
+			    cmd->state, cmd->sess->port_name,
+			    cmd->unpacked_lun, cmd->bufflen);
+
+			if (qlt_prepare_srr_ctio(qpair, cmd) == 0)
+				return;
+			break;
+
 		case CTIO_DIF_ERROR: {
 			struct ctio_crc_from_fw *crc =
 				(struct ctio_crc_from_fw *)ctio;
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf073,
-			    "qla_target(%d): CTIO with DIF_ERROR status %x "
-			    "received (state %x, ulp_cmd %p) actual_dif[0x%llx] "
-			    "expect_dif[0x%llx]\n",
-			    vha->vp_idx, status, cmd->state, se_cmd,
+			    "qla_target(%d): tag %lld, op %x: CTIO with DIF_ERROR status 0x%x received (state %d, port %8phC, LUN %lld, actual_dif[0x%llx] expect_dif[0x%llx])\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op, status,
+			    cmd->state, cmd->sess->port_name,
+			    cmd->unpacked_lun,
 			    *((u64 *)&crc->actual_dif[0]),
 			    *((u64 *)&crc->expected_dif[0]));
 
-			qlt_handle_dif_error(qpair, cmd, ctio);
+			qlt_handle_dif_error(qpair, cmd, crc);
 			return;
 		}
 
@@ -4016,51 +4290,72 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha,
 		case CTIO_FAST_INVALID_REQ:
 		case CTIO_FAST_SPI_ERR:
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05b,
-			    "qla_target(%d): CTIO with EDIF error status 0x%x received (state %x, se_cmd %p\n",
-			    vha->vp_idx, status, cmd->state, se_cmd);
+			    "qla_target(%d): tag %lld, op %x: CTIO with EDIF error status 0x%x received (state %d, port %8phC, LUN %lld)\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op, status,
+			    cmd->state, cmd->sess->port_name,
+			    cmd->unpacked_lun);
 			break;
 
 		default:
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05b,
-			    "qla_target(%d): CTIO with error status 0x%x received (state %x, se_cmd %p\n",
-			    vha->vp_idx, status, cmd->state, se_cmd);
+			    "qla_target(%d): tag %lld, op %x: CTIO with error status 0x%x received (state %d, port %8phC, LUN %lld)\n",
+			    vha->vp_idx, cmd->se_cmd.tag, op, status,
+			    cmd->state, cmd->sess->port_name,
+			    cmd->unpacked_lun);
 			break;
 		}
 
+		cmd->trc_flags |= TRC_CTIO_ERR;
 
-		/* "cmd->aborted" means
-		 * cmd is already aborted/terminated, we don't
-		 * need to terminate again.  The exchange is already
-		 * cleaned up/freed at FW level.  Just cleanup at driver
-		 * level.
+		/*
+		 * In state QLA_TGT_STATE_NEED_DATA the failed CTIO was for
+		 * Data-Out, so either abort the exchange or try sending check
+		 * condition with sense data depending on the severity of
+		 * the error.  In state QLA_TGT_STATE_PROCESSED the failed CTIO
+		 * was for status (and possibly Data-In), so don't try sending
+		 * an error status again in that case (if the error was for
+		 * Data-In with status, we could try sending status without
+		 * Data-In, but we don't do that currently).
 		 */
-		if ((cmd->state != QLA_TGT_STATE_NEED_DATA) &&
-		    (!cmd->aborted)) {
-			cmd->trc_flags |= TRC_CTIO_ERR;
-			if (qlt_term_ctio_exchange(qpair, ctio, cmd, status))
-				return;
-		}
+		if (!cmd->sent_term_exchg &&
+		    (term_exchg || cmd->state != QLA_TGT_STATE_NEED_DATA))
+			qlt_send_term_exchange(qpair, cmd, &cmd->atio, 1);
+	}
+
+	if (unlikely(cmd->srr != NULL)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11031,
+		    "qla_target(%d): tag %lld, op %x: expected CTIO with SRR status; got status 0x%x: state %d, bufflen %d\n",
+		    vha->vp_idx, cmd->se_cmd.tag,
+		    cmd->cdb ? cmd->cdb[0] : 0, status, cmd->state,
+		    cmd->bufflen);
+		qlt_srr_abort(cmd, true);
 	}
 
 	if (cmd->state == QLA_TGT_STATE_PROCESSED) {
 		cmd->trc_flags |= TRC_CTIO_DONE;
+
+		if (likely(status == CTIO_SUCCESS))
+			cmd->rsp_sent = 1;
+
 	} else if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
 		cmd->state = QLA_TGT_STATE_DATA_IN;
 
 		if (status == CTIO_SUCCESS)
 			cmd->write_data_transferred = 1;
 
+		cmd->jiffies_at_hw_st_entry = 0;
 		ha->tgt.tgt_ops->handle_data(cmd);
 		return;
 	} else if (cmd->aborted) {
 		cmd->trc_flags |= TRC_CTIO_ABORTED;
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01e,
-		  "Aborted command %p (tag %lld) finished\n", cmd, se_cmd->tag);
+		    "qla_target(%d): tag %lld: Aborted command finished\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
 	} else {
 		cmd->trc_flags |= TRC_CTIO_STRANGE;
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf05c,
-		    "qla_target(%d): A command in state (%d) should "
-		    "not return a CTIO complete\n", vha->vp_idx, cmd->state);
+		    "qla_target(%d): tag %lld: A command in state (%d) should not return a CTIO complete\n",
+		    vha->vp_idx, cmd->se_cmd.tag, cmd->state);
 	}
 
 	if (unlikely(status != CTIO_SUCCESS) &&
@@ -4113,7 +4408,6 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	struct qla_hw_data *ha = vha->hw;
 	struct fc_port *sess = cmd->sess;
 	struct atio_from_isp *atio = &cmd->atio;
-	unsigned char *cdb;
 	unsigned long flags;
 	uint32_t data_length;
 	int ret, fcp_task_attr, data_dir, bidi = 0;
@@ -4129,8 +4423,6 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 		goto out_term;
 	}
 
-	spin_lock_init(&cmd->cmd_lock);
-	cdb = &atio->u.isp24.fcp_cmnd.cdb[0];
 	cmd->se_cmd.tag = le32_to_cpu(atio->u.isp24.exchange_addr);
 
 	if (atio->u.isp24.fcp_cmnd.rddata &&
@@ -4148,7 +4440,7 @@ static void __qlt_do_work(struct qla_tgt_cmd *cmd)
 	    atio->u.isp24.fcp_cmnd.task_attr);
 	data_length = get_datalen_for_atio(atio);
 
-	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cdb, data_length,
+	ret = ha->tgt.tgt_ops->handle_cmd(vha, cmd, cmd->cdb, data_length,
 				          fcp_task_attr, data_dir, bidi);
 	if (ret != 0)
 		goto out_term;
@@ -4166,9 +4458,14 @@ out_term:
 	 */
 	cmd->trc_flags |= TRC_DO_WORK_ERR;
 	spin_lock_irqsave(qpair->qp_lock_ptr, flags);
-	qlt_send_term_exchange(qpair, NULL, &cmd->atio, 1, 0);
+	qlt_send_term_exchange(qpair, NULL, &cmd->atio, 1);
 
 	qlt_decr_num_pend_cmds(vha);
+	if (unlikely(cmd->cdb != &cmd->atio.u.isp24.fcp_cmnd.cdb[0])) {
+		kfree(cmd->cdb);
+		cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+		cmd->cdb_len = 16;
+	}
 	cmd->vha->hw->tgt.tgt_ops->rel_cmd(cmd);
 	spin_unlock_irqrestore(qpair->qp_lock_ptr, flags);
 
@@ -4292,18 +4589,43 @@ out:
 	cmd->se_cmd.cpuid = h->cpuid;
 }
 
+/*
+ * Safely make a fixed-length copy of a variable-length atio by truncating the
+ * CDB if necessary.
+ */
+static void memcpy_atio(struct atio_from_isp *dst,
+	const struct atio_from_isp *src)
+{
+	int len;
+
+	memcpy(dst, src, sizeof(*dst));
+
+	/*
+	 * If the CDB was truncated, prevent get_datalen_for_atio() from
+	 * accessing invalid memory.
+	 */
+	len = src->u.isp24.fcp_cmnd.add_cdb_len;
+	if (unlikely(len != 0)) {
+		dst->u.isp24.fcp_cmnd.add_cdb_len = 0;
+		memcpy(&dst->u.isp24.fcp_cmnd.add_cdb[0],
+		       &src->u.isp24.fcp_cmnd.add_cdb[len * 4],
+		       4);
+	}
+}
+
 static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 				       struct fc_port *sess,
 				       struct atio_from_isp *atio)
 {
 	struct qla_tgt_cmd *cmd;
+	int add_cdb_len;
 
 	cmd = vha->hw->tgt.tgt_ops->get_cmd(sess);
 	if (!cmd)
 		return NULL;
 
 	cmd->cmd_type = TYPE_TGT_CMD;
-	memcpy(&cmd->atio, atio, sizeof(*atio));
+	memcpy_atio(&cmd->atio, atio);
 	INIT_LIST_HEAD(&cmd->sess_cmd_list);
 	cmd->state = QLA_TGT_STATE_NEW;
 	cmd->tgt = vha->vha_tgt.qla_tgt;
@@ -4322,6 +4644,29 @@ static struct qla_tgt_cmd *qlt_get_tag(scsi_qla_host_t *vha,
 	cmd->reset_count = vha->hw->base_qpair->chip_reset;
 	cmd->vp_idx = vha->vp_idx;
 	cmd->edif = sess->edif.enable;
+
+	cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+	cmd->cdb_len = 16;
+
+	/*
+	 * NOTE: memcpy_atio() set cmd->atio.u.isp24.fcp_cmnd.add_cdb_len to 0,
+	 * so use the original value here.
+	 */
+	add_cdb_len = atio->u.isp24.fcp_cmnd.add_cdb_len;
+	if (unlikely(add_cdb_len != 0)) {
+		int cdb_len = 16 + add_cdb_len * 4;
+		u8 *cdb;
+
+		cdb = kmalloc(cdb_len, GFP_ATOMIC);
+		if (unlikely(!cdb)) {
+			vha->hw->tgt.tgt_ops->free_cmd(cmd);
+			return NULL;
+		}
+		/* CAUTION: copy CDB from atio not cmd->atio */
+		memcpy(cdb, atio->u.isp24.fcp_cmnd.cdb, cdb_len);
+		cmd->cdb = cdb;
+		cmd->cdb_len = cdb_len;
+	}
 
 	return cmd;
 }
@@ -4900,6 +5245,863 @@ out:
 }
 
 /*
+ * Return true if the HBA firmware version is known to have bugs that
+ * prevent Sequence Level Error Recovery (SLER) / Sequence Retransmission
+ * Request (SRR) from working.
+ *
+ * Some bad versions are based on testing and some are based on "Marvell Fibre
+ * Channel Firmware Release Notes".
+ */
+static bool qlt_has_sler_fw_bug(struct qla_hw_data *ha)
+{
+	bool has_sler_fw_bug = false;
+
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+		/*
+		 * In the fw release notes:
+		 *   ER147301 was added to v9.05.00 causing SLER regressions
+		 *   FCD-259  was fixed in v9.08.00
+		 *   FCD-371  was fixed in v9.08.00
+		 *   FCD-1183 was fixed in v9.09.00
+		 *
+		 * QLE2694L (ISP2071) known bad firmware (tested):
+		 *   9.06.02
+		 *   9.07.00
+		 *   9.08.02
+		 *   SRRs trigger hundreds of bogus entries in the response
+		 *   queue and various other problems.
+		 *
+		 * QLE2694L known good firmware (tested):
+		 *   8.08.05
+		 *   9.09.00
+		 *
+		 * Suspected bad firmware (not confirmed by testing):
+		 *   v9.05.xx
+		 *
+		 * unknown firmware:
+		 *   9.00.00 - 9.04.xx
+		 */
+		if (ha->fw_major_version == 9 &&
+		    ha->fw_minor_version >= 5 &&
+		    ha->fw_minor_version <= 8)
+			has_sler_fw_bug = true;
+	}
+
+	return has_sler_fw_bug;
+}
+
+/*
+ * Return true and print a message if the HA has been reset since the SRR
+ * immediate notify was received; else return false.
+ */
+static bool qlt_srr_is_chip_reset(struct scsi_qla_host *vha,
+	struct qla_qpair *qpair, struct qla_tgt_srr *srr)
+{
+	if (!vha->flags.online ||
+	    !qpair->fw_started ||
+	    srr->reset_count != qpair->chip_reset) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100d,
+		    "qla_target(%d): chip reset; discarding IMM SRR\n",
+		    vha->vp_idx);
+		return true;
+	}
+	return false;
+}
+
+/* Find and return the command associated with a SRR immediate notify. */
+static struct qla_tgt_cmd *qlt_srr_to_cmd(struct scsi_qla_host *vha,
+	const struct imm_ntfy_from_isp *iocb)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct fc_port *sess;
+	struct qla_tgt_cmd *cmd;
+	uint32_t tag = le32_to_cpu(iocb->u.isp24.exchange_address);
+	uint16_t loop_id;
+	be_id_t s_id;
+	unsigned long flags;
+
+	if (tag == ATIO_EXCHANGE_ADDRESS_UNKNOWN) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11009,
+		    "qla_target(%d): IMM SRR with unknown exchange address; reject SRR\n",
+		    vha->vp_idx);
+		return NULL;
+	}
+
+	loop_id = le16_to_cpu(iocb->u.isp24.nport_handle);
+
+	s_id.domain = iocb->u.isp24.port_id[2];
+	s_id.area   = iocb->u.isp24.port_id[1];
+	s_id.al_pa  = iocb->u.isp24.port_id[0];
+
+	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
+	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, s_id);
+	if (!sess)
+		sess = ha->tgt.tgt_ops->find_sess_by_loop_id(vha, loop_id);
+	if (!sess || sess->deleted) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100a,
+		    "qla_target(%d): could not find session for IMM SRR; reject SRR\n",
+		    vha->vp_idx);
+		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+		return NULL;
+	}
+	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
+
+	cmd = ha->tgt.tgt_ops->find_cmd_by_tag(sess, tag);
+	if (!cmd) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100b,
+		    "qla_target(%d): could not find cmd for IMM SRR; reject SRR\n",
+		    vha->vp_idx);
+	} else {
+		u16 srr_ox_id = le16_to_cpu(iocb->u.isp24.srr_ox_id);
+		u16 cmd_ox_id = be16_to_cpu(cmd->atio.u.isp24.fcp_hdr.ox_id);
+
+		if (srr_ox_id != cmd_ox_id) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1100c,
+			    "qla_target(%d): tag %lld: IMM SRR: srr_ox_id[%04x] != cmd_ox_id[%04x]; reject SRR\n",
+			    vha->vp_idx, cmd->se_cmd.tag,
+			    srr_ox_id, cmd_ox_id);
+			cmd = NULL;
+		}
+	}
+
+	return cmd;
+}
+
+/*
+ * Handle an immediate notify SRR (Sequence Retransmission Request) message from
+ * the hardware.  The hardware will also send a CTIO with CTIO_SRR_RECEIVED status
+ * for the affected command.
+ *
+ * This may be called a second time for the same immediate notify SRR if
+ * CTIO_SRR_RECEIVED is never received and qlt_srr_abort() is called.
+ *
+ * Process context, no locks
+ */
+static void qlt_handle_srr_imm(struct scsi_qla_host *vha,
+	struct qla_tgt_srr *srr)
+{
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_hw_data *ha = vha->hw;
+	struct qla_qpair *qpair;
+	struct qla_tgt_cmd *cmd;
+	uint8_t srr_explain = NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL;
+
+	/* handle qlt_srr_abort() */
+	if (srr->aborted) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11004,
+		    "qla_target(%d): IMM SRR: terminating SRR for aborted cmd\n",
+		    vha->vp_idx);
+		spin_lock_irq(&ha->hardware_lock);
+		if (!qlt_srr_is_chip_reset(vha, ha->base_qpair, srr))
+			qlt_send_term_imm_notif(vha, &srr->imm_ntfy, 1);
+		spin_unlock_irq(&ha->hardware_lock);
+		kfree(srr);
+		return;
+	}
+	if (srr->reject) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11005,
+		    "qla_target(%d): IMM SRR: rejecting SRR for unknown cmd\n",
+		    vha->vp_idx);
+		goto out_reject;
+	}
+
+	/* Find the command associated with the SRR. */
+	cmd = qlt_srr_to_cmd(vha, &srr->imm_ntfy);
+	if (cmd == NULL) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11005,
+		    "qla_target(%d): IMM SRR: rejecting SRR for unknown cmd\n",
+		    vha->vp_idx);
+		srr_explain = NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_INVALID_OX_ID_RX_ID;
+		goto out_reject;
+	}
+
+	if (ha->tgt.tgt_ops->get_cmd_ref(cmd)) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11038,
+		    "qla_target(%d): IMM SRR: unable to get cmd ref; rejecting SRR\n",
+		    vha->vp_idx);
+		cmd = NULL;
+		goto out_reject;
+	}
+
+	qpair = cmd->qpair;
+
+	spin_lock_irq(qpair->qp_lock_ptr);
+
+	if (cmd->reset_count != srr->reset_count) {
+		/* force a miscompare */
+		srr->reset_count = qpair->chip_reset ^ 1;
+	}
+	if (qlt_srr_is_chip_reset(vha, qpair, srr)) {
+		spin_unlock_irq(qpair->qp_lock_ptr);
+		ha->tgt.tgt_ops->put_cmd_ref(cmd);
+		kfree(srr);
+		return;
+	}
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x11001,
+	    "qla_target(%d): tag %lld, op %x: received IMM SRR\n",
+	    vha->vp_idx, cmd->se_cmd.tag, cmd->cdb ? cmd->cdb[0] : 0);
+
+	cmd->trc_flags |= TRC_SRR_IMM;
+
+	if (cmd->srr != NULL) {
+		if (cmd->srr->imm_ntfy_recvd) {
+			/*
+			 * Received another immediate notify SRR message for
+			 * this command before the previous one could be processed
+			 * (not expected to happen).
+			 */
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11006,
+			    "qla_target(%d): tag %lld: received multiple IMM SRR; reject SRR\n",
+			    vha->vp_idx, cmd->se_cmd.tag);
+			spin_unlock_irq(qpair->qp_lock_ptr);
+			ha->tgt.tgt_ops->put_cmd_ref(cmd);
+			goto out_reject;
+		}
+
+		/* qlt_prepare_srr_ctio() was called first. */
+		WARN_ON(!cmd->srr->ctio_recvd);
+
+		/*
+		 * The immediate notify and CTIO handlers both allocated
+		 * separate srr structs; combine them.
+		 */
+		memcpy(&cmd->srr->imm_ntfy, &srr->imm_ntfy,
+		       sizeof(srr->imm_ntfy));
+		kfree(srr);
+		srr = cmd->srr;
+		srr->imm_ntfy_recvd = true;
+
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11002,
+		    "qla_target(%d): tag %lld: schedule SRR work\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+
+		/* Schedule the srr for processing in qlt_handle_srr(). */
+		spin_lock(&tgt->srr_lock);
+		list_add_tail(&srr->srr_list_entry, &tgt->srr_list);
+		/*
+		 * Already running the work function; no need to schedule
+		 * tgt->srr_work.
+		 */
+		spin_unlock(&tgt->srr_lock);
+		spin_unlock_irq(qpair->qp_lock_ptr);
+		/* return with cmd refcount incremented */
+		return;
+	}
+
+	/* The CTIO SRR for this command has not yet been received. */
+
+	if (cmd->sent_term_exchg) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11007,
+		    "qla_target(%d): tag %lld: IMM SRR: cmd already aborted\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+		spin_unlock_irq(qpair->qp_lock_ptr);
+		spin_lock_irq(&ha->hardware_lock);
+		if (!qlt_srr_is_chip_reset(vha, ha->base_qpair, srr))
+			qlt_send_term_imm_notif(vha, &srr->imm_ntfy, 1);
+		spin_unlock_irq(&ha->hardware_lock);
+		kfree(srr);
+		ha->tgt.tgt_ops->put_cmd_ref(cmd);
+		return;
+	}
+
+	/* If not expecting a CTIO, then reject IMM SRR. */
+	if (!cmd->cmd_sent_to_fw) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11008,
+		    "qla_target(%d): tag %lld: IMM SRR but !cmd_sent_to_fw (state %d); reject SRR\n",
+		    vha->vp_idx, cmd->se_cmd.tag, cmd->state);
+		spin_unlock_irq(qpair->qp_lock_ptr);
+		ha->tgt.tgt_ops->put_cmd_ref(cmd);
+		goto out_reject;
+	}
+
+	/* Expect qlt_prepare_srr_ctio() to be called. */
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x11003,
+	    "qla_target(%d): tag %lld: wait for CTIO SRR (state %d)\n",
+	    vha->vp_idx, cmd->se_cmd.tag, cmd->state);
+	srr->cmd = cmd;
+	cmd->srr = srr;
+
+	spin_unlock_irq(qpair->qp_lock_ptr);
+
+	ha->tgt.tgt_ops->put_cmd_ref(cmd);
+	return;
+
+out_reject:
+	qpair = vha->hw->base_qpair;
+	spin_lock_irq(qpair->qp_lock_ptr);
+	if (!qlt_srr_is_chip_reset(vha, qpair, srr))
+		qlt_send_notify_ack(qpair, &srr->imm_ntfy, 0, 0, 0,
+		    NOTIFY_ACK_SRR_FLAGS_REJECT,
+		    NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM,
+		    srr_explain);
+	spin_unlock_irq(qpair->qp_lock_ptr);
+	kfree(srr);
+}
+
+/*
+ * Handle an immediate notify SRR (Sequence Retransmission Request) message from
+ * the hardware.  The hardware will also send a CTIO with CTIO_SRR_RECEIVED status
+ * for the affected command.
+ *
+ * ha->hardware_lock supposed to be held on entry
+ */
+static void qlt_prepare_srr_imm(struct scsi_qla_host *vha,
+	struct imm_ntfy_from_isp *iocb)
+{
+	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
+	struct qla_tgt_srr *srr;
+
+	ql_log(ql_log_warn, vha, 0x11000, "qla_target(%d): received IMM SRR\n",
+	    vha->vp_idx);
+
+	/*
+	 * Need cmd->qpair->qp_lock_ptr, but have ha->hardware_lock.  Defer
+	 * processing to a workqueue so that the right lock can be acquired
+	 * safely.
+	 */
+
+	srr = kzalloc(sizeof(*srr), GFP_ATOMIC);
+	if (!srr)
+		goto out_reject;
+
+	memcpy(&srr->imm_ntfy, iocb, sizeof(srr->imm_ntfy));
+	srr->imm_ntfy_recvd = true;
+	srr->reset_count = vha->hw->base_qpair->chip_reset;
+	spin_lock(&tgt->srr_lock);
+	list_add_tail(&srr->srr_list_entry, &tgt->srr_list);
+	queue_work(qla_tgt_wq, &tgt->srr_work);
+	spin_unlock(&tgt->srr_lock);
+	/* resume processing in qlt_handle_srr_imm() */
+	return;
+
+out_reject:
+	qlt_send_notify_ack(vha->hw->base_qpair, iocb, 0, 0, 0,
+	    NOTIFY_ACK_SRR_FLAGS_REJECT,
+	    NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM,
+	    NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL);
+}
+
+/*
+ * If possible, undo the effect of qlt_set_data_offset() and restore the cmd
+ * data buffer back to its full size.
+ */
+static int qlt_restore_orig_sg(struct qla_tgt_cmd *cmd)
+{
+	struct scsi_qla_host *vha = cmd->vha;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+
+	WARN_ON(cmd->sg_mapped);
+
+	if (cmd->offset == 0) {
+		/* qlt_set_data_offset() has not been called. */
+		return 0;
+	}
+
+	if (se_cmd->t_data_sg == NULL ||
+	    se_cmd->t_data_nents == 0 ||
+	    se_cmd->data_length == 0) {
+		/* The original scatterlist is not available. */
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1102c,
+		    "qla_target(%d): tag %lld: cannot restore original cmd buffer; keep modified buffer at offset %d\n",
+		    vha->vp_idx, cmd->se_cmd.tag, cmd->offset);
+		return -ENOENT;
+	}
+
+	/* Restore the original scatterlist. */
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x1102d,
+	    "qla_target(%d): tag %lld: restore original cmd buffer: offset %d -> 0\n",
+	    vha->vp_idx, cmd->se_cmd.tag, cmd->offset);
+	if (cmd->free_sg) {
+		cmd->free_sg = 0;
+		qlt_free_sg(cmd);
+	}
+	cmd->offset = 0;
+	cmd->sg = se_cmd->t_data_sg;
+	cmd->sg_cnt = se_cmd->t_data_nents;
+	cmd->bufflen = se_cmd->data_length;
+	return 0;
+}
+
+/*
+ * Adjust the data buffer of the given command to skip over offset bytes from
+ * the beginning while also reducing the length by offset bytes.
+ *
+ * This may be called multiple times for a single command if there are multiple
+ * SRRs, which each call reducing the buffer size further relative to the
+ * previous call.  Note that the buffer may be reset back to its original size
+ * by calling qlt_restore_orig_sg().
+ */
+static int qlt_set_data_offset(struct qla_tgt_cmd *cmd, uint32_t offset)
+{
+	struct scsi_qla_host *vha = cmd->vha;
+	struct scatterlist *sg_srr_start = NULL, *sg;
+	uint32_t first_offset = offset;
+	int sg_srr_cnt, i;
+	int bufflen = 0;
+
+	WARN_ON(cmd->sg_mapped);
+
+	ql_dbg(ql_dbg_tgt, vha, 0x11020,
+	    "qla_target(%d): tag %lld: %s: sg %p sg_cnt %d dir %d cmd->offset %d cmd->bufflen %d add offset %u\n",
+	    vha->vp_idx, cmd->se_cmd.tag, __func__, cmd->sg,
+	    cmd->sg_cnt, cmd->dma_data_direction, cmd->offset, cmd->bufflen,
+	    offset);
+
+	if (cmd->se_cmd.prot_op != TARGET_PROT_NORMAL) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11021,
+		    "qla_target(%d): tag %lld: %s: SRR with protection information at nonzero offset not implemented\n",
+		    vha->vp_idx, cmd->se_cmd.tag, __func__);
+		return -EINVAL;
+	}
+
+	if (!cmd->sg || !cmd->sg_cnt) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11022,
+		    "qla_target(%d): tag %lld: %s: Missing cmd->sg or zero cmd->sg_cnt\n",
+		    vha->vp_idx, cmd->se_cmd.tag, __func__);
+		return -EINVAL;
+	}
+
+	/*
+	 * Walk the current cmd->sg list until we locate the new sg_srr_start
+	 */
+	for_each_sg(cmd->sg, sg, cmd->sg_cnt, i) {
+		ql_dbg(ql_dbg_tgt, vha, 0x11023,
+		    "sg[%d]: %p page: %p, length: %d, offset: %d\n",
+		    i, sg, sg_page(sg), sg->length, sg->offset);
+
+		if (first_offset < sg->length) {
+			sg_srr_start = sg;
+			break;
+		}
+		first_offset -= sg->length;
+	}
+
+	if (!sg_srr_start) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11024,
+		    "qla_target(%d): tag %lld: Unable to locate sg_srr_start for offset: %u\n",
+		    vha->vp_idx, cmd->se_cmd.tag, offset);
+		return -EINVAL;
+	}
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x11025,
+	    "qla_target(%d): tag %lld: prepare SRR sgl at sg index %d of %d byte offset %u of %u\n",
+	    vha->vp_idx, cmd->se_cmd.tag, i, cmd->sg_cnt,
+	    first_offset, sg_srr_start->length);
+
+	sg_srr_cnt = cmd->sg_cnt - i;
+
+	if (first_offset == 0 && !cmd->free_sg) {
+		/*
+		 * The offset points to the beginning of a scatterlist element.
+		 * In this case there is no need to modify the first scatterlist
+		 * element, so we can just point directly inside the original
+		 * unmodified scatterlist.
+		 */
+		ql_dbg(ql_dbg_tgt, vha, 0x11026, "point directly to old sgl\n");
+		cmd->sg = sg_srr_start;
+	} else {
+		/*
+		 * Allocate at most 2 new scatterlist elements to reduce memory
+		 * requirements.
+		 */
+		int n_alloc_sg = min(sg_srr_cnt, 2);
+		struct scatterlist *sg_srr =
+			kmalloc_array(n_alloc_sg, sizeof(*sg_srr), GFP_ATOMIC);
+		if (!sg_srr) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11027,
+			    "qla_target(%d): tag %lld: Unable to allocate SRR scatterlist\n",
+			    vha->vp_idx, cmd->se_cmd.tag);
+			return -ENOMEM;
+		}
+		sg_init_table(sg_srr, n_alloc_sg);
+
+		/* Init the first sg element to skip over the unneeded data. */
+		sg_set_page(&sg_srr[0], sg_page(sg_srr_start),
+			    sg_srr_start->length - first_offset,
+			    sg_srr_start->offset + first_offset);
+		if (sg_srr_cnt == 1) {
+			ql_dbg(ql_dbg_tgt, vha, 0x11028,
+			    "single-element array\n");
+		} else if (sg_srr_cnt == 2) {
+			/* Only two elements; copy the last element. */
+			ql_dbg(ql_dbg_tgt, vha, 0x11029,
+			    "complete two-element array\n");
+			sg = sg_next(sg_srr_start);
+			sg_set_page(&sg_srr[1], sg_page(sg), sg->length,
+				    sg->offset);
+		} else {
+			/*
+			 * Three or more elements; chain our newly-allocated
+			 * 2-entry array to the rest of the original
+			 * scatterlist at the splice point.
+			 */
+			ql_dbg(ql_dbg_tgt, vha, 0x1102a,
+			    "chain to original scatterlist\n");
+			sg = sg_next(sg_srr_start);
+			sg_chain(sg_srr, 2, sg);
+		}
+
+		/*
+		 * If the previous scatterlist was allocated here on a previous
+		 * call, then it should be safe to free now.
+		 */
+		if (cmd->free_sg)
+			qlt_free_sg(cmd);
+		cmd->sg = sg_srr;
+		cmd->free_sg = 1;
+	}
+
+	/* Note that sg_cnt doesn't include any extra chain elements. */
+	cmd->sg_cnt = sg_srr_cnt;
+	cmd->offset += offset;
+	cmd->bufflen -= offset;
+
+	/* Check the scatterlist length for consistency. */
+	for_each_sg(cmd->sg, sg, cmd->sg_cnt, i) {
+		bufflen += sg->length;
+	}
+	if (bufflen != cmd->bufflen) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1102b,
+		    "qla_target(%d): tag %lld: %s: bad sgl length: expected %d got %d\n",
+		    vha->vp_idx, cmd->se_cmd.tag, __func__, cmd->bufflen, bufflen);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Given the "SRR relative offset" (offset of data to retry), determine what
+ * needs to be retransmitted (data and/or status) and return the mask in
+ * xmit_type.  If retrying data, adjust the command buffer to point to only the
+ * data that need to be retried, skipping over the data that don't need to be
+ * retried.
+ *
+ * Returns 0 for success or a negative error number.
+ */
+static inline int qlt_srr_adjust_data(struct qla_tgt_cmd *cmd,
+	uint32_t srr_rel_offs, int *xmit_type)
+{
+	struct scsi_qla_host *vha = cmd->vha;
+	int res = 0, rel_offs;
+
+	if (srr_rel_offs < cmd->offset ||
+	    srr_rel_offs > cmd->offset + cmd->bufflen) {
+		*xmit_type = 0;
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101e,
+		    "qla_target(%d): tag %lld: srr_rel_offs %u outside accepted range %u - %u\n",
+		    vha->vp_idx, cmd->se_cmd.tag, srr_rel_offs,
+		    cmd->offset, cmd->offset + cmd->bufflen);
+		return -EINVAL;
+	}
+
+	/*
+	 * srr_rel_offs is the offset of the data we need from the beginning of
+	 * the *original* buffer.
+	 *
+	 * cmd->offset is the offset of the current cmd scatterlist from the
+	 * beginning of the *original* buffer, which might be nonzero if there
+	 * was a previous SRR and the buffer could not be reset back to its
+	 * original size.
+	 *
+	 * rel_offs is the offset of the data we need from the beginning of the
+	 * current cmd scatterlist.
+	 */
+	rel_offs = srr_rel_offs - cmd->offset;
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101f,
+	    "qla_target(%d): tag %lld: current buffer [%u - %u); srr_rel_offs=%d, rel_offs=%d\n",
+	    vha->vp_idx, cmd->se_cmd.tag, cmd->offset,
+	    cmd->offset + cmd->bufflen, srr_rel_offs, rel_offs);
+
+	*xmit_type = QLA_TGT_XMIT_ALL;
+
+	if (rel_offs == cmd->bufflen)
+		*xmit_type = QLA_TGT_XMIT_STATUS;
+	else if (rel_offs > 0)
+		res = qlt_set_data_offset(cmd, rel_offs);
+
+	return res;
+}
+
+/*
+ * Process a SRR (Sequence Retransmission Request) for a SCSI command once both
+ * the immediate notify SRR and CTIO SRR have been received from the hw.
+ *
+ * Process context, no locks
+ */
+static void qlt_handle_srr(struct scsi_qla_host *vha, struct qla_tgt_srr *srr)
+{
+	struct qla_tgt_cmd *cmd = srr->cmd;
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct qla_qpair *qpair = cmd->qpair;
+	struct qla_hw_data *ha = vha->hw;
+	uint8_t op = cmd->cdb ? cmd->cdb[0] : 0;
+	uint32_t srr_rel_offs = le32_to_cpu(srr->imm_ntfy.u.isp24.srr_rel_offs);
+	uint16_t srr_ui = le16_to_cpu(srr->imm_ntfy.u.isp24.srr_ui);
+	int xmit_type = 0;
+	bool xmit_response = false;
+	bool rdy_to_xfer = false;
+	bool did_timeout;
+	bool send_term_exch = false;
+
+	spin_lock_irq(qpair->qp_lock_ptr);
+
+	WARN_ON(cmd->cmd_sent_to_fw);
+
+	cmd->srr = NULL;
+
+	if (qlt_srr_is_chip_reset(vha, qpair, srr))
+		goto out_advance_cmd;
+
+	if (cmd->sent_term_exchg || cmd->sess->deleted || srr->aborted) {
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11010,
+		    "qla_target(%d): tag %lld: IMM SRR: cmd already aborted\n",
+		    vha->vp_idx, cmd->se_cmd.tag);
+
+		spin_unlock_irq(qpair->qp_lock_ptr);
+
+		spin_lock_irq(&ha->hardware_lock);
+		if (!qlt_srr_is_chip_reset(vha, ha->base_qpair, srr))
+			qlt_send_term_imm_notif(vha, &srr->imm_ntfy, 1);
+		spin_unlock_irq(&ha->hardware_lock);
+
+		send_term_exch = true;
+
+		spin_lock_irq(qpair->qp_lock_ptr);
+		goto out_advance_cmd;
+	}
+
+	if (srr->reject)
+		goto out_reject;
+
+	/*
+	 * If we receive multiple SRRs for the same command, place a time limit
+	 * on how long we are willing to retry.  This timeout should be less
+	 * than SQA_MAX_HW_PENDING_TIME in scst_qla2xxx.c.
+	 */
+	did_timeout = time_is_before_jiffies64((cmd->jiffies_at_hw_st_entry ? :
+		cmd->jiffies_at_alloc) + 30 * HZ);
+
+	qlt_restore_orig_sg(cmd);
+
+	switch (srr_ui) {
+	case SRR_IU_STATUS:
+		if (cmd->state != QLA_TGT_STATE_PROCESSED) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11011,
+			    "qla_target(%d): tag %lld, op %x: reject SRR_IU_STATUS due to unexpected state %d\n",
+			    vha->vp_idx, se_cmd->tag, op,
+			    cmd->state);
+			goto out_reject;
+		}
+
+		if (did_timeout) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11033,
+			    "qla_target(%d): tag %lld, op %x: reject SRR_IU_STATUS due to timeout\n",
+			    vha->vp_idx, se_cmd->tag, op);
+			goto out_reject;
+		}
+
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11012,
+		    "qla_target(%d): tag %lld, op %x: accept SRR_IU_STATUS and retransmit scsi_status=%x\n",
+		    vha->vp_idx, se_cmd->tag, op,
+		    se_cmd->scsi_status);
+		xmit_type = QLA_TGT_XMIT_STATUS;
+		xmit_response = true;
+		cmd->trc_flags |= TRC_SRR_RSP;
+		break;
+
+	case SRR_IU_DATA_IN:
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11013,
+		    "qla_target(%d): tag %lld, op %x: process SRR_IU_DATA_IN: bufflen=%d, sg_cnt=%d, offset=%d, srr_offset=%d, scsi_status=%x\n",
+		    vha->vp_idx, se_cmd->tag, op, cmd->bufflen,
+		    cmd->sg_cnt, cmd->offset, srr_rel_offs,
+		    se_cmd->scsi_status);
+
+		if (cmd->state != QLA_TGT_STATE_PROCESSED) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11014,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_IN due to unexpected state %d\n",
+			    vha->vp_idx, se_cmd->tag, cmd->state);
+			goto out_reject;
+		}
+
+		/*
+		 * QLA_TGT_STATE_PROCESSED does not necessarily imply data-in
+		 */
+		if (!qlt_has_data(cmd)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11015,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_IN because cmd has no data to send\n",
+			    vha->vp_idx, se_cmd->tag);
+			goto out_reject;
+		}
+
+		if (!cmd->sg || !cmd->sg_cnt) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11016,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_IN because buffer is missing\n",
+			    vha->vp_idx, se_cmd->tag);
+			goto out_reject;
+		}
+
+		if (did_timeout) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11034,
+			    "qla_target(%d): tag %lld, op %x: reject SRR_IU_DATA_IN due to timeout\n",
+			    vha->vp_idx, se_cmd->tag, op);
+			goto out_reject;
+		}
+
+		if (qlt_srr_adjust_data(cmd, srr_rel_offs, &xmit_type) != 0)
+			goto out_reject;
+
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11017,
+		    "qla_target(%d): tag %lld: accept SRR_IU_DATA_IN and retransmit data: bufflen=%d, offset=%d\n",
+		    vha->vp_idx, se_cmd->tag, cmd->bufflen,
+		    cmd->offset);
+		xmit_response = true;
+		cmd->trc_flags |= TRC_SRR_RSP;
+		break;
+
+	case SRR_IU_DATA_OUT:
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x11018,
+		    "qla_target(%d): tag %lld, op %x: process SRR_IU_DATA_OUT: bufflen=%d, sg_cnt=%d, offset=%d, srr_offset=%d\n",
+		    vha->vp_idx, se_cmd->tag, op, cmd->bufflen,
+		    cmd->sg_cnt, cmd->offset, srr_rel_offs);
+
+		if (cmd->state != QLA_TGT_STATE_NEED_DATA) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11019,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_OUT due to unexpected state %d\n",
+			    vha->vp_idx, se_cmd->tag, cmd->state);
+			goto out_reject;
+		}
+
+		/*
+		 * QLA_TGT_STATE_NEED_DATA implies there should be data-out
+		 */
+		if (!qlt_has_data(cmd) || !cmd->sg || !cmd->sg_cnt) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101a,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_OUT because buffer is missing\n",
+			    vha->vp_idx, se_cmd->tag);
+			goto out_reject;
+		}
+
+		if (did_timeout) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11035,
+			    "qla_target(%d): tag %lld, op %x: reject SRR_IU_DATA_OUT due to timeout\n",
+			    vha->vp_idx, se_cmd->tag, op);
+			goto out_reject;
+		}
+
+		if (qlt_srr_adjust_data(cmd, srr_rel_offs, &xmit_type) != 0)
+			goto out_reject;
+
+		if (!(xmit_type & QLA_TGT_XMIT_DATA)) {
+			ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101b,
+			    "qla_target(%d): tag %lld: reject SRR_IU_DATA_OUT: bad offset\n",
+			    vha->vp_idx, se_cmd->tag);
+			goto out_reject;
+		}
+
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101c,
+		    "qla_target(%d): tag %lld: accept SRR_IU_DATA_OUT and receive data again: bufflen=%d, offset=%d\n",
+		    vha->vp_idx, se_cmd->tag, cmd->bufflen,
+		    cmd->offset);
+		cmd->trc_flags |= TRC_SRR_XRDY;
+		rdy_to_xfer = true;
+		break;
+
+	default:
+		ql_dbg(ql_dbg_tgt_mgt, vha, 0x1101d,
+		    "qla_target(%d): tag %lld, op %x: reject unknown srr_ui value 0x%x: state=%d, bufflen=%d, offset=%d, srr_offset=%d\n",
+		    vha->vp_idx, se_cmd->tag, op, srr_ui, cmd->state,
+		    cmd->bufflen, cmd->offset, srr_rel_offs);
+		goto out_reject;
+	}
+
+	qlt_send_notify_ack(qpair, &srr->imm_ntfy, 0, 0, 0,
+		NOTIFY_ACK_SRR_FLAGS_ACCEPT, 0, 0);
+
+	spin_unlock_irq(qpair->qp_lock_ptr);
+
+	if (xmit_response) {
+		/* For status and data-in, retransmit the response. */
+		if (qlt_xmit_response(cmd, xmit_type, se_cmd->scsi_status)) {
+			send_term_exch = true;
+			spin_lock_irq(qpair->qp_lock_ptr);
+			goto out_advance_cmd;
+		}
+	} else if (rdy_to_xfer) {
+		/* For data-out, receive data again. */
+		if (qlt_rdy_to_xfer(cmd)) {
+			send_term_exch = true;
+			spin_lock_irq(qpair->qp_lock_ptr);
+			goto out_advance_cmd;
+		}
+	}
+
+	return;
+
+out_reject:
+	qlt_send_notify_ack(qpair, &srr->imm_ntfy, 0, 0, 0,
+	    NOTIFY_ACK_SRR_FLAGS_REJECT,
+	    NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM,
+	    NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL);
+
+out_advance_cmd:
+	if (!cmd->sent_term_exchg &&
+	    (send_term_exch || cmd->state != QLA_TGT_STATE_NEED_DATA) &&
+	    !qlt_srr_is_chip_reset(vha, qpair, srr)) {
+		cmd->trc_flags |= TRC_SRR_TERM;
+		qlt_send_term_exchange(qpair, cmd, &cmd->atio, 1);
+	}
+	if (cmd->state == QLA_TGT_STATE_NEED_DATA) {
+		/*
+		 * The initiator should abort the command, but if not, try to
+		 * return an error.
+		 */
+		cmd->srr_failed = 1;
+		cmd->write_data_transferred = 0;
+		cmd->state = QLA_TGT_STATE_DATA_IN;
+		cmd->jiffies_at_hw_st_entry = 0;
+		vha->hw->tgt.tgt_ops->handle_data(cmd);
+	} else {
+		vha->hw->tgt.tgt_ops->free_cmd(cmd);
+	}
+	spin_unlock_irq(qpair->qp_lock_ptr);
+}
+
+/* Workqueue function for processing SRR work in process context. */
+static void qlt_handle_srr_work(struct work_struct *work)
+{
+	struct qla_tgt *tgt = container_of(work, struct qla_tgt, srr_work);
+	struct scsi_qla_host *vha = tgt->vha;
+
+	ql_dbg(ql_dbg_tgt_mgt, vha, 0x11032,
+	    "qla_target(%d): Entering SRR work\n", vha->vp_idx);
+
+	for (;;) {
+		struct qla_tgt_srr *srr;
+
+		spin_lock_irq(&tgt->srr_lock);
+		srr = list_first_entry_or_null(&tgt->srr_list, typeof(*srr),
+			srr_list_entry);
+		if (!srr) {
+			spin_unlock_irq(&tgt->srr_lock);
+			break;
+		}
+		list_del(&srr->srr_list_entry);
+		spin_unlock_irq(&tgt->srr_lock);
+
+		if (!srr->cmd) {
+			qlt_handle_srr_imm(vha, srr);
+		} else {
+			qlt_handle_srr(vha, srr);
+			vha->hw->tgt.tgt_ops->put_cmd_ref(srr->cmd);
+			kfree(srr);
+		}
+	}
+}
+
+/*
  * ha->hardware_lock supposed to be held on entry. Might drop it, then reaquire
  */
 static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
@@ -5325,6 +6527,12 @@ static void qlt_handle_imm_notify(struct scsi_qla_host *vha,
 		if (qlt_24xx_handle_els(vha, iocb) == 0)
 			send_notify_ack = 0;
 		break;
+
+	case IMM_NTFY_SRR:
+		qlt_prepare_srr_imm(vha, iocb);
+		send_notify_ack = 0;
+		break;
+
 	default:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf06d,
 		    "qla_target(%d): Received unknown immediate "
@@ -5359,7 +6567,7 @@ static int __qlt_send_busy(struct qla_qpair *qpair,
 	sess = qla2x00_find_fcport_by_nportid(vha, &id, 1);
 	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 	if (!sess) {
-		qlt_send_term_exchange(qpair, NULL, atio, 1, 0);
+		qlt_send_term_exchange(qpair, NULL, atio, 1);
 		return 0;
 	}
 	/* Sending marker isn't necessary, since we called from ISR */
@@ -5469,13 +6677,15 @@ qlt_alloc_qfull_cmd(struct scsi_qla_host *vha,
 
 	qlt_incr_num_pend_cmds(vha);
 	INIT_LIST_HEAD(&cmd->cmd_list);
-	memcpy(&cmd->atio, atio, sizeof(*atio));
+	memcpy_atio(&cmd->atio, atio);
 
 	cmd->tgt = vha->vha_tgt.qla_tgt;
 	cmd->vha = vha;
 	cmd->reset_count = ha->base_qpair->chip_reset;
 	cmd->q_full = 1;
 	cmd->qpair = ha->base_qpair;
+	cmd->cdb = &cmd->atio.u.isp24.fcp_cmnd.cdb[0];
+	cmd->cdb_len = 16;
 
 	if (qfull) {
 		cmd->q_full = 1;
@@ -5588,7 +6798,7 @@ static void qlt_24xx_atio_pkt(struct scsi_qla_host *vha,
 				ql_dbg(ql_dbg_tgt, vha, 0xe05f,
 				    "qla_target: Unable to send command to target, sending TERM EXCHANGE for rsp\n");
 				qlt_send_term_exchange(ha->base_qpair, NULL,
-				    atio, 1, 0);
+				    atio, 1);
 				break;
 			case -EBUSY:
 				ql_dbg(ql_dbg_tgt, vha, 0xe060,
@@ -5697,7 +6907,7 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 	struct qla_tgt_mgmt_cmd *mcmd;
 	struct qla_hw_data *ha = vha->hw;
 
-	mcmd = qlt_ctio_to_cmd(vha, rsp, pkt->handle, pkt);
+	mcmd = qlt_ctio_to_cmd(vha, rsp, pkt->handle, TYPE_TGT_TMCMD, pkt);
 	if (mcmd == NULL && h != QLA_TGT_SKIP_HANDLE) {
 		ql_dbg(ql_dbg_async, vha, 0xe064,
 		    "qla_target(%d): ABTS Comp without mcmd\n",
@@ -5717,7 +6927,7 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 		if (le32_to_cpu(entry->error_subcode1) == 0x1E &&
 		    le32_to_cpu(entry->error_subcode2) == 0) {
 			if (qlt_chk_unresolv_exchg(vha, rsp->qpair, entry)) {
-				ha->tgt.tgt_ops->free_mcmd(mcmd);
+				qlt_free_ul_mcmd(ha, mcmd);
 				return;
 			}
 			qlt_24xx_retry_term_exchange(vha, rsp->qpair,
@@ -5728,10 +6938,10 @@ static void qlt_handle_abts_completion(struct scsi_qla_host *vha,
 			    vha->vp_idx, entry->compl_status,
 			    entry->error_subcode1,
 			    entry->error_subcode2);
-			ha->tgt.tgt_ops->free_mcmd(mcmd);
+			qlt_free_ul_mcmd(ha, mcmd);
 		}
 	} else if (mcmd) {
-		ha->tgt.tgt_ops->free_mcmd(mcmd);
+		qlt_free_ul_mcmd(ha, mcmd);
 	}
 }
 
@@ -5795,7 +7005,7 @@ static void qlt_response_pkt(struct scsi_qla_host *vha,
 				ql_dbg(ql_dbg_tgt, vha, 0xe05f,
 				    "qla_target: Unable to send command to target, sending TERM EXCHANGE for rsp\n");
 				qlt_send_term_exchange(rsp->qpair, NULL,
-				    atio, 1, 0);
+				    atio, 1);
 				break;
 			case -EBUSY:
 				ql_dbg(ql_dbg_tgt, vha, 0xe060,
@@ -5815,26 +7025,6 @@ static void qlt_response_pkt(struct scsi_qla_host *vha,
 		}
 	}
 	break;
-
-	case CONTINUE_TGT_IO_TYPE:
-	{
-		struct ctio_to_2xxx *entry = (struct ctio_to_2xxx *)pkt;
-
-		qlt_do_ctio_completion(vha, rsp, entry->handle,
-		    le16_to_cpu(entry->status)|(pkt->entry_status << 16),
-		    entry);
-		break;
-	}
-
-	case CTIO_A64_TYPE:
-	{
-		struct ctio_to_2xxx *entry = (struct ctio_to_2xxx *)pkt;
-
-		qlt_do_ctio_completion(vha, rsp, entry->handle,
-		    le16_to_cpu(entry->status)|(pkt->entry_status << 16),
-		    entry);
-		break;
-	}
 
 	case IMMED_NOTIFY_TYPE:
 		ql_dbg(ql_dbg_tgt, vha, 0xe035, "%s", "IMMED_NOTIFY\n");
@@ -6323,6 +7513,9 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	spin_lock_init(&tgt->sess_work_lock);
 	INIT_WORK(&tgt->sess_work, qlt_sess_work_fn);
 	INIT_LIST_HEAD(&tgt->sess_works_list);
+	spin_lock_init(&tgt->srr_lock);
+	INIT_LIST_HEAD(&tgt->srr_list);
+	INIT_WORK(&tgt->srr_work, qlt_handle_srr_work);
 	atomic_set(&tgt->tgt_global_resets_count, 0);
 
 	base_vha->vha_tgt.qla_tgt = tgt;
@@ -6705,7 +7898,7 @@ qlt_24xx_process_atio_queue(struct scsi_qla_host *vha, uint8_t ha_locked)
 
 			adjust_corrupted_atio(pkt);
 			qlt_send_term_exchange(ha->base_qpair, NULL, pkt,
-			    ha_locked, 0);
+			    ha_locked);
 		} else {
 			qlt_24xx_atio_pkt_all_vps(vha,
 			    (struct atio_from_isp *)pkt, ha_locked);
@@ -6968,6 +8161,32 @@ qlt_81xx_config_nvram_stage2(struct scsi_qla_host *vha,
 	if (ha->tgt.node_name_set) {
 		memcpy(icb->node_name, ha->tgt.tgt_node_name, WWN_SIZE);
 		icb->firmware_options_1 |= cpu_to_le32(BIT_14);
+	}
+}
+
+/* Update any settings that depend on ha->fw_*_version. */
+void
+qlt_config_nvram_with_fw_version(struct scsi_qla_host *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!QLA_TGT_MODE_ENABLED())
+		return;
+
+	if (ql2xtgt_tape_enable && qlt_has_sler_fw_bug(ha)) {
+		ql_log(ql_log_warn, vha, 0x11036,
+		    "WARNING: ignoring ql2xtgt_tape_enable due to buggy HBA firmware; please upgrade FW\n");
+
+		/* Disable FC Tape support */
+		if (ha->isp_ops->nvram_config == qla81xx_nvram_config) {
+			struct init_cb_81xx *icb =
+				(struct init_cb_81xx *)ha->init_cb;
+			icb->firmware_options_2 &= cpu_to_le32(~BIT_12);
+		} else {
+			struct init_cb_24xx *icb =
+				(struct init_cb_24xx *)ha->init_cb;
+			icb->firmware_options_2 &= cpu_to_le32(~BIT_12);
+		}
 	}
 }
 

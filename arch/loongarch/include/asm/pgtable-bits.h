@@ -6,6 +6,26 @@
 #define _ASM_PGTABLE_BITS_H
 
 /* Page table bits */
+
+#ifdef CONFIG_32BIT
+#define	_PAGE_VALID_SHIFT	0
+#define	_PAGE_ACCESSED_SHIFT	0  /* Reuse Valid for Accessed */
+#define	_PAGE_DIRTY_SHIFT	1
+#define	_PAGE_PLV_SHIFT		2  /* 2~3, two bits */
+#define	_CACHE_SHIFT		4  /* 4~5, two bits */
+#define	_PAGE_GLOBAL_SHIFT	6
+#define	_PAGE_HUGE_SHIFT	6  /* HUGE is a PMD bit */
+#define	_PAGE_PRESENT_SHIFT	7
+#define	_PAGE_PFN_SHIFT		8
+#define	_PAGE_HGLOBAL_SHIFT	12 /* HGlobal is a PMD bit */
+#define	_PAGE_SWP_EXCLUSIVE_SHIFT 13
+#define	_PAGE_PFN_END_SHIFT	28
+#define	_PAGE_WRITE_SHIFT	29
+#define	_PAGE_MODIFIED_SHIFT	30
+#define	_PAGE_PRESENT_INVALID_SHIFT 31
+#endif
+
+#ifdef CONFIG_64BIT
 #define	_PAGE_VALID_SHIFT	0
 #define	_PAGE_ACCESSED_SHIFT	0  /* Reuse Valid for Accessed */
 #define	_PAGE_DIRTY_SHIFT	1
@@ -18,14 +38,15 @@
 #define	_PAGE_MODIFIED_SHIFT	9
 #define	_PAGE_PROTNONE_SHIFT	10
 #define	_PAGE_SPECIAL_SHIFT	11
-#define	_PAGE_HGLOBAL_SHIFT	12 /* HGlobal is a PMD bit */
 #define	_PAGE_PFN_SHIFT		12
+#define	_PAGE_HGLOBAL_SHIFT	12 /* HGlobal is a PMD bit */
 #define	_PAGE_SWP_EXCLUSIVE_SHIFT 23
 #define	_PAGE_PFN_END_SHIFT	48
 #define	_PAGE_PRESENT_INVALID_SHIFT 60
 #define	_PAGE_NO_READ_SHIFT	61
 #define	_PAGE_NO_EXEC_SHIFT	62
 #define	_PAGE_RPLV_SHIFT	63
+#endif
 
 /* Used by software */
 #define _PAGE_PRESENT		(_ULCAST_(1) << _PAGE_PRESENT_SHIFT)
@@ -33,10 +54,15 @@
 #define _PAGE_WRITE		(_ULCAST_(1) << _PAGE_WRITE_SHIFT)
 #define _PAGE_ACCESSED		(_ULCAST_(1) << _PAGE_ACCESSED_SHIFT)
 #define _PAGE_MODIFIED		(_ULCAST_(1) << _PAGE_MODIFIED_SHIFT)
+#ifdef CONFIG_32BIT
+#define _PAGE_PROTNONE		0
+#define _PAGE_SPECIAL		0
+#else
 #define _PAGE_PROTNONE		(_ULCAST_(1) << _PAGE_PROTNONE_SHIFT)
 #define _PAGE_SPECIAL		(_ULCAST_(1) << _PAGE_SPECIAL_SHIFT)
+#endif
 
-/* We borrow bit 23 to store the exclusive marker in swap PTEs. */
+/* We borrow bit 13/23 to store the exclusive marker in swap PTEs. */
 #define _PAGE_SWP_EXCLUSIVE	(_ULCAST_(1) << _PAGE_SWP_EXCLUSIVE_SHIFT)
 
 /* Used by TLB hardware (placed in EntryLo*) */
@@ -46,9 +72,15 @@
 #define _PAGE_GLOBAL		(_ULCAST_(1) << _PAGE_GLOBAL_SHIFT)
 #define _PAGE_HUGE		(_ULCAST_(1) << _PAGE_HUGE_SHIFT)
 #define _PAGE_HGLOBAL		(_ULCAST_(1) << _PAGE_HGLOBAL_SHIFT)
+#ifdef CONFIG_32BIT
+#define _PAGE_NO_READ		0
+#define _PAGE_NO_EXEC		0
+#define _PAGE_RPLV		0
+#else
 #define _PAGE_NO_READ		(_ULCAST_(1) << _PAGE_NO_READ_SHIFT)
 #define _PAGE_NO_EXEC		(_ULCAST_(1) << _PAGE_NO_EXEC_SHIFT)
 #define _PAGE_RPLV		(_ULCAST_(1) << _PAGE_RPLV_SHIFT)
+#endif
 #define _CACHE_MASK		(_ULCAST_(3) << _CACHE_SHIFT)
 #define PFN_PTE_SHIFT		(PAGE_SHIFT - 12 + _PAGE_PFN_SHIFT)
 

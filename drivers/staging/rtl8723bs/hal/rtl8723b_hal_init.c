@@ -2840,22 +2840,6 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
 }
 
 /* Description:
- *	Change default setting of specified variable.
- */
-u8 SetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, void *pval)
-{
-	u8 bResult = _SUCCESS;
-
-	switch (variable) {
-	default:
-		bResult = SetHalDefVar(padapter, variable, pval);
-		break;
-	}
-
-	return bResult;
-}
-
-/* Description:
  *	Query setting of specified variable.
  */
 u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable, void *pval)

@@ -11,11 +11,11 @@ extern size_t __scsi_format_command(char *, size_t,
 				   const unsigned char *, size_t);
 extern void scsi_print_sense_hdr(const struct scsi_device *, const char *,
 				 const struct scsi_sense_hdr *);
-extern void scsi_print_sense(const struct scsi_cmnd *);
+extern void scsi_print_sense(struct scsi_cmnd *);
 extern void __scsi_print_sense(const struct scsi_device *, const char *name,
 			       const unsigned char *sense_buffer,
 			       int sense_len);
-extern void scsi_print_result(const struct scsi_cmnd *, const char *, int);
+extern void scsi_print_result(struct scsi_cmnd *, const char *, int);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 extern bool scsi_opcode_sa_name(int, int, const char **, const char **);

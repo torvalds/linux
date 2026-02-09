@@ -330,10 +330,14 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (pud_leaf(*pud)) {
 				if (IS_ALIGNED(addr, PUD_SIZE) &&
 				    IS_ALIGNED(next, PUD_SIZE)) {
+					if (!direct)
+						vmem_free_pages(pud_deref(*pud), get_order(PUD_SIZE), altmap);
 					pud_clear(pud);
 					pages++;
+					continue;
+				} else {
+					split_pud_page(pud, addr & PUD_MASK);
 				}
-				continue;
 			}
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
@@ -433,9 +437,15 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
 		return -EINVAL;
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	/* Don't mess with any tables not fully in 1:1 mapping, vmemmap & kasan area */
+#ifdef CONFIG_KASAN
+	if (WARN_ON_ONCE(!(start >= KASAN_SHADOW_START && end <= KASAN_SHADOW_END) &&
+			 end > __abs_lowcore))
+		return -EINVAL;
+#else
 	if (WARN_ON_ONCE(end > __abs_lowcore))
 		return -EINVAL;
+#endif
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset_k(addr);

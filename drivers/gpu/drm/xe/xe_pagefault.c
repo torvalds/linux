@@ -102,7 +102,6 @@ retry_userptr:
 
 	/* Lock VM and BOs dma-resv */
 	xe_validation_ctx_init(&ctx, &vm->xe->val, &exec, (struct xe_val_flags) {});
-	drm_exec_init(&exec, 0, 0);
 	drm_exec_until_all_locked(&exec) {
 		err = xe_pagefault_begin(&exec, vma, tile->mem.vram,
 					 needs_vram == 1);

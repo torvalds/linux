@@ -1968,7 +1968,7 @@ void iput(struct inode *inode)
 
 retry:
 	lockdep_assert_not_held(&inode->i_lock);
-	VFS_BUG_ON_INODE(inode_state_read_once(inode) & I_CLEAR, inode);
+	VFS_BUG_ON_INODE(inode_state_read_once(inode) & (I_FREEING | I_CLEAR), inode);
 	/*
 	 * Note this assert is technically racy as if the count is bogusly
 	 * equal to one, then two CPUs racing to further drop it can both
@@ -2010,6 +2010,7 @@ EXPORT_SYMBOL(iput);
  */
 void iput_not_last(struct inode *inode)
 {
+	VFS_BUG_ON_INODE(inode_state_read_once(inode) & (I_FREEING | I_CLEAR), inode);
 	VFS_BUG_ON_INODE(atomic_read(&inode->i_count) < 2, inode);
 
 	WARN_ON(atomic_sub_return(1, &inode->i_count) == 0);

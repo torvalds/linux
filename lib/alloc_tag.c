@@ -845,7 +845,7 @@ static int __init alloc_tag_init(void)
 
 	alloc_tag_cttype = codetag_register_type(&desc);
 	if (IS_ERR(alloc_tag_cttype)) {
-		pr_err("Allocation tags registration failed, errno = %ld\n", PTR_ERR(alloc_tag_cttype));
+		pr_err("Allocation tags registration failed, errno = %pe\n", alloc_tag_cttype);
 		free_mod_tags_mem();
 		shutdown_mem_profiling(true);
 		return PTR_ERR(alloc_tag_cttype);

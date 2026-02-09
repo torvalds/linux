@@ -55,22 +55,18 @@ static void free_list_evsel(struct list_head* list_evsel)
 %}
 
 %token PE_START_EVENTS PE_START_TERMS
-%token PE_VALUE PE_VALUE_SYM_HW PE_TERM
+%token PE_VALUE PE_TERM
 %token PE_EVENT_NAME
 %token PE_RAW PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP PE_BP_COLON PE_BP_SLASH
-%token PE_LEGACY_CACHE
 %token PE_PREFIX_MEM
 %token PE_ERROR
 %token PE_DRV_CFG_TERM
-%token PE_TERM_HW
 %type <num> PE_VALUE
-%type <num> PE_VALUE_SYM_HW
 %type <mod> PE_MODIFIER_EVENT
 %type <term_type> PE_TERM
 %type <str> PE_RAW
 %type <str> PE_NAME
-%type <str> PE_LEGACY_CACHE
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
 %type <str> PE_DRV_CFG_TERM
@@ -83,8 +79,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <list_terms> opt_pmu_config
 %destructor { parse_events_terms__delete ($$); } <list_terms>
 %type <list_evsel> event_pmu
-%type <list_evsel> event_legacy_symbol
-%type <list_evsel> event_legacy_cache
 %type <list_evsel> event_legacy_mem
 %type <list_evsel> event_legacy_tracepoint
 %type <list_evsel> event_legacy_numeric
@@ -100,8 +94,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 %destructor { free_list_evsel ($$); } <list_evsel>
 %type <tracepoint_name> tracepoint_name
 %destructor { free ($$.sys); free ($$.event); } <tracepoint_name>
-%type <hardware_term> PE_TERM_HW
-%destructor { free ($$.str); } <hardware_term>
 
 %union
 {
@@ -116,10 +108,6 @@ static void free_list_evsel(struct list_head* list_evsel)
 		char *sys;
 		char *event;
 	} tracepoint_name;
-	struct hardware_term {
-		char *str;
-		u64 num;
-	} hardware_term;
 }
 %%
 
@@ -262,8 +250,6 @@ PE_EVENT_NAME event_def
 event_def
 
 event_def: event_pmu |
-	   event_legacy_symbol |
-	   event_legacy_cache sep_dc |
 	   event_legacy_mem sep_dc |
 	   event_legacy_tracepoint sep_dc |
 	   event_legacy_numeric sep_dc |
@@ -288,7 +274,7 @@ PE_NAME sep_dc
 	struct list_head *list;
 	int err;
 
-	err = parse_events_multi_pmu_add(_parse_state, $1, PERF_COUNT_HW_MAX, NULL, &list, &@1);
+	err = parse_events_multi_pmu_add(_parse_state, $1, /*const_parsed_terms*/NULL, &list, &@1);
 	if (err < 0) {
 		struct parse_events_state *parse_state = _parse_state;
 		struct parse_events_error *error = parse_state->error;
@@ -301,66 +287,6 @@ PE_NAME sep_dc
 		PE_ABORT(err);
 	}
 	free($1);
-	$$ = list;
-}
-
-event_legacy_symbol:
-PE_VALUE_SYM_HW '/' event_config '/'
-{
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-	err = parse_events_add_numeric(_parse_state, list,
-				       PERF_TYPE_HARDWARE, $1,
-				       $3,
-				       /*wildcard=*/true);
-	parse_events_terms__delete($3);
-	if (err) {
-		free_list_evsel(list);
-		PE_ABORT(err);
-	}
-	$$ = list;
-}
-|
-PE_VALUE_SYM_HW sep_slash_slash_dc
-{
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-	err = parse_events_add_numeric(_parse_state, list,
-				       PERF_TYPE_HARDWARE, $1,
-				       /*head_config=*/NULL,
-				       /*wildcard=*/true);
-	if (err)
-		PE_ABORT(err);
-	$$ = list;
-}
-
-event_legacy_cache:
-PE_LEGACY_CACHE opt_event_config
-{
-	struct parse_events_state *parse_state = _parse_state;
-	struct list_head *list;
-	int err;
-
-	list = alloc_list();
-	if (!list)
-		YYNOMEM;
-
-	err = parse_events_add_cache(list, &parse_state->idx, $1, parse_state, $2);
-
-	parse_events_terms__delete($2);
-	free($1);
-	if (err) {
-		free_list_evsel(list);
-		PE_ABORT(err);
-	}
 	$$ = list;
 }
 
@@ -582,12 +508,7 @@ event_term
 	$$ = head;
 }
 
-name_or_raw: PE_RAW | PE_NAME | PE_LEGACY_CACHE
-|
-PE_TERM_HW
-{
-	$$ = $1.str;
-}
+name_or_raw: PE_RAW | PE_NAME
 
 event_term:
 PE_RAW
@@ -629,19 +550,6 @@ name_or_raw '=' PE_VALUE
 	$$ = term;
 }
 |
-PE_LEGACY_CACHE
-{
-	struct parse_events_term *term;
-	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE,
-					 $1, /*num=*/1, /*novalue=*/true, &@1, /*loc_val=*/NULL);
-
-	if (err) {
-		free($1);
-		PE_ABORT(err);
-	}
-	$$ = term;
-}
-|
 PE_NAME
 {
 	struct parse_events_term *term;
@@ -650,20 +558,6 @@ PE_NAME
 
 	if (err) {
 		free($1);
-		PE_ABORT(err);
-	}
-	$$ = term;
-}
-|
-PE_TERM_HW
-{
-	struct parse_events_term *term;
-	int err = parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_HARDWARE,
-					 $1.str, $1.num & 255, /*novalue=*/false,
-					 &@1, /*loc_val=*/NULL);
-
-	if (err) {
-		free($1.str);
 		PE_ABORT(err);
 	}
 	$$ = term;
@@ -736,8 +630,6 @@ PE_DRV_CFG_TERM
 }
 
 sep_dc: ':' |
-
-sep_slash_slash_dc: '/' '/' | ':' |
 
 %%
 

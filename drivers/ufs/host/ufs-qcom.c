@@ -1037,9 +1037,6 @@ static struct ufs_dev_quirk ufs_qcom_dev_fixups[] = {
 	{ .wmanufacturerid = UFS_VENDOR_SKHYNIX,
 	  .model = UFS_ANY_MODEL,
 	  .quirk = UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM },
-	{ .wmanufacturerid = UFS_VENDOR_TOSHIBA,
-	  .model = UFS_ANY_MODEL,
-	  .quirk = UFS_DEVICE_QUIRK_DELAY_AFTER_LPM },
 	{ .wmanufacturerid = UFS_VENDOR_WDC,
 	  .model = UFS_ANY_MODEL,
 	  .quirk = UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE },
@@ -1772,10 +1769,9 @@ static void ufs_qcom_dump_testbus(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int i, j, nminor = 0, testbus_len = 0;
-	u32 *testbus __free(kfree) = NULL;
 	char *prefix;
 
-	testbus = kmalloc_array(256, sizeof(u32), GFP_KERNEL);
+	u32 *testbus __free(kfree) = kmalloc_array(256, sizeof(u32), GFP_KERNEL);
 	if (!testbus)
 		return;
 
@@ -1797,13 +1793,12 @@ static void ufs_qcom_dump_testbus(struct ufs_hba *hba)
 static int ufs_qcom_dump_regs(struct ufs_hba *hba, size_t offset, size_t len,
 			      const char *prefix, void __iomem *base)
 {
-	u32 *regs __free(kfree) = NULL;
 	size_t pos;
 
 	if (offset % 4 != 0 || len % 4 != 0)
 		return -EINVAL;
 
-	regs = kzalloc(len, GFP_ATOMIC);
+	u32 *regs __free(kfree) = kzalloc(len, GFP_ATOMIC);
 	if (!regs)
 		return -ENOMEM;
 

@@ -17,7 +17,7 @@
 #include <linux/mman.h>
 #include <sys/mman.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 
 /*

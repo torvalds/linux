@@ -16,6 +16,7 @@
 	panel {
 		compatible = "ampire,am-1280800n3tzqw-t00h";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in: endpoint {

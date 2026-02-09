@@ -83,12 +83,14 @@ enum {
 };
 
 enum {
+	/* Submission Queue (SQ) Configuration Registers */
 	REG_SQATTR		= 0x0,
 	REG_SQLBA		= 0x4,
 	REG_SQUBA		= 0x8,
 	REG_SQDAO		= 0xC,
 	REG_SQISAO		= 0x10,
 
+	/* Completion Queue (CQ) Configuration Registers */
 	REG_CQATTR		= 0x20,
 	REG_CQLBA		= 0x24,
 	REG_CQUBA		= 0x28,
@@ -96,6 +98,7 @@ enum {
 	REG_CQISAO		= 0x30,
 };
 
+/* Operation and Runtime Registers - Submission Queues and Completion Queues */
 enum {
 	REG_SQHP		= 0x0,
 	REG_SQTP		= 0x4,
@@ -569,10 +572,26 @@ struct cq_entry {
 	__le16  prd_table_offset;
 
 	/* DW 4 */
-	__le32 status;
+	u8 overall_status;
+	u8 extended_error_code;
+	__le16 reserved_1;
 
-	/* DW 5-7 */
-	__le32 reserved[3];
+	/* DW 5 */
+	u8 task_tag;
+	u8 lun;
+#if defined(__BIG_ENDIAN)
+	u8 ext_iid:4;
+	u8 iid:4;
+#elif defined(__LITTLE_ENDIAN)
+	u8 iid:4;
+	u8 ext_iid:4;
+#else
+#error
+#endif
+	u8 reserved_2;
+
+	/* DW 6-7 */
+	__le32 reserved_3[2];
 };
 
 static_assert(sizeof(struct cq_entry) == 32);

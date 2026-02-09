@@ -337,7 +337,7 @@ impl platform::Driver for Th1520PwmPlatformDriver {
     fn probe(
         pdev: &platform::Device<Core>,
         _id_info: Option<&Self::IdInfo>,
-    ) -> Result<Pin<KBox<Self>>> {
+    ) -> impl PinInit<Self, Error> {
         let dev = pdev.as_ref();
         let request = pdev.io_request_by_index(0).ok_or(ENODEV)?;
 
@@ -374,7 +374,7 @@ impl platform::Driver for Th1520PwmPlatformDriver {
 
         pwm::Registration::register(dev, chip)?;
 
-        Ok(KBox::new(Th1520PwmPlatformDriver, GFP_KERNEL)?.into())
+        Ok(Th1520PwmPlatformDriver)
     }
 }
 

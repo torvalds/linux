@@ -41,7 +41,7 @@ struct mtrr_value {
 
 static struct mtrr_value *mtrr_value;
 
-static int mtrr_save(void)
+static int mtrr_save(void *data)
 {
 	int i;
 
@@ -56,7 +56,7 @@ static int mtrr_save(void)
 	return 0;
 }
 
-static void mtrr_restore(void)
+static void mtrr_restore(void *data)
 {
 	int i;
 
@@ -69,9 +69,13 @@ static void mtrr_restore(void)
 	}
 }
 
-static struct syscore_ops mtrr_syscore_ops = {
+static const struct syscore_ops mtrr_syscore_ops = {
 	.suspend	= mtrr_save,
 	.resume		= mtrr_restore,
+};
+
+static struct syscore mtrr_syscore = {
+	.ops = &mtrr_syscore_ops,
 };
 
 void mtrr_register_syscore(void)
@@ -86,5 +90,5 @@ void mtrr_register_syscore(void)
 	 * TBD: is there any system with such CPU which supports
 	 * suspend/resume? If no, we should remove the code.
 	 */
-	register_syscore_ops(&mtrr_syscore_ops);
+	register_syscore(&mtrr_syscore);
 }

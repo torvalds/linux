@@ -917,6 +917,8 @@ static int __must_check acquire_lock(struct hash_zone *zone,
 
 /**
  * enter_forked_lock() - Bind the data_vio to a new hash lock.
+ * @waiter: The data_vio's waiter link.
+ * @context: The new hash lock.
  *
  * Implements waiter_callback_fn. Binds the data_vio that was waiting to a new hash lock and waits
  * on that lock.
@@ -971,7 +973,7 @@ static void fork_hash_lock(struct hash_lock *old_lock, struct data_vio *new_agen
  *                   path.
  * @lock: The hash lock.
  * @data_vio: The data_vio to deduplicate using the hash lock.
- * @has_claim: true if the data_vio already has claimed an increment from the duplicate lock.
+ * @has_claim: True if the data_vio already has claimed an increment from the duplicate lock.
  *
  * If no increments are available, this will roll over to a new hash lock and launch the data_vio
  * as the writing agent for that lock.
@@ -996,7 +998,7 @@ static void launch_dedupe(struct hash_lock *lock, struct data_vio *data_vio,
  *                    true copy of their data on disk.
  * @lock: The hash lock.
  * @agent: The data_vio acting as the agent for the lock.
- * @agent_is_done: true only if the agent has already written or deduplicated against its data.
+ * @agent_is_done: True only if the agent has already written or deduplicated against its data.
  *
  * If the agent itself needs to deduplicate, an increment for it must already have been claimed
  * from the duplicate lock, ensuring the hash lock will still have a data_vio holding it.
@@ -2146,8 +2148,8 @@ static void start_expiration_timer(struct dedupe_context *context)
 /**
  * report_dedupe_timeouts() - Record and eventually report that some dedupe requests reached their
  *                            expiration time without getting answers, so we timed them out.
- * @zones: the hash zones.
- * @timeouts: the number of newly timed out requests.
+ * @zones: The hash zones.
+ * @timeouts: The number of newly timed out requests.
  */
 static void report_dedupe_timeouts(struct hash_zones *zones, unsigned int timeouts)
 {
@@ -2509,6 +2511,8 @@ static void initiate_suspend_index(struct admin_state *state)
 
 /**
  * suspend_index() - Suspend the UDS index prior to draining hash zones.
+ * @context: Not used.
+ * @completion: The completion for the suspend operation.
  *
  * Implements vdo_action_preamble_fn
  */
@@ -2521,21 +2525,13 @@ static void suspend_index(void *context, struct vdo_completion *completion)
 			   initiate_suspend_index);
 }
 
-/**
- * initiate_drain() - Initiate a drain.
- *
- * Implements vdo_admin_initiator_fn.
- */
+/** Implements vdo_admin_initiator_fn. */
 static void initiate_drain(struct admin_state *state)
 {
 	check_for_drain_complete(container_of(state, struct hash_zone, state));
 }
 
-/**
- * drain_hash_zone() - Drain a hash zone.
- *
- * Implements vdo_zone_action_fn.
- */
+/** Implements vdo_zone_action_fn. */
 static void drain_hash_zone(void *context, zone_count_t zone_number,
 			    struct vdo_completion *parent)
 {
@@ -2572,6 +2568,8 @@ static void launch_dedupe_state_change(struct hash_zones *zones)
 
 /**
  * resume_index() - Resume the UDS index prior to resuming hash zones.
+ * @context: Not used.
+ * @parent: The completion for the resume operation.
  *
  * Implements vdo_action_preamble_fn
  */
@@ -2602,11 +2600,7 @@ static void resume_index(void *context, struct vdo_completion *parent)
 	vdo_finish_completion(parent);
 }
 
-/**
- * resume_hash_zone() - Resume a hash zone.
- *
- * Implements vdo_zone_action_fn.
- */
+/** Implements vdo_zone_action_fn. */
 static void resume_hash_zone(void *context, zone_count_t zone_number,
 			     struct vdo_completion *parent)
 {
@@ -2634,7 +2628,7 @@ void vdo_resume_hash_zones(struct hash_zones *zones, struct vdo_completion *pare
 /**
  * get_hash_zone_statistics() - Add the statistics for this hash zone to the tally for all zones.
  * @zone: The hash zone to query.
- * @tally: The tally
+ * @tally: The tally.
  */
 static void get_hash_zone_statistics(const struct hash_zone *zone,
 				     struct hash_lock_statistics *tally)
@@ -2680,8 +2674,8 @@ static void get_index_statistics(struct hash_zones *zones,
 
 /**
  * vdo_get_dedupe_statistics() - Tally the statistics from all the hash zones and the UDS index.
- * @zones: The hash zones to query
- * @stats: A structure to store the statistics
+ * @zones: The hash zones to query.
+ * @stats: A structure to store the statistics.
  *
  * Return: The sum of the hash lock statistics from all hash zones plus the statistics from the UDS
  *         index
@@ -2856,9 +2850,9 @@ void vdo_set_dedupe_index_min_timer_interval(unsigned int value)
 
 /**
  * acquire_context() - Acquire a dedupe context from a hash_zone if any are available.
- * @zone: the hash zone
+ * @zone: The hash zone.
  *
- * Return: A dedupe_context or NULL if none are available
+ * Return: A dedupe_context or NULL if none are available.
  */
 static struct dedupe_context * __must_check acquire_context(struct hash_zone *zone)
 {

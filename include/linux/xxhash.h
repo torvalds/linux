@@ -141,21 +141,7 @@ static inline unsigned long xxhash(const void *input, size_t length,
  */
 
 /**
- * struct xxh32_state - private xxh32 state, do not use members directly
- */
-struct xxh32_state {
-	uint32_t total_len_32;
-	uint32_t large_len;
-	uint32_t v1;
-	uint32_t v2;
-	uint32_t v3;
-	uint32_t v4;
-	uint32_t mem32[4];
-	uint32_t memsize;
-};
-
-/**
- * struct xxh32_state - private xxh64 state, do not use members directly
+ * struct xxh64_state - private xxh64 state, do not use members directly
  */
 struct xxh64_state {
 	uint64_t total_len;
@@ -166,16 +152,6 @@ struct xxh64_state {
 	uint64_t mem64[4];
 	uint32_t memsize;
 };
-
-/**
- * xxh32_reset() - reset the xxh32 state to start a new hashing operation
- *
- * @state: The xxh32 state to reset.
- * @seed:  Initialize the hash state with this seed.
- *
- * Call this function on any xxh32_state to prepare for a new hashing operation.
- */
-void xxh32_reset(struct xxh32_state *state, uint32_t seed);
 
 /**
  * xxh64_reset() - reset the xxh64 state to start a new hashing operation
@@ -209,25 +185,5 @@ int xxh64_update(struct xxh64_state *state, const void *input, size_t length);
  * Return: The xxh64 hash stored in the state.
  */
 uint64_t xxh64_digest(const struct xxh64_state *state);
-
-/*-**************************
- * Utils
- ***************************/
-
-/**
- * xxh32_copy_state() - copy the source state into the destination state
- *
- * @src: The source xxh32 state.
- * @dst: The destination xxh32 state.
- */
-void xxh32_copy_state(struct xxh32_state *dst, const struct xxh32_state *src);
-
-/**
- * xxh64_copy_state() - copy the source state into the destination state
- *
- * @src: The source xxh64 state.
- * @dst: The destination xxh64 state.
- */
-void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state *src);
 
 #endif /* XXHASH_H */

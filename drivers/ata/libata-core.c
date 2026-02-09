@@ -3146,6 +3146,10 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_1024,
 					 dev->max_sectors);
 
+	if (dev->quirks & ATA_QUIRK_MAX_SEC_8191)
+		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_8191,
+					 dev->max_sectors);
+
 	if (dev->quirks & ATA_QUIRK_MAX_SEC_LBA48)
 		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
@@ -3998,6 +4002,7 @@ static const char * const ata_quirk_names[] = {
 	[__ATA_QUIRK_NO_DMA_LOG]	= "nodmalog",
 	[__ATA_QUIRK_NOTRIM]		= "notrim",
 	[__ATA_QUIRK_MAX_SEC_1024]	= "maxsec1024",
+	[__ATA_QUIRK_MAX_SEC_8191]	= "maxsec8191",
 	[__ATA_QUIRK_MAX_TRIM_128M]	= "maxtrim128m",
 	[__ATA_QUIRK_NO_NCQ_ON_ATI]	= "noncqonati",
 	[__ATA_QUIRK_NO_LPM_ON_ATI]	= "nolpmonati",
@@ -4104,6 +4109,12 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 	{ "LITEON CX1-JB*-HP",	NULL,		ATA_QUIRK_MAX_SEC_1024 },
 	{ "LITEON EP1-*",	NULL,		ATA_QUIRK_MAX_SEC_1024 },
 
+	/*
+	 * These devices time out with higher max sects.
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=220693
+	 */
+	{ "DELLBOSS VD",	"MV.R00-0",	ATA_QUIRK_MAX_SEC_8191 },
+
 	/* Devices we expect to fail diagnostics */
 
 	/* Devices where NCQ should be avoided */
@@ -4131,6 +4142,9 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 
 	{ "ST3320[68]13AS",	"SD1[5-9]",	ATA_QUIRK_NONCQ |
 						ATA_QUIRK_FIRMWARE_WARN },
+
+	/* Seagate disks with LPM issues */
+	{ "ST2000DM008-2FR102",	NULL,		ATA_QUIRK_NOLPM },
 
 	/* drives which fail FPDMA_AA activation (some may freeze afterwards)
 	   the ST disks also have LPM issues */
@@ -4215,6 +4229,10 @@ static const struct ata_dev_quirks_entry __ata_dev_quirks[] = {
 
 	/* Apacer models with LPM issues */
 	{ "Apacer AS340*",		NULL,	ATA_QUIRK_NOLPM },
+
+	/* Silicon Motion models with LPM issues */
+	{ "MD619HXCLDE3TC",		"TCVAID", ATA_QUIRK_NOLPM },
+	{ "MD619GXCLDE3TC",		"TCV35D", ATA_QUIRK_NOLPM },
 
 	/* These specific Samsung models/firmware-revs do not handle LPM well */
 	{ "SAMSUNG MZMPC128HBFU-000MV", "CXM14M1Q", ATA_QUIRK_NOLPM },
@@ -5910,6 +5928,8 @@ void ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
+
+	ata_acpi_port_power_on(ap);
 
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);

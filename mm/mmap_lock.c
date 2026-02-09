@@ -45,9 +45,18 @@ EXPORT_SYMBOL(__mmap_lock_do_trace_released);
 
 #ifdef CONFIG_MMU
 #ifdef CONFIG_PER_VMA_LOCK
-static inline bool __vma_enter_locked(struct vm_area_struct *vma, bool detaching)
+/*
+ * __vma_enter_locked() returns 0 immediately if the vma is not
+ * attached, otherwise it waits for any current readers to finish and
+ * returns 1.  Returns -EINTR if a signal is received while waiting.
+ */
+static inline int __vma_enter_locked(struct vm_area_struct *vma,
+		bool detaching, int state)
 {
+	int err;
 	unsigned int tgt_refcnt = VMA_LOCK_OFFSET;
+
+	mmap_assert_write_locked(vma->vm_mm);
 
 	/* Additional refcnt if the vma is attached. */
 	if (!detaching)
@@ -58,15 +67,27 @@ static inline bool __vma_enter_locked(struct vm_area_struct *vma, bool detaching
 	 * vm_refcnt. mmap_write_lock prevents racing with vma_mark_attached().
 	 */
 	if (!refcount_add_not_zero(VMA_LOCK_OFFSET, &vma->vm_refcnt))
-		return false;
+		return 0;
 
 	rwsem_acquire(&vma->vmlock_dep_map, 0, 0, _RET_IP_);
-	rcuwait_wait_event(&vma->vm_mm->vma_writer_wait,
+	err = rcuwait_wait_event(&vma->vm_mm->vma_writer_wait,
 		   refcount_read(&vma->vm_refcnt) == tgt_refcnt,
-		   TASK_UNINTERRUPTIBLE);
+		   state);
+	if (err) {
+		if (refcount_sub_and_test(VMA_LOCK_OFFSET, &vma->vm_refcnt)) {
+			/*
+			 * The wait failed, but the last reader went away
+			 * as well.  Tell the caller the VMA is detached.
+			 */
+			WARN_ON_ONCE(!detaching);
+			err = 0;
+		}
+		rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
+		return err;
+	}
 	lock_acquired(&vma->vmlock_dep_map, _RET_IP_);
 
-	return true;
+	return 1;
 }
 
 static inline void __vma_exit_locked(struct vm_area_struct *vma, bool *detached)
@@ -75,16 +96,14 @@ static inline void __vma_exit_locked(struct vm_area_struct *vma, bool *detached)
 	rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
 }
 
-void __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq)
+int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
+		int state)
 {
-	bool locked;
+	int locked;
 
-	/*
-	 * __vma_enter_locked() returns false immediately if the vma is not
-	 * attached, otherwise it waits until refcnt is indicating that vma
-	 * is attached with no readers.
-	 */
-	locked = __vma_enter_locked(vma, false);
+	locked = __vma_enter_locked(vma, false, state);
+	if (locked < 0)
+		return locked;
 
 	/*
 	 * We should use WRITE_ONCE() here because we can have concurrent reads
@@ -100,6 +119,8 @@ void __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq)
 		__vma_exit_locked(vma, &detached);
 		WARN_ON_ONCE(detached); /* vma should remain attached */
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(__vma_start_write);
 
@@ -118,7 +139,7 @@ void vma_mark_detached(struct vm_area_struct *vma)
 	 */
 	if (unlikely(!refcount_dec_and_test(&vma->vm_refcnt))) {
 		/* Wait until vma is detached with no readers. */
-		if (__vma_enter_locked(vma, true)) {
+		if (__vma_enter_locked(vma, true, TASK_UNINTERRUPTIBLE)) {
 			bool detached;
 
 			__vma_exit_locked(vma, &detached);

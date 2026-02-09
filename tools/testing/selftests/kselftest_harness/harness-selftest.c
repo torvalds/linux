@@ -8,7 +8,7 @@
 /* Avoid any inconsistencies */
 #define TH_LOG_STREAM stdout
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static void test_helper(struct __test_metadata *_metadata)
 {

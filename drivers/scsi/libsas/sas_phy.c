@@ -116,6 +116,7 @@ static void sas_phye_shutdown(struct work_struct *work)
 int sas_register_phys(struct sas_ha_struct *sas_ha)
 {
 	int i;
+	int err;
 
 	/* Now register the phys. */
 	for (i = 0; i < sas_ha->num_phys; i++) {
@@ -132,8 +133,10 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		phy->frame_rcvd_size = 0;
 
 		phy->phy = sas_phy_alloc(&sas_ha->shost->shost_gendev, i);
-		if (!phy->phy)
-			return -ENOMEM;
+		if (!phy->phy) {
+			err = -ENOMEM;
+			goto rollback;
+		}
 
 		phy->phy->identify.initiator_port_protocols =
 			phy->iproto;
@@ -146,10 +149,34 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		phy->phy->maximum_linkrate = SAS_LINK_RATE_UNKNOWN;
 		phy->phy->negotiated_linkrate = SAS_LINK_RATE_UNKNOWN;
 
-		sas_phy_add(phy->phy);
+		err = sas_phy_add(phy->phy);
+		if (err) {
+			sas_phy_free(phy->phy);
+			goto rollback;
+		}
 	}
 
 	return 0;
+rollback:
+	for (i-- ; i >= 0 ; i--) {
+		struct asd_sas_phy *phy = sas_ha->sas_phy[i];
+
+		sas_phy_delete(phy->phy);
+		sas_phy_free(phy->phy);
+	}
+	return err;
+}
+
+void sas_unregister_phys(struct sas_ha_struct *sas_ha)
+{
+	int i;
+
+	for (i = 0 ; i < sas_ha->num_phys ; i++) {
+		struct asd_sas_phy *phy = sas_ha->sas_phy[i];
+
+		sas_phy_delete(phy->phy);
+		sas_phy_free(phy->phy);
+	}
 }
 
 const work_func_t sas_phy_event_fns[PHY_NUM_EVENTS] = {

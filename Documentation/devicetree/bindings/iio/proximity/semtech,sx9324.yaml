@@ -78,7 +78,6 @@ properties:
     minItems: 3
     maxItems: 3
 
-
   semtech,ph01-resolution:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [8, 16, 32, 64, 128, 256, 512, 1024]

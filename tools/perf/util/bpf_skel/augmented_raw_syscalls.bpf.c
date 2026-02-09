@@ -45,7 +45,7 @@ struct syscalls_sys_enter {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
 	__type(key, __u32);
 	__type(value, __u32);
-	__uint(max_entries, 512);
+	__uint(max_entries, 1024);
 } syscalls_sys_enter SEC(".maps");
 
 /*
@@ -57,7 +57,7 @@ struct syscalls_sys_exit {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
 	__type(key, __u32);
 	__type(value, __u32);
-	__uint(max_entries, 512);
+	__uint(max_entries, 1024);
 } syscalls_sys_exit SEC(".maps");
 
 struct syscall_enter_args {

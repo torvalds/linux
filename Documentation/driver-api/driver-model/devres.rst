@@ -383,7 +383,6 @@ NET
 
 PER-CPU MEM
   devm_alloc_percpu()
-  devm_free_percpu()
 
 PCI
   devm_pci_alloc_host_bridge()  : managed PCI host bridge allocation

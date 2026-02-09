@@ -5,6 +5,7 @@
 #ifndef _ASM_STRING_H
 #define _ASM_STRING_H
 
+#ifdef CONFIG_64BIT
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *__s, int __c, size_t __count);
 extern void *__memset(void *__s, int __c, size_t __count);
@@ -16,6 +17,7 @@ extern void *__memcpy(void *__to, __const__ void *__from, size_t __n);
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *__dest, __const__ void *__src, size_t __n);
 extern void *__memmove(void *__dest, __const__ void *__src, size_t __n);
+#endif
 
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 

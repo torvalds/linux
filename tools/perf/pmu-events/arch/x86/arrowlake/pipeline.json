@@ -31,6 +31,16 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of cycles when any of the integer dividers are active.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "CounterMask": "1",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Cycles when integer divide unit is busy executing divide or square root operations.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "CounterMask": "1",
@@ -40,6 +50,24 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of active integer dividers per cycle.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_OCCUPANCY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of integer divider uops executed per cycle.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_UOPS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
@@ -116,6 +144,15 @@
         "SampleAfterValue": "200003",
         "UMask": "0x7e",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of not taken JCC branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.COND_NTAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7f",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Not taken branch instructions retired.",
@@ -253,12 +290,32 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of near indirect JMP branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.INDIRECT_JMP",
+        "SampleAfterValue": "200003",
+        "UMask": "0xef",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of near indirect JMP branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT_JMP",
         "SampleAfterValue": "200003",
         "UMask": "0xef",
+        "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event BR_INST_RETIRED.INDIRECT_CALL",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
+        "Errata": "ARL011",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.IND_CALL",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb",
         "Unit": "cpu_lowpower"
     },
     {
@@ -317,6 +374,15 @@
         "SampleAfterValue": "200003",
         "UMask": "0xf7",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of taken branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0xc0",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Taken branch instructions retired.",
@@ -439,6 +505,15 @@
         "SampleAfterValue": "400009",
         "UMask": "0x151",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted not taken JCC branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.COND_NTAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7f",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Mispredicted non-taken conditional branch instructions retired.",
@@ -614,6 +689,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of mispredicted near indirect JMP branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.INDIRECT_JMP",
+        "SampleAfterValue": "200003",
+        "UMask": "0xef",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of mispredicted near indirect JMP branch instructions retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",
@@ -621,6 +705,15 @@
         "SampleAfterValue": "200003",
         "UMask": "0xef",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near taken branch instructions retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Number of near branch instructions retired that were mispredicted and taken.",
@@ -688,6 +781,15 @@
         "SampleAfterValue": "100007",
         "UMask": "0x48",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the total number of BTCLEARS.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe8",
+        "EventName": "BTCLEAR.ANY",
+        "PublicDescription": "Counts the total number of BTCLEARS which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Core clocks when the thread is in the C0.1 light-weight slower wakeup time but more power saving optimized state.",
@@ -1188,6 +1290,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on all Integer ports.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xff",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on a load port.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1195,6 +1306,42 @@
         "PublicDescription": "Counts the number of uops executed on a load port.  This event counts for integer uops even if the destination is FP/vector",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port 0.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P0",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port 1.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port 2.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P2",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of uops executed on integer port 3.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.P3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40",
         "Unit": "cpu_atom"
     },
     {
@@ -1328,6 +1475,15 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of occurrences a retired load was blocked for any of the following reasons:  utlb_miss, 4k_alias, unknown_sta/bad_fwd, unready_fwd (includes md blocks and esp consuming load blocks)",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1f",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of occurrences a retired load gets blocked because its address exactly matches an older store whose data is not ready (a.k.a. unknown).  unready_fwd",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x03",
@@ -1393,6 +1549,25 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of demand loads that match on a wcb (request buffer) allocated by an L1 hardware prefetch [This event is alias to LOAD_HIT_PREFETCH.HW_PF]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x4c",
+        "EventName": "LOAD_HIT_PREFETCH.HWPF",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. [This event is alias to LOAD_HIT_PREFETCH.HWPF]",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
+        "EventCode": "0x4c",
+        "EventName": "LOAD_HIT_PREFETCH.HW_PF",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Cycles Uops delivered by the LSD, but didn't come from the decoder.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "CounterMask": "1",
@@ -1433,6 +1608,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of machine clears that flush the pipeline and restart the machine without the use of microcode.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.ANY_FAST",
+        "SampleAfterValue": "20003",
+        "UMask": "0xff",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Number of machine clears (nukes) of any type.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "CounterMask": "1",
@@ -1463,12 +1647,30 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of machine clears that flush the pipeline and restart the machine without the use of microcode.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.DISAMBIGUATION_FAST",
+        "SampleAfterValue": "20003",
+        "UMask": "0x88",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of nukes due to memory renaming",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MRN_NUKE",
         "SampleAfterValue": "20003",
         "UMask": "0x10",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of machine clears that flush the pipeline and restart the machine without the use of microcode.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.MRN_NUKE_FAST",
+        "SampleAfterValue": "20003",
+        "UMask": "0x90",
         "Unit": "cpu_atom"
     },
     {
@@ -1575,6 +1777,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of LBR entries recorded. Requires LBRs to be enabled in IA32_LBR_CTL.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe4",
+        "EventName": "MISC_RETIRED.LBR_INSERTS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "LBR record is inserted",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0xe4",
@@ -1592,6 +1803,86 @@
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of CLFLUSH, CLWB, and CLDEMOTE instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe0",
+        "EventName": "MISC_RETIRED1.CL_INST",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xff",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of LFENCE instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe0",
+        "EventName": "MISC_RETIRED1.LFENCE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of RDPMC, RDTSC, and RDTSCP instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe0",
+        "EventName": "MISC_RETIRED1.RDPMC_RDTSC_P",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Count the number of WRMSR instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe0",
+        "EventName": "MISC_RETIRED1.WRMSR",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of faults and software interrupts with vector < 32.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe1",
+        "EventName": "MISC_RETIRED2.FAULT_ALL",
+        "PublicDescription": "Counts the number of faults and software interrupts with vector < 32, including VOE cases.",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of PSB+ nuke events and ToPA trap events.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe1",
+        "EventName": "MISC_RETIRED2.INTEL_PT_CLEARS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of user interrupts delivered.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe1",
+        "EventName": "MISC_RETIRED2.ULI_DELIVERY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of SENDUIPI instructions retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe1",
+        "EventName": "MISC_RETIRED2.ULI_SENDUIPI",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x9",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of VM exits.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xe1",
+        "EventName": "MISC_RETIRED2.VM_EXIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread.",
@@ -1642,6 +1933,15 @@
         "SampleAfterValue": "200003",
         "UMask": "0x4",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number issue slots not consumed  due to a  color request for an FCW or MXCSR control register when all 4 colors (copies) are already in use",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x75",
+        "EventName": "SERIALIZATION.COLOR_STALLS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of issue slots where no uop could issue due to an IQ scoreboard that stalls allocation until a specified older uop retires or (in the case of jump scoreboard) executes. Commonly executed instructions with IQ scoreboards include LFENCE and MFENCE.",
@@ -1719,6 +2019,15 @@
         "SampleAfterValue": "10000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Fixed Counter: Counts the number of issue slots not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
+        "Counter": "Fixed counter 4",
+        "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
+        "PublicDescription": "Fixed Counter: Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.  Counts all issue slots blocked during this recovery window including relevant microcode flows and while uops are not yet available in the IQ. Also, includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
@@ -1837,6 +2146,14 @@
         "Unit": "cpu_lowpower"
     },
     {
+        "BriefDescription": "Counts the number of retirement slots not consumed due to backend stalls",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x74",
+        "EventName": "TOPDOWN_BE_BOUND.ALL_NON_ARCH",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of retirement slots not consumed due to backend stalls [This event is alias to TOPDOWN_BE_BOUND.ALL]",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
@@ -1949,6 +2266,14 @@
         "EventName": "TOPDOWN_FE_BOUND.ALL",
         "SampleAfterValue": "1000003",
         "UMask": "0x6",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of retirement slots not consumed due to front end stalls",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.ALL_NON_ARCH",
+        "SampleAfterValue": "1000003",
         "Unit": "cpu_atom"
     },
     {
@@ -2146,6 +2471,14 @@
         "EventName": "TOPDOWN_RETIRING.ALL",
         "SampleAfterValue": "1000003",
         "UMask": "0x7",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of consumed retirement slots.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x72",
+        "EventName": "TOPDOWN_RETIRING.ALL_NON_ARCH",
+        "SampleAfterValue": "1000003",
         "Unit": "cpu_atom"
     },
     {
@@ -2368,6 +2701,14 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of uops retired",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.ALL",
+        "SampleAfterValue": "2000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the total number of uops retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
@@ -2413,6 +2754,15 @@
         "SampleAfterValue": "2000003",
         "UMask": "0x10",
         "Unit": "cpu_lowpower"
+    },
+    {
+        "BriefDescription": "Counts the number of uops retired that were delivered by the loop stream detector (LSD).",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.LSD",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of uops that are from the complex flows issued by the micro-sequencer (MS).  This includes uops from flows due to complex instructions, faults, assists, and inserted flows.",

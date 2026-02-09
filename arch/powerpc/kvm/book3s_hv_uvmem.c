@@ -723,7 +723,7 @@ static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm)
 
 	dpage = pfn_to_page(uvmem_pfn);
 	dpage->zone_device_data = pvt;
-	zone_device_page_init(dpage);
+	zone_device_page_init(dpage, 0);
 	return dpage;
 out_clear:
 	spin_lock(&kvmppc_uvmem_bitmap_lock);
@@ -1014,8 +1014,9 @@ static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
  * to a normal PFN during H_SVM_PAGE_OUT.
  * Gets called with kvm->arch.uvmem_lock held.
  */
-static void kvmppc_uvmem_page_free(struct page *page)
+static void kvmppc_uvmem_folio_free(struct folio *folio)
 {
+	struct page *page = &folio->page;
 	unsigned long pfn = page_to_pfn(page) -
 			(kvmppc_uvmem_pgmap.range.start >> PAGE_SHIFT);
 	struct kvmppc_uvmem_page_pvt *pvt;
@@ -1034,7 +1035,7 @@ static void kvmppc_uvmem_page_free(struct page *page)
 }
 
 static const struct dev_pagemap_ops kvmppc_uvmem_ops = {
-	.page_free = kvmppc_uvmem_page_free,
+	.folio_free = kvmppc_uvmem_folio_free,
 	.migrate_to_ram	= kvmppc_uvmem_migrate_to_ram,
 };
 

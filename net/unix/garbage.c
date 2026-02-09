@@ -199,7 +199,7 @@ static void unix_free_vertices(struct scm_fp_list *fpl)
 	}
 }
 
-static DEFINE_SPINLOCK(unix_gc_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(unix_gc_lock);
 
 void unix_add_edges(struct scm_fp_list *fpl, struct unix_sock *receiver)
 {

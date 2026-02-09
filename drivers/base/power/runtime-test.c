@@ -38,10 +38,6 @@ static void pm_runtime_already_suspended_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
 
 	pm_runtime_get_noresume(dev);
-	KUNIT_EXPECT_EQ(test, 0, pm_runtime_barrier(dev)); /* no wakeup needed */
-	pm_runtime_put(dev);
-
-	pm_runtime_get_noresume(dev);
 	KUNIT_EXPECT_EQ(test, 1, pm_runtime_put_sync(dev));
 
 	KUNIT_EXPECT_EQ(test, 1, pm_runtime_suspend(dev));
@@ -174,7 +170,7 @@ static void pm_runtime_error_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
 
 	KUNIT_EXPECT_EQ(test, 0, pm_runtime_get(dev));
-	KUNIT_EXPECT_EQ(test, 1, pm_runtime_barrier(dev)); /* resume was pending */
+	pm_runtime_barrier(dev);
 	pm_runtime_put(dev);
 	pm_runtime_suspend(dev); /* flush the put(), to suspend */
 	KUNIT_EXPECT_TRUE(test, pm_runtime_suspended(dev));
@@ -225,7 +221,7 @@ static void pm_runtime_probe_active_test(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, pm_runtime_active(dev));
 
 	/* Nothing to flush. We stay active. */
-	KUNIT_EXPECT_EQ(test, 0, pm_runtime_barrier(dev));
+	pm_runtime_barrier(dev);
 	KUNIT_EXPECT_TRUE(test, pm_runtime_active(dev));
 
 	/* Ask for idle? Now we suspend. */

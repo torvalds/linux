@@ -8,7 +8,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdbool.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include <syscall.h>
 #include <errno.h>
 #include <stdio.h>

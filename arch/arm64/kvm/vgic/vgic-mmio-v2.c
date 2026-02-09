@@ -359,6 +359,16 @@ static void vgic_mmio_write_vcpuif(struct kvm_vcpu *vcpu,
 	vgic_set_vmcr(vcpu, &vmcr);
 }
 
+static void vgic_mmio_write_dir(struct kvm_vcpu *vcpu,
+				gpa_t addr, unsigned int len,
+				unsigned long val)
+{
+	if (kvm_vgic_global_state.type == VGIC_V2)
+		vgic_v2_deactivate(vcpu, val);
+	else
+		vgic_v3_deactivate(vcpu, val);
+}
+
 static unsigned long vgic_mmio_read_apr(struct kvm_vcpu *vcpu,
 					gpa_t addr, unsigned int len)
 {
@@ -482,6 +492,10 @@ static const struct vgic_register_region vgic_v2_cpu_registers[] = {
 	REGISTER_DESC_WITH_LENGTH(GIC_CPU_IDENT,
 		vgic_mmio_read_vcpuif, vgic_mmio_write_vcpuif, 4,
 		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GIC_CPU_DEACTIVATE,
+		vgic_mmio_read_raz, vgic_mmio_write_dir,
+		vgic_mmio_read_raz, vgic_mmio_uaccess_write_wi,
+		4, VGIC_ACCESS_32bit),
 };
 
 unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev)
@@ -492,6 +506,16 @@ unsigned int vgic_v2_init_dist_iodev(struct vgic_io_device *dev)
 	kvm_iodevice_init(&dev->dev, &kvm_io_gic_ops);
 
 	return SZ_4K;
+}
+
+unsigned int vgic_v2_init_cpuif_iodev(struct vgic_io_device *dev)
+{
+	dev->regions = vgic_v2_cpu_registers;
+	dev->nr_regions = ARRAY_SIZE(vgic_v2_cpu_registers);
+
+	kvm_iodevice_init(&dev->dev, &kvm_io_gic_ops);
+
+	return KVM_VGIC_V2_CPU_SIZE;
 }
 
 int vgic_v2_has_attr_regs(struct kvm_device *dev, struct kvm_device_attr *attr)

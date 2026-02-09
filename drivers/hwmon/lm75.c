@@ -621,7 +621,7 @@ static int lm75_i3c_reg_read(void *context, unsigned int reg, unsigned int *val)
 {
 	struct i3c_device *i3cdev = context;
 	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
-	struct i3c_priv_xfer xfers[] = {
+	struct i3c_xfer xfers[] = {
 		{
 			.rnw = false,
 			.len = 1,
@@ -640,7 +640,7 @@ static int lm75_i3c_reg_read(void *context, unsigned int reg, unsigned int *val)
 	if (reg == LM75_REG_CONF && !data->params->config_reg_16bits)
 		xfers[1].len--;
 
-	ret = i3c_device_do_priv_xfers(i3cdev, xfers, 2);
+	ret = i3c_device_do_xfers(i3cdev, xfers, 2, I3C_SDR);
 	if (ret < 0)
 		return ret;
 
@@ -658,7 +658,7 @@ static int lm75_i3c_reg_write(void *context, unsigned int reg, unsigned int val)
 {
 	struct i3c_device *i3cdev = context;
 	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
-	struct i3c_priv_xfer xfers[] = {
+	struct i3c_xfer xfers[] = {
 		{
 			.rnw = false,
 			.len = 3,
@@ -680,7 +680,7 @@ static int lm75_i3c_reg_write(void *context, unsigned int reg, unsigned int val)
 		data->val_buf[2] = val & 0xff;
 	}
 
-	return i3c_device_do_priv_xfers(i3cdev, xfers, 1);
+	return i3c_device_do_xfers(i3cdev, xfers, 1, I3C_SDR);
 }
 
 static const struct regmap_bus lm75_i3c_regmap_bus = {

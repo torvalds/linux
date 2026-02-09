@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
 #include "util/evlist.h"
 #include "util/pmu.h"
 #include "util/pmus.h"

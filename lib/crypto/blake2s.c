@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/unroll.h>
 #include <linux/types.h>
 
 static const u8 blake2s_sigma[10][16] = {
@@ -71,29 +72,22 @@ blake2s_compress_generic(struct blake2s_ctx *ctx,
 	b = ror32(b ^ c, 7); \
 } while (0)
 
-#define ROUND(r) do { \
-	G(r, 0, v[0], v[ 4], v[ 8], v[12]); \
-	G(r, 1, v[1], v[ 5], v[ 9], v[13]); \
-	G(r, 2, v[2], v[ 6], v[10], v[14]); \
-	G(r, 3, v[3], v[ 7], v[11], v[15]); \
-	G(r, 4, v[0], v[ 5], v[10], v[15]); \
-	G(r, 5, v[1], v[ 6], v[11], v[12]); \
-	G(r, 6, v[2], v[ 7], v[ 8], v[13]); \
-	G(r, 7, v[3], v[ 4], v[ 9], v[14]); \
-} while (0)
-		ROUND(0);
-		ROUND(1);
-		ROUND(2);
-		ROUND(3);
-		ROUND(4);
-		ROUND(5);
-		ROUND(6);
-		ROUND(7);
-		ROUND(8);
-		ROUND(9);
-
+		/*
+		 * Unroll the rounds loop to enable constant-folding of the
+		 * blake2s_sigma values.
+		 */
+		unrolled_full
+		for (int r = 0; r < 10; r++) {
+			G(r, 0, v[0], v[4], v[8], v[12]);
+			G(r, 1, v[1], v[5], v[9], v[13]);
+			G(r, 2, v[2], v[6], v[10], v[14]);
+			G(r, 3, v[3], v[7], v[11], v[15]);
+			G(r, 4, v[0], v[5], v[10], v[15]);
+			G(r, 5, v[1], v[6], v[11], v[12]);
+			G(r, 6, v[2], v[7], v[8], v[13]);
+			G(r, 7, v[3], v[4], v[9], v[14]);
+		}
 #undef G
-#undef ROUND
 
 		for (i = 0; i < 8; ++i)
 			ctx->h[i] ^= v[i] ^ v[i + 8];

@@ -138,7 +138,6 @@
 
 	hdmi@39 {
 		compatible = "adi,adv7511w";
-		#sound-dai-cells = <0>;
 		reg = <0x39>;
 		interrupts-extended = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		avdd-supply = <&vcc1v8_d4>;

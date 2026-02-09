@@ -22,7 +22,7 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /* clear NTP time_status & time_state */
 int clear_time_state(void)

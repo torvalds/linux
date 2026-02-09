@@ -167,6 +167,7 @@
 			compatible = "intel,agilex-clkmgr";
 			reg = <0xffd10000 0x1000>;
 			#clock-cells = <1>;
+			clocks = <&osc1>;
 		};
 
 		gmac0: ethernet@ff800000 {

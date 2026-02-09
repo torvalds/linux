@@ -31,7 +31,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define NUM_THREADS 5
 

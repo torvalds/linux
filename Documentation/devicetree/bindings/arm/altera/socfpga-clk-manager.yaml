@@ -27,17 +27,17 @@ properties:
     additionalProperties: false
 
     properties:
-      "#address-cells":
+      '#address-cells':
         const: 1
 
-      "#size-cells":
+      '#size-cells':
         const: 0
 
     patternProperties:
-      "^osc[0-9]$":
+      '^osc[0-9]$':
         type: object
 
-      "^[a-z0-9,_]+(clk|pll|clk_gate|clk_divided)(@[a-f0-9]+)?$":
+      '^[a-z0-9,_]+(clk|pll|clk_gate|clk_divided)(@[a-f0-9]+)?$':
         type: object
         $ref: '#/$defs/clock-props'
         unevaluatedProperties: false
@@ -58,14 +58,14 @@ properties:
             minItems: 1
             maxItems: 5
 
-          "#address-cells":
+          '#address-cells':
             const: 1
 
-          "#size-cells":
+          '#size-cells':
             const: 0
 
         patternProperties:
-          "^[a-z0-9,_]+(clk|pll)(@[a-f0-9]+)?$":
+          '^[a-z0-9,_]+(clk|pll)(@[a-f0-9]+)?$':
             type: object
             $ref: '#/$defs/clock-props'
             unevaluatedProperties: false
@@ -86,11 +86,11 @@ properties:
             required:
               - compatible
               - clocks
-              - "#clock-cells"
+              - '#clock-cells'
 
         required:
           - compatible
-          - "#clock-cells"
+          - '#clock-cells'
 
 required:
   - compatible
@@ -104,7 +104,7 @@ $defs:
       reg:
         maxItems: 1
 
-      "#clock-cells":
+      '#clock-cells':
         const: 0
 
       clk-gate:

@@ -148,6 +148,7 @@ __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 	case IB_RATE_400_GBPS: return 160;
 	case IB_RATE_600_GBPS: return 240;
 	case IB_RATE_800_GBPS: return 320;
+	case IB_RATE_1600_GBPS: return 640;
 	default:	       return  -1;
 	}
 }
@@ -178,6 +179,7 @@ __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 	case 160: return IB_RATE_400_GBPS;
 	case 240: return IB_RATE_600_GBPS;
 	case 320: return IB_RATE_800_GBPS;
+	case 640: return IB_RATE_1600_GBPS;
 	default:  return IB_RATE_PORT_CURRENT;
 	}
 }
@@ -208,6 +210,7 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 	case IB_RATE_400_GBPS: return 425000;
 	case IB_RATE_600_GBPS: return 637500;
 	case IB_RATE_800_GBPS: return 850000;
+	case IB_RATE_1600_GBPS: return 1700000;
 	default:	       return -1;
 	}
 }
@@ -735,7 +738,7 @@ int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
 				       (struct in6_addr *)dgid);
 		return 0;
 	} else if (net_type == RDMA_NETWORK_IPV6 ||
-		   net_type == RDMA_NETWORK_IB || RDMA_NETWORK_ROCE_V1) {
+		   net_type == RDMA_NETWORK_IB || net_type == RDMA_NETWORK_ROCE_V1) {
 		*dgid = hdr->ibgrh.dgid;
 		*sgid = hdr->ibgrh.sgid;
 		return 0;

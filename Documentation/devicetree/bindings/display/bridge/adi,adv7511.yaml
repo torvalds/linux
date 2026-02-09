@@ -156,7 +156,6 @@ else:
     adi,input-style: false
     adi,input-justification: false
 
-
 required:
   - compatible
   - reg

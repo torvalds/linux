@@ -36,6 +36,7 @@ use kernel::c_str;
 use kernel::debugfs::{Dir, File};
 use kernel::new_mutex;
 use kernel::prelude::*;
+use kernel::sizes::*;
 use kernel::sync::atomic::{Atomic, Relaxed};
 use kernel::sync::Mutex;
 use kernel::{acpi, device::Core, of, platform, str::CString, types::ARef};
@@ -60,6 +61,10 @@ struct RustDebugFs {
     counter: File<Atomic<usize>>,
     #[pin]
     inner: File<Mutex<Inner>>,
+    #[pin]
+    array_blob: File<Mutex<[u8; 4]>>,
+    #[pin]
+    vector_blob: File<Mutex<KVec<u8>>>,
 }
 
 #[derive(Debug)]
@@ -104,16 +109,17 @@ impl platform::Driver for RustDebugFs {
     fn probe(
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
-    ) -> Result<Pin<KBox<Self>>> {
-        let result = KBox::try_pin_init(RustDebugFs::new(pdev), GFP_KERNEL)?;
-        // We can still mutate fields through the files which are atomic or mutexed:
-        result.counter.store(91, Relaxed);
-        {
-            let mut guard = result.inner.lock();
-            guard.x = guard.y;
-            guard.y = 42;
-        }
-        Ok(result)
+    ) -> impl PinInit<Self, Error> {
+        RustDebugFs::new(pdev).pin_chain(|this| {
+            this.counter.store(91, Relaxed);
+            {
+                let mut guard = this.inner.lock();
+                guard.x = guard.y;
+                guard.y = 42;
+            }
+
+            Ok(())
+        })
     }
 }
 
@@ -141,6 +147,14 @@ impl RustDebugFs {
                 ),
                 counter <- Self::build_counter(&debugfs),
                 inner <- Self::build_inner(&debugfs),
+                array_blob <- debugfs.read_write_binary_file(
+                    c_str!("array_blob"),
+                    new_mutex!([0x62, 0x6c, 0x6f, 0x62]),
+                ),
+                vector_blob <- debugfs.read_write_binary_file(
+                    c_str!("vector_blob"),
+                    new_mutex!(kernel::kvec!(0x42; SZ_4K)?),
+                ),
                 _debugfs: debugfs,
                 pdev: pdev.into(),
             }

@@ -22,7 +22,7 @@
 #include <linux/userfaultfd.h>
 #include <linux/mempolicy.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vm_util.h"
 
 static size_t pagesize;

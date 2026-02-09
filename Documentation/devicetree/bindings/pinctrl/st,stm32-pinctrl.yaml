@@ -151,6 +151,8 @@ patternProperties:
           pinctrl group available on the machine. Each subnode will list the
           pins it needs, and how they should be configured, with regard to muxer
           configuration, pullups, drive, output high/low and output speed.
+        $ref: /schemas/pinctrl/pincfg-node.yaml
+
         properties:
           pinmux:
             $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -195,26 +197,19 @@ patternProperties:
                           pinmux = <STM32_PINMUX('A', 9, RSVD)>;
                };
 
-          bias-disable:
-            type: boolean
+          bias-disable: true
 
-          bias-pull-down:
-            type: boolean
+          bias-pull-down: true
 
-          bias-pull-up:
-            type: boolean
+          bias-pull-up: true
 
-          drive-push-pull:
-            type: boolean
+          drive-push-pull: true
 
-          drive-open-drain:
-            type: boolean
+          drive-open-drain: true
 
-          output-low:
-            type: boolean
+          output-low: true
 
-          output-high:
-            type: boolean
+          output-high: true
 
           slew-rate:
             description: |
@@ -222,14 +217,67 @@ patternProperties:
               1: Medium speed
               2: Fast speed
               3: High speed
-            $ref: /schemas/types.yaml#/definitions/uint32
-            enum: [0, 1, 2, 3]
+            minimum: 0
+            maximum: 3
+
+          skew-delay-input-ps:
+            description: |
+              IO synchronization skew rate applied to the input path
+            enum: [0, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250]
+
+          skew-delay-output-ps:
+            description: |
+              IO synchronization latch delay applied to the output path
+            enum: [0, 300, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3250]
+
+          st,io-sync:
+            $ref: /schemas/types.yaml#/definitions/string
+            enum:
+              - pass-through
+              - clock inverted
+              - data on rising edge
+              - data on falling edge
+              - data on both edges
+            description: |
+              IO synchronization through re-sampling or inversion
+              "pass-through"         - data or clock GPIO pass-through
+              "clock inverted"       - clock GPIO inverted
+              "data on rising edge"  - data GPIO re-sampled on clock rising edge
+              "data on falling edge" - data GPIO re-sampled on clock falling edge
+              "data on both edges"   - data GPIO re-sampled on both clock edges
+            default: pass-through
 
         required:
           - pinmux
 
+        # Not allowed both skew-delay-input-ps and skew-delay-output-ps
+        if:
+          required:
+            - skew-delay-input-ps
+        then:
+          properties:
+            skew-delay-output-ps: false
+
 allOf:
   - $ref: pinctrl.yaml#
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - st,stm32mp257-pinctrl
+                - st,stm32mp257-z-pinctrl
+    then:
+      patternProperties:
+        '-[0-9]*$':
+          patternProperties:
+            '^pins':
+              properties:
+                skew-delay-input-ps: false
+                skew-delay-output-ps: false
+                st,io-sync: false
 
 required:
   - compatible
@@ -310,5 +358,26 @@ examples:
                 pinctrl-0 = <&usart1_pins_a>;
                 pinctrl-names = "default";
     };
+
+  - |
+    #include <dt-bindings/pinctrl/stm32-pinfunc.h>
+    //Example 4 skew-delay and st,io-sync
+      pinctrl: pinctrl@44240000 {
+              compatible = "st,stm32mp257-pinctrl";
+              #address-cells = <1>;
+              #size-cells = <1>;
+              ranges = <0 0x44240000 0xa0400>;
+
+              eth3_rgmii_pins_a: eth3-rgmii-0 {
+                      pins1 {
+                              pinmux = <STM32_PINMUX('A', 6, AF14)>;
+                              st,io-sync = "data on both edges";
+                      };
+                      pins2 {
+                              pinmux = <STM32_PINMUX('H', 2, AF14)>;
+                              skew-delay-output-ps = <500>;
+                      };
+              };
+      };
 
 ...

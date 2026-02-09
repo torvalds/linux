@@ -1,0 +1,53 @@
+What:		/sys/bus/platform/devices/INOU0000:XX/fn_lock_toggle_enable
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Allows userspace applications to enable/disable the FN lock feature
+		of the integrated keyboard by writing "1"/"0" into this file.
+
+		Reading this file returns the current enable status of the FN lock functionality.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/super_key_toggle_enable
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+                Allows userspace applications to enable/disable the super key functionality
+                of the integrated keyboard by writing "1"/"0" into this file.
+
+		Reading this file returns the current enable status of the super key functionality.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/touchpad_toggle_enable
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Allows userspace applications to enable/disable the touchpad toggle functionality
+		of the integrated touchpad by writing "1"/"0" into this file.
+
+		Reading this file returns the current enable status of the touchpad toggle
+		functionality.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/rainbow_animation
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Forces the integrated lightbar to display a rainbow animation when the machine
+		is not suspended. Writing "1"/"0" into this file enables/disables this
+		functionality.
+
+		Reading this file returns the current status of the rainbow animation functionality.
+
+What:		/sys/bus/platform/devices/INOU0000:XX/breathing_in_suspend
+Date:		November 2025
+KernelVersion:	6.19
+Contact:	Armin Wolf <W_Armin@gmx.de>
+Description:
+		Causes the integrated lightbar to display a breathing animation when the machine
+		has been suspended and is running on AC power. Writing "1"/"0" into this file
+		enables/disables this functionality.
+
+		Reading this file returns the current status of the breathing animation
+		functionality.

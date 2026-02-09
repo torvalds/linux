@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2025 Cristian Cozzolino <cristian_ci@protonmail.com>
+ */
+
+/dts-v1/;
+#include "mt6582.dtsi"
+
+/ {
+	model = "Alcatel One Touch Pop C7 (OT-7041D)";
+	compatible = "alcatel,yarisxl", "mediatek,mt6582";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		stdout-path = "serial0:921600n8";
+
+		framebuffer: framebuffer@9fa00000 {
+			compatible = "simple-framebuffer";
+			memory-region = <&framebuffer_reserved>;
+			width = <480>;
+			height = <854>;
+			stride = <(480 * 4)>;
+			format = "r5g6b5";
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		connsys@9f900000 {
+			reg = <0x9f900000 0x100000>;
+			no-map;
+		};
+
+		modem@9e000000 {
+			reg = <0x9e000000 0x1800000>;
+			no-map;
+		};
+
+		framebuffer_reserved: framebuffer@9fa00000 {
+			reg = <0x9fa00000 0x600000>;
+			no-map;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

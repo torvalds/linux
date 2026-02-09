@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: I2C Controller on ARM Ltd development platforms
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#

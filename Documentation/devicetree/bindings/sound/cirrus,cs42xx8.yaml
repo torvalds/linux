@@ -9,6 +9,9 @@ title: Cirrus Logic CS42448/CS42888 audio CODEC
 maintainers:
   - patches@opensource.cirrus.com
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -63,7 +66,7 @@ then:
     - VLC-supply
     - VLS-supply
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

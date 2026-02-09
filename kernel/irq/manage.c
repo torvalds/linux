@@ -1414,7 +1414,7 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	 * Ensure the thread adjusts the affinity once it reaches the
 	 * thread function.
 	 */
-	new->thread_flags = BIT(IRQTF_AFFINITY);
+	set_bit(IRQTF_AFFINITY, &new->thread_flags);
 
 	return 0;
 }
@@ -2469,6 +2469,9 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
 	retval = irq_chip_pm_get(&desc->irq_data);
 	if (retval < 0)
 		return retval;
+
+	if (!act->affinity)
+		act->affinity = cpu_online_mask;
 
 	retval = __setup_irq(irq, desc, act);
 

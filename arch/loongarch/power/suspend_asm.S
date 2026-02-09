@@ -14,41 +14,41 @@
 
 /* preparatory stuff */
 .macro	SETUP_SLEEP
-	addi.d		sp, sp, -PT_SIZE
-	st.d		$r1, sp, PT_R1
-	st.d		$r2, sp, PT_R2
-	st.d		$r3, sp, PT_R3
-	st.d		$r4, sp, PT_R4
-	st.d		$r21, sp, PT_R21
-	st.d		$r22, sp, PT_R22
-	st.d		$r23, sp, PT_R23
-	st.d		$r24, sp, PT_R24
-	st.d		$r25, sp, PT_R25
-	st.d		$r26, sp, PT_R26
-	st.d		$r27, sp, PT_R27
-	st.d		$r28, sp, PT_R28
-	st.d		$r29, sp, PT_R29
-	st.d		$r30, sp, PT_R30
-	st.d		$r31, sp, PT_R31
+	PTR_ADDI	sp, sp, -PT_SIZE
+	REG_S		$r1, sp, PT_R1
+	REG_S		$r2, sp, PT_R2
+	REG_S		$r3, sp, PT_R3
+	REG_S		$r4, sp, PT_R4
+	REG_S		$r21, sp, PT_R21
+	REG_S		$r22, sp, PT_R22
+	REG_S		$r23, sp, PT_R23
+	REG_S		$r24, sp, PT_R24
+	REG_S		$r25, sp, PT_R25
+	REG_S		$r26, sp, PT_R26
+	REG_S		$r27, sp, PT_R27
+	REG_S		$r28, sp, PT_R28
+	REG_S		$r29, sp, PT_R29
+	REG_S		$r30, sp, PT_R30
+	REG_S		$r31, sp, PT_R31
 .endm
 
 .macro SETUP_WAKEUP
-	ld.d		$r1, sp, PT_R1
-	ld.d		$r2, sp, PT_R2
-	ld.d		$r3, sp, PT_R3
-	ld.d		$r4, sp, PT_R4
-	ld.d		$r21, sp, PT_R21
-	ld.d		$r22, sp, PT_R22
-	ld.d		$r23, sp, PT_R23
-	ld.d		$r24, sp, PT_R24
-	ld.d		$r25, sp, PT_R25
-	ld.d		$r26, sp, PT_R26
-	ld.d		$r27, sp, PT_R27
-	ld.d		$r28, sp, PT_R28
-	ld.d		$r29, sp, PT_R29
-	ld.d		$r30, sp, PT_R30
-	ld.d		$r31, sp, PT_R31
-	addi.d		sp, sp, PT_SIZE
+	REG_L		$r1, sp, PT_R1
+	REG_L		$r2, sp, PT_R2
+	REG_L		$r3, sp, PT_R3
+	REG_L		$r4, sp, PT_R4
+	REG_L		$r21, sp, PT_R21
+	REG_L		$r22, sp, PT_R22
+	REG_L		$r23, sp, PT_R23
+	REG_L		$r24, sp, PT_R24
+	REG_L		$r25, sp, PT_R25
+	REG_L		$r26, sp, PT_R26
+	REG_L		$r27, sp, PT_R27
+	REG_L		$r28, sp, PT_R28
+	REG_L		$r29, sp, PT_R29
+	REG_L		$r30, sp, PT_R30
+	REG_L		$r31, sp, PT_R31
+	PTR_ADDI	sp, sp, PT_SIZE
 .endm
 
 	.text
@@ -59,15 +59,15 @@ SYM_FUNC_START(loongarch_suspend_enter)
 	SETUP_SLEEP
 
 	la.pcrel	t0, acpi_saved_sp
-	st.d		sp, t0, 0
+	REG_S		sp, t0, 0
 
 	bl		__flush_cache_all
 
 	/* Pass RA and SP to BIOS */
-	addi.d		a1, sp, 0
+	PTR_ADDI	a1, sp, 0
 	la.pcrel	a0, loongarch_wakeup_start
 	la.pcrel	t0, loongarch_suspend_addr
-	ld.d		t0, t0, 0
+	REG_L		t0, t0, 0
 	jirl		ra, t0, 0 /* Call BIOS's STR sleep routine */
 
 	/*
@@ -83,7 +83,7 @@ SYM_INNER_LABEL(loongarch_wakeup_start, SYM_L_GLOBAL)
 	csrwr		t0, LOONGARCH_CSR_CRMD
 
 	la.pcrel	t0, acpi_saved_sp
-	ld.d		sp, t0, 0
+	REG_L		sp, t0, 0
 
 	SETUP_WAKEUP
 	jr		ra

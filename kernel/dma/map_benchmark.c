@@ -11,13 +11,13 @@
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/map_benchmark.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
+#include <uapi/linux/map_benchmark.h>
 
 struct map_benchmark_data {
 	struct map_benchmark bparam;

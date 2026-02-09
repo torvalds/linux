@@ -987,7 +987,7 @@ static int mcp3564_read_label(struct iio_dev *indio_dev,
 {
 	struct mcp3564_state *adc = iio_priv(indio_dev);
 
-	return sprintf(label, "%s\n", adc->labels[chan->scan_index]);
+	return sysfs_emit(label, "%s\n", adc->labels[chan->scan_index]);
 }
 
 static int mcp3564_parse_fw_children(struct iio_dev *indio_dev)

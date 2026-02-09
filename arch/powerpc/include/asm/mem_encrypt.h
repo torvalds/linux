@@ -9,6 +9,9 @@
 #define _ASM_POWERPC_MEM_ENCRYPT_H
 
 #include <asm/svm.h>
+#include <linux/types.h>
+
+struct device;
 
 static inline bool force_dma_unencrypted(struct device *dev)
 {

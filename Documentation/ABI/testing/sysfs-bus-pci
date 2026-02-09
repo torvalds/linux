@@ -621,3 +621,84 @@ Description:
 		number extended capability. The file is read only and due to
 		the possible sensitivity of accessible serial numbers, admin
 		only.
+
+What:		/sys/bus/pci/devices/.../tsm/
+Contact:	linux-coco@lists.linux.dev
+Description:
+		This directory only appears if a physical device function
+		supports authentication (PCIe CMA-SPDM), interface security
+		(PCIe TDISP), and is accepted for secure operation by the
+		platform TSM driver. This attribute directory appears
+		dynamically after the platform TSM driver loads. So, only after
+		the /sys/class/tsm/tsm0 device arrives can tools assume that
+		devices without a tsm/ attribute directory will never have one;
+		before that, the security capabilities of the device relative to
+		the platform TSM are unknown. See
+		Documentation/ABI/testing/sysfs-class-tsm.
+
+What:		/sys/bus/pci/devices/.../tsm/connect
+Contact:	linux-coco@lists.linux.dev
+Description:
+		(RW) Write the name of a TSM (TEE Security Manager) device from
+		/sys/class/tsm to this file to establish a connection with the
+		device.  This typically includes an SPDM (DMTF Security
+		Protocols and Data Models) session over PCIe DOE (Data Object
+		Exchange) and may also include PCIe IDE (Integrity and Data
+		Encryption) establishment. Reads from this attribute return the
+		name of the connected TSM or the empty string if not
+		connected. A TSM device signals its readiness to accept PCI
+		connection via a KOBJ_CHANGE event.
+
+What:		/sys/bus/pci/devices/.../tsm/disconnect
+Contact:	linux-coco@lists.linux.dev
+Description:
+		(WO) Write the name of the TSM device that was specified
+		to 'connect' to teardown the connection.
+
+What:		/sys/bus/pci/devices/.../tsm/dsm
+Contact:	linux-coco@lists.linux.dev
+Description:	(RO) Return PCI device name of this device's DSM (Device
+		Security Manager). When a device is in the connected state it
+		indicates that the platform TSM (TEE Security Manager) has made
+		a secure-session connection with a device's DSM. A DSM is always
+		physical function 0 and when the device supports TDISP (TEE
+		Device Interface Security Protocol) its managed functions also
+		populate this tsm/dsm attribute. The managed functions of a DSM
+		are SR-IOV (Single Root I/O Virtualization) virtual functions,
+		non-zero functions of a multi-function device, or downstream
+		endpoints depending on whether the DSM is an SR-IOV physical
+		function, function0 of a multi-function device, or an upstream
+		PCIe switch port. This is a "link" TSM attribute, see
+		Documentation/ABI/testing/sysfs-class-tsm.
+
+What:		/sys/bus/pci/devices/.../tsm/bound
+Contact:	linux-coco@lists.linux.dev
+Description:	(RO) Return the device name of the TSM when the device is in a
+		TDISP (TEE Device Interface Security Protocol) operational state
+		(LOCKED, RUN, or ERROR, not UNLOCKED). Bound devices consume
+		platform TSM resources and depend on the device's configuration
+		(e.g. BME (Bus Master Enable) and MSE (Memory Space Enable)
+		among other settings) to remain stable for the duration of the
+		bound state. This attribute is only visible for devices that
+		support TDISP operation, and it is only populated after
+		successful connect and TSM bind. The TSM bind operation is
+		initiated by VFIO/IOMMUFD. This is a "link" TSM attribute, see
+		Documentation/ABI/testing/sysfs-class-tsm.
+
+What:		/sys/bus/pci/devices/.../authenticated
+Contact:	linux-pci@vger.kernel.org
+Description:
+		When the device's tsm/ directory is present device
+		authentication (PCIe CMA-SPDM) and link encryption (PCIe IDE)
+		are handled by the platform TSM (TEE Security Manager). When the
+		tsm/ directory is not present this attribute reflects only the
+		native CMA-SPDM authentication state with the kernel's
+		certificate store.
+
+		If the attribute is not present, it indicates that
+		authentication is unsupported by the device, or the TSM has no
+		available authentication methods for the device.
+
+		When present and the tsm/ attribute directory is present, the
+		authenticated attribute is an alias for the device 'connect'
+		state. See the 'tsm/connect' attribute for more details.

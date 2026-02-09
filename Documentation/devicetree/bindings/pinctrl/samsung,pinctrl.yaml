@@ -36,6 +36,7 @@ properties:
   compatible:
     enum:
       - axis,artpec8-pinctrl
+      - axis,artpec9-pinctrl
       - google,gs101-pinctrl
       - samsung,s3c64xx-pinctrl
       - samsung,s5pv210-pinctrl
@@ -52,6 +53,7 @@ properties:
       - samsung,exynos7870-pinctrl
       - samsung,exynos7885-pinctrl
       - samsung,exynos850-pinctrl
+      - samsung,exynos8890-pinctrl
       - samsung,exynos8895-pinctrl
       - samsung,exynos9810-pinctrl
       - samsung,exynos990-pinctrl
@@ -133,7 +135,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: google,gs101-pinctrl
+            enum:
+              - google,gs101-pinctrl
+              - samsung,exynos8890-pinctrl
     then:
       required:
         - clocks

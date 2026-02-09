@@ -11,10 +11,12 @@
 
 #include <linux/bits.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
 #include <linux/regmap.h>
+#include <linux/workqueue.h>
 #include <net/dsa.h>
 
 #include "lantiq_gswip.h"
@@ -29,6 +31,7 @@ struct gsw1xx_priv {
 	struct			regmap *clk;
 	struct			regmap *shell;
 	struct			phylink_pcs pcs;
+	struct delayed_work	clear_raneg;
 	phy_interface_t		tbi_interface;
 	struct gswip_priv	gswip;
 };
@@ -145,7 +148,9 @@ static void gsw1xx_pcs_disable(struct phylink_pcs *pcs)
 {
 	struct gsw1xx_priv *priv = pcs_to_gsw1xx(pcs);
 
-	/* Assert SGMII shell reset */
+	cancel_delayed_work_sync(&priv->clear_raneg);
+
+	/* Assert SGMII shell reset (will also clear RANEG bit) */
 	regmap_set_bits(priv->shell, GSW1XX_SHELL_RST_REQ,
 			GSW1XX_RST_REQ_SGMII_SHELL);
 
@@ -255,9 +260,15 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	      FIELD_PREP(GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT,
 			 GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT_DEF);
 
-	/* TODO: Take care of inverted RX pair once generic property is
+	/* RX lane seems to be inverted internally, so bit
+	 * GSW1XX_SGMII_PHY_RX0_CFG2_INVERT needs to be set for normal
+	 * (ie. non-inverted) operation.
+	 *
+	 * TODO: Take care of inverted RX pair once generic property is
 	 *       available
 	 */
+
+	val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_RX0_CFG2, val);
 	if (ret < 0)
@@ -422,12 +433,29 @@ static int gsw1xx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	return 0;
 }
 
+static void gsw1xx_pcs_clear_raneg(struct work_struct *work)
+{
+	struct gsw1xx_priv *priv =
+		container_of(work, struct gsw1xx_priv, clear_raneg.work);
+
+	regmap_clear_bits(priv->sgmii, GSW1XX_SGMII_TBI_ANEGCTL,
+			  GSW1XX_SGMII_TBI_ANEGCTL_RANEG);
+}
+
 static void gsw1xx_pcs_an_restart(struct phylink_pcs *pcs)
 {
 	struct gsw1xx_priv *priv = pcs_to_gsw1xx(pcs);
 
+	cancel_delayed_work_sync(&priv->clear_raneg);
+
 	regmap_set_bits(priv->sgmii, GSW1XX_SGMII_TBI_ANEGCTL,
 			GSW1XX_SGMII_TBI_ANEGCTL_RANEG);
+
+	/* despite being documented as self-clearing, the RANEG bit
+	 * sometimes remains set, preventing auto-negotiation from happening.
+	 * MaxLinear advises to manually clear the bit after 10ms.
+	 */
+	schedule_delayed_work(&priv->clear_raneg, msecs_to_jiffies(10));
 }
 
 static void gsw1xx_pcs_link_up(struct phylink_pcs *pcs,
@@ -630,6 +658,8 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	if (ret)
 		return ret;
 
+	INIT_DELAYED_WORK(&priv->clear_raneg, gsw1xx_pcs_clear_raneg);
+
 	ret = gswip_probe_common(&priv->gswip, version);
 	if (ret)
 		return ret;
@@ -642,25 +672,31 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 static void gsw1xx_remove(struct mdio_device *mdiodev)
 {
 	struct gswip_priv *priv = dev_get_drvdata(&mdiodev->dev);
+	struct gsw1xx_priv *gsw1xx_priv;
 
 	if (!priv)
 		return;
 
-	gswip_disable_switch(priv);
-
 	dsa_unregister_switch(priv->ds);
+
+	gsw1xx_priv = container_of(priv, struct gsw1xx_priv, gswip);
+	cancel_delayed_work_sync(&gsw1xx_priv->clear_raneg);
 }
 
 static void gsw1xx_shutdown(struct mdio_device *mdiodev)
 {
 	struct gswip_priv *priv = dev_get_drvdata(&mdiodev->dev);
+	struct gsw1xx_priv *gsw1xx_priv;
 
 	if (!priv)
 		return;
 
+	dsa_switch_shutdown(priv->ds);
+
 	dev_set_drvdata(&mdiodev->dev, NULL);
 
-	gswip_disable_switch(priv);
+	gsw1xx_priv = container_of(priv, struct gsw1xx_priv, gswip);
+	cancel_delayed_work_sync(&gsw1xx_priv->clear_raneg);
 }
 
 static const struct gswip_hw_info gsw12x_data = {

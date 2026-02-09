@@ -50,19 +50,6 @@
 		regulator-min-microvolt = <330000>;
 		regulator-max-microvolt = <330000>;
 	};
-
-	soc@0 {
-		eccmgr {
-			sdmmca-ecc@ff8c8c00 {
-				compatible = "altr,socfpga-s10-sdmmc-ecc",
-					     "altr,socfpga-sdmmc-ecc";
-				reg = <0xff8c8c00 0x100>;
-				altr,ecc-parent = <&mmc>;
-				interrupts = <14 4>,
-					     <15 4>;
-			};
-		};
-	};
 };
 
 &gpio1 {

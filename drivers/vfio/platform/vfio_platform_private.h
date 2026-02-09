@@ -85,6 +85,9 @@ int vfio_platform_open_device(struct vfio_device *core_vdev);
 void vfio_platform_close_device(struct vfio_device *core_vdev);
 long vfio_platform_ioctl(struct vfio_device *core_vdev,
 			 unsigned int cmd, unsigned long arg);
+int vfio_platform_ioctl_get_region_info(struct vfio_device *core_vdev,
+					struct vfio_region_info *info,
+					struct vfio_info_cap *caps);
 ssize_t vfio_platform_read(struct vfio_device *core_vdev,
 			   char __user *buf, size_t count,
 			   loff_t *ppos);

@@ -350,7 +350,7 @@ static const struct regmap_config apds9306_regmap = {
 	.volatile_table = &apds9306_volatile_table,
 	.precious_table = &apds9306_precious_table,
 	.max_register = APDS9306_ALS_THRES_VAR_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct reg_field apds9306_rf_sw_reset =

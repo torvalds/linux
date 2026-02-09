@@ -12,7 +12,6 @@
 #include <linux/log2.h>
 #include <linux/zalloc.h>
 #include <linux/err.h>
-#include <cpuid.h>
 
 #include "../../../util/session.h"
 #include "../../../util/event.h"
@@ -34,6 +33,7 @@
 #include <internal/lib.h> // page_size
 #include "../../../util/intel-pt.h"
 #include <api/fs/fs.h>
+#include "cpuid.h"
 
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
@@ -72,7 +72,7 @@ static int intel_pt_parse_terms_with_default(const struct perf_pmu *pmu,
 	int err;
 
 	parse_events_terms__init(&terms);
-	err = parse_events_terms(&terms, str, /*input=*/ NULL);
+	err = parse_events_terms(&terms, str);
 	if (err)
 		goto out_free;
 
@@ -311,7 +311,7 @@ static void intel_pt_tsc_ctc_ratio(u32 *n, u32 *d)
 {
 	unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
 
-	__get_cpuid(0x15, &eax, &ebx, &ecx, &edx);
+	cpuid(0x15, 0, &eax, &ebx, &ecx, &edx);
 	*n = ebx;
 	*d = eax;
 }

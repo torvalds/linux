@@ -31,7 +31,6 @@
  * SOFTWARE.
  */
 
-#include <linux/pci.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
@@ -1348,11 +1347,13 @@ static int check_mtu_validate(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_qp *hr_qp,
 			      struct ib_qp_attr *attr, int attr_mask)
 {
+	struct net_device *net_dev;
 	enum ib_mtu active_mtu;
 	int p;
 
 	p = attr_mask & IB_QP_PORT ? (attr->port_num - 1) : hr_qp->port;
-	active_mtu = iboe_get_mtu(hr_dev->iboe.netdevs[p]->mtu);
+	net_dev = get_hr_netdev(hr_dev, p);
+	active_mtu = iboe_get_mtu(net_dev->mtu);
 
 	if ((hr_dev->caps.max_mtu >= IB_MTU_2048 &&
 	    attr->path_mtu > hr_dev->caps.max_mtu) ||

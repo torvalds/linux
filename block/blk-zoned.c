@@ -741,6 +741,8 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 {
 	struct bio *bio;
 
+	lockdep_assert_held(&zwplug->lock);
+
 	if (bio_list_empty(&zwplug->bio_list))
 		return;
 
@@ -748,6 +750,8 @@ static void disk_zone_wplug_abort(struct blk_zone_wplug *zwplug)
 			    zwplug->disk->disk_name, zwplug->zone_no);
 	while ((bio = bio_list_pop(&zwplug->bio_list)))
 		blk_zone_wplug_bio_io_error(zwplug, bio);
+
+	zwplug->flags &= ~BLK_ZONE_WPLUG_PLUGGED;
 }
 
 /*
@@ -2096,7 +2100,7 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	 * we have a zone write plug for such zone if the device has a zone
 	 * write plug hash table.
 	 */
-	if (!queue_emulates_zone_append(disk->queue) || !disk->zone_wplugs_hash)
+	if (!disk->zone_wplugs_hash)
 		return 0;
 
 	wp_offset = disk_zone_wplug_sync_wp_offset(disk, zone);

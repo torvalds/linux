@@ -24,7 +24,7 @@
 #define DPU_MAX_IMG_WIDTH 0x3fff
 #define DPU_MAX_IMG_HEIGHT 0x3fff
 
-#define CRTC_QUAD_MIXERS	4
+#define CRTC_DUAL_MIXERS	2
 
 #define MAX_XIN_COUNT 16
 

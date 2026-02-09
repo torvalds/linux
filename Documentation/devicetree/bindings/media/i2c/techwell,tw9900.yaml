@@ -70,7 +70,6 @@ properties:
         $ref: /schemas/graph.yaml#/properties/port
         description: Video port for the decoder output.
 
-
     required:
       - port@0
       - port@1

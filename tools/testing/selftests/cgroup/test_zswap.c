@@ -10,7 +10,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "cgroup_util.h"
 
 static int read_int(const char *path, size_t *value)

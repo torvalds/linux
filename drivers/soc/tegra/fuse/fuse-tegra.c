@@ -182,8 +182,6 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 		}
 
 		fuse->soc->init(fuse);
-		tegra_fuse_print_sku_info(&tegra_sku_info);
-		tegra_soc_device_register();
 
 		err = tegra_fuse_add_lookups(fuse);
 		if (err)

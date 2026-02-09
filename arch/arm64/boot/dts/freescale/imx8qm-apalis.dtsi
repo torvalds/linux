@@ -314,8 +314,6 @@
 		<IMX8QM_PCIE_CTRL0_CLKREQ_B_LSIO_GPIO4_IO27			0x00000021>;
 };
 
-/* TODO: On-module Wi-Fi */
-
 /* Apalis MMC1 */
 &usdhc2 {
 	/*

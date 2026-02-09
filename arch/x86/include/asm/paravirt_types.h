@@ -249,7 +249,7 @@ extern struct paravirt_patch_template pv_ops;
  * don't need to bother with CFI prefixes.
  */
 #define PARAVIRT_CALL					\
-	ANNOTATE_RETPOLINE_SAFE				\
+	ANNOTATE_RETPOLINE_SAFE "\n\t"			\
 	"call *%[paravirt_opptr];"
 
 /*

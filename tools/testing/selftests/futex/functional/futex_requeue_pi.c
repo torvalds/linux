@@ -29,7 +29,7 @@
 
 #include "atomic.h"
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define MAX_WAKE_ITERS 1000
 #define THREAD_MAX 10

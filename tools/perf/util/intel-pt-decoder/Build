@@ -1,4 +1,4 @@
-perf-util-$(CONFIG_AUXTRACE) += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
+perf-util-y += intel-pt-pkt-decoder.o intel-pt-insn-decoder.o intel-pt-log.o intel-pt-decoder.o
 
 inat_tables_script = $(srctree)/tools/arch/x86/tools/gen-insn-attr-x86.awk
 inat_tables_maps = $(srctree)/tools/arch/x86/lib/x86-opcode-map.txt
@@ -7,11 +7,7 @@ $(OUTPUT)util/intel-pt-decoder/inat-tables.c: $(inat_tables_script) $(inat_table
 	$(call rule_mkdir)
 	@$(call echo-cmd,gen)$(AWK) -f $(inat_tables_script) $(inat_tables_maps) > $@ || rm -f $@
 
-ifeq ($(SRCARCH),x86)
-  perf-util-y += inat.o insn.o
-else
-  perf-util-$(CONFIG_AUXTRACE) += inat.o insn.o
-endif
+perf-util-y += inat.o insn.o
 
 $(OUTPUT)util/intel-pt-decoder/inat.o: $(srctree)/tools/arch/x86/lib/inat.c $(OUTPUT)util/intel-pt-decoder/inat-tables.c
 	$(call rule_mkdir)

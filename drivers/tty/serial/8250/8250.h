@@ -98,15 +98,6 @@ struct serial8250_config {
 
 extern unsigned int nr_uarts;
 
-#ifdef CONFIG_SERIAL_8250_SHARE_IRQ
-#define SERIAL8250_SHARE_IRQS 1
-#else
-#define SERIAL8250_SHARE_IRQS 0
-#endif
-
-extern unsigned int share_irqs;
-extern unsigned int skip_txen_test;
-
 #define SERIAL8250_PORT_FLAGS(_base, _irq, _flags)		\
 	{							\
 		.iobase		= _base,			\

@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <asm/unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "user_events_selftests.h"
 
 const char *data_file = "/sys/kernel/tracing/user_events_data";

@@ -18,6 +18,7 @@ objtool-y += libstring.o
 objtool-y += libctype.o
 objtool-y += str_error_r.o
 objtool-y += librbtree.o
+objtool-y += signal.o
 
 $(OUTPUT)libstring.o: ../lib/string.c FORCE
 	$(call rule_mkdir)

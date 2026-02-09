@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <netinet/ip.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #ifndef IP_LOCAL_PORT_RANGE
 #define IP_LOCAL_PORT_RANGE 51

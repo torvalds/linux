@@ -1189,7 +1189,7 @@ static void filesystems_freeze_callback(struct super_block *sb, void *freeze_all
 	if (!sb->s_op->freeze_fs && !sb->s_op->freeze_super)
 		return;
 
-	if (freeze_all_ptr && !(sb->s_type->fs_flags & FS_POWER_FREEZE))
+	if (!freeze_all_ptr && !(sb->s_type->fs_flags & FS_POWER_FREEZE))
 		return;
 
 	if (!get_active_super(sb))
@@ -1291,14 +1291,6 @@ void kill_anon_super(struct super_block *sb)
 	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL(kill_anon_super);
-
-void kill_litter_super(struct super_block *sb)
-{
-	if (sb->s_root)
-		d_genocide(sb->s_root);
-	kill_anon_super(sb);
-}
-EXPORT_SYMBOL(kill_litter_super);
 
 int set_anon_super_fc(struct super_block *sb, struct fs_context *fc)
 {

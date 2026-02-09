@@ -16,6 +16,12 @@
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
 
+/* DEFAULT MSIZE = 32 pages worth of payload + P9_HDRSZ +
+ * room for write (16 extra) or read (11 extra) operands.
+ */
+
+#define DEFAULT_MSIZE ((128 * 1024) + P9_IOHDRSZ)
+
 /** enum p9_proto_versions - 9P protocol versions
  * @p9_proto_legacy: 9P Legacy mode, pre-9P2000.u
  * @p9_proto_2000u: 9P2000.u extension
@@ -127,6 +133,96 @@ struct p9_client {
 };
 
 /**
+ * struct p9_fd_opts - holds client options during parsing
+ * @msize: maximum data size negotiated by protocol
+ * @prot-Oversion: 9P protocol version to use
+ * @trans_mod: module API instantiated with this client
+ *
+ * These parsed options get transferred into client in
+ * apply_client_options()
+ */
+struct p9_client_opts {
+	unsigned int msize;
+	unsigned char proto_version;
+	struct p9_trans_module *trans_mod;
+};
+
+/**
+ * struct p9_fd_opts - per-transport options for fd transport
+ * @rfd: file descriptor for reading (trans=fd)
+ * @wfd: file descriptor for writing (trans=fd)
+ * @port: port to connect to (trans=tcp)
+ * @privport: port is privileged
+ */
+struct p9_fd_opts {
+	int rfd;
+	int wfd;
+	u16 port;
+	bool privport;
+};
+
+/**
+ * struct p9_rdma_opts - Collection of mount options for rdma transport
+ * @port: port of connection
+ * @privport: Whether a privileged port may be used
+ * @sq_depth: The requested depth of the SQ. This really doesn't need
+ * to be any deeper than the number of threads used in the client
+ * @rq_depth: The depth of the RQ. Should be greater than or equal to SQ depth
+ * @timeout: Time to wait in msecs for CM events
+ */
+struct p9_rdma_opts {
+	short port;
+	bool privport;
+	int sq_depth;
+	int rq_depth;
+	long timeout;
+};
+
+/**
+ * struct p9_session_opts - holds parsed options for v9fs_session_info
+ * @flags: session options of type &p9_session_flags
+ * @nodev: set to 1 to disable device mapping
+ * @debug: debug level
+ * @afid: authentication handle
+ * @cache: cache mode of type &p9_cache_bits
+ * @cachetag: the tag of the cache associated with this session
+ * @uname: string user name to mount hierarchy as
+ * @aname: mount specifier for remote hierarchy
+ * @dfltuid: default numeric userid to mount hierarchy as
+ * @dfltgid: default numeric groupid to mount hierarchy as
+ * @uid: if %V9FS_ACCESS_SINGLE, the numeric uid which mounted the hierarchy
+ * @session_lock_timeout: retry interval for blocking locks
+ *
+ * This strucure holds options which are parsed and will be transferred
+ * to the v9fs_session_info structure when mounted, and therefore largely
+ * duplicates struct v9fs_session_info.
+ */
+struct p9_session_opts {
+	unsigned int flags;
+	unsigned char nodev;
+	unsigned short debug;
+	unsigned int afid;
+	unsigned int cache;
+#ifdef CONFIG_9P_FSCACHE
+	char *cachetag;
+#endif
+	char *uname;
+	char *aname;
+	kuid_t dfltuid;
+	kgid_t dfltgid;
+	kuid_t uid;
+	long session_lock_timeout;
+};
+
+/* Used by mount API to store parsed mount options */
+struct v9fs_context {
+	struct p9_client_opts	client_opts;
+	struct p9_fd_opts	fd_opts;
+	struct p9_rdma_opts	rdma_opts;
+	struct p9_session_opts	session_opts;
+};
+
+/**
  * struct p9_fid - file system entity handle
  * @clnt: back pointer to instantiating &p9_client
  * @fid: numeric identifier for this handle
@@ -183,7 +279,7 @@ int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid,
 		     const char *name);
 int p9_client_renameat(struct p9_fid *olddirfid, const char *old_name,
 		       struct p9_fid *newdirfid, const char *new_name);
-struct p9_client *p9_client_create(const char *dev_name, char *options);
+struct p9_client *p9_client_create(struct fs_context *fc);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
 void p9_client_begin_disconnect(struct p9_client *clnt);

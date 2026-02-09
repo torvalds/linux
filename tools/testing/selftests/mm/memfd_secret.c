@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define fail(fmt, ...) ksft_test_result_fail(fmt, ##__VA_ARGS__)
 #define pass(fmt, ...) ksft_test_result_pass(fmt, ##__VA_ARGS__)

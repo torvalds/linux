@@ -775,7 +775,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 
 		if (cfile->srch_inf.ntwrk_buf_start == NULL) {
 			cifs_dbg(VFS, "ntwrk_buf_start is NULL during readdir\n");
-			return -EIO;
+			return smb_EIO(smb_eio_trace_null_pointers);
 		}
 
 		end_of_smb = cfile->srch_inf.ntwrk_buf_start +

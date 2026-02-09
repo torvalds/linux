@@ -708,7 +708,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	/*
 	 * We don't really have a practical limit on the number of abort
-	 * comands.  But we don't do anything useful for abort either, so
+	 * commands.  But we don't do anything useful for abort either, so
 	 * no point in allowing more abort commands than the spec requires.
 	 */
 	id->acl = 3;

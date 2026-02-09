@@ -22,6 +22,9 @@ properties:
           - samsung,exynos850-dwusb3
           - samsung,exynosautov920-dwusb3
       - items:
+          - const: samsung,exynos8890-dwusb3
+          - const: samsung,exynos7-dwusb3
+      - items:
           - const: samsung,exynos990-dwusb3
           - const: samsung,exynos850-dwusb3
 
@@ -35,6 +38,9 @@ properties:
   clock-names:
     minItems: 1
     maxItems: 4
+
+  power-domains:
+    maxItems: 1
 
   ranges: true
 

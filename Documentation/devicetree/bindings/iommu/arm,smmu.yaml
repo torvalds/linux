@@ -35,6 +35,8 @@ properties:
       - description: Qcom SoCs implementing "qcom,smmu-500" and "arm,mmu-500"
         items:
           - enum:
+              - qcom,glymur-smmu-500
+              - qcom,kaanapali-smmu-500
               - qcom,milos-smmu-500
               - qcom,qcm2290-smmu-500
               - qcom,qcs615-smmu-500
@@ -640,7 +642,6 @@ examples:
                      <&smmu1 7>;
     };
 
-
     /* SMMU with stream matching */
     smmu2: iommu@ba5f0000 {
             compatible = "arm,smmu-v1";
@@ -666,7 +667,6 @@ examples:
             iommus = <&smmu2 1 0x30>;
     };
 
-
     /* ARM MMU-500 with 10-bit stream ID input configuration */
     smmu3: iommu@ba600000 {
             compatible = "arm,mmu-500", "arm,smmu-v2";
@@ -687,8 +687,6 @@ examples:
             /* bus whose child devices emit one unique 10-bit stream
                ID each, but may master through multiple SMMU TBUs */
             iommu-map = <0 &smmu3 0 0x400>;
-
-
     };
 
   - |+

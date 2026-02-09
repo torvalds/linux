@@ -84,7 +84,6 @@ properties:
     description: gpio pin number used for codec reset
     deprecated: true
 
-
 required:
   - compatible
   - reg

@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 uint64_t pagesize;
 unsigned int pageshift;

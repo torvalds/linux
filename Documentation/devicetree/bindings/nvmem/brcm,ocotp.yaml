@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/brcm,ocotp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom OTP memory controller
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  compatible:
+    enum:
+      - brcm,ocotp
+      - brcm,ocotp-v2
+
+  reg:
+    maxItems: 1
+
+  brcm,ocotp-size:
+    description: Amount of memory available, in 32-bit words
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - brcm,ocotp-size
+
+additionalProperties: false
+
+examples:
+  - |
+    otp@301c800 {
+        compatible = "brcm,ocotp";
+        reg = <0x0301c800 0x2c>;
+        brcm,ocotp-size = <2048>;
+    };

@@ -74,10 +74,10 @@ required:
 patternProperties:
   '-state$':
     oneOf:
-      - $ref: "#/$defs/qcom-pmic-mpp-state"
+      - $ref: '#/$defs/qcom-pmic-mpp-state'
       - patternProperties:
           '-pins$':
-            $ref: "#/$defs/qcom-pmic-mpp-state"
+            $ref: '#/$defs/qcom-pmic-mpp-state'
         additionalProperties: false
 
 $defs:
@@ -100,7 +100,7 @@ $defs:
                  - mpp1-mpp4 for pma8084
 
         items:
-          pattern: "^mpp([0-9]+)$"
+          pattern: '^mpp([0-9]+)$'
 
       function:
         items:

@@ -80,7 +80,7 @@ static inline void __iomem *
 devm_platform_get_and_ioremap_resource(struct platform_device *pdev,
 				unsigned int index, struct resource **res)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 
@@ -88,14 +88,14 @@ static inline void __iomem *
 devm_platform_ioremap_resource(struct platform_device *pdev,
 			       unsigned int index)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 static inline void __iomem *
 devm_platform_ioremap_resource_byname(struct platform_device *pdev,
 				      const char *name)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 #endif

@@ -437,7 +437,7 @@ class Client:
 
     def extend_pcr(self, i, dig, bank_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(bank_alg)
-        assert(ds == len(dig))
+        assert ds == len(dig)
 
         auth_cmd = AuthCommand()
 
@@ -589,7 +589,7 @@ class Client:
     def seal(self, parent_key, data, auth_value, policy_dig,
              name_alg = TPM2_ALG_SHA1):
         ds = get_digest_size(name_alg)
-        assert(not policy_dig or ds == len(policy_dig))
+        assert not policy_dig or ds == len(policy_dig)
 
         attributes = 0
         if not policy_dig:

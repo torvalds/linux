@@ -10,7 +10,7 @@
 #include <setjmp.h>
 #include <sched.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "helper.h"
 
 #define PAC_COLLISION_ATTEMPTS 1000

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef CLONE_NEWTIME
 # define CLONE_NEWTIME	0x00000080

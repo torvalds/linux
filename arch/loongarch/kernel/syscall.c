@@ -34,9 +34,22 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len, unsigned long,
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd, offset >> PAGE_SHIFT);
 }
 
+SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len, unsigned long,
+		 prot, unsigned long, flags, unsigned long, fd, unsigned long, offset)
+{
+	if (offset & (~PAGE_MASK >> 12))
+		return -EINVAL;
+
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd, offset >> (PAGE_SHIFT - 12));
+}
+
 void *sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
+#ifdef CONFIG_32BIT
+#include <asm/syscall_table_32.h>
+#else
 #include <asm/syscall_table_64.h>
+#endif
 };
 
 typedef long (*sys_call_fn)(unsigned long, unsigned long,
@@ -75,7 +88,7 @@ void noinstr __no_stack_protector do_syscall(struct pt_regs *regs)
 	 *
 	 * The resulting 6 bits of entropy is seen in SP[9:4].
 	 */
-	choose_random_kstack_offset(drdtime());
+	choose_random_kstack_offset(get_cycles());
 
 	syscall_exit_to_user_mode(regs);
 }

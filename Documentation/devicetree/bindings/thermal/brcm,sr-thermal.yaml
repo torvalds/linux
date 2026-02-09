@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/brcm,sr-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Stingray Thermal Sensors
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+allOf:
+  - $ref: thermal-sensor.yaml#
+
+properties:
+  compatible:
+    const: brcm,sr-thermal
+
+  reg:
+    maxItems: 1
+
+  brcm,tmon-mask:
+    description:
+      A one-cell bit mask of valid TMON sources. Each bit represents a single
+      TMON source.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  '#thermal-sensor-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - brcm,tmon-mask
+
+additionalProperties: false
+
+examples:
+  - |
+    tmon: thermal-sensor@0 {
+        compatible = "brcm,sr-thermal";
+        reg = <0x0 0x40>;
+        brcm,tmon-mask = <0x3f>;
+        #thermal-sensor-cells = <1>;
+    };
+
+    thermal-zones {
+      ihost0_thermal: ihost0-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 0>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+      ihost1_thermal: ihost1-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 1>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+      ihost2_thermal: ihost2-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 2>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+      ihost3_thermal: ihost3-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 3>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+      crmu_thermal: crmu-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 4>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+      nitro_thermal: nitro-thermal {
+        polling-delay-passive = <0>;
+        polling-delay = <1000>;
+        thermal-sensors = <&tmon 5>;
+        trips {
+          cpu-crit {
+            temperature = <105000>;
+            hysteresis = <0>;
+            type = "critical";
+          };
+        };
+      };
+    };

@@ -5,6 +5,7 @@ menu "UML-specific options"
 config UML
 	bool
 	default y
+	select ARCH_DISABLE_KASAN_INLINE if STATIC_LINK
 	select ARCH_NEEDS_DEFER_KASAN if STATIC_LINK
 	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_HAS_CACHE_LINE_SIZE
@@ -28,6 +29,7 @@ config UML
 	select OF_EARLY_FLATTREE if OF
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
+	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_GCC_PLUGINS
 	select ARCH_SUPPORTS_LTO_CLANG
 	select ARCH_SUPPORTS_LTO_CLANG_THIN
@@ -81,10 +83,48 @@ config HZ
 	int
 	default 100
 
-config NR_CPUS
+config UML_SUBARCH_SUPPORTS_SMP
+	bool
+
+config SMP
+	bool "Symmetric multi-processing support"
+	default n
+	depends on UML_SUBARCH_SUPPORTS_SMP
+	help
+	  This option enables UML SMP support.
+
+	  With this enabled, users can tell UML to start multiple virtual
+	  processors. Each virtual processor is represented as a separate
+	  host thread.
+
+	  In UML, kthreads and normal threads (when running in kernel mode)
+	  can be scheduled and executed simultaneously on different virtual
+	  processors. However, the userspace code of normal threads still
+	  runs within their respective single-threaded stubs.
+
+	  That is, SMP support is available both within the kernel and
+	  across different processes, but remains limited within threads
+	  of the same process in userspace.
+
+config NR_CPUS_RANGE_BEGIN
 	int
-	range 1 1
-	default 1
+	default 1 if !SMP
+	default 2
+
+config NR_CPUS_RANGE_END
+	int
+	default 1 if !SMP
+	default 64
+
+config NR_CPUS_DEFAULT
+	int
+	default 1 if !SMP
+	default 2
+
+config NR_CPUS
+	int "Maximum number of CPUs" if SMP
+	range NR_CPUS_RANGE_BEGIN NR_CPUS_RANGE_END
+	default NR_CPUS_DEFAULT
 
 source "arch/$(HEADER_ARCH)/um/Kconfig"
 
@@ -200,12 +240,6 @@ config KERNEL_STACK_ORDER
 	  increase in the size of the state which needs to be saved when handling
 	  signals.
 
-config MMAPPER
-	tristate "iomem emulation driver"
-	help
-	  This driver allows a host file to be used as emulated IO memory inside
-	  UML.
-
 config PGTABLE_LEVELS
 	int
 	default 4 if 64BIT
@@ -260,6 +294,7 @@ source "arch/um/drivers/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
+	depends on !SMP
 
 menu "Power management options"
 

@@ -38,6 +38,14 @@ static int set_pathname(int fd, pid_t pid)
 	return readlink(buf, src.paths[src.cnt++], MAX_PATH_LEN);
 }
 
+static inline long syscall_close(int fd)
+{
+	return syscall(__NR_close_range,
+			(unsigned int)fd,
+			(unsigned int)fd,
+			0u);
+}
+
 static int trigger_fstat_events(pid_t pid)
 {
 	int sockfd = -1, procfd = -1, devfd = -1;
@@ -104,18 +112,34 @@ out_close:
 	/* sys_close no longer triggers filp_close, but we can
 	 * call sys_close_range instead which still does
 	 */
-#define close(fd) syscall(__NR_close_range, fd, fd, 0)
-
-	close(pipefd[0]);
-	close(pipefd[1]);
-	close(sockfd);
-	close(procfd);
-	close(devfd);
-	close(localfd);
-	close(indicatorfd);
-
-#undef close
+	syscall_close(pipefd[0]);
+	syscall_close(pipefd[1]);
+	syscall_close(sockfd);
+	syscall_close(procfd);
+	syscall_close(devfd);
+	syscall_close(localfd);
+	syscall_close(indicatorfd);
 	return ret;
+}
+
+static void attach_and_load(struct test_d_path **skel)
+{
+	int err;
+
+	*skel = test_d_path__open_and_load();
+	if (CHECK(!*skel, "setup", "d_path skeleton failed\n"))
+		goto cleanup;
+
+	err = test_d_path__attach(*skel);
+	if (CHECK(err, "setup", "attach failed: %d\n", err))
+		goto cleanup;
+
+	(*skel)->bss->my_pid = getpid();
+	return;
+
+cleanup:
+	test_d_path__destroy(*skel);
+	*skel = NULL;
 }
 
 static void test_d_path_basic(void)
@@ -124,16 +148,11 @@ static void test_d_path_basic(void)
 	struct test_d_path *skel;
 	int err;
 
-	skel = test_d_path__open_and_load();
-	if (CHECK(!skel, "setup", "d_path skeleton failed\n"))
-		goto cleanup;
-
-	err = test_d_path__attach(skel);
-	if (CHECK(err, "setup", "attach failed: %d\n", err))
+	attach_and_load(&skel);
+	if (!skel)
 		goto cleanup;
 
 	bss = skel->bss;
-	bss->my_pid = getpid();
 
 	err = trigger_fstat_events(bss->my_pid);
 	if (err < 0)
@@ -195,6 +214,39 @@ static void test_d_path_check_types(void)
 	test_d_path_check_types__destroy(skel);
 }
 
+/* Check if the verifier correctly generates code for
+ * accessing the memory modified by d_path helper.
+ */
+static void test_d_path_mem_access(void)
+{
+	int localfd = -1;
+	char path_template[] = "/dev/shm/d_path_loadgen.XXXXXX";
+	struct test_d_path__bss *bss;
+	struct test_d_path *skel;
+
+	attach_and_load(&skel);
+	if (!skel)
+		goto cleanup;
+
+	bss = skel->bss;
+
+	localfd = mkstemp(path_template);
+	if (CHECK(localfd < 0, "trigger", "mkstemp failed\n"))
+		goto cleanup;
+
+	if (CHECK(fallocate(localfd, 0, 0, 1024) < 0, "trigger", "fallocate failed\n"))
+		goto cleanup;
+	remove(path_template);
+
+	if (CHECK(!bss->path_match_fallocate, "check",
+		  "failed to read fallocate path"))
+		goto cleanup;
+
+cleanup:
+	syscall_close(localfd);
+	test_d_path__destroy(skel);
+}
+
 void test_d_path(void)
 {
 	if (test__start_subtest("basic"))
@@ -205,4 +257,7 @@ void test_d_path(void)
 
 	if (test__start_subtest("check_alloc_mem"))
 		test_d_path_check_types();
+
+	if (test__start_subtest("check_mem_access"))
+		test_d_path_mem_access();
 }

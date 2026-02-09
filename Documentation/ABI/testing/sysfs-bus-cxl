@@ -496,8 +496,17 @@ Description:
 		changed, only freed by writing 0. The kernel makes no guarantees
 		that data is maintained over an address space freeing event, and
 		there is no guarantee that a free followed by an allocate
-		results in the same address being allocated.
+		results in the same address being allocated. If extended linear
+		cache is present, the size indicates extended linear cache size
+		plus the CXL region size.
 
+What:		/sys/bus/cxl/devices/regionZ/extended_linear_cache_size
+Date:		October, 2025
+KernelVersion:	v6.19
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) The size of extended linear cache, if there is an extended
+		linear cache. Otherwise the attribute will not be visible.
 
 What:		/sys/bus/cxl/devices/regionZ/mode
 Date:		January, 2023

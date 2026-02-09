@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <linux/limits.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MIN_TTY_PATH_LEN 8
 

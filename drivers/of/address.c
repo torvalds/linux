@@ -328,10 +328,6 @@ static int of_bus_default_flags_match(struct device_node *np)
 
 static int of_bus_default_match(struct device_node *np)
 {
-	/*
-	 * Check for presence first since of_bus_n_addr_cells() will warn when
-	 * walking parent nodes.
-	 */
 	return of_property_present(np, "#address-cells");
 }
 

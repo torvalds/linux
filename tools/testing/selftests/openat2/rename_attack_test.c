@@ -22,7 +22,7 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "helpers.h"
 
 /* Construct a test directory with the following structure:

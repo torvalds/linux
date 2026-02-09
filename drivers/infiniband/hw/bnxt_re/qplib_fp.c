@@ -2226,7 +2226,8 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	req.cq_handle = cpu_to_le64(cq->cq_handle);
 	req.cq_size = cpu_to_le32(cq->max_wqe);
 
-	if (_is_cq_coalescing_supported(res->dattr->dev_cap_flags2)) {
+	if (_is_cq_coalescing_supported(res->dattr->dev_cap_flags2) &&
+	    cq->coalescing->enable) {
 		req.flags |= cpu_to_le16(CMDQ_CREATE_CQ_FLAGS_COALESCING_VALID);
 		coalescing |= ((cq->coalescing->buf_maxtime <<
 				CMDQ_CREATE_CQ_BUF_MAXTIME_SFT) &

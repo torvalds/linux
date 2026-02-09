@@ -4,7 +4,7 @@
  * Copyright (c) 2024, Danila Tikhonov <danila@jiaxyga.com>
  */
 
-#include "sc7280.dtsi"
+#include "kodiak.dtsi"
 
 /* SM7325 uses Kryo 670 */
 &cpu0 { compatible = "qcom,kryo670"; };

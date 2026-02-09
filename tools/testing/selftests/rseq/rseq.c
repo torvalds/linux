@@ -33,7 +33,7 @@
 
 #include <linux/compiler.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "rseq.h"
 
 /*

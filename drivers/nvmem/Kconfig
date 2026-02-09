@@ -285,6 +285,15 @@ config NVMEM_QCOM_SEC_QFPROM
           This driver can also be built as a module. If so, the module will be called
           nvmem_sec_qfprom.
 
+config NVMEM_QNAP_MCU_EEPROM
+	tristate "QNAP MCU EEPROM Support"
+	depends on MFD_QNAP_MCU
+	help
+	  Say y here to enable support for accessing the EEPROM attached to
+	  QNAP MCU devices. This EEPROM contains additional runtime device
+	  information, like MAC addresses for ethernet devices that do not
+	  contain their own mac storage.
+
 config NVMEM_RAVE_SP_EEPROM
 	tristate "Rave SP EEPROM Support"
 	depends on RAVE_SP_CORE

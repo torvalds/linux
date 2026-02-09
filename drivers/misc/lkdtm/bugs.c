@@ -8,6 +8,7 @@
 #include "lkdtm.h"
 #include <linux/cpu.h>
 #include <linux/list.h>
+#include <linux/hrtimer.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task_stack.h>
@@ -100,9 +101,59 @@ static void lkdtm_PANIC_STOP_IRQOFF(void)
 	stop_machine(panic_stop_irqoff_fn, &v, cpu_online_mask);
 }
 
+static bool wait_for_panic;
+
+static enum hrtimer_restart panic_in_hardirq(struct hrtimer *timer)
+{
+	panic("from hard IRQ context");
+
+	wait_for_panic = false;
+	return HRTIMER_NORESTART;
+}
+
+static void lkdtm_PANIC_IN_HARDIRQ(void)
+{
+	struct hrtimer timer;
+
+	wait_for_panic = true;
+	hrtimer_setup_on_stack(&timer, panic_in_hardirq,
+			       CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_start(&timer, us_to_ktime(100), HRTIMER_MODE_REL_HARD);
+
+	while (READ_ONCE(wait_for_panic))
+		cpu_relax();
+
+	hrtimer_cancel(&timer);
+}
+
 static void lkdtm_BUG(void)
 {
 	BUG();
+}
+
+static bool wait_for_bug;
+
+static enum hrtimer_restart bug_in_hardirq(struct hrtimer *timer)
+{
+	BUG();
+
+	wait_for_bug = false;
+	return HRTIMER_NORESTART;
+}
+
+static void lkdtm_BUG_IN_HARDIRQ(void)
+{
+	struct hrtimer timer;
+
+	wait_for_bug = true;
+	hrtimer_setup_on_stack(&timer, bug_in_hardirq,
+			       CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_start(&timer, us_to_ktime(100), HRTIMER_MODE_REL_HARD);
+
+	while (READ_ONCE(wait_for_bug))
+		cpu_relax();
+
+	hrtimer_cancel(&timer);
 }
 
 static int warn_counter;
@@ -696,7 +747,9 @@ static noinline void lkdtm_CORRUPT_PAC(void)
 static struct crashtype crashtypes[] = {
 	CRASHTYPE(PANIC),
 	CRASHTYPE(PANIC_STOP_IRQOFF),
+	CRASHTYPE(PANIC_IN_HARDIRQ),
 	CRASHTYPE(BUG),
+	CRASHTYPE(BUG_IN_HARDIRQ),
 	CRASHTYPE(WARNING),
 	CRASHTYPE(WARNING_MESSAGE),
 	CRASHTYPE(EXCEPTION),

@@ -16,6 +16,7 @@
 #include <linux/device-mapper.h>
 #include <linux/interrupt.h>
 #include <crypto/hash.h>
+#include <crypto/sha2.h>
 
 #define DM_VERITY_MAX_LEVELS		63
 
@@ -42,7 +43,10 @@ struct dm_verity {
 	struct crypto_shash *shash_tfm;
 	u8 *root_digest;	/* digest of the root block */
 	u8 *salt;		/* salt: its size is salt_size */
-	u8 *initial_hashstate;	/* salted initial state, if version >= 1 */
+	union {
+		struct sha256_ctx *sha256;	/* for use_sha256_lib=1 */
+		u8 *shash;			/* for use_sha256_lib=0 */
+	} initial_hashstate; /* salted initial state, if version >= 1 */
 	u8 *zero_digest;	/* digest for a zero block */
 #ifdef CONFIG_SECURITY
 	u8 *root_digest_sig;	/* signature of the root digest */
@@ -59,6 +63,8 @@ struct dm_verity {
 	unsigned char version;
 	bool hash_failed:1;	/* set if hash of any block failed */
 	bool use_bh_wq:1;	/* try to verify in BH wq before normal work-queue */
+	bool use_sha256_lib:1;	/* use SHA-256 library instead of generic crypto API */
+	bool use_sha256_finup_2x:1; /* use interleaved hashing optimization */
 	unsigned int digest_size;	/* digest size for the current hash algorithm */
 	enum verity_mode mode;	/* mode for handling verification errors */
 	enum verity_mode error_mode;/* mode for handling I/O errors */
@@ -78,6 +84,13 @@ struct dm_verity {
 	mempool_t recheck_pool;
 };
 
+struct pending_block {
+	void *data;
+	sector_t blkno;
+	u8 want_digest[HASH_MAX_DIGESTSIZE];
+	u8 real_digest[HASH_MAX_DIGESTSIZE];
+};
+
 struct dm_verity_io {
 	struct dm_verity *v;
 
@@ -94,28 +107,29 @@ struct dm_verity_io {
 	struct work_struct work;
 	struct work_struct bh_work;
 
-	u8 real_digest[HASH_MAX_DIGESTSIZE];
-	u8 want_digest[HASH_MAX_DIGESTSIZE];
+	u8 tmp_digest[HASH_MAX_DIGESTSIZE];
 
 	/*
-	 * Temporary space for hashing.  This is variable-length and must be at
-	 * the end of the struct.  struct shash_desc is just the fixed part;
-	 * it's followed by a context of size crypto_shash_descsize(shash_tfm).
+	 * This is the queue of data blocks that are pending verification.  When
+	 * the crypto layer supports interleaved hashing, we allow multiple
+	 * blocks to be queued up in order to utilize it.  This can improve
+	 * performance significantly vs. sequential hashing of each block.
 	 */
-	struct shash_desc hash_desc;
+	int num_pending;
+	struct pending_block pending_blocks[2];
+
+	/*
+	 * Temporary space for hashing.  Either sha256 or shash is used,
+	 * depending on the value of use_sha256_lib.  If shash is used,
+	 * then this field is variable-length, with total size
+	 * sizeof(struct shash_desc) + crypto_shash_descsize(shash_tfm).
+	 * For this reason, this field must be the end of the struct.
+	 */
+	union {
+		struct sha256_ctx sha256;
+		struct shash_desc shash;
+	} hash_ctx;
 };
-
-static inline u8 *verity_io_real_digest(struct dm_verity *v,
-					struct dm_verity_io *io)
-{
-	return io->real_digest;
-}
-
-static inline u8 *verity_io_want_digest(struct dm_verity *v,
-					struct dm_verity_io *io)
-{
-	return io->want_digest;
-}
 
 extern int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
 		       const u8 *data, size_t len, u8 *digest);

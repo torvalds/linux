@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright © 2025 Intel Corporation
+ */
+#include "intel_colorop.h"
+
+struct intel_colorop *to_intel_colorop(struct drm_colorop *colorop)
+{
+	return container_of(colorop, struct intel_colorop, base);
+}
+
+struct intel_colorop *intel_colorop_alloc(void)
+{
+	struct intel_colorop *colorop;
+
+	colorop = kzalloc(sizeof(*colorop), GFP_KERNEL);
+	if (!colorop)
+		return ERR_PTR(-ENOMEM);
+
+	return colorop;
+}
+
+struct intel_colorop *intel_colorop_create(enum intel_color_block id)
+{
+	struct intel_colorop *colorop;
+
+	colorop = intel_colorop_alloc();
+
+	if (IS_ERR(colorop))
+		return colorop;
+
+	colorop->id = id;
+
+	return colorop;
+}

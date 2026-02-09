@@ -41,6 +41,8 @@ struct objtool_file {
 
 char *top_level_dir(const char *file);
 
+int init_signal_handler(void);
+
 struct objtool_file *objtool_open_read(const char *_objname);
 
 int objtool_pv_add(struct objtool_file *file, int idx, struct symbol *func);

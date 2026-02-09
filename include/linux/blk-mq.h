@@ -1213,6 +1213,24 @@ static inline unsigned short blk_rq_nr_discard_segments(struct request *rq)
 	return max_t(unsigned short, rq->nr_phys_segments, 1);
 }
 
+/**
+ * blk_rq_nr_bvec - return number of bvecs in a request
+ * @rq: request to calculate bvecs for
+ *
+ * Returns the number of bvecs.
+ */
+static inline unsigned int blk_rq_nr_bvec(struct request *rq)
+{
+	struct req_iterator rq_iter;
+	struct bio_vec bv;
+	unsigned int nr_bvec = 0;
+
+	rq_for_each_bvec(bv, rq, rq_iter)
+		nr_bvec++;
+
+	return nr_bvec;
+}
+
 int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
 		struct scatterlist **last_sg);
 static inline int blk_rq_map_sg(struct request *rq, struct scatterlist *sglist)

@@ -30,7 +30,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static volatile int signal_count;
 

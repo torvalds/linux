@@ -34,23 +34,6 @@ config SERIAL_8250
 	  Most people will say Y or M here, so that they can use serial mice,
 	  modems and similar devices connecting to the standard serial ports.
 
-config SERIAL_8250_DEPRECATED_OPTIONS
-	bool "Support 8250_core.* kernel options (DEPRECATED)"
-	depends on SERIAL_8250
-	default y
-	help
-	  In 3.7 we renamed 8250 to 8250_core by mistake, so now we have to
-	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
-	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
-	  anybody noticed in 3.7 and changed their userspace we still have to
-	  keep the 8250_core.* options around until they revert the changes
-	  they already did.
-
-	  If 8250 is built as a module, this adds 8250_core alias instead. 
-
-	  If you did not notice yet and/or you have userspace from pre-3.7, it
-	  is safe (and recommended) to say N here.
-
 config SERIAL_8250_PNP
 	bool "8250/16550 PNP device support" if EXPERT
 	depends on SERIAL_8250 && PNP
@@ -430,6 +413,19 @@ config SERIAL_8250_IOC3
 	  behind the IOC3 device on those systems.  Maximum baud speed is
 	  38400bps using this driver.
 
+config SERIAL_8250_KEBA
+	tristate "Support for KEBA 8250 UART"
+	depends on SERIAL_8250
+	depends on KEBA_CP500
+	help
+	  Selecting this option will add support for KEBA UARTs. These UARTs
+	  are used for the serial interfaces of KEBA PLCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called 8250_keba.
+
+	  If unsure, say N.
+
 config SERIAL_8250_RT288X
 	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
 	depends on SERIAL_8250
@@ -467,6 +463,16 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 	  to keep this option enabled. Otherwise people might complain about a
 	  not booting kernel because the serial console remains silent in case
 	  they forgot to update the command line.
+
+config SERIAL_8250_LOONGSON
+	tristate "Loongson 8250 based serial port"
+	depends on SERIAL_8250
+	depends on LOONGARCH || COMPILE_TEST
+	help
+	  If you have a machine based on LoongArch CPU you can enable
+	  its onboard serial ports by enabling this option. The option
+	  is applicable to both devicetree and ACPI, say Y to this option.
+	  If unsure, say N.
 
 config SERIAL_8250_LPC18XX
 	tristate "NXP LPC18xx/43xx serial port support"

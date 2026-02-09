@@ -313,10 +313,12 @@ static int vfio_ccw_mdev_get_device_info(struct vfio_ccw_private *private,
 	return 0;
 }
 
-static int vfio_ccw_mdev_get_region_info(struct vfio_ccw_private *private,
-					 struct vfio_region_info *info,
-					 unsigned long arg)
+static int vfio_ccw_mdev_ioctl_get_region_info(struct vfio_device *vdev,
+					       struct vfio_region_info *info,
+					       struct vfio_info_cap *caps)
 {
+	struct vfio_ccw_private *private =
+		container_of(vdev, struct vfio_ccw_private, vdev);
 	int i;
 
 	switch (info->index) {
@@ -328,7 +330,6 @@ static int vfio_ccw_mdev_get_region_info(struct vfio_ccw_private *private,
 		return 0;
 	default: /* all other regions are handled via capability chain */
 	{
-		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
 		struct vfio_region_info_cap_type cap_type = {
 			.header.id = VFIO_REGION_INFO_CAP_TYPE,
 			.header.version = 1 };
@@ -351,27 +352,10 @@ static int vfio_ccw_mdev_get_region_info(struct vfio_ccw_private *private,
 		cap_type.type = private->region[i].type;
 		cap_type.subtype = private->region[i].subtype;
 
-		ret = vfio_info_add_capability(&caps, &cap_type.header,
+		ret = vfio_info_add_capability(caps, &cap_type.header,
 					       sizeof(cap_type));
 		if (ret)
 			return ret;
-
-		info->flags |= VFIO_REGION_INFO_FLAG_CAPS;
-		if (info->argsz < sizeof(*info) + caps.size) {
-			info->argsz = sizeof(*info) + caps.size;
-			info->cap_offset = 0;
-		} else {
-			vfio_info_cap_shift(&caps, sizeof(*info));
-			if (copy_to_user((void __user *)arg + sizeof(*info),
-					 caps.buf, caps.size)) {
-				kfree(caps.buf);
-				return -EFAULT;
-			}
-			info->cap_offset = sizeof(*info);
-		}
-
-		kfree(caps.buf);
-
 	}
 	}
 	return 0;
@@ -532,24 +516,6 @@ static ssize_t vfio_ccw_mdev_ioctl(struct vfio_device *vdev,
 
 		return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
 	}
-	case VFIO_DEVICE_GET_REGION_INFO:
-	{
-		struct vfio_region_info info;
-
-		minsz = offsetofend(struct vfio_region_info, offset);
-
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		if (info.argsz < minsz)
-			return -EINVAL;
-
-		ret = vfio_ccw_mdev_get_region_info(private, &info, arg);
-		if (ret)
-			return ret;
-
-		return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
-	}
 	case VFIO_DEVICE_GET_IRQ_INFO:
 	{
 		struct vfio_irq_info info;
@@ -627,6 +593,7 @@ static const struct vfio_device_ops vfio_ccw_dev_ops = {
 	.read = vfio_ccw_mdev_read,
 	.write = vfio_ccw_mdev_write,
 	.ioctl = vfio_ccw_mdev_ioctl,
+	.get_region_info_caps = vfio_ccw_mdev_ioctl_get_region_info,
 	.request = vfio_ccw_mdev_request,
 	.dma_unmap = vfio_ccw_dma_unmap,
 	.bind_iommufd = vfio_iommufd_emulated_bind,

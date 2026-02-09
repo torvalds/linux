@@ -576,6 +576,9 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
     /// This returns `None` if the item is not in the list. (Note that by the safety requirements,
     /// this means that the item is not in any list.)
     ///
+    /// When using this method, be careful with using `mem::take` on the same list as that may
+    /// result in violating the safety requirements of this method.
+    ///
     /// # Safety
     ///
     /// `item` must not be in a different linked list (with the same id).

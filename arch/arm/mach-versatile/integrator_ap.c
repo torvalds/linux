@@ -63,13 +63,13 @@ static void __init ap_map_io(void)
 #ifdef CONFIG_PM
 static unsigned long ic_irq_enable;
 
-static int irq_suspend(void)
+static int irq_suspend(void *data)
 {
 	ic_irq_enable = readl(VA_IC_BASE + IRQ_ENABLE);
 	return 0;
 }
 
-static void irq_resume(void)
+static void irq_resume(void *data)
 {
 	/* disable all irq sources */
 	cm_clear_irqs();
@@ -83,14 +83,18 @@ static void irq_resume(void)
 #define irq_resume NULL
 #endif
 
-static struct syscore_ops irq_syscore_ops = {
+static const struct syscore_ops irq_syscore_ops = {
 	.suspend	= irq_suspend,
 	.resume		= irq_resume,
 };
 
+static struct syscore irq_syscore = {
+	.ops = &irq_syscore_ops,
+};
+
 static int __init irq_syscore_init(void)
 {
-	register_syscore_ops(&irq_syscore_ops);
+	register_syscore(&irq_syscore);
 
 	return 0;
 }

@@ -596,7 +596,7 @@ static __always_inline void rseq_exit_to_user_mode_legacy(void)
 
 void __rseq_debug_syscall_return(struct pt_regs *regs);
 
-static inline void rseq_debug_syscall_return(struct pt_regs *regs)
+static __always_inline void rseq_debug_syscall_return(struct pt_regs *regs)
 {
 	if (static_branch_unlikely(&rseq_debug_enabled))
 		__rseq_debug_syscall_return(regs);

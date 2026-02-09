@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "clone3_selftests.h"
 
 enum test_mode {

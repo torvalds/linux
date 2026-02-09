@@ -15,6 +15,8 @@ use core::{
 
 pub use crate::prelude::CStr;
 
+pub mod parse_int;
+
 /// Byte string without UTF-8 validity guarantee.
 #[repr(transparent)]
 pub struct BStr([u8]);

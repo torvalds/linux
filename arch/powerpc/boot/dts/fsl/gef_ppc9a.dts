@@ -82,7 +82,7 @@
 			reg = <0x4 0x0 0x40>;
 		};
 
-		wdt@4,2000 {
+		watchdog@4,2000 {
 			compatible = "gef,ppc9a-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x2000 0x8>;
@@ -90,7 +90,7 @@
 			interrupt-parent = <&gef_pic>;
 		};
 		/* Second watchdog available, driver currently supports one.
-		wdt@4,2010 {
+		watchdog@4,2010 {
 			compatible = "gef,ppc9a-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x2010 0x8>;

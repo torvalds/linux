@@ -118,6 +118,7 @@ static void send_bio_to_device(struct vio *vio, struct bio *bio)
 /**
  * vdo_submit_vio() - Submits a vio's bio to the underlying block device. May block if the device
  *		      is busy. This callback should be used by vios which did not attempt to merge.
+ * @completion: The vio to submit.
  */
 void vdo_submit_vio(struct vdo_completion *completion)
 {
@@ -133,7 +134,7 @@ void vdo_submit_vio(struct vdo_completion *completion)
  * The list will always contain at least one entry (the bio for the vio on which it is called), but
  * other bios may have been merged with it as well.
  *
- * Return: bio  The head of the bio list to submit.
+ * Return: The head of the bio list to submit.
  */
 static struct bio *get_bio_list(struct vio *vio)
 {
@@ -158,6 +159,7 @@ static struct bio *get_bio_list(struct vio *vio)
 /**
  * submit_data_vio() - Submit a data_vio's bio to the storage below along with
  *		       any bios that have been merged with it.
+ * @completion: The vio to submit.
  *
  * Context: This call may block and so should only be called from a bio thread.
  */
@@ -184,7 +186,7 @@ static void submit_data_vio(struct vdo_completion *completion)
  * There are two types of merging possible, forward and backward, which are distinguished by a flag
  * that uses kernel elevator terminology.
  *
- * Return: the vio to merge to, NULL if no merging is possible.
+ * Return: The vio to merge to, NULL if no merging is possible.
  */
 static struct vio *get_mergeable_locked(struct int_map *map, struct vio *vio,
 					bool back_merge)
@@ -262,7 +264,7 @@ static int merge_to_next_head(struct int_map *bio_map, struct vio *vio,
  *
  * Currently this is only used for data_vios, but is broken out for future use with metadata vios.
  *
- * Return: whether or not the vio was merged.
+ * Return: Whether or not the vio was merged.
  */
 static bool try_bio_map_merge(struct vio *vio)
 {
@@ -306,7 +308,7 @@ static bool try_bio_map_merge(struct vio *vio)
 
 /**
  * vdo_submit_data_vio() - Submit I/O for a data_vio.
- * @data_vio: the data_vio for which to issue I/O.
+ * @data_vio: The data_vio for which to issue I/O.
  *
  * If possible, this I/O will be merged other pending I/Os. Otherwise, the data_vio will be sent to
  * the appropriate bio zone directly.
@@ -321,13 +323,13 @@ void vdo_submit_data_vio(struct data_vio *data_vio)
 
 /**
  * __submit_metadata_vio() - Submit I/O for a metadata vio.
- * @vio: the vio for which to issue I/O
- * @physical: the physical block number to read or write
- * @callback: the bio endio function which will be called after the I/O completes
- * @error_handler: the handler for submission or I/O errors (may be NULL)
- * @operation: the type of I/O to perform
- * @data: the buffer to read or write (may be NULL)
- * @size: the I/O amount in bytes
+ * @vio: The vio for which to issue I/O.
+ * @physical: The physical block number to read or write.
+ * @callback: The bio endio function which will be called after the I/O completes.
+ * @error_handler: The handler for submission or I/O errors; may be NULL.
+ * @operation: The type of I/O to perform.
+ * @data: The buffer to read or write; may be NULL.
+ * @size: The I/O amount in bytes.
  *
  * The vio is enqueued on a vdo bio queue so that bio submission (which may block) does not block
  * other vdo threads.
@@ -441,7 +443,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 
 /**
  * vdo_cleanup_io_submitter() - Tear down the io_submitter fields as needed for a physical layer.
- * @io_submitter: The I/O submitter data to tear down (may be NULL).
+ * @io_submitter: The I/O submitter data to tear down; may be NULL.
  */
 void vdo_cleanup_io_submitter(struct io_submitter *io_submitter)
 {

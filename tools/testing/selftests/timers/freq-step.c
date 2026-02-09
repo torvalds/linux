@@ -15,7 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define SAMPLES 100
 #define SAMPLE_READINGS 10

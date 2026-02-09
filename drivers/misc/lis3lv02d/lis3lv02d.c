@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/dmi.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -629,10 +630,7 @@ static ssize_t lis3lv02d_misc_read(struct file *file, char __user *buf,
 		schedule();
 	}
 
-	if (data < 255)
-		byte_data = data;
-	else
-		byte_data = 255;
+	byte_data = min(data, 255);
 
 	/* make sure we are not going into copy_to_user() with
 	 * TASK_INTERRUPTIBLE state */

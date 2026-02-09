@@ -977,6 +977,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	refcount_set(&fc->count, 1);
 	atomic_set(&fc->dev_count, 1);
 	atomic_set(&fc->epoch, 1);
+	INIT_WORK(&fc->epoch_work, fuse_epoch_work);
 	init_waitqueue_head(&fc->blocked_waitq);
 	fuse_iqueue_init(&fc->iq, fiq_ops, fiq_priv);
 	INIT_LIST_HEAD(&fc->bg_queue);
@@ -1021,26 +1022,28 @@ static void delayed_release(struct rcu_head *p)
 
 void fuse_conn_put(struct fuse_conn *fc)
 {
-	if (refcount_dec_and_test(&fc->count)) {
-		struct fuse_iqueue *fiq = &fc->iq;
-		struct fuse_sync_bucket *bucket;
+	struct fuse_iqueue *fiq = &fc->iq;
+	struct fuse_sync_bucket *bucket;
 
-		if (IS_ENABLED(CONFIG_FUSE_DAX))
-			fuse_dax_conn_free(fc);
-		if (fc->timeout.req_timeout)
-			cancel_delayed_work_sync(&fc->timeout.work);
-		if (fiq->ops->release)
-			fiq->ops->release(fiq);
-		put_pid_ns(fc->pid_ns);
-		bucket = rcu_dereference_protected(fc->curr_bucket, 1);
-		if (bucket) {
-			WARN_ON(atomic_read(&bucket->count) != 1);
-			kfree(bucket);
-		}
-		if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
-			fuse_backing_files_free(fc);
-		call_rcu(&fc->rcu, delayed_release);
+	if (!refcount_dec_and_test(&fc->count))
+		return;
+
+	if (IS_ENABLED(CONFIG_FUSE_DAX))
+		fuse_dax_conn_free(fc);
+	if (fc->timeout.req_timeout)
+		cancel_delayed_work_sync(&fc->timeout.work);
+	cancel_work_sync(&fc->epoch_work);
+	if (fiq->ops->release)
+		fiq->ops->release(fiq);
+	put_pid_ns(fc->pid_ns);
+	bucket = rcu_dereference_protected(fc->curr_bucket, 1);
+	if (bucket) {
+		WARN_ON(atomic_read(&bucket->count) != 1);
+		kfree(bucket);
 	}
+	if (IS_ENABLED(CONFIG_FUSE_PASSTHROUGH))
+		fuse_backing_files_free(fc);
+	call_rcu(&fc->rcu, delayed_release);
 }
 EXPORT_SYMBOL_GPL(fuse_conn_put);
 
@@ -2283,6 +2286,8 @@ static int __init fuse_init(void)
 	if (res)
 		goto err_sysfs_cleanup;
 
+	fuse_dentry_tree_init();
+
 	sanitize_global_limit(&max_user_bgreq);
 	sanitize_global_limit(&max_user_congthresh);
 
@@ -2302,6 +2307,7 @@ static void __exit fuse_exit(void)
 {
 	pr_debug("exit\n");
 
+	fuse_dentry_tree_cleanup();
 	fuse_ctl_cleanup();
 	fuse_sysfs_cleanup();
 	fuse_fs_cleanup();

@@ -9,7 +9,7 @@
  * Can't be included in the header: it defines static variables which
  * will be unique to every object. Let's include it only once here.
  */
-#include "../../../kselftest.h"
+#include "kselftest.h"
 
 /* Prevent overriding of one thread's output by another */
 static pthread_mutex_t ksft_print_lock = PTHREAD_MUTEX_INITIALIZER;

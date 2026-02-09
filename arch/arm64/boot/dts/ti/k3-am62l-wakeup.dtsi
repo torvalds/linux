@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: GPL-2.0-only or MIT
+/*
+ * Device Tree file for the AM62L wakeup domain peripherals
+ * Copyright (C) 2025 Texas Instruments Incorporated - https://www.ti.com/
+ *
+ * Technical Reference Manual: https://www.ti.com/lit/pdf/sprujb4
+ */
+
+#include <dt-bindings/bus/ti-sysc.h>
+
+&cbass_wakeup {
+	vtm0: temperature-sensor@b00000 {
+		compatible = "ti,j7200-vtm";
+		reg = <0x00 0xb00000 0x00 0x400>,
+		      <0x00 0xb01000 0x00 0x400>;
+		power-domains = <&scmi_pds 46>;
+		#thermal-sensor-cells = <1>;
+	};
+
+	pmx0: pinctrl@4084000 {
+		compatible = "ti,am62l-padconf", "pinctrl-single";
+		reg = <0x00 0x4084000 0x00 0x24c>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0xffffffff>;
+		#pinctrl-cells = <1>;
+	};
+
+	wkup_gpio0: gpio@4201000 {
+		compatible = "ti,am64-gpio", "ti,keystone-gpio";
+		reg = <0x00 0x04201000 0x00 0x100>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gic500>;
+		interrupts = <GIC_SPI 276 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 704 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 705 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 706 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 707 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 708 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 709 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 710 IRQ_TYPE_EDGE_RISING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		power-domains = <&scmi_pds 36>;
+		clocks = <&scmi_clk 146>;
+		clock-names = "gpio";
+		ti,ngpio = <7>;
+		ti,davinci-gpio-unbanked = <0>;
+		status = "disabled";
+	};
+
+	wkup_timer0: timer@2b100000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2b100000 0x00 0x400>;
+		interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&scmi_clk 93>;
+		clock-names = "fck";
+		power-domains = <&scmi_pds 19>;
+		ti,timer-pwm;
+	};
+
+	wkup_timer1: timer@2b110000 {
+		compatible = "ti,am654-timer";
+		reg = <0x00 0x2b110000 0x00 0x400>;
+		interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&scmi_clk 98>;
+		clock-names = "fck";
+		power-domains = <&scmi_pds 20>;
+		ti,timer-pwm;
+	};
+
+	wkup_i2c0: i2c@2b200000 {
+		compatible = "ti,am64-i2c", "ti,omap4-i2c";
+		reg = <0x00 0x2b200000 0x00 0x100>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		power-domains = <&scmi_pds 57>;
+		clocks = <&scmi_clk 262>;
+		clock-names = "fck";
+		status = "disabled";
+	};
+
+	target-module@2b300050 {
+		compatible = "ti,sysc-omap2", "ti,sysc";
+		reg = <0x00 0x2b300050 0x00 0x4>,
+		      <0x00 0x2b300054 0x00 0x4>,
+		      <0x00 0x2b300058 0x00 0x4>;
+		reg-names = "rev", "sysc", "syss";
+		ranges = <0x00 0x00 0x2b300000 0x100000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		power-domains = <&scmi_pds 83>;
+		clocks = <&scmi_clk 324>;
+		clock-names = "fck";
+		ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+				 SYSC_OMAP2_SOFTRESET |
+				 SYSC_OMAP2_AUTOIDLE)>;
+		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>,
+				<SYSC_IDLE_SMART_WKUP>;
+		ti,syss-mask = <1>;
+		ti,no-reset-on-init;
+		status = "disabled";
+
+		wkup_uart0: serial@0 {
+			compatible = "ti,am64-uart", "ti,am654-uart";
+			reg = <0x00 0x100>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&scmi_clk 324>;
+			assigned-clocks = <&scmi_clk 324>;
+			clock-names = "fclk";
+			status = "disabled";
+		};
+	};
+
+	wkup_conf: bus@43000000 {
+		compatible = "simple-bus";
+		ranges = <0x00 0x00 0x43000000 0x80000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		chipid: chipid@14 {
+			compatible = "ti,am654-chipid";
+			reg = <0x14 0x4>;
+			bootph-all;
+		};
+
+		cpsw_mac_syscon: ethernet-mac-syscon@2000 {
+			compatible = "ti,am62p-cpsw-mac-efuse", "syscon";
+			reg = <0x2000 0x8>;
+		};
+
+		usb_phy_ctrl: syscon@45000 {
+			compatible = "ti,am62-usb-phy-ctrl", "syscon";
+			reg = <0x45000 0x1000>;
+			bootph-all;
+		};
+	};
+};

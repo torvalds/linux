@@ -16,7 +16,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define NUM_UIE 3
 #define ALARM_DELTA 3

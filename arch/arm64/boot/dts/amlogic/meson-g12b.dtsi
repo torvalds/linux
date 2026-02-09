@@ -87,7 +87,7 @@
 			i-cache-line-size = <32>;
 			i-cache-size = <0x8000>;
 			i-cache-sets = <32>;
-			next-level-cache = <&l2_cache_l>;
+			next-level-cache = <&l2_cache_b>;
 			#cooling-cells = <2>;
 		};
 
@@ -103,7 +103,7 @@
 			i-cache-line-size = <32>;
 			i-cache-size = <0x8000>;
 			i-cache-sets = <32>;
-			next-level-cache = <&l2_cache_l>;
+			next-level-cache = <&l2_cache_b>;
 			#cooling-cells = <2>;
 		};
 

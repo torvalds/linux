@@ -262,6 +262,24 @@ static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 			sys_##_prefix##_##_name##_show,			\
 			sys_##_prefix##_##_name##_store)
 
+#define DEFINE_IPL_ATTR_BOOTPROG_RW(_prefix, _name, _fmt_out, _fmt_in, _hdr, _value)	\
+	IPL_ATTR_SHOW_FN(_prefix, _name, _fmt_out, (unsigned long long) _value)		\
+static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,			\
+		struct kobj_attribute *attr,						\
+		const char *buf, size_t len)						\
+{											\
+	unsigned long long value;							\
+	if (sscanf(buf, _fmt_in, &value) != 1)						\
+		return -EINVAL;								\
+	(_value) = value;								\
+	(_hdr).flags &= ~IPL_PL_FLAG_SBP;						\
+	return len;									\
+}											\
+static struct kobj_attribute sys_##_prefix##_##_name##_attr =				\
+	__ATTR(_name, 0644,								\
+			sys_##_prefix##_##_name##_show,					\
+			sys_##_prefix##_##_name##_store)
+
 #define DEFINE_IPL_ATTR_STR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)\
 IPL_ATTR_SHOW_FN(_prefix, _name, _fmt_out, _value)			\
 static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
@@ -818,12 +836,13 @@ DEFINE_IPL_ATTR_RW(reipl_fcp, wwpn, "0x%016llx\n", "%llx\n",
 		   reipl_block_fcp->fcp.wwpn);
 DEFINE_IPL_ATTR_RW(reipl_fcp, lun, "0x%016llx\n", "%llx\n",
 		   reipl_block_fcp->fcp.lun);
-DEFINE_IPL_ATTR_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
-		   reipl_block_fcp->fcp.bootprog);
 DEFINE_IPL_ATTR_RW(reipl_fcp, br_lba, "%lld\n", "%lld\n",
 		   reipl_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(reipl_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
 		   reipl_block_fcp->fcp.devno);
+DEFINE_IPL_ATTR_BOOTPROG_RW(reipl_fcp, bootprog, "%lld\n", "%lld\n",
+			    reipl_block_fcp->hdr,
+			    reipl_block_fcp->fcp.bootprog);
 
 static void reipl_get_ascii_loadparm(char *loadparm,
 				     struct ipl_parameter_block *ibp)
@@ -942,10 +961,11 @@ DEFINE_IPL_ATTR_RW(reipl_nvme, fid, "0x%08llx\n", "%llx\n",
 		   reipl_block_nvme->nvme.fid);
 DEFINE_IPL_ATTR_RW(reipl_nvme, nsid, "0x%08llx\n", "%llx\n",
 		   reipl_block_nvme->nvme.nsid);
-DEFINE_IPL_ATTR_RW(reipl_nvme, bootprog, "%lld\n", "%lld\n",
-		   reipl_block_nvme->nvme.bootprog);
 DEFINE_IPL_ATTR_RW(reipl_nvme, br_lba, "%lld\n", "%lld\n",
 		   reipl_block_nvme->nvme.br_lba);
+DEFINE_IPL_ATTR_BOOTPROG_RW(reipl_nvme, bootprog, "%lld\n", "%lld\n",
+			    reipl_block_nvme->hdr,
+			    reipl_block_nvme->nvme.bootprog);
 
 static struct attribute *reipl_nvme_attrs[] = {
 	&sys_reipl_nvme_fid_attr.attr,
@@ -1038,8 +1058,9 @@ static const struct bin_attribute *const reipl_eckd_bin_attrs[] = {
 };
 
 DEFINE_IPL_CCW_ATTR_RW(reipl_eckd, device, reipl_block_eckd->eckd);
-DEFINE_IPL_ATTR_RW(reipl_eckd, bootprog, "%lld\n", "%lld\n",
-		   reipl_block_eckd->eckd.bootprog);
+DEFINE_IPL_ATTR_BOOTPROG_RW(reipl_eckd, bootprog, "%lld\n", "%lld\n",
+			    reipl_block_eckd->hdr,
+			    reipl_block_eckd->eckd.bootprog);
 
 static struct attribute *reipl_eckd_attrs[] = {
 	&sys_reipl_eckd_device_attr.attr,
@@ -1567,12 +1588,13 @@ DEFINE_IPL_ATTR_RW(dump_fcp, wwpn, "0x%016llx\n", "%llx\n",
 		   dump_block_fcp->fcp.wwpn);
 DEFINE_IPL_ATTR_RW(dump_fcp, lun, "0x%016llx\n", "%llx\n",
 		   dump_block_fcp->fcp.lun);
-DEFINE_IPL_ATTR_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
-		   dump_block_fcp->fcp.bootprog);
 DEFINE_IPL_ATTR_RW(dump_fcp, br_lba, "%lld\n", "%lld\n",
 		   dump_block_fcp->fcp.br_lba);
 DEFINE_IPL_ATTR_RW(dump_fcp, device, "0.0.%04llx\n", "0.0.%llx\n",
 		   dump_block_fcp->fcp.devno);
+DEFINE_IPL_ATTR_BOOTPROG_RW(dump_fcp, bootprog, "%lld\n", "%lld\n",
+			    dump_block_fcp->hdr,
+			    dump_block_fcp->fcp.bootprog);
 
 DEFINE_IPL_ATTR_SCP_DATA_RW(dump_fcp, dump_block_fcp->hdr,
 			    dump_block_fcp->fcp,
@@ -1604,10 +1626,11 @@ DEFINE_IPL_ATTR_RW(dump_nvme, fid, "0x%08llx\n", "%llx\n",
 		   dump_block_nvme->nvme.fid);
 DEFINE_IPL_ATTR_RW(dump_nvme, nsid, "0x%08llx\n", "%llx\n",
 		   dump_block_nvme->nvme.nsid);
-DEFINE_IPL_ATTR_RW(dump_nvme, bootprog, "%lld\n", "%llx\n",
-		   dump_block_nvme->nvme.bootprog);
 DEFINE_IPL_ATTR_RW(dump_nvme, br_lba, "%lld\n", "%llx\n",
 		   dump_block_nvme->nvme.br_lba);
+DEFINE_IPL_ATTR_BOOTPROG_RW(dump_nvme, bootprog, "%lld\n", "%llx\n",
+			    dump_block_nvme->hdr,
+			    dump_block_nvme->nvme.bootprog);
 
 DEFINE_IPL_ATTR_SCP_DATA_RW(dump_nvme, dump_block_nvme->hdr,
 			    dump_block_nvme->nvme,
@@ -1635,8 +1658,9 @@ static const struct attribute_group dump_nvme_attr_group = {
 
 /* ECKD dump device attributes */
 DEFINE_IPL_CCW_ATTR_RW(dump_eckd, device, dump_block_eckd->eckd);
-DEFINE_IPL_ATTR_RW(dump_eckd, bootprog, "%lld\n", "%llx\n",
-		   dump_block_eckd->eckd.bootprog);
+DEFINE_IPL_ATTR_BOOTPROG_RW(dump_eckd, bootprog, "%lld\n", "%llx\n",
+			    dump_block_eckd->hdr,
+			    dump_block_eckd->eckd.bootprog);
 
 IPL_ATTR_BR_CHR_SHOW_FN(dump, dump_block_eckd->eckd);
 IPL_ATTR_BR_CHR_STORE_FN(dump, dump_block_eckd->eckd);

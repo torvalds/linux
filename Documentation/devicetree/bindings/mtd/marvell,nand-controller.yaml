@@ -145,7 +145,6 @@ allOf:
         clock-names:
           minItems: 1
 
-
 unevaluatedProperties: false
 
 examples:

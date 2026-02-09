@@ -135,7 +135,6 @@ properties:
       the direction (input/output) needs to be dynamically adjusted.
     type: boolean
 
-
 required:
   - compatible
   - reg

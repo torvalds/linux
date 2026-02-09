@@ -15,6 +15,7 @@ properties:
       - aspeed,ast2400-wdt
       - aspeed,ast2500-wdt
       - aspeed,ast2600-wdt
+      - aspeed,ast2700-wdt
 
   reg:
     maxItems: 1
@@ -87,13 +88,15 @@ properties:
   aspeed,reset-mask:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
-    maxItems: 2
+    maxItems: 5
     description: >
       A bitmask indicating which peripherals will be reset if the watchdog
       timer expires. On AST2500 SoCs this should be a single word defined using
       the AST2500_WDT_RESET_* macros; on AST2600 SoCs this should be a two-word
       array with the first word defined using the AST2600_WDT_RESET1_* macros,
-      and the second word defined using the AST2600_WDT_RESET2_* macros.
+      and the second word defined using the AST2600_WDT_RESET2_* macros; on
+      AST2700 SoCs, this should be five-word array from AST2700_WDT_RESET1_*
+      macros to AST2700_WDT_RESET5_* macros.
 
 required:
   - compatible
@@ -114,6 +117,7 @@ allOf:
           enum:
             - aspeed,ast2500-wdt
             - aspeed,ast2600-wdt
+            - aspeed,ast2700-wdt
   - if:
       required:
         - aspeed,ext-active-high

@@ -22,6 +22,7 @@ enum dma_data_direction {
 #define dma_free_coherent(d, s, p, h) kfree(p)
 
 #define dma_map_page(d, p, o, s, dir) (page_to_phys(p) + (o))
+#define dma_map_page_attrs(d, p, o, s, dir, a) (page_to_phys(p) + (o))
 
 #define dma_map_single(d, p, s, dir) (virt_to_phys(p))
 #define dma_map_single_attrs(d, p, s, dir, a) (virt_to_phys(p))
@@ -29,6 +30,9 @@ enum dma_data_direction {
 
 #define dma_unmap_single(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
 #define dma_unmap_page(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
+#define dma_unmap_page_attrs(d, a, s, r, t) do { \
+	(void)(d); (void)(a); (void)(s); (void)(r); (void)(t); \
+} while (0)
 
 #define sg_dma_address(sg) (0)
 #define sg_dma_len(sg) (0)

@@ -19,6 +19,7 @@ use crate::{
 
 use core::{
     marker::PhantomData,
+    mem::offset_of,
     ptr::{addr_of_mut, NonNull},
 };
 
@@ -74,9 +75,9 @@ impl<T: Driver + 'static> Adapter<T> {
         let info = <Self as driver::Adapter>::id_info(pdev.as_ref());
 
         from_result(|| {
-            let data = T::probe(pdev, info)?;
+            let data = T::probe(pdev, info);
 
-            pdev.as_ref().set_drvdata(data);
+            pdev.as_ref().set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -91,7 +92,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { pdev.as_ref().drvdata_obtain::<Pin<KBox<T>>>() };
+        let data = unsafe { pdev.as_ref().drvdata_obtain::<T>() };
 
         T::unbind(pdev, data.as_ref());
     }
@@ -166,7 +167,7 @@ macro_rules! module_platform_driver {
 ///     fn probe(
 ///         _pdev: &platform::Device<Core>,
 ///         _id_info: Option<&Self::IdInfo>,
-///     ) -> Result<Pin<KBox<Self>>> {
+///     ) -> impl PinInit<Self, Error> {
 ///         Err(ENODEV)
 ///     }
 /// }
@@ -190,8 +191,10 @@ pub trait Driver: Send {
     ///
     /// Called when a new platform device is added or discovered.
     /// Implementers should attempt to initialize the device here.
-    fn probe(dev: &Device<device::Core>, id_info: Option<&Self::IdInfo>)
-        -> Result<Pin<KBox<Self>>>;
+    fn probe(
+        dev: &Device<device::Core>,
+        id_info: Option<&Self::IdInfo>,
+    ) -> impl PinInit<Self, Error>;
 
     /// Platform driver unbind.
     ///
@@ -285,6 +288,12 @@ impl Device<Bound> {
     }
 }
 
+// SAFETY: `platform::Device` is a transparent wrapper of `struct platform_device`.
+// The offset is guaranteed to point to a valid device field inside `platform::Device`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Device<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::platform_device, dev);
+}
+
 macro_rules! define_irq_accessor_by_index {
     (
         $(#[$meta:meta])* $fn_name:ident,
@@ -299,15 +308,17 @@ macro_rules! define_irq_accessor_by_index {
             index: u32,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> Result<impl PinInit<irq::$reg_type<T>, Error> + 'a> {
-            let request = self.$request_fn(index)?;
+        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+            pin_init::pin_init_scope(move || {
+                let request = self.$request_fn(index)?;
 
-            Ok(irq::$reg_type::<T>::new(
-                request,
-                flags,
-                name,
-                handler,
-            ))
+                Ok(irq::$reg_type::<T>::new(
+                    request,
+                    flags,
+                    name,
+                    handler,
+                ))
+            })
         }
     };
 }
@@ -323,18 +334,20 @@ macro_rules! define_irq_accessor_by_name {
         pub fn $fn_name<'a, T: irq::$handler_trait + 'static>(
             &'a self,
             flags: irq::Flags,
-            irq_name: &CStr,
+            irq_name: &'a CStr,
             name: &'static CStr,
             handler: impl PinInit<T, Error> + 'a,
-        ) -> Result<impl PinInit<irq::$reg_type<T>, Error> + 'a> {
-            let request = self.$request_fn(irq_name)?;
+        ) -> impl PinInit<irq::$reg_type<T>, Error> + 'a {
+            pin_init::pin_init_scope(move || {
+                let request = self.$request_fn(irq_name)?;
 
-            Ok(irq::$reg_type::<T>::new(
-                request,
-                flags,
-                name,
-                handler,
-            ))
+                Ok(irq::$reg_type::<T>::new(
+                    request,
+                    flags,
+                    name,
+                    handler,
+                ))
+            })
         }
     };
 }

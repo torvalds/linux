@@ -73,6 +73,7 @@ def target_to_dict(target):
         ['pid', int],
         ['nr_regions', int],
         ['regions_list', regions_to_list],
+        ['obsolete', bool],
         ])
 
 def targets_to_list(targets):
@@ -174,11 +175,11 @@ def scheme_to_dict(scheme):
         ['target_nid', int],
         ['migrate_dests', damos_migrate_dests_to_dict],
         ])
-    filters = []
+    core_filters = []
     for f in list_for_each_entry(
-            'struct damos_filter', scheme.filters.address_of_(), 'list'):
-        filters.append(damos_filter_to_dict(f))
-    dict_['filters'] = filters
+            'struct damos_filter', scheme.core_filters.address_of_(), 'list'):
+        core_filters.append(damos_filter_to_dict(f))
+    dict_['core_filters'] = core_filters
     ops_filters = []
     for f in list_for_each_entry(
             'struct damos_filter', scheme.ops_filters.address_of_(), 'list'):

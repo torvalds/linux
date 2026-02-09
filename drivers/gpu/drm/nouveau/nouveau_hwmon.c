@@ -125,7 +125,7 @@ nouveau_hwmon_get_pwm1_max(struct device *d,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t
@@ -141,7 +141,7 @@ nouveau_hwmon_get_pwm1_min(struct device *d,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t

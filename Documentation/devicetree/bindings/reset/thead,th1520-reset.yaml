@@ -16,7 +16,13 @@ maintainers:
 properties:
   compatible:
     enum:
-      - thead,th1520-reset
+      - thead,th1520-reset # Reset controller for VO subsystem
+      - thead,th1520-reset-ao
+      - thead,th1520-reset-ap
+      - thead,th1520-reset-dsp
+      - thead,th1520-reset-misc
+      - thead,th1520-reset-vi
+      - thead,th1520-reset-vp
 
   reg:
     maxItems: 1

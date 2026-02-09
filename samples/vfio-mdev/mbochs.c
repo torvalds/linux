@@ -143,11 +143,6 @@ static struct mdev_parent mbochs_parent;
 static atomic_t mbochs_avail_mbytes;
 static const struct vfio_device_ops mbochs_dev_ops;
 
-struct vfio_region_info_ext {
-	struct vfio_region_info          base;
-	struct vfio_region_info_cap_type type;
-};
-
 struct mbochs_mode {
 	u32 drm_format;
 	u32 bytepp;
@@ -1033,10 +1028,12 @@ static int mbochs_dmabuf_export(struct mbochs_dmabuf *dmabuf)
 	return 0;
 }
 
-static int mbochs_get_region_info(struct mdev_state *mdev_state,
-				  struct vfio_region_info_ext *ext)
+static int mbochs_ioctl_get_region_info(struct vfio_device *vdev,
+					struct vfio_region_info *region_info,
+					struct vfio_info_cap *caps)
 {
-	struct vfio_region_info *region_info = &ext->base;
+	struct mdev_state *mdev_state =
+		container_of(vdev, struct mdev_state, vdev);
 
 	if (region_info->index >= MBOCHS_NUM_REGIONS)
 		return -EINVAL;
@@ -1061,20 +1058,23 @@ static int mbochs_get_region_info(struct mdev_state *mdev_state,
 		region_info->flags  = (VFIO_REGION_INFO_FLAG_READ  |
 				       VFIO_REGION_INFO_FLAG_WRITE);
 		break;
-	case MBOCHS_EDID_REGION_INDEX:
-		ext->base.argsz = sizeof(*ext);
-		ext->base.offset = MBOCHS_EDID_OFFSET;
-		ext->base.size = MBOCHS_EDID_SIZE;
-		ext->base.flags = (VFIO_REGION_INFO_FLAG_READ  |
-				   VFIO_REGION_INFO_FLAG_WRITE |
-				   VFIO_REGION_INFO_FLAG_CAPS);
-		ext->base.cap_offset = offsetof(typeof(*ext), type);
-		ext->type.header.id = VFIO_REGION_INFO_CAP_TYPE;
-		ext->type.header.version = 1;
-		ext->type.header.next = 0;
-		ext->type.type = VFIO_REGION_TYPE_GFX;
-		ext->type.subtype = VFIO_REGION_SUBTYPE_GFX_EDID;
-		break;
+	case MBOCHS_EDID_REGION_INDEX: {
+		struct vfio_region_info_cap_type cap_type = {
+			.header.id = VFIO_REGION_INFO_CAP_TYPE,
+			.header.version = 1,
+			.type = VFIO_REGION_TYPE_GFX,
+			.subtype = VFIO_REGION_SUBTYPE_GFX_EDID,
+		};
+
+		region_info->offset = MBOCHS_EDID_OFFSET;
+		region_info->size = MBOCHS_EDID_SIZE;
+		region_info->flags = (VFIO_REGION_INFO_FLAG_READ |
+				      VFIO_REGION_INFO_FLAG_WRITE |
+				      VFIO_REGION_INFO_FLAG_CAPS);
+
+		return vfio_info_add_capability(caps, &cap_type.header,
+						sizeof(cap_type));
+	}
 	default:
 		region_info->size   = 0;
 		region_info->offset = 0;
@@ -1191,7 +1191,7 @@ static long mbochs_ioctl(struct vfio_device *vdev, unsigned int cmd,
 	struct mdev_state *mdev_state =
 		container_of(vdev, struct mdev_state, vdev);
 	int ret = 0;
-	unsigned long minsz, outsz;
+	unsigned long minsz;
 
 	switch (cmd) {
 	case VFIO_DEVICE_GET_INFO:
@@ -1211,30 +1211,6 @@ static long mbochs_ioctl(struct vfio_device *vdev, unsigned int cmd,
 			return ret;
 
 		if (copy_to_user((void __user *)arg, &info, minsz))
-			return -EFAULT;
-
-		return 0;
-	}
-	case VFIO_DEVICE_GET_REGION_INFO:
-	{
-		struct vfio_region_info_ext info;
-
-		minsz = offsetofend(typeof(info), base.offset);
-
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		outsz = info.base.argsz;
-		if (outsz < minsz)
-			return -EINVAL;
-		if (outsz > sizeof(info))
-			return -EINVAL;
-
-		ret = mbochs_get_region_info(mdev_state, &info);
-		if (ret)
-			return ret;
-
-		if (copy_to_user((void __user *)arg, &info, outsz))
 			return -EFAULT;
 
 		return 0;
@@ -1376,6 +1352,7 @@ static const struct vfio_device_ops mbochs_dev_ops = {
 	.read = mbochs_read,
 	.write = mbochs_write,
 	.ioctl = mbochs_ioctl,
+	.get_region_info_caps = mbochs_ioctl_get_region_info,
 	.mmap = mbochs_mmap,
 	.bind_iommufd	= vfio_iommufd_emulated_bind,
 	.unbind_iommufd	= vfio_iommufd_emulated_unbind,

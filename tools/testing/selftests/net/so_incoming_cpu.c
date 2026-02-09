@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <sys/sysinfo.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 FIXTURE(so_incoming_cpu)
 {

@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/highmem.h>
 
 #include <cluster/masklog.h>
@@ -372,7 +373,7 @@ static int ocfs2_block_group_fill(handle_t *handle,
 	}
 
 	memset(bg, 0, sb->s_blocksize);
-	strcpy(bg->bg_signature, OCFS2_GROUP_DESC_SIGNATURE);
+	strscpy(bg->bg_signature, OCFS2_GROUP_DESC_SIGNATURE);
 	bg->bg_generation = cpu_to_le32(osb->fs_generation);
 	bg->bg_size = cpu_to_le16(ocfs2_group_bitmap_size(sb, 1,
 						osb->s_feature_incompat));
@@ -1992,6 +1993,16 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_alloc_context *ac,
 	}
 
 	cl = (struct ocfs2_chain_list *) &fe->id2.i_chain;
+	if (!le16_to_cpu(cl->cl_next_free_rec) ||
+	    le16_to_cpu(cl->cl_next_free_rec) > le16_to_cpu(cl->cl_count)) {
+		status = ocfs2_error(ac->ac_inode->i_sb,
+				     "Chain allocator dinode %llu has invalid next "
+				     "free chain record %u, but only %u total\n",
+				     (unsigned long long)le64_to_cpu(fe->i_blkno),
+				     le16_to_cpu(cl->cl_next_free_rec),
+				     le16_to_cpu(cl->cl_count));
+		goto bail;
+	}
 
 	victim = ocfs2_find_victim_chain(cl);
 	ac->ac_chain = victim;

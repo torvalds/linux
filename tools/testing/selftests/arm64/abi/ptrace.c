@@ -18,7 +18,7 @@
 #include <asm/sigcontext.h>
 #include <asm/ptrace.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define EXPECTED_TESTS 11
 

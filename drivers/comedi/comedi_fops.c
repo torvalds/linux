@@ -38,6 +38,7 @@
  * COMEDI_SRF_ERROR:		indicates an COMEDI_CB_ERROR event has occurred
  *				since the last command was started
  * COMEDI_SRF_RUNNING:		command is running
+ * COMEDI_SRF_BUSY:		command was started and subdevice still busy
  * COMEDI_SRF_FREE_SPRIV:	free s->private on detach
  *
  * COMEDI_SRF_BUSY_MASK:	runflags that indicate the subdevice is "busy"
@@ -45,9 +46,11 @@
 #define COMEDI_SRF_RT		BIT(1)
 #define COMEDI_SRF_ERROR	BIT(2)
 #define COMEDI_SRF_RUNNING	BIT(27)
+#define COMEDI_SRF_BUSY		BIT(28)
 #define COMEDI_SRF_FREE_SPRIV	BIT(31)
 
-#define COMEDI_SRF_BUSY_MASK	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING)
+#define COMEDI_SRF_BUSY_MASK	\
+	(COMEDI_SRF_ERROR | COMEDI_SRF_RUNNING | COMEDI_SRF_BUSY)
 
 /**
  * struct comedi_file - Per-file private data for COMEDI device
@@ -665,6 +668,11 @@ static bool comedi_is_runflags_in_error(unsigned int runflags)
 	return runflags & COMEDI_SRF_ERROR;
 }
 
+static bool comedi_is_runflags_busy(unsigned int runflags)
+{
+	return runflags & COMEDI_SRF_BUSY;
+}
+
 /**
  * comedi_is_subdevice_running() - Check if async command running on subdevice
  * @s: COMEDI subdevice.
@@ -686,6 +694,46 @@ static bool __comedi_is_subdevice_running(struct comedi_subdevice *s)
 
 	return comedi_is_runflags_running(runflags);
 }
+
+/**
+ * comedi_get_is_subdevice_running() - Get if async command running on subdevice
+ * @s: COMEDI subdevice.
+ *
+ * If an asynchronous COMEDI command is running on the subdevice, increment
+ * a reference counter.  If the function return value indicates that a
+ * command is running, then the details of the command will not be destroyed
+ * before a matching call to comedi_put_is_subdevice_running().
+ *
+ * Return: %true if an asynchronous COMEDI command is active on the
+ * subdevice, else %false.
+ */
+bool comedi_get_is_subdevice_running(struct comedi_subdevice *s)
+{
+	unsigned long flags;
+	bool running;
+
+	spin_lock_irqsave(&s->spin_lock, flags);
+	running = __comedi_is_subdevice_running(s);
+	if (running)
+		refcount_inc(&s->async->run_active);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	return running;
+}
+EXPORT_SYMBOL_GPL(comedi_get_is_subdevice_running);
+
+/**
+ * comedi_put_is_subdevice_running() - Put if async command running on subdevice
+ * @s: COMEDI subdevice.
+ *
+ * Decrements the reference counter that was incremented when
+ * comedi_get_is_subdevice_running() returned %true.
+ */
+void comedi_put_is_subdevice_running(struct comedi_subdevice *s)
+{
+	if (refcount_dec_and_test(&s->async->run_active))
+		complete_all(&s->async->run_complete);
+}
+EXPORT_SYMBOL_GPL(comedi_put_is_subdevice_running);
 
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s)
 {
@@ -736,20 +784,28 @@ static void do_become_nonbusy(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
+	unsigned int runflags;
+	unsigned long flags;
 
 	lockdep_assert_held(&dev->mutex);
-	comedi_update_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
-	if (async) {
+	spin_lock_irqsave(&s->spin_lock, flags);
+	runflags = __comedi_get_subdevice_runflags(s);
+	__comedi_clear_subdevice_runflags(s, COMEDI_SRF_RUNNING |
+					     COMEDI_SRF_BUSY);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
+	if (comedi_is_runflags_busy(runflags)) {
+		/*
+		 * "Run active" counter was set to 1 when setting up the
+		 * command.  Decrement it and wait for it to become 0.
+		 */
+		comedi_put_is_subdevice_running(s);
+		wait_for_completion(&async->run_complete);
 		comedi_buf_reset(s);
 		async->inttrig = NULL;
 		kfree(async->cmd.chanlist);
 		async->cmd.chanlist = NULL;
 		s->busy = NULL;
 		wake_up_interruptible_all(&async->wait_head);
-	} else {
-		dev_err(dev->class_dev,
-			"BUG: (?) %s called with async=NULL\n", __func__);
-		s->busy = NULL;
 	}
 }
 
@@ -1150,15 +1206,15 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (!(async->cmd.flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
 		if (bi.bytes_read) {
-			comedi_buf_read_alloc(s, bi.bytes_read);
-			bi.bytes_read = comedi_buf_read_free(s, bi.bytes_read);
+			_comedi_buf_read_alloc(s, bi.bytes_read);
+			bi.bytes_read = _comedi_buf_read_free(s, bi.bytes_read);
 		}
 		/*
 		 * If nothing left to read, and command has stopped, and
 		 * {"read" position not updated or command stopped normally},
 		 * then become non-busy.
 		 */
-		if (comedi_buf_read_n_available(s) == 0 &&
+		if (_comedi_buf_read_n_available(s) == 0 &&
 		    !comedi_is_runflags_running(runflags) &&
 		    (bi.bytes_read == 0 ||
 		     !comedi_is_runflags_in_error(runflags))) {
@@ -1175,9 +1231,9 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 			if (comedi_is_runflags_in_error(runflags))
 				retval = -EPIPE;
 		} else if (bi.bytes_written) {
-			comedi_buf_write_alloc(s, bi.bytes_written);
+			_comedi_buf_write_alloc(s, bi.bytes_written);
 			bi.bytes_written =
-			    comedi_buf_write_free(s, bi.bytes_written);
+			    _comedi_buf_write_free(s, bi.bytes_written);
 		}
 		bi.bytes_read = 0;
 	}
@@ -1860,8 +1916,14 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
+	/*
+	 * Set the "run active" counter with an initial count of 1 that will
+	 * complete the "safe to reset" event when it is decremented to 0.
+	 */
+	refcount_set(&s->async->run_active, 1);
+	reinit_completion(&s->async->run_complete);
 	comedi_update_subdevice_runflags(s, COMEDI_SRF_BUSY_MASK,
-					 COMEDI_SRF_RUNNING);
+					 COMEDI_SRF_RUNNING | COMEDI_SRF_BUSY);
 
 	/*
 	 * Set s->busy _after_ setting COMEDI_SRF_RUNNING flag to avoid
@@ -2284,15 +2346,10 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		rc = check_insnlist_len(dev, insnlist.n_insns);
 		if (rc)
 			break;
-		insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
-		if (!insns) {
-			rc = -ENOMEM;
-			break;
-		}
-		if (copy_from_user(insns, insnlist.insns,
-				   sizeof(*insns) * insnlist.n_insns)) {
-			rc = -EFAULT;
-			kfree(insns);
+		insns = memdup_array_user(insnlist.insns, insnlist.n_insns,
+					  sizeof(*insns));
+		if (IS_ERR(insns)) {
+			rc = PTR_ERR(insns);
 			break;
 		}
 		rc = do_insnlist_ioctl(dev, insns, insnlist.n_insns, file);
@@ -2512,7 +2569,7 @@ static __poll_t comedi_poll(struct file *file, poll_table *wait)
 		poll_wait(file, &s->async->wait_head, wait);
 		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    (s->async->cmd.flags & CMDF_WRITE) ||
-		    comedi_buf_read_n_available(s) > 0)
+		    _comedi_buf_read_n_available(s) > 0)
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
@@ -2645,7 +2702,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			break;
 
 		/* Allocate all free buffer space. */
-		comedi_buf_write_alloc(s, async->prealloc_bufsz);
+		_comedi_buf_write_alloc(s, async->prealloc_bufsz);
 		m = comedi_buf_write_n_allocated(s);
 		n = min_t(size_t, m, nbytes);
 
@@ -2673,7 +2730,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			n -= m;
 			retval = -EFAULT;
 		}
-		comedi_buf_write_free(s, n);
+		_comedi_buf_write_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2759,7 +2816,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	while (count == 0 && !retval) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		m = comedi_buf_read_n_available(s);
+		m = _comedi_buf_read_n_available(s);
 		n = min_t(size_t, m, nbytes);
 
 		if (n == 0) {
@@ -2799,8 +2856,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			retval = -EFAULT;
 		}
 
-		comedi_buf_read_alloc(s, n);
-		comedi_buf_read_free(s, n);
+		_comedi_buf_read_alloc(s, n);
+		_comedi_buf_read_free(s, n);
 
 		count += n;
 		nbytes -= n;
@@ -2834,7 +2891,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		    s == new_s && new_s->async == async && s->busy == file &&
 		    !(async->cmd.flags & CMDF_WRITE) &&
 		    !comedi_is_subdevice_running(s) &&
-		    comedi_buf_read_n_available(s) == 0)
+		    _comedi_buf_read_n_available(s) == 0)
 			do_become_nonbusy(dev, s);
 		mutex_unlock(&dev->mutex);
 	}
@@ -3023,7 +3080,12 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 	chaninfo.rangelist = compat_ptr(chaninfo32.rangelist);
 
 	mutex_lock(&dev->mutex);
-	err = do_chaninfo_ioctl(dev, &chaninfo);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		err = -ENODEV;
+	} else {
+		err = do_chaninfo_ioctl(dev, &chaninfo);
+	}
 	mutex_unlock(&dev->mutex);
 	return err;
 }
@@ -3044,7 +3106,12 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 	rangeinfo.range_ptr = compat_ptr(rangeinfo32.range_ptr);
 
 	mutex_lock(&dev->mutex);
-	err = do_rangeinfo_ioctl(dev, &rangeinfo);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		err = -ENODEV;
+	} else {
+		err = do_rangeinfo_ioctl(dev, &rangeinfo);
+	}
 	mutex_unlock(&dev->mutex);
 	return err;
 }
@@ -3120,7 +3187,12 @@ static int compat_cmd(struct file *file, unsigned long arg)
 		return rc;
 
 	mutex_lock(&dev->mutex);
-	rc = do_cmd_ioctl(dev, &cmd, &copy, file);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		rc = -ENODEV;
+	} else {
+		rc = do_cmd_ioctl(dev, &cmd, &copy, file);
+	}
 	mutex_unlock(&dev->mutex);
 	if (copy) {
 		/* Special case: copy cmd back to user. */
@@ -3145,7 +3217,12 @@ static int compat_cmdtest(struct file *file, unsigned long arg)
 		return rc;
 
 	mutex_lock(&dev->mutex);
-	rc = do_cmdtest_ioctl(dev, &cmd, &copy, file);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		rc = -ENODEV;
+	} else {
+		rc = do_cmdtest_ioctl(dev, &cmd, &copy, file);
+	}
 	mutex_unlock(&dev->mutex);
 	if (copy) {
 		err = put_compat_cmd(compat_ptr(arg), &cmd);
@@ -3205,7 +3282,12 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	}
 
 	mutex_lock(&dev->mutex);
-	rc = do_insnlist_ioctl(dev, insns, insnlist32.n_insns, file);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		rc = -ENODEV;
+	} else {
+		rc = do_insnlist_ioctl(dev, insns, insnlist32.n_insns, file);
+	}
 	mutex_unlock(&dev->mutex);
 	kfree(insns);
 	return rc;
@@ -3224,7 +3306,12 @@ static int compat_insn(struct file *file, unsigned long arg)
 		return rc;
 
 	mutex_lock(&dev->mutex);
-	rc = do_insn_ioctl(dev, &insn, file);
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		rc = -ENODEV;
+	} else {
+		rc = do_insn_ioctl(dev, &insn, file);
+	}
 	mutex_unlock(&dev->mutex);
 	return rc;
 }
@@ -3299,18 +3386,7 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-/**
- * comedi_event() - Handle events for asynchronous COMEDI command
- * @dev: COMEDI device.
- * @s: COMEDI subdevice.
- * Context: in_interrupt() (usually), @s->spin_lock spin-lock not held.
- *
- * If an asynchronous COMEDI command is active on the subdevice, process
- * any %COMEDI_CB_... event flags that have been set, usually by an
- * interrupt handler.  These may change the run state of the asynchronous
- * command, wake a task, and/or send a %SIGIO signal.
- */
-void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
+void _comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
 	unsigned int events;
@@ -3345,6 +3421,25 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (si_code)
 		kill_fasync(&dev->async_queue, SIGIO, si_code);
+}
+
+/**
+ * comedi_event() - Handle events for asynchronous COMEDI command
+ * @dev: COMEDI device.
+ * @s: COMEDI subdevice.
+ * Context: in_interrupt() (usually), @s->spin_lock spin-lock not held.
+ *
+ * If an asynchronous COMEDI command is active on the subdevice, process
+ * any %COMEDI_CB_... event flags that have been set, usually by an
+ * interrupt handler.  These may change the run state of the asynchronous
+ * command, wake a task, and/or send a %SIGIO signal.
+ */
+void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	if (comedi_get_is_subdevice_running(s)) {
+		comedi_event(dev, s);
+		comedi_put_is_subdevice_running(s);
+	}
 }
 EXPORT_SYMBOL_GPL(comedi_event);
 

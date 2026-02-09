@@ -12,13 +12,9 @@
 #include <linux/init.h>
 #include <linux/rv.h>
 
-__printf(1, 2) static void rv_printk_reaction(const char *msg, ...)
+__printf(1, 0) static void rv_printk_reaction(const char *msg, va_list args)
 {
-	va_list args;
-
-	va_start(args, msg);
 	vprintk_deferred(msg, args);
-	va_end(args);
 }
 
 static struct rv_reactor rv_printk = {

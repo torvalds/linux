@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define XSAVE_HDR_OFFSET	512
 #define XSAVE_HDR_SIZE		64

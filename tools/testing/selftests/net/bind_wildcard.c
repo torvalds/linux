@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static const __u32 in4addr_any = INADDR_ANY;
 static const __u32 in4addr_loopback = INADDR_LOOPBACK;

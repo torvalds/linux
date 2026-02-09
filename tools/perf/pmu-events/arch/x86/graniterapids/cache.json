@@ -488,12 +488,12 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Retired load instructions which data sources missed L3 but serviced from local dram",
+        "BriefDescription": "Retired load instructions which data sources missed L3 but serviced from dram homed in the local socket",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.LOCAL_DRAM",
-        "PublicDescription": "Retired load instructions which data sources missed L3 but serviced from local DRAM. Available PDIST counters: 0",
+        "PublicDescription": "Retired load instructions which data sources missed L3 but serviced from DRAM homed in the local socket. Available PDIST counters: 0",
         "RetirementLatencyMax": 4146,
         "RetirementLatencyMean": 115.83,
         "RetirementLatencyMin": 0,

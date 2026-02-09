@@ -88,7 +88,6 @@ int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag);
  * the IOMMU used by this driver.
  */
 void amd_iommu_flush_all_caches(struct amd_iommu *iommu);
-void amd_iommu_update_and_flush_device_table(struct protection_domain *domain);
 void amd_iommu_domain_flush_pages(struct protection_domain *domain,
 				  u64 address, size_t size);
 void amd_iommu_dev_flush_pasid_pages(struct iommu_dev_data *dev_data,
@@ -173,6 +172,11 @@ static inline struct protection_domain *to_pdomain(struct iommu_domain *dom)
 
 bool translation_pre_enabled(struct amd_iommu *iommu);
 int __init add_special_device(u8 type, u8 id, u32 *devid, bool cmd_line);
+
+int amd_iommu_pdom_id_alloc(void);
+int amd_iommu_pdom_id_reserve(u16 id, gfp_t gfp);
+void amd_iommu_pdom_id_free(int id);
+void amd_iommu_pdom_id_destroy(void);
 
 #ifdef CONFIG_DMI
 void amd_iommu_apply_ivrs_quirks(void);

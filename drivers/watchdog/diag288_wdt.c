@@ -6,10 +6,10 @@
  * to CP.
  *
  * The command can be altered using the module parameter "cmd". This is
- * not recommended because it's only supported on z/VM but not whith LPAR.
+ * not recommended because it's only supported on z/VM but not with LPAR.
  *
- * On LPAR, the watchdog will always trigger a system restart. the module
- * paramter cmd is meaningless here.
+ * On LPAR, the watchdog will always trigger a system restart. The module
+ * parameter cmd is meaningless here.
  *
  *
  * Copyright IBM Corp. 2004, 2013

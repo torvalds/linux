@@ -32,7 +32,6 @@ description: |
     | | |     |   |   |          -------
     UART0     UART1 --
 
-
   The big MUX in the diagram only has 7 different ways of mapping peripherals
   on the left to pins on the right. StarFive calls the 7 configurations "signal
   groups".

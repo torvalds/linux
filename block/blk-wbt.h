@@ -5,6 +5,7 @@
 #ifdef CONFIG_BLK_WBT
 
 int wbt_init(struct gendisk *disk);
+void wbt_init_enable_default(struct gendisk *disk);
 void wbt_disable_default(struct gendisk *disk);
 void wbt_enable_default(struct gendisk *disk);
 
@@ -15,6 +16,10 @@ bool wbt_disabled(struct request_queue *);
 u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
+
+static inline void wbt_init_enable_default(struct gendisk *disk)
+{
+}
 
 static inline void wbt_disable_default(struct gendisk *disk)
 {

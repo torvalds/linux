@@ -142,7 +142,7 @@ patternProperties:
       - compatible
       - reg
       - reg-names
-      - "#mbox-cells"
+      - '#mbox-cells'
       - xlnx,ipi-id
 
 required:

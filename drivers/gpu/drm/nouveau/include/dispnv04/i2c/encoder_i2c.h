@@ -202,7 +202,24 @@ static inline struct i2c_client *nouveau_i2c_encoder_get_client(struct drm_encod
 	return to_encoder_i2c(encoder)->i2c_client;
 }
 
-void nouveau_i2c_encoder_destroy(struct drm_encoder *encoder);
+/**
+ * nouveau_i2c_encoder_destroy - Unregister the I2C device backing an encoder
+ * @drm_encoder:        Encoder to be unregistered.
+ *
+ * This should be called from the @destroy method of an I2C slave
+ * encoder driver once I2C access is no longer needed.
+ */
+static __always_inline void nouveau_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
+{
+	struct nouveau_i2c_encoder *encoder = to_encoder_i2c(drm_encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(drm_encoder);
+	struct module *module = client->dev.driver->owner;
+
+	i2c_unregister_device(client);
+	encoder->i2c_client = NULL;
+
+	module_put(module);
+}
 
 /*
  * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:

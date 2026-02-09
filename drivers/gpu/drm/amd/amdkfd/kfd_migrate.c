@@ -217,7 +217,7 @@ svm_migrate_get_vram_page(struct svm_range *prange, unsigned long pfn)
 	page = pfn_to_page(pfn);
 	svm_range_bo_ref(prange->svm_bo);
 	page->zone_device_data = prange->svm_bo;
-	zone_device_page_init(page);
+	zone_device_page_init(page, 0);
 }
 
 static void
@@ -567,8 +567,9 @@ out:
 	return r < 0 ? r : 0;
 }
 
-static void svm_migrate_page_free(struct page *page)
+static void svm_migrate_folio_free(struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct svm_range_bo *svm_bo = page->zone_device_data;
 
 	if (svm_bo) {
@@ -1008,7 +1009,7 @@ out_mmput:
 }
 
 static const struct dev_pagemap_ops svm_migrate_pgmap_ops = {
-	.page_free		= svm_migrate_page_free,
+	.folio_free		= svm_migrate_folio_free,
 	.migrate_to_ram		= svm_migrate_to_ram,
 };
 

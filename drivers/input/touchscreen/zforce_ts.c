@@ -747,8 +747,7 @@ static int zforce_probe(struct i2c_client *client)
 
 	input_dev = devm_input_allocate_device(&client->dev);
 	if (!input_dev)
-		return dev_err_probe(&client->dev, -ENOMEM,
-				     "could not allocate input device\n");
+		return -ENOMEM;
 
 	ts->client = client;
 	ts->input = input_dev;

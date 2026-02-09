@@ -133,12 +133,12 @@ properties:
           property. The supported-hw is a bitfield indicating SoC speedo or
           process ID mask.
 
-      "#power-domain-cells":
+      '#power-domain-cells':
         const: 0
 
     required:
       - operating-points-v2
-      - "#power-domain-cells"
+      - '#power-domain-cells'
 
   i2c-thermtrip:
     type: object
@@ -220,7 +220,7 @@ properties:
         xusbc    USB Partition C               Tegra114/124/210
 
     patternProperties:
-      "^[a-z0-9]+$":
+      '^[a-z0-9]+$':
         type: object
         additionalProperties: false
         properties:
@@ -365,9 +365,9 @@ allOf:
 additionalProperties: false
 
 dependencies:
-  nvidia,suspend-mode: ["nvidia,core-pwr-off-time", "nvidia,cpu-pwr-off-time"]
-  nvidia,core-pwr-off-time: ["nvidia,core-pwr-good-time"]
-  nvidia,cpu-pwr-off-time: ["nvidia,cpu-pwr-good-time"]
+  nvidia,suspend-mode: ['nvidia,core-pwr-off-time', 'nvidia,cpu-pwr-off-time']
+  nvidia,core-pwr-off-time: ['nvidia,core-pwr-good-time']
+  nvidia,cpu-pwr-off-time: ['nvidia,cpu-pwr-good-time']
 
 examples:
   - |

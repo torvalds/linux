@@ -720,9 +720,9 @@ static int cdns_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	return ret;
 }
 
-static int cdns_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
-				      struct i3c_priv_xfer *xfers,
-				      int nxfers)
+static int cdns_i3c_master_i3c_xfers(struct i3c_dev_desc *dev,
+				     struct i3c_xfer *xfers,
+				     int nxfers, enum i3c_xfer_mode mode)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct cdns_i3c_master *master = to_cdns_i3c_master(m);
@@ -1519,7 +1519,7 @@ static const struct i3c_master_controller_ops cdns_i3c_master_ops = {
 	.detach_i2c_dev = cdns_i3c_master_detach_i2c_dev,
 	.supports_ccc_cmd = cdns_i3c_master_supports_ccc_cmd,
 	.send_ccc_cmd = cdns_i3c_master_send_ccc_cmd,
-	.priv_xfers = cdns_i3c_master_priv_xfers,
+	.i3c_xfers = cdns_i3c_master_i3c_xfers,
 	.i2c_xfers = cdns_i3c_master_i2c_xfers,
 	.enable_ibi = cdns_i3c_master_enable_ibi,
 	.disable_ibi = cdns_i3c_master_disable_ibi,

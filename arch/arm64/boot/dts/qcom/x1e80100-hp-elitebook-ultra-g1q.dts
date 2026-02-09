@@ -9,10 +9,8 @@
 	compatible = "hp,elitebook-ultra-g1q", "qcom,x1e80100";
 };
 
-&gpu {
-	zap-shader {
-		firmware-name = "qcom/x1e80100/hp/elitebook-ultra-g1q/qcdxkmsuc8380.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/x1e80100/hp/elitebook-ultra-g1q/qcdxkmsuc8380.mbn";
 };
 
 &remoteproc_adsp {

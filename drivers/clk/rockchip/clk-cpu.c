@@ -396,3 +396,168 @@ free_cpuclk:
 	kfree(cpuclk);
 	return ERR_PTR(ret);
 }
+
+static int rockchip_cpuclk_multi_pll_pre_rate_change(struct rockchip_cpuclk *cpuclk,
+						     struct clk_notifier_data *ndata)
+{
+	unsigned long new_rate = roundup(ndata->new_rate, 1000);
+	const struct rockchip_cpuclk_rate_table *rate;
+	unsigned long flags;
+
+	rate = rockchip_get_cpuclk_settings(cpuclk, new_rate);
+	if (!rate) {
+		pr_err("%s: Invalid rate : %lu for cpuclk\n",
+		       __func__, new_rate);
+		return -EINVAL;
+	}
+
+	if (new_rate > ndata->old_rate) {
+		spin_lock_irqsave(cpuclk->lock, flags);
+		rockchip_cpuclk_set_dividers(cpuclk, rate);
+		spin_unlock_irqrestore(cpuclk->lock, flags);
+	}
+
+	return 0;
+}
+
+static int rockchip_cpuclk_multi_pll_post_rate_change(struct rockchip_cpuclk *cpuclk,
+						      struct clk_notifier_data *ndata)
+{
+	unsigned long new_rate = roundup(ndata->new_rate, 1000);
+	const struct rockchip_cpuclk_rate_table *rate;
+	unsigned long flags;
+
+	rate = rockchip_get_cpuclk_settings(cpuclk, new_rate);
+	if (!rate) {
+		pr_err("%s: Invalid rate : %lu for cpuclk\n",
+		       __func__, new_rate);
+		return -EINVAL;
+	}
+
+	if (new_rate < ndata->old_rate) {
+		spin_lock_irqsave(cpuclk->lock, flags);
+		rockchip_cpuclk_set_dividers(cpuclk, rate);
+		spin_unlock_irqrestore(cpuclk->lock, flags);
+	}
+
+	return 0;
+}
+
+static int rockchip_cpuclk_multi_pll_notifier_cb(struct notifier_block *nb,
+						 unsigned long event, void *data)
+{
+	struct clk_notifier_data *ndata = data;
+	struct rockchip_cpuclk *cpuclk = to_rockchip_cpuclk_nb(nb);
+	int ret = 0;
+
+	pr_debug("%s: event %lu, old_rate %lu, new_rate: %lu\n",
+		 __func__, event, ndata->old_rate, ndata->new_rate);
+	if (event == PRE_RATE_CHANGE)
+		ret = rockchip_cpuclk_multi_pll_pre_rate_change(cpuclk, ndata);
+	else if (event == POST_RATE_CHANGE)
+		ret = rockchip_cpuclk_multi_pll_post_rate_change(cpuclk, ndata);
+
+	return notifier_from_errno(ret);
+}
+
+struct clk *rockchip_clk_register_cpuclk_multi_pll(const char *name,
+						   const char *const *parent_names,
+						   u8 num_parents, void __iomem *base,
+						   int muxdiv_offset, u8 mux_shift,
+						   u8 mux_width, u8 mux_flags,
+						   int div_offset, u8 div_shift,
+						   u8 div_width, u8 div_flags,
+						   unsigned long flags, spinlock_t *lock,
+						   const struct rockchip_cpuclk_rate_table *rates,
+						   int nrates)
+{
+	struct rockchip_cpuclk *cpuclk;
+	struct clk_hw *hw;
+	struct clk_mux *mux = NULL;
+	struct clk_divider *div = NULL;
+	const struct clk_ops *mux_ops = NULL, *div_ops = NULL;
+	int ret;
+
+	if (num_parents > 1) {
+		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		if (!mux)
+			return ERR_PTR(-ENOMEM);
+
+		mux->reg = base + muxdiv_offset;
+		mux->shift = mux_shift;
+		mux->mask = BIT(mux_width) - 1;
+		mux->flags = mux_flags;
+		mux->lock = lock;
+		mux_ops = (mux_flags & CLK_MUX_READ_ONLY) ? &clk_mux_ro_ops
+							: &clk_mux_ops;
+	}
+
+	if (div_width > 0) {
+		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		if (!div) {
+			ret = -ENOMEM;
+			goto free_mux;
+		}
+
+		div->flags = div_flags;
+		if (div_offset)
+			div->reg = base + div_offset;
+		else
+			div->reg = base + muxdiv_offset;
+		div->shift = div_shift;
+		div->width = div_width;
+		div->lock = lock;
+		div_ops = (div_flags & CLK_DIVIDER_READ_ONLY)
+						? &clk_divider_ro_ops
+						: &clk_divider_ops;
+	}
+
+	hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
+				       mux ? &mux->hw : NULL, mux_ops,
+				       div ? &div->hw : NULL, div_ops,
+				       NULL, NULL, flags);
+	if (IS_ERR(hw)) {
+		ret = PTR_ERR(hw);
+		goto free_div;
+	}
+
+	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
+	if (!cpuclk) {
+		ret = -ENOMEM;
+		goto unregister_clk;
+	}
+
+	cpuclk->reg_base = base;
+	cpuclk->lock = lock;
+	cpuclk->clk_nb.notifier_call = rockchip_cpuclk_multi_pll_notifier_cb;
+	ret = clk_notifier_register(hw->clk, &cpuclk->clk_nb);
+	if (ret) {
+		pr_err("%s: failed to register clock notifier for %s\n",
+		       __func__, name);
+		goto free_cpuclk;
+	}
+
+	if (nrates > 0) {
+		cpuclk->rate_count = nrates;
+		cpuclk->rate_table = kmemdup(rates,
+					     sizeof(*rates) * nrates,
+					     GFP_KERNEL);
+		if (!cpuclk->rate_table) {
+			ret = -ENOMEM;
+			goto free_cpuclk;
+		}
+	}
+
+	return hw->clk;
+
+free_cpuclk:
+	kfree(cpuclk);
+unregister_clk:
+	clk_hw_unregister_composite(hw);
+free_div:
+	kfree(div);
+free_mux:
+	kfree(mux);
+
+	return ERR_PTR(ret);
+}

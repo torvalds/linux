@@ -2043,6 +2043,10 @@ bool dm_table_supports_size_change(struct dm_table *t, sector_t old_size,
 	return true;
 }
 
+/*
+ * This function will be skipped by noflush reloads of immutable request
+ * based devices (dm-mpath).
+ */
 int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			      struct queue_limits *limits)
 {

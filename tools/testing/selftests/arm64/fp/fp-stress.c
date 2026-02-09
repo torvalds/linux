@@ -24,7 +24,7 @@
 #include <sys/wait.h>
 #include <asm/hwcap.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define MAX_VLS 16
 

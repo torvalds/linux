@@ -646,6 +646,11 @@
 			no-map;
 		};
 
+		gpu_mem: memory@98715000 {
+			reg = <0x0 0x98715000 0x0 0x2000>;
+			no-map;
+		};
+
 		reserved@9d400000 {
 			reg = <0x0 0x9d400000 0x0 0x1000000>;
 			no-map;
@@ -2274,6 +2279,10 @@
 
 			status = "disabled";
 
+			gpu_zap_shader: zap-shader {
+				memory-region = <&gpu_mem>;
+			};
+
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
@@ -2528,6 +2537,12 @@
 			resets = <&gcc GCC_QUSB2PHY_MP1_BCR>;
 
 			status = "disabled";
+		};
+
+		refgen: regulator@88e7000 {
+			compatible = "qcom,sc8180x-refgen-regulator",
+				     "qcom,sdm845-refgen-regulator";
+			reg = <0x0 0x088e7000 0x0 0x60>;
 		};
 
 		usb_prim_qmpphy: phy@88e8000 {
@@ -3116,6 +3131,8 @@
 				phys = <&mdss_dsi0_phy>;
 				phy-names = "dsi";
 
+				refgen-supply = <&refgen>;
+
 				status = "disabled";
 
 				ports {
@@ -3202,6 +3219,8 @@
 
 				phys = <&mdss_dsi1_phy>;
 				phy-names = "dsi";
+
+				refgen-supply = <&refgen>;
 
 				status = "disabled";
 

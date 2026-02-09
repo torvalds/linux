@@ -53,6 +53,9 @@
 #define DISPCC_SLEEP_CLK			41
 #define DISPCC_SLEEP_CLK_SRC			42
 
+/* DISPCC resets */
+#define DISPCC_MDSS_CORE_BCR			0
+
 /* DISPCC GDSCR */
 #define MDSS_GDSC				0
 

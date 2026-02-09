@@ -20,7 +20,7 @@
 
 #include "../../../../include/uapi/linux/pcitest.h"
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define pci_ep_ioctl(cmd, arg)			\
 ({						\

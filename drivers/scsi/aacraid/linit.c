@@ -242,7 +242,7 @@ static int aac_queuecommand(struct Scsi_Host *shost,
 {
 	aac_priv(cmd)->owner = AAC_OWNER_LOWLEVEL;
 
-	return aac_scsi_cmd(cmd) ? FAILED : 0;
+	return aac_scsi_cmd(cmd) ? SCSI_MLQUEUE_HOST_BUSY : 0;
 }
 
 /**

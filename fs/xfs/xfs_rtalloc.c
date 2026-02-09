@@ -1255,12 +1255,10 @@ xfs_growfs_check_rtgeom(
 	min_logfsbs = min_t(xfs_extlen_t, xfs_log_calc_minimum_size(nmp),
 			nmp->m_rsumblocks * 2);
 
-	kfree(nmp);
-
 	trace_xfs_growfs_check_rtgeom(mp, min_logfsbs);
 
 	if (min_logfsbs > mp->m_sb.sb_logblocks)
-		return -EINVAL;
+		goto out_inval;
 
 	if (xfs_has_zoned(mp)) {
 		uint32_t	gblocks = mp->m_groups[XG_TYPE_RTG].blocks;
@@ -1268,16 +1266,20 @@ xfs_growfs_check_rtgeom(
 
 		if (rextsize != 1)
 			return -EINVAL;
-		div_u64_rem(mp->m_sb.sb_rblocks, gblocks, &rem);
+		div_u64_rem(nmp->m_sb.sb_rblocks, gblocks, &rem);
 		if (rem) {
 			xfs_warn(mp,
 "new RT volume size (%lld) not aligned to RT group size (%d)",
-				mp->m_sb.sb_rblocks, gblocks);
-			return -EINVAL;
+				nmp->m_sb.sb_rblocks, gblocks);
+			goto out_inval;
 		}
 	}
 
+	kfree(nmp);
 	return 0;
+out_inval:
+	kfree(nmp);
+	return -EINVAL;
 }
 
 /*

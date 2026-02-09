@@ -25,6 +25,8 @@
 #define STATIC_CALL_SITE_INIT 2UL	/* init section */
 #define STATIC_CALL_SITE_FLAGS 3UL
 
+#ifndef __ASSEMBLY__
+
 /*
  * The static call site table needs to be created by external tooling (objtool
  * or a compiler plugin).
@@ -99,5 +101,7 @@ struct static_call_key {
 	((typeof(STATIC_CALL_TRAMP(name))*)(STATIC_CALL_KEY(name).func))
 
 #endif /* CONFIG_HAVE_STATIC_CALL */
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _STATIC_CALL_TYPES_H */

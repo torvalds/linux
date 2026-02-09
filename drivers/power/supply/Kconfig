@@ -942,6 +942,21 @@ config CHARGER_RT9471
 	  This driver can also be built as a module. If so, the module will be
 	  called rt9471.
 
+config CHARGER_RT9756
+	tristate "Richtek RT9756 smart cap divider charger driver"
+	depends on I2C
+	select REGMAP_I2C
+	select LINEAR_RANGES
+	help
+	  This adds support for Richtek RT9756 smart cap divider charger driver.
+	  It's a high efficiency and high charge current charger. the device
+	  integrates smart cap divider topology with 9-channel high speed
+	  ADCs that can provide input and output voltage, current and
+	  temperature monitoring.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called rt9756.
+
 config CHARGER_CROS_USBPD
 	tristate "ChromeOS EC based USBPD charger"
 	depends on CROS_USBPD_NOTIFY
@@ -1006,6 +1021,15 @@ config CHARGER_UCS1002
 	help
 	  Say Y to enable support for Microchip UCS1002 Programmable
 	  USB Port Power Controller with Charger Emulation.
+
+config CHARGER_BD71828
+	tristate "Power-supply driver for ROHM BD71828 and BD71815 PMIC"
+	depends on MFD_ROHM_BD71828
+	help
+	  Say Y here to enable support for charger and battery
+	  in ROHM BD71815, BD71817, ROHM BD71828 power management
+	  ICs. This driver gets various bits of information about battery
+	  and charger states.
 
 config CHARGER_BD99954
 	tristate "ROHM bd99954 charger driver"

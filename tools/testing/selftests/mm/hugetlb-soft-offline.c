@@ -24,7 +24,7 @@
 #include <sys/statfs.h>
 #include <sys/types.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef MADV_SOFT_OFFLINE
 #define MADV_SOFT_OFFLINE 101

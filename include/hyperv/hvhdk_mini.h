@@ -96,7 +96,33 @@ enum hv_partition_property_code {
 	HV_PARTITION_PROPERTY_XSAVE_STATES                      = 0x00060007,
 	HV_PARTITION_PROPERTY_MAX_XSAVE_DATA_SIZE		= 0x00060008,
 	HV_PARTITION_PROPERTY_PROCESSOR_CLOCK_FREQUENCY		= 0x00060009,
+
+	/* Extended properties with larger property values */
+	HV_PARTITION_PROPERTY_VMM_CAPABILITIES			= 0x00090007,
 };
+
+#define HV_PARTITION_VMM_CAPABILITIES_BANK_COUNT		1
+#define HV_PARTITION_VMM_CAPABILITIES_RESERVED_BITFIELD_COUNT	59
+
+struct hv_partition_property_vmm_capabilities {
+	u16 bank_count;
+	u16 reserved[3];
+	union {
+		u64 as_uint64[HV_PARTITION_VMM_CAPABILITIES_BANK_COUNT];
+		struct {
+			u64 map_gpa_preserve_adjustable: 1;
+			u64 vmm_can_provide_overlay_gpfn: 1;
+			u64 vp_affinity_property: 1;
+#if IS_ENABLED(CONFIG_ARM64)
+			u64 vmm_can_provide_gic_overlay_locations: 1;
+#else
+			u64 reservedbit3: 1;
+#endif
+			u64 assignable_synthetic_proc_features: 1;
+			u64 reserved0: HV_PARTITION_VMM_CAPABILITIES_RESERVED_BITFIELD_COUNT;
+		} __packed;
+	};
+} __packed;
 
 enum hv_snp_status {
 	HV_SNP_STATUS_NONE = 0,
@@ -114,8 +140,33 @@ enum hv_snp_status {
 
 enum hv_system_property {
 	/* Add more values when needed */
+	HV_SYSTEM_PROPERTY_SLEEP_STATE = 3,
 	HV_SYSTEM_PROPERTY_SCHEDULER_TYPE = 15,
 	HV_DYNAMIC_PROCESSOR_FEATURE_PROPERTY = 21,
+	HV_SYSTEM_PROPERTY_CRASHDUMPAREA = 47,
+};
+
+#define HV_PFN_RANGE_PGBITS 24  /* HV_SPA_PAGE_RANGE_ADDITIONAL_PAGES_BITS */
+union hv_pfn_range {            /* HV_SPA_PAGE_RANGE */
+	u64 as_uint64;
+	struct {
+		/* 39:0: base pfn.  63:40: additional pages */
+		u64 base_pfn : 64 - HV_PFN_RANGE_PGBITS;
+		u64 add_pfns : HV_PFN_RANGE_PGBITS;
+	} __packed;
+};
+
+enum hv_sleep_state {
+	HV_SLEEP_STATE_S1 = 1,
+	HV_SLEEP_STATE_S2 = 2,
+	HV_SLEEP_STATE_S3 = 3,
+	HV_SLEEP_STATE_S4 = 4,
+	HV_SLEEP_STATE_S5 = 5,
+	/*
+	 * After hypervisor has received this, any follow up sleep
+	 * state registration requests will be rejected.
+	 */
+	HV_SLEEP_STATE_LOCK = 6
 };
 
 enum hv_dynamic_processor_feature_property {
@@ -142,13 +193,48 @@ struct hv_output_get_system_property {
 #if IS_ENABLED(CONFIG_X86)
 		u64 hv_processor_feature_value;
 #endif
+		union hv_pfn_range hv_cda_info; /* CrashdumpAreaAddress */
+		u64 hv_tramp_pa;                /* CrashdumpTrampolineAddress */
 	};
+} __packed;
+
+struct hv_sleep_state_info {
+	u32 sleep_state; /* enum hv_sleep_state */
+	u8 pm1a_slp_typ;
+	u8 pm1b_slp_typ;
+} __packed;
+
+struct hv_input_set_system_property {
+	u32 property_id; /* enum hv_system_property */
+	u32 reserved;
+	union {
+		/* More fields to be filled in when needed */
+		struct hv_sleep_state_info set_sleep_state_info;
+
+		/*
+		 * Add a reserved field to ensure the union is 8-byte aligned as
+		 * existing members may not be. This is a temporary measure
+		 * until all remaining members are added.
+		 */
+		 u64 reserved0[8];
+	};
+} __packed;
+
+struct hv_input_enter_sleep_state {     /* HV_INPUT_ENTER_SLEEP_STATE */
+	u32 sleep_state;        /* enum hv_sleep_state */
 } __packed;
 
 struct hv_input_map_stats_page {
 	u32 type; /* enum hv_stats_object_type */
 	u32 padding;
 	union hv_stats_object_identity identity;
+} __packed;
+
+struct hv_input_map_stats_page2 {
+	u32 type; /* enum hv_stats_object_type */
+	u32 padding;
+	union hv_stats_object_identity identity;
+	u64 map_location;
 } __packed;
 
 struct hv_output_map_stats_page {
@@ -232,6 +318,48 @@ union hv_gpa_page_access_state {
 		u8 reserved: 6;
 	};
 	u8 as_uint8;
+} __packed;
+
+enum hv_crashdump_action {
+	HV_CRASHDUMP_NONE = 0,
+	HV_CRASHDUMP_SUSPEND_ALL_VPS,
+	HV_CRASHDUMP_PREPARE_FOR_STATE_SAVE,
+	HV_CRASHDUMP_STATE_SAVED,
+	HV_CRASHDUMP_ENTRY,
+};
+
+struct hv_partition_event_root_crashdump_input {
+	u32 crashdump_action; /* enum hv_crashdump_action */
+} __packed;
+
+struct hv_input_disable_hyp_ex {   /* HV_X64_INPUT_DISABLE_HYPERVISOR_EX */
+	u64 rip;
+	u64 arg;
+} __packed;
+
+struct hv_crashdump_area {	   /* HV_CRASHDUMP_AREA */
+	u32 version;
+	union {
+		u32 flags_as_uint32;
+		struct {
+			u32 cda_valid : 1;
+			u32 cda_unused : 31;
+		} __packed;
+	};
+	/* more unused fields */
+} __packed;
+
+union hv_partition_event_input {
+	struct hv_partition_event_root_crashdump_input crashdump_input;
+};
+
+enum hv_partition_event {
+	HV_PARTITION_EVENT_ROOT_CRASHDUMP = 2,
+};
+
+struct hv_input_notify_partition_event {
+	u32 event;      /* enum hv_partition_event */
+	union hv_partition_event_input input;
 } __packed;
 
 struct hv_lp_startup_status {

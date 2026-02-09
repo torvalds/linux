@@ -54,7 +54,7 @@
 };
 
 &pm8921 {
-	interrupts-extended = <&msmgpio 104 IRQ_TYPE_LEVEL_LOW>;
+	interrupts-extended = <&tlmm 104 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &pm8921_gpio {

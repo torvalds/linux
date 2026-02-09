@@ -36,7 +36,7 @@
  *
  *   Only if I2C_FUNC_NOSTART is set:
  *   %I2C_M_NOSTART: skip repeated start sequence
-
+ *
  *   Only if I2C_FUNC_PROTOCOL_MANGLING is set:
  *   %I2C_M_NO_RD_ACK: in a read message, master ACK/NACK bit is skipped
  *   %I2C_M_IGNORE_NAK: treat NACK from client as ACK

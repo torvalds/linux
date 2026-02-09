@@ -200,4 +200,15 @@ config USB_DWC3_GENERIC_PLAT
 	  the dwc3 child node in the device tree.
 	  Say 'Y' or 'M' here if your platform integrates DWC3 in a similar way.
 
+config USB_DWC3_APPLE
+	tristate "Apple Silicon DWC3 Platform Driver"
+	depends on OF && ARCH_APPLE
+	default USB_DWC3
+	select USB_ROLE_SWITCH
+	help
+	  Support Apple Silicon SoCs with DesignWare Core USB3 IP.
+	  The DesignWare Core USB3 IP has to be used in dual-role
+	  mode on these machines.
+	  Say 'Y' or 'M' if you have such device.
+
 endif

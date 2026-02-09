@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <sys/wait.h>
 
-#include "../kselftest.h" /* For __cpuid_count() */
+#include "kselftest.h" /* For __cpuid_count() */
 #include "helpers.h"
 
 static inline int xsave_enabled(void)

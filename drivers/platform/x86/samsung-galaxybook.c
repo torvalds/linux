@@ -442,12 +442,13 @@ static int galaxybook_battery_ext_property_get(struct power_supply *psy,
 					       union power_supply_propval *val)
 {
 	struct samsung_galaxybook *galaxybook = ext_data;
+	u8 value;
 	int err;
 
 	if (psp != POWER_SUPPLY_PROP_CHARGE_CONTROL_END_THRESHOLD)
 		return -EINVAL;
 
-	err = charge_control_end_threshold_acpi_get(galaxybook, (u8 *)&val->intval);
+	err = charge_control_end_threshold_acpi_get(galaxybook, &value);
 	if (err)
 		return err;
 
@@ -455,8 +456,10 @@ static int galaxybook_battery_ext_property_get(struct power_supply *psy,
 	 * device stores "no end threshold" as 0 instead of 100;
 	 * if device has 0, report 100
 	 */
-	if (val->intval == 0)
-		val->intval = 100;
+	if (value == 0)
+		value = 100;
+
+	val->intval = value;
 
 	return 0;
 }

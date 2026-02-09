@@ -106,7 +106,7 @@ static u32 next_vm_id = 0;
 static bool next_vm_id_wrapped = 0;
 static DEFINE_SPINLOCK(svm_vm_data_hash_lock);
 static bool x2avic_enabled;
-
+static u32 x2avic_max_physical_id;
 
 static void avic_set_x2apic_msr_interception(struct vcpu_svm *svm,
 					     bool intercept)
@@ -158,12 +158,40 @@ static void avic_set_x2apic_msr_interception(struct vcpu_svm *svm,
 	svm->x2avic_msrs_intercepted = intercept;
 }
 
+static u32 __avic_get_max_physical_id(struct kvm *kvm, struct kvm_vcpu *vcpu)
+{
+	u32 arch_max;
+
+	/*
+	 * Return the largest size (x2APIC) when querying without a vCPU, e.g.
+	 * to allocate the per-VM table..
+	 */
+	if (x2avic_enabled && (!vcpu || apic_x2apic_mode(vcpu->arch.apic)))
+		arch_max = x2avic_max_physical_id;
+	else
+		arch_max = AVIC_MAX_PHYSICAL_ID;
+
+	/*
+	 * Despite its name, KVM_CAP_MAX_VCPU_ID represents the maximum APIC ID
+	 * plus one, so the max possible APIC ID is one less than that.
+	 */
+	return min(kvm->arch.max_vcpu_ids - 1, arch_max);
+}
+
+static u32 avic_get_max_physical_id(struct kvm_vcpu *vcpu)
+{
+	return __avic_get_max_physical_id(vcpu->kvm, vcpu);
+}
+
 static void avic_activate_vmcb(struct vcpu_svm *svm)
 {
 	struct vmcb *vmcb = svm->vmcb01.ptr;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	vmcb->control.int_ctl &= ~(AVIC_ENABLE_MASK | X2APIC_MODE_MASK);
+
 	vmcb->control.avic_physical_id &= ~AVIC_PHYSICAL_MAX_INDEX_MASK;
+	vmcb->control.avic_physical_id |= avic_get_max_physical_id(vcpu);
 
 	vmcb->control.int_ctl |= AVIC_ENABLE_MASK;
 
@@ -176,7 +204,7 @@ static void avic_activate_vmcb(struct vcpu_svm *svm)
 	 */
 	if (x2avic_enabled && apic_x2apic_mode(svm->vcpu.arch.apic)) {
 		vmcb->control.int_ctl |= X2APIC_MODE_MASK;
-		vmcb->control.avic_physical_id |= X2AVIC_MAX_PHYSICAL_ID;
+
 		/* Disabling MSR intercept for x2APIC registers */
 		avic_set_x2apic_msr_interception(svm, false);
 	} else {
@@ -186,8 +214,6 @@ static void avic_activate_vmcb(struct vcpu_svm *svm)
 		 */
 		kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, &svm->vcpu);
 
-		/* For xAVIC and hybrid-xAVIC modes */
-		vmcb->control.avic_physical_id |= AVIC_MAX_PHYSICAL_ID;
 		/* Enabling MSR intercept for x2APIC registers */
 		avic_set_x2apic_msr_interception(svm, true);
 	}
@@ -247,6 +273,30 @@ static int avic_ga_log_notifier(u32 ga_tag)
 	return 0;
 }
 
+static int avic_get_physical_id_table_order(struct kvm *kvm)
+{
+	/* Provision for the maximum physical ID supported in x2avic mode */
+	return get_order((__avic_get_max_physical_id(kvm, NULL) + 1) * sizeof(u64));
+}
+
+int avic_alloc_physical_id_table(struct kvm *kvm)
+{
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+
+	if (!irqchip_in_kernel(kvm) || !enable_apicv)
+		return 0;
+
+	if (kvm_svm->avic_physical_id_table)
+		return 0;
+
+	kvm_svm->avic_physical_id_table = (void *)__get_free_pages(GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+								   avic_get_physical_id_table_order(kvm));
+	if (!kvm_svm->avic_physical_id_table)
+		return -ENOMEM;
+
+	return 0;
+}
+
 void avic_vm_destroy(struct kvm *kvm)
 {
 	unsigned long flags;
@@ -256,7 +306,8 @@ void avic_vm_destroy(struct kvm *kvm)
 		return;
 
 	free_page((unsigned long)kvm_svm->avic_logical_id_table);
-	free_page((unsigned long)kvm_svm->avic_physical_id_table);
+	free_pages((unsigned long)kvm_svm->avic_physical_id_table,
+		   avic_get_physical_id_table_order(kvm));
 
 	spin_lock_irqsave(&svm_vm_data_hash_lock, flags);
 	hash_del(&kvm_svm->hnode);
@@ -273,10 +324,6 @@ int avic_vm_init(struct kvm *kvm)
 
 	if (!enable_apicv)
 		return 0;
-
-	kvm_svm->avic_physical_id_table = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
-	if (!kvm_svm->avic_physical_id_table)
-		goto free_avic;
 
 	kvm_svm->avic_logical_id_table = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!kvm_svm->avic_logical_id_table)
@@ -342,7 +389,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	 * fully initialized AVIC.
 	 */
 	if ((!x2avic_enabled && id > AVIC_MAX_PHYSICAL_ID) ||
-	    (id > X2AVIC_MAX_PHYSICAL_ID)) {
+	    (id > x2avic_max_physical_id)) {
 		kvm_set_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_PHYSICAL_ID_TOO_BIG);
 		vcpu->arch.apic->apicv_active = false;
 		return 0;
@@ -562,7 +609,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
 	u32 icrl = svm->vmcb->control.exit_info_1;
 	u32 id = svm->vmcb->control.exit_info_2 >> 32;
-	u32 index = svm->vmcb->control.exit_info_2 & 0x1FF;
+	u32 index = svm->vmcb->control.exit_info_2 & AVIC_PHYSICAL_MAX_INDEX_MASK;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	trace_kvm_avic_incomplete_ipi(vcpu->vcpu_id, icrh, icrl, id, index);
@@ -962,7 +1009,8 @@ static void __avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu,
 	if (WARN_ON(h_physical_id & ~AVIC_PHYSICAL_ID_ENTRY_HOST_PHYSICAL_ID_MASK))
 		return;
 
-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >= PAGE_SIZE))
+	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
+			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
 		return;
 
 	/*
@@ -1024,7 +1072,8 @@ static void __avic_vcpu_put(struct kvm_vcpu *vcpu, enum avic_vcpu_action action)
 
 	lockdep_assert_preemption_disabled();
 
-	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >= PAGE_SIZE))
+	if (WARN_ON_ONCE(vcpu->vcpu_id * sizeof(entry) >=
+			 PAGE_SIZE << avic_get_physical_id_table_order(vcpu->kvm)))
 		return;
 
 	/*
@@ -1226,10 +1275,15 @@ bool __init avic_hardware_setup(void)
 
 	/* AVIC is a prerequisite for x2AVIC. */
 	x2avic_enabled = boot_cpu_has(X86_FEATURE_X2AVIC);
-	if (x2avic_enabled)
-		pr_info("x2AVIC enabled\n");
-	else
+	if (x2avic_enabled) {
+		if (cpu_feature_enabled(X86_FEATURE_X2AVIC_EXT))
+			x2avic_max_physical_id = X2AVIC_4K_MAX_PHYSICAL_ID;
+		else
+			x2avic_max_physical_id = X2AVIC_MAX_PHYSICAL_ID;
+		pr_info("x2AVIC enabled (max %u vCPUs)\n", x2avic_max_physical_id + 1);
+	} else {
 		svm_x86_ops.allow_apicv_in_x2apic_without_x2apic_virtualization = true;
+	}
 
 	/*
 	 * Disable IPI virtualization for AMD Family 17h CPUs (Zen1 and Zen2)

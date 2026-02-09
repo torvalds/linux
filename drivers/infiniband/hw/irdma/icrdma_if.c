@@ -302,7 +302,8 @@ err_rt_init:
 err_ctrl_init:
 	icrdma_deinit_interrupts(rf, cdev_info);
 err_init_interrupts:
-	kfree(iwdev->rf);
+	mutex_destroy(&rf->ah_tbl_lock);
+	kfree(rf);
 	ib_dealloc_device(&iwdev->ibdev);
 
 	return err;
@@ -319,6 +320,9 @@ static void icrdma_remove(struct auxiliary_device *aux_dev)
 	ice_rdma_update_vsi_filter(cdev_info, iwdev->vsi_num, false);
 	irdma_ib_unregister_device(iwdev);
 	icrdma_deinit_interrupts(iwdev->rf, cdev_info);
+	mutex_destroy(&iwdev->rf->ah_tbl_lock);
+
+	kfree(iwdev->rf);
 
 	pr_debug("INIT: Gen[%d] func[%d] device remove success\n",
 		 rdma_ver, PCI_FUNC(cdev_info->pdev->devfn));

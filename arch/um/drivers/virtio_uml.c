@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
 #include <linux/virtio_ring.h>
@@ -1151,8 +1152,7 @@ void virtio_uml_set_no_vq_suspend(struct virtio_device *vdev,
 		return;
 
 	vu_dev->no_vq_suspend = no_vq_suspend;
-	dev_info(&vdev->dev, "%sabled VQ suspend\n",
-		 no_vq_suspend ? "dis" : "en");
+	dev_info(&vdev->dev, "%s VQ suspend\n", str_disabled_enabled(no_vq_suspend));
 }
 
 static void vu_of_conn_broken(struct work_struct *wk)

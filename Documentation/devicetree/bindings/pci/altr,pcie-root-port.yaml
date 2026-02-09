@@ -93,7 +93,6 @@ allOf:
         reg-names:
           minItems: 3
 
-
 unevaluatedProperties: false
 
 examples:

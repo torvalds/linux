@@ -348,10 +348,11 @@ static int vc_selection(struct vc_data *vc, struct tiocl_selection *v,
 		return 0;
 	}
 
-	v->xs = min_t(u16, v->xs - 1, vc->vc_cols - 1);
-	v->ys = min_t(u16, v->ys - 1, vc->vc_rows - 1);
-	v->xe = min_t(u16, v->xe - 1, vc->vc_cols - 1);
-	v->ye = min_t(u16, v->ye - 1, vc->vc_rows - 1);
+	/* Historically 0 => max value */
+	v->xs = umin(v->xs - 1, vc->vc_cols - 1);
+	v->ys = umin(v->ys - 1, vc->vc_rows - 1);
+	v->xe = umin(v->xe - 1, vc->vc_cols - 1);
+	v->ye = umin(v->ye - 1, vc->vc_rows - 1);
 
 	if (mouse_reporting() && (v->sel_mode & TIOCL_SELMOUSEREPORT)) {
 		mouse_report(tty, v->sel_mode & TIOCL_SELBUTTONMASK, v->xs,

@@ -609,15 +609,12 @@ void ODM_DMWatchdog(struct dm_odm_t *pDM_Odm)
 	/* 8723A or 8189ES platform */
 	/* NeilChen--2012--08--24-- */
 	/* Fix Leave LPS issue */
-	if ((adapter_to_pwrctl(pDM_Odm->Adapter)->pwr_mode != PS_MODE_ACTIVE) /*  in LPS mode */
-		/*  */
-		/* (pDM_Odm->SupportICType & (ODM_RTL8723A))|| */
-		/* (pDM_Odm->SupportICType & (ODM_RTL8188E) &&(&&(((pDM_Odm->SupportInterface  == ODM_ITRF_SDIO))) */
-		/*  */
-	) {
-			odm_DIGbyRSSI_LPS(pDM_Odm);
-	} else
+	if (adapter_to_pwrctl(pDM_Odm->Adapter)->pwr_mode != PS_MODE_ACTIVE) {
+		/* in LPS mode */
+		odm_DIGbyRSSI_LPS(pDM_Odm);
+	} else {
 		odm_DIG(pDM_Odm);
+	}
 
 	{
 		struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;

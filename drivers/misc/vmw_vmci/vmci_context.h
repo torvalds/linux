@@ -98,7 +98,7 @@ struct vmci_ctx_chkpt_buf_info {
 };
 
 /*
- * VMCINotificationReceiveInfo: Used to recieve pending notifications
+ * VMCINotificationReceiveInfo: Used to receive pending notifications
  * for doorbells and queue pairs.
  */
 struct vmci_ctx_notify_recv_info {

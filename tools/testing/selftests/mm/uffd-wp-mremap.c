@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <linux/mman.h>
 #include <sys/mman.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "thp_settings.h"
 #include "uffd-common.h"
 

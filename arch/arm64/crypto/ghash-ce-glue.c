@@ -133,7 +133,7 @@ static int ghash_finup(struct shash_desc *desc, const u8 *src,
 		u8 buf[GHASH_BLOCK_SIZE] = {};
 
 		memcpy(buf, src, len);
-		ghash_do_simd_update(1, ctx->digest, src, key, NULL,
+		ghash_do_simd_update(1, ctx->digest, buf, key, NULL,
 				     pmull_ghash_update_p8);
 		memzero_explicit(buf, sizeof(buf));
 	}

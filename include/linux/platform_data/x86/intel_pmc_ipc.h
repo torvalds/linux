@@ -9,6 +9,7 @@
 #ifndef INTEL_PMC_IPC_H
 #define INTEL_PMC_IPC_H
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 
 #define IPC_SOC_REGISTER_ACCESS			0xAA
 #define IPC_SOC_SUB_CMD_READ			0x00
@@ -48,7 +49,6 @@ static inline int intel_pmc_ipc(struct pmc_ipc_cmd *ipc_cmd, struct pmc_ipc_rbuf
 		{.type = ACPI_TYPE_INTEGER,},
 	};
 	struct acpi_object_list arg_list = { PMC_IPCS_PARAM_COUNT, params };
-	union acpi_object *obj;
 	int status;
 
 	if (!ipc_cmd || !rbuf)
@@ -72,7 +72,7 @@ static inline int intel_pmc_ipc(struct pmc_ipc_cmd *ipc_cmd, struct pmc_ipc_rbuf
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	obj = buffer.pointer;
+	union acpi_object *obj __free(kfree) = buffer.pointer;
 
 	if (obj && obj->type == ACPI_TYPE_PACKAGE &&
 	    obj->package.count == VALID_IPC_RESPONSE) {

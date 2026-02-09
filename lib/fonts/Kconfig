@@ -112,6 +112,17 @@ config FONT_SUN12x22
 	  big letters (like the letters used in the SPARC PROM). If the
 	  standard font is unreadable for you, say Y, otherwise say N.
 
+config FONT_TER10x18
+	bool "Terminus 10x18 font (not supported by all drivers)"
+	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
+	depends on !SPARC && FONTS || SPARC
+	help
+	  Terminus Font is a clean, fixed width bitmap font, designed
+	  for long (8 and more hours per day) work with computers.
+	  This is the high resolution version made for use with 13-16" laptops.
+	  It fits between the normal 8x16 font and Terminus 16x32.
+	  If other fonts are unreadable for you, say Y, otherwise say N.
+
 config FONT_TER16x32
 	bool "Terminus 16x32 font (not supported by all drivers)"
 	depends on FRAMEBUFFER_CONSOLE || DRM_PANIC
@@ -140,6 +151,7 @@ config FONT_AUTOSELECT
 	depends on !FONT_SUN8x16
 	depends on !FONT_SUN12x22
 	depends on !FONT_10x18
+	depends on !FONT_TER10x18
 	depends on !FONT_TER16x32
 	depends on !FONT_6x8
 	select FONT_8x16

@@ -96,7 +96,8 @@ err_release:
 /**
  * drm_gem_shmem_init - Initialize an allocated object.
  * @dev: DRM device
- * @obj: The allocated shmem GEM object.
+ * @shmem: The allocated shmem GEM object.
+ * @size: Buffer size in bytes
  *
  * Returns:
  * 0 on success, or a negative error code on failure.
@@ -559,7 +560,7 @@ int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_mode_size_dumb(dev, args, SZ_8, 0);
+	ret = drm_mode_size_dumb(dev, args, 0, 0);
 	if (ret)
 		return ret;
 
@@ -895,4 +896,4 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_prime_import_no_map);
 
 MODULE_DESCRIPTION("DRM SHMEM memory-management helpers");
 MODULE_IMPORT_NS("DMA_BUF");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

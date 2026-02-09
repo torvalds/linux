@@ -830,10 +830,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/sm8650/gen70900_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sm8650/gen70900_zap.mbn";
 };
 
 &lpass_tlmm {

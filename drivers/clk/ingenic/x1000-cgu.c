@@ -556,7 +556,7 @@ static void __init x1000_cgu_init(struct device_node *np)
 		return;
 	}
 
-	ingenic_cgu_register_syscore_ops(cgu);
+	ingenic_cgu_register_syscore(cgu);
 }
 /*
  * CGU has some children devices, this is useful for probing children devices

@@ -15,18 +15,26 @@
 #define TI_UFS_SS_RST_N_PCS	BIT(0)
 #define TI_UFS_SS_CLK_26MHZ	BIT(4)
 
+struct ti_j721e_ufs {
+	void __iomem *regbase;
+	u32 reg;
+};
+
 static int ti_j721e_ufs_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct ti_j721e_ufs *ufs;
 	unsigned long clk_rate;
-	void __iomem *regbase;
 	struct clk *clk;
-	u32 reg = 0;
 	int ret;
 
-	regbase = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(regbase))
-		return PTR_ERR(regbase);
+	ufs = devm_kzalloc(dev, sizeof(*ufs), GFP_KERNEL);
+	if (!ufs)
+		return -ENOMEM;
+
+	ufs->regbase = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(ufs->regbase))
+		return PTR_ERR(ufs->regbase);
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
@@ -42,12 +50,14 @@ static int ti_j721e_ufs_probe(struct platform_device *pdev)
 	}
 	clk_rate = clk_get_rate(clk);
 	if (clk_rate == 26000000)
-		reg |= TI_UFS_SS_CLK_26MHZ;
+		ufs->reg |= TI_UFS_SS_CLK_26MHZ;
 	devm_clk_put(dev, clk);
 
 	/*  Take UFS slave device out of reset */
-	reg |= TI_UFS_SS_RST_N_PCS;
-	writel(reg, regbase + TI_UFS_SS_CTRL);
+	ufs->reg |= TI_UFS_SS_RST_N_PCS;
+	writel(ufs->reg, ufs->regbase + TI_UFS_SS_CTRL);
+
+	dev_set_drvdata(dev, ufs);
 
 	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL,
 				   dev);
@@ -72,6 +82,16 @@ static void ti_j721e_ufs_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
+static int ti_j721e_ufs_resume(struct device *dev)
+{
+	struct ti_j721e_ufs *ufs = dev_get_drvdata(dev);
+
+	writel(ufs->reg, ufs->regbase + TI_UFS_SS_CTRL);
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ti_j721e_ufs_pm_ops, NULL, ti_j721e_ufs_resume);
+
 static const struct of_device_id ti_j721e_ufs_of_match[] = {
 	{
 		.compatible = "ti,j721e-ufs",
@@ -87,6 +107,7 @@ static struct platform_driver ti_j721e_ufs_driver = {
 	.driver	= {
 		.name   = "ti-j721e-ufs",
 		.of_match_table = ti_j721e_ufs_of_match,
+		.pm = pm_sleep_ptr(&ti_j721e_ufs_pm_ops),
 	},
 };
 module_platform_driver(ti_j721e_ufs_driver);

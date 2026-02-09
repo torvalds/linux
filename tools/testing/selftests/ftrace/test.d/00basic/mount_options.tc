@@ -28,7 +28,7 @@ unmount_tracefs() {
 	local mount_point="$1"
 
 	# Need to make sure the mount isn't busy so that we can umount it
-	(cd $mount_point; finish_ftrace;)
+	(cd $mount_point; finish_system;)
 
 	cleanup
 }

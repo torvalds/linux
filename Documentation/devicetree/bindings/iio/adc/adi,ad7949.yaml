@@ -48,7 +48,6 @@ properties:
     enum: [2500000, 4096000]
     default: 4096000
 
-
   '#io-channel-cells':
     const: 1
 

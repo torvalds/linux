@@ -404,11 +404,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sdm670/sargo/a615_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sdm670/sargo/a615_zap.mbn";
 };
 
 &i2c9 {

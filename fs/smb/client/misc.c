@@ -18,6 +18,7 @@
 #include "nterr.h"
 #include "cifs_unicode.h"
 #include "smb2pdu.h"
+#include "smb2proto.h"
 #include "cifsfs.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dns_resolve.h"
@@ -264,19 +265,18 @@ free_rsp_buf(int resp_buftype, void *rsp)
 
 /* NB: MID can not be set if treeCon not passed in, in that
    case it is responsibility of caller to set the mid */
-void
-header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
+unsigned int
+header_assemble(struct smb_hdr *buffer, char smb_command,
 		const struct cifs_tcon *treeCon, int word_count
 		/* length of fixed section (word count) in two byte units  */)
 {
+	unsigned int in_len;
 	char *temp = (char *) buffer;
 
 	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
 
-	buffer->smb_buf_length = cpu_to_be32(
-	    (2 * word_count) + sizeof(struct smb_hdr) -
-	    4 /*  RFC 1001 length field does not count */  +
-	    2 /* for bcc field itself */) ;
+	in_len = (2 * word_count) + sizeof(struct smb_hdr) +
+		2 /* for bcc field itself */;
 
 	buffer->Protocol[0] = 0xFF;
 	buffer->Protocol[1] = 'S';
@@ -311,7 +311,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 /*  endian conversion of flags is now done just before sending */
 	buffer->WordCount = (char) word_count;
-	return;
+	return in_len;
 }
 
 static int
@@ -346,10 +346,11 @@ check_smb_hdr(struct smb_hdr *smb)
 }
 
 int
-checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
+checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
+	 struct TCP_Server_Info *server)
 {
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
-	__u32 rfclen = be32_to_cpu(smb->smb_buf_length);
+	__u32 rfclen = pdu_len;
 	__u32 clc_len;  /* calculated length */
 	cifs_dbg(FYI, "checkSMB Length: 0x%x, smb_buf_length: 0x%x\n",
 		 total_read, rfclen);
@@ -379,42 +380,47 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 				return 0;
 			}
 			cifs_dbg(VFS, "rcvd invalid byte count (bcc)\n");
+			return smb_EIO1(smb_eio_trace_rx_inv_bcc, tmp[sizeof(struct smb_hdr)]);
 		} else {
 			cifs_dbg(VFS, "Length less than smb header size\n");
+			return smb_EIO2(smb_eio_trace_rx_too_short,
+					total_read, smb->WordCount);
 		}
-		return -EIO;
 	} else if (total_read < sizeof(*smb) + 2 * smb->WordCount) {
 		cifs_dbg(VFS, "%s: can't read BCC due to invalid WordCount(%u)\n",
 			 __func__, smb->WordCount);
-		return -EIO;
+		return smb_EIO2(smb_eio_trace_rx_check_rsp,
+				total_read, 2 + sizeof(struct smb_hdr));
 	}
 
 	/* otherwise, there is enough to get to the BCC */
 	if (check_smb_hdr(smb))
-		return -EIO;
+		return smb_EIO1(smb_eio_trace_rx_rfc1002_magic, *(u32 *)smb->Protocol);
 	clc_len = smbCalcSize(smb);
 
-	if (4 + rfclen != total_read) {
-		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",
-			 rfclen);
-		return -EIO;
+	if (rfclen != total_read) {
+		cifs_dbg(VFS, "Length read does not match RFC1001 length %d/%d\n",
+			 rfclen, total_read);
+		return smb_EIO2(smb_eio_trace_rx_check_rsp,
+				total_read, rfclen);
 	}
 
-	if (4 + rfclen != clc_len) {
+	if (rfclen != clc_len) {
 		__u16 mid = get_mid(smb);
 		/* check if bcc wrapped around for large read responses */
 		if ((rfclen > 64 * 1024) && (rfclen > clc_len)) {
 			/* check if lengths match mod 64K */
-			if (((4 + rfclen) & 0xFFFF) == (clc_len & 0xFFFF))
+			if (((rfclen) & 0xFFFF) == (clc_len & 0xFFFF))
 				return 0; /* bcc wrapped */
 		}
 		cifs_dbg(FYI, "Calculated size %u vs length %u mismatch for mid=%u\n",
-			 clc_len, 4 + rfclen, mid);
+			 clc_len, rfclen, mid);
 
-		if (4 + rfclen < clc_len) {
+		if (rfclen < clc_len) {
 			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
 				 rfclen, mid);
-			return -EIO;
+			return smb_EIO2(smb_eio_trace_rx_calc_len_too_big,
+					rfclen, clc_len);
 		} else if (rfclen > clc_len + 512) {
 			/*
 			 * Some servers (Windows XP in particular) send more
@@ -427,7 +433,8 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			 */
 			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
 				 rfclen, mid);
-			return -EIO;
+			return smb_EIO2(smb_eio_trace_rx_overlong,
+					rfclen, clc_len + 512);
 		}
 	}
 	return 0;
@@ -451,7 +458,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			(struct smb_com_transaction_change_notify_rsp *)buf;
 		struct file_notify_information *pnotify;
 		__u32 data_offset = 0;
-		size_t len = srv->total_read - sizeof(pSMBr->hdr.smb_buf_length);
+		size_t len = srv->total_read - srv->pdu_size;
 
 		if (get_bcc(buf) > sizeof(struct file_notify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);

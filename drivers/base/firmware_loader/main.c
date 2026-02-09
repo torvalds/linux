@@ -1576,14 +1576,18 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 }
 
 /* stop caching firmware once syscore_suspend is reached */
-static int fw_suspend(void)
+static int fw_suspend(void *data)
 {
 	fw_cache.state = FW_LOADER_NO_CACHE;
 	return 0;
 }
 
-static struct syscore_ops fw_syscore_ops = {
+static const struct syscore_ops fw_syscore_ops = {
 	.suspend = fw_suspend,
+};
+
+static struct syscore fw_syscore = {
+	.ops = &fw_syscore_ops,
 };
 
 static int __init register_fw_pm_ops(void)
@@ -1601,14 +1605,14 @@ static int __init register_fw_pm_ops(void)
 	if (ret)
 		return ret;
 
-	register_syscore_ops(&fw_syscore_ops);
+	register_syscore(&fw_syscore);
 
 	return ret;
 }
 
 static inline void unregister_fw_pm_ops(void)
 {
-	unregister_syscore_ops(&fw_syscore_ops);
+	unregister_syscore(&fw_syscore);
 	unregister_pm_notifier(&fw_cache.pm_notify);
 }
 #else

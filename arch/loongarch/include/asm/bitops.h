@@ -13,10 +13,21 @@
 
 #include <asm/barrier.h>
 
+#ifdef CONFIG_32BIT_REDUCED
+
+#include <asm-generic/bitops/ffs.h>
+#include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__ffs.h>
+#include <asm-generic/bitops/__fls.h>
+
+#else /* CONFIG_32BIT_STANDARD || CONFIG_64BIT  */
+
 #include <asm-generic/bitops/builtin-ffs.h>
 #include <asm-generic/bitops/builtin-fls.h>
 #include <asm-generic/bitops/builtin-__ffs.h>
 #include <asm-generic/bitops/builtin-__fls.h>
+
+#endif
 
 #include <asm-generic/bitops/ffz.h>
 #include <asm-generic/bitops/fls64.h>

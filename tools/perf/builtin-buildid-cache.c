@@ -180,7 +180,7 @@ static int build_id_cache__add_file(const char *filename, struct nsinfo *nsi)
 	struct nscookie nsc;
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	err = filename__read_build_id(filename, &bid, /*block=*/true);
+	err = filename__read_build_id(filename, &bid);
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
@@ -204,7 +204,7 @@ static int build_id_cache__remove_file(const char *filename, struct nsinfo *nsi)
 	int err;
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	err = filename__read_build_id(filename, &bid, /*block=*/true);
+	err = filename__read_build_id(filename, &bid);
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);
@@ -276,12 +276,14 @@ static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 {
 	char filename[PATH_MAX];
 	struct build_id bid = { .size = 0, };
+	int err;
 
 	if (!dso__build_id_filename(dso, filename, sizeof(filename), false))
 		return true;
 
-	if (filename__read_build_id(filename, &bid, /*block=*/true) == -1) {
-		if (errno == ENOENT)
+	err = filename__read_build_id(filename, &bid);
+	if (err < 0) {
+		if (err == -ENOENT)
 			return false;
 
 		pr_warning("Problems with %s file, consider removing it from the cache\n",
@@ -309,7 +311,7 @@ static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 	int err;
 
 	nsinfo__mountns_enter(nsi, &nsc);
-	err = filename__read_build_id(filename, &bid, /*block=*/true);
+	err = filename__read_build_id(filename, &bid);
 	nsinfo__mountns_exit(&nsc);
 	if (err < 0) {
 		pr_debug("Couldn't read a build-id in %s\n", filename);

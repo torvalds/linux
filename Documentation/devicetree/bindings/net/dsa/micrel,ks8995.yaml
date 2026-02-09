@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Micrel KS8995 Family DSA Switches
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description:
   The Micrel KS8995 DSA Switches are 100 Mbit switches that were produced in

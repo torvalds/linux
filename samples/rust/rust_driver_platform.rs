@@ -103,7 +103,7 @@ impl platform::Driver for SampleDriver {
     fn probe(
         pdev: &platform::Device<Core>,
         info: Option<&Self::IdInfo>,
-    ) -> Result<Pin<KBox<Self>>> {
+    ) -> impl PinInit<Self, Error> {
         let dev = pdev.as_ref();
 
         dev_dbg!(dev, "Probe Rust Platform driver sample.\n");
@@ -116,9 +116,7 @@ impl platform::Driver for SampleDriver {
             Self::properties_parse(dev)?;
         }
 
-        let drvdata = KBox::new(Self { pdev: pdev.into() }, GFP_KERNEL)?;
-
-        Ok(drvdata.into())
+        Ok(Self { pdev: pdev.into() })
     }
 }
 

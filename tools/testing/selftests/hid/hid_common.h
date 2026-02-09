@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2022-2024 Red Hat */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #include <fcntl.h>
 #include <fnmatch.h>

@@ -57,6 +57,7 @@ struct adis_timeout {
  * @enable_irq: Hook for ADIS devices that have a special IRQ enable/disable
  * @unmasked_drdy: True for devices that cannot mask/unmask the data ready pin
  * @has_paging: True if ADIS device has paged registers
+ * @has_fifo: True if ADIS device has a hardware FIFO
  * @burst_reg_cmd:	Register command that triggers burst
  * @burst_len:		Burst size in the SPI RX buffer. If @burst_max_len is defined,
  *			this should be the minimum size supported by the device.
@@ -136,7 +137,7 @@ struct adis {
 	const struct adis_data	*data;
 	unsigned int		burst_extra_len;
 	const struct adis_ops	*ops;
-	/**
+	/*
 	 * The state_lock is meant to be used during operations that require
 	 * a sequence of SPI R/W in order to protect the SPI transfer
 	 * information (fields 'xfer', 'msg' & 'current_page') between
@@ -166,7 +167,7 @@ int __adis_reset(struct adis *adis);
  * adis_reset() - Reset the device
  * @adis: The adis device
  *
- * Returns 0 on success, a negative error code otherwise
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_reset(struct adis *adis)
 {
@@ -183,7 +184,9 @@ int __adis_read_reg(struct adis *adis, unsigned int reg,
  * __adis_write_reg_8() - Write single byte to a register (unlocked)
  * @adis: The adis device
  * @reg: The address of the register to be written
- * @value: The value to write
+ * @val: The value to write
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int __adis_write_reg_8(struct adis *adis, unsigned int reg,
 				     u8 val)
@@ -195,7 +198,9 @@ static inline int __adis_write_reg_8(struct adis *adis, unsigned int reg,
  * __adis_write_reg_16() - Write 2 bytes to a pair of registers (unlocked)
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
- * @value: Value to be written
+ * @val: Value to be written
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int __adis_write_reg_16(struct adis *adis, unsigned int reg,
 				      u16 val)
@@ -207,7 +212,9 @@ static inline int __adis_write_reg_16(struct adis *adis, unsigned int reg,
  * __adis_write_reg_32() - write 4 bytes to four registers (unlocked)
  * @adis: The adis device
  * @reg: The address of the lower of the four register
- * @value: Value to be written
+ * @val: Value to be written
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int __adis_write_reg_32(struct adis *adis, unsigned int reg,
 				      u32 val)
@@ -220,6 +227,8 @@ static inline int __adis_write_reg_32(struct adis *adis, unsigned int reg,
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int __adis_read_reg_16(struct adis *adis, unsigned int reg,
 				     u16 *val)
@@ -239,6 +248,8 @@ static inline int __adis_read_reg_16(struct adis *adis, unsigned int reg,
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int __adis_read_reg_32(struct adis *adis, unsigned int reg,
 				     u32 *val)
@@ -257,8 +268,10 @@ static inline int __adis_read_reg_32(struct adis *adis, unsigned int reg,
  * adis_write_reg() - write N bytes to register
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
- * @value: The value to write to device (up to 4 bytes)
+ * @val: The value to write to device (up to 4 bytes)
  * @size: The size of the @value (in bytes)
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_write_reg(struct adis *adis, unsigned int reg,
 				 unsigned int val, unsigned int size)
@@ -273,6 +286,8 @@ static inline int adis_write_reg(struct adis *adis, unsigned int reg,
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
  * @size: The size of the @val buffer
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static int adis_read_reg(struct adis *adis, unsigned int reg,
 			 unsigned int *val, unsigned int size)
@@ -285,7 +300,9 @@ static int adis_read_reg(struct adis *adis, unsigned int reg,
  * adis_write_reg_8() - Write single byte to a register
  * @adis: The adis device
  * @reg: The address of the register to be written
- * @value: The value to write
+ * @val: The value to write
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_write_reg_8(struct adis *adis, unsigned int reg,
 				   u8 val)
@@ -297,7 +314,9 @@ static inline int adis_write_reg_8(struct adis *adis, unsigned int reg,
  * adis_write_reg_16() - Write 2 bytes to a pair of registers
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
- * @value: Value to be written
+ * @val: Value to be written
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_write_reg_16(struct adis *adis, unsigned int reg,
 				    u16 val)
@@ -309,7 +328,9 @@ static inline int adis_write_reg_16(struct adis *adis, unsigned int reg,
  * adis_write_reg_32() - write 4 bytes to four registers
  * @adis: The adis device
  * @reg: The address of the lower of the four register
- * @value: Value to be written
+ * @val: Value to be written
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_write_reg_32(struct adis *adis, unsigned int reg,
 				    u32 val)
@@ -322,6 +343,8 @@ static inline int adis_write_reg_32(struct adis *adis, unsigned int reg,
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_read_reg_16(struct adis *adis, unsigned int reg,
 				   u16 *val)
@@ -341,6 +364,8 @@ static inline int adis_read_reg_16(struct adis *adis, unsigned int reg,
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_read_reg_32(struct adis *adis, unsigned int reg,
 				   u32 *val)
@@ -366,6 +391,8 @@ int __adis_update_bits_base(struct adis *adis, unsigned int reg, const u32 mask,
  * @size: Size of the register to update
  *
  * Updates the desired bits of @reg in accordance with @mask and @val.
+ *
+ * Returns: %0 on success, a negative error code otherwise
  */
 static inline int adis_update_bits_base(struct adis *adis, unsigned int reg,
 					const u32 mask, const u32 val, u8 size)

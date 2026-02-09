@@ -7,14 +7,15 @@
 
 #ifndef __ASSEMBLER__
 
+#include <shared/smp.h>
+
 struct task_struct;
 extern struct task_struct *cpu_tasks[NR_CPUS];
 
 static __always_inline struct task_struct *get_current(void)
 {
-	return cpu_tasks[0];
+	return cpu_tasks[uml_curr_cpu()];
 }
-
 
 #define current get_current()
 

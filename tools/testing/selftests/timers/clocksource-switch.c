@@ -34,7 +34,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 
 int get_clocksources(char list[][30])

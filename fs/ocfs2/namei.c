@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/highmem.h>
 #include <linux/quotaops.h>
 #include <linux/iversion.h>
@@ -568,7 +569,7 @@ static int __ocfs2_mknod_locked(struct inode *dir,
 	ocfs2_set_links_count(fe, inode->i_nlink);
 
 	fe->i_last_eb_blk = 0;
-	strcpy(fe->i_signature, OCFS2_INODE_SIGNATURE);
+	strscpy(fe->i_signature, OCFS2_INODE_SIGNATURE);
 	fe->i_flags |= cpu_to_le32(OCFS2_VALID_FL);
 	ktime_get_coarse_real_ts64(&ts);
 	fe->i_atime = fe->i_ctime = fe->i_mtime =

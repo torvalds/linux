@@ -14,7 +14,10 @@ AXI4-Lite interface. DOES NOT support:
 	- AXI4 (non-lite)
 
 Required properties:
-- compatible: Should be "xlnx,axi-fifo-mm-s-4.1"
+- compatible: Should be one of:
+    "xlnx,axi-fifo-mm-s-4.1"
+    "xlnx,axi-fifo-mm-s-4.2"
+    "xlnx,axi-fifo-mm-s-4.3"
 - interrupt-names: Should be "interrupt"
 - interrupt-parent: Should be <&intc>
 - interrupts: Should contain interrupts lines.

@@ -486,6 +486,15 @@ config PINCTRL_PIC32MZDA
 	def_bool y if PIC32MZDA
 	select PINCTRL_PIC32
 
+config PINCTRL_PIC64GX
+	bool "pic64gx gpio2 pinctrl driver"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINCONF
+	default y
+	help
+	  This selects the pinctrl driver for gpio2 on pic64gx.
+
 config PINCTRL_PISTACHIO
 	bool "IMG Pistachio SoC pinctrl driver"
 	depends on OF && (MIPS || COMPILE_TEST)
@@ -496,6 +505,15 @@ config PINCTRL_PISTACHIO
 	select OF_GPIO
 	help
 	  This support pinctrl and GPIO driver for IMG Pistachio SoC.
+
+config PINCTRL_POLARFIRE_SOC
+	bool "Polarfire SoC pinctrl driver"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINCONF
+	default y
+	help
+	  This selects the pinctrl driver for Microchip Polarfire SoC.
 
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
@@ -686,6 +704,7 @@ source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
 source "drivers/pinctrl/berlin/Kconfig"
 source "drivers/pinctrl/cirrus/Kconfig"
+source "drivers/pinctrl/cix/Kconfig"
 source "drivers/pinctrl/freescale/Kconfig"
 source "drivers/pinctrl/intel/Kconfig"
 source "drivers/pinctrl/mediatek/Kconfig"

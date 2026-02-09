@@ -5,7 +5,7 @@
  * Author(s): Wei Yang <richard.weiyang@gmail.com>
  */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <strings.h>
 #include <pthread.h>
 #include <numa.h>

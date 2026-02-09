@@ -109,7 +109,7 @@ handle_vcei:
 	.align	5
 LEAF(r4k_wait)
 	/* Keep the ISA bit clear for calculations on local labels here. */
-0:	.fill 	0
+0:	.fill	0
 	/* Start of idle interrupt region. */
 	local_irq_enable
 	/*
@@ -121,7 +121,7 @@ LEAF(r4k_wait)
 	 */
 1:	.fill	0
 	/* The R2 EI/EHB sequence takes 8 bytes, otherwise pad up.  */
-	.if		1b - 0b > 32
+	.if	1b - 0b > 32
 	.error	"overlong idle interrupt region"
 	.elseif	1b - 0b > 8
 	.align	4
@@ -146,10 +146,10 @@ r4k_wait_exit:
 	MFC0	k0, CP0_EPC
 	/* Subtract/add 2 to let the ISA bit propagate through the mask.  */
 	PTR_LA	k1, r4k_wait_insn - 2
-	ori 	k0, r4k_wait_idle_size - 2
+	ori	k0, r4k_wait_idle_size - 2
 	.set	noreorder
 	bne	k0, k1, \handler
-	PTR_ADDIU 	k0, r4k_wait_exit - r4k_wait_insn + 2
+	 PTR_ADDIU	k0, r4k_wait_exit - r4k_wait_insn + 2
 	.set	reorder
 	MTC0	k0, CP0_EPC
 	.set pop

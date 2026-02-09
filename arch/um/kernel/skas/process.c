@@ -7,6 +7,7 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/task.h>
+#include <linux/smp-internal.h>
 
 #include <asm/tlbflush.h>
 
@@ -26,12 +27,12 @@ static int __init start_kernel_proc(void *unused)
 	return 0;
 }
 
-static char cpu0_irqstack[THREAD_SIZE] __aligned(THREAD_SIZE);
+char cpu_irqstacks[NR_CPUS][THREAD_SIZE] __aligned(THREAD_SIZE);
 
 int __init start_uml(void)
 {
-	stack_protections((unsigned long) &cpu0_irqstack);
-	set_sigstack(cpu0_irqstack, THREAD_SIZE);
+	stack_protections((unsigned long) &cpu_irqstacks[0]);
+	set_sigstack(cpu_irqstacks[0], THREAD_SIZE);
 
 	init_new_thread_signals();
 
@@ -63,4 +64,16 @@ void current_mm_sync(void)
 		return;
 
 	um_tlb_sync(current->mm);
+}
+
+static DEFINE_SPINLOCK(initial_jmpbuf_spinlock);
+
+void initial_jmpbuf_lock(void)
+{
+	spin_lock_irq(&initial_jmpbuf_spinlock);
+}
+
+void initial_jmpbuf_unlock(void)
+{
+	spin_unlock_irq(&initial_jmpbuf_spinlock);
 }

@@ -764,6 +764,49 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 	return 0;
 }
 
+static sense_reason_t
+sbc_check_atomic(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
+{
+	struct se_dev_attrib *attrib = &dev->dev_attrib;
+	u16 boundary, transfer_len;
+	u64 lba;
+
+	lba = transport_lba_64(cdb);
+	boundary = get_unaligned_be16(&cdb[10]);
+	transfer_len = get_unaligned_be16(&cdb[12]);
+
+	if (!attrib->atomic_max_len)
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+
+	if (boundary) {
+		if (transfer_len > attrib->atomic_max_with_boundary)
+			return TCM_INVALID_CDB_FIELD;
+
+		if (boundary > attrib->atomic_max_boundary)
+			return TCM_INVALID_CDB_FIELD;
+	} else {
+		if (transfer_len > attrib->atomic_max_len)
+			return TCM_INVALID_CDB_FIELD;
+	}
+
+	if (attrib->atomic_granularity) {
+		if (transfer_len % attrib->atomic_granularity)
+			return TCM_INVALID_CDB_FIELD;
+
+		if (boundary && boundary % attrib->atomic_granularity)
+			return TCM_INVALID_CDB_FIELD;
+	}
+
+	if (dev->dev_attrib.atomic_alignment) {
+		u64 _lba = lba;
+
+		if (do_div(_lba, dev->dev_attrib.atomic_alignment))
+			return TCM_INVALID_CDB_FIELD;
+	}
+
+	return 0;
+}
+
 sense_reason_t
 sbc_parse_cdb(struct se_cmd *cmd, struct exec_cmd_ops *ops)
 {
@@ -861,6 +904,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct exec_cmd_ops *ops)
 		break;
 	case WRITE_16:
 	case WRITE_VERIFY_16:
+	case WRITE_ATOMIC_16:
 		sectors = transport_get_sectors_16(cdb);
 		cmd->t_task_lba = transport_lba_64(cdb);
 
@@ -872,6 +916,13 @@ sbc_parse_cdb(struct se_cmd *cmd, struct exec_cmd_ops *ops)
 			return ret;
 
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
+		if (cdb[0] == WRITE_ATOMIC_16) {
+			cmd->se_cmd_flags |= SCF_ATOMIC;
+
+			ret = sbc_check_atomic(dev, cmd, cdb);
+			if (ret)
+				return ret;
+		}
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
 	case VARIABLE_LENGTH_CMD:

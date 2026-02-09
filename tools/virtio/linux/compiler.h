@@ -2,7 +2,11 @@
 #ifndef LINUX_COMPILER_H
 #define LINUX_COMPILER_H
 
+/* Avoid redefinition warnings */
+#undef __user
 #include "../../../include/linux/compiler_types.h"
+#undef __user
+#define __user
 
 #define WRITE_ONCE(var, val) \
 	(*((volatile typeof(val) *)(&(var))) = (val))
@@ -31,8 +35,10 @@
  */
 #define data_race(expr)							\
 ({									\
-	__auto_type __v = (expr);					\
+	auto __v = (expr);						\
 	__v;								\
 })
+
+#define __must_check
 
 #endif

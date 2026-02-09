@@ -2218,6 +2218,11 @@
 			};
 		};
 
+		refgen: regulator@ff1000 {
+			compatible = "qcom,sdm845-refgen-regulator";
+			reg = <0x0 0x00ff1000 0x0 0x60>;
+		};
+
 		llcc: system-cache-controller@1100000 {
 			compatible = "qcom,sdm845-llcc";
 			reg = <0 0x01100000 0 0x45000>, <0 0x01180000 0 0x50000>,
@@ -4750,6 +4755,8 @@
 
 				phys = <&mdss_dsi0_phy>;
 
+				refgen-supply = <&refgen>;
+
 				status = "disabled";
 
 				#address-cells = <1>;
@@ -4824,6 +4831,8 @@
 
 				phys = <&mdss_dsi1_phy>;
 
+				refgen-supply = <&refgen>;
+
 				status = "disabled";
 
 				#address-cells = <1>;
@@ -4892,6 +4901,10 @@
 			interconnect-names = "gfx-mem";
 
 			status = "disabled";
+
+			gpu_zap_shader: zap-shader {
+				memory-region = <&gpu_mem>;
+			};
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";

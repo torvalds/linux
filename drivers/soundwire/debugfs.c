@@ -222,15 +222,23 @@ DEFINE_DEBUGFS_ATTRIBUTE(set_num_bytes_fops, NULL,
 static int do_bpt_sequence(struct sdw_slave *slave, bool write, u8 *buffer)
 {
 	struct sdw_bpt_msg msg = {0};
+	struct sdw_bpt_section *sec;
 
-	msg.addr = start_addr;
-	msg.len = num_bytes;
+	sec = kcalloc(1, sizeof(*sec), GFP_KERNEL);
+	if (!sec)
+		return -ENOMEM;
+	msg.sections = 1;
+
+	sec[0].addr = start_addr;
+	sec[0].len = num_bytes;
+
+	msg.sec = sec;
 	msg.dev_num = slave->dev_num;
 	if (write)
 		msg.flags = SDW_MSG_FLAG_WRITE;
 	else
 		msg.flags = SDW_MSG_FLAG_READ;
-	msg.buf = buffer;
+	sec[0].buf = buffer;
 
 	return sdw_bpt_send_sync(slave->bus, slave, &msg);
 }

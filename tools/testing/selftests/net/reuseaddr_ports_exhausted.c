@@ -22,7 +22,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 struct reuse_opts {
 	int reuseaddr[2];

@@ -5,7 +5,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static void test_limit(void)
 {

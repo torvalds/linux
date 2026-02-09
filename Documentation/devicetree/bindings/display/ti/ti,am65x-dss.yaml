@@ -84,8 +84,7 @@ properties:
     maxItems: 1
     description: phandle to the associated power domain
 
-  dma-coherent:
-    type: boolean
+  dma-coherent: true
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports

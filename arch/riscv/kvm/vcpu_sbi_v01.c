@@ -32,8 +32,7 @@ static int kvm_sbi_ext_v01_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 * The CONSOLE_GETCHAR/CONSOLE_PUTCHAR SBI calls cannot be
 		 * handled in kernel so we forward these to user-space
 		 */
-		kvm_riscv_vcpu_sbi_forward(vcpu, run);
-		retdata->uexit = true;
+		ret = kvm_riscv_vcpu_sbi_forward_handler(vcpu, run, retdata);
 		break;
 	case SBI_EXT_0_1_SET_TIMER:
 #if __riscv_xlen == 32

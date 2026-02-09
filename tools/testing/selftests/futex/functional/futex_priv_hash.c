@@ -14,7 +14,7 @@
 #include <linux/prctl.h>
 #include <sys/prctl.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define MAX_THREADS	64
 

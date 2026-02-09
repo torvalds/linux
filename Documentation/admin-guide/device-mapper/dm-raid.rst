@@ -20,10 +20,10 @@ The target is named "raid" and it accepts the following parameters::
   raid0		RAID0 striping (no resilience)
   raid1		RAID1 mirroring
   raid4		RAID4 with dedicated last parity disk
-  raid5_n 	RAID5 with dedicated last parity disk supporting takeover
+  raid5_n 	RAID5 with dedicated last parity disk supporting takeover from/to raid1
 		Same as raid4
 
-		- Transitory layout
+		- Transitory layout for takeover from/to raid1
   raid5_la	RAID5 left asymmetric
 
 		- rotating parity 0 with data continuation
@@ -48,8 +48,8 @@ The target is named "raid" and it accepts the following parameters::
   raid6_n_6	RAID6 with dedicate parity disks
 
 		- parity and Q-syndrome on the last 2 disks;
-		  layout for takeover from/to raid4/raid5_n
-  raid6_la_6	Same as "raid_la" plus dedicated last Q-syndrome disk
+		  layout for takeover from/to raid0/raid4/raid5_n
+  raid6_la_6	Same as "raid_la" plus dedicated last Q-syndrome disk supporting takeover from/to raid5
 
 		- layout for takeover from raid5_la from/to raid6
   raid6_ra_6	Same as "raid5_ra" dedicated last Q-syndrome disk
@@ -173,9 +173,9 @@ The target is named "raid" and it accepts the following parameters::
 		The delta_disks option value (-251 < N < +251) triggers
 		device removal (negative value) or device addition (positive
 		value) to any reshape supporting raid levels 4/5/6 and 10.
-		RAID levels 4/5/6 allow for addition of devices (metadata
-		and data device tuple), raid10_near and raid10_offset only
-		allow for device addition. raid10_far does not support any
+		RAID levels 4/5/6 allow for addition and removal of devices
+                (metadata and data device tuple), raid10_near and raid10_offset
+                only allow for device addition. raid10_far does not support any
 		reshaping at all.
 		A minimum of devices have to be kept to enforce resilience,
 		which is 3 devices for raid4/5 and 4 devices for raid6.
@@ -370,6 +370,72 @@ For trusted devices, the following dm-raid module parameter can be set
 to safely enable discard support for RAID 4/5/6:
 
     'devices_handle_discards_safely'
+
+
+Takeover/Reshape Support
+------------------------
+The target natively supports these two types of MDRAID conversions:
+
+o Takeover: Converts an array from one RAID level to another
+
+o Reshape: Changes the internal layout while maintaining the current RAID level
+
+Each operation is only valid under specific constraints imposed by the existing array's layout and configuration.
+
+
+Takeover:
+linear -> raid1 with N >= 2 mirrors
+raid0 -> raid4 (add dedicated parity device)
+raid0 -> raid5 (add dedicated parity device)
+raid0 -> raid10 with near layout and N >= 2 mirror groups (raid0 stripes have to become first member within mirror groups)
+raid1 -> linear
+raid1 -> raid5 with 2 mirrors
+raid4 -> raid5 w/ rotating parity
+raid5 with dedicated parity device -> raid4
+raid5 -> raid6 (with dedicated Q-syndrome)
+raid6 (with dedicated Q-syndrome) -> raid5
+raid10 with near layout and even number of disks -> raid0 (select any in-sync device from each mirror group)
+
+Reshape:
+linear: not possible
+raid0:  not possible
+raid1:  change number of mirrors
+raid4:  add and remove stripes (minimum 3), change stripesize
+raid5:  add and remove stripes (minimum 3, special case 2 for raid1 takeover), change rotating parity algorithms, change stripesize
+raid6:  add and remove stripes (minimum 4), change rotating syndrome algorithms, change stripesize
+raid10 near:   add stripes (minimum 4), change stripesize, no stripe removal possible, change to offset layout
+raid10 offset: add stripes, change stripesize, no stripe removal possible, change to near layout
+raid10 far:    not possible
+
+Table line examples:
+
+### raid1 -> raid5
+#
+# 2 devices limitation in raid1.
+# raid5 personality is able to just map 2 like raid1.
+# Reshape after takeover to change to full raid5 layout
+
+  0 1960886272 raid raid1 3 0 region_size 2048 2 /dev/dm-0 /dev/dm-1 /dev/dm-2 /dev/dm-3
+
+# dm-0 and dm-2 are e.g. 4MiB large metadata devices, dm-1 and dm-3 have to be at least 1960886272 big.
+#
+# Table line to takeover to raid5
+
+  0 1960886272 raid raid5 3 0 region_size 2048 2 /dev/dm-0 /dev/dm-1 /dev/dm-2 /dev/dm-3
+
+# Add required out-of-place reshape space to the beginniong of the given 2 data devices,
+# allocate another metadata/data device tuple with the same sizes for the parity space
+# and zero the first 4K of the metadata device.
+#
+# Example table of the out-of-place reshape space addition for one data device, e.g. dm-1
+
+  0 8192 linear 8:0 0 1960903888 #  <- must be free space segment
+  8192 1960886272 linear 8:0 0 2048 # previous data segment
+
+# Mapping table for e.g. raid5_rs reshape causing the size of the raid device to double-fold once the reshape finishes.
+# Check the status output (e.g. "dmsetup status $RaidDev") for progess.
+
+  0 $((2 * 1960886272)) raid raid5 7 0 region_size 2048 data_offset 8192 delta_disk 1 2 /dev/dm-0 /dev/dm-1 /dev/dm-2 /dev/dm-3
 
 
 Version History

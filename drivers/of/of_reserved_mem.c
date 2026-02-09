@@ -154,27 +154,24 @@ static int __init early_init_dt_reserve_memory(phys_addr_t base,
 static int __init __reserved_mem_reserve_reg(unsigned long node,
 					     const char *uname)
 {
-	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	phys_addr_t base, size;
-	int len;
+	int i, len;
 	const __be32 *prop;
 	bool nomap;
 
-	prop = of_get_flat_dt_prop(node, "reg", &len);
+	prop = of_flat_dt_get_addr_size_prop(node, "reg", &len);
 	if (!prop)
 		return -ENOENT;
 
-	if (len && len % t_len != 0) {
-		pr_err("Reserved memory: invalid reg property in '%s', skipping node.\n",
-		       uname);
-		return -EINVAL;
-	}
-
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
 
-	while (len >= t_len) {
-		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
-		size = dt_mem_next_cell(dt_root_size_cells, &prop);
+	for (i = 0; i < len; i++) {
+		u64 b, s;
+
+		of_flat_dt_read_addr_size(prop, i, &b, &s);
+
+		base = b;
+		size = s;
 
 		if (size && early_init_dt_reserve_memory(base, size, nomap) == 0) {
 			/* Architecture specific contiguous memory fixup. */
@@ -187,8 +184,6 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 			pr_err("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
 			       uname, &base, (unsigned long)(size / SZ_1M));
 		}
-
-		len -= t_len;
 	}
 	return 0;
 }
@@ -230,12 +225,9 @@ static void __init __rmem_check_for_overlap(void);
  */
 void __init fdt_scan_reserved_mem_reg_nodes(void)
 {
-	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	const void *fdt = initial_boot_params;
 	phys_addr_t base, size;
-	const __be32 *prop;
 	int node, child;
-	int len;
 
 	if (!fdt)
 		return;
@@ -256,29 +248,21 @@ void __init fdt_scan_reserved_mem_reg_nodes(void)
 
 	fdt_for_each_subnode(child, fdt, node) {
 		const char *uname;
+		u64 b, s;
 
-		prop = of_get_flat_dt_prop(child, "reg", &len);
-		if (!prop)
-			continue;
 		if (!of_fdt_device_is_available(fdt, child))
 			continue;
 
-		uname = fdt_get_name(fdt, child, NULL);
-		if (len && len % t_len != 0) {
-			pr_err("Reserved memory: invalid reg property in '%s', skipping node.\n",
-			       uname);
+		if (!of_flat_dt_get_addr_size(child, "reg", &b, &s))
 			continue;
-		}
 
-		if (len > t_len)
-			pr_warn("%s() ignores %d regions in node '%s'\n",
-				__func__, len / t_len - 1, uname);
+		base = b;
+		size = s;
 
-		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
-		size = dt_mem_next_cell(dt_root_size_cells, &prop);
-
-		if (size)
+		if (size) {
+			uname = fdt_get_name(fdt, child, NULL);
 			fdt_reserved_mem_save_node(child, uname, base, size);
+		}
 	}
 
 	/* check for overlapping reserved regions */
@@ -401,10 +385,9 @@ static int __init __reserved_mem_alloc_in_range(phys_addr_t size,
  */
 static int __init __reserved_mem_alloc_size(unsigned long node, const char *uname)
 {
-	int t_len = (dt_root_addr_cells + dt_root_size_cells) * sizeof(__be32);
 	phys_addr_t start = 0, end = 0;
 	phys_addr_t base = 0, align = 0, size;
-	int len;
+	int i, len;
 	const __be32 *prop;
 	bool nomap;
 	int ret;
@@ -438,19 +421,15 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 	    && !nomap)
 		align = max_t(phys_addr_t, align, CMA_MIN_ALIGNMENT_BYTES);
 
-	prop = of_get_flat_dt_prop(node, "alloc-ranges", &len);
+	prop = of_flat_dt_get_addr_size_prop(node, "alloc-ranges", &len);
 	if (prop) {
+		for (i = 0; i < len; i++) {
+			u64 b, s;
 
-		if (len % t_len != 0) {
-			pr_err("invalid alloc-ranges property in '%s', skipping node.\n",
-			       uname);
-			return -EINVAL;
-		}
+			of_flat_dt_read_addr_size(prop, i, &b, &s);
 
-		while (len > 0) {
-			start = dt_mem_next_cell(dt_root_addr_cells, &prop);
-			end = start + dt_mem_next_cell(dt_root_size_cells,
-						       &prop);
+			start = b;
+			end = b + s;
 
 			base = 0;
 			ret = __reserved_mem_alloc_in_range(size, align,
@@ -461,9 +440,7 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 					(unsigned long)(size / SZ_1M));
 				break;
 			}
-			len -= t_len;
 		}
-
 	} else {
 		ret = early_init_dt_alloc_reserved_memory_arch(size, align,
 							0, 0, nomap, &base);

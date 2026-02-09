@@ -9796,11 +9796,6 @@ qla4xxx_pci_slot_reset(struct pci_dev *pdev)
 	 */
 	pci_restore_state(pdev);
 
-	/* pci_restore_state() clears the saved_state flag of the device
-	 * save restored state which resets saved_state flag
-	 */
-	pci_save_state(pdev);
-
 	/* Initialize device or resume if in suspended state */
 	rc = pci_enable_device(pdev);
 	if (rc) {

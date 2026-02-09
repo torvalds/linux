@@ -48,7 +48,14 @@ versus "has_error_code", i.e. KVM's ABI follows AMD behavior.
 Nested virtualization features
 ------------------------------
 
-TBD
+On AMD CPUs, when GIF is cleared, #DB exceptions or traps due to a breakpoint
+register match are ignored and discarded by the CPU. The CPU relies on the VMM
+to fully virtualize this behavior, even when vGIF is enabled for the guest
+(i.e. vGIF=0 does not cause the CPU to drop #DBs when the guest is running).
+KVM does not virtualize this behavior as the complexity is unjustified given
+the rarity of the use case. One way to handle this would be for KVM to
+intercept the #DB, temporarily disable the breakpoint, single-step over the
+instruction, then re-enable the breakpoint.
 
 x2APIC
 ------

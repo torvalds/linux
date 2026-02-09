@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <sys/xattr.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "wrappers.h"
 
 TEST(kernfs_listxattr)

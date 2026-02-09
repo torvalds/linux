@@ -13,7 +13,8 @@
 #include <linux/fs.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
+#include <linux/fs_context.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <net/9p/9p.h>
@@ -33,6 +34,10 @@ struct kmem_cache *v9fs_inode_cache;
  */
 
 enum {
+	/* Mount-point source, we need to handle this explicitly because
+	 * the code below accepts unknown args and the vfs layer only handles
+	 * source if we rejected it as EINVAL */
+	Opt_source,
 	/* Options that take integer arguments */
 	Opt_debug, Opt_dfltuid, Opt_dfltgid, Opt_afid,
 	/* String options */
@@ -43,27 +48,71 @@ enum {
 	Opt_access, Opt_posixacl,
 	/* Lock timeout option */
 	Opt_locktimeout,
-	/* Error token */
-	Opt_err
+
+	/* Client options */
+	Opt_msize, Opt_trans, Opt_legacy, Opt_version,
+
+	/* fd transport options */
+	/* Options that take integer arguments */
+	Opt_rfdno, Opt_wfdno,
+	/* Options that take no arguments */
+
+	/* rdma transport options */
+	/* Options that take integer arguments */
+	Opt_rq_depth, Opt_sq_depth, Opt_timeout,
+
+	/* Options for both fd and rdma transports */
+	Opt_port, Opt_privport,
 };
 
-static const match_table_t tokens = {
-	{Opt_debug, "debug=%x"},
-	{Opt_dfltuid, "dfltuid=%u"},
-	{Opt_dfltgid, "dfltgid=%u"},
-	{Opt_afid, "afid=%u"},
-	{Opt_uname, "uname=%s"},
-	{Opt_remotename, "aname=%s"},
-	{Opt_nodevmap, "nodevmap"},
-	{Opt_noxattr, "noxattr"},
-	{Opt_directio, "directio"},
-	{Opt_ignoreqv, "ignoreqv"},
-	{Opt_cache, "cache=%s"},
-	{Opt_cachetag, "cachetag=%s"},
-	{Opt_access, "access=%s"},
-	{Opt_posixacl, "posixacl"},
-	{Opt_locktimeout, "locktimeout=%u"},
-	{Opt_err, NULL}
+static const struct constant_table p9_versions[] = {
+	{ "9p2000",	p9_proto_legacy },
+	{ "9p2000.u",	p9_proto_2000u },
+	{ "9p2000.L",	p9_proto_2000L },
+	{}
+};
+
+/*
+ * This structure contains all parameters used for the core code,
+ * the client, and all the transports.
+ */
+const struct fs_parameter_spec v9fs_param_spec[] = {
+	fsparam_string	("source",	Opt_source),
+	fsparam_u32hex	("debug",	Opt_debug),
+	fsparam_uid	("dfltuid",	Opt_dfltuid),
+	fsparam_gid	("dfltgid",	Opt_dfltgid),
+	fsparam_u32	("afid",	Opt_afid),
+	fsparam_string	("uname",	Opt_uname),
+	fsparam_string	("aname",	Opt_remotename),
+	fsparam_flag	("nodevmap",	Opt_nodevmap),
+	fsparam_flag	("noxattr",	Opt_noxattr),
+	fsparam_flag	("directio",	Opt_directio),
+	fsparam_flag	("ignoreqv",	Opt_ignoreqv),
+	fsparam_string	("cache",	Opt_cache),
+	fsparam_string	("cachetag",	Opt_cachetag),
+	fsparam_string	("access",	Opt_access),
+	fsparam_flag	("posixacl",	Opt_posixacl),
+	fsparam_u32	("locktimeout",	Opt_locktimeout),
+
+	/* client options */
+	fsparam_u32	("msize",	Opt_msize),
+	fsparam_flag	("noextend",	Opt_legacy),
+	fsparam_string	("trans",	Opt_trans),
+	fsparam_enum	("version",	Opt_version, p9_versions),
+
+	/* fd transport options */
+	fsparam_u32	("rfdno",	Opt_rfdno),
+	fsparam_u32	("wfdno",	Opt_wfdno),
+
+	/* rdma transport options */
+	fsparam_u32	("sq",		Opt_sq_depth),
+	fsparam_u32	("rq",		Opt_rq_depth),
+	fsparam_u32	("timeout",	Opt_timeout),
+
+	/* fd and rdma transprt options */
+	fsparam_u32	("port",	Opt_port),
+	fsparam_flag	("privport",	Opt_privport),
+	{}
 };
 
 /* Interpret mount options for cache mode */
@@ -101,7 +150,7 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 	struct v9fs_session_info *v9ses = root->d_sb->s_fs_info;
 
 	if (v9ses->debug)
-		seq_printf(m, ",debug=%x", v9ses->debug);
+		seq_printf(m, ",debug=%#x", v9ses->debug);
 	if (!uid_eq(v9ses->dfltuid, V9FS_DEFUID))
 		seq_printf(m, ",dfltuid=%u",
 			   from_kuid_munged(&init_user_ns, v9ses->dfltuid));
@@ -117,7 +166,7 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 	if (v9ses->nodev)
 		seq_puts(m, ",nodevmap");
 	if (v9ses->cache)
-		seq_printf(m, ",cache=%x", v9ses->cache);
+		seq_printf(m, ",cache=%#x", v9ses->cache);
 #ifdef CONFIG_9P_FSCACHE
 	if (v9ses->cachetag && (v9ses->cache & CACHE_FSCACHE))
 		seq_printf(m, ",cachetag=%s", v9ses->cachetag);
@@ -153,267 +202,254 @@ int v9fs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 /**
- * v9fs_parse_options - parse mount options into session structure
- * @v9ses: existing v9fs session information
- * @opts: The mount option string
+ * v9fs_parse_param - parse a mount option into the filesystem context
+ * @fc: the filesystem context
+ * @param: the parameter to parse
  *
  * Return 0 upon success, -ERRNO upon failure.
  */
-
-static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
+int v9fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *options, *tmp_options;
-	substring_t args[MAX_OPT_ARGS];
-	char *p;
-	int option = 0;
+	struct v9fs_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
 	char *s;
-	int ret = 0;
+	int r;
+	int opt;
+	struct p9_client_opts	*clnt = &ctx->client_opts;
+	struct p9_fd_opts	*fd_opts = &ctx->fd_opts;
+	struct p9_rdma_opts	*rdma_opts = &ctx->rdma_opts;
+	struct p9_session_opts	*session_opts = &ctx->session_opts;
 
-	/* setup defaults */
-	v9ses->afid = ~0;
-	v9ses->debug = 0;
-	v9ses->cache = CACHE_NONE;
-#ifdef CONFIG_9P_FSCACHE
-	v9ses->cachetag = NULL;
-#endif
-	v9ses->session_lock_timeout = P9_LOCK_TIMEOUT;
+	opt = fs_parse(fc, v9fs_param_spec, param, &result);
+	if (opt < 0) {
+		/*
+		 * We might like to report bad mount options here, but
+		 * traditionally 9p has ignored unknown mount options
+		 */
+		if (opt == -ENOPARAM)
+			return 0;
 
-	if (!opts)
-		return 0;
-
-	tmp_options = kstrdup(opts, GFP_KERNEL);
-	if (!tmp_options) {
-		ret = -ENOMEM;
-		goto fail_option_alloc;
+		return opt;
 	}
-	options = tmp_options;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token, r;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_debug:
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				ret = r;
-			} else {
-				v9ses->debug = option;
-#ifdef CONFIG_NET_9P_DEBUG
-				p9_debug_level = option;
-#endif
-			}
-			break;
-
-		case Opt_dfltuid:
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				ret = r;
-				continue;
-			}
-			v9ses->dfltuid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(v9ses->dfltuid)) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "uid field, but not a uid?\n");
-				ret = -EINVAL;
-			}
-			break;
-		case Opt_dfltgid:
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				ret = r;
-				continue;
-			}
-			v9ses->dfltgid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(v9ses->dfltgid)) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "gid field, but not a gid?\n");
-				ret = -EINVAL;
-			}
-			break;
-		case Opt_afid:
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				ret = r;
-			} else {
-				v9ses->afid = option;
-			}
-			break;
-		case Opt_uname:
-			kfree(v9ses->uname);
-			v9ses->uname = match_strdup(&args[0]);
-			if (!v9ses->uname) {
-				ret = -ENOMEM;
-				goto free_and_return;
-			}
-			break;
-		case Opt_remotename:
-			kfree(v9ses->aname);
-			v9ses->aname = match_strdup(&args[0]);
-			if (!v9ses->aname) {
-				ret = -ENOMEM;
-				goto free_and_return;
-			}
-			break;
-		case Opt_nodevmap:
-			v9ses->nodev = 1;
-			break;
-		case Opt_noxattr:
-			v9ses->flags |= V9FS_NO_XATTR;
-			break;
-		case Opt_directio:
-			v9ses->flags |= V9FS_DIRECT_IO;
-			break;
-		case Opt_ignoreqv:
-			v9ses->flags |= V9FS_IGNORE_QV;
-			break;
-		case Opt_cachetag:
-#ifdef CONFIG_9P_FSCACHE
-			kfree(v9ses->cachetag);
-			v9ses->cachetag = match_strdup(&args[0]);
-			if (!v9ses->cachetag) {
-				ret = -ENOMEM;
-				goto free_and_return;
-			}
-#endif
-			break;
-		case Opt_cache:
-			s = match_strdup(&args[0]);
-			if (!s) {
-				ret = -ENOMEM;
-				p9_debug(P9_DEBUG_ERROR,
-					 "problem allocating copy of cache arg\n");
-				goto free_and_return;
-			}
-			r = get_cache_mode(s);
-			if (r < 0)
-				ret = r;
-			else
-				v9ses->cache = r;
-
-			kfree(s);
-			break;
-
-		case Opt_access:
-			s = match_strdup(&args[0]);
-			if (!s) {
-				ret = -ENOMEM;
-				p9_debug(P9_DEBUG_ERROR,
-					 "problem allocating copy of access arg\n");
-				goto free_and_return;
-			}
-
-			v9ses->flags &= ~V9FS_ACCESS_MASK;
-			if (strcmp(s, "user") == 0)
-				v9ses->flags |= V9FS_ACCESS_USER;
-			else if (strcmp(s, "any") == 0)
-				v9ses->flags |= V9FS_ACCESS_ANY;
-			else if (strcmp(s, "client") == 0) {
-				v9ses->flags |= V9FS_ACCESS_CLIENT;
-			} else {
-				uid_t uid;
-
-				v9ses->flags |= V9FS_ACCESS_SINGLE;
-				r = kstrtouint(s, 10, &uid);
-				if (r) {
-					ret = r;
-					pr_info("Unknown access argument %s: %d\n",
-						s, r);
-					kfree(s);
-					continue;
-				}
-				v9ses->uid = make_kuid(current_user_ns(), uid);
-				if (!uid_valid(v9ses->uid)) {
-					ret = -EINVAL;
-					pr_info("Unknown uid %s\n", s);
-				}
-			}
-
-			kfree(s);
-			break;
-
-		case Opt_posixacl:
-#ifdef CONFIG_9P_FS_POSIX_ACL
-			v9ses->flags |= V9FS_POSIX_ACL;
-#else
-			p9_debug(P9_DEBUG_ERROR,
-				 "Not defined CONFIG_9P_FS_POSIX_ACL. Ignoring posixacl option\n");
-#endif
-			break;
-
-		case Opt_locktimeout:
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				ret = r;
-				continue;
-			}
-			if (option < 1) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "locktimeout must be a greater than zero integer.\n");
-				ret = -EINVAL;
-				continue;
-			}
-			v9ses->session_lock_timeout = (long)option * HZ;
-			break;
-
-		default:
-			continue;
+	switch (opt) {
+	case Opt_source:
+		if (fc->source) {
+			pr_info("p9: multiple sources not supported\n");
+			return -EINVAL;
 		}
+		fc->source = param->string;
+		param->string = NULL;
+		break;
+	case Opt_debug:
+		session_opts->debug = result.uint_32;
+#ifdef CONFIG_NET_9P_DEBUG
+		p9_debug_level = result.uint_32;
+#endif
+		break;
+
+	case Opt_dfltuid:
+		session_opts->dfltuid = result.uid;
+		break;
+	case Opt_dfltgid:
+		session_opts->dfltgid = result.gid;
+		break;
+	case Opt_afid:
+		session_opts->afid = result.uint_32;
+		break;
+	case Opt_uname:
+		kfree(session_opts->uname);
+		session_opts->uname = param->string;
+		param->string = NULL;
+		break;
+	case Opt_remotename:
+		kfree(session_opts->aname);
+		session_opts->aname = param->string;
+		param->string = NULL;
+		break;
+	case Opt_nodevmap:
+		session_opts->nodev = 1;
+		break;
+	case Opt_noxattr:
+		session_opts->flags |= V9FS_NO_XATTR;
+		break;
+	case Opt_directio:
+		session_opts->flags |= V9FS_DIRECT_IO;
+		break;
+	case Opt_ignoreqv:
+		session_opts->flags |= V9FS_IGNORE_QV;
+		break;
+	case Opt_cachetag:
+#ifdef CONFIG_9P_FSCACHE
+		kfree(session_opts->cachetag);
+		session_opts->cachetag = param->string;
+		param->string = NULL;
+#endif
+		break;
+	case Opt_cache:
+		r = get_cache_mode(param->string);
+		if (r < 0)
+			return r;
+		session_opts->cache = r;
+		break;
+	case Opt_access:
+		s = param->string;
+		session_opts->flags &= ~V9FS_ACCESS_MASK;
+		if (strcmp(s, "user") == 0) {
+			session_opts->flags |= V9FS_ACCESS_USER;
+		} else if (strcmp(s, "any") == 0) {
+			session_opts->flags |= V9FS_ACCESS_ANY;
+		} else if (strcmp(s, "client") == 0) {
+			session_opts->flags |= V9FS_ACCESS_CLIENT;
+		} else {
+			uid_t uid;
+
+			session_opts->flags |= V9FS_ACCESS_SINGLE;
+			r = kstrtouint(s, 10, &uid);
+			if (r) {
+				pr_info("Unknown access argument %s: %d\n",
+					param->string, r);
+				return r;
+			}
+			session_opts->uid = make_kuid(current_user_ns(), uid);
+			if (!uid_valid(session_opts->uid)) {
+				pr_info("Unknown uid %s\n", s);
+				return -EINVAL;
+			}
+		}
+		break;
+
+	case Opt_posixacl:
+#ifdef CONFIG_9P_FS_POSIX_ACL
+		session_opts->flags |= V9FS_POSIX_ACL;
+#else
+		p9_debug(P9_DEBUG_ERROR,
+			 "Not defined CONFIG_9P_FS_POSIX_ACL. Ignoring posixacl option\n");
+#endif
+		break;
+
+	case Opt_locktimeout:
+		if (result.uint_32 < 1) {
+			p9_debug(P9_DEBUG_ERROR,
+				 "locktimeout must be a greater than zero integer.\n");
+			return -EINVAL;
+		}
+		session_opts->session_lock_timeout = (long)result.uint_32 * HZ;
+		break;
+
+	/* Options for client */
+	case Opt_msize:
+		if (result.uint_32 < 4096) {
+			p9_debug(P9_DEBUG_ERROR, "msize should be at least 4k\n");
+			return -EINVAL;
+		}
+		if (result.uint_32 > INT_MAX) {
+			p9_debug(P9_DEBUG_ERROR, "msize too big\n");
+			return -EINVAL;
+		}
+		clnt->msize = result.uint_32;
+		break;
+	case Opt_trans:
+		v9fs_put_trans(clnt->trans_mod);
+		clnt->trans_mod = v9fs_get_trans_by_name(param->string);
+		if (!clnt->trans_mod) {
+			pr_info("Could not find request transport: %s\n",
+				param->string);
+			return -EINVAL;
+		}
+		break;
+	case Opt_legacy:
+		clnt->proto_version = p9_proto_legacy;
+		break;
+	case Opt_version:
+		clnt->proto_version = result.uint_32;
+		p9_debug(P9_DEBUG_9P, "Protocol version: %s\n", param->string);
+		break;
+	/* Options for fd transport */
+	case Opt_rfdno:
+		fd_opts->rfd = result.uint_32;
+		break;
+	case Opt_wfdno:
+		fd_opts->wfd = result.uint_32;
+		break;
+	/* Options for rdma transport */
+	case Opt_sq_depth:
+		rdma_opts->sq_depth = result.uint_32;
+		break;
+	case Opt_rq_depth:
+		rdma_opts->rq_depth = result.uint_32;
+		break;
+	case Opt_timeout:
+		rdma_opts->timeout = result.uint_32;
+		break;
+	/* Options for both fd and rdma transports */
+	case Opt_port:
+		fd_opts->port = result.uint_32;
+		rdma_opts->port = result.uint_32;
+		break;
+	case Opt_privport:
+		fd_opts->privport = true;
+		rdma_opts->port = true;
+		break;
 	}
 
-free_and_return:
-	kfree(tmp_options);
-fail_option_alloc:
-	return ret;
+	return 0;
+}
+
+static void v9fs_apply_options(struct v9fs_session_info *v9ses,
+		  struct fs_context *fc)
+{
+	struct v9fs_context	*ctx = fc->fs_private;
+
+	v9ses->debug = ctx->session_opts.debug;
+	v9ses->dfltuid = ctx->session_opts.dfltuid;
+	v9ses->dfltgid = ctx->session_opts.dfltgid;
+	v9ses->afid = ctx->session_opts.afid;
+	v9ses->uname = ctx->session_opts.uname;
+	ctx->session_opts.uname = NULL;
+	v9ses->aname = ctx->session_opts.aname;
+	ctx->session_opts.aname = NULL;
+	v9ses->nodev = ctx->session_opts.nodev;
+	/*
+	 * Note that we must |= flags here as session_init already
+	 * set basic flags. This adds in flags from parsed options.
+	 */
+	v9ses->flags |= ctx->session_opts.flags;
+#ifdef CONFIG_9P_FSCACHE
+	v9ses->cachetag = ctx->session_opts.cachetag;
+	ctx->session_opts.cachetag = NULL;
+#endif
+	v9ses->cache = ctx->session_opts.cache;
+	v9ses->uid = ctx->session_opts.uid;
+	v9ses->session_lock_timeout = ctx->session_opts.session_lock_timeout;
 }
 
 /**
  * v9fs_session_init - initialize session
  * @v9ses: session information structure
- * @dev_name: device being mounted
- * @data: options
+ * @fc: the filesystem mount context
  *
  */
 
 struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
-		  const char *dev_name, char *data)
+		  struct fs_context *fc)
 {
 	struct p9_fid *fid;
 	int rc = -ENOMEM;
 
-	v9ses->uname = kstrdup(V9FS_DEFUSER, GFP_KERNEL);
-	if (!v9ses->uname)
-		goto err_names;
-
-	v9ses->aname = kstrdup(V9FS_DEFANAME, GFP_KERNEL);
-	if (!v9ses->aname)
-		goto err_names;
 	init_rwsem(&v9ses->rename_sem);
 
-	v9ses->uid = INVALID_UID;
-	v9ses->dfltuid = V9FS_DEFUID;
-	v9ses->dfltgid = V9FS_DEFGID;
-
-	v9ses->clnt = p9_client_create(dev_name, data);
+	v9ses->clnt = p9_client_create(fc);
 	if (IS_ERR(v9ses->clnt)) {
 		rc = PTR_ERR(v9ses->clnt);
 		p9_debug(P9_DEBUG_ERROR, "problem initializing 9p client\n");
 		goto err_names;
 	}
 
+	/*
+	 * Initialize flags on the real v9ses. v9fs_apply_options below
+	 * will |= the additional flags from parsed options.
+	 */
 	v9ses->flags = V9FS_ACCESS_USER;
 
 	if (p9_is_proto_dotl(v9ses->clnt)) {
@@ -423,9 +459,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		v9ses->flags |= V9FS_PROTO_2000U;
 	}
 
-	rc = v9fs_parse_options(v9ses, data);
-	if (rc < 0)
-		goto err_clnt;
+	v9fs_apply_options(v9ses, fc);
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
@@ -471,7 +505,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 #ifdef CONFIG_9P_FSCACHE
 	/* register the session for caching */
 	if (v9ses->cache & CACHE_FSCACHE) {
-		rc = v9fs_cache_session_get_cookie(v9ses, dev_name);
+		rc = v9fs_cache_session_get_cookie(v9ses, fc->source);
 		if (rc < 0)
 			goto err_clnt;
 	}

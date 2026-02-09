@@ -666,6 +666,21 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_gic_dir(struct kvm_vcpu *vcpu,
+			   struct sys_reg_params *p,
+			   const struct sys_reg_desc *r)
+{
+	if (!kvm_has_gicv3(vcpu->kvm))
+		return undef_access(vcpu, p, r);
+
+	if (!p->is_write)
+		return undef_access(vcpu, p, r);
+
+	vgic_v3_deactivate(vcpu, p->regval);
+
+	return true;
+}
+
 static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
@@ -3373,7 +3388,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ICC_AP1R1_EL1), undef_access },
 	{ SYS_DESC(SYS_ICC_AP1R2_EL1), undef_access },
 	{ SYS_DESC(SYS_ICC_AP1R3_EL1), undef_access },
-	{ SYS_DESC(SYS_ICC_DIR_EL1), undef_access },
+	{ SYS_DESC(SYS_ICC_DIR_EL1), access_gic_dir },
 	{ SYS_DESC(SYS_ICC_RPR_EL1), undef_access },
 	{ SYS_DESC(SYS_ICC_SGI1R_EL1), access_gic_sgi },
 	{ SYS_DESC(SYS_ICC_ASGI1R_EL1), access_gic_sgi },
@@ -3770,7 +3785,8 @@ static bool handle_at_s1e01(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 {
 	u32 op = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
 
-	__kvm_at_s1e01(vcpu, op, p->regval);
+	if (__kvm_at_s1e01(vcpu, op, p->regval))
+		return false;
 
 	return true;
 }
@@ -3787,7 +3803,8 @@ static bool handle_at_s1e2(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		return false;
 	}
 
-	__kvm_at_s1e2(vcpu, op, p->regval);
+	if (__kvm_at_s1e2(vcpu, op, p->regval))
+		return false;
 
 	return true;
 }
@@ -3797,7 +3814,8 @@ static bool handle_at_s12(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 {
 	u32 op = sys_insn(p->Op0, p->Op1, p->CRn, p->CRm, p->Op2);
 
-	__kvm_at_s12(vcpu, op, p->regval);
+	if (__kvm_at_s12(vcpu, op, p->regval))
+		return false;
 
 	return true;
 }
@@ -4498,7 +4516,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ CP15_SYS_DESC(SYS_ICC_AP1R1_EL1), undef_access },
 	{ CP15_SYS_DESC(SYS_ICC_AP1R2_EL1), undef_access },
 	{ CP15_SYS_DESC(SYS_ICC_AP1R3_EL1), undef_access },
-	{ CP15_SYS_DESC(SYS_ICC_DIR_EL1), undef_access },
+	{ CP15_SYS_DESC(SYS_ICC_DIR_EL1), access_gic_dir },
 	{ CP15_SYS_DESC(SYS_ICC_RPR_EL1), undef_access },
 	{ CP15_SYS_DESC(SYS_ICC_IAR1_EL1), undef_access },
 	{ CP15_SYS_DESC(SYS_ICC_EOIR1_EL1), undef_access },

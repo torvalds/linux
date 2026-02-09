@@ -368,7 +368,7 @@
 
 
 
-extern struct bus_type sa1111_bus_type;
+extern const struct bus_type sa1111_bus_type;
 
 #define SA1111_DEVID_SBI	(1 << 0)
 #define SA1111_DEVID_SK		(1 << 1)

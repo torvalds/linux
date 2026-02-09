@@ -162,4 +162,84 @@ static int test__maps__merge_in(struct test_suite *t __maybe_unused, int subtest
 	return TEST_OK;
 }
 
-DEFINE_SUITE("maps__merge_in", maps__merge_in);
+static int test__maps__fixup_overlap_and_insert(struct test_suite *t __maybe_unused,
+						int subtest __maybe_unused)
+{
+	struct map_def initial_maps[] = {
+		{ "target_map", 1000, 2000 },
+		{ "next_map",   3000, 4000 },
+	};
+	struct map_def insert_split = { "split_map", 1400, 1600 };
+	struct map_def expected_after_split[] = {
+		{ "target_map", 1000, 1400 },
+		{ "split_map",  1400, 1600 },
+		{ "target_map", 1600, 2000 },
+		{ "next_map",   3000, 4000 },
+	};
+
+	struct map_def insert_eclipse = { "eclipse_map", 2500, 4500 };
+	struct map_def expected_final[] = {
+		{ "target_map",  1000, 1400 },
+		{ "split_map",   1400, 1600 },
+		{ "target_map",  1600, 2000 },
+		{ "eclipse_map", 2500, 4500 },
+		/* "next_map" (3000-4000) is removed */
+	};
+
+	struct map *map_split, *map_eclipse;
+	int ret;
+	unsigned int i;
+	struct maps *maps = maps__new(NULL);
+
+	TEST_ASSERT_VAL("failed to create maps", maps);
+
+	for (i = 0; i < ARRAY_SIZE(initial_maps); i++) {
+		struct map *map = dso__new_map(initial_maps[i].name);
+
+		TEST_ASSERT_VAL("failed to create map", map);
+		map__set_start(map, initial_maps[i].start);
+		map__set_end(map, initial_maps[i].end);
+		TEST_ASSERT_VAL("failed to insert map", maps__insert(maps, map) == 0);
+		map__put(map);
+	}
+
+	// Check splitting.
+	map_split = dso__new_map(insert_split.name);
+	TEST_ASSERT_VAL("failed to create split map", map_split);
+	map__set_start(map_split, insert_split.start);
+	map__set_end(map_split, insert_split.end);
+
+	ret = maps__fixup_overlap_and_insert(maps, map_split);
+	TEST_ASSERT_VAL("failed to fixup and insert split map", !ret);
+
+	map__zput(map_split);
+	ret = check_maps(expected_after_split, ARRAY_SIZE(expected_after_split), maps);
+	TEST_ASSERT_VAL("split check failed", !ret);
+
+	// Check cover 1 map with another.
+	map_eclipse = dso__new_map(insert_eclipse.name);
+	TEST_ASSERT_VAL("failed to create eclipse map", map_eclipse);
+	map__set_start(map_eclipse, insert_eclipse.start);
+	map__set_end(map_eclipse, insert_eclipse.end);
+
+	ret = maps__fixup_overlap_and_insert(maps, map_eclipse);
+	TEST_ASSERT_VAL("failed to fixup and insert eclipse map", !ret);
+
+	map__zput(map_eclipse);
+	ret = check_maps(expected_final, ARRAY_SIZE(expected_final), maps);
+	TEST_ASSERT_VAL("eclipse check failed", !ret);
+
+	maps__zput(maps);
+	return TEST_OK;
+}
+
+static struct test_case tests__maps[] = {
+	TEST_CASE("Test merge_in interface", maps__merge_in),
+	TEST_CASE("Test fix up overlap interface", maps__fixup_overlap_and_insert),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__maps = {
+	.desc = "Maps - per process mmaps abstraction",
+	.test_cases = tests__maps,
+};

@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "clone3_selftests.h"
 
 static void child_exit(int ret)

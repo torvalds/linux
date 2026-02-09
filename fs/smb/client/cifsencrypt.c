@@ -75,48 +75,35 @@ static int cifs_sig_iter(const struct iov_iter *iter, size_t maxsize,
 			 struct cifs_calc_sig_ctx *ctx)
 {
 	struct iov_iter tmp_iter = *iter;
-	int err = -EIO;
+	size_t did;
+	int err;
 
-	if (iterate_and_advance_kernel(&tmp_iter, maxsize, ctx, &err,
-				       cifs_sig_step) != maxsize)
-		return err;
+	did = iterate_and_advance_kernel(&tmp_iter, maxsize, ctx, &err,
+					 cifs_sig_step);
+	if (did != maxsize)
+		return smb_EIO2(smb_eio_trace_sig_iter, did, maxsize);
 	return 0;
 }
 
 int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 			  char *signature, struct cifs_calc_sig_ctx *ctx)
 {
-	int i;
+	struct iov_iter iter;
 	ssize_t rc;
-	struct kvec *iov = rqst->rq_iov;
-	int n_vec = rqst->rq_nvec;
+	size_t size = 0;
 
-	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
-	if (!is_smb1(server)) {
-		if (iov[0].iov_len <= 4)
-			return -EIO;
-		i = 0;
-	} else {
-		if (n_vec < 2 || iov[0].iov_len != 4)
-			return -EIO;
-		i = 1; /* skip rfc1002 length */
-	}
+	for (int i = 0; i < rqst->rq_nvec; i++)
+		size += rqst->rq_iov[i].iov_len;
 
-	for (; i < n_vec; i++) {
-		if (iov[i].iov_len == 0)
-			continue;
-		if (iov[i].iov_base == NULL) {
-			cifs_dbg(VFS, "null iovec entry\n");
-			return -EIO;
-		}
+	iov_iter_kvec(&iter, ITER_SOURCE, rqst->rq_iov, rqst->rq_nvec, size);
 
-		rc = cifs_sig_update(ctx, iov[i].iov_base, iov[i].iov_len);
-		if (rc) {
-			cifs_dbg(VFS, "%s: Could not update with payload\n",
-				 __func__);
-			return rc;
-		}
-	}
+	if (iov_iter_count(&iter) <= 4)
+		return smb_EIO2(smb_eio_trace_sig_data_too_small,
+				iov_iter_count(&iter), 4);
+
+	rc = cifs_sig_iter(&iter, iov_iter_count(&iter), ctx);
+	if (rc < 0)
+		return rc;
 
 	rc = cifs_sig_iter(&rqst->rq_iter, iov_iter_count(&rqst->rq_iter), ctx);
 	if (rc < 0)
@@ -165,10 +152,6 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	char smb_signature[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
 
-	if (rqst->rq_iov[0].iov_len != 4 ||
-	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
-		return -EIO;
-
 	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
@@ -201,30 +184,6 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	return rc;
 }
 
-int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *server,
-		   __u32 *pexpected_response_sequence)
-{
-	struct smb_rqst rqst = { .rq_iov = iov,
-				 .rq_nvec = n_vec };
-
-	return cifs_sign_rqst(&rqst, server, pexpected_response_sequence);
-}
-
-/* must be called with server->srv_mutex held */
-int cifs_sign_smb(struct smb_hdr *cifs_pdu, struct TCP_Server_Info *server,
-		  __u32 *pexpected_response_sequence_number)
-{
-	struct kvec iov[2];
-
-	iov[0].iov_base = cifs_pdu;
-	iov[0].iov_len = 4;
-	iov[1].iov_base = (char *)cifs_pdu + 4;
-	iov[1].iov_len = be32_to_cpu(cifs_pdu->smb_buf_length);
-
-	return cifs_sign_smbv(iov, 2, server,
-			      pexpected_response_sequence_number);
-}
-
 int cifs_verify_signature(struct smb_rqst *rqst,
 			  struct TCP_Server_Info *server,
 			  __u32 expected_sequence_number)
@@ -233,10 +192,6 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 	char server_response_sig[8];
 	char what_we_think_sig_should_be[20];
 	struct smb_hdr *cifs_pdu = (struct smb_hdr *)rqst->rq_iov[0].iov_base;
-
-	if (rqst->rq_iov[0].iov_len != 4 ||
-	    rqst->rq_iov[0].iov_base + 4 != rqst->rq_iov[1].iov_base)
-		return -EIO;
 
 	if (cifs_pdu == NULL || server == NULL)
 		return -EINVAL;

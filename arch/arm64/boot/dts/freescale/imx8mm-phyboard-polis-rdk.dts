@@ -1,7 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
 /*
  * Copyright (C) 2022 PHYTEC Messtechnik GmbH
- * Author: Teresa Remmet <t.remmet@phytec.de>
  */
 
 /dts-v1/;
@@ -285,6 +284,8 @@
 	over-current-active-low;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	samsung,picophy-dc-vol-level-adjust = <7>;
+	pinctrl-0 = <&pinctrl_usbotg1>;
+	pinctrl-names = "default";
 	srp-disable;
 	vbus-supply = <&reg_usb_otg1_vbus>;
 	status = "okay";
@@ -455,6 +456,12 @@
 	pinctrl_usbotg1pwrgrp: usbotg1pwrgrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12	0x00
+		>;
+	};
+
+	pinctrl_usbotg1: usbotg1grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO13_USB1_OTG_OC	0x00
 		>;
 	};
 

@@ -5,7 +5,6 @@
  */
 
 #include "glob.h"
-#include "nterr.h"
 #include "smb_common.h"
 #include "../common/smb2status.h"
 #include "mgmt/user_session.h"

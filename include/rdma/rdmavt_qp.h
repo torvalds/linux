@@ -144,7 +144,7 @@
 #define RVT_SEND_COMPLETION_ONLY	(IB_SEND_RESERVED_START << 1)
 
 /**
- * rvt_ud_wr - IB UD work plus AH cache
+ * struct rvt_ud_wr - IB UD work plus AH cache
  * @wr: valid IB work request
  * @attr: pointer to an allocated AH attribute
  *
@@ -184,10 +184,10 @@ struct rvt_swqe {
  * struct rvt_krwq - kernel struct receive work request
  * @p_lock: lock to protect producer of the kernel buffer
  * @head: index of next entry to fill
- * @c_lock:lock to protect consumer of the kernel buffer
+ * @c_lock: lock to protect consumer of the kernel buffer
  * @tail: index of next entry to pull
- * @count: count is aproximate of total receive enteries posted
- * @rvt_rwqe: struct of receive work request queue entry
+ * @count: count is approximate of total receive entries posted
+ * @curr_wq: struct of receive work request queue entry
  *
  * This structure is used to contain the head pointer,
  * tail pointer and receive work queue entries for kernel
@@ -309,10 +309,10 @@ struct rvt_ack_entry {
 #define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
 
 /**
- * rvt_operation_params - op table entry
- * @length - the length to copy into the swqe entry
- * @qpt_support - a bit mask indicating QP type support
- * @flags - RVT_OPERATION flags (see above)
+ * struct rvt_operation_params - op table entry
+ * @length: the length to copy into the swqe entry
+ * @qpt_support: a bit mask indicating QP type support
+ * @flags: RVT_OPERATION flags (see above)
  *
  * This supports table driven post send so that
  * the driver can have differing an potentially
@@ -552,7 +552,7 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 
 /**
  * rvt_is_user_qp - return if this is user mode QP
- * @qp - the target QP
+ * @qp: the target QP
  */
 static inline bool rvt_is_user_qp(struct rvt_qp *qp)
 {
@@ -561,7 +561,7 @@ static inline bool rvt_is_user_qp(struct rvt_qp *qp)
 
 /**
  * rvt_get_qp - get a QP reference
- * @qp - the QP to hold
+ * @qp: the QP to hold
  */
 static inline void rvt_get_qp(struct rvt_qp *qp)
 {
@@ -570,7 +570,7 @@ static inline void rvt_get_qp(struct rvt_qp *qp)
 
 /**
  * rvt_put_qp - release a QP reference
- * @qp - the QP to release
+ * @qp: the QP to release
  */
 static inline void rvt_put_qp(struct rvt_qp *qp)
 {
@@ -580,7 +580,7 @@ static inline void rvt_put_qp(struct rvt_qp *qp)
 
 /**
  * rvt_put_swqe - drop mr refs held by swqe
- * @wqe - the send wqe
+ * @wqe: the send wqe
  *
  * This drops any mr references held by the swqe
  */
@@ -597,8 +597,8 @@ static inline void rvt_put_swqe(struct rvt_swqe *wqe)
 
 /**
  * rvt_qp_wqe_reserve - reserve operation
- * @qp - the rvt qp
- * @wqe - the send wqe
+ * @qp: the rvt qp
+ * @wqe: the send wqe
  *
  * This routine used in post send to record
  * a wqe relative reserved operation use.
@@ -612,8 +612,8 @@ static inline void rvt_qp_wqe_reserve(
 
 /**
  * rvt_qp_wqe_unreserve - clean reserved operation
- * @qp - the rvt qp
- * @flags - send wqe flags
+ * @qp: the rvt qp
+ * @flags: send wqe flags
  *
  * This decrements the reserve use count.
  *
@@ -653,8 +653,8 @@ u32 rvt_restart_sge(struct rvt_sge_state *ss, struct rvt_swqe *wqe, u32 len);
 
 /**
  * rvt_div_round_up_mtu - round up divide
- * @qp - the qp pair
- * @len - the length
+ * @qp: the qp pair
+ * @len: the length
  *
  * Perform a shift based mtu round up divide
  */
@@ -664,8 +664,9 @@ static inline u32 rvt_div_round_up_mtu(struct rvt_qp *qp, u32 len)
 }
 
 /**
- * @qp - the qp pair
- * @len - the length
+ * rvt_div_mtu - shift-based divide
+ * @qp: the qp pair
+ * @len: the length
  *
  * Perform a shift based mtu divide
  */
@@ -676,7 +677,7 @@ static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
 
 /**
  * rvt_timeout_to_jiffies - Convert a ULP timeout input into jiffies
- * @timeout - timeout input(0 - 31).
+ * @timeout: timeout input(0 - 31).
  *
  * Return a timeout value in jiffies.
  */
@@ -690,7 +691,8 @@ static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
 
 /**
  * rvt_lookup_qpn - return the QP with the given QPN
- * @ibp: the ibport
+ * @rdi: rvt device info structure
+ * @rvp: the ibport
  * @qpn: the QP number to look up
  *
  * The caller must hold the rcu_read_lock(), and keep the lock until
@@ -716,9 +718,9 @@ static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
 }
 
 /**
- * rvt_mod_retry_timer - mod a retry timer
- * @qp - the QP
- * @shift - timeout shift to wait for multiple packets
+ * rvt_mod_retry_timer_ext - mod a retry timer
+ * @qp: the QP
+ * @shift: timeout shift to wait for multiple packets
  * Modify a potentially already running retry timer
  */
 static inline void rvt_mod_retry_timer_ext(struct rvt_qp *qp, u8 shift)
@@ -753,7 +755,7 @@ static inline void rvt_put_qp_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 }
 
 /**
- * rvt_qp_sqwe_incr - increment ring index
+ * rvt_qp_swqe_incr - increment ring index
  * @qp: the qp
  * @val: the starting value
  *
@@ -811,10 +813,10 @@ static inline void rvt_send_cq(struct rvt_qp *qp, struct ib_wc *wc,
 
 /**
  * rvt_qp_complete_swqe - insert send completion
- * @qp - the qp
- * @wqe - the send wqe
- * @opcode - wc operation (driver dependent)
- * @status - completion status
+ * @qp: the qp
+ * @wqe: the send wqe
+ * @opcode: wc operation (driver dependent)
+ * @status: completion status
  *
  * Update the s_last information, and then insert a send
  * completion into the completion
@@ -891,7 +893,7 @@ void rvt_ruc_loopback(struct rvt_qp *qp);
 
 /**
  * struct rvt_qp_iter - the iterator for QPs
- * @qp - the current QP
+ * @qp: the current QP
  *
  * This structure defines the current iterator
  * state for sequenced access to all QPs relative
@@ -913,7 +915,7 @@ struct rvt_qp_iter {
 
 /**
  * ib_cq_tail - Return tail index of cq buffer
- * @send_cq - The cq for send
+ * @send_cq: The cq for send
  *
  * This is called in qp_iter_print to get tail
  * of cq buffer.
@@ -929,7 +931,7 @@ static inline u32 ib_cq_tail(struct ib_cq *send_cq)
 
 /**
  * ib_cq_head - Return head index of cq buffer
- * @send_cq - The cq for send
+ * @send_cq: The cq for send
  *
  * This is called in qp_iter_print to get head
  * of cq buffer.
@@ -945,7 +947,7 @@ static inline u32 ib_cq_head(struct ib_cq *send_cq)
 
 /**
  * rvt_free_rq - free memory allocated for rvt_rq struct
- * @rvt_rq: request queue data structure
+ * @rq: request queue data structure
  *
  * This function should only be called if the rvt_mmap_info()
  * has not succeeded.

@@ -44,6 +44,9 @@ struct sclp_mem {
 	unsigned int id;
 	unsigned int memmap_on_memory;
 	unsigned int config;
+#ifdef CONFIG_KASAN
+	unsigned int early_shadow_mapped;
+#endif
 };
 
 struct sclp_mem_arg {
@@ -244,6 +247,16 @@ static ssize_t sclp_config_mem_store(struct kobject *kobj, struct kobj_attribute
 		put_device(&mem->dev);
 		sclp_mem_change_state(addr, block_size, 0);
 		__remove_memory(addr, block_size);
+#ifdef CONFIG_KASAN
+		if (sclp_mem->early_shadow_mapped) {
+			unsigned long start, end;
+
+			start = (unsigned long)kasan_mem_to_shadow(__va(addr));
+			end = start + (block_size >> KASAN_SHADOW_SCALE_SHIFT);
+			vmemmap_free(start, end, NULL);
+			sclp_mem->early_shadow_mapped = 0;
+		}
+#endif
 		WRITE_ONCE(sclp_mem->config, 0);
 	}
 out_unlock:
@@ -316,6 +329,9 @@ static int sclp_create_mem(struct sclp_mem *sclp_mem, struct kset *kset,
 
 	sclp_mem->memmap_on_memory = memmap_on_memory;
 	sclp_mem->config = config;
+#ifdef CONFIG_KASAN
+	sclp_mem->early_shadow_mapped = config;
+#endif
 	sclp_mem->id = id;
 	kobject_init(&sclp_mem->kobj, &ktype);
 	rc = kobject_add(&sclp_mem->kobj, &kset->kobj, "memory%d", id);

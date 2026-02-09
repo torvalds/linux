@@ -96,6 +96,49 @@
 	EX	fld.d	$f31, \base, (31 * FPU_REG_WIDTH)
 	.endm
 
+#ifdef CONFIG_32BIT
+	.macro sc_save_fcc thread tmp0 tmp1
+	movcf2gr	\tmp0, $fcc0
+	move		\tmp1, \tmp0
+	movcf2gr	\tmp0, $fcc1
+	bstrins.w	\tmp1, \tmp0, 15, 8
+	movcf2gr	\tmp0, $fcc2
+	bstrins.w	\tmp1, \tmp0, 23, 16
+	movcf2gr	\tmp0, $fcc3
+	bstrins.w	\tmp1, \tmp0, 31, 24
+	EX	st.w	\tmp1, \thread, THREAD_FCC
+	movcf2gr	\tmp0, $fcc4
+	move		\tmp1, \tmp0
+	movcf2gr	\tmp0, $fcc5
+	bstrins.w	\tmp1, \tmp0, 15, 8
+	movcf2gr	\tmp0, $fcc6
+	bstrins.w	\tmp1, \tmp0, 23, 16
+	movcf2gr	\tmp0, $fcc7
+	bstrins.w	\tmp1, \tmp0, 31, 24
+	EX	st.w	\tmp1, \thread, (THREAD_FCC + 4)
+	.endm
+
+	.macro sc_restore_fcc thread tmp0 tmp1
+	EX	ld.w	\tmp0, \thread, THREAD_FCC
+	bstrpick.w	\tmp1, \tmp0, 7, 0
+	movgr2cf	$fcc0, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 15, 8
+	movgr2cf	$fcc1, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 23, 16
+	movgr2cf	$fcc2, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 31, 24
+	movgr2cf	$fcc3, \tmp1
+	EX	ld.w	\tmp0, \thread, (THREAD_FCC + 4)
+	bstrpick.w	\tmp1, \tmp0, 7, 0
+	movgr2cf	$fcc4, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 15, 8
+	movgr2cf	$fcc5, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 23, 16
+	movgr2cf	$fcc6, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 31, 24
+	movgr2cf	$fcc7, \tmp1
+	.endm
+#else
 	.macro sc_save_fcc base, tmp0, tmp1
 	movcf2gr	\tmp0, $fcc0
 	move		\tmp1, \tmp0
@@ -135,6 +178,7 @@
 	bstrpick.d	\tmp1, \tmp0, 63, 56
 	movgr2cf	$fcc7, \tmp1
 	.endm
+#endif
 
 	.macro sc_save_fcsr base, tmp0
 	movfcsr2gr	\tmp0, fcsr0
@@ -410,6 +454,72 @@ SYM_FUNC_START(_init_fpu)
 
 	li.w	t1, -1				# SNaN
 
+#ifdef CONFIG_32BIT
+	movgr2fr.w	$f0, t1
+	movgr2frh.w	$f0, t1
+	movgr2fr.w	$f1, t1
+	movgr2frh.w	$f1, t1
+	movgr2fr.w	$f2, t1
+	movgr2frh.w	$f2, t1
+	movgr2fr.w	$f3, t1
+	movgr2frh.w	$f3, t1
+	movgr2fr.w	$f4, t1
+	movgr2frh.w	$f4, t1
+	movgr2fr.w	$f5, t1
+	movgr2frh.w	$f5, t1
+	movgr2fr.w	$f6, t1
+	movgr2frh.w	$f6, t1
+	movgr2fr.w	$f7, t1
+	movgr2frh.w	$f7, t1
+	movgr2fr.w	$f8, t1
+	movgr2frh.w	$f8, t1
+	movgr2fr.w	$f9, t1
+	movgr2frh.w	$f9, t1
+	movgr2fr.w	$f10, t1
+	movgr2frh.w	$f10, t1
+	movgr2fr.w	$f11, t1
+	movgr2frh.w	$f11, t1
+	movgr2fr.w	$f12, t1
+	movgr2frh.w	$f12, t1
+	movgr2fr.w	$f13, t1
+	movgr2frh.w	$f13, t1
+	movgr2fr.w	$f14, t1
+	movgr2frh.w	$f14, t1
+	movgr2fr.w	$f15, t1
+	movgr2frh.w	$f15, t1
+	movgr2fr.w	$f16, t1
+	movgr2frh.w	$f16, t1
+	movgr2fr.w	$f17, t1
+	movgr2frh.w	$f17, t1
+	movgr2fr.w	$f18, t1
+	movgr2frh.w	$f18, t1
+	movgr2fr.w	$f19, t1
+	movgr2frh.w	$f19, t1
+	movgr2fr.w	$f20, t1
+	movgr2frh.w	$f20, t1
+	movgr2fr.w	$f21, t1
+	movgr2frh.w	$f21, t1
+	movgr2fr.w	$f22, t1
+	movgr2frh.w	$f22, t1
+	movgr2fr.w	$f23, t1
+	movgr2frh.w	$f23, t1
+	movgr2fr.w	$f24, t1
+	movgr2frh.w	$f24, t1
+	movgr2fr.w	$f25, t1
+	movgr2frh.w	$f25, t1
+	movgr2fr.w	$f26, t1
+	movgr2frh.w	$f26, t1
+	movgr2fr.w	$f27, t1
+	movgr2frh.w	$f27, t1
+	movgr2fr.w	$f28, t1
+	movgr2frh.w	$f28, t1
+	movgr2fr.w	$f29, t1
+	movgr2frh.w	$f29, t1
+	movgr2fr.w	$f30, t1
+	movgr2frh.w	$f30, t1
+	movgr2fr.w	$f31, t1
+	movgr2frh.w	$f31, t1
+#else
 	movgr2fr.d	$f0, t1
 	movgr2fr.d	$f1, t1
 	movgr2fr.d	$f2, t1
@@ -442,6 +552,7 @@ SYM_FUNC_START(_init_fpu)
 	movgr2fr.d	$f29, t1
 	movgr2fr.d	$f30, t1
 	movgr2fr.d	$f31, t1
+#endif
 
 	jr	ra
 SYM_FUNC_END(_init_fpu)

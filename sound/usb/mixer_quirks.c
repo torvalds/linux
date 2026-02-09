@@ -2545,6 +2545,7 @@ static int snd_rme_get_status1(struct snd_kcontrol *kcontrol,
 	struct usb_mixer_elem_list *list = snd_kcontrol_chip(kcontrol);
 	struct snd_usb_audio *chip = list->mixer->chip;
 
+	*status1 = 0;
 	CLASS(snd_usb_lock, pm)(chip);
 	if (pm.err < 0)
 		return pm.err;
@@ -3415,10 +3416,6 @@ static int snd_bbfpro_controls_create(struct usb_mixer_interface *mixer)
 /* Reg is overloaded, 0-7 for status halfwords or 16 or 18 for control registers */
 #define RME_DIGIFACE_REGISTER(reg, mask) (((reg) << 16) | (mask))
 #define RME_DIGIFACE_INVERT BIT(31)
-
-/* Nonconst helpers */
-#define field_get(_mask, _reg) (((_reg) & (_mask)) >> (ffs(_mask) - 1))
-#define field_prep(_mask, _val) (((_val) << (ffs(_mask) - 1)) & (_mask))
 
 static int snd_rme_digiface_write_reg(struct snd_kcontrol *kcontrol, int item, u16 mask, u16 val)
 {

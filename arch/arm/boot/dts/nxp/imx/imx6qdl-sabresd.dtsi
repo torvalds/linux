@@ -6,6 +6,7 @@
 #include <dt-bindings/clock/imx6qdl-clock.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/media/video-interfaces.h>
 
 / {
 	chosen {
@@ -15,6 +16,13 @@
 	memory@10000000 {
 		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_usb_otg_vbus: regulator-usb-otg-vbus {
@@ -139,6 +147,7 @@
 	panel {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {
@@ -278,7 +287,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ov5642>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
-		clock-names = "xclk";
 		reg = <0x3c>;
 		DOVDD-supply = <&vgen4_reg>; /* 1.8v */
 		AVDD-supply = <&vgen3_reg>;  /* 2.8v, rev C board is VGEN3
@@ -291,6 +299,7 @@
 		port {
 			ov5642_to_ipu1_csi0_mux: endpoint {
 				remote-endpoint = <&ipu1_csi0_mux_from_parallel_sensor>;
+				bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
 				bus-width = <8>;
 				hsync-active = <1>;
 				vsync-active = <1>;

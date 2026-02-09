@@ -109,7 +109,6 @@ static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 			p9_debug(P9_DEBUG_VFS,
 				"refresh inode: dentry = %pd (%p), got error %pe\n",
 				dentry, dentry, ERR_PTR(retval));
-		if (retval < 0)
 			return retval;
 		}
 	}

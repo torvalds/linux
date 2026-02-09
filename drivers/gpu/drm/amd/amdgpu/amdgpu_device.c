@@ -1678,9 +1678,9 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	int rbar_size = pci_rebar_bytes_to_size(adev->gmc.real_vram_size);
 	struct pci_bus *root;
 	struct resource *res;
+	int max_size, r;
 	unsigned int i;
 	u16 cmd;
-	int r;
 
 	if (!IS_ENABLED(CONFIG_PHYS_ADDR_T_64BIT))
 		return 0;
@@ -1726,29 +1726,27 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 		return 0;
 
 	/* Limit the BAR size to what is available */
-	rbar_size = min(fls(pci_rebar_get_possible_sizes(adev->pdev, 0)) - 1,
-			rbar_size);
+	max_size = pci_rebar_get_max_size(adev->pdev, 0);
+	if (max_size < 0)
+		return 0;
+	rbar_size = min(max_size, rbar_size);
 
 	/* Disable memory decoding while we change the BAR addresses and size */
 	pci_read_config_word(adev->pdev, PCI_COMMAND, &cmd);
 	pci_write_config_word(adev->pdev, PCI_COMMAND,
 			      cmd & ~PCI_COMMAND_MEMORY);
 
-	/* Free the VRAM and doorbell BAR, we most likely need to move both. */
+	/* Tear down doorbell as resizing will release BARs */
 	amdgpu_doorbell_fini(adev);
-	if (adev->asic_type >= CHIP_BONAIRE)
-		pci_release_resource(adev->pdev, 2);
 
-	pci_release_resource(adev->pdev, 0);
-
-	r = pci_resize_resource(adev->pdev, 0, rbar_size);
+	r = pci_resize_resource(adev->pdev, 0, rbar_size,
+				(adev->asic_type >= CHIP_BONAIRE) ? 1 << 5
+								  : 1 << 2);
 	if (r == -ENOSPC)
 		dev_info(adev->dev,
 			 "Not enough PCI address space for a large BAR.");
 	else if (r && r != -ENOTSUPP)
 		dev_err(adev->dev, "Problem resizing BAR0 (%d).", r);
-
-	pci_assign_unassigned_bus_resources(adev->pdev->bus);
 
 	/* When the doorbell or fb BAR isn't available we have no chance of
 	 * using the device.
@@ -6615,6 +6613,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	struct amdgpu_hive_info *hive = NULL;
 	int r = 0;
 	bool need_emergency_restart = false;
+	/* save the pasid here as the job may be freed before the end of the reset */
+	int pasid = job ? job->pasid : -EINVAL;
 
 	/*
 	 * If it reaches here because of hang/timeout and a RAS error is
@@ -6715,8 +6715,12 @@ end_reset:
 	if (!r) {
 		struct amdgpu_task_info *ti = NULL;
 
-		if (job)
-			ti = amdgpu_vm_get_task_info_pasid(adev, job->pasid);
+		/*
+		 * The job may already be freed at this point via the sched tdr workqueue so
+		 * use the cached pasid.
+		 */
+		if (pasid >= 0)
+			ti = amdgpu_vm_get_task_info_pasid(adev, pasid);
 
 		drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE,
 				     ti ? &ti->task : NULL);

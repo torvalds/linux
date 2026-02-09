@@ -207,7 +207,6 @@ int iommufd_ioas_map_file(struct iommufd_ucmd *ucmd)
 	unsigned long iova = cmd->iova;
 	struct iommufd_ioas *ioas;
 	unsigned int flags = 0;
-	struct file *file;
 	int rc;
 
 	if (cmd->flags &
@@ -229,11 +228,7 @@ int iommufd_ioas_map_file(struct iommufd_ucmd *ucmd)
 	if (!(cmd->flags & IOMMU_IOAS_MAP_FIXED_IOVA))
 		flags = IOPT_ALLOC_IOVA;
 
-	file = fget(cmd->fd);
-	if (!file)
-		return -EBADF;
-
-	rc = iopt_map_file_pages(ucmd->ictx, &ioas->iopt, &iova, file,
+	rc = iopt_map_file_pages(ucmd->ictx, &ioas->iopt, &iova, cmd->fd,
 				 cmd->start, cmd->length,
 				 conv_iommu_prot(cmd->flags), flags);
 	if (rc)
@@ -243,7 +238,6 @@ int iommufd_ioas_map_file(struct iommufd_ucmd *ucmd)
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 out_put:
 	iommufd_put_object(ucmd->ictx, &ioas->obj);
-	fput(file);
 	return rc;
 }
 

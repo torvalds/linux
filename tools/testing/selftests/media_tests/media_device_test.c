@@ -39,7 +39,7 @@
 #include <time.h>
 #include <linux/media.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int main(int argc, char **argv)
 {

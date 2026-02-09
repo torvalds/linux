@@ -271,7 +271,7 @@ struct ib_cm_event {
 #define CM_APR_ATTR_ID		cpu_to_be16(0x001A)
 
 /**
- * ib_cm_handler - User-defined callback to process communication events.
+ * typedef ib_cm_handler - User-defined callback to process communication events.
  * @cm_id: Communication identifier associated with the reported event.
  * @event: Information about the communication event.
  *
@@ -482,7 +482,7 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 
 /**
  * ib_prepare_cm_mra - Prepares to send a message receipt acknowledgment to a
-     connection message in case duplicates are received.
+ *   connection message in case duplicates are received.
  * @cm_id: Connection identifier associated with the connection message.
  */
 int ib_prepare_cm_mra(struct ib_cm_id *cm_id);

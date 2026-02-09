@@ -46,6 +46,7 @@
 	panel {
 		compatible = "dataimage,fg1001l0dsswmg01";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_lcd>;
 
 		port {
 			panel_in: endpoint {

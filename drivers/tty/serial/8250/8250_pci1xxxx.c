@@ -671,7 +671,7 @@ static int pci1xxxx_resume(struct device *dev)
 }
 
 static int pci1xxxx_setup(struct pci_dev *pdev,
-			  struct uart_8250_port *port, int port_idx, int rev)
+			  struct uart_8250_port *port, int port_idx, struct pci1xxxx_8250 *priv)
 {
 	int ret;
 
@@ -698,12 +698,12 @@ static int pci1xxxx_setup(struct pci_dev *pdev,
 	 * C0 and later revisions support Burst operation.
 	 * RTS workaround in mctrl is applicable only to B0.
 	 */
-	if (rev >= 0xC0)
+	if (priv->dev_rev >= 0xC0)
 		port->port.handle_irq = pci1xxxx_handle_irq;
-	else if (rev == 0xB0)
+	else if (priv->dev_rev == 0xB0)
 		port->port.set_mctrl = pci1xxxx_set_mctrl;
 
-	ret = serial8250_pci_setup_port(pdev, port, 0, PORT_OFFSET * port_idx, 0);
+	ret = serial8250_pci_setup_port(pdev, port, 0, PORT_OFFSET * port_idx, 0, priv->membase);
 	if (ret < 0)
 		return ret;
 
@@ -821,7 +821,7 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 		else
 			uart.port.irq = pci_irq_vector(pdev, 0);
 
-		rc = pci1xxxx_setup(pdev, &uart, port_idx, priv->dev_rev);
+		rc = pci1xxxx_setup(pdev, &uart, port_idx, priv);
 		if (rc) {
 			dev_warn(dev, "Failed to setup port %u\n", i);
 			continue;

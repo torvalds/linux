@@ -36,7 +36,7 @@
 	    ".align 4						\n"	\
 	    ".globl " STATIC_CALL_TRAMP_STR(name) "		\n"	\
 	    STATIC_CALL_TRAMP_STR(name) ":			\n"	\
-	    ANNOTATE_NOENDBR						\
+	    ANNOTATE_NOENDBR "					\n"	\
 	    insns "						\n"	\
 	    ".byte 0x0f, 0xb9, 0xcc				\n"	\
 	    ".type " STATIC_CALL_TRAMP_STR(name) ", @function	\n"	\

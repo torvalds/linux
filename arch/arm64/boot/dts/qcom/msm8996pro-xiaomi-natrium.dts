@@ -39,10 +39,8 @@
 	};
 };
 
-&gpu {
-	zap-shader {
-		firmware-name = "qcom/msm8996/natrium/a530_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/msm8996/natrium/a530_zap.mbn";
 };
 
 &mdss_dsi0 {

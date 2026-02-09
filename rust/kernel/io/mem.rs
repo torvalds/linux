@@ -4,16 +4,24 @@
 
 use core::ops::Deref;
 
-use crate::c_str;
-use crate::device::Bound;
-use crate::device::Device;
-use crate::devres::Devres;
-use crate::io;
-use crate::io::resource::Region;
-use crate::io::resource::Resource;
-use crate::io::Io;
-use crate::io::IoRaw;
-use crate::prelude::*;
+use crate::{
+    c_str,
+    device::{
+        Bound,
+        Device, //
+    },
+    devres::Devres,
+    io::{
+        self,
+        resource::{
+            Region,
+            Resource, //
+        },
+        Io,
+        IoRaw, //
+    },
+    prelude::*,
+};
 
 /// An IO request for a specific device and resource.
 pub struct IoRequest<'a> {
@@ -53,7 +61,7 @@ impl<'a> IoRequest<'a> {
     ///    fn probe(
     ///       pdev: &platform::Device<Core>,
     ///       info: Option<&Self::IdInfo>,
-    ///    ) -> Result<Pin<KBox<Self>>> {
+    ///    ) -> impl PinInit<Self, Error> {
     ///       let offset = 0; // Some offset.
     ///
     ///       // If the size is known at compile time, use [`Self::iomap_sized`].
@@ -70,7 +78,7 @@ impl<'a> IoRequest<'a> {
     ///
     ///       io.write32_relaxed(data, offset);
     ///
-    ///       # Ok(KBox::new(SampleDriver, GFP_KERNEL)?.into())
+    ///       # Ok(SampleDriver)
     ///     }
     /// }
     /// ```
@@ -111,7 +119,7 @@ impl<'a> IoRequest<'a> {
     ///    fn probe(
     ///       pdev: &platform::Device<Core>,
     ///       info: Option<&Self::IdInfo>,
-    ///    ) -> Result<Pin<KBox<Self>>> {
+    ///    ) -> impl PinInit<Self, Error> {
     ///       let offset = 0; // Some offset.
     ///
     ///       // Unlike [`Self::iomap_sized`], here the size of the memory region
@@ -128,7 +136,7 @@ impl<'a> IoRequest<'a> {
     ///
     ///       io.try_write32_relaxed(data, offset)?;
     ///
-    ///       # Ok(KBox::new(SampleDriver, GFP_KERNEL)?.into())
+    ///       # Ok(SampleDriver)
     ///     }
     /// }
     /// ```

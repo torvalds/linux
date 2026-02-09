@@ -323,7 +323,6 @@ static void dwc3_pci_resume_work(struct work_struct *work)
 		return;
 	}
 
-	pm_runtime_mark_last_busy(&dwc3->dev);
 	pm_runtime_put_sync_autosuspend(&dwc3->dev);
 }
 #endif

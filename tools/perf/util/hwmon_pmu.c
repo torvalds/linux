@@ -376,7 +376,7 @@ struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, const char *hwmon_dir,
 		perf_pmu__delete(&hwm->pmu);
 		return NULL;
 	}
-	hwm->pmu.cpus = perf_cpu_map__new("0");
+	hwm->pmu.cpus = perf_cpu_map__new_int(0);
 	if (!hwm->pmu.cpus) {
 		perf_pmu__delete(&hwm->pmu);
 		return NULL;
@@ -742,8 +742,7 @@ int perf_pmus__read_hwmon_pmus(struct list_head *pmus)
 			continue;
 		}
 		io__init(&io, name_fd, buf2, sizeof(buf2));
-		io__getline(&io, &line, &line_len);
-		if (line_len > 0 && line[line_len - 1] == '\n')
+		if (io__getline(&io, &line, &line_len) > 0 && line[line_len - 1] == '\n')
 			line[line_len - 1] = '\0';
 		hwmon_pmu__new(pmus, buf, class_hwmon_ent->d_name, line);
 		close(name_fd);

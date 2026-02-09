@@ -205,7 +205,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 		snprintf(file, sizeof(file), "/dev/comedi%d", minor);
 		file[sizeof(file) - 1] = 0;
 
-		d = comedi_open(file);
+		d = comedi_open_from(file, dev->minor);
 
 		if (!d) {
 			dev_err(dev->class_dev,
@@ -326,7 +326,7 @@ static void bonding_detach(struct comedi_device *dev)
 			if (!bdev)
 				continue;
 			if (!test_and_set_bit(bdev->minor, devs_closed))
-				comedi_close(bdev->dev);
+				comedi_close_from(bdev->dev, dev->minor);
 			kfree(bdev);
 		}
 		kfree(devpriv->devs);

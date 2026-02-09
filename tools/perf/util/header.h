@@ -178,10 +178,12 @@ int perf_event__process_event_update(const struct perf_tool *tool,
 size_t perf_event__fprintf_attr(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp);
 #ifdef HAVE_LIBTRACEEVENT
-int perf_event__process_tracing_data(struct perf_session *session,
+int perf_event__process_tracing_data(const struct perf_tool *tool,
+				     struct perf_session *session,
 				     union perf_event *event);
 #endif
-int perf_event__process_build_id(struct perf_session *session,
+int perf_event__process_build_id(const struct perf_tool *tool,
+				 struct perf_session *session,
 				 union perf_event *event);
 bool is_perf_magic(u64 magic);
 

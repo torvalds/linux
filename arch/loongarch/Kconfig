@@ -115,6 +115,7 @@ config LOONGARCH
 	select GPIOLIB
 	select HAS_IOPORT
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN
@@ -566,6 +567,10 @@ config ARCH_STRICT_ALIGN
 	  on all LoongArch systems. But you can disable it manually if you want
 	  to run kernel only on systems with h/w unaligned access support in
 	  order to optimise for performance.
+
+config CPU_HAS_AMO
+	bool
+	default 64BIT
 
 config CPU_HAS_FPU
 	bool

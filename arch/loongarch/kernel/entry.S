@@ -23,24 +23,24 @@ SYM_CODE_START(handle_syscall)
 	UNWIND_HINT_UNDEFINED
 	csrrd		t0, PERCPU_BASE_KS
 	la.pcrel	t1, kernelsp
-	add.d		t1, t1, t0
+	PTR_ADD		t1, t1, t0
 	move		t2, sp
-	ld.d		sp, t1, 0
+	PTR_L		sp, t1, 0
 
-	addi.d		sp, sp, -PT_SIZE
+	PTR_ADDI	sp, sp, -PT_SIZE
 	cfi_st		t2, PT_R3
 	cfi_rel_offset	sp, PT_R3
-	st.d		zero, sp, PT_R0
+	LONG_S		zero, sp, PT_R0
 	csrrd		t2, LOONGARCH_CSR_PRMD
-	st.d		t2, sp, PT_PRMD
+	LONG_S		t2, sp, PT_PRMD
 	csrrd		t2, LOONGARCH_CSR_CRMD
-	st.d		t2, sp, PT_CRMD
+	LONG_S		t2, sp, PT_CRMD
 	csrrd		t2, LOONGARCH_CSR_EUEN
-	st.d		t2, sp, PT_EUEN
+	LONG_S		t2, sp, PT_EUEN
 	csrrd		t2, LOONGARCH_CSR_ECFG
-	st.d		t2, sp, PT_ECFG
+	LONG_S		t2, sp, PT_ECFG
 	csrrd		t2, LOONGARCH_CSR_ESTAT
-	st.d		t2, sp, PT_ESTAT
+	LONG_S		t2, sp, PT_ESTAT
 	cfi_st		ra, PT_R1
 	cfi_st		a0, PT_R4
 	cfi_st		a1, PT_R5
@@ -51,7 +51,7 @@ SYM_CODE_START(handle_syscall)
 	cfi_st		a6, PT_R10
 	cfi_st		a7, PT_R11
 	csrrd		ra, LOONGARCH_CSR_ERA
-	st.d		ra, sp, PT_ERA
+	LONG_S		ra, sp, PT_ERA
 	cfi_rel_offset	ra, PT_ERA
 
 	cfi_st		tp, PT_R2
@@ -67,7 +67,7 @@ SYM_CODE_START(handle_syscall)
 #endif
 
 	move		u0, t0
-	li.d		tp, ~_THREAD_MASK
+	LONG_LI		tp, ~_THREAD_MASK
 	and		tp, tp, sp
 
 	move		a0, sp

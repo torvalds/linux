@@ -245,18 +245,18 @@ static __always_inline int __nodes_weight(const nodemask_t *srcp, unsigned int n
 }
 
 /* FIXME: better would be to fix all architectures to never return
-          > MAX_NUMNODES, then the silly min_ts could be dropped. */
+          > MAX_NUMNODES, then the silly min()s could be dropped. */
 
 #define first_node(src) __first_node(&(src))
 static __always_inline unsigned int __first_node(const nodemask_t *srcp)
 {
-	return min_t(unsigned int, MAX_NUMNODES, find_first_bit(srcp->bits, MAX_NUMNODES));
+	return min(MAX_NUMNODES, find_first_bit(srcp->bits, MAX_NUMNODES));
 }
 
 #define next_node(n, src) __next_node((n), &(src))
 static __always_inline unsigned int __next_node(int n, const nodemask_t *srcp)
 {
-	return min_t(unsigned int, MAX_NUMNODES, find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
+	return min(MAX_NUMNODES, find_next_bit(srcp->bits, MAX_NUMNODES, n+1));
 }
 
 /*
@@ -293,8 +293,7 @@ static __always_inline void init_nodemask_of_node(nodemask_t *mask, int node)
 #define first_unset_node(mask) __first_unset_node(&(mask))
 static __always_inline unsigned int __first_unset_node(const nodemask_t *maskp)
 {
-	return min_t(unsigned int, MAX_NUMNODES,
-			find_first_zero_bit(maskp->bits, MAX_NUMNODES));
+	return min(MAX_NUMNODES, find_first_zero_bit(maskp->bits, MAX_NUMNODES));
 }
 
 #define NODE_MASK_LAST_WORD BITMAP_LAST_WORD_MASK(MAX_NUMNODES)

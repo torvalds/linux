@@ -79,7 +79,7 @@ struct x86_init_paging {
 
 /**
  * struct x86_init_timers - platform specific timer setup
- * @setup_perpcu_clockev:	set up the per cpu clock event device for the
+ * @setup_percpu_clockev:	set up the per cpu clock event device for the
  *				boot cpu
  * @timer_init:			initialize the platform timer (default PIT/HPET)
  * @wallclock_init:		init the wallclock device
@@ -132,7 +132,7 @@ struct x86_hyper_init {
 
 /**
  * struct x86_init_acpi - x86 ACPI init functions
- * @set_root_poitner:		set RSDP address
+ * @set_root_pointer:		set RSDP address
  * @get_root_pointer:		get RSDP address
  * @reduced_hw_early_init:	hardware reduced platform early init
  */
@@ -145,14 +145,14 @@ struct x86_init_acpi {
 /**
  * struct x86_guest - Functions used by misc guest incarnations like SEV, TDX, etc.
  *
- * @enc_status_change_prepare	Notify HV before the encryption status of a range is changed
- * @enc_status_change_finish	Notify HV after the encryption status of a range is changed
- * @enc_tlb_flush_required	Returns true if a TLB flush is needed before changing page encryption status
- * @enc_cache_flush_required	Returns true if a cache flush is needed before changing page encryption status
- * @enc_kexec_begin		Begin the two-step process of converting shared memory back
+ * @enc_status_change_prepare:	Notify HV before the encryption status of a range is changed
+ * @enc_status_change_finish:	Notify HV after the encryption status of a range is changed
+ * @enc_tlb_flush_required:	Returns true if a TLB flush is needed before changing page encryption status
+ * @enc_cache_flush_required:	Returns true if a cache flush is needed before changing page encryption status
+ * @enc_kexec_begin:		Begin the two-step process of converting shared memory back
  *				to private. It stops the new conversions from being started
  *				and waits in-flight conversions to finish, if possible.
- * @enc_kexec_finish		Finish the two-step process of converting shared memory to
+ * @enc_kexec_finish:		Finish the two-step process of converting shared memory to
  *				private. All memory is private after the call when
  *				the function returns.
  *				It is called on only one CPU while the others are shut down
@@ -229,7 +229,7 @@ struct x86_legacy_devices {
  *	given platform/subarch.
  * @X86_LEGACY_I8042_FIRMWARE_ABSENT: firmware reports that the controller
  *	is absent.
- * @X86_LEGACY_i8042_EXPECTED_PRESENT: the controller is likely to be
+ * @X86_LEGACY_I8042_EXPECTED_PRESENT: the controller is likely to be
  *	present, the i8042 driver should probe for controller existence.
  */
 enum x86_legacy_i8042_state {
@@ -244,6 +244,8 @@ enum x86_legacy_i8042_state {
  * @i8042: indicated if we expect the device to have i8042 controller
  *	present.
  * @rtc: this device has a CMOS real-time clock present
+ * @warm_reset: 1 if platform allows warm reset, else 0
+ * @no_vga: 1 if (FADT.boot_flags & ACPI_FADT_NO_VGA) is set, else 0
  * @reserve_bios_regions: boot code will search for the EBDA address and the
  * 	start of the 640k - 1M BIOS region.  If false, the platform must
  * 	ensure that its memory map correctly reserves sub-1MB regions as needed.
@@ -290,9 +292,10 @@ struct x86_hyper_runtime {
  * @calibrate_tsc:		calibrate TSC, if different from CPU
  * @get_wallclock:		get time from HW clock like RTC etc.
  * @set_wallclock:		set time back to HW clock
- * @is_untracked_pat_range	exclude from PAT logic
- * @nmi_init			enable NMI on cpus
- * @get_nmi_reason		get the reason an NMI was received
+ * @iommu_shutdown:		set by an IOMMU driver for shutdown if necessary
+ * @is_untracked_pat_range:	exclude from PAT logic
+ * @nmi_init:			enable NMI on cpus
+ * @get_nmi_reason:		get the reason an NMI was received
  * @save_sched_clock_state:	save state for sched_clock() on suspend
  * @restore_sched_clock_state:	restore state for sched_clock() on resume
  * @apic_post_init:		adjust apic if needed
@@ -307,6 +310,7 @@ struct x86_hyper_runtime {
  * @realmode_reserve:		reserve memory for realmode trampoline
  * @realmode_init:		initialize realmode trampoline
  * @hyper:			x86 hypervisor specific runtime callbacks
+ * @guest:			guest incarnations callbacks
  */
 struct x86_platform_ops {
 	unsigned long (*calibrate_cpu)(void);

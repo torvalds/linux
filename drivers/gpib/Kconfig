@@ -1,0 +1,255 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig GPIB
+	tristate "GPIB drivers"
+	help
+	  Enable support for GPIB cards and dongles.  GPIB is the
+	  General Purpose Interface Bus which conforms to the IEEE488
+	  standard.
+
+	  This set of drivers can be used with the corresponding user
+	  space library that can be found on Sourceforge under linux-gpib.
+	  Select the drivers for your hardware from the list.
+
+if GPIB
+
+config GPIB_COMMON
+	tristate "GPIB core"
+	help
+
+	  Core common driver for all GPIB drivers. It provides the
+	  interface for the userland library
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gpib_common
+
+config GPIB_AGILENT_82350B
+	tristate "Agilent 8235xx PCI(e) adapters"
+	depends on PCI
+	select GPIB_COMMON
+	select GPIB_TMS9914
+	help
+	  Enable support for HP/Agilent/Keysight boards
+	    82350A
+	    82350B
+	    82351A
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called agilent_82350b.
+
+config GPIB_AGILENT_82357A
+	tristate "Agilent 82357a/b USB dongles"
+	select GPIB_COMMON
+	depends on USB
+	help
+	  Enable support for Agilent/Keysight 82357x USB dongles.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called agilent_82357a.
+
+config GPIB_CEC_PCI
+	tristate "CEC PCI board"
+	depends on PCI
+	depends on HAS_IOPORT
+	select GPIB_COMMON
+	select GPIB_NEC7210
+	help
+	  Enable support for Capital Equipment Corporation PCI-488
+	  and Keithly KPCI-488 boards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cec_gpib.
+
+config GPIB_NI_PCI_ISA
+	tristate "NI PCI/ISA compatible boards"
+	depends on ISA_BUS || PCI || PCMCIA
+	depends on HAS_IOPORT
+	depends on PCMCIA || !PCMCIA
+	depends on HAS_IOPORT_MAP
+	select GPIB_COMMON
+	select GPIB_NEC7210
+	help
+	  Enable support for National Instruments boards based
+	  on TNT4882 chips:
+	     AT-GPIB (with NAT4882 chip)
+	     AT-GPIB (with NEC7210 chip)
+	     AT-GPIB/TNT
+	     PCI-GPIB
+	     PCIe-GPIB
+	     PCI-GPIB+
+	     PCM-GPIB
+	     PXI-GPIB
+	     PCMCIA-GPIB
+	     and Capital Equipment Corporation CEC-488 board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called tnt4882.
+
+config GPIB_CB7210
+       tristate "Measurement Computing compatible boards"
+	depends on HAS_IOPORT
+	depends on ISA_BUS || PCI || PCMCIA
+	depends on PCMCIA || !PCMCIA
+       select GPIB_COMMON
+	select GPIB_NEC7210
+       help
+       Enable support for Measurement Computing (Computer Boards):
+       CPCI_GPIB, ISA-GPIB, ISA-GPIB/LC, PCI-GPIB/1M, PCI-GPIB/300K and
+       PCMCIA-GPIB
+       Quancom PCIGPIB-1 with MC cb7210 chip
+
+	  To compile this driver as a module, choose M here: the module will be
+
+config GPIB_NI_USB
+	tristate "NI USB dongles"
+	select GPIB_COMMON
+	depends on USB
+	help
+	  Enable support for National Instruments
+	       GPIB-USB-B
+	       GPIB-USB-HS
+	       GPIB-USB-HS+
+	   Keithly
+	       KUSB-488
+	       KUSB-488A
+	   Measurement Computing (Computer Boards)
+	       USB-488
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni_usb.
+
+config GPIB_FLUKE
+       tristate "Fluke"
+	depends on OF
+       select GPIB_COMMON
+       select GPIB_NEC7210
+       help
+         GPIB driver for Fluke based cda devices.
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called fluke_gpib
+
+config GPIB_FMH
+       tristate "FMH FPGA based devices"
+       select GPIB_COMMON
+       select GPIB_NEC7210
+       depends on !PPC
+       depends on OF && PCI
+       help
+         GPIB driver for fmhess FPGA based devices
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called fmh_gpib
+
+config GPIB_GPIO
+       tristate "RPi GPIO bitbang"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+       select GPIB_COMMON
+       help
+         GPIB bitbang driver Raspberry Pi GPIO adapters
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called gpib_bitbang
+
+config GPIB_HP82335
+       tristate "HP82335/HP27209"
+	depends on ISA_BUS
+       select GPIB_COMMON
+       select GPIB_TMS9914
+       help
+         GPIB driver for HP82335 and HP27209 boards
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called hp82335
+
+
+config GPIB_HP82341
+       tristate "HP82341x"
+       select GPIB_COMMON
+       select GPIB_TMS9914
+       depends on ISA_BUS || EISA
+       help
+         GPIB driver for HP82341 A/B/C/D boards
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called hp82341
+
+config GPIB_INES
+       tristate "INES"
+	depends on PCI || ISA_BUS || PCMCIA
+	depends on PCMCIA || !PCMCIA
+	depends on HAS_IOPORT
+       select GPIB_COMMON
+       select GPIB_NEC7210
+       help
+         GPIB driver for Ines compatible boards
+	 Ines
+	    GPIB-HS-NT
+	    GPIB for Compact PCI
+	    GPIB for PCI
+	    GPIB for PCMCIA
+	    GPIB PC/104
+	 Hameg
+	    HO80-2
+	 Quancom
+	    PCIGPIB-1 based on Ines iGPIB 72010 chip
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called ines_gpib
+	  called cb7210.
+
+config GPIB_PCMCIA
+       def_bool y
+       depends on PCMCIA && (GPIB_NI_PCI_ISA || GPIB_CB7210 || GPIB_INES)
+       help
+         Enable PCMCIA/CArdbus support for National Instruments,
+	 measurement computing boards and Ines boards.
+
+config GPIB_LPVO
+       tristate "LPVO DIY USB GPIB"
+       select GPIB_COMMON
+       depends on USB
+       help
+         Enable support for LPVO Self-made usb-gpib adapter
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called lpvo_usb_gpib
+
+config GPIB_PC2
+       tristate "PC2 PC2a"
+	depends on ISA_BUS
+	depends on HAS_IOPORT
+       select GPIB_COMMON
+       select GPIB_NEC7210
+       help
+         Enable support for pc2 and pc2a compatible adapters
+	    Capital Equipment Corporation PC-488
+	    CONTEC GP-IB(PC)
+	    Hameg HO80
+	    Iotech GP488B
+	    Keithly MBC-488
+	    Measurement Computing ISA-GPIB-PCA2
+	    National Instruments PCII, PCIIa and PCII/IIa
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called pc2_gpib
+
+
+config GPIB_TMS9914
+       tristate
+       select GPIB_COMMON
+       help
+         Enable support for TMS 9914 chip.
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called tms9914
+
+config GPIB_NEC7210
+       tristate
+       select GPIB_COMMON
+       help
+         Enable support for NEC 7210 compatible chips.
+
+	 To compile this driver as a module, choose M here: the module will be
+	 called nec7210
+
+endif # GPIB

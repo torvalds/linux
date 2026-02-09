@@ -216,6 +216,9 @@ extern int can_drop_memory(void);
 
 void os_set_pdeathsig(void);
 
+int os_futex_wait(void *uaddr, unsigned int val);
+int os_futex_wake(void *uaddr);
+
 /* execvp.c */
 extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
 /* helper.c */
@@ -243,6 +246,7 @@ extern void send_sigio_to_self(void);
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);
+extern int um_get_signals(void);
 extern int um_set_signals(int enable);
 extern int um_set_signals_trace(int enable);
 extern void deliver_alarm(void);
@@ -266,11 +270,12 @@ extern void os_warn(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
+void os_idle_prepare(void);
 extern void os_idle_sleep(void);
 extern int os_timer_create(void);
-extern int os_timer_set_interval(unsigned long long nsecs);
-extern int os_timer_one_shot(unsigned long long nsecs);
-extern void os_timer_disable(void);
+extern int os_timer_set_interval(int cpu, unsigned long long nsecs);
+extern int os_timer_one_shot(int cpu, unsigned long long nsecs);
+extern void os_timer_disable(int cpu);
 extern long long os_persistent_clock_emulation(void);
 extern long long os_nsecs(void);
 
@@ -337,5 +342,18 @@ extern void um_trace_signals_off(void);
 
 /* time-travel */
 extern void deliver_time_travel_irqs(void);
+
+/* smp.c */
+#if IS_ENABLED(CONFIG_SMP)
+void os_init_smp(void);
+int os_start_cpu_thread(int cpu);
+void os_start_secondary(void *arg, jmp_buf *switch_buf);
+int os_send_ipi(int cpu, int vector);
+void os_local_ipi_enable(void);
+void os_local_ipi_disable(void);
+#else /* !CONFIG_SMP */
+static inline void os_local_ipi_enable(void) { }
+static inline void os_local_ipi_disable(void) { }
+#endif /* CONFIG_SMP */
 
 #endif
