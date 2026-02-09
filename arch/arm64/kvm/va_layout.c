@@ -47,8 +47,30 @@ static void init_hyp_physvirt_offset(void)
 }
 
 /*
+ * Calculate the actual VA size used by the hypervisor
+ */
+__init u32 kvm_hyp_va_bits(void)
+{
+	/*
+	 * The ID map is always configured for 48 bits of translation, which may
+	 * be different from the number of VA bits used by the regular kernel
+	 * stage 1.
+	 *
+	 * At EL2, there is only one TTBR register, and we can't switch between
+	 * translation tables *and* update TCR_EL2.T0SZ at the same time. Bottom
+	 * line: we need to use the extended range with *both* our translation
+	 * tables.
+	 *
+	 * So use the maximum of the idmap VA bits and the regular kernel stage
+	 * 1 VA bits as the hypervisor VA size to assure that the hypervisor can
+	 * both ID map its code page and map any kernel memory.
+	 */
+	return max(IDMAP_VA_BITS, vabits_actual);
+}
+
+/*
  * We want to generate a hyp VA with the following format (with V ==
- * vabits_actual):
+ * hypervisor VA bits):
  *
  *  63 ... V |     V-1    | V-2 .. tag_lsb | tag_lsb - 1 .. 0
  *  ---------------------------------------------------------
@@ -61,10 +83,11 @@ __init void kvm_compute_layout(void)
 {
 	phys_addr_t idmap_addr = __pa_symbol(__hyp_idmap_text_start);
 	u64 hyp_va_msb;
+	u32 hyp_va_bits = kvm_hyp_va_bits();
 
 	/* Where is my RAM region? */
-	hyp_va_msb  = idmap_addr & BIT(vabits_actual - 1);
-	hyp_va_msb ^= BIT(vabits_actual - 1);
+	hyp_va_msb  = idmap_addr & BIT(hyp_va_bits - 1);
+	hyp_va_msb ^= BIT(hyp_va_bits - 1);
 
 	tag_lsb = fls64((u64)phys_to_virt(memblock_start_of_DRAM()) ^
 			(u64)(high_memory - 1));
@@ -72,9 +95,9 @@ __init void kvm_compute_layout(void)
 	va_mask = GENMASK_ULL(tag_lsb - 1, 0);
 	tag_val = hyp_va_msb;
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && tag_lsb != (vabits_actual - 1)) {
+	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && tag_lsb != (hyp_va_bits - 1)) {
 		/* We have some free bits to insert a random tag. */
-		tag_val |= get_random_long() & GENMASK_ULL(vabits_actual - 2, tag_lsb);
+		tag_val |= get_random_long() & GENMASK_ULL(hyp_va_bits - 2, tag_lsb);
 	}
 	tag_val >>= tag_lsb;
 
@@ -295,32 +318,4 @@ void kvm_compute_final_ctr_el0(struct alt_instr *alt,
 {
 	generate_mov_q(read_sanitised_ftr_reg(SYS_CTR_EL0),
 		       origptr, updptr, nr_inst);
-}
-
-void kvm_pan_patch_el2_entry(struct alt_instr *alt,
-			     __le32 *origptr, __le32 *updptr, int nr_inst)
-{
-	/*
-	 * If we're running at EL1 without hVHE, then SCTLR_EL2.SPAN means
-	 * nothing to us (it is RES1), and we don't need to set PSTATE.PAN
-	 * to anything useful.
-	 */
-	if (!is_kernel_in_hyp_mode() && !cpus_have_cap(ARM64_KVM_HVHE))
-		return;
-
-	/*
-	 * Leap of faith: at this point, we must be running VHE one way or
-	 * another, and FEAT_PAN is required to be implemented. If KVM
-	 * explodes at runtime because your system does not abide by this
-	 * requirement, call your favourite HW vendor, they have screwed up.
-	 *
-	 * We don't expect hVHE to access any userspace mapping, so always
-	 * set PSTATE.PAN on enty. Same thing if we have PAN enabled on an
-	 * EL2 kernel. Only force it to 0 if we have not configured PAN in
-	 * the kernel (and you know this is really silly).
-	 */
-	if (cpus_have_cap(ARM64_KVM_HVHE) || IS_ENABLED(CONFIG_ARM64_PAN))
-		*updptr = cpu_to_le32(ENCODE_PSTATE(1, PAN));
-	else
-		*updptr = cpu_to_le32(ENCODE_PSTATE(0, PAN));
 }

@@ -57,7 +57,7 @@ static int lr_map_idx_to_shadow_idx(struct shadow_if *shadow_if, int idx)
  * as the L1 guest is in charge of provisioning the interrupts via its own
  * view of the ICH_LR*_EL2 registers, which conveniently live in the VNCR
  * page.  This means that the flow described above does work (there is no
- * state to rebuild in the L0 hypervisor), and that most things happed on L2
+ * state to rebuild in the L0 hypervisor), and that most things happen on L2
  * load/put:
  *
  * - on L2 load: move the in-memory L1 vGIC configuration into a shadow,
@@ -202,16 +202,16 @@ u64 vgic_v3_get_misr(struct kvm_vcpu *vcpu)
 	if ((hcr & ICH_HCR_EL2_NPIE) && !mi_state.pend)
 		reg |= ICH_MISR_EL2_NP;
 
-	if ((hcr & ICH_HCR_EL2_VGrp0EIE) && (vmcr & ICH_VMCR_ENG0_MASK))
+	if ((hcr & ICH_HCR_EL2_VGrp0EIE) && (vmcr & ICH_VMCR_EL2_VENG0_MASK))
 		reg |= ICH_MISR_EL2_VGrp0E;
 
-	if ((hcr & ICH_HCR_EL2_VGrp0DIE) && !(vmcr & ICH_VMCR_ENG0_MASK))
+	if ((hcr & ICH_HCR_EL2_VGrp0DIE) && !(vmcr & ICH_VMCR_EL2_VENG0_MASK))
 		reg |= ICH_MISR_EL2_VGrp0D;
 
-	if ((hcr & ICH_HCR_EL2_VGrp1EIE) && (vmcr & ICH_VMCR_ENG1_MASK))
+	if ((hcr & ICH_HCR_EL2_VGrp1EIE) && (vmcr & ICH_VMCR_EL2_VENG1_MASK))
 		reg |= ICH_MISR_EL2_VGrp1E;
 
-	if ((hcr & ICH_HCR_EL2_VGrp1DIE) && !(vmcr & ICH_VMCR_ENG1_MASK))
+	if ((hcr & ICH_HCR_EL2_VGrp1DIE) && !(vmcr & ICH_VMCR_EL2_VENG1_MASK))
 		reg |= ICH_MISR_EL2_VGrp1D;
 
 	return reg;

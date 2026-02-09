@@ -342,6 +342,9 @@ static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 	if (!(prot & KVM_PGTABLE_PROT_R))
 		return -EINVAL;
 
+	if (!cpus_have_final_cap(ARM64_KVM_HVHE))
+		prot &= ~KVM_PGTABLE_PROT_UX;
+
 	if (prot & KVM_PGTABLE_PROT_X) {
 		if (prot & KVM_PGTABLE_PROT_W)
 			return -EINVAL;
@@ -351,8 +354,16 @@ static int hyp_set_prot_attr(enum kvm_pgtable_prot prot, kvm_pte_t *ptep)
 
 		if (system_supports_bti_kernel())
 			attr |= KVM_PTE_LEAF_ATTR_HI_S1_GP;
+	}
+
+	if (cpus_have_final_cap(ARM64_KVM_HVHE)) {
+		if (!(prot & KVM_PGTABLE_PROT_PX))
+			attr |= KVM_PTE_LEAF_ATTR_HI_S1_PXN;
+		if (!(prot & KVM_PGTABLE_PROT_UX))
+			attr |= KVM_PTE_LEAF_ATTR_HI_S1_UXN;
 	} else {
-		attr |= KVM_PTE_LEAF_ATTR_HI_S1_XN;
+		if (!(prot & KVM_PGTABLE_PROT_PX))
+			attr |= KVM_PTE_LEAF_ATTR_HI_S1_XN;
 	}
 
 	attr |= FIELD_PREP(KVM_PTE_LEAF_ATTR_LO_S1_AP, ap);
@@ -373,8 +384,15 @@ enum kvm_pgtable_prot kvm_pgtable_hyp_pte_prot(kvm_pte_t pte)
 	if (!kvm_pte_valid(pte))
 		return prot;
 
-	if (!(pte & KVM_PTE_LEAF_ATTR_HI_S1_XN))
-		prot |= KVM_PGTABLE_PROT_X;
+	if (cpus_have_final_cap(ARM64_KVM_HVHE)) {
+		if (!(pte & KVM_PTE_LEAF_ATTR_HI_S1_PXN))
+			prot |= KVM_PGTABLE_PROT_PX;
+		if (!(pte & KVM_PTE_LEAF_ATTR_HI_S1_UXN))
+			prot |= KVM_PGTABLE_PROT_UX;
+	} else {
+		if (!(pte & KVM_PTE_LEAF_ATTR_HI_S1_XN))
+			prot |= KVM_PGTABLE_PROT_PX;
+	}
 
 	ap = FIELD_GET(KVM_PTE_LEAF_ATTR_LO_S1_AP, pte);
 	if (ap == KVM_PTE_LEAF_ATTR_LO_S1_AP_RO)
@@ -583,8 +601,8 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 	u64 vtcr = VTCR_EL2_FLAGS;
 	s8 lvls;
 
-	vtcr |= kvm_get_parange(mmfr0) << VTCR_EL2_PS_SHIFT;
-	vtcr |= VTCR_EL2_T0SZ(phys_shift);
+	vtcr |= FIELD_PREP(VTCR_EL2_PS, kvm_get_parange(mmfr0));
+	vtcr |= FIELD_PREP(VTCR_EL2_T0SZ, (UL(64) - phys_shift));
 	/*
 	 * Use a minimum 2 level page table to prevent splitting
 	 * host PMD huge pages at stage2.
@@ -624,19 +642,9 @@ u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift)
 		vtcr |= VTCR_EL2_DS;
 
 	/* Set the vmid bits */
-	vtcr |= (get_vmid_bits(mmfr1) == 16) ?
-		VTCR_EL2_VS_16BIT :
-		VTCR_EL2_VS_8BIT;
+	vtcr |= (get_vmid_bits(mmfr1) == 16) ? VTCR_EL2_VS : 0;
 
 	return vtcr;
-}
-
-static bool stage2_has_fwb(struct kvm_pgtable *pgt)
-{
-	if (!cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		return false;
-
-	return !(pgt->flags & KVM_PGTABLE_S2_NOFWB);
 }
 
 void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
@@ -659,7 +667,17 @@ void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
 	}
 }
 
-#define KVM_S2_MEMATTR(pgt, attr) PAGE_S2_MEMATTR(attr, stage2_has_fwb(pgt))
+#define KVM_S2_MEMATTR(pgt, attr)					\
+	({								\
+		kvm_pte_t __attr;					\
+									\
+		if ((pgt)->flags & KVM_PGTABLE_S2_AS_S1)		\
+			__attr = PAGE_S2_MEMATTR(AS_S1);		\
+		else							\
+			__attr = PAGE_S2_MEMATTR(attr);			\
+									\
+		__attr;							\
+	})
 
 static int stage2_set_xn_attr(enum kvm_pgtable_prot prot, kvm_pte_t *attr)
 {
@@ -868,7 +886,7 @@ static bool stage2_unmap_defer_tlb_flush(struct kvm_pgtable *pgt)
 	 * system supporting FWB as the optimization is entirely
 	 * pointless when the unmap walker needs to perform CMOs.
 	 */
-	return system_supports_tlb_range() && stage2_has_fwb(pgt);
+	return system_supports_tlb_range() && cpus_have_final_cap(ARM64_HAS_STAGE2_FWB);
 }
 
 static void stage2_unmap_put_pte(const struct kvm_pgtable_visit_ctx *ctx,
@@ -1148,7 +1166,7 @@ static int stage2_unmap_walker(const struct kvm_pgtable_visit_ctx *ctx,
 		if (mm_ops->page_count(childp) != 1)
 			return 0;
 	} else if (stage2_pte_cacheable(pgt, ctx->old)) {
-		need_flush = !stage2_has_fwb(pgt);
+		need_flush = !cpus_have_final_cap(ARM64_HAS_STAGE2_FWB);
 	}
 
 	/*
@@ -1379,7 +1397,7 @@ int kvm_pgtable_stage2_flush(struct kvm_pgtable *pgt, u64 addr, u64 size)
 		.arg	= pgt,
 	};
 
-	if (stage2_has_fwb(pgt))
+	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
 		return 0;
 
 	return kvm_pgtable_walk(pgt, addr, size, &walker);

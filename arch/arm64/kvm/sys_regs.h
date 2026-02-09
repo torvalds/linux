@@ -49,6 +49,16 @@ struct sys_reg_params {
 				  .Op2 = ((esr) >> 17) & 0x7,			\
 				  .is_write = !((esr) & 1) })
 
+/*
+ * The Feature ID space is defined as the System register space in AArch64
+ * with op0==3, op1=={0, 1, 3}, CRn==0, CRm=={0-7}, op2=={0-7}.
+ */
+static inline bool in_feat_id_space(struct sys_reg_params *p)
+{
+	return (p->Op0 == 3 && !(p->Op1 & 0b100) && p->Op1 != 2 &&
+		p->CRn == 0 && !(p->CRm & 0b1000));
+}
+
 struct sys_reg_desc {
 	/* Sysreg string for debug */
 	const char *name;

@@ -671,7 +671,6 @@ u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
 			  enum aarch64_insn_register Rn,
 			  enum aarch64_insn_register Rd,
 			  u8 lsb);
-#ifdef CONFIG_ARM64_LSE_ATOMICS
 u32 aarch64_insn_gen_atomic_ld_op(enum aarch64_insn_register result,
 				  enum aarch64_insn_register address,
 				  enum aarch64_insn_register value,
@@ -683,28 +682,6 @@ u32 aarch64_insn_gen_cas(enum aarch64_insn_register result,
 			 enum aarch64_insn_register value,
 			 enum aarch64_insn_size_type size,
 			 enum aarch64_insn_mem_order_type order);
-#else
-static inline
-u32 aarch64_insn_gen_atomic_ld_op(enum aarch64_insn_register result,
-				  enum aarch64_insn_register address,
-				  enum aarch64_insn_register value,
-				  enum aarch64_insn_size_type size,
-				  enum aarch64_insn_mem_atomic_op op,
-				  enum aarch64_insn_mem_order_type order)
-{
-	return AARCH64_BREAK_FAULT;
-}
-
-static inline
-u32 aarch64_insn_gen_cas(enum aarch64_insn_register result,
-			 enum aarch64_insn_register address,
-			 enum aarch64_insn_register value,
-			 enum aarch64_insn_size_type size,
-			 enum aarch64_insn_mem_order_type order)
-{
-	return AARCH64_BREAK_FAULT;
-}
-#endif
 u32 aarch64_insn_gen_dmb(enum aarch64_insn_mb_type type);
 u32 aarch64_insn_gen_dsb(enum aarch64_insn_mb_type type);
 u32 aarch64_insn_gen_mrs(enum aarch64_insn_register result,
