@@ -1594,6 +1594,41 @@ void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 	vmx_prepare_switch_to_host(to_vmx(vcpu));
 }
 
+static void vmx_switch_loaded_vmcs(struct kvm_vcpu *vcpu,
+				   struct loaded_vmcs *vmcs)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int cpu;
+
+	cpu = get_cpu();
+	vmx->loaded_vmcs = vmcs;
+	vmx_vcpu_load_vmcs(vcpu, cpu);
+	put_cpu();
+}
+
+static void vmx_load_vmcs01(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (!is_guest_mode(vcpu)) {
+		WARN_ON_ONCE(vmx->loaded_vmcs != &vmx->vmcs01);
+		return;
+	}
+
+	WARN_ON_ONCE(vmx->loaded_vmcs != &vmx->nested.vmcs02);
+	vmx_switch_loaded_vmcs(vcpu, &vmx->vmcs01);
+}
+
+static void vmx_put_vmcs01(struct kvm_vcpu *vcpu)
+{
+	if (!is_guest_mode(vcpu))
+		return;
+
+	vmx_switch_loaded_vmcs(vcpu, &to_vmx(vcpu)->nested.vmcs02);
+}
+DEFINE_GUARD(vmx_vmcs01, struct kvm_vcpu *,
+	     vmx_load_vmcs01(_T), vmx_put_vmcs01(_T))
+
 bool vmx_emulation_required(struct kvm_vcpu *vcpu)
 {
 	return emulate_invalid_guest_state && !vmx_guest_state_valid(vcpu);
@@ -4558,10 +4593,7 @@ void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (is_guest_mode(vcpu)) {
-		vmx->nested.update_vmcs01_apicv_status = true;
-		return;
-	}
+	guard(vmx_vmcs01)(vcpu);
 
 	pin_controls_set(vmx, vmx_pin_based_exec_ctrl(vmx));
 
@@ -6423,6 +6455,15 @@ static void vmx_flush_pml_buffer(struct kvm_vcpu *vcpu)
 	vmcs_write16(GUEST_PML_INDEX, PML_HEAD_INDEX);
 }
 
+static void nested_vmx_mark_all_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.apic_access_page_map);
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.virtual_apic_map);
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.pi_desc_map);
+}
+
 static void vmx_dump_sel(char *name, uint32_t sel)
 {
 	pr_err("%s sel=0x%04x, attr=0x%05x, limit=0x%08x, base=0x%016lx\n",
@@ -6700,7 +6741,7 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		 * Mark them dirty on every exit from L2 to prevent them from
 		 * getting out of sync with dirty tracking.
 		 */
-		nested_mark_vmcs12_pages_dirty(vcpu);
+		nested_vmx_mark_all_vmcs12_pages_dirty(vcpu);
 
 		/*
 		 * Synthesize a triple fault if L2 state is invalid.  In normal
@@ -6837,11 +6878,10 @@ void vmx_update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW))
 		return;
 
+	guard(vmx_vmcs01)(vcpu);
+
 	tpr_threshold = (irr == -1 || tpr < irr) ? 0 : irr;
-	if (is_guest_mode(vcpu))
-		to_vmx(vcpu)->nested.l1_tpr_threshold = tpr_threshold;
-	else
-		vmcs_write32(TPR_THRESHOLD, tpr_threshold);
+	vmcs_write32(TPR_THRESHOLD, tpr_threshold);
 }
 
 void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
@@ -6856,11 +6896,7 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	    !cpu_has_vmx_virtualize_x2apic_mode())
 		return;
 
-	/* Postpone execution until vmcs01 is the current VMCS. */
-	if (is_guest_mode(vcpu)) {
-		vmx->nested.change_vmcs01_virtual_apic_mode = true;
-		return;
-	}
+	guard(vmx_vmcs01)(vcpu);
 
 	sec_exec_control = secondary_exec_controls_get(vmx);
 	sec_exec_control &= ~(SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
@@ -6883,8 +6919,17 @@ void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 			 * only do so if its physical address has changed, but
 			 * the guest may have inserted a non-APIC mapping into
 			 * the TLB while the APIC access page was disabled.
+			 *
+			 * If L2 is active, immediately flush L1's TLB instead
+			 * of requesting a flush of the current TLB, because
+			 * the current TLB context is L2's.
 			 */
-			kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+			if (!is_guest_mode(vcpu))
+				kvm_make_request(KVM_REQ_TLB_FLUSH_CURRENT, vcpu);
+			else if (!enable_ept)
+				vpid_sync_context(vmx->vpid);
+			else if (VALID_PAGE(vcpu->arch.root_mmu.root.hpa))
+				vmx_flush_tlb_ept_root(vcpu->arch.root_mmu.root.hpa);
 		}
 		break;
 	case LAPIC_MODE_X2APIC:
@@ -6909,11 +6954,8 @@ void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 	kvm_pfn_t pfn;
 	bool writable;
 
-	/* Defer reload until vmcs01 is the current VMCS. */
-	if (is_guest_mode(vcpu)) {
-		to_vmx(vcpu)->nested.reload_vmcs01_apic_access_page = true;
-		return;
-	}
+	/* Note, the VIRTUALIZE_APIC_ACCESSES check needs to query vmcs01. */
+	guard(vmx_vmcs01)(vcpu);
 
 	if (!(secondary_exec_controls_get(to_vmx(vcpu)) &
 	    SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
@@ -6974,20 +7016,15 @@ void vmx_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
 	u16 status;
 	u8 old;
 
-	/*
-	 * If L2 is active, defer the SVI update until vmcs01 is loaded, as SVI
-	 * is only relevant for if and only if Virtual Interrupt Delivery is
-	 * enabled in vmcs12, and if VID is enabled then L2 EOIs affect L2's
-	 * vAPIC, not L1's vAPIC.  KVM must update vmcs01 on the next nested
-	 * VM-Exit, otherwise L1 with run with a stale SVI.
-	 */
-	if (is_guest_mode(vcpu)) {
-		to_vmx(vcpu)->nested.update_vmcs01_hwapic_isr = true;
-		return;
-	}
-
 	if (max_isr == -1)
 		max_isr = 0;
+
+	/*
+	 * Always update SVI in vmcs01, as SVI is only relevant for L2 if and
+	 * only if Virtual Interrupt Delivery is enabled in vmcs12, and if VID
+	 * is enabled then L2 EOIs affect L2's vAPIC, not L1's vAPIC.
+	 */
+	guard(vmx_vmcs01)(vcpu);
 
 	status = vmcs_read16(GUEST_INTR_STATUS);
 	old = status >> 8;
@@ -8315,10 +8352,7 @@ void vmx_update_cpu_dirty_logging(struct kvm_vcpu *vcpu)
 	if (WARN_ON_ONCE(!enable_pml))
 		return;
 
-	if (is_guest_mode(vcpu)) {
-		vmx->nested.update_vmcs01_cpu_dirty_logging = true;
-		return;
-	}
+	guard(vmx_vmcs01)(vcpu);
 
 	/*
 	 * Note, nr_memslots_dirty_logging can be changed concurrent with this

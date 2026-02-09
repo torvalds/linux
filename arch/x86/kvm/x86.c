@@ -6731,7 +6731,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 	case KVM_CAP_SPLIT_IRQCHIP: {
 		mutex_lock(&kvm->lock);
 		r = -EINVAL;
-		if (cap->args[0] > MAX_NR_RESERVED_IOAPIC_PINS)
+		if (cap->args[0] > KVM_MAX_IRQ_ROUTES)
 			goto split_irqchip_unlock;
 		r = -EEXIST;
 		if (irqchip_in_kernel(kvm))
@@ -10276,7 +10276,7 @@ static void kvm_pv_kick_cpu_op(struct kvm *kvm, int apicid)
 		.dest_id = apicid,
 	};
 
-	kvm_irq_delivery_to_apic(kvm, NULL, &lapic_irq, NULL);
+	kvm_irq_delivery_to_apic(kvm, NULL, &lapic_irq);
 }
 
 bool kvm_apicv_activated(struct kvm *kvm)
@@ -10917,16 +10917,9 @@ void __kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu)
 	 * pending. At the same time, KVM_REQ_EVENT may not be set as APICv was
 	 * still active when the interrupt got accepted. Make sure
 	 * kvm_check_and_inject_events() is called to check for that.
-	 *
-	 * Update SVI when APICv gets enabled, otherwise SVI won't reflect the
-	 * highest bit in vISR and the next accelerated EOI in the guest won't
-	 * be virtualized correctly (the CPU uses SVI to determine which vISR
-	 * vector to clear).
 	 */
 	if (!apic->apicv_active)
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
-	else
-		kvm_apic_update_hwapic_isr(vcpu);
 
 out:
 	preempt_enable();

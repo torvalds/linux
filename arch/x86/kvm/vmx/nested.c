@@ -2405,7 +2405,6 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct loaded_vmcs *vmcs0
 	exec_control &= ~CPU_BASED_TPR_SHADOW;
 	exec_control |= vmcs12->cpu_based_vm_exec_control;
 
-	vmx->nested.l1_tpr_threshold = -1;
 	if (exec_control & CPU_BASED_TPR_SHADOW)
 		vmcs_write32(TPR_THRESHOLD, vmcs12->tpr_threshold);
 #ifdef CONFIG_X86_64
@@ -3984,28 +3983,6 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 	}
 }
 
-
-void nested_mark_vmcs12_pages_dirty(struct kvm_vcpu *vcpu)
-{
-	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	gfn_t gfn;
-
-	/*
-	 * Don't need to mark the APIC access page dirty; it is never
-	 * written to by the CPU during APIC virtualization.
-	 */
-
-	if (nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW)) {
-		gfn = vmcs12->virtual_apic_page_addr >> PAGE_SHIFT;
-		kvm_vcpu_mark_page_dirty(vcpu, gfn);
-	}
-
-	if (nested_cpu_has_posted_intr(vmcs12)) {
-		gfn = vmcs12->posted_intr_desc_addr >> PAGE_SHIFT;
-		kvm_vcpu_mark_page_dirty(vcpu, gfn);
-	}
-}
-
 static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -4040,7 +4017,8 @@ static int vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	nested_mark_vmcs12_pages_dirty(vcpu);
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.virtual_apic_map);
+	kvm_vcpu_map_mark_dirty(vcpu, &vmx->nested.pi_desc_map);
 	return 0;
 
 mmio_needed:
@@ -5147,35 +5125,7 @@ void __nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 	if (kvm_caps.has_tsc_control)
 		vmcs_write64(TSC_MULTIPLIER, vcpu->arch.tsc_scaling_ratio);
 
-	if (vmx->nested.l1_tpr_threshold != -1)
-		vmcs_write32(TPR_THRESHOLD, vmx->nested.l1_tpr_threshold);
-
-	if (vmx->nested.change_vmcs01_virtual_apic_mode) {
-		vmx->nested.change_vmcs01_virtual_apic_mode = false;
-		vmx_set_virtual_apic_mode(vcpu);
-	}
-
-	if (vmx->nested.update_vmcs01_cpu_dirty_logging) {
-		vmx->nested.update_vmcs01_cpu_dirty_logging = false;
-		vmx_update_cpu_dirty_logging(vcpu);
-	}
-
 	nested_put_vmcs12_pages(vcpu);
-
-	if (vmx->nested.reload_vmcs01_apic_access_page) {
-		vmx->nested.reload_vmcs01_apic_access_page = false;
-		kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
-	}
-
-	if (vmx->nested.update_vmcs01_apicv_status) {
-		vmx->nested.update_vmcs01_apicv_status = false;
-		vmx_refresh_apicv_exec_ctrl(vcpu);
-	}
-
-	if (vmx->nested.update_vmcs01_hwapic_isr) {
-		vmx->nested.update_vmcs01_hwapic_isr = false;
-		kvm_apic_update_hwapic_isr(vcpu);
-	}
 
 	if ((vm_exit_reason != -1) &&
 	    (enable_shadow_vmcs || nested_vmx_is_evmptr12_valid(vmx)))

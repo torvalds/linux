@@ -131,12 +131,6 @@ struct nested_vmx {
 	 */
 	bool vmcs02_initialized;
 
-	bool change_vmcs01_virtual_apic_mode;
-	bool reload_vmcs01_apic_access_page;
-	bool update_vmcs01_cpu_dirty_logging;
-	bool update_vmcs01_apicv_status;
-	bool update_vmcs01_hwapic_isr;
-
 	/*
 	 * Enlightened VMCS has been enabled. It does not mean that L1 has to
 	 * use it. However, VMX features available to L1 will be limited based
@@ -184,9 +178,6 @@ struct nested_vmx {
 	u64 pre_vmenter_s_cet;
 	u64 pre_vmenter_ssp;
 	u64 pre_vmenter_ssp_tbl;
-
-	/* to migrate it to L1 if L2 writes to L1's CR8 directly */
-	int l1_tpr_threshold;
 
 	u16 vpid02;
 	u16 last_vpid;

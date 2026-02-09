@@ -235,7 +235,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 
 	kvm_msi_to_lapic_irq(kvm, e, &irq);
 
-	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
+	return kvm_irq_delivery_to_apic(kvm, NULL, &irq);
 }
 
 int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
@@ -258,7 +258,7 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 
 		kvm_msi_to_lapic_irq(kvm, e, &irq);
 
-		if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r, NULL))
+		if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r))
 			return r;
 		break;
 
