@@ -133,7 +133,8 @@ static int bad_inode_fiemap(struct inode *inode,
 	return -EIO;
 }
 
-static int bad_inode_update_time(struct inode *inode, int flags)
+static int bad_inode_update_time(struct inode *inode, enum fs_update_time type,
+				 unsigned int flags)
 {
 	return -EIO;
 }
