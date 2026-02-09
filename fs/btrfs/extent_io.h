@@ -298,7 +298,7 @@ static inline int __pure num_extent_folios(const struct extent_buffer *eb)
 	return num_extent_pages(eb);
 }
 
-static inline int extent_buffer_uptodate(const struct extent_buffer *eb)
+static inline bool extent_buffer_uptodate(const struct extent_buffer *eb)
 {
 	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 }

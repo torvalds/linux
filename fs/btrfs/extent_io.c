@@ -3871,7 +3871,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
 
-	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
+	if (extent_buffer_uptodate(eb))
 		return 0;
 
 	/*
@@ -3892,7 +3892,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	 * started and finished reading the same eb.  In this case, UPTODATE
 	 * will now be set, and we shouldn't read it in again.
 	 */
-	if (unlikely(test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))) {
+	if (unlikely(extent_buffer_uptodate(eb))) {
 		clear_extent_buffer_reading(eb);
 		return 0;
 	}
@@ -3929,7 +3929,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int mirror_num,
 		return ret;
 
 	wait_on_bit_io(&eb->bflags, EXTENT_BUFFER_READING, TASK_UNINTERRUPTIBLE);
-	if (unlikely(!test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags)))
+	if (unlikely(!extent_buffer_uptodate(eb)))
 		return -EIO;
 	return 0;
 }
