@@ -10,7 +10,11 @@ struct Buf {
 
 #[no_mangle]
 pub extern "C" fn test_rs(count: u32) {
-    let mut b =  Buf { data1: 0, data2: String::from("data"), data3: 0};
+    let mut b = Buf {
+        data1: 0,
+        data2: String::from("data"),
+        data3: 0,
+    };
 
     for _ in 1..count {
         b.data1 += 1;
