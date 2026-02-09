@@ -26,9 +26,9 @@ Physical memory address 0 will be *pfn 0* and the highest pfn will be
 the last page of physical memory the external address bus of the CPU can
 address.
 
-With a page granularity of 4KB and a address range of 32 bits, pfn 0 is at
+With a page granularity of 4KB and an address range of 32 bits, pfn 0 is at
 address 0x00000000, pfn 1 is at address 0x00001000, pfn 2 is at 0x00002000
-and so on until we reach pfn 0xfffff at 0xfffff000. With 16KB pages pfs are
+and so on until we reach pfn 0xfffff at 0xfffff000. With 16KB pages pfns are
 at 0x00004000, 0x00008000 ... 0xffffc000 and pfn goes from 0 to 0x3ffff.
 
 As you can see, with 4KB pages the page base address uses bits 12-31 of the
@@ -38,8 +38,8 @@ address, and this is why `PAGE_SHIFT` in this case is defined as 12 and
 Over time a deeper hierarchy has been developed in response to increasing memory
 sizes. When Linux was created, 4KB pages and a single page table called
 `swapper_pg_dir` with 1024 entries was used, covering 4MB which coincided with
-the fact that Torvald's first computer had 4MB of physical memory. Entries in
-this single table were referred to as *PTE*:s - page table entries.
+the fact that Torvalds's first computer had 4MB of physical memory. Entries in
+this single table were referred to as *PTEs* - page table entries.
 
 The software page table hierarchy reflects the fact that page table hardware has
 become hierarchical and that in turn is done to save page table memory and
@@ -212,7 +212,7 @@ threshold.
 Additionally, page faults may be also caused by code bugs or by maliciously
 crafted addresses that the CPU is instructed to access. A thread of a process
 could use instructions to address (non-shared) memory which does not belong to
-its own address space, or could try to execute an instruction that want to write
+its own address space, or could try to execute an instruction that wants to write
 to a read-only location.
 
 If the above-mentioned conditions happen in user-space, the kernel sends a
@@ -277,5 +277,5 @@ To conclude this high altitude view of how Linux handles page faults, let's
 add that the page faults handler can be disabled and enabled respectively with
 `pagefault_disable()` and `pagefault_enable()`.
 
-Several code path make use of the latter two functions because they need to
+Several code paths make use of the latter two functions because they need to
 disable traps into the page faults handler, mostly to prevent deadlocks.
