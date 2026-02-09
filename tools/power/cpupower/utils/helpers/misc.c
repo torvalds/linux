@@ -19,6 +19,9 @@ int cpufreq_has_x86_boost_support(unsigned int cpu, int *support, int *active,
 {
 	int ret;
 	unsigned long long val;
+	char linebuf[MAX_LINE_LEN];
+	char path[SYSFS_PATH_MAX];
+	char *endp;
 
 	*support = *active = *states = 0;
 
@@ -42,8 +45,42 @@ int cpufreq_has_x86_boost_support(unsigned int cpu, int *support, int *active,
 		}
 	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_AMD_PSTATE) {
 		amd_pstate_boost_init(cpu, support, active);
-	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_INTEL_IDA)
+	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_INTEL_IDA) {
 		*support = *active = 1;
+
+		snprintf(path, sizeof(path), PATH_TO_CPU "intel_pstate/no_turbo");
+
+		if (!is_valid_path(path))
+			return 0;
+
+		if (cpupower_read_sysfs(path, linebuf, MAX_LINE_LEN) == 0)
+			return -1;
+
+		val = strtol(linebuf, &endp, 0);
+		if (endp == linebuf || errno == ERANGE)
+			return -1;
+
+		*active = !val;
+	}
+	return 0;
+}
+
+int cpupower_set_intel_turbo_boost(int turbo_boost)
+{
+	char path[SYSFS_PATH_MAX];
+	char linebuf[2] = {};
+
+	snprintf(path, sizeof(path), PATH_TO_CPU "intel_pstate/no_turbo");
+
+	/* Fallback to generic solution when intel_pstate driver not running */
+	if (!is_valid_path(path))
+		return cpupower_set_generic_turbo_boost(turbo_boost);
+
+	snprintf(linebuf, sizeof(linebuf), "%d", !turbo_boost);
+
+	if (cpupower_write_sysfs(path, linebuf, 2) <= 0)
+		return -1;
+
 	return 0;
 }
 
@@ -274,7 +311,7 @@ void print_speed(unsigned long speed, int no_rounding)
 	}
 }
 
-int cpupower_set_turbo_boost(int turbo_boost)
+int cpupower_set_generic_turbo_boost(int turbo_boost)
 {
 	char path[SYSFS_PATH_MAX];
 	char linebuf[2] = {};
