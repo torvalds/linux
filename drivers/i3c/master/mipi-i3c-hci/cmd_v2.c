@@ -16,7 +16,6 @@
 #include "cmd.h"
 #include "xfer_mode_rate.h"
 
-
 /*
  * Unified Data Transfer Command
  */
@@ -61,7 +60,6 @@
 #define CMD_A0_XFER_RATE(v)		FIELD_PREP(W0_MASK( 17,  15), v)
 #define CMD_A0_ASSIGN_ADDRESS(v)	FIELD_PREP(W0_MASK( 14,   8), v)
 #define CMD_A0_TID(v)			FIELD_PREP(W0_MASK(  6,   3), v)
-
 
 static unsigned int get_i3c_rate_idx(struct i3c_hci *hci)
 {
