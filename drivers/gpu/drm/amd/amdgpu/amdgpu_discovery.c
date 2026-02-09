@@ -132,12 +132,17 @@ MODULE_FIRMWARE("amdgpu/picasso_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ip_discovery.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_ip_discovery.bin");
 
+/* Note: These registers are consistent across all the SOCs */
 #define mmIP_DISCOVERY_VERSION  0x16A00
 #define mmRCC_CONFIG_MEMSIZE	0xde3
 #define mmMP0_SMN_C2PMSG_33	0x16061
 #define mmMM_INDEX		0x0
 #define mmMM_INDEX_HI		0x6
 #define mmMM_DATA		0x1
+
+#define mmDRIVER_SCRATCH_0	0x94
+#define mmDRIVER_SCRATCH_1	0x95
+#define mmDRIVER_SCRATCH_2	0x96
 
 static const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
@@ -253,39 +258,12 @@ static int hw_id_map[MAX_HWIP] = {
 	[ATU_HWIP]	= ATU_HWID,
 };
 
-static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
+					 bool *is_tmr_in_sysmem)
 {
-	u64 tmr_offset, tmr_size, pos;
-	void *discv_regn;
-	int ret;
-
-	ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
-	if (ret)
-		return ret;
-
-	pos = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
-
-	/* This region is read-only and reserved from system use */
-	discv_regn = memremap(pos, adev->discovery.size, MEMREMAP_WC);
-	if (discv_regn) {
-		memcpy(binary, discv_regn, adev->discovery.size);
-		memunmap(discv_regn);
-		return 0;
-	}
-
-	return -ENOENT;
-}
-
-#define IP_DISCOVERY_V2		2
-#define IP_DISCOVERY_V4		4
-
-static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
-						 uint8_t *binary)
-{
-	bool sz_valid = true;
-	uint64_t vram_size;
-	int i, ret = 0;
-	u32 msg;
+	u64 vram_size, tmr_offset, tmr_size;
+	u32 msg, tmr_offset_lo, tmr_offset_hi;
+	int i, ret;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* It can take up to two second for IFWI init to complete on some dGPUs,
@@ -305,51 +283,93 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	}
 
 	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
-	if (!vram_size || vram_size == U32_MAX)
-		sz_valid = false;
+	if (vram_size == U32_MAX)
+		return -ENXIO;
+	else if (!vram_size)
+		*is_tmr_in_sysmem = true;
 	else
-		vram_size <<= 20;
+		*is_tmr_in_sysmem = false;
 
-	/*
-	 * If in VRAM, discovery TMR is marked for reservation. If it is in system mem,
-	 * then it is not required to be reserved.
-	 */
-	if (sz_valid) {
-		if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
-			/* For SRIOV VFs with dynamic critical region enabled,
-			 * we will get the IPD binary via below call.
-			 * If dynamic critical is disabled, fall through to normal seq.
-			 */
-			if (amdgpu_virt_get_dynamic_data_info(adev,
-						AMD_SRIOV_MSG_IPD_TABLE_ID, binary,
-						&adev->discovery.size)) {
-				dev_err(adev->dev,
-						"failed to read discovery info from dynamic critical region.");
-				ret = -EINVAL;
-				goto exit;
-			}
-		} else {
-			uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
+	/* init the default tmr size and offset */
+	adev->discovery.size = DISCOVERY_TMR_SIZE;
+	if (vram_size)
+		adev->discovery.offset = (vram_size << 20) - DISCOVERY_TMR_OFFSET;
 
-			amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
-					adev->discovery.size, false);
-			adev->discovery.reserve_tmr = true;
+	if (amdgpu_sriov_vf(adev) && adev->virt.is_dynamic_crit_regn_enabled) {
+		adev->discovery.offset =
+			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].offset;
+		adev->discovery.size =
+			adev->virt.crit_regn_tbl[AMD_SRIOV_MSG_IPD_TABLE_ID].size_kb << 10;
+		if (!adev->discovery.offset || !adev->discovery.size)
+			return -EINVAL;
+	} else {
+		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
+		if (tmr_size) {
+			/* It's preferred to transition to PSP mailbox reg interface
+			 * for both bare-metal and passthrough if available */
+			adev->discovery.size = (u32)tmr_size;
+			tmr_offset_lo = RREG32(mmDRIVER_SCRATCH_0);
+			tmr_offset_hi = RREG32(mmDRIVER_SCRATCH_1);
+			adev->discovery.offset = ((u64)le32_to_cpu(tmr_offset_hi) << 32 |
+						  le32_to_cpu(tmr_offset_lo));
+		} else if (!vram_size) {
+			/* fall back to apci approach to query tmr offset if vram_size is 0 */
+			ret = amdgpu_acpi_get_tmr_info(adev, &tmr_offset, &tmr_size);
+			if (ret)
+				return ret;
+			adev->discovery.size = (u32)tmr_size;
+			adev->discovery.offset = tmr_offset + tmr_size - DISCOVERY_TMR_OFFSET;
 		}
+	}
+
+	adev->discovery.bin = kzalloc(adev->discovery.size, GFP_KERNEL);
+	if (!adev->discovery.bin)
+		return -ENOMEM;
+	adev->discovery.debugfs_blob.data = adev->discovery.bin;
+	adev->discovery.debugfs_blob.size = adev->discovery.size;
+
+	return 0;
+}
+
+static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
+{
+	void *discv_regn;
+
+	/* This region is read-only and reserved from system use */
+	discv_regn = memremap(adev->discovery.offset, adev->discovery.size, MEMREMAP_WC);
+	if (discv_regn) {
+		memcpy(binary, discv_regn, adev->discovery.size);
+		memunmap(discv_regn);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+#define IP_DISCOVERY_V2		2
+#define IP_DISCOVERY_V4		4
+
+static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
+						 uint8_t *binary,
+						 bool is_tmr_in_sysmem)
+{
+	int ret = 0;
+
+	if (!is_tmr_in_sysmem) {
+		amdgpu_device_vram_access(adev, adev->discovery.offset,
+					  (uint32_t *)binary,
+					  adev->discovery.size, false);
+		adev->discovery.reserve_tmr = true;
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
 
-	if (ret)
-		dev_err(adev->dev,
-			"failed to read discovery info from memory, vram size read: %llx",
-			vram_size);
-exit:
 	return ret;
 }
 
 static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev,
-							uint8_t *binary,
-							const char *fw_name)
+						  uint8_t *binary,
+						  const char *fw_name)
 {
 	const struct firmware *fw;
 	int r;
@@ -602,14 +622,12 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	uint16_t size;
 	uint16_t checksum;
 	uint16_t table_id;
+	bool is_tmr_in_sysmem;
 	int r;
 
-	adev->discovery.bin = kzalloc(DISCOVERY_TMR_SIZE, GFP_KERNEL);
-	if (!adev->discovery.bin)
-		return -ENOMEM;
-	adev->discovery.size = DISCOVERY_TMR_SIZE;
-	adev->discovery.debugfs_blob.data = adev->discovery.bin;
-	adev->discovery.debugfs_blob.size = adev->discovery.size;
+	r = amdgpu_discovery_get_tmr_info(adev, &is_tmr_in_sysmem);
+	if (r)
+		return r;
 
 	discovery_bin = adev->discovery.bin;
 	/* Read from file if it is the preferred option */
@@ -622,7 +640,8 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 	} else {
 		drm_dbg(&adev->ddev, "use ip discovery information from memory");
-		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin);
+		r = amdgpu_discovery_read_binary_from_mem(adev, discovery_bin,
+							  is_tmr_in_sysmem);
 		if (r)
 			goto out;
 	}

@@ -35,6 +35,7 @@ struct drm_printer;
 struct amdgpu_discovery_info {
 	struct debugfs_blob_wrapper debugfs_blob;
 	struct ip_discovery_top *ip_top;
+	uint64_t offset;
 	uint32_t size;
 	uint8_t *bin;
 	bool reserve_tmr;
