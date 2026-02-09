@@ -281,34 +281,34 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 	/* Setup mode specific traits. */
 	switch (vm->mode) {
 	case VM_MODE_P52V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P52V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P48V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P48V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P40V48_4K:
 	case VM_MODE_P36V48_4K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P40V48_64K:
 	case VM_MODE_P36V48_64K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_P52V48_16K:
 	case VM_MODE_P48V48_16K:
 	case VM_MODE_P40V48_16K:
 	case VM_MODE_P36V48_16K:
-		vm->pgtable_levels = 4;
+		vm->mmu.pgtable_levels = 4;
 		break;
 	case VM_MODE_P47V47_16K:
 	case VM_MODE_P36V47_16K:
-		vm->pgtable_levels = 3;
+		vm->mmu.pgtable_levels = 3;
 		break;
 	case VM_MODE_PXXVYY_4K:
 #ifdef __x86_64__
@@ -321,22 +321,22 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 			 vm->va_bits);
 
 		if (vm->va_bits == 57) {
-			vm->pgtable_levels = 5;
+			vm->mmu.pgtable_levels = 5;
 		} else {
 			TEST_ASSERT(vm->va_bits == 48,
 				    "Unexpected guest virtual address width: %d",
 				    vm->va_bits);
-			vm->pgtable_levels = 4;
+			vm->mmu.pgtable_levels = 4;
 		}
 #else
 		TEST_FAIL("VM_MODE_PXXVYY_4K not supported on non-x86 platforms");
 #endif
 		break;
 	case VM_MODE_P47V64_4K:
-		vm->pgtable_levels = 5;
+		vm->mmu.pgtable_levels = 5;
 		break;
 	case VM_MODE_P44V64_4K:
-		vm->pgtable_levels = 5;
+		vm->mmu.pgtable_levels = 5;
 		break;
 	default:
 		TEST_FAIL("Unknown guest mode: 0x%x", vm->mode);
@@ -1956,8 +1956,8 @@ void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	fprintf(stream, "%*sMapped Virtual Pages:\n", indent, "");
 	sparsebit_dump(stream, vm->vpages_mapped, indent + 2);
 	fprintf(stream, "%*spgd_created: %u\n", indent, "",
-		vm->pgd_created);
-	if (vm->pgd_created) {
+		vm->mmu.pgd_created);
+	if (vm->mmu.pgd_created) {
 		fprintf(stream, "%*sVirtual Translation Tables:\n",
 			indent + 2, "");
 		virt_dump(stream, vm, indent + 4);

@@ -10,6 +10,28 @@
 
 extern bool is_forced_emulation_enabled;
 
+struct pte_masks {
+	uint64_t present;
+	uint64_t writable;
+	uint64_t user;
+	uint64_t readable;
+	uint64_t executable;
+	uint64_t accessed;
+	uint64_t dirty;
+	uint64_t huge;
+	uint64_t nx;
+	uint64_t c;
+	uint64_t s;
+
+	uint64_t always_set;
+};
+
+struct kvm_mmu_arch {
+	struct pte_masks pte_masks;
+};
+
+struct kvm_mmu;
+
 struct kvm_vm_arch {
 	vm_vaddr_t gdt;
 	vm_vaddr_t tss;

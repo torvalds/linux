@@ -17,7 +17,7 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 	TEST_ASSERT(vm->page_size == PAGE_SIZE, "Unsupported page size: 0x%x",
 		    vm->page_size);
 
-	if (vm->pgd_created)
+	if (vm->mmu.pgd_created)
 		return;
 
 	paddr = vm_phy_pages_alloc(vm, PAGES_PER_REGION,
@@ -25,8 +25,8 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 				   vm->memslots[MEM_REGION_PT]);
 	memset(addr_gpa2hva(vm, paddr), 0xff, PAGES_PER_REGION * vm->page_size);
 
-	vm->pgd = paddr;
-	vm->pgd_created = true;
+	vm->mmu.pgd = paddr;
+	vm->mmu.pgd_created = true;
 }
 
 /*
@@ -70,7 +70,7 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t gva, uint64_t gpa)
 		gva, vm->max_gfn, vm->page_size);
 
 	/* Walk through region and segment tables */
-	entry = addr_gpa2hva(vm, vm->pgd);
+	entry = addr_gpa2hva(vm, vm->mmu.pgd);
 	for (ri = 1; ri <= 4; ri++) {
 		idx = (gva >> (64 - 11 * ri)) & 0x7ffu;
 		if (entry[idx] & REGION_ENTRY_INVALID)
@@ -94,7 +94,7 @@ vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	TEST_ASSERT(vm->page_size == PAGE_SIZE, "Unsupported page size: 0x%x",
 		    vm->page_size);
 
-	entry = addr_gpa2hva(vm, vm->pgd);
+	entry = addr_gpa2hva(vm, vm->mmu.pgd);
 	for (ri = 1; ri <= 4; ri++) {
 		idx = (gva >> (64 - 11 * ri)) & 0x7ffu;
 		TEST_ASSERT(!(entry[idx] & REGION_ENTRY_INVALID),
@@ -149,10 +149,10 @@ static void virt_dump_region(FILE *stream, struct kvm_vm *vm, uint8_t indent,
 
 void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		return;
 
-	virt_dump_region(stream, vm, indent, vm->pgd);
+	virt_dump_region(stream, vm, indent, vm->mmu.pgd);
 }
 
 void vcpu_arch_set_entry_point(struct kvm_vcpu *vcpu, void *guest_code)
@@ -184,7 +184,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 
 	vcpu_sregs_get(vcpu, &sregs);
 	sregs.crs[0] |= 0x00040000;		/* Enable floating point regs */
-	sregs.crs[1] = vm->pgd | 0xf;		/* Primary region table */
+	sregs.crs[1] = vm->mmu.pgd | 0xf;	/* Primary region table */
 	vcpu_sregs_set(vcpu, &sregs);
 
 	vcpu->run->psw_mask = 0x0400000180000000ULL;  /* DAT enabled + 64 bit mode */

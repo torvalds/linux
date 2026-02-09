@@ -28,6 +28,8 @@
 #define		GET_APIC_ID_FIELD(x)	(((x) >> 24) & 0xFF)
 #define	APIC_TASKPRI	0x80
 #define	APIC_PROCPRI	0xA0
+#define	GET_APIC_PRI(x) (((x) & GENMASK(7, 4)) >> 4)
+#define	SET_APIC_PRI(x, y) (((x) & ~GENMASK(7, 4)) | (y << 4))
 #define	APIC_EOI	0xB0
 #define	APIC_SPIV	0xF0
 #define		APIC_SPIV_FOCUS_DISABLED	(1 << 9)
@@ -67,6 +69,7 @@
 #define	APIC_TMICT	0x380
 #define	APIC_TMCCT	0x390
 #define	APIC_TDCR	0x3E0
+#define	APIC_SELF_IPI	0x3F0
 
 void apic_disable(void);
 void xapic_enable(void);
