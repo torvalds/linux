@@ -2796,6 +2796,9 @@ static inline void unlock_mount(struct pinned_mountpoint *m)
 		__unlock_mount(m);
 }
 
+static void lock_mount_exact(const struct path *path,
+			     struct pinned_mountpoint *mp);
+
 #define LOCK_MOUNT_MAYBE_BENEATH(mp, path, beneath) \
 	struct pinned_mountpoint mp __cleanup(unlock_mount) = {}; \
 	do_lock_mount((path), &mp, (beneath))
@@ -2946,10 +2949,11 @@ static inline bool may_copy_tree(const struct path *path)
 	return check_anonymous_mnt(mnt);
 }
 
-
-static struct mount *__do_loopback(const struct path *old_path, int recurse)
+static struct mount *__do_loopback(const struct path *old_path,
+				   unsigned int flags, unsigned int copy_flags)
 {
 	struct mount *old = real_mount(old_path->mnt);
+	bool recurse = flags & AT_RECURSIVE;
 
 	if (IS_MNT_UNBINDABLE(old))
 		return ERR_PTR(-EINVAL);
@@ -2960,10 +2964,22 @@ static struct mount *__do_loopback(const struct path *old_path, int recurse)
 	if (!recurse && __has_locked_children(old, old_path->dentry))
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * When creating a new mount namespace we don't want to copy over
+	 * mounts of mount namespaces to avoid the risk of cycles and also to
+	 * minimize the default complex interdependencies between mount
+	 * namespaces.
+	 *
+	 * We could ofc just check whether all mount namespace files aren't
+	 * creating cycles but really let's keep this simple.
+	 */
+	if (!(flags & OPEN_TREE_NAMESPACE))
+		copy_flags |= CL_COPY_MNT_NS_FILE;
+
 	if (recurse)
-		return copy_tree(old, old_path->dentry, CL_COPY_MNT_NS_FILE);
-	else
-		return clone_mnt(old, old_path->dentry, 0);
+		return copy_tree(old, old_path->dentry, copy_flags);
+
+	return clone_mnt(old, old_path->dentry, copy_flags);
 }
 
 /*
@@ -2974,7 +2990,9 @@ static int do_loopback(const struct path *path, const char *old_name,
 {
 	struct path old_path __free(path_put) = {};
 	struct mount *mnt = NULL;
+	unsigned int flags = recurse ? AT_RECURSIVE : 0;
 	int err;
+
 	if (!old_name || !*old_name)
 		return -EINVAL;
 	err = kern_path(old_name, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &old_path);
@@ -2991,7 +3009,7 @@ static int do_loopback(const struct path *path, const char *old_name,
 	if (!check_mnt(mp.parent))
 		return -EINVAL;
 
-	mnt = __do_loopback(&old_path, recurse);
+	mnt = __do_loopback(&old_path, flags, 0);
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
@@ -3004,7 +3022,7 @@ static int do_loopback(const struct path *path, const char *old_name,
 	return err;
 }
 
-static struct mnt_namespace *get_detached_copy(const struct path *path, bool recursive)
+static struct mnt_namespace *get_detached_copy(const struct path *path, unsigned int flags)
 {
 	struct mnt_namespace *ns, *mnt_ns = current->nsproxy->mnt_ns, *src_mnt_ns;
 	struct user_namespace *user_ns = mnt_ns->user_ns;
@@ -3029,7 +3047,7 @@ static struct mnt_namespace *get_detached_copy(const struct path *path, bool rec
 			ns->seq_origin = src_mnt_ns->ns.ns_id;
 	}
 
-	mnt = __do_loopback(path, recursive);
+	mnt = __do_loopback(path, flags, 0);
 	if (IS_ERR(mnt)) {
 		emptied_ns = ns;
 		return ERR_CAST(mnt);
@@ -3043,9 +3061,9 @@ static struct mnt_namespace *get_detached_copy(const struct path *path, bool rec
 	return ns;
 }
 
-static struct file *open_detached_copy(struct path *path, bool recursive)
+static struct file *open_detached_copy(struct path *path, unsigned int flags)
 {
-	struct mnt_namespace *ns = get_detached_copy(path, recursive);
+	struct mnt_namespace *ns = get_detached_copy(path, flags);
 	struct file *file;
 
 	if (IS_ERR(ns))
@@ -3061,21 +3079,122 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 	return file;
 }
 
+DEFINE_FREE(put_empty_mnt_ns, struct mnt_namespace *,
+	    if (!IS_ERR_OR_NULL(_T)) free_mnt_ns(_T))
+
+static struct mnt_namespace *create_new_namespace(struct path *path, unsigned int flags)
+{
+	struct mnt_namespace *new_ns __free(put_empty_mnt_ns) = NULL;
+	struct path to_path __free(path_put) = {};
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	struct user_namespace *user_ns = current_user_ns();
+	struct mount *new_ns_root;
+	struct mount *mnt;
+	unsigned int copy_flags = 0;
+	bool locked = false;
+
+	if (user_ns != ns->user_ns)
+		copy_flags |= CL_SLAVE;
+
+	new_ns = alloc_mnt_ns(user_ns, false);
+	if (IS_ERR(new_ns))
+		return ERR_CAST(new_ns);
+
+	scoped_guard(namespace_excl) {
+		new_ns_root = clone_mnt(ns->root, ns->root->mnt.mnt_root, copy_flags);
+		if (IS_ERR(new_ns_root))
+			return ERR_CAST(new_ns_root);
+
+		/*
+		 * If the real rootfs had a locked mount on top of it somewhere
+		 * in the stack, lock the new mount tree as well so it can't be
+		 * exposed.
+		 */
+		mnt = ns->root;
+		while (mnt->overmount) {
+			mnt = mnt->overmount;
+			if (mnt->mnt.mnt_flags & MNT_LOCKED)
+				locked = true;
+		}
+	}
+
+	/*
+	 * We dropped the namespace semaphore so we can actually lock
+	 * the copy for mounting. The copied mount isn't attached to any
+	 * mount namespace and it is thus excluded from any propagation.
+	 * So realistically we're isolated and the mount can't be
+	 * overmounted.
+	 */
+
+	/* Borrow the reference from clone_mnt(). */
+	to_path.mnt = &new_ns_root->mnt;
+	to_path.dentry = dget(new_ns_root->mnt.mnt_root);
+
+	/* Now lock for actual mounting. */
+	LOCK_MOUNT_EXACT(mp, &to_path);
+	if (unlikely(IS_ERR(mp.parent)))
+		return ERR_CAST(mp.parent);
+
+	/*
+	 * We don't emulate unshare()ing a mount namespace. We stick to the
+	 * restrictions of creating detached bind-mounts. It has a lot
+	 * saner and simpler semantics.
+	 */
+	mnt = __do_loopback(path, flags, copy_flags);
+	if (IS_ERR(mnt))
+		return ERR_CAST(mnt);
+
+	scoped_guard(mount_writer) {
+		if (locked)
+			mnt->mnt.mnt_flags |= MNT_LOCKED;
+		/*
+		 * Now mount the detached tree on top of the copy of the
+		 * real rootfs we created.
+		 */
+		attach_mnt(mnt, new_ns_root, mp.mp);
+		if (user_ns != ns->user_ns)
+			lock_mnt_tree(new_ns_root);
+	}
+
+	/* Add all mounts to the new namespace. */
+	for (struct mount *p = new_ns_root; p; p = next_mnt(p, new_ns_root)) {
+		mnt_add_to_ns(new_ns, p);
+		new_ns->nr_mounts++;
+	}
+
+	new_ns->root = real_mount(no_free_ptr(to_path.mnt));
+	ns_tree_add_raw(new_ns);
+	return no_free_ptr(new_ns);
+}
+
+static struct file *open_new_namespace(struct path *path, unsigned int flags)
+{
+	struct mnt_namespace *new_ns;
+
+	new_ns = create_new_namespace(path, flags);
+	if (IS_ERR(new_ns))
+		return ERR_CAST(new_ns);
+	return open_namespace_file(to_ns_common(new_ns));
+}
+
 static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned int flags)
 {
 	int ret;
 	struct path path __free(path_put) = {};
 	int lookup_flags = LOOKUP_AUTOMOUNT | LOOKUP_FOLLOW;
-	bool detached = flags & OPEN_TREE_CLONE;
 
 	BUILD_BUG_ON(OPEN_TREE_CLOEXEC != O_CLOEXEC);
 
 	if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_RECURSIVE |
 		      AT_SYMLINK_NOFOLLOW | OPEN_TREE_CLONE |
-		      OPEN_TREE_CLOEXEC))
+		      OPEN_TREE_CLOEXEC | OPEN_TREE_NAMESPACE))
 		return ERR_PTR(-EINVAL);
 
-	if ((flags & (AT_RECURSIVE | OPEN_TREE_CLONE)) == AT_RECURSIVE)
+	if ((flags & (AT_RECURSIVE | OPEN_TREE_CLONE | OPEN_TREE_NAMESPACE)) ==
+	    AT_RECURSIVE)
+		return ERR_PTR(-EINVAL);
+
+	if (hweight32(flags & (OPEN_TREE_CLONE | OPEN_TREE_NAMESPACE)) > 1)
 		return ERR_PTR(-EINVAL);
 
 	if (flags & AT_NO_AUTOMOUNT)
@@ -3085,15 +3204,27 @@ static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned
 	if (flags & AT_EMPTY_PATH)
 		lookup_flags |= LOOKUP_EMPTY;
 
-	if (detached && !may_mount())
+	/*
+	 * If we create a new mount namespace with the cloned mount tree we
+	 * just care about being privileged over our current user namespace.
+	 * The new mount namespace will be owned by it.
+	 */
+	if ((flags & OPEN_TREE_NAMESPACE) &&
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+		return ERR_PTR(-EPERM);
+
+	if ((flags & OPEN_TREE_CLONE) && !may_mount())
 		return ERR_PTR(-EPERM);
 
 	ret = user_path_at(dfd, filename, lookup_flags, &path);
 	if (unlikely(ret))
 		return ERR_PTR(ret);
 
-	if (detached)
-		return open_detached_copy(&path, flags & AT_RECURSIVE);
+	if (flags & OPEN_TREE_NAMESPACE)
+		return open_new_namespace(&path, flags);
+
+	if (flags & OPEN_TREE_CLONE)
+		return open_detached_copy(&path, flags);
 
 	return dentry_open(&path, O_PATH, current_cred());
 }
@@ -5554,31 +5685,49 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 
 /* locks: namespace_shared */
 static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
-			struct mnt_namespace *ns)
+                        struct file *mnt_file, struct mnt_namespace *ns)
 {
-	struct mount *m;
 	int err;
 
-	/* Has the namespace already been emptied? */
-	if (mnt_ns_id && mnt_ns_empty(ns))
-		return -ENOENT;
+	if (mnt_file) {
+		WARN_ON_ONCE(ns != NULL);
 
-	s->mnt = lookup_mnt_in_ns(mnt_id, ns);
-	if (!s->mnt)
-		return -ENOENT;
+		s->mnt = mnt_file->f_path.mnt;
+		ns = real_mount(s->mnt)->mnt_ns;
+		if (!ns)
+			/*
+			 * We can't set mount point and mnt_ns_id since we don't have a
+			 * ns for the mount. This can happen if the mount is unmounted
+			 * with MNT_DETACH.
+			 */
+			s->mask &= ~(STATMOUNT_MNT_POINT | STATMOUNT_MNT_NS_ID);
+	} else {
+		/* Has the namespace already been emptied? */
+		if (mnt_ns_id && mnt_ns_empty(ns))
+			return -ENOENT;
 
-	err = grab_requested_root(ns, &s->root);
-	if (err)
-		return err;
+		s->mnt = lookup_mnt_in_ns(mnt_id, ns);
+		if (!s->mnt)
+			return -ENOENT;
+	}
 
-	/*
-	 * Don't trigger audit denials. We just want to determine what
-	 * mounts to show users.
-	 */
-	m = real_mount(s->mnt);
-	if (!is_path_reachable(m, m->mnt.mnt_root, &s->root) &&
-	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
+	if (ns) {
+		err = grab_requested_root(ns, &s->root);
+		if (err)
+			return err;
+
+		if (!mnt_file) {
+			struct mount *m;
+			/*
+			 * Don't trigger audit denials. We just want to determine what
+			 * mounts to show users.
+			 */
+			m = real_mount(s->mnt);
+			if (!is_path_reachable(m, m->mnt.mnt_root, &s->root) &&
+			    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
+				return -EPERM;
+		}
+	}
 
 	err = security_sb_statfs(s->mnt->mnt_root);
 	if (err)
@@ -5700,7 +5849,7 @@ static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 }
 
 static int copy_mnt_id_req(const struct mnt_id_req __user *req,
-			   struct mnt_id_req *kreq)
+			   struct mnt_id_req *kreq, unsigned int flags)
 {
 	int ret;
 	size_t usize;
@@ -5718,11 +5867,17 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
 	ret = copy_struct_from_user(kreq, sizeof(*kreq), req, usize);
 	if (ret)
 		return ret;
-	if (kreq->mnt_ns_fd != 0 && kreq->mnt_ns_id)
-		return -EINVAL;
-	/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
-	if (kreq->mnt_id <= MNT_UNIQUE_ID_OFFSET)
-		return -EINVAL;
+
+	if (flags & STATMOUNT_BY_FD) {
+		if (kreq->mnt_id || kreq->mnt_ns_id)
+			return -EINVAL;
+	} else {
+		if (kreq->mnt_ns_fd != 0 && kreq->mnt_ns_id)
+			return -EINVAL;
+		/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
+		if (kreq->mnt_id <= MNT_UNIQUE_ID_OFFSET)
+			return -EINVAL;
+	}
 	return 0;
 }
 
@@ -5769,25 +5924,33 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 {
 	struct mnt_namespace *ns __free(mnt_ns_release) = NULL;
 	struct kstatmount *ks __free(kfree) = NULL;
+	struct file *mnt_file __free(fput) = NULL;
 	struct mnt_id_req kreq;
 	/* We currently support retrieval of 3 strings. */
 	size_t seq_size = 3 * PATH_MAX;
 	int ret;
 
-	if (flags)
+	if (flags & ~STATMOUNT_BY_FD)
 		return -EINVAL;
 
-	ret = copy_mnt_id_req(req, &kreq);
+	ret = copy_mnt_id_req(req, &kreq, flags);
 	if (ret)
 		return ret;
 
-	ns = grab_requested_mnt_ns(&kreq);
-	if (IS_ERR(ns))
-		return PTR_ERR(ns);
+	if (flags & STATMOUNT_BY_FD) {
+		mnt_file = fget_raw(kreq.mnt_fd);
+		if (!mnt_file)
+			return -EBADF;
+		/* do_statmount sets ns in case of STATMOUNT_BY_FD */
+	} else {
+		ns = grab_requested_mnt_ns(&kreq);
+		if (IS_ERR(ns))
+			return PTR_ERR(ns);
 
-	if (kreq.mnt_ns_id && (ns != current->nsproxy->mnt_ns) &&
-	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
-		return -ENOENT;
+		if (kreq.mnt_ns_id && (ns != current->nsproxy->mnt_ns) &&
+		    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
+			return -EPERM;
+	}
 
 	ks = kmalloc(sizeof(*ks), GFP_KERNEL_ACCOUNT);
 	if (!ks)
@@ -5799,7 +5962,7 @@ retry:
 		return ret;
 
 	scoped_guard(namespace_shared)
-		ret = do_statmount(ks, kreq.mnt_id, kreq.mnt_ns_id, ns);
+		ret = do_statmount(ks, kreq.mnt_id, kreq.mnt_ns_id, mnt_file, ns);
 
 	if (!ret)
 		ret = copy_statmount_to_user(ks);
@@ -5939,7 +6102,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	if (!access_ok(mnt_ids, nr_mnt_ids * sizeof(*mnt_ids)))
 		return -EFAULT;
 
-	ret = copy_mnt_id_req(req, &kreq);
+	ret = copy_mnt_id_req(req, &kreq, 0);
 	if (ret)
 		return ret;
 

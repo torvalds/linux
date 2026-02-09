@@ -44,7 +44,6 @@ extern void __init chrdev_init(void);
 /*
  * fs_context.c
  */
-extern const struct fs_context_operations legacy_fs_context_ops;
 extern int parse_monolithic_mount_data(struct fs_context *, void *);
 extern void vfs_clean_context(struct fs_context *fc);
 extern int finish_clean_context(struct fs_context *fc);
@@ -249,6 +248,7 @@ extern void mnt_pin_kill(struct mount *m);
  */
 extern const struct dentry_operations ns_dentry_operations;
 int open_namespace(struct ns_common *ns);
+struct file *open_namespace_file(struct ns_common *ns);
 
 /*
  * fs/stat.c:

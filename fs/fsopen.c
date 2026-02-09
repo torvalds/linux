@@ -404,16 +404,6 @@ SYSCALL_DEFINE5(fsconfig,
 		return -EINVAL;
 
 	fc = fd_file(f)->private_data;
-	if (fc->ops == &legacy_fs_context_ops) {
-		switch (cmd) {
-		case FSCONFIG_SET_BINARY:
-		case FSCONFIG_SET_PATH:
-		case FSCONFIG_SET_PATH_EMPTY:
-		case FSCONFIG_SET_FD:
-		case FSCONFIG_CMD_CREATE_EXCL:
-			return -EOPNOTSUPP;
-		}
-	}
 
 	if (_key) {
 		param.key = strndup_user(_key, 256);
