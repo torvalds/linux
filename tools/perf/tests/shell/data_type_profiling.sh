@@ -4,6 +4,11 @@
 
 set -e
 
+if ! perf test --list-workloads | grep -qw code_with_type ; then
+	echo "Skip: code_with_type workload not built in 'perf test'"
+	exit 2
+fi
+
 # The logic below follows the same line as the annotate test, but looks for a
 # data type profiling manifestation
 
