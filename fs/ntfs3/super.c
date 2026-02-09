@@ -385,6 +385,7 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_acl_bool:
 		if (result.boolean) {
+			fallthrough;
 		case Opt_acl:
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
