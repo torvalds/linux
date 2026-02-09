@@ -362,6 +362,7 @@ sof_ipc4_refresh_bytes_control(struct snd_sof_control *scontrol, bool lock)
 				"%s: no space for data in %s (%zu, %zu)\n",
 				__func__, scontrol->name, msg->data_size,
 				scontrol->max_size - sizeof(*data));
+			ret = -EINVAL;
 			goto out;
 		}
 
