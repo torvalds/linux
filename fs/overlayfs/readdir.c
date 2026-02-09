@@ -8,6 +8,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/file.h>
+#include <linux/filelock.h>
 #include <linux/xattr.h>
 #include <linux/rbtree.h>
 #include <linux/security.h>
@@ -1070,6 +1071,7 @@ const struct file_operations ovl_dir_operations = {
 	.llseek		= ovl_dir_llseek,
 	.fsync		= ovl_dir_fsync,
 	.release	= ovl_dir_release,
+	.setlease	= generic_setlease,
 };
 
 int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)

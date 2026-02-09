@@ -14,6 +14,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/errno.h>
+#include <linux/filelock.h>
 #include <linux/stat.h>
 #include <linux/nls.h>
 #include <linux/buffer_head.h>
@@ -79,6 +80,7 @@ static const struct file_operations befs_dir_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= befs_readdir,
 	.llseek		= generic_file_llseek,
+	.setlease	= generic_setlease,
 };
 
 static const struct inode_operations befs_dir_inode_operations = {

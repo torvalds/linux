@@ -13,6 +13,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/filelock.h>
 #include "qnx4.h"
 
 static int qnx4_readdir(struct file *file, struct dir_context *ctx)
@@ -71,6 +72,7 @@ const struct file_operations qnx4_dir_operations =
 	.read		= generic_read_dir,
 	.iterate_shared	= qnx4_readdir,
 	.fsync		= generic_file_fsync,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations qnx4_dir_inode_operations =
