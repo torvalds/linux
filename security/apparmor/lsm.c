@@ -1553,42 +1553,6 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 	return aa_sock_perm(OP_SHUTDOWN, AA_MAY_SHUTDOWN, sock);
 }
 
-#ifdef CONFIG_NETWORK_SECMARK
-/**
- * apparmor_socket_sock_rcv_skb - check perms before associating skb to sk
- * @sk: sk to associate @skb with
- * @skb: skb to check for perms
- *
- * Note: can not sleep may be called with locks held
- *
- * don't want protocol specific in __skb_recv_datagram()
- * to deny an incoming connection  socket_sock_rcv_skb()
- */
-static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
-{
-	struct aa_sk_ctx *ctx = aa_sock(sk);
-	int error;
-
-	if (!skb->secmark)
-		return 0;
-
-	/*
-	 * If reach here before socket_post_create hook is called, in which
-	 * case label is null, drop the packet.
-	 */
-	if (!rcu_access_pointer(ctx->label))
-		return -EACCES;
-
-	rcu_read_lock();
-	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_RECVMSG,
-				       AA_MAY_RECEIVE, skb->secmark, sk);
-	rcu_read_unlock();
-
-	return error;
-}
-#endif
-
-
 static struct aa_label *sk_peer_get_label(struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
@@ -1689,6 +1653,39 @@ static void apparmor_sock_graft(struct sock *sk, struct socket *parent)
 }
 
 #ifdef CONFIG_NETWORK_SECMARK
+/**
+ * apparmor_socket_sock_rcv_skb - check perms before associating skb to sk
+ * @sk: sk to associate @skb with
+ * @skb: skb to check for perms
+ *
+ * Note: can not sleep may be called with locks held
+ *
+ * don't want protocol specific in __skb_recv_datagram()
+ * to deny an incoming connection  socket_sock_rcv_skb()
+ */
+static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	struct aa_sk_ctx *ctx = aa_sock(sk);
+	int error;
+
+	if (!skb->secmark)
+		return 0;
+
+	/*
+	 * If reach here before socket_post_create hook is called, in which
+	 * case label is null, drop the packet.
+	 */
+	if (!rcu_access_pointer(ctx->label))
+		return -EACCES;
+
+	rcu_read_lock();
+	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_RECVMSG,
+				       AA_MAY_RECEIVE, skb->secmark, sk);
+	rcu_read_unlock();
+
+	return error;
+}
+
 static int apparmor_inet_conn_request(const struct sock *sk, struct sk_buff *skb,
 				      struct request_sock *req)
 {
