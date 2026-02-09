@@ -17,3 +17,4 @@ int __init init_mkdir(const char *pathname, umode_t mode);
 int __init init_rmdir(const char *pathname);
 int __init init_utimes(char *filename, struct timespec64 *ts);
 int __init init_dup(struct file *file);
+int __init init_pivot_root(const char *new_root, const char *put_old);
