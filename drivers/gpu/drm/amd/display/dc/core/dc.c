@@ -2770,7 +2770,6 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 		case DcGfxVersion7:
 		case DcGfxVersion8:
 		case DcGfxVersionUnknown:
-		case DcGfxBase:
 		default:
 			break;
 		}

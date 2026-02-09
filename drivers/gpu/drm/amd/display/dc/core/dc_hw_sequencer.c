@@ -2065,13 +2065,6 @@ void get_surface_tile_visual_confirm_color(
 	while (bottom_pipe_ctx->bottom_pipe != NULL)
 		bottom_pipe_ctx = bottom_pipe_ctx->bottom_pipe;
 
-	if (bottom_pipe_ctx->plane_state->tiling_info.gfxversion == DcGfxBase) {
-		/* LINEAR Surface - set border color to red */
-		color->color_r_cr = color_value;
-		return;
-	}
-
-	ASSERT(bottom_pipe_ctx->plane_state->tiling_info.gfxversion == DcGfxVersion9);
 	switch (bottom_pipe_ctx->plane_state->tiling_info.gfx9.swizzle) {
 	case DC_SW_LINEAR:
 		/* LINEAR Surface - set border color to red */

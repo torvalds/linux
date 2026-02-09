@@ -4434,7 +4434,6 @@ enum dc_status dc_validate_global_state(
 
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
-					pipe_ctx->plane_state->tiling_info.gfxversion == DcGfxVersion9 &&
 					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
 				result = dc->res_pool->funcs->patch_unknown_plane_state(pipe_ctx->plane_state);
 				if (result != DC_OK)

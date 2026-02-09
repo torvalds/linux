@@ -342,8 +342,7 @@ enum swizzle_mode_addr3_values {
 };
 
 enum dc_gfxversion {
-	DcGfxBase = 0,
-	DcGfxVersion7,
+	DcGfxVersion7 = 0,
 	DcGfxVersion8,
 	DcGfxVersion9,
 	DcGfxVersion10,
