@@ -326,7 +326,7 @@ enum {
 	GLF_BLOCKING			= 15,
 	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
 	GLF_VERIFY_DELETE		= 18, /* iopen glocks only */
-	GLF_PENDING_REPLY		= 19,
+	GLF_MAY_CANCEL			= 19,
 	GLF_DEFER_DELETE		= 20, /* iopen glocks only */
 	GLF_CANCELING			= 21,
 };
@@ -368,6 +368,16 @@ struct gfs2_glock {
 	struct rcu_head gl_rcu;
 	struct rhash_head gl_node;
 };
+
+static inline unsigned int glock_type(const struct gfs2_glock *gl)
+{
+	return gl->gl_name.ln_type;
+}
+
+static inline u64 glock_number(const struct gfs2_glock *gl)
+{
+	return gl->gl_name.ln_number;
+}
 
 enum {
 	GIF_QD_LOCKED		= 1,
@@ -839,6 +849,8 @@ struct gfs2_sbd {
 	struct dentry *debugfs_dir;    /* debugfs directory */
 };
 
+#define glock_sbd(gl) ((gl)->gl_name.ln_sbd)
+
 #define GFS2_BAD_INO 1
 
 static inline struct address_space *gfs2_aspace(struct gfs2_sbd *sdp)
@@ -853,9 +865,9 @@ static inline void gfs2_glstats_inc(struct gfs2_glock *gl, int which)
 
 static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 {
-	const struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	const struct gfs2_sbd *sdp = glock_sbd(gl);
 	preempt_disable();
-	this_cpu_ptr(sdp->sd_lkstats)->lkstats[gl->gl_name.ln_type].stats[which]++;
+	this_cpu_ptr(sdp->sd_lkstats)->lkstats[glock_type(gl)].stats[which]++;
 	preempt_enable();
 }
 

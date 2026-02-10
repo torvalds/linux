@@ -1923,7 +1923,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 {
 	const struct gfs2_glock *gl = rgd->rd_gl;
-	const struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	const struct gfs2_sbd *sdp = glock_sbd(gl);
 	struct gfs2_lkstats *st;
 	u64 r_dcount, l_dcount;
 	u64 l_srttb, a_srttb = 0;
