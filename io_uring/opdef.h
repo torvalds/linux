@@ -2,6 +2,8 @@
 #ifndef IOU_OP_DEF_H
 #define IOU_OP_DEF_H
 
+struct io_uring_bpf_ctx;
+
 struct io_issue_def {
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
@@ -33,8 +35,12 @@ struct io_issue_def {
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 
+	/* bpf filter pdu size, if any */
+	unsigned short		filter_pdu_size;
+
 	int (*issue)(struct io_kiocb *, unsigned int);
 	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
+	void (*filter_populate)(struct io_uring_bpf_ctx *, struct io_kiocb *);
 };
 
 struct io_cold_def {

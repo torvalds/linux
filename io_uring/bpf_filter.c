@@ -26,6 +26,8 @@ static const struct io_bpf_filter dummy_filter;
 static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 				      struct io_kiocb *req)
 {
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
 	bctx->opcode = req->opcode;
 	bctx->sqe_flags = (__force int) req->flags & SQE_VALID_FLAGS;
 	bctx->user_data = req->cqe.user_data;
@@ -34,19 +36,12 @@ static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 		sizeof(*bctx) - offsetof(struct io_uring_bpf_ctx, pdu_size));
 
 	/*
-	 * Opcodes can provide a handler fo populating more data into bctx,
+	 * Opcodes can provide a handler for populating more data into bctx,
 	 * for filters to use.
 	 */
-	switch (req->opcode) {
-	case IORING_OP_SOCKET:
-		bctx->pdu_size = sizeof(bctx->socket);
-		io_socket_bpf_populate(bctx, req);
-		break;
-	case IORING_OP_OPENAT:
-	case IORING_OP_OPENAT2:
-		bctx->pdu_size = sizeof(bctx->open);
-		io_openat_bpf_populate(bctx, req);
-		break;
+	if (def->filter_pdu_size) {
+		bctx->pdu_size = def->filter_pdu_size;
+		def->filter_populate(bctx, req);
 	}
 }
 
