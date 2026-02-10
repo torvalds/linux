@@ -128,6 +128,8 @@ struct perf_evsel {
 	bool			 requires_cpu;
 	/** Is the PMU for the event a core one? Effects the handling of own_cpus. */
 	bool			 is_pmu_core;
+	/** Does the evsel on read on the first CPU index such as tool time events? */
+	bool			 reads_only_on_cpu_idx0;
 	int			 idx;
 };
 

@@ -2718,3 +2718,14 @@ const char *perf_pmu__name_from_config(struct perf_pmu *pmu, u64 config)
 	}
 	return NULL;
 }
+
+bool perf_pmu__reads_only_on_cpu_idx0(const struct perf_event_attr *attr)
+{
+	enum tool_pmu_event event;
+
+	if (attr->type != PERF_PMU_TYPE_TOOL)
+		return false;
+
+	event = (enum tool_pmu_event)attr->config;
+	return event != TOOL_PMU__EVENT_USER_TIME && event != TOOL_PMU__EVENT_SYSTEM_TIME;
+}

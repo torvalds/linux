@@ -350,6 +350,8 @@ void perf_pmu__delete(struct perf_pmu *pmu);
 const char *perf_pmu__name_from_config(struct perf_pmu *pmu, u64 config);
 bool perf_pmu__is_fake(const struct perf_pmu *pmu);
 
+bool perf_pmu__reads_only_on_cpu_idx0(const struct perf_event_attr *attr);
+
 static inline enum pmu_kind perf_pmu__kind(const struct perf_pmu *pmu)
 {
 	__u32 type;
