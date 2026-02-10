@@ -15,8 +15,8 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 
-int dns_resolve_name(const char *dom, const char *name,
-		     size_t namelen, struct sockaddr *ip_addr);
+int dns_resolve_name(const char *dom, const char *name, size_t namelen,
+		     struct sockaddr *ip_addr);
 
 static inline int dns_resolve_unc(const char *dom, const char *unc,
 				  struct sockaddr *ip_addr)

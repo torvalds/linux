@@ -14,15 +14,15 @@ struct sk_buff;
 struct genl_info;
 
 #ifdef CONFIG_CIFS_SWN_UPCALL
-extern int cifs_swn_register(struct cifs_tcon *tcon);
+int cifs_swn_register(struct cifs_tcon *tcon);
 
-extern int cifs_swn_unregister(struct cifs_tcon *tcon);
+int cifs_swn_unregister(struct cifs_tcon *tcon);
 
-extern int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info);
+int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info);
 
-extern void cifs_swn_dump(struct seq_file *m);
+void cifs_swn_dump(struct seq_file *m);
 
-extern void cifs_swn_check(void);
+void cifs_swn_check(void);
 
 static inline bool cifs_swn_set_server_dstaddr(struct TCP_Server_Info *server)
 {

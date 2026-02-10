@@ -23,7 +23,6 @@
 #include <linux/sched/signal.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/task_work.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"

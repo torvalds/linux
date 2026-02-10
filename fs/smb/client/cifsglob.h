@@ -28,6 +28,7 @@
 #include "../common/smb2pdu.h"
 #include "../common/fscc.h"
 #include "smb2pdu.h"
+#include "smb1pdu.h"
 #include <linux/filelock.h>
 
 #define SMB_PATH_MAX 260
@@ -102,8 +103,6 @@
  * to reduce possibility of seeing more server credit overflow bugs.
  */
 #define SMB2_MAX_CREDITS_AVAILABLE 32000
-
-#include "cifspdu.h"
 
 #ifndef XATTR_DOS_ATTRIB
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
@@ -950,18 +949,6 @@ revert_current_mid_from_hdr(struct TCP_Server_Info *server,
 	return revert_current_mid(server, num > 0 ? num : 1);
 }
 
-static inline __u16
-get_mid(const struct smb_hdr *smb)
-{
-	return le16_to_cpu(smb->Mid);
-}
-
-static inline bool
-compare_mid(__u16 mid, const struct smb_hdr *smb)
-{
-	return mid == le16_to_cpu(smb->Mid);
-}
-
 /*
  * When the server supports very large reads and writes via POSIX extensions,
  * we can allow up to 2^24-1, minus the size of a READ/WRITE_AND_X header, not
@@ -1327,8 +1314,8 @@ struct tcon_link {
 	struct cifs_tcon	*tl_tcon;
 };
 
-extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
-extern void smb3_free_compound_rqst(int num_rqst, struct smb_rqst *rqst);
+struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
+void smb3_free_compound_rqst(int num_rqst, struct smb_rqst *rqst);
 
 static inline struct cifs_tcon *
 tlink_tcon(struct tcon_link *tlink)
@@ -1342,7 +1329,7 @@ cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
 	return cifs_sb->master_tlink;
 }
 
-extern void cifs_put_tlink(struct tcon_link *tlink);
+void cifs_put_tlink(struct tcon_link *tlink);
 
 static inline struct tcon_link *
 cifs_get_tlink(struct tcon_link *tlink)
@@ -1353,7 +1340,7 @@ cifs_get_tlink(struct tcon_link *tlink)
 }
 
 /* This function is always expected to succeed */
-extern struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
+struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
 
 #define CIFS_OPLOCK_NO_CHANGE 0xfe
 
@@ -1507,6 +1494,8 @@ struct cifs_io_subrequest {
 	int				result;
 	bool				have_xid;
 	bool				replay;
+	unsigned int			retries;	/* number of retries so far */
+	unsigned int			cur_sleep;	/* time to sleep before replay */
 	struct kvec			iov[2];
 	struct TCP_Server_Info		*server;
 #ifdef CONFIG_CIFS_SMB_DIRECT
@@ -1526,8 +1515,8 @@ cifsFileInfo_get_locked(struct cifsFileInfo *cifs_file)
 }
 
 struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file);
-void _cifsFileInfo_put(struct cifsFileInfo *cifs_file, bool wait_oplock_hdlr,
-		       bool offload);
+void _cifsFileInfo_put(struct cifsFileInfo *cifs_file,
+		       bool wait_oplock_handler, bool offload);
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 int cifs_file_flush(const unsigned int xid, struct inode *inode,
 		    struct cifsFileInfo *cfile);
@@ -1796,6 +1785,11 @@ struct cifs_mount_ctx {
 	struct cifs_tcon *tcon;
 };
 
+struct mchan_mount {
+	struct work_struct work;
+	struct cifs_ses *ses;
+};
+
 static inline void __free_dfs_info_param(struct dfs_info3_param *param)
 {
 	kfree(param->path_name);
@@ -1943,6 +1937,8 @@ require use of the stronger protocol */
  */
 
 /****************************************************************************
+ * LOCK ORDERING NOTES:
+ ****************************************************************************
  * Here are all the locks (spinlock, mutex, semaphore) in cifs.ko, arranged according
  * to the locking order. i.e. if two locks are to be held together, the lock that
  * appears higher in this list needs to be taken before the other.
@@ -1971,18 +1967,21 @@ require use of the stronger protocol */
  * =====================================================================================
  * Lock				Protects			Initialization fn
  * =====================================================================================
+ * cifs_mount_mutex		mount/unmount operations
  * vol_list_lock
  * vol_info->ctx_lock		vol_info->ctx
  * cifs_sb_info->tlink_tree_lock	cifs_sb_info->tlink_tree	cifs_setup_cifs_sb
  * TCP_Server_Info->		TCP_Server_Info			cifs_get_tcp_session
  * reconnect_mutex
- * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
  * cifs_ses->session_mutex	cifs_ses			sesInfoAlloc
+ * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
+ * cifs_tcp_ses_lock		cifs_tcp_ses_list		sesInfoAlloc
  * cifs_tcon->open_file_lock	cifs_tcon->openFileList		tconInfoAlloc
  *				cifs_tcon->pending_opens
  * cifs_tcon->stat_lock		cifs_tcon->bytes_read		tconInfoAlloc
  *				cifs_tcon->bytes_written
- * cifs_tcp_ses_lock		cifs_tcp_ses_list		sesInfoAlloc
+ * cifs_tcon->fscache_lock	cifs_tcon->fscache		tconInfoAlloc
+ * cifs_tcon->sb_list_lock	cifs_tcon->cifs_sb_list		tconInfoAlloc
  * GlobalMid_Lock		GlobalMaxActiveXid		init_cifs
  *				GlobalCurrentXid
  *				GlobalTotalActiveXid
@@ -2005,6 +2004,8 @@ require use of the stronger protocol */
  *				->chans_in_reconnect
  * cifs_tcon->tc_lock		(anything that is not protected by another lock and can change)
  *								tcon_info_alloc
+ * cifs_swnreg_idr_mutex	cifs_swnreg_idr			cifs_swn.c
+ *				(witness service registration, accesses tcon fields under tc_lock)
  * inode->i_rwsem, taken by fs/netfs/locking.c e.g. should be taken before cifsInodeInfo locks
  * cifsInodeInfo->open_file_lock	cifsInodeInfo->openFileList	cifs_alloc_inode
  * cifsInodeInfo->writers_lock	cifsInodeInfo->writers		cifsInodeInfo_alloc
@@ -2012,12 +2013,12 @@ require use of the stronger protocol */
  *				->can_cache_brlcks
  * cifsInodeInfo->deferred_lock	cifsInodeInfo->deferred_closes	cifsInodeInfo_alloc
  * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	init_cached_dirs
- * cached_fid->fid_lock		(anything that is not protected by another lock and can change)
- *								init_cached_dir
+ * cached_fid->dirents.de_mutex	cached_fid->dirents		alloc_cached_dir
  * cifsFileInfo->fh_mutex	cifsFileInfo			cifs_new_fileinfo
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
+ * smbdirect_mr->mutex		RDMA memory region management	(SMBDirect only)
  * mid_q_entry->mid_lock	mid_q_entry->callback           alloc_mid
  *								smb2_mid_entry_alloc
  *				(Any fields of mid_q_entry that will need protection)
@@ -2115,8 +2116,6 @@ extern mempool_t cifs_io_subrequest_pool;
 
 /* Operations for different SMB versions */
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-extern struct smb_version_operations smb1_operations;
-extern struct smb_version_values smb1_values;
 extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
