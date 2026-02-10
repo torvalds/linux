@@ -1003,7 +1003,7 @@ static noinline int replay_one_extent(struct walk_control *wc)
 						       btrfs_root_id(root));
 		}
 		if (!ret) {
-			ret = btrfs_csum_file_blocks(trans, csum_root, sums);
+			ret = btrfs_insert_data_csums(trans, csum_root, sums);
 			if (ret)
 				btrfs_abort_log_replay(wc, ret,
 	       "failed to add csums for range [%llu, %llu) inode %llu root %llu",
@@ -4740,7 +4740,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * worry about logging checksum items with overlapping ranges.
 	 */
 	if (inode->last_reflink_trans < trans->transid)
-		return btrfs_csum_file_blocks(trans, log_root, sums);
+		return btrfs_insert_data_csums(trans, log_root, sums);
 
 	/*
 	 * Serialize logging for checksums. This is to avoid racing with the
@@ -4763,7 +4763,7 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 */
 	ret = btrfs_del_csums(trans, log_root, sums->logical, sums->len);
 	if (!ret)
-		ret = btrfs_csum_file_blocks(trans, log_root, sums);
+		ret = btrfs_insert_data_csums(trans, log_root, sums);
 
 	btrfs_unlock_extent(&log_root->log_csum_range, sums->logical, lock_end,
 			    &cached_state);

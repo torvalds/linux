@@ -1097,9 +1097,9 @@ static int find_next_csum_offset(struct btrfs_root *root,
 	return 0;
 }
 
-int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
-			   struct btrfs_ordered_sum *sums)
+int btrfs_insert_data_csums(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root,
+			    struct btrfs_ordered_sum *sums)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key file_key;

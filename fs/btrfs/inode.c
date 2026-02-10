@@ -2770,7 +2770,7 @@ static int add_pending_csums(struct btrfs_trans_handle *trans,
 			}
 		}
 		trans->adding_csums = true;
-		ret = btrfs_csum_file_blocks(trans, csum_root, sum);
+		ret = btrfs_insert_data_csums(trans, csum_root, sum);
 		trans->adding_csums = false;
 		if (ret)
 			return ret;
