@@ -2902,6 +2902,18 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 	dev->nr_write_queues = write_queues;
 	dev->nr_poll_queues = poll_queues;
 
+	if (dev->ctrl.tagset) {
+		/*
+		 * The set's maps are allocated only once at initialization
+		 * time. We can't add special queues later if their mq_map
+		 * wasn't preallocated.
+		 */
+		if (dev->ctrl.tagset->nr_maps < 3)
+			dev->nr_poll_queues = 0;
+		if (dev->ctrl.tagset->nr_maps < 2)
+			dev->nr_write_queues = 0;
+	}
+
 	/*
 	 * The initial number of allocated queue slots may be too large if the
 	 * user reduced the special queue parameters. Cap the value to the
