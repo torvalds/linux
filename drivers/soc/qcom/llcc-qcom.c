@@ -1782,6 +1782,94 @@ static const struct llcc_slice_config sc8280xp_data[] = {
 	},
 };
 
+static const struct llcc_slice_config sdm670_data[] = {
+	{
+		.usecase_id = LLCC_CPUSS,
+		.slice_id = 1,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_ROTATOR,
+		.slice_id = 4,
+		.max_cap = 384,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0xe,
+		.cache_mode = 2,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_VOICE,
+		.slice_id = 5,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_AUDIO,
+		.slice_id = 6,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_MDM,
+		.slice_id = 8,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPU,
+		.slice_id = 12,
+		.max_cap = 384,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_MMUHWT,
+		.slice_id = 13,
+		.max_cap = 512,
+		.priority = 1,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_AUDHW,
+		.slice_id = 22,
+		.max_cap = 512,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0xf,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	},
+};
+
 static const struct llcc_slice_config sdm845_data[] =  {{
 		.usecase_id = LLCC_CPUSS,
 		.slice_id = 1,
@@ -4196,6 +4284,17 @@ static const struct qcom_llcc_config sc8280xp_cfg[] = {
 	},
 };
 
+static const struct qcom_llcc_config sdm670_cfg[] = {
+	{
+		.sct_data	= sdm670_data,
+		.size		= ARRAY_SIZE(sdm670_data),
+		.skip_llcc_cfg	= true,
+		.reg_offset	= llcc_v1_reg_offset,
+		.edac_reg_offset = &llcc_v1_edac_reg_offset,
+		.no_edac	= true,
+	},
+};
+
 static const struct qcom_llcc_config sdm845_cfg[] = {
 	{
 		.sct_data	= sdm845_data,
@@ -4362,6 +4461,11 @@ static const struct qcom_sct_config sc8180x_cfgs = {
 static const struct qcom_sct_config sc8280xp_cfgs = {
 	.llcc_config	= sc8280xp_cfg,
 	.num_config	= ARRAY_SIZE(sc8280xp_cfg),
+};
+
+static const struct qcom_sct_config sdm670_cfgs = {
+	.llcc_config	= sdm670_cfg,
+	.num_config	= ARRAY_SIZE(sdm670_cfg),
 };
 
 static const struct qcom_sct_config sdm845_cfgs = {
@@ -5160,6 +5264,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,sc7280-llcc", .data = &sc7280_cfgs },
 	{ .compatible = "qcom,sc8180x-llcc", .data = &sc8180x_cfgs },
 	{ .compatible = "qcom,sc8280xp-llcc", .data = &sc8280xp_cfgs },
+	{ .compatible = "qcom,sdm670-llcc", .data = &sdm670_cfgs },
 	{ .compatible = "qcom,sdm845-llcc", .data = &sdm845_cfgs },
 	{ .compatible = "qcom,sm6350-llcc", .data = &sm6350_cfgs },
 	{ .compatible = "qcom,sm7150-llcc", .data = &sm7150_cfgs },
