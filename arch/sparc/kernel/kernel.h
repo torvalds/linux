@@ -18,6 +18,7 @@ extern int ncpus_probed;
 asmlinkage long sparc_clone(struct pt_regs *regs);
 asmlinkage long sparc_fork(struct pt_regs *regs);
 asmlinkage long sparc_vfork(struct pt_regs *regs);
+asmlinkage long sparc_clone3(struct pt_regs *regs);
 
 #ifdef CONFIG_SPARC64
 /* setup_64.c */
