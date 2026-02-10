@@ -459,8 +459,8 @@ int __init ve_spc_init(void __iomem *baseaddr, u32 a15_clusid, int irq)
 
 	readl_relaxed(info->baseaddr + PWC_STATUS);
 
-	ret = request_irq(irq, ve_spc_irq_handler, IRQF_TRIGGER_HIGH
-				| IRQF_ONESHOT, "vexpress-spc", info);
+	ret = request_irq(irq, ve_spc_irq_handler, IRQF_TRIGGER_HIGH,
+			  "vexpress-spc", info);
 	if (ret) {
 		pr_err(SPCLOG "IRQ %d request failed\n", irq);
 		kfree(info);
