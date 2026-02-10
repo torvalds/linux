@@ -298,6 +298,17 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 	if (!size)
 		return;
 
+	/*
+	 * If the existing buffer is differently sized, free it so a new
+	 * one is allocated. This can happen when persistent_ram_save_old()
+	 * is called early in boot and later for a timer-triggered
+	 * survivable crash when the crash dumps don't match in size
+	 * (which would be extremely unlikely given kmsg buffers usually
+	 * exceed prz buffer sizes).
+	 */
+	if (prz->old_log && prz->old_log_size != size)
+		persistent_ram_free_old(prz);
+
 	if (!prz->old_log) {
 		persistent_ram_ecc_old(prz);
 		prz->old_log = kvzalloc(size, GFP_KERNEL);
@@ -445,6 +456,13 @@ static void *persistent_ram_vmap(phys_addr_t start, size_t size,
 	 */
 	vaddr = vmap(pages, page_count, VM_MAP | VM_IOREMAP, prot);
 	kfree(pages);
+
+	/*
+	 * vmap() may fail and return NULL. Do not add the offset in this
+	 * case, otherwise a NULL mapping would appear successful.
+	 */
+	if (!vaddr)
+		return NULL;
 
 	/*
 	 * Since vmap() uses page granularity, we must add the offset
