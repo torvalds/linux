@@ -101,9 +101,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	 * runtime PM will make sure the clock of this module is
 	 * enabled again iff at least one lock is requested
 	 */
-	ret = pm_runtime_put(&pdev->dev);
-	if (ret < 0)
-		return ret;
+	pm_runtime_put(&pdev->dev);
 
 	/* one of the four lsb's must be set, and nothing else */
 	if (hweight_long(i & 0xf) != 1 || i > 8)

@@ -542,7 +542,7 @@ static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
-	int idx, ret;
+	int idx;
 
 	if (!drm_dev_enter(drm, &idx))
 		return;
@@ -556,16 +556,8 @@ static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
 
 	clk_disable_unprepare(vec->clock);
 
-	ret = pm_runtime_put(&vec->pdev->dev);
-	if (ret < 0) {
-		drm_err(drm, "Failed to release power domain: %d\n", ret);
-		goto err_dev_exit;
-	}
+	pm_runtime_put(&vec->pdev->dev);
 
-	drm_dev_exit(idx);
-	return;
-
-err_dev_exit:
 	drm_dev_exit(idx);
 }
 
