@@ -29,6 +29,6 @@ typedef unsigned long       nlink_t;
 typedef  int64_t              off_t;
 typedef   signed long     blksize_t;
 typedef   signed long      blkcnt_t;
-typedef __kernel_time_t      time_t;
+typedef __kernel_time64_t    time_t;
 
 #endif /* _NOLIBC_STD_H */
