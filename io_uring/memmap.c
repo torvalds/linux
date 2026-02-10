@@ -56,7 +56,7 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	if (WARN_ON_ONCE(nr_pages > INT_MAX))
 		return ERR_PTR(-EOVERFLOW);
 
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 

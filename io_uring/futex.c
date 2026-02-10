@@ -186,7 +186,7 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	ifd = kzalloc(struct_size_t(struct io_futexv_data, futexv, iof->futex_nr),
-			GFP_KERNEL);
+			GFP_KERNEL_ACCOUNT);
 	if (!ifd)
 		return -ENOMEM;
 

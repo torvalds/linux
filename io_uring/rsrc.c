@@ -1329,7 +1329,7 @@ void io_vec_free(struct iou_vec *iv)
 
 int io_vec_realloc(struct iou_vec *iv, unsigned nr_entries)
 {
-	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_NOWARN;
 	struct iovec *iov;
 
 	iov = kmalloc_array(nr_entries, sizeof(iov[0]), gfp);

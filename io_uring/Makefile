@@ -8,12 +8,14 @@ endif
 
 obj-$(CONFIG_IO_URING)		+= io_uring.o opdef.o kbuf.o rsrc.o notif.o \
 					tctx.o filetable.o rw.o poll.o \
-					eventfd.o uring_cmd.o openclose.o \
-					sqpoll.o xattr.o nop.o fs.o splice.o \
-					sync.o msg_ring.o advise.o openclose.o \
-					statx.o timeout.o cancel.o \
-					waitid.o register.o truncate.o \
-					memmap.o alloc_cache.o query.o
+					tw.o wait.o eventfd.o uring_cmd.o \
+					openclose.o sqpoll.o xattr.o nop.o \
+					fs.o splice.o sync.o msg_ring.o \
+					advise.o openclose.o statx.o timeout.o \
+					cancel.o waitid.o register.o \
+					truncate.o memmap.o alloc_cache.o \
+					query.o
+
 obj-$(CONFIG_IO_URING_ZCRX)	+= zcrx.o
 obj-$(CONFIG_IO_WQ)		+= io-wq.o
 obj-$(CONFIG_FUTEX)		+= futex.o

@@ -104,6 +104,15 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 	struct io_kiocb *req = cmd_to_io_kiocb(cmd);
 	struct io_ring_ctx *ctx = req->ctx;
 
+	/*
+	 * Doing cancelations on IOPOLL requests are not supported. Both
+	 * because they can't get canceled in the block stack, but also
+	 * because iopoll completion data overlaps with the hash_node used
+	 * for tracking.
+	 */
+	if (ctx->flags & IORING_SETUP_IOPOLL)
+		return;
+
 	if (!(cmd->flags & IORING_URING_CMD_CANCELABLE)) {
 		cmd->flags |= IORING_URING_CMD_CANCELABLE;
 		io_ring_submit_lock(ctx, issue_flags);
