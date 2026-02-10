@@ -26,6 +26,7 @@
 #define INT3472_GPIO_TYPE_POWER_ENABLE				0x0b
 #define INT3472_GPIO_TYPE_CLK_ENABLE				0x0c
 #define INT3472_GPIO_TYPE_PRIVACY_LED				0x0d
+#define INT3472_GPIO_TYPE_DOVDD					0x10
 #define INT3472_GPIO_TYPE_HANDSHAKE				0x12
 #define INT3472_GPIO_TYPE_HOTPLUG_DETECT			0x13
 
@@ -33,8 +34,8 @@
 #define INT3472_MAX_SENSOR_GPIOS				3
 #define INT3472_MAX_REGULATORS					3
 
-/* E.g. "avdd\0" */
-#define GPIO_SUPPLY_NAME_LENGTH				5
+/* E.g. "dovdd\0" */
+#define GPIO_SUPPLY_NAME_LENGTH				6
 /* 12 chars for acpi_dev_name() + "-", e.g. "ABCD1234:00-" */
 #define GPIO_REGULATOR_NAME_LENGTH				(12 + GPIO_SUPPLY_NAME_LENGTH)
 /* lower- and upper-case mapping */
