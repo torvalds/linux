@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    tape device driver for 3480/3490E/3590 tapes.
+ *    tape device driver for 3490E tapes.
  *
  *  S390 and zSeries version
  *    Copyright IBM Corp. 2001, 2009
@@ -98,10 +98,6 @@ enum tape_op {
 	TO_DIS,		/* Tape display */
 	TO_ASSIGN,	/* Assign tape to channel path */
 	TO_UNASSIGN,	/* Unassign tape from channel path */
-	TO_CRYPT_ON,	/* Enable encrpytion */
-	TO_CRYPT_OFF,	/* Disable encrpytion */
-	TO_KEKL_SET,	/* Set KEK label */
-	TO_KEKL_QUERY,	/* Query KEK label */
 	TO_RDC,		/* Read device characteristics */
 	TO_SIZE,	/* #entries in tape_op_t */
 };
@@ -155,8 +151,6 @@ struct tape_discipline {
 	struct tape_request *(*read_block)(struct tape_device *);
 	struct tape_request *(*write_block)(struct tape_device *);
 	void (*process_eov)(struct tape_device*);
-	/* ioctl function for additional ioctls. */
-	int (*ioctl_fn)(struct tape_device *, unsigned int, unsigned long);
 	/* Array of tape commands with TAPE_NR_MTOPS entries */
 	tape_mtop_fn *mtop_array;
 };
@@ -192,7 +186,6 @@ struct tape_device {
 
 	/* Device discipline information. */
 	struct tape_discipline *	discipline;
-	void *				discdata;
 
 	/* Generic status flags */
 	long				tape_generic_status;
@@ -280,6 +273,10 @@ extern int tapechar_init(void);
 extern void tapechar_exit(void);
 extern int  tapechar_setup_device(struct tape_device *);
 extern void tapechar_cleanup_device(struct tape_device *);
+
+/* Externals from tape_3490.c */
+extern int tape_3490_init(void);
+extern void tape_3490_exit(void);
 
 /* tape initialisation functions */
 #ifdef CONFIG_PROC_FS

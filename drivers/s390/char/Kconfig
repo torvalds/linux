@@ -106,37 +106,12 @@ config S390_UV_UAPI
 
 config S390_TAPE
 	def_tristate m
-	prompt "S/390 tape device support"
+	prompt "Support for 3490E tape on VTS"
 	depends on CCW
 	help
-	  Select this option if you want to access channel-attached tape
-	  devices on IBM S/390 or zSeries.
-	  If you select this option you will also want to select at
-	  least one of the tape interface options and one of the tape
-	  hardware options in order to access a tape device.
-	  This option is also available as a module. The module will be
-	  called tape390 and include all selected interfaces and
-	  hardware drivers.
-
-comment "S/390 tape hardware support"
-	depends on S390_TAPE
-
-config S390_TAPE_34XX
-	def_tristate m
-	prompt "Support for 3480/3490 tape hardware"
-	depends on S390_TAPE
-	help
-	  Select this option if you want to access IBM 3480/3490 magnetic
-	  tape subsystems and 100% compatibles.
-	  It is safe to say "Y" here.
-
-config S390_TAPE_3590
-	def_tristate m
-	prompt "Support for 3590 tape hardware"
-	depends on S390_TAPE
-	help
-	  Select this option if you want to access IBM 3590 magnetic
-	  tape subsystems and 100% compatibles.
+	  Select this option if you want to access channel-attached IBM 3490E
+	  tape devices on VTS, such as IBM TS7700.
+	  This option is also available as a module.
 	  It is safe to say "Y" here.
 
 config VMLOGRDR

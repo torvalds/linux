@@ -28,6 +28,7 @@
 
 #include "tape.h"
 #include "tape_std.h"
+#include "tape_class.h"
 
 #define LONG_BUSY_TIMEOUT 180 /* seconds */
 
@@ -74,9 +75,7 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_LOAD] = "LOA",	[TO_READ_CONFIG] = "RCF",
 	[TO_READ_ATTMSG] = "RAT",
 	[TO_DIS] = "DIS",	[TO_ASSIGN] = "ASS",
-	[TO_UNASSIGN] = "UAS",  [TO_CRYPT_ON] = "CON",
-	[TO_CRYPT_OFF] = "COF",	[TO_KEKL_SET] = "KLS",
-	[TO_KEKL_QUERY] = "KLQ",[TO_RDC] = "RDC",
+	[TO_UNASSIGN] = "UAS",  [TO_RDC] = "RDC",
 };
 
 static int devid_to_int(struct ccw_dev_id *dev_id)
@@ -1312,7 +1311,9 @@ tape_init (void)
 #endif
 	DBF_EVENT(3, "tape init\n");
 	tape_proc_init();
+	tape_class_init();
 	tapechar_init ();
+	tape_3490_init();
 	return 0;
 }
 
@@ -1325,14 +1326,15 @@ tape_exit(void)
 	DBF_EVENT(6, "tape exit\n");
 
 	/* Get rid of the frontends */
+	tape_3490_exit();
 	tapechar_exit();
+	tape_class_exit();
 	tape_proc_cleanup();
 	debug_unregister (TAPE_DBF_AREA);
 }
 
-MODULE_AUTHOR("(C) 2001 IBM Deutschland Entwicklung GmbH by Carsten Otte and "
-	      "Michael Holzheu (cotte@de.ibm.com,holzheu@de.ibm.com)");
-MODULE_DESCRIPTION("Linux on zSeries channel attached tape device driver");
+MODULE_AUTHOR("IBM Corporation");
+MODULE_DESCRIPTION("s390 channel-attached tape device driver");
 MODULE_LICENSE("GPL");
 
 module_init(tape_init);
