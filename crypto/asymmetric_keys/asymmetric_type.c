@@ -593,10 +593,10 @@ static int asymmetric_key_verify_signature(struct kernel_pkey_params *params,
 {
 	struct public_key_signature sig = {
 		.s_size		= params->in2_len,
-		.digest_size	= params->in_len,
+		.m_size		= params->in_len,
 		.encoding	= params->encoding,
 		.hash_algo	= params->hash_algo,
-		.digest		= (void *)in,
+		.m		= (void *)in,
 		.s		= (void *)in2,
 	};
 

@@ -55,6 +55,9 @@ struct pkcs7_message {
 	struct pkcs7_signed_info *signed_infos;
 	u8		version;	/* Version of cert (1 -> PKCS#7 or CMS; 3 -> CMS) */
 	bool		have_authattrs;	/* T if have authattrs */
+#ifdef CONFIG_PKCS7_WAIVE_AUTHATTRS_REJECTION_FOR_MLDSA
+	bool		authattrs_rej_waivable; /* T if authatts rejection can be waived */
+#endif
 
 	/* Content Data (or NULL) */
 	enum OID	data_type;	/* Type of Data */

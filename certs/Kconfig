@@ -39,6 +39,39 @@ config MODULE_SIG_KEY_TYPE_ECDSA
 	 Note: Remove all ECDSA signing keys, e.g. certs/signing_key.pem,
 	 when falling back to building Linux 5.14 and older kernels.
 
+config MODULE_SIG_KEY_TYPE_MLDSA_44
+	bool "ML-DSA-44"
+	select CRYPTO_MLDSA
+	depends on OPENSSL_SUPPORTS_ML_DSA
+	help
+	  Use an ML-DSA-44 key (NIST FIPS 204) for module signing.  ML-DSA
+	  support requires OpenSSL-3.5 minimum; preferably OpenSSL-4+.  With
+	  the latter, the entire module body will be signed; with the former,
+	  signedAttrs will be used as it lacks support for CMS_NOATTR with
+	  ML-DSA.
+
+config MODULE_SIG_KEY_TYPE_MLDSA_65
+	bool "ML-DSA-65"
+	select CRYPTO_MLDSA
+	depends on OPENSSL_SUPPORTS_ML_DSA
+	help
+	  Use an ML-DSA-65 key (NIST FIPS 204) for module signing.  ML-DSA
+	  support requires OpenSSL-3.5 minimum; preferably OpenSSL-4+.  With
+	  the latter, the entire module body will be signed; with the former,
+	  signedAttrs will be used as it lacks support for CMS_NOATTR with
+	  ML-DSA.
+
+config MODULE_SIG_KEY_TYPE_MLDSA_87
+	bool "ML-DSA-87"
+	select CRYPTO_MLDSA
+	depends on OPENSSL_SUPPORTS_ML_DSA
+	help
+	  Use an ML-DSA-87 key (NIST FIPS 204) for module signing.  ML-DSA
+	  support requires OpenSSL-3.5 minimum; preferably OpenSSL-4+.  With
+	  the latter, the entire module body will be signed; with the former,
+	  signedAttrs will be used as it lacks support for CMS_NOATTR with
+	  ML-DSA.
+
 endchoice
 
 config SYSTEM_TRUSTED_KEYRING
@@ -153,5 +186,12 @@ config SYSTEM_BLACKLIST_AUTH_UPDATE
 	  they are signed and vouched by a certificate from the builtin trusted
 	  keyring.  The PKCS#7 signature of the description is set in the key
 	  payload.  Blacklist keys cannot be removed.
+
+config OPENSSL_SUPPORTS_ML_DSA
+	def_bool $(success, openssl list -key-managers | grep -q ML-DSA-87)
+	help
+	  Support for ML-DSA-44/65/87 was added in openssl-3.5, so as long
+	  as older versions are supported, the key types may only be
+	  set after testing the installed binary for support.
 
 endmenu
