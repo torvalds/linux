@@ -47,12 +47,13 @@ This package provides kernel headers and makefiles sufficient to build modules
 against the %{version} kernel package.
 %endif
 
-%if %{with_debuginfo}
+%if %{with_debuginfo_manual}
 %package debuginfo
 Summary: Debug information package for the Linux kernel
 %description debuginfo
 This package provides debug information for the kernel image and modules from the
 %{version} package.
+%define install_mod_strip 1
 %endif
 
 %prep
@@ -67,7 +68,7 @@ patch -p1 < %{SOURCE2}
 mkdir -p %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp $(%{make} %{makeflags} -s image_name) %{buildroot}/lib/modules/%{KERNELRELEASE}/vmlinuz
 # DEPMOD=true makes depmod no-op. We do not package depmod-generated files.
-%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} INSTALL_MOD_STRIP=1 DEPMOD=true modules_install
+%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} %{?install_mod_strip:INSTALL_MOD_STRIP=1} DEPMOD=true modules_install
 %{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 cp System.map %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp .config %{buildroot}/lib/modules/%{KERNELRELEASE}/config
@@ -98,7 +99,7 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	echo "%exclude /lib/modules/%{KERNELRELEASE}/build"
 } > %{buildroot}/kernel.list
 
-%if %{with_debuginfo}
+%if %{with_debuginfo_manual}
 # copying vmlinux directly to the debug directory means it will not get
 # stripped (but its source paths will still be collected + fixed up)
 mkdir -p %{buildroot}/usr/lib/debug/lib/modules/%{KERNELRELEASE}
@@ -162,7 +163,7 @@ fi
 /lib/modules/%{KERNELRELEASE}/build
 %endif
 
-%if %{with_debuginfo}
+%if %{with_debuginfo_manual}
 %files -f %{buildroot}/debuginfo.list debuginfo
 %defattr (-, root, root)
 %exclude /debuginfo.list
