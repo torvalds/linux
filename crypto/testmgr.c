@@ -4080,6 +4080,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.aead = __VECS(aegis128_tv_template)
 		}
 	}, {
+		.alg = "authenc(hmac(md5),cbc(des3_ede))",
+		.generic_driver = "authenc(hmac-md5-lib,cbc(des3_ede-generic))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(hmac_md5_des3_ede_cbc_tv_temp)
+		}
+	}, {
 		.alg = "authenc(hmac(md5),ecb(cipher_null))",
 		.generic_driver = "authenc(hmac-md5-lib,ecb-cipher_null)",
 		.test = alg_test_aead,
@@ -4124,6 +4131,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "authenc(hmac(sha224),cbc(aes))",
+		.generic_driver = "authenc(hmac-sha224-lib,cbc(aes-generic))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(hmac_sha224_aes_cbc_tv_temp)
+		}
+	}, {
 		.alg = "authenc(hmac(sha224),cbc(des))",
 		.generic_driver = "authenc(hmac-sha224-lib,cbc(des-generic))",
 		.test = alg_test_aead,
@@ -4137,6 +4151,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.aead = __VECS(hmac_sha224_des3_ede_cbc_tv_temp)
 		}
+	}, {
+		.alg = "authenc(hmac(sha224),rfc3686(ctr(aes)))",
+		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "authenc(hmac(sha256),cbc(aes))",
 		.generic_driver = "authenc(hmac-sha256-lib,cbc(aes-lib))",
@@ -4174,6 +4192,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "authenc(hmac(sha256),rfc3686(ctr(aes)))",
 		.test = alg_test_null,
 		.fips_allowed = 1,
+	}, {
+		.alg = "authenc(hmac(sha384),cbc(aes))",
+		.generic_driver = "authenc(hmac-sha384-lib,cbc(aes-generic))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(hmac_sha384_aes_cbc_tv_temp)
+		}
 	}, {
 		.alg = "authenc(hmac(sha384),cbc(des))",
 		.generic_driver = "authenc(hmac-sha384-lib,cbc(des-generic))",

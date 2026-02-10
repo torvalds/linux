@@ -346,9 +346,8 @@ static int __maybe_unused crypto_shash_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_HASH, sizeof(rhash), &rhash);
 }
 
-static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_shash_show(struct seq_file *m,
+					     struct crypto_alg *alg)
 {
 	struct shash_alg *salg = __crypto_shash_alg(alg);
 
@@ -542,17 +541,13 @@ int crypto_register_shashes(struct shash_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_shash(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_shashes(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_shash(&algs[i]);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_shashes);
 

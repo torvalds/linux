@@ -390,6 +390,11 @@ static int cca_clr2key(const struct pkey_apqn *apqns, size_t nr_apqns,
 	int i, len, rc;
 	u32 xflags;
 
+	if (pflags & PKEY_XFLAG_NOCLEARKEY) {
+		PKEY_DBF_ERR("%s clear key but xflag NOCLEARKEY\n", __func__);
+		return -EINVAL;
+	}
+
 	xflags = pflags & PKEY_XFLAG_NOMEMALLOC ? ZCRYPT_XFLAG_NOMEMALLOC : 0;
 
 	/* check keytype, subtype, clrkeylen, keybitsize */

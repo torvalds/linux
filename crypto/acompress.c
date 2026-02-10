@@ -60,10 +60,8 @@ static int __maybe_unused crypto_acomp_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_ACOMP, sizeof(racomp), &racomp);
 }
 
-static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-
-static void crypto_acomp_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_acomp_show(struct seq_file *m,
+					     struct crypto_alg *alg)
 {
 	seq_puts(m, "type         : acomp\n");
 }
@@ -337,17 +335,13 @@ int crypto_register_acomps(struct acomp_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_acomp(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_acomps(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_acomp(&algs[i]);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_acomps);
 

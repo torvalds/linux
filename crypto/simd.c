@@ -352,8 +352,8 @@ static int simd_aead_init(struct crypto_aead *tfm)
 
 	ctx->cryptd_tfm = cryptd_tfm;
 
-	reqsize = crypto_aead_reqsize(cryptd_aead_child(cryptd_tfm));
-	reqsize = max(reqsize, crypto_aead_reqsize(&cryptd_tfm->base));
+	reqsize = max(crypto_aead_reqsize(cryptd_aead_child(cryptd_tfm)),
+		      crypto_aead_reqsize(&cryptd_tfm->base));
 	reqsize += sizeof(struct aead_request);
 
 	crypto_aead_set_reqsize(tfm, reqsize);
