@@ -1949,6 +1949,18 @@ config RSEQ
 
 	  If unsure, say Y.
 
+config RSEQ_SLICE_EXTENSION
+	bool "Enable rseq-based time slice extension mechanism"
+	depends on RSEQ && HIGH_RES_TIMERS && GENERIC_ENTRY && HAVE_GENERIC_TIF_BITS
+	help
+	  Allows userspace to request a limited time slice extension when
+	  returning from an interrupt to user space via the RSEQ shared
+	  data ABI. If granted, that allows to complete a critical section,
+	  so that other threads are not stuck on a conflicted resource,
+	  while the task is scheduled out.
+
+	  If unsure, say N.
+
 config RSEQ_STATS
 	default n
 	bool "Enable lightweight statistics of restartable sequences" if EXPERT

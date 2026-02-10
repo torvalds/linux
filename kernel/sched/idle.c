@@ -460,6 +460,7 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct t
 {
 	update_curr_idle(rq);
 	scx_update_idle(rq, false, true);
+	update_rq_avg_idle(rq);
 }
 
 static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
@@ -536,15 +537,15 @@ static void update_curr_idle(struct rq *rq)
 	se->exec_start = now;
 
 	dl_server_update_idle(&rq->fair_server, delta_exec);
+#ifdef CONFIG_SCHED_CLASS_EXT
+	dl_server_update_idle(&rq->ext_server, delta_exec);
+#endif
 }
 
 /*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
 DEFINE_SCHED_CLASS(idle) = {
-
-	.queue_mask		= 0,
-
 	/* no enqueue/yield_task for idle tasks */
 
 	/* dequeue is not valid, we print a debug message there: */

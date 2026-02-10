@@ -959,6 +959,8 @@ static void update_curr_scx(struct rq *rq)
 		if (!curr->scx.slice)
 			touch_core_sched(rq, curr);
 	}
+
+	dl_server_update(&rq->ext_server, delta_exec);
 }
 
 static bool scx_dsq_priq_less(struct rb_node *node_a,
@@ -1501,6 +1503,10 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
 
 	if (enq_flags & SCX_ENQ_WAKEUP)
 		touch_core_sched(rq, p);
+
+	/* Start dl_server if this is the first task being enqueued */
+	if (rq->scx.nr_running == 1)
+		dl_server_start(&rq->ext_server);
 
 	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
 out:
@@ -2454,7 +2460,7 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	/* see kick_cpus_irq_workfn() */
 	smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
 
-	rq_modified_clear(rq);
+	rq->next_class = &ext_sched_class;
 
 	rq_unpin_lock(rq, rf);
 	balance_one(rq, prev);
@@ -2469,7 +2475,7 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	 * If @force_scx is true, always try to pick a SCHED_EXT task,
 	 * regardless of any higher-priority sched classes activity.
 	 */
-	if (!force_scx && rq_modified_above(rq, &ext_sched_class))
+	if (!force_scx && sched_class_above(rq->next_class, &ext_sched_class))
 		return RETRY_TASK;
 
 	keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;
@@ -2511,6 +2517,33 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 static struct task_struct *pick_task_scx(struct rq *rq, struct rq_flags *rf)
 {
 	return do_pick_task_scx(rq, rf, false);
+}
+
+/*
+ * Select the next task to run from the ext scheduling class.
+ *
+ * Use do_pick_task_scx() directly with @force_scx enabled, since the
+ * dl_server must always select a sched_ext task.
+ */
+static struct task_struct *
+ext_server_pick_task(struct sched_dl_entity *dl_se, struct rq_flags *rf)
+{
+	if (!scx_enabled())
+		return NULL;
+
+	return do_pick_task_scx(dl_se->rq, rf, true);
+}
+
+/*
+ * Initialize the ext server deadline entity.
+ */
+void ext_server_init(struct rq *rq)
+{
+	struct sched_dl_entity *dl_se = &rq->ext_server;
+
+	init_dl_entity(dl_se);
+
+	dl_server_init(dl_se, rq, ext_server_pick_task);
 }
 
 #ifdef CONFIG_SCHED_CORE
@@ -3141,7 +3174,8 @@ static void switched_from_scx(struct rq *rq, struct task_struct *p)
 	scx_disable_task(p);
 }
 
-static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p,int wake_flags) {}
+static void wakeup_preempt_scx(struct rq *rq, struct task_struct *p, int wake_flags) {}
+
 static void switched_to_scx(struct rq *rq, struct task_struct *p) {}
 
 int scx_check_setscheduler(struct task_struct *p, int policy)
@@ -3402,8 +3436,6 @@ static void scx_cgroup_unlock(void) {}
  *   their current sched_class. Call them directly from sched core instead.
  */
 DEFINE_SCHED_CLASS(ext) = {
-	.queue_mask		= 1,
-
 	.enqueue_task		= enqueue_task_scx,
 	.dequeue_task		= dequeue_task_scx,
 	.yield_task		= yield_task_scx,

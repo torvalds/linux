@@ -19,13 +19,20 @@ enum rseq_cpu_id_state {
 };
 
 enum rseq_flags {
-	RSEQ_FLAG_UNREGISTER = (1 << 0),
+	RSEQ_FLAG_UNREGISTER			= (1 << 0),
+	RSEQ_FLAG_SLICE_EXT_DEFAULT_ON		= (1 << 1),
 };
 
 enum rseq_cs_flags_bit {
+	/* Historical and unsupported bits */
 	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT_BIT	= 0,
 	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT	= 1,
 	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT	= 2,
+	/* (3) Intentional gap to put new bits into a separate byte */
+
+	/* User read only feature flags */
+	RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE_BIT	= 4,
+	RSEQ_CS_FLAG_SLICE_EXT_ENABLED_BIT	= 5,
 };
 
 enum rseq_cs_flags {
@@ -35,6 +42,11 @@ enum rseq_cs_flags {
 		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL_BIT),
 	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	=
 		(1U << RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE_BIT),
+
+	RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE	=
+		(1U << RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE_BIT),
+	RSEQ_CS_FLAG_SLICE_EXT_ENABLED		=
+		(1U << RSEQ_CS_FLAG_SLICE_EXT_ENABLED_BIT),
 };
 
 /*
@@ -52,6 +64,27 @@ struct rseq_cs {
 	__u64 post_commit_offset;
 	__u64 abort_ip;
 } __attribute__((aligned(4 * sizeof(__u64))));
+
+/**
+ * rseq_slice_ctrl - Time slice extension control structure
+ * @all:	Compound value
+ * @request:	Request for a time slice extension
+ * @granted:	Granted time slice extension
+ *
+ * @request is set by user space and can be cleared by user space or kernel
+ * space.  @granted is set and cleared by the kernel and must only be read
+ * by user space.
+ */
+struct rseq_slice_ctrl {
+	union {
+		__u32		all;
+		struct {
+			__u8	request;
+			__u8	granted;
+			__u16	__reserved;
+		};
+	};
+};
 
 /*
  * struct rseq is aligned on 4 * 8 bytes to ensure it is always
@@ -140,6 +173,12 @@ struct rseq {
 	 * (allocated uniquely within a memory map).
 	 */
 	__u32 mm_cid;
+
+	/*
+	 * Time slice extension control structure. CPU local updates from
+	 * kernel and user space.
+	 */
+	struct rseq_slice_ctrl slice_ctrl;
 
 	/*
 	 * Flexible array member at end of structure, after last feature field.
