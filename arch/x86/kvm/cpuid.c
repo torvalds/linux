@@ -1243,11 +1243,12 @@ void kvm_initialize_cpu_caps(void)
 		F(NULL_SEL_CLR_BASE),
 		/* UpperAddressIgnore */
 		F(AUTOIBRS),
-		F(PREFETCHI),
 		EMULATED_F(NO_SMM_CTL_MSR),
 		/* PrefetchCtlMsr */
 		/* GpOnUserCpuid */
 		/* EPSF */
+		F(PREFETCHI),
+		F(AVX512_BMM),
 		F(ERAPS),
 		SYNTHESIZED_F(SBPB),
 		SYNTHESIZED_F(IBPB_BRTYPE),
