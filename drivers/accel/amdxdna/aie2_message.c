@@ -216,8 +216,10 @@ static int aie2_destroy_context_req(struct amdxdna_dev_hdl *ndev, u32 id)
 
 	req.context_id = id;
 	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
-	if (ret)
+	if (ret && ret != -ENODEV)
 		XDNA_WARN(xdna, "Destroy context failed, ret %d", ret);
+	else if (ret == -ENODEV)
+		XDNA_DBG(xdna, "Destroy context: device already stopped");
 
 	return ret;
 }
