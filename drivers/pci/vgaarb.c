@@ -26,7 +26,7 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
-#include <linux/screen_info.h>
+#include <linux/sysfb.h>
 #include <linux/vt.h>
 #include <linux/console.h>
 #include <linux/acpi.h>
@@ -557,7 +557,7 @@ EXPORT_SYMBOL(vga_put);
 static bool vga_is_firmware_default(struct pci_dev *pdev)
 {
 #if defined CONFIG_X86
-	return pdev == screen_info_pci_dev(&screen_info);
+	return pdev == screen_info_pci_dev(&sysfb_primary_display.screen);
 #else
 	return false;
 #endif

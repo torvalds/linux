@@ -36,6 +36,7 @@
 
 struct edid_info;
 struct screen_info;
+struct sysfb_display_info;
 
 extern bool efi_no5lvl;
 extern bool efi_nochunk;
@@ -1175,9 +1176,9 @@ efi_enable_reset_attack_mitigation(void) { }
 
 void efi_retrieve_eventlog(void);
 
-struct screen_info *alloc_screen_info(void);
-struct screen_info *__alloc_screen_info(void);
-void free_screen_info(struct screen_info *si);
+struct sysfb_display_info *alloc_primary_display(void);
+struct sysfb_display_info *__alloc_primary_display(void);
+void free_primary_display(struct sysfb_display_info *dpy);
 
 void efi_cache_sync_image(unsigned long image_base,
 			  unsigned long alloc_size);

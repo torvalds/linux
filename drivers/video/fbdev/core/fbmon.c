@@ -32,11 +32,13 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <video/edid.h>
+#include <linux/string_choices.h>
+#include <linux/sysfb.h>
+
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
 #include "../edid.h"
-#include <linux/string_choices.h>
 
 /*
  * EDID parser
@@ -1504,7 +1506,7 @@ const unsigned char *fb_firmware_edid(struct device *device)
 		res = &dev->resource[PCI_ROM_RESOURCE];
 
 	if (res && res->flags & IORESOURCE_ROM_SHADOW)
-		edid = edid_info.dummy;
+		edid = sysfb_primary_display.edid.dummy;
 
 	return edid;
 }

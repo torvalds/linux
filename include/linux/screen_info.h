@@ -151,6 +151,4 @@ static inline struct pci_dev *screen_info_pci_dev(const struct screen_info *si)
 }
 #endif
 
-extern struct screen_info screen_info;
-
 #endif /* _SCREEN_INFO_H */
