@@ -4472,8 +4472,10 @@ F:	arch/*/lib/bitops.c
 F:	include/asm-generic/bitops
 F:	include/asm-generic/bitops.h
 F:	include/linux/bitops.h
+F:	include/linux/count_zeros.h
 F:	lib/hweight.c
 F:	lib/test_bitops.c
+F:	lib/tests/bitops_kunit.c
 F:	tools/*/bitops*
 
 BITOPS API BINDINGS [RUST]
