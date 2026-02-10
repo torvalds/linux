@@ -2746,17 +2746,19 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 }
 
 /*
- * given a list of ordered sums record them in the inode.  This happens
- * at IO completion time based on sums calculated at bio submission time.
+ * Given an ordered extent and insert all its checksums into the csum tree.
+ *
+ * This happens at IO completion time based on sums calculated at bio
+ * submission time.
  */
 static int add_pending_csums(struct btrfs_trans_handle *trans,
-			     struct list_head *list)
+			     struct btrfs_ordered_extent *oe)
 {
 	struct btrfs_ordered_sum *sum;
 	struct btrfs_root *csum_root = NULL;
 	int ret;
 
-	list_for_each_entry(sum, list, list) {
+	list_for_each_entry(sum, &oe->csum_list, list) {
 		if (!csum_root) {
 			csum_root = btrfs_csum_root(trans->fs_info,
 						    sum->logical);
@@ -3322,7 +3324,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	ret = add_pending_csums(trans, &ordered_extent->csum_list);
+	ret = add_pending_csums(trans, ordered_extent);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
