@@ -134,7 +134,7 @@ struct btrfs_ordered_extent {
 	struct btrfs_inode *inode;
 
 	/* list of checksums for insertion when the extent io is done */
-	struct list_head list;
+	struct list_head csum_list;
 
 	/* used for fast fsyncs */
 	struct list_head log_list;

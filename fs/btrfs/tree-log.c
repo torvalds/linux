@@ -5088,7 +5088,7 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 		if (test_and_set_bit(BTRFS_ORDERED_LOGGED_CSUM, &ordered->flags))
 			continue;
 
-		list_for_each_entry(sums, &ordered->list, list) {
+		list_for_each_entry(sums, &ordered->csum_list, list) {
 			ret = log_csums(trans, inode, log_root, sums);
 			if (ret)
 				return ret;

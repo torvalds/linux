@@ -197,7 +197,7 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	entry->flags = flags;
 	refcount_set(&entry->refs, 1);
 	init_waitqueue_head(&entry->wait);
-	INIT_LIST_HEAD(&entry->list);
+	INIT_LIST_HEAD(&entry->csum_list);
 	INIT_LIST_HEAD(&entry->log_list);
 	INIT_LIST_HEAD(&entry->root_extent_list);
 	INIT_LIST_HEAD(&entry->work_list);
@@ -329,7 +329,7 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 	struct btrfs_inode *inode = entry->inode;
 
 	spin_lock(&inode->ordered_tree_lock);
-	list_add_tail(&sum->list, &entry->list);
+	list_add_tail(&sum->list, &entry->csum_list);
 	spin_unlock(&inode->ordered_tree_lock);
 }
 
@@ -628,7 +628,7 @@ void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry)
 		ASSERT(list_empty(&entry->log_list));
 		ASSERT(RB_EMPTY_NODE(&entry->rb_node));
 		btrfs_add_delayed_iput(entry->inode);
-		list_for_each_entry_safe(sum, tmp, &entry->list, list)
+		list_for_each_entry_safe(sum, tmp, &entry->csum_list, list)
 			kvfree(sum);
 		kmem_cache_free(btrfs_ordered_extent_cache, entry);
 	}
@@ -1323,10 +1323,10 @@ struct btrfs_ordered_extent *btrfs_split_ordered_extent(
 		}
 	}
 
-	list_for_each_entry_safe(sum, tmpsum, &ordered->list, list) {
+	list_for_each_entry_safe(sum, tmpsum, &ordered->csum_list, list) {
 		if (offset == len)
 			break;
-		list_move_tail(&sum->list, &new->list);
+		list_move_tail(&sum->list, &new->csum_list);
 		offset += sum->len;
 	}
 

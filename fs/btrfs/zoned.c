@@ -2123,9 +2123,8 @@ void btrfs_finish_ordered_zoned(struct btrfs_ordered_extent *ordered)
 	if (test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags))
 		return;
 
-	ASSERT(!list_empty(&ordered->list));
-	/* The ordered->list can be empty in the above pre-alloc case. */
-	sum = list_first_entry(&ordered->list, struct btrfs_ordered_sum, list);
+	ASSERT(!list_empty(&ordered->csum_list));
+	sum = list_first_entry(&ordered->csum_list, struct btrfs_ordered_sum, list);
 	logical = sum->logical;
 	len = sum->len;
 
@@ -2156,7 +2155,7 @@ out:
 	 */
 	if ((inode->flags & BTRFS_INODE_NODATASUM) ||
 	    test_bit(BTRFS_FS_STATE_NO_DATA_CSUMS, &fs_info->fs_state)) {
-		while ((sum = list_first_entry_or_null(&ordered->list,
+		while ((sum = list_first_entry_or_null(&ordered->csum_list,
 						       typeof(*sum), list))) {
 			list_del(&sum->list);
 			kfree(sum);

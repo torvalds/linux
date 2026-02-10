@@ -3272,8 +3272,8 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
 		/* Logic error */
-		ASSERT(list_empty(&ordered_extent->list));
-		if (unlikely(!list_empty(&ordered_extent->list))) {
+		ASSERT(list_empty(&ordered_extent->csum_list));
+		if (unlikely(!list_empty(&ordered_extent->csum_list))) {
 			ret = -EINVAL;
 			btrfs_abort_transaction(trans, ret);
 			goto out;
@@ -3322,7 +3322,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	ret = add_pending_csums(trans, &ordered_extent->list);
+	ret = add_pending_csums(trans, &ordered_extent->csum_list);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
