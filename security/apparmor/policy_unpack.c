@@ -835,7 +835,7 @@ fail_reset:
 }
 
 
-static size_t unpack_tags(struct aa_ext *e, struct aa_tags_struct *tags,
+static int unpack_tags(struct aa_ext *e, struct aa_tags_struct *tags,
 	const char **info)
 {
 	int error = -EPROTO;
