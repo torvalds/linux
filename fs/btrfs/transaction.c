@@ -1602,16 +1602,16 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 
 	ret = commit_fs_roots(trans);
 	if (ret)
-		goto out;
+		return ret;
 	ret = btrfs_qgroup_account_extents(trans);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/* Now qgroup are all updated, we can inherit it to new qgroups */
 	ret = btrfs_qgroup_inherit(trans, btrfs_root_id(src), dst_objectid,
 				   btrfs_root_id(parent), inherit);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/*
 	 * Now we do a simplified commit transaction, which will:
@@ -1627,23 +1627,22 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 */
 	ret = commit_cowonly_roots(trans);
 	if (ret)
-		goto out;
+		return ret;
 	switch_commit_roots(trans);
 	ret = btrfs_write_and_wait_transaction(trans);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
 		btrfs_err(fs_info,
 "error while writing out transaction during qgroup snapshot accounting: %d", ret);
+		return ret;
+	}
 
-out:
 	/*
 	 * Force parent root to be updated, as we recorded it before so its
 	 * last_trans == cur_transid.
 	 * Or it won't be committed again onto disk after later
 	 * insert_dir_item()
 	 */
-	if (!ret)
-		ret = record_root_in_trans(trans, parent, 1);
-	return ret;
+	return record_root_in_trans(trans, parent, 1);
 }
 
 /*
