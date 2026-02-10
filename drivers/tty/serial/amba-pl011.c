@@ -2701,6 +2701,37 @@ static int pl011_early_read(struct console *con, char *s, unsigned int n)
 static int __init pl011_early_console_setup(struct earlycon_device *device,
 					    const char *opt)
 {
+	unsigned int cr;
+
+	if (!device->port.membase)
+		return -ENODEV;
+
+	device->con->write = pl011_early_write;
+	device->con->read = pl011_early_read;
+
+	if (device->port.iotype == UPIO_MEM32)
+		cr = readl(device->port.membase + UART011_CR);
+	else
+		cr = readw(device->port.membase + UART011_CR);
+	cr &= UART011_CR_RTS | UART011_CR_DTR;
+	cr |= UART01x_CR_UARTEN | UART011_CR_RXE | UART011_CR_TXE;
+	if (device->port.iotype == UPIO_MEM32)
+		writel(cr, device->port.membase + UART011_CR);
+	else
+		writew(cr, device->port.membase + UART011_CR);
+
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
+
+/*
+ * The SBSA UART has no defined control register and is assumed to
+ * be pre-enabled by firmware, so we do not write to UART011_CR.
+ */
+static int __init sbsa_uart_early_console_setup(struct earlycon_device *device,
+						const char *opt)
+{
 	if (!device->port.membase)
 		return -ENODEV;
 
@@ -2710,9 +2741,7 @@ static int __init pl011_early_console_setup(struct earlycon_device *device,
 	return 0;
 }
 
-OF_EARLYCON_DECLARE(pl011, "arm,pl011", pl011_early_console_setup);
-
-OF_EARLYCON_DECLARE(pl011, "arm,sbsa-uart", pl011_early_console_setup);
+OF_EARLYCON_DECLARE(pl011, "arm,sbsa-uart", sbsa_uart_early_console_setup);
 
 /*
  * On Qualcomm Datacenter Technologies QDF2400 SOCs affected by
