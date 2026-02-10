@@ -33,6 +33,8 @@
 #define UNCORE_EXTRA_PCI_DEV_MAX	4
 
 #define UNCORE_EVENT_CONSTRAINT(c, n) EVENT_CONSTRAINT(c, n, 0xff)
+#define UNCORE_EVENT_CONSTRAINT_RANGE(c, e, n)			\
+		EVENT_CONSTRAINT_RANGE(c, e, n, 0xff)
 
 #define UNCORE_IGNORE_END		-1
 
@@ -46,6 +48,25 @@ struct intel_uncore_box;
 struct uncore_event_desc;
 struct freerunning_counters;
 struct intel_uncore_topology;
+
+struct uncore_discovery_domain {
+	/* MSR address or PCI device used as the discovery base */
+	u32	discovery_base;
+	bool	base_is_pci;
+	int	(*global_init)(u64 ctl);
+
+	/* The units in the discovery table should be ignored. */
+	int	*units_ignore;
+};
+
+#define UNCORE_DISCOVERY_DOMAINS	2
+struct uncore_plat_init {
+	void	(*cpu_init)(void);
+	int	(*pci_init)(void);
+	void	(*mmio_init)(void);
+
+	struct uncore_discovery_domain domain[UNCORE_DISCOVERY_DOMAINS];
+};
 
 struct intel_uncore_type {
 	const char *name;
@@ -597,6 +618,8 @@ extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
 extern int spr_uncore_units_ignore[];
 extern int gnr_uncore_units_ignore[];
+extern int dmr_uncore_imh_units_ignore[];
+extern int dmr_uncore_cbb_units_ignore[];
 
 /* uncore_snb.c */
 int snb_uncore_pci_init(void);
@@ -613,6 +636,7 @@ void adl_uncore_cpu_init(void);
 void lnl_uncore_cpu_init(void);
 void mtl_uncore_cpu_init(void);
 void ptl_uncore_cpu_init(void);
+void nvl_uncore_cpu_init(void);
 void tgl_uncore_mmio_init(void);
 void tgl_l_uncore_mmio_init(void);
 void adl_uncore_mmio_init(void);
@@ -645,6 +669,8 @@ void spr_uncore_mmio_init(void);
 int gnr_uncore_pci_init(void);
 void gnr_uncore_cpu_init(void);
 void gnr_uncore_mmio_init(void);
+int dmr_uncore_pci_init(void);
+void dmr_uncore_mmio_init(void);
 
 /* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

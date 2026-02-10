@@ -243,7 +243,7 @@ static __init void p6_pmu_rdpmc_quirk(void)
 		 */
 		pr_warn("Userspace RDPMC support disabled due to a CPU erratum\n");
 		x86_pmu.attr_rdpmc_broken = 1;
-		x86_pmu.attr_rdpmc = 0;
+		x86_pmu.attr_rdpmc = X86_USER_RDPMC_NEVER_ENABLE;
 	}
 }
 

@@ -939,6 +939,7 @@ static bool perf_pmu__match_wildcard(const char *pmu_name, const char *tok)
 {
 	const char *p, *suffix;
 	bool has_hex = false;
+	bool has_underscore = false;
 	size_t tok_len = strlen(tok);
 
 	/* Check start of pmu_name for equality. */
@@ -949,13 +950,14 @@ static bool perf_pmu__match_wildcard(const char *pmu_name, const char *tok)
 	if (*p == 0)
 		return true;
 
-	if (*p == '_') {
-		++p;
-		++suffix;
-	}
-
-	/* Ensure we end in a number */
+	/* Ensure we end in a number or a mix of number and "_". */
 	while (1) {
+		if (!has_underscore && (*p == '_')) {
+			has_underscore = true;
+			++p;
+			++suffix;
+		}
+
 		if (!isxdigit(*p))
 			return false;
 		if (!has_hex)
