@@ -18,6 +18,7 @@ struct backlight_device;
 struct device;
 struct device_node;
 struct fb_info;
+struct fbcon_par;
 struct file;
 struct i2c_adapter;
 struct inode;
@@ -505,7 +506,7 @@ struct fb_info {
 #define FBINFO_STATE_RUNNING	0
 #define FBINFO_STATE_SUSPENDED	1
 	u32 state;			/* Hardware state i.e suspend */
-	void *fbcon_par;                /* fbcon use-only private area */
+	struct fbcon_par *fbcon_par;    /* fbcon use-only private area */
 	/* From here on everything is device dependent */
 	void *par;
 
