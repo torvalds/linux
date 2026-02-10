@@ -214,10 +214,12 @@ static int show_proc_sessions(struct seq_file *m, void *v)
 			down_read(&chan->conn->session_lock);
 			ksmbd_user_session_get(session);
 
-			if (chan->conn->inet_addr)
-				seq_printf(m, " %-40pI4", &chan->conn->inet_addr);
-			else
+#if IS_ENABLED(CONFIG_IPV6)
+			if (!chan->conn->inet_addr)
 				seq_printf(m, " %-40pI6c", &chan->conn->inet6_addr);
+			else
+#endif
+				seq_printf(m, " %-40pI4", &chan->conn->inet_addr);
 			seq_printf(m, " %-15s %-10llu %-10s\n",
 				   session_user_name(session),
 				   session->id,

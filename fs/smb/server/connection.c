@@ -41,10 +41,12 @@ static int proc_show_clients(struct seq_file *m, void *v)
 		jiffies_to_timespec64(jiffies - conn->last_active, &t);
 		ktime_get_real_ts64(&now);
 		t = timespec64_sub(now, t);
-		if (conn->inet_addr)
-			seq_printf(m, "%-20pI4", &conn->inet_addr);
-		else
+#if IS_ENABLED(CONFIG_IPV6)
+		if (!conn->inet_addr)
 			seq_printf(m, "%-20pI6c", &conn->inet6_addr);
+		else
+#endif
+			seq_printf(m, "%-20pI4", &conn->inet_addr);
 		seq_printf(m, "   0x%-10x %-10u %-12d %-10d %ptT\n",
 			   conn->dialect,
 			   conn->total_credits,
