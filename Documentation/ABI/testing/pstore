@@ -26,7 +26,7 @@ Description:	Generic interface to platform dependent persistent storage.
 
 		Once the information in a file has been read, removing
 		the file will signal to the underlying persistent storage
-		device that it can reclaim the space for later re-use::
+		device that it can reclaim the space for later reuse::
 
 		    $ rm /sys/fs/pstore/dmesg-erst-1
 

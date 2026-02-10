@@ -11,10 +11,3 @@ Compute Accelerators
    amdxdna/index
    qaic/index
    rocket/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

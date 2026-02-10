@@ -452,7 +452,7 @@ closed.
 Misc
 ----
 
-Some applications may want to keep a channel around and re-use it
+Some applications may want to keep a channel around and reuse it
 rather than open and close a new channel for each use.  relay_reset()
 can be used for this purpose - it resets a channel to its initial
 state without reallocating channel buffer memory or destroying

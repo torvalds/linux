@@ -53,7 +53,7 @@ When you are ready to start putting up git trees for others to look at, you
 will, of course, need a server that can be pulled from.  Setting up such a
 server with git-daemon is relatively straightforward if you have a system
 which is accessible to the Internet.  Otherwise, free, public hosting sites
-(Github, for example) are starting to appear on the net.  Established
+(GitHub, for example) are starting to appear on the net.  Established
 developers can get an account on kernel.org, but those are not easy to come
 by; see https://kernel.org/faq/ for more information.
 

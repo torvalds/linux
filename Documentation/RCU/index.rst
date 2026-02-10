@@ -28,10 +28,3 @@ RCU Handbook
    Design/Expedited-Grace-Periods/Expedited-Grace-Periods
    Design/Requirements/Requirements
    Design/Data-Structures/Data-Structures
-
-.. only:: subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

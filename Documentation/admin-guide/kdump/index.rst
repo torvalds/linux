@@ -11,10 +11,3 @@ information.
 
     kdump
     vmcoreinfo
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

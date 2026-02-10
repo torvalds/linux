@@ -753,7 +753,7 @@ Macros, Attributes and Symbols
     sizeof(foo)/sizeof(foo[0]) for finding number of elements in an
     array.
 
-    The macro is defined in include/linux/kernel.h::
+    The macro is defined in include/linux/array_size.h::
 
       #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

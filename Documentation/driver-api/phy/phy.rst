@@ -19,7 +19,7 @@ PHY. Other peripherals that use PHY include Wireless LAN, Ethernet,
 SATA etc.
 
 The intention of creating this framework is to bring the PHY drivers spread
-all over the Linux kernel to drivers/phy to increase code re-use and for
+all over the Linux kernel to drivers/phy to increase code reuse and for
 better code maintainability.
 
 This framework will be of use only to devices that use external PHY (PHY

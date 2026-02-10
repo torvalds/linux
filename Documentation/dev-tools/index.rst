@@ -38,11 +38,3 @@ Documentation/process/debugging/index.rst
    gpio-sloppy-logic-analyzer
    autofdo
    propeller
-
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

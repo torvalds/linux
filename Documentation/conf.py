@@ -13,10 +13,15 @@ from  textwrap import dedent
 
 import sphinx
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath("sphinx"))
+# Location of Documentation/ directory
+kern_doc_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add location of Sphinx extensions
+sys.path.insert(0, os.path.join(kern_doc_dir, "sphinx"))
+
+# Allow sphinx.ext.autodoc to document files at tools and scripts
+sys.path.append(os.path.join(kern_doc_dir, "..", "tools"))
+sys.path.append(os.path.join(kern_doc_dir, "..", "scripts"))
 
 # Minimal supported version
 needs_sphinx = "3.4.3"
@@ -32,15 +37,12 @@ else:
     # Include patterns that don't contain directory names, in glob format
     include_patterns = ["**.rst"]
 
-# Location of Documentation/ directory
-doctree = os.path.abspath(".")
-
 # Exclude of patterns that don't contain directory names, in glob format.
 exclude_patterns = []
 
 # List of patterns that contain directory names in glob format.
 dyn_include_patterns = []
-dyn_exclude_patterns = ["output"]
+dyn_exclude_patterns = ["output", "sphinx-includes"]
 
 # Currently, only netlink/specs has a parser for yaml.
 # Prefer using include patterns if available, as it is faster
@@ -50,6 +52,9 @@ else:
     dyn_exclude_patterns.append("netlink/*.yaml")
     dyn_exclude_patterns.append("devicetree/bindings/**.yaml")
     dyn_exclude_patterns.append("core-api/kho/bindings/**.yaml")
+
+# Link to man pages
+manpages_url = 'https://man7.org/linux/man-pages/man{section}/{page}.{section}.html'
 
 # Properly handle directory patterns and LaTeX docs
 # -------------------------------------------------
@@ -70,7 +75,7 @@ def config_init(app, config):
     # setup include_patterns dynamically
     if has_include_patterns:
         for p in dyn_include_patterns:
-            full = os.path.join(doctree, p)
+            full = os.path.join(kern_doc_dir, p)
 
             rel_path = os.path.relpath(full, start=app.srcdir)
             if rel_path.startswith("../"):
@@ -80,7 +85,7 @@ def config_init(app, config):
 
     # setup exclude_patterns dynamically
     for p in dyn_exclude_patterns:
-        full = os.path.join(doctree, p)
+        full = os.path.join(kern_doc_dir, p)
 
         rel_path = os.path.relpath(full, start=app.srcdir)
         if rel_path.startswith("../"):
@@ -92,7 +97,7 @@ def config_init(app, config):
     # of the app.srcdir. Add them here
 
     # Handle the case where SPHINXDIRS is used
-    if not os.path.samefile(doctree, app.srcdir):
+    if not os.path.samefile(kern_doc_dir, app.srcdir):
         # Add a tag to mark that the build is actually a subproject
         tags.add("subproject")
 
@@ -151,6 +156,7 @@ extensions = [
     "maintainers_include",
     "parser_yaml",
     "rstFlatTable",
+    "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.ifconfig",
     "translations",
@@ -579,13 +585,32 @@ pdf_documents = [
     ("kernel-documentation", "Kernel", "Kernel", "J. Random Bozo"),
 ]
 
-# kernel-doc extension configuration for running Sphinx directly (e.g. by Read
-# the Docs). In a normal build, these are supplied from the Makefile via command
-# line arguments.
-kerneldoc_bin = "../scripts/kernel-doc.py"
 kerneldoc_srctree = ".."
+
+# Add index link at the end of the root document for SPHINXDIRS builds.
+def add_subproject_index(app, docname, content):
+    # Only care about root documents
+    if docname != master_doc:
+        return
+
+    # Add the index link at the root of translations, but not at the root of
+    # individual translations. They have their own language specific links.
+    rel = os.path.relpath(app.srcdir, start=kern_doc_dir).split('/')
+    if rel[0] == 'translations' and len(rel) > 1:
+        return
+
+    # Only add the link for SPHINXDIRS HTML builds
+    if not app.builder.tags.has('subproject') or not app.builder.tags.has('html'):
+        return
+
+    # The include directive needs a relative path from the srcdir
+    rel = os.path.relpath(os.path.join(kern_doc_dir, 'sphinx-includes/subproject-index.rst'),
+                          start=app.srcdir)
+
+    content[0] += f'\n.. include:: {rel}\n\n'
 
 def setup(app):
     """Patterns need to be updated at init time on older Sphinx versions"""
 
     app.connect('config-inited', config_init)
+    app.connect('source-read', add_subproject_index)

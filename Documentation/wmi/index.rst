@@ -10,11 +10,3 @@ WMI Subsystem
    acpi-interface
    driver-development-guide
    devices/index
-
-.. only::  subproject and html
-
-
-   Indices
-   =======
-
-   * :ref:`genindex`

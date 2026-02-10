@@ -28,7 +28,7 @@ if ! [ -d "$1" ]; then
 fi
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
-cd ..
+cd ../..
 
 cd Documentation/
 
@@ -54,7 +54,7 @@ for file in `find $1 -name '*.c'`; do
 	if [[ ${FILES_INCLUDED[$file]+_} ]]; then
 	continue;
 	fi
-	str=$(PYTHONDONTWRITEBYTECODE=1 scripts/kernel-doc -export "$file" 2>/dev/null)
+	str=$(PYTHONDONTWRITEBYTECODE=1 tools/docs/kernel-doc -export "$file" 2>/dev/null)
 	if [[ -n "$str" ]]; then
 	echo "$file"
 	fi

@@ -38,7 +38,7 @@ and it's also much more restricted in the latter case:
 
 	In the no-MMU case:
 
-         - If one exists, the kernel will re-use an existing mapping to the
+         - If one exists, the kernel will reuse an existing mapping to the
            same segment of the same file if that has compatible permissions,
            even if this was created by another process.
 

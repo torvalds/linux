@@ -12,10 +12,3 @@ Surface System Aggregator Module (SSAM)
    clients/index
    ssh
    internal
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

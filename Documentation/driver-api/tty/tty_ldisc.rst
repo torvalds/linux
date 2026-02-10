@@ -18,7 +18,7 @@ Registration
 Line disciplines are registered with tty_register_ldisc() passing the ldisc
 structure. At the point of registration the discipline must be ready to use and
 it is possible it will get used before the call returns success. If the call
-returns an error then it won’t get called. Do not re-use ldisc numbers as they
+returns an error then it won’t get called. Do not reuse ldisc numbers as they
 are part of the userspace ABI and writing over an existing ldisc will cause
 demons to eat your computer. You must not re-register over the top of the line
 discipline even with the same data or your computer again will be eaten by

@@ -281,10 +281,3 @@ Hardware Monitoring Kernel Drivers
    xdpe12284
    xdpe152c4
    zl6100
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

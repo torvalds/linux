@@ -482,7 +482,7 @@ with the following files:
 "max_threshold_occupancy":
 		Read/write file provides the largest value (in
 		bytes) at which a previously used LLC_occupancy
-		counter can be considered for re-use.
+		counter can be considered for reuse.
 
 Finally, in the top level of the "info" directory there is a file
 named "last_cmd_status". This is reset with every "command" issued

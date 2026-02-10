@@ -1969,6 +1969,9 @@ Kernel parameters
 				 param "no_hash_pointers" is an alias for
 				 this mode.
 
+			For controlling hashing dynamically at runtime,
+			use the "kernel.kptr_restrict" sysctl instead.
+
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
 			are distributed across NUMA nodes.  Defaults on
 			for 64-bit NUMA, off otherwise.
@@ -4036,6 +4039,7 @@ Kernel parameters
 					       spectre_v2_user=off [X86]
 					       srbds=off [X86,INTEL]
 					       ssbd=force-off [ARM64]
+					       tsa=off [X86,AMD]
 					       tsx_async_abort=off [X86]
 					       vmscape=off [X86]
 

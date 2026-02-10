@@ -16,10 +16,3 @@ RISC-V architecture
     cmodx
 
     features
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

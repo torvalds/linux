@@ -297,7 +297,7 @@ as follows:
   8) now the system is bootable and additional installation tasks can be
      performed
 
-The key role of initrd here is to re-use the configuration data during
+The key role of initrd here is to reuse the configuration data during
 normal system operation without requiring the use of a bloated "generic"
 kernel or re-compiling or re-linking the kernel.
 

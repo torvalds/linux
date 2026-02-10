@@ -16,10 +16,3 @@ Watchdog Support
     watchdog-pm
     wdt
     convert_drivers_to_kernel_api
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

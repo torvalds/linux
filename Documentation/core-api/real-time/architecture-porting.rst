@@ -35,7 +35,8 @@ POSIX CPU timers and KVM
   POSIX CPU timers must expire from thread context rather than directly within
   the timer interrupt. This behavior is enabled by setting the configuration
   option CONFIG_HAVE_POSIX_CPU_TIMERS_TASK_WORK.
-  When KVM is enabled, CONFIG_KVM_XFER_TO_GUEST_WORK must also be set to ensure
+  When virtualization support, such as KVM, is enabled,
+  CONFIG_VIRT_XFER_TO_GUEST_WORK must also be set to ensure
   that any pending work, such as POSIX timer expiration, is handled before
   transitioning into guest mode.
 

@@ -27,7 +27,7 @@ Controller Driver (See include/linux/mailbox_controller.h)
 
 
 Allocate mbox_controller and the array of mbox_chan.
-Populate mbox_chan_ops, except peek_data() all are mandatory.
+Populate mbox_chan_ops, except flush() and peek_data() all are mandatory.
 The controller driver might know a message has been consumed
 by the remote by getting an IRQ or polling some hardware flag
 or it can never know (the client knows by way of the protocol).
