@@ -62,6 +62,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "Features\t\t:");
 	if (cpu_has_cpucfg)	seq_printf(m, " cpucfg");
 	if (cpu_has_lam)	seq_printf(m, " lam");
+	if (cpu_has_scq)	seq_printf(m, " scq");
 	if (cpu_has_ual)	seq_printf(m, " ual");
 	if (cpu_has_fpu)	seq_printf(m, " fpu");
 	if (cpu_has_lsx)	seq_printf(m, " lsx");
