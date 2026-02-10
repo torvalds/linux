@@ -1197,6 +1197,18 @@
 				<&intc GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;	/* EXTI_70 */
 		};
 
+		ltdc: display-controller@48010000 {
+			compatible = "st,stm32mp251-ltdc";
+			reg = <0x48010000 0x400>;
+			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc CK_KER_LTDC>, <&rcc CK_BUS_LTDC>;
+			clock-names = "lcd", "bus";
+			resets = <&rcc LTDC_R>;
+			access-controllers = <&rifsc 80>;
+			status = "disabled";
+		};
+
 		intc: interrupt-controller@4ac10000 {
 			compatible = "arm,gic-400";
 			reg = <0x4ac10000 0x1000>,
