@@ -15,6 +15,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
+#include <linux/phy/phy-common-props.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/workqueue.h>
 #include <net/dsa.h>
@@ -229,10 +231,16 @@ static int gsw1xx_pcs_phy_xaui_write(struct gsw1xx_priv *priv, u16 addr,
 					1000, 100000);
 }
 
-static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
+static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv, phy_interface_t interface)
 {
+	struct dsa_port *sgmii_port;
+	unsigned int pol;
 	int ret;
 	u16 val;
+
+	sgmii_port = dsa_to_port(priv->gswip.ds, GSW1XX_SGMII_PORT);
+	if (!sgmii_port)
+		return -EINVAL;
 
 	/* Assert and deassert SGMII shell reset */
 	ret = regmap_set_bits(priv->shell, GSW1XX_SHELL_RST_REQ,
@@ -260,15 +268,20 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	      FIELD_PREP(GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT,
 			 GSW1XX_SGMII_PHY_RX0_CFG2_FILT_CNT_DEF);
 
+	ret = phy_get_manual_rx_polarity(of_fwnode_handle(sgmii_port->dn),
+					 phy_modes(interface), &pol);
+	if (ret)
+		return ret;
+
 	/* RX lane seems to be inverted internally, so bit
 	 * GSW1XX_SGMII_PHY_RX0_CFG2_INVERT needs to be set for normal
-	 * (ie. non-inverted) operation.
-	 *
-	 * TODO: Take care of inverted RX pair once generic property is
-	 *       available
+	 * (ie. non-inverted) operation matching the chips external pins as
+	 * described in datasheets dated 2023-11-08, ie. pin B20 (RX0_P) being
+	 * the positive signal and pin B21 (RX0_M) being the negative signal of
+	 * the differential input pair.
 	 */
-
-	val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
+	if (pol == PHY_POL_NORMAL)
+		val |= GSW1XX_SGMII_PHY_RX0_CFG2_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_RX0_CFG2, val);
 	if (ret < 0)
@@ -277,9 +290,13 @@ static int gsw1xx_pcs_reset(struct gsw1xx_priv *priv)
 	val = FIELD_PREP(GSW1XX_SGMII_PHY_TX0_CFG3_VBOOST_LEVEL,
 			 GSW1XX_SGMII_PHY_TX0_CFG3_VBOOST_LEVEL_DEF);
 
-	/* TODO: Take care of inverted TX pair once generic property is
-	 *       available
-	 */
+	ret = phy_get_manual_tx_polarity(of_fwnode_handle(sgmii_port->dn),
+					 phy_modes(interface), &pol);
+	if (ret)
+		return ret;
+
+	if (pol == PHY_POL_INVERT)
+		val |= GSW1XX_SGMII_PHY_TX0_CFG3_INVERT;
 
 	ret = regmap_write(priv->sgmii, GSW1XX_SGMII_PHY_TX0_CFG3, val);
 	if (ret < 0)
@@ -336,7 +353,7 @@ static int gsw1xx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	priv->tbi_interface = PHY_INTERFACE_MODE_NA;
 
 	if (!reconf)
-		ret = gsw1xx_pcs_reset(priv);
+		ret = gsw1xx_pcs_reset(priv, interface);
 
 	if (ret)
 		return ret;
@@ -671,7 +688,9 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct gsw1xx_priv *priv;
-	u32 version;
+	u32 version, val;
+	u8 shellver;
+	u16 pnum;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -719,6 +738,27 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(priv->shell))
 		return PTR_ERR(priv->shell);
 
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_MANU_ID, &val);
+	if (ret < 0)
+		return ret;
+
+	/* validate chip ID */
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_FIX1, val) != 1)
+		return -ENODEV;
+
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_MANID, val) !=
+	    GSW1XX_SHELL_MANU_ID_MANID_VAL)
+		return -ENODEV;
+
+	pnum = FIELD_GET(GSW1XX_SHELL_MANU_ID_PNUML, val);
+
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_PNUM_ID, &val);
+	if (ret < 0)
+		return ret;
+
+	pnum |= FIELD_GET(GSW1XX_SHELL_PNUM_ID_PNUMM, val) << 4;
+	shellver = FIELD_GET(GSW1XX_SHELL_PNUM_ID_VER, val);
+
 	ret = gsw1xx_serdes_pcs_init(priv);
 	if (ret < 0)
 		return ret;
@@ -738,6 +778,8 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	ret = gswip_probe_common(&priv->gswip, version);
 	if (ret)
 		return ret;
+
+	dev_info(dev, "standalone switch part number 0x%x v1.%u\n", pnum, shellver);
 
 	dev_set_drvdata(dev, &priv->gswip);
 
