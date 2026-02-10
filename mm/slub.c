@@ -2190,8 +2190,6 @@ int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 			virt_to_slab(vec)->slab_cache == s);
 
 	new_exts = (unsigned long)vec;
-	if (unlikely(!allow_spin))
-		new_exts |= OBJEXTS_NOSPIN_ALLOC;
 #ifdef CONFIG_MEMCG
 	new_exts |= MEMCG_DATA_OBJEXTS;
 #endif
@@ -2229,7 +2227,7 @@ retry:
 	return 0;
 }
 
-static inline void free_slab_obj_exts(struct slab *slab)
+static inline void free_slab_obj_exts(struct slab *slab, bool allow_spin)
 {
 	struct slabobj_ext *obj_exts;
 
@@ -2257,10 +2255,10 @@ static inline void free_slab_obj_exts(struct slab *slab)
 	 * the extension for obj_exts is expected to be NULL.
 	 */
 	mark_objexts_empty(obj_exts);
-	if (unlikely(READ_ONCE(slab->obj_exts) & OBJEXTS_NOSPIN_ALLOC))
-		kfree_nolock(obj_exts);
-	else
+	if (allow_spin)
 		kfree(obj_exts);
+	else
+		kfree_nolock(obj_exts);
 	slab->obj_exts = 0;
 }
 
@@ -2324,7 +2322,7 @@ static int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 	return 0;
 }
 
-static inline void free_slab_obj_exts(struct slab *slab)
+static inline void free_slab_obj_exts(struct slab *slab, bool allow_spin)
 {
 }
 
@@ -3404,14 +3402,14 @@ static __always_inline void account_slab(struct slab *slab, int order,
 }
 
 static __always_inline void unaccount_slab(struct slab *slab, int order,
-					   struct kmem_cache *s)
+					   struct kmem_cache *s, bool allow_spin)
 {
 	/*
 	 * The slab object extensions should now be freed regardless of
 	 * whether mem_alloc_profiling_enabled() or not because profiling
 	 * might have been disabled after slab->obj_exts got allocated.
 	 */
-	free_slab_obj_exts(slab);
+	free_slab_obj_exts(slab, allow_spin);
 
 	mod_node_page_state(slab_pgdat(slab), cache_vmstat_idx(s),
 			    -(PAGE_SIZE << order));
@@ -3515,7 +3513,7 @@ static void __free_slab(struct kmem_cache *s, struct slab *slab, bool allow_spin
 	page->mapping = NULL;
 	__ClearPageSlab(page);
 	mm_account_reclaimed_pages(pages);
-	unaccount_slab(slab, order, s);
+	unaccount_slab(slab, order, s, allow_spin);
 	if (allow_spin)
 		free_frozen_pages(page, order);
 	else
