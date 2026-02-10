@@ -29,7 +29,7 @@ static const struct md5_block_state md5_iv = {
 #define F4(x, y, z) (y ^ (x | ~z))
 
 #define MD5STEP(f, w, x, y, z, in, s) \
-	(w += f(x, y, z) + in, w = (w << s | w >> (32 - s)) + x)
+	(w += f(x, y, z) + in, w = rol32(w, s) + x)
 
 static void md5_block_generic(struct md5_block_state *state,
 			      const u8 data[MD5_BLOCK_SIZE])

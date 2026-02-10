@@ -38,6 +38,23 @@ config CRYPTO_LIB_MD5_KUNIT_TEST
 	  KUnit tests for the MD5 cryptographic hash function and its
 	  corresponding HMAC.
 
+config CRYPTO_LIB_MLDSA_KUNIT_TEST
+	tristate "KUnit tests for ML-DSA" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_MLDSA
+	help
+	  KUnit tests for the ML-DSA digital signature algorithm.
+
+config CRYPTO_LIB_NH_KUNIT_TEST
+	tristate "KUnit tests for NH" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_NH
+	help
+	  KUnit tests for the NH almost-universal hash function.
+
 config CRYPTO_LIB_POLY1305_KUNIT_TEST
 	tristate "KUnit tests for Poly1305" if !KUNIT_ALL_TESTS
 	depends on KUNIT

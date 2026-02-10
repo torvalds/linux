@@ -15,8 +15,47 @@ obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
-obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
-libaes-y					:= aes.o
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_AES) += libaes.o
+libaes-y := aes.o
+ifeq ($(CONFIG_CRYPTO_LIB_AES_ARCH),y)
+CFLAGS_aes.o += -I$(src)/$(SRCARCH)
+
+libaes-$(CONFIG_ARM) += arm/aes-cipher-core.o
+
+ifeq ($(CONFIG_ARM64),y)
+libaes-y += arm64/aes-cipher-core.o
+libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o
+endif
+
+ifeq ($(CONFIG_PPC),y)
+ifeq ($(CONFIG_SPE),y)
+libaes-y += powerpc/aes-spe-core.o \
+	    powerpc/aes-spe-keys.o \
+	    powerpc/aes-spe-modes.o \
+	    powerpc/aes-tab-4k.o
+else
+libaes-y += powerpc/aesp8-ppc.o
+aes-perlasm-flavour-y := linux-ppc64
+aes-perlasm-flavour-$(CONFIG_PPC64_ELF_ABI_V2) := linux-ppc64-elfv2
+aes-perlasm-flavour-$(CONFIG_CPU_LITTLE_ENDIAN) := linux-ppc64le
+quiet_cmd_perlasm_aes = PERLASM $@
+      cmd_perlasm_aes = $(PERL) $< $(aes-perlasm-flavour-y) $@
+# Use if_changed instead of cmd, in case the flavour changed.
+$(obj)/powerpc/aesp8-ppc.S: $(src)/powerpc/aesp8-ppc.pl FORCE
+	$(call if_changed,perlasm_aes)
+targets += powerpc/aesp8-ppc.S
+OBJECT_FILES_NON_STANDARD_powerpc/aesp8-ppc.o := y
+endif # !CONFIG_SPE
+endif # CONFIG_PPC
+
+libaes-$(CONFIG_RISCV) += riscv/aes-riscv64-zvkned.o
+libaes-$(CONFIG_SPARC) += sparc/aes_asm.o
+libaes-$(CONFIG_X86) += x86/aes-aesni.o
+endif # CONFIG_CRYPTO_LIB_AES_ARCH
+
+################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_AESCFB)			+= libaescfb.o
 libaescfb-y					:= aescfb.o
@@ -123,6 +162,22 @@ CFLAGS_md5.o += -I$(src)/$(SRCARCH)
 libmd5-$(CONFIG_PPC) += powerpc/md5-asm.o
 libmd5-$(CONFIG_SPARC) += sparc/md5_asm.o
 endif # CONFIG_CRYPTO_LIB_MD5_ARCH
+
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_MLDSA) += libmldsa.o
+libmldsa-y := mldsa.o
+
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_NH) += libnh.o
+libnh-y := nh.o
+ifeq ($(CONFIG_CRYPTO_LIB_NH_ARCH),y)
+CFLAGS_nh.o += -I$(src)/$(SRCARCH)
+libnh-$(CONFIG_ARM) += arm/nh-neon-core.o
+libnh-$(CONFIG_ARM64) += arm64/nh-neon-core.o
+libnh-$(CONFIG_X86) += x86/nh-sse2.o x86/nh-avx2.o
+endif
 
 ################################################################################
 
