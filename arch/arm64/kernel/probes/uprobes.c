@@ -103,10 +103,7 @@ bool arch_uprobe_xol_was_trapped(struct task_struct *t)
 	 * insn itself is trapped, then detect the case with the help of
 	 * invalid fault code which is being set in arch_uprobe_pre_xol
 	 */
-	if (t->thread.fault_code != UPROBE_INV_FAULT_CODE)
-		return true;
-
-	return false;
+	return t->thread.fault_code != UPROBE_INV_FAULT_CODE;
 }
 
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)

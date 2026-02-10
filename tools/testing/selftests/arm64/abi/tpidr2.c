@@ -128,8 +128,7 @@ static int sys_clone(unsigned long clone_flags, unsigned long newsp,
 		     int *parent_tidptr, unsigned long tls,
 		     int *child_tidptr)
 {
-	return my_syscall5(__NR_clone, clone_flags, newsp, parent_tidptr, tls,
-			   child_tidptr);
+	return syscall(__NR_clone, clone_flags, newsp, parent_tidptr, tls, child_tidptr);
 }
 
 #define __STACK_SIZE (8 * 1024 * 1024)

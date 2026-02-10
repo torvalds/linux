@@ -6,3 +6,4 @@ check_mmap_options
 check_prctl
 check_ksm_options
 check_user_mem
+check_hugetlb_options

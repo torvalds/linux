@@ -33,7 +33,7 @@
 function _start
 	puts	"Iterations per test: "
 	mov	x20, #10000
-	lsl	x20, x20, #8
+	lsl	x20, x20, #12
 	mov	x0, x20
 	bl	putdec
 	puts	"\n"
@@ -62,6 +62,10 @@ function _start
 	// Use SVE per syscall
 	puts	"SVE used per syscall: "
 	test_loop "rdvl x0, #8"
+
+	// Test non-SVE execution after SVE
+	puts	"No SVE after SVE: "
+	test_loop
 
 	//  And we're done
 out:
