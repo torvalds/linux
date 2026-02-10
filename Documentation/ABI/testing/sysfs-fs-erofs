@@ -3,19 +3,23 @@ Date:		November 2021
 Contact:	"Huang Jianan" <huangjianan@oppo.com>
 Description:	Shows all enabled kernel features.
 		Supported features:
-		zero_padding, compr_cfgs, big_pcluster, chunked_file,
-		device_table, compr_head2, sb_chksum, ztailpacking,
-		dedupe, fragments, 48bit, metabox.
+		compr_cfgs, big_pcluster, chunked_file, device_table,
+		compr_head2, sb_chksum, ztailpacking, dedupe, fragments,
+		48bit, metabox.
 
 What:		/sys/fs/erofs/<disk>/sync_decompress
 Date:		November 2021
 Contact:	"Huang Jianan" <huangjianan@oppo.com>
-Description:	Control strategy of sync decompression:
+Description:	Control strategy of synchronous decompression. Synchronous
+		decompression tries to decompress in the reader thread for
+		synchronous reads and small asynchronous reads (<= 12 KiB):
 
-		- 0 (default, auto): enable for readpage, and enable for
-		  readahead on atomic contexts only.
-		- 1 (force on): enable for readpage and readahead.
-		- 2 (force off): disable for all situations.
+		- 0 (auto, default): apply to synchronous reads only, but will
+		                     switch to 1 (force on) if any decompression
+		                     request is detected in atomic contexts;
+		- 1 (force on): apply to synchronous reads and small
+		                asynchronous reads;
+		- 2 (force off): disable synchronous decompression completely.
 
 What:		/sys/fs/erofs/<disk>/drop_caches
 Date:		November 2024
