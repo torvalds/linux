@@ -73,6 +73,7 @@ FILES=                                          \
          test-clang-bpf-co-re.bin		\
          test-file-handle.bin			\
          test-libpfm4.bin			\
+         test-rust.bin				\
          test-libopenssl.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
