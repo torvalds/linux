@@ -232,6 +232,8 @@ struct bio {
 
 	atomic_t		__bi_remaining;
 
+	/* The actual vec list, preserved by bio_reset() */
+	struct bio_vec		*bi_io_vec;
 	struct bvec_iter	bi_iter;
 
 	union {
@@ -274,8 +276,6 @@ struct bio {
 	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
 
 	atomic_t		__bi_cnt;	/* pin count */
-
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
 	struct bio_set		*bi_pool;
 };

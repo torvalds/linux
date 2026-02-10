@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="stripe_05"
 ERR_CODE=0
 
 if ! _have_program fio; then

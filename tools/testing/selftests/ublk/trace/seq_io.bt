@@ -2,23 +2,52 @@
 	$1: 	dev_t
 	$2: 	RWBS
 	$3:     strlen($2)
+
+	Track request order between block_io_start and block_rq_complete.
+	Sequence starts at 1 so 0 means "never seen". On first valid
+	completion, sync complete_seq to handle probe attachment races.
+	block_rq_complete listed first to reduce missed completion window.
 */
+
 BEGIN {
-	@last_rw[$1, str($2)] = (uint64)0;
+	@start_seq = (uint64)1;
+	@complete_seq = (uint64)0;
+	@out_of_order = (uint64)0;
+	@start_order[0] = (uint64)0;
+	delete(@start_order[0]);
+	printf("BPFTRACE_READY\n");
 }
+
 tracepoint:block:block_rq_complete
+/(int64)args.dev == $1 && !strncmp(args.rwbs, str($2), $3)/
 {
-	$dev = $1;
-	if ((int64)args.dev == $1 && !strncmp(args.rwbs, str($2), $3)) {
-		$last = @last_rw[$dev, str($2)];
-		if ((uint64)args.sector != $last) {
-			printf("io_out_of_order: exp %llu actual %llu\n",
-				args.sector, $last);
+	$expected = @start_order[args.sector];
+	if ($expected > 0) {
+		if (@complete_seq == 0) {
+			@complete_seq = $expected;
 		}
-		@last_rw[$dev, str($2)] = (args.sector + args.nr_sector);
+		if ($expected != @complete_seq) {
+			printf("out_of_order: sector %llu started at seq %llu but completed at seq %llu\n",
+				args.sector, $expected, @complete_seq);
+			@out_of_order = @out_of_order + 1;
+		}
+		delete(@start_order[args.sector]);
+		@complete_seq = @complete_seq + 1;
 	}
 }
 
+tracepoint:block:block_io_start
+/(int64)args.dev == $1 && !strncmp(args.rwbs, str($2), $3)/
+{
+	@start_order[args.sector] = @start_seq;
+	@start_seq = @start_seq + 1;
+}
+
 END {
-	clear(@last_rw);
+	printf("total_start: %llu total_complete: %llu out_of_order: %llu\n",
+		@start_seq - 1, @complete_seq, @out_of_order);
+	clear(@start_order);
+	clear(@start_seq);
+	clear(@complete_seq);
+	clear(@out_of_order);
 }

@@ -208,7 +208,6 @@ int set_blocksize(struct file *file, int size)
 
 		inode->i_blkbits = blksize_bits(size);
 		mapping_set_folio_min_order(inode->i_mapping, get_order(size));
-		kill_bdev(bdev);
 		filemap_invalidate_unlock(inode->i_mapping);
 		inode_unlock(inode);
 	}

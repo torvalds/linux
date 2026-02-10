@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="generic_05"
 ERR_CODE=0
 
 ublk_run_recover_test()
@@ -29,6 +28,11 @@ _prep_test "recover" "basic recover function verification (zero copy)"
 _create_backfile 0 256M
 _create_backfile 1 128M
 _create_backfile 2 128M
+
+ublk_run_recover_test -t null -q 2 -r 1 -z -b &
+ublk_run_recover_test -t loop -q 2 -r 1 -z -b "${UBLK_BACKFILES[0]}" &
+ublk_run_recover_test -t stripe -q 2 -r 1 -z -b "${UBLK_BACKFILES[1]}" "${UBLK_BACKFILES[2]}" &
+wait
 
 ublk_run_recover_test -t null -q 2 -r 1 -z &
 ublk_run_recover_test -t loop -q 2 -r 1 -z "${UBLK_BACKFILES[0]}" &

@@ -475,9 +475,17 @@ void rnbd_clt_remove_dev_symlink(struct rnbd_clt_dev *dev)
 	}
 }
 
+static void rnbd_dev_release(struct kobject *kobj)
+{
+	struct rnbd_clt_dev *dev = container_of(kobj, struct rnbd_clt_dev, kobj);
+
+	kfree(dev);
+}
+
 static const struct kobj_type rnbd_dev_ktype = {
 	.sysfs_ops      = &kobj_sysfs_ops,
 	.default_groups = rnbd_dev_groups,
+	.release	= rnbd_dev_release,
 };
 
 static int rnbd_clt_add_dev_kobj(struct rnbd_clt_dev *dev)

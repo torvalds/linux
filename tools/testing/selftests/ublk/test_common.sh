@@ -1,6 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Derive TID from script name: test_<type>_<num>.sh -> <type>_<num>
+# Can be overridden in test script after sourcing this file
+TID=$(basename "$0" .sh)
+TID=${TID#test_}
+
 UBLK_SKIP_CODE=4
 
 _have_program() {
@@ -8,6 +13,16 @@ _have_program() {
 		return 0
 	fi
 	return 1
+}
+
+# Sleep with awareness of parallel execution.
+# Usage: _ublk_sleep <normal_secs> <parallel_secs>
+_ublk_sleep() {
+	if [ "${JOBS:-1}" -gt 1 ]; then
+		sleep "$2"
+	else
+		sleep "$1"
+	fi
 }
 
 _get_disk_dev_t() {
@@ -43,7 +58,7 @@ _create_backfile() {
 	old_file="${UBLK_BACKFILES[$index]}"
 	[ -f "$old_file" ] && rm -f "$old_file"
 
-	new_file=$(mktemp ublk_file_"${new_size}"_XXXXX)
+	new_file=$(mktemp ${UBLK_TEST_DIR}/ublk_file_"${new_size}"_XXXXX)
 	truncate -s "${new_size}" "${new_file}"
 	UBLK_BACKFILES["$index"]="$new_file"
 }
@@ -60,7 +75,7 @@ _remove_files() {
 _create_tmp_dir() {
 	local my_file;
 
-	my_file=$(mktemp -d ublk_dir_XXXXX)
+	my_file=$(mktemp -d ${UBLK_TEST_DIR}/ublk_dir_XXXXX)
 	echo "$my_file"
 }
 
@@ -101,11 +116,6 @@ _check_root() {
 	fi
 }
 
-_remove_ublk_devices() {
-	${UBLK_PROG} del -a
-	modprobe -r ublk_drv > /dev/null 2>&1
-}
-
 _get_ublk_dev_state() {
 	${UBLK_PROG} list -n "$1" | grep "state" | awk '{print $11}'
 }
@@ -119,8 +129,12 @@ _prep_test() {
 	local type=$1
 	shift 1
 	modprobe ublk_drv > /dev/null 2>&1
-	UBLK_TMP=$(mktemp ublk_test_XXXXX)
+	local base_dir=${TMPDIR:-./ublktest-dir}
+	mkdir -p "$base_dir"
+	UBLK_TEST_DIR=$(mktemp -d ${base_dir}/${TID}.XXXXXX)
+	UBLK_TMP=$(mktemp ${UBLK_TEST_DIR}/ublk_test_XXXXX)
 	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "ublk $type: $*"
+	echo "ublk selftest: $TID starting at $(date '+%F %T')" | tee /dev/kmsg
 }
 
 _remove_test_files()
@@ -162,9 +176,16 @@ _check_add_dev()
 }
 
 _cleanup_test() {
-	"${UBLK_PROG}" del -a
+	if [ -f "${UBLK_TEST_DIR}/.ublk_devs" ]; then
+		while read -r dev_id; do
+			${UBLK_PROG} del -n "${dev_id}"
+		done < "${UBLK_TEST_DIR}/.ublk_devs"
+		rm -f "${UBLK_TEST_DIR}/.ublk_devs"
+	fi
 
 	_remove_files
+	rmdir ${UBLK_TEST_DIR}
+	echo "ublk selftest: $TID done at $(date '+%F %T')" | tee /dev/kmsg
 }
 
 _have_feature()
@@ -197,10 +218,11 @@ _create_ublk_dev() {
 	fi
 
 	if [ "$settle" = "yes" ]; then
-		udevadm settle
+		udevadm settle --timeout=20
 	fi
 
 	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
+		echo "$dev_id" >> "${UBLK_TEST_DIR}/.ublk_devs"
 		echo "${dev_id}"
 	else
 		return 255
@@ -220,7 +242,7 @@ _recover_ublk_dev() {
 	local state
 
 	dev_id=$(_create_ublk_dev "recover" "yes" "$@")
-	for ((j=0;j<20;j++)); do
+	for ((j=0;j<100;j++)); do
 		state=$(_get_ublk_dev_state "${dev_id}")
 		[ "$state" == "LIVE" ] && break
 		sleep 1
@@ -240,7 +262,7 @@ __ublk_quiesce_dev()
 		return "$state"
 	fi
 
-	for ((j=0;j<50;j++)); do
+	for ((j=0;j<100;j++)); do
 		state=$(_get_ublk_dev_state "${dev_id}")
 		[ "$state" == "$exp_state" ] && break
 		sleep 1
@@ -259,7 +281,7 @@ __ublk_kill_daemon()
 	daemon_pid=$(_get_ublk_daemon_pid "${dev_id}")
 	state=$(_get_ublk_dev_state "${dev_id}")
 
-	for ((j=0;j<50;j++)); do
+	for ((j=0;j<100;j++)); do
 		[ "$state" == "$exp_state" ] && break
 		kill -9 "$daemon_pid" > /dev/null 2>&1
 		sleep 1
@@ -268,12 +290,23 @@ __ublk_kill_daemon()
 	echo "$state"
 }
 
-__remove_ublk_dev_return() {
+_ublk_del_dev() {
 	local dev_id=$1
 
 	${UBLK_PROG} del -n "${dev_id}"
+
+	# Remove from tracking file
+	if [ -f "${UBLK_TEST_DIR}/.ublk_devs" ]; then
+		sed -i "/^${dev_id}$/d" "${UBLK_TEST_DIR}/.ublk_devs"
+	fi
+}
+
+__remove_ublk_dev_return() {
+	local dev_id=$1
+
+	_ublk_del_dev "${dev_id}"
 	local res=$?
-	udevadm settle
+	udevadm settle --timeout=20
 	return ${res}
 }
 
@@ -382,6 +415,16 @@ run_io_and_recover()
 _ublk_test_top_dir()
 {
 	cd "$(dirname "$0")" && pwd
+}
+
+METADATA_SIZE_PROG="$(_ublk_test_top_dir)/metadata_size"
+
+_get_metadata_size()
+{
+	local dev_id=$1
+	local field=$2
+
+	"$METADATA_SIZE_PROG" "/dev/ublkb$dev_id" | grep "$field" | grep -o "[0-9]*"
 }
 
 UBLK_PROG=$(_ublk_test_top_dir)/kublk

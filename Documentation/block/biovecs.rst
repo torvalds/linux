@@ -135,7 +135,6 @@ Usage of helpers:
 	bio_first_bvec_all()
 	bio_first_page_all()
 	bio_first_folio_all()
-	bio_last_bvec_all()
 
 * The following helpers iterate over single-page segment. The passed 'struct
   bio_vec' will contain a single-page IO vector during the iteration::

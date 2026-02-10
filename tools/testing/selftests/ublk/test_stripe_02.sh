@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="stripe_02"
 ERR_CODE=0
 
 _prep_test "stripe" "mkfs & mount & umount"

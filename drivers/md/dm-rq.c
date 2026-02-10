@@ -295,7 +295,8 @@ static void dm_kill_unmapped_request(struct request *rq, blk_status_t error)
 }
 
 static enum rq_end_io_ret end_clone_request(struct request *clone,
-					    blk_status_t error)
+					    blk_status_t error,
+					    const struct io_comp_batch *iob)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
