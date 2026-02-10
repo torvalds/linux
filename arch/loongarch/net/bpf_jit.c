@@ -461,10 +461,10 @@ static int add_exception_handler(const struct bpf_insn *insn,
 				 int dst_reg)
 {
 	unsigned long pc;
-	off_t offset;
+	off_t ins_offset, fixup_offset;
 	struct exception_table_entry *ex;
 
-	if (!ctx->image || !ctx->prog->aux->extable)
+	if (!ctx->image || !ctx->ro_image || !ctx->prog->aux->extable)
 		return 0;
 
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
@@ -475,13 +475,17 @@ static int add_exception_handler(const struct bpf_insn *insn,
 		return -EINVAL;
 
 	ex = &ctx->prog->aux->extable[ctx->num_exentries];
-	pc = (unsigned long)&ctx->image[ctx->idx - 1];
+	pc = (unsigned long)&ctx->ro_image[ctx->idx - 1];
 
-	offset = pc - (long)&ex->insn;
-	if (WARN_ON_ONCE(offset >= 0 || offset < INT_MIN))
+	/*
+	 * This is the relative offset of the instruction that may fault from
+	 * the exception table itself. This will be written to the exception
+	 * table and if this instruction faults, the destination register will
+	 * be set to '0' and the execution will jump to the next instruction.
+	 */
+	ins_offset = pc - (long)&ex->insn;
+	if (WARN_ON_ONCE(ins_offset >= 0 || ins_offset < INT_MIN))
 		return -ERANGE;
-
-	ex->insn = offset;
 
 	/*
 	 * Since the extable follows the program, the fixup offset is always
@@ -490,13 +494,23 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	 * bits. We don't need to worry about buildtime or runtime sort
 	 * modifying the upper bits because the table is already sorted, and
 	 * isn't part of the main exception table.
+	 *
+	 * The fixup_offset is set to the next instruction from the instruction
+	 * that may fault. The execution will jump to this after handling the fault.
 	 */
-	offset = (long)&ex->fixup - (pc + LOONGARCH_INSN_SIZE);
-	if (!FIELD_FIT(BPF_FIXUP_OFFSET_MASK, offset))
+	fixup_offset = (long)&ex->fixup - (pc + LOONGARCH_INSN_SIZE);
+	if (!FIELD_FIT(BPF_FIXUP_OFFSET_MASK, fixup_offset))
 		return -ERANGE;
 
+	/*
+	 * The offsets above have been calculated using the RO buffer but we
+	 * need to use the R/W buffer for writes. Switch ex to rw buffer for writing.
+	 */
+	ex = (void *)ctx->image + ((void *)ex - (void *)ctx->ro_image);
+	ex->insn = ins_offset;
+	ex->fixup = FIELD_PREP(BPF_FIXUP_OFFSET_MASK, fixup_offset) |
+		    FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
 	ex->type = EX_TYPE_BPF;
-	ex->fixup = FIELD_PREP(BPF_FIXUP_OFFSET_MASK, offset) | FIELD_PREP(BPF_FIXUP_REG_MASK, dst_reg);
 
 	ctx->num_exentries++;
 
@@ -1829,11 +1843,12 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 {
 	bool tmp_blinded = false, extra_pass = false;
-	u8 *image_ptr;
+	u8 *image_ptr, *ro_image_ptr;
 	int image_size, prog_size, extable_size;
 	struct jit_ctx ctx;
 	struct jit_data *jit_data;
 	struct bpf_binary_header *header;
+	struct bpf_binary_header *ro_header;
 	struct bpf_prog *tmp, *orig_prog = prog;
 
 	/*
@@ -1868,8 +1883,10 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 	if (jit_data->ctx.offset) {
 		ctx = jit_data->ctx;
-		image_ptr = jit_data->image;
+		ro_header = jit_data->ro_header;
+		ro_image_ptr = (void *)ctx.ro_image;
 		header = jit_data->header;
+		image_ptr = (void *)header + ((void *)ro_image_ptr - (void *)ro_header);
 		extra_pass = true;
 		prog_size = sizeof(u32) * ctx.idx;
 		goto skip_init_ctx;
@@ -1903,17 +1920,25 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	prog_size = sizeof(u32) * ctx.idx;
 	image_size = prog_size + extable_size;
 	/* Now we know the size of the structure to make */
-	header = bpf_jit_binary_alloc(image_size, &image_ptr,
-				      sizeof(u32), jit_fill_hole);
-	if (header == NULL) {
+	ro_header = bpf_jit_binary_pack_alloc(image_size, &ro_image_ptr, sizeof(u32),
+					      &header, &image_ptr, jit_fill_hole);
+	if (!ro_header) {
 		prog = orig_prog;
 		goto out_offset;
 	}
 
 	/* 2. Now, the actual pass to generate final JIT code */
+	/*
+	 * Use the image (RW) for writing the JITed instructions. But also save
+	 * the ro_image (RX) for calculating the offsets in the image. The RW
+	 * image will be later copied to the RX image from where the program will
+	 * run. The bpf_jit_binary_pack_finalize() will do this copy in the final
+	 * step.
+	 */
 	ctx.image = (union loongarch_instruction *)image_ptr;
+	ctx.ro_image = (union loongarch_instruction *)ro_image_ptr;
 	if (extable_size)
-		prog->aux->extable = (void *)image_ptr + prog_size;
+		prog->aux->extable = (void *)ro_image_ptr + prog_size;
 
 skip_init_ctx:
 	ctx.idx = 0;
@@ -1921,48 +1946,47 @@ skip_init_ctx:
 
 	build_prologue(&ctx);
 	if (build_body(&ctx, extra_pass)) {
-		bpf_jit_binary_free(header);
 		prog = orig_prog;
-		goto out_offset;
+		goto out_free;
 	}
 	build_epilogue(&ctx);
 
 	/* 3. Extra pass to validate JITed code */
 	if (validate_ctx(&ctx)) {
-		bpf_jit_binary_free(header);
 		prog = orig_prog;
-		goto out_offset;
+		goto out_free;
 	}
 
 	/* And we're done */
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, prog_size, 2, ctx.image);
 
-	/* Update the icache */
-	flush_icache_range((unsigned long)header, (unsigned long)(ctx.image + ctx.idx));
-
 	if (!prog->is_func || extra_pass) {
-		int err;
-
 		if (extra_pass && ctx.idx != jit_data->ctx.idx) {
 			pr_err_once("multi-func JIT bug %d != %d\n",
 				    ctx.idx, jit_data->ctx.idx);
 			goto out_free;
 		}
-		err = bpf_jit_binary_lock_ro(header);
-		if (err) {
-			pr_err_once("bpf_jit_binary_lock_ro() returned %d\n",
-				    err);
+		if (WARN_ON(bpf_jit_binary_pack_finalize(ro_header, header))) {
+			/* ro_header has been freed */
+			ro_header = NULL;
+			prog = orig_prog;
 			goto out_free;
 		}
+		/*
+		 * The instructions have now been copied to the ROX region from
+		 * where they will execute. Now the data cache has to be cleaned
+		 * to the PoU and the I-cache has to be invalidated for the VAs.
+		 */
+		bpf_flush_icache(ro_header, ctx.ro_image + ctx.idx);
 	} else {
 		jit_data->ctx = ctx;
-		jit_data->image = image_ptr;
 		jit_data->header = header;
+		jit_data->ro_header = ro_header;
 	}
 	prog->jited = 1;
 	prog->jited_len = prog_size;
-	prog->bpf_func = (void *)ctx.image;
+	prog->bpf_func = (void *)ctx.ro_image;
 
 	if (!prog->is_func || extra_pass) {
 		int i;
@@ -1982,15 +2006,37 @@ out:
 	if (tmp_blinded)
 		bpf_jit_prog_release_other(prog, prog == orig_prog ? tmp : orig_prog);
 
-
 	return prog;
 
 out_free:
-	bpf_jit_binary_free(header);
-	prog->bpf_func = NULL;
-	prog->jited = 0;
-	prog->jited_len = 0;
+	if (header) {
+		bpf_arch_text_copy(&ro_header->size, &header->size, sizeof(header->size));
+		bpf_jit_binary_pack_free(ro_header, header);
+	}
 	goto out_offset;
+}
+
+void bpf_jit_free(struct bpf_prog *prog)
+{
+	if (prog->jited) {
+		struct jit_data *jit_data = prog->aux->jit_data;
+		struct bpf_binary_header *hdr;
+
+		/*
+		 * If we fail the final pass of JIT (from jit_subprogs), the
+		 * program may not be finalized yet. Call finalize here before
+		 * freeing it.
+		 */
+		if (jit_data) {
+			bpf_jit_binary_pack_finalize(jit_data->ro_header, jit_data->header);
+			kfree(jit_data);
+		}
+		hdr = bpf_jit_binary_pack_hdr(prog);
+		bpf_jit_binary_pack_free(hdr, NULL);
+		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(prog));
+	}
+
+	bpf_prog_unlock_free(prog);
 }
 
 bool bpf_jit_bypass_spec_v1(void)

@@ -24,7 +24,7 @@ struct jit_ctx {
 
 struct jit_data {
 	struct bpf_binary_header *header;
-	u8 *image;
+	struct bpf_binary_header *ro_header;
 	struct jit_ctx ctx;
 };
 
