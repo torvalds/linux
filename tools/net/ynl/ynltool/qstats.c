@@ -237,13 +237,47 @@ static void print_plain_qstats(struct netdev_qstats_get_list *qstats)
 	}
 }
 
-static int do_show(int argc, char **argv)
+static struct netdev_qstats_get_list *
+qstats_dump(enum netdev_qstats_scope scope)
 {
 	struct netdev_qstats_get_list *qstats;
 	struct netdev_qstats_get_req *req;
 	struct ynl_error yerr;
 	struct ynl_sock *ys;
-	int ret = 0;
+
+	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
+	if (!ys) {
+		p_err("YNL: %s", yerr.msg);
+		return NULL;
+	}
+
+	req = netdev_qstats_get_req_alloc();
+	if (!req) {
+		p_err("failed to allocate qstats request");
+		goto err_close;
+	}
+
+	if (scope)
+		netdev_qstats_get_req_set_scope(req, scope);
+
+	qstats = netdev_qstats_get_dump(ys, req);
+	netdev_qstats_get_req_free(req);
+	if (!qstats) {
+		p_err("failed to get queue stats: %s", ys->err.msg);
+		goto err_close;
+	}
+
+	ynl_sock_destroy(ys);
+	return qstats;
+
+err_close:
+	ynl_sock_destroy(ys);
+	return NULL;
+}
+
+static int do_show(int argc, char **argv)
+{
+	struct netdev_qstats_get_list *qstats;
 
 	/* Parse options */
 	while (argc > 0) {
@@ -268,29 +302,9 @@ static int do_show(int argc, char **argv)
 		}
 	}
 
-	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
-	if (!ys) {
-		p_err("YNL: %s", yerr.msg);
+	qstats = qstats_dump(scope);
+	if (!qstats)
 		return -1;
-	}
-
-	req = netdev_qstats_get_req_alloc();
-	if (!req) {
-		p_err("failed to allocate qstats request");
-		ret = -1;
-		goto exit_close;
-	}
-
-	if (scope)
-		netdev_qstats_get_req_set_scope(req, scope);
-
-	qstats = netdev_qstats_get_dump(ys, req);
-	netdev_qstats_get_req_free(req);
-	if (!qstats) {
-		p_err("failed to get queue stats: %s", ys->err.msg);
-		ret = -1;
-		goto exit_close;
-	}
 
 	/* Print the stats as returned by the kernel */
 	if (json_output)
@@ -299,9 +313,7 @@ static int do_show(int argc, char **argv)
 		print_plain_qstats(qstats);
 
 	netdev_qstats_get_list_free(qstats);
-exit_close:
-	ynl_sock_destroy(ys);
-	return ret;
+	return 0;
 }
 
 static void compute_stats(__u64 *values, unsigned int count,
@@ -406,10 +418,7 @@ static int cmp_ifindex_type(const void *a, const void *b)
 static int do_balance(int argc, char **argv __attribute__((unused)))
 {
 	struct netdev_qstats_get_list *qstats;
-	struct netdev_qstats_get_req *req;
 	struct netdev_qstats_get_rsp **sorted;
-	struct ynl_error yerr;
-	struct ynl_sock *ys;
 	unsigned int count = 0;
 	unsigned int i, j;
 	int ret = 0;
@@ -419,29 +428,9 @@ static int do_balance(int argc, char **argv __attribute__((unused)))
 		return -1;
 	}
 
-	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
-	if (!ys) {
-		p_err("YNL: %s", yerr.msg);
+	qstats = qstats_dump(NETDEV_QSTATS_SCOPE_QUEUE);
+	if (!qstats)
 		return -1;
-	}
-
-	req = netdev_qstats_get_req_alloc();
-	if (!req) {
-		p_err("failed to allocate qstats request");
-		ret = -1;
-		goto exit_close;
-	}
-
-	/* Always use queue scope for balance analysis */
-	netdev_qstats_get_req_set_scope(req, NETDEV_QSTATS_SCOPE_QUEUE);
-
-	qstats = netdev_qstats_get_dump(ys, req);
-	netdev_qstats_get_req_free(req);
-	if (!qstats) {
-		p_err("failed to get queue stats: %s", ys->err.msg);
-		ret = -1;
-		goto exit_close;
-	}
 
 	/* Count and sort queues */
 	ynl_dump_foreach(qstats, qs)
@@ -576,9 +565,66 @@ exit_free_sorted:
 	free(sorted);
 exit_free_qstats:
 	netdev_qstats_get_list_free(qstats);
-exit_close:
-	ynl_sock_destroy(ys);
 	return ret;
+}
+
+static int do_hw_gro(int argc, char **argv __attribute__((unused)))
+{
+	struct netdev_qstats_get_list *qstats;
+
+	if (argc > 0) {
+		p_err("hw-gro command takes no arguments");
+		return -1;
+	}
+
+	qstats = qstats_dump(0);
+	if (!qstats)
+		return -1;
+
+	if (json_output)
+		jsonw_start_array(json_wtr);
+
+	ynl_dump_foreach(qstats, qs) {
+		char ifname[IF_NAMESIZE];
+		const char *name;
+		double savings;
+
+		if (!qs->_present.rx_packets ||
+		    !qs->_present.rx_hw_gro_packets ||
+		    !qs->_present.rx_hw_gro_wire_packets)
+			continue;
+
+		if (!qs->rx_packets)
+			continue;
+
+		/* How many skbs did we avoid allocating thanks to HW GRO */
+		savings = (double)(qs->rx_hw_gro_wire_packets -
+				   qs->rx_hw_gro_packets) /
+			qs->rx_packets * 100.0;
+
+		name = if_indextoname(qs->ifindex, ifname);
+
+		if (json_output) {
+			jsonw_start_object(json_wtr);
+			jsonw_uint_field(json_wtr, "ifindex", qs->ifindex);
+			if (name)
+				jsonw_string_field(json_wtr, "ifname", name);
+			jsonw_float_field(json_wtr, "savings", savings);
+			jsonw_end_object(json_wtr);
+		} else {
+			if (name)
+				printf("%s", name);
+			else
+				printf("ifindex:%u", qs->ifindex);
+			printf(": %.1f%% savings\n", savings);
+		}
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);
+
+	netdev_qstats_get_list_free(qstats);
+	return 0;
 }
 
 static int do_help(int argc __attribute__((unused)),
@@ -590,9 +636,10 @@ static int do_help(int argc __attribute__((unused)),
 	}
 
 	fprintf(stderr,
-		"Usage: %s qstats { COMMAND | help }\n"
-		"       %s qstats [ show ] [ OPTIONS ]\n"
-		"       %s qstats balance\n"
+		"Usage: %1$s qstats { COMMAND | help }\n"
+		"       %1$s qstats [ show ] [ OPTIONS ]\n"
+		"       %1$s qstats balance\n"
+		"       %1$s qstats hw-gro\n"
 		"\n"
 		"       OPTIONS := { scope queue | group-by { device | queue } }\n"
 		"\n"
@@ -601,9 +648,14 @@ static int do_help(int argc __attribute__((unused)),
 		"       show scope queue      - Display per-queue statistics\n"
 		"       show group-by device  - Display device-aggregated statistics (default)\n"
 		"       show group-by queue   - Display per-queue statistics\n"
-		"       balance               - Analyze traffic distribution balance.\n"
+		"\n"
+		"  Analysis:\n"
+		"       balance               - Traffic distribution between queues.\n"
+		"       hw-gro                - HW GRO effectiveness analysis\n"
+		"                               - savings - delta between packets received\n"
+		"                                 on the wire and packets seen by the kernel.\n"
 		"",
-		bin_name, bin_name, bin_name);
+		bin_name);
 
 	return 0;
 }
@@ -611,6 +663,7 @@ static int do_help(int argc __attribute__((unused)),
 static const struct cmd qstats_cmds[] = {
 	{ "show",	do_show },
 	{ "balance",	do_balance },
+	{ "hw-gro",	do_hw_gro },
 	{ "help",	do_help },
 	{ 0 }
 };
