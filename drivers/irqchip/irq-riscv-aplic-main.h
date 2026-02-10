@@ -23,7 +23,25 @@ struct aplic_msicfg {
 	u32			lhxw;
 };
 
+struct aplic_src_ctrl {
+	u32			sourcecfg;
+	u32			target;
+	u32			ie;
+};
+
+struct aplic_saved_regs {
+	u32			domaincfg;
+#ifdef CONFIG_RISCV_M_MODE
+	u32			msiaddr;
+	u32			msiaddrh;
+#endif
+	struct aplic_src_ctrl	*srcs;
+};
+
 struct aplic_priv {
+	struct list_head	head;
+	struct notifier_block	genpd_nb;
+	struct aplic_saved_regs	saved_hw_regs;
 	struct device		*dev;
 	u32			gsi_base;
 	u32			nr_irqs;
@@ -40,6 +58,7 @@ int aplic_irqdomain_translate(struct irq_fwspec *fwspec, u32 gsi_base,
 			      unsigned long *hwirq, unsigned int *type);
 void aplic_init_hw_global(struct aplic_priv *priv, bool msi_mode);
 int aplic_setup_priv(struct aplic_priv *priv, struct device *dev, void __iomem *regs);
+void aplic_direct_restore_states(struct aplic_priv *priv);
 int aplic_direct_setup(struct device *dev, void __iomem *regs);
 #ifdef CONFIG_RISCV_APLIC_MSI
 int aplic_msi_setup(struct device *dev, void __iomem *regs);

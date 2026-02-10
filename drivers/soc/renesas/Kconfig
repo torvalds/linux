@@ -423,6 +423,7 @@ config ARCH_R9A09G057
 config ARCH_R9A09G077
 	bool "ARM64 Platform support for R9A09G077 (RZ/T2H)"
 	default y if ARCH_RENESAS
+	select RENESAS_RZT2H_ICU
 	help
 	  This enables support for the Renesas RZ/T2H SoC variants.
 
