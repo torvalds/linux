@@ -107,12 +107,6 @@ void x2apic_send_IPI_self(int vector)
 	apic_write(APIC_SELF_IPI, vector);
 }
 
-void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
-{
-	unsigned long cfg = __prepare_ICR(0, vector, dest);
-	native_x2apic_icr_write(cfg, apicid);
-}
-
 static int x2apic_phys_probe(void)
 {
 	if (!x2apic_mode)
