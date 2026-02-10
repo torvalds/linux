@@ -95,13 +95,13 @@ static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
 }
 
 /*
- * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
- * is defined as 'unsigned int', meantime it has to be aligned to with the
+ * The maximum size that a bio can fit has to be aligned down to the
  * logical block size, which is the minimum accepted unit by hardware.
  */
 static unsigned int bio_allowed_max_sectors(const struct queue_limits *lim)
 {
-	return round_down(UINT_MAX, lim->logical_block_size) >> SECTOR_SHIFT;
+	return round_down(BIO_MAX_SIZE, lim->logical_block_size) >>
+			SECTOR_SHIFT;
 }
 
 /*
@@ -515,7 +515,7 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 
 	rq_for_each_bvec(bv, rq, iter)
 		bvec_split_segs(&rq->q->limits, &bv, &nr_phys_segs, &bytes,
-				UINT_MAX, UINT_MAX);
+				UINT_MAX, BIO_MAX_SIZE);
 	return nr_phys_segs;
 }
 

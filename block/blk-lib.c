@@ -32,7 +32,7 @@ static sector_t bio_discard_limit(struct block_device *bdev, sector_t sector)
 	 * Align the bio size to the discard granularity to make splitting the bio
 	 * at discard granularity boundaries easier in the driver if needed.
 	 */
-	return round_down(UINT_MAX, discard_granularity) >> SECTOR_SHIFT;
+	return round_down(BIO_MAX_SIZE, discard_granularity) >> SECTOR_SHIFT;
 }
 
 struct bio *blk_alloc_discard_bio(struct block_device *bdev,
@@ -107,8 +107,7 @@ static sector_t bio_write_zeroes_limit(struct block_device *bdev)
 {
 	sector_t bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 
-	return min(bdev_write_zeroes_sectors(bdev),
-		(UINT_MAX >> SECTOR_SHIFT) & ~bs_mask);
+	return min(bdev_write_zeroes_sectors(bdev), BIO_MAX_SECTORS & ~bs_mask);
 }
 
 /*
@@ -337,8 +336,8 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 	int ret = 0;
 
 	/* make sure that "len << SECTOR_SHIFT" doesn't overflow */
-	if (max_sectors > UINT_MAX >> SECTOR_SHIFT)
-		max_sectors = UINT_MAX >> SECTOR_SHIFT;
+	if (max_sectors > BIO_MAX_SECTORS)
+		max_sectors = BIO_MAX_SECTORS;
 	max_sectors &= ~bs_mask;
 
 	if (max_sectors == 0)

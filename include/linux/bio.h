@@ -397,6 +397,29 @@ static inline int bio_iov_vecs_to_alloc(struct iov_iter *iter, int max_segs)
 	return iov_iter_npages(iter, max_segs);
 }
 
+/**
+ * bio_iov_bounce_nr_vecs - calculate number of bvecs for a bounce bio
+ * @iter:	iter to bounce from
+ * @op:		REQ_OP_* for the bio
+ *
+ * Calculates how many bvecs are needed for the next bio to bounce from/to
+ * @iter.
+ */
+static inline unsigned short
+bio_iov_bounce_nr_vecs(struct iov_iter *iter, blk_opf_t op)
+{
+	/*
+	 * We still need to bounce bvec iters, so don't special case them
+	 * here unlike in bio_iov_vecs_to_alloc.
+	 *
+	 * For reads we need to use a vector for the bounce buffer, account
+	 * for that here.
+	 */
+	if (op_is_write(op))
+		return iov_iter_npages(iter, BIO_MAX_VECS);
+	return iov_iter_npages(iter, BIO_MAX_VECS - 1) + 1;
+}
+
 struct request_queue;
 
 void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
@@ -450,6 +473,9 @@ void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter);
 void __bio_release_pages(struct bio *bio, bool mark_dirty);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
+
+int bio_iov_iter_bounce(struct bio *bio, struct iov_iter *iter);
+void bio_iov_iter_unbounce(struct bio *bio, bool is_error, bool mark_dirty);
 
 extern void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
 			       struct bio *src, struct bvec_iter *src_iter);
