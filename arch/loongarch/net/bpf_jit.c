@@ -559,6 +559,15 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
+		if (insn_is_cast_user(insn)) {
+			move_reg(ctx, t1, src);
+			emit_zext_32(ctx, t1, true);
+			move_imm(ctx, dst, (ctx->user_vm_start >> 32) << 32, false);
+			emit_insn(ctx, beq, t1, LOONGARCH_GPR_ZERO, 1);
+			emit_insn(ctx, or, t1, dst, t1);
+			move_reg(ctx, dst, t1);
+			break;
+		}
 		switch (off) {
 		case 0:
 			move_reg(ctx, dst, src);
@@ -1955,6 +1964,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 	ctx.arena_vm_start = bpf_arena_get_kern_vm_start(prog->aux->arena);
+	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 
 	ctx.offset = kvcalloc(prog->len + 1, sizeof(u32), GFP_KERNEL);
 	if (ctx.offset == NULL) {
@@ -2106,6 +2116,11 @@ bool bpf_jit_bypass_spec_v1(void)
 }
 
 bool bpf_jit_bypass_spec_v4(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_arena(void)
 {
 	return true;
 }

@@ -21,6 +21,7 @@ struct jit_ctx {
 	union loongarch_instruction *ro_image;
 	u32 stack_size;
 	u64 arena_vm_start;
+	u64 user_vm_start;
 };
 
 struct jit_data {
