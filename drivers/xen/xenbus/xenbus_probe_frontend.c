@@ -91,14 +91,14 @@ static void backend_changed(struct xenbus_watch *watch,
 	xenbus_otherend_changed(watch, path, token, 1);
 }
 
-static void xenbus_frontend_delayed_resume(struct work_struct *w)
+static void xenbus_frontend_delayed_restore(struct work_struct *w)
 {
 	struct xenbus_device *xdev = container_of(w, struct xenbus_device, work);
 
-	xenbus_dev_resume(&xdev->dev);
+	xenbus_dev_restore(&xdev->dev);
 }
 
-static int xenbus_frontend_dev_resume(struct device *dev)
+static int xenbus_frontend_dev_restore(struct device *dev)
 {
 	/*
 	 * If xenstored is running in this domain, we cannot access the backend
@@ -112,14 +112,14 @@ static int xenbus_frontend_dev_resume(struct device *dev)
 		return 0;
 	}
 
-	return xenbus_dev_resume(dev);
+	return xenbus_dev_restore(dev);
 }
 
 static int xenbus_frontend_dev_probe(struct device *dev)
 {
 	if (xen_store_domain_type == XS_LOCAL) {
 		struct xenbus_device *xdev = to_xenbus_device(dev);
-		INIT_WORK(&xdev->work, xenbus_frontend_delayed_resume);
+		INIT_WORK(&xdev->work, xenbus_frontend_delayed_restore);
 	}
 
 	return xenbus_dev_probe(dev);
@@ -148,11 +148,9 @@ static void xenbus_frontend_dev_shutdown(struct device *_dev)
 }
 
 static const struct dev_pm_ops xenbus_pm_ops = {
-	.suspend	= xenbus_dev_suspend,
-	.resume		= xenbus_frontend_dev_resume,
-	.freeze		= xenbus_dev_suspend,
-	.thaw		= xenbus_dev_cancel,
-	.restore	= xenbus_dev_resume,
+	.freeze		= xenbus_dev_freeze,
+	.thaw		= xenbus_dev_thaw,
+	.restore	= xenbus_frontend_dev_restore,
 };
 
 static struct xen_bus_type xenbus_frontend = {

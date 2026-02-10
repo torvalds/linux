@@ -470,7 +470,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 		 * driver to know how much of the physmap is unpopulated and
 		 * set an accurate initial memory target.
 		 */
-		xen_released_pages += xen_extra_mem[i].n_pfns;
+		xen_unpopulated_pages += xen_extra_mem[i].n_pfns;
 		/* Zero so region is not also added to the balloon driver. */
 		xen_extra_mem[i].n_pfns = 0;
 	}
