@@ -196,20 +196,20 @@ static int get_family_id(int sd)
 #define delay_ms(t) (t / 1000000ULL)
 
 /*
- * Format timespec64 to human readable string (YYYY-MM-DD HH:MM:SS)
+ * Format __kernel_timespec to human readable string (YYYY-MM-DD HH:MM:SS)
  * Returns formatted string or "N/A" if timestamp is zero
  */
-static const char *format_timespec64(struct timespec64 *ts)
+static const char *format_timespec(struct __kernel_timespec *ts)
 {
 	static char buffer[32];
 	struct tm tm_info;
-	time_t time_sec;
+	__kernel_time_t time_sec;
 
 	/* Check if timestamp is zero (not set) */
 	if (ts->tv_sec == 0 && ts->tv_nsec == 0)
 		return "N/A";
 
-	time_sec = (time_t)ts->tv_sec;
+	time_sec = ts->tv_sec;
 
 	/* Use thread-safe localtime_r */
 	if (localtime_r(&time_sec, &tm_info) == NULL)
@@ -257,7 +257,7 @@ static const char *format_timespec64(struct timespec64 *ts)
 				average_ms((double)(t)->cpu_delay_total, (t)->cpu_count), \
 				delay_ms((double)(t)->cpu_delay_max), \
 				delay_ms((double)(t)->cpu_delay_min), \
-				format_timespec64(&(t)->cpu_delay_max_ts)); \
+				format_timespec(&(t)->cpu_delay_max_ts)); \
 		} else if (version >= 16) { \
 			printf("%-10s%15s%15s%15s%15s%15s%15s%15s\n", \
 				"CPU", "count", "real total", "virtual total", \
@@ -316,7 +316,7 @@ static const char *format_timespec64(struct timespec64 *ts)
 				average_ms((double)(t)->total, (t)->count), \
 				delay_ms((double)(t)->max), \
 				delay_ms((double)(t)->min), \
-				format_timespec64(&(t)->max_ts)); \
+				format_timespec(&(t)->max_ts)); \
 		} else if (version >= 16) { \
 			printf("%-10s%15s%15s%15s%15s%15s\n", \
 				name, "count", "delay total", "delay average", \
