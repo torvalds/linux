@@ -611,6 +611,7 @@ out:
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_environ(struct tomoyo_execve *ee)
+	__must_hold_shared(&tomoyo_ss)
 {
 	struct tomoyo_request_info *r = &ee->r;
 	struct linux_binprm *bprm = ee->bprm;

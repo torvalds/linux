@@ -7,7 +7,10 @@
  * Sorted alphabetically.
  */
 
+#define __rust_helper
+
 #include "atomic.c"
+#include "atomic_ext.c"
 #include "auxiliary.c"
 #include "barrier.c"
 #include "binder.c"

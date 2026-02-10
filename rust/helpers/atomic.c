@@ -11,11 +11,6 @@
 
 #include <linux/atomic.h>
 
-// TODO: Remove this after INLINE_HELPERS support is added.
-#ifndef __rust_helper
-#define __rust_helper
-#endif
-
 __rust_helper int
 rust_helper_atomic_read(const atomic_t *v)
 {
@@ -1037,4 +1032,4 @@ rust_helper_atomic64_dec_if_positive(atomic64_t *v)
 }
 
 #endif /* _RUST_ATOMIC_API_H */
-// 615a0e0c98b5973a47fe4fa65e92935051ca00ed
+// e4edb6174dd42a265284958f00a7cea7ddb464b1

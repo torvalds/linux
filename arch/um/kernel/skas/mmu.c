@@ -23,18 +23,21 @@ static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 static spinlock_t mm_list_lock;
 static struct list_head mm_list;
 
-void enter_turnstile(struct mm_id *mm_id) __acquires(turnstile)
+struct mutex *__get_turnstile(struct mm_id *mm_id)
 {
 	struct mm_context *ctx = container_of(mm_id, struct mm_context, id);
 
-	mutex_lock(&ctx->turnstile);
+	return &ctx->turnstile;
 }
 
-void exit_turnstile(struct mm_id *mm_id) __releases(turnstile)
+void enter_turnstile(struct mm_id *mm_id)
 {
-	struct mm_context *ctx = container_of(mm_id, struct mm_context, id);
+	mutex_lock(__get_turnstile(mm_id));
+}
 
-	mutex_unlock(&ctx->turnstile);
+void exit_turnstile(struct mm_id *mm_id)
+{
+	mutex_unlock(__get_turnstile(mm_id));
 }
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)

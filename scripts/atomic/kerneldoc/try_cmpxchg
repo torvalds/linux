@@ -11,6 +11,6 @@ cat <<EOF
  *
  * ${desc_noinstr}
  *
- * Return: @true if the exchange occured, @false otherwise.
+ * Return: @true if the exchange occurred, @false otherwise.
  */
 EOF
