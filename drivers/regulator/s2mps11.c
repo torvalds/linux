@@ -478,8 +478,6 @@ static int s2mpg10_of_parse_cb(struct device_node *np,
 			return -EINVAL;
 		}
 
-		if (ext_control > ARRAY_SIZE(ext_control_s2mpg10))
-			return -EINVAL;
 		ext_control = ext_control_s2mpg10[ext_control];
 		break;
 
@@ -503,8 +501,6 @@ static int s2mpg10_of_parse_cb(struct device_node *np,
 			return -EINVAL;
 		}
 
-		if (ext_control > ARRAY_SIZE(ext_control_s2mpg11))
-			return -EINVAL;
 		ext_control = ext_control_s2mpg11[ext_control];
 		break;
 
