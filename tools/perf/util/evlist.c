@@ -1356,6 +1356,8 @@ void evlist__close(struct evlist *evlist)
 		return;
 
 	evlist__for_each_cpu(evlist_cpu_itr, evlist, &affinity) {
+		if (evlist_cpu_itr.cpu_map_idx == 0 && evsel__is_retire_lat(evlist_cpu_itr.evsel))
+			evsel__tpebs_close(evlist_cpu_itr.evsel);
 		perf_evsel__close_cpu(&evlist_cpu_itr.evsel->core,
 				      evlist_cpu_itr.cpu_map_idx);
 	}
