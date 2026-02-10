@@ -206,6 +206,19 @@ msm:sm8350-hdk:
     KERNEL_IMAGE_TYPE: ""
     RUNNER_TAG: mesa-ci-x86-64-lava-rk3399-gru-kevin
 
+.rk3588:
+  extends:
+    - .lava-igt:arm64
+    - .rockchip-device
+  parallel: 2
+  variables:
+    DEVICE_TYPE: rk3588-rock-5b
+    GPU_VERSION: rk3588
+    BOOT_METHOD: u-boot
+    KERNEL_IMAGE_NAME: Image
+    KERNEL_IMAGE_TYPE: "image"
+    RUNNER_TAG: mesa-ci-x86-64-lava-rk3588-rock-5b
+
 rockchip:rk3288:
   extends:
     - .rk3288
@@ -225,6 +238,16 @@ panfrost:rk3399:
   extends:
     - .rk3399
     - .panfrost-gpu
+
+rockchip:rk3588:
+  extends:
+    - .rk3588
+    - .rockchip-display
+
+panthor:rk3588:
+  extends:
+    - .rk3588
+    - .panthor-gpu
 
 .i915:
   extends:
@@ -353,6 +376,11 @@ amdgpu:stoney:
   stage: panfrost
   variables:
     DRIVER_NAME: panfrost
+
+.panthor-gpu:
+  stage: panthor
+  variables:
+    DRIVER_NAME: panthor
 
 .mt8173:
   extends:
