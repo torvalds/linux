@@ -1,4 +1,5 @@
 check-patch:
+  stage: static-checks
   extends:
     - .build
     - .use-debian/x86_64_build

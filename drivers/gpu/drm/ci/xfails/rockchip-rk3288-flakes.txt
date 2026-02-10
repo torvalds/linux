@@ -32,3 +32,24 @@ kms_flip@plain-flip-ts-check
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc2
 kms_cursor_crc@cursor-alpha-opaque
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/dri-devel/acfd5838-d861-4dd9-97c3-99fffc9bfa04@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@flip-vs-absolute-wf_vblank
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/dri-devel/81e13fcc-d916-4eb8-91cd-f74f64f53f72@collabora.com/T/#u
+# Failure Rate: 40
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@flip-vs-dpms-on-nop-interruptible
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/dri-devel/10c5abab-c8fe-4eff-8eed-009038436b49@collabora.com/T/#u
+# Failure Rate: 20
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+kms_flip@plain-flip-fb-recreate

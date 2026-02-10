@@ -1,0 +1,6 @@
+# Board Name: acer-cp514-2h-1130g7-volteer
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/14624
+# Failure Rate: 100
+# IGT Version: 2.1-g26ddb59c1
+# Linux Version: 6.16.0-rc2
+perf@gen12-unprivileged-single-ctx-counters

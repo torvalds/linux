@@ -1,5 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
+
+. "${SCRIPTS_DIR}/setup-test-env.sh"
 
 set -ex
 
