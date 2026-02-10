@@ -247,31 +247,6 @@ static inline bool xchk_could_repair(const struct xfs_scrub *sc)
 int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 
 /*
- * Helper macros to allocate and format xfile description strings.
- * Callers must kfree the pointer returned.
- */
-#define xchk_xfile_descr(sc, fmt, ...) \
-	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): " fmt, \
-			(sc)->mp->m_super->s_id, ##__VA_ARGS__)
-#define xchk_xfile_ag_descr(sc, fmt, ...) \
-	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): AG 0x%x " fmt, \
-			(sc)->mp->m_super->s_id, \
-			(sc)->sa.pag ? \
-				pag_agno((sc)->sa.pag) : (sc)->sm->sm_agno, \
-			##__VA_ARGS__)
-#define xchk_xfile_ino_descr(sc, fmt, ...) \
-	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): inode 0x%llx " fmt, \
-			(sc)->mp->m_super->s_id, \
-			(sc)->ip ? (sc)->ip->i_ino : (sc)->sm->sm_ino, \
-			##__VA_ARGS__)
-#define xchk_xfile_rtgroup_descr(sc, fmt, ...) \
-	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): rtgroup 0x%x " fmt, \
-			(sc)->mp->m_super->s_id, \
-			(sc)->sa.pag ? \
-				rtg_rgno((sc)->sr.rtg) : (sc)->sm->sm_agno, \
-			##__VA_ARGS__)
-
-/*
  * Setting up a hook to wait for intents to drain is costly -- we have to take
  * the CPU hotplug lock and force an i-cache flush on all CPUs once to set it
  * up, and again to tear it down.  These costs add up quickly, so we only want

@@ -746,7 +746,7 @@ struct xfs_attr3_leafblock {
 #define	XFS_ATTR_LEAF_NAME_ALIGN	((uint)sizeof(xfs_dablk_t))
 
 static inline int
-xfs_attr3_leaf_hdr_size(struct xfs_attr_leafblock *leafp)
+xfs_attr3_leaf_hdr_size(const struct xfs_attr_leafblock *leafp)
 {
 	if (leafp->hdr.info.magic == cpu_to_be16(XFS_ATTR3_LEAF_MAGIC))
 		return sizeof(struct xfs_attr3_leaf_hdr);

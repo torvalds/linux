@@ -3,7 +3,7 @@
  * Copyright (c) 2006-2007 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_mru_cache.h"
 
 /*

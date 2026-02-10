@@ -3,7 +3,7 @@
  * Copyright (c) 2001-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_error.h"
 
 static struct ctl_table_header *xfs_table_header;

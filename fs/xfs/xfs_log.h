@@ -6,19 +6,8 @@
 #ifndef	__XFS_LOG_H__
 #define __XFS_LOG_H__
 
+struct xlog_format_buf;
 struct xfs_cil_ctx;
-
-struct xfs_log_vec {
-	struct list_head	lv_list;	/* CIL lv chain ptrs */
-	uint32_t		lv_order_id;	/* chain ordering info */
-	int			lv_niovecs;	/* number of iovecs in lv */
-	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
-	struct xfs_log_item	*lv_item;	/* owner */
-	char			*lv_buf;	/* formatted buffer */
-	int			lv_bytes;	/* accounted space in buffer */
-	int			lv_buf_used;	/* buffer space used so far */
-	int			lv_alloc_size;	/* size of allocated lv */
-};
 
 /* Region types for iovec's i_type */
 #define XLOG_REG_TYPE_BFORMAT		1
@@ -70,58 +59,24 @@ xlog_calc_iovec_len(int len)
 	return roundup(len, sizeof(uint32_t));
 }
 
-void *xlog_prepare_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
-		uint type);
-
-static inline void
-xlog_finish_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec *vec,
-		int data_len)
-{
-	struct xlog_op_header	*oph = vec->i_addr;
-	int			len;
-
-	/*
-	 * Always round up the length to the correct alignment so callers don't
-	 * need to know anything about this log vec layout requirement. This
-	 * means we have to zero the area the data to be written does not cover.
-	 * This is complicated by fact the payload region is offset into the
-	 * logvec region by the opheader that tracks the payload.
-	 */
-	len = xlog_calc_iovec_len(data_len);
-	if (len - data_len != 0) {
-		char	*buf = vec->i_addr + sizeof(struct xlog_op_header);
-
-		memset(buf + data_len, 0, len - data_len);
-	}
-
-	/*
-	 * The opheader tracks aligned payload length, whilst the logvec tracks
-	 * the overall region length.
-	 */
-	oph->oh_len = cpu_to_be32(len);
-
-	len += sizeof(struct xlog_op_header);
-	lv->lv_buf_used += len;
-	lv->lv_bytes += len;
-	vec->i_len = len;
-
-	/* Catch buffer overruns */
-	ASSERT((void *)lv->lv_buf + lv->lv_bytes <=
-		(void *)lv + lv->lv_alloc_size);
-}
+void *xlog_format_start(struct xlog_format_buf *lfb, uint16_t type);
+void xlog_format_commit(struct xlog_format_buf *lfb, unsigned int data_len);
 
 /*
  * Copy the amount of data requested by the caller into a new log iovec.
  */
 static inline void *
-xlog_copy_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
-		uint type, void *data, int len)
+xlog_format_copy(
+	struct xlog_format_buf	*lfb,
+	uint16_t		type,
+	void			*data,
+	unsigned int		len)
 {
 	void *buf;
 
-	buf = xlog_prepare_iovec(lv, vecp, type);
+	buf = xlog_format_start(lfb, type);
 	memcpy(buf, data, len);
-	xlog_finish_iovec(lv, *vecp, len);
+	xlog_format_commit(lfb, len);
 	return buf;
 }
 

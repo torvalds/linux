@@ -573,7 +573,7 @@ struct xfs_trans_res xfs_attr_set_resv(const struct xfs_da_args *args);
  */
 static inline bool
 xfs_attr_is_shortform(
-	struct xfs_inode    *ip)
+	const struct xfs_inode    *ip)
 {
 	return ip->i_af.if_format == XFS_DINODE_FMT_LOCAL ||
 	       (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
@@ -648,5 +648,9 @@ void xfs_attr_intent_destroy_cache(void);
 
 int xfs_attr_sf_totsize(struct xfs_inode *dp);
 int xfs_attr_add_fork(struct xfs_inode *ip, int size, int rsvd);
+
+int xfs_attr_setname(struct xfs_da_args *args, int rmt_blks);
+int xfs_attr_removename(struct xfs_da_args *args);
+int xfs_attr_replacename(struct xfs_da_args *args, int rmt_blks);
 
 #endif	/* __XFS_ATTR_H__ */

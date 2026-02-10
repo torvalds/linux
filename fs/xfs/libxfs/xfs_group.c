@@ -3,7 +3,7 @@
  * Copyright (c) 2018 Red Hat, Inc.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"

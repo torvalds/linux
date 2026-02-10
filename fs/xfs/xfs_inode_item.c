@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -336,8 +336,7 @@ STATIC void
 xfs_inode_item_format_data_fork(
 	struct xfs_inode_log_item *iip,
 	struct xfs_inode_log_format *ilf,
-	struct xfs_log_vec	*lv,
-	struct xfs_log_iovec	**vecp)
+	struct xlog_format_buf	*lfb)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
 	size_t			data_bytes;
@@ -354,9 +353,9 @@ xfs_inode_item_format_data_fork(
 
 			ASSERT(xfs_iext_count(&ip->i_df) > 0);
 
-			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IEXT);
+			p = xlog_format_start(lfb, XLOG_REG_TYPE_IEXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_DATA_FORK);
-			xlog_finish_iovec(lv, *vecp, data_bytes);
+			xlog_format_commit(lfb, data_bytes);
 
 			ASSERT(data_bytes <= ip->i_df.if_bytes);
 
@@ -374,7 +373,7 @@ xfs_inode_item_format_data_fork(
 		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
 			ASSERT(ip->i_df.if_broot != NULL);
-			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_IBROOT,
+			xlog_format_copy(lfb, XLOG_REG_TYPE_IBROOT,
 					ip->i_df.if_broot,
 					ip->i_df.if_broot_bytes);
 			ilf->ilf_dsize = ip->i_df.if_broot_bytes;
@@ -392,8 +391,9 @@ xfs_inode_item_format_data_fork(
 		    ip->i_df.if_bytes > 0) {
 			ASSERT(ip->i_df.if_data != NULL);
 			ASSERT(ip->i_disk_size > 0);
-			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_ILOCAL,
-					ip->i_df.if_data, ip->i_df.if_bytes);
+			xlog_format_copy(lfb, XLOG_REG_TYPE_ILOCAL,
+					ip->i_df.if_data,
+					ip->i_df.if_bytes);
 			ilf->ilf_dsize = (unsigned)ip->i_df.if_bytes;
 			ilf->ilf_size++;
 		} else {
@@ -416,8 +416,7 @@ STATIC void
 xfs_inode_item_format_attr_fork(
 	struct xfs_inode_log_item *iip,
 	struct xfs_inode_log_format *ilf,
-	struct xfs_log_vec	*lv,
-	struct xfs_log_iovec	**vecp)
+	struct xlog_format_buf	*lfb)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
 	size_t			data_bytes;
@@ -435,9 +434,9 @@ xfs_inode_item_format_attr_fork(
 			ASSERT(xfs_iext_count(&ip->i_af) ==
 				ip->i_af.if_nextents);
 
-			p = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_EXT);
+			p = xlog_format_start(lfb, XLOG_REG_TYPE_IATTR_EXT);
 			data_bytes = xfs_iextents_copy(ip, p, XFS_ATTR_FORK);
-			xlog_finish_iovec(lv, *vecp, data_bytes);
+			xlog_format_commit(lfb, data_bytes);
 
 			ilf->ilf_asize = data_bytes;
 			ilf->ilf_size++;
@@ -453,7 +452,7 @@ xfs_inode_item_format_attr_fork(
 		    ip->i_af.if_broot_bytes > 0) {
 			ASSERT(ip->i_af.if_broot != NULL);
 
-			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_BROOT,
+			xlog_format_copy(lfb, XLOG_REG_TYPE_IATTR_BROOT,
 					ip->i_af.if_broot,
 					ip->i_af.if_broot_bytes);
 			ilf->ilf_asize = ip->i_af.if_broot_bytes;
@@ -469,8 +468,9 @@ xfs_inode_item_format_attr_fork(
 		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
 		    ip->i_af.if_bytes > 0) {
 			ASSERT(ip->i_af.if_data != NULL);
-			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_LOCAL,
-					ip->i_af.if_data, ip->i_af.if_bytes);
+			xlog_format_copy(lfb, XLOG_REG_TYPE_IATTR_LOCAL,
+					ip->i_af.if_data,
+					ip->i_af.if_bytes);
 			ilf->ilf_asize = (unsigned)ip->i_af.if_bytes;
 			ilf->ilf_size++;
 		} else {
@@ -619,14 +619,13 @@ xfs_inode_to_log_dinode(
 static void
 xfs_inode_item_format_core(
 	struct xfs_inode	*ip,
-	struct xfs_log_vec	*lv,
-	struct xfs_log_iovec	**vecp)
+	struct xlog_format_buf	*lfb)
 {
 	struct xfs_log_dinode	*dic;
 
-	dic = xlog_prepare_iovec(lv, vecp, XLOG_REG_TYPE_ICORE);
+	dic = xlog_format_start(lfb, XLOG_REG_TYPE_ICORE);
 	xfs_inode_to_log_dinode(ip, dic, ip->i_itemp->ili_item.li_lsn);
-	xlog_finish_iovec(lv, *vecp, xfs_log_dinode_size(ip->i_mount));
+	xlog_format_commit(lfb, xfs_log_dinode_size(ip->i_mount));
 }
 
 /*
@@ -644,14 +643,13 @@ xfs_inode_item_format_core(
 STATIC void
 xfs_inode_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_vec	*lv)
+	struct xlog_format_buf	*lfb)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	struct xfs_log_iovec	*vecp = NULL;
 	struct xfs_inode_log_format *ilf;
 
-	ilf = xlog_prepare_iovec(lv, &vecp, XLOG_REG_TYPE_IFORMAT);
+	ilf = xlog_format_start(lfb, XLOG_REG_TYPE_IFORMAT);
 	ilf->ilf_type = XFS_LI_INODE;
 	ilf->ilf_ino = ip->i_ino;
 	ilf->ilf_blkno = ip->i_imap.im_blkno;
@@ -668,13 +666,12 @@ xfs_inode_item_format(
 	ilf->ilf_asize = 0;
 	ilf->ilf_pad = 0;
 	memset(&ilf->ilf_u, 0, sizeof(ilf->ilf_u));
+	xlog_format_commit(lfb, sizeof(*ilf));
 
-	xlog_finish_iovec(lv, vecp, sizeof(*ilf));
-
-	xfs_inode_item_format_core(ip, lv, &vecp);
-	xfs_inode_item_format_data_fork(iip, ilf, lv, &vecp);
+	xfs_inode_item_format_core(ip, lfb);
+	xfs_inode_item_format_data_fork(iip, ilf, lfb);
 	if (xfs_inode_has_attr_fork(ip)) {
-		xfs_inode_item_format_attr_fork(iip, ilf, lv, &vecp);
+		xfs_inode_item_format_attr_fork(iip, ilf, lfb);
 	} else {
 		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
