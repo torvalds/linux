@@ -130,8 +130,7 @@ parse_opts() { # opts
       shift 1
     ;;
     --logdir|-l)
-      LOG_DIR=$2
-      LINK_PTR=
+      USER_LOG_DIR=$2
       shift 2
     ;;
     --rv)
@@ -199,6 +198,7 @@ fi
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
+USER_LOG_DIR=
 KEEP_LOG=0
 KTAP=0
 DEBUG=0
@@ -210,12 +210,18 @@ RV_TEST=0
 # Parse command-line options
 parse_opts $*
 
+[ $DEBUG -ne 0 ] && set -x
+
+# TOP_DIR can be changed for rv. Setting log directory.
 LOG_TOP_DIR=$TOP_DIR/logs
 LOG_DATE=`date +%Y%m%d-%H%M%S`
-LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
-LINK_PTR=$LOG_TOP_DIR/latest
-
-[ $DEBUG -ne 0 ] && set -x
+if [ -n "$USER_LOG_DIR" ]; then
+  LOG_DIR=$USER_LOG_DIR
+  LINK_PTR=
+else
+  LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
+  LINK_PTR=$LOG_TOP_DIR/latest
+fi
 
 if [ $RV_TEST -ne 0 ]; then
 	TRACING_DIR=$TRACING_DIR/rv
