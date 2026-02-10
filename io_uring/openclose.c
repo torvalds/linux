@@ -82,6 +82,15 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	return 0;
 }
 
+void io_openat_bpf_populate(struct io_uring_bpf_ctx *bctx, struct io_kiocb *req)
+{
+	struct io_open *open = io_kiocb_to_cmd(req, struct io_open);
+
+	bctx->open.flags = open->how.flags;
+	bctx->open.mode = open->how.mode;
+	bctx->open.resolve = open->how.resolve;
+}
+
 int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_open *open = io_kiocb_to_cmd(req, struct io_open);
