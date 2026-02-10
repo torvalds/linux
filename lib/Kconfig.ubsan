@@ -104,7 +104,7 @@ config UBSAN_DIV_ZERO
 	  This option enables -fsanitize=integer-divide-by-zero which checks
 	  for integer division by zero. This is effectively redundant with the
 	  kernel's existing exception handling, though it can provide greater
-	  debugging information under CONFIG_UBSAN_REPORT_FULL.
+	  debugging information.
 
 config UBSAN_UNREACHABLE
 	bool "Perform checking for unreachable code"

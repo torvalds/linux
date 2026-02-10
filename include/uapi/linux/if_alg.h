@@ -42,7 +42,7 @@ struct sockaddr_alg_new {
 
 struct af_alg_iv {
 	__u32	ivlen;
-	__u8	iv[];
+	__u8	iv[] __counted_by(ivlen);
 };
 
 /* Socket options */

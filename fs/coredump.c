@@ -92,7 +92,7 @@ enum coredump_type_t {
 };
 
 struct core_name {
-	char *corename;
+	char *corename __counted_by_ptr(size);
 	int used, size;
 	unsigned int core_pipe_limit;
 	bool core_dumped;
@@ -106,15 +106,15 @@ static int expand_corename(struct core_name *cn, int size)
 
 	size = kmalloc_size_roundup(size);
 	corename = krealloc(cn->corename, size, GFP_KERNEL);
-
 	if (!corename)
 		return -ENOMEM;
+
+	cn->corename = corename;
+	cn->size = size;
 
 	if (size > core_name_size) /* racy but harmless */
 		core_name_size = size;
 
-	cn->size = size;
-	cn->corename = corename;
 	return 0;
 }
 
