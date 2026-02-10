@@ -173,6 +173,10 @@ check_requires() { # Check required files and tracers
     done
 }
 
+check_awk_strtonum() { # strtonum is GNU awk extension
+    awk 'BEGIN{strtonum("0x1")}'
+}
+
 LOCALHOST=127.0.0.1
 
 yield() {
