@@ -3009,8 +3009,11 @@ static int init_arena_map_data(struct bpf_object *obj, struct bpf_map *map,
 	memcpy(obj->arena_data, data, data_sz);
 	obj->arena_data_sz = data_sz;
 
-	/* place globals at the end of the arena */
-	obj->arena_data_off = mmap_sz - data_alloc_sz;
+	/* place globals at the end of the arena (if supported) */
+	if (kernel_supports(obj, FEAT_LDIMM64_FULL_RANGE_OFF))
+		obj->arena_data_off = mmap_sz - data_alloc_sz;
+	else
+		obj->arena_data_off = 0;
 
 	/* make bpf_map__init_value() work for ARENA maps */
 	map->mmaped = obj->arena_data;
