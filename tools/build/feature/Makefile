@@ -113,7 +113,7 @@ __BUILD = $(CC) $(CFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(
 __BUILDXX = $(CXX) $(CXXFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
   BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
 
-__BUILDRS = $(RUSTC) $(RUSTC_FLAGS) -o $@ $(patsubst %.bin,%.rs,$(@F))
+__BUILDRS = $(RUSTC) $(RUSTC_FLAGS) --emit=dep-info=$(patsubst %.bin,%.d,$(@F)),link -o $@ $(patsubst %.bin,%.rs,$(@F))
   BUILDRS = $(__BUILDRS) > $(@:.bin=.make.output) 2>&1
 
 ###############################
