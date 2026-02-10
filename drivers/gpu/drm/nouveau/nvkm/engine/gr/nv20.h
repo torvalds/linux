@@ -31,5 +31,5 @@ struct nv20_gr_chan {
 
 void *nv20_gr_chan_dtor(struct nvkm_object *);
 int nv20_gr_chan_init(struct nvkm_object *);
-int nv20_gr_chan_fini(struct nvkm_object *, bool);
+int nv20_gr_chan_fini(struct nvkm_object *, enum nvkm_suspend_state);
 #endif

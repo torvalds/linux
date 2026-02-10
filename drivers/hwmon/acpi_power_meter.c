@@ -47,6 +47,8 @@
 static int cap_in_hardware;
 static bool force_cap_on;
 
+static DEFINE_MUTEX(acpi_notify_lock);
+
 static int can_cap_in_hardware(void)
 {
 	return force_cap_on || cap_in_hardware;
@@ -823,18 +825,26 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 
 	resource = acpi_driver_data(device);
 
+	guard(mutex)(&acpi_notify_lock);
+
 	switch (event) {
 	case METER_NOTIFY_CONFIG:
+		if (!IS_ERR(resource->hwmon_dev))
+			hwmon_device_unregister(resource->hwmon_dev);
+
 		mutex_lock(&resource->lock);
+
 		free_capabilities(resource);
 		remove_domain_devices(resource);
-		hwmon_device_unregister(resource->hwmon_dev);
 		res = read_capabilities(resource);
 		if (res)
 			dev_err_once(&device->dev, "read capabilities failed.\n");
 		res = read_domain_devices(resource);
 		if (res && res != -ENODEV)
 			dev_err_once(&device->dev, "read domain devices failed.\n");
+
+		mutex_unlock(&resource->lock);
+
 		resource->hwmon_dev =
 			hwmon_device_register_with_info(&device->dev,
 							ACPI_POWER_METER_NAME,
@@ -843,7 +853,7 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 							power_extra_groups);
 		if (IS_ERR(resource->hwmon_dev))
 			dev_err_once(&device->dev, "register hwmon device failed.\n");
-		mutex_unlock(&resource->lock);
+
 		break;
 	case METER_NOTIFY_TRIP:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
@@ -953,7 +963,8 @@ static void acpi_power_meter_remove(struct acpi_device *device)
 		return;
 
 	resource = acpi_driver_data(device);
-	hwmon_device_unregister(resource->hwmon_dev);
+	if (!IS_ERR(resource->hwmon_dev))
+		hwmon_device_unregister(resource->hwmon_dev);
 
 	remove_domain_devices(resource);
 	free_capabilities(resource);

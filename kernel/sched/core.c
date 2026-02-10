@@ -10269,7 +10269,8 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  * Serialization rules:
  *
  * mm::mm_cid::mutex:	Serializes fork() and exit() and therefore
- *			protects mm::mm_cid::users.
+ *			protects mm::mm_cid::users and mode switch
+ *			transitions
  *
  * mm::mm_cid::lock:	Serializes mm_update_max_cids() and
  *			mm_update_cpus_allowed(). Nests in mm_cid::mutex
@@ -10285,13 +10286,69 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  *
  * A CID is either owned by a task (stored in task_struct::mm_cid.cid) or
  * by a CPU (stored in mm::mm_cid.pcpu::cid). CIDs owned by CPUs have the
- * MM_CID_ONCPU bit set. During transition from CPU to task ownership mode,
- * MM_CID_TRANSIT is set on the per task CIDs. When this bit is set the
- * task needs to drop the CID into the pool when scheduling out.  Both bits
- * (ONCPU and TRANSIT) are filtered out by task_cid() when the CID is
- * actually handed over to user space in the RSEQ memory.
+ * MM_CID_ONCPU bit set.
+ *
+ * During the transition of ownership mode, the MM_CID_TRANSIT bit is set
+ * on the CIDs. When this bit is set the tasks drop the CID back into the
+ * pool when scheduling out.
+ *
+ * Both bits (ONCPU and TRANSIT) are filtered out by task_cid() when the
+ * CID is actually handed over to user space in the RSEQ memory.
  *
  * Mode switching:
+ *
+ * The ownership mode is per process and stored in mm:mm_cid::mode with the
+ * following possible states:
+ *
+ *	0:				Per task ownership
+ *	0 | MM_CID_TRANSIT:		Transition from per CPU to per task
+ *	MM_CID_ONCPU:			Per CPU ownership
+ *	MM_CID_ONCPU | MM_CID_TRANSIT:	Transition from per task to per CPU
+ *
+ * All transitions of ownership mode happen in two phases:
+ *
+ *  1) mm:mm_cid::mode has the MM_CID_TRANSIT bit set. This is OR'ed on the
+ *     CIDs and denotes that the CID is only temporarily owned by a
+ *     task. When the task schedules out it drops the CID back into the
+ *     pool if this bit is set.
+ *
+ *  2) The initiating context walks the per CPU space or the tasks to fixup
+ *     or drop the CIDs and after completion it clears MM_CID_TRANSIT in
+ *     mm:mm_cid::mode. After that point the CIDs are strictly task or CPU
+ *     owned again.
+ *
+ * This two phase transition is required to prevent CID space exhaustion
+ * during the transition as a direct transfer of ownership would fail:
+ *
+ *   - On task to CPU mode switch if a task is scheduled in on one CPU and
+ *     then migrated to another CPU before the fixup freed enough per task
+ *     CIDs.
+ *
+ *   - On CPU to task mode switch if two tasks are scheduled in on the same
+ *     CPU before the fixup freed per CPU CIDs.
+ *
+ *   Both scenarios can result in a live lock because sched_in() is invoked
+ *   with runqueue lock held and loops in search of a CID and the fixup
+ *   thread can't make progress freeing them up because it is stuck on the
+ *   same runqueue lock.
+ *
+ * While MM_CID_TRANSIT is active during the transition phase the MM_CID
+ * bitmap can be contended, but that's a temporary contention bound to the
+ * transition period. After that everything goes back into steady state and
+ * nothing except fork() and exit() will touch the bitmap. This is an
+ * acceptable tradeoff as it completely avoids complex serialization,
+ * memory barriers and atomic operations for the common case.
+ *
+ * Aside of that this mechanism also ensures RT compability:
+ *
+ *   - The task which runs the fixup is fully preemptible except for the
+ *     short runqueue lock held sections.
+ *
+ *   - The transient impact of the bitmap contention is only problematic
+ *     when there is a thundering herd scenario of tasks scheduling in and
+ *     out concurrently. There is not much which can be done about that
+ *     except for avoiding mode switching by a proper overall system
+ *     configuration.
  *
  * Switching to per CPU mode happens when the user count becomes greater
  * than the maximum number of CIDs, which is calculated by:
@@ -10306,12 +10363,13 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  *
  * At the point of switching to per CPU mode the new user is not yet
  * visible in the system, so the task which initiated the fork() runs the
- * fixup function: mm_cid_fixup_tasks_to_cpu() walks the thread list and
- * either transfers each tasks owned CID to the CPU the task runs on or
- * drops it into the CID pool if a task is not on a CPU at that point in
- * time. Tasks which schedule in before the task walk reaches them do the
- * handover in mm_cid_schedin(). When mm_cid_fixup_tasks_to_cpus() completes
- * it's guaranteed that no task related to that MM owns a CID anymore.
+ * fixup function. mm_cid_fixup_tasks_to_cpu() walks the thread list and
+ * either marks each task owned CID with MM_CID_TRANSIT if the task is
+ * running on a CPU or drops it into the CID pool if a task is not on a
+ * CPU. Tasks which schedule in before the task walk reaches them do the
+ * handover in mm_cid_schedin(). When mm_cid_fixup_tasks_to_cpus()
+ * completes it is guaranteed that no task related to that MM owns a CID
+ * anymore.
  *
  * Switching back to task mode happens when the user count goes below the
  * threshold which was recorded on the per CPU mode switch:
@@ -10327,28 +10385,11 @@ void call_trace_sched_update_nr_running(struct rq *rq, int count)
  * run either in the deferred update function in context of a workqueue or
  * by a task which forks a new one or by a task which exits. Whatever
  * happens first. mm_cid_fixup_cpus_to_task() walks through the possible
- * CPUs and either transfers the CPU owned CIDs to a related task which
- * runs on the CPU or drops it into the pool. Tasks which schedule in on a
- * CPU which the walk did not cover yet do the handover themself.
- *
- * This transition from CPU to per task ownership happens in two phases:
- *
- *  1) mm:mm_cid.transit contains MM_CID_TRANSIT This is OR'ed on the task
- *     CID and denotes that the CID is only temporarily owned by the
- *     task. When it schedules out the task drops the CID back into the
- *     pool if this bit is set.
- *
- *  2) The initiating context walks the per CPU space and after completion
- *     clears mm:mm_cid.transit. So after that point the CIDs are strictly
- *     task owned again.
- *
- * This two phase transition is required to prevent CID space exhaustion
- * during the transition as a direct transfer of ownership would fail if
- * two tasks are scheduled in on the same CPU before the fixup freed per
- * CPU CIDs.
- *
- * When mm_cid_fixup_cpus_to_tasks() completes it's guaranteed that no CID
- * related to that MM is owned by a CPU anymore.
+ * CPUs and either marks the CPU owned CIDs with MM_CID_TRANSIT if a
+ * related task is running on the CPU or drops it into the pool. Tasks
+ * which are scheduled in before the fixup covered them do the handover
+ * themself. When mm_cid_fixup_cpus_to_tasks() completes it is guaranteed
+ * that no CID related to that MM is owned by a CPU anymore.
  */
 
 /*
@@ -10379,6 +10420,7 @@ static inline unsigned int mm_cid_calc_pcpu_thrs(struct mm_mm_cid *mc)
 static bool mm_update_max_cids(struct mm_struct *mm)
 {
 	struct mm_mm_cid *mc = &mm->mm_cid;
+	bool percpu = cid_on_cpu(mc->mode);
 
 	lockdep_assert_held(&mm->mm_cid.lock);
 
@@ -10387,7 +10429,7 @@ static bool mm_update_max_cids(struct mm_struct *mm)
 	__mm_update_max_cids(mc);
 
 	/* Check whether owner mode must be changed */
-	if (!mc->percpu) {
+	if (!percpu) {
 		/* Enable per CPU mode when the number of users is above max_cids */
 		if (mc->users > mc->max_cids)
 			mc->pcpu_thrs = mm_cid_calc_pcpu_thrs(mc);
@@ -10398,12 +10440,17 @@ static bool mm_update_max_cids(struct mm_struct *mm)
 	}
 
 	/* Mode change required? */
-	if (!!mc->percpu == !!mc->pcpu_thrs)
+	if (percpu == !!mc->pcpu_thrs)
 		return false;
-	/* When switching back to per TASK mode, set the transition flag */
-	if (!mc->pcpu_thrs)
-		WRITE_ONCE(mc->transit, MM_CID_TRANSIT);
-	WRITE_ONCE(mc->percpu, !!mc->pcpu_thrs);
+
+	/* Flip the mode and set the transition flag to bridge the transfer */
+	WRITE_ONCE(mc->mode, mc->mode ^ (MM_CID_TRANSIT | MM_CID_ONCPU));
+	/*
+	 * Order the store against the subsequent fixups so that
+	 * acquire(rq::lock) cannot be reordered by the CPU before the
+	 * store.
+	 */
+	smp_mb();
 	return true;
 }
 
@@ -10428,7 +10475,7 @@ static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpu
 
 	WRITE_ONCE(mc->nr_cpus_allowed, weight);
 	__mm_update_max_cids(mc);
-	if (!mc->percpu)
+	if (!cid_on_cpu(mc->mode))
 		return;
 
 	/* Adjust the threshold to the wider set */
@@ -10444,6 +10491,16 @@ static inline void mm_update_cpus_allowed(struct mm_struct *mm, const struct cpu
 	/* Queue the irq work, which schedules the real work */
 	mc->update_deferred = true;
 	irq_work_queue(&mc->irq_work);
+}
+
+static inline void mm_cid_complete_transit(struct mm_struct *mm, unsigned int mode)
+{
+	/*
+	 * Ensure that the store removing the TRANSIT bit cannot be
+	 * reordered by the CPU before the fixups have been completed.
+	 */
+	smp_mb();
+	WRITE_ONCE(mm->mm_cid.mode, mode);
 }
 
 static inline void mm_cid_transit_to_task(struct task_struct *t, struct mm_cid_pcpu *pcp)
@@ -10489,14 +10546,13 @@ static void mm_cid_fixup_cpus_to_tasks(struct mm_struct *mm)
 			}
 		}
 	}
-	/* Clear the transition bit */
-	WRITE_ONCE(mm->mm_cid.transit, 0);
+	mm_cid_complete_transit(mm, 0);
 }
 
-static inline void mm_cid_transfer_to_cpu(struct task_struct *t, struct mm_cid_pcpu *pcp)
+static inline void mm_cid_transit_to_cpu(struct task_struct *t, struct mm_cid_pcpu *pcp)
 {
 	if (cid_on_task(t->mm_cid.cid)) {
-		t->mm_cid.cid = cid_to_cpu_cid(t->mm_cid.cid);
+		t->mm_cid.cid = cid_to_transit_cid(t->mm_cid.cid);
 		pcp->cid = t->mm_cid.cid;
 	}
 }
@@ -10509,18 +10565,17 @@ static bool mm_cid_fixup_task_to_cpu(struct task_struct *t, struct mm_struct *mm
 	if (!t->mm_cid.active)
 		return false;
 	if (cid_on_task(t->mm_cid.cid)) {
-		/* If running on the CPU, transfer the CID, otherwise drop it */
+		/* If running on the CPU, put the CID in transit mode, otherwise drop it */
 		if (task_rq(t)->curr == t)
-			mm_cid_transfer_to_cpu(t, per_cpu_ptr(mm->mm_cid.pcpu, task_cpu(t)));
+			mm_cid_transit_to_cpu(t, per_cpu_ptr(mm->mm_cid.pcpu, task_cpu(t)));
 		else
 			mm_unset_cid_on_task(t);
 	}
 	return true;
 }
 
-static void mm_cid_fixup_tasks_to_cpus(void)
+static void mm_cid_do_fixup_tasks_to_cpus(struct mm_struct *mm)
 {
-	struct mm_struct *mm = current->mm;
 	struct task_struct *p, *t;
 	unsigned int users;
 
@@ -10558,6 +10613,14 @@ static void mm_cid_fixup_tasks_to_cpus(void)
 	}
 }
 
+static void mm_cid_fixup_tasks_to_cpus(void)
+{
+	struct mm_struct *mm = current->mm;
+
+	mm_cid_do_fixup_tasks_to_cpus(mm);
+	mm_cid_complete_transit(mm, MM_CID_ONCPU);
+}
+
 static bool sched_mm_cid_add_user(struct task_struct *t, struct mm_struct *mm)
 {
 	t->mm_cid.active = 1;
@@ -10586,17 +10649,17 @@ void sched_mm_cid_fork(struct task_struct *t)
 		}
 
 		if (!sched_mm_cid_add_user(t, mm)) {
-			if (!mm->mm_cid.percpu)
+			if (!cid_on_cpu(mm->mm_cid.mode))
 				t->mm_cid.cid = mm_get_cid(mm);
 			return;
 		}
 
 		/* Handle the mode change and transfer current's CID */
-		percpu = !!mm->mm_cid.percpu;
+		percpu = cid_on_cpu(mm->mm_cid.mode);
 		if (!percpu)
 			mm_cid_transit_to_task(current, pcp);
 		else
-			mm_cid_transfer_to_cpu(current, pcp);
+			mm_cid_transit_to_cpu(current, pcp);
 	}
 
 	if (percpu) {
@@ -10631,7 +10694,7 @@ static bool __sched_mm_cid_exit(struct task_struct *t)
 	 * affinity change increased the number of allowed CPUs and the
 	 * deferred fixup did not run yet.
 	 */
-	if (WARN_ON_ONCE(mm->mm_cid.percpu))
+	if (WARN_ON_ONCE(cid_on_cpu(mm->mm_cid.mode)))
 		return false;
 	/*
 	 * A failed fork(2) cleanup never gets here, so @current must have
@@ -10664,8 +10727,14 @@ void sched_mm_cid_exit(struct task_struct *t)
 			scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
 				if (!__sched_mm_cid_exit(t))
 					return;
-				/* Mode change required. Transfer currents CID */
-				mm_cid_transit_to_task(current, this_cpu_ptr(mm->mm_cid.pcpu));
+				/*
+				 * Mode change. The task has the CID unset
+				 * already. The CPU CID is still valid and
+				 * does not have MM_CID_TRANSIT set as the
+				 * mode change has just taken effect under
+				 * mm::mm_cid::lock. Drop it.
+				 */
+				mm_drop_cid_on_cpu(mm, this_cpu_ptr(mm->mm_cid.pcpu));
 			}
 			mm_cid_fixup_cpus_to_tasks(mm);
 			return;
@@ -10722,7 +10791,7 @@ static void mm_cid_work_fn(struct work_struct *work)
 		if (!mm_update_max_cids(mm))
 			return;
 		/* Affinity changes can only switch back to task mode */
-		if (WARN_ON_ONCE(mm->mm_cid.percpu))
+		if (WARN_ON_ONCE(cid_on_cpu(mm->mm_cid.mode)))
 			return;
 	}
 	mm_cid_fixup_cpus_to_tasks(mm);
@@ -10743,8 +10812,7 @@ static void mm_cid_irq_work(struct irq_work *work)
 void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
 {
 	mm->mm_cid.max_cids = 0;
-	mm->mm_cid.percpu = 0;
-	mm->mm_cid.transit = 0;
+	mm->mm_cid.mode = 0;
 	mm->mm_cid.nr_cpus_allowed = p->nr_cpus_allowed;
 	mm->mm_cid.users = 0;
 	mm->mm_cid.pcpu_thrs = 0;

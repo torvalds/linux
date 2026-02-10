@@ -557,6 +557,7 @@ r535_gsp_rpc_handle_reply(struct nvkm_gsp *gsp, u32 fn,
 
 	switch (policy) {
 	case NVKM_GSP_RPC_REPLY_NOWAIT:
+	case NVKM_GSP_RPC_REPLY_NOSEQ:
 		break;
 	case NVKM_GSP_RPC_REPLY_RECV:
 		reply = r535_gsp_msg_recv(gsp, fn, gsp_rpc_len);
@@ -587,6 +588,11 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *payload,
 		print_hex_dump(KERN_INFO, "rpc: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       rpc->data, rpc->length - sizeof(*rpc), true);
 	}
+
+	if (policy == NVKM_GSP_RPC_REPLY_NOSEQ)
+		rpc->sequence = 0;
+	else
+		rpc->sequence = gsp->rpc_seq++;
 
 	ret = r535_gsp_cmdq_push(gsp, rpc);
 	if (ret)

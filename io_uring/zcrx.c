@@ -197,6 +197,7 @@ static int io_import_umem(struct io_zcrx_ifq *ifq,
 					GFP_KERNEL_ACCOUNT);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
+		kvfree(pages);
 		return ret;
 	}
 
@@ -1068,8 +1069,6 @@ static unsigned zcrx_parse_rq(netmem_ref *netmem_array, unsigned nr,
 	unsigned int mask = zcrx->rq_entries - 1;
 	unsigned int i;
 
-	guard(spinlock_bh)(&zcrx->rq_lock);
-
 	nr = min(nr, io_zcrx_rqring_entries(zcrx));
 	for (i = 0; i < nr; i++) {
 		struct io_uring_zcrx_rqe *rqe = io_zcrx_get_rqe(zcrx, mask);
@@ -1114,9 +1113,11 @@ static int zcrx_flush_rq(struct io_ring_ctx *ctx, struct io_zcrx_ifq *zcrx,
 		return -EINVAL;
 
 	do {
-		nr = zcrx_parse_rq(netmems, ZCRX_FLUSH_BATCH, zcrx);
+		scoped_guard(spinlock_bh, &zcrx->rq_lock) {
+			nr = zcrx_parse_rq(netmems, ZCRX_FLUSH_BATCH, zcrx);
+			zcrx_return_buffers(netmems, nr);
+		}
 
-		zcrx_return_buffers(netmems, nr);
 		total += nr;
 
 		if (fatal_signal_pending(current))

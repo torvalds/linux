@@ -89,7 +89,7 @@ nv40_gr_chan_bind(struct nvkm_object *object, struct nvkm_gpuobj *parent,
 }
 
 static int
-nv40_gr_chan_fini(struct nvkm_object *object, bool suspend)
+nv40_gr_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nv40_gr_chan *chan = nv40_gr_chan(object);
 	struct nv40_gr *gr = chan->gr;
@@ -101,7 +101,7 @@ nv40_gr_chan_fini(struct nvkm_object *object, bool suspend)
 	nvkm_mask(device, 0x400720, 0x00000001, 0x00000000);
 
 	if (nvkm_rd32(device, 0x40032c) == inst) {
-		if (suspend) {
+		if (suspend != NVKM_POWEROFF) {
 			nvkm_wr32(device, 0x400720, 0x00000000);
 			nvkm_wr32(device, 0x400784, inst);
 			nvkm_mask(device, 0x400310, 0x00000020, 0x00000020);

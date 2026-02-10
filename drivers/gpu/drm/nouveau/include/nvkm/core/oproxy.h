@@ -13,7 +13,7 @@ struct nvkm_oproxy {
 struct nvkm_oproxy_func {
 	void (*dtor[2])(struct nvkm_oproxy *);
 	int  (*init[2])(struct nvkm_oproxy *);
-	int  (*fini[2])(struct nvkm_oproxy *, bool suspend);
+	int  (*fini[2])(struct nvkm_oproxy *, enum nvkm_suspend_state suspend);
 };
 
 void nvkm_oproxy_ctor(const struct nvkm_oproxy_func *,

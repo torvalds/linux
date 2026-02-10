@@ -149,7 +149,7 @@ nvkm_timer_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_timer_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_timer_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_timer *tmr = nvkm_timer(subdev);
 	tmr->func->alarm_fini(tmr);

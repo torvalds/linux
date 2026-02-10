@@ -577,7 +577,7 @@ nvkm_clk_read(struct nvkm_clk *clk, enum nv_clk_src src)
 }
 
 static int
-nvkm_clk_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_clk_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_clk *clk = nvkm_clk(subdev);
 	flush_work(&clk->work);

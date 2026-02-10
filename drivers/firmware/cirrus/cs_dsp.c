@@ -9,6 +9,7 @@
  *                         Cirrus Logic International Semiconductor Ltd.
  */
 
+#include <kunit/visibility.h>
 #include <linux/cleanup.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
@@ -24,6 +25,41 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
 
+#include "cs_dsp.h"
+
+/*
+ * When the KUnit test is running the error-case tests will cause a lot
+ * of messages. Rate-limit to prevent overflowing the kernel log buffer
+ * during KUnit test runs.
+ */
+#if IS_ENABLED(CONFIG_FW_CS_DSP_KUNIT_TEST)
+bool cs_dsp_suppress_err_messages;
+EXPORT_SYMBOL_IF_KUNIT(cs_dsp_suppress_err_messages);
+
+bool cs_dsp_suppress_warn_messages;
+EXPORT_SYMBOL_IF_KUNIT(cs_dsp_suppress_warn_messages);
+
+bool cs_dsp_suppress_info_messages;
+EXPORT_SYMBOL_IF_KUNIT(cs_dsp_suppress_info_messages);
+
+#define cs_dsp_err(_dsp, fmt, ...) \
+	do { \
+		if (!cs_dsp_suppress_err_messages) \
+			dev_err_ratelimited(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__); \
+	} while (false)
+#define cs_dsp_warn(_dsp, fmt, ...) \
+	do { \
+		if (!cs_dsp_suppress_warn_messages) \
+			dev_warn_ratelimited(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__); \
+	} while (false)
+#define cs_dsp_info(_dsp, fmt, ...) \
+	do { \
+		if (!cs_dsp_suppress_info_messages) \
+			dev_info_ratelimited(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__); \
+	} while (false)
+#define cs_dsp_dbg(_dsp, fmt, ...) \
+	dev_dbg_ratelimited(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+#else
 #define cs_dsp_err(_dsp, fmt, ...) \
 	dev_err(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define cs_dsp_warn(_dsp, fmt, ...) \
@@ -32,6 +68,7 @@
 	dev_info(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
 #define cs_dsp_dbg(_dsp, fmt, ...) \
 	dev_dbg(_dsp->dev, "%s: " fmt, _dsp->name, ##__VA_ARGS__)
+#endif
 
 #define ADSP1_CONTROL_1                   0x00
 #define ADSP1_CONTROL_2                   0x02

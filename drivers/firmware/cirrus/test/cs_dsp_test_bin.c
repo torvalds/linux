@@ -17,6 +17,8 @@
 #include <linux/random.h>
 #include <linux/regmap.h>
 
+#include "../cs_dsp.h"
+
 /*
  * Test method is:
  *
@@ -2229,7 +2231,22 @@ static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp,
 		return ret;
 
 	/* Automatically call cs_dsp_remove() when test case ends */
-	return kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	ret = kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	if (ret)
+		return ret;
+
+	/*
+	 * The large number of test cases will cause an unusually large amount
+	 * of dev_info() messages from cs_dsp, so suppress these.
+	 */
+	cs_dsp_suppress_info_messages = true;
+
+	return 0;
+}
+
+static void cs_dsp_bin_test_exit(struct kunit *test)
+{
+	cs_dsp_suppress_info_messages = false;
 }
 
 static int cs_dsp_bin_test_halo_init_common(struct kunit *test, int wmdr_ver)
@@ -2816,6 +2833,7 @@ static struct kunit_case cs_dsp_bin_test_cases_adsp2[] = {
 static struct kunit_suite cs_dsp_bin_test_halo = {
 	.name = "cs_dsp_bin_halo",
 	.init = cs_dsp_bin_test_halo_init,
+	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_halo,
 };
 
@@ -2828,12 +2846,14 @@ static struct kunit_suite cs_dsp_bin_test_halo_wmdr3 = {
 static struct kunit_suite cs_dsp_bin_test_adsp2_32bit = {
 	.name = "cs_dsp_bin_adsp2_32bit",
 	.init = cs_dsp_bin_test_adsp2_32bit_init,
+	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_adsp2,
 };
 
 static struct kunit_suite cs_dsp_bin_test_adsp2_16bit = {
 	.name = "cs_dsp_bin_adsp2_16bit",
 	.init = cs_dsp_bin_test_adsp2_16bit_init,
+	.exit = cs_dsp_bin_test_exit,
 	.test_cases = cs_dsp_bin_test_cases_adsp2,
 };
 

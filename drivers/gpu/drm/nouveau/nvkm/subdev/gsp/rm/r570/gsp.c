@@ -176,7 +176,7 @@ r570_gsp_set_system_info(struct nvkm_gsp *gsp)
 	info->bIsPrimary = video_is_primary_device(device->dev);
 	info->bPreserveVideoMemoryAllocations = false;
 
-	return nvkm_gsp_rpc_wr(gsp, info, NVKM_GSP_RPC_REPLY_NOWAIT);
+	return nvkm_gsp_rpc_wr(gsp, info, NVKM_GSP_RPC_REPLY_NOSEQ);
 }
 
 static void
