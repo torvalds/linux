@@ -3537,7 +3537,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 			/* ftrace and system call events are still OK */
 			if ((event->type > __TRACE_LAST_TYPE) &&
 			    !is_syscall_event(event))
-			return print_event_fields(iter, event);
+				return print_event_fields(iter, event);
 		}
 		return event->funcs->trace(iter, sym_flags, event);
 	}
