@@ -3323,9 +3323,9 @@ fail:
 
 }
 
-static int cache_save_setup(struct btrfs_block_group *block_group,
-			    struct btrfs_trans_handle *trans,
-			    struct btrfs_path *path)
+static void cache_save_setup(struct btrfs_block_group *block_group,
+			     struct btrfs_trans_handle *trans,
+			     struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct inode *inode = NULL;
@@ -3337,7 +3337,7 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 	int ret = 0;
 
 	if (!btrfs_test_opt(fs_info, SPACE_CACHE))
-		return 0;
+		return;
 
 	/*
 	 * If this block group is smaller than 100 megs don't bother caching the
@@ -3347,11 +3347,11 @@ static int cache_save_setup(struct btrfs_block_group *block_group,
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
-		return 0;
+		return;
 	}
 
 	if (TRANS_ABORTED(trans))
-		return 0;
+		return;
 again:
 	inode = lookup_free_space_inode(block_group, path);
 	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
@@ -3432,10 +3432,8 @@ again:
 	 * We hit an ENOSPC when setting up the cache in this transaction, just
 	 * skip doing the setup, we've already cleared the cache so we're safe.
 	 */
-	if (test_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags)) {
-		ret = -ENOSPC;
+	if (test_bit(BTRFS_TRANS_CACHE_ENOSPC, &trans->transaction->flags))
 		goto out_put;
-	}
 
 	/*
 	 * Try to preallocate enough space based on how big the block group is.
@@ -3483,7 +3481,6 @@ out:
 	spin_unlock(&block_group->lock);
 
 	extent_changeset_free(data_reserved);
-	return ret;
 }
 
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans)
