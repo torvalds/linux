@@ -1505,15 +1505,19 @@ thermal_zone_device_register_with_trips(const char *type,
 	const struct thermal_trip *trip = trips;
 	struct thermal_zone_device *tz;
 	struct thermal_trip_desc *td;
+	size_t type_len = 0;
 	int id;
 	int result;
 
-	if (!type || strlen(type) == 0) {
+	if (type)
+		type_len = strnlen(type, THERMAL_NAME_LENGTH);
+
+	if (type_len == 0) {
 		pr_err("No thermal zone type defined\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (strlen(type) >= THERMAL_NAME_LENGTH) {
+	if (type_len == THERMAL_NAME_LENGTH) {
 		pr_err("Thermal zone name (%s) too long, should be under %d chars\n",
 		       type, THERMAL_NAME_LENGTH);
 		return ERR_PTR(-EINVAL);

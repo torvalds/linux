@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sysfs.h>
 #include "processor_thermal_device.h"
 
 MODULE_IMPORT_NS("INT340X_THERMAL");
@@ -211,9 +212,9 @@ static ssize_t suffix##_show(struct device *dev,\
 	ret = (reg_val >> mmio_regs[ret].shift) & mmio_regs[ret].mask;\
 	err = get_mapped_string(mapping, attr->attr.name, ret, &str);\
 	if (!err)\
-		return sprintf(buf, "%s\n", str);\
+		return sysfs_emit(buf, "%s\n", str);\
 	if (err == -EOPNOTSUPP)\
-		return sprintf(buf, "%u\n", ret);\
+		return sysfs_emit(buf, "%u\n", ret);\
 	return err;\
 }
 
@@ -398,7 +399,7 @@ static ssize_t rfi_restriction_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%llu\n", resp);
+	return sysfs_emit(buf, "%llu\n", resp);
 }
 
 static ssize_t ddr_data_rate_show(struct device *dev,
@@ -413,7 +414,7 @@ static ssize_t ddr_data_rate_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%llu\n", resp);
+	return sysfs_emit(buf, "%llu\n", resp);
 }
 
 static DEVICE_ATTR_RW(rfi_restriction);

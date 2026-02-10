@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <linux/sysfs.h>
 #include <linux/cpu.h>
 
 #include <asm/processor.h>
@@ -144,8 +145,8 @@ static ssize_t therm_throt_device_show_##event##_##name(		\
 									\
 	preempt_disable();	/* CPU hotplug */			\
 	if (cpu_online(cpu)) {						\
-		ret = sprintf(buf, "%lu\n",				\
-			      per_cpu(thermal_state, cpu).event.name);	\
+		ret = sysfs_emit(buf, "%lu\n",				\
+			per_cpu(thermal_state, cpu).event.name);	\
 	} else								\
 		ret = 0;						\
 	preempt_enable();						\

@@ -77,6 +77,7 @@ struct thermal_governor {
  * @device:	&struct device for this thermal zone
  * @removal:	removal completion
  * @resume:	resume completion
+ * @trips_attribute_group: trip point sysfs attributes
  * @trips_high:	trips above the current zone temperature
  * @trips_reached:	trips below or at the current zone temperature
  * @trips_invalid:	trips with invalid temperature
@@ -97,9 +98,9 @@ struct thermal_governor {
  * @emul_temperature:	emulated temperature when using CONFIG_THERMAL_EMULATION
  * @passive:		1 if you've crossed a passive trip point, 0 otherwise.
  * @prev_low_trip:	the low current temperature if you've crossed a passive
-			trip point.
+ *			trip point.
  * @prev_high_trip:	the above current temperature if you've crossed a
-			passive trip point.
+ *			passive trip point.
  * @ops:	operations this &thermal_zone_device supports
  * @tzp:	thermal zone parameters
  * @governor:	pointer to the governor for this thermal zone
@@ -111,6 +112,8 @@ struct thermal_governor {
  * @poll_queue:	delayed work for polling
  * @notify_event: Last notification event
  * @state: 	current state of the thermal zone
+ * @debugfs:	this thermal zone device's thermal zone debug info
+ * @user_thresholds: list of userspace thresholds for temp. limit notifications
  * @trips:	array of struct thermal_trip objects
  */
 struct thermal_zone_device {

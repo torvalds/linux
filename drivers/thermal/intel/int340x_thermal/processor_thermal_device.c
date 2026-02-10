@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sysfs.h>
 #include <linux/thermal.h>
 #include <asm/msr.h>
 #include "int340x_thermal_zone.h"
@@ -23,7 +24,7 @@ static ssize_t power_limit_##index##_##suffix##_show(struct device *dev, \
 { \
 	struct proc_thermal_device *proc_dev = dev_get_drvdata(dev); \
 	\
-	return sprintf(buf, "%lu\n",\
+	return sysfs_emit(buf, "%lu\n",\
 	(unsigned long)proc_dev->power_limits[index].suffix * 1000); \
 }
 
@@ -143,7 +144,7 @@ static ssize_t tcc_offset_degree_celsius_show(struct device *dev,
 	if (offset < 0)
 		return offset;
 
-	return sprintf(buf, "%d\n", offset);
+	return sysfs_emit(buf, "%d\n", offset);
 }
 
 static ssize_t tcc_offset_degree_celsius_store(struct device *dev,
