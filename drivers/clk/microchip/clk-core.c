@@ -75,7 +75,6 @@
 /* SoC specific clock needed during SPLL clock rate switch */
 static struct clk_hw *pic32_sclk_hw;
 
-#ifdef CONFIG_MATCH_PIC32
 /* add instruction pipeline delay while CPU clock is in-transition. */
 #define cpu_nop5()			\
 do {					\
@@ -85,9 +84,6 @@ do {					\
 	__asm__ __volatile__("nop");	\
 	__asm__ __volatile__("nop");	\
 } while (0)
-#else
-#define cpu_nop5()
-#endif
 
 /* Perpheral bus clocks */
 struct pic32_periph_clk {
