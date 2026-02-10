@@ -113,6 +113,7 @@ enum btrfs_flush_state {
 	RUN_DELAYED_IPUTS	= 10,
 	COMMIT_TRANS		= 11,
 	RESET_ZONES		= 12,
+	RECLAIM_ZONES		= 13,
 };
 
 enum btrfs_space_info_sub_group {

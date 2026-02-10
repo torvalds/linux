@@ -129,6 +129,15 @@
  *     churn a lot and we can avoid making some extent tree modifications if we
  *     are able to delay for as long as possible.
  *
+ *   RECLAIM_ZONES
+ *     This state only works for the zoned mode. In zoned mode, we cannot reuse
+ *     regions that have once been allocated and then been freed until we reset
+ *     the zone, due to the sequential write requirement. The RECLAIM_ZONES state
+ *     calls the reclaim machinery, evacuating the still valid data in these
+ *     block-groups and relocates it to the data_reloc_bg. Afterwards these
+ *     block-groups get deleted and the transaction is committed. This frees up
+ *     space to use for new allocations.
+ *
  *   RESET_ZONES
  *     This state works only for the zoned mode. On the zoned mode, we cannot
  *     reuse once allocated then freed region until we reset the zone, due to
@@ -905,6 +914,18 @@ static void flush_space(struct btrfs_space_info *space_info, u64 num_bytes,
 		if (ret > 0 || ret == -ENOSPC)
 			ret = 0;
 		break;
+	case RECLAIM_ZONES:
+		if (btrfs_is_zoned(fs_info)) {
+			btrfs_reclaim_sweep(fs_info);
+			btrfs_delete_unused_bgs(fs_info);
+			btrfs_reclaim_bgs(fs_info);
+			flush_work(&fs_info->reclaim_bgs_work);
+			ASSERT(current->journal_info == NULL);
+			ret = btrfs_commit_current_transaction(root);
+		} else {
+			ret = 0;
+		}
+		break;
 	case RUN_DELAYED_IPUTS:
 		/*
 		 * If we have pending delayed iputs then we could free up a
@@ -1403,6 +1424,7 @@ static const enum btrfs_flush_state data_flush_states[] = {
 	FLUSH_DELALLOC_FULL,
 	RUN_DELAYED_IPUTS,
 	COMMIT_TRANS,
+	RECLAIM_ZONES,
 	RESET_ZONES,
 	ALLOC_CHUNK_FORCE,
 };
