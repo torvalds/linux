@@ -5,8 +5,6 @@
 use core::mem::align_of;
 use core::num::NonZero;
 
-use crate::build_assert;
-
 /// Type representing an alignment, which is always a power of two.
 ///
 /// It is used to validate that a given value is a valid alignment, and to perform masking and
@@ -40,10 +38,12 @@ impl Alignment {
     /// ```
     #[inline(always)]
     pub const fn new<const ALIGN: usize>() -> Self {
-        build_assert!(
-            ALIGN.is_power_of_two(),
-            "Provided alignment is not a power of two."
-        );
+        const {
+            assert!(
+                ALIGN.is_power_of_two(),
+                "Provided alignment is not a power of two."
+            );
+        }
 
         // INVARIANT: `align` is a power of two.
         // SAFETY: `align` is a power of two, and thus non-zero.

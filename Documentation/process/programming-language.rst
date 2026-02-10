@@ -34,7 +34,7 @@ Please refer to ``include/linux/compiler_attributes.h`` for more information.
 Rust
 ----
 
-The kernel has experimental support for the Rust programming language
+The kernel has support for the Rust programming language
 [rust-language]_ under ``CONFIG_RUST``. It is compiled with ``rustc`` [rustc]_
 under ``--edition=2021`` [rust-editions]_. Editions are a way to introduce
 small changes to the language that are not backwards compatible.

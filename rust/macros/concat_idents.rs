@@ -1,23 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{token_stream, Ident, TokenStream, TokenTree};
+use proc_macro2::{
+    Ident,
+    TokenStream,
+    TokenTree, //
+};
+use syn::{
+    parse::{
+        Parse,
+        ParseStream, //
+    },
+    Result,
+    Token, //
+};
 
-use crate::helpers::expect_punct;
+pub(crate) struct Input {
+    a: Ident,
+    _comma: Token![,],
+    b: Ident,
+}
 
-fn expect_ident(it: &mut token_stream::IntoIter) -> Ident {
-    if let Some(TokenTree::Ident(ident)) = it.next() {
-        ident
-    } else {
-        panic!("Expected Ident")
+impl Parse for Input {
+    fn parse(input: ParseStream<'_>) -> Result<Self> {
+        Ok(Self {
+            a: input.parse()?,
+            _comma: input.parse()?,
+            b: input.parse()?,
+        })
     }
 }
 
-pub(crate) fn concat_idents(ts: TokenStream) -> TokenStream {
-    let mut it = ts.into_iter();
-    let a = expect_ident(&mut it);
-    assert_eq!(expect_punct(&mut it), ',');
-    let b = expect_ident(&mut it);
-    assert!(it.next().is_none(), "only two idents can be concatenated");
+pub(crate) fn concat_idents(Input { a, b, .. }: Input) -> TokenStream {
     let res = Ident::new(&format!("{a}{b}"), b.span());
     TokenStream::from_iter([TokenTree::Ident(res)])
 }

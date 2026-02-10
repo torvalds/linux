@@ -4,7 +4,6 @@
 
 use kernel::{
     acpi,
-    c_str,
     device::Core,
     i2c,
     of,
@@ -17,21 +16,21 @@ kernel::acpi_device_table! {
     ACPI_TABLE,
     MODULE_ACPI_TABLE,
     <SampleDriver as i2c::Driver>::IdInfo,
-    [(acpi::DeviceId::new(c_str!("LNUXBEEF")), 0)]
+    [(acpi::DeviceId::new(c"LNUXBEEF"), 0)]
 }
 
 kernel::i2c_device_table! {
     I2C_TABLE,
     MODULE_I2C_TABLE,
     <SampleDriver as i2c::Driver>::IdInfo,
-    [(i2c::DeviceId::new(c_str!("rust_driver_i2c")), 0)]
+    [(i2c::DeviceId::new(c"rust_driver_i2c"), 0)]
 }
 
 kernel::of_device_table! {
     OF_TABLE,
     MODULE_OF_TABLE,
     <SampleDriver as i2c::Driver>::IdInfo,
-    [(of::DeviceId::new(c_str!("test,rust_driver_i2c")), 0)]
+    [(of::DeviceId::new(c"test,rust_driver_i2c"), 0)]
 }
 
 impl i2c::Driver for SampleDriver {

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{Ident, TokenStream, TokenTree};
 use std::collections::BTreeSet;
+
+use proc_macro2::{Ident, TokenStream, TokenTree};
+use quote::quote_spanned;
 
 /// Please see [`crate::fmt`] for documentation.
 pub(crate) fn fmt(input: TokenStream) -> TokenStream {

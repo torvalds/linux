@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{Delimiter, Group, Ident, Spacing, Span, TokenTree};
+use proc_macro2::{Delimiter, Group, Ident, Spacing, Span, TokenTree};
 
 fn concat_helper(tokens: &[TokenTree]) -> Vec<(String, Span)> {
     let mut tokens = tokens.iter();

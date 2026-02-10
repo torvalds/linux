@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use core::mem::size_of_val;
-
 use kernel::{
     device,
     dma::{
@@ -34,11 +32,11 @@ use crate::{
 /// that scheme before nova-core becomes stable, which means this module will eventually be
 /// removed.
 mod elf {
-    use core::mem::size_of;
-
-    use kernel::bindings;
-    use kernel::str::CStr;
-    use kernel::transmute::FromBytes;
+    use kernel::{
+        bindings,
+        prelude::*,
+        transmute::FromBytes, //
+    };
 
     /// Newtype to provide a [`FromBytes`] implementation.
     #[repr(transparent)]

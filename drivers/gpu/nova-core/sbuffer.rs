@@ -2,10 +2,7 @@
 
 use core::ops::Deref;
 
-use kernel::{
-    alloc::KVec,
-    prelude::*, //
-};
+use kernel::prelude::*;
 
 /// A buffer abstraction for discontiguous byte slices.
 ///

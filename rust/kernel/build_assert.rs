@@ -61,8 +61,13 @@ macro_rules! build_error {
 ///     build_assert!(N > 1); // Build-time check
 ///     assert!(N > 1); // Run-time check
 /// }
+/// ```
 ///
-/// #[inline]
+/// When a condition depends on a function argument, the function must be annotated with
+/// `#[inline(always)]`. Without this attribute, the compiler may choose to not inline the
+/// function, preventing it from optimizing out the error path.
+/// ```
+/// #[inline(always)]
 /// fn bar(n: usize) {
 ///     // `static_assert!(n > 1);` is not allowed
 ///     build_assert!(n > 1); // Build-time check
