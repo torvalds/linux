@@ -119,12 +119,6 @@ static void init_centaur(struct cpuinfo_x86 *c)
 	u32  fcr_clr = 0;
 	u32  lo, hi, newlo;
 	u32  aa, bb, cc, dd;
-
-	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
-	clear_cpu_cap(c, 0*32+31);
 #endif
 	early_init_centaur(c);
 	init_intel_cacheinfo(c);
