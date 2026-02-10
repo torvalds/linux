@@ -1352,7 +1352,7 @@ static int validate_special_section_klp_reloc(struct elfs *e, struct symbol *sym
 {
 	bool static_branch = !strcmp(sym->sec->name, "__jump_table");
 	bool static_call   = !strcmp(sym->sec->name, ".static_call_sites");
-	struct symbol *code_sym = NULL;
+	const char *code_sym = NULL;
 	unsigned long code_offset = 0;
 	struct reloc *reloc;
 	int ret = 0;
@@ -1372,7 +1372,7 @@ static int validate_special_section_klp_reloc(struct elfs *e, struct symbol *sym
 
 			/* Save code location which can be printed below */
 			if (reloc->sym->type == STT_FUNC && !code_sym) {
-				code_sym = reloc->sym;
+				code_sym = reloc->sym->name;
 				code_offset = reloc_addend(reloc);
 			}
 
@@ -1395,23 +1395,26 @@ static int validate_special_section_klp_reloc(struct elfs *e, struct symbol *sym
 		if (!strcmp(sym_modname, "vmlinux"))
 			continue;
 
+		if (!code_sym)
+			code_sym = "<unknown>";
+
 		if (static_branch) {
 			if (strstarts(reloc->sym->name, "__tracepoint_")) {
 				WARN("%s: disabling unsupported tracepoint %s",
-				     code_sym->name, reloc->sym->name + 13);
+				     code_sym, reloc->sym->name + 13);
 				ret = 1;
 				continue;
 			}
 
 			if (strstr(reloc->sym->name, "__UNIQUE_ID_ddebug_")) {
 				WARN("%s: disabling unsupported pr_debug()",
-				     code_sym->name);
+				     code_sym);
 				ret = 1;
 				continue;
 			}
 
 			ERROR("%s+0x%lx: unsupported static branch key %s.  Use static_key_enabled() instead",
-			      code_sym->name, code_offset, reloc->sym->name);
+			      code_sym, code_offset, reloc->sym->name);
 			return -1;
 		}
 
@@ -1422,7 +1425,7 @@ static int validate_special_section_klp_reloc(struct elfs *e, struct symbol *sym
 		}
 
 		ERROR("%s()+0x%lx: unsupported static call key %s.  Use KLP_STATIC_CALL() instead",
-		      code_sym->name, code_offset, reloc->sym->name);
+		      code_sym, code_offset, reloc->sym->name);
 		return -1;
 	}
 
