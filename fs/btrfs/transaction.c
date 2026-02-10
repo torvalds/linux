@@ -503,7 +503,7 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 		return 0;
 
 	mutex_lock(&fs_info->reloc_mutex);
-	ret = record_root_in_trans(trans, root, 0);
+	ret = record_root_in_trans(trans, root, false);
 	mutex_unlock(&fs_info->reloc_mutex);
 
 	return ret;
@@ -1579,7 +1579,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * recorded root will never be updated again, causing an outdated root
 	 * item.
 	 */
-	ret = record_root_in_trans(trans, src, 1);
+	ret = record_root_in_trans(trans, src, true);
 	if (ret)
 		return ret;
 
@@ -1642,7 +1642,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	 * Or it won't be committed again onto disk after later
 	 * insert_dir_item()
 	 */
-	return record_root_in_trans(trans, parent, 1);
+	return record_root_in_trans(trans, parent, true);
 }
 
 /*
@@ -1726,7 +1726,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				      trans->transid,
 				      trans->bytes_reserved, 1);
 	parent_root = parent_inode->root;
-	ret = record_root_in_trans(trans, parent_root, 0);
+	ret = record_root_in_trans(trans, parent_root, false);
 	if (unlikely(ret))
 		goto fail;
 	cur_time = current_time(&parent_inode->vfs_inode);
@@ -1774,7 +1774,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	ret = record_root_in_trans(trans, root, 0);
+	ret = record_root_in_trans(trans, root, false);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;

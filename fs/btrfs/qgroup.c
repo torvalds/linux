@@ -2740,8 +2740,6 @@ static void qgroup_iterator_nested_clean(struct list_head *head)
 	}
 }
 
-#define UPDATE_NEW	0
-#define UPDATE_OLD	1
 /*
  * Walk all of the roots that points to the bytenr and adjust their refcnts.
  */
@@ -2980,10 +2978,10 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	seq = fs_info->qgroup_seq;
 
 	/* Update old refcnts using old_roots */
-	qgroup_update_refcnt(fs_info, old_roots, &qgroups, seq, UPDATE_OLD);
+	qgroup_update_refcnt(fs_info, old_roots, &qgroups, seq, true);
 
 	/* Update new refcnts using new_roots */
-	qgroup_update_refcnt(fs_info, new_roots, &qgroups, seq, UPDATE_NEW);
+	qgroup_update_refcnt(fs_info, new_roots, &qgroups, seq, false);
 
 	qgroup_update_counters(fs_info, &qgroups, nr_old_roots, nr_new_roots,
 			       num_bytes, seq);

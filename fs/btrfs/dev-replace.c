@@ -697,7 +697,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	/* the disk copy procedure reuses the scrub code */
 	ret = btrfs_scrub_dev(fs_info, src_device->devid, 0,
 			      btrfs_device_get_total_bytes(src_device),
-			      &dev_replace->scrub_progress, 0, 1);
+			      &dev_replace->scrub_progress, false, true);
 
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
 	if (ret == -EINPROGRESS)
@@ -1255,7 +1255,7 @@ static int btrfs_dev_replace_kthread(void *data)
 	ret = btrfs_scrub_dev(fs_info, dev_replace->srcdev->devid,
 			      dev_replace->committed_cursor_left,
 			      btrfs_device_get_total_bytes(dev_replace->srcdev),
-			      &dev_replace->scrub_progress, 0, 1);
+			      &dev_replace->scrub_progress, false, true);
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
 	WARN_ON(ret && ret != -ECANCELED);
 

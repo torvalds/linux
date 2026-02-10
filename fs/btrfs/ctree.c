@@ -3887,7 +3887,7 @@ static noinline int setup_leaf_for_split(struct btrfs_trans_handle *trans,
 			goto err;
 	}
 
-	ret = split_leaf(trans, root, &key, path, ins_len, 1);
+	ret = split_leaf(trans, root, &key, path, ins_len, true);
 	if (ret)
 		goto err;
 
