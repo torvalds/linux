@@ -912,13 +912,12 @@ static struct file *mqueue_file_open(struct filename *name,
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
-	struct filename *name __free(putname) = NULL;;
 	struct vfsmount *mnt = current->nsproxy->ipc_ns->mq_mnt;
 	int fd, ro;
 
 	audit_mq_open(oflag, mode, attr);
 
-	name = getname(u_name);
+	CLASS(filename, name)(u_name);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -942,20 +941,19 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 {
 	int err;
-	struct filename *name;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 	struct vfsmount *mnt = ipc_ns->mq_mnt;
+	CLASS(filename, name)(u_name);
 
-	name = getname(u_name);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
 	audit_inode_parent_hidden(name, mnt->mnt_root);
 	err = mnt_want_write(mnt);
 	if (err)
-		goto out_name;
+		return err;
 	dentry = start_removing_noperm(mnt->mnt_root, &QSTR(name->name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -971,9 +969,6 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 out_drop_write:
 	mnt_drop_write(mnt);
-out_name:
-	putname(name);
-
 	return err;
 }
 

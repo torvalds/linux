@@ -1340,3 +1340,14 @@ The ->setlease() file_operation must now be explicitly set in order to provide
 support for leases. When set to NULL, the kernel will now return -EINVAL to
 attempts to set a lease. Filesystems that wish to use the kernel-internal lease
 implementation should set it to generic_setlease().
+
+---
+
+**mandatory**
+
+fs/namei.c primitives that consume filesystem references (do_renameat2(),
+do_linkat(), do_symlinkat(), do_mkdirat(), do_mknodat(), do_unlinkat()
+and do_rmdir()) are gone; they are replaced with non-consuming analogues
+(filename_renameat2(), etc.)
+Callers are adjusted - responsibility for dropping the filenames belongs
+to them now.

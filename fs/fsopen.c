@@ -181,9 +181,9 @@ SYSCALL_DEFINE3(fspick, int, dfd, const char __user *, path, unsigned int, flags
 		lookup_flags &= ~LOOKUP_FOLLOW;
 	if (flags & FSPICK_NO_AUTOMOUNT)
 		lookup_flags &= ~LOOKUP_AUTOMOUNT;
-	if (flags & FSPICK_EMPTY_PATH)
-		lookup_flags |= LOOKUP_EMPTY;
-	ret = user_path_at(dfd, path, lookup_flags, &target);
+	CLASS(filename_flags, filename)(path,
+			 (flags & FSPICK_EMPTY_PATH) ? LOOKUP_EMPTY : 0);
+	ret = filename_lookup(dfd, filename, lookup_flags, &target, NULL);
 	if (ret < 0)
 		goto err;
 

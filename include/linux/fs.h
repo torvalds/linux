@@ -2418,14 +2418,19 @@ extern struct kobject *fs_kobj;
 
 /* fs/open.c */
 struct audit_names;
-struct filename {
+
+struct __filename_head {
 	const char		*name;	/* pointer to actual string */
-	const __user char	*uptr;	/* original userland pointer */
-	atomic_t		refcnt;
+	int			refcnt;
 	struct audit_names	*aname;
-	const char		iname[];
+};
+#define EMBEDDED_NAME_MAX	(192 - sizeof(struct __filename_head))
+struct filename {
+	struct __filename_head;
+	const char		iname[EMBEDDED_NAME_MAX];
 };
 static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
+static_assert(sizeof(struct filename) % 64 == 0);
 
 static inline struct mnt_idmap *file_mnt_idmap(const struct file *file)
 {
@@ -2520,11 +2525,23 @@ static inline struct filename *getname_maybe_null(const char __user *name, int f
 extern void putname(struct filename *name);
 DEFINE_FREE(putname, struct filename *, if (!IS_ERR_OR_NULL(_T)) putname(_T))
 
-static inline struct filename *refname(struct filename *name)
-{
-	atomic_inc(&name->refcnt);
-	return name;
-}
+struct delayed_filename {
+	struct filename *__incomplete_filename;	// don't touch
+};
+#define INIT_DELAYED_FILENAME(ptr) \
+	((void)(*(ptr) = (struct delayed_filename){}))
+int delayed_getname(struct delayed_filename *, const char __user *);
+int delayed_getname_uflags(struct delayed_filename *v, const char __user *, int);
+void dismiss_delayed_filename(struct delayed_filename *);
+int putname_to_delayed(struct delayed_filename *, struct filename *);
+struct filename *complete_getname(struct delayed_filename *);
+
+DEFINE_CLASS(filename, struct filename *, putname(_T), getname(p), const char __user *p)
+EXTEND_CLASS(filename, _kernel, getname_kernel(p), const char *p)
+EXTEND_CLASS(filename, _flags, getname_flags(p, f), const char __user *p, unsigned int f)
+EXTEND_CLASS(filename, _uflags, getname_uflags(p, f), const char __user *p, unsigned int f)
+EXTEND_CLASS(filename, _maybe_null, getname_maybe_null(p, f), const char __user *p, unsigned int f)
+EXTEND_CLASS(filename, _complete_delayed, complete_getname(p), struct delayed_filename *p)
 
 extern int finish_open(struct file *file, struct dentry *dentry,
 			int (*open)(struct inode *, struct file *));
@@ -2543,10 +2560,8 @@ static inline int finish_open_simple(struct file *file, int error)
 extern void __init vfs_caches_init_early(void);
 extern void __init vfs_caches_init(void);
 
-extern struct kmem_cache *names_cachep;
-
-#define __getname()		kmem_cache_alloc(names_cachep, GFP_KERNEL)
-#define __putname(name)		kmem_cache_free(names_cachep, (void *)(name))
+#define __getname()		kmalloc(PATH_MAX, GFP_KERNEL)
+#define __putname(name)		kfree(name)
 
 void emergency_thaw_all(void);
 extern int sync_filesystem(struct super_block *);
