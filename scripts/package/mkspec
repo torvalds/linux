@@ -23,6 +23,8 @@ else
 echo '%define with_devel 0'
 fi
 
+# use %{debug_package} machinery to generate -debuginfo
+with_debuginfo_rpm=0
 # manually generate -debuginfo package
 with_debuginfo_manual=0
 # debuginfo package generation uses find-debuginfo.sh under the hood,
@@ -56,9 +58,12 @@ if grep -q CONFIG_DEBUG_INFO=y include/config/auto.conf &&
 				with_debuginfo_manual='%{?_without_debuginfo:0}%{?!_without_debuginfo:1}'
 			fi
 		fi
+	else
+		with_debuginfo_rpm='%{?_without_debuginfo:0}%{?!_without_debuginfo:1}'
 	fi
 fi
 echo "%define with_debuginfo_manual $with_debuginfo_manual"
+echo "%define with_debuginfo_rpm $with_debuginfo_rpm"
 
 cat<<EOF
 %define ARCH ${ARCH}
