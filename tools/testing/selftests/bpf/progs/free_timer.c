@@ -7,6 +7,16 @@
 
 #define MAX_ENTRIES 8
 
+/* clang considers 'sum += 1' as usage but 'sum++' as non-usage.  GCC
+ * is more consistent and considers both 'sum += 1' and 'sum++' as
+ * non-usage.  This triggers warnings in the functions below.
+ *
+ * Starting with GCC 16 -Wunused-but-set-variable=2 can be used to
+ * mimic clang's behavior.  */
+#if !defined(__clang__) && __GNUC__ > 15
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 struct map_value {
 	struct bpf_timer timer;
 };

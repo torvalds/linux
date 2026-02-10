@@ -23,7 +23,12 @@ static const int cfg_udp_src = 20000;
 	(((__u64)len & BPF_ADJ_ROOM_ENCAP_L2_MASK)	\
 	 << BPF_ADJ_ROOM_ENCAP_L2_SHIFT)
 
-#define	L2_PAD_SZ	(sizeof(struct vxlanhdr) + ETH_HLEN)
+struct vxlanhdr___local {
+	__be32 vx_flags;
+	__be32 vx_vni;
+};
+
+#define	L2_PAD_SZ	(sizeof(struct vxlanhdr___local) + ETH_HLEN)
 
 #define	UDP_PORT		5555
 #define	MPLS_OVER_UDP_PORT	6635
@@ -154,7 +159,7 @@ static __always_inline int __encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 		l2_len = ETH_HLEN;
 		if (ext_proto & EXTPROTO_VXLAN) {
 			udp_dst = VXLAN_UDP_PORT;
-			l2_len += sizeof(struct vxlanhdr);
+			l2_len += sizeof(struct vxlanhdr___local);
 		} else
 			udp_dst = ETH_OVER_UDP_PORT;
 		break;
@@ -195,12 +200,12 @@ static __always_inline int __encap_ipv4(struct __sk_buff *skb, __u8 encap_proto,
 		flags |= BPF_F_ADJ_ROOM_ENCAP_L2_ETH;
 
 		if (ext_proto & EXTPROTO_VXLAN) {
-			struct vxlanhdr *vxlan_hdr = (struct vxlanhdr *)l2_hdr;
+			struct vxlanhdr___local *vxlan_hdr = (struct vxlanhdr___local *)l2_hdr;
 
 			vxlan_hdr->vx_flags = VXLAN_FLAGS;
 			vxlan_hdr->vx_vni = VXLAN_VNI;
 
-			l2_hdr += sizeof(struct vxlanhdr);
+			l2_hdr += sizeof(struct vxlanhdr___local);
 		}
 
 		if (bpf_skb_load_bytes(skb, 0, l2_hdr, ETH_HLEN))
@@ -285,7 +290,7 @@ static __always_inline int __encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 		l2_len = ETH_HLEN;
 		if (ext_proto & EXTPROTO_VXLAN) {
 			udp_dst = VXLAN_UDP_PORT;
-			l2_len += sizeof(struct vxlanhdr);
+			l2_len += sizeof(struct vxlanhdr___local);
 		} else
 			udp_dst = ETH_OVER_UDP_PORT;
 		break;
@@ -325,12 +330,12 @@ static __always_inline int __encap_ipv6(struct __sk_buff *skb, __u8 encap_proto,
 		flags |= BPF_F_ADJ_ROOM_ENCAP_L2_ETH;
 
 		if (ext_proto & EXTPROTO_VXLAN) {
-			struct vxlanhdr *vxlan_hdr = (struct vxlanhdr *)l2_hdr;
+			struct vxlanhdr___local *vxlan_hdr = (struct vxlanhdr___local *)l2_hdr;
 
 			vxlan_hdr->vx_flags = VXLAN_FLAGS;
 			vxlan_hdr->vx_vni = VXLAN_VNI;
 
-			l2_hdr += sizeof(struct vxlanhdr);
+			l2_hdr += sizeof(struct vxlanhdr___local);
 		}
 
 		if (bpf_skb_load_bytes(skb, 0, l2_hdr, ETH_HLEN))
@@ -639,7 +644,7 @@ static int decap_internal(struct __sk_buff *skb, int off, int len, char proto)
 			olen += ETH_HLEN;
 			break;
 		case VXLAN_UDP_PORT:
-			olen += ETH_HLEN + sizeof(struct vxlanhdr);
+			olen += ETH_HLEN + sizeof(struct vxlanhdr___local);
 			break;
 		}
 		break;

@@ -131,6 +131,25 @@ static int kern_sync_rcu_tasks_trace(struct rcu_tasks_trace_gp *rcu)
 	return 0;
 }
 
+static void wait_for_map_release(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, lopts);
+	struct map_kptr *skel;
+	int ret;
+
+	skel = map_kptr__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "map_kptr__open_and_load"))
+		return;
+
+	do {
+		ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.count_ref), &lopts);
+		ASSERT_OK(ret, "count_ref ret");
+		ASSERT_OK(lopts.retval, "count_ref retval");
+	} while (skel->bss->num_of_refs != 2);
+
+	map_kptr__destroy(skel);
+}
+
 void serial_test_map_kptr(void)
 {
 	struct rcu_tasks_trace_gp *skel;
@@ -148,11 +167,15 @@ void serial_test_map_kptr(void)
 
 		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
 		ASSERT_OK(kern_sync_rcu(), "sync rcu");
+		wait_for_map_release();
+
 		/* Observe refcount dropping to 1 on bpf_map_free_deferred */
 		test_map_kptr_success(false);
 
 		ASSERT_OK(kern_sync_rcu_tasks_trace(skel), "sync rcu_tasks_trace");
 		ASSERT_OK(kern_sync_rcu(), "sync rcu");
+		wait_for_map_release();
+
 		/* Observe refcount dropping to 1 on synchronous delete elem */
 		test_map_kptr_success(true);
 	}

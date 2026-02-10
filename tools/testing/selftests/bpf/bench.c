@@ -265,6 +265,7 @@ static const struct argp_option opts[] = {
 	{ "verbose", 'v', NULL, 0, "Verbose debug output"},
 	{ "affinity", 'a', NULL, 0, "Set consumer/producer thread affinity"},
 	{ "quiet", 'q', NULL, 0, "Be more quiet"},
+	{ "stacktrace", 's', NULL, 0, "Get stack trace"},
 	{ "prod-affinity", ARG_PROD_AFFINITY_SET, "CPUSET", 0,
 	  "Set of CPUs for producer threads; implies --affinity"},
 	{ "cons-affinity", ARG_CONS_AFFINITY_SET, "CPUSET", 0,
@@ -349,6 +350,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'q':
 		env.quiet = true;
+		break;
+	case 's':
+		env.stacktrace = true;
 		break;
 	case ARG_PROD_AFFINITY_SET:
 		env.affinity = true;

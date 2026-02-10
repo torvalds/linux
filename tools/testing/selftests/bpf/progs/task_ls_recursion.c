@@ -36,14 +36,9 @@ int BPF_PROG(on_update)
 	if (!test_pid || task->pid != test_pid)
 		return 0;
 
+	/* This will succeed as there is no real deadlock */
 	ptr = bpf_task_storage_get(&map_a, task, 0,
 				   BPF_LOCAL_STORAGE_GET_F_CREATE);
-	/* ptr will not be NULL when it is called from
-	 * the bpf_task_storage_get(&map_b,...F_CREATE) in
-	 * the BPF_PROG(on_enter) below.  It is because
-	 * the value can be found in map_a and the kernel
-	 * does not need to acquire any spin_lock.
-	 */
 	if (ptr) {
 		int err;
 
@@ -53,12 +48,7 @@ int BPF_PROG(on_update)
 			nr_del_errs++;
 	}
 
-	/* This will still fail because map_b is empty and
-	 * this BPF_PROG(on_update) has failed to acquire
-	 * the percpu busy lock => meaning potential
-	 * deadlock is detected and it will fail to create
-	 * new storage.
-	 */
+	/* This will succeed as there is no real deadlock */
 	ptr = bpf_task_storage_get(&map_b, task, 0,
 				   BPF_LOCAL_STORAGE_GET_F_CREATE);
 	if (ptr)

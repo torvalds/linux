@@ -34,11 +34,12 @@ following types:
 - ``BPF_PROG_TYPE_LWT_IN``
 - ``BPF_PROG_TYPE_LWT_OUT``
 - ``BPF_PROG_TYPE_LWT_XMIT``
-- ``BPF_PROG_TYPE_LWT_SEG6LOCAL``
 - ``BPF_PROG_TYPE_FLOW_DISSECTOR``
 - ``BPF_PROG_TYPE_STRUCT_OPS``
 - ``BPF_PROG_TYPE_RAW_TRACEPOINT``
 - ``BPF_PROG_TYPE_SYSCALL``
+- ``BPF_PROG_TYPE_TRACING``
+- ``BPF_PROG_TYPE_NETFILTER``
 
 When using the ``BPF_PROG_RUN`` command, userspace supplies an input context
 object and (for program types operating on network packets) a buffer containing

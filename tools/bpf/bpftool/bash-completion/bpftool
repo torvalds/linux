@@ -1142,7 +1142,14 @@ _bpftool()
                             return 0
                             ;;
                         8)
-                            _bpftool_once_attr 'overwrite'
+                            case ${words[3]} in
+                                tcx_ingress|tcx_egress)
+                                    _bpftool_once_attr 'prepend'
+                                    ;;
+                                *)
+                                    _bpftool_once_attr 'overwrite'
+                                    ;;
+                            esac
                             return 0
                             ;;
                     esac
