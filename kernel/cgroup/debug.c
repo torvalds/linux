@@ -230,7 +230,7 @@ static int cgroup_subsys_states_read(struct seq_file *seq, void *v)
 }
 
 static void cgroup_masks_read_one(struct seq_file *seq, const char *name,
-				  u16 mask)
+				  u32 mask)
 {
 	struct cgroup_subsys *ss;
 	int ssid;
