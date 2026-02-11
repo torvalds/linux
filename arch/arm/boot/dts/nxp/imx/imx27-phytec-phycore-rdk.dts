@@ -89,119 +89,117 @@
 };
 
 &iomuxc {
-	imx27_phycore_rdk {
-		pinctrl_csien: csiengrp {
-			fsl,pins = <
-				MX27_PAD_USB_OC_B__GPIO2_24 0x0
-			>;
-		};
+	pinctrl_csien: csiengrp {
+		fsl,pins = <
+			MX27_PAD_USB_OC_B__GPIO2_24 0x0
+		>;
+	};
 
-		pinctrl_cspi1cs1: cspi1cs1grp {
-			fsl,pins = <
-				MX27_PAD_CSPI1_SS1__GPIO4_27 0x0
-			>;
-		};
+	pinctrl_cspi1cs1: cspi1cs1grp {
+		fsl,pins = <
+			MX27_PAD_CSPI1_SS1__GPIO4_27 0x0
+		>;
+	};
 
-		pinctrl_imxfb1: imxfbgrp {
-			fsl,pins = <
-				MX27_PAD_LD0__LD0 0x0
-				MX27_PAD_LD1__LD1 0x0
-				MX27_PAD_LD2__LD2 0x0
-				MX27_PAD_LD3__LD3 0x0
-				MX27_PAD_LD4__LD4 0x0
-				MX27_PAD_LD5__LD5 0x0
-				MX27_PAD_LD6__LD6 0x0
-				MX27_PAD_LD7__LD7 0x0
-				MX27_PAD_LD8__LD8 0x0
-				MX27_PAD_LD9__LD9 0x0
-				MX27_PAD_LD10__LD10 0x0
-				MX27_PAD_LD11__LD11 0x0
-				MX27_PAD_LD12__LD12 0x0
-				MX27_PAD_LD13__LD13 0x0
-				MX27_PAD_LD14__LD14 0x0
-				MX27_PAD_LD15__LD15 0x0
-				MX27_PAD_LD16__LD16 0x0
-				MX27_PAD_LD17__LD17 0x0
-				MX27_PAD_CLS__CLS 0x0
-				MX27_PAD_CONTRAST__CONTRAST 0x0
-				MX27_PAD_LSCLK__LSCLK 0x0
-				MX27_PAD_OE_ACD__OE_ACD 0x0
-				MX27_PAD_PS__PS 0x0
-				MX27_PAD_REV__REV 0x0
-				MX27_PAD_SPL_SPR__SPL_SPR 0x0
-				MX27_PAD_HSYNC__HSYNC 0x0
-				MX27_PAD_VSYNC__VSYNC 0x0
-			>;
-		};
+	pinctrl_imxfb1: imxfbgrp {
+		fsl,pins = <
+			MX27_PAD_LD0__LD0 0x0
+			MX27_PAD_LD1__LD1 0x0
+			MX27_PAD_LD2__LD2 0x0
+			MX27_PAD_LD3__LD3 0x0
+			MX27_PAD_LD4__LD4 0x0
+			MX27_PAD_LD5__LD5 0x0
+			MX27_PAD_LD6__LD6 0x0
+			MX27_PAD_LD7__LD7 0x0
+			MX27_PAD_LD8__LD8 0x0
+			MX27_PAD_LD9__LD9 0x0
+			MX27_PAD_LD10__LD10 0x0
+			MX27_PAD_LD11__LD11 0x0
+			MX27_PAD_LD12__LD12 0x0
+			MX27_PAD_LD13__LD13 0x0
+			MX27_PAD_LD14__LD14 0x0
+			MX27_PAD_LD15__LD15 0x0
+			MX27_PAD_LD16__LD16 0x0
+			MX27_PAD_LD17__LD17 0x0
+			MX27_PAD_CLS__CLS 0x0
+			MX27_PAD_CONTRAST__CONTRAST 0x0
+			MX27_PAD_LSCLK__LSCLK 0x0
+			MX27_PAD_OE_ACD__OE_ACD 0x0
+			MX27_PAD_PS__PS 0x0
+			MX27_PAD_REV__REV 0x0
+			MX27_PAD_SPL_SPR__SPL_SPR 0x0
+			MX27_PAD_HSYNC__HSYNC 0x0
+			MX27_PAD_VSYNC__VSYNC 0x0
+		>;
+	};
 
-		pinctrl_i2c1: i2c1grp {
-			/* Add pullup to DATA line */
-			fsl,pins = <
-				MX27_PAD_I2C_DATA__I2C_DATA	0x1
-				MX27_PAD_I2C_CLK__I2C_CLK	0x0
-			>;
-		};
+	pinctrl_i2c1: i2c1grp {
+		/* Add pullup to DATA line */
+		fsl,pins = <
+			MX27_PAD_I2C_DATA__I2C_DATA	0x1
+			MX27_PAD_I2C_CLK__I2C_CLK	0x0
+		>;
+	};
 
-		pinctrl_owire1: owire1grp {
-			fsl,pins = <
-				MX27_PAD_RTCK__OWIRE 0x0
-			>;
-		};
+	pinctrl_owire1: owire1grp {
+		fsl,pins = <
+			MX27_PAD_RTCK__OWIRE 0x0
+		>;
+	};
 
-		pinctrl_sdhc2: sdhc2grp {
-			fsl,pins = <
-				MX27_PAD_SD2_CLK__SD2_CLK 0x0
-				MX27_PAD_SD2_CMD__SD2_CMD 0x0
-				MX27_PAD_SD2_D0__SD2_D0 0x0
-				MX27_PAD_SD2_D1__SD2_D1 0x0
-				MX27_PAD_SD2_D2__SD2_D2 0x0
-				MX27_PAD_SD2_D3__SD2_D3 0x0
-				MX27_PAD_SSI3_FS__GPIO3_28	0x0 /* WP */
-				MX27_PAD_SSI3_RXDAT__GPIO3_29	0x0 /* CD */
-			>;
-		};
+	pinctrl_sdhc2: sdhc2grp {
+		fsl,pins = <
+			MX27_PAD_SD2_CLK__SD2_CLK 0x0
+			MX27_PAD_SD2_CMD__SD2_CMD 0x0
+			MX27_PAD_SD2_D0__SD2_D0 0x0
+			MX27_PAD_SD2_D1__SD2_D1 0x0
+			MX27_PAD_SD2_D2__SD2_D2 0x0
+			MX27_PAD_SD2_D3__SD2_D3 0x0
+			MX27_PAD_SSI3_FS__GPIO3_28	0x0 /* WP */
+			MX27_PAD_SSI3_RXDAT__GPIO3_29	0x0 /* CD */
+		>;
+	};
 
-		pinctrl_uart1: uart1grp {
-			fsl,pins = <
-				MX27_PAD_UART1_TXD__UART1_TXD 0x0
-				MX27_PAD_UART1_RXD__UART1_RXD 0x0
-				MX27_PAD_UART1_CTS__UART1_CTS 0x0
-				MX27_PAD_UART1_RTS__UART1_RTS 0x0
-			>;
-		};
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX27_PAD_UART1_TXD__UART1_TXD 0x0
+			MX27_PAD_UART1_RXD__UART1_RXD 0x0
+			MX27_PAD_UART1_CTS__UART1_CTS 0x0
+			MX27_PAD_UART1_RTS__UART1_RTS 0x0
+		>;
+	};
 
-		pinctrl_uart2: uart2grp {
-			fsl,pins = <
-				MX27_PAD_UART2_TXD__UART2_TXD 0x0
-				MX27_PAD_UART2_RXD__UART2_RXD 0x0
-				MX27_PAD_UART2_CTS__UART2_CTS 0x0
-				MX27_PAD_UART2_RTS__UART2_RTS 0x0
-			>;
-		};
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX27_PAD_UART2_TXD__UART2_TXD 0x0
+			MX27_PAD_UART2_RXD__UART2_RXD 0x0
+			MX27_PAD_UART2_CTS__UART2_CTS 0x0
+			MX27_PAD_UART2_RTS__UART2_RTS 0x0
+		>;
+	};
 
-		pinctrl_usbh2: usbh2grp {
-			fsl,pins = <
-				MX27_PAD_USBH2_CLK__USBH2_CLK 0x0
-				MX27_PAD_USBH2_DIR__USBH2_DIR 0x0
-				MX27_PAD_USBH2_NXT__USBH2_NXT 0x0
-				MX27_PAD_USBH2_STP__USBH2_STP 0x0
-				MX27_PAD_CSPI2_SCLK__USBH2_DATA0 0x0
-				MX27_PAD_CSPI2_MOSI__USBH2_DATA1 0x0
-				MX27_PAD_CSPI2_MISO__USBH2_DATA2 0x0
-				MX27_PAD_CSPI2_SS1__USBH2_DATA3 0x0
-				MX27_PAD_CSPI2_SS2__USBH2_DATA4 0x0
-				MX27_PAD_CSPI1_SS2__USBH2_DATA5 0x0
-				MX27_PAD_CSPI2_SS0__USBH2_DATA6 0x0
-				MX27_PAD_USBH2_DATA7__USBH2_DATA7 0x0
-			>;
-		};
+	pinctrl_usbh2: usbh2grp {
+		fsl,pins = <
+			MX27_PAD_USBH2_CLK__USBH2_CLK 0x0
+			MX27_PAD_USBH2_DIR__USBH2_DIR 0x0
+			MX27_PAD_USBH2_NXT__USBH2_NXT 0x0
+			MX27_PAD_USBH2_STP__USBH2_STP 0x0
+			MX27_PAD_CSPI2_SCLK__USBH2_DATA0 0x0
+			MX27_PAD_CSPI2_MOSI__USBH2_DATA1 0x0
+			MX27_PAD_CSPI2_MISO__USBH2_DATA2 0x0
+			MX27_PAD_CSPI2_SS1__USBH2_DATA3 0x0
+			MX27_PAD_CSPI2_SS2__USBH2_DATA4 0x0
+			MX27_PAD_CSPI1_SS2__USBH2_DATA5 0x0
+			MX27_PAD_CSPI2_SS0__USBH2_DATA6 0x0
+			MX27_PAD_USBH2_DATA7__USBH2_DATA7 0x0
+		>;
+	};
 
-		pinctrl_weim: weimgrp {
-			fsl,pins = <
-				MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
-				MX27_PAD_SD1_D1__GPIO5_19	0x0 /* CAN IRQ */
-			>;
-		};
+	pinctrl_weim: weimgrp {
+		fsl,pins = <
+			MX27_PAD_CS4_B__CS4_B		0x0 /* CS4 */
+			MX27_PAD_SD1_D1__GPIO5_19	0x0 /* CAN IRQ */
+		>;
 	};
 };
 
