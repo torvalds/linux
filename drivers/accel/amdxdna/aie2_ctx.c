@@ -629,7 +629,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		goto free_entity;
 	}
 
-	ret = amdxdna_pm_resume_get(xdna);
+	ret = amdxdna_pm_resume_get_locked(xdna);
 	if (ret)
 		goto free_col_list;
 
@@ -760,7 +760,7 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	if (!hwctx->cus)
 		return -ENOMEM;
 
-	ret = amdxdna_pm_resume_get(xdna);
+	ret = amdxdna_pm_resume_get_locked(xdna);
 	if (ret)
 		goto free_cus;
 
