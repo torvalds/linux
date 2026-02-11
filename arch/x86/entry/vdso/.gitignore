@@ -2,4 +2,5 @@
 *.lds
 *.so
 *.so.dbg
-vdso*-image.c
+vdso*-image*.c
+vdso2c
