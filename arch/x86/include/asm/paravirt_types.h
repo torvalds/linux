@@ -7,38 +7,17 @@
 #ifndef __ASSEMBLER__
 #include <linux/types.h>
 
+#include <asm/paravirt-base.h>
 #include <asm/desc_defs.h>
 #include <asm/pgtable_types.h>
 #include <asm/nospec-branch.h>
 
-struct page;
 struct thread_struct;
-struct desc_ptr;
-struct tss_struct;
 struct mm_struct;
-struct desc_struct;
 struct task_struct;
 struct cpumask;
 struct flush_tlb_info;
-struct mmu_gather;
 struct vm_area_struct;
-
-/*
- * Wrapper type for pointers to code which uses the non-standard
- * calling convention.  See PV_CALL_SAVE_REGS_THUNK below.
- */
-struct paravirt_callee_save {
-	void *func;
-};
-
-/* general info */
-struct pv_info {
-#ifdef CONFIG_PARAVIRT_XXL
-	u16 extra_user_64bit_cs;  /* __USER_CS if none */
-#endif
-
-	const char *name;
-};
 
 #ifdef CONFIG_PARAVIRT_XXL
 struct pv_lazy_ops {
@@ -205,23 +184,6 @@ struct pv_mmu_ops {
 #endif
 } __no_randomize_layout;
 
-struct arch_spinlock;
-#ifdef CONFIG_SMP
-#include <asm/spinlock_types.h>
-#endif
-
-struct qspinlock;
-
-struct pv_lock_ops {
-	void (*queued_spin_lock_slowpath)(struct qspinlock *lock, u32 val);
-	struct paravirt_callee_save queued_spin_unlock;
-
-	void (*wait)(u8 *ptr, u8 val);
-	void (*kick)(int cpu);
-
-	struct paravirt_callee_save vcpu_is_preempted;
-} __no_randomize_layout;
-
 /* This contains all the paravirt structures: we get a convenient
  * number for each function using the offset which we use to indicate
  * what to patch. */
@@ -229,13 +191,11 @@ struct paravirt_patch_template {
 	struct pv_cpu_ops	cpu;
 	struct pv_irq_ops	irq;
 	struct pv_mmu_ops	mmu;
-	struct pv_lock_ops	lock;
 } __no_randomize_layout;
 
-extern struct pv_info pv_info;
 extern struct paravirt_patch_template pv_ops;
 
-#define paravirt_ptr(op)	[paravirt_opptr] "m" (pv_ops.op)
+#define paravirt_ptr(array, op)	[paravirt_opptr] "m" (array.op)
 
 /*
  * This generates an indirect call based on the operation type number.
@@ -250,7 +210,7 @@ extern struct paravirt_patch_template pv_ops;
  */
 #define PARAVIRT_CALL					\
 	ANNOTATE_RETPOLINE_SAFE "\n\t"			\
-	"call *%[paravirt_opptr];"
+	"call *%[paravirt_opptr]"
 
 /*
  * These macros are intended to wrap calls through one of the paravirt
@@ -360,12 +320,6 @@ extern struct paravirt_patch_template pv_ops;
 #define VEXTRA_CLOBBERS	 , "rax", "r8", "r9", "r10", "r11"
 #endif	/* CONFIG_X86_32 */
 
-#ifdef CONFIG_PARAVIRT_DEBUG
-#define PVOP_TEST_NULL(op)	BUG_ON(pv_ops.op == NULL)
-#else
-#define PVOP_TEST_NULL(op)	((void)pv_ops.op)
-#endif
-
 #define PVOP_RETVAL(rettype)						\
 	({	unsigned long __mask = ~0UL;				\
 		BUILD_BUG_ON(sizeof(rettype) > sizeof(unsigned long));	\
@@ -391,140 +345,195 @@ extern struct paravirt_patch_template pv_ops;
  *   feature is not active, the direct call is used as above via the
  *   ALT_FLAG_DIRECT_CALL special case and the "always on" feature.
  */
-#define ____PVOP_CALL(ret, op, call_clbr, extra_clbr, ...)	\
+#define ____PVOP_CALL(ret, array, op, call_clbr, extra_clbr, ...)	\
 	({								\
 		PVOP_CALL_ARGS;						\
-		PVOP_TEST_NULL(op);					\
 		asm volatile(ALTERNATIVE(PARAVIRT_CALL, ALT_CALL_INSTR,	\
 				ALT_CALL_ALWAYS)			\
 			     : call_clbr, ASM_CALL_CONSTRAINT		\
-			     : paravirt_ptr(op),			\
+			     : paravirt_ptr(array, op),			\
 			       ##__VA_ARGS__				\
 			     : "memory", "cc" extra_clbr);		\
 		ret;							\
 	})
 
-#define ____PVOP_ALT_CALL(ret, op, alt, cond, call_clbr,		\
+#define ____PVOP_ALT_CALL(ret, array, op, alt, cond, call_clbr,		\
 			  extra_clbr, ...)				\
 	({								\
 		PVOP_CALL_ARGS;						\
-		PVOP_TEST_NULL(op);					\
 		asm volatile(ALTERNATIVE_2(PARAVIRT_CALL,		\
 				 ALT_CALL_INSTR, ALT_CALL_ALWAYS,	\
 				 alt, cond)				\
 			     : call_clbr, ASM_CALL_CONSTRAINT		\
-			     : paravirt_ptr(op),			\
+			     : paravirt_ptr(array, op),			\
 			       ##__VA_ARGS__				\
 			     : "memory", "cc" extra_clbr);		\
 		ret;							\
 	})
 
-#define __PVOP_CALL(rettype, op, ...)					\
-	____PVOP_CALL(PVOP_RETVAL(rettype), op,				\
+#define __PVOP_CALL(rettype, array, op, ...)				\
+	____PVOP_CALL(PVOP_RETVAL(rettype), array, op,			\
 		      PVOP_CALL_CLOBBERS, EXTRA_CLOBBERS, ##__VA_ARGS__)
 
-#define __PVOP_ALT_CALL(rettype, op, alt, cond, ...)			\
-	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), op, alt, cond,		\
+#define __PVOP_ALT_CALL(rettype, array, op, alt, cond, ...)		\
+	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), array, op, alt, cond,	\
 			  PVOP_CALL_CLOBBERS, EXTRA_CLOBBERS,		\
 			  ##__VA_ARGS__)
 
-#define __PVOP_CALLEESAVE(rettype, op, ...)				\
-	____PVOP_CALL(PVOP_RETVAL(rettype), op.func,			\
+#define __PVOP_CALLEESAVE(rettype, array, op, ...)			\
+	____PVOP_CALL(PVOP_RETVAL(rettype), array, op.func,		\
 		      PVOP_CALLEE_CLOBBERS, , ##__VA_ARGS__)
 
-#define __PVOP_ALT_CALLEESAVE(rettype, op, alt, cond, ...)		\
-	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), op.func, alt, cond,	\
+#define __PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond, ...)	\
+	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), array, op.func, alt, cond, \
 			  PVOP_CALLEE_CLOBBERS, , ##__VA_ARGS__)
 
 
-#define __PVOP_VCALL(op, ...)						\
-	(void)____PVOP_CALL(, op, PVOP_VCALL_CLOBBERS,			\
+#define __PVOP_VCALL(array, op, ...)					\
+	(void)____PVOP_CALL(, array, op, PVOP_VCALL_CLOBBERS,		\
 		       VEXTRA_CLOBBERS, ##__VA_ARGS__)
 
-#define __PVOP_ALT_VCALL(op, alt, cond, ...)				\
-	(void)____PVOP_ALT_CALL(, op, alt, cond,			\
+#define __PVOP_ALT_VCALL(array, op, alt, cond, ...)			\
+	(void)____PVOP_ALT_CALL(, array, op, alt, cond,			\
 				PVOP_VCALL_CLOBBERS, VEXTRA_CLOBBERS,	\
 				##__VA_ARGS__)
 
-#define __PVOP_VCALLEESAVE(op, ...)					\
-	(void)____PVOP_CALL(, op.func,					\
+#define __PVOP_VCALLEESAVE(array, op, ...)				\
+	(void)____PVOP_CALL(, array, op.func,				\
 			    PVOP_VCALLEE_CLOBBERS, , ##__VA_ARGS__)
 
-#define __PVOP_ALT_VCALLEESAVE(op, alt, cond, ...)			\
-	(void)____PVOP_ALT_CALL(, op.func, alt, cond,			\
+#define __PVOP_ALT_VCALLEESAVE(array, op, alt, cond, ...)		\
+	(void)____PVOP_ALT_CALL(, array, op.func, alt, cond,		\
 				PVOP_VCALLEE_CLOBBERS, , ##__VA_ARGS__)
 
 
-#define PVOP_CALL0(rettype, op)						\
-	__PVOP_CALL(rettype, op)
-#define PVOP_VCALL0(op)							\
-	__PVOP_VCALL(op)
-#define PVOP_ALT_CALL0(rettype, op, alt, cond)				\
-	__PVOP_ALT_CALL(rettype, op, alt, cond)
-#define PVOP_ALT_VCALL0(op, alt, cond)					\
-	__PVOP_ALT_VCALL(op, alt, cond)
+#define PVOP_CALL0(rettype, array, op)					\
+	__PVOP_CALL(rettype, array, op)
+#define PVOP_VCALL0(array, op)						\
+	__PVOP_VCALL(array, op)
+#define PVOP_ALT_CALL0(rettype, array, op, alt, cond)			\
+	__PVOP_ALT_CALL(rettype, array, op, alt, cond)
+#define PVOP_ALT_VCALL0(array, op, alt, cond)				\
+	__PVOP_ALT_VCALL(array, op, alt, cond)
 
-#define PVOP_CALLEE0(rettype, op)					\
-	__PVOP_CALLEESAVE(rettype, op)
-#define PVOP_VCALLEE0(op)						\
-	__PVOP_VCALLEESAVE(op)
-#define PVOP_ALT_CALLEE0(rettype, op, alt, cond)			\
-	__PVOP_ALT_CALLEESAVE(rettype, op, alt, cond)
-#define PVOP_ALT_VCALLEE0(op, alt, cond)				\
-	__PVOP_ALT_VCALLEESAVE(op, alt, cond)
-
-
-#define PVOP_CALL1(rettype, op, arg1)					\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1))
-#define PVOP_VCALL1(op, arg1)						\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_VCALL1(op, arg1, alt, cond)				\
-	__PVOP_ALT_VCALL(op, alt, cond, PVOP_CALL_ARG1(arg1))
-
-#define PVOP_CALLEE1(rettype, op, arg1)					\
-	__PVOP_CALLEESAVE(rettype, op, PVOP_CALL_ARG1(arg1))
-#define PVOP_VCALLEE1(op, arg1)						\
-	__PVOP_VCALLEESAVE(op, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_CALLEE1(rettype, op, arg1, alt, cond)			\
-	__PVOP_ALT_CALLEESAVE(rettype, op, alt, cond, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_VCALLEE1(op, arg1, alt, cond)				\
-	__PVOP_ALT_VCALLEESAVE(op, alt, cond, PVOP_CALL_ARG1(arg1))
+#define PVOP_CALLEE0(rettype, array, op)				\
+	__PVOP_CALLEESAVE(rettype, array, op)
+#define PVOP_VCALLEE0(array, op)					\
+	__PVOP_VCALLEESAVE(array, op)
+#define PVOP_ALT_CALLEE0(rettype, array, op, alt, cond)			\
+	__PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond)
+#define PVOP_ALT_VCALLEE0(array, op, alt, cond)				\
+	__PVOP_ALT_VCALLEESAVE(array, op, alt, cond)
 
 
-#define PVOP_CALL2(rettype, op, arg1, arg2)				\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
-#define PVOP_VCALL2(op, arg1, arg2)					\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+#define PVOP_CALL1(rettype, array, op, arg1)				\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_VCALL1(array, op, arg1)					\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_VCALL1(array, op, arg1, alt, cond)			\
+	__PVOP_ALT_VCALL(array, op, alt, cond, PVOP_CALL_ARG1(arg1))
 
-#define PVOP_CALL3(rettype, op, arg1, arg2, arg3)			\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1),			\
+#define PVOP_CALLEE1(rettype, array, op, arg1)				\
+	__PVOP_CALLEESAVE(rettype, array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_VCALLEE1(array, op, arg1)					\
+	__PVOP_VCALLEESAVE(array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_CALLEE1(rettype, array, op, arg1, alt, cond)		\
+	__PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_VCALLEE1(array, op, arg1, alt, cond)			\
+	__PVOP_ALT_VCALLEESAVE(array, op, alt, cond, PVOP_CALL_ARG1(arg1))
+
+
+#define PVOP_CALL2(rettype, array, op, arg1, arg2)			\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+#define PVOP_VCALL2(array, op, arg1, arg2)				\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+
+#define PVOP_CALL3(rettype, array, op, arg1, arg2, arg3)		\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1),		\
 		    PVOP_CALL_ARG2(arg2), PVOP_CALL_ARG3(arg3))
-#define PVOP_VCALL3(op, arg1, arg2, arg3)				\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1),				\
+#define PVOP_VCALL3(array, op, arg1, arg2, arg3)			\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1),			\
 		     PVOP_CALL_ARG2(arg2), PVOP_CALL_ARG3(arg3))
 
-#define PVOP_CALL4(rettype, op, arg1, arg2, arg3, arg4)			\
-	__PVOP_CALL(rettype, op,					\
+#define PVOP_CALL4(rettype, array, op, arg1, arg2, arg3, arg4)		\
+	__PVOP_CALL(rettype, array, op,					\
 		    PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2),		\
 		    PVOP_CALL_ARG3(arg3), PVOP_CALL_ARG4(arg4))
-#define PVOP_VCALL4(op, arg1, arg2, arg3, arg4)				\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2),	\
+#define PVOP_VCALL4(array, op, arg1, arg2, arg3, arg4)			\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2), \
 		     PVOP_CALL_ARG3(arg3), PVOP_CALL_ARG4(arg4))
-
-unsigned long paravirt_ret0(void);
-#ifdef CONFIG_PARAVIRT_XXL
-u64 _paravirt_ident_64(u64);
-unsigned long pv_native_save_fl(void);
-void pv_native_irq_disable(void);
-void pv_native_irq_enable(void);
-unsigned long pv_native_read_cr2(void);
-#endif
-
-#define paravirt_nop	((void *)nop_func)
 
 #endif	/* __ASSEMBLER__ */
 
 #define ALT_NOT_XEN	ALT_NOT(X86_FEATURE_XENPV)
+
+#ifdef CONFIG_X86_32
+/* save and restore all caller-save registers, except return value */
+#define PV_SAVE_ALL_CALLER_REGS		"pushl %ecx;"
+#define PV_RESTORE_ALL_CALLER_REGS	"popl  %ecx;"
+#else
+/* save and restore all caller-save registers, except return value */
+#define PV_SAVE_ALL_CALLER_REGS						\
+	"push %rcx;"							\
+	"push %rdx;"							\
+	"push %rsi;"							\
+	"push %rdi;"							\
+	"push %r8;"							\
+	"push %r9;"							\
+	"push %r10;"							\
+	"push %r11;"
+#define PV_RESTORE_ALL_CALLER_REGS					\
+	"pop %r11;"							\
+	"pop %r10;"							\
+	"pop %r9;"							\
+	"pop %r8;"							\
+	"pop %rdi;"							\
+	"pop %rsi;"							\
+	"pop %rdx;"							\
+	"pop %rcx;"
+#endif
+
+/*
+ * Generate a thunk around a function which saves all caller-save
+ * registers except for the return value.  This allows C functions to
+ * be called from assembler code where fewer than normal registers are
+ * available.  It may also help code generation around calls from C
+ * code if the common case doesn't use many registers.
+ *
+ * When a callee is wrapped in a thunk, the caller can assume that all
+ * arg regs and all scratch registers are preserved across the
+ * call. The return value in rax/eax will not be saved, even for void
+ * functions.
+ */
+#define PV_THUNK_NAME(func) "__raw_callee_save_" #func
+#define __PV_CALLEE_SAVE_REGS_THUNK(func, section)			\
+	extern typeof(func) __raw_callee_save_##func;			\
+									\
+	asm(".pushsection " section ", \"ax\";"				\
+	    ".globl " PV_THUNK_NAME(func) ";"				\
+	    ".type " PV_THUNK_NAME(func) ", @function;"			\
+	    ASM_FUNC_ALIGN						\
+	    PV_THUNK_NAME(func) ":"					\
+	    ASM_ENDBR							\
+	    FRAME_BEGIN							\
+	    PV_SAVE_ALL_CALLER_REGS					\
+	    "call " #func ";"						\
+	    PV_RESTORE_ALL_CALLER_REGS					\
+	    FRAME_END							\
+	    ASM_RET							\
+	    ".size " PV_THUNK_NAME(func) ", .-" PV_THUNK_NAME(func) ";"	\
+	    ".popsection")
+
+#define PV_CALLEE_SAVE_REGS_THUNK(func)			\
+	__PV_CALLEE_SAVE_REGS_THUNK(func, ".text")
+
+/* Get a reference to a callee-save function */
+#define PV_CALLEE_SAVE(func)						\
+	((struct paravirt_callee_save) { __raw_callee_save_##func })
+
+/* Promise that "func" already uses the right calling convention */
+#define __PV_IS_CALLEE_SAVE(func)			\
+	((struct paravirt_callee_save) { func })
 
 #endif  /* CONFIG_PARAVIRT */
 #endif	/* _ASM_X86_PARAVIRT_TYPES_H */
