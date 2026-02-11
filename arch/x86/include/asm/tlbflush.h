@@ -292,9 +292,12 @@ static inline bool mm_in_asid_transition(struct mm_struct *mm)
 
 	return mm && READ_ONCE(mm->context.asid_transition);
 }
+
+extern void mm_free_global_asid(struct mm_struct *mm);
 #else
 static inline u16 mm_global_asid(struct mm_struct *mm) { return 0; }
 static inline void mm_init_global_asid(struct mm_struct *mm) { }
+static inline void mm_free_global_asid(struct mm_struct *mm) { }
 static inline void mm_assign_global_asid(struct mm_struct *mm, u16 asid) { }
 static inline void mm_clear_asid_transition(struct mm_struct *mm) { }
 static inline bool mm_in_asid_transition(struct mm_struct *mm) { return false; }

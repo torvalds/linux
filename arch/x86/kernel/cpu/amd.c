@@ -900,20 +900,14 @@ static void fix_erratum_1386(struct cpuinfo_x86 *c)
 void init_spectral_chicken(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_MITIGATION_UNRET_ENTRY
-	u64 value;
-
 	/*
 	 * On Zen2 we offer this chicken (bit) on the altar of Speculation.
 	 *
 	 * This suppresses speculation from the middle of a basic block, i.e. it
 	 * suppresses non-branch predictions.
 	 */
-	if (!cpu_has(c, X86_FEATURE_HYPERVISOR)) {
-		if (!rdmsrq_safe(MSR_ZEN2_SPECTRAL_CHICKEN, &value)) {
-			value |= MSR_ZEN2_SPECTRAL_CHICKEN_BIT;
-			wrmsrq_safe(MSR_ZEN2_SPECTRAL_CHICKEN, value);
-		}
-	}
+	if (!cpu_has(c, X86_FEATURE_HYPERVISOR))
+		msr_set_bit(MSR_ZEN2_SPECTRAL_CHICKEN, MSR_ZEN2_SPECTRAL_CHICKEN_BIT);
 #endif
 }
 
