@@ -226,8 +226,6 @@ int smu_v15_0_deep_sleep_control(struct smu_context *smu,
 
 int smu_v15_0_set_gfx_power_up_by_imu(struct smu_context *smu);
 
-int smu_v15_0_set_default_dpm_tables(struct smu_context *smu);
-
 int smu_v15_0_get_pptable_from_firmware(struct smu_context *smu,
 					void **table,
 					uint32_t *size,
@@ -240,11 +238,6 @@ int smu_v15_0_od_edit_dpm_table(struct smu_context *smu,
 int smu_v15_0_enable_thermal_alert(struct smu_context *smu);
 
 int smu_v15_0_disable_thermal_alert(struct smu_context *smu);
-
-int smu_v15_0_0_update_table(struct smu_context *smu,
-			 enum smu_table_id table_index,
-			 int argument, void *table_data,
-			 bool drv2smu);
 
 #endif
 #endif
