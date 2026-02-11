@@ -82,13 +82,9 @@ int xe_tile_debugfs_show_with_rpm(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct xe_tile *tile = node_to_tile(node);
 	struct xe_device *xe = tile_to_xe(tile);
-	int ret;
 
-	xe_pm_runtime_get(xe);
-	ret = xe_tile_debugfs_simple_show(m, data);
-	xe_pm_runtime_put(xe);
-
-	return ret;
+	guard(xe_pm_runtime)(xe);
+	return xe_tile_debugfs_simple_show(m, data);
 }
 
 static int ggtt(struct xe_tile *tile, struct drm_printer *p)
@@ -109,6 +105,13 @@ static const struct drm_info_list vf_safe_debugfs_list[] = {
 	{ "ggtt", .show = xe_tile_debugfs_show_with_rpm, .data = ggtt },
 	{ "sa_info", .show = xe_tile_debugfs_show_with_rpm, .data = sa_info },
 };
+
+static void tile_debugfs_create_vram_mm(struct xe_tile *tile)
+{
+	if (tile->mem.vram)
+		ttm_resource_manager_create_debugfs(&tile->mem.vram->ttm.manager, tile->debugfs,
+						    "vram_mm");
+}
 
 /**
  * xe_tile_debugfs_register - Register tile's debugfs attributes
@@ -139,4 +142,6 @@ void xe_tile_debugfs_register(struct xe_tile *tile)
 	drm_debugfs_create_files(vf_safe_debugfs_list,
 				 ARRAY_SIZE(vf_safe_debugfs_list),
 				 tile->debugfs, minor);
+
+	tile_debugfs_create_vram_mm(tile);
 }

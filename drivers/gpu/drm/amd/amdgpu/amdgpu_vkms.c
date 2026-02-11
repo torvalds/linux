@@ -53,7 +53,9 @@ static enum hrtimer_restart amdgpu_vkms_vblank_simulate(struct hrtimer *timer)
 	ret_overrun = hrtimer_forward_now(&amdgpu_crtc->vblank_timer,
 					  output->period_ns);
 	if (ret_overrun != 1)
-		DRM_WARN("%s: vblank timer overrun\n", __func__);
+		drm_warn(amdgpu_crtc->base.dev,
+			 "%s: vblank timer overrun count: %llu\n",
+			 __func__, ret_overrun);
 
 	ret = drm_crtc_handle_vblank(crtc);
 	/* Don't queue timer again when vblank is disabled. */

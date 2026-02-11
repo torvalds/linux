@@ -54,8 +54,6 @@ bool edp_set_sink_vtotal_in_psr_active(const struct dc_link *link,
 void edp_get_psr_residency(const struct dc_link *link, uint32_t *residency, enum psr_residency_mode mode);
 bool edp_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
 	bool wait, bool force_static, const unsigned int *power_opts);
-bool edp_setup_replay(struct dc_link *link,
-		const struct dc_stream_state *stream);
 bool edp_send_replay_cmd(struct dc_link *link,
 			enum replay_FW_Message_type msg,
 			union dmub_replay_cmd_set *cmd_data);
@@ -75,6 +73,7 @@ void edp_add_delay_for_T9(struct dc_link *link);
 bool edp_receiver_ready_T9(struct dc_link *link);
 bool edp_receiver_ready_T7(struct dc_link *link);
 bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+bool edp_setup_freesync_replay(struct dc_link *link, const struct dc_stream_state *stream);
 void edp_set_panel_power(struct dc_link *link, bool powerOn);
 void edp_set_panel_assr(struct dc_link *link, struct pipe_ctx *pipe_ctx,
 		enum dp_panel_mode *panel_mode, bool enable);

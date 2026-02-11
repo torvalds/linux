@@ -18,6 +18,7 @@
 #include "tests/xe_test.h"
 
 #include "xe_bo_evict.h"
+#include "xe_gt.h"
 #include "xe_pci.h"
 #include "xe_pm.h"
 
@@ -185,16 +186,13 @@ static int ccs_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
-	xe_pm_runtime_get(xe);
-
+	guard(xe_pm_runtime)(xe);
 	for_each_tile(tile, xe, id) {
 		/* For igfx run only for primary tile */
 		if (!IS_DGFX(xe) && id > 0)
 			continue;
 		ccs_test_run_tile(xe, tile, test);
 	}
-
-	xe_pm_runtime_put(xe);
 
 	return 0;
 }
@@ -356,12 +354,9 @@ static int evict_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
-	xe_pm_runtime_get(xe);
-
+	guard(xe_pm_runtime)(xe);
 	for_each_tile(tile, xe, id)
 		evict_test_run_tile(xe, tile, test);
-
-	xe_pm_runtime_put(xe);
 
 	return 0;
 }

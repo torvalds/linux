@@ -42,6 +42,21 @@ static void ct_exit_safe_mode(struct xe_guc_ct *ct);
 static void guc_ct_change_state(struct xe_guc_ct *ct,
 				enum xe_guc_ct_state state);
 
+static struct xe_guc *ct_to_guc(struct xe_guc_ct *ct)
+{
+	return container_of(ct, struct xe_guc, ct);
+}
+
+static struct xe_gt *ct_to_gt(struct xe_guc_ct *ct)
+{
+	return container_of(ct, struct xe_gt, uc.guc.ct);
+}
+
+static struct xe_device *ct_to_xe(struct xe_guc_ct *ct)
+{
+	return gt_to_xe(ct_to_gt(ct));
+}
+
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 enum {
 	/* Internal states, not error conditions */
@@ -68,14 +83,101 @@ enum {
 static void ct_dead_worker_func(struct work_struct *w);
 static void ct_dead_capture(struct xe_guc_ct *ct, struct guc_ctb *ctb, u32 reason_code);
 
-#define CT_DEAD(ct, ctb, reason_code)		ct_dead_capture((ct), (ctb), CT_DEAD_##reason_code)
+static void ct_dead_fini(struct xe_guc_ct *ct)
+{
+	cancel_work_sync(&ct->dead.worker);
+}
+
+static void ct_dead_init(struct xe_guc_ct *ct)
+{
+	spin_lock_init(&ct->dead.lock);
+	INIT_WORK(&ct->dead.worker, ct_dead_worker_func);
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	stack_depot_init();
+#endif
+}
+
+static void fast_req_stack_save(struct xe_guc_ct *ct, unsigned int slot)
+{
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	unsigned long entries[SZ_32];
+	unsigned int n;
+
+	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
+	/* May be called under spinlock, so avoid sleeping */
+	ct->fast_req[slot].stack = stack_depot_save(entries, n, GFP_NOWAIT);
+#endif
+}
+
+static void fast_req_dump(struct xe_guc_ct *ct, u16 fence, unsigned int slot)
+{
+	struct xe_gt *gt = ct_to_gt(ct);
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	char *buf __cleanup(kfree) = kmalloc(SZ_4K, GFP_NOWAIT);
+
+	if (buf && stack_depot_snprint(ct->fast_req[slot].stack, buf, SZ_4K, 0))
+		xe_gt_err(gt, "Fence 0x%x was used by action %#04x sent at:\n%s\n",
+			  fence, ct->fast_req[slot].action, buf);
+	else
+		xe_gt_err(gt, "Fence 0x%x was used by action %#04x [failed to retrieve stack]\n",
+			  fence, ct->fast_req[slot].action);
 #else
+	xe_gt_err(gt, "Fence 0x%x was used by action %#04x\n",
+		  fence, ct->fast_req[slot].action);
+#endif
+}
+
+static void fast_req_report(struct xe_guc_ct *ct, u16 fence)
+{
+	u16 fence_min = U16_MAX, fence_max = 0;
+	struct xe_gt *gt = ct_to_gt(ct);
+	unsigned int n;
+
+	lockdep_assert_held(&ct->lock);
+
+	for (n = 0; n < ARRAY_SIZE(ct->fast_req); n++) {
+		if (ct->fast_req[n].fence < fence_min)
+			fence_min = ct->fast_req[n].fence;
+		if (ct->fast_req[n].fence > fence_max)
+			fence_max = ct->fast_req[n].fence;
+
+		if (ct->fast_req[n].fence != fence)
+			continue;
+
+		return fast_req_dump(ct, fence, n);
+	}
+
+	xe_gt_warn(gt, "Fence 0x%x not found - tracking buffer wrapped? [range = 0x%x -> 0x%x, next = 0x%X]\n",
+		   fence, fence_min, fence_max, ct->fence_seqno);
+}
+
+static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action)
+{
+	unsigned int slot = fence % ARRAY_SIZE(ct->fast_req);
+
+	fast_req_stack_save(ct, slot);
+	ct->fast_req[slot].fence = fence;
+	ct->fast_req[slot].action = action;
+}
+
+#define CT_DEAD(ct, ctb, reason_code)	ct_dead_capture((ct), (ctb), CT_DEAD_##reason_code)
+
+#else
+
+static void ct_dead_fini(struct xe_guc_ct *ct) { }
+static void ct_dead_init(struct xe_guc_ct *ct) { }
+
+static void fast_req_report(struct xe_guc_ct *ct, u16 fence) { }
+static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action) { }
+
 #define CT_DEAD(ct, ctb, reason)			\
 	do {						\
 		struct guc_ctb *_ctb = (ctb);		\
 		if (_ctb)				\
 			_ctb->info.broken = true;	\
 	} while (0)
+
 #endif
 
 /* Used when a CT send wants to block and / or receive data */
@@ -112,24 +214,6 @@ static void g2h_fence_cancel(struct g2h_fence *g2h_fence)
 static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
 {
 	return g2h_fence->seqno == ~0x0;
-}
-
-static struct xe_guc *
-ct_to_guc(struct xe_guc_ct *ct)
-{
-	return container_of(ct, struct xe_guc, ct);
-}
-
-static struct xe_gt *
-ct_to_gt(struct xe_guc_ct *ct)
-{
-	return container_of(ct, struct xe_gt, uc.guc.ct);
-}
-
-static struct xe_device *
-ct_to_xe(struct xe_guc_ct *ct)
-{
-	return gt_to_xe(ct_to_gt(ct));
 }
 
 /**
@@ -171,8 +255,11 @@ ct_to_xe(struct xe_guc_ct *ct)
 #define CTB_DESC_SIZE		ALIGN(sizeof(struct guc_ct_buffer_desc), SZ_2K)
 #define CTB_H2G_BUFFER_OFFSET	(CTB_DESC_SIZE * 2)
 #define CTB_H2G_BUFFER_SIZE	(SZ_4K)
+#define CTB_H2G_BUFFER_DWORDS	(CTB_H2G_BUFFER_SIZE / sizeof(u32))
 #define CTB_G2H_BUFFER_SIZE	(SZ_128K)
+#define CTB_G2H_BUFFER_DWORDS	(CTB_G2H_BUFFER_SIZE / sizeof(u32))
 #define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 2)
+#define G2H_ROOM_BUFFER_DWORDS	(CTB_G2H_BUFFER_DWORDS / 2)
 
 /**
  * xe_guc_ct_queue_proc_time_jiffies - Return maximum time to process a full
@@ -201,9 +288,7 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_ct *ct = arg;
 
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-	cancel_work_sync(&ct->dead.worker);
-#endif
+	ct_dead_fini(ct);
 	ct_exit_safe_mode(ct);
 	destroy_workqueue(ct->g2h_wq);
 	xa_destroy(&ct->fence_lookup);
@@ -241,13 +326,8 @@ int xe_guc_ct_init_noalloc(struct xe_guc_ct *ct)
 	xa_init(&ct->fence_lookup);
 	INIT_WORK(&ct->g2h_worker, g2h_worker_func);
 	INIT_DELAYED_WORK(&ct->safe_mode_worker, safe_mode_worker_func);
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-	spin_lock_init(&ct->dead.lock);
-	INIT_WORK(&ct->dead.worker, ct_dead_worker_func);
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
-	stack_depot_init();
-#endif
-#endif
+
+	ct_dead_init(ct);
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);
 
@@ -328,7 +408,7 @@ int xe_guc_ct_init_post_hwconfig(struct xe_guc_ct *ct)
 static void guc_ct_ctb_h2g_init(struct xe_device *xe, struct guc_ctb *h2g,
 				struct iosys_map *map)
 {
-	h2g->info.size = CTB_H2G_BUFFER_SIZE / sizeof(u32);
+	h2g->info.size = CTB_H2G_BUFFER_DWORDS;
 	h2g->info.resv_space = 0;
 	h2g->info.tail = 0;
 	h2g->info.head = 0;
@@ -346,8 +426,8 @@ static void guc_ct_ctb_h2g_init(struct xe_device *xe, struct guc_ctb *h2g,
 static void guc_ct_ctb_g2h_init(struct xe_device *xe, struct guc_ctb *g2h,
 				struct iosys_map *map)
 {
-	g2h->info.size = CTB_G2H_BUFFER_SIZE / sizeof(u32);
-	g2h->info.resv_space = G2H_ROOM_BUFFER_SIZE / sizeof(u32);
+	g2h->info.size = CTB_G2H_BUFFER_DWORDS;
+	g2h->info.resv_space = G2H_ROOM_BUFFER_DWORDS;
 	g2h->info.head = 0;
 	g2h->info.tail = 0;
 	g2h->info.space = CIRC_SPACE(g2h->info.tail, g2h->info.head,
@@ -449,7 +529,12 @@ static void guc_ct_change_state(struct xe_guc_ct *ct,
 	if (ct->g2h_outstanding)
 		xe_pm_runtime_put(ct_to_xe(ct));
 	ct->g2h_outstanding = 0;
-	ct->state = state;
+
+	/*
+	 * WRITE_ONCE pairs with READ_ONCEs in xe_guc_ct_initialized and
+	 * xe_guc_ct_enabled.
+	 */
+	WRITE_ONCE(ct->state, state);
 
 	xe_gt_dbg(gt, "GuC CT communication channel %s\n",
 		  state == XE_GUC_CT_STATE_STOPPED ? "stopped" :
@@ -642,6 +727,39 @@ void xe_guc_ct_stop(struct xe_guc_ct *ct)
 	stop_g2h_handler(ct);
 }
 
+/**
+ * xe_guc_ct_runtime_suspend() - GuC CT runtime suspend
+ * @ct: the &xe_guc_ct
+ *
+ * Set GuC CT to disabled state.
+ */
+void xe_guc_ct_runtime_suspend(struct xe_guc_ct *ct)
+{
+	struct guc_ctb *g2h = &ct->ctbs.g2h;
+	u32 credits = CIRC_SPACE(0, 0, CTB_G2H_BUFFER_DWORDS) - G2H_ROOM_BUFFER_DWORDS;
+
+	/* We should be back to guc_ct_ctb_g2h_init() values */
+	xe_gt_assert(ct_to_gt(ct), g2h->info.space == credits);
+
+	/*
+	 * Since we're already in runtime suspend path, we shouldn't have pending
+	 * messages. But if there happen to be any, we'd probably want them to be
+	 * thrown as errors for further investigation.
+	 */
+	xe_guc_ct_disable(ct);
+}
+
+/**
+ * xe_guc_ct_runtime_resume() - GuC CT runtime resume
+ * @ct: the &xe_guc_ct
+ *
+ * Restart GuC CT and set it to enabled state.
+ */
+void xe_guc_ct_runtime_resume(struct xe_guc_ct *ct)
+{
+	xe_guc_ct_restart(ct);
+}
+
 static bool h2g_has_room(struct xe_guc_ct *ct, u32 cmd_len)
 {
 	struct guc_ctb *h2g = &ct->ctbs.h2g;
@@ -748,28 +866,6 @@ static void g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 	__g2h_release_space(ct, g2h_len);
 	spin_unlock_irq(&ct->fast_lock);
 }
-
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action)
-{
-	unsigned int slot = fence % ARRAY_SIZE(ct->fast_req);
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
-	unsigned long entries[SZ_32];
-	unsigned int n;
-
-	n = stack_trace_save(entries, ARRAY_SIZE(entries), 1);
-
-	/* May be called under spinlock, so avoid sleeping */
-	ct->fast_req[slot].stack = stack_depot_save(entries, n, GFP_NOWAIT);
-#endif
-	ct->fast_req[slot].fence = fence;
-	ct->fast_req[slot].action = action;
-}
-#else
-static void fast_req_track(struct xe_guc_ct *ct, u16 fence, u16 action)
-{
-}
-#endif
 
 /*
  * The CT protocol accepts a 16 bits fence. This field is fully owned by the
@@ -1315,10 +1411,12 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	lockdep_assert_held(&ct->lock);
 
 	switch (action) {
+	case XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE:
 	case XE_GUC_ACTION_SCHED_CONTEXT_MODE_DONE:
 	case XE_GUC_ACTION_DEREGISTER_CONTEXT_DONE:
 	case XE_GUC_ACTION_SCHED_ENGINE_MODE_DONE:
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
+	case XE_GUC_ACTION_PAGE_RECLAMATION_DONE:
 		g2h_release_space(ct, len);
 	}
 
@@ -1342,55 +1440,6 @@ static int guc_crash_process_msg(struct xe_guc_ct *ct, u32 action)
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-static void fast_req_report(struct xe_guc_ct *ct, u16 fence)
-{
-	u16 fence_min = U16_MAX, fence_max = 0;
-	struct xe_gt *gt = ct_to_gt(ct);
-	bool found = false;
-	unsigned int n;
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
-	char *buf;
-#endif
-
-	lockdep_assert_held(&ct->lock);
-
-	for (n = 0; n < ARRAY_SIZE(ct->fast_req); n++) {
-		if (ct->fast_req[n].fence < fence_min)
-			fence_min = ct->fast_req[n].fence;
-		if (ct->fast_req[n].fence > fence_max)
-			fence_max = ct->fast_req[n].fence;
-
-		if (ct->fast_req[n].fence != fence)
-			continue;
-		found = true;
-
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
-		buf = kmalloc(SZ_4K, GFP_NOWAIT);
-		if (buf && stack_depot_snprint(ct->fast_req[n].stack, buf, SZ_4K, 0))
-			xe_gt_err(gt, "Fence 0x%x was used by action %#04x sent at:\n%s",
-				  fence, ct->fast_req[n].action, buf);
-		else
-			xe_gt_err(gt, "Fence 0x%x was used by action %#04x [failed to retrieve stack]\n",
-				  fence, ct->fast_req[n].action);
-		kfree(buf);
-#else
-		xe_gt_err(gt, "Fence 0x%x was used by action %#04x\n",
-			  fence, ct->fast_req[n].action);
-#endif
-		break;
-	}
-
-	if (!found)
-		xe_gt_warn(gt, "Fence 0x%x not found - tracking buffer wrapped? [range = 0x%x -> 0x%x, next = 0x%X]\n",
-			   fence, fence_min, fence_max, ct->fence_seqno);
-}
-#else
-static void fast_req_report(struct xe_guc_ct *ct, u16 fence)
-{
-}
-#endif
 
 static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
@@ -1555,6 +1604,15 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_pagefault_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
+	case XE_GUC_ACTION_PAGE_RECLAMATION_DONE:
+		/*
+		 * Page reclamation is an extension of TLB invalidation. Both
+		 * operations share the same seqno and fence. When either
+		 * action completes, we need to signal the corresponding
+		 * fence. Since the handling logic (lookup fence by seqno,
+		 * fence signalling) is identical, we use the same handler
+		 * for both G2H events.
+		 */
 		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_GUC2PF_RELAY_FROM_VF:
@@ -1578,6 +1636,13 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_g2g_test_notification(guc, payload, adj_len);
 		break;
 #endif
+	case XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE:
+		ret = xe_guc_exec_queue_cgp_sync_done_handler(guc, payload, adj_len);
+		break;
+	case XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CGP_CONTEXT_ERROR:
+		ret = xe_guc_exec_queue_cgp_context_error_handler(guc, payload,
+								  adj_len);
+		break;
 	default:
 		xe_gt_err(gt, "unexpected G2H action 0x%04x\n", action);
 	}
@@ -1720,6 +1785,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 		switch (action) {
 		case XE_GUC_ACTION_REPORT_PAGE_FAULT_REQ_DESC:
 		case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
+		case XE_GUC_ACTION_PAGE_RECLAMATION_DONE:
 			break;	/* Process these in fast-path */
 		default:
 			return 0;
@@ -1756,6 +1822,12 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		ret = xe_guc_pagefault_handler(guc, payload, adj_len);
 		break;
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
+	case XE_GUC_ACTION_PAGE_RECLAMATION_DONE:
+		/*
+		 * Seqno and fence handling of page reclamation and TLB
+		 * invalidation is identical, so we can use the same handler
+		 * for both actions.
+		 */
 		__g2h_release_space(ct, len);
 		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
 		break;

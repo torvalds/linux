@@ -588,13 +588,14 @@ DEFINE_SIMPLE_ATTRIBUTE(perf_limit_reasons_fops, perf_limit_reasons_get,
 void intel_gt_pm_debugfs_register(struct intel_gt *gt, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "drpc", &drpc_fops, NULL },
-		{ "frequency", &frequency_fops, NULL },
-		{ "forcewake", &fw_domains_fops, NULL },
-		{ "forcewake_user", &forcewake_user_fops, NULL},
-		{ "llc", &llc_fops, llc_eval },
-		{ "rps_boost", &rps_boost_fops, rps_eval },
-		{ "perf_limit_reasons", &perf_limit_reasons_fops, perf_limit_reasons_eval },
+		{ .name = "drpc", .fops = &drpc_fops },
+		{ .name = "frequency", .fops = &frequency_fops },
+		{ .name = "forcewake", .fops = &fw_domains_fops },
+		{ .name = "forcewake_user", .fops = &forcewake_user_fops},
+		{ .name = "llc", .fops = &llc_fops, .eval = llc_eval },
+		{ .name = "rps_boost", .fops = &rps_boost_fops, .eval = rps_eval },
+		{ .name = "perf_limit_reasons", .fops = &perf_limit_reasons_fops,
+		  .eval = perf_limit_reasons_eval },
 	};
 
 	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);

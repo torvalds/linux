@@ -2410,7 +2410,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		supports_atomic = true;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
-		DRM_INFO("This hardware requires experimental hardware support.\n"
+		dev_info(&pdev->dev, "This hardware requires experimental hardware support.\n"
 			 "See modparam exp_hw_support\n");
 		return -ENODEV;
 	}
@@ -2457,7 +2457,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 retry_init:
 	ret = drm_dev_register(ddev, flags);
 	if (ret == -EAGAIN && ++retry <= 3) {
-		DRM_INFO("retry init %d\n", retry);
+		drm_info(adev_to_drm(adev), "retry init %d\n", retry);
 		/* Don't request EX mode too frequently which is attacking */
 		msleep(5000);
 		goto retry_init;
@@ -3172,7 +3172,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	amdgpu_register_atpx_handler();
 	amdgpu_acpi_detect();
 

@@ -13,16 +13,13 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "regs/xe_engine_regs.h"
-#include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
-#include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
-#include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_rtp_types.h"
 
@@ -168,7 +165,6 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 {
 	struct xe_reg_sr_entry *entry;
 	unsigned long reg;
-	unsigned int fw_ref;
 
 	if (xa_empty(&sr->xa))
 		return;
@@ -178,20 +174,14 @@ void xe_reg_sr_apply_mmio(struct xe_reg_sr *sr, struct xe_gt *gt)
 
 	xe_gt_dbg(gt, "Applying %s save-restore MMIOs\n", sr->name);
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
-		goto err_force_wake;
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL)) {
+		xe_gt_err(gt, "Failed to apply, err=-ETIMEDOUT\n");
+		return;
+	}
 
 	xa_for_each(&sr->xa, reg, entry)
 		apply_one_mmio(gt, entry);
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-
-	return;
-
-err_force_wake:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	xe_gt_err(gt, "Failed to apply, err=-ETIMEDOUT\n");
 }
 
 /**

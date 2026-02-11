@@ -29,10 +29,10 @@
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_hdcp.h"
-#include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
 #include "intel_hdcp_regs.h"
 #include "intel_hdcp_shim.h"
+#include "intel_parent.h"
 #include "intel_pcode.h"
 #include "intel_step.h"
 
@@ -258,7 +258,7 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
 	if (USE_HDCP_GSC(display)) {
-		if (!intel_hdcp_gsc_check_status(display->drm))
+		if (!intel_parent_hdcp_gsc_check_status(display))
 			return false;
 	}
 

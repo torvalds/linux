@@ -24,6 +24,18 @@
 #define PCC_BLUE_G_OFF 0x24
 #define PCC_BLUE_B_OFF 0x30
 
+/* DSPP_GC */
+#define GC_EN BIT(0)
+#define GC_DIS 0
+#define GC_8B_ROUND_EN BIT(1)
+#define GC_LUT_SWAP_OFF 0x1c
+#define GC_C0_OFF 0x4
+#define GC_C1_OFF 0xc
+#define GC_C2_OFF 0x14
+#define GC_C0_INDEX_OFF 0x8
+#define GC_C1_INDEX_OFF 0x10
+#define GC_C2_INDEX_OFF 0x18
+
 static void dpu_setup_dspp_pcc(struct dpu_hw_dspp *ctx,
 		struct dpu_hw_pcc_cfg *cfg)
 {
@@ -63,6 +75,46 @@ static void dpu_setup_dspp_pcc(struct dpu_hw_dspp *ctx,
 	DPU_REG_WRITE(&ctx->hw, base, PCC_EN);
 }
 
+static void dpu_setup_dspp_gc(struct dpu_hw_dspp *ctx,
+		struct dpu_hw_gc_lut *gc_lut)
+{
+	int i = 0;
+	u32 base, reg;
+
+	if (!ctx) {
+		DRM_ERROR("invalid ctx\n");
+		return;
+	}
+
+	base = ctx->cap->sblk->gc.base;
+
+	if (!base) {
+		DRM_ERROR("invalid ctx %pK gc base\n", ctx);
+		return;
+	}
+
+	if (!gc_lut) {
+		DRM_DEBUG_DRIVER("disable gc feature\n");
+		DPU_REG_WRITE(&ctx->hw, base, GC_DIS);
+		return;
+	}
+
+	DPU_REG_WRITE(&ctx->hw, base + GC_C0_INDEX_OFF, 0);
+	DPU_REG_WRITE(&ctx->hw, base + GC_C1_INDEX_OFF, 0);
+	DPU_REG_WRITE(&ctx->hw, base + GC_C2_INDEX_OFF, 0);
+
+	for (i = 0; i < PGC_TBL_LEN; i++) {
+		DPU_REG_WRITE(&ctx->hw, base + GC_C0_OFF, gc_lut->c0[i]);
+		DPU_REG_WRITE(&ctx->hw, base + GC_C1_OFF, gc_lut->c1[i]);
+		DPU_REG_WRITE(&ctx->hw, base + GC_C2_OFF, gc_lut->c2[i]);
+	}
+
+	DPU_REG_WRITE(&ctx->hw, base + GC_LUT_SWAP_OFF, BIT(0));
+
+	reg = GC_EN | ((gc_lut->flags & PGC_8B_ROUND) ? GC_8B_ROUND_EN : 0);
+	DPU_REG_WRITE(&ctx->hw, base, reg);
+}
+
 /**
  * dpu_hw_dspp_init() - Initializes the DSPP hw driver object.
  * should be called once before accessing every DSPP.
@@ -92,6 +144,8 @@ struct dpu_hw_dspp *dpu_hw_dspp_init(struct drm_device *dev,
 	c->cap = cfg;
 	if (c->cap->sblk->pcc.base)
 		c->ops.setup_pcc = dpu_setup_dspp_pcc;
+	if (c->cap->sblk->gc.base)
+		c->ops.setup_gc = dpu_setup_dspp_gc;
 
 	return c;
 }

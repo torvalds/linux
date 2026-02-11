@@ -11,7 +11,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_pxp.h"
 #include "xe_pxp_types.h"
 #include "regs/xe_irq_regs.h"

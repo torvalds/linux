@@ -2,7 +2,6 @@
 /*
  * Copyright © 2024 Intel Corporation
  */
-#include "xe_bo.h"
 #include <drm/drm_exec.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gpuvm.h>

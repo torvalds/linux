@@ -15,7 +15,6 @@
 #include "xe_force_wake.h"
 #include "xe_guc_submit.h"
 #include "xe_gsc_proxy.h"
-#include "xe_gt.h"
 #include "xe_gt_types.h"
 #include "xe_huc.h"
 #include "xe_mmio.h"
@@ -58,10 +57,9 @@ bool xe_pxp_is_enabled(const struct xe_pxp *pxp)
 static bool pxp_prerequisites_done(const struct xe_pxp *pxp)
 {
 	struct xe_gt *gt = pxp->gt;
-	unsigned int fw_ref;
 	bool ready;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 
 	/*
 	 * If force_wake fails we could falsely report the prerequisites as not
@@ -71,13 +69,11 @@ static bool pxp_prerequisites_done(const struct xe_pxp *pxp)
 	 * PXP. Therefore, we can just log the force_wake error and not escalate
 	 * it.
 	 */
-	XE_WARN_ON(!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL));
+	XE_WARN_ON(!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL));
 
 	/* PXP requires both HuC authentication via GSC and GSC proxy initialized */
 	ready = xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC) &&
 		xe_gsc_proxy_init_done(&gt->uc.gsc);
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return ready;
 }
@@ -104,13 +100,12 @@ int xe_pxp_get_readiness_status(struct xe_pxp *pxp)
 	    xe_uc_fw_status_to_error(pxp->gt->uc.gsc.fw.status))
 		return -EIO;
 
-	xe_pm_runtime_get(pxp->xe);
+	guard(xe_pm_runtime)(pxp->xe);
 
 	/* PXP requires both HuC loaded and GSC proxy initialized */
 	if (pxp_prerequisites_done(pxp))
 		ret = 1;
 
-	xe_pm_runtime_put(pxp->xe);
 	return ret;
 }
 
@@ -135,35 +130,28 @@ static void pxp_invalidate_queues(struct xe_pxp *pxp);
 static int pxp_terminate_hw(struct xe_pxp *pxp)
 {
 	struct xe_gt *gt = pxp->gt;
-	unsigned int fw_ref;
 	int ret = 0;
 
 	drm_dbg(&pxp->xe->drm, "Terminating PXP\n");
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
-		ret = -EIO;
-		goto out;
-	}
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FW_GT))
+		return -EIO;
 
 	/* terminate the hw session */
 	ret = xe_pxp_submit_session_termination(pxp, ARB_SESSION);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = pxp_wait_for_session_state(pxp, ARB_SESSION, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* Trigger full HW cleanup */
 	xe_mmio_write32(&gt->mmio, KCR_GLOBAL_TERMINATE, 1);
 
 	/* now we can tell the GSC to clean up its own state */
-	ret = xe_pxp_submit_session_invalidation(&pxp->gsc_res, ARB_SESSION);
-
-out:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	return ret;
+	return xe_pxp_submit_session_invalidation(&pxp->gsc_res, ARB_SESSION);
 }
 
 static void mark_termination_in_progress(struct xe_pxp *pxp)
@@ -326,14 +314,12 @@ static int kcr_pxp_set_status(const struct xe_pxp *pxp, bool enable)
 {
 	u32 val = enable ? _MASKED_BIT_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
 		  _MASKED_BIT_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
-	unsigned int fw_ref;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(pxp->gt), XE_FW_GT);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT))
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(pxp->gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FW_GT))
 		return -EIO;
 
 	xe_mmio_write32(&pxp->gt->mmio, KCR_INIT, val);
-	xe_force_wake_put(gt_to_fw(pxp->gt), fw_ref);
 
 	return 0;
 }
@@ -453,34 +439,28 @@ out:
 static int __pxp_start_arb_session(struct xe_pxp *pxp)
 {
 	int ret;
-	unsigned int fw_ref;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(pxp->gt), XE_FW_GT);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT))
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(pxp->gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FW_GT))
 		return -EIO;
 
-	if (pxp_session_is_in_play(pxp, ARB_SESSION)) {
-		ret = -EEXIST;
-		goto out_force_wake;
-	}
+	if (pxp_session_is_in_play(pxp, ARB_SESSION))
+		return -EEXIST;
 
 	ret = xe_pxp_submit_session_init(&pxp->gsc_res, ARB_SESSION);
 	if (ret) {
 		drm_err(&pxp->xe->drm, "Failed to init PXP arb session: %pe\n", ERR_PTR(ret));
-		goto out_force_wake;
+		return ret;
 	}
 
 	ret = pxp_wait_for_session_state(pxp, ARB_SESSION, true);
 	if (ret) {
 		drm_err(&pxp->xe->drm, "PXP ARB session failed to go in play%pe\n", ERR_PTR(ret));
-		goto out_force_wake;
+		return ret;
 	}
 
 	drm_dbg(&pxp->xe->drm, "PXP ARB session is active\n");
-
-out_force_wake:
-	xe_force_wake_put(gt_to_fw(pxp->gt), fw_ref);
-	return ret;
+	return 0;
 }
 
 /**

@@ -136,6 +136,8 @@ struct panthor_gem_object *to_panthor_bo(struct drm_gem_object *obj)
 	return container_of(to_drm_gem_shmem_obj(obj), struct panthor_gem_object, base);
 }
 
+void panthor_gem_init(struct panthor_device *ptdev);
+
 struct drm_gem_object *panthor_gem_create_object(struct drm_device *ddev, size_t size);
 
 int
@@ -146,6 +148,12 @@ panthor_gem_create_with_handle(struct drm_file *file,
 
 void panthor_gem_bo_set_label(struct drm_gem_object *obj, const char *label);
 void panthor_gem_kernel_bo_set_label(struct panthor_kernel_bo *bo, const char *label);
+int panthor_gem_sync(struct drm_gem_object *obj,
+		     u32 type, u64 offset, u64 size);
+
+struct drm_gem_object *
+panthor_gem_prime_import(struct drm_device *dev,
+			 struct dma_buf *dma_buf);
 
 static inline u64
 panthor_kernel_bo_gpuva(struct panthor_kernel_bo *bo)

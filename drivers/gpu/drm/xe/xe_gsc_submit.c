@@ -11,12 +11,10 @@
 #include "xe_assert.h"
 #include "xe_bb.h"
 #include "xe_exec_queue.h"
-#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
 #include "xe_map.h"
 #include "xe_sched_job.h"
 #include "instructions/xe_gsc_commands.h"
-#include "regs/xe_gsc_regs.h"
 
 #define GSC_HDR_SIZE (sizeof(struct intel_gsc_mtl_header)) /* shorthand define */
 

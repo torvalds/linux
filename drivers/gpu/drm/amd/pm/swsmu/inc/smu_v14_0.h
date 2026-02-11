@@ -43,7 +43,6 @@
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
 #define smnMP1_PUB_CTRL			0x3010d10
 
-#define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 3
 
 #define SMU14_TOOL_SIZE			0x19000
@@ -68,39 +67,19 @@ struct smu_14_0_max_sustainable_clocks {
 	uint32_t soc_clock;
 };
 
-struct smu_14_0_dpm_clk_level {
-	bool				enabled;
-	uint32_t			value;
-};
-
-struct smu_14_0_dpm_table {
-	uint32_t			min;        /* MHz */
-	uint32_t			max;        /* MHz */
-	uint32_t			count;
-	bool				is_fine_grained;
-	struct smu_14_0_dpm_clk_level	dpm_levels[MAX_DPM_LEVELS];
-};
-
-struct smu_14_0_pcie_table {
-	uint8_t  pcie_gen[MAX_PCIE_CONF];
-	uint8_t  pcie_lane[MAX_PCIE_CONF];
-	uint16_t clk_freq[MAX_PCIE_CONF];
-	uint32_t num_of_link_levels;
-};
-
 struct smu_14_0_dpm_tables {
-	struct smu_14_0_dpm_table        soc_table;
-	struct smu_14_0_dpm_table        gfx_table;
-	struct smu_14_0_dpm_table        uclk_table;
-	struct smu_14_0_dpm_table        eclk_table;
-	struct smu_14_0_dpm_table        vclk_table;
-	struct smu_14_0_dpm_table        dclk_table;
-	struct smu_14_0_dpm_table        dcef_table;
-	struct smu_14_0_dpm_table        pixel_table;
-	struct smu_14_0_dpm_table        display_table;
-	struct smu_14_0_dpm_table        phy_table;
-	struct smu_14_0_dpm_table        fclk_table;
-	struct smu_14_0_pcie_table       pcie_table;
+	struct smu_dpm_table        soc_table;
+	struct smu_dpm_table        gfx_table;
+	struct smu_dpm_table        uclk_table;
+	struct smu_dpm_table        eclk_table;
+	struct smu_dpm_table        vclk_table;
+	struct smu_dpm_table        dclk_table;
+	struct smu_dpm_table        dcef_table;
+	struct smu_dpm_table        pixel_table;
+	struct smu_dpm_table        display_table;
+	struct smu_dpm_table        phy_table;
+	struct smu_dpm_table        fclk_table;
+	struct smu_pcie_table       pcie_table;
 };
 
 struct smu_14_0_dpm_context {
@@ -202,7 +181,7 @@ int smu_v14_0_set_power_source(struct smu_context *smu,
 
 int smu_v14_0_set_single_dpm_table(struct smu_context *smu,
 				   enum smu_clk_type clk_type,
-				   struct smu_14_0_dpm_table *single_dpm_table);
+				   struct smu_dpm_table *single_dpm_table);
 
 int smu_v14_0_gfx_ulv_control(struct smu_context *smu,
 			      bool enablement);
@@ -237,10 +216,8 @@ int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
 					uint32_t pptable_id);
 
 int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
-				enum PP_OD_DPM_TABLE_COMMAND type,
-				long input[], uint32_t size);
-
-void smu_v14_0_set_smu_mailbox_registers(struct smu_context *smu);
+			enum PP_OD_DPM_TABLE_COMMAND type,
+			long input[], uint32_t size);
 
 int smu_v14_0_enable_thermal_alert(struct smu_context *smu);
 

@@ -845,32 +845,34 @@ EXPORT_SYMBOL(ttm_pool_alloc);
 int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 			       const struct ttm_operation_ctx *ctx)
 {
+	struct ttm_pool_tt_restore *restore = tt->restore;
 	struct ttm_pool_alloc_state alloc;
 
 	if (WARN_ON(!ttm_tt_is_backed_up(tt)))
 		return -EINVAL;
 
-	if (!tt->restore) {
+	if (!restore) {
 		gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 
 		ttm_pool_alloc_state_init(tt, &alloc);
 		if (ctx->gfp_retry_mayfail)
 			gfp |= __GFP_RETRY_MAYFAIL;
 
-		tt->restore = kzalloc(sizeof(*tt->restore), gfp);
-		if (!tt->restore)
+		restore = kzalloc(sizeof(*restore), gfp);
+		if (!restore)
 			return -ENOMEM;
 
-		tt->restore->snapshot_alloc = alloc;
-		tt->restore->pool = pool;
-		tt->restore->restored_pages = 1;
-	} else {
-		struct ttm_pool_tt_restore *restore = tt->restore;
-		int ret;
+		restore->snapshot_alloc = alloc;
+		restore->pool = pool;
+		restore->restored_pages = 1;
 
+		tt->restore = restore;
+	} else {
 		alloc = restore->snapshot_alloc;
-		if (ttm_pool_restore_valid(tt->restore)) {
-			ret = ttm_pool_restore_commit(restore, tt->backup, ctx, &alloc);
+		if (ttm_pool_restore_valid(restore)) {
+			int ret = ttm_pool_restore_commit(restore, tt->backup,
+							  ctx, &alloc);
+
 			if (ret)
 				return ret;
 		}
@@ -878,7 +880,7 @@ int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 			return 0;
 	}
 
-	return __ttm_pool_alloc(pool, tt, ctx, &alloc, tt->restore);
+	return __ttm_pool_alloc(pool, tt, ctx, &alloc, restore);
 }
 
 /**

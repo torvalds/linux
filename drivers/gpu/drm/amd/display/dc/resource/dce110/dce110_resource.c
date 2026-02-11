@@ -895,6 +895,8 @@ static void get_pixel_clock_parameters(
 	 */
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 	pixel_clk_params->encoder_object_id = stream->link->link_enc->id;
+	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
+		pixel_clk_params->encoder_object_id = stream->link->link_enc->analog_id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/

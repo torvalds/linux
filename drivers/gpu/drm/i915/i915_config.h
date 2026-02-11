@@ -9,15 +9,11 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 
-struct drm_i915_private;
+unsigned long i915_fence_context_timeout(u64 context);
 
-unsigned long i915_fence_context_timeout(const struct drm_i915_private *i915,
-					 u64 context);
-
-static inline unsigned long
-i915_fence_timeout(const struct drm_i915_private *i915)
+static inline unsigned long i915_fence_timeout(void)
 {
-	return i915_fence_context_timeout(i915, U64_MAX);
+	return i915_fence_context_timeout(U64_MAX);
 }
 
 #endif /* __I915_CONFIG_H__ */

@@ -95,7 +95,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 		return -EFAULT;
 	}
 
-	/* check number of parameters. isspace could not differ space and \n */
+	/* check number of parameters. isspace could not differ space and\n */
 	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
 		/* skip space*/
 		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
@@ -2710,6 +2710,65 @@ static int ips_status_show(struct seq_file *m, void *unused)
 }
 
 /*
+ * IPS residency information from DMUB service. Read only.
+ *
+ * For time-window (segment) measurement:
+ *	1) echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency_cntl
+ *	2) sleep <seconds>
+ *	3) echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency_cntl
+ *	4) cat /sys/kernel/debug/dri/0/amdgpu_dm_ips_residency
+ */
+static int ips_residency_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = m->private;
+	struct dc *dc = adev->dm.dc;
+	uint8_t panel_inst = 0;
+	enum ips_residency_mode mode;
+	struct dmub_ips_residency_info info;
+
+	mutex_lock(&adev->dm.dc_lock);
+
+	mode = IPS_RESIDENCY__IPS1_RCG;
+	if (!dc_dmub_srv_ips_query_residency_info(dc->ctx, panel_inst, &info, mode)) {
+		seq_printf(m, "ISP query failed\n");
+	} else {
+		unsigned int pct, frac;
+		pct = info.residency_millipercent / 1000;
+		frac = info.residency_millipercent % 1000;
+
+		seq_printf(m, "IPS residency: %u.%03u%% \n", pct, frac);
+		seq_printf(m, "    entry_counter: %u\n", info.entry_counter);
+		seq_printf(m, "    total_time_us: %llu\n",
+			(unsigned long long)info.total_time_us);
+		seq_printf(m, "    total_inactive_time_us: %llu\n",
+			(unsigned long long)info.total_inactive_time_us);
+	}
+	mutex_unlock(&adev->dm.dc_lock);
+	return 0;
+}
+
+static int ips_residency_cntl_get(void *data, u64 *val)
+{
+	*val = 0;
+	return 0;
+}
+
+static int ips_residency_cntl_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+	struct dc *dc = adev->dm.dc;
+	uint8_t panel_inst = 0;
+	int ret = 0;
+
+	mutex_lock(&adev->dm.dc_lock);
+	if (!dc_dmub_srv_ips_residency_cntl(dc->ctx, panel_inst, !!val))
+		ret = -EIO;
+	mutex_unlock(&adev->dm.dc_lock);
+
+	return ret;
+}
+
+/*
  * Backlight at this moment.  Read only.
  * As written to display, taking ABM and backlight lut into account.
  * Ranges from 0x0 to 0x10000 (= 100% PWM)
@@ -3370,9 +3429,12 @@ DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
 			disallow_edp_enter_psr_get,
 			disallow_edp_enter_psr_set, "%llu\n");
 
+DEFINE_DEBUGFS_ATTRIBUTE(ips_residency_cntl_fops, ips_residency_cntl_get,
+			   ips_residency_cntl_set, "%llu\n");
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
 DEFINE_SHOW_ATTRIBUTE(ips_status);
+DEFINE_SHOW_ATTRIBUTE(ips_residency);
 
 static const struct {
 	char *name;
@@ -4271,7 +4333,14 @@ void dtn_debugfs_init(struct amdgpu_device *adev)
 	debugfs_create_file_unsafe("amdgpu_dm_disable_hpd", 0644, root, adev,
 				   &disable_hpd_ops);
 
-	if (adev->dm.dc->caps.ips_support)
+	if (adev->dm.dc->caps.ips_support) {
 		debugfs_create_file_unsafe("amdgpu_dm_ips_status", 0644, root, adev,
 					   &ips_status_fops);
+
+		debugfs_create_file_unsafe("amdgpu_dm_ips_residency_cntl", 0644, root, adev,
+					   &ips_residency_cntl_fops);
+
+		debugfs_create_file_unsafe("amdgpu_dm_ips_residency", 0644, root, adev,
+					   &ips_residency_fops);
+	}
 }

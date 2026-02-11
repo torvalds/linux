@@ -122,6 +122,33 @@
 #define PICK_ARG12(args...)		PICK_ARG11(DROP_FIRST_ARG(args))
 
 /**
+ * IF_ARGS() - Make selection based on optional argument list.
+ * @then: token to return if arguments are present
+ * @else: token to return if arguments are empty
+ * @...: arguments to check (optional)
+ *
+ * This macro allows to select a token based on the presence of the argument list.
+ *
+ * Example:
+ *
+ *	#define foo	X, Y
+ *	#define bar	IF_ARGS(Z, Q, foo)
+ *	#define buz	IF_ARGS(Z, Q, DROP_FIRST_ARG(FIRST_ARG(foo)))
+ *
+ *	With above definitions bar expands to Z while buz expands to Q.
+ */
+#if defined(CONFIG_CC_IS_CLANG) || GCC_VERSION >= 100100
+#define IF_ARGS(then, else, ...)	FIRST_ARG(__VA_OPT__(then,) else)
+#else
+#define IF_ARGS(then, else, ...)	_IF_ARGS(then, else, CALL_ARGS(FIRST_ARG, __VA_ARGS__))
+#define _IF_ARGS(then, else, ...)	__IF_ARGS(then, else, CALL_ARGS(COUNT_ARGS, __VA_ARGS__))
+#define __IF_ARGS(then, else, n)	___IF_ARGS(then, else, CALL_ARGS(CONCATENATE, ___IF_ARG, n))
+#define ___IF_ARGS(then, else, if)	CALL_ARGS(if, then, else)
+#define ___IF_ARG1(then, else)		then
+#define ___IF_ARG0(then, else)		else
+#endif
+
+/**
  * ARGS_SEP_COMMA - Definition of a comma character.
  *
  * This definition can be used in cases where any intermediate macro expects

@@ -360,19 +360,12 @@ static void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			 struct drm_framebuffer *old_fb)
 {
-	return radeon_crtc_do_set_base(crtc, old_fb, x, y, 0);
-}
-
-int radeon_crtc_set_base_atomic(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				int x, int y, enum mode_set_atomic state)
-{
-	return radeon_crtc_do_set_base(crtc, fb, x, y, 1);
+	return radeon_crtc_do_set_base(crtc, old_fb, x, y);
 }
 
 int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 			 struct drm_framebuffer *fb,
-			 int x, int y, int atomic)
+			 int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -390,15 +383,12 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
-	if (!atomic && !crtc->primary->fb) {
+	if (!crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
 
-	if (atomic)
-		target_fb = fb;
-	else
-		target_fb = crtc->primary->fb;
+	target_fb = crtc->primary->fb;
 
 	switch (target_fb->format->cpp[0] * 8) {
 	case 8:
@@ -445,7 +435,7 @@ retry:
 		 * We don't shutdown the display controller because new buffer
 		 * will end up in same spot.
 		 */
-		if (!atomic && fb && fb != crtc->primary->fb) {
+		if (fb && fb != crtc->primary->fb) {
 			struct radeon_bo *old_rbo;
 			unsigned long nsize, osize;
 
@@ -555,7 +545,7 @@ retry:
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
-	if (!atomic && fb && fb != crtc->primary->fb) {
+	if (fb && fb != crtc->primary->fb) {
 		rbo = gem_to_radeon_bo(fb->obj[0]);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
@@ -1108,7 +1098,6 @@ static const struct drm_crtc_helper_funcs legacy_helper_funcs = {
 	.mode_fixup = radeon_crtc_mode_fixup,
 	.mode_set = radeon_crtc_mode_set,
 	.mode_set_base = radeon_crtc_set_base,
-	.mode_set_base_atomic = radeon_crtc_set_base_atomic,
 	.prepare = radeon_crtc_prepare,
 	.commit = radeon_crtc_commit,
 	.disable = radeon_crtc_disable,

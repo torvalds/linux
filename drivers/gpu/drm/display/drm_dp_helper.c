@@ -2705,6 +2705,71 @@ u8 drm_dp_dsc_sink_bpp_incr(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
 EXPORT_SYMBOL(drm_dp_dsc_sink_bpp_incr);
 
 /**
+ * drm_dp_dsc_slice_count_to_mask() - Convert a slice count to a slice count mask
+ * @slice_count: slice count
+ *
+ * Convert @slice_count to a slice count mask.
+ *
+ * Returns the slice count mask.
+ */
+u32 drm_dp_dsc_slice_count_to_mask(int slice_count)
+{
+	return BIT(slice_count - 1);
+}
+EXPORT_SYMBOL(drm_dp_dsc_slice_count_to_mask);
+
+/**
+ * drm_dp_dsc_sink_slice_count_mask() - Get the mask of valid DSC sink slice counts
+ * @dsc_dpcd: the sink's DSC DPCD capabilities
+ * @is_edp: %true for an eDP sink
+ *
+ * Get the mask of supported slice counts from the sink's DSC DPCD register.
+ *
+ * Returns:
+ * Mask of slice counts supported by the DSC sink:
+ * - > 0: bit#0,1,3,5..,23 set if the sink supports 1,2,4,6..,24 slices
+ * - 0:   if the sink doesn't support any slices
+ */
+u32 drm_dp_dsc_sink_slice_count_mask(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+				     bool is_edp)
+{
+	u8 slice_cap1 = dsc_dpcd[DP_DSC_SLICE_CAP_1 - DP_DSC_SUPPORT];
+	u32 mask = 0;
+
+	if (!is_edp) {
+		/* For DP, use values from DSC_SLICE_CAP_1 and DSC_SLICE_CAP2 */
+		u8 slice_cap2 = dsc_dpcd[DP_DSC_SLICE_CAP_2 - DP_DSC_SUPPORT];
+
+		if (slice_cap2 & DP_DSC_24_PER_DP_DSC_SINK)
+			mask |= drm_dp_dsc_slice_count_to_mask(24);
+		if (slice_cap2 & DP_DSC_20_PER_DP_DSC_SINK)
+			mask |= drm_dp_dsc_slice_count_to_mask(20);
+		if (slice_cap2 & DP_DSC_16_PER_DP_DSC_SINK)
+			mask |= drm_dp_dsc_slice_count_to_mask(16);
+	}
+
+	/* DP, eDP v1.5+ */
+	if (slice_cap1 & DP_DSC_12_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(12);
+	if (slice_cap1 & DP_DSC_10_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(10);
+	if (slice_cap1 & DP_DSC_8_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(8);
+	if (slice_cap1 & DP_DSC_6_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(6);
+	/* DP, eDP v1.4+ */
+	if (slice_cap1 & DP_DSC_4_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(4);
+	if (slice_cap1 & DP_DSC_2_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(2);
+	if (slice_cap1 & DP_DSC_1_PER_DP_DSC_SINK)
+		mask |= drm_dp_dsc_slice_count_to_mask(1);
+
+	return mask;
+}
+EXPORT_SYMBOL(drm_dp_dsc_sink_slice_count_mask);
+
+/**
  * drm_dp_dsc_sink_max_slice_count() - Get the max slice count
  * supported by the DSC sink.
  * @dsc_dpcd: DSC capabilities from DPCD
@@ -2723,43 +2788,7 @@ EXPORT_SYMBOL(drm_dp_dsc_sink_bpp_incr);
 u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
 				   bool is_edp)
 {
-	u8 slice_cap1 = dsc_dpcd[DP_DSC_SLICE_CAP_1 - DP_DSC_SUPPORT];
-
-	if (is_edp) {
-		/* For eDP, register DSC_SLICE_CAPABILITIES_1 gives slice count */
-		if (slice_cap1 & DP_DSC_4_PER_DP_DSC_SINK)
-			return 4;
-		if (slice_cap1 & DP_DSC_2_PER_DP_DSC_SINK)
-			return 2;
-		if (slice_cap1 & DP_DSC_1_PER_DP_DSC_SINK)
-			return 1;
-	} else {
-		/* For DP, use values from DSC_SLICE_CAP_1 and DSC_SLICE_CAP2 */
-		u8 slice_cap2 = dsc_dpcd[DP_DSC_SLICE_CAP_2 - DP_DSC_SUPPORT];
-
-		if (slice_cap2 & DP_DSC_24_PER_DP_DSC_SINK)
-			return 24;
-		if (slice_cap2 & DP_DSC_20_PER_DP_DSC_SINK)
-			return 20;
-		if (slice_cap2 & DP_DSC_16_PER_DP_DSC_SINK)
-			return 16;
-		if (slice_cap1 & DP_DSC_12_PER_DP_DSC_SINK)
-			return 12;
-		if (slice_cap1 & DP_DSC_10_PER_DP_DSC_SINK)
-			return 10;
-		if (slice_cap1 & DP_DSC_8_PER_DP_DSC_SINK)
-			return 8;
-		if (slice_cap1 & DP_DSC_6_PER_DP_DSC_SINK)
-			return 6;
-		if (slice_cap1 & DP_DSC_4_PER_DP_DSC_SINK)
-			return 4;
-		if (slice_cap1 & DP_DSC_2_PER_DP_DSC_SINK)
-			return 2;
-		if (slice_cap1 & DP_DSC_1_PER_DP_DSC_SINK)
-			return 1;
-	}
-
-	return 0;
+	return fls(drm_dp_dsc_sink_slice_count_mask(dsc_dpcd, is_edp));
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_max_slice_count);
 

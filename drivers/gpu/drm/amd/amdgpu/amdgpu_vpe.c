@@ -790,7 +790,7 @@ static int vpe_ring_test_ring(struct amdgpu_ring *ring)
 
 	ret = amdgpu_ring_alloc(ring, 4);
 	if (ret) {
-		dev_err(adev->dev, "amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, ret);
+		dev_err(adev->dev, "dma failed to lock ring %d (%d).\n", ring->idx, ret);
 		goto out;
 	}
 

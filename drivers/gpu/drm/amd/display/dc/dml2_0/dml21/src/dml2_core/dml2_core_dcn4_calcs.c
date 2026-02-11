@@ -326,6 +326,7 @@ dml_get_var_func(stutter_efficiency, double, mode_lib->mp.StutterEfficiency);
 dml_get_var_func(stutter_efficiency_no_vblank, double, mode_lib->mp.StutterEfficiencyNotIncludingVBlank);
 dml_get_var_func(stutter_num_bursts, double, mode_lib->mp.NumberOfStutterBurstsPerFrame);
 dml_get_var_func(stutter_efficiency_z8, double, mode_lib->mp.Z8StutterEfficiency);
+dml_get_var_func(stutter_efficiency_no_vblank_z8, double, mode_lib->mp.Z8StutterEfficiencyNotIncludingVBlank);
 dml_get_var_func(stutter_num_bursts_z8, double, mode_lib->mp.Z8NumberOfStutterBurstsPerFrame);
 dml_get_var_func(stutter_period, double, mode_lib->mp.StutterPeriod);
 dml_get_var_func(stutter_efficiency_z8_bestcase, double, mode_lib->mp.Z8StutterEfficiencyBestCase);
@@ -13198,8 +13199,8 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.power_management.stutter_efficiency_with_vblank = dml_get_stutter_efficiency(mode_lib);
 	out->informative.power_management.stutter_num_bursts = dml_get_stutter_num_bursts(mode_lib);
 
-	out->informative.power_management.z8.stutter_efficiency = dml_get_stutter_efficiency_z8(mode_lib);
-	out->informative.power_management.z8.stutter_efficiency_with_vblank = dml_get_stutter_efficiency(mode_lib);
+	out->informative.power_management.z8.stutter_efficiency = dml_get_stutter_efficiency_no_vblank_z8(mode_lib);
+	out->informative.power_management.z8.stutter_efficiency_with_vblank = dml_get_stutter_efficiency_z8(mode_lib);
 	out->informative.power_management.z8.stutter_num_bursts = dml_get_stutter_num_bursts_z8(mode_lib);
 	out->informative.power_management.z8.stutter_period = dml_get_stutter_period(mode_lib);
 

@@ -130,11 +130,6 @@
 	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id), \
 	SR(DCI_MEM_PWR_STATUS)
 
-#define LE_DCN10_REG_LIST(id)\
-	LE_COMMON_REG_LIST_BASE(id), \
-	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
-	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SRI(DP_DPHY_HBR2_PATTERN_CONTROL, DP, id)
 
 struct dce110_link_enc_aux_registers {
 	uint32_t AUX_CONTROL;
@@ -318,5 +313,8 @@ bool dce110_is_dig_enabled(struct link_encoder *enc);
 
 void dce110_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings);
+
+bool dce110_get_hpd_state(struct link_encoder *enc);
+bool dce110_program_hpd_filter(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms);
 
 #endif /* __DC_LINK_ENCODER__DCE110_H__ */

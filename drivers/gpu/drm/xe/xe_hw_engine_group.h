@@ -11,6 +11,7 @@
 struct drm_device;
 struct xe_exec_queue;
 struct xe_gt;
+struct xe_sync_entry;
 
 int xe_hw_engine_setup_groups(struct xe_gt *gt);
 
@@ -19,7 +20,8 @@ void xe_hw_engine_group_del_exec_queue(struct xe_hw_engine_group *group, struct 
 
 int xe_hw_engine_group_get_mode(struct xe_hw_engine_group *group,
 				enum xe_hw_engine_group_execution_mode new_mode,
-				enum xe_hw_engine_group_execution_mode *previous_mode);
+				enum xe_hw_engine_group_execution_mode *previous_mode,
+				struct xe_sync_entry *syncs, int num_syncs);
 void xe_hw_engine_group_put(struct xe_hw_engine_group *group);
 
 enum xe_hw_engine_group_execution_mode

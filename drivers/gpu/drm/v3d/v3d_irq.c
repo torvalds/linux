@@ -50,7 +50,7 @@ v3d_overflow_mem_work(struct work_struct *work)
 	unsigned long irqflags;
 
 	if (IS_ERR(bo)) {
-		DRM_ERROR("Couldn't allocate binner overflow mem\n");
+		drm_err(dev, "Couldn't allocate binner overflow mem\n");
 		return;
 	}
 	obj = &bo->base.base;
@@ -140,7 +140,7 @@ v3d_irq(int irq, void *arg)
 	 * always-allowed mode.
 	 */
 	if (v3d->ver < V3D_GEN_71 && (intsts & V3D_INT_GMPV))
-		dev_err(v3d->drm.dev, "GMP violation\n");
+		drm_err(&v3d->drm, "GMP violation\n");
 
 	/* V3D 4.2 wires the hub and core IRQs together, so if we &
 	 * didn't see the common one then check hub for MMU IRQs.
@@ -226,7 +226,7 @@ v3d_hub_irq(int irq, void *arg)
 			}
 		}
 
-		dev_err(v3d->drm.dev, "MMU error from client %s (0x%x) at 0x%llx%s%s%s\n",
+		drm_dbg(&v3d->drm, "MMU error from client %s (0x%x) at 0x%llx%s%s%s\n",
 			client, axi_id, (long long)vio_addr,
 			((intsts & V3D_HUB_INT_MMU_WRV) ?
 			 ", write violation" : ""),
@@ -238,7 +238,7 @@ v3d_hub_irq(int irq, void *arg)
 	}
 
 	if (v3d->ver >= V3D_GEN_71 && (intsts & V3D_V7_HUB_INT_GMPV)) {
-		dev_err(v3d->drm.dev, "GMP Violation\n");
+		drm_err(&v3d->drm, "GMP Violation\n");
 		status = IRQ_HANDLED;
 	}
 

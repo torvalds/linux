@@ -70,9 +70,8 @@ static ssize_t act_freq_show(struct kobject *kobj,
 	struct xe_guc_pc *pc = dev_to_pc(dev);
 	u32 freq;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	freq = xe_guc_pc_get_act_freq(pc);
-	xe_pm_runtime_put(dev_to_xe(dev));
 
 	return sysfs_emit(buf, "%d\n", freq);
 }
@@ -86,9 +85,8 @@ static ssize_t cur_freq_show(struct kobject *kobj,
 	u32 freq;
 	ssize_t ret;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	ret = xe_guc_pc_get_cur_freq(pc, &freq);
-	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -113,9 +111,8 @@ static ssize_t rpe_freq_show(struct kobject *kobj,
 	struct xe_guc_pc *pc = dev_to_pc(dev);
 	u32 freq;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	freq = xe_guc_pc_get_rpe_freq(pc);
-	xe_pm_runtime_put(dev_to_xe(dev));
 
 	return sysfs_emit(buf, "%d\n", freq);
 }
@@ -128,9 +125,8 @@ static ssize_t rpa_freq_show(struct kobject *kobj,
 	struct xe_guc_pc *pc = dev_to_pc(dev);
 	u32 freq;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	freq = xe_guc_pc_get_rpa_freq(pc);
-	xe_pm_runtime_put(dev_to_xe(dev));
 
 	return sysfs_emit(buf, "%d\n", freq);
 }
@@ -154,9 +150,8 @@ static ssize_t min_freq_show(struct kobject *kobj,
 	u32 freq;
 	ssize_t ret;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	ret = xe_guc_pc_get_min_freq(pc, &freq);
-	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -175,9 +170,8 @@ static ssize_t min_freq_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	ret = xe_guc_pc_set_min_freq(pc, freq);
-	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -193,9 +187,8 @@ static ssize_t max_freq_show(struct kobject *kobj,
 	u32 freq;
 	ssize_t ret;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	ret = xe_guc_pc_get_max_freq(pc, &freq);
-	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -214,9 +207,8 @@ static ssize_t max_freq_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	ret = xe_guc_pc_set_max_freq(pc, freq);
-	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -243,9 +235,8 @@ static ssize_t power_profile_store(struct kobject *kobj,
 	struct xe_guc_pc *pc = dev_to_pc(dev);
 	int err;
 
-	xe_pm_runtime_get(dev_to_xe(dev));
+	guard(xe_pm_runtime)(dev_to_xe(dev));
 	err = xe_guc_pc_set_power_profile(pc, buff);
-	xe_pm_runtime_put(dev_to_xe(dev));
 
 	return err ?: count;
 }

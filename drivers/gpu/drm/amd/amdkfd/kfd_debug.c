@@ -357,8 +357,9 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 		return 0;
 
 	if (!pdd->proc_ctx_cpu_ptr) {
-		r = amdgpu_amdkfd_alloc_gtt_mem(adev,
+		r = amdgpu_amdkfd_alloc_kernel_mem(adev,
 			AMDGPU_MES_PROC_CTX_SIZE,
+			AMDGPU_GEM_DOMAIN_GTT,
 			&pdd->proc_ctx_bo,
 			&pdd->proc_ctx_gpu_addr,
 			&pdd->proc_ctx_cpu_ptr,
@@ -371,8 +372,10 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
 	}
 
-	return amdgpu_mes_set_shader_debugger(pdd->dev->adev, pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
-						pdd->watch_points, flags, sq_trap_en);
+	return amdgpu_mes_set_shader_debugger(pdd->dev->adev,
+					pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
+					pdd->watch_points, flags, sq_trap_en,
+					ffs(pdd->dev->xcc_mask) - 1);
 }
 
 #define KFD_DEBUGGER_INVALID_WATCH_POINT_ID -1
@@ -519,6 +522,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 		struct kfd_topology_device *topo_dev =
 				kfd_topology_device_by_id(target->pdds[i]->dev->id);
 		uint32_t caps = topo_dev->node_props.capability;
+		uint32_t caps2 = topo_dev->node_props.capability2;
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED) &&
 			(*flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP)) {
@@ -528,6 +532,12 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_ALU_OPERATIONS_SUPPORTED) &&
 		    (*flags & KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP)) {
+			*flags = prev_flags;
+			return -EACCES;
+		}
+
+		if (!(caps2 & HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED) &&
+		    (*flags & KFD_DBG_TRAP_FLAG_LDS_OUT_OF_ADDR_RANGE)) {
 			*flags = prev_flags;
 			return -EACCES;
 		}
@@ -1098,6 +1108,7 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 		device_info.num_xcc = NUM_XCC(pdd->dev->xcc_mask);
 		device_info.capability = topo_dev->node_props.capability;
 		device_info.debug_prop = topo_dev->node_props.debug_prop;
+		device_info.capability2 = topo_dev->node_props.capability2;
 
 		if (exception_clear_mask)
 			pdd->exception_status &= ~exception_clear_mask;

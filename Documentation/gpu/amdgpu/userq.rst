@@ -1,3 +1,5 @@
+.. _amdgpu-userq:
+
 ==================
  User Mode Queues
 ==================

@@ -33,26 +33,26 @@
  *    Zhi Wang <zhi.a.wang@intel.com>
  */
 
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/kthread.h>
-#include <linux/sched/mm.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/rbtree.h>
-#include <linux/spinlock.h>
-#include <linux/eventfd.h>
-#include <linux/mdev.h>
 #include <linux/debugfs.h>
-
+#include <linux/eventfd.h>
+#include <linux/init.h>
+#include <linux/kthread.h>
+#include <linux/list.h>
+#include <linux/mdev.h>
+#include <linux/mm.h>
 #include <linux/nospec.h>
+#include <linux/rbtree.h>
+#include <linux/sched/mm.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 
+#include "gvt.h"
 #include "i915_drv.h"
 #include "intel_gvt.h"
-#include "gvt.h"
+#include "sched_policy.h"
 
 MODULE_IMPORT_NS("DMA_BUF");
 MODULE_IMPORT_NS("I915_GVT");

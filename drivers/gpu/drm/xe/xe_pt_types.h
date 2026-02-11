@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+#include "xe_page_reclaim.h"
 #include "xe_pt_walk.h"
 
 struct xe_bo;
@@ -19,6 +20,7 @@ enum xe_cache_level {
 	XE_CACHE_WT,
 	XE_CACHE_WB,
 	XE_CACHE_NONE_COMPRESSION, /*UC + COH_NONE + COMPRESSION */
+	XE_CACHE_WB_COMPRESSION,
 	__XE_CACHE_LEVEL_COUNT,
 };
 
@@ -79,6 +81,8 @@ struct xe_vm_pgtable_update_op {
 	struct xe_vm_pgtable_update entries[XE_VM_MAX_LEVEL * 2 + 1];
 	/** @vma: VMA for operation, operation not valid if NULL */
 	struct xe_vma *vma;
+	/** @prl: Backing pointer to page reclaim list of pt_update_ops */
+	struct xe_page_reclaim_list *prl;
 	/** @num_entries: number of entries for this update operation */
 	u32 num_entries;
 	/** @bind: is a bind */
@@ -95,6 +99,8 @@ struct xe_vm_pgtable_update_ops {
 	struct llist_head deferred;
 	/** @q: exec queue for PT operations */
 	struct xe_exec_queue *q;
+	/** @prl: embedded page reclaim list */
+	struct xe_page_reclaim_list prl;
 	/** @start: start address of ops */
 	u64 start;
 	/** @last: last address of ops */

@@ -64,7 +64,8 @@
 #define HSA_CAP_RESERVED					0x000f8000
 
 #define HSA_CAP2_PER_SDMA_QUEUE_RESET_SUPPORTED			0x00000001
-#define HSA_CAP2_RESERVED					0xfffffffe
+#define HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED	0x00000002
+#define HSA_CAP2_RESERVED					0xfffffffc
 
 /* debug_prop bits in node properties */
 #define HSA_DBG_WATCH_ADDR_MASK_LO_BIT_MASK     0x0000000f

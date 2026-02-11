@@ -86,7 +86,7 @@ amdgpu-y += \
 	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o soc24.o \
 	sienna_cichlid.o smu_v13_0_10.o nbio_v4_3.o hdp_v6_0.o nbio_v7_7.o hdp_v5_2.o lsdma_v6_0.o \
 	nbio_v7_9.o aqua_vanjaram.o nbio_v7_11.o lsdma_v7_0.o hdp_v7_0.o nbif_v6_3_1.o \
-	cyan_skillfish_reg_init.o
+	cyan_skillfish_reg_init.o soc_v1_0.o
 
 # add DF block
 amdgpu-y += \
@@ -104,7 +104,8 @@ amdgpu-y += \
 	gfxhub_v2_0.o mmhub_v2_0.o gmc_v10_0.o gfxhub_v2_1.o mmhub_v2_3.o \
 	mmhub_v1_7.o gfxhub_v3_0.o mmhub_v3_0.o mmhub_v3_0_2.o gmc_v11_0.o \
 	mmhub_v3_0_1.o gfxhub_v3_0_3.o gfxhub_v1_2.o mmhub_v1_8.o mmhub_v3_3.o \
-	gfxhub_v11_5_0.o mmhub_v4_1_0.o gfxhub_v12_0.o gmc_v12_0.o
+	gfxhub_v11_5_0.o mmhub_v4_1_0.o gfxhub_v12_0.o gmc_v12_0.o \
+	mmhub_v4_2_0.o gfxhub_v12_1.o gmc_v12_1.o
 
 # add UMC block
 amdgpu-y += \
@@ -134,7 +135,9 @@ amdgpu-y += \
 	psp_v12_0.o \
 	psp_v13_0.o \
 	psp_v13_0_4.o \
-	psp_v14_0.o
+	psp_v14_0.o \
+	psp_v15_0.o \
+	psp_v15_0_8.o
 
 # add DCE block
 amdgpu-y += \
@@ -156,7 +159,9 @@ amdgpu-y += \
 	gfx_v11_0_3.o \
 	imu_v11_0_3.o \
 	gfx_v12_0.o \
-	imu_v12_0.o
+	gfx_v12_1.o \
+	imu_v12_0.o \
+	imu_v12_1.o
 
 # add async DMA block
 amdgpu-y += \
@@ -169,13 +174,15 @@ amdgpu-y += \
 	sdma_v5_0.o \
 	sdma_v5_2.o \
 	sdma_v6_0.o \
-	sdma_v7_0.o
+	sdma_v7_0.o \
+	sdma_v7_1.o
 
 # add MES block
 amdgpu-y += \
 	amdgpu_mes.o \
 	mes_v11_0.o \
 	mes_v12_0.o \
+	mes_v12_1.o
 
 # add GFX userqueue support
 amdgpu-y += mes_userqueue.o
@@ -215,7 +222,8 @@ amdgpu-y += \
 	jpeg_v4_0_3.o \
 	jpeg_v4_0_5.o \
 	jpeg_v5_0_0.o \
-	jpeg_v5_0_1.o
+	jpeg_v5_0_1.o \
+	jpeg_v5_3_0.o
 
 # add VPE block
 amdgpu-y += \
@@ -244,7 +252,9 @@ amdgpu-y += \
 	smuio_v13_0.o \
 	smuio_v13_0_3.o \
 	smuio_v13_0_6.o \
-	smuio_v14_0_2.o
+	smuio_v14_0_2.o \
+	smuio_v15_0_0.o \
+	smuio_v15_0_8.o
 
 # add reset block
 amdgpu-y += \
@@ -275,7 +285,8 @@ amdgpu-y += \
 	amdgpu_amdkfd_gfx_v10.o \
 	amdgpu_amdkfd_gfx_v10_3.o \
 	amdgpu_amdkfd_gfx_v11.o \
-	amdgpu_amdkfd_gfx_v12.o
+	amdgpu_amdkfd_gfx_v12.o \
+	amdgpu_amdkfd_gfx_v12_1.o
 
 ifneq ($(CONFIG_DRM_AMDGPU_CIK),)
 amdgpu-y += amdgpu_amdkfd_gfx_v7.o

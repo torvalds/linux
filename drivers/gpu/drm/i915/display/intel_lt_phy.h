@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: MIT
- *
+/* SPDX-License-Identifier: MIT */
+/*
  * Copyright © 2025 Intel Corporation
  */
 
@@ -41,7 +41,5 @@ intel_lt_phy_calculate_hdmi_state(struct intel_lt_phy_pll_state *lt_state,
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state);
 void intel_xe3plpd_pll_disable(struct intel_encoder *encoder);
-
-#define HAS_LT_PHY(display) (DISPLAY_VER(display) >= 35)
 
 #endif /* __INTEL_LT_PHY_H__ */

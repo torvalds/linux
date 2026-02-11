@@ -649,7 +649,7 @@ static void gfxhub_v2_1_halt(struct amdgpu_device *adev)
 	}
 
 	if (!time)
-		DRM_WARN("failed to wait for GRBM(EA) idle\n");
+		drm_warn(adev_to_drm(adev), "failed to wait for GRBM(EA) idle\n");
 }
 
 const struct amdgpu_gfxhub_funcs gfxhub_v2_1_funcs = {

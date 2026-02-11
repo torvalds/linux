@@ -333,6 +333,7 @@ struct dccg_funcs {
 	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 	void (*dccg_root_gate_disable_control)(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 	void (*dccg_read_reg_state)(struct dccg *dccg, struct dcn_dccg_reg_state *dccg_reg_state);
+	void (*dccg_enable_global_fgcg)(struct dccg *dccg, bool enable);
 };
 
 #endif //__DAL_DCCG_H__

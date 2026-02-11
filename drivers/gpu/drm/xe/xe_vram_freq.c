@@ -5,7 +5,6 @@
 #include <linux/sysfs.h>
 #include <drm/drm_managed.h>
 
-#include "xe_gt_types.h"
 #include "xe_pcode.h"
 #include "xe_pcode_api.h"
 #include "xe_tile.h"

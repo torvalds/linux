@@ -519,11 +519,8 @@ void xelpdp_pica_irq_handler(struct intel_display *display, u32 iir)
 {
 	enum hpd_pin pin;
 	u32 hotplug_trigger = iir & (XELPDP_DP_ALT_HOTPLUG_MASK | XELPDP_TBT_HOTPLUG_MASK);
-	u32 trigger_aux = iir & XELPDP_AUX_TC_MASK;
+	u32 trigger_aux = iir & xelpdp_pica_aux_mask(display);
 	u32 pin_mask = 0, long_mask = 0;
-
-	if (DISPLAY_VER(display) >= 20)
-		trigger_aux |= iir & XE2LPD_AUX_DDI_MASK;
 
 	for (pin = HPD_PORT_TC1; pin <= HPD_PORT_TC4; pin++) {
 		u32 val;

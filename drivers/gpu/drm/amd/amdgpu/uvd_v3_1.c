@@ -660,7 +660,7 @@ static int uvd_v3_1_hw_init(struct amdgpu_ip_block *ip_block)
 
 	r = uvd_v3_1_fw_validate(adev);
 	if (r) {
-		DRM_ERROR("amdgpu: UVD Firmware validate fail (%d).\n", r);
+		drm_err(adev_to_drm(adev), "UVD Firmware validate fail (%d).\n", r);
 		return r;
 	}
 
@@ -668,13 +668,13 @@ static int uvd_v3_1_hw_init(struct amdgpu_ip_block *ip_block)
 
 	r = amdgpu_ring_test_helper(ring);
 	if (r) {
-		DRM_ERROR("amdgpu: UVD ring test fail (%d).\n", r);
+		drm_err(adev_to_drm(adev), "UVD ring test failed (%d).\n", r);
 		goto done;
 	}
 
 	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
-		DRM_ERROR("amdgpu: ring failed to lock UVD ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "ring alloc failed (%d).\n", r);
 		goto done;
 	}
 
@@ -701,7 +701,7 @@ static int uvd_v3_1_hw_init(struct amdgpu_ip_block *ip_block)
 
 done:
 	if (!r)
-		DRM_INFO("UVD initialized successfully.\n");
+		drm_info(adev_to_drm(adev), "UVD initialized successfully.\n");
 
 	return r;
 }

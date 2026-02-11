@@ -52,7 +52,7 @@ v3d_idle_axi(struct v3d_dev *v3d, int core)
 		      (V3D_GMP_STATUS_RD_COUNT_MASK |
 		       V3D_GMP_STATUS_WR_COUNT_MASK |
 		       V3D_GMP_STATUS_CFG_BUSY)) == 0, 100)) {
-		DRM_ERROR("Failed to wait for safe GMP shutdown\n");
+		drm_err(&v3d->drm, "Failed to wait for safe GMP shutdown\n");
 	}
 }
 
@@ -67,7 +67,7 @@ v3d_idle_gca(struct v3d_dev *v3d)
 	if (wait_for((V3D_GCA_READ(V3D_GCA_SAFE_SHUTDOWN_ACK) &
 		      V3D_GCA_SAFE_SHUTDOWN_ACK_ACKED) ==
 		     V3D_GCA_SAFE_SHUTDOWN_ACK_ACKED, 100)) {
-		DRM_ERROR("Failed to wait for safe GCA shutdown\n");
+		drm_err(&v3d->drm, "Failed to wait for safe GCA shutdown\n");
 	}
 }
 
@@ -117,7 +117,7 @@ v3d_reset_sms(struct v3d_dev *v3d)
 				     V3D_SMS_STATE) == V3D_SMS_ISOLATING_FOR_RESET) &&
 		     !(V3D_GET_FIELD(V3D_SMS_READ(V3D_SMS_REE_CS),
 				     V3D_SMS_STATE) == V3D_SMS_RESETTING), 100)) {
-		DRM_ERROR("Failed to wait for SMS reset\n");
+		drm_err(&v3d->drm, "Failed to wait for SMS reset\n");
 	}
 }
 
@@ -126,9 +126,9 @@ v3d_reset(struct v3d_dev *v3d)
 {
 	struct drm_device *dev = &v3d->drm;
 
-	DRM_DEV_ERROR(dev->dev, "Resetting GPU for hang.\n");
-	DRM_DEV_ERROR(dev->dev, "V3D_ERR_STAT: 0x%08x\n",
-		      V3D_CORE_READ(0, V3D_ERR_STAT));
+	drm_err(dev, "Resetting GPU for hang.\n");
+	drm_err(dev, "V3D_ERR_STAT: 0x%08x\n", V3D_CORE_READ(0, V3D_ERR_STAT));
+
 	trace_v3d_reset_begin(dev);
 
 	/* XXX: only needed for safe powerdown, not reset. */
@@ -216,7 +216,7 @@ v3d_clean_caches(struct v3d_dev *v3d)
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL, V3D_L2TCACTL_TMUWCF);
 	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
 		       V3D_L2TCACTL_TMUWCF), 100)) {
-		DRM_ERROR("Timeout waiting for TMU write combiner flush\n");
+		drm_err(dev, "Timeout waiting for TMU write combiner flush\n");
 	}
 
 	mutex_lock(&v3d->cache_clean_lock);
@@ -226,7 +226,7 @@ v3d_clean_caches(struct v3d_dev *v3d)
 
 	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
 		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L2T clean\n");
+		drm_err(dev, "Timeout waiting for L2T clean\n");
 	}
 
 	mutex_unlock(&v3d->cache_clean_lock);
@@ -257,6 +257,24 @@ v3d_invalidate_caches(struct v3d_dev *v3d)
 	v3d_invalidate_l2c(v3d, 0);
 	v3d_flush_l2t(v3d, 0);
 	v3d_invalidate_slices(v3d, 0);
+}
+
+static void
+v3d_huge_mnt_init(struct v3d_dev *v3d)
+{
+	int err = 0;
+
+	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) && super_pages)
+		err = drm_gem_huge_mnt_create(&v3d->drm, "within_size");
+
+	if (drm_gem_get_huge_mnt(&v3d->drm))
+		drm_info(&v3d->drm, "Using Transparent Hugepages\n");
+	else if (err)
+		drm_warn(&v3d->drm, "Can't use Transparent Hugepages (%d)\n",
+			 err);
+	else
+		drm_notice(&v3d->drm,
+			   "Transparent Hugepage support is recommended for optimal performance on this platform!\n");
 }
 
 int
@@ -310,7 +328,7 @@ v3d_gem_init(struct drm_device *dev)
 	v3d_init_hw_state(v3d);
 	v3d_mmu_set_page_table(v3d);
 
-	v3d_gemfs_init(v3d);
+	v3d_huge_mnt_init(v3d);
 
 	ret = v3d_sched_init(v3d);
 	if (ret) {
@@ -330,7 +348,6 @@ v3d_gem_destroy(struct drm_device *dev)
 	enum v3d_queue q;
 
 	v3d_sched_fini(v3d);
-	v3d_gemfs_fini(v3d);
 
 	/* Waiting for jobs to finish would need to be done before
 	 * unregistering V3D.

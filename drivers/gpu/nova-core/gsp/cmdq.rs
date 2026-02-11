@@ -617,7 +617,7 @@ impl Cmdq {
         {
             dev_err!(
                 self.dev,
-                "GSP RPC: receive: Call {} - bad checksum",
+                "GSP RPC: receive: Call {} - bad checksum\n",
                 header.sequence()
             );
             return Err(EIO);

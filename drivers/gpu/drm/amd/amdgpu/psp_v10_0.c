@@ -140,7 +140,7 @@ static int psp_v10_0_ring_destroy(struct psp_context *psp,
 
 static int psp_v10_0_mode1_reset(struct psp_context *psp)
 {
-	DRM_INFO("psp mode 1 reset not supported now! \n");
+	drm_info(adev_to_drm(psp->adev), "psp mode 1 reset not supported now!\n");
 	return -EINVAL;
 }
 

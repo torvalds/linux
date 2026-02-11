@@ -154,14 +154,21 @@ bool amdgpu_dm_replay_enable(struct dc_stream_state *stream, bool wait)
 {
 	bool replay_active = true;
 	struct dc_link *link = NULL;
+	struct amdgpu_dm_connector *aconnector = NULL;
 
 	if (stream == NULL)
 		return false;
 
+	/* Check if replay is disabled by connector flag */
+	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+	if (!aconnector || aconnector->disallow_edp_enter_replay) {
+		return false;
+	}
+
 	link = stream->link;
 
 	if (link) {
-		link->dc->link_srv->edp_setup_replay(link, stream);
+		link->dc->link_srv->dp_setup_replay(link, stream);
 		link->dc->link_srv->edp_set_coasting_vtotal(link, stream->timing.v_total, 0);
 		DRM_DEBUG_DRIVER("Enabling replay...\n");
 		link->dc->link_srv->edp_set_replay_allow_active(link, &replay_active, wait, false, NULL);

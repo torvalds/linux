@@ -12,14 +12,12 @@
 
 #include "xe_configfs.h"
 #include "xe_device.h"
-#include "xe_gt.h"
 #include "xe_heci_gsc.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"
+#include "xe_nvm.h"
 #include "xe_pcode_api.h"
 #include "xe_vsec.h"
-
-#define MAX_SCRATCH_MMIO 8
 
 /**
  * DOC: Survivability Mode
@@ -48,19 +46,43 @@
  *
  * Refer :ref:`xe_configfs` for more details on how to use configfs
  *
- * Survivability mode is indicated by the below admin-only readable sysfs which provides additional
- * debug information::
+ * Survivability mode is indicated by the below admin-only readable sysfs entry. It
+ * provides information about the type of survivability mode (Boot/Runtime).
  *
- *	/sys/bus/pci/devices/<device>/survivability_mode
+ * .. code-block:: shell
  *
- * Capability Information:
- *	Provides boot status
- * Postcode Information:
- *	Provides information about the failure
- * Overflow Information
- *	Provides history of previous failures
- * Auxiliary Information
- *	Certain failures may have information in addition to postcode information
+ *	# cat /sys/bus/pci/devices/<device>/survivability_mode
+ *	  Boot
+ *
+ *
+ * Any additional debug information if present will be visible under the directory
+ * ``survivability_info``::
+ *
+ *	/sys/bus/pci/devices/<device>/survivability_info/
+ *	├── aux_info0
+ *	├── aux_info1
+ *	├── aux_info2
+ *	├── aux_info3
+ *	├── aux_info4
+ *	├── capability_info
+ *	├── fdo_mode
+ *	├── postcode_trace
+ *	└── postcode_trace_overflow
+ *
+ * This directory has the following attributes
+ *
+ * - ``capability_info`` : Indicates Boot status and support for additional information
+ *
+ * - ``postcode_trace``, ``postcode_trace_overflow`` : Each postcode is a 8bit value and
+ *   represents a boot failure event. When a new failure event is logged by PCODE the
+ *   existing postcodes are shifted left. These entries provide a history of 8 postcodes.
+ *
+ * - ``aux_info<n>`` : Some failures have additional debug information
+ *
+ * - ``fdo_mode`` : To allow recovery in scenarios where MEI itself fails, a new SPI Flash
+ *   Descriptor Override (FDO) mode is added in v2 survivability breadcrumbs. This mode is enabled
+ *   by PCODE and provides the ability to directly update the firmware via SPI Driver without
+ *   any dependency on MEI. Xe KMD initializes the nvm aux driver if FDO mode is enabled.
  *
  * Runtime Survivability
  * =====================
@@ -68,61 +90,77 @@
  * Certain runtime firmware errors can cause the device to enter a wedged state
  * (:ref:`xe-device-wedging`) requiring a firmware flash to restore normal operation.
  * Runtime Survivability Mode indicates that a firmware flash is necessary to recover the device and
- * is indicated by the presence of survivability mode sysfs::
- *
- *	/sys/bus/pci/devices/<device>/survivability_mode
- *
+ * is indicated by the presence of survivability mode sysfs.
  * Survivability mode sysfs provides information about the type of survivability mode.
+ *
+ * .. code-block:: shell
+ *
+ *	# cat /sys/bus/pci/devices/<device>/survivability_mode
+ *	  Runtime
  *
  * When such errors occur, userspace is notified with the drm device wedged uevent and runtime
  * survivability mode. User can then initiate a firmware flash using userspace tools like fwupd
  * to restore device to normal operation.
  */
 
-static u32 aux_history_offset(u32 reg_value)
+static const char * const reg_map[] = {
+	[CAPABILITY_INFO]         = "Capability Info",
+	[POSTCODE_TRACE]          = "Postcode trace",
+	[POSTCODE_TRACE_OVERFLOW] = "Postcode trace overflow",
+	[AUX_INFO0]               = "Auxiliary Info 0",
+	[AUX_INFO1]               = "Auxiliary Info 1",
+	[AUX_INFO2]               = "Auxiliary Info 2",
+	[AUX_INFO3]               = "Auxiliary Info 3",
+	[AUX_INFO4]               = "Auxiliary Info 4",
+};
+
+#define FDO_INFO	(MAX_SCRATCH_REG + 1)
+
+struct xe_survivability_attribute {
+	struct device_attribute attr;
+	u8 index;
+};
+
+static struct
+xe_survivability_attribute *dev_attr_to_survivability_attr(struct device_attribute *attr)
 {
-	return REG_FIELD_GET(AUXINFO_HISTORY_OFFSET, reg_value);
+	return container_of(attr, struct xe_survivability_attribute, attr);
 }
 
-static void set_survivability_info(struct xe_mmio *mmio, struct xe_survivability_info *info,
-				   int id, char *name)
+static void set_survivability_info(struct xe_mmio *mmio, u32  *info, int id)
 {
-	strscpy(info[id].name, name, sizeof(info[id].name));
-	info[id].reg = PCODE_SCRATCH(id).raw;
-	info[id].value = xe_mmio_read32(mmio, PCODE_SCRATCH(id));
+	info[id] = xe_mmio_read32(mmio, PCODE_SCRATCH(id));
 }
 
 static void populate_survivability_info(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
-	struct xe_survivability_info *info = survivability->info;
+	u32 *info = survivability->info;
 	struct xe_mmio *mmio;
 	u32 id = 0, reg_value;
-	char name[NAME_MAX];
-	int index;
 
 	mmio = xe_root_tile_mmio(xe);
-	set_survivability_info(mmio, info, id, "Capability Info");
-	reg_value = info[id].value;
+	set_survivability_info(mmio, info, CAPABILITY_INFO);
+	reg_value = info[CAPABILITY_INFO];
+
+	survivability->version = REG_FIELD_GET(BREADCRUMB_VERSION, reg_value);
+	/* FDO mode is exposed only from version 2 */
+	if (survivability->version >= 2)
+		survivability->fdo_mode = REG_FIELD_GET(FDO_MODE, reg_value);
 
 	if (reg_value & HISTORY_TRACKING) {
-		id++;
-		set_survivability_info(mmio, info, id, "Postcode Info");
+		set_survivability_info(mmio, info, POSTCODE_TRACE);
 
-		if (reg_value & OVERFLOW_SUPPORT) {
-			id = REG_FIELD_GET(OVERFLOW_REG_OFFSET, reg_value);
-			set_survivability_info(mmio, info, id, "Overflow Info");
-		}
+		if (reg_value & OVERFLOW_SUPPORT)
+			set_survivability_info(mmio, info, POSTCODE_TRACE_OVERFLOW);
 	}
 
+	/* Traverse the linked list of aux info registers */
 	if (reg_value & AUXINFO_SUPPORT) {
-		id = REG_FIELD_GET(AUXINFO_REG_OFFSET, reg_value);
-
-		for (index = 0; id && reg_value; index++, reg_value = info[id].value,
-		     id = aux_history_offset(reg_value)) {
-			snprintf(name, NAME_MAX, "Auxiliary Info %d", index);
-			set_survivability_info(mmio, info, id, name);
-		}
+		for (id = REG_FIELD_GET(AUXINFO_REG_OFFSET, reg_value);
+		     id >= AUX_INFO0 && id < MAX_SCRATCH_REG;
+		     id =  REG_FIELD_GET(AUXINFO_HISTORY_OFFSET, info[id]))
+			set_survivability_info(mmio, info, id);
 	}
 }
 
@@ -130,15 +168,14 @@ static void log_survivability_info(struct pci_dev *pdev)
 {
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	struct xe_survivability *survivability = &xe->survivability;
-	struct xe_survivability_info *info = survivability->info;
+	u32 *info = survivability->info;
 	int id;
 
 	dev_info(&pdev->dev, "Survivability Boot Status : Critical Failure (%d)\n",
 		 survivability->boot_status);
-	for (id = 0; id < MAX_SCRATCH_MMIO; id++) {
-		if (info[id].reg)
-			dev_info(&pdev->dev, "%s: 0x%x - 0x%x\n", info[id].name,
-				 info[id].reg, info[id].value);
+	for (id = 0; id < MAX_SCRATCH_REG; id++) {
+		if (info[id])
+			dev_info(&pdev->dev, "%s: 0x%x\n", reg_map[id], info[id]);
 	}
 }
 
@@ -156,25 +193,42 @@ static ssize_t survivability_mode_show(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	struct xe_survivability *survivability = &xe->survivability;
-	struct xe_survivability_info *info = survivability->info;
-	int index = 0, count = 0;
 
-	count += sysfs_emit_at(buff, count, "Survivability mode type: %s\n",
-			       survivability->type ? "Runtime" : "Boot");
-
-	if (!check_boot_failure(xe))
-		return count;
-
-	for (index = 0; index < MAX_SCRATCH_MMIO; index++) {
-		if (info[index].reg)
-			count += sysfs_emit_at(buff, count, "%s: 0x%x - 0x%x\n", info[index].name,
-					       info[index].reg, info[index].value);
-	}
-
-	return count;
+	return sysfs_emit(buff, "%s\n", survivability->type ? "Runtime" : "Boot");
 }
 
 static DEVICE_ATTR_ADMIN_RO(survivability_mode);
+
+static ssize_t survivability_info_show(struct device *dev,
+				       struct device_attribute *attr, char *buff)
+{
+	struct xe_survivability_attribute *sa = dev_attr_to_survivability_attr(attr);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct xe_device *xe = pdev_to_xe_device(pdev);
+	struct xe_survivability *survivability = &xe->survivability;
+	u32 *info = survivability->info;
+
+	if (sa->index == FDO_INFO)
+		return sysfs_emit(buff, "%s\n", str_enabled_disabled(survivability->fdo_mode));
+
+	return sysfs_emit(buff, "0x%x\n", info[sa->index]);
+}
+
+#define SURVIVABILITY_ATTR_RO(name, _index)					\
+	struct xe_survivability_attribute attr_##name =	{			\
+		.attr =  __ATTR(name, 0400, survivability_info_show, NULL),	\
+		.index = _index,						\
+	}
+
+static SURVIVABILITY_ATTR_RO(capability_info, CAPABILITY_INFO);
+static SURVIVABILITY_ATTR_RO(postcode_trace, POSTCODE_TRACE);
+static SURVIVABILITY_ATTR_RO(postcode_trace_overflow, POSTCODE_TRACE_OVERFLOW);
+static SURVIVABILITY_ATTR_RO(aux_info0, AUX_INFO0);
+static SURVIVABILITY_ATTR_RO(aux_info1, AUX_INFO1);
+static SURVIVABILITY_ATTR_RO(aux_info2, AUX_INFO2);
+static SURVIVABILITY_ATTR_RO(aux_info3, AUX_INFO3);
+static SURVIVABILITY_ATTR_RO(aux_info4, AUX_INFO4);
+static SURVIVABILITY_ATTR_RO(fdo_mode, FDO_INFO);
 
 static void xe_survivability_mode_fini(void *arg)
 {
@@ -182,8 +236,48 @@ static void xe_survivability_mode_fini(void *arg)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct device *dev = &pdev->dev;
 
-	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
+	device_remove_file(dev, &dev_attr_survivability_mode);
 }
+
+static umode_t survivability_info_attrs_visible(struct kobject *kobj, struct attribute *attr,
+						int idx)
+{
+	struct xe_device *xe = kdev_to_xe_device(kobj_to_dev(kobj));
+	struct xe_survivability *survivability = &xe->survivability;
+	u32 *info = survivability->info;
+
+	/*
+	 * Last index in survivability_info_attrs is fdo mode and is applicable only in
+	 * version 2 of survivability mode
+	 */
+	if (idx == MAX_SCRATCH_REG && survivability->version >= 2)
+		return 0400;
+
+	if (idx < MAX_SCRATCH_REG && info[idx])
+		return 0400;
+
+	return 0;
+}
+
+/* Attributes are ordered according to enum scratch_reg */
+static struct attribute *survivability_info_attrs[] = {
+	&attr_capability_info.attr.attr,
+	&attr_postcode_trace.attr.attr,
+	&attr_postcode_trace_overflow.attr.attr,
+	&attr_aux_info0.attr.attr,
+	&attr_aux_info1.attr.attr,
+	&attr_aux_info2.attr.attr,
+	&attr_aux_info3.attr.attr,
+	&attr_aux_info4.attr.attr,
+	&attr_fdo_mode.attr.attr,
+	NULL,
+};
+
+static const struct attribute_group survivability_info_group = {
+	.name = "survivability_info",
+	.attrs = survivability_info_attrs,
+	.is_visible = survivability_info_attrs_visible,
+};
 
 static int create_survivability_sysfs(struct pci_dev *pdev)
 {
@@ -191,8 +285,7 @@ static int create_survivability_sysfs(struct pci_dev *pdev)
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	int ret;
 
-	/* create survivability mode sysfs */
-	ret = sysfs_create_file(&dev->kobj, &dev_attr_survivability_mode.attr);
+	ret = device_create_file(dev, &dev_attr_survivability_mode);
 	if (ret) {
 		dev_warn(dev, "Failed to create survivability sysfs files\n");
 		return ret;
@@ -202,6 +295,12 @@ static int create_survivability_sysfs(struct pci_dev *pdev)
 				       xe_survivability_mode_fini, xe);
 	if (ret)
 		return ret;
+
+	if (check_boot_failure(xe)) {
+		ret = devm_device_add_group(dev, &survivability_info_group);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -217,14 +316,18 @@ static int enable_boot_survivability_mode(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	/* Make sure xe_heci_gsc_init() knows about survivability mode */
+	/* Make sure xe_heci_gsc_init() and xe_i2c_probe() are aware of survivability */
 	survivability->mode = true;
 
-	ret = xe_heci_gsc_init(xe);
-	if (ret)
-		goto err;
+	xe_heci_gsc_init(xe);
 
 	xe_vsec_init(xe);
+
+	if (survivability->fdo_mode) {
+		ret = xe_nvm_init(xe);
+		if (ret)
+			goto err;
+	}
 
 	ret = xe_i2c_probe(xe);
 	if (ret)
@@ -235,27 +338,9 @@ static int enable_boot_survivability_mode(struct pci_dev *pdev)
 	return 0;
 
 err:
+	dev_err(dev, "Failed to enable Survivability Mode\n");
 	survivability->mode = false;
 	return ret;
-}
-
-static int init_survivability_mode(struct xe_device *xe)
-{
-	struct xe_survivability *survivability = &xe->survivability;
-	struct xe_survivability_info *info;
-
-	survivability->size = MAX_SCRATCH_MMIO;
-
-	info = devm_kcalloc(xe->drm.dev, survivability->size, sizeof(*info),
-			    GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	survivability->info = info;
-
-	populate_survivability_info(xe);
-
-	return 0;
 }
 
 /**
@@ -325,9 +410,7 @@ int xe_survivability_mode_runtime_enable(struct xe_device *xe)
 		return -EINVAL;
 	}
 
-	ret = init_survivability_mode(xe);
-	if (ret)
-		return ret;
+	populate_survivability_info(xe);
 
 	ret = create_survivability_sysfs(pdev);
 	if (ret)
@@ -356,17 +439,16 @@ int xe_survivability_mode_boot_enable(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	int ret;
 
 	if (!xe_survivability_mode_is_requested(xe))
 		return 0;
 
-	ret = init_survivability_mode(xe);
-	if (ret)
-		return ret;
+	populate_survivability_info(xe);
 
-	/* Log breadcrumbs but do not enter survivability mode for Critical boot errors */
-	if (survivability->boot_status == CRITICAL_FAILURE) {
+	/*
+	 * v2 supports survivability mode for critical errors
+	 */
+	if (survivability->version < 2  && survivability->boot_status == CRITICAL_FAILURE) {
 		log_survivability_info(pdev);
 		return -ENXIO;
 	}

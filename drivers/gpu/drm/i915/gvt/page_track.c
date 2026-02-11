@@ -20,8 +20,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "i915_drv.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 
 /**
  * intel_vgpu_find_page_track - find page track rcord of guest page

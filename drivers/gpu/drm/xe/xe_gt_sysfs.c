@@ -10,7 +10,7 @@
 
 #include <drm/drm_managed.h>
 
-#include "xe_gt.h"
+#include "xe_gt_types.h"
 
 static void xe_gt_sysfs_kobj_release(struct kobject *kobj)
 {

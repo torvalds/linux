@@ -87,6 +87,7 @@ struct xe_oa_regs {
 	struct xe_reg oa_ctrl;
 	struct xe_reg oa_debug;
 	struct xe_reg oa_status;
+	struct xe_reg oa_mmio_trg;
 	u32 oa_ctrl_counter_select_mask;
 };
 

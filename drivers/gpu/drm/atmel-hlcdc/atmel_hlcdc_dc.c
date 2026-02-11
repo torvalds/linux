@@ -723,12 +723,6 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 
 	drm_mode_config_init(dev);
 
-	ret = atmel_hlcdc_create_outputs(dev);
-	if (ret) {
-		drm_err(dev, "failed to create HLCDC outputs: %d\n", ret);
-		return ret;
-	}
-
 	ret = atmel_hlcdc_create_planes(dev);
 	if (ret) {
 		drm_err(dev, "failed to create planes: %d\n", ret);
@@ -738,6 +732,12 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 	ret = atmel_hlcdc_crtc_create(dev);
 	if (ret) {
 		drm_err(dev, "failed to create crtc\n");
+		return ret;
+	}
+
+	ret = atmel_hlcdc_create_outputs(dev);
+	if (ret) {
+		drm_err(dev, "failed to create HLCDC outputs: %d\n", ret);
 		return ret;
 	}
 
@@ -751,11 +751,16 @@ static int atmel_hlcdc_dc_modeset_init(struct drm_device *dev)
 	return 0;
 }
 
+static struct atmel_hlcdc_dc *atmel_hlcdc_dc_of_dev(struct drm_device *dev)
+{
+	return container_of(dev, struct atmel_hlcdc_dc, dev);
+}
+
 static int atmel_hlcdc_dc_load(struct drm_device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev->dev);
 	const struct of_device_id *match;
-	struct atmel_hlcdc_dc *dc;
+	struct atmel_hlcdc_dc *dc = atmel_hlcdc_dc_of_dev(dev);
 	int ret;
 
 	match = of_match_node(atmel_hlcdc_of_match, dev->dev->parent->of_node);
@@ -768,10 +773,6 @@ static int atmel_hlcdc_dc_load(struct drm_device *dev)
 		dev_err(&pdev->dev, "invalid hlcdc description\n");
 		return -EINVAL;
 	}
-
-	dc = devm_kzalloc(dev->dev, sizeof(*dc), GFP_KERNEL);
-	if (!dc)
-		return -ENOMEM;
 
 	dc->desc = match->data;
 	dc->hlcdc = dev_get_drvdata(dev->dev->parent);
@@ -853,16 +854,21 @@ static const struct drm_driver atmel_hlcdc_dc_driver = {
 
 static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 {
+	struct atmel_hlcdc_dc *dc;
 	struct drm_device *ddev;
 	int ret;
 
-	ddev = drm_dev_alloc(&atmel_hlcdc_dc_driver, &pdev->dev);
-	if (IS_ERR(ddev))
-		return PTR_ERR(ddev);
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
+	dc = devm_drm_dev_alloc(&pdev->dev, &atmel_hlcdc_dc_driver, struct atmel_hlcdc_dc, dev);
+	if (IS_ERR(dc))
+		return PTR_ERR(dc);
+	ddev = &dc->dev;
 
 	ret = atmel_hlcdc_dc_load(ddev);
 	if (ret)
-		goto err_put;
+		return ret;
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
@@ -875,9 +881,6 @@ static int atmel_hlcdc_dc_drm_probe(struct platform_device *pdev)
 err_unload:
 	atmel_hlcdc_dc_unload(ddev);
 
-err_put:
-	drm_dev_put(ddev);
-
 	return ret;
 }
 
@@ -887,7 +890,6 @@ static void atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(ddev);
 	atmel_hlcdc_dc_unload(ddev);
-	drm_dev_put(ddev);
 }
 
 static void atmel_hlcdc_dc_drm_shutdown(struct platform_device *pdev)

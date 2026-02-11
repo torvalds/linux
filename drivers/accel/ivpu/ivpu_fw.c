@@ -300,9 +300,7 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 	fw->image_load_offset = image_load_addr - runtime_addr;
 	fw->image_size = image_size;
 	fw->shave_nn_size = PAGE_ALIGN(fw_hdr->shave_nn_fw_size);
-
 	fw->cold_boot_entry_point = fw_hdr->entry_point;
-	fw->entry_point = fw->cold_boot_entry_point;
 
 	fw->trace_level = min_t(u32, ivpu_fw_log_level, IVPU_FW_LOG_FATAL);
 	fw->trace_destination_mask = VPU_TRACE_DESTINATION_VERBOSE_TRACING;
@@ -338,7 +336,7 @@ static int ivpu_fw_parse(struct ivpu_device *vdev)
 		 fw->image_load_offset, fw->image_size);
 	ivpu_dbg(vdev, FW_BOOT, "Read-only section: address 0x%llx, size %u\n",
 		 fw->read_only_addr, fw->read_only_size);
-	ivpu_dbg(vdev, FW_BOOT, "FW entry point: 0x%llx\n", fw->entry_point);
+	ivpu_dbg(vdev, FW_BOOT, "FW cold boot entry point: 0x%llx\n", fw->cold_boot_entry_point);
 	ivpu_dbg(vdev, FW_BOOT, "SHAVE NN size: %u\n", fw->shave_nn_size);
 
 	return 0;
@@ -616,6 +614,7 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->power_profile);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.vpu_uses_ecc_mca_signal = 0x%x\n",
 		 boot_params->vpu_uses_ecc_mca_signal);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.boot_type = 0x%x\n", boot_params->boot_type);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -623,7 +622,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	struct ivpu_bo *ipc_mem_rx = vdev->ipc->mem_rx;
 
 	/* In case of warm boot only update variable params */
-	if (!ivpu_fw_is_cold_boot(vdev)) {
+	if (ivpu_fw_is_warm_boot(vdev)) {
 		boot_params->d0i3_residency_time_us =
 			ktime_us_delta(ktime_get_boottime(), vdev->hw->d0i3_entry_host_ts);
 		boot_params->d0i3_entry_vpu_ts = vdev->hw->d0i3_entry_vpu_ts;
@@ -635,16 +634,16 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 			 boot_params->d0i3_entry_vpu_ts);
 		ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
 			 boot_params->system_time_us);
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.boot_type = 0x%x\n", boot_params->boot_type);
 
 		boot_params->save_restore_ret_address = 0;
-		vdev->pm->is_warmboot = true;
+		boot_params->boot_type = VPU_BOOT_TYPE_WARMBOOT;
 		wmb(); /* Flush WC buffers after writing save_restore_ret_address */
 		return;
 	}
 
 	memset(boot_params, 0, sizeof(*boot_params));
-	vdev->pm->is_warmboot = false;
-
+	boot_params->boot_type = VPU_BOOT_TYPE_COLDBOOT;
 	boot_params->magic = VPU_BOOT_PARAMS_MAGIC;
 	boot_params->vpu_id = to_pci_dev(vdev->drm.dev)->bus->number;
 

@@ -62,17 +62,17 @@ static ssize_t amdgpu_fw_attestation_debugfs_read(struct file *f,
 	struct FW_ATT_RECORD fw_att_record = {0};
 
 	if (size < sizeof(struct FW_ATT_RECORD)) {
-		DRM_WARN("FW attestation input buffer not enough memory");
+		drm_warn(adev_to_drm(adev), "FW attestation input buffer not enough memory");
 		return -EINVAL;
 	}
 
 	if ((*pos + sizeof(struct FW_ATT_DB_HEADER)) >= FW_ATTESTATION_MAX_SIZE) {
-		DRM_WARN("FW attestation out of bounds");
+		drm_warn(adev_to_drm(adev), "FW attestation out of bounds");
 		return 0;
 	}
 
 	if (psp_get_fw_attestation_records_addr(&adev->psp, &records_addr)) {
-		DRM_WARN("Failed to get FW attestation record address");
+		drm_warn(adev_to_drm(adev), "Failed to get FW attestation record address");
 		return -EINVAL;
 	}
 
@@ -86,11 +86,12 @@ static ssize_t amdgpu_fw_attestation_debugfs_read(struct file *f,
 					  false);
 
 		if (fw_att_hdr.AttDbCookie != FW_ATTESTATION_DB_COOKIE) {
-			DRM_WARN("Invalid FW attestation cookie");
+			drm_warn(adev_to_drm(adev), "Invalid FW attestation cookie");
 			return -EINVAL;
 		}
 
-		DRM_INFO("FW attestation version = 0x%X", fw_att_hdr.AttDbVersion);
+		drm_info(adev_to_drm(adev), "FW attestation version = 0x%X",
+			fw_att_hdr.AttDbVersion);
 	}
 
 	amdgpu_device_vram_access(adev,

@@ -1212,27 +1212,6 @@ static int dg2_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
-static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
-				  struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_encoder *encoder =
-		intel_get_crtc_new_encoder(state, crtc_state);
-	int ret;
-
-	ret = intel_cx0pll_calc_state(crtc_state, encoder);
-	if (ret)
-		return ret;
-
-	/* TODO: Do the readback via intel_dpll_compute() */
-	crtc_state->port_clock = intel_cx0pll_calc_port_clock(encoder, &crtc_state->dpll_hw_state.cx0pll);
-
-	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
-
-	return 0;
-}
-
 static int xe3plpd_crtc_compute_clock(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc)
 {
@@ -1719,7 +1698,8 @@ static const struct intel_dpll_global_funcs xe3plpd_dpll_funcs = {
 };
 
 static const struct intel_dpll_global_funcs mtl_dpll_funcs = {
-	.crtc_compute_clock = mtl_crtc_compute_clock,
+	.crtc_compute_clock = hsw_crtc_compute_clock,
+	.crtc_get_dpll = hsw_crtc_get_dpll,
 };
 
 static const struct intel_dpll_global_funcs dg2_dpll_funcs = {

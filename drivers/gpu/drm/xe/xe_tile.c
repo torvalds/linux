@@ -6,11 +6,11 @@
 #include <linux/fault-inject.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_pagemap_util.h>
 
 #include "xe_bo.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_ggtt.h"
-#include "xe_gt.h"
 #include "xe_memirq.h"
 #include "xe_migrate.h"
 #include "xe_pcode.h"
@@ -180,17 +180,19 @@ ALLOW_ERROR_INJECTION(xe_tile_init_early, ERRNO); /* See xe_pci_probe() */
 int xe_tile_init_noalloc(struct xe_tile *tile)
 {
 	struct xe_device *xe = tile_to_xe(tile);
+	int err;
 
 	xe_wa_apply_tile_workarounds(tile);
 
-	if (xe->info.has_usm && IS_DGFX(xe))
-		xe_devm_add(tile, tile->mem.vram);
+	err = xe_pagemap_cache_create(tile);
+	if (err)
+		return err;
 
 	if (IS_DGFX(xe) && !ttm_resource_manager_used(&tile->mem.vram->ttm.manager)) {
-		int err = xe_ttm_vram_mgr_init(xe, tile->mem.vram);
-
+		err = xe_ttm_vram_mgr_init(xe, tile->mem.vram);
 		if (err)
 			return err;
+
 		xe->info.mem_region_mask |= BIT(tile->mem.vram->id) << 1;
 	}
 
@@ -209,9 +211,37 @@ int xe_tile_init(struct xe_tile *tile)
 	if (IS_ERR(tile->mem.kernel_bb_pool))
 		return PTR_ERR(tile->mem.kernel_bb_pool);
 
+	/* Optimistically anticipate at most 256 TLB fences with PRL */
+	tile->mem.reclaim_pool = xe_sa_bo_manager_init(tile, SZ_1M, XE_PAGE_RECLAIM_LIST_MAX_SIZE);
+	if (IS_ERR(tile->mem.reclaim_pool))
+		return PTR_ERR(tile->mem.reclaim_pool);
+
 	return 0;
 }
 void xe_tile_migrate_wait(struct xe_tile *tile)
 {
 	xe_migrate_wait(tile->migrate);
 }
+
+#if IS_ENABLED(CONFIG_DRM_XE_PAGEMAP)
+/**
+ * xe_tile_local_pagemap() - Return a pointer to the tile's local drm_pagemap if any
+ * @tile: The tile.
+ *
+ * Return: A pointer to the tile's local drm_pagemap, or NULL if local pagemap
+ * support has been compiled out.
+ */
+struct drm_pagemap *xe_tile_local_pagemap(struct xe_tile *tile)
+{
+	struct drm_pagemap *dpagemap =
+		drm_pagemap_get_from_cache_if_active(xe_tile_to_vr(tile)->dpagemap_cache);
+
+	if (dpagemap) {
+		xe_assert(tile_to_xe(tile), kref_read(&dpagemap->ref) >= 2);
+		drm_pagemap_put(dpagemap);
+	}
+
+	return dpagemap;
+}
+#endif
+

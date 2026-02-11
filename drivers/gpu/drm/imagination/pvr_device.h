@@ -7,7 +7,6 @@
 #include "pvr_ccb.h"
 #include "pvr_device_info.h"
 #include "pvr_fw.h"
-#include "pvr_params.h"
 #include "pvr_rogue_fwif_stream.h"
 #include "pvr_stream.h"
 
@@ -39,6 +38,9 @@ struct firmware;
 
 /* Forward declaration from <linux/pwrseq/consumer.h> */
 struct pwrseq_desc;
+
+#define PVR_GPUID_STRING_MIN_LENGTH 7U
+#define PVR_GPUID_STRING_MAX_LENGTH 32U
 
 /**
  * struct pvr_gpu_id - Hardware GPU ID information for a PowerVR device
@@ -191,15 +193,6 @@ struct pvr_device {
 
 	/** @fw_dev: Firmware related data. */
 	struct pvr_fw_device fw_dev;
-
-	/**
-	 * @params: Device-specific parameters.
-	 *
-	 *          The values of these parameters are initialized from the
-	 *          defaults specified as module parameters. They may be
-	 *          modified at runtime via debugfs (if enabled).
-	 */
-	struct pvr_device_params params;
 
 	/** @stream_musthave_quirks: Bit array of "must-have" quirks for stream commands. */
 	u32 stream_musthave_quirks[PVR_STREAM_TYPE_MAX][PVR_STREAM_EXTHDR_TYPE_MAX];
@@ -526,7 +519,7 @@ struct pvr_file {
  * Return: Packed BVNC.
  */
 static __always_inline u64
-pvr_gpu_id_to_packed_bvnc(struct pvr_gpu_id *gpu_id)
+pvr_gpu_id_to_packed_bvnc(const struct pvr_gpu_id *gpu_id)
 {
 	return PVR_PACKED_BVNC(gpu_id->b, gpu_id->v, gpu_id->n, gpu_id->c);
 }
@@ -551,6 +544,11 @@ pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement);
 bool
 pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+int pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
+			    const char *param_bvnc, struct pvr_gpu_id *gpu_id);
+#endif
+
 /**
  * PVR_CR_FIELD_GET() - Extract a single field from a PowerVR control register
  * @val: Value of the target register.
@@ -568,7 +566,7 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
  * Return: The value of the requested register.
  */
 static __always_inline u32
-pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read32(const struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread32(pvr_dev->regs + reg);
 }
@@ -581,7 +579,7 @@ pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
  * Return: The value of the requested register.
  */
 static __always_inline u64
-pvr_cr_read64(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read64(const struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread64(pvr_dev->regs + reg);
 }

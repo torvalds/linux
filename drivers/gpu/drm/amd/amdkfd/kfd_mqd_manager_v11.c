@@ -99,22 +99,14 @@ static void set_priority(struct v11_compute_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
+static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		struct queue_properties *q)
 {
+	u32 mqd_size = AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
+	struct kfd_node *node = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj;
-	int size;
 
-	/*
-	 * MES write to areas beyond MQD size. So allocate
-	 * 1 PAGE_SIZE memory for MQD is MES is enabled.
-	 */
-	if (node->kfd->shared_resources.enable_mes)
-		size = PAGE_SIZE;
-	else
-		size = sizeof(struct v11_compute_mqd);
-
-	if (kfd_gtt_sa_allocate(node, size, &mqd_mem_obj))
+	if (kfd_gtt_sa_allocate(node, mqd_size, &mqd_mem_obj))
 		return NULL;
 
 	return mqd_mem_obj;
@@ -126,18 +118,13 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 {
 	uint64_t addr;
 	struct v11_compute_mqd *m;
-	int size;
+	u32 mqd_size = AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
 	uint32_t wa_mask = q->is_dbg_wa ? 0xffff : 0xffffffff;
 
 	m = (struct v11_compute_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
 
-	if (mm->dev->kfd->shared_resources.enable_mes)
-		size = PAGE_SIZE;
-	else
-		size = sizeof(struct v11_compute_mqd);
-
-	memset(m, 0, size);
+	memset(m, 0, mqd_size);
 
 	m->header = 0xC0310800;
 	m->compute_pipelinestat_enable = 1;

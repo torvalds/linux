@@ -218,7 +218,7 @@ void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *amdgpu_encode
 	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 
-	DRM_INFO("amdgpu atom DIG backlight initialized\n");
+	drm_info(adev_to_drm(adev), "ATOM DIG backlight initialized\n");
 
 	return;
 
@@ -256,7 +256,7 @@ amdgpu_atombios_encoder_fini_backlight(struct amdgpu_encoder *amdgpu_encoder)
 		backlight_device_unregister(bd);
 		kfree(pdata);
 
-		DRM_INFO("amdgpu atom LVDS backlight unloaded\n");
+		drm_info(adev_to_drm(adev), "ATOM LVDS backlight unloaded\n");
 	}
 }
 
@@ -1724,7 +1724,7 @@ amdgpu_atombios_encoder_dac_detect(struct drm_encoder *encoder,
 	uint32_t bios_0_scratch;
 
 	if (!amdgpu_atombios_encoder_dac_load_detect(encoder, connector)) {
-		DRM_DEBUG_KMS("detect returned false \n");
+		DRM_DEBUG_KMS("detect returned false\n");
 		return connector_status_unknown;
 	}
 

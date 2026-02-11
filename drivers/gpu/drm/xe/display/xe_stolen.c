@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 /* Copyright © 2025 Intel Corporation */
 
-#include "gem/i915_gem_stolen.h"
+#include <drm/intel/display_parent_interface.h>
+
 #include "xe_res_cursor.h"
+#include "xe_stolen.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_validation.h"
 
@@ -11,8 +13,8 @@ struct intel_stolen_node {
 	struct xe_bo *bo;
 };
 
-int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 size,
-					 unsigned int align, u64 start, u64 end)
+static int xe_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 size,
+					  unsigned int align, u64 start, u64 end)
 {
 	struct xe_device *xe = node->xe;
 
@@ -41,33 +43,25 @@ int i915_gem_stolen_insert_node_in_range(struct intel_stolen_node *node, u64 siz
 	return err;
 }
 
-int i915_gem_stolen_insert_node(struct intel_stolen_node *node, u64 size, unsigned int align)
-{
-	/* Not used on xe */
-	WARN_ON(1);
-
-	return -ENODEV;
-}
-
-void i915_gem_stolen_remove_node(struct intel_stolen_node *node)
+static void xe_stolen_remove_node(struct intel_stolen_node *node)
 {
 	xe_bo_unpin_map_no_vm(node->bo);
 	node->bo = NULL;
 }
 
-bool i915_gem_stolen_initialized(struct drm_device *drm)
+static bool xe_stolen_initialized(struct drm_device *drm)
 {
 	struct xe_device *xe = to_xe_device(drm);
 
 	return ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
 }
 
-bool i915_gem_stolen_node_allocated(const struct intel_stolen_node *node)
+static bool xe_stolen_node_allocated(const struct intel_stolen_node *node)
 {
 	return node->bo;
 }
 
-u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
+static u64 xe_stolen_node_offset(const struct intel_stolen_node *node)
 {
 	struct xe_res_cursor res;
 
@@ -75,35 +69,19 @@ u32 i915_gem_stolen_node_offset(struct intel_stolen_node *node)
 	return res.start;
 }
 
-/* Used for < gen4. These are not supported by Xe */
-u64 i915_gem_stolen_area_address(struct drm_device *drm)
-{
-	WARN_ON(1);
-
-	return 0;
-}
-
-/* Used for gen9 specific WA. Gen9 is not supported by Xe */
-u64 i915_gem_stolen_area_size(struct drm_device *drm)
-{
-	WARN_ON(1);
-
-	return 0;
-}
-
-u64 i915_gem_stolen_node_address(struct intel_stolen_node *node)
+static u64 xe_stolen_node_address(const struct intel_stolen_node *node)
 {
 	struct xe_device *xe = node->xe;
 
-	return xe_ttm_stolen_gpu_offset(xe) + i915_gem_stolen_node_offset(node);
+	return xe_ttm_stolen_gpu_offset(xe) + xe_stolen_node_offset(node);
 }
 
-u64 i915_gem_stolen_node_size(const struct intel_stolen_node *node)
+static u64 xe_stolen_node_size(const struct intel_stolen_node *node)
 {
-	return node->bo->ttm.base.size;
+	return xe_bo_size(node->bo);
 }
 
-struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
+static struct intel_stolen_node *xe_stolen_node_alloc(struct drm_device *drm)
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct intel_stolen_node *node;
@@ -117,7 +95,19 @@ struct intel_stolen_node *i915_gem_stolen_node_alloc(struct drm_device *drm)
 	return node;
 }
 
-void i915_gem_stolen_node_free(const struct intel_stolen_node *node)
+static void xe_stolen_node_free(const struct intel_stolen_node *node)
 {
 	kfree(node);
 }
+
+const struct intel_display_stolen_interface xe_display_stolen_interface = {
+	.insert_node_in_range = xe_stolen_insert_node_in_range,
+	.remove_node = xe_stolen_remove_node,
+	.initialized = xe_stolen_initialized,
+	.node_allocated = xe_stolen_node_allocated,
+	.node_offset = xe_stolen_node_offset,
+	.node_address = xe_stolen_node_address,
+	.node_size = xe_stolen_node_size,
+	.node_alloc = xe_stolen_node_alloc,
+	.node_free = xe_stolen_node_free,
+};

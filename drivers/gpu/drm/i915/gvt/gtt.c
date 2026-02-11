@@ -33,15 +33,16 @@
  *
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
+#include "gt/intel_gt_regs.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "trace.h"
-
-#include "gt/intel_gt_regs.h"
-#include <linux/vmalloc.h>
 
 #if defined(VERBOSE_DEBUG)
 #define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)

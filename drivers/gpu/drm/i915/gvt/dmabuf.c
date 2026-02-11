@@ -35,12 +35,12 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_print.h>
 
+#include "display/skl_universal_plane_regs.h"
+
 #include "gem/i915_gem_dmabuf.h"
 
-#include "i915_drv.h"
 #include "gvt.h"
-
-#include "display/skl_universal_plane_regs.h"
+#include "i915_drv.h"
 
 #define GEN8_DECODE_PTE(pte) (pte & GENMASK_ULL(63, 12))
 

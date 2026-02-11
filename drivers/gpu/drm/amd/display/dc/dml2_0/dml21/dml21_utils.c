@@ -387,7 +387,8 @@ void dml21_build_fams2_programming(const struct dc *dc,
 	memset(&context->bw_ctx.bw.dcn.fams2_stream_sub_params_v2, 0, sizeof(union dmub_fams2_stream_static_sub_state_v2) * DML2_MAX_PLANES);
 	memset(&context->bw_ctx.bw.dcn.fams2_global_config, 0, sizeof(struct dmub_cmd_fams2_global_config));
 
-	if (dml_ctx->v21.mode_programming.programming->fams2_required) {
+	if ((dml_ctx->v21.mode_programming.programming->fams2_required) ||
+		(dml_ctx->v21.mode_programming.programming->legacy_pstate_info_for_dmu)) {
 		for (i = 0; i < context->stream_count; i++) {
 			int dml_stream_idx;
 			struct dc_stream_state *phantom_stream;

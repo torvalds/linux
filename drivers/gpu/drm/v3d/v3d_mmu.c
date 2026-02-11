@@ -18,6 +18,8 @@
  * each client. This is not yet implemented.
  */
 
+#include <drm/drm_print.h>
+
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
@@ -125,7 +127,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->drm.dev, "MMU flush timeout\n");
+		drm_err(&v3d->drm, "MMU flush timeout\n");
 }
 
 void v3d_mmu_remove_ptes(struct v3d_bo *bo)
@@ -138,5 +140,5 @@ void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 		v3d->pt[page] = 0;
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->drm.dev, "MMU flush timeout\n");
+		drm_err(&v3d->drm, "MMU flush timeout\n");
 }

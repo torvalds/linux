@@ -7,8 +7,8 @@
 
 #include <drm/drm_print.h>
 
-#include "xe_gt.h"
 #include "xe_gt_stats.h"
+#include "xe_gt_types.h"
 
 /**
  * xe_gt_stats_incr - Increments the specified stats counter
@@ -66,6 +66,21 @@ static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
 	DEF_STAT_STR(SVM_4K_BIND_US, "svm_4K_bind_us"),
 	DEF_STAT_STR(SVM_64K_BIND_US, "svm_64K_bind_us"),
 	DEF_STAT_STR(SVM_2M_BIND_US, "svm_2M_bind_us"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT,
+		     "hw_engine_group_suspend_lr_queue_count"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_SKIP_LR_QUEUE_COUNT,
+		     "hw_engine_group_skip_lr_queue_count"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_WAIT_DMA_QUEUE_COUNT,
+		     "hw_engine_group_wait_dma_queue_count"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_US,
+		     "hw_engine_group_suspend_lr_queue_us"),
+	DEF_STAT_STR(HW_ENGINE_GROUP_WAIT_DMA_QUEUE_US,
+		     "hw_engine_group_wait_dma_queue_us"),
+	DEF_STAT_STR(PRL_4K_ENTRY_COUNT, "prl_4k_entry_count"),
+	DEF_STAT_STR(PRL_64K_ENTRY_COUNT, "prl_64k_entry_count"),
+	DEF_STAT_STR(PRL_2M_ENTRY_COUNT, "prl_2m_entry_count"),
+	DEF_STAT_STR(PRL_ISSUED_COUNT, "prl_issued_count"),
+	DEF_STAT_STR(PRL_ABORTED_COUNT, "prl_aborted_count"),
 };
 
 /**

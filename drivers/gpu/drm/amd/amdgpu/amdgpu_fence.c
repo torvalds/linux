@@ -708,12 +708,12 @@ void amdgpu_fence_driver_force_completion(struct amdgpu_ring *ring)
  */
 
 /**
- * amdgpu_fence_driver_guilty_force_completion - force signal of specified sequence
+ * amdgpu_fence_driver_update_timedout_fence_state - Update fence state and set errors
  *
- * @af: fence of the ring to signal
+ * @af: fence of the ring to update
  *
  */
-void amdgpu_fence_driver_guilty_force_completion(struct amdgpu_fence *af)
+void amdgpu_fence_driver_update_timedout_fence_state(struct amdgpu_fence *af)
 {
 	struct dma_fence *unprocessed;
 	struct dma_fence __rcu **ptr;

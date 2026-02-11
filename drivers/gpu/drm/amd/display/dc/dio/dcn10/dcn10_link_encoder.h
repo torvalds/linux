@@ -79,6 +79,8 @@ struct dcn10_link_enc_aux_registers {
 
 struct dcn10_link_enc_hpd_registers {
 	uint32_t DC_HPD_CONTROL;
+	uint32_t DC_HPD_INT_STATUS;
+	uint32_t DC_HPD_TOGGLE_FILT_CNTL;
 };
 
 struct dcn10_link_enc_registers {
@@ -274,7 +276,10 @@ struct dcn10_link_enc_registers {
 	type TMDS_CTL0;\
 	type AUX_HPD_SEL;\
 	type AUX_LS_READ_EN;\
-	type AUX_RX_RECEIVE_WINDOW
+	type AUX_RX_RECEIVE_WINDOW;\
+	type DC_HPD_SENSE;\
+	type DC_HPD_CONNECT_INT_DELAY;\
+	type DC_HPD_DISCONNECT_INT_DELAY
 
 
 #define DCN20_LINK_ENCODER_DPCS_REG_FIELD_LIST(type) \
@@ -656,4 +661,8 @@ enum signal_type dcn10_get_dig_mode(
 
 void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings);
+
+bool dcn10_get_hpd_state(struct link_encoder *enc);
+bool dcn10_program_hpd_filter(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms);
+
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

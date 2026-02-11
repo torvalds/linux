@@ -225,6 +225,7 @@ static int vangogh_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -242,11 +243,12 @@ static int vangogh_tables_init(struct smu_context *smu)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
-	smu_table->gpu_metrics_table_size = max(smu_table->gpu_metrics_table_size, sizeof(struct gpu_metrics_v2_3));
-	smu_table->gpu_metrics_table_size = max(smu_table->gpu_metrics_table_size, sizeof(struct gpu_metrics_v2_4));
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    max3(sizeof(struct gpu_metrics_v2_2),
+					 sizeof(struct gpu_metrics_v2_3),
+					 sizeof(struct gpu_metrics_v2_4)),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err1_out;
 
 	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
@@ -262,7 +264,7 @@ static int vangogh_tables_init(struct smu_context *smu)
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
-	kfree(smu_table->gpu_metrics_table);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
@@ -559,13 +561,14 @@ static int vangogh_get_dpm_clk_limited(struct smu_context *smu, enum smu_clk_typ
 	return 0;
 }
 
-static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int vangogh_emit_legacy_clk_levels(struct smu_context *smu,
+					   enum smu_clk_type clk_type, char *buf,
+					   int *offset)
 {
+	int i, idx, size = *offset, ret = 0, start_offset = *offset;
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_legacy_t metrics;
 	struct smu_dpm_context *smu_dpm_ctx = &(smu->smu_dpm);
-	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 
@@ -574,9 +577,6 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -659,15 +659,18 @@ static int vangogh_print_legacy_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
-static int vangogh_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int vangogh_emit_clk_levels(struct smu_context *smu,
+				    enum smu_clk_type clk_type, char *buf,
+				    int *offset)
 {
+	int i, idx, size = *offset, ret = 0, start_offset = *offset;
 	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
 	SmuMetrics_t metrics;
-	int i, idx, size = 0, ret = 0, start_offset = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	bool cur_value_match_level = false;
 	uint32_t min, max;
@@ -677,9 +680,6 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 	ret = smu_cmn_get_metrics_table(smu, &metrics, false);
 	if (ret)
 		return ret;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -781,18 +781,21 @@ static int vangogh_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size - start_offset;
+	*offset += size - start_offset;
+
+	return 0;
 }
 
-static int vangogh_common_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int vangogh_common_emit_clk_levels(struct smu_context *smu,
+					   enum smu_clk_type clk_type, char *buf,
+					   int *offset)
 {
 	int ret = 0;
 
 	if (smu->smc_fw_if_version < 0x3)
-		ret = vangogh_print_legacy_clk_levels(smu, clk_type, buf);
+		ret = vangogh_emit_legacy_clk_levels(smu, clk_type, buf, offset);
 	else
-		ret = vangogh_print_clk_levels(smu, clk_type, buf);
+		ret = vangogh_emit_clk_levels(smu, clk_type, buf, offset);
 
 	return ret;
 }
@@ -1652,9 +1655,9 @@ static int vangogh_set_watermarks_table(struct smu_context *smu,
 static ssize_t vangogh_get_legacy_gpu_metrics_v2_3(struct smu_context *smu,
 				      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_3 *gpu_metrics =
-		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_legacy_t metrics;
 	int ret = 0;
 
@@ -1703,15 +1706,17 @@ static ssize_t vangogh_get_legacy_gpu_metrics_v2_3(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v2_3);
 }
 
 static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_2 *gpu_metrics =
-		(struct gpu_metrics_v2_2 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_2 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_legacy_t metrics;
 	int ret = 0;
 
@@ -1760,15 +1765,17 @@ static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v2_2);
 }
 
 static ssize_t vangogh_get_gpu_metrics_v2_3(struct smu_context *smu,
 				      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_3 *gpu_metrics =
-		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int ret = 0;
 
@@ -1831,6 +1838,8 @@ static ssize_t vangogh_get_gpu_metrics_v2_3(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v2_3);
 }
 
@@ -1838,9 +1847,9 @@ static ssize_t vangogh_get_gpu_metrics_v2_4(struct smu_context *smu,
 					    void **table)
 {
 	SmuMetrics_t metrics;
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_4 *gpu_metrics =
-				(struct gpu_metrics_v2_4 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_4 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	int ret = 0;
 
 	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
@@ -1911,15 +1920,17 @@ static ssize_t vangogh_get_gpu_metrics_v2_4(struct smu_context *smu,
 
 	*table = (void *)gpu_metrics;
 
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
+
 	return sizeof(struct gpu_metrics_v2_4);
 }
 
 static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v2_2 *gpu_metrics =
-		(struct gpu_metrics_v2_2 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v2_2 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int ret = 0;
 
@@ -1974,6 +1985,8 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v2_2);
 }
@@ -2259,18 +2272,12 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 
 static int vangogh_mode_reset(struct smu_context *smu, int type)
 {
-	int ret = 0, index = 0;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	int ret;
 
-	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
-					       SMU_MSG_GfxDeviceDriverReset);
-	if (index < 0)
-		return index == -EACCES ? 0 : index;
-
-	mutex_lock(&smu->message_lock);
-
-	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
-
-	mutex_unlock(&smu->message_lock);
+	mutex_lock(&ctl->lock);
+	ret = smu_msg_send_async_locked(ctl, SMU_MSG_GfxDeviceDriverReset, type);
+	mutex_unlock(&ctl->lock);
 
 	mdelay(10);
 
@@ -2509,8 +2516,6 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.fini_power = smu_v11_0_fini_power,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = vangogh_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = vangogh_dpm_set_jpeg_enable,
 	.is_dpm_running = vangogh_is_dpm_running,
@@ -2524,7 +2529,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.interrupt_work = smu_v11_0_interrupt_work,
 	.get_gpu_metrics = vangogh_common_get_gpu_metrics,
 	.od_edit_dpm_table = vangogh_od_edit_dpm_table,
-	.print_clk_levels = vangogh_common_print_clk_levels,
+	.emit_clk_levels = vangogh_common_emit_clk_levels,
 	.set_default_dpm_table = vangogh_set_default_dpm_tables,
 	.set_fine_grain_gfx_freq_parameters = vangogh_set_fine_grain_gfx_freq_parameters,
 	.notify_rlc_state = vangogh_notify_rlc_state,
@@ -2550,10 +2555,9 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 void vangogh_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &vangogh_ppt_funcs;
-	smu->message_map = vangogh_message_map;
 	smu->feature_map = vangogh_feature_mask_map;
 	smu->table_map = vangogh_table_map;
 	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
-	smu_v11_0_set_smu_mailbox_registers(smu);
+	smu_v11_0_init_msg_ctl(smu, vangogh_message_map);
 }

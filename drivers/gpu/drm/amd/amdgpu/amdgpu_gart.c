@@ -476,7 +476,7 @@ int amdgpu_gart_init(struct amdgpu_device *adev)
 	/* Compute table size */
 	adev->gart.num_cpu_pages = adev->gmc.gart_size / PAGE_SIZE;
 	adev->gart.num_gpu_pages = adev->gmc.gart_size / AMDGPU_GPU_PAGE_SIZE;
-	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
+	drm_info(adev_to_drm(adev), "GART: num cpu pages %u, num gpu pages %u\n",
 		 adev->gart.num_cpu_pages, adev->gart.num_gpu_pages);
 
 	return 0;

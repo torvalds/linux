@@ -1772,7 +1772,7 @@ static int dcn401_get_power_profile(const struct dc_state *context)
 	return dpm_level;
 }
 
-static unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
+unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
 {
 	return pipe_ctx->global_sync.dcn4x.vstartup_lines;
 }

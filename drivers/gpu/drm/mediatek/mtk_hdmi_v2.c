@@ -145,8 +145,11 @@ static inline u32 mtk_hdmi_v2_format_hw_packet(const u8 *buffer, u8 len)
 	return val;
 }
 
-static void mtk_hdmi_v2_hw_write_audio_infoframe(struct mtk_hdmi *hdmi, const u8 *buffer)
+static int mtk_hdmi_v2_hdmi_write_audio_infoframe(struct drm_bridge *bridge,
+						  const u8 *buffer, size_t len)
 {
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
 	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AUD_EN | AUD_EN_WR);
 	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AUD_RPT_EN);
 
@@ -158,10 +161,15 @@ static void mtk_hdmi_v2_hw_write_audio_infoframe(struct mtk_hdmi *hdmi, const u8
 
 	regmap_set_bits(hdmi->regs, TOP_INFO_RPT, AUD_RPT_EN);
 	regmap_set_bits(hdmi->regs, TOP_INFO_EN, AUD_EN | AUD_EN_WR);
+
+	return 0;
 }
 
-static void mtk_hdmi_v2_hw_write_avi_infoframe(struct mtk_hdmi *hdmi, const u8 *buffer)
+static int mtk_hdmi_v2_hdmi_write_avi_infoframe(struct drm_bridge *bridge,
+						const u8 *buffer, size_t len)
 {
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
 	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AVI_EN_WR | AVI_EN);
 	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AVI_RPT_EN);
 
@@ -175,10 +183,15 @@ static void mtk_hdmi_v2_hw_write_avi_infoframe(struct mtk_hdmi *hdmi, const u8 *
 
 	regmap_set_bits(hdmi->regs, TOP_INFO_RPT, AVI_RPT_EN);
 	regmap_set_bits(hdmi->regs, TOP_INFO_EN, AVI_EN_WR | AVI_EN);
+
+	return 0;
 }
 
-static void mtk_hdmi_v2_hw_write_spd_infoframe(struct mtk_hdmi *hdmi, const u8 *buffer)
+static int mtk_hdmi_v2_hdmi_write_spd_infoframe(struct drm_bridge *bridge,
+						const u8 *buffer, size_t len)
 {
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
 	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, SPD_EN_WR | SPD_EN);
 	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, SPD_RPT_EN);
 
@@ -194,10 +207,15 @@ static void mtk_hdmi_v2_hw_write_spd_infoframe(struct mtk_hdmi *hdmi, const u8 *
 
 	regmap_set_bits(hdmi->regs, TOP_INFO_EN, SPD_EN_WR | SPD_EN);
 	regmap_set_bits(hdmi->regs, TOP_INFO_RPT, SPD_RPT_EN);
+
+	return 0;
 }
 
-static void mtk_hdmi_v2_hw_write_vendor_infoframe(struct mtk_hdmi *hdmi, const u8 *buffer)
+static int mtk_hdmi_v2_hdmi_write_hdmi_infoframe(struct drm_bridge *bridge,
+						 const u8 *buffer, size_t len)
 {
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
 	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, VSIF_EN_WR | VSIF_EN);
 	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, VSIF_RPT_EN);
 
@@ -213,6 +231,8 @@ static void mtk_hdmi_v2_hw_write_vendor_infoframe(struct mtk_hdmi *hdmi, const u
 
 	regmap_set_bits(hdmi->regs, TOP_INFO_EN, VSIF_EN_WR | VSIF_EN);
 	regmap_set_bits(hdmi->regs, TOP_INFO_RPT, VSIF_RPT_EN);
+
+	return 0;
 }
 
 static void mtk_hdmi_yuv420_downsampling(struct mtk_hdmi *hdmi, bool enable)
@@ -255,7 +275,7 @@ static int mtk_hdmi_v2_setup_audio_infoframe(struct mtk_hdmi *hdmi)
 	if (ret < 0)
 		return ret;
 
-	mtk_hdmi_v2_hw_write_audio_infoframe(hdmi, buffer);
+	mtk_hdmi_v2_hdmi_write_audio_infoframe(&hdmi->bridge, buffer, sizeof(buffer));
 
 	return 0;
 }
@@ -746,7 +766,7 @@ static void mtk_hdmi_v2_change_video_resolution(struct mtk_hdmi *hdmi,
 	case HDMI_COLORSPACE_YUV420:
 		mtk_hdmi_yuv420_downsampling(hdmi, true);
 		break;
-	};
+	}
 }
 
 static void mtk_hdmi_v2_output_set_display_mode(struct mtk_hdmi *hdmi,
@@ -940,8 +960,8 @@ static int mtk_hdmi_v2_bridge_attach(struct drm_bridge *bridge,
 		DRM_ERROR("The flag DRM_BRIDGE_ATTACH_NO_CONNECTOR must be supplied\n");
 		return -EINVAL;
 	}
-	if (hdmi->next_bridge) {
-		ret = drm_bridge_attach(encoder, hdmi->next_bridge, bridge, flags);
+	if (hdmi->bridge.next_bridge) {
+		ret = drm_bridge_attach(encoder, hdmi->bridge.next_bridge, bridge, flags);
 		if (ret)
 			return ret;
 	}
@@ -1133,60 +1153,42 @@ mtk_hdmi_v2_hdmi_tmds_char_rate_valid(const struct drm_bridge *bridge,
 		return MODE_OK;
 }
 
-static int mtk_hdmi_v2_hdmi_clear_infoframe(struct drm_bridge *bridge,
-					    enum hdmi_infoframe_type type)
+static int mtk_hdmi_v2_hdmi_clear_audio_infoframe(struct drm_bridge *bridge)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AUD_EN_WR | AUD_EN);
-		regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AUD_RPT_EN);
-		break;
-	case HDMI_INFOFRAME_TYPE_AVI:
-		regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AVI_EN_WR | AVI_EN);
-		regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AVI_RPT_EN);
-		break;
-	case HDMI_INFOFRAME_TYPE_SPD:
-		regmap_clear_bits(hdmi->regs, TOP_INFO_EN, SPD_EN_WR | SPD_EN);
-		regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, SPD_RPT_EN);
-		break;
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		regmap_clear_bits(hdmi->regs, TOP_INFO_EN, VSIF_EN_WR | VSIF_EN);
-		regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, VSIF_RPT_EN);
-		break;
-	case HDMI_INFOFRAME_TYPE_DRM:
-	default:
-		break;
-	};
+	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AUD_EN_WR | AUD_EN);
+	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AUD_RPT_EN);
 
 	return 0;
 }
 
-static int mtk_hdmi_v2_hdmi_write_infoframe(struct drm_bridge *bridge,
-					    enum hdmi_infoframe_type type,
-					    const u8 *buffer, size_t len)
+static int mtk_hdmi_v2_hdmi_clear_avi_infoframe(struct drm_bridge *bridge)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		mtk_hdmi_v2_hw_write_audio_infoframe(hdmi, buffer);
-		break;
-	case HDMI_INFOFRAME_TYPE_AVI:
-		mtk_hdmi_v2_hw_write_avi_infoframe(hdmi, buffer);
-		break;
-	case HDMI_INFOFRAME_TYPE_SPD:
-		mtk_hdmi_v2_hw_write_spd_infoframe(hdmi, buffer);
-		break;
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		mtk_hdmi_v2_hw_write_vendor_infoframe(hdmi, buffer);
-		break;
-	case HDMI_INFOFRAME_TYPE_DRM:
-	default:
-		dev_err(hdmi->dev, "Unsupported HDMI infoframe type %u\n", type);
-		break;
-	};
+	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, AVI_EN_WR | AVI_EN);
+	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, AVI_RPT_EN);
+
+	return 0;
+}
+
+static int mtk_hdmi_v2_hdmi_clear_spd_infoframe(struct drm_bridge *bridge)
+{
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
+	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, SPD_EN_WR | SPD_EN);
+	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, SPD_RPT_EN);
+
+	return 0;
+}
+
+static int mtk_hdmi_v2_hdmi_clear_hdmi_infoframe(struct drm_bridge *bridge)
+{
+	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
+
+	regmap_clear_bits(hdmi->regs, TOP_INFO_EN, VSIF_EN_WR | VSIF_EN);
+	regmap_clear_bits(hdmi->regs, TOP_INFO_RPT, VSIF_RPT_EN);
 
 	return 0;
 }
@@ -1330,8 +1332,14 @@ static const struct drm_bridge_funcs mtk_v2_hdmi_bridge_funcs = {
 	.hpd_enable = mtk_hdmi_v2_hpd_enable,
 	.hpd_disable = mtk_hdmi_v2_hpd_disable,
 	.hdmi_tmds_char_rate_valid = mtk_hdmi_v2_hdmi_tmds_char_rate_valid,
-	.hdmi_clear_infoframe = mtk_hdmi_v2_hdmi_clear_infoframe,
-	.hdmi_write_infoframe = mtk_hdmi_v2_hdmi_write_infoframe,
+	.hdmi_clear_audio_infoframe = mtk_hdmi_v2_hdmi_clear_audio_infoframe,
+	.hdmi_write_audio_infoframe = mtk_hdmi_v2_hdmi_write_audio_infoframe,
+	.hdmi_clear_avi_infoframe = mtk_hdmi_v2_hdmi_clear_avi_infoframe,
+	.hdmi_write_avi_infoframe = mtk_hdmi_v2_hdmi_write_avi_infoframe,
+	.hdmi_clear_spd_infoframe = mtk_hdmi_v2_hdmi_clear_spd_infoframe,
+	.hdmi_write_spd_infoframe = mtk_hdmi_v2_hdmi_write_spd_infoframe,
+	.hdmi_clear_hdmi_infoframe = mtk_hdmi_v2_hdmi_clear_hdmi_infoframe,
+	.hdmi_write_hdmi_infoframe = mtk_hdmi_v2_hdmi_write_hdmi_infoframe,
 	.debugfs_init = mtk_hdmi_v2_debugfs_init,
 };
 

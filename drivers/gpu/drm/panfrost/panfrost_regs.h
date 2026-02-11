@@ -102,9 +102,15 @@
 #define GPU_L2_PRESENT_LO		0x120	/* (RO) Level 2 cache present bitmap, low word */
 #define GPU_L2_PRESENT_HI		0x124	/* (RO) Level 2 cache present bitmap, high word */
 
+/* GPU_COHERENCY_FEATURES is a bitmask of BIT(COHERENCY_xxx) values encoding the
+ * set of supported coherency protocols. GPU_COHERENCY_ENABLE is passed a
+ * COHERENCY_xxx value.
+ */
 #define GPU_COHERENCY_FEATURES		0x300	/* (RO) Coherency features present */
-#define   COHERENCY_ACE_LITE		BIT(0)
-#define   COHERENCY_ACE			BIT(1)
+#define GPU_COHERENCY_ENABLE		0x304	/* (RW) Coherency protocol selection */
+#define   COHERENCY_ACE_LITE		0
+#define   COHERENCY_ACE			1
+#define   COHERENCY_NONE		31
 
 #define GPU_STACK_PRESENT_LO		0xE00   /* (RO) Core stack present bitmap, low word */
 #define GPU_STACK_PRESENT_HI		0xE04   /* (RO) Core stack present bitmap, high word */

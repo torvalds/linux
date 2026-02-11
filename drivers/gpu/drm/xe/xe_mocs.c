@@ -6,7 +6,6 @@
 #include "xe_mocs.h"
 
 #include "regs/xe_gt_regs.h"
-#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_force_wake.h"
@@ -17,7 +16,6 @@
 #include "xe_platform_types.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
-#include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define mocs_dbg xe_gt_dbg
@@ -811,26 +809,20 @@ int xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 	enum xe_force_wake_domains domain;
 	struct xe_mocs_info table;
-	unsigned int fw_ref, flags;
-	int err = 0;
+	unsigned int flags;
 
 	flags = get_mocs_settings(xe, &table);
 
 	domain = flags & HAS_LNCF_MOCS ? XE_FORCEWAKE_ALL : XE_FW_GT;
-	xe_pm_runtime_get_noresume(xe);
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), domain);
 
-	if (!xe_force_wake_ref_has_domain(fw_ref, domain)) {
-		err = -ETIMEDOUT;
-		goto err_fw;
-	}
+	guard(xe_pm_runtime_noresume)(xe);
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), domain);
+	if (!xe_force_wake_ref_has_domain(fw_ref.domains, domain))
+		return -ETIMEDOUT;
 
 	table.ops->dump(&table, flags, gt, p);
 
-err_fw:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	xe_pm_runtime_put(xe);
-	return err;
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

@@ -16,6 +16,8 @@ properties:
   compatible:
     items:
       - enum:
+          - anbernic,rg-ds-display-bottom
+          - anbernic,rg-ds-display-top
           - chongzhou,cz101b4001
           - kingdisplay,kd101ne3-40ti
           - melfas,lmfbx101117480

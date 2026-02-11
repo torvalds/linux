@@ -21,16 +21,19 @@
  * SOFTWARE.
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_print.h>
+
+#include "gem/i915_gem_dmabuf.h"
+
+#include "gt/intel_context.h"
+#include "gt/intel_ring.h"
+#include "gt/shmem_utils.h"
 
 #include "i915_drv.h"
 #include "i915_vgpu.h"
 #include "intel_gvt.h"
-#include "gem/i915_gem_dmabuf.h"
-#include "gt/intel_context.h"
-#include "gt/intel_ring.h"
-#include "gt/shmem_utils.h"
-#include <linux/vmalloc.h>
 
 /**
  * DOC: Intel GVT-g host support
@@ -238,9 +241,6 @@ EXPORT_SYMBOL_NS_GPL(intel_gvt_clear_ops, "I915_GVT");
  */
 int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
-	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
-
 	mutex_lock(&intel_gvt_mutex);
 	list_add_tail(&dev_priv->vgpu.entry, &intel_gvt_devices);
 	if (intel_gvt_ops)

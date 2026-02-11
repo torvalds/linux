@@ -53,16 +53,12 @@ static void mantix_init_sequence(struct mipi_dsi_multi_context *dsi_ctx)
 	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x5a);
 
 	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_INT_CANCEL, 0x03);
-	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x5a, 0x03);
-	mipi_dsi_generic_write_seq_multi(dsi_ctx, 0x80, 0xa9, 0x00);
 
-	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x5a, 0x09);
-	mipi_dsi_generic_write_seq_multi(dsi_ctx, 0x80, 0x64, 0x00, 0x64, 0x00, 0x00);
-	mipi_dsi_msleep(dsi_ctx, 20);
+	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x5a, 0x03);
+	mipi_dsi_generic_write_seq_multi(dsi_ctx, 0x80, 0xa9, 0x00); /* VCOM */
 
 	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_SPI_FINISH, 0xa5);
 	mipi_dsi_generic_write_seq_multi(dsi_ctx, MANTIX_CMD_OTP_STOP_RELOAD_MIPI, 0x00, 0x2f);
-	mipi_dsi_msleep(dsi_ctx, 20);
 }
 
 static int mantix_enable(struct drm_panel *panel)
@@ -75,13 +71,14 @@ static int mantix_enable(struct drm_panel *panel)
 	if (!dsi_ctx.accum_err)
 		dev_dbg(ctx->dev, "Panel init sequence done\n");
 
+	/* remainder to 120ms (7.3.1 Note 4) */
+	mipi_dsi_msleep(&dsi_ctx, 70);
+
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
-	mipi_dsi_msleep(&dsi_ctx, 20);
+	mipi_dsi_msleep(&dsi_ctx, 120);
 
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 12000);
-
-	mipi_dsi_turn_on_peripheral_multi(&dsi_ctx);
 
 	return dsi_ctx.accum_err;
 }
@@ -95,6 +92,9 @@ static int mantix_disable(struct drm_panel *panel)
 	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 
+	/* T10 */
+	mipi_dsi_msleep(&dsi_ctx, 150);
+
 	return dsi_ctx.accum_err;
 }
 
@@ -102,15 +102,16 @@ static int mantix_unprepare(struct drm_panel *panel)
 {
 	struct mantix *ctx = panel_to_mantix(panel);
 
-	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 1);
-	usleep_range(5000, 6000);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-
 	regulator_disable(ctx->avee);
 	regulator_disable(ctx->avdd);
 	/* T11 */
 	usleep_range(5000, 6000);
 	regulator_disable(ctx->vddi);
+
+	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 1);
+	usleep_range(5000, 6000);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+
 	/* T14 */
 	msleep(50);
 
@@ -147,10 +148,10 @@ static int mantix_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	/* T3 + T4 + time for voltage to become stable: */
-	usleep_range(6000, 7000);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+	usleep_range(100, 200);
 	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 0);
+	usleep_range(100, 200);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 
 	/* T6 */
 	msleep(50);
@@ -258,7 +259,7 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_LPM |
 		MIPI_DSI_MODE_VIDEO_BURST | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 
 	ctx->avdd = devm_regulator_get(dev, "avdd");

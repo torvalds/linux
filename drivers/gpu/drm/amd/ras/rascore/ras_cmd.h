@@ -75,6 +75,8 @@ enum ras_cmd_id {
 	RAS_CMD__GET_CPER_RECORD,
 	RAS_CMD__GET_BATCH_TRACE_SNAPSHOT,
 	RAS_CMD__GET_BATCH_TRACE_RECORD,
+	RAS_CMD__GET_ALL_BLOCK_ECC_STATUS,
+	RAS_CMD__SET_CMD_AUTO_UPDATE,
 	RAS_CMD__SUPPORTED_MAX = RAS_CMD_ID_COMMON_END,
 };
 
@@ -409,6 +411,37 @@ struct ras_cmd_batch_trace_record_rsp {
 	uint32_t reserved[2];
 	struct batch_ras_trace_info batchs[RAS_CMD_MAX_BATCH_NUM];
 	struct ras_log_info records[RAS_CMD_MAX_TRACE_NUM];
+};
+
+struct ras_cmd_auto_update_req {
+	struct ras_cmd_dev_handle dev;
+	uint32_t mode;
+	uint32_t cmd_id;
+	uint64_t addr;
+	uint32_t len;
+	uint32_t reserved[5];
+};
+
+struct ras_cmd_auto_update_rsp {
+	uint32_t version;
+	uint32_t reserved[4];
+};
+
+struct ras_cmd_blocks_ecc_req {
+	struct ras_cmd_dev_handle dev;
+};
+
+struct ras_cmd_block_ecc {
+	uint32_t ce_count;
+	uint32_t ue_count;
+	uint32_t de_count;
+};
+
+#define MAX_RAS_BLOCK_NUM  20
+struct ras_cmd_blocks_ecc_rsp {
+	uint32_t version;
+	uint32_t reserved[5];
+	struct ras_cmd_block_ecc blocks[MAX_RAS_BLOCK_NUM];
 };
 
 #pragma pack(pop)

@@ -8,7 +8,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_debugfs.h>
 
-#include "xe_bo.h"
 #include "xe_debugfs.h"
 #include "xe_device.h"
 #include "xe_gt.h"
@@ -21,6 +20,7 @@
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
+#include "xe_guc.h"
 #include "xe_pm.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_provision.h"
@@ -123,11 +123,10 @@ static int POLICY##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_gt_sriov_pf_policy_set_##POLICY(gt, val);			\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -154,6 +153,299 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
 	debugfs_create_file_unsafe("reset_engine", 0644, parent, parent, &reset_engine_fops);
 	debugfs_create_file_unsafe("sched_if_idle", 0644, parent, parent, &sched_if_idle_fops);
 	debugfs_create_file_unsafe("sample_period_ms", 0644, parent, parent, &sample_period_fops);
+}
+
+/*
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── sched_groups_mode
+ *                      ├── sched_groups_exec_quantums_ms
+ *                      ├── sched_groups_preempt_timeout_us
+ *                      ├── sched_groups
+ *                      :   ├── group0
+ *                          :
+ *          :               └── groupN
+ *          ├── vf1
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── sched_groups_exec_quantums_ms
+ *                      ├── sched_groups_preempt_timeout_us
+ *                      :
+ */
+
+static const char *sched_group_mode_to_string(enum xe_sriov_sched_group_modes mode)
+{
+	switch (mode) {
+	case XE_SRIOV_SCHED_GROUPS_DISABLED:
+		return "disabled";
+	case XE_SRIOV_SCHED_GROUPS_MEDIA_SLICES:
+		return "media_slices";
+	case XE_SRIOV_SCHED_GROUPS_MODES_COUNT:
+		/* dummy mode to make the compiler happy */
+		break;
+	}
+
+	return "unknown";
+}
+
+static int sched_groups_info(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct xe_gt *gt = extract_gt(m->private);
+	enum xe_sriov_sched_group_modes current_mode =
+		gt->sriov.pf.policy.guc.sched_groups.current_mode;
+	enum xe_sriov_sched_group_modes mode;
+
+	for (mode = XE_SRIOV_SCHED_GROUPS_DISABLED;
+	     mode < XE_SRIOV_SCHED_GROUPS_MODES_COUNT;
+	     mode++) {
+		if (!xe_sriov_gt_pf_policy_has_sched_group_mode(gt, mode))
+			continue;
+
+		drm_printf(&p, "%s%s%s%s",
+			   mode == XE_SRIOV_SCHED_GROUPS_DISABLED ? "" : " ",
+			   mode == current_mode ? "[" : "",
+			   sched_group_mode_to_string(mode),
+			   mode == current_mode ? "]" : "");
+	}
+
+	drm_puts(&p, "\n");
+
+	return 0;
+}
+
+static int sched_groups_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sched_groups_info, inode->i_private);
+}
+
+static ssize_t sched_groups_write(struct file *file, const char __user *ubuf,
+				  size_t size, loff_t *pos)
+{
+	struct xe_gt *gt = extract_gt(file_inode(file)->i_private);
+	enum xe_sriov_sched_group_modes mode;
+	char name[32];
+	int ret;
+
+	if (*pos)
+		return -ESPIPE;
+
+	if (!size)
+		return -ENODATA;
+
+	if (size > sizeof(name) - 1)
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(name, sizeof(name) - 1, pos, ubuf, size);
+	if (ret < 0)
+		return ret;
+	name[ret] = '\0';
+
+	for (mode = XE_SRIOV_SCHED_GROUPS_DISABLED;
+	     mode < XE_SRIOV_SCHED_GROUPS_MODES_COUNT;
+	     mode++)
+		if (sysfs_streq(name, sched_group_mode_to_string(mode)))
+			break;
+
+	if (mode == XE_SRIOV_SCHED_GROUPS_MODES_COUNT)
+		return -EINVAL;
+
+	guard(xe_pm_runtime)(gt_to_xe(gt));
+	ret = xe_gt_sriov_pf_policy_set_sched_groups_mode(gt, mode);
+
+	return ret < 0 ? ret : size;
+}
+
+static const struct file_operations sched_groups_fops = {
+	.owner = THIS_MODULE,
+	.open = sched_groups_open,
+	.read = seq_read,
+	.write = sched_groups_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int sched_groups_config_show(struct seq_file *m, void *data,
+				    void (*get)(struct xe_gt *, unsigned int, u32 *, u32))
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	unsigned int vfid = extract_vfid(m->private);
+	struct xe_gt *gt = extract_gt(m->private);
+	u32 values[GUC_MAX_SCHED_GROUPS];
+	bool first = true;
+	u8 group;
+
+	get(gt, vfid, values, ARRAY_SIZE(values));
+
+	for (group = 0; group < ARRAY_SIZE(values); group++) {
+		drm_printf(&p, "%s%u", first ? "" : ",", values[group]);
+
+		first = false;
+	}
+
+	drm_puts(&p, "\n");
+
+	return 0;
+}
+
+static ssize_t sched_groups_config_write(struct file *file, const char __user *ubuf,
+					 size_t size, loff_t *pos,
+					 int (*set)(struct xe_gt *, unsigned int, u32 *, u32))
+{
+	struct dentry *parent = file_inode(file)->i_private;
+	unsigned int vfid = extract_vfid(parent);
+	struct xe_gt *gt = extract_gt(parent);
+	u32 values[GUC_MAX_SCHED_GROUPS];
+	int *input __free(kfree) = NULL;
+	u32 count;
+	int ret;
+	int i;
+
+	if (*pos)
+		return -ESPIPE;
+
+	if (!size)
+		return -ENODATA;
+
+	ret = parse_int_array_user(ubuf, min(size, GUC_MAX_SCHED_GROUPS * sizeof(u32)), &input);
+	if (ret)
+		return ret;
+
+	count = input[0];
+	if (count > GUC_MAX_SCHED_GROUPS)
+		return -E2BIG;
+
+	for (i = 0; i < count; i++) {
+		if (input[i + 1] < 0 || input[i + 1] > S32_MAX)
+			return -EINVAL;
+
+		values[i] = input[i + 1];
+	}
+
+	guard(xe_pm_runtime)(gt_to_xe(gt));
+	ret = set(gt, vfid, values, count);
+
+	return ret < 0 ? ret : size;
+}
+
+#define DEFINE_SRIOV_GT_GRP_CFG_DEBUGFS_ATTRIBUTE(CONFIG)			\
+static int sched_groups_##CONFIG##_show(struct seq_file *m, void *data)		\
+{										\
+	return sched_groups_config_show(m, data,				\
+					xe_gt_sriov_pf_config_get_groups_##CONFIG); \
+}										\
+										\
+static int sched_groups_##CONFIG##_open(struct inode *inode, struct file *file)	\
+{										\
+	return single_open(file, sched_groups_##CONFIG##_show,			\
+			   inode->i_private);					\
+}										\
+										\
+static ssize_t sched_groups_##CONFIG##_write(struct file *file,			\
+					      const char __user *ubuf,		\
+					      size_t size, loff_t *pos)		\
+{										\
+	return sched_groups_config_write(file, ubuf, size, pos,			\
+					 xe_gt_sriov_pf_config_set_groups_##CONFIG); \
+}										\
+										\
+static const struct file_operations sched_groups_##CONFIG##_fops = {		\
+	.owner = THIS_MODULE,							\
+	.open = sched_groups_##CONFIG##_open,					\
+	.read = seq_read,							\
+	.llseek = seq_lseek,							\
+	.write = sched_groups_##CONFIG##_write,					\
+	.release = single_release,						\
+}
+
+DEFINE_SRIOV_GT_GRP_CFG_DEBUGFS_ATTRIBUTE(exec_quantums);
+DEFINE_SRIOV_GT_GRP_CFG_DEBUGFS_ATTRIBUTE(preempt_timeouts);
+
+static ssize_t sched_group_engines_read(struct file *file, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct xe_gt *gt = extract_gt(dent->d_parent->d_parent);
+	struct xe_gt_sriov_scheduler_groups *info = &gt->sriov.pf.policy.guc.sched_groups;
+	struct guc_sched_group *groups = info->modes[info->current_mode].groups;
+	u32 num_groups = info->modes[info->current_mode].num_groups;
+	unsigned int group = (uintptr_t)extract_priv(dent);
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+	char engines[128];
+
+	engines[0] = '\0';
+
+	if (group < num_groups) {
+		for_each_hw_engine(hwe, gt, id) {
+			u8 guc_class = xe_engine_class_to_guc_class(hwe->class);
+			u32 mask = groups[group].engines[guc_class];
+
+			if (mask & BIT(hwe->logical_instance)) {
+				strlcat(engines, hwe->name, sizeof(engines));
+				strlcat(engines, " ", sizeof(engines));
+			}
+		}
+		strlcat(engines, "\n", sizeof(engines));
+	}
+
+	return simple_read_from_buffer(buf, count, ppos, engines, strlen(engines));
+}
+
+static const struct file_operations sched_group_engines_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = sched_group_engines_read,
+	.llseek = default_llseek,
+};
+
+static void pf_add_sched_groups(struct xe_gt *gt, struct dentry *parent, unsigned int vfid)
+{
+	struct dentry *groups;
+	u8 group;
+
+	xe_gt_assert(gt, gt == extract_gt(parent));
+	xe_gt_assert(gt, vfid == extract_vfid(parent));
+
+	/*
+	 * TODO: we currently call this function before we initialize scheduler
+	 * groups, so at this point in time we don't know if there are any
+	 * valid groups on the GT and we can't selectively register the debugfs
+	 * only if there are any. Therefore, we always register the debugfs
+	 * files if we're on a platform that has support for groups.
+	 * We should rework the flow so that debugfs is registered after the
+	 * policy init, so that we check if there are valid groups before
+	 * adding the debugfs files.
+	 * Similarly, instead of using GUC_MAX_SCHED_GROUPS we could use
+	 * gt->sriov.pf.policy.guc.sched_groups.max_number_of_groups.
+	 */
+	if (!xe_sriov_gt_pf_policy_has_sched_groups_support(gt))
+		return;
+
+	debugfs_create_file("sched_groups_exec_quantums_ms", 0644, parent, parent,
+			    &sched_groups_exec_quantums_fops);
+	debugfs_create_file("sched_groups_preempt_timeouts_us", 0644, parent, parent,
+			    &sched_groups_preempt_timeouts_fops);
+
+	if (vfid != PFID)
+		return;
+
+	debugfs_create_file("sched_groups_mode", 0644, parent, parent, &sched_groups_fops);
+
+	groups = debugfs_create_dir("sched_groups", parent);
+	if (IS_ERR(groups))
+		return;
+
+	for (group = 0; group < GUC_MAX_SCHED_GROUPS; group++) {
+		char name[10];
+
+		snprintf(name, sizeof(name), "group%u", group);
+		debugfs_create_file(name, 0644, groups, (void *)(uintptr_t)group,
+				    &sched_group_engines_fops);
+	}
 }
 
 /*
@@ -189,12 +481,11 @@ static int CONFIG##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_sriov_pf_wait_ready(xe) ?:					\
 	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -249,11 +540,10 @@ static int set_threshold(void *data, u64 val, enum xe_guc_klv_threshold_index in
 	if (val > (u32)~0ull)
 		return -EOVERFLOW;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	err = xe_gt_sriov_pf_config_set_threshold(gt, vfid, index, val);
 	if (!err)
 		xe_sriov_pf_provision_set_custom_mode(xe);
-	xe_pm_runtime_put(xe);
 
 	return err;
 }
@@ -304,9 +594,11 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 				   &sched_priority_fops);
 
 	/* register all threshold attributes */
-#define register_threshold_attribute(TAG, NAME, ...) \
-	debugfs_create_file_unsafe("threshold_" #NAME, 0644, parent, parent, \
-				   &NAME##_fops);
+#define register_threshold_attribute(TAG, NAME, VER...) ({				\
+	if (IF_ARGS(GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, VER), true, VER))		\
+		debugfs_create_file_unsafe("threshold_" #NAME, 0644, parent, parent,	\
+					   &NAME##_fops);				\
+});
 	MAKE_XE_GUC_KLV_THRESHOLDS_SET(register_threshold_attribute)
 #undef register_threshold_attribute
 }
@@ -358,9 +650,8 @@ static ssize_t control_write(struct file *file, const char __user *buf, size_t c
 		xe_gt_assert(gt, sizeof(cmd) > strlen(control_cmds[n].cmd));
 
 		if (sysfs_streq(cmd, control_cmds[n].cmd)) {
-			xe_pm_runtime_get(xe);
+			guard(xe_pm_runtime)(xe);
 			ret = control_cmds[n].fn ? (*control_cmds[n].fn)(gt, vfid) : 0;
-			xe_pm_runtime_put(xe);
 			break;
 		}
 	}
@@ -519,6 +810,7 @@ static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int v
 
 	if (vfid) {
 		pf_add_config_attrs(gt, dent, vfid);
+		pf_add_sched_groups(gt, dent, vfid);
 
 		debugfs_create_file("control", 0600, dent, NULL, &control_ops);
 
@@ -532,6 +824,7 @@ static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int v
 	} else {
 		pf_add_config_attrs(gt, dent, PFID);
 		pf_add_policy_attrs(gt, dent);
+		pf_add_sched_groups(gt, dent, PFID);
 
 		drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), dent, minor);
 	}

@@ -254,30 +254,38 @@ struct hubbub_funcs {
 	bool (*program_arbiter)(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs, bool safe_to_lower);
 	void (*dchvm_init)(struct hubbub *hubbub);
 
+	/* Performance monitoring related functions */
 	struct hubbub_perfmon_funcs {
 		void (*reset)(struct hubbub *hubbub);
-		void (*start_measuring_max_memory_latency_ns)(
+		void (*start_measuring_memory_latencies)(
 				struct hubbub *hubbub);
-		uint32_t (*get_max_memory_latency_ns)(struct hubbub *hubbub,
-				uint32_t refclk_mhz, uint32_t *sample_count);
-		void (*start_measuring_average_memory_latency_ns)(
+		uint32_t (*get_memory_latencies_ns)(struct hubbub *hubbub,
+				uint32_t refclk_mhz, uint32_t *min_latency_ns,
+				uint32_t *max_latency_ns, uint32_t *avg_latency_ns);
+		void (*start_measuring_urgent_assertion_count)(
 				struct hubbub *hubbub);
-		uint32_t (*get_average_memory_latency_ns)(struct hubbub *hubbub,
-				uint32_t refclk_mhz, uint32_t *sample_count);
-		void (*start_measuring_urgent_ramp_latency_ns)(
+		bool (*get_urgent_assertion_count)(struct hubbub *hubbub,
+				uint32_t refclk_mhz,
+				uint32_t *assertion_count,
+				uint32_t *deassertion_count,
+				uint32_t *timestamp_us);
+		void (*start_measuring_urgent_ramp_latency)(
 				struct hubbub *hubbub,
 				const struct hubbub_urgent_latency_params *params);
 		uint32_t (*get_urgent_ramp_latency_ns)(struct hubbub *hubbub,
 				uint32_t refclk_mhz);
-		void (*start_measuring_unbounded_bandwidth_mbps)(
+		void (*start_measuring_unbounded_bandwidth)(
 				struct hubbub *hubbub);
 		uint32_t (*get_unbounded_bandwidth_mbps)(struct hubbub *hubbub,
 				uint32_t refclk_mhz, uint32_t *duration_ns);
-		void (*start_measuring_average_bandwidth_mbps)(
+		void (*start_measuring_in_order_bandwidth)(
 				struct hubbub *hubbub);
-		uint32_t (*get_average_bandwidth_mbps)(struct hubbub *hubbub,
+		uint32_t (*get_in_order_bandwidth_mbps)(struct hubbub *hubbub,
 				uint32_t refclk_mhz, uint32_t min_duration_ns,
 				uint32_t *duration_ns);
+		void (*start_measuring_prefetch_data_size)(
+				struct hubbub *hubbub);
+		uint32_t (*get_prefetch_data_size)(struct hubbub *hubbub);
 	} perfmon;
 
 	struct hubbub_qos_funcs {

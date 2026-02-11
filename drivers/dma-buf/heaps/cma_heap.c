@@ -331,7 +331,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 		while (nr_clear_pages > 0) {
 			void *vaddr = kmap_local_page(page);
 
-			memset(vaddr, 0, PAGE_SIZE);
+			clear_page(vaddr);
 			kunmap_local(vaddr);
 			/*
 			 * Avoid wasting time zeroing memory if the process

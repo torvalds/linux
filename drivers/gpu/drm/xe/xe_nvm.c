@@ -6,10 +6,10 @@
 #include <linux/intel_dg_nvm_aux.h>
 #include <linux/pci.h>
 
-#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_mmio.h"
 #include "xe_nvm.h"
+#include "xe_pcode_api.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_sriov.h"
 
@@ -45,39 +45,50 @@ static bool xe_nvm_non_posted_erase(struct xe_device *xe)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
-	if (xe->info.platform != XE_BATTLEMAGE)
+	switch (xe->info.platform) {
+	case XE_CRESCENTISLAND:
+	case XE_BATTLEMAGE:
+		return !(xe_mmio_read32(mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
+			 NVM_NON_POSTED_ERASE_CHICKEN_BIT);
+	default:
 		return false;
-	return !(xe_mmio_read32(mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
-		 NVM_NON_POSTED_ERASE_CHICKEN_BIT);
+	}
 }
 
 static bool xe_nvm_writable_override(struct xe_device *xe)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	bool writable_override;
-	resource_size_t base;
+	struct xe_reg reg;
+	u32 test_bit;
 
 	switch (xe->info.platform) {
+	case XE_CRESCENTISLAND:
+		reg = PCODE_SCRATCH(0);
+		test_bit = FDO_MODE;
+		break;
 	case XE_BATTLEMAGE:
-		base = DG2_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG2_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_PVC:
-		base = PVC_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(PVC_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_DG2:
-		base = DG2_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG2_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_DG1:
-		base = DG1_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG1_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	default:
 		drm_err(&xe->drm, "Unknown platform\n");
 		return true;
 	}
 
-	writable_override =
-		!(xe_mmio_read32(mmio, HECI_FWSTS2(base)) &
-		  HECI_FW_STATUS_2_NVM_ACCESS_MODE);
+	writable_override = !(xe_mmio_read32(mmio, reg) & test_bit);
 	if (writable_override)
 		drm_info(&xe->drm, "NVM access overridden by jumper\n");
 	return writable_override;

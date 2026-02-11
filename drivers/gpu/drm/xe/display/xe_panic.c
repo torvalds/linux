@@ -3,11 +3,12 @@
 
 #include <drm/drm_cache.h>
 #include <drm/drm_panic.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "intel_display_types.h"
 #include "intel_fb.h"
-#include "intel_panic.h"
 #include "xe_bo.h"
+#include "xe_panic.h"
 #include "xe_res_cursor.h"
 
 struct intel_panic {
@@ -74,7 +75,7 @@ static void xe_panic_page_set_pixel(struct drm_scanout_buffer *sb, unsigned int 
 		iosys_map_wr(&panic->vmap, offset, u32, color);
 }
 
-struct intel_panic *intel_panic_alloc(void)
+static struct intel_panic *xe_panic_alloc(void)
 {
 	struct intel_panic *panic;
 
@@ -83,7 +84,7 @@ struct intel_panic *intel_panic_alloc(void)
 	return panic;
 }
 
-int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
+static int xe_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
 {
 	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
 	struct xe_bo *bo = gem_to_xe_bo(intel_fb_bo(&fb->base));
@@ -96,7 +97,8 @@ int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
 	return 0;
 }
 
-void intel_panic_finish(struct intel_panic *panic)
-{
-	xe_panic_kunmap(panic);
-}
+const struct intel_display_panic_interface xe_display_panic_interface = {
+	.alloc = xe_panic_alloc,
+	.setup = xe_panic_setup,
+	.finish = xe_panic_kunmap,
+};

@@ -26,6 +26,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_print.h>
 
 #include <media/cec.h>
 
@@ -166,6 +167,7 @@ struct dw_hdmi_qp {
 	int main_irq;
 
 	unsigned long tmds_char_rate;
+	bool no_hpd;
 };
 
 static void dw_hdmi_qp_write(struct dw_hdmi_qp *hdmi, unsigned int val,
@@ -556,14 +558,22 @@ static int dw_hdmi_qp_i2c_read(struct dw_hdmi_qp *hdmi,
 
 		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 10);
 		if (!stat) {
-			dev_err(hdmi->dev, "i2c read timed out\n");
+			if (hdmi->no_hpd)
+				dev_dbg_ratelimited(hdmi->dev,
+						    "i2c read timed out\n");
+			else
+				dev_err(hdmi->dev, "i2c read timed out\n");
 			dw_hdmi_qp_write(hdmi, 0x01, I2CM_CONTROL0);
 			return -EAGAIN;
 		}
 
 		/* Check for error condition on the bus */
 		if (i2c->stat & I2CM_NACK_RCVD_IRQ) {
-			dev_err(hdmi->dev, "i2c read error\n");
+			if (hdmi->no_hpd)
+				dev_dbg_ratelimited(hdmi->dev,
+						    "i2c read error\n");
+			else
+				dev_err(hdmi->dev, "i2c read error\n");
 			dw_hdmi_qp_write(hdmi, 0x01, I2CM_CONTROL0);
 			return -EIO;
 		}
@@ -901,6 +911,15 @@ static enum drm_connector_status
 dw_hdmi_qp_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+	const struct drm_edid *drm_edid;
+
+	if (hdmi->no_hpd) {
+		drm_edid = drm_edid_read_ddc(connector, bridge->ddc);
+		if (drm_edid)
+			return connector_status_connected;
+		else
+			return connector_status_disconnected;
+	}
 
 	return hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
 }
@@ -926,6 +945,11 @@ dw_hdmi_qp_bridge_tmds_char_rate_valid(const struct drm_bridge *bridge,
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
+	/*
+	 * TODO: when hdmi->no_hpd is 1 we must not support modes that
+	 * require scrambling, including every mode with a clock above
+	 * HDMI14_MAX_TMDSCLK.
+	 */
 	if (rate > HDMI14_MAX_TMDSCLK) {
 		dev_dbg(hdmi->dev, "Unsupported TMDS char rate: %lld\n", rate);
 		return MODE_CLOCK_HIGH;
@@ -934,57 +958,85 @@ dw_hdmi_qp_bridge_tmds_char_rate_valid(const struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static int dw_hdmi_qp_bridge_clear_infoframe(struct drm_bridge *bridge,
-					     enum hdmi_infoframe_type type)
+static int dw_hdmi_qp_bridge_clear_avi_infoframe(struct drm_bridge *bridge)
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
-		dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN,
-			       PKTSCHED_PKT_EN);
-		break;
-
-	case HDMI_INFOFRAME_TYPE_DRM:
-		dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_TX_EN, PKTSCHED_PKT_EN);
-		break;
-
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		dw_hdmi_qp_mod(hdmi, 0,
-			       PKTSCHED_ACR_TX_EN |
-			       PKTSCHED_AUDS_TX_EN |
-			       PKTSCHED_AUDI_TX_EN,
-			       PKTSCHED_PKT_EN);
-		break;
-	default:
-		dev_dbg(hdmi->dev, "Unsupported infoframe type %x\n", type);
-	}
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_AVI_TX_EN | PKTSCHED_GCP_TX_EN,
+		       PKTSCHED_PKT_EN);
 
 	return 0;
 }
 
-static int dw_hdmi_qp_bridge_write_infoframe(struct drm_bridge *bridge,
-					     enum hdmi_infoframe_type type,
-					     const u8 *buffer, size_t len)
+static int dw_hdmi_qp_bridge_clear_hdmi_infoframe(struct drm_bridge *bridge)
+{
+	/* FIXME: add support for this InfoFrame */
+
+	drm_warn_once(bridge->encoder->dev, "HDMI VSI not supported\n");
+
+	return 0;
+}
+
+static int dw_hdmi_qp_bridge_clear_hdr_drm_infoframe(struct drm_bridge *bridge)
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
-	dw_hdmi_qp_bridge_clear_infoframe(bridge, type);
+	dw_hdmi_qp_mod(hdmi, 0, PKTSCHED_DRMI_TX_EN, PKTSCHED_PKT_EN);
 
-	switch (type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
-		return dw_hdmi_qp_config_avi_infoframe(hdmi, buffer, len);
+	return 0;
+}
 
-	case HDMI_INFOFRAME_TYPE_DRM:
-		return dw_hdmi_qp_config_drm_infoframe(hdmi, buffer, len);
+static int dw_hdmi_qp_bridge_clear_audio_infoframe(struct drm_bridge *bridge)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		return dw_hdmi_qp_config_audio_infoframe(hdmi, buffer, len);
+	dw_hdmi_qp_mod(hdmi, 0,
+		       PKTSCHED_ACR_TX_EN |
+		       PKTSCHED_AUDS_TX_EN |
+		       PKTSCHED_AUDI_TX_EN,
+		       PKTSCHED_PKT_EN);
 
-	default:
-		dev_dbg(hdmi->dev, "Unsupported infoframe type %x\n", type);
-		return 0;
-	}
+	return 0;
+}
+
+static int dw_hdmi_qp_bridge_write_avi_infoframe(struct drm_bridge *bridge,
+						 const u8 *buffer, size_t len)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
+	dw_hdmi_qp_bridge_clear_avi_infoframe(bridge);
+
+	return dw_hdmi_qp_config_avi_infoframe(hdmi, buffer, len);
+}
+
+static int dw_hdmi_qp_bridge_write_hdmi_infoframe(struct drm_bridge *bridge,
+						  const u8 *buffer, size_t len)
+{
+	dw_hdmi_qp_bridge_clear_hdmi_infoframe(bridge);
+
+	/* FIXME: add support for the HDMI VSI */
+
+	return 0;
+}
+
+static int dw_hdmi_qp_bridge_write_hdr_drm_infoframe(struct drm_bridge *bridge,
+						     const u8 *buffer, size_t len)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
+	dw_hdmi_qp_bridge_clear_hdr_drm_infoframe(bridge);
+
+	return dw_hdmi_qp_config_drm_infoframe(hdmi, buffer, len);
+}
+
+static int dw_hdmi_qp_bridge_write_audio_infoframe(struct drm_bridge *bridge,
+						   const u8 *buffer, size_t len)
+{
+	struct dw_hdmi_qp *hdmi = bridge->driver_private;
+
+	dw_hdmi_qp_bridge_clear_audio_infoframe(bridge);
+
+	return dw_hdmi_qp_config_audio_infoframe(hdmi, buffer, len);
 }
 
 #ifdef CONFIG_DRM_DW_HDMI_QP_CEC
@@ -1169,8 +1221,14 @@ static const struct drm_bridge_funcs dw_hdmi_qp_bridge_funcs = {
 	.detect = dw_hdmi_qp_bridge_detect,
 	.edid_read = dw_hdmi_qp_bridge_edid_read,
 	.hdmi_tmds_char_rate_valid = dw_hdmi_qp_bridge_tmds_char_rate_valid,
-	.hdmi_clear_infoframe = dw_hdmi_qp_bridge_clear_infoframe,
-	.hdmi_write_infoframe = dw_hdmi_qp_bridge_write_infoframe,
+	.hdmi_clear_avi_infoframe = dw_hdmi_qp_bridge_clear_avi_infoframe,
+	.hdmi_write_avi_infoframe = dw_hdmi_qp_bridge_write_avi_infoframe,
+	.hdmi_clear_hdmi_infoframe = dw_hdmi_qp_bridge_clear_hdmi_infoframe,
+	.hdmi_write_hdmi_infoframe = dw_hdmi_qp_bridge_write_hdmi_infoframe,
+	.hdmi_clear_hdr_drm_infoframe = dw_hdmi_qp_bridge_clear_hdr_drm_infoframe,
+	.hdmi_write_hdr_drm_infoframe = dw_hdmi_qp_bridge_write_hdr_drm_infoframe,
+	.hdmi_clear_audio_infoframe = dw_hdmi_qp_bridge_clear_audio_infoframe,
+	.hdmi_write_audio_infoframe = dw_hdmi_qp_bridge_write_audio_infoframe,
 	.hdmi_audio_startup = dw_hdmi_qp_audio_enable,
 	.hdmi_audio_shutdown = dw_hdmi_qp_audio_disable,
 	.hdmi_audio_prepare = dw_hdmi_qp_audio_prepare,
@@ -1279,12 +1337,16 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
+	hdmi->no_hpd = device_property_read_bool(dev, "no-hpd");
+
 	hdmi->bridge.driver_private = hdmi;
 	hdmi->bridge.ops = DRM_BRIDGE_OP_DETECT |
 			   DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HDMI |
 			   DRM_BRIDGE_OP_HDMI_AUDIO |
-			   DRM_BRIDGE_OP_HPD;
+			   DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME;
+	if (!hdmi->no_hpd)
+		hdmi->bridge.ops |= DRM_BRIDGE_OP_HPD;
 	hdmi->bridge.of_node = pdev->dev.of_node;
 	hdmi->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	hdmi->bridge.vendor = "Synopsys";

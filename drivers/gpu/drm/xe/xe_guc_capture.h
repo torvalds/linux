@@ -8,8 +8,8 @@
 
 #include <linux/types.h>
 #include "abi/guc_capture_abi.h"
+#include "abi/guc_scheduler_abi.h"
 #include "xe_guc.h"
-#include "xe_guc_fwif.h"
 
 struct xe_exec_queue;
 struct xe_guc;

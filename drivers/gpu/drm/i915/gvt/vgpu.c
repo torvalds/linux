@@ -31,12 +31,14 @@
  *
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "gvt.h"
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
-#include <linux/vmalloc.h>
+#include "sched_policy.h"
 
 void populate_pvinfo_page(struct intel_vgpu *vgpu)
 {
