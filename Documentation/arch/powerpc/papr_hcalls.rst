@@ -300,6 +300,49 @@ H_HTM supports setup, configuration, control and dumping of Hardware Trace
 Macro (HTM) function and its data. HTM buffer stores tracing data for functions
 like core instruction, core LLAT and nest.
 
+**H_PKS_GEN_KEY**
+
+| Input: authorization, objectlabel, objectlabellen, policy, out, outlen
+| Out: *Hypervisor Generated Key, or None when the wrapping key policy is set*
+| Return Value: *H_SUCCESS, H_Function, H_State, H_R_State, H_Parameter, H_P2,
+                H_P3, H_P4, H_P5, H_P6, H_Authority, H_Nomem, H_Busy, H_Resource,
+                H_Aborted*
+
+H_PKS_GEN_KEY is used to have the hypervisor generate a new random key.
+This key is stored as an object in the Power LPAR Platform KeyStore with
+the provided object label. With the wrapping key policy set the key is only
+visible to the hypervisor, while the key's label would still be visible to
+the user. Generation of wrapping keys is supported only for a key size of
+32 bytes.
+
+**H_PKS_WRAP_OBJECT**
+
+| Input: authorization, wrapkeylabel, wrapkeylabellen, objectwrapflags, in,
+|        inlen, out, outlen, continue-token
+| Out: *continue-token, byte size of wrapped object, wrapped object*
+| Return Value: *H_SUCCESS, H_Function, H_State, H_R_State, H_Parameter, H_P2,
+                H_P3, H_P4, H_P5, H_P6, H_P7, H_P8, H_P9, H_Authority, H_Invalid_Key,
+                H_NOT_FOUND, H_Busy, H_LongBusy, H_Aborted*
+
+H_PKS_WRAP_OBJECT is used to wrap an object using a wrapping key stored in the
+Power LPAR Platform KeyStore and return the wrapped object to the caller. The
+caller provides a label to a wrapping key with the 'wrapping key' policy set,
+which must have been previously created with H_PKS_GEN_KEY. The provided object
+is then encrypted with the wrapping key and additional metadata and the result
+is returned to the caller.
+
+
+**H_PKS_UNWRAP_OBJECT**
+
+| Input: authorization, objectwrapflags, in, inlen, out, outlen, continue-token
+| Out: *continue-token, byte size of unwrapped object, unwrapped object*
+| Return Value: *H_SUCCESS, H_Function, H_State, H_R_State, H_Parameter, H_P2,
+                H_P3, H_P4, H_P5, H_P6, H_P7, H_Authority, H_Unsupported, H_Bad_Data,
+                H_NOT_FOUND, H_Invalid_Key, H_Busy, H_LongBusy, H_Aborted*
+
+H_PKS_UNWRAP_OBJECT is used to unwrap an object that was previously warapped with
+H_PKS_WRAP_OBJECT.
+
 References
 ==========
 .. [1] "Power Architecture Platform Reference"
