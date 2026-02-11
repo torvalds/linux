@@ -149,6 +149,11 @@ static void rzv2h_ivc_transfer_buffer(struct work_struct *work)
 					     buffers.work);
 	struct rzv2h_ivc_buf *buf;
 
+	guard(spinlock_irqsave)(&ivc->spinlock);
+
+	if (ivc->vvalid_ifp)
+		return;
+
 	/* Setup buffers */
 	scoped_guard(spinlock_irqsave, &ivc->buffers.lock) {
 		buf = list_first_entry_or_null(&ivc->buffers.queue,
@@ -163,9 +168,7 @@ static void rzv2h_ivc_transfer_buffer(struct work_struct *work)
 	buf->addr = vb2_dma_contig_plane_dma_addr(&buf->vb.vb2_buf, 0);
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_SADDL_P0, buf->addr);
 
-	scoped_guard(spinlock_irqsave, &ivc->spinlock) {
-		ivc->vvalid_ifp = 2;
-	}
+	ivc->vvalid_ifp = 2;
 	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_FRCON, 0x1);
 }
 
@@ -200,7 +203,7 @@ static void rzv2h_ivc_buf_queue(struct vb2_buffer *vb)
 	}
 
 	scoped_guard(spinlock_irq, &ivc->spinlock) {
-		if (vb2_is_streaming(vb->vb2_queue) && !ivc->vvalid_ifp)
+		if (vb2_is_streaming(vb->vb2_queue))
 			queue_work(ivc->buffers.async_wq, &ivc->buffers.work);
 	}
 }
