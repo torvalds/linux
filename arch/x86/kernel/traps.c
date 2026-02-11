@@ -549,7 +549,7 @@ __visible void __noreturn handle_stack_overflow(struct pt_regs *regs,
 {
 	const char *name = stack_type_name(info->type);
 
-	printk(KERN_EMERG "BUG: %s stack guard page was hit at %p (stack is %p..%p)\n",
+	printk(KERN_EMERG "BUG: %s stack guard page was hit at %px (stack is %px..%px)\n",
 	       name, (void *)fault_address, info->begin, info->end);
 
 	die("stack guard page", regs, 0);

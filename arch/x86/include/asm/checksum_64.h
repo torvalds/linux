@@ -9,6 +9,7 @@
  */
 
 #include <linux/compiler.h>
+#include <linux/in6.h>
 #include <asm/byteorder.h>
 
 /**
@@ -145,6 +146,17 @@ extern __wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
  */
 extern __sum16 ip_compute_csum(const void *buff, int len);
 
+static inline unsigned add32_with_carry(unsigned a, unsigned b)
+{
+	asm("addl %2,%0\n\t"
+	    "adcl $0,%0"
+	    : "=r" (a)
+	    : "0" (a), "rm" (b));
+	return a;
+}
+
+#define _HAVE_ARCH_IPV6_CSUM 1
+
 /**
  * csum_ipv6_magic - Compute checksum of an IPv6 pseudo header.
  * @saddr: source address
@@ -158,20 +170,29 @@ extern __sum16 ip_compute_csum(const void *buff, int len);
  * Returns the unfolded 32bit checksum.
  */
 
-struct in6_addr;
-
-#define _HAVE_ARCH_IPV6_CSUM 1
-extern __sum16
-csum_ipv6_magic(const struct in6_addr *saddr, const struct in6_addr *daddr,
-		__u32 len, __u8 proto, __wsum sum);
-
-static inline unsigned add32_with_carry(unsigned a, unsigned b)
+static inline __sum16 csum_ipv6_magic(
+	const struct in6_addr *_saddr, const struct in6_addr *_daddr,
+	__u32 len, __u8 proto, __wsum sum)
 {
-	asm("addl %2,%0\n\t"
-	    "adcl $0,%0"
-	    : "=r" (a)
-	    : "0" (a), "rm" (b));
-	return a;
+	const unsigned long *saddr = (const unsigned long *)_saddr;
+	const unsigned long *daddr = (const unsigned long *)_daddr;
+	__u64 sum64;
+
+	sum64 = (__force __u64)htonl(len) + (__force __u64)htons(proto) +
+		(__force __u64)sum;
+
+	asm("	addq %1,%[sum64]\n"
+	    "	adcq %2,%[sum64]\n"
+	    "	adcq %3,%[sum64]\n"
+	    "	adcq %4,%[sum64]\n"
+	    "	adcq $0,%[sum64]\n"
+
+	    : [sum64] "+r" (sum64)
+	    : "m" (saddr[0]), "m" (saddr[1]),
+	      "m" (daddr[0]), "m" (daddr[1]));
+
+	return csum_fold(
+	       (__force __wsum)add32_with_carry(sum64 & 0xffffffff, sum64>>32));
 }
 
 #define HAVE_ARCH_CSUM_ADD
