@@ -73,6 +73,10 @@ Description:
 		Library Revision 0.8 Appendix 4,5
 		https://download.01.org/intel-sgx/latest/dcap-latest/linux/docs/Intel_TDX_DCAP_Quoting_Library_API.pdf
 
+		Intel TDX platforms with DICE-based attestation use CBOR Web Token
+		(CWT) format for the Quote payload. This is indicated by the Quote
+		size exceeding 8KB.
+
 What:		/sys/kernel/config/tsm/report/$name/generation
 Date:		September, 2023
 KernelVersion:	v6.7
