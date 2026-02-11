@@ -48,6 +48,9 @@ struct convert_json {
 static void output_json_string(FILE *out, const char *s)
 {
 	fputc('"', out);
+	if (!s)
+		goto out;
+
 	while (*s) {
 		switch (*s) {
 
@@ -71,6 +74,7 @@ static void output_json_string(FILE *out, const char *s)
 
 		++s;
 	}
+out:
 	fputc('"', out);
 }
 
@@ -322,6 +326,16 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 	output_json_format(out, false, 2, "]");
 }
 
+static int process_feature_event(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
+				 union perf_event *event)
+{
+	if (event->feat.feat_id < HEADER_LAST_FEATURE)
+		return perf_event__process_feature(session, event);
+
+	return 0;
+}
+
 int bt_convert__perf2json(const char *input_name, const char *output_name,
 		struct perf_data_convert_opts *opts __maybe_unused)
 {
@@ -360,6 +374,8 @@ int bt_convert__perf2json(const char *input_name, const char *output_name,
 	c.tool.auxtrace_info  = perf_event__process_auxtrace_info;
 	c.tool.auxtrace       = perf_event__process_auxtrace;
 	c.tool.event_update   = perf_event__process_event_update;
+	c.tool.attr           = perf_event__process_attr;
+	c.tool.feature        = process_feature_event;
 	c.tool.ordering_requires_timestamps = true;
 
 	if (opts->all) {
