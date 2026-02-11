@@ -6,19 +6,10 @@
  *
  */
 
-#include <linux/of.h>
-#include <linux/of_platform.h>
-
 #include <asm/mach/arch.h>
 #include <asm/system_misc.h>
 
 #include "generic.h"
-
-static void __init sama7_dt_device_init(void)
-{
-	of_platform_default_populate(NULL, NULL, NULL);
-	sama7_pm_init();
-}
 
 static const char *const sama7_dt_board_compat[] __initconst = {
 	"microchip,sama7",
@@ -27,7 +18,7 @@ static const char *const sama7_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(sama7_dt, "Microchip SAMA7")
 	/* Maintainer: Microchip */
-	.init_machine	= sama7_dt_device_init,
+	.init_late	= sama7_pm_init,
 	.dt_compat	= sama7_dt_board_compat,
 MACHINE_END
 
