@@ -19,23 +19,10 @@ typedef struct {
 	/* The mmu context belongs to a secure guest. */
 	atomic_t protected_count;
 	/*
-	 * The following bitfields need a down_write on the mm
-	 * semaphore when they are written to. As they are only
-	 * written once, they can be read without a lock.
-	 */
-	/* The mmu context uses extended page tables. */
-	unsigned int has_pgste:1;
-	/* The mmu context uses storage keys. */
-	unsigned int uses_skeys:1;
-	/* The mmu context uses CMM. */
-	unsigned int uses_cmm:1;
-	/*
 	 * The mmu context allows COW-sharing of memory pages (KSM, zeropage).
 	 * Note that COW-sharing during fork() is currently always allowed.
 	 */
 	unsigned int allow_cow_sharing:1;
-	/* The gmaps associated with this context are allowed to use huge pages. */
-	unsigned int allow_gmap_hpage_1m:1;
 } mm_context_t;
 
 #define INIT_MM_CONTEXT(name)						   \

@@ -10,13 +10,13 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
-#include <asm/gmap.h>
 #include <asm/gmap_helpers.h>
 #include <asm/virtio-ccw.h>
 #include "kvm-s390.h"
 #include "trace.h"
 #include "trace-s390.h"
 #include "gaccess.h"
+#include "gmap.h"
 
 static void do_discard_gfn_range(struct kvm_vcpu *vcpu, gfn_t gfn_start, gfn_t gfn_end)
 {

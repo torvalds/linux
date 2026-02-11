@@ -6518,6 +6518,40 @@ the capability to be present.
 
 `flags` must currently be zero.
 
+4.144 KVM_S390_KEYOP
+--------------------
+
+:Capability: KVM_CAP_S390_KEYOP
+:Architectures: s390
+:Type: vm ioctl
+:Parameters: struct kvm_s390_keyop (in/out)
+:Returns: 0 in case of success, < 0 on error
+
+The specified key operation is performed on the given guest address. The
+previous storage key (or the relevant part thereof) will be returned in
+`key`.
+
+::
+
+  struct kvm_s390_keyop {
+	__u64 guest_addr;
+	__u8  key;
+	__u8  operation;
+  };
+
+Currently supported values for ``operation``:
+
+KVM_S390_KEYOP_ISKE
+  Returns the storage key for the guest address ``guest_addr`` in ``key``.
+
+KVM_S390_KEYOP_RRBE
+  Resets the reference bit for the guest address ``guest_addr``, returning the
+  R and C bits of the old storage key in ``key``; the remaining fields of
+  the storage key will be set to 0.
+
+KVM_S390_KEYOP_SSKE
+  Sets the storage key for the guest address ``guest_addr`` to the key
+  specified in ``key``, returning the previous value in ``key``.
 
 .. _kvm_run:
 
@@ -9383,6 +9417,14 @@ See KVM_EXIT_MEMORY_FAULT for more information.
 The presence of this capability indicates that KVM_RUN will update the
 KVM_RUN_X86_GUEST_MODE bit in kvm_run.flags to indicate whether the
 vCPU was executing nested guest code when it exited.
+
+8.46 KVM_CAP_S390_KEYOP
+-----------------------
+
+:Architectures: s390
+
+The presence of this capability indicates that the KVM_S390_KEYOP ioctl is
+available.
 
 KVM exits with the register state of either the L1 or L2 guest
 depending on which executed at the time of an exit. Userspace must
