@@ -59,7 +59,10 @@ EXPORT_SYMBOL(zero_page_pfn);
 #ifndef __HAVE_COLOR_ZERO_PAGE
 uint8_t empty_zero_page[PAGE_SIZE] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
-#endif
+
+struct page *__zero_page __ro_after_init;
+EXPORT_SYMBOL(__zero_page);
+#endif /* __HAVE_COLOR_ZERO_PAGE */
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT
 int __meminitdata mminit_loglevel;
@@ -2680,12 +2683,21 @@ static void __init mem_init_print_info(void)
 		);
 }
 
-static int __init init_zero_page_pfn(void)
+#ifndef __HAVE_COLOR_ZERO_PAGE
+/*
+ * architectures that __HAVE_COLOR_ZERO_PAGE must define this function
+ */
+void __init __weak arch_setup_zero_pages(void)
 {
-	zero_page_pfn = page_to_pfn(ZERO_PAGE(0));
-	return 0;
+	__zero_page = virt_to_page(empty_zero_page);
 }
-early_initcall(init_zero_page_pfn);
+#endif
+
+static void __init init_zero_page_pfn(void)
+{
+	arch_setup_zero_pages();
+	zero_page_pfn = page_to_pfn(ZERO_PAGE(0));
+}
 
 void __init __weak arch_mm_preinit(void)
 {
@@ -2709,6 +2721,7 @@ void __init mm_core_init_early(void)
 void __init mm_core_init(void)
 {
 	arch_mm_preinit();
+	init_zero_page_pfn();
 
 	/* Initializations relying on SMP setup */
 	BUILD_BUG_ON(MAX_ZONELISTS > 2);
