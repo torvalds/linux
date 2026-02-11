@@ -117,6 +117,9 @@ struct regmap {
 		    void *val_buf, size_t val_size);
 	int (*write)(void *context, const void *data, size_t count);
 
+	int (*reg_default_cb)(struct device *dev, unsigned int reg,
+			      unsigned int *val);
+
 	unsigned long read_flag_mask;
 	unsigned long write_flag_mask;
 
