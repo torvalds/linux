@@ -161,8 +161,7 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent);
 int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 
 void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry);
-void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
-				struct btrfs_ordered_extent *entry);
+void btrfs_remove_ordered_extent(struct btrfs_ordered_extent *entry);
 void btrfs_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 				 struct folio *folio, u64 file_offset, u64 len,
 				 bool uptodate);
