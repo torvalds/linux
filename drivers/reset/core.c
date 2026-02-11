@@ -868,11 +868,11 @@ static int reset_add_gpio_aux_device(struct device *parent,
  */
 static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 {
-	struct property_entry properties[2] = { };
+	struct property_entry properties[3] = { };
 	unsigned int offset, of_flags, lflags;
 	struct reset_gpio_lookup *rgpio_dev;
 	struct device *parent;
-	int id, ret;
+	int id, ret, prop = 0;
 
 	/*
 	 * Currently only #gpio-cells=2 is supported with the meaning of:
@@ -923,7 +923,8 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 
 	lflags = GPIO_PERSISTENT | (of_flags & GPIO_ACTIVE_LOW);
 	parent = gpio_device_to_device(gdev);
-	properties[0] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
+	properties[prop++] = PROPERTY_ENTRY_STRING("compatible", "reset-gpio");
+	properties[prop++] = PROPERTY_ENTRY_GPIO("reset-gpios", parent->fwnode, offset, lflags);
 
 	id = ida_alloc(&reset_gpio_ida, GFP_KERNEL);
 	if (id < 0)

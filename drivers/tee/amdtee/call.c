@@ -15,7 +15,7 @@
 static int tee_params_to_amd_params(struct tee_param *tee, u32 count,
 				    struct tee_operation *amd)
 {
-	int i, ret = 0;
+	int i;
 	u32 type;
 
 	if (!count)
@@ -66,13 +66,13 @@ static int tee_params_to_amd_params(struct tee_param *tee, u32 count,
 				 i, amd->params[i].val.b);
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 				    struct tee_operation *amd)
 {
-	int i, ret = 0;
+	int i;
 	u32 type;
 
 	if (!count)
@@ -118,7 +118,7 @@ static int amd_params_to_tee_params(struct tee_param *tee, u32 count,
 				 i, amd->params[i].val.b);
 		}
 	}
-	return ret;
+	return 0;
 }
 
 static DEFINE_MUTEX(ta_refcount_mutex);

@@ -181,9 +181,9 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 	return (ver->impl_id == TEE_IMPL_ID_OPTEE);
 }
 
-static int tee_bnxt_fw_probe(struct device *dev)
+static int tee_bnxt_fw_probe(struct tee_client_device *bnxt_device)
 {
-	struct tee_client_device *bnxt_device = to_tee_client_device(dev);
+	struct device *dev = &bnxt_device->dev;
 	int ret, err = -ENODEV;
 	struct tee_ioctl_open_session_arg sess_arg;
 	struct tee_shm *fw_shm_pool;
@@ -231,17 +231,15 @@ out_ctx:
 	return err;
 }
 
-static int tee_bnxt_fw_remove(struct device *dev)
+static void tee_bnxt_fw_remove(struct tee_client_device *bnxt_device)
 {
 	tee_shm_free(pvt_data.fw_shm_pool);
 	tee_client_close_session(pvt_data.ctx, pvt_data.session_id);
 	tee_client_close_context(pvt_data.ctx);
 	pvt_data.ctx = NULL;
-
-	return 0;
 }
 
-static void tee_bnxt_fw_shutdown(struct device *dev)
+static void tee_bnxt_fw_shutdown(struct tee_client_device *bnxt_device)
 {
 	tee_shm_free(pvt_data.fw_shm_pool);
 	tee_client_close_session(pvt_data.ctx, pvt_data.session_id);
@@ -258,28 +256,16 @@ static const struct tee_client_device_id tee_bnxt_fw_id_table[] = {
 MODULE_DEVICE_TABLE(tee, tee_bnxt_fw_id_table);
 
 static struct tee_client_driver tee_bnxt_fw_driver = {
+	.probe		= tee_bnxt_fw_probe,
+	.remove		= tee_bnxt_fw_remove,
+	.shutdown	= tee_bnxt_fw_shutdown,
 	.id_table	= tee_bnxt_fw_id_table,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
-		.bus		= &tee_bus_type,
-		.probe		= tee_bnxt_fw_probe,
-		.remove		= tee_bnxt_fw_remove,
-		.shutdown	= tee_bnxt_fw_shutdown,
 	},
 };
 
-static int __init tee_bnxt_fw_mod_init(void)
-{
-	return driver_register(&tee_bnxt_fw_driver.driver);
-}
-
-static void __exit tee_bnxt_fw_mod_exit(void)
-{
-	driver_unregister(&tee_bnxt_fw_driver.driver);
-}
-
-module_init(tee_bnxt_fw_mod_init);
-module_exit(tee_bnxt_fw_mod_exit);
+module_tee_client_driver(tee_bnxt_fw_driver);
 
 MODULE_AUTHOR("Vikas Gupta <vikas.gupta@broadcom.com>");
 MODULE_DESCRIPTION("Broadcom bnxt firmware manager");

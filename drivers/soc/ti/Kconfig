@@ -62,7 +62,7 @@ config TI_K3_RINGACC
 	  If unsure, say N.
 
 config TI_K3_SOCINFO
-	bool
+	bool "K3 SoC Information driver" if COMPILE_TEST
 	depends on ARCH_K3 || COMPILE_TEST
 	select SOC_BUS
 	select MFD_SYSCON
