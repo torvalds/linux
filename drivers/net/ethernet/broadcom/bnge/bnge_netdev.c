@@ -16,7 +16,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if.h>
 #include <net/ip.h>
-#include <net/netdev_queues.h>
 #include <linux/skbuff.h>
 #include <net/page_pool/helpers.h>
 
