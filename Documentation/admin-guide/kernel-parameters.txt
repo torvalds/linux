@@ -8376,7 +8376,16 @@ Kernel parameters
 			CONFIG_WQ_WATCHDOG. It sets the number times of the
 			stall to trigger panic.
 
-			The default is 0, which disables the panic on stall.
+			The default is set by CONFIG_BOOTPARAM_WQ_STALL_PANIC,
+			which is 0 (disabled) if not configured.
+
+	workqueue.panic_on_stall_time=<uint>
+			Panic when a workqueue stall has been continuous for
+			the specified number of seconds. Unlike panic_on_stall
+			which counts accumulated stall events, this triggers
+			based on the duration of a single continuous stall.
+
+			The default is 0, which disables the time-based panic.
 
 	workqueue.cpu_intensive_thresh_us=
 			Per-cpu work items which run for longer than this

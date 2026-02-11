@@ -1322,6 +1322,29 @@ config WQ_WATCHDOG
 	  state.  This can be configured through kernel parameter
 	  "workqueue.watchdog_thresh" and its sysfs counterpart.
 
+config BOOTPARAM_WQ_STALL_PANIC
+	int "Panic on Nth workqueue stall"
+	default 0
+	range 0 100
+	depends on WQ_WATCHDOG
+	help
+	  Set the number of workqueue stalls to trigger a kernel panic.
+	  A workqueue stall occurs when a worker pool doesn't make forward
+	  progress on a pending work item for over 30 seconds (configurable
+	  using the workqueue.watchdog_thresh parameter).
+
+	  If n = 0, the kernel will not panic on stall. If n > 0, the kernel
+	  will panic after n stall warnings.
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  stall has been detected. This feature is useful for
+	  high-availability systems that have uptime guarantees and
+	  where a stall must be resolved ASAP.
+
+	  This setting can be overridden at runtime via the
+	  workqueue.panic_on_stall kernel parameter.
+
 config WQ_CPU_INTENSIVE_REPORT
 	bool "Report per-cpu work items which hog CPU for too long"
 	depends on DEBUG_KERNEL
