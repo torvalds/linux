@@ -442,7 +442,6 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 	ctlr->use_gpio_descriptors = true;
 	ctlr->max_native_cs = pdata->max_native_cs;
 	ctlr->num_chipselect = num_cs;
-	ctlr->dev.of_node = pdev->dev.of_node;
 
 	if (spi_ingenic_request_dma(ctlr, dev))
 		dev_warn(dev, "DMA not available.\n");

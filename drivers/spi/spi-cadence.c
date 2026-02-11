@@ -651,7 +651,6 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xspi = spi_controller_get_devdata(ctlr);
-	ctlr->dev.of_node = pdev->dev.of_node;
 	platform_set_drvdata(pdev, ctlr);
 
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);

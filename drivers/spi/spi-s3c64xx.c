@@ -1295,7 +1295,6 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->tx_dma.direction = DMA_MEM_TO_DEV;
 	sdd->rx_dma.direction = DMA_DEV_TO_MEM;
 
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = -1;
 	host->setup = s3c64xx_spi_setup;
 	host->cleanup = s3c64xx_spi_cleanup;

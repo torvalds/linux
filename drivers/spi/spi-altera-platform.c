@@ -67,8 +67,6 @@ static int altera_spi_probe(struct platform_device *pdev)
 		host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
 	}
 
-	host->dev.of_node = pdev->dev.of_node;
-
 	hw = spi_controller_get_devdata(host);
 	hw->dev = &pdev->dev;
 

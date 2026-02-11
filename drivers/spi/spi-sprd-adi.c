@@ -566,7 +566,6 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	if (sadi->data->wdg_rst)
 		sadi->data->wdg_rst(sadi);
 
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->bus_num = pdev->id;
 	ctlr->num_chipselect = num_chipselect;
 	ctlr->flags = SPI_CONTROLLER_HALF_DUPLEX;

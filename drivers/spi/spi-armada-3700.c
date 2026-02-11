@@ -813,7 +813,6 @@ MODULE_DEVICE_TABLE(of, a3700_spi_dt_ids);
 static int a3700_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *of_node = dev->of_node;
 	struct spi_controller *host;
 	struct a3700_spi *spi;
 	u32 num_cs = 0;
@@ -826,14 +825,13 @@ static int a3700_spi_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (of_property_read_u32(of_node, "num-cs", &num_cs)) {
+	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs)) {
 		dev_err(dev, "could not find num-cs\n");
 		ret = -ENXIO;
 		goto error;
 	}
 
 	host->bus_num = pdev->id;
-	host->dev.of_node = of_node;
 	host->mode_bits = SPI_MODE_3;
 	host->num_chipselect = num_cs;
 	host->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(32);

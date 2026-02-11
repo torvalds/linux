@@ -281,7 +281,8 @@ static void fsl_lpspi_read_rx_fifo(struct fsl_lpspi_data *fsl_lpspi)
 		fsl_lpspi->rx(fsl_lpspi);
 }
 
-static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
+static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
+			      struct spi_device *spi)
 {
 	u32 temp = 0;
 
@@ -303,6 +304,13 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi)
 				temp |= TCR_CONTC;
 		}
 	}
+
+	if (spi->mode & SPI_CPOL)
+		temp |= TCR_CPOL;
+
+	if (spi->mode & SPI_CPHA)
+		temp |= TCR_CPHA;
+
 	writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
 
 	dev_dbg(fsl_lpspi->dev, "TCR=0x%x\n", temp);
@@ -486,22 +494,47 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 		fsl_lpspi->tx = fsl_lpspi_buf_tx_u32;
 	}
 
-	/*
-	 * t->len is 'unsigned' and txfifosize and watermrk is 'u8', force
-	 * type cast is inevitable. When len > 255, len will be truncated in min_t(),
-	 * it caused wrong watermark set. 'unsigned int' is as the designated type
-	 * for min_t() to avoid truncation.
-	 */
-	fsl_lpspi->watermark = min_t(unsigned int,
-				     fsl_lpspi->txfifosize,
-				     t->len);
+	fsl_lpspi->watermark = min(fsl_lpspi->txfifosize, t->len);
+
+	return fsl_lpspi_config(fsl_lpspi);
+}
+
+static int fsl_lpspi_prepare_message(struct spi_controller *controller,
+				     struct spi_message *msg)
+{
+	struct fsl_lpspi_data *fsl_lpspi =
+				spi_controller_get_devdata(controller);
+	struct spi_device *spi = msg->spi;
+	struct spi_transfer *t;
+	int ret;
+
+	t = list_first_entry_or_null(&msg->transfers, struct spi_transfer,
+				     transfer_list);
+	if (!t)
+		return 0;
+
+	fsl_lpspi->is_first_byte = true;
+	fsl_lpspi->usedma = false;
+	ret = fsl_lpspi_setup_transfer(controller, spi, t);
 
 	if (fsl_lpspi_can_dma(controller, spi, t))
 		fsl_lpspi->usedma = true;
 	else
 		fsl_lpspi->usedma = false;
 
-	return fsl_lpspi_config(fsl_lpspi);
+	if (ret < 0)
+		return ret;
+
+	fsl_lpspi_set_cmd(fsl_lpspi, spi);
+
+	/* No IRQs */
+	writel(0, fsl_lpspi->base + IMX7ULP_IER);
+
+	/* Controller disable, clear FIFOs, clear status */
+	writel(CR_RRF | CR_RTF, fsl_lpspi->base + IMX7ULP_CR);
+	writel(SR_CLEAR_MASK, fsl_lpspi->base + IMX7ULP_SR);
+
+	return 0;
 }
 
 static int fsl_lpspi_target_abort(struct spi_controller *controller)
@@ -761,14 +794,18 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 					spi_controller_get_devdata(controller);
 	int ret;
 
-	fsl_lpspi->is_first_byte = true;
+	if (fsl_lpspi_can_dma(controller, spi, t))
+		fsl_lpspi->usedma = true;
+	else
+		fsl_lpspi->usedma = false;
+
 	ret = fsl_lpspi_setup_transfer(controller, spi, t);
 	if (ret < 0)
 		return ret;
 
 	t->effective_speed_hz = fsl_lpspi->config.effective_speed_hz;
 
-	fsl_lpspi_set_cmd(fsl_lpspi);
+	fsl_lpspi_set_cmd(fsl_lpspi, spi);
 	fsl_lpspi->is_first_byte = false;
 
 	if (fsl_lpspi->usedma)
@@ -952,12 +989,12 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	}
 
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
+	controller->prepare_message = fsl_lpspi_prepare_message;
 	controller->transfer_one = fsl_lpspi_transfer_one;
 	controller->prepare_transfer_hardware = lpspi_prepare_xfer_hardware;
 	controller->unprepare_transfer_hardware = lpspi_unprepare_xfer_hardware;
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
-	controller->dev.of_node = pdev->dev.of_node;
 	controller->bus_num = pdev->id;
 	controller->num_chipselect = num_cs;
 	controller->target_abort = fsl_lpspi_target_abort;

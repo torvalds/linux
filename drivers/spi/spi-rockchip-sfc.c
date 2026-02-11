@@ -622,7 +622,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->mem_ops = &rockchip_sfc_mem_ops;
 	host->mem_caps = &rockchip_sfc_mem_caps;
-	host->dev.of_node = pdev->dev.of_node;
 	host->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
 	host->max_speed_hz = SFC_MAX_SPEED;
 	host->num_chipselect = SFC_MAX_CHIPSELECT_NUM;

@@ -936,8 +936,6 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 	if (!ctlr)
 		return -ENOMEM;
 
-	device_set_node(&ctlr->dev, dev_fwnode(dev));
-
 	dws->ctlr = ctlr;
 	dws->dma_addr = (dma_addr_t)(dws->paddr + DW_SPI_DR);
 

@@ -67,7 +67,6 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 	host->transfer_one_message = octeon_spi_transfer_one_message;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
-	host->dev.of_node = pdev->dev.of_node;
 
 	pci_set_drvdata(pdev, host);
 

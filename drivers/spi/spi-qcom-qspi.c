@@ -763,7 +763,6 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	host->dma_alignment = QSPI_ALIGN_REQ;
 	host->num_chipselect = QSPI_NUM_CS;
 	host->bus_num = -1;
-	host->dev.of_node = pdev->dev.of_node;
 	host->mode_bits = SPI_MODE_0 |
 			  SPI_TX_DUAL | SPI_RX_DUAL |
 			  SPI_TX_QUAD | SPI_RX_QUAD;

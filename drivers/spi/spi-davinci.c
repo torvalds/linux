@@ -988,7 +988,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	}
 
 	host->use_gpio_descriptors = true;
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = pdev->id;
 	host->num_chipselect = pdata->num_chipselect;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);

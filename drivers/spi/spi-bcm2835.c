@@ -1368,7 +1368,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one = bcm2835_spi_transfer_one;
 	ctlr->handle_err = bcm2835_spi_handle_err;
 	ctlr->prepare_message = bcm2835_spi_prepare_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
 
 	bs = spi_controller_get_devdata(ctlr);
 	bs->ctlr = ctlr;

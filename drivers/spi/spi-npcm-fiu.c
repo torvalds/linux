@@ -746,7 +746,6 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &npcm_fiu_mem_ops;
 	ctrl->num_chipselect = fiu->info->max_cs;
-	ctrl->dev.of_node = dev->of_node;
 
 	return devm_spi_register_controller(dev, ctrl);
 }

@@ -480,8 +480,6 @@ static int mpc512x_psc_spi_of_probe(struct platform_device *pdev)
 	host->use_gpio_descriptors = true;
 	host->cleanup = mpc512x_psc_spi_cleanup;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
-
 	tempp = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(tempp))
 		return dev_err_probe(dev, PTR_ERR(tempp), "could not ioremap I/O port range\n");

@@ -319,8 +319,6 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	host->transfer_one_message = mpc52xx_psc_spi_transfer_one_message;
 	host->cleanup = mpc52xx_psc_spi_cleanup;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
-
 	mps->psc = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mps->psc))
 		return dev_err_probe(dev, PTR_ERR(mps->psc), "could not ioremap I/O port range\n");

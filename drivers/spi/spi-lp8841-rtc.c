@@ -200,7 +200,6 @@ spi_lp8841_rtc_probe(struct platform_device *pdev)
 	host->transfer_one = spi_lp8841_rtc_transfer_one;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 #ifdef CONFIG_OF
-	host->dev.of_node = pdev->dev.of_node;
 #endif
 
 	data = spi_controller_get_devdata(host);

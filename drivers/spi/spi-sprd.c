@@ -936,7 +936,6 @@ static int sprd_spi_probe(struct platform_device *pdev)
 
 	ss->phy_base = res->start;
 	ss->dev = &pdev->dev;
-	sctlr->dev.of_node = pdev->dev.of_node;
 	sctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE | SPI_TX_DUAL;
 	sctlr->bus_num = pdev->id;
 	sctlr->set_cs = sprd_spi_chipselect;

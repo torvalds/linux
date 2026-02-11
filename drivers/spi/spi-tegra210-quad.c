@@ -1791,7 +1791,6 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	host->dev.of_node = pdev->dev.of_node;
 	ret = spi_register_controller(host);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register host: %d\n", ret);
