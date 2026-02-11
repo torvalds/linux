@@ -3771,6 +3771,11 @@ S: 10 Stockalls Place
 S: Minto, NSW, 2566
 S: Australia
 
+N: Tim Small
+E: tim@buttersideup.com
+D: Intel 82443BX/GX (440BX/GX chipset) EDAC driver
+D: Radisys 82600 embedded chipset EDAC driver
+
 N: Stephen Smalley
 E: sds@tycho.nsa.gov
 D: portions of the Linux Security Module (LSM) framework and security modules

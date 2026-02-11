@@ -3911,7 +3911,7 @@ static int per_family_init(struct amd64_pvt *pvt)
 	}
 
 	if (tmp_name)
-		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), tmp_name);
+		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), "%s", tmp_name);
 	else
 		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), "F%02Xh_M%02Xh",
 			  pvt->fam, pvt->model);
