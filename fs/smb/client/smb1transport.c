@@ -29,7 +29,6 @@
 #include "cifs_debug.h"
 #include "smbdirect.h"
 #include "compress.h"
-#include "cifs_debug.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
 #define CIFS_MAX_IOV_SIZE 8
