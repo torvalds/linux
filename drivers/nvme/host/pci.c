@@ -219,6 +219,7 @@ static int quirks_param_set(const char *value, const struct kernel_param *kp)
 		i++;
 	}
 
+	kfree(nvme_pci_quirk_list);
 	nvme_pci_quirk_count = count;
 	nvme_pci_quirk_list  = qlist;
 	goto out_free_val;
