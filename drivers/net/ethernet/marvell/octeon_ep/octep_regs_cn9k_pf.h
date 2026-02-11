@@ -416,5 +416,6 @@ static inline u64 cn9k_pemx_pfx_csx_pfcfgx(u64 pem, u32 pf, u32 offset)
 #define CN93_PEM_BAR4_INDEX            7
 #define CN93_PEM_BAR4_INDEX_SIZE       0x400000ULL
 #define CN93_PEM_BAR4_INDEX_OFFSET     (CN93_PEM_BAR4_INDEX * CN93_PEM_BAR4_INDEX_SIZE)
+#define CN93_INT_ENA_BIT	BIT_ULL(62)
 
 #endif /* _OCTEP_REGS_CN9K_PF_H_ */
