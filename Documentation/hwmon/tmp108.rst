@@ -3,6 +3,15 @@ Kernel driver tmp108
 
 Supported chips:
 
+  * NXP P3T1035
+
+    Prefix: 'p3t1035'
+
+    Addresses scanned: none
+
+    Datasheet: https://www.nxp.com/docs/en/data-sheet/P3T1035XUK_P3T2030XUK.pdf
+
+
   * NXP P3T1085
 
     Prefix: 'p3t1085'
@@ -10,6 +19,14 @@ Supported chips:
     Addresses scanned: none
 
     Datasheet: https://www.nxp.com/docs/en/data-sheet/P3T1085UK.pdf
+
+  * NXP P3T2030
+
+    Prefix: 'p3t2030'
+
+    Addresses scanned: none
+
+    Datasheet: https://www.nxp.com/docs/en/data-sheet/P3T1035XUK_P3T2030XUK.pdf
 
   * Texas Instruments TMP108
 

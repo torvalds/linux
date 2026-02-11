@@ -73,7 +73,7 @@ struct hwmon_thermal_data {
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", to_hwmon_device(dev)->name);
+	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -446,7 +446,7 @@ static ssize_t hwmon_attr_show(struct device *dev,
 	trace_hwmon_attr_show(hattr->index + hwmon_attr_base(hattr->type),
 			      hattr->name, val64);
 
-	return sprintf(buf, "%lld\n", val64);
+	return sysfs_emit(buf, "%lld\n", val64);
 }
 
 static ssize_t hwmon_attr_show_string(struct device *dev,
@@ -469,7 +469,7 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 	trace_hwmon_attr_show_string(hattr->index + hwmon_attr_base(type),
 				     hattr->name, s);
 
-	return sprintf(buf, "%s\n", s);
+	return sysfs_emit(buf, "%s\n", s);
 }
 
 static ssize_t hwmon_attr_store(struct device *dev,
@@ -1260,6 +1260,9 @@ static char *__hwmon_sanitize_name(struct device *dev, const char *old_name)
  */
 char *hwmon_sanitize_name(const char *name)
 {
+	if (!name)
+		return ERR_PTR(-EINVAL);
+
 	return __hwmon_sanitize_name(NULL, name);
 }
 EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
@@ -1276,7 +1279,7 @@ EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
  */
 char *devm_hwmon_sanitize_name(struct device *dev, const char *name)
 {
-	if (!dev)
+	if (!dev || !name)
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_sanitize_name(dev, name);

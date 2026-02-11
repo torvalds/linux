@@ -145,6 +145,15 @@ static const struct tjmax_model tjmax_model_table[] = {
 							 * Also matches S12x0 (stepping 9), covered by
 							 * PCI table
 							 */
+	{ INTEL_ATOM_SILVERMONT,      9, 110000 },	/* Atom Bay Trail E38xx (embedded) */
+	{ INTEL_ATOM_SILVERMONT,      ANY, 90000 },	/* Atom Bay Trail Z37xx (tablet) */
+	{ INTEL_ATOM_SILVERMONT_MID,  ANY, 90000 },	/* Atom Merrifield (Z34xx) */
+	{ INTEL_ATOM_SILVERMONT_MID2, ANY, 90000 },	/* Atom Moorefield (Z35xx) */
+	{ INTEL_ATOM_AIRMONT,	      ANY, 90000 },	/* Atom Cherry Trail (Z8xxx) */
+	{ INTEL_ATOM_GOLDMONT,	      ANY, 105000 },	/* Atom Apollo Lake (J3xxx, N3xxx, E39xx) */
+	{ INTEL_ATOM_GOLDMONT_PLUS,   ANY, 105000 },	/* Atom Gemini Lake (J4xxx, N4xxx, N5xxx) */
+	{ INTEL_ATOM_TREMONT,	      ANY, 105000 },	/* Atom Elkhart Lake */
+	{ INTEL_ATOM_TREMONT_L,	      ANY, 105000 },	/* Atom Jasper Lake */
 };
 
 static bool is_pkg_temp_data(struct temp_data *tdata)

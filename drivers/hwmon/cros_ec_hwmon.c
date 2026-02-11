@@ -28,6 +28,7 @@ struct cros_ec_hwmon_priv {
 	const char *temp_sensor_names[EC_TEMP_SENSOR_ENTRIES + EC_TEMP_SENSOR_B_ENTRIES];
 	u8 usable_fans;
 	bool fan_control_supported;
+	bool temp_threshold_supported;
 	u8 manual_fans; /* bits to indicate whether the fan is set to manual */
 	u8 manual_fan_pwm[EC_FAN_SPEED_ENTRIES];
 };
@@ -86,6 +87,20 @@ static int cros_ec_hwmon_read_pwm_enable(struct cros_ec_device *cros_ec, u8 inde
 	return 0;
 }
 
+static int cros_ec_hwmon_read_fan_target(struct cros_ec_device *cros_ec, u16 *speed)
+{
+	struct ec_response_pwm_get_fan_rpm resp;
+	int ret;
+
+	ret = cros_ec_cmd(cros_ec, 0, EC_CMD_PWM_GET_FAN_TARGET_RPM,
+			  NULL, 0, &resp, sizeof(resp));
+	if (ret < 0)
+		return ret;
+
+	*speed = resp.rpm;
+	return 0;
+}
+
 static int cros_ec_hwmon_read_temp(struct cros_ec_device *cros_ec, u8 index, u8 *temp)
 {
 	unsigned int offset;
@@ -99,6 +114,23 @@ static int cros_ec_hwmon_read_temp(struct cros_ec_device *cros_ec, u8 index, u8 
 	ret = cros_ec_cmd_readmem(cros_ec, offset, 1, temp);
 	if (ret < 0)
 		return ret;
+	return 0;
+}
+
+static int cros_ec_hwmon_read_temp_threshold(struct cros_ec_device *cros_ec, u8 index,
+					     enum ec_temp_thresholds threshold, u32 *temp)
+{
+	struct ec_params_thermal_get_threshold_v1 req = {};
+	struct ec_thermal_config resp;
+	int ret;
+
+	req.sensor_num = index;
+	ret = cros_ec_cmd(cros_ec, 1, EC_CMD_THERMAL_GET_THRESHOLD,
+			  &req, sizeof(req), &resp, sizeof(resp));
+	if (ret < 0)
+		return ret;
+
+	*temp = resp.temp_host[threshold];
 	return 0;
 }
 
@@ -120,12 +152,29 @@ static long cros_ec_hwmon_temp_to_millicelsius(u8 temp)
 	return kelvin_to_millicelsius((((long)temp) + EC_TEMP_SENSOR_OFFSET));
 }
 
+static bool cros_ec_hwmon_attr_is_temp_threshold(u32 attr)
+{
+	return attr == hwmon_temp_max ||
+	       attr == hwmon_temp_crit ||
+	       attr == hwmon_temp_emergency;
+}
+
+static enum ec_temp_thresholds cros_ec_hwmon_attr_to_thres(u32 attr)
+{
+	if (attr == hwmon_temp_max)
+		return EC_TEMP_THRESH_WARN;
+	else if (attr == hwmon_temp_crit)
+		return EC_TEMP_THRESH_HIGH;
+	return EC_TEMP_THRESH_HALT;	/* attr == hwmon_temp_emergency */
+}
+
 static int cros_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			      u32 attr, int channel, long *val)
 {
 	struct cros_ec_hwmon_priv *priv = dev_get_drvdata(dev);
 	int ret = -EOPNOTSUPP;
 	u8 control_method;
+	u32 threshold;
 	u8 pwm_value;
 	u16 speed;
 	u8 temp;
@@ -143,6 +192,11 @@ static int cros_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = cros_ec_hwmon_read_fan_speed(priv->cros_ec, channel, &speed);
 			if (ret == 0)
 				*val = cros_ec_hwmon_is_error_fan(speed);
+
+		} else if (attr == hwmon_fan_target) {
+			ret = cros_ec_hwmon_read_fan_target(priv->cros_ec, &speed);
+			if (ret == 0)
+				*val = speed;
 		}
 	} else if (type == hwmon_pwm) {
 		if (attr == hwmon_pwm_enable) {
@@ -168,6 +222,13 @@ static int cros_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = cros_ec_hwmon_read_temp(priv->cros_ec, channel, &temp);
 			if (ret == 0)
 				*val = cros_ec_hwmon_is_error_temp(temp);
+
+		} else if (cros_ec_hwmon_attr_is_temp_threshold(attr)) {
+			ret = cros_ec_hwmon_read_temp_threshold(priv->cros_ec, channel,
+								cros_ec_hwmon_attr_to_thres(attr),
+								&threshold);
+			if (ret == 0)
+				*val = kelvin_to_millicelsius(threshold);
 		}
 	}
 
@@ -259,16 +320,27 @@ static umode_t cros_ec_hwmon_is_visible(const void *data, enum hwmon_sensor_type
 					u32 attr, int channel)
 {
 	const struct cros_ec_hwmon_priv *priv = data;
+	u16 speed;
 
 	if (type == hwmon_fan) {
+		if (attr == hwmon_fan_target &&
+		    cros_ec_hwmon_read_fan_target(priv->cros_ec, &speed) == -EOPNOTSUPP)
+			return 0;
+
 		if (priv->usable_fans & BIT(channel))
 			return 0444;
 	} else if (type == hwmon_pwm) {
 		if (priv->fan_control_supported && priv->usable_fans & BIT(channel))
 			return 0644;
 	} else if (type == hwmon_temp) {
-		if (priv->temp_sensor_names[channel])
-			return 0444;
+		if (priv->temp_sensor_names[channel]) {
+			if (cros_ec_hwmon_attr_is_temp_threshold(attr)) {
+				if (priv->temp_threshold_supported)
+					return 0444;
+			} else {
+				return 0444;
+			}
+		}
 	}
 
 	return 0;
@@ -277,7 +349,7 @@ static umode_t cros_ec_hwmon_is_visible(const void *data, enum hwmon_sensor_type
 static const struct hwmon_channel_info * const cros_ec_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT | HWMON_F_TARGET,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT),
@@ -286,31 +358,33 @@ static const struct hwmon_channel_info * const cros_ec_hwmon_info[] = {
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
+#define CROS_EC_HWMON_TEMP_PARAMS (HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL | \
+				   HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_EMERGENCY)
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_FAULT | HWMON_T_LABEL),
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS,
+			   CROS_EC_HWMON_TEMP_PARAMS),
 	NULL
 };
 
@@ -495,6 +569,8 @@ static int cros_ec_hwmon_probe(struct platform_device *pdev)
 	cros_ec_hwmon_probe_temp_sensors(dev, priv, thermal_version);
 	cros_ec_hwmon_probe_fans(priv);
 	priv->fan_control_supported = cros_ec_hwmon_probe_fan_control_supported(priv->cros_ec);
+	priv->temp_threshold_supported = is_cros_ec_cmd_available(priv->cros_ec,
+								  EC_CMD_THERMAL_GET_THRESHOLD, 1);
 	cros_ec_hwmon_register_fan_cooling_devices(dev, priv);
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, "cros_ec", priv,
