@@ -421,7 +421,7 @@ static __maybe_unused __kernel_old_time_t __cvdso_time(__kernel_old_time_t *time
 #endif /* VDSO_HAS_TIME */
 
 #ifdef VDSO_HAS_CLOCK_GETRES
-static __maybe_unused
+static __always_inline
 bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock,
 				 struct __kernel_timespec *res)
 {

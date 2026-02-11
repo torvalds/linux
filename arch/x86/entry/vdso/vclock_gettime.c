@@ -74,4 +74,12 @@ int __vdso_clock_getres(clockid_t clock, struct old_timespec32 *res)
 
 int clock_getres(clockid_t, struct old_timespec32 *)
 	__attribute__((weak, alias("__vdso_clock_getres")));
+
+int __vdso_clock_getres_time64(clockid_t clock, struct __kernel_timespec *ts)
+{
+	return __cvdso_clock_getres(clock, ts);
+}
+
+int clock_getres_time64(clockid_t, struct __kernel_timespec *)
+	__attribute__((weak, alias("__vdso_clock_getres_time64")));
 #endif
