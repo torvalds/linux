@@ -50,6 +50,7 @@ int main(int argc, char **argv)
 	__u64 seq = 0, ecode;
 	__s32 opt;
 	cpu_set_t *cpuset;
+	size_t cpuset_size;
 
 	libbpf_set_print(libbpf_print_fn);
 	signal(SIGINT, sigint_handler);
@@ -106,9 +107,10 @@ restart:
 	 */
 	cpuset = CPU_ALLOC(skel->rodata->nr_cpu_ids);
 	SCX_BUG_ON(!cpuset, "Failed to allocate cpuset");
-	CPU_ZERO_S(CPU_ALLOC_SIZE(skel->rodata->nr_cpu_ids), cpuset);
+	cpuset_size = CPU_ALLOC_SIZE(skel->rodata->nr_cpu_ids);
+	CPU_ZERO_S(cpuset_size, cpuset);
 	CPU_SET(skel->rodata->central_cpu, cpuset);
-	SCX_BUG_ON(sched_setaffinity(0, sizeof(*cpuset), cpuset),
+	SCX_BUG_ON(sched_setaffinity(0, cpuset_size, cpuset),
 		   "Failed to affinitize to central CPU %d (max %d)",
 		   skel->rodata->central_cpu, skel->rodata->nr_cpu_ids - 1);
 	CPU_FREE(cpuset);
