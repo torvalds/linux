@@ -22,7 +22,6 @@
 
 use core::ops::Deref;
 use kernel::{
-    c_str,
     clk::Clk,
     device::{Bound, Core, Device},
     devres,
@@ -327,7 +326,7 @@ kernel::of_device_table!(
     OF_TABLE,
     MODULE_OF_TABLE,
     <Th1520PwmPlatformDriver as platform::Driver>::IdInfo,
-    [(of::DeviceId::new(c_str!("thead,th1520-pwm")), ())]
+    [(of::DeviceId::new(c"thead,th1520-pwm"), ())]
 );
 
 impl platform::Driver for Th1520PwmPlatformDriver {
@@ -372,7 +371,7 @@ impl platform::Driver for Th1520PwmPlatformDriver {
             }),
         )?;
 
-        pwm::Registration::register(dev, chip)?;
+        chip.register()?;
 
         Ok(Th1520PwmPlatformDriver)
     }

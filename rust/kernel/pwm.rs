@@ -13,9 +13,14 @@ use crate::{
     devres,
     error::{self, to_result},
     prelude::*,
-    types::{ARef, AlwaysRefCounted, Opaque}, //
+    sync::aref::{ARef, AlwaysRefCounted},
+    types::Opaque, //
 };
-use core::{marker::PhantomData, ptr::NonNull};
+use core::{
+    marker::PhantomData,
+    ops::Deref,
+    ptr::NonNull, //
+};
 
 /// Represents a PWM waveform configuration.
 /// Mirrors struct [`struct pwm_waveform`](srctree/include/linux/pwm.h).
@@ -124,8 +129,7 @@ impl Device {
         // SAFETY: `self.as_raw()` provides a valid `*mut pwm_device` pointer.
         // `&c_wf` is a valid pointer to a `pwm_waveform` struct. The C function
         // handles all necessary internal locking.
-        let ret = unsafe { bindings::pwm_set_waveform_might_sleep(self.as_raw(), &c_wf, exact) };
-        to_result(ret)
+        to_result(unsafe { bindings::pwm_set_waveform_might_sleep(self.as_raw(), &c_wf, exact) })
     }
 
     /// Queries the hardware for the configuration it would apply for a given
@@ -155,9 +159,7 @@ impl Device {
 
         // SAFETY: `self.as_raw()` is a valid pointer. We provide a valid pointer
         // to a stack-allocated `pwm_waveform` struct for the kernel to fill.
-        let ret = unsafe { bindings::pwm_get_waveform_might_sleep(self.as_raw(), &mut c_wf) };
-
-        to_result(ret)?;
+        to_result(unsafe { bindings::pwm_get_waveform_might_sleep(self.as_raw(), &mut c_wf) })?;
 
         Ok(Waveform::from(c_wf))
     }
@@ -173,7 +175,7 @@ pub struct RoundedWaveform<WfHw> {
 }
 
 /// Trait defining the operations for a PWM driver.
-pub trait PwmOps: 'static + Sized {
+pub trait PwmOps: 'static + Send + Sync + Sized {
     /// The driver-specific hardware representation of a waveform.
     ///
     /// This type must be [`Copy`], [`Default`], and fit within `PWM_WFHWSIZE`.
@@ -258,8 +260,8 @@ impl<T: PwmOps> Adapter<T> {
                 core::ptr::from_ref::<T::WfHw>(wfhw).cast::<u8>(),
                 wfhw_ptr.cast::<u8>(),
                 size,
-            );
-        }
+            )
+        };
 
         Ok(())
     }
@@ -279,8 +281,8 @@ impl<T: PwmOps> Adapter<T> {
                 wfhw_ptr.cast::<u8>(),
                 core::ptr::from_mut::<T::WfHw>(&mut wfhw).cast::<u8>(),
                 size,
-            );
-        }
+            )
+        };
 
         Ok(wfhw)
     }
@@ -306,9 +308,7 @@ impl<T: PwmOps> Adapter<T> {
         // Now, call the original release function to free the `pwm_chip` itself.
         // SAFETY: `dev` is the valid pointer passed into this callback, which is
         // the expected argument for `pwmchip_release`.
-        unsafe {
-            bindings::pwmchip_release(dev);
-        }
+        unsafe { bindings::pwmchip_release(dev) };
     }
 
     /// # Safety
@@ -408,9 +408,7 @@ impl<T: PwmOps> Adapter<T> {
         match T::round_waveform_fromhw(chip, pwm, &wfhw, &mut rust_wf) {
             Ok(()) => {
                 // SAFETY: `wf_ptr` is guaranteed valid by the C caller.
-                unsafe {
-                    *wf_ptr = rust_wf.into();
-                };
+                unsafe { *wf_ptr = rust_wf.into() };
                 0
             }
             Err(e) => e.to_errno(),
@@ -584,11 +582,12 @@ impl<T: PwmOps> Chip<T> {
     ///
     /// Returns an [`ARef<Chip>`] managing the chip's lifetime via refcounting
     /// on its embedded `struct device`.
-    pub fn new(
-        parent_dev: &device::Device,
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new<'a>(
+        parent_dev: &'a device::Device<Bound>,
         num_channels: u32,
         data: impl pin_init::PinInit<T, Error>,
-    ) -> Result<ARef<Self>> {
+    ) -> Result<UnregisteredChip<'a, T>> {
         let sizeof_priv = core::mem::size_of::<T>();
         // SAFETY: `pwmchip_alloc` allocates memory for the C struct and our private data.
         let c_chip_ptr_raw =
@@ -601,19 +600,19 @@ impl<T: PwmOps> Chip<T> {
         let drvdata_ptr = unsafe { bindings::pwmchip_get_drvdata(c_chip_ptr) };
 
         // SAFETY: We construct the `T` object in-place in the allocated private memory.
-        unsafe { data.__pinned_init(drvdata_ptr.cast())? };
+        unsafe { data.__pinned_init(drvdata_ptr.cast()) }.inspect_err(|_| {
+            // SAFETY: It is safe to call `pwmchip_put()` with a valid pointer obtained
+            // from `pwmchip_alloc()`. We will not use pointer after this.
+            unsafe { bindings::pwmchip_put(c_chip_ptr) }
+        })?;
 
         // SAFETY: `c_chip_ptr` points to a valid chip.
-        unsafe {
-            (*c_chip_ptr).dev.release = Some(Adapter::<T>::release_callback);
-        }
+        unsafe { (*c_chip_ptr).dev.release = Some(Adapter::<T>::release_callback) };
 
         // SAFETY: `c_chip_ptr` points to a valid chip.
         // The `Adapter`'s `VTABLE` has a 'static lifetime, so the pointer
         // returned by `as_raw()` is always valid.
-        unsafe {
-            (*c_chip_ptr).ops = Adapter::<T>::VTABLE.as_raw();
-        }
+        unsafe { (*c_chip_ptr).ops = Adapter::<T>::VTABLE.as_raw() };
 
         // Cast the `*mut bindings::pwm_chip` to `*mut Chip`. This is valid because
         // `Chip` is `repr(transparent)` over `Opaque<bindings::pwm_chip>`, and
@@ -623,7 +622,9 @@ impl<T: PwmOps> Chip<T> {
         // SAFETY: `chip_ptr_as_self` points to a valid `Chip` (layout-compatible with
         // `bindings::pwm_chip`) whose embedded device has refcount 1.
         // `ARef::from_raw` takes this pointer and manages it via `AlwaysRefCounted`.
-        Ok(unsafe { ARef::from_raw(NonNull::new_unchecked(chip_ptr_as_self)) })
+        let chip = unsafe { ARef::from_raw(NonNull::new_unchecked(chip_ptr_as_self)) };
+
+        Ok(UnregisteredChip { chip, parent_dev })
     }
 }
 
@@ -633,9 +634,7 @@ unsafe impl<T: PwmOps> AlwaysRefCounted for Chip<T> {
     fn inc_ref(&self) {
         // SAFETY: `self.0.get()` points to a valid `pwm_chip` because `self` exists.
         // The embedded `dev` is valid. `get_device` increments its refcount.
-        unsafe {
-            bindings::get_device(&raw mut (*self.0.get()).dev);
-        }
+        unsafe { bindings::get_device(&raw mut (*self.0.get()).dev) };
     }
 
     #[inline]
@@ -644,9 +643,7 @@ unsafe impl<T: PwmOps> AlwaysRefCounted for Chip<T> {
 
         // SAFETY: `obj` is a valid pointer to a `Chip` (and thus `bindings::pwm_chip`)
         // with a non-zero refcount. `put_device` handles decrement and final release.
-        unsafe {
-            bindings::put_device(&raw mut (*c_chip_ptr).dev);
-        }
+        unsafe { bindings::put_device(&raw mut (*c_chip_ptr).dev) };
     }
 }
 
@@ -654,48 +651,59 @@ unsafe impl<T: PwmOps> AlwaysRefCounted for Chip<T> {
 // structure's state is managed and synchronized by the kernel's device model
 // and PWM core locking mechanisms. Therefore, it is safe to move the `Chip`
 // wrapper (and the pointer it contains) across threads.
-unsafe impl<T: PwmOps + Send> Send for Chip<T> {}
+unsafe impl<T: PwmOps> Send for Chip<T> {}
 
 // SAFETY: It is safe for multiple threads to have shared access (`&Chip`) because
 // the `Chip` data is immutable from the Rust side without holding the appropriate
 // kernel locks, which the C core is responsible for. Any interior mutability is
 // handled and synchronized by the C kernel code.
-unsafe impl<T: PwmOps + Sync> Sync for Chip<T> {}
+unsafe impl<T: PwmOps> Sync for Chip<T> {}
 
-/// A resource guard that ensures `pwmchip_remove` is called on drop.
-///
-/// This struct is intended to be managed by the `devres` framework by transferring its ownership
-/// via [`devres::register`]. This ties the lifetime of the PWM chip registration
-/// to the lifetime of the underlying device.
-pub struct Registration<T: PwmOps> {
+/// A wrapper around `ARef<Chip<T>>` that ensures that `register` can only be called once.
+pub struct UnregisteredChip<'a, T: PwmOps> {
     chip: ARef<Chip<T>>,
+    parent_dev: &'a device::Device<Bound>,
 }
 
-impl<T: 'static + PwmOps + Send + Sync> Registration<T> {
+impl<T: PwmOps> UnregisteredChip<'_, T> {
     /// Registers a PWM chip with the PWM subsystem.
     ///
     /// Transfers its ownership to the `devres` framework, which ties its lifetime
     /// to the parent device.
     /// On unbind of the parent device, the `devres` entry will be dropped, automatically
     /// calling `pwmchip_remove`. This function should be called from the driver's `probe`.
-    pub fn register(dev: &device::Device<Bound>, chip: ARef<Chip<T>>) -> Result {
-        let chip_parent = chip.device().parent().ok_or(EINVAL)?;
-        if dev.as_raw() != chip_parent.as_raw() {
-            return Err(EINVAL);
-        }
-
-        let c_chip_ptr = chip.as_raw();
+    pub fn register(self) -> Result<ARef<Chip<T>>> {
+        let c_chip_ptr = self.chip.as_raw();
 
         // SAFETY: `c_chip_ptr` points to a valid chip with its ops initialized.
         // `__pwmchip_add` is the C function to register the chip with the PWM core.
-        unsafe {
-            to_result(bindings::__pwmchip_add(c_chip_ptr, core::ptr::null_mut()))?;
-        }
+        to_result(unsafe { bindings::__pwmchip_add(c_chip_ptr, core::ptr::null_mut()) })?;
 
-        let registration = Registration { chip };
+        let registration = Registration {
+            chip: ARef::clone(&self.chip),
+        };
 
-        devres::register(dev, registration, GFP_KERNEL)
+        devres::register(self.parent_dev, registration, GFP_KERNEL)?;
+
+        Ok(self.chip)
     }
+}
+
+impl<T: PwmOps> Deref for UnregisteredChip<'_, T> {
+    type Target = Chip<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.chip
+    }
+}
+
+/// A resource guard that ensures `pwmchip_remove` is called on drop.
+///
+/// This struct is intended to be managed by the `devres` framework by transferring its ownership
+/// via [`devres::register`]. This ties the lifetime of the PWM chip registration
+/// to the lifetime of the underlying device.
+struct Registration<T: PwmOps> {
+    chip: ARef<Chip<T>>,
 }
 
 impl<T: PwmOps> Drop for Registration<T> {
@@ -705,9 +713,7 @@ impl<T: PwmOps> Drop for Registration<T> {
         // SAFETY: `chip_raw` points to a chip that was successfully registered.
         // `bindings::pwmchip_remove` is the correct C function to unregister it.
         // This `drop` implementation is called automatically by `devres` on driver unbind.
-        unsafe {
-            bindings::pwmchip_remove(chip_raw);
-        }
+        unsafe { bindings::pwmchip_remove(chip_raw) };
     }
 }
 
