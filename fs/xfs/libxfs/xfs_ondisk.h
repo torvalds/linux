@@ -208,11 +208,6 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_OFFSET(struct xfs_dir3_free, hdr.hdr.magic,	0);
 	XFS_CHECK_OFFSET(struct xfs_attr3_leafblock, hdr.info.hdr, 0);
 
-	XFS_CHECK_STRUCT_SIZE(struct xfs_bulkstat,		192);
-	XFS_CHECK_STRUCT_SIZE(struct xfs_inumbers,		24);
-	XFS_CHECK_STRUCT_SIZE(struct xfs_bulkstat_req,		64);
-	XFS_CHECK_STRUCT_SIZE(struct xfs_inumbers_req,		64);
-
 	/*
 	 * Make sure the incore inode timestamp range corresponds to hand
 	 * converted values based on the ondisk format specification.
@@ -292,6 +287,40 @@ xfs_check_ondisk_structs(void)
 	XFS_CHECK_SB_OFFSET(sb_pad,			281);
 	XFS_CHECK_SB_OFFSET(sb_rtstart,			288);
 	XFS_CHECK_SB_OFFSET(sb_rtreserved,		296);
+
+	/*
+	 * ioctl UABI
+	 *
+	 * Due to different padding/alignment requirements across
+	 * different architectures, some structures are ommited from
+	 * the size checks. In addition, structures with architecture
+	 * dependent size fields are also ommited (e.g. __kernel_long_t).
+	 */
+	XFS_CHECK_STRUCT_SIZE(struct xfs_bulkstat,		192);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_inumbers,		24);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_bulkstat_req,		64);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_inumbers_req,		64);
+	XFS_CHECK_STRUCT_SIZE(struct dioattr,			12);
+	XFS_CHECK_STRUCT_SIZE(struct getbmap,			32);
+	XFS_CHECK_STRUCT_SIZE(struct getbmapx,			48);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_attrlist_cursor,	16);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_attrlist,		8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_attrlist,		8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_attrlist_ent,		4);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_ag_geometry,		128);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_rtgroup_geometry,	128);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_error_injection,	8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fsop_geom,		256);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fsop_geom_v4,		112);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fsop_counts,		32);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fsop_resblks,		16);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_growfs_log,		8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_bulk_ireq,		64);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fs_eofblocks,		128);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_fsid,			8);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_scrub_metadata,	64);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_scrub_vec,		16);
+	XFS_CHECK_STRUCT_SIZE(struct xfs_scrub_vec_head,	40);
 }
 
 #endif /* __XFS_ONDISK_H */
