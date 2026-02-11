@@ -21,7 +21,6 @@
 #include "mgmt/user_session.h"
 #include "crypto_ctx.h"
 #include "auth.h"
-#include "misc.h"
 #include "stats.h"
 
 int ksmbd_debug_types;
