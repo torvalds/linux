@@ -7951,13 +7951,28 @@ static int bnxt_get_total_vnics(struct bnxt *bp, int rx_rings)
 	return 1;
 }
 
+static void bnxt_get_total_resources(struct bnxt *bp, struct bnxt_hw_rings *hwr)
+{
+	hwr->cp = bnxt_nq_rings_in_use(bp);
+	hwr->cp_p5 = 0;
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+		hwr->cp_p5 = bnxt_cp_rings_in_use(bp);
+	hwr->tx = bp->tx_nr_rings;
+	hwr->rx = bp->rx_nr_rings;
+	hwr->grp = hwr->rx;
+	hwr->vnic = bnxt_get_total_vnics(bp, hwr->rx);
+	hwr->rss_ctx = bnxt_get_total_rss_ctxs(bp, hwr);
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		hwr->rx <<= 1;
+	hwr->stat = bnxt_get_func_stat_ctxs(bp);
+}
+
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	int cp = bnxt_cp_rings_in_use(bp);
-	int nq = bnxt_nq_rings_in_use(bp);
-	int rx = bp->rx_nr_rings, stat;
-	int vnic, grp = rx;
+	struct bnxt_hw_rings hwr;
+
+	bnxt_get_total_resources(bp, &hwr);
 
 	/* Old firmware does not need RX ring reservations but we still
 	 * need to setup a default RSS map when needed.  With new firmware
@@ -7967,25 +7982,27 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 	if (!BNXT_NEW_RM(bp))
 		bnxt_check_rss_tbl_no_rmgr(bp);
 
-	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
-	    bp->hwrm_spec_code >= 0x10601)
+	if (hw_resc->resv_tx_rings != hwr.tx && bp->hwrm_spec_code >= 0x10601)
 		return true;
 
 	if (!BNXT_NEW_RM(bp))
 		return false;
 
-	vnic = bnxt_get_total_vnics(bp, rx);
-
-	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		rx <<= 1;
-	stat = bnxt_get_func_stat_ctxs(bp);
-	if (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	    hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat ||
-	    (hw_resc->resv_hw_ring_grps != grp &&
+	if (hw_resc->resv_rx_rings != hwr.rx ||
+	    hw_resc->resv_vnics != hwr.vnic ||
+	    hw_resc->resv_stat_ctxs != hwr.stat ||
+	    hw_resc->resv_rsscos_ctxs != hwr.rss_ctx ||
+	    (hw_resc->resv_hw_ring_grps != hwr.grp &&
 	     !(bp->flags & BNXT_FLAG_CHIP_P5_PLUS)))
 		return true;
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+		if (hw_resc->resv_cp_rings != hwr.cp_p5)
+			return true;
+	} else if (hw_resc->resv_cp_rings != hwr.cp) {
+		return true;
+	}
 	if ((bp->flags & BNXT_FLAG_CHIP_P5_PLUS) && BNXT_PF(bp) &&
-	    hw_resc->resv_irqs != nq)
+	    hw_resc->resv_irqs != hwr.cp)
 		return true;
 	return false;
 }
