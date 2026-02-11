@@ -363,7 +363,6 @@ static int picolcd_raw_event(struct hid_device *hdev,
 	return 1;
 }
 
-#ifdef CONFIG_PM
 static int picolcd_suspend(struct hid_device *hdev, pm_message_t message)
 {
 	if (PMSG_IS_AUTO(message))
@@ -401,7 +400,6 @@ static int picolcd_reset_resume(struct hid_device *hdev)
 	picolcd_leds_set(hid_get_drvdata(hdev));
 	return 0;
 }
-#endif
 
 /* initialize keypad input device */
 static int picolcd_init_keys(struct picolcd_data *data,
@@ -648,11 +646,9 @@ static struct hid_driver picolcd_driver = {
 	.probe =         picolcd_probe,
 	.remove =        picolcd_remove,
 	.raw_event =     picolcd_raw_event,
-#ifdef CONFIG_PM
-	.suspend =       picolcd_suspend,
-	.resume =        picolcd_resume,
-	.reset_resume =  picolcd_reset_resume,
-#endif
+	.suspend =       pm_ptr(picolcd_suspend),
+	.resume =        pm_ptr(picolcd_resume),
+	.reset_resume =  pm_ptr(picolcd_reset_resume),
 };
 module_hid_driver(picolcd_driver);
 

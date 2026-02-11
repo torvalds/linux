@@ -369,6 +369,7 @@ config HID_ELECOM
 	  - EX-G Trackballs (M-XT3DRBK, M-XT3URBK)
 	  - DEFT Trackballs (M-DT1DRBK, M-DT1URBK, M-DT2DRBK, M-DT2URBK)
 	  - HUGE Trackballs (M-HT1DRBK, M-HT1URBK)
+	  - HUGE Plus Trackball (M-HT1MRBK)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"
@@ -1015,6 +1016,12 @@ config HID_PXRC
        To compile this driver as a module, choose M here: the
        module will be called hid-pxrc.
 
+config HID_RAPOO
+	tristate "Rapoo non-fully HID-compliant devices"
+	help
+	Support for Rapoo devices that are not fully compliant with the
+	HID standard.
+
 config HID_RAZER
 	tristate "Razer non-fully HID-compliant devices"
 	help
@@ -1084,7 +1091,7 @@ config HID_SIGMAMICRO
 	  - Rapoo V500
 
 config HID_SONY
-	tristate "Sony PS2/3/4 accessories"
+	tristate "Sony PS2/3/4/5 accessories"
 	depends on USB_HID
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
@@ -1094,12 +1101,12 @@ config HID_SONY
 	Support for
 
 	  * Sony PS3 6-axis controllers
-	  * Sony PS4 DualShock 4 controllers
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 	  * Guitar Hero Live PS3, Wii U and PS4 guitar dongles
 	  * Guitar Hero PS3 and PC guitar dongles
+	  * Rock Band 4 PS4 and PS5 guitars
 
 config SONY_FF
 	bool "Sony PS2/3/4 accessories force feedback support"

@@ -1597,6 +1597,7 @@ int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size)
 	if (ret)
 		return ret;
 
+	val = val & ~THC_M_PRT_SPI_ICRRD_OPCODE_I2C_MAX_SIZE;
 	val |= FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_I2C_MAX_SIZE, max_rx_size);
 
 	ret = regmap_write(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, val);
@@ -1667,6 +1668,7 @@ int thc_i2c_set_rx_int_delay(struct thc_device *dev, u32 delay_us)
 		return ret;
 
 	/* THC hardware counts at 10us unit */
+	val = val & ~THC_M_PRT_SPI_ICRRD_OPCODE_I2C_INTERVAL;
 	val |= FIELD_PREP(THC_M_PRT_SPI_ICRRD_OPCODE_I2C_INTERVAL, DIV_ROUND_UP(delay_us, 10));
 
 	ret = regmap_write(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, val);
