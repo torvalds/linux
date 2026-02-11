@@ -322,7 +322,7 @@ static u32 get_patch_level(void)
 {
 	u32 rev, dummy __always_unused;
 
-	if (IS_ENABLED(CONFIG_MICROCODE_DBG)) {
+	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && hypervisor_present) {
 		int cpu = smp_processor_id();
 
 		if (!microcode_rev[cpu]) {
@@ -714,7 +714,7 @@ static bool __apply_microcode_amd(struct microcode_amd *mc, u32 *cur_rev,
 			invlpg(p_addr_end);
 	}
 
-	if (IS_ENABLED(CONFIG_MICROCODE_DBG))
+	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && hypervisor_present)
 		microcode_rev[smp_processor_id()] = mc->hdr.patch_id;
 
 	/* verify patch application was successful */
