@@ -1445,6 +1445,9 @@ static int __must_check reconstruct_index_save(struct index_save_layout *isl,
 	u64 last_block = next_block + isl->index_save.block_count;
 
 	isl->zone_count = table->header.region_count - 3;
+	if (isl->zone_count > MAX_ZONES)
+		return vdo_log_error_strerror(UDS_CORRUPT_DATA,
+					      "invalid zone count");
 
 	last_region = &table->regions[table->header.region_count - 1];
 	if (last_region->kind == RL_KIND_EMPTY) {
