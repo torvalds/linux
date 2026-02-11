@@ -41,6 +41,10 @@
 #define OV6211_ANALOGUE_GAIN_STEP	1
 #define OV6211_ANALOGUE_GAIN_DEFAULT	160
 
+/* Vertical timing size */
+#define OV6211_REG_VTS			CCI_REG16(0x380e)
+#define OV6211_VTS_MAX			0xffff
+
 /* Test pattern */
 #define OV6211_REG_PRE_ISP		CCI_REG8(0x5e00)
 #define OV6211_TEST_PATTERN_ENABLE	BIT(7)
@@ -89,6 +93,8 @@ struct ov6211 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
+	struct v4l2_ctrl *vblank;
+	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* Saved register values */
@@ -167,8 +173,6 @@ static const struct cci_reg_sequence ov6211_400x400_120fps_mode[] = {
 	{ CCI_REG8(0x380b), 0x90 },
 	{ CCI_REG8(0x380c), 0x05 },	/* horizontal timing size */
 	{ CCI_REG8(0x380d), 0xf2 },
-	{ CCI_REG8(0x380e), 0x01 },	/* vertical timing size */
-	{ CCI_REG8(0x380f), 0xb6 },
 	{ CCI_REG8(0x3810), 0x00 },
 	{ CCI_REG8(0x3811), 0x04 },
 	{ CCI_REG8(0x3812), 0x00 },
@@ -251,7 +255,24 @@ static int ov6211_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov6211 *ov6211 = container_of(ctrl->handler, struct ov6211,
 					     ctrl_handler);
+	const struct ov6211_mode *mode = &supported_modes[0];
+	s64 exposure_max;
 	int ret;
+
+	/* Propagate change of current control to all related controls */
+	switch (ctrl->id) {
+	case V4L2_CID_VBLANK:
+		/* Update max exposure while meeting expected vblanking */
+		exposure_max = ctrl->val + mode->height -
+			OV6211_EXPOSURE_MAX_MARGIN;
+		ret = __v4l2_ctrl_modify_range(ov6211->exposure,
+					       ov6211->exposure->minimum,
+					       exposure_max,
+					       ov6211->exposure->step,
+					       ov6211->exposure->default_value);
+		if (ret)
+			return ret;
+	}
 
 	/* V4L2 controls are applied, when sensor is powered up for streaming */
 	if (!pm_runtime_get_if_active(ov6211->dev))
@@ -265,6 +286,10 @@ static int ov6211_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		ret = cci_write(ov6211->regmap, OV6211_REG_EXPOSURE,
 				ctrl->val << 4, NULL);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = cci_write(ov6211->regmap, OV6211_REG_VTS,
+				ctrl->val + mode->height, NULL);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = ov6211_set_test_pattern(ov6211, ctrl->val);
@@ -287,8 +312,8 @@ static int ov6211_init_controls(struct ov6211 *ov6211)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov6211->ctrl_handler;
 	const struct ov6211_mode *mode = &supported_modes[0];
+	s64 exposure_max, pixel_rate, h_blank, v_blank;
 	struct v4l2_fwnode_device_properties props;
-	s64 exposure_max, pixel_rate, h_blank;
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
@@ -311,24 +336,24 @@ static int ov6211_init_controls(struct ov6211 *ov6211)
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	ctrl = v4l2_ctrl_new_std(ctrl_hdlr, &ov6211_ctrl_ops, V4L2_CID_VBLANK,
-				 mode->vts - mode->height,
-				 mode->vts - mode->height, 1,
-				 mode->vts - mode->height);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	v_blank = mode->vts - mode->height;
+	ov6211->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov6211_ctrl_ops,
+					   V4L2_CID_VBLANK, v_blank,
+					   OV6211_VTS_MAX - mode->height, 1,
+					   v_blank);
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov6211_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  OV6211_ANALOGUE_GAIN_MIN, OV6211_ANALOGUE_GAIN_MAX,
 			  OV6211_ANALOGUE_GAIN_STEP,
 			  OV6211_ANALOGUE_GAIN_DEFAULT);
 
-	exposure_max = (mode->vts - OV6211_EXPOSURE_MAX_MARGIN);
-	v4l2_ctrl_new_std(ctrl_hdlr, &ov6211_ctrl_ops,
-			  V4L2_CID_EXPOSURE,
-			  OV6211_EXPOSURE_MIN, exposure_max,
-			  OV6211_EXPOSURE_STEP,
-			  OV6211_EXPOSURE_DEFAULT);
+	exposure_max = mode->vts - OV6211_EXPOSURE_MAX_MARGIN;
+	ov6211->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov6211_ctrl_ops,
+					     V4L2_CID_EXPOSURE,
+					     OV6211_EXPOSURE_MIN,
+					     exposure_max,
+					     OV6211_EXPOSURE_STEP,
+					     OV6211_EXPOSURE_DEFAULT);
 
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &ov6211_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,

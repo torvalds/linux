@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2025 Texas Instruments Incorporated -  http://www.ti.com/
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/ti,vip.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments DRA7x Video Input Port (VIP)
+
+maintainers:
+  - Yemike Abhilash Chandra <y-abhilashchandra@ti.com>
+
+description: |-
+  Video Input Port (VIP) can be found on devices such as DRA7xx and
+  provides the system interface and the processing capability to
+  connect parallel image-sensor as well as BT.656/1120 capable encoder
+  chip to DRA7x device.
+
+  Each VIP instance supports 2 independently configurable external
+  video input capture slices (Slice 0 and Slice 1) each providing
+  up to two video input ports (Port A and Port B).
+
+properties:
+  compatible:
+    enum:
+      - ti,dra7-vip
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: IRQ index 0 is used for Slice0 interrupts
+      - description: IRQ index 1 is used for Slice1 interrupts
+
+  ti,ctrl-module:
+    description:
+      Reference to the device control module that provides clock-edge
+      inversion control for VIP ports. These controls allow the
+      VIP to sample pixel data on the correct clock edge.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      items:
+        - description: phandle to device control module
+        - description: offset to the CTRL_CORE_SMA_SW_1 register
+        - description: Bit field to slice 0 port A
+        - description: Bit field to slice 0 port B
+        - description: Bit field to slice 1 port A
+        - description: Bit field to slice 1 port B
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@[0-3]$':
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: |
+          Each VIP instance supports 2 independently configurable external video
+          input capture slices (Slice 0 and Slice 1) each providing up to two video
+          input ports (Port A and Port B). These ports represent the following
+          port@0 -> Slice 0 Port A
+          port@1 -> Slice 0 Port B
+          port@2 -> Slice 1 Port A
+          port@3 -> Slice 1 Port B
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              bus-width:
+                enum: [8, 16, 24]
+                default: 8
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - ti,ctrl-module
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    video@48970000 {
+      compatible = "ti,dra7-vip";
+      reg = <0x48970000 0x1000>;
+      interrupts = <GIC_SPI 351 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>;
+      ti,ctrl-module = <&scm_conf 0x534 0x0 0x2 0x1 0x3>;
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        vin1a: port@0 {
+          reg = <0>;
+
+          vin1a_ep: endpoint {
+            remote-endpoint = <&camera1>;
+            hsync-active = <1>;
+            vsync-active = <1>;
+            pclk-sample = <0>;
+            bus-width = <8>;
+          };
+        };
+
+        vin1b: port@1 {
+          reg = <1>;
+
+          vin1b_ep: endpoint {
+            remote-endpoint = <&camera2>;
+            hsync-active = <1>;
+            vsync-active = <1>;
+            pclk-sample = <0>;
+            bus-width = <8>;
+          };
+        };
+
+        vin2a: port@2 {
+          reg = <2>;
+
+          vin2a_ep: endpoint {
+            remote-endpoint = <&camera3>;
+            hsync-active = <1>;
+            vsync-active = <1>;
+            pclk-sample = <0>;
+            bus-width = <16>;
+          };
+        };
+
+        vin2b: port@3 {
+          reg = <3>;
+
+          vin2b_ep: endpoint {
+            remote-endpoint = <&camera4>;
+            hsync-active = <1>;
+            vsync-active = <1>;
+            pclk-sample = <0>;
+            bus-width = <8>;
+          };
+        };
+      };
+    };
+...

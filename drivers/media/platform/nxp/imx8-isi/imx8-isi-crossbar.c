@@ -114,7 +114,7 @@ static int __mxc_isi_crossbar_set_routing(struct v4l2_subdev *sd,
 				"invalid route from memory input (%u) to pipe %u\n",
 				route->sink_pad,
 				route->source_pad - xbar->num_sinks);
-			return -EINVAL;
+			return -ENXIO;
 		}
 	}
 

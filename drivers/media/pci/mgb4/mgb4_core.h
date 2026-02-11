@@ -18,14 +18,20 @@
 #define MGB4_VIN_DEVICES  2
 #define MGB4_VOUT_DEVICES 2
 
-#define MGB4_IS_GMSL(mgbdev) \
-	((((mgbdev)->module_version >> 4) >= 2) && \
-	 (((mgbdev)->module_version >> 4) <= 4))
+#define MGB4_IS_GMSL1(mgbdev) \
+	(((mgbdev)->module_version >> 4) == 6)
+#define MGB4_IS_GMSL3(mgbdev) \
+	(((((mgbdev)->module_version >> 4) >= 2) && \
+	  (((mgbdev)->module_version >> 4) <= 4)) || \
+	 (((mgbdev)->module_version >> 4) == 8))
+#define MGB4_IS_GMSL3C(mgbdev) \
+	(((mgbdev)->module_version >> 4) == 8)
 #define MGB4_IS_FPDL3(mgbdev) \
 	(((mgbdev)->module_version >> 4) == 1)
 #define MGB4_HAS_VOUT(mgbdev) \
-	((((mgbdev)->module_version >> 4) >= 1) && \
-	 (((mgbdev)->module_version >> 4) <= 3))
+	(((((mgbdev)->module_version >> 4) >= 1) && \
+	  (((mgbdev)->module_version >> 4) <= 3)) || \
+	 ((((mgbdev)->module_version >> 4) == 6)))
 
 struct mgb4_dma_channel {
 	struct dma_chan *chan;

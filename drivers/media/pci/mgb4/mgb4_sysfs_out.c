@@ -665,6 +665,7 @@ static ssize_t pclk_frequency_store(struct device *dev,
 {
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vout_dev *voutdev = video_get_drvdata(vdev);
+	struct mgb4_dev *mgbdev = voutdev->mgbdev;
 	unsigned long val;
 	int ret;
 	unsigned int dp;
@@ -679,14 +680,16 @@ static ssize_t pclk_frequency_store(struct device *dev,
 		return -EBUSY;
 	}
 
-	dp = (val > 50000) ? 1 : 0;
+	dp = (MGB4_IS_FPDL3(mgbdev) && val > 50000) ? 1 : 0;
 	voutdev->freq = mgb4_cmt_set_vout_freq(voutdev, val >> dp) << dp;
-
-	mgb4_mask_reg(&voutdev->mgbdev->video, voutdev->config->regs.config,
-		      0x10, dp << 4);
-	mutex_lock(&voutdev->mgbdev->i2c_lock);
-	ret = mgb4_i2c_mask_byte(&voutdev->ser, 0x4F, 1 << 6, ((~dp) & 1) << 6);
-	mutex_unlock(&voutdev->mgbdev->i2c_lock);
+	mgb4_mask_reg(&mgbdev->video, voutdev->config->regs.config, 0x10,
+		      dp << 4);
+	if (MGB4_IS_FPDL3(mgbdev)) {
+		mutex_lock(&mgbdev->i2c_lock);
+		ret = mgb4_i2c_mask_byte(&voutdev->ser, 0x4F, 1 << 6,
+					 ((~dp) & 1) << 6);
+		mutex_unlock(&mgbdev->i2c_lock);
+	}
 
 	mutex_unlock(voutdev->vdev.lock);
 
@@ -731,11 +734,30 @@ struct attribute *mgb4_fpdl3_out_attrs[] = {
 	NULL
 };
 
-struct attribute *mgb4_gmsl_out_attrs[] = {
+struct attribute *mgb4_gmsl3_out_attrs[] = {
 	&dev_attr_output_id.attr,
 	&dev_attr_video_source.attr,
 	&dev_attr_display_width.attr,
 	&dev_attr_display_height.attr,
 	&dev_attr_frame_rate.attr,
+	NULL
+};
+
+struct attribute *mgb4_gmsl1_out_attrs[] = {
+	&dev_attr_output_id.attr,
+	&dev_attr_video_source.attr,
+	&dev_attr_display_width.attr,
+	&dev_attr_display_height.attr,
+	&dev_attr_frame_rate.attr,
+	&dev_attr_hsync_polarity.attr,
+	&dev_attr_vsync_polarity.attr,
+	&dev_attr_de_polarity.attr,
+	&dev_attr_pclk_frequency.attr,
+	&dev_attr_hsync_width.attr,
+	&dev_attr_vsync_width.attr,
+	&dev_attr_hback_porch.attr,
+	&dev_attr_hfront_porch.attr,
+	&dev_attr_vback_porch.attr,
+	&dev_attr_vfront_porch.attr,
 	NULL
 };

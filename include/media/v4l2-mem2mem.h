@@ -548,6 +548,27 @@ v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
 void v4l2_m2m_release(struct v4l2_m2m_dev *m2m_dev);
 
 /**
+ * v4l2_m2m_get() - take a reference to the m2m_dev structure
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * This is used to share the M2M device across multiple devices. This
+ * can be used to avoid scheduling two hardware nodes concurrently.
+ */
+void v4l2_m2m_get(struct v4l2_m2m_dev *m2m_dev);
+
+/**
+ * v4l2_m2m_put() - remove a reference to the m2m_dev structure
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * Once the M2M device has no more references, v4l2_m2m_release() will be
+ * called automatically. Users of this method should never call
+ * v4l2_m2m_release() directly. See v4l2_m2m_get() for more details.
+ */
+void v4l2_m2m_put(struct v4l2_m2m_dev *m2m_dev);
+
+/**
  * v4l2_m2m_ctx_init() - allocate and initialize a m2m context
  *
  * @m2m_dev: opaque pointer to the internal data to handle M2M context

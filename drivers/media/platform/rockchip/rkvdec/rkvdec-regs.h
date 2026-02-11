@@ -3,7 +3,12 @@
 #ifndef RKVDEC_REGS_H_
 #define RKVDEC_REGS_H_
 
-/* rkvcodec registers */
+#include <linux/types.h>
+
+/*
+ * REG_INTERRUPT is accessed via writel to enable the decoder after
+ * configuring it and clear interrupt strmd_error_status
+ */
 #define RKVDEC_REG_INTERRUPT				0x004
 #define RKVDEC_INTERRUPT_DEC_E				BIT(0)
 #define RKVDEC_CONFIG_DEC_CLK_GATE_E			BIT(1)
@@ -30,198 +35,399 @@
 #define RKVDEC_SOFTRESET_RDY				BIT(22)
 #define RKVDEC_WR_DDR_ALIGN_EN				BIT(23)
 
-#define RKVDEC_REG_SYSCTRL				0x008
-#define RKVDEC_IN_ENDIAN				BIT(0)
-#define RKVDEC_IN_SWAP32_E				BIT(1)
-#define RKVDEC_IN_SWAP64_E				BIT(2)
-#define RKVDEC_STR_ENDIAN				BIT(3)
-#define RKVDEC_STR_SWAP32_E				BIT(4)
-#define RKVDEC_STR_SWAP64_E				BIT(5)
-#define RKVDEC_OUT_ENDIAN				BIT(6)
-#define RKVDEC_OUT_SWAP32_E				BIT(7)
-#define RKVDEC_OUT_CBCR_SWAP				BIT(8)
-#define RKVDEC_RLC_MODE_DIRECT_WRITE			BIT(10)
-#define RKVDEC_RLC_MODE					BIT(11)
-#define RKVDEC_STRM_START_BIT(x)			(((x) & 0x7f) << 12)
-#define RKVDEC_MODE(x)					(((x) & 0x03) << 20)
+#define RKVDEC_REG_QOS_CTRL				0x18C
+
+/*
+ * Cache configuration is not covered in the range of the register struct
+ */
+#define RKVDEC_REG_PREF_LUMA_CACHE_COMMAND		0x410
+#define RKVDEC_REG_PREF_CHR_CACHE_COMMAND		0x450
+
+/*
+ * Define the mode values
+ */
 #define RKVDEC_MODE_HEVC				0
 #define RKVDEC_MODE_H264				1
 #define RKVDEC_MODE_VP9					2
-#define RKVDEC_RPS_MODE					BIT(24)
-#define RKVDEC_STRM_MODE				BIT(25)
-#define RKVDEC_H264_STRM_LASTPKT			BIT(26)
-#define RKVDEC_H264_FIRSTSLICE_FLAG			BIT(27)
-#define RKVDEC_H264_FRAME_ORSLICE			BIT(28)
-#define RKVDEC_BUSPR_SLOT_DIS				BIT(29)
 
-#define RKVDEC_REG_PICPAR				0x00C
-#define RKVDEC_Y_HOR_VIRSTRIDE(x)			((x) & 0x1ff)
-#define RKVDEC_SLICE_NUM_HIGHBIT			BIT(11)
-#define RKVDEC_UV_HOR_VIRSTRIDE(x)			(((x) & 0x1ff) << 12)
-#define RKVDEC_SLICE_NUM_LOWBITS(x)			(((x) & 0x7ff) << 21)
+/* rkvcodec registers */
+struct rkvdec_common_regs {
+	struct rkvdec_id {
+		u32 minor_ver	: 8;
+		u32 level	: 1;
+		u32 dec_support	: 3;
+		u32 profile	: 1;
+		u32 reserved0	: 1;
+		u32 codec_flag	: 1;
+		u32 reserved1	: 1;
+		u32 prod_num	: 16;
+	} reg00;
 
-#define RKVDEC_REG_STRM_RLC_BASE			0x010
+	struct rkvdec_int {
+		u32 dec_e			: 1;
+		u32 dec_clkgate_e		: 1;
+		u32 dec_e_strmd_clkgate_dis	: 1;
+		u32 timeout_mode		: 1;
+		u32 dec_irq_dis			: 1;
+		u32 dec_timeout_e		: 1;
+		u32 buf_empty_en		: 1;
+		u32 stmerror_waitdecfifo_empty	: 1;
+		u32 dec_irq			: 1;
+		u32 dec_irq_raw			: 1;
+		u32 reserved2			: 2;
+		u32 dec_rdy_sta			: 1;
+		u32 dec_bus_sta			: 1;
+		u32 dec_error_sta		: 1;
+		u32 dec_timeout_sta		: 1;
+		u32 dec_empty_sta		: 1;
+		u32 colmv_ref_error_sta		: 1;
+		u32 cabu_end_sta		: 1;
+		u32 h264orvp9_error_mode	: 1;
+		u32 softrst_en_p		: 1;
+		u32 force_softreset_valid	: 1;
+		u32 softreset_rdy		: 1;
+		u32 wr_ddr_align_en		: 1;
+		u32 scl_down_en			: 1;
+		u32 allow_not_wr_unref_bframe	: 1;
+		u32 reserved1			: 6;
+	} reg01;
 
-#define RKVDEC_REG_STRM_LEN				0x014
-#define RKVDEC_STRM_LEN(x)				((x) & 0x7ffffff)
+	struct rkvdec_sysctrl {
+		u32 in_endian			: 1;
+		u32 in_swap32_e			: 1;
+		u32 in_swap64_e			: 1;
+		u32 str_endian			: 1;
+		u32 str_swap32_e		: 1;
+		u32 str_swap64_e		: 1;
+		u32 out_endian			: 1;
+		u32 out_swap32_e		: 1;
+		u32 out_cbcr_swap		: 1;
+		u32 reserved0			: 1;
+		u32 rlc_mode_direct_write	: 1;
+		u32 rlc_mode			: 1;
+		u32 strm_start_bit		: 7;
+		u32 reserved1			: 1;
+		u32 dec_mode			: 2;
+		u32 reserved2			: 2;
+		u32 rps_mode			: 1;
+		u32 stream_mode			: 1;
+		u32 stream_lastpacket		: 1;
+		u32 firstslice_flag		: 1;
+		u32 frame_orslice		: 1;
+		u32 buspr_slot_disable		: 1;
+		u32 colmv_mode			: 1;
+		u32 ycacherd_prior		: 1;
+	} reg02;
 
-#define RKVDEC_REG_CABACTBL_PROB_BASE			0x018
-#define RKVDEC_REG_DECOUT_BASE				0x01C
+	struct rkvdec_picpar {
+		u32 y_hor_virstride	: 9;
+		u32 reserved		: 2;
+		u32 slice_num_highbit	: 1;
+		u32 uv_hor_virstride	: 9;
+		u32 slice_num_lowbits	: 11;
+	} reg03;
 
-#define RKVDEC_REG_Y_VIRSTRIDE				0x020
-#define RKVDEC_Y_VIRSTRIDE(x)				((x) & 0xfffff)
+	u32 strm_rlc_base;
+	u32 stream_len;
+	u32 cabactbl_base;
+	u32 decout_base;
 
-#define RKVDEC_REG_YUV_VIRSTRIDE			0x024
-#define RKVDEC_YUV_VIRSTRIDE(x)				((x) & 0x1fffff)
-#define RKVDEC_REG_H264_BASE_REFER(i)			(((i) * 0x04) + 0x028)
+	struct rkvdec_y_virstride {
+		u32 y_virstride	: 20;
+		u32 reserved0	: 12;
+	} reg08;
 
-#define RKVDEC_REG_H264_BASE_REFER15			0x0C0
-#define RKVDEC_FIELD_REF				BIT(0)
-#define RKVDEC_TOPFIELD_USED_REF			BIT(1)
-#define RKVDEC_BOTFIELD_USED_REF			BIT(2)
-#define RKVDEC_COLMV_USED_FLAG_REF			BIT(3)
+	struct rkvdec_yuv_virstride {
+		u32 yuv_virstride	: 21;
+		u32 reserved0		: 11;
+	} reg09;
+} __packed;
 
-#define RKVDEC_REG_VP9_LAST_FRAME_BASE			0x02c
-#define RKVDEC_REG_VP9_GOLDEN_FRAME_BASE		0x030
-#define RKVDEC_REG_VP9_ALTREF_FRAME_BASE		0x034
+struct ref_base {
+	u32 field_ref		: 1;
+	u32 topfield_used_ref	: 1;
+	u32 botfield_used_ref	: 1;
+	u32 colmv_use_flag_ref	: 1;
+	u32 base_addr		: 28;
+};
 
-#define RKVDEC_REG_VP9_CPRHEADER_OFFSET			0x028
-#define RKVDEC_VP9_CPRHEADER_OFFSET(x)			((x) & 0xffff)
+struct rkvdec_h26x_regs {
+	struct ref_base ref0_14_base[15];
+	u32 ref0_14_poc[15];
 
-#define RKVDEC_REG_VP9_REFERLAST_BASE			0x02C
-#define RKVDEC_REG_VP9_REFERGOLDEN_BASE			0x030
-#define RKVDEC_REG_VP9_REFERALFTER_BASE			0x034
+	u32 cur_poc;
+	u32 rlcwrite_base;
+	u32 pps_base;
+	u32 rps_base;
 
-#define RKVDEC_REG_VP9COUNT_BASE			0x038
-#define RKVDEC_VP9COUNT_UPDATE_EN			BIT(0)
+	u32 strmd_error_e;
 
-#define RKVDEC_REG_VP9_SEGIDLAST_BASE			0x03C
-#define RKVDEC_REG_VP9_SEGIDCUR_BASE			0x040
-#define RKVDEC_REG_VP9_FRAME_SIZE(i)			((i) * 0x04 + 0x044)
-#define RKVDEC_VP9_FRAMEWIDTH(x)			(((x) & 0xffff) << 0)
-#define RKVDEC_VP9_FRAMEHEIGHT(x)			(((x) & 0xffff) << 16)
+	struct {
+		u32 strmd_error_status		: 28;
+		u32 colmv_error_ref_picidx	: 4;
+	} reg45;
 
-#define RKVDEC_VP9_SEGID_GRP(i)				((i) * 0x04 + 0x050)
-#define RKVDEC_SEGID_ABS_DELTA(x)			((x) & 0x1)
-#define RKVDEC_SEGID_FRAME_QP_DELTA_EN(x)		(((x) & 0x1) << 1)
-#define RKVDEC_SEGID_FRAME_QP_DELTA(x)			(((x) & 0x1ff) << 2)
-#define RKVDEC_SEGID_FRAME_LOOPFILTER_VALUE_EN(x)	(((x) & 0x1) << 11)
-#define RKVDEC_SEGID_FRAME_LOOPFILTER_VALUE(x)		(((x) & 0x7f) << 12)
-#define RKVDEC_SEGID_REFERINFO_EN(x)			(((x) & 0x1) << 19)
-#define RKVDEC_SEGID_REFERINFO(x)			(((x) & 0x03) << 20)
-#define RKVDEC_SEGID_FRAME_SKIP_EN(x)			(((x) & 0x1) << 22)
+	struct {
+		u32 strmd_error_ctu_xoffset	: 8;
+		u32 strmd_error_ctu_yoffset	: 8;
+		u32 streamfifo_space2full	: 7;
+		u32 reserved0			: 1;
+		u32 vp9_error_ctu0_en		: 1;
+		u32 reserved1			: 7;
+	} reg46;
 
-#define RKVDEC_VP9_CPRHEADER_CONFIG			0x070
-#define RKVDEC_VP9_TX_MODE(x)				((x) & 0x07)
-#define RKVDEC_VP9_FRAME_REF_MODE(x)			(((x) & 0x03) << 3)
+	struct {
+		u32 saowr_xoffet	: 9;
+		u32 reserved0		: 7;
+		u32 saowr_yoffset	: 10;
+		u32 reserved1		: 6;
+	} reg47;
 
-#define RKVDEC_VP9_REF_SCALE(i)				((i) * 0x04 + 0x074)
-#define RKVDEC_VP9_REF_HOR_SCALE(x)			((x) & 0xffff)
-#define RKVDEC_VP9_REF_VER_SCALE(x)			(((x) & 0xffff) << 16)
+	struct ref_base ref15_base;
 
-#define RKVDEC_VP9_REF_DELTAS_LASTFRAME			0x080
-#define RKVDEC_REF_DELTAS_LASTFRAME(pos, val)		(((val) & 0x7f) << ((pos) * 7))
+	u32 ref15_29_poc[15];
 
-#define RKVDEC_VP9_INFO_LASTFRAME			0x084
-#define RKVDEC_MODE_DELTAS_LASTFRAME(pos, val)		(((val) & 0x7f) << ((pos) * 7))
-#define RKVDEC_SEG_EN_LASTFRAME				BIT(16)
-#define RKVDEC_LAST_SHOW_FRAME				BIT(17)
-#define RKVDEC_LAST_INTRA_ONLY				BIT(18)
-#define RKVDEC_LAST_WIDHHEIGHT_EQCUR			BIT(19)
-#define RKVDEC_COLOR_SPACE_LASTKEYFRAME(x)		(((x) & 0x07) << 20)
+	u32 performance_cycle;
+	u32 axi_ddr_rdata;
+	u32 axi_ddr_wdata;
 
-#define RKVDEC_VP9_INTERCMD_BASE			0x088
+	struct {
+		u32 busifd_resetn	: 1;
+		u32 cabac_resetn	: 1;
+		u32 dec_ctrl_resetn	: 1;
+		u32 transd_resetn	: 1;
+		u32 intra_resetn	: 1;
+		u32 inter_resetn	: 1;
+		u32 recon_resetn	: 1;
+		u32 filer_resetn	: 1;
+		u32 reserved0		: 24;
+	} reg67;
 
-#define RKVDEC_VP9_INTERCMD_NUM				0x08C
-#define RKVDEC_INTERCMD_NUM(x)				((x) & 0xffffff)
+	struct {
+		u32 perf_cnt0_sel	: 6;
+		u32 reserved0		: 2;
+		u32 perf_cnt1_sel	: 6;
+		u32 reserved1		: 2;
+		u32 perf_cnt2_sel	: 6;
+		u32 reserved2		: 10;
+	} reg68;
 
-#define RKVDEC_VP9_LASTTILE_SIZE			0x090
-#define RKVDEC_LASTTILE_SIZE(x)				((x) & 0xffffff)
+	u32 perf_cnt0;
+	u32 perf_cnt1;
+	u32 perf_cnt2;
+	u32 ref30_poc;
+	u32 ref31_poc;
+	u32 cur_poc1;
+	u32 errorinfo_base;
 
-#define RKVDEC_VP9_HOR_VIRSTRIDE(i)			((i) * 0x04 + 0x094)
-#define RKVDEC_HOR_Y_VIRSTRIDE(x)			((x) & 0x1ff)
-#define RKVDEC_HOR_UV_VIRSTRIDE(x)			(((x) & 0x1ff) << 16)
+	struct {
+		u32 slicedec_num		: 14;
+		u32 reserved0			: 1;
+		u32 strmd_detect_error_flag	: 1;
+		u32 error_packet_num		: 14;
+		u32 reserved1			: 2;
+	} reg76;
 
-#define RKVDEC_REG_H264_POC_REFER0(i)			(((i) * 0x04) + 0x064)
-#define RKVDEC_REG_H264_POC_REFER1(i)			(((i) * 0x04) + 0x0C4)
-#define RKVDEC_REG_H264_POC_REFER2(i)			(((i) * 0x04) + 0x120)
-#define RKVDEC_POC_REFER(x)				((x) & 0xffffffff)
+	struct {
+		u32 error_en_highbits		: 30;
+		u32 strmd_error_slice_en	: 1;
+		u32 strmd_error_frame_en	: 1;
+	} reg77;
 
-#define RKVDEC_REG_CUR_POC0				0x0A0
-#define RKVDEC_REG_CUR_POC1				0x128
-#define RKVDEC_CUR_POC(x)				((x) & 0xffffffff)
+	u32 colmv_cur_base;
+	u32 colmv_ref_base[16];
+	u32 scanlist_addr;
+	u32 reg96_sd_decout_base;
+	u32 sd_y_virstride;
+	u32 sd_hor_stride;
+	u32 qos_ctrl;
+	u32 perf[8];
+	u32 qos1;
+} __packed;
 
-#define RKVDEC_REG_RLCWRITE_BASE			0x0A4
-#define RKVDEC_REG_PPS_BASE				0x0A8
-#define RKVDEC_REG_RPS_BASE				0x0AC
+struct rkvdec_vp9_regs {
+	struct cprheader_offset {
+		u32 cprheader_offset	: 16;
+		u32 reserved		: 16;
+	} reg10;
 
-#define RKVDEC_REG_STRMD_ERR_EN				0x0B0
-#define RKVDEC_STRMD_ERR_EN(x)				((x) & 0xffffffff)
+	u32 refer_bases[3];
+	u32 count_base;
+	u32 segidlast_base;
+	u32 segidcur_base;
 
-#define RKVDEC_REG_STRMD_ERR_STA			0x0B4
-#define RKVDEC_STRMD_ERR_STA(x)				((x) & 0xfffffff)
-#define RKVDEC_COLMV_ERR_REF_PICIDX(x)			(((x) & 0x0f) << 28)
+	struct frame_sizes {
+		u32 framewidth		: 16;
+		u32 frameheight		: 16;
+	} reg17_19[3];
 
-#define RKVDEC_REG_STRMD_ERR_CTU			0x0B8
-#define RKVDEC_STRMD_ERR_CTU(x)				((x) & 0xff)
-#define RKVDEC_STRMD_ERR_CTU_YOFFSET(x)			(((x) & 0xff) << 8)
-#define RKVDEC_STRMFIFO_SPACE2FULL(x)			(((x) & 0x7f) << 16)
-#define RKVDEC_VP9_ERR_EN_CTU0				BIT(24)
+	struct segid_grp {
+		u32 segid_abs_delta			: 1;
+		u32 segid_frame_qp_delta_en		: 1;
+		u32 segid_frame_qp_delta		: 9;
+		u32 segid_frame_loopfilter_value_en	: 1;
+		u32 segid_frame_loopfilter_value	: 7;
+		u32 segid_referinfo_en			: 1;
+		u32 segid_referinfo			: 2;
+		u32 segid_frame_skip_en			: 1;
+		u32 reserved				: 9;
+	} reg20_27[8];
 
-#define RKVDEC_REG_SAO_CTU_POS				0x0BC
-#define RKVDEC_SAOWR_XOFFSET(x)				((x) & 0x1ff)
-#define RKVDEC_SAOWR_YOFFSET(x)				(((x) & 0x3ff) << 16)
+	struct cprheader_config {
+		u32 tx_mode			: 3;
+		u32 frame_reference_mode	: 2;
+		u32 reserved			: 27;
+	} reg28;
 
-#define RKVDEC_VP9_LAST_FRAME_YSTRIDE			0x0C0
-#define RKVDEC_VP9_GOLDEN_FRAME_YSTRIDE			0x0C4
-#define RKVDEC_VP9_ALTREF_FRAME_YSTRIDE			0x0C8
-#define RKVDEC_VP9_REF_YSTRIDE(x)			(((x) & 0xfffff) << 0)
+	struct ref_scale {
+		u32 ref_hor_scale		: 16;
+		u32 ref_ver_scale		: 16;
+	} reg29_31[3];
 
-#define RKVDEC_VP9_LAST_FRAME_YUVSTRIDE			0x0CC
-#define RKVDEC_VP9_REF_YUVSTRIDE(x)			(((x) & 0x1fffff) << 0)
+	struct ref_deltas_lastframe {
+		u32 ref_deltas_lastframe0	: 7;
+		u32 ref_deltas_lastframe1	: 7;
+		u32 ref_deltas_lastframe2	: 7;
+		u32 ref_deltas_lastframe3	: 7;
+		u32 reserved			: 4;
+	} reg32;
 
-#define RKVDEC_VP9_REF_COLMV_BASE			0x0D0
+	struct info_lastframe {
+		u32 mode_deltas_lastframe0		: 7;
+		u32 mode_deltas_lastframe1		: 7;
+		u32 reserved0				: 2;
+		u32 segmentation_enable_lstframe	: 1;
+		u32 last_show_frame			: 1;
+		u32 last_intra_only			: 1;
+		u32 last_widthheight_eqcur		: 1;
+		u32 color_space_lastkeyframe		: 3;
+		u32 reserved1				: 9;
+	} reg33;
 
-#define RKVDEC_REG_PERFORMANCE_CYCLE			0x100
-#define RKVDEC_PERFORMANCE_CYCLE(x)			((x) & 0xffffffff)
+	u32 intercmd_base;
 
-#define RKVDEC_REG_AXI_DDR_RDATA			0x104
-#define RKVDEC_AXI_DDR_RDATA(x)				((x) & 0xffffffff)
+	struct intercmd_num {
+		u32 intercmd_num	: 24;
+		u32 reserved		: 8;
+	} reg35;
 
-#define RKVDEC_REG_AXI_DDR_WDATA			0x108
-#define RKVDEC_AXI_DDR_WDATA(x)				((x) & 0xffffffff)
+	struct lasttile_size {
+		u32 lasttile_size	: 24;
+		u32 reserved		: 8;
+	} reg36;
 
-#define RKVDEC_REG_FPGADEBUG_RESET			0x10C
-#define RKVDEC_BUSIFD_RESETN				BIT(0)
-#define RKVDEC_CABAC_RESETN				BIT(1)
-#define RKVDEC_DEC_CTRL_RESETN				BIT(2)
-#define RKVDEC_TRANSD_RESETN				BIT(3)
-#define RKVDEC_INTRA_RESETN				BIT(4)
-#define RKVDEC_INTER_RESETN				BIT(5)
-#define RKVDEC_RECON_RESETN				BIT(6)
-#define RKVDEC_FILER_RESETN				BIT(7)
+	struct hor_virstride {
+		u32 y_hor_virstride	: 9;
+		u32 reserved0		: 7;
+		u32 uv_hor_virstride	: 9;
+		u32 reserved1		: 7;
+	} reg37_39[3];
 
-#define RKVDEC_REG_PERFORMANCE_SEL			0x110
-#define RKVDEC_PERF_SEL_CNT0(x)				((x) & 0x3f)
-#define RKVDEC_PERF_SEL_CNT1(x)				(((x) & 0x3f) << 8)
-#define RKVDEC_PERF_SEL_CNT2(x)				(((x) & 0x3f) << 16)
+	u32 cur_poc;
 
-#define RKVDEC_REG_PERFORMANCE_CNT(i)			((i) * 0x04 + 0x114)
-#define RKVDEC_PERF_CNT(x)				((x) & 0xffffffff)
+	struct rlcwrite_base {
+		u32 reserved		: 3;
+		u32 rlcwrite_base	: 29;
+	} reg41;
 
-#define RKVDEC_REG_H264_ERRINFO_BASE			0x12C
+	struct pps_base {
+		u32 reserved	: 4;
+		u32 pps_base	: 28;
+	} reg42;
 
-#define RKVDEC_REG_H264_ERRINFO_NUM			0x130
-#define RKVDEC_SLICEDEC_NUM(x)				((x) & 0x3fff)
-#define RKVDEC_STRMD_DECT_ERR_FLAG			BIT(15)
-#define RKVDEC_ERR_PKT_NUM(x)				(((x) & 0x3fff) << 16)
+	struct rps_base {
+		u32 reserved	: 4;
+		u32 rps_base	: 28;
+	} reg43;
 
-#define RKVDEC_REG_H264_ERR_E				0x134
-#define RKVDEC_H264_ERR_EN_HIGHBITS(x)			((x) & 0x3fffffff)
+	struct strmd_error_en {
+		u32 strmd_error_e	: 28;
+		u32 reserved		: 4;
+	} reg44;
 
-#define RKVDEC_REG_QOS_CTRL				0x18C
+	u32 vp9_error_info0;
 
-#define RKVDEC_REG_PREF_LUMA_CACHE_COMMAND		0x410
-#define RKVDEC_REG_PREF_CHR_CACHE_COMMAND		0x450
+	struct strmd_error_ctu {
+		u32 strmd_error_ctu_xoffset	: 8;
+		u32 strmd_error_ctu_yoffset	: 8;
+		u32 streamfifo_space2full	: 7;
+		u32 reserved0			: 1;
+		u32 error_ctu0_en		: 1;
+		u32 reserved1			: 7;
+	} reg46;
+
+	struct sao_ctu_position {
+		u32 saowr_xoffet	: 9;
+		u32 reserved0		: 7;
+		u32 saowr_yoffset	: 10;
+		u32 reserved1		: 6;
+	} reg47;
+
+	struct ystride {
+		u32 virstride	: 20;
+		u32 reserved	: 12;
+	} reg48_50[3];
+
+	struct lastref_yuvstride {
+		u32 lastref_yuv_virstride	: 21;
+		u32 reserved			: 11;
+	} reg51;
+
+	u32 refcolmv_base;
+
+	u32 reserved0[11];
+
+	u32 performance_cycle;
+	u32 axi_ddr_rdata;
+	u32 axi_ddr_wdata;
+
+	struct fpgadebug_reset {
+		u32 busifd_resetn	: 1;
+		u32 cabac_resetn	: 1;
+		u32 dec_ctrl_resetn	: 1;
+		u32 transd_resetn	: 1;
+		u32 intra_resetn	: 1;
+		u32 inter_resetn	: 1;
+		u32 recon_resetn	: 1;
+		u32 filer_resetn	: 1;
+		u32 reserved		: 24;
+	} reg67;
+
+	struct performance_sel {
+		u32 perf_cnt0_sel	: 6;
+		u32 reserved0		: 2;
+		u32 perf_cnt1_sel	: 6;
+		u32 reserved1		: 2;
+		u32 perf_cnt2_sel	: 6;
+		u32 reserved		: 10;
+	} reg68;
+
+	u32 perf_cnt0;
+	u32 perf_cnt1;
+	u32 perf_cnt2;
+
+	u32 reserved1[3];
+
+	u32 vp9_error_info1;
+
+	struct error_ctu1 {
+		u32 vp9_error_ctu1_x	: 6;
+		u32 reserved0		: 2;
+		u32 vp9_error_ctu1_y	: 6;
+		u32 reserved1		: 1;
+		u32 vp9_error_ctu1_en	: 1;
+		u32 reserved2		: 16;
+	} reg76;
+
+	u32 reserved2;
+} __packed;
+
+struct rkvdec_regs {
+	struct rkvdec_common_regs common;
+	union {
+		struct rkvdec_h26x_regs h26x;
+		struct rkvdec_vp9_regs  vp9;
+	};
+} __packed;
 
 #endif /* RKVDEC_REGS_H_ */

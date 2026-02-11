@@ -835,6 +835,10 @@ static int et8ek8_power_on(struct et8ek8_sensor *sensor)
 
 	udelay(10); /* I wish this is a good value */
 
+	/*
+	 * Note: Misinterpretation of reset assertion - do not re-use this code.
+	 * The reset pin is using incorrect (for a reset signal) logical level.
+	 */
 	gpiod_set_value(sensor->reset, 1);
 
 	msleep(5000 * 1000 / sensor->xclk_freq + 1); /* Wait 5000 cycles */

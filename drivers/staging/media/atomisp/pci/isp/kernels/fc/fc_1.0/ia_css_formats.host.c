@@ -35,7 +35,8 @@ ia_css_formats_dump(
     const struct sh_css_isp_formats_params *formats,
     unsigned int level)
 {
-	if (!formats) return;
+	if (!formats)
+		return;
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "video_full_range_flag", formats->video_full_range_flag);
 }

@@ -41,6 +41,10 @@
 #define OG0VE1B_ANALOGUE_GAIN_STEP	1
 #define OG0VE1B_ANALOGUE_GAIN_DEFAULT	16
 
+/* Vertical timing size */
+#define OG0VE1B_REG_VTS			CCI_REG16(0x380e)
+#define OG0VE1B_VTS_MAX			0xffff
+
 /* Test pattern */
 #define OG0VE1B_REG_PRE_ISP		CCI_REG8(0x5e00)
 #define OG0VE1B_TEST_PATTERN_ENABLE	BIT(7)
@@ -89,6 +93,8 @@ struct og0ve1b {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 
+	struct v4l2_ctrl *vblank;
+	struct v4l2_ctrl *exposure;
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* Saved register value */
@@ -140,8 +146,6 @@ static const struct cci_reg_sequence og0ve1b_640x480_120fps_mode[] = {
 	{ CCI_REG8(0x380b), 0xe0 },
 	{ CCI_REG8(0x380c), 0x03 },	/* horizontal timing size */
 	{ CCI_REG8(0x380d), 0x18 },
-	{ CCI_REG8(0x380e), 0x02 },	/* vertical timing size */
-	{ CCI_REG8(0x380f), 0x38 },
 	{ CCI_REG8(0x3811), 0x04 },
 	{ CCI_REG8(0x3813), 0x04 },
 	{ CCI_REG8(0x3814), 0x11 },
@@ -273,7 +277,24 @@ static int og0ve1b_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct og0ve1b *og0ve1b = container_of(ctrl->handler, struct og0ve1b,
 					       ctrl_handler);
+	const struct og0ve1b_mode *mode = &supported_modes[0];
+	s64 exposure_max;
 	int ret;
+
+	/* Propagate change of current control to all related controls */
+	switch (ctrl->id) {
+	case V4L2_CID_VBLANK:
+		/* Update max exposure while meeting expected vblanking */
+		exposure_max = ctrl->val + mode->height -
+			OG0VE1B_EXPOSURE_MAX_MARGIN;
+		ret = __v4l2_ctrl_modify_range(og0ve1b->exposure,
+					og0ve1b->exposure->minimum,
+					exposure_max,
+					og0ve1b->exposure->step,
+					og0ve1b->exposure->default_value);
+		if (ret)
+			return ret;
+	}
 
 	/* V4L2 controls are applied, when sensor is powered up for streaming */
 	if (!pm_runtime_get_if_active(og0ve1b->dev))
@@ -287,6 +308,10 @@ static int og0ve1b_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		ret = cci_write(og0ve1b->regmap, OG0VE1B_REG_EXPOSURE,
 				ctrl->val << 4, NULL);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = cci_write(og0ve1b->regmap, OG0VE1B_REG_VTS,
+				ctrl->val + mode->height, NULL);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = og0ve1b_enable_test_pattern(og0ve1b, ctrl->val);
@@ -309,8 +334,8 @@ static int og0ve1b_init_controls(struct og0ve1b *og0ve1b)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr = &og0ve1b->ctrl_handler;
 	const struct og0ve1b_mode *mode = &supported_modes[0];
+	s64 exposure_max, pixel_rate, h_blank, v_blank;
 	struct v4l2_fwnode_device_properties props;
-	s64 exposure_max, pixel_rate, h_blank;
 	struct v4l2_ctrl *ctrl;
 	int ret;
 
@@ -333,24 +358,24 @@ static int og0ve1b_init_controls(struct og0ve1b *og0ve1b)
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	ctrl = v4l2_ctrl_new_std(ctrl_hdlr, &og0ve1b_ctrl_ops, V4L2_CID_VBLANK,
-				 mode->vts - mode->height,
-				 mode->vts - mode->height, 1,
-				 mode->vts - mode->height);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	v_blank = mode->vts - mode->height;
+	og0ve1b->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &og0ve1b_ctrl_ops,
+					    V4L2_CID_VBLANK, v_blank,
+					    OG0VE1B_VTS_MAX - mode->height, 1,
+					    v_blank);
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &og0ve1b_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  OG0VE1B_ANALOGUE_GAIN_MIN, OG0VE1B_ANALOGUE_GAIN_MAX,
 			  OG0VE1B_ANALOGUE_GAIN_STEP,
 			  OG0VE1B_ANALOGUE_GAIN_DEFAULT);
 
-	exposure_max = (mode->vts - OG0VE1B_EXPOSURE_MAX_MARGIN);
-	v4l2_ctrl_new_std(ctrl_hdlr, &og0ve1b_ctrl_ops,
-			  V4L2_CID_EXPOSURE,
-			  OG0VE1B_EXPOSURE_MIN, exposure_max,
-			  OG0VE1B_EXPOSURE_STEP,
-			  OG0VE1B_EXPOSURE_DEFAULT);
+	exposure_max = mode->vts - OG0VE1B_EXPOSURE_MAX_MARGIN;
+	og0ve1b->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &og0ve1b_ctrl_ops,
+					      V4L2_CID_EXPOSURE,
+					      OG0VE1B_EXPOSURE_MIN,
+					      exposure_max,
+					      OG0VE1B_EXPOSURE_STEP,
+					      OG0VE1B_EXPOSURE_DEFAULT);
 
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &og0ve1b_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,

@@ -11,8 +11,10 @@
 
 extern struct attribute *mgb4_pci_attrs[];
 extern struct attribute *mgb4_fpdl3_in_attrs[];
-extern struct attribute *mgb4_gmsl_in_attrs[];
+extern struct attribute *mgb4_gmsl3_in_attrs[];
+extern struct attribute *mgb4_gmsl1_in_attrs[];
 extern struct attribute *mgb4_fpdl3_out_attrs[];
-extern struct attribute *mgb4_gmsl_out_attrs[];
+extern struct attribute *mgb4_gmsl3_out_attrs[];
+extern struct attribute *mgb4_gmsl1_out_attrs[];
 
 #endif

@@ -90,6 +90,7 @@ static const char * const m2m_entity_name[] = {
  * @job_work:		worker to run queued jobs.
  * @job_queue_flags:	flags of the queue status, %QUEUE_PAUSED.
  * @m2m_ops:		driver callbacks
+ * @kref:		device reference count
  */
 struct v4l2_m2m_dev {
 	struct v4l2_m2m_ctx	*curr_ctx;
@@ -109,6 +110,8 @@ struct v4l2_m2m_dev {
 	unsigned long		job_queue_flags;
 
 	const struct v4l2_m2m_ops *m2m_ops;
+
+	struct kref kref;
 };
 
 static struct v4l2_m2m_queue_ctx *get_queue_ctx(struct v4l2_m2m_ctx *m2m_ctx,
@@ -1034,8 +1037,6 @@ static int v4l2_m2m_register_entity(struct media_device *mdev,
 {
 	struct media_entity *entity;
 	struct media_pad *pads;
-	char *name;
-	unsigned int len;
 	int num_pads;
 	int ret;
 
@@ -1068,12 +1069,10 @@ static int v4l2_m2m_register_entity(struct media_device *mdev,
 		entity->info.dev.major = VIDEO_MAJOR;
 		entity->info.dev.minor = vdev->minor;
 	}
-	len = strlen(vdev->name) + 2 + strlen(m2m_entity_name[type]);
-	name = kmalloc(len, GFP_KERNEL);
-	if (!name)
+	entity->name = kasprintf(GFP_KERNEL, "%s-%s", vdev->name,
+				 m2m_entity_name[type]);
+	if (!entity->name)
 		return -ENOMEM;
-	snprintf(name, len, "%s-%s", vdev->name, m2m_entity_name[type]);
-	entity->name = name;
 	entity->function = function;
 
 	ret = media_entity_pads_init(entity, num_pads, pads);
@@ -1200,6 +1199,7 @@ struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops)
 	INIT_LIST_HEAD(&m2m_dev->job_queue);
 	spin_lock_init(&m2m_dev->job_spinlock);
 	INIT_WORK(&m2m_dev->job_work, v4l2_m2m_device_run_work);
+	kref_init(&m2m_dev->kref);
 
 	return m2m_dev;
 }
@@ -1210,6 +1210,25 @@ void v4l2_m2m_release(struct v4l2_m2m_dev *m2m_dev)
 	kfree(m2m_dev);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_release);
+
+void v4l2_m2m_get(struct v4l2_m2m_dev *m2m_dev)
+{
+	kref_get(&m2m_dev->kref);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_get);
+
+static void v4l2_m2m_release_from_kref(struct kref *kref)
+{
+	struct v4l2_m2m_dev *m2m_dev = container_of(kref, struct v4l2_m2m_dev, kref);
+
+	v4l2_m2m_release(m2m_dev);
+}
+
+void v4l2_m2m_put(struct v4l2_m2m_dev *m2m_dev)
+{
+	kref_put(&m2m_dev->kref, v4l2_m2m_release_from_kref);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_put);
 
 struct v4l2_m2m_ctx *v4l2_m2m_ctx_init(struct v4l2_m2m_dev *m2m_dev,
 		void *drv_priv,

@@ -3709,6 +3709,11 @@ status);
 				   "Failed to submit read-control URB status=%d",
 status);
 			hdw->ctl_read_pend_flag = 0;
+			if (hdw->ctl_write_pend_flag) {
+				usb_unlink_urb(hdw->ctl_write_urb);
+				while (hdw->ctl_write_pend_flag)
+					wait_for_completion(&hdw->ctl_done);
+			}
 			goto done;
 		}
 	}

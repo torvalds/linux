@@ -41,6 +41,19 @@ config VIDEO_TI_CAL_MC
 	  default. Note that this behavior can be overridden via
 	  module parameter 'mc_api'.
 
+config VIDEO_TI_VIP
+        tristate "TI Video Input Port"
+        depends on VIDEO_DEV
+        depends on SOC_DRA7XX || COMPILE_TEST
+        depends on HAS_DMA
+        select VIDEOBUF2_DMA_CONTIG
+        select VIDEO_TI_VPDMA
+        select VIDEO_TI_SC
+        select VIDEO_TI_CSC
+        help
+        Driver support for VIP module on certain TI SoC's
+        VIP = Video Input Port.
+
 # Mem2mem drivers
 
 config VIDEO_TI_VPE

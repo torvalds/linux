@@ -2112,7 +2112,7 @@ int v4l2_subdev_routing_validate(struct v4l2_subdev *sd,
 {
 	u32 *remote_pads = NULL;
 	unsigned int i, j;
-	int ret = -EINVAL;
+	int ret = -ENXIO;
 
 	if (disallow & (V4L2_SUBDEV_ROUTING_NO_STREAM_MIX |
 			V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING)) {
