@@ -295,7 +295,8 @@ no-dot-config-targets := $(clean-targets) \
 			 cscope gtags TAGS tags help% %docs check% coccicheck \
 			 $(version_h) headers headers_% archheaders archscripts \
 			 %asm-generic kernelversion %src-pkg dt_binding_check \
-			 outputmakefile rustavailable rustfmt rustfmtcheck
+			 outputmakefile rustavailable rustfmt rustfmtcheck \
+			 run-command
 no-sync-config-targets := $(no-dot-config-targets) %install modules_sign kernelrelease \
 			  image_name
 single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.rsi %.s %/
@@ -447,6 +448,8 @@ ifneq ($(filter %/,$(LLVM)),)
 LLVM_PREFIX := $(LLVM)
 else ifneq ($(filter -%,$(LLVM)),)
 LLVM_SUFFIX := $(LLVM)
+else ifneq ($(LLVM),1)
+$(error Invalid value for LLVM, see Documentation/kbuild/llvm.rst)
 endif
 
 HOSTCC	= $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
@@ -1109,7 +1112,7 @@ KBUILD_CFLAGS += -fno-builtin-wcslen
 
 # change __FILE__ to the relative path to the source directory
 ifdef building_out_of_srctree
-KBUILD_CPPFLAGS += $(call cc-option,-fmacro-prefix-map=$(srcroot)/=)
+KBUILD_CPPFLAGS += -fmacro-prefix-map=$(srcroot)/=
 endif
 
 # include additional Makefiles when needed
@@ -1433,6 +1436,10 @@ ifdef CONFIG_HEADERS_INSTALL
 prepare: headers
 endif
 
+PHONY += usr_gen_init_cpio
+usr_gen_init_cpio: scripts_basic
+	$(Q)$(MAKE) $(build)=usr usr/gen_init_cpio
+
 PHONY += scripts_unifdef
 scripts_unifdef: scripts_basic
 	$(Q)$(MAKE) $(build)=scripts scripts/unifdef
@@ -1685,6 +1692,8 @@ distclean: mrproper
 
 # Packaging of the kernel to various formats
 # ---------------------------------------------------------------------------
+
+modules-cpio-pkg: usr_gen_init_cpio
 
 %src-pkg: FORCE
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.package $@

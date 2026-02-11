@@ -6437,6 +6437,12 @@ S:	Supported
 F:	drivers/video/console/
 F:	include/linux/console*
 
+CONTAINER BUILD SCRIPT
+M:	Guillaume Tucker <gtucker@gtucker.io>
+S:	Maintained
+F:	Documentation/dev-tools/container.rst
+F:	scripts/container
+
 CONTEXT TRACKING
 M:	Frederic Weisbecker <frederic@kernel.org>
 M:	"Paul E. McKenney" <paulmck@kernel.org>
@@ -13767,8 +13773,10 @@ F:	scripts/Makefile*
 F:	scripts/bash-completion/
 F:	scripts/basic/
 F:	scripts/clang-tools/
+F:	scripts/container
 F:	scripts/dummy-tools/
 F:	scripts/include/
+F:	scripts/install.sh
 F:	scripts/mk*
 F:	scripts/mod/
 F:	scripts/package/
