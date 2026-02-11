@@ -53,6 +53,7 @@ static void aie2_hwctx_stop(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hwct
 {
 	drm_sched_stop(&hwctx->priv->sched, bad_job);
 	aie2_destroy_context(xdna->dev_handle, hwctx);
+	drm_sched_start(&hwctx->priv->sched, 0);
 }
 
 static int aie2_hwctx_restart(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hwctx)
@@ -80,7 +81,6 @@ static int aie2_hwctx_restart(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hw
 	}
 
 out:
-	drm_sched_start(&hwctx->priv->sched, 0);
 	XDNA_DBG(xdna, "%s restarted, ret %d", hwctx->name, ret);
 	return ret;
 }
@@ -297,18 +297,22 @@ aie2_sched_job_run(struct drm_sched_job *sched_job)
 	struct dma_fence *fence;
 	int ret;
 
-	if (!hwctx->priv->mbox_chann)
+	ret = amdxdna_pm_resume_get(hwctx->client->xdna);
+	if (ret)
 		return NULL;
 
-	if (!mmget_not_zero(job->mm))
+	if (!hwctx->priv->mbox_chann) {
+		amdxdna_pm_suspend_put(hwctx->client->xdna);
+		return NULL;
+	}
+
+	if (!mmget_not_zero(job->mm)) {
+		amdxdna_pm_suspend_put(hwctx->client->xdna);
 		return ERR_PTR(-ESRCH);
+	}
 
 	kref_get(&job->refcnt);
 	fence = dma_fence_get(job->fence);
-
-	ret = amdxdna_pm_resume_get(hwctx->client->xdna);
-	if (ret)
-		goto out;
 
 	if (job->drv_cmd) {
 		switch (job->drv_cmd->opcode) {
