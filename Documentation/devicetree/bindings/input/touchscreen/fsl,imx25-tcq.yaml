@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/fsl,imx25-tcq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale mx25 TS conversion queue module
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  mx25 touchscreen conversion queue module which controls the ADC unit of the
+  mx25 for attached touchscreens.
+
+properties:
+  compatible:
+    const: fsl,imx25-tcq
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  fsl,wires:
+    description: touch wires number.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [4, 5]
+
+  fsl,pen-debounce-ns:
+    description:
+      Pen debounce time in nanoseconds.
+
+  fsl,pen-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Pen-down threshold for the touchscreen. This is a value
+      between 1 and 4096. It is the ratio between the internal reference voltage
+      and the measured voltage after the plate was precharged. Resistance between
+      plates and therefore the voltage decreases with pressure so that a smaller
+      value is equivalent to a higher pressure.
+
+  fsl,settling-time-ns:
+    description:
+      Settling time in nanoseconds. The settling time is before
+      the actual touch detection to wait for an even charge distribution in the
+      plate.
+
+allOf:
+  - $ref: touchscreen.yaml
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - fsl,wires
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    touchscreen@50030400 {
+        compatible = "fsl,imx25-tcq";
+        reg = <0x50030400 0x60>;
+        interrupt-parent = <&tscadc>;
+        interrupts = <0>;
+        fsl,wires = <4>;
+    };
