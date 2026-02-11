@@ -118,15 +118,16 @@ exit:
 
 static int kern_sync_rcu_tasks_trace(struct rcu_tasks_trace_gp *rcu)
 {
-	long gp_seq = READ_ONCE(rcu->bss->gp_seq);
 	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	int ret;
 
-	if (!ASSERT_OK(bpf_prog_test_run_opts(bpf_program__fd(rcu->progs.do_call_rcu_tasks_trace),
-					      &opts), "do_call_rcu_tasks_trace"))
+	WRITE_ONCE(rcu->bss->done, 0);
+	ret = bpf_prog_test_run_opts(bpf_program__fd(rcu->progs.call_rcu_tasks_trace), &opts);
+	if (!ASSERT_OK(ret, "call_rcu_tasks_trace"))
 		return -EFAULT;
-	if (!ASSERT_OK(opts.retval, "opts.retval == 0"))
+	if (!ASSERT_OK(opts.retval, "call_rcu_tasks_trace retval"))
 		return -EFAULT;
-	while (gp_seq == READ_ONCE(rcu->bss->gp_seq))
+	while (!READ_ONCE(rcu->bss->done))
 		sched_yield();
 	return 0;
 }
@@ -159,8 +160,6 @@ void serial_test_map_kptr(void)
 	skel = rcu_tasks_trace_gp__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "rcu_tasks_trace_gp__open_and_load"))
 		return;
-	if (!ASSERT_OK(rcu_tasks_trace_gp__attach(skel), "rcu_tasks_trace_gp__attach"))
-		goto end;
 
 	if (test__start_subtest("success-map")) {
 		test_map_kptr_success(true);
@@ -180,7 +179,5 @@ void serial_test_map_kptr(void)
 		test_map_kptr_success(true);
 	}
 
-end:
 	rcu_tasks_trace_gp__destroy(skel);
-	return;
 }
