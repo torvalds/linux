@@ -2,6 +2,7 @@
 
 /*
  * Copyright 2017-2018 Cadence
+ * Copyright (C) 2025 Axiado Corporation.
  *
  * Authors:
  *  Jan Kotas <jank@cadence.com>
@@ -31,10 +32,23 @@
 #define CDNS_GPIO_IRQ_VALUE		0x28
 #define CDNS_GPIO_IRQ_ANY_EDGE		0x2c
 
+struct cdns_gpio_quirks {
+	bool skip_init;
+};
+
 struct cdns_gpio_chip {
 	struct gpio_generic_chip gen_gc;
 	void __iomem *regs;
 	u32 bypass_orig;
+	const struct cdns_gpio_quirks *quirks;
+};
+
+static const struct cdns_gpio_quirks cdns_default_quirks = {
+	.skip_init = false,
+};
+
+static const struct cdns_gpio_quirks ax3000_gpio_quirks = {
+	.skip_init = true,
 };
 
 static int cdns_gpio_request(struct gpio_chip *chip, unsigned int offset)
@@ -84,6 +98,7 @@ static int cdns_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct cdns_gpio_chip *cgpio = gpiochip_get_data(chip);
 	u32 int_value;
 	u32 int_type;
+	u32 int_any;
 	u32 mask = BIT(d->hwirq);
 	int ret = 0;
 
@@ -91,24 +106,35 @@ static int cdns_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	int_value = ioread32(cgpio->regs + CDNS_GPIO_IRQ_VALUE) & ~mask;
 	int_type = ioread32(cgpio->regs + CDNS_GPIO_IRQ_TYPE) & ~mask;
-
 	/*
-	 * The GPIO controller doesn't have an ACK register.
-	 * All interrupt statuses are cleared on a status register read.
-	 * Don't support edge interrupts for now.
+	 * Interrupt polarity and trigger behaviour is configured like this:
+	 *
+	 * (type, value)
+	 * (0, 0) = Falling edge triggered
+	 * (0, 1) = Rising edge triggered
+	 * (1, 0) = Low level triggered
+	 * (1, 1) = High level triggered
 	 */
+	int_any = ioread32(cgpio->regs + CDNS_GPIO_IRQ_ANY_EDGE) & ~mask;
 
 	if (type == IRQ_TYPE_LEVEL_HIGH) {
 		int_type |= mask;
 		int_value |= mask;
 	} else if (type == IRQ_TYPE_LEVEL_LOW) {
 		int_type |= mask;
+	} else if (type == IRQ_TYPE_EDGE_RISING) {
+		int_value |= mask;
+	} else if (type == IRQ_TYPE_EDGE_FALLING) {
+		/* edge trigger, int_value remains cleared for falling */
+	} else if (type == IRQ_TYPE_EDGE_BOTH) {
+		int_any |= mask;
 	} else {
 		return -EINVAL;
 	}
 
 	iowrite32(int_value, cgpio->regs + CDNS_GPIO_IRQ_VALUE);
 	iowrite32(int_type, cgpio->regs + CDNS_GPIO_IRQ_TYPE);
+	iowrite32(int_any, cgpio->regs + CDNS_GPIO_IRQ_ANY_EDGE);
 
 	return ret;
 }
@@ -141,6 +167,19 @@ static const struct irq_chip cdns_gpio_irqchip = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
+static const struct of_device_id cdns_of_ids[] = {
+	{
+		.compatible = "axiado,ax3000-gpio",
+		.data = &ax3000_gpio_quirks
+	},
+	{
+		.compatible = "cdns,gpio-r1p02",
+		.data = &cdns_default_quirks
+	},
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, cdns_of_ids);
+
 static int cdns_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_generic_chip_config config = { };
@@ -165,6 +204,10 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	cgpio->quirks = device_get_match_data(&pdev->dev);
+	if (!cgpio->quirks)
+		cgpio->quirks = &cdns_default_quirks;
+
 	/*
 	 * Set all pins as inputs by default, otherwise:
 	 * gpiochip_lock_as_irq:
@@ -173,8 +216,15 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	 * so it needs to be changed before gpio_generic_chip_init() is called.
 	 */
 	dir_prev = ioread32(cgpio->regs + CDNS_GPIO_DIRECTION_MODE);
-	iowrite32(GENMASK(num_gpios - 1, 0),
-		  cgpio->regs + CDNS_GPIO_DIRECTION_MODE);
+
+	/*
+	 * The AX3000 platform performs the required configuration at boot time
+	 * before Linux boots, so this quirk disables pinmux initialization.
+	 */
+	if (!cgpio->quirks->skip_init) {
+		iowrite32(GENMASK(num_gpios - 1, 0),
+			cgpio->regs + CDNS_GPIO_DIRECTION_MODE);
+	}
 
 	config.dev = &pdev->dev;
 	config.sz = 4;
@@ -240,9 +290,11 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	/*
 	 * Enable gpio outputs, ignored for input direction
 	 */
-	iowrite32(GENMASK(num_gpios - 1, 0),
-		  cgpio->regs + CDNS_GPIO_OUTPUT_EN);
-	iowrite32(0, cgpio->regs + CDNS_GPIO_BYPASS_MODE);
+	if (!cgpio->quirks->skip_init) {
+		iowrite32(GENMASK(num_gpios - 1, 0),
+			cgpio->regs + CDNS_GPIO_OUTPUT_EN);
+		iowrite32(0, cgpio->regs + CDNS_GPIO_BYPASS_MODE);
+	}
 
 	platform_set_drvdata(pdev, cgpio);
 	return 0;
@@ -259,12 +311,6 @@ static void cdns_gpio_remove(struct platform_device *pdev)
 
 	iowrite32(cgpio->bypass_orig, cgpio->regs + CDNS_GPIO_BYPASS_MODE);
 }
-
-static const struct of_device_id cdns_of_ids[] = {
-	{ .compatible = "cdns,gpio-r1p02" },
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, cdns_of_ids);
 
 static struct platform_driver cdns_gpio_driver = {
 	.driver = {

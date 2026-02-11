@@ -1631,7 +1631,7 @@ static void gpio_virtuser_lookup_config_group_release(struct config_item *item)
 	kfree(lookup);
 }
 
-static struct configfs_item_operations gpio_virtuser_lookup_config_item_ops = {
+static const struct configfs_item_operations gpio_virtuser_lookup_config_item_ops = {
 	.release	= gpio_virtuser_lookup_config_group_release,
 };
 
@@ -1692,11 +1692,11 @@ static void gpio_virtuser_device_config_group_release(struct config_item *item)
 	kfree(dev);
 }
 
-static struct configfs_item_operations gpio_virtuser_device_config_item_ops = {
+static const struct configfs_item_operations gpio_virtuser_device_config_item_ops = {
 	.release	= gpio_virtuser_device_config_group_release,
 };
 
-static struct configfs_group_operations gpio_virtuser_device_config_group_ops = {
+static const struct configfs_group_operations gpio_virtuser_device_config_group_ops = {
 	.make_group	= gpio_virtuser_make_lookup_group,
 };
 
@@ -1729,7 +1729,7 @@ gpio_virtuser_config_make_device_group(struct config_group *group,
 	return &no_free_ptr(dev)->group;
 }
 
-static struct configfs_group_operations gpio_virtuser_config_group_ops = {
+static const struct configfs_group_operations gpio_virtuser_config_group_ops = {
 	.make_group	= gpio_virtuser_config_make_device_group,
 };
 

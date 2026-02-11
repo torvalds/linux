@@ -15,28 +15,36 @@
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 
-/* register offset */
-#define SPACEMIT_GPLR		0x00 /* port level - R */
-#define SPACEMIT_GPDR		0x0c /* port direction - R/W */
-#define SPACEMIT_GPSR		0x18 /* port set - W */
-#define SPACEMIT_GPCR		0x24 /* port clear - W */
-#define SPACEMIT_GRER		0x30 /* port rising edge R/W */
-#define SPACEMIT_GFER		0x3c /* port falling edge R/W */
-#define SPACEMIT_GEDR		0x48 /* edge detect status - R/W1C */
-#define SPACEMIT_GSDR		0x54 /* (set) direction - W */
-#define SPACEMIT_GCDR		0x60 /* (clear) direction - W */
-#define SPACEMIT_GSRER		0x6c /* (set) rising edge detect enable - W */
-#define SPACEMIT_GCRER		0x78 /* (clear) rising edge detect enable - W */
-#define SPACEMIT_GSFER		0x84 /* (set) falling edge detect enable - W */
-#define SPACEMIT_GCFER		0x90 /* (clear) falling edge detect enable - W */
-#define SPACEMIT_GAPMASK	0x9c /* interrupt mask , 0 disable, 1 enable - R/W */
-
 #define SPACEMIT_NR_BANKS		4
 #define SPACEMIT_NR_GPIOS_PER_BANK	32
 
 #define to_spacemit_gpio_bank(x) container_of((x), struct spacemit_gpio_bank, gc)
+#define to_spacemit_gpio_regs(gb) ((gb)->sg->data->offsets)
+
+enum spacemit_gpio_registers {
+	SPACEMIT_GPLR,		/* port level - R */
+	SPACEMIT_GPDR,		/* port direction - R/W */
+	SPACEMIT_GPSR,		/* port set - W */
+	SPACEMIT_GPCR,		/* port clear - W */
+	SPACEMIT_GRER,		/* port rising edge R/W */
+	SPACEMIT_GFER,		/* port falling edge R/W */
+	SPACEMIT_GEDR,		/* edge detect status - R/W1C */
+	SPACEMIT_GSDR,		/* (set) direction - W */
+	SPACEMIT_GCDR,		/* (clear) direction - W */
+	SPACEMIT_GSRER,		/* (set) rising edge detect enable - W */
+	SPACEMIT_GCRER,		/* (clear) rising edge detect enable - W */
+	SPACEMIT_GSFER,		/* (set) falling edge detect enable - W */
+	SPACEMIT_GCFER,		/* (clear) falling edge detect enable - W */
+	SPACEMIT_GAPMASK,	/* interrupt mask , 0 disable, 1 enable - R/W */
+	SPACEMIT_GCPMASK,	/* interrupt mask for K3 */
+};
 
 struct spacemit_gpio;
+
+struct spacemit_gpio_data {
+	const unsigned int *offsets;
+	u32 bank_offsets[SPACEMIT_NR_BANKS];
+};
 
 struct spacemit_gpio_bank {
 	struct gpio_generic_chip chip;
@@ -49,8 +57,21 @@ struct spacemit_gpio_bank {
 
 struct spacemit_gpio {
 	struct device *dev;
+	const struct spacemit_gpio_data *data;
 	struct spacemit_gpio_bank sgb[SPACEMIT_NR_BANKS];
 };
+
+static u32 spacemit_gpio_read(struct spacemit_gpio_bank *gb,
+			      enum spacemit_gpio_registers reg)
+{
+	return readl(gb->base + to_spacemit_gpio_regs(gb)[reg]);
+}
+
+static void spacemit_gpio_write(struct spacemit_gpio_bank *gb,
+				enum spacemit_gpio_registers reg, u32 val)
+{
+	writel(val, gb->base + to_spacemit_gpio_regs(gb)[reg]);
+}
 
 static u32 spacemit_gpio_bank_index(struct spacemit_gpio_bank *gb)
 {
@@ -63,10 +84,10 @@ static irqreturn_t spacemit_gpio_irq_handler(int irq, void *dev_id)
 	unsigned long pending;
 	u32 n, gedr;
 
-	gedr = readl(gb->base + SPACEMIT_GEDR);
+	gedr = spacemit_gpio_read(gb, SPACEMIT_GEDR);
 	if (!gedr)
 		return IRQ_NONE;
-	writel(gedr, gb->base + SPACEMIT_GEDR);
+	spacemit_gpio_write(gb, SPACEMIT_GEDR, gedr);
 
 	pending = gedr & gb->irq_mask;
 	if (!pending)
@@ -82,7 +103,7 @@ static void spacemit_gpio_irq_ack(struct irq_data *d)
 {
 	struct spacemit_gpio_bank *gb = irq_data_get_irq_chip_data(d);
 
-	writel(BIT(irqd_to_hwirq(d)), gb->base + SPACEMIT_GEDR);
+	spacemit_gpio_write(gb, SPACEMIT_GEDR, BIT(irqd_to_hwirq(d)));
 }
 
 static void spacemit_gpio_irq_mask(struct irq_data *d)
@@ -91,13 +112,13 @@ static void spacemit_gpio_irq_mask(struct irq_data *d)
 	u32 bit = BIT(irqd_to_hwirq(d));
 
 	gb->irq_mask &= ~bit;
-	writel(gb->irq_mask, gb->base + SPACEMIT_GAPMASK);
+	spacemit_gpio_write(gb, SPACEMIT_GAPMASK, gb->irq_mask);
 
 	if (bit & gb->irq_rising_edge)
-		writel(bit, gb->base + SPACEMIT_GCRER);
+		spacemit_gpio_write(gb, SPACEMIT_GCRER, bit);
 
 	if (bit & gb->irq_falling_edge)
-		writel(bit, gb->base + SPACEMIT_GCFER);
+		spacemit_gpio_write(gb, SPACEMIT_GCFER, bit);
 }
 
 static void spacemit_gpio_irq_unmask(struct irq_data *d)
@@ -108,12 +129,12 @@ static void spacemit_gpio_irq_unmask(struct irq_data *d)
 	gb->irq_mask |= bit;
 
 	if (bit & gb->irq_rising_edge)
-		writel(bit, gb->base + SPACEMIT_GSRER);
+		spacemit_gpio_write(gb, SPACEMIT_GSRER, bit);
 
 	if (bit & gb->irq_falling_edge)
-		writel(bit, gb->base + SPACEMIT_GSFER);
+		spacemit_gpio_write(gb, SPACEMIT_GSFER, bit);
 
-	writel(gb->irq_mask, gb->base + SPACEMIT_GAPMASK);
+	spacemit_gpio_write(gb, SPACEMIT_GAPMASK, gb->irq_mask);
 }
 
 static int spacemit_gpio_irq_set_type(struct irq_data *d, unsigned int type)
@@ -123,18 +144,18 @@ static int spacemit_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 
 	if (type & IRQ_TYPE_EDGE_RISING) {
 		gb->irq_rising_edge |= bit;
-		writel(bit, gb->base + SPACEMIT_GSRER);
+		spacemit_gpio_write(gb, SPACEMIT_GSRER, bit);
 	} else {
 		gb->irq_rising_edge &= ~bit;
-		writel(bit, gb->base + SPACEMIT_GCRER);
+		spacemit_gpio_write(gb, SPACEMIT_GCRER, bit);
 	}
 
 	if (type & IRQ_TYPE_EDGE_FALLING) {
 		gb->irq_falling_edge |= bit;
-		writel(bit, gb->base + SPACEMIT_GSFER);
+		spacemit_gpio_write(gb, SPACEMIT_GSFER, bit);
 	} else {
 		gb->irq_falling_edge &= ~bit;
-		writel(bit, gb->base + SPACEMIT_GCFER);
+		spacemit_gpio_write(gb, SPACEMIT_GCFER, bit);
 	}
 
 	return 0;
@@ -178,16 +199,16 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	struct gpio_chip *gc = &gb->chip.gc;
 	struct device *dev = sg->dev;
 	struct gpio_irq_chip *girq;
-	void __iomem *dat, *set, *clr, *dirin, *dirout;
-	int ret, bank_base[] = { 0x0, 0x4, 0x8, 0x100 };
+	void __iomem *dat, *set, *clr, *dirout;
+	int ret;
 
-	gb->base = regs + bank_base[index];
+	gb->base = regs + sg->data->bank_offsets[index];
+	gb->sg = sg;
 
-	dat	= gb->base + SPACEMIT_GPLR;
-	set	= gb->base + SPACEMIT_GPSR;
-	clr	= gb->base + SPACEMIT_GPCR;
-	dirin	= gb->base + SPACEMIT_GCDR;
-	dirout	= gb->base + SPACEMIT_GSDR;
+	dat	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPLR];
+	set	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPSR];
+	clr	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPCR];
+	dirout	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPDR];
 
 	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
@@ -196,17 +217,13 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 		.set = set,
 		.clr = clr,
 		.dirout = dirout,
-		.dirin = dirin,
-		.flags = GPIO_GENERIC_UNREADABLE_REG_SET |
-			 GPIO_GENERIC_UNREADABLE_REG_DIR,
+		.flags = GPIO_GENERIC_UNREADABLE_REG_SET,
 	};
 
 	/* This registers 32 GPIO lines per bank */
 	ret = gpio_generic_chip_init(&gb->chip, &config);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to init gpio chip\n");
-
-	gb->sg = sg;
 
 	gc->label		= dev_name(dev);
 	gc->request		= gpiochip_generic_request;
@@ -223,13 +240,13 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	gpio_irq_chip_set_chip(girq, &spacemit_gpio_chip);
 
 	/* Disable Interrupt */
-	writel(0, gb->base + SPACEMIT_GAPMASK);
+	spacemit_gpio_write(gb, SPACEMIT_GAPMASK, 0);
 	/* Disable Edge Detection Settings */
-	writel(0x0, gb->base + SPACEMIT_GRER);
-	writel(0x0, gb->base + SPACEMIT_GFER);
+	spacemit_gpio_write(gb, SPACEMIT_GRER, 0x0);
+	spacemit_gpio_write(gb, SPACEMIT_GFER, 0x0);
 	/* Clear Interrupt */
-	writel(0xffffffff, gb->base + SPACEMIT_GCRER);
-	writel(0xffffffff, gb->base + SPACEMIT_GCFER);
+	spacemit_gpio_write(gb, SPACEMIT_GCRER, 0xffffffff);
+	spacemit_gpio_write(gb, SPACEMIT_GCFER, 0xffffffff);
 
 	ret = devm_request_threaded_irq(dev, irq, NULL,
 					spacemit_gpio_irq_handler,
@@ -260,6 +277,10 @@ static int spacemit_gpio_probe(struct platform_device *pdev)
 	if (!sg)
 		return -ENOMEM;
 
+	sg->data = of_device_get_match_data(dev);
+	if (!sg->data)
+		return dev_err_probe(dev, -EINVAL, "No available compatible data.");
+
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
@@ -287,8 +308,55 @@ static int spacemit_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const unsigned int spacemit_gpio_k1_offsets[] = {
+	[SPACEMIT_GPLR] = 0x00,
+	[SPACEMIT_GPDR] = 0x0c,
+	[SPACEMIT_GPSR] = 0x18,
+	[SPACEMIT_GPCR] = 0x24,
+	[SPACEMIT_GRER] = 0x30,
+	[SPACEMIT_GFER] = 0x3c,
+	[SPACEMIT_GEDR] = 0x48,
+	[SPACEMIT_GSDR] = 0x54,
+	[SPACEMIT_GCDR] = 0x60,
+	[SPACEMIT_GSRER] = 0x6c,
+	[SPACEMIT_GCRER] = 0x78,
+	[SPACEMIT_GSFER] = 0x84,
+	[SPACEMIT_GCFER] = 0x90,
+	[SPACEMIT_GAPMASK] = 0x9c,
+	[SPACEMIT_GCPMASK] = 0xA8,
+};
+
+static const unsigned int spacemit_gpio_k3_offsets[] = {
+	[SPACEMIT_GPLR] = 0x0,
+	[SPACEMIT_GPDR] = 0x4,
+	[SPACEMIT_GPSR] = 0x8,
+	[SPACEMIT_GPCR] = 0xc,
+	[SPACEMIT_GRER] = 0x10,
+	[SPACEMIT_GFER] = 0x14,
+	[SPACEMIT_GEDR] = 0x18,
+	[SPACEMIT_GSDR] = 0x1c,
+	[SPACEMIT_GCDR] = 0x20,
+	[SPACEMIT_GSRER] = 0x24,
+	[SPACEMIT_GCRER] = 0x28,
+	[SPACEMIT_GSFER] = 0x2c,
+	[SPACEMIT_GCFER] = 0x30,
+	[SPACEMIT_GAPMASK] = 0x34,
+	[SPACEMIT_GCPMASK] = 0x38,
+};
+
+static const struct spacemit_gpio_data k1_gpio_data = {
+	.offsets = spacemit_gpio_k1_offsets,
+	.bank_offsets = { 0x0, 0x4, 0x8, 0x100 },
+};
+
+static const struct spacemit_gpio_data k3_gpio_data = {
+	.offsets = spacemit_gpio_k3_offsets,
+	.bank_offsets = { 0x0, 0x40, 0x80, 0x100 },
+};
+
 static const struct of_device_id spacemit_gpio_dt_ids[] = {
-	{ .compatible = "spacemit,k1-gpio" },
+	{ .compatible = "spacemit,k1-gpio", .data = &k1_gpio_data },
+	{ .compatible = "spacemit,k3-gpio", .data = &k3_gpio_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spacemit_gpio_dt_ids);
@@ -296,12 +364,12 @@ MODULE_DEVICE_TABLE(of, spacemit_gpio_dt_ids);
 static struct platform_driver spacemit_gpio_driver = {
 	.probe		= spacemit_gpio_probe,
 	.driver		= {
-		.name	= "k1-gpio",
+		.name	= "spacemit-gpio",
 		.of_match_table = spacemit_gpio_dt_ids,
 	},
 };
 module_platform_driver(spacemit_gpio_driver);
 
 MODULE_AUTHOR("Yixun Lan <dlan@gentoo.org>");
-MODULE_DESCRIPTION("GPIO driver for SpacemiT K1 SoC");
+MODULE_DESCRIPTION("GPIO driver for SpacemiT K1/K3 SoC");
 MODULE_LICENSE("GPL");

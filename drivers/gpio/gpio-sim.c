@@ -1384,7 +1384,7 @@ static void gpio_sim_hog_config_item_release(struct config_item *item)
 	kfree(hog);
 }
 
-static struct configfs_item_operations gpio_sim_hog_config_item_ops = {
+static const struct configfs_item_operations gpio_sim_hog_config_item_ops = {
 	.release	= gpio_sim_hog_config_item_release,
 };
 
@@ -1433,11 +1433,11 @@ static void gpio_sim_line_config_group_release(struct config_item *item)
 	kfree(line);
 }
 
-static struct configfs_item_operations gpio_sim_line_config_item_ops = {
+static const struct configfs_item_operations gpio_sim_line_config_item_ops = {
 	.release	= gpio_sim_line_config_group_release,
 };
 
-static struct configfs_group_operations gpio_sim_line_config_group_ops = {
+static const struct configfs_group_operations gpio_sim_line_config_group_ops = {
 	.make_item	= gpio_sim_line_config_make_hog_item,
 };
 
@@ -1494,11 +1494,11 @@ static void gpio_sim_bank_config_group_release(struct config_item *item)
 	kfree(bank);
 }
 
-static struct configfs_item_operations gpio_sim_bank_config_item_ops = {
+static const struct configfs_item_operations gpio_sim_bank_config_item_ops = {
 	.release	= gpio_sim_bank_config_group_release,
 };
 
-static struct configfs_group_operations gpio_sim_bank_config_group_ops = {
+static const struct configfs_group_operations gpio_sim_bank_config_group_ops = {
 	.make_group	= gpio_sim_bank_config_make_line_group,
 };
 
@@ -1549,11 +1549,11 @@ static void gpio_sim_device_config_group_release(struct config_item *item)
 	kfree(dev);
 }
 
-static struct configfs_item_operations gpio_sim_device_config_item_ops = {
+static const struct configfs_item_operations gpio_sim_device_config_item_ops = {
 	.release	= gpio_sim_device_config_group_release,
 };
 
-static struct configfs_group_operations gpio_sim_device_config_group_ops = {
+static const struct configfs_group_operations gpio_sim_device_config_group_ops = {
 	.make_group	= gpio_sim_device_config_make_bank_group,
 };
 
@@ -1589,7 +1589,7 @@ gpio_sim_config_make_device_group(struct config_group *group, const char *name)
 	return &no_free_ptr(dev)->group;
 }
 
-static struct configfs_group_operations gpio_sim_config_group_ops = {
+static const struct configfs_group_operations gpio_sim_config_group_ops = {
 	.make_group	= gpio_sim_config_make_device_group,
 };
 

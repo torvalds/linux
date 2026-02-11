@@ -571,15 +571,12 @@ static int bd7181x_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ldo4_en = devm_fwnode_gpiod_get(&pdev->dev,
-					dev_fwnode(pdev->dev.parent),
-					"rohm,vsel", GPIOD_ASIS, "ldo4-en");
-	if (IS_ERR(ldo4_en)) {
-		ret = PTR_ERR(ldo4_en);
-		if (ret != -ENOENT)
-			return ret;
-		ldo4_en = NULL;
-	}
+	ldo4_en = devm_fwnode_gpiod_get_optional(&pdev->dev,
+						 dev_fwnode(pdev->dev.parent),
+						 "rohm,vsel", GPIOD_ASIS,
+						 "ldo4-en");
+	if (IS_ERR(ldo4_en))
+		return PTR_ERR(ldo4_en);
 
 	/* Disable to go to ship-mode */
 	ret = regmap_update_bits(regmap, BD71815_REG_PWRCTRL, RESTARTEN, 0);
