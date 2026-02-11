@@ -12,5 +12,13 @@
  * hierarchy down to its filesystem root and those from the related mount point
  * hierarchy.  This prevents access right widening through rename or link
  * actions.
+ *
+ * Impact:
+ *
+ * Without this fix, it was possible to widen access rights through rename or
+ * link actions involving disconnected directories, potentially bypassing
+ * ``LANDLOCK_ACCESS_FS_REFER`` restrictions.  This could allow privilege
+ * escalation in complex mount scenarios where directories become disconnected
+ * from their original mount points.
  */
 LANDLOCK_ERRATUM(3)

@@ -6,7 +6,7 @@ Landlock: system-wide management
 ================================
 
 :Author: Mickaël Salaün
-:Date: March 2025
+:Date: January 2026
 
 Landlock can leverage the audit framework to log events.
 
@@ -37,6 +37,37 @@ AUDIT_LANDLOCK_ACCESS
 
         domain=195ba459b blockers=fs.refer path="/usr/bin" dev="vda2" ino=351
         domain=195ba459b blockers=fs.make_reg,fs.refer path="/usr/local" dev="vda2" ino=365
+
+
+    The ``blockers`` field uses dot-separated prefixes to indicate the type of
+    restriction that caused the denial:
+
+    **fs.*** - Filesystem access rights (ABI 1+):
+        - fs.execute, fs.write_file, fs.read_file, fs.read_dir
+        - fs.remove_dir, fs.remove_file
+        - fs.make_char, fs.make_dir, fs.make_reg, fs.make_sock
+        - fs.make_fifo, fs.make_block, fs.make_sym
+        - fs.refer (ABI 2+)
+        - fs.truncate (ABI 3+)
+        - fs.ioctl_dev (ABI 5+)
+
+    **net.*** - Network access rights (ABI 4+):
+        - net.bind_tcp - TCP port binding was denied
+        - net.connect_tcp - TCP connection was denied
+
+    **scope.*** - IPC scoping restrictions (ABI 6+):
+        - scope.abstract_unix_socket - Abstract UNIX socket connection denied
+        - scope.signal - Signal sending denied
+
+    Multiple blockers can appear in a single event (comma-separated) when
+    multiple access rights are missing. For example, creating a regular file
+    in a directory that lacks both ``make_reg`` and ``refer`` rights would show
+    ``blockers=fs.make_reg,fs.refer``.
+
+    The object identification fields (path, dev, ino for filesystem; opid,
+    ocomm for signals) depend on the type of access being blocked and provide
+    context about what resource was involved in the denial.
+
 
 AUDIT_LANDLOCK_DOMAIN
     This record type describes the status of a Landlock domain.  The ``status``
@@ -86,7 +117,7 @@ This command generates two events, each identified with a unique serial
 number following a timestamp (``msg=audit(1729738800.268:30)``).  The first
 event (serial ``30``) contains 4 records.  The first record
 (``type=LANDLOCK_ACCESS``) shows an access denied by the domain `1a6fdc66f`.
-The cause of this denial is signal scopping restriction
+The cause of this denial is signal scoping restriction
 (``blockers=scope.signal``).  The process that would have receive this signal
 is the init process (``opid=1 ocomm="systemd"``).
 

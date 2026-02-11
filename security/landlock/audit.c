@@ -180,38 +180,21 @@ static void test_get_hierarchy(struct kunit *const test)
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
 
+/* Get the youngest layer that denied the access_request. */
 static size_t get_denied_layer(const struct landlock_ruleset *const domain,
 			       access_mask_t *const access_request,
-			       const layer_mask_t (*const layer_masks)[],
-			       const size_t layer_masks_size)
+			       const struct layer_access_masks *masks)
 {
-	const unsigned long access_req = *access_request;
-	unsigned long access_bit;
-	access_mask_t missing = 0;
-	long youngest_layer = -1;
-
-	for_each_set_bit(access_bit, &access_req, layer_masks_size) {
-		const layer_mask_t mask = (*layer_masks)[access_bit];
-		long layer;
-
-		if (!mask)
-			continue;
-
-		/* __fls(1) == 0 */
-		layer = __fls(mask);
-		if (layer > youngest_layer) {
-			youngest_layer = layer;
-			missing = BIT(access_bit);
-		} else if (layer == youngest_layer) {
-			missing |= BIT(access_bit);
+	for (ssize_t i = ARRAY_SIZE(masks->access) - 1; i >= 0; i--) {
+		if (masks->access[i] & *access_request) {
+			*access_request &= masks->access[i];
+			return i;
 		}
 	}
 
-	*access_request = missing;
-	if (youngest_layer == -1)
-		return domain->num_layers - 1;
-
-	return youngest_layer;
+	/* Not found - fall back to default values */
+	*access_request = 0;
+	return domain->num_layers - 1;
 }
 
 #ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
@@ -221,50 +204,39 @@ static void test_get_denied_layer(struct kunit *const test)
 	const struct landlock_ruleset dom = {
 		.num_layers = 5,
 	};
-	const layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_READ_FILE)] = BIT(1),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_READ_DIR)] = BIT(1) | BIT(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_REMOVE_DIR)] = BIT(2),
+	const struct layer_access_masks masks = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE |
+			     LANDLOCK_ACCESS_FS_READ_DIR,
+		.access[1] = LANDLOCK_ACCESS_FS_READ_FILE |
+			     LANDLOCK_ACCESS_FS_READ_DIR,
+		.access[2] = LANDLOCK_ACCESS_FS_REMOVE_DIR,
 	};
 	access_mask_t access;
 
 	access = LANDLOCK_ACCESS_FS_EXECUTE;
-	KUNIT_EXPECT_EQ(test, 0,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 0, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access, LANDLOCK_ACCESS_FS_EXECUTE);
 
 	access = LANDLOCK_ACCESS_FS_READ_FILE;
-	KUNIT_EXPECT_EQ(test, 1,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 1, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access, LANDLOCK_ACCESS_FS_READ_FILE);
 
 	access = LANDLOCK_ACCESS_FS_READ_DIR;
-	KUNIT_EXPECT_EQ(test, 1,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 1, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access, LANDLOCK_ACCESS_FS_READ_DIR);
 
 	access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_READ_DIR;
-	KUNIT_EXPECT_EQ(test, 1,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 1, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access,
 			LANDLOCK_ACCESS_FS_READ_FILE |
 				LANDLOCK_ACCESS_FS_READ_DIR);
 
 	access = LANDLOCK_ACCESS_FS_EXECUTE | LANDLOCK_ACCESS_FS_READ_DIR;
-	KUNIT_EXPECT_EQ(test, 1,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 1, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access, LANDLOCK_ACCESS_FS_READ_DIR);
 
 	access = LANDLOCK_ACCESS_FS_WRITE_FILE;
-	KUNIT_EXPECT_EQ(test, 4,
-			get_denied_layer(&dom, &access, &layer_masks,
-					 sizeof(layer_masks)));
+	KUNIT_EXPECT_EQ(test, 4, get_denied_layer(&dom, &access, &masks));
 	KUNIT_EXPECT_EQ(test, access, 0);
 }
 
@@ -370,9 +342,6 @@ static bool is_valid_request(const struct landlock_request *const request)
 			return false;
 	}
 
-	if (WARN_ON_ONCE(!!request->layer_masks ^ !!request->layer_masks_size))
-		return false;
-
 	if (request->deny_masks) {
 		if (WARN_ON_ONCE(!request->all_existing_optional_access))
 			return false;
@@ -406,12 +375,12 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 	if (missing) {
 		/* Gets the nearest domain that denies the request. */
 		if (request->layer_masks) {
-			youngest_layer = get_denied_layer(
-				subject->domain, &missing, request->layer_masks,
-				request->layer_masks_size);
+			youngest_layer = get_denied_layer(subject->domain,
+							  &missing,
+							  request->layer_masks);
 		} else {
 			youngest_layer = get_layer_from_deny_masks(
-				&missing, request->all_existing_optional_access,
+				&missing, _LANDLOCK_ACCESS_FS_OPTIONAL,
 				request->deny_masks);
 		}
 		youngest_denied =
