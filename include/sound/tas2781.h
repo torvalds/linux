@@ -2,7 +2,7 @@
 //
 // ALSA SoC Texas Instruments TAS2563/TAS2781 Audio Smart Amplifier
 //
-// Copyright (C) 2022 - 2025 Texas Instruments Incorporated
+// Copyright (C) 2022 - 2026 Texas Instruments Incorporated
 // https://www.ti.com
 //
 // The TAS2563/TAS2781 driver implements a flexible and configurable
@@ -233,7 +233,6 @@ struct tasdevice_priv {
 	bool playback_started;
 	bool isacpi;
 	bool isspi;
-	bool is_user_space_calidata;
 	unsigned int global_addr;
 
 	int (*fw_parse_variable_header)(struct tasdevice_priv *tas_priv,

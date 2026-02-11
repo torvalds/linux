@@ -257,6 +257,6 @@ void sdca_ump_schedule_timeout(struct delayed_work *work, unsigned int timeout_u
 	if (!timeout_us)
 		return;
 
-	queue_delayed_work(system_wq, work, usecs_to_jiffies(timeout_us));
+	queue_delayed_work(system_dfl_wq, work, usecs_to_jiffies(timeout_us));
 }
 EXPORT_SYMBOL_NS_GPL(sdca_ump_schedule_timeout, "SND_SOC_SDCA");

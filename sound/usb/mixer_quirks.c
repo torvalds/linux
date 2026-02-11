@@ -4412,6 +4412,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_create_std_mono_table(mixer, ebox44_table);
 		break;
 
+	case USB_ID(0x1235, 0x8010): /* Focusrite Forte */
+		err = snd_forte_controls_create(mixer);
+		break;
 	case USB_ID(0x1235, 0x8012): /* Focusrite Scarlett 6i6 */
 	case USB_ID(0x1235, 0x8002): /* Focusrite Scarlett 8i6 */
 	case USB_ID(0x1235, 0x8004): /* Focusrite Scarlett 18i6 */

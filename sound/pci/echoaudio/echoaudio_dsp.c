@@ -32,7 +32,7 @@
 #error PAGE_SIZE is < 4k
 #endif
 
-static int restore_dsp_rettings(struct echoaudio *chip);
+static int restore_dsp_settings(struct echoaudio *chip);
 
 
 /* Some vector commands involve the DSP reading or writing data to and from the
@@ -666,7 +666,7 @@ static void get_audio_meters(struct echoaudio *chip, long *meters)
 
 
 
-static int restore_dsp_rettings(struct echoaudio *chip)
+static int restore_dsp_settings(struct echoaudio *chip)
 {
 	int i, o, err;
 
@@ -1014,7 +1014,7 @@ static int init_line_levels(struct echoaudio *chip)
 	chip->input_clock = ECHO_CLOCK_INTERNAL;
 	chip->output_clock = ECHO_CLOCK_WORD;
 	chip->sample_rate = 44100;
-	return restore_dsp_rettings(chip);
+	return restore_dsp_settings(chip);
 }
 
 

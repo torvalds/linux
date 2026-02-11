@@ -12,6 +12,7 @@
 // Further cleanup and restructuring by:
 //         Binbin Zhou <zhoubinbin@loongson.cn>
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -32,7 +33,6 @@ struct es8323_priv {
 	struct clk *mclk;
 	struct regmap *regmap;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
-	struct snd_soc_component *component;
 };
 
 /* es8323 register cache */
@@ -52,7 +52,7 @@ static const struct reg_default es8323_reg_defaults[] = {
 	{ ES8323_ADCCONTROL4,  0x00 },
 	{ ES8323_ADCCONTROL5,  0x06 },
 	{ ES8323_ADCCONTROL6,  0x30 },
-	{ ES8323_ADC_MUTE,     0x30 },
+	{ ES8323_ADCCONTROL7,  0x30 },
 	{ ES8323_LADC_VOL,     0xc0 },
 	{ ES8323_RADC_VOL,     0xc0 },
 	{ ES8323_ADCCONTROL10, 0x38 },
@@ -62,7 +62,7 @@ static const struct reg_default es8323_reg_defaults[] = {
 	{ ES8323_ADCCONTROL14, 0x00 },
 	{ ES8323_DACCONTROL1,  0x00 },
 	{ ES8323_DACCONTROL2,  0x06 },
-	{ ES8323_DAC_MUTE,     0x30 },
+	{ ES8323_DACCONTROL3,  0x30 },
 	{ ES8323_LDAC_VOL,     0xc0 },
 	{ ES8323_RDAC_VOL,     0xc0 },
 	{ ES8323_DACCONTROL6,  0x08 },
@@ -119,29 +119,43 @@ static const struct snd_kcontrol_new es8323_snd_controls[] = {
 	SOC_ENUM("ALC Capture NG Type", es8323_alc_ng_type_enum),
 	SOC_ENUM("Playback De-emphasis", es8323_playback_deemphasis_enum),
 	SOC_ENUM("Capture Polarity", es8323_capture_polarity_enum),
-	SOC_SINGLE("ALC Capture ZC Switch", ES8323_ADCCONTROL13, 6, 1, 0),
-	SOC_SINGLE("ALC Capture Decay Time", ES8323_ADCCONTROL12, 4, 15, 0),
-	SOC_SINGLE("ALC Capture Attack Time", ES8323_ADCCONTROL12, 0, 15, 0),
-	SOC_SINGLE("ALC Capture NG Threshold", ES8323_ADCCONTROL14, 3, 31, 0),
-	SOC_SINGLE("ALC Capture NG Switch", ES8323_ADCCONTROL14, 0, 1, 0),
-	SOC_SINGLE("ZC Timeout Switch", ES8323_ADCCONTROL13, 6, 1, 0),
-	SOC_SINGLE("Capture Mute Switch", ES8323_ADC_MUTE, 2, 1, 0),
-	SOC_SINGLE_TLV("Left Channel Capture Volume", ES8323_ADCCONTROL1, 4, 8,
-		       0, es8323_bypass_tlv),
-	SOC_SINGLE_TLV("Right Channel Capture Volume", ES8323_ADCCONTROL1, 0,
-		       8, 0, es8323_bypass_tlv),
-	SOC_SINGLE_TLV("Left Mixer Left Bypass Volume", ES8323_DACCONTROL17, 3,
-		       7, 1, es8323_bypass_tlv2),
+
+	SOC_SINGLE("ALC Capture ZC Switch", ES8323_ADCCONTROL13,
+		   ES8323_ADCCONTROL13_ALCZC_OFF, 1, 0),
+	SOC_SINGLE("ALC Capture Decay Time", ES8323_ADCCONTROL12,
+		   ES8323_ADCCONTROL12_ALCDCY_OFF, 15, 0),
+	SOC_SINGLE("ALC Capture Attack Time", ES8323_ADCCONTROL12,
+		   ES8323_ADCCONTROL12_ALCATK_OFF, 15, 0),
+	SOC_SINGLE("ALC Capture NG Threshold", ES8323_ADCCONTROL14,
+		   ES8323_ADCCONTROL14_NGTH_OFF, 31, 0),
+	SOC_SINGLE("ALC Capture NG Switch", ES8323_ADCCONTROL14,
+		   ES8323_ADCCONTROL14_NGAT_OFF, 1, 0),
+	SOC_SINGLE("ZC Timeout Switch", ES8323_ADCCONTROL13,
+		   ES8323_ADCCONTROL13_TIMEOUT_OFF, 1, 0),
+	SOC_SINGLE("Capture Mute Switch", ES8323_ADCCONTROL7,
+		   ES8323_ADCCONTROL7_ADCMUTE_OFF, 1, 0),
+
+	SOC_SINGLE_TLV("Left Channel Capture Volume", ES8323_ADCCONTROL1,
+		       ES8323_ADCCONTROL1_MICAMPL_OFF, 8, 0, es8323_bypass_tlv),
+	SOC_SINGLE_TLV("Right Channel Capture Volume", ES8323_ADCCONTROL1,
+		       ES8323_ADCCONTROL1_MICAMPR_OFF, 8, 0, es8323_bypass_tlv),
+	SOC_SINGLE_TLV("Left Mixer Left Bypass Volume", ES8323_DACCONTROL17,
+		       ES8323_DACCONTROL17_LI2LOVOL_OFF, 7, 1, es8323_bypass_tlv2),
 	SOC_SINGLE_TLV("Right Mixer Right Bypass Volume", ES8323_DACCONTROL20,
-		       3, 7, 1, es8323_bypass_tlv2),
-	SOC_DOUBLE_R_TLV("PCM Volume", ES8323_LDAC_VOL, ES8323_RDAC_VOL,
+		       ES8323_DACCONTROL20_RI2ROVOL_OFF, 7, 1, es8323_bypass_tlv2),
+
+	SOC_DOUBLE_R_TLV("PCM Volume",
+			 ES8323_LDAC_VOL, ES8323_RDAC_VOL,
 			 0, 192, 1, es8323_dac_tlv),
-	SOC_DOUBLE_R_TLV("Capture Digital Volume", ES8323_LADC_VOL,
-			 ES8323_RADC_VOL, 0, 192, 1, es8323_adc_tlv),
-	SOC_DOUBLE_R_TLV("Output 1 Playback Volume", ES8323_LOUT1_VOL,
-			 ES8323_ROUT1_VOL, 0, 33, 0, es8323_out_tlv),
-	SOC_DOUBLE_R_TLV("Output 2 Playback Volume", ES8323_LOUT2_VOL,
-			 ES8323_ROUT2_VOL, 0, 33, 0, es8323_out_tlv),
+	SOC_DOUBLE_R_TLV("Capture Digital Volume",
+			 ES8323_LADC_VOL, ES8323_RADC_VOL,
+			 0, 192, 1, es8323_adc_tlv),
+	SOC_DOUBLE_R_TLV("Output 1 Playback Volume",
+			 ES8323_LOUT1_VOL, ES8323_ROUT1_VOL,
+			 0, 33, 0, es8323_out_tlv),
+	SOC_DOUBLE_R_TLV("Output 2 Playback Volume",
+			 ES8323_LOUT2_VOL, ES8323_ROUT2_VOL,
+			 0, 33, 0, es8323_out_tlv),
 };
 
 /* Left DAC Route */
@@ -198,21 +212,50 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RINPUT1"),
 	SND_SOC_DAPM_INPUT("RINPUT2"),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias", SND_SOC_NOPM, 3, 1),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", ES8323_ADCPOWER,
+			    ES8323_ADCPOWER_PDNMICB_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias Gen", ES8323_ADCPOWER,
+			    ES8323_ADCPOWER_PDNADCBIS_OFF, 1, NULL, 0),
+
+	SND_SOC_DAPM_SUPPLY("DAC STM", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACSTM_RESET, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC STM", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCSTM_RESET, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC DIG", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACDIG_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC DIG", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCDIG_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC DLL", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACDLL_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC DLL", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCDLL_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC Vref", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCVREF_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC Vref", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACVREF_OFF, 1, NULL, 0),
 
 	/* Muxes */
-	SND_SOC_DAPM_MUX("Left PGA Mux", SND_SOC_NOPM, 0, 0, &es8323_left_dac_mux_controls),
-	SND_SOC_DAPM_MUX("Right PGA Mux", SND_SOC_NOPM, 0, 0, &es8323_right_dac_mux_controls),
+	SND_SOC_DAPM_MUX("Left PGA Mux", ES8323_ADCPOWER,
+			 ES8323_ADCPOWER_PDNAINL_OFF, 1, &es8323_left_dac_mux_controls),
+	SND_SOC_DAPM_MUX("Right PGA Mux", ES8323_ADCPOWER,
+			 ES8323_ADCPOWER_PDNAINR_OFF, 1, &es8323_right_dac_mux_controls),
+
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0, &es8323_diffmux_controls),
+
 	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0, &es8323_mono_adc_mux_controls),
 	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0, &es8323_mono_adc_mux_controls),
+
 	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_NOPM, 0, 0, &es8323_left_line_controls),
 	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_NOPM, 0, 0, &es8323_right_line_controls),
 
-	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", SND_SOC_NOPM, 4, 1),
-	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", SND_SOC_NOPM, 5, 1),
-	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", ES8323_DACPOWER, 6, 1),
-	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", ES8323_DACPOWER, 7, 1),
+	SND_SOC_DAPM_ADC("Right ADC", "Right Capture",
+			 ES8323_ADCPOWER, ES8323_ADCPOWER_PDNADCR_OFF, 1),
+	SND_SOC_DAPM_ADC("Left ADC", "Left Capture",
+			 ES8323_ADCPOWER, ES8323_ADCPOWER_PDNADCL_OFF, 1),
+	SND_SOC_DAPM_DAC("Right DAC", "Right Playback",
+			 ES8323_DACPOWER, ES8323_DACPOWER_PDNDACR_OFF, 1),
+	SND_SOC_DAPM_DAC("Left DAC", "Left Playback",
+			 ES8323_DACPOWER, ES8323_DACPOWER_PDNDACL_OFF, 1),
 
 	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
 			   &es8323_left_mixer_controls[0],
@@ -221,14 +264,12 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 			   &es8323_right_mixer_controls[0],
 			   ARRAY_SIZE(es8323_right_mixer_controls)),
 
-	SND_SOC_DAPM_PGA("Right ADC Power", SND_SOC_NOPM, 6, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Left ADC Power", SND_SOC_NOPM, 7, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Out 2", ES8323_DACPOWER, 2, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Left Out 2", ES8323_DACPOWER, 3, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Out 1", ES8323_DACPOWER, 4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Left Out 1", ES8323_DACPOWER, 5, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("LAMP", ES8323_ADCCONTROL1, 4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("RAMP", ES8323_ADCCONTROL1, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Out 2", ES8323_DACPOWER, ES8323_DACPOWER_ROUT2_OFF, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Left Out 2", ES8323_DACPOWER, ES8323_DACPOWER_LOUT2_OFF, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Out 1", ES8323_DACPOWER, ES8323_DACPOWER_ROUT1_OFF, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Left Out 1", ES8323_DACPOWER, ES8323_DACPOWER_LOUT1_OFF, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("LAMP", ES8323_ADCCONTROL1, ES8323_ADCCONTROL1_MICAMPL_OFF, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("RAMP", ES8323_ADCCONTROL1, ES8323_ADCCONTROL1_MICAMPR_OFF, 0, NULL, 0),
 
 	SND_SOC_DAPM_OUTPUT("LOUT1"),
 	SND_SOC_DAPM_OUTPUT("ROUT1"),
@@ -252,18 +293,30 @@ static const struct snd_soc_dapm_route es8323_dapm_routes[] = {
 	{"Differential Mux", "Line 2", "LINPUT2"},
 	{"Differential Mux", "Line 2", "RINPUT2"},
 
-	{"Left ADC Mux", "Stereo", "Right PGA Mux"},
 	{"Left ADC Mux", "Stereo", "Left PGA Mux"},
 	{"Left ADC Mux", "Mono (Left)", "Left PGA Mux"},
 
-	{"Right ADC Mux", "Stereo", "Left PGA Mux"},
 	{"Right ADC Mux", "Stereo", "Right PGA Mux"},
 	{"Right ADC Mux", "Mono (Right)", "Right PGA Mux"},
 
-	{"Left ADC Power", NULL, "Left ADC Mux"},
-	{"Right ADC Power", NULL, "Right ADC Mux"},
-	{"Left ADC", NULL, "Left ADC Power"},
-	{"Right ADC", NULL, "Right ADC Power"},
+	{"Left ADC", NULL, "Left ADC Mux"},
+	{"Right ADC", NULL, "Right ADC Mux"},
+
+	{ "Mic Bias", NULL, "Mic Bias Gen" },
+
+	{ "ADC DIG", NULL, "ADC STM" },
+	{ "ADC DIG", NULL, "ADC Vref" },
+	{ "ADC DIG", NULL, "ADC DLL" },
+
+	{ "Left ADC", NULL, "ADC DIG" },
+	{ "Right ADC", NULL, "ADC DIG" },
+
+	{ "DAC DIG", NULL, "DAC STM" },
+	{ "DAC DIG", NULL, "DAC Vref" },
+	{ "DAC DIG", NULL, "DAC DLL" },
+
+	{ "Left DAC", NULL, "DAC DIG" },
+	{ "Right DAC", NULL, "DAC DIG" },
 
 	{"Left Line Mux", "Line 1L", "LINPUT1"},
 	{"Left Line Mux", "Line 2L", "LINPUT2"},
@@ -423,16 +476,18 @@ static int es8323_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	u8 iface = snd_soc_component_read(component, ES8323_MASTERMODE);
-	u8 adciface = snd_soc_component_read(component, ES8323_ADC_IFACE);
-	u8 daciface = snd_soc_component_read(component, ES8323_DAC_IFACE);
+	u8 format_mode, inv_mode;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_BC_FP:
-		iface |= 0x80;
+		/* Master serial port mode */
+		snd_soc_component_update_bits(component, ES8323_MASTERMODE,
+					      ES8323_MASTERMODE_MSC, ES8323_MASTERMODE_MSC);
 		break;
 	case SND_SOC_DAIFMT_BC_FC:
-		iface &= 0x7f;
+		/* Slave serial port mode */
+		snd_soc_component_update_bits(component, ES8323_MASTERMODE,
+					      ES8323_MASTERMODE_MSC, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -441,55 +496,47 @@ static int es8323_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		adciface &= 0xfc;
-		daciface &= 0xf8;
+		format_mode = ES8323_FMT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		adciface &= 0xfd;
-		daciface &= 0xf9;
+		format_mode = ES8323_FMT_LEFT_J;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		adciface &= 0xfe;
-		daciface &= 0xfa;
+		format_mode = ES8323_FMT_RIGHT_J;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		adciface &= 0xff;
-		daciface &= 0xfb;
+		format_mode = ES8323_FMT_DSP;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	snd_soc_component_write_field(component, ES8323_ADCCONTROL4,
+				      ES8323_ADCCONTROL4_ADCFORMAT, format_mode);
+	snd_soc_component_write_field(component, ES8323_DACCONTROL1,
+				      ES8323_DACCONTROL1_DACFORMAT, format_mode);
 
 	/* clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		iface &= 0xdf;
-		adciface &= 0xdf;
-		daciface &= 0xbf;
+	case SND_SOC_DAIFMT_IB_NF:
+		inv_mode = 0;
 		break;
 	case SND_SOC_DAIFMT_IB_IF:
-		iface |= 0x20;
-		adciface |= 0x20;
-		daciface |= 0x40;
-		break;
-	case SND_SOC_DAIFMT_IB_NF:
-		iface |= 0x20;
-		adciface &= 0xdf;
-		daciface &= 0xbf;
-		break;
 	case SND_SOC_DAIFMT_NB_IF:
-		iface &= 0xdf;
-		adciface |= 0x20;
-		daciface |= 0x40;
+		inv_mode = 1;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_component_write(component, ES8323_MASTERMODE, iface);
-	snd_soc_component_write(component, ES8323_ADC_IFACE, adciface);
-	snd_soc_component_write(component, ES8323_DAC_IFACE, daciface);
+	snd_soc_component_update_bits(component, ES8323_MASTERMODE,
+				      ES8323_MASTERMODE_BCLKINV, inv_mode);
+	snd_soc_component_update_bits(component, ES8323_ADCCONTROL4,
+				      ES8323_ADCCONTROL4_ADCLRP, inv_mode);
+	snd_soc_component_update_bits(component, ES8323_DACCONTROL1,
+				      ES8323_DACCONTROL1_DACLRP, inv_mode);
 
 	return 0;
 }
@@ -515,66 +562,65 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
-	u16 srate = snd_soc_component_read(component, ES8323_MASTERMODE) & 0x80;
-	u16 adciface = snd_soc_component_read(component, ES8323_ADC_IFACE) & 0xe3;
-	u16 daciface = snd_soc_component_read(component, ES8323_DAC_IFACE) & 0xc7;
+	u8 wl_mode, fs;
 	int coeff;
 
 	coeff = get_coeff(es8323->sysclk, params_rate(params));
 	if (coeff < 0) {
 		coeff = get_coeff(es8323->sysclk / 2, params_rate(params));
-		srate |= 0x40;
+		if (coeff < 0) {
+			dev_err(component->dev,
+				"Unable to configure sample rate %dHz with %dHz MCLK\n",
+				params_rate(params), es8323->sysclk);
+			return coeff;
+		}
+
+		snd_soc_component_update_bits(component, ES8323_MASTERMODE,
+					      ES8323_MASTERMODE_MCLKDIV2,
+					      ES8323_MASTERMODE_MCLKDIV2);
 	}
 
-	if (coeff < 0) {
-		dev_err(component->dev,
-			"Unable to configure sample rate %dHz with %dHz MCLK\n",
-			params_rate(params), es8323->sysclk);
-		return coeff;
-	}
+	fs = FIELD_PREP(ES8323_DACCONTROL2_DACFSMODE, es8323_coeff_div[coeff].usb)
+	   | FIELD_PREP(ES8323_DACCONTROL2_DACFSRATIO, es8323_coeff_div[coeff].sr);
 
-	/* bit size */
+	snd_soc_component_write_field(component, ES8323_ADCCONTROL5,
+				      ES8323_ADCCONTROL5_ADCFS_MASK, fs);
+
+	snd_soc_component_write_field(component, ES8323_DACCONTROL2,
+				      ES8323_DACCONTROL2_DACFS_MASK, fs);
+
+	/* serial audio data word length */
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		adciface |= 0xc;
-		daciface |= 0x18;
+		wl_mode = ES8323_S16_LE;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		adciface |= 0x4;
-		daciface |= 0x8;
+		wl_mode = ES8323_S20_LE;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
+		wl_mode = ES8323_S24_LE;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		adciface |= 0x10;
-		daciface |= 0x20;
+		wl_mode = ES8323_S32_LE;
 		break;
+	default:
+		return -EINVAL;
 	}
 
-	snd_soc_component_write(component, ES8323_DAC_IFACE, daciface);
-	snd_soc_component_write(component, ES8323_ADC_IFACE, adciface);
+	snd_soc_component_write_field(component, ES8323_ADCCONTROL4,
+				      ES8323_ADCCONTROL4_ADCWL, wl_mode);
 
-	snd_soc_component_write(component, ES8323_MASTERMODE, srate);
-	snd_soc_component_write(component, ES8323_ADCCONTROL5,
-				es8323_coeff_div[coeff].sr |
-				(es8323_coeff_div[coeff].usb) << 4);
-	snd_soc_component_write(component, ES8323_DACCONTROL2,
-				es8323_coeff_div[coeff].sr |
-				(es8323_coeff_div[coeff].usb) << 4);
-
-	snd_soc_component_write(component, ES8323_DACPOWER, 0x3c);
+	snd_soc_component_write_field(component, ES8323_DACCONTROL1,
+				      ES8323_DACCONTROL1_DACWL, wl_mode);
 
 	return 0;
 }
 
 static int es8323_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct snd_soc_component *component = dai->component;
-	u32 val = mute ? 0x6 : 0x2;
-
-	snd_soc_component_write(component, ES8323_DAC_MUTE, val);
-
-	return 0;
+	return snd_soc_component_update_bits(dai->component, ES8323_DACCONTROL3,
+					     ES8323_DACCONTROL3_DACMUTE,
+					     mute ? ES8323_DACCONTROL3_DACMUTE : 0);
 }
 
 static const struct snd_soc_dai_ops es8323_ops = {
@@ -613,8 +659,6 @@ static int es8323_probe(struct snd_soc_component *component)
 	struct es8323_priv *es8323 = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	es8323->component = component;
-
 	es8323->mclk = devm_clk_get_optional(component->dev, "mclk");
 	if (IS_ERR(es8323->mclk)) {
 		dev_err(component->dev, "unable to get mclk\n");
@@ -631,7 +675,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	}
 
 	snd_soc_component_write(component, ES8323_CONTROL2, 0x60);
-	snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
+	snd_soc_component_write(component, ES8323_DACCONTROL21, 0x80);
 
 	return 0;
 }
@@ -644,37 +688,23 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		break;
+	case SND_SOC_BIAS_PREPARE:
 		ret = clk_prepare_enable(es8323->mclk);
 		if (ret)
 			return ret;
 
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xf0);
-		usleep_range(18000, 20000);
-		snd_soc_component_write(component, ES8323_DACPOWER, 0x3c);
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7c);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0x09);
-		snd_soc_component_write(component, ES8323_ADCCONTROL14, 0x00);
-		break;
-	case SND_SOC_BIAS_PREPARE:
+		snd_soc_component_update_bits(component, ES8323_ADCPOWER,
+					      ES8323_ADCPOWER_PDNADCBIS, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7c);
-		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_OFF:
-		clk_disable_unprepare(es8323->mclk);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0xff);
-		snd_soc_component_write(component, ES8323_DACPOWER, 0xC0);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0xff);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xff);
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7b);
+		clk_disable_unprepare(es8323->mclk);
 		break;
 	}
 

@@ -2,7 +2,7 @@
 //
 // tas2781-fmwlib.c -- TASDEVICE firmware support
 //
-// Copyright 2023 - 2025 Texas Instruments, Inc.
+// Copyright 2023 - 2026 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 // Author: Baojun Xu <baojun.xu@ti.com>
@@ -79,6 +79,14 @@
 #define POST_SOFTWARE_RESET_DEVICE_B			0x46
 #define POST_SOFTWARE_RESET_DEVICE_C			0x47
 #define POST_SOFTWARE_RESET_DEVICE_D			0x48
+
+#define COPY_CAL_DATA(i) \
+	do { \
+		calbin_data[i + 1] = data[7]; \
+		calbin_data[i + 2] = data[8]; \
+		calbin_data[i + 3] = data[9]; \
+		calbin_data[i + 4] = data[10]; \
+	} while (0)
 
 struct tas_crc {
 	unsigned char offset;
@@ -1952,23 +1960,6 @@ static int dspfw_default_callback(struct tasdevice_priv *tas_priv,
 	return rc;
 }
 
-static int load_calib_data(struct tasdevice_priv *tas_priv,
-	struct tasdevice_data *dev_data)
-{
-	struct tasdev_blk *block;
-	unsigned int i;
-	int ret = 0;
-
-	for (i = 0; i < dev_data->nr_blk; i++) {
-		block = &(dev_data->dev_blks[i]);
-		ret = tasdevice_load_block(tas_priv, block);
-		if (ret < 0)
-			break;
-	}
-
-	return ret;
-}
-
 static int fw_parse_header(struct tasdevice_priv *tas_priv,
 	struct tasdevice_fw *tas_fmw, const struct firmware *fmw, int offset)
 {
@@ -2029,6 +2020,103 @@ out:
 	return offset;
 }
 
+static inline int check_cal_bin_data(struct device *dev,
+	const unsigned char *data, const char *name)
+{
+	if (data[2] != 0x85 || data[1] != 4) {
+		dev_err(dev, "Invalid cal bin file in %s\n", name);
+		return -1;
+	}
+	return 0;
+}
+
+static void calbin_conversion(struct tasdevice_priv *priv,
+	struct tasdevice_fw *tas_fmw)
+{
+	struct calidata *cali_data = &priv->cali_data;
+	unsigned char *calbin_data = cali_data->data;
+	struct cali_reg *p = &cali_data->cali_reg_array;
+	struct tasdevice_calibration *calibration;
+	struct tasdevice_data *img_data;
+	struct tasdev_blk *blk;
+	unsigned char *data;
+	int chn, k;
+
+	if (cali_data->total_sz != priv->ndev *
+		(cali_data->cali_dat_sz_per_dev + 1)) {
+		dev_err(priv->dev, "%s: cali_data size err\n",
+			__func__);
+		return;
+	}
+	calibration = &(tas_fmw->calibrations[0]);
+	img_data = &(calibration->dev_data);
+
+	if (img_data->nr_blk != 1) {
+		dev_err(priv->dev, "%s: Invalid nr_blk, wrong cal bin\n",
+			__func__);
+		return;
+	}
+
+	blk = &(img_data->dev_blks[0]);
+	if (blk->nr_cmds != 15) {
+		dev_err(priv->dev, "%s: Invalid nr_cmds, wrong cal bin\n",
+			__func__);
+		return;
+	}
+
+	switch (blk->type) {
+	case COEFF_DEVICE_A:
+		chn = 0;
+		break;
+	case COEFF_DEVICE_B:
+		chn = 1;
+		break;
+	case COEFF_DEVICE_C:
+		chn = 2;
+		break;
+	case COEFF_DEVICE_D:
+		chn = 3;
+		break;
+	default:
+		dev_err(priv->dev, "%s: Other Type = 0x%02x\n",
+			__func__, blk->type);
+		return;
+	}
+	k = chn * (cali_data->cali_dat_sz_per_dev + 1);
+
+	data = blk->data;
+	if (check_cal_bin_data(priv->dev, data, "r0_reg") < 0)
+		return;
+	p->r0_reg = TASDEVICE_REG(data[4], data[5], data[6]);
+	COPY_CAL_DATA(k);
+
+	data = blk->data + 12;
+	if (check_cal_bin_data(priv->dev, data, "r0_low_reg") < 0)
+		return;
+	p->r0_low_reg = TASDEVICE_REG(data[4], data[5], data[6]);
+	COPY_CAL_DATA(k + 4);
+
+	data = blk->data + 24;
+	if (check_cal_bin_data(priv->dev, data, "invr0_reg") < 0)
+		return;
+	p->invr0_reg = TASDEVICE_REG(data[4], data[5], data[6]);
+	COPY_CAL_DATA(k + 8);
+
+	data = blk->data + 36;
+	if (check_cal_bin_data(priv->dev, data, "pow_reg") < 0)
+		return;
+	p->pow_reg = TASDEVICE_REG(data[4], data[5], data[6]);
+	COPY_CAL_DATA(k + 12);
+
+	data = blk->data + 48;
+	if (check_cal_bin_data(priv->dev, data, "tlimit_reg") < 0)
+		return;
+	p->tlimit_reg = TASDEVICE_REG(data[4], data[5], data[6]);
+	COPY_CAL_DATA(k + 16);
+
+	calbin_data[k] = chn;
+}
+
 /* When calibrated data parsing error occurs, DSP can still work with default
  * calibrated data, memory resource related to calibrated data will be
  * released in the tasdevice_codec_remove.
@@ -2086,6 +2174,7 @@ static int fw_parse_calibration_data(struct tasdevice_priv *tas_priv,
 			goto out;
 	}
 
+	calbin_conversion(tas_priv, tas_fmw);
 out:
 	return offset;
 }
@@ -2371,25 +2460,12 @@ static int tasdevice_load_data(struct tasdevice_priv *tas_priv,
 
 static void tasdev_load_calibrated_data(struct tasdevice_priv *priv, int i)
 {
-	struct tasdevice_fw *cal_fmw = priv->tasdevice[i].cali_data_fmw;
 	struct calidata *cali_data = &priv->cali_data;
 	struct cali_reg *p = &cali_data->cali_reg_array;
 	unsigned char *data = cali_data->data;
-	struct tasdevice_calibration *cal;
 	int k = i * (cali_data->cali_dat_sz_per_dev + 1);
 	int rc;
 
-	/* Load the calibrated data from cal bin file */
-	if (!priv->is_user_space_calidata && cal_fmw) {
-		cal = cal_fmw->calibrations;
-
-		if (cal)
-			load_calib_data(priv, &cal->dev_data);
-		return;
-	}
-	if (!priv->is_user_space_calidata)
-		return;
-	/* load calibrated data from user space */
 	if (data[k] != i) {
 		dev_err(priv->dev, "%s: no cal-data for dev %d from usr-spc\n",
 			__func__, i);

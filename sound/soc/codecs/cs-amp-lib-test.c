@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
+#include <linux/pci_ids.h>
 #include <linux/platform_device.h>
 #include <linux/random.h>
 #include <sound/cs-amp-lib.h>
@@ -56,6 +57,8 @@ struct cs_amp_lib_test_ctl_write_entry {
 struct cs_amp_lib_test_param {
 	int num_amps;
 	int amp_index;
+	char *vendor_sysid;
+	char *expected_sysid;
 };
 
 static struct cirrus_amp_efi_data *cs_amp_lib_test_cal_blob_dup(struct kunit *test)
@@ -2305,6 +2308,98 @@ static void cs_amp_lib_test_spkid_hp_31(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 1, cs_amp_get_vendor_spkid(dev));
 }
 
+static efi_status_t cs_amp_lib_test_get_efi_vendor_sysid(efi_char16_t *name,
+							 efi_guid_t *guid,
+							 u32 *returned_attr,
+							 unsigned long *size,
+							 void *buf)
+{
+	struct kunit *test = kunit_get_current_test();
+	const struct cs_amp_lib_test_param *param = test->param_value;
+	unsigned int len;
+
+	KUNIT_ASSERT_NOT_NULL(test, param->vendor_sysid);
+	len = strlen(param->vendor_sysid);
+
+	if (*size < len) {
+		*size = len;
+		return EFI_BUFFER_TOO_SMALL;
+	}
+
+	KUNIT_ASSERT_NOT_NULL(test, buf);
+	memcpy(buf, param->vendor_sysid, len);
+
+	return EFI_SUCCESS;
+}
+
+/* Fetch SSIDExV2 string from UEFI */
+static void cs_amp_lib_test_ssidexv2_fetch(struct kunit *test)
+{
+	const struct cs_amp_lib_test_param *param = test->param_value;
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+	const char *got;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_vendor_sysid);
+
+	got = cs_amp_devm_get_vendor_specific_variant_id(dev, PCI_VENDOR_ID_DELL, 0xabcd);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, got);
+	KUNIT_EXPECT_STREQ(test, got, param->expected_sysid);
+}
+
+/* Invalid SSIDExV2 string should be ignored */
+static void cs_amp_lib_test_ssidexv2_fetch_invalid(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+	const char *got;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_vendor_sysid);
+
+	got = cs_amp_devm_get_vendor_specific_variant_id(dev, PCI_VENDOR_ID_DELL, 0xabcd);
+	KUNIT_EXPECT_NOT_NULL(test, got);
+	KUNIT_EXPECT_EQ(test, PTR_ERR_OR_ZERO(got), -ENOENT);
+}
+
+static void cs_amp_lib_test_ssidexv2_not_dell(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+	const char *got;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_vendor_sysid);
+
+	/* Not returned if SSID vendor is not Dell */
+	got = cs_amp_devm_get_vendor_specific_variant_id(dev, PCI_VENDOR_ID_CIRRUS, 0xabcd);
+	KUNIT_EXPECT_NOT_NULL(test, got);
+	KUNIT_EXPECT_EQ(test, PTR_ERR_OR_ZERO(got), -ENOENT);
+}
+
+static void cs_amp_lib_test_vendor_variant_id_not_found(struct kunit *test)
+{
+	struct cs_amp_lib_test_priv *priv = test->priv;
+	struct device *dev = &priv->amp_dev->dev;
+	const char *got;
+
+	kunit_activate_static_stub(test,
+				   cs_amp_test_hooks->get_efi_variable,
+				   cs_amp_lib_test_get_efi_variable_none);
+
+	got = cs_amp_devm_get_vendor_specific_variant_id(dev, PCI_VENDOR_ID_DELL, 0xabcd);
+	KUNIT_EXPECT_NOT_NULL(test, got);
+	KUNIT_EXPECT_EQ(test, PTR_ERR_OR_ZERO(got), -ENOENT);
+
+	got = cs_amp_devm_get_vendor_specific_variant_id(dev, -1, -1);
+	KUNIT_EXPECT_NOT_NULL(test, got);
+	KUNIT_EXPECT_EQ(test, PTR_ERR_OR_ZERO(got), -ENOENT);
+}
+
 static int cs_amp_lib_test_case_init(struct kunit *test)
 {
 	struct cs_amp_lib_test_priv *priv;
@@ -2375,6 +2470,71 @@ static void cs_amp_lib_test_get_cal_param_desc(const struct cs_amp_lib_test_para
 KUNIT_ARRAY_PARAM(cs_amp_lib_test_get_cal, cs_amp_lib_test_get_cal_param_cases,
 		  cs_amp_lib_test_get_cal_param_desc);
 
+static const struct cs_amp_lib_test_param cs_amp_lib_test_ssidexv2_param_cases[] = {
+	{ .vendor_sysid = "abcd_00",		.expected_sysid = "00" },
+	{ .vendor_sysid = "abcd_01",		.expected_sysid = "01" },
+	{ .vendor_sysid = "abcd_XY",		.expected_sysid = "XY" },
+
+	{ .vendor_sysid = "1028abcd_00",	.expected_sysid = "00" },
+	{ .vendor_sysid = "1028abcd_01",	.expected_sysid = "01" },
+	{ .vendor_sysid = "1028abcd_XY",	.expected_sysid = "XY" },
+
+	{ .vendor_sysid = "abcd_00_WF",		.expected_sysid = "00" },
+	{ .vendor_sysid = "abcd_01_WF",		.expected_sysid = "01" },
+	{ .vendor_sysid = "abcd_XY_WF",		.expected_sysid = "XY" },
+
+	{ .vendor_sysid = "1028abcd_00_WF",	.expected_sysid = "00" },
+	{ .vendor_sysid = "1028abcd_01_WF",	.expected_sysid = "01" },
+	{ .vendor_sysid = "1028abcd_XY_WF",	.expected_sysid = "XY" },
+
+	{ .vendor_sysid = "abcd_00_AA_BB",	.expected_sysid = "00" },
+	{ .vendor_sysid = "abcd_01_AA_BB",	.expected_sysid = "01" },
+	{ .vendor_sysid = "abcd_XY_AA_BB",	.expected_sysid = "XY" },
+
+	{ .vendor_sysid = "1028abcd_00_AA_BB",	.expected_sysid = "00" },
+	{ .vendor_sysid = "1028abcd_01_AA_BB",	.expected_sysid = "01" },
+	{ .vendor_sysid = "1028abcd_XY_A_BB",	.expected_sysid = "XY" },
+};
+
+static void cs_amp_lib_test_ssidexv2_param_desc(const struct cs_amp_lib_test_param *param,
+						char *desc)
+{
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "vendor_sysid:'%s' expected_sysid:'%s'",
+		 param->vendor_sysid, param->expected_sysid);
+}
+
+KUNIT_ARRAY_PARAM(cs_amp_lib_test_ssidexv2, cs_amp_lib_test_ssidexv2_param_cases,
+		  cs_amp_lib_test_ssidexv2_param_desc);
+
+static const struct cs_amp_lib_test_param cs_amp_lib_test_ssidexv2_invalid_param_cases[] = {
+	{ .vendor_sysid = "abcd" },
+	{ .vendor_sysid = "abcd_0" },
+	{ .vendor_sysid = "abcd_1" },
+	{ .vendor_sysid = "abcd_0_1" },
+	{ .vendor_sysid = "abcd_1_1" },
+	{ .vendor_sysid = "abcd_1_X" },
+	{ .vendor_sysid = "abcd_1_X" },
+	{ .vendor_sysid = "abcd_000" },
+	{ .vendor_sysid = "abcd_010" },
+	{ .vendor_sysid = "abcd_000_01" },
+	{ .vendor_sysid = "abcd_000_01" },
+
+	{ .vendor_sysid = "1234abcd" },
+	{ .vendor_sysid = "1234abcd_0" },
+	{ .vendor_sysid = "1234abcd_1" },
+	{ .vendor_sysid = "1234abcd_0_1" },
+	{ .vendor_sysid = "1234abcd_1_1" },
+	{ .vendor_sysid = "1234abcd_1_X" },
+	{ .vendor_sysid = "1234abcd_1_X" },
+	{ .vendor_sysid = "1234abcd_000" },
+	{ .vendor_sysid = "1234abcd_010" },
+	{ .vendor_sysid = "1234abcd_000_01" },
+	{ .vendor_sysid = "1234abcd_000_01" },
+};
+
+KUNIT_ARRAY_PARAM(cs_amp_lib_test_ssidexv2_invalid, cs_amp_lib_test_ssidexv2_invalid_param_cases,
+		  cs_amp_lib_test_ssidexv2_param_desc);
+
 static struct kunit_case cs_amp_lib_test_cases[] = {
 	/* Tests for getting calibration data from EFI */
 	KUNIT_CASE(cs_amp_lib_test_cal_data_too_short_test),
@@ -2433,6 +2593,15 @@ static struct kunit_case cs_amp_lib_test_cases[] = {
 	KUNIT_CASE(cs_amp_lib_test_spkid_lenovo_oversize),
 	KUNIT_CASE(cs_amp_lib_test_spkid_hp_30),
 	KUNIT_CASE(cs_amp_lib_test_spkid_hp_31),
+
+	/* Test cases for SSIDExV2 */
+	KUNIT_CASE_PARAM(cs_amp_lib_test_ssidexv2_fetch,
+			 cs_amp_lib_test_ssidexv2_gen_params),
+	KUNIT_CASE_PARAM(cs_amp_lib_test_ssidexv2_fetch_invalid,
+			 cs_amp_lib_test_ssidexv2_invalid_gen_params),
+	KUNIT_CASE_PARAM(cs_amp_lib_test_ssidexv2_not_dell,
+			 cs_amp_lib_test_ssidexv2_gen_params),
+	KUNIT_CASE(cs_amp_lib_test_vendor_variant_id_not_found),
 
 	{ } /* terminator */
 };

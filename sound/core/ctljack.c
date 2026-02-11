@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/control.h>
 
@@ -46,17 +47,20 @@ static int get_available_index(struct snd_card *card, const char *name)
 	return sid.index;
 }
 
-static void jack_kctl_name_gen(char *name, const char *src_name, int size)
+static void jack_kctl_name_gen(char *name, const char *src_name, size_t size)
 {
 	size_t count = strlen(src_name);
-	bool need_cat = true;
+	const char *suf = " Jack";
+	size_t suf_len = strlen(suf);
+	bool append_suf = true;
 
-	/* remove redundant " Jack" from src_name */
-	if (count >= 5)
-		need_cat = strncmp(&src_name[count - 5], " Jack", 5) ? true : false;
+	if (count >= suf_len)
+		append_suf = strncmp(&src_name[count - suf_len], suf, suf_len) != 0;
 
-	snprintf(name, size, need_cat ? "%s Jack" : "%s", src_name);
-
+	if (append_suf)
+		snprintf(name, size, "%s%s", src_name, suf);
+	else
+		strscpy(name, src_name, size);
 }
 
 struct snd_kcontrol *

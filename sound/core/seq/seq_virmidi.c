@@ -361,13 +361,13 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 {
 	int client;
 	struct snd_seq_port_callback pcallbacks;
-	struct snd_seq_port_info *pinfo __free(kfree) = NULL;
 	int err;
 
 	if (rdev->client >= 0)
 		return 0;
 
-	pinfo = kzalloc(sizeof(*pinfo), GFP_KERNEL);
+	struct snd_seq_port_info *pinfo __free(kfree) =
+		kzalloc(sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
 		return -ENOMEM;
 

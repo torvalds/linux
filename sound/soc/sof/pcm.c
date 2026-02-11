@@ -88,9 +88,9 @@ sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_run
 
 		spcm->stream[dir].list = list;
 
-		ret = sof_widget_list_setup(sdev, spcm, params, platform_params, dir);
+		ret = sof_widget_list_prepare(sdev, spcm, params, platform_params, dir);
 		if (ret < 0) {
-			spcm_err(spcm, dir, "Widget list set up failed\n");
+			spcm_err(spcm, dir, "widget list prepare failed\n");
 			spcm->stream[dir].list = NULL;
 			snd_soc_dapm_dai_free_widgets(&list);
 			return ret;
@@ -100,15 +100,30 @@ sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_run
 	return 0;
 }
 
+static struct snd_sof_widget *snd_sof_find_swidget_by_comp_id(struct snd_sof_dev *sdev,
+							      int comp_id)
+{
+	struct snd_sof_widget *swidget;
+
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (comp_id == swidget->comp_id)
+			return swidget;
+	}
+
+	return NULL;
+}
+
 static int sof_pcm_hw_params(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
-	struct snd_sof_platform_stream_params platform_params = { 0 };
+	struct snd_sof_platform_stream_params *platform_params;
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_sof_widget *host_widget;
 	struct snd_sof_pcm *spcm;
 	int ret;
 
@@ -122,6 +137,16 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	spcm_dbg(spcm, substream->stream, "Entry: hw_params\n");
 
+	if (!sdev->dspless_mode_selected) {
+		/*
+		 * Make sure that the DSP is booted up, which might not be the
+		 * case if the on-demand DSP boot is used
+		 */
+		ret = snd_sof_boot_dsp_firmware(sdev);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.
@@ -134,7 +159,8 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 		spcm->prepared[substream->stream] = false;
 	}
 
-	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
+	platform_params = &spcm->platform_params[substream->stream];
+	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, platform_params);
 	if (ret < 0) {
 		spcm_err(spcm, substream->stream, "platform hw params failed\n");
 		return ret;
@@ -142,10 +168,25 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
 	if (!spcm->stream[substream->stream].list) {
-		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, params, &platform_params,
+		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, params, platform_params,
 						      substream->stream);
 		if (ret < 0)
 			return ret;
+	}
+
+	if (!sdev->dspless_mode_selected) {
+		int host_comp_id = spcm->stream[substream->stream].comp_id;
+
+		host_widget = snd_sof_find_swidget_by_comp_id(sdev, host_comp_id);
+		if (!host_widget) {
+			spcm_err(spcm, substream->stream,
+				 "failed to find host widget with comp_id %d\n", host_comp_id);
+			return -EINVAL;
+		}
+
+		/* set the host DMA ID */
+		if (tplg_ops && tplg_ops->host_config)
+			tplg_ops->host_config(sdev, host_widget, platform_params);
 	}
 
 	/* create compressed page table for audio firmware */
@@ -158,14 +199,6 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 		if (ret < 0)
 			return ret;
 	}
-
-	if (pcm_ops && pcm_ops->hw_params) {
-		ret = pcm_ops->hw_params(component, substream, params, &platform_params);
-		if (ret < 0)
-			return ret;
-	}
-
-	spcm->prepared[substream->stream] = true;
 
 	/* save pcm hw_params */
 	memcpy(&spcm->params[substream->stream], params, sizeof(*params));
@@ -271,6 +304,9 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 
 	ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream, true);
 
+	/* unprepare and free the list of DAPM widgets */
+	sof_widget_list_unprepare(sdev, spcm, substream->stream);
+
 	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
 	return ret;
@@ -281,7 +317,12 @@ static int sof_pcm_prepare(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
+	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
+	struct snd_sof_platform_stream_params *platform_params;
+	struct snd_soc_dapm_widget_list *list;
+	struct snd_pcm_hw_params *params;
 	struct snd_sof_pcm *spcm;
+	int dir = substream->stream;
 	int ret;
 
 	/* nothing to do for BE */
@@ -307,14 +348,32 @@ static int sof_pcm_prepare(struct snd_soc_component *component,
 			return ret;
 	}
 
-	/* set hw_params */
-	ret = sof_pcm_hw_params(component,
-				substream, &spcm->params[substream->stream]);
+	ret = sof_pcm_hw_params(component, substream, &spcm->params[substream->stream]);
 	if (ret < 0) {
 		spcm_err(spcm, substream->stream,
 			 "failed to set hw_params after resume\n");
 		return ret;
 	}
+
+	list = spcm->stream[dir].list;
+	params = &spcm->params[substream->stream];
+	platform_params = &spcm->platform_params[substream->stream];
+	ret = sof_widget_list_setup(sdev, spcm, params, platform_params, dir);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed widget list set up for pcm %d dir %d\n",
+			spcm->pcm.pcm_id, dir);
+		spcm->stream[dir].list = NULL;
+		snd_soc_dapm_dai_free_widgets(&list);
+		return ret;
+	}
+
+	if (pcm_ops && pcm_ops->hw_params) {
+		ret = pcm_ops->hw_params(component, substream, params, platform_params);
+		if (ret < 0)
+			return ret;
+	}
+
+	spcm->prepared[substream->stream] = true;
 
 	return 0;
 }

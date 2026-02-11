@@ -299,7 +299,6 @@ static void remove_trail_spaces(char *str)
 
 static int parse_hints(struct hda_codec *codec, const char *buf)
 {
-	char *key __free(kfree) = NULL;
 	char *val;
 	struct hda_hint *hint;
 
@@ -308,7 +307,9 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return 0;
 	if (*buf == '=')
 		return -EINVAL;
-	key = kstrndup_noeol(buf, 1024);
+
+	char *key __free(kfree) =
+		kstrndup_noeol(buf, 1024);
 	if (!key)
 		return -ENOMEM;
 	/* extract key and val */

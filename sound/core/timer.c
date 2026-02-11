@@ -1614,12 +1614,12 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 static int snd_timer_user_ginfo(struct file *file,
 				struct snd_timer_ginfo __user *_ginfo)
 {
-	struct snd_timer_ginfo *ginfo __free(kfree) = NULL;
 	struct snd_timer_id tid;
 	struct snd_timer *t;
 	struct list_head *p;
+	struct snd_timer_ginfo *ginfo __free(kfree) =
+		memdup_user(_ginfo, sizeof(*ginfo));
 
-	ginfo = memdup_user(_ginfo, sizeof(*ginfo));
 	if (IS_ERR(ginfo))
 		return PTR_ERR(ginfo);
 
@@ -1756,7 +1756,6 @@ static int snd_timer_user_info(struct file *file,
 			       struct snd_timer_info __user *_info)
 {
 	struct snd_timer_user *tu;
-	struct snd_timer_info *info __free(kfree) = NULL;
 	struct snd_timer *t;
 
 	tu = file->private_data;
@@ -1766,7 +1765,8 @@ static int snd_timer_user_info(struct file *file,
 	if (!t)
 		return -EBADFD;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	struct snd_timer_info *info __free(kfree) =
+		kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	info->card = t->card ? t->card->number : -1;
@@ -2192,10 +2192,10 @@ static int snd_utimer_ioctl_create(struct file *file,
 				   struct snd_timer_uinfo __user *_utimer_info)
 {
 	struct snd_utimer *utimer;
-	struct snd_timer_uinfo *utimer_info __free(kfree) = NULL;
 	int err, timer_fd;
+	struct snd_timer_uinfo *utimer_info __free(kfree) =
+		memdup_user(_utimer_info, sizeof(*utimer_info));
 
-	utimer_info = memdup_user(_utimer_info, sizeof(*utimer_info));
 	if (IS_ERR(utimer_info))
 		return PTR_ERR(utimer_info);
 

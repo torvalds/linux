@@ -171,7 +171,12 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 		dev_err(sdev->dev, "enabling device failed: %d\n", ret);
 		goto error;
 	}
-	ret = sof_ipc_tx_message_no_reply(sdev->ipc, msg, msg->hdr.size);
+
+	/* Make sure the DSP/firmware is booted up */
+	ret = snd_sof_boot_dsp_firmware(sdev);
+	if (!ret)
+		ret = sof_ipc_tx_message_no_reply(sdev->ipc, msg, msg->hdr.size);
+
 	pm_runtime_put_autosuspend(sdev->dev);
 
 error:

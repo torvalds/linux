@@ -997,6 +997,7 @@ static const struct regmap_config tegra210_regmap_conf = {
 	.volatile_reg		= tegra210_i2s_volatile_reg,
 	.reg_defaults		= tegra210_i2s_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tegra210_i2s_reg_defaults),
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 
@@ -1044,6 +1045,7 @@ static const struct regmap_config tegra264_regmap_conf = {
 	.volatile_reg		= tegra264_i2s_volatile_reg,
 	.reg_defaults		= tegra264_i2s_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tegra264_i2s_reg_defaults),
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 

@@ -52,6 +52,90 @@
 #define AW87390_I2C_NAME		"aw87390"
 #define AW87390_ACF_FILE		"aw87390_acf.bin"
 
+#define AW87391_SYSCTRL_REG		(0x01)
+#define AW87391_REG_VER_SEL_LOW		(0 << 6)
+#define AW87391_REG_VER_SEL_NORMAL	(1 << 6)
+#define AW87391_REG_VER_SEL_SUPER	(2 << 6)
+#define AW87391_REG_EN_ADAP		BIT(5)
+#define AW87391_REG_EN_2X		BIT(4)
+#define AW87391_EN_SPK			BIT(3)
+#define AW87391_EN_PA			BIT(2)
+#define AW87391_REG_EN_CP		BIT(1)
+#define AW87391_EN_SW			BIT(0)
+
+#define AW87391_CP_REG                  (0x02)
+#define AW87391_REG_CP_OVP_6_50V	0
+#define AW87391_REG_CP_OVP_6_75V	1
+#define AW87391_REG_CP_OVP_7_00V	2
+#define AW87391_REG_CP_OVP_7_25V	3
+#define AW87391_REG_CP_OVP_7_50V	4
+#define AW87391_REG_CP_OVP_7_75V	5
+#define AW87391_REG_CP_OVP_8_00V	6
+#define AW87391_REG_CP_OVP_8_25V	7
+#define AW87391_REG_CP_OVP_8_50V	8
+
+#define AW87391_PAG_REG                 (0x03)
+#define AW87391_GAIN_12DB		0
+#define AW87391_GAIN_15DB		1
+#define AW87391_GAIN_18DB		2
+#define AW87391_GAIN_21DB		3
+#define AW87391_GAIN_24DB		4
+
+#define AW87391_AGCPO_REG               (0x04)
+#define AW87391_AK1_S_016		(2 << 5)
+#define AW87391_AK1_S_032		(3 << 5)
+#define AW87391_PD_AGC1_PWRDN		BIT(4)
+/* AGC2PO supports values between 500mW (0000) to 1600mW (1011) */
+#define AW87391_AGC2PO_MW(n)		((n / 100) - 5)
+
+#define AW87391_AGC2PA_REG              (0x05)
+#define AW87391_RK_S_5_12		(0 << 5)
+#define AW87391_RK_S_10_24		(1 << 5)
+#define AW87391_RK_S_20_48		(2 << 5)
+#define AW87391_RK_S_41			(3 << 5)
+#define AW87391_RK_S_82			(4 << 5)
+#define AW87391_RK_S_164		(5 << 5)
+#define AW87391_RK_S_328		(6 << 5)
+#define AW87391_RK_S_656		(7 << 5)
+#define AW87391_AK2_S_1_28		(0 << 2)
+#define AW87391_AK2_S_2_56		(1 << 2)
+#define AW87391_AK2_S_10_24		(2 << 2)
+#define AW87391_AK2_S_41		(3 << 2)
+#define AW87391_AK2_S_82		(4 << 2)
+#define AW87391_AK2_S_164		(5 << 2)
+#define AW87391_AK2_S_328		(6 << 2)
+#define AW87391_AK2_S_656		(7 << 2)
+#define AW87391_AK2F_S_10_24		0
+#define AW87391_AK2F_S_20_48		1
+#define AW87391_AK2F_S_41		2
+#define AW87391_AK2F_S_82		3
+
+#define AW87391_SYSST_REG               (0x06)
+#define AW87391_UVLO			BIT(7)
+#define AW87391_OTN			BIT(6)
+#define AW87391_OC_FLAG			BIT(5)
+#define AW87391_ADAP_CP			BIT(4)
+#define AW87391_STARTOK			BIT(3)
+#define AW87391_CP_OVP			BIT(2)
+#define AW87391_PORN			BIT(1)
+
+#define AW87391_SYSINT_REG              (0x07)
+#define AW87391_UVLOI			BIT(7)
+#define AW87391_ONTI			BIT(6)
+#define AW87391_OC_FLAGI		BIT(5)
+#define AW87391_ADAP_CPI		BIT(4)
+#define AW87391_STARTOKI		BIT(3)
+#define AW87391_CP_OVPI			BIT(2)
+#define AW87391_PORNI			BIT(1)
+
+#define AW87391_DFT_THGEN0_REG          (0x63)
+#define AW87391_ADAPVTH_01W		(0 << 2)
+#define AW87391_ADAPVTH_02W		(1 << 2)
+#define AW87391_ADAPVTH_03W		(2 << 2)
+#define AW87391_ADAPVTH_04W		(3 << 2)
+
+#define AW87391_I2C_NAME                "aw87391"
+
 #define AW87390_PROFILE_EXT(xname, profile_info, profile_get, profile_set) \
 { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -63,6 +147,7 @@
 
 enum aw87390_id {
 	AW87390_CHIP_ID = 0x76,
+	AW87391_CHIP_ID = 0xc1,
 };
 
 enum {
@@ -80,6 +165,7 @@ struct aw87390 {
 	struct mutex lock;
 	struct regmap *regmap;
 	struct aw_container *aw_cfg;
+	struct regulator *vdd_reg;
 };
 
 #endif

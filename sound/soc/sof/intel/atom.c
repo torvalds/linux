@@ -143,9 +143,6 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 
 	/* reply message from DSP */
 	if (ipcx & SHIM_BYT_IPCX_DONE) {
-
-		spin_lock_irq(&sdev->ipc_lock);
-
 		/*
 		 * handle immediate reply from DSP core. If the msg is
 		 * found, set done bit in cmd_done which is called at the
@@ -153,11 +150,9 @@ irqreturn_t atom_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
+		guard(spinlock_irq)(&sdev->ipc_lock);
 		snd_sof_ipc_process_reply(sdev, ipcx);
-
 		atom_dsp_done(sdev);
-
-		spin_unlock_irq(&sdev->ipc_lock);
 	}
 
 	/* new message from DSP */

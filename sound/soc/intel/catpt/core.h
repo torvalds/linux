@@ -62,6 +62,7 @@ struct catpt_module_type {
 struct catpt_spec {
 	struct snd_soc_acpi_mach *machines;
 	u8 core_id;
+	const char *fw_name;
 	u32 host_dram_offset;
 	u32 host_iram_offset;
 	u32 host_shim_offset;
@@ -129,13 +130,13 @@ irqreturn_t catpt_dsp_irq_thread(int irq, void *dev_id);
  * HOST <-> DSP communication yet failure to process specific request.
  * Use below macro to convert returned non-zero values appropriately
  */
-#define CATPT_IPC_ERROR(err) (((err) < 0) ? (err) : -EREMOTEIO)
+#define CATPT_IPC_RET(ret)	(((ret) <= 0) ? (ret) : -EREMOTEIO)
 
 int catpt_dsp_send_msg_timeout(struct catpt_dev *cdev,
 			       struct catpt_ipc_msg request,
-			       struct catpt_ipc_msg *reply, int timeout);
+			       struct catpt_ipc_msg *reply, int timeout, const char *name);
 int catpt_dsp_send_msg(struct catpt_dev *cdev, struct catpt_ipc_msg request,
-		       struct catpt_ipc_msg *reply);
+		       struct catpt_ipc_msg *reply, const char *name);
 
 int catpt_first_boot_firmware(struct catpt_dev *cdev);
 int catpt_boot_firmware(struct catpt_dev *cdev, bool restore);

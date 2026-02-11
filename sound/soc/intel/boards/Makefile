@@ -69,5 +69,8 @@ obj-$(CONFIG_SND_SOC_INTEL_SOF_CIRRUS_COMMON) += snd-soc-intel-sof-cirrus-common
 snd-soc-intel-sof-nuvoton-common-y += sof_nuvoton_common.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_NUVOTON_COMMON) += snd-soc-intel-sof-nuvoton-common.o
 
+snd-soc-intel-sof-ti-common-y += sof_ti_common.o
+obj-$(CONFIG_SND_SOC_INTEL_SOF_TI_COMMON) += snd-soc-intel-sof-ti-common.o
+
 snd-soc-intel-sof-board-helpers-y += sof_board_helpers.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_BOARD_HELPERS) += snd-soc-intel-sof-board-helpers.o

@@ -54,10 +54,10 @@ static __poll_t odev_poll(struct file *file, poll_table * wait);
  */
 
 static struct snd_seq_driver seq_oss_synth_driver = {
+	.probe = snd_seq_oss_synth_probe,
+	.remove = snd_seq_oss_synth_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.probe = snd_seq_oss_synth_probe,
-		.remove = snd_seq_oss_synth_remove,
 	},
 	.id = SNDRV_SEQ_DEV_ID_OSS,
 	.argsize = sizeof(struct snd_seq_oss_reg),

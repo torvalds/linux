@@ -358,8 +358,6 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	int sdw_be_num = 0, dmic_num = 0;
 	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
-	struct asoc_sdw_endpoint *soc_ends __free(kfree) = NULL;
-	struct asoc_sdw_dailink *soc_dais __free(kfree) = NULL;
 	struct snd_soc_aux_dev *soc_aux;
 	struct snd_soc_codec_conf *codec_conf;
 	struct snd_soc_dai_link *dai_links;
@@ -380,12 +378,14 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 	num_confs = num_ends;
 
 	/* One per DAI link, worst case is a DAI link for every endpoint */
-	soc_dais = kcalloc(num_ends, sizeof(*soc_dais), GFP_KERNEL);
+	struct asoc_sdw_dailink *soc_dais __free(kfree) =
+		kcalloc(num_ends, sizeof(*soc_dais), GFP_KERNEL);
 	if (!soc_dais)
 		return -ENOMEM;
 
 	/* One per endpoint, ie. each DAI on each codec/amp */
-	soc_ends = kcalloc(num_ends, sizeof(*soc_ends), GFP_KERNEL);
+	struct asoc_sdw_endpoint *soc_ends __free(kfree) =
+		kcalloc(num_ends, sizeof(*soc_ends), GFP_KERNEL);
 	if (!soc_ends)
 		return -ENOMEM;
 

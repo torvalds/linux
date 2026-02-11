@@ -397,8 +397,6 @@ static int es8375_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_I2S:
 		codeciface &= 0xFC;
 		break;
-	case SND_SOC_DAIFMT_RIGHT_J:
-		return -EINVAL;
 	case SND_SOC_DAIFMT_LEFT_J:
 		codeciface &= 0xFC;
 		codeciface |= 0x01;

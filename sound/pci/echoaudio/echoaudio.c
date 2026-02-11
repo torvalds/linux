@@ -2159,7 +2159,7 @@ static int snd_echo_resume(struct device *dev)
 	 */
 	pipe_alloc_mask = chip->pipe_alloc_mask;
 	chip->pipe_alloc_mask = 0;
-	err = restore_dsp_rettings(chip);
+	err = restore_dsp_settings(chip);
 	chip->pipe_alloc_mask = pipe_alloc_mask;
 	if (err < 0) {
 		kfree(commpage_bak);

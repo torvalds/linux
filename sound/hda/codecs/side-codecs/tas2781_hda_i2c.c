@@ -393,19 +393,6 @@ static int tas2563_save_calibration(struct tas2781_hda *h)
 	r->pow_reg = TAS2563_CAL_POWER;
 	r->tlimit_reg = TAS2563_CAL_TLIM;
 
-	/*
-	 * TAS2781_FMWLIB supports two solutions of calibrated data. One is
-	 * from the driver itself: driver reads the calibrated files directly
-	 * during probe; The other from user space: during init of audio hal,
-	 * the audio hal will pass the calibrated data via kcontrol interface.
-	 * Driver will store this data in "struct calidata" for use. For hda
-	 * device, calibrated data are usunally saved into UEFI. So Hda side
-	 * codec driver use the mixture of these two solutions, driver reads
-	 * the data from UEFI, then store this data in "struct calidata" for
-	 * use.
-	 */
-	p->is_user_space_calidata = true;
-
 	return 0;
 }
 
@@ -504,8 +491,8 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	struct hda_codec *codec = tas_priv->codec;
 	int ret;
 
-	pm_runtime_get_sync(tas_priv->dev);
-	mutex_lock(&tas_priv->codec_lock);
+	guard(pm_runtime_active_auto)(tas_priv->dev);
+	guard(mutex)(&tas_priv->codec_lock);
 
 	ret = tasdevice_rca_parser(tas_priv, fmw);
 	if (ret)
@@ -541,9 +528,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	}
 
 out:
-	mutex_unlock(&tas_hda->priv->codec_lock);
 	release_firmware(fmw);
-	pm_runtime_put_autosuspend(tas_hda->dev);
 }
 
 static int tas2781_hda_bind(struct device *dev, struct device *master,
@@ -587,7 +572,7 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	if (codec->core.subsystem_id == 0x10431384)
 		hda_priv->skip_calibration = true;
 
-	pm_runtime_get_sync(dev);
+	guard(pm_runtime_active_auto)(dev);
 
 	comp->dev = dev;
 
@@ -596,8 +581,6 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	ret = tascodec_init(tas_hda->priv, codec, THIS_MODULE, tasdev_fw_ready);
 	if (!ret)
 		comp->playback_hook = tas2781_hda_playback_hook;
-
-	pm_runtime_put_autosuspend(dev);
 
 	return ret;
 }

@@ -68,6 +68,16 @@ allOf:
         compatible:
           contains:
             enum:
+              - fsl,imx6sx-mqs
+              - fsl,imx93-mqs
+    then:
+      required:
+        - gpr
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - fsl,imx8qm-mqs
               - fsl,imx8qxp-mqs
     then:
@@ -91,8 +101,6 @@ allOf:
         clock-names:
           items:
             - const: mclk
-      required:
-        - gpr
 
 unevaluatedProperties: false
 

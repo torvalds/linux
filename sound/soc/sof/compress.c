@@ -195,6 +195,14 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	if (sizeof(*pcm) + ext_data_size > sdev->ipc->max_payload_size)
 		return -EINVAL;
 
+	/*
+	 * Make sure that the DSP is booted up, which might not be the
+	 * case if the on-demand DSP boot is used
+	 */
+	ret = snd_sof_boot_dsp_firmware(sdev);
+	if (ret)
+		return ret;
+
 	pcm = kzalloc(sizeof(*pcm) + ext_data_size, GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;

@@ -469,6 +469,70 @@ struct sub_codec dolphin_cs42l42_1 = {
 };
 
 /******************************************************************************
+ *                          CDB35L56-FOUR-HD Specific Arrays
+ ******************************************************************************/
+const struct hda_verb cs8409_cdb35l56_four_init_verbs[] = {
+	{ CS8409_PIN_VENDOR_WIDGET, AC_VERB_SET_PROC_STATE, 0x0001 },	/* Enable VPW processing */
+	{} /* terminator */
+};
+
+static const struct hda_pintbl cs8409_cdb35l56_four_pincfgs[] = {
+	/* 0xPPLLLLLLDDDDTTTTCCCCMMMMAAAASSSS
+	 * P = PCON:	AC_JACK_PORT_*
+	 * L = LOC:	AC_JACK_LOC_*
+	 * D = DD:	device type AC_JACK_*
+	 * T = CTYP:	AC_JACK_CONN_*
+	 * C = COL:	AC_JACK_COLOR_*
+	 * M = MISC:	?
+	 * A = DA:	AC_DEFCFG_DEF_ASSOC
+	 * S = SEQ:	Sequence number in DA group
+	 */
+	{ CS8409_PIN_ASP2_TRANSMITTER_A, 0x901000f0 },	/* ASP-2-TX */
+	/* "Mic" */
+	{ CS8409_PIN_ASP2_RECEIVER_A, 0x04a12050 },	/* ASP-2-RX */
+	{} /* terminator */
+};
+
+const struct cs8409_cir_param cs8409_cdb35l56_four_hw_cfg[] = {
+	/* +PLL1/2_EN, +I2C_EN */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG1, 0xb008 },
+	/* ASP1/2_EN=0, ASP1_STP=1 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG2, 0x0002 },
+	/* ASP1/2_BUS_IDLE=10, +GPIO_I2C */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG3, 0x0a80 },
+	/* ASP2.A: TX.LAP=0, TX.LSZ=24 bits, TX.LCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP2_A_TX_CTRL1, 0x0800 },
+	/* ASP2.A: TX.RAP=1, TX.RSZ=24 bits, TX.RCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP2_A_TX_CTRL2, 0x2800 },
+	/* ASP2.A: RX.LAP=0, RX.LSZ=24 bits, RX.LCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP2_A_RX_CTRL1, 0x0800 },
+	/* ASP2.A: RX.RAP=1, RX.RSZ=24 bits, RX.RCS=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, ASP2_A_RX_CTRL2, 0x2800 },
+	/* ASP1: LCHI = 00h */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL1, 0x8000 },
+	/* ASP1: MC/SC_SRCSEL=PLL1, LCPR=FFh */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL2, 0x28ff },
+	/* ASP1: MCEN=0, FSD=011, SCPOL_IN/OUT=0, SCDIV=1:4 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP1_CLK_CTRL3, 0x0062 },
+	/* ASP2: LCHI=1Fh */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP2_CLK_CTRL1, 0x801f },
+	/* ASP2: MC/SC_SRCSEL=PLL1, LCPR=3Fh */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP2_CLK_CTRL2, 0x283f },
+	/* ASP2: 5050=1, MCEN=0, FSD=010, SCPOL_IN/OUT=1, SCDIV=1:16 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_ASP2_CLK_CTRL3, 0x805c },
+	/* ASP1/2_BEEP=0 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_BEEP_CFG, 0x0000 },
+	/* ASP1/2_EN=1, ASP1_STP=1 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG2, 0x0062 },
+	/* -PLL2_EN */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_DEV_CFG1, 0x9008 },	/* TX2.A: pre-scale att.=0 dB */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_PRE_SCALE_ATTN2, 0x0000 },
+	/* ASP1/2_xxx_EN=1, ASP1/2_MCLK_EN=0, DMIC1_SCL_EN=1 */
+	{ CS8409_PIN_VENDOR_WIDGET, CS8409_PAD_CFG_SLW_RATE_CTRL, 0xfc03 },
+	{} /* Terminator */
+};
+
+/******************************************************************************
  *                         CS8409 Patch Driver Structs
  *                    Arrays Used for all projects using CS8409
  ******************************************************************************/
@@ -557,7 +621,6 @@ const struct hda_quirk cs8409_fixup_tbl[] = {
 	{} /* terminator */
 };
 
-/* Dell Inspiron models with cs8409/cs42l42 */
 const struct hda_model_fixup cs8409_models[] = {
 	{ .id = CS8409_BULLSEYE, .name = "bullseye" },
 	{ .id = CS8409_WARLOCK, .name = "warlock" },
@@ -566,6 +629,7 @@ const struct hda_model_fixup cs8409_models[] = {
 	{ .id = CS8409_CYBORG, .name = "cyborg" },
 	{ .id = CS8409_DOLPHIN, .name = "dolphin" },
 	{ .id = CS8409_ODIN, .name = "odin" },
+	{ .id = CS8409_CDB35L56_FOUR_HD, .name = "CDB35L56-FOUR-HD" },
 	{}
 };
 
@@ -619,5 +683,15 @@ const struct hda_fixup cs8409_fixups[] = {
 		.v.pins = cs8409_cs42l42_pincfgs_no_dmic,
 		.chained = true,
 		.chain_id = CS8409_FIXUPS,
+	},
+	[CS8409_CDB35L56_FOUR_HD] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cs8409_cdb35l56_four_pincfgs,
+		.chained = true,
+		.chain_id = CS8409_CDB35L56_FOUR_HD_FIXUP,
+	},
+	[CS8409_CDB35L56_FOUR_HD_FIXUP] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cs8409_cdb35l56_four_autodet_fixup,
 	},
 };

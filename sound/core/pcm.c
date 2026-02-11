@@ -328,13 +328,13 @@ static const char *snd_pcm_oss_format_name(int format)
 static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 				   struct snd_info_buffer *buffer)
 {
-	struct snd_pcm_info *info __free(kfree) = NULL;
 	int err;
 
 	if (! substream)
 		return;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	struct snd_pcm_info *info __free(kfree) =
+		kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return;
 

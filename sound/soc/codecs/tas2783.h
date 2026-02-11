@@ -28,6 +28,7 @@
 #define TASDEV_REG_SDW(book, page, reg)	(((book) * 256 * 128) + \
 		0x800000 + ((page) * 128) + (reg))
 
+#define TAS2783_SW_RESET	TASDEV_REG_SDW(0x0, 0x00, 0x01)
 /* Volume control */
 #define TAS2783_DVC_LVL		TASDEV_REG_SDW(0x0, 0x00, 0x1A)
 #define TAS2783_AMP_LEVEL	TASDEV_REG_SDW(0x0, 0x00, 0x03)

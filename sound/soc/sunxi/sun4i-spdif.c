@@ -684,6 +684,10 @@ static int sun4i_spdif_probe(struct platform_device *pdev)
 
 	host->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 						&sun4i_spdif_regmap_config);
+	if (IS_ERR(host->regmap)) {
+		dev_err(&pdev->dev, "failed to initialise regmap.\n");
+		return PTR_ERR(host->regmap);
+	}
 
 	/* Clocks */
 	host->apb_clk = devm_clk_get(&pdev->dev, "apb");

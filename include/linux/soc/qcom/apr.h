@@ -122,7 +122,7 @@ struct gpr_ibasic_rsp_accepted_t {
 #define APR_SVC_MAJOR_VERSION(v)	((v >> 16) & 0xFF)
 #define APR_SVC_MINOR_VERSION(v)	(v & 0xFF)
 
-typedef int (*gpr_port_cb) (struct gpr_resp_pkt *d, void *priv, int op);
+typedef int (*gpr_port_cb) (const struct gpr_resp_pkt *d, void *priv, int op);
 struct packet_router;
 struct pkt_router_svc {
 	struct device *dev;
@@ -155,8 +155,8 @@ struct apr_driver {
 	int	(*probe)(struct apr_device *sl);
 	void	(*remove)(struct apr_device *sl);
 	int	(*callback)(struct apr_device *a,
-			    struct apr_resp_pkt *d);
-	int	(*gpr_callback)(struct gpr_resp_pkt *d, void *data, int op);
+			    const struct apr_resp_pkt *d);
+	gpr_port_cb gpr_callback;
 	struct device_driver		driver;
 	const struct apr_device_id	*id_table;
 };

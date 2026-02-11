@@ -798,6 +798,7 @@ struct sdca_control_range {
  * @sel: Identifier used for addressing.
  * @nbits: Number of bits used in the Control.
  * @values: Holds the Control value for constants and defaults.
+ * @reset: Defined reset value for the Control.
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
  * @interrupt_position: SCDA interrupt line that will alert to changes on this
@@ -808,6 +809,7 @@ struct sdca_control_range {
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
  * @has_default: Indicates the Control has a default value to be written.
+ * @has_reset: Indicates the Control has a defined reset value.
  * @has_fixed: Indicates the Control only supports a single value.
  */
 struct sdca_control {
@@ -816,6 +818,7 @@ struct sdca_control {
 
 	int nbits;
 	int *values;
+	int reset;
 	u64 cn_list;
 	int interrupt_position;
 
@@ -827,6 +830,7 @@ struct sdca_control {
 	bool deferrable;
 	bool is_volatile;
 	bool has_default;
+	bool has_reset;
 	bool has_fixed;
 };
 
