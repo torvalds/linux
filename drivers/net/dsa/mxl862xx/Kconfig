@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_MXL862
+	tristate "MaxLinear MxL862xx"
+	depends on NET_DSA
+	select MAXLINEAR_GPHY
+	select NET_DSA_TAG_MXL_862XX
+	help
+	  This enables support for the MaxLinear MxL862xx switch family.
+	  These switches have two 10GE SerDes interfaces, one typically
+	  used as CPU port.
+	   - MxL86282 has eight 2.5 Gigabit PHYs
+	   - MxL86252 has five 2.5 Gigabit PHYs
