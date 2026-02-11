@@ -108,6 +108,13 @@
 		dma-coherent;
 	};
 
+	pmu@50000000 {
+		compatible = "arm,cmn-600";
+		reg = <0x0 0x50000000 0x0 0x4000000>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		arm,root-node = <0x804000>;
+	};
+
 	pcie_ctlr: pcie@28c0000000 {
 		device_type = "pci";
 		compatible = "pci-host-ecam-generic";

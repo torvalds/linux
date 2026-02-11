@@ -15,7 +15,7 @@
 		     "phytec,imx8mp-phycore-fpsc", "fsl,imx8mp";
 	model = "PHYTEC i.MX8MP Libra RDK FPSC";
 
-	backlight_lvds0: backlight0 {
+	backlight_lvds0: backlight-lvds0 {
 		compatible = "pwm-backlight";
 		pinctrl-0 = <&pinctrl_lvds0>;
 		pinctrl-names = "default";
@@ -27,7 +27,7 @@
 		stdout-path = &uart4;
 	};
 
-	panel0_lvds: panel-lvds {
+	panel_lvds0: panel-lvds0 {
 		/* compatible panel in overlay */
 		backlight = <&backlight_lvds0>;
 		power-supply = <&reg_vdd_3v3>;
@@ -226,7 +226,7 @@
 	};
 	pinctrl_rtc: rtcgrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_UART2_TXD__GPIO5_IO25	0x1C0
+			MX8MP_IOMUXC_UART2_TXD__GPIO5_IO25	0x1c0
 		>;
 	};
 };

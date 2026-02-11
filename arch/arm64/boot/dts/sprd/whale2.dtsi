@@ -81,7 +81,7 @@
 			#clock-cells = <1>;
 		};
 
-		ap-apb@70000000 {
+		apb@70000000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -136,7 +136,7 @@
 			};
 		};
 
-		ap-ahb {
+		ahb {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -183,7 +183,7 @@
 			};
 		};
 
-		aon {
+		aon-bus {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -285,7 +285,7 @@
 			};
 		};
 
-		agcp {
+		agcp-bus {
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;

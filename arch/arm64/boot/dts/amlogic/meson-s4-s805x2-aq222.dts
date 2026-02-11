@@ -9,7 +9,7 @@
 
 / {
 	model = "Amlogic Meson S4 AQ222 Development Board";
-	compatible = "amlogic,aq222", "amlogic,s4";
+	compatible = "amlogic,aq222", "amlogic,s805x2", "amlogic,s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

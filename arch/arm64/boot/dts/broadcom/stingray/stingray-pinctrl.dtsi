@@ -32,7 +32,7 @@
 
 #include <dt-bindings/pinctrl/brcm,pinctrl-stingray.h>
 
-		pinconf: pinconf@140000 {
+		pinconf: pinctrl@140000 {
 			compatible = "pinconf-single";
 			reg = <0x00140000 0x250>;
 			pinctrl-single,register-width = <32>;

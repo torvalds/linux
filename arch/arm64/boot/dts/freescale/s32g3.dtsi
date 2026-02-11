@@ -641,9 +641,9 @@
 			status = "disabled";
 		};
 
-		swt7: watchdog@4020C000 {
+		swt7: watchdog@4020c000 {
 			compatible = "nxp,s32g3-swt", "nxp,s32g2-swt";
-			reg = <0x4020C000 0x1000>;
+			reg = <0x4020c000 0x1000>;
 			clocks = <&clks 0x3a>, <&clks 0x3b>, <&clks 0x3b>;
 			clock-names = "counter", "module", "register";
 			status = "disabled";

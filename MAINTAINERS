@@ -2947,6 +2947,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
 F:	Documentation/devicetree/bindings/arm/marvell/
 F:	arch/arm/boot/dts/marvell/armada*
+F:	arch/arm/boot/dts/marvell/db-falcon*
 F:	arch/arm/boot/dts/marvell/kirkwood*
 F:	arch/arm/configs/mvebu_*_defconfig
 F:	arch/arm/mach-mvebu/
@@ -25738,7 +25739,7 @@ TEGRA NAND DRIVER
 M:	Stefan Agner <stefan@agner.ch>
 M:	Lucas Stach <dev@lynxeye.de>
 S:	Maintained
-F:	Documentation/devicetree/bindings/mtd/nvidia-tegra20-nand.txt
+F:	Documentation/devicetree/bindings/mtd/nvidia,tegra20-nand.yaml
 F:	drivers/mtd/nand/raw/tegra_nand.c
 
 TEGRA PWM DRIVER

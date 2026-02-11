@@ -312,6 +312,7 @@
 			clock-names = "nf_clk";
 			cdns,board-delay-ps = <4830>;
 			iommus = <&smmu 4>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -323,40 +324,50 @@
 			#size-cells = <1>;
 		};
 
-		dmac0: dma-controller@10db0000 {
-			compatible = "snps,axi-dma-1.01a";
-			reg = <0x10db0000 0x500>;
-			clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>,
-				 <&clkmgr AGILEX5_L4_MP_CLK>;
-			clock-names = "core-clk", "cfgr-clk";
-			interrupt-parent = <&intc>;
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			dma-channels = <4>;
-			snps,dma-masters = <1>;
-			snps,data-width = <2>;
-			snps,block-size = <32767 32767 32767 32767>;
-			snps,priority = <0 1 2 3>;
-			snps,axi-max-burst-len = <8>;
-			iommus = <&smmu 8>;
-		};
+		dma: dma-bus@10db0000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <2>;
+			ranges = <0x00 0x10db0000 0x00 0x20000>;
+			dma-ranges = <0x00 0x00 0x100 0x00>;
 
-		dmac1: dma-controller@10dc0000 {
-			compatible = "snps,axi-dma-1.01a";
-			reg = <0x10dc0000 0x500>;
-			clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>,
-				 <&clkmgr AGILEX5_L4_MP_CLK>;
-			clock-names = "core-clk", "cfgr-clk";
-			interrupt-parent = <&intc>;
-			interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			dma-channels = <4>;
-			snps,dma-masters = <1>;
-			snps,data-width = <2>;
-			snps,block-size = <32767 32767 32767 32767>;
-			snps,priority = <0 1 2 3>;
-			snps,axi-max-burst-len = <8>;
-			iommus = <&smmu 9>;
+			dmac0: dma-controller@0 {
+				compatible = "altr,agilex5-axi-dma",
+					     "snps,axi-dma-1.01a";
+				reg = <0x0 0x0 0x500>;
+				clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>,
+					 <&clkmgr AGILEX5_L4_MP_CLK>;
+				clock-names = "core-clk", "cfgr-clk";
+				interrupt-parent = <&intc>;
+				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+				dma-channels = <4>;
+				snps,dma-masters = <1>;
+				snps,data-width = <2>;
+				snps,block-size = <32767 32767 32767 32767>;
+				snps,priority = <0 1 2 3>;
+				snps,axi-max-burst-len = <8>;
+				iommus = <&smmu 8>;
+			};
+
+			dmac1: dma-controller@10000 {
+				compatible = "altr,agilex5-axi-dma",
+					     "snps,axi-dma-1.01a";
+				reg = <0x10000 0x0 0x500>;
+				clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>,
+					 <&clkmgr AGILEX5_L4_MP_CLK>;
+				clock-names = "core-clk", "cfgr-clk";
+				interrupt-parent = <&intc>;
+				interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+				#dma-cells = <1>;
+				dma-channels = <4>;
+				snps,dma-masters = <1>;
+				snps,data-width = <2>;
+				snps,block-size = <32767 32767 32767 32767>;
+				snps,priority = <0 1 2 3>;
+				snps,axi-max-burst-len = <8>;
+				iommus = <&smmu 9>;
+			};
 		};
 
 		rst: rstmgr@10d11000 {
@@ -565,6 +576,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 1>;
 			status = "disabled";
 
 			stmmac_axi_emac0_setup: stmmac-axi-config {
@@ -618,31 +630,31 @@
 					snps,dcb-algorithm;
 				};
 				queue1 {
-					snps,weight = <0x0A>;
+					snps,weight = <0x0a>;
 					snps,dcb-algorithm;
 				};
 				queue2 {
-					snps,weight = <0x0B>;
+					snps,weight = <0x0b>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue3 {
-					snps,weight = <0x0C>;
+					snps,weight = <0x0c>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue4 {
-					snps,weight = <0x0D>;
+					snps,weight = <0x0d>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue5 {
-					snps,weight = <0x0E>;
+					snps,weight = <0x0e>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue6 {
-					snps,weight = <0x0F>;
+					snps,weight = <0x0f>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
@@ -677,6 +689,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x48 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 2>;
 			status = "disabled";
 
 			stmmac_axi_emac1_setup: stmmac-axi-config {
@@ -730,31 +743,31 @@
 					snps,dcb-algorithm;
 				};
 				queue1 {
-					snps,weight = <0x0A>;
+					snps,weight = <0x0a>;
 					snps,dcb-algorithm;
 				};
 				queue2 {
-					snps,weight = <0x0B>;
+					snps,weight = <0x0b>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue3 {
-					snps,weight = <0x0C>;
+					snps,weight = <0x0c>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue4 {
-					snps,weight = <0x0D>;
+					snps,weight = <0x0d>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue5 {
-					snps,weight = <0x0E>;
+					snps,weight = <0x0e>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue6 {
-					snps,weight = <0x0F>;
+					snps,weight = <0x0f>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
@@ -789,6 +802,7 @@
 			snps,tso;
 			altr,sysmgr-syscon = <&sysmgr 0x4c 0>;
 			snps,clk-csr = <0>;
+			iommus = <&smmu 3>;
 			status = "disabled";
 
 			stmmac_axi_emac2_setup: stmmac-axi-config {
@@ -842,31 +856,31 @@
 					snps,dcb-algorithm;
 				};
 				queue1 {
-					snps,weight = <0x0A>;
+					snps,weight = <0x0a>;
 					snps,dcb-algorithm;
 				};
 				queue2 {
-					snps,weight = <0x0B>;
+					snps,weight = <0x0b>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue3 {
-					snps,weight = <0x0C>;
+					snps,weight = <0x0c>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue4 {
-					snps,weight = <0x0D>;
+					snps,weight = <0x0d>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue5 {
-					snps,weight = <0x0E>;
+					snps,weight = <0x0e>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
 				queue6 {
-					snps,weight = <0x0F>;
+					snps,weight = <0x0f>;
 					snps,coe-unsupported;
 					snps,dcb-algorithm;
 				};
@@ -912,24 +926,24 @@
 
 		pmu0_tbu3: pmu@160a2000 {
 			compatible = "arm,smmu-v3-pmcg";
-			reg = <0x160A2000 0x1000>,
-				<0x160B2000 0x1000>;
+			reg = <0x160a2000 0x1000>,
+				<0x160b2000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <GIC_SPI 144 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		pmu0_tbu4: pmu@160c2000 {
 			compatible = "arm,smmu-v3-pmcg";
-			reg = <0x160C2000 0x1000>,
-				<0x160D2000 0x1000>;
+			reg = <0x160c2000 0x1000>,
+				<0x160d2000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <GIC_SPI 146 IRQ_TYPE_EDGE_RISING>;
 		};
 
 		pmu0_tbu5: pmu@160e2000 {
 			compatible = "arm,smmu-v3-pmcg";
-			reg = <0x160E2000 0x1000>,
-				<0x160F2000 0x1000>;
+			reg = <0x160e2000 0x1000>,
+				<0x160f2000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <GIC_SPI 150 IRQ_TYPE_EDGE_RISING>;
 		};

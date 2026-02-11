@@ -205,6 +205,7 @@
 &uart5 {
 	// Workaround for A0
 	compatible = "snps,dw-apb-uart";
+	/delete-property/ no-loopback-test;
 };
 
 &i2c0 {
@@ -314,9 +315,8 @@
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	sdhci-drive-type = /bits/ 8 <3>;
 	sdhci-caps-mask = <0x7 0x0>;
-	sdhci,wp-inverted;
+	wp-inverted;
 	vmmc-supply = <&vcc_sdhci0>;
 	vqmmc-supply = <&vccq_sdhci0>;
 	clk-phase-sd-hs = <7>, <200>;
@@ -326,9 +326,8 @@
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <100000000>;
-	sdhci-drive-type = /bits/ 8 <3>;
 	sdhci-caps-mask = <0x7 0x0>;
-	sdhci,wp-inverted;
+	wp-inverted;
 	vmmc-supply = <&vcc_sdhci1>;
 	vqmmc-supply = <&vccq_sdhci1>;
 	clk-phase-sd-hs = <7>, <200>;

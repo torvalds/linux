@@ -3,7 +3,21 @@
  * Copyright 2019 Toradex
  */
 
+#include "dt-bindings/pwm/pwm.h"
+
 / {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_bl_on>;
+		brightness-levels = <0 45 63 88 119 158 203 255>;
+		default-brightness-level = <4>;
+		enable-gpios = <&lsio_gpio3 12 GPIO_ACTIVE_HIGH>; /* Colibri BL_ON */
+		power-supply = <&reg_module_3v3>;
+		pwms = <&adma_pwm 0 6666667 PWM_POLARITY_INVERTED>;
+		status = "disabled";
+	};
+
 	chosen {
 		stdout-path = &lpuart3;
 	};
@@ -70,6 +84,19 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-min-microvolt = <5000000>;
 		regulator-name = "usbh_vbus";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			linux,cma-default;
+			reusable;
+			size = <0 0x1a000000>;
+		};
 	};
 
 	sound-card {
@@ -476,7 +503,7 @@
 /* On-module PCIe for Wi-Fi */
 &pcieb {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pcieb>;
+	pinctrl-0 = <&pinctrl_pcieb>, <&pinctrl_wifi>;
 	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
 	phy-names = "pcie-phy";
 	reset-gpios = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
@@ -623,7 +650,7 @@
 	};
 
 	pinctrl_csi_mclk: csimclkgrp {
-		fsl,pins = <IMX8QXP_CSI_MCLK_CI_PI_MCLK				0xC0000041>;	/* SODIMM  75 / X3-12 */
+		fsl,pins = <IMX8QXP_CSI_MCLK_CI_PI_MCLK				0xc0000041>;	/* SODIMM  75 / X3-12 */
 	};
 
 	pinctrl_ext_io0: extio0grp {

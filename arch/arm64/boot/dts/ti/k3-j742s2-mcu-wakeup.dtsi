@@ -15,3 +15,7 @@
 &mcu_r5fss0_core1 {
 	firmware-name = "j742s2-mcu-r5f0_1-fw";
 };
+
+&hsm {
+	firmware-name = "j742s2-hsm-m4f-fw";
+};

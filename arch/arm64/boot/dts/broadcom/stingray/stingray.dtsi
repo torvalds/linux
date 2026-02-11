@@ -30,6 +30,7 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <dt-bindings/clock/bcm-sr.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -159,7 +160,46 @@
 		reg = <0 0x60401000 0 0x38c>;
 	};
 
-	scr {
+	osc: clock-50000000 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+	};
+
+	crmu_ref25m: hsls_25m_clk: clock-25000000 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&osc>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	hsls_div2_clk: hsls_div2_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll3 BCM_SR_GENPLL3_HSLS_CLK>;
+		clock-div = <2>;
+		clock-mult = <1>;
+
+	};
+
+	hsls_div4_clk: hsls_div4_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll3 BCM_SR_GENPLL3_HSLS_CLK>;
+		clock-div = <4>;
+		clock-mult = <1>;
+	};
+
+	hsls_25m_div2_clk: clock-12500000 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&hsls_25m_clk>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	scr-bus@61000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -263,13 +303,11 @@
 		};
 	};
 
-	crmu: crmu {
+	crmu: crmu-bus@66400000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x66400000 0x100000>;
-
-		#include "stingray-clock.dtsi"
 
 		otp: otp@1c400 {
 			compatible = "brcm,ocotp-v2";
@@ -281,6 +319,84 @@
 		cdru: syscon@1d000 {
 			compatible = "brcm,sr-cdru", "syscon";
 			reg = <0x0001d000 0x400>;
+		};
+
+		lcpll0: clock-controller@1d0c4 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-lcpll0";
+			reg = <0x0001d0c4 0x3c>,
+				<0x0001c870 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll0", "clk_sata_refp",
+						"clk_sata_refn", "clk_sata_350",
+						"clk_sata_500";
+		};
+
+		genpll0: clock-controller@1d104 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-genpll0";
+			reg = <0x0001d104 0x32>,
+				<0x0001c854 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll0", "clk_125m", "clk_scr",
+						"clk_250", "clk_pcie_axi",
+						"clk_paxc_axi_x2",
+						"clk_paxc_axi";
+		};
+
+		lcpll1: clock-controller@1d138 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-lcpll1";
+			reg = <0x0001d138 0x3c>,
+				<0x0001c870 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll1", "clk_wan",
+						"clk_usb_ref",
+						"clk_crmu_ts";
+		};
+
+		genpll2: clock-controller@1d1ac {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-genpll2";
+			reg = <0x0001d1ac 0x32>,
+				<0x0001c854 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll2", "clk_nic",
+						"clk_ts_500_ref", "clk_125_nitro",
+						"clk_chimp", "clk_nic_flash",
+						"clk_fs";
+		};
+
+		genpll3: clock-controller@1d1e0 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-genpll3";
+			reg = <0x0001d1e0 0x32>,
+				<0x0001c854 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll3", "clk_hsls",
+						"clk_sdio";
+		};
+
+		genpll4: clock-controller@1d214 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-genpll4";
+			reg = <0x0001d214 0x32>,
+				<0x0001c854 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll4", "clk_ccn",
+						"clk_tpiu_pll", "clk_noc",
+						"clk_chclk_fs4",
+						"clk_bridge_fscpu";
+		};
+
+		genpll5: clock-controller@1d248 {
+			#clock-cells = <1>;
+			compatible = "brcm,sr-genpll5";
+			reg = <0x0001d248 0x32>,
+				<0x0001c870 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll5", "clk_fs4_hf",
+						"clk_crypto_ae", "clk_raid_ae";
 		};
 
 		gpio_crmu: gpio@24800 {
@@ -296,7 +412,7 @@
 	#include "stingray-pcie.dtsi"
 	#include "stingray-usb.dtsi"
 
-	hsls {
+	hsls-bus@68900000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -575,7 +691,7 @@
 			status = "disabled";
 		};
 
-		nand: nand@360000 {
+		nand: nand-controller@360000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x00360000 0x600>,
 			      <0x0050a408 0x600>,
@@ -588,28 +704,28 @@
 			status = "disabled";
 		};
 
-		sdio0: sdhci@3f1000 {
+		sdio0: mmc@3f1000 {
 			compatible = "brcm,sdhci-iproc";
 			reg = <0x003f1000 0x100>;
 			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>;
 			bus-width = <8>;
-			clocks = <&sdio0_clk>;
+			clocks = <&genpll3 BCM_SR_GENPLL3_SDIO_CLK>;
 			iommus = <&smmu 0x6002 0x0000>;
 			status = "disabled";
 		};
 
-		sdio1: sdhci@3f2000 {
+		sdio1: mmc@3f2000 {
 			compatible = "brcm,sdhci-iproc";
 			reg = <0x003f2000 0x100>;
 			interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
 			bus-width = <8>;
-			clocks = <&sdio1_clk>;
+			clocks = <&genpll3 BCM_SR_GENPLL3_SDIO_CLK>;
 			iommus = <&smmu 0x6003 0x0000>;
 			status = "disabled";
 		};
 	};
 
-	tmons {
+	tmons-bus@8f100000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -698,18 +814,18 @@
 		};
 	};
 
-	nic-hsls {
+	nic-hsls-bus@60800000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0  0x0 0x7fffffff>;
+		ranges = <0x0 0x0 0x60800000 0x6fffff>;
 
-		nic_i2c0: i2c@60826100 {
+		nic_i2c0: i2c@26100 {
 			compatible = "brcm,iproc-nic-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x60826100 0x100>,
-			      <0x60e00408 0x1000>;
+			reg = <0x026100 0x100>,
+			      <0x600408 0x1000>;
 			brcm,ape-hsls-addr-mask = <0x03400000>;
 			clock-frequency = <100000>;
 			status = "disabled";

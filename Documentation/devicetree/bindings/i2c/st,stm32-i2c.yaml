@@ -127,6 +127,9 @@ properties:
 
   wakeup-source: true
 
+  power-domains:
+    maxItems: 1
+
   access-controllers:
     minItems: 1
     maxItems: 2

@@ -58,6 +58,16 @@
 		};
 	};
 
+	epd_pmic_supply: regulator-epd-pmic-in {
+		compatible = "regulator-fixed";
+		regulator-name = "epd_pmic_supply";
+		gpio = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <20000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_epd_pmic_supply>;
+	};
+
 	sd2_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -135,7 +145,34 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	/* TODO: TPS65185 PMIC for E Ink at 0x68 */
+	pmic@68 {
+		compatible = "ti,tps65185";
+		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_epd_pmic>;
+		pwr-good-gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
+		vcom-ctrl-gpios = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+		wakeup-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&epd_pmic_supply>;
+		interrupts-extended = <&gpio4 15 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			vcom {
+				regulator-name = "vcom";
+			};
+
+			vposneg {
+				regulator-name = "vposneg";
+				regulator-min-microvolt = <15000000>;
+				regulator-max-microvolt = <15000000>;
+			};
+
+			v3p3 {
+				regulator-name = "v3p3";
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -158,6 +195,27 @@
 	pinctrl_ec: ecgrp {
 		fsl,pins = <
 			MX50_PAD_CSPI_SS0__GPIO4_11		0x0	/* INT */
+		>;
+	};
+
+	pinctrl_epd_pmic: epd-pmic-grp {
+		fsl,pins = <
+			/* PWRUP */
+			MX50_PAD_EPDC_PWRCTRL1__GPIO3_30	0x0
+			/* WAKEUP */
+			MX50_PAD_EPDC_PWRCTRL0__GPIO3_29	0x0
+			/* VCOMCTRL */
+			MX50_PAD_EPDC_VCOM0__GPIO4_21		0x0
+			/* PWRGOOD: enable internal 100k pull-up */
+			MX50_PAD_EPDC_PWRSTAT__GPIO3_28		0xe0
+			/* INT: enable internal 100k pull-up */
+			MX50_PAD_ECSPI1_SS0__GPIO4_15		0xe0
+		>;
+	};
+
+	pinctrl_epd_pmic_supply: epd-pmic-supply-grp {
+		fsl,pins = <
+			MX50_PAD_EIM_CRE__GPIO1_27		0x0
 		>;
 	};
 

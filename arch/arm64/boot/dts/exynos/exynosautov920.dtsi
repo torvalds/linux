@@ -1462,6 +1462,17 @@
 				      "wfd";
 		};
 
+		cmu_mfd: clock-controller@19e00000 {
+			compatible = "samsung,exynosautov920-cmu-mfd";
+			reg = <0x19e00000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&xtcxo>,
+				 <&cmu_top DOUT_CLKCMU_MFD_NOC>;
+			clock-names = "oscclk",
+				      "noc";
+		};
+
 		pinctrl_aud: pinctrl@1a460000 {
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x1a460000 0x10000>;

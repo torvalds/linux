@@ -499,6 +499,40 @@
 			};
 		};
 	};
+
+	ebc_pmic: pmic@68 {
+		compatible = "ti,tps65185";
+		reg = <0x68>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <RK_PA6 IRQ_TYPE_LEVEL_LOW>;
+		enable-gpios = <&gpio3 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&ebc_pmic_pins>;
+		pinctrl-names = "default";
+		pwr-good-gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		vcom-ctrl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc_bat>;
+		wakeup-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+
+		regulators {
+			v3p3: v3p3 {
+				regulator-name = "v3p3";
+				/* Keep it always on because IRQ is pulled up against this line */
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vcom: vcom {
+				regulator-name = "vcom";
+			};
+
+			vposneg: vposneg {
+				regulator-name = "vposneg";
+				regulator-min-microvolt = <15000000>;
+				regulator-max-microvolt = <15000000>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -560,6 +594,21 @@
 
 		bt_wake_h: bt-wake-h {
 			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	ebc-pmic {
+		ebc_pmic_pins: ebc-pmic-pins {
+			rockchip,pins = /* wakeup */
+					<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* int */
+					<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>,
+					/* pwr_good */
+					<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* pwrup */
+					<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+					/* vcom_ctrl */
+					<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

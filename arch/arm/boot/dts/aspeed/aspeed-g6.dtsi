@@ -68,13 +68,12 @@
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
-		clocks = <&syscon ASPEED_CLK_HPLL>;
 		arm,cpu-registers-not-fw-configured;
 		always-on;
 	};
 
 	edac: sdram@1e6e0000 {
-		compatible = "aspeed,ast2600-sdram-edac", "syscon";
+		compatible = "aspeed,ast2600-sdram-edac";
 		reg = <0x1e6e0000 0x174>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
@@ -864,15 +863,6 @@
 				pinctrl-0 = <&pinctrl_fsi2_default>;
 				clocks = <&syscon ASPEED_CLK_GATE_FSICLK>;
 				interrupt-controller;
-				status = "disabled";
-			};
-
-			udma: dma-controller@1e79e000 {
-				compatible = "aspeed,ast2600-udma";
-				reg = <0x1e79e000 0x1000>;
-				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
-				dma-channels = <28>;
-				#dma-cells = <1>;
 				status = "disabled";
 			};
 		};

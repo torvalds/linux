@@ -19,7 +19,7 @@
 	chassis-type = "handset";
 
 	/* required for bootloader to select correct board */
-	qcom,msm-id = <QCOM_ID_SM6125>;
+	qcom,msm-id = <QCOM_ID_SM6125 0x10000>;
 	qcom,board-id = <22 0>;
 
 	chosen {

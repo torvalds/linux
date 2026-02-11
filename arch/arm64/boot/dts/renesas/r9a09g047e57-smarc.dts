@@ -8,11 +8,12 @@
 /dts-v1/;
 
 /* Switch selection settings */
-#define SW_LCD_EN		0
 #define SW_GPIO8_CAN0_STB	0
 #define SW_GPIO9_CAN1_STB	0
 #define SW_LCD_EN		0
 #define SW_PDM_EN		0
+#define SW_SER0_PMOD		1
+#define SW_SER2_EN		1
 #define SW_SD0_DEV_SEL		0
 #define SW_SDIO_M2E		0
 
@@ -35,6 +36,15 @@
 	model = "Renesas SMARC EVK version 2 based on r9a09g047e57";
 	compatible = "renesas,smarc2-evk", "renesas,rzg3e-smarcm",
 		     "renesas,r9a09g047e57", "renesas,r9a09g047";
+
+	aliases {
+		i2c0 = &i2c0;
+		serial0 = &rsci4;
+		serial1 = &rsci9;
+		serial2 = &rsci2;
+		serial3 = &scif0;
+		mmc1 = &sdhi1;
+	};
 
 	vqmmc_sd1_pvdd: regulator-vqmmc-sd1-pvdd {
 		compatible = "regulator-gpio";
@@ -135,6 +145,28 @@
 		input-schmitt-enable;
 	};
 
+	rsci2_pins: rsci2 {
+		pinmux = <RZG3E_PORT_PINMUX(1, 0, 1)>, /* RXD2 */
+			 <RZG3E_PORT_PINMUX(1, 1, 1)>, /* TXD2 */
+			 <RZG3E_PORT_PINMUX(1, 2, 6)>, /* CTS2N */
+			 <RZG3E_PORT_PINMUX(1, 3, 1)>; /* RTS2N */
+		bias-pull-up;
+	};
+
+	rsci4_pins: rsci4 {
+		pinmux = <RZG3E_PORT_PINMUX(7, 6, 5)>, /* RXD4 */
+			 <RZG3E_PORT_PINMUX(7, 7, 5)>, /* TXD4 */
+			 <RZG3E_PORT_PINMUX(8, 0, 6)>, /* CTS4N */
+			 <RZG3E_PORT_PINMUX(8, 1, 5)>; /* RTS4N */
+		bias-pull-up;
+	};
+
+	rsci9_pins: rsci9 {
+		pinmux = <RZG3E_PORT_PINMUX(8, 2, 5)>, /* RXD9 */
+			 <RZG3E_PORT_PINMUX(8, 3, 5)>; /* TXD9 */
+		bias-pull-up;
+	};
+
 	scif_pins: scif {
 		pins = "SCIF_TXD", "SCIF_RXD";
 		renesas,output-impedance = <1>;
@@ -164,7 +196,43 @@
 				 <RZG3E_PORT_PINMUX(G, 5, 1)>; /* SD1DAT3 */
 		};
 	};
+
+	usb3_pins: usb3 {
+		pinmux = <RZG3E_PORT_PINMUX(4, 1, 12)>, /* USB30_VBUSEN */
+			 <RZG3E_PORT_PINMUX(4, 0, 12)>; /* USB30_OVRCURN */
+	};
 };
+
+#if SW_SER0_PMOD && SW_SER2_EN
+&rsci2 {
+	pinctrl-0 = <&rsci2_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+
+	status = "okay";
+};
+#endif
+
+#if (!SW_LCD_EN) && (SW_SER0_PMOD)
+&rsci4 {
+	pinctrl-0 = <&rsci4_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+
+	status = "okay";
+};
+#endif
+
+#if (!SW_LCD_EN)
+&rsci9 {
+	pinctrl-0 = <&rsci9_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif
 
 &scif0 {
 	pinctrl-0 = <&scif_pins>;
@@ -178,4 +246,9 @@
 
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&vqmmc_sd1_pvdd>;
+};
+
+&xhci {
+	pinctrl-0 = <&usb3_pins>;
+	pinctrl-names = "default";
 };

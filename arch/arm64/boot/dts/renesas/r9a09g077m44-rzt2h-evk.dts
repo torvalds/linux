@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
+
 #include "r9a09g077m44.dtsi"
 
 /*
@@ -26,6 +28,9 @@
  * P17_4 = SD1_CD; SW2[3] = ON
  * P08_5 = SD1_PWEN; SW2[3] = ON
  * P08_6 = SD1_IOVS; SW2[3] = ON; SW5[3] = OFF; SW5[4] = ON
+ * To enable proper operation in 1.8V modes, CN77 must have pins 2 and 3
+ * connected by the jumper. This connects SD1 power-supply control IC output
+ * back to VCC1833_7.
  */
 #define SD1_MICRO_SD	1
 
@@ -56,6 +61,37 @@
 / {
 	model = "Renesas RZ/T2H EVK Board based on r9a09g077m44";
 	compatible = "renesas,rzt2h-evk", "renesas,r9a09g077m44", "renesas,r9a09g077";
+
+	keys {
+		compatible = "gpio-keys";
+
+#if (!SD1_MICRO_SD)
+		/* SW2-3: OFF */
+		key-1 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(8, 6) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_1>;
+			label = "SW9";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+#endif
+
+		key-2 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(0, 3) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_2>;
+			label = "SW10";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-3 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(8, 7) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_3>;
+			label = "SW11";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
 
 	leds {
 		compatible = "gpio-leds";
@@ -135,6 +171,44 @@
 	};
 };
 
+&adc2 {
+	status = "okay";
+
+	channel@0 {
+		reg = <0x0>;
+	};
+
+	channel@1 {
+		reg = <0x1>;
+	};
+
+	channel@2 {
+		reg = <0x2>;
+	};
+
+	channel@3 {
+		reg = <0x3>;
+	};
+
+	channel@4 {
+		reg = <0x4>;
+	};
+
+	channel@5 {
+		reg = <0x5>;
+	};
+};
+
+&canfd {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -163,6 +237,17 @@
 };
 
 &pinctrl {
+	/*
+	 * CAN0 Pin Configuration:
+	 *
+	 * SW7[1] OFF; SW7[2] ON - Use P24_4 as CANTX0.
+	 * SW7[3] OFF; SW7[4] ON - Use P24_3 as CANRX0.
+	 */
+	can0_pins: can0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(24, 3, 0x19)>, /* CANRX0 */
+			 <RZT2H_PORT_PINMUX(24, 4, 0x19)>; /* CANTX0 */
+	};
+
 	/*
 	 * GMAC2 Pin Configuration:
 	 *
@@ -253,30 +338,3 @@
 	};
 };
 
-&adc2 {
-	status = "okay";
-
-	channel@0 {
-		reg = <0x0>;
-	};
-
-	channel@1 {
-		reg = <0x1>;
-	};
-
-	channel@2 {
-		reg = <0x2>;
-	};
-
-	channel@3 {
-		reg = <0x3>;
-	};
-
-	channel@4 {
-		reg = <0x4>;
-	};
-
-	channel@5 {
-		reg = <0x5>;
-	};
-};

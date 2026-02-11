@@ -870,7 +870,7 @@
 				 <&apps_smmu 0x94 0x11>,
 				 <&apps_smmu 0x96 0x11>,
 				 <&apps_smmu 0x98 0x1>,
-				 <&apps_smmu 0x9F 0>;
+				 <&apps_smmu 0x9f 0>;
 		};
 
 		crypto: crypto@1b3a000 {
@@ -885,7 +885,7 @@
 				 <&apps_smmu 0x94 0x11>,
 				 <&apps_smmu 0x96 0x11>,
 				 <&apps_smmu 0x98 0x1>,
-				 <&apps_smmu 0x9F 0>;
+				 <&apps_smmu 0x9f 0>;
 		};
 
 		usb_qmpphy: phy@1615000 {
@@ -1715,8 +1715,12 @@
 
 		gpu: gpu@5900000 {
 			compatible = "qcom,adreno-610.0", "qcom,adreno";
-			reg = <0x0 0x05900000 0x0 0x40000>;
-			reg-names = "kgsl_3d0_reg_memory";
+			reg = <0x0 0x05900000 0x0 0x40000>,
+			      <0x0 0x0599e000 0x0 0x1000>,
+			      <0x0 0x05961000 0x0 0x800>;
+			reg-names = "kgsl_3d0_reg_memory",
+				    "cx_mem",
+				    "cx_dbgc";
 
 			/* There's no (real) GMU, so we have to handle quite a bunch of clocks! */
 			clocks = <&gpucc GPU_CC_GX_GFX3D_CLK>,

@@ -70,7 +70,6 @@
 
 &pronto {
 	vddmx-supply = <&pm8841_s1>;
-	vddcx-supply = <&pm8841_s2>;
 	vddpx-supply = <&pm8941_s3>;
 
 	pinctrl-0 = <&wcnss_pin_a>;
@@ -104,19 +103,9 @@
 			regulator-max-microvolt = <1050000>;
 		};
 
-		pm8841_s2: s2 {
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1050000>;
-		};
-
 		pm8841_s3: s3 {
 			regulator-min-microvolt = <1050000>;
 			regulator-max-microvolt = <1050000>;
-		};
-
-		pm8841_s4: s4 {
-			regulator-min-microvolt = <815000>;
-			regulator-max-microvolt = <900000>;
 		};
 	};
 

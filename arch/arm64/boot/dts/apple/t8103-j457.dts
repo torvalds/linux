@@ -15,6 +15,7 @@
 / {
 	compatible = "apple,j457", "apple,t8103", "apple,arm-platform";
 	model = "Apple iMac (24-inch, 2x USB-C, M1, 2021)";
+	chassis-type = "all-in-one";
 
 	aliases {
 		ethernet0 = &ethernet0;
@@ -35,6 +36,18 @@
 
 &wifi0 {
 	brcm,board-type = "apple,santorini";
+};
+
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Back-right";
+};
+
+&typec1 {
+	label = "USB-C Back-left";
 };
 
 /*

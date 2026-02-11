@@ -158,7 +158,7 @@
 		reg = <0x51>;
 	};
 
-	versaclock5: versaclock_som@6a {
+	versaclock5: versaclock-som@6a {
 		compatible = "idt,5p49v6965";
 		reg = <0x6a>;
 		#clock-cells = <1>;

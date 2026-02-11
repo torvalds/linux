@@ -34,7 +34,7 @@
 	status = "okay";
 };
 
-&panel0_lvds {
+&panel_lvds0 {
 	compatible = "edt,etml1010g3dra";
 	status = "okay";
 };

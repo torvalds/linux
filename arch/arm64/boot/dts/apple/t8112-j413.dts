@@ -16,6 +16,7 @@
 / {
 	compatible = "apple,j413", "apple,t8112", "apple,arm-platform";
 	model = "Apple MacBook Air (13-inch, M2, 2022)";
+	chassis-type = "laptop";
 
 	aliases {
 		bluetooth0 = &bluetooth0;
@@ -58,6 +59,18 @@
 		local-bd-address = [00 00 00 00 00 00];
 		brcm,board-type = "apple,hokkaido";
 	};
+};
+
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Left-back";
+};
+
+&typec1 {
+	label = "USB-C Left-front";
 };
 
 &i2c0 {

@@ -6,6 +6,10 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	aliases {
+		ethernet0 = &fec1;
+	};
+
 	chosen {
 		stdout-path = &lpuart1;
 	};

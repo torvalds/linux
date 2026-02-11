@@ -62,18 +62,23 @@
 		/*
 		 * Enable either SLC or MLC
 		 */
-		slc: flash@20020000 {
+		slc: nand-controller@20020000 {
 			compatible = "nxp,lpc3220-slc";
 			reg = <0x20020000 0x1000>;
+			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk LPC32XX_CLK_SLC>;
+			dmas = <&dma 1 1>;
+			dma-names = "rx-tx";
 			status = "disabled";
 		};
 
-		mlc: flash@200a8000 {
+		mlc: nand-controller@200a8000 {
 			compatible = "nxp,lpc3220-mlc";
 			reg = <0x200a8000 0x11000>;
 			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk LPC32XX_CLK_MLC>;
+			dmas = <&dma 12 1>;
+			dma-names = "rx-tx";
 			status = "disabled";
 		};
 
@@ -83,54 +88,55 @@
 			interrupts = <28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clk LPC32XX_CLK_DMA>;
 			clock-names = "apb_pclk";
+			dma-channels = <8>;
+			dma-requests = <16>;
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb1;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
 			#dma-cells = <2>;
 		};
 
-		usb {
+		/*
+		 * Enable either ohci or usbd (gadget)!
+		 */
+		ohci: usb@31020000 {
+			compatible = "nxp,ohci-nxp", "usb-ohci";
+			reg = <0x31020000 0x300>;
+			interrupt-parent = <&sic1>;
+			interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usbclk LPC32XX_USB_CLK_HOST>;
+			status = "disabled";
+		};
+
+		usbd: usbd@31020000 {
+			compatible = "nxp,lpc3220-udc";
+			reg = <0x31020000 0x300>;
+			interrupt-parent = <&sic1>;
+			interrupts = <29 IRQ_TYPE_LEVEL_HIGH>,
+				     <30 IRQ_TYPE_LEVEL_HIGH>,
+				     <28 IRQ_TYPE_LEVEL_HIGH>,
+				     <26 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&usbclk LPC32XX_USB_CLK_DEVICE>;
+			status = "disabled";
+		};
+
+		i2cusb: i2c@31020300 {
+			compatible = "nxp,pnx-i2c";
+			reg = <0x31020300 0x100>;
+			interrupt-parent = <&sic1>;
+			interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&usbclk LPC32XX_USB_CLK_I2C>;
 			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "simple-bus";
-			ranges = <0x0 0x31020000 0x00001000>;
+			#size-cells = <0>;
+		};
 
-			/*
-			 * Enable either ohci or usbd (gadget)!
-			 */
-			ohci: usb@0 {
-				compatible = "nxp,ohci-nxp", "usb-ohci";
-				reg = <0x0 0x300>;
-				interrupt-parent = <&sic1>;
-				interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&usbclk LPC32XX_USB_CLK_HOST>;
-				status = "disabled";
-			};
-
-			usbd: usbd@0 {
-				compatible = "nxp,lpc3220-udc";
-				reg = <0x0 0x300>;
-				interrupt-parent = <&sic1>;
-				interrupts = <29 IRQ_TYPE_LEVEL_HIGH>,
-					     <30 IRQ_TYPE_LEVEL_HIGH>,
-					     <28 IRQ_TYPE_LEVEL_HIGH>,
-					     <26 IRQ_TYPE_LEVEL_LOW>;
-				clocks = <&usbclk LPC32XX_USB_CLK_DEVICE>;
-				status = "disabled";
-			};
-
-			i2cusb: i2c@300 {
-				compatible = "nxp,pnx-i2c";
-				reg = <0x300 0x100>;
-				interrupt-parent = <&sic1>;
-				interrupts = <31 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&usbclk LPC32XX_USB_CLK_I2C>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			usbclk: clock-controller@f00 {
-				compatible = "nxp,lpc3220-usb-clk";
-				reg = <0xf00 0x100>;
-				#clock-cells = <1>;
-			};
+		usbclk: clock-controller@31020f00 {
+			compatible = "nxp,lpc3220-usb-clk";
+			reg = <0x31020f00 0x100>;
+			#clock-cells = <1>;
 		};
 
 		clcd: clcd@31040000 {
@@ -179,8 +185,8 @@
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x20084000 0x1000>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk LPC32XX_CLK_SSP0>;
-				clock-names = "apb_pclk";
+				clocks = <&clk LPC32XX_CLK_SSP0>, <&clk LPC32XX_CLK_SSP0>;
+				clock-names = "sspclk", "apb_pclk";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -190,6 +196,8 @@
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20088000 0x1000>;
 				clocks = <&clk LPC32XX_CLK_SPI1>;
+				dmas = <&dmamux 11 1 0>;
+				dma-names = "rx-tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -203,8 +211,8 @@
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0x2008c000 0x1000>;
 				interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clk LPC32XX_CLK_SSP1>;
-				clock-names = "apb_pclk";
+				clocks = <&clk LPC32XX_CLK_SSP1>, <&clk LPC32XX_CLK_SSP1>;
+				clock-names = "sspclk", "apb_pclk";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -214,6 +222,8 @@
 				compatible = "nxp,lpc3220-spi";
 				reg = <0x20090000 0x1000>;
 				clocks = <&clk LPC32XX_CLK_SPI2>;
+				dmas = <&dmamux 3 1 0>;
+				dma-names = "rx-tx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -222,6 +232,11 @@
 			i2s0: i2s@20094000 {
 				compatible = "nxp,lpc3220-i2s";
 				reg = <0x20094000 0x1000>;
+				interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk LPC32XX_CLK_I2S0>;
+				dmas = <&dma 0 1>, <&dma 13 1>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -238,6 +253,11 @@
 			i2s1: i2s@2009c000 {
 				compatible = "nxp,lpc3220-i2s";
 				reg = <0x2009c000 0x1000>;
+				interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk LPC32XX_CLK_I2S1>;
+				dmas = <&dma 2 1>, <&dmamux 10 1 1>;
+				dma-names = "rx", "tx";
+				#sound-dai-cells = <0>;
 				status = "disabled";
 			};
 
@@ -302,6 +322,8 @@
 			mpwm: pwm@400e8000 {
 				compatible = "nxp,lpc3220-motor-pwm";
 				reg = <0x400e8000 0x78>;
+				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+				clocks = <&clk LPC32XX_CLK_MCPWM>;
 				#pwm-cells = <3>;
 				status = "disabled";
 			};
@@ -314,19 +336,26 @@
 			ranges = <0x20000000 0x20000000 0x30000000>;
 
 			/* System Control Block */
-			scb {
-				compatible = "simple-bus";
-				ranges = <0x0 0x40004000 0x00001000>;
+			syscon@40004000 {
+				compatible = "nxp,lpc3220-scb", "syscon", "simple-mfd";
+				reg = <0x40004000 0x1000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				ranges = <0 0x40004000 0x1000>;
 
 				clk: clock-controller@0 {
 					compatible = "nxp,lpc3220-clk";
 					reg = <0x00 0x114>;
 					#clock-cells = <1>;
-
 					clocks = <&xtal_32k>, <&xtal>;
 					clock-names = "xtal_32k", "xtal";
+				};
+
+				dmamux: dma-router@78 {
+					compatible = "nxp,lpc3220-dmamux";
+					reg = <0x78 0x8>;
+					dma-masters = <&dma>;
+					#dma-cells = <3>;
 				};
 			};
 

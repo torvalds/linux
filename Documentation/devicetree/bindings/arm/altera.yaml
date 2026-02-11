@@ -9,6 +9,9 @@ title: Altera's SoCFPGA platform
 maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
+description:
+  Altera/Intel boards with ARM 32/64 bits cores
+
 properties:
   $nodename:
     const: "/"
@@ -80,6 +83,30 @@ properties:
               - altr,socfpga-stratix10-socdk
               - altr,socfpga-stratix10-swvp
           - const: altr,socfpga-stratix10
+
+      - description: AgileX boards
+        items:
+          - enum:
+              - intel,n5x-socdk
+              - intel,socfpga-agilex-n6000
+              - intel,socfpga-agilex-socdk
+              - intel,socfpga-agilex-socdk-emmc
+          - const: intel,socfpga-agilex
+
+      - description: Agilex3 boards
+        items:
+          - enum:
+              - intel,socfpga-agilex3-socdk
+          - const: intel,socfpga-agilex3
+          - const: intel,socfpga-agilex5
+
+      - description: Agilex5 boards
+        items:
+          - enum:
+              - intel,socfpga-agilex5-socdk
+              - intel,socfpga-agilex5-socdk-013b
+              - intel,socfpga-agilex5-socdk-nand
+          - const: intel,socfpga-agilex5
 
       - description: SoCFPGA VT
         items:

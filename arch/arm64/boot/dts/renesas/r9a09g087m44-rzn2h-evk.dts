@@ -7,6 +7,8 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
+
 #include "r9a09g087m44.dtsi"
 
 /*
@@ -28,8 +30,18 @@
 #define SD0_SD		(!SD0_EMMC)
 
 /*
+ * To enable CANFD interface disable both eMMC and SD card on SDHI0 by
+ * setting SD0_EMMC and SD0_SD macros to 0 as pins P12_0 and P12_1
+ * will be used for CANFD interface.
+ */
+#define CANFD_ENABLE	(!SD0_EMMC && !SD0_SD)
+
+/*
  * P17_4 = SD1_CD; DSW5[3] = ON; DSW19[1] = OFF; DSW19[2] = ON
  * P08_6 = SD1_IOVS; DSW5[3] = ON
+ * To enable proper operation in 1.8V modes, JP21 must have pins 2 and 3
+ * connected by the jumper. This connects SD1 power-supply control IC output
+ * back to VCC1833_7.
  */
 #define SD1_MICRO_SD	1
 
@@ -73,6 +85,34 @@
 / {
 	model = "Renesas RZ/N2H EVK Board based on r9a09g087m44";
 	compatible = "renesas,rzn2h-evk", "renesas,r9a09g087m44", "renesas,r9a09g087";
+
+	keys {
+		compatible = "gpio-keys";
+
+		key-1 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(18, 2) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_1>;
+			label = "SW2";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-2 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(0, 4) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_2>;
+			label = "SW3";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+
+		key-3 {
+			interrupts-extended = <&pinctrl RZT2H_GPIO(18, 7) IRQ_TYPE_EDGE_FALLING>;
+			linux,code = <KEY_3>;
+			label = "SW4";
+			wakeup-source;
+			debounce-interval = <20>;
+		};
+	};
 
 	leds {
 		compatible = "gpio-leds";
@@ -170,6 +210,82 @@
 	};
 };
 
+&adc2 {
+	status = "okay";
+
+	channel@0 {
+		reg = <0x0>;
+	};
+
+	channel@1 {
+		reg = <0x1>;
+	};
+
+	channel@2 {
+		reg = <0x2>;
+	};
+
+	channel@3 {
+		reg = <0x3>;
+	};
+
+	channel@4 {
+		reg = <0x4>;
+	};
+
+	channel@5 {
+		reg = <0x5>;
+	};
+
+	channel@6 {
+		reg = <0x6>;
+	};
+
+	channel@7 {
+		reg = <0x7>;
+	};
+
+	channel@8 {
+		reg = <0x8>;
+	};
+
+	channel@9 {
+		reg = <0x9>;
+	};
+
+	channel@a {
+		reg = <0xa>;
+	};
+
+	channel@b {
+		reg = <0xb>;
+	};
+
+	channel@c {
+		reg = <0xc>;
+	};
+
+	channel@d {
+		reg = <0xd>;
+	};
+
+	channel@e {
+		reg = <0xe>;
+	};
+};
+
+#if CANFD_ENABLE
+&canfd {
+	pinctrl-0 = <&can1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel1 {
+		status = "okay";
+	};
+};
+#endif
+
 #if I2C0
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
@@ -206,6 +322,16 @@
 };
 
 &pinctrl {
+	/*
+	 * CAN1 Pin Configuration:
+	 *
+	 * DSW5[1] ON; DSW5[2] OFF - Use P12_0 and P12_1 for CAN1 interface.
+	 */
+	can1_pins: can1-pins {
+		pinmux = <RZT2H_PORT_PINMUX(12, 0, 0x19)>, /* CANRX1 */
+			 <RZT2H_PORT_PINMUX(12, 1, 0x19)>; /* CANTX1 */
+	};
+
 	/*
 	 * GMAC2 Pin Configuration:
 	 *
@@ -306,66 +432,3 @@
 	};
 };
 
-&adc2 {
-	status = "okay";
-
-	channel@0 {
-		reg = <0x0>;
-	};
-
-	channel@1 {
-		reg = <0x1>;
-	};
-
-	channel@2 {
-		reg = <0x2>;
-	};
-
-	channel@3 {
-		reg = <0x3>;
-	};
-
-	channel@4 {
-		reg = <0x4>;
-	};
-
-	channel@5 {
-		reg = <0x5>;
-	};
-
-	channel@6 {
-		reg = <0x6>;
-	};
-
-	channel@7 {
-		reg = <0x7>;
-	};
-
-	channel@8 {
-		reg = <0x8>;
-	};
-
-	channel@9 {
-		reg = <0x9>;
-	};
-
-	channel@a {
-		reg = <0xa>;
-	};
-
-	channel@b {
-		reg = <0xb>;
-	};
-
-	channel@c {
-		reg = <0xc>;
-	};
-
-	channel@d {
-		reg = <0xd>;
-	};
-
-	channel@e {
-		reg = <0xe>;
-	};
-};

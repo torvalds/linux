@@ -12,9 +12,10 @@ maintainers:
 properties:
   compatible:
     oneOf:
+      - enum:
+          - google,gs101-pmu
       - items:
           - enum:
-              - google,gs101-pmu
               - samsung,exynos3250-pmu
               - samsung,exynos4210-pmu
               - samsung,exynos4212-pmu

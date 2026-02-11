@@ -116,6 +116,10 @@
 		reg = <0x11>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		#sound-dai-cells = <0>;
+		AVDD-supply = <&vcca3v0_codec>;
+		DVDD-supply = <&vcca1v8_codec>;
+		HPVDD-supply = <&vcca3v0_codec>;
+		PVDD-supply = <&vcca1v8_codec>;
 	};
 };
 

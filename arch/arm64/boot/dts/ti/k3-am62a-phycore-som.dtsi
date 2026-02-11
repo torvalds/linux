@@ -197,6 +197,10 @@
 	bootph-all;
 };
 
+&cpsw_mac_syscon {
+	bootph-all;
+};
+
 &cpsw3g_mdio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mdio1_pins_default>;
@@ -348,6 +352,10 @@
 		cdns,read-delay = <0>;
 		bootph-all;
 	};
+};
+
+&phy_gmii_sel {
+	bootph-all;
 };
 
 &sdhci0 {

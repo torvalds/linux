@@ -90,7 +90,7 @@
 
 &i2c0 {
 	/* pull-ups and device VDDIO use AXP221 DLDO3 */
-	status = "failed";
+	status = "fail";
 };
 
 &i2c1 {

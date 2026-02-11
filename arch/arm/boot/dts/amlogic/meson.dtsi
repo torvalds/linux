@@ -12,11 +12,6 @@
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
 
-	iio-hwmon {
-		compatible = "iio-hwmon";
-		io-channels = <&saradc 8>;
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;

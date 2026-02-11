@@ -453,12 +453,10 @@
 
 &remoteproc_adsp {
 	status = "okay";
-	cx-supply = <&pma8084_s2>;
 };
 
 &remoteproc_mss {
 	status = "okay";
-	cx-supply = <&pma8084_s2>;
 	mss-supply = <&pma8084_s6>;
 	mx-supply = <&pma8084_s1>;
 	pll-supply = <&pma8084_l12>;
@@ -472,11 +470,6 @@
 			regulator-min-microvolt = <675000>;
 			regulator-max-microvolt = <1050000>;
 			regulator-always-on;
-		};
-
-		pma8084_s2: s2 {
-			regulator-min-microvolt = <500000>;
-			regulator-max-microvolt = <1050000>;
 		};
 
 		pma8084_s3: s3 {
@@ -646,6 +639,10 @@
 
 		pma8084_5vs1: 5vs1 {};
 	};
+};
+
+&rpmpd {
+	compatible = "qcom,msm8974pro-pma8084-rpmpd";
 };
 
 &sdhc_1 {
