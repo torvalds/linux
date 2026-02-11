@@ -221,7 +221,7 @@ fault:									\
 
 static __always_inline void __vmcs_writel(unsigned long field, unsigned long value)
 {
-	vmx_asm2(vmwrite, "r"(field), "rm"(value), field, value);
+	vmx_asm2(vmwrite, "r" (field), ASM_INPUT_RM (value), field, value);
 }
 
 static __always_inline void vmcs_write16(unsigned long field, u16 value)
