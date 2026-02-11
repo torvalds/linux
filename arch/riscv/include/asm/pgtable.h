@@ -1285,13 +1285,6 @@ void paging_init(void);
 void misc_mem_init(void);
 
 /*
- * ZERO_PAGE is a global shared page that is always zero,
- * used for zero-mapped memory areas, etc.
- */
-extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
-/*
  * Use set_p*_safe(), and elide TLB flushing, when confident that *no*
  * TLB flush will be required as a result of the "set". For example, use
  * in scenarios where it is known ahead of time that the routine is

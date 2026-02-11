@@ -413,7 +413,6 @@ void __init setup_arch(char **cmdline_p)
 	uml_dtb_init();
 	read_initrd();
 
-	paging_init();
 	strscpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 	setup_hostinfo(host_info, sizeof host_info);

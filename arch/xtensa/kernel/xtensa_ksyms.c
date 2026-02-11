@@ -15,8 +15,6 @@
 #include <linux/module.h>
 #include <asm/pgtable.h>
 
-EXPORT_SYMBOL(empty_zero_page);
-
 unsigned int __sync_fetch_and_and_4(volatile void *p, unsigned int v)
 {
 	BUG();

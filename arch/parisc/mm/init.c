@@ -604,9 +604,6 @@ void __init mem_init(void)
 #endif
 }
 
-unsigned long *empty_zero_page __ro_after_init;
-EXPORT_SYMBOL(empty_zero_page);
-
 /*
  * pagetable_init() sets up the page tables
  *
@@ -639,9 +636,6 @@ static void __init pagetable_init(void)
 			  initrd_end - initrd_start, PAGE_KERNEL, 0);
 	}
 #endif
-
-	empty_zero_page = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
-
 }
 
 static void __init gateway_init(void)

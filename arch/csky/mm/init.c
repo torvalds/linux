@@ -38,9 +38,6 @@ pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
 pte_t kernel_pte_tables[PTRS_KERN_TABLE] __page_aligned_bss;
 
 EXPORT_SYMBOL(invalid_pte_table);
-unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
-						__page_aligned_bss;
-EXPORT_SYMBOL(empty_zero_page);
 
 void free_initmem(void)
 {

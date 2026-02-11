@@ -246,10 +246,6 @@ void __init arch_mm_preinit(void)
 		prom_halt();
 	}
 
-
-	/* Saves us work later. */
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
-
 	i = last_valid_pfn >> ((20 - PAGE_SHIFT) + 5);
 	i += 1;
 	sparc_valid_addr_bitmap = (unsigned long *)

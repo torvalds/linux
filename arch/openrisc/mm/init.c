@@ -188,9 +188,6 @@ void __init mem_init(void)
 {
 	BUG_ON(!mem_map);
 
-	/* clear the zero-page */
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
-
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;
 	return;

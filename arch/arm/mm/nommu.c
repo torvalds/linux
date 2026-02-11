@@ -27,13 +27,6 @@
 
 unsigned long vectors_base;
 
-/*
- * empty_zero_page is a special page that is used for
- * zero-initialized data and COW.
- */
-unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
-EXPORT_SYMBOL(empty_zero_page);
-
 #ifdef CONFIG_ARM_MPU
 struct mpu_rgn_info mpu_rgn_info;
 #endif

@@ -40,7 +40,6 @@ DECLARE_EXPORT(__ashldi3);
 DECLARE_EXPORT(__lshrdi3);
 DECLARE_EXPORT(__ucmpdi2);
 
-EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(__copy_tofrom_user);
 EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(memset);

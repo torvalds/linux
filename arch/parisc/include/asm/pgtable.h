@@ -262,17 +262,6 @@ extern pgd_t swapper_pg_dir[]; /* declared in init_task.c */
 
 extern pte_t pg0[];
 
-/* zero page used for uninitialized stuff */
-
-extern unsigned long *empty_zero_page;
-
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
 #define pte_none(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_user(x)	(pte_val(x) & _PAGE_USER)

@@ -21,9 +21,6 @@
 
 #ifndef __ASSEMBLER__
 
-extern char empty_zero_page[PAGE_SIZE];
-#define ZERO_PAGE(vaddr)	(virt_to_page(empty_zero_page))
-
 extern pgd_t swapper_pg_dir[] __aligned(PAGE_SIZE);
 
 /* to cope with aliasing VIPT cache */

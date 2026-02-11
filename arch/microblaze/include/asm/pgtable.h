@@ -207,16 +207,6 @@ extern pte_t *va_to_pte(unsigned long address);
  * Also, write permissions imply read permissions.
  */
 
-#ifndef __ASSEMBLER__
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-extern unsigned long empty_zero_page[1024];
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
-#endif /* __ASSEMBLER__ */
-
 #define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep) \

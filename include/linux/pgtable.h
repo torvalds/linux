@@ -1925,6 +1925,9 @@ static inline void pfnmap_setup_cachemode_pfn(unsigned long pfn, pgprot_t *prot)
  * for different ranges in the virtual address space.
  *
  * zero_page_pfn identifies the first (or the only) pfn for these pages.
+ *
+ * For architectures that don't __HAVE_COLOR_ZERO_PAGE the zero page lives in
+ * empty_zero_page in BSS.
  */
 #ifdef __HAVE_COLOR_ZERO_PAGE
 static inline int is_zero_pfn(unsigned long pfn)
@@ -1951,6 +1954,13 @@ static inline unsigned long zero_pfn(unsigned long addr)
 
 	return zero_page_pfn;
 }
+
+extern uint8_t empty_zero_page[PAGE_SIZE];
+
+#ifndef ZERO_PAGE
+#define ZERO_PAGE(vaddr) ((void)(vaddr),virt_to_page(empty_zero_page))
+#endif
+
 #endif /* __HAVE_COLOR_ZERO_PAGE */
 
 #ifdef CONFIG_MMU
