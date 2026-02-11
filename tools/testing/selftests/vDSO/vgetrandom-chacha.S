@@ -16,5 +16,5 @@
 #elif defined(__s390x__)
 #include "../../../../arch/s390/kernel/vdso/vgetrandom-chacha.S"
 #elif defined(__x86_64__)
-#include "../../../../arch/x86/entry/vdso/vgetrandom-chacha.S"
+#include "../../../../arch/x86/entry/vdso/vdso64/vgetrandom-chacha.S"
 #endif
