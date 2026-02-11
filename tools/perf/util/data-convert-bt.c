@@ -35,6 +35,7 @@
 #include "clockid.h"
 #include "util/sample.h"
 #include "util/time-utils.h"
+#include "header.h"
 
 #ifdef HAVE_LIBTRACEEVENT
 #include <event-parse.h>
@@ -1338,7 +1339,8 @@ static void cleanup_events(struct perf_session *session)
 		struct evsel_priv *priv;
 
 		priv = evsel->priv;
-		bt_ctf_event_class_put(priv->event_class);
+		if (priv)
+			bt_ctf_event_class_put(priv->event_class);
 		zfree(&evsel->priv);
 	}
 
@@ -1387,7 +1389,7 @@ static int ctf_writer__setup_env(struct ctf_writer *cw,
 
 #define ADD(__n, __v)							\
 do {									\
-	if (bt_ctf_writer_add_environment_field(writer, __n, __v))	\
+	if (__v && bt_ctf_writer_add_environment_field(writer, __n, __v))	\
 		return -1;						\
 } while (0)
 
@@ -1400,6 +1402,52 @@ do {									\
 	ADD("tracer_name", "perf");
 
 #undef ADD
+	return 0;
+}
+
+static int process_feature_event(const struct perf_tool *tool,
+				 struct perf_session *session,
+				 union perf_event *event)
+{
+	struct convert *c = container_of(tool, struct convert, tool);
+	struct ctf_writer *cw = &c->writer;
+	struct perf_record_header_feature *fe = &event->feat;
+
+	if (event->feat.feat_id < HEADER_LAST_FEATURE) {
+		int ret = perf_event__process_feature(session, event);
+
+		if (ret)
+			return ret;
+	}
+
+	switch (fe->feat_id) {
+	case HEADER_HOSTNAME:
+		if (session->header.env.hostname) {
+			return bt_ctf_writer_add_environment_field(cw->writer, "host",
+								   session->header.env.hostname);
+		}
+		break;
+	case HEADER_OSRELEASE:
+		if (session->header.env.os_release) {
+			return bt_ctf_writer_add_environment_field(cw->writer, "release",
+								   session->header.env.os_release);
+		}
+		break;
+	case HEADER_VERSION:
+		if (session->header.env.version) {
+			return bt_ctf_writer_add_environment_field(cw->writer, "version",
+								   session->header.env.version);
+		}
+		break;
+	case HEADER_ARCH:
+		if (session->header.env.arch) {
+			return bt_ctf_writer_add_environment_field(cw->writer, "machine",
+								   session->header.env.arch);
+		}
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 
@@ -1635,6 +1683,8 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	c.tool.tracing_data    = perf_event__process_tracing_data;
 	c.tool.build_id        = perf_event__process_build_id;
 	c.tool.namespaces      = perf_event__process_namespaces;
+	c.tool.attr            = perf_event__process_attr;
+	c.tool.feature         = process_feature_event;
 	c.tool.ordering_requires_timestamps = true;
 
 	if (opts->all) {
