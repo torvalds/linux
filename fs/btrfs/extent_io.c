@@ -2396,38 +2396,12 @@ retry:
 		index = 0;
 		goto retry;
 	}
+
 	/*
-	 * If something went wrong, don't allow any metadata write bio to be
-	 * submitted.
-	 *
-	 * This would prevent use-after-free if we had dirty pages not
-	 * cleaned up, which can still happen by fuzzed images.
-	 *
-	 * - Bad extent tree
-	 *   Allowing existing tree block to be allocated for other trees.
-	 *
-	 * - Log tree operations
-	 *   Exiting tree blocks get allocated to log tree, bumps its
-	 *   generation, then get cleaned in tree re-balance.
-	 *   Such tree block will not be written back, since it's clean,
-	 *   thus no WRITTEN flag set.
-	 *   And after log writes back, this tree block is not traced by
-	 *   any dirty extent_io_tree.
-	 *
-	 * - Offending tree block gets re-dirtied from its original owner
-	 *   Since it has bumped generation, no WRITTEN flag, it can be
-	 *   reused without COWing. This tree block will not be traced
-	 *   by btrfs_transaction::dirty_pages.
-	 *
-	 *   Now such dirty tree block will not be cleaned by any dirty
-	 *   extent io tree. Thus we don't want to submit such wild eb
-	 *   if the fs already has error.
-	 *
-	 * We can get ret > 0 from submit_extent_folio() indicating how many ebs
-	 * were submitted. Reset it to 0 to avoid false alerts for the caller.
+	 * Only btrfs_check_meta_write_pointer() can update @ret,
+	 * and it only returns 0 or errors.
 	 */
-	if (ret > 0)
-		ret = 0;
+	ASSERT(ret <= 0);
 	if (!ret && BTRFS_FS_ERROR(fs_info))
 		ret = -EROFS;
 
