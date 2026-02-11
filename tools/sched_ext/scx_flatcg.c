@@ -106,6 +106,7 @@ static void fcg_read_stats(struct scx_flatcg *skel, __u64 *stats)
 	__u32 idx;
 
 	memset(stats, 0, sizeof(stats[0]) * FCG_NR_STATS);
+	memset(cnts, 0, sizeof(cnts));
 
 	for (idx = 0; idx < FCG_NR_STATS; idx++) {
 		int ret, cpu;
