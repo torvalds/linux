@@ -4,7 +4,9 @@
 #include <linux/time.h>
 
 /*
- * Traditional implementation of leap year evaluation.
+ * Traditional implementation of leap year evaluation, but note that long
+ * is a signed type and the tests do cover negative year values. So this
+ * can't use the is_leap_year() helper from rtc.h.
  */
 static bool is_leap(long year)
 {
