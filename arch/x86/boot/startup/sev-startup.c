@@ -27,7 +27,6 @@
 #include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 #include <asm/sev.h>
-#include <asm/sev-internal.h>
 #include <asm/insn-eval.h>
 #include <asm/fpu/xcr.h>
 #include <asm/processor.h>
@@ -40,6 +39,8 @@
 #include <asm/apic.h>
 #include <asm/cpuid/api.h>
 #include <asm/cmdline.h>
+
+#include "../../coco/sev/internal.h"
 
 /* Include code shared with pre-decompression boot stage */
 #include "sev-shared.c"
