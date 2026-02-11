@@ -100,7 +100,7 @@
 		fsl,weim-cs-timing = <0x00008f03 0xa0330d01 0x002208c0>;
 	};
 
-	uart8250@3,200000 {
+	serial@3,200000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart8250_1>;
 		compatible = "ns8250";
@@ -113,7 +113,7 @@
 		no-loopback-test;
 	};
 
-	uart8250@3,400000 {
+	serial@3,400000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart8250_2>;
 		compatible = "ns8250";
@@ -126,7 +126,7 @@
 		no-loopback-test;
 	};
 
-	uart8250@3,800000 {
+	serial@3,800000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart8250_3>;
 		compatible = "ns8250";
@@ -139,7 +139,7 @@
 		no-loopback-test;
 	};
 
-	uart8250@3,1000000 {
+	serial@3,1000000 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_uart8250_4>;
 		compatible = "ns8250";
