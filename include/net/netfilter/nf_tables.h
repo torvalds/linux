@@ -277,6 +277,8 @@ struct nft_userdata {
 	unsigned char		data[];
 };
 
+#define NFT_SET_ELEM_INTERNAL_LAST	0x1
+
 /* placeholder structure for opaque set element backend representation. */
 struct nft_elem_priv { };
 
@@ -286,6 +288,7 @@ struct nft_elem_priv { };
  *	@key: element key
  *	@key_end: closing element key
  *	@data: element data
+ * 	@flags: flags
  *	@priv: element private data and extensions
  */
 struct nft_set_elem {
@@ -301,6 +304,7 @@ struct nft_set_elem {
 		u32		buf[NFT_DATA_VALUE_MAXLEN / sizeof(u32)];
 		struct nft_data val;
 	} data;
+	u32			flags;
 	struct nft_elem_priv	*priv;
 };
 
