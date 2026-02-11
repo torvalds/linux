@@ -113,9 +113,6 @@ __BUILD = $(CC) $(CFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(
 __BUILDXX = $(CXX) $(CXXFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
   BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
 
-__BUILDRS = $(RUSTC) $(RUSTC_FLAGS) --emit=dep-info=$(patsubst %.bin,%.d,$(@F)),link -o $@ $(patsubst %.bin,%.rs,$(@F))
-  BUILDRS = $(__BUILDRS) > $(@:.bin=.make.output) 2>&1
-
 ###############################
 
 $(OUTPUT)test-all.bin:
@@ -393,8 +390,13 @@ $(OUTPUT)test-bpftool-skeletons.bin:
 	$(SYSTEM_BPFTOOL) version | grep '^features:.*skeletons' \
 		> $(@:.bin=.make.output) 2>&1
 
+# Testing Rust is special: we don't compile anything, it's enough to check the
+# compiler presence. Compiling a test code for this purposes is problematic,
+# because Rust will emit a dependency file without any external references,
+# meaning that if rustc will be removed the build process will still think it's
+# there.
 $(OUTPUT)test-rust.bin:
-	$(BUILDRS) > $(@:.bin=.make.output) 2>&1
+	$(RUSTC) --version > /dev/null 2>&1
 
 ###############################
 
