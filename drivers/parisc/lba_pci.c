@@ -1066,6 +1066,10 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 
 		p = (void *) &(pa_pdc_cell->mod[2+i*3]);
 		io = (void *) &(io_pdc_cell->mod[2+i*3]);
+		DBG_PAT("PA #%d : TYPE 0x%08lx,  start 0x%08lx, end 0x%08lx\n",
+			i, p->type, p->start, p->end);
+		DBG_PAT("IO #%d : TYPE 0x%08lx,  start 0x%08lx, end 0x%08lx\n",
+			i, io->type, io->start, io->end);
 
 		/* Convert the PAT range data to PCI "struct resource" */
 		switch(p->type & 0xff) {
