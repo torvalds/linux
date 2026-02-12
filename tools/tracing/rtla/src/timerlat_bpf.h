@@ -12,6 +12,7 @@ enum summary_field {
 };
 
 #ifndef __bpf__
+#include <bpf/libbpf.h>
 #ifdef HAVE_BPF_SKEL
 int timerlat_bpf_init(struct timerlat_params *params);
 int timerlat_bpf_attach(void);
@@ -29,7 +30,7 @@ int timerlat_bpf_get_summary_value(enum summary_field key,
 				   long long *value_thread,
 				   long long *value_user,
 				   int cpus);
-
+int timerlat_load_bpf_action_program(const char *program_path);
 static inline int have_libbpf_support(void) { return 1; }
 #else
 static inline int timerlat_bpf_init(struct timerlat_params *params)
@@ -54,6 +55,10 @@ static inline int timerlat_bpf_get_summary_value(enum summary_field key,
 						 long long *value_thread,
 						 long long *value_user,
 						 int cpus)
+{
+	return -1;
+}
+static inline int timerlat_load_bpf_action_program(const char *program_path)
 {
 	return -1;
 }

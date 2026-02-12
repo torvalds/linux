@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <sched.h>
@@ -48,24 +47,16 @@ timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 		}
 	}
 
-	if (params->mode != TRACING_MODE_BPF) {
-		/*
-		 * In tracefs and mixed mode, timerlat tracer handles stopping
-		 * on threshold
-		 */
-		retval = osnoise_set_stop_us(tool->context, params->common.stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
+	/* Check if BPF action program is requested but BPF is not available */
+	if (params->bpf_action_program) {
+		if (params->mode == TRACING_MODE_TRACEFS) {
+			err_msg("BPF actions are not supported in tracefs-only mode\n");
 			goto out_err;
 		}
 
-		retval = osnoise_set_stop_total_us(tool->context, params->common.stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
+		if (timerlat_load_bpf_action_program(params->bpf_action_program))
 			goto out_err;
-		}
 	}
-
 
 	retval = osnoise_set_timerlat_period_us(tool->context,
 						params->timerlat_period_us ?
@@ -182,6 +173,16 @@ int timerlat_enable(struct osnoise_tool *tool)
 			err_msg("Error attaching BPF program\n");
 			return retval;
 		}
+	}
+
+	/*
+	 * In tracefs and mixed mode, timerlat tracer handles stopping
+	 * on threshold
+	 */
+	if (params->mode != TRACING_MODE_BPF) {
+		retval = osn_set_stop(tool);
+		if (retval)
+			return retval;
 	}
 
 	return 0;

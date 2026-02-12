@@ -5,3 +5,7 @@ fixdep
 feature
 FEATURE-DUMP
 *.skel.h
+custom_filename.txt
+osnoise_irq_noise_hist.txt
+osnoise_trace.txt
+timerlat_trace.txt

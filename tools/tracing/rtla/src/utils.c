@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include "utils.h"
 
@@ -112,7 +113,7 @@ void get_duration(time_t start_time, char *output, int output_size)
  * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
  * filling cpu_set_t argument.
  *
- * Returns 1 on success, 0 otherwise.
+ * Returns 0 on success, 1 otherwise.
  */
 int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 {
@@ -314,6 +315,7 @@ static int procfs_is_workload_pid(const char *comm_prefix, struct dirent *proc_e
 	if (retval <= 0)
 		return 0;
 
+	buffer[MAX_PATH-1] = '\0';
 	retval = strncmp(comm_prefix, buffer, strlen(comm_prefix));
 	if (retval)
 		return 0;
@@ -337,6 +339,7 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 	struct dirent *proc_entry;
 	DIR *procfs;
 	int retval;
+	int pid;
 
 	if (strlen(comm_prefix) >= MAX_PATH) {
 		err_msg("Command prefix is too long: %d < strlen(%s)\n",
@@ -356,8 +359,12 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 		if (!retval)
 			continue;
 
+		if (strtoi(proc_entry->d_name, &pid)) {
+			err_msg("'%s' is not a valid pid", proc_entry->d_name);
+			goto out_err;
+		}
 		/* procfs_is_workload_pid confirmed it is a pid */
-		retval = __set_sched_attr(atoi(proc_entry->d_name), attr);
+		retval = __set_sched_attr(pid, attr);
 		if (retval) {
 			err_msg("Error setting sched attributes for pid:%s\n", proc_entry->d_name);
 			goto out_err;
@@ -742,6 +749,7 @@ static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
 	if (fd < 0)
 		return 0;
 
+	memset(path, 0, sizeof(path));
 	retval = read(fd, path, MAX_PATH);
 
 	close(fd);
@@ -749,6 +757,7 @@ static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
 	if (retval <= 0)
 		return 0;
 
+	path[MAX_PATH-1] = '\0';
 	start = path;
 
 	start = strstr(start, ":");
@@ -784,27 +793,27 @@ static int get_self_cgroup(char *self_cg, int sizeof_self_cg)
 }
 
 /*
- * set_comm_cgroup - Set cgroup to pid_t pid
+ * open_cgroup_procs - Open the cgroup.procs file for the given cgroup
  *
- * If cgroup argument is not NULL, the threads will move to the given cgroup.
- * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ * If cgroup argument is not NULL, the cgroup.procs file for that cgroup
+ * will be opened. Otherwise, the cgroup of the calling, i.e., rtla, thread
+ * will be used.
  *
  * Supports cgroup v2.
  *
- * Returns 1 on success, 0 otherwise.
+ * Returns the file descriptor on success, -1 otherwise.
  */
-int set_pid_cgroup(pid_t pid, const char *cgroup)
+static int open_cgroup_procs(const char *cgroup)
 {
 	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
 	char cgroup_procs[MAX_PATH];
-	char pid_str[24];
 	int retval;
 	int cg_fd;
 
 	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
 	if (!retval) {
 		err_msg("Did not find cgroupv2 mount point\n");
-		return 0;
+		return -1;
 	}
 
 	if (!cgroup) {
@@ -812,7 +821,7 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 				sizeof(cgroup_path) - strlen(cgroup_path));
 		if (!retval) {
 			err_msg("Did not find self cgroup\n");
-			return 0;
+			return -1;
 		}
 	} else {
 		snprintf(&cgroup_path[strlen(cgroup_path)],
@@ -824,6 +833,29 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
 	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
 
 	cg_fd = open(cgroup_procs, O_RDWR);
+	if (cg_fd < 0)
+		return -1;
+
+	return cg_fd;
+}
+
+/*
+ * set_pid_cgroup - Set cgroup to pid_t pid
+ *
+ * If cgroup argument is not NULL, the threads will move to the given cgroup.
+ * Otherwise, the cgroup of the calling, i.e., rtla, thread will be used.
+ *
+ * Supports cgroup v2.
+ *
+ * Returns 1 on success, 0 otherwise.
+ */
+int set_pid_cgroup(pid_t pid, const char *cgroup)
+{
+	char pid_str[24];
+	int retval;
+	int cg_fd;
+
+	cg_fd = open_cgroup_procs(cgroup);
 	if (cg_fd < 0)
 		return 0;
 
@@ -853,8 +885,6 @@ int set_pid_cgroup(pid_t pid, const char *cgroup)
  */
 int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 {
-	char cgroup_path[MAX_PATH - strlen("/cgroup.procs")];
-	char cgroup_procs[MAX_PATH];
 	struct dirent *proc_entry;
 	DIR *procfs;
 	int retval;
@@ -866,29 +896,7 @@ int set_comm_cgroup(const char *comm_prefix, const char *cgroup)
 		return 0;
 	}
 
-	retval = find_mount("cgroup2", cgroup_path, sizeof(cgroup_path));
-	if (!retval) {
-		err_msg("Did not find cgroupv2 mount point\n");
-		return 0;
-	}
-
-	if (!cgroup) {
-		retval = get_self_cgroup(&cgroup_path[strlen(cgroup_path)],
-				sizeof(cgroup_path) - strlen(cgroup_path));
-		if (!retval) {
-			err_msg("Did not find self cgroup\n");
-			return 0;
-		}
-	} else {
-		snprintf(&cgroup_path[strlen(cgroup_path)],
-				sizeof(cgroup_path) - strlen(cgroup_path), "%s/", cgroup);
-	}
-
-	snprintf(cgroup_procs, MAX_PATH, "%s/cgroup.procs", cgroup_path);
-
-	debug_msg("Using cgroup path at: %s\n", cgroup_procs);
-
-	cg_fd = open(cgroup_procs, O_RDWR);
+	cg_fd = open_cgroup_procs(cgroup);
 	if (cg_fd < 0)
 		return 0;
 
@@ -999,4 +1007,26 @@ char *parse_optional_arg(int argc, char **argv)
 	} else {
 		return NULL;
 	}
+}
+
+/*
+ * strtoi - convert string to integer with error checking
+ *
+ * Returns 0 on success, -1 if conversion fails or result is out of int range.
+ */
+int strtoi(const char *s, int *res)
+{
+	char *end_ptr;
+	long lres;
+
+	if (!*s)
+		return -1;
+
+	errno = 0;
+	lres = strtol(s, &end_ptr, 0);
+	if (errno || *end_ptr || lres > INT_MAX || lres < INT_MIN)
+		return -1;
+
+	*res = (int) lres;
+	return 0;
 }
