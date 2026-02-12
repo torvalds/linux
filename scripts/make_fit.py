@@ -54,7 +54,7 @@ COMP_TOOLS = {
     'bzip2': CompTool('.bz2', 'pbzip2,bzip2'),
     'gzip': CompTool('.gz', 'pigz,gzip'),
     'lz4': CompTool('.lz4', 'lz4'),
-    'lzma': CompTool('.lzma', 'plzip,lzma'),
+    'lzma': CompTool('.lzma', 'lzma'),
     'lzo': CompTool('.lzo', 'lzop'),
     'xz': CompTool('.xz', 'xz'),
     'zstd': CompTool('.zstd', 'zstd'),
