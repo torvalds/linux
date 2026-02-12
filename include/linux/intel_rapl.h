@@ -128,6 +128,16 @@ struct reg_action {
 	int err;
 };
 
+struct rapl_defaults {
+	u8 floor_freq_reg_addr;
+	int (*check_unit)(struct rapl_domain *rd);
+	void (*set_floor_freq)(struct rapl_domain *rd, bool mode);
+	u64 (*compute_time_window)(struct rapl_domain *rd, u64 val, bool to_raw);
+	unsigned int dram_domain_energy_unit;
+	unsigned int psys_domain_energy_unit;
+	bool spr_psys_bits;
+};
+
 /**
  * struct rapl_if_priv: private data for different RAPL interfaces
  * @control_type:		Each RAPL interface must have its own powercap
@@ -142,7 +152,7 @@ struct reg_action {
  *				registers.
  * @write_raw:			Callback for writing RAPL interface specific
  *				registers.
- * @defaults:			internal pointer to interface default settings
+ * @defaults:			pointer to default settings
  * @rpi:			internal pointer to interface primitive info
  */
 struct rapl_if_priv {
@@ -154,7 +164,7 @@ struct rapl_if_priv {
 	int limits[RAPL_DOMAIN_MAX];
 	int (*read_raw)(int id, struct reg_action *ra, bool pmu_ctx);
 	int (*write_raw)(int id, struct reg_action *ra);
-	void *defaults;
+	const struct rapl_defaults *defaults;
 	void *rpi;
 };
 
@@ -211,6 +221,9 @@ void rapl_remove_package_cpuslocked(struct rapl_package *rp);
 struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu);
 void rapl_remove_package(struct rapl_package *rp);
+int rapl_default_check_unit(struct rapl_domain *rd);
+void rapl_default_set_floor_freq(struct rapl_domain *rd, bool mode);
+u64 rapl_default_compute_time_window(struct rapl_domain *rd, u64 value, bool to_raw);
 
 #ifdef CONFIG_PERF_EVENTS
 int rapl_package_add_pmu(struct rapl_package *rp);
