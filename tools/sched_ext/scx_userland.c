@@ -54,6 +54,7 @@ static bool verbose;
 static volatile int exit_req;
 static int enqueued_fd, dispatched_fd;
 
+static pthread_t stats_printer;
 static struct scx_userland *skel;
 static struct bpf_link *ops_link;
 
@@ -319,8 +320,6 @@ static void *run_stats_printer(void *arg)
 
 static int spawn_stats_thread(void)
 {
-	pthread_t stats_printer;
-
 	return pthread_create(&stats_printer, NULL, run_stats_printer, NULL);
 }
 
@@ -375,6 +374,7 @@ static void pre_bootstrap(int argc, char **argv)
 
 static void bootstrap(char *comm)
 {
+	exit_req = 0;
 	skel = SCX_OPS_OPEN(userland_ops, scx_userland);
 
 	skel->rodata->num_possible_cpus = libbpf_num_possible_cpus();
@@ -428,6 +428,7 @@ restart:
 
 	exit_req = 1;
 	bpf_link__destroy(ops_link);
+	pthread_join(stats_printer, NULL);
 	ecode = UEI_REPORT(skel, uei);
 	scx_userland__destroy(skel);
 
