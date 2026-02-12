@@ -447,14 +447,20 @@
 };
 
 &qupv3_0 {
+	firmware-name = "qcom/x1e80100/qupv3fw.elf";
+
 	status = "okay";
 };
 
 &qupv3_1 {
+	firmware-name = "qcom/x1e80100/qupv3fw.elf";
+
 	status = "okay";
 };
 
 &qupv3_2 {
+	firmware-name = "qcom/x1e80100/qupv3fw.elf";
+
 	status = "okay";
 };
 
