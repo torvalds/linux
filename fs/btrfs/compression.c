@@ -292,7 +292,7 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	struct folio_iter fi;
 
-	btrfs_finish_ordered_extent(cb->bbio.ordered, NULL, cb->start, cb->len,
+	btrfs_finish_ordered_extent(cb->bbio.ordered, cb->start, cb->len,
 				    cb->bbio.bio.bi_status == BLK_STS_OK);
 
 	if (cb->writeback)
