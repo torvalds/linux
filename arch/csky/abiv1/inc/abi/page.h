@@ -10,6 +10,7 @@ static inline unsigned long pages_do_alias(unsigned long addr1,
 	return (addr1 ^ addr2) & (SHMLBA-1);
 }
 
+#define clear_user_page clear_user_page
 static inline void clear_user_page(void *addr, unsigned long vaddr,
 				   struct page *page)
 {

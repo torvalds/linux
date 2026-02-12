@@ -110,7 +110,7 @@ static int update_range_prot(unsigned long start, unsigned long size,
 	if (WARN_ON_ONCE(ret))
 		return ret;
 
-	arch_enter_lazy_mmu_mode();
+	lazy_mmu_mode_enable();
 
 	/*
 	 * The caller must ensure that the range we are operating on does not
@@ -119,7 +119,7 @@ static int update_range_prot(unsigned long start, unsigned long size,
 	 */
 	ret = walk_kernel_page_table_range_lockless(start, start + size,
 						    &pageattr_ops, NULL, &data);
-	arch_leave_lazy_mmu_mode();
+	lazy_mmu_mode_disable();
 
 	return ret;
 }

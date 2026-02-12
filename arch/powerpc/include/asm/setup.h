@@ -20,7 +20,11 @@ extern void reloc_got2(unsigned long);
 
 void check_for_initrd(void);
 void mem_topology_setup(void);
+#ifdef CONFIG_NUMA
 void initmem_init(void);
+#else
+static inline void initmem_init(void) {}
+#endif
 void setup_panic(void);
 #define ARCH_PANIC_TIMEOUT 180
 

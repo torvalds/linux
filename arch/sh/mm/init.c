@@ -227,8 +227,6 @@ static void __init do_init_bootmem(void)
 	node_set_online(0);
 
 	plat_mem_setup();
-
-	sparse_init();
 }
 
 static void __init early_reserve_mem(void)
@@ -264,9 +262,13 @@ static void __init early_reserve_mem(void)
 	reserve_crashkernel();
 }
 
+void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
+{
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+}
+
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long vaddr, end;
 
 	sh_mv.mv_mem_init();
@@ -320,10 +322,6 @@ void __init paging_init(void)
 	page_table_range_init(vaddr, end, swapper_pg_dir);
 
 	kmap_coherent_init();
-
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-	free_area_init(max_zone_pfns);
 }
 
 unsigned int mem_init_done = 0;

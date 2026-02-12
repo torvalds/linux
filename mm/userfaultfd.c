@@ -1103,7 +1103,7 @@ static long move_present_ptes(struct mm_struct *mm,
 	/* It's safe to drop the reference now as the page-table is holding one. */
 	folio_put(*first_src_folio);
 	*first_src_folio = NULL;
-	arch_enter_lazy_mmu_mode();
+	lazy_mmu_mode_enable();
 
 	while (true) {
 		orig_src_pte = ptep_get_and_clear(mm, src_addr, src_pte);
@@ -1140,7 +1140,7 @@ static long move_present_ptes(struct mm_struct *mm,
 			break;
 	}
 
-	arch_leave_lazy_mmu_mode();
+	lazy_mmu_mode_disable();
 	if (src_addr > src_start)
 		flush_tlb_range(src_vma, src_start, src_addr);
 
@@ -1190,17 +1190,13 @@ static int move_swap_pte(struct mm_struct *mm, struct vm_area_struct *dst_vma,
 		 * Check if the swap entry is cached after acquiring the src_pte
 		 * lock. Otherwise, we might miss a newly loaded swap cache folio.
 		 *
-		 * Check swap_map directly to minimize overhead, READ_ONCE is sufficient.
 		 * We are trying to catch newly added swap cache, the only possible case is
 		 * when a folio is swapped in and out again staying in swap cache, using the
 		 * same entry before the PTE check above. The PTL is acquired and released
-		 * twice, each time after updating the swap_map's flag. So holding
-		 * the PTL here ensures we see the updated value. False positive is possible,
-		 * e.g. SWP_SYNCHRONOUS_IO swapin may set the flag without touching the
-		 * cache, or during the tiny synchronization window between swap cache and
-		 * swap_map, but it will be gone very quickly, worst result is retry jitters.
+		 * twice, each time after updating the swap table. So holding
+		 * the PTL here ensures we see the updated value.
 		 */
-		if (READ_ONCE(si->swap_map[swp_offset(entry)]) & SWAP_HAS_CACHE) {
+		if (swap_cache_has_folio(entry)) {
 			double_pt_unlock(dst_ptl, src_ptl);
 			return -EAGAIN;
 		}
@@ -1274,7 +1270,7 @@ retry:
 	 * Use the maywrite version to indicate that dst_pte will be modified,
 	 * since dst_pte needs to be none, the subsequent pte_same() check
 	 * cannot prevent the dst_pte page from being freed concurrently, so we
-	 * also need to abtain dst_pmdval and recheck pmd_same() later.
+	 * also need to obtain dst_pmdval and recheck pmd_same() later.
 	 */
 	dst_pte = pte_offset_map_rw_nolock(mm, dst_pmd, dst_addr, &dst_pmdval,
 					   &dst_ptl);
@@ -1330,7 +1326,7 @@ retry:
 		goto out;
 	}
 
-	/* If PTE changed after we locked the folio them start over */
+	/* If PTE changed after we locked the folio then start over */
 	if (src_folio && unlikely(!pte_same(src_folio_pte, orig_src_pte))) {
 		ret = -EAGAIN;
 		goto out;

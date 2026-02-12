@@ -200,18 +200,15 @@ static int __init hugetlbpage_init(void)
 
 arch_initcall(hugetlbpage_init);
 
-void __init gigantic_hugetlb_cma_reserve(void)
+unsigned int __init arch_hugetlb_cma_order(void)
 {
-	unsigned long order = 0;
-
 	if (radix_enabled())
-		order = PUD_SHIFT - PAGE_SHIFT;
+		return PUD_SHIFT - PAGE_SHIFT;
 	else if (!firmware_has_feature(FW_FEATURE_LPAR) && mmu_psize_defs[MMU_PAGE_16G].shift)
 		/*
 		 * For pseries we do use ibm,expected#pages for reserving 16G pages.
 		 */
-		order = mmu_psize_to_shift(MMU_PAGE_16G) - PAGE_SHIFT;
+		return mmu_psize_to_shift(MMU_PAGE_16G) - PAGE_SHIFT;
 
-	if (order)
-		hugetlb_cma_reserve(order);
+	return 0;
 }

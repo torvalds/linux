@@ -868,7 +868,7 @@ static int kill_accessing_process(struct task_struct *p, unsigned long pfn,
  *
  * MF_RECOVERED - The m-f() handler marks the page as PG_hwpoisoned'ed.
  * The page has been completely isolated, that is, unmapped, taken out of
- * the buddy system, or hole-punnched out of the file mapping.
+ * the buddy system, or hole-punched out of the file mapping.
  */
 static const char *action_name[] = {
 	[MF_IGNORED] = "Ignored",

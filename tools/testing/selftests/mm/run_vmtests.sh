@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: GPL-2.0
 # Please run as root
 
+# IMPORTANT: If you add a new test CATEGORY please add a simple wrapper
+# script so kunit knows to run it, and add it to the list below.
+# If you do not YOUR TESTS WILL NOT RUN IN THE CI.
+
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
@@ -399,28 +403,8 @@ CATEGORY="hugetlb" run_test ./hugetlb-read-hwpoison
 fi
 
 if [ $VADDR64 -ne 0 ]; then
-
-	# set overcommit_policy as OVERCOMMIT_ALWAYS so that kernel
-	# allows high virtual address allocation requests independent
-	# of platform's physical memory.
-
-	if [ -x ./virtual_address_range ]; then
-		prev_policy=$(cat /proc/sys/vm/overcommit_memory)
-		echo 1 > /proc/sys/vm/overcommit_memory
-		CATEGORY="hugevm" run_test ./virtual_address_range
-		echo $prev_policy > /proc/sys/vm/overcommit_memory
-	fi
-
 	# va high address boundary switch test
-	ARCH_ARM64="arm64"
-	prev_nr_hugepages=$(cat /proc/sys/vm/nr_hugepages)
-	if [ "$ARCH" == "$ARCH_ARM64" ]; then
-		echo 6 > /proc/sys/vm/nr_hugepages
-	fi
 	CATEGORY="hugevm" run_test bash ./va_high_addr_switch.sh
-	if [ "$ARCH" == "$ARCH_ARM64" ]; then
-		echo $prev_nr_hugepages > /proc/sys/vm/nr_hugepages
-	fi
 fi # VADDR64
 
 # vmalloc stability smoke test

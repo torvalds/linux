@@ -104,8 +104,6 @@ void ksys_sync(void)
 	iterate_supers(sync_fs_one_sb, &wait);
 	sync_bdevs(false);
 	sync_bdevs(true);
-	if (unlikely(laptop_mode))
-		laptop_sync_completion();
 }
 
 SYSCALL_DEFINE0(sync)

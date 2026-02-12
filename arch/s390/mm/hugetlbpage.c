@@ -255,3 +255,11 @@ bool __init arch_hugetlb_valid_size(unsigned long size)
 	else
 		return false;
 }
+
+unsigned int __init arch_hugetlb_cma_order(void)
+{
+	if (cpu_has_edat2())
+		return PUD_SHIFT - PAGE_SHIFT;
+
+	return 0;
+}
