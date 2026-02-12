@@ -1372,6 +1372,13 @@ Kernel parameters
 			For details see:
 			Documentation/admin-guide/hw-vuln/reg-file-data-sampling.rst
 
+	dm_verity.keyring_unsealed=
+			[KNL] When set to 1, leave the dm-verity keyring
+			unsealed after initialization so userspace can
+			provision keys. Once the keyring is restricted
+			it becomes active and is searched during signature
+			verification.
+
 	driver_async_probe=  [KNL]
 			List of driver names to be probed asynchronously. *
 			matches with all driver names. If * is specified, the

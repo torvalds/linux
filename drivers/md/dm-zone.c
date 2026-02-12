@@ -50,7 +50,7 @@ int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 {
 	struct mapped_device *md = disk->private_data;
 	struct dm_table *map;
-	struct dm_table *zone_revalidate_map = md->zone_revalidate_map;
+	struct dm_table *zone_revalidate_map = READ_ONCE(md->zone_revalidate_map);
 	int srcu_idx, ret = -EIO;
 	bool put_table = false;
 
@@ -60,11 +60,13 @@ int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 		 * Zone revalidation during __bind() is in progress, but this
 		 * call is from a different process
 		 */
-		if (dm_suspended_md(md))
-			return -EAGAIN;
-
 		map = dm_get_live_table(md, &srcu_idx);
 		put_table = true;
+
+		if (dm_suspended_md(md)) {
+			ret = -EAGAIN;
+			goto do_put_table;
+		}
 	} else {
 		/* Zone revalidation during __bind() */
 		map = zone_revalidate_map;
@@ -79,6 +81,7 @@ int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 		ret = dm_blk_do_report_zones(md, map, nr_zones, &dm_args);
 	}
 
+do_put_table:
 	if (put_table)
 		dm_put_live_table(md, srcu_idx);
 

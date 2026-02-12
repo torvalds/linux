@@ -172,9 +172,9 @@ static int __must_check validate_version(struct version_number expected_version,
  *         VDO_INCORRECT_COMPONENT if the component ids don't match,
  *         VDO_UNSUPPORTED_VERSION if the versions or sizes don't match.
  */
-int vdo_validate_header(const struct header *expected_header,
-			const struct header *actual_header, bool exact_size,
-			const char *name)
+static int vdo_validate_header(const struct header *expected_header,
+			       const struct header *actual_header,
+			       bool exact_size, const char *name)
 {
 	int result;
 
@@ -210,7 +210,8 @@ static void encode_version_number(u8 *buffer, size_t *offset,
 	*offset += sizeof(packed);
 }
 
-void vdo_encode_header(u8 *buffer, size_t *offset, const struct header *header)
+static void vdo_encode_header(u8 *buffer, size_t *offset,
+			      const struct header *header)
 {
 	struct packed_header packed = vdo_pack_header(header);
 
@@ -228,7 +229,7 @@ static void decode_version_number(u8 *buffer, size_t *offset,
 	*version = vdo_unpack_version_number(packed);
 }
 
-void vdo_decode_header(u8 *buffer, size_t *offset, struct header *header)
+static void vdo_decode_header(u8 *buffer, size_t *offset, struct header *header)
 {
 	struct packed_header packed;
 

@@ -88,7 +88,7 @@ int dm_register_target(struct target_type *tt)
 	if (__find_target_type(tt->name)) {
 		DMERR("%s: '%s' target already registered",
 		      __func__, tt->name);
-		rv = -EEXIST;
+		rv = -EBUSY;
 	} else {
 		list_add(&tt->list, &_targets);
 	}

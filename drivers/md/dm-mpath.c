@@ -225,6 +225,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		mutex_init(&m->work_mutex);
 
 		m->queue_mode = DM_TYPE_NONE;
+		m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
 
 		m->ti = ti;
 		ti->private = m;
@@ -251,7 +252,6 @@ static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 	set_bit(MPATHF_QUEUE_IO, &m->flags);
 	atomic_set(&m->pg_init_in_progress, 0);
 	atomic_set(&m->pg_init_count, 0);
-	m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
 	init_waitqueue_head(&m->pg_init_wait);
 	init_waitqueue_head(&m->probe_wait);
 
@@ -960,27 +960,27 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 			attached_handler_name = NULL;
 		} else {
 			r = PTR_ERR(attached_handler_name);
-			goto bad;
+			ti->error = "error allocating handler name";
+			goto bad_put_device;
 		}
 	}
 	if (attached_handler_name || m->hw_handler_name) {
 		INIT_DELAYED_WORK(&p->activate_path, activate_path_work);
 		r = setup_scsi_dh(p->path.dev->bdev, m, &attached_handler_name, &ti->error);
 		kfree(attached_handler_name);
-		if (r) {
-			dm_put_device(ti, p->path.dev);
-			goto bad;
-		}
+		if (r)
+			goto bad_put_device;
 	}
 
 	r = ps->type->add_path(ps, &p->path, as->argc, as->argv, &ti->error);
-	if (r) {
-		dm_put_device(ti, p->path.dev);
-		goto bad;
-	}
+	if (r)
+		goto bad_put_device;
 
 	return p;
- bad:
+
+bad_put_device:
+	dm_put_device(ti, p->path.dev);
+bad:
 	free_pgpath(p);
 	return ERR_PTR(r);
 }
@@ -2328,7 +2328,8 @@ static int __init dm_multipath_init(void)
 {
 	int r = -ENOMEM;
 
-	kmultipathd = alloc_workqueue("kmpathd", WQ_MEM_RECLAIM, 0);
+	kmultipathd = alloc_workqueue("kmpathd", WQ_MEM_RECLAIM | WQ_PERCPU,
+				      0);
 	if (!kmultipathd) {
 		DMERR("failed to create workqueue kmpathd");
 		goto bad_alloc_kmultipathd;
@@ -2347,7 +2348,7 @@ static int __init dm_multipath_init(void)
 		goto bad_alloc_kmpath_handlerd;
 	}
 
-	dm_mpath_wq = alloc_workqueue("dm_mpath_wq", 0, 0);
+	dm_mpath_wq = alloc_workqueue("dm_mpath_wq", WQ_PERCPU, 0);
 	if (!dm_mpath_wq) {
 		DMERR("failed to create workqueue dm_mpath_wq");
 		goto bad_alloc_dm_mpath_wq;

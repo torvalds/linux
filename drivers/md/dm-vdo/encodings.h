@@ -708,31 +708,6 @@ static inline bool vdo_are_same_version(struct version_number version_a,
 }
 
 /**
- * vdo_is_upgradable_version() - Check whether an actual version is upgradable to an expected
- *                               version.
- * @expected_version: The expected version.
- * @actual_version: The version being validated.
- *
- * An actual version is upgradable if its major number is expected but its minor number differs,
- * and the expected version's minor number is greater than the actual version's minor number.
- *
- * Return: true if the actual version is upgradable.
- */
-static inline bool vdo_is_upgradable_version(struct version_number expected_version,
-					     struct version_number actual_version)
-{
-	return ((expected_version.major_version == actual_version.major_version) &&
-		(expected_version.minor_version > actual_version.minor_version));
-}
-
-int __must_check vdo_validate_header(const struct header *expected_header,
-				     const struct header *actual_header, bool exact_size,
-				     const char *component_name);
-
-void vdo_encode_header(u8 *buffer, size_t *offset, const struct header *header);
-void vdo_decode_header(u8 *buffer, size_t *offset, struct header *header);
-
-/**
  * vdo_pack_version_number() - Convert a version_number to its packed on-disk representation.
  * @version: The version number to convert.
  *
