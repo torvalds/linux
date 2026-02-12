@@ -3954,7 +3954,7 @@ static int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
 #define MAX_PAGE_IDX_MASK	GENMASK(7, 5)
 #define PAGE_IDX_MASK		GENMASK(4, 2)
 #define PER_PAGE_SIZE		0x400
-	struct mt7996_mcu_eeprom req = {
+	struct mt7996_mcu_eeprom_update req = {
 		.tag = cpu_to_le16(UNI_EFUSE_BUFFER_MODE),
 		.buffer_mode = EE_MODE_BUFFER
 	};
@@ -3996,57 +3996,80 @@ static int mt7996_mcu_set_eeprom_flash(struct mt7996_dev *dev)
 
 int mt7996_mcu_set_eeprom(struct mt7996_dev *dev)
 {
-	struct mt7996_mcu_eeprom req = {
+	struct mt7996_mcu_eeprom_update req = {
 		.tag = cpu_to_le16(UNI_EFUSE_BUFFER_MODE),
 		.len = cpu_to_le16(sizeof(req) - 4),
 		.buffer_mode = EE_MODE_EFUSE,
 		.format = EE_FORMAT_WHOLE
 	};
 
-	if (dev->flash_mode)
+	if (dev->eeprom_mode != EEPROM_MODE_EFUSE)
 		return mt7996_mcu_set_eeprom_flash(dev);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(EFUSE_CTRL),
 				 &req, sizeof(req), true);
 }
 
-int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *buf, u32 buf_len)
+int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *buf, u32 buf_len,
+			  enum mt7996_eeprom_mode mode)
 {
-	struct {
-		u8 _rsv[4];
-
-		__le16 tag;
-		__le16 len;
-		__le32 addr;
-		__le32 valid;
-		u8 data[16];
-	} __packed req = {
-		.tag = cpu_to_le16(UNI_EFUSE_ACCESS),
-		.len = cpu_to_le16(sizeof(req) - 4),
-		.addr = cpu_to_le32(round_down(offset,
-				    MT7996_EEPROM_BLOCK_SIZE)),
+	struct mt7996_mcu_eeprom_access req = {
+		.info.len = cpu_to_le16(sizeof(req) - 4),
 	};
+	struct mt7996_mcu_eeprom_access_event *event;
 	struct sk_buff *skb;
-	bool valid;
-	int ret;
+	int ret, cmd;
+	u32 addr;
 
-	ret = mt76_mcu_send_and_get_msg(&dev->mt76,
-					MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL),
-					&req, sizeof(req), true, &skb);
+	switch (mode) {
+	case EEPROM_MODE_EFUSE:
+		addr = round_down(offset, MT7996_EEPROM_BLOCK_SIZE);
+		cmd = MCU_WM_UNI_CMD_QUERY(EFUSE_CTRL);
+		req.info.tag = cpu_to_le16(UNI_EFUSE_ACCESS);
+		break;
+	case EEPROM_MODE_EXT:
+		addr = round_down(offset, MT7996_EXT_EEPROM_BLOCK_SIZE);
+		cmd = MCU_WM_UNI_CMD_QUERY(EXT_EEPROM_CTRL);
+		req.info.tag = cpu_to_le16(UNI_EXT_EEPROM_ACCESS);
+		req.eeprom.ext_eeprom.data_len = cpu_to_le32(buf_len);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	req.info.addr = cpu_to_le32(addr);
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, cmd, &req, sizeof(req),
+					true, &skb);
 	if (ret)
 		return ret;
 
-	valid = le32_to_cpu(*(__le32 *)(skb->data + 16));
-	if (valid) {
-		u32 addr = le32_to_cpu(*(__le32 *)(skb->data + 12));
+	event = (struct mt7996_mcu_eeprom_access_event *)skb->data;
+	if (event->valid) {
+		u32 ret_len = le32_to_cpu(event->eeprom.ext_eeprom.data_len);
+
+		addr = le32_to_cpu(event->addr);
 
 		if (!buf)
 			buf = (u8 *)dev->mt76.eeprom.data + addr;
-		if (!buf_len || buf_len > MT7996_EEPROM_BLOCK_SIZE)
-			buf_len = MT7996_EEPROM_BLOCK_SIZE;
 
-		skb_pull(skb, 48);
-		memcpy(buf, skb->data, buf_len);
+		switch (mode) {
+		case EEPROM_MODE_EFUSE:
+			if (!buf_len || buf_len > MT7996_EEPROM_BLOCK_SIZE)
+				buf_len = MT7996_EEPROM_BLOCK_SIZE;
+
+			memcpy(buf, event->eeprom.efuse, buf_len);
+			break;
+		case EEPROM_MODE_EXT:
+			if (!buf_len || buf_len > MT7996_EXT_EEPROM_BLOCK_SIZE)
+				buf_len = MT7996_EXT_EEPROM_BLOCK_SIZE;
+
+			memcpy(buf, event->eeprom.ext_eeprom.data,
+			       ret_len < buf_len ? ret_len : buf_len);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
 	} else {
 		ret = -EINVAL;
 	}
@@ -4056,7 +4079,7 @@ int mt7996_mcu_get_eeprom(struct mt7996_dev *dev, u32 offset, u8 *buf, u32 buf_l
 	return ret;
 }
 
-int mt7996_mcu_get_eeprom_free_block(struct mt7996_dev *dev, u8 *block_num)
+int mt7996_mcu_get_efuse_free_block(struct mt7996_dev *dev, u8 *block_num)
 {
 	struct {
 		u8 _rsv[4];

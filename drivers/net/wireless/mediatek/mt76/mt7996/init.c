@@ -1207,7 +1207,8 @@ static int mt7996_variant_fem_init(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7996_mcu_get_eeprom(dev, MT7976C_EFUSE_OFFSET, buf, sizeof(buf));
+	ret = mt7996_mcu_get_eeprom(dev, MT7976C_EFUSE_OFFSET, buf, sizeof(buf),
+				    EEPROM_MODE_EFUSE);
 	if (ret && ret != -EINVAL)
 		return ret;
 
