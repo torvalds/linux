@@ -143,6 +143,10 @@ kallsyms()
 		kallsymopt="${kallsymopt} --all-symbols"
 	fi
 
+	if is_enabled CONFIG_64BIT || is_enabled CONFIG_RELOCATABLE; then
+		kallsymopt="${kallsymopt} --pc-relative"
+	fi
+
 	info KSYMS "${2}.S"
 	scripts/kallsyms ${kallsymopt} "${1}" > "${2}.S"
 

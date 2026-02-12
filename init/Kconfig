@@ -247,7 +247,7 @@ config WERROR
 
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
-	depends on HEADERS_INSTALL && CC_CAN_LINK
+	depends on HEADERS_INSTALL
 	help
 	  Compile test headers exported to user-space to ensure they are
 	  self-contained, i.e. compilable as standalone units.

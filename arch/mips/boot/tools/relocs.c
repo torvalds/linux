@@ -79,6 +79,7 @@ static const char *rel_type(unsigned type)
 		REL_TYPE(R_MIPS_HIGHEST),
 		REL_TYPE(R_MIPS_PC21_S2),
 		REL_TYPE(R_MIPS_PC26_S2),
+		REL_TYPE(R_MIPS_PC32),
 #undef REL_TYPE
 	};
 	const char *name = "unknown type rel type name";
@@ -522,6 +523,7 @@ static int do_reloc(struct section *sec, Elf_Rel *rel, Elf_Sym *sym,
 	case R_MIPS_PC16:
 	case R_MIPS_PC21_S2:
 	case R_MIPS_PC26_S2:
+	case R_MIPS_PC32:
 		/*
 		 * NONE can be ignored and PC relative relocations don't
 		 * need to be adjusted.
