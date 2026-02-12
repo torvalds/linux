@@ -1145,16 +1145,14 @@ static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 static u64 rapl_compute_time_window_atom(struct rapl_domain *rd, u64 value,
 					 bool to_raw)
 {
+	if (to_raw)
+		return div64_u64(value, rd->time_unit);
+
 	/*
 	 * Atom time unit encoding is straight forward val * time_unit,
 	 * where time_unit is default to 1 sec. Never 0.
 	 */
-	if (!to_raw)
-		return (value) ? value * rd->time_unit : rd->time_unit;
-
-	value = div64_u64(value, rd->time_unit);
-
-	return value;
+	return (value) ? value * rd->time_unit : rd->time_unit;
 }
 
 static int rapl_check_unit_tpmi(struct rapl_domain *rd)
