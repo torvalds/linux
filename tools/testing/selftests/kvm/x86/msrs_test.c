@@ -81,7 +81,7 @@ static u64 fixup_rdmsr_val(u32 msr, u64 want)
 	 * is supposed to emulate that behavior based on guest vendor model
 	 * (which is the same as the host vendor model for this test).
 	 */
-	if (!host_cpu_is_amd)
+	if (!host_cpu_is_amd_compatible)
 		return want;
 
 	switch (msr) {
