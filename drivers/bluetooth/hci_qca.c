@@ -722,6 +722,10 @@ static int qca_close(struct hci_uart *hu)
 
 	BT_DBG("hu %p qca close", hu);
 
+	/* BT core skips qca_hci_shutdown() which calls qca_power_off() on rmmod */
+	if (!test_bit(QCA_BT_OFF, &qca->flags))
+		qca_power_off(hu);
+
 	serial_clock_vote(HCI_IBS_VOTE_STATS_UPDATE, hu);
 
 	skb_queue_purge(&qca->tx_wait_q);
@@ -2260,7 +2264,7 @@ static void qca_power_off(struct hci_uart *hu)
 		qca_regulator_disable(qcadev);
 		if (qcadev->sw_ctrl) {
 			sw_ctrl_state = gpiod_get_value_cansleep(qcadev->sw_ctrl);
-			bt_dev_dbg(hu->hdev, "SW_CTRL is %d", sw_ctrl_state);
+			BT_DBG("SW_CTRL is %d", sw_ctrl_state);
 		}
 		break;
 
