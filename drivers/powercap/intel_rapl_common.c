@@ -24,6 +24,7 @@
 #include <linux/suspend.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
@@ -964,13 +965,13 @@ static int rapl_check_unit_core(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rd->energy_unit = (ENERGY_UNIT_SCALE * 1000000) >> value;
+	rd->energy_unit = (ENERGY_UNIT_SCALE * MICROJOULE_PER_JOULE) >> value;
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 >> value;
+	rd->power_unit = MICROWATT_PER_WATT >> value;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 >> value;
+	rd->time_unit = USEC_PER_SEC >> value;
 
 	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
@@ -995,10 +996,10 @@ static int rapl_check_unit_atom(struct rapl_domain *rd)
 	rd->energy_unit = ENERGY_UNIT_SCALE * (1ULL << value);
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = (1ULL << value) * 1000;
+	rd->power_unit = (1ULL << value) * MILLIWATT_PER_WATT;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 >> value;
+	rd->time_unit = USEC_PER_SEC >> value;
 
 	pr_debug("Atom %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
@@ -1169,13 +1170,13 @@ static int rapl_check_unit_tpmi(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & TPMI_ENERGY_UNIT_MASK) >> TPMI_ENERGY_UNIT_OFFSET;
-	rd->energy_unit = (ENERGY_UNIT_SCALE * 1000000) >> value;
+	rd->energy_unit = (ENERGY_UNIT_SCALE * MICROJOULE_PER_JOULE) >> value;
 
 	value = (ra.value & TPMI_POWER_UNIT_MASK) >> TPMI_POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 >> value;
+	rd->power_unit = MICROWATT_PER_WATT >> value;
 
 	value = (ra.value & TPMI_TIME_UNIT_MASK) >> TPMI_TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 >> value;
+	rd->time_unit = USEC_PER_SEC >> value;
 
 	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
@@ -1208,7 +1209,7 @@ static const struct rapl_defaults rapl_defaults_spr_server = {
 	.check_unit = rapl_check_unit_core,
 	.set_floor_freq = set_floor_freq_default,
 	.compute_time_window = rapl_compute_time_window_core,
-	.psys_domain_energy_unit = 1000000000,
+	.psys_domain_energy_unit = NANOJOULE_PER_JOULE,
 	.spr_psys_bits = true,
 };
 
