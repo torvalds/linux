@@ -297,9 +297,10 @@ static void rzv2h_ivc_stop_streaming(struct vb2_queue *q)
 	struct rzv2h_ivc *ivc = vb2_get_drv_priv(q);
 	u32 val = 0;
 
-	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_STOP, 0x1);
+	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_FM_STOP, RZV2H_IVC_REG_FM_STOP_FSTOP);
 	readl_poll_timeout(ivc->base + RZV2H_IVC_REG_FM_STOP,
-			   val, !val, 10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
+			   val, !(val & RZV2H_IVC_REG_FM_STOP_FSTOP),
+			   10 * USEC_PER_MSEC, 250 * USEC_PER_MSEC);
 
 	rzv2h_ivc_return_buffers(ivc, VB2_BUF_STATE_ERROR);
 	video_device_pipeline_stop(&ivc->vdev.dev);
