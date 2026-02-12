@@ -285,6 +285,7 @@ static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size)
 	 * 2.  Is that directory a mount point, or
 	 * 3.  Is that directory the root of an exported file system?
 	 */
+	nfsd4_cancel_copy_by_sb(netns(file), path.dentry->d_sb);
 	error = nlmsvc_unlock_all_by_sb(path.dentry->d_sb);
 	mutex_lock(&nfsd_mutex);
 	nn = net_generic(netns(file), nfsd_net_id);
@@ -1642,6 +1643,10 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 			scope = nla_data(attr);
 	}
 
+	attr = info->attrs[NFSD_A_SERVER_MIN_THREADS];
+	if (attr)
+		nn->min_threads = nla_get_u32(attr);
+
 	ret = nfsd_svc(nrpools, nthreads, net, get_current_cred(), scope);
 	if (ret > 0)
 		ret = 0;
@@ -1681,6 +1686,8 @@ int nfsd_nl_threads_get_doit(struct sk_buff *skb, struct genl_info *info)
 			  nn->nfsd4_grace) ||
 	      nla_put_u32(skb, NFSD_A_SERVER_LEASETIME,
 			  nn->nfsd4_lease) ||
+	      nla_put_u32(skb, NFSD_A_SERVER_MIN_THREADS,
+			  nn->min_threads) ||
 	      nla_put_string(skb, NFSD_A_SERVER_SCOPE,
 			  nn->nfsd_name);
 	if (err)

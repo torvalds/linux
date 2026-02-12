@@ -81,7 +81,7 @@ nfs4_callback_svc(void *vrqstp)
 	set_freezable();
 
 	while (!svc_thread_should_stop(rqstp))
-		svc_recv(rqstp);
+		svc_recv(rqstp, 0);
 
 	svc_exit_thread(rqstp);
 	return 0;
@@ -119,9 +119,9 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 	if (serv->sv_nrthreads == nrservs)
 		return 0;
 
-	ret = svc_set_num_threads(serv, NULL, nrservs);
+	ret = svc_set_num_threads(serv, 0, nrservs);
 	if (ret) {
-		svc_set_num_threads(serv, NULL, 0);
+		svc_set_num_threads(serv, 0, 0);
 		return ret;
 	}
 	dprintk("nfs_callback_up: service started\n");
@@ -242,7 +242,7 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 	cb_info->users++;
 err_net:
 	if (!cb_info->users) {
-		svc_set_num_threads(cb_info->serv, NULL, 0);
+		svc_set_num_threads(cb_info->serv, 0, 0);
 		svc_destroy(&cb_info->serv);
 	}
 err_create:
@@ -268,7 +268,7 @@ void nfs_callback_down(int minorversion, struct net *net, struct rpc_xprt *xprt)
 	nfs_callback_down_net(minorversion, serv, net);
 	cb_info->users--;
 	if (cb_info->users == 0) {
-		svc_set_num_threads(serv, NULL, 0);
+		svc_set_num_threads(serv, 0, 0);
 		dprintk("nfs_callback_down: service destroyed\n");
 		xprt_svc_destroy_nullify_bc(xprt, &cb_info->serv);
 	}

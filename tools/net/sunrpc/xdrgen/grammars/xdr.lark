@@ -20,9 +20,11 @@ constant                : decimal_constant | hexadecimal_constant | octal_consta
 type_specifier          : unsigned_hyper
                         | unsigned_long
                         | unsigned_int
+                        | unsigned_short
                         | hyper
                         | long
                         | int
+                        | short
                         | float
                         | double
                         | quadruple
@@ -35,9 +37,11 @@ type_specifier          : unsigned_hyper
 unsigned_hyper          : "unsigned" "hyper"
 unsigned_long           : "unsigned" "long"
 unsigned_int            : "unsigned" "int"
+unsigned_short          : "unsigned" "short"
 hyper                   : "hyper"
 long                    : "long"
 int                     : "int"
+short                   : "short"
 float                   : "float"
 double                  : "double"
 quadruple               : "quadruple"
@@ -74,6 +78,9 @@ definition              : constant_def
                         | type_def
                         | program_def
                         | pragma_def
+                        | passthru_def
+
+passthru_def            : PASSTHRU
 
 //
 // RPC program definitions not specified in RFC 4506
@@ -111,8 +118,7 @@ decimal_constant        : /[\+-]?(0|[1-9][0-9]*)/
 hexadecimal_constant    : /0x([a-f]|[A-F]|[0-9])+/
 octal_constant          : /0[0-7]+/
 
-PASSTHRU                : "%" | "%" /.+/
-%ignore PASSTHRU
+PASSTHRU                : /%.*/
 
 %import common.C_COMMENT
 %ignore C_COMMENT

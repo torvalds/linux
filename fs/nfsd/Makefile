@@ -26,7 +26,15 @@ nfsd-$(CONFIG_NFSD_FLEXFILELAYOUT) += flexfilelayout.o flexfilelayoutxdr.o
 nfsd-$(CONFIG_NFS_LOCALIO) += localio.o
 nfsd-$(CONFIG_DEBUG_FS) += debugfs.o
 
-
+#
+# XDR code generation (requires Python and additional packages)
+#
+# The generated *xdr_gen.{h,c} files are checked into git. Normal kernel
+# builds do not require the xdrgen tool or its Python dependencies.
+#
+# Developers modifying .x files in Documentation/sunrpc/xdr/ should run
+# "make xdrgen" to regenerate the affected files.
+#
 .PHONY: xdrgen
 
 xdrgen: ../../include/linux/sunrpc/xdrgen/nfs4_1.h nfs4xdr_gen.h nfs4xdr_gen.c

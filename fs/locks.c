@@ -2262,12 +2262,23 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
  */
 int vfs_test_lock(struct file *filp, struct file_lock *fl)
 {
+	int error = 0;
+
 	WARN_ON_ONCE(fl->fl_ops || fl->fl_lmops);
 	WARN_ON_ONCE(filp != fl->c.flc_file);
 	if (filp->f_op->lock)
-		return filp->f_op->lock(filp, F_GETLK, fl);
-	posix_test_lock(filp, fl);
-	return 0;
+		error = filp->f_op->lock(filp, F_GETLK, fl);
+	else
+		posix_test_lock(filp, fl);
+
+	/*
+	 * We don't expect FILE_LOCK_DEFERRED and callers cannot
+	 * handle it.
+	 */
+	if (WARN_ON_ONCE(error == FILE_LOCK_DEFERRED))
+		error = -EIO;
+
+	return error;
 }
 EXPORT_SYMBOL_GPL(vfs_test_lock);
 

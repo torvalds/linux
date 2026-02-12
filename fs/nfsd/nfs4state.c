@@ -1253,7 +1253,7 @@ static void nfsd4_finalize_deleg_timestamps(struct nfs4_delegation *dp, struct f
 	if (ret) {
 		struct inode *inode = file_inode(f);
 
-		pr_notice_ratelimited("Unable to update timestamps on inode %02x:%02x:%lu: %d\n",
+		pr_notice_ratelimited("nfsd: Unable to update timestamps on inode %02x:%02x:%lu: %d\n",
 					MAJOR(inode->i_sb->s_dev),
 					MINOR(inode->i_sb->s_dev),
 					inode->i_ino, ret);
@@ -2413,7 +2413,13 @@ static void __free_client(struct kref *k)
 	kmem_cache_free(client_slab, clp);
 }
 
-static void drop_client(struct nfs4_client *clp)
+/**
+ * nfsd4_put_client - release a reference on an nfs4_client
+ * @clp: the client to be released
+ *
+ * When the last reference is released, the client is freed.
+ */
+void nfsd4_put_client(struct nfs4_client *clp)
 {
 	kref_put(&clp->cl_nfsdfs.cl_ref, __free_client);
 }
@@ -2435,7 +2441,7 @@ free_client(struct nfs4_client *clp)
 		clp->cl_nfsd_dentry = NULL;
 		wake_up_all(&expiry_wq);
 	}
-	drop_client(clp);
+	nfsd4_put_client(clp);
 }
 
 /* must be called under the client_lock */
@@ -2833,7 +2839,7 @@ static int client_info_show(struct seq_file *m, void *v)
 	spin_unlock(&clp->cl_lock);
 	seq_puts(m, "\n");
 
-	drop_client(clp);
+	nfsd4_put_client(clp);
 
 	return 0;
 }
@@ -3099,7 +3105,7 @@ static int client_states_open(struct inode *inode, struct file *file)
 
 	ret = seq_open(file, &states_seq_ops);
 	if (ret) {
-		drop_client(clp);
+		nfsd4_put_client(clp);
 		return ret;
 	}
 	s = file->private_data;
@@ -3113,7 +3119,7 @@ static int client_opens_release(struct inode *inode, struct file *file)
 	struct nfs4_client *clp = m->private;
 
 	/* XXX: alternatively, we could get/drop in seq start/stop */
-	drop_client(clp);
+	nfsd4_put_client(clp);
 	return seq_release(inode, file);
 }
 
@@ -3169,7 +3175,7 @@ static ssize_t client_ctl_write(struct file *file, const char __user *buf,
 	if (!clp)
 		return -ENXIO;
 	force_expire_client(clp);
-	drop_client(clp);
+	nfsd4_put_client(clp);
 	return 7;
 }
 
@@ -3204,7 +3210,7 @@ nfsd4_cb_recall_any_release(struct nfsd4_callback *cb)
 {
 	struct nfs4_client *clp = cb->cb_clp;
 
-	drop_client(clp);
+	nfsd4_put_client(clp);
 }
 
 static int
@@ -6353,7 +6359,8 @@ nfs4_open_delegation(struct svc_rqst *rqstp, struct nfsd4_open *open,
 		dp->dl_ctime = stat.ctime;
 		dp->dl_mtime = stat.mtime;
 		spin_lock(&f->f_lock);
-		f->f_mode |= FMODE_NOCMTIME;
+		if (deleg_ts)
+			f->f_mode |= FMODE_NOCMTIME;
 		spin_unlock(&f->f_lock);
 		trace_nfsd_deleg_write(&dp->dl_stid.sc_stateid);
 	} else {
@@ -6637,14 +6644,14 @@ bool nfsd4_force_end_grace(struct nfsd_net *nn)
 {
 	if (!nn->client_tracking_ops)
 		return false;
-	spin_lock(&nn->client_lock);
-	if (nn->grace_ended || !nn->client_tracking_active) {
-		spin_unlock(&nn->client_lock);
+	if (READ_ONCE(nn->grace_ended))
 		return false;
-	}
+	/* laundromat_work must be initialised now, though it might be disabled */
 	WRITE_ONCE(nn->grace_end_forced, true);
+	/* mod_delayed_work() doesn't queue work after
+	 * nfs4_state_shutdown_net() has called disable_delayed_work_sync()
+	 */
 	mod_delayed_work(laundry_wq, &nn->laundromat_work, 0);
-	spin_unlock(&nn->client_lock);
 	return true;
 }
 
@@ -8980,7 +8987,6 @@ static int nfs4_state_create_net(struct net *net)
 	nn->boot_time = ktime_get_real_seconds();
 	nn->grace_ended = false;
 	nn->grace_end_forced = false;
-	nn->client_tracking_active = false;
 	nn->nfsd4_manager.block_opens = true;
 	INIT_LIST_HEAD(&nn->nfsd4_manager.list);
 	INIT_LIST_HEAD(&nn->client_lru);
@@ -8995,6 +9001,8 @@ static int nfs4_state_create_net(struct net *net)
 	INIT_LIST_HEAD(&nn->blocked_locks_lru);
 
 	INIT_DELAYED_WORK(&nn->laundromat_work, laundromat_main);
+	/* Make sure this cannot run until client tracking is initialised */
+	disable_delayed_work(&nn->laundromat_work);
 	INIT_WORK(&nn->nfsd_shrinker_work, nfsd4_state_shrinker_worker);
 	get_net(net);
 
@@ -9062,9 +9070,7 @@ nfs4_state_start_net(struct net *net)
 	locks_start_grace(net, &nn->nfsd4_manager);
 	nfsd4_client_tracking_init(net);
 	/* safe for laundromat to run now */
-	spin_lock(&nn->client_lock);
-	nn->client_tracking_active = true;
-	spin_unlock(&nn->client_lock);
+	enable_delayed_work(&nn->laundromat_work);
 	if (nn->track_reclaim_completes && nn->reclaim_str_hashtbl_size == 0)
 		goto skip_grace;
 	printk(KERN_INFO "NFSD: starting %lld-second grace period (net %x)\n",
@@ -9113,10 +9119,7 @@ nfs4_state_shutdown_net(struct net *net)
 
 	shrinker_free(nn->nfsd_client_shrinker);
 	cancel_work_sync(&nn->nfsd_shrinker_work);
-	spin_lock(&nn->client_lock);
-	nn->client_tracking_active = false;
-	spin_unlock(&nn->client_lock);
-	cancel_delayed_work_sync(&nn->laundromat_work);
+	disable_delayed_work_sync(&nn->laundromat_work);
 	locks_end_grace(&nn->nfsd4_manager);
 
 	INIT_LIST_HEAD(&reaplist);
@@ -9520,8 +9523,10 @@ nfsd_get_dir_deleg(struct nfsd4_compound_state *cstate,
 	spin_unlock(&clp->cl_lock);
 	spin_unlock(&state_lock);
 
-	if (!status)
+	if (!status) {
+		put_nfs4_file(fp);
 		return dp;
+	}
 
 	/* Something failed. Drop the lease and clean up the stid */
 	kernel_setlease(fp->fi_deleg_file->nf_file, F_UNLCK, NULL, (void **)&dp);
@@ -9529,5 +9534,6 @@ out_put_stid:
 	nfs4_put_stid(&dp->dl_stid);
 out_delegees:
 	put_deleg_file(fp);
+	put_nfs4_file(fp);
 	return ERR_PTR(status);
 }

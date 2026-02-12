@@ -822,6 +822,7 @@ static inline void nfsd4_try_run_cb(struct nfsd4_callback *cb)
 
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
+void nfsd4_put_client(struct nfs4_client *clp);
 void nfsd4_async_copy_reaper(struct nfsd_net *nn);
 bool nfsd4_has_active_async_copies(struct nfs4_client *clp);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
@@ -842,8 +843,12 @@ struct nfsd_file *find_any_file(struct nfs4_file *f);
 
 #ifdef CONFIG_NFSD_V4
 void nfsd4_revoke_states(struct nfsd_net *nn, struct super_block *sb);
+void nfsd4_cancel_copy_by_sb(struct net *net, struct super_block *sb);
 #else
 static inline void nfsd4_revoke_states(struct nfsd_net *nn, struct super_block *sb)
+{
+}
+static inline void nfsd4_cancel_copy_by_sb(struct net *net, struct super_block *sb)
 {
 }
 #endif

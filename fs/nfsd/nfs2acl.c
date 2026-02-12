@@ -45,7 +45,7 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst *rqstp)
 	inode = d_inode(fh->fh_dentry);
 
 	if (argp->mask & ~NFS_ACL_MASK) {
-		resp->status = nfserr_inval;
+		resp->status = nfserr_io;
 		goto out;
 	}
 	resp->mask = argp->mask;

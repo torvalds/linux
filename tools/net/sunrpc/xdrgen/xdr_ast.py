@@ -34,6 +34,8 @@ def xdr_quadlen(val: str) -> int:
 symbolic_widths = {
     "void": ["XDR_void"],
     "bool": ["XDR_bool"],
+    "short": ["XDR_short"],
+    "unsigned_short": ["XDR_unsigned_short"],
     "int": ["XDR_int"],
     "unsigned_int": ["XDR_unsigned_int"],
     "long": ["XDR_long"],
@@ -48,6 +50,8 @@ symbolic_widths = {
 max_widths = {
     "void": 0,
     "bool": 1,
+    "short": 1,
+    "unsigned_short": 1,
     "int": 1,
     "unsigned_int": 1,
     "long": 1,
@@ -326,8 +330,6 @@ class _XdrEnum(_XdrAst):
     """An XDR enum definition"""
 
     name: str
-    minimum: int
-    maximum: int
     enumerators: List[_XdrEnumerator]
 
     def max_width(self) -> int:
@@ -515,6 +517,13 @@ class _Pragma(_XdrAst):
 
 
 @dataclass
+class _XdrPassthru(_XdrAst):
+    """Passthrough line to emit verbatim in output"""
+
+    content: str
+
+
+@dataclass
 class Definition(_XdrAst, ast_utils.WithMeta):
     """Corresponds to 'definition' in the grammar"""
 
@@ -568,8 +577,6 @@ class ParseToAst(Transformer):
         value = children[1].value
         return _XdrConstant(name, value)
 
-    # cel: Python can compute a min() and max() for the enumerator values
-    #      so that the generated code can perform proper range checking.
     def enum(self, children):
         """Instantiate one _XdrEnum object"""
         enum_name = children[0].symbol
@@ -583,7 +590,7 @@ class ParseToAst(Transformer):
             enumerators.append(_XdrEnumerator(name, value))
             i = i + 2
 
-        return _XdrEnum(enum_name, 0, 0, enumerators)
+        return _XdrEnum(enum_name, enumerators)
 
     def fixed_length_opaque(self, children):
         """Instantiate one _XdrFixedLengthOpaque declaration object"""
@@ -738,14 +745,42 @@ class ParseToAst(Transformer):
                 raise NotImplementedError("Directive not supported")
         return _Pragma()
 
+    def passthru_def(self, children):
+        """Instantiate one _XdrPassthru object"""
+        token = children[0]
+        content = token.value[1:]
+        return _XdrPassthru(content)
+
 
 transformer = ast_utils.create_transformer(this_module, ParseToAst())
 
 
+def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definition]:
+    """Merge consecutive passthru definitions into single nodes"""
+    result = []
+    i = 0
+    while i < len(definitions):
+        if isinstance(definitions[i].value, _XdrPassthru):
+            lines = [definitions[i].value.content]
+            meta = definitions[i].meta
+            j = i + 1
+            while j < len(definitions) and isinstance(definitions[j].value, _XdrPassthru):
+                lines.append(definitions[j].value.content)
+                j += 1
+            merged = _XdrPassthru("\n".join(lines))
+            result.append(Definition(meta, merged))
+            i = j
+        else:
+            result.append(definitions[i])
+            i += 1
+    return result
+
+
 def transform_parse_tree(parse_tree):
     """Transform productions into an abstract syntax tree"""
-
-    return transformer.transform(parse_tree)
+    ast = transformer.transform(parse_tree)
+    ast.definitions = _merge_consecutive_passthru(ast.definitions)
+    return ast
 
 
 def get_header_name() -> str:

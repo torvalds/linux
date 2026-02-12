@@ -14,7 +14,11 @@ bool {{ program }}_svc_decode_{{ argument }}(struct svc_rqst *rqstp, struct xdr_
 {% if argument == 'void' %}
 	return xdrgen_decode_void(xdr);
 {% else %}
+{% if argument in structs %}
 	struct {{ argument }} *argp = rqstp->rq_argp;
+{% else %}
+	{{ argument }} *argp = rqstp->rq_argp;
+{% endif %}
 
 	return xdrgen_decode_{{ argument }}(xdr, argp);
 {% endif %}

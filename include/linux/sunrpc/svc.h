@@ -35,8 +35,10 @@
  */
 struct svc_pool {
 	unsigned int		sp_id;		/* pool id; also node id on NUMA */
+	unsigned int		sp_nrthreads;	/* # of threads currently running in pool */
+	unsigned int		sp_nrthrmin;	/* Min number of threads to run per pool */
+	unsigned int		sp_nrthrmax;	/* Max requested number of threads in pool */
 	struct lwq		sp_xprts;	/* pending transports */
-	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	struct llist_head	sp_idle_threads; /* idle server threads */
 
@@ -53,6 +55,7 @@ enum {
 	SP_TASK_PENDING,	/* still work to do even if no xprt is queued */
 	SP_NEED_VICTIM,		/* One thread needs to agree to exit */
 	SP_VICTIM_REMAINS,	/* One thread needs to actually exit */
+	SP_TASK_STARTING,	/* Task has started but not added to idle yet */
 };
 
 
@@ -71,7 +74,7 @@ struct svc_serv {
 	struct svc_stat *	sv_stats;	/* RPC statistics */
 	spinlock_t		sv_lock;
 	unsigned int		sv_nprogs;	/* Number of sv_programs */
-	unsigned int		sv_nrthreads;	/* # of server threads */
+	unsigned int		sv_nrthreads;	/* # of running server threads */
 	unsigned int		sv_max_payload;	/* datagram payload size */
 	unsigned int		sv_max_mesg;	/* max_payload + 1 page for overheads */
 	unsigned int		sv_xdrsize;	/* XDR buffer size */
@@ -440,13 +443,17 @@ struct svc_serv *svc_create(struct svc_program *, unsigned int,
 bool		   svc_rqst_replace_page(struct svc_rqst *rqstp,
 					 struct page *page);
 void		   svc_rqst_release_pages(struct svc_rqst *rqstp);
+int		   svc_new_thread(struct svc_serv *serv, struct svc_pool *pool);
 void		   svc_exit_thread(struct svc_rqst *);
 struct svc_serv *  svc_create_pooled(struct svc_program *prog,
 				     unsigned int nprog,
 				     struct svc_stat *stats,
 				     unsigned int bufsize,
 				     int (*threadfn)(void *data));
-int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
+int		   svc_set_pool_threads(struct svc_serv *serv, struct svc_pool *pool,
+					unsigned int min_threads, unsigned int max_threads);
+int		   svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
+				       unsigned int nrservs);
 int		   svc_pool_stats_open(struct svc_info *si, struct file *file);
 void		   svc_process(struct svc_rqst *rqstp);
 void		   svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp);
