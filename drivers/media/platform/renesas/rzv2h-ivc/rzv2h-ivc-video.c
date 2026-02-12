@@ -7,6 +7,7 @@
 
 #include "rzv2h-ivc.h"
 
+#include <linux/bitfield.h>
 #include <linux/cleanup.h>
 #include <linux/iopoll.h>
 #include <linux/lockdep.h>
@@ -235,8 +236,10 @@ static void rzv2h_ivc_format_configure(struct rzv2h_ivc *ivc)
 	hts = pix->width + RZV2H_IVC_FIXED_HBLANK;
 	vblank = RZV2H_IVC_MIN_VBLANK(hts);
 
-	rzv2h_ivc_write(ivc, RZV2H_IVC_REG_AXIRX_BLANK,
-			RZV2H_IVC_VBLANK(vblank));
+	rzv2h_ivc_update_bits(ivc, RZV2H_IVC_REG_AXIRX_BLANK,
+			      RZV2H_IVC_AXIRX_BLANK_FIELD_VBLANK,
+			      FIELD_PREP(RZV2H_IVC_AXIRX_BLANK_FIELD_VBLANK,
+					 vblank));
 }
 
 static void rzv2h_ivc_return_buffers(struct rzv2h_ivc *ivc,
