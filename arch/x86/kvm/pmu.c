@@ -1256,7 +1256,7 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 
 	r = -EFAULT;
 	if (copy_from_user(filter->events, user_filter->events,
-			   sizeof(filter->events[0]) * filter->nevents))
+			   flex_array_size(filter, events, filter->nevents)))
 		goto cleanup;
 
 	r = prepare_filter_lists(filter);

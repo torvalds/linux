@@ -1261,7 +1261,7 @@ struct kvm_x86_pmu_event_filter {
 	__u32 nr_excludes;
 	__u64 *includes;
 	__u64 *excludes;
-	__u64 events[];
+	__u64 events[] __counted_by(nevents);
 };
 
 enum kvm_apicv_inhibit {
