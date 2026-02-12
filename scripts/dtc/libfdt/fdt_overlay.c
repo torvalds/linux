@@ -407,7 +407,8 @@ static int overlay_fixup_phandle(void *fdt, void *fdto, int symbols_off,
 		const char *fixup_str = value;
 		uint32_t path_len, name_len;
 		uint32_t fixup_len;
-		char *sep, *endptr;
+		const char *sep;
+		char *endptr;
 		int poffset, ret;
 
 		fixup_end = memchr(value, '\0', len);

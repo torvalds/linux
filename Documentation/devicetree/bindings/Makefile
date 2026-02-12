@@ -56,7 +56,6 @@ DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_all_cmd)))
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
-	-Wno-graph_child_address \
 	-Wno-unique_unit_address \
 	-Wunique_unit_address_if_enabled
 
@@ -82,5 +81,8 @@ clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
 dt_compatible_check: $(obj)/processed-schema.json
 	$(Q)$(srctree)/scripts/dtc/dt-extract-compatibles $(srctree) | xargs dt-check-compatible -v -s $<
 
+PHONY += dt_binding_check_one
+dt_binding_check_one: $(obj)/.dt-binding.checked $(obj)/.yamllint.checked
+
 PHONY += dt_binding_check
-dt_binding_check: $(obj)/.dt-binding.checked $(obj)/.yamllint.checked $(CHK_DT_EXAMPLES)
+dt_binding_check: dt_binding_check_one $(CHK_DT_EXAMPLES)

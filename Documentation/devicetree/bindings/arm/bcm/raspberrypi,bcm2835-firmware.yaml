@@ -65,6 +65,11 @@ properties:
       gpio-line-names:
         minItems: 8
 
+    patternProperties:
+      '-hog$':
+        required:
+          - gpio-hog
+
     required:
       - compatible
       - gpio-controller
@@ -86,6 +91,9 @@ properties:
     required:
       - compatible
       - "#reset-cells"
+
+  power:
+    $ref: /schemas/power/raspberrypi,bcm2835-power.yaml#
 
   pwm:
     type: object

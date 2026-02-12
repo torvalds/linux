@@ -11,11 +11,13 @@
 #define FDT_TAGALIGN(x)		(FDT_ALIGN((x), FDT_TAGSIZE))
 
 int32_t fdt_ro_probe_(const void *fdt);
-#define FDT_RO_PROBE(fdt)					\
-	{							\
-		int32_t totalsize_;				\
-		if ((totalsize_ = fdt_ro_probe_(fdt)) < 0)	\
-			return totalsize_;			\
+#define FDT_RO_PROBE(fdt)						\
+	{								\
+		if (!can_assume(VALID_DTB)) {				\
+			int32_t totalsize_;				\
+			if ((totalsize_ = fdt_ro_probe_(fdt)) < 0)	\
+				return totalsize_;			\
+		}							\
 	}
 
 int fdt_check_node_offset_(const void *fdt, int offset);
@@ -92,7 +94,7 @@ static inline uint64_t fdt64_ld_(const fdt64_t *p)
  * signature or hash check before using libfdt.
  *
  * For situations where security is not a concern it may be safe to enable
- * ASSUME_SANE.
+ * ASSUME_PERFECT.
  */
 enum {
 	/*

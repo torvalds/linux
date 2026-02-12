@@ -339,9 +339,12 @@ struct dt_info *build_dt_info(unsigned int dtsflags,
 			      struct reserve_info *reservelist,
 			      struct node *tree, uint32_t boot_cpuid_phys);
 void sort_tree(struct dt_info *dti);
+void generate_labels_from_tree(struct dt_info *dti, const char *name);
 void generate_label_tree(struct dt_info *dti, const char *name, bool allocph);
 void generate_fixups_tree(struct dt_info *dti, const char *name);
+void fixup_phandles(struct dt_info *dti, const char *name);
 void generate_local_fixups_tree(struct dt_info *dti, const char *name);
+void local_fixup_phandles(struct dt_info *dti, const char *name);
 
 /* Checks */
 
@@ -357,6 +360,9 @@ struct dt_info *dt_from_blob(const char *fname);
 
 /* Tree source */
 
+void property_add_marker(struct property *prop,
+			 enum markertype type, unsigned int offset, char *ref);
+void add_phandle_marker(struct dt_info *dti, struct property *prop, unsigned int offset);
 void dt_to_source(FILE *f, struct dt_info *dti);
 struct dt_info *dt_from_source(const char *f);
 

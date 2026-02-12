@@ -73,6 +73,8 @@ properties:
       - const: idm_base
       - const: nicpm_base
 
+  dma-coherent: true
+
 unevaluatedProperties: false
 
 examples:

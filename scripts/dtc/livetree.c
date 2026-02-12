@@ -340,20 +340,73 @@ void append_to_property(struct node *node,
 			char *name, const void *data, int len,
 			enum markertype type)
 {
-	struct data d;
+	struct property *p;
+
+	p = get_property(node, name);
+	if (!p) {
+		p = build_property(name, empty_data, NULL);
+		add_property(node, p);
+	}
+
+	p->val = data_add_marker(p->val, type, name);
+	p->val = data_append_data(p->val, data, len);
+}
+
+static int append_unique_str_to_property(struct node *node,
+					 char *name, const char *data, int len)
+{
 	struct property *p;
 
 	p = get_property(node, name);
 	if (p) {
-		d = data_add_marker(p->val, type, name);
-		d = data_append_data(d, data, len);
-		p->val = d;
+		const char *s;
+
+		if (p->val.len && p->val.val[p->val.len - 1] != '\0')
+			/* The current content doesn't look like a string */
+			return -1;
+
+		for (s = p->val.val; s < p->val.val + p->val.len; s = strchr(s, '\0') + 1) {
+			if (strcmp(data, s) == 0)
+				/* data already contained in node.name */
+				return 0;
+		}
 	} else {
-		d = data_add_marker(empty_data, type, name);
-		d = data_append_data(d, data, len);
-		p = build_property(name, d, NULL);
+		p = build_property(name, empty_data, NULL);
 		add_property(node, p);
 	}
+
+	p->val = data_add_marker(p->val, TYPE_STRING, name);
+	p->val = data_append_data(p->val, data, len);
+
+	return 0;
+}
+
+static int append_unique_u32_to_property(struct node *node, char *name, fdt32_t value)
+{
+	struct property *p;
+
+	p = get_property(node, name);
+	if (p) {
+		const fdt32_t *v, *val_end = (const fdt32_t *)p->val.val + p->val.len / 4;
+
+		if (p->val.len % 4 != 0)
+			/* The current content doesn't look like a u32 array */
+			return -1;
+
+		for (v = (const void *)p->val.val; v < val_end; v++) {
+			if (*v == value)
+				/* value already contained */
+				return 0;
+		}
+	} else {
+		p = build_property(name, empty_data, NULL);
+		add_property(node, p);
+	}
+
+	p->val = data_add_marker(p->val, TYPE_UINT32, name);
+	p->val = data_append_data(p->val, &value, 4);
+
+	return 0;
 }
 
 struct reserve_info *build_reserve_entry(uint64_t address, uint64_t size)
@@ -918,11 +971,12 @@ static bool any_fixup_tree(struct dt_info *dti, struct node *node)
 	return false;
 }
 
-static void add_fixup_entry(struct dt_info *dti, struct node *fn,
-			    struct node *node, struct property *prop,
-			    struct marker *m)
+static int add_fixup_entry(struct dt_info *dti, struct node *fn,
+			   struct node *node, struct property *prop,
+			   struct marker *m)
 {
 	char *entry;
+	int ret;
 
 	/* m->ref can only be a REF_PHANDLE, but check anyway */
 	assert(m->type == REF_PHANDLE);
@@ -939,32 +993,39 @@ static void add_fixup_entry(struct dt_info *dti, struct node *fn,
 
 	xasprintf(&entry, "%s:%s:%u",
 			node->fullpath, prop->name, m->offset);
-	append_to_property(fn, m->ref, entry, strlen(entry) + 1, TYPE_STRING);
+	ret = append_unique_str_to_property(fn, m->ref, entry, strlen(entry) + 1);
 
 	free(entry);
+
+	return ret;
 }
 
-static void generate_fixups_tree_internal(struct dt_info *dti,
-					  struct node *fn,
-					  struct node *node)
+static int generate_fixups_tree_internal(struct dt_info *dti,
+					 struct node *fn,
+					 struct node *node)
 {
 	struct node *dt = dti->dt;
 	struct node *c;
 	struct property *prop;
 	struct marker *m;
 	struct node *refnode;
+	int ret = 0;
 
 	for_each_property(node, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
 			refnode = get_node_by_ref(dt, m->ref);
 			if (!refnode)
-				add_fixup_entry(dti, fn, node, prop, m);
+				if (add_fixup_entry(dti, fn, node, prop, m))
+					ret = -1;
 		}
 	}
 
 	for_each_child(node, c)
-		generate_fixups_tree_internal(dti, fn, c);
+		if (generate_fixups_tree_internal(dti, fn, c))
+			ret = -1;
+
+	return ret;
 }
 
 static bool any_local_fixup_tree(struct dt_info *dti, struct node *node)
@@ -989,7 +1050,7 @@ static bool any_local_fixup_tree(struct dt_info *dti, struct node *node)
 	return false;
 }
 
-static void add_local_fixup_entry(struct dt_info *dti,
+static int add_local_fixup_entry(struct dt_info *dti,
 		struct node *lfn, struct node *node,
 		struct property *prop, struct marker *m,
 		struct node *refnode)
@@ -1020,30 +1081,56 @@ static void add_local_fixup_entry(struct dt_info *dti,
 	free(compp);
 
 	value_32 = cpu_to_fdt32(m->offset);
-	append_to_property(wn, prop->name, &value_32, sizeof(value_32), TYPE_UINT32);
+	return append_unique_u32_to_property(wn, prop->name, value_32);
 }
 
-static void generate_local_fixups_tree_internal(struct dt_info *dti,
-						struct node *lfn,
-						struct node *node)
+static int generate_local_fixups_tree_internal(struct dt_info *dti,
+					       struct node *lfn,
+					       struct node *node)
 {
 	struct node *dt = dti->dt;
 	struct node *c;
 	struct property *prop;
 	struct marker *m;
 	struct node *refnode;
+	int ret = 0;
 
 	for_each_property(node, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
 			refnode = get_node_by_ref(dt, m->ref);
 			if (refnode)
-				add_local_fixup_entry(dti, lfn, node, prop, m, refnode);
+				if (add_local_fixup_entry(dti, lfn, node, prop, m, refnode))
+					ret = -1;
 		}
 	}
 
 	for_each_child(node, c)
-		generate_local_fixups_tree_internal(dti, lfn, c);
+		if (generate_local_fixups_tree_internal(dti, lfn, c))
+			ret = -1;
+
+	return ret;
+}
+
+void generate_labels_from_tree(struct dt_info *dti, const char *name)
+{
+	struct node *an;
+	struct property *p;
+
+	an = get_subnode(dti->dt, name);
+	if (!an)
+		return;
+
+	for_each_property(an, p) {
+		struct node *labeled_node;
+
+		labeled_node = get_node_by_path(dti->dt, p->val.val);
+		if (labeled_node)
+			add_label(&labeled_node->labels, p->name);
+		else if (quiet < 1)
+			fprintf(stderr, "Warning: Path %s referenced in property %s/%s missing",
+				p->val.val, name, p->name);
+	}
 }
 
 void generate_label_tree(struct dt_info *dti, const char *name, bool allocph)
@@ -1056,29 +1143,173 @@ void generate_label_tree(struct dt_info *dti, const char *name, bool allocph)
 
 void generate_fixups_tree(struct dt_info *dti, const char *name)
 {
-	struct node *n = get_subnode(dti->dt, name);
-
-	/* Start with an empty __fixups__ node to not get duplicates */
-	if (n)
-		n->deleted = true;
-
 	if (!any_fixup_tree(dti, dti->dt))
 		return;
-	generate_fixups_tree_internal(dti,
-				      build_and_name_child_node(dti->dt, name),
-				      dti->dt);
+	if (generate_fixups_tree_internal(dti, build_root_node(dti->dt, name), dti->dt))
+		fprintf(stderr,
+			"Warning: Preexisting data in %s malformed, some content could not be added.\n",
+			name);
+}
+
+void fixup_phandles(struct dt_info *dti, const char *name)
+{
+	struct node *an;
+	struct property *fp;
+
+	an = get_subnode(dti->dt, name);
+	if (!an)
+		return;
+
+	for_each_property(an, fp) {
+		char *fnext = fp->val.val;
+		char *fv;
+		unsigned int fl;
+
+		while ((fl = fp->val.len - (fnext - fp->val.val))) {
+			char *propname, *soffset;
+			struct node *n;
+			struct property *p;
+			long offset;
+
+			fv = fnext;
+			fnext = memchr(fv, 0, fl);
+
+			if (!fnext) {
+				if (quiet < 1)
+					fprintf(stderr, "Warning: Malformed fixup entry for label %s\n",
+						fp->name);
+				break;
+			}
+			fnext += 1;
+
+			propname = memchr(fv, ':', fnext - 1 - fv);
+			if (!propname) {
+				if (quiet < 1)
+					fprintf(stderr, "Warning: Malformed fixup entry for label %s\n",
+						fp->name);
+				continue;
+			}
+			propname++;
+
+			soffset = memchr(propname, ':', fnext - 1 - propname);
+			if (!soffset) {
+				if (quiet < 1)
+					fprintf(stderr, "Warning: Malformed fixup entry for label %s\n",
+						fp->name);
+				continue;
+			}
+			soffset++;
+
+			/*
+			 * temporarily modify the property to not have to create
+			 * a copy for the node path.
+			 */
+			*(propname - 1) = '\0';
+
+			n = get_node_by_path(dti->dt, fv);
+			if (!n && quiet < 1)
+				fprintf(stderr, "Warning: Label %s references non-existing node %s\n",
+					fp->name, fv);
+
+			*(propname - 1) = ':';
+
+			if (!n)
+				continue;
+
+			/*
+			 * temporarily modify the property to not have to create
+			 * a copy for the property name.
+			 */
+			*(soffset - 1) = '\0';
+
+			p = get_property(n, propname);
+
+			if (!p && quiet < 1)
+				fprintf(stderr, "Warning: Label %s references non-existing property %s in node %s\n",
+					fp->name, n->fullpath, propname);
+
+			*(soffset - 1) = ':';
+
+			if (!p)
+				continue;
+
+			offset = strtol(soffset, NULL, 0);
+			if (offset < 0 || offset + 4 > p->val.len) {
+				if (quiet < 1)
+					fprintf(stderr,
+						"Warning: Label %s contains invalid offset for property %s in node %s\n",
+						fp->name, p->name, n->fullpath);
+				continue;
+			}
+
+			property_add_marker(p, REF_PHANDLE, offset, fp->name);
+		}
+	}
 }
 
 void generate_local_fixups_tree(struct dt_info *dti, const char *name)
 {
-	struct node *n = get_subnode(dti->dt, name);
-
-	/* Start with an empty __local_fixups__ node to not get duplicates */
-	if (n)
-		n->deleted = true;
 	if (!any_local_fixup_tree(dti, dti->dt))
 		return;
-	generate_local_fixups_tree_internal(dti,
-					    build_and_name_child_node(dti->dt, name),
-					    dti->dt);
+	if (generate_local_fixups_tree_internal(dti, build_root_node(dti->dt, name), dti->dt))
+		fprintf(stderr,
+			"Warning: Preexisting data in %s malformed, some content could not be added.\n",
+			name);
+}
+
+static void local_fixup_phandles_node(struct dt_info *dti, struct node *lf, struct node *n)
+{
+	struct property *lfp;
+	struct node *lfsubnode;
+
+	for_each_property(lf, lfp) {
+		struct property *p = get_property(n, lfp->name);
+		fdt32_t *offsets = (fdt32_t *)lfp->val.val;
+		size_t i;
+
+		if (!p) {
+			if (quiet < 1)
+				fprintf(stderr, "Warning: Property %s in %s referenced in __local_fixups__ missing\n",
+					lfp->name, n->fullpath);
+			continue;
+		}
+
+		/*
+		 * Each property in the __local_fixups__ tree is a concatenation
+		 * of offsets, so it must be a multiple of sizeof(fdt32_t).
+		 */
+		if (lfp->val.len % sizeof(fdt32_t)) {
+			if (quiet < 1)
+				fprintf(stderr, "Warning: property %s in /__local_fixups__%s malformed\n",
+					lfp->name, n->fullpath);
+			continue;
+		}
+
+		for (i = 0; i < lfp->val.len / sizeof(fdt32_t); i++)
+			add_phandle_marker(dti, p, dtb_ld32(offsets + i));
+	}
+
+	for_each_child(lf, lfsubnode) {
+		struct node *subnode = get_subnode(n, lfsubnode->name);
+
+		if (!subnode) {
+			if (quiet < 1)
+				fprintf(stderr, "Warning: node %s/%s referenced in __local_fixups__ missing\n",
+					lfsubnode->name, n->fullpath);
+			continue;
+		}
+
+		local_fixup_phandles_node(dti, lfsubnode, subnode);
+	}
+}
+
+void local_fixup_phandles(struct dt_info *dti, const char *name)
+{
+	struct node *an;
+
+	an = get_subnode(dti->dt, name);
+	if (!an)
+		return;
+
+	local_fixup_phandles_node(dti, an, dti->dt);
 }

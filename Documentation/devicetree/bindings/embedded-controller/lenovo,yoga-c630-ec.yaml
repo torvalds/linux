@@ -50,7 +50,7 @@ additionalProperties: false
 examples:
   - |+
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c1 {
+    i2c {
         clock-frequency = <400000>;
 
         #address-cells = <1>;

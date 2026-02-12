@@ -127,7 +127,6 @@ static void __init fdt_reserved_mem_save_node(unsigned long node, const char *un
 	fdt_init_reserved_mem_node(rmem);
 
 	reserved_mem_count++;
-	return;
 }
 
 static int __init early_init_dt_reserve_memory(phys_addr_t base,
@@ -762,7 +761,7 @@ int of_reserved_mem_region_to_resource(const struct device_node *np,
 	if (!np)
 		return -EINVAL;
 
-	struct device_node __free(device_node) *target = of_parse_phandle(np, "memory-region", idx);
+	struct device_node *target __free(device_node) = of_parse_phandle(np, "memory-region", idx);
 	if (!target || !of_device_is_available(target))
 		return -ENODEV;
 
