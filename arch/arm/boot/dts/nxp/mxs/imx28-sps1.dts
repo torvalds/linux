@@ -127,7 +127,7 @@
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "everspin,mr25h256", "mr25h256";
+		compatible = "everspin,mr25h256";
 		spi-max-frequency = <40000000>;
 		reg = <0>;
 	};
