@@ -19,6 +19,13 @@ static const struct rapl_mmio_regs rapl_mmio_default = {
 	.limits[RAPL_DOMAIN_DRAM] = BIT(POWER_LIMIT2),
 };
 
+static const struct rapl_defaults rapl_defaults_mmio = {
+	.floor_freq_reg_addr = 0,
+	.check_unit = rapl_default_check_unit,
+	.set_floor_freq = rapl_default_set_floor_freq,
+	.compute_time_window = rapl_default_compute_time_window,
+};
+
 static int rapl_mmio_read_raw(int cpu, struct reg_action *ra, bool atomic)
 {
 	if (!ra->reg.mmio)
@@ -67,6 +74,7 @@ int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 
 	rapl_mmio_priv.read_raw = rapl_mmio_read_raw;
 	rapl_mmio_priv.write_raw = rapl_mmio_write_raw;
+	rapl_mmio_priv.defaults = &rapl_defaults_mmio;
 
 	rapl_mmio_priv.control_type = powercap_register_control_type(NULL, "intel-rapl-mmio", NULL);
 	if (IS_ERR(rapl_mmio_priv.control_type)) {
