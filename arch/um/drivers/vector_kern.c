@@ -13,6 +13,7 @@
 #include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/hex.h>
 #include <linux/inetdevice.h>
 #include <linux/init.h>
 #include <linux/list.h>

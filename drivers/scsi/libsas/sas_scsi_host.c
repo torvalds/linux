@@ -10,6 +10,7 @@
 #include <linux/firmware.h>
 #include <linux/export.h>
 #include <linux/ctype.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 
 #include "sas_internal.h"

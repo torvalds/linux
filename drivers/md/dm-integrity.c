@@ -17,6 +17,7 @@
 #include <linux/sort.h>
 #include <linux/rbtree.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/random.h>
 #include <linux/reboot.h>
 #include <crypto/hash.h>

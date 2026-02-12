@@ -43,6 +43,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/timer.h>

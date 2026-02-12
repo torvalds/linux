@@ -1194,7 +1194,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
 	bpf_func = (unsigned long)ip;
 
 	/* We currently only support poking bpf programs */
-	if (!__bpf_address_lookup(bpf_func, &size, &offset, name)) {
+	if (!bpf_address_lookup(bpf_func, &size, &offset, name)) {
 		pr_err("%s (0x%lx): kernel/modules are not supported\n", __func__, bpf_func);
 		return -EOPNOTSUPP;
 	}

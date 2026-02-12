@@ -75,6 +75,7 @@
 */
 
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>

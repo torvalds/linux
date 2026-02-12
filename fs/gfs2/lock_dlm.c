@@ -8,6 +8,7 @@
 
 #include <linux/fs.h>
 #include <linux/dlm.h>
+#include <linux/hex.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>

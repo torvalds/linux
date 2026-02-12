@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) "EVM: "fmt
 
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>

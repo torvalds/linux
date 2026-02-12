@@ -4815,6 +4815,21 @@ Kernel parameters
 	panic_on_warn=1	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
 
+	panic_force_cpu=
+			[KNL,SMP] Force panic handling to execute on a specific CPU.
+			Format: <cpu number>
+			Some platforms require panic handling to occur on a
+			specific CPU for the crash kernel to function correctly.
+			This can be due to firmware limitations, interrupt routing
+			constraints, or platform-specific requirements where only
+			a particular CPU can safely enter the crash kernel.
+			When set, panic() will redirect execution to the specified
+			CPU before proceeding with the normal panic and kexec flow.
+			If the target CPU is offline or unavailable, panic proceeds
+			on the current CPU.
+			This option should only be used for systems with the above
+			constraints as it might cause the panic operation to be less reliable.
+
 	panic_print=	Bitmask for printing system info when panic happens.
 			User can chose combination of the following bits:
 			bit 0: print all tasks info
@@ -6989,12 +7004,12 @@ Kernel parameters
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
-			Format: 0 | 1
+			Format: <int>
 
-			A value of 1 instructs the soft-lockup detector
-			to panic the machine when a soft-lockup occurs. It is
-			also controlled by the kernel.softlockup_panic sysctl
-			and CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC, which is the
+			A value of non-zero instructs the soft-lockup detector
+			to panic the machine when a soft-lockup duration exceeds
+			N thresholds. It is also controlled by the kernel.softlockup_panic
+			sysctl and CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC, which is the
 			respective build-time switch to that functionality.
 
 	softlockup_all_cpu_backtrace=

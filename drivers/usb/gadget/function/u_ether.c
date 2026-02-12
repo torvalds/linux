@@ -16,6 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/hex.h>
 #include <linux/if_vlan.h>
 #include <linux/string_helpers.h>
 #include <linux/usb/composite.h>

@@ -11,6 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/cleanup.h>
 #include <linux/leds.h>
+#include <linux/hex.h>
 #include <linux/in6.h>
 
 #ifdef CONFIG_THERMAL

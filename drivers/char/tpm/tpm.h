@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/platform_device.h>

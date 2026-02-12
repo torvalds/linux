@@ -9,6 +9,7 @@
 #include <linux/capability.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>

@@ -4,6 +4,7 @@
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include <linux/hex.h>
 #include <linux/kstrtox.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

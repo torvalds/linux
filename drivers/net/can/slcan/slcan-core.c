@@ -50,6 +50,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>

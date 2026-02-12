@@ -1942,7 +1942,7 @@ static struct configfs_attribute *o2hb_region_attrs[] = {
 	NULL,
 };
 
-static struct configfs_item_operations o2hb_region_item_ops = {
+static const struct configfs_item_operations o2hb_region_item_ops = {
 	.release		= o2hb_region_release,
 };
 
@@ -2193,7 +2193,7 @@ static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
+static const struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 	.make_item	= o2hb_heartbeat_group_make_item,
 	.drop_item	= o2hb_heartbeat_group_drop_item,
 };

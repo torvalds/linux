@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/err.h>

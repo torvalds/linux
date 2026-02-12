@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/utsname.h>
 #include <linux/vmalloc.h>
+#include <linux/hex.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/types.h>

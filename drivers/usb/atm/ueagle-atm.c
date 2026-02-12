@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/crc32.h>
+#include <linux/hex.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>

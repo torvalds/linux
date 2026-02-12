@@ -11,6 +11,7 @@
  *  Author: Lars Pöschel <poeschel@lemonage.de>
  *  All rights reserved.
  */
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>

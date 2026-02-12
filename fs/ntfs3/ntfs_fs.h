@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
+#include <linux/hex.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/page-flags.h>

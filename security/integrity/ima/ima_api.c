@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
 #include <linux/fsverity.h>

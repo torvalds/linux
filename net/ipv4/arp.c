@@ -79,6 +79,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/inet.h>

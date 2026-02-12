@@ -32,6 +32,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/file.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/atomic.h>

@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include <drv_types.h>
+#include <linux/hex.h>
 #include <linux/of.h>
 #include <linux/unaligned.h>
 

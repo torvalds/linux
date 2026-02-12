@@ -25,6 +25,7 @@
 #include <linux/prandom.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/hex.h>
 #include <linux/objtool.h>
 #include <linux/overflow.h>
 #include <linux/rbtree_latch.h>
@@ -716,8 +717,8 @@ static struct bpf_ksym *bpf_ksym_find(unsigned long addr)
 	return n ? container_of(n, struct bpf_ksym, tnode) : NULL;
 }
 
-int __bpf_address_lookup(unsigned long addr, unsigned long *size,
-				 unsigned long *off, char *sym)
+int bpf_address_lookup(unsigned long addr, unsigned long *size,
+		       unsigned long *off, char *sym)
 {
 	struct bpf_ksym *ksym;
 	int ret = 0;

@@ -13,6 +13,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/parser.h>

@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/filelock.h>
+#include <linux/hex.h>
 #include <linux/uaccess.h>
 #include <linux/iversion.h>
 #include "fat.h"

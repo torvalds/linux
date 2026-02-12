@@ -55,6 +55,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/time.h>
 #include <linux/time_namespace.h>
 #include <linux/kernel.h>
@@ -528,7 +529,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		}
 
 		sid = task_session_nr_ns(task, ns);
-		ppid = task_tgid_nr_ns(task->real_parent, ns);
+		ppid = task_ppid_nr_ns(task, ns);
 		pgid = task_pgrp_nr_ns(task, ns);
 
 		unlock_task_sighand(task, &flags);

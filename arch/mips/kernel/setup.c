@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
 #include <linux/memblock.h>

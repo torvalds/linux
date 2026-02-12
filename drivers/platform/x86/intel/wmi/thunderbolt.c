@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>

@@ -396,7 +396,7 @@ static struct configfs_attribute *o2nm_node_attrs[] = {
 	NULL,
 };
 
-static struct configfs_item_operations o2nm_node_item_ops = {
+static const struct configfs_item_operations o2nm_node_item_ops = {
 	.release		= o2nm_node_release,
 };
 
@@ -638,7 +638,7 @@ static void o2nm_node_group_drop_item(struct config_group *group,
 	config_item_put(item);
 }
 
-static struct configfs_group_operations o2nm_node_group_group_ops = {
+static const struct configfs_group_operations o2nm_node_group_group_ops = {
 	.make_item	= o2nm_node_group_make_item,
 	.drop_item	= o2nm_node_group_drop_item,
 };
@@ -657,7 +657,7 @@ static void o2nm_cluster_release(struct config_item *item)
 	kfree(cluster);
 }
 
-static struct configfs_item_operations o2nm_cluster_item_ops = {
+static const struct configfs_item_operations o2nm_cluster_item_ops = {
 	.release	= o2nm_cluster_release,
 };
 
@@ -741,7 +741,7 @@ static void o2nm_cluster_group_drop_item(struct config_group *group, struct conf
 	config_item_put(item);
 }
 
-static struct configfs_group_operations o2nm_cluster_group_group_ops = {
+static const struct configfs_group_operations o2nm_cluster_group_group_ops = {
 	.make_group	= o2nm_cluster_group_make_group,
 	.drop_item	= o2nm_cluster_group_drop_item,
 };

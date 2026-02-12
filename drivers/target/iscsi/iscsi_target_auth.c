@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/err.h>
+#include <linux/hex.h>
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <target/iscsi/iscsi_target_core.h>

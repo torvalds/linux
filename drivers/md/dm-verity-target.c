@@ -17,6 +17,7 @@
 #include "dm-verity-fec.h"
 #include "dm-verity-verify-sig.h"
 #include "dm-audit.h"
+#include <linux/hex.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/string.h>

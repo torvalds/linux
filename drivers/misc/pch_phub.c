@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/pci.h>

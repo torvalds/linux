@@ -18,6 +18,7 @@
 #include <linux/blkdev.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pm_opp.h>

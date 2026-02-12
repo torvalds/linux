@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/slab.h>

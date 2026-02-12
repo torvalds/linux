@@ -42,6 +42,7 @@
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
+#define PANIC_MSG_BUFSZ 1024
 
 #ifdef CONFIG_SMP
 /*
@@ -73,6 +74,8 @@ int panic_timeout = CONFIG_PANIC_TIMEOUT;
 EXPORT_SYMBOL_GPL(panic_timeout);
 
 unsigned long panic_print;
+
+static int panic_force_cpu = -1;
 
 ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
@@ -300,6 +303,150 @@ void __weak crash_smp_send_stop(void)
 }
 
 atomic_t panic_cpu = ATOMIC_INIT(PANIC_CPU_INVALID);
+atomic_t panic_redirect_cpu = ATOMIC_INIT(PANIC_CPU_INVALID);
+
+#if defined(CONFIG_SMP) && defined(CONFIG_CRASH_DUMP)
+static char *panic_force_buf;
+
+static int __init panic_force_cpu_setup(char *str)
+{
+	int cpu;
+
+	if (!str)
+		return -EINVAL;
+
+	if (kstrtoint(str, 0, &cpu) || cpu < 0 || cpu >= nr_cpu_ids) {
+		pr_warn("panic_force_cpu: invalid value '%s'\n", str);
+		return -EINVAL;
+	}
+
+	panic_force_cpu = cpu;
+	return 0;
+}
+early_param("panic_force_cpu", panic_force_cpu_setup);
+
+static int __init panic_force_cpu_late_init(void)
+{
+	if (panic_force_cpu < 0)
+		return 0;
+
+	panic_force_buf = kmalloc(PANIC_MSG_BUFSZ, GFP_KERNEL);
+
+	return 0;
+}
+late_initcall(panic_force_cpu_late_init);
+
+static void do_panic_on_target_cpu(void *info)
+{
+	panic("%s", (char *)info);
+}
+
+/**
+ * panic_smp_redirect_cpu - Redirect panic to target CPU
+ * @target_cpu: CPU that should handle the panic
+ * @msg: formatted panic message
+ *
+ * Default implementation uses IPI. Architectures with NMI support
+ * can override this for more reliable delivery.
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int __weak panic_smp_redirect_cpu(int target_cpu, void *msg)
+{
+	static call_single_data_t panic_csd;
+
+	panic_csd.func = do_panic_on_target_cpu;
+	panic_csd.info = msg;
+
+	return smp_call_function_single_async(target_cpu, &panic_csd);
+}
+
+/**
+ * panic_try_force_cpu - Redirect panic to a specific CPU for crash kernel
+ * @fmt: panic message format string
+ * @args: arguments for format string
+ *
+ * Some platforms require panic handling to occur on a specific CPU
+ * for the crash kernel to function correctly. This function redirects
+ * panic handling to the CPU specified via the panic_force_cpu= boot parameter.
+ *
+ * Returns false if panic should proceed on current CPU.
+ * Returns true if panic was redirected.
+ */
+__printf(1, 0)
+static bool panic_try_force_cpu(const char *fmt, va_list args)
+{
+	int this_cpu = raw_smp_processor_id();
+	int old_cpu = PANIC_CPU_INVALID;
+	const char *msg;
+
+	/* Feature not enabled via boot parameter */
+	if (panic_force_cpu < 0)
+		return false;
+
+	/* Already on target CPU - proceed normally */
+	if (this_cpu == panic_force_cpu)
+		return false;
+
+	/* Target CPU is offline, can't redirect */
+	if (!cpu_online(panic_force_cpu)) {
+		pr_warn("panic: target CPU %d is offline, continuing on CPU %d\n",
+			panic_force_cpu, this_cpu);
+		return false;
+	}
+
+	/* Another panic already in progress */
+	if (panic_in_progress())
+		return false;
+
+	/*
+	 * Only one CPU can do the redirect. Use atomic cmpxchg to ensure
+	 * we don't race with another CPU also trying to redirect.
+	 */
+	if (!atomic_try_cmpxchg(&panic_redirect_cpu, &old_cpu, this_cpu))
+		return false;
+
+	/*
+	 * Use dynamically allocated buffer if available, otherwise
+	 * fall back to static message for early boot panics or allocation failure.
+	 */
+	if (panic_force_buf) {
+		vsnprintf(panic_force_buf, PANIC_MSG_BUFSZ, fmt, args);
+		msg = panic_force_buf;
+	} else {
+		msg = "Redirected panic (buffer unavailable)";
+	}
+
+	console_verbose();
+	bust_spinlocks(1);
+
+	pr_emerg("panic: Redirecting from CPU %d to CPU %d for crash kernel.\n",
+		 this_cpu, panic_force_cpu);
+
+	/* Dump original CPU before redirecting */
+	if (!test_taint(TAINT_DIE) &&
+	    oops_in_progress <= 1 &&
+	    IS_ENABLED(CONFIG_DEBUG_BUGVERBOSE)) {
+		dump_stack();
+	}
+
+	if (panic_smp_redirect_cpu(panic_force_cpu, (void *)msg) != 0) {
+		atomic_set(&panic_redirect_cpu, PANIC_CPU_INVALID);
+		pr_warn("panic: failed to redirect to CPU %d, continuing on CPU %d\n",
+			panic_force_cpu, this_cpu);
+		return false;
+	}
+
+	/* IPI/NMI sent, this CPU should stop */
+	return true;
+}
+#else
+__printf(1, 0)
+static inline bool panic_try_force_cpu(const char *fmt, va_list args)
+{
+	return false;
+}
+#endif /* CONFIG_SMP && CONFIG_CRASH_DUMP */
 
 bool panic_try_start(void)
 {
@@ -428,7 +575,7 @@ static void panic_other_cpus_shutdown(bool crash_kexec)
  */
 void vpanic(const char *fmt, va_list args)
 {
-	static char buf[1024];
+	static char buf[PANIC_MSG_BUFSZ];
 	long i, i_next = 0, len;
 	int state = 0;
 	bool _crash_kexec_post_notifiers = crash_kexec_post_notifiers;
@@ -452,6 +599,15 @@ void vpanic(const char *fmt, va_list args)
 	local_irq_disable();
 	preempt_disable_notrace();
 
+	/* Redirect panic to target CPU if configured via panic_force_cpu=. */
+	if (panic_try_force_cpu(fmt, args)) {
+		/*
+		 * Mark ourselves offline so panic_other_cpus_shutdown() won't wait
+		 * for us on architectures that check num_online_cpus().
+		 */
+		set_cpu_online(smp_processor_id(), false);
+		panic_smp_self_stop();
+	}
 	/*
 	 * It's possible to come here directly from a panic-assertion and
 	 * not have preempt disabled. Some functions called from here want
@@ -484,7 +640,11 @@ void vpanic(const char *fmt, va_list args)
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
 	 */
-	if (test_taint(TAINT_DIE) || oops_in_progress > 1) {
+	if (atomic_read(&panic_redirect_cpu) != PANIC_CPU_INVALID &&
+	    panic_force_cpu == raw_smp_processor_id()) {
+		pr_emerg("panic: Redirected from CPU %d, skipping stack dump.\n",
+			 atomic_read(&panic_redirect_cpu));
+	} else if (test_taint(TAINT_DIE) || oops_in_progress > 1) {
 		panic_this_cpu_backtrace_printed = true;
 	} else if (IS_ENABLED(CONFIG_DEBUG_BUGVERBOSE)) {
 		dump_stack();

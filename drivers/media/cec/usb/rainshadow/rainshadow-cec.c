@@ -19,6 +19,7 @@
 #include <linux/completion.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>

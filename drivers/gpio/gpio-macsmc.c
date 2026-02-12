@@ -10,6 +10,7 @@
 #include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
+#include <linux/hex.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/macsmc.h>
 

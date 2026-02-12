@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/cred.h>
 #include <linux/ctype.h>
+#include <linux/hex.h>
 #include <linux/namei.h>
 #include <linux/xattr.h>
 #include <linux/ratelimit.h>

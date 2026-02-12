@@ -18,6 +18,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
+#include <linux/hex.h>
 #include <linux/inet.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>

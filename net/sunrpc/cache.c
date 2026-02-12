@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/hex.h>
 #include <linux/slab.h>
 #include <linux/signal.h>
 #include <linux/sched.h>

@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/bsg-lib.h>
 #include <scsi/scsi_device.h>
