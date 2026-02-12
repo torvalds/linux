@@ -91,7 +91,8 @@
  *   - /proc/sys/net/vsock/ns_mode (read-only) reports the current namespace's
  *     mode, which is set at namespace creation and immutable thereafter.
  *   - /proc/sys/net/vsock/child_ns_mode (writable) controls what mode future
- *     child namespaces will inherit when created. The default is "global".
+ *     child namespaces will inherit when created. The initial value matches
+ *     the namespace's own ns_mode.
  *
  *   Changing child_ns_mode only affects newly created namespaces, not the
  *   current namespace or existing children. At namespace creation, ns_mode
@@ -2912,7 +2913,7 @@ static void vsock_net_init(struct net *net)
 	else
 		net->vsock.mode = vsock_net_child_mode(current->nsproxy->net_ns);
 
-	net->vsock.child_ns_mode = VSOCK_NET_MODE_GLOBAL;
+	net->vsock.child_ns_mode = net->vsock.mode;
 }
 
 static __net_init int vsock_sysctl_init_net(struct net *net)
