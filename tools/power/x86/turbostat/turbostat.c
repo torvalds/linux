@@ -2187,20 +2187,6 @@ struct pkg_data {
 #define ODD_COUNTERS odd.threads, odd.cores, odd.packages
 #define EVEN_COUNTERS even.threads, even.cores, even.packages
 
-#define GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no)	      \
-	((thread_base) +						      \
-	 ((pkg_no) *							      \
-	  topo.nodes_per_pkg * topo.cores_per_node * topo.threads_per_core) + \
-	 ((node_no) * topo.cores_per_node * topo.threads_per_core) +	      \
-	 ((core_no) * topo.threads_per_core) +				      \
-	 (thread_no))
-
-#define GET_CORE(core_base, core_no, node_no, pkg_no)			\
-	((core_base) +							\
-	 ((pkg_no) *  topo.nodes_per_pkg * topo.cores_per_node) +	\
-	 ((node_no) * topo.cores_per_node) +				\
-	 (core_no))
-
 /*
  * The accumulated sum of MSR is defined as a monotonic
  * increasing MSR, it will be accumulated periodically,
@@ -2392,6 +2378,8 @@ struct platform_counters {
 	struct rapl_counter energy_psys;	/* MSR_PLATFORM_ENERGY_STATUS */
 } platform_counters_odd, platform_counters_even;
 
+#define	MAX_HT_ID	3	/* support SMT-4 */
+
 struct cpu_topology {
 	int cpu_id;
 	int core_id;		/* unique within a package */
@@ -2401,7 +2389,7 @@ struct cpu_topology {
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
 	int ht_id;		/* unique within a core */
-	int ht_sibling_cpu_id;
+	int ht_sibling_cpu_id[MAX_HT_ID + 1];
 	int type;
 	cpu_set_t *put_ids;	/* Processing Unit/Thread IDs */
 } *cpus;
@@ -2458,27 +2446,38 @@ int cpu_is_not_allowed(int cpu)
 int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pkg_data *),
 		 struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base)
 {
-	int retval, pkg_no, core_no, thread_no, node_no;
+	int cpu, retval;
 
 	retval = 0;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (node_no = 0; node_no < topo.nodes_per_pkg; node_no++) {
-			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
-				for (thread_no = 0; thread_no < topo.threads_per_core; ++thread_no) {
-					struct thread_data *t;
-					struct core_data *c;
+	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
+		struct thread_data *t;
+		struct core_data *c;
+		struct pkg_data *p;
 
-					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
+		int pkg_id = cpus[cpu].package_id;
 
-					if (cpu_is_not_allowed(t->cpu_id))
-						continue;
+		if (cpu_is_not_allowed(cpu))
+			continue;
 
-					c = GET_CORE(core_base, core_no, node_no, pkg_no);
+		if (cpus[cpu].ht_id > 0)	/* skip HT sibling */
+			continue;
 
-					retval |= func(t, c, &pkg_base[pkg_no]);
-				}
-			}
+		t = &thread_base[cpu];
+		c = &core_base[GLOBAL_CORE_ID(cpus[cpu].core_id, pkg_id)];
+		p = &pkg_base[pkg_id];
+
+		retval |= func(t, c, p);
+
+		/* Handle HT sibling now */
+		int i;
+
+		for (i = MAX_HT_ID; i > 0; --i) {	/* ht_id 0 is self */
+			if (cpus[cpu].ht_sibling_cpu_id[i] <= 0)
+				continue;
+			t = &thread_base[cpus[cpu].ht_sibling_cpu_id[i]];
+
+			retval |= func(t, c, p);
 		}
 	}
 	return retval;
@@ -6168,7 +6167,7 @@ static int parse_cpu_str(char *cpu_str, cpu_set_t *cpu_set, int cpu_set_size)
 	return 0;
 }
 
-int get_thread_siblings(struct cpu_topology *thiscpu)
+int set_thread_siblings(struct cpu_topology *thiscpu)
 {
 	char path[80], character;
 	FILE *filep;
@@ -6206,8 +6205,11 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 				if (sib_core == thiscpu->core_id) {
 					CPU_SET_S(so, size, thiscpu->put_ids);
 					if ((so != cpu) && (cpus[so].ht_id < 0)) {
-						cpus[so].ht_id = thread_id++;
-						cpus[cpu].ht_sibling_cpu_id = so;
+						cpus[so].ht_id = thread_id;
+						cpus[cpu].ht_sibling_cpu_id[thread_id] = so;
+						if (debug)
+							fprintf(stderr, "%s: cpu%d.ht_sibling_cpu_id[%d] = %d\n", __func__, cpu, thread_id, so);
+						thread_id += 1;
 					}
 				}
 			}
@@ -6229,30 +6231,40 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 		   struct core_data *core_base, struct pkg_data *pkg_base,
 		   struct thread_data *thread_base2, struct core_data *core_base2, struct pkg_data *pkg_base2)
 {
-	int retval, pkg_no, node_no, core_no, thread_no;
+	int cpu, retval;
 
 	retval = 0;
 
-	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
-		for (node_no = 0; node_no < topo.nodes_per_pkg; ++node_no) {
-			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
-				for (thread_no = 0; thread_no < topo.threads_per_core; ++thread_no) {
-					struct thread_data *t, *t2;
-					struct core_data *c, *c2;
+	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
+		struct thread_data *t, *t2;
+		struct core_data *c, *c2;
+		struct pkg_data *p, *p2;
 
-					t = GET_THREAD(thread_base, thread_no, core_no, node_no, pkg_no);
+		if (cpu_is_not_allowed(cpu))
+			continue;
 
-					if (cpu_is_not_allowed(t->cpu_id))
-						continue;
+		if (cpus[cpu].ht_id > 0)	/* skip HT sibling */
+			continue;
 
-					t2 = GET_THREAD(thread_base2, thread_no, core_no, node_no, pkg_no);
+		t = &thread_base[cpu];
+		t2 = &thread_base2[cpu];
+		c = &core_base[GLOBAL_CORE_ID(cpus[cpu].core_id, cpus[cpu].package_id)];
+		c2 = &core_base2[GLOBAL_CORE_ID(cpus[cpu].core_id, cpus[cpu].package_id)];
+		p = &pkg_base[cpus[cpu].package_id];
+		p2 = &pkg_base2[cpus[cpu].package_id];
 
-					c = GET_CORE(core_base, core_no, node_no, pkg_no);
-					c2 = GET_CORE(core_base2, core_no, node_no, pkg_no);
+		retval |= func(t, c, p, t2, c2, p2);
 
-					retval |= func(t, c, &pkg_base[pkg_no], t2, c2, &pkg_base2[pkg_no]);
-				}
-			}
+		/* Handle HT sibling now */
+		int i;
+
+		for (i = MAX_HT_ID; i > 0; --i) {	/* ht_id 0 is self */
+			if (cpus[cpu].ht_sibling_cpu_id[i] <= 0)
+				continue;
+			t = &thread_base[cpus[cpu].ht_sibling_cpu_id[i]];
+			t2 = &thread_base2[cpus[cpu].ht_sibling_cpu_id[i]];
+
+			retval |= func(t, c, p, t2, c2, p2);
 		}
 	}
 	return retval;
@@ -6391,10 +6403,13 @@ int mark_cpu_present(int cpu)
 	return 0;
 }
 
-int init_ht_id(int cpu)
+int clear_ht_id(int cpu)
 {
+	int i;
+
 	cpus[cpu].ht_id = -1;
-	cpus[cpu].ht_sibling_cpu_id = -1;
+	for (i = 0; i <= MAX_HT_ID; ++i)
+		cpus[cpu].ht_sibling_cpu_id[i] = -1;
 	return 0;
 }
 
@@ -9579,7 +9594,7 @@ void topology_probe(bool startup)
 	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 
-	for_all_proc_cpus(init_ht_id);
+	for_all_proc_cpus(clear_ht_id);
 
 	for_all_proc_cpus(set_cpu_hybrid_type);
 
@@ -9624,7 +9639,7 @@ void topology_probe(bool startup)
 			max_core_id = cpus[i].core_id;
 
 		/* get thread information */
-		siblings = get_thread_siblings(&cpus[i]);
+		siblings = set_thread_siblings(&cpus[i]);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
 		if (cpus[i].ht_id == 0)
@@ -9748,8 +9763,8 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 	if (node_id < 0)
 		node_id = 0;
 
-	t = GET_THREAD(thread_base, cpus[cpu_id].ht_id, core_id, node_id, pkg_id);
-	c = GET_CORE(core_base, core_id, node_id, pkg_id);
+	t = &thread_base[cpu_id];
+	c = &core_base[GLOBAL_CORE_ID(core_id, pkg_id)];
 
 	t->cpu_id = cpu_id;
 	if (!cpu_is_not_allowed(cpu_id)) {
