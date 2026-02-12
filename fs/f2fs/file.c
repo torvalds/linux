@@ -1076,10 +1076,6 @@ int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (err)
 		return err;
 
-	err = fsverity_prepare_setattr(dentry, attr);
-	if (err)
-		return err;
-
 	if (unlikely(IS_IMMUTABLE(inode)))
 		return -EPERM;
 
@@ -4424,7 +4420,9 @@ static int redirty_blocks(struct inode *inode, pgoff_t page_idx, int len)
 	pgoff_t redirty_idx = page_idx;
 	int page_len = 0, ret = 0;
 
+	filemap_invalidate_lock_shared(mapping);
 	page_cache_ra_unbounded(&ractl, len, 0);
+	filemap_invalidate_unlock_shared(mapping);
 
 	do {
 		folio = read_cache_folio(mapping, page_idx, NULL, NULL);

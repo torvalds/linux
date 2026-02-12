@@ -1489,9 +1489,6 @@ static void init_once(void *foo)
 #ifdef CONFIG_FS_ENCRYPTION
 	ei->i_crypt_info = NULL;
 #endif
-#ifdef CONFIG_FS_VERITY
-	ei->i_verity_info = NULL;
-#endif
 }
 
 static int __init init_inodecache(void)
@@ -1539,7 +1536,6 @@ void ext4_clear_inode(struct inode *inode)
 		EXT4_I(inode)->jinode = NULL;
 	}
 	fscrypt_put_encryption_info(inode);
-	fsverity_cleanup_inode(inode);
 }
 
 static struct inode *ext4_nfs_get_inode(struct super_block *sb,

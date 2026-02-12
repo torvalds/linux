@@ -3373,33 +3373,6 @@ out:
 	return ret;
 }
 
-static int ext4_read_folio(struct file *file, struct folio *folio)
-{
-	int ret = -EAGAIN;
-	struct inode *inode = folio->mapping->host;
-
-	trace_ext4_read_folio(inode, folio);
-
-	if (ext4_has_inline_data(inode))
-		ret = ext4_readpage_inline(inode, folio);
-
-	if (ret == -EAGAIN)
-		return ext4_mpage_readpages(inode, NULL, folio);
-
-	return ret;
-}
-
-static void ext4_readahead(struct readahead_control *rac)
-{
-	struct inode *inode = rac->mapping->host;
-
-	/* If the file has inline data, no need to do readahead. */
-	if (ext4_has_inline_data(inode))
-		return;
-
-	ext4_mpage_readpages(inode, rac, NULL);
-}
-
 static void ext4_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
@@ -5812,10 +5785,6 @@ int ext4_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		return error;
 
 	error = fscrypt_prepare_setattr(dentry, attr);
-	if (error)
-		return error;
-
-	error = fsverity_prepare_setattr(dentry, attr);
 	if (error)
 		return error;
 

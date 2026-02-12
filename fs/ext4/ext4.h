@@ -1196,10 +1196,6 @@ struct ext4_inode_info {
 #ifdef CONFIG_FS_ENCRYPTION
 	struct fscrypt_inode_info *i_crypt_info;
 #endif
-
-#ifdef CONFIG_FS_VERITY
-	struct fsverity_info *i_verity_info;
-#endif
 };
 
 /*
@@ -3744,8 +3740,8 @@ static inline void ext4_set_de_type(struct super_block *sb,
 }
 
 /* readpages.c */
-extern int ext4_mpage_readpages(struct inode *inode,
-		struct readahead_control *rac, struct folio *folio);
+int ext4_read_folio(struct file *file, struct folio *folio);
+void ext4_readahead(struct readahead_control *rac);
 extern int __init ext4_init_post_read_processing(void);
 extern void ext4_exit_post_read_processing(void);
 

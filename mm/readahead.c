@@ -204,8 +204,9 @@ static struct folio *ractl_alloc_folio(struct readahead_control *ractl,
  * not the function you want to call.  Use page_cache_async_readahead()
  * or page_cache_sync_readahead() instead.
  *
- * Context: File is referenced by caller.  Mutexes may be held by caller.
- * May sleep, but will not reenter filesystem to reclaim memory.
+ * Context: File is referenced by caller, and ractl->mapping->invalidate_lock
+ * must be held by the caller at least in shared mode.  Mutexes may be held by
+ * caller.  May sleep, but will not reenter filesystem to reclaim memory.
  */
 void page_cache_ra_unbounded(struct readahead_control *ractl,
 		unsigned long nr_to_read, unsigned long lookahead_size)
@@ -228,9 +229,10 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 */
 	unsigned int nofs = memalloc_nofs_save();
 
+	lockdep_assert_held(&mapping->invalidate_lock);
+
 	trace_page_cache_ra_unbounded(mapping->host, index, nr_to_read,
 				      lookahead_size);
-	filemap_invalidate_lock_shared(mapping);
 	index = mapping_align_index(mapping, index);
 
 	/*
@@ -300,7 +302,6 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 * will then handle the error.
 	 */
 	read_pages(ractl);
-	filemap_invalidate_unlock_shared(mapping);
 	memalloc_nofs_restore(nofs);
 }
 EXPORT_SYMBOL_GPL(page_cache_ra_unbounded);
@@ -314,9 +315,9 @@ EXPORT_SYMBOL_GPL(page_cache_ra_unbounded);
 static void do_page_cache_ra(struct readahead_control *ractl,
 		unsigned long nr_to_read, unsigned long lookahead_size)
 {
-	struct inode *inode = ractl->mapping->host;
+	struct address_space *mapping = ractl->mapping;
 	unsigned long index = readahead_index(ractl);
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(mapping->host);
 	pgoff_t end_index;	/* The last page we want to read */
 
 	if (isize == 0)
@@ -329,7 +330,9 @@ static void do_page_cache_ra(struct readahead_control *ractl,
 	if (nr_to_read > end_index - index)
 		nr_to_read = end_index - index + 1;
 
+	filemap_invalidate_lock_shared(mapping);
 	page_cache_ra_unbounded(ractl, nr_to_read, lookahead_size);
+	filemap_invalidate_unlock_shared(mapping);
 }
 
 /*
