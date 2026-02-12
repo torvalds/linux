@@ -116,7 +116,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pin_gpio2_1>;
 
-		user {
+		led-user {
 			label = "green";
 			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 		};

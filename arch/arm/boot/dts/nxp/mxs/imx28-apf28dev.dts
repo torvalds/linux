@@ -29,7 +29,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		user {
+		led-user {
 			label = "Heartbeat";
 			gpios = <&gpio0 21 0>;
 			linux,default-trigger = "heartbeat";
