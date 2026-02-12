@@ -19,10 +19,14 @@ static struct kmem_cache *op_cache;
 
 int op_cache_initialize(void)
 {
-	op_cache = kmem_cache_create("orangefs_op_cache",
+	op_cache = kmem_cache_create_usercopy("orangefs_op_cache",
 				     sizeof(struct orangefs_kernel_op_s),
 				     0,
 				     0,
+					 offsetof(struct orangefs_kernel_op_s, tag),
+					 offsetof(struct orangefs_kernel_op_s, upcall) +
+					     sizeof(struct orangefs_upcall_s) -
+						 offsetof(struct orangefs_kernel_op_s, tag),
 				     NULL);
 
 	if (!op_cache) {
