@@ -1930,6 +1930,17 @@ __ice_get_ethtool_stats(struct net_device *netdev,
 	int i = 0;
 	char *p;
 
+	if (ice_is_port_repr_netdev(netdev)) {
+		ice_update_eth_stats(vsi);
+
+		for (j = 0; j < ICE_VSI_STATS_LEN; j++) {
+			p = (char *)vsi + ice_gstrings_vsi_stats[j].stat_offset;
+			data[i++] = (ice_gstrings_vsi_stats[j].sizeof_stat ==
+				     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+		}
+		return;
+	}
+
 	ice_update_pf_stats(pf);
 	ice_update_vsi_stats(vsi);
 
@@ -1938,9 +1949,6 @@ __ice_get_ethtool_stats(struct net_device *netdev,
 		data[i++] = (ice_gstrings_vsi_stats[j].sizeof_stat ==
 			     sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
-
-	if (ice_is_port_repr_netdev(netdev))
-		return;
 
 	/* populate per queue stats */
 	rcu_read_lock();
