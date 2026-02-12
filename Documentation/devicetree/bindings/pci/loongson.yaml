@@ -32,6 +32,8 @@ properties:
     minItems: 1
     maxItems: 3
 
+  msi-parent: true
+
 required:
   - compatible
   - reg

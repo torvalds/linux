@@ -338,7 +338,7 @@ static inline bool resource_union(const struct resource *r1, const struct resour
  * Check if this resource is added to a resource tree or detached. Caller is
  * responsible for not racing assignment.
  */
-static inline bool resource_assigned(struct resource *res)
+static inline bool resource_assigned(const struct resource *res)
 {
 	return res->parent;
 }

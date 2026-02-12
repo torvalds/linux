@@ -21,7 +21,6 @@ static const char hcd_name[] = "ehci-pci";
 /* defined here to avoid adding to pci_ids.h for single instance use */
 #define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
 
-#define PCI_VENDOR_ID_ASPEED		0x1a03
 #define PCI_DEVICE_ID_ASPEED_EHCI	0x2603
 
 /*-------------------------------------------------------------------------*/

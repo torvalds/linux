@@ -181,7 +181,7 @@ static ssize_t resource_show(struct device *dev, struct device_attribute *attr,
 		struct resource zerores = {};
 
 		/* For backwards compatibility */
-		if (i >= PCI_BRIDGE_RESOURCES && i <= PCI_BRIDGE_RESOURCE_END &&
+		if (pci_resource_is_bridge_win(i) &&
 		    res->flags & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
 			res = &zerores;
 

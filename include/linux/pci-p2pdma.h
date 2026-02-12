@@ -20,6 +20,8 @@ struct scatterlist;
  * struct p2pdma_provider
  *
  * A p2pdma provider is a range of MMIO address space available to the CPU.
+ * @owner: Device to which this provider belongs.
+ * @bus_offset: Bus offset for p2p communication.
  */
 struct p2pdma_provider {
 	struct device *owner;
