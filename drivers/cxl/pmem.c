@@ -14,7 +14,7 @@
 static __read_mostly DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 
 /**
- * __devm_cxl_add_nvdimm_bridge() - add the root of a LIBNVDIMM topology
+ * devm_cxl_add_nvdimm_bridge() - add the root of a LIBNVDIMM topology
  * @host: platform firmware root device
  * @port: CXL port at the root of a CXL topology
  *
@@ -142,6 +142,9 @@ static int cxl_nvdimm_probe(struct device *dev)
 	unsigned long flags = 0, cmd_mask = 0;
 	struct nvdimm *nvdimm;
 	int rc;
+
+	if (test_bit(CXL_NVD_F_INVALIDATED, &cxl_nvd->flags))
+		return -EBUSY;
 
 	set_exclusive_cxl_commands(mds, exclusive_cmds);
 	rc = devm_add_action_or_reset(dev, clear_exclusive, mds);
@@ -323,8 +326,10 @@ static int detach_nvdimm(struct device *dev, void *data)
 	scoped_guard(device, dev) {
 		if (dev->driver) {
 			cxl_nvd = to_cxl_nvdimm(dev);
-			if (cxl_nvd->cxlmd && cxl_nvd->cxlmd->cxl_nvb == data)
+			if (cxl_nvd->cxlmd && cxl_nvd->cxlmd->cxl_nvb == data) {
 				release = true;
+				set_bit(CXL_NVD_F_INVALIDATED, &cxl_nvd->flags);
+			}
 		}
 	}
 	if (release)
@@ -367,6 +372,7 @@ static struct cxl_driver cxl_nvdimm_bridge_driver = {
 	.probe = cxl_nvdimm_bridge_probe,
 	.id = CXL_DEVICE_NVDIMM_BRIDGE,
 	.drv = {
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 		.suppress_bind_attrs = true,
 	},
 };
