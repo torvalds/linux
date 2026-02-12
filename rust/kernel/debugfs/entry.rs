@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2025 Google LLC.
 
-use crate::debugfs::file_ops::FileOps;
-use crate::ffi::c_void;
-use crate::str::{CStr, CStrExt as _};
-use crate::sync::Arc;
+use crate::{
+    debugfs::file_ops::FileOps,
+    prelude::*,
+    str::{
+        CStr,
+        CStrExt as _, //
+    },
+    sync::Arc,
+};
+
 use core::marker::PhantomData;
 
 /// Owning handle to a DebugFS entry.

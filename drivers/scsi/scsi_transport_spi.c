@@ -1622,7 +1622,7 @@ static __init int spi_transport_init(void)
 	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
-	error = anon_transport_class_register(&spi_device_class);
+	anon_transport_class_register(&spi_device_class);
 	return transport_class_register(&spi_host_class);
 }
 

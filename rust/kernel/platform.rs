@@ -5,22 +5,39 @@
 //! C header: [`include/linux/platform_device.h`](srctree/include/linux/platform_device.h)
 
 use crate::{
-    acpi, bindings, container_of,
-    device::{self, Bound},
+    acpi,
+    bindings,
+    container_of,
+    device::{
+        self,
+        Bound, //
+    },
     driver,
-    error::{from_result, to_result, Result},
-    io::{mem::IoRequest, Resource},
-    irq::{self, IrqRequest},
+    error::{
+        from_result,
+        to_result, //
+    },
+    io::{
+        mem::IoRequest,
+        Resource, //
+    },
+    irq::{
+        self,
+        IrqRequest, //
+    },
     of,
     prelude::*,
     types::Opaque,
-    ThisModule,
+    ThisModule, //
 };
 
 use core::{
     marker::PhantomData,
     mem::offset_of,
-    ptr::{addr_of_mut, NonNull},
+    ptr::{
+        addr_of_mut,
+        NonNull, //
+    },
 };
 
 /// An adapter for the registration of platform drivers.
@@ -95,7 +112,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: The platform bus only ever calls the remove callback with a valid pointer to a
         // `struct platform_device`.
         //
-        // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
+        // INVARIANT: `pdev` is valid for the duration of `remove_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
@@ -146,8 +163,13 @@ macro_rules! module_platform_driver {
 /// # Examples
 ///
 ///```
-/// # use kernel::{acpi, bindings, c_str, device::Core, of, platform};
-///
+/// # use kernel::{
+/// #     acpi,
+/// #     bindings,
+/// #     device::Core,
+/// #     of,
+/// #     platform,
+/// # };
 /// struct MyDriver;
 ///
 /// kernel::of_device_table!(
@@ -155,7 +177,7 @@ macro_rules! module_platform_driver {
 ///     MODULE_OF_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
-///         (of::DeviceId::new(c_str!("test,device")), ())
+///         (of::DeviceId::new(c"test,device"), ())
 ///     ]
 /// );
 ///
@@ -164,7 +186,7 @@ macro_rules! module_platform_driver {
 ///     MODULE_ACPI_TABLE,
 ///     <MyDriver as platform::Driver>::IdInfo,
 ///     [
-///         (acpi::DeviceId::new(c_str!("LNUXBEEF")), ())
+///         (acpi::DeviceId::new(c"LNUXBEEF"), ())
 ///     ]
 /// );
 ///

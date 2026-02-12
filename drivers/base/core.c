@@ -4781,7 +4781,6 @@ out:
 	put_device(dev);
 	return error;
 }
-EXPORT_SYMBOL_GPL(device_change_owner);
 
 /**
  * device_shutdown - call ->shutdown() on each device to shutdown.

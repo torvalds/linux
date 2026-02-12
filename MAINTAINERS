@@ -4191,9 +4191,12 @@ F:	scripts/Makefile.autofdo
 
 AUXILIARY BUS DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
+M:	Danilo Krummrich <dakr@kernel.org>
 R:	Dave Ertman <david.m.ertman@intel.com>
 R:	Ira Weiny <ira.weiny@intel.com>
 R:	Leon Romanovsky <leon@kernel.org>
+L:	driver-core@lists.linux.dev
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/driver-api/auxiliary_bus.rst
@@ -7286,7 +7289,7 @@ DEVICE I/O & IRQ [RUST]
 M:	Danilo Krummrich <dakr@kernel.org>
 M:	Alice Ryhl <aliceryhl@google.com>
 M:	Daniel Almeida <daniel.almeida@collabora.com>
-L:	rust-for-linux@vger.kernel.org
+L:	driver-core@lists.linux.dev
 S:	Supported
 W:	https://rust-for-linux.com
 B:	https://github.com/Rust-for-Linux/linux/issues
@@ -7537,7 +7540,7 @@ R:	Abdiel Janulgue <abdiel.janulgue@gmail.com>
 R:	Daniel Almeida <daniel.almeida@collabora.com>
 R:	Robin Murphy <robin.murphy@arm.com>
 R:	Andreas Hindborg <a.hindborg@kernel.org>
-L:	rust-for-linux@vger.kernel.org
+L:	driver-core@lists.linux.dev
 S:	Supported
 W:	https://rust-for-linux.com
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
@@ -7751,9 +7754,11 @@ DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Danilo Krummrich <dakr@kernel.org>
+L:	driver-core@lists.linux.dev
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/core-api/kobject.rst
+F:	Documentation/driver-api/driver-model/
 F:	drivers/base/
 F:	fs/debugfs/
 F:	fs/sysfs/
@@ -7774,10 +7779,12 @@ F:	rust/kernel/devres.rs
 F:	rust/kernel/driver.rs
 F:	rust/kernel/faux.rs
 F:	rust/kernel/platform.rs
+F:	rust/kernel/soc.rs
 F:	samples/rust/rust_debugfs.rs
 F:	samples/rust/rust_debugfs_scoped.rs
 F:	samples/rust/rust_driver_platform.rs
 F:	samples/rust/rust_driver_faux.rs
+F:	samples/rust/rust_soc.rs
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
@@ -9902,8 +9909,9 @@ FIRMWARE LOADER (request_firmware)
 M:	Luis Chamberlain <mcgrof@kernel.org>
 M:	Russ Weight <russ.weight@linux.dev>
 M:	Danilo Krummrich <dakr@kernel.org>
-L:	linux-kernel@vger.kernel.org
+L:	driver-core@lists.linux.dev
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/firmware_class/
 F:	drivers/base/firmware_loader/
 F:	rust/kernel/firmware.rs
@@ -14050,6 +14058,7 @@ F:	tools/testing/selftests/kvm/x86/
 KERNFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 M:	Tejun Heo <tj@kernel.org>
+L:	driver-core@lists.linux.dev
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	fs/kernfs/

@@ -88,17 +88,13 @@ static int anon_transport_dummy_function(struct transport_container *tc,
  * events.  Use prezero and then use DECLARE_ANON_TRANSPORT_CLASS() to
  * initialise the anon transport class storage.
  */
-int anon_transport_class_register(struct anon_transport_class *atc)
+void anon_transport_class_register(struct anon_transport_class *atc)
 {
-	int error;
 	atc->container.class = &atc->tclass.class;
 	attribute_container_set_no_classdevs(&atc->container);
-	error = attribute_container_register(&atc->container);
-	if (error)
-		return error;
+	attribute_container_register(&atc->container);
 	atc->tclass.setup = anon_transport_dummy_function;
 	atc->tclass.remove = anon_transport_dummy_function;
-	return 0;
 }
 EXPORT_SYMBOL_GPL(anon_transport_class_register);
 

@@ -5,19 +5,30 @@
 //! C header: [`include/linux/auxiliary_bus.h`](srctree/include/linux/auxiliary_bus.h)
 
 use crate::{
-    bindings, container_of, device,
-    device_id::{RawDeviceId, RawDeviceIdIndex},
+    bindings,
+    container_of,
+    device,
+    device_id::{
+        RawDeviceId,
+        RawDeviceIdIndex, //
+    },
     devres::Devres,
     driver,
-    error::{from_result, to_result, Result},
+    error::{
+        from_result,
+        to_result, //
+    },
     prelude::*,
     types::Opaque,
-    ThisModule,
+    ThisModule, //
 };
 use core::{
     marker::PhantomData,
     mem::offset_of,
-    ptr::{addr_of_mut, NonNull},
+    ptr::{
+        addr_of_mut,
+        NonNull, //
+    },
 };
 
 /// An adapter for the registration of auxiliary drivers.
@@ -90,7 +101,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: The auxiliary bus only ever calls the probe callback with a valid pointer to a
         // `struct auxiliary_device`.
         //
-        // INVARIANT: `adev` is valid for the duration of `probe_callback()`.
+        // INVARIANT: `adev` is valid for the duration of `remove_callback()`.
         let adev = unsafe { &*adev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
@@ -121,12 +132,7 @@ impl DeviceId {
         let name = name.to_bytes_with_nul();
         let modname = modname.to_bytes_with_nul();
 
-        // TODO: Replace with `bindings::auxiliary_device_id::default()` once stabilized for
-        // `const`.
-        //
-        // SAFETY: FFI type is valid to be zero-initialized.
-        let mut id: bindings::auxiliary_device_id = unsafe { core::mem::zeroed() };
-
+        let mut id: bindings::auxiliary_device_id = pin_init::zeroed();
         let mut i = 0;
         while i < modname.len() {
             id.name[i] = modname[i];

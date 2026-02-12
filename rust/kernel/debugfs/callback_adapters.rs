@@ -4,12 +4,21 @@
 //! Adapters which allow the user to supply a write or read implementation as a value rather
 //! than a trait implementation. If provided, it will override the trait implementation.
 
-use super::{Reader, Writer};
-use crate::fmt;
-use crate::prelude::*;
-use crate::uaccess::UserSliceReader;
-use core::marker::PhantomData;
-use core::ops::Deref;
+use super::{
+    Reader,
+    Writer, //
+};
+
+use crate::{
+    fmt,
+    prelude::*,
+    uaccess::UserSliceReader, //
+};
+
+use core::{
+    marker::PhantomData,
+    ops::Deref, //
+};
 
 /// # Safety
 ///
