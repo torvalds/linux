@@ -3,7 +3,6 @@
 use super::{NullBlkDevice, THIS_MODULE};
 use kernel::{
     block::mq::gen_disk::{GenDisk, GenDiskBuilder},
-    c_str,
     configfs::{self, AttributeOperations},
     configfs_attrs,
     fmt::{self, Write as _},
