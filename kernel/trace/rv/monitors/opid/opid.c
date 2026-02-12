@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/rv.h>
 #include <rv/instrumentation.h>
-#include <rv/da_monitor.h>
 
 #define MODULE_NAME "opid"
 
@@ -16,17 +15,16 @@
 #include <rv_trace.h>
 #include <monitors/sched/sched.h>
 
+#define RV_MON_TYPE RV_MON_PER_CPU
 #include "opid.h"
-
-static struct rv_monitor rv_opid;
-DECLARE_DA_MON_PER_CPU(opid, unsigned char);
+#include <rv/da_monitor.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/trace/irq_vectors.h>
 
 static void handle_vector_irq_entry(void *data, int vector)
 {
-	da_handle_event_opid(irq_entry_opid);
+	da_handle_event(irq_entry_opid);
 }
 
 static void attach_vector_irq(void)
@@ -61,52 +59,52 @@ static void detach_vector_irq(void) { }
 
 static void handle_irq_disable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_event_opid(irq_disable_opid);
+	da_handle_event(irq_disable_opid);
 }
 
 static void handle_irq_enable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_event_opid(irq_enable_opid);
+	da_handle_event(irq_enable_opid);
 }
 
 static void handle_irq_entry(void *data, int irq, struct irqaction *action)
 {
-	da_handle_event_opid(irq_entry_opid);
+	da_handle_event(irq_entry_opid);
 }
 
 static void handle_preempt_disable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_event_opid(preempt_disable_opid);
+	da_handle_event(preempt_disable_opid);
 }
 
 static void handle_preempt_enable(void *data, unsigned long ip, unsigned long parent_ip)
 {
-	da_handle_event_opid(preempt_enable_opid);
+	da_handle_event(preempt_enable_opid);
 }
 
 static void handle_sched_need_resched(void *data, struct task_struct *tsk, int cpu, int tif)
 {
 	/* The monitor's intitial state is not in_irq */
 	if (this_cpu_read(hardirq_context))
-		da_handle_event_opid(sched_need_resched_opid);
+		da_handle_event(sched_need_resched_opid);
 	else
-		da_handle_start_event_opid(sched_need_resched_opid);
+		da_handle_start_event(sched_need_resched_opid);
 }
 
 static void handle_sched_waking(void *data, struct task_struct *p)
 {
 	/* The monitor's intitial state is not in_irq */
 	if (this_cpu_read(hardirq_context))
-		da_handle_event_opid(sched_waking_opid);
+		da_handle_event(sched_waking_opid);
 	else
-		da_handle_start_event_opid(sched_waking_opid);
+		da_handle_start_event(sched_waking_opid);
 }
 
 static int enable_opid(void)
 {
 	int retval;
 
-	retval = da_monitor_init_opid();
+	retval = da_monitor_init();
 	if (retval)
 		return retval;
 
@@ -124,7 +122,7 @@ static int enable_opid(void)
 
 static void disable_opid(void)
 {
-	rv_opid.enabled = 0;
+	rv_this.enabled = 0;
 
 	rv_detach_trace_probe("opid", irq_disable, handle_irq_disable);
 	rv_detach_trace_probe("opid", irq_enable, handle_irq_enable);
@@ -135,29 +133,29 @@ static void disable_opid(void)
 	rv_detach_trace_probe("opid", sched_waking, handle_sched_waking);
 	detach_vector_irq();
 
-	da_monitor_destroy_opid();
+	da_monitor_destroy();
 }
 
 /*
  * This is the monitor register section.
  */
-static struct rv_monitor rv_opid = {
+static struct rv_monitor rv_this = {
 	.name = "opid",
 	.description = "operations with preemption and irq disabled.",
 	.enable = enable_opid,
 	.disable = disable_opid,
-	.reset = da_monitor_reset_all_opid,
+	.reset = da_monitor_reset_all,
 	.enabled = 0,
 };
 
 static int __init register_opid(void)
 {
-	return rv_register_monitor(&rv_opid, &rv_sched);
+	return rv_register_monitor(&rv_this, &rv_sched);
 }
 
 static void __exit unregister_opid(void)
 {
-	rv_unregister_monitor(&rv_opid);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_opid);

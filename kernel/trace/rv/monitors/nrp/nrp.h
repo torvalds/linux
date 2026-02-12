@@ -5,22 +5,24 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME nrp
+
 enum states_nrp {
-	preempt_irq_nrp = 0,
+	preempt_irq_nrp,
 	any_thread_running_nrp,
 	nested_preempt_nrp,
 	rescheduling_nrp,
-	state_max_nrp
+	state_max_nrp,
 };
 
 #define INVALID_STATE state_max_nrp
 
 enum events_nrp {
-	irq_entry_nrp = 0,
+	irq_entry_nrp,
 	sched_need_resched_nrp,
 	schedule_entry_nrp,
 	schedule_entry_preempt_nrp,
-	event_max_nrp
+	event_max_nrp,
 };
 
 struct automaton_nrp {
@@ -36,38 +38,38 @@ static const struct automaton_nrp automaton_nrp = {
 		"preempt_irq",
 		"any_thread_running",
 		"nested_preempt",
-		"rescheduling"
+		"rescheduling",
 	},
 	.event_names = {
 		"irq_entry",
 		"sched_need_resched",
 		"schedule_entry",
-		"schedule_entry_preempt"
+		"schedule_entry_preempt",
 	},
 	.function = {
 		{
 			preempt_irq_nrp,
 			preempt_irq_nrp,
 			nested_preempt_nrp,
-			nested_preempt_nrp
+			nested_preempt_nrp,
 		},
 		{
 			any_thread_running_nrp,
 			rescheduling_nrp,
 			any_thread_running_nrp,
-			INVALID_STATE
+			INVALID_STATE,
 		},
 		{
 			nested_preempt_nrp,
 			preempt_irq_nrp,
 			any_thread_running_nrp,
-			any_thread_running_nrp
+			any_thread_running_nrp,
 		},
 		{
 			preempt_irq_nrp,
 			rescheduling_nrp,
 			any_thread_running_nrp,
-			any_thread_running_nrp
+			any_thread_running_nrp,
 		},
 	},
 	.initial_state = preempt_irq_nrp,
