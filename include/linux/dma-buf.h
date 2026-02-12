@@ -520,16 +520,6 @@ struct dma_buf_export_info {
 };
 
 /**
- * struct dma_buf_phys_vec - describe continuous chunk of memory
- * @paddr:   physical address of that chunk
- * @len:     Length of this chunk
- */
-struct dma_buf_phys_vec {
-	phys_addr_t paddr;
-	size_t len;
-};
-
-/**
  * DEFINE_DMA_BUF_EXPORT_INFO - helper macro for exporters
  * @name: export-info name
  *

@@ -2,6 +2,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+
+#include <linux/align.h>
 
 #include "../../../kselftest.h"
 #include <libvfio.h>
@@ -75,4 +78,26 @@ const char *vfio_selftests_get_bdf(int *argc, char *argv[])
 	int nr_bdfs;
 
 	return vfio_selftests_get_bdfs(argc, argv, &nr_bdfs)[0];
+}
+
+void *mmap_reserve(size_t size, size_t align, size_t offset)
+{
+	void *map_base, *map_align;
+	size_t delta;
+
+	VFIO_ASSERT_GT(align, offset);
+	delta = align - offset;
+
+	map_base = mmap(NULL, size + align, PROT_NONE,
+			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	VFIO_ASSERT_NE(map_base, MAP_FAILED);
+
+	map_align = (void *)(ALIGN((uintptr_t)map_base + delta, align) - delta);
+
+	if (map_align > map_base)
+		VFIO_ASSERT_EQ(munmap(map_base, map_align - map_base), 0);
+
+	VFIO_ASSERT_EQ(munmap(map_align + size, map_base + align - map_align), 0);
+
+	return map_align;
 }

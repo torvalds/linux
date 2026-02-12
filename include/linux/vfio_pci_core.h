@@ -28,7 +28,6 @@
 struct vfio_pci_core_device;
 struct vfio_pci_region;
 struct p2pdma_provider;
-struct dma_buf_phys_vec;
 struct dma_buf_attachment;
 
 struct vfio_pci_eventfd {
@@ -62,25 +61,25 @@ struct vfio_pci_device_ops {
 	int (*get_dmabuf_phys)(struct vfio_pci_core_device *vdev,
 			       struct p2pdma_provider **provider,
 			       unsigned int region_index,
-			       struct dma_buf_phys_vec *phys_vec,
+			       struct phys_vec *phys_vec,
 			       struct vfio_region_dma_range *dma_ranges,
 			       size_t nr_ranges);
 };
 
 #if IS_ENABLED(CONFIG_VFIO_PCI_DMABUF)
-int vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+int vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 				struct vfio_region_dma_range *dma_ranges,
 				size_t nr_ranges, phys_addr_t start,
 				phys_addr_t len);
 int vfio_pci_core_get_dmabuf_phys(struct vfio_pci_core_device *vdev,
 				  struct p2pdma_provider **provider,
 				  unsigned int region_index,
-				  struct dma_buf_phys_vec *phys_vec,
+				  struct phys_vec *phys_vec,
 				  struct vfio_region_dma_range *dma_ranges,
 				  size_t nr_ranges);
 #else
 static inline int
-vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 			    struct vfio_region_dma_range *dma_ranges,
 			    size_t nr_ranges, phys_addr_t start,
 			    phys_addr_t len)
@@ -89,7 +88,7 @@ vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
 }
 static inline int vfio_pci_core_get_dmabuf_phys(
 	struct vfio_pci_core_device *vdev, struct p2pdma_provider **provider,
-	unsigned int region_index, struct dma_buf_phys_vec *phys_vec,
+	unsigned int region_index, struct phys_vec *phys_vec,
 	struct vfio_region_dma_range *dma_ranges, size_t nr_ranges)
 {
 	return -EOPNOTSUPP;
@@ -236,6 +235,6 @@ static inline bool is_aligned_for_order(struct vm_area_struct *vma,
 }
 
 int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys);
+				 struct phys_vec *phys);
 
 #endif /* VFIO_PCI_CORE_H */

@@ -14,7 +14,7 @@ struct vfio_pci_dma_buf {
 	struct vfio_pci_core_device *vdev;
 	struct list_head dmabufs_elm;
 	size_t size;
-	struct dma_buf_phys_vec *phys_vec;
+	struct phys_vec *phys_vec;
 	struct p2pdma_provider *provider;
 	u32 nr_ranges;
 	u8 revoked : 1;
@@ -106,7 +106,7 @@ static const struct dma_buf_ops vfio_pci_dmabuf_ops = {
  *    will fail if it is currently revoked
  */
 int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys)
+				 struct phys_vec *phys)
 {
 	struct vfio_pci_dma_buf *priv;
 
@@ -128,7 +128,7 @@ int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
 }
 EXPORT_SYMBOL_FOR_MODULES(vfio_pci_dma_buf_iommufd_map, "iommufd");
 
-int vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+int vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 				struct vfio_region_dma_range *dma_ranges,
 				size_t nr_ranges, phys_addr_t start,
 				phys_addr_t len)
@@ -160,7 +160,7 @@ EXPORT_SYMBOL_GPL(vfio_pci_core_fill_phys_vec);
 int vfio_pci_core_get_dmabuf_phys(struct vfio_pci_core_device *vdev,
 				  struct p2pdma_provider **provider,
 				  unsigned int region_index,
-				  struct dma_buf_phys_vec *phys_vec,
+				  struct phys_vec *phys_vec,
 				  struct vfio_region_dma_range *dma_ranges,
 				  size_t nr_ranges)
 {

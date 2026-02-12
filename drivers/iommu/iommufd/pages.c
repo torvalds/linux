@@ -1078,7 +1078,7 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 }
 
 struct pfn_reader_dmabuf {
-	struct dma_buf_phys_vec phys;
+	struct phys_vec phys;
 	unsigned long start_offset;
 };
 
@@ -1461,7 +1461,7 @@ static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
  */
 static int
 sym_vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys)
+				 struct phys_vec *phys)
 {
 	typeof(&vfio_pci_dma_buf_iommufd_map) fn;
 	int rc;

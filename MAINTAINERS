@@ -27606,8 +27606,9 @@ F:	include/uapi/linux/vfio.h
 F:	tools/testing/selftests/vfio/
 
 VFIO FSL-MC DRIVER
+M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	kvm@vger.kernel.org
-S:	Obsolete
+S:	Maintained
 F:	drivers/vfio/fsl-mc/
 
 VFIO HISILICON PCI DRIVER
