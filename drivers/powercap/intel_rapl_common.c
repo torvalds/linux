@@ -31,62 +31,62 @@
 #include <asm/msr.h>
 
 /* bitmasks for RAPL MSRs, used by primitive access functions */
-#define ENERGY_STATUS_MASK		0xffffffff
+#define ENERGY_STATUS_MASK		GENMASK(31, 0)
 
-#define POWER_LIMIT1_MASK		0x7FFF
+#define POWER_LIMIT1_MASK		GENMASK(14, 0)
 #define POWER_LIMIT1_ENABLE		BIT(15)
 #define POWER_LIMIT1_CLAMP		BIT(16)
 
-#define POWER_LIMIT2_MASK		(0x7FFFULL<<32)
+#define POWER_LIMIT2_MASK		GENMASK_ULL(46, 32)
 #define POWER_LIMIT2_ENABLE		BIT_ULL(47)
 #define POWER_LIMIT2_CLAMP		BIT_ULL(48)
 #define POWER_HIGH_LOCK			BIT_ULL(63)
 #define POWER_LOW_LOCK			BIT(31)
 
-#define POWER_LIMIT4_MASK		0x1FFF
+#define POWER_LIMIT4_MASK		GENMASK(12, 0)
 
-#define TIME_WINDOW1_MASK		(0x7FULL<<17)
-#define TIME_WINDOW2_MASK		(0x7FULL<<49)
+#define TIME_WINDOW1_MASK		GENMASK_ULL(23, 17)
+#define TIME_WINDOW2_MASK		GENMASK_ULL(55, 49)
 
 #define POWER_UNIT_OFFSET		0x00
-#define POWER_UNIT_MASK			0x0F
+#define POWER_UNIT_MASK			GENMASK(3, 0)
 
 #define ENERGY_UNIT_OFFSET		0x08
-#define ENERGY_UNIT_MASK		0x1F00
+#define ENERGY_UNIT_MASK		GENMASK(12, 8)
 
 #define TIME_UNIT_OFFSET		0x10
-#define TIME_UNIT_MASK			0xF0000
+#define TIME_UNIT_MASK			GENMASK(19, 16)
 
-#define POWER_INFO_MAX_MASK		(0x7fffULL<<32)
-#define POWER_INFO_MIN_MASK		(0x7fffULL<<16)
-#define POWER_INFO_MAX_TIME_WIN_MASK	(0x3fULL<<48)
-#define POWER_INFO_THERMAL_SPEC_MASK	0x7fff
+#define POWER_INFO_MAX_MASK		GENMASK_ULL(46, 32)
+#define POWER_INFO_MIN_MASK		GENMASK_ULL(30, 16)
+#define POWER_INFO_MAX_TIME_WIN_MASK	GENMASK_ULL(53, 48)
+#define POWER_INFO_THERMAL_SPEC_MASK	GENMASK(14, 0)
 
-#define PERF_STATUS_THROTTLE_TIME_MASK	0xffffffff
-#define PP_POLICY_MASK			0x1F
+#define PERF_STATUS_THROTTLE_TIME_MASK	GENMASK(31, 0)
+#define PP_POLICY_MASK			GENMASK(4, 0)
 
 /*
  * SPR has different layout for Psys Domain PowerLimit registers.
  * There are 17 bits of PL1 and PL2 instead of 15 bits.
  * The Enable bits and TimeWindow bits are also shifted as a result.
  */
-#define PSYS_POWER_LIMIT1_MASK		0x1FFFF
+#define PSYS_POWER_LIMIT1_MASK		GENMASK_ULL(16, 0)
 #define PSYS_POWER_LIMIT1_ENABLE	BIT(17)
 
-#define PSYS_POWER_LIMIT2_MASK		(0x1FFFFULL<<32)
+#define PSYS_POWER_LIMIT2_MASK		GENMASK_ULL(48, 32)
 #define PSYS_POWER_LIMIT2_ENABLE	BIT_ULL(49)
 
-#define PSYS_TIME_WINDOW1_MASK		(0x7FULL<<19)
-#define PSYS_TIME_WINDOW2_MASK		(0x7FULL<<51)
+#define PSYS_TIME_WINDOW1_MASK		GENMASK_ULL(25, 19)
+#define PSYS_TIME_WINDOW2_MASK		GENMASK_ULL(57, 51)
 
 /* bitmasks for RAPL TPMI, used by primitive access functions */
-#define TPMI_POWER_LIMIT_MASK		0x3FFFF
+#define TPMI_POWER_LIMIT_MASK		GENMASK_ULL(17, 0)
 #define TPMI_POWER_LIMIT_ENABLE		BIT_ULL(62)
-#define TPMI_TIME_WINDOW_MASK		(0x7FULL<<18)
-#define TPMI_INFO_SPEC_MASK		0x3FFFF
-#define TPMI_INFO_MIN_MASK		(0x3FFFFULL << 18)
-#define TPMI_INFO_MAX_MASK		(0x3FFFFULL << 36)
-#define TPMI_INFO_MAX_TIME_WIN_MASK	(0x7FULL << 54)
+#define TPMI_TIME_WINDOW_MASK		GENMASK_ULL(24, 18)
+#define TPMI_INFO_SPEC_MASK		GENMASK_ULL(17, 0)
+#define TPMI_INFO_MIN_MASK		GENMASK_ULL(35, 18)
+#define TPMI_INFO_MAX_MASK		GENMASK_ULL(53, 36)
+#define TPMI_INFO_MAX_TIME_WIN_MASK	GENMASK_ULL(60, 54)
 
 /* Non HW constants */
 #define RAPL_PRIMITIVE_DERIVED		BIT(1)	/* not from raw data */
@@ -111,9 +111,9 @@
 #define TPMI_POWER_UNIT_OFFSET		POWER_UNIT_OFFSET
 #define TPMI_POWER_UNIT_MASK		POWER_UNIT_MASK
 #define TPMI_ENERGY_UNIT_OFFSET		0x06
-#define TPMI_ENERGY_UNIT_MASK		0x7C0
+#define TPMI_ENERGY_UNIT_MASK		GENMASK_ULL(10, 6)
 #define TPMI_TIME_UNIT_OFFSET		0x0C
-#define TPMI_TIME_UNIT_MASK		0xF000
+#define TPMI_TIME_UNIT_MASK		GENMASK_ULL(15, 12)
 
 #define RAPL_EVENT_MASK			GENMASK(7, 0)
 
@@ -1102,8 +1102,8 @@ static void set_floor_freq_atom(struct rapl_domain *rd, bool enable)
 			      &power_ctrl_orig_val);
 	mdata = power_ctrl_orig_val;
 	if (enable) {
-		mdata &= ~(0x7f << 8);
-		mdata |= 1 << 8;
+		mdata &= ~GENMASK(14, 8);
+		mdata |= BIT(8);
 	}
 	iosf_mbi_write(BT_MBI_UNIT_PMC, MBI_CR_WRITE,
 		       defaults->floor_freq_reg_addr, mdata);
@@ -1136,7 +1136,7 @@ static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 		if (y > 0x1f)
 			return 0x7f;
 
-		f = div64_u64(4 * (value - (1ULL << y)), 1ULL << y);
+		f = div64_u64(4 * (value - BIT_ULL(y)), BIT_ULL(y));
 		value = (y & 0x1f) | ((f & 0x3) << 5);
 	}
 	return value;
