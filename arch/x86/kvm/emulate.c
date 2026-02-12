@@ -3708,7 +3708,7 @@ static inline size_t fxstate_size(struct x86_emulate_ctxt *ctxt)
  */
 static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 {
-	struct fxregs_state fx_state;
+	struct fxregs_state fx_state = {};
 	int rc;
 
 	rc = check_fxsr(ctxt);
@@ -3738,7 +3738,7 @@ static int em_fxsave(struct x86_emulate_ctxt *ctxt)
 static noinline int fxregs_fixup(struct fxregs_state *fx_state,
 				 const size_t used_size)
 {
-	struct fxregs_state fx_tmp;
+	struct fxregs_state fx_tmp = {};
 	int rc;
 
 	rc = asm_safe("fxsave %[fx]", , [fx] "+m"(fx_tmp));
