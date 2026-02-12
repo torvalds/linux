@@ -1,0 +1,48 @@
+[
+    {
+        "ArchStdEvent": "BUS_ACCESS",
+        "PublicDescription": "This event counts the number of data-beat accesses between the CPU and the external bus. This count includes accesses due to read, write, and snoop. Each beat of data is counted individually."
+    },
+    {
+        "ArchStdEvent": "BUS_CYCLES",
+        "PublicDescription": "This event counts bus cycles in the CPU. Bus cycles represent a clock cycle in which a transaction could be sent or received on the interface from the CPU to the external bus. Since that interface is driven at the same clock speed as the CPU, this event increments at the rate of CPU clock. Regardless of the WFE/WFI state of the PE, this event increments on each processor clock."
+    },
+    {
+        "ArchStdEvent": "BUS_ACCESS_RD",
+        "PublicDescription": "This event counts memory Read transactions seen on the external bus. Each beat of data is counted individually."
+    },
+    {
+        "ArchStdEvent": "BUS_ACCESS_WR",
+        "PublicDescription": "This event counts memory Write transactions seen on the external bus. Each beat of data is counted individually."
+    },
+    {
+        "EventCode": "0x0154",
+        "EventName": "BUS_REQUEST_REQ",
+        "PublicDescription": "Bus request, request."
+    },
+    {
+        "EventCode": "0x0155",
+        "EventName": "BUS_REQUEST_RETRY",
+        "PublicDescription": "Bus request, retry."
+    },
+    {
+        "EventCode": "0x0198",
+        "EventName": "L2_CHI_CBUSY0",
+        "PublicDescription": "Number of RXDAT or RXRSP response received width CBusy of 0."
+    },
+    {
+        "EventCode": "0x0199",
+        "EventName": "L2_CHI_CBUSY1",
+        "PublicDescription": "Number of RXDAT or RXRSP response received width CBusy of 1."
+    },
+    {
+        "EventCode": "0x019a",
+        "EventName": "L2_CHI_CBUSY2",
+        "PublicDescription": "Number of RXDAT or RXRSP response received width CBusy of 2."
+    },
+    {
+        "EventCode": "0x019b",
+        "EventName": "L2_CHI_CBUSY3",
+        "PublicDescription": "Number of RXDAT or RXRSP response received width CBusy of 3."
+    }
+]

@@ -1,0 +1,158 @@
+[
+    {
+        "ArchStdEvent": "L1I_TLB_REFILL",
+        "PublicDescription": "This event counts L1 Instruction TLB refills from any instruction fetch (demand, hardware prefetch, and software preload accesses). If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL",
+        "PublicDescription": "This event counts L1 Data TLB accesses that resulted in TLB refills. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count on an access from an AT (Address Translation) instruction.\nThis event counts the sum of the following events:\nL1D_TLB_REFILL_RD and\nL1D_TLB_REFILL_WR."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB",
+        "PublicDescription": "This event counts L1 Data TLB accesses caused by any memory Load or Store operation.\nNote that Load or Store instructions can be broken up into multiple memory operations.\nThis event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "L1I_TLB",
+        "PublicDescription": "This event counts L1 instruction TLB accesses (caused by demand or hardware prefetch or software preload accesses), whether the access hits or misses in the TLB. This event counts both demand accesses and prefetch or preload generated accesses.\nThis event is a superset of the L1I_TLB_REFILL event."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL",
+        "PublicDescription": "This event counts L2 TLB refills caused by memory operations from both data and instruction fetch, except for those caused by TLB maintenance operations and hardware prefetches.\nThis event is the sum of the following events:\nL2D_TLB_REFILL_RD and\nL2D_TLB_REFILL_WR."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB",
+        "PublicDescription": "This event counts L2 TLB accesses except those caused by TLB maintenance operations.\nThis event is the sum of the following events:\nL2D_TLB_RD and\nL2D_TLB_WR."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK",
+        "PublicDescription": "This event counts number of demand data translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD. Note that partial translations that cause a translation table walk are also counted. Also note that this event counts walks triggered by software preloads, but not walks triggered by hardware prefetchers, and that this event does not count walks triggered by TLB maintenance operations.\nThis event does not include prefetches."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK",
+        "PublicDescription": "This event counts number of instruction translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD. Note that partial translations that cause a translation table walk are also counted. Also note that this event does not count walks triggered by TLB maintenance operations.\nThis event does not include prefetches."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL_RD",
+        "PublicDescription": "This event counts L1 Data TLB refills caused by memory Read operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the translation table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count on an access from an Address Translation (AT) instruction.\nThis event is a subset of the L1D_TLB_REFILL event."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL_WR",
+        "PublicDescription": "This event counts L1 Data TLB refills caused by data side memory Write operations. If there are multiple misses in the TLB that are resolved by the refill, then this event only counts once. This event counts for refills caused by preload instructions or hardware prefetch accesses. This event counts regardless of whether the miss hits in L2 or results in a translation table walk. This event will not count if the table walk results in a fault (such as a translation or access fault), since there is no new translation created for the TLB. This event will not count with an access from an Address Translation (AT) instruction.\nThis event is a subset of the L1D_TLB_REFILL event."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_RD",
+        "PublicDescription": "This event counts L1 Data TLB accesses caused by memory Read operations. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_WR",
+        "PublicDescription": "This event counts any L1 Data side TLB accesses caused by memory Write operations. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL_RD",
+        "PublicDescription": "This event counts L2 TLB refills caused by memory Read operations from both data and instruction fetch except for those caused by TLB maintenance operations or hardware prefetches.\nThis event is a subset of the L2D_TLB_REFILL event."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL_WR",
+        "PublicDescription": "This event counts L2 TLB refills caused by memory Write operations from both data and instruction fetch except for those caused by TLB maintenance operations.\nThis event is a subset of the L2D_TLB_REFILL event."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_RD",
+        "PublicDescription": "This event counts L2 TLB accesses caused by memory Read operations from both data and instruction fetch except for those caused by TLB maintenance operations.\nThis event is a subset of the L2D_TLB event."
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_WR",
+        "PublicDescription": "This event counts L2 TLB accesses caused by memory Write operations from both data and instruction fetch except for those caused by TLB maintenance operations.\nThis event is a subset of the L2D_TLB event."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_PERCYC",
+        "PublicDescription": "This event counts the number of data translation table walks in progress per cycle."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_PERCYC",
+        "PublicDescription": "This event counts the number of instruction translation table walks in progress per cycle."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_RW",
+        "PublicDescription": "This event counts L1 Data TLB demand accesses caused by memory Read or Write operations. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "L1I_TLB_RD",
+        "PublicDescription": "This event counts L1 Instruction TLB demand accesses whether the access hits or misses in the TLB."
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_PRFM",
+        "PublicDescription": "This event counts L1 Data TLB accesses generated by software prefetch or preload memory accesses. Load or Store instructions can be broken into multiple memory operations. This event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "L1I_TLB_PRFM",
+        "PublicDescription": "This event counts L1 Instruction TLB accesses generated by software preload or prefetch instructions. This event counts whether the access hits or misses in the TLB. This event does not count TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "DTLB_HWUPD",
+        "PublicDescription": "This event counts number of memory accesses triggered by a data translation table walk and performing an update of a translation table entry. Memory accesses are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD. Note that this event counts accesses triggered by software preloads, but not accesses triggered by hardware prefetchers."
+    },
+    {
+        "ArchStdEvent": "ITLB_HWUPD",
+        "PublicDescription": "This event counts number of memory accesses triggered by an instruction translation table walk and performing an update of a translation table entry. Memory accesses are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD."
+    },
+    {
+        "ArchStdEvent": "DTLB_STEP",
+        "PublicDescription": "This event counts number of memory accesses triggered by a demand data translation table walk and performing a Read of a translation table entry. Memory accesses are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD.\nNote that this event counts accesses triggered by software preloads, but not accesses triggered by hardware prefetchers."
+    },
+    {
+        "ArchStdEvent": "ITLB_STEP",
+        "PublicDescription": "This event counts number of memory accesses triggered by an instruction translation table walk and performing a Read of a translation table entry. Memory accesses are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_LARGE",
+        "PublicDescription": "This event counts number of demand data translation table walks caused by a miss in the L2 TLB and yielding a large page. The set of large pages is defined as all pages with a final size higher than or equal to 2MB. Translation table walks that end up taking a translation fault are not counted, as the page size would be undefined in that case. If DTLB_WALK_BLOCK is implemented, then it is an alias for this event in this family.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event counts walks triggered by software preloads, but not walks triggered by hardware prefetchers, and that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_LARGE",
+        "PublicDescription": "This event counts number of instruction translation table walks caused by a miss in the L2 TLB and yielding a large page. The set of large pages is defined as all pages with a final size higher than or equal to 2MB. Translation table walks that end up taking a translation fault are not counted, as the page size would be undefined in that case. In this family, this is equal to ITLB_WALK_BLOCK event.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_SMALL",
+        "PublicDescription": "This event counts number of data translation table walks caused by a miss in the L2 TLB and yielding a small page. The set of small pages is defined as all pages with a final size lower than 2MB. Translation table walks that end up taking a translation fault are not counted, as the page size would be undefined in that case. If DTLB_WALK_PAGE event is implemented, then it is an alias for this event in this family. Note that partial translations that cause a translation table walk are also counted.\nAlso note that this event counts walks triggered by software preloads, but not walks triggered by hardware prefetchers, and that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_SMALL",
+        "PublicDescription": "This event counts number of instruction translation table walks caused by a miss in the L2 TLB and yielding a small page. The set of small pages is defined as all pages with a final size lower than 2MB. Translation table walks that end up taking a translation fault are not counted, as the page size would be undefined in that case. In this family, this is equal to ITLB_WALK_PAGE event.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_RW",
+        "PublicDescription": "This event counts number of demand data translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_RD",
+        "PublicDescription": "This event counts number of demand instruction translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK_PRFM",
+        "PublicDescription": "This event counts number of software prefetches or preloads generated data translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK_PRFM",
+        "PublicDescription": "This event counts number of software prefetches or preloads generated instruction translation table walks caused by a miss in the L2 TLB and performing at least one memory access. Translation table walks are counted even if the translation ended up taking a translation fault for reasons different than EPD, E0PD and NFD.\nNote that partial translations that cause a translation table walk are also counted.\nAlso note that this event does not count walks triggered by TLB maintenance operations."
+    },
+    {
+        "EventCode": "0x010e",
+        "EventName": "L1D_TLB_REFILL_RD_PF",
+        "PublicDescription": "L1 Data TLB refill, Read, prefetch."
+    },
+    {
+        "EventCode": "0x010f",
+        "EventName": "L2TLB_PF_REFILL",
+        "PublicDescription": "L2 Data TLB refill, Read, prefetch.\nThis event counts MMU refills due to internal PFStream requests."
+    },
+    {
+        "EventCode": "0x0223",
+        "EventName": "L1I_TLB_REFILL_RD",
+        "PublicDescription": "L1 Instruction TLB refills due to Demand miss."
+    },
+    {
+        "EventCode": "0x0224",
+        "EventName": "L1I_TLB_REFILL_PRFM",
+        "PublicDescription": "L1 Instruction TLB refills due to Software prefetch miss."
+    }
+]

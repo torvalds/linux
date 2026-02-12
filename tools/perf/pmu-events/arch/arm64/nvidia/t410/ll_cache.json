@@ -1,0 +1,107 @@
+[
+    {
+        "ArchStdEvent": "L3D_CACHE_ALLOCATE",
+        "PublicDescription": "This event counts each memory Write operation that writes an entire line into the L3 data without fetching data from outside the L3 Data. These are allocations of cache lines in the L3 Data that are not refills counted by\nL3D_CACHE_REFILL. For example:\nA Write-back of an entire cache line from an L2 cache to the L3 D-cache.\n* A Write of an entire cache line from a coalescing Write buffer.\n* An operation such as DC ZVA.\nThis counter does not count writes that write an entire line to beyond level 3. Thus this counter does not count the streaming writes to beyond L3 cache."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE that causes a refill of the L3 Data, or any L1 Data, instruction or L2 cache of this PE, from outside of those caches. This includes the refill due to hardware prefetch and software prefetch accesses.\nThis event is a sum of L3D_CACHE_MISS, L3D_CACHE_REFILL_PRFM and L3D_CACHE_REFILL_HWPRF event.\nA refill includes any access that causes data to be fetched from outside of the L1 to L3 caches, even if the data is ultimately not allocated into the L3 D-cache."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE",
+        "PublicDescription": "This event counts each memory Read operation or memory Write operation that causes a cache access to the Level 3.\nThis event is a sum of the following Events:\n* L3D_CACHE_RD(0x00a0)\n* L3D_CACHE_ALLOCATE(0x0029)\n* L3D_CACHE_PRFM(0x8151)\n* L3D_CACHE_HWPRF(0x8156)\n* L2D_CACHE_WB(0x0018)"
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_RD",
+        "PublicDescription": "This is an alias to the event L3D_CACHE_RD (0x00a0)."
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_MISS_RD",
+        "PublicDescription": "This is an alias to the event L3D_CACHE_REFILL_RD (0x00a2)."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_RD",
+        "PublicDescription": "This event counts each Memory Read operation to L3 D-cache from instruction fetch, Load/Store, and MMU translation table accesses. This does not include hardware prefetcher or PRFM instruction accesses. This include L1 and L2 prefetcher accesses to L3 D-cache."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_RD",
+        "PublicDescription": "This event counts each access counted by both L3D_CACHE_RD and L3D_CACHE_REFILL. That is, every refill of the L3 cache counted by L3D_CACHE_REFILL that is caused by a Memory Read operation.\nThe L3D_CACHE_MISS(0x8152), L3D_CACHE_REFILL_RD (0x00a2) and L3D_CACHE_LMISS_RD(0x400b) count the same event in the hardware."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_LMISS_RD",
+        "PublicDescription": "This event counts each memory Read operation to the L3 cache counted by L3D_CACHE that incurs additional latency because it returns data from outside of the L1 to L3 caches.\nThe L3D_CACHE_MISS(0x8152), L3D_CACHE_REFILL_RD (0x00a2) and L3D_CACHE_LMISS_RD(0x400b) count the same event in the hardware."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_RW",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE that is due to a demand memory Read operation or demand memory Write operation.\nThis event is a sum of L3D_CACHE_RD(0x00a0), L3D_CACHE_ALLOCATE(0x0029) and L2D_CACHE_WB(0x0018).\nNote that this counter does not count that writes an entire line to beyond level 3. Thus this counter does not count the streaming Writes to beyond L3 cache."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_PRFM",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE that is due to a prefetch instruction. This includes L3 Data accesses due to the L1, L2, or L3 prefetch instruction."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_MISS",
+        "PublicDescription": "This event counts each demand Read access counted by L3D_CACHE_RD that misses in the L1 to L3 Data, causing an access to outside of the L3 cache.\nThe L3D_CACHE_MISS(0x8152), L3D_CACHE_REFILL_RD (0x00a2) and L3D_CACHE_LMISS_RD(0x400b) count the same event in the hardware."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_PRFM",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE_PRFM that causes a refill of the L3 cache, or any L1 or L2 Data, from outside of those caches."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_HWPRF",
+        "PublicDescription": "This event counts each access to L3 cache that is due to a hardware prefetcher. This includes L3D accesses due to the Level-1 or Level-2 or Level-3 hardware prefetcher."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_HWPRF",
+        "PublicDescription": "This event counts each hardware prefetch counted by L3D_CACHE_HWPRF that causes a refill of the L3 Data or unified cache, or any L1 or L2 Data, Instruction, or unified cache of this PE, from outside of those caches."
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_PRF",
+        "PublicDescription": "This event counts each access to L3 cache due to a prefetch instruction, or hardware prefetch that causes a refill of the L3 Data, or any L1 or L2 Data, from outside of those caches."
+    },
+    {
+        "EventCode": "0x01e8",
+        "EventName": "L3D_CACHE_RWL1PRFL2PRF",
+        "PublicDescription": "L3 cache access, demand Read, demand Write, L1 hardware or software prefetch or L2 hardware or software prefetch.\nThis event counts each access to L3 D-cache due to the following:\n* Demand Read or Write.\n* L1 Hardware or software prefetch.\n* L2 Hardware or software prefetch."
+    },
+    {
+        "EventCode": "0x01e9",
+        "EventName": "L3D_CACHE_REFILL_RWL1PRFL2PRF",
+        "PublicDescription": "L3 cache refill, demand Read, demand Write, L1 hardware or software prefetch or L2 hardware or software prefetch.\nThis event counts each access counted by L3D_CACHE_RWL1PRFL2PRF that causes a refill of the L3 cache, or any L1 or L2 cache of this PE, from outside of those caches."
+    },
+    {
+        "EventCode": "0x01f6",
+        "EventName": "L3D_CACHE_REFILL_L2PRF",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE_L2PRF that causes a refill of the L3 cache, or any L1 or L2 cache of this PE, from outside of those caches."
+    },
+    {
+        "EventCode": "0x01f7",
+        "EventName": "L3D_CACHE_HIT_RWL1PRFL2PRF_FPRF",
+        "PublicDescription": "L3 cache demand Read, demand Write, L1 prefetch L2 prefetch first hit, fetched by software or hardware prefetch.\nThis event counts each demand Read, demand Write, L1 hardware or software prefetch request and L2 hardware or software prefetch that hit an L3 D-cache line that was refilled into L3 D-cache in response to an L3 hardware prefetch or software prefetch. Only the first hit is counted. After this event is generated for a cache line, the event is not generated again for the same cache line while it remains in the cache."
+    },
+    {
+        "EventCode": "0x0225",
+        "EventName": "L3D_CACHE_REFILL_IF",
+        "PublicDescription": "L3 cache refill, instruction fetch.\nThis event counts demand instruction fetch that causes a refill of the L3 cache, or any L1 or L2 cache of this PE, from outside of those caches."
+    },
+    {
+        "EventCode": "0x0226",
+        "EventName": "L3D_CACHE_REFILL_MM",
+        "PublicDescription": "L3 cache refill, translation table walk access.\nThis event counts demand translation table access that causes a refill of the L3 cache, or any L1 or L2 cache of this PE, from outside of those caches."
+    },
+    {
+        "EventCode": "0x0227",
+        "EventName": "L3D_CACHE_REFILL_L1PRF",
+        "PublicDescription": "This event counts each access counted by L3D_CACHE_L1PRF that causes a refill of the L3 cache, or any L1 or L2 cache of this PE, from outside of those caches."
+    },
+    {
+        "EventCode": "0x022c",
+        "EventName": "L3D_CACHE_L1PRF",
+        "PublicDescription": "This event counts the L3 D-cache access due to L1 hardware prefetch or software prefetch request.\nThe L1 hardware prefetch or software prefetch requests that miss the L1I, L1D and L2 D-cache are counted by this counter"
+    },
+    {
+        "EventCode": "0x022d",
+        "EventName": "L3D_CACHE_L2PRF",
+        "PublicDescription": "This event counts the L3 D-cache access due to L2 hardware prefetch or software prefetch request.\nThe L2 hardware prefetch or software prefetch requests that miss the L2 D-cache are counted by this counter"
+    }
+]

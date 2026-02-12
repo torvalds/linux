@@ -46,3 +46,4 @@
 0x00000000500f0000,v1,ampere/emag,core
 0x00000000c00fac30,v1,ampere/ampereone,core
 0x00000000c00fac40,v1,ampere/ampereonex,core
+0x000000004e0f0100,v1,nvidia/t410,core

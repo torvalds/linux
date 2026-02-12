@@ -1,0 +1,62 @@
+[
+    {
+        "ArchStdEvent": "EXC_TAKEN",
+        "PublicDescription": "This event counts any taken architecturally visible exceptions such as IRQ, FIQ, SError, and other synchronous exceptions. Exceptions are counted whether or not they are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_RETURN",
+        "PublicDescription": "This event counts any architecturally executed exception return instructions. For example: AArch64: ERET."
+    },
+    {
+        "ArchStdEvent": "EXC_UNDEF",
+        "PublicDescription": "This event counts the number of synchronous exceptions which are taken locally that are due to attempting to execute an instruction that is UNDEFINED.\nAttempting to execute instruction bit patterns that have not been allocated.\nAttempting to execute instructions when they are disabled.\nAttempting to execute instructions at an inappropriate Exception level.\nAttempting to execute an instruction when the value of PSTATE.IL is 1."
+    },
+    {
+        "ArchStdEvent": "EXC_SVC",
+        "PublicDescription": "This event counts SVC exceptions taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_PABORT",
+        "PublicDescription": "This event counts synchronous exceptions that are taken locally and caused by Instruction Aborts."
+    },
+    {
+        "ArchStdEvent": "EXC_DABORT",
+        "PublicDescription": "This event counts exceptions that are taken locally and are caused by data aborts or SErrors. Conditions that could cause those exceptions are attempting to read or write memory where the MMU generates a fault, attempting to read or write memory with a misaligned address, Interrupts from the nSEI inputs and internally generated SErrors."
+    },
+    {
+        "ArchStdEvent": "EXC_IRQ",
+        "PublicDescription": "This event counts IRQ exceptions including the virtual IRQs that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_FIQ",
+        "PublicDescription": "This event counts FIQ exceptions including the virtual FIQs that are taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_SMC",
+        "PublicDescription": "This event counts SMC exceptions taken to EL3."
+    },
+    {
+        "ArchStdEvent": "EXC_HVC",
+        "PublicDescription": "This event counts HVC exceptions taken to EL2."
+    },
+    {
+        "ArchStdEvent": "EXC_TRAP_PABORT",
+        "PublicDescription": "This event counts exceptions which are traps not taken locally and are caused by Instruction Aborts. For example, attempting to execute an instruction with a misaligned PC."
+    },
+    {
+        "ArchStdEvent": "EXC_TRAP_DABORT",
+        "PublicDescription": "This event counts exceptions which are traps not taken locally and are caused by Data Aborts or SError Interrupts. Conditions that could cause those exceptions are:\n* Attempting to read or write memory where the MMU generates a fault,\n* Attempting to read or write memory with a misaligned address,\n* Interrupts from the SEI input,\n* Internally generated SErrors."
+    },
+    {
+        "ArchStdEvent": "EXC_TRAP_OTHER",
+        "PublicDescription": "This event counts the number of synchronous trap exceptions which are not taken locally and are not SVC, SMC, HVC, Data Aborts, Instruction Aborts, or Interrupts."
+    },
+    {
+        "ArchStdEvent": "EXC_TRAP_IRQ",
+        "PublicDescription": "This event counts IRQ exceptions including the virtual IRQs that are not taken locally."
+    },
+    {
+        "ArchStdEvent": "EXC_TRAP_FIQ",
+        "PublicDescription": "This event counts FIQs which are not taken locally but taken from EL0, EL1, or EL2 to EL3 (which would be the normal behavior for FIQs when not executing in EL3)."
+    }
+]

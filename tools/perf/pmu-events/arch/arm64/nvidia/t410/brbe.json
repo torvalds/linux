@@ -1,0 +1,6 @@
+[
+    {
+        "ArchStdEvent": "BRB_FILTRATE",
+        "PublicDescription": "This event counts each valid branch record captured in the branch record buffer. Branch records that are not captured because they are removed by filtering are not counted."
+    }
+]

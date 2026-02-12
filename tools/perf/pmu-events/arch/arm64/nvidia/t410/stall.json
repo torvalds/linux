@@ -1,0 +1,145 @@
+[
+    {
+        "ArchStdEvent": "STALL_FRONTEND",
+        "PublicDescription": "This event counts cycles when frontend could not send any micro-operations to the rename stage because of frontend resource stalls caused by fetch memory latency or branch prediction flow stalls. STALL_FRONTEND_SLOTS counts SLOTS during the cycle when this event counts. STALL_SLOT_FRONTEND will count SLOTS when this event is counted on this CPU."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND",
+        "PublicDescription": "This event counts cycles whenever the rename unit is unable to send any micro-operations to the backend of the pipeline because of backend resource constraints. Backend resource constraints can include issue stage fullness, execution stage fullness, or other internal pipeline resource fullness. All the backend slots were empty during the cycle when this event counts."
+    },
+    {
+        "ArchStdEvent": "STALL",
+        "PublicDescription": "This event counts cycles when no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall). This event is the sum of the following events:\nSTALL_FRONTEND and\nSTALL_BACKEND."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_BACKEND",
+        "PublicDescription": "This event counts slots per cycle in which no operations are sent from the rename unit to the backend due to backend resource constraints. STALL_BACKEND counts during the cycle when STALL_SLOT_BACKEND counts at least 1. STALL_BACKEND counts during the cycle when STALL_SLOT_BACKEND is SLOTS."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_FRONTEND",
+        "PublicDescription": "This event counts slots per cycle in which no operations are sent to the rename unit from the frontend due to frontend resource constraints. STALL_FRONTEND counts during the cycle when STALL_SLOT_FRONTEND is SLOTS."
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT",
+        "PublicDescription": "This event counts slots per cycle in which no operations are sent to the rename unit from the frontend or from the rename unit to the backend for any reason (either frontend or backend stall).\nSTALL_SLOT is the sum of the following events:\nSTALL_SLOT_FRONTEND and\nSTALL_SLOT_BACKEND."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEM",
+        "PublicDescription": "This event counts cycles when the backend is stalled because there is a pending demand Load request in progress in the last level Core cache.\nLast level cache in this CPU is Level 2, hence this event counts same as STALL_BACKEND_L2D."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_MEMBOUND",
+        "PublicDescription": "This event counts cycles when the frontend could not send any micro-operations to the rename stage due to resource constraints in the memory resources."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_L1I",
+        "PublicDescription": "This event counts cycles when the frontend is stalled because there is an instruction fetch request pending in the L1 I-cache."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_MEM",
+        "PublicDescription": "This event counts cycles when the frontend is stalled because there is an instruction fetch request pending in the last level Core cache.\nLast level cache in this CPU is Level 2, hence this event counts rather than STALL_FRONTEND_L2I."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_TLB",
+        "PublicDescription": "This event counts when the frontend is stalled on any TLB misses being handled. This event also counts the TLB accesses made by hardware prefetches."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_CPUBOUND",
+        "PublicDescription": "This event counts cycles when the frontend could not send any micro-operations to the rename stage due to resource constraints in the CPU resources excluding memory resources."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_FLOW",
+        "PublicDescription": "This event counts cycles when the frontend could not send any micro-operations to the rename stage due to resource constraints in the branch prediction unit."
+    },
+    {
+        "ArchStdEvent": "STALL_FRONTEND_FLUSH",
+        "PublicDescription": "This event counts cycles when the frontend could not send any micro-operations to the rename stage as the frontend is recovering from a machine flush or resteer. Example scenarios that cause a flush include branch mispredictions, taken exceptions, microarchitectural flush etc."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEMBOUND",
+        "PublicDescription": "This event counts cycles when the backend could not accept any micro-operations due to resource constraints in the memory resources."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_L1D",
+        "PublicDescription": "This event counts cycles when the backend is stalled because there is a pending demand Load request in progress in the L1 D-cache."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_TLB",
+        "PublicDescription": "This event counts cycles when the backend is stalled on any demand TLB misses being handled."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_ST",
+        "PublicDescription": "This event counts cycles when the backend is stalled and there is a Store that has not reached the pre-commit stage."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_CPUBOUND",
+        "PublicDescription": "This event counts cycles when the backend could not accept any micro-operations due to any resource constraints in the CPU excluding memory resources."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_BUSY",
+        "PublicDescription": "This event counts cycles when the backend could not accept any micro-operations because the issue queues are full to take any operations for execution."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_ILOCK",
+        "PublicDescription": "This event counts cycles when the backend could not accept any micro-operations due to resource constraints imposed by input dependency."
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_RENAME",
+        "PublicDescription": "This event counts cycles when backend is stalled even when operations are available from the frontend but at least one is not ready to be sent to the backend because no rename register is available."
+    },
+    {
+        "EventCode": "0x0158",
+        "EventName": "FLAG_DISP_STALL",
+        "PublicDescription": "Rename stalled due to FRF(Flag register file) full."
+    },
+    {
+        "EventCode": "0x0159",
+        "EventName": "GEN_DISP_STALL",
+        "PublicDescription": "Rename stalled due to GRF (General-purpose register file) full."
+    },
+    {
+        "EventCode": "0x015a",
+        "EventName": "VEC_DISP_STALL",
+        "PublicDescription": "Rename stalled due to VRF (Vector register file) full."
+    },
+    {
+        "EventCode": "0x015c",
+        "EventName": "SX_IQ_STALL",
+        "PublicDescription": "Dispatch stalled due to IQ full, SX."
+    },
+    {
+        "EventCode": "0x015d",
+        "EventName": "MX_IQ_STALL",
+        "PublicDescription": "Dispatch stalled due to IQ full, MX."
+    },
+    {
+        "EventCode": "0x015e",
+        "EventName": "LS_IQ_STALL",
+        "PublicDescription": "Dispatch stalled due to IQ full, LS."
+    },
+    {
+        "EventCode": "0x015f",
+        "EventName": "VX_IQ_STALL",
+        "PublicDescription": "Dispatch stalled due to IQ full, VX."
+    },
+    {
+        "EventCode": "0x0160",
+        "EventName": "MCQ_FULL_STALL",
+        "PublicDescription": "Dispatch stalled due to MCQ full."
+    },
+    {
+        "EventCode": "0x01cf",
+        "EventName": "PRD_DISP_STALL",
+        "PublicDescription": "Rename stalled due to predicate registers (physical) are full."
+    },
+    {
+        "EventCode": "0x01e0",
+        "EventName": "CSDB_STALL",
+        "PublicDescription": "Rename stalled due to CSDB."
+    },
+    {
+        "EventCode": "0x01e2",
+        "EventName": "STALL_SLOT_FRONTEND_WITHOUT_MISPRED",
+        "PublicDescription": "Stall slot frontend during non-mispredicted branch.\nThis event counts the STALL_STOT_FRONTEND Events, except for the 4 cycles following a mispredicted branch Event or 4 cycles following a commit flush&restart Event."
+    }
+]

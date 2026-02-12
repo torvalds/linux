@@ -1,0 +1,15 @@
+[
+    {
+        "ArchStdEvent": "CPU_CYCLES",
+        "PublicDescription": "This event counts CPU clock cycles when the PE is not in WFE/WFI. The clock measured by this event is defined as the physical clock driving the CPU logic."
+    },
+    {
+        "ArchStdEvent": "CNT_CYCLES",
+        "PublicDescription": "This event increments at a constant frequency equal to the rate of increment of the System Counter, CNTPCT_EL0.\nThis event does not increment when the PE is in WFE/WFI."
+    },
+    {
+        "EventCode": "0x01e1",
+        "EventName": "CPU_SLOT",
+        "PublicDescription": "Entitled CPU slots.\nThis event counts the number of slots. When in ST mode, this event shall increment by PMMIR_EL1.SLOTS quantities, and when in SMT partitioned resource mode (regardless of in WFI state or otherwise), this event is incremented by PMMIR_EL1.SLOTS/2 quantities."
+    }
+]
