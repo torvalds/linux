@@ -1625,7 +1625,7 @@ static void cmd_complete(struct mesh_state *ms)
  * Called by midlayer with host locked to queue a new
  * request
  */
-static int mesh_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status mesh_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct mesh_state *ms;
 

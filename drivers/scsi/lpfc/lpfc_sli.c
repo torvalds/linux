@@ -20432,62 +20432,36 @@ lpfc_check_next_fcf_pri_level(struct lpfc_hba *phba)
 uint16_t
 lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 {
-	uint16_t next_fcf_index;
+	uint16_t next;
 
-initial_priority:
-	/* Search start from next bit of currently registered FCF index */
-	next_fcf_index = phba->fcf.current_rec.fcf_indx;
+	do {
+		for_each_set_bit_wrap(next, phba->fcf.fcf_rr_bmask,
+				LPFC_SLI4_FCF_TBL_INDX_MAX, phba->fcf.current_rec.fcf_indx) {
+			if (next == phba->fcf.current_rec.fcf_indx)
+				continue;
 
-next_priority:
-	/* Determine the next fcf index to check */
-	next_fcf_index = (next_fcf_index + 1) % LPFC_SLI4_FCF_TBL_INDX_MAX;
-	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
-				       LPFC_SLI4_FCF_TBL_INDX_MAX,
-				       next_fcf_index);
+			if (!(phba->fcf.fcf_pri[next].fcf_rec.flag & LPFC_FCF_FLOGI_FAILED)) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+					"2845 Get next roundrobin failover FCF (x%x)\n", next);
+				return next;
+			}
 
-	/* Wrap around condition on phba->fcf.fcf_rr_bmask */
-	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
-		/*
-		 * If we have wrapped then we need to clear the bits that
-		 * have been tested so that we can detect when we should
-		 * change the priority level.
-		 */
-		next_fcf_index = find_first_bit(phba->fcf.fcf_rr_bmask,
-					       LPFC_SLI4_FCF_TBL_INDX_MAX);
-	}
+			if (list_is_singular(&phba->fcf.fcf_pri_list))
+				return LPFC_FCOE_FCF_NEXT_NONE;
+		}
 
-
-	/* Check roundrobin failover list empty condition */
-	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX ||
-		next_fcf_index == phba->fcf.current_rec.fcf_indx) {
 		/*
 		 * If next fcf index is not found check if there are lower
 		 * Priority level fcf's in the fcf_priority list.
 		 * Set up the rr_bmask with all of the avaiable fcf bits
 		 * at that level and continue the selection process.
 		 */
-		if (lpfc_check_next_fcf_pri_level(phba))
-			goto initial_priority;
-		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
-				"2844 No roundrobin failover FCF available\n");
+	} while (lpfc_check_next_fcf_pri_level(phba));
 
-		return LPFC_FCOE_FCF_NEXT_NONE;
-	}
+	lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+			"2844 No roundrobin failover FCF available\n");
 
-	if (next_fcf_index < LPFC_SLI4_FCF_TBL_INDX_MAX &&
-		phba->fcf.fcf_pri[next_fcf_index].fcf_rec.flag &
-		LPFC_FCF_FLOGI_FAILED) {
-		if (list_is_singular(&phba->fcf.fcf_pri_list))
-			return LPFC_FCOE_FCF_NEXT_NONE;
-
-		goto next_priority;
-	}
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2845 Get next roundrobin failover FCF (x%x)\n",
-			next_fcf_index);
-
-	return next_fcf_index;
+	return LPFC_FCOE_FCF_NEXT_NONE;
 }
 
 /**

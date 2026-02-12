@@ -186,7 +186,7 @@ static void nsp_scsi_done(struct scsi_cmnd *SCpnt)
 	scsi_done(SCpnt);
 }
 
-static int nsp_queuecommand_lck(struct scsi_cmnd *const SCpnt)
+static enum scsi_qc_status nsp_queuecommand_lck(struct scsi_cmnd *const SCpnt)
 {
 	struct scsi_pointer *scsi_pointer = nsp_priv(SCpnt);
 #ifdef NSP_DEBUG

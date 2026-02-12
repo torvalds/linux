@@ -2284,11 +2284,11 @@ void mpi3mr_expander_remove(struct mpi3mr_ioc *mrioc, u64 sas_address,
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device
  *
- * This function identifies whether the target device is
- * attached directly or through expander and issues sas phy
- * page0 or expander phy page1 and gets the link rate, if there
- * is any failure in reading the pages then this returns link
- * rate of 1.5.
+ * This function first tries to use the link rate from DevicePage0
+ * (populated by firmware during device discovery). If the cached
+ * value is not available or invalid, it falls back to reading from
+ * sas phy page0 or expander phy page1.
+ *
  *
  * Return: logical link rate.
  */
@@ -2301,6 +2301,14 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 	u32 phynum_handle;
 	u16 ioc_status;
 
+	/* First, try to use link rate from DevicePage0 (populated by firmware) */
+	if (tgtdev->dev_spec.sas_sata_inf.negotiated_link_rate >=
+	    MPI3_SAS_NEG_LINK_RATE_1_5) {
+		link_rate = tgtdev->dev_spec.sas_sata_inf.negotiated_link_rate;
+		goto out;
+	}
+
+	/* Fallback to reading from phy pages if DevicePage0 value not available */
 	phy_number = tgtdev->dev_spec.sas_sata_inf.phy_id;
 	if (!(tgtdev->devpg0_flag & MPI3_DEVICE0_FLAGS_ATT_METHOD_DIR_ATTACHED)) {
 		phynum_handle = ((phy_number<<MPI3_SAS_EXPAND_PGAD_PHYNUM_SHIFT)
@@ -2318,9 +2326,7 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 			    __FILE__, __LINE__, __func__);
 			goto out;
 		}
-		link_rate = (expander_pg1.negotiated_link_rate &
-			     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
-			MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+		link_rate = expander_pg1.negotiated_link_rate;
 		goto out;
 	}
 	if (mpi3mr_cfg_get_sas_phy_pg0(mrioc, &ioc_status, &phy_pg0,
@@ -2335,11 +2341,11 @@ static u8 mpi3mr_get_sas_negotiated_logical_linkrate(struct mpi3mr_ioc *mrioc,
 		    __FILE__, __LINE__, __func__);
 		goto out;
 	}
-	link_rate = (phy_pg0.negotiated_link_rate &
-		     MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
-		MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT;
+	link_rate = phy_pg0.negotiated_link_rate;
+
 out:
-	return link_rate;
+	return ((link_rate & MPI3_SAS_NEG_LINK_RATE_LOGICAL_MASK) >>
+		MPI3_SAS_NEG_LINK_RATE_LOGICAL_SHIFT);
 }
 
 /**

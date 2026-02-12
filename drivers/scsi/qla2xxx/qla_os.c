@@ -402,8 +402,9 @@ static int qla2x00_mem_alloc(struct qla_hw_data *, uint16_t, uint16_t,
 	struct req_que **, struct rsp_que **);
 static void qla2x00_free_fw_dump(struct qla_hw_data *);
 static void qla2x00_mem_free(struct qla_hw_data *);
-int qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
-	struct qla_qpair *qpair);
+static enum scsi_qc_status qla2xxx_mqueuecommand(struct Scsi_Host *host,
+						 struct scsi_cmnd *cmd,
+						 struct qla_qpair *qpair);
 
 /* -------------------------------------------------------------------------- */
 static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
@@ -858,8 +859,8 @@ void qla2xxx_qpair_sp_compl(srb_t *sp, int res)
 		complete(comp);
 }
 
-static int
-qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
+static enum scsi_qc_status qla2xxx_queuecommand(struct Scsi_Host *host,
+						struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *vha = shost_priv(host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
@@ -981,9 +982,9 @@ qc24_fail_command:
 }
 
 /* For MQ supported I/O */
-int
+static enum scsi_qc_status
 qla2xxx_mqueuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd,
-    struct qla_qpair *qpair)
+		      struct qla_qpair *qpair)
 {
 	scsi_qla_host_t *vha = shost_priv(host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
@@ -1183,7 +1184,8 @@ qla2x00_wait_for_hba_ready(scsi_qla_host_t *vha)
 	while ((qla2x00_reset_active(vha) || ha->dpc_active ||
 		ha->flags.mbox_busy) ||
 	       test_bit(FX00_RESET_RECOVERY, &vha->dpc_flags) ||
-	       test_bit(FX00_TARGET_SCAN, &vha->dpc_flags)) {
+	       test_bit(FX00_TARGET_SCAN, &vha->dpc_flags) ||
+	       (vha->scan.scan_flags & SF_SCANNING)) {
 		if (test_bit(UNLOADING, &base_vha->dpc_flags))
 			break;
 		msleep(1000);

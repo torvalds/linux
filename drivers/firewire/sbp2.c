@@ -1440,13 +1440,14 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 /* SCSI stack integration */
 
-static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
-				  struct scsi_cmnd *cmd)
+static enum scsi_qc_status sbp2_scsi_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *cmd)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = target_parent_device(lu->tgt);
+	enum scsi_qc_status retval = SCSI_MLQUEUE_HOST_BUSY;
 	struct sbp2_command_orb *orb;
-	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
+	int generation;
 
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
 	if (orb == NULL)

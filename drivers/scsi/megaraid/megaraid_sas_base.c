@@ -1781,8 +1781,8 @@ out_return_cmd:
  * @shost:			adapter SCSI host
  * @scmd:			SCSI command to be queued
  */
-static int
-megasas_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
+static enum scsi_qc_status megasas_queue_command(struct Scsi_Host *shost,
+						 struct scsi_cmnd *scmd)
 {
 	struct megasas_instance *instance;
 	struct MR_PRIV_DEVICE *mr_device_priv_data;

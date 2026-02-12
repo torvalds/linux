@@ -8462,10 +8462,11 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
  * This function always returns 0. Command return status is saved
  * in the 'scp' result field.
  */
-static int advansys_queuecommand_lck(struct scsi_cmnd *scp)
+static enum scsi_qc_status advansys_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *shost = scp->device->host;
-	int asc_res, result = 0;
+	enum scsi_qc_status result = 0;
+	int asc_res;
 
 	ASC_STATS(shost, queuecommand);
 

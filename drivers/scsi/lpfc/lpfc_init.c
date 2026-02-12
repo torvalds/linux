@@ -9999,6 +9999,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
 
+		if (bf_get(lpfc_mbx_rd_conf_fedif, rd_config))
+			phba->sli4_hba.encryption_support = true;
+		else
+			phba->sli4_hba.encryption_support = false;
+
 		/* Next decide on FPIN or Signal E2E CGN support
 		 * For congestion alarms and warnings valid combination are:
 		 * 1. FPIN alarms / FPIN warnings

@@ -920,7 +920,8 @@ static int __init blogic_init_fp_probeinfo(struct blogic_adapter *adapter)
   a particular probe order.
 */
 
-static void __init blogic_init_probeinfo_list(struct blogic_adapter *adapter)
+static noinline_for_stack void __init
+blogic_init_probeinfo_list(struct blogic_adapter *adapter)
 {
 	/*
 	   If a PCI BIOS is present, interrogate it for MultiMaster and
@@ -1690,7 +1691,8 @@ common:
   blogic_reportconfig reports the configuration of Host Adapter.
 */
 
-static bool __init blogic_reportconfig(struct blogic_adapter *adapter)
+static noinline_for_stack bool __init
+blogic_reportconfig(struct blogic_adapter *adapter)
 {
 	unsigned short alltgt_mask = (1 << adapter->maxdev) - 1;
 	unsigned short sync_ok, fast_ok;
@@ -2877,7 +2879,7 @@ static int blogic_hostreset(struct scsi_cmnd *SCpnt)
   Outgoing Mailbox for execution by the associated Host Adapter.
 */
 
-static int blogic_qcmd_lck(struct scsi_cmnd *command)
+static enum scsi_qc_status blogic_qcmd_lck(struct scsi_cmnd *command)
 {
 	void (*comp_cb)(struct scsi_cmnd *) = scsi_done;
 	struct blogic_adapter *adapter =

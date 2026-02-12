@@ -930,8 +930,8 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 	return false;
 }
 
-int
-qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
+enum scsi_qc_status qedf_queuecommand(struct Scsi_Host *host,
+				      struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport = shost_priv(host);
 	struct qedf_ctx *qedf = lport_priv(lport);

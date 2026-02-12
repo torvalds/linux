@@ -1775,8 +1775,8 @@ csio_scsi_cbfn(struct csio_hw *hw, struct csio_ioreq *req)
  *	- Kicks off the SCSI state machine for this IO.
  *	- Returns busy status on error.
  */
-static int
-csio_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmnd)
+static enum scsi_qc_status csio_queuecommand(struct Scsi_Host *host,
+					     struct scsi_cmnd *cmnd)
 {
 	struct csio_lnode *ln = shost_priv(host);
 	struct csio_hw *hw = csio_lnode_to_hw(ln);
@@ -2074,7 +2074,7 @@ csio_eh_lun_reset_handler(struct scsi_cmnd *cmnd)
 	struct csio_scsi_level_data sld;
 
 	if (!rn)
-		goto fail;
+		goto fail_ret;
 
 	csio_dbg(hw, "Request to reset LUN:%llu (ssni:0x%x tgtid:%d)\n",
 		      cmnd->device->lun, rn->flowid, rn->scsi_id);
@@ -2220,6 +2220,7 @@ fail_ret_ioreq:
 	csio_put_scsi_ioreq_lock(hw, scsim, ioreq);
 fail:
 	CSIO_INC_STATS(rn, n_lun_rst_fail);
+fail_ret:
 	return FAILED;
 }
 

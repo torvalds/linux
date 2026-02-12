@@ -11,6 +11,8 @@
 #include <linux/delay.h>
 #include <linux/bsg-lib.h>
 
+static int qla28xx_validate_flash_image(struct bsg_job *bsg_job);
+
 static void qla2xxx_free_fcport_work(struct work_struct *work)
 {
 	struct fc_port *fcport = container_of(work, typeof(*fcport),
@@ -1546,8 +1548,9 @@ qla2x00_update_optrom(struct bsg_job *bsg_job)
 	ha->optrom_buffer = NULL;
 	ha->optrom_state = QLA_SWAITING;
 	mutex_unlock(&ha->optrom_mutex);
-	bsg_job_done(bsg_job, bsg_reply->result,
-		       bsg_reply->reply_payload_rcv_len);
+	if (!rval)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 	return rval;
 }
 
@@ -2550,6 +2553,30 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 }
 
 static int
+qla2x00_get_drv_attr(struct bsg_job *bsg_job)
+{
+	struct qla_drv_attr drv_attr;
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+
+	memset(&drv_attr, 0, sizeof(struct qla_drv_attr));
+	drv_attr.ext_attributes |= QLA_IMG_SET_VALID_SUPPORT;
+
+
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+			bsg_job->reply_payload.sg_cnt, &drv_attr,
+			sizeof(struct qla_drv_attr));
+
+	bsg_reply->reply_payload_rcv_len = sizeof(struct qla_drv_attr);
+	bsg_reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	bsg_reply->result = DID_OK << 16;
+	bsg_job_done(bsg_job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+
+	return 0;
+}
+
+static int
 qla2x00_manage_host_stats(struct bsg_job *bsg_job)
 {
 	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
@@ -2612,8 +2639,9 @@ qla2x00_manage_host_stats(struct bsg_job *bsg_job)
 				    sizeof(struct ql_vnd_mng_host_stats_resp));
 
 	bsg_reply->result = DID_OK;
-	bsg_job_done(bsg_job, bsg_reply->result,
-		     bsg_reply->reply_payload_rcv_len);
+	if (!ret)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	return ret;
 }
@@ -2702,8 +2730,9 @@ qla2x00_get_host_stats(struct bsg_job *bsg_job)
 							       bsg_job->reply_payload.sg_cnt,
 							       data, response_len);
 	bsg_reply->result = DID_OK;
-	bsg_job_done(bsg_job, bsg_reply->result,
-		     bsg_reply->reply_payload_rcv_len);
+	if (!ret)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	kfree(data);
 host_stat_out:
@@ -2802,8 +2831,9 @@ reply:
 				    bsg_job->reply_payload.sg_cnt, data,
 				    response_len);
 	bsg_reply->result = DID_OK;
-	bsg_job_done(bsg_job, bsg_reply->result,
-		     bsg_reply->reply_payload_rcv_len);
+	if (!ret)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 tgt_stat_out:
 	kfree(data);
@@ -2864,8 +2894,9 @@ qla2x00_manage_host_port(struct bsg_job *bsg_job)
 				    bsg_job->reply_payload.sg_cnt, &rsp_data,
 				    sizeof(struct ql_vnd_mng_host_port_resp));
 	bsg_reply->result = DID_OK;
-	bsg_job_done(bsg_job, bsg_reply->result,
-		     bsg_reply->reply_payload_rcv_len);
+	if (!ret)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
 
 	return ret;
 }
@@ -2932,6 +2963,12 @@ qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_j
 
 	case QL_VND_GET_FLASH_UPDATE_CAPS:
 		return qla27xx_get_flash_upd_cap(bsg_job);
+
+	case QL_VND_GET_DRV_ATTR:
+		return qla2x00_get_drv_attr(bsg_job);
+
+	case QL_VND_IMG_SET_VALID:
+		return qla28xx_validate_flash_image(bsg_job);
 
 	case QL_VND_SET_FLASH_UPDATE_CAPS:
 		return qla27xx_set_flash_upd_cap(bsg_job);
@@ -3240,9 +3277,97 @@ int qla2x00_mailbox_passthru(struct bsg_job *bsg_job)
 
 	bsg_job->reply_len = sizeof(*bsg_job->reply);
 	bsg_reply->result = DID_OK << 16;
-	bsg_job_done(bsg_job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+	if (!ret)
+		bsg_job_done(bsg_job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
 
 	kfree(req_data);
 
 	return ret;
+}
+
+static int
+qla28xx_do_validate_flash_image(struct bsg_job *bsg_job, uint16_t *state)
+{
+	struct fc_bsg_request *bsg_request = bsg_job->request;
+	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
+	uint16_t mstate[16];
+	uint16_t mpi_state = 0;
+	uint16_t img_idx;
+	int rval = QLA_SUCCESS;
+
+	memset(mstate, 0, sizeof(mstate));
+
+	rval = qla2x00_get_firmware_state(vha, mstate);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0xffff,
+				"MBC to get MPI state failed (%d)\n", rval);
+		rval = -EINVAL;
+		goto exit_flash_img;
+	}
+
+	mpi_state = mstate[11];
+
+	if (!(mpi_state & BIT_9 && mpi_state & BIT_8 && mpi_state & BIT_15)) {
+		ql_log(ql_log_warn, vha, 0xffff,
+				"MPI firmware state failed (0x%02x)\n", mpi_state);
+		rval = -EINVAL;
+		goto exit_flash_img;
+	}
+
+	rval = qla81xx_fac_semaphore_access(vha, FAC_SEMAPHORE_LOCK);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0xffff,
+				"Unable to lock flash semaphore.");
+		goto exit_flash_img;
+	}
+
+	img_idx = bsg_request->rqst_data.h_vendor.vendor_cmd[1];
+
+	rval = qla_mpipt_validate_fw(vha, img_idx, state);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0xffff,
+				"Failed to validate Firmware image index [0x%x].\n",
+				img_idx);
+	}
+
+	qla81xx_fac_semaphore_access(vha, FAC_SEMAPHORE_UNLOCK);
+
+exit_flash_img:
+	return rval;
+}
+
+static int qla28xx_validate_flash_image(struct bsg_job *bsg_job)
+{
+	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+	struct qla_hw_data *ha = vha->hw;
+	uint16_t state = 0;
+	int rval = 0;
+
+	if (!IS_QLA28XX(ha) || vha->vp_idx != 0)
+		return -EPERM;
+
+	mutex_lock(&ha->optrom_mutex);
+	rval = qla28xx_do_validate_flash_image(bsg_job, &state);
+	if (rval)
+		rval = -EINVAL;
+	mutex_unlock(&ha->optrom_mutex);
+
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+
+	if (rval)
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
+			(state == 39) ? EXT_STATUS_IMG_SET_VALID_ERR :
+			EXT_STATUS_IMG_SET_CONFIG_ERR;
+	else
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] = EXT_STATUS_OK;
+
+	bsg_reply->result = DID_OK << 16;
+	bsg_reply->reply_payload_rcv_len = 0;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	if (!rval)
+		bsg_job_done(bsg_job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
+
+	return QLA_SUCCESS;
 }

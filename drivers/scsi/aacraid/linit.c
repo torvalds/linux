@@ -237,8 +237,8 @@ static struct aac_driver_ident aac_drivers[] = {
  *	TODO: unify with aac_scsi_cmd().
  */
 
-static int aac_queuecommand(struct Scsi_Host *shost,
-			    struct scsi_cmnd *cmd)
+static enum scsi_qc_status aac_queuecommand(struct Scsi_Host *shost,
+					    struct scsi_cmnd *cmd)
 {
 	aac_priv(cmd)->owner = AAC_OWNER_LOWLEVEL;
 

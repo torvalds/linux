@@ -593,7 +593,7 @@ stex_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 	return 0;
 }
 
-static int stex_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status stex_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct st_hba *hba;

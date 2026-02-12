@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Copyright 2016-2023 Broadcom Inc. All rights reserved.
+ *  Copyright 2016-2026 Broadcom Inc. All rights reserved.
  */
 #ifndef MPI30_TRANSPORT_H
 #define MPI30_TRANSPORT_H     1
@@ -18,7 +18,7 @@ union mpi3_version_union {
 
 #define MPI3_VERSION_MAJOR                                              (3)
 #define MPI3_VERSION_MINOR                                              (0)
-#define MPI3_VERSION_UNIT                                               (37)
+#define MPI3_VERSION_UNIT                                               (39)
 #define MPI3_VERSION_DEV                                                (0)
 #define MPI3_DEVHANDLE_INVALID                                          (0xffff)
 struct mpi3_sysif_oper_queue_indexes {

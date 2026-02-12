@@ -561,8 +561,8 @@ static struct virtio_scsi_vq *virtscsi_pick_vq_mq(struct virtio_scsi *vscsi,
 	return &vscsi->req_vqs[hwq];
 }
 
-static int virtscsi_queuecommand(struct Scsi_Host *shost,
-				 struct scsi_cmnd *sc)
+static enum scsi_qc_status virtscsi_queuecommand(struct Scsi_Host *shost,
+						 struct scsi_cmnd *sc)
 {
 	struct virtio_scsi *vscsi = shost_priv(shost);
 	struct virtio_scsi_vq *req_vq = virtscsi_pick_vq_mq(vscsi, sc);

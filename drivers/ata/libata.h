@@ -164,7 +164,8 @@ extern int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 void ata_scsi_sdev_config(struct scsi_device *sdev);
 int ata_scsi_dev_config(struct scsi_device *sdev, struct queue_limits *lim,
 		struct ata_device *dev);
-int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev);
+enum scsi_qc_status __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
+					struct ata_device *dev);
 
 /* libata-eh.c */
 extern unsigned int ata_internal_cmd_timeout(struct ata_device *dev, u8 cmd);

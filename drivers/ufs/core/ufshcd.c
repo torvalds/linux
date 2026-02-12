@@ -284,7 +284,8 @@ static bool ufshcd_has_pending_tasks(struct ufs_hba *hba)
 
 static bool ufshcd_is_ufs_dev_busy(struct ufs_hba *hba)
 {
-	return scsi_host_busy(hba->host) || ufshcd_has_pending_tasks(hba);
+	return (hba->scsi_host_added && scsi_host_busy(hba->host)) ||
+		ufshcd_has_pending_tasks(hba);
 }
 
 static const struct ufs_dev_quirk ufs_fixups[] = {
@@ -679,7 +680,8 @@ static void ufshcd_print_host_state(struct ufs_hba *hba)
 
 	dev_err(hba->dev, "UFS Host state=%d\n", hba->ufshcd_state);
 	dev_err(hba->dev, "%d outstanding reqs, tasks=0x%lx\n",
-		scsi_host_busy(hba->host), hba->outstanding_tasks);
+		hba->scsi_host_added ? scsi_host_busy(hba->host) : 0,
+		hba->outstanding_tasks);
 	dev_err(hba->dev, "saved_err=0x%x, saved_uic_err=0x%x\n",
 		hba->saved_err, hba->saved_uic_err);
 	dev_err(hba->dev, "Device power mode=%d, UIC link state=%d\n",
@@ -3032,7 +3034,8 @@ static int ufshcd_init_cmd_priv(struct Scsi_Host *host, struct scsi_cmnd *cmd)
  *
  * Return: 0 for success, non-zero in case of failure.
  */
-static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
+static enum scsi_qc_status ufshcd_queuecommand(struct Scsi_Host *host,
+					       struct scsi_cmnd *cmd)
 {
 	struct ufs_hba *hba = shost_priv(host);
 	int tag = scsi_cmd_to_rq(cmd)->tag;
@@ -3112,8 +3115,8 @@ out:
 	return err;
 }
 
-static int ufshcd_queue_reserved_command(struct Scsi_Host *host,
-					 struct scsi_cmnd *cmd)
+static enum scsi_qc_status ufshcd_queue_reserved_command(struct Scsi_Host *host,
+							 struct scsi_cmnd *cmd)
 {
 	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
 	struct request *rq = scsi_cmd_to_rq(cmd);
@@ -9319,6 +9322,7 @@ static const struct scsi_host_template ufshcd_driver_template = {
 	.max_segment_size	= PRDT_DATA_BYTE_COUNT_MAX,
 	.max_sectors		= SZ_1M / SECTOR_SIZE,
 	.max_host_blocked	= 1,
+	.host_tagset		= true,
 	.track_queue_depth	= 1,
 	.skip_settle_delay	= 1,
 	.sdev_groups		= ufshcd_driver_groups,
@@ -9995,6 +9999,8 @@ static int __ufshcd_wl_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 
 	if (req_dev_pwr_mode == UFS_ACTIVE_PWR_MODE &&
 			req_link_state == UIC_LINK_ACTIVE_STATE) {
+		ufshcd_disable_auto_bkops(hba);
+		flush_work(&hba->eeh_work);
 		goto vops_suspend;
 	}
 
@@ -10529,9 +10535,8 @@ int ufshcd_runtime_resume(struct device *dev)
 EXPORT_SYMBOL(ufshcd_runtime_resume);
 #endif /* CONFIG_PM */
 
-static void ufshcd_wl_shutdown(struct device *dev)
+static void ufshcd_wl_shutdown(struct scsi_device *sdev)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
 	struct ufs_hba *hba = shost_priv(sdev->host);
 
 	down(&hba->host_sem);
@@ -11138,9 +11143,9 @@ static int ufshcd_wl_poweroff(struct device *dev)
 }
 #endif
 
-static int ufshcd_wl_probe(struct device *dev)
+static int ufshcd_wl_probe(struct scsi_device *sdev)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct device *dev = &sdev->sdev_gendev;
 
 	if (!is_device_wlun(sdev))
 		return -ENODEV;
@@ -11152,10 +11157,11 @@ static int ufshcd_wl_probe(struct device *dev)
 	return  0;
 }
 
-static int ufshcd_wl_remove(struct device *dev)
+static void ufshcd_wl_remove(struct scsi_device *sdev)
 {
+	struct device *dev = &sdev->sdev_gendev;
+
 	pm_runtime_forbid(dev);
-	return 0;
 }
 
 static const struct dev_pm_ops ufshcd_wl_pm_ops = {
@@ -11228,12 +11234,12 @@ static void ufshcd_check_header_layout(void)
  * Hence register a scsi driver for ufs wluns only.
  */
 static struct scsi_driver ufs_dev_wlun_template = {
+	.probe = ufshcd_wl_probe,
+	.remove = ufshcd_wl_remove,
+	.shutdown = ufshcd_wl_shutdown,
 	.gendrv = {
 		.name = "ufs_device_wlun",
-		.probe = ufshcd_wl_probe,
-		.remove = ufshcd_wl_remove,
 		.pm = &ufshcd_wl_pm_ops,
-		.shutdown = ufshcd_wl_shutdown,
 	},
 };
 
@@ -11245,7 +11251,7 @@ static int __init ufshcd_core_init(void)
 
 	ufs_debugfs_init();
 
-	ret = scsi_register_driver(&ufs_dev_wlun_template.gendrv);
+	ret = scsi_register_driver(&ufs_dev_wlun_template);
 	if (ret)
 		ufs_debugfs_exit();
 	return ret;
@@ -11254,7 +11260,7 @@ static int __init ufshcd_core_init(void)
 static void __exit ufshcd_core_exit(void)
 {
 	ufs_debugfs_exit();
-	scsi_unregister_driver(&ufs_dev_wlun_template.gendrv);
+	scsi_unregister_driver(&ufs_dev_wlun_template);
 }
 
 module_init(ufshcd_core_init);

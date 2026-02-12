@@ -4309,7 +4309,8 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	return NULL;
 }
 
-int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
+enum scsi_qc_status __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
+					struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
 	u8 scsi_op = scmd->cmnd[0];
@@ -4383,12 +4384,13 @@ int __ata_scsi_queuecmd(struct scsi_cmnd *scmd, struct ata_device *dev)
  *	Return value from __ata_scsi_queuecmd() if @cmd can be queued,
  *	0 otherwise.
  */
-int ata_scsi_queuecmd(struct Scsi_Host *shost, struct scsi_cmnd *cmd)
+enum scsi_qc_status ata_scsi_queuecmd(struct Scsi_Host *shost,
+				      struct scsi_cmnd *cmd)
 {
 	struct ata_port *ap;
 	struct ata_device *dev;
 	struct scsi_device *scsidev = cmd->device;
-	int rc = 0;
+	enum scsi_qc_status rc = 0;
 	unsigned long irq_flags;
 
 	ap = ata_shost_to_port(shost);

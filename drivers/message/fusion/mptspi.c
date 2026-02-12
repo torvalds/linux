@@ -774,8 +774,8 @@ static int mptspi_sdev_configure(struct scsi_device *sdev,
 	return 0;
 }
 
-static int
-mptspi_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status mptspi_qcmd(struct Scsi_Host *shost,
+				       struct scsi_cmnd *SCpnt)
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;

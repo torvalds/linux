@@ -1715,7 +1715,8 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	return allowed;
 }
 
-static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
+static enum scsi_qc_status storvsc_queuecommand(struct Scsi_Host *host,
+						struct scsi_cmnd *scmnd)
 {
 	int ret;
 	struct hv_host_device *host_dev = shost_priv(host);

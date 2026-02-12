@@ -8390,7 +8390,7 @@ int __init qlt_init(void)
 		goto out_plogi_cachep;
 	}
 
-	qla_tgt_wq = alloc_workqueue("qla_tgt_wq", 0, 0);
+	qla_tgt_wq = alloc_workqueue("qla_tgt_wq", WQ_PERCPU, 0);
 	if (!qla_tgt_wq) {
 		ql_log(ql_log_fatal, NULL, 0xe06f,
 		    "alloc_workqueue for qla_tgt_wq failed\n");

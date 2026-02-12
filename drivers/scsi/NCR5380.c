@@ -555,8 +555,8 @@ static void complete_cmd(struct Scsi_Host *instance,
  * main coroutine is not running, it is restarted.
  */
 
-static int NCR5380_queue_command(struct Scsi_Host *instance,
-                                 struct scsi_cmnd *cmd)
+static enum scsi_qc_status NCR5380_queue_command(struct Scsi_Host *instance,
+						 struct scsi_cmnd *cmd)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);

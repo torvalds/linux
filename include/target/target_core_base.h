@@ -108,6 +108,9 @@
 #define SE_MODE_PAGE_BUF			512
 #define SE_SENSE_BUF				96
 
+/* Peripheral Device Text Identification Information */
+#define PD_TEXT_ID_INFO_LEN			256
+
 enum target_submit_type {
 	/* Use the fabric driver's default submission type */
 	TARGET_FABRIC_DEFAULT_SUBMIT,
@@ -348,6 +351,7 @@ struct t10_wwn {
 	struct se_device *t10_dev;
 	struct config_group t10_wwn_group;
 	struct list_head t10_vpd_list;
+	char pd_text_id_info[PD_TEXT_ID_INFO_LEN];
 };
 
 struct t10_pr_registration {

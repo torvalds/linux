@@ -2408,7 +2408,7 @@ acornscsi_intr(int irq, void *dev_id)
  * Params   : cmd  - SCSI command
  * Returns  : 0, or < 0 on error.
  */
-static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt)
 {
     struct scsi_pointer *scsi_pointer = arm_scsi_pointer(SCpnt);
     void (*done)(struct scsi_cmnd *) = scsi_done;

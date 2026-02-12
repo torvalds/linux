@@ -771,7 +771,7 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	return 0;
 }
 
-static int pvscsi_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status pvscsi_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct pvscsi_adapter *adapter = shost_priv(host);

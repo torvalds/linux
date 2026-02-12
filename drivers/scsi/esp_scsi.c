@@ -952,7 +952,7 @@ static void esp_event_queue_full(struct esp *esp, struct esp_cmd_entry *ent)
 	scsi_track_queue_full(dev, lp->num_tagged - 1);
 }
 
-static int esp_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status esp_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *dev = cmd->device;
 	struct esp *esp = shost_priv(dev->host);

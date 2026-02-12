@@ -603,8 +603,8 @@ static void scsifront_return(struct vscsifrnt_info *info)
 	wake_up(&info->wq_pause);
 }
 
-static int scsifront_queuecommand(struct Scsi_Host *shost,
-				  struct scsi_cmnd *sc)
+static enum scsi_qc_status scsifront_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *sc)
 {
 	struct vscsifrnt_info *info = shost_priv(shost);
 	struct vscsifrnt_shadow *shadow = scsi_cmd_priv(sc);

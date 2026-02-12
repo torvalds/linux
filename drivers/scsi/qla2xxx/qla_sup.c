@@ -1084,6 +1084,32 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 	return;
 }
 
+static int qla28xx_validate_mcu_signature(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	uint32_t *dcode = (uint32_t *)req->ring;
+	uint32_t signature[2] = {0x000c0000, 0x00050000};
+	int ret = QLA_SUCCESS;
+
+	ret = qla24xx_read_flash_data(vha, dcode, FA_FLASH_MCU_OFF >> 2, 2);
+	if (ret) {
+		ql_log(ql_log_fatal, vha, 0x01ab,
+		       "-> Failed to read flash mcu signature.\n");
+		ret = QLA_FUNCTION_FAILED;
+		goto done;
+	}
+
+	ql_dbg(ql_dbg_init, vha, 0x01ac,
+		"Flash data 0x%08x 0x%08x.\n", dcode[0], dcode[1]);
+
+	if (!(dcode[0] == signature[0] && dcode[1] == signature[1]))
+		ret = QLA_FUNCTION_FAILED;
+
+done:
+	return ret;
+}
+
 int
 qla2xxx_get_flash_info(scsi_qla_host_t *vha)
 {
@@ -1095,6 +1121,9 @@ qla2xxx_get_flash_info(scsi_qla_host_t *vha)
 	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha) &&
 	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		return QLA_SUCCESS;
+
+	if (IS_QLA28XX(ha) && !qla28xx_validate_mcu_signature(vha))
+		ha->flags.secure_mcu = 1;
 
 	ret = qla2xxx_find_flt_start(vha, &flt_addr);
 	if (ret != QLA_SUCCESS)

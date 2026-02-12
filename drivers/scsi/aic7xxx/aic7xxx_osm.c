@@ -519,11 +519,11 @@ ahc_linux_info(struct Scsi_Host *host)
 /*
  * Queue an SCB to the controller.
  */
-static int ahc_linux_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status ahc_linux_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct	 ahc_softc *ahc;
 	struct	 ahc_linux_device *dev = scsi_transport_device_data(cmd->device);
-	int rtn = SCSI_MLQUEUE_HOST_BUSY;
+	enum scsi_qc_status rtn = SCSI_MLQUEUE_HOST_BUSY;
 	unsigned long flags;
 
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;

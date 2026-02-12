@@ -818,7 +818,8 @@ static u32 get_physaddr_from_sgc(struct esas2r_sg_context *sgc, u64 *addr)
 	return len;
 }
 
-int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
+enum scsi_qc_status esas2r_queuecommand(struct Scsi_Host *host,
+					struct scsi_cmnd *cmd)
 {
 	struct esas2r_adapter *a =
 		(struct esas2r_adapter *)cmd->device->host->hostdata;

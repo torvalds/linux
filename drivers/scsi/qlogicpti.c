@@ -1015,7 +1015,7 @@ static int qlogicpti_sdev_configure(struct scsi_device *sdev,
  *
  * "This code must fly." -davem
  */
-static int qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd)
+static enum scsi_qc_status qlogicpti_queuecommand_lck(struct scsi_cmnd *Cmnd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct Scsi_Host *host = Cmnd->device->host;

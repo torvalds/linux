@@ -1836,8 +1836,8 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
  *
  * This is the IO strategy routine, called by SCSI-ML
  **/
-int bnx2fc_queuecommand(struct Scsi_Host *host,
-			struct scsi_cmnd *sc_cmd)
+enum scsi_qc_status bnx2fc_queuecommand(struct Scsi_Host *host,
+					struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport = shost_priv(host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));

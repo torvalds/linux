@@ -1260,8 +1260,8 @@ static int myrb_host_reset(struct scsi_cmnd *scmd)
 	return SUCCESS;
 }
 
-static int myrb_pthru_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_pthru_queuecommand(struct Scsi_Host *shost,
+						   struct scsi_cmnd *scmd)
 {
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	struct myrb_hba *cb = shost_priv(shost);
@@ -1416,8 +1416,8 @@ static void myrb_read_capacity(struct myrb_hba *cb, struct scsi_cmnd *scmd,
 	scsi_sg_copy_from_buffer(scmd, data, 8);
 }
 
-static int myrb_ldev_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_ldev_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *scmd)
 {
 	struct myrb_hba *cb = shost_priv(shost);
 	struct myrb_cmdblk *cmd_blk = scsi_cmd_priv(scmd);
@@ -1603,8 +1603,8 @@ submit:
 	return 0;
 }
 
-static int myrb_queuecommand(struct Scsi_Host *shost,
-		struct scsi_cmnd *scmd)
+static enum scsi_qc_status myrb_queuecommand(struct Scsi_Host *shost,
+					     struct scsi_cmnd *scmd)
 {
 	struct scsi_device *sdev = scmd->device;
 

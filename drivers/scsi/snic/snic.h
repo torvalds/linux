@@ -362,7 +362,8 @@ void snic_glob_cleanup(void);
 extern struct workqueue_struct *snic_event_queue;
 extern const struct attribute_group *snic_host_groups[];
 
-int snic_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
+enum scsi_qc_status snic_queuecommand(struct Scsi_Host *shost,
+				      struct scsi_cmnd *sc);
 int snic_abort_cmd(struct scsi_cmnd *);
 int snic_device_reset(struct scsi_cmnd *);
 int snic_host_reset(struct scsi_cmnd *);
