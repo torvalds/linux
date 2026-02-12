@@ -24,7 +24,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #define RZV2H_IVC_FIXED_HBLANK			0x20
-#define RZV2H_IVC_MIN_VBLANK(hts)		max(0x1b, 15 + (120501 / (hts)))
+#define RZV2H_IVC_MIN_VBLANK(hts)		max(0x1b, 70100 / (hts))
 
 struct rzv2h_ivc_buf {
 	struct vb2_v4l2_buffer vb;
