@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+/*
+ * Copyright (c) 2025, Arm Limited. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "zena-css.dtsi"
+
+/ {
+	model = "Zena CSS Fixed Virtual Platform";
+	compatible = "arm,zena-css-fvp", "arm,zena-css", "arm,vexpress";
+
+	chosen {
+		stdout-path = &soc_serial0;
+	};
+};
+
+&soc {
+	virtio@30020000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30020000 0x0 0x10000>;
+		interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	virtio@30030000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30030000 0x0 0x10000>;
+		interrupts = <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	virtio@30040000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30040000 0x0 0x10000>;
+		interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	virtio@30050000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30050000 0x0 0x10000>;
+		interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	virtio@30060000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30060000 0x0 0x10000>;
+		interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	virtio@30080000 {
+		compatible = "virtio,mmio";
+		reg = <0x0 0x30080000 0x0 0x10000>;
+		interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+	};
+};
