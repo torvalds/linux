@@ -117,9 +117,6 @@
 
 #define RAPL_EVENT_MASK			GENMASK(7, 0)
 
-#define TIME_WINDOW_MAX_MSEC		40000
-#define TIME_WINDOW_MIN_MSEC		250
-
 enum unit_type {
 	ARBITRARY_UNIT,		/* no translation */
 	POWER_UNIT,
