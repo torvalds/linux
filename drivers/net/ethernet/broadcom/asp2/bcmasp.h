@@ -268,13 +268,6 @@ struct bcmasp_mib_counters {
 	u32	tx_timeout_cnt;
 };
 
-struct bcmasp_intf_ops {
-	unsigned long (*rx_desc_read)(struct bcmasp_intf *intf);
-	void (*rx_buffer_write)(struct bcmasp_intf *intf, dma_addr_t addr);
-	void (*rx_desc_write)(struct bcmasp_intf *intf, dma_addr_t addr);
-	unsigned long (*tx_read)(struct bcmasp_intf *intf);
-	void (*tx_write)(struct bcmasp_intf *intf, dma_addr_t addr);
-};
 
 struct bcmasp_priv;
 
@@ -286,7 +279,6 @@ struct bcmasp_intf {
 	/* ASP Ch */
 	int				channel;
 	int				port;
-	const struct bcmasp_intf_ops	*ops;
 
 	/* Used for splitting shared resources */
 	int				index;
@@ -406,34 +398,6 @@ struct bcmasp_priv {
 	/* Network filter lock */
 	struct mutex			net_lock;
 };
-
-static inline unsigned long bcmasp_intf_rx_desc_read(struct bcmasp_intf *intf)
-{
-	return intf->ops->rx_desc_read(intf);
-}
-
-static inline void bcmasp_intf_rx_buffer_write(struct bcmasp_intf *intf,
-					       dma_addr_t addr)
-{
-	intf->ops->rx_buffer_write(intf, addr);
-}
-
-static inline void bcmasp_intf_rx_desc_write(struct bcmasp_intf *intf,
-					     dma_addr_t addr)
-{
-	intf->ops->rx_desc_write(intf, addr);
-}
-
-static inline unsigned long bcmasp_intf_tx_read(struct bcmasp_intf *intf)
-{
-	return intf->ops->tx_read(intf);
-}
-
-static inline void bcmasp_intf_tx_write(struct bcmasp_intf *intf,
-					dma_addr_t addr)
-{
-	intf->ops->tx_write(intf, addr);
-}
 
 #define __BCMASP_IO_MACRO(name, m)					\
 static inline u32 name##_rl(struct bcmasp_intf *intf, u32 off)		\

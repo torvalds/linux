@@ -1190,8 +1190,7 @@ static int btintel_pcie_recv_frame(struct btintel_pcie_data *data,
 	skb = NULL; /* skb is freed in the callee  */
 
 exit_error:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	if (ret)
 		hdev->stat.err_rx++;

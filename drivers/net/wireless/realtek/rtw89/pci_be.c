@@ -46,6 +46,14 @@ static void rtw89_pci_aspm_set_be(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_pci_l1ss_set_be(struct rtw89_dev *rtwdev, bool enable)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (enable && chip_id == RTL8922D && hal->cid == RTL8922D_CID7090)
+		rtw89_write32_set(rtwdev, R_BE_PCIE_PS_CTRL,
+				  B_BE_ASPM_L11_EN | B_BE_ASPM_L12_EN |
+				  B_BE_PCIPM_L11_EN | B_BE_PCIPM_L12_EN);
+
 	if (enable)
 		rtw89_write32_set(rtwdev, R_BE_PCIE_MIX_CFG,
 				  B_BE_L1SUB_ENABLE);
@@ -154,7 +162,7 @@ static void rtw89_pci_ctrl_trxdma_pcie_be(struct rtw89_dev *rtwdev,
 
 	rtw89_write32(rtwdev, R_BE_HAXI_INIT_CFG1, val);
 
-	if (io_en == MAC_AX_PCIE_ENABLE)
+	if (io_en == MAC_AX_PCIE_ENABLE && rtwdev->chip->chip_id == RTL8922A)
 		rtw89_write32_mask(rtwdev, R_BE_HAXI_MST_WDT_TIMEOUT_SEL_V1,
 				   B_BE_HAXI_MST_WDT_TIMEOUT_SEL_MASK, 4);
 }
@@ -162,14 +170,15 @@ static void rtw89_pci_ctrl_trxdma_pcie_be(struct rtw89_dev *rtwdev,
 static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_pci_rx_ring *rx_ring;
 	u32 val;
 
-	val = B_BE_CLR_CH0_IDX | B_BE_CLR_CH1_IDX | B_BE_CLR_CH2_IDX |
-	      B_BE_CLR_CH3_IDX | B_BE_CLR_CH4_IDX | B_BE_CLR_CH5_IDX |
-	      B_BE_CLR_CH6_IDX | B_BE_CLR_CH7_IDX | B_BE_CLR_CH8_IDX |
-	      B_BE_CLR_CH9_IDX | B_BE_CLR_CH10_IDX | B_BE_CLR_CH11_IDX |
-	      B_BE_CLR_CH12_IDX | B_BE_CLR_CH13_IDX | B_BE_CLR_CH14_IDX;
+	if (chip->chip_id == RTL8922A)
+		val = B_BE_CLR_ALL_IDX_MASK;
+	else
+		val = B_BE_CLR_ALL_IDX_MASK_V1;
+
 	rtw89_write32(rtwdev, R_BE_TXBD_RWPTR_CLR1, val);
 
 	rtw89_write32(rtwdev, R_BE_RXBD_RWPTR_CLR1_V1,
@@ -184,10 +193,13 @@ static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
 
 static int rtw89_pci_poll_txdma_ch_idle_be(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 dma_busy1 = info->dma_busy1.addr;
+	u32 check = info->dma_busy1.mask;
 	u32 val;
 
-	return read_poll_timeout(rtw89_read32, val, (val & DMA_BUSY1_CHECK_BE) == 0,
-				 10, 1000, false, rtwdev, R_BE_HAXI_DMA_BUSY1);
+	return read_poll_timeout(rtw89_read32, val, (val & check) == 0,
+				 10, 1000, false, rtwdev, dma_busy1);
 }
 
 static int rtw89_pci_poll_rxdma_ch_idle_be(struct rtw89_dev *rtwdev)
@@ -223,20 +235,24 @@ static int rtw89_pci_poll_dma_all_idle_be(struct rtw89_dev *rtwdev)
 static void rtw89_pci_mode_op_be(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 val32_init1, val32_rxapp, val32_exp;
 
 	val32_init1 = rtw89_read32(rtwdev, R_BE_HAXI_INIT_CFG1);
-	val32_rxapp = rtw89_read32(rtwdev, R_BE_RX_APPEND_MODE);
+	if (chip->chip_id == RTL8922A)
+		val32_rxapp = rtw89_read32(rtwdev, R_BE_RX_APPEND_MODE);
 	val32_exp = rtw89_read32(rtwdev, R_BE_HAXI_EXP_CTRL_V1);
 
-	if (info->rxbd_mode == MAC_AX_RXBD_PKT) {
-		val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_NORM,
-					       B_BE_RXQ_RXBD_MODE_MASK);
-	} else if (info->rxbd_mode == MAC_AX_RXBD_SEP) {
-		val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_SEP,
-					       B_BE_RXQ_RXBD_MODE_MASK);
-		val32_rxapp = u32_replace_bits(val32_rxapp, 0,
-					       B_BE_APPEND_LEN_MASK);
+	if (chip->chip_id == RTL8922A) {
+		if (info->rxbd_mode == MAC_AX_RXBD_PKT) {
+			val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_NORM,
+						       B_BE_RXQ_RXBD_MODE_MASK);
+		} else if (info->rxbd_mode == MAC_AX_RXBD_SEP) {
+			val32_init1 = u32_replace_bits(val32_init1, PCIE_RXBD_SEP,
+						       B_BE_RXQ_RXBD_MODE_MASK);
+			val32_rxapp = u32_replace_bits(val32_rxapp, 0,
+						       B_BE_APPEND_LEN_MASK);
+		}
 	}
 
 	val32_init1 = u32_replace_bits(val32_init1, info->tx_burst,
@@ -251,7 +267,8 @@ static void rtw89_pci_mode_op_be(struct rtw89_dev *rtwdev)
 				       B_BE_CFG_WD_PERIOD_ACTIVE_MASK);
 
 	rtw89_write32(rtwdev, R_BE_HAXI_INIT_CFG1, val32_init1);
-	rtw89_write32(rtwdev, R_BE_RX_APPEND_MODE, val32_rxapp);
+	if (chip->chip_id == RTL8922A)
+		rtw89_write32(rtwdev, R_BE_RX_APPEND_MODE, val32_rxapp);
 	rtw89_write32(rtwdev, R_BE_HAXI_EXP_CTRL_V1, val32_exp);
 }
 
@@ -277,6 +294,10 @@ static void rtw89_pci_debounce_be(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_ldo_low_pwr_be(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 clr;
+
 	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_PSUS_OFF_CAPC_EN);
 	rtw89_write32_set(rtwdev, R_BE_SYS_PAGE_CLK_GATED,
 			  B_BE_SOP_OFFPOOBS_PC | B_BE_CPHY_AUXCLK_OP |
@@ -284,7 +305,16 @@ static void rtw89_pci_ldo_low_pwr_be(struct rtw89_dev *rtwdev)
 	rtw89_write32_clr(rtwdev, R_BE_SYS_SDIO_CTRL, B_BE_PCIE_FORCE_IBX_EN |
 						      B_BE_PCIE_DIS_L2_RTK_PERST |
 						      B_BE_PCIE_DIS_L2__CTRL_LDO_HCI);
-	rtw89_write32_clr(rtwdev, R_BE_L1_2_CTRL_HCILDO, B_BE_PCIE_DIS_L1_2_CTRL_HCILDO);
+
+	if (chip_id == RTL8922D && hal->cid == RTL8922D_CID7090)
+		clr = B_BE_PCIE_DIS_L1_2_CTRL_HCILDO |
+		      B_BE_PCIE_DIS_L1_2_CTRL_APHY_SUSB |
+		      B_BE_PCIE_DIS_RTK_PRST_N_L1_2 |
+		      B_BE_PCIE_DIS_L2_CTRL_APHY_SUSB;
+	else
+		clr = B_BE_PCIE_DIS_L1_2_CTRL_HCILDO;
+
+	rtw89_write32_clr(rtwdev, R_BE_L1_2_CTRL_HCILDO, clr);
 }
 
 static void rtw89_pci_pcie_setting_be(struct rtw89_dev *rtwdev)
@@ -300,11 +330,25 @@ static void rtw89_pci_pcie_setting_be(struct rtw89_dev *rtwdev)
 
 	rtw89_write32_set(rtwdev, R_BE_EFUSE_CTRL_2_V1, B_BE_R_SYM_AUTOLOAD_WITH_PMC_SEL);
 	rtw89_write32_set(rtwdev, R_BE_PCIE_LAT_CTRL, B_BE_SYM_AUX_CLK_SEL);
+
+	if (chip->chip_id != RTL8922D)
+		return;
+
+	rtw89_write32_set(rtwdev, R_BE_RSV_CTRL, B_BE_R_SYM_PRST_CPHY_RST);
+	rtw89_write32_set(rtwdev, R_BE_SYS_PW_CTRL, B_BE_USUS_OFFCAPC_EN);
 }
 
 static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 val32;
+	int ret;
+
+	if (chip_id == RTL8922D)
+		goto be2_chips;
+	else if (chip_id != RTL8922A)
+		return;
 
 	rtw89_write32(rtwdev, R_BE_PL1_DBG_INFO, 0x0);
 	rtw89_write32_set(rtwdev, R_BE_FWS1IMR, B_BE_PCIE_SER_TIMEOUT_INDIC_EN);
@@ -315,10 +359,48 @@ static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR | B_BE_SER_PM_MASTER_IMR |
 		 B_BE_SER_LTSSM_IMR | B_BE_SER_PM_CLK_MASK | B_BE_SER_PCLKREQ_ACK_MASK;
 	rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
+
+	return;
+
+be2_chips:
+	rtw89_write32_clr(rtwdev, R_BE_PCIE_SER_DBG, B_BE_PCIE_SER_FLUSH_RSTB);
+	rtw89_write32_set(rtwdev, R_BE_PCIE_SER_DBG, B_BE_PCIE_SER_FLUSH_RSTB);
+
+	rtw89_write16_clr(rtwdev, RAC_DIRECT_OFFESET_L0_G1 +
+				  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
+	rtw89_write16_clr(rtwdev, RAC_DIRECT_OFFESET_L0_G2 +
+				  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
+	rtw89_write16_set(rtwdev, RAC_DIRECT_OFFESET_L0_G1 +
+				  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
+	rtw89_write16_set(rtwdev, RAC_DIRECT_OFFESET_L0_G2 +
+				  RAC_ANA41 * RAC_MULT, PHY_ERR_FLAG_EN);
+
+	val32 = rtw89_read32(rtwdev, R_BE_SER_PL1_CTRL);
+	val32 &= ~B_BE_PL1_SER_PL1_EN;
+	rtw89_write32(rtwdev, R_BE_SER_PL1_CTRL, val32);
+
+	ret = read_poll_timeout_atomic(rtw89_read32, val32, !val32,
+				       1, 1000, false, rtwdev, R_BE_REG_PL1_ISR);
+	if (ret)
+		rtw89_warn(rtwdev, "[ERR] PCIE SER clear poll fail\n");
+
+	val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
+	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR | B_BE_SER_PM_MASTER_IMR |
+		 B_BE_SER_LTSSM_IMR | B_BE_SER_PM_CLK_MASK | B_BE_SER_PCLKREQ_ACK_MASK |
+		 B_BE_SER_LTSSM_UNSTABLE_MASK;
+	rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
+
+	rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_TIMER_UNIT_MASK,
+			   PCIE_SER_TIMER_UNIT);
+	rtw89_write32_set(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+
+	if (hal->cid == RTL8922D_CID7090)
+		rtw89_write32_set(rtwdev, R_BE_SYS_SDIO_CTRL, B_BE_SER_DETECT_EN);
 }
 
 static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 mask_all;
 	u32 val;
 
@@ -326,6 +408,9 @@ static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool enable)
 		   B_BE_STOP_CH3 | B_BE_STOP_CH4 | B_BE_STOP_CH5 |
 		   B_BE_STOP_CH6 | B_BE_STOP_CH7 | B_BE_STOP_CH8 |
 		   B_BE_STOP_CH9 | B_BE_STOP_CH10 | B_BE_STOP_CH11;
+
+	/* mask out unsupported channels for certains chips */
+	mask_all &= info->dma_stop1.mask;
 
 	val = rtw89_read32(rtwdev, R_BE_HAXI_DMA_STOP1);
 	val |= B_BE_STOP_CH13 | B_BE_STOP_CH14;
@@ -409,6 +494,7 @@ static int rtw89_pci_ops_mac_pre_deinit_be(struct rtw89_dev *rtwdev)
 int rtw89_pci_ltr_set_v2(struct rtw89_dev *rtwdev, bool en)
 {
 	u32 ctrl0, cfg0, cfg1, dec_ctrl, idle_ltcy, act_ltcy, dis_ltcy;
+	u32 ltr_idle_lat_ctrl, ltr_act_lat_ctrl;
 
 	ctrl0 = rtw89_read32(rtwdev, R_BE_LTR_CTRL_0);
 	if (rtw89_pci_ltr_is_err_reg_val(ctrl0))
@@ -451,8 +537,16 @@ int rtw89_pci_ltr_set_v2(struct rtw89_dev *rtwdev, bool en)
 	cfg0 = u32_replace_bits(cfg0, 3, B_BE_LTR_IDX_IDLE_MASK);
 	dec_ctrl = u32_replace_bits(dec_ctrl, 0, B_BE_LTR_IDX_DISABLE_V1_MASK);
 
-	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX3_V1, 0x90039003);
-	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX1_V1, 0x880b880b);
+	if (rtwdev->chip->chip_id == RTL8922A) {
+		ltr_idle_lat_ctrl = 0x90039003;
+		ltr_act_lat_ctrl = 0x880b880b;
+	} else {
+		ltr_idle_lat_ctrl = 0x90019001;
+		ltr_act_lat_ctrl = 0x88018801;
+	}
+
+	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX3_V1, ltr_idle_lat_ctrl);
+	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX1_V1, ltr_act_lat_ctrl);
 	rtw89_write32(rtwdev, R_BE_LTR_LATENCY_IDX0_V1, 0);
 	rtw89_write32(rtwdev, R_BE_LTR_DECISION_CTRL_V1, dec_ctrl);
 	rtw89_write32(rtwdev, R_BE_LTR_CFG_0, cfg0);
@@ -669,6 +763,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_be = {
 	.isr_rdu = B_BE_RDU_CH1_INT_V1 | B_BE_RDU_CH0_INT_V1,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
+	.isr_sps_ocp = 0,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
 };
@@ -678,6 +773,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_be_v1 = {
 	.isr_rdu = B_BE_PCIE_RDU_CH1_INT | B_BE_PCIE_RDU_CH0_INT,
 	.isr_halt_c2h = B_BE_HALT_C2H_INT,
 	.isr_wdt_timeout = B_BE_WDT_TIMEOUT_INT,
+	.isr_sps_ocp = B_BE_SPS_OCP_INT | B_BE_SPSANA_OCP_INT,
 	.isr_clear_rpq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RPQ0_ISR_V1},
 	.isr_clear_rxq = {R_BE_PCIE_DMA_ISR, B_BE_PCIE_RX_RX0P2_ISR_V1},
 };

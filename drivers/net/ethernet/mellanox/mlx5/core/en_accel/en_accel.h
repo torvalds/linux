@@ -100,20 +100,6 @@ static inline bool mlx5_geneve_tx_allowed(struct mlx5_core_dev *mdev)
 
 #endif /* CONFIG_GENEVE */
 
-static inline void
-mlx5e_udp_gso_handle_tx_skb(struct sk_buff *skb)
-{
-	int payload_len = skb_shinfo(skb)->gso_size + sizeof(struct udphdr);
-	struct udphdr *udphdr;
-
-	if (skb->encapsulation)
-		udphdr = (struct udphdr *)skb_inner_transport_header(skb);
-	else
-		udphdr = udp_hdr(skb);
-
-	udphdr->len = htons(payload_len);
-}
-
 struct mlx5e_accel_tx_state {
 #ifdef CONFIG_MLX5_EN_TLS
 	struct mlx5e_accel_tx_tls_state tls;
@@ -131,9 +117,6 @@ static inline bool mlx5e_accel_tx_begin(struct net_device *dev,
 					struct sk_buff *skb,
 					struct mlx5e_accel_tx_state *state)
 {
-	if (skb_is_gso(skb) && skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
-		mlx5e_udp_gso_handle_tx_skb(skb);
-
 #ifdef CONFIG_MLX5_EN_TLS
 	/* May send WQEs. */
 	if (tls_is_skb_tx_device_offloaded(skb))

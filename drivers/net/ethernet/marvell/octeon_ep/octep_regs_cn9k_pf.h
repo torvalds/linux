@@ -5,6 +5,8 @@
  *
  */
 
+#include <linux/bitfield.h>
+
 #ifndef _OCTEP_REGS_CN9K_PF_H_
 #define _OCTEP_REGS_CN9K_PF_H_
 
@@ -383,8 +385,37 @@
 /* bit 1 for firmware heartbeat interrupt */
 #define CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT	BIT_ULL(1)
 
+#define FW_STATUS_DOWNING      0ULL
+#define FW_STATUS_RUNNING      2ULL
+
+#define CN9K_PEM_GENMASK BIT_ULL(36)
+#define CN9K_PF_GENMASK GENMASK_ULL(21, 18)
+#define CN9K_PFX_CSX_PFCFGX_SHADOW_BIT BIT_ULL(16)
+#define CN9K_PFX_CSX_PFCFGX_BASE_ADDR (0x8e0000008000ULL)
+#define CN9K_4BYTE_ALIGNED_ADDRESS_OFFSET(offset) ((offset) & BIT_ULL(2))
+#define CN9K_PEMX_PFX_CSX_PFCFGX cn9k_pemx_pfx_csx_pfcfgx
+
+static inline u64 cn9k_pemx_pfx_csx_pfcfgx(u64 pem, u32 pf, u32 offset)
+{
+	u32 shadow_addr_bit, pf_addr_bits, aligned_offset;
+	u64 pem_addr_bits;
+
+	pem_addr_bits = FIELD_PREP(CN9K_PEM_GENMASK, pem);
+	pf_addr_bits = FIELD_PREP(CN9K_PF_GENMASK, pf);
+	shadow_addr_bit = CN9K_PFX_CSX_PFCFGX_SHADOW_BIT & (offset);
+	aligned_offset = rounddown((offset), 8);
+
+	return (CN9K_PFX_CSX_PFCFGX_BASE_ADDR | pem_addr_bits
+		| pf_addr_bits | shadow_addr_bit | aligned_offset)
+		+ CN9K_4BYTE_ALIGNED_ADDRESS_OFFSET(offset);
+}
+
+/* Register defines for use with CN9K_PEMX_PFX_CSX_PFCFGX */
+#define CN9K_PCIEEP_VSECST_CTL  0x4D0
+
 #define CN93_PEM_BAR4_INDEX            7
 #define CN93_PEM_BAR4_INDEX_SIZE       0x400000ULL
 #define CN93_PEM_BAR4_INDEX_OFFSET     (CN93_PEM_BAR4_INDEX * CN93_PEM_BAR4_INDEX_SIZE)
+#define CN93_INT_ENA_BIT	BIT_ULL(62)
 
 #endif /* _OCTEP_REGS_CN9K_PF_H_ */

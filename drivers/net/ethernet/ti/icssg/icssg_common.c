@@ -1720,7 +1720,6 @@ void prueth_netdev_exit(struct prueth *prueth,
 	netif_napi_del(&emac->napi_rx);
 
 	pruss_release_mem_region(prueth->pruss, &emac->dram);
-	destroy_workqueue(emac->cmd_wq);
 	free_netdev(emac->ndev);
 	prueth->emac[mac] = NULL;
 }

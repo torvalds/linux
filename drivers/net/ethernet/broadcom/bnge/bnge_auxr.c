@@ -14,7 +14,7 @@
 #include <asm/byteorder.h>
 #include <linux/bitmap.h>
 #include <linux/auxiliary_bus.h>
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 
 #include "bnge.h"
 #include "bnge_hwrm.h"

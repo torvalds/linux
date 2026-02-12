@@ -5,7 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
- * Copyright (C) 2018 - 2025 Intel Corporation
+ * Copyright (C) 2018 - 2026 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1605,6 +1605,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP;
 	if (rd_flags & NL80211_RRF_ALLOW_20MHZ_ACTIVITY)
 		channel_flags |= IEEE80211_CHAN_ALLOW_20MHZ_ACTIVITY;
+	if (rd_flags & NL80211_RRF_NO_UHR)
+		channel_flags |= IEEE80211_CHAN_NO_UHR;
 	return channel_flags;
 }
 
@@ -2332,8 +2334,17 @@ static void reg_process_ht_flags(struct wiphy *wiphy)
 	if (!wiphy)
 		return;
 
-	for (band = 0; band < NUM_NL80211_BANDS; band++)
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		/*
+		 * Don't apply HT flags to channels within the S1G band.
+		 * Each bonded channel will instead be validated individually
+		 * within cfg80211_s1g_usable().
+		 */
+		if (band == NL80211_BAND_S1GHZ)
+			continue;
+
 		reg_process_ht_flags_band(wiphy, wiphy->bands[band]);
+	}
 }
 
 static bool reg_wdev_chan_valid(struct wiphy *wiphy, struct wireless_dev *wdev)
@@ -2442,7 +2453,7 @@ static void reg_leave_invalid_chans(struct wiphy *wiphy)
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		if (!reg_wdev_chan_valid(wiphy, wdev))
-			cfg80211_leave(rdev, wdev);
+			cfg80211_leave(rdev, wdev, -1);
 }
 
 static void reg_check_chans_work(struct work_struct *work)

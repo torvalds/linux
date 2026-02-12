@@ -1375,14 +1375,14 @@ static void fib6_start_gc(struct net *net, struct fib6_info *rt)
 	if (!timer_pending(&net->ipv6.ip6_fib_timer) &&
 	    (rt->fib6_flags & RTF_EXPIRES))
 		mod_timer(&net->ipv6.ip6_fib_timer,
-			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
+			  jiffies + READ_ONCE(net->ipv6.sysctl.ip6_rt_gc_interval));
 }
 
 void fib6_force_start_gc(struct net *net)
 {
 	if (!timer_pending(&net->ipv6.ip6_fib_timer))
 		mod_timer(&net->ipv6.ip6_fib_timer,
-			  jiffies + net->ipv6.sysctl.ip6_rt_gc_interval);
+			  jiffies + READ_ONCE(net->ipv6.sysctl.ip6_rt_gc_interval));
 }
 
 static void __fib6_update_sernum_upto_root(struct fib6_info *rt,
@@ -2414,6 +2414,7 @@ static void fib6_gc_all(struct net *net, struct fib6_gc_args *gc_args)
 void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 {
 	struct fib6_gc_args gc_args;
+	int ip6_rt_gc_interval;
 	unsigned long now;
 
 	if (force) {
@@ -2422,8 +2423,8 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 		mod_timer(&net->ipv6.ip6_fib_timer, jiffies + HZ);
 		return;
 	}
-	gc_args.timeout = expires ? (int)expires :
-			  net->ipv6.sysctl.ip6_rt_gc_interval;
+	ip6_rt_gc_interval = READ_ONCE(net->ipv6.sysctl.ip6_rt_gc_interval);
+	gc_args.timeout = expires ? (int)expires : ip6_rt_gc_interval;
 	gc_args.more = 0;
 
 	fib6_gc_all(net, &gc_args);
@@ -2432,8 +2433,7 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 
 	if (gc_args.more)
 		mod_timer(&net->ipv6.ip6_fib_timer,
-			  round_jiffies(now
-					+ net->ipv6.sysctl.ip6_rt_gc_interval));
+			  round_jiffies(now + ip6_rt_gc_interval));
 	else
 		timer_delete(&net->ipv6.ip6_fib_timer);
 	spin_unlock_bh(&net->ipv6.fib6_gc_lock);

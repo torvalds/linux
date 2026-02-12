@@ -401,19 +401,3 @@ EXPORT_SYMBOL(com20020_netdev_ops);
 
 MODULE_DESCRIPTION("ARCnet COM20020 chipset core driver");
 MODULE_LICENSE("GPL");
-
-#ifdef MODULE
-
-static int __init com20020_module_init(void)
-{
-	if (BUGLVL(D_NORMAL))
-		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)");
-	return 0;
-}
-
-static void __exit com20020_module_exit(void)
-{
-}
-module_init(com20020_module_init);
-module_exit(com20020_module_exit);
-#endif				/* MODULE */

@@ -2196,7 +2196,8 @@ int cipso_v4_skbuff_setattr(struct sk_buff *skb,
 	/* if we don't ensure enough headroom we could panic on the skb_push()
 	 * call below so make sure we have enough, we are also "mangling" the
 	 * packet so we should probably do a copy-on-write call anyway */
-	ret_val = skb_cow(skb, skb_headroom(skb) + len_delta);
+	ret_val = skb_cow(skb,
+			  skb_headroom(skb) + (len_delta > 0 ? len_delta : 0));
 	if (ret_val < 0)
 		return ret_val;
 

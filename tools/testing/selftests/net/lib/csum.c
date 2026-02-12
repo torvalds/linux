@@ -707,7 +707,7 @@ static uint32_t recv_get_packet_csum_status(struct msghdr *msg)
 			      cm->cmsg_level, cm->cmsg_type);
 
 		if (cm->cmsg_len != CMSG_LEN(sizeof(struct tpacket_auxdata)))
-			error(1, 0, "cmsg: len=%lu expected=%lu",
+			error(1, 0, "cmsg: len=%zu expected=%zu",
 			      cm->cmsg_len, CMSG_LEN(sizeof(struct tpacket_auxdata)));
 
 		aux = (void *)CMSG_DATA(cm);

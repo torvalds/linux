@@ -5,6 +5,7 @@
 
 menuconfig CAN
 	tristate "CAN bus subsystem support"
+	select SKB_EXTENSIONS
 	help
 	  Controller Area Network (CAN) is a slow (up to 1Mbit/s) serial
 	  communications protocol. Development of the CAN bus started in

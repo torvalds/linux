@@ -116,7 +116,7 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 			ieee80211_color_change_finalize_work);
 	wiphy_delayed_work_init(&link->color_collision_detect_work,
 				ieee80211_color_collision_detection_work);
-	wiphy_delayed_work_init(&link->dfs_cac_timer_work,
+	wiphy_hrtimer_work_init(&link->dfs_cac_timer_work,
 				ieee80211_dfs_cac_timer_work);
 
 	if (!deflink) {
@@ -155,7 +155,7 @@ void ieee80211_link_stop(struct ieee80211_link_data *link)
 			  &link->csa.finalize_work);
 
 	if (link->sdata->wdev.links[link->link_id].cac_started) {
-		wiphy_delayed_work_cancel(link->sdata->local->hw.wiphy,
+		wiphy_hrtimer_work_cancel(link->sdata->local->hw.wiphy,
 					  &link->dfs_cac_timer_work);
 		cfg80211_cac_event(link->sdata->dev,
 				   &link->conf->chanreq.oper,

@@ -1844,7 +1844,6 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 {
 	struct sk_buff *skb;
 	dma_addr_t paddr;
-	u32 handle;
 
 	while (count--) {
 		skb = dev_alloc_skb(size);
@@ -1876,8 +1875,7 @@ outunmap:
 			 skb_end_pointer(skb) - skb->data, DMA_FROM_DEVICE);
 
 outpoolrm:
-	handle = IDT77252_PRV_POOL(skb);
-	card->sbpool[POOL_QUEUE(handle)].skb[POOL_INDEX(handle)] = NULL;
+	sb_pool_remove(card, skb);
 
 outfree:
 	dev_kfree_skb(skb);

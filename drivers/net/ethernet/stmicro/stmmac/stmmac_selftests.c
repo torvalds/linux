@@ -2000,7 +2000,7 @@ void stmmac_selftest_run(struct net_device *dev,
 		}
 
 		/*
-		 * First tests will always be MAC / PHY loobpack. If any of
+		 * First tests will always be MAC / PHY loopback. If any of
 		 * them is not supported we abort earlier.
 		 */
 		if (ret) {

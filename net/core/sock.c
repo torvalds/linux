@@ -4193,13 +4193,17 @@ int proto_register(struct proto *prot, int alloc_slab)
 		return -EINVAL;
 	}
 	if (alloc_slab) {
-		prot->slab = kmem_cache_create_usercopy(prot->name,
-					prot->obj_size, 0,
-					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
-					prot->slab_flags,
-					prot->useroffset, prot->usersize,
-					NULL);
+		struct kmem_cache_args args = {
+			.useroffset	= prot->useroffset,
+			.usersize	= prot->usersize,
+			.freeptr_offset = prot->freeptr_offset,
+			.use_freeptr_offset = !!prot->freeptr_offset,
+		};
 
+		prot->slab = kmem_cache_create(prot->name, prot->obj_size,
+					&args,
+					SLAB_HWCACHE_ALIGN | SLAB_ACCOUNT |
+					prot->slab_flags);
 		if (prot->slab == NULL) {
 			pr_crit("%s: Can't create sock SLAB cache!\n",
 				prot->name);

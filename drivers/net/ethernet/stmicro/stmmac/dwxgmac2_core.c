@@ -46,8 +46,6 @@ static void dwxgmac2_update_caps(struct stmmac_priv *priv)
 {
 	if (!priv->dma_cap.mbps_10_100)
 		priv->hw->link.caps &= ~(MAC_10 | MAC_100);
-	else if (!priv->dma_cap.half_duplex)
-		priv->hw->link.caps &= ~(MAC_10HD | MAC_100HD);
 }
 
 static void dwxgmac2_set_mac(void __iomem *ioaddr, bool enable)
@@ -298,10 +296,10 @@ static void dwxgmac2_dump_regs(struct mac_device_info *hw, u32 *reg_space)
 		reg_space[i] = readl(ioaddr + i * 4);
 }
 
-static int dwxgmac2_host_irq_status(struct mac_device_info *hw,
+static int dwxgmac2_host_irq_status(struct stmmac_priv *priv,
 				    struct stmmac_extra_stats *x)
 {
-	void __iomem *ioaddr = hw->pcsr;
+	void __iomem *ioaddr = priv->hw->pcsr;
 	u32 stat, en;
 	int ret = 0;
 
@@ -369,7 +367,7 @@ static void dwxgmac2_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 			u32 value = XGMAC_TFE;
 
 			if (duplex)
-				value |= pause_time << XGMAC_PT_SHIFT;
+				value |= FIELD_PREP(XGMAC_PT, pause_time);
 
 			writel(value, ioaddr + XGMAC_Qx_TX_FLOW_CTRL(i));
 		}
@@ -1226,8 +1224,7 @@ static void dwxgmac2_sarc_configure(void __iomem *ioaddr, int val)
 {
 	u32 value = readl(ioaddr + XGMAC_TX_CONFIG);
 
-	value &= ~XGMAC_CONFIG_SARC;
-	value |= val << XGMAC_CONFIG_SARC_SHIFT;
+	value = u32_replace_bits(value, val, XGMAC_CONFIG_SARC);
 
 	writel(value, ioaddr + XGMAC_TX_CONFIG);
 }
@@ -1247,14 +1244,16 @@ static int dwxgmac2_filter_read(struct mac_device_info *hw, u32 filter_no,
 				u8 reg, u32 *data)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 value;
+	u32 value, iddr;
 	int ret;
 
 	ret = dwxgmac2_filter_wait(hw);
 	if (ret)
 		return ret;
 
-	value = ((filter_no << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
+	iddr = FIELD_PREP(XGMAC_IDDR_FNUM_MASK, filter_no) |
+	       FIELD_PREP(XGMAC_IDDR_REG_MASK, reg);
+	value = FIELD_PREP(XGMAC_IDDR, iddr);
 	value |= XGMAC_TT | XGMAC_XB;
 	writel(value, ioaddr + XGMAC_L3L4_ADDR_CTRL);
 
@@ -1270,7 +1269,7 @@ static int dwxgmac2_filter_write(struct mac_device_info *hw, u32 filter_no,
 				 u8 reg, u32 data)
 {
 	void __iomem *ioaddr = hw->pcsr;
-	u32 value;
+	u32 value, iddr;
 	int ret;
 
 	ret = dwxgmac2_filter_wait(hw);
@@ -1279,7 +1278,9 @@ static int dwxgmac2_filter_write(struct mac_device_info *hw, u32 filter_no,
 
 	writel(data, ioaddr + XGMAC_L3L4_DATA);
 
-	value = ((filter_no << XGMAC_IDDR_FNUM) | reg) << XGMAC_IDDR_SHIFT;
+	iddr = FIELD_PREP(XGMAC_IDDR_FNUM_MASK, filter_no) |
+	       FIELD_PREP(XGMAC_IDDR_REG_MASK, reg);
+	value = FIELD_PREP(XGMAC_IDDR, iddr);
 	value |= XGMAC_XB;
 	writel(value, ioaddr + XGMAC_L3L4_ADDR_CTRL);
 
@@ -1388,13 +1389,13 @@ static int dwxgmac2_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 		return ret;
 
 	if (sa) {
-		value = match & XGMAC_L4SP0;
+		value = FIELD_PREP(XGMAC_L4SP0, match);
 
 		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L4_ADDR, value);
 		if (ret)
 			return ret;
 	} else {
-		value = (match << XGMAC_L4DP0_SHIFT) & XGMAC_L4DP0;
+		value = FIELD_PREP(XGMAC_L4DP0, match);
 
 		ret = dwxgmac2_filter_write(hw, filter_no, XGMAC_L4_ADDR, value);
 		if (ret)

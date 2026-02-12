@@ -1831,8 +1831,7 @@ static int ipoib_hwtstamp_get(struct net_device *dev,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!priv->rn_ops->ndo_hwtstamp_get)
-		/* legacy */
-		return dev_eth_ioctl(dev, config->ifr, SIOCGHWTSTAMP);
+		return -EOPNOTSUPP;
 
 	return priv->rn_ops->ndo_hwtstamp_get(dev, config);
 }
@@ -1844,8 +1843,7 @@ static int ipoib_hwtstamp_set(struct net_device *dev,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!priv->rn_ops->ndo_hwtstamp_set)
-		/* legacy */
-		return dev_eth_ioctl(dev, config->ifr, SIOCSHWTSTAMP);
+		return -EOPNOTSUPP;
 
 	return priv->rn_ops->ndo_hwtstamp_set(dev, config, extack);
 }

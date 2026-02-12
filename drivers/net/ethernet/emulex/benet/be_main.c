@@ -61,7 +61,7 @@ static const struct pci_device_id be_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
 
-/* Workqueue used by all functions for defering cmd calls to the adapter */
+/* Workqueue used by all functions for deferring cmd calls to the adapter */
 static struct workqueue_struct *be_wq;
 
 /* UE Status Low CSR */
@@ -1129,7 +1129,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	struct iphdr *ip;
 
 	/* For padded packets, BE HW modifies tot_len field in IP header
-	 * incorrecly when VLAN tag is inserted by HW.
+	 * incorrectly when VLAN tag is inserted by HW.
 	 * For padded packets, Lancer computes incorrect checksum.
 	 */
 	eth_hdr_len = ntohs(skb->protocol) == ETH_P_8021Q ?
@@ -2570,7 +2570,7 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 			rxcp->vlanf = 0;
 	}
 
-	/* As the compl has been parsed, reset it; we wont touch it again */
+	/* As the compl has been parsed, reset it; we won't touch it again */
 	compl->dw[offsetof(struct amap_eth_rx_compl_v1, valid) / 32] = 0;
 
 	queue_tail_inc(&rxo->cq);
@@ -2729,7 +2729,7 @@ static struct be_tx_compl_info *be_tx_compl_get(struct be_adapter *adapter,
 	if (txcp->status) {
 		if (lancer_chip(adapter)) {
 			lancer_update_tx_err(txo, txcp->status);
-			/* Reset the adapter incase of TSO,
+			/* Reset the adapter in case of TSO,
 			 * SGE or Parity error
 			 */
 			if (txcp->status == LANCER_TX_COMP_LSO_ERR ||
@@ -3127,7 +3127,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	adapter->num_rss_qs =
 			min(adapter->num_evt_qs, adapter->cfg_num_rx_irqs);
 
-	/* We'll use RSS only if atleast 2 RSS rings are supported. */
+	/* We'll use RSS only if at least 2 RSS rings are supported. */
 	if (adapter->num_rss_qs < 2)
 		adapter->num_rss_qs = 0;
 
@@ -3169,7 +3169,7 @@ static irqreturn_t be_intx(int irq, void *dev)
 	/* IRQ is not expected when NAPI is scheduled as the EQ
 	 * will not be armed.
 	 * But, this can happen on Lancer INTx where it takes
-	 * a while to de-assert INTx or in BE2 where occasionaly
+	 * a while to de-assert INTx or in BE2 where occasionally
 	 * an interrupt may be raised even when EQ is unarmed.
 	 * If NAPI is already scheduled, then counting & notifying
 	 * events will orphan them.
@@ -4417,7 +4417,7 @@ static void be_setup_init(struct be_adapter *adapter)
 /* HW supports only MAX_PORT_RSS_TABLES RSS Policy Tables per port.
  * However, this HW limitation is not exposed to the host via any SLI cmd.
  * As a result, in the case of SRIOV and in particular multi-partition configs
- * the driver needs to calcuate a proportional share of RSS Tables per PF-pool
+ * the driver needs to calculate a proportional share of RSS Tables per PF-pool
  * for distribution between the VFs. This self-imposed limit will determine the
  * no: of VFs for which RSS can be enabled.
  */
@@ -4521,7 +4521,7 @@ static int be_get_resources(struct be_adapter *adapter)
 		if (status)
 			return status;
 
-		/* If a deafault RXQ must be created, we'll use up one RSSQ*/
+		/* If a default RXQ must be created, we'll use up one RSSQ*/
 		if (res.max_rss_qs && res.max_rss_qs == res.max_rx_qs &&
 		    !(res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS))
 			res.max_rss_qs -= 1;

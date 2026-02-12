@@ -1443,9 +1443,8 @@ static int rsi_thaw(struct device *dev)
 	return 0;
 }
 
-static void rsi_shutdown(struct device *dev)
+static void rsi_shutdown(struct sdio_func *pfunction)
 {
-	struct sdio_func *pfunction = dev_to_sdio_func(dev);
 	struct rsi_hw *adapter = sdio_get_drvdata(pfunction);
 	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
 	struct ieee80211_hw *hw = adapter->hw;
@@ -1513,9 +1512,9 @@ static struct sdio_driver rsi_driver = {
 	.remove     = rsi_disconnect,
 	.id_table   = rsi_dev_table,
 #ifdef CONFIG_PM
+	.shutdown   = rsi_shutdown,
 	.drv = {
 		.pm = &rsi_pm_ops,
-		.shutdown   = rsi_shutdown,
 	}
 #endif
 };

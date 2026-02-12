@@ -655,7 +655,7 @@ int hinic3_aeqs_init(struct hinic3_hwdev *hwdev, u16 num_aeqs,
 	hwdev->aeqs = aeqs;
 	aeqs->hwdev = hwdev;
 	aeqs->num_aeqs = num_aeqs;
-	aeqs->workq = alloc_workqueue(HINIC3_EQS_WQ_NAME, WQ_MEM_RECLAIM,
+	aeqs->workq = alloc_workqueue(HINIC3_EQS_WQ_NAME, WQ_MEM_RECLAIM | WQ_PERCPU,
 				      HINIC3_MAX_AEQS);
 	if (!aeqs->workq) {
 		dev_err(hwdev->dev, "Failed to initialize aeq workqueue\n");
@@ -686,7 +686,6 @@ err_remove_eqs:
 	}
 
 	destroy_workqueue(aeqs->workq);
-
 err_free_aeqs:
 	kfree(aeqs);
 

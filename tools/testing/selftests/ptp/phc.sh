@@ -8,17 +8,20 @@ ALL_TESTS="
 "
 DEV=$1
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 ##############################################################################
 # Sanity checks
 
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 if [[ "$DEV" == "" ]]; then
 	echo "SKIP: PTP device not provided"
-	exit 0
+	exit $ksft_skip
 fi
 
 require_command()
@@ -27,7 +30,7 @@ require_command()
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
 		echo "SKIP: $cmd not installed"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -37,7 +40,7 @@ phc_sanity()
 
 	if [ $? != 0 ]; then
 		echo "SKIP: unknown clock $DEV: No such device"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -49,6 +52,7 @@ phc_sanity
 
 # Exit status to return at the end. Set in case one of the tests fails.
 EXIT_STATUS=0
+PASS_COUNT=0
 # Per-test return value. Clear at the beginning of each test.
 RET=0
 
@@ -65,12 +69,18 @@ log_test()
 {
 	local test_name=$1
 
+	if [[ $RET -eq $ksft_skip ]]; then
+		printf "TEST: %-60s  [SKIP]\n" "$test_name"
+		return 0
+	fi
+
 	if [[ $RET -ne 0 ]]; then
 		EXIT_STATUS=1
 		printf "TEST: %-60s  [FAIL]\n" "$test_name"
 		return 1
 	fi
 
+	((PASS_COUNT++))
 	printf "TEST: %-60s  [ OK ]\n" "$test_name"
 	return 0
 }
@@ -89,34 +99,49 @@ tests_run()
 
 settime_do()
 {
-	local res
+	local res out
 
-	res=$(phc_ctl $DEV set 0 wait 120.5 get 2> /dev/null \
-		| awk '/clock time is/{print $5}' \
-		| awk -F. '{print $1}')
+	out=$(LC_ALL=C phc_ctl $DEV set 0 wait 120.5 get 2>&1)
+	if [[ $? -ne 0 ]]; then
+		if echo "$out" | grep -qi "Operation not supported"; then
+			return $ksft_skip
+		fi
+		return 1
+	fi
+	res=$(echo "$out" | awk '/clock time is/{print $5}' | awk -F. '{print $1}')
 
 	(( res == 120 ))
 }
 
 adjtime_do()
 {
-	local res
+	local res out
 
-	res=$(phc_ctl $DEV set 0 adj 10 get 2> /dev/null \
-		| awk '/clock time is/{print $5}' \
-		| awk -F. '{print $1}')
+	out=$(LC_ALL=C phc_ctl $DEV set 0 adj 10 get 2>&1)
+	if [[ $? -ne 0 ]]; then
+		if echo "$out" | grep -qi "Operation not supported"; then
+			return $ksft_skip
+		fi
+		return 1
+	fi
+	res=$(echo "$out" | awk '/clock time is/{print $5}' | awk -F. '{print $1}')
 
 	(( res == 10 ))
 }
 
 adjfreq_do()
 {
-	local res
+	local res out
 
 	# Set the clock to be 1% faster
-	res=$(phc_ctl $DEV freq 10000000 set 0 wait 100.5 get 2> /dev/null \
-		| awk '/clock time is/{print $5}' \
-		| awk -F. '{print $1}')
+	out=$(LC_ALL=C phc_ctl $DEV freq 10000000 set 0 wait 100.5 get 2>&1)
+	if [[ $? -ne 0 ]]; then
+		if echo "$out" | grep -qi "Operation not supported"; then
+			return $ksft_skip
+		fi
+		return 1
+	fi
+	res=$(echo "$out" | awk '/clock time is/{print $5}' | awk -F. '{print $1}')
 
 	(( res == 101 ))
 }
@@ -163,4 +188,7 @@ trap cleanup EXIT
 
 tests_run
 
+if [[ $EXIT_STATUS -eq 0 && $PASS_COUNT -eq 0 ]]; then
+	exit $ksft_skip
+fi
 exit $EXIT_STATUS

@@ -1891,7 +1891,7 @@ static int rswitch_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	info->phc_index = ptp_clock_index(rdev->priv->ptp_priv->clock);
+	info->phc_index = rcar_gen4_ptp_clock_index(rdev->priv->ptp_priv);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
@@ -2150,17 +2150,16 @@ static int renesas_eth_sw_probe(struct platform_device *pdev)
 	if (attr)
 		priv->etha_no_runtime_change = true;
 
-	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev);
-	if (!priv->ptp_priv)
-		return -ENOMEM;
-
 	platform_set_drvdata(pdev, priv);
 	priv->pdev = pdev;
 	priv->addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->addr))
 		return PTR_ERR(priv->addr);
 
-	priv->ptp_priv->addr = priv->addr + RSWITCH_GPTP_OFFSET_S4;
+	priv->ptp_priv =
+		rcar_gen4_ptp_alloc(pdev, priv->addr + RSWITCH_GPTP_OFFSET_S4);
+	if (!priv->ptp_priv)
+		return -ENOMEM;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 	if (ret < 0) {

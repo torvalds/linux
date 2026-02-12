@@ -135,6 +135,8 @@ void hinic3_free_mbox(struct hinic3_hwdev *hwdev);
 
 int hinic3_send_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 			     const struct mgmt_msg_params *msg_params);
+void hinic3_response_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
+				  const void *buf_in, u32 in_size, u16 msg_id);
 int hinic3_send_mbox_to_mgmt_no_ack(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 				    const struct mgmt_msg_params *msg_params);
 

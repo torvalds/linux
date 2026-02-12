@@ -279,18 +279,15 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	card_idx++;
 
-	printk (KERN_INFO "%s: %s, %pM, IRQ %d\n",
-		dev->name, np->name, dev->dev_addr, irq);
+	netdev_info(dev, "%s, %pM, IRQ %d", np->name, dev->dev_addr, irq);
 	if (tx_coalesce > 1)
-		printk(KERN_INFO "tx_coalesce:\t%d packets\n",
-				tx_coalesce);
-	if (np->coalesce)
-		printk(KERN_INFO
-		       "rx_coalesce:\t%d packets\n"
-		       "rx_timeout: \t%d ns\n",
-				np->rx_coalesce, np->rx_timeout*640);
+		netdev_dbg(dev, "tx_coalesce:\t%d packets", tx_coalesce);
+	if (np->coalesce) {
+		netdev_dbg(dev, "rx_coalesce:\t%d packets", np->rx_coalesce);
+		netdev_dbg(dev, "rx_timeout: \t%d ns", np->rx_timeout * 640);
+	}
 	if (np->vlan)
-		printk(KERN_INFO "vlan(id):\t%d\n", np->vlan);
+		netdev_dbg(dev, "vlan(id):\t%d", np->vlan);
 	return 0;
 
 err_out_unmap_rx:

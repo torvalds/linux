@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef ATH12K_AHB_H
 #define ATH12K_AHB_H
 
 #include <linux/clk.h>
 #include <linux/remoteproc/qcom_rproc.h>
+#include <linux/platform_device.h>
 #include "core.h"
 
 #define ATH12K_AHB_RECOVERY_TIMEOUT (3 * HZ)
@@ -43,6 +44,12 @@ enum ath12k_ahb_userpd_irq {
 
 struct ath12k_base;
 
+struct ath12k_ahb_device_family_ops {
+	int (*probe)(struct platform_device *pdev);
+	int (*arch_init)(struct ath12k_base *ab);
+	void (*arch_deinit)(struct ath12k_base *ab);
+};
+
 struct ath12k_ahb {
 	struct ath12k_base *ab;
 	struct rproc *tgt_rproc;
@@ -59,6 +66,15 @@ struct ath12k_ahb {
 	u32 spawn_bit;
 	u32 stop_bit;
 	int userpd_irq_num[ATH12K_USERPD_MAX_IRQ];
+	const struct ath12k_ahb_ops *ahb_ops;
+	const struct ath12k_ahb_device_family_ops *device_family_ops;
+};
+
+struct ath12k_ahb_driver {
+	const char *name;
+	const struct of_device_id *id_table;
+	struct ath12k_ahb_device_family_ops ops;
+	struct platform_driver driver;
 };
 
 static inline struct ath12k_ahb *ath12k_ab_to_ahb(struct ath12k_base *ab)
@@ -66,15 +82,8 @@ static inline struct ath12k_ahb *ath12k_ab_to_ahb(struct ath12k_base *ab)
 	return (struct ath12k_ahb *)ab->drv_priv;
 }
 
-#ifdef CONFIG_ATH12K_AHB
-int ath12k_ahb_init(void);
-void ath12k_ahb_exit(void);
-#else
-static inline int ath12k_ahb_init(void)
-{
-	return 0;
-}
+int ath12k_ahb_register_driver(const enum ath12k_device_family device_id,
+			       struct ath12k_ahb_driver *driver);
+void ath12k_ahb_unregister_driver(const enum ath12k_device_family device_id);
 
-static inline void ath12k_ahb_exit(void) {};
-#endif
 #endif

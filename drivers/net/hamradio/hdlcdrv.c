@@ -742,26 +742,6 @@ EXPORT_SYMBOL(hdlcdrv_unregister);
 
 /* --------------------------------------------------------------------- */
 
-static int __init hdlcdrv_init_driver(void)
-{
-	printk(KERN_INFO "hdlcdrv: (C) 1996-2000 Thomas Sailer HB9JNX/AE4WA\n");
-	printk(KERN_INFO "hdlcdrv: version 0.8\n");
-	return 0;
-}
-
-/* --------------------------------------------------------------------- */
-
-static void __exit hdlcdrv_cleanup_driver(void)
-{
-	printk(KERN_INFO "hdlcdrv: cleanup\n");
-}
-
-/* --------------------------------------------------------------------- */
-
 MODULE_AUTHOR("Thomas M. Sailer, sailer@ife.ee.ethz.ch, hb9jnx@hb9w.che.eu");
 MODULE_DESCRIPTION("Packet Radio network interface HDLC encoder/decoder");
 MODULE_LICENSE("GPL");
-module_init(hdlcdrv_init_driver);
-module_exit(hdlcdrv_cleanup_driver);
-
-/* --------------------------------------------------------------------- */

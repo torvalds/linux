@@ -481,6 +481,8 @@ static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
 
 static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
+	DEFINE_RAW_FLEX(struct ip_options_rcu, opt_copy, opt.__data,
+			IP_OPTIONS_DATA_FIXED_SIZE);
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
 	struct ipcm_cookie ipc;
@@ -491,7 +493,6 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	__be32 daddr;
 	__be32 saddr;
 	int uc_index, err;
-	struct ip_options_data opt_copy;
 	struct raw_frag_vec rfv;
 	int hdrincl;
 
@@ -561,9 +562,9 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rcu_read_lock();
 		inet_opt = rcu_dereference(inet->inet_opt);
 		if (inet_opt) {
-			memcpy(&opt_copy, inet_opt,
+			memcpy(opt_copy, inet_opt,
 			       sizeof(*inet_opt) + inet_opt->opt.optlen);
-			ipc.opt = &opt_copy.opt;
+			ipc.opt = opt_copy;
 		}
 		rcu_read_unlock();
 	}

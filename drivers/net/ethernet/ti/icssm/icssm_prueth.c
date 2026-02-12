@@ -29,6 +29,8 @@
 #include <net/pkt_cls.h>
 
 #include "icssm_prueth.h"
+#include "icssm_prueth_switch.h"
+#include "icssm_vlan_mcast_filter_mmap.h"
 #include "../icssg/icssg_mii_rt.h"
 #include "../icssg/icss_iep.h"
 
@@ -145,7 +147,7 @@ static const struct prueth_queue_info queue_infos[][NUM_QUEUES] = {
 	},
 };
 
-static const struct prueth_queue_desc queue_descs[][NUM_QUEUES] = {
+const struct prueth_queue_desc queue_descs[][NUM_QUEUES] = {
 	[PRUETH_PORT_QUEUE_HOST] = {
 		{ .rd_ptr = P0_Q1_BD_OFFSET, .wr_ptr = P0_Q1_BD_OFFSET, },
 		{ .rd_ptr = P0_Q2_BD_OFFSET, .wr_ptr = P0_Q2_BD_OFFSET, },
@@ -205,9 +207,9 @@ static void icssm_prueth_hostconfig(struct prueth *prueth)
 
 static void icssm_prueth_mii_init(struct prueth *prueth)
 {
+	u32 txcfg_reg, txcfg, txcfg2;
 	struct regmap *mii_rt;
 	u32 rxcfg_reg, rxcfg;
-	u32 txcfg_reg, txcfg;
 
 	mii_rt = prueth->mii_rt;
 
@@ -235,17 +237,23 @@ static void icssm_prueth_mii_init(struct prueth *prueth)
 		(TX_START_DELAY << PRUSS_MII_RT_TXCFG_TX_START_DELAY_SHIFT) |
 		(TX_CLK_DELAY_100M << PRUSS_MII_RT_TXCFG_TX_CLK_DELAY_SHIFT);
 
+	txcfg2 = txcfg;
+	if (!PRUETH_IS_EMAC(prueth))
+		txcfg2 |= PRUSS_MII_RT_TXCFG_TX_MUX_SEL;
+
 	/* Configuration of Port 0 Tx */
 	txcfg_reg = PRUSS_MII_RT_TXCFG0;
 
-	regmap_write(mii_rt, txcfg_reg, txcfg);
+	regmap_write(mii_rt, txcfg_reg, txcfg2);
 
-	txcfg |= PRUSS_MII_RT_TXCFG_TX_MUX_SEL;
+	txcfg2 = txcfg;
+	if (PRUETH_IS_EMAC(prueth))
+		txcfg2 |= PRUSS_MII_RT_TXCFG_TX_MUX_SEL;
 
 	/* Configuration of Port 1 Tx */
 	txcfg_reg = PRUSS_MII_RT_TXCFG1;
 
-	regmap_write(mii_rt, txcfg_reg, txcfg);
+	regmap_write(mii_rt, txcfg_reg, txcfg2);
 
 	txcfg_reg = PRUSS_MII_RT_RX_FRMS0;
 
@@ -292,7 +300,10 @@ static void icssm_prueth_hostinit(struct prueth *prueth)
 		icssm_prueth_clearmem(prueth, PRUETH_MEM_DRAM1);
 
 	/* Initialize host queues in shared RAM */
-	icssm_prueth_hostconfig(prueth);
+	if (!PRUETH_IS_EMAC(prueth))
+		icssm_prueth_sw_hostconfig(prueth);
+	else
+		icssm_prueth_hostconfig(prueth);
 
 	/* Configure MII_RT */
 	icssm_prueth_mii_init(prueth);
@@ -499,19 +510,24 @@ static int icssm_prueth_tx_enqueue(struct prueth_emac *emac,
 	struct prueth_queue_desc __iomem *queue_desc;
 	const struct prueth_queue_info *txqueue;
 	struct net_device *ndev = emac->ndev;
+	struct prueth *prueth = emac->prueth;
 	unsigned int buffer_desc_count;
 	int free_blocks, update_block;
 	bool buffer_wrapped = false;
 	int write_block, read_block;
 	void *src_addr, *dst_addr;
 	int pkt_block_size;
+	void __iomem *sram;
 	void __iomem *dram;
 	int txport, pktlen;
 	u16 update_wr_ptr;
 	u32 wr_buf_desc;
 	void *ocmc_ram;
 
-	dram = emac->prueth->mem[emac->dram].va;
+	if (!PRUETH_IS_EMAC(prueth))
+		dram = prueth->mem[PRUETH_MEM_DRAM1].va;
+	else
+		dram = emac->prueth->mem[emac->dram].va;
 	if (eth_skb_pad(skb)) {
 		if (netif_msg_tx_err(emac) && net_ratelimit())
 			netdev_err(ndev, "packet pad failed\n");
@@ -524,7 +540,10 @@ static int icssm_prueth_tx_enqueue(struct prueth_emac *emac,
 	pktlen = skb->len;
 	/* Get the tx queue */
 	queue_desc = emac->tx_queue_descs + queue_id;
-	txqueue = &queue_infos[txport][queue_id];
+	if (!PRUETH_IS_EMAC(prueth))
+		txqueue = &sw_queue_infos[txport][queue_id];
+	else
+		txqueue = &queue_infos[txport][queue_id];
 
 	buffer_desc_count = icssm_get_buff_desc_count(txqueue);
 
@@ -590,7 +609,11 @@ static int icssm_prueth_tx_enqueue(struct prueth_emac *emac,
        /* update first buffer descriptor */
 	wr_buf_desc = (pktlen << PRUETH_BD_LENGTH_SHIFT) &
 		       PRUETH_BD_LENGTH_MASK;
-	writel(wr_buf_desc, dram + readw(&queue_desc->wr_ptr));
+	sram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
+	if (!PRUETH_IS_EMAC(prueth))
+		writel(wr_buf_desc, sram + readw(&queue_desc->wr_ptr));
+	else
+		writel(wr_buf_desc, dram + readw(&queue_desc->wr_ptr));
 
 	/* update the write pointer in this queue descriptor, the firmware
 	 * polls for this change so this will signal the start of transmission
@@ -604,7 +627,6 @@ static int icssm_prueth_tx_enqueue(struct prueth_emac *emac,
 void icssm_parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 			     struct prueth_packet_info *pkt_info)
 {
-	pkt_info->shadow = !!(buffer_descriptor & PRUETH_BD_SHADOW_MASK);
 	pkt_info->port = (buffer_descriptor & PRUETH_BD_PORT_MASK) >>
 			 PRUETH_BD_PORT_SHIFT;
 	pkt_info->length = (buffer_descriptor & PRUETH_BD_LENGTH_MASK) >>
@@ -713,11 +735,19 @@ int icssm_emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 		src_addr += actual_pkt_len;
 	}
 
+	if (PRUETH_IS_SWITCH(emac->prueth)) {
+		skb->offload_fwd_mark = READ_ONCE(emac->offload_fwd_mark);
+		if (!pkt_info->lookup_success)
+			icssm_prueth_sw_learn_fdb(emac, skb->data + ETH_ALEN);
+	}
+
 	skb_put(skb, actual_pkt_len);
 
 	/* send packet up the stack */
 	skb->protocol = eth_type_trans(skb, ndev);
+	local_bh_disable();
 	netif_receive_skb(skb);
+	local_bh_enable();
 
 	/* update stats */
 	emac->stats.rx_bytes += actual_pkt_len;
@@ -743,6 +773,7 @@ static int icssm_emac_rx_packets(struct prueth_emac *emac, int budget)
 
 	shared_ram = emac->prueth->mem[PRUETH_MEM_SHARED_RAM].va;
 
+	/* Start and end queue is made common for EMAC, RSTP */
 	start_queue = emac->rx_queue_start;
 	end_queue = emac->rx_queue_end;
 
@@ -753,8 +784,10 @@ static int icssm_emac_rx_packets(struct prueth_emac *emac, int budget)
 	/* search host queues for packets */
 	for (i = start_queue; i <= end_queue; i++) {
 		queue_desc = emac->rx_queue_descs + i;
-		rxqueue = &queue_infos[PRUETH_PORT_HOST][i];
-
+		if (PRUETH_IS_SWITCH(emac->prueth))
+			rxqueue = &sw_queue_infos[PRUETH_PORT_HOST][i];
+		else
+			rxqueue = &queue_infos[PRUETH_PORT_HOST][i];
 		overflow_cnt = readb(&queue_desc->overflow_cnt);
 		if (overflow_cnt > 0) {
 			emac->stats.rx_over_errors += overflow_cnt;
@@ -879,6 +912,13 @@ static int icssm_emac_request_irqs(struct prueth_emac *emac)
 	return ret;
 }
 
+/* Function to free memory related to sw */
+static void icssm_prueth_free_memory(struct prueth *prueth)
+{
+	if (PRUETH_IS_SWITCH(prueth))
+		icssm_prueth_sw_free_fdb_table(prueth);
+}
+
 static void icssm_ptp_dram_init(struct prueth_emac *emac)
 {
 	void __iomem *sram = emac->prueth->mem[PRUETH_MEM_SHARED_RAM].va;
@@ -941,20 +981,38 @@ static int icssm_emac_ndo_open(struct net_device *ndev)
 	if (!prueth->emac_configured)
 		icssm_prueth_init_ethernet_mode(prueth);
 
-	icssm_prueth_emac_config(emac);
+	/* reset and start PRU firmware */
+	if (PRUETH_IS_SWITCH(prueth)) {
+		ret = icssm_prueth_sw_emac_config(emac);
+		if (ret)
+			return ret;
+
+		ret = icssm_prueth_sw_init_fdb_table(prueth);
+		if (ret)
+			return ret;
+	} else {
+		icssm_prueth_emac_config(emac);
+	}
 
 	if (!prueth->emac_configured) {
 		icssm_ptp_dram_init(emac);
 		ret = icss_iep_init(prueth->iep, NULL, NULL, 0);
 		if (ret) {
 			netdev_err(ndev, "Failed to initialize iep: %d\n", ret);
-			goto iep_exit;
+			goto free_mem;
 		}
 	}
 
-	ret = icssm_emac_set_boot_pru(emac, ndev);
-	if (ret)
-		goto iep_exit;
+	if (!PRUETH_IS_EMAC(prueth)) {
+		ret = icssm_prueth_sw_boot_prus(prueth, ndev);
+		if (ret)
+			goto iep_exit;
+	} else {
+		/* boot the PRU */
+		ret = icssm_emac_set_boot_pru(emac, ndev);
+		if (ret)
+			goto iep_exit;
+	}
 
 	ret = icssm_emac_request_irqs(emac);
 	if (ret)
@@ -969,19 +1027,25 @@ static int icssm_emac_ndo_open(struct net_device *ndev)
 	icssm_prueth_port_enable(emac, true);
 
 	prueth->emac_configured |= BIT(emac->port_id);
-
+	if (PRUETH_IS_SWITCH(prueth))
+		icssm_prueth_sw_set_stp_state(prueth, emac->port_id,
+					      BR_STATE_LEARNING);
 	if (netif_msg_drv(emac))
 		dev_notice(&ndev->dev, "started\n");
 
 	return 0;
 
 rproc_shutdown:
-	rproc_shutdown(emac->pru);
+	if (!PRUETH_IS_EMAC(prueth))
+		icssm_prueth_sw_shutdown_prus(emac, ndev);
+	else
+		rproc_shutdown(emac->pru);
 
 iep_exit:
 	if (!prueth->emac_configured)
 		icss_iep_exit(prueth->iep);
-
+free_mem:
+	icssm_prueth_free_memory(emac->prueth);
 	return ret;
 }
 
@@ -1010,13 +1074,79 @@ static int icssm_emac_ndo_stop(struct net_device *ndev)
 	hrtimer_cancel(&emac->tx_hrtimer);
 
 	/* stop the PRU */
-	rproc_shutdown(emac->pru);
+	if (!PRUETH_IS_EMAC(prueth))
+		icssm_prueth_sw_shutdown_prus(emac, ndev);
+	else
+		rproc_shutdown(emac->pru);
 
 	/* free rx interrupts */
 	free_irq(emac->rx_irq, ndev);
 
+	/* free memory related to sw */
+	icssm_prueth_free_memory(emac->prueth);
+
+	if (!prueth->emac_configured)
+		icss_iep_exit(prueth->iep);
+
 	if (netif_msg_drv(emac))
 		dev_notice(&ndev->dev, "stopped\n");
+
+	return 0;
+}
+
+static int icssm_prueth_change_mode(struct prueth *prueth,
+				    enum pruss_ethtype mode)
+{
+	bool portstatus[PRUETH_NUM_MACS];
+	struct prueth_emac *emac;
+	struct net_device *ndev;
+	int i, ret;
+
+	for (i = 0; i < PRUETH_NUM_MACS; i++) {
+		if (!prueth->emac[i]) {
+			dev_err(prueth->dev, "Unknown MAC port\n");
+			return -EINVAL;
+		}
+
+		emac = prueth->emac[i];
+		ndev = emac->ndev;
+
+		portstatus[i] = netif_running(ndev);
+		if (!portstatus[i])
+			continue;
+
+		ret = ndev->netdev_ops->ndo_stop(ndev);
+		if (ret < 0) {
+			netdev_err(ndev, "failed to stop: %d", ret);
+			return ret;
+		}
+	}
+
+	if (mode == PRUSS_ETHTYPE_EMAC || mode == PRUSS_ETHTYPE_SWITCH) {
+		prueth->eth_type = mode;
+	} else {
+		dev_err(prueth->dev, "unknown mode\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < PRUETH_NUM_MACS; i++) {
+		if (!prueth->emac[i]) {
+			dev_err(prueth->dev, "Unknown MAC port\n");
+			return -EINVAL;
+		}
+
+		emac = prueth->emac[i];
+		ndev = emac->ndev;
+
+		if (!portstatus[i])
+			continue;
+
+		ret = ndev->netdev_ops->ndo_open(ndev);
+		if (ret < 0) {
+			netdev_err(ndev, "failed to start: %d", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -1131,11 +1261,183 @@ static void icssm_emac_ndo_get_stats64(struct net_device *ndev,
 	stats->rx_length_errors = emac->stats.rx_length_errors;
 }
 
+/* enable/disable MC filter */
+static void icssm_emac_mc_filter_ctrl(struct prueth_emac *emac, bool enable)
+{
+	struct prueth *prueth = emac->prueth;
+	void __iomem *mc_filter_ctrl;
+	void __iomem *ram;
+	u32 reg;
+
+	ram = prueth->mem[emac->dram].va;
+	mc_filter_ctrl = ram + ICSS_EMAC_FW_MULTICAST_FILTER_CTRL_OFFSET;
+
+	if (enable)
+		reg = ICSS_EMAC_FW_MULTICAST_FILTER_CTRL_ENABLED;
+	else
+		reg = ICSS_EMAC_FW_MULTICAST_FILTER_CTRL_DISABLED;
+
+	writeb(reg, mc_filter_ctrl);
+}
+
+/* reset MC filter bins */
+static void icssm_emac_mc_filter_reset(struct prueth_emac *emac)
+{
+	struct prueth *prueth = emac->prueth;
+	void __iomem *mc_filter_tbl;
+	u32 mc_filter_tbl_base;
+	void __iomem *ram;
+
+	ram = prueth->mem[emac->dram].va;
+	mc_filter_tbl_base = ICSS_EMAC_FW_MULTICAST_FILTER_TABLE;
+
+	mc_filter_tbl = ram + mc_filter_tbl_base;
+	memset_io(mc_filter_tbl, 0, ICSS_EMAC_FW_MULTICAST_TABLE_SIZE_BYTES);
+}
+
+/* set MC filter hashmask */
+static void icssm_emac_mc_filter_hashmask
+		(struct prueth_emac *emac,
+		 u8 mask[ICSS_EMAC_FW_MULTICAST_FILTER_MASK_SIZE_BYTES])
+{
+	struct prueth *prueth = emac->prueth;
+	void __iomem *mc_filter_mask;
+	void __iomem *ram;
+
+	ram = prueth->mem[emac->dram].va;
+
+	mc_filter_mask = ram + ICSS_EMAC_FW_MULTICAST_FILTER_MASK_OFFSET;
+	memcpy_toio(mc_filter_mask, mask,
+		    ICSS_EMAC_FW_MULTICAST_FILTER_MASK_SIZE_BYTES);
+}
+
+static void icssm_emac_mc_filter_bin_update(struct prueth_emac *emac, u8 hash,
+					    u8 val)
+{
+	struct prueth *prueth = emac->prueth;
+	void __iomem *mc_filter_tbl;
+	void __iomem *ram;
+
+	ram = prueth->mem[emac->dram].va;
+
+	mc_filter_tbl = ram + ICSS_EMAC_FW_MULTICAST_FILTER_TABLE;
+	writeb(val, mc_filter_tbl + hash);
+}
+
+void icssm_emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash)
+{
+	icssm_emac_mc_filter_bin_update
+		(emac, hash,
+		 ICSS_EMAC_FW_MULTICAST_FILTER_HOST_RCV_ALLOWED);
+}
+
+void icssm_emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash)
+{
+	icssm_emac_mc_filter_bin_update
+		(emac, hash,
+		 ICSS_EMAC_FW_MULTICAST_FILTER_HOST_RCV_NOT_ALLOWED);
+}
+
+u8 icssm_emac_get_mc_hash(u8 *mac, u8 *mask)
+{
+	u8 hash;
+	int j;
+
+	for (j = 0, hash = 0; j < ETH_ALEN; j++)
+		hash ^= (mac[j] & mask[j]);
+
+	return hash;
+}
+
+/**
+ * icssm_emac_ndo_set_rx_mode - EMAC set receive mode function
+ * @ndev: The EMAC network adapter
+ *
+ * Called when system wants to set the receive mode of the device.
+ *
+ */
+static void icssm_emac_ndo_set_rx_mode(struct net_device *ndev)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	bool promisc = ndev->flags & IFF_PROMISC;
+	struct netdev_hw_addr *ha;
+	struct prueth *prueth;
+	unsigned long flags;
+	void __iomem *sram;
+	u32 mask, reg;
+	u8 hash;
+
+	prueth = emac->prueth;
+	sram = prueth->mem[PRUETH_MEM_SHARED_RAM].va;
+	reg = readl(sram + EMAC_PROMISCUOUS_MODE_OFFSET);
+
+	/* It is a shared table. So lock the access */
+	spin_lock_irqsave(&emac->addr_lock, flags);
+
+	/* Disable and reset multicast filter, allows allmulti */
+	icssm_emac_mc_filter_ctrl(emac, false);
+	icssm_emac_mc_filter_reset(emac);
+	icssm_emac_mc_filter_hashmask(emac, emac->mc_filter_mask);
+
+	if (PRUETH_IS_EMAC(prueth)) {
+		switch (emac->port_id) {
+		case PRUETH_PORT_MII0:
+			mask = EMAC_P1_PROMISCUOUS_BIT;
+			break;
+		case PRUETH_PORT_MII1:
+			mask = EMAC_P2_PROMISCUOUS_BIT;
+			break;
+		default:
+			netdev_err(ndev, "%s: invalid port\n", __func__);
+			goto unlock;
+		}
+
+		if (promisc) {
+			/* Enable promiscuous mode */
+			reg |= mask;
+		} else {
+			/* Disable promiscuous mode */
+			reg &= ~mask;
+		}
+
+		writel(reg, sram + EMAC_PROMISCUOUS_MODE_OFFSET);
+
+		if (promisc)
+			goto unlock;
+	}
+
+	if (ndev->flags & IFF_ALLMULTI && !PRUETH_IS_SWITCH(prueth))
+		goto unlock;
+
+	icssm_emac_mc_filter_ctrl(emac, true);	/* all multicast blocked */
+
+	if (netdev_mc_empty(ndev))
+		goto unlock;
+
+	netdev_for_each_mc_addr(ha, ndev) {
+		hash = icssm_emac_get_mc_hash(ha->addr, emac->mc_filter_mask);
+		icssm_emac_mc_filter_bin_allow(emac, hash);
+	}
+
+	/* Add bridge device's MC addresses as well */
+	if (prueth->hw_bridge_dev) {
+		netdev_for_each_mc_addr(ha, prueth->hw_bridge_dev) {
+			hash = icssm_emac_get_mc_hash(ha->addr,
+						      emac->mc_filter_mask);
+			icssm_emac_mc_filter_bin_allow(emac, hash);
+		}
+	}
+
+unlock:
+	spin_unlock_irqrestore(&emac->addr_lock, flags);
+}
+
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = icssm_emac_ndo_open,
 	.ndo_stop = icssm_emac_ndo_stop,
 	.ndo_start_xmit = icssm_emac_ndo_start_xmit,
 	.ndo_get_stats64 = icssm_emac_ndo_get_stats64,
+	.ndo_set_rx_mode = icssm_emac_ndo_set_rx_mode,
 };
 
 /* get emac_port corresponding to eth_node name */
@@ -1188,6 +1490,7 @@ static enum hrtimer_restart icssm_emac_tx_timer_callback(struct hrtimer *timer)
 static int icssm_prueth_netdev_init(struct prueth *prueth,
 				    struct device_node *eth_node)
 {
+	const struct prueth_private_data *fw_data = prueth->fw_data;
 	struct prueth_emac *emac;
 	struct net_device *ndev;
 	enum prueth_port port;
@@ -1212,6 +1515,7 @@ static int icssm_prueth_netdev_init(struct prueth *prueth,
 	emac->prueth = prueth;
 	emac->ndev = ndev;
 	emac->port_id = port;
+	memset(&emac->mc_filter_mask[0], 0xff, ETH_ALEN);
 
 	/* by default eth_type is EMAC */
 	switch (port) {
@@ -1247,6 +1551,9 @@ static int icssm_prueth_netdev_init(struct prueth *prueth,
 		goto free;
 	}
 
+	spin_lock_init(&emac->lock);
+	spin_lock_init(&emac->addr_lock);
+
 	/* get mac address from DT and set private and netdev addr */
 	ret = of_get_ethdev_address(eth_node, ndev);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
@@ -1273,6 +1580,14 @@ static int icssm_prueth_netdev_init(struct prueth *prueth,
 
 	phy_remove_link_mode(emac->phydev, ETHTOOL_LINK_MODE_Pause_BIT);
 	phy_remove_link_mode(emac->phydev, ETHTOOL_LINK_MODE_Asym_Pause_BIT);
+
+	/* Protocol switching
+	 * Enabling L2 Firmware offloading
+	 */
+	if (fw_data->support_switch) {
+		ndev->features |= NETIF_F_HW_L2FW_DOFFLOAD;
+		ndev->hw_features |= NETIF_F_HW_L2FW_DOFFLOAD;
+	}
 
 	ndev->dev.of_node = eth_node;
 	ndev->netdev_ops = &emac_netdev_ops;
@@ -1308,6 +1623,169 @@ static void icssm_prueth_netdev_exit(struct prueth *prueth,
 
 	netif_napi_del(&emac->napi);
 	prueth->emac[mac] = NULL;
+}
+
+bool icssm_prueth_sw_port_dev_check(const struct net_device *ndev)
+{
+	if (ndev->netdev_ops != &emac_netdev_ops)
+		return false;
+
+	if (ndev->features & NETIF_F_HW_L2FW_DOFFLOAD)
+		return true;
+
+	return false;
+}
+
+static int icssm_prueth_port_offload_fwd_mark_update(struct prueth *prueth)
+{
+	int set_val = 0;
+	int i, ret = 0;
+	u8 all_slaves;
+
+	all_slaves = BIT(PRUETH_PORT_MII0) | BIT(PRUETH_PORT_MII1);
+
+	if (prueth->br_members == all_slaves)
+		set_val = 1;
+
+	dev_dbg(prueth->dev, "set offload_fwd_mark %d, mbrs=0x%x\n",
+		set_val, prueth->br_members);
+
+	for (i = 0; i < PRUETH_NUM_MACS; i++) {
+		if (prueth->emac[i])
+			WRITE_ONCE(prueth->emac[i]->offload_fwd_mark, set_val);
+	}
+
+	/* Bridge is created, load switch firmware,
+	 * if not already in that mode
+	 */
+	if (set_val && !PRUETH_IS_SWITCH(prueth)) {
+		ret = icssm_prueth_change_mode(prueth, PRUSS_ETHTYPE_SWITCH);
+		if (ret < 0)
+			dev_err(prueth->dev, "Failed to enable Switch mode\n");
+		else
+			dev_info(prueth->dev,
+				 "TI PRU ethernet now in Switch mode\n");
+	}
+
+	/* Bridge is deleted, switch to Dual EMAC mode */
+	if (!prueth->br_members && !PRUETH_IS_EMAC(prueth)) {
+		ret = icssm_prueth_change_mode(prueth, PRUSS_ETHTYPE_EMAC);
+		if (ret < 0)
+			dev_err(prueth->dev, "Failed to enable Dual EMAC mode\n");
+		else
+			dev_info(prueth->dev,
+				 "TI PRU ethernet now in Dual EMAC mode\n");
+	}
+
+	return ret;
+}
+
+static int icssm_prueth_ndev_port_link(struct net_device *ndev,
+				       struct net_device *br_ndev)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	unsigned long flags;
+	int ret = 0;
+
+	dev_dbg(prueth->dev, "%s: br_mbrs=0x%x %s\n",
+		__func__, prueth->br_members, ndev->name);
+
+	spin_lock_irqsave(&emac->addr_lock, flags);
+
+	if (!prueth->br_members) {
+		prueth->hw_bridge_dev = br_ndev;
+	} else {
+		/* This is adding the port to a second bridge,
+		 * this is unsupported
+		 */
+		if (prueth->hw_bridge_dev != br_ndev) {
+			spin_unlock_irqrestore(&emac->addr_lock, flags);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	prueth->br_members |= BIT(emac->port_id);
+
+	spin_unlock_irqrestore(&emac->addr_lock, flags);
+
+	ret = icssm_prueth_port_offload_fwd_mark_update(prueth);
+
+	return ret;
+}
+
+static int icssm_prueth_ndev_port_unlink(struct net_device *ndev)
+{
+	struct prueth_emac *emac = netdev_priv(ndev);
+	struct prueth *prueth = emac->prueth;
+	unsigned long flags;
+	int ret = 0;
+
+	dev_dbg(prueth->dev, "emac_sw_ndev_port_unlink\n");
+
+	spin_lock_irqsave(&emac->addr_lock, flags);
+
+	prueth->br_members &= ~BIT(emac->port_id);
+
+	spin_unlock_irqrestore(&emac->addr_lock, flags);
+
+	ret = icssm_prueth_port_offload_fwd_mark_update(prueth);
+
+	spin_lock_irqsave(&emac->addr_lock, flags);
+
+	if (!prueth->br_members)
+		prueth->hw_bridge_dev = NULL;
+
+	spin_unlock_irqrestore(&emac->addr_lock, flags);
+
+	return ret;
+}
+
+static int icssm_prueth_ndev_event(struct notifier_block *unused,
+				   unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_notifier_changeupper_info *info;
+	int ret = NOTIFY_DONE;
+
+	if (!icssm_prueth_sw_port_dev_check(ndev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_CHANGEUPPER:
+		info = ptr;
+		if (netif_is_bridge_master(info->upper_dev)) {
+			if (info->linking)
+				ret = icssm_prueth_ndev_port_link
+					(ndev, info->upper_dev);
+			else
+				ret = icssm_prueth_ndev_port_unlink(ndev);
+		}
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return notifier_from_errno(ret);
+}
+
+static int icssm_prueth_register_notifiers(struct prueth *prueth)
+{
+	int ret = 0;
+
+	prueth->prueth_netdevice_nb.notifier_call = icssm_prueth_ndev_event;
+	ret = register_netdevice_notifier(&prueth->prueth_netdevice_nb);
+	if (ret) {
+		dev_err(prueth->dev,
+			"register netdevice notifier failed ret: %d\n", ret);
+		return ret;
+	}
+
+	ret = icssm_prueth_sw_register_notifiers(prueth);
+	if (ret)
+		unregister_netdevice_notifier(&prueth->prueth_netdevice_nb);
+
+	return ret;
 }
 
 static int icssm_prueth_probe(struct platform_device *pdev)
@@ -1529,6 +2007,12 @@ static int icssm_prueth_probe(struct platform_device *pdev)
 			prueth->emac[PRUETH_MAC1]->ndev;
 	}
 
+	ret = icssm_prueth_register_notifiers(prueth);
+	if (ret) {
+		dev_err(dev, "can't register switchdev notifiers");
+		goto netdev_unregister;
+	}
+
 	dev_info(dev, "TI PRU ethernet driver initialized: %s EMAC mode\n",
 		 (!eth0_node || !eth1_node) ? "single" : "dual");
 
@@ -1588,6 +2072,9 @@ static void icssm_prueth_remove(struct platform_device *pdev)
 	struct prueth *prueth = platform_get_drvdata(pdev);
 	struct device_node *eth_node;
 	int i;
+
+	unregister_netdevice_notifier(&prueth->prueth_netdevice_nb);
+	icssm_prueth_sw_unregister_notifiers(prueth);
 
 	for (i = 0; i < PRUETH_NUM_MACS; i++) {
 		if (!prueth->registered_netdevs[i])
@@ -1688,11 +2175,16 @@ static struct prueth_private_data am335x_prueth_pdata = {
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am335x-pru0-prueth-fw.elf",
+		.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am335x-pru0-prusw-fw.elf",
 	},
 	.fw_pru[PRUSS_PRU1] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am335x-pru1-prueth-fw.elf",
+		.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am335x-pru1-prusw-fw.elf",
 	},
+	.support_switch = true,
 };
 
 /* AM437x SoC-specific firmware data */
@@ -1701,11 +2193,16 @@ static struct prueth_private_data am437x_prueth_pdata = {
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am437x-pru0-prueth-fw.elf",
+		.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am437x-pru0-prusw-fw.elf",
 	},
 	.fw_pru[PRUSS_PRU1] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am437x-pru1-prueth-fw.elf",
+		.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am437x-pru1-prusw-fw.elf",
 	},
+	.support_switch = true,
 };
 
 /* AM57xx SoC-specific firmware data */
@@ -1714,11 +2211,17 @@ static struct prueth_private_data am57xx_prueth_pdata = {
 	.fw_pru[PRUSS_PRU0] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am57xx-pru0-prueth-fw.elf",
+	.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am57xx-pru0-prusw-fw.elf",
 	},
 	.fw_pru[PRUSS_PRU1] = {
 		.fw_name[PRUSS_ETHTYPE_EMAC] =
 			"ti-pruss/am57xx-pru1-prueth-fw.elf",
+		.fw_name[PRUSS_ETHTYPE_SWITCH] =
+			"ti-pruss/am57xx-pru1-prusw-fw.elf",
+
 	},
+	.support_switch = true,
 };
 
 static const struct of_device_id prueth_dt_match[] = {

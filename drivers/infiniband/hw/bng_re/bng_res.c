@@ -5,9 +5,9 @@
 #include <linux/vmalloc.h>
 #include <rdma/ib_umem.h>
 
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 #include "bng_res.h"
-#include "roce_hsi.h"
+#include "bng_roce_hsi.h"
 
 /* Stats */
 void bng_re_free_stats_ctx_mem(struct pci_dev *pdev,

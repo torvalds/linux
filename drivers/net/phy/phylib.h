@@ -8,6 +8,7 @@
 
 struct device_node;
 struct phy_device;
+struct mii_bus;
 
 struct device_node *phy_package_get_node(struct phy_device *phydev);
 void *phy_package_get_priv(struct phy_device *phydev);
@@ -30,5 +31,9 @@ int devm_phy_package_join(struct device *dev, struct phy_device *phydev,
 			  int base_addr, size_t priv_size);
 int devm_of_phy_package_join(struct device *dev, struct phy_device *phydev,
 			     size_t priv_size);
+int mmd_phy_read(struct mii_bus *bus, int phy_addr, bool is_c45,
+		 int devad, u32 regnum);
+int mmd_phy_write(struct mii_bus *bus, int phy_addr, bool is_c45,
+		  int devad, u32 regnum, u16 val);
 
 #endif /* __PHYLIB_H */

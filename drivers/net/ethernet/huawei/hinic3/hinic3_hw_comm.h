@@ -23,6 +23,8 @@ struct hinic3_interrupt_info {
 
 int hinic3_set_interrupt_cfg_direct(struct hinic3_hwdev *hwdev,
 				    const struct hinic3_interrupt_info *info);
+int hinic3_set_interrupt_cfg(struct hinic3_hwdev *hwdev,
+			     struct hinic3_interrupt_info info);
 int hinic3_func_reset(struct hinic3_hwdev *hwdev, u16 func_id, u64 reset_flag);
 
 int hinic3_get_comm_features(struct hinic3_hwdev *hwdev, u64 *s_feature,
@@ -40,6 +42,10 @@ int hinic3_set_wq_page_size(struct hinic3_hwdev *hwdev, u16 func_idx,
 			    u32 page_size);
 int hinic3_set_cmdq_depth(struct hinic3_hwdev *hwdev, u16 cmdq_depth);
 int hinic3_func_rx_tx_flush(struct hinic3_hwdev *hwdev);
+int hinic3_set_bdf_ctxt(struct hinic3_hwdev *hwdev,
+			struct comm_cmd_bdf_info *bdf_info);
+void hinic3_sync_time_to_fw(struct hinic3_hwdev *hwdev);
+
 int hinic3_set_root_ctxt(struct hinic3_hwdev *hwdev, u32 rq_depth, u32 sq_depth,
 			 int rx_buf_sz);
 int hinic3_clean_root_ctxt(struct hinic3_hwdev *hwdev);

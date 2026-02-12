@@ -367,9 +367,8 @@ static int smtg_crosststamp(ktime_t *device, struct system_counterval_t *system,
 		.use_nsecs = false,
 	};
 
-	num_snapshot = (readl(ioaddr + XGMAC_TIMESTAMP_STATUS) &
-			XGMAC_TIMESTAMP_ATSNS_MASK) >>
-			XGMAC_TIMESTAMP_ATSNS_SHIFT;
+	num_snapshot = FIELD_GET(XGMAC_TIMESTAMP_ATSNS_MASK,
+				 readl(ioaddr + XGMAC_TIMESTAMP_STATUS));
 
 	/* Repeat until the timestamps are from the FIFO last segment */
 	for (i = 0; i < num_snapshot; i++) {

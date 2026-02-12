@@ -109,10 +109,10 @@ struct netdevsim {
 	int rq_reset_mode;
 
 	struct {
-		u64 rx_packets;
-		u64 rx_bytes;
-		u64 tx_packets;
-		u64 tx_bytes;
+		u64_stats_t rx_packets;
+		u64_stats_t rx_bytes;
+		u64_stats_t tx_packets;
+		u64_stats_t tx_bytes;
 		struct u64_stats_sync syncp;
 		struct psp_dev *dev;
 		u32 spi;

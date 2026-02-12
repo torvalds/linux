@@ -52,6 +52,20 @@ properties:
     description: Enable 25MHz reference clock output on CLK25_REF pin.
     type: boolean
 
+  adi,low-cmode-impedance:
+    description: |
+      Configure PHY for the lowest common-mode impedance on the receive pair
+      for 100BASE-TX. This is suited for capacitive coupled applications and
+      other applications where there may be a path for high common-mode noise
+      to reach the PHY.
+      If not present, by default the PHY is configured for normal termination
+      (zero-power termination) mode.
+
+      Note: There is a trade-off of 12 mW increased power consumption with
+        the lowest common-mode impedance setting, but in all cases the
+        differential impedance is 100 ohms.
+    type: boolean
+
 unevaluatedProperties: false
 
 examples:

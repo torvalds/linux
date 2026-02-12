@@ -48,7 +48,6 @@ Contents:
    meta/fbnic
    microsoft/netvsc
    mucse/rnpgbe
-   neterion/s2io
    netronome/nfp
    pensando/ionic
    pensando/ionic_rdma

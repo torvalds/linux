@@ -245,8 +245,6 @@ static void fq_flow_set_throttled(struct fq_sched_data *q, struct fq_flow *f)
 static struct kmem_cache *fq_flow_cachep __read_mostly;
 
 
-/* limit number of collected flows per round */
-#define FQ_GC_MAX 8
 #define FQ_GC_AGE (3*HZ)
 
 static bool fq_gc_candidate(const struct fq_flow *f)
@@ -259,10 +257,9 @@ static void fq_gc(struct fq_sched_data *q,
 		  struct rb_root *root,
 		  struct sock *sk)
 {
+	struct fq_flow *f, *tofree = NULL;
 	struct rb_node **p, *parent;
-	void *tofree[FQ_GC_MAX];
-	struct fq_flow *f;
-	int i, fcnt = 0;
+	int fcnt;
 
 	p = &root->rb_node;
 	parent = NULL;
@@ -274,9 +271,8 @@ static void fq_gc(struct fq_sched_data *q,
 			break;
 
 		if (fq_gc_candidate(f)) {
-			tofree[fcnt++] = f;
-			if (fcnt == FQ_GC_MAX)
-				break;
+			f->next = tofree;
+			tofree = f;
 		}
 
 		if (f->sk > sk)
@@ -285,18 +281,20 @@ static void fq_gc(struct fq_sched_data *q,
 			p = &parent->rb_left;
 	}
 
-	if (!fcnt)
+	if (!tofree)
 		return;
 
-	for (i = fcnt; i > 0; ) {
-		f = tofree[--i];
+	fcnt = 0;
+	while (tofree) {
+		f = tofree;
+		tofree = f->next;
 		rb_erase(&f->fq_node, root);
+		kmem_cache_free(fq_flow_cachep, f);
+		fcnt++;
 	}
 	q->flows -= fcnt;
 	q->inactive_flows -= fcnt;
 	q->stat_gc_flows += fcnt;
-
-	kmem_cache_free_bulk(fq_flow_cachep, fcnt, tofree);
 }
 
 /* Fast path can be used if :
@@ -665,7 +663,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 		return NULL;
 
 	skb = fq_peek(&q->internal);
-	if (unlikely(skb)) {
+	if (skb) {
 		q->internal.qlen--;
 		fq_dequeue_skb(sch, &q->internal, skb);
 		goto out;
@@ -716,7 +714,7 @@ begin:
 		}
 		prefetch(&skb->end);
 		fq_dequeue_skb(sch, f, skb);
-		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
+		if (unlikely((s64)(now - time_next_packet - q->ce_threshold) > 0)) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}

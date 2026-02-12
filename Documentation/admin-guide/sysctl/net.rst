@@ -314,21 +314,22 @@ Default: 1000
 netdev_rss_key
 --------------
 
-RSS (Receive Side Scaling) enabled drivers use a 40 bytes host key that is
-randomly generated.
+RSS (Receive Side Scaling) enabled drivers use a host key that
+is randomly generated.
 Some user space might need to gather its content even if drivers do not
 provide ethtool -x support yet.
 
 ::
 
   myhost:~# cat /proc/sys/net/core/netdev_rss_key
-  84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (52 bytes total)
+  84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (256 bytes total)
 
-File contains nul bytes if no driver ever called netdev_rss_key_fill() function.
+File contains all nul bytes if no driver ever called netdev_rss_key_fill()
+function.
 
 Note:
-  /proc/sys/net/core/netdev_rss_key contains 52 bytes of key,
-  but most drivers only use 40 bytes of it.
+  /proc/sys/net/core/netdev_rss_key contains 256 bytes of key,
+  but many drivers only use 40 or 52 bytes of it.
 
 ::
 

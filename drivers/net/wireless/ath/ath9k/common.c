@@ -403,15 +403,3 @@ void ath9k_cmn_init_crypto(struct ath_hw *ah)
 		ath_hw_keyreset(common, (u16) i);
 }
 EXPORT_SYMBOL(ath9k_cmn_init_crypto);
-
-static int __init ath9k_cmn_init(void)
-{
-	return 0;
-}
-module_init(ath9k_cmn_init);
-
-static void __exit ath9k_cmn_exit(void)
-{
-	return;
-}
-module_exit(ath9k_cmn_exit);

@@ -519,16 +519,3 @@ MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.FInger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
-
-static int __init rtl_btcoexist_module_init(void)
-{
-	return 0;
-}
-
-static void __exit rtl_btcoexist_module_exit(void)
-{
-	return;
-}
-
-module_init(rtl_btcoexist_module_init);
-module_exit(rtl_btcoexist_module_exit);

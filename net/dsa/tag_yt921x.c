@@ -14,11 +14,14 @@
  *     are conflicts somewhere and/or you want to change it for some reason.
  * Tag:
  *   2: VLAN Tag
- *   2: Rx Port
+ *   2:
  *     15b: Rx Port Valid
  *     14b-11b: Rx Port
- *     10b-0b: Cmd?
- *   2: Tx Port(s)
+ *     10b-8b: Tx/Rx Priority
+ *     7b: Tx/Rx Code Valid
+ *     6b-1b: Tx/Rx Code
+ *     0b: ? (unset)
+ *   2:
  *     15b: Tx Port(s) Valid
  *     10b-0b: Tx Port(s) Mask
  */
@@ -33,18 +36,30 @@
 
 #define YT921X_TAG_PORT_EN		BIT(15)
 #define YT921X_TAG_RX_PORT_M		GENMASK(14, 11)
-#define YT921X_TAG_RX_CMD_M		GENMASK(10, 0)
-#define  YT921X_TAG_RX_CMD(x)			FIELD_PREP(YT921X_TAG_RX_CMD_M, (x))
-#define  YT921X_TAG_RX_CMD_FORWARDED		0x80
-#define  YT921X_TAG_RX_CMD_UNK_UCAST		0xb2
-#define  YT921X_TAG_RX_CMD_UNK_MCAST		0xb4
-#define YT921X_TAG_TX_PORTS		GENMASK(10, 0)
+#define YT921X_TAG_PRIO_M		GENMASK(10, 8)
+#define  YT921X_TAG_PRIO(x)			FIELD_PREP(YT921X_TAG_PRIO_M, (x))
+#define YT921X_TAG_CODE_EN		BIT(7)
+#define YT921X_TAG_CODE_M		GENMASK(6, 1)
+#define  YT921X_TAG_CODE(x)			FIELD_PREP(YT921X_TAG_CODE_M, (x))
+#define YT921X_TAG_TX_PORTS_M		GENMASK(10, 0)
+#define  YT921X_TAG_TX_PORTS(x)			FIELD_PREP(YT921X_TAG_TX_PORTS_M, (x))
+
+/* Incomplete. Some are configurable via RMA_CTRL_CPU_CODE, the meaning of
+ * others remains unknown.
+ */
+enum yt921x_tag_code {
+	YT921X_TAG_CODE_FORWARD = 0,
+	YT921X_TAG_CODE_UNK_UCAST = 0x19,
+	YT921X_TAG_CODE_UNK_MCAST = 0x1a,
+	YT921X_TAG_CODE_PORT_COPY = 0x1b,
+	YT921X_TAG_CODE_FDB_COPY = 0x1c,
+};
 
 static struct sk_buff *
 yt921x_tag_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	__be16 *tag;
-	u16 tx;
+	u16 ctrl;
 
 	skb_push(skb, YT921X_TAG_LEN);
 	dsa_alloc_etype_header(skb, YT921X_TAG_LEN);
@@ -54,10 +69,12 @@ yt921x_tag_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tag[0] = htons(ETH_P_YT921X);
 	/* VLAN tag unrelated when TX */
 	tag[1] = 0;
-	tag[2] = 0;
-	tx = FIELD_PREP(YT921X_TAG_TX_PORTS, dsa_xmit_port_mask(skb, netdev)) |
-	     YT921X_TAG_PORT_EN;
-	tag[3] = htons(tx);
+	ctrl = YT921X_TAG_CODE(YT921X_TAG_CODE_FORWARD) | YT921X_TAG_CODE_EN |
+	       YT921X_TAG_PRIO(skb->priority);
+	tag[2] = htons(ctrl);
+	ctrl = YT921X_TAG_TX_PORTS(dsa_xmit_port_mask(skb, netdev)) |
+	       YT921X_TAG_PORT_EN;
+	tag[3] = htons(ctrl);
 
 	return skb;
 }
@@ -67,7 +84,6 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 {
 	unsigned int port;
 	__be16 *tag;
-	u16 cmd;
 	u16 rx;
 
 	if (unlikely(!pskb_may_pull(skb, YT921X_TAG_LEN)))
@@ -98,23 +114,34 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 		return NULL;
 	}
 
-	cmd = FIELD_GET(YT921X_TAG_RX_CMD_M, rx);
-	switch (cmd) {
-	case YT921X_TAG_RX_CMD_FORWARDED:
-		/* Already forwarded by hardware */
-		dsa_default_offload_fwd_mark(skb);
-		break;
-	case YT921X_TAG_RX_CMD_UNK_UCAST:
-	case YT921X_TAG_RX_CMD_UNK_MCAST:
-		/* NOTE: hardware doesn't distinguish between TRAP (copy to CPU
-		 * only) and COPY (forward and copy to CPU). In order to perform
-		 * a soft switch, NEVER use COPY action in the switch driver.
-		 */
-		break;
-	default:
+	skb->priority = FIELD_GET(YT921X_TAG_PRIO_M, rx);
+
+	if (!(rx & YT921X_TAG_CODE_EN)) {
 		dev_warn_ratelimited(&netdev->dev,
-				     "Unexpected rx cmd 0x%02x\n", cmd);
-		break;
+				     "Tag code not enabled in rx packet\n");
+	} else {
+		u16 code = FIELD_GET(YT921X_TAG_CODE_M, rx);
+
+		switch (code) {
+		case YT921X_TAG_CODE_FORWARD:
+		case YT921X_TAG_CODE_PORT_COPY:
+		case YT921X_TAG_CODE_FDB_COPY:
+			/* Already forwarded by hardware */
+			dsa_default_offload_fwd_mark(skb);
+			break;
+		case YT921X_TAG_CODE_UNK_UCAST:
+		case YT921X_TAG_CODE_UNK_MCAST:
+			/* NOTE: hardware doesn't distinguish between TRAP (copy
+			 * to CPU only) and COPY (forward and copy to CPU). In
+			 * order to perform a soft switch, NEVER use COPY action
+			 * in the switch driver.
+			 */
+			break;
+		default:
+			dev_warn_ratelimited(&netdev->dev,
+					     "Unknown code 0x%02x\n", code);
+			break;
+		}
 	}
 
 	/* Remove YT921x tag and update checksum */

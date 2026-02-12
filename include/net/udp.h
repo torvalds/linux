@@ -527,18 +527,18 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
  * 	SNMP statistics for UDP and UDP-Lite
  */
 #define UDP_INC_STATS(net, field, is_udplite)		      do { \
-	if (is_udplite) SNMP_INC_STATS((net)->mib.udplite_statistics, field);       \
+	if (unlikely(is_udplite)) SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
 	else		SNMP_INC_STATS((net)->mib.udp_statistics, field);  }  while(0)
 #define __UDP_INC_STATS(net, field, is_udplite) 	      do { \
-	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);         \
+	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
 	else		__SNMP_INC_STATS((net)->mib.udp_statistics, field);    }  while(0)
 
 #define __UDP6_INC_STATS(net, field, is_udplite)	    do { \
-	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);\
+	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
 	else		__SNMP_INC_STATS((net)->mib.udp_stats_in6, field);  \
 } while(0)
 #define UDP6_INC_STATS(net, field, __lite)		    do { \
-	if (__lite) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);  \
+	if (unlikely(__lite)) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
 	else	    SNMP_INC_STATS((net)->mib.udp_stats_in6, field);      \
 } while(0)
 

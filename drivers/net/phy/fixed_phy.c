@@ -10,39 +10,34 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/list.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/idr.h>
 #include <linux/netdevice.h>
 
 #include "swphy.h"
 
+/* The DSA loop driver may allocate 4 fixed PHY's, and 4 additional
+ * fixed PHY's for a system should be sufficient.
+ */
+#define NUM_FP	8
+
 struct fixed_phy {
-	int addr;
 	struct phy_device *phydev;
 	struct fixed_phy_status status;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
-	struct list_head node;
 };
 
+static DECLARE_BITMAP(fixed_phy_ids, NUM_FP);
+static struct fixed_phy fmb_fixed_phys[NUM_FP];
 static struct mii_bus *fmb_mii_bus;
-static LIST_HEAD(fmb_phys);
 
 static struct fixed_phy *fixed_phy_find(int addr)
 {
-	struct fixed_phy *fp;
-
-	list_for_each_entry(fp, &fmb_phys, node) {
-		if (fp->addr == addr)
-			return fp;
-	}
-
-	return NULL;
+	return test_bit(addr, fixed_phy_ids) ? fmb_fixed_phys + addr : NULL;
 }
 
 int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
@@ -108,31 +103,6 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 }
 EXPORT_SYMBOL_GPL(fixed_phy_set_link_update);
 
-static int __fixed_phy_add(int phy_addr,
-			   const struct fixed_phy_status *status)
-{
-	struct fixed_phy *fp;
-	int ret;
-
-	ret = swphy_validate_state(status);
-	if (ret < 0)
-		return ret;
-
-	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
-	if (!fp)
-		return -ENOMEM;
-
-	fp->addr = phy_addr;
-	fp->status = *status;
-	fp->status.link = true;
-
-	list_add_tail(&fp->node, &fmb_phys);
-
-	return 0;
-}
-
-static DEFINE_IDA(phy_fixed_ida);
-
 static void fixed_phy_del(int phy_addr)
 {
 	struct fixed_phy *fp;
@@ -141,9 +111,21 @@ static void fixed_phy_del(int phy_addr)
 	if (!fp)
 		return;
 
-	list_del(&fp->node);
-	kfree(fp);
-	ida_free(&phy_fixed_ida, phy_addr);
+	memset(fp, 0, sizeof(*fp));
+	clear_bit(phy_addr, fixed_phy_ids);
+}
+
+static int fixed_phy_get_free_addr(void)
+{
+	int addr;
+
+	do {
+		addr = find_first_zero_bit(fixed_phy_ids, NUM_FP);
+		if (addr == NUM_FP)
+			return -ENOSPC;
+	} while (test_and_set_bit(addr, fixed_phy_ids));
+
+	return addr;
 }
 
 struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
@@ -153,19 +135,20 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 	int phy_addr;
 	int ret;
 
+	ret = swphy_validate_state(status);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	if (!fmb_mii_bus || fmb_mii_bus->state != MDIOBUS_REGISTERED)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	/* Get the next available PHY address, up to PHY_MAX_ADDR */
-	phy_addr = ida_alloc_max(&phy_fixed_ida, PHY_MAX_ADDR - 1, GFP_KERNEL);
+	/* Get the next available PHY address, up to NUM_FP */
+	phy_addr = fixed_phy_get_free_addr();
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
-	ret = __fixed_phy_add(phy_addr, status);
-	if (ret < 0) {
-		ida_free(&phy_fixed_ida, phy_addr);
-		return ERR_PTR(ret);
-	}
+	fmb_fixed_phys[phy_addr].status = *status;
+	fmb_fixed_phys[phy_addr].status.link = true;
 
 	phy = get_phy_device(fmb_mii_bus, phy_addr, false);
 	if (IS_ERR(phy)) {
@@ -237,16 +220,8 @@ module_init(fixed_mdio_bus_init);
 
 static void __exit fixed_mdio_bus_exit(void)
 {
-	struct fixed_phy *fp, *tmp;
-
 	mdiobus_unregister(fmb_mii_bus);
 	mdiobus_free(fmb_mii_bus);
-
-	list_for_each_entry_safe(fp, tmp, &fmb_phys, node) {
-		list_del(&fp->node);
-		kfree(fp);
-	}
-	ida_destroy(&phy_fixed_ida);
 }
 module_exit(fixed_mdio_bus_exit);
 

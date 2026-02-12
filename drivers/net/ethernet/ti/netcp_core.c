@@ -759,8 +759,8 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	knav_pool_desc_put(netcp->rx_pool, desc);
 
 	u64_stats_update_begin(&rx_stats->syncp_rx);
-	rx_stats->rx_packets++;
-	rx_stats->rx_bytes += skb->len;
+	u64_stats_inc(&rx_stats->rx_packets);
+	u64_stats_add(&rx_stats->rx_bytes, skb->len);
 	u64_stats_update_end(&rx_stats->syncp_rx);
 
 	/* push skb up the stack */
@@ -1045,8 +1045,8 @@ static int netcp_process_tx_compl_packets(struct netcp_intf *netcp,
 		}
 
 		u64_stats_update_begin(&tx_stats->syncp_tx);
-		tx_stats->tx_packets++;
-		tx_stats->tx_bytes += skb->len;
+		u64_stats_inc(&tx_stats->tx_packets);
+		u64_stats_add(&tx_stats->tx_bytes, skb->len);
 		u64_stats_update_end(&tx_stats->syncp_tx);
 		dev_kfree_skb(skb);
 		pkts++;
@@ -1973,14 +1973,14 @@ netcp_get_stats(struct net_device *ndev, struct rtnl_link_stats64 *stats)
 
 	do {
 		start = u64_stats_fetch_begin(&p->syncp_rx);
-		rxpackets       = p->rx_packets;
-		rxbytes         = p->rx_bytes;
+		rxpackets       = u64_stats_read(&p->rx_packets);
+		rxbytes         = u64_stats_read(&p->rx_bytes);
 	} while (u64_stats_fetch_retry(&p->syncp_rx, start));
 
 	do {
 		start = u64_stats_fetch_begin(&p->syncp_tx);
-		txpackets       = p->tx_packets;
-		txbytes         = p->tx_bytes;
+		txpackets       = u64_stats_read(&p->tx_packets);
+		txbytes         = u64_stats_read(&p->tx_bytes);
 	} while (u64_stats_fetch_retry(&p->syncp_tx, start));
 
 	stats->rx_packets = rxpackets;

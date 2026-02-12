@@ -28,10 +28,10 @@ static struct sdio_driver rtw_8723ds_driver = {
 	.name = KBUILD_MODNAME,
 	.probe = rtw_sdio_probe,
 	.remove = rtw_sdio_remove,
+	.shutdown = rtw_sdio_shutdown,
 	.id_table = rtw_8723ds_id_table,
 	.drv = {
 		.pm = &rtw_sdio_pm_ops,
-		.shutdown = rtw_sdio_shutdown,
 	}
 };
 module_sdio_driver(rtw_8723ds_driver);

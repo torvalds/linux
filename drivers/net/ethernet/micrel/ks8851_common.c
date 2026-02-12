@@ -480,7 +480,7 @@ static int ks8851_net_open(struct net_device *dev)
  * ks8851_net_stop - close network device
  * @dev: The device being closed.
  *
- * Called to close down a network device which has been active. Cancell any
+ * Called to close down a network device which has been active. Cancel any
  * work, shutdown the RX and TX process and then place the chip into a low
  * power state whilst it is not being used.
  */

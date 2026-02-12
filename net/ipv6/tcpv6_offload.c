@@ -24,9 +24,6 @@ static void tcp6_check_fraglist_gro(struct list_head *head, struct sk_buff *skb,
 	struct net *net;
 	int iif, sdif;
 
-	if (likely(!(skb->dev->features & NETIF_F_GRO_FRAGLIST)))
-		return;
-
 	p = tcp_gro_lookup(head, th);
 	if (p) {
 		NAPI_GRO_CB(skb)->is_flist = NAPI_GRO_CB(p)->is_flist;
@@ -45,8 +42,8 @@ static void tcp6_check_fraglist_gro(struct list_head *head, struct sk_buff *skb,
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 }
 
-INDIRECT_CALLABLE_SCOPE
-struct sk_buff *tcp6_gro_receive(struct list_head *head, struct sk_buff *skb)
+static __always_inline struct sk_buff *tcp6_gro_receive(struct list_head *head,
+							struct sk_buff *skb)
 {
 	struct tcphdr *th;
 
@@ -60,7 +57,8 @@ struct sk_buff *tcp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 	if (!th)
 		goto flush;
 
-	tcp6_check_fraglist_gro(head, skb, th);
+	if (unlikely(skb->dev->features & NETIF_F_GRO_FRAGLIST))
+		tcp6_check_fraglist_gro(head, skb, th);
 
 	return tcp_gro_receive(head, skb, th);
 
@@ -69,7 +67,7 @@ flush:
 	return NULL;
 }
 
-INDIRECT_CALLABLE_SCOPE int tcp6_gro_complete(struct sk_buff *skb, int thoff)
+static __always_inline int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const u16 offset = NAPI_GRO_CB(skb)->network_offsets[skb->encapsulation];
 	const struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + offset);

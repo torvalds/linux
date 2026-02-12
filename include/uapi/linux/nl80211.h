@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2974,6 +2974,16 @@ enum nl80211_commands {
  *	primary channel is 2 MHz wide, and the control channel designates
  *	the 1 MHz primary subchannel within that 2 MHz primary.
  *
+ * @NL80211_ATTR_EPP_PEER: A flag attribute to indicate if the peer is an EPP
+ *	STA. Used with %NL80211_CMD_NEW_STA and %NL80211_CMD_ADD_LINK_STA
+ *
+ * @NL80211_ATTR_UHR_CAPABILITY: UHR Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION). Can be set
+ *	only if HE/EHT are also available.
+ * @NL80211_ATTR_DISABLE_UHR: Force UHR capable interfaces to disable
+ *	this feature during association. This is a flag attribute.
+ *	Currently only supported in mac80211 drivers.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3542,6 +3552,11 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_S1G_PRIMARY_2MHZ,
 
+	NL80211_ATTR_EPP_PEER,
+
+	NL80211_ATTR_UHR_CAPABILITY,
+	NL80211_ATTR_DISABLE_UHR,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -3894,6 +3909,12 @@ enum nl80211_eht_ru_alloc {
  * @NL80211_RATE_INFO_4_MHZ_WIDTH: 4 MHz S1G rate
  * @NL80211_RATE_INFO_8_MHZ_WIDTH: 8 MHz S1G rate
  * @NL80211_RATE_INFO_16_MHZ_WIDTH: 16 MHz S1G rate
+ * @NL80211_RATE_INFO_UHR_MCS: UHR MCS index (u8, 0-15, 17, 19, 20, 23)
+ *	Note that the other EHT attributes (such as @NL80211_RATE_INFO_EHT_NSS)
+ *	are used in conjunction with this where applicable
+ * @NL80211_RATE_INFO_UHR_ELR: UHR ELR flag, which restricts NSS to 1,
+ *	MCS to 0 or 1, and GI to %NL80211_RATE_INFO_EHT_GI_1_6.
+ * @NL80211_RATE_INFO_UHR_IM: UHR Interference Mitigation flag
  * @__NL80211_RATE_INFO_AFTER_LAST: internal use
  */
 enum nl80211_rate_info {
@@ -3927,6 +3948,9 @@ enum nl80211_rate_info {
 	NL80211_RATE_INFO_4_MHZ_WIDTH,
 	NL80211_RATE_INFO_8_MHZ_WIDTH,
 	NL80211_RATE_INFO_16_MHZ_WIDTH,
+	NL80211_RATE_INFO_UHR_MCS,
+	NL80211_RATE_INFO_UHR_ELR,
+	NL80211_RATE_INFO_UHR_IM,
 
 	/* keep last */
 	__NL80211_RATE_INFO_AFTER_LAST,
@@ -4249,6 +4273,10 @@ enum nl80211_mpath_info {
  *	capabilities element
  * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE: EHT PPE thresholds information as
  *	defined in EHT capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_UHR_CAP_MAC: UHR MAC capabilities as in UHR
+ *	capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_UHR_CAP_PHY: UHR PHY capabilities as in UHR
+ *	capabilities element
  * @__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST: internal use
  * @NL80211_BAND_IFTYPE_ATTR_MAX: highest band attribute currently defined
  */
@@ -4266,6 +4294,8 @@ enum nl80211_band_iftype_attr {
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY,
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MCS_SET,
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE,
+	NL80211_BAND_IFTYPE_ATTR_UHR_CAP_MAC,
+	NL80211_BAND_IFTYPE_ATTR_UHR_CAP_PHY,
 
 	/* keep last */
 	__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST,
@@ -4445,6 +4475,11 @@ enum nl80211_wmm_rule {
  *	channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_NO_16MHZ: 16 MHz operation is not allowed on this
  *	channel in current regulatory domain.
+ * @NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY: Channel is not permitted for use
+ *	as a primary channel. Does not prevent the channel from existing
+ *	as a non-primary subchannel. Only applicable to S1G channels.
+ * @NL80211_FREQUENCY_ATTR_NO_UHR: UHR operation is not allowed on this channel
+ *	in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -4493,6 +4528,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_4MHZ,
 	NL80211_FREQUENCY_ATTR_NO_8MHZ,
 	NL80211_FREQUENCY_ATTR_NO_16MHZ,
+	NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY,
+	NL80211_FREQUENCY_ATTR_NO_UHR,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4706,6 +4743,7 @@ enum nl80211_sched_scan_match_attr {
  *	despite NO_IR configuration.
  * @NL80211_RRF_ALLOW_20MHZ_ACTIVITY: Allow activity in 20 MHz bandwidth,
  *	despite NO_IR configuration.
+ * @NL80211_RRF_NO_UHR: UHR operation not allowed
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM                 = 1 << 0,
@@ -4732,6 +4770,7 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_6GHZ_AFC_CLIENT      = 1 << 23,
 	NL80211_RRF_ALLOW_6GHZ_VLP_AP       = 1 << 24,
 	NL80211_RRF_ALLOW_20MHZ_ACTIVITY    = 1 << 25,
+	NL80211_RRF_NO_UHR		    = 1 << 26,
 };
 
 #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
@@ -5426,6 +5465,7 @@ enum nl80211_bss_status {
  * @NL80211_AUTHTYPE_FILS_SK: Fast Initial Link Setup shared key
  * @NL80211_AUTHTYPE_FILS_SK_PFS: Fast Initial Link Setup shared key with PFS
  * @NL80211_AUTHTYPE_FILS_PK: Fast Initial Link Setup public key
+ * @NL80211_AUTHTYPE_EPPKE: Enhanced Privacy Protection Key Exchange
  * @__NL80211_AUTHTYPE_NUM: internal
  * @NL80211_AUTHTYPE_MAX: maximum valid auth algorithm
  * @NL80211_AUTHTYPE_AUTOMATIC: determine automatically (if necessary by
@@ -5441,6 +5481,7 @@ enum nl80211_auth_type {
 	NL80211_AUTHTYPE_FILS_SK,
 	NL80211_AUTHTYPE_FILS_SK_PFS,
 	NL80211_AUTHTYPE_FILS_PK,
+	NL80211_AUTHTYPE_EPPKE,
 
 	/* keep last */
 	__NL80211_AUTHTYPE_NUM,
@@ -6745,6 +6786,15 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_BEACON_RATE_EHT: Driver supports beacon rate
  *	configuration (AP/mesh) with EHT rates.
  *
+ * @NL80211_EXT_FEATURE_EPPKE: Driver supports Enhanced Privacy Protection
+ *	Key Exchange (EPPKE) with user space SME (NL80211_CMD_AUTHENTICATE)
+ *	in non-AP STA mode.
+ *
+ * @NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION: This specifies that the
+ *	driver supports encryption of (Re)Association Request and Response
+ *	frames in both non‑AP STA and AP mode as specified in
+ *	"IEEE P802.11bi/D3.0, 12.16.6".
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -6821,6 +6871,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_DFS_CONCURRENT,
 	NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT,
 	NL80211_EXT_FEATURE_BEACON_RATE_EHT,
+	NL80211_EXT_FEATURE_EPPKE,
+	NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -7433,6 +7485,8 @@ enum nl80211_nan_band_conf_attributes {
  *	address that can take values from 50-6F-9A-01-00-00 to
  *	50-6F-9A-01-FF-FF. This attribute is optional. If not present,
  *	a random Cluster ID will be chosen.
+ *	This attribute will be ignored in NL80211_CMD_CHANGE_NAN_CONFIG
+ *	since after NAN was started, the cluster ID can no longer change.
  * @NL80211_NAN_CONF_EXTRA_ATTRS: Additional NAN attributes to be
  *	published in the beacons. This is an optional byte array.
  * @NL80211_NAN_CONF_VENDOR_ELEMS: Vendor-specific elements that will
@@ -7767,6 +7821,30 @@ enum nl80211_peer_measurement_attrs {
  *	trigger based ranging measurement is supported
  * @NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED: flag attribute indicating
  *	if non-trigger-based ranging measurement is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT: flag attribute indicating if
+ *	ranging on the 6 GHz band is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP: u32 attribute indicating
+ *	the maximum number of LTF repetitions the device can transmit in the
+ *	preamble of the ranging NDP (zero means only one LTF, no repetitions)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP: u32 attribute indicating
+ *	the maximum number of LTF repetitions the device can receive in the
+ *	preamble of the ranging NDP (zero means only one LTF, no repetitions)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS: u32 attribute indicating
+ *	the maximum number of space-time streams supported for ranging NDP TX
+ *	(zero-based)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS: u32 attribute indicating
+ *	the maximum number of space-time streams supported for ranging NDP RX
+ *	(zero-based)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX: u32 attribute indicating the
+ *	maximum total number of LTFs the device can transmit. The total number
+ *	of LTFs is (number of LTF repetitions) * (number of space-time streams).
+ *	This limits the allowed combinations of LTF repetitions and STS.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX: u32 attribute indicating the
+ *	maximum total number of LTFs the device can receive. The total number
+ *	of LTFs is (number of LTF repetitions) * (number of space-time streams).
+ *	This limits the allowed combinations of LTF repetitions and STS.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_RSTA_SUPPORT: flag attribute indicating the
+ *	device supports operating as the RSTA in PMSR FTM request
  *
  * @NUM_NL80211_PMSR_FTM_CAPA_ATTR: internal
  * @NL80211_PMSR_FTM_CAPA_ATTR_MAX: highest attribute number
@@ -7784,6 +7862,14 @@ enum nl80211_peer_measurement_ftm_capa {
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
 	NL80211_PMSR_FTM_CAPA_ATTR_TRIGGER_BASED,
 	NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED,
+	NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX,
+	NL80211_PMSR_FTM_CAPA_ATTR_RSTA_SUPPORT,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_CAPA_ATTR,
@@ -7799,12 +7885,15 @@ enum nl80211_peer_measurement_ftm_capa {
  *	&enum nl80211_preamble), optional for DMG (u32)
  * @NL80211_PMSR_FTM_REQ_ATTR_NUM_BURSTS_EXP: number of bursts exponent as in
  *	802.11-2016 9.4.2.168 "Fine Timing Measurement Parameters element"
- *	(u8, 0-15, optional with default 15 i.e. "no preference")
+ *	(u8, 0-15, optional with default 15 i.e. "no preference". No limit for
+ *	 non-EDCA ranging)
  * @NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD: interval between bursts in units
  *	of 100ms (u16, optional with default 0)
  * @NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION: burst duration, as in 802.11-2016
  *	Table 9-257 "Burst Duration field encoding" (u8, 0-15, optional with
- *	default 15 i.e. "no preference")
+ *	default 15 i.e. "no preference"). For non-EDCA ranging, this is the
+ *	burst duration in milliseconds (optional with default 0, i.e. let the
+ *	device decide).
  * @NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST: number of successful FTM frames
  *	requested per burst
  *	(u8, 0-31, optional with default 0 i.e. "no preference")
@@ -7833,6 +7922,14 @@ enum nl80211_peer_measurement_ftm_capa {
  * @NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR: optional. The BSS color of the
  *	responder. Only valid if %NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED
  *	or %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED is set.
+ * @NL80211_PMSR_FTM_REQ_ATTR_RSTA: optional. Request to perform the measurement
+ *	as the RSTA (flag). When set, the device is expected to dwell on the
+ *	channel specified in %NL80211_PMSR_PEER_ATTR_CHAN until it receives the
+ *	FTM request from the peer or the timeout specified by
+ *	%NL80211_ATTR_TIMEOUT has expired.
+ *	Only valid if %NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK is set (so the
+ *	RSTA will have the measurement results to report back in the FTM
+ *	response).
  *
  * @NUM_NL80211_PMSR_FTM_REQ_ATTR: internal
  * @NL80211_PMSR_FTM_REQ_ATTR_MAX: highest attribute number
@@ -7853,6 +7950,7 @@ enum nl80211_peer_measurement_ftm_req {
 	NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED,
 	NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK,
 	NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR,
+	NL80211_PMSR_FTM_REQ_ATTR_RSTA,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_REQ_ATTR,
@@ -7937,6 +8035,8 @@ enum nl80211_peer_measurement_ftm_failure_reasons {
  *	9.4.2.22.1) starting with the Measurement Token, with Measurement
  *	Type 11.
  * @NL80211_PMSR_FTM_RESP_ATTR_PAD: ignore, for u64/s64 padding only
+ * @NL80211_PMSR_FTM_RESP_ATTR_BURST_PERIOD: actual burst period used by
+ *	the responder (similar to request, u16)
  *
  * @NUM_NL80211_PMSR_FTM_RESP_ATTR: internal
  * @NL80211_PMSR_FTM_RESP_ATTR_MAX: highest attribute number
@@ -7965,6 +8065,7 @@ enum nl80211_peer_measurement_ftm_resp {
 	NL80211_PMSR_FTM_RESP_ATTR_LCI,
 	NL80211_PMSR_FTM_RESP_ATTR_CIVICLOC,
 	NL80211_PMSR_FTM_RESP_ATTR_PAD,
+	NL80211_PMSR_FTM_RESP_ATTR_BURST_PERIOD,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_RESP_ATTR,

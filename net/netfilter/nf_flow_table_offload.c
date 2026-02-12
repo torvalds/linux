@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/tc_act/tc_csum.h>
 #include <net/flow_offload.h>
+#include <net/ip_tunnels.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_conntrack.h>

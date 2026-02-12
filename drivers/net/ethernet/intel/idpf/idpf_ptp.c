@@ -384,15 +384,17 @@ static int idpf_ptp_update_cached_phctime(struct idpf_adapter *adapter)
 	WRITE_ONCE(adapter->ptp->cached_phc_jiffies, jiffies);
 
 	idpf_for_each_vport(adapter, vport) {
+		struct idpf_q_vec_rsrc *rsrc;
 		bool split;
 
-		if (!vport || !vport->rxq_grps)
+		if (!vport || !vport->dflt_qv_rsrc.rxq_grps)
 			continue;
 
-		split = idpf_is_queue_model_split(vport->rxq_model);
+		rsrc = &vport->dflt_qv_rsrc;
+		split = idpf_is_queue_model_split(rsrc->rxq_model);
 
-		for (u16 i = 0; i < vport->num_rxq_grp; i++) {
-			struct idpf_rxq_group *grp = &vport->rxq_grps[i];
+		for (u16 i = 0; i < rsrc->num_rxq_grp; i++) {
+			struct idpf_rxq_group *grp = &rsrc->rxq_grps[i];
 
 			idpf_ptp_update_phctime_rxq_grp(grp, split, systime);
 		}
@@ -681,9 +683,10 @@ int idpf_ptp_request_ts(struct idpf_tx_queue *tx_q, struct sk_buff *skb,
  */
 static void idpf_ptp_set_rx_tstamp(struct idpf_vport *vport, int rx_filter)
 {
+	struct idpf_q_vec_rsrc *rsrc = &vport->dflt_qv_rsrc;
 	bool enable = true, splitq;
 
-	splitq = idpf_is_queue_model_split(vport->rxq_model);
+	splitq = idpf_is_queue_model_split(rsrc->rxq_model);
 
 	if (rx_filter == HWTSTAMP_FILTER_NONE) {
 		enable = false;
@@ -692,8 +695,8 @@ static void idpf_ptp_set_rx_tstamp(struct idpf_vport *vport, int rx_filter)
 		vport->tstamp_config.rx_filter = HWTSTAMP_FILTER_ALL;
 	}
 
-	for (u16 i = 0; i < vport->num_rxq_grp; i++) {
-		struct idpf_rxq_group *grp = &vport->rxq_grps[i];
+	for (u16 i = 0; i < rsrc->num_rxq_grp; i++) {
+		struct idpf_rxq_group *grp = &rsrc->rxq_grps[i];
 		struct idpf_rx_queue *rx_queue;
 		u16 j, num_rxq;
 

@@ -586,10 +586,8 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 	skb = priv->rx.desc[entry].skbs;
 	if (!skb) {
 		skb = netdev_alloc_skb(ndev, AVE_MAX_ETHFRAME);
-		if (!skb) {
-			netdev_err(ndev, "can't allocate skb for Rx\n");
+		if (!skb)
 			return -ENOMEM;
-		}
 		skb->data += AVE_FRAME_HEADROOM;
 		skb->tail += AVE_FRAME_HEADROOM;
 	}

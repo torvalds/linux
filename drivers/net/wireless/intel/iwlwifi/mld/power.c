@@ -328,6 +328,33 @@ iwl_mld_tpe_sta_cmd_data(struct iwl_txpower_constraints_cmd *cmd,
 				       link->tpe.max_reg_client[0].power[i]);
 }
 
+static int
+iwl_mld_set_ap_power_type(struct iwl_txpower_constraints_cmd *cmd,
+			  struct ieee80211_vif *vif,
+			  struct ieee80211_bss_conf *link)
+{
+	if (vif->type == NL80211_IFTYPE_AP) {
+		cmd->ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
+		return 0;
+	}
+
+	switch (link->power_type) {
+	case IEEE80211_REG_LPI_AP:
+		cmd->ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_LPI);
+		break;
+	case IEEE80211_REG_SP_AP:
+		cmd->ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_SP);
+		break;
+	case IEEE80211_REG_VLP_AP:
+		cmd->ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 void
 iwl_mld_send_ap_tx_power_constraint_cmd(struct iwl_mld *mld,
 					struct ieee80211_vif *vif,
@@ -349,15 +376,13 @@ iwl_mld_send_ap_tx_power_constraint_cmd(struct iwl_mld *mld,
 	memset(cmd.psd_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.psd_pwr));
 	memset(cmd.eirp_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.eirp_pwr));
 
-	if (vif->type == NL80211_IFTYPE_AP) {
-		cmd.ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
-	} else if (link->power_type == IEEE80211_REG_UNSET_AP) {
+	if (iwl_mld_set_ap_power_type(&cmd, vif, link))
 		return;
-	} else {
-		cmd.ap_type = cpu_to_le16(link->power_type - 1);
-		iwl_mld_tpe_sta_cmd_data(&cmd, link);
-	}
 
+	if (vif->type != NL80211_IFTYPE_AP)
+		iwl_mld_tpe_sta_cmd_data(&cmd, link);
+
+	IWL_DEBUG_POWER(mld, "AP power type: %d\n", le16_to_cpu(cmd.ap_type));
 	ret = iwl_mld_send_cmd_pdu(mld,
 				   WIDE_ID(PHY_OPS_GROUP,
 					   AP_TX_POWER_CONSTRAINTS_CMD),

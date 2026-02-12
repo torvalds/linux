@@ -32,6 +32,7 @@
 #include <linux/siphash.h>
 
 #include <linux/netfilter.h>
+#include <net/ipv6.h>
 #include <net/netlink.h>
 #include <net/sock.h>
 #include <net/netfilter/nf_conntrack.h>

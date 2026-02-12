@@ -39,6 +39,7 @@ struct lag_func {
 	struct mlx5_core_dev *dev;
 	struct net_device    *netdev;
 	bool has_drop;
+	struct mlx5_nb port_change_nb;
 };
 
 /* Used for collection of netdev event info. */
@@ -48,6 +49,7 @@ struct lag_tracker {
 	unsigned int is_bonded:1;
 	unsigned int has_inactive:1;
 	enum netdev_lag_hash hash_type;
+	u32 bond_speed_mbps;
 };
 
 /* LAG data of a ConnectX card.
@@ -66,6 +68,7 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
+	struct work_struct        speed_update_work;
 	struct notifier_block     nb;
 	possible_net_t net;
 	struct lag_mp             lag_mp;
@@ -115,6 +118,14 @@ void mlx5_lag_remove_devices(struct mlx5_lag *ldev);
 int mlx5_deactivate_lag(struct mlx5_lag *ldev);
 void mlx5_lag_add_devices(struct mlx5_lag *ldev);
 struct mlx5_devcom_comp_dev *mlx5_lag_get_devcom_comp(struct mlx5_lag *ldev);
+
+#ifdef CONFIG_MLX5_ESWITCH
+void mlx5_lag_set_vports_agg_speed(struct mlx5_lag *ldev);
+void mlx5_lag_reset_vports_speed(struct mlx5_lag *ldev);
+#else
+static inline void mlx5_lag_set_vports_agg_speed(struct mlx5_lag *ldev) {}
+static inline void mlx5_lag_reset_vports_speed(struct mlx5_lag *ldev) {}
+#endif
 
 static inline bool mlx5_lag_is_supported(struct mlx5_core_dev *dev)
 {

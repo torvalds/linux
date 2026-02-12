@@ -2663,6 +2663,10 @@ S: 3404 E. Harmony Road
 S: Fort Collins, CO 80528
 S: USA
 
+N: Jon Mason
+E: jdmason@kudzu.us
+D: Neterion 10GbE drivers (s2io/vxge)
+
 N: Torben Mathiasen
 E: torben.mathiasen@compaq.com
 E: torben@kernel.dk
@@ -3809,6 +3813,10 @@ S: MS 352, Fermilab
 S: Post Office Box 500
 S: Batavia, Illinois 60510
 S: USA
+
+N: Jes Sorensen
+E: jes@trained-monkey.org
+D: HIPPI support and Essential RoadRunner driver
 
 N: Leo Spiekman
 E: leo@netlabs.net

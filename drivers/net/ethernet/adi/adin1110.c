@@ -123,7 +123,7 @@ enum adin1110_chips_id {
 
 struct adin1110_cfg {
 	enum adin1110_chips_id	id;
-	char			name[MDIO_NAME_SIZE];
+	const char		*name;
 	u32			phy_ids[PHY_MAX_ADDR];
 	u32			ports_nr;
 	u32			phy_id_val;

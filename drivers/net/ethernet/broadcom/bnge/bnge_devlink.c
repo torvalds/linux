@@ -221,7 +221,7 @@ static int bnge_devlink_info_get(struct devlink *devlink,
 			      DEVLINK_INFO_VERSION_GENERIC_FW, buf);
 	if (rc) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to set roce firmware version");
+				   "Failed to set firmware version");
 		return rc;
 	}
 

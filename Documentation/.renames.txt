@@ -819,7 +819,6 @@ networking/device_drivers/intel/ixgbe networking/device_drivers/ethernet/intel/i
 networking/device_drivers/intel/ixgbevf networking/device_drivers/ethernet/intel/ixgbevf
 networking/device_drivers/marvell/octeontx2 networking/device_drivers/ethernet/marvell/octeontx2
 networking/device_drivers/microsoft/netvsc networking/device_drivers/ethernet/microsoft/netvsc
-networking/device_drivers/neterion/s2io networking/device_drivers/ethernet/neterion/s2io
 networking/device_drivers/netronome/nfp networking/device_drivers/ethernet/netronome/nfp
 networking/device_drivers/pensando/ionic networking/device_drivers/ethernet/pensando/ionic
 networking/device_drivers/qualcomm/rmnet networking/device_drivers/cellular/qualcomm/rmnet

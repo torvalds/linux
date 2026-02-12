@@ -116,10 +116,14 @@ struct iwl_txf_iter_data {
  * @phy_filters: specific phy filters as read from WPFC BIOS table
  * @ppag_bios_rev: PPAG BIOS revision
  * @ppag_bios_source: see &enum bios_source
- * @acpi_dsm_funcs_valid: bitmap indicating which DSM values are valid,
+ * @dsm_funcs_valid: bitmap indicating which DSM values are valid,
  *	zero (default initialization) means it hasn't been read yet,
  *	and BIT(0) is set when it has since function 0 also has this
- *	bitmap and is always supported
+ *	bitmap and is always supported.
+ *	If the bit is set for a specific function, then the corresponding
+ *	entry in &dsm_values is valid.
+ * @dsm_values: cache of the DSM values. The validity of each entry is
+ *	determined by &dsm_funcs_valid.
  * @geo_enabled: WGDS table is present
  * @geo_num_profiles: number of geo profiles
  * @geo_rev: geo profiles table revision
@@ -137,6 +141,8 @@ struct iwl_txf_iter_data {
  * @timestamp.seq: timestamp marking sequence
  * @timestamp.delay: timestamp marking worker delay
  * @tpc_enabled: TPC enabled
+ * @dsm_source: one of &enum bios_source. UEFI, ACPI or NONE
+ * @dsm_revision: the revision of the DSM table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -211,9 +217,12 @@ struct iwl_fw_runtime {
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
+	enum bios_source dsm_source;
+	u8 dsm_revision;
 
-#ifdef CONFIG_ACPI
-	u32 acpi_dsm_funcs_valid;
+#if defined(CONFIG_ACPI) || defined(CONFIG_EFI)
+	u32 dsm_funcs_valid;
+	u32 dsm_values[DSM_FUNC_NUM_FUNCS];
 #endif
 };
 

@@ -39,8 +39,9 @@ struct mlx5_fs_pool {
 	int threshold;
 };
 
-int mlx5_fs_bulk_init(struct mlx5_core_dev *dev, struct mlx5_fs_bulk *fs_bulk,
-		      int bulk_len);
+void mlx5_fs_bulk_init(struct mlx5_fs_bulk *fs_bulk, int bulk_len);
+int mlx5_fs_bulk_bitmap_alloc(struct mlx5_core_dev *dev,
+			      struct mlx5_fs_bulk *fs_bulk);
 void mlx5_fs_bulk_cleanup(struct mlx5_fs_bulk *fs_bulk);
 int mlx5_fs_bulk_get_free_amount(struct mlx5_fs_bulk *bulk);
 

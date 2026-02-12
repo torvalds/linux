@@ -8,7 +8,7 @@
 #define DRV_SUMMARY	"Broadcom ThorUltra NIC Ethernet Driver"
 
 #include <linux/etherdevice.h>
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 #include "bnge_rmem.h"
 #include "bnge_resc.h"
 #include "bnge_auxr.h"

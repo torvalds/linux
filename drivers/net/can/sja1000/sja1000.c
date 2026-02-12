@@ -407,18 +407,22 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
+	enum can_state state, rx_state, tx_state;
 	struct can_frame *cf;
 	struct sk_buff *skb;
-	enum can_state state = priv->can.state;
-	enum can_state rx_state, tx_state;
-	unsigned int rxerr, txerr;
+	struct can_berr_counter bec;
 	uint8_t ecc, alc;
 	int ret = 0;
 
 	skb = alloc_can_err_skb(dev, &cf);
 
-	txerr = priv->read_reg(priv, SJA1000_TXERR);
-	rxerr = priv->read_reg(priv, SJA1000_RXERR);
+	sja1000_get_berr_counter(dev, &bec);
+	can_state_get_by_berr_counter(dev, &bec, &tx_state, &rx_state);
+
+	if (status & SR_BS)
+		rx_state = CAN_STATE_BUS_OFF;
+
+	state = max(tx_state, rx_state);
 
 	if (isrc & IRQ_DOI) {
 		/* data overrun interrupt */
@@ -441,22 +445,10 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		if (priv->flags & SJA1000_QUIRK_RESET_ON_OVERRUN)
 			ret = IRQ_WAKE_THREAD;
 	}
-
-	if (isrc & IRQ_EI) {
-		/* error warning interrupt */
-		netdev_dbg(dev, "error warning interrupt\n");
-
-		if (status & SR_BS)
-			state = CAN_STATE_BUS_OFF;
-		else if (status & SR_ES)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_ACTIVE;
-	}
 	if (state != CAN_STATE_BUS_OFF && skb) {
 		cf->can_id |= CAN_ERR_CNT;
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
+		cf->data[6] = bec.txerr;
+		cf->data[7] = bec.rxerr;
 	}
 	if (isrc & IRQ_BEI) {
 		/* bus error interrupt */
@@ -494,15 +486,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			stats->rx_errors++;
 		}
 	}
-	if (isrc & IRQ_EPI) {
-		/* error passive interrupt */
-		netdev_dbg(dev, "error passive interrupt\n");
-
-		if (state == CAN_STATE_ERROR_PASSIVE)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_PASSIVE;
-	}
 	if (isrc & IRQ_ALI) {
 		/* arbitration lost interrupt */
 		netdev_dbg(dev, "arbitration lost interrupt\n");
@@ -515,9 +498,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 
 	if (state != priv->can.state) {
-		tx_state = txerr >= rxerr ? state : 0;
-		rx_state = txerr <= rxerr ? state : 0;
-
 		can_change_state(dev, cf, tx_state, rx_state);
 
 		if(state == CAN_STATE_BUS_OFF)
@@ -725,19 +705,3 @@ void unregister_sja1000dev(struct net_device *dev)
 	unregister_candev(dev);
 }
 EXPORT_SYMBOL_GPL(unregister_sja1000dev);
-
-static __init int sja1000_init(void)
-{
-	printk(KERN_INFO "%s CAN netdevice driver\n", DRV_NAME);
-
-	return 0;
-}
-
-module_init(sja1000_init);
-
-static __exit void sja1000_exit(void)
-{
-	printk(KERN_INFO "%s: driver removed\n", DRV_NAME);
-}
-
-module_exit(sja1000_exit);

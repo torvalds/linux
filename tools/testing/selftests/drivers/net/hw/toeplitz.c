@@ -59,7 +59,7 @@
 #include "../../../net/lib/ksft.h"
 
 #define TOEPLITZ_KEY_MIN_LEN	40
-#define TOEPLITZ_KEY_MAX_LEN	60
+#define TOEPLITZ_KEY_MAX_LEN	256
 
 #define TOEPLITZ_STR_LEN(K)	(((K) * 3) - 1)	/* hex encoded: AA:BB:CC:...:ZZ */
 #define TOEPLITZ_STR_MIN_LEN	TOEPLITZ_STR_LEN(TOEPLITZ_KEY_MIN_LEN)
@@ -71,6 +71,8 @@
 #define RSS_MAX_INDIR	(1 << 16)
 
 #define RPS_MAX_CPUS 16UL	/* must be a power of 2 */
+
+#define MIN_PKT_SAMPLES 40	/* minimum number of packets to receive */
 
 /* configuration options (cmdline arguments) */
 static uint16_t cfg_dport =	8000;
@@ -251,15 +253,31 @@ static bool recv_block(struct ring_state *ring)
 	return true;
 }
 
-/* simple test: sleep once unconditionally and then process all rings */
+/* simple test: process all rings until MIN_PKT_SAMPLES packets are received,
+ * or the test times out.
+ */
 static void process_rings(void)
 {
+	struct timeval start, now;
+	bool pkts_found = true;
+	long elapsed_usec;
 	int i;
 
-	usleep(1000 * cfg_timeout_msec);
+	gettimeofday(&start, NULL);
 
-	for (i = 0; i < num_cpus; i++)
-		do {} while (recv_block(&rings[i]));
+	do {
+		if (!pkts_found)
+			usleep(100);
+
+		pkts_found = false;
+		for (i = 0; i < num_cpus; i++)
+			pkts_found |= recv_block(&rings[i]);
+
+		gettimeofday(&now, NULL);
+		elapsed_usec = (now.tv_sec - start.tv_sec) * 1000000 +
+			       (now.tv_usec - start.tv_usec);
+	} while (frames_received - frames_nohash < MIN_PKT_SAMPLES &&
+		 elapsed_usec < cfg_timeout_msec * 1000);
 
 	fprintf(stderr, "count: pass=%u nohash=%u fail=%u\n",
 		frames_received - frames_nohash - frames_error,

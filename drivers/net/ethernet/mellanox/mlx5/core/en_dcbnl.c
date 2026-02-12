@@ -58,6 +58,20 @@ enum {
 	MLX5_DCB_CHG_NO_RESET,
 };
 
+static const struct {
+	int scale;
+	const char *units_str;
+} mlx5e_bw_units[] = {
+	[MLX5_100_MBPS_UNIT] = {
+		.scale = 100,
+		.units_str = "Mbps",
+	},
+	[MLX5_GBPS_UNIT] = {
+		.scale = 1,
+		.units_str = "Gbps",
+	},
+};
+
 #define MLX5_DSCP_SUPPORTED(mdev) (MLX5_CAP_GEN(mdev, qcam_reg)  && \
 				   MLX5_CAP_QCAM_REG(mdev, qpts) && \
 				   MLX5_CAP_QCAM_REG(mdev, qpdpm))
@@ -559,7 +573,7 @@ static int mlx5e_dcbnl_ieee_getmaxrate(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u16 max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
 	int err;
 	int i;
@@ -594,57 +608,41 @@ static int mlx5e_dcbnl_ieee_setmaxrate(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv    = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u16 max_bw_value[IEEE_8021QAZ_MAX_TCS];
 	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
-	u64 upper_limit_100mbps;
-	u64 upper_limit_gbps;
 	int i;
-	struct {
-		int scale;
-		const char *units_str;
-	} units[] = {
-		[MLX5_100_MBPS_UNIT] = {
-			.scale = 100,
-			.units_str = "Mbps",
-		},
-		[MLX5_GBPS_UNIT] = {
-			.scale = 1,
-			.units_str = "Gbps",
-		},
-	};
 
 	memset(max_bw_value, 0, sizeof(max_bw_value));
 	memset(max_bw_unit, 0, sizeof(max_bw_unit));
-	upper_limit_100mbps = U8_MAX * MLX5E_100MB_TO_KB;
-	upper_limit_gbps = U8_MAX * MLX5E_1GB_TO_KB;
 
 	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
-		if (!maxrate->tc_maxrate[i]) {
+		u64 rate = maxrate->tc_maxrate[i];
+
+		if (!rate) {
 			max_bw_unit[i]  = MLX5_BW_NO_LIMIT;
 			continue;
 		}
-		if (maxrate->tc_maxrate[i] <= upper_limit_100mbps) {
-			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
-						  MLX5E_100MB_TO_KB);
+		if (rate <= priv->dcbx.upper_limit_100mbps) {
+			max_bw_value[i] = div_u64(rate, MLX5E_100MB_TO_KB);
 			max_bw_value[i] = max_bw_value[i] ? max_bw_value[i] : 1;
 			max_bw_unit[i]  = MLX5_100_MBPS_UNIT;
-		} else if (maxrate->tc_maxrate[i] <= upper_limit_gbps) {
-			max_bw_value[i] = div_u64(maxrate->tc_maxrate[i],
-						  MLX5E_1GB_TO_KB);
+		} else if (rate <= priv->dcbx.upper_limit_gbps) {
+			max_bw_value[i] = div_u64(rate, MLX5E_1GB_TO_KB);
 			max_bw_unit[i]  = MLX5_GBPS_UNIT;
 		} else {
 			netdev_err(netdev,
 				   "tc_%d maxrate %llu Kbps exceeds limit %llu\n",
-				   i, maxrate->tc_maxrate[i],
-				   upper_limit_gbps);
+				   i, rate, priv->dcbx.upper_limit_gbps);
 			return -EINVAL;
 		}
 	}
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		u8 unit = max_bw_unit[i];
+
 		netdev_dbg(netdev, "%s: tc_%d <=> max_bw %u %s\n", __func__, i,
-			   max_bw_value[i] * units[max_bw_unit[i]].scale,
-			   units[max_bw_unit[i]].units_str);
+			   max_bw_value[i] * mlx5e_bw_units[unit].scale,
+			   mlx5e_bw_units[unit].units_str);
 	}
 
 	return mlx5_modify_port_ets_rate_limit(mdev, max_bw_value, max_bw_unit);
@@ -1268,6 +1266,8 @@ static u16 mlx5e_query_port_buffers_cell_size(struct mlx5e_priv *priv)
 void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
+	bool max_bw_msb_supported;
+	u16 type_max;
 
 	mlx5e_trust_initialize(priv);
 
@@ -1284,6 +1284,12 @@ void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 
 	priv->dcbx.port_buff_cell_sz = mlx5e_query_port_buffers_cell_size(priv);
 	priv->dcbx.cable_len = MLX5E_DEFAULT_CABLE_LEN;
+
+	max_bw_msb_supported = MLX5_CAP_QCAM_FEATURE(priv->mdev,
+						     qetcr_qshr_max_bw_val_msb);
+	type_max = max_bw_msb_supported ? U16_MAX : U8_MAX;
+	priv->dcbx.upper_limit_100mbps = type_max * MLX5E_100MB_TO_KB;
+	priv->dcbx.upper_limit_gbps = type_max * MLX5E_1GB_TO_KB;
 
 	mlx5e_ets_init(priv);
 }

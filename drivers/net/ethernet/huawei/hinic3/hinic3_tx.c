@@ -16,18 +16,37 @@
 
 #define MIN_SKB_LEN                32
 
+static void hinic3_txq_clean_stats(struct hinic3_txq_stats *txq_stats)
+{
+	u64_stats_update_begin(&txq_stats->syncp);
+	txq_stats->bytes = 0;
+	txq_stats->packets = 0;
+	txq_stats->busy = 0;
+	txq_stats->dropped = 0;
+
+	txq_stats->skb_pad_err = 0;
+	txq_stats->frag_len_overflow = 0;
+	txq_stats->offload_cow_skb_err = 0;
+	txq_stats->map_frag_err = 0;
+	txq_stats->unknown_tunnel_pkt = 0;
+	txq_stats->frag_size_err = 0;
+	u64_stats_update_end(&txq_stats->syncp);
+}
+
+static void hinic3_txq_stats_init(struct hinic3_txq *txq)
+{
+	struct hinic3_txq_stats *txq_stats = &txq->txq_stats;
+
+	u64_stats_init(&txq_stats->syncp);
+	hinic3_txq_clean_stats(txq_stats);
+}
+
 int hinic3_alloc_txqs(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
-	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
 	u16 q_id, num_txqs = nic_dev->max_qps;
 	struct pci_dev *pdev = nic_dev->pdev;
 	struct hinic3_txq *txq;
-
-	if (!num_txqs) {
-		dev_err(hwdev->dev, "Cannot allocate zero size txqs\n");
-		return -EINVAL;
-	}
 
 	nic_dev->txqs = kcalloc(num_txqs, sizeof(*nic_dev->txqs),  GFP_KERNEL);
 	if (!nic_dev->txqs)
@@ -40,6 +59,8 @@ int hinic3_alloc_txqs(struct net_device *netdev)
 		txq->q_depth = nic_dev->q_params.sq_depth;
 		txq->q_mask = nic_dev->q_params.sq_depth - 1;
 		txq->dev = &pdev->dev;
+
+		hinic3_txq_stats_init(txq);
 	}
 
 	return 0;
@@ -582,7 +603,6 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 
 err_drop_pkt:
 	dev_kfree_skb_any(skb);
-
 err_out:
 	return NETDEV_TX_OK;
 }

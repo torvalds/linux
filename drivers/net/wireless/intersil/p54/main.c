@@ -143,8 +143,10 @@ static int p54_beacon_update(struct p54_common *priv,
 	if (!beacon)
 		return -ENOMEM;
 	ret = p54_beacon_format_ie_tim(beacon);
-	if (ret)
+	if (ret) {
+		dev_kfree_skb_any(beacon);
 		return ret;
+	}
 
 	/*
 	 * During operation, the firmware takes care of beaconing.

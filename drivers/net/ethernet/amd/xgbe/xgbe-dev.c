@@ -2794,6 +2794,7 @@ static u64 xgbe_mmc_read(struct xgbe_prv_data *pdata, unsigned int reg_lo)
 		case MMC_RXUNDERSIZE_G:
 		case MMC_RXOVERSIZE_G:
 		case MMC_RXWATCHDOGERROR:
+		case MMC_RXALIGNMENTERROR:
 			read_hi = false;
 			break;
 
@@ -2997,6 +2998,10 @@ static void xgbe_rx_mmc_int(struct xgbe_prv_data *pdata)
 	if (XGMAC_GET_BITS(mmc_isr, MMC_RISR, RXWATCHDOGERROR))
 		stats->rxwatchdogerror +=
 			xgbe_mmc_read(pdata, MMC_RXWATCHDOGERROR);
+
+	if (XGMAC_GET_BITS(mmc_isr, MMC_RISR, RXALIGNMENTERROR))
+		stats->rxalignmenterror +=
+			xgbe_mmc_read(pdata, MMC_RXALIGNMENTERROR);
 }
 
 static void xgbe_read_mmc_stats(struct xgbe_prv_data *pdata)
@@ -3128,6 +3133,9 @@ static void xgbe_read_mmc_stats(struct xgbe_prv_data *pdata)
 
 	stats->rxwatchdogerror +=
 		xgbe_mmc_read(pdata, MMC_RXWATCHDOGERROR);
+
+	stats->rxalignmenterror +=
+		xgbe_mmc_read(pdata, MMC_RXALIGNMENTERROR);
 
 	/* Un-freeze counters */
 	XGMAC_IOWRITE_BITS(pdata, MMC_CR, MCF, 0);

@@ -717,11 +717,6 @@ static int prestera_ethtool_set_fecparam(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (port->caps.transceiver == PRESTERA_PORT_TCVR_SFP) {
-		netdev_err(dev, "FEC set is not allowed on non-SFP ports\n");
-		return -EINVAL;
-	}
-
 	fec = PRESTERA_PORT_FEC_MAX;
 	for (mode = 0; mode < PRESTERA_PORT_FEC_MAX; mode++) {
 		if ((port_fec_caps[mode].eth_fec & fecparam->fec) &&

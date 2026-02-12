@@ -108,6 +108,7 @@ struct ksz_irq {
 	int irq_num;
 	char name[16];
 	struct ksz_device *dev;
+	u16 irq0_offset;
 };
 
 struct ksz_ptp_irq {
@@ -270,6 +271,12 @@ enum ksz_regs {
 	REG_SW_PME_CTRL,
 	REG_PORT_PME_STATUS,
 	REG_PORT_PME_CTRL,
+	PTP_CLK_CTRL,
+	PTP_RTC_NANOSEC,
+	PTP_RTC_SEC,
+	PTP_RTC_SUB_NANOSEC,
+	PTP_SUBNANOSEC_RATE,
+	PTP_MSG_CONF1,
 };
 
 enum ksz_masks {

@@ -100,6 +100,20 @@ struct hinic3_sq_wqe_combo {
 	u32                       task_type;
 };
 
+struct hinic3_txq_stats {
+	u64                   packets;
+	u64                   bytes;
+	u64                   busy;
+	u64                   dropped;
+	u64                   skb_pad_err;
+	u64                   frag_len_overflow;
+	u64                   offload_cow_skb_err;
+	u64                   map_frag_err;
+	u64                   unknown_tunnel_pkt;
+	u64                   frag_size_err;
+	struct u64_stats_sync syncp;
+};
+
 struct hinic3_dma_info {
 	dma_addr_t dma;
 	u32        len;
@@ -123,6 +137,8 @@ struct hinic3_txq {
 
 	struct hinic3_tx_info   *tx_info;
 	struct hinic3_io_queue  *sq;
+
+	struct hinic3_txq_stats txq_stats;
 } ____cacheline_aligned;
 
 struct hinic3_dyna_txq_res {

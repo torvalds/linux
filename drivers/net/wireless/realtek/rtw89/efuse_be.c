@@ -512,3 +512,29 @@ out:
 
 	return 0;
 }
+
+int rtw89_efuse_read_ecv_be(struct rtw89_dev *rtwdev)
+{
+	u32 dump_addr;
+	u8 buff[4]; /* efuse access must 4 bytes align */
+	int ret;
+	u8 ecv;
+	u8 val;
+
+	dump_addr = ALIGN_DOWN(EF_FV_OFSET_BE_V1, 4);
+
+	ret = rtw89_dump_physical_efuse_map_be(rtwdev, buff, dump_addr, 4, false);
+	if (ret)
+		return ret;
+
+	val = buff[EF_FV_OFSET_BE_V1 & 0x3];
+
+	ecv = u8_get_bits(val, EF_CV_MASK);
+	if (ecv == EF_CV_INV)
+		return -ENOENT;
+
+	rtwdev->hal.cv = ecv;
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_efuse_read_ecv_be);

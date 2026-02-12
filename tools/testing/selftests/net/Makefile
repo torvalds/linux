@@ -22,6 +22,7 @@ TEST_PROGS := \
 	cmsg_so_mark.sh \
 	cmsg_so_priority.sh \
 	cmsg_time.sh \
+	double_udp_encap.sh \
 	drop_monitor_tests.sh \
 	fcnal-ipv4.sh \
 	fcnal-ipv6.sh \
@@ -167,6 +168,7 @@ TEST_GEN_PROGS := \
 	bind_timewait \
 	bind_wildcard \
 	epoll_busy_poll \
+	icmp_rfc4884 \
 	ipv6_fragmentation \
 	proc_net_pktgen \
 	reuseaddr_conflict \
@@ -181,7 +183,6 @@ TEST_GEN_PROGS := \
 	tap \
 	tcp_port_share \
 	tls \
-	tun \
 # end of TEST_GEN_PROGS
 
 TEST_FILES := \
@@ -193,7 +194,11 @@ TEST_FILES := \
 
 # YNL files, must be before "include ..lib.mk"
 YNL_GEN_FILES := busy_poller
-YNL_GEN_PROGS := netlink-dumps
+YNL_GEN_PROGS := \
+	netlink-dumps \
+	tun \
+# end of YNL_GEN_PROGS
+
 TEST_GEN_FILES += $(YNL_GEN_FILES)
 TEST_GEN_PROGS += $(YNL_GEN_PROGS)
 
@@ -204,7 +209,14 @@ TEST_INCLUDES := forwarding/lib.sh
 include ../lib.mk
 
 # YNL build
-YNL_GENS := netdev
+YNL_GENS := \
+	netdev \
+	rt-addr \
+	rt-link \
+	rt-neigh \
+	rt-route \
+# end of YNL_GENS
+
 include ynl.mk
 
 $(OUTPUT)/epoll_busy_poll: LDLIBS += -lcap

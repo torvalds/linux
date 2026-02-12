@@ -82,9 +82,10 @@ struct page_pool;
 
 #define MLX5E_RX_MAX_HEAD (256)
 #define MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE (8)
-#define MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE (9)
-#define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE (PAGE_SIZE >> MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
-#define MLX5E_SHAMPO_LOG_WQ_HEADER_PER_PAGE (PAGE_SHIFT - MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE)
+#define MLX5E_SHAMPO_WQ_HEADER_PER_PAGE \
+	(PAGE_SIZE >> MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE)
+#define MLX5E_SHAMPO_LOG_WQ_HEADER_PER_PAGE \
+	(PAGE_SHIFT - MLX5E_SHAMPO_LOG_HEADER_ENTRY_SIZE)
 #define MLX5E_SHAMPO_WQ_BASE_HEAD_ENTRY_SIZE_SHIFT (6)
 #define MLX5E_SHAMPO_WQ_RESRV_SIZE_BASE_SHIFT (12)
 #define MLX5E_SHAMPO_WQ_LOG_RESRV_SIZE (16)
@@ -388,6 +389,7 @@ enum {
 	MLX5E_SQ_STATE_DIM,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 	MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
+	MLX5E_SQ_STATE_LOCK_NEEDED,
 	MLX5E_NUM_SQ_STATES, /* Must be kept last */
 };
 
@@ -545,6 +547,11 @@ struct mlx5e_icosq {
 	u32                        sqn;
 	u16                        reserved_room;
 	unsigned long              state;
+	/* icosq can be accessed from any CPU and from different contexts
+	 * (NAPI softirq or process/workqueue). Always use spin_lock_bh for
+	 * simplicity and correctness across all contexts.
+	 */
+	spinlock_t                 lock;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 
 	/* control path */
@@ -632,16 +639,11 @@ struct mlx5e_dma_info {
 };
 
 struct mlx5e_shampo_hd {
-	struct mlx5e_frag_page *pages;
 	u32 hd_per_wq;
-	u32 hd_per_page;
-	u16 hd_per_wqe;
-	u8 log_hd_per_page;
-	u8 log_hd_entry_size;
-	unsigned long *bitmap;
-	u16 pi;
-	u16 ci;
-	__be32 mkey_be;
+	u32 hd_buf_size;
+	u32 mkey;
+	u32 nentries;
+	DECLARE_FLEX_ARRAY(struct mlx5e_dma_info, hd_buf_pages);
 };
 
 struct mlx5e_hw_gro_data {
@@ -776,9 +778,7 @@ struct mlx5e_channel {
 	struct mlx5e_xdpsq         xsksq;
 
 	/* Async ICOSQ */
-	struct mlx5e_icosq         async_icosq;
-	/* async_icosq can be accessed from any CPU - the spinlock protects it. */
-	spinlock_t                 async_icosq_lock;
+	struct mlx5e_icosq        *async_icosq;
 
 	/* data path - accessed per napi poll */
 	const struct cpumask	  *aff_mask;
@@ -800,6 +800,21 @@ struct mlx5e_channel {
 	struct dim_cq_moder        rx_cq_moder;
 	struct dim_cq_moder        tx_cq_moder;
 };
+
+static inline bool mlx5e_icosq_sync_lock(struct mlx5e_icosq *sq)
+{
+	if (likely(!test_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state)))
+		return false;
+
+	spin_lock_bh(&sq->lock);
+	return true;
+}
+
+static inline void mlx5e_icosq_sync_unlock(struct mlx5e_icosq *sq, bool locked)
+{
+	if (unlikely(locked))
+		spin_unlock_bh(&sq->lock);
+}
 
 struct mlx5e_ptp;
 
@@ -920,6 +935,7 @@ struct mlx5e_priv {
 	u8                         max_opened_tc;
 	bool                       tx_ptp_opened;
 	bool                       rx_ptp_opened;
+	bool                       ktls_rx_was_enabled;
 	struct kernel_hwtstamp_config hwtstamp_config;
 	u16                        q_counter[MLX5_SD_MAX_GROUP_SZ];
 	u16                        drop_rq_q_counter;
@@ -1018,8 +1034,6 @@ void mlx5e_build_ptys2ethtool_map(void);
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
 					    enum mlx5e_mpwrq_umr_mode umr_mode);
 
-void mlx5e_shampo_fill_umr(struct mlx5e_rq *rq, int len);
-void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
 void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
 

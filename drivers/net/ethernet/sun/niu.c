@@ -7302,6 +7302,13 @@ static int niu_get_ethtool_tcam_all(struct niu *np,
 	return ret;
 }
 
+static u32 niu_get_rx_ring_count(struct net_device *dev)
+{
+	struct niu *np = netdev_priv(dev);
+
+	return np->num_rx_rings;
+}
+
 static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		       u32 *rule_locs)
 {
@@ -7309,9 +7316,6 @@ static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int ret = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = np->num_rx_rings;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = tcam_get_valid_entry_cnt(np);
 		break;
@@ -7928,6 +7932,7 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.set_phys_id		= niu_set_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
+	.get_rx_ring_count	= niu_get_rx_ring_count,
 	.get_rxfh_fields	= niu_get_rxfh_fields,
 	.set_rxfh_fields	= niu_set_rxfh_fields,
 	.get_link_ksettings	= niu_get_link_ksettings,

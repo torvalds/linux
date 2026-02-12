@@ -9,7 +9,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/crash_dump.h>
-#include <linux/bnxt/hsi.h>
+#include <linux/bnge/hsi.h>
 
 #include "bnge.h"
 #include "bnge_hwrm_lib.h"

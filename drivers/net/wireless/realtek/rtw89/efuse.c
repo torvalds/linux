@@ -7,10 +7,6 @@
 #include "mac.h"
 #include "reg.h"
 
-#define EF_FV_OFSET 0x5ea
-#define EF_CV_MASK GENMASK(7, 4)
-#define EF_CV_INV 15
-
 #define EFUSE_B1_MSSDEVTYPE_MASK GENMASK(3, 0)
 #define EFUSE_B1_MSSCUSTIDX0_MASK GENMASK(7, 4)
 #define EFUSE_B2_MSSKEYNUM_MASK GENMASK(3, 0)

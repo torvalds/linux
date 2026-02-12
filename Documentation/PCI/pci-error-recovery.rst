@@ -460,7 +460,6 @@ That is, the recovery API only requires that:
    - drivers/net/e1000e
    - drivers/net/ixgbe
    - drivers/net/cxgb3
-   - drivers/net/s2io.c
 
    The cor_error_detected() callback is invoked in handle_error_source() when
    the error severity is "correctable". The callback is optional and allows

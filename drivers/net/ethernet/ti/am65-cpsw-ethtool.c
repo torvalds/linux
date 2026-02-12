@@ -391,11 +391,8 @@ static int am65_cpsw_ethtool_op_begin(struct net_device *ndev)
 static void am65_cpsw_ethtool_op_complete(struct net_device *ndev)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
-	int ret;
 
-	ret = pm_runtime_put(common->dev);
-	if (ret < 0 && ret != -EBUSY)
-		dev_err(common->dev, "ethtool complete failed %d\n", ret);
+	pm_runtime_put(common->dev);
 }
 
 static void am65_cpsw_get_drvinfo(struct net_device *ndev,

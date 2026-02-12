@@ -88,4 +88,4 @@ struct dst_metrics *ip_fib_metrics_init(struct nlattr *fc_mx,
 
 	return fib_metrics;
 }
-EXPORT_SYMBOL_GPL(ip_fib_metrics_init);
+EXPORT_IPV6_MOD_GPL(ip_fib_metrics_init);

@@ -41,7 +41,7 @@ struct net_devmem_dmabuf_binding {
 	 * retransmits) hold a reference to the binding until the skb holding
 	 * them is freed.
 	 */
-	refcount_t ref;
+	struct percpu_ref ref;
 
 	/* The list of bindings currently active. Used for netlink to notify us
 	 * of the user dropping the bind.
@@ -125,17 +125,13 @@ static inline unsigned long net_iov_virtual_addr(const struct net_iov *niov)
 static inline bool
 net_devmem_dmabuf_binding_get(struct net_devmem_dmabuf_binding *binding)
 {
-	return refcount_inc_not_zero(&binding->ref);
+	return percpu_ref_tryget(&binding->ref);
 }
 
 static inline void
 net_devmem_dmabuf_binding_put(struct net_devmem_dmabuf_binding *binding)
 {
-	if (!refcount_dec_and_test(&binding->ref))
-		return;
-
-	INIT_WORK(&binding->unbind_w, __net_devmem_dmabuf_binding_free);
-	schedule_work(&binding->unbind_w);
+	percpu_ref_put(&binding->ref);
 }
 
 void net_devmem_get_net_iov(struct net_iov *niov);
@@ -145,7 +141,7 @@ struct net_iov *
 net_devmem_alloc_dmabuf(struct net_devmem_dmabuf_binding *binding);
 void net_devmem_free_dmabuf(struct net_iov *ppiov);
 
-bool net_is_devmem_iov(struct net_iov *niov);
+
 struct net_devmem_dmabuf_binding *
 net_devmem_get_binding(struct sock *sk, unsigned int dmabuf_id);
 struct net_iov *
@@ -216,11 +212,6 @@ static inline unsigned long net_iov_virtual_addr(const struct net_iov *niov)
 static inline u32 net_devmem_iov_binding_id(const struct net_iov *niov)
 {
 	return 0;
-}
-
-static inline bool net_is_devmem_iov(struct net_iov *niov)
-{
-	return false;
 }
 
 static inline struct net_devmem_dmabuf_binding *

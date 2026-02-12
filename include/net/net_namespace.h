@@ -37,6 +37,7 @@
 #include <net/netns/smc.h>
 #include <net/netns/bpf.h>
 #include <net/netns/mctp.h>
+#include <net/netns/vsock.h>
 #include <net/net_trackers.h>
 #include <linux/ns_common.h>
 #include <linux/idr.h>
@@ -120,6 +121,7 @@ struct net {
 	 * it is critical that it is on a read_mostly cache line.
 	 */
 	u32			hash_mix;
+	bool			is_dying;
 
 	struct net_device       *loopback_dev;          /* The loopback */
 
@@ -195,6 +197,9 @@ struct net {
 #ifdef CONFIG_DEBUG_NET_SMALL_RTNL
 	/* Move to a better place when the config guard is removed. */
 	struct mutex		rtnl_mutex;
+#endif
+#if IS_ENABLED(CONFIG_VSOCKETS)
+	struct netns_vsock	vsock;
 #endif
 } __randomize_layout;
 

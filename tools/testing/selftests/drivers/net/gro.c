@@ -3,26 +3,45 @@
  * This testsuite provides conformance testing for GRO coalescing.
  *
  * Test cases:
- * 1.data
+ *
+ * data_*:
  *  Data packets of the same size and same header setup with correct
  *  sequence numbers coalesce. The one exception being the last data
  *  packet coalesced: it can be smaller than the rest and coalesced
  *  as long as it is in the same flow.
- * 2.ack
+ *   - data_same:    same size packets coalesce
+ *   - data_lrg_sml: large then small coalesces
+ *   - data_sml_lrg: small then large doesn't coalesce
+ *
+ * ack:
  *  Pure ACK does not coalesce.
- * 3.flags
- *  Specific test cases: no packets with PSH, SYN, URG, RST set will
- *  be coalesced.
- * 4.tcp
+ *
+ * flags_*:
+ *  No packets with PSH, SYN, URG, RST, CWR set will be coalesced.
+ *   - flags_psh, flags_syn, flags_rst, flags_urg, flags_cwr
+ *
+ * tcp_*:
  *  Packets with incorrect checksum, non-consecutive seqno and
  *  different TCP header options shouldn't coalesce. Nit: given that
  *  some extension headers have paddings, such as timestamp, headers
- *  that are padding differently would not be coalesced.
- * 5.ip:
- *  Packets with different (ECN, TTL, TOS) header, ip options or
- *  ip fragments (ipv6) shouldn't coalesce.
- * 6.large:
+ *  that are padded differently would not be coalesced.
+ *   - tcp_csum: incorrect checksum
+ *   - tcp_seq:  non-consecutive sequence numbers
+ *   - tcp_ts:   different timestamps
+ *   - tcp_opt:  different TCP options
+ *
+ * ip_*:
+ *  Packets with different (ECN, TTL, TOS) header, IP options or
+ *  IP fragments shouldn't coalesce.
+ *   - ip_ecn, ip_tos:            shared between IPv4/IPv6
+ *   - ip_ttl, ip_opt, ip_frag4:  IPv4 only
+ *   - ip_id_df*:                 IPv4 IP ID field coalescing tests
+ *   - ip_frag6, ip_v6ext_*:      IPv6 only
+ *
+ * large_*:
  *  Packets larger than GRO_MAX_SIZE packets shouldn't coalesce.
+ *   - large_max: exceeding max size
+ *   - large_rem: remainder handling
  *
  * MSS is defined as 4096 - header because if it is too small
  * (i.e. 1500 MTU - header), it will result in many packets,
@@ -79,6 +98,15 @@
 #define ipv6_optlen(p)  (((p)->hdrlen+1) << 3) /* calculate IPv6 extension header len */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
+enum flush_id_case {
+	FLUSH_ID_DF1_INC,
+	FLUSH_ID_DF1_FIXED,
+	FLUSH_ID_DF0_INC,
+	FLUSH_ID_DF0_FIXED,
+	FLUSH_ID_DF1_INC_FIXED,
+	FLUSH_ID_DF1_FIXED_INC,
+};
+
 static const char *addr6_src = "fdaa::2";
 static const char *addr6_dst = "fdaa::1";
 static const char *addr4_src = "192.168.1.200";
@@ -95,7 +123,6 @@ static int tcp_offset = -1;
 static int total_hdr_len = -1;
 static int ethhdr_proto = -1;
 static bool ipip;
-static const int num_flush_id_cases = 6;
 
 static void vlog(const char *fmt, ...)
 {
@@ -127,19 +154,19 @@ static void setup_sock_filter(int fd)
 	/* Overridden later if exthdrs are used: */
 	opt_ipproto_off = ipproto_off;
 
-	if (strcmp(testname, "ip") == 0) {
-		if (proto == PF_INET)
-			optlen = sizeof(struct ip_timestamp);
-		else {
-			BUILD_BUG_ON(sizeof(struct ip6_hbh) > MIN_EXTHDR_SIZE);
-			BUILD_BUG_ON(sizeof(struct ip6_dest) > MIN_EXTHDR_SIZE);
-			BUILD_BUG_ON(sizeof(struct ip6_frag) > MIN_EXTHDR_SIZE);
+	if (strcmp(testname, "ip_opt") == 0) {
+		optlen = sizeof(struct ip_timestamp);
+	} else if (strcmp(testname, "ip_frag6") == 0 ||
+		   strcmp(testname, "ip_v6ext_same") == 0 ||
+		   strcmp(testname, "ip_v6ext_diff") == 0) {
+		BUILD_BUG_ON(sizeof(struct ip6_hbh) > MIN_EXTHDR_SIZE);
+		BUILD_BUG_ON(sizeof(struct ip6_dest) > MIN_EXTHDR_SIZE);
+		BUILD_BUG_ON(sizeof(struct ip6_frag) > MIN_EXTHDR_SIZE);
 
-			/* same size for HBH and Fragment extension header types */
-			optlen = MIN_EXTHDR_SIZE;
-			opt_ipproto_off = ETH_HLEN + sizeof(struct ipv6hdr)
-				+ offsetof(struct ip6_ext, ip6e_nxt);
-		}
+		/* same size for HBH and Fragment extension header types */
+		optlen = MIN_EXTHDR_SIZE;
+		opt_ipproto_off = ETH_HLEN + sizeof(struct ipv6hdr)
+			+ offsetof(struct ip6_ext, ip6e_nxt);
 	}
 
 	/* this filter validates the following:
@@ -333,32 +360,58 @@ static void create_packet(void *buf, int seq_offset, int ack_offset,
 	fill_datalinklayer(buf);
 }
 
-/* send one extra flag, not first and not last pkt */
-static void send_flags(int fd, struct sockaddr_ll *daddr, int psh, int syn,
-		       int rst, int urg)
+#ifndef TH_CWR
+#define TH_CWR 0x80
+#endif
+static void set_flags(struct tcphdr *tcph, int payload_len, int psh, int syn,
+		      int rst, int urg, int cwr)
 {
-	static char flag_buf[MAX_HDR_LEN + PAYLOAD_LEN];
-	static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
-	int payload_len, pkt_size, flag, i;
-	struct tcphdr *tcph;
-
-	payload_len = PAYLOAD_LEN * psh;
-	pkt_size = total_hdr_len + payload_len;
-	flag = NUM_PACKETS / 2;
-
-	create_packet(flag_buf, flag * payload_len, 0, payload_len, 0);
-
-	tcph = (struct tcphdr *)(flag_buf + tcp_offset);
 	tcph->psh = psh;
 	tcph->syn = syn;
 	tcph->rst = rst;
 	tcph->urg = urg;
+	if (cwr)
+		tcph->th_flags |= TH_CWR;
+	else
+		tcph->th_flags &= ~TH_CWR;
 	tcph->check = 0;
 	tcph->check = tcp_checksum(tcph, payload_len);
+}
+
+/* send extra flags of the (NUM_PACKETS / 2) and (NUM_PACKETS / 2 - 1)
+ * pkts, not first and not last pkt
+ */
+static void send_flags(int fd, struct sockaddr_ll *daddr, int psh, int syn,
+		       int rst, int urg, int cwr)
+{
+	static char flag_buf[2][MAX_HDR_LEN + PAYLOAD_LEN];
+	static char buf[MAX_HDR_LEN + PAYLOAD_LEN];
+	int payload_len, pkt_size, i;
+	struct tcphdr *tcph;
+	int flag[2];
+
+	payload_len = PAYLOAD_LEN * (psh || cwr);
+	pkt_size = total_hdr_len + payload_len;
+	flag[0] = NUM_PACKETS / 2;
+	flag[1] = NUM_PACKETS / 2 - 1;
+
+	/* Create and configure packets with flags
+	 */
+	for (i = 0; i < 2; i++) {
+		if (flag[i] > 0) {
+			create_packet(flag_buf[i], flag[i] * payload_len, 0,
+				      payload_len, 0);
+			tcph = (struct tcphdr *)(flag_buf[i] + tcp_offset);
+			set_flags(tcph, payload_len, psh, syn, rst, urg, cwr);
+		}
+	}
 
 	for (i = 0; i < NUM_PACKETS + 1; i++) {
-		if (i == flag) {
-			write_packet(fd, flag_buf, pkt_size, daddr);
+		if (i == flag[0]) {
+			write_packet(fd, flag_buf[0], pkt_size, daddr);
+			continue;
+		} else if (i == flag[1] && cwr) {
+			write_packet(fd, flag_buf[1], pkt_size, daddr);
 			continue;
 		}
 		create_packet(buf, i * PAYLOAD_LEN, 0, PAYLOAD_LEN, 0);
@@ -648,7 +701,8 @@ static void fix_ip4_checksum(struct iphdr *iph)
 	iph->check = checksum_fold(iph, sizeof(struct iphdr), 0);
 }
 
-static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
+static void send_flush_id_case(int fd, struct sockaddr_ll *daddr,
+			       enum flush_id_case tcase)
 {
 	static char buf1[MAX_HDR_LEN + PAYLOAD_LEN];
 	static char buf2[MAX_HDR_LEN + PAYLOAD_LEN];
@@ -667,7 +721,7 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 	create_packet(buf3, PAYLOAD_LEN * 2, 0, PAYLOAD_LEN, 0);
 
 	switch (tcase) {
-	case 0: /* DF=1, Incrementing - should coalesce */
+	case FLUSH_ID_DF1_INC: /* DF=1, Incrementing - should coalesce */
 		iph1->frag_off |= htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -675,7 +729,7 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 		iph2->id = htons(9);
 		break;
 
-	case 1: /* DF=1, Fixed - should coalesce */
+	case FLUSH_ID_DF1_FIXED: /* DF=1, Fixed - should coalesce */
 		iph1->frag_off |= htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -683,7 +737,7 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 		iph2->id = htons(8);
 		break;
 
-	case 2: /* DF=0, Incrementing - should coalesce */
+	case FLUSH_ID_DF0_INC: /* DF=0, Incrementing - should coalesce */
 		iph1->frag_off &= ~htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -691,7 +745,7 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 		iph2->id = htons(9);
 		break;
 
-	case 3: /* DF=0, Fixed - should coalesce */
+	case FLUSH_ID_DF0_FIXED: /* DF=0, Fixed - should coalesce */
 		iph1->frag_off &= ~htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -699,9 +753,10 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 		iph2->id = htons(8);
 		break;
 
-	case 4: /* DF=1, two packets incrementing, and one fixed - should
-		 * coalesce only the first two packets
-		 */
+	case FLUSH_ID_DF1_INC_FIXED: /* DF=1, two packets incrementing, and
+				      * one fixed - should coalesce only the
+				      * first two packets
+				      */
 		iph1->frag_off |= htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -713,9 +768,10 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 		send_three = true;
 		break;
 
-	case 5: /* DF=1, two packets fixed, and one incrementing - should
-		 * coalesce only the first two packets
-		 */
+	case FLUSH_ID_DF1_FIXED_INC: /* DF=1, two packets fixed, and one
+				      * incrementing - should coalesce only
+				      * the first two packets
+				      */
 		iph1->frag_off |= htons(IP_DF);
 		iph1->id = htons(8);
 
@@ -736,16 +792,6 @@ static void send_flush_id_case(int fd, struct sockaddr_ll *daddr, int tcase)
 	if (send_three) {
 		fix_ip4_checksum(iph3);
 		write_packet(fd, buf3, total_hdr_len + PAYLOAD_LEN, daddr);
-	}
-}
-
-static void test_flush_id(int fd, struct sockaddr_ll *daddr, char *fin_pkt)
-{
-	for (int i = 0; i < num_flush_id_cases; i++) {
-		sleep(1);
-		send_flush_id_case(fd, daddr, i);
-		sleep(1);
-		write_packet(fd, fin_pkt, total_hdr_len, daddr);
 	}
 }
 
@@ -926,6 +972,28 @@ static void set_timeout(int fd)
 		error(1, errno, "cannot set timeout, setsockopt failed");
 }
 
+static void set_rcvbuf(int fd)
+{
+	int bufsize = 1 * 1024 * 1024; /* 1 MB */
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)))
+		error(1, errno, "cannot set rcvbuf size, setsockopt failed");
+}
+
+static void recv_error(int fd, int rcv_errno)
+{
+	struct tpacket_stats stats;
+	socklen_t len;
+
+	len = sizeof(stats);
+	if (getsockopt(fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
+		error(1, errno, "can't get stats");
+
+	fprintf(stderr, "Socket stats: packets=%u, drops=%u\n",
+		stats.tp_packets, stats.tp_drops);
+	error(1, rcv_errno, "could not receive");
+}
+
 static void check_recv_pkts(int fd, int *correct_payload,
 			    int correct_num_pkts)
 {
@@ -950,7 +1018,7 @@ static void check_recv_pkts(int fd, int *correct_payload,
 		ip_ext_len = 0;
 		pkt_size = recv(fd, buffer, IP_MAXPACKET + ETH_HLEN + 1, 0);
 		if (pkt_size < 0)
-			error(1, errno, "could not receive");
+			recv_error(fd, errno);
 
 		if (iph->version == 4)
 			ip_ext_len = (iph->ihl - 5) * 4;
@@ -1008,108 +1076,131 @@ static void gro_sender(void)
 	daddr.sll_halen = ETH_ALEN;
 	create_packet(fin_pkt, PAYLOAD_LEN * 2, 0, 0, 1);
 
-	if (strcmp(testname, "data") == 0) {
+	/* data sub-tests */
+	if (strcmp(testname, "data_same") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN, PAYLOAD_LEN);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "data_lrg_sml") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN, PAYLOAD_LEN / 2);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "data_sml_lrg") == 0) {
 		send_data_pkts(txfd, &daddr, PAYLOAD_LEN / 2, PAYLOAD_LEN);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+
+	/* ack test */
 	} else if (strcmp(testname, "ack") == 0) {
 		send_ack(txfd, &daddr);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-	} else if (strcmp(testname, "flags") == 0) {
-		send_flags(txfd, &daddr, 1, 0, 0, 0);
+
+	/* flags sub-tests */
+	} else if (strcmp(testname, "flags_psh") == 0) {
+		send_flags(txfd, &daddr, 1, 0, 0, 0, 0);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "flags_syn") == 0) {
+		send_flags(txfd, &daddr, 0, 1, 0, 0, 0);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "flags_rst") == 0) {
+		send_flags(txfd, &daddr, 0, 0, 1, 0, 0);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "flags_urg") == 0) {
+		send_flags(txfd, &daddr, 0, 0, 0, 1, 0);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "flags_cwr") == 0) {
+		send_flags(txfd, &daddr, 0, 0, 0, 0, 1);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
-		send_flags(txfd, &daddr, 0, 1, 0, 0);
-		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
-		send_flags(txfd, &daddr, 0, 0, 1, 0);
-		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
-		send_flags(txfd, &daddr, 0, 0, 0, 1);
-		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-	} else if (strcmp(testname, "tcp") == 0) {
+	/* tcp sub-tests */
+	} else if (strcmp(testname, "tcp_csum") == 0) {
 		send_changed_checksum(txfd, &daddr);
-		/* Adding sleep before sending FIN so that it is not
-		 * received prior to other packets.
-		 */
 		usleep(fin_delay_us);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "tcp_seq") == 0) {
 		send_changed_seq(txfd, &daddr);
 		usleep(fin_delay_us);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "tcp_ts") == 0) {
 		send_changed_ts(txfd, &daddr);
 		usleep(fin_delay_us);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "tcp_opt") == 0) {
 		send_diff_opt(txfd, &daddr);
 		usleep(fin_delay_us);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-	} else if (strcmp(testname, "ip") == 0) {
+
+	/* ip sub-tests - shared between IPv4 and IPv6 */
+	} else if (strcmp(testname, "ip_ecn") == 0) {
 		send_changed_ECN(txfd, &daddr);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
+	} else if (strcmp(testname, "ip_tos") == 0) {
 		send_changed_tos(txfd, &daddr);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-		if (proto == PF_INET) {
-			/* Modified packets may be received out of order.
-			 * Sleep function added to enforce test boundaries
-			 * so that fin pkts are not received prior to other pkts.
-			 */
-			sleep(1);
-			send_changed_ttl(txfd, &daddr);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
-			sleep(1);
-			send_ip_options(txfd, &daddr);
-			sleep(1);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	/* ip sub-tests - IPv4 only */
+	} else if (strcmp(testname, "ip_ttl") == 0) {
+		send_changed_ttl(txfd, &daddr);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_opt") == 0) {
+		send_ip_options(txfd, &daddr);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_frag4") == 0) {
+		send_fragment4(txfd, &daddr);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df1_inc") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF1_INC);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df1_fixed") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF1_FIXED);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df0_inc") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF0_INC);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df0_fixed") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF0_FIXED);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df1_inc_fixed") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF1_INC_FIXED);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_id_df1_fixed_inc") == 0) {
+		send_flush_id_case(txfd, &daddr, FLUSH_ID_DF1_FIXED_INC);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
-			sleep(1);
-			send_fragment4(txfd, &daddr);
-			sleep(1);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	/* ip sub-tests - IPv6 only */
+	} else if (strcmp(testname, "ip_frag6") == 0) {
+		send_fragment6(txfd, &daddr);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_v6ext_same") == 0) {
+		send_ipv6_exthdr(txfd, &daddr, EXT_PAYLOAD_1, EXT_PAYLOAD_1);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "ip_v6ext_diff") == 0) {
+		send_ipv6_exthdr(txfd, &daddr, EXT_PAYLOAD_1, EXT_PAYLOAD_2);
+		usleep(fin_delay_us);
+		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 
-			test_flush_id(txfd, &daddr, fin_pkt);
-		} else if (proto == PF_INET6) {
-			sleep(1);
-			send_fragment6(txfd, &daddr);
-			sleep(1);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
-			sleep(1);
-			/* send IPv6 packets with ext header with same payload */
-			send_ipv6_exthdr(txfd, &daddr, EXT_PAYLOAD_1, EXT_PAYLOAD_1);
-			sleep(1);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-
-			sleep(1);
-			/* send IPv6 packets with ext header with different payload */
-			send_ipv6_exthdr(txfd, &daddr, EXT_PAYLOAD_1, EXT_PAYLOAD_2);
-			sleep(1);
-			write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
-		}
-	} else if (strcmp(testname, "large") == 0) {
-		/* 20 is the difference between min iphdr size
-		 * and min ipv6hdr size. Like MAX_HDR_SIZE,
-		 * MAX_PAYLOAD is defined with the larger header of the two.
-		 */
+	/* large sub-tests */
+	} else if (strcmp(testname, "large_max") == 0) {
 		int offset = (proto == PF_INET && !ipip) ? 20 : 0;
 		int remainder = (MAX_PAYLOAD + offset) % MSS;
 
 		send_large(txfd, &daddr, remainder);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
+	} else if (strcmp(testname, "large_rem") == 0) {
+		int offset = (proto == PF_INET && !ipip) ? 20 : 0;
+		int remainder = (MAX_PAYLOAD + offset) % MSS;
 
 		send_large(txfd, &daddr, remainder + 1);
 		write_packet(txfd, fin_pkt, total_hdr_len, &daddr);
 	} else {
-		error(1, 0, "Unknown testcase");
+		error(1, 0, "Unknown testcase: %s", testname);
 	}
 
 	if (close(txfd))
@@ -1126,132 +1217,166 @@ static void gro_receiver(void)
 		error(1, 0, "socket creation");
 	setup_sock_filter(rxfd);
 	set_timeout(rxfd);
+	set_rcvbuf(rxfd);
 	bind_packetsocket(rxfd);
 
 	ksft_ready();
 
 	memset(correct_payload, 0, sizeof(correct_payload));
 
-	if (strcmp(testname, "data") == 0) {
+	/* data sub-tests */
+	if (strcmp(testname, "data_same") == 0) {
 		printf("pure data packet of same size: ");
 		correct_payload[0] = PAYLOAD_LEN * 2;
 		check_recv_pkts(rxfd, correct_payload, 1);
-
+	} else if (strcmp(testname, "data_lrg_sml") == 0) {
 		printf("large data packets followed by a smaller one: ");
 		correct_payload[0] = PAYLOAD_LEN * 1.5;
 		check_recv_pkts(rxfd, correct_payload, 1);
-
+	} else if (strcmp(testname, "data_sml_lrg") == 0) {
 		printf("small data packets followed by a larger one: ");
 		correct_payload[0] = PAYLOAD_LEN / 2;
 		correct_payload[1] = PAYLOAD_LEN;
 		check_recv_pkts(rxfd, correct_payload, 2);
+
+	/* ack test */
 	} else if (strcmp(testname, "ack") == 0) {
 		printf("duplicate ack and pure ack: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
-	} else if (strcmp(testname, "flags") == 0) {
+
+	/* flags sub-tests */
+	} else if (strcmp(testname, "flags_psh") == 0) {
 		correct_payload[0] = PAYLOAD_LEN * 3;
 		correct_payload[1] = PAYLOAD_LEN * 2;
-
 		printf("psh flag ends coalescing: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
-
+	} else if (strcmp(testname, "flags_syn") == 0) {
 		correct_payload[0] = PAYLOAD_LEN * 2;
 		correct_payload[1] = 0;
 		correct_payload[2] = PAYLOAD_LEN * 2;
 		printf("syn flag ends coalescing: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
-
+	} else if (strcmp(testname, "flags_rst") == 0) {
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = 0;
+		correct_payload[2] = PAYLOAD_LEN * 2;
 		printf("rst flag ends coalescing: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
-
+	} else if (strcmp(testname, "flags_urg") == 0) {
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = 0;
+		correct_payload[2] = PAYLOAD_LEN * 2;
 		printf("urg flag ends coalescing: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
-	} else if (strcmp(testname, "tcp") == 0) {
+	} else if (strcmp(testname, "flags_cwr") == 0) {
 		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN * 2;
+		correct_payload[2] = PAYLOAD_LEN * 2;
+		printf("cwr flag ends coalescing: ");
+		check_recv_pkts(rxfd, correct_payload, 3);
+
+	/* tcp sub-tests */
+	} else if (strcmp(testname, "tcp_csum") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		printf("changed checksum does not coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "tcp_seq") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		printf("Wrong Seq number doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "tcp_ts") == 0) {
+		correct_payload[0] = PAYLOAD_LEN * 2;
 		correct_payload[1] = PAYLOAD_LEN;
 		correct_payload[2] = PAYLOAD_LEN;
 		correct_payload[3] = PAYLOAD_LEN;
-
-		printf("changed checksum does not coalesce: ");
-		check_recv_pkts(rxfd, correct_payload, 2);
-
-		printf("Wrong Seq number doesn't coalesce: ");
-		check_recv_pkts(rxfd, correct_payload, 2);
-
 		printf("Different timestamp doesn't coalesce: ");
-		correct_payload[0] = PAYLOAD_LEN * 2;
 		check_recv_pkts(rxfd, correct_payload, 4);
-
-		printf("Different options doesn't coalesce: ");
+	} else if (strcmp(testname, "tcp_opt") == 0) {
 		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = PAYLOAD_LEN;
+		printf("Different options doesn't coalesce: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
-	} else if (strcmp(testname, "ip") == 0) {
+
+	/* ip sub-tests - shared between IPv4 and IPv6 */
+	} else if (strcmp(testname, "ip_ecn") == 0) {
 		correct_payload[0] = PAYLOAD_LEN;
 		correct_payload[1] = PAYLOAD_LEN;
-
 		printf("different ECN doesn't coalesce: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
-
+	} else if (strcmp(testname, "ip_tos") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
 		printf("different tos doesn't coalesce: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
 
-		if (proto == PF_INET) {
-			printf("different ttl doesn't coalesce: ");
-			check_recv_pkts(rxfd, correct_payload, 2);
+	/* ip sub-tests - IPv4 only */
+	} else if (strcmp(testname, "ip_ttl") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		printf("different ttl doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "ip_opt") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		correct_payload[2] = PAYLOAD_LEN;
+		printf("ip options doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 3);
+	} else if (strcmp(testname, "ip_frag4") == 0) {
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		printf("fragmented ip4 doesn't coalesce: ");
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "ip_id_df1_inc") == 0) {
+		printf("DF=1, Incrementing - should coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "ip_id_df1_fixed") == 0) {
+		printf("DF=1, Fixed - should coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "ip_id_df0_inc") == 0) {
+		printf("DF=0, Incrementing - should coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "ip_id_df0_fixed") == 0) {
+		printf("DF=0, Fixed - should coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "ip_id_df1_inc_fixed") == 0) {
+		printf("DF=1, 2 Incrementing and one fixed - should coalesce only first 2 packets: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = PAYLOAD_LEN;
+		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "ip_id_df1_fixed_inc") == 0) {
+		printf("DF=1, 2 Fixed and one incrementing - should coalesce only first 2 packets: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = PAYLOAD_LEN;
+		check_recv_pkts(rxfd, correct_payload, 2);
 
-			printf("ip options doesn't coalesce: ");
-			correct_payload[2] = PAYLOAD_LEN;
-			check_recv_pkts(rxfd, correct_payload, 3);
+	/* ip sub-tests - IPv6 only */
+	} else if (strcmp(testname, "ip_frag6") == 0) {
+		/* GRO doesn't check for ipv6 hop limit when flushing.
+		 * Hence no corresponding test to the ipv4 case.
+		 */
+		printf("fragmented ip6 doesn't coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		correct_payload[1] = PAYLOAD_LEN;
+		correct_payload[2] = PAYLOAD_LEN;
+		check_recv_pkts(rxfd, correct_payload, 3);
+	} else if (strcmp(testname, "ip_v6ext_same") == 0) {
+		printf("ipv6 with ext header does coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN * 2;
+		check_recv_pkts(rxfd, correct_payload, 1);
+	} else if (strcmp(testname, "ip_v6ext_diff") == 0) {
+		printf("ipv6 with ext header with different payloads doesn't coalesce: ");
+		correct_payload[0] = PAYLOAD_LEN;
+		correct_payload[1] = PAYLOAD_LEN;
+		check_recv_pkts(rxfd, correct_payload, 2);
 
-			printf("fragmented ip4 doesn't coalesce: ");
-			check_recv_pkts(rxfd, correct_payload, 2);
-
-			/* is_atomic checks */
-			printf("DF=1, Incrementing - should coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			check_recv_pkts(rxfd, correct_payload, 1);
-
-			printf("DF=1, Fixed - should coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			check_recv_pkts(rxfd, correct_payload, 1);
-
-			printf("DF=0, Incrementing - should coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			check_recv_pkts(rxfd, correct_payload, 1);
-
-			printf("DF=0, Fixed - should coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			check_recv_pkts(rxfd, correct_payload, 1);
-
-			printf("DF=1, 2 Incrementing and one fixed - should coalesce only first 2 packets: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			correct_payload[1] = PAYLOAD_LEN;
-			check_recv_pkts(rxfd, correct_payload, 2);
-
-			printf("DF=1, 2 Fixed and one incrementing - should coalesce only first 2 packets: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			correct_payload[1] = PAYLOAD_LEN;
-			check_recv_pkts(rxfd, correct_payload, 2);
-		} else if (proto == PF_INET6) {
-			/* GRO doesn't check for ipv6 hop limit when flushing.
-			 * Hence no corresponding test to the ipv4 case.
-			 */
-			printf("fragmented ip6 doesn't coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			correct_payload[1] = PAYLOAD_LEN;
-			correct_payload[2] = PAYLOAD_LEN;
-			check_recv_pkts(rxfd, correct_payload, 3);
-
-			printf("ipv6 with ext header does coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN * 2;
-			check_recv_pkts(rxfd, correct_payload, 1);
-
-			printf("ipv6 with ext header with different payloads doesn't coalesce: ");
-			correct_payload[0] = PAYLOAD_LEN;
-			correct_payload[1] = PAYLOAD_LEN;
-			check_recv_pkts(rxfd, correct_payload, 2);
-		}
-	} else if (strcmp(testname, "large") == 0) {
+	/* large sub-tests */
+	} else if (strcmp(testname, "large_max") == 0) {
 		int offset = (proto == PF_INET && !ipip) ? 20 : 0;
 		int remainder = (MAX_PAYLOAD + offset) % MSS;
 
@@ -1259,14 +1384,18 @@ static void gro_receiver(void)
 		correct_payload[1] = remainder;
 		printf("Shouldn't coalesce if exceed IP max pkt size: ");
 		check_recv_pkts(rxfd, correct_payload, 2);
+	} else if (strcmp(testname, "large_rem") == 0) {
+		int offset = (proto == PF_INET && !ipip) ? 20 : 0;
+		int remainder = (MAX_PAYLOAD + offset) % MSS;
 
 		/* last segment sent individually, doesn't start new segment */
-		correct_payload[0] = correct_payload[0] - remainder;
+		correct_payload[0] = (MAX_PAYLOAD + offset) - remainder;
 		correct_payload[1] = remainder + 1;
 		correct_payload[2] = remainder + 1;
+		printf("last segment sent individually: ");
 		check_recv_pkts(rxfd, correct_payload, 3);
 	} else {
-		error(1, 0, "Test case error, should never trigger");
+		error(1, 0, "Test case error: unknown testname %s", testname);
 	}
 
 	if (close(rxfd))

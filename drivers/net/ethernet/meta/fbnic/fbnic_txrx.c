@@ -39,7 +39,7 @@ struct fbnic_xmit_cb {
 
 #define FBNIC_XMIT_NOUNMAP	((void *)1)
 
-static u32 __iomem *fbnic_ring_csr_base(const struct fbnic_ring *ring)
+u32 __iomem *fbnic_ring_csr_base(const struct fbnic_ring *ring)
 {
 	unsigned long csr_base = (unsigned long)ring->doorbell;
 
@@ -2255,6 +2255,22 @@ fbnic_nv_disable(struct fbnic_net *fbn, struct fbnic_napi_vector *nv)
 	fbnic_wrfl(fbn->fbd);
 }
 
+void fbnic_dbg_down(struct fbnic_net *fbn)
+{
+	int i;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_dbg_nv_exit(fbn->napi[i]);
+}
+
+void fbnic_dbg_up(struct fbnic_net *fbn)
+{
+	int i;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_dbg_nv_init(fbn->napi[i]);
+}
+
 void fbnic_disable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
@@ -2809,7 +2825,9 @@ void fbnic_napi_depletion_check(struct net_device *netdev)
 	fbnic_wrfl(fbd);
 }
 
-static int fbnic_queue_mem_alloc(struct net_device *dev, void *qmem, int idx)
+static int fbnic_queue_mem_alloc(struct net_device *dev,
+				 struct netdev_queue_config *qcfg,
+				 void *qmem, int idx)
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
 	const struct fbnic_q_triad *real;
@@ -2859,9 +2877,12 @@ static void __fbnic_nv_restart(struct fbnic_net *fbn,
 
 	for (i = 0; i < nv->txt_count; i++)
 		netif_wake_subqueue(fbn->netdev, nv->qt[i].sub0.q_idx);
+	fbnic_dbg_nv_init(nv);
 }
 
-static int fbnic_queue_start(struct net_device *dev, void *qmem, int idx)
+static int fbnic_queue_start(struct net_device *dev,
+			     struct netdev_queue_config *qcfg,
+			     void *qmem, int idx)
 {
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_napi_vector *nv;
@@ -2891,6 +2912,7 @@ static int fbnic_queue_stop(struct net_device *dev, void *qmem, int idx)
 
 	real = container_of(fbn->rx[idx], struct fbnic_q_triad, cmpl);
 	nv = fbn->napi[idx % fbn->num_napi];
+	fbnic_dbg_nv_exit(nv);
 
 	napi_disable_locked(&nv->napi);
 	fbnic_nv_irq_disable(nv);
