@@ -33,6 +33,8 @@ static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 			if (dev->var.fem == MT7996_FEM_INT)
 				return MT7992_EEPROM_DEFAULT_23_INT;
 			return MT7992_EEPROM_DEFAULT_23;
+		case MT7992_VAR_TYPE_24:
+			return MT7992_EEPROM_DEFAULT_24;
 		case MT7992_VAR_TYPE_44:
 		default:
 			if (dev->var.fem == MT7996_FEM_INT)
@@ -392,7 +394,8 @@ bool mt7996_eeprom_has_background_radar(struct mt7996_dev *dev)
 			return false;
 		break;
 	case MT7992_DEVICE_ID:
-		if (dev->var.type == MT7992_VAR_TYPE_23)
+		if (dev->var.type == MT7992_VAR_TYPE_23 ||
+		    dev->var.type == MT7992_VAR_TYPE_24)
 			return false;
 		break;
 	case MT7990_DEVICE_ID: {

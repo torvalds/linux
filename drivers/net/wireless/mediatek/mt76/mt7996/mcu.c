@@ -18,6 +18,9 @@
 		case MT7992_VAR_TYPE_23:			\
 			_fw = MT7992_##name##_23;		\
 			break;					\
+		case MT7992_VAR_TYPE_24:			\
+			_fw = MT7992_##name##_24;		\
+			break;					\
 		default:					\
 			_fw = MT7992_##name;			\
 		}						\
