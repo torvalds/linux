@@ -231,6 +231,8 @@ static int ext4_end_enable_verity(struct file *filp, const void *desc,
 		goto cleanup;
 	}
 
+	ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_VERITY, handle);
+
 	err = ext4_orphan_del(handle, inode);
 	if (err)
 		goto stop_and_cleanup;

@@ -16,6 +16,7 @@
 #include "ext4.h"
 
 #include <trace/events/ext4.h>
+#include <kunit/static_stub.h>
 
 /*
  * According to previous discussion in Ext4 Developer Workshop, we
@@ -178,7 +179,8 @@ static struct kmem_cache *ext4_pending_cachep;
 static int __es_insert_extent(struct inode *inode, struct extent_status *newes,
 			      struct extent_status *prealloc);
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
-			      ext4_lblk_t end, int *reserved,
+			      ext4_lblk_t end, unsigned int status,
+			      int *reserved, struct extent_status *res,
 			      struct extent_status *prealloc);
 static int es_reclaim_extents(struct ext4_inode_info *ei, int *nr_to_scan);
 static int __es_shrink(struct ext4_sb_info *sbi, int nr_to_scan,
@@ -240,6 +242,21 @@ static inline void ext4_es_inc_seq(struct inode *inode)
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
 	WRITE_ONCE(ei->i_es_seq, ei->i_es_seq + 1);
+}
+
+static inline int __es_check_extent_status(struct extent_status *es,
+					   unsigned int status,
+					   struct extent_status *res)
+{
+	if (ext4_es_type(es) & status)
+		return 0;
+
+	if (res) {
+		res->es_lblk = es->es_lblk;
+		res->es_len = es->es_len;
+		res->es_pblk = es->es_pblk;
+	}
+	return -EINVAL;
 }
 
 /*
@@ -882,7 +899,8 @@ out:
 
 /*
  * ext4_es_insert_extent() adds information to an inode's extent
- * status tree.
+ * status tree. This interface is used for modifying extents. To cache
+ * on-disk extents, use ext4_es_cache_extent() instead.
  */
 void ext4_es_insert_extent(struct inode *inode, ext4_lblk_t lblk,
 			   ext4_lblk_t len, ext4_fsblk_t pblk,
@@ -929,7 +947,7 @@ retry:
 		pr = __alloc_pending(true);
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
-	err1 = __es_remove_extent(inode, lblk, end, &resv_used, es1);
+	err1 = __es_remove_extent(inode, lblk, end, 0, &resv_used, NULL, es1);
 	if (err1 != 0)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
@@ -961,10 +979,6 @@ retry:
 		}
 		pending = err3;
 	}
-	/*
-	 * TODO: For cache on-disk extents, there is no need to increment
-	 * the sequence counter, this requires future optimization.
-	 */
 	ext4_es_inc_seq(inode);
 error:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
@@ -998,17 +1012,24 @@ error:
 }
 
 /*
- * ext4_es_cache_extent() inserts information into the extent status
- * tree if and only if there isn't information about the range in
- * question already.
+ * ext4_es_cache_extent() inserts information into the extent status tree
+ * only if there is no existing information about the specified range or
+ * if the existing extents have the same status.
+ *
+ * Note that this interface is only used for caching on-disk extent
+ * information and cannot be used to convert existing extents in the extent
+ * status tree. To convert existing extents, use ext4_es_insert_extent()
+ * instead.
  */
 void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 			  ext4_lblk_t len, ext4_fsblk_t pblk,
 			  unsigned int status)
 {
 	struct extent_status *es;
-	struct extent_status newes;
+	struct extent_status chkes, newes;
 	ext4_lblk_t end = lblk + len - 1;
+	bool conflict = false;
+	int err;
 
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
@@ -1016,7 +1037,6 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 	newes.es_lblk = lblk;
 	newes.es_len = len;
 	ext4_es_store_pblock_status(&newes, pblk, status);
-	trace_ext4_es_cache_extent(inode, &newes);
 
 	if (!len)
 		return;
@@ -1024,11 +1044,42 @@ void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 	BUG_ON(end < lblk);
 
 	write_lock(&EXT4_I(inode)->i_es_lock);
-
 	es = __es_tree_search(&EXT4_I(inode)->i_es_tree.root, lblk);
-	if (!es || es->es_lblk > end)
-		__es_insert_extent(inode, &newes, NULL);
+	if (es && es->es_lblk <= end) {
+		/* Found an extent that covers the entire range. */
+		if (es->es_lblk <= lblk && es->es_lblk + es->es_len > end) {
+			if (__es_check_extent_status(es, status, &chkes))
+				conflict = true;
+			goto unlock;
+		}
+		/* Check and remove all extents in range. */
+		err = __es_remove_extent(inode, lblk, end, status, NULL,
+					 &chkes, NULL);
+		if (err) {
+			if (err == -EINVAL)
+				conflict = true;
+			goto unlock;
+		}
+	}
+	__es_insert_extent(inode, &newes, NULL);
+	trace_ext4_es_cache_extent(inode, &newes);
+	ext4_es_print_tree(inode);
+unlock:
 	write_unlock(&EXT4_I(inode)->i_es_lock);
+	if (!conflict)
+		return;
+	/*
+	 * A hole in the on-disk extent but a delayed extent in the extent
+	 * status tree, is allowed.
+	 */
+	if (status == EXTENT_STATUS_HOLE &&
+	    ext4_es_type(&chkes) == EXTENT_STATUS_DELAYED)
+		return;
+
+	ext4_warning_inode(inode,
+			   "ES cache extent failed: add [%d,%d,%llu,0x%x] conflict with existing [%d,%d,%llu,0x%x]\n",
+			   lblk, len, pblk, status, chkes.es_lblk, chkes.es_len,
+			   ext4_es_pblock(&chkes), ext4_es_status(&chkes));
 }
 
 /*
@@ -1409,23 +1460,27 @@ static unsigned int get_rsvd(struct inode *inode, ext4_lblk_t end,
 	return rc->ndelayed;
 }
 
-
 /*
  * __es_remove_extent - removes block range from extent status tree
  *
  * @inode - file containing range
  * @lblk - first block in range
  * @end - last block in range
+ * @status - the extent status to be checked
  * @reserved - number of cluster reservations released
+ * @res - return the extent if the status is not match
  * @prealloc - pre-allocated es to avoid memory allocation failures
  *
  * If @reserved is not NULL and delayed allocation is enabled, counts
  * block/cluster reservations freed by removing range and if bigalloc
- * enabled cancels pending reservations as needed. Returns 0 on success,
- * error code on failure.
+ * enabled cancels pending reservations as needed. If @status is not
+ * zero, check extent status type while removing extent, return -EINVAL
+ * and pass out the extent through @res if not match.  Returns 0 on
+ * success, error code on failure.
  */
 static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
-			      ext4_lblk_t end, int *reserved,
+			      ext4_lblk_t end, unsigned int status,
+			      int *reserved, struct extent_status *res,
 			      struct extent_status *prealloc)
 {
 	struct ext4_es_tree *tree = &EXT4_I(inode)->i_es_tree;
@@ -1434,18 +1489,24 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	struct extent_status orig_es;
 	ext4_lblk_t len1, len2;
 	ext4_fsblk_t block;
-	int err = 0;
+	int err;
 	bool count_reserved = true;
 	struct rsvd_count rc;
 
 	if (reserved == NULL || !test_opt(inode->i_sb, DELALLOC))
 		count_reserved = false;
+	if (status == 0)
+		status = ES_TYPE_MASK;
 
 	es = __es_tree_search(&tree->root, lblk);
 	if (!es)
-		goto out;
+		return 0;
 	if (es->es_lblk > end)
-		goto out;
+		return 0;
+
+	err = __es_check_extent_status(es, status, res);
+	if (err)
+		return err;
 
 	/* Simply invalidate cache_es. */
 	tree->cache_es = NULL;
@@ -1480,7 +1541,7 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 
 				es->es_lblk = orig_es.es_lblk;
 				es->es_len = orig_es.es_len;
-				goto out;
+				return err;
 			}
 		} else {
 			es->es_lblk = end + 1;
@@ -1494,7 +1555,7 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 		if (count_reserved)
 			count_rsvd(inode, orig_es.es_lblk + len1,
 				   orig_es.es_len - len1 - len2, &orig_es, &rc);
-		goto out_get_reserved;
+		goto out;
 	}
 
 	if (len1 > 0) {
@@ -1509,6 +1570,9 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	}
 
 	while (es && ext4_es_end(es) <= end) {
+		err = __es_check_extent_status(es, status, res);
+		if (err)
+			return err;
 		if (count_reserved)
 			count_rsvd(inode, es->es_lblk, es->es_len, es, &rc);
 		node = rb_next(&es->rb_node);
@@ -1524,6 +1588,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	if (es && es->es_lblk < end + 1) {
 		ext4_lblk_t orig_len = es->es_len;
 
+		err = __es_check_extent_status(es, status, res);
+		if (err)
+			return err;
+
 		len1 = ext4_es_end(es) - end;
 		if (count_reserved)
 			count_rsvd(inode, es->es_lblk, orig_len - len1,
@@ -1536,11 +1604,10 @@ static int __es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 		}
 	}
 
-out_get_reserved:
+out:
 	if (count_reserved)
 		*reserved = get_rsvd(inode, end, es, &rc);
-out:
-	return err;
+	return 0;
 }
 
 /*
@@ -1582,7 +1649,7 @@ retry:
 	 * is reclaimed.
 	 */
 	write_lock(&EXT4_I(inode)->i_es_lock);
-	err = __es_remove_extent(inode, lblk, end, &reserved, es);
+	err = __es_remove_extent(inode, lblk, end, 0, &reserved, NULL, es);
 	if (err)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */
@@ -2174,7 +2241,7 @@ retry:
 	}
 	write_lock(&EXT4_I(inode)->i_es_lock);
 
-	err1 = __es_remove_extent(inode, lblk, end, NULL, es1);
+	err1 = __es_remove_extent(inode, lblk, end, 0, NULL, NULL, es1);
 	if (err1 != 0)
 		goto error;
 	/* Free preallocated extent if it didn't get used. */

@@ -321,6 +321,8 @@ static int mext_move_extent(struct mext_data *mext, u64 *m_len)
 		ret = PTR_ERR(handle);
 		goto out;
 	}
+	ext4_fc_mark_ineligible(orig_inode->i_sb, EXT4_FC_REASON_MOVE_EXT,
+				handle);
 
 	ret = mext_move_begin(mext, folio, &move_type);
 	if (ret)

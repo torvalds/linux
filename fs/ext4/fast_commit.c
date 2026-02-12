@@ -231,16 +231,16 @@ static bool ext4_fc_disabled(struct super_block *sb)
 void ext4_fc_del(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_fc_dentry_update *fc_dentry;
 	wait_queue_head_t *wq;
+	int alloc_ctx;
 
 	if (ext4_fc_disabled(inode->i_sb))
 		return;
 
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(inode->i_sb);
 	if (list_empty(&ei->i_fc_list) && list_empty(&ei->i_fc_dilist)) {
-		mutex_unlock(&sbi->s_fc_lock);
+		ext4_fc_unlock(inode->i_sb, alloc_ctx);
 		return;
 	}
 
@@ -275,9 +275,9 @@ void ext4_fc_del(struct inode *inode)
 #endif
 		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
 		if (ext4_test_inode_state(inode, EXT4_STATE_FC_FLUSHING_DATA)) {
-			mutex_unlock(&sbi->s_fc_lock);
+			ext4_fc_unlock(inode->i_sb, alloc_ctx);
 			schedule();
-			mutex_lock(&sbi->s_fc_lock);
+			alloc_ctx = ext4_fc_lock(inode->i_sb);
 		}
 		finish_wait(wq, &wait.wq_entry);
 	}
@@ -288,7 +288,7 @@ void ext4_fc_del(struct inode *inode)
 	 * dentry create references, since it is not needed to log it anyways.
 	 */
 	if (list_empty(&ei->i_fc_dilist)) {
-		mutex_unlock(&sbi->s_fc_lock);
+		ext4_fc_unlock(inode->i_sb, alloc_ctx);
 		return;
 	}
 
@@ -298,7 +298,7 @@ void ext4_fc_del(struct inode *inode)
 	list_del_init(&fc_dentry->fcd_dilist);
 
 	WARN_ON(!list_empty(&ei->i_fc_dilist));
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(inode->i_sb, alloc_ctx);
 
 	release_dentry_name_snapshot(&fc_dentry->fcd_name);
 	kmem_cache_free(ext4_fc_dentry_cachep, fc_dentry);
@@ -315,6 +315,7 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason, handle_t *handl
 	tid_t tid;
 	bool has_transaction = true;
 	bool is_ineligible;
+	int alloc_ctx;
 
 	if (ext4_fc_disabled(sb))
 		return;
@@ -329,12 +330,12 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason, handle_t *handl
 			has_transaction = false;
 		read_unlock(&sbi->s_journal->j_state_lock);
 	}
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	is_ineligible = ext4_test_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	if (has_transaction && (!is_ineligible || tid_gt(tid, sbi->s_fc_ineligible_tid)))
 		sbi->s_fc_ineligible_tid = tid;
 	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 	WARN_ON(reason >= EXT4_FC_REASON_MAX);
 	sbi->s_fc_stats.fc_ineligible_reason_count[reason]++;
 }
@@ -358,6 +359,7 @@ static int ext4_fc_track_template(
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	tid_t tid = 0;
+	int alloc_ctx;
 	int ret;
 
 	tid = handle->h_transaction->t_tid;
@@ -373,14 +375,14 @@ static int ext4_fc_track_template(
 	if (!enqueue)
 		return ret;
 
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(inode->i_sb);
 	if (list_empty(&EXT4_I(inode)->i_fc_list))
 		list_add_tail(&EXT4_I(inode)->i_fc_list,
 				(sbi->s_journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
 				 sbi->s_journal->j_flags & JBD2_FAST_COMMIT_ONGOING) ?
 				&sbi->s_fc_q[FC_Q_STAGING] :
 				&sbi->s_fc_q[FC_Q_MAIN]);
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(inode->i_sb, alloc_ctx);
 
 	return ret;
 }
@@ -402,6 +404,7 @@ static int __track_dentry_update(handle_t *handle, struct inode *inode,
 	struct inode *dir = dentry->d_parent->d_inode;
 	struct super_block *sb = inode->i_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int alloc_ctx;
 
 	spin_unlock(&ei->i_fc_lock);
 
@@ -425,7 +428,7 @@ static int __track_dentry_update(handle_t *handle, struct inode *inode,
 	take_dentry_name_snapshot(&node->fcd_name, dentry);
 	INIT_LIST_HEAD(&node->fcd_dilist);
 	INIT_LIST_HEAD(&node->fcd_list);
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	if (sbi->s_journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
 		sbi->s_journal->j_flags & JBD2_FAST_COMMIT_ONGOING)
 		list_add_tail(&node->fcd_list,
@@ -446,7 +449,7 @@ static int __track_dentry_update(handle_t *handle, struct inode *inode,
 		WARN_ON(!list_empty(&ei->i_fc_dilist));
 		list_add_tail(&node->fcd_dilist, &ei->i_fc_dilist);
 	}
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 	spin_lock(&ei->i_fc_lock);
 
 	return 0;
@@ -1046,18 +1049,19 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	struct blk_plug plug;
 	int ret = 0;
 	u32 crc = 0;
+	int alloc_ctx;
 
 	/*
 	 * Step 1: Mark all inodes on s_fc_q[MAIN] with
 	 * EXT4_STATE_FC_FLUSHING_DATA. This prevents these inodes from being
 	 * freed until the data flush is over.
 	 */
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	list_for_each_entry(iter, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
 		ext4_set_inode_state(&iter->vfs_inode,
 				     EXT4_STATE_FC_FLUSHING_DATA);
 	}
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 
 	/* Step 2: Flush data for all the eligible inodes. */
 	ret = ext4_fc_flush_data(journal);
@@ -1067,7 +1071,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	 * any error from step 2. This ensures that waiters waiting on
 	 * EXT4_STATE_FC_FLUSHING_DATA can resume.
 	 */
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	list_for_each_entry(iter, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
 		ext4_clear_inode_state(&iter->vfs_inode,
 				       EXT4_STATE_FC_FLUSHING_DATA);
@@ -1084,7 +1088,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	 * prepare_to_wait() in ext4_fc_del().
 	 */
 	smp_mb();
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 
 	/*
 	 * If we encountered error in Step 2, return it now after clearing
@@ -1101,12 +1105,12 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	 * previous handles are now drained. We now mark the inodes on the
 	 * commit queue as being committed.
 	 */
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	list_for_each_entry(iter, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
 		ext4_set_inode_state(&iter->vfs_inode,
 				     EXT4_STATE_FC_COMMITTING);
 	}
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 	jbd2_journal_unlock_updates(journal);
 
 	/*
@@ -1117,6 +1121,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 		blkdev_issue_flush(journal->j_fs_dev);
 
 	blk_start_plug(&plug);
+	alloc_ctx = ext4_fc_lock(sb);
 	/* Step 6: Write fast commit blocks to disk. */
 	if (sbi->s_fc_bytes == 0) {
 		/*
@@ -1134,7 +1139,6 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	}
 
 	/* Step 6.2: Now write all the dentry updates. */
-	mutex_lock(&sbi->s_fc_lock);
 	ret = ext4_fc_commit_dentry_updates(journal, &crc);
 	if (ret)
 		goto out;
@@ -1156,7 +1160,7 @@ static int ext4_fc_perform_commit(journal_t *journal)
 	ret = ext4_fc_write_tail(sb, crc);
 
 out:
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 	blk_finish_plug(&plug);
 	return ret;
 }
@@ -1290,6 +1294,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_inode_info *ei;
 	struct ext4_fc_dentry_update *fc_dentry;
+	int alloc_ctx;
 
 	if (full && sbi->s_fc_bh)
 		sbi->s_fc_bh = NULL;
@@ -1297,7 +1302,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 	trace_ext4_fc_cleanup(journal, full, tid);
 	jbd2_fc_release_bufs(journal);
 
-	mutex_lock(&sbi->s_fc_lock);
+	alloc_ctx = ext4_fc_lock(sb);
 	while (!list_empty(&sbi->s_fc_q[FC_Q_MAIN])) {
 		ei = list_first_entry(&sbi->s_fc_q[FC_Q_MAIN],
 					struct ext4_inode_info,
@@ -1356,7 +1361,7 @@ static void ext4_fc_cleanup(journal_t *journal, int full, tid_t tid)
 
 	if (full)
 		sbi->s_fc_bytes = 0;
-	mutex_unlock(&sbi->s_fc_lock);
+	ext4_fc_unlock(sb, alloc_ctx);
 	trace_ext4_fc_stats(sb);
 }
 
@@ -2302,6 +2307,9 @@ static const char * const fc_ineligible_reasons[] = {
 	[EXT4_FC_REASON_FALLOC_RANGE] = "Falloc range op",
 	[EXT4_FC_REASON_INODE_JOURNAL_DATA] = "Data journalling",
 	[EXT4_FC_REASON_ENCRYPTED_FILENAME] = "Encrypted filename",
+	[EXT4_FC_REASON_MIGRATE] = "Inode format migration",
+	[EXT4_FC_REASON_VERITY] = "fs-verity enable",
+	[EXT4_FC_REASON_MOVE_EXT] = "Move extents",
 };
 
 int ext4_fc_info_show(struct seq_file *seq, void *v)
