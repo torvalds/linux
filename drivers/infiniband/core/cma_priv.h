@@ -72,6 +72,7 @@ struct rdma_id_private {
 
 	int			internal_id;
 	enum rdma_cm_state	state;
+	u8			restricted_node_type;
 	spinlock_t		lock;
 	struct mutex		qp_mutex;
 

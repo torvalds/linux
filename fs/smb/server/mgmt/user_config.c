@@ -90,11 +90,9 @@ void ksmbd_free_user(struct ksmbd_user *user)
 	kfree(user);
 }
 
-int ksmbd_anonymous_user(struct ksmbd_user *user)
+bool ksmbd_anonymous_user(struct ksmbd_user *user)
 {
-	if (user->name[0] == '\0')
-		return 1;
-	return 0;
+	return user->name[0] == '\0';
 }
 
 bool ksmbd_compare_user(struct ksmbd_user *u1, struct ksmbd_user *u2)
