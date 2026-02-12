@@ -484,16 +484,16 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	return to;
 }
 
-__le32
-smb2_get_lease_state(struct cifsInodeInfo *cinode)
+__le32 smb2_get_lease_state(struct cifsInodeInfo *cinode, unsigned int oplock)
 {
+	unsigned int sbflags = CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags;
 	__le32 lease = 0;
 
-	if (CIFS_CACHE_WRITE(cinode))
+	if ((oplock & CIFS_CACHE_WRITE_FLG) || (sbflags & CIFS_MOUNT_RW_CACHE))
 		lease |= SMB2_LEASE_WRITE_CACHING_LE;
-	if (CIFS_CACHE_HANDLE(cinode))
+	if (oplock & CIFS_CACHE_HANDLE_FLG)
 		lease |= SMB2_LEASE_HANDLE_CACHING_LE;
-	if (CIFS_CACHE_READ(cinode))
+	if ((oplock & CIFS_CACHE_READ_FLG) || (sbflags & CIFS_MOUNT_RO_CACHE))
 		lease |= SMB2_LEASE_READ_CACHING_LE;
 	return lease;
 }

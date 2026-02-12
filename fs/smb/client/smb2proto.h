@@ -42,7 +42,7 @@ struct mid_q_entry *smb2_setup_async_request(struct TCP_Server_Info *server,
 					     struct smb_rqst *rqst);
 struct cifs_tcon *smb2_find_smb_tcon(struct TCP_Server_Info *server,
 				     __u64 ses_id, __u32  tid);
-__le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
+__le32 smb2_get_lease_state(struct cifsInodeInfo *cinode, unsigned int oplock);
 bool smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server);
 int smb3_handle_read_data(struct TCP_Server_Info *server,
 			  struct mid_q_entry *mid);

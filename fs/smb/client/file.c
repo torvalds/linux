@@ -731,14 +731,14 @@ struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		oplock = fid->pending_open->oplock;
 	list_del(&fid->pending_open->olist);
 
-	fid->purge_cache = false;
-	server->ops->set_fid(cfile, fid, oplock);
-
 	list_add(&cfile->tlist, &tcon->openFileList);
 	atomic_inc(&tcon->num_local_opens);
 
 	/* if readable file instance put first in list*/
 	spin_lock(&cinode->open_file_lock);
+	fid->purge_cache = false;
+	server->ops->set_fid(cfile, fid, oplock);
+
 	if (file->f_mode & FMODE_READ)
 		list_add(&cfile->flist, &cinode->openFileList);
 	else
@@ -1410,7 +1410,8 @@ reopen_success:
 		oplock = 0;
 	}
 
-	server->ops->set_fid(cfile, &cfile->fid, oplock);
+	scoped_guard(spinlock, &cinode->open_file_lock)
+		server->ops->set_fid(cfile, &cfile->fid, oplock);
 	if (oparms.reconnect)
 		cifs_relock_file(cfile);
 
@@ -1437,11 +1438,11 @@ smb2_can_defer_close(struct inode *inode, struct cifs_deferred_close *dclose)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	unsigned int oplock = READ_ONCE(cinode->oplock);
 
-	return (cifs_sb->ctx->closetimeo && cinode->lease_granted && dclose &&
-			(cinode->oplock == CIFS_CACHE_RHW_FLG ||
-			 cinode->oplock == CIFS_CACHE_RH_FLG) &&
-			!test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags));
+	return cifs_sb->ctx->closetimeo && cinode->lease_granted && dclose &&
+		(oplock == CIFS_CACHE_RHW_FLG || oplock == CIFS_CACHE_RH_FLG) &&
+		!test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags);
 
 }
 
@@ -2371,7 +2372,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 			cifs_zap_mapping(inode);
 			cifs_dbg(FYI, "Set no oplock for inode=%p due to mand locks\n",
 				 inode);
-			CIFS_I(inode)->oplock = 0;
+			cifs_reset_oplock(CIFS_I(inode));
 		}
 
 		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
@@ -2930,7 +2931,7 @@ cifs_strict_writev(struct kiocb *iocb, struct iov_iter *from)
 		cifs_zap_mapping(inode);
 		cifs_dbg(FYI, "Set Oplock/Lease to NONE for inode=%p after write\n",
 			 inode);
-		cinode->oplock = 0;
+		cifs_reset_oplock(cinode);
 	}
 out:
 	cifs_put_writer(cinode);
@@ -2966,7 +2967,7 @@ ssize_t cifs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			cifs_dbg(FYI,
 				 "Set no oplock for inode=%p after a write operation\n",
 				 inode);
-			cinode->oplock = 0;
+			cifs_reset_oplock(cinode);
 		}
 		return written;
 	}
@@ -3154,9 +3155,11 @@ void cifs_oplock_break(struct work_struct *work)
 	struct super_block *sb = inode->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
+	bool cache_read, cache_write, cache_handle;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
 	struct tcon_link *tlink;
+	unsigned int oplock;
 	int rc = 0;
 	bool purge_cache = false, oplock_break_cancelled;
 	__u64 persistent_fid, volatile_fid;
@@ -3177,29 +3180,40 @@ void cifs_oplock_break(struct work_struct *work)
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
 
-	server->ops->downgrade_oplock(server, cinode, cfile->oplock_level,
-				      cfile->oplock_epoch, &purge_cache);
+	scoped_guard(spinlock, &cinode->open_file_lock) {
+		unsigned int sbflags = cifs_sb->mnt_cifs_flags;
 
-	if (!CIFS_CACHE_WRITE(cinode) && CIFS_CACHE_READ(cinode) &&
-						cifs_has_mand_locks(cinode)) {
+		server->ops->downgrade_oplock(server, cinode, cfile->oplock_level,
+					      cfile->oplock_epoch, &purge_cache);
+		oplock = READ_ONCE(cinode->oplock);
+		cache_read = (oplock & CIFS_CACHE_READ_FLG) ||
+			(sbflags & CIFS_MOUNT_RO_CACHE);
+		cache_write = (oplock & CIFS_CACHE_WRITE_FLG) ||
+			(sbflags & CIFS_MOUNT_RW_CACHE);
+		cache_handle = oplock & CIFS_CACHE_HANDLE_FLG;
+	}
+
+	if (!cache_write && cache_read && cifs_has_mand_locks(cinode)) {
 		cifs_dbg(FYI, "Reset oplock to None for inode=%p due to mand locks\n",
 			 inode);
-		cinode->oplock = 0;
+		cifs_reset_oplock(cinode);
+		oplock = 0;
+		cache_read = cache_write = cache_handle = false;
 	}
 
 	if (S_ISREG(inode->i_mode)) {
-		if (CIFS_CACHE_READ(cinode))
+		if (cache_read)
 			break_lease(inode, O_RDONLY);
 		else
 			break_lease(inode, O_WRONLY);
 		rc = filemap_fdatawrite(inode->i_mapping);
-		if (!CIFS_CACHE_READ(cinode) || purge_cache) {
+		if (!cache_read || purge_cache) {
 			rc = filemap_fdatawait(inode->i_mapping);
 			mapping_set_error(inode->i_mapping, rc);
 			cifs_zap_mapping(inode);
 		}
 		cifs_dbg(FYI, "Oplock flush inode %p rc %d\n", inode, rc);
-		if (CIFS_CACHE_WRITE(cinode))
+		if (cache_write)
 			goto oplock_break_ack;
 	}
 
@@ -3214,7 +3228,7 @@ oplock_break_ack:
 	 * So, new open will not use cached handle.
 	 */
 
-	if (!CIFS_CACHE_HANDLE(cinode) && !list_empty(&cinode->deferred_closes))
+	if (!cache_handle && !list_empty(&cinode->deferred_closes))
 		cifs_close_deferred_file(cinode);
 
 	persistent_fid = cfile->fid.persistent_fid;
@@ -3232,7 +3246,8 @@ oplock_break_ack:
 	if (!oplock_break_cancelled && !list_empty(&cinode->openFileList)) {
 		spin_unlock(&cinode->open_file_lock);
 		rc = server->ops->oplock_response(tcon, persistent_fid,
-						  volatile_fid, net_fid, cinode);
+						  volatile_fid, net_fid,
+						  cinode, oplock);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	} else
 		spin_unlock(&cinode->open_file_lock);
