@@ -263,3 +263,4 @@ module_platform_driver(intel_rapl_msr_driver);
 MODULE_DESCRIPTION("Driver for Intel RAPL (Running Average Power Limit) control via MSR interface");
 MODULE_AUTHOR("Zhang Rui <rui.zhang@intel.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("INTEL_RAPL");

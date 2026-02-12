@@ -111,4 +111,5 @@ void proc_thermal_rapl_remove(void)
 EXPORT_SYMBOL_GPL(proc_thermal_rapl_remove);
 
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("INTEL_RAPL");
 MODULE_DESCRIPTION("RAPL interface using MMIO");

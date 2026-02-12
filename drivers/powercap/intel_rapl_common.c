@@ -2083,7 +2083,7 @@ int rapl_package_add_pmu_locked(struct rapl_package *rp)
 
 	return rapl_pmu_update(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_add_pmu_locked);
+EXPORT_SYMBOL_NS_GPL(rapl_package_add_pmu_locked, "INTEL_RAPL");
 
 int rapl_package_add_pmu(struct rapl_package *rp)
 {
@@ -2091,7 +2091,7 @@ int rapl_package_add_pmu(struct rapl_package *rp)
 
 	return rapl_package_add_pmu_locked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_add_pmu);
+EXPORT_SYMBOL_NS_GPL(rapl_package_add_pmu, "INTEL_RAPL");
 
 void rapl_package_remove_pmu_locked(struct rapl_package *rp)
 {
@@ -2109,7 +2109,7 @@ void rapl_package_remove_pmu_locked(struct rapl_package *rp)
 	perf_pmu_unregister(&rapl_pmu.pmu);
 	memset(&rapl_pmu, 0, sizeof(struct rapl_pmu));
 }
-EXPORT_SYMBOL_GPL(rapl_package_remove_pmu_locked);
+EXPORT_SYMBOL_NS_GPL(rapl_package_remove_pmu_locked, "INTEL_RAPL");
 
 void rapl_package_remove_pmu(struct rapl_package *rp)
 {
@@ -2117,7 +2117,7 @@ void rapl_package_remove_pmu(struct rapl_package *rp)
 
 	rapl_package_remove_pmu_locked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_package_remove_pmu);
+EXPORT_SYMBOL_NS_GPL(rapl_package_remove_pmu, "INTEL_RAPL");
 #endif
 
 /* called from CPU hotplug notifier, hotplug lock held */
@@ -2150,14 +2150,14 @@ void rapl_remove_package_cpuslocked(struct rapl_package *rp)
 	list_del(&rp->plist);
 	kfree(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_remove_package_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_remove_package_cpuslocked, "INTEL_RAPL");
 
 void rapl_remove_package(struct rapl_package *rp)
 {
 	guard(cpus_read_lock)();
 	rapl_remove_package_cpuslocked(rp);
 }
-EXPORT_SYMBOL_GPL(rapl_remove_package);
+EXPORT_SYMBOL_NS_GPL(rapl_remove_package, "INTEL_RAPL");
 
 /*
  * RAPL Package energy counter scope:
@@ -2200,14 +2200,14 @@ struct rapl_package *rapl_find_package_domain_cpuslocked(int id, struct rapl_if_
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(rapl_find_package_domain_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_find_package_domain_cpuslocked, "INTEL_RAPL");
 
 struct rapl_package *rapl_find_package_domain(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
 	guard(cpus_read_lock)();
 	return rapl_find_package_domain_cpuslocked(id, priv, id_is_cpu);
 }
-EXPORT_SYMBOL_GPL(rapl_find_package_domain);
+EXPORT_SYMBOL_NS_GPL(rapl_find_package_domain, "INTEL_RAPL");
 
 /* called from CPU hotplug notifier, hotplug lock held */
 struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *priv, bool id_is_cpu)
@@ -2261,14 +2261,14 @@ err_free_package:
 	kfree(rp);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(rapl_add_package_cpuslocked);
+EXPORT_SYMBOL_NS_GPL(rapl_add_package_cpuslocked, "INTEL_RAPL");
 
 struct rapl_package *rapl_add_package(int id, struct rapl_if_priv *priv, bool id_is_cpu)
 {
 	guard(cpus_read_lock)();
 	return rapl_add_package_cpuslocked(id, priv, id_is_cpu);
 }
-EXPORT_SYMBOL_GPL(rapl_add_package);
+EXPORT_SYMBOL_NS_GPL(rapl_add_package, "INTEL_RAPL");
 
 static void power_limit_state_save(void)
 {
