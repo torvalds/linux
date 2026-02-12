@@ -108,14 +108,6 @@
 #define PACKAGE_PLN_INT_SAVED		BIT(0)
 #define MAX_PRIM_NAME			32
 
-/* TPMI Unit register has different layout */
-#define TPMI_POWER_UNIT_OFFSET		POWER_UNIT_OFFSET
-#define TPMI_POWER_UNIT_MASK		POWER_UNIT_MASK
-#define TPMI_ENERGY_UNIT_OFFSET		0x06
-#define TPMI_ENERGY_UNIT_MASK		GENMASK_ULL(10, 6)
-#define TPMI_TIME_UNIT_OFFSET		0x0C
-#define TPMI_TIME_UNIT_MASK		GENMASK_ULL(15, 12)
-
 #define RAPL_EVENT_MASK			GENMASK(7, 0)
 
 enum unit_type {
@@ -222,7 +214,6 @@ static int get_pl_prim(struct rapl_domain *rd, int pl, enum pl_prims prim)
 	container_of(_zone, struct rapl_domain, power_zone)
 
 static const struct rapl_defaults *defaults_msr;
-static const struct rapl_defaults defaults_tpmi;
 
 static const struct rapl_defaults *get_defaults(struct rapl_package *rp)
 {
@@ -779,7 +770,6 @@ static int rapl_config(struct rapl_package *rp)
 		rp->priv->rpi = (void *)rpi_msr;
 		break;
 	case RAPL_IF_TPMI:
-		rp->priv->defaults = &defaults_tpmi;
 		rp->priv->rpi = (void *)rpi_tpmi;
 		break;
 	default:
@@ -1147,41 +1137,6 @@ static u64 rapl_compute_time_window_atom(struct rapl_domain *rd, u64 value,
 	 */
 	return (value) ? value * rd->time_unit : rd->time_unit;
 }
-
-static int rapl_check_unit_tpmi(struct rapl_domain *rd)
-{
-	struct reg_action ra;
-	u32 value;
-
-	ra.reg = rd->regs[RAPL_DOMAIN_REG_UNIT];
-	ra.mask = ~0;
-	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra, false)) {
-		pr_err("Failed to read power unit REG 0x%llx on %s:%s, exit.\n",
-			ra.reg.val, rd->rp->name, rd->name);
-		return -ENODEV;
-	}
-
-	value = (ra.value & TPMI_ENERGY_UNIT_MASK) >> TPMI_ENERGY_UNIT_OFFSET;
-	rd->energy_unit = (ENERGY_UNIT_SCALE * MICROJOULE_PER_JOULE) >> value;
-
-	value = (ra.value & TPMI_POWER_UNIT_MASK) >> TPMI_POWER_UNIT_OFFSET;
-	rd->power_unit = MICROWATT_PER_WATT >> value;
-
-	value = (ra.value & TPMI_TIME_UNIT_MASK) >> TPMI_TIME_UNIT_OFFSET;
-	rd->time_unit = USEC_PER_SEC >> value;
-
-	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
-		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
-
-	return 0;
-}
-
-static const struct rapl_defaults defaults_tpmi = {
-	.check_unit = rapl_check_unit_tpmi,
-	/* Reuse existing logic, ignore the PL_CLAMP failures and enable all Power Limits */
-	.set_floor_freq = rapl_default_set_floor_freq,
-	.compute_time_window = rapl_default_compute_time_window,
-};
 
 static const struct rapl_defaults rapl_defaults_core = {
 	.floor_freq_reg_addr = 0,
