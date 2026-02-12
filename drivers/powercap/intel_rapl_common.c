@@ -964,13 +964,13 @@ static int rapl_check_unit_core(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
+	rd->energy_unit = (ENERGY_UNIT_SCALE * 1000000) >> value;
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 / (1 << value);
+	rd->power_unit = 1000000 >> value;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
+	rd->time_unit = 1000000 >> value;
 
 	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
@@ -992,13 +992,13 @@ static int rapl_check_unit_atom(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & ENERGY_UNIT_MASK) >> ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1 << value;
+	rd->energy_unit = ENERGY_UNIT_SCALE * (1ULL << value);
 
 	value = (ra.value & POWER_UNIT_MASK) >> POWER_UNIT_OFFSET;
-	rd->power_unit = (1 << value) * 1000;
+	rd->power_unit = (1ULL << value) * 1000;
 
 	value = (ra.value & TIME_UNIT_MASK) >> TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
+	rd->time_unit = 1000000 >> value;
 
 	pr_debug("Atom %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
@@ -1121,7 +1121,7 @@ static u64 rapl_compute_time_window_core(struct rapl_domain *rd, u64 value,
 	if (!to_raw) {
 		f = (value & 0x60) >> 5;
 		y = value & 0x1f;
-		value = (1 << y) * (4 + f) * rd->time_unit / 4;
+		value = (1ULL << y) * (4 + f) * rd->time_unit / 4;
 	} else {
 		if (value < rd->time_unit)
 			return 0;
@@ -1169,13 +1169,13 @@ static int rapl_check_unit_tpmi(struct rapl_domain *rd)
 	}
 
 	value = (ra.value & TPMI_ENERGY_UNIT_MASK) >> TPMI_ENERGY_UNIT_OFFSET;
-	rd->energy_unit = ENERGY_UNIT_SCALE * 1000000 / (1 << value);
+	rd->energy_unit = (ENERGY_UNIT_SCALE * 1000000) >> value;
 
 	value = (ra.value & TPMI_POWER_UNIT_MASK) >> TPMI_POWER_UNIT_OFFSET;
-	rd->power_unit = 1000000 / (1 << value);
+	rd->power_unit = 1000000 >> value;
 
 	value = (ra.value & TPMI_TIME_UNIT_MASK) >> TPMI_TIME_UNIT_OFFSET;
-	rd->time_unit = 1000000 / (1 << value);
+	rd->time_unit = 1000000 >> value;
 
 	pr_debug("Core CPU %s:%s energy=%dpJ, time=%dus, power=%duW\n",
 		 rd->rp->name, rd->name, rd->energy_unit, rd->time_unit, rd->power_unit);
