@@ -5,6 +5,7 @@
  */
 #include <linux/types.h>
 #include <linux/of.h>
+#include <linux/secure_boot.h>
 #include <linux/string_choices.h>
 #include <asm/secure_boot.h>
 
@@ -42,6 +43,11 @@ out:
 	pr_info("Secure boot mode %s\n", str_enabled_disabled(enabled));
 
 	return enabled;
+}
+
+bool arch_get_secureboot(void)
+{
+	return is_ppc_secureboot_enabled();
 }
 
 bool is_ppc_trustedboot_enabled(void)

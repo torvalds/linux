@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/integrity.h>
+#include <linux/secure_boot.h>
 #include <crypto/sha1.h>
 #include <crypto/hash.h>
 #include <linux/key.h>
