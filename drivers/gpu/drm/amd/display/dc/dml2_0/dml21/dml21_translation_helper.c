@@ -460,6 +460,9 @@ static void populate_dml21_surface_config_from_plane_state(
 	case DcGfxAddr3:
 		surface->tiling = gfx_addr3_to_dml2_swizzle_mode(plane_state->tiling_info.gfx_addr3.swizzle);
 		break;
+	case DcGfxBase:
+		surface->tiling = dml2_sw_linear;
+		break;
 	}
 }
 

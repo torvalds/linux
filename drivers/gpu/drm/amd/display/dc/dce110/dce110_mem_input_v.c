@@ -165,6 +165,8 @@ static void program_tiling(
 	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
+	ASSERT(info->gfxversion == DcGfxVersion8);
+
 	uint32_t value = 0;
 
 	set_reg_field_value(value, info->gfx8.num_banks,
@@ -541,6 +543,7 @@ static const unsigned int *get_dvmm_hw_setting(
 	else
 		bpp = bpp_8;
 
+	ASSERT(tiling_info->gfxversion == DcGfxVersion8);
 	switch (tiling_info->gfx8.array_mode) {
 	case DC_ARRAY_1D_TILED_THIN1:
 	case DC_ARRAY_1D_TILED_THICK:

@@ -701,6 +701,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  *              once.
  * @idx: Capture CRC on which CRC engine instance
  * @reset: Reset CRC engine before the configuration
+ * @crc_poly_mode: CRC polynomial mode
  *
  * By default, the entire frame is used to calculate the CRC.
  *
@@ -709,7 +710,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 			     struct crc_params *crc_window, bool enable, bool continuous,
-			     uint8_t idx, bool reset)
+			     uint8_t idx, bool reset, enum crc_poly_mode crc_poly_mode)
 {
 	struct pipe_ctx *pipe;
 	struct crc_params param;
@@ -733,6 +734,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+	param.crc_poly_mode = crc_poly_mode;
 
 	if (crc_window) {
 		param.windowa_x_start = crc_window->windowa_x_start;
@@ -2768,6 +2770,7 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 		case DcGfxVersion7:
 		case DcGfxVersion8:
 		case DcGfxVersionUnknown:
+		case DcGfxBase:
 		default:
 			break;
 		}
@@ -3860,7 +3863,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3880,7 +3883,11 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
 
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3894,6 +3901,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 		}
 	}
@@ -3916,7 +3924,7 @@ static void build_dmub_update_dirty_rect(
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3935,7 +3943,12 @@ static void build_dmub_update_dirty_rect(
 		/* Do not send in immediate flip mode */
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3948,6 +3961,7 @@ static void build_dmub_update_dirty_rect(
 				continue;
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_dmub_cmd[*dmub_cmd_count].dmub_cmd = cmd;
 			dc_dmub_cmd[*dmub_cmd_count].wait_type = DM_DMUB_WAIT_TYPE_NO_WAIT;
 			(*dmub_cmd_count)++;

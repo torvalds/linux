@@ -584,7 +584,8 @@ bool dc_stream_configure_crc(struct dc *dc,
 			     bool enable,
 			     bool continuous,
 			     uint8_t idx,
-			     bool reset);
+			     bool reset,
+			     enum crc_poly_mode crc_poly_mode);
 
 bool dc_stream_get_crc(struct dc *dc,
 		       struct dc_stream_state *stream,

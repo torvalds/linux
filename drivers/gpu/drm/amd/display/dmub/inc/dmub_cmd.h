@@ -736,6 +736,16 @@ union pr_hw_flags {
 	uint32_t u32All;
 };
 
+/**
+ * Definition of Panel Replay ML Activity Options
+ */
+enum pr_ml_activity_option {
+	OPTION_DEFAULT	= 0x00, // VESA Option Default (1C)
+	OPTION_1A		= 0x01, // VESA Option 1A
+	OPTION_1B		= 0x02, // VESA Option 1B
+	OPTION_1C		= 0x03, // VESA Option 1C
+};
+
 union fw_assisted_mclk_switch_version {
 	struct {
 		uint8_t minor : 5;

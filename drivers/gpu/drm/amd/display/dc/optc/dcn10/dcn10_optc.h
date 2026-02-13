@@ -244,7 +244,13 @@
 	uint32_t OTG_TRIGB_MANUAL_TRIG; \
 	uint32_t OTG_UPDATE_LOCK; \
 	uint32_t OTG_V_TOTAL_INT_STATUS; \
-	uint32_t OTG_VSYNC_NOM_INT_STATUS
+	uint32_t OTG_VSYNC_NOM_INT_STATUS; \
+	uint32_t OTG_CRC0_DATA_R32; \
+	uint32_t OTG_CRC0_DATA_G32; \
+	uint32_t OTG_CRC0_DATA_B32; \
+	uint32_t OTG_CRC1_DATA_R32; \
+	uint32_t OTG_CRC1_DATA_G32; \
+	uint32_t OTG_CRC1_DATA_B32
 
 
 struct dcn_optc_registers {
@@ -657,6 +663,15 @@ struct dcn_optc_registers {
 	type OTG_V_COUNT_STOP;\
 	type OTG_V_COUNT_STOP_TIMER;
 
+#define TG_REG_FIELD_LIST_DCN3_6(type) \
+	type OTG_CRC_POLY_SEL; \
+	type CRC0_R_CR32; \
+	type CRC0_G_Y32; \
+	type CRC0_B_CB32; \
+	type CRC1_R_CR32; \
+	type CRC1_G_Y32; \
+	type CRC1_B_CB32;
+
 #define TG_REG_FIELD_LIST_DCN401(type) \
 	type OPTC_SEGMENT_WIDTH_LAST;\
 	type OTG_PSTATE_KEEPOUT_START;\
@@ -670,6 +685,7 @@ struct dcn_optc_shift {
 	TG_REG_FIELD_LIST_DCN2_0(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint8_t)
+	TG_REG_FIELD_LIST_DCN3_6(uint8_t)
 	TG_REG_FIELD_LIST_DCN401(uint8_t)
 };
 
@@ -678,6 +694,7 @@ struct dcn_optc_mask {
 	TG_REG_FIELD_LIST_DCN2_0(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 	TG_REG_FIELD_LIST_DCN3_5(uint32_t)
+	TG_REG_FIELD_LIST_DCN3_6(uint32_t)
 	TG_REG_FIELD_LIST_DCN401(uint32_t)
 };
 

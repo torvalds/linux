@@ -35,6 +35,7 @@
 #include "hubp.h"
 #include "mpc.h"
 #include "dwb.h"
+#include "hw/dio.h"
 #include "mcif_wb.h"
 #include "panel_cntl.h"
 #include "dmub/inc/dmub_cmd.h"
@@ -250,6 +251,7 @@ struct resource_pool {
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 	struct hubbub *hubbub;
+	struct dio *dio;
 	struct mpc *mpc;
 	struct pp_smu_funcs *pp_smu;
 	struct dce_aux *engines[MAX_PIPES];

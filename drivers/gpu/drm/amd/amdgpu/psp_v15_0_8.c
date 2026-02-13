@@ -187,6 +187,26 @@ static void psp_v15_0_8_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_67, value);
 }
 
+static bool psp_v15_0_8_get_ras_capability(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	u32 reg_data;
+
+	/* query ras cap should be done from host side */
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (!con)
+		return false;
+
+	reg_data = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_127);
+	adev->ras_hw_enabled = (reg_data & GENMASK_ULL(23, 0));
+	con->poison_supported = ((reg_data & GENMASK_ULL(24, 24)) >> 24) ? true : false;
+
+	return true;
+}
+
 static int psp_v15_0_8_get_fw_type(struct amdgpu_firmware_info *ucode,
 				   enum psp_gfx_fw_type *type)
 {
@@ -334,6 +354,7 @@ static const struct psp_funcs psp_v15_0_8_funcs = {
 	.ring_get_wptr = psp_v15_0_8_ring_get_wptr,
 	.ring_set_wptr = psp_v15_0_8_ring_set_wptr,
 	.get_fw_type = psp_v15_0_8_get_fw_type,
+	.get_ras_capability = psp_v15_0_8_get_ras_capability,
 };
 
 void psp_v15_0_8_set_psp_funcs(struct psp_context *psp)

@@ -1105,7 +1105,7 @@ static void dccg35_enable_dpstreamclk_new(struct dccg *dccg,
 	dccg35_set_dpstreamclk_src_new(dccg, src, inst);
 }
 
-static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
+void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t dispclk_rdivider_value = 0;
@@ -1114,6 +1114,7 @@ static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
 	if (dispclk_rdivider_value != 0)
 		REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, dispclk_rdivider_value);
 }
+
 static void dccg35_wait_for_dentist_change_done(
 	struct dccg *dccg)
 {
@@ -1151,8 +1152,7 @@ static void dcn35_set_dppclk_enable(struct dccg *dccg,
 
 }
 
-static void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst,
-				  int req_dppclk)
+void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1498,11 +1498,7 @@ static void dccg35_set_dpstreamclk(
 			__func__, dp_hpo_inst, (src == REFCLK) ? 0 : 1, otg_inst);
 }
 
-
-static void dccg35_set_dpstreamclk_root_clock_gating(
-		struct dccg *dccg,
-		int dp_hpo_inst,
-		bool enable)
+void dccg35_set_dpstreamclk_root_clock_gating(struct dccg *dccg, int dp_hpo_inst, bool enable)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1669,10 +1665,7 @@ static void dccg35_set_valid_pixel_rate(
 	dccg35_set_dtbclk_dto(dccg, &dto_params);
 }
 
-static void dccg35_dpp_root_clock_control(
-		struct dccg *dccg,
-		unsigned int dpp_inst,
-		bool clock_on)
+void dccg35_dpp_root_clock_control(struct dccg *dccg, unsigned int dpp_inst, bool clock_on)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1704,9 +1697,7 @@ static void dccg35_dpp_root_clock_control(
 	DC_LOG_DEBUG("%s: dpp_inst(%d) clock_on = %d\n", __func__, dpp_inst, clock_on);
 }
 
-static void dccg35_disable_symclk32_se(
-		struct dccg *dccg,
-		int hpo_se_inst)
+void dccg35_disable_symclk32_se(struct dccg *dccg, int hpo_se_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1813,7 +1804,7 @@ void dccg35_enable_global_fgcg_rep(struct dccg *dccg, bool value)
 	REG_UPDATE(DCCG_GLOBAL_FGCG_REP_CNTL, DCCG_GLOBAL_FGCG_REP_DIS, !value);
 }
 
-static void dccg35_enable_dscclk(struct dccg *dccg, int inst)
+void dccg35_enable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1860,8 +1851,7 @@ static void dccg35_enable_dscclk(struct dccg *dccg, int inst)
 	udelay(10);
 }
 
-static void dccg35_disable_dscclk(struct dccg *dccg,
-				int inst)
+void dccg35_disable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -1906,7 +1896,7 @@ static void dccg35_disable_dscclk(struct dccg *dccg,
 	udelay(10);
 }
 
-static void dccg35_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+void dccg35_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -2013,7 +2003,7 @@ static uint8_t dccg35_get_number_enabled_symclk_fe_connected_to_be(struct dccg *
 	return num_enabled_symclk_fe;
 }
 
-static void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
+void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst)
 {
 	uint8_t num_enabled_symclk_fe = 0;
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);

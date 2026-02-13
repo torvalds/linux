@@ -7077,10 +7077,21 @@ static void calculate_excess_vactive_bandwidth_required(
 	}
 }
 
-static double uclk_khz_to_dram_bw_mbps(unsigned long uclk_khz, const struct dml2_dram_params *dram_config)
+static double uclk_khz_to_dram_bw_mbps(unsigned long uclk_khz, const struct dml2_dram_params *dram_config, const struct dml2_mcg_dram_bw_to_min_clk_table *dram_bw_table)
 {
 	double bw_mbps = 0;
-	bw_mbps = ((double)uclk_khz * dram_config->channel_count * dram_config->channel_width_bytes * dram_config->transactions_per_clock) / 1000.0;
+	unsigned int i;
+
+	if (!dram_config->alt_clock_bw_conversion)
+		bw_mbps = ((double)uclk_khz * dram_config->channel_count * dram_config->channel_width_bytes * dram_config->transactions_per_clock) / 1000.0;
+	else
+		for (i = 0; i < dram_bw_table->num_entries; i++)
+			if (dram_bw_table->entries[i].min_uclk_khz >= uclk_khz) {
+				bw_mbps = (double)dram_bw_table->entries[i].pre_derate_dram_bw_kbps / 1000.0;
+				break;
+			}
+
+	DML_ASSERT(bw_mbps > 0);
 
 	return bw_mbps;
 }
@@ -7964,7 +7975,9 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	mode_lib->ms.max_dispclk_freq_mhz = (double)min_clk_table->max_ss_clocks_khz.dispclk / 1000;
 	mode_lib->ms.max_dscclk_freq_mhz = (double)min_clk_table->max_clocks_khz.dscclk / 1000;
 	mode_lib->ms.max_dppclk_freq_mhz = (double)min_clk_table->max_ss_clocks_khz.dppclk / 1000;
-	mode_lib->ms.uclk_freq_mhz = dram_bw_kbps_to_uclk_mhz(min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps, &mode_lib->soc.clk_table.dram_config);
+	mode_lib->ms.uclk_freq_mhz = (double)min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].min_uclk_khz / 1000.0;
+	if (!mode_lib->ms.uclk_freq_mhz)
+		mode_lib->ms.uclk_freq_mhz = dram_bw_kbps_to_uclk_mhz(min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps, &mode_lib->soc.clk_table.dram_config);
 	mode_lib->ms.dram_bw_mbps = ((double)min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps / 1000);
 	mode_lib->ms.max_dram_bw_mbps = ((double)min_clk_table->dram_bw_table.entries[min_clk_table->dram_bw_table.num_entries - 1].pre_derate_dram_bw_kbps / 1000);
 	mode_lib->ms.qos_param_index = get_qos_param_index((unsigned int) (mode_lib->ms.uclk_freq_mhz * 1000.0), mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params);
@@ -10407,7 +10420,7 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 
 	mode_lib->mp.Dcfclk = programming->min_clocks.dcn4x.active.dcfclk_khz / 1000.0;
 	mode_lib->mp.FabricClock = programming->min_clocks.dcn4x.active.fclk_khz / 1000.0;
-	mode_lib->mp.dram_bw_mbps = uclk_khz_to_dram_bw_mbps(programming->min_clocks.dcn4x.active.uclk_khz, &mode_lib->soc.clk_table.dram_config);
+	mode_lib->mp.dram_bw_mbps = uclk_khz_to_dram_bw_mbps(programming->min_clocks.dcn4x.active.uclk_khz, &mode_lib->soc.clk_table.dram_config, &min_clk_table->dram_bw_table);
 	mode_lib->mp.uclk_freq_mhz = programming->min_clocks.dcn4x.active.uclk_khz / 1000.0;
 	mode_lib->mp.GlobalDPPCLK = programming->min_clocks.dcn4x.dpprefclk_khz / 1000.0;
 	s->SOCCLK = (double)programming->min_clocks.dcn4x.socclk_khz / 1000;
@@ -10485,7 +10498,10 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	DML_LOG_VERBOSE("DML::%s: SOCCLK = %f\n", __func__, s->SOCCLK);
 	DML_LOG_VERBOSE("DML::%s: min_clk_index = %0d\n", __func__, in_out_params->min_clk_index);
 	DML_LOG_VERBOSE("DML::%s: min_clk_table min_fclk_khz = %ld\n", __func__, min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].min_fclk_khz);
-	DML_LOG_VERBOSE("DML::%s: min_clk_table uclk_mhz = %f\n", __func__, dram_bw_kbps_to_uclk_mhz(min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps, &mode_lib->soc.clk_table.dram_config));
+	if (min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].min_uclk_khz)
+		DML_LOG_VERBOSE("DML::%s: min_clk_table uclk_mhz = %f\n", __func__, min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].min_uclk_khz / 1000.0);
+	else
+		DML_LOG_VERBOSE("DML::%s: min_clk_table uclk_mhz = %f\n", __func__, dram_bw_kbps_to_uclk_mhz(min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps, &mode_lib->soc.clk_table.dram_config));
 	for (k = 0; k < mode_lib->mp.num_active_pipes; ++k) {
 		DML_LOG_VERBOSE("DML::%s: pipe=%d is in plane=%d\n", __func__, k, mode_lib->mp.pipe_plane[k]);
 		DML_LOG_VERBOSE("DML::%s: Per-plane DPPPerSurface[%0d] = %d\n", __func__, k, mode_lib->mp.NoOfDPP[k]);

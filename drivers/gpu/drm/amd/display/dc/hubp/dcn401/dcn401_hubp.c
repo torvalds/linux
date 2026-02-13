@@ -589,7 +589,12 @@ void hubp401_program_tiling(
 	 *
 	 * DIM_TYPE field in DCSURF_TILING for Display is always 1 (2D dimension) which is HW default.
 	 */
-	 REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, info->gfx_addr3.swizzle);
+	 if (info->gfxversion == DcGfxAddr3) {
+		REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, info->gfx_addr3.swizzle);
+	} else {
+		/* linear */
+		REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, 0);
+	}
 }
 
 void hubp401_program_size(
