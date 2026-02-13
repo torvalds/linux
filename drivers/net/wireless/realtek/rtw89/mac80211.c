@@ -528,6 +528,8 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls)
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_REMOTE_STA_CHANGE);
 
+	rtw89_fw_h2c_init_trx_protect(rtwdev);
+
 	return 0;
 
 unset_link:
@@ -1584,6 +1586,8 @@ static void __rtw89_ops_clr_vif_links(struct rtw89_dev *rtwdev,
 		if (unlikely(!rtwvif_link))
 			continue;
 
+		rtw89_fw_h2c_trx_protect(rtwdev, rtwvif_link->phy_idx, false);
+
 		__rtw89_ops_remove_iface_link(rtwdev, rtwvif_link);
 
 		rtw89_vif_unset_link(rtwvif, link_id);
@@ -1609,6 +1613,7 @@ static int __rtw89_ops_set_vif_links(struct rtw89_dev *rtwdev,
 				  __func__, link_id);
 			return ret;
 		}
+		rtw89_fw_h2c_trx_protect(rtwdev, rtwvif_link->phy_idx, true);
 	}
 
 	return 0;

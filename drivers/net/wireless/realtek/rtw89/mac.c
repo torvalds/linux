@@ -5411,6 +5411,9 @@ rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 le
 			cond = RTW89_SCANOFLD_BE_WAIT_COND_START;
 			h2c_return &= RTW89_C2H_SCAN_DONE_ACK_RETURN;
 			break;
+		case H2C_FUNC_TRX_PROTECT:
+			cond = RTW89_FW_OFLD_WAIT_COND_TRX_PROTECT;
+			break;
 		}
 
 		data.err = !!h2c_return;

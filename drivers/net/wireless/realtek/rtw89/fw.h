@@ -3106,6 +3106,44 @@ struct rtw89_h2c_scanofld_be {
 #define RTW89_H2C_SCANOFLD_BE_W9_SIZE_MACC GENMASK(15, 8)
 #define RTW89_H2C_SCANOFLD_BE_W9_SIZE_OP GENMASK(23, 16)
 
+struct rtw89_h2c_trx_protect {
+	__le32 c0;
+	__le32 c1;
+	__le32 w0;
+	__le32 m0;
+	__le32 w1;
+	__le32 m1;
+} __packed;
+
+#define RTW89_H2C_TRX_PROTECT_C0_BAND_BITMAP GENMASK(2, 0)
+#define RTW89_H2C_TRX_PROTECT_C0_OP_MODE GENMASK(4, 3)
+#define RTW89_H2C_TRX_PROTECT_C1_RX_IN BIT(0)
+#define RTW89_H2C_TRX_PROTECT_C1_PPDU_STS BIT(4)
+#define RTW89_H2C_TRX_PROTECT_C1_MSK_RX_IN BIT(16)
+#define RTW89_H2C_TRX_PROTECT_C1_MSK_PPDU_STS BIT(20)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_BE0 BIT(0)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_BK0 BIT(1)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_VI0 BIT(2)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_VO0 BIT(3)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_BE1 BIT(4)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_BK1 BIT(5)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_VI1 BIT(6)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_VO1 BIT(7)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_MG0 BIT(8)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_MG1 BIT(9)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_MG2 BIT(10)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_HI BIT(11)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_BCN BIT(12)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_UL BIT(13)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_TWT0 BIT(14)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_TWT1 BIT(15)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_TWT2 BIT(16)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_TWT3 BIT(17)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_SPEQ0 BIT(18)
+#define RTW89_H2C_TRX_PROTECT_W0_TXEN_SPEQ1 BIT(19)
+#define RTW89_H2C_TRX_PROTECT_W1_CHINFO_EN BIT(0)
+#define RTW89_H2C_TRX_PROTECT_W1_DFS_EN BIT(1)
+
 struct rtw89_h2c_fwips {
 	__le32 w0;
 } __packed;
@@ -4598,6 +4636,7 @@ enum rtw89_fw_ofld_h2c_func {
 	H2C_FUNC_OFLD_TP		= 0x20,
 	H2C_FUNC_MAC_MACID_PAUSE_SLEEP	= 0x28,
 	H2C_FUNC_SCANOFLD_BE		= 0x2c,
+	H2C_FUNC_TRX_PROTECT		= 0x34,
 
 	NUM_OF_RTW89_FW_OFLD_H2C_FUNC,
 };
@@ -4608,6 +4647,7 @@ enum rtw89_fw_ofld_h2c_func {
 #define RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op) \
 	RTW89_FW_OFLD_WAIT_COND(RTW89_PKT_OFLD_WAIT_TAG(pkt_id, pkt_op), \
 				H2C_FUNC_PACKET_OFLD)
+#define RTW89_FW_OFLD_WAIT_COND_TRX_PROTECT RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_TRX_PROTECT)
 
 #define RTW89_SCANOFLD_WAIT_COND_ADD_CH RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_ADD_SCANOFLD_CH)
 
@@ -5294,6 +5334,8 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				 struct rtw89_scan_option *opt,
 				 struct rtw89_vif_link *vif,
 				 bool wowlan);
+int rtw89_fw_h2c_trx_protect(struct rtw89_dev *rtwdev,
+			     enum rtw89_phy_idx phy_idx, bool enable);
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 			struct rtw89_fw_h2c_rf_reg_info *info,
 			u16 len, u8 page);
@@ -5467,6 +5509,15 @@ static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 
 	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
 		rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(rtwdev);
+}
+
+static inline void rtw89_fw_h2c_init_trx_protect(struct rtw89_dev *rtwdev)
+{
+	u8 active_bands = rtw89_get_active_phy_bitmap(rtwdev);
+	int i;
+
+	for (i = 0; i < RTW89_PHY_NUM; i++)
+		rtw89_fw_h2c_trx_protect(rtwdev, i, active_bands & BIT(i));
 }
 
 static inline int rtw89_chip_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
