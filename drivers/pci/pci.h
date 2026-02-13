@@ -816,30 +816,55 @@ static inline bool pci_dev_binding_disallowed(struct pci_dev *dev)
 
 #define AER_MAX_MULTI_ERR_DEVICES	5	/* Not likely to have more */
 
+/**
+ * struct aer_err_info - AER Error Information
+ * @dev: Devices reporting error
+ * @ratelimit_print: Flag to log or not log the devices' error. 0=NotLog/1=Log
+ * @__pad1: Padding for alignment
+ * @error_dev_num: Number of devices reporting an error
+ * @level: printk level to use in logging
+ * @id: Value from register PCI_ERR_ROOT_ERR_SRC
+ * @severity: AER severity, 0-UNCOR Non-fatal, 1-UNCOR fatal, 2-COR
+ * @root_ratelimit_print: Flag to log or not log the root's error. 0=NotLog/1=Log
+ * @multi_error_valid: If multiple errors are reported
+ * @first_error: First reported error
+ * @__pad2: Padding for alignment
+ * @is_cxl: Bus type error: 0-PCI Bus error, 1-CXL Bus error
+ * @tlp_header_valid: Indicates if TLP field contains error information
+ * @status: COR/UNCOR error status
+ * @mask: COR/UNCOR mask
+ * @tlp: Transaction packet information
+ */
 struct aer_err_info {
 	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
 	int ratelimit_print[AER_MAX_MULTI_ERR_DEVICES];
 	int error_dev_num;
-	const char *level;		/* printk level */
+	const char *level;
 
 	unsigned int id:16;
 
-	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
-	unsigned int root_ratelimit_print:1;	/* 0=skip, 1=print */
+	unsigned int severity:2;
+	unsigned int root_ratelimit_print:1;
 	unsigned int __pad1:4;
 	unsigned int multi_error_valid:1;
 
 	unsigned int first_error:5;
-	unsigned int __pad2:2;
+	unsigned int __pad2:1;
+	unsigned int is_cxl:1;
 	unsigned int tlp_header_valid:1;
 
-	unsigned int status;		/* COR/UNCOR Error Status */
-	unsigned int mask;		/* COR/UNCOR Error Mask */
-	struct pcie_tlp_log tlp;	/* TLP Header */
+	unsigned int status;
+	unsigned int mask;
+	struct pcie_tlp_log tlp;
 };
 
 int aer_get_device_error_info(struct aer_err_info *info, int i);
 void aer_print_error(struct aer_err_info *info, int i);
+
+static inline const char *aer_err_bus(struct aer_err_info *info)
+{
+	return info->is_cxl ? "CXL" : "PCIe";
+}
 
 int pcie_read_tlp_log(struct pci_dev *dev, int where, int where2,
 		      unsigned int tlp_len, bool flit,

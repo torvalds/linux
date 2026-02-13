@@ -29,6 +29,29 @@ at :doc:`ACPI Tables <acpi>`.
    on physical memory region size and alignment, memory holes, HDM interleave,
    and what linux expects of HDM decoders trying to work with these features.
 
+
+Linux Expectations of BIOS/EFI Software
+=======================================
+Linux expects BIOS/EFI software to construct sufficient ACPI tables (such as
+CEDT, SRAT, HMAT, etc) and platform-specific configurations (such as HPA spaces
+and host-bridge interleave configurations) to allow the Linux driver to
+subsequently configure the devices in the CXL fabric at runtime.
+
+Programming of HDM decoders and switch ports is not required, and may be
+deferred to the CXL driver based on admin policy (e.g. udev rules).
+
+Some platforms may require pre-programming HDM decoders and locking them
+due to quirks (see: Zen5 address translation), but this is not the normal,
+"expected" configuration path.  This should be avoided if possible.
+
+Some platforms may wish to pre-configure these resources to bring memory
+up without requiring CXL driver support.  These platform vendors should
+test their configurations with the existing CXL driver and provide driver
+support for their auto-configurations if features like RAS are required.
+
+Platforms requiring boot-time programming and/or locking of CXL fabric
+components may prevent features, such as device hot-plug, from working.
+
 UEFI Settings
 =============
 If your platform supports it, the :code:`uefisettings` command can be used to

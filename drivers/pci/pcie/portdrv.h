@@ -123,4 +123,16 @@ static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
 struct device *pcie_port_find_device(struct pci_dev *dev, u32 service);
+
+struct aer_err_info;
+
+#ifdef CONFIG_CXL_RAS
+bool is_aer_internal_error(struct aer_err_info *info);
+void cxl_rch_handle_error(struct pci_dev *dev, struct aer_err_info *info);
+void cxl_rch_enable_rcec(struct pci_dev *rcec);
+#else
+static inline bool is_aer_internal_error(struct aer_err_info *info) { return false; }
+static inline void cxl_rch_handle_error(struct pci_dev *dev, struct aer_err_info *info) { }
+static inline void cxl_rch_enable_rcec(struct pci_dev *rcec) { }
+#endif /* CONFIG_CXL_RAS */
 #endif /* _PORTDRV_H_ */
