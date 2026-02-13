@@ -365,6 +365,22 @@ void *devres_get(struct device *dev, void *new_res,
 }
 EXPORT_SYMBOL_GPL(devres_get);
 
+bool devres_node_remove(struct device *dev, struct devres_node *node)
+{
+	struct devres_node *__node;
+
+	guard(spinlock_irqsave)(&dev->devres_lock);
+	list_for_each_entry_reverse(__node, &dev->devres_head, entry) {
+		if (__node == node) {
+			list_del_init(&node->entry);
+			devres_log(dev, node, "REM");
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /**
  * devres_remove - Find a device resource and remove it
  * @dev: Device to find resource from

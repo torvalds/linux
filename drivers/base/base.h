@@ -231,6 +231,7 @@ struct devres_node {
 void devres_node_init(struct devres_node *node, dr_node_release_t release,
 		      dr_node_free_t free_node);
 void devres_node_add(struct device *dev, struct devres_node *node);
+bool devres_node_remove(struct device *dev, struct devres_node *node);
 void devres_for_each_res(struct device *dev, dr_release_t release,
 			 dr_match_t match, void *match_data,
 			 void (*fn)(struct device *, void *, void *),
