@@ -814,6 +814,7 @@ static bool rtw89_mac_suppress_log(struct rtw89_dev *rtwdev, u32 err)
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 err, err_scnr;
 	int ret;
 
@@ -836,10 +837,14 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 		err = MAC_AX_ERR_RXI300;
 
 	if (rtw89_mac_suppress_log(rtwdev, err))
-		return err;
+		goto bottom;
 
 	rtw89_fw_st_dbg_dump(rtwdev);
 	mac->dump_err_status(rtwdev, err);
+
+bottom:
+	if (chip->chip_gen != RTW89_CHIP_AX)
+		rtw89_write32(rtwdev, R_AX_HALT_C2H, 0);
 
 	return err;
 }
