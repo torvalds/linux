@@ -6641,6 +6641,14 @@ Kernel parameters
 			replacement properties are not found. See the Kconfig
 			entry for RISCV_ISA_FALLBACK.
 
+	riscv_nousercfi=
+		all	Disable user CFI ABI to userspace even if cpu extension
+			are available.
+		bcfi	Disable user backward CFI ABI to userspace even if
+			the shadow stack extension is available.
+		fcfi	Disable user forward CFI ABI to userspace even if the
+			landing pad extension is available.
+
 	ro		[KNL] Mount root device read-only on boot
 
 	rodata=		[KNL,EARLY]
