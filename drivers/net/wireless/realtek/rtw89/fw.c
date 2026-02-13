@@ -1073,6 +1073,7 @@ int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 				 const union rtw89_fw_element_arg arg)
 {
 	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_phy_table *tbl, **pp;
 	struct rtw89_reg2_def *regs;
@@ -1129,7 +1130,9 @@ int rtw89_build_phy_tbl_from_elm(struct rtw89_dev *rtwdev,
 
 	if (radio) {
 		tbl->rf_path = arg.rf_path;
-		tbl->config = rtw89_phy_config_rf_reg_v1;
+		tbl->config = chip->chip_id == RTL8852A ?
+			      rtw89_phy_config_rf_reg :
+			      rtw89_phy_config_rf_reg_v1;
 	}
 
 	*pp = tbl;

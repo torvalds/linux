@@ -1659,10 +1659,10 @@ static void rtw89_phy_config_rf_reg_noio(struct rtw89_dev *rtwdev,
 				     (struct rtw89_fw_h2c_rf_reg_info *)extra_data);
 }
 
-static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
-				    const struct rtw89_reg2_def *reg,
-				    enum rtw89_rf_path rf_path,
-				    void *extra_data)
+void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
+			     const struct rtw89_reg2_def *reg,
+			     enum rtw89_rf_path rf_path,
+			     void *extra_data)
 {
 	if (reg->addr == 0xfe) {
 		mdelay(50);
