@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2025 Intel Corporation.
+ * Copyright (c) 2010 - 2026 Intel Corporation
  * Len Brown <len.brown@intel.com>
  */
 
@@ -2735,8 +2735,7 @@ void help(void)
 		"		sets the Thermal Control Circuit temperature in\n"
 		"		  degrees Celsius\n"
 		"  -h, --help\n"
-		"		print this help message\n"
-		"  -v, --version\n\t\tprint version information\n\nFor more help, run \"man turbostat\"\n");
+		"		print this help message\n  -v, --version\n\t\tprint version information\n\nFor more help, run \"man turbostat\"\n");
 }
 
 /*
@@ -3671,11 +3670,9 @@ int format_counters(PER_THREAD_PARAMS)
 	if (DO_BIC(BIC_RAM_J))
 		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&p->energy_dram, RAPL_UNIT_JOULES, interval_float));
 	if (DO_BIC(BIC_PKG__))
-		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&p->rapl_pkg_perf_status, RAPL_UNIT_WATTS, interval_float));
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&p->rapl_pkg_perf_status, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_RAM__))
-		outp +=
-		    sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&p->rapl_dram_perf_status, RAPL_UNIT_WATTS, interval_float));
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&p->rapl_dram_perf_status, RAPL_UNIT_WATTS, interval_float));
 	/* UncMHz */
 	if (DO_BIC(BIC_UNCORE_MHZ))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->uncore_mhz);
@@ -3725,11 +3722,9 @@ int format_counters(PER_THREAD_PARAMS)
 	}
 
 	if (DO_BIC(BIC_SysWatt) && (t == average.threads))
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
-				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_WATTS, interval_float));
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_WATTS, interval_float));
 	if (DO_BIC(BIC_Sys_J) && (t == average.threads))
-		outp += sprintf(outp, fmt8, (printed++ ? delim : ""),
-				rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_JOULES, interval_float));
+		outp += sprintf(outp, fmt8, (printed++ ? delim : ""), rapl_counter_get_value(&pplat_cnt->energy_psys, RAPL_UNIT_JOULES, interval_float));
 
 done:
 	if (*(outp - 1) != '\n')
@@ -3942,7 +3937,7 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 	/* check for TSC < 1 Mcycles over interval */
 	if (old->tsc < (1000 * 1000))
 		errx(-3, "Insanely slow TSC rate, TSC stops in idle?\n"
-		     "You can disable all c-states by booting with \"idle=poll\"\n" "or just the deep ones with \"processor.max_cstate=1\"");
+		     "You can disable all c-states by booting with \"idle=poll\"\nor just the deep ones with \"processor.max_cstate=1\"");
 
 	old->c1 = new->c1 - old->c1;
 
@@ -5546,8 +5541,7 @@ static void dump_turbo_ratio_limits(int trl_msr_offset)
 	int shift;
 
 	get_msr(master_cpu, trl_msr_offset, &msr);
-	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n",
-		master_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY_" : "", msr);
+	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n", master_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY_" : "", msr);
 
 	if (platform->trl_msrs & TRL_CORECOUNT) {
 		get_msr(master_cpu, MSR_TURBO_RATIO_LIMIT1, &core_counts);
@@ -8019,8 +8013,7 @@ int print_rapl(PER_THREAD_PARAMS)
 			return -1;
 	}
 
-	fprintf(outf, "cpu%d: %s: 0x%08llx (%f Watts, %f Joules, %f sec.)\n", cpu, msr_name, msr,
-		rapl_power_units, rapl_energy_units, rapl_time_units);
+	fprintf(outf, "cpu%d: %s: 0x%08llx (%f Watts, %f Joules, %f sec.)\n", cpu, msr_name, msr, rapl_power_units, rapl_energy_units, rapl_time_units);
 
 	if (valid_rapl_msrs & RAPL_PKG_POWER_INFO) {
 
@@ -8052,8 +8045,7 @@ int print_rapl(PER_THREAD_PARAMS)
 			return -9;
 
 		fprintf(outf, "cpu%d: MSR_VR_CURRENT_CONFIG: 0x%08llx\n", cpu, msr);
-		fprintf(outf, "cpu%d: PKG Limit #4: %f Watts (%slocked)\n",
-			cpu, ((msr >> 0) & 0x1FFF) * rapl_power_units, (msr >> 31) & 1 ? "" : "UN");
+		fprintf(outf, "cpu%d: PKG Limit #4: %f Watts (%slocked)\n", cpu, ((msr >> 0) & 0x1FFF) * rapl_power_units, (msr >> 31) & 1 ? "" : "UN");
 	}
 
 	if (valid_rapl_msrs & RAPL_DRAM_POWER_INFO) {
@@ -8390,8 +8382,7 @@ void decode_misc_feature_control(void)
 	if (!get_msr(master_cpu, MSR_MISC_FEATURE_CONTROL, &msr))
 		fprintf(outf,
 			"cpu%d: MSR_MISC_FEATURE_CONTROL: 0x%08llx (%sL2-Prefetch %sL2-Prefetch-pair %sL1-Prefetch %sL1-IP-Prefetch)\n",
-			master_cpu, msr, msr & (0 << 0) ? "No-" : "", msr & (1 << 0) ? "No-" : "",
-			msr & (2 << 0) ? "No-" : "", msr & (3 << 0) ? "No-" : "");
+			master_cpu, msr, msr & (0 << 0) ? "No-" : "", msr & (1 << 0) ? "No-" : "", msr & (2 << 0) ? "No-" : "", msr & (3 << 0) ? "No-" : "");
 }
 
 /*
@@ -8433,12 +8424,10 @@ void decode_c6_demotion_policy_msr(void)
 		return;
 
 	if (!get_msr(master_cpu, MSR_CC6_DEMOTION_POLICY_CONFIG, &msr))
-		fprintf(outf, "cpu%d: MSR_CC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-CC6-Demotion)\n",
-			master_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
+		fprintf(outf, "cpu%d: MSR_CC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-CC6-Demotion)\n", master_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
 
 	if (!get_msr(master_cpu, MSR_MC6_DEMOTION_POLICY_CONFIG, &msr))
-		fprintf(outf, "cpu%d: MSR_MC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-MC6-Demotion)\n",
-			master_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
+		fprintf(outf, "cpu%d: MSR_MC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-MC6-Demotion)\n", master_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
 }
 
 void print_dev_latency(void)
@@ -8756,8 +8745,7 @@ void rapl_perf_init(void)
 /* Assumes msr_counter_info is populated */
 static int has_amperf_access(void)
 {
-	return cpuid_has_aperf_mperf && msr_counter_arch_infos[MSR_ARCH_INFO_APERF_INDEX].present &&
-	    msr_counter_arch_infos[MSR_ARCH_INFO_MPERF_INDEX].present;
+	return cpuid_has_aperf_mperf && msr_counter_arch_infos[MSR_ARCH_INFO_APERF_INDEX].present && msr_counter_arch_infos[MSR_ARCH_INFO_MPERF_INDEX].present;
 }
 
 int *get_cstate_perf_group_fd(struct cstate_counter_info_t *cci, const char *group_name)
@@ -8968,8 +8956,7 @@ void cstate_perf_init_(bool soft_c1)
 			if (!per_core && pkg_visited[pkg_id])
 				continue;
 
-			const bool counter_needed = BIC_IS_ENABLED(cai->bic_number) ||
-			    (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
+			const bool counter_needed = BIC_IS_ENABLED(cai->bic_number) || (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
 			const bool counter_supported = (platform->supported_cstates & cai->feature_mask);
 
 			if (counter_needed && counter_supported) {
@@ -9259,8 +9246,7 @@ void process_cpuid()
 			if (crystal_hz) {
 				tsc_hz = (unsigned long long)crystal_hz *ebx_tsc / eax_crystal;
 				if (!quiet)
-					fprintf(outf, "TSC: %lld MHz (%d Hz * %d / %d / 1000000)\n",
-						tsc_hz / 1000000, crystal_hz, ebx_tsc, eax_crystal);
+					fprintf(outf, "TSC: %lld MHz (%d Hz * %d / %d / 1000000)\n", tsc_hz / 1000000, crystal_hz, ebx_tsc, eax_crystal);
 			}
 		}
 	}
@@ -9645,7 +9631,7 @@ void topology_probe(bool startup)
 		if (cpus[i].ht_id == 0)
 			topo.num_cores++;
 	}
-	topo.max_core_id = max_core_id;			/* within a package */
+	topo.max_core_id = max_core_id;	/* within a package */
 	topo.max_package_id = max_package_id;
 	topo.num_cores = (max_core_id + 1) * topo.num_packages;	/* per system */
 
@@ -9712,6 +9698,7 @@ void allocate_counters_1(struct counters *counters)
 error:
 	err(1, "calloc counters_1");
 }
+
 void allocate_counters(struct counters *counters)
 {
 	int i;
@@ -10368,8 +10355,7 @@ void pmt_init(void)
 
 	if (BIC_IS_ENABLED(BIC_Diec6)) {
 		pmt_add_counter(PMT_MTL_DC6_GUID, PMT_MTL_DC6_SEQ, "Die%c6", PMT_TYPE_XTAL_TIME,
-				PMT_COUNTER_MTL_DC6_LSB, PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET,
-				SCOPE_PACKAGE, FORMAT_DELTA, 0, PMT_OPEN_TRY);
+				PMT_COUNTER_MTL_DC6_LSB, PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET, SCOPE_PACKAGE, FORMAT_DELTA, 0, PMT_OPEN_TRY);
 	}
 
 	if (BIC_IS_ENABLED(BIC_CPU_c1e)) {
@@ -10547,7 +10533,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2026.02.04 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2026.02.14 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
@@ -11169,8 +11155,7 @@ next:
 	}
 
 	if (direct_path && has_guid) {
-		printf("%s: path and guid+seq parameters are mutually exclusive\n"
-		       "notice: passed guid=0x%x and path=%s\n", __func__, guid, direct_path);
+		printf("%s: path and guid+seq parameters are mutually exclusive\nnotice: passed guid=0x%x and path=%s\n", __func__, guid, direct_path);
 		exit(1);
 	}
 
