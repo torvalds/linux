@@ -18,7 +18,7 @@
 #define RTW8851B_FW_FORMAT_MAX 0
 #define RTW8851B_FW_BASENAME "rtw89/rtw8851b_fw"
 #define RTW8851B_MODULE_FIRMWARE \
-	RTW8851B_FW_BASENAME ".bin"
+	RTW89_GEN_MODULE_FWNAME(RTW8851B_FW_BASENAME, RTW8851B_FW_FORMAT_MAX)
 
 static const struct rtw89_hfc_ch_cfg rtw8851b_hfc_chcfg_pcie[] = {
 	{5, 343, grp_0}, /* ACH 0 */

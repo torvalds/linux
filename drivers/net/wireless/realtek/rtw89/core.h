@@ -4152,6 +4152,15 @@ struct rtw89_reg_imr {
 	u32 set;
 };
 
+#define RTW89_MODULE_FWNAME_PLACEHOLDER_0 0,
+#define __RTW89_GEN_MODULE_FWNAME_FMT(placeholder_or_ignored, strfmt) \
+	__take_second_arg(placeholder_or_ignored, strfmt)
+#define RTW89_GEN_MODULE_FWNAME_FMT(maxfmt) \
+	__RTW89_GEN_MODULE_FWNAME_FMT(RTW89_MODULE_FWNAME_PLACEHOLDER_ ## maxfmt, \
+				      "-" __stringify(maxfmt))
+#define RTW89_GEN_MODULE_FWNAME(basename, maxformat) \
+	basename RTW89_GEN_MODULE_FWNAME_FMT(maxformat) ".bin"
+
 struct rtw89_fw_def {
 	const char *fw_basename;
 	u8 fw_format_max;
