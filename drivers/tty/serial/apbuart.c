@@ -505,7 +505,7 @@ console_initcall(apbuart_console_init);
 
 static struct uart_driver grlib_apbuart_driver = {
 	.owner = THIS_MODULE,
-	.driver_name = "serial",
+	.driver_name = "serial_apbuart",
 	.dev_name = "ttyS",
 	.major = SERIAL_APBUART_MAJOR,
 	.minor = SERIAL_APBUART_MINOR,

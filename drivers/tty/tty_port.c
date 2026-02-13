@@ -100,6 +100,23 @@ void tty_port_init(struct tty_port *port)
 EXPORT_SYMBOL(tty_port_init);
 
 /**
+ * tty_port_link_wq - link tty_port and flip workqueue
+ * @port: tty_port of the device
+ * @flip_wq: workqueue to queue flip buffer work on
+ *
+ * Whenever %TTY_DRIVER_NO_WORKQUEUE is used, every tty_port can be linked to
+ * a workqueue manually by this function.
+ * tty_port will use system_dfl_wq when buf.flip_wq is NULL.
+ *
+ * Note that tty_port API will NOT destroy the workqueue.
+ */
+void tty_port_link_wq(struct tty_port *port, struct workqueue_struct *flip_wq)
+{
+	port->buf.flip_wq = flip_wq;
+}
+EXPORT_SYMBOL_GPL(tty_port_link_wq);
+
+/**
  * tty_port_link_device - link tty and tty_port
  * @port: tty_port of the device
  * @driver: tty_driver for this device
@@ -157,6 +174,7 @@ struct device *tty_port_register_device_attr(struct tty_port *port,
 		const struct attribute_group **attr_grp)
 {
 	tty_port_link_device(port, driver, index);
+	tty_port_link_driver_wq(port, driver);
 	return tty_register_device_attr(driver, index, device, drvdata,
 			attr_grp);
 }
@@ -183,6 +201,7 @@ struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
 	struct device *dev;
 
 	tty_port_link_device(port, driver, index);
+	tty_port_link_driver_wq(port, driver);
 
 	dev = serdev_tty_port_register(port, host, parent, driver, index);
 	if (PTR_ERR(dev) != -ENODEV) {
@@ -210,6 +229,7 @@ void tty_port_unregister_device(struct tty_port *port,
 {
 	int ret;
 
+	WRITE_ONCE(port->buf.flip_wq, NULL);
 	ret = serdev_tty_port_unregister(port);
 	if (ret == 0)
 		return;
@@ -257,6 +277,7 @@ void tty_port_destroy(struct tty_port *port)
 {
 	tty_buffer_cancel_work(port);
 	tty_buffer_free_all(port);
+	WRITE_ONCE(port->buf.flip_wq, NULL);
 }
 EXPORT_SYMBOL(tty_port_destroy);
 
@@ -703,6 +724,7 @@ int tty_port_install(struct tty_port *port, struct tty_driver *driver,
 		struct tty_struct *tty)
 {
 	tty->port = port;
+	tty_port_link_driver_wq(port, driver);
 	return tty_standard_install(driver, tty);
 }
 EXPORT_SYMBOL_GPL(tty_port_install);

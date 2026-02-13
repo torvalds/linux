@@ -914,7 +914,7 @@ console_initcall(dz_serial_console_init);
 
 static struct uart_driver dz_reg = {
 	.owner			= THIS_MODULE,
-	.driver_name		= "serial",
+	.driver_name		= "serial_dz",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
 	.minor			= 64,
