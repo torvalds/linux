@@ -2079,7 +2079,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 
 		/* Falls between the IPA range and the PARange? */
 		if (fault_ipa >= BIT_ULL(VTCR_EL2_IPA(vcpu->arch.hw_mmu->vtcr))) {
-			fault_ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
+			fault_ipa |= FAR_TO_FIPA_OFFSET(kvm_vcpu_get_hfar(vcpu));
 
 			return kvm_inject_sea(vcpu, is_iabt, fault_ipa);
 		}
@@ -2185,7 +2185,7 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 		 * faulting VA. This is always 12 bits, irrespective
 		 * of the page size.
 		 */
-		ipa |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
+		ipa |= FAR_TO_FIPA_OFFSET(kvm_vcpu_get_hfar(vcpu));
 		ret = io_mem_abort(vcpu, ipa);
 		goto out_unlock;
 	}
@@ -2294,11 +2294,9 @@ static struct kvm_pgtable_mm_ops kvm_hyp_mm_ops = {
 	.virt_to_phys		= kvm_host_pa,
 };
 
-int __init kvm_mmu_init(u32 *hyp_va_bits)
+int __init kvm_mmu_init(u32 hyp_va_bits)
 {
 	int err;
-	u32 idmap_bits;
-	u32 kernel_bits;
 
 	hyp_idmap_start = __pa_symbol(__hyp_idmap_text_start);
 	hyp_idmap_start = ALIGN_DOWN(hyp_idmap_start, PAGE_SIZE);
@@ -2312,25 +2310,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	 */
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
-	/*
-	 * The ID map is always configured for 48 bits of translation, which
-	 * may be fewer than the number of VA bits used by the regular kernel
-	 * stage 1, when VA_BITS=52.
-	 *
-	 * At EL2, there is only one TTBR register, and we can't switch between
-	 * translation tables *and* update TCR_EL2.T0SZ at the same time. Bottom
-	 * line: we need to use the extended range with *both* our translation
-	 * tables.
-	 *
-	 * So use the maximum of the idmap VA bits and the regular kernel stage
-	 * 1 VA bits to assure that the hypervisor can both ID map its code page
-	 * and map any kernel memory.
-	 */
-	idmap_bits = IDMAP_VA_BITS;
-	kernel_bits = vabits_actual;
-	*hyp_va_bits = max(idmap_bits, kernel_bits);
-
-	kvm_debug("Using %u-bit virtual addresses at EL2\n", *hyp_va_bits);
+	kvm_debug("Using %u-bit virtual addresses at EL2\n", hyp_va_bits);
 	kvm_debug("IDMAP page: %lx\n", hyp_idmap_start);
 	kvm_debug("HYP VA range: %lx:%lx\n",
 		  kern_hyp_va(PAGE_OFFSET),
@@ -2355,7 +2335,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 		goto out;
 	}
 
-	err = kvm_pgtable_hyp_init(hyp_pgtable, *hyp_va_bits, &kvm_hyp_mm_ops);
+	err = kvm_pgtable_hyp_init(hyp_pgtable, hyp_va_bits, &kvm_hyp_mm_ops);
 	if (err)
 		goto out_free_pgtable;
 
@@ -2364,7 +2344,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 		goto out_destroy_pgtable;
 
 	io_map_base = hyp_idmap_start;
-	__hyp_va_bits = *hyp_va_bits;
+	__hyp_va_bits = hyp_va_bits;
 	return 0;
 
 out_destroy_pgtable:

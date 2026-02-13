@@ -87,15 +87,9 @@ typedef u64 kvm_pte_t;
 
 #define KVM_PTE_LEAF_ATTR_HI_SW		GENMASK(58, 55)
 
-#define __KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
-#define __KVM_PTE_LEAF_ATTR_HI_S1_UXN	BIT(54)
-#define __KVM_PTE_LEAF_ATTR_HI_S1_PXN	BIT(53)
-
-#define KVM_PTE_LEAF_ATTR_HI_S1_XN					\
-	({ cpus_have_final_cap(ARM64_KVM_HVHE) ?			\
-			(__KVM_PTE_LEAF_ATTR_HI_S1_UXN |		\
-			 __KVM_PTE_LEAF_ATTR_HI_S1_PXN) :		\
-			__KVM_PTE_LEAF_ATTR_HI_S1_XN; })
+#define KVM_PTE_LEAF_ATTR_HI_S1_XN	BIT(54)
+#define KVM_PTE_LEAF_ATTR_HI_S1_UXN	BIT(54)
+#define KVM_PTE_LEAF_ATTR_HI_S1_PXN	BIT(53)
 
 #define KVM_PTE_LEAF_ATTR_HI_S2_XN	GENMASK(54, 53)
 
@@ -237,13 +231,12 @@ struct kvm_pgtable_mm_ops {
 
 /**
  * enum kvm_pgtable_stage2_flags - Stage-2 page-table flags.
- * @KVM_PGTABLE_S2_NOFWB:	Don't enforce Normal-WB even if the CPUs have
- *				ARM64_HAS_STAGE2_FWB.
  * @KVM_PGTABLE_S2_IDMAP:	Only use identity mappings.
+ * @KVM_PGTABLE_S2_AS_S1:	Final memory attributes are that of Stage-1.
  */
 enum kvm_pgtable_stage2_flags {
-	KVM_PGTABLE_S2_NOFWB			= BIT(0),
-	KVM_PGTABLE_S2_IDMAP			= BIT(1),
+	KVM_PGTABLE_S2_IDMAP			= BIT(0),
+	KVM_PGTABLE_S2_AS_S1			= BIT(1),
 };
 
 /**

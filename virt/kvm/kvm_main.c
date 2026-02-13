@@ -3134,7 +3134,7 @@ int __kvm_vcpu_map(struct kvm_vcpu *vcpu, gfn_t gfn, struct kvm_host_map *map,
 		   bool writable)
 {
 	struct kvm_follow_pfn kfp = {
-		.slot = gfn_to_memslot(vcpu->kvm, gfn),
+		.slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn),
 		.gfn = gfn,
 		.flags = writable ? FOLL_WRITE : 0,
 		.refcounted_page = &map->pinned_page,
@@ -6485,10 +6485,11 @@ static struct perf_guest_info_callbacks kvm_guest_cbs = {
 	.handle_mediated_pmi	= NULL,
 };
 
-void kvm_register_perf_callbacks(unsigned int (*pt_intr_handler)(void))
+void __kvm_register_perf_callbacks(unsigned int (*pt_intr_handler)(void),
+				   void (*mediated_pmi_handler)(void))
 {
 	kvm_guest_cbs.handle_intel_pt_intr = pt_intr_handler;
-	kvm_guest_cbs.handle_mediated_pmi = NULL;
+	kvm_guest_cbs.handle_mediated_pmi = mediated_pmi_handler;
 
 	perf_register_guest_info_callbacks(&kvm_guest_cbs);
 }

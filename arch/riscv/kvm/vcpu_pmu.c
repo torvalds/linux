@@ -494,12 +494,9 @@ int kvm_riscv_vcpu_pmu_event_info(struct kvm_vcpu *vcpu, unsigned long saddr_low
 	}
 
 	ret = kvm_vcpu_write_guest(vcpu, shmem, einfo, shmem_size);
-	if (ret) {
+	if (ret)
 		ret = SBI_ERR_INVALID_ADDRESS;
-		goto free_mem;
-	}
 
-	ret = 0;
 free_mem:
 	kfree(einfo);
 out:

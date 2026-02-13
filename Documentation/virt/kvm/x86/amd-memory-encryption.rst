@@ -523,7 +523,7 @@ Returns: 0 on success, < 0 on error, -EAGAIN if caller should retry
 
         struct kvm_sev_snp_launch_update {
                 __u64 gfn_start;        /* Guest page number to load/encrypt data into. */
-                __u64 uaddr;            /* Userspace address of data to be loaded/encrypted. */
+                __u64 uaddr;            /* 4k-aligned address of data to be loaded/encrypted. */
                 __u64 len;              /* 4k-aligned length in bytes to copy into guest memory.*/
                 __u8 type;              /* The type of the guest pages being initialized. */
                 __u8 pad0;
@@ -572,6 +572,52 @@ Returns: 0 on success, -negative on error
 See SNP_LAUNCH_FINISH in the SEV-SNP specification [snp-fw-abi]_ for further
 details on the input parameters in ``struct kvm_sev_snp_launch_finish``.
 
+21. KVM_SEV_SNP_ENABLE_REQ_CERTS
+--------------------------------
+
+The KVM_SEV_SNP_ENABLE_REQ_CERTS command will configure KVM to exit to
+userspace with a ``KVM_EXIT_SNP_REQ_CERTS`` exit type as part of handling
+a guest attestation report, which will to allow userspace to provide a
+certificate corresponding to the endorsement key used by firmware to sign
+that attestation report.
+
+Returns: 0 on success, -negative on error
+
+NOTE: The endorsement key used by firmware may change as a result of
+management activities like updating SEV-SNP firmware or loading new
+endorsement keys, so some care should be taken to keep the returned
+certificate data in sync with the actual endorsement key in use by
+firmware at the time the attestation request is sent to SNP firmware. The
+recommended scheme to do this is to use file locking (e.g. via fcntl()'s
+F_OFD_SETLK) in the following manner:
+
+  - Prior to obtaining/providing certificate data as part of servicing an
+    exit type of ``KVM_EXIT_SNP_REQ_CERTS``, the VMM should obtain a
+    shared/read or exclusive/write lock on the certificate blob file before
+    reading it and returning it to KVM, and continue to hold the lock until
+    the attestation request is actually sent to firmware. To facilitate
+    this, the VMM can set the ``immediate_exit`` flag of kvm_run just after
+    supplying the certificate data, and just before resuming the vCPU.
+    This will ensure the vCPU will exit again to userspace with ``-EINTR``
+    after it finishes fetching the attestation request from firmware, at
+    which point the VMM can safely drop the file lock.
+
+  - Tools/libraries that perform updates to SNP firmware TCB values or
+    endorsement keys (e.g. via /dev/sev interfaces such as ``SNP_COMMIT``,
+    ``SNP_SET_CONFIG``, or ``SNP_VLEK_LOAD``, see
+    Documentation/virt/coco/sev-guest.rst for more details) in such a way
+    that the certificate blob needs to be updated, should similarly take an
+    exclusive lock on the certificate blob for the duration of any updates
+    to endorsement keys or the certificate blob contents to ensure that
+    VMMs using the above scheme will not return certificate blob data that
+    is out of sync with the endorsement key used by firmware at the time
+    the attestation request is actually issued.
+
+This scheme is recommended so that tools can use a fairly generic/natural
+approach to synchronizing firmware/certificate updates via file-locking,
+which should make it easier to maintain interoperability across
+tools/VMMs/vendors.
+
 Device attribute API
 ====================
 
@@ -579,10 +625,14 @@ Attributes of the SEV implementation can be retrieved through the
 ``KVM_HAS_DEVICE_ATTR`` and ``KVM_GET_DEVICE_ATTR`` ioctls on the ``/dev/kvm``
 device node, using group ``KVM_X86_GRP_SEV``.
 
-Currently only one attribute is implemented:
+The following attributes are currently implemented:
 
 * ``KVM_X86_SEV_VMSA_FEATURES``: return the set of all bits that
   are accepted in the ``vmsa_features`` of ``KVM_SEV_INIT2``.
+
+* ``KVM_X86_SEV_SNP_REQ_CERTS``: return a value of 1 if the kernel supports the
+  ``KVM_EXIT_SNP_REQ_CERTS`` exit, which allows for fetching endorsement key
+  certificates from userspace for each SNP attestation request the guest issues.
 
 Firmware Management
 ===================

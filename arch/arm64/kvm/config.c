@@ -16,14 +16,18 @@
  */
 struct reg_bits_to_feat_map {
 	union {
-		u64	bits;
-		u64	*res0p;
+		u64		 bits;
+		struct fgt_masks *masks;
 	};
 
 #define	NEVER_FGU	BIT(0)	/* Can trap, but never UNDEF */
 #define	CALL_FUNC	BIT(1)	/* Needs to evaluate tons of crap */
-#define	FIXED_VALUE	BIT(2)	/* RAZ/WI or RAO/WI in KVM */
-#define	RES0_POINTER	BIT(3)	/* Pointer to RES0 value instead of bits */
+#define	FORCE_RESx	BIT(2)	/* Unconditional RESx */
+#define	MASKS_POINTER	BIT(3)	/* Pointer to fgt_masks struct instead of bits */
+#define	AS_RES1		BIT(4)	/* RES1 when not supported */
+#define	REQUIRES_E2H1	BIT(5)	/* Add HCR_EL2.E2H RES1 as a pre-condition */
+#define	RES1_WHEN_E2H0	BIT(6)	/* RES1 when E2H=0 and not supported */
+#define	RES1_WHEN_E2H1	BIT(7)	/* RES1 when E2H=1 and not supported */
 
 	unsigned long	flags;
 
@@ -36,7 +40,6 @@ struct reg_bits_to_feat_map {
 			s8	lo_lim;
 		};
 		bool	(*match)(struct kvm *);
-		bool	(*fval)(struct kvm *, u64 *);
 	};
 };
 
@@ -69,18 +72,17 @@ struct reg_feat_map_desc {
 		.lo_lim	= id ##_## fld ##_## lim	\
 	}
 
-#define __NEEDS_FEAT_2(m, f, w, fun, dummy)		\
-	{						\
-		.w	= (m),				\
-		.flags = (f) | CALL_FUNC,		\
-		.fval = (fun),				\
-	}
-
 #define __NEEDS_FEAT_1(m, f, w, fun)			\
 	{						\
 		.w	= (m),				\
 		.flags = (f) | CALL_FUNC,		\
 		.match = (fun),				\
+	}
+
+#define __NEEDS_FEAT_0(m, f, w, ...)			\
+	{						\
+		.w	= (m),				\
+		.flags = (f),				\
 	}
 
 #define __NEEDS_FEAT_FLAG(m, f, w, ...)			\
@@ -89,11 +91,8 @@ struct reg_feat_map_desc {
 #define NEEDS_FEAT_FLAG(m, f, ...)			\
 	__NEEDS_FEAT_FLAG(m, f, bits, __VA_ARGS__)
 
-#define NEEDS_FEAT_FIXED(m, ...)			\
-	__NEEDS_FEAT_FLAG(m, FIXED_VALUE, bits, __VA_ARGS__, 0)
-
-#define NEEDS_FEAT_RES0(p, ...)				\
-	__NEEDS_FEAT_FLAG(p, RES0_POINTER, res0p, __VA_ARGS__)
+#define NEEDS_FEAT_MASKS(p, ...)				\
+	__NEEDS_FEAT_FLAG(p, MASKS_POINTER, masks, __VA_ARGS__)
 
 /*
  * Declare the dependency between a set of bits and a set of features,
@@ -101,27 +100,32 @@ struct reg_feat_map_desc {
  */
 #define NEEDS_FEAT(m, ...)	NEEDS_FEAT_FLAG(m, 0, __VA_ARGS__)
 
+/* Declare fixed RESx bits */
+#define FORCE_RES0(m)		NEEDS_FEAT_FLAG(m, FORCE_RESx)
+#define FORCE_RES1(m)		NEEDS_FEAT_FLAG(m, FORCE_RESx | AS_RES1)
+
 /*
- * Declare the dependency between a non-FGT register, a set of
- * feature, and the set of individual bits it contains. This generates
- * a struct reg_feat_map_desc.
+ * Declare the dependency between a non-FGT register, a set of features,
+ * and the set of individual bits it contains. This generates a struct
+ * reg_feat_map_desc.
  */
 #define DECLARE_FEAT_MAP(n, r, m, f)					\
 	struct reg_feat_map_desc n = {					\
 		.name			= #r,				\
-		.feat_map		= NEEDS_FEAT(~r##_RES0, f), 	\
+		.feat_map		= NEEDS_FEAT(~(r##_RES0 |	\
+						       r##_RES1), f),	\
 		.bit_feat_map		= m,				\
 		.bit_feat_map_sz	= ARRAY_SIZE(m),		\
 	}
 
 /*
  * Specialised version of the above for FGT registers that have their
- * RES0 masks described as struct fgt_masks.
+ * RESx masks described as struct fgt_masks.
  */
 #define DECLARE_FEAT_MAP_FGT(n, msk, m, f)				\
 	struct reg_feat_map_desc n = {					\
 		.name			= #msk,				\
-		.feat_map		= NEEDS_FEAT_RES0(&msk.res0, f),\
+		.feat_map		= NEEDS_FEAT_MASKS(&msk, f),	\
 		.bit_feat_map		= m,				\
 		.bit_feat_map_sz	= ARRAY_SIZE(m),		\
 	}
@@ -140,6 +144,7 @@ struct reg_feat_map_desc {
 #define FEAT_AA64EL1		ID_AA64PFR0_EL1, EL1, IMP
 #define FEAT_AA64EL2		ID_AA64PFR0_EL1, EL2, IMP
 #define FEAT_AA64EL3		ID_AA64PFR0_EL1, EL3, IMP
+#define FEAT_SEL2		ID_AA64PFR0_EL1, SEL2, IMP
 #define FEAT_AIE		ID_AA64MMFR3_EL1, AIE, IMP
 #define FEAT_S2POE		ID_AA64MMFR3_EL1, S2POE, IMP
 #define FEAT_S1POE		ID_AA64MMFR3_EL1, S1POE, IMP
@@ -182,7 +187,6 @@ struct reg_feat_map_desc {
 #define FEAT_RME		ID_AA64PFR0_EL1, RME, IMP
 #define FEAT_MPAM		ID_AA64PFR0_EL1, MPAM, 1
 #define FEAT_S2FWB		ID_AA64MMFR2_EL1, FWB, IMP
-#define FEAT_TME		ID_AA64ISAR0_EL1, TME, IMP
 #define FEAT_TWED		ID_AA64MMFR1_EL1, TWED, IMP
 #define FEAT_E2H0		ID_AA64MMFR4_EL1, E2H0, IMP
 #define FEAT_SRMASK		ID_AA64MMFR4_EL1, SRMASK, IMP
@@ -201,6 +205,8 @@ struct reg_feat_map_desc {
 #define FEAT_ASID2		ID_AA64MMFR4_EL1, ASID2, IMP
 #define FEAT_MEC		ID_AA64MMFR3_EL1, MEC, IMP
 #define FEAT_HAFT		ID_AA64MMFR1_EL1, HAFDBS, HAFT
+#define FEAT_HDBSS		ID_AA64MMFR1_EL1, HAFDBS, HDBSS
+#define FEAT_HPDS2		ID_AA64MMFR1_EL1, HPDS, HPDS2
 #define FEAT_BTI		ID_AA64PFR1_EL1, BT, IMP
 #define FEAT_ExS		ID_AA64MMFR0_EL1, EXS, IMP
 #define FEAT_IESB		ID_AA64MMFR2_EL1, IESB, IMP
@@ -218,6 +224,7 @@ struct reg_feat_map_desc {
 #define FEAT_FGT2		ID_AA64MMFR0_EL1, FGT, FGT2
 #define FEAT_MTPMU		ID_AA64DFR0_EL1, MTPMU, IMP
 #define FEAT_HCX		ID_AA64MMFR1_EL1, HCX, IMP
+#define FEAT_S2PIE		ID_AA64MMFR3_EL1, S2PIE, IMP
 
 static bool not_feat_aa64el3(struct kvm *kvm)
 {
@@ -305,21 +312,6 @@ static bool feat_trbe_mpam(struct kvm *kvm)
 		(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_EL1_MPAM));
 }
 
-static bool feat_asid2_e2h1(struct kvm *kvm)
-{
-	return kvm_has_feat(kvm, FEAT_ASID2) && !kvm_has_feat(kvm, FEAT_E2H0);
-}
-
-static bool feat_d128_e2h1(struct kvm *kvm)
-{
-	return kvm_has_feat(kvm, FEAT_D128) && !kvm_has_feat(kvm, FEAT_E2H0);
-}
-
-static bool feat_mec_e2h1(struct kvm *kvm)
-{
-	return kvm_has_feat(kvm, FEAT_MEC) && !kvm_has_feat(kvm, FEAT_E2H0);
-}
-
 static bool feat_ebep_pmuv3_ss(struct kvm *kvm)
 {
 	return kvm_has_feat(kvm, FEAT_EBEP) || kvm_has_feat(kvm, FEAT_PMUv3_SS);
@@ -361,29 +353,26 @@ static bool feat_pmuv3p9(struct kvm *kvm)
 	return check_pmu_revision(kvm, V3P9);
 }
 
-static bool compute_hcr_rw(struct kvm *kvm, u64 *bits)
-{
-	/* This is purely academic: AArch32 and NV are mutually exclusive */
-	if (bits) {
-		if (kvm_has_feat(kvm, FEAT_AA32EL1))
-			*bits &= ~HCR_EL2_RW;
-		else
-			*bits |= HCR_EL2_RW;
-	}
+#define has_feat_s2tgran(k, s)						\
+  ((kvm_has_feat_enum(kvm, ID_AA64MMFR0_EL1, TGRAN##s##_2, TGRAN##s) && \
+    kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN##s, IMP))		     ||	\
+   kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN##s##_2, IMP))
 
-	return true;
+static bool feat_lpa2(struct kvm *kvm)
+{
+	return ((kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4, 52_BIT)    ||
+		 !kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4, IMP))	&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16, 52_BIT)   ||
+		 !kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16, IMP))	&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN4_2, 52_BIT)  ||
+		 !has_feat_s2tgran(kvm, 4))				&&
+		(kvm_has_feat(kvm, ID_AA64MMFR0_EL1, TGRAN16_2, 52_BIT) ||
+		 !has_feat_s2tgran(kvm, 16)));
 }
 
-static bool compute_hcr_e2h(struct kvm *kvm, u64 *bits)
+static bool feat_vmid16(struct kvm *kvm)
 {
-	if (bits) {
-		if (kvm_has_feat(kvm, FEAT_E2H0))
-			*bits &= ~HCR_EL2_E2H;
-		else
-			*bits |= HCR_EL2_E2H;
-	}
-
-	return true;
+	return kvm_has_feat_enum(kvm, ID_AA64MMFR1_EL1, VMIDBits, 16);
 }
 
 static const struct reg_bits_to_feat_map hfgrtr_feat_map[] = {
@@ -939,7 +928,7 @@ static const DECLARE_FEAT_MAP(hcrx_desc, __HCRX_EL2,
 
 static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 	NEEDS_FEAT(HCR_EL2_TID0, FEAT_AA32EL0),
-	NEEDS_FEAT_FIXED(HCR_EL2_RW, compute_hcr_rw),
+	NEEDS_FEAT_FLAG(HCR_EL2_RW, AS_RES1, FEAT_AA32EL1),
 	NEEDS_FEAT(HCR_EL2_HCD, not_feat_aa64el3),
 	NEEDS_FEAT(HCR_EL2_AMO		|
 		   HCR_EL2_BSU		|
@@ -949,7 +938,6 @@ static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 		   HCR_EL2_FMO		|
 		   HCR_EL2_ID		|
 		   HCR_EL2_IMO		|
-		   HCR_EL2_MIOCNCE	|
 		   HCR_EL2_PTW		|
 		   HCR_EL2_SWIO		|
 		   HCR_EL2_TACR		|
@@ -1001,11 +989,12 @@ static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 	NEEDS_FEAT(HCR_EL2_FIEN, feat_rasv1p1),
 	NEEDS_FEAT(HCR_EL2_GPF, FEAT_RME),
 	NEEDS_FEAT(HCR_EL2_FWB, FEAT_S2FWB),
-	NEEDS_FEAT(HCR_EL2_TME, FEAT_TME),
 	NEEDS_FEAT(HCR_EL2_TWEDEL	|
 		   HCR_EL2_TWEDEn,
 		   FEAT_TWED),
-	NEEDS_FEAT_FIXED(HCR_EL2_E2H, compute_hcr_e2h),
+	NEEDS_FEAT_FLAG(HCR_EL2_E2H, RES1_WHEN_E2H1 | FORCE_RESx),
+	FORCE_RES0(HCR_EL2_RES0),
+	FORCE_RES1(HCR_EL2_RES1),
 };
 
 static const DECLARE_FEAT_MAP(hcr_desc, HCR_EL2,
@@ -1026,21 +1015,23 @@ static const struct reg_bits_to_feat_map sctlr2_feat_map[] = {
 		   SCTLR2_EL1_CPTM	|
 		   SCTLR2_EL1_CPTM0,
 		   FEAT_CPA2),
+	FORCE_RES0(SCTLR2_EL1_RES0),
+	FORCE_RES1(SCTLR2_EL1_RES1),
 };
 
 static const DECLARE_FEAT_MAP(sctlr2_desc, SCTLR2_EL1,
 			      sctlr2_feat_map, FEAT_SCTLR2);
 
 static const struct reg_bits_to_feat_map tcr2_el2_feat_map[] = {
-	NEEDS_FEAT(TCR2_EL2_FNG1	|
-		   TCR2_EL2_FNG0	|
-		   TCR2_EL2_A2,
-		   feat_asid2_e2h1),
-	NEEDS_FEAT(TCR2_EL2_DisCH1	|
-		   TCR2_EL2_DisCH0	|
-		   TCR2_EL2_D128,
-		   feat_d128_e2h1),
-	NEEDS_FEAT(TCR2_EL2_AMEC1, feat_mec_e2h1),
+	NEEDS_FEAT_FLAG(TCR2_EL2_FNG1	|
+			TCR2_EL2_FNG0	|
+			TCR2_EL2_A2,
+			REQUIRES_E2H1, FEAT_ASID2),
+	NEEDS_FEAT_FLAG(TCR2_EL2_DisCH1	|
+			TCR2_EL2_DisCH0	|
+			TCR2_EL2_D128,
+			REQUIRES_E2H1, FEAT_D128),
+	NEEDS_FEAT_FLAG(TCR2_EL2_AMEC1, REQUIRES_E2H1, FEAT_MEC),
 	NEEDS_FEAT(TCR2_EL2_AMEC0, FEAT_MEC),
 	NEEDS_FEAT(TCR2_EL2_HAFT, FEAT_HAFT),
 	NEEDS_FEAT(TCR2_EL2_PTTWI	|
@@ -1051,33 +1042,36 @@ static const struct reg_bits_to_feat_map tcr2_el2_feat_map[] = {
 		   TCR2_EL2_E0POE,
 		   FEAT_S1POE),
 	NEEDS_FEAT(TCR2_EL2_PIE, FEAT_S1PIE),
+	FORCE_RES0(TCR2_EL2_RES0),
+	FORCE_RES1(TCR2_EL2_RES1),
 };
 
 static const DECLARE_FEAT_MAP(tcr2_el2_desc, TCR2_EL2,
 			      tcr2_el2_feat_map, FEAT_TCR2);
 
 static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
-	NEEDS_FEAT(SCTLR_EL1_CP15BEN	|
-		   SCTLR_EL1_ITD	|
-		   SCTLR_EL1_SED,
-		   FEAT_AA32EL0),
+	NEEDS_FEAT(SCTLR_EL1_CP15BEN, FEAT_AA32EL0),
+	NEEDS_FEAT_FLAG(SCTLR_EL1_ITD	|
+			SCTLR_EL1_SED,
+			AS_RES1, FEAT_AA32EL0),
 	NEEDS_FEAT(SCTLR_EL1_BT0	|
 		   SCTLR_EL1_BT1,
 		   FEAT_BTI),
 	NEEDS_FEAT(SCTLR_EL1_CMOW, FEAT_CMOW),
-	NEEDS_FEAT(SCTLR_EL1_TSCXT, feat_csv2_2_csv2_1p2),
-	NEEDS_FEAT(SCTLR_EL1_EIS	|
-		   SCTLR_EL1_EOS,
-		   FEAT_ExS),
+	NEEDS_FEAT_FLAG(SCTLR_EL1_TSCXT,
+			AS_RES1, feat_csv2_2_csv2_1p2),
+	NEEDS_FEAT_FLAG(SCTLR_EL1_EIS	|
+			SCTLR_EL1_EOS,
+			AS_RES1, FEAT_ExS),
 	NEEDS_FEAT(SCTLR_EL1_EnFPM, FEAT_FPMR),
 	NEEDS_FEAT(SCTLR_EL1_IESB, FEAT_IESB),
 	NEEDS_FEAT(SCTLR_EL1_EnALS, FEAT_LS64),
 	NEEDS_FEAT(SCTLR_EL1_EnAS0, FEAT_LS64_ACCDATA),
 	NEEDS_FEAT(SCTLR_EL1_EnASR, FEAT_LS64_V),
 	NEEDS_FEAT(SCTLR_EL1_nAA, FEAT_LSE2),
-	NEEDS_FEAT(SCTLR_EL1_LSMAOE	|
-		   SCTLR_EL1_nTLSMD,
-		   FEAT_LSMAOC),
+	NEEDS_FEAT_FLAG(SCTLR_EL1_LSMAOE	|
+			SCTLR_EL1_nTLSMD,
+			AS_RES1, FEAT_LSMAOC),
 	NEEDS_FEAT(SCTLR_EL1_EE, FEAT_MixedEnd),
 	NEEDS_FEAT(SCTLR_EL1_E0E, feat_mixedendel0),
 	NEEDS_FEAT(SCTLR_EL1_MSCEn, FEAT_MOPS),
@@ -1093,7 +1087,8 @@ static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
 	NEEDS_FEAT(SCTLR_EL1_NMI	|
 		   SCTLR_EL1_SPINTMASK,
 		   FEAT_NMI),
-	NEEDS_FEAT(SCTLR_EL1_SPAN, FEAT_PAN),
+	NEEDS_FEAT_FLAG(SCTLR_EL1_SPAN,
+			AS_RES1, FEAT_PAN),
 	NEEDS_FEAT(SCTLR_EL1_EPAN, FEAT_PAN3),
 	NEEDS_FEAT(SCTLR_EL1_EnDA	|
 		   SCTLR_EL1_EnDB	|
@@ -1104,17 +1099,10 @@ static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
 	NEEDS_FEAT(SCTLR_EL1_EnRCTX, FEAT_SPECRES),
 	NEEDS_FEAT(SCTLR_EL1_DSSBS, FEAT_SSBS),
 	NEEDS_FEAT(SCTLR_EL1_TIDCP, FEAT_TIDCP1),
-	NEEDS_FEAT(SCTLR_EL1_TME0	|
-		   SCTLR_EL1_TME	|
-		   SCTLR_EL1_TMT0	|
-		   SCTLR_EL1_TMT,
-		   FEAT_TME),
 	NEEDS_FEAT(SCTLR_EL1_TWEDEL	|
 		   SCTLR_EL1_TWEDEn,
 		   FEAT_TWED),
 	NEEDS_FEAT(SCTLR_EL1_UCI	|
-		   SCTLR_EL1_EE		|
-		   SCTLR_EL1_E0E	|
 		   SCTLR_EL1_WXN	|
 		   SCTLR_EL1_nTWE	|
 		   SCTLR_EL1_nTWI	|
@@ -1128,10 +1116,90 @@ static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
 		   SCTLR_EL1_A		|
 		   SCTLR_EL1_M,
 		   FEAT_AA64EL1),
+	FORCE_RES0(SCTLR_EL1_RES0),
+	FORCE_RES1(SCTLR_EL1_RES1),
 };
 
 static const DECLARE_FEAT_MAP(sctlr_el1_desc, SCTLR_EL1,
 			      sctlr_el1_feat_map, FEAT_AA64EL1);
+
+static const struct reg_bits_to_feat_map sctlr_el2_feat_map[] = {
+	NEEDS_FEAT_FLAG(SCTLR_EL2_CP15BEN,
+			RES1_WHEN_E2H0 | REQUIRES_E2H1,
+			FEAT_AA32EL0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_ITD	|
+			SCTLR_EL2_SED,
+			RES1_WHEN_E2H1 | REQUIRES_E2H1,
+			FEAT_AA32EL0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_BT0, REQUIRES_E2H1, FEAT_BTI),
+	NEEDS_FEAT(SCTLR_EL2_BT, FEAT_BTI),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_CMOW, REQUIRES_E2H1, FEAT_CMOW),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TSCXT,
+			RES1_WHEN_E2H1 | REQUIRES_E2H1,
+			feat_csv2_2_csv2_1p2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EIS	|
+			SCTLR_EL2_EOS,
+			AS_RES1, FEAT_ExS),
+	NEEDS_FEAT(SCTLR_EL2_EnFPM, FEAT_FPMR),
+	NEEDS_FEAT(SCTLR_EL2_IESB, FEAT_IESB),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnALS, REQUIRES_E2H1, FEAT_LS64),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnAS0, REQUIRES_E2H1, FEAT_LS64_ACCDATA),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnASR, REQUIRES_E2H1, FEAT_LS64_V),
+	NEEDS_FEAT(SCTLR_EL2_nAA, FEAT_LSE2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_LSMAOE	|
+			SCTLR_EL2_nTLSMD,
+			AS_RES1 | REQUIRES_E2H1, FEAT_LSMAOC),
+	NEEDS_FEAT(SCTLR_EL2_EE, FEAT_MixedEnd),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_E0E, REQUIRES_E2H1, feat_mixedendel0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_MSCEn, REQUIRES_E2H1, FEAT_MOPS),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_ATA0	|
+			SCTLR_EL2_TCF0,
+			REQUIRES_E2H1, FEAT_MTE2),
+	NEEDS_FEAT(SCTLR_EL2_ATA	|
+		   SCTLR_EL2_TCF,
+		   FEAT_MTE2),
+	NEEDS_FEAT(SCTLR_EL2_ITFSB, feat_mte_async),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TCSO0, REQUIRES_E2H1, FEAT_MTE_STORE_ONLY),
+	NEEDS_FEAT(SCTLR_EL2_TCSO,
+		   FEAT_MTE_STORE_ONLY),
+	NEEDS_FEAT(SCTLR_EL2_NMI	|
+		   SCTLR_EL2_SPINTMASK,
+		   FEAT_NMI),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_SPAN,	AS_RES1 | REQUIRES_E2H1, FEAT_PAN),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EPAN, REQUIRES_E2H1, FEAT_PAN3),
+	NEEDS_FEAT(SCTLR_EL2_EnDA	|
+		   SCTLR_EL2_EnDB	|
+		   SCTLR_EL2_EnIA	|
+		   SCTLR_EL2_EnIB,
+		   feat_pauth),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnTP2, REQUIRES_E2H1, FEAT_SME),
+	NEEDS_FEAT(SCTLR_EL2_EnRCTX, FEAT_SPECRES),
+	NEEDS_FEAT(SCTLR_EL2_DSSBS, FEAT_SSBS),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TIDCP, REQUIRES_E2H1, FEAT_TIDCP1),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TWEDEL	|
+			SCTLR_EL2_TWEDEn,
+			REQUIRES_E2H1, FEAT_TWED),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_nTWE	|
+			SCTLR_EL2_nTWI,
+			AS_RES1 | REQUIRES_E2H1, FEAT_AA64EL2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_UCI	|
+			SCTLR_EL2_UCT	|
+			SCTLR_EL2_DZE	|
+			SCTLR_EL2_SA0,
+			REQUIRES_E2H1, FEAT_AA64EL2),
+	NEEDS_FEAT(SCTLR_EL2_WXN	|
+		   SCTLR_EL2_I		|
+		   SCTLR_EL2_SA		|
+		   SCTLR_EL2_C		|
+		   SCTLR_EL2_A		|
+		   SCTLR_EL2_M,
+		   FEAT_AA64EL2),
+	FORCE_RES0(SCTLR_EL2_RES0),
+	FORCE_RES1(SCTLR_EL2_RES1),
+};
+
+static const DECLARE_FEAT_MAP(sctlr_el2_desc, SCTLR_EL2,
+			      sctlr_el2_feat_map, FEAT_AA64EL2);
 
 static const struct reg_bits_to_feat_map mdcr_el2_feat_map[] = {
 	NEEDS_FEAT(MDCR_EL2_EBWE, FEAT_Debugv8p9),
@@ -1162,27 +1230,75 @@ static const struct reg_bits_to_feat_map mdcr_el2_feat_map[] = {
 		   MDCR_EL2_TDE		|
 		   MDCR_EL2_TDRA,
 		   FEAT_AA64EL1),
+	FORCE_RES0(MDCR_EL2_RES0),
+	FORCE_RES1(MDCR_EL2_RES1),
 };
 
 static const DECLARE_FEAT_MAP(mdcr_el2_desc, MDCR_EL2,
 			      mdcr_el2_feat_map, FEAT_AA64EL2);
 
+static const struct reg_bits_to_feat_map vtcr_el2_feat_map[] = {
+	NEEDS_FEAT(VTCR_EL2_HDBSS, FEAT_HDBSS),
+	NEEDS_FEAT(VTCR_EL2_HAFT, FEAT_HAFT),
+	NEEDS_FEAT(VTCR_EL2_TL0		|
+		   VTCR_EL2_TL1		|
+		   VTCR_EL2_AssuredOnly	|
+		   VTCR_EL2_GCSH,
+		   FEAT_THE),
+	NEEDS_FEAT(VTCR_EL2_D128, FEAT_D128),
+	NEEDS_FEAT(VTCR_EL2_S2POE, FEAT_S2POE),
+	NEEDS_FEAT(VTCR_EL2_S2PIE, FEAT_S2PIE),
+	NEEDS_FEAT(VTCR_EL2_SL2		|
+		   VTCR_EL2_DS,
+		   feat_lpa2),
+	NEEDS_FEAT(VTCR_EL2_NSA		|
+		   VTCR_EL2_NSW,
+		   FEAT_SEL2),
+	NEEDS_FEAT(VTCR_EL2_HWU62	|
+		   VTCR_EL2_HWU61	|
+		   VTCR_EL2_HWU60	|
+		   VTCR_EL2_HWU59,
+		   FEAT_HPDS2),
+	NEEDS_FEAT(VTCR_EL2_HD, ID_AA64MMFR1_EL1, HAFDBS, DBM),
+	NEEDS_FEAT(VTCR_EL2_HA, ID_AA64MMFR1_EL1, HAFDBS, AF),
+	NEEDS_FEAT(VTCR_EL2_VS, feat_vmid16),
+	NEEDS_FEAT(VTCR_EL2_PS		|
+		   VTCR_EL2_TG0		|
+		   VTCR_EL2_SH0		|
+		   VTCR_EL2_ORGN0	|
+		   VTCR_EL2_IRGN0	|
+		   VTCR_EL2_SL0		|
+		   VTCR_EL2_T0SZ,
+		   FEAT_AA64EL1),
+	FORCE_RES0(VTCR_EL2_RES0),
+	FORCE_RES1(VTCR_EL2_RES1),
+};
+
+static const DECLARE_FEAT_MAP(vtcr_el2_desc, VTCR_EL2,
+			      vtcr_el2_feat_map, FEAT_AA64EL2);
+
 static void __init check_feat_map(const struct reg_bits_to_feat_map *map,
-				  int map_size, u64 res0, const char *str)
+				  int map_size, u64 resx, const char *str)
 {
 	u64 mask = 0;
 
+	/*
+	 * Don't account for FORCE_RESx that are architectural, and
+	 * therefore part of the resx parameter. Other FORCE_RESx bits
+	 * are implementation choices, and therefore accounted for.
+	 */
 	for (int i = 0; i < map_size; i++)
-		mask |= map[i].bits;
+		if (!((map[i].flags & FORCE_RESx) && (map[i].bits & resx)))
+			mask |= map[i].bits;
 
-	if (mask != ~res0)
+	if (mask != ~resx)
 		kvm_err("Undefined %s behaviour, bits %016llx\n",
-			str, mask ^ ~res0);
+			str, mask ^ ~resx);
 }
 
 static u64 reg_feat_map_bits(const struct reg_bits_to_feat_map *map)
 {
-	return map->flags & RES0_POINTER ? ~(*map->res0p) : map->bits;
+	return map->flags & MASKS_POINTER ? (map->masks->mask | map->masks->nmask) : map->bits;
 }
 
 static void __init check_reg_desc(const struct reg_feat_map_desc *r)
@@ -1209,7 +1325,9 @@ void __init check_feature_map(void)
 	check_reg_desc(&sctlr2_desc);
 	check_reg_desc(&tcr2_el2_desc);
 	check_reg_desc(&sctlr_el1_desc);
+	check_reg_desc(&sctlr_el2_desc);
 	check_reg_desc(&mdcr_el2_desc);
+	check_reg_desc(&vtcr_el2_desc);
 }
 
 static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map *map)
@@ -1226,14 +1344,14 @@ static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map 
 	}
 }
 
-static u64 __compute_fixed_bits(struct kvm *kvm,
-				const struct reg_bits_to_feat_map *map,
-				int map_size,
-				u64 *fixed_bits,
-				unsigned long require,
-				unsigned long exclude)
+static struct resx compute_resx_bits(struct kvm *kvm,
+				     const struct reg_bits_to_feat_map *map,
+				     int map_size,
+				     unsigned long require,
+				     unsigned long exclude)
 {
-	u64 val = 0;
+	bool e2h0 = kvm_has_feat(kvm, FEAT_E2H0);
+	struct resx resx = {};
 
 	for (int i = 0; i < map_size; i++) {
 		bool match;
@@ -1244,60 +1362,72 @@ static u64 __compute_fixed_bits(struct kvm *kvm,
 		if (map[i].flags & exclude)
 			continue;
 
-		if (map[i].flags & CALL_FUNC)
-			match = (map[i].flags & FIXED_VALUE) ?
-				map[i].fval(kvm, fixed_bits) :
-				map[i].match(kvm);
+		if (map[i].flags & FORCE_RESx)
+			match = false;
+		else if (map[i].flags & CALL_FUNC)
+			match = map[i].match(kvm);
 		else
 			match = idreg_feat_match(kvm, &map[i]);
 
-		if (!match || (map[i].flags & FIXED_VALUE))
-			val |= reg_feat_map_bits(&map[i]);
+		if (map[i].flags & REQUIRES_E2H1)
+			match &= !e2h0;
+
+		if (!match) {
+			u64 bits = reg_feat_map_bits(&map[i]);
+
+			if ((map[i].flags & AS_RES1)			||
+			    (e2h0 && (map[i].flags & RES1_WHEN_E2H0))	||
+			    (!e2h0 && (map[i].flags & RES1_WHEN_E2H1)))
+				resx.res1 |= bits;
+			else
+				resx.res0 |= bits;
+		}
 	}
 
-	return val;
+	return resx;
 }
 
-static u64 compute_res0_bits(struct kvm *kvm,
-			     const struct reg_bits_to_feat_map *map,
-			     int map_size,
-			     unsigned long require,
-			     unsigned long exclude)
+static struct resx compute_reg_resx_bits(struct kvm *kvm,
+					 const struct reg_feat_map_desc *r,
+					 unsigned long require,
+					 unsigned long exclude)
 {
-	return __compute_fixed_bits(kvm, map, map_size, NULL,
-				    require, exclude | FIXED_VALUE);
-}
+	struct resx resx;
 
-static u64 compute_reg_res0_bits(struct kvm *kvm,
-				 const struct reg_feat_map_desc *r,
-				 unsigned long require, unsigned long exclude)
-
-{
-	u64 res0;
-
-	res0 = compute_res0_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
+	resx = compute_resx_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
 				 require, exclude);
 
-	/*
-	 * If computing FGUs, don't take RES0 or register existence
-	 * into account -- we're not computing bits for the register
-	 * itself.
-	 */
-	if (!(exclude & NEVER_FGU)) {
-		res0 |= compute_res0_bits(kvm, &r->feat_map, 1, require, exclude);
-		res0 |= ~reg_feat_map_bits(&r->feat_map);
+	if (r->feat_map.flags & MASKS_POINTER) {
+		resx.res0 |= r->feat_map.masks->res0;
+		resx.res1 |= r->feat_map.masks->res1;
 	}
 
-	return res0;
+	/*
+	 * If the register itself was not valid, all the non-RESx bits are
+	 * now considered RES0 (this matches the behaviour of registers such
+	 * as SCTLR2 and TCR2). Weed out any potential (though unlikely)
+	 * overlap with RES1 bits coming from the previous computation.
+	 */
+	resx.res0 |= compute_resx_bits(kvm, &r->feat_map, 1, require, exclude).res0;
+	resx.res1 &= ~resx.res0;
+
+	return resx;
 }
 
-static u64 compute_reg_fixed_bits(struct kvm *kvm,
-				  const struct reg_feat_map_desc *r,
-				  u64 *fixed_bits, unsigned long require,
-				  unsigned long exclude)
+static u64 compute_fgu_bits(struct kvm *kvm, const struct reg_feat_map_desc *r)
 {
-	return __compute_fixed_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
-				    fixed_bits, require | FIXED_VALUE, exclude);
+	struct resx resx;
+
+	/*
+	 * If computing FGUs, we collect the unsupported feature bits as
+	 * RESx bits, but don't take the actual RESx bits or register
+	 * existence into account -- we're not computing bits for the
+	 * register itself.
+	 */
+	resx = compute_resx_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
+				 0, NEVER_FGU);
+
+	return resx.res0 | resx.res1;
 }
 
 void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
@@ -1306,40 +1436,29 @@ void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
 
 	switch (fgt) {
 	case HFGRTR_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hfgrtr_desc,
-					     0, NEVER_FGU);
-		val |= compute_reg_res0_bits(kvm, &hfgwtr_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hfgrtr_desc);
+		val |= compute_fgu_bits(kvm, &hfgwtr_desc);
 		break;
 	case HFGITR_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hfgitr_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hfgitr_desc);
 		break;
 	case HDFGRTR_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hdfgrtr_desc,
-					     0, NEVER_FGU);
-		val |= compute_reg_res0_bits(kvm, &hdfgwtr_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hdfgrtr_desc);
+		val |= compute_fgu_bits(kvm, &hdfgwtr_desc);
 		break;
 	case HAFGRTR_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hafgrtr_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hafgrtr_desc);
 		break;
 	case HFGRTR2_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hfgrtr2_desc,
-					     0, NEVER_FGU);
-		val |= compute_reg_res0_bits(kvm, &hfgwtr2_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hfgrtr2_desc);
+		val |= compute_fgu_bits(kvm, &hfgwtr2_desc);
 		break;
 	case HFGITR2_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hfgitr2_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hfgitr2_desc);
 		break;
 	case HDFGRTR2_GROUP:
-		val |= compute_reg_res0_bits(kvm, &hdfgrtr2_desc,
-					     0, NEVER_FGU);
-		val |= compute_reg_res0_bits(kvm, &hdfgwtr2_desc,
-					     0, NEVER_FGU);
+		val |= compute_fgu_bits(kvm, &hdfgrtr2_desc);
+		val |= compute_fgu_bits(kvm, &hdfgwtr2_desc);
 		break;
 	default:
 		BUG();
@@ -1348,87 +1467,77 @@ void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
 	kvm->arch.fgu[fgt] = val;
 }
 
-void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1)
+struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg)
 {
-	u64 fixed = 0, mask;
+	struct resx resx;
 
 	switch (reg) {
 	case HFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgrtr_desc, 0, 0);
-		*res1 = HFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgrtr_desc, 0, 0);
 		break;
 	case HFGWTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgwtr_desc, 0, 0);
-		*res1 = HFGWTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgwtr_desc, 0, 0);
 		break;
 	case HFGITR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgitr_desc, 0, 0);
-		*res1 = HFGITR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgitr_desc, 0, 0);
 		break;
 	case HDFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgrtr_desc, 0, 0);
-		*res1 = HDFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgrtr_desc, 0, 0);
 		break;
 	case HDFGWTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgwtr_desc, 0, 0);
-		*res1 = HDFGWTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgwtr_desc, 0, 0);
 		break;
 	case HAFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hafgrtr_desc, 0, 0);
-		*res1 = HAFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hafgrtr_desc, 0, 0);
 		break;
 	case HFGRTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgrtr2_desc, 0, 0);
-		*res1 = HFGRTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgrtr2_desc, 0, 0);
 		break;
 	case HFGWTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgwtr2_desc, 0, 0);
-		*res1 = HFGWTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgwtr2_desc, 0, 0);
 		break;
 	case HFGITR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgitr2_desc, 0, 0);
-		*res1 = HFGITR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgitr2_desc, 0, 0);
 		break;
 	case HDFGRTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgrtr2_desc, 0, 0);
-		*res1 = HDFGRTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgrtr2_desc, 0, 0);
 		break;
 	case HDFGWTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgwtr2_desc, 0, 0);
-		*res1 = HDFGWTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgwtr2_desc, 0, 0);
 		break;
 	case HCRX_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hcrx_desc, 0, 0);
-		*res1 = __HCRX_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hcrx_desc, 0, 0);
+		resx.res1 |= __HCRX_EL2_RES1;
 		break;
 	case HCR_EL2:
-		mask = compute_reg_fixed_bits(kvm, &hcr_desc, &fixed, 0, 0);
-		*res0 = compute_reg_res0_bits(kvm, &hcr_desc, 0, 0);
-		*res0 |= (mask & ~fixed);
-		*res1 = HCR_EL2_RES1 | (mask & fixed);
+		resx = compute_reg_resx_bits(kvm, &hcr_desc, 0, 0);
 		break;
 	case SCTLR2_EL1:
 	case SCTLR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &sctlr2_desc, 0, 0);
-		*res1 = SCTLR2_EL1_RES1;
+		resx = compute_reg_resx_bits(kvm, &sctlr2_desc, 0, 0);
 		break;
 	case TCR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &tcr2_el2_desc, 0, 0);
-		*res1 = TCR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &tcr2_el2_desc, 0, 0);
 		break;
 	case SCTLR_EL1:
-		*res0 = compute_reg_res0_bits(kvm, &sctlr_el1_desc, 0, 0);
-		*res1 = SCTLR_EL1_RES1;
+		resx = compute_reg_resx_bits(kvm, &sctlr_el1_desc, 0, 0);
+		break;
+	case SCTLR_EL2:
+		resx = compute_reg_resx_bits(kvm, &sctlr_el2_desc, 0, 0);
 		break;
 	case MDCR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &mdcr_el2_desc, 0, 0);
-		*res1 = MDCR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &mdcr_el2_desc, 0, 0);
+		break;
+	case VTCR_EL2:
+		resx = compute_reg_resx_bits(kvm, &vtcr_el2_desc, 0, 0);
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		*res0 = *res1 = 0;
+		resx = (typeof(resx)){};
 		break;
 	}
+
+	return resx;
 }
 
 static __always_inline struct fgt_masks *__fgt_reg_to_masks(enum vcpu_sysreg reg)

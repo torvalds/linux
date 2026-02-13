@@ -27,10 +27,6 @@ unsigned long *page_table_alloc_noprof(struct mm_struct *);
 #define page_table_alloc(...)	alloc_hooks(page_table_alloc_noprof(__VA_ARGS__))
 void page_table_free(struct mm_struct *, unsigned long *);
 
-struct ptdesc *page_table_alloc_pgste_noprof(struct mm_struct *mm);
-#define page_table_alloc_pgste(...)	alloc_hooks(page_table_alloc_pgste_noprof(__VA_ARGS__))
-void page_table_free_pgste(struct ptdesc *ptdesc);
-
 static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 {
 	memset64((u64 *)crst, entry, _CRST_ENTRIES);

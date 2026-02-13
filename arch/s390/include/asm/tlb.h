@@ -36,7 +36,6 @@ static inline bool __tlb_remove_folio_pages(struct mmu_gather *tlb,
 
 #include <asm/tlbflush.h>
 #include <asm-generic/tlb.h>
-#include <asm/gmap.h>
 
 /*
  * Release the page cache reference for a pte removed by
@@ -83,8 +82,6 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_pmds = 1;
-	if (mm_has_pgste(tlb->mm))
-		gmap_unlink(tlb->mm, (unsigned long *)pte, address);
 	tlb_remove_ptdesc(tlb, virt_to_ptdesc(pte));
 }
 

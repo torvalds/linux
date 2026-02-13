@@ -47,6 +47,7 @@ pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 
 	return (pud_t *)p4d;
 }
+EXPORT_SYMBOL_GPL(pud_offset);
 
 p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
@@ -55,6 +56,7 @@ p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 	return (p4d_t *)pgd;
 }
+EXPORT_SYMBOL_GPL(p4d_offset);
 #endif
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP

@@ -471,65 +471,15 @@ do {									\
 #define arch_get_kernel_nofault __mvc_kernel_nofault
 #define arch_put_kernel_nofault __mvc_kernel_nofault
 
-void __cmpxchg_user_key_called_with_bad_pointer(void);
-
-int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
-			unsigned char old, unsigned char new, unsigned long key);
-int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
-			unsigned short old, unsigned short new, unsigned long key);
-int __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
-			unsigned int old, unsigned int new, unsigned long key);
-int __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
-			unsigned long old, unsigned long new, unsigned long key);
-int __cmpxchg_user_key16(unsigned long address, __uint128_t *uval,
-			 __uint128_t old, __uint128_t new, unsigned long key);
-
-static __always_inline int _cmpxchg_user_key(unsigned long address, void *uval,
-					     __uint128_t old, __uint128_t new,
-					     unsigned long key, int size)
-{
-	switch (size) {
-	case 1:  return __cmpxchg_user_key1(address, uval, old, new, key);
-	case 2:  return __cmpxchg_user_key2(address, uval, old, new, key);
-	case 4:  return __cmpxchg_user_key4(address, uval, old, new, key);
-	case 8:  return __cmpxchg_user_key8(address, uval, old, new, key);
-	case 16: return __cmpxchg_user_key16(address, uval, old, new, key);
-	default: __cmpxchg_user_key_called_with_bad_pointer();
-	}
-	return 0;
-}
-
-/**
- * cmpxchg_user_key() - cmpxchg with user space target, honoring storage keys
- * @ptr: User space address of value to compare to @old and exchange with
- *	 @new. Must be aligned to sizeof(*@ptr).
- * @uval: Address where the old value of *@ptr is written to.
- * @old: Old value. Compared to the content pointed to by @ptr in order to
- *	 determine if the exchange occurs. The old value read from *@ptr is
- *	 written to *@uval.
- * @new: New value to place at *@ptr.
- * @key: Access key to use for checking storage key protection.
- *
- * Perform a cmpxchg on a user space target, honoring storage key protection.
- * @key alone determines how key checking is performed, neither
- * storage-protection-override nor fetch-protection-override apply.
- * The caller must compare *@uval and @old to determine if values have been
- * exchanged. In case of an exception *@uval is set to zero.
- *
- * Return:     0: cmpxchg executed
- *	       -EFAULT: an exception happened when trying to access *@ptr
- *	       -EAGAIN: maxed out number of retries (byte and short only)
- */
-#define cmpxchg_user_key(ptr, uval, old, new, key)			\
-({									\
-	__typeof__(ptr) __ptr = (ptr);					\
-	__typeof__(uval) __uval = (uval);				\
-									\
-	BUILD_BUG_ON(sizeof(*(__ptr)) != sizeof(*(__uval)));		\
-	might_fault();							\
-	__chk_user_ptr(__ptr);						\
-	_cmpxchg_user_key((unsigned long)(__ptr), (void *)(__uval),	\
-			  (old), (new), (key), sizeof(*(__ptr)));	\
-})
+int __cmpxchg_key1(void *address, unsigned char *uval, unsigned char old,
+		   unsigned char new, unsigned long key);
+int __cmpxchg_key2(void *address, unsigned short *uval, unsigned short old,
+		   unsigned short new, unsigned long key);
+int __cmpxchg_key4(void *address, unsigned int *uval, unsigned int old,
+		   unsigned int new, unsigned long key);
+int __cmpxchg_key8(void *address, unsigned long *uval, unsigned long old,
+		   unsigned long new, unsigned long key);
+int __cmpxchg_key16(void *address, __uint128_t *uval, __uint128_t old,
+		    __uint128_t new, unsigned long key);
 
 #endif /* __S390_UACCESS_H */

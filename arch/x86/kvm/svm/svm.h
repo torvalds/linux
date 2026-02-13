@@ -115,6 +115,7 @@ struct kvm_sev_info {
 	void *guest_resp_buf;   /* Bounce buffer for SNP Guest Request output */
 	struct mutex guest_req_mutex; /* Must acquire before using bounce buffers */
 	cpumask_var_t have_run_cpus; /* CPUs that have done VMRUN for this VM. */
+	bool snp_certs_enabled;	/* SNP certificate-fetching support. */
 };
 
 struct kvm_svm {
@@ -156,11 +157,11 @@ struct vmcb_ctrl_area_cached {
 	u64 tsc_offset;
 	u32 asid;
 	u8 tlb_ctl;
+	u8 erap_ctl;
 	u32 int_ctl;
 	u32 int_vector;
 	u32 int_state;
-	u32 exit_code;
-	u32 exit_code_hi;
+	u64 exit_code;
 	u64 exit_info_1;
 	u64 exit_info_2;
 	u32 exit_int_info;
@@ -424,6 +425,14 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
+static inline bool svm_is_vmrun_failure(u64 exit_code)
+{
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return (u32)exit_code == (u32)SVM_EXIT_ERR;
+
+	return exit_code == SVM_EXIT_ERR;
+}
+
 /*
  * Only the PDPTRs are loaded on demand into the shadow MMU.  All other
  * fields are synchronized on VM-Exit, because accessing the VMCB is cheap.
@@ -434,28 +443,47 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
  */
 #define SVM_REGS_LAZY_LOAD_SET	(1 << VCPU_EXREG_PDPTR)
 
-static inline void vmcb_set_intercept(struct vmcb_control_area *control, u32 bit)
+static inline void __vmcb_set_intercept(unsigned long *intercepts, u32 bit)
 {
 	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
-	__set_bit(bit, (unsigned long *)&control->intercepts);
+	__set_bit(bit, intercepts);
+}
+
+static inline void __vmcb_clr_intercept(unsigned long *intercepts, u32 bit)
+{
+	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
+	__clear_bit(bit, intercepts);
+}
+
+static inline bool __vmcb_is_intercept(unsigned long *intercepts, u32 bit)
+{
+	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
+	return test_bit(bit, intercepts);
+}
+
+static inline void vmcb_set_intercept(struct vmcb_control_area *control, u32 bit)
+{
+	__vmcb_set_intercept((unsigned long *)&control->intercepts, bit);
 }
 
 static inline void vmcb_clr_intercept(struct vmcb_control_area *control, u32 bit)
 {
-	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
-	__clear_bit(bit, (unsigned long *)&control->intercepts);
+	__vmcb_clr_intercept((unsigned long *)&control->intercepts, bit);
 }
 
 static inline bool vmcb_is_intercept(struct vmcb_control_area *control, u32 bit)
 {
-	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
-	return test_bit(bit, (unsigned long *)&control->intercepts);
+	return __vmcb_is_intercept((unsigned long *)&control->intercepts, bit);
+}
+
+static inline void vmcb12_clr_intercept(struct vmcb_ctrl_area_cached *control, u32 bit)
+{
+	__vmcb_clr_intercept((unsigned long *)&control->intercepts, bit);
 }
 
 static inline bool vmcb12_is_intercept(struct vmcb_ctrl_area_cached *control, u32 bit)
 {
-	WARN_ON_ONCE(bit >= 32 * MAX_INTERCEPT);
-	return test_bit(bit, (unsigned long *)&control->intercepts);
+	return __vmcb_is_intercept((unsigned long *)&control->intercepts, bit);
 }
 
 static inline void set_exception_intercept(struct vcpu_svm *svm, u32 bit)
@@ -762,7 +790,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm);
 static inline int nested_svm_simple_vmexit(struct vcpu_svm *svm, u32 exit_code)
 {
 	svm->vmcb->control.exit_code	= exit_code;
-	svm->vmcb->control.exit_code_hi	= 0;
 	svm->vmcb->control.exit_info_1	= 0;
 	svm->vmcb->control.exit_info_2	= 0;
 	return nested_svm_vmexit(svm);
