@@ -1058,10 +1058,8 @@ static int bd71828_power_probe(struct platform_device *pdev)
 		pwr->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	else
 		pwr->regmap = dev_get_regmap(pdev->dev.parent, "wrap-map");
-	if (!pwr->regmap) {
-		dev_err(&pdev->dev, "No parent regmap\n");
-		return -EINVAL;
-	}
+	if (!pwr->regmap)
+		return dev_err_probe(&pdev->dev, -EINVAL, "No parent regmap\n");
 
 	pwr->dev = &pdev->dev;
 
@@ -1083,8 +1081,7 @@ static int bd71828_power_probe(struct platform_device *pdev)
 		dev_dbg(pwr->dev, "Found ROHM BD72720\n");
 		break;
 	default:
-		dev_err(pwr->dev, "Unknown PMIC\n");
-		return -EINVAL;
+		return dev_err_probe(pwr->dev, -EINVAL, "Unknown PMIC\n");
 	}
 
 	ret = bd7182x_get_rsens(pwr);
