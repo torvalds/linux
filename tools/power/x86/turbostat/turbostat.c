@@ -2393,11 +2393,11 @@ struct platform_counters {
 } platform_counters_odd, platform_counters_even;
 
 struct cpu_topology {
+	int cpu_id;
 	int core_id;		/* unique within a package */
 	int package_id;
 	int die_id;
 	int l3_id;
-	int logical_cpu_id;
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
 	int ht_id;		/* unique within a core */
@@ -6099,7 +6099,7 @@ int get_physical_node_id(struct cpu_topology *thiscpu)
 	char path[80];
 	FILE *filep;
 	int i;
-	int cpu = thiscpu->logical_cpu_id;
+	int cpu = thiscpu->cpu_id;
 
 	for (i = 0; i <= topo.max_cpu_num; i++) {
 		sprintf(path, "/sys/devices/system/cpu/cpu%d/node%i/cpulist", cpu, i);
@@ -6174,7 +6174,7 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 	FILE *filep;
 	unsigned long map;
 	int so, shift, sib_core;
-	int cpu = thiscpu->logical_cpu_id;
+	int cpu = thiscpu->cpu_id;
 	int offset = topo.max_cpu_num + 1;
 	size_t size;
 	int thread_id = 0;
@@ -9596,7 +9596,7 @@ void topology_probe(bool startup)
 			continue;
 		}
 
-		cpus[i].logical_cpu_id = i;
+		cpus[i].cpu_id = i;
 
 		/* get package information */
 		cpus[i].package_id = get_package_id(i);
