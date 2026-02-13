@@ -50,7 +50,7 @@ static inline void free_node(struct devres_node *node)
 	node->free_node(node);
 }
 
-static void set_node_dbginfo(struct devres_node *node, const char *name,
+void devres_set_node_dbginfo(struct devres_node *node, const char *name,
 			     size_t size)
 {
 	node->name = name;
@@ -189,7 +189,7 @@ void *__devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
 	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
 	if (unlikely(!dr))
 		return NULL;
-	set_node_dbginfo(&dr->node, name, size);
+	devres_set_node_dbginfo(&dr->node, name, size);
 	return dr->data;
 }
 EXPORT_SYMBOL_GPL(__devres_alloc_node);
@@ -607,8 +607,8 @@ void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 
 	devres_node_init(&grp->node[0], &group_open_release, devres_group_free);
 	devres_node_init(&grp->node[1], &group_close_release, NULL);
-	set_node_dbginfo(&grp->node[0], "grp<", 0);
-	set_node_dbginfo(&grp->node[1], "grp>", 0);
+	devres_set_node_dbginfo(&grp->node[0], "grp<", 0);
+	devres_set_node_dbginfo(&grp->node[1], "grp>", 0);
 	grp->id = grp;
 	if (id)
 		grp->id = id;
@@ -796,7 +796,7 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 		return -ENOMEM;
 
 	devres_node_init(&devres->node, devm_action_release, devm_action_free);
-	set_node_dbginfo(&devres->node, name, sizeof(*devres));
+	devres_set_node_dbginfo(&devres->node, name, sizeof(*devres));
 
 	devres->action.data = data;
 	devres->action.action = action;
@@ -956,7 +956,7 @@ void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 	 * This is named devm_kzalloc_release for historical reasons
 	 * The initial implementation did not support kmalloc, only kzalloc
 	 */
-	set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
+	devres_set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
 	devres_add(dev, dr->data);
 	return dr->data;
 }
@@ -1027,7 +1027,7 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 	if (!new_dr)
 		return NULL;
 
-	set_node_dbginfo(&new_dr->node, "devm_krealloc_release", new_size);
+	devres_set_node_dbginfo(&new_dr->node, "devm_krealloc_release", new_size);
 
 	/*
 	 * The spinlock protects the linked list against concurrent
