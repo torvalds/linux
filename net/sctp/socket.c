@@ -4863,8 +4863,6 @@ static struct sock *sctp_clone_sock(struct sock *sk,
 
 	newsp->pf->to_sk_daddr(&asoc->peer.primary_addr, newsk);
 	newinet->inet_dport = htons(asoc->peer.port);
-
-	newsp->pf->copy_ip_options(sk, newsk);
 	atomic_set(&newinet->inet_id, get_random_u16());
 
 	inet_set_bit(MC_LOOP, newsk);
@@ -4874,16 +4872,19 @@ static struct sock *sctp_clone_sock(struct sock *sk,
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (sk->sk_family == AF_INET6) {
-		struct ipv6_pinfo *newnp = inet6_sk(newsk);
+		struct ipv6_pinfo *newnp;
 
 		newinet->pinet6 = &((struct sctp6_sock *)newsk)->inet6;
 		newinet->ipv6_fl_list = NULL;
 
+		newnp = inet6_sk(newsk);
 		memcpy(newnp, inet6_sk(sk), sizeof(struct ipv6_pinfo));
 		newnp->ipv6_mc_list = NULL;
 		newnp->ipv6_ac_list = NULL;
 	}
 #endif
+
+	newsp->pf->copy_ip_options(sk, newsk);
 
 	newsp->do_auto_asconf = 0;
 	skb_queue_head_init(&newsp->pd_lobby);

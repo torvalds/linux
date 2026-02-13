@@ -17,14 +17,14 @@ Date:		January 2012
 contact:	Lee Jones <lee@kernel.org>
 Description:
 		Read-only attribute common to all SoCs. Contains the SoC machine
-		name (e.g. Ux500).
+		name (e.g. DB8500).
 
 What:		/sys/devices/socX/family
 Date:		January 2012
 contact:	Lee Jones <lee@kernel.org>
 Description:
 		Read-only attribute common to all SoCs. Contains SoC family name
-		(e.g. DB8500).
+		(e.g. ux500).
 
 		On many of ARM based silicon with SMCCC v1.2+ compliant firmware
 		this will contain the JEDEC JEP106 manufacturer’s identification

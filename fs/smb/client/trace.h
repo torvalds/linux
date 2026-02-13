@@ -1579,6 +1579,7 @@ DEFINE_EVENT(smb3_ioctl_class, smb3_##name,  \
 	TP_ARGS(xid, fid, command))
 
 DEFINE_SMB3_IOCTL_EVENT(ioctl);
+DEFINE_SMB3_IOCTL_EVENT(unsupported_ioctl);
 
 DECLARE_EVENT_CLASS(smb3_shutdown_class,
 	TP_PROTO(__u32 flags,

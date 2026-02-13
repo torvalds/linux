@@ -849,7 +849,7 @@ static int gicv5_its_map_event(struct gicv5_its_dev *its_dev, u16 event_id, u32 
 
 	itte = gicv5_its_device_get_itte_ref(its_dev, event_id);
 
-	if (FIELD_GET(GICV5_ITTL2E_VALID, *itte))
+	if (FIELD_GET(GICV5_ITTL2E_VALID, le64_to_cpu(*itte)))
 		return -EEXIST;
 
 	itt_entry = FIELD_PREP(GICV5_ITTL2E_LPI_ID, lpi) |

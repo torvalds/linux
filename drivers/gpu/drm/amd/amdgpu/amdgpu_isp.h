@@ -38,6 +38,8 @@ struct amdgpu_isp;
 struct isp_funcs {
 	int (*hw_init)(struct amdgpu_isp *isp);
 	int (*hw_fini)(struct amdgpu_isp *isp);
+	int (*hw_suspend)(struct amdgpu_isp *isp);
+	int (*hw_resume)(struct amdgpu_isp *isp);
 };
 
 struct amdgpu_isp {

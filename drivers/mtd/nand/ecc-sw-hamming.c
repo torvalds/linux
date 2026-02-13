@@ -8,7 +8,7 @@
  *
  * Completely replaces the previous ECC implementation which was written by:
  *   Steven J. Hill (sjhill@realitydiluted.com)
- *   Thomas Gleixner (tglx@linutronix.de)
+ *   Thomas Gleixner (tglx@kernel.org)
  *
  * Information on how this algorithm works and how it was developed
  * can be found in Documentation/driver-api/mtd/nand_ecc.rst

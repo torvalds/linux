@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  Copyright (c) 2006 Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (c) 2006 Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  *
  *  Info:
  *   Contains defines, datastructures for ndfc nand controller

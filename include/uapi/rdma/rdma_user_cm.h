@@ -192,6 +192,7 @@ struct rdma_ucm_query_path_resp {
 
 struct rdma_ucm_query_ib_service_resp {
 	__u32 num_service_recs;
+	__u32 reserved;
 	struct ib_user_service_rec recs[];
 };
 
@@ -354,7 +355,7 @@ enum {
 
 #define RDMA_USER_CM_IB_SERVICE_NAME_SIZE 64
 struct rdma_ucm_ib_service {
-	__u64 service_id;
+	__aligned_u64 service_id;
 	__u8  service_name[RDMA_USER_CM_IB_SERVICE_NAME_SIZE];
 	__u32 flags;
 	__u32 reserved;
@@ -362,6 +363,7 @@ struct rdma_ucm_ib_service {
 
 struct rdma_ucm_resolve_ib_service {
 	__u32 id;
+	__u32 reserved;
 	struct rdma_ucm_ib_service ibs;
 };
 

@@ -118,7 +118,7 @@ setup_qemu() {
 		skip "/dev/kvm not accessible"
 	fi
 
-	if ! perf kvm stat record -a sleep 0.01 >/dev/null 2>&1; then
+	if ! perf kvm stat record -o /dev/null -a sleep 0.01 >/dev/null 2>&1; then
 		skip "No permission to record kvm events"
 	fi
 

@@ -134,7 +134,7 @@ MB and a zone capacity of 63 MB::
 
         $ modprobe zloop
         $ mkdir -p /var/local/zloop/0
-        $ echo "add capacity_mb=2048,zone_size_mb=64,zone_capacity=63MB" > /dev/zloop-control
+        $ echo "add capacity_mb=2048,zone_size_mb=64,zone_capacity_mb=63" > /dev/zloop-control
 
 For the device created (/dev/zloop0), the zone backing files are all created
 under the default base directory (/var/local/zloop)::

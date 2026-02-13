@@ -2,7 +2,6 @@
 #ifndef SELFTESTS_VFIO_LIB_INCLUDE_LIBVFIO_IOVA_ALLOCATOR_H
 #define SELFTESTS_VFIO_LIB_INCLUDE_LIBVFIO_IOVA_ALLOCATOR_H
 
-#include <uapi/linux/types.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/iommufd.h>

@@ -1118,12 +1118,12 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 			if (dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
 				num_audio++;
 		}
+		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa) {
+			/*wake AZ from D3 first before access az endpoint*/
+			clk_mgr->funcs->enable_pme_wa(clk_mgr);
+		}
 
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
-
-		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa)
-			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 
 		link_hwss->enable_audio_packet(pipe_ctx);
 
@@ -1610,38 +1610,12 @@ dce110_select_crtc_source(struct pipe_ctx *pipe_ctx)
 	struct dc_bios *bios = link->ctx->dc_bios;
 	struct bp_crtc_source_select crtc_source_select = {0};
 	enum engine_id engine_id = link->link_enc->preferred_engine;
-	uint8_t bit_depth;
 
 	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
 		engine_id = link->link_enc->analog_engine;
 
-	switch (pipe_ctx->stream->timing.display_color_depth) {
-	case COLOR_DEPTH_UNDEFINED:
-		bit_depth = 0;
-		break;
-	case COLOR_DEPTH_666:
-		bit_depth = 6;
-		break;
-	default:
-	case COLOR_DEPTH_888:
-		bit_depth = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bit_depth = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bit_depth = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bit_depth = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bit_depth = 16;
-		break;
-	}
-
 	crtc_source_select.controller_id = CONTROLLER_ID_D0 + pipe_ctx->stream_res.tg->inst;
-	crtc_source_select.bit_depth = bit_depth;
+	crtc_source_select.color_depth = pipe_ctx->stream->timing.display_color_depth;
 	crtc_source_select.engine_id = engine_id;
 	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
 

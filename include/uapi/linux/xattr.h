@@ -23,7 +23,7 @@
 #define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
 
 struct xattr_args {
-	__aligned_u64 __user value;
+	__aligned_u64 value;
 	__u32 size;
 	__u32 flags;
 };

@@ -14,7 +14,7 @@ description: The FLASH Image System (FIS) directory is a flash description
     32 KB in size.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 select: false
 

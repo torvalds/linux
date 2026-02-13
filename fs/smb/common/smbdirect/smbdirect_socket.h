@@ -133,6 +133,14 @@ struct smbdirect_socket {
 	struct smbdirect_socket_parameters parameters;
 
 	/*
+	 * The state for connect/negotiation
+	 */
+	struct {
+		spinlock_t lock;
+		struct work_struct work;
+	} connect;
+
+	/*
 	 * The state for keepalive and timeout handling
 	 */
 	struct {
@@ -352,6 +360,10 @@ static __always_inline void smbdirect_socket_init(struct smbdirect_socket *sc)
 
 	INIT_WORK(&sc->disconnect_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->disconnect_work);
+
+	spin_lock_init(&sc->connect.lock);
+	INIT_WORK(&sc->connect.work, __smbdirect_socket_disabled_work);
+	disable_work_sync(&sc->connect.work);
 
 	INIT_WORK(&sc->idle.immediate_work, __smbdirect_socket_disabled_work);
 	disable_work_sync(&sc->idle.immediate_work);

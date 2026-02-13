@@ -841,6 +841,9 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
 	for (page_no = 0; page_no < numpages; page_no++) {
 		unsigned int page_len;
 
+		if (head->rc_curpage >= rqstp->rq_maxpages)
+			return -EINVAL;
+
 		page_len = min_t(unsigned int, remaining,
 				 PAGE_SIZE - head->rc_pageoff);
 
@@ -848,7 +851,7 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
 			head->rc_page_count++;
 
 		dst = page_address(rqstp->rq_pages[head->rc_curpage]);
-		memcpy(dst + head->rc_curpage, src + offset, page_len);
+		memcpy((unsigned char *)dst + head->rc_pageoff, src + offset, page_len);
 
 		head->rc_readbytes += page_len;
 		head->rc_pageoff += page_len;
@@ -860,7 +863,7 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
 		offset += page_len;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 /**

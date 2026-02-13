@@ -1072,7 +1072,7 @@ static void __ris_msmon_read(void *arg)
 	u64 now;
 	bool nrdy = false;
 	bool config_mismatch;
-	bool overflow;
+	bool overflow = false;
 	struct mon_read *m = arg;
 	struct mon_cfg *ctx = m->ctx;
 	bool reset_on_next_read = false;
@@ -1176,10 +1176,11 @@ static void __ris_msmon_read(void *arg)
 	}
 	mpam_mon_sel_unlock(msc);
 
-	if (nrdy) {
+	if (nrdy)
 		m->err = -EBUSY;
+
+	if (m->err)
 		return;
-	}
 
 	*m->val += now;
 }

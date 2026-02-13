@@ -45,6 +45,8 @@ if ip netns exec "$ns0" ./conntrack_reverse_clash; then
 	echo "PASS: No SNAT performed for null bindings"
 else
 	echo "ERROR: SNAT performed without any matching snat rule"
+	ip netns exec "$ns0" conntrack -L
+	ip netns exec "$ns0" conntrack -S
 	exit 1
 fi
 

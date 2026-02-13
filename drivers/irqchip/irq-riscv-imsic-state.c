@@ -477,6 +477,7 @@ static void __init imsic_local_cleanup(void)
 		lpriv = per_cpu_ptr(imsic->lpriv, cpu);
 
 		bitmap_free(lpriv->dirty_bitmap);
+		kfree(lpriv->vectors);
 	}
 
 	free_percpu(imsic->lpriv);
@@ -490,8 +491,7 @@ static int __init imsic_local_init(void)
 	int cpu, i;
 
 	/* Allocate per-CPU private state */
-	imsic->lpriv = __alloc_percpu(struct_size(imsic->lpriv, vectors, global->nr_ids + 1),
-				      __alignof__(*imsic->lpriv));
+	imsic->lpriv = alloc_percpu(typeof(*imsic->lpriv));
 	if (!imsic->lpriv)
 		return -ENOMEM;
 
@@ -510,6 +510,12 @@ static int __init imsic_local_init(void)
 		/* Setup lazy timer for synchronization */
 		timer_setup(&lpriv->timer, imsic_local_timer_callback, TIMER_PINNED);
 #endif
+
+		/* Allocate vector array */
+		lpriv->vectors = kcalloc(global->nr_ids + 1, sizeof(*lpriv->vectors),
+					 GFP_KERNEL);
+		if (!lpriv->vectors)
+			goto fail_local_cleanup;
 
 		/* Setup vector array */
 		for (i = 0; i <= global->nr_ids; i++) {

@@ -179,8 +179,10 @@ static int rxe_odp_map_range_and_lock(struct rxe_mr *mr, u64 iova, int length, u
 			return err;
 
 		need_fault = rxe_check_pagefault(umem_odp, iova, length);
-		if (need_fault)
+		if (need_fault) {
+			mutex_unlock(&umem_odp->umem_mutex);
 			return -EFAULT;
+		}
 	}
 
 	return 0;

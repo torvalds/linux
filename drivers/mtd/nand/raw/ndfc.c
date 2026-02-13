@@ -272,5 +272,5 @@ static struct platform_driver ndfc_driver = {
 module_platform_driver(ndfc_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");
+MODULE_AUTHOR("Thomas Gleixner <tglx@kernel.org>");
 MODULE_DESCRIPTION("OF Platform driver for NDFC");

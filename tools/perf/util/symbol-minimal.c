@@ -104,8 +104,10 @@ int filename__read_build_id(const char *filename, struct build_id *bid)
 
 	if (!filename)
 		return -EFAULT;
+
+	errno = 0;
 	if (!is_regular_file(filename))
-		return -EWOULDBLOCK;
+		return errno == 0 ? -EWOULDBLOCK : -errno;
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)

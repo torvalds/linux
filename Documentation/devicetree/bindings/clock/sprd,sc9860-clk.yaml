@@ -114,25 +114,6 @@ allOf:
         - reg
       properties:
         sprd,syscon: false
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - sprd,sc9860-agcp-gate
-              - sprd,sc9860-aon-gate
-              - sprd,sc9860-apahb-gate
-              - sprd,sc9860-apapb-gate
-              - sprd,sc9860-cam-gate
-              - sprd,sc9860-disp-gate
-              - sprd,sc9860-pll
-              - sprd,sc9860-pmu-gate
-              - sprd,sc9860-vsp-gate
-    then:
-      required:
-        - sprd,syscon
-      properties:
-        reg: false
 
 additionalProperties: false
 
@@ -141,13 +122,6 @@ examples:
     soc {
       #address-cells = <2>;
       #size-cells = <2>;
-
-      pmu-gate {
-        compatible = "sprd,sc9860-pmu-gate";
-        clocks = <&ext_26m>;
-        #clock-cells = <1>;
-        sprd,syscon = <&pmu_regs>;
-      };
 
       clock-controller@20000000 {
         compatible = "sprd,sc9860-ap-clk";

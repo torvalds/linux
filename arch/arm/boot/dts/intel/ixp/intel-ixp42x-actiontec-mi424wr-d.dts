@@ -12,6 +12,17 @@
 	model = "Actiontec MI424WR rev D";
 	compatible = "actiontec,mi424wr-d", "intel,ixp42x";
 
+	/* Connect the switch to EthB */
+	spi {
+		ethernet-switch@0 {
+			ethernet-ports {
+				ethernet-port@4 {
+					ethernet = <&ethb>;
+				};
+			};
+		};
+	};
+
 	soc {
 		/* EthB used for LAN */
 		ethernet@c8009000 {

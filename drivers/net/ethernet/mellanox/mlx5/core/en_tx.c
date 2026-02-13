@@ -939,7 +939,11 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 	sq->dma_fifo_cc = dma_fifo_cc;
 	sq->cc = sqcc;
 
-	netdev_tx_completed_queue(sq->txq, npkts, nbytes);
+	/* Do not update BQL for TXQs that got replaced by new active ones, as
+	 * netdev_tx_reset_queue() is called for them in mlx5e_activate_txqsq().
+	 */
+	if (sq == sq->priv->txq2sq[sq->txq_ix])
+		netdev_tx_completed_queue(sq->txq, npkts, nbytes);
 }
 
 #ifdef CONFIG_MLX5_CORE_IPOIB

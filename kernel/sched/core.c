@@ -10694,10 +10694,11 @@ void sched_mm_cid_before_execve(struct task_struct *t)
 	sched_mm_cid_exit(t);
 }
 
-/* Reactivate MM CID after successful execve() */
+/* Reactivate MM CID after execve() */
 void sched_mm_cid_after_execve(struct task_struct *t)
 {
-	sched_mm_cid_fork(t);
+	if (t->mm)
+		sched_mm_cid_fork(t);
 }
 
 static void mm_cid_work_fn(struct work_struct *work)

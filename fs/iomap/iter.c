@@ -8,10 +8,10 @@
 
 static inline void iomap_iter_reset_iomap(struct iomap_iter *iter)
 {
-	if (iter->fbatch) {
+	if (iter->iomap.flags & IOMAP_F_FOLIO_BATCH) {
 		folio_batch_release(iter->fbatch);
-		kfree(iter->fbatch);
-		iter->fbatch = NULL;
+		folio_batch_reinit(iter->fbatch);
+		iter->iomap.flags &= ~IOMAP_F_FOLIO_BATCH;
 	}
 
 	iter->status = 0;

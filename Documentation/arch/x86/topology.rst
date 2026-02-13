@@ -17,7 +17,7 @@ with the generic one and look at this one in parallel for the x86 specifics.
 Needless to say, code should use the generic functions - this file is *only*
 here to *document* the inner workings of x86 topology.
 
-Started by Thomas Gleixner <tglx@linutronix.de> and Borislav Petkov <bp@alien8.de>.
+Started by Thomas Gleixner <tglx@kernel.org> and Borislav Petkov <bp@alien8.de>.
 
 The main aim of the topology facilities is to present adequate interfaces to
 code which needs to know/query/use the structure of the running system wrt

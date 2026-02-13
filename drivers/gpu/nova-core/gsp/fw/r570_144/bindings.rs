@@ -320,11 +320,12 @@ pub const NV_VGPU_MSG_EVENT_RECOVERY_ACTION: _bindgen_ty_3 = 4130;
 pub const NV_VGPU_MSG_EVENT_NUM_EVENTS: _bindgen_ty_3 = 4131;
 pub type _bindgen_ty_3 = ffi::c_uint;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS {
     pub totalVFs: u32_,
     pub firstVfOffset: u32_,
     pub vfFeatureMask: u32_,
+    pub __bindgen_padding_0: [u8; 4usize],
     pub FirstVFBar0Address: u64_,
     pub FirstVFBar1Address: u64_,
     pub FirstVFBar2Address: u64_,
@@ -340,23 +341,26 @@ pub struct NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS {
     pub bClientRmAllocatedCtxBuffer: u8_,
     pub bNonPowerOf2ChannelCountSupported: u8_,
     pub bVfResizableBAR1Supported: u8_,
+    pub __bindgen_padding_1: [u8; 7usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS {
     pub BoardID: u32_,
     pub chipSKU: [ffi::c_char; 9usize],
     pub chipSKUMod: [ffi::c_char; 5usize],
+    pub __bindgen_padding_0: [u8; 2usize],
     pub skuConfigVersion: u32_,
     pub project: [ffi::c_char; 5usize],
     pub projectSKU: [ffi::c_char; 5usize],
     pub CDP: [ffi::c_char; 6usize],
     pub projectSKUMod: [ffi::c_char; 2usize],
+    pub __bindgen_padding_1: [u8; 2usize],
     pub businessCycle: u32_,
 }
 pub type NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG = [u8_; 17usize];
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO {
     pub base: u64_,
     pub limit: u64_,
@@ -368,13 +372,14 @@ pub struct NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO {
     pub blackList: NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS {
     pub numFBRegions: u32_,
+    pub __bindgen_padding_0: [u8; 4usize],
     pub fbRegion: [NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO; 16usize],
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, MaybeZeroable)]
 pub struct NV2080_CTRL_GPU_GET_GID_INFO_PARAMS {
     pub index: u32_,
     pub flags: u32_,
@@ -391,14 +396,14 @@ impl Default for NV2080_CTRL_GPU_GET_GID_INFO_PARAMS {
     }
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct DOD_METHOD_DATA {
     pub status: u32_,
     pub acpiIdListLen: u32_,
     pub acpiIdList: [u32_; 16usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct JT_METHOD_DATA {
     pub status: u32_,
     pub jtCaps: u32_,
@@ -407,14 +412,14 @@ pub struct JT_METHOD_DATA {
     pub __bindgen_padding_0: u8,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct MUX_METHOD_DATA_ELEMENT {
     pub acpiId: u32_,
     pub mode: u32_,
     pub status: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct MUX_METHOD_DATA {
     pub tableLen: u32_,
     pub acpiIdMuxModeTable: [MUX_METHOD_DATA_ELEMENT; 16usize],
@@ -422,13 +427,13 @@ pub struct MUX_METHOD_DATA {
     pub acpiIdMuxStateTable: [MUX_METHOD_DATA_ELEMENT; 16usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct CAPS_METHOD_DATA {
     pub status: u32_,
     pub optimusCaps: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct ACPI_METHOD_DATA {
     pub bValid: u8_,
     pub __bindgen_padding_0: [u8; 3usize],
@@ -438,20 +443,20 @@ pub struct ACPI_METHOD_DATA {
     pub capsMethodData: CAPS_METHOD_DATA,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS {
     pub headIndex: u32_,
     pub maxHResolution: u32_,
     pub maxVResolution: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS {
     pub numHeads: u32_,
     pub maxNumHeads: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct BUSINFO {
     pub deviceID: u16_,
     pub vendorID: u16_,
@@ -461,7 +466,7 @@ pub struct BUSINFO {
     pub __bindgen_padding_0: u8,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_VF_INFO {
     pub totalVFs: u32_,
     pub firstVFOffset: u32_,
@@ -474,34 +479,37 @@ pub struct GSP_VF_INFO {
     pub __bindgen_padding_0: [u8; 5usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_PCIE_CONFIG_REG {
     pub linkCap: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct EcidManufacturingInfo {
     pub ecidLow: u32_,
     pub ecidHigh: u32_,
     pub ecidExtended: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct FW_WPR_LAYOUT_OFFSET {
     pub nonWprHeapOffset: u64_,
     pub frtsOffset: u64_,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, MaybeZeroable)]
 pub struct GspStaticConfigInfo_t {
     pub grCapsBits: [u8_; 23usize],
+    pub __bindgen_padding_0: u8,
     pub gidInfo: NV2080_CTRL_GPU_GET_GID_INFO_PARAMS,
     pub SKUInfo: NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS,
+    pub __bindgen_padding_1: [u8; 4usize],
     pub fbRegionInfoParams: NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS,
     pub sriovCaps: NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS,
     pub sriovMaxGfid: u32_,
     pub engineCaps: [u32_; 3usize],
     pub poisonFuseEnabled: u8_,
+    pub __bindgen_padding_2: [u8; 7usize],
     pub fb_length: u64_,
     pub fbio_mask: u64_,
     pub fb_bus_width: u32_,
@@ -527,16 +535,20 @@ pub struct GspStaticConfigInfo_t {
     pub bIsMigSupported: u8_,
     pub RTD3GC6TotalBoardPower: u16_,
     pub RTD3GC6PerstDelay: u16_,
+    pub __bindgen_padding_3: [u8; 2usize],
     pub bar1PdeBase: u64_,
     pub bar2PdeBase: u64_,
     pub bVbiosValid: u8_,
+    pub __bindgen_padding_4: [u8; 3usize],
     pub vbiosSubVendor: u32_,
     pub vbiosSubDevice: u32_,
     pub bPageRetirementSupported: u8_,
     pub bSplitVasBetweenServerClientRm: u8_,
     pub bClRootportNeedsNosnoopWAR: u8_,
+    pub __bindgen_padding_5: u8,
     pub displaylessMaxHeads: VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS,
     pub displaylessMaxResolution: VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS,
+    pub __bindgen_padding_6: [u8; 4usize],
     pub displaylessMaxPixels: u64_,
     pub hInternalClient: u32_,
     pub hInternalDevice: u32_,
@@ -558,7 +570,7 @@ impl Default for GspStaticConfigInfo_t {
     }
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GspSystemInfo {
     pub gpuPhysAddr: u64_,
     pub gpuPhysFbAddr: u64_,
@@ -615,7 +627,7 @@ pub struct GspSystemInfo {
     pub hostPageSize: u64_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct MESSAGE_QUEUE_INIT_ARGUMENTS {
     pub sharedMemPhysAddr: u64_,
     pub pageTableEntryCount: u32_,
@@ -624,7 +636,7 @@ pub struct MESSAGE_QUEUE_INIT_ARGUMENTS {
     pub statQueueOffset: u64_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SR_INIT_ARGUMENTS {
     pub oldLevel: u32_,
     pub flags: u32_,
@@ -632,7 +644,7 @@ pub struct GSP_SR_INIT_ARGUMENTS {
     pub __bindgen_padding_0: [u8; 3usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_ARGUMENTS_CACHED {
     pub messageQueueInitArguments: MESSAGE_QUEUE_INIT_ARGUMENTS,
     pub srInitArguments: GSP_SR_INIT_ARGUMENTS,
@@ -642,13 +654,13 @@ pub struct GSP_ARGUMENTS_CACHED {
     pub profilerArgs: GSP_ARGUMENTS_CACHED__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_ARGUMENTS_CACHED__bindgen_ty_1 {
     pub pa: u64_,
     pub size: u64_,
 }
 #[repr(C)]
-#[derive(Copy, Clone, Zeroable)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub union rpc_message_rpc_union_field_v03_00 {
     pub spare: u32_,
     pub cpuRmGfid: u32_,
@@ -664,6 +676,7 @@ impl Default for rpc_message_rpc_union_field_v03_00 {
 }
 pub type rpc_message_rpc_union_field_v = rpc_message_rpc_union_field_v03_00;
 #[repr(C)]
+#[derive(MaybeZeroable)]
 pub struct rpc_message_header_v03_00 {
     pub header_version: u32_,
     pub signature: u32_,
@@ -686,7 +699,7 @@ impl Default for rpc_message_header_v03_00 {
 }
 pub type rpc_message_header_v = rpc_message_header_v03_00;
 #[repr(C)]
-#[derive(Copy, Clone, Zeroable)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub struct GspFwWprMeta {
     pub magic: u64_,
     pub revision: u64_,
@@ -721,19 +734,19 @@ pub struct GspFwWprMeta {
     pub verified: u64_,
 }
 #[repr(C)]
-#[derive(Copy, Clone, Zeroable)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub union GspFwWprMeta__bindgen_ty_1 {
     pub __bindgen_anon_1: GspFwWprMeta__bindgen_ty_1__bindgen_ty_1,
     pub __bindgen_anon_2: GspFwWprMeta__bindgen_ty_1__bindgen_ty_2,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GspFwWprMeta__bindgen_ty_1__bindgen_ty_1 {
     pub sysmemAddrOfSignature: u64_,
     pub sizeOfSignature: u64_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GspFwWprMeta__bindgen_ty_1__bindgen_ty_2 {
     pub gspFwHeapFreeListWprOffset: u32_,
     pub unused0: u32_,
@@ -749,13 +762,13 @@ impl Default for GspFwWprMeta__bindgen_ty_1 {
     }
 }
 #[repr(C)]
-#[derive(Copy, Clone, Zeroable)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub union GspFwWprMeta__bindgen_ty_2 {
     pub __bindgen_anon_1: GspFwWprMeta__bindgen_ty_2__bindgen_ty_1,
     pub __bindgen_anon_2: GspFwWprMeta__bindgen_ty_2__bindgen_ty_2,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GspFwWprMeta__bindgen_ty_2__bindgen_ty_1 {
     pub partitionRpcAddr: u64_,
     pub partitionRpcRequestOffset: u16_,
@@ -767,7 +780,7 @@ pub struct GspFwWprMeta__bindgen_ty_2__bindgen_ty_1 {
     pub lsUcodeVersion: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GspFwWprMeta__bindgen_ty_2__bindgen_ty_2 {
     pub partitionRpcPadding: [u32_; 4usize],
     pub sysmemAddrOfCrashReportQueue: u64_,
@@ -802,7 +815,7 @@ pub const LibosMemoryRegionLoc_LIBOS_MEMORY_REGION_LOC_SYSMEM: LibosMemoryRegion
 pub const LibosMemoryRegionLoc_LIBOS_MEMORY_REGION_LOC_FB: LibosMemoryRegionLoc = 2;
 pub type LibosMemoryRegionLoc = ffi::c_uint;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct LibosMemoryRegionInitArgument {
     pub id8: LibosAddress,
     pub pa: LibosAddress,
@@ -812,7 +825,7 @@ pub struct LibosMemoryRegionInitArgument {
     pub __bindgen_padding_0: [u8; 6usize],
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct PACKED_REGISTRY_ENTRY {
     pub nameOffset: u32_,
     pub type_: u8_,
@@ -821,14 +834,14 @@ pub struct PACKED_REGISTRY_ENTRY {
     pub length: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, MaybeZeroable)]
 pub struct PACKED_REGISTRY_TABLE {
     pub size: u32_,
     pub numEntries: u32_,
     pub entries: __IncompleteArrayField<PACKED_REGISTRY_ENTRY>,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct msgqTxHeader {
     pub version: u32_,
     pub size: u32_,
@@ -840,13 +853,13 @@ pub struct msgqTxHeader {
     pub entryOff: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Zeroable)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct msgqRxHeader {
     pub readPtr: u32_,
 }
 #[repr(C)]
 #[repr(align(8))]
-#[derive(Zeroable)]
+#[derive(MaybeZeroable)]
 pub struct GSP_MSG_QUEUE_ELEMENT {
     pub authTagBuffer: [u8_; 16usize],
     pub aadBuffer: [u8_; 16usize],
@@ -866,7 +879,7 @@ impl Default for GSP_MSG_QUEUE_ELEMENT {
     }
 }
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, MaybeZeroable)]
 pub struct rpc_run_cpu_sequencer_v17_00 {
     pub bufferSizeDWord: u32_,
     pub cmdIndex: u32_,
@@ -884,20 +897,20 @@ pub const GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_WAIT_FOR_HALT: GSP_SEQ_BUF_
 pub const GSP_SEQ_BUF_OPCODE_GSP_SEQ_BUF_OPCODE_CORE_RESUME: GSP_SEQ_BUF_OPCODE = 8;
 pub type GSP_SEQ_BUF_OPCODE = ffi::c_uint;
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQ_BUF_PAYLOAD_REG_WRITE {
     pub addr: u32_,
     pub val: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQ_BUF_PAYLOAD_REG_MODIFY {
     pub addr: u32_,
     pub mask: u32_,
     pub val: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQ_BUF_PAYLOAD_REG_POLL {
     pub addr: u32_,
     pub mask: u32_,
@@ -906,24 +919,24 @@ pub struct GSP_SEQ_BUF_PAYLOAD_REG_POLL {
     pub error: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQ_BUF_PAYLOAD_DELAY_US {
     pub val: u32_,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQ_BUF_PAYLOAD_REG_STORE {
     pub addr: u32_,
     pub index: u32_,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub struct GSP_SEQUENCER_BUFFER_CMD {
     pub opCode: GSP_SEQ_BUF_OPCODE,
     pub payload: GSP_SEQUENCER_BUFFER_CMD__bindgen_ty_1,
 }
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, MaybeZeroable)]
 pub union GSP_SEQUENCER_BUFFER_CMD__bindgen_ty_1 {
     pub regWrite: GSP_SEQ_BUF_PAYLOAD_REG_WRITE,
     pub regModify: GSP_SEQ_BUF_PAYLOAD_REG_MODIFY,

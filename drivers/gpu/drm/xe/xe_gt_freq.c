@@ -293,8 +293,10 @@ int xe_gt_freq_init(struct xe_gt *gt)
 		return -ENOMEM;
 
 	err = sysfs_create_files(gt->freq, freq_attrs);
-	if (err)
+	if (err) {
+		kobject_put(gt->freq);
 		return err;
+	}
 
 	err = devm_add_action_or_reset(xe->drm.dev, freq_fini, gt->freq);
 	if (err)

@@ -748,6 +748,7 @@ ForEachMacros:
   - 'ynl_attr_for_each_nested'
   - 'ynl_attr_for_each_payload'
   - 'zorro_for_each_dev'
+  - 'zpci_bus_for_each'
 
 IncludeBlocks: Preserve
 IncludeCategories:

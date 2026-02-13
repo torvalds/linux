@@ -4241,9 +4241,11 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		int count = 0;
 
 		llist_for_each_entry_safe(skb, next, ll_list, ll_node) {
-			prefetch(next);
-			prefetch(&next->priority);
-			skb_mark_not_on_list(skb);
+			if (next) {
+				prefetch(next);
+				prefetch(&next->priority);
+				skb_mark_not_on_list(skb);
+			}
 			rc = dev_qdisc_enqueue(skb, q, &to_free, txq);
 			count++;
 		}

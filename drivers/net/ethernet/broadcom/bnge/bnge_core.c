@@ -19,7 +19,7 @@ char bnge_driver_name[] = DRV_NAME;
 static const struct {
 	char *name;
 } board_info[] = {
-	[BCM57708] = { "Broadcom BCM57708 50Gb/100Gb/200Gb/400Gb/800Gb Ethernet" },
+	[BCM57708] = { "Broadcom BCM57708 ThorUltra 50Gb/100Gb/200Gb/400Gb/800Gb Ethernet" },
 };
 
 static const struct pci_device_id bnge_pci_tbl[] = {

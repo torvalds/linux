@@ -20,7 +20,7 @@ description: |
   Many of the IP blocks used in the SoC comes from Faraday Technology.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 properties:
   $nodename:

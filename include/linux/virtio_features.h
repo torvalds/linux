@@ -3,6 +3,8 @@
 #define _LINUX_VIRTIO_FEATURES_H
 
 #include <linux/bits.h>
+#include <linux/bug.h>
+#include <linux/string.h>
 
 #define VIRTIO_FEATURES_U64S	2
 #define VIRTIO_FEATURES_BITS	(VIRTIO_FEATURES_U64S * 64)
