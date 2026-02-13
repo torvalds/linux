@@ -111,7 +111,6 @@ static inline struct nfs4_session *nfs4_get_session(const struct nfs_client *clp
 	return clp->cl_session;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 extern void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid);
 extern void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
@@ -154,28 +153,6 @@ static inline void nfs4_copy_sessionid(struct nfs4_sessionid *dst,
  */
 #define nfs_session_id_hash(sess_id) \
 	(~crc32_le(0xFFFFFFFF, &(sess_id)->data[0], sizeof((sess_id)->data)))
-#else /* defined(CONFIG_NFS_V4_1) */
 
-static inline int nfs4_init_session(struct nfs_client *clp)
-{
-	return 0;
-}
-
-/*
- * Determine if sessions are in use.
- */
-static inline int nfs4_has_session(const struct nfs_client *clp)
-{
-	return 0;
-}
-
-static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
-{
-	return 0;
-}
-
-#define nfs_session_id_hash(session) (0)
-
-#endif /* defined(CONFIG_NFS_V4_1) */
 #endif /* IS_ENABLED(CONFIG_NFS_V4) */
 #endif /* __LINUX_FS_NFS_NFS4SESSION_H */

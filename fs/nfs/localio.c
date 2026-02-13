@@ -58,6 +58,11 @@ struct nfs_local_fsync_ctx {
 static bool localio_enabled __read_mostly = true;
 module_param(localio_enabled, bool, 0644);
 
+static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
+			      const struct rpc_call_ops *call_ops);
+static void nfs_local_do_write(struct nfs_local_kiocb *iocb,
+			       const struct rpc_call_ops *call_ops);
+
 static inline bool nfs_client_is_local(const struct nfs_client *clp)
 {
 	return !!rcu_access_pointer(clp->cl_uuid.net);
@@ -286,6 +291,18 @@ nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 }
 EXPORT_SYMBOL_GPL(nfs_local_open_fh);
 
+/*
+ * Ensure all page cache allocations are done from GFP_NOFS context to
+ * prevent direct reclaim recursion back into NFS via nfs_writepages.
+ */
+static void
+nfs_local_mapping_set_gfp_nofs_context(struct address_space *m)
+{
+	gfp_t gfp_mask = mapping_gfp_mask(m);
+
+	mapping_set_gfp_mask(m, (gfp_mask & ~(__GFP_FS)));
+}
+
 static void
 nfs_local_iocb_free(struct nfs_local_kiocb *iocb)
 {
@@ -310,6 +327,7 @@ nfs_local_iocb_alloc(struct nfs_pgio_header *hdr,
 		return NULL;
 	}
 
+	nfs_local_mapping_set_gfp_nofs_context(file->f_mapping);
 	init_sync_kiocb(&iocb->kiocb, file);
 
 	iocb->hdr = hdr;
@@ -512,8 +530,7 @@ nfs_local_pgio_init(struct nfs_pgio_header *hdr,
 		hdr->task.tk_start = ktime_get();
 }
 
-static bool
-nfs_local_pgio_done(struct nfs_local_kiocb *iocb, long status, bool force)
+static bool nfs_local_pgio_done(struct nfs_local_kiocb *iocb, long status)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
 
@@ -528,9 +545,6 @@ nfs_local_pgio_done(struct nfs_local_kiocb *iocb, long status, bool force)
 		hdr->task.tk_status = status;
 	}
 
-	if (force)
-		return true;
-
 	BUG_ON(atomic_read(&iocb->n_iters) <= 0);
 	return atomic_dec_and_test(&iocb->n_iters);
 }
@@ -542,13 +556,50 @@ nfs_local_iocb_release(struct nfs_local_kiocb *iocb)
 	nfs_local_iocb_free(iocb);
 }
 
-static void
-nfs_local_pgio_release(struct nfs_local_kiocb *iocb)
+static void nfs_local_pgio_restart(struct nfs_local_kiocb *iocb,
+				   struct nfs_pgio_header *hdr)
+{
+	int status = 0;
+
+	iocb->kiocb.ki_pos = hdr->args.offset;
+	iocb->kiocb.ki_flags &= ~(IOCB_DSYNC | IOCB_SYNC | IOCB_DIRECT);
+	iocb->kiocb.ki_complete = NULL;
+	iocb->aio_complete_work = NULL;
+	iocb->end_iter_index = -1;
+
+	switch (hdr->rw_mode) {
+	case FMODE_READ:
+		nfs_local_iters_init(iocb, ITER_DEST);
+		nfs_local_do_read(iocb, hdr->task.tk_ops);
+		break;
+	case FMODE_WRITE:
+		nfs_local_iters_init(iocb, ITER_SOURCE);
+		nfs_local_do_write(iocb, hdr->task.tk_ops);
+		break;
+	default:
+		status = -EOPNOTSUPP;
+	}
+
+	if (unlikely(status != 0)) {
+		nfs_local_iocb_release(iocb);
+		hdr->task.tk_status = status;
+		nfs_local_hdr_release(hdr, hdr->task.tk_ops);
+	}
+}
+
+static void nfs_local_pgio_release(struct nfs_local_kiocb *iocb)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
+	struct rpc_task *task = &hdr->task;
 
-	nfs_local_iocb_release(iocb);
-	nfs_local_hdr_release(hdr, hdr->task.tk_ops);
+	task->tk_action = NULL;
+	task->tk_ops->rpc_call_done(task, hdr);
+
+	if (task->tk_action == NULL) {
+		nfs_local_iocb_release(iocb);
+		task->tk_ops->rpc_release(hdr);
+	} else
+		nfs_local_pgio_restart(iocb, hdr);
 }
 
 /*
@@ -609,7 +660,7 @@ static void nfs_local_read_aio_complete(struct kiocb *kiocb, long ret)
 		container_of(kiocb, struct nfs_local_kiocb, kiocb);
 
 	/* AIO completion of DIO read should always be last to complete */
-	if (unlikely(!nfs_local_pgio_done(iocb, ret, false)))
+	if (unlikely(!nfs_local_pgio_done(iocb, ret)))
 		return;
 
 	nfs_local_pgio_aio_complete(iocb); /* Calls nfs_local_read_aio_complete_work */
@@ -641,7 +692,7 @@ static void nfs_local_call_read(struct work_struct *work)
 		if (status == -EIOCBQUEUED)
 			continue;
 		/* Break on completion, errors, or short reads */
-		if (nfs_local_pgio_done(iocb, status, false) || status < 0 ||
+		if (nfs_local_pgio_done(iocb, status) || status < 0 ||
 		    (size_t)status < iov_iter_count(&iocb->iters[i])) {
 			nfs_local_read_iocb_done(iocb);
 			break;
@@ -649,9 +700,8 @@ static void nfs_local_call_read(struct work_struct *work)
 	}
 }
 
-static int
-nfs_local_do_read(struct nfs_local_kiocb *iocb,
-		  const struct rpc_call_ops *call_ops)
+static void nfs_local_do_read(struct nfs_local_kiocb *iocb,
+			      const struct rpc_call_ops *call_ops)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
 
@@ -663,8 +713,6 @@ nfs_local_do_read(struct nfs_local_kiocb *iocb,
 
 	INIT_WORK(&iocb->work, nfs_local_call_read);
 	queue_work(nfslocaliod_workqueue, &iocb->work);
-
-	return 0;
 }
 
 static void
@@ -773,19 +821,7 @@ static void nfs_local_write_done(struct nfs_local_kiocb *iocb)
 		pr_info_ratelimited("nfs: Unexpected direct I/O write alignment failure\n");
 	}
 
-	/* Handle short writes as if they are ENOSPC */
-	status = hdr->res.count;
-	if (status > 0 && status < hdr->args.count) {
-		hdr->mds_offset += status;
-		hdr->args.offset += status;
-		hdr->args.pgbase += status;
-		hdr->args.count -= status;
-		nfs_set_pgio_error(hdr, -ENOSPC, hdr->args.offset);
-		status = -ENOSPC;
-		/* record -ENOSPC in terms of nfs_local_pgio_done */
-		(void) nfs_local_pgio_done(iocb, status, true);
-	}
-	if (hdr->task.tk_status < 0)
+	if (status < 0)
 		nfs_reset_boot_verifier(hdr->inode);
 }
 
@@ -810,7 +846,7 @@ static void nfs_local_write_aio_complete(struct kiocb *kiocb, long ret)
 		container_of(kiocb, struct nfs_local_kiocb, kiocb);
 
 	/* AIO completion of DIO write should always be last to complete */
-	if (unlikely(!nfs_local_pgio_done(iocb, ret, false)))
+	if (unlikely(!nfs_local_pgio_done(iocb, ret)))
 		return;
 
 	nfs_local_pgio_aio_complete(iocb); /* Calls nfs_local_write_aio_complete_work */
@@ -846,7 +882,7 @@ static void nfs_local_call_write(struct work_struct *work)
 		if (status == -EIOCBQUEUED)
 			continue;
 		/* Break on completion, errors, or short writes */
-		if (nfs_local_pgio_done(iocb, status, false) || status < 0 ||
+		if (nfs_local_pgio_done(iocb, status) || status < 0 ||
 		    (size_t)status < iov_iter_count(&iocb->iters[i])) {
 			nfs_local_write_iocb_done(iocb);
 			break;
@@ -857,9 +893,8 @@ static void nfs_local_call_write(struct work_struct *work)
 	current->flags = old_flags;
 }
 
-static int
-nfs_local_do_write(struct nfs_local_kiocb *iocb,
-		   const struct rpc_call_ops *call_ops)
+static void nfs_local_do_write(struct nfs_local_kiocb *iocb,
+			       const struct rpc_call_ops *call_ops)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
 
@@ -883,8 +918,6 @@ nfs_local_do_write(struct nfs_local_kiocb *iocb,
 
 	INIT_WORK(&iocb->work, nfs_local_call_write);
 	queue_work(nfslocaliod_workqueue, &iocb->work);
-
-	return 0;
 }
 
 static struct nfs_local_kiocb *
@@ -934,10 +967,10 @@ int nfs_local_doio(struct nfs_client *clp, struct nfsd_file *localio,
 
 	switch (hdr->rw_mode) {
 	case FMODE_READ:
-		status = nfs_local_do_read(iocb, call_ops);
+		nfs_local_do_read(iocb, call_ops);
 		break;
 	case FMODE_WRITE:
-		status = nfs_local_do_write(iocb, call_ops);
+		nfs_local_do_write(iocb, call_ops);
 		break;
 	default:
 		dprintk("%s: invalid mode: %d\n", __func__,
@@ -945,9 +978,7 @@ int nfs_local_doio(struct nfs_client *clp, struct nfsd_file *localio,
 		status = -EOPNOTSUPP;
 	}
 
-	if (status != 0) {
-		if (status == -EAGAIN)
-			nfs_localio_disable_client(clp);
+	if (unlikely(status != 0)) {
 		nfs_local_iocb_release(iocb);
 		hdr->task.tk_status = status;
 		nfs_local_hdr_release(hdr, call_ops);
@@ -973,6 +1004,8 @@ nfs_local_run_commit(struct file *filp, struct nfs_commit_data *data)
 		if (end < start)
 			end = LLONG_MAX;
 	}
+
+	nfs_local_mapping_set_gfp_nofs_context(filp->f_mapping);
 
 	dprintk("%s: commit %llu - %llu\n", __func__, start, end);
 	return vfs_fsync_range(filp, start, end, 0);
@@ -1015,10 +1048,13 @@ nfs_local_fsync_ctx_free(struct nfs_local_fsync_ctx *ctx)
 static void
 nfs_local_fsync_work(struct work_struct *work)
 {
+	unsigned long old_flags = current->flags;
 	struct nfs_local_fsync_ctx *ctx;
 	int status;
 
 	ctx = container_of(work, struct nfs_local_fsync_ctx, work);
+
+	current->flags |= PF_LOCAL_THROTTLE | PF_MEMALLOC_NOIO;
 
 	status = nfs_local_run_commit(nfs_to->nfsd_file_file(ctx->localio),
 				      ctx->data);
@@ -1026,6 +1062,8 @@ nfs_local_fsync_work(struct work_struct *work)
 	if (ctx->done != NULL)
 		complete(ctx->done);
 	nfs_local_fsync_ctx_free(ctx);
+
+	current->flags = old_flags;
 }
 
 static struct nfs_local_fsync_ctx *
@@ -1049,7 +1087,7 @@ int nfs_local_commit(struct nfsd_file *localio,
 {
 	struct nfs_local_fsync_ctx *ctx;
 
-	ctx = nfs_local_fsync_ctx_alloc(data, localio, GFP_KERNEL);
+	ctx = nfs_local_fsync_ctx_alloc(data, localio, GFP_NOIO);
 	if (!ctx) {
 		nfs_local_commit_done(data, -ENOMEM);
 		nfs_local_release_commit_data(localio, data, call_ops);
@@ -1061,10 +1099,10 @@ int nfs_local_commit(struct nfsd_file *localio,
 	if (how & FLUSH_SYNC) {
 		DECLARE_COMPLETION_ONSTACK(done);
 		ctx->done = &done;
-		queue_work(nfsiod_workqueue, &ctx->work);
+		queue_work(nfslocaliod_workqueue, &ctx->work);
 		wait_for_completion(&done);
 	} else
-		queue_work(nfsiod_workqueue, &ctx->work);
+		queue_work(nfslocaliod_workqueue, &ctx->work);
 
 	return 0;
 }

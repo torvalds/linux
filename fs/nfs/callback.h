@@ -65,8 +65,6 @@ struct cb_recallargs {
 	uint32_t truncate;
 };
 
-#if defined(CONFIG_NFS_V4_1)
-
 struct referring_call {
 	uint32_t			rc_sequenceid;
 	uint32_t			rc_slotid;
@@ -168,7 +166,6 @@ struct cb_notify_lock_args {
 
 extern __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 					 struct cb_process_state *cps);
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 struct cb_offloadargs {
 	struct nfs_fh		coa_fh;

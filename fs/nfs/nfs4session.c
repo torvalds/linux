@@ -408,8 +408,6 @@ void nfs41_wake_slot_table(struct nfs4_slot_table *tbl)
 	}
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 static void nfs41_set_max_slotid_locked(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid)
 {
@@ -653,5 +651,3 @@ int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nfs4_init_ds_session);
-
-#endif	/* defined(CONFIG_NFS_V4_1) */

@@ -87,7 +87,6 @@ nfs4_callback_svc(void *vrqstp)
 	return 0;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		struct svc_serv *serv)
 {
@@ -98,12 +97,6 @@ static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
 		 */
 		xprt->bc_serv = serv;
 }
-#else
-static inline void nfs_callback_bc_serv(u32 minorversion, struct rpc_xprt *xprt,
-		struct svc_serv *serv)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 				  struct svc_serv *serv)
@@ -157,7 +150,7 @@ static int nfs_callback_up_net(int minorversion, struct svc_serv *serv,
 	}
 
 	ret = 0;
-	if (!IS_ENABLED(CONFIG_NFS_V4_1) || minorversion == 0)
+	if (minorversion == 0)
 		ret = nfs4_callback_up_net(serv, net);
 	else if (xprt->ops->bc_setup)
 		set_bc_enabled(serv);
@@ -198,10 +191,6 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 			cb_info->users);
 
 	threadfn = nfs4_callback_svc;
-#if !defined(CONFIG_NFS_V4_1)
-	if (minorversion)
-		return ERR_PTR(-ENOTSUPP);
-#endif
 	serv = svc_create(&nfs4_callback_program, NFS4_CALLBACK_BUFSIZE,
 			  threadfn);
 	if (!serv) {

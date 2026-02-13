@@ -115,9 +115,7 @@ struct nfs_client {
 #define NFS_SP4_MACH_CRED_WRITE    5	/* WRITE */
 #define NFS_SP4_MACH_CRED_COMMIT   6	/* COMMIT */
 #define NFS_SP4_MACH_CRED_PNFS_CLEANUP  7 /* LAYOUTRETURN */
-#if IS_ENABLED(CONFIG_NFS_V4_1)
 	wait_queue_head_t	cl_lock_waitq;
-#endif /* CONFIG_NFS_V4_1 */
 #endif /* CONFIG_NFS_V4 */
 
 	/* Our own IP address, as a null-terminated string.
@@ -259,6 +257,10 @@ struct nfs_server {
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
+	spinlock_t		delegations_lock;
+	struct list_head	delegations_return;
+	struct list_head	delegations_lru;
+	struct list_head	delegations_delayed;
 	atomic_long_t		nr_active_delegations;
 	unsigned int		delegation_hash_mask;
 	struct hlist_head	*delegation_hash_table;
@@ -266,9 +268,7 @@ struct nfs_server {
 	struct list_head	ss_src_copies;
 
 	unsigned long		delegation_flags;
-#define NFS4SERV_DELEGRETURN		(1)
-#define NFS4SERV_DELEGATION_EXPIRED	(2)
-#define NFS4SERV_DELEGRETURN_DELAYED	(3)
+#define NFS4SERV_DELEGATION_EXPIRED	(1)
 	unsigned long		delegation_gen;
 	unsigned long		mig_gen;
 	unsigned long		mig_status;
