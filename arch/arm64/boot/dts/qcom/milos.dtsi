@@ -1667,6 +1667,21 @@
 
 			wakeup-parent = <&pdc>;
 
+			qup_spi0_data_clk: qup-spi0-data-clk-state {
+				/* MISO, MOSI, CLK */
+				pins = "gpio0", "gpio1", "gpio2";
+				function = "qup0_se0";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
+			qup_spi0_cs: qup-spi0-cs-state {
+				pins = "gpio3";
+				function = "qup0_se0";
+				drive-strength = <6>;
+				bias-disable;
+			};
+
 			qup_i2c1_data_clk: qup-i2c1-data-clk-state {
 				/* SDA, SCL */
 				pins = "gpio4", "gpio5";
@@ -1683,29 +1698,6 @@
 				bias-pull-up = <2200>;
 			};
 
-			qup_i2c7_data_clk: qup-i2c7-data-clk-state {
-				/* SDA, SCL */
-				pins = "gpio32", "gpio33";
-				function = "qup1_se0";
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-
-			qup_spi0_cs: qup-spi0-cs-state {
-				pins = "gpio3";
-				function = "qup0_se0";
-				drive-strength = <6>;
-				bias-disable;
-			};
-
-			qup_spi0_data_clk: qup-spi0-data-clk-state {
-				/* MISO, MOSI, CLK */
-				pins = "gpio0", "gpio1", "gpio2";
-				function = "qup0_se0";
-				drive-strength = <6>;
-				bias-disable;
-			};
-
 			qup_uart5_default: qup-uart5-default-state {
 				/* TX, RX */
 				pins = "gpio25", "gpio26";
@@ -1714,10 +1706,10 @@
 				bias-disable;
 			};
 
-			qup_uart11_default: qup-uart11-default-state {
-				/* TX, RX */
-				pins = "gpio50", "gpio51";
-				function = "qup1_se4";
+			qup_i2c7_data_clk: qup-i2c7-data-clk-state {
+				/* SDA, SCL */
+				pins = "gpio32", "gpio33";
+				function = "qup1_se0";
 				drive-strength = <2>;
 				bias-pull-up;
 			};
@@ -1728,6 +1720,14 @@
 				function = "qup1_se4";
 				drive-strength = <2>;
 				bias-pull-down;
+			};
+
+			qup_uart11_default: qup-uart11-default-state {
+				/* TX, RX */
+				pins = "gpio50", "gpio51";
+				function = "qup1_se4";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 
 			sdc2_default: sdc2-default-state {
