@@ -482,6 +482,8 @@ static void mt7996_set_monitor(struct mt7996_phy *phy, bool enabled)
 
 	mt76_rmw_field(dev, MT_DMA_DCR0(phy->mt76->band_idx),
 		       MT_DMA_DCR0_RXD_G5_EN, enabled);
+	mt76_rmw_field(dev, MT_MDP_DCR0,
+		       MT_MDP_DCR0_RX_HDR_TRANS_EN, !enabled);
 	mt7996_phy_set_rxfilter(phy);
 	mt7996_mcu_set_sniffer_mode(phy, enabled);
 }

@@ -159,6 +159,9 @@ enum offs_rev {
 #define MT_MDP_BASE				0x820cc000
 #define MT_MDP(ofs)				(MT_MDP_BASE + (ofs))
 
+#define MT_MDP_DCR0				MT_MDP(0x800)
+#define MT_MDP_DCR0_RX_HDR_TRANS_EN		BIT(19)
+
 #define MT_MDP_DCR2				MT_MDP(0x8e8)
 #define MT_MDP_DCR2_RX_TRANS_SHORT		BIT(2)
 
