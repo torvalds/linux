@@ -2400,7 +2400,8 @@ struct cpu_topology {
 	int logical_cpu_id;
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
-	int thread_id;
+	int ht_id;		/* unique within a core */
+	int ht_sibling_cpu_id;
 	int type;
 	cpu_set_t *put_ids;	/* Processing Unit/Thread IDs */
 } *cpus;
@@ -6179,8 +6180,8 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 	int thread_id = 0;
 
 	thiscpu->put_ids = CPU_ALLOC((topo.max_cpu_num + 1));
-	if (thiscpu->thread_id < 0)
-		thiscpu->thread_id = thread_id++;
+	if (thiscpu->ht_id < 0)
+		thiscpu->ht_id = thread_id++;
 	if (!thiscpu->put_ids)
 		return -1;
 
@@ -6204,8 +6205,10 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 				sib_core = get_core_id(so);
 				if (sib_core == thiscpu->core_id) {
 					CPU_SET_S(so, size, thiscpu->put_ids);
-					if ((so != cpu) && (cpus[so].thread_id < 0))
-						cpus[so].thread_id = thread_id++;
+					if ((so != cpu) && (cpus[so].ht_id < 0)) {
+						cpus[so].ht_id = thread_id++;
+						cpus[cpu].ht_sibling_cpu_id = so;
+					}
 				}
 			}
 		}
@@ -6388,9 +6391,10 @@ int mark_cpu_present(int cpu)
 	return 0;
 }
 
-int init_thread_id(int cpu)
+int init_ht_id(int cpu)
 {
-	cpus[cpu].thread_id = -1;
+	cpus[cpu].ht_id = -1;
+	cpus[cpu].ht_sibling_cpu_id = -1;
 	return 0;
 }
 
@@ -9575,13 +9579,13 @@ void topology_probe(bool startup)
 	cpu_affinity_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_affinity_setsize, cpu_affinity_set);
 
-	for_all_proc_cpus(init_thread_id);
+	for_all_proc_cpus(init_ht_id);
 
 	for_all_proc_cpus(set_cpu_hybrid_type);
 
 	/*
 	 * For online cpus
-	 * find max_core_id, max_package_id
+	 * find max_core_id, max_package_id, num_cores (per system)
 	 */
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
 		int siblings;
@@ -9623,11 +9627,12 @@ void topology_probe(bool startup)
 		siblings = get_thread_siblings(&cpus[i]);
 		if (siblings > max_siblings)
 			max_siblings = siblings;
-		if (cpus[i].thread_id == 0)
+		if (cpus[i].ht_id == 0)
 			topo.num_cores++;
 	}
-	topo.max_core_id = max_core_id;
+	topo.max_core_id = max_core_id;			/* within a package */
 	topo.max_package_id = max_package_id;
+	topo.num_cores = (max_core_id + 1) * topo.num_packages;	/* per system */
 
 	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
@@ -9669,7 +9674,7 @@ void topology_probe(bool startup)
 		fprintf(outf,
 			"cpu %d pkg %d die %d l3 %d node %d lnode %d core %d thread %d\n",
 			i, cpus[i].package_id, cpus[i].die_id, cpus[i].l3_id,
-			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].core_id, cpus[i].thread_id);
+			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].core_id, cpus[i].ht_id);
 	}
 
 }
@@ -9727,14 +9732,13 @@ error:
 /*
  * init_counter()
  *
- * set FIRST_THREAD_IN_CORE and FIRST_CORE_IN_PACKAGE
+ * set t->cpu_id, FIRST_THREAD_IN_CORE and FIRST_CORE_IN_PACKAGE
  */
 void init_counter(struct thread_data *thread_base, struct core_data *core_base, struct pkg_data *pkg_base, int cpu_id)
 {
 	int pkg_id = cpus[cpu_id].package_id;
 	int node_id = cpus[cpu_id].logical_node_id;
 	int core_id = cpus[cpu_id].core_id;
-	int thread_id = cpus[cpu_id].thread_id;
 	struct thread_data *t;
 	struct core_data *c;
 
@@ -9744,7 +9748,7 @@ void init_counter(struct thread_data *thread_base, struct core_data *core_base, 
 	if (node_id < 0)
 		node_id = 0;
 
-	t = GET_THREAD(thread_base, thread_id, core_id, node_id, pkg_id);
+	t = GET_THREAD(thread_base, cpus[cpu_id].ht_id, core_id, node_id, pkg_id);
 	c = GET_CORE(core_base, core_id, node_id, pkg_id);
 
 	t->cpu_id = cpu_id;
