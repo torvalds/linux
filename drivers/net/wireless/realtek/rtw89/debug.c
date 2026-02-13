@@ -3781,6 +3781,7 @@ static ssize_t rtw89_debug_priv_ser_counters_get(struct rtw89_dev *rtwdev,
 						 struct rtw89_debugfs_priv *debugfs_priv,
 						 char *buf, size_t bufsz)
 {
+	const struct rtw89_ser_count *sw_cnt = &rtwdev->ser.sw_cnt;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_dbg_ser_counters cnt = {};
 	char *p = buf, *end = buf + bufsz;
@@ -3798,6 +3799,11 @@ static ssize_t rtw89_debug_priv_ser_counters_get(struct rtw89_dev *rtwdev,
 		return -EOPNOTSUPP;
 	}
 
+	p += scnprintf(p, end - p, "SER L1 SW Count: %u\n", sw_cnt->l1);
+	p += scnprintf(p, end - p, "SER L2 SW Count: %u\n", sw_cnt->l2);
+
+	/* Some chipsets won't record SER simulation in HW cnt. */
+	p += scnprintf(p, end - p, "---\n");
 	p += scnprintf(p, end - p, "SER L0 Count: %d\n", cnt.l0);
 	p += scnprintf(p, end - p, "SER L1 Count: %d\n", cnt.l1);
 	p += scnprintf(p, end - p, "SER L0 promote event: %d\n", cnt.l0_to_l1);

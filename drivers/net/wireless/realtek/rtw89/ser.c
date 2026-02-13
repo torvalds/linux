@@ -498,6 +498,7 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		wiphy_lock(wiphy);
+		ser->sw_cnt.l1++;
 		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_work);
 		wiphy_delayed_work_cancel(wiphy, &rtwdev->track_ps_work);
 		wiphy_unlock(wiphy);
@@ -730,6 +731,7 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		wiphy_lock(rtwdev->hw->wiphy);
+		ser->sw_cnt.l2++;
 		ser_l2_reset_st_pre_hdl(ser);
 		wiphy_unlock(rtwdev->hw->wiphy);
 

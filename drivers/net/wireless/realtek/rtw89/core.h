@@ -5753,10 +5753,17 @@ enum rtw89_ser_rcvy_step {
 	RTW89_NUM_OF_SER_FLAGS
 };
 
+struct rtw89_ser_count {
+	unsigned int l1;
+	unsigned int l2;
+};
+
 struct rtw89_ser {
 	u8 state;
 	u8 alarm_event;
 	bool prehandle_l1;
+
+	struct rtw89_ser_count sw_cnt;
 
 	struct work_struct ser_hdl_work;
 	struct delayed_work ser_alarm_work;
