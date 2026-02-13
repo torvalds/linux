@@ -2179,6 +2179,57 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 		rtw8852a_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
 }
 
+#define DECLARE_DIG_TABLE(name) \
+static const struct rtw89_phy_dig_gain_cfg name##_table = { \
+	.table = name, \
+	.size = ARRAY_SIZE(name) \
+}
+
+static const struct rtw89_reg_def rtw89_8852a_lna_gain_g[] = {
+	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G0_G_MSK},
+	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G1_G_MSK},
+	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G2_G_MSK},
+	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G3_G_MSK},
+	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G4_G_MSK},
+	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G5_G_MSK},
+	{R_PATH0_LNA_ERR5, B_PATH0_LNA_ERR_G6_G_MSK},
+};
+
+DECLARE_DIG_TABLE(rtw89_8852a_lna_gain_g);
+
+static const struct rtw89_reg_def rtw89_8852a_tia_gain_g[] = {
+	{R_PATH0_TIA_ERR_G0, B_PATH0_TIA_ERR_G0_G_MSK},
+	{R_PATH0_TIA_ERR_G1, B_PATH0_TIA_ERR_G1_G_MSK},
+};
+
+DECLARE_DIG_TABLE(rtw89_8852a_tia_gain_g);
+
+static const struct rtw89_reg_def rtw89_8852a_lna_gain_a[] = {
+	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G0_A_MSK},
+	{R_PATH0_LNA_ERR1, B_PATH0_LNA_ERR_G1_A_MSK},
+	{R_PATH0_LNA_ERR2, B_PATH0_LNA_ERR_G2_A_MSK},
+	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G3_A_MSK},
+	{R_PATH0_LNA_ERR3, B_PATH0_LNA_ERR_G4_A_MSK},
+	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G5_A_MSK},
+	{R_PATH0_LNA_ERR4, B_PATH0_LNA_ERR_G6_A_MSK},
+};
+
+DECLARE_DIG_TABLE(rtw89_8852a_lna_gain_a);
+
+static const struct rtw89_reg_def rtw89_8852a_tia_gain_a[] = {
+	{R_PATH0_TIA_ERR_G0, B_PATH0_TIA_ERR_G0_A_MSK},
+	{R_PATH0_TIA_ERR_G1, B_PATH0_TIA_ERR_G1_A_MSK},
+};
+
+DECLARE_DIG_TABLE(rtw89_8852a_tia_gain_a);
+
+static const struct rtw89_phy_dig_gain_table rtw89_8852a_phy_dig_table = {
+	.cfg_lna_g = &rtw89_8852a_lna_gain_g_table,
+	.cfg_tia_g = &rtw89_8852a_tia_gain_g_table,
+	.cfg_lna_a = &rtw89_8852a_lna_gain_a_table,
+	.cfg_tia_a = &rtw89_8852a_tia_gain_a_table
+};
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8852a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
