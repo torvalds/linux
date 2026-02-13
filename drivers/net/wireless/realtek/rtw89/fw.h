@@ -4881,6 +4881,8 @@ struct rtw89_fw_h2c_rfk_pre_info_mcc {
 	struct rtw89_fw_h2c_rfk_pre_info_mcc_v1 base;
 	u8 rsvd[2];
 	__le32 aid;
+	u8 acv;
+	u8 rsvd2[3];
 } __packed;
 
 struct rtw89_h2c_rf_tssi {

@@ -7371,6 +7371,7 @@ v1:
 	h2c = (struct rtw89_fw_h2c_rfk_pre_info_mcc *)skb->data;
 
 	h2c->aid = cpu_to_le32(hal->aid);
+	h2c->acv = hal->acv;
 
 done:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
