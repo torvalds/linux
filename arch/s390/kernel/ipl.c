@@ -21,6 +21,7 @@
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
 #include <linux/vmalloc.h>
+#include <linux/secure_boot.h>
 #include <asm/asm-extable.h>
 #include <asm/machine.h>
 #include <asm/diag.h>
