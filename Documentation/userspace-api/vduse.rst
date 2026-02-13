@@ -230,4 +230,57 @@ able to start the dataplane processing as follows:
 5. Inject an interrupt for specific virtqueue with the VDUSE_INJECT_VQ_IRQ ioctl
    after the used ring is filled.
 
+Enabling ASID (API version 1)
+------------------------------
+
+VDUSE supports per-address-space identifiers (ASIDs) starting with API
+version 1. Set it up with ioctl(VDUSE_SET_API_VERSION) on `/dev/vduse/control`
+and pass `VDUSE_API_VERSION_1` before creating a new VDUSE instance with
+ioctl(VDUSE_CREATE_DEV).
+
+Afterwards, you can use the member asid of ioctl(VDUSE_VQ_SETUP) argument to
+select the address space of the IOTLB you are querying.  The driver could
+change the address space of any virtqueue group by using the
+VDUSE_SET_VQ_GROUP_ASID VDUSE message type, and the VDUSE instance needs to
+reply with VDUSE_REQ_RESULT_OK if it was possible to change it.
+
+Similarly, you can use ioctl(VDUSE_IOTLB_GET_FD2) to obtain the file descriptor
+describing an IOVA region of a specific ASID. Example usage:
+
+.. code-block:: c
+
+	static void *iova_to_va(int dev_fd, uint32_t asid, uint64_t iova,
+	                        uint64_t *len)
+	{
+		int fd;
+		void *addr;
+		size_t size;
+		struct vduse_iotlb_entry_v2 entry = { 0 };
+
+		entry.v1.start = iova;
+		entry.v1.last = iova;
+		entry.asid = asid;
+
+		fd = ioctl(dev_fd, VDUSE_IOTLB_GET_FD2, &entry);
+		if (fd < 0)
+			return NULL;
+
+		size = entry.v1.last - entry.v1.start + 1;
+		*len = entry.v1.last - iova + 1;
+		addr = mmap(0, size, perm_to_prot(entry.v1.perm), MAP_SHARED,
+			    fd, entry.v1.offset);
+		close(fd);
+		if (addr == MAP_FAILED)
+			return NULL;
+
+		/*
+		 * Using some data structures such as linked list to store
+		 * the iotlb mapping. The munmap(2) should be called for the
+		 * cached mapping when the corresponding VDUSE_UPDATE_IOTLB
+		 * message is received or the device is reset.
+		 */
+
+		return addr + iova - entry.v1.start;
+	}
+
 For more details on the uAPI, please see include/uapi/linux/vduse.h.

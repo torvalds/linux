@@ -1444,13 +1444,13 @@ static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,
 ({ \
 	int ret; \
 	if (!vq->iotlb) { \
-		ret = __put_user(x, ptr); \
+		ret = put_user(x, ptr); \
 	} else { \
 		__typeof__(ptr) to = \
 			(__typeof__(ptr)) __vhost_get_user(vq, ptr,	\
 					  sizeof(*ptr), VHOST_ADDR_USED); \
 		if (to != NULL) \
-			ret = __put_user(x, to); \
+			ret = put_user(x, to); \
 		else \
 			ret = -EFAULT;	\
 	} \
@@ -1489,14 +1489,14 @@ static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
 ({ \
 	int ret; \
 	if (!vq->iotlb) { \
-		ret = __get_user(x, ptr); \
+		ret = get_user(x, ptr); \
 	} else { \
 		__typeof__(ptr) from = \
 			(__typeof__(ptr)) __vhost_get_user(vq, ptr, \
 							   sizeof(*ptr), \
 							   type); \
 		if (from != NULL) \
-			ret = __get_user(x, from); \
+			ret = get_user(x, from); \
 		else \
 			ret = -EFAULT; \
 	} \
