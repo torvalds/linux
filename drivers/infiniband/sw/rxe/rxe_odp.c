@@ -110,7 +110,6 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 	mr->access = access_flags;
 	mr->ibmr.length = length;
 	mr->ibmr.iova = iova;
-	mr->page_offset = ib_umem_offset(&umem_odp->umem);
 
 	err = rxe_odp_init_pages(mr);
 	if (err) {

@@ -335,6 +335,11 @@ static inline int rkey_is_mw(u32 rkey)
 	return (index >= RXE_MIN_MW_INDEX) && (index <= RXE_MAX_MW_INDEX);
 }
 
+struct rxe_mr_page {
+	struct page		*page;
+	unsigned int		offset; /* offset in system page */
+};
+
 struct rxe_mr {
 	struct rxe_pool_elem	elem;
 	struct ib_mr		ibmr;
@@ -347,14 +352,16 @@ struct rxe_mr {
 	int			access;
 	atomic_t		num_mw;
 
-	unsigned int		page_offset;
 	unsigned int		page_shift;
 	u64			page_mask;
 
+	/* size of page_info when mr allocated */
 	u32			num_buf;
+	/* real size of page_info */
+	u32			max_allowed_buf;
 	u32			nbuf;
 
-	struct xarray		page_list;
+	struct rxe_mr_page	*page_info;
 };
 
 static inline unsigned int mr_page_size(struct rxe_mr *mr)

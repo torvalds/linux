@@ -5,6 +5,8 @@
  * Use the core R/W API to move RPC-over-RDMA Read and Write chunks.
  */
 
+#include <linux/bvec.h>
+#include <linux/overflow.h>
 #include <rdma/rw.h>
 
 #include <linux/sunrpc/xdr.h>
@@ -20,29 +22,32 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc);
 /* Each R/W context contains state for one chain of RDMA Read or
  * Write Work Requests.
  *
- * Each WR chain handles a single contiguous server-side buffer,
- * because scatterlist entries after the first have to start on
- * page alignment. xdr_buf iovecs cannot guarantee alignment.
+ * Each WR chain handles a single contiguous server-side buffer.
+ * - each xdr_buf iovec is a single contiguous buffer
+ * - the xdr_buf pages array is a single contiguous buffer because the
+ *   second through the last element always start on a page boundary
  *
  * Each WR chain handles only one R_key. Each RPC-over-RDMA segment
  * from a client may contain a unique R_key, so each WR chain moves
  * up to one segment at a time.
  *
- * The scatterlist makes this data structure over 4KB in size. To
- * make it less likely to fail, and to handle the allocation for
- * smaller I/O requests without disabling bottom-halves, these
- * contexts are created on demand, but cached and reused until the
- * controlling svcxprt_rdma is destroyed.
+ * The inline bvec array is sized to handle most I/O requests without
+ * additional allocation. Larger requests fall back to dynamic allocation.
+ * These contexts are created on demand, but cached and reused until
+ * the controlling svcxprt_rdma is destroyed.
  */
 struct svc_rdma_rw_ctxt {
 	struct llist_node	rw_node;
 	struct list_head	rw_list;
 	struct rdma_rw_ctx	rw_ctx;
 	unsigned int		rw_nents;
-	unsigned int		rw_first_sgl_nents;
-	struct sg_table		rw_sg_table;
-	struct scatterlist	rw_first_sgl[];
+	unsigned int		rw_first_bvec_nents;
+	struct bio_vec		*rw_bvec;
+	struct bio_vec		rw_first_bvec[];
 };
+
+static void svc_rdma_put_rw_ctxt(struct svcxprt_rdma *rdma,
+				 struct svc_rdma_rw_ctxt *ctxt);
 
 static inline struct svc_rdma_rw_ctxt *
 svc_rdma_next_ctxt(struct list_head *list)
@@ -52,10 +57,10 @@ svc_rdma_next_ctxt(struct list_head *list)
 }
 
 static struct svc_rdma_rw_ctxt *
-svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
+svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int nr_bvec)
 {
 	struct ib_device *dev = rdma->sc_cm_id->device;
-	unsigned int first_sgl_nents = dev->attrs.max_send_sge;
+	unsigned int first_bvec_nents = dev->attrs.max_send_sge;
 	struct svc_rdma_rw_ctxt *ctxt;
 	struct llist_node *node;
 
@@ -65,33 +70,44 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 	if (node) {
 		ctxt = llist_entry(node, struct svc_rdma_rw_ctxt, rw_node);
 	} else {
-		ctxt = kmalloc_node(struct_size(ctxt, rw_first_sgl, first_sgl_nents),
+		ctxt = kmalloc_node(struct_size(ctxt, rw_first_bvec,
+						first_bvec_nents),
 				    GFP_KERNEL, ibdev_to_node(dev));
 		if (!ctxt)
 			goto out_noctx;
 
 		INIT_LIST_HEAD(&ctxt->rw_list);
-		ctxt->rw_first_sgl_nents = first_sgl_nents;
+		ctxt->rw_first_bvec_nents = first_bvec_nents;
 	}
 
-	ctxt->rw_sg_table.sgl = ctxt->rw_first_sgl;
-	if (sg_alloc_table_chained(&ctxt->rw_sg_table, sges,
-				   ctxt->rw_sg_table.sgl,
-				   first_sgl_nents))
-		goto out_free;
+	if (nr_bvec <= ctxt->rw_first_bvec_nents) {
+		ctxt->rw_bvec = ctxt->rw_first_bvec;
+	} else {
+		ctxt->rw_bvec = kmalloc_array_node(nr_bvec,
+						   sizeof(*ctxt->rw_bvec),
+						   GFP_KERNEL,
+						   ibdev_to_node(dev));
+		if (!ctxt->rw_bvec)
+			goto out_free;
+	}
 	return ctxt;
 
 out_free:
-	kfree(ctxt);
+	/* Return cached contexts to cache; free freshly allocated ones */
+	if (node)
+		svc_rdma_put_rw_ctxt(rdma, ctxt);
+	else
+		kfree(ctxt);
 out_noctx:
-	trace_svcrdma_rwctx_empty(rdma, sges);
+	trace_svcrdma_rwctx_empty(rdma, nr_bvec);
 	return NULL;
 }
 
 static void __svc_rdma_put_rw_ctxt(struct svc_rdma_rw_ctxt *ctxt,
 				   struct llist_head *list)
 {
-	sg_free_table_chained(&ctxt->rw_sg_table, ctxt->rw_first_sgl_nents);
+	if (ctxt->rw_bvec != ctxt->rw_first_bvec)
+		kfree(ctxt->rw_bvec);
 	llist_add(&ctxt->rw_node, list);
 }
 
@@ -123,6 +139,7 @@ void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma)
  * @ctxt: R/W context to prepare
  * @offset: RDMA offset
  * @handle: RDMA tag/handle
+ * @length: total number of bytes in the bvec array
  * @direction: I/O direction
  *
  * Returns on success, the number of WQEs that will be needed
@@ -130,14 +147,18 @@ void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma)
  */
 static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 				struct svc_rdma_rw_ctxt *ctxt,
-				u64 offset, u32 handle,
+				u64 offset, u32 handle, unsigned int length,
 				enum dma_data_direction direction)
 {
+	struct bvec_iter iter = {
+		.bi_size = length,
+	};
 	int ret;
 
-	ret = rdma_rw_ctx_init(&ctxt->rw_ctx, rdma->sc_qp, rdma->sc_port_num,
-			       ctxt->rw_sg_table.sgl, ctxt->rw_nents,
-			       0, offset, handle, direction);
+	ret = rdma_rw_ctx_init_bvec(&ctxt->rw_ctx, rdma->sc_qp,
+				    rdma->sc_port_num,
+				    ctxt->rw_bvec, ctxt->rw_nents,
+				    iter, offset, handle, direction);
 	if (unlikely(ret < 0)) {
 		trace_svcrdma_dma_map_rw_err(rdma, offset, handle,
 					     ctxt->rw_nents, ret);
@@ -175,7 +196,6 @@ void svc_rdma_cc_release(struct svcxprt_rdma *rdma,
 {
 	struct llist_node *first, *last;
 	struct svc_rdma_rw_ctxt *ctxt;
-	LLIST_HEAD(free);
 
 	trace_svcrdma_cc_release(&cc->cc_cid, cc->cc_sqecount);
 
@@ -183,10 +203,11 @@ void svc_rdma_cc_release(struct svcxprt_rdma *rdma,
 	while ((ctxt = svc_rdma_next_ctxt(&cc->cc_rwctxts)) != NULL) {
 		list_del(&ctxt->rw_list);
 
-		rdma_rw_ctx_destroy(&ctxt->rw_ctx, rdma->sc_qp,
-				    rdma->sc_port_num, ctxt->rw_sg_table.sgl,
-				    ctxt->rw_nents, dir);
-		__svc_rdma_put_rw_ctxt(ctxt, &free);
+		rdma_rw_ctx_destroy_bvec(&ctxt->rw_ctx, rdma->sc_qp,
+					 rdma->sc_port_num,
+					 ctxt->rw_bvec, ctxt->rw_nents, dir);
+		if (ctxt->rw_bvec != ctxt->rw_first_bvec)
+			kfree(ctxt->rw_bvec);
 
 		ctxt->rw_node.next = first;
 		first = &ctxt->rw_node;
@@ -414,29 +435,26 @@ static int svc_rdma_post_chunk_ctxt(struct svcxprt_rdma *rdma,
 	return -ENOTCONN;
 }
 
-/* Build and DMA-map an SGL that covers one kvec in an xdr_buf
+/* Build a bvec that covers one kvec in an xdr_buf.
  */
-static void svc_rdma_vec_to_sg(struct svc_rdma_write_info *info,
-			       unsigned int len,
-			       struct svc_rdma_rw_ctxt *ctxt)
+static void svc_rdma_vec_to_bvec(struct svc_rdma_write_info *info,
+				 unsigned int len,
+				 struct svc_rdma_rw_ctxt *ctxt)
 {
-	struct scatterlist *sg = ctxt->rw_sg_table.sgl;
-
-	sg_set_buf(&sg[0], info->wi_base, len);
+	bvec_set_virt(&ctxt->rw_bvec[0], info->wi_base, len);
 	info->wi_base += len;
 
 	ctxt->rw_nents = 1;
 }
 
-/* Build and DMA-map an SGL that covers part of an xdr_buf's pagelist.
+/* Build a bvec array that covers part of an xdr_buf's pagelist.
  */
-static void svc_rdma_pagelist_to_sg(struct svc_rdma_write_info *info,
-				    unsigned int remaining,
-				    struct svc_rdma_rw_ctxt *ctxt)
+static void svc_rdma_pagelist_to_bvec(struct svc_rdma_write_info *info,
+				      unsigned int remaining,
+				      struct svc_rdma_rw_ctxt *ctxt)
 {
-	unsigned int sge_no, sge_bytes, page_off, page_no;
+	unsigned int bvec_idx, bvec_len, page_off, page_no;
 	const struct xdr_buf *xdr = info->wi_xdr;
-	struct scatterlist *sg;
 	struct page **page;
 
 	page_off = info->wi_next_off + xdr->page_base;
@@ -444,21 +462,19 @@ static void svc_rdma_pagelist_to_sg(struct svc_rdma_write_info *info,
 	page_off = offset_in_page(page_off);
 	page = xdr->pages + page_no;
 	info->wi_next_off += remaining;
-	sg = ctxt->rw_sg_table.sgl;
-	sge_no = 0;
+	bvec_idx = 0;
 	do {
-		sge_bytes = min_t(unsigned int, remaining,
-				  PAGE_SIZE - page_off);
-		sg_set_page(sg, *page, sge_bytes, page_off);
-
-		remaining -= sge_bytes;
-		sg = sg_next(sg);
+		bvec_len = min_t(unsigned int, remaining,
+				 PAGE_SIZE - page_off);
+		bvec_set_page(&ctxt->rw_bvec[bvec_idx], *page, bvec_len,
+			      page_off);
+		remaining -= bvec_len;
 		page_off = 0;
-		sge_no++;
+		bvec_idx++;
 		page++;
 	} while (remaining);
 
-	ctxt->rw_nents = sge_no;
+	ctxt->rw_nents = bvec_idx;
 }
 
 /* Construct RDMA Write WRs to send a portion of an xdr_buf containing
@@ -496,7 +512,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		constructor(info, write_len, ctxt);
 		offset = seg->rs_offset + info->wi_seg_off;
 		ret = svc_rdma_rw_ctx_init(rdma, ctxt, offset, seg->rs_handle,
-					   DMA_TO_DEVICE);
+					   write_len, DMA_TO_DEVICE);
 		if (ret < 0)
 			return -EIO;
 		percpu_counter_inc(&svcrdma_stat_write);
@@ -535,7 +551,7 @@ static int svc_rdma_iov_write(struct svc_rdma_write_info *info,
 			      const struct kvec *iov)
 {
 	info->wi_base = iov->iov_base;
-	return svc_rdma_build_writes(info, svc_rdma_vec_to_sg,
+	return svc_rdma_build_writes(info, svc_rdma_vec_to_bvec,
 				     iov->iov_len);
 }
 
@@ -559,7 +575,7 @@ static int svc_rdma_pages_write(struct svc_rdma_write_info *info,
 {
 	info->wi_xdr = xdr;
 	info->wi_next_off = offset - xdr->head[0].iov_len;
-	return svc_rdma_build_writes(info, svc_rdma_pagelist_to_sg,
+	return svc_rdma_build_writes(info, svc_rdma_pagelist_to_bvec,
 				     length);
 }
 
@@ -734,29 +750,29 @@ static int svc_rdma_build_read_segment(struct svc_rqst *rqstp,
 {
 	struct svcxprt_rdma *rdma = svc_rdma_rqst_rdma(rqstp);
 	struct svc_rdma_chunk_ctxt *cc = &head->rc_cc;
-	unsigned int sge_no, seg_len, len;
+	unsigned int bvec_idx, nr_bvec, seg_len, len, total;
 	struct svc_rdma_rw_ctxt *ctxt;
-	struct scatterlist *sg;
 	int ret;
 
 	len = segment->rs_length;
-	sge_no = PAGE_ALIGN(head->rc_pageoff + len) >> PAGE_SHIFT;
-	ctxt = svc_rdma_get_rw_ctxt(rdma, sge_no);
+	if (check_add_overflow(head->rc_pageoff, len, &total))
+		return -EINVAL;
+	nr_bvec = PAGE_ALIGN(total) >> PAGE_SHIFT;
+	ctxt = svc_rdma_get_rw_ctxt(rdma, nr_bvec);
 	if (!ctxt)
 		return -ENOMEM;
-	ctxt->rw_nents = sge_no;
+	ctxt->rw_nents = nr_bvec;
 
-	sg = ctxt->rw_sg_table.sgl;
-	for (sge_no = 0; sge_no < ctxt->rw_nents; sge_no++) {
+	for (bvec_idx = 0; bvec_idx < ctxt->rw_nents; bvec_idx++) {
 		seg_len = min_t(unsigned int, len,
 				PAGE_SIZE - head->rc_pageoff);
 
 		if (!head->rc_pageoff)
 			head->rc_page_count++;
 
-		sg_set_page(sg, rqstp->rq_pages[head->rc_curpage],
-			    seg_len, head->rc_pageoff);
-		sg = sg_next(sg);
+		bvec_set_page(&ctxt->rw_bvec[bvec_idx],
+			      rqstp->rq_pages[head->rc_curpage],
+			      seg_len, head->rc_pageoff);
 
 		head->rc_pageoff += seg_len;
 		if (head->rc_pageoff == PAGE_SIZE) {
@@ -770,7 +786,8 @@ static int svc_rdma_build_read_segment(struct svc_rqst *rqstp,
 	}
 
 	ret = svc_rdma_rw_ctx_init(rdma, ctxt, segment->rs_offset,
-				   segment->rs_handle, DMA_FROM_DEVICE);
+				   segment->rs_handle, segment->rs_length,
+				   DMA_FROM_DEVICE);
 	if (ret < 0)
 		return -EIO;
 	percpu_counter_inc(&svcrdma_stat_read);

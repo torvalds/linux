@@ -195,7 +195,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_GET_DATA_DIRECT_SYSFS_PATH)(
 	int out_len = uverbs_attr_get_len(attrs,
 			MLX5_IB_ATTR_GET_DATA_DIRECT_SYSFS_PATH);
 	u32 dev_path_len;
-	char *dev_path;
+	char *dev_path = NULL;
 	int ret;
 
 	c = to_mucontext(ib_uverbs_get_ucontext(attrs));
@@ -223,9 +223,9 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_GET_DATA_DIRECT_SYSFS_PATH)(
 
 	ret = uverbs_copy_to(attrs, MLX5_IB_ATTR_GET_DATA_DIRECT_SYSFS_PATH, dev_path,
 			     dev_path_len);
-	kfree(dev_path);
 
 end:
+	kfree(dev_path);
 	mutex_unlock(&dev->data_direct_lock);
 	return ret;
 }

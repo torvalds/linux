@@ -3,6 +3,8 @@
  * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include <linux/log2.h>
+
 #include "efa_com.h"
 #include "efa_regs_defs.h"
 
@@ -21,6 +23,8 @@
 #define EFA_CTRL_SUB_MINOR      1
 
 enum efa_cmd_status {
+	EFA_CMD_UNUSED,
+	EFA_CMD_ALLOCATED,
 	EFA_CMD_SUBMITTED,
 	EFA_CMD_COMPLETED,
 };
@@ -32,7 +36,6 @@ struct efa_comp_ctx {
 	enum efa_cmd_status status;
 	u16 cmd_id;
 	u8 cmd_opcode;
-	u8 occupied;
 };
 
 static const char *efa_com_cmd_str(u8 cmd)
@@ -241,7 +244,6 @@ static int efa_com_admin_init_aenq(struct efa_com_dev *edev,
 	return 0;
 }
 
-/* ID to be used with efa_com_get_comp_ctx */
 static u16 efa_com_alloc_ctx_id(struct efa_com_admin_queue *aq)
 {
 	u16 ctx_id;
@@ -263,36 +265,47 @@ static void efa_com_dealloc_ctx_id(struct efa_com_admin_queue *aq,
 	spin_unlock(&aq->comp_ctx_lock);
 }
 
-static inline void efa_com_put_comp_ctx(struct efa_com_admin_queue *aq,
-					struct efa_comp_ctx *comp_ctx)
+static struct efa_comp_ctx *efa_com_alloc_comp_ctx(struct efa_com_admin_queue *aq)
 {
-	u16 cmd_id = EFA_GET(&comp_ctx->user_cqe->acq_common_descriptor.command,
-			     EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID);
-	u16 ctx_id = cmd_id & (aq->depth - 1);
+	struct efa_comp_ctx *comp_ctx;
+	u16 ctx_id;
 
-	ibdev_dbg(aq->efa_dev, "Put completion command_id %#x\n", cmd_id);
-	comp_ctx->occupied = 0;
-	efa_com_dealloc_ctx_id(aq, ctx_id);
-}
+	ctx_id = efa_com_alloc_ctx_id(aq);
 
-static struct efa_comp_ctx *efa_com_get_comp_ctx(struct efa_com_admin_queue *aq,
-						 u16 cmd_id, bool capture)
-{
-	u16 ctx_id = cmd_id & (aq->depth - 1);
-
-	if (aq->comp_ctx[ctx_id].occupied && capture) {
-		ibdev_err_ratelimited(
-			aq->efa_dev,
-			"Completion context for command_id %#x is occupied\n",
-			cmd_id);
+	comp_ctx = &aq->comp_ctx[ctx_id];
+	if (comp_ctx->status != EFA_CMD_UNUSED) {
+		efa_com_dealloc_ctx_id(aq, ctx_id);
+		ibdev_err_ratelimited(aq->efa_dev,
+				      "Completion context[%u] is used[%u]\n",
+				      ctx_id, comp_ctx->status);
 		return NULL;
 	}
 
-	if (capture) {
-		aq->comp_ctx[ctx_id].occupied = 1;
-		ibdev_dbg(aq->efa_dev,
-			  "Take completion ctxt for command_id %#x\n", cmd_id);
-	}
+	comp_ctx->status = EFA_CMD_ALLOCATED;
+	ibdev_dbg(aq->efa_dev, "Take completion context[%u]\n", ctx_id);
+	return comp_ctx;
+}
+
+static inline u16 efa_com_get_comp_ctx_id(struct efa_com_admin_queue *aq,
+					  struct efa_comp_ctx *comp_ctx)
+{
+	return comp_ctx - aq->comp_ctx;
+}
+
+static inline void efa_com_dealloc_comp_ctx(struct efa_com_admin_queue *aq,
+					    struct efa_comp_ctx *comp_ctx)
+{
+	u16 ctx_id = efa_com_get_comp_ctx_id(aq, comp_ctx);
+
+	ibdev_dbg(aq->efa_dev, "Put completion context[%u]\n", ctx_id);
+	comp_ctx->status = EFA_CMD_UNUSED;
+	efa_com_dealloc_ctx_id(aq, ctx_id);
+}
+
+static inline struct efa_comp_ctx *efa_com_get_comp_ctx_by_cmd_id(struct efa_com_admin_queue *aq,
+								  u16 cmd_id)
+{
+	u16 ctx_id = cmd_id & (aq->depth - 1);
 
 	return &aq->comp_ctx[ctx_id];
 }
@@ -310,25 +323,22 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 	u16 ctx_id;
 	u16 pi;
 
+	comp_ctx = efa_com_alloc_comp_ctx(aq);
+	if (!comp_ctx)
+		return ERR_PTR(-EINVAL);
+
 	queue_size_mask = aq->depth - 1;
 	pi = aq->sq.pc & queue_size_mask;
-
-	ctx_id = efa_com_alloc_ctx_id(aq);
+	ctx_id = efa_com_get_comp_ctx_id(aq, comp_ctx);
 
 	/* cmd_id LSBs are the ctx_id and MSBs are entropy bits from pc */
 	cmd_id = ctx_id & queue_size_mask;
-	cmd_id |= aq->sq.pc & ~queue_size_mask;
+	cmd_id |= aq->sq.pc << ilog2(aq->depth);
 	cmd_id &= EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
 
 	cmd->aq_common_descriptor.command_id = cmd_id;
 	EFA_SET(&cmd->aq_common_descriptor.flags,
 		EFA_ADMIN_AQ_COMMON_DESC_PHASE, aq->sq.phase);
-
-	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, true);
-	if (!comp_ctx) {
-		efa_com_dealloc_ctx_id(aq, ctx_id);
-		return ERR_PTR(-EINVAL);
-	}
 
 	comp_ctx->status = EFA_CMD_SUBMITTED;
 	comp_ctx->comp_size = comp_size_in_bytes;
@@ -370,9 +380,9 @@ static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
 	}
 
 	for (i = 0; i < aq->depth; i++) {
-		comp_ctx = efa_com_get_comp_ctx(aq, i, false);
-		if (comp_ctx)
-			init_completion(&comp_ctx->wait_event);
+		comp_ctx = &aq->comp_ctx[i];
+		comp_ctx->status = EFA_CMD_UNUSED;
+		init_completion(&comp_ctx->wait_event);
 
 		aq->comp_ctx_pool[i] = i;
 	}
@@ -417,11 +427,12 @@ static int efa_com_handle_single_admin_completion(struct efa_com_admin_queue *aq
 	cmd_id = EFA_GET(&cqe->acq_common_descriptor.command,
 			 EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID);
 
-	comp_ctx = efa_com_get_comp_ctx(aq, cmd_id, false);
-	if (comp_ctx->status != EFA_CMD_SUBMITTED) {
+	comp_ctx = efa_com_get_comp_ctx_by_cmd_id(aq, cmd_id);
+	if (comp_ctx->status != EFA_CMD_SUBMITTED || comp_ctx->cmd_id != cmd_id) {
 		ibdev_err(aq->efa_dev,
-			  "Received completion with unexpected command id[%d], sq producer: %d, sq consumer: %d, cq consumer: %d\n",
-			  cmd_id, aq->sq.pc, aq->sq.cc, aq->cq.cc);
+			  "Received completion with unexpected command id[%x], status[%d] sq producer[%d], sq consumer[%d], cq consumer[%d]\n",
+			  cmd_id, comp_ctx->status, aq->sq.pc, aq->sq.cc,
+			  aq->cq.cc);
 		return -EINVAL;
 	}
 
@@ -530,7 +541,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 
 	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
 out:
-	efa_com_put_comp_ctx(aq, comp_ctx);
+	efa_com_dealloc_comp_ctx(aq, comp_ctx);
 	return err;
 }
 
@@ -580,7 +591,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 
 	err = efa_com_comp_status_to_errno(comp_ctx->user_cqe->acq_common_descriptor.status);
 out:
-	efa_com_put_comp_ctx(aq, comp_ctx);
+	efa_com_dealloc_comp_ctx(aq, comp_ctx);
 	return err;
 }
 

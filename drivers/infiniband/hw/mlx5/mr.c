@@ -1646,10 +1646,13 @@ reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 						 offset, length, fd,
 						 access_flags,
 						 &mlx5_ib_dmabuf_attach_ops);
-	else
+	else if (dma_device)
 		umem_dmabuf = ib_umem_dmabuf_get_pinned_with_dma_device(&dev->ib_dev,
 				dma_device, offset, length,
 				fd, access_flags);
+	else
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(
+			&dev->ib_dev, offset, length, fd, access_flags);
 
 	if (IS_ERR(umem_dmabuf)) {
 		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%pe)\n", umem_dmabuf);
@@ -1782,10 +1785,8 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 		return reg_user_mr_dmabuf_by_data_direct(pd, offset, length, virt_addr,
 							 fd, access_flags);
 
-	return reg_user_mr_dmabuf(pd, pd->device->dma_device,
-				  offset, length, virt_addr,
-				  fd, access_flags, MLX5_MKC_ACCESS_MODE_MTT,
-				  dmah);
+	return reg_user_mr_dmabuf(pd, NULL, offset, length, virt_addr, fd,
+				  access_flags, MLX5_MKC_ACCESS_MODE_MTT, dmah);
 }
 
 /*

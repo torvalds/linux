@@ -1313,8 +1313,8 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_modify_qp req = {};
 	u16 vlan_pcp_vlan_dei_vlan_id;
+	u32 bmask, bmask_ext;
 	u32 temp32[4];
-	u32 bmask;
 	int rc;
 
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
@@ -1329,9 +1329,16 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		    is_optimized_state_transition(qp))
 			bnxt_set_mandatory_attributes(res, qp, &req);
 	}
+
 	bmask = qp->modify_flags;
 	req.modify_mask = cpu_to_le32(qp->modify_flags);
+	bmask_ext = qp->ext_modify_flags;
+	req.ext_modify_mask = cpu_to_le32(qp->ext_modify_flags);
 	req.qp_cid = cpu_to_le32(qp->id);
+
+	if (bmask_ext & CMDQ_MODIFY_QP_EXT_MODIFY_MASK_RATE_LIMIT_VALID)
+		req.rate_limit = cpu_to_le32(qp->rate_limit);
+
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_STATE) {
 		req.network_type_en_sqd_async_notify_new_state =
 				(qp->state & CMDQ_MODIFY_QP_NEW_STATE_MASK) |
@@ -1429,6 +1436,9 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
 	if (rc)
 		return rc;
+
+	if (bmask_ext & CMDQ_MODIFY_QP_EXT_MODIFY_MASK_RATE_LIMIT_VALID)
+		qp->shaper_allocation_status = resp.shaper_allocation_status;
 	qp->cur_qp_state = qp->state;
 	return 0;
 }

@@ -89,6 +89,7 @@ struct rtrs_srv_path {
 	unsigned int		mem_bits;
 	struct kobject		kobj;
 	struct rtrs_srv_stats	*stats;
+	unsigned long		connection_timeout;
 };
 
 static inline struct rtrs_srv_path *to_srv_path(struct rtrs_path *s)

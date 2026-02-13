@@ -573,7 +573,7 @@ void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf)
 	}
 }
 
-static int irdma_get_timeout_threshold(struct irdma_sc_dev *dev)
+int irdma_get_timeout_threshold(struct irdma_sc_dev *dev)
 {
 	u16 time_s = dev->vc_caps.cqp_timeout_s;
 
@@ -830,7 +830,8 @@ void irdma_cq_rem_ref(struct ib_cq *ibcq)
 		return;
 	}
 
-	iwdev->rf->cq_table[iwcq->cq_num] = NULL;
+	/* May be asynchronously sampled by CEQ ISR without holding tbl lock. */
+	WRITE_ONCE(iwdev->rf->cq_table[iwcq->cq_num], NULL);
 	spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
 	complete(&iwcq->free_cq);
 }
@@ -2239,7 +2240,7 @@ void irdma_pble_free_paged_mem(struct irdma_chunk *chunk)
 				 chunk->pg_cnt);
 
 done:
-	kfree(chunk->dmainfo.dmaaddrs);
+	kvfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
 	vfree(chunk->vaddr);
 	chunk->vaddr = NULL;
@@ -2256,7 +2257,7 @@ int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 	u32 size;
 	void *va;
 
-	chunk->dmainfo.dmaaddrs = kzalloc(pg_cnt << 3, GFP_KERNEL);
+	chunk->dmainfo.dmaaddrs = kvzalloc(pg_cnt << 3, GFP_KERNEL);
 	if (!chunk->dmainfo.dmaaddrs)
 		return -ENOMEM;
 
@@ -2277,7 +2278,7 @@ int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 
 	return 0;
 err:
-	kfree(chunk->dmainfo.dmaaddrs);
+	kvfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
 
 	return -ENOMEM;

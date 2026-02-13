@@ -87,11 +87,17 @@ static ssize_t qp_info_read(struct file *filep,
 			    size_t count, loff_t *ppos)
 {
 	struct bnxt_re_qp *qp = filep->private_data;
+	struct bnxt_qplib_qp *qplib_qp;
+	u32 rate_limit = 0;
 	char *buf;
 	int len;
 
 	if (*ppos)
 		return 0;
+
+	qplib_qp = &qp->qplib_qp;
+	if (qplib_qp->shaper_allocation_status)
+		rate_limit = qplib_qp->rate_limit;
 
 	buf = kasprintf(GFP_KERNEL,
 			"QPN\t\t: %d\n"
@@ -99,13 +105,17 @@ static ssize_t qp_info_read(struct file *filep,
 			"state\t\t: %s\n"
 			"mtu\t\t: %d\n"
 			"timeout\t\t: %d\n"
-			"remote QPN\t: %d\n",
+			"remote QPN\t: %d\n"
+			"shaper allocated : %d\n"
+			"rate limit\t: %d kbps\n",
 			qp->qplib_qp.id,
 			bnxt_re_qp_type_str(qp->qplib_qp.type),
 			bnxt_re_qp_state_str(qp->qplib_qp.state),
 			qp->qplib_qp.mtu,
 			qp->qplib_qp.timeout,
-			qp->qplib_qp.dest_qpn);
+			qp->qplib_qp.dest_qpn,
+			qplib_qp->shaper_allocation_status,
+			rate_limit);
 	if (!buf)
 		return -ENOMEM;
 	if (count < strlen(buf)) {
