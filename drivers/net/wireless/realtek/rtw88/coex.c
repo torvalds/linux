@@ -485,6 +485,13 @@ static void rtw_coex_monitor_bt_ctr(struct rtw_dev *rtwdev)
 		"[BTCoex], Hi-Pri Rx/Tx: %d/%d, Lo-Pri Rx/Tx: %d/%d\n",
 		coex_stat->hi_pri_rx, coex_stat->hi_pri_tx,
 		coex_stat->lo_pri_rx, coex_stat->lo_pri_tx);
+
+	if (coex_stat->wl_under_lps || coex_stat->wl_under_ips ||
+	    (coex_stat->hi_pri_rx > 60000 && coex_stat->hi_pri_tx == 60000 &&
+	     coex_stat->lo_pri_rx > 60000 && coex_stat->lo_pri_tx == 60000))
+		coex_stat->bt_ctr_ok = false;
+	else
+		coex_stat->bt_ctr_ok = true;
 }
 
 static void rtw_coex_monitor_bt_enable(struct rtw_dev *rtwdev)
@@ -1959,13 +1966,17 @@ static void rtw_coex_action_bt_hid(struct rtw_dev *rtwdev)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
+	bool is_bt_ctr_hi = false, is_toggle_table = false;
 	u8 table_case, tdma_case;
 	u32 slot_type = 0;
-	bool bt_multi_link_remain = false, is_toggle_table = false;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G);
 	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
+
+	if (coex_stat->bt_ctr_ok &&
+	    coex_stat->lo_pri_rx + coex_stat->lo_pri_tx > 360)
+		is_bt_ctr_hi = true;
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
@@ -1980,28 +1991,31 @@ static void rtw_coex_action_bt_hid(struct rtw_dev *rtwdev)
 			}
 		} else {
 			/* Legacy HID  */
-			if (coex_stat->bt_profile_num == 1 &&
-			    (coex_stat->bt_multi_link ||
-			    (coex_stat->lo_pri_rx +
-			     coex_stat->lo_pri_tx > 360) ||
-			     coex_stat->bt_slave ||
-			     bt_multi_link_remain)) {
-				slot_type = TDMA_4SLOT;
-				table_case = 12;
-				tdma_case = 20;
-			} else if (coex_stat->bt_a2dp_active) {
+			if (coex_stat->bt_a2dp_active) {
 				table_case = 9;
 				tdma_case = 18;
+			} else if (coex_stat->bt_profile_num == 1 &&
+				   (coex_stat->bt_multi_link &&
+				    (is_bt_ctr_hi || coex_stat->bt_slave ||
+				     coex_stat->bt_multi_link_remain))) {
+				if (coex_stat->wl_gl_busy &&
+				    (coex_stat->wl_rx_rate <= 3 ||
+				     coex_stat->wl_rts_rx_rate <= 3))
+					table_case = 13;
+				else
+					table_case = 12;
+
+				tdma_case = 26;
 			} else if (coex_stat->bt_418_hid_exist &&
 				   coex_stat->wl_gl_busy) {
 				is_toggle_table = true;
 				slot_type = TDMA_4SLOT;
-				table_case = 9;
-				tdma_case = 24;
+				table_case = 32;
+				tdma_case = 27;
 			} else if (coex_stat->bt_ble_hid_exist &&
 				   coex_stat->wl_gl_busy) {
-				table_case = 32;
-				tdma_case = 9;
+				table_case = 36;
+				tdma_case = 0;
 			} else {
 				table_case = 9;
 				tdma_case = 9;
