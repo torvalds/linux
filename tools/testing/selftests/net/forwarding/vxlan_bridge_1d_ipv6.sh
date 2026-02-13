@@ -695,7 +695,7 @@ vxlan_encapped_ping_do()
 		    )"6"$(			  : IP version
 		    )"$inner_tos"$(               : Traffic class
 		    )"0:00:00:"$(                 : Flow label
-		    )"00:08:"$(                   : Payload length
+		    )"00:03:"$(                   : Payload length
 		    )"3a:"$(                      : Next header
 		    )"04:"$(                      : Hop limit
 		    )"$saddr:"$(		  : IP saddr
