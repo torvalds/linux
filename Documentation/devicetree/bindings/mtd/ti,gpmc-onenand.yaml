@@ -36,7 +36,7 @@ properties:
 
 patternProperties:
   "@[0-9a-f]+$":
-    $ref: /schemas/mtd/partitions/partition.yaml
+    $ref: /schemas/mtd/partitions/partition.yaml#/$defs/partition-node
 
 allOf:
   - $ref: /schemas/memory-controllers/ti,gpmc-child.yaml

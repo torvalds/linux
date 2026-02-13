@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/st,spear600-smi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics SPEAr600 Serial Memory Interface (SMI) Controller
+
+maintainers:
+  - Richard Weinberger <richard@nod.at>
+
+description:
+  The SPEAr600 Serial Memory Interface (SMI) is a dedicated serial flash
+  controller supporting up to four chip selects for serial NOR flashes
+  connected in parallel. The controller is memory-mapped and the attached
+  flash devices appear in the CPU address space.The driver
+  (drivers/mtd/devices/spear_smi.c) probes the attached flashes
+  dynamically by sending commands (e.g., RDID) to each bank.
+  Flash sub nodes describe the memory range and optional per-flash
+  properties.
+
+allOf:
+  - $ref: mtd.yaml#
+
+properties:
+  compatible:
+    const: st,spear600-smi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  clock-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Functional clock rate of the SMI controller in Hz.
+
+  st,smi-fast-mode:
+    type: boolean
+    description: Indicates that the attached flash supports fast read mode.
+
+required:
+  - compatible
+  - reg
+  - clock-rate
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    flash@fc000000 {
+        compatible = "st,spear600-smi";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        reg = <0xfc000000 0x1000>;
+        interrupt-parent = <&vic1>;
+        interrupts = <12>;
+        clock-rate = <50000000>;  /* 50 MHz */
+
+        flash@f8000000 {
+            reg = <0xfc000000 0x1000>;
+            st,smi-fast-mode;
+        };
+    };
+...

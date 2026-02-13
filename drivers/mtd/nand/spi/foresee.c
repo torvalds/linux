@@ -11,6 +11,11 @@
 
 #define SPINAND_MFR_FORESEE		0xCD
 
+#define F35SQB002G_STATUS_ECC_MASK		(7 << 4)
+#define F35SQB002G_STATUS_ECC_NO_BITFLIPS	(0 << 4)
+#define F35SQB002G_STATUS_ECC_1_3_BITFLIPS	(1 << 4)
+#define F35SQB002G_STATUS_ECC_UNCOR_ERROR	(7 << 4)
+
 static SPINAND_OP_VARIANTS(read_cache_variants,
 		SPINAND_PAGE_READ_FROM_CACHE_1S_1S_4S_OP(0, 1, NULL, 0, 0),
 		SPINAND_PAGE_READ_FROM_CACHE_1S_1S_2S_OP(0, 1, NULL, 0, 0),
@@ -70,6 +75,25 @@ static int f35sqa002g_ecc_get_status(struct spinand_device *spinand, u8 status)
 	return -EBADMSG;
 }
 
+static int f35sqb002g_ecc_get_status(struct spinand_device *spinand, u8 status)
+{
+	switch (status & F35SQB002G_STATUS_ECC_MASK) {
+	case F35SQB002G_STATUS_ECC_NO_BITFLIPS:
+		return 0;
+
+	case F35SQB002G_STATUS_ECC_1_3_BITFLIPS:
+		return 3;
+
+	case F35SQB002G_STATUS_ECC_UNCOR_ERROR:
+		return -EBADMSG;
+
+	default: /* (2 << 4) through (6 << 4) are 4-8 corrected errors */
+		return ((status & F35SQB002G_STATUS_ECC_MASK) >> 4) + 2;
+	}
+
+	return -EINVAL;
+}
+
 static const struct spinand_info foresee_spinand_table[] = {
 	SPINAND_INFO("F35SQA002G",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x72, 0x72),
@@ -91,6 +115,16 @@ static const struct spinand_info foresee_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&f35sqa002g_ooblayout,
 				     f35sqa002g_ecc_get_status)),
+	SPINAND_INFO("F35SQB002G",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x52, 0x52),
+		     NAND_MEMORG(1, 2048, 128, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&f35sqa002g_ooblayout,
+				     f35sqb002g_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops foresee_spinand_manuf_ops = {
