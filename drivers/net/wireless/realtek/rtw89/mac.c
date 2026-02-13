@@ -826,7 +826,9 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 	}
 
 	err = rtw89_read32(rtwdev, R_AX_HALT_C2H);
-	rtw89_write32(rtwdev, R_AX_HALT_C2H_CTRL, 0);
+
+	if (!RTW89_CHK_FW_FEATURE(SER_POST_RECOVER_DMAC, &rtwdev->fw))
+		rtw89_write32(rtwdev, R_AX_HALT_C2H_CTRL, 0);
 
 	err_scnr = RTW89_ERROR_SCENARIO(err);
 	if (err_scnr == RTW89_WCPU_CPU_EXCEPTION)
@@ -845,6 +847,9 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 bottom:
 	if (chip->chip_gen != RTW89_CHIP_AX)
 		rtw89_write32(rtwdev, R_AX_HALT_C2H, 0);
+
+	if (RTW89_CHK_FW_FEATURE(SER_POST_RECOVER_DMAC, &rtwdev->fw))
+		rtw89_write32(rtwdev, R_AX_HALT_C2H_CTRL, 0);
 
 	return err;
 }
