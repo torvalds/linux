@@ -177,12 +177,12 @@ __ATTR(_name, 0444, show_##_name, NULL)
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, highest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_perf);
+show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, reference_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_nonlinear_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, guaranteed_perf);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, lowest_freq);
 show_cppc_data(cppc_get_perf_caps, cppc_perf_caps, nominal_freq);
 
-show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, reference_perf);
 show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, wraparound_time);
 
 /* Check for valid access_width, otherwise, fallback to using bit_width */
@@ -1352,9 +1352,10 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
 	struct cpc_register_resource *highest_reg, *lowest_reg,
-		*lowest_non_linear_reg, *nominal_reg, *guaranteed_reg,
-		*low_freq_reg = NULL, *nom_freq_reg = NULL;
-	u64 high, low, guaranteed, nom, min_nonlinear, low_f = 0, nom_f = 0;
+		*lowest_non_linear_reg, *nominal_reg, *reference_reg,
+		*guaranteed_reg, *low_freq_reg = NULL, *nom_freq_reg = NULL;
+	u64 high, low, guaranteed, nom, ref, min_nonlinear,
+	    low_f = 0, nom_f = 0;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
 	struct cppc_pcc_data *pcc_ss_data = NULL;
 	int ret = 0, regs_in_pcc = 0;
@@ -1368,6 +1369,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	lowest_reg = &cpc_desc->cpc_regs[LOWEST_PERF];
 	lowest_non_linear_reg = &cpc_desc->cpc_regs[LOW_NON_LINEAR_PERF];
 	nominal_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
+	reference_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
 	low_freq_reg = &cpc_desc->cpc_regs[LOWEST_FREQ];
 	nom_freq_reg = &cpc_desc->cpc_regs[NOMINAL_FREQ];
 	guaranteed_reg = &cpc_desc->cpc_regs[GUARANTEED_PERF];
@@ -1375,6 +1377,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(highest_reg) || CPC_IN_PCC(lowest_reg) ||
 		CPC_IN_PCC(lowest_non_linear_reg) || CPC_IN_PCC(nominal_reg) ||
+		(CPC_SUPPORTED(reference_reg) && CPC_IN_PCC(reference_reg)) ||
 		CPC_IN_PCC(low_freq_reg) || CPC_IN_PCC(nom_freq_reg) ||
 		CPC_IN_PCC(guaranteed_reg)) {
 		if (pcc_ss_id < 0) {
@@ -1400,6 +1403,17 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	cpc_read(cpunum, nominal_reg, &nom);
 	perf_caps->nominal_perf = nom;
 
+	/*
+	 * If reference perf register is not supported then we should
+	 * use the nominal perf value
+	 */
+	if (CPC_SUPPORTED(reference_reg)) {
+		cpc_read(cpunum, reference_reg, &ref);
+		perf_caps->reference_perf = ref;
+	} else {
+		perf_caps->reference_perf = nom;
+	}
+
 	if (guaranteed_reg->type != ACPI_TYPE_BUFFER  ||
 	    IS_NULL_REG(&guaranteed_reg->cpc_entry.reg)) {
 		perf_caps->guaranteed_perf = 0;
@@ -1411,7 +1425,7 @@ int cppc_get_perf_caps(int cpunum, struct cppc_perf_caps *perf_caps)
 	cpc_read(cpunum, lowest_non_linear_reg, &min_nonlinear);
 	perf_caps->lowest_nonlinear_perf = min_nonlinear;
 
-	if (!high || !low || !nom || !min_nonlinear)
+	if (!high || !low || !nom || !ref || !min_nonlinear)
 		ret = -EFAULT;
 
 	/* Read optional lowest and nominal frequencies if present */
@@ -1441,20 +1455,10 @@ EXPORT_SYMBOL_GPL(cppc_get_perf_caps);
 bool cppc_perf_ctrs_in_pcc_cpu(unsigned int cpu)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpu);
-	struct cpc_register_resource *ref_perf_reg;
-
-	/*
-	 * If reference perf register is not supported then we should use the
-	 * nominal perf value
-	 */
-	ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
-	if (!CPC_SUPPORTED(ref_perf_reg))
-		ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
 
 	return CPC_IN_PCC(&cpc_desc->cpc_regs[DELIVERED_CTR]) ||
 		CPC_IN_PCC(&cpc_desc->cpc_regs[REFERENCE_CTR]) ||
-		CPC_IN_PCC(&cpc_desc->cpc_regs[CTR_WRAP_TIME]) ||
-		CPC_IN_PCC(ref_perf_reg);
+		CPC_IN_PCC(&cpc_desc->cpc_regs[CTR_WRAP_TIME]);
 }
 EXPORT_SYMBOL_GPL(cppc_perf_ctrs_in_pcc_cpu);
 
@@ -1491,10 +1495,10 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 {
 	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
 	struct cpc_register_resource *delivered_reg, *reference_reg,
-		*ref_perf_reg, *ctr_wrap_reg;
+		*ctr_wrap_reg;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpunum);
 	struct cppc_pcc_data *pcc_ss_data = NULL;
-	u64 delivered, reference, ref_perf, ctr_wrap_time;
+	u64 delivered, reference, ctr_wrap_time;
 	int ret = 0, regs_in_pcc = 0;
 
 	if (!cpc_desc) {
@@ -1504,19 +1508,11 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 
 	delivered_reg = &cpc_desc->cpc_regs[DELIVERED_CTR];
 	reference_reg = &cpc_desc->cpc_regs[REFERENCE_CTR];
-	ref_perf_reg = &cpc_desc->cpc_regs[REFERENCE_PERF];
 	ctr_wrap_reg = &cpc_desc->cpc_regs[CTR_WRAP_TIME];
-
-	/*
-	 * If reference perf register is not supported then we should
-	 * use the nominal perf value
-	 */
-	if (!CPC_SUPPORTED(ref_perf_reg))
-		ref_perf_reg = &cpc_desc->cpc_regs[NOMINAL_PERF];
 
 	/* Are any of the regs PCC ?*/
 	if (CPC_IN_PCC(delivered_reg) || CPC_IN_PCC(reference_reg) ||
-		CPC_IN_PCC(ctr_wrap_reg) || CPC_IN_PCC(ref_perf_reg)) {
+		CPC_IN_PCC(ctr_wrap_reg)) {
 		if (pcc_ss_id < 0) {
 			pr_debug("Invalid pcc_ss_id\n");
 			return -ENODEV;
@@ -1533,8 +1529,6 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 
 	cpc_read(cpunum, delivered_reg, &delivered);
 	cpc_read(cpunum, reference_reg, &reference);
-	cpc_read(cpunum, ref_perf_reg, &ref_perf);
-
 	/*
 	 * Per spec, if ctr_wrap_time optional register is unsupported, then the
 	 * performance counters are assumed to never wrap during the lifetime of
@@ -1544,14 +1538,13 @@ int cppc_get_perf_ctrs(int cpunum, struct cppc_perf_fb_ctrs *perf_fb_ctrs)
 	if (CPC_SUPPORTED(ctr_wrap_reg))
 		cpc_read(cpunum, ctr_wrap_reg, &ctr_wrap_time);
 
-	if (!delivered || !reference ||	!ref_perf) {
+	if (!delivered || !reference) {
 		ret = -EFAULT;
 		goto out_err;
 	}
 
 	perf_fb_ctrs->delivered = delivered;
 	perf_fb_ctrs->reference = reference;
-	perf_fb_ctrs->reference_perf = ref_perf;
 	perf_fb_ctrs->wraparound_time = ctr_wrap_time;
 out_err:
 	if (regs_in_pcc)

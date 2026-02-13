@@ -121,6 +121,7 @@ struct cppc_perf_caps {
 	u32 guaranteed_perf;
 	u32 highest_perf;
 	u32 nominal_perf;
+	u32 reference_perf;
 	u32 lowest_perf;
 	u32 lowest_nonlinear_perf;
 	u32 lowest_freq;
@@ -138,7 +139,6 @@ struct cppc_perf_ctrls {
 struct cppc_perf_fb_ctrs {
 	u64 reference;
 	u64 delivered;
-	u64 reference_perf;
 	u64 wraparound_time;
 };
 
