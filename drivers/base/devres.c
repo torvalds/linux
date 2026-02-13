@@ -36,9 +36,9 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
-static void devres_node_init(struct devres_node *node,
-			     dr_node_release_t release,
-			     dr_node_free_t free_node)
+void devres_node_init(struct devres_node *node,
+		      dr_node_release_t release,
+		      dr_node_free_t free_node)
 {
 	INIT_LIST_HEAD(&node->entry);
 	node->release = release;
@@ -258,7 +258,7 @@ void devres_free(void *res)
 }
 EXPORT_SYMBOL_GPL(devres_free);
 
-static void devres_node_add(struct device *dev, struct devres_node *node)
+void devres_node_add(struct device *dev, struct devres_node *node)
 {
 	guard(spinlock_irqsave)(&dev->devres_lock);
 
