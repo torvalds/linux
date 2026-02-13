@@ -914,6 +914,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.fw_def			= {
 		.fw_basename	= RTW8852B_FW_BASENAME,
 		.fw_format_max	= RTW8852B_FW_FORMAT_MAX,
+		.fw_b_aid	= 0,
 	},
 	.try_ce_fw		= true,
 	.bbmcu_nr		= 0,

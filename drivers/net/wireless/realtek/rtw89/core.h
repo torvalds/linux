@@ -4155,6 +4155,7 @@ struct rtw89_reg_imr {
 struct rtw89_fw_def {
 	const char *fw_basename;
 	u8 fw_format_max;
+	u16 fw_b_aid;
 };
 
 struct rtw89_phy_table {
@@ -4729,6 +4730,8 @@ enum rtw89_fw_type {
 	RTW89_FW_NORMAL = 1,
 	RTW89_FW_WOWLAN = 3,
 	RTW89_FW_NORMAL_CE = 5,
+	RTW89_FW_NORMAL_B = 14,
+	RTW89_FW_WOWLAN_B = 15,
 	RTW89_FW_BBMCU0 = 64,
 	RTW89_FW_BBMCU1 = 65,
 	RTW89_FW_LOGFMT = 255,
@@ -7562,6 +7565,7 @@ static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 
 	switch (type) {
 	case RTW89_FW_WOWLAN:
+	case RTW89_FW_WOWLAN_B:
 		return &fw_info->wowlan;
 	case RTW89_FW_LOGFMT:
 		return &fw_info->log.suit;

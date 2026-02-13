@@ -2919,6 +2919,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.fw_def			= {
 		.fw_basename	= RTW8922A_FW_BASENAME,
 		.fw_format_max	= RTW8922A_FW_FORMAT_MAX,
+		.fw_b_aid	= 0,
 	},
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 1,
