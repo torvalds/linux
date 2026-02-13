@@ -16,18 +16,6 @@
 #include "base.h"
 #include "trace.h"
 
-struct devres_node;
-typedef void (*dr_node_release_t)(struct device *dev, struct devres_node *node);
-typedef void (*dr_node_free_t)(struct devres_node *node);
-
-struct devres_node {
-	struct list_head		entry;
-	dr_node_release_t		release;
-	dr_node_free_t			free_node;
-	const char			*name;
-	size_t				size;
-};
-
 struct devres {
 	struct devres_node		node;
 	dr_release_t			release;

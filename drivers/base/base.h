@@ -216,6 +216,18 @@ static inline void device_set_driver(struct device *dev, const struct device_dri
 	WRITE_ONCE(dev->driver, (struct device_driver *)drv);
 }
 
+struct devres_node;
+typedef void (*dr_node_release_t)(struct device *dev, struct devres_node *node);
+typedef void (*dr_node_free_t)(struct devres_node *node);
+
+struct devres_node {
+	struct list_head		entry;
+	dr_node_release_t		release;
+	dr_node_free_t			free_node;
+	const char			*name;
+	size_t				size;
+};
+
 void devres_for_each_res(struct device *dev, dr_release_t release,
 			 dr_match_t match, void *match_data,
 			 void (*fn)(struct device *, void *, void *),
