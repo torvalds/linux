@@ -4152,6 +4152,11 @@ struct rtw89_reg_imr {
 	u32 set;
 };
 
+struct rtw89_fw_def {
+	const char *fw_basename;
+	u8 fw_format_max;
+};
+
 struct rtw89_phy_table {
 	const struct rtw89_reg2_def *regs;
 	u32 n_regs;
@@ -4494,8 +4499,7 @@ struct rtw89_chip_info {
 	const struct rtw89_chip_ops *ops;
 	const struct rtw89_mac_gen_def *mac_def;
 	const struct rtw89_phy_gen_def *phy_def;
-	const char *fw_basename;
-	u8 fw_format_max;
+	struct rtw89_fw_def fw_def;
 	bool try_ce_fw;
 	u8 bbmcu_nr;
 	u32 needed_fw_elms;
@@ -4633,6 +4637,7 @@ struct rtw89_chip_info {
 struct rtw89_chip_variant {
 	bool no_mcs_12_13: 1;
 	u32 fw_min_ver_code;
+	const struct rtw89_fw_def *fw_def_override;
 };
 
 union rtw89_bus_info {
@@ -7377,6 +7382,22 @@ void rtw89_chip_calc_rx_gain_normal(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->calc_rx_gain_normal)
 		chip->ops->calc_rx_gain_normal(rtwdev, chan, path, phy_idx, calc);
+}
+
+static inline const struct rtw89_fw_def *
+__rtw89_chip_get_fw_def(const struct rtw89_chip_info *chip,
+			const struct rtw89_chip_variant *variant)
+{
+	if (variant && variant->fw_def_override)
+		return variant->fw_def_override;
+
+	return &chip->fw_def;
+}
+
+static inline
+const struct rtw89_fw_def *rtw89_chip_get_fw_def(struct rtw89_dev *rtwdev)
+{
+	return __rtw89_chip_get_fw_def(rtwdev->chip, rtwdev->variant);
 }
 
 static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,

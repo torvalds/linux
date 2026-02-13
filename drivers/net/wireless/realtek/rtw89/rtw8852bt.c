@@ -757,8 +757,10 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.ops			= &rtw8852bt_chip_ops,
 	.mac_def		= &rtw89_mac_gen_ax,
 	.phy_def		= &rtw89_phy_gen_ax,
-	.fw_basename		= RTW8852BT_FW_BASENAME,
-	.fw_format_max		= RTW8852BT_FW_FORMAT_MAX,
+	.fw_def			= {
+		.fw_basename	= RTW8852BT_FW_BASENAME,
+		.fw_format_max	= RTW8852BT_FW_FORMAT_MAX,
+	},
 	.try_ce_fw		= true,
 	.bbmcu_nr		= 0,
 	.needed_fw_elms		= RTW89_AX_GEN_DEF_NEEDED_FW_ELEMENTS_NO_6GHZ,

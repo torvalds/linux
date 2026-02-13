@@ -5171,6 +5171,7 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev);
 const struct firmware *
 rtw89_early_fw_feature_recognize(struct device *device,
 				 const struct rtw89_chip_info *chip,
+				 const struct rtw89_chip_variant *variant,
 				 struct rtw89_fw_info *early_fw,
 				 int *used_fw_format);
 int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,

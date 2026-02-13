@@ -2916,8 +2916,10 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.ops			= &rtw8922a_chip_ops,
 	.mac_def		= &rtw89_mac_gen_be,
 	.phy_def		= &rtw89_phy_gen_be,
-	.fw_basename		= RTW8922A_FW_BASENAME,
-	.fw_format_max		= RTW8922A_FW_FORMAT_MAX,
+	.fw_def			= {
+		.fw_basename	= RTW8922A_FW_BASENAME,
+		.fw_format_max	= RTW8922A_FW_FORMAT_MAX,
+	},
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 1,
 	.needed_fw_elms		= RTW89_BE_GEN_DEF_NEEDED_FW_ELEMENTS,
@@ -3057,6 +3059,7 @@ EXPORT_SYMBOL(rtw8922a_chip_info);
 const struct rtw89_chip_variant rtw8922ae_vs_variant = {
 	.no_mcs_12_13 = true,
 	.fw_min_ver_code = RTW89_FW_VER_CODE(0, 35, 54, 0),
+	.fw_def_override = NULL,
 };
 EXPORT_SYMBOL(rtw8922ae_vs_variant);
 

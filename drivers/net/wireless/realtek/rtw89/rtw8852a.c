@@ -2265,8 +2265,10 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.ops			= &rtw8852a_chip_ops,
 	.mac_def		= &rtw89_mac_gen_ax,
 	.phy_def		= &rtw89_phy_gen_ax,
-	.fw_basename		= RTW8852A_FW_BASENAME,
-	.fw_format_max		= RTW8852A_FW_FORMAT_MAX,
+	.fw_def			= {
+		.fw_basename	= RTW8852A_FW_BASENAME,
+		.fw_format_max	= RTW8852A_FW_FORMAT_MAX,
+	},
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
