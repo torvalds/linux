@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# ACPI WMI KUnit tests
+#
+
+config ACPI_WMI_MARSHALLING_KUNIT_TEST
+	tristate "KUnit Test for ACPI-WMI marshalling" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the ACPI-WMI marshalling code.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
+config ACPI_WMI_STRING_KUNIT_TEST
+	tristate "KUnit Test for ACPI-WMI string conversion" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the ACPI-WMI string conversion code.
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.

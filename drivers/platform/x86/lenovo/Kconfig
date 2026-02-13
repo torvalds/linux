@@ -233,7 +233,7 @@ config YT2_1380
 	  To compile this driver as a module, choose M here: the module will
 	  be called lenovo-yogabook.
 
-config LENOVO_WMI_DATA01
+config LENOVO_WMI_CAPDATA
 	tristate
 	depends on ACPI_WMI
 
@@ -263,8 +263,9 @@ config LENOVO_WMI_GAMEZONE
 config LENOVO_WMI_TUNING
 	tristate "Lenovo Other Mode WMI Driver"
 	depends on ACPI_WMI
+	select HWMON
 	select FW_ATTR_CLASS
-	select LENOVO_WMI_DATA01
+	select LENOVO_WMI_CAPDATA
 	select LENOVO_WMI_EVENTS
 	select LENOVO_WMI_HELPERS
 	help
