@@ -2393,7 +2393,7 @@ struct platform_counters {
 } platform_counters_odd, platform_counters_even;
 
 struct cpu_topology {
-	int core_id;
+	int core_id;		/* unique within a package */
 	int package_id;
 	int die_id;
 	int l3_id;
@@ -2409,12 +2409,12 @@ struct topo_params {
 	int num_packages;
 	int num_die;
 	int num_cpus;
-	int num_cores;
+	int num_cores;		/* system wide */
 	int allowed_packages;
 	int allowed_cpus;
 	int allowed_cores;
 	int max_cpu_num;
-	int max_core_id;
+	int max_core_id;	/* within a package */
 	int max_package_id;
 	int max_die_id;
 	int max_l3_id;
@@ -2446,6 +2446,7 @@ int cpu_is_not_allowed(int cpu)
 	return !CPU_ISSET_S(cpu, cpu_allowed_setsize, cpu_allowed_set);
 }
 
+#define GLOBAL_CORE_ID(core_id, pkg_id)	(core_id + pkg_id * (topo.max_core_id + 1))
 /*
  * run func(thread, core, package) in topology order
  * skip non-present cpus
@@ -5157,32 +5158,18 @@ unsigned long pmt_read_counter(struct pmt_counter *ppmt, unsigned int domain_id)
 /* Rapl domain enumeration helpers */
 static inline int get_rapl_num_domains(void)
 {
-	int num_packages = topo.max_package_id + 1;
-	int num_cores_per_package;
-	int num_cores;
-
 	if (!platform->has_per_core_rapl)
-		return num_packages;
+		return topo.num_packages;
 
-	num_cores_per_package = topo.max_core_id + 1;
-	num_cores = num_cores_per_package * num_packages;
-
-	return num_cores;
+	return topo.num_cores;
 }
 
 static inline int get_rapl_domain_id(int cpu)
 {
-	int nr_cores_per_package = topo.max_core_id + 1;
-	int rapl_core_id;
-
 	if (!platform->has_per_core_rapl)
 		return cpus[cpu].package_id;
 
-	/* Compute the system-wide unique core-id for @cpu */
-	rapl_core_id = cpus[cpu].core_id;
-	rapl_core_id += cpus[cpu].package_id * nr_cores_per_package;
-
-	return rapl_core_id;
+	return GLOBAL_CORE_ID(cpu, cpus[cpu].package_id);
 }
 
 /*
