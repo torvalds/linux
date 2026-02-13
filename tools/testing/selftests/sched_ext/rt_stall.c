@@ -23,6 +23,30 @@
 #define CORE_ID		0	/* CPU to pin tasks to */
 #define RUN_TIME        5	/* How long to run the test in seconds */
 
+/* Signal the parent that setup is complete by writing to a pipe */
+static void signal_ready(int fd)
+{
+	char c = 1;
+
+	if (write(fd, &c, 1) != 1) {
+		perror("write to ready pipe");
+		exit(EXIT_FAILURE);
+	}
+	close(fd);
+}
+
+/* Wait for a child to signal readiness via a pipe */
+static void wait_ready(int fd)
+{
+	char c;
+
+	if (read(fd, &c, 1) != 1) {
+		perror("read from ready pipe");
+		exit(EXIT_FAILURE);
+	}
+	close(fd);
+}
+
 /* Simple busy-wait function for test tasks */
 static void process_func(void)
 {
@@ -122,14 +146,24 @@ static bool sched_stress_test(bool is_ext)
 
 	float ext_runtime, rt_runtime, actual_ratio;
 	int ext_pid, rt_pid;
+	int ext_ready[2], rt_ready[2];
 
 	ksft_print_header();
 	ksft_set_plan(1);
 
+	if (pipe(ext_ready) || pipe(rt_ready)) {
+		perror("pipe");
+		ksft_exit_fail();
+	}
+
 	/* Create and set up a EXT task */
 	ext_pid = fork();
 	if (ext_pid == 0) {
+		close(ext_ready[0]);
+		close(rt_ready[0]);
+		close(rt_ready[1]);
 		set_affinity(CORE_ID);
+		signal_ready(ext_ready[1]);
 		process_func();
 		exit(0);
 	} else if (ext_pid < 0) {
@@ -140,14 +174,29 @@ static bool sched_stress_test(bool is_ext)
 	/* Create an RT task */
 	rt_pid = fork();
 	if (rt_pid == 0) {
+		close(ext_ready[0]);
+		close(ext_ready[1]);
+		close(rt_ready[0]);
 		set_affinity(CORE_ID);
 		set_sched(SCHED_FIFO, 50);
+		signal_ready(rt_ready[1]);
 		process_func();
 		exit(0);
 	} else if (rt_pid < 0) {
 		perror("fork for RT task");
 		ksft_exit_fail();
 	}
+
+	/*
+	 * Wait for both children to complete their setup (affinity and
+	 * scheduling policy) before starting the measurement window.
+	 * This prevents flaky failures caused by the RT child's setup
+	 * time eating into the measurement period.
+	 */
+	close(ext_ready[1]);
+	close(rt_ready[1]);
+	wait_ready(ext_ready[0]);
+	wait_ready(rt_ready[0]);
 
 	/* Let the processes run for the specified time */
 	sleep(RUN_TIME);
