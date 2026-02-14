@@ -106,8 +106,7 @@ static __always_inline int sc_retry_prerr(sc_func_t func,
 
 /*
  * Do the module global initialization once and return its result.
- * It can be done on any cpu.  It's always called with interrupts
- * disabled.
+ * It can be done on any cpu, and from task or IRQ context.
  */
 static int try_init_module_global(void)
 {
@@ -115,8 +114,6 @@ static int try_init_module_global(void)
 	static DEFINE_RAW_SPINLOCK(sysinit_lock);
 	static bool sysinit_done;
 	static int sysinit_ret;
-
-	lockdep_assert_irqs_disabled();
 
 	raw_spin_lock(&sysinit_lock);
 
@@ -148,8 +145,6 @@ out:
  * global initialization SEAMCALL if not done) on local cpu to make this
  * cpu be ready to run any other SEAMCALLs.
  *
- * Always call this function via IPI function calls.
- *
  * Return 0 on success, otherwise errors.
  */
 int tdx_cpu_enable(void)
@@ -159,8 +154,6 @@ int tdx_cpu_enable(void)
 
 	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
 		return -ENODEV;
-
-	lockdep_assert_irqs_disabled();
 
 	if (__this_cpu_read(tdx_lp_initialized))
 		return 0;

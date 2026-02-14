@@ -3293,17 +3293,10 @@ int tdx_gmem_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn, bool is_private)
 
 static int tdx_online_cpu(unsigned int cpu)
 {
-	unsigned long flags;
-	int r;
-
 	/* Sanity check CPU is already in post-VMXON */
 	WARN_ON_ONCE(!(cr4_read_shadow() & X86_CR4_VMXE));
 
-	local_irq_save(flags);
-	r = tdx_cpu_enable();
-	local_irq_restore(flags);
-
-	return r;
+	return tdx_cpu_enable();
 }
 
 static int tdx_offline_cpu(unsigned int cpu)
