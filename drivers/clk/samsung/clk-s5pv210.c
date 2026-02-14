@@ -782,7 +782,7 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 	samsung_clk_register_alias(ctx, s5pv210_aliases,
 						ARRAY_SIZE(s5pv210_aliases));
 
-	samsung_clk_sleep_init(reg_base, s5pv210_clk_regs,
+	samsung_clk_sleep_init(reg_base, NULL, s5pv210_clk_regs,
 			       ARRAY_SIZE(s5pv210_clk_regs));
 
 	samsung_clk_of_add_provider(np, ctx);

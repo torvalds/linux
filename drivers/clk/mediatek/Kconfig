@@ -820,7 +820,7 @@ config COMMON_CLK_MT8192
 	depends on ARM64 || COMPILE_TEST
 	select COMMON_CLK_MEDIATEK
 	select COMMON_CLK_MEDIATEK_FHCTL
-	default ARM64
+	default ARM64 && ARCH_MEDIATEK
 	help
 	  This driver supports MediaTek MT8192 basic clocks.
 
