@@ -187,6 +187,7 @@
 #define MSM8937_GCC_MDSS_PCLK1_CLK			179
 #define MSM8937_GCC_OXILI_AON_CLK			180
 #define MSM8937_GCC_OXILI_TIMER_CLK			181
+#define MSM8940_GCC_IPA_TBU_CLK				182
 
 /* GCC block resets */
 #define GCC_CAMSS_MICRO_BCR			0
@@ -194,6 +195,7 @@
 #define GCC_QUSB2_PHY_BCR			2
 #define GCC_USB_HS_BCR				3
 #define GCC_USB2_HS_PHY_ONLY_BCR		4
+#define GCC_MDSS_BCR				5
 
 /* GDSCs */
 #define CPP_GDSC				0

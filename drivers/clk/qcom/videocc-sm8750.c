@@ -416,7 +416,7 @@ static struct qcom_cc_driver_data video_cc_sm8750_driver_data = {
 	.clk_regs_configure = clk_sm8750_regs_configure,
 };
 
-static struct qcom_cc_desc video_cc_sm8750_desc = {
+static const struct qcom_cc_desc video_cc_sm8750_desc = {
 	.config = &video_cc_sm8750_regmap_config,
 	.clks = video_cc_sm8750_clocks,
 	.num_clks = ARRAY_SIZE(video_cc_sm8750_clocks),
