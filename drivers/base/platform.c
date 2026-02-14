@@ -850,6 +850,9 @@ struct platform_device *platform_device_register_full(
 	int ret;
 	struct platform_device *pdev;
 
+	if (pdevinfo->swnode && pdevinfo->properties)
+		return ERR_PTR(-EINVAL);
+
 	pdev = platform_device_alloc(pdevinfo->name, pdevinfo->id);
 	if (!pdev)
 		return ERR_PTR(-ENOMEM);
@@ -875,7 +878,11 @@ struct platform_device *platform_device_register_full(
 	if (ret)
 		goto err;
 
-	if (pdevinfo->properties) {
+	if (pdevinfo->swnode) {
+		ret = device_add_software_node(&pdev->dev, pdevinfo->swnode);
+		if (ret)
+			goto err;
+	} else if (pdevinfo->properties) {
 		ret = device_create_managed_software_node(&pdev->dev,
 							  pdevinfo->properties, NULL);
 		if (ret)

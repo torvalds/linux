@@ -136,10 +136,14 @@ extern int platform_add_devices(struct platform_device **, int);
  * @data: device-specific data for this platform device.
  * @size_data: size of device-specific data.
  * @dma_mask: DMA mask for the device.
+ * @swnode: a secondary software node to be attached to the device. The node
+ *	will be automatically registered and its lifetime tied to the platform
+ *	device if it is not registered yet.
  * @properties: a set of software properties for the device. If provided,
  *	a managed software node will be automatically created and
  *	assigned to the device. The properties array must be terminated
- *	with a sentinel entry.
+ *	with a sentinel entry. Specifying both @properties and @swnode is not
+ *	allowed.
  *
  * This structure is used to hold information needed to create and register
  * a platform device using platform_device_register_full().
@@ -164,6 +168,7 @@ struct platform_device_info {
 	size_t size_data;
 	u64 dma_mask;
 
+	const struct software_node *swnode;
 	const struct property_entry *properties;
 };
 extern struct platform_device *platform_device_register_full(
