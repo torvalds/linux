@@ -1216,8 +1216,51 @@ static s32 tas_update_status(struct sdw_slave *slave,
 	return tas_io_init(&slave->dev, slave);
 }
 
+/*
+ * TAS2783 requires explicit port prepare during playback stream
+ * setup even when simple_ch_prep_sm is enabled. Without this,
+ * the port fails to enter the prepared state resulting in no audio output.
+ */
+static int tas_port_prep(struct sdw_slave *slave, struct sdw_prepare_ch *prep_ch,
+			 enum sdw_port_prep_ops pre_ops)
+{
+	struct device *dev = &slave->dev;
+	struct sdw_dpn_prop *dpn_prop;
+	u32 addr;
+	int ret;
+
+	dpn_prop = slave->prop.sink_dpn_prop;
+	if (!dpn_prop || !dpn_prop->simple_ch_prep_sm)
+		return 0;
+
+	addr = SDW_DPN_PREPARECTRL(prep_ch->num);
+	switch (pre_ops) {
+	case SDW_OPS_PORT_PRE_PREP:
+		ret = sdw_write_no_pm(slave, addr, prep_ch->ch_mask);
+		if (ret)
+			dev_err(dev, "prep failed for port %d, err=%d\n",
+					prep_ch->num, ret);
+		return ret;
+
+	case SDW_OPS_PORT_PRE_DEPREP:
+		ret = sdw_write_no_pm(slave, addr, 0x00);
+		if (ret)
+			dev_err(dev, "de-prep failed for port %d, err=%d\n",
+					prep_ch->num, ret);
+		return ret;
+
+	case SDW_OPS_PORT_POST_PREP:
+	case SDW_OPS_PORT_POST_DEPREP:
+		/* No POST handling required for TAS2783 */
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct sdw_slave_ops tas_sdw_ops = {
 	.update_status	= tas_update_status,
+	.port_prep = tas_port_prep,
 };
 
 static void tas_remove(struct tas2783_prv *tas_dev)
