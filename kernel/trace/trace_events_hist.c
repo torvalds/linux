@@ -105,38 +105,44 @@ enum field_op_id {
 	FIELD_OP_MULT,
 };
 
+#define FIELD_FUNCS					\
+	C(NOP,			"nop"),			\
+	C(VAR_REF,		"var_ref"),		\
+	C(COUNTER,		"counter"),		\
+	C(CONST,		"const"),		\
+	C(LOG2,			"log2"),		\
+	C(BUCKET,		"bucket"),		\
+	C(TIMESTAMP,		"timestamp"),		\
+	C(CPU,			"cpu"),			\
+	C(COMM,			"comm"),		\
+	C(STRING,		"string"),		\
+	C(DYNSTRING,		"dynstring"),		\
+	C(RELDYNSTRING,		"reldynstring"),	\
+	C(PSTRING,		"pstring"),		\
+	C(S64,			"s64"),			\
+	C(U64,			"u64"),			\
+	C(S32,			"s32"),			\
+	C(U32,			"u32"),			\
+	C(S16,			"s16"),			\
+	C(U16,			"u16"),			\
+	C(S8,			"s8"),			\
+	C(U8,			"u8"),			\
+	C(UMINUS,		"uminus"),		\
+	C(MINUS,		"minus"),		\
+	C(PLUS,			"plus"),		\
+	C(DIV,			"div"),			\
+	C(MULT,			"mult"),		\
+	C(DIV_POWER2,		"div_power2"),		\
+	C(DIV_NOT_POWER2,	"div_not_power2"),	\
+	C(DIV_MULT_SHIFT,	"div_mult_shift"),	\
+	C(EXECNAME,		"execname"),		\
+	C(STACK,		"stack"),
+
+#undef C
+#define C(a, b)		HIST_FIELD_FN_##a
+
 enum hist_field_fn {
-	HIST_FIELD_FN_NOP,
-	HIST_FIELD_FN_VAR_REF,
-	HIST_FIELD_FN_COUNTER,
-	HIST_FIELD_FN_CONST,
-	HIST_FIELD_FN_LOG2,
-	HIST_FIELD_FN_BUCKET,
-	HIST_FIELD_FN_TIMESTAMP,
-	HIST_FIELD_FN_CPU,
-	HIST_FIELD_FN_COMM,
-	HIST_FIELD_FN_STRING,
-	HIST_FIELD_FN_DYNSTRING,
-	HIST_FIELD_FN_RELDYNSTRING,
-	HIST_FIELD_FN_PSTRING,
-	HIST_FIELD_FN_S64,
-	HIST_FIELD_FN_U64,
-	HIST_FIELD_FN_S32,
-	HIST_FIELD_FN_U32,
-	HIST_FIELD_FN_S16,
-	HIST_FIELD_FN_U16,
-	HIST_FIELD_FN_S8,
-	HIST_FIELD_FN_U8,
-	HIST_FIELD_FN_UMINUS,
-	HIST_FIELD_FN_MINUS,
-	HIST_FIELD_FN_PLUS,
-	HIST_FIELD_FN_DIV,
-	HIST_FIELD_FN_MULT,
-	HIST_FIELD_FN_DIV_POWER2,
-	HIST_FIELD_FN_DIV_NOT_POWER2,
-	HIST_FIELD_FN_DIV_MULT_SHIFT,
-	HIST_FIELD_FN_EXECNAME,
-	HIST_FIELD_FN_STACK,
+	FIELD_FUNCS
 };
 
 /*
@@ -3157,7 +3163,7 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 	u64 var_val;
 
 	/* Make sure stacktrace can fit in the string variable length */
-	BUILD_BUG_ON((HIST_STACKTRACE_DEPTH + 1) * sizeof(long) >= STR_VAR_LEN_MAX);
+	BUILD_BUG_ON((HIST_STACKTRACE_DEPTH + 1) * sizeof(long) > STR_VAR_LEN_MAX);
 
 	for (i = 0, j = field_var_str_start; i < n_field_vars; i++) {
 		struct field_var *field_var = field_vars[i];
@@ -5854,6 +5860,12 @@ const struct file_operations event_hist_fops = {
 };
 
 #ifdef CONFIG_HIST_TRIGGERS_DEBUG
+
+#undef C
+#define C(a, b)		b
+
+static const char * const field_funcs[] = { FIELD_FUNCS };
+
 static void hist_field_debug_show_flags(struct seq_file *m,
 					unsigned long flags)
 {
@@ -5918,6 +5930,7 @@ static int hist_field_debug_show(struct seq_file *m,
 	seq_printf(m, "      type: %s\n", field->type);
 	seq_printf(m, "      size: %u\n", field->size);
 	seq_printf(m, "      is_signed: %u\n", field->is_signed);
+	seq_printf(m, "      function: hist_field_%s()\n", field_funcs[field->fn_num]);
 
 	return 0;
 }
@@ -6518,6 +6531,26 @@ static bool existing_hist_update_only(char *glob,
 	return updated;
 }
 
+/*
+ * Set or disable using the per CPU trace_buffer_event when possible.
+ */
+static int tracing_set_filter_buffering(struct trace_array *tr, bool set)
+{
+	guard(mutex)(&trace_types_lock);
+
+	if (set && tr->no_filter_buffering_ref++)
+		return 0;
+
+	if (!set) {
+		if (WARN_ON_ONCE(!tr->no_filter_buffering_ref))
+			return -EINVAL;
+
+		--tr->no_filter_buffering_ref;
+	}
+
+	return 0;
+}
+
 static int hist_register_trigger(char *glob,
 				 struct event_trigger_data *data,
 				 struct trace_event_file *file)
@@ -6907,11 +6940,9 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
  out_unreg:
 	event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
  out_free:
-	event_trigger_reset_filter(cmd_ops, trigger_data);
-
 	remove_hist_vars(hist_data);
 
-	kfree(trigger_data);
+	trigger_data_free(trigger_data);
 
 	destroy_hist_data(hist_data);
 	goto out;

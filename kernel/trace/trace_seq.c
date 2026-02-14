@@ -106,7 +106,7 @@ EXPORT_SYMBOL_GPL(trace_seq_printf);
  * Writes a ASCII representation of a bitmask string into @s.
  */
 void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
-		      int nmaskbits)
+		       int nmaskbits)
 {
 	unsigned int save_len = s->seq.len;
 
@@ -123,6 +123,33 @@ void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 	}
 }
 EXPORT_SYMBOL_GPL(trace_seq_bitmask);
+
+/**
+ * trace_seq_bitmask_list - write a bitmask array in its list representation
+ * @s:		trace sequence descriptor
+ * @maskp:	points to an array of unsigned longs that represent a bitmask
+ * @nmaskbits:	The number of bits that are valid in @maskp
+ *
+ * Writes a list representation (e.g., 0-3,5-7) of a bitmask string into @s.
+ */
+void trace_seq_bitmask_list(struct trace_seq *s, const unsigned long *maskp,
+		       int nmaskbits)
+{
+	unsigned int save_len = s->seq.len;
+
+	if (s->full)
+		return;
+
+	__trace_seq_init(s);
+
+	seq_buf_printf(&s->seq, "%*pbl", nmaskbits, maskp);
+
+	if (unlikely(seq_buf_has_overflowed(&s->seq))) {
+		s->seq.len = save_len;
+		s->full = 1;
+	}
+}
+EXPORT_SYMBOL_GPL(trace_seq_bitmask_list);
 
 /**
  * trace_seq_vprintf - sequence printing of trace information

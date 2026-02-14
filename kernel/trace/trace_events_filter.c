@@ -1375,7 +1375,7 @@ static void free_filter_list_tasks(struct rcu_head *rhp)
 	struct filter_head *filter_list = container_of(rhp, struct filter_head, rcu);
 
 	INIT_RCU_WORK(&filter_list->rwork, free_filter_list_work);
-	queue_rcu_work(system_wq, &filter_list->rwork);
+	queue_rcu_work(system_dfl_wq, &filter_list->rwork);
 }
 
 /*

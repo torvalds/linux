@@ -39,7 +39,7 @@
 		void *__bitmask = __get_dynamic_array(field);		\
 		unsigned int __bitmask_size;				\
 		__bitmask_size = __get_dynamic_array_len(field);	\
-		trace_print_bitmask_seq(p, __bitmask, __bitmask_size);	\
+		trace_print_bitmask_seq(iter, __bitmask, __bitmask_size);	\
 	})
 
 #undef __get_cpumask
@@ -51,7 +51,7 @@
 		void *__bitmask = __get_rel_dynamic_array(field);		\
 		unsigned int __bitmask_size;				\
 		__bitmask_size = __get_rel_dynamic_array_len(field);	\
-		trace_print_bitmask_seq(p, __bitmask, __bitmask_size);	\
+		trace_print_bitmask_seq(iter, __bitmask, __bitmask_size);	\
 	})
 
 #undef __get_rel_cpumask
