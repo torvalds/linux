@@ -99,10 +99,7 @@ static int ls1x_divider_determine_rate(struct clk_hw *hw,
 	struct ls1x_clk *ls1x_clk = to_ls1x_clk(hw);
 	const struct ls1x_clk_div_data *d = ls1x_clk->data;
 
-	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
-				       d->table, d->width, d->flags);
-
-	return 0;
+	return divider_determine_rate(hw, req, d->table, d->width, d->flags);
 }
 
 static int ls1x_divider_set_rate(struct clk_hw *hw, unsigned long rate,
