@@ -3181,8 +3181,6 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 	if (tcon && !tcon->ipc) {
 		/* ipc tcons are not refcounted */
 		cifs_put_tcon(tcon, netfs_trace_tcon_ref_put_dfs_refer);
-		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
-				    netfs_trace_tcon_ref_dec_dfs_refer);
 	}
 	kfree(utf16_path);
 	kfree(dfs_req);

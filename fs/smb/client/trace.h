@@ -168,7 +168,6 @@
 	E_(cifs_trace_rw_credits_zero_in_flight,	"ZERO-IN-FLT")
 
 #define smb3_tcon_ref_traces					      \
-	EM(netfs_trace_tcon_ref_dec_dfs_refer,		"DEC DfsRef") \
 	EM(netfs_trace_tcon_ref_free,			"FRE       ") \
 	EM(netfs_trace_tcon_ref_free_fail,		"FRE Fail  ") \
 	EM(netfs_trace_tcon_ref_free_ipc,		"FRE Ipc   ") \
