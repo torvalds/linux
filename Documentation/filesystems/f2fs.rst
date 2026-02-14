@@ -206,7 +206,7 @@ fault_type=%d		 Support configuring fault injection type, should be
 			     FAULT_TRUNCATE                   0x00000400
 			     FAULT_READ_IO                    0x00000800
 			     FAULT_CHECKPOINT                 0x00001000
-			     FAULT_DISCARD                    0x00002000
+			     FAULT_DISCARD                    0x00002000 (obsolete)
 			     FAULT_WRITE_IO                   0x00004000
 			     FAULT_SLAB_ALLOC                 0x00008000
 			     FAULT_DQUOT_INIT                 0x00010000
@@ -215,8 +215,10 @@ fault_type=%d		 Support configuring fault injection type, should be
 			     FAULT_BLKADDR_CONSISTENCE        0x00080000
 			     FAULT_NO_SEGMENT                 0x00100000
 			     FAULT_INCONSISTENT_FOOTER        0x00200000
-			     FAULT_TIMEOUT                    0x00400000 (1000ms)
+			     FAULT_ATOMIC_TIMEOUT             0x00400000 (1000ms)
 			     FAULT_VMALLOC                    0x00800000
+			     FAULT_LOCK_TIMEOUT               0x01000000 (1000ms)
+			     FAULT_SKIP_WRITE                 0x02000000
 			     ===========================      ==========
 mode=%s			 Control block allocation mode which supports "adaptive"
 			 and "lfs". In "lfs" mode, there should be no random
@@ -1033,3 +1035,46 @@ the reserved space back to F2FS for its own use.
 So, the key idea is, user can do any file operations on /dev/vdc, and
 reclaim the space after the use, while the space is counted as /data.
 That doesn't require modifying partition size and filesystem format.
+
+Per-file Read-Only Large Folio Support
+--------------------------------------
+
+F2FS implements large folio support on the read path to leverage high-order
+page allocation for significant performance gains. To minimize code complexity,
+this support is currently excluded from the write path, which requires handling
+complex optimizations such as compression and block allocation modes.
+
+This optional feature is triggered only when a file's immutable bit is set.
+Consequently, F2FS will return EOPNOTSUPP if a user attempts to open a cached
+file with write permissions, even immediately after clearing the bit. Write
+access is only restored once the cached inode is dropped. The usage flow is
+demonstrated below:
+
+.. code-block::
+
+   # f2fs_io setflags immutable /data/testfile_read_seq
+
+   /* flush and reload the inode to enable the large folio */
+   # sync && echo 3 > /proc/sys/vm/drop_caches
+
+   /* mmap(MAP_POPULATE) + mlock() */
+   # f2fs_io read 128 0 1024 mmap 1 0 /data/testfile_read_seq
+
+   /* mmap() + fadvise(POSIX_FADV_WILLNEED) + mlock() */
+   # f2fs_io read 128 0 1024 fadvise 1 0 /data/testfile_read_seq
+
+   /* mmap() + mlock2(MLOCK_ONFAULT) + madvise(MADV_POPULATE_READ) */
+   # f2fs_io read 128 0 1024 madvise 1 0 /data/testfile_read_seq
+
+   # f2fs_io clearflags immutable /data/testfile_read_seq
+
+   # f2fs_io write 1 0 1 zero buffered /data/testfile_read_seq
+   Failed to open /mnt/test/test: Operation not supported
+
+   /* flush and reload the inode to disable the large folio */
+   # sync && echo 3 > /proc/sys/vm/drop_caches
+
+   # f2fs_io write 1 0 1 zero buffered /data/testfile_read_seq
+   Written 4096 bytes with pattern = zero, total_time = 29 us, max_latency = 28 us
+
+   # rm /data/testfile_read_seq
