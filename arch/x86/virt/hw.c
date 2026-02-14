@@ -13,12 +13,16 @@
 
 struct x86_virt_ops {
 	int feature;
+	int (*enable_virtualization_cpu)(void);
+	int (*disable_virtualization_cpu)(void);
 	void (*emergency_disable_virtualization_cpu)(void);
 };
 static struct x86_virt_ops virt_ops __ro_after_init;
 
 __visible bool virt_rebooting;
 EXPORT_SYMBOL_FOR_KVM(virt_rebooting);
+
+static DEFINE_PER_CPU(int, virtualization_nr_users);
 
 static cpu_emergency_virt_cb __rcu *kvm_emergency_callback;
 
@@ -74,12 +78,9 @@ fault:
 	return -EFAULT;
 }
 
-int x86_vmx_enable_virtualization_cpu(void)
+static int x86_vmx_enable_virtualization_cpu(void)
 {
 	int r;
-
-	if (virt_ops.feature != X86_FEATURE_VMX)
-		return -EOPNOTSUPP;
 
 	if (cr4_read_shadow() & X86_CR4_VMXE)
 		return -EBUSY;
@@ -94,7 +95,6 @@ int x86_vmx_enable_virtualization_cpu(void)
 
 	return 0;
 }
-EXPORT_SYMBOL_FOR_KVM(x86_vmx_enable_virtualization_cpu);
 
 /*
  * Disable VMX and clear CR4.VMXE (even if VMXOFF faults)
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_FOR_KVM(x86_vmx_enable_virtualization_cpu);
  * faults are guaranteed to be due to the !post-VMXON check unless the CPU is
  * magically in RM, VM86, compat mode, or at CPL>0.
  */
-int x86_vmx_disable_virtualization_cpu(void)
+static int x86_vmx_disable_virtualization_cpu(void)
 {
 	int r = -EIO;
 
@@ -119,7 +119,6 @@ fault:
 	intel_pt_handle_vmx(0);
 	return r;
 }
-EXPORT_SYMBOL_FOR_KVM(x86_vmx_disable_virtualization_cpu);
 
 static void x86_vmx_emergency_disable_virtualization_cpu(void)
 {
@@ -154,6 +153,8 @@ static __init int __x86_vmx_init(void)
 {
 	const struct x86_virt_ops vmx_ops = {
 		.feature = X86_FEATURE_VMX,
+		.enable_virtualization_cpu = x86_vmx_enable_virtualization_cpu,
+		.disable_virtualization_cpu = x86_vmx_disable_virtualization_cpu,
 		.emergency_disable_virtualization_cpu = x86_vmx_emergency_disable_virtualization_cpu,
 	};
 
@@ -212,12 +213,9 @@ static __init void x86_vmx_exit(void) { }
 #endif
 
 #if IS_ENABLED(CONFIG_KVM_AMD)
-int x86_svm_enable_virtualization_cpu(void)
+static int x86_svm_enable_virtualization_cpu(void)
 {
 	u64 efer;
-
-	if (virt_ops.feature != X86_FEATURE_SVM)
-		return -EOPNOTSUPP;
 
 	rdmsrq(MSR_EFER, efer);
 	if (efer & EFER_SVME)
@@ -226,9 +224,8 @@ int x86_svm_enable_virtualization_cpu(void)
 	wrmsrq(MSR_EFER, efer | EFER_SVME);
 	return 0;
 }
-EXPORT_SYMBOL_FOR_KVM(x86_svm_enable_virtualization_cpu);
 
-int x86_svm_disable_virtualization_cpu(void)
+static int x86_svm_disable_virtualization_cpu(void)
 {
 	int r = -EIO;
 	u64 efer;
@@ -247,7 +244,6 @@ fault:
 	wrmsrq(MSR_EFER, efer & ~EFER_SVME);
 	return r;
 }
-EXPORT_SYMBOL_FOR_KVM(x86_svm_disable_virtualization_cpu);
 
 static void x86_svm_emergency_disable_virtualization_cpu(void)
 {
@@ -268,6 +264,8 @@ static __init int x86_svm_init(void)
 {
 	const struct x86_virt_ops svm_ops = {
 		.feature = X86_FEATURE_SVM,
+		.enable_virtualization_cpu = x86_svm_enable_virtualization_cpu,
+		.disable_virtualization_cpu = x86_svm_disable_virtualization_cpu,
 		.emergency_disable_virtualization_cpu = x86_svm_emergency_disable_virtualization_cpu,
 	};
 
@@ -281,6 +279,41 @@ static __init int x86_svm_init(void)
 static __init int x86_svm_init(void) { return -EOPNOTSUPP; }
 #endif
 
+int x86_virt_get_ref(int feat)
+{
+	int r;
+
+	/* Ensure the !feature check can't get false positives. */
+	BUILD_BUG_ON(!X86_FEATURE_SVM || !X86_FEATURE_VMX);
+
+	if (!virt_ops.feature || virt_ops.feature != feat)
+		return -EOPNOTSUPP;
+
+	guard(preempt)();
+
+	if (this_cpu_inc_return(virtualization_nr_users) > 1)
+		return 0;
+
+	r = virt_ops.enable_virtualization_cpu();
+	if (r)
+		WARN_ON_ONCE(this_cpu_dec_return(virtualization_nr_users));
+
+	return r;
+}
+EXPORT_SYMBOL_FOR_KVM(x86_virt_get_ref);
+
+void x86_virt_put_ref(int feat)
+{
+	guard(preempt)();
+
+	if (WARN_ON_ONCE(!this_cpu_read(virtualization_nr_users)) ||
+	    this_cpu_dec_return(virtualization_nr_users))
+		return;
+
+	BUG_ON(virt_ops.disable_virtualization_cpu() && !virt_rebooting);
+}
+EXPORT_SYMBOL_FOR_KVM(x86_virt_put_ref);
+
 /*
  * Disable virtualization, i.e. VMX or SVM, to ensure INIT is recognized during
  * reboot.  VMX blocks INIT if the CPU is post-VMXON, and SVM blocks INIT if
@@ -288,9 +321,6 @@ static __init int x86_svm_init(void) { return -EOPNOTSUPP; }
  */
 int x86_virt_emergency_disable_virtualization_cpu(void)
 {
-	/* Ensure the !feature check can't get false positives. */
-	BUILD_BUG_ON(!X86_FEATURE_SVM || !X86_FEATURE_VMX);
-
 	if (!virt_ops.feature)
 		return -EOPNOTSUPP;
 

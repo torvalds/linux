@@ -11,15 +11,8 @@ extern bool virt_rebooting;
 
 void __init x86_virt_init(void);
 
-#if IS_ENABLED(CONFIG_KVM_INTEL)
-int x86_vmx_enable_virtualization_cpu(void);
-int x86_vmx_disable_virtualization_cpu(void);
-#endif
-
-#if IS_ENABLED(CONFIG_KVM_AMD)
-int x86_svm_enable_virtualization_cpu(void);
-int x86_svm_disable_virtualization_cpu(void);
-#endif
+int x86_virt_get_ref(int feat);
+void x86_virt_put_ref(int feat);
 
 int x86_virt_emergency_disable_virtualization_cpu(void);
 

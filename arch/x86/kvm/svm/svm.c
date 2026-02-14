@@ -489,7 +489,7 @@ static void svm_disable_virtualization_cpu(void)
 	if (tsc_scaling)
 		__svm_write_tsc_multiplier(SVM_TSC_RATIO_DEFAULT);
 
-	x86_svm_disable_virtualization_cpu();
+	x86_virt_put_ref(X86_FEATURE_SVM);
 	wrmsrq(MSR_VM_HSAVE_PA, 0);
 
 	amd_pmu_disable_virt();
@@ -502,7 +502,7 @@ static int svm_enable_virtualization_cpu(void)
 	int me = raw_smp_processor_id();
 	int r;
 
-	r = x86_svm_enable_virtualization_cpu();
+	r = x86_virt_get_ref(X86_FEATURE_SVM);
 	if (r)
 		return r;
 

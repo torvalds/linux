@@ -2963,7 +2963,7 @@ int vmx_enable_virtualization_cpu(void)
 	if (kvm_is_using_evmcs() && !hv_get_vp_assist_page(cpu))
 		return -EFAULT;
 
-	return x86_vmx_enable_virtualization_cpu();
+	return x86_virt_get_ref(X86_FEATURE_VMX);
 }
 
 static void vmclear_local_loaded_vmcss(void)
@@ -2980,7 +2980,7 @@ void vmx_disable_virtualization_cpu(void)
 {
 	vmclear_local_loaded_vmcss();
 
-	x86_vmx_disable_virtualization_cpu();
+	x86_virt_put_ref(X86_FEATURE_VMX);
 
 	hv_reset_evmcs();
 }
