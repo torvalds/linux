@@ -791,23 +791,12 @@ void vmx_emergency_disable_virtualization_cpu(void)
 	int cpu = raw_smp_processor_id();
 	struct loaded_vmcs *v;
 
-	/*
-	 * Note, CR4.VMXE can be _cleared_ in NMI context, but it can only be
-	 * set in task context.  If this races with _another_ emergency call
-	 * from NMI context, VMCLEAR may #UD, but KVM will eat those faults due
-	 * to virt_rebooting being set by the interrupting NMI callback.
-	 */
-	if (!(__read_cr4() & X86_CR4_VMXE))
-		return;
-
 	list_for_each_entry(v, &per_cpu(loaded_vmcss_on_cpu, cpu),
 			    loaded_vmcss_on_cpu_link) {
 		vmcs_clear(v->vmcs);
 		if (v->shadow_vmcs)
 			vmcs_clear(v->shadow_vmcs);
 	}
-
-	x86_vmx_emergency_disable_virtualization_cpu();
 }
 
 static void __loaded_vmcs_clear(void *arg)
