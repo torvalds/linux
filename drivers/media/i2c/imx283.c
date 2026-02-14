@@ -129,7 +129,8 @@
 
 /* Master Mode Operation Control */
 #define IMX283_REG_XMSTA		CCI_REG8(0x3105)
-#define   IMX283_XMSTA			BIT(0)
+#define   IMX283_XMSTA_START		0
+#define   IMX283_XMSTA_STOP		BIT(0)
 
 #define IMX283_REG_SYNCDRV		CCI_REG8(0x3107)
 #define   IMX283_SYNCDRV_XHS_XVS	(0xa0 | 0x02)
@@ -1023,8 +1024,6 @@ static int imx283_standby_cancel(struct imx283 *imx283)
 	usleep_range(19000, 20000);
 
 	cci_write(imx283->cci, IMX283_REG_CLAMP, IMX283_CLPSQRST, &ret);
-	cci_write(imx283->cci, IMX283_REG_XMSTA, 0, &ret);
-	cci_write(imx283->cci, IMX283_REG_SYNCDRV, IMX283_SYNCDRV_XHS_XVS, &ret);
 
 	return ret;
 }
@@ -1117,6 +1116,10 @@ static int imx283_start_streaming(struct imx283 *imx283,
 	/* Apply customized values from controls (HMAX/VMAX/SHR) */
 	ret =  __v4l2_ctrl_handler_setup(imx283->sd.ctrl_handler);
 
+	/* Start master mode */
+	cci_write(imx283->cci, IMX283_REG_XMSTA, IMX283_XMSTA_START, &ret);
+	cci_write(imx283->cci, IMX283_REG_SYNCDRV, IMX283_SYNCDRV_XHS_XVS, &ret);
+
 	return ret;
 }
 
@@ -1153,12 +1156,14 @@ static int imx283_disable_streams(struct v4l2_subdev *sd,
 				  u64 streams_mask)
 {
 	struct imx283 *imx283 = to_imx283(sd);
-	int ret;
+	int ret = 0;
 
 	if (pad != IMAGE_PAD)
 		return -EINVAL;
 
-	ret = cci_write(imx283->cci, IMX283_REG_STANDBY, IMX283_STANDBY, NULL);
+	cci_write(imx283->cci, IMX283_REG_XMSTA, IMX283_XMSTA_STOP, &ret);
+	cci_write(imx283->cci, IMX283_REG_STANDBY, IMX283_STANDBY, &ret);
+
 	if (ret)
 		dev_err(imx283->dev, "Failed to stop stream\n");
 
