@@ -273,7 +273,13 @@ struct bio {
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
 	 */
 
-	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
+	/*
+	 * Number of elements in `bi_io_vec` that were allocated for this bio.
+	 * Only used by the bio submitter to make `bio_add_page` fail once full
+	 * and to free the `bi_io_vec` allocation. Must not be used in drivers
+	 * and does not hold a useful value for cloned bios.
+	 */
+	unsigned short		bi_max_vecs;
 
 	atomic_t		__bi_cnt;	/* pin count */
 
