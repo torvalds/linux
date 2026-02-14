@@ -375,6 +375,14 @@ static void pre_bootstrap(int argc, char **argv)
 static void bootstrap(char *comm)
 {
 	exit_req = 0;
+	min_vruntime = 0.0;
+	nr_vruntime_enqueues = 0;
+	nr_vruntime_dispatches = 0;
+	nr_vruntime_failed = 0;
+	nr_curr_enqueued = 0;
+	memset(tasks, 0, pid_max * sizeof(*tasks));
+	LIST_INIT(&vruntime_head);
+
 	skel = SCX_OPS_OPEN(userland_ops, scx_userland);
 
 	skel->rodata->num_possible_cpus = libbpf_num_possible_cpus();
