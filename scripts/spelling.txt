@@ -257,6 +257,7 @@ begining||beginning
 beter||better
 betweeen||between
 bianries||binaries
+binded||bound
 bitmast||bitmask
 bitwiedh||bitwidth
 boardcast||broadcast
