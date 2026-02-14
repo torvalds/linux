@@ -28,7 +28,7 @@ static __init void x86_vmx_exit(void)
 	}
 }
 
-static __init int x86_vmx_init(void)
+static __init int __x86_vmx_init(void)
 {
 	u64 basic_msr;
 	u32 rev_id;
@@ -56,7 +56,7 @@ static __init int x86_vmx_init(void)
 		struct vmcs *vmcs;
 
 		page = __alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
-		if (!page) {
+		if (WARN_ON_ONCE(!page)) {
 			x86_vmx_exit();
 			return -ENOMEM;
 		}
@@ -67,6 +67,16 @@ static __init int x86_vmx_init(void)
 	}
 
 	return 0;
+}
+
+static __init int x86_vmx_init(void)
+{
+	int r;
+
+	r = __x86_vmx_init();
+	if (r)
+		setup_clear_cpu_cap(X86_FEATURE_VMX);
+	return r;
 }
 #else
 static __init int x86_vmx_init(void) { return -EOPNOTSUPP; }
