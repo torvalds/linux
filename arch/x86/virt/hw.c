@@ -163,6 +163,59 @@ static __init int x86_vmx_init(void)
 static __init int x86_vmx_init(void) { return -EOPNOTSUPP; }
 #endif
 
+#if IS_ENABLED(CONFIG_KVM_AMD)
+int x86_svm_enable_virtualization_cpu(void)
+{
+	u64 efer;
+
+	if (!cpu_feature_enabled(X86_FEATURE_SVM))
+		return -EOPNOTSUPP;
+
+	rdmsrq(MSR_EFER, efer);
+	if (efer & EFER_SVME)
+		return -EBUSY;
+
+	wrmsrq(MSR_EFER, efer | EFER_SVME);
+	return 0;
+}
+EXPORT_SYMBOL_FOR_KVM(x86_svm_enable_virtualization_cpu);
+
+int x86_svm_disable_virtualization_cpu(void)
+{
+	int r = -EIO;
+	u64 efer;
+
+	/*
+	 * Force GIF=1 prior to disabling SVM, e.g. to ensure INIT and
+	 * NMI aren't blocked.
+	 */
+	asm goto("1: stgi\n\t"
+		 _ASM_EXTABLE(1b, %l[fault])
+		 ::: "memory" : fault);
+	r = 0;
+
+fault:
+	rdmsrq(MSR_EFER, efer);
+	wrmsrq(MSR_EFER, efer & ~EFER_SVME);
+	return r;
+}
+EXPORT_SYMBOL_FOR_KVM(x86_svm_disable_virtualization_cpu);
+
+void x86_svm_emergency_disable_virtualization_cpu(void)
+{
+	u64 efer;
+
+	virt_rebooting = true;
+
+	rdmsrq(MSR_EFER, efer);
+	if (!(efer & EFER_SVME))
+		return;
+
+	x86_svm_disable_virtualization_cpu();
+}
+EXPORT_SYMBOL_FOR_KVM(x86_svm_emergency_disable_virtualization_cpu);
+#endif
+
 void __init x86_virt_init(void)
 {
 	x86_vmx_init();

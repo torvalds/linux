@@ -15,6 +15,12 @@ int x86_vmx_disable_virtualization_cpu(void);
 void x86_vmx_emergency_disable_virtualization_cpu(void);
 #endif
 
+#if IS_ENABLED(CONFIG_KVM_AMD)
+int x86_svm_enable_virtualization_cpu(void);
+int x86_svm_disable_virtualization_cpu(void);
+void x86_svm_emergency_disable_virtualization_cpu(void);
+#endif
+
 #else
 static __always_inline void x86_virt_init(void) {}
 #endif
