@@ -20,11 +20,13 @@ struct jit_ctx {
 	union loongarch_instruction *image;
 	union loongarch_instruction *ro_image;
 	u32 stack_size;
+	u64 arena_vm_start;
+	u64 user_vm_start;
 };
 
 struct jit_data {
 	struct bpf_binary_header *header;
-	u8 *image;
+	struct bpf_binary_header *ro_header;
 	struct jit_ctx ctx;
 };
 
