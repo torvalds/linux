@@ -48,6 +48,7 @@
 #include <asm/msr.h>
 #include <asm/mwait.h>
 #include <asm/spec-ctrl.h>
+#include <asm/virt.h>
 #include <asm/vmx.h>
 
 #include <trace/events/ipi.h>
@@ -814,13 +815,13 @@ void vmx_emergency_disable_virtualization_cpu(void)
 	int cpu = raw_smp_processor_id();
 	struct loaded_vmcs *v;
 
-	kvm_rebooting = true;
+	virt_rebooting = true;
 
 	/*
 	 * Note, CR4.VMXE can be _cleared_ in NMI context, but it can only be
 	 * set in task context.  If this races with VMX is disabled by an NMI,
 	 * VMCLEAR and VMXOFF may #UD, but KVM will eat those faults due to
-	 * kvm_rebooting set.
+	 * virt_rebooting set.
 	 */
 	if (!(__read_cr4() & X86_CR4_VMXE))
 		return;
