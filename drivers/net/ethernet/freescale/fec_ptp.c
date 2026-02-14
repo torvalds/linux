@@ -128,6 +128,12 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
 
+	if (fep->perout_enable) {
+		spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+		dev_err(&fep->pdev->dev, "PEROUT is running");
+		return -EBUSY;
+	}
+
 	if (fep->pps_enable == enable) {
 		spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 		return 0;
@@ -243,6 +249,7 @@ static int fec_ptp_pps_perout(struct fec_enet_private *fep)
 	 * the FEC_TCCR register in time and missed the start time.
 	 */
 	if (fep->perout_stime < curr_time + 100 * NSEC_PER_MSEC) {
+		fep->perout_enable = false;
 		dev_err(&fep->pdev->dev, "Current time is too close to the start time!\n");
 		spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 		return -1;
@@ -497,7 +504,10 @@ static int fec_ptp_pps_disable(struct fec_enet_private *fep, uint channel)
 {
 	unsigned long flags;
 
+	hrtimer_cancel(&fep->perout_timer);
+
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
+	fep->perout_enable = false;
 	writel(0, fep->hwp + FEC_TCSR(channel));
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 
@@ -529,6 +539,8 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 
 		return ret;
 	} else if (rq->type == PTP_CLK_REQ_PEROUT) {
+		u32 reload_period;
+
 		/* Reject requests with unsupported flags */
 		if (rq->perout.flags)
 			return -EOPNOTSUPP;
@@ -548,12 +560,14 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 			return -EOPNOTSUPP;
 		}
 
-		fep->reload_period = div_u64(period_ns, 2);
-		if (on && fep->reload_period) {
+		reload_period = div_u64(period_ns, 2);
+		if (on && reload_period) {
+			u64 perout_stime;
+
 			/* Convert 1588 timestamp to ns*/
 			start_time.tv_sec = rq->perout.start.sec;
 			start_time.tv_nsec = rq->perout.start.nsec;
-			fep->perout_stime = timespec64_to_ns(&start_time);
+			perout_stime = timespec64_to_ns(&start_time);
 
 			mutex_lock(&fep->ptp_clk_mutex);
 			if (!fep->ptp_clk_on) {
@@ -562,18 +576,41 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 				return -EOPNOTSUPP;
 			}
 			spin_lock_irqsave(&fep->tmreg_lock, flags);
+
+			if (fep->pps_enable) {
+				dev_err(&fep->pdev->dev, "PPS is running");
+				ret = -EBUSY;
+				goto unlock;
+			}
+
+			if (fep->perout_enable) {
+				dev_err(&fep->pdev->dev,
+					"PEROUT has been enabled\n");
+				ret = -EBUSY;
+				goto unlock;
+			}
+
 			/* Read current timestamp */
 			curr_time = timecounter_read(&fep->tc);
+			if (perout_stime <= curr_time) {
+				dev_err(&fep->pdev->dev,
+					"Start time must be greater than current time\n");
+				ret = -EINVAL;
+				goto unlock;
+			}
+
+			/* Calculate time difference */
+			delta = perout_stime - curr_time;
+			fep->reload_period = reload_period;
+			fep->perout_stime = perout_stime;
+			fep->perout_enable = true;
+
+unlock:
 			spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 			mutex_unlock(&fep->ptp_clk_mutex);
 
-			/* Calculate time difference */
-			delta = fep->perout_stime - curr_time;
-
-			if (fep->perout_stime <= curr_time) {
-				dev_err(&fep->pdev->dev, "Start time must larger than current time!\n");
-				return -EINVAL;
-			}
+			if (ret)
+				return ret;
 
 			/* Because the timer counter of FEC only has 31-bits, correspondingly,
 			 * the time comparison register FEC_TCCR also only low 31 bits can be
@@ -681,8 +718,11 @@ static irqreturn_t fec_pps_interrupt(int irq, void *dev_id)
 		fep->next_counter = (fep->next_counter + fep->reload_period) &
 				fep->cc.mask;
 
-		event.type = PTP_CLOCK_PPS;
-		ptp_clock_event(fep->ptp_clock, &event);
+		if (fep->pps_enable) {
+			event.type = PTP_CLOCK_PPS;
+			ptp_clock_event(fep->ptp_clock, &event);
+		}
+
 		return IRQ_HANDLED;
 	}
 

@@ -1254,3 +1254,17 @@
 	max-frequency = <25000000>;
 	bus-width = <4>;
 };
+
+/*
+ * FIXME: rgmii delay is introduced by MAC (configured in u-boot now)
+ * instead of PCB on fuji board, so the "phy-mode" should be updated to
+ * "rgmii-[tx|rx]id" when the aspeed-mac driver can handle the delay
+ * properly.
+ */
+&mac3 {
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
+};

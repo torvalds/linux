@@ -159,6 +159,8 @@ nvkm_falcon_fw_dtor(struct nvkm_falcon_fw *fw)
 	nvkm_memory_unref(&fw->inst);
 	nvkm_falcon_fw_dtor_sigs(fw);
 	nvkm_firmware_dtor(&fw->fw);
+	kfree(fw->boot);
+	fw->boot = NULL;
 }
 
 static const struct nvkm_firmware_func

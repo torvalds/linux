@@ -40,7 +40,7 @@
  * @agent_type_mask:	Bit mask of all hardware agents for this domain
  * @uncore_attr_group:	Attribute group storage
  * @max_freq_khz_kobj_attr: Storage for kobject attribute max_freq_khz
- * @mix_freq_khz_kobj_attr: Storage for kobject attribute min_freq_khz
+ * @min_freq_khz_kobj_attr: Storage for kobject attribute min_freq_khz
  * @initial_max_freq_khz_kobj_attr: Storage for kobject attribute initial_max_freq_khz
  * @initial_min_freq_khz_kobj_attr: Storage for kobject attribute initial_min_freq_khz
  * @current_freq_khz_kobj_attr: Storage for kobject attribute current_freq_khz
@@ -48,13 +48,14 @@
  * @fabric_cluster_id_kobj_attr: Storage for kobject attribute fabric_cluster_id
  * @package_id_kobj_attr: Storage for kobject attribute package_id
  * @elc_low_threshold_percent_kobj_attr:
-		Storage for kobject attribute elc_low_threshold_percent
+ *		Storage for kobject attribute elc_low_threshold_percent
  * @elc_high_threshold_percent_kobj_attr:
-		Storage for kobject attribute elc_high_threshold_percent
+ *		Storage for kobject attribute elc_high_threshold_percent
  * @elc_high_threshold_enable_kobj_attr:
-		Storage for kobject attribute elc_high_threshold_enable
+ *		Storage for kobject attribute elc_high_threshold_enable
  * @elc_floor_freq_khz_kobj_attr: Storage for kobject attribute elc_floor_freq_khz
  * @agent_types_kobj_attr: Storage for kobject attribute agent_type
+ * @die_id_kobj_attr:	Attribute storage for die_id information
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs

@@ -55,6 +55,27 @@ enum cpu_type_enum {
 	CPU_LAST
 };
 
+static inline char *id_to_core_name(unsigned int id)
+{
+	if ((id & PRID_COMP_MASK) != PRID_COMP_LOONGSON)
+		return "Unknown";
+
+	switch (id & PRID_SERIES_MASK) {
+	case PRID_SERIES_LA132:
+		return "LA132";
+	case PRID_SERIES_LA264:
+		return "LA264";
+	case PRID_SERIES_LA364:
+		return "LA364";
+	case PRID_SERIES_LA464:
+		return "LA464";
+	case PRID_SERIES_LA664:
+		return "LA664";
+	default:
+		return "Unknown";
+	}
+}
+
 #endif /* !__ASSEMBLER__ */
 
 /*

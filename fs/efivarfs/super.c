@@ -533,6 +533,7 @@ static struct file_system_type efivarfs_type = {
 	.init_fs_context = efivarfs_init_fs_context,
 	.kill_sb = efivarfs_kill_sb,
 	.parameters = efivarfs_parameters,
+	.fs_flags = FS_POWER_FREEZE,
 };
 
 static __init int efivarfs_init(void)

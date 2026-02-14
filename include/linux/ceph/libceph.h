@@ -306,8 +306,7 @@ struct ceph_entity_addr *ceph_client_addr(struct ceph_client *client);
 u64 ceph_client_gid(struct ceph_client *client);
 extern void ceph_destroy_client(struct ceph_client *client);
 extern void ceph_reset_client_addr(struct ceph_client *client);
-extern int __ceph_open_session(struct ceph_client *client,
-			       unsigned long started);
+extern int __ceph_open_session(struct ceph_client *client);
 extern int ceph_open_session(struct ceph_client *client);
 int ceph_wait_for_latest_osdmap(struct ceph_client *client,
 				unsigned long timeout);

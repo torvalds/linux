@@ -15,6 +15,7 @@
 
 #include "aq_hw.h"
 #include "aq_nic.h"
+#include "hw_atl/hw_atl_llh.h"
 
 void aq_hw_write_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk,
 			 u32 shift, u32 val)
@@ -79,6 +80,27 @@ void aq_hw_write_reg64(struct aq_hw_s *hw, u32 reg, u64 value)
 		writeq(value, hw->mmio + reg);
 	else
 		lo_hi_writeq(value, hw->mmio + reg);
+}
+
+int aq_hw_invalidate_descriptor_cache(struct aq_hw_s *hw)
+{
+	int err;
+	u32 val;
+
+	/* Invalidate Descriptor Cache to prevent writing to the cached
+	 * descriptors and to the data pointer of those descriptors
+	 */
+	hw_atl_rdm_rx_dma_desc_cache_init_tgl(hw);
+
+	err = aq_hw_err_from_flags(hw);
+	if (err)
+		goto err_exit;
+
+	readx_poll_timeout_atomic(hw_atl_rdm_rx_dma_desc_cache_init_done_get,
+				  hw, val, val == 1, 1000U, 10000U);
+
+err_exit:
+	return err;
 }
 
 int aq_hw_err_from_flags(struct aq_hw_s *hw)

@@ -122,7 +122,7 @@ static int ilitek_i2c_write_and_read(struct ilitek_ts_data *ts,
 				return error;
 		}
 		if (delay > 0)
-			mdelay(delay);
+			fsleep(delay * 1000);
 
 		if (read_len > 0) {
 			error = i2c_transfer(client->adapter, msgs + 1, 1);
@@ -396,10 +396,10 @@ static const struct ilitek_protocol_map ptl_func_map[] = {
 static void ilitek_reset(struct ilitek_ts_data *ts, int delay)
 {
 	if (ts->reset_gpio) {
-		gpiod_set_value(ts->reset_gpio, 1);
-		mdelay(10);
-		gpiod_set_value(ts->reset_gpio, 0);
-		mdelay(delay);
+		gpiod_set_value_cansleep(ts->reset_gpio, 1);
+		fsleep(10000);
+		gpiod_set_value_cansleep(ts->reset_gpio, 0);
+		fsleep(delay * 1000);
 	}
 }
 

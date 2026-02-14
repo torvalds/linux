@@ -14,6 +14,8 @@
 static unsigned long probe_rsa[PORT_RSA_MAX];
 static unsigned int probe_rsa_count;
 
+static const struct uart_ops *core_port_base_ops;
+
 static int rsa8250_request_resource(struct uart_8250_port *up)
 {
 	struct uart_port *port = &up->port;
@@ -67,7 +69,7 @@ static void univ8250_config_port(struct uart_port *port, int flags)
 		}
 	}
 
-	univ8250_port_base_ops->config_port(port, flags);
+	core_port_base_ops->config_port(port, flags);
 
 	if (port->type != PORT_RSA && up->probe & UART_PROBE_RSA)
 		rsa8250_release_resource(up);
@@ -78,11 +80,11 @@ static int univ8250_request_port(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	int ret;
 
-	ret = univ8250_port_base_ops->request_port(port);
+	ret = core_port_base_ops->request_port(port);
 	if (ret == 0 && port->type == PORT_RSA) {
 		ret = rsa8250_request_resource(up);
 		if (ret < 0)
-			univ8250_port_base_ops->release_port(port);
+			core_port_base_ops->release_port(port);
 	}
 
 	return ret;
@@ -94,15 +96,25 @@ static void univ8250_release_port(struct uart_port *port)
 
 	if (port->type == PORT_RSA)
 		rsa8250_release_resource(up);
-	univ8250_port_base_ops->release_port(port);
+	core_port_base_ops->release_port(port);
 }
 
-void univ8250_rsa_support(struct uart_ops *ops)
+/*
+ * It is not allowed to directly reference any symbols from 8250.ko here as
+ * that would result in a dependency loop between the 8250.ko and
+ * 8250_base.ko modules. This function is called from 8250.ko and is used to
+ * break the symbolic dependency cycle. Anything that is needed from 8250.ko
+ * has to be passed as pointers to this function which then can adjust those
+ * variables on 8250.ko side or store them locally as needed.
+ */
+void univ8250_rsa_support(struct uart_ops *ops, const struct uart_ops *core_ops)
 {
+	core_port_base_ops = core_ops;
 	ops->config_port  = univ8250_config_port;
 	ops->request_port = univ8250_request_port;
 	ops->release_port = univ8250_release_port;
 }
+EXPORT_SYMBOL_FOR_MODULES(univ8250_rsa_support, "8250");
 
 module_param_hw_array(probe_rsa, ulong, ioport, &probe_rsa_count, 0444);
 MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
@@ -146,7 +158,6 @@ void rsa_enable(struct uart_8250_port *up)
 	if (up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16)
 		serial_out(up, UART_RSA_FRR, 0);
 }
-EXPORT_SYMBOL_FOR_MODULES(rsa_enable, "8250_base");
 
 /*
  * Attempts to turn off the RSA FIFO and resets the RSA board back to 115kbps compat mode. It is
@@ -178,7 +189,6 @@ void rsa_disable(struct uart_8250_port *up)
 	if (result)
 		up->port.uartclk = SERIAL_RSA_BAUD_BASE_LO * 16;
 }
-EXPORT_SYMBOL_FOR_MODULES(rsa_disable, "8250_base");
 
 void rsa_autoconfig(struct uart_8250_port *up)
 {
@@ -191,7 +201,6 @@ void rsa_autoconfig(struct uart_8250_port *up)
 	if (__rsa_enable(up))
 		up->port.type = PORT_RSA;
 }
-EXPORT_SYMBOL_FOR_MODULES(rsa_autoconfig, "8250_base");
 
 void rsa_reset(struct uart_8250_port *up)
 {
@@ -200,7 +209,6 @@ void rsa_reset(struct uart_8250_port *up)
 
 	serial_out(up, UART_RSA_FRR, 0);
 }
-EXPORT_SYMBOL_FOR_MODULES(rsa_reset, "8250_base");
 
 #ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
 #ifndef MODULE

@@ -208,7 +208,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 
 	pm->serio = serio;
 	pm->dev = input_dev;
-	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
+	scnprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
 	pm->maxcontacts = 1;
 
 	input_dev->name = "PenMount Serial TouchScreen";

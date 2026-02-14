@@ -806,8 +806,8 @@ static int pidff_request_effect_upload(struct pidff_device *pidff, int efnum)
 
 static int pidff_needs_playback(struct pidff_device *pidff, int effect_id, int n)
 {
-	return pidff->effect[effect_id].is_infinite ||
-	       pidff->effect[effect_id].loop_count != n;
+	return !pidff->effect[effect_id].is_infinite ||
+		pidff->effect[effect_id].loop_count != n;
 }
 
 /*

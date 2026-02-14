@@ -2005,7 +2005,7 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 		 * linear target or multiple linear targets pointing to the same
 		 * device), we can send the flush with data directly to it.
 		 */
-		if (map->flush_bypasses_map) {
+		if (bio->bi_iter.bi_size && map->flush_bypasses_map) {
 			struct list_head *devices = dm_table_get_devices(map);
 			if (devices->next == devices->prev)
 				goto send_preflush_with_data;

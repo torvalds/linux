@@ -184,6 +184,7 @@ tegra_powergate_add(struct tegra_bpmp *bpmp,
 	powergate->genpd.name = kstrdup(info->name, GFP_KERNEL);
 	powergate->genpd.power_on = tegra_powergate_power_on;
 	powergate->genpd.power_off = tegra_powergate_power_off;
+	powergate->genpd.flags = GENPD_FLAG_NO_STAY_ON;
 
 	err = pm_genpd_init(&powergate->genpd, NULL, off);
 	if (err < 0) {

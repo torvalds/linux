@@ -240,52 +240,57 @@ static inline void set_scan_rate(struct synaptics_i2c *touch, int scan_rate)
  */
 static s32 synaptics_i2c_reg_get(struct i2c_client *client, u16 reg)
 {
-	int ret;
+	int error;
 
-	ret = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
-	if (ret == 0)
-		ret = i2c_smbus_read_byte_data(client, reg & 0xff);
+	error = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
+	if (error)
+		return error;
 
-	return ret;
+	return i2c_smbus_read_byte_data(client, reg & 0xff);
 }
 
 static s32 synaptics_i2c_reg_set(struct i2c_client *client, u16 reg, u8 val)
 {
-	int ret;
+	int error;
 
-	ret = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
-	if (ret == 0)
-		ret = i2c_smbus_write_byte_data(client, reg & 0xff, val);
+	error = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
+	if (error)
+		return error;
 
-	return ret;
+	error = i2c_smbus_write_byte_data(client, reg & 0xff, val);
+	if (error)
+		return error;
+
+	return error;
 }
 
 static s32 synaptics_i2c_word_get(struct i2c_client *client, u16 reg)
 {
-	int ret;
+	int error;
 
-	ret = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
-	if (ret == 0)
-		ret = i2c_smbus_read_word_data(client, reg & 0xff);
+	error = i2c_smbus_write_byte_data(client, PAGE_SEL_REG, reg >> 8);
+	if (error)
+		return error;
 
-	return ret;
+	return i2c_smbus_read_word_data(client, reg & 0xff);
 }
 
 static int synaptics_i2c_config(struct i2c_client *client)
 {
-	int ret, control;
+	int control;
+	int error;
 	u8 int_en;
 
 	/* set Report Rate to Device Highest (>=80) and Sleep to normal */
-	ret = synaptics_i2c_reg_set(client, DEV_CONTROL_REG, 0xc1);
-	if (ret)
-		return ret;
+	error = synaptics_i2c_reg_set(client, DEV_CONTROL_REG, 0xc1);
+	if (error)
+		return error;
 
 	/* set Interrupt Disable to Func20 / Enable to Func10) */
 	int_en = (polling_req) ? 0 : INT_ENA_ABS_MSK | INT_ENA_REL_MSK;
-	ret = synaptics_i2c_reg_set(client, INTERRUPT_EN_REG, int_en);
-	if (ret)
-		return ret;
+	error = synaptics_i2c_reg_set(client, INTERRUPT_EN_REG, int_en);
+	if (error)
+		return error;
 
 	control = synaptics_i2c_reg_get(client, GENERAL_2D_CONTROL_REG);
 	/* No Deceleration */
@@ -294,42 +299,49 @@ static int synaptics_i2c_config(struct i2c_client *client)
 	control |= reduce_report ? 1 << REDUCE_REPORTING : 0;
 	/* No Filter */
 	control |= no_filter ? 1 << NO_FILTER : 0;
-	ret = synaptics_i2c_reg_set(client, GENERAL_2D_CONTROL_REG, control);
-	if (ret)
-		return ret;
+	error = synaptics_i2c_reg_set(client, GENERAL_2D_CONTROL_REG, control);
+	if (error)
+		return error;
 
 	return 0;
 }
 
 static int synaptics_i2c_reset_config(struct i2c_client *client)
 {
-	int ret;
+	int error;
 
 	/* Reset the Touchpad */
-	ret = synaptics_i2c_reg_set(client, DEV_COMMAND_REG, RESET_COMMAND);
-	if (ret) {
+	error = synaptics_i2c_reg_set(client, DEV_COMMAND_REG, RESET_COMMAND);
+	if (error) {
 		dev_err(&client->dev, "Unable to reset device\n");
-	} else {
-		usleep_range(SOFT_RESET_DELAY_US, SOFT_RESET_DELAY_US + 100);
-		ret = synaptics_i2c_config(client);
-		if (ret)
-			dev_err(&client->dev, "Unable to config device\n");
+		return error;
 	}
 
-	return ret;
+	usleep_range(SOFT_RESET_DELAY_US, SOFT_RESET_DELAY_US + 100);
+	error = synaptics_i2c_config(client);
+	if (error) {
+		dev_err(&client->dev, "Unable to config device\n");
+		return error;
+	}
+
+	return 0;
 }
 
 static int synaptics_i2c_check_error(struct i2c_client *client)
 {
-	int status, ret = 0;
+	int status;
+	int error;
 
 	status = i2c_smbus_read_byte_data(client, DEVICE_STATUS_REG) &
 		(CONFIGURED_MSK | ERROR_MSK);
 
-	if (status != CONFIGURED_MSK)
-		ret = synaptics_i2c_reset_config(client);
+	if (status != CONFIGURED_MSK) {
+		error = synaptics_i2c_reset_config(client);
+		if (error)
+			return error;
+	}
 
-	return ret;
+	return 0;
 }
 
 static bool synaptics_i2c_get_input(struct synaptics_i2c *touch)
@@ -372,7 +384,7 @@ static irqreturn_t synaptics_i2c_irq(int irq, void *dev_id)
 {
 	struct synaptics_i2c *touch = dev_id;
 
-	mod_delayed_work(system_wq, &touch->dwork, 0);
+	mod_delayed_work(system_dfl_wq, &touch->dwork, 0);
 
 	return IRQ_HANDLED;
 }
@@ -421,10 +433,10 @@ static unsigned long synaptics_i2c_adjust_delay(struct synaptics_i2c *touch,
 				delay = NO_DATA_SLEEP_MSECS;
 		}
 		return msecs_to_jiffies(delay);
-	} else {
-		delay = msecs_to_jiffies(THREAD_IRQ_SLEEP_MSECS);
-		return round_jiffies_relative(delay);
 	}
+
+	delay = msecs_to_jiffies(THREAD_IRQ_SLEEP_MSECS);
+	return round_jiffies_relative(delay);
 }
 
 /* Work Handler */
@@ -448,21 +460,21 @@ static void synaptics_i2c_work_handler(struct work_struct *work)
 	 * We poll the device once in THREAD_IRQ_SLEEP_SECS and
 	 * if error is detected, we try to reset and reconfigure the touchpad.
 	 */
-	mod_delayed_work(system_wq, &touch->dwork, delay);
+	mod_delayed_work(system_dfl_wq, &touch->dwork, delay);
 }
 
 static int synaptics_i2c_open(struct input_dev *input)
 {
 	struct synaptics_i2c *touch = input_get_drvdata(input);
-	int ret;
+	int error;
 
-	ret = synaptics_i2c_reset_config(touch->client);
-	if (ret)
-		return ret;
+	error = synaptics_i2c_reset_config(touch->client);
+	if (error)
+		return error;
 
 	if (polling_req)
-		mod_delayed_work(system_wq, &touch->dwork,
-				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
+		mod_delayed_work(system_dfl_wq, &touch->dwork,
+				 msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
 
 	return 0;
 }
@@ -489,28 +501,27 @@ static void synaptics_i2c_set_input_params(struct synaptics_i2c *touch)
 	input->id.bustype = BUS_I2C;
 	input->id.version = synaptics_i2c_word_get(touch->client,
 						   INFO_QUERY_REG0);
-	input->dev.parent = &touch->client->dev;
 	input->open = synaptics_i2c_open;
 	input->close = synaptics_i2c_close;
 	input_set_drvdata(input, touch);
 
 	/* Register the device as mouse */
-	__set_bit(EV_REL, input->evbit);
-	__set_bit(REL_X, input->relbit);
-	__set_bit(REL_Y, input->relbit);
+	input_set_capability(input, EV_REL, REL_X);
+	input_set_capability(input, EV_REL, REL_Y);
 
 	/* Register device's buttons and keys */
-	__set_bit(EV_KEY, input->evbit);
-	__set_bit(BTN_LEFT, input->keybit);
+	input_set_capability(input, EV_KEY, BTN_LEFT);
 }
 
-static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *client)
+static int synaptics_i2c_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct synaptics_i2c *touch;
+	int error;
 
-	touch = kzalloc(sizeof(*touch), GFP_KERNEL);
+	touch = devm_kzalloc(dev, sizeof(*touch), GFP_KERNEL);
 	if (!touch)
-		return NULL;
+		return -ENOMEM;
 
 	touch->client = client;
 	touch->no_decel_param = no_decel;
@@ -518,83 +529,46 @@ static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *clien
 	set_scan_rate(touch, scan_rate);
 	INIT_DELAYED_WORK(&touch->dwork, synaptics_i2c_work_handler);
 
-	return touch;
-}
+	error = synaptics_i2c_reset_config(client);
+	if (error)
+		return error;
 
-static int synaptics_i2c_probe(struct i2c_client *client)
-{
-	int ret;
-	struct synaptics_i2c *touch;
-
-	touch = synaptics_i2c_touch_create(client);
-	if (!touch)
-		return -ENOMEM;
-
-	ret = synaptics_i2c_reset_config(client);
-	if (ret)
-		goto err_mem_free;
-
-	if (client->irq < 1)
+	if (client->irq <= 0)
 		polling_req = true;
 
-	touch->input = input_allocate_device();
-	if (!touch->input) {
-		ret = -ENOMEM;
-		goto err_mem_free;
-	}
+	touch->input = devm_input_allocate_device(dev);
+	if (!touch->input)
+		return -ENOMEM;
 
 	synaptics_i2c_set_input_params(touch);
 
 	if (!polling_req) {
-		dev_dbg(&touch->client->dev,
-			 "Requesting IRQ: %d\n", touch->client->irq);
+		dev_dbg(dev, "Requesting IRQ: %d\n", client->irq);
 
-		ret = request_irq(touch->client->irq, synaptics_i2c_irq,
-				  IRQ_TYPE_EDGE_FALLING,
-				  DRIVER_NAME, touch);
-		if (ret) {
-			dev_warn(&touch->client->dev,
-				  "IRQ request failed: %d, "
-				  "falling back to polling\n", ret);
+		error = devm_request_irq(dev, client->irq, synaptics_i2c_irq,
+					 IRQ_TYPE_EDGE_FALLING,
+					 DRIVER_NAME, touch);
+		if (error) {
+			dev_warn(dev, "IRQ request failed: %d, falling back to polling\n",
+				 error);
 			polling_req = true;
-			synaptics_i2c_reg_set(touch->client,
-					      INTERRUPT_EN_REG, 0);
+			synaptics_i2c_reg_set(client, INTERRUPT_EN_REG, 0);
 		}
 	}
 
 	if (polling_req)
-		dev_dbg(&touch->client->dev,
-			 "Using polling at rate: %d times/sec\n", scan_rate);
+		dev_dbg(dev, "Using polling at rate: %d times/sec\n", scan_rate);
 
 	/* Register the device in input subsystem */
-	ret = input_register_device(touch->input);
-	if (ret) {
-		dev_err(&client->dev,
-			 "Input device register failed: %d\n", ret);
-		goto err_input_free;
+	error = input_register_device(touch->input);
+	if (error) {
+		dev_err(dev, "Input device register failed: %d\n", error);
+		return error;
 	}
 
 	i2c_set_clientdata(client, touch);
 
 	return 0;
-
-err_input_free:
-	input_free_device(touch->input);
-err_mem_free:
-	kfree(touch);
-
-	return ret;
-}
-
-static void synaptics_i2c_remove(struct i2c_client *client)
-{
-	struct synaptics_i2c *touch = i2c_get_clientdata(client);
-
-	if (!polling_req)
-		free_irq(client->irq, touch);
-
-	input_unregister_device(touch->input);
-	kfree(touch);
 }
 
 static int synaptics_i2c_suspend(struct device *dev)
@@ -612,16 +586,19 @@ static int synaptics_i2c_suspend(struct device *dev)
 
 static int synaptics_i2c_resume(struct device *dev)
 {
-	int ret;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct synaptics_i2c *touch = i2c_get_clientdata(client);
+	struct input_dev *input = touch->input;
+	int error;
 
-	ret = synaptics_i2c_reset_config(client);
-	if (ret)
-		return ret;
+	error = synaptics_i2c_reset_config(client);
+	if (error)
+		return error;
 
-	mod_delayed_work(system_wq, &touch->dwork,
-				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
+	guard(mutex)(&input->mutex);
+	if (input_device_enabled(input))
+		mod_delayed_work(system_dfl_wq, &touch->dwork,
+				 msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
 
 	return 0;
 }
@@ -651,8 +628,6 @@ static struct i2c_driver synaptics_i2c_driver = {
 	},
 
 	.probe		= synaptics_i2c_probe,
-	.remove		= synaptics_i2c_remove,
-
 	.id_table	= synaptics_i2c_id_table,
 };
 
