@@ -534,13 +534,16 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 
 		mtype_local = is_aid_a1 ? MTYPE_RW : MTYPE_NC;
 		mtype_remote = is_aid_a1 ? MTYPE_NC : MTYPE_UC;
-		if (amdgpu_mtype_local == 1) {
+		if (amdgpu_mtype_local == 0) {
+			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			mtype_local = MTYPE_RW;
+		} else if (amdgpu_mtype_local == 1) {
 			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
 			mtype_local = MTYPE_NC;
 		} else if (amdgpu_mtype_local == 2) {
-			DRM_INFO_ONCE("MTYPE_CC not supported, using MTYPE_RW instead for local memory\n");
+			DRM_INFO_ONCE("MTYPE_CC not supported, using %s for local memory\n", is_aid_a1 ? "MTYPE_RW" : "MTYPE_NC");
 		} else {
-			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			DRM_INFO_ONCE("Using %s for local memory\n", is_aid_a1 ? "MTYPE_RW" : "MTYPE_NC");
 		}
 
 		is_local = (is_vram && adev == bo_adev);

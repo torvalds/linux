@@ -839,8 +839,8 @@ module_param_named_unsafe(no_queue_eviction_on_vm_fault, amdgpu_no_queue_evictio
 /**
  * DOC: mtype_local (int)
  */
-int amdgpu_mtype_local;
-MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_RW (default), 1 = MTYPE_NC, 2 = MTYPE_CC)");
+int amdgpu_mtype_local = -1;
+MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (default: ASIC dependent, 0 = MTYPE_RW, 1 = MTYPE_NC, 2 = MTYPE_CC)");
 module_param_named_unsafe(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**

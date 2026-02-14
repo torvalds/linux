@@ -1311,9 +1311,9 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 		bool is_local = (domain == SVM_RANGE_VRAM_DOMAIN) &&
 				(bo_node->adev == node->adev);
 
-		mtype_local = amdgpu_mtype_local == 1 ? AMDGPU_VM_MTYPE_NC :
-							is_aid_a1 ?
-							AMDGPU_VM_MTYPE_RW : AMDGPU_VM_MTYPE_NC;
+		mtype_local = amdgpu_mtype_local == 0 ? AMDGPU_VM_MTYPE_RW :
+				amdgpu_mtype_local == 1 ? AMDGPU_VM_MTYPE_NC :
+				is_aid_a1 ? AMDGPU_VM_MTYPE_RW : AMDGPU_VM_MTYPE_NC;
 		mtype_remote = is_aid_a1 ? AMDGPU_VM_MTYPE_NC : AMDGPU_VM_MTYPE_UC;
 		snoop = true;
 
