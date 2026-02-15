@@ -388,7 +388,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	fd_publish(fdf);
 
 	dev_dbg(&gdev->dev, "registered chardev handle for %d lines\n",
-		lh->num_descs);
+		handlereq.lines);
 
 	return 0;
 }
