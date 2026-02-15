@@ -259,7 +259,7 @@ static int renesas_r61307_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(dev, PTR_ERR(priv->reset_gpio),
 				     "Failed to get reset gpios\n");
 
-	if (device_property_read_bool(dev, "renesas,inversion"))
+	if (device_property_read_bool(dev, "renesas,column-inversion"))
 		priv->inversion = true;
 
 	if (device_property_read_bool(dev, "renesas,contrast"))
