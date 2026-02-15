@@ -1566,6 +1566,9 @@ static void anx7625_typec_set_status(struct anx7625_data *ctx,
 				     unsigned int intr_status,
 				     unsigned int intr_vector)
 {
+	if (!ctx->typec_port)
+		return;
+
 	if (intr_vector & CC_STATUS)
 		anx7625_typec_set_orientation(ctx);
 	if (intr_vector & DATA_ROLE_STATUS) {
