@@ -261,7 +261,7 @@ static int renesas_r61307_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_add(&priv->panel);
 
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret) {
 		drm_panel_remove(&priv->panel);
 		return dev_err_probe(dev, ret, "Failed to attach to DSI host\n");
@@ -273,11 +273,6 @@ static int renesas_r61307_probe(struct mipi_dsi_device *dsi)
 static void renesas_r61307_remove(struct mipi_dsi_device *dsi)
 {
 	struct renesas_r61307 *priv = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = mipi_dsi_detach(dsi);
-	if (ret)
-		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&priv->panel);
 }
