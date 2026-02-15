@@ -84,6 +84,7 @@
 #define CAP_MSIX				BIT(2)
 #define CAP_INTX				BIT(3)
 #define CAP_SUBRANGE_MAPPING			BIT(4)
+#define CAP_DYNAMIC_INBOUND_MAPPING		BIT(5)
 
 #define PCI_ENDPOINT_TEST_DB_BAR		0x34
 #define PCI_ENDPOINT_TEST_DB_OFFSET		0x38
@@ -1059,6 +1060,9 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 	u32 data, status;
 	u32 addr;
 	int left;
+
+	if (!(test->ep_caps & CAP_DYNAMIC_INBOUND_MAPPING))
+		return -EOPNOTSUPP;
 
 	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
 	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
