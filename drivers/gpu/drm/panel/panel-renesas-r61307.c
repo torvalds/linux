@@ -14,6 +14,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #define R61307_MACP		0xb0 /* Manufacturer CMD Protect */
 #define   R61307_MACP_ON	0x03
@@ -202,25 +203,13 @@ static const struct drm_display_mode renesas_r61307_mode = {
 	.vtotal = 1024 + 24 + 8 + 2,
 	.width_mm = 76,
 	.height_mm = 101,
+	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
 
 static int renesas_r61307_get_modes(struct drm_panel *panel,
 				    struct drm_connector *connector)
 {
-	struct drm_display_mode *mode;
-
-	mode = drm_mode_duplicate(connector->dev, &renesas_r61307_mode);
-	if (!mode)
-		return -ENOMEM;
-
-	drm_mode_set_name(mode);
-
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	connector->display_info.width_mm = mode->width_mm;
-	connector->display_info.height_mm = mode->height_mm;
-	drm_mode_probed_add(connector, mode);
-
-	return 1;
+	return drm_connector_helper_get_modes_fixed(connector, &renesas_r61307_mode);
 }
 
 static const struct drm_panel_funcs renesas_r61307_panel_funcs = {

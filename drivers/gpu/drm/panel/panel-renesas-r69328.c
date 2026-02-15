@@ -14,6 +14,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #define R69328_MACP		0xb0 /* Manufacturer Access CMD Protect */
 #define   R69328_MACP_ON	0x03
@@ -167,25 +168,13 @@ static const struct drm_display_mode renesas_r69328_mode = {
 	.vtotal = 1280 + 6 + 3 + 1,
 	.width_mm = 59,
 	.height_mm = 105,
+	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
 
 static int renesas_r69328_get_modes(struct drm_panel *panel,
 				    struct drm_connector *connector)
 {
-	struct drm_display_mode *mode;
-
-	mode = drm_mode_duplicate(connector->dev, &renesas_r69328_mode);
-	if (!mode)
-		return -ENOMEM;
-
-	drm_mode_set_name(mode);
-
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	connector->display_info.width_mm = mode->width_mm;
-	connector->display_info.height_mm = mode->height_mm;
-	drm_mode_probed_add(connector, mode);
-
-	return 1;
+	return drm_connector_helper_get_modes_fixed(connector, &renesas_r69328_mode);
 }
 
 static const struct drm_panel_funcs renesas_r69328_panel_funcs = {

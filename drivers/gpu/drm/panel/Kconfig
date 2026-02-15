@@ -689,6 +689,7 @@ config DRM_PANEL_RENESAS_R61307
 	depends on OF
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
 	help
 	  Say Y here if you want to enable support for KOE tx13d100vm0eaa
 	  IPS-LCD module with Renesas R69328 IC. The panel has a 1024x768
@@ -702,6 +703,7 @@ config DRM_PANEL_RENESAS_R69328
 	depends on OF
 	depends on DRM_MIPI_DSI
 	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
 	help
 	  Say Y here if you want to enable support for JDI dx12d100vm0eaa
 	  IPS-LCD module with Renesas R69328 IC. The panel has a 720x1280
