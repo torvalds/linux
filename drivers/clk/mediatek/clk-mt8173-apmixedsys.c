@@ -140,13 +140,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_apmixed);
 static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 {
 	const u8 *fhctl_node = "mediatek,mt8173-fhctl";
-	struct device_node *node = pdev->dev.of_node;
 	struct clk_hw_onecell_data *clk_data;
+	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct clk_hw *hw;
 	int r;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(dev->of_node, 0);
 	if (!base)
 		return -ENOMEM;
 
@@ -157,25 +157,25 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 	}
 
 	fhctl_parse_dt(fhctl_node, pllfhs, ARRAY_SIZE(pllfhs));
-	r = mtk_clk_register_pllfhs(node, plls, ARRAY_SIZE(plls),
-				    pllfhs, ARRAY_SIZE(pllfhs), clk_data);
+	r = mtk_clk_register_pllfhs(dev, plls, ARRAY_SIZE(plls), pllfhs,
+				    ARRAY_SIZE(pllfhs), clk_data);
 	if (r)
 		goto free_clk_data;
 
 	hw = mtk_clk_register_ref2usb_tx("ref2usb_tx", "clk26m", base + REGOFF_REF2USB);
 	if (IS_ERR(hw)) {
 		r = PTR_ERR(hw);
-		dev_err(&pdev->dev, "Failed to register ref2usb_tx: %d\n", r);
+		dev_err(dev, "Failed to register ref2usb_tx: %d\n", r);
 		goto unregister_plls;
 	}
 	clk_data->hws[CLK_APMIXED_REF2USB_TX] = hw;
 
-	hw = devm_clk_hw_register_divider(&pdev->dev, "hdmi_ref", "tvdpll_594m", 0,
+	hw = devm_clk_hw_register_divider(dev, "hdmi_ref", "tvdpll_594m", 0,
 					  base + REGOFF_HDMI_REF, 16, 3,
 					  CLK_DIVIDER_POWER_OF_TWO, NULL);
 	clk_data->hws[CLK_APMIXED_HDMI_REF] = hw;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get, clk_data);
 	if (r)
 		goto unregister_ref2usb;
 

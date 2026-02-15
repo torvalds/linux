@@ -11,6 +11,8 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
+#include <linux/types.h>
 
 #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
 #include <dt-bindings/clock/renesas,r9a09g087-cpg-mssr.h>
@@ -41,6 +43,13 @@
 #define GET_WIDTH(val)         FIELD_GET(WIDTH_MASK, val)
 #define GET_REG_OFFSET(val)    FIELD_GET(OFFSET_MASK, val)
 
+#define FSELXSPI0	CONF_PACK(SCKCR, 0, 3)
+#define FSELXSPI1	CONF_PACK(SCKCR, 8, 3)
+#define DIVSEL_XSPI0	CONF_PACK(SCKCR, 6, 1)
+#define DIVSEL_XSPI1	CONF_PACK(SCKCR, 14, 1)
+#define FSELCANFD	CONF_PACK(SCKCR, 20, 1)
+#define SEL_PLL		CONF_PACK(SCKCR, 22, 1)
+
 #define DIVCA55C0	CONF_PACK(SCKCR2, 8, 1)
 #define DIVCA55C1	CONF_PACK(SCKCR2, 9, 1)
 #define DIVCA55C2	CONF_PACK(SCKCR2, 10, 1)
@@ -58,11 +67,10 @@
 #define DIVSCI3ASYNC	CONF_PACK(SCKCR3, 12, 2)
 #define DIVSCI4ASYNC	CONF_PACK(SCKCR3, 14, 2)
 
-#define SEL_PLL		CONF_PACK(SCKCR, 22, 1)
-
 enum rzt2h_clk_types {
 	CLK_TYPE_RZT2H_DIV = CLK_TYPE_CUSTOM,	/* Clock with divider */
 	CLK_TYPE_RZT2H_MUX,			/* Clock with clock source selector */
+	CLK_TYPE_RZT2H_FSELXSPI,		/* Clock with FSELXSPIn source selector */
 };
 
 #define DEF_DIV(_name, _id, _parent, _conf, _dtable) \
@@ -71,11 +79,14 @@ enum rzt2h_clk_types {
 #define DEF_MUX(_name, _id, _conf, _parent_names, _num_parents, _mux_flags) \
 	DEF_TYPE(_name, _id, CLK_TYPE_RZT2H_MUX, .conf = _conf, \
 		 .parent_names = _parent_names, .num_parents = _num_parents, \
-		 .flag = 0, .mux_flags = _mux_flags)
+		 .flag = CLK_SET_RATE_PARENT, .mux_flags = _mux_flags)
+#define DEF_DIV_FSELXSPI(_name, _id, _parent, _conf, _dtable) \
+	DEF_TYPE(_name, _id, CLK_TYPE_RZT2H_FSELXSPI, .conf = _conf, \
+		 .parent = _parent, .dtable = _dtable, .flag = 0)
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A09G077_ETCLKE,
+	LAST_DT_CORE_CLK = R9A09G077_PCLKCAN,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -91,6 +102,11 @@ enum clk_ids {
 	CLK_SEL_CLK_PLL2,
 	CLK_SEL_CLK_PLL4,
 	CLK_PLL4D1,
+	CLK_PLL4D1_DIV3,
+	CLK_PLL4D1_DIV4,
+	CLK_PLL4D3,
+	CLK_PLL4D3_DIV10,
+	CLK_PLL4D3_DIV20,
 	CLK_SCI0ASYNC,
 	CLK_SCI1ASYNC,
 	CLK_SCI2ASYNC,
@@ -101,6 +117,8 @@ enum clk_ids {
 	CLK_SPI1ASYNC,
 	CLK_SPI2ASYNC,
 	CLK_SPI3ASYNC,
+	CLK_DIVSELXSPI0_SCKCR,
+	CLK_DIVSELXSPI1_SCKCR,
 
 	/* Module Clocks */
 	MOD_CLK_BASE,
@@ -109,6 +127,15 @@ enum clk_ids {
 static const struct clk_div_table dtable_1_2[] = {
 	{0, 2},
 	{1, 1},
+	{0, 0},
+};
+
+static const struct clk_div_table dtable_6_8_16_32_64[] = {
+	{6, 64},
+	{5, 32},
+	{4, 16},
+	{3, 8},
+	{2, 6},
 	{0, 0},
 };
 
@@ -126,6 +153,8 @@ static const char * const sel_clk_pll0[] = { ".loco", ".pll0" };
 static const char * const sel_clk_pll1[] = { ".loco", ".pll1" };
 static const char * const sel_clk_pll2[] = { ".loco", ".pll2" };
 static const char * const sel_clk_pll4[] = { ".loco", ".pll4" };
+static const char * const sel_clk_pll4d1_div3_div4[] = { ".pll4d1_div3", ".pll4d1_div4" };
+static const char * const sel_clk_pll4d3_div10_div20[] = { ".pll4d3_div10", ".pll4d3_div20" };
 
 static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	/* External Clock Inputs */
@@ -148,6 +177,12 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 		sel_clk_pll4, ARRAY_SIZE(sel_clk_pll4), CLK_MUX_READ_ONLY),
 
 	DEF_FIXED(".pll4d1", CLK_PLL4D1, CLK_SEL_CLK_PLL4, 1, 1),
+	DEF_FIXED(".pll4d1_div3", CLK_PLL4D1_DIV3, CLK_PLL4D1, 3, 1),
+	DEF_FIXED(".pll4d1_div4", CLK_PLL4D1_DIV4, CLK_PLL4D1, 4, 1),
+	DEF_FIXED(".pll4d3", CLK_PLL4D3, CLK_SEL_CLK_PLL4, 3, 1),
+	DEF_FIXED(".pll4d3_div10", CLK_PLL4D3_DIV10, CLK_PLL4D3, 10, 1),
+	DEF_FIXED(".pll4d3_div20", CLK_PLL4D3_DIV20, CLK_PLL4D3, 20, 1),
+
 	DEF_DIV(".sci0async", CLK_SCI0ASYNC, CLK_PLL4D1, DIVSCI0ASYNC,
 		dtable_24_25_30_32),
 	DEF_DIV(".sci1async", CLK_SCI1ASYNC, CLK_PLL4D1, DIVSCI1ASYNC,
@@ -169,6 +204,13 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 		dtable_24_25_30_32),
 	DEF_DIV(".spi3async", CLK_SPI3ASYNC, CLK_PLL4D1, DIVSPI3ASYNC,
 		dtable_24_25_30_32),
+
+	DEF_MUX(".divselxspi0", CLK_DIVSELXSPI0_SCKCR, DIVSEL_XSPI0,
+		sel_clk_pll4d1_div3_div4,
+		ARRAY_SIZE(sel_clk_pll4d1_div3_div4), 0),
+	DEF_MUX(".divselxspi1", CLK_DIVSELXSPI1_SCKCR, DIVSEL_XSPI1,
+		sel_clk_pll4d1_div3_div4,
+		ARRAY_SIZE(sel_clk_pll4d1_div3_div4), 0),
 
 	/* Core output clk */
 	DEF_DIV("CA55C0", R9A09G077_CLK_CA55C0, CLK_SEL_CLK_PLL0, DIVCA55C0,
@@ -194,9 +236,17 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	DEF_FIXED("ETCLKC", R9A09G077_ETCLKC, CLK_SEL_CLK_PLL1, 10, 1),
 	DEF_FIXED("ETCLKD", R9A09G077_ETCLKD, CLK_SEL_CLK_PLL1, 20, 1),
 	DEF_FIXED("ETCLKE", R9A09G077_ETCLKE, CLK_SEL_CLK_PLL1, 40, 1),
+	DEF_DIV_FSELXSPI("XSPI_CLK0", R9A09G077_XSPI_CLK0, CLK_DIVSELXSPI0_SCKCR,
+			 FSELXSPI0, dtable_6_8_16_32_64),
+	DEF_DIV_FSELXSPI("XSPI_CLK1", R9A09G077_XSPI_CLK1, CLK_DIVSELXSPI1_SCKCR,
+			 FSELXSPI1, dtable_6_8_16_32_64),
+	DEF_MUX("PCLKCAN", R9A09G077_PCLKCAN, FSELCANFD,
+		sel_clk_pll4d3_div10_div20, ARRAY_SIZE(sel_clk_pll4d3_div10_div20), 0),
 };
 
 static const struct mssr_mod_clk r9a09g077_mod_clks[] __initconst = {
+	DEF_MOD("xspi0", 4, R9A09G077_CLK_PCLKH),
+	DEF_MOD("xspi1", 5, R9A09G077_CLK_PCLKH),
 	DEF_MOD("sci0fck", 8, CLK_SCI0ASYNC),
 	DEF_MOD("sci1fck", 9, CLK_SCI1ASYNC),
 	DEF_MOD("sci2fck", 10, CLK_SCI2ASYNC),
@@ -211,6 +261,7 @@ static const struct mssr_mod_clk r9a09g077_mod_clks[] __initconst = {
 	DEF_MOD("adc1", 207, R9A09G077_CLK_PCLKH),
 	DEF_MOD("adc2", 225, R9A09G077_CLK_PCLKM),
 	DEF_MOD("tsu", 307, R9A09G077_CLK_PCLKL),
+	DEF_MOD("canfd", 310, R9A09G077_CLK_PCLKM),
 	DEF_MOD("gmac0", 400, R9A09G077_CLK_PCLKM),
 	DEF_MOD("ethsw", 401, R9A09G077_CLK_PCLKM),
 	DEF_MOD("ethss", 403, R9A09G077_CLK_PCLKM),
@@ -284,6 +335,151 @@ r9a09g077_cpg_mux_clk_register(struct device *dev,
 	return clk_hw->clk;
 }
 
+static unsigned int r9a09g077_cpg_fselxspi_get_divider(struct clk_hw *hw, unsigned long rate,
+						       unsigned int num_parents)
+{
+	struct clk_fixed_factor *ff;
+	struct clk_hw *parent_hw;
+	unsigned long best_rate;
+	unsigned int i;
+
+	for (i = 0; i < num_parents; i++) {
+		parent_hw = clk_hw_get_parent_by_index(hw, i);
+		best_rate = clk_hw_round_rate(parent_hw, rate);
+
+		if (best_rate == rate) {
+			ff = to_clk_fixed_factor(parent_hw);
+			return ff->div;
+		}
+	}
+
+	/* No parent could provide the exact rate - this should not happen */
+	return 0;
+}
+
+static int r9a09g077_cpg_fselxspi_determine_rate(struct clk_hw *hw,
+						 struct clk_rate_request *req)
+{
+	struct clk_divider *divider = to_clk_divider(hw);
+	unsigned long parent_rate, best = 0, now;
+	const struct clk_div_table *clkt;
+	unsigned long rate = req->rate;
+	unsigned int num_parents;
+	unsigned int divselxspi;
+	unsigned int div = 0;
+
+	if (!rate)
+		rate = 1;
+
+	/* Get the number of parents for FSELXSPIn */
+	num_parents = clk_hw_get_num_parents(req->best_parent_hw);
+
+	for (clkt = divider->table; clkt->div; clkt++) {
+		parent_rate = clk_hw_round_rate(req->best_parent_hw, rate * clkt->div);
+		/* Skip if parent can't provide any valid rate */
+		if (!parent_rate)
+			continue;
+
+		/* Determine which DIVSELXSPIn divider (3 or 4) provides this parent_rate */
+		divselxspi = r9a09g077_cpg_fselxspi_get_divider(req->best_parent_hw, parent_rate,
+								num_parents);
+		if (!divselxspi)
+			continue;
+
+		/*
+		 * DIVSELXSPIx supports 800MHz and 600MHz operation.
+		 * When divselxspi is 4 (600MHz operation), only FSELXSPIn dividers of 8 and 16
+		 * are supported. Otherwise, when divselxspi is 3 (800MHz operation),
+		 * dividers of 6, 8, 16, 32, and 64 are supported. This check ensures that
+		 * FSELXSPIx is set correctly based on hardware limitations.
+		 */
+		if (divselxspi == 4 && (clkt->div != 8 && clkt->div != 16))
+			continue;
+
+		now = DIV_ROUND_UP_ULL(parent_rate, clkt->div);
+		if (abs(rate - now) < abs(rate - best)) {
+			div = clkt->div;
+			best = now;
+			req->best_parent_rate = parent_rate;
+		}
+	}
+
+	if (!div) {
+		req->best_parent_rate = clk_hw_round_rate(req->best_parent_hw, 1);
+		divselxspi = r9a09g077_cpg_fselxspi_get_divider(req->best_parent_hw,
+								req->best_parent_rate,
+								num_parents);
+		/* default to divider 3 which will result DIVSELXSPIn = 800 MHz */
+		if (!divselxspi)
+			divselxspi = 3;
+
+		/*
+		 * Use the maximum divider based on the parent clock rate:
+		 *  - 64 when DIVSELXSPIx is 800 MHz (divider = 3)
+		 *  - 16 when DIVSELXSPIx is 600 MHz (divider = 4)
+		 */
+		div = divselxspi == 3 ? 64 : 16;
+	}
+
+	req->rate = DIV_ROUND_UP_ULL(req->best_parent_rate, div);
+
+	return 0;
+}
+
+static struct clk * __init
+r9a09g077_cpg_fselxspi_div_clk_register(struct device *dev,
+					const struct cpg_core_clk *core,
+					void __iomem *addr,
+					struct cpg_mssr_pub *pub)
+{
+	static struct clk_ops *xspi_div_ops;
+	struct clk_init_data init = {};
+	const struct clk *parent;
+	const char *parent_name;
+	struct clk_divider *div;
+	struct clk_hw *hw;
+	int ret;
+
+	parent = pub->clks[core->parent];
+	if (IS_ERR(parent))
+		return ERR_CAST(parent);
+
+	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	if (!div)
+		return ERR_PTR(-ENOMEM);
+
+	if (!xspi_div_ops) {
+		xspi_div_ops = devm_kzalloc(dev, sizeof(*xspi_div_ops), GFP_KERNEL);
+		if (!xspi_div_ops)
+			return  ERR_PTR(-ENOMEM);
+		memcpy(xspi_div_ops, &clk_divider_ops,
+		       sizeof(const struct clk_ops));
+		xspi_div_ops->determine_rate = r9a09g077_cpg_fselxspi_determine_rate;
+	}
+
+	parent_name = __clk_get_name(parent);
+	init.name = core->name;
+	init.ops = xspi_div_ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+
+	div->reg = addr;
+	div->shift = GET_SHIFT(core->conf);
+	div->width = GET_WIDTH(core->conf);
+	div->flags = core->flag;
+	div->lock = &pub->rmw_lock;
+	div->hw.init = &init;
+	div->table = core->dtable;
+
+	hw = &div->hw;
+	ret = devm_clk_hw_register(dev, hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return hw->clk;
+}
+
 static struct clk * __init
 r9a09g077_cpg_clk_register(struct device *dev, const struct cpg_core_clk *core,
 			   const struct cpg_mssr_info *info,
@@ -298,6 +494,8 @@ r9a09g077_cpg_clk_register(struct device *dev, const struct cpg_core_clk *core,
 		return r9a09g077_cpg_div_clk_register(dev, core, addr, pub);
 	case CLK_TYPE_RZT2H_MUX:
 		return r9a09g077_cpg_mux_clk_register(dev, core, addr, pub);
+	case CLK_TYPE_RZT2H_FSELXSPI:
+		return r9a09g077_cpg_fselxspi_div_clk_register(dev, core, addr, pub);
 	default:
 		return ERR_PTR(-EINVAL);
 	}

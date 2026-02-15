@@ -305,4 +305,8 @@
 #define CLK_MOUT_MFC_WFD_USER           2
 #define CLK_DOUT_MFC_NOCP               3
 
+/* CMU_MFD */
+#define CLK_MOUT_MFD_NOC_USER           1
+#define CLK_DOUT_MFD_NOCP               2
+
 #endif /* _DT_BINDINGS_CLOCK_EXYNOSAUTOV920_H */
