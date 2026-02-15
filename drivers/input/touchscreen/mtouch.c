@@ -137,7 +137,7 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 
 	mtouch->serio = serio;
 	mtouch->dev = input_dev;
-	snprintf(mtouch->phys, sizeof(mtouch->phys), "%s/input0", serio->phys);
+	scnprintf(mtouch->phys, sizeof(mtouch->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "MicroTouch Serial TouchScreen";
 	input_dev->phys = mtouch->phys;

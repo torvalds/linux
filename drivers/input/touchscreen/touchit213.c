@@ -148,8 +148,8 @@ static int touchit213_connect(struct serio *serio, struct serio_driver *drv)
 
 	touchit213->serio = serio;
 	touchit213->dev = input_dev;
-	snprintf(touchit213->phys, sizeof(touchit213->phys),
-		 "%s/input0", serio->phys);
+	scnprintf(touchit213->phys, sizeof(touchit213->phys),
+		  "%s/input0", serio->phys);
 
 	input_dev->name = "Sahara Touch-iT213 Serial TouchScreen";
 	input_dev->phys = touchit213->phys;

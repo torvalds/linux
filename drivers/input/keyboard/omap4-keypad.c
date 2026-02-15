@@ -193,7 +193,6 @@ static irqreturn_t omap4_keypad_irq_thread_fn(int irq, void *dev_id)
 	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
 			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return IRQ_HANDLED;
@@ -231,7 +230,6 @@ static int omap4_keypad_open(struct input_dev *input)
 	enable_irq(keypad_data->irq);
 
 out:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return error;
@@ -265,7 +263,6 @@ static void omap4_keypad_close(struct input_dev *input)
 	enable_irq(keypad_data->irq);
 	clk_disable_unprepare(keypad_data->fck);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }
 
@@ -404,7 +401,6 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 		omap4_keypad_stop(keypad_data);
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 	if (error)
 		return error;

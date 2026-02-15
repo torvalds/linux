@@ -118,7 +118,7 @@ static int tw_connect(struct serio *serio, struct serio_driver *drv)
 
 	tw->serio = serio;
 	tw->dev = input_dev;
-	snprintf(tw->phys, sizeof(tw->phys), "%s/input0", serio->phys);
+	scnprintf(tw->phys, sizeof(tw->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "Touchwindow Serial TouchScreen";
 	input_dev->phys = tw->phys;

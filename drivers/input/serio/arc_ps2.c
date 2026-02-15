@@ -189,8 +189,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -EINVAL;
 
-	arc_ps2 = devm_kzalloc(&pdev->dev, sizeof(struct arc_ps2_data),
-				GFP_KERNEL);
+	arc_ps2 = devm_kzalloc(&pdev->dev, sizeof(*arc_ps2), GFP_KERNEL);
 	if (!arc_ps2) {
 		dev_err(&pdev->dev, "out of memory\n");
 		return -ENOMEM;

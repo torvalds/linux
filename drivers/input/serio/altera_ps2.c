@@ -81,7 +81,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	struct serio *serio;
 	int error, irq;
 
-	ps2if = devm_kzalloc(&pdev->dev, sizeof(struct ps2if), GFP_KERNEL);
+	ps2if = devm_kzalloc(&pdev->dev, sizeof(*ps2if), GFP_KERNEL);
 	if (!ps2if)
 		return -ENOMEM;
 
