@@ -150,7 +150,7 @@ static int renesas_r61307_enable(struct drm_panel *panel)
 	mipi_dsi_dcs_set_display_on_multi(&ctx);
 	mipi_dsi_msleep(&ctx, 50);
 
-	return 0;
+	return ctx.accum_err;
 }
 
 static int renesas_r61307_disable(struct drm_panel *panel)
@@ -162,7 +162,7 @@ static int renesas_r61307_disable(struct drm_panel *panel)
 	mipi_dsi_msleep(&ctx, 100);
 	mipi_dsi_dcs_enter_sleep_mode_multi(&ctx);
 
-	return 0;
+	return ctx.accum_err;
 }
 
 static int renesas_r61307_unprepare(struct drm_panel *panel)
