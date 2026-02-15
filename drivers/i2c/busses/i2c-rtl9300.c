@@ -129,7 +129,7 @@ static int rtl9310_i2c_select_scl(struct rtl9300_i2c *i2c, u8 scl)
 
 static int rtl9300_i2c_config_chan(struct rtl9300_i2c *i2c, struct rtl9300_i2c_chan *chan)
 {
-	struct rtl9300_i2c_drv_data *drv_data;
+	const struct rtl9300_i2c_drv_data *drv_data;
 	int ret;
 
 	if (i2c->sda_num == chan->sda_num)
@@ -139,7 +139,7 @@ static int rtl9300_i2c_config_chan(struct rtl9300_i2c *i2c, struct rtl9300_i2c_c
 	if (ret)
 		return ret;
 
-	drv_data = (struct rtl9300_i2c_drv_data *)device_get_match_data(i2c->dev);
+	drv_data = device_get_match_data(i2c->dev);
 	ret = drv_data->select_scl(i2c, i2c->scl_num);
 	if (ret)
 		return ret;
@@ -371,8 +371,7 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rtl9300_i2c *i2c;
-	struct fwnode_handle *child;
-	struct rtl9300_i2c_drv_data *drv_data;
+	const struct rtl9300_i2c_drv_data *drv_data;
 	struct reg_field fields[F_NUM_FIELDS];
 	u32 clock_freq, scl_num, sda_num;
 	int ret, i = 0;
@@ -399,7 +398,7 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c);
 
-	drv_data = (struct rtl9300_i2c_drv_data *)device_get_match_data(i2c->dev);
+	drv_data = device_get_match_data(i2c->dev);
 	if (device_get_child_node_count(dev) > drv_data->max_nchan)
 		return dev_err_probe(dev, -EINVAL, "Too many channels\n");
 
@@ -415,15 +414,15 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 		return ret;
 
 	i = 0;
-	device_for_each_child_node(dev, child) {
+	for_each_child_of_node_scoped(dev->of_node, child) {
 		struct rtl9300_i2c_chan *chan = &i2c->chans[i];
 		struct i2c_adapter *adap = &chan->adap;
 
-		ret = fwnode_property_read_u32(child, "reg", &sda_num);
+		ret = of_property_read_u32(child, "reg", &sda_num);
 		if (ret)
 			return ret;
 
-		ret = fwnode_property_read_u32(child, "clock-frequency", &clock_freq);
+		ret = of_property_read_u32(child, "clock-frequency", &clock_freq);
 		if (ret)
 			clock_freq = I2C_MAX_STANDARD_MODE_FREQ;
 
@@ -449,7 +448,7 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 		adap->retries = 3;
 		adap->dev.parent = dev;
 		i2c_set_adapdata(adap, chan);
-		adap->dev.of_node = to_of_node(child);
+		adap->dev.of_node = child;
 		snprintf(adap->name, sizeof(adap->name), "%s SDA%d\n", dev_name(dev), sda_num);
 		i++;
 

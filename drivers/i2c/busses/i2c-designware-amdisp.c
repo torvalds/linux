@@ -163,8 +163,8 @@ static int amd_isp_dw_i2c_plat_runtime_resume(struct device *dev)
 
 	if (!i_dev->shared_with_punit)
 		i2c_dw_prepare_clk(i_dev, true);
-	if (i_dev->init)
-		i_dev->init(i_dev);
+
+	i2c_dw_init(i_dev);
 
 	return 0;
 }
