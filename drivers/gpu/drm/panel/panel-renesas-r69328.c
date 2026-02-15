@@ -33,8 +33,6 @@ struct renesas_r69328 {
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
 	struct gpio_desc *reset_gpio;
-
-	bool prepared;
 };
 
 static inline struct renesas_r69328 *to_renesas_r69328(struct drm_panel *panel)
@@ -56,9 +54,6 @@ static int renesas_r69328_prepare(struct drm_panel *panel)
 	struct device *dev = &priv->dsi->dev;
 	int ret;
 
-	if (priv->prepared)
-		return 0;
-
 	ret = regulator_enable(priv->vdd_supply);
 	if (ret) {
 		dev_err(dev, "failed to enable vdd power supply\n");
@@ -77,7 +72,6 @@ static int renesas_r69328_prepare(struct drm_panel *panel)
 
 	renesas_r69328_reset(priv);
 
-	priv->prepared = true;
 	return 0;
 }
 
@@ -142,9 +136,6 @@ static int renesas_r69328_unprepare(struct drm_panel *panel)
 {
 	struct renesas_r69328 *priv = to_renesas_r69328(panel);
 
-	if (!priv->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(priv->reset_gpio, 1);
 
 	usleep_range(5000, 6000);
@@ -152,7 +143,6 @@ static int renesas_r69328_unprepare(struct drm_panel *panel)
 	regulator_disable(priv->vddio_supply);
 	regulator_disable(priv->vdd_supply);
 
-	priv->prepared = false;
 	return 0;
 }
 

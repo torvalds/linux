@@ -35,8 +35,6 @@ struct renesas_r61307 {
 
 	struct gpio_desc *reset_gpio;
 
-	bool prepared;
-
 	bool dig_cont_adj;
 	bool inversion;
 	u32 gamma;
@@ -92,9 +90,6 @@ static int renesas_r61307_prepare(struct drm_panel *panel)
 	struct device *dev = &priv->dsi->dev;
 	int ret;
 
-	if (priv->prepared)
-		return 0;
-
 	ret = regulator_enable(priv->vcc_supply);
 	if (ret) {
 		dev_err(dev, "failed to enable vcc power supply\n");
@@ -113,7 +108,6 @@ static int renesas_r61307_prepare(struct drm_panel *panel)
 
 	renesas_r61307_reset(priv);
 
-	priv->prepared = true;
 	return 0;
 }
 
@@ -175,9 +169,6 @@ static int renesas_r61307_unprepare(struct drm_panel *panel)
 {
 	struct renesas_r61307 *priv = to_renesas_r61307(panel);
 
-	if (!priv->prepared)
-		return 0;
-
 	usleep_range(10000, 11000);
 
 	gpiod_set_value_cansleep(priv->reset_gpio, 1);
@@ -187,7 +178,6 @@ static int renesas_r61307_unprepare(struct drm_panel *panel)
 	usleep_range(2000, 3000);
 	regulator_disable(priv->vcc_supply);
 
-	priv->prepared = false;
 	return 0;
 }
 
