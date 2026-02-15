@@ -64,6 +64,7 @@
 #define CAP_MSIX			BIT(2)
 #define CAP_INTX			BIT(3)
 #define CAP_SUBRANGE_MAPPING		BIT(4)
+#define CAP_DYNAMIC_INBOUND_MAPPING	BIT(5)
 
 #define PCI_EPF_TEST_BAR_SUBRANGE_NSUB	2
 
@@ -1103,6 +1104,9 @@ static void pci_epf_test_set_capabilities(struct pci_epf *epf)
 
 	if (epf_test->epc_features->intx_capable)
 		caps |= CAP_INTX;
+
+	if (epf_test->epc_features->dynamic_inbound_mapping)
+		caps |= CAP_DYNAMIC_INBOUND_MAPPING;
 
 	if (epf_test->epc_features->dynamic_inbound_mapping &&
 	    epf_test->epc_features->subrange_mapping)
