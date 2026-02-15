@@ -1493,8 +1493,6 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			return -EAGAIN;
 
 		if (ret > 0 && io_net_retry(sock, kmsg->msg.msg_flags)) {
-			zc->len -= ret;
-			zc->buf += ret;
 			zc->done_io += ret;
 			return -EAGAIN;
 		}
