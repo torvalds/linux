@@ -8,6 +8,9 @@
 #include <net/page_pool/types.h>
 #include <net/net_trackers.h>
 
+#define ZCRX_SUPPORTED_REG_FLAGS	(ZCRX_REG_IMPORT)
+#define ZCRX_FEATURES			(ZCRX_FEATURE_RX_PAGE_SIZE)
+
 struct io_zcrx_mem {
 	unsigned long			size;
 	bool				is_dmabuf;
