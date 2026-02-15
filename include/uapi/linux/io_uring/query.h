@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
 /*
  * Header file for the io_uring query interface.
+ *
+ * Copyright (C) 2026 Pavel Begunkov <asml.silence@gmail.com>
+ * Copyright (C) Meta Platforms, Inc.
  */
 #ifndef LINUX_IO_URING_QUERY_H
 #define LINUX_IO_URING_QUERY_H
