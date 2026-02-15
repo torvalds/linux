@@ -677,6 +677,8 @@ static int import_zcrx(struct io_ring_ctx *ctx,
 		return -EINVAL;
 	if (reg->if_rxq || reg->rq_entries || reg->area_ptr || reg->region_ptr)
 		return -EINVAL;
+	if (reg->flags & ~ZCRX_REG_IMPORT)
+		return -EINVAL;
 
 	fd = reg->if_idx;
 	CLASS(fd, f)(fd);
