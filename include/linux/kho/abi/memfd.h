@@ -56,10 +56,24 @@ struct memfd_luo_folio_ser {
 	u64 index;
 } __packed;
 
+/*
+ * The set of seals this version supports preserving. If support for any new
+ * seals is needed, add it here and bump version.
+ */
+#define MEMFD_LUO_ALL_SEALS (F_SEAL_SEAL | \
+			     F_SEAL_SHRINK | \
+			     F_SEAL_GROW | \
+			     F_SEAL_WRITE | \
+			     F_SEAL_FUTURE_WRITE | \
+			     F_SEAL_EXEC)
+
 /**
  * struct memfd_luo_ser - Main serialization structure for a memfd.
  * @pos:       The file's current position (f_pos).
  * @size:      The total size of the file in bytes (i_size).
+ * @seals:     The seals present on the memfd. The seals are uABI so it is safe
+ *             to directly use them in the ABI.
+ * @flags:     Flags for the file. Unused flag bits must be set to 0.
  * @nr_folios: Number of folios in the folios array.
  * @folios:    KHO vmalloc descriptor pointing to the array of
  *             struct memfd_luo_folio_ser.
@@ -67,11 +81,13 @@ struct memfd_luo_folio_ser {
 struct memfd_luo_ser {
 	u64 pos;
 	u64 size;
+	u32 seals;
+	u32 flags;
 	u64 nr_folios;
 	struct kho_vmalloc folios;
 } __packed;
 
 /* The compatibility string for memfd file handler */
-#define MEMFD_LUO_FH_COMPATIBLE	"memfd-v1"
+#define MEMFD_LUO_FH_COMPATIBLE	"memfd-v2"
 
 #endif /* _LINUX_KHO_ABI_MEMFD_H */
