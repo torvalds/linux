@@ -360,7 +360,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	 * namespace hierarchy.
 	 */
 	if (!pid_in_current_pidns(pid))
-		return -ESRCH;
+		return -EREMOTE;
 
 	attr = READ_ONCE(pid->attr);
 	if (mask & PIDFD_INFO_EXIT) {

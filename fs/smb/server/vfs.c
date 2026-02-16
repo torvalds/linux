@@ -1044,7 +1044,7 @@ static bool __dir_empty(struct dir_context *ctx, const char *name, int namlen,
 	struct ksmbd_readdir_data *buf;
 
 	buf = container_of(ctx, struct ksmbd_readdir_data, ctx);
-	if (!is_dot_dotdot(name, namlen))
+	if (!name_is_dot_dotdot(name, namlen))
 		buf->dirent_count++;
 
 	return !buf->dirent_count;

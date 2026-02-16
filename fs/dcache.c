@@ -1298,8 +1298,8 @@ void shrink_dcache_sb(struct super_block *sb)
 EXPORT_SYMBOL(shrink_dcache_sb);
 
 /**
- * enum d_walk_ret - action to talke during tree walk
- * @D_WALK_CONTINUE:	contrinue walk
+ * enum d_walk_ret - action to take during tree walk
+ * @D_WALK_CONTINUE:	continue walk
  * @D_WALK_QUIT:	quit walk
  * @D_WALK_NORETRY:	quit when retry is needed
  * @D_WALK_SKIP:	skip this dentry and its children
@@ -1722,7 +1722,7 @@ void d_invalidate(struct dentry *dentry)
 EXPORT_SYMBOL(d_invalidate);
 
 /**
- * __d_alloc	-	allocate a dcache entry
+ * __d_alloc - allocate a dcache entry
  * @sb: filesystem it will belong to
  * @name: qstr of the name
  *
@@ -1806,7 +1806,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 }
 
 /**
- * d_alloc	-	allocate a dcache entry
+ * d_alloc - allocate a dcache entry
  * @parent: parent of entry to allocate
  * @name: qstr of the name
  *
@@ -2546,7 +2546,7 @@ static void __d_rehash(struct dentry *entry)
 }
 
 /**
- * d_rehash	- add an entry back to the hash
+ * d_rehash - add an entry back to the hash
  * @entry: dentry to add to the hash
  *
  * Adds a dentry to the hash according to its name.

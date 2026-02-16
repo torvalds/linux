@@ -100,7 +100,7 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname)
 
 	WARN_ON_ONCE(!name);
 
-	if (is_dot_dotdot(name, len)) {
+	if (name_is_dot_dotdot(name, len)) {
 		fname->hash = 0;
 		return;
 	}

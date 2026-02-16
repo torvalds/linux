@@ -3088,7 +3088,7 @@ int lookup_noperm_common(struct qstr *qname, struct dentry *base)
 	if (!len)
 		return -EACCES;
 
-	if (is_dot_dotdot(name, len))
+	if (name_is_dot_dotdot(name, len))
 		return -EACCES;
 
 	while (len--) {
