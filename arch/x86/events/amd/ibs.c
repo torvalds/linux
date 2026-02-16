@@ -730,6 +730,7 @@ PMU_EVENT_ATTR_STRING(fetchlat, ibs_fetch_lat_format, "config1:0-10");
 PMU_EVENT_ATTR_STRING(fetchlat, ibs_fetch_lat_cap, "1");
 PMU_EVENT_ATTR_STRING(strmst, ibs_op_strmst_format, "config1:12");
 PMU_EVENT_ATTR_STRING(strmst, ibs_op_strmst_cap, "1");
+PMU_EVENT_ATTR_STRING(rmtsocket, ibs_op_rmtsocket_cap, "1");
 
 static umode_t
 zen4_ibs_extensions_is_visible(struct kobject *kobj, struct attribute *attr, int i)
@@ -745,6 +746,12 @@ ibs_fetch_lat_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 
 static umode_t
 ibs_op_strmst_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return ibs_caps & IBS_CAPS_STRMST_RMTSOCKET ? attr->mode : 0;
+}
+
+static umode_t
+ibs_op_rmtsocket_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return ibs_caps & IBS_CAPS_STRMST_RMTSOCKET ? attr->mode : 0;
 }
@@ -802,6 +809,11 @@ static struct attribute *ibs_op_strmst_cap_attrs[] = {
 	NULL,
 };
 
+static struct attribute *ibs_op_rmtsocket_cap_attrs[] = {
+	&ibs_op_rmtsocket_cap.attr.attr,
+	NULL,
+};
+
 static struct attribute_group group_fetch_formats = {
 	.name = "format",
 	.attrs = fetch_attrs,
@@ -847,6 +859,12 @@ static struct attribute_group group_ibs_op_strmst_cap = {
 	.name = "caps",
 	.attrs = ibs_op_strmst_cap_attrs,
 	.is_visible = ibs_op_strmst_is_visible,
+};
+
+static struct attribute_group group_ibs_op_rmtsocket_cap = {
+	.name = "caps",
+	.attrs = ibs_op_rmtsocket_cap_attrs,
+	.is_visible = ibs_op_rmtsocket_is_visible,
 };
 
 static const struct attribute_group *fetch_attr_groups[] = {
@@ -938,6 +956,7 @@ static const struct attribute_group *op_attr_update[] = {
 	&group_ibs_op_dtlb_pgsize_cap,
 	&group_ibs_op_strmst_cap,
 	&group_ibs_op_strmst_format,
+	&group_ibs_op_rmtsocket_cap,
 	NULL,
 };
 

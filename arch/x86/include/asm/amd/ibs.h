@@ -100,7 +100,8 @@ union ibs_op_data2 {
 			cache_hit_st:1,	/* 5: cache hit state */
 			data_src_hi:2,	/* 6-7: data source high */
 			strm_st:1,	/* 8: streaming store */
-			reserved1:55;	/* 9-63: reserved */
+			rmt_socket:1,   /* 9: remote socket */
+			reserved1:54;   /* 10-63: reserved */
 	};
 };
 
