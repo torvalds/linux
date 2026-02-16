@@ -313,6 +313,9 @@ static int perf_ibs_init(struct perf_event *event)
 	if (ret)
 		return ret;
 
+	if (perf_allow_kernel())
+		hwc->flags |= PERF_X86_EVENT_UNPRIVILEGED;
+
 	if (hwc->sample_period) {
 		if (config & perf_ibs->cnt_mask)
 			/* raw max_cnt may not be set */
@@ -1349,7 +1352,7 @@ fail:
 	 * unprivileged users.
 	 */
 	if ((event->attr.sample_type & PERF_SAMPLE_RAW) &&
-	    perf_allow_kernel()) {
+	    (hwc->flags & PERF_X86_EVENT_UNPRIVILEGED)) {
 		perf_ibs_phyaddr_clear(perf_ibs, &ibs_data);
 	}
 
