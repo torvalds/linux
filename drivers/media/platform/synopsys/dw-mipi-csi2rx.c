@@ -24,15 +24,6 @@
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
-#define DW_MIPI_CSI2RX_N_LANES		0x04
-#define DW_MIPI_CSI2RX_RESETN		0x10
-#define DW_MIPI_CSI2RX_PHY_STATE	0x14
-#define DW_MIPI_CSI2RX_ERR1		0x20
-#define DW_MIPI_CSI2RX_ERR2		0x24
-#define DW_MIPI_CSI2RX_MSK1		0x28
-#define DW_MIPI_CSI2RX_MSK2		0x2c
-#define DW_MIPI_CSI2RX_CONTROL		0x40
-
 #define SW_CPHY_EN(x)		((x) << 0)
 #define SW_DSI_EN(x)		((x) << 4)
 #define SW_DATATYPE_FS(x)	((x) << 8)
@@ -40,10 +31,30 @@
 #define SW_DATATYPE_LS(x)	((x) << 20)
 #define SW_DATATYPE_LE(x)	((x) << 26)
 
+#define DW_REG_EXIST		BIT(31)
+#define DW_REG(x)		(DW_REG_EXIST | (x))
+
+enum dw_mipi_csi2rx_regs_index {
+	DW_MIPI_CSI2RX_N_LANES,
+	DW_MIPI_CSI2RX_RESETN,
+	DW_MIPI_CSI2RX_PHY_STATE,
+	DW_MIPI_CSI2RX_ERR1,
+	DW_MIPI_CSI2RX_ERR2,
+	DW_MIPI_CSI2RX_MSK1,
+	DW_MIPI_CSI2RX_MSK2,
+	DW_MIPI_CSI2RX_CONTROL,
+
+	DW_MIPI_CSI2RX_MAX,
+};
+
 enum {
 	DW_MIPI_CSI2RX_PAD_SINK,
 	DW_MIPI_CSI2RX_PAD_SRC,
 	DW_MIPI_CSI2RX_PAD_MAX,
+};
+
+struct dw_mipi_csi2rx_drvdata {
+	const u32 *regs;
 };
 
 struct dw_mipi_csi2rx_format {
@@ -70,6 +81,23 @@ struct dw_mipi_csi2rx_device {
 
 	enum v4l2_mbus_type bus_type;
 	u32 lanes_num;
+
+	const struct dw_mipi_csi2rx_drvdata *drvdata;
+};
+
+static const u32 rk3568_regs[DW_MIPI_CSI2RX_MAX] = {
+	[DW_MIPI_CSI2RX_N_LANES] = DW_REG(0x4),
+	[DW_MIPI_CSI2RX_RESETN] = DW_REG(0x10),
+	[DW_MIPI_CSI2RX_PHY_STATE] = DW_REG(0x14),
+	[DW_MIPI_CSI2RX_ERR1] = DW_REG(0x20),
+	[DW_MIPI_CSI2RX_ERR2] = DW_REG(0x24),
+	[DW_MIPI_CSI2RX_MSK1] = DW_REG(0x28),
+	[DW_MIPI_CSI2RX_MSK2] = DW_REG(0x2c),
+	[DW_MIPI_CSI2RX_CONTROL] = DW_REG(0x40),
+};
+
+static const struct dw_mipi_csi2rx_drvdata rk3568_drvdata = {
+	.regs = rk3568_regs,
 };
 
 static const struct v4l2_mbus_framefmt default_format = {
@@ -184,16 +212,50 @@ static inline struct dw_mipi_csi2rx_device *to_csi2(struct v4l2_subdev *sd)
 	return container_of(sd, struct dw_mipi_csi2rx_device, sd);
 }
 
-static inline void dw_mipi_csi2rx_write(struct dw_mipi_csi2rx_device *csi2,
-					unsigned int addr, u32 val)
+static bool dw_mipi_csi2rx_has_reg(struct dw_mipi_csi2rx_device *csi2,
+				   enum dw_mipi_csi2rx_regs_index index)
 {
-	writel(val, csi2->base_addr + addr);
+	if (index < DW_MIPI_CSI2RX_MAX &&
+	    (csi2->drvdata->regs[index] & DW_REG_EXIST))
+		return true;
+
+	return false;
+}
+
+static void __iomem *
+dw_mipi_csi2rx_get_regaddr(struct dw_mipi_csi2rx_device *csi2,
+			   enum dw_mipi_csi2rx_regs_index index)
+{
+	u32 off = (~DW_REG_EXIST) & csi2->drvdata->regs[index];
+
+	return csi2->base_addr + off;
+}
+
+static inline void dw_mipi_csi2rx_write(struct dw_mipi_csi2rx_device *csi2,
+					enum dw_mipi_csi2rx_regs_index index,
+					u32 val)
+{
+	if (!dw_mipi_csi2rx_has_reg(csi2, index)) {
+		dev_err_once(csi2->dev,
+			     "write to non-existent register index: %d\n",
+			     index);
+		return;
+	}
+
+	writel(val, dw_mipi_csi2rx_get_regaddr(csi2, index));
 }
 
 static inline u32 dw_mipi_csi2rx_read(struct dw_mipi_csi2rx_device *csi2,
-				      unsigned int addr)
+				      enum dw_mipi_csi2rx_regs_index index)
 {
-	return readl(csi2->base_addr + addr);
+	if (!dw_mipi_csi2rx_has_reg(csi2, index)) {
+		dev_err_once(csi2->dev,
+			     "read non-existent register index: %d\n", index);
+		/* return 0 for non-existent registers */
+		return 0;
+	}
+
+	return readl(dw_mipi_csi2rx_get_regaddr(csi2, index));
 }
 
 static const struct dw_mipi_csi2rx_format *
@@ -627,6 +689,7 @@ static void dw_mipi_csi2rx_unregister(struct dw_mipi_csi2rx_device *csi2)
 static const struct of_device_id dw_mipi_csi2rx_of_match[] = {
 	{
 		.compatible = "rockchip,rk3568-mipi-csi2",
+		.data = &rk3568_drvdata,
 	},
 	{}
 };
@@ -647,6 +710,11 @@ static int dw_mipi_csi2rx_probe(struct platform_device *pdev)
 	csi2->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi2->base_addr))
 		return PTR_ERR(csi2->base_addr);
+
+	csi2->drvdata = device_get_match_data(dev);
+	if (!csi2->drvdata)
+		return dev_err_probe(dev, -EINVAL,
+				     "failed to get driver data\n");
 
 	ret = devm_clk_bulk_get_all(dev, &csi2->clks);
 	if (ret < 0)
