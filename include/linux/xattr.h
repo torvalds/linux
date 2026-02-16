@@ -107,18 +107,10 @@ static inline const char *xattr_prefix(const struct xattr_handler *handler)
 }
 
 struct simple_xattrs {
-	bool use_rhashtable;
-	union {
-		struct {
-			struct rb_root rb_root;
-			rwlock_t lock;
-		};
-		struct rhashtable ht;
-	};
+	struct rhashtable ht;
 };
 
 struct simple_xattr {
-	struct rb_node rb_node;
 	struct rhash_head hash_node;
 	struct rcu_head rcu;
 	char *name;
@@ -126,7 +118,7 @@ struct simple_xattr {
 	char value[] __counted_by(size);
 };
 
-void simple_xattrs_init(struct simple_xattrs *xattrs);
+int simple_xattrs_init(struct simple_xattrs *xattrs);
 struct simple_xattrs *simple_xattrs_alloc(void);
 struct simple_xattrs *simple_xattrs_lazy_alloc(struct simple_xattrs **xattrsp,
 					       const void *value, int flags);
