@@ -699,16 +699,13 @@ static DEFINE_MUTEX(__qcuefi_lock);
 
 static int qcuefi_set_reference(struct qcuefi_client *qcuefi)
 {
-	mutex_lock(&__qcuefi_lock);
+	guard(mutex)(&__qcuefi_lock);
 
-	if (qcuefi && __qcuefi) {
-		mutex_unlock(&__qcuefi_lock);
+	if (qcuefi && __qcuefi)
 		return -EEXIST;
-	}
 
 	__qcuefi = qcuefi;
 
-	mutex_unlock(&__qcuefi_lock);
 	return 0;
 }
 
