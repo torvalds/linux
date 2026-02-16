@@ -345,8 +345,8 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	le->id = id;
 	memcpy(le->name, name, sizeof(short) * name_len);
 
-	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, new_size,
-			    &new_size, true, &attr);
+	err = attr_set_size_ex(ni, ATTR_LIST, NULL, 0, &al->run, new_size,
+			       &new_size, true, &attr, false);
 	if (err) {
 		/* Undo memmove above. */
 		memmove(le, Add2Ptr(le, sz), old_size - off);
@@ -404,8 +404,8 @@ int al_update(struct ntfs_inode *ni, int sync)
 	 * Attribute list increased on demand in al_add_le.
 	 * Attribute list decreased here.
 	 */
-	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, al->size, NULL,
-			    false, &attr);
+	err = attr_set_size_ex(ni, ATTR_LIST, NULL, 0, &al->run, al->size, NULL,
+			       false, &attr, false);
 	if (err)
 		goto out;
 

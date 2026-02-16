@@ -1446,8 +1446,8 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	run_init(&run);
 
-	err = attr_allocate_clusters(sbi, &run, 0, 0, len, NULL, ALLOCATE_DEF,
-				     &alen, 0, NULL, NULL);
+	err = attr_allocate_clusters(sbi, &run, NULL, 0, 0, len, NULL,
+				     ALLOCATE_DEF, &alen, 0, NULL, NULL);
 	if (err)
 		goto out;
 
@@ -1531,8 +1531,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 		/* Increase bitmap. */
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
 				    &indx->bitmap_run,
-				    ntfs3_bitmap_size(bit + 1), NULL, true,
-				    NULL);
+				    ntfs3_bitmap_size(bit + 1), NULL, true);
 		if (err)
 			goto out1;
 	}
@@ -1553,8 +1552,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/* Increase allocation. */
 	err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-			    &indx->alloc_run, data_size, &data_size, true,
-			    NULL);
+			    &indx->alloc_run, data_size, &data_size, true);
 	if (err) {
 		if (bmp)
 			goto out2;
@@ -1572,7 +1570,7 @@ out:
 out2:
 	/* Ops. No space? */
 	attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-		      &indx->bitmap_run, bmp_size, &bmp_size_v, false, NULL);
+		      &indx->bitmap_run, bmp_size, &bmp_size_v, false);
 
 out1:
 	return err;
@@ -2106,7 +2104,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 	new_data = (u64)bit << indx->index_bits;
 
 	err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-			    &indx->alloc_run, new_data, &new_data, false, NULL);
+			    &indx->alloc_run, new_data, &new_data, false);
 	if (err)
 		return err;
 
@@ -2118,7 +2116,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		return 0;
 
 	err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-			    &indx->bitmap_run, bpb, &bpb, false, NULL);
+			    &indx->bitmap_run, bpb, &bpb, false);
 
 	return err;
 }
@@ -2333,6 +2331,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		hdr = &root->ihdr;
 		e = fnd->root_de;
 		n = NULL;
+		ib = NULL;
 	}
 
 	e_size = le16_to_cpu(e->size);
@@ -2355,7 +2354,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		 * Check to see if removing that entry made
 		 * the leaf empty.
 		 */
-		if (ib_is_leaf(ib) && ib_is_empty(ib)) {
+		if (ib && ib_is_leaf(ib) && ib_is_empty(ib)) {
 			fnd_pop(fnd);
 			fnd_push(fnd2, n, e);
 		}
@@ -2603,7 +2602,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		in = &s_index_names[indx->type];
 
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
-				    &indx->alloc_run, 0, NULL, false, NULL);
+				    &indx->alloc_run, 0, NULL, false);
 		if (in->name == I30_NAME)
 			i_size_write(&ni->vfs_inode, 0);
 
@@ -2612,7 +2611,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		run_close(&indx->alloc_run);
 
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-				    &indx->bitmap_run, 0, NULL, false, NULL);
+				    &indx->bitmap_run, 0, NULL, false);
 		err = ni_remove_attr(ni, ATTR_BITMAP, in->name, in->name_len,
 				     false, NULL);
 		run_close(&indx->bitmap_run);

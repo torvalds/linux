@@ -445,36 +445,59 @@ up_write:
 }
 
 /*
- * ntfs_check_for_free_space
+ * ntfs_check_free_space
  *
  * Check if it is possible to allocate 'clen' clusters and 'mlen' Mft records
  */
-bool ntfs_check_for_free_space(struct ntfs_sb_info *sbi, CLST clen, CLST mlen)
+bool ntfs_check_free_space(struct ntfs_sb_info *sbi, CLST clen, CLST mlen,
+			   bool da)
 {
 	size_t free, zlen, avail;
 	struct wnd_bitmap *wnd;
+	CLST da_clusters = ntfs_get_da(sbi);
 
 	wnd = &sbi->used.bitmap;
 	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
 	free = wnd_zeroes(wnd);
+
+	if (free >= da_clusters) {
+		free -= da_clusters;
+	} else {
+		free = 0;
+	}
+
 	zlen = min_t(size_t, NTFS_MIN_MFT_ZONE, wnd_zone_len(wnd));
 	up_read(&wnd->rw_lock);
 
-	if (free < zlen + clen)
+	if (free < zlen + clen) {
 		return false;
+	}
 
 	avail = free - (zlen + clen);
 
-	wnd = &sbi->mft.bitmap;
-	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_MFT);
-	free = wnd_zeroes(wnd);
-	zlen = wnd_zone_len(wnd);
-	up_read(&wnd->rw_lock);
+	/* 
+	 * When delalloc is active then keep in mind some reserved space.
+	 * The worst case: 1 mft record per each ~500 clusters.
+	 */
+	if (da) {
+		/* 1 mft record per each 1024 clusters. */
+		mlen += da_clusters >> 10;
+	}
 
-	if (free >= zlen + mlen)
-		return true;
+	if (mlen || !avail) {
+		wnd = &sbi->mft.bitmap;
+		down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_MFT);
+		free = wnd_zeroes(wnd);
+		zlen = wnd_zone_len(wnd);
+		up_read(&wnd->rw_lock);
 
-	return avail >= bytes_to_cluster(sbi, mlen << sbi->record_bits);
+		if (free < zlen + mlen &&
+		    avail < bytes_to_cluster(sbi, mlen << sbi->record_bits)) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /*
@@ -509,8 +532,8 @@ static int ntfs_extend_mft(struct ntfs_sb_info *sbi)
 
 	/* Step 1: Resize $MFT::DATA. */
 	down_write(&ni->file.run_lock);
-	err = attr_set_size(ni, ATTR_DATA, NULL, 0, &ni->file.run,
-			    new_mft_bytes, NULL, false, &attr);
+	err = attr_set_size_ex(ni, ATTR_DATA, NULL, 0, &ni->file.run,
+			       new_mft_bytes, NULL, false, &attr, false);
 
 	if (err) {
 		up_write(&ni->file.run_lock);
@@ -525,7 +548,7 @@ static int ntfs_extend_mft(struct ntfs_sb_info *sbi)
 	new_bitmap_bytes = ntfs3_bitmap_size(new_mft_total);
 
 	err = attr_set_size(ni, ATTR_BITMAP, NULL, 0, &sbi->mft.bitmap.run,
-			    new_bitmap_bytes, &new_bitmap_bytes, true, NULL);
+			    new_bitmap_bytes, &new_bitmap_bytes, true);
 
 	/* Refresh MFT Zone if necessary. */
 	down_write_nested(&sbi->used.bitmap.rw_lock, BITMAP_MUTEX_CLUSTERS);
@@ -2191,7 +2214,7 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 	if (new_sds_size > ni->vfs_inode.i_size) {
 		err = attr_set_size(ni, ATTR_DATA, SDS_NAME,
 				    ARRAY_SIZE(SDS_NAME), &ni->file.run,
-				    new_sds_size, &new_sds_size, false, NULL);
+				    new_sds_size, &new_sds_size, false);
 		if (err)
 			goto out;
 	}

@@ -40,7 +40,7 @@ static struct inode *ntfs_read_mft(struct inode *inode,
 	u32 rp_fa = 0, asize, t32;
 	u16 roff, rsize, names = 0, links = 0;
 	const struct ATTR_FILE_NAME *fname = NULL;
-	const struct INDEX_ROOT *root;
+	const struct INDEX_ROOT *root = NULL;
 	struct REPARSE_DATA_BUFFER rp; // 0x18 bytes
 	u64 t64;
 	struct MFT_REC *rec;
@@ -556,6 +556,25 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 
 static sector_t ntfs_bmap(struct address_space *mapping, sector_t block)
 {
+	struct inode *inode = mapping->host;
+	struct ntfs_inode *ni = ntfs_i(inode);
+
+	/*
+	 * We can get here for an inline file via the FIBMAP ioctl
+	 */
+	if (is_resident(ni))
+		return 0;
+
+	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY) &&
+	    !run_is_empty(&ni->file.run_da)) {
+		/*
+		 * With delalloc data we want to sync the file so
+		 * that we can make sure we allocate blocks for file and data
+		 * is in place for the user to see it
+		 */
+		ni_allocate_da_blocks(ni);
+	}
+
 	return iomap_bmap(mapping, block, &ntfs_iomap_ops);
 }
 
@@ -722,7 +741,7 @@ int ntfs_set_size(struct inode *inode, u64 new_size)
 	down_write(&ni->file.run_lock);
 
 	err = attr_set_size(ni, ATTR_DATA, NULL, 0, &ni->file.run, new_size,
-			    &ni->i_valid, true, NULL);
+			    &ni->i_valid, true);
 
 	if (!err) {
 		i_size_write(inode, new_size);
@@ -735,6 +754,10 @@ int ntfs_set_size(struct inode *inode, u64 new_size)
 	return err;
 }
 
+/*
+ * Special value to detect ntfs_writeback_range call
+ */
+#define WB_NO_DA (struct iomap *)1
 /*
  * Function to get mapping vbo -> lbo.
  * used with:
@@ -760,22 +783,40 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	loff_t endbyte = offset + length;
 	void *res = NULL;
 	int err;
-	CLST lcn, clen, clen_max;
+	CLST lcn, clen, clen_max = 1;
 	bool new_clst = false;
+	bool no_da;
+	bool zero = false;
 	if (unlikely(ntfs3_forced_shutdown(sbi->sb)))
 		return -EIO;
 
-	if ((flags & IOMAP_REPORT) && offset > ntfs_get_maxbytes(ni)) {
-		/* called from fiemap/bmap. */
-		return -EINVAL;
+	if (flags & IOMAP_REPORT) {
+		if (offset > ntfs_get_maxbytes(ni)) {
+			/* called from fiemap/bmap. */
+			return -EINVAL;
+		}
+
+		if (offset >= inode->i_size) {
+			/* special code for report. */
+			return -ENOENT;
+		}
 	}
 
-	clen_max = rw ? (bytes_to_cluster(sbi, endbyte) - vcn) : 1;
+	if (IOMAP_ZERO == flags && (endbyte & sbi->cluster_mask)) {
+		rw = true;
+	} else if (rw) {
+		clen_max = bytes_to_cluster(sbi, endbyte) - vcn;
+	}
 
-	err = attr_data_get_block(
-		ni, vcn, clen_max, &lcn, &clen, rw ? &new_clst : NULL,
-		flags == IOMAP_WRITE && (off || (endbyte & sbi->cluster_mask)),
-		&res);
+	/* 
+	 * Force to allocate clusters if directIO(write) or writeback_range.
+	 * NOTE: attr_data_get_block allocates clusters only for sparse file.
+	 * Normal file allocates clusters in attr_set_size.
+	*/
+	no_da = flags == (IOMAP_DIRECT | IOMAP_WRITE) || srcmap == WB_NO_DA;
+
+	err = attr_data_get_block(ni, vcn, clen_max, &lcn, &clen,
+				  rw ? &new_clst : NULL, zero, &res, no_da);
 
 	if (err) {
 		return err;
@@ -795,6 +836,8 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		lcn = SPARSE_LCN;
 	}
 
+	iomap->flags = new_clst ? IOMAP_F_NEW : 0;
+
 	if (lcn == RESIDENT_LCN) {
 		if (offset >= clen) {
 			kfree(res);
@@ -809,7 +852,6 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		iomap->type = IOMAP_INLINE;
 		iomap->offset = 0;
 		iomap->length = clen; /* resident size in bytes. */
-		iomap->flags = 0;
 		return 0;
 	}
 
@@ -818,42 +860,52 @@ static int ntfs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		return -EINVAL;
 	}
 
+	iomap->bdev = inode->i_sb->s_bdev;
+	iomap->offset = offset;
+	iomap->length = ((loff_t)clen << cluster_bits) - off;
+
 	if (lcn == COMPRESSED_LCN) {
 		/* should never be here. */
 		return -EOPNOTSUPP;
 	}
 
-	iomap->flags = new_clst ? IOMAP_F_NEW : 0;
-	iomap->bdev = inode->i_sb->s_bdev;
-
-	/* Translate clusters into bytes. */
-	iomap->offset = offset;
-	iomap->addr = ((loff_t)lcn << cluster_bits) + off;
-	iomap->length = ((loff_t)clen << cluster_bits) - off;
-	if (length && iomap->length > length)
-		iomap->length = length;
-	else
-		endbyte = offset + iomap->length;
-
-	if (lcn == SPARSE_LCN) {
+	if (lcn == DELALLOC_LCN) {
+		iomap->type = IOMAP_DELALLOC;
 		iomap->addr = IOMAP_NULL_ADDR;
-		iomap->type = IOMAP_HOLE;
-	} else if (endbyte <= ni->i_valid) {
-		iomap->type = IOMAP_MAPPED;
-	} else if (offset < ni->i_valid) {
-		iomap->type = IOMAP_MAPPED;
-		if (flags & IOMAP_REPORT)
-			iomap->length = ni->i_valid - offset;
-	} else if (rw || (flags & IOMAP_ZERO)) {
-		iomap->type = IOMAP_MAPPED;
 	} else {
-		iomap->type = IOMAP_UNWRITTEN;
+
+		/* Translate clusters into bytes. */
+		iomap->addr = ((loff_t)lcn << cluster_bits) + off;
+		if (length && iomap->length > length)
+			iomap->length = length;
+		else
+			endbyte = offset + iomap->length;
+
+		if (lcn == SPARSE_LCN) {
+			iomap->addr = IOMAP_NULL_ADDR;
+			iomap->type = IOMAP_HOLE;
+			//			if (IOMAP_ZERO == flags && !off) {
+			//				iomap->length = (endbyte - offset) &
+			//						sbi->cluster_mask_inv;
+			//			}
+		} else if (endbyte <= ni->i_valid) {
+			iomap->type = IOMAP_MAPPED;
+		} else if (offset < ni->i_valid) {
+			iomap->type = IOMAP_MAPPED;
+			if (flags & IOMAP_REPORT)
+				iomap->length = ni->i_valid - offset;
+		} else if (rw || (flags & IOMAP_ZERO)) {
+			iomap->type = IOMAP_MAPPED;
+		} else {
+			iomap->type = IOMAP_UNWRITTEN;
+		}
 	}
 
-	if ((flags & IOMAP_ZERO) && iomap->type == IOMAP_MAPPED) {
+	if ((flags & IOMAP_ZERO) &&
+	    (iomap->type == IOMAP_MAPPED || iomap->type == IOMAP_DELALLOC)) {
 		/* Avoid too large requests. */
 		u32 tail;
-		u32 off_a = iomap->addr & (PAGE_SIZE - 1);
+		u32 off_a = offset & (PAGE_SIZE - 1);
 		if (off_a)
 			tail = PAGE_SIZE - off_a;
 		else
@@ -904,7 +956,9 @@ static int ntfs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		}
 	}
 
-	if ((flags & IOMAP_ZERO) && iomap->type == IOMAP_MAPPED) {
+	if ((flags & IOMAP_ZERO) &&
+	    (iomap->type == IOMAP_MAPPED || iomap->type == IOMAP_DELALLOC)) {
+		/* Pair for code in ntfs_iomap_begin. */
 		balance_dirty_pages_ratelimited(inode->i_mapping);
 		cond_resched();
 	}
@@ -933,7 +987,7 @@ static void ntfs_iomap_put_folio(struct inode *inode, loff_t pos,
 	loff_t f_pos = folio_pos(folio);
 	loff_t f_end = f_pos + f_size;
 
-	if (ni->i_valid < end && end < f_end) {
+	if (ni->i_valid <= end && end < f_end) {
 		/* zero range [end - f_end). */
 		/* The only thing ntfs_iomap_put_folio used for. */
 		folio_zero_segment(folio, offset_in_folio(folio, end), f_size);
@@ -942,23 +996,31 @@ static void ntfs_iomap_put_folio(struct inode *inode, loff_t pos,
 	folio_put(folio);
 }
 
+/*
+ * iomap_writeback_ops::writeback_range
+ */
 static ssize_t ntfs_writeback_range(struct iomap_writepage_ctx *wpc,
 				    struct folio *folio, u64 offset,
 				    unsigned int len, u64 end_pos)
 {
 	struct iomap *iomap = &wpc->iomap;
-	struct inode *inode = wpc->inode;
-
 	/* Check iomap position. */
-	if (!(iomap->offset <= offset &&
-	      offset < iomap->offset + iomap->length)) {
+	if (iomap->offset + iomap->length <= offset || offset < iomap->offset) {
 		int err;
+		struct inode *inode = wpc->inode;
+		struct ntfs_inode *ni = ntfs_i(inode);
 		struct ntfs_sb_info *sbi = ntfs_sb(inode->i_sb);
 		loff_t i_size_up = ntfs_up_cluster(sbi, inode->i_size);
 		loff_t len_max = i_size_up - offset;
 
-		err = ntfs_iomap_begin(inode, offset, len_max, IOMAP_WRITE,
-				       iomap, NULL);
+		err = ni->file.run_da.count ? ni_allocate_da_blocks(ni) : 0;
+
+		if (!err) {
+			/* Use local special value 'WB_NO_DA' to disable delalloc. */
+			err = ntfs_iomap_begin(inode, offset, len_max,
+					       IOMAP_WRITE, iomap, WB_NO_DA);
+		}
+
 		if (err) {
 			ntfs_set_state(sbi, NTFS_DIRTY_DIRTY);
 			return err;
@@ -1532,9 +1594,10 @@ int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 			attr->nres.alloc_size =
 				cpu_to_le64(ntfs_up_cluster(sbi, nsize));
 
-			err = attr_allocate_clusters(sbi, &ni->file.run, 0, 0,
-						     clst, NULL, ALLOCATE_DEF,
-						     &alen, 0, NULL, NULL);
+			err = attr_allocate_clusters(sbi, &ni->file.run, NULL,
+						     0, 0, clst, NULL,
+						     ALLOCATE_DEF, &alen, 0,
+						     NULL, NULL);
 			if (err)
 				goto out5;
 
@@ -1675,7 +1738,7 @@ out6:
 		/* Delete ATTR_EA, if non-resident. */
 		struct runs_tree run;
 		run_init(&run);
-		attr_set_size(ni, ATTR_EA, NULL, 0, &run, 0, NULL, false, NULL);
+		attr_set_size(ni, ATTR_EA, NULL, 0, &run, 0, NULL, false);
 		run_close(&run);
 	}
 

@@ -123,6 +123,8 @@ void ni_clear(struct ntfs_inode *ni)
 		indx_clear(&ni->dir);
 	else {
 		run_close(&ni->file.run);
+		ntfs_sub_da(ni->mi.sbi, run_len(&ni->file.run_da));
+		run_close(&ni->file.run_da);
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 		if (ni->file.offs_folio) {
 			/* On-demand allocated page for offsets. */
@@ -2014,7 +2016,8 @@ int ni_decompress_file(struct ntfs_inode *ni)
 
 		for (vcn = vbo >> sbi->cluster_bits; vcn < end; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
-						  &clen, &new, false, NULL);
+						  &clen, &new, false, NULL,
+						  false);
 			if (err)
 				goto out;
 		}
@@ -2235,7 +2238,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 	struct runs_tree *run = &ni->file.run;
 	u64 valid_size = ni->i_valid;
 	u64 vbo_disk;
-	size_t unc_size;
+	size_t unc_size = 0;
 	u32 frame_size, i, ondisk_size;
 	struct page *pg;
 	struct ATTRIB *attr;
@@ -2846,7 +2849,7 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 	/* Enumerate all fragments. */
 	for (vcn = offset >> cluster_bits;; vcn += clen) {
 		err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL, false,
-					  NULL);
+					  NULL, false);
 		if (err) {
 			return err;
 		}
@@ -2886,9 +2889,9 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 			}
 		} else {
 			/*
-			 * Adjust the file offset to the next hole in the file greater than or 
+			 * Adjust the file offset to the next hole in the file greater than or
 			 * equal to offset. If offset points into the middle of a hole, then the
-			 * file offset is set to offset. If there is no hole past offset, then the 
+			 * file offset is set to offset. If there is no hole past offset, then the
 			 * file offset is adjusted to the end of the file
 			 * (i.e., there is an implicit hole at the end of any file).
 			 */
@@ -3234,4 +3237,63 @@ out:
 		mark_inode_dirty_sync(inode);
 
 	return 0;
+}
+
+/*
+ * Force to allocate all delay allocated clusters.
+ */
+int ni_allocate_da_blocks(struct ntfs_inode *ni)
+{
+	int err;
+
+	ni_lock(ni);
+	down_write(&ni->file.run_lock);
+
+	err = ni_allocate_da_blocks_locked(ni);
+
+	up_write(&ni->file.run_lock);
+	ni_unlock(ni);
+
+	return err;
+}
+
+/*
+ * Force to allocate all delay allocated clusters.
+ */
+int ni_allocate_da_blocks_locked(struct ntfs_inode *ni)
+{
+	int err;
+
+	if (!ni->file.run_da.count)
+		return 0;
+
+	if (is_sparsed(ni)) {
+		CLST vcn, lcn, clen, alen;
+		bool new;
+
+		/*
+		 * Sparse file allocates clusters in 'attr_data_get_block_locked'
+		 */
+		while (run_get_entry(&ni->file.run_da, 0, &vcn, &lcn, &clen)) {
+			/* TODO: zero=true? */
+			err = attr_data_get_block_locked(ni, vcn, clen, &lcn,
+							 &alen, &new, true,
+							 NULL, true);
+			if (err)
+				break;
+			if (!new) {
+				err = -EINVAL;
+				break;
+			}
+		}
+	} else {
+		/*
+		 * Normal file allocates clusters in 'attr_set_size'
+		 */
+		err = attr_set_size_ex(ni, ATTR_DATA, NULL, 0, &ni->file.run,
+				       ni->vfs_inode.i_size, &ni->i_valid,
+				       false, NULL, true);
+	}
+
+	return err;
 }
