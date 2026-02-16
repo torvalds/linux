@@ -26,7 +26,7 @@ struct kernfs_iattrs {
 	struct timespec64	ia_mtime;
 	struct timespec64	ia_ctime;
 
-	struct simple_xattrs	xattrs;
+	struct simple_xattrs	*xattrs;
 	atomic_t		nr_user_xattrs;
 	atomic_t		user_xattr_size;
 };
