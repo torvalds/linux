@@ -257,6 +257,7 @@ static const struct regmap_irq_chip s2mpg10_irq_chip = {
 
 static const struct regmap_irq_chip s2mpg10_irq_chip_pmic = {
 	.name = "s2mpg10-pmic",
+	.domain_suffix = "pmic",
 	.status_base = S2MPG10_PMIC_INT1,
 	.mask_base = S2MPG10_PMIC_INT1M,
 	.num_regs = 6,

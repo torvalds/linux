@@ -464,53 +464,36 @@ static int ls2k_bmc_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	resource_size_t base;
 	int ret;
 
-	ret = pci_enable_device(dev);
+	ret = pcim_enable_device(dev);
 	if (ret)
 		return ret;
 
 	ddata = devm_kzalloc(&dev->dev, sizeof(*ddata), GFP_KERNEL);
-	if (!ddata) {
-		ret = -ENOMEM;
-		goto disable_pci;
-	}
+	if (!ddata)
+		return -ENOMEM;
 
 	ddata->dev = &dev->dev;
 
 	ret = ls2k_bmc_init(ddata);
 	if (ret)
-		goto disable_pci;
+		return ret;
 
 	ret = ls2k_bmc_parse_mode(dev, &pd);
 	if (ret)
-		goto disable_pci;
+		return ret;
 
 	ls2k_bmc_cells[LS2K_BMC_DISPLAY].platform_data = &pd;
 	ls2k_bmc_cells[LS2K_BMC_DISPLAY].pdata_size = sizeof(pd);
-	base = dev->resource[0].start + LS2K_DISPLAY_RES_START;
+	base = pci_resource_start(dev, 0) + LS2K_DISPLAY_RES_START;
 
 	/* Remove conflicting efifb device */
 	ret = aperture_remove_conflicting_devices(base, SZ_4M, "simple-framebuffer");
-	if (ret) {
-		dev_err(&dev->dev, "Failed to removed firmware framebuffers: %d\n", ret);
-		goto disable_pci;
-	}
-
-	ret = devm_mfd_add_devices(&dev->dev, PLATFORM_DEVID_AUTO,
-				   ls2k_bmc_cells, ARRAY_SIZE(ls2k_bmc_cells),
-				   &dev->resource[0], 0, NULL);
 	if (ret)
-		goto disable_pci;
+		return dev_err_probe(&dev->dev, ret, "Failed to removed firmware framebuffers\n");
 
-	return 0;
-
-disable_pci:
-	pci_disable_device(dev);
-	return ret;
-}
-
-static void ls2k_bmc_remove(struct pci_dev *dev)
-{
-	pci_disable_device(dev);
+	return devm_mfd_add_devices(&dev->dev, PLATFORM_DEVID_AUTO,
+				    ls2k_bmc_cells, ARRAY_SIZE(ls2k_bmc_cells),
+				    pci_resource_n(dev, 0), 0, NULL);
 }
 
 static struct pci_device_id ls2k_bmc_devices[] = {
@@ -523,7 +506,6 @@ static struct pci_driver ls2k_bmc_driver = {
 	.name = "ls2k-bmc",
 	.id_table = ls2k_bmc_devices,
 	.probe = ls2k_bmc_probe,
-	.remove = ls2k_bmc_remove,
 };
 module_pci_driver(ls2k_bmc_driver);
 
