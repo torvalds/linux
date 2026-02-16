@@ -163,6 +163,8 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 			if (inode_owner_or_capable(idmap, inode))
 				break;
 			return -EPERM;
+		case S_IFSOCK:
+			break;
 		default:
 			return xattr_permission_error(mask);
 		}
