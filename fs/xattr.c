@@ -1677,19 +1677,19 @@ static bool rbtree_simple_xattr_less(struct rb_node *new_node,
  * of matching xattrs is wanted. Should only be called during inode
  * initialization when a few distinct initial xattrs are supposed to be set.
  */
-void simple_xattr_add(struct simple_xattrs *xattrs,
-		      struct simple_xattr *new_xattr)
+int simple_xattr_add(struct simple_xattrs *xattrs,
+		     struct simple_xattr *new_xattr)
 {
-	if (xattrs->use_rhashtable) {
-		WARN_ON(rhashtable_insert_fast(&xattrs->ht,
-					       &new_xattr->hash_node,
-					       simple_xattr_params));
-	} else {
-		write_lock(&xattrs->lock);
-		rb_add(&new_xattr->rb_node, &xattrs->rb_root,
-		       rbtree_simple_xattr_less);
-		write_unlock(&xattrs->lock);
-	}
+	if (xattrs->use_rhashtable)
+		return rhashtable_insert_fast(&xattrs->ht,
+					      &new_xattr->hash_node,
+					      simple_xattr_params);
+
+	write_lock(&xattrs->lock);
+	rb_add(&new_xattr->rb_node, &xattrs->rb_root,
+	       rbtree_simple_xattr_less);
+	write_unlock(&xattrs->lock);
+	return 0;
 }
 
 /**

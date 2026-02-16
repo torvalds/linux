@@ -142,8 +142,8 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      size_t size, int flags);
 ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size);
-void simple_xattr_add(struct simple_xattrs *xattrs,
-		      struct simple_xattr *new_xattr);
+int simple_xattr_add(struct simple_xattrs *xattrs,
+		     struct simple_xattr *new_xattr);
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name);
 
 DEFINE_CLASS(simple_xattr,
