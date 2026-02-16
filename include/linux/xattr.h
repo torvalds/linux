@@ -118,6 +118,20 @@ struct simple_xattr {
 	char value[] __counted_by(size);
 };
 
+#define SIMPLE_XATTR_MAX_NR		128
+#define SIMPLE_XATTR_MAX_SIZE		(128 << 10)
+
+struct simple_xattr_limits {
+	atomic_t	nr_xattrs;	/* current user.* xattr count */
+	atomic_t	xattr_size;	/* current total user.* value bytes */
+};
+
+static inline void simple_xattr_limits_init(struct simple_xattr_limits *limits)
+{
+	atomic_set(&limits->nr_xattrs, 0);
+	atomic_set(&limits->xattr_size, 0);
+}
+
 int simple_xattrs_init(struct simple_xattrs *xattrs);
 struct simple_xattrs *simple_xattrs_alloc(void);
 struct simple_xattrs *simple_xattrs_lazy_alloc(struct simple_xattrs **xattrsp,
@@ -132,6 +146,10 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      const char *name, const void *value,
 				      size_t size, int flags);
+int simple_xattr_set_limited(struct simple_xattrs *xattrs,
+			     struct simple_xattr_limits *limits,
+			     const char *name, const void *value,
+			     size_t size, int flags);
 ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size);
 int simple_xattr_add(struct simple_xattrs *xattrs,

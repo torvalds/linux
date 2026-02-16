@@ -1427,6 +1427,71 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 	return old_xattr;
 }
 
+static inline void simple_xattr_limits_dec(struct simple_xattr_limits *limits,
+					   size_t size)
+{
+	atomic_sub(size, &limits->xattr_size);
+	atomic_dec(&limits->nr_xattrs);
+}
+
+static inline int simple_xattr_limits_inc(struct simple_xattr_limits *limits,
+					  size_t size)
+{
+	if (atomic_inc_return(&limits->nr_xattrs) > SIMPLE_XATTR_MAX_NR) {
+		atomic_dec(&limits->nr_xattrs);
+		return -ENOSPC;
+	}
+
+	if (atomic_add_return(size, &limits->xattr_size) <= SIMPLE_XATTR_MAX_SIZE)
+		return 0;
+
+	simple_xattr_limits_dec(limits, size);
+	return -ENOSPC;
+}
+
+/**
+ * simple_xattr_set_limited - set an xattr with per-inode user.* limits
+ * @xattrs: the header of the xattr object
+ * @limits: per-inode limit counters for user.* xattrs
+ * @name: the name of the xattr to set or remove
+ * @value: the value to store (NULL to remove)
+ * @size: the size of @value
+ * @flags: XATTR_CREATE, XATTR_REPLACE, or 0
+ *
+ * Like simple_xattr_set(), but enforces per-inode count and total value size
+ * limits for user.* xattrs. Uses speculative pre-increment of the atomic
+ * counters to avoid races without requiring external locks.
+ *
+ * Return: On success zero is returned. On failure a negative error code is
+ * returned.
+ */
+int simple_xattr_set_limited(struct simple_xattrs *xattrs,
+			     struct simple_xattr_limits *limits,
+			     const char *name, const void *value,
+			     size_t size, int flags)
+{
+	struct simple_xattr *old_xattr;
+	int ret;
+
+	if (value) {
+		ret = simple_xattr_limits_inc(limits, size);
+		if (ret)
+			return ret;
+	}
+
+	old_xattr = simple_xattr_set(xattrs, name, value, size, flags);
+	if (IS_ERR(old_xattr)) {
+		if (value)
+			simple_xattr_limits_dec(limits, size);
+		return PTR_ERR(old_xattr);
+	}
+	if (old_xattr) {
+		simple_xattr_limits_dec(limits, old_xattr->size);
+		simple_xattr_free_rcu(old_xattr);
+	}
+	return 0;
+}
+
 static bool xattr_is_trusted(const char *name)
 {
 	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
