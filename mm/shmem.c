@@ -4278,7 +4278,7 @@ static int shmem_initxattrs(struct inode *inode,
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		new_xattr = simple_xattr_alloc(xattr->value, xattr->value_len);
-		if (!new_xattr)
+		if (IS_ERR(new_xattr))
 			break;
 
 		len = strlen(xattr->name) + 1;

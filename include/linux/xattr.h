@@ -107,8 +107,14 @@ static inline const char *xattr_prefix(const struct xattr_handler *handler)
 }
 
 struct simple_xattrs {
-	struct rb_root rb_root;
-	rwlock_t lock;
+	bool use_rhashtable;
+	union {
+		struct {
+			struct rb_root rb_root;
+			rwlock_t lock;
+		};
+		struct rhashtable ht;
+	};
 };
 
 struct simple_xattr {
@@ -121,6 +127,9 @@ struct simple_xattr {
 };
 
 void simple_xattrs_init(struct simple_xattrs *xattrs);
+struct simple_xattrs *simple_xattrs_alloc(void);
+struct simple_xattrs *simple_xattrs_lazy_alloc(struct simple_xattrs **xattrsp,
+					       const void *value, int flags);
 void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space);
 size_t simple_xattr_space(const char *name, size_t size);
 struct simple_xattr *simple_xattr_alloc(const void *value, size_t size);
@@ -136,5 +145,17 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 void simple_xattr_add(struct simple_xattrs *xattrs,
 		      struct simple_xattr *new_xattr);
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name);
+
+DEFINE_CLASS(simple_xattr,
+	     struct simple_xattr *,
+	     if (!IS_ERR_OR_NULL(_T)) simple_xattr_free(_T),
+	     simple_xattr_alloc(value, size),
+	     const void *value, size_t size)
+
+DEFINE_CLASS(simple_xattrs,
+            struct simple_xattrs *,
+            if (!IS_ERR_OR_NULL(_T)) { simple_xattrs_free(_T, NULL); kfree(_T); },
+            simple_xattrs_alloc(),
+            void)
 
 #endif	/* _LINUX_XATTR_H */
