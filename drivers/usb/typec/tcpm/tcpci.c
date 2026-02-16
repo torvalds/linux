@@ -999,7 +999,7 @@ static int tcpci_resume(struct device *dev)
 	return ret;
 }
 
-DEFINE_SIMPLE_DEV_PM_OPS(tcpci_pm_ops, tcpci_suspend, tcpci_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(tcpci_pm_ops, tcpci_suspend, tcpci_resume);
 
 static const struct i2c_device_id tcpci_id[] = {
 	{ "tcpci" },
