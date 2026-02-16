@@ -476,7 +476,7 @@ static int appletb_kbd_suspend(struct hid_device *hdev, pm_message_t msg)
 	return 0;
 }
 
-static int appletb_kbd_reset_resume(struct hid_device *hdev)
+static int appletb_kbd_resume(struct hid_device *hdev)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
 
@@ -500,7 +500,8 @@ static struct hid_driver appletb_kbd_hid_driver = {
 	.event = appletb_kbd_hid_event,
 	.input_configured = appletb_kbd_input_configured,
 	.suspend = pm_ptr(appletb_kbd_suspend),
-	.reset_resume = pm_ptr(appletb_kbd_reset_resume),
+	.resume = pm_ptr(appletb_kbd_resume),
+	.reset_resume = pm_ptr(appletb_kbd_resume),
 	.driver.dev_groups = appletb_kbd_groups,
 };
 module_hid_driver(appletb_kbd_hid_driver);
