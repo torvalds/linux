@@ -82,6 +82,7 @@ static struct trace_kprobe *to_trace_kprobe(struct dyn_event *ev)
 #define for_each_trace_kprobe(pos, dpos)	\
 	for_each_dyn_event(dpos)		\
 		if (is_trace_kprobe(dpos) && (pos = to_trace_kprobe(dpos)))
+#define trace_kprobe_list_empty() list_empty(&dyn_event_list)
 
 static nokprobe_inline bool trace_kprobe_is_return(struct trace_kprobe *tk)
 {
@@ -1981,6 +1982,9 @@ static __init void enable_boot_kprobe_events(void)
 	struct trace_event_file *file;
 	struct trace_kprobe *tk;
 	struct dyn_event *pos;
+
+	if (trace_kprobe_list_empty())
+		return;
 
 	guard(mutex)(&event_mutex);
 	for_each_trace_kprobe(tk, pos) {
