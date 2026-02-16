@@ -295,19 +295,9 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void mantix_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct mantix *ctx = mipi_dsi_get_drvdata(dsi);
-
-	drm_panel_unprepare(&ctx->panel);
-	drm_panel_disable(&ctx->panel);
-}
-
 static void mantix_remove(struct mipi_dsi_device *dsi)
 {
 	struct mantix *ctx = mipi_dsi_get_drvdata(dsi);
-
-	mantix_shutdown(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
@@ -323,7 +313,6 @@ MODULE_DEVICE_TABLE(of, mantix_of_match);
 static struct mipi_dsi_driver mantix_driver = {
 	.probe	= mantix_probe,
 	.remove = mantix_remove,
-	.shutdown = mantix_shutdown,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mantix_of_match,
