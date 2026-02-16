@@ -1676,13 +1676,13 @@ xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
 
 static void xe_drm_pagemap_device_unmap(struct drm_pagemap *dpagemap,
 					struct device *dev,
-					struct drm_pagemap_addr addr)
+					const struct drm_pagemap_addr *addr)
 {
-	if (addr.proto != XE_INTERCONNECT_P2P)
+	if (addr->proto != XE_INTERCONNECT_P2P)
 		return;
 
-	dma_unmap_resource(dev, addr.addr, PAGE_SIZE << addr.order,
-			   addr.dir, DMA_ATTR_SKIP_CPU_SYNC);
+	dma_unmap_resource(dev, addr->addr, PAGE_SIZE << addr->order,
+			   addr->dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
 static void xe_pagemap_destroy_work(struct work_struct *work)
