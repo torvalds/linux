@@ -671,6 +671,7 @@ struct arch_pebs_cntr_header {
  */
 #define IBS_OP_LDLAT_EN		(1ULL<<63)
 #define IBS_OP_LDLAT_THRSH	(0xFULL<<59)
+#define IBS_OP_LDLAT_THRSH_SHIFT	(59)
 #define IBS_OP_CUR_CNT		(0xFFF80ULL<<32)
 #define IBS_OP_CUR_CNT_RAND	(0x0007FULL<<32)
 #define IBS_OP_CUR_CNT_EXT_MASK	(0x7FULL<<52)
