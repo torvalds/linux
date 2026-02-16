@@ -220,8 +220,12 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 		int tmo = READ_ONCE(net->ipv6.sysctl.icmpv6_time);
 		struct inet_peer *peer;
 
-		peer = inet_getpeer_v6(net->ipv6.peers, &fl6->daddr);
-		res = inet_peer_xrlim_allow(peer, tmo);
+		if (!tmo) {
+			res = true;
+		} else {
+			peer = inet_getpeer_v6(net->ipv6.peers, &fl6->daddr);
+			res = inet_peer_xrlim_allow(peer, tmo);
+		}
 	}
 	rcu_read_unlock();
 	if (!res)
