@@ -1441,17 +1441,34 @@ static int io_sg_from_iter(struct sk_buff *skb,
 	return ret;
 }
 
-static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
+static int io_send_zc_import(struct io_kiocb *req,
+			     struct io_async_msghdr *kmsg,
+			     unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg = req->async_data;
+	struct io_kiocb *notif = sr->notif;
+	int ret;
 
 	WARN_ON_ONCE(!(sr->flags & IORING_RECVSEND_FIXED_BUF));
 
-	sr->notif->buf_index = req->buf_index;
-	return io_import_reg_buf(sr->notif, &kmsg->msg.msg_iter,
-				(u64)(uintptr_t)sr->buf, sr->len,
-				ITER_SOURCE, issue_flags);
+	notif->buf_index = req->buf_index;
+
+	if (req->opcode == IORING_OP_SEND_ZC) {
+		ret = io_import_reg_buf(notif, &kmsg->msg.msg_iter,
+					(u64)(uintptr_t)sr->buf, sr->len,
+					ITER_SOURCE, issue_flags);
+	} else {
+		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
+
+		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter,
+					notif, &kmsg->vec, uvec_segs,
+					issue_flags);
+	}
+
+	if (unlikely(ret))
+		return ret;
+	req->flags &= ~REQ_F_IMPORT_BUFFER;
+	return 0;
 }
 
 int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
@@ -1473,8 +1490,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		req->flags &= ~REQ_F_IMPORT_BUFFER;
-		ret = io_send_zc_import(req, issue_flags);
+		ret = io_send_zc_import(req, kmsg, issue_flags);
 		if (unlikely(ret))
 			return ret;
 	}
@@ -1530,16 +1546,9 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	int ret, min_ret = 0;
 
 	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
-		int ret;
-
-		sr->notif->buf_index = req->buf_index;
-		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter,
-					sr->notif, &kmsg->vec, uvec_segs,
-					issue_flags);
+		ret = io_send_zc_import(req, kmsg, issue_flags);
 		if (unlikely(ret))
 			return ret;
-		req->flags &= ~REQ_F_IMPORT_BUFFER;
 	}
 
 	sock = sock_from_file(req->file);
