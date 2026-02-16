@@ -462,7 +462,7 @@ int snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 	while (ep_state_running(ep)) {
 		struct snd_usb_packet_info *packet;
 		struct snd_urb_ctx *ctx = NULL;
-		int err, i;
+		int err;
 
 		scoped_guard(spinlock_irqsave, &ep->lock) {
 			if ((!implicit_fb || ep->next_packet_queued > 0) &&
@@ -482,8 +482,8 @@ int snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 		/* copy over the length information */
 		if (implicit_fb) {
 			ctx->packets = packet->packets;
-			for (i = 0; i < packet->packets; i++)
-				ctx->packet_size[i] = packet->packet_size[i];
+			memcpy(ctx->packet_size, packet->packet_size,
+			       packet->packets * sizeof(packet->packet_size[0]));
 		}
 
 		/* call the data handler to fill in playback data */
