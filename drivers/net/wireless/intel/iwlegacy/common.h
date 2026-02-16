@@ -518,13 +518,15 @@ struct il_channel_info {
 #define IEEE80211_FRAME_LEN             (IEEE80211_DATA_LEN + IEEE80211_HLEN)
 
 struct il_frame {
+	struct list_head list;
+
+	/* Must be last as it ends in a flexible-array member. */
 	union {
 		struct ieee80211_hdr frame;
 		struct il_tx_beacon_cmd beacon;
 		u8 raw[IEEE80211_FRAME_LEN];
 		u8 cmd[360];
 	} u;
-	struct list_head list;
 };
 
 enum {
