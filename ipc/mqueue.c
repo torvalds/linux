@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * POSIX message queues filesystem for Linux.
  *
@@ -9,8 +10,6 @@
  *			    Manfred Spraul	    (manfred@colorfullife.com)
  *
  * Audit:                   George Wilson           (ltcgcw@us.ibm.com)
- *
- * This file is released under the GPL.
  */
 
 #include <linux/capability.h>

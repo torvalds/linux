@@ -43,7 +43,6 @@
 #include <linux/sched/task.h>
 #include <linux/idr.h>
 #include <linux/pidfs.h>
-#include <linux/seqlock.h>
 #include <net/sock.h>
 #include <uapi/linux/pidfd.h>
 
@@ -85,7 +84,6 @@ struct pid_namespace init_pid_ns = {
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
-seqcount_spinlock_t pidmap_lock_seq = SEQCNT_SPINLOCK_ZERO(pidmap_lock_seq, &pidmap_lock);
 
 void put_pid(struct pid *pid)
 {
@@ -141,9 +139,9 @@ void free_pid(struct pid *pid)
 
 		idr_remove(&ns->idr, upid->nr);
 	}
-	pidfs_remove_pid(pid);
 	spin_unlock(&pidmap_lock);
 
+	pidfs_remove_pid(pid);
 	call_rcu(&pid->rcu, delayed_put_pid);
 }
 
@@ -200,6 +198,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *arg_set_tid,
 		INIT_HLIST_HEAD(&pid->tasks[type]);
 	init_waitqueue_head(&pid->wait_pidfd);
 	INIT_HLIST_HEAD(&pid->inodes);
+	pidfs_prepare_pid(pid);
 
 	/*
 	 * 2. perm check checkpoint_restore_ns_capable()
@@ -316,7 +315,6 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *arg_set_tid,
 	retval = -ENOMEM;
 	if (unlikely(!(ns->pid_allocated & PIDNS_ADDING)))
 		goto out_free;
-	pidfs_add_pid(pid);
 	for (upid = pid->numbers + ns->level; upid >= pid->numbers; --upid) {
 		/* Make the PID visible to find_pid_ns. */
 		idr_replace(&upid->ns->idr, pid, upid->nr);
@@ -325,6 +323,12 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *arg_set_tid,
 	spin_unlock(&pidmap_lock);
 	idr_preload_end();
 	ns_ref_active_get(ns);
+
+	retval = pidfs_add_pid(pid);
+	if (unlikely(retval)) {
+		free_pid(pid);
+		pid = ERR_PTR(-ENOMEM);
+	}
 
 	return pid;
 
@@ -554,8 +558,7 @@ pid_t __task_pid_nr_ns(struct task_struct *task, enum pid_type type,
 	rcu_read_lock();
 	if (!ns)
 		ns = task_active_pid_ns(current);
-	if (ns)
-		nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
+	nr = pid_nr_ns(rcu_dereference(*task_pid_ptr(task, type)), ns);
 	rcu_read_unlock();
 
 	return nr;
