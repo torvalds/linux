@@ -48,6 +48,9 @@ against the %{version} kernel package.
 %if %{with_debuginfo_manual}
 %package debuginfo
 Summary: Debug information package for the Linux kernel
+Group: Development/Debug
+AutoReq: 0
+AutoProv: 1
 %description debuginfo
 This package provides debug information for the kernel image and modules from the
 %{version} package.
