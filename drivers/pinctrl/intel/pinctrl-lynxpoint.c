@@ -2,7 +2,7 @@
 /*
  * Intel Lynxpoint PCH pinctrl/GPIO driver
  *
- * Copyright (c) 2012, 2019, Intel Corporation
+ * Copyright (C) 2012-2019 Intel Corporation
  * Authors: Mathias Nyman <mathias.nyman@linux.intel.com>
  *          Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
@@ -29,10 +29,12 @@
 
 #include "pinctrl-intel.h"
 
-#define COMMUNITY(p, n)			\
+#define LPTLP_COMMUNITY(p, n, g)	\
 	{				\
 		.pin_base	= (p),	\
 		.npins		= (n),	\
+		.gpps = (g),		\
+		.ngpps = ARRAY_SIZE(g),	\
 	}
 
 static const struct pinctrl_pin_desc lptlp_pins[] = {
@@ -133,8 +135,14 @@ static const struct pinctrl_pin_desc lptlp_pins[] = {
 	PINCTRL_PIN(94, "GP94_UART0_CTSB"),
 };
 
+static const struct intel_padgroup lptlp_gpps[] = {
+	INTEL_GPP(0, 0, 31, 0),
+	INTEL_GPP(1, 32, 63, 32),
+	INTEL_GPP(2, 64, 94, 64),
+};
+
 static const struct intel_community lptlp_communities[] = {
-	COMMUNITY(0, 95),
+	LPTLP_COMMUNITY(0, 95, lptlp_gpps),
 };
 
 static const struct intel_pinctrl_soc_data lptlp_soc_data = {
@@ -692,19 +700,6 @@ static int lp_gpio_irq_init_hw(struct gpio_chip *chip)
 	return 0;
 }
 
-static int lp_gpio_add_pin_ranges(struct gpio_chip *chip)
-{
-	struct intel_pinctrl *lg = gpiochip_get_data(chip);
-	struct device *dev = lg->dev;
-	int ret;
-
-	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, lg->soc->npins);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
-
-	return 0;
-}
-
 static int lp_gpio_probe(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *soc;
@@ -740,7 +735,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 
 	lg->pctldev = devm_pinctrl_register(dev, &lg->pctldesc, lg);
 	if (IS_ERR(lg->pctldev))
-		return dev_err_probe(dev, PTR_ERR(lg->pctldev), "failed to register pinctrl\n");
+		return PTR_ERR(lg->pctldev);
 
 	platform_set_drvdata(pdev, lg);
 
@@ -777,7 +772,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->base = -1;
 	gc->ngpio = LP_NUM_GPIO;
 	gc->can_sleep = false;
-	gc->add_pin_ranges = lp_gpio_add_pin_ranges;
+	gc->add_pin_ranges = intel_gpio_add_pin_ranges;
 	gc->parent = dev;
 
 	/* set up interrupts  */

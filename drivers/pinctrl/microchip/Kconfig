@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PINCTRL_PIC64GX
+	bool "pic64gx gpio2 pinctrl driver"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  This selects the pinctrl driver for gpio2 on pic64gx.
+
+config PINCTRL_POLARFIRE_SOC
+	bool "Polarfire SoC pinctrl drivers"
+	depends on ARCH_MICROCHIP || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINCTRL
+	help
+	  This selects the pinctrl drivers for Microchip Polarfire SoC.

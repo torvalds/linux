@@ -2,7 +2,7 @@
 /*
  * Intel Tangier pinctrl functions
  *
- * Copyright (C) 2016, 2023 Intel Corporation
+ * Copyright (C) 2016-2023 Intel Corporation
  *
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  *          Raag Jadav <raag.jadav@intel.com>

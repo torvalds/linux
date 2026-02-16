@@ -2,7 +2,7 @@
 /*
  * Intel Cedar Fork PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2017, Intel Corporation
+ * Copyright (C) 2017 Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 

@@ -14,7 +14,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include "pinctrl-utils.h"
+#include "../pinctrl-utils.h"
 
 #define PIC64GX_PINMUX_REG 0x0
 

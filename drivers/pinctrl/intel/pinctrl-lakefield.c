@@ -2,7 +2,7 @@
 /*
  * Intel Lakefield PCH pinctrl/GPIO driver
  *
- * Copyright (C) 2020, Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 
