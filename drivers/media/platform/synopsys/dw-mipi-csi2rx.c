@@ -40,8 +40,6 @@
 #define SW_DATATYPE_LS(x)	((x) << 20)
 #define SW_DATATYPE_LE(x)	((x) << 26)
 
-#define DW_MIPI_CSI2RX_CLKS_MAX	1
-
 enum {
 	DW_MIPI_CSI2RX_PAD_SINK,
 	DW_MIPI_CSI2RX_PAD_SRC,
@@ -630,7 +628,7 @@ static int dw_mipi_csi2rx_probe(struct platform_device *pdev)
 		return PTR_ERR(csi2->base_addr);
 
 	ret = devm_clk_bulk_get_all(dev, &csi2->clks);
-	if (ret != DW_MIPI_CSI2RX_CLKS_MAX)
+	if (ret < 0)
 		return dev_err_probe(dev, -ENODEV, "failed to get clocks\n");
 	csi2->clks_num = ret;
 
