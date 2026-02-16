@@ -356,7 +356,10 @@ static int perf_ibs_init(struct perf_event *event)
 		ldlat >>= 7;
 
 		config |= (ldlat - 1) << 59;
-		config |= IBS_OP_L3MISSONLY | IBS_OP_LDLAT_EN;
+
+		config |= IBS_OP_LDLAT_EN;
+		if (cpu_feature_enabled(X86_FEATURE_ZEN5))
+			config |= IBS_OP_L3MISSONLY;
 	}
 
 	/*
