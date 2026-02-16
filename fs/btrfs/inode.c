@@ -1943,6 +1943,11 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	int ret = 0;
 	bool nowait = path->nowait;
 
+	/* If there are pending snapshots for this root, we must do COW. */
+	if (args->writeback_path && !is_freespace_inode &&
+	    atomic_read(&root->snapshot_force_cow))
+		goto out;
+
 	fi = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
 	extent_type = btrfs_file_extent_type(leaf, fi);
 
@@ -2003,11 +2008,6 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 		btrfs_free_path(path);
 		path = NULL;
 	}
-
-	/* If there are pending snapshots for this root, we must COW. */
-	if (args->writeback_path && !is_freespace_inode &&
-	    atomic_read(&root->snapshot_force_cow))
-		goto out;
 
 	args->file_extent.num_bytes = min(args->end + 1, extent_end) - args->start;
 	args->file_extent.offset += args->start - key->offset;
