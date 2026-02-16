@@ -7,6 +7,7 @@
  * Copyright (C) 2026 Collabora, Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -34,6 +35,22 @@
 #define DW_REG_EXIST		BIT(31)
 #define DW_REG(x)		(DW_REG_EXIST | (x))
 
+#define DPHY_TEST_CTRL0_TEST_CLR	BIT(0)
+
+#define IPI_VCID_VC(x)			FIELD_PREP(GENMASK(1, 0), (x))
+#define IPI_VCID_VC_0_1(x)		FIELD_PREP(GENMASK(3, 2), (x))
+#define IPI_VCID_VC_2			BIT(4)
+
+#define IPI_DATA_TYPE_DT(x)		FIELD_PREP(GENMASK(5, 0), (x))
+#define IPI_DATA_TYPE_EMB_DATA_EN	BIT(8)
+
+#define IPI_MODE_CONTROLLER		BIT(1)
+#define IPI_MODE_COLOR_MODE16		BIT(8)
+#define IPI_MODE_CUT_THROUGH		BIT(16)
+#define IPI_MODE_ENABLE			BIT(24)
+
+#define IPI_MEM_FLUSH_AUTO		BIT(8)
+
 enum dw_mipi_csi2rx_regs_index {
 	DW_MIPI_CSI2RX_N_LANES,
 	DW_MIPI_CSI2RX_RESETN,
@@ -43,6 +60,16 @@ enum dw_mipi_csi2rx_regs_index {
 	DW_MIPI_CSI2RX_MSK1,
 	DW_MIPI_CSI2RX_MSK2,
 	DW_MIPI_CSI2RX_CONTROL,
+	/* imx93 (v150) new register */
+	DW_MIPI_CSI2RX_DPHY_RSTZ,
+	DW_MIPI_CSI2RX_PHY_TST_CTRL0,
+	DW_MIPI_CSI2RX_PHY_TST_CTRL1,
+	DW_MIPI_CSI2RX_PHY_SHUTDOWNZ,
+	DW_MIPI_CSI2RX_IPI_DATATYPE,
+	DW_MIPI_CSI2RX_IPI_MEM_FLUSH,
+	DW_MIPI_CSI2RX_IPI_MODE,
+	DW_MIPI_CSI2RX_IPI_SOFTRSTN,
+	DW_MIPI_CSI2RX_IPI_VCID,
 
 	DW_MIPI_CSI2RX_MAX,
 };
@@ -53,8 +80,13 @@ enum {
 	DW_MIPI_CSI2RX_PAD_MAX,
 };
 
+struct dw_mipi_csi2rx_device;
+
 struct dw_mipi_csi2rx_drvdata {
 	const u32 *regs;
+	void (*dphy_assert_reset)(struct dw_mipi_csi2rx_device *csi2);
+	void (*dphy_deassert_reset)(struct dw_mipi_csi2rx_device *csi2);
+	void (*ipi_enable)(struct dw_mipi_csi2rx_device *csi2);
 };
 
 struct dw_mipi_csi2rx_format {
@@ -98,6 +130,21 @@ static const u32 rk3568_regs[DW_MIPI_CSI2RX_MAX] = {
 
 static const struct dw_mipi_csi2rx_drvdata rk3568_drvdata = {
 	.regs = rk3568_regs,
+};
+
+static const u32 imx93_regs[DW_MIPI_CSI2RX_MAX] = {
+	[DW_MIPI_CSI2RX_N_LANES] = DW_REG(0x4),
+	[DW_MIPI_CSI2RX_RESETN] = DW_REG(0x8),
+	[DW_MIPI_CSI2RX_PHY_SHUTDOWNZ] = DW_REG(0x40),
+	[DW_MIPI_CSI2RX_DPHY_RSTZ] = DW_REG(0x44),
+	[DW_MIPI_CSI2RX_PHY_STATE] = DW_REG(0x48),
+	[DW_MIPI_CSI2RX_PHY_TST_CTRL0] = DW_REG(0x50),
+	[DW_MIPI_CSI2RX_PHY_TST_CTRL1] = DW_REG(0x54),
+	[DW_MIPI_CSI2RX_IPI_MODE] = DW_REG(0x80),
+	[DW_MIPI_CSI2RX_IPI_VCID] = DW_REG(0x84),
+	[DW_MIPI_CSI2RX_IPI_DATATYPE] = DW_REG(0x88),
+	[DW_MIPI_CSI2RX_IPI_MEM_FLUSH] = DW_REG(0x8c),
+	[DW_MIPI_CSI2RX_IPI_SOFTRSTN] = DW_REG(0xa0),
 };
 
 static const struct v4l2_mbus_framefmt default_format = {
@@ -320,14 +367,32 @@ static int dw_mipi_csi2rx_start(struct dw_mipi_csi2rx_device *csi2)
 		return -EINVAL;
 	}
 
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_RESETN, 0);
+
+	if (csi2->drvdata->dphy_assert_reset)
+		csi2->drvdata->dphy_assert_reset(csi2);
+
 	control |= SW_DATATYPE_FS(0x00) | SW_DATATYPE_FE(0x01) |
 		   SW_DATATYPE_LS(0x02) | SW_DATATYPE_LE(0x03);
 
 	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_N_LANES, lanes - 1);
-	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_CONTROL, control);
+
+	if (dw_mipi_csi2rx_has_reg(csi2, DW_MIPI_CSI2RX_CONTROL))
+		dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_CONTROL, control);
+
+	ret = phy_power_on(csi2->phy);
+	if (ret)
+		return ret;
+
+	if (csi2->drvdata->dphy_deassert_reset)
+		csi2->drvdata->dphy_deassert_reset(csi2);
+
 	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_RESETN, 1);
 
-	return phy_power_on(csi2->phy);
+	if (csi2->drvdata->ipi_enable)
+		csi2->drvdata->ipi_enable(csi2);
+
+	return 0;
 }
 
 static void dw_mipi_csi2rx_stop(struct dw_mipi_csi2rx_device *csi2)
@@ -335,8 +400,12 @@ static void dw_mipi_csi2rx_stop(struct dw_mipi_csi2rx_device *csi2)
 	phy_power_off(csi2->phy);
 
 	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_RESETN, 0);
-	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_MSK1, ~0);
-	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_MSK2, ~0);
+
+	if (dw_mipi_csi2rx_has_reg(csi2, DW_MIPI_CSI2RX_MSK1))
+		dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_MSK1, ~0);
+
+	if (dw_mipi_csi2rx_has_reg(csi2, DW_MIPI_CSI2RX_MSK2))
+		dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_MSK2, ~0);
 }
 
 static const struct media_entity_operations dw_mipi_csi2rx_media_ops = {
@@ -686,7 +755,90 @@ static void dw_mipi_csi2rx_unregister(struct dw_mipi_csi2rx_device *csi2)
 	v4l2_async_nf_cleanup(&csi2->notifier);
 }
 
+static void imx93_csi2rx_dphy_assert_reset(struct dw_mipi_csi2rx_device *csi2)
+{
+	u32 val;
+
+	/* Release Synopsys DPHY test codes from reset */
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_DPHY_RSTZ, 0);
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_PHY_SHUTDOWNZ, 0);
+
+	val = dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_PHY_TST_CTRL0);
+	val &= ~DPHY_TEST_CTRL0_TEST_CLR;
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_PHY_TST_CTRL0, val);
+
+	val = dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_PHY_TST_CTRL0);
+	/* Wait for at least 15ns */
+	ndelay(15);
+	val |= DPHY_TEST_CTRL0_TEST_CLR;
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_PHY_TST_CTRL0, val);
+}
+
+static void imx93_csi2rx_dphy_deassert_reset(struct dw_mipi_csi2rx_device *csi2)
+{
+	/* Release PHY from reset */
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_PHY_SHUTDOWNZ, 0x1);
+	/*
+	 * ndelay() is not necessary have MMIO operation, need dummy read to
+	 * ensure that the write operation above reaches its target.
+	 */
+	dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_PHY_SHUTDOWNZ);
+	ndelay(5);
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_DPHY_RSTZ, 0x1);
+
+	dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_DPHY_RSTZ);
+	ndelay(5);
+}
+
+static void imx93_csi2rx_dphy_ipi_enable(struct dw_mipi_csi2rx_device *csi2)
+{
+	int dt = csi2->formats->csi_dt;
+	u32 val;
+
+	/* Do IPI soft reset */
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_SOFTRSTN, 0x0);
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_SOFTRSTN, 0x1);
+
+	/* Select virtual channel and data type to be processed by IPI */
+	val = IPI_DATA_TYPE_DT(dt);
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_DATATYPE, val);
+
+	/* Set virtual channel 0 as default */
+	val  = IPI_VCID_VC(0);
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_VCID, val);
+
+	/*
+	 * Select IPI camera timing mode and allow the pixel stream
+	 * to be non-continuous when pixel interface FIFO is empty
+	 */
+	val = dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_IPI_MODE);
+	val &= ~IPI_MODE_CONTROLLER;
+	val &= ~IPI_MODE_COLOR_MODE16;
+	val |= IPI_MODE_CUT_THROUGH;
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_MODE, val);
+
+	/* Memory is automatically flushed at each Frame Start */
+	val = IPI_MEM_FLUSH_AUTO;
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_MEM_FLUSH, val);
+
+	/* Enable IPI */
+	val = dw_mipi_csi2rx_read(csi2, DW_MIPI_CSI2RX_IPI_MODE);
+	val |= IPI_MODE_ENABLE;
+	dw_mipi_csi2rx_write(csi2, DW_MIPI_CSI2RX_IPI_MODE, val);
+}
+
+static const struct dw_mipi_csi2rx_drvdata imx93_drvdata = {
+	.regs = imx93_regs,
+	.dphy_assert_reset = imx93_csi2rx_dphy_assert_reset,
+	.dphy_deassert_reset = imx93_csi2rx_dphy_deassert_reset,
+	.ipi_enable = imx93_csi2rx_dphy_ipi_enable,
+};
+
 static const struct of_device_id dw_mipi_csi2rx_of_match[] = {
+	{
+		.compatible = "fsl,imx93-mipi-csi2",
+		.data = &imx93_drvdata,
+	},
 	{
 		.compatible = "rockchip,rk3568-mipi-csi2",
 		.data = &rk3568_drvdata,
