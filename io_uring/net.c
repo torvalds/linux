@@ -1526,7 +1526,7 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
-	unsigned flags;
+	unsigned msg_flags;
 	int ret, min_ret = 0;
 
 	if (req->flags & REQ_F_IMPORT_BUFFER) {
@@ -1552,21 +1552,21 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return -EAGAIN;
 
-	flags = sr->msg_flags;
+	msg_flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
-		flags |= MSG_DONTWAIT;
-	if (flags & MSG_WAITALL)
+		msg_flags |= MSG_DONTWAIT;
+	if (msg_flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
 	kmsg->msg.msg_control_user = sr->msg_control;
 	kmsg->msg.msg_ubuf = &io_notif_to_data(sr->notif)->uarg;
-	ret = __sys_sendmsg_sock(sock, &kmsg->msg, flags);
+	ret = __sys_sendmsg_sock(sock, &kmsg->msg, msg_flags);
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return -EAGAIN;
 
-		if (ret > 0 && io_net_retry(sock, flags)) {
+		if (ret > 0 && io_net_retry(sock, msg_flags)) {
 			sr->done_io += ret;
 			return -EAGAIN;
 		}
