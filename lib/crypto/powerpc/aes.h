@@ -95,7 +95,8 @@ static inline bool is_vsx_format(const struct p8_aes_key *key)
 }
 
 /*
- * Convert a round key from VSX to generic format by reflecting the 16 bytes,
+ * Convert a round key from VSX to generic format by reflecting all 16 bytes (if
+ * little endian) or reflecting the bytes in each 4-byte word (if big endian),
  * and (if apply_inv_mix=true) applying InvMixColumn to each column.
  *
  * It would be nice if the VSX and generic key formats would be compatible.  But
@@ -107,6 +108,7 @@ static inline bool is_vsx_format(const struct p8_aes_key *key)
  */
 static void rndkey_from_vsx(u32 out[4], const u32 in[4], bool apply_inv_mix)
 {
+	const bool be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 	u32 k0 = swab32(in[0]);
 	u32 k1 = swab32(in[1]);
 	u32 k2 = swab32(in[2]);
@@ -118,10 +120,10 @@ static void rndkey_from_vsx(u32 out[4], const u32 in[4], bool apply_inv_mix)
 		k2 = inv_mix_columns(k2);
 		k3 = inv_mix_columns(k3);
 	}
-	out[0] = k3;
-	out[1] = k2;
-	out[2] = k1;
-	out[3] = k0;
+	out[0] = be ? k0 : k3;
+	out[1] = be ? k1 : k2;
+	out[2] = be ? k2 : k1;
+	out[3] = be ? k3 : k0;
 }
 
 static void aes_preparekey_arch(union aes_enckey_arch *k,
