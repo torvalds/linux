@@ -3,7 +3,8 @@
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
  */
-#include <asm/mach-pic32/pic32.h>
+#include <linux/io.h>
+#include <linux/platform_data/pic32.h>
 
 #include "pic32mzda.h"
 

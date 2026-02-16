@@ -16,6 +16,7 @@
 
 #include <linux/dma-map-ops.h>
 #include <linux/export.h>
+#include <linux/libfdt.h>
 #include <linux/pci_ids.h>
 #include <linux/string_choices.h>
 #include <asm/bootinfo.h>
@@ -55,6 +56,101 @@ void __init prom_dtb_init_env(void)
 		loongson_fdt_blob = __dtb_loongson64_2core_2k1000_begin;
 	else
 		loongson_fdt_blob = (void *)fw_arg2;
+}
+
+static int __init lefi_fixup_fdt_serial(void *fdt, u64 uart_addr, u32 uart_clk)
+{
+	int node, len, depth = -1;
+	const fdt64_t *reg;
+	fdt32_t *clk;
+
+	for (node = fdt_next_node(fdt, -1, &depth);
+	     node >= 0 && depth >= 0;
+	     node = fdt_next_node(fdt, node, &depth)) {
+		reg = fdt_getprop(fdt, node, "reg", &len);
+		if (!reg || len <= 8 || fdt64_ld(reg) != uart_addr)
+			continue;
+
+		clk = fdt_getprop_w(fdt, node, "clock-frequency", &len);
+		if (!clk) {
+			pr_warn("UART 0x%llx misses clock-frequency property\n",
+				uart_addr);
+			return -ENOENT;
+		} else if (len != 4) {
+			pr_warn("UART 0x%llx has invalid clock-frequency property\n",
+				uart_addr);
+			return -EINVAL;
+		}
+
+		fdt32_st(clk, uart_clk);
+
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
+static void __init lefi_fixup_fdt(struct system_loongson *system)
+{
+	static unsigned char fdt_buf[16 << 10] __initdata;
+	struct uart_device *uartdev;
+	bool is_loongson64g;
+	u64 uart_base;
+	int ret, i;
+
+	ret = fdt_open_into(loongson_fdt_blob, fdt_buf, sizeof(fdt_buf));
+	if (ret) {
+		pr_err("Failed to open FDT to fix up\n");
+		return;
+	}
+
+	is_loongson64g = (read_c0_prid() & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64G;
+
+	for (i = 0; i < system->nr_uarts; i++) {
+		uartdev = &system->uarts[i];
+
+		ret = lefi_fixup_fdt_serial(fdt_buf, uartdev->uart_base,
+					    uartdev->uartclk);
+		/*
+		 * LOONGSON64G's CPU serials are mapped to two different
+		 * addresses, one full-featured but differs from
+		 * previous generations, one fully compatible with them.
+		 *
+		 * It's unspecified that which mapping should uart_base refer
+		 * to, thus we should try fixing up with both.
+		 */
+		if (ret == -ENODEV && is_loongson64g) {
+			switch (uartdev->uart_base) {
+			case 0x1fe00100:
+				uart_base = 0x1fe001e0;
+				break;
+			case 0x1fe00110:
+				uart_base = 0x1fe001e8;
+				break;
+			case 0x1fe001e0:
+				uart_base = 0x1fe00100;
+				break;
+			case 0x1fe001e8:
+				uart_base = 0x1fe00110;
+				break;
+			default:
+				pr_err("Unexpected UART address 0x%llx passed by firmware\n",
+				       uartdev->uart_base);
+				ret = -EINVAL;
+				goto err_fixup;
+			}
+
+			ret = lefi_fixup_fdt_serial(fdt_buf, uart_base,
+						    uartdev->uartclk);
+		}
+
+err_fixup:
+		if (ret)
+			pr_err("Couldn't fix up FDT node for UART 0x%llx\n",
+			       uartdev->uart_base);
+	}
+
+	loongson_fdt_blob = fdt_buf;
 }
 
 void __init prom_lefi_init_env(void)
@@ -237,4 +333,6 @@ void __init prom_lefi_init_env(void)
 
 	if (!loongson_fdt_blob)
 		pr_err("Failed to determine built-in Loongson64 dtb\n");
+	else
+		lefi_fixup_fdt(esys);
 }

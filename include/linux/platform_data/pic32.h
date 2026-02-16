@@ -3,10 +3,10 @@
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
  */
-#ifndef _ASM_MACH_PIC32_H
-#define _ASM_MACH_PIC32_H
+#ifndef __LINUX_PLATFORM_DATA_PIC32_H
+#define __LINUX_PLATFORM_DATA_PIC32_H
 
-#include <linux/io.h>
+#include <linux/types.h>
 
 /*
  * PIC32 register offsets for SET/CLR/INV where supported.
@@ -26,11 +26,14 @@
 #define PIC32_BASE_PORT		0x1f860000
 #define PIC32_BASE_DEVCFG2	0x1fc4ff44
 
-/*
- * Register unlock sequence required for some register access.
- */
+#if defined(CONFIG_MACH_PIC32)
+/* Register unlock sequence required for some register access. */
 void pic32_syskey_unlock_debug(const char *fn, const ulong ln);
 #define pic32_syskey_unlock()	\
 	pic32_syskey_unlock_debug(__func__, __LINE__)
+#else
+/* COMPILE_TEST on all other architectures */
+#define pic32_syskey_unlock()
+#endif
 
-#endif /* _ASM_MACH_PIC32_H */
+#endif /* __LINUX_PLATFORM_DATA_PIC32_H */
