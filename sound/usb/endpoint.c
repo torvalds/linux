@@ -402,18 +402,21 @@ static int prepare_inbound_urb(struct snd_usb_endpoint *ep,
 }
 
 /* notify an error as XRUN to the assigned PCM data substream */
-static void notify_xrun(struct snd_usb_endpoint *ep)
+static bool notify_xrun(struct snd_usb_endpoint *ep)
 {
 	struct snd_usb_substream *data_subs;
 	struct snd_pcm_substream *psubs;
 
 	data_subs = READ_ONCE(ep->data_subs);
 	if (!data_subs)
-		return;
+		return false;
 	psubs = data_subs->pcm_substream;
 	if (psubs && psubs->runtime &&
-	    psubs->runtime->state == SNDRV_PCM_STATE_RUNNING)
+	    psubs->runtime->state == SNDRV_PCM_STATE_RUNNING) {
 		snd_pcm_stop_xrun(psubs);
+		return true;
+	}
+	return false;
 }
 
 static struct snd_usb_packet_info *
@@ -594,8 +597,9 @@ static void snd_complete_urb(struct urb *urb)
 		return;
 
 	if (!atomic_read(&ep->chip->shutdown)) {
-		usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
-		notify_xrun(ep);
+		if (notify_xrun(ep))
+			usb_audio_err(ep->chip,
+				      "cannot submit urb (err = %d)\n", err);
 	}
 
 exit_clear:
@@ -1779,10 +1783,11 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 		spin_lock_irqsave(&ep->lock, flags);
 		if (ep->next_packet_queued >= ARRAY_SIZE(ep->next_packet)) {
 			spin_unlock_irqrestore(&ep->lock, flags);
-			usb_audio_err(ep->chip,
-				      "next package FIFO overflow EP 0x%x\n",
-				      ep->ep_num);
-			notify_xrun(ep);
+			if (notify_xrun(ep)) {
+				usb_audio_err(ep->chip,
+					      "next packet FIFO overflow EP 0x%x\n",
+					      ep->ep_num);
+			}
 			return;
 		}
 
