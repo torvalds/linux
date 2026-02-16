@@ -321,11 +321,6 @@ static int perf_ibs_init(struct perf_event *event)
 	    event->attr.exclude_idle)
 		return -EINVAL;
 
-	if (!(event->attr.config2 & IBS_SW_FILTER_MASK) &&
-	    (event->attr.exclude_kernel || event->attr.exclude_user ||
-	     event->attr.exclude_hv))
-		return -EINVAL;
-
 	ret = validate_group(event);
 	if (ret)
 		return ret;
@@ -336,6 +331,32 @@ static int perf_ibs_init(struct perf_event *event)
 	if (ibs_caps & IBS_CAPS_DIS) {
 		hwc->extra_reg.config &= ~perf_ibs->disable_mask;
 		hwc->extra_reg.reg = perf_ibs->msr2;
+	}
+
+	if (ibs_caps & IBS_CAPS_BIT63_FILTER) {
+		if (perf_ibs == &perf_ibs_fetch) {
+			if (event->attr.exclude_kernel) {
+				hwc->extra_reg.config |= IBS_FETCH_2_EXCL_RIP_63_EQ_1;
+				hwc->extra_reg.reg = perf_ibs->msr2;
+			}
+			if (event->attr.exclude_user) {
+				hwc->extra_reg.config |= IBS_FETCH_2_EXCL_RIP_63_EQ_0;
+				hwc->extra_reg.reg = perf_ibs->msr2;
+			}
+		} else {
+			if (event->attr.exclude_kernel) {
+				hwc->extra_reg.config |= IBS_OP_2_EXCL_RIP_63_EQ_1;
+				hwc->extra_reg.reg = perf_ibs->msr2;
+			}
+			if (event->attr.exclude_user) {
+				hwc->extra_reg.config |= IBS_OP_2_EXCL_RIP_63_EQ_0;
+				hwc->extra_reg.reg = perf_ibs->msr2;
+			}
+		}
+	} else if (!(event->attr.config2 & IBS_SW_FILTER_MASK) &&
+		   (event->attr.exclude_kernel || event->attr.exclude_user ||
+		    event->attr.exclude_hv)) {
+		return -EINVAL;
 	}
 
 	if (hwc->sample_period) {
@@ -1280,7 +1301,7 @@ static bool perf_ibs_is_kernel_br_target(struct perf_event *event,
 			op_data.op_brn_ret && kernel_ip(br_target));
 }
 
-static bool perf_ibs_swfilt_discard(struct perf_ibs *perf_ibs, struct perf_event *event,
+static bool perf_ibs_discard_sample(struct perf_ibs *perf_ibs, struct perf_event *event,
 				    struct pt_regs *regs, struct perf_ibs_data *ibs_data,
 				    int br_target_idx)
 {
@@ -1435,8 +1456,9 @@ fail:
 		regs.flags |= PERF_EFLAGS_EXACT;
 	}
 
-	if ((event->attr.config2 & IBS_SW_FILTER_MASK) &&
-	    perf_ibs_swfilt_discard(perf_ibs, event, &regs, &ibs_data, br_target_idx)) {
+	if (((ibs_caps & IBS_CAPS_BIT63_FILTER) ||
+	     (event->attr.config2 & IBS_SW_FILTER_MASK)) &&
+	    perf_ibs_discard_sample(perf_ibs, event, &regs, &ibs_data, br_target_idx)) {
 		throttle = perf_event_account_interrupt(event);
 		goto out;
 	}
@@ -1898,6 +1920,14 @@ static __init int amd_ibs_init(void)
 		return -EINVAL;
 
 	perf_ibs_pm_init();
+
+#ifdef CONFIG_X86_32
+	/*
+	 * IBS_CAPS_BIT63_FILTER is used for exclude_kernel/user filtering,
+	 * which obviously won't work for 32 bit kernel.
+	 */
+	caps &= ~IBS_CAPS_BIT63_FILTER;
+#endif
 
 	ibs_caps = caps;
 	/* make ibs_caps visible to other cpus: */
