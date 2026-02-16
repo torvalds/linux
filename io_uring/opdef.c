@@ -437,7 +437,7 @@ const struct io_issue_def io_issue_defs[] = {
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_send_zc_prep,
-		.issue			= io_send_zc,
+		.issue			= io_sendmsg_zc,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif

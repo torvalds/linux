@@ -1471,72 +1471,6 @@ static int io_send_zc_import(struct io_kiocb *req,
 	return 0;
 }
 
-int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_sr_msg *zc = io_kiocb_to_cmd(req, struct io_sr_msg);
-	struct io_async_msghdr *kmsg = req->async_data;
-	struct socket *sock;
-	unsigned msg_flags;
-	int ret, min_ret = 0;
-
-	sock = sock_from_file(req->file);
-	if (unlikely(!sock))
-		return -ENOTSOCK;
-	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
-		return -EOPNOTSUPP;
-
-	if (!(req->flags & REQ_F_POLLED) &&
-	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
-		return -EAGAIN;
-
-	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		ret = io_send_zc_import(req, kmsg, issue_flags);
-		if (unlikely(ret))
-			return ret;
-	}
-
-	msg_flags = zc->msg_flags;
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		msg_flags |= MSG_DONTWAIT;
-	if (msg_flags & MSG_WAITALL)
-		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
-	msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
-
-	kmsg->msg.msg_flags = msg_flags;
-	kmsg->msg.msg_ubuf = &io_notif_to_data(zc->notif)->uarg;
-	ret = sock_sendmsg(sock, &kmsg->msg);
-
-	if (unlikely(ret < min_ret)) {
-		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return -EAGAIN;
-
-		if (ret > 0 && io_net_retry(sock, kmsg->msg.msg_flags)) {
-			zc->done_io += ret;
-			return -EAGAIN;
-		}
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
-		req_set_fail(req);
-	}
-
-	if (ret >= 0)
-		ret += zc->done_io;
-	else if (zc->done_io)
-		ret = zc->done_io;
-
-	/*
-	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
-	 * flushing notif to io_send_zc_cleanup()
-	 */
-	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		io_notif_flush(zc->notif);
-		zc->notif = NULL;
-		io_req_msg_cleanup(req, 0);
-	}
-	io_req_set_res(req, ret, IORING_CQE_F_MORE);
-	return IOU_COMPLETE;
-}
-
 int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -1545,21 +1479,20 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned msg_flags;
 	int ret, min_ret = 0;
 
-	if (req->flags & REQ_F_IMPORT_BUFFER) {
-		ret = io_send_zc_import(req, kmsg, issue_flags);
-		if (unlikely(ret))
-			return ret;
-	}
-
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 	if (!test_bit(SOCK_SUPPORT_ZC, &sock->flags))
 		return -EOPNOTSUPP;
-
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return -EAGAIN;
+
+	if (req->flags & REQ_F_IMPORT_BUFFER) {
+		ret = io_send_zc_import(req, kmsg, issue_flags);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	msg_flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -1567,15 +1500,22 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	if (msg_flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
-	kmsg->msg.msg_control_user = sr->msg_control;
 	kmsg->msg.msg_ubuf = &io_notif_to_data(sr->notif)->uarg;
-	ret = __sys_sendmsg_sock(sock, &kmsg->msg, msg_flags);
+
+	if (req->opcode == IORING_OP_SEND_ZC) {
+		msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
+		kmsg->msg.msg_flags = msg_flags;
+		ret = sock_sendmsg(sock, &kmsg->msg);
+	} else {
+		kmsg->msg.msg_control_user = sr->msg_control;
+		ret = __sys_sendmsg_sock(sock, &kmsg->msg, msg_flags);
+	}
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return -EAGAIN;
 
-		if (ret > 0 && io_net_retry(sock, msg_flags)) {
+		if (ret > 0 && io_net_retry(sock, sr->msg_flags)) {
 			sr->done_io += ret;
 			return -EAGAIN;
 		}
