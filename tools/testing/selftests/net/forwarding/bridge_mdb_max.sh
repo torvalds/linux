@@ -28,6 +28,7 @@ ALL_TESTS="
 	test_8021d
 	test_8021q
 	test_8021qvs
+	test_mdb_count_warning
 "
 
 NUM_NETIFS=4
@@ -83,8 +84,6 @@ switch_create_8021q()
 {
 	local br_flags=$1; shift
 
-	log_info "802.1q $br_flags${br_flags:+ }tests"
-
 	ip link add name br0 type bridge vlan_filtering 1 vlan_default_pvid 0 \
 		mcast_snooping 1 $br_flags \
 		mcast_igmp_version 3 mcast_mld_version 2
@@ -106,6 +105,7 @@ switch_create_8021q()
 
 switch_create_8021qvs()
 {
+	log_info "802.1q mcast_vlan_snooping 1 tests"
 	switch_create_8021q "mcast_vlan_snooping 1"
 	bridge vlan global set dev br0 vid 10 mcast_igmp_version 3
 	bridge vlan global set dev br0 vid 10 mcast_mld_version 2
@@ -1272,6 +1272,76 @@ test_8021qvs_toggle_vlan_snooping()
 	test_toggle_vlan_snooping_permanent
 }
 
+mdb_count_check_warn()
+{
+	local msg=$1; shift
+
+	dmesg | grep -q "WARNING:.*br_multicast_port_ngroups_dec.*"
+	check_fail $? "$msg"
+}
+
+test_mdb_count_mcast_vlan_snooping_flush()
+{
+	RET=0
+
+	# check if we already have a warning
+	mdb_count_check_warn "Check MDB entries count warning before test"
+
+	bridge mdb add dev br0 port "$swp1" grp 239.0.0.1 permanent vid 10
+	ip link set dev br0 down
+	ip link set dev br0 type bridge mcast_vlan_snooping 1
+	bridge mdb flush dev br0
+
+	mdb_count_check_warn "Check MDB entries count warning after test"
+
+	ip link set dev br0 type bridge mcast_vlan_snooping 0
+	ip link set dev br0 up
+
+	log_test "MDB count warning: mcast_vlan_snooping and MDB flush"
+}
+
+test_mdb_count_mcast_snooping_flush()
+{
+	RET=0
+
+	# check if we already have a warning
+	mdb_count_check_warn "Check MDB entries count warning before test"
+
+	bridge mdb add dev br0 port "$swp1" grp 239.0.0.1 permanent vid 10
+	ip link set dev br0 type bridge mcast_snooping 0
+	ip link set dev br0 type bridge mcast_vlan_snooping 1
+	bridge mdb flush dev br0
+
+	mdb_count_check_warn "Check MDB entries count warning after test"
+
+	ip link set dev br0 type bridge mcast_vlan_snooping 0
+	ip link set dev br0 type bridge mcast_snooping 1
+
+	log_test "MDB count warning: mcast_snooping and MDB flush"
+}
+
+test_mdb_count_vlan_state_flush()
+{
+	RET=0
+
+	# check if we already have a warning
+	mdb_count_check_warn "Check MDB entries count warning before test"
+
+	bridge mdb add dev br0 port "$swp1" grp 239.0.0.1 permanent vid 10
+	ip link set dev br0 down
+	bridge vlan set vid 10 dev "$swp1" state blocking
+	ip link set dev br0 type bridge mcast_vlan_snooping 1
+	ip link set dev br0 up
+	bridge mdb flush dev br0
+
+	mdb_count_check_warn "Check MDB entries count warning after test"
+
+	bridge vlan set vid 10 dev "$swp1" state forwarding
+	ip link set dev br0 type bridge mcast_vlan_snooping 0
+
+	log_test "MDB count warning: disabled vlan state and MDB flush"
+}
+
 # test groups
 
 test_8021d()
@@ -1297,6 +1367,7 @@ test_8021q()
 {
 	# Tests for vlan_filtering 1 mcast_vlan_snooping 0.
 
+	log_info "802.1q tests"
 	switch_create_8021q
 	setup_wait
 
@@ -1330,6 +1401,21 @@ test_8021qvs()
 	test_8021qvs_maxgroups_cfg6
 	test_8021qvs_maxgroups_ctl6
 	test_8021qvs_toggle_vlan_snooping
+
+	switch_destroy
+}
+
+test_mdb_count_warning()
+{
+	# Tests for mdb_n_entries warning
+
+	log_info "MDB count warning tests"
+	switch_create_8021q
+	setup_wait
+
+	test_mdb_count_mcast_vlan_snooping_flush
+	test_mdb_count_mcast_snooping_flush
+	test_mdb_count_vlan_state_flush
 
 	switch_destroy
 }
