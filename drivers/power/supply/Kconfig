@@ -1132,4 +1132,15 @@ config FUEL_GAUGE_MM8013
 	  the state of charge, temperature, cycle count, actual and design
 	  capacity, etc.
 
+config MACSMC_POWER
+	tristate "Apple SMC Battery and Power Driver"
+	depends on MFD_MACSMC
+	help
+	  This driver provides support for the battery and AC adapter on
+	  Apple Silicon machines. It exposes battery telemetry (voltage,
+	  current, health) and AC adapter status through the standard Linux
+	  power supply framework.
+
+	  Say Y or M here if you have an Apple Silicon based Mac.
+
 endif # POWER_SUPPLY
