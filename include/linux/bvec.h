@@ -75,14 +75,27 @@ static inline void bvec_set_virt(struct bio_vec *bv, void *vaddr,
 }
 
 struct bvec_iter {
-	sector_t		bi_sector;	/* device address in 512 byte
-						   sectors */
-	unsigned int		bi_size;	/* residual I/O count */
+	/*
+	 * Current device address in 512 byte sectors. Only updated by the bio
+	 * iter wrappers and not the bvec iterator helpers themselves.
+	 */
+	sector_t		bi_sector;
 
-	unsigned int		bi_idx;		/* current index into bvl_vec */
+	/*
+	 * Remaining size in bytes.
+	 */
+	unsigned int		bi_size;
 
-	unsigned int            bi_bvec_done;	/* number of bytes completed in
-						   current bvec */
+	/*
+	 * Current index into the bvec array. This indexes into `bi_io_vec` when
+	 * iterating a bvec array that is part of a `bio`.
+	 */
+	unsigned int		bi_idx;
+
+	/*
+	 * Current offset in the bvec entry pointed to by `bi_idx`.
+	 */
+	unsigned int		bi_bvec_done;
 } __packed __aligned(4);
 
 struct bvec_iter_all {
