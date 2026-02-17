@@ -536,14 +536,15 @@ static int probe_ldimm64_full_range_off(int token_fd)
 	}
 	insns[0].imm = map_fd;
 
-	prog_fd = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, "global_reloc", "GPL", insns, insn_cnt, &prog_opts);
+	log_buf[0] = '\0';
+	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "global_reloc", "GPL", insns, insn_cnt, &prog_opts);
 	ret = -errno;
 
 	close(map_fd);
-	close(prog_fd);
 
 	if (prog_fd >= 0) {
 		pr_warn("Error in %s(): Program loading unexpectedly succeeded.\n", __func__);
+		close(prog_fd);
 		return -EINVAL;
 	}
 
