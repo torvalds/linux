@@ -487,6 +487,7 @@ int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 	/* make sure no pre-existing encapsulation handler exists */
 	if (ovpn_sock->sk->sk_user_data)
 		return -EBUSY;
+	rcu_assign_sk_user_data(ovpn_sock->sk, ovpn_sock);
 
 	/* only a fully connected socket is expected. Connection should be
 	 * handled in userspace
@@ -495,13 +496,14 @@ int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 		net_err_ratelimited("%s: provided TCP socket is not in ESTABLISHED state: %d\n",
 				    netdev_name(peer->ovpn->dev),
 				    ovpn_sock->sk->sk_state);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	ret = strp_init(&peer->tcp.strp, ovpn_sock->sk, &cb);
 	if (ret < 0) {
 		DEBUG_NET_WARN_ON_ONCE(1);
-		return ret;
+		goto err;
 	}
 
 	INIT_WORK(&peer->tcp.defer_del_work, ovpn_tcp_peer_del_work);
@@ -536,6 +538,9 @@ int ovpn_tcp_socket_attach(struct ovpn_socket *ovpn_sock,
 	strp_check_rcv(&peer->tcp.strp);
 
 	return 0;
+err:
+	rcu_assign_sk_user_data(ovpn_sock->sk, NULL);
+	return ret;
 }
 
 static void ovpn_tcp_close(struct sock *sk, long timeout)
