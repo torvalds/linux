@@ -2744,16 +2744,26 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 
 void mlx5e_trigger_napi_icosq(struct mlx5e_channel *c)
 {
+	struct mlx5e_icosq *sq = &c->icosq;
 	bool locked;
 
-	if (!test_and_set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state))
-		synchronize_net();
+	set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state);
+	synchronize_net();
 
-	locked = mlx5e_icosq_sync_lock(&c->icosq);
-	mlx5e_trigger_irq(&c->icosq);
-	mlx5e_icosq_sync_unlock(&c->icosq, locked);
+	locked = mlx5e_icosq_sync_lock(sq);
+	mlx5e_trigger_irq(sq);
+	mlx5e_icosq_sync_unlock(sq, locked);
 
-	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state);
+	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state);
+}
+
+void mlx5e_trigger_napi_async_icosq(struct mlx5e_channel *c)
+{
+	struct mlx5e_icosq *sq = c->async_icosq;
+
+	spin_lock_bh(&sq->lock);
+	mlx5e_trigger_irq(sq);
+	spin_unlock_bh(&sq->lock);
 }
 
 void mlx5e_trigger_napi_sched(struct napi_struct *napi)
@@ -2836,7 +2846,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	netif_napi_add_config_locked(netdev, &c->napi, mlx5e_napi_poll, ix);
 	netif_napi_set_irq_locked(&c->napi, irq);
 
-	async_icosq_needed = !!xsk_pool || priv->ktls_rx_was_enabled;
+	async_icosq_needed = !!params->xdp_prog || priv->ktls_rx_was_enabled;
 	err = mlx5e_open_queues(c, params, cparam, async_icosq_needed);
 	if (unlikely(err))
 		goto err_napi_del;

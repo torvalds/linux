@@ -34,7 +34,7 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 				     &c->async_icosq->state))
 			return 0;
 
-		mlx5e_trigger_napi_icosq(c);
+		mlx5e_trigger_napi_async_icosq(c);
 	}
 
 	return 0;
