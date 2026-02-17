@@ -108,6 +108,11 @@ static const struct onboard_dev_pdata genesys_gl852g_data = {
 	.is_hub = true,
 };
 
+static const struct onboard_dev_pdata usb_a_conn_data = {
+	.num_supplies = 1,
+	.supply_names = { "vbus" },
+};
+
 static const struct onboard_dev_pdata vialab_vl817_data = {
 	.reset_us = 10,
 	.num_supplies = 1,
@@ -130,6 +135,7 @@ static const struct onboard_dev_pdata xmos_xvf3500_data = {
 };
 
 static const struct of_device_id onboard_dev_match[] = {
+	{ .compatible = "usb-a-connector", .data = &usb_a_conn_data, },
 	{ .compatible = "usb424,2412", .data = &microchip_usb424_data, },
 	{ .compatible = "usb424,2514", .data = &microchip_usb2514_data, },
 	{ .compatible = "usb424,2517", .data = &microchip_usb424_data, },
