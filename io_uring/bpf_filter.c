@@ -26,6 +26,8 @@ static const struct io_bpf_filter dummy_filter;
 static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 				      struct io_kiocb *req)
 {
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
 	bctx->opcode = req->opcode;
 	bctx->sqe_flags = (__force int) req->flags & SQE_VALID_FLAGS;
 	bctx->user_data = req->cqe.user_data;
@@ -34,19 +36,12 @@ static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 		sizeof(*bctx) - offsetof(struct io_uring_bpf_ctx, pdu_size));
 
 	/*
-	 * Opcodes can provide a handler fo populating more data into bctx,
+	 * Opcodes can provide a handler for populating more data into bctx,
 	 * for filters to use.
 	 */
-	switch (req->opcode) {
-	case IORING_OP_SOCKET:
-		bctx->pdu_size = sizeof(bctx->socket);
-		io_socket_bpf_populate(bctx, req);
-		break;
-	case IORING_OP_OPENAT:
-	case IORING_OP_OPENAT2:
-		bctx->pdu_size = sizeof(bctx->open);
-		io_openat_bpf_populate(bctx, req);
-		break;
+	if (def->filter_pdu_size) {
+		bctx->pdu_size = def->filter_pdu_size;
+		def->filter_populate(bctx, req);
 	}
 }
 
@@ -313,7 +308,54 @@ err:
 	return ERR_PTR(-EBUSY);
 }
 
-#define IO_URING_BPF_FILTER_FLAGS	IO_URING_BPF_FILTER_DENY_REST
+#define IO_URING_BPF_FILTER_FLAGS	(IO_URING_BPF_FILTER_DENY_REST | \
+					 IO_URING_BPF_FILTER_SZ_STRICT)
+
+static int io_bpf_filter_import(struct io_uring_bpf *reg,
+				struct io_uring_bpf __user *arg)
+{
+	const struct io_issue_def *def;
+	int ret;
+
+	if (copy_from_user(reg, arg, sizeof(*reg)))
+		return -EFAULT;
+	if (reg->cmd_type != IO_URING_BPF_CMD_FILTER)
+		return -EINVAL;
+	if (reg->cmd_flags || reg->resv)
+		return -EINVAL;
+
+	if (reg->filter.opcode >= IORING_OP_LAST)
+		return -EINVAL;
+	if (reg->filter.flags & ~IO_URING_BPF_FILTER_FLAGS)
+		return -EINVAL;
+	if (!mem_is_zero(reg->filter.resv, sizeof(reg->filter.resv)))
+		return -EINVAL;
+	if (!mem_is_zero(reg->filter.resv2, sizeof(reg->filter.resv2)))
+		return -EINVAL;
+	if (!reg->filter.filter_len || reg->filter.filter_len > BPF_MAXINSNS)
+		return -EINVAL;
+
+	/* Verify filter size */
+	def = &io_issue_defs[array_index_nospec(reg->filter.opcode, IORING_OP_LAST)];
+
+	/* same size, always ok */
+	ret = 0;
+	if (reg->filter.pdu_size == def->filter_pdu_size)
+		;
+	/* size differs, fail in strict mode */
+	else if (reg->filter.flags & IO_URING_BPF_FILTER_SZ_STRICT)
+		ret = -EMSGSIZE;
+	/* userspace filter is bigger, always disallow */
+	else if (reg->filter.pdu_size > def->filter_pdu_size)
+		ret = -EMSGSIZE;
+
+	/* copy back kernel filter size */
+	reg->filter.pdu_size = def->filter_pdu_size;
+	if (copy_to_user(&arg->filter, &reg->filter, sizeof(reg->filter)))
+		return -EFAULT;
+
+	return ret;
+}
 
 int io_register_bpf_filter(struct io_restriction *res,
 			   struct io_uring_bpf __user *arg)
@@ -325,23 +367,9 @@ int io_register_bpf_filter(struct io_restriction *res,
 	struct sock_fprog fprog;
 	int ret;
 
-	if (copy_from_user(&reg, arg, sizeof(reg)))
-		return -EFAULT;
-	if (reg.cmd_type != IO_URING_BPF_CMD_FILTER)
-		return -EINVAL;
-	if (reg.cmd_flags || reg.resv)
-		return -EINVAL;
-
-	if (reg.filter.opcode >= IORING_OP_LAST)
-		return -EINVAL;
-	if (reg.filter.flags & ~IO_URING_BPF_FILTER_FLAGS)
-		return -EINVAL;
-	if (reg.filter.resv)
-		return -EINVAL;
-	if (!mem_is_zero(reg.filter.resv2, sizeof(reg.filter.resv2)))
-		return -EINVAL;
-	if (!reg.filter.filter_len || reg.filter.filter_len > BPF_MAXINSNS)
-		return -EINVAL;
+	ret = io_bpf_filter_import(&reg, arg);
+	if (ret)
+		return ret;
 
 	fprog.len = reg.filter.filter_len;
 	fprog.filter = u64_to_user_ptr(reg.filter.filter_ptr);
