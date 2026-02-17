@@ -89,31 +89,7 @@ With the baud base set to 15625000 and the unsigned 16-bit UART_DIV_MAX
 limitation imposed by ``serial8250_get_baud_rate`` standard baud rates
 below 300bps become unavailable in the regular way, e.g. the rate of
 200bps requires the baud base to be divided by 78125 and that is beyond
-the unsigned 16-bit range.  The historic spd_cust feature can still be
-used by encoding the values for, the prescaler, the oversampling rate
-and the clock divisor (DLM/DLL) as follows to obtain such rates if so
-required:
-
-::
-
-  31 29 28             20 19   16 15                            0
- +-----+-----------------+-------+-------------------------------+
- |0 0 0|    CPR2:CPR     |  TCR  |            DLM:DLL            |
- +-----+-----------------+-------+-------------------------------+
-
-Use a value such encoded for the ``custom_divisor`` field along with the
-ASYNC_SPD_CUST flag set in the ``flags`` field in ``struct serial_struct``
-passed with the TIOCSSERIAL ioctl(2), such as with the setserial(8)
-utility and its ``divisor`` and ``spd_cust`` parameters, and then select
-the baud rate of 38400bps.  Note that the value of 0 in TCR sets the
-oversampling rate to 16 and prescaler values below 1 in CPR2/CPR are
-clamped by the driver to 1.
-
-For example the value of 0x1f4004e2 will set CPR2/CPR, TCR and DLM/DLL
-respectively to 0x1f4, 0x0 and 0x04e2, choosing the prescaler value,
-the oversampling rate and the clock divisor of 62.500, 16 and 1250
-respectively.  These parameters will set the baud rate for the serial
-port to 62500000 / 62.500 / 1250 / 16 = 50bps.
+the unsigned 16-bit range.
 
 Maciej W. Rozycki  <macro@orcam.me.uk>
 

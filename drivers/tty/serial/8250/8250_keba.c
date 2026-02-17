@@ -6,10 +6,18 @@
  */
 
 #include <linux/auxiliary_bus.h>
-#include <linux/device.h>
+#include <linux/bits.h>
+#include <linux/container_of.h>
+#include <linux/dev_printk.h>
+#include <linux/device/devres.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/misc/keba.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/serial_core.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 #include "8250.h"
 
@@ -42,6 +50,10 @@ enum kuart_mode {
 #define KUART_CAPABILITY_RS422	BIT(KUART_MODE_RS422)
 #define KUART_CAPABILITY_RS232	BIT(KUART_MODE_RS232)
 #define KUART_CAPABILITY_MASK	GENMASK(3, 0)
+
+/* registers for Indexed Control Register access in enhanced mode */
+#define KUART_EMODE_ICR_OFFSET	UART_SCR
+#define KUART_EMODE_ICR_VALUE	UART_LSR
 
 /* Additional Control Register DTR line configuration */
 #define UART_ACR_DTRLC_MASK		0x18
@@ -90,13 +102,13 @@ static void kuart_dtr_line_config(struct uart_8250_port *up, u8 dtrlc)
 	u8 acr;
 
 	/* set index register to 0 to access ACR register */
-	serial_out(up, UART_SCR, UART_ACR);
+	serial_out(up, KUART_EMODE_ICR_OFFSET, UART_ACR);
 
 	/* set value register to 0x10 writing DTR mode (1,0) */
-	acr = serial_in(up, UART_LSR);
+	acr = serial_in(up, KUART_EMODE_ICR_VALUE);
 	acr &= ~UART_ACR_DTRLC_MASK;
 	acr |= dtrlc;
-	serial_out(up, UART_LSR, acr);
+	serial_out(up, KUART_EMODE_ICR_VALUE, acr);
 }
 
 static int kuart_rs485_config(struct uart_port *port, struct ktermios *termios,
@@ -240,10 +252,9 @@ static int kuart_probe(struct auxiliary_device *auxdev,
 	}
 
 	retval = serial8250_register_8250_port(&uart);
-	if (retval < 0) {
-		dev_err(&auxdev->dev, "UART registration failed!\n");
-		return retval;
-	}
+	if (retval < 0)
+		return dev_err_probe(&auxdev->dev, retval,
+				     "UART registration failed!\n");
 	kuart->line = retval;
 
 	return 0;

@@ -127,6 +127,8 @@ struct n_hdlc_buf_list {
  * @rx_buf_list: list of received frame buffers
  * @tx_free_buf_list: list unused transmit frame buffers
  * @rx_free_buf_list: list unused received frame buffers
+ * @write_work: work struct for deferred frame transmission
+ * @tty_for_write_work: pointer to tty instance used by the @write_work
  */
 struct n_hdlc {
 	bool			tbusy;
