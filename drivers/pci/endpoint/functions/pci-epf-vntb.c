@@ -527,20 +527,20 @@ static int epf_ntb_db_bar_init_msi_doorbell(struct epf_ntb *ntb,
 	struct msi_msg *msg;
 	size_t sz;
 	int ret;
-	int i;
+	int i, req;
 
 	ret = pci_epf_alloc_doorbell(epf,  ntb->db_count);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ntb->db_count; i++) {
-		ret = request_irq(epf->db_msg[i].virq, epf_ntb_doorbell_handler,
+	for (req = 0; req < ntb->db_count; req++) {
+		ret = request_irq(epf->db_msg[req].virq, epf_ntb_doorbell_handler,
 				  0, "pci_epf_vntb_db", ntb);
 
 		if (ret) {
 			dev_err(&epf->dev,
 				"Failed to request doorbell IRQ: %d\n",
-				epf->db_msg[i].virq);
+				epf->db_msg[req].virq);
 			goto err_free_irq;
 		}
 	}
@@ -598,8 +598,8 @@ static int epf_ntb_db_bar_init_msi_doorbell(struct epf_ntb *ntb,
 	return 0;
 
 err_free_irq:
-	for (i--; i >= 0; i--)
-		free_irq(epf->db_msg[i].virq, ntb);
+	for (req--; req >= 0; req--)
+		free_irq(epf->db_msg[req].virq, ntb);
 
 	pci_epf_free_doorbell(ntb->epf);
 	return ret;
