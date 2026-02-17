@@ -3,7 +3,15 @@
 
 //! Rust USB driver sample.
 
-use kernel::{device, device::Core, prelude::*, sync::aref::ARef, usb};
+use kernel::{
+    device::{
+        self,
+        Core, //
+    },
+    prelude::*,
+    sync::aref::ARef,
+    usb, //
+};
 
 struct SampleDriver {
     _intf: ARef<usb::Interface>,

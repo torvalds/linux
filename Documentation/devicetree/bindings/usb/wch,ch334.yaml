@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/wch,ch334.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: WCH CH334/CH335 USB 2.0 Hub Controller
+
+maintainers:
+  - Chaoyi Chen <kernel@airkyi.com>
+
+allOf:
+  - $ref: usb-hub.yaml#
+
+properties:
+  compatible:
+    enum:
+      - usb1a86,8091
+
+  reg: true
+
+  reset-gpios:
+    description: GPIO controlling the RESET# pin.
+
+  vdd33-supply:
+    description:
+      The regulator that provides 3.3V core power to the hub.
+
+  v5-supply:
+    description:
+      The regulator that provides 3.3V or 5V power to the hub.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@':
+        $ref: /schemas/graph.yaml#/properties/port
+
+        properties:
+          reg:
+            minimum: 1
+            maximum: 4
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    usb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hub: hub@1 {
+            compatible = "usb1a86,8091";
+            reg = <1>;
+            reset-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+            v5-supply = <&vcc_3v3>;
+            vdd33-supply = <&vcc_3v3>;
+        };
+    };

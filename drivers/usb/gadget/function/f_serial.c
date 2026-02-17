@@ -260,7 +260,7 @@ static void serial_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations serial_item_ops = {
+static const struct configfs_item_operations serial_item_ops = {
 	.release	= serial_attr_release,
 };
 

@@ -464,7 +464,7 @@ static void lb_attr_release(struct config_item *item)
 	usb_put_function_instance(&lb_opts->func_inst);
 }
 
-static struct configfs_item_operations lb_item_ops = {
+static const struct configfs_item_operations lb_item_ops = {
 	.release		= lb_attr_release,
 };
 

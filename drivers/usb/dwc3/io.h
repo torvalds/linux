@@ -16,9 +16,10 @@
 #include "debug.h"
 #include "core.h"
 
-static inline u32 dwc3_readl(void __iomem *base, u32 offset)
+static inline u32 dwc3_readl(struct dwc3 *dwc, u32 offset)
 {
 	u32 value;
+	void __iomem *base = dwc->regs;
 
 	/*
 	 * We requested the mem region starting from the Globals address
@@ -32,13 +33,15 @@ static inline u32 dwc3_readl(void __iomem *base, u32 offset)
 	 * documentation, so we revert it back to the proper addresses, the
 	 * same way they are described on SNPS documentation
 	 */
-	trace_dwc3_readl(base - DWC3_GLOBALS_REGS_START, offset, value);
+	trace_dwc3_readl(dwc, base - DWC3_GLOBALS_REGS_START, offset, value);
 
 	return value;
 }
 
-static inline void dwc3_writel(void __iomem *base, u32 offset, u32 value)
+static inline void dwc3_writel(struct dwc3 *dwc, u32 offset, u32 value)
 {
+	void __iomem *base = dwc->regs;
+
 	/*
 	 * We requested the mem region starting from the Globals address
 	 * space, see dwc3_probe in core.c.
@@ -51,7 +54,7 @@ static inline void dwc3_writel(void __iomem *base, u32 offset, u32 value)
 	 * documentation, so we revert it back to the proper addresses, the
 	 * same way they are described on SNPS documentation
 	 */
-	trace_dwc3_writel(base - DWC3_GLOBALS_REGS_START, offset, value);
+	trace_dwc3_writel(dwc, base - DWC3_GLOBALS_REGS_START, offset, value);
 }
 
 #endif /* __DRIVERS_USB_DWC3_IO_H */

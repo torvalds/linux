@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
@@ -49,15 +49,13 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 	int ret = 0;
 
 	if (suspend) {
-		if (!IS_ERR(nop->clk))
-			clk_disable_unprepare(nop->clk);
+		clk_disable_unprepare(nop->clk);
 		if (!IS_ERR(nop->vcc) && !device_may_wakeup(x->dev))
 			ret = regulator_disable(nop->vcc);
 	} else {
 		if (!IS_ERR(nop->vcc) && !device_may_wakeup(x->dev))
 			ret = regulator_enable(nop->vcc);
-		if (!IS_ERR(nop->clk))
-			clk_prepare_enable(nop->clk);
+		clk_prepare_enable(nop->clk);
 	}
 
 	return ret;
@@ -137,11 +135,9 @@ int usb_gen_phy_init(struct usb_phy *phy)
 			dev_err(phy->dev, "Failed to enable power\n");
 	}
 
-	if (!IS_ERR(nop->clk)) {
-		ret = clk_prepare_enable(nop->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(nop->clk);
+	if (ret)
+		return ret;
 
 	nop_reset(nop);
 
@@ -155,8 +151,7 @@ void usb_gen_phy_shutdown(struct usb_phy *phy)
 
 	gpiod_set_value_cansleep(nop->gpiod_reset, 1);
 
-	if (!IS_ERR(nop->clk))
-		clk_disable_unprepare(nop->clk);
+	clk_disable_unprepare(nop->clk);
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_disable(nop->vcc))
@@ -202,18 +197,9 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 {
 	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err = 0;
-
 	u32 clk_rate = 0;
-	bool needs_clk = false;
 
-	if (dev->of_node) {
-		struct device_node *node = dev->of_node;
-
-		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
-			clk_rate = 0;
-
-		needs_clk = of_property_present(node, "clocks");
-	}
+	device_property_read_u32(dev, "clock-frequency", &clk_rate);
 	nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_ASIS);
 	err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
@@ -235,20 +221,16 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 	if (!nop->phy.otg)
 		return -ENOMEM;
 
-	nop->clk = devm_clk_get(dev, "main_clk");
-	if (IS_ERR(nop->clk)) {
-		dev_dbg(dev, "Can't get phy clock: %ld\n",
-					PTR_ERR(nop->clk));
-		if (needs_clk)
-			return PTR_ERR(nop->clk);
-	}
+	nop->clk = devm_clk_get_optional(dev, "main_clk");
+	if (IS_ERR(nop->clk))
+		return dev_err_probe(dev, PTR_ERR(nop->clk),
+				     "Can't get phy clock\n");
 
-	if (!IS_ERR(nop->clk) && clk_rate) {
+	if (clk_rate) {
 		err = clk_set_rate(nop->clk, clk_rate);
-		if (err) {
-			dev_err(dev, "Error setting clock rate\n");
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "Error setting clock rate\n");
 	}
 
 	nop->vcc = devm_regulator_get_optional(dev, "vcc");
@@ -282,7 +264,6 @@ EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 static int usb_phy_generic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
 	struct usb_phy_generic	*nop;
 	int err;
 
@@ -293,17 +274,17 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	err = usb_phy_gen_create_phy(dev, nop);
 	if (err)
 		return err;
+
 	if (nop->gpiod_vbus) {
-		err = devm_request_threaded_irq(&pdev->dev,
+		err = devm_request_threaded_irq(dev,
 						gpiod_to_irq(nop->gpiod_vbus),
 						NULL, nop_gpio_vbus_thread,
 						VBUS_IRQ_FLAGS, "vbus_detect",
 						nop);
-		if (err) {
-			dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
-				gpiod_to_irq(nop->gpiod_vbus), err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "can't request irq %i\n",
+					     gpiod_to_irq(nop->gpiod_vbus));
+
 		nop->phy.otg->state = gpiod_get_value(nop->gpiod_vbus) ?
 			OTG_STATE_B_PERIPHERAL : OTG_STATE_B_IDLE;
 	}
@@ -312,16 +293,13 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	nop->phy.shutdown	= usb_gen_phy_shutdown;
 
 	err = usb_add_phy_dev(&nop->phy);
-	if (err) {
-		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
-			err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "can't register transceiver\n");
 
 	platform_set_drvdata(pdev, nop);
 
-	device_set_wakeup_capable(&pdev->dev,
-				  of_property_read_bool(dn, "wakeup-source"));
+	device_set_wakeup_capable(dev,
+				  device_property_read_bool(dev, "wakeup-source"));
 
 	return 0;
 }

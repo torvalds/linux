@@ -3153,7 +3153,7 @@ static void fsg_lun_attr_release(struct config_item *item)
 	kfree(lun_opts);
 }
 
-static struct configfs_item_operations fsg_lun_item_ops = {
+static const struct configfs_item_operations fsg_lun_item_ops = {
 	.release		= fsg_lun_attr_release,
 };
 
@@ -3369,7 +3369,7 @@ static void fsg_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations fsg_item_ops = {
+static const struct configfs_item_operations fsg_item_ops = {
 	.release		= fsg_attr_release,
 };
 
@@ -3462,7 +3462,7 @@ static struct configfs_attribute *fsg_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations fsg_group_ops = {
+static const struct configfs_group_operations fsg_group_ops = {
 	.make_group	= fsg_lun_make,
 	.drop_item	= fsg_lun_drop,
 };

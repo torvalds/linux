@@ -47,10 +47,6 @@ struct dbc_info_context {
 #define DBC_DOOR_BELL_TARGET(p)		(((p) & 0xff) << 8)
 
 #define DBC_MAX_PACKET			1024
-#define DBC_MAX_STRING_LENGTH		64
-#define DBC_STRING_MANUFACTURER		"Linux Foundation"
-#define DBC_STRING_PRODUCT		"Linux USB Debug Target"
-#define DBC_STRING_SERIAL		"0001"
 #define	DBC_CONTEXT_SIZE		64
 
 /*
@@ -63,11 +59,31 @@ struct dbc_info_context {
 #define DBC_PORTSC_LINK_CHANGE		BIT(22)
 #define DBC_PORTSC_CONFIG_CHANGE	BIT(23)
 
+/*
+ * The maximum length of a string descriptor is 255, because the bLength
+ * field in the usb_string_descriptor struct is __u8.  In practice the
+ * maximum length is 254, because a string descriptor consists of a 2 byte
+ * header followed by UTF-16 characters (2 bytes each). This allows for
+ * only 126 characters (code points) in the string, which is where
+ * USB_MAX_STRING_LEN comes from.
+ */
+#define USB_MAX_STRING_DESC_LEN		254
+
 struct dbc_str_descs {
-	char	string0[DBC_MAX_STRING_LENGTH];
-	char	manufacturer[DBC_MAX_STRING_LENGTH];
-	char	product[DBC_MAX_STRING_LENGTH];
-	char	serial[DBC_MAX_STRING_LENGTH];
+	char	string0[USB_MAX_STRING_DESC_LEN];
+	char	manufacturer[USB_MAX_STRING_DESC_LEN];
+	char	product[USB_MAX_STRING_DESC_LEN];
+	char	serial[USB_MAX_STRING_DESC_LEN];
+};
+
+/*
+ * NULL terminated UTF-8 strings used to create UTF-16 strings
+ * (with maxiumum USB_MAX_STRING_LEN 2 byte characters).
+ */
+struct dbc_str {
+	char	manufacturer[USB_MAX_STRING_LEN+1];
+	char	product[USB_MAX_STRING_LEN+1];
+	char	serial[USB_MAX_STRING_LEN+1];
 };
 
 #define DBC_PROTOCOL			1	/* GNU Remote Debug Command */
@@ -133,9 +149,10 @@ struct xhci_dbc {
 	struct xhci_erst		erst;
 	struct xhci_container_ctx	*ctx;
 
-	struct dbc_str_descs		*string;
-	dma_addr_t			string_dma;
-	size_t				string_size;
+	struct dbc_str_descs		*str_descs;
+	dma_addr_t			str_descs_dma;
+	size_t				str_descs_size;
+	struct dbc_str			str;
 	u16				idVendor;
 	u16				idProduct;
 	u16				bcdDevice;

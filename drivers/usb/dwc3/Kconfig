@@ -211,4 +211,15 @@ config USB_DWC3_APPLE
 	  mode on these machines.
 	  Say 'Y' or 'M' if you have such device.
 
+config USB_DWC3_GOOGLE
+	tristate "Google Platform"
+	help
+	  Support the DesignWare Core USB3 IP found on Google Tensor SoCs,
+	  starting with the G5 generation (Laguna). This driver includes
+	  support for hibernation in host mode.
+	  Say 'Y' or 'M' if you have one such device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dwc3-google.ko.
+
 endif

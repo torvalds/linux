@@ -34,6 +34,7 @@ struct f_ss_opts {
 	unsigned isoc_mult;
 	unsigned isoc_maxburst;
 	unsigned bulk_buflen;
+	unsigned bulk_maxburst;
 	unsigned bulk_qlen;
 	unsigned iso_qlen;
 
