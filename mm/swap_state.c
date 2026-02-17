@@ -148,7 +148,7 @@ void __swap_cache_add_folio(struct swap_cluster_info *ci,
 	VM_WARN_ON_ONCE_FOLIO(folio_test_swapcache(folio), folio);
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_swapbacked(folio), folio);
 
-	new_tb = folio_to_swp_tb(folio);
+	new_tb = folio_to_swp_tb(folio, 0);
 	ci_start = swp_cluster_offset(entry);
 	ci_off = ci_start;
 	ci_end = ci_start + nr_pages;
@@ -249,7 +249,7 @@ void __swap_cache_del_folio(struct swap_cluster_info *ci, struct folio *folio,
 	VM_WARN_ON_ONCE_FOLIO(folio_test_writeback(folio), folio);
 
 	si = __swap_entry_to_info(entry);
-	new_tb = shadow_swp_to_tb(shadow);
+	new_tb = shadow_to_swp_tb(shadow, 0);
 	ci_start = swp_cluster_offset(entry);
 	ci_end = ci_start + nr_pages;
 	ci_off = ci_start;
@@ -331,7 +331,7 @@ void __swap_cache_replace_folio(struct swap_cluster_info *ci,
 	VM_WARN_ON_ONCE(!entry.val);
 
 	/* Swap cache still stores N entries instead of a high-order entry */
-	new_tb = folio_to_swp_tb(new);
+	new_tb = folio_to_swp_tb(new, 0);
 	do {
 		old_tb = __swap_table_xchg(ci, ci_off, new_tb);
 		WARN_ON_ONCE(!swp_tb_is_folio(old_tb) || swp_tb_to_folio(old_tb) != old);
