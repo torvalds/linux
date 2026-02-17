@@ -235,6 +235,8 @@ static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd,
 	if (cci & UCSI_CCI_ERROR)
 		ret = ucsi_read_error(ucsi, connector_num);
 
+	trace_ucsi_run_command(cmd, ret);
+
 	mutex_unlock(&ucsi->ppm_lock);
 	return ret;
 }
