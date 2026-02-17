@@ -3492,7 +3492,8 @@ S: Brazil
 N: Stephen Rothwell
 E: sfr@canb.auug.org.au
 W: http://www.canb.auug.org.au/~sfr
-P: 1024/BD8C7805 CD A4 9D 01 10 6E 7E 3B  91 88 FA D9 C8 40 AA 02
+P: 4096R/5AD24211C060D1C8 D41C A3ED 5B30 275C F5A0  1B05 5AD2 4211 C060 D1C8
+D: Created linux-next and maintained it 2008-2026
 D: Boot/setup/build work for setup > 2K
 D: Author, APM driver
 D: Directory notification
