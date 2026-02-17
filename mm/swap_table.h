@@ -12,6 +12,7 @@ struct swap_table {
 };
 
 #define SWP_TABLE_USE_PAGE (sizeof(struct swap_table) == PAGE_SIZE)
+#define SWP_TB_COUNT_BITS		4
 
 /*
  * A swap table entry represents the status of a swap slot on a swap
@@ -21,6 +22,9 @@ struct swap_table {
  * Each swap table entry could be a pointer (folio), a XA_VALUE
  * (shadow), or NULL.
  */
+
+/* Macro for shadow offset calculation */
+#define SWAP_COUNT_SHIFT	SWP_TB_COUNT_BITS
 
 /*
  * Helpers for casting one type of info into a swap table entry.
