@@ -563,7 +563,7 @@ static ssize_t reset_subordinate_store(struct device *dev,
 		return -EINVAL;
 
 	if (val) {
-		int ret = __pci_reset_bus(bus);
+		int ret = pci_try_reset_bus(bus);
 
 		if (ret)
 			return ret;
