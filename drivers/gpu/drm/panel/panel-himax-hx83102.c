@@ -7,6 +7,7 @@
  * Based on drivers/gpu/drm/panel/panel-himax-hx8394.c
  */
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -75,6 +76,8 @@ struct hx83102_panel_desc {
 		unsigned int width_mm;
 		unsigned int height_mm;
 	} size;
+
+	bool has_backlight;
 
 	int (*init)(struct hx83102 *ctx);
 };
@@ -913,6 +916,7 @@ static const struct hx83102_panel_desc holitech_htf065h045_desc = {
 		.width_mm = 68,
 		.height_mm = 151,
 	},
+	.has_backlight = true,
 	.init = holitech_htf065h045_init,
 };
 
@@ -1049,6 +1053,59 @@ static const struct drm_panel_funcs hx83102_drm_funcs = {
 	.get_orientation = hx83102_get_orientation,
 };
 
+static int hx83102_bl_update_status(struct backlight_device *bl)
+{
+	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	u16 brightness = backlight_get_brightness(bl);
+	int ret;
+
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+
+	ret = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
+	if (ret < 0)
+		return ret;
+
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	return 0;
+}
+
+static int hx83102_bl_get_brightness(struct backlight_device *bl)
+{
+	struct mipi_dsi_device *dsi = bl_get_data(bl);
+	u16 brightness;
+	int ret;
+
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+
+	ret = mipi_dsi_dcs_get_display_brightness_large(dsi, &brightness);
+	if (ret < 0)
+		return ret;
+
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
+
+	return brightness;
+}
+
+static const struct backlight_ops hx83102_bl_ops = {
+	.update_status = hx83102_bl_update_status,
+	.get_brightness = hx83102_bl_get_brightness,
+};
+
+static struct backlight_device *
+hx83102_create_dcs_backlight(struct mipi_dsi_device *dsi)
+{
+	struct device *dev = &dsi->dev;
+	const struct backlight_properties props = {
+		.type = BACKLIGHT_RAW,
+		.brightness = 4095,
+		.max_brightness = 4095,
+	};
+
+	return devm_backlight_device_register(dev, dev_name(dev), dev, dsi,
+					      &hx83102_bl_ops, &props);
+}
+
 static int hx83102_panel_add(struct hx83102 *ctx)
 {
 	struct device *dev = &ctx->dsi->dev;
@@ -1079,6 +1136,14 @@ static int hx83102_panel_add(struct hx83102 *ctx)
 	err = drm_panel_of_backlight(&ctx->base);
 	if (err)
 		return err;
+
+	/* Use DSI-based backlight as fallback if available */
+	if (ctx->desc->has_backlight && !ctx->base.backlight) {
+		ctx->base.backlight = hx83102_create_dcs_backlight(ctx->dsi);
+		if (IS_ERR(ctx->base.backlight))
+			return dev_err_probe(dev, PTR_ERR(ctx->base.backlight),
+					     "Failed to create backlight\n");
+	}
 
 	ctx->base.funcs = &hx83102_drm_funcs;
 	ctx->base.dev = &ctx->dsi->dev;
