@@ -4613,10 +4613,11 @@ static int truncate_inode_items(struct btrfs_trans_handle *trans,
 static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct extent_buffer *leaf,
 			    struct btrfs_inode_item *item,
-			    struct inode *inode, bool log_inode_only,
+			    struct btrfs_inode *inode, bool log_inode_only,
 			    u64 logged_isize)
 {
-	u64 gen = BTRFS_I(inode)->generation;
+	struct inode *vfs_inode = &inode->vfs_inode;
+	u64 gen = inode->generation;
 	u64 flags;
 
 	if (log_inode_only) {
@@ -4631,33 +4632,33 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 		 * and one can set it to 0 since that only happens on eviction
 		 * and we are holding a ref on the inode.
 		 */
-		ASSERT(data_race(BTRFS_I(inode)->logged_trans) > 0);
-		if (data_race(BTRFS_I(inode)->logged_trans) < trans->transid)
+		ASSERT(data_race(inode->logged_trans) > 0);
+		if (data_race(inode->logged_trans) < trans->transid)
 			gen = 0;
 
 		btrfs_set_inode_size(leaf, item, logged_isize);
 	} else {
-		btrfs_set_inode_size(leaf, item, inode->i_size);
+		btrfs_set_inode_size(leaf, item, vfs_inode->i_size);
 	}
 
 	btrfs_set_inode_generation(leaf, item, gen);
 
-	btrfs_set_inode_uid(leaf, item, i_uid_read(inode));
-	btrfs_set_inode_gid(leaf, item, i_gid_read(inode));
-	btrfs_set_inode_mode(leaf, item, inode->i_mode);
-	btrfs_set_inode_nlink(leaf, item, inode->i_nlink);
+	btrfs_set_inode_uid(leaf, item, i_uid_read(vfs_inode));
+	btrfs_set_inode_gid(leaf, item, i_gid_read(vfs_inode));
+	btrfs_set_inode_mode(leaf, item, vfs_inode->i_mode);
+	btrfs_set_inode_nlink(leaf, item, vfs_inode->i_nlink);
 
-	btrfs_set_timespec_sec(leaf, &item->atime, inode_get_atime_sec(inode));
-	btrfs_set_timespec_nsec(leaf, &item->atime, inode_get_atime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->atime, inode_get_atime_sec(vfs_inode));
+	btrfs_set_timespec_nsec(leaf, &item->atime, inode_get_atime_nsec(vfs_inode));
 
-	btrfs_set_timespec_sec(leaf, &item->mtime, inode_get_mtime_sec(inode));
-	btrfs_set_timespec_nsec(leaf, &item->mtime, inode_get_mtime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->mtime, inode_get_mtime_sec(vfs_inode));
+	btrfs_set_timespec_nsec(leaf, &item->mtime, inode_get_mtime_nsec(vfs_inode));
 
-	btrfs_set_timespec_sec(leaf, &item->ctime, inode_get_ctime_sec(inode));
-	btrfs_set_timespec_nsec(leaf, &item->ctime, inode_get_ctime_nsec(inode));
+	btrfs_set_timespec_sec(leaf, &item->ctime, inode_get_ctime_sec(vfs_inode));
+	btrfs_set_timespec_nsec(leaf, &item->ctime, inode_get_ctime_nsec(vfs_inode));
 
-	btrfs_set_timespec_sec(leaf, &item->otime, BTRFS_I(inode)->i_otime_sec);
-	btrfs_set_timespec_nsec(leaf, &item->otime, BTRFS_I(inode)->i_otime_nsec);
+	btrfs_set_timespec_sec(leaf, &item->otime, inode->i_otime_sec);
+	btrfs_set_timespec_nsec(leaf, &item->otime, inode->i_otime_nsec);
 
 	/*
 	 * We do not need to set the nbytes field, in fact during a fast fsync
@@ -4668,11 +4669,10 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	 * inode item in subvolume tree as needed (see overwrite_item()).
 	 */
 
-	btrfs_set_inode_sequence(leaf, item, inode_peek_iversion(inode));
+	btrfs_set_inode_sequence(leaf, item, inode_peek_iversion(vfs_inode));
 	btrfs_set_inode_transid(leaf, item, trans->transid);
-	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
-	flags = btrfs_inode_combine_flags(BTRFS_I(inode)->flags,
-					  BTRFS_I(inode)->ro_flags);
+	btrfs_set_inode_rdev(leaf, item, vfs_inode->i_rdev);
+	flags = btrfs_inode_combine_flags(inode->flags, inode->ro_flags);
 	btrfs_set_inode_flags(leaf, item, flags);
 	btrfs_set_inode_block_group(leaf, item, 0);
 }
@@ -4719,8 +4719,7 @@ static int log_inode_item(struct btrfs_trans_handle *trans,
 		return ret;
 	inode_item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				    struct btrfs_inode_item);
-	fill_inode_item(trans, path->nodes[0], inode_item, &inode->vfs_inode,
-			false, 0);
+	fill_inode_item(trans, path->nodes[0], inode_item, inode, false, 0);
 	btrfs_release_path(path);
 	return 0;
 }
@@ -4989,8 +4988,7 @@ copy_item:
 			inode_item = btrfs_item_ptr(dst_path->nodes[0], dst_slot,
 						    struct btrfs_inode_item);
 			fill_inode_item(trans, dst_path->nodes[0], inode_item,
-					&inode->vfs_inode,
-					inode_only == LOG_INODE_EXISTS,
+					inode, inode_only == LOG_INODE_EXISTS,
 					logged_isize);
 		} else {
 			copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
