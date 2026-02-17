@@ -651,6 +651,8 @@ static inline int get_preempt_count(void)
 	return bpf_get_current_task_btf()->thread_info.preempt.count;
 #elif defined(bpf_target_powerpc)
 	return bpf_get_current_task_btf()->thread_info.preempt_count;
+#elif defined(bpf_target_s390)
+	return bpf_get_lowcore()->preempt_count;
 #endif
 	return 0;
 }
@@ -660,6 +662,7 @@ static inline int get_preempt_count(void)
  *	* x86
  *	* arm64
  *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_interrupt(void)
 {
@@ -680,6 +683,7 @@ static inline int bpf_in_interrupt(void)
  *	* x86
  *	* arm64
  *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_nmi(void)
 {
@@ -691,6 +695,7 @@ static inline int bpf_in_nmi(void)
  *	* x86
  *	* arm64
  *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_hardirq(void)
 {
@@ -702,6 +707,7 @@ static inline int bpf_in_hardirq(void)
  *	* x86
  *	* arm64
  *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_serving_softirq(void)
 {
@@ -721,6 +727,7 @@ static inline int bpf_in_serving_softirq(void)
  *	* x86
  *	* arm64
  *	* powerpc64
+ *	* s390x
  */
 static inline int bpf_in_task(void)
 {
