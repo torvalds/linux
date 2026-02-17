@@ -136,6 +136,21 @@ Description:	The last executed device administrative command's status/error.
 		Also last configuration error overloaded.
 		Writing to it will clear the status.
 
+What:		/sys/bus/dsa/devices/dsa<m>/dsacaps
+Date:		April 5, 2026
+KernelVersion:	6.20.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The DSA3 specification introduces three new capability
+		registers: dsacap[0-2]. User components (e.g., configuration
+		libraries and workload applications) require this information
+		to properly utilize the DSA3 features.
+		This includes SGL capability support, Enabling hardware-specific
+		optimizations, Configuring memory, etc.
+		The output format is '<dsacap2>,<dsacap1>,<dsacap0>' where each
+		DSA cap value is a 64 bit hex value.
+		This attribute should only be visible on DSA devices of version
+		3 or later.
+
 What:		/sys/bus/dsa/devices/dsa<m>/iaa_cap
 Date:		Sept 14, 2022
 KernelVersion: 6.0.0
