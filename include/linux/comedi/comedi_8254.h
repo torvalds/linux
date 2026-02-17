@@ -83,11 +83,11 @@ typedef unsigned int comedi_8254_iocb_fn(struct comedi_8254 *i8254, int dir,
  * @divisor:		divisor for single counter
  * @divisor1:		divisor loaded into first cascaded counter
  * @divisor2:		divisor loaded into second cascaded counter
- * #next_div:		next divisor for single counter
+ * @next_div:		next divisor for single counter
  * @next_div1:		next divisor to use for first cascaded counter
  * @next_div2:		next divisor to use for second cascaded counter
- * @clock_src;		current clock source for each counter (driver specific)
- * @gate_src;		current gate source  for each counter (driver specific)
+ * @clock_src:		current clock source for each counter (driver specific)
+ * @gate_src:		current gate source  for each counter (driver specific)
  * @busy:		flags used to indicate that a counter is "busy"
  * @insn_config:	driver specific (*insn_config) callback
  */

@@ -17,9 +17,8 @@ use kernel::{
     seq_print,
     sync::atomic::{ordering::Relaxed, Atomic},
     sync::poll::{PollCondVar, PollTable},
-    sync::{Arc, SpinLock},
+    sync::{aref::ARef, Arc, SpinLock},
     task::Task,
-    types::ARef,
     uaccess::UserSlice,
     uapi,
 };
@@ -1146,6 +1145,7 @@ impl Thread {
         transaction: &DArc<Transaction>,
     ) -> bool {
         if let Ok(transaction) = &reply {
+            crate::trace::trace_transaction(true, transaction, Some(&self.task));
             transaction.set_outstanding(&mut self.process.inner.lock());
         }
 

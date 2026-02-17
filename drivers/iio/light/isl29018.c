@@ -273,9 +273,9 @@ static ssize_t in_illuminance_scale_available_show
 
 	mutex_lock(&chip->lock);
 	for (i = 0; i < ARRAY_SIZE(isl29018_scales[chip->int_time]); ++i)
-		len += sprintf(buf + len, "%d.%06d ",
-			       isl29018_scales[chip->int_time][i].scale,
-			       isl29018_scales[chip->int_time][i].uscale);
+		len += sysfs_emit_at(buf, len, "%d.%06d ",
+				     isl29018_scales[chip->int_time][i].scale,
+				     isl29018_scales[chip->int_time][i].uscale);
 	mutex_unlock(&chip->lock);
 
 	buf[len - 1] = '\n';
@@ -293,8 +293,8 @@ static ssize_t in_illuminance_integration_time_available_show
 	int len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(isl29018_int_utimes[chip->type]); ++i)
-		len += sprintf(buf + len, "0.%06d ",
-			       isl29018_int_utimes[chip->type][i]);
+		len += sysfs_emit_at(buf, len, "0.%06d ",
+				     isl29018_int_utimes[chip->type][i]);
 
 	buf[len - 1] = '\n';
 
@@ -330,7 +330,7 @@ static ssize_t proximity_on_chip_ambient_infrared_suppression_show
 	 * Return the "proximity scheme" i.e. if the chip does on chip
 	 * infrared suppression (1 means perform on chip suppression)
 	 */
-	return sprintf(buf, "%d\n", chip->prox_scheme);
+	return sysfs_emit(buf, "%d\n", chip->prox_scheme);
 }
 
 static ssize_t proximity_on_chip_ambient_infrared_suppression_store

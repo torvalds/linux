@@ -178,6 +178,14 @@ struct NodeInner {
     refs: List<NodeRefInfo, { NodeRefInfo::LIST_NODE }>,
 }
 
+use kernel::bindings::rb_node_layout;
+use mem::offset_of;
+pub(crate) const NODE_LAYOUT: rb_node_layout = rb_node_layout {
+    arc_offset: Arc::<Node>::DATA_OFFSET + offset_of!(DTRWrap<Node>, wrapped),
+    debug_id: offset_of!(Node, debug_id),
+    ptr: offset_of!(Node, ptr),
+};
+
 #[pin_data]
 pub(crate) struct Node {
     pub(crate) debug_id: usize,

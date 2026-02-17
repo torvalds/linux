@@ -55,6 +55,7 @@ properties:
           - qcom,sm8450-qfprom
           - qcom,sm8550-qfprom
           - qcom,sm8650-qfprom
+          - qcom,sm8750-qfprom
           - qcom,x1e80100-qfprom
       - const: qcom,qfprom
 

@@ -81,9 +81,9 @@ static const struct file_operations i2cr_scom_fops = {
 	.write		= i2cr_scom_write,
 };
 
-static int i2cr_scom_probe(struct device *dev)
+static int i2cr_scom_probe(struct fsi_device *fsi_dev)
 {
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	struct device *dev = &fsi_dev->dev;
 	struct i2cr_scom *scom;
 	int didx;
 	int ret;
@@ -115,14 +115,12 @@ static int i2cr_scom_probe(struct device *dev)
 	return ret;
 }
 
-static int i2cr_scom_remove(struct device *dev)
+static void i2cr_scom_remove(struct fsi_device *fsi_dev)
 {
-	struct i2cr_scom *scom = dev_get_drvdata(dev);
+	struct i2cr_scom *scom = dev_get_drvdata(&fsi_dev->dev);
 
 	cdev_device_del(&scom->cdev, &scom->dev);
 	fsi_free_minor(scom->dev.devt);
-
-	return 0;
 }
 
 static const struct of_device_id i2cr_scom_of_ids[] = {
@@ -137,13 +135,12 @@ static const struct fsi_device_id i2cr_scom_ids[] = {
 };
 
 static struct fsi_driver i2cr_scom_driver = {
+	.probe = i2cr_scom_probe,
+	.remove = i2cr_scom_remove,
 	.id_table = i2cr_scom_ids,
 	.drv = {
 		.name = "i2cr_scom",
-		.bus = &fsi_bus_type,
 		.of_match_table = i2cr_scom_of_ids,
-		.probe = i2cr_scom_probe,
-		.remove = i2cr_scom_remove,
 	}
 };
 

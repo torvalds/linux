@@ -113,10 +113,10 @@ struct iio_buffer {
 	/** @flags: File ops flags including busy flag. */
 	unsigned long flags;
 
-	/**  @bytes_per_datum: Size of individual datum including timestamp. */
+	/** @bytes_per_datum: Size of individual datum including timestamp. */
 	size_t bytes_per_datum;
 
-	/* @direction: Direction of the data stream (in/out). */
+	/** @direction: Direction of the data stream (in/out). */
 	enum iio_buffer_direction direction;
 
 	/**
@@ -178,7 +178,9 @@ struct iio_buffer {
  * @insert_buffer:	buffer to insert
  * @remove_buffer:	buffer_to_remove
  *
- * Note this will tear down the all buffering and build it up again
+ * Note this will tear down all the buffering and build it up again
+ *
+ * Returns: 0 on success or -errno on error
  */
 int iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,

@@ -693,8 +693,9 @@ static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_con
 	int retval;
 
 	board->status = 0;
-	if (hp_82341_allocate_private(board))
-		return -ENOMEM;
+	retval = hp_82341_allocate_private(board);
+	if (retval)
+		return retval;
 	hp_priv = board->private_data;
 	tms_priv = &hp_priv->tms9914_priv;
 	tms_priv->read_byte = hp_82341_read_byte;

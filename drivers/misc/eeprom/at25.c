@@ -34,6 +34,7 @@
  */
 
 #define	FM25_SN_LEN	8		/* serial number length */
+#define	FM25_MAX_ID_LEN	9		/* ID length */
 #define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
 
 struct at25_data {
@@ -44,6 +45,8 @@ struct at25_data {
 	struct nvmem_config	nvmem_config;
 	struct nvmem_device	*nvmem;
 	u8 sernum[FM25_SN_LEN];
+	u8 id[FM25_MAX_ID_LEN];
+	u8 id_len;
 };
 
 #define	AT25_WREN	0x06		/* latch the write enable */
@@ -63,8 +66,6 @@ struct at25_data {
 #define	AT25_SR_WPEN	0x80		/* writeprotect enable */
 
 #define	AT25_INSTR_BIT3	0x08		/* additional address bit in instr */
-
-#define	FM25_ID_LEN	9		/* ID length */
 
 /*
  * Specs often allow 5ms for a page write, sometimes 20ms;
@@ -180,11 +181,25 @@ static ssize_t sernum_show(struct device *dev, struct device_attribute *attr, ch
 }
 static DEVICE_ATTR_RO(sernum);
 
-static struct attribute *sernum_attrs[] = {
+static ssize_t jedec_id_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct at25_data *at25;
+
+	at25 = dev_get_drvdata(dev);
+
+	if (!at25->id_len)
+		return -EOPNOTSUPP;
+
+	return sysfs_emit(buf, "%*phN\n", at25->id_len, at25->id);
+}
+static DEVICE_ATTR_RO(jedec_id);
+
+static struct attribute *at25_attrs[] = {
 	&dev_attr_sernum.attr,
+	&dev_attr_jedec_id.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(sernum);
+ATTRIBUTE_GROUPS(at25);
 
 /*
  * Poll Read Status Register with timeout
@@ -378,7 +393,7 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 {
 	struct at25_data *at25 = container_of(chip, struct at25_data, chip);
 	u8 sernum[FM25_SN_LEN];
-	u8 id[FM25_ID_LEN];
+	u8 id[FM25_MAX_ID_LEN];
 	u32 val;
 	int i;
 
@@ -388,7 +403,12 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 		chip->byte_len = val;
 	} else {
 		/* Get ID of chip */
-		fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
+		fm25_aux_read(at25, id, FM25_RDID, FM25_MAX_ID_LEN);
+
+		/* Store the unprocessed ID for exposing via sysfs */
+		memcpy(at25->id, id, FM25_MAX_ID_LEN);
+		at25->id_len = FM25_MAX_ID_LEN;
+
 		/* There are inside-out FRAM variations, detect them and reverse the ID bytes */
 		if (id[6] == 0x7f && id[2] == 0xc2)
 			for (i = 0; i < ARRAY_SIZE(id) / 2; i++) {
@@ -398,30 +418,42 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 				id[i] = id[j];
 				id[j] = tmp;
 			}
-		if (id[6] != 0xc2) {
-			dev_err(dev, "Error: no Cypress FRAM with device ID (manufacturer ID bank 7: %02x)\n", id[6]);
+
+		if (id[6] == 0xc2) {
+			at25->id_len = 9;
+			switch (id[7]) {
+			case 0x21 ... 0x26:
+				chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+				break;
+			case 0x2a ... 0x30:
+				/* CY15B102QN ... CY15B116QN */
+				chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
+				break;
+			default:
+				dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
+				return -ENODEV;
+			}
+		} else if (id[2] == 0x82 && id[3] == 0x06) {
+			at25->id_len = 8;
+			switch (id[1]) {
+			case 0x51 ... 0x54:
+				/* CY15B102QSN ... CY15B204QSN */
+				chip->byte_len = BIT(((id[0] >> 3) & 0x1F) + 9);
+				break;
+			default:
+				dev_err(dev, "Error: unsupported product id %02x\n", id[1]);
+				return -ENODEV;
+			}
+		} else {
+			dev_err(dev, "Error: unrecognized JEDEC ID format: %*ph\n",
+				FM25_MAX_ID_LEN, id);
 			return -ENODEV;
 		}
 
-		switch (id[7]) {
-		case 0x21 ... 0x26:
-			chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
-			break;
-		case 0x2a ... 0x30:
-			/* CY15B102QN ... CY15B116QN */
-			chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
-			break;
-		default:
-			dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
-			return -ENODEV;
-		}
-
-		if (id[8]) {
-			fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
-			/* Swap byte order */
-			for (i = 0; i < FM25_SN_LEN; i++)
-				at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
-		}
+		fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
+		/* Swap byte order */
+		for (i = 0; i < FM25_SN_LEN; i++)
+			at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
 	}
 
 	if (chip->byte_len > 64 * 1024)
@@ -539,7 +571,7 @@ static struct spi_mem_driver at25_driver = {
 		.driver = {
 			.name		= "at25",
 			.of_match_table = at25_of_match,
-			.dev_groups	= sernum_groups,
+			.dev_groups	= at25_groups,
 		},
 		.id_table	= at25_spi_ids,
 	},

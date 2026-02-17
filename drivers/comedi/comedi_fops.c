@@ -1169,6 +1169,8 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
  * COMEDI_BUFINFO ioctl
  * buffer information
  *
+ * Note that the comedi device's mutex has not been locked for this ioctl.
+ *
  * arg:
  *	pointer to comedi_bufinfo structure
  *
@@ -1186,24 +1188,42 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	struct comedi_async *async;
 	unsigned int runflags;
 	int retval = 0;
+	unsigned int old_detach_count;
+	unsigned int cmd_flags;
 	bool become_nonbusy = false;
+	bool attach_locked;
 
-	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
 
-	if (bi.subdevice >= dev->n_subdevices)
-		return -EINVAL;
+	/* Protect against device detachment during operation. */
+	down_read(&dev->attach_lock);
+	attach_locked = true;
+	old_detach_count = dev->detach_count;
+
+	if (!dev->attached) {
+		dev_dbg(dev->class_dev, "no driver attached\n");
+		retval = -ENODEV;
+		goto out;
+	}
+
+	if (bi.subdevice >= dev->n_subdevices) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	s = &dev->subdevices[bi.subdevice];
 
 	async = s->async;
 
-	if (!async || s->busy != file)
-		return -EINVAL;
+	if (!async || s->busy != file) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	runflags = comedi_get_subdevice_runflags(s);
-	if (!(async->cmd.flags & CMDF_WRITE)) {
+	cmd_flags = async->cmd.flags;
+	if (!(cmd_flags & CMDF_WRITE)) {
 		/* command was set up in "read" direction */
 		if (bi.bytes_read) {
 			_comedi_buf_read_alloc(s, bi.bytes_read);
@@ -1243,8 +1263,41 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	bi.buf_read_count = async->buf_read_count;
 	bi.buf_read_ptr = async->buf_read_ptr;
 
-	if (become_nonbusy)
-		do_become_nonbusy(dev, s);
+	if (become_nonbusy) {
+		struct comedi_subdevice *new_s = NULL;
+
+		/*
+		 * To avoid deadlock, cannot acquire dev->mutex
+		 * while dev->attach_lock is held.
+		 */
+		up_read(&dev->attach_lock);
+		attach_locked = false;
+		mutex_lock(&dev->mutex);
+		/*
+		 * Check device hasn't become detached behind our back.
+		 * Checking dev->detach_count is unchanged ought to be
+		 * sufficient, but check the subdevice pointer as well,
+		 * and check the subdevice is still in a suitable state
+		 * to become non-busy.  It should still be "busy" after
+		 * running an asynchronous commands, which should now have
+		 * stopped, and for a command in the "read" direction, all
+		 * available data should have been read.
+		 */
+		if (dev->attached && old_detach_count == dev->detach_count &&
+		    bi.subdevice < dev->n_subdevices)
+			new_s = &dev->subdevices[bi.subdevice];
+		if (s == new_s && new_s->async == async && s->busy == file &&
+		    async->cmd.flags == cmd_flags &&
+		    !comedi_is_subdevice_running(s) &&
+		    ((cmd_flags & CMDF_WRITE) != 0 ||
+		     _comedi_buf_read_n_available(s) == 0))
+			do_become_nonbusy(dev, s);
+		mutex_unlock(&dev->mutex);
+	}
+
+out:
+	if (attach_locked)
+		up_read(&dev->attach_lock);
 
 	if (retval)
 		return retval;
@@ -2225,6 +2278,13 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 	struct comedi_device *dev = cfp->dev;
 	int rc;
 
+	/* Handle COMEDI_BUFINFO without locking the mutex first. */
+	if (cmd == COMEDI_BUFINFO) {
+		return do_bufinfo_ioctl(dev,
+					(struct comedi_bufinfo __user *)arg,
+					file);
+	}
+
 	mutex_lock(&dev->mutex);
 
 	/*
@@ -2294,11 +2354,6 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			rc = do_rangeinfo_ioctl(dev, &it);
 		break;
 	}
-	case COMEDI_BUFINFO:
-		rc = do_bufinfo_ioctl(dev,
-				      (struct comedi_bufinfo __user *)arg,
-				      file);
-		break;
 	case COMEDI_LOCK:
 		rc = do_lock_ioctl(dev, arg, file);
 		break;

@@ -2,7 +2,7 @@
 # Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
-	depends on X86 && PCI
+	depends on PCI
 	default X86_64 || MATOM
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
@@ -49,7 +49,7 @@ config INTEL_MEI_TXE
 config INTEL_MEI_GSC
 	tristate "Intel MEI GSC embedded device"
 	depends on INTEL_MEI_ME
-	depends on DRM_I915 || DRM_XE
+	depends on DRM_I915!=n || DRM_XE!=n || COMPILE_TEST
 	help
 	  Intel auxiliary driver for GSC devices embedded in Intel graphics devices.
 
@@ -84,7 +84,7 @@ config INTEL_MEI_VSC
 config INTEL_MEI_LB
 	tristate "Intel Late Binding (LB) support on ME Interface"
 	depends on INTEL_MEI_ME
-	depends on DRM_XE
+	depends on DRM_XE!=n || COMPILE_TEST
 	help
 	  Enable support for Intel Late Binding (LB) via the MEI interface.
 
