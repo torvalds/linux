@@ -779,9 +779,9 @@ static int setup_crypto(struct ceph_connection *con,
 	return 0;  /* auth_x, secure mode */
 }
 
-static void ceph_hmac_sha256(struct ceph_connection *con,
-			     const struct kvec *kvecs, int kvec_cnt,
-			     u8 hmac[SHA256_DIGEST_SIZE])
+static void con_hmac_sha256(struct ceph_connection *con,
+			    const struct kvec *kvecs, int kvec_cnt,
+			    u8 hmac[SHA256_DIGEST_SIZE])
 {
 	struct hmac_sha256_ctx ctx;
 	int i;
@@ -1438,8 +1438,8 @@ static int prepare_auth_signature(struct ceph_connection *con)
 	if (!buf)
 		return -ENOMEM;
 
-	ceph_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
-			 CTRL_BODY(buf));
+	con_hmac_sha256(con, con->v2.in_sign_kvecs, con->v2.in_sign_kvec_cnt,
+			CTRL_BODY(buf));
 
 	return prepare_control(con, FRAME_TAG_AUTH_SIGNATURE, buf,
 			       SHA256_DIGEST_SIZE);
@@ -2360,7 +2360,7 @@ bad:
  */
 static int process_auth_done(struct ceph_connection *con, void *p, void *end)
 {
-	u8 session_key_buf[CEPH_KEY_LEN + 16];
+	u8 session_key_buf[CEPH_MAX_KEY_LEN + 16];
 	u8 con_secret_buf[CEPH_MAX_CON_SECRET_LEN + 16];
 	u8 *session_key = PTR_ALIGN(&session_key_buf[0], 16);
 	u8 *con_secret = PTR_ALIGN(&con_secret_buf[0], 16);
@@ -2436,8 +2436,8 @@ static int process_auth_signature(struct ceph_connection *con,
 		return -EINVAL;
 	}
 
-	ceph_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
-			 hmac);
+	con_hmac_sha256(con, con->v2.out_sign_kvecs, con->v2.out_sign_kvec_cnt,
+			hmac);
 
 	ceph_decode_need(&p, end, SHA256_DIGEST_SIZE, bad);
 	if (crypto_memneq(p, hmac, SHA256_DIGEST_SIZE)) {
