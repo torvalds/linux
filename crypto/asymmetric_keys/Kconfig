@@ -27,6 +27,7 @@ config X509_CERTIFICATE_PARSER
 	tristate "X.509 certificate parser"
 	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	select ASN1
+	select CRYPTO_LIB_SHA256
 	select OID_REGISTRY
 	help
 	  This option provides support for parsing X.509 format blobs for key
