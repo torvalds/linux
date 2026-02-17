@@ -191,6 +191,11 @@ static inline int swp_tb_get_count(unsigned long swp_tb)
 	return -EINVAL;
 }
 
+static inline unsigned long __swp_tb_mk_count(unsigned long swp_tb, int count)
+{
+	return ((swp_tb & ~SWP_TB_COUNT_MASK) | __count_to_swp_tb(count));
+}
+
 /*
  * Helpers for accessing or modifying the swap table of a cluster,
  * the swap cluster must be locked.

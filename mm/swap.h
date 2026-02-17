@@ -37,6 +37,7 @@ struct swap_cluster_info {
 	u8 flags;
 	u8 order;
 	atomic_long_t __rcu *table;	/* Swap table entries, see mm/swap_table.h */
+	unsigned int *extend_table;	/* For large swap count, protected by ci->lock */
 	struct list_head list;
 };
 
@@ -183,6 +184,8 @@ static inline void swap_cluster_unlock_irq(struct swap_cluster_info *ci)
 	spin_unlock_irq(&ci->lock);
 }
 
+extern int swap_retry_table_alloc(swp_entry_t entry, gfp_t gfp);
+
 /*
  * Below are the core routines for doing swap for a folio.
  * All helpers requires the folio to be locked, and a locked folio
@@ -206,9 +209,9 @@ int folio_dup_swap(struct folio *folio, struct page *subpage);
 void folio_put_swap(struct folio *folio, struct page *subpage);
 
 /* For internal use */
-extern void swap_entries_free(struct swap_info_struct *si,
-			      struct swap_cluster_info *ci,
-			      unsigned long offset, unsigned int nr_pages);
+extern void __swap_cluster_free_entries(struct swap_info_struct *si,
+					struct swap_cluster_info *ci,
+					unsigned int ci_off, unsigned int nr_pages);
 
 /* linux/mm/page_io.c */
 int sio_pool_init(void);
@@ -444,6 +447,11 @@ static inline int swap_writeout(struct folio *folio,
 		struct swap_iocb **swap_plug)
 {
 	return 0;
+}
+
+static inline int swap_retry_table_alloc(swp_entry_t entry, gfp_t gfp)
+{
+	return -EINVAL;
 }
 
 static inline bool swap_cache_has_folio(swp_entry_t entry)
