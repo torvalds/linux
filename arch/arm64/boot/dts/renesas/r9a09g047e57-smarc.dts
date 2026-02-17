@@ -167,6 +167,13 @@
 		bias-pull-up;
 	};
 
+	rspi0_pins: rspi0 {
+		pinmux = <RZG3E_PORT_PINMUX(M, 4, 2)>, /* MISOA */
+			 <RZG3E_PORT_PINMUX(M, 5, 2)>, /* MOSIA */
+			 <RZG3E_PORT_PINMUX(M, 6, 2)>, /* RSPCKA */
+			 <RZG3E_PORT_PINMUX(M, 7, 2)>; /* SSLA0 */
+	};
+
 	scif_pins: scif {
 		pins = "SCIF_TXD", "SCIF_RXD";
 		renesas,output-impedance = <1>;
@@ -233,6 +240,15 @@
 	status = "okay";
 };
 #endif
+
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+};
 
 &scif0 {
 	pinctrl-0 = <&scif_pins>;
