@@ -395,6 +395,7 @@ cifs_downgrade_oplock(struct TCP_Server_Info *server,
 		      struct cifsInodeInfo *cinode, __u32 oplock,
 		      __u16 epoch, bool *purge_cache)
 {
+	lockdep_assert_held(&cinode->open_file_lock);
 	cifs_set_oplock_level(cinode, oplock);
 }
 
@@ -894,6 +895,9 @@ static void
 cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+
+	lockdep_assert_held(&cinode->open_file_lock);
+
 	cfile->fid.netfid = fid->netfid;
 	cifs_set_oplock_level(cinode, oplock);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
@@ -1139,12 +1143,16 @@ cifs_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSFindClose(xid, tcon, fid->netfid);
 }
 
-static int
-cifs_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
-		__u64 volatile_fid, __u16 net_fid, struct cifsInodeInfo *cinode)
+static int cifs_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
+				__u64 volatile_fid, __u16 net_fid,
+				struct cifsInodeInfo *cinode, unsigned int oplock)
 {
+	unsigned int sbflags = CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags;
+	__u8 op;
+
+	op = !!((oplock & CIFS_CACHE_READ_FLG) || (sbflags & CIFS_MOUNT_RO_CACHE));
 	return CIFSSMBLock(0, tcon, net_fid, current->tgid, 0, 0, 0, 0,
-			   LOCKING_ANDX_OPLOCK_RELEASE, false, CIFS_CACHE_READ(cinode) ? 1 : 0);
+			   LOCKING_ANDX_OPLOCK_RELEASE, false, op);
 }
 
 static int

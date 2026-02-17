@@ -825,9 +825,7 @@ static int smb3_fs_context_parse_monolithic(struct fs_context *fc,
 		if (ret < 0)
 			break;
 	}
-	ret = smb3_handle_conflicting_options(fc);
-
-	return ret;
+	return ret ?: smb3_handle_conflicting_options(fc);
 }
 
 /*
