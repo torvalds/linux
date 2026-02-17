@@ -203,6 +203,40 @@ static struct tsync_work *tsync_works_provide(struct tsync_works *s,
 	return ctx;
 }
 
+/**
+ * tsync_works_trim - Put the last tsync_work element
+ *
+ * @s: TSYNC works to trim.
+ *
+ * Put the last task and decrement the size of @s.
+ *
+ * This helper does not cancel a running task, but just reset the last element
+ * to zero.
+ */
+static void tsync_works_trim(struct tsync_works *s)
+{
+	struct tsync_work *ctx;
+
+	if (WARN_ON_ONCE(s->size <= 0))
+		return;
+
+	ctx = s->works[s->size - 1];
+
+	/*
+	 * For consistency, remove the task from ctx so that it does not look like
+	 * we handed it a task_work.
+	 */
+	put_task_struct(ctx->task);
+	*ctx = (typeof(*ctx)){};
+
+	/*
+	 * Cancel the tsync_works_provide() change to recycle the reserved memory
+	 * for the next thread, if any.  This also ensures that cancel_tsync_works()
+	 * and tsync_works_release() do not see any NULL task pointers.
+	 */
+	s->size--;
+}
+
 /*
  * tsync_works_grow_by - preallocates space for n more contexts in s
  *
@@ -276,7 +310,7 @@ static void tsync_works_release(struct tsync_works *s)
 	size_t i;
 
 	for (i = 0; i < s->size; i++) {
-		if (!s->works[i]->task)
+		if (WARN_ON_ONCE(!s->works[i]->task))
 			continue;
 
 		put_task_struct(s->works[i]->task);
@@ -379,16 +413,14 @@ static bool schedule_task_work(struct tsync_works *works,
 
 		init_task_work(&ctx->work, restrict_one_thread_callback);
 		err = task_work_add(thread, &ctx->work, TWA_SIGNAL);
-		if (err) {
+		if (unlikely(err)) {
 			/*
 			 * task_work_add() only fails if the task is about to exit.  We
 			 * checked that earlier, but it can happen as a race.  Resume
 			 * without setting an error, as the task is probably gone in the
-			 * next loop iteration.  For consistency, remove the task from ctx
-			 * so that it does not look like we handed it a task_work.
+			 * next loop iteration.
 			 */
-			put_task_struct(ctx->task);
-			ctx->task = NULL;
+			tsync_works_trim(works);
 
 			atomic_dec(&shared_ctx->num_preparing);
 			atomic_dec(&shared_ctx->num_unfinished);
@@ -412,6 +444,9 @@ static void cancel_tsync_works(struct tsync_works *works,
 	int i;
 
 	for (i = 0; i < works->size; i++) {
+		if (WARN_ON_ONCE(!works->works[i]->task))
+			continue;
+
 		if (!task_work_cancel(works->works[i]->task,
 				      &works->works[i]->work))
 			continue;
