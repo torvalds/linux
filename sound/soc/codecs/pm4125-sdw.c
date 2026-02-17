@@ -436,13 +436,11 @@ static int pm4125_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 	return 0;
 }
 
-static int pm4125_remove(struct sdw_slave *pdev)
+static void pm4125_remove(struct sdw_slave *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	component_del(dev, &wcd_sdw_component_ops);
-
-	return 0;
 }
 
 static const struct sdw_device_id pm4125_slave_id[] = {

@@ -2950,14 +2950,12 @@ static int rt1320_sdw_probe(struct sdw_slave *slave,
 	return rt1320_sdw_init(&slave->dev, regmap, mbq_regmap, slave);
 }
 
-static int rt1320_sdw_remove(struct sdw_slave *slave)
+static void rt1320_sdw_remove(struct sdw_slave *slave)
 {
 	struct  rt1320_sdw_priv *rt1320 = dev_get_drvdata(&slave->dev);
 
 	cancel_work_sync(&rt1320->load_dspfw_work);
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 /*
