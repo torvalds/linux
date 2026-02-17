@@ -627,6 +627,10 @@ struct task_struct___preempt_rt {
 	int softirq_disable_cnt;
 } __attribute__((preserve_access_index));
 
+#ifdef bpf_target_s390
+extern struct lowcore *bpf_get_lowcore(void) __weak __ksym;
+#endif
+
 static inline int get_preempt_count(void)
 {
 #if defined(bpf_target_x86)

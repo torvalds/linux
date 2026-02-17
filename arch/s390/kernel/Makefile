@@ -80,5 +80,7 @@ obj-$(CONFIG_PERF_EVENTS)	+= perf_pai.o
 
 obj-$(CONFIG_TRACEPOINTS)	+= trace.o
 
+obj-$(CONFIG_BPF_SYSCALL)	+= bpf.o
+
 # vdso
 obj-y				+= vdso/
