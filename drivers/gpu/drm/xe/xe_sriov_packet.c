@@ -341,6 +341,8 @@ ssize_t xe_sriov_packet_write_single(struct xe_device *xe, unsigned int vfid,
 		ret = xe_sriov_pf_migration_restore_produce(xe, vfid, *data);
 		if (ret) {
 			xe_sriov_packet_free(*data);
+			*data = NULL;
+
 			return ret;
 		}
 
