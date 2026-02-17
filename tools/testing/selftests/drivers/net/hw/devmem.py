@@ -63,12 +63,29 @@ def check_tx_chunks(cfg) -> None:
     ksft_eq(socat.stdout.strip(), "hello\nworld")
 
 
+def check_rx_hds(cfg) -> None:
+    """Test HDS splitting across payload sizes."""
+    require_devmem(cfg)
+
+    for size in [1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]:
+        port = rand_port()
+        listen_cmd = f"{cfg.bin_local} -L -l -f {cfg.ifname} -s {cfg.addr} -p {port}"
+
+        with bkg(listen_cmd, exit_wait=True) as ncdevmem:
+            wait_port_listen(port)
+            cmd(f"dd if=/dev/zero bs={size} count=1 2>/dev/null | " +
+                f"socat -b {size} -u - TCP{cfg.addr_ipver}:{cfg.baddr}:{port},nodelay",
+                host=cfg.remote, shell=True)
+
+        ksft_eq(ncdevmem.ret, 0, f"HDS failed for payload size {size}")
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__) as cfg:
         cfg.bin_local = path.abspath(path.dirname(__file__) + "/ncdevmem")
         cfg.bin_remote = cfg.remote.deploy(cfg.bin_local)
 
-        ksft_run([check_rx, check_tx, check_tx_chunks],
+        ksft_run([check_rx, check_tx, check_tx_chunks, check_rx_hds],
                  args=(cfg, ))
     ksft_exit()
 
