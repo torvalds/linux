@@ -106,7 +106,7 @@ static const struct phy_ops uniphier_u2phy_ops = {
 static int uniphier_u2phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent, *child;
+	struct device_node *parent;
 	struct uniphier_u2phy_priv *priv = NULL, *next = NULL;
 	struct phy_provider *phy_provider;
 	struct regmap *regmap;
@@ -129,34 +129,31 @@ static int uniphier_u2phy_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 	}
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_node_scoped(dev->of_node, child) {
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-		if (!priv) {
-			ret = -ENOMEM;
-			goto out_put_child;
-		}
+		if (!priv)
+			return -ENOMEM;
+
 		priv->regmap = regmap;
 
 		priv->vbus = devm_regulator_get_optional(dev, "vbus");
 		if (IS_ERR(priv->vbus)) {
-			if (PTR_ERR(priv->vbus) == -EPROBE_DEFER) {
-				ret = PTR_ERR(priv->vbus);
-				goto out_put_child;
-			}
+			if (PTR_ERR(priv->vbus) == -EPROBE_DEFER)
+				return PTR_ERR(priv->vbus);
+
 			priv->vbus = NULL;
 		}
 
 		priv->phy = devm_phy_create(dev, child, &uniphier_u2phy_ops);
 		if (IS_ERR(priv->phy)) {
 			dev_err(dev, "Failed to create phy\n");
-			ret = PTR_ERR(priv->phy);
-			goto out_put_child;
+			return PTR_ERR(priv->phy);
 		}
 
 		ret = of_property_read_u32(child, "reg", &data_idx);
 		if (ret) {
 			dev_err(dev, "Failed to get reg property\n");
-			goto out_put_child;
+			return ret;
 		}
 
 		if (data_idx < ndatas)
@@ -174,11 +171,6 @@ static int uniphier_u2phy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev,
 						     uniphier_u2phy_xlate);
 	return PTR_ERR_OR_ZERO(phy_provider);
-
-out_put_child:
-	of_node_put(child);
-
-	return ret;
 }
 
 static const struct uniphier_u2phy_soc_data uniphier_pro4_data[] = {
