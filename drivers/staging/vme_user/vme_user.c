@@ -690,7 +690,7 @@ err_dev:
 	return err;
 }
 
-static void vme_user_remove(struct vme_dev *dev)
+static void vme_user_remove(struct vme_dev *vdev)
 {
 	int i;
 

@@ -1288,7 +1288,7 @@ EXPORT_SYMBOL(vme_irq_handler);
  *         already in use. Hardware specific errors also possible.
  */
 int vme_irq_request(struct vme_dev *vdev, int level, int statid,
-		    void (*callback)(int, int, void *),
+		    void (*callback)(int level, int statid, void *priv_data),
 		    void *priv_data)
 {
 	struct vme_bridge *bridge;

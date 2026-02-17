@@ -132,6 +132,7 @@ static u32 _cvrt2ftaddr(const u32 addr, u8 *pdevice_id, u16 *poffset)
 static u8 sdio_read8(struct intf_hdl *intfhdl, u32 addr)
 {
 	u32 ftaddr;
+
 	ftaddr = _cvrt2ftaddr(addr, NULL, NULL);
 
 	return sd_read8(intfhdl, ftaddr, NULL);
@@ -180,7 +181,7 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 	} else {
 		u8 *tmpbuf;
 
-		tmpbuf = rtw_malloc(8);
+		tmpbuf = kmalloc(8, GFP_ATOMIC);
 		if (!tmpbuf)
 			return SDIO_ERR_VAL32;
 
@@ -227,9 +228,9 @@ static s32 sdio_readN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 
 		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
-		tmpbuf = rtw_malloc(n);
+		tmpbuf = kmalloc(n, GFP_ATOMIC);
 		if (!tmpbuf)
-			return -1;
+			return -ENOMEM;
 
 		err = sd_read(intfhdl, ftaddr, n, tmpbuf);
 		if (!err)
@@ -330,9 +331,9 @@ static s32 sdio_writeN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 
 		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
-		tmpbuf = rtw_malloc(n);
+		tmpbuf = kmalloc(n, GFP_ATOMIC);
 		if (!tmpbuf)
-			return -1;
+			return -ENOMEM;
 		err = sd_read(intfhdl, ftaddr, 4, tmpbuf);
 		if (err) {
 			kfree(tmpbuf);
@@ -502,9 +503,9 @@ static s32 _sdio_local_read(
 		return _sd_cmd52_read(intfhdl, addr, cnt, buf);
 
 	n = round_up(cnt, 4);
-	tmpbuf = rtw_malloc(n);
+	tmpbuf = kmalloc(n, GFP_ATOMIC);
 	if (!tmpbuf)
-		return -1;
+		return -ENOMEM;
 
 	err = _sd_read(intfhdl, addr, n, tmpbuf);
 	if (!err)
@@ -543,9 +544,9 @@ s32 sdio_local_read(
 		return sd_cmd52_read(intfhdl, addr, cnt, buf);
 
 	n = round_up(cnt, 4);
-	tmpbuf = rtw_malloc(n);
+	tmpbuf = kmalloc(n, GFP_ATOMIC);
 	if (!tmpbuf)
-		return -1;
+		return -ENOMEM;
 
 	err = sd_read(intfhdl, addr, n, tmpbuf);
 	if (!err)
@@ -582,9 +583,9 @@ s32 sdio_local_write(
 	)
 		return sd_cmd52_write(intfhdl, addr, cnt, buf);
 
-	tmpbuf = rtw_malloc(cnt);
+	tmpbuf = kmalloc(cnt, GFP_ATOMIC);
 	if (!tmpbuf)
-		return -1;
+		return -ENOMEM;
 
 	memcpy(tmpbuf, buf, cnt);
 
@@ -809,7 +810,7 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 		SIZE_PTR tmpaddr = 0;
 		SIZE_PTR alignment = 0;
 
-		recvbuf->pskb = rtw_skb_alloc(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
+		recvbuf->pskb = __dev_alloc_skb(MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ, GFP_ATOMIC);
 		if (!recvbuf->pskb)
 			return NULL;
 
@@ -882,7 +883,7 @@ void sd_int_dpc(struct adapter *adapter)
 		u8 *status;
 		u32 addr;
 
-		status = rtw_malloc(4);
+		status = kmalloc(4, GFP_ATOMIC);
 		if (status) {
 			addr = REG_TXDMA_STATUS;
 			hal_sdio_get_cmd_addr_8723b(adapter, WLAN_IOREG_DEVICE_ID, addr, &addr);
@@ -895,7 +896,7 @@ void sd_int_dpc(struct adapter *adapter)
 	if (hal->sdio_hisr & SDIO_HISR_C2HCMD) {
 		struct c2h_evt_hdr_88xx *c2h_evt;
 
-		c2h_evt = rtw_zmalloc(16);
+		c2h_evt = kzalloc(16, GFP_ATOMIC);
 		if (c2h_evt) {
 			if (c2h_evt_read_88xx(adapter, (u8 *)c2h_evt) == _SUCCESS) {
 				if (c2h_id_filter_ccx_8723b((u8 *)c2h_evt)) {
