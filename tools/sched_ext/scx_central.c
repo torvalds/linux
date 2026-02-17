@@ -74,6 +74,7 @@ restart:
 			u32 central_cpu = strtoul(optarg, NULL, 0);
 			if (central_cpu >= skel->rodata->nr_cpu_ids) {
 				fprintf(stderr, "invalid central CPU id value, %u given (%u max)\n", central_cpu, skel->rodata->nr_cpu_ids);
+				scx_central__destroy(skel);
 				return -1;
 			}
 			skel->rodata->central_cpu = (s32)central_cpu;
@@ -109,7 +110,7 @@ restart:
 	SCX_BUG_ON(!cpuset, "Failed to allocate cpuset");
 	cpuset_size = CPU_ALLOC_SIZE(skel->rodata->nr_cpu_ids);
 	CPU_ZERO_S(cpuset_size, cpuset);
-	CPU_SET(skel->rodata->central_cpu, cpuset);
+	CPU_SET_S(skel->rodata->central_cpu, cpuset_size, cpuset);
 	SCX_BUG_ON(sched_setaffinity(0, cpuset_size, cpuset),
 		   "Failed to affinitize to central CPU %d (max %d)",
 		   skel->rodata->central_cpu, skel->rodata->nr_cpu_ids - 1);
