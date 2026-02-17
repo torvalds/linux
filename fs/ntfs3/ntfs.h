@@ -77,10 +77,14 @@ static_assert(sizeof(size_t) == 8);
 typedef u32 CLST;
 #endif
 
+/* On-disk sparsed cluster is marked as -1. */
 #define SPARSE_LCN64   ((u64)-1)
 #define SPARSE_LCN     ((CLST)-1)
+/* Below is virtual (not on-disk) values. */
 #define RESIDENT_LCN   ((CLST)-2)
 #define COMPRESSED_LCN ((CLST)-3)
+#define EOF_LCN       ((CLST)-4)
+#define DELALLOC_LCN   ((CLST)-5)
 
 enum RECORD_NUM {
 	MFT_REC_MFT		= 0,
