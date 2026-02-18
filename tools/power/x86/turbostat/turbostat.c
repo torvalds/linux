@@ -5164,7 +5164,7 @@ static inline int get_rapl_domain_id(int cpu)
 	if (!platform->has_per_core_rapl)
 		return cpus[cpu].package_id;
 
-	return GLOBAL_CORE_ID(cpu, cpus[cpu].package_id);
+	return GLOBAL_CORE_ID(cpus[cpu].core_id, cpus[cpu].package_id);
 }
 
 /*
@@ -9633,7 +9633,6 @@ void topology_probe(bool startup)
 	}
 	topo.max_core_id = max_core_id;	/* within a package */
 	topo.max_package_id = max_package_id;
-	topo.num_cores = (max_core_id + 1) * topo.num_packages;	/* per system */
 
 	topo.cores_per_node = max_core_id + 1;
 	if (debug > 1)
