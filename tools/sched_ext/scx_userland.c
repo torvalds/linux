@@ -157,9 +157,9 @@ static int dispatch_task(__s32 pid)
 
 	err = bpf_map_update_elem(dispatched_fd, NULL, &pid, 0);
 	if (err) {
-		nr_vruntime_failed++;
+		__atomic_add_fetch(&nr_vruntime_failed, 1, __ATOMIC_RELAXED);
 	} else {
-		nr_vruntime_dispatches++;
+		__atomic_add_fetch(&nr_vruntime_dispatches, 1, __ATOMIC_RELAXED);
 	}
 
 	return err;
@@ -202,8 +202,8 @@ static int vruntime_enqueue(const struct scx_userland_enqueued_task *bpf_task)
 		return ENOENT;
 
 	update_enqueued(curr, bpf_task);
-	nr_vruntime_enqueues++;
-	nr_curr_enqueued++;
+	__atomic_add_fetch(&nr_vruntime_enqueues, 1, __ATOMIC_RELAXED);
+	__atomic_add_fetch(&nr_curr_enqueued, 1, __ATOMIC_RELAXED);
 
 	/*
 	 * Enqueue the task in a vruntime-sorted list. A more optimal data
@@ -279,9 +279,9 @@ static void dispatch_batch(void)
 			LIST_INSERT_HEAD(&vruntime_head, task, entries);
 			break;
 		}
-		nr_curr_enqueued--;
+		__atomic_sub_fetch(&nr_curr_enqueued, 1, __ATOMIC_RELAXED);
 	}
-	skel->bss->nr_scheduled = nr_curr_enqueued;
+	skel->bss->nr_scheduled = __atomic_load_n(&nr_curr_enqueued, __ATOMIC_RELAXED);
 }
 
 static void *run_stats_printer(void *arg)
@@ -306,9 +306,9 @@ static void *run_stats_printer(void *arg)
 		printf("|-----------------------|\n");
 		printf("| VRUNTIME / USER       |\n");
 		printf("|-----------------------|\n");
-		printf("|  enq:      %10llu |\n", nr_vruntime_enqueues);
-		printf("|  disp:     %10llu |\n", nr_vruntime_dispatches);
-		printf("|  failed:   %10llu |\n", nr_vruntime_failed);
+		printf("|  enq:      %10llu |\n", __atomic_load_n(&nr_vruntime_enqueues, __ATOMIC_RELAXED));
+		printf("|  disp:     %10llu |\n", __atomic_load_n(&nr_vruntime_dispatches, __ATOMIC_RELAXED));
+		printf("|  failed:   %10llu |\n", __atomic_load_n(&nr_vruntime_failed, __ATOMIC_RELAXED));
 		printf("o-----------------------o\n");
 		printf("\n\n");
 		fflush(stdout);
@@ -376,10 +376,10 @@ static void bootstrap(char *comm)
 {
 	exit_req = 0;
 	min_vruntime = 0.0;
-	nr_vruntime_enqueues = 0;
-	nr_vruntime_dispatches = 0;
-	nr_vruntime_failed = 0;
-	nr_curr_enqueued = 0;
+	__atomic_store_n(&nr_vruntime_enqueues, 0, __ATOMIC_RELAXED);
+	__atomic_store_n(&nr_vruntime_dispatches, 0, __ATOMIC_RELAXED);
+	__atomic_store_n(&nr_vruntime_failed, 0, __ATOMIC_RELAXED);
+	__atomic_store_n(&nr_curr_enqueued, 0, __ATOMIC_RELAXED);
 	memset(tasks, 0, pid_max * sizeof(*tasks));
 	LIST_INIT(&vruntime_head);
 
