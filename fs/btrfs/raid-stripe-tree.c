@@ -300,7 +300,7 @@ int btrfs_insert_one_raid_extent(struct btrfs_trans_handle *trans,
 	int ret;
 
 	stripe_extent = kzalloc(item_size, GFP_NOFS);
-	if (!unlikely(stripe_extent)) {
+	if (unlikely(!stripe_extent)) {
 		btrfs_abort_transaction(trans, -ENOMEM);
 		btrfs_end_transaction(trans);
 		return -ENOMEM;
