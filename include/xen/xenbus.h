@@ -80,6 +80,7 @@ struct xenbus_device {
 	const char *devicetype;
 	const char *nodename;
 	const char *otherend;
+	bool vanished;
 	int otherend_id;
 	struct xenbus_watch otherend_watch;
 	struct device dev;
