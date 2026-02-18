@@ -2079,6 +2079,29 @@ static const char *scheduler_type_to_string(enum hv_scheduler_type type)
 	};
 }
 
+static int __init l1vh_retrieve_scheduler_type(enum hv_scheduler_type *out)
+{
+	u64 integrated_sched_enabled;
+	int ret;
+
+	*out = HV_SCHEDULER_TYPE_CORE_SMT;
+
+	if (!mshv_root.vmm_caps.vmm_enable_integrated_scheduler)
+		return 0;
+
+	ret = hv_call_get_partition_property_ex(HV_PARTITION_ID_SELF,
+						HV_PARTITION_PROPERTY_INTEGRATED_SCHEDULER_ENABLED,
+						0, &integrated_sched_enabled,
+						sizeof(integrated_sched_enabled));
+	if (ret)
+		return ret;
+
+	if (integrated_sched_enabled)
+		*out = HV_SCHEDULER_TYPE_ROOT;
+
+	return 0;
+}
+
 /* TODO move this to hv_common.c when needed outside */
 static int __init hv_retrieve_scheduler_type(enum hv_scheduler_type *out)
 {
@@ -2111,13 +2134,12 @@ static int __init hv_retrieve_scheduler_type(enum hv_scheduler_type *out)
 /* Retrieve and stash the supported scheduler type */
 static int __init mshv_retrieve_scheduler_type(struct device *dev)
 {
-	int ret = 0;
+	int ret;
 
 	if (hv_l1vh_partition())
-		hv_scheduler_type = HV_SCHEDULER_TYPE_CORE_SMT;
+		ret = l1vh_retrieve_scheduler_type(&hv_scheduler_type);
 	else
 		ret = hv_retrieve_scheduler_type(&hv_scheduler_type);
-
 	if (ret)
 		return ret;
 
@@ -2237,42 +2259,29 @@ struct notifier_block mshv_reboot_nb = {
 static void mshv_root_partition_exit(void)
 {
 	unregister_reboot_notifier(&mshv_reboot_nb);
-	root_scheduler_deinit();
 }
 
 static int __init mshv_root_partition_init(struct device *dev)
 {
-	int err;
-
-	err = root_scheduler_init(dev);
-	if (err)
-		return err;
-
-	err = register_reboot_notifier(&mshv_reboot_nb);
-	if (err)
-		goto root_sched_deinit;
-
-	return 0;
-
-root_sched_deinit:
-	root_scheduler_deinit();
-	return err;
+	return register_reboot_notifier(&mshv_reboot_nb);
 }
 
-static void mshv_init_vmm_caps(struct device *dev)
+static int __init mshv_init_vmm_caps(struct device *dev)
 {
-	/*
-	 * This can only fail here if HVCALL_GET_PARTITION_PROPERTY_EX or
-	 * HV_PARTITION_PROPERTY_VMM_CAPABILITIES are not supported. In that
-	 * case it's valid to proceed as if all vmm_caps are disabled (zero).
-	 */
-	if (hv_call_get_partition_property_ex(HV_PARTITION_ID_SELF,
-					      HV_PARTITION_PROPERTY_VMM_CAPABILITIES,
-					      0, &mshv_root.vmm_caps,
-					      sizeof(mshv_root.vmm_caps)))
-		dev_warn(dev, "Unable to get VMM capabilities\n");
+	int ret;
+
+	ret = hv_call_get_partition_property_ex(HV_PARTITION_ID_SELF,
+						HV_PARTITION_PROPERTY_VMM_CAPABILITIES,
+						0, &mshv_root.vmm_caps,
+						sizeof(mshv_root.vmm_caps));
+	if (ret && hv_l1vh_partition()) {
+		dev_err(dev, "Failed to get VMM capabilities: %d\n", ret);
+		return ret;
+	}
 
 	dev_dbg(dev, "vmm_caps = %#llx\n", mshv_root.vmm_caps.as_uint64[0]);
+
+	return 0;
 }
 
 static int __init mshv_parent_partition_init(void)
@@ -2318,6 +2327,10 @@ static int __init mshv_parent_partition_init(void)
 
 	mshv_cpuhp_online = ret;
 
+	ret = mshv_init_vmm_caps(dev);
+	if (ret)
+		goto remove_cpu_state;
+
 	ret = mshv_retrieve_scheduler_type(dev);
 	if (ret)
 		goto remove_cpu_state;
@@ -2327,11 +2340,13 @@ static int __init mshv_parent_partition_init(void)
 	if (ret)
 		goto remove_cpu_state;
 
-	mshv_init_vmm_caps(dev);
+	ret = root_scheduler_init(dev);
+	if (ret)
+		goto exit_partition;
 
 	ret = mshv_debugfs_init();
 	if (ret)
-		goto exit_partition;
+		goto deinit_root_scheduler;
 
 	ret = mshv_irqfd_wq_init();
 	if (ret)
@@ -2346,6 +2361,8 @@ static int __init mshv_parent_partition_init(void)
 
 exit_debugfs:
 	mshv_debugfs_exit();
+deinit_root_scheduler:
+	root_scheduler_deinit();
 exit_partition:
 	if (hv_root_partition())
 		mshv_root_partition_exit();
@@ -2365,6 +2382,7 @@ static void __exit mshv_parent_partition_exit(void)
 	mshv_debugfs_exit();
 	misc_deregister(&mshv_dev);
 	mshv_irqfd_wq_cleanup();
+	root_scheduler_deinit();
 	if (hv_root_partition())
 		mshv_root_partition_exit();
 	cpuhp_remove_state(mshv_cpuhp_online);
