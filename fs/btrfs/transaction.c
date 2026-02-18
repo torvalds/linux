@@ -1669,7 +1669,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_dir_item *dir_item;
 	struct extent_buffer *tmp;
-	struct extent_buffer *old;
+	struct extent_buffer *root_eb;
 	struct timespec64 cur_time;
 	int ret = 0;
 	u64 to_reserve = 0;
@@ -1807,20 +1807,10 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_timespec_nsec(&new_root_item->otime, cur_time.tv_nsec);
 	btrfs_set_root_otransid(new_root_item, trans->transid);
 
-	old = btrfs_lock_root_node(root);
-	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old,
-			      BTRFS_NESTING_COW);
-	if (unlikely(ret)) {
-		btrfs_tree_unlock(old);
-		free_extent_buffer(old);
-		btrfs_abort_transaction(trans, ret);
-		goto fail;
-	}
-
-	ret = btrfs_copy_root(trans, root, old, &tmp, objectid);
-	/* clean up in any case */
-	btrfs_tree_unlock(old);
-	free_extent_buffer(old);
+	root_eb = btrfs_lock_root_node(root);
+	ret = btrfs_copy_root(trans, root, root_eb, &tmp, objectid);
+	btrfs_tree_unlock(root_eb);
+	free_extent_buffer(root_eb);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
