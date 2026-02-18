@@ -10,6 +10,8 @@ config CRYPTO_LIB_UTILS
 
 config CRYPTO_LIB_AES
 	tristate
+	# Select dependencies of modes that are part of libaes.
+	select CRYPTO_LIB_UTILS if CRYPTO_LIB_AES_CBC_MACS
 
 config CRYPTO_LIB_AES_ARCH
 	bool
@@ -27,6 +29,14 @@ config CRYPTO_LIB_AESCFB
 	tristate
 	select CRYPTO_LIB_AES
 	select CRYPTO_LIB_UTILS
+
+config CRYPTO_LIB_AES_CBC_MACS
+	tristate
+	select CRYPTO_LIB_AES
+	help
+	  The AES-CMAC, AES-XCBC-MAC, and AES-CBC-MAC library functions.  Select
+	  this if your module uses any of the functions from
+	  <crypto/aes-cbc-macs.h>.
 
 config CRYPTO_LIB_AESGCM
 	tristate
