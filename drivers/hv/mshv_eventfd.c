@@ -129,8 +129,8 @@ static int mshv_vp_irq_try_set_vector(struct mshv_vp *vp, u32 vector)
 
 	new_iv.vector[new_iv.vector_count++] = vector;
 
-	if (cmpxchg(&vp->vp_register_page->interrupt_vectors.as_uint64,
-		    iv.as_uint64, new_iv.as_uint64) != iv.as_uint64)
+	if (!try_cmpxchg(&vp->vp_register_page->interrupt_vectors.as_uint64,
+			 &iv.as_uint64, new_iv.as_uint64))
 		return -EAGAIN;
 
 	return 0;
