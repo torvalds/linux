@@ -639,6 +639,14 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return -ENOMEM;
 
+	/*
+	 * Set XFS_INEW as early as possible so that the health code won't pass
+	 * the inode to the fserror code if the ondisk inode cannot be loaded.
+	 * We're going to free the xfs_inode immediately if that happens, which
+	 * would lead to UAF problems.
+	 */
+	xfs_iflags_set(ip, XFS_INEW);
+
 	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, flags);
 	if (error)
 		goto out_destroy;
@@ -716,7 +724,6 @@ xfs_iget_cache_miss(
 	ip->i_udquot = NULL;
 	ip->i_gdquot = NULL;
 	ip->i_pdquot = NULL;
-	xfs_iflags_set(ip, XFS_INEW);
 
 	/* insert the new inode */
 	spin_lock(&pag->pag_ici_lock);

@@ -316,8 +316,12 @@ xfs_rgno_mark_sick(
 
 static inline void xfs_inode_report_fserror(struct xfs_inode *ip)
 {
-	/* Report metadata inodes as general filesystem corruption */
-	if (xfs_is_internal_inode(ip)) {
+	/*
+	 * Do not report inodes being constructed or freed, or metadata inodes,
+	 * to fsnotify.
+	 */
+	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIM) ||
+	    xfs_is_internal_inode(ip)) {
 		fserror_report_metadata(ip->i_mount->m_super, -EFSCORRUPTED,
 				GFP_NOFS);
 		return;
