@@ -126,6 +126,36 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 }
 EXPORT_SYMBOL(ce_aes_expandkey);
 
+#if IS_ENABLED(CONFIG_KERNEL_MODE_NEON)
+EXPORT_SYMBOL_NS_GPL(neon_aes_ecb_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_ecb_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_cts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_cbc_cts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_ctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_xts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_essiv_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_essiv_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(neon_aes_mac_update, "CRYPTO_INTERNAL");
+
+EXPORT_SYMBOL_NS_GPL(ce_aes_ecb_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_ecb_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_cts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_cbc_cts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_ctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xctr_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xts_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_xts_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_essiv_cbc_encrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_essiv_cbc_decrypt, "CRYPTO_INTERNAL");
+EXPORT_SYMBOL_NS_GPL(ce_aes_mac_update, "CRYPTO_INTERNAL");
+#endif
+
 static void aes_encrypt_arch(const struct aes_enckey *key,
 			     u8 out[AES_BLOCK_SIZE],
 			     const u8 in[AES_BLOCK_SIZE])

@@ -71,47 +71,8 @@ MODULE_ALIAS_CRYPTO("xcbc(aes)");
 MODULE_ALIAS_CRYPTO("cbcmac(aes)");
 
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");
 MODULE_LICENSE("GPL v2");
-
-/* defined in aes-modes.S */
-asmlinkage void aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks);
-asmlinkage void aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks);
-
-asmlinkage void aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks, u8 iv[]);
-asmlinkage void aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int blocks, u8 iv[]);
-
-asmlinkage void aes_cbc_cts_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int bytes, u8 const iv[]);
-asmlinkage void aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int bytes, u8 const iv[]);
-
-asmlinkage void aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				int rounds, int bytes, u8 ctr[]);
-
-asmlinkage void aes_xctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
-				 int rounds, int bytes, u8 ctr[], int byte_ctr);
-
-asmlinkage void aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
-				int rounds, int bytes, u32 const rk2[], u8 iv[],
-				int first);
-asmlinkage void aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[],
-				int rounds, int bytes, u32 const rk2[], u8 iv[],
-				int first);
-
-asmlinkage void aes_essiv_cbc_encrypt(u8 out[], u8 const in[], u32 const rk1[],
-				      int rounds, int blocks, u8 iv[],
-				      u32 const rk2[]);
-asmlinkage void aes_essiv_cbc_decrypt(u8 out[], u8 const in[], u32 const rk1[],
-				      int rounds, int blocks, u8 iv[],
-				      u32 const rk2[]);
-
-asmlinkage int aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-			      int blocks, u8 dg[], int enc_before,
-			      int enc_after);
 
 struct crypto_aes_xts_ctx {
 	struct crypto_aes_ctx key1;
@@ -971,13 +932,7 @@ unregister_ciphers:
 
 #ifdef USE_V8_CRYPTO_EXTENSIONS
 module_cpu_feature_match(AES, aes_init);
-EXPORT_SYMBOL_NS(ce_aes_mac_update, "CRYPTO_INTERNAL");
 #else
 module_init(aes_init);
-EXPORT_SYMBOL(neon_aes_ecb_encrypt);
-EXPORT_SYMBOL(neon_aes_cbc_encrypt);
-EXPORT_SYMBOL(neon_aes_ctr_encrypt);
-EXPORT_SYMBOL(neon_aes_xts_encrypt);
-EXPORT_SYMBOL(neon_aes_xts_decrypt);
 #endif
 module_exit(aes_exit);

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * linux/arch/arm64/crypto/aes-ce.S - AES cipher for ARMv8 with
- *                                    Crypto Extensions
+ * AES cipher for ARMv8 with Crypto Extensions
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  */

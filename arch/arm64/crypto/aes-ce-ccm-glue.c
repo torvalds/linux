@@ -31,10 +31,6 @@ static int num_rounds(struct crypto_aes_ctx *ctx)
 	return 6 + ctx->key_length / 4;
 }
 
-asmlinkage u32 ce_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-				 int blocks, u8 dg[], int enc_before,
-				 int enc_after);
-
 asmlinkage void ce_aes_ccm_encrypt(u8 out[], u8 const in[], u32 cbytes,
 				   u32 const rk[], u32 rounds, u8 mac[],
 				   u8 ctr[], u8 const final_iv[]);

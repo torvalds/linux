@@ -26,7 +26,9 @@ libaes-$(CONFIG_ARM) += arm/aes-cipher-core.o
 
 ifeq ($(CONFIG_ARM64),y)
 libaes-y += arm64/aes-cipher-core.o
-libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o
+libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o \
+				     arm64/aes-ce.o \
+				     arm64/aes-neon.o
 endif
 
 ifeq ($(CONFIG_PPC),y)

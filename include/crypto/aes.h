@@ -167,6 +167,75 @@ int aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 #ifdef CONFIG_ARM64
 int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		     unsigned int key_len);
+asmlinkage void neon_aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				     int rounds, int blocks);
+asmlinkage void neon_aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[],
+				     int rounds, int blocks);
+asmlinkage void neon_aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				     int rounds, int blocks, u8 iv[]);
+asmlinkage void neon_aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[],
+				     int rounds, int blocks, u8 iv[]);
+asmlinkage void neon_aes_cbc_cts_encrypt(u8 out[], u8 const in[],
+					 u32 const rk[], int rounds, int bytes,
+					 u8 const iv[]);
+asmlinkage void neon_aes_cbc_cts_decrypt(u8 out[], u8 const in[],
+					 u32 const rk[], int rounds, int bytes,
+					 u8 const iv[]);
+asmlinkage void neon_aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				     int rounds, int bytes, u8 ctr[]);
+asmlinkage void neon_aes_xctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				      int rounds, int bytes, u8 ctr[],
+				      int byte_ctr);
+asmlinkage void neon_aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
+				     int rounds, int bytes, u32 const rk2[],
+				     u8 iv[], int first);
+asmlinkage void neon_aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[],
+				     int rounds, int bytes, u32 const rk2[],
+				     u8 iv[], int first);
+asmlinkage void neon_aes_essiv_cbc_encrypt(u8 out[], u8 const in[],
+					   u32 const rk1[], int rounds,
+					   int blocks, u8 iv[],
+					   u32 const rk2[]);
+asmlinkage void neon_aes_essiv_cbc_decrypt(u8 out[], u8 const in[],
+					   u32 const rk1[], int rounds,
+					   int blocks, u8 iv[],
+					   u32 const rk2[]);
+asmlinkage int neon_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+				   int blocks, u8 dg[], int enc_before,
+				   int enc_after);
+
+asmlinkage void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				   int rounds, int blocks);
+asmlinkage void ce_aes_ecb_decrypt(u8 out[], u8 const in[], u32 const rk[],
+				   int rounds, int blocks);
+asmlinkage void ce_aes_cbc_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				   int rounds, int blocks, u8 iv[]);
+asmlinkage void ce_aes_cbc_decrypt(u8 out[], u8 const in[], u32 const rk[],
+				   int rounds, int blocks, u8 iv[]);
+asmlinkage void ce_aes_cbc_cts_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				       int rounds, int bytes, u8 const iv[]);
+asmlinkage void ce_aes_cbc_cts_decrypt(u8 out[], u8 const in[], u32 const rk[],
+				       int rounds, int bytes, u8 const iv[]);
+asmlinkage void ce_aes_ctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				   int rounds, int bytes, u8 ctr[]);
+asmlinkage void ce_aes_xctr_encrypt(u8 out[], u8 const in[], u32 const rk[],
+				    int rounds, int bytes, u8 ctr[],
+				    int byte_ctr);
+asmlinkage void ce_aes_xts_encrypt(u8 out[], u8 const in[], u32 const rk1[],
+				   int rounds, int bytes, u32 const rk2[],
+				   u8 iv[], int first);
+asmlinkage void ce_aes_xts_decrypt(u8 out[], u8 const in[], u32 const rk1[],
+				   int rounds, int bytes, u32 const rk2[],
+				   u8 iv[], int first);
+asmlinkage void ce_aes_essiv_cbc_encrypt(u8 out[], u8 const in[],
+					 u32 const rk1[], int rounds,
+					 int blocks, u8 iv[], u32 const rk2[]);
+asmlinkage void ce_aes_essiv_cbc_decrypt(u8 out[], u8 const in[],
+					 u32 const rk1[], int rounds,
+					 int blocks, u8 iv[], u32 const rk2[]);
+asmlinkage int ce_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+				 int blocks, u8 dg[], int enc_before,
+				 int enc_after);
 #elif defined(CONFIG_PPC)
 void ppc_expand_key_128(u32 *key_enc, const u8 *key);
 void ppc_expand_key_192(u32 *key_enc, const u8 *key);

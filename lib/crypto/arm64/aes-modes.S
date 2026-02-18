@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * linux/arch/arm64/crypto/aes-modes.S - chaining mode wrappers for AES
+ * Chaining mode wrappers for AES
  *
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
