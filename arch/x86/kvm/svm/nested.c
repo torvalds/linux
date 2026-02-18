@@ -128,10 +128,12 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	struct vmcb_ctrl_area_cached *g;
 	unsigned int i;
 
-	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
+	vmcb_mark_dirty(svm->vmcb01.ptr, VMCB_INTERCEPTS);
 
 	if (!is_guest_mode(&svm->vcpu))
 		return;
+
+	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
 	c = &svm->vmcb->control;
 	h = &svm->vmcb01.ptr->control;
