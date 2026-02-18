@@ -147,8 +147,10 @@ void noinstr do_io_irq(struct pt_regs *regs)
 	bool from_idle;
 
 	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
-	if (from_idle)
+	if (from_idle) {
 		update_timer_idle();
+		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
+	}
 
 	irq_enter_rcu();
 
@@ -174,9 +176,6 @@ void noinstr do_io_irq(struct pt_regs *regs)
 
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
-
-	if (from_idle)
-		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
 }
 
 void noinstr do_ext_irq(struct pt_regs *regs)
@@ -186,8 +185,10 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	bool from_idle;
 
 	from_idle = test_and_clear_cpu_flag(CIF_ENABLED_WAIT);
-	if (from_idle)
+	if (from_idle) {
 		update_timer_idle();
+		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
+	}
 
 	irq_enter_rcu();
 
@@ -209,9 +210,6 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	irq_exit_rcu();
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
-
-	if (from_idle)
-		regs->psw.mask &= ~(PSW_MASK_EXT | PSW_MASK_IO | PSW_MASK_WAIT);
 }
 
 static void show_msi_interrupt(struct seq_file *p, int irq)
