@@ -53,6 +53,7 @@ int main(int argc, char **argv)
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 restart:
+	optind = 1;
 	skel = SCX_OPS_OPEN(pair_ops, scx_pair);
 
 	skel->rodata->nr_cpu_ids = libbpf_num_possible_cpus();
