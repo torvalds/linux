@@ -34,6 +34,15 @@ void update_timer_idle(void)
 			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
 	}
 
+	/*
+	 * This is a bit subtle: Forward last_update_clock so it excludes idle
+	 * time. For correct steal time calculation in do_account_vtime() add
+	 * passed wall time before idle_enter to steal_timer:
+	 * During the passed wall time before idle_enter CPU time may have
+	 * been accounted to system, hardirq, softirq, etc. lowcore fields.
+	 * The accounted CPU times will be subtracted again from steal_timer
+	 * when accumulated steal time is calculated in do_account_vtime().
+	 */
 	lc->steal_timer += idle->clock_idle_enter - lc->last_update_clock;
 	lc->last_update_clock = lc->int_clock;
 
