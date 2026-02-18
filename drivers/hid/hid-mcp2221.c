@@ -19,7 +19,14 @@
 #include <linux/gpio/driver.h>
 #include <linux/iio/iio.h>
 #include <linux/minmax.h>
+#include <linux/moduleparam.h>
 #include "hid-ids.h"
+
+static bool gpio_mode_enforce;
+
+module_param(gpio_mode_enforce, bool, 0644);
+MODULE_PARM_DESC(gpio_mode_enforce,
+	 "Enfore GPIO mode for GP0 thru GP3 (default: false, will be used for IIO)");
 
 /* Commands codes in a raw output report */
 enum {
@@ -648,7 +655,7 @@ static int mcp2221_check_gpio_pinfunc(struct mcp2221 *mcp)
 	int needgpiofix = 0;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_IIO))
+	if (IS_ENABLED(CONFIG_IIO) && !gpio_mode_enforce)
 		return 0;
 
 	ret = mcp_gpio_read_sram(mcp);
@@ -1043,7 +1050,8 @@ static void mcp2221_remove(struct hid_device *hdev)
 #if IS_REACHABLE(CONFIG_IIO)
 	struct mcp2221 *mcp = hid_get_drvdata(hdev);
 
-	cancel_delayed_work_sync(&mcp->init_work);
+	if (!gpio_mode_enforce)
+		cancel_delayed_work_sync(&mcp->init_work);
 #endif
 }
 
@@ -1317,8 +1325,10 @@ static int mcp2221_probe(struct hid_device *hdev,
 #endif
 
 #if IS_REACHABLE(CONFIG_IIO)
-	INIT_DELAYED_WORK(&mcp->init_work, mcp_init_work);
-	schedule_delayed_work(&mcp->init_work, msecs_to_jiffies(100));
+	if (!gpio_mode_enforce) {
+		INIT_DELAYED_WORK(&mcp->init_work, mcp_init_work);
+		schedule_delayed_work(&mcp->init_work, msecs_to_jiffies(100));
+	}
 #endif
 
 	return 0;
