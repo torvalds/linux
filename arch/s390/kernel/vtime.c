@@ -48,8 +48,7 @@ static inline void set_vtimer(u64 expires)
 
 static inline int virt_timer_forward(u64 elapsed)
 {
-	BUG_ON(!irqs_disabled());
-
+	lockdep_assert_irqs_disabled();
 	if (list_empty(&virt_timer_list))
 		return 0;
 	elapsed = atomic64_add_return(elapsed, &virt_timer_elapsed);
