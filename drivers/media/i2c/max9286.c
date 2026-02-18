@@ -1205,7 +1205,7 @@ static int max9286_gpiochip_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct max9286_priv *priv = gpiochip_get_data(chip);
 
-	return priv->gpio_state & BIT(offset);
+	return !!(priv->gpio_state & BIT(offset));
 }
 
 static int max9286_register_gpio(struct max9286_priv *priv)
