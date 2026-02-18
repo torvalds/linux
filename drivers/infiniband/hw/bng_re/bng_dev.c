@@ -285,7 +285,7 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 	if (rc) {
 		ibdev_err(&rdev->ibdev,
 				"Failed to register with netedev: %#x\n", rc);
-		return -EINVAL;
+		goto reg_netdev_fail;
 	}
 
 	set_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
@@ -294,19 +294,16 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 		ibdev_err(&rdev->ibdev,
 			  "RoCE requires minimum 2 MSI-X vectors, but only %d reserved\n",
 			  rdev->aux_dev->auxr_info->msix_requested);
-		bnge_unregister_dev(rdev->aux_dev);
-		clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto msix_ctx_fail;
 	}
 	ibdev_dbg(&rdev->ibdev, "Got %d MSI-X vectors\n",
 		  rdev->aux_dev->auxr_info->msix_requested);
 
 	rc = bng_re_setup_chip_ctx(rdev);
 	if (rc) {
-		bnge_unregister_dev(rdev->aux_dev);
-		clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
 		ibdev_err(&rdev->ibdev, "Failed to get chip context\n");
-		return -EINVAL;
+		goto msix_ctx_fail;
 	}
 
 	bng_re_query_hwrm_version(rdev);
@@ -315,16 +312,14 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 	if (rc) {
 		ibdev_err(&rdev->ibdev,
 			  "Failed to allocate RCFW Channel: %#x\n", rc);
-		goto fail;
+		goto alloc_fw_chl_fail;
 	}
 
 	/* Allocate nq record memory */
 	rdev->nqr = kzalloc_obj(*rdev->nqr);
 	if (!rdev->nqr) {
-		bng_re_destroy_chip_ctx(rdev);
-		bnge_unregister_dev(rdev->aux_dev);
-		clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto nq_alloc_fail;
 	}
 
 	rdev->nqr->num_msix = rdev->aux_dev->auxr_info->msix_requested;
@@ -393,9 +388,15 @@ disable_rcfw:
 free_ring:
 	bng_re_net_ring_free(rdev, rdev->rcfw.creq.ring_id, type);
 free_rcfw:
+	kfree(rdev->nqr);
+nq_alloc_fail:
 	bng_re_free_rcfw_channel(&rdev->rcfw);
-fail:
-	bng_re_dev_uninit(rdev);
+alloc_fw_chl_fail:
+	bng_re_destroy_chip_ctx(rdev);
+msix_ctx_fail:
+	bnge_unregister_dev(rdev->aux_dev);
+	clear_bit(BNG_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+reg_netdev_fail:
 	return rc;
 }
 
