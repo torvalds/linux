@@ -1078,7 +1078,6 @@ void dcn42_optimize_bandwidth(struct dc *dc, struct dc_state *context)
 void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state)
 {
-	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
 	int i = 0, j = 0;
 
@@ -1172,11 +1171,8 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		}
 	}
 
-	if (hpo_frl_stream_enc_acquired || hpo_dp_stream_enc_acquired)
+	if (hpo_dp_stream_enc_acquired)
 		update_state->pg_res_update[PG_HPO] = true;
-
-	if (hpo_frl_stream_enc_acquired)
-		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
 
 	if (count_active_streams(dc) > 0) {
 		update_state->pg_res_update[PG_DCCG] = true;
