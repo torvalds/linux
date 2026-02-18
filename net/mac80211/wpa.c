@@ -872,11 +872,8 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx,
 
 	bip_aad(skb, aad);
 
-	if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-			       skb->data + 24, skb->len - 24,
-			       mmie->mic, mic_len))
-		return TX_DROP;
-
+	ieee80211_aes_cmac(&key->u.aes_cmac.key, aad, skb->data + 24,
+			   skb->len - 24, mmie->mic, mic_len);
 	return TX_CONTINUE;
 }
 
@@ -918,10 +915,8 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx,
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		/* hardware didn't decrypt/verify MIC */
 		bip_aad(skb, aad);
-		if (ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
-				       skb->data + 24, skb->len - 24,
-				       mic, mic_len))
-			return RX_DROP_U_DECRYPT_FAIL;
+		ieee80211_aes_cmac(&key->u.aes_cmac.key, aad, skb->data + 24,
+				   skb->len - 24, mic, mic_len);
 		if (crypto_memneq(mic, mmie->mic, mic_len)) {
 			key->u.aes_cmac.icverrors++;
 			return RX_DROP_U_MIC_FAIL;
