@@ -850,7 +850,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * L1 re-enters L2, the same instruction will trigger a VM-Exit and the
 	 * entire cycle start over.
 	 */
-	if (vmcb02->save.rip && (svm->nested.ctl.bus_lock_rip == vmcb02->save.rip))
+	if (vmcb02->save.rip && (svm->nested.last_bus_lock_rip == vmcb02->save.rip))
 		vmcb02->control.bus_lock_counter = 1;
 	else
 		vmcb02->control.bus_lock_counter = 0;
@@ -1255,11 +1255,11 @@ void nested_svm_vmexit(struct vcpu_svm *svm)
 	}
 
 	/*
-	 * Invalidate bus_lock_rip unless KVM is still waiting for the guest
-	 * to make forward progress before re-enabling bus lock detection.
+	 * Invalidate last_bus_lock_rip unless KVM is still waiting for the
+	 * guest to make forward progress before re-enabling bus lock detection.
 	 */
 	if (!vmcb02->control.bus_lock_counter)
-		svm->nested.ctl.bus_lock_rip = INVALID_GPA;
+		svm->nested.last_bus_lock_rip = INVALID_GPA;
 
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 

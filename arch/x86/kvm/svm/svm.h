@@ -174,7 +174,6 @@ struct vmcb_ctrl_area_cached {
 	u64 nested_cr3;
 	u64 virt_ext;
 	u32 clean;
-	u64 bus_lock_rip;
 	union {
 #if IS_ENABLED(CONFIG_HYPERV) || IS_ENABLED(CONFIG_KVM_HYPERV)
 		struct hv_vmcb_enlightenments hv_enlightenments;
@@ -189,6 +188,7 @@ struct svm_nested_state {
 	u64 vm_cr_msr;
 	u64 vmcb12_gpa;
 	u64 last_vmcb12_gpa;
+	u64 last_bus_lock_rip;
 
 	/*
 	 * The MSR permissions map used for vmcb02, which is the merge result
