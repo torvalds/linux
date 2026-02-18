@@ -54,9 +54,6 @@ static void bng_re_destroy_chip_ctx(struct bng_re_dev *rdev)
 {
 	struct bng_re_chip_ctx *chip_ctx;
 
-	if (!rdev->chip_ctx)
-		return;
-
 	kfree(rdev->dev_attr);
 	rdev->dev_attr = NULL;
 
@@ -124,12 +121,6 @@ static int bng_re_net_ring_free(struct bng_re_dev *rdev,
 	struct bnge_fw_msg fw_msg = {};
 	int rc = -EINVAL;
 
-	if (!rdev)
-		return rc;
-
-	if (!aux_dev)
-		return rc;
-
 	bng_re_init_hwrm_hdr((void *)&req, HWRM_RING_FREE);
 	req.ring_type = type;
 	req.ring_id = cpu_to_le16(fw_ring_id);
@@ -150,10 +141,7 @@ static int bng_re_net_ring_alloc(struct bng_re_dev *rdev,
 	struct hwrm_ring_alloc_input req = {};
 	struct hwrm_ring_alloc_output resp;
 	struct bnge_fw_msg fw_msg = {};
-	int rc = -EINVAL;
-
-	if (!aux_dev)
-		return rc;
+	int rc;
 
 	bng_re_init_hwrm_hdr((void *)&req, HWRM_RING_ALLOC);
 	req.enables = 0;
@@ -184,10 +172,7 @@ static int bng_re_stats_ctx_free(struct bng_re_dev *rdev)
 	struct hwrm_stat_ctx_free_input req = {};
 	struct hwrm_stat_ctx_free_output resp = {};
 	struct bnge_fw_msg fw_msg = {};
-	int rc = -EINVAL;
-
-	if (!aux_dev)
-		return rc;
+	int rc;
 
 	bng_re_init_hwrm_hdr((void *)&req, HWRM_STAT_CTX_FREE);
 	req.stat_ctx_id = cpu_to_le32(rdev->stats_ctx.fw_id);
@@ -208,12 +193,9 @@ static int bng_re_stats_ctx_alloc(struct bng_re_dev *rdev)
 	struct hwrm_stat_ctx_alloc_output resp = {};
 	struct hwrm_stat_ctx_alloc_input req = {};
 	struct bnge_fw_msg fw_msg = {};
-	int rc = -EINVAL;
+	int rc;
 
 	stats->fw_id = BNGE_INVALID_STATS_CTX_ID;
-
-	if (!aux_dev)
-		return rc;
 
 	bng_re_init_hwrm_hdr((void *)&req, HWRM_STAT_CTX_ALLOC);
 	req.update_period_ms = cpu_to_le32(1000);
@@ -486,8 +468,7 @@ static void bng_re_remove(struct auxiliary_device *adev)
 
 	rdev = dev_info->rdev;
 
-	if (rdev)
-		bng_re_remove_device(rdev, adev);
+	bng_re_remove_device(rdev, adev);
 	kfree(dev_info);
 }
 
