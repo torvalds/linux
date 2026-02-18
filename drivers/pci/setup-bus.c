@@ -1224,31 +1224,34 @@ static bool pbus_size_mem_optional(struct pci_dev *dev, int resno,
 	struct resource *res = pci_resource_n(dev, resno);
 	bool optional = pci_resource_is_optional(dev, resno);
 	resource_size_t r_size = resource_size(res);
-	struct pci_dev_resource *dev_res;
+	struct pci_dev_resource *dev_res = NULL;
 
 	if (!realloc_head)
 		return false;
 
-	if (!optional) {
-		/*
-		 * Only bridges have optional sizes in realloc_head at this
-		 * point. As res_to_dev_res() walks the entire realloc_head
-		 * list, skip calling it when known unnecessary.
-		 */
-		if (!pci_resource_is_bridge_win(resno))
-			return false;
-
+	/*
+	 * Only bridges have optional sizes in realloc_head at this
+	 * point. As res_to_dev_res() walks the entire realloc_head
+	 * list, skip calling it when known unnecessary.
+	 */
+	if (pci_resource_is_bridge_win(resno)) {
 		dev_res = res_to_dev_res(realloc_head, res);
 		if (dev_res) {
 			*children_add_size += dev_res->add_size;
 			*add_align = max(*add_align, dev_res->min_align);
 		}
-
-		return false;
 	}
 
-	/* Put SRIOV requested res to the optional list */
-	pci_dev_res_add_to_list(realloc_head, dev, res, 0, align);
+	if (!optional)
+		return false;
+
+	/*
+	 * Put requested res to the optional list if not there yet (SR-IOV,
+	 * disabled ROM). Bridge windows with an optional part are already
+	 * on the list.
+	 */
+	if (!dev_res)
+		pci_dev_res_add_to_list(realloc_head, dev, res, 0, align);
 	*children_add_size += r_size;
 	*add_align = max(align, *add_align);
 
