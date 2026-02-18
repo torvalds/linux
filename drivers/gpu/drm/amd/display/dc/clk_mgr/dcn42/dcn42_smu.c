@@ -193,7 +193,7 @@ int dcn42_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispcl
 
 	smu_print("requested_dispclk_khz = %d, actual_dispclk_set_mhz: %d\n",
 		requested_dispclk_khz, actual_dispclk_set_mhz);
-	return actual_dispclk_set_mhz * 1000;
+	return (int)((long long)actual_dispclk_set_mhz * 1000);
 }
 
 
@@ -212,7 +212,7 @@ int dcn42_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requeste
 	smu_print("requested_dcfclk_khz = %d, actual_dcfclk_set_mhz: %d\n",
 		requested_dcfclk_khz, actual_dcfclk_set_mhz);
 
-	return actual_dcfclk_set_mhz * 1000;
+	return (int)((long long)actual_dcfclk_set_mhz * 1000);
 }
 
 int dcn42_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_min_ds_dcfclk_khz)
@@ -230,7 +230,7 @@ int dcn42_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int re
 	smu_print("requested_min_ds_dcfclk_khz = %d, actual_min_ds_dcfclk_mhz: %d\n",
 		requested_min_ds_dcfclk_khz, actual_min_ds_dcfclk_mhz);
 
-	return actual_min_ds_dcfclk_mhz * 1000;
+	return (int)((long long)actual_min_ds_dcfclk_mhz * 1000);
 }
 
 int dcn42_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_khz)
@@ -248,7 +248,7 @@ int dcn42_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_khz
 	smu_print("requested_dpp_khz = %d, actual_dppclk_set_mhz: %d\n",
 		requested_dpp_khz, actual_dppclk_set_mhz);
 
-	return actual_dppclk_set_mhz * 1000;
+	return (int)((long long)actual_dppclk_set_mhz * 1000);
 }
 
 void dcn42_smu_set_display_idle_optimization(struct clk_mgr_internal *clk_mgr, uint32_t idle_info)
@@ -399,7 +399,7 @@ int dcn42_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr)
 						 0);
 
 	smu_print("%s:  SMU DPREF clk  = %d mhz\n",  __func__, dprefclk);
-	return dprefclk * 1000;
+	return (int)((long long)dprefclk * 1000);
 }
 
 int dcn42_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr)
@@ -414,7 +414,7 @@ int dcn42_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr)
 					       0);
 
 	smu_print("%s: get_dtbclk  = %dmhz\n", __func__, dtbclk);
-	return dtbclk * 1000;
+	return (int)((long long)dtbclk * 1000);
 }
 /* Arg = 1: Turn DTB on; 0: Turn DTB CLK OFF. when it is on, it is 600MHZ */
 void dcn42_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
