@@ -960,7 +960,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * Merge guest and host intercepts - must be called with vcpu in
 	 * guest-mode to take effect.
 	 */
-	svm_mark_intercepts_dirty(svm);
+	nested_vmcb02_recalc_intercepts(svm);
 }
 
 static void nested_svm_copy_common_state(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
