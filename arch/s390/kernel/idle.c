@@ -26,12 +26,13 @@ void update_timer_idle(void)
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	struct lowcore *lc = get_lowcore();
 	u64 cycles_new[8];
-	int i;
+	int i, mtid;
 
-	if (smp_cpu_mtid) {
-		stcctm(MT_DIAG, smp_cpu_mtid, cycles_new);
-		for (i = 0; i < smp_cpu_mtid; i++)
-			this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
+	mtid = smp_cpu_mtid;
+	if (mtid) {
+		stcctm(MT_DIAG, mtid, cycles_new);
+		for (i = 0; i < mtid; i++)
+			__this_cpu_add(mt_cycles[i], cycles_new[i] - idle->mt_cycles_enter[i]);
 	}
 
 	/*
@@ -58,8 +59,8 @@ void account_idle_time_irq(void)
 	idle_time = get_lowcore()->int_clock - idle->clock_idle_enter;
 
 	/* Account time spent with enabled wait psw loaded as idle time. */
-	WRITE_ONCE(idle->idle_time, READ_ONCE(idle->idle_time) + idle_time);
-	WRITE_ONCE(idle->idle_count, READ_ONCE(idle->idle_count) + 1);
+	__atomic64_add(idle_time, &idle->idle_time);
+	__atomic64_add_const(1, &idle->idle_count);
 	account_idle_time(cputime_to_nsecs(idle_time));
 }
 
