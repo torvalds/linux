@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/memblock.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
