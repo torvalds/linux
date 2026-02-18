@@ -810,7 +810,7 @@ static int smu_early_init(struct amdgpu_ip_block *ip_block)
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
-	smu->smu_baco.state = SMU_BACO_STATE_NONE;
+	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
 	smu->smu_baco.platform_support = false;
 	smu->smu_baco.maco_support = false;
 	smu->user_dpm_profile.fan_mode = -1;
@@ -2120,9 +2120,8 @@ static int smu_reset_mp1_state(struct smu_context *smu)
 	int ret = 0;
 
 	if ((!adev->in_runpm) && (!adev->in_suspend) &&
-		(!amdgpu_in_reset(adev)) && amdgpu_ip_version(adev, MP1_HWIP, 0) ==
-									IP_VERSION(13, 0, 10) &&
-		!amdgpu_device_has_display_hardware(adev))
+		(!amdgpu_in_reset(adev)) && !smu->is_apu &&
+			amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(13, 0, 0))
 		ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
 
 	return ret;

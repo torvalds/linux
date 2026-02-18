@@ -357,10 +357,26 @@ void dcn20_enable_power_gating_plane(
 
 void dcn20_dccg_init(struct dce_hwseq *hws)
 {
-	struct dc *dc = hws->ctx->dc;
+	/*
+	 * set MICROSECOND_TIME_BASE_DIV
+	 * 100Mhz refclk -> 0x120264
+	 * 27Mhz refclk -> 0x12021b
+	 * 48Mhz refclk -> 0x120230
+	 *
+	 */
+	REG_WRITE(MICROSECOND_TIME_BASE_DIV, 0x120264);
 
-	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->dccg_init)
-		dc->res_pool->dccg->funcs->dccg_init(dc->res_pool->dccg);
+	/*
+	 * set MILLISECOND_TIME_BASE_DIV
+	 * 100Mhz refclk -> 0x1186a0
+	 * 27Mhz refclk -> 0x106978
+	 * 48Mhz refclk -> 0x10bb80
+	 *
+	 */
+	REG_WRITE(MILLISECOND_TIME_BASE_DIV, 0x1186a0);
+
+	/* This value is dependent on the hardware pipeline delay so set once per SOC */
+	REG_WRITE(DISPCLK_FREQ_CHANGE_CNTL, 0xe01003c);
 }
 
 void dcn20_disable_vga(
@@ -3140,11 +3156,8 @@ void dcn20_fpga_init_hw(struct dc *dc)
 
 	dcn10_hubbub_global_timer_enable(dc->res_pool->hubbub, true, 2);
 
-	if (hws->funcs.dccg_init)
-		hws->funcs.dccg_init(hws);
-
-	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->refclk_setup)
-		dc->res_pool->dccg->funcs->refclk_setup(dc->res_pool->dccg);
+	if (REG(REFCLK_CNTL))
+		REG_WRITE(REFCLK_CNTL, 0);
 	//
 
 

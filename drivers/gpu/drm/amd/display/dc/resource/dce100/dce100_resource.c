@@ -31,7 +31,7 @@
 #include "resource.h"
 #include "clk_mgr.h"
 #include "include/irq_service_interface.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce110/dce110_timing_generator.h"
 #include "irq/dce110/irq_service_dce110.h"

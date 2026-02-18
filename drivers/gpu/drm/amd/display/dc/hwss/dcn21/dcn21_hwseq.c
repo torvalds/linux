@@ -33,7 +33,6 @@
 #include "vmid.h"
 #include "reg_helper.h"
 #include "hw/clk_mgr.h"
-#include "hw/dccg.h"
 #include "dc_dmub_srv.h"
 #include "abm.h"
 #include "link_service.h"
@@ -88,10 +87,12 @@ int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_
 
 bool dcn21_s0i3_golden_init_wa(struct dc *dc)
 {
-	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->is_s0i3_golden_init_wa_done)
-		return !dc->res_pool->dccg->funcs->is_s0i3_golden_init_wa_done(dc->res_pool->dccg);
+	struct dce_hwseq *hws = dc->hwseq;
+	uint32_t value = 0;
 
-	return false;
+	value = REG_READ(MICROSECOND_TIME_BASE_DIV);
+
+	return value != 0x00120464;
 }
 
 void dcn21_exit_optimized_pwr_state(

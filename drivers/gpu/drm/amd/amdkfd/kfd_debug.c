@@ -404,27 +404,25 @@ static int kfd_dbg_get_dev_watch_id(struct kfd_process_device *pdd, int *watch_i
 	return -ENOMEM;
 }
 
-static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
+static void kfd_dbg_clear_dev_watch_id(struct kfd_process_device *pdd, u32 watch_id)
 {
 	spin_lock(&pdd->dev->watch_points_lock);
 
 	/* process owns device watch point so safe to clear */
-	if ((pdd->alloc_watch_ids >> watch_id) & 0x1) {
-		pdd->alloc_watch_ids &= ~(0x1 << watch_id);
-		pdd->dev->alloc_watch_ids &= ~(0x1 << watch_id);
+	if (pdd->alloc_watch_ids & BIT(watch_id)) {
+		pdd->alloc_watch_ids &= ~BIT(watch_id);
+		pdd->dev->alloc_watch_ids &= ~BIT(watch_id);
 	}
 
 	spin_unlock(&pdd->dev->watch_points_lock);
 }
 
-static bool kfd_dbg_owns_dev_watch_id(struct kfd_process_device *pdd, int watch_id)
+static bool kfd_dbg_owns_dev_watch_id(struct kfd_process_device *pdd, u32 watch_id)
 {
 	bool owns_watch_id = false;
 
 	spin_lock(&pdd->dev->watch_points_lock);
-	owns_watch_id = watch_id < MAX_WATCH_ADDRESSES &&
-			((pdd->alloc_watch_ids >> watch_id) & 0x1);
-
+	owns_watch_id = pdd->alloc_watch_ids & BIT(watch_id);
 	spin_unlock(&pdd->dev->watch_points_lock);
 
 	return owns_watch_id;
@@ -434,6 +432,9 @@ int kfd_dbg_trap_clear_dev_address_watch(struct kfd_process_device *pdd,
 					uint32_t watch_id)
 {
 	int r;
+
+	if (watch_id >= MAX_WATCH_ADDRESSES)
+		return -EINVAL;
 
 	if (!kfd_dbg_owns_dev_watch_id(pdd, watch_id))
 		return -EINVAL;
@@ -471,6 +472,9 @@ int kfd_dbg_trap_set_dev_address_watch(struct kfd_process_device *pdd,
 
 	if (r)
 		return r;
+
+	if (*watch_id >= MAX_WATCH_ADDRESSES)
+		return -EINVAL;
 
 	if (!pdd->dev->kfd->shared_resources.enable_mes) {
 		r = debug_lock_and_unmap(pdd->dev->dqm);

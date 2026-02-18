@@ -42,8 +42,6 @@
 
 #define XGMI_STATE_DISABLE                      0xD1
 #define XGMI_STATE_LS0                          0x81
-#define XGMI_LINK_ACTIVE			1
-#define XGMI_LINK_INACTIVE			0
 
 static DEFINE_MUTEX(xgmi_mutex);
 
@@ -365,9 +363,9 @@ int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 		return -ENOLINK;
 
 	if ((xgmi_state_reg_val & 0xFF) == XGMI_STATE_LS0)
-		return XGMI_LINK_ACTIVE;
+		return AMDGPU_XGMI_LINK_ACTIVE;
 
-	return XGMI_LINK_INACTIVE;
+	return AMDGPU_XGMI_LINK_INACTIVE;
 }
 
 /**

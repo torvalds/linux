@@ -53,7 +53,7 @@
 #include "dpp.h"
 #include "timing_generator.h"
 #include "abm.h"
-#include "virtual/virtual_link_encoder.h"
+#include "dio/virtual/virtual_link_encoder.h"
 #include "hubp.h"
 
 #include "link_hwss.h"

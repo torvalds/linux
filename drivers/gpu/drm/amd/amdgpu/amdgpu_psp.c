@@ -148,6 +148,7 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 14):
+	case IP_VERSION(13, 0, 15):
 		ret = psp_init_cap_microcode(psp, ucode_prefix);
 		ret &= psp_init_ta_microcode(psp, ucode_prefix);
 		break;
@@ -219,6 +220,7 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		psp->autoload_supported = false;
 		break;
 	case IP_VERSION(13, 0, 12):
+	case IP_VERSION(13, 0, 15):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
 		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
@@ -383,7 +385,8 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
-	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14))
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14) ||
+		amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 15))
 		return false;
 
 	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
@@ -735,7 +738,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		ras_intr = amdgpu_ras_intr_triggered();
 		if (ras_intr)
 			break;
-		usleep_range(10, 100);
+		usleep_range(60, 100);
 		amdgpu_device_invalidate_hdp(psp->adev, NULL);
 	}
 

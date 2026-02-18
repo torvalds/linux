@@ -74,6 +74,17 @@ static const struct smu_feature_bits smu_v13_0_7_dpm_features = {
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 
+#define mmMP1_SMN_C2PMSG_75                                                                            0x028b
+#define mmMP1_SMN_C2PMSG_75_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_53                                                                            0x0275
+#define mmMP1_SMN_C2PMSG_53_BASE_IDX                                                                   0
+
+#define mmMP1_SMN_C2PMSG_54                                                                            0x0276
+#define mmMP1_SMN_C2PMSG_54_BASE_IDX                                                                   0
+
+#define DEBUGSMC_MSG_Mode1Reset    2
+
 #define PP_OD_FEATURE_GFXCLK_FMIN			0
 #define PP_OD_FEATURE_GFXCLK_FMAX			1
 #define PP_OD_FEATURE_UCLK_FMIN				2
@@ -2734,6 +2745,36 @@ static int smu_v13_0_7_update_pcie_parameters(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v13_0_7_mode1_reset(struct smu_context *smu)
+{
+   int ret;
+
+   ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
+   if (!ret) {
+       /* disable mmio access while doing mode 1 reset*/
+       smu->adev->no_hw_access = true;
+       /* ensure no_hw_access is globally visible before any MMIO */
+       smp_mb();
+       msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
+   }
+
+   return ret;
+}
+
+static void smu_v13_0_7_init_msg_ctl(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+
+	smu_v13_0_init_msg_ctl(smu, smu_v13_0_7_message_map);
+
+	/* Set up debug mailbox registers */
+	ctl->config.debug_param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_53);
+	ctl->config.debug_msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_75);
+	ctl->config.debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_54);
+	ctl->flags |= SMU_MSG_CTL_DEBUG_MAILBOX;
+}
+
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.init_allowed_features = smu_v13_0_7_init_allowed_features,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -2795,7 +2836,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.baco_enter = smu_v13_0_baco_enter,
 	.baco_exit = smu_v13_0_baco_exit,
 	.mode1_reset_is_support = smu_v13_0_7_is_mode1_reset_supported,
-	.mode1_reset = smu_v13_0_mode1_reset,
+	.mode1_reset = smu_v13_0_7_mode1_reset,
 	.set_mp1_state = smu_v13_0_7_set_mp1_state,
 	.set_df_cstate = smu_v13_0_7_set_df_cstate,
 	.gpo_control = smu_v13_0_gpo_control,
@@ -2814,5 +2855,5 @@ void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
 	smu->pwr_src_map = smu_v13_0_7_pwr_src_map;
 	smu->workload_map = smu_v13_0_7_workload_map;
 	smu->smc_driver_if_version = SMU13_0_7_DRIVER_IF_VERSION;
-	smu_v13_0_init_msg_ctl(smu, smu_v13_0_7_message_map);
+	smu_v13_0_7_init_msg_ctl(smu);
 }

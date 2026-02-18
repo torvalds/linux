@@ -655,7 +655,7 @@ __DML_DLL_EXPORT__ void dml_print_soc_bounding_box(const struct soc_bounding_box
 	dml_print("DML: soc_bbox: refclk_mhz = %f\n", soc->refclk_mhz);
 	dml_print("DML: soc_bbox: amclk_mhz = %f\n", soc->amclk_mhz);
 
-	dml_print("DML: soc_bbox: max_outstanding_reqs = %f\n", soc->max_outstanding_reqs);
+	dml_print("DML: soc_bbox: max_outstanding_reqs = %d\n", soc->max_outstanding_reqs);
 	dml_print("DML: soc_bbox: pct_ideal_sdp_bw_after_urgent = %f\n", soc->pct_ideal_sdp_bw_after_urgent);
 	dml_print("DML: soc_bbox: pct_ideal_fabric_bw_after_urgent = %f\n", soc->pct_ideal_fabric_bw_after_urgent);
 	dml_print("DML: soc_bbox: pct_ideal_dram_bw_after_urgent_pixel_only = %f\n", soc->pct_ideal_dram_bw_after_urgent_pixel_only);

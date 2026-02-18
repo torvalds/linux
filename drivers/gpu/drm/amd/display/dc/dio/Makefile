@@ -23,6 +23,15 @@
 #
 #
 
+###############################################################################
+# VIRTUAL
+###############################################################################
+DIO_VIRTUAL = virtual_link_encoder.o virtual_stream_encoder.o
+
+AMD_DAL_DIO_VIRTUAL = $(addprefix $(AMDDALPATH)/dc/dio/virtual/,$(DIO_VIRTUAL))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_VIRTUAL)
+
 ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################
 # DCN10

@@ -140,7 +140,7 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 	SMU_SCALAR(SMU_MATTR(SYSTEM_CLOCK_COUNTER), SMU_MUNIT(TIME_1),         \
 		   SMU_MTYPE(U64), system_clock_counter);                      \
 	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
-		   SMU_MTYPE(U32), accumulation_counter);                      \
+		   SMU_MTYPE(U64), accumulation_counter);                      \
 	SMU_SCALAR(SMU_MATTR(PROCHOT_RESIDENCY_ACC), SMU_MUNIT(NONE),          \
 		   SMU_MTYPE(U32), prochot_residency_acc);                     \
 	SMU_SCALAR(SMU_MATTR(PPT_RESIDENCY_ACC), SMU_MUNIT(NONE),              \
@@ -259,7 +259,11 @@ void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
 		  SMU_13_0_6_MAX_XCC);                                         \
 	SMU_ARRAY(SMU_MATTR(GFX_BELOW_HOST_LIMIT_TOTAL_ACC), SMU_MUNIT(NONE),  \
 		  SMU_MTYPE(U64), gfx_below_host_limit_total_acc,              \
-		  SMU_13_0_6_MAX_XCC);
+		  SMU_13_0_6_MAX_XCC);					       \
+	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
+		   SMU_MTYPE(U64), accumulation_counter);                      \
+	SMU_SCALAR(SMU_MATTR(FIRMWARE_TIMESTAMP), SMU_MUNIT(TIME_2),           \
+		   SMU_MTYPE(U64), firmware_timestamp);
 
 DECLARE_SMU_METRICS_CLASS(smu_v13_0_6_partition_metrics,
 			  SMU_13_0_6_PARTITION_METRICS_FIELDS);

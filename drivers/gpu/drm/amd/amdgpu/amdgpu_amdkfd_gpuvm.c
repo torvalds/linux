@@ -878,6 +878,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 	struct amdgpu_bo *bo[2] = {NULL, NULL};
 	struct amdgpu_bo_va *bo_va;
 	bool same_hive = false;
+	struct drm_exec exec;
 	int i, ret;
 
 	if (!va) {
@@ -958,19 +959,25 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			goto unwind;
 		}
 
-		/* Add BO to VM internal data structures */
-		ret = amdgpu_bo_reserve(bo[i], false);
-		if (ret) {
-			pr_debug("Unable to reserve BO during memory attach");
-			goto unwind;
+		drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
+		drm_exec_until_all_locked(&exec) {
+			ret = amdgpu_vm_lock_pd(vm, &exec, 0);
+			drm_exec_retry_on_contention(&exec);
+			if (unlikely(ret))
+				goto unwind;
+			ret = drm_exec_lock_obj(&exec, &bo[i]->tbo.base);
+			drm_exec_retry_on_contention(&exec);
+			if (unlikely(ret))
+				goto unwind;
 		}
+
 		bo_va = amdgpu_vm_bo_find(vm, bo[i]);
 		if (!bo_va)
 			bo_va = amdgpu_vm_bo_add(adev, vm, bo[i]);
 		else
 			++bo_va->ref_count;
 		attachment[i]->bo_va = bo_va;
-		amdgpu_bo_unreserve(bo[i]);
+		drm_exec_fini(&exec);
 		if (unlikely(!attachment[i]->bo_va)) {
 			ret = -ENOMEM;
 			pr_err("Failed to add BO object to VM. ret == %d\n",

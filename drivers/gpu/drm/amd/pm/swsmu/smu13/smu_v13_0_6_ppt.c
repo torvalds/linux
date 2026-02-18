@@ -2668,6 +2668,8 @@ static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
 			idx++;
 		}
 	}
+	xcp_metrics->accumulation_counter = GET_METRIC_FIELD(AccumulationCounter, version);
+	xcp_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp, version);
 
 	return sizeof(*xcp_metrics);
 }

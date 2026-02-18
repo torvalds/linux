@@ -128,5 +128,3 @@ bool virtual_link_encoder_construct(
 
 	return true;
 }
-
-
