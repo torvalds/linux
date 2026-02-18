@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
+#include "fips.h"
 
 static const u8 ____cacheline_aligned aes_sbox[] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,
@@ -708,12 +709,41 @@ void aes_cbcmac_final(struct aes_cbcmac_ctx *ctx, u8 out[AES_BLOCK_SIZE])
 	memzero_explicit(ctx, sizeof(*ctx));
 }
 EXPORT_SYMBOL_NS_GPL(aes_cbcmac_final, "CRYPTO_INTERNAL");
-#endif /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */
 
-#ifdef aes_mod_init_arch
+/*
+ * FIPS cryptographic algorithm self-test for AES-CMAC.  As per the FIPS 140-3
+ * Implementation Guidance, a cryptographic algorithm self-test for at least one
+ * of AES-GCM, AES-CCM, AES-CMAC, or AES-GMAC is required if any of those modes
+ * is implemented.  This fulfills that requirement via AES-CMAC.
+ *
+ * This is just for FIPS.  The full tests are in the KUnit test suite.
+ */
+static void __init aes_cmac_fips_test(void)
+{
+	struct aes_cmac_key key;
+	u8 mac[AES_BLOCK_SIZE];
+
+	if (aes_cmac_preparekey(&key, fips_test_key, sizeof(fips_test_key)) !=
+	    0)
+		panic("aes: CMAC FIPS self-test failed (preparekey)\n");
+	aes_cmac(&key, fips_test_data, sizeof(fips_test_data), mac);
+	if (memcmp(fips_test_aes_cmac_value, mac, sizeof(mac)) != 0)
+		panic("aes: CMAC FIPS self-test failed (wrong MAC)\n");
+	memzero_explicit(&key, sizeof(key));
+}
+#else /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */
+static inline void aes_cmac_fips_test(void)
+{
+}
+#endif /* !CONFIG_CRYPTO_LIB_AES_CBC_MACS */
+
 static int __init aes_mod_init(void)
 {
+#ifdef aes_mod_init_arch
 	aes_mod_init_arch();
+#endif
+	if (fips_enabled)
+		aes_cmac_fips_test();
 	return 0;
 }
 subsys_initcall(aes_mod_init);
@@ -722,7 +752,6 @@ static void __exit aes_mod_exit(void)
 {
 }
 module_exit(aes_mod_exit);
-#endif
 
 MODULE_DESCRIPTION("AES block cipher");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
