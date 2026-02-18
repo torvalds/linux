@@ -100,26 +100,120 @@ void __init register_refined_jiffies(long cycles_per_second)
 	__clocksource_register(&refined_jiffies);
 }
 
-#define SYSCTL_CONV_MULT_HZ(val) ((val) * HZ)
-#define SYSCTL_CONV_DIV_HZ(val) ((val) / HZ)
+#ifdef CONFIG_PROC_SYSCTL
+static ulong mult_hz(const ulong val)
+{
+	return val * HZ;
+}
 
-static SYSCTL_USER_TO_KERN_INT_CONV(_hz, SYSCTL_CONV_MULT_HZ)
-static SYSCTL_KERN_TO_USER_INT_CONV(_hz, SYSCTL_CONV_DIV_HZ)
-static SYSCTL_USER_TO_KERN_INT_CONV(_userhz, clock_t_to_jiffies)
-static SYSCTL_KERN_TO_USER_INT_CONV(_userhz, jiffies_to_clock_t)
-static SYSCTL_USER_TO_KERN_INT_CONV(_ms, msecs_to_jiffies)
-static SYSCTL_KERN_TO_USER_INT_CONV(_ms, jiffies_to_msecs)
+static ulong div_hz(const ulong val)
+{
+	return val / HZ;
+}
 
-static SYSCTL_INT_CONV_CUSTOM(_jiffies, sysctl_user_to_kern_int_conv_hz,
-			      sysctl_kern_to_user_int_conv_hz, false)
-static SYSCTL_INT_CONV_CUSTOM(_userhz_jiffies,
-			      sysctl_user_to_kern_int_conv_userhz,
-			      sysctl_kern_to_user_int_conv_userhz, false)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies, sysctl_user_to_kern_int_conv_ms,
-			      sysctl_kern_to_user_int_conv_ms, false)
-static SYSCTL_INT_CONV_CUSTOM(_ms_jiffies_minmax,
-			      sysctl_user_to_kern_int_conv_ms,
-			      sysctl_kern_to_user_int_conv_ms, true)
+static int sysctl_u2k_int_conv_hz(const bool *negp, const ulong *u_ptr, int *k_ptr)
+{
+	return proc_int_u2k_conv_uop(u_ptr, k_ptr, negp, mult_hz);
+}
+
+static int sysctl_k2u_int_conv_hz(bool *negp, ulong *u_ptr, const int *k_ptr)
+{
+	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, div_hz);
+}
+
+static int sysctl_u2k_int_conv_userhz(const bool *negp, const ulong *u_ptr, int *k_ptr)
+{
+	return proc_int_u2k_conv_uop(u_ptr, k_ptr, negp, clock_t_to_jiffies);
+}
+
+static ulong sysctl_jiffies_to_clock_t(const ulong val)
+{
+	return jiffies_to_clock_t(val);
+}
+
+static int sysctl_k2u_int_conv_userhz(bool *negp, ulong *u_ptr, const int *k_ptr)
+{
+	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, sysctl_jiffies_to_clock_t);
+}
+
+static ulong sysctl_msecs_to_jiffies(const ulong val)
+{
+	return msecs_to_jiffies(val);
+}
+
+static int sysctl_u2k_int_conv_ms(const bool *negp, const ulong *u_ptr, int *k_ptr)
+{
+	return proc_int_u2k_conv_uop(u_ptr, k_ptr, negp, sysctl_msecs_to_jiffies);
+}
+
+static ulong sysctl_jiffies_to_msecs(const ulong val)
+{
+	return jiffies_to_msecs(val);
+}
+
+static int sysctl_k2u_int_conv_ms(bool *negp, ulong *u_ptr, const int *k_ptr)
+{
+	return proc_int_k2u_conv_kop(u_ptr, k_ptr, negp, sysctl_jiffies_to_msecs);
+}
+
+static int do_proc_int_conv_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				    int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_hz, sysctl_k2u_int_conv_hz);
+}
+
+static int do_proc_int_conv_userhz_jiffies(bool *negp, ulong *u_ptr,
+					   int *k_ptr, int dir,
+					   const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_userhz,
+			     sysctl_k2u_int_conv_userhz);
+}
+
+static int do_proc_int_conv_ms_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				       int dir, const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
+}
+
+static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
+					      int *k_ptr, int dir,
+					      const struct ctl_table *tbl)
+{
+	return proc_int_conv(negp, u_ptr, k_ptr, dir, tbl, false,
+			     sysctl_u2k_int_conv_ms, sysctl_k2u_int_conv_ms);
+}
+
+#else // CONFIG_PROC_SYSCTL
+static int do_proc_int_conv_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				    int dir, const struct ctl_table *tbl)
+{
+	return -ENOSYS;
+}
+
+static int do_proc_int_conv_userhz_jiffies(bool *negp, ulong *u_ptr,
+					   int *k_ptr, int dir,
+					   const struct ctl_table *tbl)
+{
+	return -ENOSYS;
+}
+
+static int do_proc_int_conv_ms_jiffies(bool *negp, ulong *u_ptr, int *k_ptr,
+				       int dir, const struct ctl_table *tbl)
+{
+	return -ENOSYS;
+}
+
+static int do_proc_int_conv_ms_jiffies_minmax(bool *negp, ulong *u_ptr,
+					      int *k_ptr, int dir,
+					      const struct ctl_table *tbl)
+{
+	return -ENOSYS;
+}
+#endif
 
 /**
  * proc_dointvec_jiffies - read a vector of integers as seconds

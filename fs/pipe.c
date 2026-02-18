@@ -1481,10 +1481,24 @@ static struct file_system_type pipe_fs_type = {
 };
 
 #ifdef CONFIG_SYSCTL
-static SYSCTL_USER_TO_KERN_UINT_CONV(_pipe_maxsz, round_pipe_size)
-static SYSCTL_UINT_CONV_CUSTOM(_pipe_maxsz,
-			       sysctl_user_to_kern_uint_conv_pipe_maxsz,
-			       sysctl_kern_to_user_uint_conv, true)
+
+static ulong round_pipe_size_ul(ulong size)
+{
+	return round_pipe_size(size);
+}
+
+static int u2k_pipe_maxsz(const ulong *u_ptr, uint *k_ptr)
+{
+	return proc_uint_u2k_conv_uop(u_ptr, k_ptr, round_pipe_size_ul);
+}
+
+static int do_proc_uint_conv_pipe_maxsz(ulong *u_ptr, uint *k_ptr,
+					int dir, const struct ctl_table *table)
+{
+	return proc_uint_conv(u_ptr, k_ptr, dir, table, true,
+			      u2k_pipe_maxsz,
+			      proc_uint_k2u_conv);
+}
 
 static int proc_dopipe_max_size(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
