@@ -2116,6 +2116,7 @@ static void acpi_video_bus_remove(struct platform_device *pdev)
 
 	kfree(video->attached_array);
 	kfree(video);
+	device->driver_data = NULL;
 }
 
 static int __init is_i740(struct pci_dev *dev)

@@ -1754,12 +1754,10 @@ err:
 
 static void acpi_ec_remove(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_ec *ec = platform_get_drvdata(pdev);
 
 	release_region(ec->data_addr, 1);
 	release_region(ec->command_addr, 1);
-	device->driver_data = NULL;
 	if (ec != boot_ec) {
 		ec_remove_handlers(ec);
 		acpi_ec_free(ec);
