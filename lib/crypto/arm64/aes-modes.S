@@ -815,9 +815,11 @@ AES_FUNC_START(aes_xts_decrypt)
 	b		.Lxtsdecctsout
 AES_FUNC_END(aes_xts_decrypt)
 
+#if IS_ENABLED(CONFIG_CRYPTO_LIB_AES_CBC_MACS)
 	/*
-	 * aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-	 *		  int blocks, u8 dg[], int enc_before, int enc_after)
+	 * size_t aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+	 *			 size_t blocks, u8 dg[], int enc_before,
+	 *			 int enc_after);
 	 */
 AES_FUNC_START(aes_mac_update)
 	ld1		{v0.16b}, [x4]			/* get dg */
@@ -827,7 +829,7 @@ AES_FUNC_START(aes_mac_update)
 	encrypt_block	v0, w2, x1, x7, w8
 
 .Lmacloop4x:
-	subs		w3, w3, #4
+	subs		x3, x3, #4
 	bmi		.Lmac1x
 	ld1		{v1.16b-v4.16b}, [x0], #64	/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
@@ -837,7 +839,7 @@ AES_FUNC_START(aes_mac_update)
 	eor		v0.16b, v0.16b, v3.16b
 	encrypt_block	v0, w2, x1, x7, w8
 	eor		v0.16b, v0.16b, v4.16b
-	cmp		w3, wzr
+	cmp		x3, xzr
 	csinv		w5, w6, wzr, eq
 	cbz		w5, .Lmacout
 	encrypt_block	v0, w2, x1, x7, w8
@@ -845,13 +847,13 @@ AES_FUNC_START(aes_mac_update)
 	cond_yield	.Lmacout, x7, x8
 	b		.Lmacloop4x
 .Lmac1x:
-	add		w3, w3, #4
+	add		x3, x3, #4
 .Lmacloop:
-	cbz		w3, .Lmacout
+	cbz		x3, .Lmacout
 	ld1		{v1.16b}, [x0], #16		/* get next pt block */
 	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
 
-	subs		w3, w3, #1
+	subs		x3, x3, #1
 	csinv		w5, w6, wzr, eq
 	cbz		w5, .Lmacout
 
@@ -861,6 +863,7 @@ AES_FUNC_START(aes_mac_update)
 
 .Lmacout:
 	st1		{v0.16b}, [x4]			/* return dg */
-	mov		w0, w3
+	mov		x0, x3
 	ret
 AES_FUNC_END(aes_mac_update)
+#endif /* CONFIG_CRYPTO_LIB_AES_CBC_MACS */

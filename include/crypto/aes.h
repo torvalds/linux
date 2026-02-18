@@ -200,9 +200,6 @@ asmlinkage void neon_aes_essiv_cbc_decrypt(u8 out[], u8 const in[],
 					   u32 const rk1[], int rounds,
 					   int blocks, u8 iv[],
 					   u32 const rk2[]);
-asmlinkage int neon_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-				   int blocks, u8 dg[], int enc_before,
-				   int enc_after);
 
 asmlinkage void ce_aes_ecb_encrypt(u8 out[], u8 const in[], u32 const rk[],
 				   int rounds, int blocks);
@@ -233,9 +230,9 @@ asmlinkage void ce_aes_essiv_cbc_encrypt(u8 out[], u8 const in[],
 asmlinkage void ce_aes_essiv_cbc_decrypt(u8 out[], u8 const in[],
 					 u32 const rk1[], int rounds,
 					 int blocks, u8 iv[], u32 const rk2[]);
-asmlinkage int ce_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
-				 int blocks, u8 dg[], int enc_before,
-				 int enc_after);
+asmlinkage size_t ce_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
+				    size_t blocks, u8 dg[], int enc_before,
+				    int enc_after);
 #elif defined(CONFIG_PPC)
 void ppc_expand_key_128(u32 *key_enc, const u8 *key);
 void ppc_expand_key_192(u32 *key_enc, const u8 *key);
