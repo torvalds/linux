@@ -170,7 +170,7 @@ static struct platform_driver acpi_button_driver = {
 
 struct acpi_button {
 	struct acpi_device *adev;
-	struct platform_device *pdev;
+	struct device *dev;		/* physical button device */
 	unsigned int type;
 	struct input_dev *input;
 	char phys[32];			/* for input device */
@@ -398,7 +398,7 @@ static int acpi_lid_update_state(struct acpi_button *button,
 		return state;
 
 	if (state && signal_wakeup)
-		acpi_pm_wakeup_event(&button->pdev->dev);
+		acpi_pm_wakeup_event(button->dev);
 
 	return acpi_lid_notify_state(button, state);
 }
@@ -455,7 +455,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	acpi_pm_wakeup_event(&button->pdev->dev);
+	acpi_pm_wakeup_event(button->dev);
 
 	if (button->suspended || event == ACPI_BUTTON_NOTIFY_WAKE)
 		return;
@@ -550,7 +550,7 @@ static int acpi_button_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, button);
 
-	button->pdev = pdev;
+	button->dev = &pdev->dev;
 	button->adev = device;
 	button->input = input = input_allocate_device();
 	if (!input) {
@@ -625,6 +625,8 @@ static int acpi_button_probe(struct platform_device *pdev)
 		goto err_remove_fs;
 	}
 
+	device_init_wakeup(button->dev, true);
+
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		status = acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
@@ -655,11 +657,11 @@ static int acpi_button_probe(struct platform_device *pdev)
 		lid_device = device;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
 	pr_info("%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
 err_input_unregister:
+	device_init_wakeup(button->dev, false);
 	input_unregister_device(input);
 err_remove_fs:
 	acpi_button_remove_fs(button);
@@ -670,10 +672,10 @@ err_free_button:
 
 static void acpi_button_remove(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_button *button = platform_get_drvdata(pdev);
+	struct acpi_device *adev = button->adev;
 
-	switch (device->device_type) {
+	switch (adev->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
 		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
 						acpi_button_event);
@@ -683,13 +685,15 @@ static void acpi_button_remove(struct platform_device *pdev)
 						acpi_button_event);
 		break;
 	default:
-		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+		acpi_remove_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
 					   button->type == ACPI_BUTTON_TYPE_LID ?
 						acpi_lid_notify :
 						acpi_button_notify);
 		break;
 	}
 	acpi_os_wait_events_complete();
+
+	device_init_wakeup(button->dev, false);
 
 	acpi_button_remove_fs(button);
 	input_unregister_device(button->input);
