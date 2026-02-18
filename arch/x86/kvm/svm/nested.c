@@ -122,16 +122,11 @@ static bool nested_vmcb_needs_vls_intercept(struct vcpu_svm *svm)
 	return false;
 }
 
-void recalc_intercepts(struct vcpu_svm *svm)
+void nested_vmcb02_recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h;
 	struct vmcb_ctrl_area_cached *g;
 	unsigned int i;
-
-	vmcb_mark_dirty(svm->vmcb01.ptr, VMCB_INTERCEPTS);
-
-	if (!is_guest_mode(&svm->vcpu))
-		return;
 
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
@@ -962,7 +957,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * Merge guest and host intercepts - must be called with vcpu in
 	 * guest-mode to take effect.
 	 */
-	recalc_intercepts(svm);
+	svm_mark_intercepts_dirty(svm);
 }
 
 static void nested_svm_copy_common_state(struct vmcb *from_vmcb, struct vmcb *to_vmcb)

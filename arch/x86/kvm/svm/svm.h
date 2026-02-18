@@ -358,8 +358,6 @@ struct svm_cpu_data {
 
 DECLARE_PER_CPU(struct svm_cpu_data, svm_data);
 
-void recalc_intercepts(struct vcpu_svm *svm);
-
 static __always_inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 {
 	return container_of(kvm, struct kvm_svm, kvm);
@@ -487,6 +485,22 @@ static inline bool vmcb12_is_intercept(struct vmcb_ctrl_area_cached *control, u3
 	return __vmcb_is_intercept((unsigned long *)&control->intercepts, bit);
 }
 
+void nested_vmcb02_recalc_intercepts(struct vcpu_svm *svm);
+
+static inline void svm_mark_intercepts_dirty(struct vcpu_svm *svm)
+{
+	vmcb_mark_dirty(svm->vmcb01.ptr, VMCB_INTERCEPTS);
+
+	/*
+	 * If L2 is active, recalculate the intercepts for vmcb02 to account
+	 * for the changes made to vmcb01.  All intercept configuration is done
+	 * for vmcb01 and then propagated to vmcb02 to combine KVM's intercepts
+	 * with L1's intercepts (from the vmcb12 snapshot).
+	 */
+	if (is_guest_mode(&svm->vcpu))
+		nested_vmcb02_recalc_intercepts(svm);
+}
+
 static inline void set_exception_intercept(struct vcpu_svm *svm, u32 bit)
 {
 	struct vmcb *vmcb = svm->vmcb01.ptr;
@@ -494,7 +508,7 @@ static inline void set_exception_intercept(struct vcpu_svm *svm, u32 bit)
 	WARN_ON_ONCE(bit >= 32);
 	vmcb_set_intercept(&vmcb->control, INTERCEPT_EXCEPTION_OFFSET + bit);
 
-	recalc_intercepts(svm);
+	svm_mark_intercepts_dirty(svm);
 }
 
 static inline void clr_exception_intercept(struct vcpu_svm *svm, u32 bit)
@@ -504,7 +518,7 @@ static inline void clr_exception_intercept(struct vcpu_svm *svm, u32 bit)
 	WARN_ON_ONCE(bit >= 32);
 	vmcb_clr_intercept(&vmcb->control, INTERCEPT_EXCEPTION_OFFSET + bit);
 
-	recalc_intercepts(svm);
+	svm_mark_intercepts_dirty(svm);
 }
 
 static inline void svm_set_intercept(struct vcpu_svm *svm, int bit)
@@ -513,7 +527,7 @@ static inline void svm_set_intercept(struct vcpu_svm *svm, int bit)
 
 	vmcb_set_intercept(&vmcb->control, bit);
 
-	recalc_intercepts(svm);
+	svm_mark_intercepts_dirty(svm);
 }
 
 static inline void svm_clr_intercept(struct vcpu_svm *svm, int bit)
@@ -522,7 +536,7 @@ static inline void svm_clr_intercept(struct vcpu_svm *svm, int bit)
 
 	vmcb_clr_intercept(&vmcb->control, bit);
 
-	recalc_intercepts(svm);
+	svm_mark_intercepts_dirty(svm);
 }
 
 static inline bool svm_is_intercept(struct vcpu_svm *svm, int bit)
