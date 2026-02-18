@@ -570,7 +570,7 @@ void nested_sync_control_from_vmcb02(struct vcpu_svm *svm)
 	 * int_ctl (because it was never recognized while L2 was running).
 	 */
 	if (svm_is_intercept(svm, INTERCEPT_VINTR) &&
-	    !test_bit(INTERCEPT_VINTR, (unsigned long *)svm->nested.ctl.intercepts))
+	    !vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_VINTR))
 		mask &= ~V_IRQ_MASK;
 
 	if (nested_vgif_enabled(svm))
