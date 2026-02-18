@@ -789,11 +789,11 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	u32 int_ctl_vmcb01_bits = V_INTR_MASKING_MASK;
 	u32 int_ctl_vmcb12_bits = V_TPR_MASK | V_IRQ_INJECTION_BITS_MASK;
 
-	struct kvm_vcpu *vcpu = &svm->vcpu;
-	struct vmcb *vmcb01 = svm->vmcb01.ptr;
+	struct vmcb_ctrl_area_cached *vmcb12_ctrl = &svm->nested.ctl;
 	struct vmcb *vmcb02 = svm->nested.vmcb02.ptr;
-	u32 pause_count12;
-	u32 pause_thresh12;
+	struct vmcb *vmcb01 = svm->vmcb01.ptr;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	u32 pause_count12, pause_thresh12;
 
 	nested_svm_transition_tlb_flush(vcpu);
 
@@ -806,7 +806,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 */
 
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_VGIF) &&
-	    (svm->nested.ctl.int_ctl & V_GIF_ENABLE_MASK))
+	    (vmcb12_ctrl->int_ctl & V_GIF_ENABLE_MASK))
 		int_ctl_vmcb12_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
 	else
 		int_ctl_vmcb01_bits |= (V_GIF_MASK | V_GIF_ENABLE_MASK);
@@ -864,10 +864,9 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	if (nested_npt_enabled(svm))
 		nested_svm_init_mmu_context(vcpu);
 
-	vcpu->arch.tsc_offset = kvm_calc_nested_tsc_offset(
-			vcpu->arch.l1_tsc_offset,
-			svm->nested.ctl.tsc_offset,
-			svm->tsc_ratio_msr);
+	vcpu->arch.tsc_offset = kvm_calc_nested_tsc_offset(vcpu->arch.l1_tsc_offset,
+							   vmcb12_ctrl->tsc_offset,
+							   svm->tsc_ratio_msr);
 
 	vmcb02->control.tsc_offset = vcpu->arch.tsc_offset;
 
@@ -876,13 +875,13 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 		nested_svm_update_tsc_ratio_msr(vcpu);
 
 	vmcb02->control.int_ctl             =
-		(svm->nested.ctl.int_ctl & int_ctl_vmcb12_bits) |
+		(vmcb12_ctrl->int_ctl & int_ctl_vmcb12_bits) |
 		(vmcb01->control.int_ctl & int_ctl_vmcb01_bits);
 
-	vmcb02->control.int_vector          = svm->nested.ctl.int_vector;
-	vmcb02->control.int_state           = svm->nested.ctl.int_state;
-	vmcb02->control.event_inj           = svm->nested.ctl.event_inj;
-	vmcb02->control.event_inj_err       = svm->nested.ctl.event_inj_err;
+	vmcb02->control.int_vector          = vmcb12_ctrl->int_vector;
+	vmcb02->control.int_state           = vmcb12_ctrl->int_state;
+	vmcb02->control.event_inj           = vmcb12_ctrl->event_inj;
+	vmcb02->control.event_inj_err       = vmcb12_ctrl->event_inj_err;
 
 	/*
 	 * If nrips is exposed to L1, take NextRIP as-is.  Otherwise, L1
@@ -893,7 +892,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 */
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_NRIPS) ||
 	    !svm->nested.nested_run_pending)
-		vmcb02->control.next_rip = svm->nested.ctl.next_rip;
+		vmcb02->control.next_rip = vmcb12_ctrl->next_rip;
 
 	svm->nmi_l1_to_l2 = is_evtinj_nmi(vmcb02->control.event_inj);
 
@@ -905,7 +904,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 		svm->soft_int_injected = true;
 		if (guest_cpu_cap_has(vcpu, X86_FEATURE_NRIPS) ||
 		    !svm->nested.nested_run_pending)
-			svm->soft_int_next_rip = svm->nested.ctl.next_rip;
+			svm->soft_int_next_rip = vmcb12_ctrl->next_rip;
 	}
 
 	/* LBR_CTL_ENABLE_MASK is controlled by svm_update_lbrv() */
@@ -914,11 +913,11 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 		vmcb02->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
 
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_PAUSEFILTER))
-		pause_count12 = svm->nested.ctl.pause_filter_count;
+		pause_count12 = vmcb12_ctrl->pause_filter_count;
 	else
 		pause_count12 = 0;
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_PFTHRESHOLD))
-		pause_thresh12 = svm->nested.ctl.pause_filter_thresh;
+		pause_thresh12 = vmcb12_ctrl->pause_filter_thresh;
 	else
 		pause_thresh12 = 0;
 	if (kvm_pause_in_guest(svm->vcpu.kvm)) {
@@ -932,7 +931,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 		vmcb02->control.pause_filter_thresh = vmcb01->control.pause_filter_thresh;
 
 		/* ... but ensure filtering is disabled if so requested.  */
-		if (vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_PAUSE)) {
+		if (vmcb12_is_intercept(vmcb12_ctrl, INTERCEPT_PAUSE)) {
 			if (!pause_count12)
 				vmcb02->control.pause_filter_count = 0;
 			if (!pause_thresh12)
@@ -949,7 +948,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	 * L2 is the "guest").
 	 */
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_ERAPS))
-		vmcb02->control.erap_ctl = (svm->nested.ctl.erap_ctl &
+		vmcb02->control.erap_ctl = (vmcb12_ctrl->erap_ctl &
 					    ERAP_CONTROL_ALLOW_LARGER_RAP) |
 					   ERAP_CONTROL_CLEAR_RAP;
 
