@@ -1646,7 +1646,7 @@ static int xennet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 
 	/* avoid the race with XDP headroom adjustment */
 	wait_event(module_wq,
-		   xenbus_read_driver_state(np->xbdev->otherend) ==
+		   xenbus_read_driver_state(np->xbdev, np->xbdev->otherend) ==
 		   XenbusStateReconfigured);
 	np->netfront_xdp_enabled = true;
 
@@ -1764,9 +1764,9 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	do {
 		xenbus_switch_state(dev, XenbusStateInitialising);
 		err = wait_event_timeout(module_wq,
-				 xenbus_read_driver_state(dev->otherend) !=
+				 xenbus_read_driver_state(dev, dev->otherend) !=
 				 XenbusStateClosed &&
-				 xenbus_read_driver_state(dev->otherend) !=
+				 xenbus_read_driver_state(dev, dev->otherend) !=
 				 XenbusStateUnknown, XENNET_TIMEOUT);
 	} while (!err);
 
@@ -2627,31 +2627,31 @@ static void xennet_bus_close(struct xenbus_device *dev)
 {
 	int ret;
 
-	if (xenbus_read_driver_state(dev->otherend) == XenbusStateClosed)
+	if (xenbus_read_driver_state(dev, dev->otherend) == XenbusStateClosed)
 		return;
 	do {
 		xenbus_switch_state(dev, XenbusStateClosing);
 		ret = wait_event_timeout(module_wq,
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosing ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosed ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
-				   XENNET_TIMEOUT);
+				xenbus_read_driver_state(dev, dev->otherend) ==
+				XenbusStateClosing ||
+				xenbus_read_driver_state(dev, dev->otherend) ==
+				XenbusStateClosed ||
+				xenbus_read_driver_state(dev, dev->otherend) ==
+				XenbusStateUnknown,
+				XENNET_TIMEOUT);
 	} while (!ret);
 
-	if (xenbus_read_driver_state(dev->otherend) == XenbusStateClosed)
+	if (xenbus_read_driver_state(dev, dev->otherend) == XenbusStateClosed)
 		return;
 
 	do {
 		xenbus_switch_state(dev, XenbusStateClosed);
 		ret = wait_event_timeout(module_wq,
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateClosed ||
-				   xenbus_read_driver_state(dev->otherend) ==
-				   XenbusStateUnknown,
-				   XENNET_TIMEOUT);
+				xenbus_read_driver_state(dev, dev->otherend) ==
+				XenbusStateClosed ||
+				xenbus_read_driver_state(dev, dev->otherend) ==
+				XenbusStateUnknown,
+				XENNET_TIMEOUT);
 	} while (!ret);
 }
 

@@ -931,12 +931,14 @@ static int xenbus_unmap_ring_hvm(struct xenbus_device *dev, void *vaddr)
 
 /**
  * xenbus_read_driver_state - read state from a store path
+ * @dev: xenbus device pointer
  * @path: path for driver
  *
  * Returns: the state of the driver rooted at the given store path, or
  * XenbusStateUnknown if no state can be read.
  */
-enum xenbus_state xenbus_read_driver_state(const char *path)
+enum xenbus_state xenbus_read_driver_state(const struct xenbus_device *dev,
+					   const char *path)
 {
 	enum xenbus_state result;
 	int err = xenbus_gather(XBT_NIL, path, "state", "%d", &result, NULL);
