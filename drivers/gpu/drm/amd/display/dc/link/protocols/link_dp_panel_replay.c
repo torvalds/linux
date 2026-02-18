@@ -389,7 +389,7 @@ bool dp_pr_get_state(const struct dc_link *link, uint64_t *state)
 	const struct dc *dc = link->ctx->dc;
 	unsigned int panel_inst = 0;
 	uint32_t retry_count = 0;
-	uint32_t replay_state = 0;
+	uint32_t replay_state = PR_STATE_INVALID;
 
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
