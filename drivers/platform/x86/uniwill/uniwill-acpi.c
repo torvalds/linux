@@ -330,6 +330,7 @@ struct uniwill_data {
 	struct acpi_battery_hook hook;
 	unsigned int last_charge_ctrl;
 	struct mutex battery_lock;	/* Protects the list of currently registered batteries */
+	unsigned int last_status;
 	unsigned int last_switch_status;
 	struct mutex super_key_lock;	/* Protects the toggling of the super key lock state */
 	struct list_head batteries;
@@ -580,6 +581,7 @@ static bool uniwill_volatile_reg(struct device *dev, unsigned int reg)
 	case EC_ADDR_SECOND_FAN_RPM_1:
 	case EC_ADDR_SECOND_FAN_RPM_2:
 	case EC_ADDR_BAT_ALERT:
+	case EC_ADDR_BIOS_OEM:
 	case EC_ADDR_PWM_1:
 	case EC_ADDR_PWM_2:
 	case EC_ADDR_TRIGGER:
@@ -1508,7 +1510,19 @@ static void uniwill_shutdown(struct platform_device *pdev)
 	regmap_clear_bits(data->regmap, EC_ADDR_AP_OEM, ENABLE_MANUAL_CTRL);
 }
 
-static int uniwill_suspend_keyboard(struct uniwill_data *data)
+static int uniwill_suspend_fn_lock(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
+		return 0;
+
+	/*
+	 * The EC_ADDR_BIOS_OEM is marked as volatile, so we have to restore it
+	 * ourselves.
+	 */
+	return regmap_read(data->regmap, EC_ADDR_BIOS_OEM, &data->last_status);
+}
+
+static int uniwill_suspend_super_key(struct uniwill_data *data)
 {
 	if (!uniwill_device_supports(data, UNIWILL_FEATURE_SUPER_KEY))
 		return 0;
@@ -1547,7 +1561,11 @@ static int uniwill_suspend(struct device *dev)
 	struct uniwill_data *data = dev_get_drvdata(dev);
 	int ret;
 
-	ret = uniwill_suspend_keyboard(data);
+	ret = uniwill_suspend_fn_lock(data);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_suspend_super_key(data);
 	if (ret < 0)
 		return ret;
 
@@ -1565,7 +1583,16 @@ static int uniwill_suspend(struct device *dev)
 	return 0;
 }
 
-static int uniwill_resume_keyboard(struct uniwill_data *data)
+static int uniwill_resume_fn_lock(struct uniwill_data *data)
+{
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_FN_LOCK))
+		return 0;
+
+	return regmap_update_bits(data->regmap, EC_ADDR_BIOS_OEM, FN_LOCK_STATUS,
+				  data->last_status);
+}
+
+static int uniwill_resume_super_key(struct uniwill_data *data)
 {
 	unsigned int value;
 	int ret;
@@ -1613,7 +1640,11 @@ static int uniwill_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = uniwill_resume_keyboard(data);
+	ret = uniwill_resume_fn_lock(data);
+	if (ret < 0)
+		return ret;
+
+	ret = uniwill_resume_super_key(data);
 	if (ret < 0)
 		return ret;
 
