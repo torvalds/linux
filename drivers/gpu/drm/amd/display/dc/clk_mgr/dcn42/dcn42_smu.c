@@ -105,7 +105,7 @@ union dcn42_dpia_host_router_bw {
 static uint32_t dcn42_smu_wait_for_response(struct clk_mgr_internal *clk_mgr,
 		unsigned int delay_us, unsigned int max_retries)
 {
-	uint32_t res_val = DALSMC_Result_CmdRejectedBusy;
+	uint32_t res_val;
 
 	do {
 		res_val = REG_READ(DAL_RESP_REG);
@@ -180,7 +180,7 @@ int dcn42_smu_get_pmfw_version(struct clk_mgr_internal *clk_mgr)
 
 int dcn42_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz)
 {
-	int actual_dispclk_set_mhz = -1;
+	int actual_dispclk_set_mhz;
 
 	if (!clk_mgr->smu_present)
 		return requested_dispclk_khz;
@@ -199,7 +199,7 @@ int dcn42_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispcl
 
 int dcn42_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_dcfclk_khz)
 {
-	int actual_dcfclk_set_mhz = -1;
+	int actual_dcfclk_set_mhz;
 
 	if (!clk_mgr->smu_present)
 		return requested_dcfclk_khz;
@@ -217,7 +217,7 @@ int dcn42_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requeste
 
 int dcn42_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_min_ds_dcfclk_khz)
 {
-	int actual_min_ds_dcfclk_mhz = -1;
+	int actual_min_ds_dcfclk_mhz;
 
 	if (!clk_mgr->smu_present)
 		return requested_min_ds_dcfclk_khz;
@@ -235,7 +235,7 @@ int dcn42_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int re
 
 int dcn42_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_khz)
 {
-	int actual_dppclk_set_mhz = -1;
+	int actual_dppclk_set_mhz;
 
 	if (!clk_mgr->smu_present)
 		return requested_dpp_khz;

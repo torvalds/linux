@@ -1811,8 +1811,8 @@ static bool dcn42_resource_construct(
 	int i, j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
-	uint32_t pipe_fuses = 0;
-	uint32_t num_pipes = 4;
+	uint32_t pipe_fuses;
+	uint32_t num_pipes;
 
 #undef REG_STRUCT
 #define REG_STRUCT bios_regs
