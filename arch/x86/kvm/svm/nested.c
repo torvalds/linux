@@ -128,6 +128,9 @@ void nested_vmcb02_recalc_intercepts(struct vcpu_svm *svm)
 	struct vmcb_ctrl_area_cached *g;
 	unsigned int i;
 
+	if (WARN_ON_ONCE(svm->vmcb != svm->nested.vmcb02.ptr))
+		return;
+
 	vmcb_mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
 	c = &svm->vmcb->control;
