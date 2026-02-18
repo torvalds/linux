@@ -244,7 +244,7 @@
 			// The magic B105F00D info is missing
 			arm,primecell-periphid = <0x00041081>;
 			reg = <0x11000 0x1000>;
-			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			memcpy-burst-size = <256>;
 			memcpy-bus-width = <32>;
 			clocks = <&periph_clk>;
