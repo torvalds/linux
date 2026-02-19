@@ -951,7 +951,7 @@ nv10_gr_context_switch(struct nv10_gr *gr)
 }
 
 static int
-nv10_gr_chan_fini(struct nvkm_object *object, bool suspend)
+nv10_gr_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nv10_gr_chan *chan = nv10_gr_chan(object);
 	struct nv10_gr *gr = chan->gr;

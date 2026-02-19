@@ -1201,7 +1201,7 @@ err_ret:
 }
 
 /**
- * xe_get_migrate_exec_queue() - Get the execution queue from migrate context.
+ * xe_migrate_exec_queue() - Get the execution queue from migrate context.
  * @migrate: Migrate context.
  *
  * Return: Pointer to execution queue on success, error on failure

@@ -128,7 +128,7 @@ nvkm_disp_chan_child_get(struct nvkm_object *object, int index, struct nvkm_ocla
 }
 
 static int
-nvkm_disp_chan_fini(struct nvkm_object *object, bool suspend)
+nvkm_disp_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
 

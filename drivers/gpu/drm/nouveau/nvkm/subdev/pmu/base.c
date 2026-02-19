@@ -77,7 +77,7 @@ nvkm_pmu_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_pmu_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_pmu *pmu = nvkm_pmu(subdev);
 

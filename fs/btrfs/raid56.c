@@ -150,6 +150,7 @@ static void scrub_rbio_work_locked(struct work_struct *work);
 static void free_raid_bio_pointers(struct btrfs_raid_bio *rbio)
 {
 	bitmap_free(rbio->error_bitmap);
+	bitmap_free(rbio->stripe_uptodate_bitmap);
 	kfree(rbio->stripe_pages);
 	kfree(rbio->bio_paddrs);
 	kfree(rbio->stripe_paddrs);

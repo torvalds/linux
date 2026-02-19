@@ -74,7 +74,7 @@ nvkm_pci_rom_shadow(struct nvkm_pci *pci, bool shadow)
 }
 
 static int
-nvkm_pci_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_pci_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_pci *pci = nvkm_pci(subdev);
 

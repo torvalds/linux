@@ -161,7 +161,7 @@ tu102_gsp_reset(struct nvkm_gsp *gsp)
 }
 
 int
-tu102_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
+tu102_gsp_fini(struct nvkm_gsp *gsp, enum nvkm_suspend_state suspend)
 {
 	u32 mbox0 = 0xff, mbox1 = 0xff;
 	int ret;

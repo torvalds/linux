@@ -471,6 +471,8 @@ extern struct kvm_host_values kvm_host;
 
 extern bool enable_pmu;
 
+void kvm_setup_xss_caps(void);
+
 /*
  * Get a filtered version of KVM's supported XCR0 that strips out dynamic
  * features for which the current process doesn't (yet) have permission to use.

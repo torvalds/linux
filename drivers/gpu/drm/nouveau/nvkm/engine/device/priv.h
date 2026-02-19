@@ -56,5 +56,5 @@ int  nvkm_device_ctor(const struct nvkm_device_func *,
 		      const char *name, const char *cfg, const char *dbg,
 		      struct nvkm_device *);
 int  nvkm_device_init(struct nvkm_device *);
-int  nvkm_device_fini(struct nvkm_device *, bool suspend);
+int  nvkm_device_fini(struct nvkm_device *, enum nvkm_suspend_state suspend);
 #endif

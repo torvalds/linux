@@ -2411,31 +2411,29 @@ try_again:
 	 * In fact it's dangerous to directly bump up page count from 0,
 	 * that may make page_ref_freeze()/page_ref_unfreeze() mismatch.
 	 */
-	if (!(flags & MF_COUNT_INCREASED)) {
-		res = get_hwpoison_page(p, flags);
-		if (!res) {
-			if (is_free_buddy_page(p)) {
-				if (take_page_off_buddy(p)) {
-					page_ref_inc(p);
-					res = MF_RECOVERED;
-				} else {
-					/* We lost the race, try again */
-					if (retry) {
-						ClearPageHWPoison(p);
-						retry = false;
-						goto try_again;
-					}
-					res = MF_FAILED;
-				}
-				res = action_result(pfn, MF_MSG_BUDDY, res);
+	res = get_hwpoison_page(p, flags);
+	if (!res) {
+		if (is_free_buddy_page(p)) {
+			if (take_page_off_buddy(p)) {
+				page_ref_inc(p);
+				res = MF_RECOVERED;
 			} else {
-				res = action_result(pfn, MF_MSG_KERNEL_HIGH_ORDER, MF_IGNORED);
+				/* We lost the race, try again */
+				if (retry) {
+					ClearPageHWPoison(p);
+					retry = false;
+					goto try_again;
+				}
+				res = MF_FAILED;
 			}
-			goto unlock_mutex;
-		} else if (res < 0) {
-			res = action_result(pfn, MF_MSG_GET_HWPOISON, MF_IGNORED);
-			goto unlock_mutex;
+			res = action_result(pfn, MF_MSG_BUDDY, res);
+		} else {
+			res = action_result(pfn, MF_MSG_KERNEL_HIGH_ORDER, MF_IGNORED);
 		}
+		goto unlock_mutex;
+	} else if (res < 0) {
+		res = action_result(pfn, MF_MSG_GET_HWPOISON, MF_IGNORED);
+		goto unlock_mutex;
 	}
 
 	folio = page_folio(p);

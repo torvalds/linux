@@ -838,8 +838,17 @@ static int acpi_add(struct acpi_device *device)
 				case 'P':
 					year = 2021;
 					break;
-				default:
+				case 'Q':
 					year = 2022;
+					break;
+				case 'R':
+					year = 2023;
+					break;
+				case 'S':
+					year = 2024;
+					break;
+				default:
+					year = 2025;
 				}
 			break;
 		default:

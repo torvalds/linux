@@ -862,9 +862,6 @@ ethtool_rxfh_ctx_alloc(const struct ethtool_ops *ops,
 	ctx->key_off = key_off;
 	ctx->priv_size = ops->rxfh_priv_size;
 
-	ctx->hfunc = ETH_RSS_HASH_NO_CHANGE;
-	ctx->input_xfrm = RXH_XFRM_NO_CHANGE;
-
 	return ctx;
 }
 

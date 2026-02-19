@@ -489,12 +489,7 @@ int __init security_init(void)
  */
 static int __init security_initcall_pure(void)
 {
-	int rc_adr, rc_lsm;
-
-	rc_adr = min_addr_init();
-	rc_lsm = lsm_initcall(pure);
-
-	return (rc_adr ? rc_adr : rc_lsm);
+	return lsm_initcall(pure);
 }
 pure_initcall(security_initcall_pure);
 
