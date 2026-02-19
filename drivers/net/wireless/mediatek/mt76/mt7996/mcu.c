@@ -2868,7 +2868,8 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
 		   link_conf->unsol_bcast_probe_resp_interval) {
 		interval = link_conf->unsol_bcast_probe_resp_interval;
-		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif);
+		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif,
+								link_conf->link_id);
 	}
 
 	if (!skb) {
