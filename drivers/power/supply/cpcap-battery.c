@@ -387,7 +387,7 @@ static const struct cpcap_battery_config cpcap_battery_bw8x_data = {
  * Safe values for any lipo battery likely to fit into a mapphone
  * battery bay.
  */
-static const struct cpcap_battery_config cpcap_battery_unkown_data = {
+static const struct cpcap_battery_config cpcap_battery_unknown_data = {
 	.cd_factor = 0x3cc,
 	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
 	.info.voltage_max_design = 4200000,
@@ -429,7 +429,7 @@ static void cpcap_battery_detect_battery_type(struct cpcap_battery_ddata *ddata)
 		ddata->config = cpcap_battery_bw8x_data;
 		break;
 	default:
-		ddata->config = cpcap_battery_unkown_data;
+		ddata->config = cpcap_battery_unknown_data;
 	}
 }
 
