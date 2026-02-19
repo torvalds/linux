@@ -4185,6 +4185,8 @@ static int move_existing_remap(struct btrfs_fs_info *fs_info,
 	dest_addr = ins.objectid;
 	dest_length = ins.offset;
 
+	dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
+
 	if (!is_data && !IS_ALIGNED(dest_length, fs_info->nodesize)) {
 		u64 new_length = ALIGN_DOWN(dest_length, fs_info->nodesize);
 
@@ -4295,15 +4297,12 @@ static int move_existing_remap(struct btrfs_fs_info *fs_info,
 	if (unlikely(ret))
 		goto end;
 
-	dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
-
 	adjust_block_group_remap_bytes(trans, dest_bg, dest_length);
 
 	mutex_lock(&dest_bg->free_space_lock);
 	bg_needs_free_space = test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
 				       &dest_bg->runtime_flags);
 	mutex_unlock(&dest_bg->free_space_lock);
-	btrfs_put_block_group(dest_bg);
 
 	if (bg_needs_free_space) {
 		ret = btrfs_add_block_group_free_space(trans, dest_bg);
@@ -4333,12 +4332,12 @@ end:
 			btrfs_end_transaction(trans);
 		}
 	} else {
-		dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
 		btrfs_free_reserved_bytes(dest_bg, dest_length, 0);
-		btrfs_put_block_group(dest_bg);
 
 		ret = btrfs_commit_transaction(trans);
 	}
+
+	btrfs_put_block_group(dest_bg);
 
 	return ret;
 }
