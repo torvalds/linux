@@ -320,7 +320,12 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 
 	ASSERT(IS_ALIGNED(ordered->file_offset, fs_info->sectorsize));
 	ASSERT(IS_ALIGNED(ordered->num_bytes, fs_info->sectorsize));
-	ASSERT(cb->writeback);
+	/*
+	 * This flag determines if we should clear the writeback flag from the
+	 * page cache. But this function is only utilized by encoded writes, it
+	 * never goes through the page cache.
+	 */
+	ASSERT(!cb->writeback);
 
 	cb->start = ordered->file_offset;
 	cb->len = ordered->num_bytes;
@@ -346,8 +351,7 @@ struct compressed_bio *btrfs_alloc_compressed_write(struct btrfs_inode *inode,
 	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE, end_bbio_compressed_write);
 	cb->start = start;
 	cb->len = len;
-	cb->writeback = true;
-
+	cb->writeback = false;
 	return cb;
 }
 
