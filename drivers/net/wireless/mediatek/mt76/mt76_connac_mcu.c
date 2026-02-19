@@ -65,7 +65,7 @@ int mt76_connac_mcu_init_download(struct mt76_dev *dev, u32 addr, u32 len,
 	int cmd;
 
 	if ((!is_connac_v1(dev) && addr == MCU_PATCH_ADDRESS) ||
-	    (is_mt7921(dev) && addr == 0x900000) ||
+	    (is_connac2(dev) && addr == 0x900000) ||
 	    (is_mt7925(dev) && (addr == 0x900000 || addr == 0xe0002800)) ||
 	    (is_mt799x(dev) && addr == 0x900000))
 		cmd = MCU_CMD(PATCH_START_REQ);
@@ -402,7 +402,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
-		if (vif->p2p && !is_mt7921(dev))
+		if (vif->p2p && !is_connac2(dev))
 			conn_type = CONNECTION_P2P_GC;
 		else
 			conn_type = CONNECTION_INFRA_STA;
@@ -410,7 +410,7 @@ void mt76_connac_mcu_sta_basic_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 		basic->aid = cpu_to_le16(link_sta->sta->aid);
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (vif->p2p && !is_mt7921(dev))
+		if (vif->p2p && !is_connac2(dev))
 			conn_type = CONNECTION_P2P_GO;
 		else
 			conn_type = CONNECTION_INFRA_AP;
@@ -874,7 +874,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 		struct sta_rec_vht *vht;
 		int len;
 
-		len = is_mt7921(dev) ? sizeof(*vht) : sizeof(*vht) - 4;
+		len = is_connac2(dev) ? sizeof(*vht) : sizeof(*vht) - 4;
 		tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_VHT, len);
 		vht = (struct sta_rec_vht *)tlv;
 		vht->vht_cap = cpu_to_le32(sta->deflink.vht_cap.cap);
@@ -885,7 +885,7 @@ void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 	/* starec uapsd */
 	mt76_connac_mcu_sta_uapsd(skb, vif, sta);
 
-	if (!is_mt7921(dev))
+	if (!is_connac2(dev))
 		return;
 
 	if (sta->deflink.ht_cap.ht_supported || sta->deflink.he_cap.has_he)
@@ -1778,7 +1778,7 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 	req->ssid_type_ext = n_ssids ? BIT(0) : 0;
 	req->ssids_num = n_ssids;
 
-	duration = is_mt7921(phy->dev) ? 0 : MT76_CONNAC_SCAN_CHANNEL_TIME;
+	duration = is_connac2(phy->dev) ? 0 : MT76_CONNAC_SCAN_CHANNEL_TIME;
 	/* increase channel time for passive scan */
 	if (!sreq->n_ssids)
 		duration *= 2;
@@ -1821,7 +1821,7 @@ int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		req->ies_len = cpu_to_le16(sreq->ie_len);
 	}
 
-	if (is_mt7921(phy->dev))
+	if (is_connac2(phy->dev))
 		req->scan_func |= SCAN_FUNC_SPLIT_SCAN;
 
 	memcpy(req->bssid, sreq->bssid, ETH_ALEN);
@@ -1897,7 +1897,7 @@ int mt76_connac_mcu_sched_scan_req(struct mt76_phy *phy,
 		get_random_mask_addr(addr, sreq->mac_addr,
 				     sreq->mac_addr_mask);
 	}
-	if (is_mt7921(phy->dev)) {
+	if (is_connac2(phy->dev)) {
 		req->mt7921.bss_idx = mvif->idx;
 		req->mt7921.delay = cpu_to_le32(sreq->delay);
 	}
@@ -2037,7 +2037,7 @@ mt76_connac_mcu_build_sku(struct mt76_dev *dev, s8 *sku,
 			  struct mt76_power_limits *limits,
 			  enum nl80211_band band)
 {
-	int max_power = is_mt7921(dev) ? 127 : 63;
+	int max_power = is_connac2(dev) ? 127 : 63;
 	int i, offset = sizeof(limits->cck);
 
 	memset(sku, max_power, MT_SKU_POWER_LIMIT);
@@ -2065,7 +2065,7 @@ mt76_connac_mcu_build_sku(struct mt76_dev *dev, s8 *sku,
 		offset += 12;
 	}
 
-	if (!is_mt7921(dev))
+	if (!is_connac2(dev))
 		return;
 
 	/* he */
@@ -2121,7 +2121,7 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 				  enum nl80211_band band)
 {
 	struct mt76_dev *dev = phy->dev;
-	int sku_len, batch_len = is_mt7921(dev) ? 8 : 16;
+	int sku_len, batch_len = is_connac2(dev) ? 8 : 16;
 	static const u8 chan_list_2ghz[] = {
 		1, 2,  3,  4,  5,  6,  7,
 		8, 9, 10, 11, 12, 13, 14
@@ -2162,7 +2162,7 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 	if (!limits)
 		return -ENOMEM;
 
-	sku_len = is_mt7921(dev) ? sizeof(sku_tlbv) : sizeof(sku_tlbv) - 92;
+	sku_len = is_connac2(dev) ? sizeof(sku_tlbv) : sizeof(sku_tlbv) - 92;
 	tx_power = 2 * phy->hw->conf.power_level;
 	if (!tx_power)
 		tx_power = 127;
@@ -3080,7 +3080,7 @@ static u32 mt76_connac2_get_data_mode(struct mt76_dev *dev, u32 info)
 {
 	u32 mode = DL_MODE_NEED_RSP;
 
-	if ((!is_mt7921(dev) && !is_mt7925(dev)) || info == PATCH_SEC_NOT_SUPPORT)
+	if ((!is_connac2(dev) && !is_mt7925(dev)) || info == PATCH_SEC_NOT_SUPPORT)
 		return mode;
 
 	switch (FIELD_GET(PATCH_SEC_ENC_TYPE_MASK, info)) {
