@@ -1004,7 +1004,7 @@ static ssize_t epf_ntb_##_name##_show(struct config_item *item,		\
 	if (idx < 0 || idx >= ntb->num_mws) {				\
 		dev_err(dev, "MW%d out of range (num_mws=%d)\n",	\
 			win_no, ntb->num_mws);				\
-		return -EINVAL;						\
+		return -ERANGE;						\
 	}								\
 	idx = array_index_nospec(idx, ntb->num_mws);			\
 	return sprintf(page, "%llu\n", ntb->mws_size[idx]);		\
@@ -1032,7 +1032,7 @@ static ssize_t epf_ntb_##_name##_store(struct config_item *item,	\
 	if (idx < 0 || idx >= ntb->num_mws) {				\
 		dev_err(dev, "MW%d out of range (num_mws=%d)\n",	\
 			win_no, ntb->num_mws);				\
-		return -EINVAL;						\
+		return -ERANGE;						\
 	}								\
 	idx = array_index_nospec(idx, ntb->num_mws);			\
 	ntb->mws_size[idx] = val;					\
