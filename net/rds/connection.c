@@ -455,6 +455,9 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 		rcu_read_unlock();
 	}
 
+	/* we do not hold the socket lock here but it is safe because
+	 * fan-out is disabled when calling conn_slots_available()
+	 */
 	if (conn->c_trans->conn_slots_available)
 		conn->c_trans->conn_slots_available(conn, false);
 }
