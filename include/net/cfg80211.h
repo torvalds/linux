@@ -4954,17 +4954,17 @@ struct cfg80211_ops {
 			   unsigned int link_id);
 
 
-	int	(*add_station)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*add_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			       const u8 *mac,
 			       struct station_parameters *params);
-	int	(*del_station)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*del_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			       struct station_del_parameters *params);
-	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*change_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  const u8 *mac,
 				  struct station_parameters *params);
-	int	(*get_station)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*get_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			       const u8 *mac, struct station_info *sinfo);
-	int	(*dump_station)(struct wiphy *wiphy, struct net_device *dev,
+	int	(*dump_station)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				int idx, u8 *mac, struct station_info *sinfo);
 
 	int	(*add_mpath)(struct wiphy *wiphy, struct net_device *dev,
@@ -8965,35 +8965,35 @@ static inline void cfg80211_sinfo_release_content(struct station_info *sinfo)
 /**
  * cfg80211_new_sta - notify userspace about station
  *
- * @dev: the netdev
+ * @wdev: the wireless device
  * @mac_addr: the station's address
  * @sinfo: the station information
  * @gfp: allocation flags
  */
-void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
+void cfg80211_new_sta(struct wireless_dev *wdev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
 
 /**
  * cfg80211_del_sta_sinfo - notify userspace about deletion of a station
- * @dev: the netdev
+ * @wdev: the wireless device
  * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @sinfo: the station information/statistics
  * @gfp: allocation flags
  */
-void cfg80211_del_sta_sinfo(struct net_device *dev, const u8 *mac_addr,
+void cfg80211_del_sta_sinfo(struct wireless_dev *wdev, const u8 *mac_addr,
 			    struct station_info *sinfo, gfp_t gfp);
 
 /**
  * cfg80211_del_sta - notify userspace about deletion of a station
  *
- * @dev: the netdev
+ * @wdev: the wireless device
  * @mac_addr: the station's address. For MLD station, MLD address is used.
  * @gfp: allocation flags
  */
-static inline void cfg80211_del_sta(struct net_device *dev,
+static inline void cfg80211_del_sta(struct wireless_dev *wdev,
 				    const u8 *mac_addr, gfp_t gfp)
 {
-	cfg80211_del_sta_sinfo(dev, mac_addr, NULL, gfp);
+	cfg80211_del_sta_sinfo(wdev, mac_addr, NULL, gfp);
 }
 
 /**

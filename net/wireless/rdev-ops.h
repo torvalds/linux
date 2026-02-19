@@ -193,56 +193,56 @@ static inline int rdev_stop_ap(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_add_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, u8 *mac,
+				   struct wireless_dev *wdev, u8 *mac,
 				   struct station_parameters *params)
 {
 	int ret;
-	trace_rdev_add_station(&rdev->wiphy, dev, mac, params);
-	ret = rdev->ops->add_station(&rdev->wiphy, dev, mac, params);
+	trace_rdev_add_station(&rdev->wiphy, wdev, mac, params);
+	ret = rdev->ops->add_station(&rdev->wiphy, wdev, mac, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_del_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev,
+				   struct wireless_dev *wdev,
 				   struct station_del_parameters *params)
 {
 	int ret;
-	trace_rdev_del_station(&rdev->wiphy, dev, params);
-	ret = rdev->ops->del_station(&rdev->wiphy, dev, params);
+	trace_rdev_del_station(&rdev->wiphy, wdev, params);
+	ret = rdev->ops->del_station(&rdev->wiphy, wdev, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_change_station(struct cfg80211_registered_device *rdev,
-				      struct net_device *dev, u8 *mac,
+				      struct wireless_dev *wdev, u8 *mac,
 				      struct station_parameters *params)
 {
 	int ret;
-	trace_rdev_change_station(&rdev->wiphy, dev, mac, params);
-	ret = rdev->ops->change_station(&rdev->wiphy, dev, mac, params);
+	trace_rdev_change_station(&rdev->wiphy, wdev, mac, params);
+	ret = rdev->ops->change_station(&rdev->wiphy, wdev, mac, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_get_station(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, const u8 *mac,
+				   struct wireless_dev *wdev, const u8 *mac,
 				   struct station_info *sinfo)
 {
 	int ret;
-	trace_rdev_get_station(&rdev->wiphy, dev, mac);
-	ret = rdev->ops->get_station(&rdev->wiphy, dev, mac, sinfo);
+	trace_rdev_get_station(&rdev->wiphy, wdev, mac);
+	ret = rdev->ops->get_station(&rdev->wiphy, wdev, mac, sinfo);
 	trace_rdev_return_int_station_info(&rdev->wiphy, ret, sinfo);
 	return ret;
 }
 
 static inline int rdev_dump_station(struct cfg80211_registered_device *rdev,
-				    struct net_device *dev, int idx, u8 *mac,
+				    struct wireless_dev *wdev, int idx, u8 *mac,
 				    struct station_info *sinfo)
 {
 	int ret;
-	trace_rdev_dump_station(&rdev->wiphy, dev, idx, mac);
-	ret = rdev->ops->dump_station(&rdev->wiphy, dev, idx, mac, sinfo);
+	trace_rdev_dump_station(&rdev->wiphy, wdev, idx, mac);
+	ret = rdev->ops->dump_station(&rdev->wiphy, wdev, idx, mac, sinfo);
 	trace_rdev_return_int_station_info(&rdev->wiphy, ret, sinfo);
 	return ret;
 }

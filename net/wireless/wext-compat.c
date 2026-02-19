@@ -7,7 +7,7 @@
  * we directly assign the wireless handlers of wireless interfaces.
  *
  * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019-2023 Intel Corporation
+ * Copyright (C) 2019-2023, 2026 Intel Corporation
  */
 
 #include <linux/export.h>
@@ -1261,7 +1261,7 @@ static int cfg80211_wext_giwrate(struct net_device *dev,
 		return err;
 
 	scoped_guard(wiphy, &rdev->wiphy) {
-		err = rdev_get_station(rdev, dev, addr, &sinfo);
+		err = rdev_get_station(rdev, wdev, addr, &sinfo);
 	}
 	if (err)
 		return err;
@@ -1305,7 +1305,7 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 
 	memset(&sinfo, 0, sizeof(sinfo));
 
-	ret = rdev_get_station(rdev, dev, bssid, &sinfo);
+	ret = rdev_get_station(rdev, wdev, bssid, &sinfo);
 	wiphy_unlock(&rdev->wiphy);
 
 	if (ret)

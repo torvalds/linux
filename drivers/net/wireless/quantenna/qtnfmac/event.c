@@ -90,8 +90,8 @@ qtnf_event_handle_sta_assoc(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		goto out;
 	}
 
-	cfg80211_new_sta(vif->netdev, sta_assoc->sta_addr, sinfo,
-			 GFP_KERNEL);
+	cfg80211_new_sta(vif->netdev->ieee80211_ptr, sta_assoc->sta_addr,
+			 sinfo, GFP_KERNEL);
 
 out:
 	kfree(sinfo);
@@ -126,7 +126,7 @@ qtnf_event_handle_sta_deauth(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 		 sta_addr, reason);
 
 	if (qtnf_sta_list_del(vif, sta_addr))
-		cfg80211_del_sta(vif->netdev, sta_deauth->sta_addr,
+		cfg80211_del_sta(&vif->wdev, sta_deauth->sta_addr,
 				 GFP_KERNEL);
 
 	return 0;

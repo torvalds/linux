@@ -3132,11 +3132,11 @@ brcmf_cfg80211_get_station_ibss(struct brcmf_if *ifp,
 }
 
 static s32
-brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
+brcmf_cfg80211_get_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   const u8 *mac, struct station_info *sinfo)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_if *ifp = netdev_priv(wdev->netdev);
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_scb_val_le scb_val;
 	s32 err = 0;
@@ -3255,11 +3255,11 @@ done:
 }
 
 static int
-brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
+brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			    int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_if *ifp = netdev_priv(wdev->netdev);
 	struct brcmf_pub *drvr = cfg->pub;
 	s32 err;
 
@@ -3284,7 +3284,8 @@ brcmf_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
 	}
 	if (idx < le32_to_cpu(cfg->assoclist.count)) {
 		memcpy(mac, cfg->assoclist.mac[idx], ETH_ALEN);
-		return brcmf_cfg80211_get_station(wiphy, ndev, mac, sinfo);
+		return brcmf_cfg80211_get_station(wiphy, wdev,
+						  mac, sinfo);
 	}
 	return -ENOENT;
 }
@@ -5452,12 +5453,13 @@ brcmf_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int
-brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
+brcmf_cfg80211_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   struct station_del_parameters *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_scb_val_le scbval;
+	struct net_device *ndev = wdev->netdev;
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err;
 
@@ -5484,12 +5486,12 @@ brcmf_cfg80211_del_station(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static int
-brcmf_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
+brcmf_cfg80211_change_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			      const u8 *mac, struct station_parameters *params)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_pub *drvr = cfg->pub;
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_if *ifp = netdev_priv(wdev->netdev);
 	s32 err;
 
 	brcmf_dbg(TRACE, "Enter, MAC %pM, mask 0x%04x set 0x%04x\n", mac,
@@ -6548,13 +6550,14 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 		sinfo->assoc_req_ies_len = e->datalen;
 		generation++;
 		sinfo->generation = generation;
-		cfg80211_new_sta(ndev, e->addr, sinfo, GFP_KERNEL);
+		cfg80211_new_sta(ndev->ieee80211_ptr, e->addr, sinfo,
+				 GFP_KERNEL);
 
 		kfree(sinfo);
 	} else if ((event == BRCMF_E_DISASSOC_IND) ||
 		   (event == BRCMF_E_DEAUTH_IND) ||
 		   (event == BRCMF_E_DEAUTH)) {
-		cfg80211_del_sta(ndev, e->addr, GFP_KERNEL);
+		cfg80211_del_sta(ndev->ieee80211_ptr, e->addr, GFP_KERNEL);
 	}
 	return 0;
 }

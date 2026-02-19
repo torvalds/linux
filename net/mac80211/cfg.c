@@ -1000,10 +1000,10 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
-static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
+static int ieee80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  int idx, u8 *mac, struct station_info *sinfo)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int ret = -ENOENT;
@@ -1035,10 +1035,11 @@ static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	return drv_get_survey(local, idx, survey);
 }
 
-static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+static int ieee80211_get_station(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
 				 const u8 *mac, struct station_info *sinfo)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int ret = -ENOENT;
@@ -2363,7 +2364,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	return 0;
 }
 
-static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
+static int ieee80211_add_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				 const u8 *mac,
 				 struct station_parameters *params)
 {
@@ -2381,7 +2382,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 		    sdata->vif.type != NL80211_IFTYPE_AP)
 			return -EINVAL;
 	} else
-		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	if (ether_addr_equal(mac, sdata->vif.addr))
 		return -EINVAL;
@@ -2435,12 +2436,12 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	return sta_info_insert(sta);
 }
 
-static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+static int ieee80211_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				 struct station_del_parameters *params)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
 	if (params->mac)
 		return sta_info_destroy_addr_bss(sdata, params->mac);
@@ -2450,10 +2451,10 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_change_station(struct wiphy *wiphy,
-				    struct net_device *dev, const u8 *mac,
+				    struct wireless_dev *wdev, const u8 *mac,
 				    struct station_parameters *params)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;

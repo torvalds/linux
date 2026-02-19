@@ -1554,10 +1554,10 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
  * requested station information, if available.
  */
 static int
-mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     const u8 *mac, struct station_info *sinfo)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 
 	if (!priv->media_connected)
 		return -ENOENT;
@@ -1571,10 +1571,10 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
  * CFG802.11 operation handler to dump station information.
  */
 static int
-mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			      int idx, u8 *mac, struct station_info *sinfo)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_sta_node *node;
 	int i;
 
@@ -1901,10 +1901,11 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
  * associated stations list, no action is taken.
  */
 static int
-mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     struct station_del_parameters *params)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv =
+		mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_sta_node *sta_node;
 	u8 deauth_mac[ETH_ALEN];
 
@@ -3993,7 +3994,8 @@ mwifiex_cfg80211_uap_add_station(struct mwifiex_private *priv, const u8 *mac,
 		if (!sinfo)
 			return -ENOMEM;
 
-		cfg80211_new_sta(priv->netdev, mac, sinfo, GFP_KERNEL);
+		cfg80211_new_sta(priv->netdev->ieee80211_ptr, mac, sinfo,
+				 GFP_KERNEL);
 		kfree(sinfo);
 	}
 
@@ -4001,10 +4003,10 @@ mwifiex_cfg80211_uap_add_station(struct mwifiex_private *priv, const u8 *mac,
 }
 
 static int
-mwifiex_cfg80211_add_station(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_add_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     const u8 *mac, struct station_parameters *params)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 
 	if (priv->adapter->host_mlme_enabled &&
 	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP))
@@ -4240,12 +4242,12 @@ mwifiex_cfg80211_start_radar_detection(struct wiphy *wiphy,
 }
 
 static int
-mwifiex_cfg80211_change_station(struct wiphy *wiphy, struct net_device *dev,
+mwifiex_cfg80211_change_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 				const u8 *mac,
 				struct station_parameters *params)
 {
 	int ret;
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 
 	if (priv->adapter->host_mlme_enabled &&
 	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP))

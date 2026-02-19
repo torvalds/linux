@@ -533,11 +533,11 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 }
 
 static int wil_cfg80211_get_station(struct wiphy *wiphy,
-				    struct net_device *ndev,
+				    struct wireless_dev *wdev,
 				    const u8 *mac, struct station_info *sinfo)
 {
-	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 	int rc;
 
 	int cid = wil_find_cid(wil, vif->mid, mac);
@@ -573,11 +573,11 @@ int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
 }
 
 static int wil_cfg80211_dump_station(struct wiphy *wiphy,
-				     struct net_device *dev, int idx,
+				     struct wireless_dev *wdev, int idx,
 				     u8 *mac, struct station_info *sinfo)
 {
-	struct wil6210_vif *vif = ndev_to_vif(dev);
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 	int rc;
 	int cid = wil_find_cid_by_idx(wil, vif->mid, idx);
 
@@ -2225,12 +2225,12 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 }
 
 static int wil_cfg80211_add_station(struct wiphy *wiphy,
-				    struct net_device *dev,
+				    struct wireless_dev *wdev,
 				    const u8 *mac,
 				    struct station_parameters *params)
 {
-	struct wil6210_vif *vif = ndev_to_vif(dev);
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 
 	wil_dbg_misc(wil, "add station %pM aid %d mid %d mask 0x%x set 0x%x\n",
 		     mac, params->aid, vif->mid,
@@ -2250,11 +2250,11 @@ static int wil_cfg80211_add_station(struct wiphy *wiphy,
 }
 
 static int wil_cfg80211_del_station(struct wiphy *wiphy,
-				    struct net_device *dev,
+				    struct wireless_dev *wdev,
 				    struct station_del_parameters *params)
 {
-	struct wil6210_vif *vif = ndev_to_vif(dev);
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 
 	wil_dbg_misc(wil, "del_station: %pM, reason=%d mid=%d\n",
 		     params->mac, params->reason_code, vif->mid);
@@ -2267,12 +2267,12 @@ static int wil_cfg80211_del_station(struct wiphy *wiphy,
 }
 
 static int wil_cfg80211_change_station(struct wiphy *wiphy,
-				       struct net_device *dev,
+				       struct wireless_dev *wdev,
 				       const u8 *mac,
 				       struct station_parameters *params)
 {
-	struct wil6210_vif *vif = ndev_to_vif(dev);
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 	int authorize;
 	int cid, i;
 	struct wil_ring_tx_data *txdata = NULL;

@@ -483,26 +483,26 @@ qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 }
 
 static int
-qtnf_get_station(struct wiphy *wiphy, struct net_device *dev,
+qtnf_get_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 const u8 *mac, struct station_info *sinfo)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 
 	sinfo->generation = vif->generation;
 	return qtnf_cmd_get_sta_info(vif, mac, sinfo);
 }
 
 static int
-qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
+qtnf_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		  int idx, u8 *mac, struct station_info *sinfo)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	const struct qtnf_sta_node *sta_node;
 	int ret;
 
-	switch (vif->wdev.iftype) {
+	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
-		if (idx != 0 || !vif->wdev.connected)
+		if (idx != 0 || !wdev->connected)
 			return -ENOENT;
 
 		ether_addr_copy(mac, vif->bssid);
@@ -520,9 +520,9 @@ qtnf_dump_station(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = qtnf_cmd_get_sta_info(vif, mac, sinfo);
 
-	if (vif->wdev.iftype == NL80211_IFTYPE_AP) {
+	if (wdev->iftype == NL80211_IFTYPE_AP) {
 		if (ret == -ENOENT) {
-			cfg80211_del_sta(vif->netdev, mac, GFP_KERNEL);
+			cfg80211_del_sta(&vif->wdev, mac, GFP_KERNEL);
 			sinfo->filled = 0;
 		}
 	}
@@ -602,10 +602,10 @@ qtnf_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
-qtnf_change_station(struct wiphy *wiphy, struct net_device *dev,
+qtnf_change_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    const u8 *mac, struct station_parameters *params)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;
 
 	ret = qtnf_cmd_send_change_sta(vif, mac, params);
@@ -617,14 +617,14 @@ qtnf_change_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
-qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
+qtnf_del_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct station_del_parameters *params)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;
 
 	if (params->mac &&
-	    (vif->wdev.iftype == NL80211_IFTYPE_AP) &&
+	    (wdev->iftype == NL80211_IFTYPE_AP) &&
 	    !is_broadcast_ether_addr(params->mac) &&
 	    !qtnf_sta_list_lookup(&vif->sta_list, params->mac))
 		return 0;
