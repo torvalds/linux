@@ -27,7 +27,7 @@ pub enum IrqReturn {
 }
 
 /// Callbacks for an IRQ handler.
-pub trait Handler: Sync {
+pub trait Handler: Sync + 'static {
     /// The hard IRQ handler.
     ///
     /// This is executed in interrupt context, hence all corresponding
@@ -45,7 +45,7 @@ impl<T: ?Sized + Handler + Send> Handler for Arc<T> {
     }
 }
 
-impl<T: ?Sized + Handler, A: Allocator> Handler for Box<T, A> {
+impl<T: ?Sized + Handler, A: Allocator + 'static> Handler for Box<T, A> {
     fn handle(&self, device: &Device<Bound>) -> IrqReturn {
         T::handle(self, device)
     }
@@ -181,7 +181,7 @@ impl<'a> IrqRequest<'a> {
 ///
 /// * We own an irq handler whose cookie is a pointer to `Self`.
 #[pin_data]
-pub struct Registration<T: Handler + 'static> {
+pub struct Registration<T: Handler> {
     #[pin]
     inner: Devres<RegistrationInner>,
 
@@ -194,7 +194,7 @@ pub struct Registration<T: Handler + 'static> {
     _pin: PhantomPinned,
 }
 
-impl<T: Handler + 'static> Registration<T> {
+impl<T: Handler> Registration<T> {
     /// Registers the IRQ handler with the system for the given IRQ number.
     pub fn new<'a>(
         request: IrqRequest<'a>,
@@ -260,10 +260,7 @@ impl<T: Handler + 'static> Registration<T> {
 /// # Safety
 ///
 /// This function should be only used as the callback in `request_irq`.
-unsafe extern "C" fn handle_irq_callback<T: Handler + 'static>(
-    _irq: i32,
-    ptr: *mut c_void,
-) -> c_uint {
+unsafe extern "C" fn handle_irq_callback<T: Handler>(_irq: i32, ptr: *mut c_void) -> c_uint {
     // SAFETY: `ptr` is a pointer to `Registration<T>` set in `Registration::new`
     let registration = unsafe { &*(ptr as *const Registration<T>) };
     // SAFETY: The irq callback is removed before the device is unbound, so the fact that the irq
@@ -287,7 +284,7 @@ pub enum ThreadedIrqReturn {
 }
 
 /// Callbacks for a threaded IRQ handler.
-pub trait ThreadedHandler: Sync {
+pub trait ThreadedHandler: Sync + 'static {
     /// The hard IRQ handler.
     ///
     /// This is executed in interrupt context, hence all corresponding
@@ -318,7 +315,7 @@ impl<T: ?Sized + ThreadedHandler + Send> ThreadedHandler for Arc<T> {
     }
 }
 
-impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
+impl<T: ?Sized + ThreadedHandler, A: Allocator + 'static> ThreadedHandler for Box<T, A> {
     fn handle(&self, device: &Device<Bound>) -> ThreadedIrqReturn {
         T::handle(self, device)
     }
@@ -401,7 +398,7 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 ///
 /// * We own an irq handler whose cookie is a pointer to `Self`.
 #[pin_data]
-pub struct ThreadedRegistration<T: ThreadedHandler + 'static> {
+pub struct ThreadedRegistration<T: ThreadedHandler> {
     #[pin]
     inner: Devres<RegistrationInner>,
 
@@ -414,7 +411,7 @@ pub struct ThreadedRegistration<T: ThreadedHandler + 'static> {
     _pin: PhantomPinned,
 }
 
-impl<T: ThreadedHandler + 'static> ThreadedRegistration<T> {
+impl<T: ThreadedHandler> ThreadedRegistration<T> {
     /// Registers the IRQ handler with the system for the given IRQ number.
     pub fn new<'a>(
         request: IrqRequest<'a>,
@@ -481,7 +478,7 @@ impl<T: ThreadedHandler + 'static> ThreadedRegistration<T> {
 /// # Safety
 ///
 /// This function should be only used as the callback in `request_threaded_irq`.
-unsafe extern "C" fn handle_threaded_irq_callback<T: ThreadedHandler + 'static>(
+unsafe extern "C" fn handle_threaded_irq_callback<T: ThreadedHandler>(
     _irq: i32,
     ptr: *mut c_void,
 ) -> c_uint {
@@ -497,10 +494,7 @@ unsafe extern "C" fn handle_threaded_irq_callback<T: ThreadedHandler + 'static>(
 /// # Safety
 ///
 /// This function should be only used as the callback in `request_threaded_irq`.
-unsafe extern "C" fn thread_fn_callback<T: ThreadedHandler + 'static>(
-    _irq: i32,
-    ptr: *mut c_void,
-) -> c_uint {
+unsafe extern "C" fn thread_fn_callback<T: ThreadedHandler>(_irq: i32, ptr: *mut c_void) -> c_uint {
     // SAFETY: `ptr` is a pointer to `ThreadedRegistration<T>` set in `ThreadedRegistration::new`
     let registration = unsafe { &*(ptr as *const ThreadedRegistration<T>) };
     // SAFETY: The irq callback is removed before the device is unbound, so the fact that the irq
