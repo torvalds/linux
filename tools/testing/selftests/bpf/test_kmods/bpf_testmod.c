@@ -18,6 +18,7 @@
 #include <linux/in6.h>
 #include <linux/un.h>
 #include <linux/filter.h>
+#include <linux/rcupdate_trace.h>
 #include <net/sock.h>
 #include <linux/namei.h>
 #include "bpf_testmod.h"
@@ -885,6 +886,32 @@ __bpf_kfunc void bpf_kfunc_call_test_sleepable(void)
 {
 }
 
+struct bpf_kfunc_rcu_tasks_trace_data {
+	struct rcu_head rcu;
+	int *done;
+};
+
+static void bpf_kfunc_rcu_tasks_trace_cb(struct rcu_head *rhp)
+{
+	struct bpf_kfunc_rcu_tasks_trace_data *data;
+
+	data = container_of(rhp, struct bpf_kfunc_rcu_tasks_trace_data, rcu);
+	WRITE_ONCE(*data->done, 1);
+	kfree(data);
+}
+
+__bpf_kfunc int bpf_kfunc_call_test_call_rcu_tasks_trace(int *done)
+{
+	struct bpf_kfunc_rcu_tasks_trace_data *data;
+
+	data = kmalloc(sizeof(*data), GFP_ATOMIC);
+	if (!data)
+		return -ENOMEM;
+	data->done = done;
+	call_rcu_tasks_trace(&data->rcu, bpf_kfunc_rcu_tasks_trace_cb);
+	return 0;
+}
+
 __bpf_kfunc int bpf_kfunc_init_sock(struct init_sock_args *args)
 {
 	int proto;
@@ -1222,6 +1249,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_test_destructive, KF_DESTRUCTIVE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_static_unused_arg)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_offset)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test_sleepable, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_call_test_call_rcu_tasks_trace)
 BTF_ID_FLAGS(func, bpf_kfunc_init_sock, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_close_sock, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_connect, KF_SLEEPABLE)

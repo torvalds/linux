@@ -751,11 +751,11 @@ out:
 	return 0;
 }
 
-SEC("kretprobe/do_filp_open")
-int kprobe_ret__do_filp_open(struct pt_regs* ctx)
+SEC("kretprobe/do_file_open")
+int kprobe_ret__do_file_open(struct pt_regs *ctx)
 {
 	struct bpf_func_stats_ctx stats_ctx;
-	bpf_stats_enter(&stats_ctx, profiler_bpf_do_filp_open_ret);
+	bpf_stats_enter(&stats_ctx, profiler_bpf_do_file_open_ret);
 
 	struct file* filp = (struct file*)PT_REGS_RC_CORE(ctx);
 

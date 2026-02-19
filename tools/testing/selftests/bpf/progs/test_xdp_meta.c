@@ -1,12 +1,12 @@
-#include <stdbool.h>
-#include <linux/bpf.h>
-#include <linux/errno.h>
-#include <linux/if_ether.h>
-#include <linux/pkt_cls.h>
+// SPDX-License-Identifier: GPL-2.0
+#include <vmlinux.h>
 
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
+#include <errno.h>
+
 #include "bpf_kfuncs.h"
+#include "bpf_tracing_net.h"
 
 #define META_SIZE 32
 
@@ -42,7 +42,7 @@ static bool check_metadata(const char *file, int line, __u8 *meta_have)
 	if (!__builtin_memcmp(meta_have, meta_want, META_SIZE))
 		return true;
 
-	bpf_stream_printk(BPF_STREAM_STDERR,
+	bpf_stream_printk(BPF_STDERR,
 			  "FAIL:%s:%d: metadata mismatch\n"
 			  "  have:\n    %pI6\n    %pI6\n"
 			  "  want:\n    %pI6\n    %pI6\n",
