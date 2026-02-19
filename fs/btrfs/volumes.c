@@ -4277,20 +4277,29 @@ static int balance_remap_chunks(struct btrfs_fs_info *fs_info, struct btrfs_path
 end:
 	while (!list_empty(chunks)) {
 		bool is_unused;
+		struct btrfs_block_group *bg;
 
 		rci = list_first_entry(chunks, struct remap_chunk_info, list);
 
-		spin_lock(&rci->bg->lock);
-		is_unused = !btrfs_is_block_group_used(rci->bg);
-		spin_unlock(&rci->bg->lock);
+		bg = rci->bg;
+		if (bg) {
+			/*
+			 * This is a bit racy and the 'used' status can change
+			 * but this is not a problem as later functions will
+			 * verify it again.
+			 */
+			spin_lock(&bg->lock);
+			is_unused = !btrfs_is_block_group_used(bg);
+			spin_unlock(&bg->lock);
 
-		if (is_unused)
-			btrfs_mark_bg_unused(rci->bg);
+			if (is_unused)
+				btrfs_mark_bg_unused(bg);
 
-		if (rci->made_ro)
-			btrfs_dec_block_group_ro(rci->bg);
+			if (rci->made_ro)
+				btrfs_dec_block_group_ro(bg);
 
-		btrfs_put_block_group(rci->bg);
+			btrfs_put_block_group(bg);
+		}
 
 		list_del(&rci->list);
 		kfree(rci);
