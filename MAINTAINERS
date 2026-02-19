@@ -9611,7 +9611,12 @@ F:	include/linux/ext2*
 
 EXT4 FILE SYSTEM
 M:	"Theodore Ts'o" <tytso@mit.edu>
-M:	Andreas Dilger <adilger.kernel@dilger.ca>
+R:	Andreas Dilger <adilger.kernel@dilger.ca>
+R:	Baokun Li <libaokun@linux.alibaba.com>
+R:	Jan Kara <jack@suse.cz>
+R:	Ojaswin Mujoo <ojaswin@linux.ibm.com>
+R:	Ritesh Harjani (IBM) <ritesh.list@gmail.com>
+R:	Zhang Yi <yi.zhang@huawei.com>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 W:	http://ext4.wiki.kernel.org
