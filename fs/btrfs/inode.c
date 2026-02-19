@@ -891,28 +891,20 @@ static struct folio *compressed_bio_last_folio(struct compressed_bio *cb)
 	return page_folio(phys_to_page(paddr));
 }
 
-static void zero_last_folio(struct compressed_bio *cb)
-{
-	struct bio *bio = &cb->bbio.bio;
-	struct folio *last_folio = compressed_bio_last_folio(cb);
-	const u32 bio_size = bio->bi_iter.bi_size;
-	const u32 foffset = offset_in_folio(last_folio, bio_size);
-
-	folio_zero_range(last_folio, foffset, folio_size(last_folio) - foffset);
-}
-
 static void round_up_last_block(struct compressed_bio *cb, u32 blocksize)
 {
 	struct bio *bio = &cb->bbio.bio;
 	struct folio *last_folio = compressed_bio_last_folio(cb);
 	const u32 bio_size = bio->bi_iter.bi_size;
 	const u32 foffset = offset_in_folio(last_folio, bio_size);
+	const u32 padding_len = round_up(foffset, blocksize) - foffset;
 	bool ret;
 
 	if (IS_ALIGNED(bio_size, blocksize))
 		return;
 
-	ret = bio_add_folio(bio, last_folio, round_up(foffset, blocksize) - foffset, foffset);
+	folio_zero_range(last_folio, foffset, padding_len);
+	ret = bio_add_folio(bio, last_folio, padding_len, foffset);
 	/* The remaining part should be merged thus never fail. */
 	ASSERT(ret);
 }
@@ -938,7 +930,6 @@ static void compress_file_range(struct btrfs_work *work)
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	struct compressed_bio *cb = NULL;
-	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	u64 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
@@ -948,7 +939,6 @@ static void compress_file_range(struct btrfs_work *work)
 	int ret = 0;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
-	unsigned int loff;
 	int compress_type = fs_info->compress_type;
 	int compress_level = fs_info->compress_level;
 
@@ -1032,14 +1022,6 @@ again:
 	total_in = cur_len;
 
 	/*
-	 * Zero the tail end of the last folio, as we might be sending it down
-	 * to disk.
-	 */
-	loff = (total_compressed & (min_folio_size - 1));
-	if (loff)
-		zero_last_folio(cb);
-
-	/*
 	 * Try to create an inline extent.
 	 *
 	 * If we didn't compress the entire range, try to create an uncompressed
@@ -1072,8 +1054,9 @@ again:
 	 * We aren't doing an inline extent. Round the compressed size up to a
 	 * block size boundary so the allocator does sane things.
 	 */
-	total_compressed = ALIGN(total_compressed, blocksize);
 	round_up_last_block(cb, blocksize);
+	total_compressed = cb->bbio.bio.bi_iter.bi_size;
+	ASSERT(IS_ALIGNED(total_compressed, blocksize));
 
 	/*
 	 * One last check to make sure the compression is really a win, compare
