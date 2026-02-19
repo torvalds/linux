@@ -1802,11 +1802,6 @@ extern struct trace_event_file *find_event_file(struct trace_array *tr,
 						const char *system,
 						const char *event);
 
-static inline void *event_file_data(struct file *filp)
-{
-	return READ_ONCE(file_inode(filp)->i_private);
-}
-
 extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
 
@@ -1827,9 +1822,19 @@ static inline struct trace_event_file *event_file_file(struct file *filp)
 	struct trace_event_file *file;
 
 	lockdep_assert_held(&event_mutex);
-	file = READ_ONCE(file_inode(filp)->i_private);
+	file = file_inode(filp)->i_private;
 	if (!file || file->flags & EVENT_FILE_FL_FREED)
 		return NULL;
+	return file;
+}
+
+static inline void *event_file_data(struct file *filp)
+{
+	struct trace_event_file *file;
+
+	lockdep_assert_held(&event_mutex);
+	file = file_inode(filp)->i_private;
+	WARN_ON(!file || file->flags & EVENT_FILE_FL_FREED);
 	return file;
 }
 
