@@ -1977,7 +1977,7 @@ mt7915_mcu_add_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_FILS_DISCOVERY) {
 		interval = vif->bss_conf.fils_discovery.max_interval;
-		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
+		skb = ieee80211_get_fils_discovery_tmpl(hw, vif, 0);
 	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
 		   vif->bss_conf.unsol_bcast_probe_resp_interval) {
 		interval = vif->bss_conf.unsol_bcast_probe_resp_interval;

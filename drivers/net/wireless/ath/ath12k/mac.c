@@ -4311,7 +4311,8 @@ static int ath12k_mac_fils_discovery(struct ath12k_link_vif *arvif,
 	if (info->fils_discovery.max_interval) {
 		interval = info->fils_discovery.max_interval;
 
-		tmpl = ieee80211_get_fils_discovery_tmpl(hw, vif);
+		tmpl = ieee80211_get_fils_discovery_tmpl(hw, vif,
+							 info->link_id);
 		if (tmpl)
 			ret = ath12k_wmi_fils_discovery_tmpl(ar, arvif->vdev_id,
 							     tmpl);
