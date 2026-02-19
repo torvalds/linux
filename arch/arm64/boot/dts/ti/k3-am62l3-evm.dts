@@ -306,6 +306,12 @@
 		>;
 	};
 
+	wkup_uart0_pins_default: wkup-uart0-default-pins {
+		pinctrl-single,pins = <
+			AM62LX_IOPAD(0x0000, PIN_INPUT, 0) /* (Y22) WKUP_UART0_RXD */
+			AM62LX_IOPAD(0x0004, PIN_OUTPUT, 0) /* (AA23) WKUP_UART0_TXD */
+		>;
+	};
 };
 
 &sdhci0 {
@@ -358,4 +364,9 @@
 	dr_mode = "host";
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb1_default_pins>;
+};
+
+&wkup_uart0 {
+	pinctrl-0 = <&wkup_uart0_pins_default>;
+	pinctrl-names = "default";
 };
