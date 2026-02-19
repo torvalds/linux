@@ -499,7 +499,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 			  resource_size_t size,
 			  unsigned int flags)
 {
-	unsigned long shmem_flags = VM_NORESERVE;
+	const vma_flags_t shmem_flags = mk_vma_flags(VMA_NORESERVE_BIT);
 	struct vfsmount *huge_mnt;
 	struct file *filp;
 

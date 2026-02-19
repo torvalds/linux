@@ -186,15 +186,16 @@ int drm_gem_object_init(struct drm_device *dev, struct drm_gem_object *obj,
 {
 	struct vfsmount *huge_mnt;
 	struct file *filp;
+	const vma_flags_t flags = mk_vma_flags(VMA_NORESERVE_BIT);
 
 	drm_gem_private_object_init(dev, obj, size);
 
 	huge_mnt = drm_gem_get_huge_mnt(dev);
 	if (huge_mnt)
 		filp = shmem_file_setup_with_mnt(huge_mnt, "drm mm object",
-						 size, VM_NORESERVE);
+						 size, flags);
 	else
-		filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+		filp = shmem_file_setup("drm mm object", size, flags);
 
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);
