@@ -327,6 +327,20 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	dev->hif_ops = &mt7921_pcie_ops;
 	dev->irq_map = &irq_map;
 	mt76_mmio_init(&dev->mt76, regs);
+
+	if (id->device == 0x7902) {
+		struct mt792x_irq_map *map;
+
+		/* MT7902 needs a mutable copy because wm2_complete_mask differs */
+		map = devm_kmemdup(&pdev->dev, &irq_map,
+				   sizeof(irq_map), GFP_KERNEL);
+		if (!map)
+			return -ENOMEM;
+
+		map->rx.wm2_complete_mask = 0;
+		dev->irq_map = map;
+	}
+
 	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
 
 	dev->phy.dev = dev;
