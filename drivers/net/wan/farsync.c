@@ -2550,6 +2550,8 @@ fst_remove_one(struct pci_dev *pdev)
 
 	fst_disable_intr(card);
 	free_irq(card->irq, card);
+	tasklet_kill(&fst_tx_task);
+	tasklet_kill(&fst_int_task);
 
 	iounmap(card->ctlmem);
 	iounmap(card->mem);
