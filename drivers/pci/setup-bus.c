@@ -1837,6 +1837,7 @@ static void adjust_bridge_window(struct pci_dev *bridge, struct resource *res,
 				 resource_size_t new_size)
 {
 	resource_size_t add_size, size = resource_size(res);
+	struct pci_dev_resource *dev_res;
 
 	if (resource_assigned(res))
 		return;
@@ -1849,9 +1850,46 @@ static void adjust_bridge_window(struct pci_dev *bridge, struct resource *res,
 		pci_dbg(bridge, "bridge window %pR extended by %pa\n", res,
 			&add_size);
 	} else if (new_size < size) {
+		int idx = pci_resource_num(bridge, res);
+
+		/*
+		 * hpio/mmio/mmioprefsize hasn't been included at all? See the
+		 * add_size param at the callsites of calculate_memsize().
+		 */
+		if (!add_list)
+			return;
+
+		/* Only shrink if the hotplug extra relates to window size. */
+		switch (idx) {
+			case PCI_BRIDGE_IO_WINDOW:
+				if (size > pci_hotplug_io_size)
+					return;
+				break;
+			case PCI_BRIDGE_MEM_WINDOW:
+				if (size > pci_hotplug_mmio_size)
+					return;
+				break;
+			case PCI_BRIDGE_PREF_MEM_WINDOW:
+				if (size > pci_hotplug_mmio_pref_size)
+					return;
+				break;
+			default:
+				break;
+		}
+
+		dev_res = res_to_dev_res(add_list, res);
 		add_size = size - new_size;
-		pci_dbg(bridge, "bridge window %pR shrunken by %pa\n", res,
-			&add_size);
+		if (add_size < dev_res->add_size) {
+			dev_res->add_size -= add_size;
+			pci_dbg(bridge, "bridge window %pR optional size shrunken by %pa\n",
+				res, &add_size);
+		} else {
+			pci_dbg(bridge, "bridge window %pR optional size removed\n",
+				res);
+			pci_dev_res_remove_from_list(add_list, res);
+		}
+		return;
+
 	} else {
 		return;
 	}
