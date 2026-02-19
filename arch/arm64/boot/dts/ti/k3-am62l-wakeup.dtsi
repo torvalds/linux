@@ -81,7 +81,7 @@
 		status = "disabled";
 	};
 
-	target-module@2b300050 {
+	wkup_uart0_target: target-module@2b300050 {
 		compatible = "ti,sysc-omap2", "ti,sysc";
 		reg = <0x00 0x2b300050 0x00 0x4>,
 		      <0x00 0x2b300054 0x00 0x4>,
