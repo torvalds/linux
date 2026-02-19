@@ -231,10 +231,13 @@ static bool use_backlog_threads(void)
 static inline void backlog_lock_irq_save(struct softnet_data *sd,
 					 unsigned long *flags)
 {
-	if (IS_ENABLED(CONFIG_RPS) || use_backlog_threads())
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
 		spin_lock_irqsave(&sd->input_pkt_queue.lock, *flags);
-	else
+	} else {
 		local_irq_save(*flags);
+		if (IS_ENABLED(CONFIG_RPS) || use_backlog_threads())
+			spin_lock(&sd->input_pkt_queue.lock);
+	}
 }
 
 static inline void backlog_lock_irq_disable(struct softnet_data *sd)
@@ -248,9 +251,13 @@ static inline void backlog_lock_irq_disable(struct softnet_data *sd)
 static inline void backlog_unlock_irq_restore(struct softnet_data *sd,
 					      unsigned long flags)
 {
-	if (IS_ENABLED(CONFIG_RPS) || use_backlog_threads())
-		spin_unlock(&sd->input_pkt_queue.lock);
-	local_irq_restore(flags);
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		spin_unlock_irqrestore(&sd->input_pkt_queue.lock, flags);
+	} else {
+		if (IS_ENABLED(CONFIG_RPS) || use_backlog_threads())
+			spin_unlock(&sd->input_pkt_queue.lock);
+		local_irq_restore(flags);
+	}
 }
 
 static inline void backlog_unlock_irq_enable(struct softnet_data *sd)
@@ -737,7 +744,7 @@ static struct net_device_path *dev_fwd_path(struct net_device_path_stack *stack)
 {
 	int k = stack->num_paths++;
 
-	if (WARN_ON_ONCE(k >= NET_DEVICE_PATH_STACK_MAX))
+	if (k >= NET_DEVICE_PATH_STACK_MAX)
 		return NULL;
 
 	return &stack->path[k];

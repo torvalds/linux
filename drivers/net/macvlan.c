@@ -1572,6 +1572,11 @@ destroy_macvlan_port:
 		if (create)
 			macvlan_port_destroy(port->dev);
 	}
+	/* @dev might have been made visible before an error was detected.
+	 * Make sure to observe an RCU grace period before our caller
+	 * (rtnl_newlink()) frees it.
+	 */
+	synchronize_net();
 	return err;
 }
 EXPORT_SYMBOL_GPL(macvlan_common_newlink);

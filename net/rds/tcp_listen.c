@@ -177,6 +177,7 @@ int rds_tcp_accept_one(struct rds_tcp_net *rtn)
 	struct rds_tcp_connection *rs_tcp = NULL;
 	int conn_state;
 	struct rds_conn_path *cp;
+	struct sock *sk;
 	struct in6_addr *my_addr, *peer_addr;
 #if !IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr saddr, daddr;
@@ -298,6 +299,17 @@ int rds_tcp_accept_one(struct rds_tcp_net *rtn)
 		rds_conn_path_drop(cp, 0);
 		goto rst_nsk;
 	}
+	/* Save a local pointer to sk and hold a reference before setting
+	 * callbacks. Once callbacks are set, a concurrent
+	 * rds_tcp_conn_path_shutdown() may call sock_release(), which
+	 * sets new_sock->sk to NULL and drops a reference on sk.
+	 * The local pointer lets us safely access sk_state below even
+	 * if new_sock->sk has been nulled, and sock_hold() keeps sk
+	 * itself valid until we are done.
+	 */
+	sk = new_sock->sk;
+	sock_hold(sk);
+
 	if (rs_tcp->t_sock) {
 		/* Duelling SYN has been handled in rds_tcp_accept_one() */
 		rds_tcp_reset_callbacks(new_sock, cp);
@@ -316,12 +328,14 @@ int rds_tcp_accept_one(struct rds_tcp_net *rtn)
 	 * knowing that "rds_tcp_conn_path_shutdown" will
 	 * dequeue pending messages.
 	 */
-	if (new_sock->sk->sk_state == TCP_CLOSE_WAIT ||
-	    new_sock->sk->sk_state == TCP_LAST_ACK ||
-	    new_sock->sk->sk_state == TCP_CLOSE)
+	if (READ_ONCE(sk->sk_state) == TCP_CLOSE_WAIT ||
+	    READ_ONCE(sk->sk_state) == TCP_LAST_ACK ||
+	    READ_ONCE(sk->sk_state) == TCP_CLOSE)
 		rds_conn_path_drop(cp, 0);
 	else
 		queue_delayed_work(cp->cp_wq, &cp->cp_recv_w, 0);
+
+	sock_put(sk);
 
 	new_sock = NULL;
 	ret = 0;

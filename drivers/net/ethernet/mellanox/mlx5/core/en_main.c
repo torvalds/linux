@@ -631,19 +631,7 @@ static void mlx5e_rq_timeout_work(struct work_struct *timeout_work)
 					   struct mlx5e_rq,
 					   rx_timeout_work);
 
-	/* Acquire netdev instance lock to synchronize with channel close and
-	 * reopen flows. Either successfully obtain the lock, or detect that
-	 * channels are closing for another reason, making this work no longer
-	 * necessary.
-	 */
-	while (!netdev_trylock(rq->netdev)) {
-		if (!test_bit(MLX5E_STATE_CHANNELS_ACTIVE, &rq->priv->state))
-			return;
-		msleep(20);
-	}
-
 	mlx5e_reporter_rx_timeout(rq);
-	netdev_unlock(rq->netdev);
 }
 
 static int mlx5e_alloc_mpwqe_rq_drop_page(struct mlx5e_rq *rq)
@@ -1952,20 +1940,7 @@ void mlx5e_tx_err_cqe_work(struct work_struct *recover_work)
 	struct mlx5e_txqsq *sq = container_of(recover_work, struct mlx5e_txqsq,
 					      recover_work);
 
-	/* Recovering queues means re-enabling NAPI, which requires the netdev
-	 * instance lock. However, SQ closing flows have to wait for work tasks
-	 * to finish while also holding the netdev instance lock. So either get
-	 * the lock or find that the SQ is no longer enabled and thus this work
-	 * is not relevant anymore.
-	 */
-	while (!netdev_trylock(sq->netdev)) {
-		if (!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state))
-			return;
-		msleep(20);
-	}
-
 	mlx5e_reporter_tx_err_cqe(sq);
-	netdev_unlock(sq->netdev);
 }
 
 static struct dim_cq_moder mlx5e_get_def_tx_moderation(u8 cq_period_mode)
@@ -2744,16 +2719,26 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 
 void mlx5e_trigger_napi_icosq(struct mlx5e_channel *c)
 {
+	struct mlx5e_icosq *sq = &c->icosq;
 	bool locked;
 
-	if (!test_and_set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state))
-		synchronize_net();
+	set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state);
+	synchronize_net();
 
-	locked = mlx5e_icosq_sync_lock(&c->icosq);
-	mlx5e_trigger_irq(&c->icosq);
-	mlx5e_icosq_sync_unlock(&c->icosq, locked);
+	locked = mlx5e_icosq_sync_lock(sq);
+	mlx5e_trigger_irq(sq);
+	mlx5e_icosq_sync_unlock(sq, locked);
 
-	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state);
+	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state);
+}
+
+void mlx5e_trigger_napi_async_icosq(struct mlx5e_channel *c)
+{
+	struct mlx5e_icosq *sq = c->async_icosq;
+
+	spin_lock_bh(&sq->lock);
+	mlx5e_trigger_irq(sq);
+	spin_unlock_bh(&sq->lock);
 }
 
 void mlx5e_trigger_napi_sched(struct napi_struct *napi)
@@ -2836,7 +2821,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	netif_napi_add_config_locked(netdev, &c->napi, mlx5e_napi_poll, ix);
 	netif_napi_set_irq_locked(&c->napi, irq);
 
-	async_icosq_needed = !!xsk_pool || priv->ktls_rx_was_enabled;
+	async_icosq_needed = !!params->xdp_prog || priv->ktls_rx_was_enabled;
 	err = mlx5e_open_queues(c, params, cparam, async_icosq_needed);
 	if (unlikely(err))
 		goto err_napi_del;
@@ -5105,19 +5090,6 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 	struct net_device *netdev = priv->netdev;
 	int i;
 
-	/* Recovering the TX queues implies re-enabling NAPI, which requires
-	 * the netdev instance lock.
-	 * However, channel closing flows have to wait for this work to finish
-	 * while holding the same lock. So either get the lock or find that
-	 * channels are being closed for other reason and this work is not
-	 * relevant anymore.
-	 */
-	while (!netdev_trylock(netdev)) {
-		if (!test_bit(MLX5E_STATE_CHANNELS_ACTIVE, &priv->state))
-			return;
-		msleep(20);
-	}
-
 	for (i = 0; i < netdev->real_num_tx_queues; i++) {
 		struct netdev_queue *dev_queue =
 			netdev_get_tx_queue(netdev, i);
@@ -5130,8 +5102,6 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 		/* break if tried to reopened channels */
 			break;
 	}
-
-	netdev_unlock(netdev);
 }
 
 static void mlx5e_tx_timeout(struct net_device *dev, unsigned int txqueue)

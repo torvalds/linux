@@ -3499,6 +3499,9 @@ static int of_phy_ports(struct phy_device *phydev)
 
 		port->parent_type = PHY_PORT_PHY;
 		port->phy = phydev;
+
+		linkmode_copy(port->supported, phydev->supported);
+
 		err = phy_add_port(phydev, port);
 		if (err) {
 			phy_port_destroy(port);

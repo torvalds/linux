@@ -19,6 +19,8 @@ from lib.py import ksft_variants, KsftNamedVariant, KsftSkipEx, KsftFailEx
 
 # "define" for the ID of the Toeplitz hash function
 ETH_RSS_HASH_TOP = 1
+# Must match RPS_MAX_CPUS in toeplitz.c
+RPS_MAX_CPUS = 16
 
 
 def _check_rps_and_rfs_not_configured(cfg):
@@ -67,23 +69,24 @@ def _get_irq_cpus(cfg):
     return cpus
 
 
-def _get_unused_cpus(cfg, count=2):
+def _get_unused_rps_cpus(cfg, count=2):
     """
-    Get CPUs that are not used by Rx queues.
-    Returns a list of at least 'count' CPU numbers.
+    Get CPUs that are not used by Rx queues for RPS.
+    Returns a list of at least 'count' CPU numbers within
+    the RPS_MAX_CPUS supported range.
     """
 
     # Get CPUs used by Rx queues
     rx_cpus = set(_get_irq_cpus(cfg))
 
-    # Get total number of CPUs
-    num_cpus = os.cpu_count()
+    # Get total number of CPUs, capped by RPS_MAX_CPUS
+    num_cpus = min(os.cpu_count(), RPS_MAX_CPUS)
 
     # Find unused CPUs
     unused_cpus = [cpu for cpu in range(num_cpus) if cpu not in rx_cpus]
 
     if len(unused_cpus) < count:
-        raise KsftSkipEx(f"Need at {count} CPUs not used by Rx queues, found {len(unused_cpus)}")
+        raise KsftSkipEx(f"Need at least {count} CPUs in range 0..{num_cpus - 1} not used by Rx queues, found {len(unused_cpus)}")
 
     return unused_cpus[:count]
 
@@ -181,7 +184,7 @@ def test(cfg, proto_flag, ipver, grp):
         ksft_pr(f"RSS using CPUs: {irq_cpus}")
     elif grp == "rps":
         # Get CPUs not used by Rx queues and configure them for RPS
-        rps_cpus = _get_unused_cpus(cfg, count=2)
+        rps_cpus = _get_unused_rps_cpus(cfg, count=2)
         rps_mask = _configure_rps(cfg, rps_cpus)
         defer(_configure_rps, cfg, [])
         rx_cmd += ["-r", rps_mask]
