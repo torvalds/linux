@@ -35,7 +35,7 @@ static int btrfs_uuid_tree_lookup(struct btrfs_root *uuid_root, const u8 *uuid,
 	struct btrfs_key key;
 
 	if (WARN_ON_ONCE(!uuid_root))
-		return -ENOENT;
+		return -EINVAL;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -91,9 +91,6 @@ int btrfs_uuid_tree_add(struct btrfs_trans_handle *trans, const u8 *uuid, u8 typ
 	ret = btrfs_uuid_tree_lookup(uuid_root, uuid, type, subid_cpu);
 	if (ret != -ENOENT)
 		return ret;
-
-	if (WARN_ON_ONCE(!uuid_root))
-		return -EINVAL;
 
 	btrfs_uuid_to_key(uuid, type, &key);
 
