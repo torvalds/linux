@@ -320,7 +320,7 @@ static int alloc_cluster_groups(unsigned int ncpus,
 		goto no_cluster;
 
 	/* Allocate memory based on cluster number. */
-	clusters = kcalloc(ncluster, sizeof(struct cpumask *), GFP_KERNEL);
+	clusters = kcalloc(ncluster, sizeof(*clusters), GFP_KERNEL);
 	if (!clusters)
 		goto no_cluster;
 	cluster_groups = kcalloc(ncluster, sizeof(struct node_groups), GFP_KERNEL);
