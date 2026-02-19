@@ -524,8 +524,7 @@ static void __init test_bitmap_parselist(void)
 		}
 
 		if (ptest.flags & PARSE_TIME)
-			pr_info("parselist: %d: input is '%s' OK, Time: %llu\n",
-					i, ptest.in, time);
+			pr_info("parselist('%s'):\t%llu\n", ptest.in, time);
 
 #undef ptest
 	}
@@ -552,18 +551,18 @@ static void __init test_bitmap_printlist(void)
 	time = ktime_get() - time;
 
 	if (ret != slen) {
-		pr_err("bitmap_printlist: result is %d, expected %d\n", ret, slen);
+		pr_err("scnprintf(\"%%*pbl\"): result is %d, expected %d\n", ret, slen);
 		failed_tests++;
 		goto out;
 	}
 
 	if (strncmp(buf, expected, slen)) {
-		pr_err("bitmap_printlist: result is %s, expected %s\n", buf, expected);
+		pr_err("scnprintf(\"%%*pbl\"): result is %s, expected %s\n", buf, expected);
 		failed_tests++;
 		goto out;
 	}
 
-	pr_info("bitmap_printlist: input is '%s', Time: %llu\n", buf, time);
+	pr_info("scnprintf(\"%%*pbl\", '%s'):\t%llu\n", buf, time);
 out:
 	kfree(buf);
 	kfree(bmap);
@@ -1399,7 +1398,7 @@ static void __init test_bitmap_read_perf(void)
 		}
 	}
 	time = ktime_get() - time;
-	pr_info("Time spent in %s:\t%llu\n", __func__, time);
+	pr_info("%s:\t\t%llu\n", __func__, time);
 }
 
 static void __init test_bitmap_write_perf(void)
@@ -1421,7 +1420,7 @@ static void __init test_bitmap_write_perf(void)
 		}
 	}
 	time = ktime_get() - time;
-	pr_info("Time spent in %s:\t%llu\n", __func__, time);
+	pr_info("%s:\t\t%llu\n", __func__, time);
 }
 
 #undef TEST_BIT_LEN
