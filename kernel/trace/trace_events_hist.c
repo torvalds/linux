@@ -5836,8 +5836,6 @@ static int event_hist_open(struct inode *inode, struct file *file)
 	hist_file->file = file;
 	hist_file->last_act = get_hist_hit_count(event_file);
 
-	/* Clear private_data to avoid warning in single_open() */
-	file->private_data = NULL;
 	ret = single_open(file, hist_show, hist_file);
 	if (ret) {
 		kfree(hist_file);
@@ -6126,8 +6124,6 @@ static int event_hist_debug_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	/* Clear private_data to avoid warning in single_open() */
-	file->private_data = NULL;
 	ret = single_open(file, hist_debug_show, file);
 	if (ret)
 		tracing_release_file_tr(inode, file);
