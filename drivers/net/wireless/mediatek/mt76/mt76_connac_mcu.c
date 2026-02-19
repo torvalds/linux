@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include "mt76_connac2_mac.h"
 #include "mt76_connac_mcu.h"
+#include "mt792x_regs.h"
 
 int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
 {
@@ -2246,6 +2247,9 @@ mt76_connac_mcu_rate_txpower_band(struct mt76_phy *phy,
 					    false);
 		if (err < 0)
 			goto out;
+
+		/* read a CR to avoid PSE buffer underflow */
+		mt76_connac_mcu_reg_rr(dev, MT_PSE_BASE);
 	}
 
 out:
