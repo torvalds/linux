@@ -292,7 +292,7 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 				struct btrfs_block_group *block_group);
 void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
 					u64 chunk_size);
-struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
+struct btrfs_space_info *btrfs_find_space_info(const struct btrfs_fs_info *info,
 					       u64 flags);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 void btrfs_dump_space_info(struct btrfs_space_info *info, u64 bytes,

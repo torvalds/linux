@@ -28,7 +28,8 @@
 	name = (1U << __ ## name ## _BIT),              \
 	__ ## name ## _SEQ = __ ## name ## _BIT
 
-static inline phys_addr_t bio_iter_phys(struct bio *bio, struct bvec_iter *iter)
+static inline phys_addr_t bio_iter_phys(const struct bio *bio,
+					const struct bvec_iter *iter)
 {
 	struct bio_vec bv = bio_iter_iovec(bio, *iter);
 

@@ -412,10 +412,10 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 	up_write(&space_info->groups_sem);
 }
 
-struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
+struct btrfs_space_info *btrfs_find_space_info(const struct btrfs_fs_info *info,
 					       u64 flags)
 {
-	struct list_head *head = &info->space_info;
+	const struct list_head *head = &info->space_info;
 	struct btrfs_space_info *found;
 
 	flags &= BTRFS_BLOCK_GROUP_TYPE_MASK;
@@ -427,7 +427,7 @@ struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 	return NULL;
 }
 
-static u64 calc_effective_data_chunk_size(struct btrfs_fs_info *fs_info)
+static u64 calc_effective_data_chunk_size(const struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_space_info *data_sinfo;
 	u64 data_chunk_size;

@@ -76,7 +76,7 @@ struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 int btrfs_global_root_insert(struct btrfs_root *root);
 void btrfs_global_root_delete(struct btrfs_root *root);
 struct btrfs_root *btrfs_global_root(struct btrfs_fs_info *fs_info,
-				     struct btrfs_key *key);
+				     const struct btrfs_key *key);
 struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr);
 

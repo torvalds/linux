@@ -728,7 +728,7 @@ void btrfs_global_root_delete(struct btrfs_root *root)
 }
 
 struct btrfs_root *btrfs_global_root(struct btrfs_fs_info *fs_info,
-				     struct btrfs_key *key)
+				     const struct btrfs_key *key)
 {
 	struct rb_node *node;
 	struct btrfs_root *root = NULL;
@@ -765,7 +765,7 @@ static u64 btrfs_global_root_id(struct btrfs_fs_info *fs_info, u64 bytenr)
 
 struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
-	struct btrfs_key key = {
+	const struct btrfs_key key = {
 		.objectid = BTRFS_CSUM_TREE_OBJECTID,
 		.type = BTRFS_ROOT_ITEM_KEY,
 		.offset = btrfs_global_root_id(fs_info, bytenr),
@@ -776,7 +776,7 @@ struct btrfs_root *btrfs_csum_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 
 struct btrfs_root *btrfs_extent_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 {
-	struct btrfs_key key = {
+	const struct btrfs_key key = {
 		.objectid = BTRFS_EXTENT_TREE_OBJECTID,
 		.type = BTRFS_ROOT_ITEM_KEY,
 		.offset = btrfs_global_root_id(fs_info, bytenr),
