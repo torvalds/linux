@@ -9889,6 +9889,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	int compression;
 	size_t orig_count;
 	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
+	const u32 blocksize = fs_info->sectorsize;
 	u64 start, end;
 	u64 num_bytes, ram_bytes, disk_num_bytes;
 	struct btrfs_key ins;
@@ -9999,9 +10000,9 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			ret = -EFAULT;
 			goto out_cb;
 		}
-		if (bytes < min_folio_size)
-			folio_zero_range(folio, bytes, min_folio_size - bytes);
-		ret = bio_add_folio(&cb->bbio.bio, folio, folio_size(folio), 0);
+		if (!IS_ALIGNED(bytes, blocksize))
+			folio_zero_range(folio, bytes, round_up(bytes, blocksize) - bytes);
+		ret = bio_add_folio(&cb->bbio.bio, folio, round_up(bytes, blocksize), 0);
 		if (unlikely(!ret)) {
 			folio_put(folio);
 			ret = -EINVAL;

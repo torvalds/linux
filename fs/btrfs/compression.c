@@ -324,6 +324,7 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 
 	cb->start = ordered->file_offset;
 	cb->len = ordered->num_bytes;
+	ASSERT(cb->bbio.bio.bi_iter.bi_size == ordered->disk_num_bytes);
 	cb->compressed_len = ordered->disk_num_bytes;
 	cb->bbio.bio.bi_iter.bi_sector = ordered->disk_bytenr >> SECTOR_SHIFT;
 	cb->bbio.ordered = ordered;
