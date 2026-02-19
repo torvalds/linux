@@ -370,3 +370,7 @@
 	pinctrl-0 = <&wkup_uart0_pins_default>;
 	pinctrl-names = "default";
 };
+
+&wkup_uart0_target {
+	status = "okay";
+};
