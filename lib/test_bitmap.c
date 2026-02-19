@@ -548,22 +548,22 @@ static void __init test_bitmap_printlist(void)
 		goto out;
 
 	time = ktime_get();
-	ret = bitmap_print_to_pagebuf(true, buf, bmap, PAGE_SIZE * 8);
+	ret = scnprintf(buf, PAGE_SIZE, "%*pbl", (int)PAGE_SIZE * 8, bmap);
 	time = ktime_get() - time;
 
-	if (ret != slen + 1) {
-		pr_err("bitmap_print_to_pagebuf: result is %d, expected %d\n", ret, slen);
+	if (ret != slen) {
+		pr_err("bitmap_printlist: result is %d, expected %d\n", ret, slen);
 		failed_tests++;
 		goto out;
 	}
 
 	if (strncmp(buf, expected, slen)) {
-		pr_err("bitmap_print_to_pagebuf: result is %s, expected %s\n", buf, expected);
+		pr_err("bitmap_printlist: result is %s, expected %s\n", buf, expected);
 		failed_tests++;
 		goto out;
 	}
 
-	pr_info("bitmap_print_to_pagebuf: input is '%s', Time: %llu\n", buf, time);
+	pr_info("bitmap_printlist: input is '%s', Time: %llu\n", buf, time);
 out:
 	kfree(buf);
 	kfree(bmap);
