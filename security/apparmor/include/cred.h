@@ -37,22 +37,6 @@ static inline void set_cred_label(const struct cred *cred,
 }
 
 /**
- * aa_cred_raw_label - obtain cred's label
- * @cred: cred to obtain label from  (NOT NULL)
- *
- * Returns: confining label
- *
- * does NOT increment reference count
- */
-static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
-{
-	struct aa_label *label = cred_label(cred);
-
-	AA_BUG(!label);
-	return label;
-}
-
-/**
  * aa_get_newest_cred_label - obtain the newest label on a cred
  * @cred: cred to obtain label from (NOT NULL)
  *
@@ -60,13 +44,13 @@ static inline struct aa_label *aa_cred_raw_label(const struct cred *cred)
  */
 static inline struct aa_label *aa_get_newest_cred_label(const struct cred *cred)
 {
-	return aa_get_newest_label(aa_cred_raw_label(cred));
+	return aa_get_newest_label(cred_label(cred));
 }
 
 static inline struct aa_label *aa_get_newest_cred_label_condref(const struct cred *cred,
 								bool *needput)
 {
-	struct aa_label *l = aa_cred_raw_label(cred);
+	struct aa_label *l = cred_label(cred);
 
 	if (unlikely(label_is_stale(l))) {
 		*needput = true;
@@ -93,7 +77,7 @@ static inline void aa_put_label_condref(struct aa_label *l, bool needput)
  */
 static inline struct aa_label *aa_current_raw_label(void)
 {
-	return aa_cred_raw_label(current_cred());
+	return cred_label(current_cred());
 }
 
 /**
@@ -115,17 +99,79 @@ static inline struct aa_label *aa_get_current_label(void)
 }
 
 /**
- * __end_current_label_crit_section - end crit section begun with __begin_...
- * @label: label obtained from __begin_current_label_crit_section
- * @needput: output: bool set by __begin_current_label_crit_section
+ * __end_cred_crit_section - end crit section begun with __begin_...
+ * @label: label obtained from __begin_cred_crit_section
+ * @needput: output: bool set by __begin_cred_crit_section
  *
- * Returns: label to use for this crit section
+ * While the cred passed to __begin is guaranteed to not change
+ * and the cred and label could be passed here instead of needput
+ * using needput with a local var makes it easier for the compiler
+ * and processor to optimize and speculatively execute the comparison
+ * than chasing a pointer in the cred struct.
  */
-static inline void __end_current_label_crit_section(struct aa_label *label,
+static inline void __end_cred_crit_section(struct aa_label *label,
 						    bool needput)
 {
 	if (unlikely(needput))
 		aa_put_label(label);
+}
+
+/**
+ * __begin_cred_crit_section - @cred's confining label
+ * @cred: current's cred to start a crit section on its label
+ * @needput: store whether the label needs to be put when ending crit section
+ *
+ * Returns: up to date confining label or the ns unconfined label (NOT NULL)
+ *
+ * safe to call inside locks
+ *
+ * The returned reference must be put with __end_cred_crit_section()
+ * This must NOT be used if the task cred could be updated within the
+ * critical section between
+ *   __begin_cred_crit_section() ..  __end_cred_crit_section()
+ *
+ * The crit section is an optimization to avoid having to get and put
+ * the newest version of the label. While the cred won't change and
+ * hence the label it contains won't change, the newest version of the
+ * label can. During the crit section the newest versions of the label
+ * will be used until the end of the crit section.
+ *
+ * If the label has not been updated at the start of the crit section
+ * no refcount is taken, the cred's refcount is enough to hold the
+ * label for the duration of the crit section.
+ *
+ * If the label has been updated then a refcount will be taken and the
+ * newest version of the label will be returned. While the cred label
+ * and the returned label could be compared at the end of the crit
+ * section, needput is used because it allows better optimization by
+ * the compiler and the processor's speculative execution.
+ */
+static inline struct aa_label *__begin_cred_crit_section(const struct cred *cred,
+							 bool *needput)
+{
+	struct aa_label *label = cred_label(cred);
+
+	if (label_is_stale(label)) {
+		*needput = true;
+		return aa_get_newest_label(label);
+	}
+
+	*needput = false;
+	return label;
+}
+
+/**
+ * __end_current_label_crit_section - end crit section begun with __begin_...
+ * @label: label obtained from __begin_current_label_crit_section
+ * @needput: output: bool set by __begin_current_label_crit_section
+ *
+ * wrapper around __end_cred_crit_section() to pair nicely with
+ * __begin_current_label_crit_section()
+ */
+static inline void __end_current_label_crit_section(struct aa_label *label,
+						    bool needput)
+{
+	__end_cred_crit_section(label, needput);
 }
 
 /**
@@ -157,15 +203,7 @@ static inline void end_current_label_crit_section(struct aa_label *label)
  */
 static inline struct aa_label *__begin_current_label_crit_section(bool *needput)
 {
-	struct aa_label *label = aa_current_raw_label();
-
-	if (label_is_stale(label)) {
-		*needput = true;
-		return aa_get_newest_label(label);
-	}
-
-	*needput = false;
-	return label;
+	return __begin_cred_crit_section(current_cred(), needput);
 }
 
 /**

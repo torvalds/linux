@@ -263,9 +263,15 @@ static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version,
 	*size = state_count;
 
 	/* zero init so skip the trap state (state == 0) */
-	for (state = 1; state < state_count; state++)
+	for (state = 1; state < state_count; state++) {
 		table[state] = compute_perms_entry(dfa, state, version);
-
+		AA_DEBUG(DEBUG_UNPACK,
+			 "[%d]: (0x%x/0x%x/0x%x//0x%x/0x%x//0x%x), converted from accept1: 0x%x, accept2: 0x%x",
+			 state, table[state].allow, table[state].deny,
+			 table[state].prompt, table[state].audit,
+			 table[state].quiet, table[state].xindex,
+			 ACCEPT_TABLE(dfa)[state], ACCEPT_TABLE2(dfa)[state]);
+	}
 	return table;
 }
 

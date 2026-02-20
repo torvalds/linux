@@ -30,8 +30,10 @@ extern struct aa_dfa *stacksplitdfa;
 #define DEBUG_DOMAIN 4
 #define DEBUG_POLICY 8
 #define DEBUG_INTERFACE 0x10
+#define DEBUG_UNPACK 0x20
+#define DEBUG_TAGS 0x40
 
-#define DEBUG_ALL 0x1f		/* update if new DEBUG_X added */
+#define DEBUG_ALL 0x7f		/* update if new DEBUG_X added */
 #define DEBUG_PARSE_ERROR (-1)
 
 #define DEBUG_ON (aa_g_debug != DEBUG_NONE)
@@ -45,8 +47,10 @@ extern struct aa_dfa *stacksplitdfa;
 #define AA_DEBUG_LABEL(LAB, X, fmt, args...)				\
 do {									\
 	if ((LAB)->flags & FLAG_DEBUG1)					\
-		AA_DEBUG(X, fmt, args);					\
+		AA_DEBUG(X, fmt, ##args);				\
 } while (0)
+
+#define AA_DEBUG_PROFILE(PROF, X, fmt...) AA_DEBUG_LABEL(&(PROF)->label, X, ##fmt)
 
 #define AA_WARN(X) WARN((X), "APPARMOR WARN %s: %s\n", __func__, #X)
 
@@ -75,6 +79,19 @@ int aa_print_debug_params(char *buffer);
 
 /* Flag indicating whether initialization completed */
 extern int apparmor_initialized;
+
+/* semantic split of scope and view */
+#define aa_in_scope(SUBJ, OBJ)						\
+	aa_ns_visible(SUBJ, OBJ, false)
+
+#define aa_in_view(SUBJ, OBJ)						\
+	aa_ns_visible(SUBJ, OBJ, true)
+
+#define label_for_each_in_scope(I, NS, L, P)				\
+	label_for_each_in_ns(I, NS, L, P)
+
+#define fn_for_each_in_scope(L, P, FN)					\
+	fn_for_each_in_ns(L, P, FN)
 
 /* fn's in lib */
 const char *skipn_spaces(const char *str, size_t n);
@@ -119,13 +136,19 @@ static inline bool path_mediated_fs(struct dentry *dentry)
 	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
-struct aa_str_table {
+struct aa_str_table_ent {
+	int count;
 	int size;
-	char **table;
+	char *strs;
 };
 
-void aa_free_str_table(struct aa_str_table *table);
+struct aa_str_table {
+	int size;
+	struct aa_str_table_ent *table;
+};
+
 bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp);
+void aa_destroy_str_table(struct aa_str_table *table);
 
 struct counted_str {
 	struct kref count;
@@ -306,7 +329,7 @@ __done:									\
 })
 
 
-#define __fn_build_in_ns(NS, P, NS_FN, OTHER_FN)			\
+#define __fn_build_in_scope(NS, P, NS_FN, OTHER_FN)			\
 ({									\
 	struct aa_label *__new;						\
 	if ((P)->ns != (NS))						\
@@ -316,10 +339,10 @@ __done:									\
 	(__new);							\
 })
 
-#define fn_label_build_in_ns(L, P, GFP, NS_FN, OTHER_FN)		\
+#define fn_label_build_in_scope(L, P, GFP, NS_FN, OTHER_FN)		\
 ({									\
 	fn_label_build((L), (P), (GFP),					\
-		__fn_build_in_ns(labels_ns(L), (P), (NS_FN), (OTHER_FN))); \
+		__fn_build_in_scope(labels_ns(L), (P), (NS_FN), (OTHER_FN))); \
 })
 
 #endif /* __AA_LIB_H */
