@@ -552,7 +552,8 @@ struct ftrace_likely_data {
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html#index-_005f_005fbuiltin_005fcounted_005fby_005fref
  * clang: https://clang.llvm.org/docs/LanguageExtensions.html#builtin-counted-by-ref
  */
-#if __has_builtin(__builtin_counted_by_ref)
+#if __has_builtin(__builtin_counted_by_ref) && \
+    !defined(CONFIG_CC_HAS_BROKEN_COUNTED_BY_REF)
 /**
  * __flex_counter() - Get pointer to counter member for the given
  *                    flexible array, if it was annotated with __counted_by()
