@@ -121,8 +121,16 @@ int zl3073x_ref_state_fetch(struct zl3073x_dev *zldev, u8 index)
 		return rc;
 
 	/* Read phase compensation register */
-	rc = zl3073x_read_u48(zldev, ZL_REG_REF_PHASE_OFFSET_COMP,
-			      &ref->phase_comp);
+	if (zl3073x_dev_is_ref_phase_comp_32bit(zldev)) {
+		u32 val;
+
+		rc = zl3073x_read_u32(zldev, ZL_REG_REF_PHASE_OFFSET_COMP_32,
+				      &val);
+		ref->phase_comp = val;
+	} else {
+		rc = zl3073x_read_u48(zldev, ZL_REG_REF_PHASE_OFFSET_COMP,
+				      &ref->phase_comp);
+	}
 	if (rc)
 		return rc;
 
@@ -179,9 +187,16 @@ int zl3073x_ref_state_set(struct zl3073x_dev *zldev, u8 index,
 	if (!rc && dref->sync_ctrl != ref->sync_ctrl)
 		rc = zl3073x_write_u8(zldev, ZL_REG_REF_SYNC_CTRL,
 				      ref->sync_ctrl);
-	if (!rc && dref->phase_comp != ref->phase_comp)
-		rc = zl3073x_write_u48(zldev, ZL_REG_REF_PHASE_OFFSET_COMP,
-				       ref->phase_comp);
+	if (!rc && dref->phase_comp != ref->phase_comp) {
+		if (zl3073x_dev_is_ref_phase_comp_32bit(zldev))
+			rc = zl3073x_write_u32(zldev,
+					       ZL_REG_REF_PHASE_OFFSET_COMP_32,
+					       ref->phase_comp);
+		else
+			rc = zl3073x_write_u48(zldev,
+					       ZL_REG_REF_PHASE_OFFSET_COMP,
+					       ref->phase_comp);
+	}
 	if (rc)
 		return rc;
 

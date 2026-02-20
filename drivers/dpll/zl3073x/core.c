@@ -1026,6 +1026,7 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 				     "Unknown or non-match chip ID: 0x%0x\n",
 				     id);
 	}
+	zldev->chip_id = id;
 
 	/* Read revision, firmware version and custom config version */
 	rc = zl3073x_read_u16(zldev, ZL_REG_REVISION, &revision);
