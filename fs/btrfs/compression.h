@@ -48,9 +48,6 @@ struct compressed_bio {
 	/* Number of bytes in the inode we're working on */
 	unsigned int len;
 
-	/* Number of bytes on disk */
-	unsigned int compressed_len;
-
 	/* The compression algorithm for this bio */
 	u8 compress_type;
 

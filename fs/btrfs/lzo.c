@@ -431,6 +431,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
+	const u32 compressed_len = bio_get_size(&cb->bbio.bio);
 	struct folio_iter fi;
 	char *kaddr;
 	int ret;
@@ -460,14 +461,14 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	 * and all sectors should be used.
 	 * If this happens, it means the compressed extent is corrupted.
 	 */
-	if (unlikely(len_in > min_t(size_t, BTRFS_MAX_COMPRESSED, cb->compressed_len) ||
-		     round_up(len_in, sectorsize) < cb->compressed_len)) {
+	if (unlikely(len_in > min_t(size_t, BTRFS_MAX_COMPRESSED, compressed_len) ||
+		     round_up(len_in, sectorsize) < compressed_len)) {
 		struct btrfs_inode *inode = cb->bbio.inode;
 
 		btrfs_err(fs_info,
 "lzo header invalid, root %llu inode %llu offset %llu lzo len %u compressed len %u",
 			  btrfs_root_id(inode->root), btrfs_ino(inode),
-			  cb->start, len_in, cb->compressed_len);
+			  cb->start, len_in, compressed_len);
 		return -EUCLEAN;
 	}
 
