@@ -313,6 +313,7 @@ int hfsplus_create_cat(u32 cnid, struct inode *dir,
 	if (S_ISDIR(inode->i_mode))
 		hfsplus_subfolders_inc(dir);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(sb), HFSPLUS_I_CAT_DIRTY);
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
 	hfs_find_exit(&fd);
@@ -418,6 +419,7 @@ int hfsplus_delete_cat(u32 cnid, struct inode *dir, const struct qstr *str)
 	if (type == HFSPLUS_FOLDER)
 		hfsplus_subfolders_dec(dir);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
+	hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(sb), HFSPLUS_I_CAT_DIRTY);
 	hfsplus_mark_inode_dirty(dir, HFSPLUS_I_CAT_DIRTY);
 
 	if (type == HFSPLUS_FILE || type == HFSPLUS_FOLDER) {
@@ -540,6 +542,7 @@ int hfsplus_rename_cat(u32 cnid,
 	}
 	err = hfs_brec_insert(&dst_fd, &entry, entry_size);
 
+	hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(sb), HFSPLUS_I_CAT_DIRTY);
 	hfsplus_mark_inode_dirty(dst_dir, HFSPLUS_I_CAT_DIRTY);
 	hfsplus_mark_inode_dirty(src_dir, HFSPLUS_I_CAT_DIRTY);
 out:

@@ -241,6 +241,7 @@ int hfsplus_create_attr_nolock(struct inode *inode, const char *name,
 		return err;
 	}
 
+	hfsplus_mark_inode_dirty(HFSPLUS_ATTR_TREE_I(sb), HFSPLUS_I_ATTR_DIRTY);
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
 
 	return 0;
@@ -326,6 +327,8 @@ static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
 	if (err)
 		return err;
 
+	hfsplus_mark_inode_dirty(HFSPLUS_ATTR_TREE_I(inode->i_sb),
+				 HFSPLUS_I_ATTR_DIRTY);
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
 	return err;
 }

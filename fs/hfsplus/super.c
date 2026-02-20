@@ -625,6 +625,8 @@ static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 			}
 
 			mutex_unlock(&sbi->vh_mutex);
+			hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(sb),
+						 HFSPLUS_I_CAT_DIRTY);
 			hfsplus_mark_inode_dirty(sbi->hidden_dir,
 						 HFSPLUS_I_CAT_DIRTY);
 		}

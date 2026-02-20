@@ -236,6 +236,7 @@ check_attr_tree_state_again:
 		put_page(page);
 	}
 
+	hfsplus_mark_inode_dirty(HFSPLUS_ATTR_TREE_I(sb), HFSPLUS_I_ATTR_DIRTY);
 	hfsplus_mark_inode_dirty(attr_file, HFSPLUS_I_ATTR_DIRTY);
 
 	sbi->attr_tree = hfs_btree_open(sb, HFSPLUS_ATTR_CNID);
@@ -314,8 +315,11 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 				hfs_bnode_write(cat_fd.bnode, &entry,
 					cat_fd.entryoffset,
 					sizeof(struct hfsplus_cat_folder));
-				hfsplus_mark_inode_dirty(inode,
+				hfsplus_mark_inode_dirty(
+						HFSPLUS_CAT_TREE_I(inode->i_sb),
 						HFSPLUS_I_CAT_DIRTY);
+				hfsplus_mark_inode_dirty(inode,
+							 HFSPLUS_I_CAT_DIRTY);
 			} else {
 				err = -ERANGE;
 				goto end_setxattr;
@@ -327,8 +331,11 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 				hfs_bnode_write(cat_fd.bnode, &entry,
 					cat_fd.entryoffset,
 					sizeof(struct hfsplus_cat_file));
-				hfsplus_mark_inode_dirty(inode,
+				hfsplus_mark_inode_dirty(
+						HFSPLUS_CAT_TREE_I(inode->i_sb),
 						HFSPLUS_I_CAT_DIRTY);
+				hfsplus_mark_inode_dirty(inode,
+							 HFSPLUS_I_CAT_DIRTY);
 			} else {
 				err = -ERANGE;
 				goto end_setxattr;
@@ -381,6 +388,8 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 		hfs_bnode_write_u16(cat_fd.bnode, cat_fd.entryoffset +
 				offsetof(struct hfsplus_cat_folder, flags),
 				cat_entry_flags);
+		hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(inode->i_sb),
+					 HFSPLUS_I_CAT_DIRTY);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else if (cat_entry_type == HFSPLUS_FILE) {
 		cat_entry_flags = hfs_bnode_read_u16(cat_fd.bnode,
@@ -392,6 +401,8 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 		hfs_bnode_write_u16(cat_fd.bnode, cat_fd.entryoffset +
 				    offsetof(struct hfsplus_cat_file, flags),
 				    cat_entry_flags);
+		hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(inode->i_sb),
+					 HFSPLUS_I_CAT_DIRTY);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else {
 		pr_err("invalid catalog entry type\n");
@@ -862,6 +873,8 @@ static int hfsplus_removexattr(struct inode *inode, const char *name)
 		hfs_bnode_write_u16(cat_fd.bnode, cat_fd.entryoffset +
 				offsetof(struct hfsplus_cat_folder, flags),
 				flags);
+		hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(inode->i_sb),
+					 HFSPLUS_I_CAT_DIRTY);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else if (cat_entry_type == HFSPLUS_FILE) {
 		flags = hfs_bnode_read_u16(cat_fd.bnode, cat_fd.entryoffset +
@@ -873,6 +886,8 @@ static int hfsplus_removexattr(struct inode *inode, const char *name)
 		hfs_bnode_write_u16(cat_fd.bnode, cat_fd.entryoffset +
 				offsetof(struct hfsplus_cat_file, flags),
 				flags);
+		hfsplus_mark_inode_dirty(HFSPLUS_CAT_TREE_I(inode->i_sb),
+					 HFSPLUS_I_CAT_DIRTY);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
 	} else {
 		pr_err("invalid catalog entry type\n");

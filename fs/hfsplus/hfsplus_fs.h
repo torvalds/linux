@@ -238,6 +238,13 @@ static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 	return container_of(inode, struct hfsplus_inode_info, vfs_inode);
 }
 
+#define HFSPLUS_CAT_TREE_I(sb) \
+	HFSPLUS_SB(sb)->cat_tree->inode
+#define HFSPLUS_EXT_TREE_I(sb) \
+	HFSPLUS_SB(sb)->ext_tree->inode
+#define HFSPLUS_ATTR_TREE_I(sb) \
+	HFSPLUS_SB(sb)->attr_tree->inode
+
 /*
  * Mark an inode dirty, and also mark the btree in which the
  * specific type of metadata is stored.

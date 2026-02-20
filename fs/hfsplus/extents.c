@@ -121,6 +121,8 @@ static int __hfsplus_ext_write_extent(struct inode *inode,
 	 * redirty the inode.  Instead the callers have to be careful
 	 * to explicily mark the inode dirty, too.
 	 */
+	set_bit(HFSPLUS_I_EXT_DIRTY,
+		&HFSPLUS_I(HFSPLUS_EXT_TREE_I(inode->i_sb))->flags);
 	set_bit(HFSPLUS_I_EXT_DIRTY, &hip->flags);
 
 	return 0;
@@ -513,6 +515,8 @@ out:
 	if (!res) {
 		hip->alloc_blocks += len;
 		mutex_unlock(&hip->extents_lock);
+		hfsplus_mark_inode_dirty(HFSPLUS_SB(sb)->alloc_file,
+					 HFSPLUS_I_ALLOC_DIRTY);
 		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
 		return 0;
 	}
@@ -582,6 +586,7 @@ void hfsplus_file_truncate(struct inode *inode)
 		/* XXX: We lack error handling of hfsplus_file_truncate() */
 		return;
 	}
+
 	while (1) {
 		if (alloc_cnt == hip->first_blocks) {
 			mutex_unlock(&fd.tree->tree_lock);
@@ -623,5 +628,7 @@ out_unlock:
 	hip->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >>
 		sb->s_blocksize_bits;
 	inode_set_bytes(inode, hip->fs_blocks << sb->s_blocksize_bits);
+	hfsplus_mark_inode_dirty(HFSPLUS_SB(sb)->alloc_file,
+				 HFSPLUS_I_ALLOC_DIRTY);
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
 }

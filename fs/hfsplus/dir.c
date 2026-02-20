@@ -478,6 +478,9 @@ static int hfsplus_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	if (!inode)
 		goto out;
 
+	hfs_dbg("dir->i_ino %lu, inode->i_ino %lu\n",
+		dir->i_ino, inode->i_ino);
+
 	res = page_symlink(inode, symname, strlen(symname) + 1);
 	if (res)
 		goto out_err;
@@ -525,6 +528,9 @@ static int hfsplus_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	inode = hfsplus_new_inode(dir->i_sb, dir, mode);
 	if (!inode)
 		goto out;
+
+	hfs_dbg("dir->i_ino %lu, inode->i_ino %lu\n",
+		dir->i_ino, inode->i_ino);
 
 	if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode))
 		init_special_inode(inode, mode, rdev);
