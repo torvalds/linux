@@ -2557,6 +2557,9 @@ bool intel_dp_mode_valid_with_dsc(struct intel_connector *connector,
 	if (min_bpp_x16 <= 0 || min_bpp_x16 > max_bpp_x16)
 		return false;
 
+	if (dsc_slice_count == 0)
+		return false;
+
 	return is_bw_sufficient_for_dsc_config(intel_dp,
 					       link_clock, lane_count,
 					       mode_clock, mode_hdisplay,
