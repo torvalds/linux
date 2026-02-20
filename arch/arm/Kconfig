@@ -6,6 +6,7 @@ config ARM
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE if HAVE_KRETPROBES && FRAME_POINTER && !ARM_UNWIND
 	select ARCH_HAS_BINFMT_FLAT
 	select ARCH_HAS_CACHE_LINE_SIZE if OF
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
@@ -1715,6 +1716,18 @@ config KERNEL_MODE_NEON
 	  Say Y to include support for NEON in kernel mode.
 
 endmenu
+
+config ARCH_CC_CAN_LINK
+	bool
+	default $(cc_can_link_user,-mlittle-endian) if CPU_LITTLE_ENDIAN
+	default $(cc_can_link_user,-mbig-endian -mbe8) if CPU_ENDIAN_BE8
+	default $(cc_can_link_user,-mbig-endian -mbe32) if CPU_ENDIAN_BE32
+
+config ARCH_USERFLAGS
+	string
+	default "-mlittle-endian" if CPU_LITTLE_ENDIAN
+	default "-mbig-endian -mbe8" if CPU_ENDIAN_BE8
+	default "-mbig-endian -mbe32" if CPU_ENDIAN_BE32
 
 menu "Power management options"
 
