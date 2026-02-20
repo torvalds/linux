@@ -90,4 +90,13 @@ void dcn35_timing_generator_set_fgcg(struct optc *optc1, bool enable);
 
 void optc35_set_drr(struct timing_generator *optc, const struct drr_params *params);
 
+void optc35_set_long_vtotal(
+	struct timing_generator *optc,
+	const struct long_vtotal_params *params);
+
+bool optc35_configure_crc(struct timing_generator *optc,
+				 const struct crc_params *params);
+
+void optc35_wait_otg_disable(struct timing_generator *optc);
+
 #endif /* __DC_OPTC_DCN35_H__ */

@@ -145,26 +145,19 @@ void hubp1_program_tiling(
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
 
-	ASSERT(info->gfxversion == DcGfxVersion9 || info->gfxversion == DcGfxBase);
+	REG_UPDATE_6(DCSURF_ADDR_CONFIG,
+			NUM_PIPES, log_2(info->gfx9.num_pipes),
+			NUM_BANKS, log_2(info->gfx9.num_banks),
+			PIPE_INTERLEAVE, info->gfx9.pipe_interleave,
+			NUM_SE, log_2(info->gfx9.num_shader_engines),
+			NUM_RB_PER_SE, log_2(info->gfx9.num_rb_per_se),
+			MAX_COMPRESSED_FRAGS, log_2(info->gfx9.max_compressed_frags));
 
-	if (info->gfxversion == DcGfxVersion9) {
-		REG_UPDATE_6(DCSURF_ADDR_CONFIG,
-				NUM_PIPES, log_2(info->gfx9.num_pipes),
-				NUM_BANKS, log_2(info->gfx9.num_banks),
-				PIPE_INTERLEAVE, info->gfx9.pipe_interleave,
-				NUM_SE, log_2(info->gfx9.num_shader_engines),
-				NUM_RB_PER_SE, log_2(info->gfx9.num_rb_per_se),
-				MAX_COMPRESSED_FRAGS, log_2(info->gfx9.max_compressed_frags));
-
-		REG_UPDATE_4(DCSURF_TILING_CONFIG,
-				SW_MODE, info->gfx9.swizzle,
-				META_LINEAR, info->gfx9.meta_linear,
-				RB_ALIGNED, info->gfx9.rb_aligned,
-				PIPE_ALIGNED, info->gfx9.pipe_aligned);
-	} else {
-		hubp1_clear_tiling(&hubp1->base);
-	}
-
+	REG_UPDATE_4(DCSURF_TILING_CONFIG,
+			SW_MODE, info->gfx9.swizzle,
+			META_LINEAR, info->gfx9.meta_linear,
+			RB_ALIGNED, info->gfx9.rb_aligned,
+			PIPE_ALIGNED, info->gfx9.pipe_aligned);
 }
 
 void hubp1_program_size(

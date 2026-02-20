@@ -313,22 +313,16 @@ static void hubp2_program_tiling(
 	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
-	ASSERT(info->gfxversion == DcGfxVersion9 || info->gfxversion == DcGfxBase);
+	REG_UPDATE_3(DCSURF_ADDR_CONFIG,
+			NUM_PIPES, log_2(info->gfx9.num_pipes),
+			PIPE_INTERLEAVE, info->gfx9.pipe_interleave,
+			MAX_COMPRESSED_FRAGS, log_2(info->gfx9.max_compressed_frags));
 
-	if (info->gfxversion == DcGfxVersion9) {
-		REG_UPDATE_3(DCSURF_ADDR_CONFIG,
-				NUM_PIPES, log_2(info->gfx9.num_pipes),
-				PIPE_INTERLEAVE, info->gfx9.pipe_interleave,
-				MAX_COMPRESSED_FRAGS, log_2(info->gfx9.max_compressed_frags));
-
-		REG_UPDATE_4(DCSURF_TILING_CONFIG,
-				SW_MODE, info->gfx9.swizzle,
-				META_LINEAR, 0,
-				RB_ALIGNED, 0,
-				PIPE_ALIGNED, 0);
-	} else {
-		hubp2_clear_tiling(&hubp2->base);
-	}
+	REG_UPDATE_4(DCSURF_TILING_CONFIG,
+			SW_MODE, info->gfx9.swizzle,
+			META_LINEAR, 0,
+			RB_ALIGNED, 0,
+			PIPE_ALIGNED, 0);
 }
 
 void hubp2_program_size(

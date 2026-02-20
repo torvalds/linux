@@ -1006,7 +1006,6 @@ bool dcn_validate_bandwidth(
 
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
 					pipe->plane_state->format);
-			ASSERT(pipe->plane_state->tiling_info.gfxversion == DcGfxVersion9);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
 					pipe->plane_state->tiling_info.gfx9.swizzle);
 			v->lb_bit_per_pixel[input_idx] = tl_lb_bpp_to_int(pipe->plane_res.scl_data.lb_params.depth);

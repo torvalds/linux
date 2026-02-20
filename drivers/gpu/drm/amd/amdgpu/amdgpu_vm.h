@@ -456,6 +456,7 @@ struct amdgpu_vm_manager {
 	bool					concurrent_flush;
 
 	uint64_t				max_pfn;
+	uint32_t				max_level;
 	uint32_t				num_level;
 	uint32_t				block_size;
 	uint32_t				fragment_size;

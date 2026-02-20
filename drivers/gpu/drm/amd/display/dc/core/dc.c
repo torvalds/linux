@@ -2770,7 +2770,6 @@ static struct surface_update_descriptor get_plane_info_update_type(const struct 
 		case DcGfxVersion7:
 		case DcGfxVersion8:
 		case DcGfxVersionUnknown:
-		case DcGfxBase:
 		default:
 			break;
 		}
@@ -3369,6 +3368,10 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 	if (update->sharpening_required)
 		stream->sharpening_required = *update->sharpening_required;
+
+	if (update->drr_trigger_mode) {
+		stream->drr_trigger_mode = *update->drr_trigger_mode;
+	}
 }
 
 static void backup_planes_and_stream_state(

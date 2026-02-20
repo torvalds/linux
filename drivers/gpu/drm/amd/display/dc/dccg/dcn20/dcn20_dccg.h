@@ -37,7 +37,8 @@
 	SR(REFCLK_CNTL),\
 	DCCG_SRII(PIXEL_RATE_CNTL, OTG, 0),\
 	DCCG_SRII(PIXEL_RATE_CNTL, OTG, 1),\
-	SR(DISPCLK_FREQ_CHANGE_CNTL)
+	SR(DISPCLK_FREQ_CHANGE_CNTL),\
+	SR(DC_MEM_GLOBAL_PWR_REQ_CNTL)
 
 #define DCCG_REG_LIST_DCN2() \
 	DCCG_COMMON_REG_LIST_DCN_BASE(),\
@@ -81,7 +82,8 @@
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 0, mask_sh),\
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, ADD_PIXEL, 1, mask_sh),\
 	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, DROP_PIXEL, 0, mask_sh),\
-	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, DROP_PIXEL, 1, mask_sh)
+	DCCG_SFII(OTG, PIXEL_RATE_CNTL, OTG, DROP_PIXEL, 1, mask_sh),\
+	DCCG_SF(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, mask_sh)
 
 
 
@@ -130,7 +132,8 @@
 	type DISPCLK_CHG_FWD_CORR_DISABLE;\
 	type DISPCLK_FREQ_CHANGE_CNTL;\
 	type OTG_ADD_PIXEL[MAX_PIPES];\
-	type OTG_DROP_PIXEL[MAX_PIPES];
+	type OTG_DROP_PIXEL[MAX_PIPES];\
+	type DC_MEM_GLOBAL_PWR_REQ_DIS;
 
 #define DCCG3_REG_FIELD_LIST(type) \
 	type HDMICHARCLK0_EN;\
@@ -514,6 +517,11 @@ void dccg2_otg_drop_pixel(struct dccg *dccg,
 
 
 void dccg2_init(struct dccg *dccg);
+
+void dccg2_refclk_setup(struct dccg *dccg);
+void dccg2_allow_clock_gating(struct dccg *dccg, bool allow);
+void dccg2_enable_memory_low_power(struct dccg *dccg, bool enable);
+bool dccg2_is_s0i3_golden_init_wa_done(struct dccg *dccg);
 
 struct dccg *dccg2_create(
 	struct dc_context *ctx,

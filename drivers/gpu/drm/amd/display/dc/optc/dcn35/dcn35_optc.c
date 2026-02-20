@@ -270,7 +270,7 @@ static bool optc35_get_crc(struct timing_generator *optc, uint8_t idx,
 	return true;
 }
 
-static bool optc35_configure_crc(struct timing_generator *optc,
+bool optc35_configure_crc(struct timing_generator *optc,
 				 const struct crc_params *params)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -437,7 +437,7 @@ void optc35_set_drr(
 	REG_WRITE(OTG_V_COUNT_STOP_CONTROL2, 0);
 }
 
-static void optc35_set_long_vtotal(
+void optc35_set_long_vtotal(
 	struct timing_generator *optc,
 	const struct long_vtotal_params *params)
 {
@@ -524,7 +524,7 @@ static void optc35_set_long_vtotal(
 	}
 }
 
-static void optc35_wait_otg_disable(struct timing_generator *optc)
+void optc35_wait_otg_disable(struct timing_generator *optc)
 {
 	struct optc *optc1;
 	uint32_t is_master_en;

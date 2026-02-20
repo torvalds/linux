@@ -26,6 +26,7 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dcn35_dccg.h"
+#include "dcn20/dcn20_dccg.h"
 
 #define TO_DCN_DCCG(dccg)\
 	container_of(dccg, struct dcn_dccg, base)
@@ -2411,6 +2412,10 @@ static const struct dccg_funcs dccg35_funcs_new = {
 	.enable_symclk_se = dccg35_enable_symclk_se_cb,
 	.disable_symclk_se = dccg35_disable_symclk_se_cb,
 	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src_cb,
+	.refclk_setup = dccg2_refclk_setup, /* Deprecated - for backward compatibility only */
+	.allow_clock_gating = dccg2_allow_clock_gating,
+	.enable_memory_low_power = dccg2_enable_memory_low_power,
+	.is_s0i3_golden_init_wa_done = dccg2_is_s0i3_golden_init_wa_done /* Deprecated - for backward compatibility only */
 };
 
 static const struct dccg_funcs dccg35_funcs = {
@@ -2442,8 +2447,12 @@ static const struct dccg_funcs dccg35_funcs = {
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,
 	.set_dtbclk_p_src = dccg35_set_dtbclk_p_src,
+	.refclk_setup = dccg2_refclk_setup, /* Deprecated - for backward compatibility only */
+	.allow_clock_gating = dccg2_allow_clock_gating,
+	.enable_memory_low_power = dccg2_enable_memory_low_power,
+	.is_s0i3_golden_init_wa_done = dccg2_is_s0i3_golden_init_wa_done, /* Deprecated - for backward compatibility only */
 	.dccg_root_gate_disable_control = dccg35_root_gate_disable_control,
-	.dccg_read_reg_state = dccg31_read_reg_state,
+	.dccg_read_reg_state = dccg31_read_reg_state
 };
 
 struct dccg *dccg35_create(
