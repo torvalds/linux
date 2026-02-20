@@ -19,10 +19,11 @@ description: |
 properties:
   compatible:
     enum:
+      - etekmicro,et7304
       - richtek,rt1711h
       - richtek,rt1715
     description:
-      RT1711H support PD20, RT1715 support PD30 except Fast Role Swap.
+      RT1711H support PD20, ET7304 and RT1715 support PD30 except Fast Role Swap.
 
   reg:
     maxItems: 1
