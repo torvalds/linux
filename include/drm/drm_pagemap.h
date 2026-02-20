@@ -95,7 +95,7 @@ struct drm_pagemap_ops {
 	 */
 	void (*device_unmap)(struct drm_pagemap *dpagemap,
 			     struct device *dev,
-			     struct drm_pagemap_addr addr);
+			     const struct drm_pagemap_addr *addr);
 
 	/**
 	 * @populate_mm: Populate part of the mm with @dpagemap memory,
