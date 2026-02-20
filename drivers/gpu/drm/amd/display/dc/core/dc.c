@@ -5945,6 +5945,7 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 
 	case AMDGPU_FAMILY_GC_11_0_1:
 	case AMDGPU_FAMILY_GC_11_5_0:
+	case AMDGPU_FAMILY_GC_11_5_4:
 		if (!dc->debug.dpia_debug.bits.disable_dpia)
 			return true;
 	break;

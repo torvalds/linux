@@ -374,7 +374,8 @@
 	type OTG1_DROP_PIXEL;\
 	type OTG2_DROP_PIXEL;\
 	type OTG3_ADD_PIXEL;\
-	type OTG3_DROP_PIXEL;
+	type OTG3_DROP_PIXEL;\
+	type RESYNC_FIFO_LEVEL_ADJUST_EN;
 
 struct dccg_shift {
 	DCCG_REG_FIELD_LIST(uint8_t)

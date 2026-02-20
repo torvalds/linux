@@ -180,6 +180,61 @@ void dccg42_set_physymclk(
 	}
 }
 
+void dccg42_set_pixel_rate_div(
+		struct dccg *dccg,
+		uint32_t otg_inst,
+		enum pixel_rate_div tmds_div,
+		enum pixel_rate_div unused)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	uint32_t cur_tmds_div = PIXEL_RATE_DIV_NA;
+	uint32_t dp_dto_int;
+	uint32_t reg_val;
+
+	// only 2 and 4 are valid on dcn401
+	if (tmds_div != PIXEL_RATE_DIV_BY_2 && tmds_div != PIXEL_RATE_DIV_BY_4) {
+		return;
+	}
+
+	dccg401_get_pixel_rate_div(dccg, otg_inst, &cur_tmds_div, &dp_dto_int);
+	if (tmds_div == cur_tmds_div)
+		return;
+
+	// encode enum to register value
+	reg_val = tmds_div == PIXEL_RATE_DIV_BY_4 ? 1 : 0;
+
+	switch (otg_inst) {
+	case 0:
+		REG_UPDATE(OTG_PIXEL_RATE_DIV,
+				OTG0_TMDS_PIXEL_RATE_DIV, reg_val);
+		break;
+	case 1:
+		REG_UPDATE(OTG_PIXEL_RATE_DIV,
+				OTG1_TMDS_PIXEL_RATE_DIV, reg_val);
+		break;
+	case 2:
+		REG_UPDATE(OTG_PIXEL_RATE_DIV,
+				OTG2_TMDS_PIXEL_RATE_DIV, reg_val);
+		break;
+	case 3:
+		REG_UPDATE(OTG_PIXEL_RATE_DIV,
+				OTG3_TMDS_PIXEL_RATE_DIV, reg_val);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg42_trigger_dio_fifo_resync(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_UPDATE(DISPCLK_FREQ_CHANGE_CNTL, RESYNC_FIFO_LEVEL_ADJUST_EN, 1);
+	REG_UPDATE(DISPCLK_FREQ_CHANGE_CNTL, RESYNC_FIFO_LEVEL_ADJUST_EN, 0);
+	REG_WAIT(DISPCLK_FREQ_CHANGE_CNTL, DISPCLK_FREQ_RAMP_DONE, 1, 50, 2000);
+}
+
 static void dccg42_init(struct dccg *dccg)
 {
 	int otg_inst;
@@ -240,9 +295,9 @@ static const struct dccg_funcs dccg42_funcs = {
 	.otg_drop_pixel = dccg42_otg_drop_pixel,
 	.disable_dsc = dccg35_disable_dscclk,
 	.enable_dsc = dccg35_enable_dscclk,
-	.set_pixel_rate_div = dccg401_set_pixel_rate_div,
+	.set_pixel_rate_div = dccg42_set_pixel_rate_div,
 	.get_pixel_rate_div = dccg401_get_pixel_rate_div,
-	.trigger_dio_fifo_resync = dccg35_trigger_dio_fifo_resync,
+	.trigger_dio_fifo_resync = dccg42_trigger_dio_fifo_resync,
 	.set_dp_dto = dccg401_set_dp_dto,
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,
