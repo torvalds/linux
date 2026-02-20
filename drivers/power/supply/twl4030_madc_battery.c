@@ -11,9 +11,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/param.h>
 #include <linux/delay.h>
-#include <linux/workqueue.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
