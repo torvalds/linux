@@ -193,6 +193,7 @@
 			<MX7D_PAD_EPDC_DATA05__QSPI_A_SCLK	0x11>,
 			<MX7D_PAD_EPDC_DATA06__QSPI_A_SS0_B	0x54>,
 			<MX7D_PAD_EPDC_DATA07__QSPI_A_SS1_B	0x54>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_qspi_reset: qspi_resetgrp {
@@ -214,6 +215,7 @@
 			<MX7D_PAD_SD3_DATA6__SD3_DATA6		0x59>,
 			<MX7D_PAD_SD3_DATA7__SD3_DATA7		0x59>,
 			<MX7D_PAD_SD3_STROBE__SD3_STROBE	0x19>;
+		bootph-pre-ram;
 	};
 
 	pinctrl_usdhc3_100mhz: usdhc3_100mhzgrp {
@@ -257,6 +259,7 @@
 &qspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi &pinctrl_qspi_reset>;
+	bootph-pre-ram;
 	status = "okay";
 
 	flash0: flash@0 {
@@ -266,6 +269,7 @@
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <4>;
 		vcc-supply = <&vgen4_reg>;
+		bootph-pre-ram;
 
 		partitions {
 			compatible = "fixed-partitions";
@@ -288,6 +292,7 @@
 	no-sdio;
 	vmmc-supply = <&vgen4_reg>;
 	vqmmc-supply = <&sw2_reg>;
+	bootph-pre-ram;
 	status = "okay";
 };
 
