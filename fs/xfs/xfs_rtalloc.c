@@ -1050,6 +1050,15 @@ xfs_growfs_rt_bmblock(
 	 */
 	xfs_trans_resv_calc(mp, &mp->m_resv);
 
+	/*
+	 * Sync sb counters now to reflect the updated values. Lazy counters are
+	 * not always updated and in order to avoid inconsistencies between
+	 * frextents and rtextents, it is better to sync the counters.
+	 */
+
+	if (xfs_has_lazysbcount(mp))
+		xfs_log_sb(args.tp);
+
 	error = xfs_trans_commit(args.tp);
 	if (error)
 		goto out_free;
