@@ -934,7 +934,6 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
 	struct bio *bio = NULL;
 	int ret = 0;
 
-	ASSERT(!(fs_info->sb->s_flags & SB_RDONLY));
 	BUG_ON(!mirror_num);
 
 	/* Basic alignment checks. */
@@ -945,6 +944,13 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 fileoff,
 	ASSERT(length <= BTRFS_MAX_BLOCKSIZE);
 	ASSERT(step <= length);
 	ASSERT(is_power_of_2(step));
+
+	/*
+	 * The fs either mounted RO or hit critical errors, no need
+	 * to continue repairing.
+	 */
+	if (unlikely(sb_rdonly(fs_info->sb)))
+		return 0;
 
 	if (btrfs_repair_one_zone(fs_info, logical))
 		return 0;
