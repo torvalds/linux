@@ -260,6 +260,8 @@ struct reset_control;
  * @clk_freq_optimized: if this value is true, it means the hardware reduces
  *	its internal clock frequency by reducing the internal latency required
  *	to generate the high period and low period of SCL line.
+ * @emptyfifo_hold_master: true if the controller acting as master holds
+ *	the clock when the Tx FIFO is empty instead of emitting a stop.
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -318,6 +320,7 @@ struct dw_i2c_dev {
 	struct i2c_bus_recovery_info rinfo;
 	u32			bus_capacitance_pF;
 	bool			clk_freq_optimized;
+	bool			emptyfifo_hold_master;
 };
 
 #define ACCESS_INTR_MASK			BIT(0)
