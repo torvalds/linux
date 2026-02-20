@@ -1151,7 +1151,7 @@ int __ref smp_rescan_cpus(bool early)
 	smp_get_core_info(info, 0);
 	nr = __smp_rescan_cpus(info, early);
 	kfree(info);
-	if (nr)
+	if (nr && !early)
 		topology_schedule_update();
 	return 0;
 }

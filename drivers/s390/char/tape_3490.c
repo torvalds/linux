@@ -784,7 +784,7 @@ tape_3490_online(struct ccw_device *cdev)
 
 static struct ccw_driver tape_3490_driver = {
 	.driver = {
-		.name = "tape_3490",
+		.name = "tape_34xx",
 		.owner = THIS_MODULE,
 	},
 	.ids = tape_3490_ids,
