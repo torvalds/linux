@@ -332,7 +332,7 @@ msm_iommu_pagetable_prealloc_allocate(struct msm_mmu *mmu, struct msm_mmu_preall
 	struct kmem_cache *pt_cache = get_pt_cache(mmu);
 	int ret;
 
-	p->pages = kvmalloc_array(p->count, sizeof(p->pages), GFP_KERNEL);
+	p->pages = kvmalloc_array(p->count, sizeof(*p->pages), GFP_KERNEL);
 	if (!p->pages)
 		return -ENOMEM;
 

@@ -1687,7 +1687,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 
 	/* Metadata block array for the chunk mapping table */
 	zmd->map_mblk = kcalloc(zmd->nr_map_blocks,
-				sizeof(struct dmz_mblk *), GFP_KERNEL);
+				sizeof(struct dmz_mblock *), GFP_KERNEL);
 	if (!zmd->map_mblk)
 		return -ENOMEM;
 
