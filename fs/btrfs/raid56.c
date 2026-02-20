@@ -1653,12 +1653,7 @@ static int get_bio_sector_nr(struct btrfs_raid_bio *rbio, struct bio *bio)
 static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bio)
 {
 	int total_sector_nr = get_bio_sector_nr(rbio, bio);
-	u32 bio_size = 0;
-	struct bio_vec *bvec;
-	int i;
-
-	bio_for_each_bvec_all(bvec, bio, i)
-		bio_size += bvec->bv_len;
+	const u32 bio_size = bio_get_size(bio);
 
 	/*
 	 * Since we can have multiple bios touching the error_bitmap, we cannot
@@ -1666,7 +1661,7 @@ static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bi
 	 *
 	 * Instead use set_bit() for each bit, as set_bit() itself is atomic.
 	 */
-	for (i = total_sector_nr; i < total_sector_nr +
+	for (int i = total_sector_nr; i < total_sector_nr +
 	     (bio_size >> rbio->bioc->fs_info->sectorsize_bits); i++)
 		set_bit(i, rbio->error_bitmap);
 }
