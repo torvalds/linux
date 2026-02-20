@@ -10,6 +10,13 @@
 #include "hvhdk_mini.h"
 #include "hvgdk.h"
 
+/*
+ * Hypervisor statistics page format
+ */
+struct hv_stats_page {
+	u64 data[HV_HYP_PAGE_SIZE / sizeof(u64)];
+} __packed;
+
 /* Bits for dirty mask of hv_vp_register_page */
 #define HV_X64_REGISTER_CLASS_GENERAL	0
 #define HV_X64_REGISTER_CLASS_IP	1
@@ -328,6 +335,8 @@ union hv_partition_isolation_properties {
 #define HV_PARTITION_ISOLATION_HOST_TYPE_RESERVED   0x2
 
 /* Note: Exo partition is enabled by default */
+#define HV_PARTITION_CREATION_FLAG_SMT_ENABLED_GUEST			BIT(0)
+#define HV_PARTITION_CREATION_FLAG_NESTED_VIRTUALIZATION_CAPABLE	BIT(1)
 #define HV_PARTITION_CREATION_FLAG_GPA_SUPER_PAGES_ENABLED		BIT(4)
 #define HV_PARTITION_CREATION_FLAG_EXO_PARTITION			BIT(8)
 #define HV_PARTITION_CREATION_FLAG_LAPIC_ENABLED			BIT(13)

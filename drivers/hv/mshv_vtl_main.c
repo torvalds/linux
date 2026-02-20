@@ -845,9 +845,10 @@ static const struct file_operations mshv_vtl_fops = {
 	.mmap = mshv_vtl_mmap,
 };
 
-static void mshv_vtl_synic_mask_vmbus_sint(const u8 *mask)
+static void mshv_vtl_synic_mask_vmbus_sint(void *info)
 {
 	union hv_synic_sint sint;
+	const u8 *mask = info;
 
 	sint.as_uint64 = 0;
 	sint.vector = HYPERVISOR_CALLBACK_VECTOR;
@@ -999,7 +1000,7 @@ static int mshv_vtl_sint_ioctl_pause_msg_stream(struct mshv_sint_mask __user *ar
 	if (copy_from_user(&mask, arg, sizeof(mask)))
 		return -EFAULT;
 	guard(mutex)(&vtl2_vmbus_sint_mask_mutex);
-	on_each_cpu((smp_call_func_t)mshv_vtl_synic_mask_vmbus_sint, &mask.mask, 1);
+	on_each_cpu(mshv_vtl_synic_mask_vmbus_sint, &mask.mask, 1);
 	WRITE_ONCE(vtl_synic_mask_vmbus_sint_masked, mask.mask != 0);
 	if (mask.mask)
 		wake_up_interruptible_poll(&fd_wait_queue, EPOLLIN);

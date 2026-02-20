@@ -88,7 +88,7 @@ static long mshv_region_process_chunk(struct mshv_mem_region *region,
 	struct page *page;
 	int stride, ret;
 
-	page = region->pages[page_offset];
+	page = region->mreg_pages[page_offset];
 	if (!page)
 		return -EINVAL;
 
@@ -98,7 +98,7 @@ static long mshv_region_process_chunk(struct mshv_mem_region *region,
 
 	/* Start at stride since the first stride is validated */
 	for (count = stride; count < page_count; count += stride) {
-		page = region->pages[page_offset + count];
+		page = region->mreg_pages[page_offset + count];
 
 		/* Break if current page is not present */
 		if (!page)
@@ -152,7 +152,7 @@ static int mshv_region_process_range(struct mshv_mem_region *region,
 
 	while (page_count) {
 		/* Skip non-present pages */
-		if (!region->pages[page_offset]) {
+		if (!region->mreg_pages[page_offset]) {
 			page_offset++;
 			page_count--;
 			continue;
@@ -190,7 +190,7 @@ struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
 	if (flags & BIT(MSHV_SET_MEM_BIT_EXECUTABLE))
 		region->hv_map_flags |= HV_MAP_GPA_EXECUTABLE;
 
-	kref_init(&region->refcount);
+	kref_init(&region->mreg_refcount);
 
 	return region;
 }
@@ -204,7 +204,7 @@ static int mshv_region_chunk_share(struct mshv_mem_region *region,
 		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
 
 	return hv_call_modify_spa_host_access(region->partition->pt_id,
-					      region->pages + page_offset,
+					      region->mreg_pages + page_offset,
 					      page_count,
 					      HV_MAP_GPA_READABLE |
 					      HV_MAP_GPA_WRITABLE,
@@ -229,7 +229,7 @@ static int mshv_region_chunk_unshare(struct mshv_mem_region *region,
 		flags |= HV_MODIFY_SPA_PAGE_HOST_ACCESS_LARGE_PAGE;
 
 	return hv_call_modify_spa_host_access(region->partition->pt_id,
-					      region->pages + page_offset,
+					      region->mreg_pages + page_offset,
 					      page_count, 0,
 					      flags, false);
 }
@@ -254,7 +254,7 @@ static int mshv_region_chunk_remap(struct mshv_mem_region *region,
 	return hv_call_map_gpa_pages(region->partition->pt_id,
 				     region->start_gfn + page_offset,
 				     page_count, flags,
-				     region->pages + page_offset);
+				     region->mreg_pages + page_offset);
 }
 
 static int mshv_region_remap_pages(struct mshv_mem_region *region,
@@ -277,10 +277,10 @@ int mshv_region_map(struct mshv_mem_region *region)
 static void mshv_region_invalidate_pages(struct mshv_mem_region *region,
 					 u64 page_offset, u64 page_count)
 {
-	if (region->type == MSHV_REGION_TYPE_MEM_PINNED)
-		unpin_user_pages(region->pages + page_offset, page_count);
+	if (region->mreg_type == MSHV_REGION_TYPE_MEM_PINNED)
+		unpin_user_pages(region->mreg_pages + page_offset, page_count);
 
-	memset(region->pages + page_offset, 0,
+	memset(region->mreg_pages + page_offset, 0,
 	       page_count * sizeof(struct page *));
 }
 
@@ -297,7 +297,7 @@ int mshv_region_pin(struct mshv_mem_region *region)
 	int ret;
 
 	for (done_count = 0; done_count < region->nr_pages; done_count += ret) {
-		pages = region->pages + done_count;
+		pages = region->mreg_pages + done_count;
 		userspace_addr = region->start_uaddr +
 				 done_count * HV_HYP_PAGE_SIZE;
 		nr_pages = min(region->nr_pages - done_count,
@@ -348,11 +348,11 @@ static int mshv_region_unmap(struct mshv_mem_region *region)
 static void mshv_region_destroy(struct kref *ref)
 {
 	struct mshv_mem_region *region =
-		container_of(ref, struct mshv_mem_region, refcount);
+		container_of(ref, struct mshv_mem_region, mreg_refcount);
 	struct mshv_partition *partition = region->partition;
 	int ret;
 
-	if (region->type == MSHV_REGION_TYPE_MEM_MOVABLE)
+	if (region->mreg_type == MSHV_REGION_TYPE_MEM_MOVABLE)
 		mshv_region_movable_fini(region);
 
 	if (mshv_partition_encrypted(partition)) {
@@ -374,12 +374,12 @@ static void mshv_region_destroy(struct kref *ref)
 
 void mshv_region_put(struct mshv_mem_region *region)
 {
-	kref_put(&region->refcount, mshv_region_destroy);
+	kref_put(&region->mreg_refcount, mshv_region_destroy);
 }
 
 int mshv_region_get(struct mshv_mem_region *region)
 {
-	return kref_get_unless_zero(&region->refcount);
+	return kref_get_unless_zero(&region->mreg_refcount);
 }
 
 /**
@@ -405,16 +405,16 @@ static int mshv_region_hmm_fault_and_lock(struct mshv_mem_region *region,
 	int ret;
 
 	range->notifier_seq = mmu_interval_read_begin(range->notifier);
-	mmap_read_lock(region->mni.mm);
+	mmap_read_lock(region->mreg_mni.mm);
 	ret = hmm_range_fault(range);
-	mmap_read_unlock(region->mni.mm);
+	mmap_read_unlock(region->mreg_mni.mm);
 	if (ret)
 		return ret;
 
-	mutex_lock(&region->mutex);
+	mutex_lock(&region->mreg_mutex);
 
 	if (mmu_interval_read_retry(range->notifier, range->notifier_seq)) {
-		mutex_unlock(&region->mutex);
+		mutex_unlock(&region->mreg_mutex);
 		cond_resched();
 		return -EBUSY;
 	}
@@ -438,7 +438,7 @@ static int mshv_region_range_fault(struct mshv_mem_region *region,
 				   u64 page_offset, u64 page_count)
 {
 	struct hmm_range range = {
-		.notifier = &region->mni,
+		.notifier = &region->mreg_mni,
 		.default_flags = HMM_PFN_REQ_FAULT | HMM_PFN_REQ_WRITE,
 	};
 	unsigned long *pfns;
@@ -461,12 +461,12 @@ static int mshv_region_range_fault(struct mshv_mem_region *region,
 		goto out;
 
 	for (i = 0; i < page_count; i++)
-		region->pages[page_offset + i] = hmm_pfn_to_page(pfns[i]);
+		region->mreg_pages[page_offset + i] = hmm_pfn_to_page(pfns[i]);
 
 	ret = mshv_region_remap_pages(region, region->hv_map_flags,
 				      page_offset, page_count);
 
-	mutex_unlock(&region->mutex);
+	mutex_unlock(&region->mreg_mutex);
 out:
 	kfree(pfns);
 	return ret;
@@ -520,7 +520,7 @@ static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
 {
 	struct mshv_mem_region *region = container_of(mni,
 						      struct mshv_mem_region,
-						      mni);
+						      mreg_mni);
 	u64 page_offset, page_count;
 	unsigned long mstart, mend;
 	int ret = -EPERM;
@@ -533,8 +533,8 @@ static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
 	page_count = HVPFN_DOWN(mend - mstart);
 
 	if (mmu_notifier_range_blockable(range))
-		mutex_lock(&region->mutex);
-	else if (!mutex_trylock(&region->mutex))
+		mutex_lock(&region->mreg_mutex);
+	else if (!mutex_trylock(&region->mreg_mutex))
 		goto out_fail;
 
 	mmu_interval_set_seq(mni, cur_seq);
@@ -546,12 +546,12 @@ static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
 
 	mshv_region_invalidate_pages(region, page_offset, page_count);
 
-	mutex_unlock(&region->mutex);
+	mutex_unlock(&region->mreg_mutex);
 
 	return true;
 
 out_unlock:
-	mutex_unlock(&region->mutex);
+	mutex_unlock(&region->mreg_mutex);
 out_fail:
 	WARN_ONCE(ret,
 		  "Failed to invalidate region %#llx-%#llx (range %#lx-%#lx, event: %u, pages %#llx-%#llx, mm: %#llx): %d\n",
@@ -568,21 +568,21 @@ static const struct mmu_interval_notifier_ops mshv_region_mni_ops = {
 
 void mshv_region_movable_fini(struct mshv_mem_region *region)
 {
-	mmu_interval_notifier_remove(&region->mni);
+	mmu_interval_notifier_remove(&region->mreg_mni);
 }
 
 bool mshv_region_movable_init(struct mshv_mem_region *region)
 {
 	int ret;
 
-	ret = mmu_interval_notifier_insert(&region->mni, current->mm,
+	ret = mmu_interval_notifier_insert(&region->mreg_mni, current->mm,
 					   region->start_uaddr,
 					   region->nr_pages << HV_HYP_PAGE_SHIFT,
 					   &mshv_region_mni_ops);
 	if (ret)
 		return false;
 
-	mutex_init(&region->mutex);
+	mutex_init(&region->mreg_mutex);
 
 	return true;
 }

@@ -115,7 +115,7 @@ int hv_call_create_partition(u64 flags,
 		status = hv_do_hypercall(HVCALL_CREATE_PARTITION,
 					 input, output);
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			if (hv_result_success(status))
 				*partition_id = output->partition_id;
 			local_irq_restore(irq_flags);
@@ -123,8 +123,7 @@ int hv_call_create_partition(u64 flags,
 			break;
 		}
 		local_irq_restore(irq_flags);
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    hv_current_partition_id, 1);
+		ret = hv_deposit_memory(hv_current_partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -147,11 +146,11 @@ int hv_call_initialize_partition(u64 partition_id)
 		status = hv_do_fast_hypercall8(HVCALL_INITIALIZE_PARTITION,
 					       *(u64 *)&input);
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			ret = hv_result_to_errno(status);
 			break;
 		}
-		ret = hv_call_deposit_pages(NUMA_NO_NODE, partition_id, 1);
+		ret = hv_deposit_memory(partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -239,7 +238,7 @@ static int hv_do_map_gpa_hcall(u64 partition_id, u64 gfn, u64 page_struct_count,
 
 		completed = hv_repcomp(status);
 
-		if (hv_result(status) == HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (hv_result_needs_memory(status)) {
 			ret = hv_call_deposit_pages(NUMA_NO_NODE, partition_id,
 						    HV_MAP_GPA_DEPOSIT_PAGES);
 			if (ret)
@@ -455,7 +454,7 @@ int hv_call_get_vp_state(u32 vp_index, u64 partition_id,
 
 		status = hv_do_hypercall(control, input, output);
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			if (hv_result_success(status) && ret_output)
 				memcpy(ret_output, output, sizeof(*output));
 
@@ -465,8 +464,7 @@ int hv_call_get_vp_state(u32 vp_index, u64 partition_id,
 		}
 		local_irq_restore(flags);
 
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    partition_id, 1);
+		ret = hv_deposit_memory(partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -518,15 +516,14 @@ int hv_call_set_vp_state(u32 vp_index, u64 partition_id,
 
 		status = hv_do_hypercall(control, input, NULL);
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			local_irq_restore(flags);
 			ret = hv_result_to_errno(status);
 			break;
 		}
 		local_irq_restore(flags);
 
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    partition_id, 1);
+		ret = hv_deposit_memory(partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -563,7 +560,7 @@ static int hv_call_map_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
 		status = hv_do_hypercall(HVCALL_MAP_VP_STATE_PAGE, input,
 					 output);
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			if (hv_result_success(status))
 				*state_page = pfn_to_page(output->map_location);
 			local_irq_restore(flags);
@@ -573,7 +570,7 @@ static int hv_call_map_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
 
 		local_irq_restore(flags);
 
-		ret = hv_call_deposit_pages(NUMA_NO_NODE, partition_id, 1);
+		ret = hv_deposit_memory(partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -718,12 +715,11 @@ hv_call_create_port(u64 port_partition_id, union hv_port_id port_id,
 		if (hv_result_success(status))
 			break;
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			ret = hv_result_to_errno(status);
 			break;
 		}
-		ret = hv_call_deposit_pages(NUMA_NO_NODE, port_partition_id, 1);
-
+		ret = hv_deposit_memory(port_partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -772,12 +768,11 @@ hv_call_connect_port(u64 port_partition_id, union hv_port_id port_id,
 		if (hv_result_success(status))
 			break;
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			ret = hv_result_to_errno(status);
 			break;
 		}
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    connection_partition_id, 1);
+		ret = hv_deposit_memory(connection_partition_id, status);
 	} while (!ret);
 
 	return ret;
@@ -813,6 +808,13 @@ hv_call_notify_port_ring_empty(u32 sint_index)
 	return hv_result_to_errno(status);
 }
 
+/*
+ * Equivalent of hv_call_map_stats_page() for cases when the caller provides
+ * the map location.
+ *
+ * NOTE: This is a newer hypercall that always supports SELF and PARENT stats
+ * areas, unlike hv_call_map_stats_page().
+ */
 static int hv_call_map_stats_page2(enum hv_stats_object_type type,
 				   const union hv_stats_object_identity *identity,
 				   u64 map_location)
@@ -843,21 +845,49 @@ static int hv_call_map_stats_page2(enum hv_stats_object_type type,
 		if (!ret)
 			break;
 
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
+		if (!hv_result_needs_memory(status)) {
 			hv_status_debug(status, "\n");
 			break;
 		}
 
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    hv_current_partition_id, 1);
+		ret = hv_deposit_memory(hv_current_partition_id, status);
 	} while (!ret);
 
 	return ret;
 }
 
-static int hv_call_map_stats_page(enum hv_stats_object_type type,
-				  const union hv_stats_object_identity *identity,
-				  void **addr)
+static int
+hv_stats_get_area_type(enum hv_stats_object_type type,
+		       const union hv_stats_object_identity *identity)
+{
+	switch (type) {
+	case HV_STATS_OBJECT_HYPERVISOR:
+		return identity->hv.stats_area_type;
+	case HV_STATS_OBJECT_LOGICAL_PROCESSOR:
+		return identity->lp.stats_area_type;
+	case HV_STATS_OBJECT_PARTITION:
+		return identity->partition.stats_area_type;
+	case HV_STATS_OBJECT_VP:
+		return identity->vp.stats_area_type;
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * Map a stats page, where the page location is provided by the hypervisor.
+ *
+ * NOTE: The concept of separate SELF and PARENT stats areas does not exist on
+ * older hypervisor versions. All the available stats information can be found
+ * on the SELF page. When attempting to map the PARENT area on a hypervisor
+ * that doesn't support it, return "success" but with a NULL address. The
+ * caller should check for this case and instead fallback to the SELF area
+ * alone.
+ */
+static int
+hv_call_map_stats_page(enum hv_stats_object_type type,
+		       const union hv_stats_object_identity *identity,
+		       struct hv_stats_page **addr)
 {
 	unsigned long flags;
 	struct hv_input_map_stats_page *input;
@@ -878,15 +908,22 @@ static int hv_call_map_stats_page(enum hv_stats_object_type type,
 		pfn = output->map_location;
 
 		local_irq_restore(flags);
-		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
-			ret = hv_result_to_errno(status);
+
+		if (!hv_result_needs_memory(status)) {
 			if (hv_result_success(status))
 				break;
-			return ret;
+
+			if (hv_stats_get_area_type(type, identity) == HV_STATS_AREA_PARENT &&
+			    hv_result(status) == HV_STATUS_INVALID_PARAMETER) {
+				*addr = NULL;
+				return 0;
+			}
+
+			hv_status_debug(status, "\n");
+			return hv_result_to_errno(status);
 		}
 
-		ret = hv_call_deposit_pages(NUMA_NO_NODE,
-					    hv_current_partition_id, 1);
+		ret = hv_deposit_memory(hv_current_partition_id, status);
 		if (ret)
 			return ret;
 	} while (!ret);
@@ -898,7 +935,7 @@ static int hv_call_map_stats_page(enum hv_stats_object_type type,
 
 int hv_map_stats_page(enum hv_stats_object_type type,
 		      const union hv_stats_object_identity *identity,
-		      void **addr)
+		      struct hv_stats_page **addr)
 {
 	int ret;
 	struct page *allocated_page = NULL;
@@ -946,7 +983,8 @@ static int hv_call_unmap_stats_page(enum hv_stats_object_type type,
 	return hv_result_to_errno(status);
 }
 
-int hv_unmap_stats_page(enum hv_stats_object_type type, void *page_addr,
+int hv_unmap_stats_page(enum hv_stats_object_type type,
+			struct hv_stats_page *page_addr,
 			const union hv_stats_object_identity *identity)
 {
 	int ret;

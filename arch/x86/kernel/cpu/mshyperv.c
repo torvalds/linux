@@ -478,6 +478,28 @@ int hv_get_hypervisor_version(union hv_hypervisor_version_info *info)
 }
 EXPORT_SYMBOL_GPL(hv_get_hypervisor_version);
 
+/*
+ * Reserved vectors hard coded in the hypervisor. If used outside, the hypervisor
+ * will either crash or hang or attempt to break into debugger.
+ */
+static void hv_reserve_irq_vectors(void)
+{
+	#define HYPERV_DBG_FASTFAIL_VECTOR	0x29
+	#define HYPERV_DBG_ASSERT_VECTOR	0x2C
+	#define HYPERV_DBG_SERVICE_VECTOR	0x2D
+
+	if (cpu_feature_enabled(X86_FEATURE_FRED))
+		return;
+
+	if (test_and_set_bit(HYPERV_DBG_ASSERT_VECTOR, system_vectors) ||
+	    test_and_set_bit(HYPERV_DBG_SERVICE_VECTOR, system_vectors) ||
+	    test_and_set_bit(HYPERV_DBG_FASTFAIL_VECTOR, system_vectors))
+		BUG();
+
+	pr_info("Hyper-V: reserve vectors: %d %d %d\n", HYPERV_DBG_ASSERT_VECTOR,
+		HYPERV_DBG_SERVICE_VECTOR, HYPERV_DBG_FASTFAIL_VECTOR);
+}
+
 static void __init ms_hyperv_init_platform(void)
 {
 	int hv_max_functions_eax, eax;
@@ -509,6 +531,9 @@ static void __init ms_hyperv_init_platform(void)
 		 ms_hyperv.max_vp_index, ms_hyperv.max_lp_index);
 
 	hv_identify_partition_type();
+
+	if (hv_root_partition())
+		hv_reserve_irq_vectors();
 
 	if (cc_platform_has(CC_ATTR_SNP_SECURE_AVIC))
 		ms_hyperv.hints |= HV_DEPRECATING_AEOI_RECOMMENDED;

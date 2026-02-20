@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/sched/isolation.h>
 #include <linux/sched/task_stack.h>
+#include <linux/smpboot.h>
 
 #include <linux/delay.h>
 #include <linux/panic_notifier.h>
@@ -51,7 +52,7 @@ static struct device  *vmbus_root_device;
 
 static int hyperv_cpuhp_online;
 
-static long __percpu *vmbus_evt;
+static DEFINE_PER_CPU(long, vmbus_evt);
 
 /* Values parsed from ACPI DSDT */
 int vmbus_irq;
@@ -1350,7 +1351,7 @@ static void vmbus_message_sched(struct hv_per_cpu_context *hv_cpu, void *message
 	}
 }
 
-void vmbus_isr(void)
+static void __vmbus_isr(void)
 {
 	struct hv_per_cpu_context *hv_cpu
 		= this_cpu_ptr(hv_context.cpu_context);
@@ -1362,6 +1363,53 @@ void vmbus_isr(void)
 	vmbus_message_sched(hv_cpu, hv_cpu->para_synic_message_page);
 
 	add_interrupt_randomness(vmbus_interrupt);
+}
+
+static DEFINE_PER_CPU(bool, vmbus_irq_pending);
+static DEFINE_PER_CPU(struct task_struct *, vmbus_irqd);
+
+static void vmbus_irqd_wake(void)
+{
+	struct task_struct *tsk = __this_cpu_read(vmbus_irqd);
+
+	__this_cpu_write(vmbus_irq_pending, true);
+	wake_up_process(tsk);
+}
+
+static void vmbus_irqd_setup(unsigned int cpu)
+{
+	sched_set_fifo(current);
+}
+
+static int vmbus_irqd_should_run(unsigned int cpu)
+{
+	return __this_cpu_read(vmbus_irq_pending);
+}
+
+static void run_vmbus_irqd(unsigned int cpu)
+{
+	__this_cpu_write(vmbus_irq_pending, false);
+	__vmbus_isr();
+}
+
+static bool vmbus_irq_initialized;
+
+static struct smp_hotplug_thread vmbus_irq_threads = {
+	.store                  = &vmbus_irqd,
+	.setup			= vmbus_irqd_setup,
+	.thread_should_run      = vmbus_irqd_should_run,
+	.thread_fn              = run_vmbus_irqd,
+	.thread_comm            = "vmbus_irq/%u",
+};
+
+void vmbus_isr(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		vmbus_irqd_wake();
+	} else {
+		lockdep_hardirq_threaded();
+		__vmbus_isr();
+	}
 }
 EXPORT_SYMBOL_FOR_MODULES(vmbus_isr, "mshv_vtl");
 
@@ -1462,16 +1510,21 @@ static int vmbus_bus_init(void)
 	 * the VMbus interrupt handler.
 	 */
 
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && !vmbus_irq_initialized) {
+		ret = smpboot_register_percpu_thread(&vmbus_irq_threads);
+		if (ret)
+			goto err_kthread;
+		vmbus_irq_initialized = true;
+	}
+
 	if (vmbus_irq == -1) {
 		hv_setup_vmbus_handler(vmbus_isr);
 	} else {
-		vmbus_evt = alloc_percpu(long);
 		ret = request_percpu_irq(vmbus_irq, vmbus_percpu_isr,
-				"Hyper-V VMbus", vmbus_evt);
+				"Hyper-V VMbus", &vmbus_evt);
 		if (ret) {
 			pr_err("Can't request Hyper-V VMbus IRQ %d, Err %d",
 					vmbus_irq, ret);
-			free_percpu(vmbus_evt);
 			goto err_setup;
 		}
 	}
@@ -1500,13 +1553,16 @@ static int vmbus_bus_init(void)
 	return 0;
 
 err_connect:
-	if (vmbus_irq == -1) {
+	if (vmbus_irq == -1)
 		hv_remove_vmbus_handler();
-	} else {
-		free_percpu_irq(vmbus_irq, vmbus_evt);
-		free_percpu(vmbus_evt);
-	}
+	else
+		free_percpu_irq(vmbus_irq, &vmbus_evt);
 err_setup:
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && vmbus_irq_initialized) {
+		smpboot_unregister_percpu_thread(&vmbus_irq_threads);
+		vmbus_irq_initialized = false;
+	}
+err_kthread:
 	bus_unregister(&hv_bus);
 	return ret;
 }
@@ -2970,11 +3026,13 @@ static void __exit vmbus_exit(void)
 	vmbus_connection.conn_state = DISCONNECTED;
 	hv_stimer_global_cleanup();
 	vmbus_disconnect();
-	if (vmbus_irq == -1) {
+	if (vmbus_irq == -1)
 		hv_remove_vmbus_handler();
-	} else {
-		free_percpu_irq(vmbus_irq, vmbus_evt);
-		free_percpu(vmbus_evt);
+	else
+		free_percpu_irq(vmbus_irq, &vmbus_evt);
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && vmbus_irq_initialized) {
+		smpboot_unregister_percpu_thread(&vmbus_irq_threads);
+		vmbus_irq_initialized = false;
 	}
 	for_each_online_cpu(cpu) {
 		struct hv_per_cpu_context *hv_cpu
