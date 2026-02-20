@@ -553,6 +553,12 @@ static int read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u
 		struct xe_gt *gt __free(kfree) = NULL;
 		int err;
 
+		/* Don't try to read media ver if media GT is not allowed */
+		if (type == GMDID_MEDIA && !xe_configfs_media_gt_allowed(to_pci_dev(xe->drm.dev))) {
+			*ver = *revid = 0;
+			return 0;
+		}
+
 		gt = kzalloc(sizeof(*gt), GFP_KERNEL);
 		if (!gt)
 			return -ENOMEM;

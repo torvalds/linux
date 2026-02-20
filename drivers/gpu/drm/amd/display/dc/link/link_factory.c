@@ -561,12 +561,13 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.transmitter = transmitter_from_encoder;
-	enc_init_data.analog_engine = find_analog_engine(link, &enc_init_data.analog_encoder);
 	enc_init_data.encoder = link_encoder;
 	enc_init_data.analog_engine = link_analog_engine;
-	enc_init_data.hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-				      link->ctx->gpio_service);
-
+	if (link->ctx->dce_version <= DCN_VERSION_4_01)
+		enc_init_data.hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+					      link->ctx->gpio_service);
+	else
+		enc_init_data.hpd_gpio = NULL;
 	if (enc_init_data.hpd_gpio) {
 		dal_gpio_open(enc_init_data.hpd_gpio, GPIO_MODE_INTERRUPT);
 		dal_gpio_unlock_pin(enc_init_data.hpd_gpio);

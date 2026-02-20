@@ -736,6 +736,16 @@ union pr_hw_flags {
 	uint32_t u32All;
 };
 
+/**
+ * Definition of Panel Replay ML Activity Options
+ */
+enum pr_ml_activity_option {
+	OPTION_DEFAULT	= 0x00, // VESA Option Default (1C)
+	OPTION_1A		= 0x01, // VESA Option 1A
+	OPTION_1B		= 0x02, // VESA Option 1B
+	OPTION_1C		= 0x03, // VESA Option 1C
+};
+
 union fw_assisted_mclk_switch_version {
 	struct {
 		uint8_t minor : 5;
@@ -1628,6 +1638,11 @@ enum dmub_gpint_command {
 	 * DESC: Initiates IPS wake sequence.
 	 */
 	DMUB_GPINT__IPS_DEBUG_WAKE = 137,
+	/**
+	 * DESC: Do panel power off sequence
+	 * ARGS: 1 - Power off
+	 */
+	DMUB_GPINT__PANEL_POWER_OFF_SEQ = 138,
 };
 
 /**
@@ -4398,6 +4413,7 @@ enum dmub_cmd_panel_replay_type {
 enum dmub_cmd_panel_replay_state_update_subtype {
 	PR_STATE_UPDATE_COASTING_VTOTAL = 0x1,
 	PR_STATE_UPDATE_SYNC_MODE = 0x2,
+	PR_STATE_UPDATE_RUNTIME_FLAGS = 0x3,
 };
 
 enum dmub_cmd_panel_replay_general_subtype {
@@ -6691,6 +6707,13 @@ struct dmub_rb_cmd_pr_copy_settings {
 	struct dmub_cmd_pr_copy_settings_data data;
 };
 
+union dmub_pr_runtime_flags {
+	struct {
+		uint32_t disable_abm_optimization : 1; // Disable ABM optimization for PR
+	} bitfields;
+	uint32_t u32All;
+};
+
 struct dmub_cmd_pr_update_state_data {
 	/**
 	 * Panel Instance.
@@ -6709,6 +6732,8 @@ struct dmub_cmd_pr_update_state_data {
 	 */
 	uint32_t coasting_vtotal;
 	uint32_t sync_mode;
+
+	union dmub_pr_runtime_flags pr_runtime_flags;
 };
 
 struct dmub_cmd_pr_general_cmd_data {

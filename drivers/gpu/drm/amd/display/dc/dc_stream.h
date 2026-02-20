@@ -183,6 +183,11 @@ struct luminance_data {
 	int dm_max_decrease_from_nominal;
 };
 
+enum dc_drr_trigger_mode {
+	DRR_TRIGGER_ON_FLIP = 0,
+	DRR_TRIGGER_ON_FLIP_AND_CURSOR,
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -316,6 +321,8 @@ struct dc_stream_state {
 	bool scaler_sharpener_update;
 	bool sharpening_required;
 
+	enum dc_drr_trigger_mode drr_trigger_mode;
+
 	struct dc_update_scratch_space *update_scratch;
 };
 
@@ -366,6 +373,8 @@ struct dc_stream_update {
 	bool *hw_cursor_req;
 	bool *scaler_sharpener_update;
 	bool *sharpening_required;
+
+	enum dc_drr_trigger_mode *drr_trigger_mode;
 };
 
 bool dc_is_stream_unchanged(
@@ -584,7 +593,8 @@ bool dc_stream_configure_crc(struct dc *dc,
 			     bool enable,
 			     bool continuous,
 			     uint8_t idx,
-			     bool reset);
+			     bool reset,
+			     enum crc_poly_mode crc_poly_mode);
 
 bool dc_stream_get_crc(struct dc *dc,
 		       struct dc_stream_state *stream,

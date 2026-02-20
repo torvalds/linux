@@ -1333,7 +1333,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			// Pickup base DM settings
 			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config, sink);
 			// Override dc_panel_config if system has specific settings
-			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
+			dm_helpers_override_panel_settings(dc_ctx, link);
 
 			//sink only can use supported link rate table, we are foreced to enable it
 			if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)

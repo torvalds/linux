@@ -31,7 +31,7 @@
 #include "resource.h"
 #include "clk_mgr.h"
 #include "include/irq_service_interface.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dce110/dce110_timing_generator.h"
 #include "irq/dce110/irq_service_dce110.h"
@@ -226,7 +226,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 	link_regs(4),
 	link_regs(5),
 	link_regs(6),
-	{ .DAC_ENABLE = mmDAC_ENABLE },
+	{0}
 };
 
 #define stream_enc_regs(id)\
@@ -242,7 +242,8 @@ static const struct dce110_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(3),
 	stream_enc_regs(4),
 	stream_enc_regs(5),
-	stream_enc_regs(6)
+	stream_enc_regs(6),
+	{SR(DAC_SOURCE_SELECT),} /* DACA */
 };
 
 static const struct dce_stream_encoder_shift se_shift = {
@@ -491,7 +492,8 @@ static struct stream_encoder *dce100_stream_encoder_create(
 		return NULL;
 
 	if (eng_id == ENGINE_ID_DACA || eng_id == ENGINE_ID_DACB) {
-		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id);
+		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
+			&stream_enc_regs[eng_id], &se_shift, &se_mask);
 		return &enc110->base;
 	}
 
@@ -638,7 +640,8 @@ static struct link_encoder *dce100_link_encoder_create(
 	if (!enc110)
 		return NULL;
 
-	if (enc_init_data->connector.id == CONNECTOR_ID_VGA) {
+	if (enc_init_data->connector.id == CONNECTOR_ID_VGA &&
+	    enc_init_data->analog_engine != ENGINE_ID_UNKNOWN) {
 		dce110_link_encoder_construct(enc110,
 			enc_init_data,
 			&link_enc_feature,
@@ -978,7 +981,10 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	struct dc_link *link = stream->link;
 	enum engine_id preferred_engine = link->link_enc->preferred_engine;
 
-	if (dc_is_rgb_signal(stream->signal))
+	/* Prefer analog engine if the link encoder has one.
+	 * Otherwise, it's an external encoder.
+	 */
+	if (dc_is_rgb_signal(stream->signal) && link->link_enc->analog_engine != ENGINE_ID_UNKNOWN)
 		preferred_engine = link->link_enc->analog_engine;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {

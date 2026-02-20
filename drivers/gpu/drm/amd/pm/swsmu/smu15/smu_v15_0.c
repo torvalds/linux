@@ -716,7 +716,7 @@ int smu_v15_0_set_allowed_mask(struct smu_context *smu)
 	uint32_t feature_mask[2];
 
 	if (smu_feature_list_is_empty(smu, SMU_FEATURE_LIST_ALLOWED) ||
-	    feature->feature_num < 64)
+	    feature->feature_num < SMU_FEATURE_NUM_DEFAULT)
 		return -EINVAL;
 
 	smu_feature_list_to_arr32(smu, SMU_FEATURE_LIST_ALLOWED, feature_mask);
@@ -1724,14 +1724,6 @@ int smu_v15_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 	mutex_unlock(&ctl->lock);
 
 	return ret;
-}
-
-int smu_v15_0_set_default_dpm_tables(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-
-	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0,
-				    smu_table->clocks_table, false);
 }
 
 int smu_v15_0_od_edit_dpm_table(struct smu_context *smu,

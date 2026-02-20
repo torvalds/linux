@@ -1767,9 +1767,6 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	struct kfd_node *dev;
 	int ret;
 
-	if (!drm_file)
-		return -EINVAL;
-
 	if (pdd->drm_priv)
 		return -EBUSY;
 

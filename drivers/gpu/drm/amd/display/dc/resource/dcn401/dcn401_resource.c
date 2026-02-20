@@ -21,6 +21,7 @@
 #include "dcn401/dcn401_hubbub.h"
 #include "dcn401/dcn401_mpc.h"
 #include "dcn401/dcn401_hubp.h"
+#include "dio/dcn10/dcn10_dio.h"
 #include "irq/dcn401/irq_service_dcn401.h"
 #include "dcn401/dcn401_dpp.h"
 #include "dcn401/dcn401_optc.h"
@@ -46,7 +47,7 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "clk_mgr.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dml/display_mode_vba.h"
 #include "dcn401/dcn401_dccg.h"
 #include "dcn10/dcn10_resource.h"
@@ -634,6 +635,22 @@ static const struct dcn20_vmid_mask vmid_masks = {
 		DCN20_VMID_MASK_SH_LIST(_MASK)
 };
 
+#define dio_regs_init() \
+		DIO_REG_LIST_DCN10()
+
+static struct dcn_dio_registers dio_regs;
+
+#define DIO_MASK_SH_LIST_DCN401(mask_sh)\
+		HWS_SF(, DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, mask_sh)
+
+static const struct dcn_dio_shift dio_shift = {
+		DIO_MASK_SH_LIST_DCN401(__SHIFT)
+};
+
+static const struct dcn_dio_mask dio_mask = {
+		DIO_MASK_SH_LIST_DCN401(_MASK)
+};
+
 static const struct resource_caps res_cap_dcn4_01 = {
 	.num_timing_generator = 4,
 	.num_opp = 4,
@@ -879,6 +896,22 @@ static struct hubbub *dcn401_hubbub_create(struct dc_context *ctx)
 	}
 
 	return &hubbub2->base;
+}
+
+static struct dio *dcn401_dio_create(struct dc_context *ctx)
+{
+	struct dcn10_dio *dio10 = kzalloc(sizeof(struct dcn10_dio), GFP_KERNEL);
+
+	if (!dio10)
+		return NULL;
+
+#undef REG_STRUCT
+#define REG_STRUCT dio_regs
+	dio_regs_init();
+
+	dcn10_dio_construct(dio10, ctx, &dio_regs, &dio_shift, &dio_mask);
+
+	return &dio10->base;
 }
 
 static struct hubp *dcn401_hubp_create(
@@ -1499,6 +1532,11 @@ static void dcn401_resource_destruct(struct dcn401_resource_pool *pool)
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 
+	if (pool->base.dio != NULL) {
+		kfree(TO_DCN10_DIO(pool->base.dio));
+		pool->base.dio = NULL;
+	}
+
 	if (pool->base.oem_device != NULL) {
 		struct dc *dc = pool->base.oem_device->ctx->dc;
 
@@ -2068,6 +2106,14 @@ static bool dcn401_resource_construct(
 	if (pool->base.hubbub == NULL) {
 		BREAK_TO_DEBUGGER();
 		dm_error("DC: failed to create hubbub!\n");
+		goto create_fail;
+	}
+
+	/* DIO */
+	pool->base.dio = dcn401_dio_create(ctx);
+	if (pool->base.dio == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create dio!\n");
 		goto create_fail;
 	}
 

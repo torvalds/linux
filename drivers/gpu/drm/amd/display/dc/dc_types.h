@@ -1230,7 +1230,7 @@ struct replay_settings {
 	uint32_t replay_desync_error_fail_count;
 	/* The frame skip number dal send to DMUB */
 	uint16_t frame_skip_number;
-	/* Current Panel Replay event */
+	/* Current Panel Replay events */
 	uint32_t replay_events;
 };
 
@@ -1256,7 +1256,7 @@ struct dc_panel_config {
 		unsigned int max_nonboost_brightness_millinits;
 		unsigned int min_brightness_millinits;
 	} nits_brightness;
-	/* PSR */
+	/* PSR/Replay */
 	struct psr {
 		bool disable_psr;
 		bool disallow_psrsu;
@@ -1266,6 +1266,8 @@ struct dc_panel_config {
 		bool rc_allow_fullscreen_VPB;
 		bool read_psrcap_again;
 		unsigned int replay_enable_option;
+		bool enable_frame_skipping;
+		bool enable_teams_optimization;
 	} psr;
 	/* ABM */
 	struct varib {
@@ -1282,6 +1284,27 @@ struct dc_panel_config {
 	struct ilr {
 		bool optimize_edp_link_rate; /* eDP ILR */
 	} ilr;
+	/* Adaptive VariBright*/
+	struct adaptive_vb {
+		bool disable_adaptive_vb;
+		unsigned int default_abm_vb_levels;        // default value = 0xDCAA6414
+		unsigned int default_cacp_vb_levels;
+		unsigned int default_abm_vb_hdr_levels;    // default value = 0xB4805A40
+		unsigned int default_cacp_vb_hdr_levels;
+		unsigned int abm_scaling_factors;          // default value = 0x23210012
+		unsigned int cacp_scaling_factors;
+		unsigned int battery_life_configures;      // default value = 0x0A141E
+		unsigned int abm_backlight_adaptive_pwl_1; // default value = 0x6A4F7244
+		unsigned int abm_backlight_adaptive_pwl_2; // default value = 0x4C615659
+		unsigned int abm_backlight_adaptive_pwl_3; // default value = 0x0064
+		unsigned int cacp_backlight_adaptive_pwl_1;
+		unsigned int cacp_backlight_adaptive_pwl_2;
+		unsigned int cacp_backlight_adaptive_pwl_3;
+	} adaptive_vb;
+	/* Ramless Idle Opt*/
+	struct rio {
+		bool disable_rio;
+	} rio;
 };
 
 #define MAX_SINKS_PER_LINK 4

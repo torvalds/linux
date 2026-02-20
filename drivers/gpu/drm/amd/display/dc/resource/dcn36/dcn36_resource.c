@@ -49,7 +49,7 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "clk_mgr.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
 #include "dcn35/dcn35_dccg.h"
@@ -460,16 +460,22 @@ static const struct dcn30_mpc_mask mpc_mask = {
 };
 
 #define optc_regs_init(id)\
-	OPTC_COMMON_REG_LIST_DCN3_5_RI(id)
+	OPTC_COMMON_REG_LIST_DCN3_5_RI(id),\
+	SRI_ARR(OTG_CRC0_DATA_R32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC0_DATA_G32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC0_DATA_B32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_R32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_G32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_B32, OTG_CRC32, id)
 
 static struct dcn_optc_registers optc_regs[4];
 
 static const struct dcn_optc_shift optc_shift = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_5(__SHIFT)
+	OPTC_COMMON_MASK_SH_LIST_DCN3_6(__SHIFT)
 };
 
 static const struct dcn_optc_mask optc_mask = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_5(_MASK)
+	OPTC_COMMON_MASK_SH_LIST_DCN3_6(_MASK)
 };
 
 #define hubp_regs_init(id)\
@@ -769,7 +775,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 };
 
 static const struct dc_check_config config_defaults = {
-	.enable_legacy_fast_update = true,
+	.enable_legacy_fast_update = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

@@ -65,14 +65,15 @@
 #define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
 #define SMU_FEATURES_HIGH_SHIFT      32
 
-#define SMC_DPM_FEATURE ( \
-	FEATURE_DPM_PREFETCHER_MASK | \
-	FEATURE_DPM_GFXCLK_MASK | \
-	FEATURE_DPM_UCLK_MASK | \
-	FEATURE_DPM_SOCCLK_MASK | \
-	FEATURE_DPM_MP0CLK_MASK | \
-	FEATURE_DPM_FCLK_MASK | \
-	FEATURE_DPM_XGMI_MASK)
+static const struct smu_feature_bits arcturus_dpm_features = {
+	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_MP0CLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_XGMI_BIT) }
+};
 
 #define smnPCIE_ESM_CTRL			0x111003D0
 
@@ -1526,13 +1527,14 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 static bool arcturus_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  arcturus_dpm_features.bits);
 }
 
 static int arcturus_dpm_set_vcn_enable(struct smu_context *smu,

@@ -919,16 +919,15 @@ void amdgpu_dm_hpd_init(struct amdgpu_device *adev)
 			continue;
 
 		amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+		dc_link = amdgpu_dm_connector->dc_link;
+		if (!dc_link)
+			continue;
 
 		/*
 		 * Analog connectors may be hot-plugged unlike other connector
 		 * types that don't support HPD. Only poll analog connectors.
 		 */
-		use_polling |=
-			amdgpu_dm_connector->dc_link &&
-			dc_connector_supports_analog(amdgpu_dm_connector->dc_link->link_id.id);
-
-		dc_link = amdgpu_dm_connector->dc_link;
+		use_polling |= dc_connector_supports_analog(dc_link->link_id.id);
 
 		/*
 		 * Get a base driver irq reference for hpd ints for the lifetime

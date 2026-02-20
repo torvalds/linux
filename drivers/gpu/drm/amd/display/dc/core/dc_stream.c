@@ -515,16 +515,18 @@ bool dc_stream_program_cursor_position(
 			}
 		}
 
-		/* apply manual trigger */
-		int i;
+		if (stream->drr_trigger_mode == DRR_TRIGGER_ON_FLIP_AND_CURSOR) {
+			/* apply manual trigger */
+			int i;
 
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
-			/* trigger event on first pipe with current stream */
-			if (stream == pipe_ctx->stream) {
-				pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
-				break;
+				/* trigger event on first pipe with current stream */
+				if (stream == pipe_ctx->stream) {
+					pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
+					break;
+				}
 			}
 		}
 

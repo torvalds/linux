@@ -690,7 +690,7 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 }
 
 static int __smu_get_enabled_features(struct smu_context *smu,
-			       uint64_t *enabled_features)
+				      struct smu_feature_bits *enabled_features)
 {
 	return smu_cmn_call_asic_func(get_enabled_mask, smu, enabled_features);
 }
@@ -699,7 +699,7 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 			       enum smu_feature_mask mask)
 {
 	struct amdgpu_device *adev = smu->adev;
-	uint64_t enabled_features;
+	struct smu_feature_bits enabled_features;
 	int feature_id;
 
 	if (__smu_get_enabled_features(smu, &enabled_features)) {
@@ -712,7 +712,8 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	 * enabled. Also considering they have no feature_map available, the
 	 * check here can avoid unwanted feature_map check below.
 	 */
-	if (enabled_features == ULLONG_MAX)
+	if (smu_feature_bits_full(&enabled_features,
+				  smu->smu_feature.feature_num))
 		return 1;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -721,7 +722,7 @@ int smu_cmn_feature_is_enabled(struct smu_context *smu,
 	if (feature_id < 0)
 		return 0;
 
-	return test_bit(feature_id, (unsigned long *)&enabled_features);
+	return smu_feature_bits_is_set(&enabled_features, feature_id);
 }
 
 bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
@@ -763,44 +764,38 @@ bool smu_cmn_clk_dpm_is_enabled(struct smu_context *smu,
 }
 
 int smu_cmn_get_enabled_mask(struct smu_context *smu,
-			     uint64_t *feature_mask)
+			     struct smu_feature_bits *feature_mask)
 {
-	uint32_t *feature_mask_high;
-	uint32_t *feature_mask_low;
+	uint32_t features[2];
 	int ret = 0, index = 0;
 
 	if (!feature_mask)
 		return -EINVAL;
 
-	feature_mask_low = &((uint32_t *)feature_mask)[0];
-	feature_mask_high = &((uint32_t *)feature_mask)[1];
-
 	index = smu_cmn_to_asic_specific_index(smu,
 						CMN2ASIC_MAPPING_MSG,
 						SMU_MSG_GetEnabledSmuFeatures);
 	if (index > 0) {
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						      SMU_MSG_GetEnabledSmuFeatures,
-						      0,
-						      feature_mask_low);
+		ret = smu_cmn_send_smc_msg_with_param(
+			smu, SMU_MSG_GetEnabledSmuFeatures, 0, &features[0]);
 		if (ret)
 			return ret;
 
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						      SMU_MSG_GetEnabledSmuFeatures,
-						      1,
-						      feature_mask_high);
+		ret = smu_cmn_send_smc_msg_with_param(
+			smu, SMU_MSG_GetEnabledSmuFeatures, 1, &features[1]);
 	} else {
-		ret = smu_cmn_send_smc_msg(smu,
-					   SMU_MSG_GetEnabledSmuFeaturesHigh,
-					   feature_mask_high);
+		ret = smu_cmn_send_smc_msg(
+			smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &features[1]);
 		if (ret)
 			return ret;
 
-		ret = smu_cmn_send_smc_msg(smu,
-					   SMU_MSG_GetEnabledSmuFeaturesLow,
-					   feature_mask_low);
+		ret = smu_cmn_send_smc_msg(
+			smu, SMU_MSG_GetEnabledSmuFeaturesLow, &features[0]);
 	}
+
+	if (!ret)
+		smu_feature_bits_from_arr32(feature_mask, features,
+					    SMU_FEATURE_NUM_DEFAULT);
 
 	return ret;
 }
@@ -886,7 +881,8 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
 	int8_t sort_feature[MAX(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
-	uint64_t feature_mask;
+	struct smu_feature_bits feature_mask;
+	uint32_t features[2];
 	int i, feature_index;
 	uint32_t count = 0;
 	size_t size = 0;
@@ -894,8 +890,10 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	if (__smu_get_enabled_features(smu, &feature_mask))
 		return 0;
 
-	size =  sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
-			upper_32_bits(feature_mask), lower_32_bits(feature_mask));
+	/* TBD: Need to handle for > 64 bits */
+	smu_feature_bits_to_arr32(&feature_mask, features, 64);
+	size = sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
+			     features[1], features[0]);
 
 	memset(sort_feature, -1, sizeof(sort_feature));
 
@@ -912,16 +910,18 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
 			"No", "Feature", "Bit", "State");
 
-	for (feature_index = 0; feature_index < SMU_FEATURE_MAX; feature_index++) {
+	for (feature_index = 0; feature_index < smu->smu_feature.feature_num;
+	     feature_index++) {
 		if (sort_feature[feature_index] < 0)
 			continue;
 
-		size += sysfs_emit_at(buf, size, "%02d. %-20s (%2d) : %s\n",
-				count++,
-				smu_get_feature_name(smu, sort_feature[feature_index]),
-				feature_index,
-				!!test_bit(feature_index, (unsigned long *)&feature_mask) ?
-				"enabled" : "disabled");
+		size += sysfs_emit_at(
+			buf, size, "%02d. %-20s (%2d) : %s\n", count++,
+			smu_get_feature_name(smu, sort_feature[feature_index]),
+			feature_index,
+			smu_feature_bits_is_set(&feature_mask, feature_index) ?
+				"enabled" :
+				"disabled");
 	}
 
 	return size;
@@ -931,7 +931,8 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 				uint64_t new_mask)
 {
 	int ret = 0;
-	uint64_t feature_mask;
+	struct smu_feature_bits feature_mask;
+	uint64_t feature_mask_u64;
 	uint64_t feature_2_enabled = 0;
 	uint64_t feature_2_disabled = 0;
 
@@ -939,8 +940,9 @@ int smu_cmn_set_pp_feature_mask(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	feature_2_enabled  = ~feature_mask & new_mask;
-	feature_2_disabled = feature_mask & ~new_mask;
+	feature_mask_u64 = *(uint64_t *)feature_mask.bits;
+	feature_2_enabled = ~feature_mask_u64 & new_mask;
+	feature_2_disabled = feature_mask_u64 & ~new_mask;
 
 	if (feature_2_enabled) {
 		ret = smu_cmn_feature_update_enable_state(smu,
