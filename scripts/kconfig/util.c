@@ -18,25 +18,50 @@ static HASHTABLE_DEFINE(file_hashtable, 1U << 11);
 
 struct file {
 	struct hlist_node node;
+	struct {
+		const char *name;
+		int lineno;
+	} parent;
 	char name[];
 };
 
-/* file already present in list? If not add it */
-const char *file_lookup(const char *name)
+static void die_duplicated_include(struct file *file,
+				   const char *parent, int lineno)
 {
+	fprintf(stderr,
+		"%s:%d: error: repeated inclusion of %s\n"
+		"%s:%d: note: location of first inclusion of %s\n",
+		parent, lineno, file->name,
+		file->parent.name, file->parent.lineno, file->name);
+	exit(1);
+}
+
+/* file already present in list? If not add it */
+const char *file_lookup(const char *name,
+			const char *parent_name, int parent_lineno)
+{
+	const char *parent = NULL;
 	struct file *file;
 	size_t len;
 	int hash = hash_str(name);
 
+	if (parent_name)
+		parent = file_lookup(parent_name, NULL, 0);
+
 	hash_for_each_possible(file_hashtable, file, node, hash)
-		if (!strcmp(name, file->name))
-			return file->name;
+		if (!strcmp(name, file->name)) {
+			if (!parent_name)
+				return file->name;
+			die_duplicated_include(file, parent, parent_lineno);
+		}
 
 	len = strlen(name);
 	file = xmalloc(sizeof(*file) + len + 1);
 	memset(file, 0, sizeof(*file));
 	memcpy(file->name, name, len);
 	file->name[len] = '\0';
+	file->parent.name = parent;
+	file->parent.lineno = parent_lineno;
 
 	hash_add(file_hashtable, &file->node, hash);
 
