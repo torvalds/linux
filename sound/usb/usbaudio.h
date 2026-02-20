@@ -224,6 +224,10 @@ extern bool snd_usb_skip_validation;
  *  playback value represents muted state instead of minimum audible volume
  * QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE
  *  Similar to QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE, but for capture streams
+ * QUIRK_FLAG_SKIP_IFACE_SETUP
+ *  Skip the probe-time interface setup (usb_set_interface,
+ *  init_pitch, init_sample_rate); redundant with
+ *  snd_usb_endpoint_prepare() at stream-open time
  */
 
 enum {
@@ -253,6 +257,7 @@ enum {
 	QUIRK_TYPE_MIC_RES_384			= 23,
 	QUIRK_TYPE_MIXER_PLAYBACK_MIN_MUTE	= 24,
 	QUIRK_TYPE_MIXER_CAPTURE_MIN_MUTE	= 25,
+	QUIRK_TYPE_SKIP_IFACE_SETUP		= 26,
 /* Please also edit snd_usb_audio_quirk_flag_names */
 };
 
@@ -284,5 +289,6 @@ enum {
 #define QUIRK_FLAG_MIC_RES_384			QUIRK_FLAG(MIC_RES_384)
 #define QUIRK_FLAG_MIXER_PLAYBACK_MIN_MUTE	QUIRK_FLAG(MIXER_PLAYBACK_MIN_MUTE)
 #define QUIRK_FLAG_MIXER_CAPTURE_MIN_MUTE	QUIRK_FLAG(MIXER_CAPTURE_MIN_MUTE)
+#define QUIRK_FLAG_SKIP_IFACE_SETUP		QUIRK_FLAG(SKIP_IFACE_SETUP)
 
 #endif /* __USBAUDIO_H */
