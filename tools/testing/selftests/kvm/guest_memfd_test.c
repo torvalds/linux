@@ -171,6 +171,64 @@ static void test_numa_allocation(int fd, size_t total_size)
 	kvm_munmap(mem, total_size);
 }
 
+static void test_collapse(int fd, uint64_t flags)
+{
+	const size_t pmd_size = get_trans_hugepagesz();
+	void *reserved_addr;
+	void *aligned_addr;
+	char *mem;
+	off_t i;
+
+	/*
+	 * To even reach the point where the guest_memfd folios will
+	 * get collapsed, both the userspace address and the offset
+	 * within the guest_memfd have to be aligned to pmd_size.
+	 *
+	 * To achieve that alignment, reserve virtual address space
+	 * with regular mmap, then use MAP_FIXED to allocate memory
+	 * from a pmd_size-aligned offset (0) at a known, available
+	 * virtual address.
+	 */
+	reserved_addr = kvm_mmap(pmd_size * 2, PROT_NONE,
+				 MAP_PRIVATE | MAP_ANONYMOUS, -1);
+	aligned_addr = align_ptr_up(reserved_addr, pmd_size);
+
+	mem = mmap(aligned_addr, pmd_size, PROT_READ | PROT_WRITE,
+		   MAP_FIXED | MAP_SHARED, fd, 0);
+	TEST_ASSERT(IS_ALIGNED((u64)mem, pmd_size),
+		    "Userspace address must be aligned to PMD size.");
+
+	/*
+	 * Use reads to populate page table to avoid setting dirty
+	 * flag on page.
+	 */
+	for (i = 0; i < pmd_size; i += getpagesize())
+		READ_ONCE(mem[i]);
+
+	/*
+	 * Advising the use of huge pages in guest_memfd should be
+	 * fine...
+	 */
+	kvm_madvise(mem, pmd_size, MADV_HUGEPAGE);
+
+	/*
+	 * ... but collapsing folios must not be supported to avoid
+	 * mapping beyond shared ranges into host userspace page
+	 * tables.
+	 */
+	TEST_ASSERT_EQ(madvise(mem, pmd_size, MADV_COLLAPSE), -1);
+	TEST_ASSERT_EQ(errno, EINVAL);
+
+	/*
+	 * Removing from host page tables and re-faulting should be
+	 * fine; should not end up faulting in a collapsed/huge folio.
+	 */
+	kvm_madvise(mem, pmd_size, MADV_DONTNEED);
+	READ_ONCE(mem[0]);
+
+	kvm_munmap(reserved_addr, pmd_size * 2);
+}
+
 static void test_fault_sigbus(int fd, size_t accessible_size, size_t map_size)
 {
 	const char val = 0xaa;
@@ -350,13 +408,16 @@ static void test_guest_memfd_flags(struct kvm_vm *vm)
 	}
 }
 
-#define gmem_test(__test, __vm, __flags)				\
+#define __gmem_test(__test, __vm, __flags, __gmem_size)			\
 do {									\
-	int fd = vm_create_guest_memfd(__vm, page_size * 4, __flags);	\
+	int fd = vm_create_guest_memfd(__vm, __gmem_size, __flags);	\
 									\
-	test_##__test(fd, page_size * 4);				\
+	test_##__test(fd, __gmem_size);					\
 	close(fd);							\
 } while (0)
+
+#define gmem_test(__test, __vm, __flags)				\
+	__gmem_test(__test, __vm, __flags, page_size * 4)
 
 static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 {
@@ -367,9 +428,12 @@ static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 
 	if (flags & GUEST_MEMFD_FLAG_MMAP) {
 		if (flags & GUEST_MEMFD_FLAG_INIT_SHARED) {
+			size_t pmd_size = get_trans_hugepagesz();
+
 			gmem_test(mmap_supported, vm, flags);
 			gmem_test(fault_overflow, vm, flags);
 			gmem_test(numa_allocation, vm, flags);
+			__gmem_test(collapse, vm, flags, pmd_size);
 		} else {
 			gmem_test(fault_private, vm, flags);
 		}
