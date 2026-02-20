@@ -859,12 +859,10 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->regmap_irqc = axp20x->regmap_irqc;
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
-	if (IS_ERR(info->cable.edev)) {
-		dev_err_probe(dev, PTR_ERR(info->cable.edev),
-			      "extcon_get_extcon_dev(%s) failed\n",
-			      AXP288_EXTCON_DEV_NAME);
-		return PTR_ERR(info->cable.edev);
-	}
+	if (IS_ERR(info->cable.edev))
+		return dev_err_probe(dev, PTR_ERR(info->cable.edev),
+				     "extcon_get_extcon_dev(%s) failed\n",
+				     AXP288_EXTCON_DEV_NAME);
 
 	/*
 	 * On devices with broken ACPI GPIO event handlers there also is no ACPI
@@ -878,12 +876,11 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 	if (extcon_name) {
 		info->otg.cable = extcon_get_extcon_dev(extcon_name);
-		if (IS_ERR(info->otg.cable)) {
-			dev_err_probe(dev, PTR_ERR(info->otg.cable),
-				      "extcon_get_extcon_dev(%s) failed\n",
-				      USB_HOST_EXTCON_NAME);
-			return PTR_ERR(info->otg.cable);
-		}
+		if (IS_ERR(info->otg.cable))
+			return dev_err_probe(dev, PTR_ERR(info->otg.cable),
+					     "extcon_get_extcon_dev(%s) failed\n",
+					     USB_HOST_EXTCON_NAME);
+
 		dev_info(dev, "Using " USB_HOST_EXTCON_HID " extcon for usb-id\n");
 	}
 
@@ -897,11 +894,9 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	charger_cfg.drv_data = info;
 	info->psy_usb = devm_power_supply_register(dev, &axp288_charger_desc,
 						   &charger_cfg);
-	if (IS_ERR(info->psy_usb)) {
-		ret = PTR_ERR(info->psy_usb);
-		dev_err(dev, "failed to register power supply: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(info->psy_usb))
+		return dev_err_probe(dev, PTR_ERR(info->psy_usb),
+				     "failed to register power supply: %d\n", ret);
 
 	/* Cancel our work on cleanup, register this before the notifiers */
 	ret = devm_work_autocancel(dev, &info->cable.work,
@@ -913,10 +908,9 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
 	ret = devm_extcon_register_notifier_all(dev, info->cable.edev,
 						&info->cable.nb);
-	if (ret) {
-		dev_err(dev, "failed to register cable extcon notifier\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to register cable extcon notifier\n");
+
 	schedule_work(&info->cable.work);
 
 	ret = devm_work_autocancel(dev, &info->otg.work,
@@ -929,10 +923,10 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	if (info->otg.cable) {
 		ret = devm_extcon_register_notifier(dev, info->otg.cable,
 					EXTCON_USB_HOST, &info->otg.id_nb);
-		if (ret) {
-			dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to register EXTCON_USB_HOST notifier\n");
+
 		schedule_work(&info->otg.work);
 	}
 
@@ -951,11 +945,9 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		ret = devm_request_threaded_irq(&info->pdev->dev, info->irq[i],
 					NULL, axp288_charger_irq_thread_handler,
 					IRQF_ONESHOT, info->pdev->name, info);
-		if (ret) {
-			dev_err(dev, "failed to request interrupt=%d\n",
-								info->irq[i]);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to request interrupt=%d\n",
+					     info->irq[i]);
 	}
 
 	return 0;
