@@ -46,4 +46,16 @@ enum smb2_compound_ops {
 #define END_OF_CHAIN 4
 #define RELATED_REQUEST 8
 
+/*
+ *****************************************************************
+ * Struct definitions go here
+ *****************************************************************
+ */
+
+struct status_to_posix_error {
+	__u32 smb2_status;
+	int posix_error;
+	char *status_string;
+};
+
 #endif	/* _SMB2_GLOB_H */
