@@ -53,10 +53,10 @@ int main(int argc, char **argv)
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 restart:
+	optind = 1;
 	skel = SCX_OPS_OPEN(pair_ops, scx_pair);
 
 	skel->rodata->nr_cpu_ids = libbpf_num_possible_cpus();
-	assert(skel->rodata->nr_cpu_ids > 0);
 	skel->rodata->pair_batch_dur_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
 	/* pair up the earlier half to the latter by default, override with -s */
@@ -76,6 +76,12 @@ restart:
 		}
 	}
 
+	/* Stride must be positive to pair distinct CPUs. */
+	if (stride <= 0) {
+		fprintf(stderr, "Invalid stride %d, must be positive\n", stride);
+		scx_pair__destroy(skel);
+		return -1;
+	}
 	bpf_map__set_max_entries(skel->maps.pair_ctx, skel->rodata->nr_cpu_ids / 2);
 
 	/* Resize arrays so their element count is equal to cpu count. */

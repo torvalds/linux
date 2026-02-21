@@ -71,6 +71,7 @@ int main(int argc, char **argv)
 	signal(SIGINT, sigint_handler);
 	signal(SIGTERM, sigint_handler);
 restart:
+	optind = 1;
 	skel = SCX_OPS_OPEN(simple_ops, scx_simple);
 
 	while ((opt = getopt(argc, argv, "fvh")) != -1) {
