@@ -109,6 +109,11 @@ include::itrace.txt[]
 	should be used, and also --buildid-all and --switch-events may be
 	useful.
 
+--convert-callchain::
+	Parse DWARF callchains and convert them to usual callchains.  This also
+	discards stack and register data from the samples.  This will lose
+	inlined callchain entries.
+
 :GMEXAMPLECMD: inject
 :GMEXAMPLESUBCMD:
 include::guestmount.txt[]

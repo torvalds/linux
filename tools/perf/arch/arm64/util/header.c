@@ -1,4 +1,3 @@
-#include <linux/kernel.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <stdio.h>

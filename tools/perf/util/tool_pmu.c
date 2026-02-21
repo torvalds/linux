@@ -2,7 +2,6 @@
 #include "cgroup.h"
 #include "counts.h"
 #include "cputopo.h"
-#include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
 #include "print-events.h"
@@ -14,7 +13,6 @@
 #include <api/fs/fs.h>
 #include <api/io.h>
 #include <internal/threadmap.h>
-#include <perf/cpumap.h>
 #include <perf/threadmap.h>
 #include <fcntl.h>
 #include <strings.h>
@@ -109,23 +107,6 @@ enum tool_pmu_event evsel__tool_event(const struct evsel *evsel)
 const char *evsel__tool_pmu_event_name(const struct evsel *evsel)
 {
 	return tool_pmu__event_to_str(evsel->core.attr.config);
-}
-
-struct perf_cpu_map *tool_pmu__cpus(struct perf_event_attr *attr)
-{
-	static struct perf_cpu_map *cpu0_map;
-	enum tool_pmu_event event = (enum tool_pmu_event)attr->config;
-
-	if (event <= TOOL_PMU__EVENT_NONE || event >= TOOL_PMU__EVENT_MAX) {
-		pr_err("Invalid tool PMU event config %llx\n", attr->config);
-		return NULL;
-	}
-	if (event == TOOL_PMU__EVENT_USER_TIME || event == TOOL_PMU__EVENT_SYSTEM_TIME)
-		return cpu_map__online();
-
-	if (!cpu0_map)
-		cpu0_map = perf_cpu_map__new_int(0);
-	return perf_cpu_map__get(cpu0_map);
 }
 
 static bool read_until_char(struct io *io, char e)

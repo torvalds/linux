@@ -6,9 +6,12 @@
 #include "libbfd.h"
 #include "llvm.h"
 #include "symbol.h"
+#include "libdw.h"
+#include "debug.h"
 
 #include <inttypes.h>
 #include <string.h>
+#include <linux/string.h>
 
 bool srcline_full_filename;
 
@@ -47,6 +50,25 @@ int inline_list__append(struct symbol *symbol, char *srcline, struct inline_node
 		list_add_tail(&ilist->list, &node->val);
 	else
 		list_add(&ilist->list, &node->val);
+
+	return 0;
+}
+
+int inline_list__append_tail(struct symbol *symbol, char *srcline, struct inline_node *node)
+{
+	struct inline_list *ilist;
+
+	ilist = zalloc(sizeof(*ilist));
+	if (ilist == NULL)
+		return -1;
+
+	ilist->symbol = symbol;
+	ilist->srcline = srcline;
+
+	if (callchain_param.order == ORDER_CALLEE)
+		list_add(&ilist->list, &node->val);
+	else
+		list_add_tail(&ilist->list, &node->val);
 
 	return 0;
 }
@@ -118,17 +140,95 @@ static int addr2line(const char *dso_name, u64 addr, char **file, unsigned int *
 		     struct dso *dso, bool unwind_inlines, struct inline_node *node,
 		     struct symbol *sym)
 {
-	int ret;
+	int ret = 0;
 
-	ret = llvm__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines, node, sym);
-	if (ret > 0)
-		return ret;
+	if (symbol_conf.addr2line_style[0] == A2L_STYLE_UNKNOWN) {
+		int i = 0;
 
-	ret = libbfd__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines, node, sym);
-	if (ret > 0)
-		return ret;
+		/* Default addr2line fallback order. */
+#ifdef HAVE_LIBDW_SUPPORT
+		symbol_conf.addr2line_style[i++] = A2L_STYLE_LIBDW;
+#endif
+#ifdef HAVE_LIBLLVM_SUPPORT
+		symbol_conf.addr2line_style[i++] = A2L_STYLE_LLVM;
+#endif
+#ifdef HAVE_LIBBFD_SUPPORT
+		symbol_conf.addr2line_style[i++] = A2L_STYLE_LIBBFD;
+#endif
+		symbol_conf.addr2line_style[i++] = A2L_STYLE_CMD;
+	}
 
-	return cmd__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines, node, sym);
+	for (size_t i = 0; i < ARRAY_SIZE(symbol_conf.addr2line_style); i++) {
+		switch (symbol_conf.addr2line_style[i]) {
+		case A2L_STYLE_LIBDW:
+			ret = libdw__addr2line(addr, file, line_nr, dso, unwind_inlines,
+					       node, sym);
+			break;
+		case A2L_STYLE_LLVM:
+			ret = llvm__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines,
+					      node, sym);
+			break;
+		case A2L_STYLE_LIBBFD:
+			ret = libbfd__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines,
+						node, sym);
+			break;
+		case A2L_STYLE_CMD:
+			ret = cmd__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines,
+					     node, sym);
+			break;
+		case A2L_STYLE_UNKNOWN:
+		default:
+			break;
+		}
+		if (ret > 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+int addr2line_configure(const char *var, const char *value, void *cb __maybe_unused)
+{
+	static const char * const a2l_style_names[] = {
+		[A2L_STYLE_LIBDW] = "libdw",
+		[A2L_STYLE_LLVM] = "llvm",
+		[A2L_STYLE_LIBBFD] = "libbfd",
+		[A2L_STYLE_CMD] = "addr2line",
+		NULL
+	};
+
+	char *s, *p, *saveptr;
+	size_t i = 0;
+
+	if (strcmp(var, "addr2line.style"))
+		return 0;
+
+	if (!value)
+		return -1;
+
+	s = strdup(value);
+	if (!s)
+		return -1;
+
+	p = strtok_r(s, ",", &saveptr);
+	while (p && i < ARRAY_SIZE(symbol_conf.addr2line_style)) {
+		bool found = false;
+		char *q = strim(p);
+
+		for (size_t j = A2L_STYLE_LIBDW; j < MAX_A2L_STYLE; j++) {
+			if (!strcasecmp(q, a2l_style_names[j])) {
+				symbol_conf.addr2line_style[i++] = j;
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			pr_warning("Unknown addr2line style: %s\n", q);
+		p = strtok_r(NULL, ",", &saveptr);
+	}
+
+	free(s);
+	return 0;
 }
 
 static struct inline_node *addr2inlines(const char *dso_name, u64 addr,

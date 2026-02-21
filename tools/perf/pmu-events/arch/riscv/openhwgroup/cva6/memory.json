@@ -1,0 +1,42 @@
+[
+  {
+    "EventName": "L1_I_CACHE_MISSES",
+    "EventCode": "0x1",
+    "BriefDescription": "number of misses in L1 I-Cache"
+  },
+  {
+    "EventName": "L1_D_CACHE_MISSES",
+    "EventCode": "0x2",
+    "BriefDescription": "number of misses in L1 D-Cache"
+  },
+  {
+    "EventName": "ITLB_MISSES",
+    "EventCode": "0x3",
+    "BriefDescription": "number of misses in ITLB"
+  },
+  {
+    "EventName": "DTLB_MISSES",
+    "EventCode": "0x4",
+    "BriefDescription": "number of misses in DTLB"
+  },
+  {
+    "EventName": "L1_I_CACHE_ACCESSES",
+    "EventCode": "0x10",
+    "BriefDescription": "number of accesses to instruction cache"
+  },
+  {
+    "EventName": "L1_D_CACHE_ACCESSES",
+    "EventCode": "0x11",
+    "BriefDescription": "number of accesses to data cache"
+  },
+  {
+    "EventName": "L1_CACHE_LINE_EVICTION",
+    "EventCode": "0x12",
+    "BriefDescription": "number of data cache line eviction"
+  },
+  {
+    "EventName": "ITLB_FLUSH",
+    "EventCode": "0x13",
+    "BriefDescription": "number of ITLB flushes"
+  }
+]

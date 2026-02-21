@@ -157,10 +157,10 @@ static int thread_stack__init(struct thread_stack *ts, struct thread *thread,
 
 	if (thread__maps(thread) && maps__machine(thread__maps(thread))) {
 		struct machine *machine = maps__machine(thread__maps(thread));
-		const char *arch = perf_env__arch(machine->env);
+		uint16_t e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 
 		ts->kernel_start = machine__kernel_start(machine);
-		if (!strcmp(arch, "x86"))
+		if (e_machine == EM_X86_64 || e_machine == EM_386)
 			ts->rstate = X86_RETPOLINE_POSSIBLE;
 	} else {
 		ts->kernel_start = 1ULL << 63;

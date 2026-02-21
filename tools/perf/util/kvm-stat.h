@@ -2,8 +2,6 @@
 #ifndef __PERF_KVM_STAT_H
 #define __PERF_KVM_STAT_H
 
-#ifdef HAVE_KVM_STAT_SUPPORT
-
 #include "tool.h"
 #include "sort.h"
 #include "stat.h"
@@ -67,7 +65,7 @@ struct kvm_events_ops {
 			       struct event_key *key);
 	bool (*is_end_event)(struct evsel *evsel,
 			     struct perf_sample *sample, struct event_key *key);
-	struct child_event_ops *child_ops;
+	const struct child_event_ops *child_ops;
 	void (*decode_key)(struct perf_kvm_stat *kvm, struct event_key *key,
 			   char *decode);
 	const char *name;
@@ -95,7 +93,7 @@ struct perf_kvm_stat {
 	struct exit_reasons_table *exit_reasons;
 	const char *exit_reasons_isa;
 
-	struct kvm_events_ops *events_ops;
+	const struct kvm_events_ops *events_ops;
 
 	u64 total_time;
 	u64 total_count;
@@ -113,10 +111,10 @@ struct perf_kvm_stat {
 
 struct kvm_reg_events_ops {
 	const char *name;
-	struct kvm_events_ops *ops;
+	const struct kvm_events_ops *ops;
 };
 
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#ifdef HAVE_LIBTRACEEVENT
 
 void exit_event_get_key(struct evsel *evsel,
 			struct perf_sample *sample,
@@ -130,11 +128,9 @@ bool exit_event_end(struct evsel *evsel,
 void exit_event_decode_key(struct perf_kvm_stat *kvm,
 			   struct event_key *key,
 			   char *decode);
-#endif
 
 bool kvm_exit_event(struct evsel *evsel);
 bool kvm_entry_event(struct evsel *evsel);
-int setup_kvm_events_tp(struct perf_kvm_stat *kvm);
 
 #define define_exit_reasons_table(name, symbols)	\
 	static struct exit_reasons_table name[] = {	\
@@ -144,15 +140,60 @@ int setup_kvm_events_tp(struct perf_kvm_stat *kvm);
 /*
  * arch specific callbacks and data structures
  */
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid);
+int setup_kvm_events_tp(struct perf_kvm_stat *kvm, uint16_t e_machine);
+int __setup_kvm_events_tp_powerpc(struct perf_kvm_stat *kvm);
 
-extern const char *kvm_events_tp[];
-extern struct kvm_reg_events_ops kvm_reg_events_ops[];
-extern const char * const kvm_skip_events[];
-extern const char *vcpu_id_str;
-extern const char *kvm_exit_reason;
-extern const char *kvm_entry_trace;
-extern const char *kvm_exit_trace;
+int cpu_isa_init(struct perf_kvm_stat *kvm, uint16_t e_machine, const char *cpuid);
+int __cpu_isa_init_arm64(struct perf_kvm_stat *kvm);
+int __cpu_isa_init_loongarch(struct perf_kvm_stat *kvm);
+int __cpu_isa_init_powerpc(struct perf_kvm_stat *kvm);
+int __cpu_isa_init_riscv(struct perf_kvm_stat *kvm);
+int __cpu_isa_init_s390(struct perf_kvm_stat *kvm, const char *cpuid);
+int __cpu_isa_init_x86(struct perf_kvm_stat *kvm, const char *cpuid);
+
+const char *vcpu_id_str(uint16_t e_machine);
+const char *kvm_exit_reason(uint16_t e_machine);
+const char *kvm_entry_trace(uint16_t e_machine);
+const char *kvm_exit_trace(uint16_t e_machine);
+
+const char * const *kvm_events_tp(uint16_t e_machine);
+const char * const *__kvm_events_tp_arm64(void);
+const char * const *__kvm_events_tp_loongarch(void);
+const char * const *__kvm_events_tp_powerpc(void);
+const char * const *__kvm_events_tp_riscv(void);
+const char * const *__kvm_events_tp_s390(void);
+const char * const *__kvm_events_tp_x86(void);
+
+const struct kvm_reg_events_ops *kvm_reg_events_ops(uint16_t e_machine);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_arm64(void);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_loongarch(void);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_powerpc(void);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_riscv(void);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_s390(void);
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_x86(void);
+
+const char * const *kvm_skip_events(uint16_t e_machine);
+const char * const *__kvm_skip_events_arm64(void);
+const char * const *__kvm_skip_events_loongarch(void);
+const char * const *__kvm_skip_events_powerpc(void);
+const char * const *__kvm_skip_events_riscv(void);
+const char * const *__kvm_skip_events_s390(void);
+const char * const *__kvm_skip_events_x86(void);
+
+int kvm_add_default_arch_event(uint16_t e_machine, int *argc, const char **argv);
+int __kvm_add_default_arch_event_powerpc(int *argc, const char **argv);
+int __kvm_add_default_arch_event_x86(int *argc, const char **argv);
+
+#else /* !HAVE_LIBTRACEEVENT */
+
+static inline int kvm_add_default_arch_event(uint16_t e_machine __maybe_unused,
+					     int *argc __maybe_unused,
+					     const char **argv __maybe_unused)
+{
+	return 0;
+}
+
+#endif /* HAVE_LIBTRACEEVENT */
 
 static inline struct kvm_info *kvm_info__get(struct kvm_info *ki)
 {
@@ -186,11 +227,6 @@ static inline struct kvm_info *kvm_info__new(void)
 	return ki;
 }
 
-#else /* HAVE_KVM_STAT_SUPPORT */
-// We use this unconditionally in hists__findnew_entry() and hist_entry__delete()
-#define kvm_info__zput(ki) do { } while (0)
-#endif /* HAVE_KVM_STAT_SUPPORT */
-
 #define STRDUP_FAIL_EXIT(s)		\
 	({	char *_p;		\
 		_p = strdup(s);		\
@@ -201,5 +237,4 @@ static inline struct kvm_info *kvm_info__new(void)
 		_p;			\
 	})
 
-extern int kvm_add_default_arch_event(int *argc, const char **argv);
 #endif /* __PERF_KVM_STAT_H */

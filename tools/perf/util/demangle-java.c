@@ -158,7 +158,7 @@ char *
 java_demangle_sym(const char *str, int flags)
 {
 	char *buf, *ptr;
-	char *p;
+	const char *p;
 	size_t len, l1 = 0;
 
 	if (!str)

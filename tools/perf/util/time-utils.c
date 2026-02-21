@@ -325,7 +325,7 @@ static int percent_comma_split(struct perf_time_interval *ptime_buf, int num,
 }
 
 static int one_percent_convert(struct perf_time_interval *ptime_buf,
-			       const char *ostr, u64 start, u64 end, char *c)
+			       const char *ostr, u64 start, u64 end, const char *c)
 {
 	char *str;
 	int len = strlen(ostr), ret;
@@ -358,7 +358,7 @@ static int one_percent_convert(struct perf_time_interval *ptime_buf,
 int perf_time__percent_parse_str(struct perf_time_interval *ptime_buf, int num,
 				 const char *ostr, u64 start, u64 end)
 {
-	char *c;
+	const char *c;
 
 	/*
 	 * ostr example:

@@ -22,10 +22,13 @@ cleanup_files()
 
 trap cleanup_files exit term int
 
+PERF_DIR=$(dirname "$(which perf)")
 if [ -e "$PWD/tools/perf/libperf-jvmti.so" ]; then
 	LIBJVMTI=$PWD/tools/perf/libperf-jvmti.so
 elif [ -e "$PWD/libperf-jvmti.so" ]; then
 	LIBJVMTI=$PWD/libperf-jvmti.so
+elif [ -e "$PERF_DIR/libperf-jvmti.so" ]; then
+	LIBJVMTI=$PERF_DIR/libperf-jvmti.so
 elif [ -e "$PREFIX/lib64/libperf-jvmti.so" ]; then
 	LIBJVMTI=$PREFIX/lib64/libperf-jvmti.so
 elif [ -e "$PREFIX/lib/libperf-jvmti.so" ]; then
@@ -34,6 +37,7 @@ elif [ -e "/usr/lib/linux-tools-$(uname -a | awk '{ print $3 }' | sed -r 's/-gen
 	LIBJVMTI=/usr/lib/linux-tools-$(uname -a | awk '{ print $3 }' | sed -r 's/-generic//')/libperf-jvmti.so
 else
 	echo "Fail to find libperf-jvmti.so"
+
 	# JVMTI is a build option, skip the test if fail to find lib
 	exit 2
 fi

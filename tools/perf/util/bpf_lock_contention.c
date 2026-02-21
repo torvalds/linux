@@ -42,7 +42,7 @@ static void check_slab_cache_iter(struct lock_contention *con)
 
 	con->btf = btf__load_vmlinux_btf();
 	if (con->btf == NULL) {
-		pr_debug("BTF loading failed: %s\n", strerror(errno));
+		pr_debug("BTF loading failed: %m\n");
 		return;
 	}
 
@@ -116,6 +116,9 @@ static void init_numa_data(struct lock_contention *con)
 	size_t len;
 	long last = -1;
 	int ret;
+
+	if (!con->btf)
+		return;
 
 	/*
 	 * 'struct zone' is embedded in 'struct pglist_data' as an array.

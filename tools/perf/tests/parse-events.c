@@ -2609,8 +2609,8 @@ static int test_events(const struct evlist_test *events, int cnt)
 	for (int i = 0; i < cnt; i++) {
 		struct evlist_test e = events[i];
 		int test_ret;
-		const char *pos = e.name;
-		char buf[1024], *buf_pos = buf, *end;
+		const char *pos = e.name, *end;
+		char buf[1024], *buf_pos = buf;
 
 		while ((end = strstr(pos, "default_core"))) {
 			size_t len = end - pos;
@@ -2627,7 +2627,7 @@ static int test_events(const struct evlist_test *events, int cnt)
 		pr_debug("running test %d '%s'\n", i, e.name);
 		test_ret = test_event(&e);
 		if (test_ret != TEST_OK) {
-			pr_debug("Event test failure: test %d '%s'", i, e.name);
+			pr_debug("Event test failure: test %d '%s'\n", i, e.name);
 			ret = combine_test_results(ret, test_ret);
 		}
 	}
@@ -2764,7 +2764,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 
 			test_ret = test_event(&e);
 			if (test_ret != TEST_OK) {
-				pr_debug("Test PMU event failed for '%s'", name);
+				pr_debug("Test PMU event failed for '%s'\n", name);
 				ret = combine_test_results(ret, test_ret);
 			}
 
@@ -2790,7 +2790,7 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			e.check = test__checkevent_pmu_events_mix;
 			test_ret = test_event(&e);
 			if (test_ret != TEST_OK) {
-				pr_debug("Test PMU event failed for '%s'", name);
+				pr_debug("Test PMU event failed for '%s'\n", name);
 				ret = combine_test_results(ret, test_ret);
 			}
 		}

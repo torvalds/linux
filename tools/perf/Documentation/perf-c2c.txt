@@ -160,20 +160,43 @@ Following perf record options are configured by default:
 
   -W,-d,--phys-data,--sample-cpu
 
-Unless specified otherwise with '-e' option, following events are monitored by
-default on Intel:
+The following table lists the events monitored on different architectures.
+Unless specified otherwise with the -e option, the tool will select the
+default events.
 
-  cpu/mem-loads,ldlat=30/P
-  cpu/mem-stores/P
-
-following on AMD:
-
-  ibs_op//
-
-and following on PowerPC:
-
-  cpu/mem-loads/
-  cpu/mem-stores/
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | Arch   | Configuration | Options         | Events                                                                         |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | Intel  | Default       | -e ldlat-loads  | cpu/mem-loads,ldlat=30/P                                                       |
+  |        |               | -e ldlat-stores | cpu/mem-stores/P                                                               |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Load only     | -e ldlat-loads  | cpu/mem-loads,ldlat=30/P                                                       |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Store only    | -e ldlat-stores | cpu/mem-stores/P                                                               |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | Intel  | Default       | -e ldlat-loads  | {cpu/mem-loads-aux/,cpu/mem-loads,ldlat=30/}:P                                 |
+  | with   |               | -e ldlat-stores | cpu/mem-stores/P                                                               |
+  | AUX    |--------------+------------------+--------------------------------------------------------------------------------+
+  |        | Load only     | -e ldlat-loads  | {cpu/mem-loads-aux/,cpu/mem-loads,ldlat=30/}:P                                 |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Store only    | -e ldlat-stores | cpu/mem-stores/P                                                               |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | AMD    | Default       | -e mem-ldst     | ibs_op// (without latency support)                                             |
+  |        |               |                 | ibs_op/ldlat=30/ (with latency support)                                        |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | PowerPC| Default       | -e ldlat-loads  | cpu/mem-loads/                                                                 |
+  |        |               | -e ldlat-stores | cpu/mem-stores/                                                                |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Load only     | -e ldlat-loads  | cpu/mem-loads/                                                                 |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Store only    | -e ldlat-stores | cpu/mem-stores/                                                                |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
+  | Arm    | Default       | -e spe-ldst     | arm_spe_0/ts_enable=1,pa_enable=1,load_filter=1,store_filter=1,min_latency=30/ |
+  | SPE    |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Load only     | -e spe-load     | arm_spe_0/ts_enable=1,pa_enable=1,load_filter=1,min_latency=30/                |
+  |        |---------------+-----------------+--------------------------------------------------------------------------------+
+  |        | Store only    | -e spe-store    | arm_spe_0/ts_enable=1,pa_enable=1,store_filter=1/                              |
+  +--------+---------------+-----------------+--------------------------------------------------------------------------------+
 
 User can pass any 'perf record' option behind '--' mark, like (to enable
 callchains and system wide monitoring):

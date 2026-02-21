@@ -1,0 +1,11 @@
+perf-util-y += annotate-arc.o
+perf-util-y += annotate-arm.o
+perf-util-y += annotate-arm64.o
+perf-util-y += annotate-csky.o
+perf-util-y += annotate-loongarch.o
+perf-util-y += annotate-mips.o
+perf-util-y += annotate-x86.o
+perf-util-y += annotate-powerpc.o
+perf-util-y += annotate-riscv64.o
+perf-util-y += annotate-s390.o
+perf-util-y += annotate-sparc.o

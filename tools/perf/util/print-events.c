@@ -86,7 +86,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 
 	strlist__for_each_entry(sdt_name, sdtlist) {
 		bool show_detail = false;
-		char *bid = strchr(sdt_name->s, '@');
+		char *bid = (char *)strchr(sdt_name->s, '@');
 		char *evt_name = NULL;
 
 		if (bid)
@@ -97,14 +97,9 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 		} else {
 			next_sdt_name = strlist__next(sdt_name);
 			if (next_sdt_name) {
-				char *bid2 = strchr(next_sdt_name->s, '@');
+				const char *bid2 = strchrnul(next_sdt_name->s, '@');
 
-				if (bid2)
-					*bid2 = '\0';
-				if (strcmp(sdt_name->s, next_sdt_name->s) == 0)
-					show_detail = true;
-				if (bid2)
-					*bid2 = '@';
+				show_detail = strncmp(sdt_name->s, next_sdt_name->s, bid2 - next_sdt_name->s) == 0;
 			}
 		}
 		last_sdt_name = sdt_name->s;
