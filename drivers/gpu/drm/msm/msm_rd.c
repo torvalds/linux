@@ -245,7 +245,7 @@ static struct msm_rd_state *rd_init(struct drm_minor *minor, const char *name)
 {
 	struct msm_rd_state *rd;
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd, GFP_KERNEL);
 	if (!rd)
 		return ERR_PTR(-ENOMEM);
 

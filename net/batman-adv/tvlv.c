@@ -557,7 +557,7 @@ void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 		return;
 	}
 
-	tvlv_handler = kzalloc(sizeof(*tvlv_handler), GFP_ATOMIC);
+	tvlv_handler = kzalloc_obj(*tvlv_handler, GFP_ATOMIC);
 	if (!tvlv_handler) {
 		spin_unlock_bh(&bat_priv->tvlv.handler_list_lock);
 		return;

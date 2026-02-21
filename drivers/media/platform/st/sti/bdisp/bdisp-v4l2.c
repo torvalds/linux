@@ -583,7 +583,7 @@ static int bdisp_open(struct file *file)
 		return -ERESTARTSYS;
 
 	/* Allocate memory for both context and node */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto unlock;

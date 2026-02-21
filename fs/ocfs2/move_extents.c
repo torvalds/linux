@@ -1011,7 +1011,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		goto out_drop;
 	}
 
-	context = kzalloc(sizeof(struct ocfs2_move_extents_context), GFP_NOFS);
+	context = kzalloc_obj(struct ocfs2_move_extents_context, GFP_NOFS);
 	if (!context) {
 		status = -ENOMEM;
 		mlog_errno(status);

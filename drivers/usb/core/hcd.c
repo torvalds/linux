@@ -2193,7 +2193,7 @@ int ehset_single_step_set_feature(struct usb_hcd *hcd, int port)
 	if (!buf)
 		return -ENOMEM;
 
-	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	dr = kmalloc_obj(struct usb_ctrlrequest, GFP_KERNEL);
 	if (!dr) {
 		kfree(buf);
 		return -ENOMEM;
@@ -2567,16 +2567,16 @@ struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 	if (!hcd)
 		return NULL;
 	if (primary_hcd == NULL) {
-		hcd->address0_mutex = kmalloc(sizeof(*hcd->address0_mutex),
-				GFP_KERNEL);
+		hcd->address0_mutex = kmalloc_obj(*hcd->address0_mutex,
+						  GFP_KERNEL);
 		if (!hcd->address0_mutex) {
 			kfree(hcd);
 			dev_dbg(dev, "hcd address0 mutex alloc failed\n");
 			return NULL;
 		}
 		mutex_init(hcd->address0_mutex);
-		hcd->bandwidth_mutex = kmalloc(sizeof(*hcd->bandwidth_mutex),
-				GFP_KERNEL);
+		hcd->bandwidth_mutex = kmalloc_obj(*hcd->bandwidth_mutex,
+						   GFP_KERNEL);
 		if (!hcd->bandwidth_mutex) {
 			kfree(hcd->address0_mutex);
 			kfree(hcd);

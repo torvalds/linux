@@ -78,7 +78,7 @@ struct usb_request *ast_vhub_alloc_request(struct usb_ep *u_ep,
 {
 	struct ast_vhub_req *req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 	return &req->req;

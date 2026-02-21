@@ -81,7 +81,7 @@ berlin2_pll_register(const struct berlin2_pll_map *map,
 	struct clk_init_data init;
 	struct berlin2_pll *pll;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll, GFP_KERNEL);
 	if (!pll)
 		return -ENOMEM;
 

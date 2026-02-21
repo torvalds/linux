@@ -970,7 +970,7 @@ static struct usb_request *xudc_ep_alloc_request(struct usb_ep *_ep,
 	struct xusb_ep *ep = to_xusb_ep(_ep);
 	struct xusb_req *req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 

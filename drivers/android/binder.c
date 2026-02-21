@@ -795,7 +795,7 @@ static struct binder_node *binder_new_node(struct binder_proc *proc,
 					   struct flat_binder_object *fp)
 {
 	struct binder_node *node;
-	struct binder_node *new_node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct binder_node *new_node = kzalloc_obj(*node, GFP_KERNEL);
 
 	if (!new_node)
 		return NULL;
@@ -1469,7 +1469,7 @@ static int binder_inc_ref_for_node(struct binder_proc *proc,
 	ref = binder_get_ref_for_node_olocked(proc, node, NULL);
 	if (!ref) {
 		binder_proc_unlock(proc);
-		new_ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+		new_ref = kzalloc_obj(*ref, GFP_KERNEL);
 		if (!new_ref)
 			return -ENOMEM;
 		binder_proc_lock(proc);
@@ -2009,7 +2009,7 @@ static void binder_deferred_fd_close(int fd)
 {
 	struct binder_task_work_cb *twcb;
 
-	twcb = kzalloc(sizeof(*twcb), GFP_KERNEL);
+	twcb = kzalloc_obj(*twcb, GFP_KERNEL);
 	if (!twcb)
 		return;
 	init_task_work(&twcb->twork, binder_do_fd_close);
@@ -2386,7 +2386,7 @@ static int binder_translate_fd(u32 fd, binder_size_t fd_offset,
 	 * of the fd in the target needs to be done from a
 	 * target thread.
 	 */
-	fixup = kzalloc(sizeof(*fixup), GFP_KERNEL);
+	fixup = kzalloc_obj(*fixup, GFP_KERNEL);
 	if (!fixup) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -2579,7 +2579,7 @@ static void binder_cleanup_deferred_txn_lists(struct list_head *sgc_head,
 static int binder_defer_copy(struct list_head *sgc_head, binder_size_t offset,
 			     const void __user *sender_uaddr, size_t length)
 {
-	struct binder_sg_copy *bc = kzalloc(sizeof(*bc), GFP_KERNEL);
+	struct binder_sg_copy *bc = kzalloc_obj(*bc, GFP_KERNEL);
 
 	if (!bc)
 		return -ENOMEM;
@@ -2622,7 +2622,7 @@ static int binder_defer_copy(struct list_head *sgc_head, binder_size_t offset,
 static int binder_add_fixup(struct list_head *pf_head, binder_size_t offset,
 			    binder_uintptr_t fixup, size_t skip_size)
 {
-	struct binder_ptr_fixup *pf = kzalloc(sizeof(*pf), GFP_KERNEL);
+	struct binder_ptr_fixup *pf = kzalloc_obj(*pf, GFP_KERNEL);
 	struct binder_ptr_fixup *tmppf;
 
 	if (!pf)
@@ -3101,7 +3101,7 @@ static void binder_transaction(struct binder_proc *proc,
 	binder_set_extended_error(&thread->ee, t_debug_id, BR_OK, 0);
 	binder_inner_proc_unlock(proc);
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t, GFP_KERNEL);
 	if (!t) {
 		binder_txn_error("%d:%d cannot allocate transaction\n",
 				 thread->pid, proc->pid);
@@ -3320,7 +3320,7 @@ static void binder_transaction(struct binder_proc *proc,
 		e->to_thread = target_thread->pid;
 	e->to_proc = target_proc->pid;
 
-	tcomplete = kzalloc(sizeof(*tcomplete), GFP_KERNEL);
+	tcomplete = kzalloc_obj(*tcomplete, GFP_KERNEL);
 	if (tcomplete == NULL) {
 		binder_txn_error("%d:%d cannot allocate work for transaction\n",
 			thread->pid, proc->pid);
@@ -3926,7 +3926,7 @@ binder_request_freeze_notification(struct binder_proc *proc,
 	struct binder_ref_freeze *freeze;
 	struct binder_ref *ref;
 
-	freeze = kzalloc(sizeof(*freeze), GFP_KERNEL);
+	freeze = kzalloc_obj(*freeze, GFP_KERNEL);
 	if (!freeze)
 		return -ENOMEM;
 	binder_proc_lock(proc);
@@ -4394,7 +4394,7 @@ static int binder_thread_write(struct binder_proc *proc,
 				 * Allocate memory for death notification
 				 * before taking lock
 				 */
-				death = kzalloc(sizeof(*death), GFP_KERNEL);
+				death = kzalloc_obj(*death, GFP_KERNEL);
 				if (death == NULL) {
 					WARN_ON(thread->return_error.cmd !=
 						BR_OK);
@@ -5293,7 +5293,7 @@ static struct binder_thread *binder_get_thread(struct binder_proc *proc)
 	thread = binder_get_thread_ilocked(proc, NULL);
 	binder_inner_proc_unlock(proc);
 	if (!thread) {
-		new_thread = kzalloc(sizeof(*thread), GFP_KERNEL);
+		new_thread = kzalloc_obj(*thread, GFP_KERNEL);
 		if (new_thread == NULL)
 			return NULL;
 		binder_inner_proc_lock(proc);
@@ -5902,9 +5902,8 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto err;
 		}
 
-		target_procs = kcalloc(target_procs_count,
-				       sizeof(struct binder_proc *),
-				       GFP_KERNEL);
+		target_procs = kzalloc_objs(struct binder_proc *,
+					    target_procs_count, GFP_KERNEL);
 
 		if (!target_procs) {
 			mutex_unlock(&binder_procs_lock);
@@ -6061,7 +6060,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE, "%s: %d:%d\n", __func__,
 		     current->tgid, current->pid);
 
-	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	proc = kzalloc_obj(*proc, GFP_KERNEL);
 	if (proc == NULL)
 		return -ENOMEM;
 
@@ -7065,7 +7064,7 @@ static int __init init_binder_device(const char *name)
 	int ret;
 	struct binder_device *binder_device;
 
-	binder_device = kzalloc(sizeof(*binder_device), GFP_KERNEL);
+	binder_device = kzalloc_obj(*binder_device, GFP_KERNEL);
 	if (!binder_device)
 		return -ENOMEM;
 

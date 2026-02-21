@@ -471,7 +471,7 @@ static struct k3_dma_desc_sw *k3_dma_alloc_desc_resource(int num,
 		return NULL;
 	}
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc_obj(*ds, GFP_NOWAIT);
 	if (!ds)
 		return NULL;
 

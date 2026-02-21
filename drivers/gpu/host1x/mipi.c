@@ -219,7 +219,7 @@ struct tegra_mipi_device *tegra_mipi_request(struct device *device,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev) {
 		err = -ENOMEM;
 		goto out;

@@ -383,7 +383,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
 	}
 
-	pqn = kzalloc(sizeof(*pqn), GFP_KERNEL);
+	pqn = kzalloc_obj(*pqn, GFP_KERNEL);
 	if (!pqn) {
 		retval = -ENOMEM;
 		goto err_allocate_pqn;
@@ -991,7 +991,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 	if (*priv_data_offset + sizeof(*q_data) > max_priv_data_size)
 		return -EINVAL;
 
-	q_data = kmalloc(sizeof(*q_data), GFP_KERNEL);
+	q_data = kmalloc_obj(*q_data, GFP_KERNEL);
 	if (!q_data)
 		return -ENOMEM;
 

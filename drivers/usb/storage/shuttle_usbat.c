@@ -1454,7 +1454,7 @@ static int init_usbat(struct us_data *us, int devicetype)
 	unsigned char subcountL = USBAT_ATA_LBA_ME;
 	unsigned char *status = us->iobuf;
 
-	us->extra = kzalloc(sizeof(struct usbat_info), GFP_NOIO);
+	us->extra = kzalloc_obj(struct usbat_info, GFP_NOIO);
 	if (!us->extra)
 		return -ENOMEM;
 

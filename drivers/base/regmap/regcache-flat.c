@@ -36,7 +36,7 @@ static int regcache_flat_init(struct regmap *map)
 		return -EINVAL;
 
 	cache_size = regcache_flat_get_index(map, map->max_register) + 1;
-	cache = kzalloc(struct_size(cache, data, cache_size), map->alloc_flags);
+	cache = kzalloc_flex(*cache, data, cache_size, map->alloc_flags);
 	if (!cache)
 		return -ENOMEM;
 

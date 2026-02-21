@@ -165,7 +165,7 @@ int ath12k_wifi7_dp_reo_cmd_send(struct ath12k_base *ab,
 	 * for tid delete command to free up the resource on the command status
 	 * indication?
 	 */
-	dp_cmd = kzalloc(sizeof(*dp_cmd), GFP_ATOMIC);
+	dp_cmd = kzalloc_obj(*dp_cmd, GFP_ATOMIC);
 
 	if (!dp_cmd)
 		return -ENOMEM;

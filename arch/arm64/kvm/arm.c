@@ -854,8 +854,8 @@ static void kvm_init_mpidr_data(struct kvm *kvm)
 	 * iterative method. Single vcpu VMs do not need this either.
 	 */
 	if (struct_size(data, cmpidr_to_idx, nr_entries) <= PAGE_SIZE)
-		data = kzalloc(struct_size(data, cmpidr_to_idx, nr_entries),
-			       GFP_KERNEL_ACCOUNT);
+		data = kzalloc_flex(*data, cmpidr_to_idx, nr_entries,
+				    GFP_KERNEL_ACCOUNT);
 
 	if (!data)
 		goto out;

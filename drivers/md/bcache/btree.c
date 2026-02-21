@@ -585,7 +585,7 @@ static struct btree *mca_bucket_alloc(struct cache_set *c,
 	 * kzalloc() is necessary here for initialization,
 	 * see code comments in bch_btree_keys_init().
 	 */
-	struct btree *b = kzalloc(sizeof(struct btree), gfp);
+	struct btree *b = kzalloc_obj(struct btree, gfp);
 
 	if (!b)
 		return NULL;

@@ -62,7 +62,7 @@ struct dccg *dccg3_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask)
 {
-	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dcn_dccg *dccg_dcn = kzalloc_obj(*dccg_dcn, GFP_KERNEL);
 	struct dccg *base;
 
 	if (dccg_dcn == NULL) {
@@ -87,7 +87,7 @@ struct dccg *dccg30_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask)
 {
-	struct dcn_dccg *dccg_dcn = kzalloc(sizeof(*dccg_dcn), GFP_KERNEL);
+	struct dcn_dccg *dccg_dcn = kzalloc_obj(*dccg_dcn, GFP_KERNEL);
 	struct dccg *base;
 
 	if (dccg_dcn == NULL) {

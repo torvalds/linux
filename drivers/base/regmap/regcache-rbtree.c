@@ -185,7 +185,7 @@ static int regcache_rbtree_init(struct regmap *map)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
 
-	map->cache = kmalloc(sizeof *rbtree_ctx, map->alloc_flags);
+	map->cache = kmalloc_obj(*rbtree_ctx, map->alloc_flags);
 	if (!map->cache)
 		return -ENOMEM;
 
@@ -320,7 +320,7 @@ regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 	const struct regmap_range *range;
 	int i;
 
-	rbnode = kzalloc(sizeof(*rbnode), map->alloc_flags);
+	rbnode = kzalloc_obj(*rbnode, map->alloc_flags);
 	if (!rbnode)
 		return NULL;
 

@@ -204,7 +204,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	pr_info("Registered controller '%s' with %u IRQs\n",
 		desc->name, hw->nr_vectors);
 
-	d = kzalloc(sizeof(*d), GFP_NOWAIT);
+	d = kzalloc_obj(*d, GFP_NOWAIT);
 	if (!d)
 		goto err0;
 
@@ -217,8 +217,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	if (desc->num_resources) {
 		d->nr_windows = desc->num_resources;
-		d->window = kcalloc(d->nr_windows, sizeof(*d->window),
-				    GFP_NOWAIT);
+		d->window = kzalloc_objs(*d->window, d->nr_windows, GFP_NOWAIT);
 		if (!d->window)
 			goto err1;
 
@@ -267,8 +266,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (hw->prio_regs) {
-		d->prio = kcalloc(hw->nr_vectors, sizeof(*d->prio),
-				  GFP_NOWAIT);
+		d->prio = kzalloc_objs(*d->prio, hw->nr_vectors, GFP_NOWAIT);
 		if (!d->prio)
 			goto err4;
 
@@ -283,8 +281,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	}
 
 	if (hw->sense_regs) {
-		d->sense = kcalloc(hw->nr_vectors, sizeof(*d->sense),
-				   GFP_NOWAIT);
+		d->sense = kzalloc_objs(*d->sense, hw->nr_vectors, GFP_NOWAIT);
 		if (!d->sense)
 			goto err5;
 

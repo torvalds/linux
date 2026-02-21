@@ -689,7 +689,7 @@ static int cgwb_create(struct backing_dev_info *bdi,
 		goto out_put;
 
 	/* need to create a new one */
-	wb = kmalloc(sizeof(*wb), gfp);
+	wb = kmalloc_obj(*wb, gfp);
 	if (!wb) {
 		ret = -ENOMEM;
 		goto out_put;

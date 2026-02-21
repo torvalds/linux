@@ -204,7 +204,7 @@ posix_acl_alloc(unsigned int count, gfp_t flags)
 {
 	struct posix_acl *acl;
 
-	acl = kmalloc(struct_size(acl, a_entries, count), flags);
+	acl = kmalloc_flex(*acl, a_entries, count, flags);
 	if (acl)
 		posix_acl_init(acl, count);
 	return acl;

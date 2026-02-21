@@ -4301,7 +4301,7 @@ static ssize_t dcc_en_bits_read(
 	int *dcc_en_bits;
 	int i, r;
 
-	dcc_en_bits = kcalloc(num_pipes, sizeof(int), GFP_KERNEL);
+	dcc_en_bits = kzalloc_objs(int, num_pipes, GFP_KERNEL);
 	if (!dcc_en_bits)
 		return -ENOMEM;
 

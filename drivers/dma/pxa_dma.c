@@ -342,8 +342,7 @@ static void pxad_init_debugfs(struct pxad_device *pdev)
 	struct dentry *chandir;
 
 	pdev->dbgfs_chan =
-		kmalloc_array(pdev->nr_chans, sizeof(struct dentry *),
-			      GFP_KERNEL);
+		kmalloc_objs(struct dentry *, pdev->nr_chans, GFP_KERNEL);
 	if (!pdev->dbgfs_chan)
 		return;
 
@@ -742,8 +741,7 @@ pxad_alloc_desc(struct pxad_chan *chan, unsigned int nb_hw_desc)
 	void *desc;
 	int i;
 
-	sw_desc = kzalloc(struct_size(sw_desc, hw_desc, nb_hw_desc),
-			  GFP_NOWAIT);
+	sw_desc = kzalloc_flex(*sw_desc, hw_desc, nb_hw_desc, GFP_NOWAIT);
 	if (!sw_desc)
 		return NULL;
 	sw_desc->desc_pool = chan->desc_pool;

@@ -388,8 +388,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const u8 *data,
 		 * buffer unless the maximum count has been reached
 		 */
 		if (n_hdlc->rx_buf_list.count < MAX_RX_BUF_COUNT)
-			buf = kmalloc(struct_size(buf, buf, maxframe),
-				      GFP_ATOMIC);
+			buf = kmalloc_flex(*buf, buf, maxframe, GFP_ATOMIC);
 	}
 
 	if (!buf) {
@@ -670,7 +669,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
 	unsigned int i;
 
 	for (i = 0; i < count; i++) {
-		buf = kmalloc(struct_size(buf, buf, maxframe), GFP_KERNEL);
+		buf = kmalloc_flex(*buf, buf, maxframe, GFP_KERNEL);
 		if (!buf) {
 			pr_debug("%s(), kmalloc() failed for %s buffer %u\n",
 					__func__, name, i);
@@ -687,7 +686,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
  */
 static struct n_hdlc *n_hdlc_alloc(void)
 {
-	struct n_hdlc *n_hdlc = kzalloc(sizeof(*n_hdlc), GFP_KERNEL);
+	struct n_hdlc *n_hdlc = kzalloc_obj(*n_hdlc, GFP_KERNEL);
 
 	if (!n_hdlc)
 		return NULL;

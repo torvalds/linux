@@ -602,7 +602,7 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 		if (IS_ERR(e))
 			return PTR_ERR(e);
 
-		e2 = kvmalloc_array(cpuid->nent, sizeof(*e2), GFP_KERNEL_ACCOUNT);
+		e2 = kvmalloc_objs(*e2, cpuid->nent, GFP_KERNEL_ACCOUNT);
 		if (!e2) {
 			r = -ENOMEM;
 			goto out_free_cpuid;
@@ -1991,7 +1991,8 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 	if (sanity_check_entries(entries, cpuid->nent, type))
 		return -EINVAL;
 
-	array.entries = kvcalloc(cpuid->nent, sizeof(struct kvm_cpuid_entry2), GFP_KERNEL);
+	array.entries = kvzalloc_objs(struct kvm_cpuid_entry2, cpuid->nent,
+				      GFP_KERNEL);
 	if (!array.entries)
 		return -ENOMEM;
 

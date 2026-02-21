@@ -88,7 +88,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	if (overflows_type(obj->base.size >> PAGE_SHIFT, unsigned int))
 		return -E2BIG;
 
-	st = kmalloc(sizeof(*st), GFP);
+	st = kmalloc_obj(*st, GFP);
 	if (!st)
 		return -ENOMEM;
 
@@ -220,7 +220,7 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 	if (overflows_type(obj->base.size >> PAGE_SHIFT, unsigned int))
 		return -E2BIG;
 
-	st = kmalloc(sizeof(*st), GFP);
+	st = kmalloc_obj(*st, GFP);
 	if (!st)
 		return -ENOMEM;
 
@@ -270,7 +270,7 @@ static int fake_get_huge_pages_single(struct drm_i915_gem_object *obj)
 	struct scatterlist *sg;
 	unsigned int page_size;
 
-	st = kmalloc(sizeof(*st), GFP);
+	st = kmalloc_obj(*st, GFP);
 	if (!st)
 		return -ENOMEM;
 

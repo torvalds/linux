@@ -711,7 +711,7 @@ int hci_cmd_sync_submit(struct hci_dev *hdev, hci_cmd_sync_work_func_t func,
 		goto unlock;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry, GFP_KERNEL);
 	if (!entry) {
 		err = -ENOMEM;
 		goto unlock;
@@ -2685,7 +2685,7 @@ static struct conn_params *conn_params_copy(struct list_head *list, size_t *n)
 
 	rcu_read_unlock();
 
-	p = kvcalloc(*n, sizeof(struct conn_params), GFP_KERNEL);
+	p = kvzalloc_objs(struct conn_params, *n, GFP_KERNEL);
 	if (!p)
 		return NULL;
 
@@ -7341,7 +7341,7 @@ int hci_past_sync(struct hci_conn *conn, struct hci_conn *le)
 	if (!past_sender_capable(conn->hdev))
 		return -EOPNOTSUPP;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -7473,7 +7473,7 @@ int hci_acl_change_pkt_type(struct hci_conn *conn, u16 pkt_type)
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_change_conn_ptype *cp;
 
-	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	cp = kmalloc_obj(*cp, GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 
@@ -7508,7 +7508,7 @@ int hci_le_set_phy(struct hci_conn *conn, u8 tx_phys, u8 rx_phys)
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_cp_le_set_phy *cp;
 
-	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	cp = kmalloc_obj(*cp, GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
 

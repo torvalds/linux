@@ -480,7 +480,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	enum ttm_caching caching = ttm_cached;
 	int err;
 
-	xe_tt = kzalloc(sizeof(*xe_tt), GFP_KERNEL);
+	xe_tt = kzalloc_obj(*xe_tt, GFP_KERNEL);
 	if (!xe_tt)
 		return NULL;
 
@@ -2089,7 +2089,7 @@ static const struct drm_gem_object_funcs xe_gem_object_funcs = {
  */
 struct xe_bo *xe_bo_alloc(void)
 {
-	struct xe_bo *bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	struct xe_bo *bo = kzalloc_obj(*bo, GFP_KERNEL);
 
 	if (!bo)
 		return ERR_PTR(-ENOMEM);

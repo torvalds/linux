@@ -113,7 +113,7 @@ static int __init arm_enable_runtime_services(void)
 			if (!(md->attribute & EFI_MEMORY_SP))
 				continue;
 
-			res = kzalloc(sizeof(*res), GFP_KERNEL);
+			res = kzalloc_obj(*res, GFP_KERNEL);
 			if (WARN_ON(!res))
 				break;
 

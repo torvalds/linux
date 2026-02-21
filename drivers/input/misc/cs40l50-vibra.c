@@ -276,7 +276,7 @@ static void cs40l50_add_worker(struct work_struct *work)
 	/* Update effect if already uploaded, otherwise create new effect */
 	effect = cs40l50_find_effect(work_data->effect->id, &vib->effect_head);
 	if (!effect) {
-		effect = kzalloc(sizeof(*effect), GFP_KERNEL);
+		effect = kzalloc_obj(*effect, GFP_KERNEL);
 		if (!effect) {
 			error = -ENOMEM;
 			goto err_pm;
@@ -392,7 +392,7 @@ static int cs40l50_playback(struct input_dev *dev, int effect_id, int val)
 	struct cs40l50_vibra *vib = input_get_drvdata(dev);
 	struct cs40l50_work *work_data;
 
-	work_data = kzalloc(sizeof(*work_data), GFP_ATOMIC);
+	work_data = kzalloc_obj(*work_data, GFP_ATOMIC);
 	if (!work_data)
 		return -ENOMEM;
 

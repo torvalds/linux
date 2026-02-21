@@ -342,7 +342,7 @@ static int __init exar_wdt_register(struct wdt_priv *priv, const int idx)
 {
 	struct wdt_pdev_node *n;
 
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	n = kzalloc_obj(*n, GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 

@@ -273,7 +273,7 @@ static struct netdev_name_node *netdev_name_node_alloc(struct net_device *dev,
 {
 	struct netdev_name_node *name_node;
 
-	name_node = kmalloc(sizeof(*name_node), GFP_KERNEL);
+	name_node = kmalloc_obj(*name_node, GFP_KERNEL);
 	if (!name_node)
 		return NULL;
 	INIT_HLIST_NODE(&name_node->hlist);
@@ -6510,8 +6510,7 @@ struct flush_backlogs {
 
 static struct flush_backlogs *flush_backlogs_alloc(void)
 {
-	return kmalloc(struct_size_t(struct flush_backlogs, w, nr_cpu_ids),
-		       GFP_KERNEL);
+	return kmalloc_flex(struct flush_backlogs, w, nr_cpu_ids, GFP_KERNEL);
 }
 
 static struct flush_backlogs *flush_backlogs_fallback;
@@ -8694,7 +8693,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 		return 0;
 	}
 
-	adj = kmalloc(sizeof(*adj), GFP_KERNEL);
+	adj = kmalloc_obj(*adj, GFP_KERNEL);
 	if (!adj)
 		return -ENOMEM;
 
@@ -9134,8 +9133,8 @@ static int netdev_offload_xstats_enable_l3(struct net_device *dev,
 	int err;
 	int rc;
 
-	dev->offload_xstats_l3 = kzalloc(sizeof(*dev->offload_xstats_l3),
-					 GFP_KERNEL);
+	dev->offload_xstats_l3 = kzalloc_obj(*dev->offload_xstats_l3,
+					     GFP_KERNEL);
 	if (!dev->offload_xstats_l3)
 		return -ENOMEM;
 
@@ -10660,7 +10659,7 @@ int bpf_xdp_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		return -EINVAL;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_USER);
+	link = kzalloc_obj(*link, GFP_USER);
 	if (!link) {
 		err = -ENOMEM;
 		goto unlock;
@@ -11941,7 +11940,7 @@ struct netdev_queue *dev_ingress_queue_create(struct net_device *dev)
 #ifdef CONFIG_NET_CLS_ACT
 	if (queue)
 		return queue;
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue, GFP_KERNEL);
 	if (!queue)
 		return NULL;
 	netdev_init_one_queue(dev, queue, NULL);
@@ -12016,8 +12015,8 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	maxqs = max(txqs, rxqs);
 
-	dev = kvzalloc(struct_size(dev, priv, sizeof_priv),
-		       GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
+	dev = kvzalloc_flex(*dev, priv, sizeof_priv,
+			    GFP_KERNEL_ACCOUNT | __GFP_RETRY_MAYFAIL);
 	if (!dev)
 		return NULL;
 
@@ -12088,11 +12087,11 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->real_num_rx_queues = rxqs;
 	if (netif_alloc_rx_queues(dev))
 		goto free_all;
-	dev->ethtool = kzalloc(sizeof(*dev->ethtool), GFP_KERNEL_ACCOUNT);
+	dev->ethtool = kzalloc_obj(*dev->ethtool, GFP_KERNEL_ACCOUNT);
 	if (!dev->ethtool)
 		goto free_all;
 
-	dev->cfg = kzalloc(sizeof(*dev->cfg), GFP_KERNEL_ACCOUNT);
+	dev->cfg = kzalloc_obj(*dev->cfg, GFP_KERNEL_ACCOUNT);
 	if (!dev->cfg)
 		goto free_all;
 	dev->cfg_pending = dev->cfg;
@@ -12858,7 +12857,7 @@ static struct hlist_head * __net_init netdev_create_hash(void)
 	int i;
 	struct hlist_head *hash;
 
-	hash = kmalloc_array(NETDEV_HASHENTRIES, sizeof(*hash), GFP_KERNEL);
+	hash = kmalloc_objs(*hash, NETDEV_HASHENTRIES, GFP_KERNEL);
 	if (hash != NULL)
 		for (i = 0; i < NETDEV_HASHENTRIES; i++)
 			INIT_HLIST_HEAD(&hash[i]);

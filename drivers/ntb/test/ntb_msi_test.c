@@ -164,7 +164,7 @@ static void ntb_msit_db_event(void *ctx, int vec)
 		if (irq_count == -1)
 			continue;
 
-		desc = kcalloc(irq_count, sizeof(*desc), GFP_ATOMIC);
+		desc = kzalloc_objs(*desc, irq_count, GFP_ATOMIC);
 		if (!desc)
 			continue;
 

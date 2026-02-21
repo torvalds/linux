@@ -2391,7 +2391,7 @@ struct fc_exch_mgr_anchor *fc_exch_mgr_add(struct fc_lport *lport,
 {
 	struct fc_exch_mgr_anchor *ema;
 
-	ema = kmalloc(sizeof(*ema), GFP_ATOMIC);
+	ema = kmalloc_obj(*ema, GFP_ATOMIC);
 	if (!ema)
 		return ema;
 
@@ -2480,7 +2480,7 @@ struct fc_exch_mgr *fc_exch_mgr_alloc(struct fc_lport *lport,
 	/*
 	 * allocate memory for EM
 	 */
-	mp = kzalloc(sizeof(struct fc_exch_mgr), GFP_ATOMIC);
+	mp = kzalloc_obj(struct fc_exch_mgr, GFP_ATOMIC);
 	if (!mp)
 		return NULL;
 

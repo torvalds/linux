@@ -2033,8 +2033,8 @@ xfs_refcount_recover_extent(
 		return -EFSCORRUPTED;
 	}
 
-	rr = kmalloc(sizeof(struct xfs_refcount_recovery),
-			GFP_KERNEL | __GFP_NOFAIL);
+	rr = kmalloc_obj(struct xfs_refcount_recovery,
+			 GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&rr->rr_list);
 	xfs_refcount_btrec_to_irec(rec, &rr->rr_rrec);
 

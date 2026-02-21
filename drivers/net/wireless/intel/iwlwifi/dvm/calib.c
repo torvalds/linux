@@ -63,7 +63,7 @@ int iwl_calib_set(struct iwl_priv *priv,
 	if (check_sub_overflow(len, sizeof(*cmd), &len))
 		return -ENOMEM;
 
-	res = kmalloc(struct_size(res, cmd.data, len), GFP_ATOMIC);
+	res = kmalloc_flex(*res, cmd.data, len, GFP_ATOMIC);
 	if (!res)
 		return -ENOMEM;
 	res->cmd = *cmd;

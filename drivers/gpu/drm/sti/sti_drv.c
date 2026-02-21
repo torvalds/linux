@@ -151,7 +151,7 @@ static int sti_init(struct drm_device *ddev)
 {
 	struct sti_private *private;
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL);
+	private = kzalloc_obj(*private, GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 

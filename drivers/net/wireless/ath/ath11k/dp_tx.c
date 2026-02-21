@@ -796,7 +796,7 @@ int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
 	 * for tid delete command to free up the resource on the command status
 	 * indication?
 	 */
-	dp_cmd = kzalloc(sizeof(*dp_cmd), GFP_ATOMIC);
+	dp_cmd = kzalloc_obj(*dp_cmd, GFP_ATOMIC);
 
 	if (!dp_cmd)
 		return -ENOMEM;

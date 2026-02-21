@@ -386,7 +386,7 @@ struct htt_ppdu_stats_info *ath12k_dp_htt_get_ppdu_desc(struct ath12k_pdev_dp *d
 		}
 	}
 
-	ppdu_info = kzalloc(sizeof(*ppdu_info), GFP_ATOMIC);
+	ppdu_info = kzalloc_obj(*ppdu_info, GFP_ATOMIC);
 	if (!ppdu_info)
 		return NULL;
 

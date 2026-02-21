@@ -707,7 +707,7 @@ static int fsi_i2c_probe(struct fsi_device *fsi_dev)
 		if (!of_device_is_available(np))
 			continue;
 
-		port = kzalloc(sizeof(*port), GFP_KERNEL);
+		port = kzalloc_obj(*port, GFP_KERNEL);
 		if (!port) {
 			of_node_put(np);
 			break;

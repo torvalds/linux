@@ -1499,7 +1499,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 {
 	struct brcms_timer *t;
 
-	t = kzalloc(sizeof(*t), GFP_ATOMIC);
+	t = kzalloc_obj(*t, GFP_ATOMIC);
 	if (!t)
 		return NULL;
 

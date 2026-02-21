@@ -661,7 +661,7 @@ static int kdb_defcmd2(const char *cmdstr, const char *argv0)
 		return 0;
 	}
 
-	kms = kmalloc(sizeof(*kms), GFP_KDB);
+	kms = kmalloc_obj(*kms, GFP_KDB);
 	if (!kms) {
 		kdb_printf("Could not allocate new kdb macro command: %s\n",
 			   cmdstr);
@@ -707,7 +707,7 @@ static int kdb_defcmd(int argc, const char **argv)
 		kdb_printf("Command only available during kdb_init()\n");
 		return KDB_NOTIMP;
 	}
-	kdb_macro = kzalloc(sizeof(*kdb_macro), GFP_KDB);
+	kdb_macro = kzalloc_obj(*kdb_macro, GFP_KDB);
 	if (!kdb_macro)
 		goto fail_defcmd;
 

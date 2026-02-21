@@ -657,7 +657,7 @@ static int msgdma_alloc_chan_resources(struct dma_chan *dchan)
 	struct msgdma_sw_desc *desc;
 	int i;
 
-	mdev->sw_desq = kcalloc(MSGDMA_DESC_NUM, sizeof(*desc), GFP_NOWAIT);
+	mdev->sw_desq = kzalloc_objs(*desc, MSGDMA_DESC_NUM, GFP_NOWAIT);
 	if (!mdev->sw_desq)
 		return -ENOMEM;
 

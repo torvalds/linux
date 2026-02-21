@@ -279,7 +279,7 @@ static struct ifacaddr6 *aca_alloc(struct fib6_info *f6i,
 {
 	struct ifacaddr6 *aca;
 
-	aca = kzalloc(sizeof(*aca), GFP_ATOMIC);
+	aca = kzalloc_obj(*aca, GFP_ATOMIC);
 	if (!aca)
 		return NULL;
 

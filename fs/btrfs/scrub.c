@@ -373,9 +373,8 @@ static int init_scrub_stripe(struct btrfs_fs_info *fs_info,
 	if (ret < 0)
 		goto error;
 
-	stripe->sectors = kcalloc(stripe->nr_sectors,
-				  sizeof(struct scrub_sector_verification),
-				  GFP_KERNEL);
+	stripe->sectors = kzalloc_objs(struct scrub_sector_verification,
+				       stripe->nr_sectors, GFP_KERNEL);
 	if (!stripe->sectors)
 		goto error;
 
@@ -456,7 +455,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	/* Since sctx has inline 128 stripes, it can go beyond 64K easily.  Use
 	 * kvzalloc().
 	 */
-	sctx = kvzalloc(sizeof(*sctx), GFP_KERNEL);
+	sctx = kvzalloc_obj(*sctx, GFP_KERNEL);
 	if (!sctx)
 		goto nomem;
 	refcount_set(&sctx->refs, 1);
@@ -2474,9 +2473,9 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	if (profile & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 		ASSERT(sctx->raid56_data_stripes == NULL);
 
-		sctx->raid56_data_stripes = kcalloc(nr_data_stripes(map),
-						    sizeof(struct scrub_stripe),
-						    GFP_KERNEL);
+		sctx->raid56_data_stripes = kzalloc_objs(struct scrub_stripe,
+							 nr_data_stripes(map),
+							 GFP_KERNEL);
 		if (!sctx->raid56_data_stripes) {
 			ret = -ENOMEM;
 			goto out;

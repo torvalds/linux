@@ -644,7 +644,7 @@ static int fsnotify_attach_info_to_sb(struct super_block *sb)
 	struct fsnotify_sb_info *sbinfo;
 
 	/* sb info is freed on fsnotify_sb_delete() */
-	sbinfo = kzalloc(sizeof(*sbinfo), GFP_KERNEL);
+	sbinfo = kzalloc_obj(*sbinfo, GFP_KERNEL);
 	if (!sbinfo)
 		return -ENOMEM;
 

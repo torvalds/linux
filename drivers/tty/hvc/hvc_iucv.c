@@ -1050,7 +1050,7 @@ static int __init hvc_iucv_alloc(int id, unsigned int is_console)
 	char name[9];
 	int rc;
 
-	priv = kzalloc(sizeof(struct hvc_iucv_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct hvc_iucv_private, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

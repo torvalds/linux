@@ -296,7 +296,7 @@ static int iommufd_fops_open(struct inode *inode, struct file *filp)
 {
 	struct iommufd_ctx *ictx;
 
-	ictx = kzalloc(sizeof(*ictx), GFP_KERNEL_ACCOUNT);
+	ictx = kzalloc_obj(*ictx, GFP_KERNEL_ACCOUNT);
 	if (!ictx)
 		return -ENOMEM;
 

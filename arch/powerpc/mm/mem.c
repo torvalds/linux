@@ -318,7 +318,7 @@ static int __init add_system_ram_resources(void)
 	for_each_mem_range(i, &start, &end) {
 		struct resource *res;
 
-		res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+		res = kzalloc_obj(struct resource, GFP_KERNEL);
 		WARN_ON(!res);
 
 		if (res) {

@@ -47,7 +47,7 @@ static struct cflayer *get_up(struct cfmuxl *muxl, u16 id);
 
 struct cflayer *cfmuxl_create(void)
 {
-	struct cfmuxl *this = kzalloc(sizeof(struct cfmuxl), GFP_ATOMIC);
+	struct cfmuxl *this = kzalloc_obj(struct cfmuxl, GFP_ATOMIC);
 
 	if (!this)
 		return NULL;

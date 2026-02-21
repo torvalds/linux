@@ -158,7 +158,7 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 			goto out;
 	}
 
-	ue = kmalloc(sizeof(struct usbip_event), GFP_ATOMIC);
+	ue = kmalloc_obj(struct usbip_event, GFP_ATOMIC);
 	if (ue == NULL)
 		goto out;
 

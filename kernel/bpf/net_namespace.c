@@ -494,7 +494,7 @@ int netns_bpf_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 	if (IS_ERR(net))
 		return PTR_ERR(net);
 
-	net_link = kzalloc(sizeof(*net_link), GFP_USER);
+	net_link = kzalloc_obj(*net_link, GFP_USER);
 	if (!net_link) {
 		err = -ENOMEM;
 		goto out_put_net;

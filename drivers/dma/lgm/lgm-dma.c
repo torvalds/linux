@@ -681,7 +681,7 @@ ldma_chan_desc_cfg(struct dma_chan *chan, dma_addr_t desc_base, int desc_num)
 	c->desc_cnt = desc_num;
 	c->desc_phys = desc_base;
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc_obj(*ds, GFP_NOWAIT);
 	if (!ds)
 		return NULL;
 
@@ -982,7 +982,7 @@ dma_alloc_desc_resource(int num, struct ldma_chan *c)
 		return NULL;
 	}
 
-	ds = kzalloc(sizeof(*ds), GFP_NOWAIT);
+	ds = kzalloc_obj(*ds, GFP_NOWAIT);
 	if (!ds)
 		return NULL;
 

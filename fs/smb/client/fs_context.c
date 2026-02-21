@@ -1924,7 +1924,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 	char *nodename = utsname()->nodename;
 	int i;
 
-	ctx = kzalloc(sizeof(struct smb3_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct smb3_fs_context, GFP_KERNEL);
 	if (unlikely(!ctx))
 		return -ENOMEM;
 

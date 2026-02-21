@@ -166,7 +166,7 @@ get_ticket_handler(struct ceph_auth_client *ac, int service)
 	}
 
 	/* add it */
-	th = kzalloc(sizeof(*th), GFP_NOFS);
+	th = kzalloc_obj(*th, GFP_NOFS);
 	if (!th)
 		return ERR_PTR(-ENOMEM);
 	th->service = service;
@@ -808,7 +808,7 @@ static int ceph_x_create_authorizer(
 	if (IS_ERR(th))
 		return PTR_ERR(th);
 
-	au = kzalloc(sizeof(*au), GFP_NOFS);
+	au = kzalloc_obj(*au, GFP_NOFS);
 	if (!au)
 		return -ENOMEM;
 
@@ -1174,7 +1174,7 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	int ret;
 
 	dout("ceph_x_init %p\n", ac);
-	xi = kzalloc(sizeof(*xi), GFP_NOFS);
+	xi = kzalloc_obj(*xi, GFP_NOFS);
 	if (!xi)
 		return -ENOMEM;
 

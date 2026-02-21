@@ -48,13 +48,14 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 	else
 		template_desc = ima_template_desc_current();
 
-	*entry = kzalloc(struct_size(*entry, template_data,
-				     template_desc->num_fields), GFP_NOFS);
+	*entry = kzalloc_flex(**entry, template_data, template_desc->num_fields,
+			      GFP_NOFS);
 	if (!*entry)
 		return -ENOMEM;
 
-	digests = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
-			  sizeof(*digests), GFP_NOFS);
+	digests = kzalloc_objs(*digests,
+			       NR_BANKS(ima_tpm_chip) + ima_extra_slots,
+			       GFP_NOFS);
 	if (!digests) {
 		kfree(*entry);
 		*entry = NULL;

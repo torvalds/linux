@@ -163,7 +163,7 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 	if (ucounts)
 		return ucounts;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new, GFP_KERNEL);
 	if (!new)
 		return NULL;
 

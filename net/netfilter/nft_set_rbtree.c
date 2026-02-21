@@ -586,8 +586,8 @@ static int nft_array_intervals_alloc(struct nft_array *array, u32 max_intervals)
 {
 	struct nft_array_interval *intervals;
 
-	intervals = kvcalloc(max_intervals, sizeof(struct nft_array_interval),
-			     GFP_KERNEL_ACCOUNT);
+	intervals = kvzalloc_objs(struct nft_array_interval, max_intervals,
+				  GFP_KERNEL_ACCOUNT);
 	if (!intervals)
 		return -ENOMEM;
 
@@ -604,7 +604,7 @@ static struct nft_array *nft_array_alloc(u32 max_intervals)
 {
 	struct nft_array *array;
 
-	array = kzalloc(sizeof(*array), GFP_KERNEL_ACCOUNT);
+	array = kzalloc_obj(*array, GFP_KERNEL_ACCOUNT);
 	if (!array)
 		return NULL;
 

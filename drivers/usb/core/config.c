@@ -823,7 +823,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 			nalts[i] = j = USB_MAXALTSETTING;
 		}
 
-		intfc = kzalloc(struct_size(intfc, altsetting, j), GFP_KERNEL);
+		intfc = kzalloc_flex(*intfc, altsetting, j, GFP_KERNEL);
 		config->intf_cache[i] = intfc;
 		if (!intfc)
 			return -ENOMEM;
@@ -1045,7 +1045,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		return -ENOMSG;
 	}
 
-	bos = kzalloc(sizeof(*bos), GFP_KERNEL);
+	bos = kzalloc_obj(*bos, GFP_KERNEL);
 	if (!bos)
 		return -ENOMEM;
 
@@ -1066,7 +1066,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	if (total_len < length)
 		return -EINVAL;
 
-	dev->bos = kzalloc(sizeof(*dev->bos), GFP_KERNEL);
+	dev->bos = kzalloc_obj(*dev->bos, GFP_KERNEL);
 	if (!dev->bos)
 		return -ENOMEM;
 

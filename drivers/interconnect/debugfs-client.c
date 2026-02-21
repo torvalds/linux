@@ -86,7 +86,7 @@ static int icc_get_set(void *data, u64 val)
 		goto err_free;
 	}
 
-	debugfs_path = kzalloc(sizeof(*debugfs_path), GFP_KERNEL);
+	debugfs_path = kzalloc_obj(*debugfs_path, GFP_KERNEL);
 	if (!debugfs_path) {
 		ret = -ENOMEM;
 		goto err_put;

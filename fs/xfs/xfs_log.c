@@ -1334,7 +1334,7 @@ xlog_alloc_log(
 	int			error = -ENOMEM;
 	uint			log2_size = 0;
 
-	log = kzalloc(sizeof(struct xlog), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	log = kzalloc_obj(struct xlog, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!log) {
 		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;

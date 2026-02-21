@@ -401,7 +401,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 		single_count = sg_nents_for_dma(sgl, sg_len, ADM_MAX_XFER);
 	}
 
-	async_desc = kzalloc(sizeof(*async_desc), GFP_NOWAIT);
+	async_desc = kzalloc_obj(*async_desc, GFP_NOWAIT);
 	if (!async_desc) {
 		dev_err(adev->dev, "not enough memory for async_desc struct\n");
 		return NULL;

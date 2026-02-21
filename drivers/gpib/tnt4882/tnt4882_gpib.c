@@ -843,7 +843,7 @@ static int tnt4882_allocate_private(struct gpib_board *board)
 {
 	struct tnt4882_priv *tnt_priv;
 
-	board->private_data = kzalloc(sizeof(struct tnt4882_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct tnt4882_priv, GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	tnt_priv = board->private_data;
@@ -1567,7 +1567,7 @@ static int ni_gpib_probe(struct pcmcia_device *link)
 	//struct struct gpib_board *dev;
 
 	/* Allocate space for private device-specific data */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info, GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 

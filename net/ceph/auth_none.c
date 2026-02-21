@@ -97,7 +97,7 @@ static int ceph_auth_none_create_authorizer(
 	struct ceph_none_authorizer *au;
 	int ret;
 
-	au = kmalloc(sizeof(*au), GFP_NOFS);
+	au = kmalloc_obj(*au, GFP_NOFS);
 	if (!au)
 		return -ENOMEM;
 
@@ -133,7 +133,7 @@ int ceph_auth_none_init(struct ceph_auth_client *ac)
 	struct ceph_auth_none_info *xi;
 
 	dout("ceph_auth_none_init %p\n", ac);
-	xi = kzalloc(sizeof(*xi), GFP_NOFS);
+	xi = kzalloc_obj(*xi, GFP_NOFS);
 	if (!xi)
 		return -ENOMEM;
 

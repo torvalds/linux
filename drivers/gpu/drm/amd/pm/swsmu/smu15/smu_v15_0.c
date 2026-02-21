@@ -408,7 +408,7 @@ int smu_v15_0_init_smc_tables(struct smu_context *smu)
 	}
 
 	smu_table->max_sustainable_clocks =
-		kzalloc(sizeof(struct smu_15_0_max_sustainable_clocks), GFP_KERNEL);
+		kzalloc_obj(struct smu_15_0_max_sustainable_clocks, GFP_KERNEL);
 	if (!smu_table->max_sustainable_clocks) {
 		ret = -ENOMEM;
 		goto err1_out;
@@ -507,8 +507,8 @@ int smu_v15_0_init_power(struct smu_context *smu)
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
-	smu_power->power_context = kzalloc(sizeof(struct smu_15_0_dpm_context),
-					   GFP_KERNEL);
+	smu_power->power_context = kzalloc_obj(struct smu_15_0_dpm_context,
+					       GFP_KERNEL);
 	if (!smu_power->power_context)
 		return -ENOMEM;
 	smu_power->power_context_size = sizeof(struct smu_15_0_dpm_context);

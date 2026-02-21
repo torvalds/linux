@@ -511,7 +511,7 @@ static int rxkad_verify_packet_2(struct rxrpc_call *call, struct sk_buff *skb,
 	if (nsg <= 4) {
 		nsg = 4;
 	} else {
-		sg = kmalloc_array(nsg, sizeof(*sg), GFP_NOIO);
+		sg = kmalloc_objs(*sg, nsg, GFP_NOIO);
 		if (!sg)
 			return -ENOMEM;
 	}
@@ -1139,7 +1139,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	}
 
 	ret = -ENOMEM;
-	response = kzalloc(sizeof(struct rxkad_response), GFP_NOFS);
+	response = kzalloc_obj(struct rxkad_response, GFP_NOFS);
 	if (!response)
 		goto temporary_error;
 

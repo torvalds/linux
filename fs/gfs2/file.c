@@ -637,7 +637,7 @@ int gfs2_open_common(struct inode *inode, struct file *file)
 			file->f_mode |= FMODE_CAN_ODIRECT;
 	}
 
-	fp = kzalloc(sizeof(struct gfs2_file), GFP_NOFS);
+	fp = kzalloc_obj(struct gfs2_file, GFP_NOFS);
 	if (!fp)
 		return -ENOMEM;
 
@@ -1029,7 +1029,7 @@ static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
 	 */
 
 	if (inode == sdp->sd_rindex) {
-		statfs_gh = kmalloc(sizeof(*statfs_gh), GFP_NOFS);
+		statfs_gh = kmalloc_obj(*statfs_gh, GFP_NOFS);
 		if (!statfs_gh)
 			return -ENOMEM;
 	}

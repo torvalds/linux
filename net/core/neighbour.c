@@ -562,7 +562,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	struct neigh_hash_table *ret;
 	int i;
 
-	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
+	ret = kmalloc_obj(*ret, GFP_ATOMIC);
 	if (!ret)
 		return NULL;
 

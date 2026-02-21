@@ -60,7 +60,7 @@ static void dc_dmub_srv_handle_failure(struct dc_dmub_srv *dc_dmub_srv)
 struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub)
 {
 	struct dc_dmub_srv *dc_srv =
-		kzalloc(sizeof(struct dc_dmub_srv), GFP_KERNEL);
+		kzalloc_obj(struct dc_dmub_srv, GFP_KERNEL);
 
 	if (dc_srv == NULL) {
 		BREAK_TO_DEBUGGER();

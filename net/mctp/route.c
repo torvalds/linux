@@ -227,7 +227,7 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 {
 	struct mctp_sk_key *key;
 
-	key = kzalloc(sizeof(*key), gfp);
+	key = kzalloc_obj(*key, gfp);
 	if (!key)
 		return NULL;
 
@@ -675,7 +675,7 @@ static struct mctp_route *mctp_route_alloc(void)
 {
 	struct mctp_route *rt;
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt, GFP_KERNEL);
 	if (!rt)
 		return NULL;
 

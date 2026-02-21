@@ -382,7 +382,7 @@ dw_i3c_master_alloc_xfer(struct dw_i3c_master *master, unsigned int ncmds)
 {
 	struct dw_i3c_xfer *xfer;
 
-	xfer = kzalloc(struct_size(xfer, cmds, ncmds), GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds, GFP_KERNEL);
 	if (!xfer)
 		return NULL;
 
@@ -1044,7 +1044,7 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1162,7 +1162,7 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 

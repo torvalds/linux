@@ -230,7 +230,7 @@ newsf(struct snd_sf_list *sflist, int type, char *name)
 	}
 
 	/* not found -- create a new one */
-	sf = kzalloc(sizeof(*sf), GFP_KERNEL);
+	sf = kzalloc_obj(*sf, GFP_KERNEL);
 	if (sf == NULL)
 		return NULL;
 	sf->id = sflist->fonts_size;
@@ -309,7 +309,7 @@ sf_zone_new(struct snd_sf_list *sflist, struct snd_soundfont *sf)
 {
 	struct snd_sf_zone *zp;
 
-	zp = kzalloc(sizeof(*zp), GFP_KERNEL);
+	zp = kzalloc_obj(*zp, GFP_KERNEL);
 	if (!zp)
 		return NULL;
 	zp->next = sf->zones;
@@ -342,7 +342,7 @@ sf_sample_new(struct snd_sf_list *sflist, struct snd_soundfont *sf)
 {
 	struct snd_sf_sample *sp;
 
-	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
+	sp = kzalloc_obj(*sp, GFP_KERNEL);
 	if (!sp)
 		return NULL;
 
@@ -1391,7 +1391,7 @@ snd_sf_new(struct snd_sf_callback *callback, struct snd_util_memhdr *hdr)
 {
 	struct snd_sf_list *sflist;
 
-	sflist = kzalloc(sizeof(*sflist), GFP_KERNEL);
+	sflist = kzalloc_obj(*sflist, GFP_KERNEL);
 	if (!sflist)
 		return NULL;
 

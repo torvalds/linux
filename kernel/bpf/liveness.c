@@ -193,8 +193,8 @@ static struct func_instance *__lookup_instance(struct bpf_verifier_env *env,
 	result = kvzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (!result)
 		return ERR_PTR(-ENOMEM);
-	result->must_write_set = kvcalloc(subprog_sz, sizeof(*result->must_write_set),
-					  GFP_KERNEL_ACCOUNT);
+	result->must_write_set = kvzalloc_objs(*result->must_write_set,
+					       subprog_sz, GFP_KERNEL_ACCOUNT);
 	if (!result->must_write_set) {
 		kvfree(result);
 		return ERR_PTR(-ENOMEM);
@@ -217,7 +217,7 @@ static struct func_instance *lookup_instance(struct bpf_verifier_env *env,
 
 int bpf_stack_liveness_init(struct bpf_verifier_env *env)
 {
-	env->liveness = kvzalloc(sizeof(*env->liveness), GFP_KERNEL_ACCOUNT);
+	env->liveness = kvzalloc_obj(*env->liveness, GFP_KERNEL_ACCOUNT);
 	if (!env->liveness)
 		return -ENOMEM;
 	hash_init(env->liveness->func_instances);
@@ -266,7 +266,8 @@ static struct per_frame_masks *alloc_frame_masks(struct bpf_verifier_env *env,
 	struct per_frame_masks *arr;
 
 	if (!instance->frames[frame]) {
-		arr = kvcalloc(instance->insn_cnt, sizeof(*arr), GFP_KERNEL_ACCOUNT);
+		arr = kvzalloc_objs(*arr, instance->insn_cnt,
+				    GFP_KERNEL_ACCOUNT);
 		instance->frames[frame] = arr;
 		if (!arr)
 			return ERR_PTR(-ENOMEM);

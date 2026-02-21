@@ -457,7 +457,7 @@ static int psp_sw_init(struct amdgpu_ip_block *ip_block)
 	struct psp_memory_training_context *mem_training_ctx = &psp->mem_train_ctx;
 	struct psp_runtime_scpm_entry scpm_entry;
 
-	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	psp->cmd = kzalloc_obj(struct psp_gfx_cmd_resp, GFP_KERNEL);
 	if (!psp->cmd) {
 		dev_err(adev->dev, "Failed to allocate memory to command buffer!\n");
 		return -ENOMEM;
@@ -4384,7 +4384,7 @@ static int psp_read_spirom_debugfs_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 	}
 
-	bo_triplet = kzalloc(sizeof(struct spirom_bo), GFP_KERNEL);
+	bo_triplet = kzalloc_obj(struct spirom_bo, GFP_KERNEL);
 	if (!bo_triplet) {
 		mutex_unlock(&adev->psp.mutex);
 		return -ENOMEM;

@@ -2265,7 +2265,7 @@ static struct usb_request *__renesas_usb3_ep_alloc_request(gfp_t gfp_flags)
 {
 	struct renesas_usb3_request *usb3_req;
 
-	usb3_req = kzalloc(sizeof(struct renesas_usb3_request), gfp_flags);
+	usb3_req = kzalloc_obj(struct renesas_usb3_request, gfp_flags);
 	if (!usb3_req)
 		return NULL;
 

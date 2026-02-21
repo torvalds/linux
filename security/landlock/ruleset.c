@@ -33,8 +33,8 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 	struct landlock_ruleset *new_ruleset;
 
 	new_ruleset =
-		kzalloc(struct_size(new_ruleset, access_masks, num_layers),
-			GFP_KERNEL_ACCOUNT);
+		kzalloc_flex(*new_ruleset, access_masks, num_layers,
+			     GFP_KERNEL_ACCOUNT);
 	if (!new_ruleset)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&new_ruleset->usage, 1);
@@ -123,8 +123,8 @@ create_rule(const struct landlock_id id,
 	} else {
 		new_num_layers = num_layers;
 	}
-	new_rule = kzalloc(struct_size(new_rule, layers, new_num_layers),
-			   GFP_KERNEL_ACCOUNT);
+	new_rule = kzalloc_flex(*new_rule, layers, new_num_layers,
+				GFP_KERNEL_ACCOUNT);
 	if (!new_rule)
 		return ERR_PTR(-ENOMEM);
 	RB_CLEAR_NODE(&new_rule->node);
@@ -559,8 +559,8 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 	if (IS_ERR(new_dom))
 		return new_dom;
 
-	new_dom->hierarchy =
-		kzalloc(sizeof(*new_dom->hierarchy), GFP_KERNEL_ACCOUNT);
+	new_dom->hierarchy = kzalloc_obj(*new_dom->hierarchy,
+					 GFP_KERNEL_ACCOUNT);
 	if (!new_dom->hierarchy)
 		return ERR_PTR(-ENOMEM);
 

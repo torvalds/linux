@@ -368,7 +368,7 @@ static struct macio_dev * macio_add_one_device(struct macio_chip *chip,
 	if (np == NULL)
 		return NULL;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev)
 		return NULL;
 

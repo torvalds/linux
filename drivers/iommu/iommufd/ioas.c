@@ -132,7 +132,7 @@ static int iommufd_ioas_load_iovas(struct rb_root_cached *itree,
 		if (interval_tree_iter_first(itree, range.start, range.last))
 			return -EINVAL;
 
-		allowed = kzalloc(sizeof(*allowed), GFP_KERNEL_ACCOUNT);
+		allowed = kzalloc_obj(*allowed, GFP_KERNEL_ACCOUNT);
 		if (!allowed)
 			return -ENOMEM;
 		allowed->node.start = range.start;

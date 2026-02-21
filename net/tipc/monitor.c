@@ -393,7 +393,7 @@ static bool tipc_mon_add_peer(struct tipc_monitor *mon, u32 addr,
 	struct tipc_peer *self = mon->self;
 	struct tipc_peer *cur, *prev, *p;
 
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	p = kzalloc_obj(*p, GFP_ATOMIC);
 	*peer = p;
 	if (!p)
 		return false;
@@ -654,9 +654,9 @@ int tipc_mon_create(struct net *net, int bearer_id)
 	if (tn->monitors[bearer_id])
 		return 0;
 
-	mon = kzalloc(sizeof(*mon), GFP_ATOMIC);
-	self = kzalloc(sizeof(*self), GFP_ATOMIC);
-	dom = kzalloc(sizeof(*dom), GFP_ATOMIC);
+	mon = kzalloc_obj(*mon, GFP_ATOMIC);
+	self = kzalloc_obj(*self, GFP_ATOMIC);
+	dom = kzalloc_obj(*dom, GFP_ATOMIC);
 	if (!mon || !self || !dom) {
 		kfree(mon);
 		kfree(self);

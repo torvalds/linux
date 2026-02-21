@@ -285,7 +285,7 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		return err;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

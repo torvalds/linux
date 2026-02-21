@@ -289,7 +289,7 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 	if (err)
 		goto err_free_files_mem;
 
-	luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+	luo_file = kzalloc_obj(*luo_file, GFP_KERNEL);
 	if (!luo_file) {
 		err = -ENOMEM;
 		goto err_flb_unpreserve;
@@ -780,7 +780,7 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 			return -ENOENT;
 		}
 
-		luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+		luo_file = kzalloc_obj(*luo_file, GFP_KERNEL);
 		if (!luo_file)
 			return -ENOMEM;
 

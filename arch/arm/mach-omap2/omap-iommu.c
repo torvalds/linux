@@ -99,7 +99,7 @@ static struct powerdomain *_get_pwrdm(struct device *dev)
 		return NULL;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry, GFP_KERNEL);
 	if (entry) {
 		entry->dev = dev;
 		entry->pwrdm = pwrdm;

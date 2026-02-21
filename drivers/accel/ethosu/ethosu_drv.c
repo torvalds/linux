@@ -144,7 +144,8 @@ static int ethosu_open(struct drm_device *ddev, struct drm_file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
-	struct ethosu_file_priv __free(kfree) *priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	struct ethosu_file_priv __free(kfree) *priv = kzalloc_obj(*priv,
+								  GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err_put_mod;

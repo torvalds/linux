@@ -210,7 +210,7 @@ static int ser_send_msg(struct rtw89_ser *ser, u8 event)
 	if (test_bit(RTW89_SER_DRV_STOP_RUN, ser->flags))
 		return -EIO;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kmalloc_obj(*msg, GFP_ATOMIC);
 	if (!msg)
 		return -ENOMEM;
 

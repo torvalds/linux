@@ -35,7 +35,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 
 	if (test_bit(IONIC_LIF_F_FILTER_SYNC_NEEDED, lif->state) &&
 	    !test_bit(IONIC_LIF_F_FW_RESET, lif->state)) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		work = kzalloc_obj(*work, GFP_ATOMIC);
 		if (!work) {
 			netdev_err(lif->netdev, "rxmode change dropped\n");
 			return;
@@ -577,7 +577,7 @@ do_check_time:
 		if (trigger) {
 			struct ionic_deferred_work *work;
 
-			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			work = kzalloc_obj(*work, GFP_ATOMIC);
 			if (work) {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
 				work->fw_status = fw_status_ready;

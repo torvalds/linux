@@ -75,7 +75,7 @@ static void hinic3_add_filter(struct net_device *netdev,
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic3_mac_filter *f;
 
-	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	f = kzalloc_obj(*f, GFP_ATOMIC);
 	if (!f)
 		return;
 
@@ -110,7 +110,7 @@ hinic3_mac_filter_entry_clone(const struct hinic3_mac_filter *src)
 {
 	struct hinic3_mac_filter *f;
 
-	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	f = kzalloc_obj(*f, GFP_ATOMIC);
 	if (!f)
 		return NULL;
 

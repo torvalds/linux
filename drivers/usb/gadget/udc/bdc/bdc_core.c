@@ -397,8 +397,8 @@ static int bdc_mem_alloc(struct bdc *bdc)
 		"ieps:%d eops:%d num_eps:%d\n",
 		num_ieps, num_oeps, bdc->num_eps);
 	/* allocate array of ep pointers */
-	bdc->bdc_ep_array = kcalloc(bdc->num_eps, sizeof(struct bdc_ep *),
-								GFP_KERNEL);
+	bdc->bdc_ep_array = kzalloc_objs(struct bdc_ep *, bdc->num_eps,
+					 GFP_KERNEL);
 	if (!bdc->bdc_ep_array)
 		goto fail;
 

@@ -1058,7 +1058,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 
 	lockdep_assert_held(&dev->mutex);
-	tmp = kcalloc(dev->n_subdevices, sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_objs(*tmp, dev->n_subdevices, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -2969,7 +2969,7 @@ static int comedi_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	cfp = kzalloc(sizeof(*cfp), GFP_KERNEL);
+	cfp = kzalloc_obj(*cfp, GFP_KERNEL);
 	if (!cfp) {
 		comedi_dev_put(dev);
 		return -ENOMEM;
@@ -3322,7 +3322,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	rc = check_insnlist_len(dev, insnlist32.n_insns);
 	if (rc)
 		return rc;
-	insns = kcalloc(insnlist32.n_insns, sizeof(*insns), GFP_KERNEL);
+	insns = kzalloc_objs(*insns, insnlist32.n_insns, GFP_KERNEL);
 	if (!insns)
 		return -ENOMEM;
 
@@ -3505,7 +3505,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	struct device *csdev;
 	unsigned int i;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 	comedi_device_init(dev);

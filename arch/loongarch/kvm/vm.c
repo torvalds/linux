@@ -68,7 +68,8 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (!kvm->arch.pgd)
 		return -ENOMEM;
 
-	kvm->arch.phyid_map = kvzalloc(sizeof(struct kvm_phyid_map), GFP_KERNEL_ACCOUNT);
+	kvm->arch.phyid_map = kvzalloc_obj(struct kvm_phyid_map,
+					   GFP_KERNEL_ACCOUNT);
 	if (!kvm->arch.phyid_map) {
 		free_page((unsigned long)kvm->arch.pgd);
 		kvm->arch.pgd = NULL;

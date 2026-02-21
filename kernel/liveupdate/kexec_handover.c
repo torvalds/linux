@@ -187,7 +187,7 @@ static int __kho_preserve_order(struct kho_mem_track *track, unsigned long pfn,
 	if (!physxa) {
 		int err;
 
-		new_physxa = kzalloc(sizeof(*physxa), GFP_KERNEL);
+		new_physxa = kzalloc_obj(*physxa, GFP_KERNEL);
 		if (!new_physxa)
 			return -ENOMEM;
 
@@ -1090,7 +1090,7 @@ void *kho_restore_vmalloc(const struct kho_vmalloc *preservation)
 		return NULL;
 
 	total_pages = preservation->total_pages;
-	pages = kvmalloc_array(total_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, total_pages, GFP_KERNEL);
 	if (!pages)
 		return NULL;
 	order = preservation->order;

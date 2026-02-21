@@ -1220,7 +1220,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	uint32_t cf_mem_align;
 	int rc;
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	master = kzalloc_obj(*master, GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 

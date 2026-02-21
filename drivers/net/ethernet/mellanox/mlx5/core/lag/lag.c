@@ -272,7 +272,7 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 	struct mlx5_lag *ldev;
 	int err;
 
-	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
+	ldev = kzalloc_obj(*ldev, GFP_KERNEL);
 	if (!ldev)
 		return NULL;
 

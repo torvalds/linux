@@ -688,11 +688,11 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 
 	/* No parent_dport, root cxl_port */
 	if (!parent_dport) {
-		cxl_root = kzalloc(sizeof(*cxl_root), GFP_KERNEL);
+		cxl_root = kzalloc_obj(*cxl_root, GFP_KERNEL);
 		if (!cxl_root)
 			return ERR_PTR(-ENOMEM);
 	} else {
-		_port = kzalloc(sizeof(*port), GFP_KERNEL);
+		_port = kzalloc_obj(*port, GFP_KERNEL);
 		if (!_port)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -1184,7 +1184,7 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	    CXL_TARGET_STRLEN)
 		return ERR_PTR(-EINVAL);
 
-	dport = kzalloc(sizeof(*dport), GFP_KERNEL);
+	dport = kzalloc_obj(*dport, GFP_KERNEL);
 	if (!dport)
 		return ERR_PTR(-ENOMEM);
 
@@ -1350,7 +1350,7 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 	struct cxl_ep *ep;
 	int rc;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep, GFP_KERNEL);
 	if (!ep)
 		return -ENOMEM;
 
@@ -2017,8 +2017,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	if (!is_cxl_root(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlrd = kzalloc(struct_size(cxlrd, cxlsd.target, nr_targets),
-			GFP_KERNEL);
+	cxlrd = kzalloc_flex(*cxlrd, cxlsd.target, nr_targets, GFP_KERNEL);
 	if (!cxlrd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2071,7 +2070,7 @@ struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 	if (is_cxl_root(port) || is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
+	cxlsd = kzalloc_flex(*cxlsd, target, nr_targets, GFP_KERNEL);
 	if (!cxlsd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2102,7 +2101,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 	if (!is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxled = kzalloc(sizeof(*cxled), GFP_KERNEL);
+	cxled = kzalloc_obj(*cxled, GFP_KERNEL);
 	if (!cxled)
 		return ERR_PTR(-ENOMEM);
 

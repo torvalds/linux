@@ -1171,7 +1171,7 @@ struct nci_dev *nci_allocate_device(const struct nci_ops *ops,
 	if (!supported_protocols)
 		return NULL;
 
-	ndev = kzalloc(sizeof(struct nci_dev), GFP_KERNEL);
+	ndev = kzalloc_obj(struct nci_dev, GFP_KERNEL);
 	if (!ndev)
 		return NULL;
 

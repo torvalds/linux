@@ -1514,9 +1514,9 @@ static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master)
 		cd_table->l2.num_l1_ents =
 			DIV_ROUND_UP(max_contexts, CTXDESC_L2_ENTRIES);
 
-		cd_table->l2.l2ptrs = kcalloc(cd_table->l2.num_l1_ents,
-					     sizeof(*cd_table->l2.l2ptrs),
-					     GFP_KERNEL);
+		cd_table->l2.l2ptrs = kzalloc_objs(*cd_table->l2.l2ptrs,
+						   cd_table->l2.num_l1_ents,
+						   GFP_KERNEL);
 		if (!cd_table->l2.l2ptrs)
 			return -ENOMEM;
 
@@ -2524,7 +2524,7 @@ struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 {
 	struct arm_smmu_domain *smmu_domain;
 
-	smmu_domain = kzalloc(sizeof(*smmu_domain), GFP_KERNEL);
+	smmu_domain = kzalloc_obj(*smmu_domain, GFP_KERNEL);
 	if (!smmu_domain)
 		return ERR_PTR(-ENOMEM);
 
@@ -2965,7 +2965,7 @@ int arm_smmu_attach_prepare(struct arm_smmu_attach_state *state,
 				return ret;
 		}
 
-		master_domain = kzalloc(sizeof(*master_domain), GFP_KERNEL);
+		master_domain = kzalloc_obj(*master_domain, GFP_KERNEL);
 		if (!master_domain) {
 			ret = -ENOMEM;
 			goto err_free_vmaster;
@@ -3517,8 +3517,8 @@ static int arm_smmu_insert_master(struct arm_smmu_device *smmu,
 	int ret = 0;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(master->dev);
 
-	master->streams = kcalloc(fwspec->num_ids, sizeof(*master->streams),
-				  GFP_KERNEL);
+	master->streams = kzalloc_objs(*master->streams, fwspec->num_ids,
+				       GFP_KERNEL);
 	if (!master->streams)
 		return -ENOMEM;
 	master->num_streams = fwspec->num_ids;
@@ -3597,7 +3597,7 @@ static struct iommu_device *arm_smmu_probe_device(struct device *dev)
 	if (!smmu)
 		return ERR_PTR(-ENODEV);
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	master = kzalloc_obj(*master, GFP_KERNEL);
 	if (!master)
 		return ERR_PTR(-ENOMEM);
 

@@ -56,7 +56,7 @@ irq_create_affinity_masks(unsigned int nvecs, struct irq_affinity *affd)
 	if (!affvecs)
 		return NULL;
 
-	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
+	masks = kzalloc_objs(*masks, nvecs, GFP_KERNEL);
 	if (!masks)
 		return NULL;
 

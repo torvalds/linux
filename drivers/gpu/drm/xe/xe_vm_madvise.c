@@ -47,7 +47,8 @@ static int get_vmas(struct xe_vm *vm, struct xe_vmas_in_madvise_range *madvise_r
 	lockdep_assert_held(&vm->lock);
 
 	madvise_range->num_vmas = 0;
-	madvise_range->vmas = kmalloc_array(max_vmas, sizeof(*madvise_range->vmas), GFP_KERNEL);
+	madvise_range->vmas = kmalloc_objs(*madvise_range->vmas, max_vmas,
+					   GFP_KERNEL);
 	if (!madvise_range->vmas)
 		return -ENOMEM;
 

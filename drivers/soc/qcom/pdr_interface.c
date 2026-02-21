@@ -322,7 +322,7 @@ static void pdr_indication_cb(struct qmi_handle *qmi,
 		ind_msg->service_path, ind_msg->curr_state,
 		ind_msg->transaction_id);
 
-	ind = kzalloc(sizeof(*ind), GFP_KERNEL);
+	ind = kzalloc_obj(*ind, GFP_KERNEL);
 	if (!ind)
 		return;
 
@@ -396,8 +396,8 @@ static int pdr_locate_service(struct pdr_handle *pdr, struct pdr_service *pds)
 	int domains_read = 0;
 	int ret, i;
 
-	struct servreg_get_domain_list_resp *resp __free(kfree) = kzalloc(sizeof(*resp),
-									  GFP_KERNEL);
+	struct servreg_get_domain_list_resp *resp __free(kfree) = kzalloc_obj(*resp,
+									      GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
 
@@ -520,7 +520,7 @@ struct pdr_service *pdr_add_lookup(struct pdr_handle *pdr,
 	    !service_path || strlen(service_path) > SERVREG_NAME_LENGTH)
 		return ERR_PTR(-EINVAL);
 
-	struct pdr_service *pds __free(kfree) = kzalloc(sizeof(*pds), GFP_KERNEL);
+	struct pdr_service *pds __free(kfree) = kzalloc_obj(*pds, GFP_KERNEL);
 	if (!pds)
 		return ERR_PTR(-ENOMEM);
 
@@ -645,7 +645,7 @@ struct pdr_handle *pdr_handle_alloc(void (*status)(int state,
 	if (!status)
 		return ERR_PTR(-EINVAL);
 
-	struct pdr_handle *pdr __free(kfree) = kzalloc(sizeof(*pdr), GFP_KERNEL);
+	struct pdr_handle *pdr __free(kfree) = kzalloc_obj(*pdr, GFP_KERNEL);
 	if (!pdr)
 		return ERR_PTR(-ENOMEM);
 

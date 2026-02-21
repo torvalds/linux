@@ -429,7 +429,7 @@ struct xfrm_policy *xfrm_policy_alloc(struct net *net, gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 
-	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
+	policy = kzalloc_obj(struct xfrm_policy, gfp);
 
 	if (policy) {
 		write_pnet(&policy->xp_net, net);
@@ -765,7 +765,7 @@ xfrm_policy_inexact_alloc_bin(const struct xfrm_policy *pol, u8 dir)
 	if (bin)
 		return bin;
 
-	bin = kzalloc(sizeof(*bin), GFP_ATOMIC);
+	bin = kzalloc_obj(*bin, GFP_ATOMIC);
 	if (!bin)
 		return NULL;
 
@@ -836,7 +836,7 @@ xfrm_pol_inexact_node_alloc(const xfrm_address_t *addr, u8 prefixlen)
 {
 	struct xfrm_pol_inexact_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	node = kzalloc_obj(*node, GFP_ATOMIC);
 	if (node)
 		xfrm_pol_inexact_node_init(node, addr, prefixlen);
 

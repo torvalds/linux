@@ -713,7 +713,7 @@ static int wbt_data_dir(const struct request *rq)
 
 static struct rq_wb *wbt_alloc(void)
 {
-	struct rq_wb *rwb = kzalloc(sizeof(*rwb), GFP_KERNEL);
+	struct rq_wb *rwb = kzalloc_obj(*rwb, GFP_KERNEL);
 
 	if (!rwb)
 		return NULL;

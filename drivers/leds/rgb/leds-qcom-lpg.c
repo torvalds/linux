@@ -996,7 +996,7 @@ static int lpg_pattern_set(struct lpg_led *led, struct led_pattern *led_pattern,
 	if (len % 2)
 		return -EINVAL;
 
-	pattern = kcalloc(len / 2, sizeof(*pattern), GFP_KERNEL);
+	pattern = kzalloc_objs(*pattern, len / 2, GFP_KERNEL);
 	if (!pattern)
 		return -ENOMEM;
 

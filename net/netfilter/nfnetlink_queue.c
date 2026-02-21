@@ -178,7 +178,7 @@ instance_create(struct nfnl_queue_net *q, u_int16_t queue_num, u32 portid)
 	unsigned int h;
 	int err;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL_ACCOUNT);
+	inst = kzalloc_obj(*inst, GFP_KERNEL_ACCOUNT);
 	if (!inst)
 		return ERR_PTR(-ENOMEM);
 

@@ -55,7 +55,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	int ret;
 
 	if (num_parents > 1) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux, GFP_KERNEL);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -70,7 +70,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	}
 
 	if (gate_offset >= 0) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate, GFP_KERNEL);
 		if (!gate) {
 			ret = -ENOMEM;
 			goto err_gate;
@@ -84,7 +84,7 @@ static struct clk *rockchip_clk_register_branch(const char *name,
 	}
 
 	if (div_width > 0) {
-		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		div = kzalloc_obj(*div, GFP_KERNEL);
 		if (!div) {
 			ret = -ENOMEM;
 			goto err_div;
@@ -221,7 +221,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 		return ERR_PTR(-EINVAL);
 	}
 
-	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
+	frac = kzalloc_obj(*frac, GFP_KERNEL);
 	if (!frac)
 		return ERR_PTR(-ENOMEM);
 
@@ -323,7 +323,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 				div);
 	}
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate, GFP_KERNEL);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -332,7 +332,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 	gate->bit_idx = gate_shift;
 	gate->lock = lock;
 
-	fix = kzalloc(sizeof(*fix), GFP_KERNEL);
+	fix = kzalloc_obj(*fix, GFP_KERNEL);
 	if (!fix) {
 		kfree(gate);
 		return ERR_PTR(-ENOMEM);
@@ -365,11 +365,11 @@ static struct rockchip_clk_provider *rockchip_clk_init_base(
 
 	default_clk_val = ERR_PTR(has_late_clocks ? -EPROBE_DEFER : -ENOENT);
 
-	ctx = kzalloc(sizeof(struct rockchip_clk_provider), GFP_KERNEL);
+	ctx = kzalloc_obj(struct rockchip_clk_provider, GFP_KERNEL);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	clk_table = kcalloc(nr_clks, sizeof(struct clk *), GFP_KERNEL);
+	clk_table = kzalloc_objs(struct clk *, nr_clks, GFP_KERNEL);
 	if (!clk_table)
 		goto err_free;
 

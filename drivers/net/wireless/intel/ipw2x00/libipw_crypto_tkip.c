@@ -87,7 +87,7 @@ static void *libipw_tkip_init(int key_idx)
 	if (fips_enabled)
 		return NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc_obj(*priv, GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
 

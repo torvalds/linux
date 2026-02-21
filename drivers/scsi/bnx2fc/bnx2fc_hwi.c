@@ -561,7 +561,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 	u8 op;
 
 
-	unsol_els = kzalloc(sizeof(*unsol_els), GFP_ATOMIC);
+	unsol_els = kzalloc_obj(*unsol_els, GFP_ATOMIC);
 	if (!unsol_els) {
 		BNX2FC_TGT_DBG(tgt, "Unable to allocate unsol_work\n");
 		return;
@@ -972,7 +972,7 @@ static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe,
 					     struct fcoe_task_ctx_entry *task)
 {
 	struct bnx2fc_work *work;
-	work = kzalloc(sizeof(struct bnx2fc_work), GFP_ATOMIC);
+	work = kzalloc_obj(struct bnx2fc_work, GFP_ATOMIC);
 	if (!work)
 		return NULL;
 

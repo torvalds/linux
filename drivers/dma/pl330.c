@@ -1887,8 +1887,7 @@ static int dmac_alloc_threads(struct pl330_dmac *pl330)
 	int i;
 
 	/* Allocate 1 Manager and 'chans' Channel threads */
-	pl330->channels = kcalloc(1 + chans, sizeof(*thrd),
-					GFP_KERNEL);
+	pl330->channels = kzalloc_objs(*thrd, 1 + chans, GFP_KERNEL);
 	if (!pl330->channels)
 		return -ENOMEM;
 
@@ -2548,7 +2547,7 @@ static int add_desc(struct list_head *pool, spinlock_t *lock,
 	unsigned long flags;
 	int i;
 
-	desc = kcalloc(count, sizeof(*desc), flg);
+	desc = kzalloc_objs(*desc, count, flg);
 	if (!desc)
 		return 0;
 
@@ -3093,7 +3092,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pl330->num_peripherals = num_chan;
 
-	pl330->peripherals = kcalloc(num_chan, sizeof(*pch), GFP_KERNEL);
+	pl330->peripherals = kzalloc_objs(*pch, num_chan, GFP_KERNEL);
 	if (!pl330->peripherals) {
 		ret = -ENOMEM;
 		goto probe_err2;

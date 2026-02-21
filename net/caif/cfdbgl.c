@@ -19,7 +19,7 @@ static int cfdbgl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 
 struct cflayer *cfdbgl_create(u8 channel_id, struct dev_info *dev_info)
 {
-	struct cfsrvl *dbg = kzalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
+	struct cfsrvl *dbg = kzalloc_obj(struct cfsrvl, GFP_ATOMIC);
 	if (!dbg)
 		return NULL;
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);

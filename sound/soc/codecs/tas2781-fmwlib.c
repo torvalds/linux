@@ -176,7 +176,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 * of audio cases, flexible configs have been introduced in the
 	 * dsp firmware.
 	 */
-	cfg_info = kzalloc(sizeof(struct tasdevice_config_info), GFP_KERNEL);
+	cfg_info = kzalloc_obj(struct tasdevice_config_info, GFP_KERNEL);
 	if (!cfg_info) {
 		*status = -ENOMEM;
 		goto out;
@@ -217,8 +217,8 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 * the number and size of blk are not fixed and different among
 	 * these firmwares.
 	 */
-	bk_da = cfg_info->blk_data = kcalloc(cfg_info->nblocks,
-		sizeof(struct tasdev_blk_data *), GFP_KERNEL);
+	bk_da = cfg_info->blk_data = kzalloc_objs(struct tasdev_blk_data *,
+						  cfg_info->nblocks, GFP_KERNEL);
 	if (!bk_da) {
 		*status = -ENOMEM;
 		goto out;
@@ -232,7 +232,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 				__func__, i, cfg_info->nblocks);
 			break;
 		}
-		bk_da[i] = kzalloc(sizeof(struct tasdev_blk_data), GFP_KERNEL);
+		bk_da[i] = kzalloc_obj(struct tasdev_blk_data, GFP_KERNEL);
 		if (!bk_da[i]) {
 			*status = -ENOMEM;
 			break;
@@ -379,7 +379,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 		goto out;
 	}
 
-	cfg_info = kcalloc(fw_hdr->nconfig, sizeof(*cfg_info), GFP_KERNEL);
+	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig, GFP_KERNEL);
 	if (!cfg_info) {
 		ret = -ENOMEM;
 		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
@@ -509,8 +509,8 @@ static int fw_parse_data_kernel(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be32(&data[offset]);
 	offset += 4;
 
-	img_data->dev_blks = kcalloc(img_data->nr_blk,
-		sizeof(struct tasdev_blk), GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk,
+					  GFP_KERNEL);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -805,8 +805,8 @@ static int fw_parse_variable_header_kernel(
 		goto out;
 	}
 
-	tas_fmw->programs = kcalloc(tas_fmw->nr_programs,
-		sizeof(struct tasdevice_prog), GFP_KERNEL);
+	tas_fmw->programs = kzalloc_objs(struct tasdevice_prog,
+					 tas_fmw->nr_programs, GFP_KERNEL);
 	if (!tas_fmw->programs) {
 		offset = -ENOMEM;
 		goto out;
@@ -844,8 +844,8 @@ static int fw_parse_variable_header_kernel(
 		goto out;
 	}
 
-	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
-		sizeof(struct tasdevice_config), GFP_KERNEL);
+	tas_fmw->configs = kzalloc_objs(struct tasdevice_config,
+					tas_fmw->nr_configurations, GFP_KERNEL);
 	if (!tas_fmw->configs) {
 		offset = -ENOMEM;
 		goto out;
@@ -1239,8 +1239,8 @@ static int fw_parse_data(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be16(&data[offset]);
 	offset += 2;
 
-	img_data->dev_blks = kcalloc(img_data->nr_blk,
-		sizeof(struct tasdev_blk), GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk,
+					  GFP_KERNEL);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -1284,8 +1284,8 @@ static int fw_parse_program_data(struct tasdevice_priv *tas_priv,
 	}
 
 	tas_fmw->programs =
-		kcalloc(tas_fmw->nr_programs, sizeof(struct tasdevice_prog),
-			GFP_KERNEL);
+		kzalloc_objs(struct tasdevice_prog, tas_fmw->nr_programs,
+			     GFP_KERNEL);
 	if (!tas_fmw->programs) {
 		offset = -ENOMEM;
 		goto out;
@@ -1348,8 +1348,8 @@ static int fw_parse_configuration_data(
 		/*Not error for calibration Data file, return directly*/
 		goto out;
 	}
-	tas_fmw->configs = kcalloc(tas_fmw->nr_configurations,
-			sizeof(struct tasdevice_config), GFP_KERNEL);
+	tas_fmw->configs = kzalloc_objs(struct tasdevice_config,
+					tas_fmw->nr_configurations, GFP_KERNEL);
 	if (!tas_fmw->configs) {
 		offset = -ENOMEM;
 		goto out;
@@ -2143,8 +2143,9 @@ static int fw_parse_calibration_data(struct tasdevice_priv *tas_priv,
 		goto out;
 	}
 
-	tas_fmw->calibrations = kcalloc(tas_fmw->nr_calibrations,
-		sizeof(struct tasdevice_calibration), GFP_KERNEL);
+	tas_fmw->calibrations = kzalloc_objs(struct tasdevice_calibration,
+					     tas_fmw->nr_calibrations,
+					     GFP_KERNEL);
 	if (!tas_fmw->calibrations) {
 		offset = -ENOMEM;
 		goto out;
@@ -2206,8 +2207,8 @@ int tas2781_load_calibration(void *context, char *file_name,
 	fmw.size = fw_entry->size;
 	fmw.data = fw_entry->data;
 
-	tas_fmw = tasdev->cali_data_fmw = kzalloc(sizeof(struct tasdevice_fw),
-		GFP_KERNEL);
+	tas_fmw = tasdev->cali_data_fmw = kzalloc_obj(struct tasdevice_fw,
+						      GFP_KERNEL);
 	if (!tasdev->cali_data_fmw) {
 		ret = -ENOMEM;
 		goto out;
@@ -2267,7 +2268,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 		return -EINVAL;
 	}
 
-	tas_priv->fmw = kzalloc(sizeof(struct tasdevice_fw), GFP_KERNEL);
+	tas_priv->fmw = kzalloc_obj(struct tasdevice_fw, GFP_KERNEL);
 	if (!tas_priv->fmw)
 		return -ENOMEM;
 

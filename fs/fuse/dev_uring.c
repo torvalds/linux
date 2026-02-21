@@ -231,12 +231,12 @@ static struct fuse_ring *fuse_uring_create(struct fuse_conn *fc)
 	struct fuse_ring *res = NULL;
 	size_t max_payload_size;
 
-	ring = kzalloc(sizeof(*fc->ring), GFP_KERNEL_ACCOUNT);
+	ring = kzalloc_obj(*fc->ring, GFP_KERNEL_ACCOUNT);
 	if (!ring)
 		return NULL;
 
-	ring->queues = kcalloc(nr_queues, sizeof(struct fuse_ring_queue *),
-			       GFP_KERNEL_ACCOUNT);
+	ring->queues = kzalloc_objs(struct fuse_ring_queue *, nr_queues,
+				    GFP_KERNEL_ACCOUNT);
 	if (!ring->queues)
 		goto out_err;
 
@@ -274,10 +274,10 @@ static struct fuse_ring_queue *fuse_uring_create_queue(struct fuse_ring *ring,
 	struct fuse_ring_queue *queue;
 	struct list_head *pq;
 
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL_ACCOUNT);
+	queue = kzalloc_obj(*queue, GFP_KERNEL_ACCOUNT);
 	if (!queue)
 		return NULL;
-	pq = kcalloc(FUSE_PQ_HASH_SIZE, sizeof(struct list_head), GFP_KERNEL);
+	pq = kzalloc_objs(struct list_head, FUSE_PQ_HASH_SIZE, GFP_KERNEL);
 	if (!pq) {
 		kfree(queue);
 		return NULL;
@@ -1062,7 +1062,7 @@ fuse_uring_create_ring_ent(struct io_uring_cmd *cmd,
 	}
 
 	err = -ENOMEM;
-	ent = kzalloc(sizeof(*ent), GFP_KERNEL_ACCOUNT);
+	ent = kzalloc_obj(*ent, GFP_KERNEL_ACCOUNT);
 	if (!ent)
 		return ERR_PTR(err);
 

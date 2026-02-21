@@ -595,7 +595,7 @@ static void lcdif_crtc_reset(struct drm_crtc *crtc)
 
 	crtc->state = NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state, GFP_KERNEL);
 	if (state)
 		__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
@@ -609,7 +609,7 @@ lcdif_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new, GFP_KERNEL);
 	if (!new)
 		return NULL;
 

@@ -1719,7 +1719,7 @@ xrep_agi(
 	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
-	sc->buf = kzalloc(sizeof(struct xrep_agi), XCHK_GFP_FLAGS);
+	sc->buf = kzalloc_obj(struct xrep_agi, XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
 	ragi = sc->buf;

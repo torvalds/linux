@@ -279,7 +279,7 @@ static struct ttm_tt *i915_ttm_tt_create(struct ttm_buffer_object *bo,
 	if (i915_ttm_is_ghost_object(bo))
 		return NULL;
 
-	i915_tt = kzalloc(sizeof(*i915_tt), GFP_KERNEL);
+	i915_tt = kzalloc_obj(*i915_tt, GFP_KERNEL);
 	if (!i915_tt)
 		return NULL;
 

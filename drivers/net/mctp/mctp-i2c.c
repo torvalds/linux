@@ -154,7 +154,7 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 		goto err;
 	}
 
-	mcli = kzalloc(sizeof(*mcli), GFP_KERNEL);
+	mcli = kzalloc_obj(*mcli, GFP_KERNEL);
 	if (!mcli) {
 		rc = -ENOMEM;
 		goto err;

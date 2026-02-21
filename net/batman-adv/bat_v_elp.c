@@ -355,7 +355,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 		 * context. Therefore add it to metric_queue and process it
 		 * outside rcu protected context.
 		 */
-		metric_entry = kzalloc(sizeof(*metric_entry), GFP_ATOMIC);
+		metric_entry = kzalloc_obj(*metric_entry, GFP_ATOMIC);
 		if (!metric_entry) {
 			batadv_hardif_neigh_put(hardif_neigh);
 			continue;

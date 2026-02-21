@@ -42,7 +42,7 @@ static struct td *get_empty_td(struct fhci_hcd *fhci)
 		td = list_entry(fhci->empty_tds.next, struct td, node);
 		list_del(fhci->empty_tds.next);
 	} else {
-		td = kmalloc(sizeof(*td), GFP_ATOMIC);
+		td = kmalloc_obj(*td, GFP_ATOMIC);
 		if (!td)
 			fhci_err(fhci, "No memory to allocate to TD\n");
 		else
@@ -66,7 +66,7 @@ struct ed *fhci_get_empty_ed(struct fhci_hcd *fhci)
 		ed = list_entry(fhci->empty_eds.next, struct ed, node);
 		list_del(fhci->empty_eds.next);
 	} else {
-		ed = kmalloc(sizeof(*ed), GFP_ATOMIC);
+		ed = kmalloc_obj(*ed, GFP_ATOMIC);
 		if (!ed)
 			fhci_err(fhci, "No memory to allocate to ED\n");
 		else

@@ -226,7 +226,7 @@ again:
 		 */
 		if (!dummy) {
 			raw_spin_unlock(&b->lock);
-			dummy = kzalloc(sizeof(*dummy), GFP_ATOMIC);
+			dummy = kzalloc_obj(*dummy, GFP_ATOMIC);
 
 			/*
 			 * Continue looping on allocation failure, eventually

@@ -1836,7 +1836,7 @@ gpi_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!(flags & DMA_PREP_INTERRUPT) && (nr - nr_tre < 2))
 		return NULL;
 
-	gpi_desc = kzalloc(sizeof(*gpi_desc), GFP_NOWAIT);
+	gpi_desc = kzalloc_obj(*gpi_desc, GFP_NOWAIT);
 	if (!gpi_desc)
 		return NULL;
 

@@ -204,12 +204,11 @@ static int tmc_pages_alloc(struct tmc_pages *tmc_pages,
 	struct device *real_dev = dev->parent;
 
 	nr_pages = tmc_pages->nr_pages;
-	tmc_pages->daddrs = kcalloc(nr_pages, sizeof(*tmc_pages->daddrs),
+	tmc_pages->daddrs = kzalloc_objs(*tmc_pages->daddrs, nr_pages,
 					 GFP_KERNEL);
 	if (!tmc_pages->daddrs)
 		return -ENOMEM;
-	tmc_pages->pages = kcalloc(nr_pages, sizeof(*tmc_pages->pages),
-					 GFP_KERNEL);
+	tmc_pages->pages = kzalloc_objs(*tmc_pages->pages, nr_pages, GFP_KERNEL);
 	if (!tmc_pages->pages) {
 		kfree(tmc_pages->daddrs);
 		tmc_pages->daddrs = NULL;
@@ -332,7 +331,7 @@ struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
 	long rc;
 	struct tmc_sg_table *sg_table;
 
-	sg_table = kzalloc(sizeof(*sg_table), GFP_KERNEL);
+	sg_table = kzalloc_obj(*sg_table, GFP_KERNEL);
 	if (!sg_table)
 		return ERR_PTR(-ENOMEM);
 	sg_table->data_pages.nr_pages = nr_dpages;
@@ -575,7 +574,7 @@ tmc_init_etr_sg_table(struct device *dev, int node,
 	struct tmc_sg_table *sg_table;
 	struct etr_sg_table *etr_table;
 
-	etr_table = kzalloc(sizeof(*etr_table), GFP_KERNEL);
+	etr_table = kzalloc_obj(*etr_table, GFP_KERNEL);
 	if (!etr_table)
 		return ERR_PTR(-ENOMEM);
 	nr_entries = tmc_etr_sg_table_entries(nr_dpages);
@@ -612,7 +611,7 @@ static int tmc_etr_alloc_flat_buf(struct tmc_drvdata *drvdata,
 	if (pages)
 		return -EINVAL;
 
-	flat_buf = kzalloc(sizeof(*flat_buf), GFP_KERNEL);
+	flat_buf = kzalloc_obj(*flat_buf, GFP_KERNEL);
 	if (!flat_buf)
 		return -ENOMEM;
 
@@ -710,7 +709,7 @@ static int tmc_etr_alloc_resrv_buf(struct tmc_drvdata *drvdata,
 	if (pages)
 		return -EINVAL;
 
-	resrv_buf = kzalloc(sizeof(*resrv_buf), GFP_KERNEL);
+	resrv_buf = kzalloc_obj(*resrv_buf, GFP_KERNEL);
 	if (!resrv_buf)
 		return -ENOMEM;
 
@@ -942,7 +941,7 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 	struct device *dev = &drvdata->csdev->dev;
 
 	get_etr_buf_hw(dev, &buf_hw);
-	etr_buf = kzalloc(sizeof(*etr_buf), GFP_KERNEL);
+	etr_buf = kzalloc_obj(*etr_buf, GFP_KERNEL);
 	if (!etr_buf)
 		return ERR_PTR(-ENOMEM);
 

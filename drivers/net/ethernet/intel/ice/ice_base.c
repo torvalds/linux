@@ -107,7 +107,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	int err;
 
 	/* allocate q_vector */
-	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
+	q_vector = kzalloc_obj(*q_vector, GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 

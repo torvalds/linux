@@ -2550,8 +2550,7 @@ static struct buffer_head **ocfs2_dx_dir_kmalloc_leaves(struct super_block *sb,
 	int num_dx_leaves = ocfs2_clusters_to_blocks(sb, 1);
 	struct buffer_head **dx_leaves;
 
-	dx_leaves = kcalloc(num_dx_leaves, sizeof(struct buffer_head *),
-			    GFP_NOFS);
+	dx_leaves = kzalloc_objs(struct buffer_head *, num_dx_leaves, GFP_NOFS);
 	if (dx_leaves && ret_num_leaves)
 		*ret_num_leaves = num_dx_leaves;
 

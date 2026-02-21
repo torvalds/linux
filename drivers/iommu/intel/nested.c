@@ -218,7 +218,7 @@ intel_iommu_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
 	if (ret)
 		return ERR_PTR(ret);
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL_ACCOUNT);
+	domain = kzalloc_obj(*domain, GFP_KERNEL_ACCOUNT);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 

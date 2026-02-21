@@ -152,7 +152,7 @@ int sg_split(struct scatterlist *in, const int in_mapped_nents,
 	int i, ret;
 	struct sg_splitter *splitters;
 
-	splitters = kcalloc(nb_splits, sizeof(*splitters), gfp_mask);
+	splitters = kzalloc_objs(*splitters, nb_splits, gfp_mask);
 	if (!splitters)
 		return -ENOMEM;
 
@@ -163,9 +163,8 @@ int sg_split(struct scatterlist *in, const int in_mapped_nents,
 
 	ret = -ENOMEM;
 	for (i = 0; i < nb_splits; i++) {
-		splitters[i].out_sg = kmalloc_array(splitters[i].nents,
-						    sizeof(struct scatterlist),
-						    gfp_mask);
+		splitters[i].out_sg = kmalloc_objs(struct scatterlist,
+						   splitters[i].nents, gfp_mask);
 		if (!splitters[i].out_sg)
 			goto err;
 	}

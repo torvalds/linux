@@ -16,8 +16,8 @@
 int host1x_channel_list_init(struct host1x_channel_list *chlist,
 			     unsigned int num_channels)
 {
-	chlist->channels = kcalloc(num_channels, sizeof(struct host1x_channel),
-				   GFP_KERNEL);
+	chlist->channels = kzalloc_objs(struct host1x_channel, num_channels,
+					GFP_KERNEL);
 	if (!chlist->channels)
 		return -ENOMEM;
 

@@ -161,7 +161,7 @@ struct rpmb_dev *rpmb_dev_register(struct device *dev,
 	    !descr->dev_id_len)
 		return ERR_PTR(-EINVAL);
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev, GFP_KERNEL);
 	if (!rdev)
 		return ERR_PTR(-ENOMEM);
 	rdev->descr = *descr;

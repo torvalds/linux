@@ -284,7 +284,7 @@ static struct q6copp *q6adm_alloc_copp(struct q6adm *adm, int port_idx)
 	if (idx >= MAX_COPPS_PER_PORT)
 		return ERR_PTR(-EBUSY);
 
-	c = kzalloc(sizeof(*c), GFP_ATOMIC);
+	c = kzalloc_obj(*c, GFP_ATOMIC);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 

@@ -237,7 +237,7 @@ static int tsync_works_grow_by(struct tsync_works *s, size_t n, gfp_t flags)
 	s->works = works;
 
 	for (i = s->capacity; i < new_capacity; i++) {
-		work = kzalloc(sizeof(*work), flags);
+		work = kzalloc_obj(*work, flags);
 		if (!work) {
 			/*
 			 * Leave the object in a consistent state,

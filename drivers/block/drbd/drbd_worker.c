@@ -483,7 +483,7 @@ struct fifo_buffer *fifo_alloc(unsigned int fifo_size)
 {
 	struct fifo_buffer *fb;
 
-	fb = kzalloc(struct_size(fb, values, fifo_size), GFP_NOIO);
+	fb = kzalloc_flex(*fb, values, fifo_size, GFP_NOIO);
 	if (!fb)
 		return NULL;
 
@@ -871,7 +871,7 @@ int drbd_resync_finished(struct drbd_peer_device *peer_device)
 		 * is not finished by now).   Retry in 100ms. */
 
 		schedule_timeout_interruptible(HZ / 10);
-		dw = kmalloc(sizeof(struct drbd_device_work), GFP_ATOMIC);
+		dw = kmalloc_obj(struct drbd_device_work, GFP_ATOMIC);
 		if (dw) {
 			dw->w.cb = w_resync_finished;
 			dw->device = device;

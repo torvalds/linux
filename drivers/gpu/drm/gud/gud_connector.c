@@ -246,7 +246,8 @@ static int gud_connector_get_modes(struct drm_connector *connector)
 	if (drm_edid && edid_ctx.edid_override)
 		goto out;
 
-	reqmodes = kmalloc_array(GUD_CONNECTOR_MAX_NUM_MODES, sizeof(*reqmodes), GFP_KERNEL);
+	reqmodes = kmalloc_objs(*reqmodes, GUD_CONNECTOR_MAX_NUM_MODES,
+				GFP_KERNEL);
 	if (!reqmodes)
 		goto out;
 
@@ -479,7 +480,8 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 	unsigned int i, num_properties;
 	int ret;
 
-	properties = kcalloc(GUD_CONNECTOR_PROPERTIES_MAX_NUM, sizeof(*properties), GFP_KERNEL);
+	properties = kzalloc_objs(*properties, GUD_CONNECTOR_PROPERTIES_MAX_NUM,
+				  GFP_KERNEL);
 	if (!properties)
 		return -ENOMEM;
 
@@ -619,7 +621,7 @@ static int gud_connector_create(struct gud_device *gdrm, unsigned int index,
 	int ret, connector_type;
 	u32 flags;
 
-	gconn = kzalloc(sizeof(*gconn), GFP_KERNEL);
+	gconn = kzalloc_obj(*gconn, GFP_KERNEL);
 	if (!gconn)
 		return -ENOMEM;
 
@@ -698,7 +700,7 @@ int gud_get_connectors(struct gud_device *gdrm)
 	unsigned int i, num_connectors;
 	int ret;
 
-	descs = kmalloc_array(GUD_CONNECTORS_MAX_NUM, sizeof(*descs), GFP_KERNEL);
+	descs = kmalloc_objs(*descs, GUD_CONNECTORS_MAX_NUM, GFP_KERNEL);
 	if (!descs)
 		return -ENOMEM;
 

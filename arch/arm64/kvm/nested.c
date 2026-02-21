@@ -1215,8 +1215,8 @@ int kvm_vcpu_allocate_vncr_tlb(struct kvm_vcpu *vcpu)
 	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
 		return 0;
 
-	vcpu->arch.vncr_tlb = kzalloc(sizeof(*vcpu->arch.vncr_tlb),
-				      GFP_KERNEL_ACCOUNT);
+	vcpu->arch.vncr_tlb = kzalloc_obj(*vcpu->arch.vncr_tlb,
+					  GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.vncr_tlb)
 		return -ENOMEM;
 
@@ -1704,8 +1704,8 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	if (kvm->arch.sysreg_masks)
 		goto out;
 
-	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
-					 GFP_KERNEL_ACCOUNT);
+	kvm->arch.sysreg_masks = kzalloc_obj(*(kvm->arch.sysreg_masks),
+					     GFP_KERNEL_ACCOUNT);
 	if (!kvm->arch.sysreg_masks)
 		return -ENOMEM;
 

@@ -166,7 +166,7 @@ static int kvm_vfio_file_add(struct kvm_device *dev, unsigned int fd)
 		}
 	}
 
-	kvf = kzalloc(sizeof(*kvf), GFP_KERNEL_ACCOUNT);
+	kvf = kzalloc_obj(*kvf, GFP_KERNEL_ACCOUNT);
 	if (!kvf) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -364,7 +364,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 
-	kv = kzalloc(sizeof(*kv), GFP_KERNEL_ACCOUNT);
+	kv = kzalloc_obj(*kv, GFP_KERNEL_ACCOUNT);
 	if (!kv)
 		return -ENOMEM;
 

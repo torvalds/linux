@@ -150,7 +150,7 @@ static int ams_delta_serio_init(struct platform_device *pdev)
 		return err;
 	}
 
-	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
+	serio = kzalloc_obj(*serio, GFP_KERNEL);
 	if (!serio)
 		return -ENOMEM;
 

@@ -230,8 +230,8 @@ int kmsan_vmap_pages_range_noflush(unsigned long start, unsigned long end,
 		return 0;
 
 	nr = (end - start) / PAGE_SIZE;
-	s_pages = kcalloc(nr, sizeof(*s_pages), gfp_mask);
-	o_pages = kcalloc(nr, sizeof(*o_pages), gfp_mask);
+	s_pages = kzalloc_objs(*s_pages, nr, gfp_mask);
+	o_pages = kzalloc_objs(*o_pages, nr, gfp_mask);
 	if (!s_pages || !o_pages) {
 		err = -ENOMEM;
 		goto ret;

@@ -393,7 +393,7 @@ static void aarp_purge(void)
  */
 static struct aarp_entry *aarp_alloc(void)
 {
-	struct aarp_entry *a = kmalloc(sizeof(*a), GFP_ATOMIC);
+	struct aarp_entry *a = kmalloc_obj(*a, GFP_ATOMIC);
 	if (!a)
 		return NULL;
 

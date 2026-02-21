@@ -171,7 +171,7 @@ r535_mmu_new(const struct nvkm_mmu_func *hw,
 	struct nvkm_mmu_func *rm;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm, GFP_KERNEL)))
 		return -ENOMEM;
 
 	rm->dtor = r535_mmu_dtor;

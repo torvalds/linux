@@ -90,7 +90,7 @@ static struct pwrseq_unit *pwrseq_unit_new(const struct pwrseq_unit_data *data)
 {
 	struct pwrseq_unit *unit;
 
-	unit = kzalloc(sizeof(*unit), GFP_KERNEL);
+	unit = kzalloc_obj(*unit, GFP_KERNEL);
 	if (!unit)
 		return NULL;
 
@@ -138,7 +138,7 @@ static struct pwrseq_unit_dep *pwrseq_unit_dep_new(struct pwrseq_unit *unit)
 {
 	struct pwrseq_unit_dep *dep;
 
-	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+	dep = kzalloc_obj(*dep, GFP_KERNEL);
 	if (!dep)
 		return NULL;
 
@@ -195,7 +195,7 @@ pwrseq_target_new(const struct pwrseq_target_data *data)
 {
 	struct pwrseq_target *target;
 
-	target = kzalloc(sizeof(*target), GFP_KERNEL);
+	target = kzalloc_obj(*target, GFP_KERNEL);
 	if (!target)
 		return NULL;
 
@@ -669,8 +669,7 @@ struct pwrseq_desc *pwrseq_get(struct device *dev, const char *target)
 	struct pwrseq_match_data match_data;
 	int ret;
 
-	struct pwrseq_desc *desc __free(kfree) = kzalloc(sizeof(*desc),
-							 GFP_KERNEL);
+	struct pwrseq_desc *desc __free(kfree) = kzalloc_obj(*desc, GFP_KERNEL);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 

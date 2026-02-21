@@ -1079,7 +1079,7 @@ static int efi_mem_reserve_iomem(phys_addr_t addr, u64 size)
 	struct resource *res, *parent;
 	int ret;
 
-	res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+	res = kzalloc_obj(struct resource, GFP_ATOMIC);
 	if (!res)
 		return -ENOMEM;
 

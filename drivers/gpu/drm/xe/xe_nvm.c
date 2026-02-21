@@ -133,7 +133,7 @@ int xe_nvm_init(struct xe_device *xe)
 	if (WARN_ON(xe->nvm))
 		return -EFAULT;
 
-	xe->nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+	xe->nvm = kzalloc_obj(*nvm, GFP_KERNEL);
 	if (!xe->nvm)
 		return -ENOMEM;
 

@@ -57,7 +57,7 @@ enum {
 
 static inline struct ip_vs_dest_dst *ip_vs_dest_dst_alloc(void)
 {
-	return kmalloc(sizeof(struct ip_vs_dest_dst), GFP_ATOMIC);
+	return kmalloc_obj(struct ip_vs_dest_dst, GFP_ATOMIC);
 }
 
 static inline void ip_vs_dest_dst_free(struct ip_vs_dest_dst *dest_dst)

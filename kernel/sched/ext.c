@@ -4223,11 +4223,11 @@ static struct scx_exit_info *alloc_exit_info(size_t exit_dump_len)
 {
 	struct scx_exit_info *ei;
 
-	ei = kzalloc(sizeof(*ei), GFP_KERNEL);
+	ei = kzalloc_obj(*ei, GFP_KERNEL);
 	if (!ei)
 		return NULL;
 
-	ei->bt = kcalloc(SCX_EXIT_BT_LEN, sizeof(ei->bt[0]), GFP_KERNEL);
+	ei->bt = kzalloc_objs(ei->bt[0], SCX_EXIT_BT_LEN, GFP_KERNEL);
 	ei->msg = kzalloc(SCX_EXIT_MSG_LEN, GFP_KERNEL);
 	ei->dump = kvzalloc(exit_dump_len, GFP_KERNEL);
 
@@ -4824,7 +4824,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	struct scx_sched *sch;
 	int node, ret;
 
-	sch = kzalloc(sizeof(*sch), GFP_KERNEL);
+	sch = kzalloc_obj(*sch, GFP_KERNEL);
 	if (!sch)
 		return ERR_PTR(-ENOMEM);
 
@@ -4838,8 +4838,8 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	if (ret < 0)
 		goto err_free_ei;
 
-	sch->global_dsqs = kcalloc(nr_node_ids, sizeof(sch->global_dsqs[0]),
-				   GFP_KERNEL);
+	sch->global_dsqs = kzalloc_objs(sch->global_dsqs[0], nr_node_ids,
+					GFP_KERNEL);
 	if (!sch->global_dsqs) {
 		ret = -ENOMEM;
 		goto err_free_hash;

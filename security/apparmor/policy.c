@@ -131,7 +131,7 @@ void aa_pdb_free_kref(struct kref *kref)
 
 struct aa_policydb *aa_alloc_pdb(gfp_t gfp)
 {
-	struct aa_policydb *pdb = kzalloc(sizeof(struct aa_policydb), gfp);
+	struct aa_policydb *pdb = kzalloc_obj(struct aa_policydb, gfp);
 
 	if (!pdb)
 		return NULL;
@@ -275,7 +275,7 @@ struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
 {
 	struct aa_ruleset *rules;
 
-	rules = kzalloc(sizeof(*rules), gfp);
+	rules = kzalloc_obj(*rules, gfp);
 
 	return rules;
 }
@@ -349,7 +349,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 	 * this adds space for a single ruleset in the rules section of the
 	 * label
 	 */
-	profile = kzalloc(struct_size(profile, label.rules, 1), gfp);
+	profile = kzalloc_flex(*profile, label.rules, 1, gfp);
 	if (!profile)
 		return NULL;
 

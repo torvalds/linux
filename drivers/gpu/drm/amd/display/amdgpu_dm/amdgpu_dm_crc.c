@@ -958,9 +958,8 @@ void amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 	struct secure_display_crtc_context *crtc_ctx = NULL;
 	int i;
 
-	crtc_ctx = kcalloc(adev->mode_info.num_crtc,
-				      sizeof(struct secure_display_crtc_context),
-				      GFP_KERNEL);
+	crtc_ctx = kzalloc_objs(struct secure_display_crtc_context,
+				adev->mode_info.num_crtc, GFP_KERNEL);
 
 	if (!crtc_ctx) {
 		adev->dm.secure_display_ctx.crtc_ctx = NULL;

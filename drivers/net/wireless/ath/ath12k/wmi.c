@@ -303,7 +303,7 @@ ath12k_wmi_tlv_parse_alloc(struct ath12k_base *ab,
 	const void **tb;
 	int ret;
 
-	tb = kcalloc(WMI_TAG_MAX, sizeof(*tb), gfp);
+	tb = kzalloc_objs(*tb, WMI_TAG_MAX, gfp);
 	if (!tb)
 		return ERR_PTR(-ENOMEM);
 
@@ -6867,7 +6867,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 	u8 pdev_idx = 255;
 	int ret;
 
-	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
+	reg_info = kzalloc_obj(*reg_info, GFP_ATOMIC);
 	if (!reg_info) {
 		ret = -ENOMEM;
 		goto fallback;
@@ -8297,7 +8297,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 
 		data += sizeof(*src);
 		len -= sizeof(*src);
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 		ath12k_wmi_pull_vdev_stats(src, dst);
@@ -8316,7 +8316,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 
 		data += sizeof(*src);
 		len -= sizeof(*src);
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 		ath12k_wmi_pull_bcn_stats(src, dst);
@@ -8338,7 +8338,7 @@ static int ath12k_wmi_tlv_fw_stats_data_parse(struct ath12k_base *ab,
 		data += sizeof(*src);
 		len -= sizeof(*src);
 
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 
@@ -9559,8 +9559,7 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 			goto unlock;
 		}
 		ar->debug.tpc_stats =
-			kzalloc(sizeof(struct wmi_tpc_stats_arg),
-				GFP_ATOMIC);
+			kzalloc_obj(struct wmi_tpc_stats_arg, GFP_ATOMIC);
 		if (!ar->debug.tpc_stats) {
 			ath12k_warn(ab,
 				    "Failed to allocate memory for tpc stats\n");

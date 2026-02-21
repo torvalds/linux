@@ -546,8 +546,8 @@ static int blk_crypto_fallback_init(void)
 		goto out;
 
 	/* Dynamic allocation is needed because of lockdep_register_key(). */
-	blk_crypto_fallback_profile =
-		kzalloc(sizeof(*blk_crypto_fallback_profile), GFP_KERNEL);
+	blk_crypto_fallback_profile = kzalloc_obj(*blk_crypto_fallback_profile,
+						  GFP_KERNEL);
 	if (!blk_crypto_fallback_profile) {
 		err = -ENOMEM;
 		goto fail_free_bioset;
@@ -574,9 +574,8 @@ static int blk_crypto_fallback_init(void)
 	if (!blk_crypto_wq)
 		goto fail_destroy_profile;
 
-	blk_crypto_keyslots = kcalloc(blk_crypto_num_keyslots,
-				      sizeof(blk_crypto_keyslots[0]),
-				      GFP_KERNEL);
+	blk_crypto_keyslots = kzalloc_objs(blk_crypto_keyslots[0],
+					   blk_crypto_num_keyslots, GFP_KERNEL);
 	if (!blk_crypto_keyslots)
 		goto fail_free_wq;
 

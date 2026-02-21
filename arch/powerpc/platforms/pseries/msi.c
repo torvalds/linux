@@ -441,7 +441,7 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 	int ret;
 
 	struct pseries_msi_device *pseries_dev __free(kfree)
-		= kmalloc(sizeof(*pseries_dev), GFP_KERNEL);
+		= kmalloc_obj(*pseries_dev, GFP_KERNEL);
 	if (!pseries_dev)
 		return -ENOMEM;
 

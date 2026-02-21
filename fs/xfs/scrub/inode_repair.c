@@ -151,7 +151,7 @@ xrep_setup_inode(
 {
 	struct xrep_inode	*ri;
 
-	sc->buf = kzalloc(sizeof(struct xrep_inode), XCHK_GFP_FLAGS);
+	sc->buf = kzalloc_obj(struct xrep_inode, XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
 

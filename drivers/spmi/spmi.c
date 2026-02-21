@@ -418,7 +418,7 @@ struct spmi_device *spmi_device_alloc(struct spmi_controller *ctrl)
 {
 	struct spmi_device *sdev;
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc_obj(*sdev, GFP_KERNEL);
 	if (!sdev)
 		return NULL;
 

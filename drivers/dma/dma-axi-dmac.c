@@ -540,7 +540,7 @@ axi_dmac_alloc_desc(struct axi_dmac_chan *chan, unsigned int num_sgs)
 	dma_addr_t hw_phys;
 	unsigned int i;
 
-	desc = kzalloc(struct_size(desc, sg, num_sgs), GFP_NOWAIT);
+	desc = kzalloc_flex(*desc, sg, num_sgs, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 	desc->num_sgs = num_sgs;

@@ -132,12 +132,12 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	int i, type, cap;
 
 	/* Allocate structures for this channel */
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p, GFP_KERNEL);
 	if (!p)
 		return NULL;
 
-	p->chset.channels = kcalloc(max_channels, sizeof(*p->chset.channels),
-				    GFP_KERNEL);
+	p->chset.channels = kzalloc_objs(*p->chset.channels, max_channels,
+					 GFP_KERNEL);
 	if (!p->chset.channels) {
 		kfree(p);
 		return NULL;
@@ -351,7 +351,7 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 	if (emu->midi_ports <= 0)
 		return 0;
 
-	emu->vmidi = kcalloc(emu->midi_ports, sizeof(*emu->vmidi), GFP_KERNEL);
+	emu->vmidi = kzalloc_objs(*emu->vmidi, emu->midi_ports, GFP_KERNEL);
 	if (!emu->vmidi)
 		return -ENOMEM;
 

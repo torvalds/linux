@@ -29,7 +29,7 @@ static int vfio_fsl_mc_irqs_allocate(struct vfio_fsl_mc_device *vdev)
 
 	irq_count = mc_dev->obj_desc.irq_count;
 
-	mc_irq = kcalloc(irq_count, sizeof(*mc_irq), GFP_KERNEL_ACCOUNT);
+	mc_irq = kzalloc_objs(*mc_irq, irq_count, GFP_KERNEL_ACCOUNT);
 	if (!mc_irq)
 		return -ENOMEM;
 

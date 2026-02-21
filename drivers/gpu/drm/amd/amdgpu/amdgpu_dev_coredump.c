@@ -332,7 +332,7 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 	struct amdgpu_coredump_info *coredump;
 	struct drm_sched_job *s_job;
 
-	coredump = kzalloc(sizeof(*coredump), GFP_NOWAIT);
+	coredump = kzalloc_obj(*coredump, GFP_NOWAIT);
 	if (!coredump)
 		return;
 

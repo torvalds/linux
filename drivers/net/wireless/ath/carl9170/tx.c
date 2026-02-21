@@ -1328,7 +1328,7 @@ static void carl9170_bar_check(struct ar9170 *ar, struct sk_buff *skb)
 		struct carl9170_bar_list_entry *entry;
 		unsigned int queue = skb_get_queue_mapping(skb);
 
-		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kmalloc_obj(*entry, GFP_ATOMIC);
 		if (!WARN_ON_ONCE(!entry)) {
 			entry->skb = skb;
 			spin_lock_bh(&ar->bar_list_lock[queue]);

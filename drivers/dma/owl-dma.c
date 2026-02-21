@@ -878,7 +878,7 @@ static struct dma_async_tx_descriptor
 	if (!len)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -929,7 +929,7 @@ static struct dma_async_tx_descriptor
 	size_t len;
 	int ret, i;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -993,7 +993,7 @@ static struct dma_async_tx_descriptor
 	unsigned int periods = buf_len / period_len;
 	int ret, i;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 

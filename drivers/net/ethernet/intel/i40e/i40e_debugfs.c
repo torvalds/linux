@@ -983,9 +983,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			int i, ret;
 			u16 switch_id;
 
-			bw_data = kzalloc(sizeof(
-				    struct i40e_aqc_query_port_ets_config_resp),
-					  GFP_KERNEL);
+			bw_data = kzalloc_obj(struct i40e_aqc_query_port_ets_config_resp,
+					      GFP_KERNEL);
 			if (!bw_data) {
 				ret = -ENOMEM;
 				goto command_write_done;
@@ -1229,7 +1228,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		struct libie_aq_desc *desc;
 		int ret;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc, GFP_KERNEL);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
@@ -1277,7 +1276,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		u8 *buff;
 		int ret;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc, GFP_KERNEL);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],

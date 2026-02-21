@@ -650,7 +650,7 @@ int nvmem_add_one_cell(struct nvmem_device *nvmem,
 	struct nvmem_cell_entry *cell;
 	int rval;
 
-	cell = kzalloc(sizeof(*cell), GFP_KERNEL);
+	cell = kzalloc_obj(*cell, GFP_KERNEL);
 	if (!cell)
 		return -ENOMEM;
 
@@ -908,7 +908,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (!config->reg_read && !config->reg_write)
 		return ERR_PTR(-EINVAL);
 
-	nvmem = kzalloc(sizeof(*nvmem), GFP_KERNEL);
+	nvmem = kzalloc_obj(*nvmem, GFP_KERNEL);
 	if (!nvmem)
 		return ERR_PTR(-ENOMEM);
 
@@ -1295,7 +1295,7 @@ static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
 	struct nvmem_cell *cell;
 	const char *name = NULL;
 
-	cell = kzalloc(sizeof(*cell), GFP_KERNEL);
+	cell = kzalloc_obj(*cell, GFP_KERNEL);
 	if (!cell)
 		return ERR_PTR(-ENOMEM);
 

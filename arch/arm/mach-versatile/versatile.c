@@ -142,7 +142,7 @@ static void __init versatile_dt_pci_init(void)
 		goto out_put_node;
 	}
 
-	newprop = kzalloc(sizeof(*newprop), GFP_KERNEL);
+	newprop = kzalloc_obj(*newprop, GFP_KERNEL);
 	if (!newprop)
 		goto out_put_node;
 

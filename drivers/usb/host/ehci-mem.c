@@ -69,7 +69,7 @@ static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 	struct ehci_qh		*qh;
 	dma_addr_t		dma;
 
-	qh = kzalloc(sizeof *qh, GFP_ATOMIC);
+	qh = kzalloc_obj(*qh, GFP_ATOMIC);
 	if (!qh)
 		goto done;
 	qh->hw = (struct ehci_qh_hw *)

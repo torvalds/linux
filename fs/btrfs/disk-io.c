@@ -605,7 +605,7 @@ static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root;
 
-	root = kzalloc(sizeof(*root), flags);
+	root = kzalloc_obj(*root, flags);
 	if (!root)
 		return NULL;
 

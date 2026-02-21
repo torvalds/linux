@@ -487,7 +487,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	char self_str[NODE_ID_STR_LEN] = {0,};
 	struct tipc_link *l;
 
-	l = kzalloc(sizeof(*l), GFP_ATOMIC);
+	l = kzalloc_obj(*l, GFP_ATOMIC);
 	if (!l)
 		return false;
 	*link = l;

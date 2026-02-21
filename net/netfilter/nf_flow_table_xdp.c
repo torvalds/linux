@@ -54,7 +54,7 @@ static int nf_flowtable_by_dev_insert(struct nf_flowtable *ft,
 	unsigned long key = (unsigned long)dev;
 	struct flow_offload_xdp_ft *ft_elem;
 
-	ft_elem = kzalloc(sizeof(*ft_elem), GFP_KERNEL_ACCOUNT);
+	ft_elem = kzalloc_obj(*ft_elem, GFP_KERNEL_ACCOUNT);
 	if (!ft_elem)
 		return -ENOMEM;
 
@@ -70,7 +70,7 @@ static int nf_flowtable_by_dev_insert(struct nf_flowtable *ft,
 	}
 
 	if (!elem) {
-		elem = kzalloc(sizeof(*elem), GFP_KERNEL_ACCOUNT);
+		elem = kzalloc_obj(*elem, GFP_KERNEL_ACCOUNT);
 		if (!elem)
 			goto err_unlock;
 

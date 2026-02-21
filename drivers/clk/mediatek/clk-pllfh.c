@@ -157,7 +157,7 @@ mtk_clk_register_pllfh(struct device *dev, const struct mtk_pll_data *pll_data,
 	struct mtk_fh *fh;
 	int ret;
 
-	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	fh = kzalloc_obj(*fh, GFP_KERNEL);
 	if (!fh)
 		return ERR_PTR(-ENOMEM);
 

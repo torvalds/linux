@@ -366,7 +366,7 @@ static struct clk_hw *_imx_clk_fracn_gppll(const char *name, const char *parent_
 	struct clk_init_data init;
 	int ret;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll, GFP_KERNEL);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

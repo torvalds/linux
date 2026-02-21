@@ -293,11 +293,11 @@ static struct axi_dma_desc *axi_desc_alloc(u32 num)
 {
 	struct axi_dma_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->hw_desc = kcalloc(num, sizeof(*desc->hw_desc), GFP_NOWAIT);
+	desc->hw_desc = kzalloc_objs(*desc->hw_desc, num, GFP_NOWAIT);
 	if (!desc->hw_desc) {
 		kfree(desc);
 		return NULL;

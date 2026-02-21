@@ -3512,7 +3512,7 @@ group_create_queue(struct panthor_group *group,
 	if (args->priority > CSF_MAX_QUEUE_PRIO)
 		return ERR_PTR(-EINVAL);
 
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue, GFP_KERNEL);
 	if (!queue)
 		return ERR_PTR(-ENOMEM);
 
@@ -3659,7 +3659,7 @@ int panthor_group_create(struct panthor_file *pfile,
 	    hweight64(group_args->tiler_core_mask) < group_args->max_tiler_cores)
 		return -EINVAL;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group, GFP_KERNEL);
 	if (!group)
 		return -ENOMEM;
 
@@ -3853,7 +3853,7 @@ int panthor_group_pool_create(struct panthor_file *pfile)
 {
 	struct panthor_group_pool *gpool;
 
-	gpool = kzalloc(sizeof(*gpool), GFP_KERNEL);
+	gpool = kzalloc_obj(*gpool, GFP_KERNEL);
 	if (!gpool)
 		return -ENOMEM;
 
@@ -3979,7 +3979,7 @@ panthor_job_create(struct panthor_file *pfile,
 	if (qsubmit->latest_flush & GENMASK(30, 24))
 		return ERR_PTR(-EINVAL);
 
-	job = kzalloc(sizeof(*job), GFP_KERNEL);
+	job = kzalloc_obj(*job, GFP_KERNEL);
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 
@@ -4011,7 +4011,7 @@ panthor_job_create(struct panthor_file *pfile,
 	 * the previously submitted job.
 	 */
 	if (job->call_info.size) {
-		job->done_fence = kzalloc(sizeof(*job->done_fence), GFP_KERNEL);
+		job->done_fence = kzalloc_obj(*job->done_fence, GFP_KERNEL);
 		if (!job->done_fence) {
 			ret = -ENOMEM;
 			goto err_put_job;

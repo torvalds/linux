@@ -2135,8 +2135,7 @@ lpfc_sli_next_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 					   - LPFC_IOCBQ_LOOKUP_INCREMENT)) {
 		new_len = psli->iocbq_lookup_len + LPFC_IOCBQ_LOOKUP_INCREMENT;
 		spin_unlock_irq(&phba->hbalock);
-		new_arr = kcalloc(new_len, sizeof(struct lpfc_iocbq *),
-				  GFP_KERNEL);
+		new_arr = kzalloc_objs(struct lpfc_iocbq *, new_len, GFP_KERNEL);
 		if (new_arr) {
 			spin_lock_irq(&phba->hbalock);
 			old_arr = psli->iocbq_lookup;
@@ -3240,7 +3239,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			(FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT))) {
 		failwhy = "Bad NVME LS F_CTL";
 	} else {
-		axchg = kzalloc(sizeof(*axchg), GFP_ATOMIC);
+		axchg = kzalloc_obj(*axchg, GFP_ATOMIC);
 		if (!axchg)
 			failwhy = "No CTX memory";
 	}
@@ -5894,7 +5893,7 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	struct lpfc_dmabuf *dmabuf;
 	struct lpfc_mqe *mqe;
 
-	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
 	if (!dmabuf)
 		return -ENOMEM;
 
@@ -6944,8 +6943,7 @@ lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
 
 	ras_fwlog->fw_buffcount = fwlog_buff_count;
 	for (i = 0; i < ras_fwlog->fw_buffcount; i++) {
-		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
-				 GFP_KERNEL);
+		dmabuf = kzalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
 		if (!dmabuf) {
 			rc = -ENOMEM;
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
@@ -8048,8 +8046,8 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 				u32 entries)
 {
-	rx_monitor->ring = kmalloc_array(entries, sizeof(struct rx_info_entry),
-					 GFP_KERNEL);
+	rx_monitor->ring = kmalloc_objs(struct rx_info_entry, entries,
+					GFP_KERNEL);
 	if (!rx_monitor->ring)
 		return -ENOMEM;
 
@@ -8296,7 +8294,7 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 
 		/* Allocate Congestion Information Buffer */
 		if (!phba->cgn_i) {
-			mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+			mp = kmalloc_obj(*mp, GFP_KERNEL);
 			if (mp)
 				mp->virt = dma_alloc_coherent
 						(&phba->pcidev->dev,
@@ -8378,8 +8376,7 @@ no_cmf:
 
 	/* Allocate RX Monitor Buffer */
 	if (!phba->rx_monitor) {
-		phba->rx_monitor = kzalloc(sizeof(*phba->rx_monitor),
-					   GFP_KERNEL);
+		phba->rx_monitor = kzalloc_obj(*phba->rx_monitor, GFP_KERNEL);
 
 		if (!phba->rx_monitor) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -17147,7 +17144,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		} else
 			wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	}
-	wq->pring = kzalloc(sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+	wq->pring = kzalloc_obj(struct lpfc_sli_ring, GFP_KERNEL);
 	if (wq->pring == NULL) {
 		status = -ENOMEM;
 		goto out;
@@ -19466,7 +19463,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	}
 
 	/* Allocate buffer for command payload */
-	pcmd = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	pcmd = kmalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
 	if (pcmd)
 		pcmd->virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &pcmd->phys);
@@ -22297,7 +22294,7 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 		read_object->u.request.rd_object_name[j] =
 			cpu_to_le32(rd_object_name[j]);
 
-	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
+	pcmd = kmalloc_obj(*pcmd, GFP_KERNEL);
 	if (pcmd)
 		pcmd->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &pcmd->phys);
 	if (!pcmd || !pcmd->virt) {

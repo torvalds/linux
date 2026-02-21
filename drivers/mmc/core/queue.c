@@ -167,7 +167,7 @@ static struct scatterlist *mmc_alloc_sg(unsigned short sg_len, gfp_t gfp)
 {
 	struct scatterlist *sg;
 
-	sg = kmalloc_array(sg_len, sizeof(*sg), gfp);
+	sg = kmalloc_objs(*sg, sg_len, gfp);
 	if (sg)
 		sg_init_table(sg, sg_len);
 

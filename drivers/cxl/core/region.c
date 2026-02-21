@@ -998,7 +998,7 @@ alloc_region_ref(struct cxl_port *port, struct cxl_region *cxlr,
 		return ERR_PTR(-EBUSY);
 	}
 
-	cxl_rr = kzalloc(sizeof(*cxl_rr), GFP_KERNEL);
+	cxl_rr = kzalloc_obj(*cxl_rr, GFP_KERNEL);
 	if (!cxl_rr)
 		return ERR_PTR(-ENOMEM);
 	cxl_rr->port = port;
@@ -2474,7 +2474,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	struct cxl_region *cxlr;
 	struct device *dev;
 
-	cxlr = kzalloc(sizeof(*cxlr), GFP_KERNEL);
+	cxlr = kzalloc_obj(*cxlr, GFP_KERNEL);
 	if (!cxlr) {
 		memregion_free(id);
 		return ERR_PTR(-ENOMEM);
@@ -3464,7 +3464,7 @@ static int cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		return -ENXIO;
 
 	struct cxl_pmem_region *cxlr_pmem __free(kfree) =
-		kzalloc(struct_size(cxlr_pmem, mapping, p->nr_targets), GFP_KERNEL);
+		kzalloc_flex(*cxlr_pmem, mapping, p->nr_targets, GFP_KERNEL);
 	if (!cxlr_pmem)
 		return -ENOMEM;
 
@@ -3552,7 +3552,7 @@ static struct cxl_dax_region *cxl_dax_region_alloc(struct cxl_region *cxlr)
 	if (p->state != CXL_CONFIG_COMMIT)
 		return ERR_PTR(-ENXIO);
 
-	cxlr_dax = kzalloc(sizeof(*cxlr_dax), GFP_KERNEL);
+	cxlr_dax = kzalloc_obj(*cxlr_dax, GFP_KERNEL);
 	if (!cxlr_dax)
 		return ERR_PTR(-ENOMEM);
 
@@ -3835,7 +3835,7 @@ static int __construct_region(struct cxl_region *cxlr,
 	set_bit(CXL_REGION_F_AUTO, &cxlr->flags);
 	cxlr->hpa_range = *hpa_range;
 
-	res = kmalloc(sizeof(*res), GFP_KERNEL);
+	res = kmalloc_obj(*res, GFP_KERNEL);
 	if (!res)
 		return -ENOMEM;
 

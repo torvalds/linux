@@ -1230,8 +1230,9 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	unsigned long *port_mask;
 	int maxport, pn, nports = 0;
 	unsigned int m_port;
-	struct sdw_port_config *pconfig __free(kfree) = kcalloc(ctrl->nports,
-								sizeof(*pconfig), GFP_KERNEL);
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc_objs(*pconfig,
+								     ctrl->nports,
+								     GFP_KERNEL);
 	if (!pconfig)
 		return -ENOMEM;
 

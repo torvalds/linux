@@ -1743,7 +1743,7 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 
 static struct pl08x_txd *pl08x_get_txd(struct pl08x_dma_chan *plchan)
 {
-	struct pl08x_txd *txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	struct pl08x_txd *txd = kzalloc_obj(*txd, GFP_NOWAIT);
 
 	if (txd)
 		INIT_LIST_HEAD(&txd->dsg_list);
@@ -1895,7 +1895,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 		return NULL;
 	}
 
-	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
+	dsg = kzalloc_obj(struct pl08x_sg, GFP_NOWAIT);
 	if (!dsg) {
 		pl08x_free_txd(pl08x, txd);
 		return NULL;
@@ -2020,7 +2020,7 @@ static int pl08x_tx_add_sg(struct pl08x_txd *txd,
 {
 	struct pl08x_sg *dsg;
 
-	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
+	dsg = kzalloc_obj(struct pl08x_sg, GFP_NOWAIT);
 	if (!dsg)
 		return -ENOMEM;
 
@@ -2372,7 +2372,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 	 * to cope with that situation.
 	 */
 	for (i = 0; i < channels; i++) {
-		chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+		chan = kzalloc_obj(*chan, GFP_KERNEL);
 		if (!chan)
 			return -ENOMEM;
 
@@ -2390,7 +2390,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			chan->signal = i;
 			pl08x_dma_slave_init(chan);
 		} else {
-			chan->cd = kzalloc(sizeof(*chan->cd), GFP_KERNEL);
+			chan->cd = kzalloc_obj(*chan->cd, GFP_KERNEL);
 			if (!chan->cd) {
 				kfree(chan);
 				return -ENOMEM;
@@ -2709,7 +2709,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_pl08x;
 
 	/* Create the driver state holder */
-	pl08x = kzalloc(sizeof(*pl08x), GFP_KERNEL);
+	pl08x = kzalloc_obj(*pl08x, GFP_KERNEL);
 	if (!pl08x) {
 		ret = -ENOMEM;
 		goto out_no_pl08x;
@@ -2855,8 +2855,8 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kcalloc(vd->channels, sizeof(*pl08x->phy_chans),
-				   GFP_KERNEL);
+	pl08x->phy_chans = kzalloc_objs(*pl08x->phy_chans, vd->channels,
+					GFP_KERNEL);
 	if (!pl08x->phy_chans) {
 		ret = -ENOMEM;
 		goto out_no_phychans;

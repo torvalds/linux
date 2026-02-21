@@ -40,7 +40,7 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 		return -ENOMEM;
 	pages = page_address(page);
 
-	counts = kcalloc(HV_DEPOSIT_MAX, sizeof(int), GFP_KERNEL);
+	counts = kzalloc_objs(int, HV_DEPOSIT_MAX, GFP_KERNEL);
 	if (!counts) {
 		free_page((unsigned long)pages);
 		return -ENOMEM;

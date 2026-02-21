@@ -99,8 +99,7 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	num_pins = size / pin_size;
 	map_num = num_pins;
 
-	new_map = kmalloc_array(map_num, sizeof(struct pinctrl_map),
-				GFP_KERNEL);
+	new_map = kmalloc_objs(struct pinctrl_map, map_num, GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 

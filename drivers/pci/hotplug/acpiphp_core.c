@@ -260,7 +260,7 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	int retval = -ENOMEM;
 	char name[SLOT_NAME_SIZE];
 
-	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+	slot = kzalloc_obj(*slot, GFP_KERNEL);
 	if (!slot)
 		goto error;
 

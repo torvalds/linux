@@ -1659,7 +1659,7 @@ static int ni_usb_allocate_private(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv;
 
-	board->private_data = kzalloc(sizeof(struct ni_usb_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct ni_usb_priv, GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	ni_priv = board->private_data;
@@ -1793,7 +1793,7 @@ static int ni_usb_init(struct gpib_board *board)
 	unsigned int ibsta;
 	int writes_len;
 
-	writes = kmalloc_array(NUM_INIT_WRITES, sizeof(*writes), GFP_KERNEL);
+	writes = kmalloc_objs(*writes, NUM_INIT_WRITES, GFP_KERNEL);
 	if (!writes)
 		return -ENOMEM;
 

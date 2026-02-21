@@ -70,7 +70,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
 		locked_entries = entries;
 	}
 
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	mem = kzalloc_obj(*mem, GFP_KERNEL);
 	if (!mem) {
 		ret = -ENOMEM;
 		goto unlock_exit;

@@ -244,7 +244,7 @@ int afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 
 	_enter("%pU", &server->uuid);
 
-	estate = kzalloc(sizeof(*estate), GFP_KERNEL);
+	estate = kzalloc_obj(*estate, GFP_KERNEL);
 	if (!estate)
 		return -ENOMEM;
 

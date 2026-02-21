@@ -1188,7 +1188,7 @@ static struct usb_request *dwc3_gadget_ep_alloc_request(struct usb_ep *ep,
 	struct dwc3_request		*req;
 	struct dwc3_ep			*dep = to_dwc3_ep(ep);
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -3373,7 +3373,7 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 	int				ret;
 	u8				num = epnum >> 1;
 
-	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+	dep = kzalloc_obj(*dep, GFP_KERNEL);
 	if (!dep)
 		return -ENOMEM;
 
@@ -4728,7 +4728,7 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 	}
 
 	init_completion(&dwc->ep0_in_setup);
-	dwc->gadget = kzalloc(sizeof(struct usb_gadget), GFP_KERNEL);
+	dwc->gadget = kzalloc_obj(struct usb_gadget, GFP_KERNEL);
 	if (!dwc->gadget) {
 		ret = -ENOMEM;
 		goto err3;

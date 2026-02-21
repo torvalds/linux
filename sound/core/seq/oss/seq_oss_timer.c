@@ -34,7 +34,7 @@ snd_seq_oss_timer_new(struct seq_oss_devinfo *dp)
 {
 	struct seq_oss_timer *rec;
 
-	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
+	rec = kzalloc_obj(*rec, GFP_KERNEL);
 	if (rec == NULL)
 		return NULL;
 

@@ -3821,7 +3821,8 @@ static struct lru_gen_mm_walk *set_mm_walk(struct pglist_data *pgdat, bool force
 	} else if (!walk && force_alloc) {
 		VM_WARN_ON_ONCE(current_is_kswapd());
 
-		walk = kzalloc(sizeof(*walk), __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN);
+		walk = kzalloc_obj(*walk,
+				   __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN);
 	}
 
 	current->reclaim_state->mm_walk = walk;

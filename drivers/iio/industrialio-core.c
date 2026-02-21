@@ -1192,7 +1192,7 @@ int __iio_add_chan_devattr(const char *postfix,
 	int ret;
 	struct iio_dev_attr *iio_attr, *t;
 
-	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
+	iio_attr = kzalloc_obj(*iio_attr, GFP_KERNEL);
 	if (iio_attr == NULL)
 		return -ENOMEM;
 	ret = __iio_device_attr_init(&iio_attr->dev_attr,
@@ -1586,9 +1586,8 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 		attrcount++;
 
 	iio_dev_opaque->chan_attr_group.attrs =
-		kcalloc(attrcount + 1,
-			sizeof(iio_dev_opaque->chan_attr_group.attrs[0]),
-			GFP_KERNEL);
+		kzalloc_objs(iio_dev_opaque->chan_attr_group.attrs[0],
+			     attrcount + 1, GFP_KERNEL);
 	if (iio_dev_opaque->chan_attr_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_clear_attrs;
@@ -1797,7 +1796,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 
 	iio_device_get(indio_dev);
 
-	ib = kmalloc(sizeof(*ib), GFP_KERNEL);
+	ib = kmalloc_obj(*ib, GFP_KERNEL);
 	if (!ib) {
 		iio_device_put(indio_dev);
 		clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);

@@ -961,7 +961,7 @@ void *vmw_cmdbuf_alloc(struct vmw_cmdbuf_man *man,
 
 	*p_header = NULL;
 
-	header = kzalloc(sizeof(*header), GFP_KERNEL);
+	header = kzalloc_obj(*header, GFP_KERNEL);
 	if (!header)
 		return ERR_PTR(-ENOMEM);
 
@@ -1296,7 +1296,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	if (!(dev_priv->capabilities & SVGA_CAP_COMMAND_BUFFERS))
 		return ERR_PTR(-ENOSYS);
 
-	man = kzalloc(sizeof(*man), GFP_KERNEL);
+	man = kzalloc_obj(*man, GFP_KERNEL);
 	if (!man)
 		return ERR_PTR(-ENOMEM);
 

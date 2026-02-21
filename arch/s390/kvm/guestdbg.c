@@ -232,18 +232,14 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 	}
 
 	if (nr_wp > 0) {
-		wp_info = kmalloc_array(nr_wp,
-					sizeof(*wp_info),
-					GFP_KERNEL_ACCOUNT);
+		wp_info = kmalloc_objs(*wp_info, nr_wp, GFP_KERNEL_ACCOUNT);
 		if (!wp_info) {
 			ret = -ENOMEM;
 			goto error;
 		}
 	}
 	if (nr_bp > 0) {
-		bp_info = kmalloc_array(nr_bp,
-					sizeof(*bp_info),
-					GFP_KERNEL_ACCOUNT);
+		bp_info = kmalloc_objs(*bp_info, nr_bp, GFP_KERNEL_ACCOUNT);
 		if (!bp_info) {
 			ret = -ENOMEM;
 			goto error;

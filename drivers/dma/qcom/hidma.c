@@ -352,7 +352,7 @@ static int hidma_alloc_chan_resources(struct dma_chan *dmach)
 
 	/* Alloc descriptors for this channel */
 	for (i = 0; i < dmadev->nr_descriptors; i++) {
-		mdesc = kzalloc(sizeof(struct hidma_desc), GFP_NOWAIT);
+		mdesc = kzalloc_obj(struct hidma_desc, GFP_NOWAIT);
 		if (!mdesc) {
 			rc = -ENOMEM;
 			break;

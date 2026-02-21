@@ -1705,7 +1705,7 @@ static struct usb_request *lpc32xx_ep_alloc_request(struct usb_ep *_ep,
 {
 	struct lpc32xx_request *req;
 
-	req = kzalloc(sizeof(struct lpc32xx_request), gfp_flags);
+	req = kzalloc_obj(struct lpc32xx_request, gfp_flags);
 	if (!req)
 		return NULL;
 

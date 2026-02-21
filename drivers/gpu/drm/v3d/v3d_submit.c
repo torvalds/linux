@@ -335,9 +335,8 @@ v3d_get_multisync_post_deps(struct drm_file *file_priv,
 		return 0;
 
 	se->out_syncs = (struct v3d_submit_outsync *)
-			kvmalloc_array(count,
-				       sizeof(struct v3d_submit_outsync),
-				       GFP_KERNEL);
+			kvmalloc_objs(struct v3d_submit_outsync, count,
+				      GFP_KERNEL);
 	if (!se->out_syncs)
 		return -ENOMEM;
 
@@ -486,9 +485,8 @@ v3d_get_cpu_timestamp_query_params(struct drm_file *file_priv,
 
 	job->job_type = V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY;
 
-	query_info->queries = kvmalloc_array(timestamp.count,
-					     sizeof(struct v3d_timestamp_query),
-					     GFP_KERNEL);
+	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
+					    timestamp.count, GFP_KERNEL);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -545,9 +543,8 @@ v3d_get_cpu_reset_timestamp_params(struct drm_file *file_priv,
 
 	job->job_type = V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY;
 
-	query_info->queries = kvmalloc_array(reset.count,
-					     sizeof(struct v3d_timestamp_query),
-					     GFP_KERNEL);
+	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
+					    reset.count, GFP_KERNEL);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -602,9 +599,8 @@ v3d_get_cpu_copy_query_results_params(struct drm_file *file_priv,
 
 	job->job_type = V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY;
 
-	query_info->queries = kvmalloc_array(copy.count,
-					     sizeof(struct v3d_timestamp_query),
-					     GFP_KERNEL);
+	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
+					    copy.count, GFP_KERNEL);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -729,9 +725,8 @@ v3d_get_cpu_reset_performance_params(struct drm_file *file_priv,
 	job->job_type = V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY;
 
 	query_info->queries =
-		kvmalloc_array(reset.count,
-			       sizeof(struct v3d_performance_query),
-			       GFP_KERNEL);
+		kvmalloc_objs(struct v3d_performance_query, reset.count,
+			      GFP_KERNEL);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -771,9 +766,8 @@ v3d_get_cpu_copy_performance_query_params(struct drm_file *file_priv,
 	job->job_type = V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY;
 
 	query_info->queries =
-		kvmalloc_array(copy.count,
-			       sizeof(struct v3d_performance_query),
-			       GFP_KERNEL);
+		kvmalloc_objs(struct v3d_performance_query, copy.count,
+			      GFP_KERNEL);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -1082,8 +1076,8 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		goto fail;
 	}
 
-	job->base.bo = kcalloc(ARRAY_SIZE(args->bo_handles),
-			       sizeof(*job->base.bo), GFP_KERNEL);
+	job->base.bo = kzalloc_objs(*job->base.bo, ARRAY_SIZE(args->bo_handles),
+				    GFP_KERNEL);
 	if (!job->base.bo) {
 		ret = -ENOMEM;
 		goto fail;

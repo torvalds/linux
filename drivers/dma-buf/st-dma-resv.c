@@ -27,7 +27,7 @@ static struct dma_fence *alloc_fence(void)
 {
 	struct dma_fence *f;
 
-	f = kmalloc(sizeof(*f), GFP_KERNEL);
+	f = kmalloc_obj(*f, GFP_KERNEL);
 	if (!f)
 		return NULL;
 

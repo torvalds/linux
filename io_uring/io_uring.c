@@ -195,8 +195,8 @@ static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
 
 	do {
 		hash_buckets = 1U << bits;
-		table->hbs = kvmalloc_array(hash_buckets, sizeof(table->hbs[0]),
-						GFP_KERNEL_ACCOUNT);
+		table->hbs = kvmalloc_objs(table->hbs[0], hash_buckets,
+					   GFP_KERNEL_ACCOUNT);
 		if (table->hbs)
 			break;
 		if (bits == 1)
@@ -226,7 +226,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	int hash_bits;
 	bool ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
@@ -1330,7 +1330,7 @@ static __cold void io_drain_req(struct io_kiocb *req)
 	bool drain = req->flags & IOSQE_IO_DRAIN;
 	struct io_defer_entry *de;
 
-	de = kmalloc(sizeof(*de), GFP_KERNEL_ACCOUNT);
+	de = kmalloc_obj(*de, GFP_KERNEL_ACCOUNT);
 	if (!de) {
 		io_req_defer_failed(req, -ENOMEM);
 		return;

@@ -726,15 +726,15 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		return -ETXTBSY;
 	}
 
-	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_KERNEL);
+	pending_snapshot = kzalloc_obj(*pending_snapshot, GFP_KERNEL);
 	if (!pending_snapshot)
 		return -ENOMEM;
 
 	ret = get_anon_bdev(&pending_snapshot->anon_dev);
 	if (ret < 0)
 		goto free_pending;
-	pending_snapshot->root_item = kzalloc(sizeof(struct btrfs_root_item),
-			GFP_KERNEL);
+	pending_snapshot->root_item = kzalloc_obj(struct btrfs_root_item,
+						  GFP_KERNEL);
 	pending_snapshot->path = btrfs_alloc_path();
 	if (!pending_snapshot->root_item || !pending_snapshot->path) {
 		ret = -ENOMEM;
@@ -1958,7 +1958,7 @@ static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 	if (!path)
 		return -ENOMEM;
 
-	subvol_info = kzalloc(sizeof(*subvol_info), GFP_KERNEL);
+	subvol_info = kzalloc_obj(*subvol_info, GFP_KERNEL);
 	if (!subvol_info) {
 		btrfs_free_path(path);
 		return -ENOMEM;
@@ -3423,7 +3423,7 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 		goto out_unlock;
 	}
 
-	bctl = kzalloc(sizeof(*bctl), GFP_KERNEL);
+	bctl = kzalloc_obj(*bctl, GFP_KERNEL);
 	if (!bctl) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -3604,7 +3604,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	}
 
 	if (sa->assign) {
-		prealloc = kzalloc(sizeof(*prealloc), GFP_KERNEL);
+		prealloc = kzalloc_obj(*prealloc, GFP_KERNEL);
 		if (!prealloc) {
 			ret = -ENOMEM;
 			goto out;
@@ -3924,7 +3924,7 @@ static long btrfs_ioctl_set_received_subvol_32(struct file *file,
 	if (IS_ERR(args32))
 		return PTR_ERR(args32);
 
-	args64 = kmalloc(sizeof(*args64), GFP_KERNEL);
+	args64 = kmalloc_obj(*args64, GFP_KERNEL);
 	if (!args64) {
 		ret = -ENOMEM;
 		goto out;
@@ -4234,7 +4234,7 @@ static int _btrfs_ioctl_send(struct btrfs_root *root, void __user *argp, bool co
 		ret = copy_from_user(&args32, argp, sizeof(args32));
 		if (ret)
 			return -EFAULT;
-		arg = kzalloc(sizeof(*arg), GFP_KERNEL);
+		arg = kzalloc_obj(*arg, GFP_KERNEL);
 		if (!arg)
 			return -ENOMEM;
 		arg->send_fd = args32.send_fd;
@@ -4588,7 +4588,7 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
 	int ret;
 
 	nr_pages = DIV_ROUND_UP(disk_io_size, PAGE_SIZE);
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 	ret = btrfs_alloc_page_array(nr_pages, pages, 0);
@@ -4597,7 +4597,7 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
 		goto out_fail;
 	}
 
-	priv = kmalloc(sizeof(*priv), GFP_NOFS);
+	priv = kmalloc_obj(*priv, GFP_NOFS);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto out_fail;
@@ -4682,7 +4682,7 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 	}
 
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_NOFS);
+		data = kzalloc_obj(*data, GFP_NOFS);
 		if (!data) {
 			ret = -ENOMEM;
 			goto out_acct;
@@ -4817,7 +4817,7 @@ static int btrfs_uring_encoded_write(struct io_uring_cmd *cmd, unsigned int issu
 	}
 
 	if (!data) {
-		data = kzalloc(sizeof(*data), GFP_NOFS);
+		data = kzalloc_obj(*data, GFP_NOFS);
 		if (!data) {
 			ret = -ENOMEM;
 			goto out_acct;

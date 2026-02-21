@@ -976,7 +976,7 @@ static int cache_mod(struct trace_array *tr, const char *mod, int set,
 	if (!set)
 		return remove_cache_mod(tr, mod, match, system, event);
 
-	event_mod = kzalloc(sizeof(*event_mod), GFP_KERNEL);
+	event_mod = kzalloc_obj(*event_mod, GFP_KERNEL);
 	if (!event_mod)
 		return -ENOMEM;
 
@@ -1648,7 +1648,7 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	struct set_event_iter *iter;
 	loff_t l;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kzalloc_obj(*iter, GFP_KERNEL);
 	mutex_lock(&event_mutex);
 	if (!iter)
 		return NULL;
@@ -2206,7 +2206,7 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (*ppos)
 		return 0;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc_obj(*s, GFP_KERNEL);
 
 	if (!s)
 		return -ENOMEM;
@@ -2320,7 +2320,7 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 	int ret;
 
 	/* Make a temporary dir that has no system but points to tr */
-	dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+	dir = kzalloc_obj(*dir, GFP_KERNEL);
 	if (!dir)
 		return -ENOMEM;
 
@@ -2366,7 +2366,7 @@ subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (*ppos)
 		return 0;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc_obj(*s, GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
@@ -2416,7 +2416,7 @@ show_header_page_file(struct file *filp, char __user *ubuf, size_t cnt, loff_t *
 	if (*ppos)
 		return 0;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc_obj(*s, GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
@@ -2440,7 +2440,7 @@ show_header_event_file(struct file *filp, char __user *ubuf, size_t cnt, loff_t 
 	if (*ppos)
 		return 0;
 
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	s = kmalloc_obj(*s, GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
 
@@ -2881,7 +2881,7 @@ create_new_subsystem(const char *name)
 	struct event_subsystem *system;
 
 	/* need to create new entry */
-	system = kmalloc(sizeof(*system), GFP_KERNEL);
+	system = kmalloc_obj(*system, GFP_KERNEL);
 	if (!system)
 		return NULL;
 
@@ -2892,7 +2892,7 @@ create_new_subsystem(const char *name)
 	if (!system->name)
 		goto out_free;
 
-	system->filter = kzalloc(sizeof(struct event_filter), GFP_KERNEL);
+	system->filter = kzalloc_obj(struct event_filter, GFP_KERNEL);
 	if (!system->filter)
 		goto out_free;
 
@@ -2960,7 +2960,7 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
 		}
 	}
 
-	dir = kmalloc(sizeof(*dir), GFP_KERNEL);
+	dir = kmalloc_obj(*dir, GFP_KERNEL);
 	if (!dir)
 		goto out_fail;
 
@@ -3403,7 +3403,7 @@ static void add_str_to_module(struct module *module, char *str)
 {
 	struct module_string *modstr;
 
-	modstr = kmalloc(sizeof(*modstr), GFP_KERNEL);
+	modstr = kmalloc_obj(*modstr, GFP_KERNEL);
 
 	/*
 	 * If we failed to allocate memory here, then we'll just
@@ -4365,7 +4365,7 @@ event_enable_func(struct trace_array *tr, struct ftrace_hash *hash,
 		goto out_put;
 
 	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		goto out_put;
 

@@ -1354,7 +1354,7 @@ static int tcp_md5sig_info_add(struct sock *sk, gfp_t gfp)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_info *md5sig;
 
-	md5sig = kmalloc(sizeof(*md5sig), gfp);
+	md5sig = kmalloc_obj(*md5sig, gfp);
 	if (!md5sig)
 		return -ENOMEM;
 

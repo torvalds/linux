@@ -308,7 +308,7 @@ int ice_plug_aux_dev(struct ice_pf *pf)
 	if (!cdev)
 		return -ENODEV;
 
-	iadev = kzalloc(sizeof(*iadev), GFP_KERNEL);
+	iadev = kzalloc_obj(*iadev, GFP_KERNEL);
 	if (!iadev)
 		return -ENOMEM;
 
@@ -376,13 +376,13 @@ int ice_init_rdma(struct ice_pf *pf)
 		return 0;
 	}
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
 	if (!cdev)
 		return -ENOMEM;
 
 	pf->cdev_info = cdev;
 
-	privd = kzalloc(sizeof(*privd), GFP_KERNEL);
+	privd = kzalloc_obj(*privd, GFP_KERNEL);
 	if (!privd) {
 		ret = -ENOMEM;
 		goto err_privd_alloc;

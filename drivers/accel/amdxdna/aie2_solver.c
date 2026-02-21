@@ -197,7 +197,7 @@ static int get_free_partition(struct solver_state *xrs,
 	if (i == snode->cols_len)
 		return -ENODEV;
 
-	pt_node = kzalloc(sizeof(*pt_node), GFP_KERNEL);
+	pt_node = kzalloc_obj(*pt_node, GFP_KERNEL);
 	if (!pt_node)
 		return -ENOMEM;
 
@@ -266,7 +266,7 @@ static struct solver_node *create_solver_node(struct solver_state *xrs,
 	struct solver_node *node;
 	int ret;
 
-	node = kzalloc(struct_size(node, start_cols, cdop->cols_len), GFP_KERNEL);
+	node = kzalloc_flex(*node, start_cols, cdop->cols_len, GFP_KERNEL);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 

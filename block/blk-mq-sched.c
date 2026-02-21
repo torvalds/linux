@@ -489,7 +489,7 @@ int blk_mq_alloc_sched_ctx_batch(struct xarray *elv_tbl,
 	lockdep_assert_held_write(&set->update_nr_hwq_lock);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		ctx = kzalloc(sizeof(struct elv_change_ctx), GFP_KERNEL);
+		ctx = kzalloc_obj(struct elv_change_ctx, GFP_KERNEL);
 		if (!ctx)
 			return -ENOMEM;
 
@@ -514,7 +514,7 @@ struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
 	else
 		nr_tags = nr_hw_queues;
 
-	et = kmalloc(struct_size(et, tags, nr_tags), gfp);
+	et = kmalloc_flex(*et, tags, nr_tags, gfp);
 	if (!et)
 		return NULL;
 

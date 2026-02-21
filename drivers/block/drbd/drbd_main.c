@@ -2510,7 +2510,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 {
 	struct drbd_resource *resource;
 
-	resource = kzalloc(sizeof(struct drbd_resource), GFP_KERNEL);
+	resource = kzalloc_obj(struct drbd_resource, GFP_KERNEL);
 	if (!resource)
 		goto fail;
 	resource->name = kstrdup(name, GFP_KERNEL);
@@ -2543,7 +2543,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	struct drbd_resource *resource;
 	struct drbd_connection *connection;
 
-	connection = kzalloc(sizeof(struct drbd_connection), GFP_KERNEL);
+	connection = kzalloc_obj(struct drbd_connection, GFP_KERNEL);
 	if (!connection)
 		return NULL;
 
@@ -2552,7 +2552,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	if (drbd_alloc_socket(&connection->meta))
 		goto fail;
 
-	connection->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
+	connection->current_epoch = kzalloc_obj(struct drbd_epoch, GFP_KERNEL);
 	if (!connection->current_epoch)
 		goto fail;
 
@@ -2666,7 +2666,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 		return ERR_MINOR_OR_VOLUME_EXISTS;
 
 	/* GFP_KERNEL, we are outside of all write-out paths */
-	device = kzalloc(sizeof(struct drbd_device), GFP_KERNEL);
+	device = kzalloc_obj(struct drbd_device, GFP_KERNEL);
 	if (!device)
 		return ERR_NOMEM;
 	kref_init(&device->kref);
@@ -2725,7 +2725,7 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	INIT_LIST_HEAD(&device->peer_devices);
 	INIT_LIST_HEAD(&device->pending_bitmap_io);
 	for_each_connection(connection, resource) {
-		peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
+		peer_device = kzalloc_obj(struct drbd_peer_device, GFP_KERNEL);
 		if (!peer_device)
 			goto out_idr_remove_from_resource;
 		peer_device->connection = connection;

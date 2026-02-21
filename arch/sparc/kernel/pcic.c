@@ -466,7 +466,7 @@ static int pdev_to_pnode(struct linux_pbm_info *pbm, struct pci_dev *pdev)
 
 static inline struct pcidev_cookie *pci_devcookie_alloc(void)
 {
-	return kmalloc(sizeof(struct pcidev_cookie), GFP_ATOMIC);
+	return kmalloc_obj(struct pcidev_cookie, GFP_ATOMIC);
 }
 
 static void pcic_map_pci_device(struct linux_pcic *pcic,

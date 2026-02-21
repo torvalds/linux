@@ -1155,7 +1155,7 @@ brcmf_pcie_alloc_dma_and_ring(struct brcmf_pciedev_info *devinfo, u32 ring_id,
 	addr = tcm_ring_phys_addr + BRCMF_RING_LEN_ITEMS_OFFSET;
 	brcmf_pcie_write_tcm16(devinfo, addr, ring_itemsize_array[ring_id]);
 
-	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_obj(*ring, GFP_KERNEL);
 	if (!ring) {
 		dma_free_coherent(&devinfo->pdev->dev, size, dma_buf,
 				  dma_handle);
@@ -1347,7 +1347,7 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 	devinfo->shared.max_flowrings = max_flowrings;
 	devinfo->shared.max_submissionrings = max_submissionrings;
 	devinfo->shared.max_completionrings = max_completionrings;
-	rings = kcalloc(max_flowrings, sizeof(*ring), GFP_KERNEL);
+	rings = kzalloc_objs(*ring, max_flowrings, GFP_KERNEL);
 	if (!rings)
 		goto fail;
 
@@ -2199,8 +2199,8 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 		bus->msgbuf->commonrings[i] =
 				&devinfo->shared.commonrings[i]->commonring;
 
-	flowrings = kcalloc(devinfo->shared.max_flowrings, sizeof(*flowrings),
-			    GFP_KERNEL);
+	flowrings = kzalloc_objs(*flowrings, devinfo->shared.max_flowrings,
+				 GFP_KERNEL);
 	if (!flowrings)
 		goto fail;
 
@@ -2457,7 +2457,7 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
 
 	ret = -ENOMEM;
-	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
+	devinfo = kzalloc_obj(*devinfo, GFP_KERNEL);
 	if (devinfo == NULL)
 		return ret;
 
@@ -2477,7 +2477,7 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		devinfo->reginfo = &brcmf_reginfo_default;
 
-	pcie_bus_dev = kzalloc(sizeof(*pcie_bus_dev), GFP_KERNEL);
+	pcie_bus_dev = kzalloc_obj(*pcie_bus_dev, GFP_KERNEL);
 	if (pcie_bus_dev == NULL) {
 		ret = -ENOMEM;
 		goto fail;
@@ -2495,12 +2495,12 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto fail;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc_obj(*bus, GFP_KERNEL);
 	if (!bus) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-	bus->msgbuf = kzalloc(sizeof(*bus->msgbuf), GFP_KERNEL);
+	bus->msgbuf = kzalloc_obj(*bus->msgbuf, GFP_KERNEL);
 	if (!bus->msgbuf) {
 		ret = -ENOMEM;
 		kfree(bus);

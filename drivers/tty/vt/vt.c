@@ -1065,7 +1065,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	/* although the numbers above are not valid since long ago, the
 	   point is still up-to-date and the comment still has its value
 	   even if only as a historical artifact.  --mj, July 1998 */
-	param.vc = vc = kzalloc(sizeof(struct vc_data), GFP_KERNEL);
+	param.vc = vc = kzalloc_obj(struct vc_data, GFP_KERNEL);
 	if (!vc)
 		return -ENOMEM;
 
@@ -3777,7 +3777,8 @@ static int __init con_init(void)
 	}
 
 	for (currcons = 0; currcons < MIN_NR_CONSOLES; currcons++) {
-		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
+		vc_cons[currcons].d = vc = kzalloc_obj(struct vc_data,
+						       GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 		tty_port_init(&vc->port);
 		visual_init(vc, currcons, true);

@@ -58,7 +58,7 @@ xmbuf_alloc(
 	struct xfs_buftarg	*btp;
 	int			error;
 
-	btp = kzalloc(struct_size(btp, bt_cache, 1), GFP_KERNEL);
+	btp = kzalloc_flex(*btp, bt_cache, 1, GFP_KERNEL);
 	if (!btp)
 		return -ENOMEM;
 

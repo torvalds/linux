@@ -308,7 +308,7 @@ xfs_filestream_create_association(
 	 * error for this failure - as long as we return a referenced AG, the
 	 * allocation can still go ahead just fine.
 	 */
-	item = kmalloc(sizeof(*item), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	item = kmalloc_obj(*item, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!item)
 		goto out_put_fstrms;
 

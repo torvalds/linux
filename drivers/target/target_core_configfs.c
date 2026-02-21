@@ -475,12 +475,12 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 	if (ret)
 		return ret;
 
-	tf = kzalloc(sizeof(struct target_fabric_configfs), GFP_KERNEL);
+	tf = kzalloc_obj(struct target_fabric_configfs, GFP_KERNEL);
 	if (!tf) {
 		pr_err("%s: could not allocate memory!\n", __func__);
 		return -ENOMEM;
 	}
-	tfo = kzalloc(sizeof(struct target_core_fabric_ops), GFP_KERNEL);
+	tfo = kzalloc_obj(struct target_core_fabric_ops, GFP_KERNEL);
 	if (!tfo) {
 		kfree(tf);
 		pr_err("%s: could not allocate memory!\n", __func__);

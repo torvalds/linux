@@ -170,7 +170,7 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	if (sink == NULL)
 		goto fail;
 
-	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
+	stream = kzalloc_obj(struct dc_stream_state, GFP_KERNEL);
 	if (stream == NULL)
 		goto fail;
 

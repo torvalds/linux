@@ -187,7 +187,7 @@ static int async_set_registers(rtl8150_t *dev, u16 indx, u16 size, u16 reg)
 	struct urb *async_urb;
 	struct async_req *req;
 
-	req = kmalloc(sizeof(struct async_req), GFP_ATOMIC);
+	req = kmalloc_obj(struct async_req, GFP_ATOMIC);
 	if (req == NULL)
 		return res;
 	async_urb = usb_alloc_urb(0, GFP_ATOMIC);

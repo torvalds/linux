@@ -192,7 +192,7 @@ static struct obj_cgroup *obj_cgroup_alloc(void)
 	struct obj_cgroup *objcg;
 	int ret;
 
-	objcg = kzalloc(sizeof(struct obj_cgroup), GFP_KERNEL);
+	objcg = kzalloc_obj(struct obj_cgroup, GFP_KERNEL);
 	if (!objcg)
 		return NULL;
 
@@ -3761,8 +3761,7 @@ static struct mem_cgroup *mem_cgroup_alloc(struct mem_cgroup *parent)
 		goto fail;
 	error = -ENOMEM;
 
-	memcg->vmstats = kzalloc(sizeof(struct memcg_vmstats),
-				 GFP_KERNEL_ACCOUNT);
+	memcg->vmstats = kzalloc_obj(struct memcg_vmstats, GFP_KERNEL_ACCOUNT);
 	if (!memcg->vmstats)
 		goto fail;
 

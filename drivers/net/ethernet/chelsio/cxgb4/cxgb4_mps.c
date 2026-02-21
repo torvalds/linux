@@ -42,7 +42,7 @@ static int cxgb4_mps_ref_inc(struct adapter *adap, const u8 *mac_addr,
 			goto unlock;
 		}
 	}
-	mps_entry = kzalloc(sizeof(*mps_entry), GFP_ATOMIC);
+	mps_entry = kzalloc_obj(*mps_entry, GFP_ATOMIC);
 	if (!mps_entry) {
 		ret = -ENOMEM;
 		goto unlock;

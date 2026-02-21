@@ -41,7 +41,7 @@ xfblob_create(
 	if (error)
 		return error;
 
-	blob = kmalloc(sizeof(struct xfblob), XCHK_GFP_FLAGS);
+	blob = kmalloc_obj(struct xfblob, XCHK_GFP_FLAGS);
 	if (!blob) {
 		error = -ENOMEM;
 		goto out_xfile;

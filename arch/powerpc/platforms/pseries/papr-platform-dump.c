@@ -321,8 +321,8 @@ static long papr_platform_dump_create_handle(u64 dump_tag)
 		}
 	}
 
-	params =  kzalloc(sizeof(struct ibm_platform_dump_params),
-			GFP_KERNEL_ACCOUNT);
+	params =  kzalloc_obj(struct ibm_platform_dump_params,
+			      GFP_KERNEL_ACCOUNT);
 	if (!params)
 		return -ENOMEM;
 

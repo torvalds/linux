@@ -400,9 +400,8 @@ xpc_setup_ch_structures(struct xpc_partition *part)
 	 * memory.
 	 */
 	DBUG_ON(part->channels != NULL);
-	part->channels = kcalloc(XPC_MAX_NCHANNELS,
-				 sizeof(struct xpc_channel),
-				 GFP_KERNEL);
+	part->channels = kzalloc_objs(struct xpc_channel, XPC_MAX_NCHANNELS,
+				      GFP_KERNEL);
 	if (part->channels == NULL) {
 		dev_err(xpc_chan, "can't get memory for channels\n");
 		return xpNoMemory;
@@ -890,9 +889,8 @@ xpc_setup_partitions(void)
 	short partid;
 	struct xpc_partition *part;
 
-	xpc_partitions = kcalloc(xp_max_npartitions,
-				 sizeof(struct xpc_partition),
-				 GFP_KERNEL);
+	xpc_partitions = kzalloc_objs(struct xpc_partition, xp_max_npartitions,
+				      GFP_KERNEL);
 	if (xpc_partitions == NULL) {
 		dev_err(xpc_part, "can't get memory for partition structure\n");
 		return -ENOMEM;

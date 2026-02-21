@@ -484,15 +484,15 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 static int wilc_wfi_cfg_allocate_wpa_entry(struct wilc_priv *priv, u8 idx)
 {
 	if (!priv->wilc_gtk[idx]) {
-		priv->wilc_gtk[idx] = kzalloc(sizeof(*priv->wilc_gtk[idx]),
-					      GFP_KERNEL);
+		priv->wilc_gtk[idx] = kzalloc_obj(*priv->wilc_gtk[idx],
+						  GFP_KERNEL);
 		if (!priv->wilc_gtk[idx])
 			return -ENOMEM;
 	}
 
 	if (!priv->wilc_ptk[idx]) {
-		priv->wilc_ptk[idx] = kzalloc(sizeof(*priv->wilc_ptk[idx]),
-					      GFP_KERNEL);
+		priv->wilc_ptk[idx] = kzalloc_obj(*priv->wilc_ptk[idx],
+						  GFP_KERNEL);
 		if (!priv->wilc_ptk[idx])
 			return -ENOMEM;
 	}
@@ -504,8 +504,8 @@ static int wilc_wfi_cfg_allocate_wpa_igtk_entry(struct wilc_priv *priv, u8 idx)
 {
 	idx -= 4;
 	if (!priv->wilc_igtk[idx]) {
-		priv->wilc_igtk[idx] = kzalloc(sizeof(*priv->wilc_igtk[idx]),
-					       GFP_KERNEL);
+		priv->wilc_igtk[idx] = kzalloc_obj(*priv->wilc_igtk[idx],
+						   GFP_KERNEL);
 		if (!priv->wilc_igtk[idx])
 			return -ENOMEM;
 	}
@@ -1178,7 +1178,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 	if (!ieee80211_is_mgmt(mgmt->frame_control))
 		goto out;
 
-	mgmt_tx = kmalloc(sizeof(*mgmt_tx), GFP_KERNEL);
+	mgmt_tx = kmalloc_obj(*mgmt_tx, GFP_KERNEL);
 	if (!mgmt_tx) {
 		ret = -ENOMEM;
 		goto out;

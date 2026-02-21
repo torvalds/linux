@@ -726,7 +726,7 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 	union esd_usb_msg *msg;
 	int err, i;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg, GFP_KERNEL);
 	if (!msg) {
 		err = -ENOMEM;
 		goto out;
@@ -962,7 +962,7 @@ static int esd_usb_stop(struct esd_usb_net_priv *priv)
 	int err;
 	int i;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1068,7 +1068,7 @@ static int esd_usb_2_set_bittiming(struct net_device *netdev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		canbtr |= ESD_USB_TRIPLE_SAMPLES;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1130,7 +1130,7 @@ static int esd_usb_3_set_bittiming(struct net_device *netdev)
 	u16 flags = 0;
 	int err;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1302,7 +1302,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 	union esd_usb_msg *msg;
 	int i, err;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev) {
 		err = -ENOMEM;
 		goto done;
@@ -1314,7 +1314,7 @@ static int esd_usb_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, dev);
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg, GFP_KERNEL);
 	if (!msg) {
 		err = -ENOMEM;
 		goto free_msg;

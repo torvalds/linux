@@ -333,7 +333,7 @@ xfs_mru_cache_create(
 	if (!(grp_time = msecs_to_jiffies(lifetime_ms) / grp_count))
 		return -EINVAL;
 
-	mru = kzalloc(sizeof(*mru), GFP_KERNEL | __GFP_NOFAIL);
+	mru = kzalloc_obj(*mru, GFP_KERNEL | __GFP_NOFAIL);
 	if (!mru)
 		return -ENOMEM;
 

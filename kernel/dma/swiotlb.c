@@ -1809,19 +1809,18 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 	if (!mem) {
 		struct io_tlb_pool *pool;
 
-		mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+		mem = kzalloc_obj(*mem, GFP_KERNEL);
 		if (!mem)
 			return -ENOMEM;
 		pool = &mem->defpool;
 
-		pool->slots = kcalloc(nslabs, sizeof(*pool->slots), GFP_KERNEL);
+		pool->slots = kzalloc_objs(*pool->slots, nslabs, GFP_KERNEL);
 		if (!pool->slots) {
 			kfree(mem);
 			return -ENOMEM;
 		}
 
-		pool->areas = kcalloc(nareas, sizeof(*pool->areas),
-				GFP_KERNEL);
+		pool->areas = kzalloc_objs(*pool->areas, nareas, GFP_KERNEL);
 		if (!pool->areas) {
 			kfree(pool->slots);
 			kfree(mem);

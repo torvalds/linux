@@ -580,7 +580,7 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	if (rd)
 		return 0;
 
-	rd = kmalloc(sizeof(*rd), GFP_ATOMIC);
+	rd = kmalloc_obj(*rd, GFP_ATOMIC);
 	if (rd == NULL)
 		return -ENOMEM;
 
@@ -774,7 +774,7 @@ static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan, const u8 *mac,
 {
 	struct vxlan_fdb *f;
 
-	f = kmalloc(sizeof(*f), GFP_ATOMIC);
+	f = kmalloc_obj(*f, GFP_ATOMIC);
 	if (!f)
 		return NULL;
 	memset(&f->key, 0, sizeof(f->key));
@@ -3578,7 +3578,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 	ASSERT_RTNL();
 
-	vs = kzalloc(sizeof(*vs), GFP_KERNEL);
+	vs = kzalloc_obj(*vs, GFP_KERNEL);
 	if (!vs)
 		return ERR_PTR(-ENOMEM);
 

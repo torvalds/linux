@@ -448,7 +448,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	}
 
 	ret = -ENOMEM;
-	area = kzalloc(sizeof(*area), GFP_KERNEL);
+	area = kzalloc_obj(*area, GFP_KERNEL);
 	if (!area)
 		goto err;
 	area->ifq = ifq;
@@ -467,8 +467,8 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	area->nia.num_niovs = nr_iovs;
 
 	ret = -ENOMEM;
-	area->nia.niovs = kvmalloc_array(nr_iovs, sizeof(area->nia.niovs[0]),
-					 GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	area->nia.niovs = kvmalloc_objs(area->nia.niovs[0], nr_iovs,
+					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!area->nia.niovs)
 		goto err;
 
@@ -477,7 +477,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	if (!area->freelist)
 		goto err;
 
-	area->user_refs = kvmalloc_array(nr_iovs, sizeof(area->user_refs[0]),
+	area->user_refs = kvmalloc_objs(area->user_refs[0], nr_iovs,
 					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!area->user_refs)
 		goto err;
@@ -510,7 +510,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
 
-	ifq = kzalloc(sizeof(*ifq), GFP_KERNEL);
+	ifq = kzalloc_obj(*ifq, GFP_KERNEL);
 	if (!ifq)
 		return NULL;
 

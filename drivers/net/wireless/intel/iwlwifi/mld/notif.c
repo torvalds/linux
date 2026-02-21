@@ -557,7 +557,7 @@ static void iwl_mld_rx_notif(struct iwl_mld *mld,
 			break;
 		}
 
-		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kzalloc_obj(*entry, GFP_ATOMIC);
 		/* we can't do much... */
 		if (!entry)
 			return;

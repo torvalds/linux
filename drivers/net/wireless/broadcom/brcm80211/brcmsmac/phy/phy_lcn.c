@@ -1319,7 +1319,7 @@ wlc_lcnphy_rx_iq_cal(struct brcms_phy *pi,
 	s16 *ptr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
+	ptr = kmalloc_objs(s16, 131, GFP_ATOMIC);
 	if (NULL == ptr)
 		return false;
 	if (module == 2) {
@@ -3605,7 +3605,7 @@ wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type, int num_levels,
 	u16 *phy_c32;
 	phy_c21 = 0;
 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
-	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
+	ptr = kmalloc_objs(s16, 131, GFP_ATOMIC);
 	if (NULL == ptr)
 		return;
 
@@ -4966,7 +4966,7 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 {
 	struct brcms_phy_lcnphy *pi_lcn;
 
-	pi_lcn = kzalloc(sizeof(*pi_lcn), GFP_ATOMIC);
+	pi_lcn = kzalloc_obj(*pi_lcn, GFP_ATOMIC);
 	if (!pi_lcn)
 		return false;
 

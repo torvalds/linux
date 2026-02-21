@@ -415,7 +415,7 @@ static struct stm32_dma3_swdesc *stm32_dma3_chan_desc_alloc(struct stm32_dma3_ch
 		return NULL;
 	}
 
-	swdesc = kzalloc(struct_size(swdesc, lli, count), GFP_NOWAIT);
+	swdesc = kzalloc_flex(*swdesc, lli, count, GFP_NOWAIT);
 	if (!swdesc)
 		return NULL;
 	swdesc->lli_size = count;

@@ -2262,7 +2262,7 @@ static void ocelot_irq_unmask_level(struct irq_data *data)
 	if (active) {
 		struct ocelot_irq_work *work;
 
-		work = kmalloc(sizeof(*work), GFP_ATOMIC);
+		work = kmalloc_obj(*work, GFP_ATOMIC);
 		if (!work)
 			return;
 

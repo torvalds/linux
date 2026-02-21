@@ -109,7 +109,7 @@ struct i915_sw_fence *heap_fence_create(gfp_t gfp)
 {
 	struct heap_fence *h;
 
-	h = kmalloc(sizeof(*h), gfp);
+	h = kmalloc_obj(*h, gfp);
 	if (!h)
 		return NULL;
 

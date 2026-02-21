@@ -348,7 +348,7 @@ static inline int ext4_getfsmap_fill(struct list_head *meta_list,
 {
 	struct ext4_fsmap *fsm;
 
-	fsm = kmalloc(sizeof(*fsm), GFP_NOFS);
+	fsm = kmalloc_obj(*fsm, GFP_NOFS);
 	if (!fsm)
 		return -ENOMEM;
 	fsm->fmr_device = 0;

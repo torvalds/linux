@@ -2990,7 +2990,7 @@ static struct DeviceCtlBlk *device_alloc(struct AdapterCtlBlk *acb,
 	u8 period_index = eeprom->target[target].period & 0x07;
 	struct DeviceCtlBlk *dcb;
 
-	dcb = kmalloc(sizeof(struct DeviceCtlBlk), GFP_ATOMIC);
+	dcb = kmalloc_obj(struct DeviceCtlBlk, GFP_ATOMIC);
 	if (!dcb)
 		return NULL;
 	dcb->acb = NULL;

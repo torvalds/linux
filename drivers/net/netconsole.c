@@ -348,7 +348,7 @@ static struct netconsole_target *alloc_and_init(void)
 {
 	struct netconsole_target *nt;
 
-	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
+	nt = kzalloc_obj(*nt, GFP_KERNEL);
 	if (!nt)
 		return nt;
 
@@ -1270,7 +1270,7 @@ static struct config_item *userdatum_make_item(struct config_group *group,
 	if (count_userdata_entries(nt) >= MAX_USERDATA_ITEMS)
 		return ERR_PTR(-ENOSPC);
 
-	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
+	udm = kzalloc_obj(*udm, GFP_KERNEL);
 	if (!udm)
 		return ERR_PTR(-ENOMEM);
 

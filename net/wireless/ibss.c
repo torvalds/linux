@@ -69,7 +69,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(!channel))
 		return;
 
-	ev = kzalloc(sizeof(*ev), gfp);
+	ev = kzalloc_obj(*ev, gfp);
 	if (!ev)
 		return;
 

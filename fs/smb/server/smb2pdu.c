@@ -1164,8 +1164,8 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 	switch (conn->dialect) {
 	case SMB311_PROT_ID:
 		conn->preauth_info =
-			kzalloc(sizeof(struct preauth_integrity_info),
-				KSMBD_DEFAULT_GFP);
+			kzalloc_obj(struct preauth_integrity_info,
+				    KSMBD_DEFAULT_GFP);
 		if (!conn->preauth_info) {
 			rc = -ENOMEM;
 			rsp->hdr.Status = STATUS_INVALID_PARAMETER;
@@ -1560,7 +1560,7 @@ binding_session:
 	if (conn->dialect >= SMB30_PROT_ID) {
 		chann = lookup_chann_list(sess, conn);
 		if (!chann) {
-			chann = kmalloc(sizeof(struct channel), KSMBD_DEFAULT_GFP);
+			chann = kmalloc_obj(struct channel, KSMBD_DEFAULT_GFP);
 			if (!chann)
 				return -ENOMEM;
 
@@ -1655,7 +1655,7 @@ binding_session:
 	if (conn->dialect >= SMB30_PROT_ID) {
 		chann = lookup_chann_list(sess, conn);
 		if (!chann) {
-			chann = kmalloc(sizeof(struct channel), KSMBD_DEFAULT_GFP);
+			chann = kmalloc_obj(struct channel, KSMBD_DEFAULT_GFP);
 			if (!chann)
 				return -ENOMEM;
 
@@ -7326,7 +7326,7 @@ static struct ksmbd_lock *smb2_lock_init(struct file_lock *flock,
 {
 	struct ksmbd_lock *lock;
 
-	lock = kzalloc(sizeof(struct ksmbd_lock), KSMBD_DEFAULT_GFP);
+	lock = kzalloc_obj(struct ksmbd_lock, KSMBD_DEFAULT_GFP);
 	if (!lock)
 		return NULL;
 

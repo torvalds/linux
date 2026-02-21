@@ -166,7 +166,7 @@ void __init acpi_watchdog_init(void)
 		}
 	}
 
-	resources = kcalloc(nresources, sizeof(*resources), GFP_KERNEL);
+	resources = kzalloc_objs(*resources, nresources, GFP_KERNEL);
 	if (!resources)
 		goto fail_free_resource_list;
 

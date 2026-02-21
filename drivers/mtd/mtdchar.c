@@ -72,7 +72,7 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 		goto out1;
 	}
 
-	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
+	mfi = kzalloc_obj(*mfi, GFP_KERNEL);
 	if (!mfi) {
 		ret = -ENOMEM;
 		goto out1;
@@ -923,7 +923,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 	{
 		struct erase_info *erase;
 
-		erase=kzalloc(sizeof(struct erase_info),GFP_KERNEL);
+		erase=kzalloc_obj(struct erase_info, GFP_KERNEL);
 		if (!erase)
 			ret = -ENOMEM;
 		else {
@@ -1162,7 +1162,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (!master->ooblayout)
 			return -EOPNOTSUPP;
 
-		usrlay = kmalloc(sizeof(*usrlay), GFP_KERNEL);
+		usrlay = kmalloc_obj(*usrlay, GFP_KERNEL);
 		if (!usrlay)
 			return -ENOMEM;
 

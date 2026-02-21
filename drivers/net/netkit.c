@@ -796,7 +796,7 @@ int netkit_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		ret = PTR_ERR(dev);
 		goto out;
 	}
-	nkl = kzalloc(sizeof(*nkl), GFP_KERNEL_ACCOUNT);
+	nkl = kzalloc_obj(*nkl, GFP_KERNEL_ACCOUNT);
 	if (!nkl) {
 		ret = -ENOMEM;
 		goto out;

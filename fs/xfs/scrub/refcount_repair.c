@@ -704,7 +704,7 @@ xrep_refcountbt(
 	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
-	rr = kzalloc(sizeof(struct xrep_refc), XCHK_GFP_FLAGS);
+	rr = kzalloc_obj(struct xrep_refc, XCHK_GFP_FLAGS);
 	if (!rr)
 		return -ENOMEM;
 	rr->sc = sc;

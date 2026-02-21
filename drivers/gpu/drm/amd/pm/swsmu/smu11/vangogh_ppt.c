@@ -253,11 +253,11 @@ static int vangogh_tables_init(struct smu_context *smu)
 	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t, GFP_KERNEL);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
-	smu_table->clocks_table = kzalloc(sizeof(DpmClocks_t), GFP_KERNEL);
+	smu_table->clocks_table = kzalloc_obj(DpmClocks_t, GFP_KERNEL);
 	if (!smu_table->clocks_table)
 		goto err3_out;
 
@@ -433,8 +433,8 @@ static int vangogh_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context,
+					   GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 

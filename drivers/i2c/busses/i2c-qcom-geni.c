@@ -799,7 +799,8 @@ static int geni_i2c_gpi_xfer(struct geni_i2c_dev *gi2c, struct i2c_msg msgs[], i
 
 	if (gi2c->is_tx_multi_desc_xfer) {
 		tx_multi_xfer->dma_buf = kcalloc(num, sizeof(void *), GFP_KERNEL);
-		tx_multi_xfer->dma_addr = kcalloc(num, sizeof(dma_addr_t), GFP_KERNEL);
+		tx_multi_xfer->dma_addr = kzalloc_objs(dma_addr_t, num,
+						       GFP_KERNEL);
 		if (!tx_multi_xfer->dma_buf || !tx_multi_xfer->dma_addr) {
 			ret = -ENOMEM;
 			goto err;

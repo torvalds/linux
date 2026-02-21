@@ -582,13 +582,13 @@ static int e1000_set_ringparam(struct net_device *netdev,
 	rx_old = adapter->rx_ring;
 
 	err = -ENOMEM;
-	txdr = kcalloc(adapter->num_tx_queues, sizeof(struct e1000_tx_ring),
-		       GFP_KERNEL);
+	txdr = kzalloc_objs(struct e1000_tx_ring, adapter->num_tx_queues,
+			    GFP_KERNEL);
 	if (!txdr)
 		goto err_alloc_tx;
 
-	rxdr = kcalloc(adapter->num_rx_queues, sizeof(struct e1000_rx_ring),
-		       GFP_KERNEL);
+	rxdr = kzalloc_objs(struct e1000_rx_ring, adapter->num_rx_queues,
+			    GFP_KERNEL);
 	if (!rxdr)
 		goto err_alloc_rx;
 
@@ -984,8 +984,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!txdr->count)
 		txdr->count = E1000_DEFAULT_TXD;
 
-	txdr->buffer_info = kcalloc(txdr->count, sizeof(struct e1000_tx_buffer),
-				    GFP_KERNEL);
+	txdr->buffer_info = kzalloc_objs(struct e1000_tx_buffer, txdr->count,
+					 GFP_KERNEL);
 	if (!txdr->buffer_info) {
 		ret_val = 1;
 		goto err_nomem;
@@ -1043,8 +1043,8 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	if (!rxdr->count)
 		rxdr->count = E1000_DEFAULT_RXD;
 
-	rxdr->buffer_info = kcalloc(rxdr->count, sizeof(struct e1000_rx_buffer),
-				    GFP_KERNEL);
+	rxdr->buffer_info = kzalloc_objs(struct e1000_rx_buffer, rxdr->count,
+					 GFP_KERNEL);
 	if (!rxdr->buffer_info) {
 		ret_val = 5;
 		goto err_nomem;

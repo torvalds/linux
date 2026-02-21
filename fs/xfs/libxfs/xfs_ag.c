@@ -224,7 +224,7 @@ xfs_perag_alloc(
 	struct xfs_perag	*pag;
 	int			error;
 
-	pag = kzalloc(sizeof(*pag), GFP_KERNEL);
+	pag = kzalloc_obj(*pag, GFP_KERNEL);
 	if (!pag)
 		return -ENOMEM;
 

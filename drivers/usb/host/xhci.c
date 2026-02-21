@@ -1641,7 +1641,7 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	else
 		num_tds = 1;
 
-	urb_priv = kzalloc(struct_size(urb_priv, td, num_tds), mem_flags);
+	urb_priv = kzalloc_flex(*urb_priv, td, num_tds, mem_flags);
 	if (!urb_priv)
 		return -ENOMEM;
 

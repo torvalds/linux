@@ -1573,7 +1573,7 @@ static struct fsnotify_event *fanotify_alloc_overflow_event(void)
 {
 	struct fanotify_event *oevent;
 
-	oevent = kmalloc(sizeof(*oevent), GFP_KERNEL_ACCOUNT);
+	oevent = kmalloc_obj(*oevent, GFP_KERNEL_ACCOUNT);
 	if (!oevent)
 		return NULL;
 

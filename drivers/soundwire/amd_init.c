@@ -98,14 +98,14 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 	 * the parent .probe.
 	 * If devm_ was used, the memory might never be freed on errors.
 	 */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
 	ctx->count = count;
 	ctx->link_mask = res->link_mask;
-	struct resource *sdw_res __free(kfree) = kzalloc(sizeof(*sdw_res),
-							 GFP_KERNEL);
+	struct resource *sdw_res __free(kfree) = kzalloc_obj(*sdw_res,
+							     GFP_KERNEL);
 	if (!sdw_res) {
 		kfree(ctx);
 		return NULL;
@@ -205,8 +205,8 @@ int sdw_amd_get_slave_info(struct sdw_amd_ctx *ctx)
 			num_slaves++;
 	}
 
-	ctx->peripherals = kmalloc(struct_size(ctx->peripherals, array, num_slaves),
-				   GFP_KERNEL);
+	ctx->peripherals = kmalloc_flex(*ctx->peripherals, array, num_slaves,
+					GFP_KERNEL);
 	if (!ctx->peripherals)
 		return -ENOMEM;
 	ctx->peripherals->num_peripherals = num_slaves;

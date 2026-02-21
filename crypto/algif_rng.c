@@ -202,7 +202,7 @@ static void *rng_bind(const char *name, u32 type, u32 mask)
 	struct rng_parent_ctx *pctx;
 	struct crypto_rng *rng;
 
-	pctx = kzalloc(sizeof(*pctx), GFP_KERNEL);
+	pctx = kzalloc_obj(*pctx, GFP_KERNEL);
 	if (!pctx)
 		return ERR_PTR(-ENOMEM);
 

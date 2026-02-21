@@ -2557,7 +2557,7 @@ static int ata_dev_init_cdl_resources(struct ata_device *dev)
 	unsigned int err_mask;
 
 	if (!cdl) {
-		cdl = kzalloc(sizeof(*cdl), GFP_KERNEL);
+		cdl = kzalloc_obj(*cdl, GFP_KERNEL);
 		if (!cdl)
 			return -ENOMEM;
 		dev->cdl = cdl;
@@ -2832,7 +2832,7 @@ static void ata_dev_config_cpr(struct ata_device *dev)
 	if (!nr_cpr)
 		goto out;
 
-	cpr_log = kzalloc(struct_size(cpr_log, cpr, nr_cpr), GFP_KERNEL);
+	cpr_log = kzalloc_flex(*cpr_log, cpr, nr_cpr, GFP_KERNEL);
 	if (!cpr_log)
 		goto out;
 
@@ -5638,7 +5638,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	struct ata_port *ap;
 	int id;
 
-	ap = kzalloc(sizeof(*ap), GFP_KERNEL);
+	ap = kzalloc_obj(*ap, GFP_KERNEL);
 	if (!ap)
 		return NULL;
 
@@ -6714,7 +6714,7 @@ static void __init ata_parse_force_param(void)
 		if (*p == ',')
 			size++;
 
-	ata_force_tbl = kcalloc(size, sizeof(ata_force_tbl[0]), GFP_KERNEL);
+	ata_force_tbl = kzalloc_objs(ata_force_tbl[0], size, GFP_KERNEL);
 	if (!ata_force_tbl) {
 		printk(KERN_WARNING "ata: failed to extend force table, "
 		       "libata.force ignored\n");

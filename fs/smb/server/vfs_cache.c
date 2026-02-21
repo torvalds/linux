@@ -303,7 +303,7 @@ static struct ksmbd_inode *ksmbd_inode_get(struct ksmbd_file *fp)
 	if (ci)
 		return ci;
 
-	ci = kmalloc(sizeof(struct ksmbd_inode), KSMBD_DEFAULT_GFP);
+	ci = kmalloc_obj(struct ksmbd_inode, KSMBD_DEFAULT_GFP);
 	if (!ci)
 		return NULL;
 
@@ -1126,7 +1126,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)
 {
-	ft->idr = kzalloc(sizeof(struct idr), KSMBD_DEFAULT_GFP);
+	ft->idr = kzalloc_obj(struct idr, KSMBD_DEFAULT_GFP);
 	if (!ft->idr)
 		return -ENOMEM;
 

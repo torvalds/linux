@@ -1505,7 +1505,7 @@ struct usb_request *cdns2_gadget_ep_alloc_request(struct usb_ep *ep,
 	struct cdns2_endpoint *pep = ep_to_cdns2_ep(ep);
 	struct cdns2_request *preq;
 
-	preq = kzalloc(sizeof(*preq), gfp_flags);
+	preq = kzalloc_obj(*preq, gfp_flags);
 	if (!preq)
 		return NULL;
 

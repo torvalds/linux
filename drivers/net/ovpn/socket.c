@@ -191,7 +191,7 @@ struct ovpn_socket *ovpn_socket_new(struct socket *sock, struct ovpn_peer *peer)
 
 	/* socket is not owned: attach to this ovpn instance */
 
-	ovpn_sock = kzalloc(sizeof(*ovpn_sock), GFP_KERNEL);
+	ovpn_sock = kzalloc_obj(*ovpn_sock, GFP_KERNEL);
 	if (!ovpn_sock) {
 		ovpn_sock = ERR_PTR(-ENOMEM);
 		goto sock_release;

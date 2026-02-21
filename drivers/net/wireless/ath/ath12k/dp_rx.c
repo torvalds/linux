@@ -464,7 +464,7 @@ void ath12k_dp_rx_tid_del_func(struct ath12k_dp *dp, void *ctx,
 	ath12k_dp_rx_process_reo_cmd_update_rx_queue_list(dp);
 	spin_unlock_bh(&dp->dp_lock);
 
-	elem = kzalloc(sizeof(*elem), GFP_ATOMIC);
+	elem = kzalloc_obj(*elem, GFP_ATOMIC);
 	if (!elem)
 		goto free_desc;
 
@@ -565,7 +565,7 @@ static int ath12k_dp_prepare_reo_update_elem(struct ath12k_dp *dp,
 
 	lockdep_assert_held(&dp->dp_lock);
 
-	elem = kzalloc(sizeof(*elem), GFP_ATOMIC);
+	elem = kzalloc_obj(*elem, GFP_ATOMIC);
 	if (!elem)
 		return -ENOMEM;
 

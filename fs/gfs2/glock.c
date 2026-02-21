@@ -1764,8 +1764,7 @@ int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 	default:
 		if (num_gh <= 4)
 			break;
-		pph = kmalloc_array(num_gh, sizeof(struct gfs2_holder *),
-				    GFP_NOFS);
+		pph = kmalloc_objs(struct gfs2_holder *, num_gh, GFP_NOFS);
 		if (!pph)
 			return -ENOMEM;
 	}

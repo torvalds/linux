@@ -388,7 +388,7 @@ bool mptcp_pm_alloc_anno_list(struct mptcp_sock *msk,
 		goto reset_timer;
 	}
 
-	add_entry = kmalloc(sizeof(*add_entry), GFP_ATOMIC);
+	add_entry = kmalloc_obj(*add_entry, GFP_ATOMIC);
 	if (!add_entry)
 		return false;
 

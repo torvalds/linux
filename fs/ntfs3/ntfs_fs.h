@@ -730,7 +730,7 @@ int indx_used_bit(struct ntfs_index *indx, struct ntfs_inode *ni, size_t *bit);
 void fnd_clear(struct ntfs_fnd *fnd);
 static inline struct ntfs_fnd *fnd_get(void)
 {
-	return kzalloc(sizeof(struct ntfs_fnd), GFP_NOFS);
+	return kzalloc_obj(struct ntfs_fnd, GFP_NOFS);
 }
 static inline void fnd_put(struct ntfs_fnd *fnd)
 {
@@ -996,7 +996,7 @@ static inline void run_init(struct runs_tree *run)
 
 static inline struct runs_tree *run_alloc(void)
 {
-	return kzalloc(sizeof(struct runs_tree), GFP_NOFS);
+	return kzalloc_obj(struct runs_tree, GFP_NOFS);
 }
 
 static inline void run_close(struct runs_tree *run)

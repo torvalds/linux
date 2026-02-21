@@ -2647,8 +2647,7 @@ static int mtk_tx_alloc(struct mtk_eth *eth)
 	else
 		ring_size = soc->tx.dma_size;
 
-	ring->buf = kcalloc(ring_size, sizeof(*ring->buf),
-			       GFP_KERNEL);
+	ring->buf = kzalloc_objs(*ring->buf, ring_size, GFP_KERNEL);
 	if (!ring->buf)
 		goto no_tx_mem;
 

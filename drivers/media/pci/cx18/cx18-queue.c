@@ -361,12 +361,11 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		struct cx18_buffer *buf;
 
 		/* 1 MDL per buffer to handle the worst & also default case */
-		mdl = kzalloc(sizeof(struct cx18_mdl), GFP_KERNEL|__GFP_NOWARN);
+		mdl = kzalloc_obj(struct cx18_mdl, GFP_KERNEL | __GFP_NOWARN);
 		if (mdl == NULL)
 			break;
 
-		buf = kzalloc(sizeof(struct cx18_buffer),
-				GFP_KERNEL|__GFP_NOWARN);
+		buf = kzalloc_obj(struct cx18_buffer, GFP_KERNEL | __GFP_NOWARN);
 		if (buf == NULL) {
 			kfree(mdl);
 			break;

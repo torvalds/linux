@@ -505,10 +505,10 @@ int ethnl_tsinfo_start(struct netlink_callback *cb)
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
 
-	req_info = kzalloc(sizeof(*req_info), GFP_KERNEL);
+	req_info = kzalloc_obj(*req_info, GFP_KERNEL);
 	if (!req_info)
 		return -ENOMEM;
-	reply_data = kzalloc(sizeof(*reply_data), GFP_KERNEL);
+	reply_data = kzalloc_obj(*reply_data, GFP_KERNEL);
 	if (!reply_data) {
 		ret = -ENOMEM;
 		goto free_req_info;

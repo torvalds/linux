@@ -238,7 +238,7 @@ uniphier_mdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	if (!is_slave_direction(direction))
 		return NULL;
 
-	md = kzalloc(sizeof(*md), GFP_NOWAIT);
+	md = kzalloc_obj(*md, GFP_NOWAIT);
 	if (!md)
 		return NULL;
 

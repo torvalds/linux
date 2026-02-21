@@ -73,7 +73,7 @@ int pci_dev_res_add_to_list(struct list_head *head, struct pci_dev *dev,
 {
 	struct pci_dev_resource *tmp;
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -350,7 +350,7 @@ static void pdev_sort_resources(struct pci_dev *dev, struct list_head *head)
 			continue;
 		}
 
-		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+		tmp = kzalloc_obj(*tmp, GFP_KERNEL);
 		if (!tmp)
 			panic("%s: kzalloc() failed!\n", __func__);
 		tmp->res = r;

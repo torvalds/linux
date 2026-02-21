@@ -102,7 +102,7 @@ xchk_setup_metapath_scan(
 		return error;
 	}
 
-	mpath = kzalloc(sizeof(struct xchk_metapath), XCHK_GFP_FLAGS);
+	mpath = kzalloc_obj(struct xchk_metapath, XCHK_GFP_FLAGS);
 	if (!mpath) {
 		kfree_const(path);
 		return -ENOMEM;

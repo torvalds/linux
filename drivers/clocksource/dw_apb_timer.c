@@ -222,8 +222,8 @@ struct dw_apb_clock_event_device *
 dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 		       void __iomem *base, int irq, unsigned long freq)
 {
-	struct dw_apb_clock_event_device *dw_ced =
-		kzalloc(sizeof(*dw_ced), GFP_KERNEL);
+	struct dw_apb_clock_event_device *dw_ced = kzalloc_obj(*dw_ced,
+							       GFP_KERNEL);
 	int err;
 
 	if (!dw_ced)
@@ -340,7 +340,7 @@ struct dw_apb_clocksource *
 dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
 			unsigned long freq)
 {
-	struct dw_apb_clocksource *dw_cs = kzalloc(sizeof(*dw_cs), GFP_KERNEL);
+	struct dw_apb_clocksource *dw_cs = kzalloc_obj(*dw_cs, GFP_KERNEL);
 
 	if (!dw_cs)
 		return NULL;

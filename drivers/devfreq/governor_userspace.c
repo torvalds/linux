@@ -87,8 +87,8 @@ static const struct attribute_group dev_attr_group = {
 static int userspace_init(struct devfreq *devfreq)
 {
 	int err = 0;
-	struct userspace_data *data = kzalloc(sizeof(struct userspace_data),
-					      GFP_KERNEL);
+	struct userspace_data *data = kzalloc_obj(struct userspace_data,
+						  GFP_KERNEL);
 
 	if (!data) {
 		err = -ENOMEM;

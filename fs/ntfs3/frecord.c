@@ -316,7 +316,7 @@ bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi)
 {
 	struct mft_inode *m;
 
-	m = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
+	m = kzalloc_obj(struct mft_inode, GFP_NOFS);
 	if (!m)
 		return false;
 
@@ -1915,7 +1915,7 @@ int ni_read_folio_cmpr(struct ntfs_inode *ni, struct folio *folio)
 	idx = (vbo - frame_vbo) >> PAGE_SHIFT;
 
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = kcalloc(pages_per_frame, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, pages_per_frame, GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;
@@ -1998,7 +1998,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 	frame_bits = ni_ext_compress_bits(ni);
 	frame_size = 1u << frame_bits;
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = kcalloc(pages_per_frame, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, pages_per_frame, GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;

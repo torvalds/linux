@@ -176,7 +176,7 @@ bool __set_phys_to_machine_multi(unsigned long pfn,
 		return true;
 	}
 
-	p2m_entry = kzalloc(sizeof(*p2m_entry), GFP_NOWAIT);
+	p2m_entry = kzalloc_obj(*p2m_entry, GFP_NOWAIT);
 	if (!p2m_entry)
 		return false;
 

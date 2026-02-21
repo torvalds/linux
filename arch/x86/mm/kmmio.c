@@ -387,7 +387,7 @@ static int add_kmmio_fault_page(unsigned long addr)
 		return 0;
 	}
 
-	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	f = kzalloc_obj(*f, GFP_ATOMIC);
 	if (!f)
 		return -1;
 
@@ -562,7 +562,7 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
 	if (!release_list)
 		return;
 
-	drelease = kmalloc(sizeof(*drelease), GFP_ATOMIC);
+	drelease = kmalloc_obj(*drelease, GFP_ATOMIC);
 	if (!drelease) {
 		pr_crit("leaking kmmio_fault_page objects.\n");
 		return;

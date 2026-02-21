@@ -265,7 +265,7 @@ static struct mbox_info *zynqmp_r5_setup_mbox(struct device *cdev)
 	struct mbox_client *mbox_cl;
 	struct mbox_info *ipi;
 
-	ipi = kzalloc(sizeof(*ipi), GFP_KERNEL);
+	ipi = kzalloc_obj(*ipi, GFP_KERNEL);
 	if (!ipi)
 		return NULL;
 
@@ -1337,12 +1337,11 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		core_count = 1;
 	}
 
-	child_devs = kcalloc(core_count, sizeof(struct device *), GFP_KERNEL);
+	child_devs = kzalloc_objs(struct device *, core_count, GFP_KERNEL);
 	if (!child_devs)
 		return -ENOMEM;
 
-	r5_cores = kcalloc(core_count,
-			   sizeof(struct zynqmp_r5_core *), GFP_KERNEL);
+	r5_cores = kzalloc_objs(struct zynqmp_r5_core *, core_count, GFP_KERNEL);
 	if (!r5_cores) {
 		kfree(child_devs);
 		return -ENOMEM;
@@ -1503,7 +1502,7 @@ static int zynqmp_r5_remoteproc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
+	cluster = kzalloc_obj(*cluster, GFP_KERNEL);
 	if (!cluster)
 		return -ENOMEM;
 

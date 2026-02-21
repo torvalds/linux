@@ -472,7 +472,7 @@ static struct timing_generator *dce100_timing_generator_create(
 		const struct dce110_timing_generator_offsets *offsets)
 {
 	struct dce110_timing_generator *tg110 =
-		kzalloc(sizeof(struct dce110_timing_generator), GFP_KERNEL);
+		kzalloc_obj(struct dce110_timing_generator, GFP_KERNEL);
 
 	if (!tg110)
 		return NULL;
@@ -486,7 +486,7 @@ static struct stream_encoder *dce100_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dce110_stream_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_stream_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dce110_stream_encoder, GFP_KERNEL);
 
 	if (!enc110)
 		return NULL;
@@ -520,7 +520,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dce100_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq, GFP_KERNEL);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -573,8 +573,8 @@ static struct mem_input *dce100_mem_input_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dce_mem_input *dce_mi = kzalloc(sizeof(struct dce_mem_input),
-					       GFP_KERNEL);
+	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input,
+						   GFP_KERNEL);
 
 	if (!dce_mi) {
 		BREAK_TO_DEBUGGER();
@@ -597,7 +597,7 @@ static struct transform *dce100_transform_create(
 	uint32_t inst)
 {
 	struct dce_transform *transform =
-		kzalloc(sizeof(struct dce_transform), GFP_KERNEL);
+		kzalloc_obj(struct dce_transform, GFP_KERNEL);
 
 	if (!transform)
 		return NULL;
@@ -610,7 +610,7 @@ static struct transform *dce100_transform_create(
 static struct input_pixel_processor *dce100_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
-	struct dce_ipp *ipp = kzalloc(sizeof(struct dce_ipp), GFP_KERNEL);
+	struct dce_ipp *ipp = kzalloc_obj(struct dce_ipp, GFP_KERNEL);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -634,7 +634,7 @@ static struct link_encoder *dce100_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dce110_link_encoder, GFP_KERNEL);
 	int link_regs_id;
 
 	if (!enc110)
@@ -669,7 +669,7 @@ static struct link_encoder *dce100_link_encoder_create(
 static struct panel_cntl *dce100_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dce_panel_cntl *panel_cntl =
-		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+		kzalloc_obj(struct dce_panel_cntl, GFP_KERNEL);
 
 	if (!panel_cntl)
 		return NULL;
@@ -688,7 +688,7 @@ static struct output_pixel_processor *dce100_opp_create(
 	uint32_t inst)
 {
 	struct dce110_opp *opp =
-		kzalloc(sizeof(struct dce110_opp), GFP_KERNEL);
+		kzalloc_obj(struct dce110_opp, GFP_KERNEL);
 
 	if (!opp)
 		return NULL;
@@ -703,7 +703,7 @@ static struct dce_aux *dce100_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110, GFP_KERNEL);
 
 	if (!aux_engine)
 		return NULL;
@@ -741,7 +741,7 @@ static struct dce_i2c_hw *dce100_i2c_hw_create(
 	uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw, GFP_KERNEL);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -759,7 +759,7 @@ static struct clock_source *dce100_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src, GFP_KERNEL);
 
 	if (!clk_src)
 		return NULL;
@@ -1215,7 +1215,7 @@ struct resource_pool *dce100_create_resource_pool(
 	struct dc  *dc)
 {
 	struct dce110_resource_pool *pool =
-		kzalloc(sizeof(struct dce110_resource_pool), GFP_KERNEL);
+		kzalloc_obj(struct dce110_resource_pool, GFP_KERNEL);
 
 	if (!pool)
 		return NULL;

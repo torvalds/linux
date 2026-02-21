@@ -470,7 +470,7 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
 	unsigned long vaddr;
 	struct logic_pio_hwaddr *range;
 
-	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	range = kzalloc_obj(*range, GFP_ATOMIC);
 	if (!range)
 		return -ENOMEM;
 

@@ -213,7 +213,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		if (!mac802154_is_scanning(sdata->local))
 			goto fail;
 
-		mac_pkt = kzalloc(sizeof(*mac_pkt), GFP_ATOMIC);
+		mac_pkt = kzalloc_obj(*mac_pkt, GFP_ATOMIC);
 		if (!mac_pkt)
 			goto fail;
 
@@ -227,7 +227,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	case IEEE802154_FC_TYPE_MAC_CMD:
 		dev_dbg(&sdata->dev->dev, "MAC COMMAND received\n");
-		mac_pkt = kzalloc(sizeof(*mac_pkt), GFP_ATOMIC);
+		mac_pkt = kzalloc_obj(*mac_pkt, GFP_ATOMIC);
 		if (!mac_pkt)
 			goto fail;
 

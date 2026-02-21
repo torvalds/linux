@@ -4122,7 +4122,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 
 	crtc = intel_crtc_for_pipe(display, pipe);
 
-	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
+	mode = kzalloc_obj(*mode, GFP_KERNEL);
 	if (!mode)
 		return NULL;
 

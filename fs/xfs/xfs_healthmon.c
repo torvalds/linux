@@ -1187,7 +1187,7 @@ xfs_ioc_health_monitor(
 	if (!xfs_healthmon_validate(&hmo))
 		return -EINVAL;
 
-	hm = kzalloc(sizeof(*hm), GFP_KERNEL);
+	hm = kzalloc_obj(*hm, GFP_KERNEL);
 	if (!hm)
 		return -ENOMEM;
 	hm->dev = mp->m_super->s_dev;
@@ -1200,7 +1200,7 @@ xfs_ioc_health_monitor(
 		hm->verbose = true;
 
 	/* Queue up the first event that lets the client know we're running. */
-	running_event = kzalloc(sizeof(struct xfs_healthmon_event), GFP_NOFS);
+	running_event = kzalloc_obj(struct xfs_healthmon_event, GFP_NOFS);
 	if (!running_event) {
 		ret = -ENOMEM;
 		goto out_hm;
@@ -1214,8 +1214,7 @@ xfs_ioc_health_monitor(
 	 * filesystem later.  This is key for triggering fast exit of the
 	 * xfs_healer daemon.
 	 */
-	hm->unmount_event = kzalloc(sizeof(struct xfs_healthmon_event),
-			GFP_NOFS);
+	hm->unmount_event = kzalloc_obj(struct xfs_healthmon_event, GFP_NOFS);
 	if (!hm->unmount_event) {
 		ret = -ENOMEM;
 		goto out_hm;

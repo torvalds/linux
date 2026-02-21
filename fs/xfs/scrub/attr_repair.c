@@ -1534,7 +1534,7 @@ xrep_xattr_setup_scan(
 	int			max_len;
 	int			error;
 
-	rx = kzalloc(sizeof(struct xrep_xattr), XCHK_GFP_FLAGS);
+	rx = kzalloc_obj(struct xrep_xattr, XCHK_GFP_FLAGS);
 	if (!rx)
 		return -ENOMEM;
 	rx->sc = sc;

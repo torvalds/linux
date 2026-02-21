@@ -301,7 +301,7 @@ struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags)
 	int error = -ENOMEM;
 	char *data = blob;
 	struct table_header *table = NULL;
-	struct aa_dfa *dfa = kzalloc(sizeof(struct aa_dfa), GFP_KERNEL);
+	struct aa_dfa *dfa = kzalloc_obj(struct aa_dfa, GFP_KERNEL);
 	if (!dfa)
 		goto fail;
 

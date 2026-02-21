@@ -1666,9 +1666,9 @@ static int spi_imx_dma_data_prepare(struct spi_imx_data *spi_imx,
 		tail_bl = (transfer->len % MX51_ECSPI_CTRL_MAX_BURST) * BITS_PER_BYTE - 1;
 	}
 
-	spi_imx->dma_data = kmalloc_array(spi_imx->dma_package_num,
-					  sizeof(struct dma_data_package),
-					  GFP_KERNEL | __GFP_ZERO);
+	spi_imx->dma_data = kmalloc_objs(struct dma_data_package,
+					 spi_imx->dma_package_num,
+					 GFP_KERNEL | __GFP_ZERO);
 	if (!spi_imx->dma_data) {
 		dev_err(spi_imx->dev, "Failed to allocate DMA package buffer!\n");
 		return -ENOMEM;

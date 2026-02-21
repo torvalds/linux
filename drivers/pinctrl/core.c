@@ -215,7 +215,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 
-	pindesc = kzalloc(sizeof(*pindesc), GFP_KERNEL);
+	pindesc = kzalloc_obj(*pindesc, GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -955,7 +955,7 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 {
 	struct pinctrl_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state, GFP_KERNEL);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
@@ -983,7 +983,7 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 	if (map->type == PIN_MAP_TYPE_DUMMY_STATE)
 		return 0;
 
-	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+	setting = kzalloc_obj(*setting, GFP_KERNEL);
 	if (!setting)
 		return -ENOMEM;
 
@@ -1063,7 +1063,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	 * mapping, this is what consumers will get when requesting
 	 * a pin control handle with pinctrl_get()
 	 */
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p, GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 	p->dev = dev;
@@ -1483,7 +1483,7 @@ int pinctrl_register_mappings(const struct pinctrl_map *maps,
 		}
 	}
 
-	maps_node = kzalloc(sizeof(*maps_node), GFP_KERNEL);
+	maps_node = kzalloc_obj(*maps_node, GFP_KERNEL);
 	if (!maps_node)
 		return -ENOMEM;
 
@@ -2076,7 +2076,7 @@ pinctrl_init_controller(const struct pinctrl_desc *pctldesc, struct device *dev,
 	if (!pctldesc->name)
 		return ERR_PTR(-EINVAL);
 
-	pctldev = kzalloc(sizeof(*pctldev), GFP_KERNEL);
+	pctldev = kzalloc_obj(*pctldev, GFP_KERNEL);
 	if (!pctldev)
 		return ERR_PTR(-ENOMEM);
 

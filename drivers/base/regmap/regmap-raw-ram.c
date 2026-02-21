@@ -123,13 +123,11 @@ struct regmap *__regmap_init_raw_ram(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	data->read = kcalloc(config->max_register + 1, sizeof(bool),
-			     GFP_KERNEL);
+	data->read = kzalloc_objs(bool, config->max_register + 1, GFP_KERNEL);
 	if (!data->read)
 		return ERR_PTR(-ENOMEM);
 
-	data->written = kcalloc(config->max_register + 1, sizeof(bool),
-				GFP_KERNEL);
+	data->written = kzalloc_objs(bool, config->max_register + 1, GFP_KERNEL);
 	if (!data->written)
 		return ERR_PTR(-ENOMEM);
 

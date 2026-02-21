@@ -727,7 +727,7 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 	u32 idr;
 	int ret;
 
-	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	irs_data = kzalloc_obj(*irs_data, GFP_KERNEL);
 	if (!irs_data)
 		return -ENOMEM;
 
@@ -913,7 +913,7 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 	int ret;
 
 	/* Per-IRS data structure */
-	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	irs_data = kzalloc_obj(*irs_data, GFP_KERNEL);
 	if (!irs_data)
 		return -ENOMEM;
 

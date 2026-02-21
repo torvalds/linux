@@ -248,7 +248,7 @@ static struct clk_hw *__clk_hw_register_composite(struct device *dev,
 	struct clk_ops *clk_composite_ops;
 	int ret;
 
-	composite = kzalloc(sizeof(*composite), GFP_KERNEL);
+	composite = kzalloc_obj(*composite, GFP_KERNEL);
 	if (!composite)
 		return ERR_PTR(-ENOMEM);
 

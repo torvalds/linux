@@ -27,7 +27,7 @@ struct sgx_va_page *sgx_encl_grow(struct sgx_encl *encl, bool reclaim)
 		(SGX_ENCL_PAGE_VA_OFFSET_MASK >> 3) + 1);
 
 	if (!(encl->page_cnt % SGX_VA_SLOT_COUNT)) {
-		va_page = kzalloc(sizeof(*va_page), GFP_KERNEL);
+		va_page = kzalloc_obj(*va_page, GFP_KERNEL);
 		if (!va_page)
 			return ERR_PTR(-ENOMEM);
 

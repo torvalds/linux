@@ -205,13 +205,13 @@ static int amdxdna_hmm_register(struct amdxdna_gem_obj *abo,
 	if (!xdna->dev_info->ops->hmm_invalidate)
 		return 0;
 
-	mapp = kzalloc(sizeof(*mapp), GFP_KERNEL);
+	mapp = kzalloc_obj(*mapp, GFP_KERNEL);
 	if (!mapp)
 		return -ENOMEM;
 
 	nr_pages = (PAGE_ALIGN(addr + len) - (addr & PAGE_MASK)) >> PAGE_SHIFT;
-	mapp->range.hmm_pfns = kvcalloc(nr_pages, sizeof(*mapp->range.hmm_pfns),
-					GFP_KERNEL);
+	mapp->range.hmm_pfns = kvzalloc_objs(*mapp->range.hmm_pfns, nr_pages,
+					     GFP_KERNEL);
 	if (!mapp->range.hmm_pfns) {
 		ret = -ENOMEM;
 		goto free_map;
@@ -499,7 +499,7 @@ amdxdna_gem_create_obj(struct drm_device *dev, size_t size)
 {
 	struct amdxdna_gem_obj *abo;
 
-	abo = kzalloc(sizeof(*abo), GFP_KERNEL);
+	abo = kzalloc_obj(*abo, GFP_KERNEL);
 	if (!abo)
 		return ERR_PTR(-ENOMEM);
 

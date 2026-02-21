@@ -556,7 +556,7 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 			continue;
 		spin_lock(&cfids->cfid_list_lock);
 		list_for_each_entry(cfid, &cfids->entries, entry) {
-			tmp_list = kmalloc(sizeof(*tmp_list), GFP_ATOMIC);
+			tmp_list = kmalloc_obj(*tmp_list, GFP_ATOMIC);
 			if (tmp_list == NULL) {
 				/*
 				 * If the malloc() fails, we won't drop all
@@ -698,7 +698,7 @@ static struct cached_fid *init_cached_dir(const char *path)
 {
 	struct cached_fid *cfid;
 
-	cfid = kzalloc(sizeof(*cfid), GFP_ATOMIC);
+	cfid = kzalloc_obj(*cfid, GFP_ATOMIC);
 	if (!cfid)
 		return NULL;
 	cfid->path = kstrdup(path, GFP_ATOMIC);
@@ -813,7 +813,7 @@ struct cached_fids *init_cached_dirs(void)
 {
 	struct cached_fids *cfids;
 
-	cfids = kzalloc(sizeof(*cfids), GFP_KERNEL);
+	cfids = kzalloc_obj(*cfids, GFP_KERNEL);
 	if (!cfids)
 		return NULL;
 	spin_lock_init(&cfids->cfid_list_lock);

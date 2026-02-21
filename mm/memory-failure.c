@@ -387,7 +387,7 @@ static void __add_to_kill(struct task_struct *tsk, const struct page *p,
 {
 	struct to_kill *tk;
 
-	tk = kmalloc(sizeof(struct to_kill), GFP_ATOMIC);
+	tk = kmalloc_obj(struct to_kill, GFP_ATOMIC);
 	if (!tk) {
 		pr_err("Out of memory while machine check handling\n");
 		return;
@@ -1917,7 +1917,7 @@ static int hugetlb_update_hwpoison(struct folio *folio, struct page *page)
 			return MF_HUGETLB_PAGE_PRE_POISONED;
 	}
 
-	raw_hwp = kmalloc(sizeof(struct raw_hwp_page), GFP_ATOMIC);
+	raw_hwp = kmalloc_obj(struct raw_hwp_page, GFP_ATOMIC);
 	if (raw_hwp) {
 		raw_hwp->page = page;
 		llist_add(&raw_hwp->node, head);
@@ -2214,7 +2214,7 @@ static void add_to_kill_pgoff(struct task_struct *tsk,
 {
 	struct to_kill *tk;
 
-	tk = kmalloc(sizeof(*tk), GFP_ATOMIC);
+	tk = kmalloc_obj(*tk, GFP_ATOMIC);
 	if (!tk) {
 		pr_info("Unable to kill proc %d\n", tsk->pid);
 		return;

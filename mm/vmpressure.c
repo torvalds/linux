@@ -402,7 +402,7 @@ int vmpressure_register_event(struct mem_cgroup *memcg,
 		mode = ret;
 	}
 
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+	ev = kzalloc_obj(*ev, GFP_KERNEL);
 	if (!ev) {
 		ret = -ENOMEM;
 		goto out;

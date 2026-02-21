@@ -276,7 +276,7 @@ static struct dlm_dir_dump *init_dir_dump(struct dlm_ls *ls, int nodeid)
 		drop_dir_ctx(ls, nodeid);
 	}
 
-	dd = kzalloc(sizeof(*dd), GFP_ATOMIC);
+	dd = kzalloc_obj(*dd, GFP_ATOMIC);
 	if (!dd)
 		return NULL;
 
