@@ -3130,9 +3130,11 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 				enum amdgpu_memory_partition nps)
 {
 	int i = 0;
+	uint64_t chan_idx_v2;
 	enum amdgpu_memory_partition save_nps;
 
 	save_nps = (bps[0].retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+	chan_idx_v2 = bps[0].retired_page & UMC_CHANNEL_IDX_V2;
 
 	/*old asics just have pa in eeprom*/
 	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
@@ -3144,7 +3146,7 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 	for (i = 0; i < adev->umc.retire_unit; i++)
 		bps[i].retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 
-	if (save_nps) {
+	if (save_nps || chan_idx_v2) {
 		if (save_nps == nps) {
 			if (amdgpu_umc_pages_in_a_row(adev, err_data,
 					bps[0].retired_page << AMDGPU_GPU_PAGE_SHIFT))
@@ -3188,10 +3190,12 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 				enum amdgpu_memory_partition nps)
 {
 	int i = 0;
+	uint64_t chan_idx_v2;
 	enum amdgpu_memory_partition save_nps;
 
 	if (!amdgpu_ras_smu_eeprom_supported(adev)) {
 		save_nps = (bps->retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
+		chan_idx_v2 = bps->retired_page & UMC_CHANNEL_IDX_V2;
 		bps->retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 	} else {
 		/* if pmfw manages eeprom, save_nps is not stored on eeprom,
@@ -3213,16 +3217,19 @@ static int __amdgpu_ras_convert_rec_from_rom(struct amdgpu_device *adev,
 			err_data->err_addr[i].mcumc_id = bps->mcumc_id;
 		}
 	} else {
-		if (bps->address) {
+		if (save_nps || chan_idx_v2) {
 			if (amdgpu_ras_mca2pa_by_idx(adev, bps, err_data))
 				return -EINVAL;
 		} else {
 			/* for specific old eeprom data, mca address is not stored,
 			 * calc it from pa
 			 */
-			if (amdgpu_umc_pa2mca(adev, bps->retired_page << AMDGPU_GPU_PAGE_SHIFT,
-				&(bps->address), AMDGPU_NPS1_PARTITION_MODE))
-				return -EINVAL;
+			if (bps->address == 0)
+				if (amdgpu_umc_pa2mca(adev,
+					bps->retired_page << AMDGPU_GPU_PAGE_SHIFT,
+					&(bps->address),
+					AMDGPU_NPS1_PARTITION_MODE))
+					return -EINVAL;
 
 			if (amdgpu_ras_mca2pa(adev, bps, err_data))
 				return -EOPNOTSUPP;
