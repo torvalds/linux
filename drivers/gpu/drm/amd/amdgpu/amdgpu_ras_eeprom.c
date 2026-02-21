@@ -508,6 +508,9 @@ int amdgpu_ras_eeprom_reset_table(struct amdgpu_ras_eeprom_control *control)
 	control->bad_channel_bitmap = 0;
 	amdgpu_dpm_send_hbm_bad_channel_flag(adev, control->bad_channel_bitmap);
 	con->update_channel_flag = false;
+	/* there is no record on eeprom now, clear the counter */
+	if (con->eh_data)
+		con->eh_data->count_saved = 0;
 
 	amdgpu_ras_debugfs_set_ret_size(control);
 
