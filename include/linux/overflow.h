@@ -570,7 +570,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * @FAM is not annotated with __counted_by(), always returns true.
  */
 #define overflows_flex_counter_type(TYPE, FAM, COUNT)		\
-	(!overflows_type(COUNT, typeof_flex_counter(((TYPE *)NULL)->FAM)))
+	(overflows_type(COUNT, typeof_flex_counter(((TYPE *)NULL)->FAM)))
 
 /**
  * __set_flex_counter() - Set the counter associated with the given flexible
