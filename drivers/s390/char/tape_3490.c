@@ -140,7 +140,7 @@ tape_3490_schedule_work(struct tape_device *device, enum tape_op op)
 {
 	struct tape_3490_work *p;
 
-	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
+	if ((p = kzalloc_obj(*p, GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
 	INIT_WORK(&p->work, tape_3490_work_handler);

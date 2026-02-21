@@ -165,7 +165,7 @@ static int mlx5e_macsec_aso_reg_mr(struct mlx5_core_dev *mdev, struct mlx5e_macs
 	dma_addr_t dma_addr;
 	int err;
 
-	umr = kzalloc(sizeof(*umr), GFP_KERNEL);
+	umr = kzalloc_obj(*umr, GFP_KERNEL);
 	if (!umr) {
 		err = -ENOMEM;
 		return err;
@@ -530,7 +530,7 @@ static int mlx5e_macsec_add_txsa(struct macsec_context *ctx)
 		goto out;
 	}
 
-	tx_sa = kzalloc(sizeof(*tx_sa), GFP_KERNEL);
+	tx_sa = kzalloc_obj(*tx_sa, GFP_KERNEL);
 	if (!tx_sa) {
 		err = -ENOMEM;
 		goto out;
@@ -701,13 +701,13 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 		goto out;
 	}
 
-	rx_sc = kzalloc(sizeof(*rx_sc), GFP_KERNEL);
+	rx_sc = kzalloc_obj(*rx_sc, GFP_KERNEL);
 	if (!rx_sc) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	sc_xarray_element = kzalloc(sizeof(*sc_xarray_element), GFP_KERNEL);
+	sc_xarray_element = kzalloc_obj(*sc_xarray_element, GFP_KERNEL);
 	if (!sc_xarray_element) {
 		err = -ENOMEM;
 		goto destroy_rx_sc;
@@ -912,7 +912,7 @@ static int mlx5e_macsec_add_rxsa(struct macsec_context *ctx)
 		goto out;
 	}
 
-	rx_sa = kzalloc(sizeof(*rx_sa), GFP_KERNEL);
+	rx_sa = kzalloc_obj(*rx_sa, GFP_KERNEL);
 	if (!rx_sa) {
 		err = -ENOMEM;
 		goto out;
@@ -1093,7 +1093,7 @@ static int mlx5e_macsec_add_secy(struct macsec_context *ctx)
 		goto out;
 	}
 
-	macsec_device = kzalloc(sizeof(*macsec_device), GFP_KERNEL);
+	macsec_device = kzalloc_obj(*macsec_device, GFP_KERNEL);
 	if (!macsec_device) {
 		err = -ENOMEM;
 		goto out;
@@ -1565,7 +1565,7 @@ static int macsec_obj_change_event(struct notifier_block *nb, unsigned long even
 	if (obj_type != MLX5_GENERAL_OBJECT_TYPES_MACSEC)
 		return NOTIFY_DONE;
 
-	async_work = kzalloc(sizeof(*async_work), GFP_ATOMIC);
+	async_work = kzalloc_obj(*async_work, GFP_ATOMIC);
 	if (!async_work)
 		return NOTIFY_DONE;
 
@@ -1730,7 +1730,7 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 		return 0;
 	}
 
-	macsec = kzalloc(sizeof(*macsec), GFP_KERNEL);
+	macsec = kzalloc_obj(*macsec, GFP_KERNEL);
 	if (!macsec)
 		return -ENOMEM;
 

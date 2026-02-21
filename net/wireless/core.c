@@ -1000,9 +1000,8 @@ int wiphy_register(struct wiphy *wiphy)
 	if (wiphy->n_radio > 0) {
 		int idx;
 
-		wiphy->radio_cfg = kcalloc(wiphy->n_radio,
-					   sizeof(*wiphy->radio_cfg),
-					   GFP_KERNEL);
+		wiphy->radio_cfg = kzalloc_objs(*wiphy->radio_cfg,
+						wiphy->n_radio, GFP_KERNEL);
 		if (!wiphy->radio_cfg)
 			return -ENOMEM;
 		/*
@@ -1446,7 +1445,7 @@ void cfg80211_stop_link(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	trace_cfg80211_stop_link(wiphy, wdev, link_id);
 
-	ev = kzalloc(sizeof(*ev), gfp);
+	ev = kzalloc_obj(*ev, gfp);
 	if (!ev)
 		return;
 

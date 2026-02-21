@@ -172,7 +172,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	} while (c->nr_garbage && collect_garbage_slots(c) == 0);
 
 	/* All out of space.  Need to allocate a new page. */
-	kip = kmalloc(struct_size(kip, slot_used, slots_per_page(c)), GFP_KERNEL);
+	kip = kmalloc_flex(*kip, slot_used, slots_per_page(c), GFP_KERNEL);
 	if (!kip)
 		return NULL;
 
@@ -900,7 +900,7 @@ static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 {
 	struct optimized_kprobe *op;
 
-	op = kzalloc(sizeof(struct optimized_kprobe), GFP_KERNEL);
+	op = kzalloc_obj(struct optimized_kprobe, GFP_KERNEL);
 	if (!op)
 		return NULL;
 
@@ -1117,7 +1117,7 @@ static void free_aggr_kprobe(struct kprobe *p)
 
 static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 {
-	return kzalloc(sizeof(struct kprobe), GFP_KERNEL);
+	return kzalloc_obj(struct kprobe, GFP_KERNEL);
 }
 #endif /* CONFIG_OPTPROBES */
 
@@ -2295,7 +2295,7 @@ int register_kretprobe(struct kretprobe *rp)
 		rp->rh = NULL;
 	}
 #else	/* !CONFIG_KRETPROBE_ON_RETHOOK */
-	rp->rph = kzalloc(sizeof(struct kretprobe_holder), GFP_KERNEL);
+	rp->rph = kzalloc_obj(struct kretprobe_holder, GFP_KERNEL);
 	if (!rp->rph)
 		return -ENOMEM;
 
@@ -2499,7 +2499,7 @@ int kprobe_add_ksym_blacklist(unsigned long entry)
 	    !kallsyms_lookup_size_offset(entry, &size, &offset))
 		return -EINVAL;
 
-	ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kmalloc_obj(*ent, GFP_KERNEL);
 	if (!ent)
 		return -ENOMEM;
 	ent->start_addr = entry;

@@ -66,9 +66,9 @@ int
 snd_seq_oss_midi_lookup_ports(int client)
 {
 	struct snd_seq_client_info *clinfo __free(kfree) =
-		kzalloc(sizeof(*clinfo), GFP_KERNEL);
+		kzalloc_obj(*clinfo, GFP_KERNEL);
 	struct snd_seq_port_info *pinfo __free(kfree) =
-		kzalloc(sizeof(*pinfo), GFP_KERNEL);
+		kzalloc_obj(*pinfo, GFP_KERNEL);
 
 	if (!clinfo || !pinfo)
 		return -ENOMEM;
@@ -153,7 +153,7 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 	/*
 	 * allocate midi info record
 	 */
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev, GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
 

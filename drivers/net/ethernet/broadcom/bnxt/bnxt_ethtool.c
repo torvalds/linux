@@ -1371,7 +1371,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 			return -EOPNOTSUPP;
 	}
 
-	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
+	new_fltr = kzalloc_obj(*new_fltr, GFP_KERNEL);
 	if (!new_fltr)
 		return -ENOMEM;
 
@@ -5485,7 +5485,7 @@ void bnxt_ethtool_init(struct bnxt *bp)
 
 	test_info = bp->test_info;
 	if (!test_info) {
-		test_info = kzalloc(sizeof(*bp->test_info), GFP_KERNEL);
+		test_info = kzalloc_obj(*bp->test_info, GFP_KERNEL);
 		if (!test_info)
 			return;
 		bp->test_info = test_info;

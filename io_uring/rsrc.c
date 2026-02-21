@@ -113,8 +113,7 @@ static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
 {
 	if (nr_bvecs <= IO_CACHED_BVECS_SEGS)
 		return io_cache_alloc(&ctx->imu_cache, GFP_KERNEL);
-	return kvmalloc(struct_size_t(struct io_mapped_ubuf, bvec, nr_bvecs),
-			GFP_KERNEL);
+	return kvmalloc_flex(struct io_mapped_ubuf, bvec, nr_bvecs, GFP_KERNEL);
 }
 
 static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
@@ -200,8 +199,8 @@ __cold void io_rsrc_data_free(struct io_ring_ctx *ctx,
 
 __cold int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr)
 {
-	data->nodes = kvmalloc_array(nr, sizeof(struct io_rsrc_node *),
-					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	data->nodes = kvmalloc_objs(struct io_rsrc_node *, nr,
+				    GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (data->nodes) {
 		data->nr = nr;
 		return 0;
@@ -684,7 +683,7 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 	unsigned i, j;
 
 	/* Store head pages only*/
-	new_array = kvmalloc_array(nr_folios, sizeof(struct page *), GFP_KERNEL);
+	new_array = kvmalloc_objs(struct page *, nr_folios, GFP_KERNEL);
 	if (!new_array)
 		return false;
 
@@ -1310,7 +1309,7 @@ int io_vec_realloc(struct iou_vec *iv, unsigned nr_entries)
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_NOWARN;
 	struct iovec *iov;
 
-	iov = kmalloc_array(nr_entries, sizeof(iov[0]), gfp);
+	iov = kmalloc_objs(iov[0], nr_entries, gfp);
 	if (!iov)
 		return -ENOMEM;
 

@@ -483,7 +483,7 @@ static int __add_reloc_root(struct btrfs_root *root)
 	struct mapping_node *node;
 	struct reloc_control *rc = fs_info->reloc_ctl;
 
-	node = kmalloc(sizeof(*node), GFP_NOFS);
+	node = kmalloc_obj(*node, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
 
@@ -3115,7 +3115,7 @@ static int add_tree_block(struct reloc_control *rc,
 
 	BUG_ON(level == -1);
 
-	block = kmalloc(sizeof(*block), GFP_NOFS);
+	block = kmalloc_obj(*block, GFP_NOFS);
 	if (!block)
 		return -ENOMEM;
 
@@ -3813,7 +3813,7 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 {
 	struct reloc_control *rc;
 
-	rc = kzalloc(sizeof(*rc), GFP_NOFS);
+	rc = kzalloc_obj(*rc, GFP_NOFS);
 	if (!rc)
 		return NULL;
 
@@ -4042,7 +4042,7 @@ static int copy_remapped_data(struct btrfs_fs_info *fs_info, u64 old_addr,
 	struct reloc_io_private priv;
 	unsigned int nr_pages = DIV_ROUND_UP(length, PAGE_SIZE);
 
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
 

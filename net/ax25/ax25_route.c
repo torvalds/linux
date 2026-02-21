@@ -91,7 +91,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 			kfree(ax25_rt->digipeat);
 			ax25_rt->digipeat = NULL;
 			if (route->digi_count != 0) {
-				if ((ax25_rt->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
+				if ((ax25_rt->digipeat = kmalloc_obj(ax25_digi, GFP_ATOMIC)) == NULL) {
 					write_unlock_bh(&ax25_route_lock);
 					ax25_dev_put(ax25_dev);
 					return -ENOMEM;
@@ -110,7 +110,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 		ax25_rt = ax25_rt->next;
 	}
 
-	if ((ax25_rt = kmalloc(sizeof(ax25_route), GFP_ATOMIC)) == NULL) {
+	if ((ax25_rt = kmalloc_obj(ax25_route, GFP_ATOMIC)) == NULL) {
 		write_unlock_bh(&ax25_route_lock);
 		ax25_dev_put(ax25_dev);
 		return -ENOMEM;
@@ -121,7 +121,7 @@ static int __must_check ax25_rt_add(struct ax25_routes_struct *route)
 	ax25_rt->digipeat     = NULL;
 	ax25_rt->ip_mode      = ' ';
 	if (route->digi_count != 0) {
-		if ((ax25_rt->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
+		if ((ax25_rt->digipeat = kmalloc_obj(ax25_digi, GFP_ATOMIC)) == NULL) {
 			write_unlock_bh(&ax25_route_lock);
 			kfree(ax25_rt);
 			ax25_dev_put(ax25_dev);

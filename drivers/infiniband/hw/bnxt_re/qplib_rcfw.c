@@ -968,8 +968,8 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 		goto fail;
 	}
 
-	rcfw->crsqe_tbl = kcalloc(cmdq->hwq.max_elements,
-				  sizeof(*rcfw->crsqe_tbl), GFP_KERNEL);
+	rcfw->crsqe_tbl = kzalloc_objs(*rcfw->crsqe_tbl, cmdq->hwq.max_elements,
+				       GFP_KERNEL);
 	if (!rcfw->crsqe_tbl)
 		goto fail;
 

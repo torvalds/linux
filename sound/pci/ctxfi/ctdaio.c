@@ -159,7 +159,7 @@ static int dao_set_left_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kcalloc(daio->rscl.msr, sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_objs(*entry, daio->rscl.msr, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -188,7 +188,7 @@ static int dao_set_right_input(struct dao *dao, struct rsc *input)
 	struct daio *daio = &dao->daio;
 	int i;
 
-	entry = kcalloc(daio->rscr.msr, sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_objs(*entry, daio->rscr.msr, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -660,7 +660,7 @@ int daio_mgr_create(struct hw *hw, void **rdaio_mgr)
 	struct imapper *entry;
 
 	*rdaio_mgr = NULL;
-	daio_mgr = kzalloc(sizeof(*daio_mgr), GFP_KERNEL);
+	daio_mgr = kzalloc_obj(*daio_mgr, GFP_KERNEL);
 	if (!daio_mgr)
 		return -ENOMEM;
 
@@ -671,7 +671,7 @@ int daio_mgr_create(struct hw *hw, void **rdaio_mgr)
 	spin_lock_init(&daio_mgr->mgr_lock);
 	spin_lock_init(&daio_mgr->imap_lock);
 	INIT_LIST_HEAD(&daio_mgr->imappers);
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry, GFP_KERNEL);
 	if (!entry) {
 		err = -ENOMEM;
 		goto error2;

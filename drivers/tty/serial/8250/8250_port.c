@@ -553,7 +553,7 @@ static int serial8250_em485_init(struct uart_8250_port *p)
 	if (p->em485)
 		goto deassert_rts;
 
-	p->em485 = kmalloc(sizeof(struct uart_8250_em485), GFP_ATOMIC);
+	p->em485 = kmalloc_obj(struct uart_8250_em485, GFP_ATOMIC);
 	if (!p->em485)
 		return -ENOMEM;
 

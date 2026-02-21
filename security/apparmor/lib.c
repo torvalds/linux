@@ -125,7 +125,7 @@ bool aa_resize_str_table(struct aa_str_table *t, int newsize, gfp_t gfp)
 
 	if (t->size == newsize)
 		return true;
-	n = kcalloc(newsize, sizeof(*n), gfp);
+	n = kzalloc_objs(*n, newsize, gfp);
 	if (!n)
 		return false;
 	for (i = 0; i < min(t->size, newsize); i++)
@@ -235,7 +235,7 @@ __counted char *aa_str_alloc(int size, gfp_t gfp)
 {
 	struct counted_str *str;
 
-	str = kmalloc(struct_size(str, name, size), gfp);
+	str = kmalloc_flex(*str, name, size, gfp);
 	if (!str)
 		return NULL;
 

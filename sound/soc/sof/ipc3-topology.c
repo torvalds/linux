@@ -524,7 +524,7 @@ static int sof_ipc3_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	struct snd_sof_widget *comp_swidget;
 	int ret;
 
-	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);
+	pipeline = kzalloc_obj(*pipeline, GFP_KERNEL);
 	if (!pipeline)
 		return -ENOMEM;
 
@@ -589,7 +589,7 @@ static int sof_ipc3_widget_setup_comp_buffer(struct snd_sof_widget *swidget)
 	struct sof_ipc_buffer *buffer;
 	int ret;
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -893,7 +893,7 @@ static int sof_process_load(struct snd_soc_component *scomp,
 
 	/* allocate struct for widget control data sizes and types */
 	if (widget->num_kcontrols) {
-		wdata = kcalloc(widget->num_kcontrols, sizeof(*wdata), GFP_KERNEL);
+		wdata = kzalloc_objs(*wdata, widget->num_kcontrols, GFP_KERNEL);
 		if (!wdata)
 			return -ENOMEM;
 
@@ -1567,7 +1567,7 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	struct snd_sof_dai_link *slink;
 	int ret;
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL);
+	private = kzalloc_obj(*private, GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 
@@ -1622,7 +1622,8 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			continue;
 
 		/* Reserve memory for all hw configs, eventually freed by widget */
-		config = kcalloc(slink->num_hw_configs, sizeof(*config), GFP_KERNEL);
+		config = kzalloc_objs(*config, slink->num_hw_configs,
+				      GFP_KERNEL);
 		if (!config) {
 			ret = -ENOMEM;
 			goto free_comp;

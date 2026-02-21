@@ -214,7 +214,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	if (domain < 0)
 		return domain;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

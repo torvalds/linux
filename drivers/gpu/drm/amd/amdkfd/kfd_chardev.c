@@ -780,8 +780,8 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	 * nodes, but not more than args->num_of_nodes as that is
 	 * the amount of memory allocated by user
 	 */
-	pa = kcalloc(args->num_of_nodes, sizeof(struct kfd_process_device_apertures),
-		     GFP_KERNEL);
+	pa = kzalloc_objs(struct kfd_process_device_apertures,
+			  args->num_of_nodes, GFP_KERNEL);
 	if (!pa)
 		return -ENOMEM;
 
@@ -2224,7 +2224,8 @@ static int criu_restore_devices(struct kfd_process *p,
 	if (*priv_offset + (args->num_devices * sizeof(*device_privs)) > max_priv_data_size)
 		return -EINVAL;
 
-	device_buckets = kmalloc_array(args->num_devices, sizeof(*device_buckets), GFP_KERNEL);
+	device_buckets = kmalloc_objs(*device_buckets, args->num_devices,
+				      GFP_KERNEL);
 	if (!device_buckets)
 		return -ENOMEM;
 
@@ -2467,7 +2468,7 @@ static int criu_restore_bos(struct kfd_process *p,
 	/* Prevent MMU notifications until stage-4 IOCTL (CRIU_RESUME) is received */
 	amdgpu_amdkfd_block_mmu_notifications(p->kgd_process_info);
 
-	bo_buckets = kvmalloc_array(args->num_bos, sizeof(*bo_buckets), GFP_KERNEL);
+	bo_buckets = kvmalloc_objs(*bo_buckets, args->num_bos, GFP_KERNEL);
 	if (!bo_buckets)
 		return -ENOMEM;
 
@@ -2485,7 +2486,7 @@ static int criu_restore_bos(struct kfd_process *p,
 		goto exit;
 	}
 
-	bo_privs = kvmalloc_array(args->num_bos, sizeof(*bo_privs), GFP_KERNEL);
+	bo_privs = kvmalloc_objs(*bo_privs, args->num_bos, GFP_KERNEL);
 	if (!bo_privs) {
 		ret = -ENOMEM;
 		goto exit;

@@ -678,7 +678,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 	if (!len)
 		return NULL;
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -736,7 +736,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 
@@ -819,7 +819,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 		return NULL;
 	}
 
-	txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	txd = kzalloc_obj(*txd, GFP_NOWAIT);
 	if (!txd)
 		return NULL;
 

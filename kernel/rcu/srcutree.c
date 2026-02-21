@@ -173,7 +173,8 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 
 	/* Initialize geometry if it has not already been initialized. */
 	rcu_init_geometry();
-	ssp->srcu_sup->node = kcalloc(rcu_num_nodes, sizeof(*ssp->srcu_sup->node), gfp_flags);
+	ssp->srcu_sup->node = kzalloc_objs(*ssp->srcu_sup->node, rcu_num_nodes,
+					   gfp_flags);
 	if (!ssp->srcu_sup->node)
 		return false;
 
@@ -237,7 +238,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 {
 	if (!is_static)
-		ssp->srcu_sup = kzalloc(sizeof(*ssp->srcu_sup), GFP_KERNEL);
+		ssp->srcu_sup = kzalloc_obj(*ssp->srcu_sup, GFP_KERNEL);
 	if (!ssp->srcu_sup)
 		return -ENOMEM;
 	if (!is_static)

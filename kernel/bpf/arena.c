@@ -324,7 +324,7 @@ static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
 {
 	struct vma_list *vml;
 
-	vml = kmalloc(sizeof(*vml), GFP_KERNEL);
+	vml = kmalloc_obj(*vml, GFP_KERNEL);
 	if (!vml)
 		return -ENOMEM;
 	refcount_set(&vml->mmap_count, 1);

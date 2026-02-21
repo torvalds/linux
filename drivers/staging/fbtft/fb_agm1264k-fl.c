@@ -283,8 +283,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 
 	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
-	signed short *convert_buf = kmalloc_array(par->info->var.xres *
-		par->info->var.yres, sizeof(signed short), GFP_NOIO);
+	signed short *convert_buf = kmalloc_objs(signed short,
+						 par->info->var.xres * par->info->var.yres,
+						 GFP_NOIO);
 
 	if (!convert_buf)
 		return -ENOMEM;

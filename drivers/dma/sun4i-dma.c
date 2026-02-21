@@ -532,7 +532,7 @@ generate_ndma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 	if (ret)
 		return NULL;
 
-	promise = kzalloc(sizeof(*promise), GFP_NOWAIT);
+	promise = kzalloc_obj(*promise, GFP_NOWAIT);
 	if (!promise)
 		return NULL;
 
@@ -595,7 +595,7 @@ generate_ddma_promise(struct dma_chan *chan, dma_addr_t src, dma_addr_t dest,
 	struct sun4i_dma_promise *promise;
 	int ret;
 
-	promise = kzalloc(sizeof(*promise), GFP_NOWAIT);
+	promise = kzalloc_obj(*promise, GFP_NOWAIT);
 	if (!promise)
 		return NULL;
 
@@ -648,7 +648,7 @@ static struct sun4i_dma_contract *generate_dma_contract(void)
 {
 	struct sun4i_dma_contract *contract;
 
-	contract = kzalloc(sizeof(*contract), GFP_NOWAIT);
+	contract = kzalloc_obj(*contract, GFP_NOWAIT);
 	if (!contract)
 		return NULL;
 

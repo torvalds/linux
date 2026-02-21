@@ -514,13 +514,10 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		vq = dev->vqs[i];
-		vq->indirect = kmalloc_array(UIO_MAXIOV,
-					     sizeof(*vq->indirect),
-					     GFP_KERNEL);
-		vq->log = kmalloc_array(dev->iov_limit, sizeof(*vq->log),
-					GFP_KERNEL);
-		vq->heads = kmalloc_array(dev->iov_limit, sizeof(*vq->heads),
-					  GFP_KERNEL);
+		vq->indirect = kmalloc_objs(*vq->indirect, UIO_MAXIOV,
+					    GFP_KERNEL);
+		vq->log = kmalloc_objs(*vq->log, dev->iov_limit, GFP_KERNEL);
+		vq->heads = kmalloc_objs(*vq->heads, dev->iov_limit, GFP_KERNEL);
 		vq->nheads = kmalloc_array(dev->iov_limit, sizeof(*vq->nheads),
 					   GFP_KERNEL);
 		if (!vq->indirect || !vq->log || !vq->heads || !vq->nheads)
@@ -836,7 +833,7 @@ static struct vhost_worker *vhost_worker_create(struct vhost_dev *dev)
 	const struct vhost_worker_ops *ops = dev->fork_owner ? &vhost_task_ops :
 							       &kthread_ops;
 
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL_ACCOUNT);
+	worker = kzalloc_obj(*worker, GFP_KERNEL_ACCOUNT);
 	if (!worker)
 		return NULL;
 
@@ -1982,8 +1979,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EOPNOTSUPP;
 	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
-	newmem = kvzalloc(struct_size(newmem, regions, mem.nregions),
-			GFP_KERNEL);
+	newmem = kvzalloc_flex(*newmem, regions, mem.nregions, GFP_KERNEL);
 	if (!newmem)
 		return -ENOMEM;
 
@@ -3272,7 +3268,7 @@ EXPORT_SYMBOL_GPL(vhost_disable_notify);
 struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type)
 {
 	/* Make sure all padding within the structure is initialized. */
-	struct vhost_msg_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct vhost_msg_node *node = kzalloc_obj(*node, GFP_KERNEL);
 	if (!node)
 		return NULL;
 

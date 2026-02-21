@@ -105,7 +105,7 @@ int ax25_listen_register(const ax25_address *callsign, struct net_device *dev)
 	if (ax25_listen_mine(callsign, dev))
 		return 0;
 
-	if ((listen = kmalloc(sizeof(*listen), GFP_ATOMIC)) == NULL)
+	if ((listen = kmalloc_obj(*listen, GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
 	listen->callsign = *callsign;

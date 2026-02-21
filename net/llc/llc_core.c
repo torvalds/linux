@@ -32,7 +32,7 @@ static DEFINE_SPINLOCK(llc_sap_list_lock);
  */
 static struct llc_sap *llc_sap_alloc(void)
 {
-	struct llc_sap *sap = kzalloc(sizeof(*sap), GFP_ATOMIC);
+	struct llc_sap *sap = kzalloc_obj(*sap, GFP_ATOMIC);
 	int i;
 
 	if (sap) {

@@ -108,7 +108,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 		return -EEXIST;
 	}
 
-	km = kmalloc(sizeof(*km), GFP_ATOMIC);
+	km = kmalloc_obj(*km, GFP_ATOMIC);
 	if (!km)
 		return -ENOMEM;
 	memcpy(&km->tuple, t, sizeof(*t));

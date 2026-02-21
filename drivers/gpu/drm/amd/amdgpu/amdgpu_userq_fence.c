@@ -82,7 +82,7 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	unsigned long flags;
 	int r;
 
-	fence_drv = kzalloc(sizeof(*fence_drv), GFP_KERNEL);
+	fence_drv = kzalloc_obj(*fence_drv, GFP_KERNEL);
 	if (!fence_drv)
 		return -ENOMEM;
 
@@ -266,9 +266,8 @@ static int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 			count++;
 
 		userq_fence->fence_drv_array =
-			kvmalloc_array(count,
-				       sizeof(struct amdgpu_userq_fence_driver *),
-				       GFP_ATOMIC);
+			kvmalloc_objs(struct amdgpu_userq_fence_driver *, count,
+				      GFP_ATOMIC);
 
 		if (userq_fence->fence_drv_array) {
 			xa_for_each(&userq->fence_drv_xa, index, stored_fence_drv) {

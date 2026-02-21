@@ -477,7 +477,7 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		return strlen(buf);
 	}
 
-	nthreads = kcalloc(npools, sizeof(int), GFP_KERNEL);
+	nthreads = kzalloc_objs(int, npools, GFP_KERNEL);
 	rv = -ENOMEM;
 	if (nthreads == NULL)
 		goto out_free;
@@ -1596,7 +1596,7 @@ int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&nfsd_mutex);
 
-	nthreads = kcalloc(nrpools, sizeof(int), GFP_KERNEL);
+	nthreads = kzalloc_objs(int, nrpools, GFP_KERNEL);
 	if (!nthreads) {
 		ret = -ENOMEM;
 		goto out_unlock;

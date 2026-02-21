@@ -1906,7 +1906,7 @@ tegra_xudc_ep_alloc_request(struct usb_ep *usb_ep, gfp_t gfp)
 {
 	struct tegra_xudc_request *req;
 
-	req = kzalloc(sizeof(*req), gfp);
+	req = kzalloc_obj(*req, gfp);
 	if (!req)
 		return NULL;
 

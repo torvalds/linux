@@ -848,7 +848,7 @@ static int ubifs_bulk_read(struct folio *folio)
 	if (mutex_trylock(&c->bu_mutex))
 		bu = &c->bu;
 	else {
-		bu = kmalloc(sizeof(struct bu_info), GFP_NOFS | __GFP_NOWARN);
+		bu = kmalloc_obj(struct bu_info, GFP_NOFS | __GFP_NOWARN);
 		if (!bu)
 			goto out_unlock;
 

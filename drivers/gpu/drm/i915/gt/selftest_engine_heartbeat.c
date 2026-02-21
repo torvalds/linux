@@ -72,7 +72,7 @@ static struct pulse *pulse_create(void)
 {
 	struct pulse *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p, GFP_KERNEL);
 	if (!p)
 		return p;
 

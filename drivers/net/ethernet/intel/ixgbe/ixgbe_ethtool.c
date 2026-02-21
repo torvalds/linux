@@ -2981,7 +2981,7 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 		return -EINVAL;
 	}
 
-	input = kzalloc(sizeof(*input), GFP_ATOMIC);
+	input = kzalloc_obj(*input, GFP_ATOMIC);
 	if (!input)
 		return -ENOMEM;
 

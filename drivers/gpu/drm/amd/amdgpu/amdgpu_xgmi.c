@@ -690,7 +690,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev)
 			goto pro_end;
 	}
 
-	hive = kzalloc(sizeof(*hive), GFP_KERNEL);
+	hive = kzalloc_obj(*hive, GFP_KERNEL);
 	if (!hive) {
 		dev_err(adev->dev, "XGMI: allocation failed\n");
 		ret = -ENOMEM;

@@ -275,7 +275,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	struct trace_kprobe *tk __free(free_trace_kprobe) = NULL;
 	int ret = -ENOMEM;
 
-	tk = kzalloc(struct_size(tk, tp.args, nargs), GFP_KERNEL);
+	tk = kzalloc_flex(*tk, tp.args, nargs, GFP_KERNEL);
 	if (!tk)
 		return ERR_PTR(ret);
 
@@ -1082,7 +1082,7 @@ static int trace_kprobe_create_cb(int argc, const char *argv[])
 	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->flags = TPARG_FL_KERNEL;

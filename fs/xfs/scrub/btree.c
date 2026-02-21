@@ -449,7 +449,7 @@ xchk_btree_check_owner(
 	if (xfs_btree_is_bno(cur->bc_ops) || xfs_btree_is_rmap(cur->bc_ops)) {
 		struct check_owner	*co;
 
-		co = kmalloc(sizeof(struct check_owner), XCHK_GFP_FLAGS);
+		co = kmalloc_obj(struct check_owner, XCHK_GFP_FLAGS);
 		if (!co)
 			return -ENOMEM;
 

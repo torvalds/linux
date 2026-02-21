@@ -20,7 +20,7 @@ snd_usb_find_power_domain(struct usb_host_interface *ctrl_iface,
 	struct snd_usb_power_domain *pd;
 	void *p;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd, GFP_KERNEL);
 	if (!pd)
 		return NULL;
 

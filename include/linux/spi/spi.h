@@ -1309,7 +1309,7 @@ static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags
 	} *mwt;
 	unsigned i;
 
-	mwt = kzalloc(struct_size(mwt, t, ntrans), flags);
+	mwt = kzalloc_flex(*mwt, t, ntrans, flags);
 	if (!mwt)
 		return NULL;
 

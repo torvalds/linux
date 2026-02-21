@@ -80,7 +80,7 @@ int bnx2fc_send_rrq(struct bnx2fc_cmd *aborted_io_req)
 		   aborted_io_req->xid);
 	memset(&rrq, 0, sizeof(rrq));
 
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_NOIO);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_NOIO);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for RRQ\n");
 		rc = -ENOMEM;
@@ -189,7 +189,7 @@ int bnx2fc_send_adisc(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	int rc;
 
 	fh = fc_frame_header_get(fp);
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for ADISC\n");
 		return -ENOMEM;
@@ -217,7 +217,7 @@ int bnx2fc_send_logo(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	int rc;
 
 	fh = fc_frame_header_get(fp);
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for LOGO\n");
 		return -ENOMEM;
@@ -245,7 +245,7 @@ int bnx2fc_send_rls(struct bnx2fc_rport *tgt, struct fc_frame *fp)
 	int rc;
 
 	fh = fc_frame_header_get(fp);
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for LOGO\n");
 		return -ENOMEM;
@@ -592,7 +592,7 @@ int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req)
 	BNX2FC_IO_DBG(orig_io_req, "Sending REC\n");
 	memset(&rec, 0, sizeof(rec));
 
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for REC\n");
 		rc = -ENOMEM;
@@ -633,7 +633,7 @@ int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl)
 	BNX2FC_IO_DBG(orig_io_req, "Sending SRR\n");
 	memset(&srr, 0, sizeof(srr));
 
-	cb_arg = kzalloc(sizeof(struct bnx2fc_els_cb_arg), GFP_ATOMIC);
+	cb_arg = kzalloc_obj(struct bnx2fc_els_cb_arg, GFP_ATOMIC);
 	if (!cb_arg) {
 		printk(KERN_ERR PFX "Unable to allocate cb_arg for SRR\n");
 		rc = -ENOMEM;

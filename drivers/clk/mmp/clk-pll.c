@@ -108,7 +108,7 @@ static struct clk *mmp_clk_register_pll(char *name,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll, GFP_KERNEL);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

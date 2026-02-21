@@ -269,14 +269,14 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 		return 0;
 
 	/* Set attributes based in the channel flags */
-	channel->attrs = kcalloc(size + 1, sizeof(*channel->attrs), GFP_KERNEL);
+	channel->attrs = kzalloc_objs(*channel->attrs, size + 1, GFP_KERNEL);
 	if (!channel->attrs)
 		return -ENOMEM;
-	channel->attr_group = kzalloc(sizeof(*channel->attr_group), GFP_KERNEL);
+	channel->attr_group = kzalloc_obj(*channel->attr_group, GFP_KERNEL);
 	if (!channel->attr_group)
 		return -ENOMEM;
-	channel->attr_groups = kcalloc(2, sizeof(*channel->attr_groups),
-				       GFP_KERNEL);
+	channel->attr_groups = kzalloc_objs(*channel->attr_groups, 2,
+					    GFP_KERNEL);
 	if (!channel->attr_groups)
 		return -ENOMEM;
 
@@ -1011,8 +1011,8 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 	light->name = kstrndup(conf.name, NAMES_MAX, GFP_KERNEL);
 	if (!light->name)
 		return -ENOMEM;
-	light->channels = kcalloc(conf.channel_count,
-				  sizeof(struct gb_channel), GFP_KERNEL);
+	light->channels = kzalloc_objs(struct gb_channel, conf.channel_count,
+				       GFP_KERNEL);
 	if (!light->channels)
 		return -ENOMEM;
 	/*
@@ -1153,8 +1153,8 @@ static int gb_lights_create_all(struct gb_lights *glights)
 	if (ret < 0)
 		goto out;
 
-	glights->lights = kcalloc(glights->lights_count,
-				  sizeof(struct gb_light), GFP_KERNEL);
+	glights->lights = kzalloc_objs(struct gb_light, glights->lights_count,
+				       GFP_KERNEL);
 	if (!glights->lights) {
 		ret = -ENOMEM;
 		goto out;
@@ -1262,7 +1262,7 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LIGHTS)
 		return -ENODEV;
 
-	glights = kzalloc(sizeof(*glights), GFP_KERNEL);
+	glights = kzalloc_obj(*glights, GFP_KERNEL);
 	if (!glights)
 		return -ENOMEM;
 

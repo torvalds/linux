@@ -254,7 +254,7 @@ static int acpi_smbus_hc_probe(struct platform_device *pdev)
 	strscpy(acpi_device_name(device), ACPI_SMB_HC_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_SMB_HC_CLASS);
 
-	hc = kzalloc(sizeof(struct acpi_smb_hc), GFP_KERNEL);
+	hc = kzalloc_obj(struct acpi_smb_hc, GFP_KERNEL);
 	if (!hc)
 		return -ENOMEM;
 	mutex_init(&hc->lock);

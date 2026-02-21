@@ -281,7 +281,7 @@ snd_seq_midisynth_probe(struct snd_seq_device *dev)
 		return -EINVAL;
 
 	struct snd_rawmidi_info *info __free(kfree) =
-		kmalloc(sizeof(*info), GFP_KERNEL);
+		kmalloc_obj(*info, GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	info->device = device;
@@ -305,7 +305,7 @@ snd_seq_midisynth_probe(struct snd_seq_device *dev)
 	client = synths[card->number];
 	if (client == NULL) {
 		newclient = 1;
-		client = kzalloc(sizeof(*client), GFP_KERNEL);
+		client = kzalloc_obj(*client, GFP_KERNEL);
 		if (client == NULL)
 			return -ENOMEM;
 		client->seq_client =
@@ -318,10 +318,10 @@ snd_seq_midisynth_probe(struct snd_seq_device *dev)
 		}
 	}
 
-	msynth = kcalloc(ports, sizeof(struct seq_midisynth), GFP_KERNEL);
+	msynth = kzalloc_objs(struct seq_midisynth, ports, GFP_KERNEL);
 
 	struct snd_seq_port_info *port __free(kfree) =
-		kmalloc(sizeof(*port), GFP_KERNEL);
+		kmalloc_obj(*port, GFP_KERNEL);
 	if (msynth == NULL || port == NULL)
 		goto __nomem;
 

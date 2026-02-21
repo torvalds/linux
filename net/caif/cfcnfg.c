@@ -77,7 +77,7 @@ struct cfcnfg *cfcnfg_create(void)
 	might_sleep();
 
 	/* Initiate this layer */
-	this = kzalloc(sizeof(struct cfcnfg), GFP_ATOMIC);
+	this = kzalloc_obj(struct cfcnfg, GFP_ATOMIC);
 	if (!this)
 		return NULL;
 	this->mux = cfmuxl_create();
@@ -477,7 +477,7 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg,
 	goto out;
 
 got_phyid:
-	phyinfo = kzalloc(sizeof(struct cfcnfg_phyinfo), GFP_ATOMIC);
+	phyinfo = kzalloc_obj(struct cfcnfg_phyinfo, GFP_ATOMIC);
 	if (!phyinfo) {
 		res = -ENOMEM;
 		goto out;

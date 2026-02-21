@@ -1755,7 +1755,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	if (tcp_ses)
 		return tcp_ses;
 
-	tcp_ses = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
+	tcp_ses = kzalloc_obj(struct TCP_Server_Info, GFP_KERNEL);
 	if (!tcp_ses) {
 		rc = -ENOMEM;
 		goto out_err;
@@ -3674,7 +3674,7 @@ static int mount_setup_tlink(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	struct tcon_link *tlink;
 
 	/* hang the tcon off of the superblock */
-	tlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
+	tlink = kzalloc_obj(*tlink, GFP_KERNEL);
 	if (tlink == NULL)
 		return -ENOMEM;
 
@@ -3798,7 +3798,7 @@ mchan_mount_alloc(struct cifs_ses *ses)
 {
 	struct mchan_mount *mchan_mount;
 
-	mchan_mount = kzalloc(sizeof(*mchan_mount), GFP_KERNEL);
+	mchan_mount = kzalloc_obj(*mchan_mount, GFP_KERNEL);
 	if (!mchan_mount)
 		return ERR_PTR(-ENOMEM);
 
@@ -4193,7 +4193,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	struct smb3_fs_context *ctx;
 	char *origin_fullpath = NULL;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (ctx == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -4367,7 +4367,7 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	if (tlink == NULL) {
-		newtlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
+		newtlink = kzalloc_obj(*tlink, GFP_KERNEL);
 		if (newtlink == NULL)
 			return ERR_PTR(-ENOMEM);
 		newtlink->tl_uid = fsuid;

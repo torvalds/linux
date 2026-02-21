@@ -417,7 +417,7 @@ next:
 		}
 		bitmap = alloc;
 		if (!bitmap)
-			bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+			bitmap = kzalloc_obj(*bitmap, GFP_NOWAIT);
 		if (!bitmap)
 			goto alloc;
 		bitmap->bitmap[0] = tmp;
@@ -444,7 +444,7 @@ next:
 		} else {
 			bitmap = alloc;
 			if (!bitmap)
-				bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+				bitmap = kzalloc_obj(*bitmap, GFP_NOWAIT);
 			if (!bitmap)
 				goto alloc;
 			__set_bit(bit, bitmap->bitmap);
@@ -465,7 +465,7 @@ out:
 	return xas.xa_index * IDA_BITMAP_BITS + bit;
 alloc:
 	xas_unlock_irqrestore(&xas, flags);
-	alloc = kzalloc(sizeof(*bitmap), gfp);
+	alloc = kzalloc_obj(*bitmap, gfp);
 	if (!alloc)
 		return -ENOMEM;
 	xas_set(&xas, min / IDA_BITMAP_BITS);

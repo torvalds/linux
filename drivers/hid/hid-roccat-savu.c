@@ -68,7 +68,7 @@ static int savu_init_specials(struct hid_device *hdev)
 		return 0;
 	}
 
-	savu = kzalloc(sizeof(*savu), GFP_KERNEL);
+	savu = kzalloc_obj(*savu, GFP_KERNEL);
 	if (!savu) {
 		hid_err(hdev, "can't alloc device descriptor\n");
 		return -ENOMEM;

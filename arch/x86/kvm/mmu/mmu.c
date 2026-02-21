@@ -3971,7 +3971,7 @@ static int kvm_mmu_alloc_page_hash(struct kvm *kvm)
 	if (kvm->arch.mmu_page_hash)
 		return 0;
 
-	h = kvcalloc(KVM_NUM_MMU_PAGES, sizeof(*h), GFP_KERNEL_ACCOUNT);
+	h = kvzalloc_objs(*h, KVM_NUM_MMU_PAGES, GFP_KERNEL_ACCOUNT);
 	if (!h)
 		return -ENOMEM;
 

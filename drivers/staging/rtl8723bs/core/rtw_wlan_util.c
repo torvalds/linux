@@ -1131,7 +1131,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	if (memcmp(cur_network->network.mac_address, pbssid, 6))
 		return true;
 
-	bssid = kzalloc(sizeof(*bssid), GFP_KERNEL);
+	bssid = kzalloc_obj(*bssid, GFP_KERNEL);
 	if (!bssid)
 		return true;
 

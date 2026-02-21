@@ -525,7 +525,7 @@ static struct klp_object *klp_alloc_object_dynamic(const char *name,
 {
 	struct klp_object *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj, GFP_KERNEL);
 	if (!obj)
 		return NULL;
 
@@ -554,7 +554,7 @@ static struct klp_func *klp_alloc_func_nop(struct klp_func *old_func,
 {
 	struct klp_func *func;
 
-	func = kzalloc(sizeof(*func), GFP_KERNEL);
+	func = kzalloc_obj(*func, GFP_KERNEL);
 	if (!func)
 		return NULL;
 

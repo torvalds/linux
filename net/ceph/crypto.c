@@ -466,7 +466,7 @@ static int ceph_key_preparse(struct key_preparsed_payload *prep)
 		goto err;
 
 	ret = -ENOMEM;
-	ckey = kzalloc(sizeof(*ckey), GFP_KERNEL);
+	ckey = kzalloc_obj(*ckey, GFP_KERNEL);
 	if (!ckey)
 		goto err;
 

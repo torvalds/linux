@@ -1144,7 +1144,7 @@ struct page *snp_alloc_hv_fixed_pages(unsigned int num_2mb_pages)
 	if (!page)
 		return NULL;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry, GFP_KERNEL);
 	if (!entry) {
 		__free_pages(page, order);
 		return NULL;
@@ -2658,7 +2658,7 @@ static int sev_misc_init(struct sev_device *sev)
 	if (!misc_dev) {
 		struct miscdevice *misc;
 
-		misc_dev = kzalloc(sizeof(*misc_dev), GFP_KERNEL);
+		misc_dev = kzalloc_obj(*misc_dev, GFP_KERNEL);
 		if (!misc_dev)
 			return -ENOMEM;
 

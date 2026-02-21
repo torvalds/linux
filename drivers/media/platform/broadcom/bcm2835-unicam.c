@@ -2642,7 +2642,7 @@ static int unicam_probe(struct platform_device *pdev)
 	struct unicam_device *unicam;
 	int ret;
 
-	unicam = kzalloc(sizeof(*unicam), GFP_KERNEL);
+	unicam = kzalloc_obj(*unicam, GFP_KERNEL);
 	if (!unicam)
 		return -ENOMEM;
 

@@ -853,7 +853,7 @@ static struct mddev *mddev_alloc(dev_t unit)
 	if (unit && MAJOR(unit) != MD_MAJOR)
 		unit &= ~((1 << MdpMinorShift) - 1);
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new, GFP_KERNEL);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 
@@ -1222,8 +1222,8 @@ static int md_sb_equal(mdp_super_t *sb1, mdp_super_t *sb2)
 	int ret;
 	mdp_super_t *tmp1, *tmp2;
 
-	tmp1 = kmalloc(sizeof(*tmp1),GFP_KERNEL);
-	tmp2 = kmalloc(sizeof(*tmp2),GFP_KERNEL);
+	tmp1 = kmalloc_obj(*tmp1, GFP_KERNEL);
+	tmp2 = kmalloc_obj(*tmp2, GFP_KERNEL);
 
 	if (!tmp1 || !tmp2) {
 		ret = 0;
@@ -3817,7 +3817,7 @@ static struct md_rdev *md_import_device(dev_t newdev, int super_format, int supe
 	sector_t size;
 	int err;
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev, GFP_KERNEL);
 	if (!rdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -7238,7 +7238,7 @@ static int get_bitmap_file(struct mddev *mddev, void __user * arg)
 	char *ptr;
 	int err;
 
-	file = kzalloc(sizeof(*file), GFP_NOIO);
+	file = kzalloc_obj(*file, GFP_NOIO);
 	if (!file)
 		return -ENOMEM;
 
@@ -8541,7 +8541,7 @@ struct md_thread *md_register_thread(void (*run) (struct md_thread *),
 {
 	struct md_thread *thread;
 
-	thread = kzalloc(sizeof(struct md_thread), GFP_KERNEL);
+	thread = kzalloc_obj(struct md_thread, GFP_KERNEL);
 	if (!thread)
 		return NULL;
 
@@ -10749,7 +10749,7 @@ void md_autodetect_dev(dev_t dev)
 {
 	struct detected_devices_node *node_detected_dev;
 
-	node_detected_dev = kzalloc(sizeof(*node_detected_dev), GFP_KERNEL);
+	node_detected_dev = kzalloc_obj(*node_detected_dev, GFP_KERNEL);
 	if (node_detected_dev) {
 		node_detected_dev->dev = dev;
 		mutex_lock(&detected_devices_mutex);

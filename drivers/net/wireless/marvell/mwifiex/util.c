@@ -694,7 +694,7 @@ mwifiex_add_sta_entry(struct mwifiex_private *priv, const u8 *mac)
 	if (node)
 		goto done;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	node = kzalloc_obj(*node, GFP_ATOMIC);
 	if (!node)
 		goto done;
 

@@ -327,7 +327,7 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 
 		len /= 2;
 
-		trd = kzalloc(struct_size(trd, data, len), GFP_KERNEL);
+		trd = kzalloc_flex(*trd, data, len, GFP_KERNEL);
 		if (!trd) {
 			rc = -ENOMEM;
 			goto err;

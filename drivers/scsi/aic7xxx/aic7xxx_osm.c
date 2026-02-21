@@ -823,7 +823,7 @@ ahc_dma_tag_create(struct ahc_softc *ahc, bus_dma_tag_t parent,
 {
 	bus_dma_tag_t dmat;
 
-	dmat = kmalloc(sizeof(*dmat), GFP_ATOMIC);
+	dmat = kmalloc_obj(*dmat, GFP_ATOMIC);
 	if (dmat == NULL)
 		return (ENOMEM);
 
@@ -1201,7 +1201,7 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 {
 
 	ahc->platform_data =
-	    kzalloc(sizeof(struct ahc_platform_data), GFP_ATOMIC);
+	    kzalloc_obj(struct ahc_platform_data, GFP_ATOMIC);
 	if (ahc->platform_data == NULL)
 		return (ENOMEM);
 	ahc->platform_data->irq = AHC_LINUX_NOIRQ;

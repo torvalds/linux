@@ -172,7 +172,7 @@ int bpf_token_create(union bpf_attr *attr)
 	if (fdf.err)
 		return fdf.err;
 
-	token = kzalloc(sizeof(*token), GFP_USER);
+	token = kzalloc_obj(*token, GFP_USER);
 	if (!token)
 		return -ENOMEM;
 

@@ -104,7 +104,7 @@ static int acpi_power_resources_list_add(acpi_handle handle,
 	if (!resource || !list)
 		return -EINVAL;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ acpi_power_resource_add_dependent(struct acpi_power_resource *resource,
 			goto unlock;
 	}
 
-	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+	dep = kzalloc_obj(*dep, GFP_KERNEL);
 	if (!dep) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -945,7 +945,7 @@ struct acpi_device *acpi_add_power_resource(acpi_handle handle)
 	if (device)
 		return device;
 
-	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
+	resource = kzalloc_obj(*resource, GFP_KERNEL);
 	if (!resource)
 		return NULL;
 

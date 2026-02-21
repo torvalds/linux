@@ -617,7 +617,7 @@ bool dm_helpers_submit_i2c(
 		return false;
 	}
 
-	msgs = kcalloc(num, sizeof(struct i2c_msg), GFP_KERNEL);
+	msgs = kzalloc_objs(struct i2c_msg, num, GFP_KERNEL);
 
 	if (!msgs)
 		return false;

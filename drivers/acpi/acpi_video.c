@@ -825,7 +825,7 @@ int acpi_video_get_levels(struct acpi_device *device,
 		goto out;
 	}
 
-	br = kzalloc(sizeof(*br), GFP_KERNEL);
+	br = kzalloc_obj(*br, GFP_KERNEL);
 	if (!br) {
 		result = -ENOMEM;
 		goto out;
@@ -836,9 +836,9 @@ int acpi_video_get_levels(struct acpi_device *device,
 	 * in order to account for buggy BIOS which don't export the first two
 	 * special levels (see below)
 	 */
-	br->levels = kmalloc_array(obj->package.count + ACPI_VIDEO_FIRST_LEVEL,
-				   sizeof(*br->levels),
-				   GFP_KERNEL);
+	br->levels = kmalloc_objs(*br->levels,
+				  obj->package.count + ACPI_VIDEO_FIRST_LEVEL,
+				  GFP_KERNEL);
 	if (!br->levels) {
 		result = -ENOMEM;
 		goto out_free;
@@ -1141,7 +1141,7 @@ static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 	if (acpi_get_local_u64_address(device->handle, &device_id))
 		goto exit;
 
-	data = kzalloc(sizeof(struct acpi_video_device), GFP_KERNEL);
+	data = kzalloc_obj(struct acpi_video_device, GFP_KERNEL);
 	if (!data) {
 		dev_dbg(&device->dev, "Cannot attach\n");
 		return -ENOMEM;
@@ -1330,9 +1330,8 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 	acpi_handle_debug(video->device->handle, "Found %d video heads in _DOD\n",
 			  dod->package.count);
 
-	active_list = kcalloc(1 + dod->package.count,
-			      sizeof(struct acpi_video_enumerated_device),
-			      GFP_KERNEL);
+	active_list = kzalloc_objs(struct acpi_video_enumerated_device,
+				   1 + dod->package.count, GFP_KERNEL);
 	if (!active_list) {
 		status = -ENOMEM;
 		goto out;
@@ -2004,7 +2003,7 @@ static int acpi_video_bus_probe(struct platform_device *pdev)
 			return -ENODEV;
 	}
 
-	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
+	video = kzalloc_obj(struct acpi_video_bus, GFP_KERNEL);
 	if (!video)
 		return -ENOMEM;
 

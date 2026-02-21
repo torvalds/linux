@@ -105,7 +105,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 
 	switch (eventcause) {
 	case EVENT_UAP_STA_ASSOC:
-		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
 		if (!sinfo)
 			return -ENOMEM;
 

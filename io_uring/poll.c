@@ -478,7 +478,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 			return;
 		}
 
-		poll = kmalloc(sizeof(*poll), GFP_ATOMIC);
+		poll = kmalloc_obj(*poll, GFP_ATOMIC);
 		if (!poll) {
 			pt->error = -ENOMEM;
 			return;
@@ -655,7 +655,7 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 		if (!(issue_flags & IO_URING_F_UNLOCKED))
 			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC);
 		else
-			apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
+			apoll = kmalloc_obj(*apoll, GFP_ATOMIC);
 		if (!apoll)
 			return NULL;
 		apoll->poll.retries = APOLL_MAX_RETRY;

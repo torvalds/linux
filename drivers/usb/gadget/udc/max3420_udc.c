@@ -1007,7 +1007,7 @@ static struct usb_request *max3420_alloc_request(struct usb_ep *_ep,
 	struct max3420_ep *ep = to_max3420_ep(_ep);
 	struct max3420_req *req;
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 

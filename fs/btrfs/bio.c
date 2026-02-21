@@ -709,7 +709,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
 	struct async_submit_bio *async;
 
-	async = kmalloc(sizeof(*async), GFP_NOFS);
+	async = kmalloc_obj(*async, GFP_NOFS);
 	if (!async)
 		return false;
 

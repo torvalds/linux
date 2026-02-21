@@ -444,7 +444,7 @@ static int ch7006_encoder_init(struct i2c_client *client,
 
 	ch7006_dbg(client, "\n");
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

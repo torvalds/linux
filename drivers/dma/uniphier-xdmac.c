@@ -292,7 +292,7 @@ uniphier_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 	nr = 1 + len / XDMAC_MAX_WORD_SIZE;
 
-	xd = kzalloc(struct_size(xd, nodes, nr), GFP_NOWAIT);
+	xd = kzalloc_flex(*xd, nodes, nr, GFP_NOWAIT);
 	if (!xd)
 		return NULL;
 	xd->nr_node = nr;
@@ -348,7 +348,7 @@ uniphier_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	xd = kzalloc(struct_size(xd, nodes, sg_len), GFP_NOWAIT);
+	xd = kzalloc_flex(*xd, nodes, sg_len, GFP_NOWAIT);
 	if (!xd)
 		return NULL;
 	xd->nr_node = sg_len;

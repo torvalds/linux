@@ -17,7 +17,7 @@ struct i915_page_table *alloc_pt(struct i915_address_space *vm, int sz)
 {
 	struct i915_page_table *pt;
 
-	pt = kmalloc(sizeof(*pt), I915_GFP_ALLOW_FAIL);
+	pt = kmalloc_obj(*pt, I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pt))
 		return ERR_PTR(-ENOMEM);
 
@@ -36,11 +36,11 @@ struct i915_page_directory *__alloc_pd(int count)
 {
 	struct i915_page_directory *pd;
 
-	pd = kzalloc(sizeof(*pd), I915_GFP_ALLOW_FAIL);
+	pd = kzalloc_obj(*pd, I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pd))
 		return NULL;
 
-	pd->entry = kcalloc(count, sizeof(*pd->entry), I915_GFP_ALLOW_FAIL);
+	pd->entry = kzalloc_objs(*pd->entry, count, I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pd->entry)) {
 		kfree(pd);
 		return NULL;

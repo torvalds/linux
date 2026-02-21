@@ -130,7 +130,7 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 
 	dbg_scan("scan LEB %d:%d", lnum, offs);
 
-	sleb = kzalloc(sizeof(struct ubifs_scan_leb), GFP_NOFS);
+	sleb = kzalloc_obj(struct ubifs_scan_leb, GFP_NOFS);
 	if (!sleb)
 		return ERR_PTR(-ENOMEM);
 
@@ -185,7 +185,7 @@ int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 	struct ubifs_ino_node *ino = buf;
 	struct ubifs_scan_node *snod;
 
-	snod = kmalloc(sizeof(struct ubifs_scan_node), GFP_NOFS);
+	snod = kmalloc_obj(struct ubifs_scan_node, GFP_NOFS);
 	if (!snod)
 		return -ENOMEM;
 

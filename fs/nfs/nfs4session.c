@@ -106,7 +106,7 @@ static struct nfs4_slot *nfs4_new_slot(struct nfs4_slot_table  *tbl,
 {
 	struct nfs4_slot *slot;
 
-	slot = kzalloc(sizeof(*slot), gfp_mask);
+	slot = kzalloc_obj(*slot, gfp_mask);
 	if (slot) {
 		slot->table = tbl;
 		slot->slot_nr = slotid;
@@ -558,7 +558,7 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 {
 	struct nfs4_session *session;
 
-	session = kzalloc(sizeof(struct nfs4_session), GFP_NOFS);
+	session = kzalloc_obj(struct nfs4_session, GFP_NOFS);
 	if (!session)
 		return NULL;
 

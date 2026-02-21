@@ -473,7 +473,7 @@ gss_krb5_import_sec_context(const void *p, size_t len, struct gss_ctx *ctx_id,
 	struct  krb5_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), gfp_mask);
+	ctx = kzalloc_obj(*ctx, gfp_mask);
 	if (ctx == NULL)
 		return -ENOMEM;
 

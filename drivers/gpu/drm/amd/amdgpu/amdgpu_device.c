@@ -2596,7 +2596,7 @@ out:
 static void amdgpu_uid_init(struct amdgpu_device *adev)
 {
 	/* Initialize the UID for the device */
-	adev->uid_info = kzalloc(sizeof(struct amdgpu_uid), GFP_KERNEL);
+	adev->uid_info = kzalloc_obj(struct amdgpu_uid, GFP_KERNEL);
 	if (!adev->uid_info) {
 		dev_warn(adev->dev, "Failed to allocate memory for UID\n");
 		return;

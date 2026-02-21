@@ -710,7 +710,7 @@ static DEFINE_MUTEX(ublk_ctl_mutex);
 static struct ublk_batch_fetch_cmd *
 ublk_batch_alloc_fcmd(struct io_uring_cmd *cmd)
 {
-	struct ublk_batch_fetch_cmd *fcmd = kzalloc(sizeof(*fcmd), GFP_NOIO);
+	struct ublk_batch_fetch_cmd *fcmd = kzalloc_obj(*fcmd, GFP_NOIO);
 
 	if (fcmd) {
 		fcmd->cmd = cmd;
@@ -4613,7 +4613,7 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 		goto out_unlock;
 
 	ret = -ENOMEM;
-	ub = kzalloc(struct_size(ub, queues, info.nr_hw_queues), GFP_KERNEL);
+	ub = kzalloc_flex(*ub, queues, info.nr_hw_queues, GFP_KERNEL);
 	if (!ub)
 		goto out_unlock;
 	mutex_init(&ub->mutex);

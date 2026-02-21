@@ -2248,7 +2248,7 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 	if (qp)
 		return qp;
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	qp = kzalloc_obj(*qp, GFP_KERNEL);
 	if (!qp)
 		return NULL;
 
@@ -2278,7 +2278,7 @@ static struct quattro *quattro_pci_find(struct pci_dev *pdev)
 			return qp;
 	}
 
-	qp = kmalloc(sizeof(struct quattro), GFP_KERNEL);
+	qp = kmalloc_obj(struct quattro, GFP_KERNEL);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 

@@ -74,7 +74,7 @@ static int init_vas_instance(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	vinst = kzalloc(sizeof(*vinst), GFP_KERNEL);
+	vinst = kzalloc_obj(*vinst, GFP_KERNEL);
 	if (!vinst)
 		return -ENOMEM;
 

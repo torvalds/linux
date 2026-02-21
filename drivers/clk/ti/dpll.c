@@ -222,7 +222,7 @@ static void _register_dpll_x2(struct device_node *node,
 		return;
 	}
 
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw, GFP_KERNEL);
 	if (!clk_hw)
 		return;
 
@@ -281,8 +281,8 @@ static void __init of_ti_dpll_setup(struct device_node *node,
 	u32 min_div;
 
 	dd = kmemdup(ddt, sizeof(*dd), GFP_KERNEL);
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
-	init = kzalloc(sizeof(*init), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw, GFP_KERNEL);
+	init = kzalloc_obj(*init, GFP_KERNEL);
 	if (!dd || !clk_hw || !init)
 		goto cleanup;
 

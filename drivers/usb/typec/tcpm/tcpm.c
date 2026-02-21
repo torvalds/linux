@@ -1665,7 +1665,7 @@ static int tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 	u32 *data_cpy;
 	int ret = -ENOMEM;
 
-	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	event = kzalloc_obj(*event, GFP_KERNEL);
 	if (!event)
 		goto err_event;
 
@@ -3803,7 +3803,7 @@ void tcpm_pd_receive(struct tcpm_port *port, const struct pd_message *msg,
 {
 	struct pd_rx_event *event;
 
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
+	event = kzalloc_obj(*event, GFP_ATOMIC);
 	if (!event)
 		return;
 

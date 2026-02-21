@@ -606,7 +606,7 @@ retry:
 		spin_unlock_irq(&bfqd->lock);
 		if (entities != inline_entities)
 			kfree(entities);
-		entities = kmalloc_array(depth, sizeof(*entities), GFP_NOIO);
+		entities = kmalloc_objs(*entities, depth, GFP_NOIO);
 		if (!entities)
 			return false;
 		alloc_depth = depth;
@@ -938,8 +938,8 @@ void bfq_weights_tree_add(struct bfq_queue *bfqq)
 		}
 	}
 
-	bfqq->weight_counter = kzalloc(sizeof(struct bfq_weight_counter),
-				       GFP_ATOMIC);
+	bfqq->weight_counter = kzalloc_obj(struct bfq_weight_counter,
+					   GFP_ATOMIC);
 
 	/*
 	 * In the unlucky event of an allocation failure, we just

@@ -164,9 +164,8 @@ int virtgpu_dma_buf_import_sgt(struct virtio_gpu_mem_entry **ents,
 	if (IS_ERR(sgt))
 		return PTR_ERR(sgt);
 
-	*ents = kvmalloc_array(sgt->nents,
-			       sizeof(struct virtio_gpu_mem_entry),
-			       GFP_KERNEL);
+	*ents = kvmalloc_objs(struct virtio_gpu_mem_entry, sgt->nents,
+			      GFP_KERNEL);
 	if (!(*ents)) {
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 		return -ENOMEM;
@@ -315,7 +314,7 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 	if (!vgdev->has_resource_blob || vgdev->has_virgl_3d)
 		return drm_gem_prime_import(dev, buf);
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo, GFP_KERNEL);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

@@ -167,7 +167,7 @@ static int icssm_prueth_sw_switchdev_event(struct notifier_block *unused,
 		return notifier_from_errno(err);
 	}
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
 		return NOTIFY_BAD;
 

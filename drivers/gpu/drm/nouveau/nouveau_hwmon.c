@@ -678,7 +678,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return 0;
 	}
 
-	hwmon = drm->hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
+	hwmon = drm->hwmon = kzalloc_obj(*hwmon, GFP_KERNEL);
 	if (!hwmon)
 		return -ENOMEM;
 	hwmon->dev = dev;

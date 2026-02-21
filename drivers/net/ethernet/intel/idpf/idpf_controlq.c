@@ -127,7 +127,7 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 	bool is_rxq = false;
 	int err;
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_obj(*cq, GFP_KERNEL);
 	if (!cq)
 		return -ENOMEM;
 
@@ -159,9 +159,8 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 		idpf_ctlq_init_rxq_bufs(cq);
 	} else {
 		/* Allocate the array of msg pointers for TX queues */
-		cq->bi.tx_msg = kcalloc(qinfo->len,
-					sizeof(struct idpf_ctlq_msg *),
-					GFP_KERNEL);
+		cq->bi.tx_msg = kzalloc_objs(struct idpf_ctlq_msg *, qinfo->len,
+					     GFP_KERNEL);
 		if (!cq->bi.tx_msg) {
 			err = -ENOMEM;
 			goto init_dealloc_q_mem;

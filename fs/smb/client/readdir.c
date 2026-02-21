@@ -358,7 +358,7 @@ _initiate_cifs_search(const unsigned int xid, struct file *file,
 		if (IS_ERR(tlink))
 			return PTR_ERR(tlink);
 
-		cifsFile = kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
+		cifsFile = kzalloc_obj(struct cifsFileInfo, GFP_KERNEL);
 		if (cifsFile == NULL) {
 			rc = -ENOMEM;
 			goto error_exit;
@@ -888,7 +888,7 @@ static bool add_cached_dirent(struct cached_dirents *cde,
 		cde->is_failed = 1;
 		return false;
 	}
-	de = kzalloc(sizeof(*de), GFP_ATOMIC);
+	de = kzalloc_obj(*de, GFP_ATOMIC);
 	if (de == NULL) {
 		cde->is_failed = 1;
 		return false;

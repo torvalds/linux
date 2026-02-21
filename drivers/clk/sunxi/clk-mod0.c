@@ -300,11 +300,11 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 		return;
 	}
 
-	clk_data = kmalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kmalloc_obj(*clk_data, GFP_KERNEL);
 	if (!clk_data)
 		return;
 
-	clk_data->clks = kcalloc(3, sizeof(*clk_data->clks), GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(*clk_data->clks, 3, GFP_KERNEL);
 	if (!clk_data->clks)
 		goto err_free_data;
 
@@ -323,7 +323,7 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 		};
 		struct mmc_phase *phase;
 
-		phase = kmalloc(sizeof(*phase), GFP_KERNEL);
+		phase = kmalloc_obj(*phase, GFP_KERNEL);
 		if (!phase)
 			continue;
 

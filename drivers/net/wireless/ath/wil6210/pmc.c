@@ -85,9 +85,8 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 		     num_descriptors, descriptor_size);
 
 	/* allocate descriptors info list in pmc context*/
-	pmc->descriptors = kcalloc(num_descriptors,
-				  sizeof(struct desc_alloc_info),
-				  GFP_KERNEL);
+	pmc->descriptors = kzalloc_objs(struct desc_alloc_info, num_descriptors,
+					GFP_KERNEL);
 	if (!pmc->descriptors) {
 		wil_err(wil, "ERROR allocating pmc skb list\n");
 		goto no_release_err;

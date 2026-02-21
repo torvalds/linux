@@ -794,7 +794,7 @@ static int apple_backlight_set(struct hid_device *hdev, u16 value, u16 rate)
 	int ret = 0;
 	struct apple_backlight_set_report *rep;
 
-	rep = kmalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kmalloc_obj(*rep, GFP_KERNEL);
 	if (rep == NULL)
 		return -ENOMEM;
 

@@ -2268,7 +2268,7 @@ enetc_alloc_tx_resources(struct enetc_ndev_priv *priv)
 	struct enetc_bdr_resource *tx_res;
 	int i, err;
 
-	tx_res = kcalloc(priv->num_tx_rings, sizeof(*tx_res), GFP_KERNEL);
+	tx_res = kzalloc_objs(*tx_res, priv->num_tx_rings, GFP_KERNEL);
 	if (!tx_res)
 		return ERR_PTR(-ENOMEM);
 
@@ -2340,7 +2340,7 @@ enetc_alloc_rx_resources(struct enetc_ndev_priv *priv, bool extended)
 	struct enetc_bdr_resource *rx_res;
 	int i, err;
 
-	rx_res = kcalloc(priv->num_rx_rings, sizeof(*rx_res), GFP_KERNEL);
+	rx_res = kzalloc_objs(*rx_res, priv->num_rx_rings, GFP_KERNEL);
 	if (!rx_res)
 		return ERR_PTR(-ENOMEM);
 
@@ -2469,7 +2469,7 @@ static int enetc_setup_default_rss_table(struct enetc_si *si, int num_groups)
 	int *rss_table;
 	int i;
 
-	rss_table = kmalloc_array(si->num_rss, sizeof(*rss_table), GFP_KERNEL);
+	rss_table = kmalloc_objs(*rss_table, si->num_rss, GFP_KERNEL);
 	if (!rss_table)
 		return -ENOMEM;
 
@@ -2562,8 +2562,8 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 {
 	struct enetc_si *si = priv->si;
 
-	priv->cls_rules = kcalloc(si->num_fs_entries, sizeof(*priv->cls_rules),
-				  GFP_KERNEL);
+	priv->cls_rules = kzalloc_objs(*priv->cls_rules, si->num_fs_entries,
+				       GFP_KERNEL);
 	if (!priv->cls_rules)
 		return -ENOMEM;
 
@@ -3454,7 +3454,7 @@ static int enetc_int_vector_init(struct enetc_ndev_priv *priv, int i,
 	struct enetc_bdr *bdr;
 	int j, err;
 
-	v = kzalloc(struct_size(v, tx_ring, v_tx_rings), GFP_KERNEL);
+	v = kzalloc_flex(*v, tx_ring, v_tx_rings, GFP_KERNEL);
 	if (!v)
 		return -ENOMEM;
 

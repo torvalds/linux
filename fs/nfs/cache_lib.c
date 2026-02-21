@@ -96,7 +96,7 @@ struct nfs_cache_defer_req *nfs_cache_defer_req_alloc(void)
 {
 	struct nfs_cache_defer_req *dreq;
 
-	dreq = kzalloc(sizeof(*dreq), GFP_KERNEL);
+	dreq = kzalloc_obj(*dreq, GFP_KERNEL);
 	if (dreq) {
 		init_completion(&dreq->completion);
 		refcount_set(&dreq->count, 1);

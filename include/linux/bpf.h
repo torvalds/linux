@@ -2299,7 +2299,7 @@ static inline bool bpf_map_flags_access_ok(u32 access_flags)
 
 static inline struct bpf_map_owner *bpf_map_owner_alloc(struct bpf_map *map)
 {
-	return kzalloc(sizeof(*map->owner), GFP_ATOMIC);
+	return kzalloc_obj(*map->owner, GFP_ATOMIC);
 }
 
 static inline void bpf_map_owner_free(struct bpf_map *map)

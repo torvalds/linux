@@ -158,7 +158,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa,
 
 	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	table = kvcalloc(state_count * 2, sizeof(struct aa_perms), GFP_KERNEL);
+	table = kvzalloc_objs(struct aa_perms, state_count * 2, GFP_KERNEL);
 	if (!table)
 		return NULL;
 	*size = state_count * 2;
@@ -182,7 +182,7 @@ static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch,
 
 	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	perms = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
+	perms = kvzalloc_objs(struct aa_perms, state_count, GFP_KERNEL);
 	if (!perms)
 		return NULL;
 	*size = state_count;
@@ -257,7 +257,7 @@ static struct aa_perms *compute_perms(struct aa_dfa *dfa, u32 version,
 
 	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	table = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
+	table = kvzalloc_objs(struct aa_perms, state_count, GFP_KERNEL);
 	if (!table)
 		return NULL;
 	*size = state_count;

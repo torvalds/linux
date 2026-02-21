@@ -728,7 +728,7 @@ static int e5010_open(struct file *file)
 	struct e5010_context *ctx;
 	int ret = 0;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

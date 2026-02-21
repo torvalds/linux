@@ -1095,7 +1095,7 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 		return -EINVAL;
 
 	/* Allocate IMSIC context */
-	imsic = kzalloc(sizeof(*imsic), GFP_KERNEL);
+	imsic = kzalloc_obj(*imsic, GFP_KERNEL);
 	if (!imsic)
 		return -ENOMEM;
 	vcpu->arch.aia_context.imsic_state = imsic;

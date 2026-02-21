@@ -32,8 +32,7 @@ ksmbd_tree_conn_connect(struct ksmbd_work *work, const char *share_name)
 	if (!sc)
 		return status;
 
-	tree_conn = kzalloc(sizeof(struct ksmbd_tree_connect),
-			    KSMBD_DEFAULT_GFP);
+	tree_conn = kzalloc_obj(struct ksmbd_tree_connect, KSMBD_DEFAULT_GFP);
 	if (!tree_conn) {
 		status.ret = -ENOMEM;
 		goto out_error;

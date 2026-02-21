@@ -346,7 +346,8 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 	gq->ndev = ndev;
 
 	if (!dir_tx) {
-		gq->rx_bufs = kcalloc(gq->ring_size, sizeof(*gq->rx_bufs), GFP_KERNEL);
+		gq->rx_bufs = kzalloc_objs(*gq->rx_bufs, gq->ring_size,
+					   GFP_KERNEL);
 		if (!gq->rx_bufs)
 			return -ENOMEM;
 		if (rswitch_gwca_queue_alloc_rx_buf(gq, 0, gq->ring_size) < 0)
@@ -356,10 +357,11 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 						 sizeof(struct rswitch_ext_ts_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
 	} else {
-		gq->skbs = kcalloc(gq->ring_size, sizeof(*gq->skbs), GFP_KERNEL);
+		gq->skbs = kzalloc_objs(*gq->skbs, gq->ring_size, GFP_KERNEL);
 		if (!gq->skbs)
 			return -ENOMEM;
-		gq->unmap_addrs = kcalloc(gq->ring_size, sizeof(*gq->unmap_addrs), GFP_KERNEL);
+		gq->unmap_addrs = kzalloc_objs(*gq->unmap_addrs, gq->ring_size,
+					       GFP_KERNEL);
 		if (!gq->unmap_addrs)
 			goto out;
 		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,

@@ -216,7 +216,7 @@ static int altmode_add_to_list(struct device *dev, void *data)
 		struct mode_state *ms;
 
 		if (pdev && altmode->ops && altmode->ops->activate) {
-			ms = kzalloc(sizeof(*ms), GFP_KERNEL);
+			ms = kzalloc_obj(*ms, GFP_KERNEL);
 			if (!ms)
 				return -ENOMEM;
 			ms->svid = pdev->svid;
@@ -240,7 +240,7 @@ int typec_mode_selection_start(struct typec_partner *partner,
 	if (partner->sel)
 		return -EALREADY;
 
-	sel = kzalloc(sizeof(*sel), GFP_KERNEL);
+	sel = kzalloc_obj(*sel, GFP_KERNEL);
 	if (!sel)
 		return -ENOMEM;
 

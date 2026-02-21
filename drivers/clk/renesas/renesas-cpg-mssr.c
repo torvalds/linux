@@ -512,7 +512,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 		goto fail;
 	}
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc_obj(*clock, GFP_KERNEL);
 	if (!clock) {
 		clk = ERR_PTR(-ENOMEM);
 		goto fail;
@@ -1258,7 +1258,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	}
 
 	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
-	priv = kzalloc(struct_size(priv, clks, nclks), GFP_KERNEL);
+	priv = kzalloc_flex(*priv, clks, nclks, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

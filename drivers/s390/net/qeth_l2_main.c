@@ -442,7 +442,7 @@ static void qeth_l2_add_mac(struct qeth_card *card, struct netdev_hw_addr *ha)
 		}
 	}
 
-	mac = kzalloc(sizeof(struct qeth_mac), GFP_ATOMIC);
+	mac = kzalloc_obj(struct qeth_mac, GFP_ATOMIC);
 	if (!mac)
 		return;
 
@@ -827,7 +827,7 @@ static int qeth_l2_br2dev_queue_work(struct net_device *brdev,
 	struct qeth_l2_br2dev_event_work *worker_data;
 	struct qeth_card *card;
 
-	worker_data = kzalloc(sizeof(*worker_data), GFP_ATOMIC);
+	worker_data = kzalloc_obj(*worker_data, GFP_ATOMIC);
 	if (!worker_data)
 		return -ENOMEM;
 	INIT_WORK(&worker_data->work, qeth_l2_br2dev_worker);
@@ -1348,7 +1348,7 @@ static void qeth_bridge_state_change(struct qeth_card *card,
 		return;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_ATOMIC);
+	data = kzalloc_obj(*data, GFP_ATOMIC);
 	if (!data) {
 		QETH_CARD_TEXT(card, 2, "BPSalloc");
 		return;

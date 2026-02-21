@@ -828,7 +828,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			if (asoc->asconf_addr_del_pending)
 				continue;
 			asoc->asconf_addr_del_pending =
-			    kzalloc(sizeof(union sctp_addr), GFP_ATOMIC);
+			    kzalloc_obj(union sctp_addr, GFP_ATOMIC);
 			if (asoc->asconf_addr_del_pending == NULL) {
 				retval = -ENOMEM;
 				goto out;

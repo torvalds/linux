@@ -4455,7 +4455,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Allocate private bus interface state */
-	bus = kzalloc(sizeof(*bus), GFP_ATOMIC);
+	bus = kzalloc_obj(*bus, GFP_ATOMIC);
 	if (!bus) {
 		ret = -ENOMEM;
 		goto fail;

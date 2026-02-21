@@ -57,7 +57,7 @@ struct gmap *gmap_new(struct kvm *kvm, gfn_t limit)
 
 	type = gmap_limit_to_type(limit);
 
-	gmap = kzalloc(sizeof(*gmap), GFP_KERNEL_ACCOUNT);
+	gmap = kzalloc_obj(*gmap, GFP_KERNEL_ACCOUNT);
 	if (!gmap)
 		return NULL;
 	INIT_LIST_HEAD(&gmap->children);
@@ -918,7 +918,7 @@ int gmap_insert_rmap(struct gmap *sg, gfn_t p_gfn, gfn_t r_gfn, int level)
 	KVM_BUG_ON(!is_shadow(sg), sg->kvm);
 	lockdep_assert_held(&sg->host_to_rmap_lock);
 
-	rmap = kzalloc(sizeof(*rmap), GFP_ATOMIC);
+	rmap = kzalloc_obj(*rmap, GFP_ATOMIC);
 	if (!rmap)
 		return -ENOMEM;
 

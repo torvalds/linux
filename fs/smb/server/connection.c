@@ -111,7 +111,7 @@ struct ksmbd_conn *ksmbd_conn_alloc(void)
 {
 	struct ksmbd_conn *conn;
 
-	conn = kzalloc(sizeof(struct ksmbd_conn), KSMBD_DEFAULT_GFP);
+	conn = kzalloc_obj(struct ksmbd_conn, KSMBD_DEFAULT_GFP);
 	if (!conn)
 		return NULL;
 

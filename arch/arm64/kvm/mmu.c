@@ -487,7 +487,7 @@ static int share_pfn_hyp(u64 pfn)
 		goto unlock;
 	}
 
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	this = kzalloc_obj(*this, GFP_KERNEL);
 	if (!this) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -978,7 +978,7 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
 	if (err)
 		return err;
 
-	pgt = kzalloc(sizeof(*pgt), GFP_KERNEL_ACCOUNT);
+	pgt = kzalloc_obj(*pgt, GFP_KERNEL_ACCOUNT);
 	if (!pgt)
 		return -ENOMEM;
 
@@ -1155,7 +1155,8 @@ int topup_hyp_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages)
 		return 0;
 
 	if (!mc->mapping) {
-		mc->mapping = kzalloc(sizeof(struct pkvm_mapping), GFP_KERNEL_ACCOUNT);
+		mc->mapping = kzalloc_obj(struct pkvm_mapping,
+					  GFP_KERNEL_ACCOUNT);
 		if (!mc->mapping)
 			return -ENOMEM;
 	}
@@ -2328,7 +2329,7 @@ int __init kvm_mmu_init(u32 hyp_va_bits)
 		goto out;
 	}
 
-	hyp_pgtable = kzalloc(sizeof(*hyp_pgtable), GFP_KERNEL);
+	hyp_pgtable = kzalloc_obj(*hyp_pgtable, GFP_KERNEL);
 	if (!hyp_pgtable) {
 		kvm_err("Hyp mode page-table not allocated\n");
 		err = -ENOMEM;

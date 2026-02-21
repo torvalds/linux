@@ -324,7 +324,7 @@ static struct ocfs2_xattr_bucket *ocfs2_xattr_bucket_new(struct inode *inode)
 
 	BUG_ON(blks > OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET);
 
-	bucket = kzalloc(sizeof(struct ocfs2_xattr_bucket), GFP_NOFS);
+	bucket = kzalloc_obj(struct ocfs2_xattr_bucket, GFP_NOFS);
 	if (bucket) {
 		bucket->bu_inode = inode;
 		bucket->bu_blocks = blks;

@@ -1640,7 +1640,7 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 		return -EIO;
 
 	/* Allocate NAPI vector and queue triads */
-	nv = kzalloc(struct_size(nv, qt, qt_count), GFP_KERNEL);
+	nv = kzalloc_flex(*nv, qt, qt_count, GFP_KERNEL);
 	if (!nv)
 		return -ENOMEM;
 

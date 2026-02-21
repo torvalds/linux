@@ -316,12 +316,11 @@ nfs_local_iocb_alloc(struct nfs_pgio_header *hdr,
 {
 	struct nfs_local_kiocb *iocb;
 
-	iocb = kzalloc(sizeof(*iocb), flags);
+	iocb = kzalloc_obj(*iocb, flags);
 	if (iocb == NULL)
 		return NULL;
 
-	iocb->bvec = kmalloc_array(hdr->page_array.npages,
-				   sizeof(struct bio_vec), flags);
+	iocb->bvec = kmalloc_objs(struct bio_vec, hdr->page_array.npages, flags);
 	if (iocb->bvec == NULL) {
 		kfree(iocb);
 		return NULL;
@@ -1070,7 +1069,7 @@ static struct nfs_local_fsync_ctx *
 nfs_local_fsync_ctx_alloc(struct nfs_commit_data *data,
 			  struct nfsd_file *localio, gfp_t flags)
 {
-	struct nfs_local_fsync_ctx *ctx = kmalloc(sizeof(*ctx), flags);
+	struct nfs_local_fsync_ctx *ctx = kmalloc_obj(*ctx, flags);
 
 	if (ctx != NULL) {
 		ctx->localio = localio;

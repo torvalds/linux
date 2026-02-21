@@ -1528,7 +1528,7 @@ int hid_pidff_init_with_quirks(struct hid_device *hid, u32 initial_quirks)
 		return -ENODEV;
 	}
 
-	pidff = kzalloc(sizeof(*pidff), GFP_KERNEL);
+	pidff = kzalloc_obj(*pidff, GFP_KERNEL);
 	if (!pidff)
 		return -ENOMEM;
 

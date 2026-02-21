@@ -722,7 +722,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 			ns->shm_tot + numpages > ns->shm_ctlall)
 		return -ENOSPC;
 
-	shp = kmalloc(sizeof(*shp), GFP_KERNEL_ACCOUNT);
+	shp = kmalloc_obj(*shp, GFP_KERNEL_ACCOUNT);
 	if (unlikely(!shp))
 		return -ENOMEM;
 
@@ -1618,7 +1618,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	rcu_read_unlock();
 
 	err = -ENOMEM;
-	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
+	sfd = kzalloc_obj(*sfd, GFP_KERNEL);
 	if (!sfd) {
 		fput(base);
 		goto out_nattch;

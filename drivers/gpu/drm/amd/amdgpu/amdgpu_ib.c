@@ -169,7 +169,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 		csa_va = 0;
 		gds_va = 0;
 		init_shadow = false;
-		af = kzalloc(sizeof(*af), GFP_ATOMIC);
+		af = kzalloc_obj(*af, GFP_ATOMIC);
 		if (!af)
 			return -ENOMEM;
 	}

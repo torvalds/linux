@@ -113,7 +113,7 @@ static void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 
 static struct nfs_io_completion *nfs_io_completion_alloc(gfp_t gfp_flags)
 {
-	return kmalloc(sizeof(struct nfs_io_completion), gfp_flags);
+	return kmalloc_obj(struct nfs_io_completion, gfp_flags);
 }
 
 static void nfs_io_completion_init(struct nfs_io_completion *ioc,

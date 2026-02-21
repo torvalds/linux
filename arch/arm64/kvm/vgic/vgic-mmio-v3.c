@@ -929,7 +929,7 @@ static int vgic_v3_alloc_redist_region(struct kvm *kvm, uint32_t index,
 	if (vgic_v3_rdist_overlap(kvm, base, size))
 		return -EINVAL;
 
-	rdreg = kzalloc(sizeof(*rdreg), GFP_KERNEL_ACCOUNT);
+	rdreg = kzalloc_obj(*rdreg, GFP_KERNEL_ACCOUNT);
 	if (!rdreg)
 		return -ENOMEM;
 

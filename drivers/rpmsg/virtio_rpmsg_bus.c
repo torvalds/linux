@@ -210,7 +210,7 @@ static struct rpmsg_endpoint *__rpmsg_create_ept(struct virtproc_info *vrp,
 	struct rpmsg_endpoint *ept;
 	struct device *dev = rpdev ? &rpdev->dev : &vrp->vdev->dev;
 
-	ept = kzalloc(sizeof(*ept), GFP_KERNEL);
+	ept = kzalloc_obj(*ept, GFP_KERNEL);
 	if (!ept)
 		return NULL;
 
@@ -400,7 +400,7 @@ static struct rpmsg_device *__rpmsg_create_channel(struct virtproc_info *vrp,
 		return NULL;
 	}
 
-	vch = kzalloc(sizeof(*vch), GFP_KERNEL);
+	vch = kzalloc_obj(*vch, GFP_KERNEL);
 	if (!vch)
 		return NULL;
 
@@ -779,7 +779,7 @@ static struct rpmsg_device *rpmsg_virtio_add_ctrl_dev(struct virtio_device *vdev
 	struct rpmsg_device *rpdev_ctrl;
 	int err = 0;
 
-	vch = kzalloc(sizeof(*vch), GFP_KERNEL);
+	vch = kzalloc_obj(*vch, GFP_KERNEL);
 	if (!vch)
 		return ERR_PTR(-ENOMEM);
 
@@ -825,7 +825,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	size_t total_buf_space;
 	bool notify;
 
-	vrp = kzalloc(sizeof(*vrp), GFP_KERNEL);
+	vrp = kzalloc_obj(*vrp, GFP_KERNEL);
 	if (!vrp)
 		return -ENOMEM;
 
@@ -898,7 +898,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 
 	/* if supported by the remote processor, enable the name service */
 	if (virtio_has_feature(vdev, VIRTIO_RPMSG_F_NS)) {
-		vch = kzalloc(sizeof(*vch), GFP_KERNEL);
+		vch = kzalloc_obj(*vch, GFP_KERNEL);
 		if (!vch) {
 			err = -ENOMEM;
 			goto free_ctrldev;

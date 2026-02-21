@@ -67,7 +67,7 @@ struct clk_hw_onecell_data *mtk_alloc_clk_data(unsigned int clk_num)
 {
 	struct clk_hw_onecell_data *clk_data;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, clk_num), GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, clk_num, GFP_KERNEL);
 	if (!clk_data)
 		return NULL;
 
@@ -230,7 +230,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	int ret;
 
 	if (mc->mux_shift >= 0) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux, GFP_KERNEL);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -251,7 +251,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	}
 
 	if (mc->gate_shift >= 0) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate, GFP_KERNEL);
 		if (!gate) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -267,7 +267,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	}
 
 	if (mc->divider_shift >= 0) {
-		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		div = kzalloc_obj(*div, GFP_KERNEL);
 		if (!div) {
 			ret = -ENOMEM;
 			goto err_out;

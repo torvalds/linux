@@ -947,7 +947,7 @@ int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait)
 	if (cache->flags & BTRFS_BLOCK_GROUP_REMAPPED)
 		return 0;
 
-	caching_ctl = kzalloc(sizeof(*caching_ctl), GFP_NOFS);
+	caching_ctl = kzalloc_obj(*caching_ctl, GFP_NOFS);
 	if (!caching_ctl)
 		return -ENOMEM;
 
@@ -2312,12 +2312,11 @@ static struct btrfs_block_group *btrfs_create_block_group(
 {
 	struct btrfs_block_group *cache;
 
-	cache = kzalloc(sizeof(*cache), GFP_NOFS);
+	cache = kzalloc_obj(*cache, GFP_NOFS);
 	if (!cache)
 		return NULL;
 
-	cache->free_space_ctl = kzalloc(sizeof(*cache->free_space_ctl),
-					GFP_NOFS);
+	cache->free_space_ctl = kzalloc_obj(*cache->free_space_ctl, GFP_NOFS);
 	if (!cache->free_space_ctl) {
 		kfree(cache);
 		return NULL;

@@ -923,7 +923,7 @@ ahd_dma_tag_create(struct ahd_softc *ahd, bus_dma_tag_t parent,
 {
 	bus_dma_tag_t dmat;
 
-	dmat = kmalloc(sizeof(*dmat), GFP_ATOMIC);
+	dmat = kmalloc_obj(*dmat, GFP_ATOMIC);
 	if (dmat == NULL)
 		return (ENOMEM);
 
@@ -1309,7 +1309,7 @@ int
 ahd_platform_alloc(struct ahd_softc *ahd, void *platform_arg)
 {
 	ahd->platform_data =
-	    kzalloc(sizeof(struct ahd_platform_data), GFP_ATOMIC);
+	    kzalloc_obj(struct ahd_platform_data, GFP_ATOMIC);
 	if (ahd->platform_data == NULL)
 		return (ENOMEM);
 	ahd->platform_data->irq = AHD_LINUX_NOIRQ;

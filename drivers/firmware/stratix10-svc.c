@@ -535,11 +535,11 @@ static int svc_normal_to_secure_thread(void *data)
 	unsigned long a0, a1, a2, a3, a4, a5, a6, a7;
 	int ret_fifo = 0;
 
-	pdata =  kmalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kmalloc_obj(*pdata, GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	cbdata = kmalloc(sizeof(*cbdata), GFP_KERNEL);
+	cbdata = kmalloc_obj(*cbdata, GFP_KERNEL);
 	if (!cbdata) {
 		kfree(pdata);
 		return -ENOMEM;
@@ -1119,7 +1119,7 @@ int stratix10_svc_add_async_client(struct stratix10_svc_chan *chan,
 		return 0;
 	}
 
-	achan = kzalloc(sizeof(*achan), GFP_KERNEL);
+	achan = kzalloc_obj(*achan, GFP_KERNEL);
 	if (!achan)
 		return -ENOMEM;
 
@@ -1692,7 +1692,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 	int ret = 0;
 	unsigned int cpu = 0;
 
-	p_data = kzalloc(sizeof(*p_data), GFP_KERNEL);
+	p_data = kzalloc_obj(*p_data, GFP_KERNEL);
 	if (!p_data)
 		return -ENOMEM;
 

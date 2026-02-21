@@ -1800,7 +1800,7 @@ ath12k_wifi7_dp_mon_parse_rx_dest_tlv(struct ath12k_pdev_dp *dp_pdev,
 		if (WARN_ON_ONCE(pmon->mon_mpdu))
 			break;
 
-		pmon->mon_mpdu = kzalloc(sizeof(*pmon->mon_mpdu), GFP_ATOMIC);
+		pmon->mon_mpdu = kzalloc_obj(*pmon->mon_mpdu, GFP_ATOMIC);
 		if (!pmon->mon_mpdu)
 			return -ENOMEM;
 		break;
@@ -1849,7 +1849,7 @@ ath12k_wifi7_dp_mon_tx_get_ppdu_info(struct ath12k_mon_data *pmon,
 	}
 
 	/* allocate new tx_ppdu_info */
-	tx_ppdu_info = kzalloc(sizeof(*tx_ppdu_info), GFP_ATOMIC);
+	tx_ppdu_info = kzalloc_obj(*tx_ppdu_info, GFP_ATOMIC);
 	if (!tx_ppdu_info)
 		return NULL;
 
@@ -2383,7 +2383,7 @@ ath12k_wifi7_dp_mon_tx_parse_status_tlv(struct ath12k_base *ab,
 	case HAL_TX_MPDU_START: {
 		struct dp_mon_mpdu *mon_mpdu = tx_ppdu_info->tx_mon_mpdu;
 
-		mon_mpdu = kzalloc(sizeof(*mon_mpdu), GFP_ATOMIC);
+		mon_mpdu = kzalloc_obj(*mon_mpdu, GFP_ATOMIC);
 		if (!mon_mpdu)
 			return DP_MON_TX_STATUS_PPDU_NOT_DONE;
 		status = DP_MON_TX_MPDU_START;
@@ -2853,7 +2853,7 @@ ath12k_wifi7_dp_rx_mon_dest_process(struct ath12k *ar, int mac_id,
 		}
 
 		if (head_msdu && tail_msdu) {
-			tmp_mpdu = kzalloc(sizeof(*tmp_mpdu), GFP_ATOMIC);
+			tmp_mpdu = kzalloc_obj(*tmp_mpdu, GFP_ATOMIC);
 			if (!tmp_mpdu)
 				break;
 

@@ -235,7 +235,7 @@ int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 				struct hlist_head *head;
 
 				head = &enic->rfs_h.ht_head[tbl_idx];
-				d = kmalloc(sizeof(*d), GFP_ATOMIC);
+				d = kmalloc_obj(*d, GFP_ATOMIC);
 				if (d) {
 					d->fltr_id = n->fltr_id;
 					INIT_HLIST_NODE(&d->node);
@@ -257,7 +257,7 @@ int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			goto ret_unlock;
 		}
 
-		n = kmalloc(sizeof(*n), GFP_ATOMIC);
+		n = kmalloc_obj(*n, GFP_ATOMIC);
 		if (!n) {
 			res = -ENOMEM;
 			enic->rfs_h.free++;

@@ -164,7 +164,7 @@ static int palmas_pwron_probe(struct platform_device *pdev)
 
 	palmas_pwron_params_ofinit(dev, &config);
 
-	pwron = kzalloc(sizeof(*pwron), GFP_KERNEL);
+	pwron = kzalloc_obj(*pwron, GFP_KERNEL);
 	if (!pwron)
 		return -ENOMEM;
 

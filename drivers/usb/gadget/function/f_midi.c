@@ -931,8 +931,8 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 
 	/* allocate temporary function list */
-	midi_function = kcalloc((MAX_PORTS * 4) + 11, sizeof(*midi_function),
-				GFP_KERNEL);
+	midi_function = kzalloc_objs(*midi_function, (MAX_PORTS * 4) + 11,
+				     GFP_KERNEL);
 	if (!midi_function) {
 		status = -ENOMEM;
 		goto fail;
@@ -1279,7 +1279,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 {
 	struct f_midi_opts *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -1361,8 +1361,7 @@ static struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	}
 
 	/* allocate and initialize one new instance */
-	midi = kzalloc(struct_size(midi, in_ports_array, opts->in_ports),
-		       GFP_KERNEL);
+	midi = kzalloc_flex(*midi, in_ports_array, opts->in_ports, GFP_KERNEL);
 	if (!midi) {
 		status = -ENOMEM;
 		goto setup_fail;

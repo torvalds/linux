@@ -507,7 +507,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	/*
 	 * for rtd->dev
 	 */
-	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	dev = kzalloc_obj(struct device, GFP_KERNEL);
 	if (!dev)
 		return NULL;
 

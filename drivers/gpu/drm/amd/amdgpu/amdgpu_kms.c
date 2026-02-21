@@ -942,7 +942,7 @@ out:
 		uint64_t vm_size;
 		uint32_t pcie_gen_mask, pcie_width_mask;
 
-		dev_info = kzalloc(sizeof(*dev_info), GFP_KERNEL);
+		dev_info = kzalloc_obj(*dev_info, GFP_KERNEL);
 		if (!dev_info)
 			return -ENOMEM;
 
@@ -1329,7 +1329,7 @@ out:
 			return -EINVAL;
 		}
 
-		caps = kzalloc(sizeof(*caps), GFP_KERNEL);
+		caps = kzalloc_obj(*caps, GFP_KERNEL);
 		if (!caps)
 			return -ENOMEM;
 

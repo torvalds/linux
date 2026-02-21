@@ -17,7 +17,7 @@ void stub_enqueue_ret_unlink(struct stub_device *sdev, __u32 seqnum,
 {
 	struct stub_unlink *unlink;
 
-	unlink = kzalloc(sizeof(struct stub_unlink), GFP_ATOMIC);
+	unlink = kzalloc_obj(struct stub_unlink, GFP_ATOMIC);
 	if (!unlink) {
 		usbip_event_add(&sdev->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;
@@ -191,7 +191,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		else
 			iovnum = 2;
 
-		iov = kcalloc(iovnum, sizeof(struct kvec), GFP_KERNEL);
+		iov = kzalloc_objs(struct kvec, iovnum, GFP_KERNEL);
 
 		if (!iov) {
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);

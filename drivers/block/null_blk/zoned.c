@@ -91,8 +91,8 @@ int null_init_zoned_dev(struct nullb_device *dev,
 	dev->nr_zones = round_up(dev_capacity_sects, dev->zone_size_sects)
 		>> ilog2(dev->zone_size_sects);
 
-	dev->zones = kvmalloc_array(dev->nr_zones, sizeof(struct nullb_zone),
-				    GFP_KERNEL | __GFP_ZERO);
+	dev->zones = kvmalloc_objs(struct nullb_zone, dev->nr_zones,
+				   GFP_KERNEL | __GFP_ZERO);
 	if (!dev->zones)
 		return -ENOMEM;
 

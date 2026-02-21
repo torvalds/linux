@@ -210,7 +210,7 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
 		leaf = info->node_cache;
 		info->node_cache = NULL;
 	} else {
-		leaf = kmalloc(sizeof(*leaf), GFP_ATOMIC);
+		leaf = kmalloc_obj(*leaf, GFP_ATOMIC);
 		if (!leaf)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&leaf->msg_list);
@@ -449,7 +449,7 @@ static int mqueue_init_fs_context(struct fs_context *fc)
 {
 	struct mqueue_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct mqueue_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct mqueue_fs_context, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1088,7 +1088,7 @@ static int do_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
 	 * fall back to that if necessary.
 	 */
 	if (!info->node_cache)
-		new_leaf = kmalloc(sizeof(*new_leaf), GFP_KERNEL);
+		new_leaf = kmalloc_obj(*new_leaf, GFP_KERNEL);
 
 	spin_lock(&info->lock);
 
@@ -1181,7 +1181,7 @@ static int do_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
 	 * fall back to that if necessary.
 	 */
 	if (!info->node_cache)
-		new_leaf = kmalloc(sizeof(*new_leaf), GFP_KERNEL);
+		new_leaf = kmalloc_obj(*new_leaf, GFP_KERNEL);
 
 	spin_lock(&info->lock);
 

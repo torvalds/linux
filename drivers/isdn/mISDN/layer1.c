@@ -374,7 +374,7 @@ int
 create_l1(struct dchannel *dch, dchannel_l1callback *dcb) {
 	struct layer1	*nl1;
 
-	nl1 = kzalloc(sizeof(struct layer1), GFP_ATOMIC);
+	nl1 = kzalloc_obj(struct layer1, GFP_ATOMIC);
 	if (!nl1) {
 		printk(KERN_ERR "kmalloc struct layer1 failed\n");
 		return -ENOMEM;

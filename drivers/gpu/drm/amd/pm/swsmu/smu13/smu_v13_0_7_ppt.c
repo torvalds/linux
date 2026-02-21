@@ -530,7 +530,7 @@ static int smu_v13_0_7_tables_init(struct smu_context *smu)
 		       sizeof(WifiBandEntryTable_t), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t, GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
@@ -541,7 +541,7 @@ static int smu_v13_0_7_tables_init(struct smu_context *smu)
 	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t, GFP_KERNEL);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -559,8 +559,8 @@ static int smu_v13_0_7_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_13_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_13_0_dpm_context,
+					   GFP_KERNEL);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -2400,9 +2400,9 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 	if (!buf)
 		return -EINVAL;
 
-	activity_monitor_external = kcalloc(PP_SMC_POWER_PROFILE_COUNT,
-					    sizeof(*activity_monitor_external),
-					    GFP_KERNEL);
+	activity_monitor_external = kzalloc_objs(*activity_monitor_external,
+						 PP_SMC_POWER_PROFILE_COUNT,
+						 GFP_KERNEL);
 	if (!activity_monitor_external)
 		return -ENOMEM;
 

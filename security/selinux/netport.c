@@ -150,7 +150,7 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 	/* If this memory allocation fails still return 0. The SID
 	 * is valid, it just won't be added to the cache.
 	 */
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_ATOMIC);
 	if (new) {
 		new->psec.port = pnum;
 		new->psec.protocol = protocol;

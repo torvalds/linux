@@ -312,7 +312,7 @@ int register_external_irq(u16 code, ext_int_handler_t handler)
 	unsigned long flags;
 	int index;
 
-	p = kmalloc(sizeof(*p), GFP_ATOMIC);
+	p = kmalloc_obj(*p, GFP_ATOMIC);
 	if (!p)
 		return -ENOMEM;
 	p->code = code;

@@ -144,8 +144,8 @@ node_create(struct intel_gt_buffer_pool *pool, size_t sz,
 	struct intel_gt_buffer_pool_node *node;
 	struct drm_i915_gem_object *obj;
 
-	node = kmalloc(sizeof(*node),
-		       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	node = kmalloc_obj(*node,
+			   GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 

@@ -358,8 +358,7 @@ static void end_buffer_async_read_io(struct buffer_head *bh, int uptodate)
 
 	/* Decrypt (with fscrypt) and/or verify (with fsverity) if needed. */
 	if (uptodate && (decrypt || vi)) {
-		struct postprocess_bh_ctx *ctx =
-			kmalloc(sizeof(*ctx), GFP_ATOMIC);
+		struct postprocess_bh_ctx *ctx = kmalloc_obj(*ctx, GFP_ATOMIC);
 
 		if (ctx) {
 			ctx->bh = bh;

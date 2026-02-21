@@ -510,7 +510,7 @@ nubus_get_functional_resource(struct nubus_board *board, int slot,
 	dir.procdir = nubus_proc_add_rsrc_dir(board->procdir, parent, board);
 
 	/* Actually we should probably panic if this fails */
-	fres = kzalloc(sizeof(*fres), GFP_ATOMIC);
+	fres = kzalloc_obj(*fres, GFP_ATOMIC);
 	if (!fres)
 		return NULL;
 	fres->resid = parent->type;
@@ -739,7 +739,7 @@ static void __init nubus_add_board(int slot, int bytelanes)
 	nubus_rewind(&rp, FORMAT_BLOCK_SIZE, bytelanes);
 
 	/* Actually we should probably panic if this fails */
-	if ((board = kzalloc(sizeof(*board), GFP_ATOMIC)) == NULL)
+	if ((board = kzalloc_obj(*board, GFP_ATOMIC)) == NULL)
 		return;
 	board->fblock = rp;
 

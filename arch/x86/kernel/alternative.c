@@ -2160,7 +2160,7 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 		/* Don't bother remembering, we'll never have to undo it. */
 		goto smp_unlock;
 
-	smp = kzalloc(sizeof(*smp), GFP_KERNEL);
+	smp = kzalloc_obj(*smp, GFP_KERNEL);
 	if (NULL == smp)
 		/* we'll run the (safe but slow) SMP code then ... */
 		goto unlock;

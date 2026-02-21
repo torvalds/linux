@@ -3029,7 +3029,7 @@ static struct sfp *sfp_alloc(struct device *dev)
 {
 	struct sfp *sfp;
 
-	sfp = kzalloc(sizeof(*sfp), GFP_KERNEL);
+	sfp = kzalloc_obj(*sfp, GFP_KERNEL);
 	if (!sfp)
 		return ERR_PTR(-ENOMEM);
 

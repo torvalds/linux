@@ -297,7 +297,7 @@ static struct bcm2835_desc *bcm2835_dma_create_cb_chain(
 		return NULL;
 
 	/* allocate and setup the descriptor. */
-	d = kzalloc(struct_size(d, cb_list, frames), gfp);
+	d = kzalloc_flex(*d, cb_list, frames, gfp);
 	if (!d)
 		return NULL;
 

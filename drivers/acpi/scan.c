@@ -757,8 +757,8 @@ int acpi_device_add(struct acpi_device *device)
 		if (result)
 			goto err_unlock;
 	} else {
-		acpi_device_bus_id = kzalloc(sizeof(*acpi_device_bus_id),
-					     GFP_KERNEL);
+		acpi_device_bus_id = kzalloc_obj(*acpi_device_bus_id,
+						 GFP_KERNEL);
 		if (!acpi_device_bus_id) {
 			result = -ENOMEM;
 			goto err_unlock;
@@ -1330,7 +1330,7 @@ static void acpi_add_id(struct acpi_device_pnp *pnp, const char *dev_id)
 {
 	struct acpi_hardware_id *id;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	id = kmalloc_obj(*id, GFP_KERNEL);
 	if (!id)
 		return;
 
@@ -1568,7 +1568,7 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 
 	ret = acpi_dev_get_dma_resources(adev, &list);
 	if (ret > 0) {
-		r = kcalloc(ret + 1, sizeof(*r), GFP_KERNEL);
+		r = kzalloc_objs(*r, ret + 1, GFP_KERNEL);
 		if (!r) {
 			ret = -ENOMEM;
 			goto out;
@@ -1863,7 +1863,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 	bool release_dep_lock = false;
 	int result;
 
-	device = kzalloc(sizeof(struct acpi_device), GFP_KERNEL);
+	device = kzalloc_obj(struct acpi_device, GFP_KERNEL);
 	if (!device)
 		return -ENOMEM;
 
@@ -2028,7 +2028,7 @@ int acpi_scan_add_dep(acpi_handle handle, struct acpi_handle_list *dep_devices)
 		if (skip)
 			continue;
 
-		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+		dep = kzalloc_obj(*dep, GFP_KERNEL);
 		if (!dep)
 			continue;
 
@@ -2225,7 +2225,7 @@ static void acpi_default_enumeration(struct acpi_device *device)
 		 * other device objects have been processed and PCI has claimed
 		 * BARs in case there are resource conflicts.
 		 */
-		sd = kmalloc(sizeof(*sd), GFP_KERNEL);
+		sd = kmalloc_obj(*sd, GFP_KERNEL);
 		if (sd) {
 			sd->adev = device;
 			list_add_tail(&sd->node, &acpi_scan_system_dev_list);
@@ -2899,7 +2899,7 @@ void acpi_scan_table_notify(void)
 	if (!acpi_scan_initialized)
 		return;
 
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	work = kmalloc_obj(*work, GFP_KERNEL);
 	if (!work)
 		return;
 

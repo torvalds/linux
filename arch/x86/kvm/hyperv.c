@@ -968,7 +968,7 @@ int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 	if (hv_vcpu)
 		return 0;
 
-	hv_vcpu = kzalloc(sizeof(struct kvm_vcpu_hv), GFP_KERNEL_ACCOUNT);
+	hv_vcpu = kzalloc_obj(struct kvm_vcpu_hv, GFP_KERNEL_ACCOUNT);
 	if (!hv_vcpu)
 		return -ENOMEM;
 

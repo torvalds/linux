@@ -499,7 +499,7 @@ static int spacemit_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!grpnames)
 		return -ENOMEM;
 
-	map = kcalloc(ngroups * 2, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, ngroups * 2, GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 

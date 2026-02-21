@@ -150,7 +150,7 @@ nv50_devinit_new_(const struct nvkm_devinit_func *func, struct nvkm_device *devi
 {
 	struct nv50_devinit *init;
 
-	if (!(init = kzalloc(sizeof(*init), GFP_KERNEL)))
+	if (!(init = kzalloc_obj(*init, GFP_KERNEL)))
 		return -ENOMEM;
 	*pinit = &init->base;
 

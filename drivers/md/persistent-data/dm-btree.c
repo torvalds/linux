@@ -280,7 +280,7 @@ int dm_btree_del(struct dm_btree_info *info, dm_block_t root)
 	 * considered an FS op.  We can't recurse back into the FS, so we
 	 * allocate GFP_NOFS.
 	 */
-	s = kmalloc(sizeof(*s), GFP_NOFS);
+	s = kmalloc_obj(*s, GFP_NOFS);
 	if (!s)
 		return -ENOMEM;
 	s->info = info;

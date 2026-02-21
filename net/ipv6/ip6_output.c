@@ -1359,7 +1359,7 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 		if (WARN_ON(v6_cork->opt))
 			return -EINVAL;
 
-		nopt = v6_cork->opt = kzalloc(sizeof(*opt), sk->sk_allocation);
+		nopt = v6_cork->opt = kzalloc_obj(*opt, sk->sk_allocation);
 		if (unlikely(!nopt))
 			return -ENOBUFS;
 

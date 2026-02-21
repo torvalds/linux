@@ -45,7 +45,7 @@ static int rimt_set_fwnode(struct acpi_rimt_node *rimt_node,
 {
 	struct rimt_fwnode *np;
 
-	np = kzalloc(sizeof(*np), GFP_ATOMIC);
+	np = kzalloc_obj(*np, GFP_ATOMIC);
 
 	if (WARN_ON(!np))
 		return -ENOMEM;

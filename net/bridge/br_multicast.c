@@ -1290,7 +1290,7 @@ struct net_bridge_mdb_entry *br_multicast_new_group(struct net_bridge *br,
 		return ERR_PTR(-E2BIG);
 	}
 
-	mp = kzalloc(sizeof(*mp), GFP_ATOMIC);
+	mp = kzalloc_obj(*mp, GFP_ATOMIC);
 	if (unlikely(!mp))
 		return ERR_PTR(-ENOMEM);
 
@@ -1381,7 +1381,7 @@ br_multicast_new_group_src(struct net_bridge_port_group *pg, struct br_ip *src_i
 #endif
 	}
 
-	grp_src = kzalloc(sizeof(*grp_src), GFP_ATOMIC);
+	grp_src = kzalloc_obj(*grp_src, GFP_ATOMIC);
 	if (unlikely(!grp_src))
 		return NULL;
 
@@ -1414,7 +1414,7 @@ struct net_bridge_port_group *br_multicast_new_port_group(
 	if (err)
 		return NULL;
 
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	p = kzalloc_obj(*p, GFP_ATOMIC);
 	if (unlikely(!p)) {
 		NL_SET_ERR_MSG_MOD(extack, "Couldn't allocate new port group");
 		goto dec_out;
@@ -4891,7 +4891,7 @@ int br_multicast_list_adjacent(struct net_device *dev,
 			continue;
 
 		hlist_for_each_entry_rcu(group, &port->mglist, mglist) {
-			entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+			entry = kmalloc_obj(*entry, GFP_ATOMIC);
 			if (!entry)
 				goto unlock;
 

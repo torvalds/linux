@@ -266,7 +266,7 @@ static int create_space_info_sub_group(struct btrfs_space_info *parent, u64 flag
 	       "parent->subgroup_id=%d", parent->subgroup_id);
 	ASSERT(id != BTRFS_SUB_GROUP_PRIMARY, "id=%d", id);
 
-	sub_group = kzalloc(sizeof(*sub_group), GFP_NOFS);
+	sub_group = kzalloc_obj(*sub_group, GFP_NOFS);
 	if (!sub_group)
 		return -ENOMEM;
 
@@ -289,7 +289,7 @@ static int create_space_info(struct btrfs_fs_info *info, u64 flags)
 	struct btrfs_space_info *space_info;
 	int ret = 0;
 
-	space_info = kzalloc(sizeof(*space_info), GFP_NOFS);
+	space_info = kzalloc_obj(*space_info, GFP_NOFS);
 	if (!space_info)
 		return -ENOMEM;
 

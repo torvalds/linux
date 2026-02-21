@@ -179,7 +179,7 @@ batadv_orig_node_vlan_new(struct batadv_orig_node *orig_node,
 	if (vlan)
 		goto out;
 
-	vlan = kzalloc(sizeof(*vlan), GFP_ATOMIC);
+	vlan = kzalloc_obj(*vlan, GFP_ATOMIC);
 	if (!vlan)
 		goto out;
 
@@ -417,7 +417,7 @@ batadv_orig_ifinfo_new(struct batadv_orig_node *orig_node,
 	if (orig_ifinfo)
 		goto out;
 
-	orig_ifinfo = kzalloc(sizeof(*orig_ifinfo), GFP_ATOMIC);
+	orig_ifinfo = kzalloc_obj(*orig_ifinfo, GFP_ATOMIC);
 	if (!orig_ifinfo)
 		goto out;
 
@@ -495,7 +495,7 @@ batadv_neigh_ifinfo_new(struct batadv_neigh_node *neigh,
 	if (neigh_ifinfo)
 		goto out;
 
-	neigh_ifinfo = kzalloc(sizeof(*neigh_ifinfo), GFP_ATOMIC);
+	neigh_ifinfo = kzalloc_obj(*neigh_ifinfo, GFP_ATOMIC);
 	if (!neigh_ifinfo)
 		goto out;
 
@@ -575,7 +575,7 @@ batadv_hardif_neigh_create(struct batadv_hard_iface *hard_iface,
 	if (hardif_neigh)
 		goto out;
 
-	hardif_neigh = kzalloc(sizeof(*hardif_neigh), GFP_ATOMIC);
+	hardif_neigh = kzalloc_obj(*hardif_neigh, GFP_ATOMIC);
 	if (!hardif_neigh)
 		goto out;
 
@@ -683,7 +683,7 @@ batadv_neigh_node_create(struct batadv_orig_node *orig_node,
 	if (!hardif_neigh)
 		goto out;
 
-	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
+	neigh_node = kzalloc_obj(*neigh_node, GFP_ATOMIC);
 	if (!neigh_node)
 		goto out;
 
@@ -947,7 +947,7 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "Creating new originator: %pM\n", addr);
 
-	orig_node = kzalloc(sizeof(*orig_node), GFP_ATOMIC);
+	orig_node = kzalloc_obj(*orig_node, GFP_ATOMIC);
 	if (!orig_node)
 		return NULL;
 

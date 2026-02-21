@@ -241,7 +241,7 @@ static struct st_fdma_desc *st_fdma_alloc_desc(struct st_fdma_chan *fchan,
 	struct st_fdma_desc *fdesc;
 	int i;
 
-	fdesc = kzalloc(struct_size(fdesc, node, sg_len), GFP_NOWAIT);
+	fdesc = kzalloc_flex(*fdesc, node, sg_len, GFP_NOWAIT);
 	if (!fdesc)
 		return NULL;
 

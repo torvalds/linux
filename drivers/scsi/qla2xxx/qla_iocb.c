@@ -882,7 +882,7 @@ alloc_and_fill:
 			used_dsds -= avail_dsds;
 
 			/* allocate tracking DS */
-			dsd_ptr = kzalloc(sizeof(struct dsd_dma), GFP_ATOMIC);
+			dsd_ptr = kzalloc_obj(struct dsd_dma, GFP_ATOMIC);
 			if (!dsd_ptr)
 				return 1;
 
@@ -979,7 +979,7 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp,
 			used_dsds -= avail_dsds;
 
 			/* allocate tracking DS */
-			dsd_ptr = kzalloc(sizeof(struct dsd_dma), GFP_ATOMIC);
+			dsd_ptr = kzalloc_obj(struct dsd_dma, GFP_ATOMIC);
 			if (!dsd_ptr)
 				return 1;
 
@@ -1123,8 +1123,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 					 * Allocate list item to store
 					 * the DMA buffers
 					 */
-					dsd_ptr = kzalloc(sizeof(*dsd_ptr),
-					    GFP_ATOMIC);
+					dsd_ptr = kzalloc_obj(*dsd_ptr,
+							      GFP_ATOMIC);
 					if (!dsd_ptr) {
 						ql_dbg(ql_dbg_tgt, vha, 0xe024,
 						    "%s: failed alloc dsd_ptr\n",
@@ -1209,7 +1209,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 				used_dsds -= avail_dsds;
 
 				/* allocate tracking DS */
-				dsd_ptr = kzalloc(sizeof(*dsd_ptr), GFP_ATOMIC);
+				dsd_ptr = kzalloc_obj(*dsd_ptr, GFP_ATOMIC);
 				if (!dsd_ptr) {
 					ql_dbg(ql_dbg_tgt, vha, 0xe026,
 					    "%s: failed alloc dsd_ptr\n",
@@ -1275,7 +1275,7 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 				used_dsds -= avail_dsds;
 
 				/* allocate tracking DS */
-				dsd_ptr = kzalloc(sizeof(*dsd_ptr), GFP_ATOMIC);
+				dsd_ptr = kzalloc_obj(*dsd_ptr, GFP_ATOMIC);
 				if (!dsd_ptr) {
 					ql_dbg(ql_dbg_tgt + ql_dbg_verbose,
 					    vha, 0xe027,
@@ -3450,7 +3450,7 @@ qla82xx_start_scsi(srb_t *sp)
 			more_dsd_lists -= qpair->dsd_avail;
 
 		for (i = 0; i < more_dsd_lists; i++) {
-			dsd_ptr = kzalloc(sizeof(struct dsd_dma), GFP_ATOMIC);
+			dsd_ptr = kzalloc_obj(struct dsd_dma, GFP_ATOMIC);
 			if (!dsd_ptr) {
 				ql_log(ql_log_fatal, vha, 0x300e,
 				    "Failed to allocate memory for dsd_dma "
@@ -4315,7 +4315,7 @@ qla_start_scsi_type6(srb_t *sp)
 		more_dsd_lists -= qpair->dsd_avail;
 
 	for (i = 0; i < more_dsd_lists; i++) {
-		dsd_ptr = kzalloc(sizeof(*dsd_ptr), GFP_ATOMIC);
+		dsd_ptr = kzalloc_obj(*dsd_ptr, GFP_ATOMIC);
 		if (!dsd_ptr) {
 			ql_log(ql_log_fatal, vha, 0x3029,
 			    "Failed to allocate memory for dsd_dma for cmd=%p.\n", cmd);

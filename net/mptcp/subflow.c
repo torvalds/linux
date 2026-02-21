@@ -1842,7 +1842,7 @@ static struct mptcp_subflow_context *subflow_create_ctx(struct sock *sk,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct mptcp_subflow_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), priority);
+	ctx = kzalloc_obj(*ctx, priority);
 	if (!ctx)
 		return NULL;
 

@@ -665,7 +665,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	struct cdev *cdev;
 	int rc;
 
-	cxlmd = kzalloc(sizeof(*cxlmd), GFP_KERNEL);
+	cxlmd = kzalloc_obj(*cxlmd, GFP_KERNEL);
 	if (!cxlmd)
 		return ERR_PTR(-ENOMEM);
 
@@ -831,7 +831,7 @@ static int cxl_mem_abort_fw_xfer(struct cxl_memdev_state *mds)
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
-	transfer = kzalloc(struct_size(transfer, data, 0), GFP_KERNEL);
+	transfer = kzalloc_flex(*transfer, data, 0, GFP_KERNEL);
 	if (!transfer)
 		return -ENOMEM;
 

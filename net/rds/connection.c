@@ -197,7 +197,7 @@ static struct rds_connection *__rds_conn_create(struct net *net,
 		conn = ERR_PTR(-ENOMEM);
 		goto out;
 	}
-	conn->c_path = kcalloc(npaths, sizeof(struct rds_conn_path), gfp);
+	conn->c_path = kzalloc_objs(struct rds_conn_path, npaths, gfp);
 	if (!conn->c_path) {
 		kmem_cache_free(rds_conn_slab, conn);
 		conn = ERR_PTR(-ENOMEM);

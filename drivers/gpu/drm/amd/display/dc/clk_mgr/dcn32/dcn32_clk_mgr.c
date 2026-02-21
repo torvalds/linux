@@ -1206,7 +1206,8 @@ void dcn32_clk_mgr_construct(
 
 	clk_mgr->smu_present = false;
 
-	clk_mgr->base.bw_params = kzalloc(sizeof(*clk_mgr->base.bw_params), GFP_KERNEL);
+	clk_mgr->base.bw_params = kzalloc_obj(*clk_mgr->base.bw_params,
+					      GFP_KERNEL);
 	if (!clk_mgr->base.bw_params) {
 		BREAK_TO_DEBUGGER();
 		return;

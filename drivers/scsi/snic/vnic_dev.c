@@ -352,7 +352,7 @@ static int svnic_dev_init_devcmd2(struct vnic_dev *vdev)
 	if (!p)
 		return -ENODEV;
 
-	dc2c = kzalloc(sizeof(*dc2c), GFP_ATOMIC);
+	dc2c = kzalloc_obj(*dc2c, GFP_ATOMIC);
 	if (!dc2c)
 		return -ENOMEM;
 
@@ -712,7 +712,7 @@ struct vnic_dev *svnic_dev_alloc_discover(struct vnic_dev *vdev,
 					  unsigned int num_bars)
 {
 	if (!vdev) {
-		vdev = kzalloc(sizeof(struct vnic_dev), GFP_ATOMIC);
+		vdev = kzalloc_obj(struct vnic_dev, GFP_ATOMIC);
 		if (!vdev)
 			return NULL;
 	}

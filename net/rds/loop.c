@@ -137,7 +137,7 @@ static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	struct rds_loop_connection *lc;
 	unsigned long flags;
 
-	lc = kzalloc(sizeof(struct rds_loop_connection), gfp);
+	lc = kzalloc_obj(struct rds_loop_connection, gfp);
 	if (!lc)
 		return -ENOMEM;
 

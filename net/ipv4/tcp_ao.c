@@ -227,7 +227,7 @@ static struct tcp_ao_info *tcp_ao_alloc_info(gfp_t flags)
 {
 	struct tcp_ao_info *ao;
 
-	ao = kzalloc(sizeof(*ao), flags);
+	ao = kzalloc_obj(*ao, flags);
 	if (!ao)
 		return NULL;
 	INIT_HLIST_HEAD(&ao->head);

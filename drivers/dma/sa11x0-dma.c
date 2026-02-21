@@ -551,7 +551,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 	}
 
 	j = sg_nents_for_dma(sg, sglen, DMA_MAX_SIZE & ~DMA_ALIGN);
-	txd = kzalloc(struct_size(txd, sg, j), GFP_ATOMIC);
+	txd = kzalloc_flex(*txd, sg, j, GFP_ATOMIC);
 	if (!txd) {
 		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
 		return NULL;
@@ -621,7 +621,7 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
 	if (sglen == 0)
 		return NULL;
 
-	txd = kzalloc(struct_size(txd, sg, sglen), GFP_ATOMIC);
+	txd = kzalloc_flex(*txd, sg, sglen, GFP_ATOMIC);
 	if (!txd) {
 		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
 		return NULL;
@@ -848,7 +848,7 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	for (i = 0; i < ARRAY_SIZE(chan_desc); i++) {
 		struct sa11x0_dma_chan *c;
 
-		c = kzalloc(sizeof(*c), GFP_KERNEL);
+		c = kzalloc_obj(*c, GFP_KERNEL);
 		if (!c) {
 			dev_err(dev, "no memory for channel %u\n", i);
 			return -ENOMEM;
@@ -907,7 +907,7 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	d = kzalloc_obj(*d, GFP_KERNEL);
 	if (!d) {
 		ret = -ENOMEM;
 		goto err_alloc;

@@ -2791,7 +2791,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 		return err;
 
 	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, cpu_to_node(cpu));
-	cparam = kvzalloc(sizeof(*cparam), GFP_KERNEL);
+	cparam = kvzalloc_obj(*cparam, GFP_KERNEL);
 	if (!c || !cparam) {
 		err = -ENOMEM;
 		goto err_free;
@@ -2911,7 +2911,7 @@ int mlx5e_open_channels(struct mlx5e_priv *priv,
 
 	chs->num = chs->params.num_channels;
 
-	chs->c = kcalloc(chs->num, sizeof(struct mlx5e_channel *), GFP_KERNEL);
+	chs->c = kzalloc_objs(struct mlx5e_channel *, chs->num, GFP_KERNEL);
 	if (!chs->c)
 		goto err_out;
 
@@ -3415,8 +3415,8 @@ int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
 	if (!reset)
 		return mlx5e_switch_priv_params(priv, params, preactivate, context);
 
-	old_chs = kzalloc(sizeof(*old_chs), GFP_KERNEL);
-	new_chs = kzalloc(sizeof(*new_chs), GFP_KERNEL);
+	old_chs = kzalloc_obj(*old_chs, GFP_KERNEL);
+	new_chs = kzalloc_obj(*new_chs, GFP_KERNEL);
 	if (!old_chs || !new_chs) {
 		err = -ENOMEM;
 		goto err_free_chs;
@@ -6258,8 +6258,8 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->channel_stats)
 		goto err_free_tx_rates;
 
-	priv->fec_ranges = kcalloc(ETHTOOL_FEC_HIST_MAX,
-				   sizeof(*priv->fec_ranges), GFP_KERNEL);
+	priv->fec_ranges = kzalloc_objs(*priv->fec_ranges, ETHTOOL_FEC_HIST_MAX,
+					GFP_KERNEL);
 	if (!priv->fec_ranges)
 		goto err_free_channel_stats;
 

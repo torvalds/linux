@@ -246,7 +246,7 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 		return -EINVAL;
 
 	acp_base = adev->rmmio_base;
-	adev->acp.acp_genpd = kzalloc(sizeof(struct acp_pm_domain), GFP_KERNEL);
+	adev->acp.acp_genpd = kzalloc_obj(struct acp_pm_domain, GFP_KERNEL);
 	if (!adev->acp.acp_genpd)
 		return -ENOMEM;
 
@@ -260,20 +260,21 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 	switch (acp_machine_id) {
 	case ST_JADEITE:
 	{
-		adev->acp.acp_cell = kcalloc(2, sizeof(struct mfd_cell),
-					     GFP_KERNEL);
+		adev->acp.acp_cell = kzalloc_objs(struct mfd_cell, 2,
+						  GFP_KERNEL);
 		if (!adev->acp.acp_cell) {
 			r = -ENOMEM;
 			goto failure;
 		}
 
-		adev->acp.acp_res = kcalloc(3, sizeof(struct resource), GFP_KERNEL);
+		adev->acp.acp_res = kzalloc_objs(struct resource, 3, GFP_KERNEL);
 		if (!adev->acp.acp_res) {
 			r = -ENOMEM;
 			goto failure;
 		}
 
-		i2s_pdata = kcalloc(1, sizeof(struct i2s_platform_data), GFP_KERNEL);
+		i2s_pdata = kzalloc_objs(struct i2s_platform_data, 1,
+					 GFP_KERNEL);
 		if (!i2s_pdata) {
 			r = -ENOMEM;
 			goto failure;
@@ -324,21 +325,22 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 		break;
 	}
 	default:
-		adev->acp.acp_cell = kcalloc(ACP_DEVS, sizeof(struct mfd_cell),
-					     GFP_KERNEL);
+		adev->acp.acp_cell = kzalloc_objs(struct mfd_cell, ACP_DEVS,
+						  GFP_KERNEL);
 
 		if (!adev->acp.acp_cell) {
 			r = -ENOMEM;
 			goto failure;
 		}
 
-		adev->acp.acp_res = kcalloc(5, sizeof(struct resource), GFP_KERNEL);
+		adev->acp.acp_res = kzalloc_objs(struct resource, 5, GFP_KERNEL);
 		if (!adev->acp.acp_res) {
 			r = -ENOMEM;
 			goto failure;
 		}
 
-		i2s_pdata = kcalloc(3, sizeof(struct i2s_platform_data), GFP_KERNEL);
+		i2s_pdata = kzalloc_objs(struct i2s_platform_data, 3,
+					 GFP_KERNEL);
 		if (!i2s_pdata) {
 			r = -ENOMEM;
 			goto failure;

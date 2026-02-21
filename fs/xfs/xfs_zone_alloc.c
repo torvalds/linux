@@ -417,7 +417,7 @@ xfs_init_open_zone(
 {
 	struct xfs_open_zone	*oz;
 
-	oz = kzalloc(sizeof(*oz), GFP_NOFS | __GFP_NOFAIL);
+	oz = kzalloc_obj(*oz, GFP_NOFS | __GFP_NOFAIL);
 	spin_lock_init(&oz->oz_alloc_lock);
 	atomic_set(&oz->oz_ref, 1);
 	oz->oz_rtg = rtg;
@@ -1196,7 +1196,7 @@ xfs_alloc_zone_info(
 	struct xfs_zone_info	*zi;
 	int			i;
 
-	zi = kzalloc(sizeof(*zi), GFP_KERNEL);
+	zi = kzalloc_obj(*zi, GFP_KERNEL);
 	if (!zi)
 		return NULL;
 	INIT_LIST_HEAD(&zi->zi_open_zones);

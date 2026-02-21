@@ -256,7 +256,7 @@ static int direct_ops_mod(struct bpf_trampoline *tr, void *addr, bool lock_direc
  */
 static int direct_ops_alloc(struct bpf_trampoline *tr)
 {
-	tr->fops = kzalloc(sizeof(struct ftrace_ops), GFP_KERNEL);
+	tr->fops = kzalloc_obj(struct ftrace_ops, GFP_KERNEL);
 	if (!tr->fops)
 		return -ENOMEM;
 	tr->fops->private = tr;
@@ -342,7 +342,7 @@ static struct bpf_trampoline *bpf_trampoline_lookup(u64 key, unsigned long ip)
 			goto out;
 		}
 	}
-	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
+	tr = kzalloc_obj(*tr, GFP_KERNEL);
 	if (!tr)
 		goto out;
 	if (direct_ops_alloc(tr)) {
@@ -446,7 +446,7 @@ bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_a
 	int kind;
 
 	*total = 0;
-	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	tlinks = kzalloc_objs(*tlinks, BPF_TRAMP_MAX, GFP_KERNEL);
 	if (!tlinks)
 		return ERR_PTR(-ENOMEM);
 
@@ -569,7 +569,7 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key, int size)
 	void *image;
 	int err = -ENOMEM;
 
-	im = kzalloc(sizeof(*im), GFP_KERNEL);
+	im = kzalloc_obj(*im, GFP_KERNEL);
 	if (!im)
 		goto out;
 
@@ -928,7 +928,7 @@ static struct bpf_shim_tramp_link *cgroup_shim_alloc(const struct bpf_prog *prog
 	struct bpf_shim_tramp_link *shim_link = NULL;
 	struct bpf_prog *p;
 
-	shim_link = kzalloc(sizeof(*shim_link), GFP_USER);
+	shim_link = kzalloc_obj(*shim_link, GFP_USER);
 	if (!shim_link)
 		return NULL;
 

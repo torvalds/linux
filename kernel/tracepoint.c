@@ -103,8 +103,7 @@ static void tp_stub_func(void)
 
 static inline void *allocate_probes(int count)
 {
-	struct tp_probes *p  = kmalloc(struct_size(p, probes, count),
-				       GFP_KERNEL);
+	struct tp_probes *p  = kmalloc_flex(*p, probes, count, GFP_KERNEL);
 	return p == NULL ? NULL : p->probes;
 }
 
@@ -615,7 +614,7 @@ static int tracepoint_module_coming(struct module *mod)
 	if (trace_module_has_bad_taint(mod))
 		return 0;
 
-	tp_mod = kmalloc(sizeof(struct tp_module), GFP_KERNEL);
+	tp_mod = kmalloc_obj(struct tp_module, GFP_KERNEL);
 	if (!tp_mod)
 		return -ENOMEM;
 	tp_mod->mod = mod;

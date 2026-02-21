@@ -2399,7 +2399,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	hw_crtc_timing = kzalloc_objs(*hw_crtc_timing, MAX_PIPES, GFP_KERNEL);
 	if (!hw_crtc_timing)
 		return master;
 

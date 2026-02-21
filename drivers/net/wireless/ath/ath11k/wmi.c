@@ -249,7 +249,7 @@ const void **ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab,
 	const void **tb;
 	int ret;
 
-	tb = kcalloc(WMI_TAG_MAX, sizeof(*tb), gfp);
+	tb = kzalloc_objs(*tb, WMI_TAG_MAX, gfp);
 	if (!tb)
 		return ERR_PTR(-ENOMEM);
 
@@ -4918,9 +4918,8 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 	}
 
 	if (!soc->reg_info_store) {
-		soc->reg_info_store = kcalloc(soc->num_radios,
-					      sizeof(*soc->reg_info_store),
-					      GFP_ATOMIC);
+		soc->reg_info_store = kzalloc_objs(*soc->reg_info_store,
+						   soc->num_radios, GFP_ATOMIC);
 		if (!soc->reg_info_store)
 			return -ENOMEM;
 	}
@@ -5238,8 +5237,7 @@ static struct cur_reg_rule
 	struct cur_reg_rule *reg_rule_ptr;
 	u32 count;
 
-	reg_rule_ptr = kcalloc(num_reg_rules, sizeof(*reg_rule_ptr),
-			       GFP_ATOMIC);
+	reg_rule_ptr = kzalloc_objs(*reg_rule_ptr, num_reg_rules, GFP_ATOMIC);
 
 	if (!reg_rule_ptr)
 		return NULL;
@@ -5388,7 +5386,7 @@ static struct cur_reg_rule
 	struct cur_reg_rule *reg_rule_ptr;
 	u32 count;
 
-	reg_rule_ptr =  kcalloc(num_reg_rules, sizeof(*reg_rule_ptr), GFP_ATOMIC);
+	reg_rule_ptr =  kzalloc_objs(*reg_rule_ptr, num_reg_rules, GFP_ATOMIC);
 
 	if (!reg_rule_ptr)
 		return NULL;
@@ -6694,7 +6692,7 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		data += sizeof(*src);
 		len -= sizeof(*src);
 
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 
@@ -6737,7 +6735,7 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		data += sizeof(*src);
 		len -= sizeof(*src);
 
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 
@@ -6760,7 +6758,7 @@ static int ath11k_wmi_tlv_fw_stats_data_parse(struct ath11k_base *ab,
 		data += sizeof(*src);
 		len -= sizeof(*src);
 
-		dst = kzalloc(sizeof(*dst), GFP_ATOMIC);
+		dst = kzalloc_obj(*dst, GFP_ATOMIC);
 		if (!dst)
 			continue;
 
@@ -7247,7 +7245,7 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 	struct cur_regulatory_info *reg_info;
 	int ret;
 
-	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
+	reg_info = kzalloc_obj(*reg_info, GFP_ATOMIC);
 	if (!reg_info)
 		return -ENOMEM;
 

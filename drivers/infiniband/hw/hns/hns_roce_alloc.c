@@ -77,7 +77,7 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 		return ERR_PTR(-EINVAL);
 
 	gfp_flags = (flags & HNS_ROCE_BUF_NOSLEEP) ? GFP_ATOMIC : GFP_KERNEL;
-	buf = kzalloc(sizeof(*buf), gfp_flags);
+	buf = kzalloc_obj(*buf, gfp_flags);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -93,7 +93,7 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 		ntrunk = DIV_ROUND_UP(size, 1 << buf->trunk_shift);
 	}
 
-	trunks = kcalloc(ntrunk, sizeof(*trunks), gfp_flags);
+	trunks = kzalloc_objs(*trunks, ntrunk, gfp_flags);
 	if (!trunks) {
 		kfree(buf);
 		return ERR_PTR(-ENOMEM);

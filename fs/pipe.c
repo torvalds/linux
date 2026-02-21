@@ -797,7 +797,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	unsigned long user_bufs;
 	unsigned int max_size = READ_ONCE(pipe_max_size);
 
-	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL_ACCOUNT);
+	pipe = kzalloc_obj(struct pipe_inode_info, GFP_KERNEL_ACCOUNT);
 	if (pipe == NULL)
 		goto out_free_uid;
 
@@ -814,8 +814,8 @@ struct pipe_inode_info *alloc_pipe_info(void)
 	if (too_many_pipe_buffers_hard(user_bufs) && pipe_is_unprivileged_user())
 		goto out_revert_acct;
 
-	pipe->bufs = kcalloc(pipe_bufs, sizeof(struct pipe_buffer),
-			     GFP_KERNEL_ACCOUNT);
+	pipe->bufs = kzalloc_objs(struct pipe_buffer, pipe_bufs,
+				  GFP_KERNEL_ACCOUNT);
 
 	if (pipe->bufs) {
 		init_waitqueue_head(&pipe->rd_wait);
@@ -1297,8 +1297,7 @@ int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 	if (unlikely(nr_slots > (pipe_index_t)-1u))
 		return -EINVAL;
 
-	bufs = kcalloc(nr_slots, sizeof(*bufs),
-		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
+	bufs = kzalloc_objs(*bufs, nr_slots, GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (unlikely(!bufs))
 		return -ENOMEM;
 

@@ -636,8 +636,8 @@ static int pcc_data_alloc(int pcc_ss_id)
 	if (pcc_data[pcc_ss_id]) {
 		pcc_data[pcc_ss_id]->refcount++;
 	} else {
-		pcc_data[pcc_ss_id] = kzalloc(sizeof(struct cppc_pcc_data),
-					      GFP_KERNEL);
+		pcc_data[pcc_ss_id] = kzalloc_obj(struct cppc_pcc_data,
+						  GFP_KERNEL);
 		if (!pcc_data[pcc_ss_id])
 			return -ENOMEM;
 		pcc_data[pcc_ss_id]->refcount++;
@@ -712,7 +712,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 	out_obj = (union acpi_object *) output.pointer;
 
-	cpc_ptr = kzalloc(sizeof(struct cpc_desc), GFP_KERNEL);
+	cpc_ptr = kzalloc_obj(struct cpc_desc, GFP_KERNEL);
 	if (!cpc_ptr) {
 		ret = -ENOMEM;
 		goto out_buf_free;

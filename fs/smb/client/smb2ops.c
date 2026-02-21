@@ -731,8 +731,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		spin_unlock(&ses->iface_lock);
 
 		/* no match. insert the entry in the list */
-		info = kmalloc(sizeof(struct cifs_server_iface),
-			       GFP_KERNEL);
+		info = kmalloc_obj(struct cifs_server_iface, GFP_KERNEL);
 		if (!info) {
 			rc = -ENOMEM;
 			goto out;
@@ -1202,7 +1201,7 @@ replay_again:
 
 	ea = NULL;
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	vars = kzalloc(sizeof(*vars), GFP_KERNEL);
+	vars = kzalloc_obj(*vars, GFP_KERNEL);
 	if (!vars) {
 		rc = -ENOMEM;
 		goto out_free_path;
@@ -1594,7 +1593,7 @@ replay_again:
 	oplock = SMB2_OPLOCK_LEVEL_NONE;
 	server = cifs_pick_channel(ses);
 
-	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
+	vars = kzalloc_obj(*vars, GFP_ATOMIC);
 	if (vars == NULL)
 		return -ENOMEM;
 	rqst = &vars->rqst[0];
@@ -1889,7 +1888,7 @@ retry:
 		goto out;
 	}
 
-	cc_req = kzalloc(struct_size(cc_req, Chunks, chunk_count), GFP_KERNEL);
+	cc_req = kzalloc_flex(*cc_req, Chunks, chunk_count, GFP_KERNEL);
 	if (!cc_req) {
 		rc = -ENOMEM;
 		goto out;
@@ -2850,7 +2849,7 @@ replay_again:
 		flags |= CIFS_TRANSFORM_REQ;
 
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	vars = kzalloc(sizeof(*vars), GFP_KERNEL);
+	vars = kzalloc_obj(*vars, GFP_KERNEL);
 	if (!vars) {
 		rc = -ENOMEM;
 		goto out_free_path;
@@ -4221,7 +4220,7 @@ smb2_create_lease_buf(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 fla
 {
 	struct create_lease *buf;
 
-	buf = kzalloc(sizeof(struct create_lease), GFP_KERNEL);
+	buf = kzalloc_obj(struct create_lease, GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -4247,7 +4246,7 @@ smb3_create_lease_buf(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 fla
 {
 	struct create_lease_v2 *buf;
 
-	buf = kzalloc(sizeof(struct create_lease_v2), GFP_KERNEL);
+	buf = kzalloc_obj(struct create_lease_v2, GFP_KERNEL);
 	if (!buf)
 		return NULL;
 
@@ -4931,7 +4930,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	int rc;
 	struct smb2_decrypt_work *dw;
 
-	dw = kzalloc(sizeof(struct smb2_decrypt_work), GFP_KERNEL);
+	dw = kzalloc_obj(struct smb2_decrypt_work, GFP_KERNEL);
 	if (!dw)
 		return -ENOMEM;
 	INIT_WORK(&dw->decrypt, smb2_decrypt_offload);

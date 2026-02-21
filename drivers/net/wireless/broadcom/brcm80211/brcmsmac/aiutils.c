@@ -512,7 +512,7 @@ ai_attach(struct bcma_bus *pbus)
 	struct si_info *sii;
 
 	/* alloc struct si_info */
-	sii = kzalloc(sizeof(*sii), GFP_ATOMIC);
+	sii = kzalloc_obj(*sii, GFP_ATOMIC);
 	if (sii == NULL)
 		return NULL;
 

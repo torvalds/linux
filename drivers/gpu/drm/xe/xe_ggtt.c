@@ -702,7 +702,7 @@ int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align)
  **/
 struct xe_ggtt_node *xe_ggtt_node_init(struct xe_ggtt *ggtt)
 {
-	struct xe_ggtt_node *node = kzalloc(sizeof(*node), GFP_NOFS);
+	struct xe_ggtt_node *node = kzalloc_obj(*node, GFP_NOFS);
 
 	if (!node)
 		return ERR_PTR(-ENOMEM);

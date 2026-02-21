@@ -309,7 +309,7 @@ struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
 {
 	struct kernel_queue *kq;
 
-	kq = kzalloc(sizeof(*kq), GFP_KERNEL);
+	kq = kzalloc_obj(*kq, GFP_KERNEL);
 	if (!kq)
 		return NULL;
 

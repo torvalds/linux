@@ -317,7 +317,7 @@ EXPORT_SYMBOL_GPL(nf_log_buf_add);
 
 struct nf_log_buf *nf_log_buf_open(void)
 {
-	struct nf_log_buf *m = kmalloc(sizeof(*m), GFP_ATOMIC);
+	struct nf_log_buf *m = kmalloc_obj(*m, GFP_ATOMIC);
 
 	if (unlikely(!m)) {
 		local_bh_disable();

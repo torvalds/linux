@@ -88,8 +88,8 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	int idx = 0;
 	int err = 0;
 #ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
-	struct folio **cache_folios = kmalloc_array(page_count,
-			sizeof(*cache_folios), GFP_KERNEL | __GFP_ZERO);
+	struct folio **cache_folios = kmalloc_objs(*cache_folios, page_count,
+						   GFP_KERNEL | __GFP_ZERO);
 #endif
 
 	bio_for_each_folio_all(fi, fullbio) {

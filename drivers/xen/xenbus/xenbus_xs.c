@@ -324,7 +324,7 @@ static void *xs_talkv(struct xenbus_transaction t,
 	unsigned int i;
 	int err;
 
-	req = kmalloc(sizeof(*req), GFP_NOIO | __GFP_HIGH);
+	req = kmalloc_obj(*req, GFP_NOIO | __GFP_HIGH);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 

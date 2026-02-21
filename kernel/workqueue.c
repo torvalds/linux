@@ -4714,7 +4714,7 @@ struct workqueue_attrs *alloc_workqueue_attrs_noprof(void)
 {
 	struct workqueue_attrs *attrs;
 
-	attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_obj(*attrs, GFP_KERNEL);
 	if (!attrs)
 		goto fail;
 	if (!alloc_cpumask_var(&attrs->cpumask, GFP_KERNEL))
@@ -5370,7 +5370,7 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 		    attrs->affn_scope >= WQ_AFFN_NR_TYPES))
 		return ERR_PTR(-EINVAL);
 
-	ctx = kzalloc(struct_size(ctx, pwq_tbl, nr_cpu_ids), GFP_KERNEL);
+	ctx = kzalloc_flex(*ctx, pwq_tbl, nr_cpu_ids, GFP_KERNEL);
 
 	new_attrs = alloc_workqueue_attrs();
 	if (!ctx || !new_attrs)
@@ -7486,7 +7486,7 @@ int workqueue_sysfs_register(struct workqueue_struct *wq)
 	if (WARN_ON(wq->flags & __WQ_ORDERED))
 		return -EINVAL;
 
-	wq->wq_dev = wq_dev = kzalloc(sizeof(*wq_dev), GFP_KERNEL);
+	wq->wq_dev = wq_dev = kzalloc_obj(*wq_dev, GFP_KERNEL);
 	if (!wq_dev)
 		return -ENOMEM;
 
@@ -7879,9 +7879,9 @@ void __init workqueue_init_early(void)
 		wq_power_efficient = true;
 
 	/* initialize WQ_AFFN_SYSTEM pods */
-	pt->pod_cpus = kcalloc(1, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
-	pt->pod_node = kcalloc(1, sizeof(pt->pod_node[0]), GFP_KERNEL);
-	pt->cpu_pod = kcalloc(nr_cpu_ids, sizeof(pt->cpu_pod[0]), GFP_KERNEL);
+	pt->pod_cpus = kzalloc_objs(pt->pod_cpus[0], 1, GFP_KERNEL);
+	pt->pod_node = kzalloc_objs(pt->pod_node[0], 1, GFP_KERNEL);
+	pt->cpu_pod = kzalloc_objs(pt->cpu_pod[0], nr_cpu_ids, GFP_KERNEL);
 	BUG_ON(!pt->pod_cpus || !pt->pod_node || !pt->cpu_pod);
 
 	BUG_ON(!zalloc_cpumask_var_node(&pt->pod_cpus[0], GFP_KERNEL, NUMA_NO_NODE));
@@ -8063,7 +8063,7 @@ static void __init init_pod_type(struct wq_pod_type *pt,
 	pt->nr_pods = 0;
 
 	/* init @pt->cpu_pod[] according to @cpus_share_pod() */
-	pt->cpu_pod = kcalloc(nr_cpu_ids, sizeof(pt->cpu_pod[0]), GFP_KERNEL);
+	pt->cpu_pod = kzalloc_objs(pt->cpu_pod[0], nr_cpu_ids, GFP_KERNEL);
 	BUG_ON(!pt->cpu_pod);
 
 	for_each_possible_cpu(cur) {
@@ -8080,8 +8080,8 @@ static void __init init_pod_type(struct wq_pod_type *pt,
 	}
 
 	/* init the rest to match @pt->cpu_pod[] */
-	pt->pod_cpus = kcalloc(pt->nr_pods, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
-	pt->pod_node = kcalloc(pt->nr_pods, sizeof(pt->pod_node[0]), GFP_KERNEL);
+	pt->pod_cpus = kzalloc_objs(pt->pod_cpus[0], pt->nr_pods, GFP_KERNEL);
+	pt->pod_node = kzalloc_objs(pt->pod_node[0], pt->nr_pods, GFP_KERNEL);
 	BUG_ON(!pt->pod_cpus || !pt->pod_node);
 
 	for (pod = 0; pod < pt->nr_pods; pod++)

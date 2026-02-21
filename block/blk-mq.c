@@ -4362,7 +4362,7 @@ static int blk_mq_alloc_ctxs(struct request_queue *q)
 	struct blk_mq_ctxs *ctxs;
 	int cpu;
 
-	ctxs = kzalloc(sizeof(*ctxs), GFP_KERNEL);
+	ctxs = kzalloc_obj(*ctxs, GFP_KERNEL);
 	if (!ctxs)
 		return -ENOMEM;
 
@@ -4879,7 +4879,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 		set->nr_hw_queues = nr_cpu_ids;
 
 	if (set->flags & BLK_MQ_F_BLOCKING) {
-		set->srcu = kmalloc(sizeof(*set->srcu), GFP_KERNEL);
+		set->srcu = kmalloc_obj(*set->srcu, GFP_KERNEL);
 		if (!set->srcu)
 			return -ENOMEM;
 		ret = init_srcu_struct(set->srcu);

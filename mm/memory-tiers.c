@@ -227,7 +227,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 		}
 	}
 
-	new_memtier = kzalloc(sizeof(struct memory_tier), GFP_KERNEL);
+	new_memtier = kzalloc_obj(struct memory_tier, GFP_KERNEL);
 	if (!new_memtier)
 		return ERR_PTR(-ENOMEM);
 
@@ -625,7 +625,7 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 {
 	struct memory_dev_type *memtype;
 
-	memtype = kmalloc(sizeof(*memtype), GFP_KERNEL);
+	memtype = kmalloc_obj(*memtype, GFP_KERNEL);
 	if (!memtype)
 		return ERR_PTR(-ENOMEM);
 
@@ -912,8 +912,8 @@ static int __init memory_tier_init(void)
 		panic("%s() failed to register memory tier subsystem\n", __func__);
 
 #ifdef CONFIG_MIGRATION
-	node_demotion = kcalloc(nr_node_ids, sizeof(struct demotion_nodes),
-				GFP_KERNEL);
+	node_demotion = kzalloc_objs(struct demotion_nodes, nr_node_ids,
+				     GFP_KERNEL);
 	WARN_ON(!node_demotion);
 #endif
 

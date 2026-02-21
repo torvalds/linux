@@ -774,7 +774,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	struct gpio_desc *gpio;
 	int rc;
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	master = kzalloc_obj(*master, GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 

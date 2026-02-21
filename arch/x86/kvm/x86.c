@@ -6208,7 +6208,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (!lapic_in_kernel(vcpu))
 			goto out;
-		u.lapic = kzalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
+		u.lapic = kzalloc_obj(struct kvm_lapic_state, GFP_KERNEL);
 
 		r = -ENOMEM;
 		if (!u.lapic)
@@ -6410,7 +6410,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (vcpu->arch.guest_fpu.uabi_size > sizeof(struct kvm_xsave))
 			break;
 
-		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		u.xsave = kzalloc_obj(struct kvm_xsave, GFP_KERNEL);
 		r = -ENOMEM;
 		if (!u.xsave)
 			break;
@@ -6459,7 +6459,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 
 	case KVM_GET_XCRS: {
-		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		u.xcrs = kzalloc_obj(struct kvm_xcrs, GFP_KERNEL);
 		r = -ENOMEM;
 		if (!u.xcrs)
 			break;
@@ -6619,7 +6619,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		    vcpu->arch.guest_state_protected)
 			goto out;
 
-		u.sregs2 = kzalloc(sizeof(struct kvm_sregs2), GFP_KERNEL);
+		u.sregs2 = kzalloc_obj(struct kvm_sregs2, GFP_KERNEL);
 		r = -ENOMEM;
 		if (!u.sregs2)
 			goto out;
@@ -6994,7 +6994,7 @@ static struct kvm_x86_msr_filter *kvm_alloc_msr_filter(bool default_allow)
 {
 	struct kvm_x86_msr_filter *msr_filter;
 
-	msr_filter = kzalloc(sizeof(*msr_filter), GFP_KERNEL_ACCOUNT);
+	msr_filter = kzalloc_obj(*msr_filter, GFP_KERNEL_ACCOUNT);
 	if (!msr_filter)
 		return NULL;
 

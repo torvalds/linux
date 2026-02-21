@@ -114,7 +114,7 @@ EXPORT_SYMBOL(__drm_atomic_helper_crtc_reset);
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
 	struct drm_crtc_state *crtc_state =
-		kzalloc(sizeof(*crtc->state), GFP_KERNEL);
+		kzalloc_obj(*crtc->state, GFP_KERNEL);
 
 	if (crtc->state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
@@ -175,7 +175,7 @@ drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state, GFP_KERNEL);
 	if (state)
 		__drm_atomic_helper_crtc_duplicate_state(crtc, state);
 
@@ -333,7 +333,7 @@ void drm_atomic_helper_plane_reset(struct drm_plane *plane)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
 
 	kfree(plane->state);
-	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
+	plane->state = kzalloc_obj(*plane->state, GFP_KERNEL);
 	if (plane->state)
 		__drm_atomic_helper_plane_reset(plane, plane->state);
 }
@@ -377,7 +377,7 @@ drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane)
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state, GFP_KERNEL);
 	if (state)
 		__drm_atomic_helper_plane_duplicate_state(plane, state);
 
@@ -473,8 +473,8 @@ EXPORT_SYMBOL(__drm_atomic_helper_connector_reset);
  */
 void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 {
-	struct drm_connector_state *conn_state =
-		kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	struct drm_connector_state *conn_state = kzalloc_obj(*conn_state,
+							     GFP_KERNEL);
 
 	if (connector->state)
 		__drm_atomic_helper_connector_destroy_state(connector->state);
@@ -666,7 +666,7 @@ drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector)
 	if (WARN_ON(!connector->state))
 		return NULL;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state, GFP_KERNEL);
 	if (state)
 		__drm_atomic_helper_connector_duplicate_state(connector, state);
 
@@ -763,7 +763,7 @@ drm_atomic_helper_bridge_duplicate_state(struct drm_bridge *bridge)
 	if (WARN_ON(!bridge->base.state))
 		return NULL;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new, GFP_KERNEL);
 	if (new)
 		__drm_atomic_helper_bridge_duplicate_state(bridge, new);
 
@@ -821,7 +821,7 @@ drm_atomic_helper_bridge_reset(struct drm_bridge *bridge)
 {
 	struct drm_bridge_state *bridge_state;
 
-	bridge_state = kzalloc(sizeof(*bridge_state), GFP_KERNEL);
+	bridge_state = kzalloc_obj(*bridge_state, GFP_KERNEL);
 	if (!bridge_state)
 		return ERR_PTR(-ENOMEM);
 

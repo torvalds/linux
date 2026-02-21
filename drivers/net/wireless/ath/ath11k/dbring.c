@@ -127,7 +127,7 @@ static int ath11k_dbring_fill_bufs(struct ath11k *ar,
 	size = ring->buf_sz + align - 1;
 
 	while (num_remain > 0) {
-		buff = kzalloc(sizeof(*buff), GFP_ATOMIC);
+		buff = kzalloc_obj(*buff, GFP_ATOMIC);
 		if (!buff)
 			break;
 

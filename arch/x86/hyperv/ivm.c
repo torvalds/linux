@@ -531,7 +531,7 @@ static int hv_list_enc_add(const u64 *pfn_list, int count)
 		raw_spin_unlock_irqrestore(&hv_list_enc_lock, flags);
 
 		/* No adjacent region found -- create a new one */
-		ent = kzalloc(sizeof(struct hv_enc_pfn_region), GFP_KERNEL);
+		ent = kzalloc_obj(struct hv_enc_pfn_region, GFP_KERNEL);
 		if (!ent)
 			return -ENOMEM;
 
@@ -598,7 +598,7 @@ unlock_done:
 unlock_split:
 		raw_spin_unlock_irqrestore(&hv_list_enc_lock, flags);
 
-		ent = kzalloc(sizeof(struct hv_enc_pfn_region), GFP_KERNEL);
+		ent = kzalloc_obj(struct hv_enc_pfn_region, GFP_KERNEL);
 		if (!ent)
 			return -ENOMEM;
 

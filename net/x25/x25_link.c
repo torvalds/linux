@@ -262,7 +262,7 @@ void x25_link_terminated(struct x25_neigh *nb)
  */
 void x25_link_device_up(struct net_device *dev)
 {
-	struct x25_neigh *nb = kmalloc(sizeof(*nb), GFP_ATOMIC);
+	struct x25_neigh *nb = kmalloc_obj(*nb, GFP_ATOMIC);
 
 	if (!nb)
 		return;

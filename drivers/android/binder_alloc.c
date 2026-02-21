@@ -289,7 +289,7 @@ static struct page *binder_page_alloc(struct binder_alloc *alloc,
 		return NULL;
 
 	/* allocate and install shrinker metadata under page->private */
-	mdata = kzalloc(sizeof(*mdata), GFP_KERNEL);
+	mdata = kzalloc_obj(*mdata, GFP_KERNEL);
 	if (!mdata) {
 		__free_page(page);
 		return NULL;
@@ -672,7 +672,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 	}
 
 	/* Preallocate the next buffer */
-	next = kzalloc(sizeof(*next), GFP_KERNEL);
+	next = kzalloc_obj(*next, GFP_KERNEL);
 	if (!next)
 		return ERR_PTR(-ENOMEM);
 
@@ -916,16 +916,15 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 
 	alloc->vm_start = vma->vm_start;
 
-	alloc->pages = kvcalloc(alloc->buffer_size / PAGE_SIZE,
-				sizeof(alloc->pages[0]),
-				GFP_KERNEL);
+	alloc->pages = kvzalloc_objs(alloc->pages[0],
+				     alloc->buffer_size / PAGE_SIZE, GFP_KERNEL);
 	if (!alloc->pages) {
 		ret = -ENOMEM;
 		failure_string = "alloc page array";
 		goto err_alloc_pages_failed;
 	}
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer, GFP_KERNEL);
 	if (!buffer) {
 		ret = -ENOMEM;
 		failure_string = "alloc buffer struct";

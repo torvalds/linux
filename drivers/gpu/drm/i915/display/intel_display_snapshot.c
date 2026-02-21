@@ -28,7 +28,7 @@ struct intel_display_snapshot *intel_display_snapshot_capture(struct intel_displ
 {
 	struct intel_display_snapshot *snapshot;
 
-	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+	snapshot = kzalloc_obj(*snapshot, GFP_ATOMIC);
 	if (!snapshot)
 		return NULL;
 

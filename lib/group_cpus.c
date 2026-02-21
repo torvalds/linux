@@ -47,7 +47,7 @@ static cpumask_var_t *alloc_node_to_cpumask(void)
 	cpumask_var_t *masks;
 	int node;
 
-	masks = kcalloc(nr_node_ids, sizeof(cpumask_var_t), GFP_KERNEL);
+	masks = kzalloc_objs(cpumask_var_t, nr_node_ids, GFP_KERNEL);
 	if (!masks)
 		return NULL;
 
@@ -320,10 +320,10 @@ static int alloc_cluster_groups(unsigned int ncpus,
 		goto no_cluster;
 
 	/* Allocate memory based on cluster number. */
-	clusters = kcalloc(ncluster, sizeof(*clusters), GFP_KERNEL);
+	clusters = kzalloc_objs(*clusters, ncluster, GFP_KERNEL);
 	if (!clusters)
 		goto no_cluster;
-	cluster_groups = kcalloc(ncluster, sizeof(struct node_groups), GFP_KERNEL);
+	cluster_groups = kzalloc_objs(struct node_groups, ncluster, GFP_KERNEL);
 	if (!cluster_groups)
 		goto fail_cluster_groups;
 
@@ -432,9 +432,7 @@ static int __group_cpus_evenly(unsigned int startgrp, unsigned int numgrps,
 		return numgrps;
 	}
 
-	node_groups = kcalloc(nr_node_ids,
-			       sizeof(struct node_groups),
-			       GFP_KERNEL);
+	node_groups = kzalloc_objs(struct node_groups, nr_node_ids, GFP_KERNEL);
 	if (!node_groups)
 		return -ENOMEM;
 
@@ -508,7 +506,7 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps, unsigned int *nummasks)
 	if (!node_to_cpumask)
 		goto fail_npresmsk;
 
-	masks = kcalloc(numgrps, sizeof(*masks), GFP_KERNEL);
+	masks = kzalloc_objs(*masks, numgrps, GFP_KERNEL);
 	if (!masks)
 		goto fail_node_to_cpumask;
 
@@ -574,7 +572,7 @@ struct cpumask *group_cpus_evenly(unsigned int numgrps, unsigned int *nummasks)
 	if (numgrps == 0)
 		return NULL;
 
-	masks = kcalloc(numgrps, sizeof(*masks), GFP_KERNEL);
+	masks = kzalloc_objs(*masks, numgrps, GFP_KERNEL);
 	if (!masks)
 		return NULL;
 

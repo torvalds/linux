@@ -226,7 +226,7 @@ static int erofs_scan_devices(struct super_block *sb,
 		}
 	} else {
 		for (id = 0; id < ondisk_extradevs; id++) {
-			dif = kzalloc(sizeof(*dif), GFP_KERNEL);
+			dif = kzalloc_obj(*dif, GFP_KERNEL);
 			if (!dif) {
 				err = -ENOMEM;
 				break;
@@ -495,7 +495,7 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 			return -EINVAL;
 		break;
 	case Opt_device:
-		dif = kzalloc(sizeof(*dif), GFP_KERNEL);
+		dif = kzalloc_obj(*dif, GFP_KERNEL);
 		if (!dif)
 			return -ENOMEM;
 		dif->path = kstrdup(param->string, GFP_KERNEL);
@@ -903,11 +903,11 @@ static int erofs_init_fs_context(struct fs_context *fc)
 {
 	struct erofs_sb_info *sbi;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
-	sbi->devs = kzalloc(sizeof(struct erofs_dev_context), GFP_KERNEL);
+	sbi->devs = kzalloc_obj(struct erofs_dev_context, GFP_KERNEL);
 	if (!sbi->devs) {
 		kfree(sbi);
 		return -ENOMEM;

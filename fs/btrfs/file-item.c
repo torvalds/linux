@@ -845,7 +845,7 @@ int btrfs_csum_one_bio(struct btrfs_bio *bbio, bool async)
  */
 int btrfs_alloc_dummy_sum(struct btrfs_bio *bbio)
 {
-	bbio->sums = kmalloc(sizeof(*bbio->sums), GFP_NOFS);
+	bbio->sums = kmalloc_obj(*bbio->sums, GFP_NOFS);
 	if (!bbio->sums)
 		return -ENOMEM;
 	bbio->sums->len = bbio->bio.bi_iter.bi_size;

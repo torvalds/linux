@@ -147,7 +147,7 @@ static int sel_ib_pkey_sid_slow(u64 subnet_prefix, u16 pkey_num, u32 *sid)
 	if (ret)
 		goto out;
 
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kmalloc_obj(*new, GFP_ATOMIC);
 	if (!new) {
 		/* If this memory allocation fails still return 0. The SID
 		 * is valid, it just won't be added to the cache.

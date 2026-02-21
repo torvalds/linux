@@ -1196,7 +1196,8 @@ static int agilent_82357a_allocate_private(struct gpib_board *board)
 {
 	struct agilent_82357a_priv *a_priv;
 
-	board->private_data = kzalloc(sizeof(struct agilent_82357a_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct agilent_82357a_priv,
+					  GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	a_priv = board->private_data;

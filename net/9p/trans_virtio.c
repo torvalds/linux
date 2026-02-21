@@ -358,8 +358,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 		nr_pages = DIV_ROUND_UP((unsigned long)p + len, PAGE_SIZE) -
 			   (unsigned long)p / PAGE_SIZE;
 
-		*pages = kmalloc_array(nr_pages, sizeof(struct page *),
-				       GFP_NOFS);
+		*pages = kmalloc_objs(struct page *, nr_pages, GFP_NOFS);
 		if (!*pages)
 			return -ENOMEM;
 
@@ -602,7 +601,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	chan = kmalloc(sizeof(struct virtio_chan), GFP_KERNEL);
+	chan = kmalloc_obj(struct virtio_chan, GFP_KERNEL);
 	if (!chan) {
 		pr_err("Failed to allocate virtio 9P channel\n");
 		err = -ENOMEM;
@@ -642,7 +641,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	if (err) {
 		goto out_free_tag;
 	}
-	chan->vc_wq = kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
+	chan->vc_wq = kmalloc_obj(wait_queue_head_t, GFP_KERNEL);
 	if (!chan->vc_wq) {
 		err = -ENOMEM;
 		goto out_remove_file;

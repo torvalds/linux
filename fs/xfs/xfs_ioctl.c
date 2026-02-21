@@ -896,7 +896,7 @@ xfs_ioc_getbmap(
 	if (bmx.bmv_count >= INT_MAX / recsize)
 		return -ENOMEM;
 
-	buf = kvcalloc(bmx.bmv_count, sizeof(*buf), GFP_KERNEL);
+	buf = kvzalloc_objs(*buf, bmx.bmv_count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

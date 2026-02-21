@@ -1523,7 +1523,7 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 		if (of_property_read_u32(node, "reg", &id))
 			continue;
 
-		ngd = kzalloc(sizeof(*ngd), GFP_KERNEL);
+		ngd = kzalloc_obj(*ngd, GFP_KERNEL);
 		if (!ngd)
 			return -ENOMEM;
 

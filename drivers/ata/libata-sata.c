@@ -849,7 +849,7 @@ int ata_slave_link_init(struct ata_port *ap)
 	WARN_ON(ap->slave_link);
 	WARN_ON(ap->flags & ATA_FLAG_PMP);
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link, GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
 

@@ -246,13 +246,13 @@ int vfio_pci_core_feature_dma_buf(struct vfio_pci_core_device *vdev, u32 flags,
 	if (ret)
 		goto err_free_ranges;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv, GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err_free_ranges;
 	}
-	priv->phys_vec = kcalloc(get_dma_buf.nr_ranges, sizeof(*priv->phys_vec),
-				 GFP_KERNEL);
+	priv->phys_vec = kzalloc_objs(*priv->phys_vec, get_dma_buf.nr_ranges,
+				      GFP_KERNEL);
 	if (!priv->phys_vec) {
 		ret = -ENOMEM;
 		goto err_free_priv;

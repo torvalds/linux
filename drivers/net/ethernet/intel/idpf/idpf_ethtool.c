@@ -200,11 +200,11 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 	if (q_index >= num_rxq)
 		return -EINVAL;
 
-	rule = kzalloc(struct_size(rule, rule_info, 1), GFP_KERNEL);
+	rule = kzalloc_flex(*rule, rule_info, 1, GFP_KERNEL);
 	if (!rule)
 		return -ENOMEM;
 
-	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr, GFP_KERNEL);
 	if (!fltr) {
 		err = -ENOMEM;
 		goto out_free_rule;
@@ -310,7 +310,7 @@ static int idpf_del_flow_steer(struct net_device *netdev,
 	if (!idpf_sideband_action_ena(vport, fsp))
 		return -EOPNOTSUPP;
 
-	rule = kzalloc(struct_size(rule, rule_info, 1), GFP_KERNEL);
+	rule = kzalloc_flex(*rule, rule_info, 1, GFP_KERNEL);
 	if (!rule)
 		return -ENOMEM;
 

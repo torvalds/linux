@@ -940,7 +940,7 @@ static struct indx_node *indx_new(struct ntfs_index *indx,
 	u16 fn;
 	u32 eo;
 
-	r = kzalloc(sizeof(struct indx_node), GFP_NOFS);
+	r = kzalloc_obj(struct indx_node, GFP_NOFS);
 	if (!r)
 		return ERR_PTR(-ENOMEM);
 
@@ -1046,7 +1046,7 @@ int indx_read_ra(struct ntfs_index *indx, struct ntfs_inode *ni, CLST vbn,
 	const struct INDEX_NAMES *name;
 
 	if (!in) {
-		in = kzalloc(sizeof(struct indx_node), GFP_NOFS);
+		in = kzalloc_obj(struct indx_node, GFP_NOFS);
 		if (!in)
 			return -ENOMEM;
 	} else {

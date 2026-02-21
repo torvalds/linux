@@ -1869,7 +1869,8 @@ s32 rtw_alloc_hwxmits(struct adapter *padapter)
 
 	pxmitpriv->hwxmits = NULL;
 
-	pxmitpriv->hwxmits = kcalloc(pxmitpriv->hwxmit_entry, sizeof(*hwxmits), GFP_ATOMIC);
+	pxmitpriv->hwxmits = kzalloc_objs(*hwxmits, pxmitpriv->hwxmit_entry,
+					  GFP_ATOMIC);
 	if (!pxmitpriv->hwxmits)
 		return _FAIL;
 

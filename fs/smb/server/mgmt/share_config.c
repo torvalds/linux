@@ -102,7 +102,7 @@ static int parse_veto_list(struct ksmbd_share_config *share,
 		if (!sz)
 			break;
 
-		p = kzalloc(sizeof(struct ksmbd_veto_pattern), KSMBD_DEFAULT_GFP);
+		p = kzalloc_obj(struct ksmbd_veto_pattern, KSMBD_DEFAULT_GFP);
 		if (!p)
 			return -ENOMEM;
 
@@ -150,7 +150,7 @@ static struct ksmbd_share_config *share_config_request(struct ksmbd_work *work,
 			goto out;
 	}
 
-	share = kzalloc(sizeof(struct ksmbd_share_config), KSMBD_DEFAULT_GFP);
+	share = kzalloc_obj(struct ksmbd_share_config, KSMBD_DEFAULT_GFP);
 	if (!share)
 		goto out;
 

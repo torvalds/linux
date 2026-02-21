@@ -1388,7 +1388,7 @@ afunc_notify(struct g_audio *agdev, int unit_id, int cs)
 		goto err_dec_int_count;
 	}
 
-	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc_obj(*msg, GFP_ATOMIC);
 	if (msg == NULL) {
 		ret = -ENOMEM;
 		goto err_free_request;
@@ -2189,7 +2189,7 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 {
 	struct f_uac2_opts *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -2278,7 +2278,7 @@ static struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 	struct f_uac2	*uac2;
 	struct f_uac2_opts *opts;
 
-	uac2 = kzalloc(sizeof(*uac2), GFP_KERNEL);
+	uac2 = kzalloc_obj(*uac2, GFP_KERNEL);
 	if (uac2 == NULL)
 		return ERR_PTR(-ENOMEM);
 

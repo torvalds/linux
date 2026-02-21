@@ -238,7 +238,7 @@ dbc_alloc_request(struct xhci_dbc *dbc, unsigned int direction, gfp_t flags)
 	if (!dbc)
 		return NULL;
 
-	req = kzalloc(sizeof(*req), flags);
+	req = kzalloc_obj(*req, flags);
 	if (!req)
 		return NULL;
 
@@ -446,7 +446,7 @@ dbc_alloc_ctx(struct device *dev, gfp_t flags)
 {
 	struct xhci_container_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), flags);
+	ctx = kzalloc_obj(*ctx, flags);
 	if (!ctx)
 		return NULL;
 
@@ -503,14 +503,14 @@ xhci_dbc_ring_alloc(struct device *dev, enum xhci_ring_type type, gfp_t flags)
 	struct xhci_segment *seg;
 	dma_addr_t dma;
 
-	ring = kzalloc(sizeof(*ring), flags);
+	ring = kzalloc_obj(*ring, flags);
 	if (!ring)
 		return NULL;
 
 	ring->num_segs = 1;
 	ring->type = type;
 
-	seg = kzalloc(sizeof(*seg), flags);
+	seg = kzalloc_obj(*seg, flags);
 	if (!seg)
 		goto seg_fail;
 
@@ -1425,7 +1425,7 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *
 	struct xhci_dbc		*dbc;
 	int			ret;
 
-	dbc = kzalloc(sizeof(*dbc), GFP_KERNEL);
+	dbc = kzalloc_obj(*dbc, GFP_KERNEL);
 	if (!dbc)
 		return NULL;
 

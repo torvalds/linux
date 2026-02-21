@@ -456,7 +456,7 @@ static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
 	/* Client should not flush new tasks if suspended. */
 	WARN_ON(cmdq->suspended);
 
-	task = kzalloc(sizeof(*task), GFP_ATOMIC);
+	task = kzalloc_obj(*task, GFP_ATOMIC);
 	if (!task)
 		return -ENOMEM;
 

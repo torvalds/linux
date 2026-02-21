@@ -5058,7 +5058,7 @@ alloc_perf_context(struct task_struct *task)
 {
 	struct perf_event_context *ctx;
 
-	ctx = kzalloc(sizeof(struct perf_event_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct perf_event_context, GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
@@ -5198,7 +5198,7 @@ find_get_pmu_context(struct pmu *pmu, struct perf_event_context *ctx,
 		return epc;
 	}
 
-	new = kzalloc(sizeof(*epc), GFP_KERNEL);
+	new = kzalloc_obj(*epc, GFP_KERNEL);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 
@@ -5374,7 +5374,7 @@ alloc_perf_ctx_data(struct kmem_cache *ctx_cache, bool global)
 {
 	struct perf_ctx_data *cd;
 
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd, GFP_KERNEL);
 	if (!cd)
 		return NULL;
 
@@ -11111,7 +11111,7 @@ static int swevent_hlist_get_cpu(int cpu)
 	    cpumask_test_cpu(cpu, perf_online_mask)) {
 		struct swevent_hlist *hlist;
 
-		hlist = kzalloc(sizeof(*hlist), GFP_KERNEL);
+		hlist = kzalloc_obj(*hlist, GFP_KERNEL);
 		if (!hlist) {
 			err = -ENOMEM;
 			goto exit;
@@ -12634,7 +12634,7 @@ static int pmu_dev_alloc(struct pmu *pmu)
 {
 	int ret = -ENOMEM;
 
-	pmu->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	pmu->dev = kzalloc_obj(struct device, GFP_KERNEL);
 	if (!pmu->dev)
 		goto out;
 
@@ -15269,7 +15269,7 @@ perf_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct perf_cgroup *jc;
 
-	jc = kzalloc(sizeof(*jc), GFP_KERNEL);
+	jc = kzalloc_obj(*jc, GFP_KERNEL);
 	if (!jc)
 		return ERR_PTR(-ENOMEM);
 

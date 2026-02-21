@@ -313,7 +313,7 @@ static int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	atomic_set(&mhi_cntrl->dev_wake, 0);
 	atomic_set(&mhi_cntrl->pending_pkts, 0);
 
-	mhi_ctxt = kzalloc(sizeof(*mhi_ctxt), GFP_KERNEL);
+	mhi_ctxt = kzalloc_obj(*mhi_ctxt, GFP_KERNEL);
 	if (!mhi_ctxt)
 		return -ENOMEM;
 
@@ -699,8 +699,8 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 
 	num = config->num_events;
 	mhi_cntrl->total_ev_rings = num;
-	mhi_cntrl->mhi_event = kcalloc(num, sizeof(*mhi_cntrl->mhi_event),
-				       GFP_KERNEL);
+	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event, num,
+					    GFP_KERNEL);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
@@ -938,8 +938,8 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	if (ret)
 		return -EINVAL;
 
-	mhi_cntrl->mhi_cmd = kcalloc(NR_OF_CMD_RINGS,
-				     sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
+	mhi_cntrl->mhi_cmd = kzalloc_objs(*mhi_cntrl->mhi_cmd, NR_OF_CMD_RINGS,
+					  GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
 		goto err_free_event;
@@ -1095,7 +1095,7 @@ struct mhi_controller *mhi_alloc_controller(void)
 {
 	struct mhi_controller *mhi_cntrl;
 
-	mhi_cntrl = kzalloc(sizeof(*mhi_cntrl), GFP_KERNEL);
+	mhi_cntrl = kzalloc_obj(*mhi_cntrl, GFP_KERNEL);
 
 	return mhi_cntrl;
 }
@@ -1232,7 +1232,7 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	struct mhi_device *mhi_dev;
 	struct device *dev;
 
-	mhi_dev = kzalloc(sizeof(*mhi_dev), GFP_KERNEL);
+	mhi_dev = kzalloc_obj(*mhi_dev, GFP_KERNEL);
 	if (!mhi_dev)
 		return ERR_PTR(-ENOMEM);
 

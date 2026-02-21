@@ -764,7 +764,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	int ret;
 
 	if (clks->mux_shift >= 0) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux, GFP_KERNEL);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -784,7 +784,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	}
 
 	if (clks->gate_shift >= 0) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate, GFP_KERNEL);
 		if (!gate) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -799,7 +799,7 @@ static struct clk_hw *bm1880_clk_register_composite(struct bm1880_composite_cloc
 	}
 
 	if (clks->div_shift >= 0) {
-		div_hws = kzalloc(sizeof(*div_hws), GFP_KERNEL);
+		div_hws = kzalloc_obj(*div_hws, GFP_KERNEL);
 		if (!div_hws) {
 			ret = -ENOMEM;
 			goto err_out;

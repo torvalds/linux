@@ -574,7 +574,7 @@ static struct dpp *dcn10_dpp_create(
 	uint32_t inst)
 {
 	struct dcn10_dpp *dpp =
-		kzalloc(sizeof(struct dcn10_dpp), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_dpp, GFP_KERNEL);
 
 	if (!dpp)
 		return NULL;
@@ -588,7 +588,7 @@ static struct input_pixel_processor *dcn10_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_ipp *ipp =
-		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_ipp, GFP_KERNEL);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -605,7 +605,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_opp *opp =
-		kzalloc(sizeof(struct dcn10_opp), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_opp, GFP_KERNEL);
 
 	if (!opp) {
 		BREAK_TO_DEBUGGER();
@@ -621,7 +621,7 @@ static struct dce_aux *dcn10_aux_engine_create(struct dc_context *ctx,
 					       uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110, GFP_KERNEL);
 
 	if (!aux_engine)
 		return NULL;
@@ -658,7 +658,7 @@ static struct dce_i2c_hw *dcn10_i2c_hw_create(struct dc_context *ctx,
 					      uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw, GFP_KERNEL);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -670,8 +670,7 @@ static struct dce_i2c_hw *dcn10_i2c_hw_create(struct dc_context *ctx,
 }
 static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 {
-	struct dcn10_mpc *mpc10 = kzalloc(sizeof(struct dcn10_mpc),
-					  GFP_KERNEL);
+	struct dcn10_mpc *mpc10 = kzalloc_obj(struct dcn10_mpc, GFP_KERNEL);
 
 	if (!mpc10)
 		return NULL;
@@ -687,8 +686,8 @@ static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 
 static struct hubbub *dcn10_hubbub_create(struct dc_context *ctx)
 {
-	struct dcn10_hubbub *dcn10_hubbub = kzalloc(sizeof(struct dcn10_hubbub),
-					  GFP_KERNEL);
+	struct dcn10_hubbub *dcn10_hubbub = kzalloc_obj(struct dcn10_hubbub,
+							GFP_KERNEL);
 
 	if (!dcn10_hubbub)
 		return NULL;
@@ -706,7 +705,7 @@ static struct timing_generator *dcn10_timing_generator_create(
 		uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc(sizeof(struct optc), GFP_KERNEL);
+		kzalloc_obj(struct optc, GFP_KERNEL);
 
 	if (!tgn10)
 		return NULL;
@@ -739,7 +738,7 @@ static struct link_encoder *dcn10_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn10_link_encoder *enc10 =
-		kzalloc(sizeof(struct dcn10_link_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_link_encoder, GFP_KERNEL);
 	int link_regs_id;
 
 	if (!enc10 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
@@ -763,7 +762,7 @@ static struct link_encoder *dcn10_link_encoder_create(
 static struct panel_cntl *dcn10_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dce_panel_cntl *panel_cntl =
-		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+		kzalloc_obj(struct dce_panel_cntl, GFP_KERNEL);
 
 	if (!panel_cntl)
 		return NULL;
@@ -785,7 +784,7 @@ static struct clock_source *dcn10_clock_source_create(
 	bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src, GFP_KERNEL);
 
 	if (!clk_src)
 		return NULL;
@@ -821,7 +820,7 @@ static struct stream_encoder *dcn10_stream_encoder_create(
 	struct dc_context *ctx)
 {
 	struct dcn10_stream_encoder *enc1 =
-		kzalloc(sizeof(struct dcn10_stream_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_stream_encoder, GFP_KERNEL);
 
 	if (!enc1)
 		return NULL;
@@ -847,7 +846,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dcn10_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq, GFP_KERNEL);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -891,7 +890,7 @@ static void dcn10_clock_source_destroy(struct clock_source **clk_src)
 
 static struct pp_smu_funcs *dcn10_pp_smu_create(struct dc_context *ctx)
 {
-	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
+	struct pp_smu_funcs *pp_smu = kzalloc_obj(*pp_smu, GFP_KERNEL);
 
 	if (!pp_smu)
 		return pp_smu;
@@ -984,7 +983,7 @@ static struct hubp *dcn10_hubp_create(
 	uint32_t inst)
 {
 	struct dcn10_hubp *hubp1 =
-		kzalloc(sizeof(struct dcn10_hubp), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_hubp, GFP_KERNEL);
 
 	if (!hubp1)
 		return NULL;
@@ -1681,7 +1680,7 @@ struct resource_pool *dcn10_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn10_resource_pool *pool =
-		kzalloc(sizeof(struct dcn10_resource_pool), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_resource_pool, GFP_KERNEL);
 
 	if (!pool)
 		return NULL;

@@ -336,7 +336,7 @@ static struct mctp_dev *mctp_add_dev(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev, GFP_KERNEL);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 

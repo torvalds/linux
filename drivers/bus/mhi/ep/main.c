@@ -963,7 +963,7 @@ static void mhi_ep_process_ctrl_interrupt(struct mhi_ep_cntrl *mhi_cntrl,
 {
 	struct mhi_ep_state_transition *item;
 
-	item = kzalloc(sizeof(*item), GFP_ATOMIC);
+	item = kzalloc_obj(*item, GFP_ATOMIC);
 	if (!item)
 		return;
 
@@ -1136,9 +1136,8 @@ int mhi_ep_power_up(struct mhi_ep_cntrl *mhi_cntrl)
 	mhi_ep_mmio_mask_interrupts(mhi_cntrl);
 	mhi_ep_mmio_init(mhi_cntrl);
 
-	mhi_cntrl->mhi_event = kcalloc(mhi_cntrl->event_rings,
-				       sizeof(*mhi_cntrl->mhi_event),
-				       GFP_KERNEL);
+	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event,
+					    mhi_cntrl->event_rings, GFP_KERNEL);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
@@ -1276,7 +1275,7 @@ static struct mhi_ep_device *mhi_ep_alloc_device(struct mhi_ep_cntrl *mhi_cntrl,
 	struct mhi_ep_device *mhi_dev;
 	struct device *dev;
 
-	mhi_dev = kzalloc(sizeof(*mhi_dev), GFP_KERNEL);
+	mhi_dev = kzalloc_obj(*mhi_dev, GFP_KERNEL);
 	if (!mhi_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1400,8 +1399,8 @@ static int mhi_ep_chan_init(struct mhi_ep_cntrl *mhi_cntrl,
 	 * Allocate max_channels supported by the MHI endpoint and populate
 	 * only the defined channels
 	 */
-	mhi_cntrl->mhi_chan = kcalloc(mhi_cntrl->max_chan, sizeof(*mhi_cntrl->mhi_chan),
-				      GFP_KERNEL);
+	mhi_cntrl->mhi_chan = kzalloc_objs(*mhi_cntrl->mhi_chan,
+					   mhi_cntrl->max_chan, GFP_KERNEL);
 	if (!mhi_cntrl->mhi_chan)
 		return -ENOMEM;
 
@@ -1460,7 +1459,8 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 	if (ret)
 		return ret;
 
-	mhi_cntrl->mhi_cmd = kcalloc(NR_OF_CMD_RINGS, sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
+	mhi_cntrl->mhi_cmd = kzalloc_objs(*mhi_cntrl->mhi_cmd, NR_OF_CMD_RINGS,
+					  GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
 		goto err_free_ch;

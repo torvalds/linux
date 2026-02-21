@@ -110,7 +110,7 @@ static struct vm_struct *get_io_area(unsigned long size)
 	unsigned long addr;
 	struct vm_struct **p, *tmp, *area;
 
-	area = kmalloc(sizeof(*area), GFP_KERNEL);
+	area = kmalloc_obj(*area, GFP_KERNEL);
 	if (!area)
 		return NULL;
 	addr = KMAP_START;

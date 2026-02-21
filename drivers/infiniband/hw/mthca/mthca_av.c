@@ -161,7 +161,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 	ah->type = MTHCA_AH_PCI_POOL;
 
 	if (mthca_is_memfree(dev)) {
-		ah->av   = kmalloc(sizeof *ah->av, GFP_ATOMIC);
+		ah->av = kmalloc_obj(*ah->av, GFP_ATOMIC);
 		if (!ah->av)
 			return -ENOMEM;
 
@@ -175,7 +175,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 		if (index == -1)
 			goto on_hca_fail;
 
-		av = kmalloc(sizeof *av, GFP_ATOMIC);
+		av = kmalloc_obj(*av, GFP_ATOMIC);
 		if (!av)
 			goto on_hca_fail;
 

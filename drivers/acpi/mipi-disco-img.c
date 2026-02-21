@@ -91,8 +91,8 @@ static acpi_status parse_csi2_resource(struct acpi_resource *res, void *context)
 		return AE_OK;
 	}
 
-	conn = kmalloc(struct_size(conn, remote_name, csi2_res_src_length + 1),
-		       GFP_KERNEL);
+	conn = kmalloc_flex(*conn, remote_name, csi2_res_src_length + 1,
+			    GFP_KERNEL);
 	if (!conn)
 		return AE_OK;
 
@@ -111,7 +111,7 @@ static struct crs_csi2 *acpi_mipi_add_crs_csi2(acpi_handle handle,
 {
 	struct crs_csi2 *csi2;
 
-	csi2 = kzalloc(sizeof(*csi2), GFP_KERNEL);
+	csi2 = kzalloc_obj(*csi2, GFP_KERNEL);
 	if (!csi2)
 		return NULL;
 

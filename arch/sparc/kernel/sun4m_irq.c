@@ -268,7 +268,7 @@ static unsigned int sun4m_build_device_irq(struct platform_device *op,
 	if (unlikely(handler_data))
 		goto out;
 
-	handler_data = kzalloc(sizeof(struct sun4m_handler_data), GFP_ATOMIC);
+	handler_data = kzalloc_obj(struct sun4m_handler_data, GFP_ATOMIC);
 	if (unlikely(!handler_data)) {
 		prom_printf("IRQ: kzalloc(sun4m_handler_data) failed.\n");
 		prom_halt();

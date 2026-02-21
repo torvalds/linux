@@ -646,7 +646,7 @@ typec_register_altmode(struct device *parent,
 	struct altmode *alt;
 	int ret;
 
-	alt = kzalloc(sizeof(*alt), GFP_KERNEL);
+	alt = kzalloc_obj(*alt, GFP_KERNEL);
 	if (!alt) {
 		altmode_id_remove(parent, id);
 		return ERR_PTR(-ENOMEM);
@@ -1113,7 +1113,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	struct typec_partner *partner;
 	int ret;
 
-	partner = kzalloc(sizeof(*partner), GFP_KERNEL);
+	partner = kzalloc_obj(*partner, GFP_KERNEL);
 	if (!partner)
 		return ERR_PTR(-ENOMEM);
 
@@ -1313,7 +1313,7 @@ struct typec_plug *typec_register_plug(struct typec_cable *cable,
 	char name[8];
 	int ret;
 
-	plug = kzalloc(sizeof(*plug), GFP_KERNEL);
+	plug = kzalloc_obj(*plug, GFP_KERNEL);
 	if (!plug)
 		return ERR_PTR(-ENOMEM);
 
@@ -1466,7 +1466,7 @@ struct typec_cable *typec_register_cable(struct typec_port *port,
 	struct typec_cable *cable;
 	int ret;
 
-	cable = kzalloc(sizeof(*cable), GFP_KERNEL);
+	cable = kzalloc_obj(*cable, GFP_KERNEL);
 	if (!cable)
 		return ERR_PTR(-ENOMEM);
 
@@ -2703,7 +2703,7 @@ struct typec_port *typec_register_port(struct device *parent,
 	int ret;
 	int id;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port, GFP_KERNEL);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 

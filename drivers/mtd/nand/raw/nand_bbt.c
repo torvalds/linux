@@ -1375,7 +1375,7 @@ static int nand_create_badblock_pattern(struct nand_chip *this)
 		pr_warn("Bad block pattern already allocated; not replacing\n");
 		return -EINVAL;
 	}
-	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	bd = kzalloc_obj(*bd, GFP_KERNEL);
 	if (!bd)
 		return -ENOMEM;
 	bd->options = this->bbt_options & BADBLOCK_SCAN_MASK;

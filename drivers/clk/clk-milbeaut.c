@@ -333,7 +333,7 @@ static struct clk_hw *m10v_clk_hw_register_mux(struct device *dev,
 	struct clk_init_data init;
 	int ret;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux, GFP_KERNEL);
 	if (!mux)
 		return ERR_PTR(-ENOMEM);
 
@@ -464,7 +464,7 @@ static struct clk_hw *m10v_clk_hw_register_divider(struct device *dev,
 	struct clk_init_data init;
 	int ret;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div, GFP_KERNEL);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
@@ -611,9 +611,8 @@ static void __init m10v_cc_init(struct device_node *np)
 	const char *parent_name;
 	struct clk_hw *hw;
 
-	m10v_clk_data = kzalloc(struct_size(m10v_clk_data, hws,
-					M10V_NUM_CLKS),
-					GFP_KERNEL);
+	m10v_clk_data = kzalloc_flex(*m10v_clk_data, hws, M10V_NUM_CLKS,
+				     GFP_KERNEL);
 
 	if (!m10v_clk_data)
 		return;

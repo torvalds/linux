@@ -889,7 +889,7 @@ mountpoint:
 	}
 
 	if (!mp)
-		mp = kmalloc(sizeof(struct mountpoint), GFP_KERNEL);
+		mp = kmalloc_obj(struct mountpoint, GFP_KERNEL);
 	if (!mp)
 		return -ENOMEM;
 
@@ -2226,7 +2226,7 @@ static inline bool extend_array(struct path **res, struct path **to_free,
 
 	if (likely(n < *count))
 		return true;
-	p = kmalloc_array(new_count, sizeof(struct path), GFP_KERNEL);
+	p = kmalloc_objs(struct path, new_count, GFP_KERNEL);
 	if (p && *count)
 		memcpy(p, *res, *count * sizeof(struct path));
 	*count = new_count;
@@ -4187,7 +4187,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 	if (!ucounts)
 		return ERR_PTR(-ENOSPC);
 
-	new_ns = kzalloc(sizeof(struct mnt_namespace), GFP_KERNEL_ACCOUNT);
+	new_ns = kzalloc_obj(struct mnt_namespace, GFP_KERNEL_ACCOUNT);
 	if (!new_ns) {
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(-ENOMEM);

@@ -85,7 +85,7 @@ xchk_setup_xattr_buf(
 	if (ab)
 		goto resize_value;
 
-	ab = kvzalloc(sizeof(struct xchk_xattr_buf), XCHK_GFP_FLAGS);
+	ab = kvzalloc_obj(struct xchk_xattr_buf, XCHK_GFP_FLAGS);
 	if (!ab)
 		return -ENOMEM;
 	sc->buf = ab;

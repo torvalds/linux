@@ -405,7 +405,7 @@ struct mesh_path *mesh_path_new(struct ieee80211_sub_if_data *sdata,
 {
 	struct mesh_path *new_mpath;
 
-	new_mpath = kzalloc(sizeof(struct mesh_path), gfp_flags);
+	new_mpath = kzalloc_obj(struct mesh_path, gfp_flags);
 	if (!new_mpath)
 		return NULL;
 

@@ -465,7 +465,7 @@ static cas_page_t *cas_page_alloc(struct cas *cp, const gfp_t flags)
 {
 	cas_page_t *page;
 
-	page = kmalloc(sizeof(cas_page_t), flags);
+	page = kmalloc_obj(cas_page_t, flags);
 	if (!page)
 		return NULL;
 

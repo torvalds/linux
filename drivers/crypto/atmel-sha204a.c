@@ -51,7 +51,7 @@ static int atmel_sha204a_rng_read_nonblocking(struct hwrng *rng, void *data,
 		memcpy(data, &work_data->cmd.data, max);
 		rng->priv = 0;
 	} else {
-		work_data = kmalloc(sizeof(*work_data), GFP_ATOMIC);
+		work_data = kmalloc_obj(*work_data, GFP_ATOMIC);
 		if (!work_data)
 			return -ENOMEM;
 

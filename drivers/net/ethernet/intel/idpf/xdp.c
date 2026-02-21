@@ -154,7 +154,7 @@ int idpf_xdpsqs_get(const struct idpf_vport *vport)
 	if (!idpf_xdp_enabled(vport))
 		return 0;
 
-	timers = kvcalloc(vport->num_xdp_txq, sizeof(*timers), GFP_KERNEL);
+	timers = kvzalloc_objs(*timers, vport->num_xdp_txq, GFP_KERNEL);
 	if (!timers)
 		return -ENOMEM;
 

@@ -1155,7 +1155,7 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 	if (!vma_res || !vma_res->bi.pages || !compress)
 		return NULL;
 
-	dst = kmalloc(sizeof(*dst), ALLOW_FAIL);
+	dst = kmalloc_obj(*dst, ALLOW_FAIL);
 	if (!dst)
 		return NULL;
 
@@ -1502,7 +1502,7 @@ capture_vma_snapshot(struct intel_engine_capture_vma *next,
 	if (!vma_res)
 		return next;
 
-	c = kmalloc(sizeof(*c), gfp);
+	c = kmalloc_obj(*c, gfp);
 	if (!c)
 		return next;
 
@@ -1598,7 +1598,7 @@ intel_engine_coredump_alloc(struct intel_engine_cs *engine, gfp_t gfp, u32 dump_
 {
 	struct intel_engine_coredump *ee;
 
-	ee = kzalloc(sizeof(*ee), gfp);
+	ee = kzalloc_obj(*ee, gfp);
 	if (!ee)
 		return NULL;
 
@@ -1829,7 +1829,7 @@ gt_record_uc(struct intel_gt_coredump *gt,
 	const struct intel_uc *uc = &gt->_gt->uc;
 	struct intel_uc_coredump *error_uc;
 
-	error_uc = kzalloc(sizeof(*error_uc), ALLOW_FAIL);
+	error_uc = kzalloc_obj(*error_uc, ALLOW_FAIL);
 	if (!error_uc)
 		return NULL;
 
@@ -2088,7 +2088,7 @@ i915_gpu_coredump_alloc(struct drm_i915_private *i915, gfp_t gfp)
 	if (!i915->params.error_capture)
 		return NULL;
 
-	error = kzalloc(sizeof(*error), gfp);
+	error = kzalloc_obj(*error, gfp);
 	if (!error)
 		return NULL;
 
@@ -2112,7 +2112,7 @@ intel_gt_coredump_alloc(struct intel_gt *gt, gfp_t gfp, u32 dump_flags)
 {
 	struct intel_gt_coredump *gc;
 
-	gc = kzalloc(sizeof(*gc), gfp);
+	gc = kzalloc_obj(*gc, gfp);
 	if (!gc)
 		return NULL;
 
@@ -2143,7 +2143,7 @@ i915_vma_capture_prepare(struct intel_gt_coredump *gt)
 {
 	struct i915_vma_compress *compress;
 
-	compress = kmalloc(sizeof(*compress), ALLOW_FAIL);
+	compress = kmalloc_obj(*compress, ALLOW_FAIL);
 	if (!compress)
 		return NULL;
 

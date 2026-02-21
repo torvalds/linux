@@ -209,7 +209,7 @@ replay_again:
 	num_rqst = 0;
 	server = cifs_pick_channel(ses);
 
-	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
+	vars = kzalloc_obj(*vars, GFP_ATOMIC);
 	if (vars == NULL) {
 		rc = -ENOMEM;
 		goto out;

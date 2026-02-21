@@ -1066,7 +1066,7 @@ static int bb_line_status(const struct gpib_board *board)
 
 static int allocate_private(struct gpib_board *board)
 {
-	board->private_data = kzalloc(sizeof(struct bb_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct bb_priv, GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	return 0;

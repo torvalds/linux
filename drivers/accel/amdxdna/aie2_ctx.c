@@ -464,7 +464,7 @@ static int aie2_alloc_resource(struct amdxdna_hwctx *hwctx)
 		return aie2_create_context(xdna->dev_handle, hwctx);
 	}
 
-	xrs_req = kzalloc(sizeof(*xrs_req), GFP_KERNEL);
+	xrs_req = kzalloc_obj(*xrs_req, GFP_KERNEL);
 	if (!xrs_req)
 		return -ENOMEM;
 
@@ -559,7 +559,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	struct amdxdna_gem_obj *heap;
 	int i, ret;
 
-	priv = kzalloc(sizeof(*hwctx->priv), GFP_KERNEL);
+	priv = kzalloc_obj(*hwctx->priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	hwctx->priv = priv;

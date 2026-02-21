@@ -634,7 +634,7 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 		}
 	}
 
-	cur = kzalloc(sizeof(nx_mac_list_t), GFP_ATOMIC);
+	cur = kzalloc_obj(nx_mac_list_t, GFP_ATOMIC);
 	if (cur == NULL)
 		return -ENOMEM;
 

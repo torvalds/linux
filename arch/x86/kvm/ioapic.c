@@ -717,7 +717,7 @@ int kvm_ioapic_init(struct kvm *kvm)
 	struct kvm_ioapic *ioapic;
 	int ret;
 
-	ioapic = kzalloc(sizeof(struct kvm_ioapic), GFP_KERNEL_ACCOUNT);
+	ioapic = kzalloc_obj(struct kvm_ioapic, GFP_KERNEL_ACCOUNT);
 	if (!ioapic)
 		return -ENOMEM;
 	spin_lock_init(&ioapic->lock);

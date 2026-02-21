@@ -1077,8 +1077,8 @@ int tcp_sendmsg_fastopen(struct sock *sk, struct msghdr *msg, int *copied,
 	if (tp->fastopen_req)
 		return -EALREADY; /* Another Fast Open is in progress */
 
-	tp->fastopen_req = kzalloc(sizeof(struct tcp_fastopen_request),
-				   sk->sk_allocation);
+	tp->fastopen_req = kzalloc_obj(struct tcp_fastopen_request,
+				       sk->sk_allocation);
 	if (unlikely(!tp->fastopen_req))
 		return -ENOBUFS;
 	tp->fastopen_req->data = msg;

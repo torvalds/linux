@@ -1293,7 +1293,7 @@ static int uniwill_add_battery(struct power_supply *battery, struct acpi_battery
 	struct uniwill_battery_entry *entry;
 	int ret;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 

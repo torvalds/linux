@@ -127,7 +127,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	u16 mdsmap_ev;
 	u32 target;
 
-	m = kzalloc(sizeof(*m), GFP_NOFS);
+	m = kzalloc_obj(*m, GFP_NOFS);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
@@ -169,7 +169,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
 	 */
 	m->possible_max_rank = max(m->m_num_active_mds, m->m_max_mds);
 
-	m->m_info = kcalloc(m->possible_max_rank, sizeof(*m->m_info), GFP_NOFS);
+	m->m_info = kzalloc_objs(*m->m_info, m->possible_max_rank, GFP_NOFS);
 	if (!m->m_info)
 		goto nomem;
 

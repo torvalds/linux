@@ -586,7 +586,7 @@ unsigned int OnBeacon(struct adapter *padapter, union recv_frame *precv_frame)
 	if (!memcmp(GetAddr3Ptr(pframe), get_my_bssid(&pmlmeinfo->network), ETH_ALEN)) {
 		if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
 			/* we should update current network before auth, or some IE is wrong */
-			pbss = kmalloc(sizeof(*pbss), GFP_ATOMIC);
+			pbss = kmalloc_obj(*pbss, GFP_ATOMIC);
 			if (pbss) {
 				if (collect_bss_info(padapter, precv_frame, pbss) == _SUCCESS) {
 					update_network(&(pmlmepriv->cur_network.network), pbss, padapter, true);
@@ -4376,7 +4376,7 @@ void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame
 	pmlmeext = &padapter->mlmeextpriv;
 	pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4429,7 +4429,7 @@ void report_surveydone_event(struct adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4474,7 +4474,7 @@ void report_join_res(struct adapter *padapter, int res)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4523,7 +4523,7 @@ void report_wmm_edca_update(struct adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4569,7 +4569,7 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr, unsi
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -4620,7 +4620,7 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
-	pcmd_obj = kzalloc(sizeof(*pcmd_obj), GFP_ATOMIC);
+	pcmd_obj = kzalloc_obj(*pcmd_obj, GFP_ATOMIC);
 	if (!pcmd_obj)
 		return;
 
@@ -5074,11 +5074,11 @@ void survey_timer_hdl(struct timer_list *t)
 			pmlmeext->scan_abort = false;/* reset */
 		}
 
-		ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
+		ph2c = kzalloc_obj(*ph2c, GFP_ATOMIC);
 		if (!ph2c)
 			return;
 
-		psurveyPara = kzalloc(sizeof(*psurveyPara), GFP_ATOMIC);
+		psurveyPara = kzalloc_obj(*psurveyPara, GFP_ATOMIC);
 		if (!psurveyPara) {
 			kfree(ph2c);
 			return;
@@ -5689,7 +5689,7 @@ u8 chk_bmc_sleepq_cmd(struct adapter *padapter)
 	struct cmd_priv *pcmdpriv = &(padapter->cmdpriv);
 	u8 res = _SUCCESS;
 
-	ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
+	ph2c = kzalloc_obj(*ph2c, GFP_ATOMIC);
 	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
@@ -5713,13 +5713,13 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 	u8 res = _SUCCESS;
 	int len_diff = 0;
 
-	ph2c = kzalloc(sizeof(*ph2c), GFP_ATOMIC);
+	ph2c = kzalloc_obj(*ph2c, GFP_ATOMIC);
 	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	ptxBeacon_parm = kzalloc(sizeof(*ptxBeacon_parm), GFP_ATOMIC);
+	ptxBeacon_parm = kzalloc_obj(*ptxBeacon_parm, GFP_ATOMIC);
 	if (!ptxBeacon_parm) {
 		kfree(ph2c);
 		res = _FAIL;

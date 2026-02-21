@@ -467,9 +467,8 @@ void __init hyperv_init(void)
 	if (hv_isolation_type_tdx())
 		hv_vp_assist_page = NULL;
 	else
-		hv_vp_assist_page = kcalloc(nr_cpu_ids,
-					    sizeof(*hv_vp_assist_page),
-					    GFP_KERNEL);
+		hv_vp_assist_page = kzalloc_objs(*hv_vp_assist_page, nr_cpu_ids,
+						 GFP_KERNEL);
 	if (!hv_vp_assist_page) {
 		ms_hyperv.hints &= ~HV_X64_ENLIGHTENED_VMCS_RECOMMENDED;
 

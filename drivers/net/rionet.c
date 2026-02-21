@@ -603,7 +603,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 
 		rnet = netdev_priv(nets[netid].ndev);
 
-		peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+		peer = kzalloc_obj(*peer, GFP_KERNEL);
 		if (!peer) {
 			rc = -ENOMEM;
 			goto out;

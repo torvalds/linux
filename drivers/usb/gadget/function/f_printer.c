@@ -1374,7 +1374,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 	struct usb_function_instance *ret;
 	int status = 0;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -1482,7 +1482,7 @@ static struct usb_function *gprinter_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOENT);
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev) {
 		mutex_unlock(&opts->lock);
 		return ERR_PTR(-ENOMEM);

@@ -234,7 +234,7 @@ static inline void expkey_update(struct cache_head *cnew,
 
 static struct cache_head *expkey_alloc(void)
 {
-	struct svc_expkey *i = kmalloc(sizeof(*i), GFP_KERNEL);
+	struct svc_expkey *i = kmalloc_obj(*i, GFP_KERNEL);
 	if (i)
 		return &i->h;
 	else
@@ -479,9 +479,8 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 	if (fsloc->locations_count == 0)
 		return 0;
 
-	fsloc->locations = kcalloc(fsloc->locations_count,
-				   sizeof(struct nfsd4_fs_location),
-				   GFP_KERNEL);
+	fsloc->locations = kzalloc_objs(struct nfsd4_fs_location,
+					fsloc->locations_count, GFP_KERNEL);
 	if (!fsloc->locations)
 		return -ENOMEM;
 	for (i=0; i < fsloc->locations_count; i++) {
@@ -871,11 +870,11 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 
 static struct cache_head *svc_export_alloc(void)
 {
-	struct svc_export *i = kmalloc(sizeof(*i), GFP_KERNEL);
+	struct svc_export *i = kmalloc_obj(*i, GFP_KERNEL);
 	if (!i)
 		return NULL;
 
-	i->ex_stats = kmalloc(sizeof(*(i->ex_stats)), GFP_KERNEL);
+	i->ex_stats = kmalloc_obj(*(i->ex_stats), GFP_KERNEL);
 	if (!i->ex_stats) {
 		kfree(i);
 		return NULL;

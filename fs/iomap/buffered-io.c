@@ -229,8 +229,7 @@ static struct iomap_folio_state *ifs_alloc(struct inode *inode,
 	 * The first state tracks per-block uptodate and the
 	 * second tracks per-block dirty state.
 	 */
-	ifs = kzalloc(struct_size(ifs, state,
-		      BITS_TO_LONGS(2 * nr_blocks)), gfp);
+	ifs = kzalloc_flex(*ifs, state, BITS_TO_LONGS(2 * nr_blocks), gfp);
 	if (!ifs)
 		return ifs;
 

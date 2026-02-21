@@ -192,7 +192,7 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_rsv *block_rsv;
 
-	block_rsv = kmalloc(sizeof(*block_rsv), GFP_NOFS);
+	block_rsv = kmalloc_obj(*block_rsv, GFP_NOFS);
 	if (!block_rsv)
 		return NULL;
 

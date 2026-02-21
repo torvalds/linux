@@ -302,7 +302,7 @@ static void construct_link_service(struct link_service *link_srv)
 
 struct link_service *link_create_link_service(void)
 {
-	struct link_service *link_srv = kzalloc(sizeof(*link_srv), GFP_KERNEL);
+	struct link_service *link_srv = kzalloc_obj(*link_srv, GFP_KERNEL);
 
 	if (link_srv == NULL)
 		goto fail;
@@ -897,8 +897,7 @@ static bool link_construct(struct dc_link *link,
 
 struct dc_link *link_create(const struct link_init_data *init_params)
 {
-	struct dc_link *link =
-			kzalloc(sizeof(*link), GFP_KERNEL);
+	struct dc_link *link = kzalloc_obj(*link, GFP_KERNEL);
 
 	if (NULL == link)
 		goto alloc_fail;

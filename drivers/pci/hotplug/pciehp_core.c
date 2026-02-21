@@ -55,7 +55,7 @@ static int init_slot(struct controller *ctrl)
 	int retval;
 
 	/* Setup hotplug slot ops */
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops, GFP_KERNEL);
 	if (!ops)
 		return -ENOMEM;
 

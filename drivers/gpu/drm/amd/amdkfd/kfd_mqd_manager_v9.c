@@ -147,7 +147,7 @@ static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 	 * amdgpu memory functions to do so.
 	 */
 	if (node->kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+		mqd_mem_obj = kzalloc_obj(struct kfd_mem_obj, GFP_KERNEL);
 		if (!mqd_mem_obj)
 			return NULL;
 		retval = amdgpu_amdkfd_alloc_kernel_mem(node->adev,
@@ -960,7 +960,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
+	mqd = kzalloc_obj(*mqd, GFP_KERNEL);
 	if (!mqd)
 		return NULL;
 

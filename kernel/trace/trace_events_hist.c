@@ -732,7 +732,7 @@ static struct track_data *track_data_alloc(unsigned int key_len,
 					   struct action_data *action_data,
 					   struct hist_trigger_data *hist_data)
 {
-	struct track_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
+	struct track_data *data = kzalloc_obj(*data, GFP_KERNEL);
 	struct hist_elt_data *elt_data;
 
 	if (!data)
@@ -748,7 +748,7 @@ static struct track_data *track_data_alloc(unsigned int key_len,
 	data->action_data = action_data;
 	data->hist_data = hist_data;
 
-	elt_data = kzalloc(sizeof(*elt_data), GFP_KERNEL);
+	elt_data = kzalloc_obj(*elt_data, GFP_KERNEL);
 	if (!elt_data) {
 		track_data_free(data);
 		return ERR_PTR(-ENOMEM);
@@ -1086,7 +1086,7 @@ static int save_hist_vars(struct hist_trigger_data *hist_data)
 	if (tracing_check_open_get_tr(tr))
 		return -ENODEV;
 
-	var_data = kzalloc(sizeof(*var_data), GFP_KERNEL);
+	var_data = kzalloc_obj(*var_data, GFP_KERNEL);
 	if (!var_data) {
 		trace_array_put(tr);
 		return -ENOMEM;
@@ -1548,7 +1548,7 @@ parse_hist_trigger_attrs(struct trace_array *tr, char *trigger_str)
 	struct hist_trigger_attrs *attrs;
 	int ret = 0;
 
-	attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_obj(*attrs, GFP_KERNEL);
 	if (!attrs)
 		return ERR_PTR(-ENOMEM);
 
@@ -1646,7 +1646,7 @@ static int hist_trigger_elt_data_alloc(struct tracing_map_elt *elt)
 	struct hist_field *hist_field;
 	unsigned int i, n_str;
 
-	elt_data = kzalloc(sizeof(*elt_data), GFP_KERNEL);
+	elt_data = kzalloc_obj(*elt_data, GFP_KERNEL);
 	if (!elt_data)
 		return -ENOMEM;
 
@@ -1962,7 +1962,7 @@ static struct hist_field *create_hist_field(struct hist_trigger_data *hist_data,
 	if (field && is_function_field(field))
 		return NULL;
 
-	hist_field = kzalloc(sizeof(struct hist_field), GFP_KERNEL);
+	hist_field = kzalloc_obj(struct hist_field, GFP_KERNEL);
 	if (!hist_field)
 		return NULL;
 
@@ -3049,7 +3049,7 @@ create_field_var_hist(struct hist_trigger_data *target_hist_data,
 	if (!IS_ERR_OR_NULL(event_var))
 		return event_var;
 
-	var_hist = kzalloc(sizeof(*var_hist), GFP_KERNEL);
+	var_hist = kzalloc_obj(*var_hist, GFP_KERNEL);
 	if (!var_hist)
 		return ERR_PTR(-ENOMEM);
 
@@ -3231,7 +3231,7 @@ static struct hist_field *create_var(struct hist_trigger_data *hist_data,
 		goto out;
 	}
 
-	var = kzalloc(sizeof(struct hist_field), GFP_KERNEL);
+	var = kzalloc_obj(struct hist_field, GFP_KERNEL);
 	if (!var) {
 		var = ERR_PTR(-ENOMEM);
 		goto out;
@@ -3292,7 +3292,7 @@ static struct field_var *create_field_var(struct hist_trigger_data *hist_data,
 		goto err;
 	}
 
-	field_var = kzalloc(sizeof(struct field_var), GFP_KERNEL);
+	field_var = kzalloc_obj(struct field_var, GFP_KERNEL);
 	if (!field_var) {
 		destroy_hist_field(val, 0);
 		kfree_const(var->type);
@@ -3831,7 +3831,7 @@ static struct action_data *track_data_parse(struct hist_trigger_data *hist_data,
 	int ret = -EINVAL;
 	char *var_str;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -4198,7 +4198,7 @@ static struct action_data *onmatch_parse(struct trace_array *tr, char *str)
 	struct action_data *data;
 	int ret = -EINVAL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data, GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -5136,7 +5136,7 @@ create_hist_data(unsigned int map_bits,
 	struct hist_trigger_data *hist_data;
 	int ret = 0;
 
-	hist_data = kzalloc(sizeof(*hist_data), GFP_KERNEL);
+	hist_data = kzalloc_obj(*hist_data, GFP_KERNEL);
 	if (!hist_data)
 		return ERR_PTR(-ENOMEM);
 
@@ -5674,8 +5674,8 @@ static int print_entries(struct seq_file *m,
 			(HIST_FIELD_FL_PERCENT | HIST_FIELD_FL_GRAPH)))
 			continue;
 		if (!stats) {
-			stats = kcalloc(hist_data->n_vals, sizeof(*stats),
-				       GFP_KERNEL);
+			stats = kzalloc_objs(*stats, hist_data->n_vals,
+					     GFP_KERNEL);
 			if (!stats) {
 				n_entries = -ENOMEM;
 				goto out;
@@ -5828,7 +5828,7 @@ static int event_hist_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 
-	hist_file = kzalloc(sizeof(*hist_file), GFP_KERNEL);
+	hist_file = kzalloc_obj(*hist_file, GFP_KERNEL);
 	if (!hist_file) {
 		ret = -ENOMEM;
 		goto err;
@@ -6602,7 +6602,7 @@ static int hist_register_trigger(char *glob,
 		data->private_data = named_data->private_data;
 		set_named_trigger_data(data, named_data);
 		/* Copy the command ops and update some of the functions */
-		cmd_ops = kmalloc(sizeof(*cmd_ops), GFP_KERNEL);
+		cmd_ops = kmalloc_obj(*cmd_ops, GFP_KERNEL);
 		if (!cmd_ops) {
 			ret = -ENOMEM;
 			goto out;

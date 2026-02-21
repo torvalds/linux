@@ -497,7 +497,7 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 	    datalen + sizeof(*event_packet) > packet_len)
 		return;
 
-	event = kzalloc(struct_size(event, data, datalen), gfp);
+	event = kzalloc_flex(*event, data, datalen, gfp);
 	if (!event)
 		return;
 

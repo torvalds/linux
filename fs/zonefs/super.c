@@ -903,8 +903,8 @@ static int zonefs_get_zone_info(struct zonefs_zone_data *zd)
 	struct block_device *bdev = zd->sb->s_bdev;
 	int ret;
 
-	zd->zones = kvcalloc(bdev_nr_zones(bdev), sizeof(struct blk_zone),
-			     GFP_KERNEL);
+	zd->zones = kvzalloc_objs(struct blk_zone, bdev_nr_zones(bdev),
+				  GFP_KERNEL);
 	if (!zd->zones)
 		return -ENOMEM;
 
@@ -948,8 +948,8 @@ static int zonefs_init_zgroup(struct super_block *sb,
 	if (!zgroup->g_nr_zones)
 		return 0;
 
-	zgroup->g_zones = kvcalloc(zgroup->g_nr_zones,
-				   sizeof(struct zonefs_zone), GFP_KERNEL);
+	zgroup->g_zones = kvzalloc_objs(struct zonefs_zone, zgroup->g_nr_zones,
+					GFP_KERNEL);
 	if (!zgroup->g_zones)
 		return -ENOMEM;
 
@@ -1243,7 +1243,7 @@ static int zonefs_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * ZONEFS_F_AGGRCNV which increases the maximum file size of a file
 	 * beyond the zone size is taken into account.
 	 */
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -1388,7 +1388,7 @@ static int zonefs_init_fs_context(struct fs_context *fc)
 {
 	struct zonefs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct zonefs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct zonefs_context, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->s_mount_opts = ZONEFS_MNTOPT_ERRORS_RO;

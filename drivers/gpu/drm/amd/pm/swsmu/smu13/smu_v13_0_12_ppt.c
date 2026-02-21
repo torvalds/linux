@@ -223,7 +223,7 @@ static int smu_v13_0_12_fru_get_product_info(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 
 	if (!adev->fru_info) {
-		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		adev->fru_info = kzalloc_obj(*adev->fru_info, GFP_KERNEL);
 		if (!adev->fru_info)
 			return -ENOMEM;
 	}

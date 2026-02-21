@@ -1664,7 +1664,7 @@ void kvm_arch_create_vm_debugfs(struct kvm *kvm);
  */
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
-	return kzalloc(sizeof(struct kvm), GFP_KERNEL_ACCOUNT);
+	return kzalloc_obj(struct kvm, GFP_KERNEL_ACCOUNT);
 }
 #endif
 

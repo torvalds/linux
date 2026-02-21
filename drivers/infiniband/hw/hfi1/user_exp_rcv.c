@@ -52,17 +52,16 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 {
 	int ret = 0;
 
-	fd->entry_to_rb = kcalloc(uctxt->expected_count,
-				  sizeof(*fd->entry_to_rb),
-				  GFP_KERNEL);
+	fd->entry_to_rb = kzalloc_objs(*fd->entry_to_rb, uctxt->expected_count,
+				       GFP_KERNEL);
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 
 	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
-		fd->invalid_tids = kcalloc(uctxt->expected_count,
-					   sizeof(*fd->invalid_tids),
-					   GFP_KERNEL);
+		fd->invalid_tids = kzalloc_objs(*fd->invalid_tids,
+						uctxt->expected_count,
+						GFP_KERNEL);
 		if (!fd->invalid_tids) {
 			kfree(fd->entry_to_rb);
 			fd->entry_to_rb = NULL;
@@ -170,7 +169,7 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 	}
 
 	/* Allocate the array of struct page pointers needed for pinning */
-	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kzalloc_objs(*pages, npages, GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 
@@ -736,7 +735,7 @@ static int set_rcvarray_entry(struct hfi1_filedata *fd,
 	 * Allocate the node first so we can handle a potential
 	 * failure before we've programmed anything.
 	 */
-	node = kzalloc(struct_size(node, pages, npages), GFP_KERNEL);
+	node = kzalloc_flex(*node, pages, npages, GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 

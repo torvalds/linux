@@ -642,7 +642,7 @@ static int gd5fxgm9_spinand_init(struct spinand_device *spinand)
 {
 	struct gigadevice_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 

@@ -328,7 +328,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 	}
 	if (nr_rings > XFER_RINGS)
 		nr_rings = XFER_RINGS;
-	rings = kzalloc(struct_size(rings, headers, nr_rings), GFP_KERNEL);
+	rings = kzalloc_flex(*rings, headers, nr_rings, GFP_KERNEL);
 	if (!rings)
 		return -ENOMEM;
 	hci->io_data = rings;
@@ -363,8 +363,8 @@ static int hci_dma_init(struct i3c_hci *hci)
 		rh->resp = dma_alloc_coherent(rings->sysdev, resps_sz,
 					      &rh->resp_dma, GFP_KERNEL);
 		rh->src_xfers =
-			kmalloc_array(rh->xfer_entries, sizeof(*rh->src_xfers),
-				      GFP_KERNEL);
+			kmalloc_objs(*rh->src_xfers, rh->xfer_entries,
+				     GFP_KERNEL);
 		ret = -ENOMEM;
 		if (!rh->xfer || !rh->resp || !rh->src_xfers)
 			goto err_out;
@@ -636,7 +636,7 @@ static int hci_dma_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 	struct i3c_generic_ibi_pool *pool;
 	struct hci_dma_dev_ibi_data *dev_ibi;
 
-	dev_ibi = kmalloc(sizeof(*dev_ibi), GFP_KERNEL);
+	dev_ibi = kmalloc_obj(*dev_ibi, GFP_KERNEL);
 	if (!dev_ibi)
 		return -ENOMEM;
 	pool = i3c_generic_ibi_alloc_pool(dev, req);

@@ -260,7 +260,7 @@ static struct dma_async_tx_descriptor *admac_prep_dma_cyclic(
 	if (direction != admac_chan_direction(adchan->no))
 		return NULL;
 
-	adtx = kzalloc(sizeof(*adtx), GFP_NOWAIT);
+	adtx = kzalloc_obj(*adtx, GFP_NOWAIT);
 	if (!adtx)
 		return NULL;
 

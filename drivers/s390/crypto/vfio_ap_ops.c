@@ -2424,7 +2424,7 @@ int vfio_ap_mdev_probe_queue(struct ap_device *apdev)
 	if (ret)
 		return ret;
 
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc_obj(*q, GFP_KERNEL);
 	if (!q) {
 		ret = -ENOMEM;
 		goto err_remove_group;

@@ -56,7 +56,7 @@ static int create_attachment(struct device *dev, struct linedisp *linedisp, bool
 {
 	struct linedisp_attachment *attachment;
 
-	attachment = kzalloc(sizeof(*attachment), GFP_KERNEL);
+	attachment = kzalloc_obj(*attachment, GFP_KERNEL);
 	if (!attachment)
 		return -ENOMEM;
 
@@ -390,7 +390,7 @@ static int linedisp_init_map(struct linedisp *linedisp)
 	if (err < 0)
 		return err;
 
-	map = kmalloc(sizeof(*map), GFP_KERNEL);
+	map = kmalloc_obj(*map, GFP_KERNEL);
 	if (!map)
 		return -ENOMEM;
 

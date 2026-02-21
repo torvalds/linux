@@ -677,7 +677,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (!iomi.len)
 		return NULL;
 
-	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
+	dio = kmalloc_obj(*dio, GFP_KERNEL);
 	if (!dio)
 		return ERR_PTR(-ENOMEM);
 

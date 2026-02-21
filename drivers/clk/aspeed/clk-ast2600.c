@@ -431,7 +431,7 @@ static struct clk_hw *aspeed_g6_clk_hw_register_gate(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate, GFP_KERNEL);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -838,8 +838,8 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 
 	soc_rev = (readl(scu_g6_base + ASPEED_G6_SILICON_REV) & CHIP_REVISION_ID) >> 16;
 
-	aspeed_g6_clk_data = kzalloc(struct_size(aspeed_g6_clk_data, hws,
-				      ASPEED_G6_NUM_CLKS), GFP_KERNEL);
+	aspeed_g6_clk_data = kzalloc_flex(*aspeed_g6_clk_data, hws,
+				          ASPEED_G6_NUM_CLKS, GFP_KERNEL);
 	if (!aspeed_g6_clk_data)
 		return;
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;

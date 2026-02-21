@@ -133,7 +133,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	struct smb_mnt_fs_info *fsinf;
 
-	fsinf = kzalloc(sizeof(struct smb_mnt_fs_info), GFP_KERNEL);
+	fsinf = kzalloc_obj(struct smb_mnt_fs_info, GFP_KERNEL);
 	if (fsinf == NULL)
 		return -ENOMEM;
 

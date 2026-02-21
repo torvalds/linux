@@ -109,7 +109,7 @@ static int platram_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info, GFP_KERNEL);
 	if (info == NULL) {
 		err = -ENOMEM;
 		goto exit_error;

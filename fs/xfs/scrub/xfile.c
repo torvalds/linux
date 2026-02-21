@@ -57,7 +57,7 @@ xfile_create(
 	struct xfile		*xf;
 	int			error;
 
-	xf = kmalloc(sizeof(struct xfile), XCHK_GFP_FLAGS);
+	xf = kmalloc_obj(struct xfile, XCHK_GFP_FLAGS);
 	if (!xf)
 		return -ENOMEM;
 

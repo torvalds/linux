@@ -156,9 +156,8 @@ static int __init mshv_debugfs_lp_create(struct dentry *parent)
 	struct dentry *lp_dir;
 	int err, lp_index;
 
-	mshv_lps_stats = kcalloc(mshv_lps_count,
-				 sizeof(*mshv_lps_stats),
-				 GFP_KERNEL_ACCOUNT);
+	mshv_lps_stats = kzalloc_objs(*mshv_lps_stats, mshv_lps_count,
+				      GFP_KERNEL_ACCOUNT);
 
 	if (!mshv_lps_stats)
 		return -ENOMEM;
@@ -329,8 +328,8 @@ static int mshv_debugfs_partition_stats_create(u64 partition_id,
 	struct hv_stats_page **pstats;
 	int err;
 
-	pstats = kcalloc(NUM_STATS_AREAS, sizeof(struct hv_stats_page *),
-			 GFP_KERNEL_ACCOUNT);
+	pstats = kzalloc_objs(struct hv_stats_page *, NUM_STATS_AREAS,
+			      GFP_KERNEL_ACCOUNT);
 	if (!pstats)
 		return -ENOMEM;
 
@@ -472,8 +471,8 @@ static int __init parent_vp_debugfs_create(u32 vp_index,
 	struct hv_stats_page **pstats;
 	int err;
 
-	pstats = kcalloc(NUM_STATS_AREAS, sizeof(struct hv_stats_page *),
-			 GFP_KERNEL_ACCOUNT);
+	pstats = kzalloc_objs(struct hv_stats_page *, NUM_STATS_AREAS,
+			      GFP_KERNEL_ACCOUNT);
 	if (!pstats)
 		return -ENOMEM;
 
@@ -512,8 +511,7 @@ static int __init mshv_debugfs_parent_partition_create(void)
 	if (err)
 		goto remove_debugfs_partition;
 
-	parent_vp_stats = kcalloc(nr_cpu_ids, sizeof(*parent_vp_stats),
-				  GFP_KERNEL);
+	parent_vp_stats = kzalloc_objs(*parent_vp_stats, nr_cpu_ids, GFP_KERNEL);
 	if (!parent_vp_stats) {
 		err = -ENOMEM;
 		goto remove_debugfs_partition;

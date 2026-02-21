@@ -1048,8 +1048,8 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	if (WARN_ON(params->link_id >= 0 && params->bss))
 		return NULL;
 
-	elems_parse = kzalloc(struct_size(elems_parse, scratch, scratch_len),
-			      GFP_ATOMIC);
+	elems_parse = kzalloc_flex(*elems_parse, scratch, scratch_len,
+				   GFP_ATOMIC);
 	if (!elems_parse)
 		return NULL;
 

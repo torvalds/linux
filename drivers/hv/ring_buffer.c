@@ -196,9 +196,8 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 	 * First page holds struct hv_ring_buffer, do wraparound mapping for
 	 * the rest.
 	 */
-	pages_wraparound = kcalloc(page_cnt * 2 - 1,
-				   sizeof(struct page *),
-				   GFP_KERNEL);
+	pages_wraparound = kzalloc_objs(struct page *, page_cnt * 2 - 1,
+					GFP_KERNEL);
 	if (!pages_wraparound)
 		return -ENOMEM;
 

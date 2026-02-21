@@ -183,8 +183,8 @@ static int idpf_tx_buf_alloc_all(struct idpf_tx_queue *tx_q)
 		tx_q->buf_pool_size = U16_MAX;
 	else
 		tx_q->buf_pool_size = tx_q->desc_count;
-	tx_q->tx_buf = kcalloc(tx_q->buf_pool_size, sizeof(*tx_q->tx_buf),
-			       GFP_KERNEL);
+	tx_q->tx_buf = kzalloc_objs(*tx_q->tx_buf, tx_q->buf_pool_size,
+				    GFP_KERNEL);
 	if (!tx_q->tx_buf)
 		return -ENOMEM;
 
@@ -1204,9 +1204,9 @@ static int idpf_qp_enable(const struct idpf_vport *vport,
 	if (!rsrc->xdp_txq_offset)
 		goto config;
 
-	q_vector->xsksq = kcalloc(DIV_ROUND_UP(rsrc->num_rxq_grp,
-					       rsrc->num_q_vectors),
-				  sizeof(*q_vector->xsksq), GFP_KERNEL);
+	q_vector->xsksq = kzalloc_objs(*q_vector->xsksq,
+				       DIV_ROUND_UP(rsrc->num_rxq_grp, rsrc->num_q_vectors),
+				       GFP_KERNEL);
 	if (!q_vector->xsksq)
 		return -ENOMEM;
 
@@ -1439,8 +1439,7 @@ static int idpf_vport_init_fast_path_txqs(struct idpf_vport *vport,
 	struct work_struct *tstamp_task = &vport->tstamp_task;
 	int k = 0;
 
-	vport->txqs = kcalloc(rsrc->num_txq, sizeof(*vport->txqs),
-			      GFP_KERNEL);
+	vport->txqs = kzalloc_objs(*vport->txqs, rsrc->num_txq, GFP_KERNEL);
 	if (!vport->txqs)
 		return -ENOMEM;
 
@@ -1711,8 +1710,8 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 {
 	bool split, flow_sch_en;
 
-	rsrc->txq_grps = kcalloc(rsrc->num_txq_grp,
-				 sizeof(*rsrc->txq_grps), GFP_KERNEL);
+	rsrc->txq_grps = kzalloc_objs(*rsrc->txq_grps, rsrc->num_txq_grp,
+				      GFP_KERNEL);
 	if (!rsrc->txq_grps)
 		return -ENOMEM;
 
@@ -1728,8 +1727,8 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 		tx_qgrp->num_txq = num_txq;
 
 		for (unsigned int j = 0; j < tx_qgrp->num_txq; j++) {
-			tx_qgrp->txqs[j] = kzalloc(sizeof(*tx_qgrp->txqs[j]),
-						   GFP_KERNEL);
+			tx_qgrp->txqs[j] = kzalloc_obj(*tx_qgrp->txqs[j],
+						       GFP_KERNEL);
 			if (!tx_qgrp->txqs[j])
 				goto err_alloc;
 		}
@@ -1756,7 +1755,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 
 			idpf_queue_set(FLOW_SCH_EN, q);
 
-			q->refillq = kzalloc(sizeof(*q->refillq), GFP_KERNEL);
+			q->refillq = kzalloc_obj(*q->refillq, GFP_KERNEL);
 			if (!q->refillq)
 				goto err_alloc;
 
@@ -1767,9 +1766,9 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 		if (!split)
 			continue;
 
-		tx_qgrp->complq = kcalloc(IDPF_COMPLQ_PER_GROUP,
-					  sizeof(*tx_qgrp->complq),
-					  GFP_KERNEL);
+		tx_qgrp->complq = kzalloc_objs(*tx_qgrp->complq,
+					       IDPF_COMPLQ_PER_GROUP,
+					       GFP_KERNEL);
 		if (!tx_qgrp->complq)
 			goto err_alloc;
 
@@ -1806,8 +1805,8 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 	bool hs, rsc;
 	int err = 0;
 
-	rsrc->rxq_grps = kcalloc(rsrc->num_rxq_grp,
-				 sizeof(struct idpf_rxq_group), GFP_KERNEL);
+	rsrc->rxq_grps = kzalloc_objs(struct idpf_rxq_group, rsrc->num_rxq_grp,
+				      GFP_KERNEL);
 	if (!rsrc->rxq_grps)
 		return -ENOMEM;
 
@@ -1821,9 +1820,8 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 		if (!idpf_is_queue_model_split(rsrc->rxq_model)) {
 			rx_qgrp->singleq.num_rxq = num_rxq;
 			for (unsigned int j = 0; j < num_rxq; j++) {
-				rx_qgrp->singleq.rxqs[j] =
-						kzalloc(sizeof(*rx_qgrp->singleq.rxqs[j]),
-							GFP_KERNEL);
+				rx_qgrp->singleq.rxqs[j] = kzalloc_obj(*rx_qgrp->singleq.rxqs[j],
+								       GFP_KERNEL);
 				if (!rx_qgrp->singleq.rxqs[j]) {
 					err = -ENOMEM;
 					goto err_alloc;
@@ -1835,17 +1833,16 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 
 		for (unsigned int j = 0; j < num_rxq; j++) {
 			rx_qgrp->splitq.rxq_sets[j] =
-				kzalloc(sizeof(struct idpf_rxq_set),
-					GFP_KERNEL);
+				kzalloc_obj(struct idpf_rxq_set, GFP_KERNEL);
 			if (!rx_qgrp->splitq.rxq_sets[j]) {
 				err = -ENOMEM;
 				goto err_alloc;
 			}
 		}
 
-		rx_qgrp->splitq.bufq_sets = kcalloc(rsrc->num_bufqs_per_qgrp,
-						    sizeof(struct idpf_bufq_set),
-						    GFP_KERNEL);
+		rx_qgrp->splitq.bufq_sets = kzalloc_objs(struct idpf_bufq_set,
+							 rsrc->num_bufqs_per_qgrp,
+							 GFP_KERNEL);
 		if (!rx_qgrp->splitq.bufq_sets) {
 			err = -ENOMEM;
 			goto err_alloc;
@@ -1880,9 +1877,9 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 					rsrc->bufq_desc_count[j];
 				idpf_queue_set(GEN_CHK, refillq);
 				idpf_queue_set(RFL_GEN_CHK, refillq);
-				refillq->ring = kcalloc(refillq->desc_count,
-							sizeof(*refillq->ring),
-							GFP_KERNEL);
+				refillq->ring = kzalloc_objs(*refillq->ring,
+							     refillq->desc_count,
+							     GFP_KERNEL);
 				if (!refillq->ring) {
 					err = -ENOMEM;
 					goto err_alloc;
@@ -4567,8 +4564,8 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 
 	user_config = &vport->adapter->vport_config[idx]->user_config;
 
-	rsrc->q_vectors = kcalloc(rsrc->num_q_vectors,
-				  sizeof(struct idpf_q_vector), GFP_KERNEL);
+	rsrc->q_vectors = kzalloc_objs(struct idpf_q_vector,
+				       rsrc->num_q_vectors, GFP_KERNEL);
 	if (!rsrc->q_vectors)
 		return -ENOMEM;
 
@@ -4595,37 +4592,34 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 		q_vector->rx_intr_mode = q_coal->rx_intr_mode;
 		q_vector->rx_itr_idx = VIRTCHNL2_ITR_IDX_0;
 
-		q_vector->tx = kcalloc(txqs_per_vector, sizeof(*q_vector->tx),
-				       GFP_KERNEL);
+		q_vector->tx = kzalloc_objs(*q_vector->tx, txqs_per_vector,
+					    GFP_KERNEL);
 		if (!q_vector->tx)
 			goto error;
 
-		q_vector->rx = kcalloc(rxqs_per_vector, sizeof(*q_vector->rx),
-				       GFP_KERNEL);
+		q_vector->rx = kzalloc_objs(*q_vector->rx, rxqs_per_vector,
+					    GFP_KERNEL);
 		if (!q_vector->rx)
 			goto error;
 
 		if (!idpf_is_queue_model_split(rsrc->rxq_model))
 			continue;
 
-		q_vector->bufq = kcalloc(bufqs_per_vector,
-					 sizeof(*q_vector->bufq),
-					 GFP_KERNEL);
+		q_vector->bufq = kzalloc_objs(*q_vector->bufq, bufqs_per_vector,
+					      GFP_KERNEL);
 		if (!q_vector->bufq)
 			goto error;
 
-		q_vector->complq = kcalloc(complqs_per_vector,
-					   sizeof(*q_vector->complq),
-					   GFP_KERNEL);
+		q_vector->complq = kzalloc_objs(*q_vector->complq,
+						complqs_per_vector, GFP_KERNEL);
 		if (!q_vector->complq)
 			goto error;
 
 		if (!rsrc->xdp_txq_offset)
 			continue;
 
-		q_vector->xsksq = kcalloc(rxqs_per_vector,
-					  sizeof(*q_vector->xsksq),
-					  GFP_KERNEL);
+		q_vector->xsksq = kzalloc_objs(*q_vector->xsksq,
+					       rxqs_per_vector, GFP_KERNEL);
 		if (!q_vector->xsksq)
 			goto error;
 	}

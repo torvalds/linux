@@ -211,7 +211,7 @@ static inline struct iucv_path *iucv_path_alloc(u16 msglim, u8 flags, gfp_t gfp)
 {
 	struct iucv_path *path;
 
-	path = kzalloc(sizeof(struct iucv_path), gfp);
+	path = kzalloc_obj(struct iucv_path, gfp);
 	if (path) {
 		path->msglim = msglim;
 		path->flags = flags;

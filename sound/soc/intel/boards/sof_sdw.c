@@ -1251,12 +1251,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	 * add one additional to act as a terminator such that code can iterate
 	 * until it hits an uninitialised DAI.
 	 */
-	sof_dais = kcalloc(num_ends + 1, sizeof(*sof_dais), GFP_KERNEL);
+	sof_dais = kzalloc_objs(*sof_dais, num_ends + 1, GFP_KERNEL);
 	if (!sof_dais)
 		return -ENOMEM;
 
 	/* One per endpoint, ie. each DAI on each codec/amp */
-	sof_ends = kcalloc(num_ends, sizeof(*sof_ends), GFP_KERNEL);
+	sof_ends = kzalloc_objs(*sof_ends, num_ends, GFP_KERNEL);
 	if (!sof_ends) {
 		ret = -ENOMEM;
 		goto err_dai;

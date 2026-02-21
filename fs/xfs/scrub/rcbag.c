@@ -36,7 +36,7 @@ rcbag_init(
 	struct rcbag		*bag;
 	int			error;
 
-	bag = kzalloc(sizeof(struct rcbag), XCHK_GFP_FLAGS);
+	bag = kzalloc_obj(struct rcbag, XCHK_GFP_FLAGS);
 	if (!bag)
 		return -ENOMEM;
 

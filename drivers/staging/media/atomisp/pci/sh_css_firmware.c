@@ -262,8 +262,8 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 		sh_css_blob_info = NULL;
 	}
 
-	fw_minibuffer = kcalloc(sh_css_num_binaries, sizeof(struct fw_param),
-				GFP_KERNEL);
+	fw_minibuffer = kzalloc_objs(struct fw_param, sh_css_num_binaries,
+				     GFP_KERNEL);
 	if (!fw_minibuffer)
 		return -ENOMEM;
 

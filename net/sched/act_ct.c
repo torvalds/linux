@@ -332,7 +332,7 @@ static int tcf_ct_flow_table_get(struct net *net, struct tcf_ct_params *params)
 	if (ct_ft && refcount_inc_not_zero(&ct_ft->ref))
 		goto out_unlock;
 
-	ct_ft = kzalloc(sizeof(*ct_ft), GFP_KERNEL);
+	ct_ft = kzalloc_obj(*ct_ft, GFP_KERNEL);
 	if (!ct_ft)
 		goto err_alloc;
 	refcount_set(&ct_ft->ref, 1);
@@ -1397,7 +1397,7 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 
 	c = to_ct(*a);
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params, GFP_KERNEL);
 	if (unlikely(!params)) {
 		err = -ENOMEM;
 		goto cleanup;

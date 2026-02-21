@@ -61,7 +61,7 @@ struct aa_proxy *aa_alloc_proxy(struct aa_label *label, gfp_t gfp)
 {
 	struct aa_proxy *new;
 
-	new = kzalloc(sizeof(struct aa_proxy), gfp);
+	new = kzalloc_obj(struct aa_proxy, gfp);
 	if (new) {
 		kref_init(&new->count);
 		rcu_assign_pointer(new->label, aa_get_label(label));
@@ -434,7 +434,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	AA_BUG(size < 1);
 
 	/*  + 1 for null terminator entry on vec */
-	new = kzalloc(struct_size(new, vec, size + 1), gfp);
+	new = kzalloc_flex(*new, vec, size + 1, gfp);
 	AA_DEBUG(DEBUG_LABEL, "%s (%p)\n", __func__, new);
 	if (!new)
 		goto fail;

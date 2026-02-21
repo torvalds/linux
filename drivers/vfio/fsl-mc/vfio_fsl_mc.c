@@ -27,8 +27,8 @@ static int vfio_fsl_mc_open_device(struct vfio_device *core_vdev)
 	int count = mc_dev->obj_desc.region_count;
 	int i;
 
-	vdev->regions = kcalloc(count, sizeof(struct vfio_fsl_mc_region),
-				GFP_KERNEL_ACCOUNT);
+	vdev->regions = kzalloc_objs(struct vfio_fsl_mc_region, count,
+				     GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
 		return -ENOMEM;
 

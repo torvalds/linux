@@ -377,7 +377,7 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	 *	Sort out any digipeated paths.
 	 */
 	if (dp.ndigi && !ax25->digipeat &&
-	    (ax25->digipeat = kmalloc(sizeof(ax25_digi), GFP_ATOMIC)) == NULL) {
+	    (ax25->digipeat = kmalloc_obj(ax25_digi, GFP_ATOMIC)) == NULL) {
 		kfree_skb(skb);
 		ax25_destroy_socket(ax25);
 		if (sk)

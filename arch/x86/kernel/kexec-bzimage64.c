@@ -682,7 +682,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 		goto out_free_params;
 
 	/* Allocate loader specific data */
-	ldata = kzalloc(sizeof(struct bzimage64_data), GFP_KERNEL);
+	ldata = kzalloc_obj(struct bzimage64_data, GFP_KERNEL);
 	if (!ldata) {
 		ret = -ENOMEM;
 		goto out_free_params;

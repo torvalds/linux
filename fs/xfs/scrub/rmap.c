@@ -548,7 +548,7 @@ xchk_rmapbt(
 	struct xchk_rmap	*cr;
 	int			error;
 
-	cr = kzalloc(sizeof(struct xchk_rmap), XCHK_GFP_FLAGS);
+	cr = kzalloc_obj(struct xchk_rmap, XCHK_GFP_FLAGS);
 	if (!cr)
 		return -ENOMEM;
 

@@ -921,8 +921,8 @@ static int __net_init ipv6_init_mibs(struct net *net)
 	net->mib.icmpv6_statistics = alloc_percpu(struct icmpv6_mib);
 	if (!net->mib.icmpv6_statistics)
 		goto err_icmp_mib;
-	net->mib.icmpv6msg_statistics = kzalloc(sizeof(struct icmpv6msg_mib),
-						GFP_KERNEL);
+	net->mib.icmpv6msg_statistics = kzalloc_obj(struct icmpv6msg_mib,
+						    GFP_KERNEL);
 	if (!net->mib.icmpv6msg_statistics)
 		goto err_icmpmsg_mib;
 	return 0;

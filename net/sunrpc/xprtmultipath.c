@@ -150,7 +150,7 @@ struct rpc_xprt_switch *xprt_switch_alloc(struct rpc_xprt *xprt,
 {
 	struct rpc_xprt_switch *xps;
 
-	xps = kmalloc(sizeof(*xps), gfp_flags);
+	xps = kmalloc_obj(*xps, gfp_flags);
 	if (xps != NULL) {
 		spin_lock_init(&xps->xps_lock);
 		kref_init(&xps->xps_kref);

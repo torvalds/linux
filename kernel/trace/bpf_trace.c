@@ -2243,7 +2243,7 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 
 	switch (op) {
 	case MODULE_STATE_COMING:
-		btm = kzalloc(sizeof(*btm), GFP_KERNEL);
+		btm = kzalloc_obj(*btm, GFP_KERNEL);
 		if (btm) {
 			btm->module = module;
 			list_add(&btm->list, &bpf_trace_modules);
@@ -2819,7 +2819,7 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		goto error;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc_obj(*link, GFP_KERNEL);
 	if (!link) {
 		err = -ENOMEM;
 		goto error;
@@ -3238,8 +3238,8 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 
 	err = -ENOMEM;
 
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
-	uprobes = kvcalloc(cnt, sizeof(*uprobes), GFP_KERNEL);
+	link = kzalloc_obj(*link, GFP_KERNEL);
+	uprobes = kvzalloc_objs(*uprobes, cnt, GFP_KERNEL);
 
 	if (!uprobes || !link)
 		goto error_free;

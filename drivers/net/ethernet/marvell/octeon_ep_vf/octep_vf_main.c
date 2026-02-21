@@ -113,7 +113,8 @@ static int octep_vf_enable_msix_range(struct octep_vf_device *oct)
 	/* Generic interrupts apart from input/output queues */
 	//num_msix = oct->num_oqs + CFG_GET_NON_IOQ_MSIX(oct->conf);
 	num_msix = oct->num_oqs;
-	oct->msix_entries = kcalloc(num_msix, sizeof(struct msix_entry), GFP_KERNEL);
+	oct->msix_entries = kzalloc_objs(struct msix_entry, num_msix,
+					 GFP_KERNEL);
 	if (!oct->msix_entries)
 		goto msix_alloc_err;
 
@@ -951,7 +952,7 @@ int octep_vf_device_setup(struct octep_vf_device *oct)
 	struct pci_dev *pdev = oct->pdev;
 
 	/* allocate memory for oct->conf */
-	oct->conf = kzalloc(sizeof(*oct->conf), GFP_KERNEL);
+	oct->conf = kzalloc_obj(*oct->conf, GFP_KERNEL);
 	if (!oct->conf)
 		return -ENOMEM;
 

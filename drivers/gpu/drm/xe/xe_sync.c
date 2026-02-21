@@ -59,7 +59,7 @@ static struct xe_user_fence *user_fence_create(struct xe_device *xe, u64 addr,
 	if (get_user(prefetch_val, ptr))
 		return ERR_PTR(-EFAULT);
 
-	ufence = kzalloc(sizeof(*ufence), GFP_KERNEL);
+	ufence = kzalloc_obj(*ufence, GFP_KERNEL);
 	if (!ufence)
 		return ERR_PTR(-ENOMEM);
 
@@ -343,8 +343,7 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 				num_fence++;
 		}
 
-		fences = kmalloc_array(num_fence, sizeof(*fences),
-				       GFP_KERNEL);
+		fences = kmalloc_objs(*fences, num_fence, GFP_KERNEL);
 		if (!fences)
 			return ERR_PTR(-ENOMEM);
 

@@ -519,7 +519,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 	vbo = 0;
 
 	/* Allocate in memory instead of stack. Not critical if failed. */
-	ra = kzalloc(sizeof(*ra), GFP_NOFS);
+	ra = kzalloc_obj(*ra, GFP_NOFS);
 	if (ra) {
 		file_ra_state_init(ra, mapping);
 		ra->ra_pages = (wnd->nbits / 8 + PAGE_SIZE - 1) >> PAGE_SHIFT;

@@ -19,8 +19,8 @@ msm_syncobj_parse_deps(struct drm_device *dev,
 	int ret = 0;
 	uint32_t i, j;
 
-	syncobjs = kcalloc(nr_in_syncobjs, sizeof(*syncobjs),
-	                   GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	syncobjs = kzalloc_objs(*syncobjs, nr_in_syncobjs,
+				GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (!syncobjs)
 		return ERR_PTR(-ENOMEM);
 
@@ -94,8 +94,8 @@ msm_syncobj_parse_post_deps(struct drm_device *dev,
 	int ret = 0;
 	uint32_t i, j;
 
-	post_deps = kcalloc(nr_syncobjs, sizeof(*post_deps),
-			    GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	post_deps = kzalloc_objs(*post_deps, nr_syncobjs,
+				 GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
 	if (!post_deps)
 		return ERR_PTR(-ENOMEM);
 

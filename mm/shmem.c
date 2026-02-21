@@ -5328,7 +5328,7 @@ int shmem_init_fs_context(struct fs_context *fc)
 {
 	struct shmem_options *ctx;
 
-	ctx = kzalloc(sizeof(struct shmem_options), GFP_KERNEL);
+	ctx = kzalloc_obj(struct shmem_options, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

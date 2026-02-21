@@ -98,7 +98,7 @@ void ulist_reinit(struct ulist *ulist)
  */
 struct ulist *ulist_alloc(gfp_t gfp_mask)
 {
-	struct ulist *ulist = kmalloc(sizeof(*ulist), gfp_mask);
+	struct ulist *ulist = kmalloc_obj(*ulist, gfp_mask);
 
 	if (!ulist)
 		return NULL;
@@ -111,7 +111,7 @@ struct ulist *ulist_alloc(gfp_t gfp_mask)
 void ulist_prealloc(struct ulist *ulist, gfp_t gfp_mask)
 {
 	if (!ulist->prealloc)
-		ulist->prealloc = kzalloc(sizeof(*ulist->prealloc), gfp_mask);
+		ulist->prealloc = kzalloc_obj(*ulist->prealloc, gfp_mask);
 }
 
 /*
@@ -219,7 +219,7 @@ int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		node = ulist->prealloc;
 		ulist->prealloc = NULL;
 	} else {
-		node = kmalloc(sizeof(*node), gfp_mask);
+		node = kmalloc_obj(*node, gfp_mask);
 		if (!node)
 			return -ENOMEM;
 	}

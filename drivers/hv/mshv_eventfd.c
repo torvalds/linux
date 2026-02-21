@@ -394,7 +394,7 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 
 	CLASS(fd, f)(args->fd);
 
-	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
+	irqfd = kzalloc_obj(*irqfd, GFP_KERNEL);
 	if (!irqfd)
 		return -ENOMEM;
 
@@ -439,7 +439,7 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 		}
 
 		if (!irqfd->irqfd_resampler) {
-			rp = kzalloc(sizeof(*rp), GFP_KERNEL_ACCOUNT);
+			rp = kzalloc_obj(*rp, GFP_KERNEL_ACCOUNT);
 			if (!rp) {
 				ret = -ENOMEM;
 				mutex_unlock(&pt->irqfds_resampler_lock);
@@ -707,7 +707,7 @@ static int mshv_assign_ioeventfd(struct mshv_partition *pt,
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p, GFP_KERNEL);
 	if (!p) {
 		ret = -ENOMEM;
 		goto fail;

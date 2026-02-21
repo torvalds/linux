@@ -235,7 +235,7 @@ struct usb_request *mtu3_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
 	struct mtu3_request *mreq;
 
-	mreq = kzalloc(sizeof(*mreq), gfp_flags);
+	mreq = kzalloc_obj(*mreq, gfp_flags);
 	if (!mreq)
 		return NULL;
 

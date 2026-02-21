@@ -417,12 +417,11 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 	if (p9_xen_trans.maxsize > XEN_FLEX_RING_SIZE(max_ring_order))
 		p9_xen_trans.maxsize = XEN_FLEX_RING_SIZE(max_ring_order) / 2;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = dev;
-	priv->rings = kcalloc(XEN_9PFS_NUM_RINGS, sizeof(*priv->rings),
-			      GFP_KERNEL);
+	priv->rings = kzalloc_objs(*priv->rings, XEN_9PFS_NUM_RINGS, GFP_KERNEL);
 	if (!priv->rings) {
 		kfree(priv);
 		return -ENOMEM;

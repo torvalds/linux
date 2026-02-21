@@ -1828,7 +1828,7 @@ static int __ntfs_init_fs_context(struct fs_context *fc)
 	struct ntfs_mount_options *opts;
 	struct ntfs_sb_info *sbi;
 
-	opts = kzalloc(sizeof(struct ntfs_mount_options), GFP_NOFS);
+	opts = kzalloc_obj(struct ntfs_mount_options, GFP_NOFS);
 	if (!opts)
 		return -ENOMEM;
 
@@ -1847,7 +1847,7 @@ static int __ntfs_init_fs_context(struct fs_context *fc)
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
 		goto ok;
 
-	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_NOFS);
+	sbi = kzalloc_obj(struct ntfs_sb_info, GFP_NOFS);
 	if (!sbi)
 		goto free_opts;
 

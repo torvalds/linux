@@ -847,7 +847,7 @@ static struct usb_function_instance *ecm_alloc_inst(void)
 {
 	struct f_ecm_opts *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&opts->lock);
@@ -927,7 +927,7 @@ static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 	int status;
 
 	/* allocate and initialize one new instance */
-	ecm = kzalloc(sizeof(*ecm), GFP_KERNEL);
+	ecm = kzalloc_obj(*ecm, GFP_KERNEL);
 	if (!ecm)
 		return ERR_PTR(-ENOMEM);
 

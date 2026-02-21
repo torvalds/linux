@@ -45,16 +45,15 @@ struct batadv_hashtable *batadv_hash_new(u32 size)
 {
 	struct batadv_hashtable *hash;
 
-	hash = kmalloc(sizeof(*hash), GFP_ATOMIC);
+	hash = kmalloc_obj(*hash, GFP_ATOMIC);
 	if (!hash)
 		return NULL;
 
-	hash->table = kmalloc_array(size, sizeof(*hash->table), GFP_ATOMIC);
+	hash->table = kmalloc_objs(*hash->table, size, GFP_ATOMIC);
 	if (!hash->table)
 		goto free_hash;
 
-	hash->list_locks = kmalloc_array(size, sizeof(*hash->list_locks),
-					 GFP_ATOMIC);
+	hash->list_locks = kmalloc_objs(*hash->list_locks, size, GFP_ATOMIC);
 	if (!hash->list_locks)
 		goto free_table;
 

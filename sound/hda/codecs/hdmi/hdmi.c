@@ -2105,7 +2105,7 @@ int snd_hda_hdmi_generic_alloc(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec, GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
 

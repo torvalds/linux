@@ -181,7 +181,7 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 		return;
 
 	set_current_in_page_owner();
-	stack = kmalloc(sizeof(*stack), gfp_nested_mask(gfp_mask));
+	stack = kmalloc_obj(*stack, gfp_nested_mask(gfp_mask));
 	if (!stack) {
 		unset_current_in_page_owner();
 		return;

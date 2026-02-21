@@ -183,7 +183,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	nr_rt_entries += 1;
 
-	new = kzalloc(struct_size(new, map, nr_rt_entries), GFP_KERNEL_ACCOUNT);
+	new = kzalloc_flex(*new, map, nr_rt_entries, GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 
@@ -194,7 +194,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	for (i = 0; i < nr; ++i) {
 		r = -ENOMEM;
-		e = kzalloc(sizeof(*e), GFP_KERNEL_ACCOUNT);
+		e = kzalloc_obj(*e, GFP_KERNEL_ACCOUNT);
 		if (!e)
 			goto out;
 
@@ -246,7 +246,7 @@ int kvm_init_irq_routing(struct kvm *kvm)
 	struct kvm_irq_routing_table *new;
 	int chip_size;
 
-	new = kzalloc(struct_size(new, map, 1), GFP_KERNEL_ACCOUNT);
+	new = kzalloc_flex(*new, map, 1, GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 

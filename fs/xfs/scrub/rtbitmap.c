@@ -41,8 +41,8 @@ xchk_setup_rtbitmap(
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
-	rtb = kzalloc(struct_size(rtb, words, xchk_rtbitmap_wordcnt(sc)),
-			XCHK_GFP_FLAGS);
+	rtb = kzalloc_flex(*rtb, words, xchk_rtbitmap_wordcnt(sc),
+			   XCHK_GFP_FLAGS);
 	if (!rtb)
 		return -ENOMEM;
 	sc->buf = rtb;

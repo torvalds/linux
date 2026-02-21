@@ -1115,7 +1115,7 @@ static struct usb_request *bcm63xx_udc_alloc_request(struct usb_ep *ep,
 {
 	struct bcm63xx_req *breq;
 
-	breq = kzalloc(sizeof(*breq), mem_flags);
+	breq = kzalloc_obj(*breq, mem_flags);
 	if (!breq)
 		return NULL;
 	return &breq->req;

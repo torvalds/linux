@@ -473,8 +473,8 @@ static int fuse_dentry_init(struct dentry *dentry)
 {
 	struct fuse_dentry *fd;
 
-	fd = kzalloc(sizeof(struct fuse_dentry),
-			  GFP_KERNEL_ACCOUNT | __GFP_RECLAIMABLE);
+	fd = kzalloc_obj(struct fuse_dentry,
+			 GFP_KERNEL_ACCOUNT | __GFP_RECLAIMABLE);
 	if (!fd)
 		return -ENOMEM;
 

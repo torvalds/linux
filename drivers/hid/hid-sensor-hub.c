@@ -139,7 +139,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 			return -EINVAL;
 		}
-	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
+	callback = kzalloc_obj(*callback, GFP_ATOMIC);
 	if (!callback) {
 		spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 		return -ENOMEM;

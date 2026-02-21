@@ -83,7 +83,7 @@ static struct cxl_nvdimm_bridge *cxl_nvdimm_bridge_alloc(struct cxl_port *port)
 	struct device *dev;
 	int rc;
 
-	cxl_nvb = kzalloc(sizeof(*cxl_nvb), GFP_KERNEL);
+	cxl_nvb = kzalloc_obj(*cxl_nvb, GFP_KERNEL);
 	if (!cxl_nvb)
 		return ERR_PTR(-ENOMEM);
 
@@ -198,7 +198,7 @@ static struct cxl_nvdimm *cxl_nvdimm_alloc(struct cxl_nvdimm_bridge *cxl_nvb,
 	struct cxl_nvdimm *cxl_nvd;
 	struct device *dev;
 
-	cxl_nvd = kzalloc(sizeof(*cxl_nvd), GFP_KERNEL);
+	cxl_nvd = kzalloc_obj(*cxl_nvd, GFP_KERNEL);
 	if (!cxl_nvd)
 		return ERR_PTR(-ENOMEM);
 

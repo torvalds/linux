@@ -2769,7 +2769,7 @@ int madvise_collapse(struct vm_area_struct *vma, unsigned long start,
 	if (!thp_vma_allowable_order(vma, vma->vm_flags, TVA_FORCED_COLLAPSE, PMD_ORDER))
 		return -EINVAL;
 
-	cc = kmalloc(sizeof(*cc), GFP_KERNEL);
+	cc = kmalloc_obj(*cc, GFP_KERNEL);
 	if (!cc)
 		return -ENOMEM;
 	cc->is_khugepaged = false;

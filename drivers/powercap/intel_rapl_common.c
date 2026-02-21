@@ -1520,8 +1520,8 @@ static int rapl_detect_domains(struct rapl_package *rp)
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
 
-	rp->domains = kcalloc(rp->nr_domains, sizeof(struct rapl_domain),
-			      GFP_KERNEL);
+	rp->domains = kzalloc_objs(struct rapl_domain, rp->nr_domains,
+				   GFP_KERNEL);
 	if (!rp->domains)
 		return -ENOMEM;
 
@@ -2216,7 +2216,7 @@ struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *pr
 	struct rapl_package *rp;
 	int ret;
 
-	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
+	rp = kzalloc_obj(struct rapl_package, GFP_KERNEL);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 

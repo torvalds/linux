@@ -250,7 +250,7 @@ static struct zram_pp_ctl *init_pp_ctl(void)
 	struct zram_pp_ctl *ctl;
 	u32 idx;
 
-	ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kmalloc_obj(*ctl, GFP_KERNEL);
 	if (!ctl)
 		return NULL;
 
@@ -297,7 +297,7 @@ static bool place_pp_slot(struct zram *zram, struct zram_pp_ctl *ctl,
 	struct zram_pp_slot *pps;
 	u32 bid;
 
-	pps = kmalloc(sizeof(*pps), GFP_NOIO | __GFP_NOWARN);
+	pps = kmalloc_obj(*pps, GFP_NOIO | __GFP_NOWARN);
 	if (!pps)
 		return false;
 
@@ -855,7 +855,7 @@ static struct zram_wb_ctl *init_wb_ctl(struct zram *zram)
 	struct zram_wb_ctl *wb_ctl;
 	int i;
 
-	wb_ctl = kmalloc(sizeof(*wb_ctl), GFP_KERNEL);
+	wb_ctl = kmalloc_obj(*wb_ctl, GFP_KERNEL);
 	if (!wb_ctl)
 		return NULL;
 
@@ -875,7 +875,7 @@ static struct zram_wb_ctl *init_wb_ctl(struct zram *zram)
 		 * writeback can still proceed, even if there is only one
 		 * request on the idle list.
 		 */
-		req = kzalloc(sizeof(*req), GFP_KERNEL | __GFP_NOWARN);
+		req = kzalloc_obj(*req, GFP_KERNEL | __GFP_NOWARN);
 		if (!req)
 			break;
 
@@ -1452,7 +1452,7 @@ static void read_from_bdev_async(struct zram *zram, struct page *page,
 	struct zram_rb_req *req;
 	struct bio *bio;
 
-	req = kmalloc(sizeof(*req), GFP_NOIO);
+	req = kmalloc_obj(*req, GFP_NOIO);
 	if (!req)
 		return;
 
@@ -3079,7 +3079,7 @@ static int zram_add(void)
 	struct zram *zram;
 	int ret, device_id;
 
-	zram = kzalloc(sizeof(struct zram), GFP_KERNEL);
+	zram = kzalloc_obj(struct zram, GFP_KERNEL);
 	if (!zram)
 		return -ENOMEM;
 

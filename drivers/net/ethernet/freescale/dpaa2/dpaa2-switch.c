@@ -1456,7 +1456,7 @@ static int dpaa2_switch_port_connect_mac(struct ethsw_port_priv *port_priv)
 		goto out_put_device;
 	}
 
-	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
+	mac = kzalloc_obj(*mac, GFP_KERNEL);
 	if (!mac) {
 		err = -ENOMEM;
 		goto out_put_device;
@@ -2334,7 +2334,7 @@ static int dpaa2_switch_port_event(struct notifier_block *nb,
 	if (!dpaa2_switch_port_dev_check(dev))
 		return NOTIFY_DONE;
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (!switchdev_work)
 		return NOTIFY_BAD;
 
@@ -3385,7 +3385,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	int i, err;
 
 	/* Allocate switch core*/
-	ethsw = kzalloc(sizeof(*ethsw), GFP_KERNEL);
+	ethsw = kzalloc_obj(*ethsw, GFP_KERNEL);
 
 	if (!ethsw)
 		return -ENOMEM;
@@ -3408,23 +3408,22 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	if (err)
 		goto err_free_cmdport;
 
-	ethsw->ports = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->ports),
-			       GFP_KERNEL);
+	ethsw->ports = kzalloc_objs(*ethsw->ports, ethsw->sw_attr.num_ifs,
+				    GFP_KERNEL);
 	if (!(ethsw->ports)) {
 		err = -ENOMEM;
 		goto err_teardown;
 	}
 
-	ethsw->fdbs = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->fdbs),
-			      GFP_KERNEL);
+	ethsw->fdbs = kzalloc_objs(*ethsw->fdbs, ethsw->sw_attr.num_ifs,
+				   GFP_KERNEL);
 	if (!ethsw->fdbs) {
 		err = -ENOMEM;
 		goto err_free_ports;
 	}
 
-	ethsw->filter_blocks = kcalloc(ethsw->sw_attr.num_ifs,
-				       sizeof(*ethsw->filter_blocks),
-				       GFP_KERNEL);
+	ethsw->filter_blocks = kzalloc_objs(*ethsw->filter_blocks,
+					    ethsw->sw_attr.num_ifs, GFP_KERNEL);
 	if (!ethsw->filter_blocks) {
 		err = -ENOMEM;
 		goto err_free_fdbs;

@@ -218,7 +218,7 @@ static int io_register_restrictions_task(void __user *arg, unsigned int nr_args)
 	if (!mem_is_zero(tres.resv, sizeof(tres.resv)))
 		return -EINVAL;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL_ACCOUNT);
+	res = kzalloc_obj(*res, GFP_KERNEL_ACCOUNT);
 	if (!res)
 		return -ENOMEM;
 
@@ -250,7 +250,7 @@ static int io_register_bpf_filter_task(void __user *arg, unsigned int nr_args)
 	/* If no task restrictions exist, setup a new set */
 	res = current->io_uring_restrict;
 	if (!res) {
-		res = kzalloc(sizeof(*res), GFP_KERNEL_ACCOUNT);
+		res = kzalloc_obj(*res, GFP_KERNEL_ACCOUNT);
 		if (!res)
 			return -ENOMEM;
 	}

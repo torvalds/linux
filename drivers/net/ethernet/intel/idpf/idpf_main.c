@@ -238,7 +238,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct idpf_adapter *adapter;
 	int err;
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter, GFP_KERNEL);
 	if (!adapter)
 		return -ENOMEM;
 

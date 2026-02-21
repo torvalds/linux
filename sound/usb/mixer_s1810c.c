@@ -534,7 +534,7 @@ snd_s1810c_switch_init(struct usb_mixer_interface *mixer,
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *elem;
 
-	elem = kzalloc(sizeof(struct usb_mixer_elem_info), GFP_KERNEL);
+	elem = kzalloc_obj(struct usb_mixer_elem_info, GFP_KERNEL);
 	if (!elem)
 		return -ENOMEM;
 
@@ -645,7 +645,7 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 	if (ret < 0)
 		return ret;
 
-	private = kzalloc(sizeof(struct s1810_mixer_state), GFP_KERNEL);
+	private = kzalloc_obj(struct s1810_mixer_state, GFP_KERNEL);
 	if (!private)
 		return -ENOMEM;
 

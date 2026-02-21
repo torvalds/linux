@@ -480,7 +480,7 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	if (!urb)
 		goto out;
 
-	iu = kzalloc(sizeof(*iu), gfp);
+	iu = kzalloc_obj(*iu, gfp);
 	if (!iu)
 		goto free;
 

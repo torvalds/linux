@@ -69,7 +69,7 @@ static struct smsg_app_event *smsg_app_event_alloc(const char *from,
 {
 	struct smsg_app_event *ev;
 
-	ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
+	ev = kzalloc_obj(*ev, GFP_ATOMIC);
 	if (!ev)
 		return NULL;
 

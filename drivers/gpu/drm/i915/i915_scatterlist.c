@@ -90,7 +90,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 
 	GEM_BUG_ON(!max_segment);
 
-	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL | __GFP_NOWARN);
+	rsgt = kmalloc_obj(*rsgt, GFP_KERNEL | __GFP_NOWARN);
 	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -178,7 +178,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 	GEM_BUG_ON(list_empty(blocks));
 	GEM_BUG_ON(!max_segment);
 
-	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL | __GFP_NOWARN);
+	rsgt = kmalloc_obj(*rsgt, GFP_KERNEL | __GFP_NOWARN);
 	if (!rsgt)
 		return ERR_PTR(-ENOMEM);
 

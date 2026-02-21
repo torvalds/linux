@@ -251,7 +251,7 @@ static struct f_audio_buf *f_audio_buffer_alloc(int buf_size)
 {
 	struct f_audio_buf *copy_buf;
 
-	copy_buf = kzalloc(sizeof *copy_buf, GFP_ATOMIC);
+	copy_buf = kzalloc_obj(*copy_buf, GFP_ATOMIC);
 	if (!copy_buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -942,7 +942,7 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 {
 	struct f_uac1_legacy_opts *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts, GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -985,7 +985,7 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	struct f_uac1_legacy_opts *opts;
 
 	/* allocate and initialize one new instance */
-	audio = kzalloc(sizeof(*audio), GFP_KERNEL);
+	audio = kzalloc_obj(*audio, GFP_KERNEL);
 	if (!audio)
 		return ERR_PTR(-ENOMEM);
 

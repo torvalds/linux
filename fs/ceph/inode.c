@@ -321,7 +321,7 @@ static struct ceph_inode_frag *__get_or_create_frag(struct ceph_inode_info *ci,
 			return frag;
 	}
 
-	frag = kmalloc(sizeof(*frag), GFP_NOFS);
+	frag = kmalloc_obj(*frag, GFP_NOFS);
 	if (!frag)
 		return ERR_PTR(-ENOMEM);
 

@@ -3058,7 +3058,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	apic = kzalloc(sizeof(*apic), GFP_KERNEL_ACCOUNT);
+	apic = kzalloc_obj(*apic, GFP_KERNEL_ACCOUNT);
 	if (!apic)
 		goto nomem;
 

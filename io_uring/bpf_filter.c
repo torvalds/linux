@@ -152,13 +152,12 @@ static struct io_bpf_filters *io_new_bpf_filters(void)
 {
 	struct io_bpf_filters *filters __free(kfree) = NULL;
 
-	filters = kzalloc(sizeof(*filters), GFP_KERNEL_ACCOUNT);
+	filters = kzalloc_obj(*filters, GFP_KERNEL_ACCOUNT);
 	if (!filters)
 		return ERR_PTR(-ENOMEM);
 
-	filters->filters = kcalloc(IORING_OP_LAST,
-				   sizeof(struct io_bpf_filter *),
-				   GFP_KERNEL_ACCOUNT);
+	filters->filters = kzalloc_objs(struct io_bpf_filter *, IORING_OP_LAST,
+					GFP_KERNEL_ACCOUNT);
 	if (!filters->filters)
 		return ERR_PTR(-ENOMEM);
 
@@ -402,7 +401,7 @@ int io_register_bpf_filter(struct io_restriction *res,
 		old_filters = res->bpf_filters;
 	}
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL_ACCOUNT);
+	filter = kzalloc_obj(*filter, GFP_KERNEL_ACCOUNT);
 	if (!filter) {
 		ret = -ENOMEM;
 		goto err;

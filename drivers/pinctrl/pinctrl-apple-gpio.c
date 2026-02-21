@@ -400,8 +400,8 @@ static int apple_gpio_register(struct apple_gpio_pinctrl *pctl)
 		girq->parents = kmalloc_array(girq->num_parents,
 					      sizeof(*girq->parents),
 					      GFP_KERNEL);
-		irq_data = kmalloc_array(girq->num_parents, sizeof(*irq_data),
-					 GFP_KERNEL);
+		irq_data = kmalloc_objs(*irq_data, girq->num_parents,
+					GFP_KERNEL);
 		if (!girq->parents || !irq_data) {
 			ret = -ENOMEM;
 			goto out_free_irq_data;

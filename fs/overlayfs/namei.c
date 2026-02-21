@@ -481,7 +481,7 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 		goto invalid;
 
 	if (!*stackp)
-		*stackp = kmalloc(sizeof(struct ovl_path), GFP_KERNEL);
+		*stackp = kmalloc_obj(struct ovl_path, GFP_KERNEL);
 	if (!*stackp) {
 		dput(origin);
 		return -ENOMEM;

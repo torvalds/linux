@@ -411,7 +411,7 @@ static struct smb_direct_transport *alloc_transport(struct rdma_cm_id *cm_id)
 	struct smbdirect_socket_parameters *sp;
 	struct ksmbd_conn *conn;
 
-	t = kzalloc(sizeof(*t), KSMBD_DEFAULT_GFP);
+	t = kzalloc_obj(*t, KSMBD_DEFAULT_GFP);
 	if (!t)
 		return NULL;
 	sc = &t->socket;
@@ -1852,8 +1852,8 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 	/* build rdma_rw_ctx for each descriptor */
 	desc_buf = buf;
 	for (i = 0; i < desc_num; i++) {
-		msg = kzalloc(struct_size(msg, sg_list, SG_CHUNK_SIZE),
-			      KSMBD_DEFAULT_GFP);
+		msg = kzalloc_flex(*msg, sg_list, SG_CHUNK_SIZE,
+				   KSMBD_DEFAULT_GFP);
 		if (!msg) {
 			ret = -ENOMEM;
 			goto out;
@@ -2860,7 +2860,7 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 	if (!rdma_frwr_is_supported(&ib_dev->attrs))
 		return 0;
 
-	smb_dev = kzalloc(sizeof(*smb_dev), KSMBD_DEFAULT_GFP);
+	smb_dev = kzalloc_obj(*smb_dev, KSMBD_DEFAULT_GFP);
 	if (!smb_dev)
 		return -ENOMEM;
 	smb_dev->ib_dev = ib_dev;

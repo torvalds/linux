@@ -1031,7 +1031,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	unsigned int i;
 	size_t nr_merged_lower;
 
-	ofs->fs = kcalloc(ctx->nr + 2, sizeof(struct ovl_sb), GFP_KERNEL);
+	ofs->fs = kzalloc_objs(struct ovl_sb, ctx->nr + 2, GFP_KERNEL);
 	if (ofs->fs == NULL)
 		return -ENOMEM;
 
@@ -1393,7 +1393,7 @@ static int ovl_fill_super_creds(struct fs_context *fc, struct super_block *sb)
 	}
 
 	err = -ENOMEM;
-	layers = kcalloc(ctx->nr + 1, sizeof(struct ovl_layer), GFP_KERNEL);
+	layers = kzalloc_objs(struct ovl_layer, ctx->nr + 1, GFP_KERNEL);
 	if (!layers)
 		return err;
 

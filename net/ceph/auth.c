@@ -59,7 +59,7 @@ struct ceph_auth_client *ceph_auth_init(const char *name,
 {
 	struct ceph_auth_client *ac;
 
-	ac = kzalloc(sizeof(*ac), GFP_NOFS);
+	ac = kzalloc_obj(*ac, GFP_NOFS);
 	if (!ac)
 		return ERR_PTR(-ENOMEM);
 

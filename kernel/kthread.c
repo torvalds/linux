@@ -122,7 +122,7 @@ bool set_kthread_struct(struct task_struct *p)
 	if (WARN_ON_ONCE(to_kthread(p)))
 		return false;
 
-	kthread = kzalloc(sizeof(*kthread), GFP_KERNEL);
+	kthread = kzalloc_obj(*kthread, GFP_KERNEL);
 	if (!kthread)
 		return false;
 
@@ -511,8 +511,7 @@ struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	struct task_struct *task;
-	struct kthread_create_info *create = kmalloc(sizeof(*create),
-						     GFP_KERNEL);
+	struct kthread_create_info *create = kmalloc_obj(*create, GFP_KERNEL);
 
 	if (!create)
 		return ERR_PTR(-ENOMEM);
@@ -1084,7 +1083,7 @@ __kthread_create_worker_on_node(unsigned int flags, int node,
 	struct kthread_worker *worker;
 	struct task_struct *task;
 
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL);
+	worker = kzalloc_obj(*worker, GFP_KERNEL);
 	if (!worker)
 		return ERR_PTR(-ENOMEM);
 

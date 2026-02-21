@@ -122,7 +122,7 @@ static int vboxsf_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!fc->source)
 		return -EINVAL;
 
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -427,7 +427,7 @@ static int vboxsf_init_fs_context(struct fs_context *fc)
 {
 	struct vboxsf_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

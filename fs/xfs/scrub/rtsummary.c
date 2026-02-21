@@ -49,8 +49,7 @@ xchk_setup_rtsummary(
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
-	rts = kvzalloc(struct_size(rts, words, mp->m_blockwsize),
-			XCHK_GFP_FLAGS);
+	rts = kvzalloc_flex(*rts, words, mp->m_blockwsize, XCHK_GFP_FLAGS);
 	if (!rts)
 		return -ENOMEM;
 	sc->buf = rts;

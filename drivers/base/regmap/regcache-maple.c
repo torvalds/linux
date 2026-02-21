@@ -294,7 +294,7 @@ static int regcache_maple_init(struct regmap *map)
 {
 	struct maple_tree *mt;
 
-	mt = kmalloc(sizeof(*mt), map->alloc_flags);
+	mt = kmalloc_obj(*mt, map->alloc_flags);
 	if (!mt)
 		return -ENOMEM;
 	map->cache = mt;

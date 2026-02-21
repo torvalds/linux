@@ -1063,7 +1063,7 @@ do_work:
 	/*
 	 * We need to schedule work to process this error; schedule it.
 	 */
-	wrk = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
+	wrk = kmalloc_obj(struct storvsc_scan_work, GFP_ATOMIC);
 	if (!wrk) {
 		set_host_byte(scmnd, DID_BAD_TARGET);
 		return;
@@ -1970,7 +1970,7 @@ static int storvsc_probe(struct hv_device *device,
 	host_dev->host = host;
 
 
-	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
+	stor_device = kzalloc_obj(struct storvsc_device, GFP_KERNEL);
 	if (!stor_device) {
 		ret = -ENOMEM;
 		goto err_out0;

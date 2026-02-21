@@ -734,8 +734,8 @@ int cachefiles_ondemand_init_obj_info(struct cachefiles_object *object,
 	if (!cachefiles_in_ondemand_mode(volume->cache))
 		return 0;
 
-	object->ondemand = kzalloc(sizeof(struct cachefiles_ondemand_info),
-					GFP_KERNEL);
+	object->ondemand = kzalloc_obj(struct cachefiles_ondemand_info,
+				       GFP_KERNEL);
 	if (!object->ondemand)
 		return -ENOMEM;
 

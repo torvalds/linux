@@ -168,8 +168,7 @@ static struct scatterlist *sg_kmalloc(unsigned int nents, gfp_t gfp_mask)
 		kmemleak_alloc(ptr, PAGE_SIZE, 1, gfp_mask);
 		return ptr;
 	} else
-		return kmalloc_array(nents, sizeof(struct scatterlist),
-				     gfp_mask);
+		return kmalloc_objs(struct scatterlist, nents, gfp_mask);
 }
 
 static void sg_kfree(struct scatterlist *sg, unsigned int nents)
@@ -632,8 +631,7 @@ struct scatterlist *sgl_alloc_order(unsigned long long length,
 			return NULL;
 		nalloc++;
 	}
-	sgl = kmalloc_array(nalloc, sizeof(struct scatterlist),
-			    gfp & ~GFP_DMA);
+	sgl = kmalloc_objs(struct scatterlist, nalloc, gfp & ~GFP_DMA);
 	if (!sgl)
 		return NULL;
 

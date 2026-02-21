@@ -769,7 +769,7 @@ static int fbcon_open(struct fb_info *info)
 	}
 	unlock_fb_info(info);
 
-	par = kzalloc(sizeof(*par), GFP_KERNEL);
+	par = kzalloc_obj(*par, GFP_KERNEL);
 	if (!par) {
 		fbcon_release(info);
 		return -ENOMEM;

@@ -804,7 +804,7 @@ xrep_iallocbt(
 	if (!xfs_has_rmapbt(mp))
 		return -EOPNOTSUPP;
 
-	ri = kzalloc(sizeof(struct xrep_ibt), XCHK_GFP_FLAGS);
+	ri = kzalloc_obj(struct xrep_ibt, XCHK_GFP_FLAGS);
 	if (!ri)
 		return -ENOMEM;
 	ri->sc = sc;

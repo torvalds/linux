@@ -592,7 +592,7 @@ smk_import_allocated_label(char *smack, gfp_t gfp)
 	if (skp != NULL)
 		goto freeout;
 
-	skp = kzalloc(sizeof(*skp), gfp);
+	skp = kzalloc_obj(*skp, gfp);
 	if (skp == NULL) {
 		skp = ERR_PTR(-ENOMEM);
 		goto freeout;

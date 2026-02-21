@@ -494,7 +494,7 @@ int etnaviv_iommu_global_init(struct etnaviv_gpu *gpu)
 		return 0;
 	}
 
-	global = kzalloc(sizeof(*global), GFP_KERNEL);
+	global = kzalloc_obj(*global, GFP_KERNEL);
 	if (!global)
 		return -ENOMEM;
 

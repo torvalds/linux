@@ -708,7 +708,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bool reject_on_transition_failure = false;
 	const struct tomoyo_path_info *candidate;
 	struct tomoyo_path_info exename;
-	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+	struct tomoyo_execve *ee = kzalloc_obj(*ee, GFP_NOFS);
 
 	if (!ee)
 		return -ENOMEM;

@@ -172,7 +172,7 @@ xrep_setup_ag_rmapbt(
 	if (error)
 		return error;
 
-	rr = kzalloc(sizeof(struct xrep_rmap), XCHK_GFP_FLAGS);
+	rr = kzalloc_obj(struct xrep_rmap, XCHK_GFP_FLAGS);
 	if (!rr)
 		return -ENOMEM;
 

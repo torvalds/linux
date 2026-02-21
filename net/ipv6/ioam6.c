@@ -127,7 +127,7 @@ static int ioam6_genl_addns(struct sk_buff *skb, struct genl_info *info)
 		goto out_unlock;
 	}
 
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+	ns = kzalloc_obj(*ns, GFP_KERNEL);
 	if (!ns) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -245,7 +245,7 @@ static int ioam6_genl_dumpns_start(struct netlink_callback *cb)
 	struct rhashtable_iter *iter = (struct rhashtable_iter *)cb->args[0];
 
 	if (!iter) {
-		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+		iter = kmalloc_obj(*iter, GFP_KERNEL);
 		if (!iter)
 			return -ENOMEM;
 
@@ -431,7 +431,7 @@ static int ioam6_genl_dumpsc_start(struct netlink_callback *cb)
 	struct rhashtable_iter *iter = (struct rhashtable_iter *)cb->args[0];
 
 	if (!iter) {
-		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+		iter = kmalloc_obj(*iter, GFP_KERNEL);
 		if (!iter)
 			return -ENOMEM;
 
@@ -975,7 +975,7 @@ static int __net_init ioam6_net_init(struct net *net)
 	struct ioam6_pernet_data *nsdata;
 	int err = -ENOMEM;
 
-	nsdata = kzalloc(sizeof(*nsdata), GFP_KERNEL);
+	nsdata = kzalloc_obj(*nsdata, GFP_KERNEL);
 	if (!nsdata)
 		goto out;
 

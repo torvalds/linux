@@ -242,7 +242,7 @@ static int bnge_alloc_all_ctx_pg_info(struct bnge_dev *bd, int ctx_max)
 
 		if (ctxm->instance_bmap)
 			n = hweight32(ctxm->instance_bmap);
-		ctxm->pg_info = kcalloc(n, sizeof(*ctxm->pg_info), GFP_KERNEL);
+		ctxm->pg_info = kzalloc_objs(*ctxm->pg_info, n, GFP_KERNEL);
 		if (!ctxm->pg_info)
 			return -ENOMEM;
 	}
@@ -269,7 +269,7 @@ int bnge_hwrm_func_backing_store_qcaps(struct bnge_dev *bd)
 	if (rc)
 		return rc;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 	bd->ctx = ctx;

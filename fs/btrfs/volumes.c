@@ -382,7 +382,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devs;
 
-	fs_devs = kzalloc(sizeof(*fs_devs), GFP_KERNEL);
+	fs_devs = kzalloc_obj(*fs_devs, GFP_KERNEL);
 	if (!fs_devs)
 		return ERR_PTR(-ENOMEM);
 
@@ -4456,7 +4456,7 @@ again:
 		if (chunk_type & BTRFS_BLOCK_GROUP_METADATA_REMAP) {
 			mutex_unlock(&fs_info->reclaim_bgs_lock);
 
-			rci = kmalloc(sizeof(struct remap_chunk_info), GFP_NOFS);
+			rci = kmalloc_obj(struct remap_chunk_info, GFP_NOFS);
 			if (!rci) {
 				ret = -ENOMEM;
 				goto error;
@@ -5004,7 +5004,7 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 		return 0;
 	}
 
-	bctl = kzalloc(sizeof(*bctl), GFP_NOFS);
+	bctl = kzalloc_obj(*bctl, GFP_NOFS);
 	if (!bctl)
 		return -ENOMEM;
 
@@ -6338,7 +6338,7 @@ struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_io_context *bioc;
 
-	bioc = kzalloc(struct_size(bioc, stripes, total_stripes), GFP_NOFS);
+	bioc = kzalloc_flex(*bioc, stripes, total_stripes, GFP_NOFS);
 
 	if (!bioc)
 		return NULL;
@@ -6471,7 +6471,7 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 		stripe_nr /= map->num_stripes;
 	}
 
-	stripes = kcalloc(*num_stripes, sizeof(*stripes), GFP_NOFS);
+	stripes = kzalloc_objs(*stripes, *num_stripes, GFP_NOFS);
 	if (!stripes) {
 		ret = -ENOMEM;
 		goto out_free_map;
@@ -7202,7 +7202,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	if (WARN_ON(!devid && !fs_info))
 		return ERR_PTR(-EINVAL);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev, GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

@@ -91,7 +91,7 @@ static int spacemit_ccu_reset_register(struct device *dev,
 	if (!reset_name)
 		return 0;
 
-	cadev = kzalloc(sizeof(*cadev), GFP_KERNEL);
+	cadev = kzalloc_obj(*cadev, GFP_KERNEL);
 	if (!cadev)
 		return -ENOMEM;
 

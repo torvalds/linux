@@ -309,7 +309,7 @@ static int tipc_udp_rcast_add(struct tipc_bearer *b,
 	if (!ub)
 		return -ENODEV;
 
-	rcast = kmalloc(sizeof(*rcast), GFP_ATOMIC);
+	rcast = kmalloc_obj(*rcast, GFP_ATOMIC);
 	if (!rcast)
 		return -ENOMEM;
 
@@ -675,7 +675,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	struct net_device *dev;
 	int rmcast = 0;
 
-	ub = kzalloc(sizeof(*ub), GFP_ATOMIC);
+	ub = kzalloc_obj(*ub, GFP_ATOMIC);
 	if (!ub)
 		return -ENOMEM;
 

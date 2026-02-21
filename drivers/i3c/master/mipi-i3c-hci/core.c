@@ -410,7 +410,7 @@ static int i3c_hci_attach_i3c_dev(struct i3c_dev_desc *dev)
 	struct i3c_hci_dev_data *dev_data;
 	int ret;
 
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = kzalloc_obj(*dev_data, GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1) {
@@ -460,7 +460,7 @@ static int i3c_hci_attach_i2c_dev(struct i2c_dev_desc *dev)
 
 	if (hci->cmd != &mipi_i3c_hci_cmd_v1)
 		return 0;
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = kzalloc_obj(*dev_data, GFP_KERNEL);
 	if (!dev_data)
 		return -ENOMEM;
 	ret = mipi_i3c_hci_dat_v1.alloc_entry(hci);

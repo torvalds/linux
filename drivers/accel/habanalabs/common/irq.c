@@ -267,7 +267,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 
 	if (!(*free_list)) {
 		/* Alloc/Init the timestamp registration free objects list */
-		*free_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
+		*free_list = kmalloc_obj(struct list_head, GFP_ATOMIC);
 		if (!(*free_list))
 			return -ENOMEM;
 
@@ -283,14 +283,16 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 				intr->interrupt_id);
 
 		if (!(*dynamic_alloc_list)) {
-			*dynamic_alloc_list = kmalloc(sizeof(struct list_head), GFP_ATOMIC);
+			*dynamic_alloc_list = kmalloc_obj(struct list_head,
+							  GFP_ATOMIC);
 			if (!(*dynamic_alloc_list))
 				return -ENOMEM;
 
 			INIT_LIST_HEAD(*dynamic_alloc_list);
 		}
 
-		free_node = kmalloc(sizeof(struct timestamp_reg_free_node), GFP_ATOMIC);
+		free_node = kmalloc_obj(struct timestamp_reg_free_node,
+					GFP_ATOMIC);
 		if (!free_node)
 			return -ENOMEM;
 
@@ -344,7 +346,7 @@ static void handle_user_interrupt_ts_list(struct hl_device *hdev, struct hl_user
 	 * and move nodes hanged on the free list back to the interrupt ts list
 	 * we always alloc the job of the WQ at the beginning.
 	 */
-	job = kmalloc(sizeof(*job), GFP_ATOMIC);
+	job = kmalloc_obj(*job, GFP_ATOMIC);
 	if (!job)
 		return;
 
@@ -542,7 +544,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 			goto skip_irq;
 		}
 
-		handle_eqe_work = kmalloc(sizeof(*handle_eqe_work), GFP_ATOMIC);
+		handle_eqe_work = kmalloc_obj(*handle_eqe_work, GFP_ATOMIC);
 		if (handle_eqe_work) {
 			INIT_WORK(&handle_eqe_work->eq_work, irq_handle_eqe);
 			handle_eqe_work->hdev = hdev;

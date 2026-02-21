@@ -311,7 +311,7 @@ ocfs2_allocate_refcount_tree(struct ocfs2_super *osb, u64 rf_blkno)
 {
 	struct ocfs2_refcount_tree *new;
 
-	new = kzalloc(sizeof(struct ocfs2_refcount_tree), GFP_NOFS);
+	new = kzalloc_obj(struct ocfs2_refcount_tree, GFP_NOFS);
 	if (!new)
 		return NULL;
 
@@ -3397,7 +3397,7 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 
 	BUG_ON(cow_len == 0);
 
-	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
+	context = kzalloc_obj(struct ocfs2_cow_context, GFP_NOFS);
 	if (!context) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -3606,7 +3606,7 @@ int ocfs2_refcount_cow_xattr(struct inode *inode,
 
 	BUG_ON(cow_len == 0);
 
-	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
+	context = kzalloc_obj(struct ocfs2_cow_context, GFP_NOFS);
 	if (!context) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
