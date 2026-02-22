@@ -1262,7 +1262,7 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 	config_offset += 4;
 
 	bk_da = cfg_info->blk_data = kzalloc_objs(struct pcmdevice_block_data *,
-						  cfg_info->nblocks, GFP_KERNEL);
+						  cfg_info->nblocks);
 	if (!bk_da) {
 		*status = -ENOMEM;
 		goto out;

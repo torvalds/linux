@@ -1100,7 +1100,7 @@ static struct hns3_enet_ring *hns3_backup_ringparam(struct hns3_nic_priv *priv)
 	int i;
 
 	tmp_rings = kzalloc_objs(struct hns3_enet_ring,
-				 handle->kinfo.num_tqps * 2, GFP_KERNEL);
+				 handle->kinfo.num_tqps * 2);
 	if (!tmp_rings)
 		return NULL;
 

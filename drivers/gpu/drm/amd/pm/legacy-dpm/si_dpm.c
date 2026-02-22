@@ -7342,7 +7342,7 @@ static int si_parse_power_table(struct amdgpu_device *adev)
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
 	adev->pm.dpm.ps = kzalloc_objs(struct amdgpu_ps,
-				       state_array->ucNumEntries, GFP_KERNEL);
+				       state_array->ucNumEntries);
 	if (!adev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;

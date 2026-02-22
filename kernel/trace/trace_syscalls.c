@@ -1338,7 +1338,7 @@ void __init init_ftrace_syscalls(void)
 
 	if (!IS_ENABLED(CONFIG_HAVE_SPARSE_SYSCALL_NR)) {
 		syscalls_metadata = kzalloc_objs(*syscalls_metadata,
-						 NR_syscalls, GFP_KERNEL);
+						 NR_syscalls);
 		if (!syscalls_metadata) {
 			WARN_ON(1);
 			return;

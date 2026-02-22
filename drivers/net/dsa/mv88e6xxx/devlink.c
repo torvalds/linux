@@ -379,7 +379,7 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 	int fid = -1, err = 0, count = 0;
 
 	table = kzalloc_objs(struct mv88e6xxx_devlink_atu_entry,
-			     mv88e6xxx_num_databases(chip), GFP_KERNEL);
+			     mv88e6xxx_num_databases(chip));
 	if (!table)
 		return -ENOMEM;
 
@@ -440,7 +440,7 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 	int err;
 
 	table = kzalloc_objs(struct mv88e6xxx_devlink_vtu_entry,
-			     mv88e6xxx_max_vid(chip) + 1, GFP_KERNEL);
+			     mv88e6xxx_max_vid(chip) + 1);
 	if (!table)
 		return -ENOMEM;
 
@@ -522,7 +522,7 @@ static int mv88e6xxx_region_stu_snapshot(struct devlink *dl,
 	int err;
 
 	table = kzalloc_objs(struct mv88e6xxx_devlink_stu_entry,
-			     mv88e6xxx_max_sid(chip) + 1, GFP_KERNEL);
+			     mv88e6xxx_max_sid(chip) + 1);
 	if (!table)
 		return -ENOMEM;
 

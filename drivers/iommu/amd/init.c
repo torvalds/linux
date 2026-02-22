@@ -660,8 +660,7 @@ static inline void free_dev_table(struct amd_iommu_pci_seg *pci_seg)
 static inline int __init alloc_rlookup_table(struct amd_iommu_pci_seg *pci_seg)
 {
 	pci_seg->rlookup_table = kvzalloc_objs(*pci_seg->rlookup_table,
-					       pci_seg->last_bdf + 1,
-					       GFP_KERNEL);
+					       pci_seg->last_bdf + 1);
 	if (pci_seg->rlookup_table == NULL)
 		return -ENOMEM;
 
@@ -677,8 +676,7 @@ static inline void free_rlookup_table(struct amd_iommu_pci_seg *pci_seg)
 static inline int __init alloc_irq_lookup_table(struct amd_iommu_pci_seg *pci_seg)
 {
 	pci_seg->irq_lookup_table = kvzalloc_objs(*pci_seg->irq_lookup_table,
-						  pci_seg->last_bdf + 1,
-						  GFP_KERNEL);
+						  pci_seg->last_bdf + 1);
 	if (pci_seg->irq_lookup_table == NULL)
 		return -ENOMEM;
 
@@ -696,7 +694,7 @@ static int __init alloc_alias_table(struct amd_iommu_pci_seg *pci_seg)
 	int i;
 
 	pci_seg->alias_table = kvmalloc_objs(*pci_seg->alias_table,
-					     pci_seg->last_bdf + 1, GFP_KERNEL);
+					     pci_seg->last_bdf + 1);
 	if (!pci_seg->alias_table)
 		return -ENOMEM;
 

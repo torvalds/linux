@@ -493,7 +493,7 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 		 */
 		pdata->nr_cores = NUM_REAL_CORES;
 		pdata->core_data = kzalloc_objs(struct temp_data *,
-						pdata->nr_cores, GFP_KERNEL);
+						pdata->nr_cores);
 		if (!pdata->core_data)
 			return NULL;
 	}

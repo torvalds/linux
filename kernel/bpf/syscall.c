@@ -6077,7 +6077,7 @@ static int bpf_prog_bind_map(union bpf_attr *attr)
 		}
 
 	used_maps_new = kmalloc_objs(used_maps_new[0],
-				     prog->aux->used_map_cnt + 1, GFP_KERNEL);
+				     prog->aux->used_map_cnt + 1);
 	if (!used_maps_new) {
 		ret = -ENOMEM;
 		goto out_unlock;

@@ -241,7 +241,7 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 
 	iser_conn->num_rx_descs = session->cmds_max;
 	iser_conn->rx_descs = kmalloc_objs(struct iser_rx_desc,
-					   iser_conn->num_rx_descs, GFP_KERNEL);
+					   iser_conn->num_rx_descs);
 	if (!iser_conn->rx_descs)
 		goto rx_desc_alloc_fail;
 

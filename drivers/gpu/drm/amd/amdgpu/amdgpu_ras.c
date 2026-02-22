@@ -3239,7 +3239,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 	if (from_rom) {
 		err_data.err_addr =
 			kzalloc_objs(struct eeprom_table_record,
-				     adev->umc.retire_unit, GFP_KERNEL);
+				     adev->umc.retire_unit);
 		if (!err_data.err_addr) {
 			dev_warn(adev->dev, "Failed to alloc UMC error address record in mca2pa conversion!\n");
 			return -ENOMEM;

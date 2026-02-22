@@ -254,8 +254,7 @@ int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 
 	bwc_matcher->size_of_at_array = MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM;
 	bwc_matcher->at = kzalloc_objs(*bwc_matcher->at,
-				       bwc_matcher->size_of_at_array,
-				       GFP_KERNEL);
+				       bwc_matcher->size_of_at_array);
 	if (!bwc_matcher->at)
 		goto free_bwc_matcher_rules;
 

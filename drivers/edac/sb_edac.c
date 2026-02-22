@@ -776,7 +776,7 @@ static struct sbridge_dev *alloc_sbridge_dev(int seg, u8 bus, enum domain dom,
 		return NULL;
 
 	sbridge_dev->pdev = kzalloc_objs(*sbridge_dev->pdev,
-					 table->n_devs_per_imc, GFP_KERNEL);
+					 table->n_devs_per_imc);
 	if (!sbridge_dev->pdev) {
 		kfree(sbridge_dev);
 		return NULL;

@@ -2428,7 +2428,7 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 
 	port_info->num_phys = buffer->NumPhys;
 	port_info->phy_info = kzalloc_objs(struct mptsas_phyinfo,
-					   port_info->num_phys, GFP_KERNEL);
+					   port_info->num_phys);
 	if (!port_info->phy_info) {
 		error = -ENOMEM;
 		goto out_free_consistent;
@@ -2719,7 +2719,7 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	/* save config data */
 	port_info->num_phys = (buffer->NumPhys) ? buffer->NumPhys : 1;
 	port_info->phy_info = kzalloc_objs(struct mptsas_phyinfo,
-					   port_info->num_phys, GFP_KERNEL);
+					   port_info->num_phys);
 	if (!port_info->phy_info) {
 		error = -ENOMEM;
 		goto out_free_consistent;
@@ -3448,7 +3448,7 @@ mptsas_expander_event_add(MPT_ADAPTER *ioc,
 	port_info->num_phys = (expander_data->NumPhys) ?
 	    expander_data->NumPhys : 1;
 	port_info->phy_info = kzalloc_objs(struct mptsas_phyinfo,
-					   port_info->num_phys, GFP_KERNEL);
+					   port_info->num_phys);
 	BUG_ON(!port_info->phy_info);
 	memcpy(&sas_address, &expander_data->SASAddress, sizeof(__le64));
 	for (i = 0; i < port_info->num_phys; i++) {

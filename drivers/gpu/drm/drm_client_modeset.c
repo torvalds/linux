@@ -59,8 +59,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 
 	for (modeset = client->modesets; modeset->crtc; modeset++) {
 		modeset->connectors = kzalloc_objs(*modeset->connectors,
-						   max_connector_count,
-						   GFP_KERNEL);
+						   max_connector_count);
 		if (!modeset->connectors)
 			goto err_free;
 	}

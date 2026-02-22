@@ -2506,7 +2506,7 @@ int wx_sw_init(struct wx *wx)
 			WX_RSS_FIELD_IPV6 | WX_RSS_FIELD_IPV6_TCP;
 
 	wx->mac_table = kzalloc_objs(struct wx_mac_addr,
-				     wx->mac.num_rar_entries, GFP_KERNEL);
+				     wx->mac.num_rar_entries);
 	if (!wx->mac_table) {
 		wx_err(wx, "mac_table allocation failed\n");
 		kfree(wx->rss_key);

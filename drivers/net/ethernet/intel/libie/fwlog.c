@@ -1013,8 +1013,7 @@ int libie_fwlog_init(struct libie_fwlog *fwlog, struct libie_fwlog_api *api)
 			return status;
 
 		fwlog->ring.rings = kzalloc_objs(*fwlog->ring.rings,
-						 LIBIE_FWLOG_RING_SIZE_DFLT,
-						 GFP_KERNEL);
+						 LIBIE_FWLOG_RING_SIZE_DFLT);
 		if (!fwlog->ring.rings) {
 			dev_warn(&fwlog->pdev->dev, "Unable to allocate memory for FW log rings\n");
 			return -ENOMEM;

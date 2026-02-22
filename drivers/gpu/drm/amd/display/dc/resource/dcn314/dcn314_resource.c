@@ -1706,8 +1706,7 @@ enum dc_status dcn314_validate_bandwidth(struct dc *dc,
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc_objs(display_e2e_pipe_params_st,
-							 dc->res_pool->pipe_count,
-							 GFP_KERNEL);
+							 dc->res_pool->pipe_count);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();

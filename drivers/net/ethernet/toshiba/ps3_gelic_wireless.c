@@ -2306,7 +2306,7 @@ static struct net_device *gelic_wl_alloc(struct gelic_card *card)
 
 	/* allocate scan list */
 	wl->networks = kzalloc_objs(struct gelic_wl_scan_info,
-				    GELIC_WL_BSS_MAX_ENT, GFP_KERNEL);
+				    GELIC_WL_BSS_MAX_ENT);
 
 	if (!wl->networks)
 		goto fail_bss;

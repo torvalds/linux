@@ -1208,8 +1208,7 @@ static int extcon_alloc_groups(struct extcon_dev *edev)
 		return 0;
 
 	edev->extcon_dev_type.groups = kzalloc_objs(*edev->extcon_dev_type.groups,
-						    edev->max_supported + 2,
-						    GFP_KERNEL);
+						    edev->max_supported + 2);
 	if (!edev->extcon_dev_type.groups)
 		return -ENOMEM;
 

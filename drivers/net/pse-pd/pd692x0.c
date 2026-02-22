@@ -647,8 +647,7 @@ pd692x0_pi_get_pw_limit_ranges(struct pse_controller_dev *pcdev, int id,
 
 	pw_table = pd692x0_class_pw_table;
 	c33_pw_limit_ranges = kzalloc_objs(*c33_pw_limit_ranges,
-					   PD692X0_CLASS_PW_TABLE_SIZE,
-					   GFP_KERNEL);
+					   PD692X0_CLASS_PW_TABLE_SIZE);
 	if (!c33_pw_limit_ranges)
 		return -ENOMEM;
 

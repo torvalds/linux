@@ -560,7 +560,7 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 	int i;
 
 	dev->cmd.context = kmalloc_objs(struct mthca_cmd_context,
-					dev->cmd.max_cmds, GFP_KERNEL);
+					dev->cmd.max_cmds);
 	if (!dev->cmd.context)
 		return -ENOMEM;
 

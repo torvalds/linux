@@ -745,8 +745,7 @@ intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra
 	int i = 0;
 
 	uncores = kzalloc_objs(struct intel_uncore_type *,
-			       num_discovered_types[type_id] + num_extra + 1,
-			       GFP_KERNEL);
+			       num_discovered_types[type_id] + num_extra + 1);
 	if (!uncores)
 		return empty_uncore;
 

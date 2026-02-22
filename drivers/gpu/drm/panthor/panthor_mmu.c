@@ -1258,7 +1258,7 @@ static int panthor_vm_prepare_map_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		   ((ALIGN(va + size, 1ull << 21) - ALIGN_DOWN(va, 1ull << 21)) >> 21);
 
 	op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
-						      pt_count, GFP_KERNEL);
+						      pt_count);
 	if (!op_ctx->rsvd_page_tables.pages) {
 		ret = -ENOMEM;
 		goto err_cleanup;
@@ -1312,8 +1312,7 @@ static int panthor_vm_prepare_unmap_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 
 	if (pt_count) {
 		op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
-							      pt_count,
-							      GFP_KERNEL);
+							      pt_count);
 		if (!op_ctx->rsvd_page_tables.pages) {
 			ret = -ENOMEM;
 			goto err_cleanup;

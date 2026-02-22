@@ -1216,8 +1216,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	dbr_dbg_data->num_ring_debug_entries = ATH11K_DEBUG_DBR_ENTRIES_MAX;
 	dbr_dbg_data->dbr_debug_idx = 0;
 	dbr_dbg_data->entries = kzalloc_objs(struct ath11k_dbg_dbr_entry,
-					     ATH11K_DEBUG_DBR_ENTRIES_MAX,
-					     GFP_KERNEL);
+					     ATH11K_DEBUG_DBR_ENTRIES_MAX);
 	if (!dbr_dbg_data->entries)
 		return -ENOMEM;
 

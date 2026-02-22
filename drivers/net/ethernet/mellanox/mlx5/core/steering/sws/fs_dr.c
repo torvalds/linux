@@ -282,7 +282,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	}
 
 	fs_dr_actions = kzalloc_objs(*fs_dr_actions,
-				     MLX5_FLOW_CONTEXT_ACTION_MAX, GFP_KERNEL);
+				     MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!fs_dr_actions) {
 		err = -ENOMEM;
 		goto free_actions_alloc;

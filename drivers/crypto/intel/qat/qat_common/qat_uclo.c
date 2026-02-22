@@ -1200,8 +1200,7 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 
 	if (suof_handle->img_table.num_simgs != 0) {
 		suof_img_hdr = kzalloc_objs(img_header,
-					    suof_handle->img_table.num_simgs,
-					    GFP_KERNEL);
+					    suof_handle->img_table.num_simgs);
 		if (!suof_img_hdr)
 			return -ENOMEM;
 		suof_handle->img_table.simg_hdr = suof_img_hdr;
@@ -1892,8 +1891,7 @@ static int qat_uclo_map_objs_from_mof(struct icp_qat_mof_handle *mobj_handle)
 		sobj_chunk_num = sobj_hdr->num_chunks;
 
 	mobj_hdr = kzalloc_objs(*mobj_hdr,
-				size_add(uobj_chunk_num, sobj_chunk_num),
-				GFP_KERNEL);
+				size_add(uobj_chunk_num, sobj_chunk_num));
 	if (!mobj_hdr)
 		return -ENOMEM;
 

@@ -229,7 +229,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 
 		_debug("unmarshall FID array");
 		call->request = kzalloc_objs(struct afs_callback_break,
-					     call->count, GFP_KERNEL);
+					     call->count);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -589,7 +589,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 
 		_debug("unmarshall FID array");
 		call->request = kzalloc_objs(struct afs_callback_break,
-					     call->count, GFP_KERNEL);
+					     call->count);
 		if (!call->request)
 			return -ENOMEM;
 

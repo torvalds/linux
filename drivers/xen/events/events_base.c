@@ -2293,8 +2293,7 @@ void __init xen_init_IRQ(void)
 				  xen_evtchn_cpu_prepare, xen_evtchn_cpu_dead);
 
 	evtchn_to_irq = kzalloc_objs(*evtchn_to_irq,
-				     EVTCHN_ROW(xen_evtchn_max_channels()),
-				     GFP_KERNEL);
+				     EVTCHN_ROW(xen_evtchn_max_channels()));
 	BUG_ON(!evtchn_to_irq);
 
 	/* No event channels are 'live' right now. */

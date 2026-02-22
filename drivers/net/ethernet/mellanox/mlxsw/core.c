@@ -151,7 +151,7 @@ static int mlxsw_ports_init(struct mlxsw_core *mlxsw_core, bool reload)
 		mlxsw_core->max_ports = MLXSW_PORT_MAX_PORTS_DEFAULT + 1;
 
 	mlxsw_core->ports = kzalloc_objs(struct mlxsw_core_port,
-					 mlxsw_core->max_ports, GFP_KERNEL);
+					 mlxsw_core->max_ports);
 	if (!mlxsw_core->ports)
 		return -ENOMEM;
 

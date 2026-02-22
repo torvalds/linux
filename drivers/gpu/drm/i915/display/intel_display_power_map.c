@@ -1824,7 +1824,7 @@ __set_power_wells(struct i915_power_domains *power_domains,
 	power_domains->power_well_count = power_well_count;
 	power_domains->power_wells =
 				kzalloc_objs(*power_domains->power_wells,
-					     power_well_count, GFP_KERNEL);
+					     power_well_count);
 	if (!power_domains->power_wells)
 		return -ENOMEM;
 

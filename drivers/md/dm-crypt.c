@@ -2335,7 +2335,7 @@ static int crypt_alloc_tfms_skcipher(struct crypt_config *cc, char *ciphermode)
 	int err;
 
 	cc->cipher_tfm.tfms = kzalloc_objs(struct crypto_skcipher *,
-					   cc->tfms_count, GFP_KERNEL);
+					   cc->tfms_count);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
 

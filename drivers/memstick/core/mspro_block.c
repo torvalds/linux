@@ -940,7 +940,7 @@ static int mspro_block_read_attributes(struct memstick_dev *card)
 		attr_count = attr->count;
 
 	msb->attr_group.attrs = kzalloc_objs(*msb->attr_group.attrs,
-					     attr_count + 1, GFP_KERNEL);
+					     attr_count + 1);
 	if (!msb->attr_group.attrs) {
 		rc = -ENOMEM;
 		goto out_free_attr;

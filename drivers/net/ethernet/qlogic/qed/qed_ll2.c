@@ -2200,8 +2200,7 @@ int qed_ll2_alloc(struct qed_hwfn *p_hwfn)
 
 	/* Allocate LL2's set struct */
 	p_ll2_connections = kzalloc_objs(struct qed_ll2_info,
-					 QED_MAX_NUM_OF_LL2_CONNECTIONS,
-					 GFP_KERNEL);
+					 QED_MAX_NUM_OF_LL2_CONNECTIONS);
 	if (!p_ll2_connections) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_ll2'\n");
 		return -ENOMEM;

@@ -181,7 +181,7 @@ int mlx5r_macsec_init_gids_and_devlist(struct mlx5_ib_dev *dev)
 	max_gids = MLX5_CAP_ROCE(dev->mdev, roce_address_table_size);
 	for (i = 0; i < dev->num_ports; i++) {
 		dev->port[i].reserved_gids = kzalloc_objs(*dev->port[i].reserved_gids,
-							  max_gids, GFP_KERNEL);
+							  max_gids);
 		if (!dev->port[i].reserved_gids)
 			goto err;
 

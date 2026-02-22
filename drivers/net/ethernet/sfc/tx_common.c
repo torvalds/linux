@@ -41,8 +41,7 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		return -ENOMEM;
 
 	tx_queue->cb_page = kzalloc_objs(tx_queue->cb_page[0],
-					 efx_tx_cb_page_count(tx_queue),
-					 GFP_KERNEL);
+					 efx_tx_cb_page_count(tx_queue));
 	if (!tx_queue->cb_page) {
 		rc = -ENOMEM;
 		goto fail1;

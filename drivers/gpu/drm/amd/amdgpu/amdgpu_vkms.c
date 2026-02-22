@@ -500,8 +500,7 @@ static int amdgpu_vkms_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->amdgpu_vkms_output = kzalloc_objs(struct amdgpu_vkms_output,
-						adev->mode_info.num_crtc,
-						GFP_KERNEL);
+						adev->mode_info.num_crtc);
 	if (!adev->amdgpu_vkms_output)
 		return -ENOMEM;
 

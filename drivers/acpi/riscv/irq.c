@@ -343,7 +343,7 @@ static u32 riscv_acpi_add_prt_dep(acpi_handle handle)
 			acpi_get_handle(handle, entry->source, &link_handle);
 			dep_devices.count = 1;
 			dep_devices.handles = kzalloc_objs(*dep_devices.handles,
-							   1, GFP_KERNEL);
+							   1);
 			if (!dep_devices.handles) {
 				acpi_handle_err(handle, "failed to allocate memory\n");
 				continue;
@@ -355,7 +355,7 @@ static u32 riscv_acpi_add_prt_dep(acpi_handle handle)
 			gsi_handle = riscv_acpi_get_gsi_handle(entry->source_index);
 			dep_devices.count = 1;
 			dep_devices.handles = kzalloc_objs(*dep_devices.handles,
-							   1, GFP_KERNEL);
+							   1);
 			if (!dep_devices.handles) {
 				acpi_handle_err(handle, "failed to allocate memory\n");
 				continue;

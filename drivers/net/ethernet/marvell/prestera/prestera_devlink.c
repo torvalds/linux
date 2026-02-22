@@ -456,7 +456,7 @@ int prestera_devlink_traps_register(struct prestera_switch *sw)
 		return -ENOMEM;
 
 	trap_data->trap_items_arr = kzalloc_objs(struct prestera_trap_item,
-						 traps_count, GFP_KERNEL);
+						 traps_count);
 	if (!trap_data->trap_items_arr) {
 		err = -ENOMEM;
 		goto err_trap_items_alloc;

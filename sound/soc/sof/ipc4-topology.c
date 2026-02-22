@@ -437,8 +437,7 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 
 	if (available_fmt->num_input_formats) {
 		in_format = kzalloc_objs(*in_format,
-					 available_fmt->num_input_formats,
-					 GFP_KERNEL);
+					 available_fmt->num_input_formats);
 		if (!in_format)
 			return -ENOMEM;
 		available_fmt->input_pin_fmts = in_format;
@@ -459,8 +458,7 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 
 	if (available_fmt->num_output_formats) {
 		out_format = kzalloc_objs(*out_format,
-					  available_fmt->num_output_formats,
-					  GFP_KERNEL);
+					  available_fmt->num_output_formats);
 		if (!out_format) {
 			ret = -ENOMEM;
 			goto err_in;

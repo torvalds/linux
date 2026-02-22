@@ -1118,7 +1118,7 @@ static int __init sunsab_init(void)
 
 	if (num_channels) {
 		sunsab_ports = kzalloc_objs(struct uart_sunsab_port,
-					    num_channels, GFP_KERNEL);
+					    num_channels);
 		if (!sunsab_ports)
 			return -ENOMEM;
 

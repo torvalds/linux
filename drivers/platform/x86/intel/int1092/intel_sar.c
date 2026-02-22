@@ -92,7 +92,7 @@ static acpi_status parse_package(struct wwan_sar_context *context, union acpi_ob
 		return AE_ERROR;
 
 	data->device_mode_info = kmalloc_objs(struct wwan_device_mode_info,
-					      data->total_dev_mode, GFP_KERNEL);
+					      data->total_dev_mode);
 	if (!data->device_mode_info)
 		return AE_ERROR;
 

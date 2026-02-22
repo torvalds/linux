@@ -3375,7 +3375,7 @@ static int init_rdma_transport_rx_root_ns(struct mlx5_flow_steering *steering)
 
 	steering->rdma_transport_rx_root_ns =
 			kzalloc_objs(*steering->rdma_transport_rx_root_ns,
-				     total_vports, GFP_KERNEL);
+				     total_vports);
 	if (!steering->rdma_transport_rx_root_ns)
 		return -ENOMEM;
 
@@ -3407,7 +3407,7 @@ static int init_rdma_transport_tx_root_ns(struct mlx5_flow_steering *steering)
 
 	steering->rdma_transport_tx_root_ns =
 			kzalloc_objs(*steering->rdma_transport_tx_root_ns,
-				     total_vports, GFP_KERNEL);
+				     total_vports);
 	if (!steering->rdma_transport_tx_root_ns)
 		return -ENOMEM;
 
@@ -3516,7 +3516,7 @@ static int create_fdb_fast_path(struct mlx5_flow_steering *steering)
 	int err;
 
 	steering->fdb_sub_ns = kzalloc_objs(*steering->fdb_sub_ns,
-					    FDB_NUM_CHAINS, GFP_KERNEL);
+					    FDB_NUM_CHAINS);
 	if (!steering->fdb_sub_ns)
 		return -ENOMEM;
 

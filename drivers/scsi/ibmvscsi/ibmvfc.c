@@ -6210,7 +6210,7 @@ static int ibmvfc_alloc_mem(struct ibmvfc_host *vhost)
 		goto free_login_buffer;
 
 	vhost->trace = kzalloc_objs(struct ibmvfc_trace_entry,
-				    IBMVFC_NUM_TRACE_ENTRIES, GFP_KERNEL);
+				    IBMVFC_NUM_TRACE_ENTRIES);
 	atomic_set(&vhost->trace_index, -1);
 
 	if (!vhost->trace)

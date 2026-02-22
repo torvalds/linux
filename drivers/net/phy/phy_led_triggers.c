@@ -104,8 +104,7 @@ int phy_led_triggers_register(struct phy_device *phy)
 		goto out_free_link;
 
 	phy->phy_led_triggers = kzalloc_objs(struct phy_led_trigger,
-					     phy->phy_num_led_triggers,
-					     GFP_KERNEL);
+					     phy->phy_num_led_triggers);
 	if (!phy->phy_led_triggers) {
 		err = -ENOMEM;
 		goto out_unreg_link;

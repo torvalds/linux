@@ -73,8 +73,7 @@ static int wbrf_record(struct acpi_device *adev, uint8_t action, struct wbrf_ran
 	num_of_elements = 2 * num_of_ranges + 2;
 
 	union acpi_object *tmp __free(kfree) = kzalloc_objs(*tmp,
-							    num_of_elements,
-							    GFP_KERNEL);
+							    num_of_elements);
 	if (!tmp)
 		return -ENOMEM;
 

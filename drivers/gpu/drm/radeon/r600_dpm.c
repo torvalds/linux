@@ -822,8 +822,7 @@ static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependen
 	ATOM_PPLIB_Clock_Voltage_Dependency_Record *entry;
 
 	radeon_table->entries = kzalloc_objs(struct radeon_clock_voltage_dependency_entry,
-					     atom_table->ucNumEntries,
-					     GFP_KERNEL);
+					     atom_table->ucNumEntries);
 	if (!radeon_table->entries)
 		return -ENOMEM;
 
@@ -989,7 +988,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 
 			rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
 				kzalloc_objs(struct radeon_phase_shedding_limits_entry,
-					     psl->ucNumEntries, GFP_KERNEL);
+					     psl->ucNumEntries);
 			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;

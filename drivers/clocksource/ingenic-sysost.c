@@ -459,7 +459,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	ost->soc_info = id->data;
 
 	ost->clocks = kzalloc_flex(*ost->clocks, hws,
-				   ost->soc_info->num_channels, GFP_KERNEL);
+				   ost->soc_info->num_channels);
 	if (!ost->clocks) {
 		ret = -ENOMEM;
 		goto err_clk_disable;

@@ -230,7 +230,7 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 
 	/* allocate workspace instead of using stack VLA */
 	prz->ecc_info.par = kmalloc_objs(*prz->ecc_info.par,
-					 prz->ecc_info.ecc_size, GFP_KERNEL);
+					 prz->ecc_info.ecc_size);
 	if (!prz->ecc_info.par) {
 		pr_err("cannot allocate ECC parity workspace\n");
 		return -ENOMEM;

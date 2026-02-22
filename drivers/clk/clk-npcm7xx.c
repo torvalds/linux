@@ -422,7 +422,7 @@ static void __init npcm7xx_clk_init(struct device_node *clk_np)
 		goto npcm7xx_init_error;
 
 	npcm7xx_clk_data = kzalloc_flex(*npcm7xx_clk_data, hws,
-					NPCM7XX_NUM_CLOCKS, GFP_KERNEL);
+					NPCM7XX_NUM_CLOCKS);
 	if (!npcm7xx_clk_data)
 		goto npcm7xx_init_np_err;
 

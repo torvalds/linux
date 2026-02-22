@@ -886,7 +886,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* alloc engines */
 	omap_dmm->engines = kzalloc_objs(*omap_dmm->engines,
-					 omap_dmm->num_engines, GFP_KERNEL);
+					 omap_dmm->num_engines);
 	if (!omap_dmm->engines) {
 		ret = -ENOMEM;
 		goto fail;

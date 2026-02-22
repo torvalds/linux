@@ -1629,8 +1629,7 @@ configfs_attach_gadget_strings(struct gadget_info *gi)
 	if (!nlangs)
 		return NULL;
 
-	gadget_strings = kzalloc_objs(struct usb_gadget_strings *, nlangs + 1,
-				      GFP_KERNEL)/* including NULL terminator */;
+	gadget_strings = kzalloc_objs(struct usb_gadget_strings *, nlangs + 1)/* including NULL terminator */;
 	if (!gadget_strings)
 		return ERR_PTR(-ENOMEM);
 
@@ -1646,7 +1645,7 @@ configfs_attach_gadget_strings(struct gadget_info *gi)
 		}
 
 		stringtab = kzalloc_objs(struct usb_string,
-					 language->nstrings + 1, GFP_KERNEL);
+					 language->nstrings + 1);
 		if (!stringtab) {
 			us = ERR_PTR(-ENOMEM);
 			goto cleanup;

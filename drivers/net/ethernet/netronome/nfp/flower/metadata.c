@@ -558,7 +558,7 @@ int nfp_flower_metadata_init(struct nfp_app *app, u64 host_ctx_count,
 	/* Init timestamps for mask id*/
 	priv->mask_ids.last_used =
 		kmalloc_objs(*priv->mask_ids.last_used,
-			     NFP_FLOWER_MASK_ENTRY_RS, GFP_KERNEL);
+			     NFP_FLOWER_MASK_ENTRY_RS);
 	if (!priv->mask_ids.last_used)
 		goto err_free_mask_id;
 

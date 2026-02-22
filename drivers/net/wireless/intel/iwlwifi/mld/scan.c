@@ -2084,8 +2084,7 @@ void iwl_mld_handle_channel_survey_notif(struct iwl_mld *mld,
 		}
 
 		mld->channel_survey = kzalloc_flex(*mld->channel_survey,
-						   channels, n_channels,
-						   GFP_KERNEL);
+						   channels, n_channels);
 
 		if (!mld->channel_survey)
 			return;

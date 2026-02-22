@@ -196,7 +196,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 	}
 
 	channels_info = kzalloc_objs(struct hwmon_channel_info *,
-				     num_active_sensor_types + 1, GFP_KERNEL);
+				     num_active_sensor_types + 1);
 	if (!channels_info) {
 		rc = -ENOMEM;
 		goto channels_info_array_err;

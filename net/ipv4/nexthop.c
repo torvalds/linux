@@ -714,7 +714,7 @@ static int nh_notifier_grp_hw_stats_init(struct nh_notifier_info *info,
 	info->id = nh->id;
 	info->type = NH_NOTIFIER_INFO_TYPE_GRP_HW_STATS;
 	info->nh_grp_hw_stats = kzalloc_flex(*info->nh_grp_hw_stats, stats,
-					     nhg->num_nh, GFP_KERNEL);
+					     nhg->num_nh);
 	if (!info->nh_grp_hw_stats)
 		return -ENOMEM;
 

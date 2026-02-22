@@ -3366,7 +3366,7 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 	}
 
 	nvm_info.image_att = kmalloc_objs(struct bist_nvm_image_att,
-					  nvm_info.num_images, GFP_KERNEL);
+					  nvm_info.num_images);
 	if (!nvm_info.image_att) {
 		rc = -ENOMEM;
 		goto err0;

@@ -408,7 +408,7 @@ static int ath12k_dp_init_bank_profiles(struct ath12k_base *ab)
 
 	dp->num_bank_profiles = num_tcl_banks;
 	dp->bank_profiles = kmalloc_objs(struct ath12k_dp_tx_bank_profile,
-					 num_tcl_banks, GFP_KERNEL);
+					 num_tcl_banks);
 	if (!dp->bank_profiles)
 		return -ENOMEM;
 

@@ -58,7 +58,7 @@ static int hinic3_init_intr_coalesce(struct net_device *netdev)
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 
 	nic_dev->intr_coalesce = kzalloc_objs(*nic_dev->intr_coalesce,
-					      nic_dev->max_qps, GFP_KERNEL);
+					      nic_dev->max_qps);
 
 	if (!nic_dev->intr_coalesce)
 		return -ENOMEM;

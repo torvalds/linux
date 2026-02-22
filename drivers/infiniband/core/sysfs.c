@@ -859,7 +859,7 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	if (!data)
 		goto err_free_stats;
 	data->group.attrs = kzalloc_objs(*data->group.attrs,
-					 stats->num_counters + 2, GFP_KERNEL);
+					 stats->num_counters + 2);
 	if (!data->group.attrs)
 		goto err_free_data;
 
@@ -1090,8 +1090,7 @@ static int setup_gid_attrs(struct ib_port *port,
 	int ret;
 
 	gid_attr_group = kzalloc_flex(*gid_attr_group, attrs_list,
-				      size_mul(attr->gid_tbl_len, 2),
-				      GFP_KERNEL);
+				      size_mul(attr->gid_tbl_len, 2));
 	if (!gid_attr_group)
 		return -ENOMEM;
 	gid_attr_group->port = port;
@@ -1155,8 +1154,7 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	int ret;
 
 	p = kvzalloc_flex(*p, attrs_list,
-			  size_add(attr->gid_tbl_len, attr->pkey_tbl_len),
-			  GFP_KERNEL);
+			  size_add(attr->gid_tbl_len, attr->pkey_tbl_len));
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 	p->ibdev = device;

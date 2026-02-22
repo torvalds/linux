@@ -2855,7 +2855,7 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 	}
 
 	midi2->string_defs = kzalloc_objs(*midi2->string_defs,
-					  midi2->total_blocks + 1, GFP_KERNEL);
+					  midi2->total_blocks + 1);
 	if (!midi2->string_defs) {
 		do_f_midi2_free(midi2, opts);
 		return ERR_PTR(-ENOMEM);

@@ -1483,7 +1483,7 @@ static int get_cac_leakage_table(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	cac_leakage_table = kzalloc_flex(*cac_leakage_table, entries,
-					 table->ucNumEntries, GFP_KERNEL);
+					 table->ucNumEntries);
 	if (!cac_leakage_table)
 		return -ENOMEM;
 
@@ -1621,7 +1621,7 @@ static int init_phase_shedding_table(struct pp_hwmgr *hwmgr,
 
 
 			table = kzalloc_flex(*table, entries,
-					     ptable->ucNumEntries, GFP_KERNEL);
+					     ptable->ucNumEntries);
 			if (!table)
 				return -ENOMEM;
 

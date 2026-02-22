@@ -243,8 +243,7 @@ int dpaa2_eth_dl_traps_register(struct dpaa2_eth_priv *priv)
 	priv->trap_data = dpaa2_eth_trap_data;
 
 	dpaa2_eth_trap_data->trap_items_arr = kzalloc_objs(struct dpaa2_eth_trap_item,
-							   ARRAY_SIZE(dpaa2_eth_traps_arr),
-							   GFP_KERNEL);
+							   ARRAY_SIZE(dpaa2_eth_traps_arr));
 	if (!dpaa2_eth_trap_data->trap_items_arr) {
 		err = -ENOMEM;
 		goto trap_data_free;

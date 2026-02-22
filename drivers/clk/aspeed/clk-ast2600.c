@@ -839,7 +839,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	soc_rev = (readl(scu_g6_base + ASPEED_G6_SILICON_REV) & CHIP_REVISION_ID) >> 16;
 
 	aspeed_g6_clk_data = kzalloc_flex(*aspeed_g6_clk_data, hws,
-				          ASPEED_G6_NUM_CLKS, GFP_KERNEL);
+				          ASPEED_G6_NUM_CLKS);
 	if (!aspeed_g6_clk_data)
 		return;
 	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;

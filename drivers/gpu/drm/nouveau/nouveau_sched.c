@@ -70,16 +70,14 @@ nouveau_job_init(struct nouveau_job *job,
 		}
 
 		job->out_sync.objs = kzalloc_objs(*job->out_sync.objs,
-						  job->out_sync.count,
-						  GFP_KERNEL);
+						  job->out_sync.count);
 		if (!job->out_sync.objs) {
 			ret = -ENOMEM;
 			goto err_free_out_sync;
 		}
 
 		job->out_sync.chains = kzalloc_objs(*job->out_sync.chains,
-						    job->out_sync.count,
-						    GFP_KERNEL);
+						    job->out_sync.count);
 		if (!job->out_sync.chains) {
 			ret = -ENOMEM;
 			goto err_free_objs;

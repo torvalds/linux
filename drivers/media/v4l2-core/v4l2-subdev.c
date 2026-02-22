@@ -1889,8 +1889,7 @@ v4l2_subdev_init_stream_configs(struct v4l2_subdev_stream_configs *stream_config
 
 	if (new_configs.num_configs) {
 		new_configs.configs = kvzalloc_objs(*new_configs.configs,
-						    new_configs.num_configs,
-						    GFP_KERNEL);
+						    new_configs.num_configs);
 
 		if (!new_configs.configs)
 			return -ENOMEM;

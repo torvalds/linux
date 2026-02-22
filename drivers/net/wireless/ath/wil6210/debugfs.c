@@ -2442,7 +2442,7 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 		return -ENODEV;
 
 	wil->dbg_data.data_arr = kzalloc_objs(struct wil_debugfs_iomem_data,
-					      dbg_off_count, GFP_KERNEL);
+					      dbg_off_count);
 	if (!wil->dbg_data.data_arr) {
 		debugfs_remove_recursive(dbg);
 		wil->debug = NULL;

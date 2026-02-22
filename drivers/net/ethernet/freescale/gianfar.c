@@ -1374,7 +1374,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 		tx_queue = priv->tx_queue[i];
 		tx_queue->tx_skbuff =
 			kmalloc_objs(*tx_queue->tx_skbuff,
-				     tx_queue->tx_ring_size, GFP_KERNEL);
+				     tx_queue->tx_ring_size);
 		if (!tx_queue->tx_skbuff)
 			goto cleanup;
 
@@ -1385,8 +1385,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
 		rx_queue->rx_buff = kzalloc_objs(*rx_queue->rx_buff,
-						 rx_queue->rx_ring_size,
-						 GFP_KERNEL);
+						 rx_queue->rx_ring_size);
 		if (!rx_queue->rx_buff)
 			goto cleanup;
 	}

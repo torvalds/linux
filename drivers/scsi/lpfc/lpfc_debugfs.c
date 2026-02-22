@@ -6211,8 +6211,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				    &lpfc_debugfs_op_slow_ring_trc);
 		if (!phba->slow_ring_trc) {
 			phba->slow_ring_trc = kzalloc_objs(struct lpfc_debugfs_trc,
-							   lpfc_debugfs_max_slow_ring_trc,
-							   GFP_KERNEL);
+							   lpfc_debugfs_max_slow_ring_trc);
 			if (!phba->slow_ring_trc) {
 				lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 						 "0416 Cannot create debugfs "

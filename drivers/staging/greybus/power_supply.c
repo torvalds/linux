@@ -552,7 +552,7 @@ static int gb_power_supply_prop_descriptors_get(struct gb_power_supply *gbpsy)
 	}
 
 	gbpsy->props_raw = kzalloc_objs(*gbpsy->props_raw,
-					gbpsy->properties_count, GFP_KERNEL);
+					gbpsy->properties_count);
 	if (!gbpsy->props_raw) {
 		ret = -ENOMEM;
 		goto out_put_operation;
@@ -942,7 +942,7 @@ static int gb_power_supplies_setup(struct gb_power_supplies *supplies)
 		goto out;
 
 	supplies->supply = kzalloc_objs(struct gb_power_supply,
-					supplies->supplies_count, GFP_KERNEL);
+					supplies->supplies_count);
 
 	if (!supplies->supply) {
 		ret = -ENOMEM;

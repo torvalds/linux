@@ -1728,8 +1728,7 @@ int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev)
 	bool valid;
 
 	adev->gmc.mem_partitions = kzalloc_objs(struct amdgpu_mem_partition_info,
-						AMDGPU_MAX_MEM_RANGES,
-						GFP_KERNEL);
+						AMDGPU_MAX_MEM_RANGES);
 	if (!adev->gmc.mem_partitions)
 		return -ENOMEM;
 

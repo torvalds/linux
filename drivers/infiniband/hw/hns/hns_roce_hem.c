@@ -778,8 +778,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 				goto err_kcalloc_bt_l1;
 
 			table->bt_l1_dma_addr = kzalloc_objs(*table->bt_l1_dma_addr,
-							     num_bt_l1,
-							     GFP_KERNEL);
+							     num_bt_l1);
 
 			if (!table->bt_l1_dma_addr)
 				goto err_kcalloc_l1_dma;
@@ -793,8 +792,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 				goto err_kcalloc_bt_l0;
 
 			table->bt_l0_dma_addr = kzalloc_objs(*table->bt_l0_dma_addr,
-							     num_bt_l0,
-							     GFP_KERNEL);
+							     num_bt_l0);
 			if (!table->bt_l0_dma_addr)
 				goto err_kcalloc_l0_dma;
 		}

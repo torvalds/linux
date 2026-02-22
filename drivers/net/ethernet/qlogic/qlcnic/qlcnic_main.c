@@ -680,7 +680,7 @@ int qlcnic_setup_tss_rss_intr(struct qlcnic_adapter *adapter)
 
 	if (!adapter->msix_entries) {
 		adapter->msix_entries = kzalloc_objs(struct msix_entry,
-						     num_msix, GFP_KERNEL);
+						     num_msix);
 		if (!adapter->msix_entries)
 			return -ENOMEM;
 	}
@@ -734,7 +734,7 @@ int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
 
 	if (!adapter->msix_entries) {
 		adapter->msix_entries = kzalloc_objs(struct msix_entry,
-						     num_msix, GFP_KERNEL);
+						     num_msix);
 		if (!adapter->msix_entries)
 			return -ENOMEM;
 	}
@@ -1001,7 +1001,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 	}
 
 	adapter->eswitch = kzalloc_objs(struct qlcnic_eswitch,
-					QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
+					QLCNIC_NIU_MAX_XG_PORTS);
 	if (!adapter->eswitch) {
 		ret = -ENOMEM;
 		goto err_npars;
@@ -2351,7 +2351,7 @@ int qlcnic_alloc_tx_rings(struct qlcnic_adapter *adapter,
 	struct qlcnic_cmd_buffer *cmd_buf_arr;
 
 	tx_ring = kzalloc_objs(struct qlcnic_host_tx_ring,
-			       adapter->drv_tx_rings, GFP_KERNEL);
+			       adapter->drv_tx_rings);
 	if (tx_ring == NULL)
 		return -ENOMEM;
 

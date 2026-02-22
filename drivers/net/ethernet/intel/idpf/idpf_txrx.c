@@ -1204,8 +1204,7 @@ static int idpf_qp_enable(const struct idpf_vport *vport,
 		goto config;
 
 	q_vector->xsksq = kzalloc_objs(*q_vector->xsksq,
-				       DIV_ROUND_UP(rsrc->num_rxq_grp, rsrc->num_q_vectors),
-				       GFP_KERNEL);
+				       DIV_ROUND_UP(rsrc->num_rxq_grp, rsrc->num_q_vectors));
 	if (!q_vector->xsksq)
 		return -ENOMEM;
 
@@ -1764,8 +1763,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 			continue;
 
 		tx_qgrp->complq = kzalloc_objs(*tx_qgrp->complq,
-					       IDPF_COMPLQ_PER_GROUP,
-					       GFP_KERNEL);
+					       IDPF_COMPLQ_PER_GROUP);
 		if (!tx_qgrp->complq)
 			goto err_alloc;
 
@@ -1836,8 +1834,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 		}
 
 		rx_qgrp->splitq.bufq_sets = kzalloc_objs(struct idpf_bufq_set,
-							 rsrc->num_bufqs_per_qgrp,
-							 GFP_KERNEL);
+							 rsrc->num_bufqs_per_qgrp);
 		if (!rx_qgrp->splitq.bufq_sets) {
 			err = -ENOMEM;
 			goto err_alloc;
@@ -1873,8 +1870,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 				idpf_queue_set(GEN_CHK, refillq);
 				idpf_queue_set(RFL_GEN_CHK, refillq);
 				refillq->ring = kzalloc_objs(*refillq->ring,
-							     refillq->desc_count,
-							     GFP_KERNEL);
+							     refillq->desc_count);
 				if (!refillq->ring) {
 					err = -ENOMEM;
 					goto err_alloc;
@@ -4560,7 +4556,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 	user_config = &vport->adapter->vport_config[idx]->user_config;
 
 	rsrc->q_vectors = kzalloc_objs(struct idpf_q_vector,
-				       rsrc->num_q_vectors, GFP_KERNEL);
+				       rsrc->num_q_vectors);
 	if (!rsrc->q_vectors)
 		return -ENOMEM;
 
@@ -4603,7 +4599,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 			goto error;
 
 		q_vector->complq = kzalloc_objs(*q_vector->complq,
-						complqs_per_vector, GFP_KERNEL);
+						complqs_per_vector);
 		if (!q_vector->complq)
 			goto error;
 
@@ -4611,7 +4607,7 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 			continue;
 
 		q_vector->xsksq = kzalloc_objs(*q_vector->xsksq,
-					       rxqs_per_vector, GFP_KERNEL);
+					       rxqs_per_vector);
 		if (!q_vector->xsksq)
 			goto error;
 	}

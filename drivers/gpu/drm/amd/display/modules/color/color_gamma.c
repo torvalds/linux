@@ -1715,14 +1715,12 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 
 	if (map_user_ramp && ramp && ramp->type == GAMMA_RGB_256) {
 		rgb_user = kvzalloc_objs(*rgb_user,
-					 ramp->num_entries + _EXTRA_POINTS,
-					 GFP_KERNEL);
+					 ramp->num_entries + _EXTRA_POINTS);
 		if (!rgb_user)
 			goto rgb_user_alloc_fail;
 
 		axis_x = kvzalloc_objs(*axis_x,
-				       ramp->num_entries + _EXTRA_POINTS,
-				       GFP_KERNEL);
+				       ramp->num_entries + _EXTRA_POINTS);
 		if (!axis_x)
 			goto axis_x_alloc_fail;
 
@@ -1940,8 +1938,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 	if (ramp && ramp->type != GAMMA_CS_TFM_1D &&
 	    (map_user_ramp || ramp->type != GAMMA_RGB_256)) {
 		rgb_user = kvzalloc_objs(*rgb_user,
-					 ramp->num_entries + _EXTRA_POINTS,
-					 GFP_KERNEL);
+					 ramp->num_entries + _EXTRA_POINTS);
 		if (!rgb_user)
 			goto rgb_user_alloc_fail;
 

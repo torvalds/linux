@@ -360,8 +360,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 		}
 
 		adapter->rdma_msix_entries = kzalloc_objs(struct msix_entry,
-							  num_rdma_vecs,
-							  GFP_KERNEL);
+							  num_rdma_vecs);
 		if (!adapter->rdma_msix_entries) {
 			err = -ENOMEM;
 			goto free_irq;

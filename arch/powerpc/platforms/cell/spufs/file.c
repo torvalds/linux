@@ -2282,7 +2282,7 @@ static int spufs_switch_log_open(struct inode *inode, struct file *file)
 	}
 
 	ctx->switch_log = kmalloc_flex(*ctx->switch_log, log,
-				       SWITCH_LOG_BUFSIZE, GFP_KERNEL);
+				       SWITCH_LOG_BUFSIZE);
 
 	if (!ctx->switch_log) {
 		rc = -ENOMEM;

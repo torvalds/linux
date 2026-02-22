@@ -548,7 +548,7 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 	pool->th = max_hot_size;
 
 	pool->hot_chunks_arr = kvzalloc_objs(struct mlx5dr_icm_hot_chunk,
-					     num_of_chunks, GFP_KERNEL);
+					     num_of_chunks);
 	if (!pool->hot_chunks_arr)
 		goto free_pool;
 

@@ -222,8 +222,7 @@ static int __init tpmi_init(void)
 		return ret;
 
 	tpmi_power_domain_mask = kzalloc_objs(*tpmi_power_domain_mask,
-					      size_mul(topology_max_packages(), MAX_POWER_DOMAINS),
-					      GFP_KERNEL);
+					      size_mul(topology_max_packages(), MAX_POWER_DOMAINS));
 	if (!tpmi_power_domain_mask)
 		return -ENOMEM;
 

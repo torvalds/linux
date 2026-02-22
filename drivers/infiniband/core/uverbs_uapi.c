@@ -446,7 +446,7 @@ static int uapi_finalize(struct uverbs_api *uapi)
 	uapi->num_write = max_write + 1;
 	uapi->num_write_ex = max_write_ex + 1;
 	data = kmalloc_objs(*uapi->write_methods,
-			    uapi->num_write + uapi->num_write_ex, GFP_KERNEL);
+			    uapi->num_write + uapi->num_write_ex);
 	if (!data)
 		return -ENOMEM;
 

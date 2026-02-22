@@ -480,7 +480,7 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 		return 0;
 
 	fsloc->locations = kzalloc_objs(struct nfsd4_fs_location,
-					fsloc->locations_count, GFP_KERNEL);
+					fsloc->locations_count);
 	if (!fsloc->locations)
 		return -ENOMEM;
 	for (i=0; i < fsloc->locations_count; i++) {

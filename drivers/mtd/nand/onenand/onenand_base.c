@@ -3729,7 +3729,7 @@ static int onenand_probe(struct mtd_info *mtd)
 		mtd->numeraseregions = this->dies << 1;
 		mtd->eraseregions =
 			kzalloc_objs(struct mtd_erase_region_info,
-				     this->dies << 1, GFP_KERNEL);
+				     this->dies << 1);
 		if (!mtd->eraseregions)
 			return -ENOMEM;
 	}

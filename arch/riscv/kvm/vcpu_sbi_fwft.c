@@ -353,7 +353,7 @@ static int kvm_sbi_ext_fwft_init(struct kvm_vcpu *vcpu)
 	int i;
 
 	fwft->configs = kzalloc_objs(struct kvm_sbi_fwft_config,
-				     ARRAY_SIZE(features), GFP_KERNEL);
+				     ARRAY_SIZE(features));
 	if (!fwft->configs)
 		return -ENOMEM;
 

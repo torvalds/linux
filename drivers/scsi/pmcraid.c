@@ -4386,7 +4386,7 @@ static int pmcraid_allocate_config_buffers(struct pmcraid_instance *pinstance)
 
 	pinstance->res_entries =
 			kzalloc_objs(struct pmcraid_resource_entry,
-				     PMCRAID_MAX_RESOURCES, GFP_KERNEL);
+				     PMCRAID_MAX_RESOURCES);
 
 	if (NULL == pinstance->res_entries) {
 		pmcraid_err("failed to allocate memory for resource table\n");

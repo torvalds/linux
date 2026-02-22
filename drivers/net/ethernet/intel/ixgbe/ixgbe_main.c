@@ -6904,7 +6904,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 		adapter->jump_tables[i] = NULL;
 
 	adapter->mac_table = kzalloc_objs(struct ixgbe_mac_addr,
-					  hw->mac.num_rar_entries, GFP_KERNEL);
+					  hw->mac.num_rar_entries);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 

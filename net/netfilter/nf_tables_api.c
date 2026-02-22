@@ -4316,7 +4316,7 @@ static int nf_tables_newrule(struct sk_buff *skb, const struct nfnl_info *info,
 	size = 0;
 	if (nla[NFTA_RULE_EXPRESSIONS]) {
 		expr_info = kvmalloc_objs(struct nft_expr_info,
-					  NFT_RULE_MAXEXPRS, GFP_KERNEL);
+					  NFT_RULE_MAXEXPRS);
 		if (!expr_info)
 			return -ENOMEM;
 

@@ -314,7 +314,7 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 	hwmon->module_scount = mon_cap ? 1 : 0;
 	sensors_count = hwmon->asic_platform_scount + hwmon->module_scount;
 	hwmon->temp_channel_desc = kzalloc_objs(*hwmon->temp_channel_desc,
-						sensors_count, GFP_KERNEL);
+						sensors_count);
 	if (!hwmon->temp_channel_desc) {
 		err = -ENOMEM;
 		goto err_free_hwmon;

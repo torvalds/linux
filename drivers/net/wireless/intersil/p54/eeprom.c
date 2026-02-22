@@ -159,7 +159,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 		goto err_out;
 
 	tmp->channels = kzalloc_objs(struct ieee80211_channel,
-				     list->band_channel_num[band], GFP_KERNEL);
+				     list->band_channel_num[band]);
 	if (!tmp->channels)
 		goto err_out;
 

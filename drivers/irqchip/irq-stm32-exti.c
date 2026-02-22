@@ -275,7 +275,7 @@ stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
 
 	host_data->drv_data = dd;
 	host_data->chips_data = kzalloc_objs(struct stm32_exti_chip_data,
-					     dd->bank_nr, GFP_KERNEL);
+					     dd->bank_nr);
 	if (!host_data->chips_data)
 		goto free_host_data;
 

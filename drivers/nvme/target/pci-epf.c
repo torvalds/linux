@@ -503,7 +503,7 @@ static inline int nvmet_pci_epf_transfer(struct nvmet_pci_epf_ctrl *ctrl,
 static int nvmet_pci_epf_alloc_irq_vectors(struct nvmet_pci_epf_ctrl *ctrl)
 {
 	ctrl->irq_vectors = kzalloc_objs(struct nvmet_pci_epf_irq_vector,
-					 ctrl->nr_queues, GFP_KERNEL);
+					 ctrl->nr_queues);
 	if (!ctrl->irq_vectors)
 		return -ENOMEM;
 

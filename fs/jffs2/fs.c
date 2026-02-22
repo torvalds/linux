@@ -563,7 +563,7 @@ int jffs2_do_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	c->inocache_hashsize = calculate_inocache_hashsize(c->flash_size);
 	c->inocache_list = kzalloc_objs(struct jffs2_inode_cache *,
-					c->inocache_hashsize, GFP_KERNEL);
+					c->inocache_hashsize);
 	if (!c->inocache_list) {
 		ret = -ENOMEM;
 		goto out_wbuf;

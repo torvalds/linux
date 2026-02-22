@@ -3816,8 +3816,7 @@ int ext4_mb_init(struct super_block *sb)
 	sbi->s_mb_nr_global_goals = umin(num_possible_cpus(),
 					 DIV_ROUND_UP(sbi->s_groups_count, 4));
 	sbi->s_mb_last_groups = kzalloc_objs(ext4_group_t,
-					     sbi->s_mb_nr_global_goals,
-					     GFP_KERNEL);
+					     sbi->s_mb_nr_global_goals);
 	if (sbi->s_mb_last_groups == NULL) {
 		ret = -ENOMEM;
 		goto out;

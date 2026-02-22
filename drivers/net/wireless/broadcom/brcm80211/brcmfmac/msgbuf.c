@@ -1589,7 +1589,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	msgbuf->max_flowrings = if_msgbuf->max_flowrings;
 	msgbuf->flowring_dma_handle =
 		kzalloc_objs(*msgbuf->flowring_dma_handle,
-			     msgbuf->max_flowrings, GFP_KERNEL);
+			     msgbuf->max_flowrings);
 	if (!msgbuf->flowring_dma_handle)
 		goto fail;
 

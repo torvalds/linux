@@ -193,7 +193,7 @@ nfnl_cthelper_parse_expect_policy(struct nf_conntrack_helper *helper,
 		return -EOVERFLOW;
 
 	expect_policy = kzalloc_objs(struct nf_conntrack_expect_policy,
-				     class_max, GFP_KERNEL);
+				     class_max);
 	if (expect_policy == NULL)
 		return -ENOMEM;
 

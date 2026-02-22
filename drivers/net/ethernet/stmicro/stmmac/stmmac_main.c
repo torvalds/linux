@@ -2296,7 +2296,7 @@ static int __alloc_dma_tx_desc_resources(struct stmmac_priv *priv,
 	tx_q->priv_data = priv;
 
 	tx_q->tx_skbuff_dma = kzalloc_objs(*tx_q->tx_skbuff_dma,
-					   dma_conf->dma_tx_size, GFP_KERNEL);
+					   dma_conf->dma_tx_size);
 	if (!tx_q->tx_skbuff_dma)
 		return -ENOMEM;
 

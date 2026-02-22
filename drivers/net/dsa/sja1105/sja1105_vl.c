@@ -636,7 +636,7 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 		rule->vl.cycle_time = cycle_time;
 		rule->vl.num_entries = num_entries;
 		rule->vl.entries = kzalloc_objs(struct action_gate_entry,
-						num_entries, GFP_KERNEL);
+						num_entries);
 		if (!rule->vl.entries) {
 			rc = -ENOMEM;
 			goto out;

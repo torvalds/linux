@@ -1587,7 +1587,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 
 	iio_dev_opaque->chan_attr_group.attrs =
 		kzalloc_objs(iio_dev_opaque->chan_attr_group.attrs[0],
-			     attrcount + 1, GFP_KERNEL);
+			     attrcount + 1);
 	if (iio_dev_opaque->chan_attr_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_clear_attrs;

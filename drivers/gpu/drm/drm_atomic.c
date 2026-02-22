@@ -136,12 +136,11 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	if (!state->crtcs)
 		goto fail;
 	state->planes = kzalloc_objs(*state->planes,
-				     dev->mode_config.num_total_plane,
-				     GFP_KERNEL);
+				     dev->mode_config.num_total_plane);
 	if (!state->planes)
 		goto fail;
 	state->colorops = kzalloc_objs(*state->colorops,
-				       dev->mode_config.num_colorop, GFP_KERNEL);
+				       dev->mode_config.num_colorop);
 	if (!state->colorops)
 		goto fail;
 

@@ -364,7 +364,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->max_queues = GOYA_QUEUE_ID_SIZE;
 	prop->hw_queues_props = kzalloc_objs(struct hw_queue_properties,
-					     prop->max_queues, GFP_KERNEL);
+					     prop->max_queues);
 
 	if (!prop->hw_queues_props)
 		return -ENOMEM;

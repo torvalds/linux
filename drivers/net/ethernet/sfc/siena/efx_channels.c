@@ -967,8 +967,7 @@ int efx_siena_set_channels(struct efx_nic *efx)
 
 		/* Allocate array for XDP TX queue lookup. */
 		efx->xdp_tx_queues = kzalloc_objs(*efx->xdp_tx_queues,
-						  efx->xdp_tx_queue_count,
-						  GFP_KERNEL);
+						  efx->xdp_tx_queue_count);
 		if (!efx->xdp_tx_queues)
 			return -ENOMEM;
 	}

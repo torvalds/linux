@@ -1736,8 +1736,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 							  queue_size * 3 / 2);
 			s->ctx_data.tx.cache.pos = 0;
 			s->ctx_data.tx.cache.descs = kzalloc_objs(*s->ctx_data.tx.cache.descs,
-								  s->ctx_data.tx.cache.size,
-								  GFP_KERNEL);
+								  s->ctx_data.tx.cache.size);
 			if (!s->ctx_data.tx.cache.descs) {
 				err = -ENOMEM;
 				goto err_context;
@@ -1758,7 +1757,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		};
 
 		s->ctx_data.rx.seq.descs = kzalloc_objs(*s->ctx_data.rx.seq.descs,
-							queue_size, GFP_KERNEL);
+							queue_size);
 		if (!s->ctx_data.rx.seq.descs) {
 			err = -ENOMEM;
 			goto err_context;

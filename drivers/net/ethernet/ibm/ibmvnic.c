@@ -933,13 +933,13 @@ static int init_stats_buffers(struct ibmvnic_adapter *adapter)
 {
 	adapter->tx_stats_buffers =
 				kzalloc_objs(struct ibmvnic_tx_queue_stats,
-					     IBMVNIC_MAX_QUEUES, GFP_KERNEL);
+					     IBMVNIC_MAX_QUEUES);
 	if (!adapter->tx_stats_buffers)
 		return -ENOMEM;
 
 	adapter->rx_stats_buffers =
 				kzalloc_objs(struct ibmvnic_rx_queue_stats,
-					     IBMVNIC_MAX_QUEUES, GFP_KERNEL);
+					     IBMVNIC_MAX_QUEUES);
 	if (!adapter->rx_stats_buffers)
 		return -ENOMEM;
 
@@ -1124,7 +1124,7 @@ static int init_rx_pools(struct net_device *netdev)
 		}
 
 		rx_pool->rx_buff = kzalloc_objs(struct ibmvnic_rx_buff,
-						rx_pool->size, GFP_KERNEL);
+						rx_pool->size);
 		if (!rx_pool->rx_buff) {
 			dev_err(dev, "Couldn't alloc rx buffers\n");
 			rc = -ENOMEM;
@@ -4476,7 +4476,7 @@ static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 	}
 
 	adapter->tx_scrq = kzalloc_objs(*adapter->tx_scrq,
-					adapter->req_tx_queues, GFP_KERNEL);
+					adapter->req_tx_queues);
 	if (!adapter->tx_scrq)
 		goto tx_failed;
 
@@ -4487,7 +4487,7 @@ static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 	}
 
 	adapter->rx_scrq = kzalloc_objs(*adapter->rx_scrq,
-					adapter->req_rx_queues, GFP_KERNEL);
+					adapter->req_rx_queues);
 	if (!adapter->rx_scrq)
 		goto rx_failed;
 

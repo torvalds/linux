@@ -1751,8 +1751,7 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, enum dc_valid
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc_objs(display_e2e_pipe_params_st,
-							 dc->res_pool->pipe_count,
-							 GFP_KERNEL);
+							 dc->res_pool->pipe_count);
 
 	/* To handle Freesync properly, setting FreeSync DML parameters
 	 * to its default state for the first stage of validation

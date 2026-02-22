@@ -739,22 +739,22 @@ static int policydb_index(struct policydb *p)
 	symtab_hash_eval(p->symtab);
 
 	p->class_val_to_struct = kzalloc_objs(*p->class_val_to_struct,
-					      p->p_classes.nprim, GFP_KERNEL);
+					      p->p_classes.nprim);
 	if (!p->class_val_to_struct)
 		return -ENOMEM;
 
 	p->role_val_to_struct = kzalloc_objs(*p->role_val_to_struct,
-					     p->p_roles.nprim, GFP_KERNEL);
+					     p->p_roles.nprim);
 	if (!p->role_val_to_struct)
 		return -ENOMEM;
 
 	p->user_val_to_struct = kzalloc_objs(*p->user_val_to_struct,
-					     p->p_users.nprim, GFP_KERNEL);
+					     p->p_users.nprim);
 	if (!p->user_val_to_struct)
 		return -ENOMEM;
 
 	p->type_val_to_struct = kvzalloc_objs(*p->type_val_to_struct,
-					      p->p_types.nprim, GFP_KERNEL);
+					      p->p_types.nprim);
 	if (!p->type_val_to_struct)
 		return -ENOMEM;
 
@@ -2724,7 +2724,7 @@ int policydb_read(struct policydb *p, struct policy_file *fp)
 
 	rc = -ENOMEM;
 	p->type_attr_map_array = kvzalloc_objs(*p->type_attr_map_array,
-					       p->p_types.nprim, GFP_KERNEL);
+					       p->p_types.nprim);
 	if (!p->type_attr_map_array)
 		goto bad;
 

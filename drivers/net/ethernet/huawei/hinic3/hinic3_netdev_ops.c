@@ -100,7 +100,7 @@ static int hinic3_setup_num_qps(struct net_device *netdev)
 	nic_dev->num_qp_irq = 0;
 
 	nic_dev->qps_msix_entries = kzalloc_objs(struct msix_entry,
-						 nic_dev->max_qps, GFP_KERNEL);
+						 nic_dev->max_qps);
 	if (!nic_dev->qps_msix_entries)
 		return -ENOMEM;
 
@@ -127,12 +127,12 @@ static int hinic3_alloc_txrxq_resources(struct net_device *netdev,
 	int err;
 
 	q_params->txqs_res = kzalloc_objs(*q_params->txqs_res,
-					  q_params->num_qps, GFP_KERNEL);
+					  q_params->num_qps);
 	if (!q_params->txqs_res)
 		return -ENOMEM;
 
 	q_params->rxqs_res = kzalloc_objs(*q_params->rxqs_res,
-					  q_params->num_qps, GFP_KERNEL);
+					  q_params->num_qps);
 	if (!q_params->rxqs_res) {
 		err = -ENOMEM;
 		goto err_free_txqs_res_arr;

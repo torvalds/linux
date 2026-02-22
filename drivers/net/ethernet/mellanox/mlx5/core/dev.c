@@ -278,7 +278,7 @@ int mlx5_adev_init(struct mlx5_core_dev *dev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	priv->adev = kzalloc_objs(struct mlx5_adev *,
-				  ARRAY_SIZE(mlx5_adev_devices), GFP_KERNEL);
+				  ARRAY_SIZE(mlx5_adev_devices));
 	if (!priv->adev)
 		return -ENOMEM;
 

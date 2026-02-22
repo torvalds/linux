@@ -452,8 +452,7 @@ static int amdgpu_pmu_alloc_pmu_attrs(
 		return -ENOMEM;
 
 	fmt_attr_group->attrs = kzalloc_objs(*fmt_attr_group->attrs,
-					     config->num_formats + 1,
-					     GFP_KERNEL);
+					     config->num_formats + 1);
 
 	if (!fmt_attr_group->attrs)
 		goto err_fmt_attr_grp;
@@ -464,7 +463,7 @@ static int amdgpu_pmu_alloc_pmu_attrs(
 		goto err_evt_attr;
 
 	evt_attr_group->attrs = kzalloc_objs(*evt_attr_group->attrs,
-					     config->num_events + 1, GFP_KERNEL);
+					     config->num_events + 1);
 
 	if (!evt_attr_group->attrs)
 		goto err_evt_attr_grp;

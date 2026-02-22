@@ -408,7 +408,7 @@ int init_send_contexts(struct hfi1_devdata *dd)
 	dd->hw_to_sw = kmalloc_array(TXE_NUM_CONTEXTS, sizeof(u8),
 					GFP_KERNEL);
 	dd->send_contexts = kzalloc_objs(struct send_context_info,
-					 dd->num_send_contexts, GFP_KERNEL);
+					 dd->num_send_contexts);
 	if (!dd->send_contexts || !dd->hw_to_sw) {
 		kfree(dd->hw_to_sw);
 		kfree(dd->send_contexts);
@@ -2051,7 +2051,7 @@ int init_credit_return(struct hfi1_devdata *dd)
 	int i;
 
 	dd->cr_base = kzalloc_objs(struct credit_return_base,
-				   node_affinity.num_possible_nodes, GFP_KERNEL);
+				   node_affinity.num_possible_nodes);
 	if (!dd->cr_base) {
 		ret = -ENOMEM;
 		goto done;

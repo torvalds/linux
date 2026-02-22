@@ -242,8 +242,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 
 	if (direction == DMA_TO_DEVICE) {
 		binding->tx_vec = kvmalloc_objs(struct net_iov *,
-						dmabuf->size / PAGE_SIZE,
-						GFP_KERNEL);
+						dmabuf->size / PAGE_SIZE);
 		if (!binding->tx_vec) {
 			err = -ENOMEM;
 			goto err_unmap;
@@ -290,8 +289,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 		}
 
 		owner->area.niovs = kvmalloc_objs(*owner->area.niovs,
-						  owner->area.num_niovs,
-						  GFP_KERNEL);
+						  owner->area.num_niovs);
 		if (!owner->area.niovs) {
 			err = -ENOMEM;
 			goto err_free_chunks;

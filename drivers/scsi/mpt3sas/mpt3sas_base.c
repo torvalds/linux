@@ -3462,8 +3462,7 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 
 	if (iopoll_q_count) {
 		ioc->io_uring_poll_queues = kzalloc_objs(struct io_uring_poll_queue,
-							 iopoll_q_count,
-							 GFP_KERNEL);
+							 iopoll_q_count);
 		if (!ioc->io_uring_poll_queues)
 			iopoll_q_count = 0;
 	}
@@ -3728,8 +3727,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		 * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET from previous one.
 		 */
 		ioc->replyPostRegisterIndex = kzalloc_objs(resource_size_t *,
-							   ioc->combined_reply_index_count,
-							   GFP_KERNEL);
+							   ioc->combined_reply_index_count);
 		if (!ioc->replyPostRegisterIndex) {
 			ioc_err(ioc,
 			    "allocation for replyPostRegisterIndex failed!\n");
@@ -6562,7 +6560,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 	/* initialize hi-priority queue smid's */
 	ioc->hpr_lookup = kzalloc_objs(struct request_tracker,
-				       ioc->hi_priority_depth, GFP_KERNEL);
+				       ioc->hi_priority_depth);
 	if (!ioc->hpr_lookup) {
 		ioc_err(ioc, "hpr_lookup: kcalloc failed\n");
 		goto out;
@@ -6575,7 +6573,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 
 	/* initialize internal queue smid's */
 	ioc->internal_lookup = kzalloc_objs(struct request_tracker,
-					    ioc->internal_depth, GFP_KERNEL);
+					    ioc->internal_depth);
 	if (!ioc->internal_lookup) {
 		ioc_err(ioc, "internal_lookup: kcalloc failed\n");
 		goto out;
@@ -8430,8 +8428,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->is_warpdrive) {
 		ioc->reply_post_host_index = kzalloc_objs(resource_size_t *,
-							  ioc->cpu_msix_table_sz,
-							  GFP_KERNEL);
+							  ioc->cpu_msix_table_sz);
 		if (!ioc->reply_post_host_index) {
 			ioc_info(ioc, "Allocation for reply_post_host_index failed!!!\n");
 			r = -ENOMEM;
@@ -8521,7 +8518,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	ioc->pfacts = kzalloc_objs(struct mpt3sas_port_facts,
-				   ioc->facts.NumberOfPorts, GFP_KERNEL);
+				   ioc->facts.NumberOfPorts);
 	if (!ioc->pfacts) {
 		r = -ENOMEM;
 		goto out_free_resources;

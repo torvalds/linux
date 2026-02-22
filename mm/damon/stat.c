@@ -91,7 +91,7 @@ static int damon_stat_sort_regions(struct damon_ctx *c,
 	damon_for_each_target(t, c) {
 		/* there is only one target */
 		region_pointers = kmalloc_objs(*region_pointers,
-					       damon_nr_regions(t), GFP_KERNEL);
+					       damon_nr_regions(t));
 		if (!region_pointers)
 			return -ENOMEM;
 		damon_for_each_region(r, t) {

@@ -3941,7 +3941,7 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 	if (beacon->mbssid_ies && beacon->mbssid_ies->cnt) {
 		new_beacon->mbssid_ies =
 			kzalloc_flex(*new_beacon->mbssid_ies, elem,
-				     beacon->mbssid_ies->cnt, GFP_KERNEL);
+				     beacon->mbssid_ies->cnt);
 		if (!new_beacon->mbssid_ies) {
 			kfree(new_beacon);
 			return NULL;
@@ -3950,7 +3950,7 @@ cfg80211_beacon_dup(struct cfg80211_beacon_data *beacon)
 		if (beacon->rnr_ies && beacon->rnr_ies->cnt) {
 			new_beacon->rnr_ies =
 				kzalloc_flex(*new_beacon->rnr_ies, elem,
-					     beacon->rnr_ies->cnt, GFP_KERNEL);
+					     beacon->rnr_ies->cnt);
 			if (!new_beacon->rnr_ies) {
 				kfree(new_beacon->mbssid_ies);
 				kfree(new_beacon);

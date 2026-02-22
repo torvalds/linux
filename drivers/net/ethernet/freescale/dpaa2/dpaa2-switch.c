@@ -3421,7 +3421,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	}
 
 	ethsw->filter_blocks = kzalloc_objs(*ethsw->filter_blocks,
-					    ethsw->sw_attr.num_ifs, GFP_KERNEL);
+					    ethsw->sw_attr.num_ifs);
 	if (!ethsw->filter_blocks) {
 		err = -ENOMEM;
 		goto err_free_fdbs;

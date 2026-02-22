@@ -3604,7 +3604,7 @@ void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
 		}
 
 		mvm->acs_survey = kzalloc_flex(*mvm->acs_survey, channels,
-					       n_channels, GFP_KERNEL);
+					       n_channels);
 
 		if (!mvm->acs_survey)
 			return;

@@ -2072,7 +2072,7 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 		/* Setup the skbuff rings */
 		ugeth->tx_skbuff[j] =
 			kzalloc_objs(struct sk_buff *,
-				     ugeth->ug_info->bdRingLenTx[j], GFP_KERNEL);
+				     ugeth->ug_info->bdRingLenTx[j]);
 
 		if (ugeth->tx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
@@ -2130,7 +2130,7 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 		/* Setup the skbuff rings */
 		ugeth->rx_skbuff[j] =
 			kzalloc_objs(struct sk_buff *,
-				     ugeth->ug_info->bdRingLenRx[j], GFP_KERNEL);
+				     ugeth->ug_info->bdRingLenRx[j]);
 
 		if (ugeth->rx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))

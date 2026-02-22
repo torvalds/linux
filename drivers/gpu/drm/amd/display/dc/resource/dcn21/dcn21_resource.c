@@ -931,7 +931,7 @@ static enum dc_status dcn21_validate_bandwidth(struct dc *dc, struct dc_state *c
 	display_e2e_pipe_params_st *pipes;
 
 	pipes = kzalloc_objs(display_e2e_pipe_params_st,
-			     dc->res_pool->pipe_count, GFP_KERNEL);
+			     dc->res_pool->pipe_count);
 	if (!pipes)
 		return DC_FAIL_BANDWIDTH_VALIDATE;
 

@@ -716,7 +716,7 @@ int iova_domain_init_rcaches(struct iova_domain *iovad)
 	int i, ret;
 
 	iovad->rcaches = kzalloc_objs(struct iova_rcache,
-				      IOVA_RANGE_CACHE_MAX_SIZE, GFP_KERNEL);
+				      IOVA_RANGE_CACHE_MAX_SIZE);
 	if (!iovad->rcaches)
 		return -ENOMEM;
 

@@ -535,7 +535,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 		goto fail_no_free;
 
 	gntdev_dmabuf->u.imp.refs = kzalloc_objs(gntdev_dmabuf->u.imp.refs[0],
-						 count, GFP_KERNEL);
+						 count);
 	if (!gntdev_dmabuf->u.imp.refs)
 		goto fail;
 

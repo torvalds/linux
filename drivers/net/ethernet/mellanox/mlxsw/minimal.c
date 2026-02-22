@@ -403,7 +403,7 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 		return -ENOMEM;
 
 	mlxsw_m->line_cards = kzalloc_objs(*mlxsw_m->line_cards,
-					   mlxsw_m->num_of_slots, GFP_KERNEL);
+					   mlxsw_m->num_of_slots);
 	if (!mlxsw_m->line_cards) {
 		err = -ENOMEM;
 		goto err_kcalloc;
@@ -412,7 +412,7 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 	for (i = 0; i < mlxsw_m->num_of_slots; i++) {
 		mlxsw_m->line_cards[i] =
 			kzalloc_flex(*mlxsw_m->line_cards[i], module_to_port,
-				     mlxsw_m->max_modules_per_slot, GFP_KERNEL);
+				     mlxsw_m->max_modules_per_slot);
 		if (!mlxsw_m->line_cards[i]) {
 			err = -ENOMEM;
 			goto err_kmalloc_array;

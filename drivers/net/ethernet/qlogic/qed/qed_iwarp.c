@@ -2760,8 +2760,7 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 		goto err;
 
 	iwarp_info->partial_fpdus = kzalloc_objs(*iwarp_info->partial_fpdus,
-						 (u16)p_hwfn->p_rdma_info->num_qps,
-						 GFP_KERNEL);
+						 (u16)p_hwfn->p_rdma_info->num_qps);
 	if (!iwarp_info->partial_fpdus) {
 		rc = -ENOMEM;
 		goto err;
@@ -2781,7 +2780,7 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	 * we allocate enough to take care of all rx packets
 	 */
 	iwarp_info->mpa_bufs = kzalloc_objs(*iwarp_info->mpa_bufs,
-					    data.input.rx_num_desc, GFP_KERNEL);
+					    data.input.rx_num_desc);
 	if (!iwarp_info->mpa_bufs) {
 		rc = -ENOMEM;
 		goto err;

@@ -152,7 +152,7 @@ static int gve_alloc_flow_rule_caches(struct gve_priv *priv)
 
 	flow_rules_cache->rules_cache =
 		kvzalloc_objs(*flow_rules_cache->rules_cache,
-			      GVE_FLOW_RULES_CACHE_SIZE, GFP_KERNEL);
+			      GVE_FLOW_RULES_CACHE_SIZE);
 	if (!flow_rules_cache->rules_cache) {
 		dev_err(&priv->pdev->dev, "Cannot alloc flow rules cache\n");
 		return -ENOMEM;
@@ -486,7 +486,7 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	int err;
 
 	priv->msix_vectors = kvzalloc_objs(*priv->msix_vectors,
-					   num_vecs_requested, GFP_KERNEL);
+					   num_vecs_requested);
 	if (!priv->msix_vectors)
 		return -ENOMEM;
 	for (i = 0; i < num_vecs_requested; i++)

@@ -2241,7 +2241,7 @@ static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
 			continue;
 
 		dst->tx_ring[t] = kzalloc_objs(struct mlx4_en_tx_ring *,
-					       MAX_TX_RINGS, GFP_KERNEL);
+					       MAX_TX_RINGS);
 		if (!dst->tx_ring[t])
 			goto err_free_tx;
 
@@ -3215,7 +3215,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			continue;
 
 		priv->tx_ring[t] = kzalloc_objs(struct mlx4_en_tx_ring *,
-						MAX_TX_RINGS, GFP_KERNEL);
+						MAX_TX_RINGS);
 		if (!priv->tx_ring[t]) {
 			err = -ENOMEM;
 			goto out;

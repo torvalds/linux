@@ -781,7 +781,7 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	 * the amount of memory allocated by user
 	 */
 	pa = kzalloc_objs(struct kfd_process_device_apertures,
-			  args->num_of_nodes, GFP_KERNEL);
+			  args->num_of_nodes);
 	if (!pa)
 		return -ENOMEM;
 

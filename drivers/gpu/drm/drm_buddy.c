@@ -326,7 +326,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	for_each_free_tree(i) {
 		mm->free_trees[i] = kmalloc_objs(struct rb_root,
-						 mm->max_order + 1, GFP_KERNEL);
+						 mm->max_order + 1);
 		if (!mm->free_trees[i])
 			goto out_free_tree;
 

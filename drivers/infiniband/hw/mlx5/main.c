@@ -5205,8 +5205,7 @@ static struct ib_device *mlx5_ib_add_sub_dev(struct ib_device *parent,
 		return ERR_PTR(-ENOMEM);
 
 	mplane->port = kzalloc_objs(*mplane->port,
-				    mparent->num_plane * mparent->num_ports,
-				    GFP_KERNEL);
+				    mparent->num_plane * mparent->num_ports);
 	if (!mplane->port) {
 		ret = -ENOMEM;
 		goto fail_kcalloc;

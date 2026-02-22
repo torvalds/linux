@@ -515,7 +515,7 @@ static void uml_vfio_open_device(struct uml_vfio_device *dev)
 	}
 
 	dev->intr_ctx = kmalloc_objs(struct uml_vfio_intr_ctx,
-				     dev->udev.irq_count, GFP_KERNEL);
+				     dev->udev.irq_count);
 	if (!dev->intr_ctx) {
 		pr_err("Failed to allocate interrupt context (%s)\n",
 		       dev->name);

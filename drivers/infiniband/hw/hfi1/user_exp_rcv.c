@@ -59,8 +59,7 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 	if (!HFI1_CAP_UGET_MASK(uctxt->flags, TID_UNMAP)) {
 		fd->invalid_tid_idx = 0;
 		fd->invalid_tids = kzalloc_objs(*fd->invalid_tids,
-						uctxt->expected_count,
-						GFP_KERNEL);
+						uctxt->expected_count);
 		if (!fd->invalid_tids) {
 			kfree(fd->entry_to_rb);
 			fd->entry_to_rb = NULL;

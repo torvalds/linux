@@ -79,7 +79,7 @@ int mlx4_adev_init(struct mlx4_dev *dev)
 		return priv->adev_idx;
 
 	priv->adev = kzalloc_objs(struct mlx4_adev *,
-				  ARRAY_SIZE(mlx4_adev_devices), GFP_KERNEL);
+				  ARRAY_SIZE(mlx4_adev_devices));
 	if (!priv->adev) {
 		ida_free(&mlx4_adev_ida, priv->adev_idx);
 		return -ENOMEM;

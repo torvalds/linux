@@ -186,7 +186,7 @@ static __init bool
 bp_slots_histogram_alloc(struct bp_slots_histogram *hist, enum bp_type_idx type)
 {
 	hist->count = kzalloc_objs(*hist->count,
-				   hw_breakpoint_slots_cached(type), GFP_KERNEL);
+				   hw_breakpoint_slots_cached(type));
 	return hist->count;
 }
 

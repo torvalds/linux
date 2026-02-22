@@ -2002,7 +2002,7 @@ static int __init tmigr_init(void)
 	tmigr_crossnode_level = cpulvl;
 
 	tmigr_level_list = kzalloc_objs(struct list_head,
-					tmigr_hierarchy_levels, GFP_KERNEL);
+					tmigr_hierarchy_levels);
 	if (!tmigr_level_list)
 		goto err;
 

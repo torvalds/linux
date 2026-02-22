@@ -836,7 +836,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 
 	trans_pcie->txq_memory =
 		kzalloc_objs(struct iwl_txq,
-			     trans->mac_cfg->base->num_of_queues, GFP_KERNEL);
+			     trans->mac_cfg->base->num_of_queues);
 	if (!trans_pcie->txq_memory) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
 		ret = -ENOMEM;

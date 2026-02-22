@@ -1515,8 +1515,7 @@ static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master)
 			DIV_ROUND_UP(max_contexts, CTXDESC_L2_ENTRIES);
 
 		cd_table->l2.l2ptrs = kzalloc_objs(*cd_table->l2.l2ptrs,
-						   cd_table->l2.num_l1_ents,
-						   GFP_KERNEL);
+						   cd_table->l2.num_l1_ents);
 		if (!cd_table->l2.l2ptrs)
 			return -ENOMEM;
 

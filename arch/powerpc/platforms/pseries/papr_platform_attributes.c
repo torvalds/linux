@@ -314,8 +314,7 @@ retry:
 	/* Allocate the groups before registering */
 	for (idx = 0; idx < num_attrs; idx++) {
 		papr_groups[idx].pg.attrs = kzalloc_objs(*papr_groups[idx].pg.attrs,
-							 KOBJ_MAX_ATTRS + 1,
-							 GFP_KERNEL);
+							 KOBJ_MAX_ATTRS + 1);
 		if (!papr_groups[idx].pg.attrs)
 			goto out_pgattrs;
 

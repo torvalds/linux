@@ -463,7 +463,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 	 * XXX FIXME: Use DMA consistent routines
 	 */
        	dma_cmd_space = kmalloc_objs(struct dbdma_cmd,
-					    host->sg_tablesize + 2, GFP_KERNEL);
+					    host->sg_tablesize + 2);
 	if (!dma_cmd_space) {
 		printk(KERN_ERR "mac53c94: couldn't allocate dma "
 		       "command space for %pOF\n", node);

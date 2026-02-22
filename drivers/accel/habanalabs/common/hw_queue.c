@@ -1083,7 +1083,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 	int i, rc, q_ready_cnt;
 
 	hdev->kernel_queues = kzalloc_objs(*hdev->kernel_queues,
-					   asic->max_queues, GFP_KERNEL);
+					   asic->max_queues);
 
 	if (!hdev->kernel_queues) {
 		dev_err(hdev->dev, "Not enough memory for H/W queues\n");

@@ -432,7 +432,7 @@ int idpf_idc_init_aux_core_dev(struct idpf_adapter *adapter,
 
 	privd->mapped_mem_regions =
 		kzalloc_objs(struct iidc_rdma_lan_mapped_mem_region,
-			     adapter->hw.num_lan_regs, GFP_KERNEL);
+			     adapter->hw.num_lan_regs);
 	if (!privd->mapped_mem_regions) {
 		err = -ENOMEM;
 		goto err_plug_aux_dev;

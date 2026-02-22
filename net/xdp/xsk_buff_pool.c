@@ -420,7 +420,7 @@ static int xp_init_dma_info(struct xsk_buff_pool *pool, struct xsk_dma_map *dma_
 	}
 
 	pool->dma_pages = kvzalloc_objs(*pool->dma_pages,
-					dma_map->dma_pages_cnt, GFP_KERNEL);
+					dma_map->dma_pages_cnt);
 	if (!pool->dma_pages)
 		return -ENOMEM;
 

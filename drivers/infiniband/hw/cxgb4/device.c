@@ -882,8 +882,7 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 
 	if (c4iw_wr_log) {
 		rdev->wr_log = kzalloc_objs(*rdev->wr_log,
-					    1 << c4iw_wr_log_size_order,
-					    GFP_KERNEL);
+					    1 << c4iw_wr_log_size_order);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);

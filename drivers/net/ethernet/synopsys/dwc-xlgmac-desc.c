@@ -141,7 +141,7 @@ static int xlgmac_init_ring(struct xlgmac_pdata *pdata,
 
 	/* Array of descriptor data */
 	ring->desc_data_head = kzalloc_objs(struct xlgmac_desc_data,
-					    dma_desc_count, GFP_KERNEL);
+					    dma_desc_count);
 	if (!ring->desc_data_head)
 		return -ENOMEM;
 

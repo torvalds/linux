@@ -459,8 +459,7 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 
 	mr->npages = 0;
 	mr->page_list = kvzalloc_objs(dma_addr_t,
-				      mr->pbl_mtr.hem_cfg.buf_pg_count,
-				      GFP_KERNEL);
+				      mr->pbl_mtr.hem_cfg.buf_pg_count);
 	if (!mr->page_list)
 		return sg_num;
 

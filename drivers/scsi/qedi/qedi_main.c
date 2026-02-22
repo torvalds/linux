@@ -411,7 +411,7 @@ static int qedi_alloc_fp(struct qedi_ctx *qedi)
 	int ret = 0;
 
 	qedi->fp_array = kzalloc_objs(struct qedi_fastpath,
-				      MIN_NUM_CPUS_MSIX(qedi), GFP_KERNEL);
+				      MIN_NUM_CPUS_MSIX(qedi));
 	if (!qedi->fp_array) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "fastpath fp array allocation failed.\n");
@@ -419,7 +419,7 @@ static int qedi_alloc_fp(struct qedi_ctx *qedi)
 	}
 
 	qedi->sb_array = kzalloc_objs(struct qed_sb_info,
-				      MIN_NUM_CPUS_MSIX(qedi), GFP_KERNEL);
+				      MIN_NUM_CPUS_MSIX(qedi));
 	if (!qedi->sb_array) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "fastpath sb array allocation failed.\n");
@@ -499,8 +499,7 @@ static int qedi_setup_cid_que(struct qedi_ctx *qedi)
 		return -ENOMEM;
 
 	qedi->cid_que.conn_cid_tbl = kmalloc_objs(struct qedi_conn *,
-						  qedi->max_active_conns,
-						  GFP_KERNEL);
+						  qedi->max_active_conns);
 	if (!qedi->cid_que.conn_cid_tbl) {
 		kfree(qedi->cid_que.cid_que_base);
 		qedi->cid_que.cid_que_base = NULL;
@@ -1895,7 +1894,7 @@ struct qedi_cmd *qedi_get_cmd_from_tid(struct qedi_ctx *qedi, u32 tid)
 static int qedi_alloc_itt(struct qedi_ctx *qedi)
 {
 	qedi->itt_map = kzalloc_objs(struct qedi_itt_map,
-				     MAX_ISCSI_TASK_ENTRIES, GFP_KERNEL);
+				     MAX_ISCSI_TASK_ENTRIES);
 	if (!qedi->itt_map) {
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Unable to allocate itt map array memory\n");

@@ -295,8 +295,7 @@ static int ne_setup_cpu_pool(const char *ne_cpu_list)
 	ne_cpu_pool.nr_parent_vm_cores = nr_cpu_ids / ne_cpu_pool.nr_threads_per_core;
 
 	ne_cpu_pool.avail_threads_per_core = kzalloc_objs(*ne_cpu_pool.avail_threads_per_core,
-							  ne_cpu_pool.nr_parent_vm_cores,
-							  GFP_KERNEL);
+							  ne_cpu_pool.nr_parent_vm_cores);
 	if (!ne_cpu_pool.avail_threads_per_core) {
 		rc = -ENOMEM;
 
@@ -942,7 +941,7 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 	}
 
 	phys_contig_mem_regions.regions = kzalloc_objs(*phys_contig_mem_regions.regions,
-						       max_nr_pages, GFP_KERNEL);
+						       max_nr_pages);
 	if (!phys_contig_mem_regions.regions) {
 		rc = -ENOMEM;
 
@@ -1628,8 +1627,7 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 	mutex_unlock(&ne_cpu_pool.mutex);
 
 	ne_enclave->threads_per_core = kzalloc_objs(*ne_enclave->threads_per_core,
-						    ne_enclave->nr_parent_vm_cores,
-						    GFP_KERNEL);
+						    ne_enclave->nr_parent_vm_cores);
 	if (!ne_enclave->threads_per_core) {
 		rc = -ENOMEM;
 

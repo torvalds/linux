@@ -416,8 +416,7 @@ static int pdsc_viftypes_init(struct pdsc *pdsc)
 	enum pds_core_vif_types vt;
 
 	pdsc->viftype_status = kzalloc_objs(*pdsc->viftype_status,
-					    ARRAY_SIZE(pdsc_viftype_defaults),
-					    GFP_KERNEL);
+					    ARRAY_SIZE(pdsc_viftype_defaults));
 	if (!pdsc->viftype_status)
 		return -ENOMEM;
 

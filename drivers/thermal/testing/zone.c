@@ -391,8 +391,7 @@ static int tt_zone_register_tz(struct tt_thermal_zone *tt_zone)
 		return -EINVAL;
 
 	struct thermal_trip *trips __free(kfree) = kzalloc_objs(*trips,
-								tt_zone->num_trips,
-								GFP_KERNEL);
+								tt_zone->num_trips);
 	if (!trips)
 		return -ENOMEM;
 

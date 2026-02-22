@@ -388,7 +388,7 @@ static int uv_ports_init(void)
 	}
 	for (j = 0; j < uv_bios_obj_cnt; j++) {
 		uv_hubs[j]->ports = kzalloc_objs(*uv_hubs[j]->ports,
-						 hub_buf[j].ports, GFP_KERNEL);
+						 hub_buf[j].ports);
 		if (!uv_hubs[j]->ports) {
 			ret = -ENOMEM;
 			j--;

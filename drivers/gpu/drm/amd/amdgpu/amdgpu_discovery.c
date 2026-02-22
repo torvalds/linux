@@ -1179,8 +1179,7 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			 */
 			ip_hw_instance = kzalloc_flex(*ip_hw_instance,
 						      base_addr,
-						      ip->num_base_address,
-						      GFP_KERNEL);
+						      ip->num_base_address);
 			if (!ip_hw_instance) {
 				DRM_ERROR("no memory for ip_hw_instance");
 				return -ENOMEM;

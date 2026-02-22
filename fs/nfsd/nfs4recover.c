@@ -479,7 +479,7 @@ nfs4_legacy_state_init(struct net *net)
 	int i;
 
 	nn->reclaim_str_hashtbl = kmalloc_objs(struct list_head,
-					       CLIENT_HASH_SIZE, GFP_KERNEL);
+					       CLIENT_HASH_SIZE);
 	if (!nn->reclaim_str_hashtbl)
 		return -ENOMEM;
 
@@ -1356,7 +1356,7 @@ nfs4_cld_state_init(struct net *net)
 	int i;
 
 	nn->reclaim_str_hashtbl = kmalloc_objs(struct list_head,
-					       CLIENT_HASH_SIZE, GFP_KERNEL);
+					       CLIENT_HASH_SIZE);
 	if (!nn->reclaim_str_hashtbl)
 		return -ENOMEM;
 

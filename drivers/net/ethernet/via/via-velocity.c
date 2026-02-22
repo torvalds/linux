@@ -1632,7 +1632,7 @@ static int velocity_init_rd_ring(struct velocity_info *vptr)
 	int ret = -ENOMEM;
 
 	vptr->rx.info = kzalloc_objs(struct velocity_rd_info,
-				     vptr->options.numrx, GFP_KERNEL);
+				     vptr->options.numrx);
 	if (!vptr->rx.info)
 		goto out;
 
@@ -1665,8 +1665,7 @@ static int velocity_init_td_ring(struct velocity_info *vptr)
 	for (j = 0; j < vptr->tx.numq; j++) {
 
 		vptr->tx.infos[j] = kzalloc_objs(struct velocity_td_info,
-						 vptr->options.numtx,
-						 GFP_KERNEL);
+						 vptr->options.numtx);
 		if (!vptr->tx.infos[j])	{
 			while (--j >= 0)
 				kfree(vptr->tx.infos[j]);

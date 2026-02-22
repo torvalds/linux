@@ -1418,7 +1418,7 @@ static struct rnbd_clt_dev *init_dev(struct rnbd_clt_session *sess,
 	 * nr_poll_queues: the number of polling queues
 	 */
 	dev->hw_queues = kzalloc_objs(*dev->hw_queues,
-				      nr_cpu_ids + nr_poll_queues, GFP_KERNEL);
+				      nr_cpu_ids + nr_poll_queues);
 	if (!dev->hw_queues) {
 		ret = -ENOMEM;
 		goto out_alloc;

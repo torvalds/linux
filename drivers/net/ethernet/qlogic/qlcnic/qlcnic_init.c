@@ -190,7 +190,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	recv_ctx = adapter->recv_ctx;
 
 	rds_ring = kzalloc_objs(struct qlcnic_host_rds_ring,
-				adapter->max_rds_rings, GFP_KERNEL);
+				adapter->max_rds_rings);
 	if (rds_ring == NULL)
 		goto err_out;
 

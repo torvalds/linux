@@ -272,7 +272,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		ib_set_device_ops(&dev->ib_dev, &pvrdma_dev_srq_ops);
 
 		dev->srq_tbl = kzalloc_objs(struct pvrdma_srq *,
-					    dev->dsr->caps.max_srq, GFP_KERNEL);
+					    dev->dsr->caps.max_srq);
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}

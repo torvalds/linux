@@ -4500,7 +4500,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 			}
 
 			sg = kvmalloc_objs(struct scatterlist,
-					   ic->journal_pages + 1, GFP_KERNEL);
+					   ic->journal_pages + 1);
 			if (!sg) {
 				*error = "Unable to allocate sg list";
 				r = -ENOMEM;
@@ -5271,7 +5271,7 @@ try_smaller_buffer:
 			goto bad;
 		}
 		ic->bbs = kvmalloc_objs(struct bitmap_block_status,
-					ic->n_bitmap_blocks, GFP_KERNEL);
+					ic->n_bitmap_blocks);
 		if (!ic->bbs) {
 			ti->error = "Could not allocate memory for bitmap";
 			r = -ENOMEM;

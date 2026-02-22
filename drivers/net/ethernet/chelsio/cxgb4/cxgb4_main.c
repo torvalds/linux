@@ -5028,7 +5028,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	}
 
 	adap->sge.ingr_map = kzalloc_objs(*adap->sge.ingr_map,
-					  adap->sge.ingr_sz, GFP_KERNEL);
+					  adap->sge.ingr_sz);
 	if (!adap->sge.ingr_map) {
 		ret = -ENOMEM;
 		goto bye;
@@ -6349,8 +6349,7 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 		}
 		/* Allocate and set up VF Information. */
 		adap->vfinfo = kzalloc_objs(struct vf_info,
-					    pci_sriov_get_totalvfs(pdev),
-					    GFP_KERNEL);
+					    pci_sriov_get_totalvfs(pdev));
 		if (!adap->vfinfo) {
 			unregister_netdev(adap->port[0]);
 			free_netdev(adap->port[0]);

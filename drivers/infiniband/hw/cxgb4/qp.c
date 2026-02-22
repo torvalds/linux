@@ -2551,7 +2551,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 		if (!wq->sw_rq)
 			goto err_put_qpid;
 		wq->pending_wrs = kzalloc_objs(*srq->wq.pending_wrs,
-					       srq->wq.size, GFP_KERNEL);
+					       srq->wq.size);
 		if (!wq->pending_wrs)
 			goto err_free_sw_rq;
 	}

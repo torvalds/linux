@@ -795,7 +795,7 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 
 		/* Allocate memory for 340 mappings. */
 		forward = kmalloc_objs(struct uid_gid_extent,
-				       UID_GID_MAP_MAX_EXTENTS, GFP_KERNEL);
+				       UID_GID_MAP_MAX_EXTENTS);
 		if (!forward)
 			return -ENOMEM;
 

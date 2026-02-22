@@ -1096,8 +1096,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 
 		q->num_direct_qdiscs = dev->real_num_tx_queues;
 		q->direct_qdiscs = kzalloc_objs(*q->direct_qdiscs,
-						q->num_direct_qdiscs,
-						GFP_KERNEL);
+						q->num_direct_qdiscs);
 		if (!q->direct_qdiscs)
 			return -ENOMEM;
 	}

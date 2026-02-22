@@ -695,8 +695,7 @@ static void iwl_mld_alloc_mpdu_counters(struct iwl_mld *mld,
 		return;
 
 	mld_sta->mpdu_counters = kzalloc_objs(*mld_sta->mpdu_counters,
-				              mld->trans->info.num_rxqs,
-				              GFP_KERNEL);
+				              mld->trans->info.num_rxqs);
 	if (!mld_sta->mpdu_counters)
 		return;
 

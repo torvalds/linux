@@ -1846,8 +1846,7 @@ static int eni_start(struct atm_dev *dev)
 	buffer_mem = eni_dev->mem - (buf - eni_dev->ram);
 	eni_dev->free_list_size = buffer_mem/MID_MIN_BUF_SIZE/2;
 	eni_dev->free_list = kmalloc_objs(*eni_dev->free_list,
-					  eni_dev->free_list_size + 1,
-					  GFP_KERNEL);
+					  eni_dev->free_list_size + 1);
 	if (!eni_dev->free_list) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): couldn't get free page\n",
 		    dev->number);

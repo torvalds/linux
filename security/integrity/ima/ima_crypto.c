@@ -139,8 +139,7 @@ int __init ima_init_crypto(void)
 		ima_hash_algo_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
 
 	ima_algo_array = kzalloc_objs(*ima_algo_array,
-				      NR_BANKS(ima_tpm_chip) + ima_extra_slots,
-				      GFP_KERNEL);
+				      NR_BANKS(ima_tpm_chip) + ima_extra_slots);
 	if (!ima_algo_array) {
 		rc = -ENOMEM;
 		goto out;

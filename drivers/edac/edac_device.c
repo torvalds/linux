@@ -78,7 +78,7 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 	dev_ctl->instances = dev_inst;
 
 	dev_blk = kzalloc_objs(struct edac_device_block,
-			       nr_instances * nr_blocks, GFP_KERNEL);
+			       nr_instances * nr_blocks);
 	if (!dev_blk)
 		goto free;
 

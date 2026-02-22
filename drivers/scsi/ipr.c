@@ -8860,7 +8860,7 @@ static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 		return -ENOMEM;
 
 	ioa_cfg->ipr_cmnd_list = kzalloc_objs(struct ipr_cmnd *,
-					      IPR_NUM_CMD_BLKS, GFP_KERNEL);
+					      IPR_NUM_CMD_BLKS);
 	ioa_cfg->ipr_cmnd_list_dma = kzalloc_objs(dma_addr_t, IPR_NUM_CMD_BLKS);
 
 	if (!ioa_cfg->ipr_cmnd_list || !ioa_cfg->ipr_cmnd_list_dma) {
@@ -8965,8 +8965,7 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 
 	ENTER;
 	ioa_cfg->res_entries = kzalloc_objs(struct ipr_resource_entry,
-					    ioa_cfg->max_devs_supported,
-					    GFP_KERNEL);
+					    ioa_cfg->max_devs_supported);
 
 	if (!ioa_cfg->res_entries)
 		goto out;
@@ -9028,7 +9027,7 @@ static int ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 	}
 
 	ioa_cfg->trace = kzalloc_objs(struct ipr_trace_entry,
-				      IPR_NUM_TRACE_ENTRIES, GFP_KERNEL);
+				      IPR_NUM_TRACE_ENTRIES);
 
 	if (!ioa_cfg->trace)
 		goto out_free_hostrcb_dma;

@@ -1245,8 +1245,7 @@ static int mlxsw_env_line_cards_alloc(struct mlxsw_env *env)
 	for (i = 0; i < env->num_of_slots; i++) {
 		env->line_cards[i] = kzalloc_flex(*env->line_cards[i],
 						  module_info,
-						  env->max_module_count,
-						  GFP_KERNEL);
+						  env->max_module_count);
 		if (!env->line_cards[i])
 			goto kzalloc_err;
 

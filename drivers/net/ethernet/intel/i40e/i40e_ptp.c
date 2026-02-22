@@ -1345,7 +1345,7 @@ static int i40e_init_pin_config(struct i40e_pf *pf)
 	pf->ptp_caps.n_per_out = 2;
 
 	pf->ptp_caps.pin_config = kzalloc_objs(*pf->ptp_caps.pin_config,
-					       pf->ptp_caps.n_pins, GFP_KERNEL);
+					       pf->ptp_caps.n_pins);
 	if (!pf->ptp_caps.pin_config)
 		return -ENOMEM;
 

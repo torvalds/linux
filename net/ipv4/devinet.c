@@ -2755,7 +2755,7 @@ static __net_init int devinet_init_net(struct net *net)
 
 	err = -ENOMEM;
 	net->ipv4.inet_addr_lst = kmalloc_objs(struct hlist_head,
-					       IN4_ADDR_HSIZE, GFP_KERNEL);
+					       IN4_ADDR_HSIZE);
 	if (!net->ipv4.inet_addr_lst)
 		goto err_alloc_hash;
 

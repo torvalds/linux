@@ -392,7 +392,7 @@ static int emac_alloc_tx_resources(struct emac_priv *priv)
 	struct platform_device *pdev = priv->pdev;
 
 	tx_ring->tx_desc_buf = kzalloc_objs(*tx_ring->tx_desc_buf,
-					    tx_ring->total_cnt, GFP_KERNEL);
+					    tx_ring->total_cnt);
 
 	if (!tx_ring->tx_desc_buf)
 		return -ENOMEM;
@@ -420,7 +420,7 @@ static int emac_alloc_rx_resources(struct emac_priv *priv)
 	struct platform_device *pdev = priv->pdev;
 
 	rx_ring->rx_desc_buf = kzalloc_objs(*rx_ring->rx_desc_buf,
-					    rx_ring->total_cnt, GFP_KERNEL);
+					    rx_ring->total_cnt);
 	if (!rx_ring->rx_desc_buf)
 		return -ENOMEM;
 

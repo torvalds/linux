@@ -95,8 +95,7 @@ int hp_alloc_enumeration_data(void)
 		hp_get_instance_count(HP_WMI_BIOS_ENUMERATION_GUID);
 
 	bioscfg_drv.enumeration_data = kzalloc_objs(*bioscfg_drv.enumeration_data,
-						    bioscfg_drv.enumeration_instances_count,
-						    GFP_KERNEL);
+						    bioscfg_drv.enumeration_instances_count);
 	if (!bioscfg_drv.enumeration_data) {
 		bioscfg_drv.enumeration_instances_count = 0;
 		return -ENOMEM;

@@ -2284,8 +2284,7 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	rdev->pm.dpm.ps = kzalloc_objs(struct radeon_ps,
-				       power_info->pplib.ucNumStates,
-				       GFP_KERNEL);
+				       power_info->pplib.ucNumStates);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 

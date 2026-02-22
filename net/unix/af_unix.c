@@ -3803,7 +3803,7 @@ static int __net_init unix_net_init(struct net *net)
 		goto err_proc;
 
 	net->unx.table.buckets = kvmalloc_objs(struct hlist_head,
-					       UNIX_HASH_SIZE, GFP_KERNEL);
+					       UNIX_HASH_SIZE);
 	if (!net->unx.table.buckets)
 		goto free_locks;
 

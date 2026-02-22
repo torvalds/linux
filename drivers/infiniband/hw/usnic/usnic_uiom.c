@@ -150,8 +150,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 		while (ret) {
 			chunk = kmalloc_flex(*chunk, page_list,
-					     min_t(int, ret, USNIC_UIOM_PAGE_CHUNK),
-					     GFP_KERNEL);
+					     min_t(int, ret, USNIC_UIOM_PAGE_CHUNK));
 			if (!chunk) {
 				ret = -ENOMEM;
 				goto out;

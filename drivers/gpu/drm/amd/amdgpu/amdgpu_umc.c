@@ -59,7 +59,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 
 	err_data.err_addr =
 		kzalloc_objs(struct eeprom_table_record,
-			     adev->umc.max_ras_err_cnt_per_query, GFP_KERNEL);
+			     adev->umc.max_ras_err_cnt_per_query);
 	if (!err_data.err_addr) {
 		dev_warn(adev->dev,
 			"Failed to alloc memory for umc error record in MCA notifier!\n");
@@ -106,7 +106,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 
 	err_data->err_addr =
 		kzalloc_objs(struct eeprom_table_record,
-			     adev->umc.max_ras_err_cnt_per_query, GFP_KERNEL);
+			     adev->umc.max_ras_err_cnt_per_query);
 
 	/* still call query_ras_error_address to clear error status
 	 * even NOMEM error is encountered
@@ -132,8 +132,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			    adev->umc.max_ras_err_cnt_per_query) {
 				err_data->err_addr =
 					kzalloc_objs(struct eeprom_table_record,
-						     adev->umc.max_ras_err_cnt_per_query,
-						     GFP_KERNEL);
+						     adev->umc.max_ras_err_cnt_per_query);
 
 				/* still call query_ras_error_address to clear error status
 				 * even NOMEM error is encountered
@@ -163,8 +162,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			    adev->umc.max_ras_err_cnt_per_query) {
 				err_data->err_addr =
 					kzalloc_objs(struct eeprom_table_record,
-						     adev->umc.max_ras_err_cnt_per_query,
-						     GFP_KERNEL);
+						     adev->umc.max_ras_err_cnt_per_query);
 
 				/* still call query_ras_error_address to clear error status
 				 * even NOMEM error is encountered
@@ -554,7 +552,7 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 	struct ras_err_data err_data;
 
 	err_data.err_addr = kzalloc_objs(struct eeprom_table_record,
-					 adev->umc.retire_unit, GFP_KERNEL);
+					 adev->umc.retire_unit);
 	if (!err_data.err_addr) {
 		dev_warn(adev->dev, "Failed to alloc memory in bad page lookup!\n");
 		return 0;

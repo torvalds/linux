@@ -2374,7 +2374,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 
 		priv->mfunc.master.vf_admin =
 			kzalloc_objs(struct mlx4_vf_admin_state,
-				     dev->num_slaves, GFP_KERNEL);
+				     dev->num_slaves);
 		if (!priv->mfunc.master.vf_admin)
 			goto err_comm_admin;
 
@@ -2620,7 +2620,7 @@ int mlx4_cmd_use_events(struct mlx4_dev *dev)
 	int err = 0;
 
 	priv->cmd.context = kmalloc_objs(struct mlx4_cmd_context,
-					 priv->cmd.max_cmds, GFP_KERNEL);
+					 priv->cmd.max_cmds);
 	if (!priv->cmd.context)
 		return -ENOMEM;
 

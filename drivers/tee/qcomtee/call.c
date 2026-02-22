@@ -417,8 +417,7 @@ static int qcomtee_object_invoke(struct tee_context *ctx,
 
 	/* +1 for ending QCOMTEE_ARG_TYPE_INV. */
 	struct qcomtee_arg *u __free(kfree) = kzalloc_objs(*u,
-							   arg->num_params + 1,
-							   GFP_KERNEL);
+							   arg->num_params + 1);
 	if (!u)
 		return -ENOMEM;
 

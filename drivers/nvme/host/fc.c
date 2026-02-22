@@ -3498,7 +3498,7 @@ nvme_fc_alloc_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ret = -ENOMEM;
 	ctrl->queues = kzalloc_objs(struct nvme_fc_queue,
-				    ctrl->ctrl.queue_count, GFP_KERNEL);
+				    ctrl->ctrl.queue_count);
 	if (!ctrl->queues)
 		goto out_free_ida;
 

@@ -1871,7 +1871,7 @@ static int rtrs_rdma_conn_established(struct rtrs_clt_con *con,
 
 		if (!clt_path->rbufs) {
 			clt_path->rbufs = kzalloc_objs(*clt_path->rbufs,
-						       queue_depth, GFP_KERNEL);
+						       queue_depth);
 			if (!clt_path->rbufs)
 				return -ENOMEM;
 		}

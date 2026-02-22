@@ -407,8 +407,7 @@ static int _dev_comp_vect_mappings_create(struct hfi1_devdata *dd,
 	}
 
 	dd->comp_vect_mappings = kzalloc_objs(*dd->comp_vect_mappings,
-					      dd->comp_vect_possible_cpus,
-					      GFP_KERNEL);
+					      dd->comp_vect_possible_cpus);
 	if (!dd->comp_vect_mappings) {
 		ret = -ENOMEM;
 		goto fail;

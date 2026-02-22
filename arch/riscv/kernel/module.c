@@ -754,7 +754,7 @@ initialize_relocation_hashtable(unsigned int num_relocations,
 
 	/* Number of relocations may be large, so kvmalloc it */
 	*relocation_hashtable = kvmalloc_objs(**relocation_hashtable,
-					      hashtable_size, GFP_KERNEL);
+					      hashtable_size);
 	if (!*relocation_hashtable)
 		return 0;
 

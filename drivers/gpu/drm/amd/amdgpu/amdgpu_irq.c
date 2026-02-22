@@ -437,7 +437,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 	if (!adev->irq.client[client_id].sources) {
 		adev->irq.client[client_id].sources =
 			kzalloc_objs(struct amdgpu_irq_src *,
-				     AMDGPU_MAX_IRQ_SRC_ID, GFP_KERNEL);
+				     AMDGPU_MAX_IRQ_SRC_ID);
 		if (!adev->irq.client[client_id].sources)
 			return -ENOMEM;
 	}

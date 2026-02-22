@@ -59,8 +59,7 @@ static void ice_devlink_port_options_print(struct ice_pf *pf)
 	int status;
 
 	options = kzalloc_objs(*options,
-			       ICE_AQC_PORT_OPT_MAX * ICE_MAX_PORT_PER_PCI_DEV,
-			       GFP_KERNEL);
+			       ICE_AQC_PORT_OPT_MAX * ICE_MAX_PORT_PER_PCI_DEV);
 	if (!options)
 		return;
 

@@ -157,12 +157,12 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 	/* Allocate ETHOFLD hardware queue structures if not done already */
 	if (!refcount_read(&adap->tc_mqprio->refcnt)) {
 		adap->sge.eohw_rxq = kzalloc_objs(struct sge_ofld_rxq,
-						  adap->sge.eoqsets, GFP_KERNEL);
+						  adap->sge.eoqsets);
 		if (!adap->sge.eohw_rxq)
 			return -ENOMEM;
 
 		adap->sge.eohw_txq = kzalloc_objs(struct sge_eohw_txq,
-						  adap->sge.eoqsets, GFP_KERNEL);
+						  adap->sge.eoqsets);
 		if (!adap->sge.eohw_txq) {
 			kfree(adap->sge.eohw_rxq);
 			return -ENOMEM;

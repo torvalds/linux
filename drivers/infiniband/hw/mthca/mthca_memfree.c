@@ -718,7 +718,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	dev->db_tab->min_group2 = dev->db_tab->npages - 1;
 
 	dev->db_tab->page = kmalloc_objs(*dev->db_tab->page,
-					 dev->db_tab->npages, GFP_KERNEL);
+					 dev->db_tab->npages);
 	if (!dev->db_tab->page) {
 		kfree(dev->db_tab);
 		return -ENOMEM;

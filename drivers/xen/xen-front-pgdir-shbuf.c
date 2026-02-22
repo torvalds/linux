@@ -254,7 +254,7 @@ static int backend_map(struct xen_front_pgdir_shbuf *buf)
 		return -ENOMEM;
 
 	buf->backend_map_handles = kzalloc_objs(*buf->backend_map_handles,
-						buf->num_pages, GFP_KERNEL);
+						buf->num_pages);
 	if (!buf->backend_map_handles) {
 		kfree(map_ops);
 		return -ENOMEM;

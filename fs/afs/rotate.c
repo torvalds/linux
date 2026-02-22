@@ -47,8 +47,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 	read_unlock(&op->volume->servers_lock);
 
 	op->server_states = kzalloc_objs(op->server_states[0],
-					 op->server_list->nr_servers,
-					 GFP_KERNEL);
+					 op->server_list->nr_servers);
 	if (!op->server_states) {
 		afs_op_nomem(op);
 		trace_afs_rotate(op, afs_rotate_trace_nomem, 0);

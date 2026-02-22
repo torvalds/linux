@@ -303,7 +303,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 
 			adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
 				kzalloc_objs(struct amdgpu_phase_shedding_limits_entry,
-					     psl->ucNumEntries, GFP_KERNEL);
+					     psl->ucNumEntries);
 			if (!adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)
 				return -ENOMEM;
 

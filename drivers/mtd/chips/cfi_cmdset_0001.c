@@ -628,7 +628,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
 	mtd->eraseregions = kzalloc_objs(struct mtd_erase_region_info,
-					 mtd->numeraseregions, GFP_KERNEL);
+					 mtd->numeraseregions);
 	if (!mtd->eraseregions)
 		goto setup_err;
 

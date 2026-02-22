@@ -134,7 +134,7 @@ static int __init calipso_cache_init(void)
 	u32 iter;
 
 	calipso_cache = kzalloc_objs(struct calipso_map_cache_bkt,
-				     CALIPSO_CACHE_BUCKETS, GFP_KERNEL);
+				     CALIPSO_CACHE_BUCKETS);
 	if (!calipso_cache)
 		return -ENOMEM;
 

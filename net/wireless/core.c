@@ -1001,7 +1001,7 @@ int wiphy_register(struct wiphy *wiphy)
 		int idx;
 
 		wiphy->radio_cfg = kzalloc_objs(*wiphy->radio_cfg,
-						wiphy->n_radio, GFP_KERNEL);
+						wiphy->n_radio);
 		if (!wiphy->radio_cfg)
 			return -ENOMEM;
 		/*

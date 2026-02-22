@@ -884,7 +884,7 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
 
 	/* Allocate all required memory */
 	per_cpu_index_dev(cpu) = kzalloc_objs(struct device *,
-					      cache_leaves(cpu), GFP_KERNEL);
+					      cache_leaves(cpu));
 	if (unlikely(per_cpu_index_dev(cpu) == NULL))
 		goto err_out;
 

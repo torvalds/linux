@@ -607,7 +607,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 
 	ev_int->group.name = iio_event_group_name;
 	ev_int->group.attrs = kzalloc_objs(ev_int->group.attrs[0],
-					   attrcount + 1, GFP_KERNEL);
+					   attrcount + 1);
 	if (ev_int->group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_free_setup_event_lines;

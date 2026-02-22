@@ -5903,7 +5903,7 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		target_procs = kzalloc_objs(struct binder_proc *,
-					    target_procs_count, GFP_KERNEL);
+					    target_procs_count);
 
 		if (!target_procs) {
 			mutex_unlock(&binder_procs_lock);

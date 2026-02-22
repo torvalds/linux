@@ -493,7 +493,7 @@ int aac_get_containers(struct aac_dev *dev)
 		fsa_dev_ptr = dev->fsa_dev;
 
 		dev->fsa_dev = kzalloc_objs(*fsa_dev_ptr,
-					    maximum_num_containers, GFP_KERNEL);
+					    maximum_num_containers);
 
 		kfree(fsa_dev_ptr);
 		fsa_dev_ptr = NULL;

@@ -2426,7 +2426,7 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	int i, j, eq = 0, total_eqs = 0;
 
 	ibdev->eq_table = kzalloc_objs(ibdev->eq_table[0],
-				       dev->caps.num_comp_vectors, GFP_KERNEL);
+				       dev->caps.num_comp_vectors);
 	if (!ibdev->eq_table)
 		return;
 

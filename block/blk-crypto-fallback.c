@@ -574,7 +574,7 @@ static int blk_crypto_fallback_init(void)
 		goto fail_destroy_profile;
 
 	blk_crypto_keyslots = kzalloc_objs(blk_crypto_keyslots[0],
-					   blk_crypto_num_keyslots, GFP_KERNEL);
+					   blk_crypto_num_keyslots);
 	if (!blk_crypto_keyslots)
 		goto fail_free_wq;
 

@@ -1083,7 +1083,7 @@ static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 
 	clock->ptp_info.pin_config =
 			kzalloc_objs(*clock->ptp_info.pin_config,
-				     clock->ptp_info.n_pins, GFP_KERNEL);
+				     clock->ptp_info.n_pins);
 	if (!clock->ptp_info.pin_config)
 		return;
 	clock->ptp_info.enable = mlx5_ptp_enable;

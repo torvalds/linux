@@ -1603,8 +1603,7 @@ int nfs4_delegation_hash_alloc(struct nfs_server *server)
 	delegation_buckets = roundup_pow_of_two(nfs_delegation_watermark / 16);
 	server->delegation_hash_mask = delegation_buckets - 1;
 	server->delegation_hash_table = kmalloc_objs(*server->delegation_hash_table,
-						     delegation_buckets,
-						     GFP_KERNEL);
+						     delegation_buckets);
 	if (!server->delegation_hash_table)
 		return -ENOMEM;
 	for (i = 0; i < delegation_buckets; i++)

@@ -972,7 +972,7 @@ static int parse_histogram(const char *h, unsigned int *n_histogram_entries,
 			(*n_histogram_entries)++;
 
 	*histogram_boundaries = kmalloc_objs(unsigned long long,
-					     *n_histogram_entries, GFP_KERNEL);
+					     *n_histogram_entries);
 	if (!*histogram_boundaries)
 		return -ENOMEM;
 

@@ -1510,7 +1510,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	}
 
 	scan_chan_list = kzalloc_objs(struct mwifiex_chan_scan_param_set,
-				      MWIFIEX_USER_SCAN_CHAN_MAX, GFP_KERNEL);
+				      MWIFIEX_USER_SCAN_CHAN_MAX);
 	if (!scan_chan_list) {
 		kfree(scan_cfg_out);
 		ret = -ENOMEM;

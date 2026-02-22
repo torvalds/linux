@@ -1273,7 +1273,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 
 	/* allocate the queue arrays for all VFs */
 	bp->vfdb->vfqs = kzalloc_objs(struct bnx2x_vf_queue,
-				      BNX2X_MAX_NUM_VF_QUEUES, GFP_KERNEL);
+				      BNX2X_MAX_NUM_VF_QUEUES);
 
 	if (!bp->vfdb->vfqs) {
 		BNX2X_ERR("failed to allocate vf queue array\n");

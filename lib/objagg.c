@@ -611,7 +611,7 @@ const struct objagg_stats *objagg_stats_get(struct objagg *objagg)
 	int i;
 
 	objagg_stats = kzalloc_flex(*objagg_stats, stats_info,
-				    objagg->obj_count, GFP_KERNEL);
+				    objagg->obj_count);
 	if (!objagg_stats)
 		return ERR_PTR(-ENOMEM);
 
@@ -1011,7 +1011,7 @@ objagg_hints_stats_get(struct objagg_hints *objagg_hints)
 	int i;
 
 	objagg_stats = kzalloc_flex(*objagg_stats, stats_info,
-				    objagg_hints->node_count, GFP_KERNEL);
+				    objagg_hints->node_count);
 	if (!objagg_stats)
 		return ERR_PTR(-ENOMEM);
 

@@ -463,7 +463,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 
 	if ((ql2xmqsupport || ql2xnvmeenable) && ha->max_qpairs) {
 		ha->queue_pair_map = kzalloc_objs(struct qla_qpair *,
-						  ha->max_qpairs, GFP_KERNEL);
+						  ha->max_qpairs);
 		if (!ha->queue_pair_map) {
 			ql_log(ql_log_fatal, vha, 0x0180,
 			    "Unable to allocate memory for queue pair ptrs.\n");
@@ -4150,7 +4150,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 
 	if (QLA_TGT_MODE_ENABLED() || EDIF_CAP(ha)) {
 		ha->vp_map = kzalloc_objs(struct qla_vp_map,
-					  MAX_MULTI_ID_FABRIC, GFP_KERNEL);
+					  MAX_MULTI_ID_FABRIC);
 		if (!ha->vp_map)
 			goto fail;
 	}
@@ -4376,7 +4376,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	/* Allocate memory for NVRAM data for vports */
 	if (ha->nvram_npiv_size) {
 		ha->npiv_info = kzalloc_objs(struct qla_npiv_entry,
-					     ha->nvram_npiv_size, GFP_KERNEL);
+					     ha->nvram_npiv_size);
 		if (!ha->npiv_info) {
 			ql_log_pci(ql_log_fatal, ha->pdev, 0x002d,
 			    "Failed to allocate memory for npiv_info.\n");

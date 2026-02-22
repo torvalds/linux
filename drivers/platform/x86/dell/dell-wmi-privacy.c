@@ -315,7 +315,7 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 
 	/* remap the wmi keymap event to new keymap */
 	keymap = kzalloc_objs(struct key_entry,
-			      ARRAY_SIZE(dell_wmi_keymap_type_0012), GFP_KERNEL);
+			      ARRAY_SIZE(dell_wmi_keymap_type_0012));
 	if (!keymap)
 		return -ENOMEM;
 

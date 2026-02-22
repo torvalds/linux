@@ -2159,7 +2159,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 			    "Changing Rx descriptor count from %d to %d\n",
 			    vsi->rx_rings[0]->count, new_rx_count);
 		rx_rings = kzalloc_objs(struct i40e_ring,
-					vsi->alloc_queue_pairs, GFP_KERNEL);
+					vsi->alloc_queue_pairs);
 		if (!rx_rings) {
 			err = -ENOMEM;
 			goto free_tx;

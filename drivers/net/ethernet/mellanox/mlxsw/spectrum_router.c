@@ -718,8 +718,7 @@ static int mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 	max_trees = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_LPM_TREES);
 	mlxsw_sp->router->lpm.tree_count = max_trees - MLXSW_SP_LPM_TREE_MIN;
 	mlxsw_sp->router->lpm.trees = kzalloc_objs(struct mlxsw_sp_lpm_tree,
-						   mlxsw_sp->router->lpm.tree_count,
-						   GFP_KERNEL);
+						   mlxsw_sp->router->lpm.tree_count);
 	if (!mlxsw_sp->router->lpm.trees)
 		return -ENOMEM;
 

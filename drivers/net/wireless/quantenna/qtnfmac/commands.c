@@ -1253,7 +1253,7 @@ qtnf_cmd_resp_proc_mac_info(struct qtnf_wmac *mac,
 
 	mac_info->n_if_comb = resp_info->n_iface_combinations;
 	mac_info->if_comb = kzalloc_objs(*mac->macinfo.if_comb,
-					 mac->macinfo.n_if_comb, GFP_KERNEL);
+					 mac->macinfo.n_if_comb);
 
 	if (!mac->macinfo.if_comb)
 		return -ENOMEM;

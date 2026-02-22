@@ -2469,7 +2469,7 @@ static int enic_alloc_enic_resources(struct enic *enic)
 		goto free_queues;
 
 	enic->napi = kzalloc_objs(struct napi_struct,
-				  enic->wq_avail + enic->rq_avail, GFP_KERNEL);
+				  enic->wq_avail + enic->rq_avail);
 	if (!enic->napi)
 		goto free_queues;
 

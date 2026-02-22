@@ -7771,8 +7771,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 
 	if (!phba->sli.sli3_ring)
 		phba->sli.sli3_ring = kzalloc_objs(struct lpfc_sli_ring,
-						   LPFC_SLI3_MAX_RING,
-						   GFP_KERNEL);
+						   LPFC_SLI3_MAX_RING);
 	if (!phba->sli.sli3_ring)
 		return -ENOMEM;
 
@@ -8355,8 +8354,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	phba->sli4_hba.hba_eq_hdl = kzalloc_objs(struct lpfc_hba_eq_hdl,
-						 phba->cfg_irq_chann,
-						 GFP_KERNEL);
+						 phba->cfg_irq_chann);
 	if (!phba->sli4_hba.hba_eq_hdl) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2572 Failed allocate memory for "
@@ -8366,8 +8364,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	phba->sli4_hba.cpu_map = kzalloc_objs(struct lpfc_vector_map_info,
-					      phba->sli4_hba.num_possible_cpu,
-					      GFP_KERNEL);
+					      phba->sli4_hba.num_possible_cpu);
 	if (!phba->sli4_hba.cpu_map) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3327 Failed allocate memory for msi-x "
@@ -8385,8 +8382,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	phba->sli4_hba.idle_stat = kzalloc_objs(*phba->sli4_hba.idle_stat,
-						phba->sli4_hba.num_possible_cpu,
-						GFP_KERNEL);
+						phba->sli4_hba.num_possible_cpu);
 	if (!phba->sli4_hba.idle_stat) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3390 Failed allocation for idle_stat\n");
@@ -10440,8 +10436,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	if (!phba->sli4_hba.hdwq) {
 		phba->sli4_hba.hdwq = kzalloc_objs(struct lpfc_sli4_hdw_queue,
-						   phba->cfg_hdw_queue,
-						   GFP_KERNEL);
+						   phba->cfg_hdw_queue);
 		if (!phba->sli4_hba.hdwq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6427 Failed allocate memory for "
@@ -10471,8 +10466,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		if (phba->nvmet_support) {
 			phba->sli4_hba.nvmet_cqset = kzalloc_objs(struct lpfc_queue *,
-								  phba->cfg_nvmet_mrq,
-								  GFP_KERNEL);
+								  phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_cqset) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3121 Fail allocate memory for "
@@ -10480,8 +10474,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				goto out_error;
 			}
 			phba->sli4_hba.nvmet_mrq_hdr = kzalloc_objs(struct lpfc_queue *,
-								    phba->cfg_nvmet_mrq,
-								    GFP_KERNEL);
+								    phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_mrq_hdr) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3122 Fail allocate memory for "
@@ -10489,8 +10482,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 				goto out_error;
 			}
 			phba->sli4_hba.nvmet_mrq_data = kzalloc_objs(struct lpfc_queue *,
-								     phba->cfg_nvmet_mrq,
-								     GFP_KERNEL);
+								     phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_mrq_data) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3124 Fail allocate memory for "
@@ -11376,8 +11368,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	if (phba->sli4_hba.cq_max) {
 		kfree(phba->sli4_hba.cq_lookup);
 		phba->sli4_hba.cq_lookup = kzalloc_objs(struct lpfc_queue *,
-							(phba->sli4_hba.cq_max + 1),
-							GFP_KERNEL);
+							(phba->sli4_hba.cq_max + 1));
 		if (!phba->sli4_hba.cq_lookup) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0549 Failed setup of CQ Lookup table: "

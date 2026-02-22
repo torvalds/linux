@@ -1360,7 +1360,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 
 	local->int_scan_req = kzalloc_flex(*local->int_scan_req, channels,
-					   channels, GFP_KERNEL);
+					   channels);
 	if (!local->int_scan_req)
 		return -ENOMEM;
 

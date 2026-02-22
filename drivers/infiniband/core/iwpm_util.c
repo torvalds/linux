@@ -59,12 +59,12 @@ static struct iwpm_admin_data iwpm_admin;
 int iwpm_init(u8 nl_client)
 {
 	iwpm_hash_bucket = kzalloc_objs(struct hlist_head,
-					IWPM_MAPINFO_HASH_SIZE, GFP_KERNEL);
+					IWPM_MAPINFO_HASH_SIZE);
 	if (!iwpm_hash_bucket)
 		return -ENOMEM;
 
 	iwpm_reminfo_bucket = kzalloc_objs(struct hlist_head,
-					   IWPM_REMINFO_HASH_SIZE, GFP_KERNEL);
+					   IWPM_REMINFO_HASH_SIZE);
 	if (!iwpm_reminfo_bucket) {
 		kfree(iwpm_hash_bucket);
 		return -ENOMEM;

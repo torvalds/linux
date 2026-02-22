@@ -366,8 +366,7 @@ static int mlxsw_sp_qdisc_create(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (ops->num_classes) {
 		mlxsw_sp_qdisc->qdiscs = kzalloc_objs(*mlxsw_sp_qdisc->qdiscs,
-						      ops->num_classes,
-						      GFP_KERNEL);
+						      ops->num_classes);
 		if (!mlxsw_sp_qdisc->qdiscs)
 			return -ENOMEM;
 

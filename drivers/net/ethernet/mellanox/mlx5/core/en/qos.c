@@ -88,8 +88,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 		struct mlx5e_sq_stats **stats_list;
 
 		stats_list = kvzalloc_objs(*stats_list,
-					   mlx5e_qos_max_leaf_nodes(priv->mdev),
-					   GFP_KERNEL);
+					   mlx5e_qos_max_leaf_nodes(priv->mdev));
 		if (!stats_list)
 			return -ENOMEM;
 

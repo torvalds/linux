@@ -917,7 +917,7 @@ esw_qos_create_vport_tc_sched_elements(struct mlx5_vport *vport,
 	u32 rate_limit_elem_ix;
 
 	vport->qos.sched_nodes = kzalloc_objs(struct mlx5_esw_sched_node *,
-					      num_tcs, GFP_KERNEL);
+					      num_tcs);
 	if (!vport->qos.sched_nodes) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Allocating the vport TC scheduling elements failed.");

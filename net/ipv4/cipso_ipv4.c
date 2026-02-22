@@ -169,7 +169,7 @@ static int __init cipso_v4_cache_init(void)
 	u32 iter;
 
 	cipso_v4_cache = kzalloc_objs(struct cipso_v4_map_cache_bkt,
-				      CIPSO_V4_CACHE_BUCKETS, GFP_KERNEL);
+				      CIPSO_V4_CACHE_BUCKETS);
 	if (!cipso_v4_cache)
 		return -ENOMEM;
 

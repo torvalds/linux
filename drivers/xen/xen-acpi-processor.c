@@ -142,7 +142,7 @@ xen_copy_pss_data(struct acpi_processor *_pr,
 		     sizeof(struct acpi_processor_px));
 
 	dst_states = kzalloc_objs(struct xen_processor_px,
-				  _pr->performance->state_count, GFP_KERNEL);
+				  _pr->performance->state_count);
 	if (!dst_states)
 		return ERR_PTR(-ENOMEM);
 

@@ -282,8 +282,7 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 			need_paiext_cb = true;
 		}
 		cpump->save = kvmalloc_objs(struct pai_userdata,
-					    pai_pmu[idx].num_avail + 1,
-					    GFP_KERNEL);
+					    pai_pmu[idx].num_avail + 1);
 		if (!cpump->area || !cpump->save ||
 		    (need_paiext_cb && !cpump->paiext_cb)) {
 			pai_free(mp);

@@ -2400,8 +2400,7 @@ static int smu_v13_0_7_get_power_profile_mode(struct smu_context *smu, char *buf
 		return -EINVAL;
 
 	activity_monitor_external = kzalloc_objs(*activity_monitor_external,
-						 PP_SMC_POWER_PROFILE_COUNT,
-						 GFP_KERNEL);
+						 PP_SMC_POWER_PROFILE_COUNT);
 	if (!activity_monitor_external)
 		return -ENOMEM;
 

@@ -4549,7 +4549,7 @@ rcu_torture_init(void)
 	rcu_torture_write_types();
 	if (nrealfakewriters > 0) {
 		fakewriter_tasks = kzalloc_objs(fakewriter_tasks[0],
-						nrealfakewriters, GFP_KERNEL);
+						nrealfakewriters);
 		if (fakewriter_tasks == NULL) {
 			TOROUT_ERRSTRING("out of memory");
 			firsterr = -ENOMEM;
@@ -4564,7 +4564,7 @@ rcu_torture_init(void)
 	}
 	reader_tasks = kzalloc_objs(reader_tasks[0], nrealreaders);
 	rcu_torture_reader_mbchk = kzalloc_objs(*rcu_torture_reader_mbchk,
-						nrealreaders, GFP_KERNEL);
+						nrealreaders);
 	if (!reader_tasks || !rcu_torture_reader_mbchk) {
 		TOROUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;

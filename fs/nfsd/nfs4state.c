@@ -2358,7 +2358,7 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name,
 	if (clp->cl_name.data == NULL)
 		goto err_no_name;
 	clp->cl_ownerstr_hashtbl = kmalloc_objs(struct list_head,
-						OWNER_HASH_SIZE, GFP_KERNEL);
+						OWNER_HASH_SIZE);
 	if (!clp->cl_ownerstr_hashtbl)
 		goto err_no_hashtbl;
 	clp->cl_callback_wq = alloc_ordered_workqueue("nfsd4_callbacks", 0);
@@ -8966,7 +8966,7 @@ static int nfs4_state_create_net(struct net *net)
 	if (!nn->unconf_id_hashtbl)
 		goto err_unconf_id;
 	nn->sessionid_hashtbl = kmalloc_objs(struct list_head,
-					     SESSION_HASH_SIZE, GFP_KERNEL);
+					     SESSION_HASH_SIZE);
 	if (!nn->sessionid_hashtbl)
 		goto err_sessionid;
 

@@ -2806,7 +2806,7 @@ static int allocate_mr_list(struct smbdirect_socket *sc)
 		}
 
 		mr->sgt.sgl = kzalloc_objs(struct scatterlist,
-					   sp->max_frmr_depth, GFP_KERNEL);
+					   sp->max_frmr_depth);
 		if (!mr->sgt.sgl) {
 			ret = -ENOMEM;
 			log_rdma_mr(ERR, "failed to allocate sgl\n");

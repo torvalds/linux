@@ -2103,11 +2103,11 @@ int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool)
 		return -EOPNOTSUPP;
 
 	queue->rx->page_buffer = kzalloc_objs(*queue->rx->page_buffer,
-					      TSNEP_RING_SIZE, GFP_KERNEL);
+					      TSNEP_RING_SIZE);
 	if (!queue->rx->page_buffer)
 		return -ENOMEM;
 	queue->rx->xdp_batch = kzalloc_objs(*queue->rx->xdp_batch,
-					    TSNEP_RING_SIZE, GFP_KERNEL);
+					    TSNEP_RING_SIZE);
 	if (!queue->rx->xdp_batch) {
 		kfree(queue->rx->page_buffer);
 		queue->rx->page_buffer = NULL;

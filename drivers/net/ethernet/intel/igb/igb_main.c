@@ -3776,8 +3776,7 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs, bool reinit)
 		adapter->vfs_allocated_count = num_vfs;
 
 	adapter->vf_data = kzalloc_objs(struct vf_data_storage,
-					adapter->vfs_allocated_count,
-					GFP_KERNEL);
+					adapter->vfs_allocated_count);
 
 	/* if allocation failed then we do not support SR-IOV */
 	if (!adapter->vf_data) {
@@ -3796,7 +3795,7 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs, bool reinit)
 			      adapter->vfs_allocated_count);
 
 	adapter->vf_mac_list = kzalloc_objs(struct vf_mac_filter,
-					    num_vf_mac_filters, GFP_KERNEL);
+					    num_vf_mac_filters);
 
 	mac_list = adapter->vf_mac_list;
 	INIT_LIST_HEAD(&adapter->vf_macs.l);
@@ -4092,7 +4091,7 @@ static int igb_sw_init(struct igb_adapter *adapter)
 	adapter->flags |= IGB_FLAG_HAS_MSIX;
 
 	adapter->mac_table = kzalloc_objs(struct igb_mac_addr,
-					  hw->mac.rar_entry_count, GFP_KERNEL);
+					  hw->mac.rar_entry_count);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 

@@ -762,8 +762,7 @@ udp_tunnel_nic_alloc(const struct udp_tunnel_nic_info *info,
 
 	for (i = 0; i < n_tables; i++) {
 		utn->entries[i] = kzalloc_objs(*utn->entries[i],
-					       info->tables[i].n_entries,
-					       GFP_KERNEL);
+					       info->tables[i].n_entries);
 		if (!utn->entries[i])
 			goto err_free_prev_entries;
 	}

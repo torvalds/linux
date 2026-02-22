@@ -497,8 +497,7 @@ int rocket_job_open(struct rocket_file_priv *rocket_priv)
 {
 	struct rocket_device *rdev = rocket_priv->rdev;
 	struct drm_gpu_scheduler **scheds = kmalloc_objs(*scheds,
-							 rdev->num_cores,
-							 GFP_KERNEL);
+							 rdev->num_cores);
 	unsigned int core;
 	int ret;
 

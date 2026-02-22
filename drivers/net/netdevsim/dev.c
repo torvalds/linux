@@ -940,8 +940,7 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 		return -ENOMEM;
 
 	nsim_trap_data->trap_items_arr = kzalloc_objs(struct nsim_trap_item,
-						      ARRAY_SIZE(nsim_traps_arr),
-						      GFP_KERNEL);
+						      ARRAY_SIZE(nsim_traps_arr));
 	if (!nsim_trap_data->trap_items_arr) {
 		err = -ENOMEM;
 		goto err_trap_data_free;

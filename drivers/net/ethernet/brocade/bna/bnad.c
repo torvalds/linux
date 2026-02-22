@@ -1458,7 +1458,7 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 	if (cfg_flags & BNAD_CF_MSIX) {
 		intr_info->intr_type = BNA_INTR_T_MSIX;
 		intr_info->idl = kzalloc_objs(struct bna_intr_descr,
-					      intr_info->num, GFP_KERNEL);
+					      intr_info->num);
 		if (!intr_info->idl)
 			return -ENOMEM;
 
@@ -1483,7 +1483,7 @@ bnad_txrx_irq_alloc(struct bnad *bnad, enum bnad_intr_source src,
 		intr_info->intr_type = BNA_INTR_T_INTX;
 		intr_info->num = 1;
 		intr_info->idl = kzalloc_objs(struct bna_intr_descr,
-					      intr_info->num, GFP_KERNEL);
+					      intr_info->num);
 		if (!intr_info->idl)
 			return -ENOMEM;
 

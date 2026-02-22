@@ -1820,7 +1820,7 @@ int tpmi_sst_init(void)
 	}
 
 	isst_common.sst_inst = kzalloc_objs(*isst_common.sst_inst,
-					    topology_max_packages(), GFP_KERNEL);
+					    topology_max_packages());
 	if (!isst_common.sst_inst) {
 		ret = -ENOMEM;
 		goto init_done;

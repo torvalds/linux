@@ -1757,7 +1757,7 @@ static noinline int udf_process_sequence(
 	data.size_part_descs = PART_DESC_ALLOC_STEP;
 	data.num_part_descs = 0;
 	data.part_descs_loc = kzalloc_objs(*data.part_descs_loc,
-					   data.size_part_descs, GFP_KERNEL);
+					   data.size_part_descs);
 	if (!data.part_descs_loc)
 		return -ENOMEM;
 

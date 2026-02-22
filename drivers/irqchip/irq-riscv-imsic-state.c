@@ -513,7 +513,7 @@ static int __init imsic_local_init(void)
 
 		/* Allocate vector array */
 		lpriv->vectors = kzalloc_objs(*lpriv->vectors,
-					      global->nr_ids + 1, GFP_KERNEL);
+					      global->nr_ids + 1);
 		if (!lpriv->vectors)
 			goto fail_local_cleanup;
 

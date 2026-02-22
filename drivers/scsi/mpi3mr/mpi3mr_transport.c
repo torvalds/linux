@@ -2116,7 +2116,7 @@ int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle)
 		goto out_fail;
 	}
 	sas_expander->phy = kzalloc_objs(struct mpi3mr_sas_phy,
-					 sas_expander->num_phys, GFP_KERNEL);
+					 sas_expander->num_phys);
 	if (!sas_expander->phy) {
 		rc = -1;
 		goto out_fail;

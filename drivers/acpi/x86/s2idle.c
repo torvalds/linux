@@ -130,8 +130,7 @@ static void lpi_device_get_constraints_amd(void)
 			}
 
 			lpi_constraints_table = kzalloc_objs(*lpi_constraints_table,
-							     package->package.count,
-							     GFP_KERNEL);
+							     package->package.count);
 
 			if (!lpi_constraints_table)
 				goto free_acpi_buffer;
@@ -210,7 +209,7 @@ static void lpi_device_get_constraints(void)
 		return;
 
 	lpi_constraints_table = kzalloc_objs(*lpi_constraints_table,
-					     out_obj->package.count, GFP_KERNEL);
+					     out_obj->package.count);
 	if (!lpi_constraints_table)
 		goto free_acpi_buffer;
 

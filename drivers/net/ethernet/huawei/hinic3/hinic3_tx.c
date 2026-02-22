@@ -686,8 +686,7 @@ int hinic3_alloc_txqs_res(struct net_device *netdev, u16 num_sq,
 			goto err_free_tqres;
 
 		tqres->bds = kzalloc_objs(*tqres->bds,
-					  sq_depth * HINIC3_BDS_PER_SQ_WQEBB + HINIC3_MAX_SQ_SGE,
-					  GFP_KERNEL);
+					  sq_depth * HINIC3_BDS_PER_SQ_WQEBB + HINIC3_MAX_SQ_SGE);
 		if (!tqres->bds) {
 			kfree(tqres->tx_info);
 			goto err_free_tqres;

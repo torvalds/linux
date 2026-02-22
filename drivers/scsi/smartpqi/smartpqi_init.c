@@ -1253,7 +1253,7 @@ static inline int pqi_report_phys_luns(struct pqi_ctrl_info *ctrl_info, void **b
 	num_physicals = get_unaligned_be32(&rpl_8byte_wwid_list->header.list_length) / sizeof(rpl_8byte_wwid_list->lun_entries[0]);
 
 	rpl_16byte_wwid_list = kmalloc_flex(*rpl_16byte_wwid_list, lun_entries,
-					    num_physicals, GFP_KERNEL);
+					    num_physicals);
 	if (!rpl_16byte_wwid_list) {
 		rc = -ENOMEM;
 		goto out_free_rpl_list;
@@ -5206,8 +5206,7 @@ static int pqi_alloc_io_resources(struct pqi_ctrl_info *ctrl_info)
 	struct pqi_io_request *io_request;
 
 	ctrl_info->io_request_pool = kzalloc_objs(ctrl_info->io_request_pool[0],
-						  ctrl_info->max_io_slots,
-						  GFP_KERNEL);
+						  ctrl_info->max_io_slots);
 
 	if (!ctrl_info->io_request_pool) {
 		dev_err(&ctrl_info->pci_dev->dev,

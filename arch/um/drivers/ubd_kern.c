@@ -1070,7 +1070,7 @@ static int __init ubd_init(void)
 		return -1;
 
 	irq_req_buffer = kmalloc_objs(struct io_thread_req *,
-				      UBD_REQ_BUFFER_SIZE, GFP_KERNEL);
+				      UBD_REQ_BUFFER_SIZE);
 	irq_remainder = 0;
 
 	if (irq_req_buffer == NULL) {
@@ -1078,7 +1078,7 @@ static int __init ubd_init(void)
 		return -ENOMEM;
 	}
 	io_req_buffer = kmalloc_objs(struct io_thread_req *,
-				     UBD_REQ_BUFFER_SIZE, GFP_KERNEL);
+				     UBD_REQ_BUFFER_SIZE);
 
 	io_remainder = 0;
 

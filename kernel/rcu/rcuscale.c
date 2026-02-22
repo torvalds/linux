@@ -909,7 +909,7 @@ kfree_scale_init(void)
 			kfree_by_call_rcu);
 
 	kfree_reader_tasks = kzalloc_objs(kfree_reader_tasks[0],
-					  kfree_nrealthreads, GFP_KERNEL);
+					  kfree_nrealthreads);
 	if (kfree_reader_tasks == NULL) {
 		firsterr = -ENOMEM;
 		goto unwind;
@@ -1156,7 +1156,7 @@ rcu_scale_init(void)
 			goto unwind;
 		}
 		writer_freelists = kzalloc_objs(writer_freelists[0],
-						nrealwriters, GFP_KERNEL);
+						nrealwriters);
 	}
 	if (!writer_tasks || !writer_durations || !writer_n_durations || !writer_done ||
 	    (gp_async && !writer_freelists)) {
@@ -1178,8 +1178,7 @@ rcu_scale_init(void)
 			init_llist_head(&wflp->ws_lhg);
 			init_llist_head(&wflp->ws_lhp);
 			wflp->ws_mblocks = kzalloc_objs(wflp->ws_mblocks[0],
-							gp_async_max,
-							GFP_KERNEL);
+							gp_async_max);
 			if (!wflp->ws_mblocks) {
 				firsterr = -ENOMEM;
 				goto unwind;

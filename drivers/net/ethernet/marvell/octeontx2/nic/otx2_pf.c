@@ -1950,7 +1950,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 		goto err_free_mem;
 
 	qset->sq = kzalloc_objs(struct otx2_snd_queue,
-				otx2_get_total_tx_queues(pf), GFP_KERNEL);
+				otx2_get_total_tx_queues(pf));
 	if (!qset->sq)
 		goto err_free_mem;
 

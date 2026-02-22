@@ -2109,26 +2109,22 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
 		goto alloc_err;
 
 	qm_info->qm_pq_params = kzalloc_objs(*qm_info->qm_pq_params,
-					     qed_init_qm_get_num_pqs(p_hwfn),
-					     GFP_KERNEL);
+					     qed_init_qm_get_num_pqs(p_hwfn));
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
 	qm_info->qm_vport_params = kzalloc_objs(*qm_info->qm_vport_params,
-						qed_init_qm_get_num_vports(p_hwfn),
-						GFP_KERNEL);
+						qed_init_qm_get_num_vports(p_hwfn));
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
 	qm_info->qm_port_params = kzalloc_objs(*qm_info->qm_port_params,
-					       p_hwfn->cdev->num_ports_in_engine,
-					       GFP_KERNEL);
+					       p_hwfn->cdev->num_ports_in_engine);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
 	qm_info->wfq_data = kzalloc_objs(*qm_info->wfq_data,
-					 qed_init_qm_get_num_vports(p_hwfn),
-					 GFP_KERNEL);
+					 qed_init_qm_get_num_vports(p_hwfn));
 	if (!qm_info->wfq_data)
 		goto alloc_err;
 

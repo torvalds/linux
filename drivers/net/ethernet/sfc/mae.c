@@ -256,11 +256,11 @@ more:
 			goto fail;
 		rc = -ENOMEM;
 		desc->keys = kzalloc_objs(struct efx_tc_table_field_fmt,
-					  desc->n_keys, GFP_KERNEL);
+					  desc->n_keys);
 		if (!desc->keys)
 			goto fail;
 		desc->resps = kzalloc_objs(struct efx_tc_table_field_fmt,
-					   desc->n_resps, GFP_KERNEL);
+					   desc->n_resps);
 		if (!desc->resps)
 			goto fail;
 	}

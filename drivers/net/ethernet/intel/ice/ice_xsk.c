@@ -175,7 +175,7 @@ ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present)
 {
 	if (pool_present) {
 		rx_ring->xdp_buf = kzalloc_objs(*rx_ring->xdp_buf,
-						rx_ring->count, GFP_KERNEL);
+						rx_ring->count);
 		if (!rx_ring->xdp_buf)
 			return -ENOMEM;
 	} else {

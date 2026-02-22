@@ -526,13 +526,11 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 			&priv->mfunc.master.res_tracker.res_alloc[i];
 		res_alloc->quota = kmalloc_objs(int, dev->persist->num_vfs + 1);
 		res_alloc->guaranteed = kmalloc_objs(int,
-						     dev->persist->num_vfs + 1,
-						     GFP_KERNEL);
+						     dev->persist->num_vfs + 1);
 		if (i == RES_MAC || i == RES_VLAN)
 			res_alloc->allocated =
 				kzalloc_objs(int,
-					     MLX4_MAX_PORTS * (dev->persist->num_vfs + 1),
-					     GFP_KERNEL);
+					     MLX4_MAX_PORTS * (dev->persist->num_vfs + 1));
 		else
 			res_alloc->allocated =
 				kzalloc_objs(int, dev->persist->num_vfs + 1);

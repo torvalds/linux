@@ -771,7 +771,7 @@ int nfp_bpf_finalize(struct bpf_verifier_env *env)
 	nfp_prog = env->prog->aux->offload->dev_priv;
 	nfp_prog->subprog_cnt = env->subprog_cnt;
 	nfp_prog->subprog = kzalloc_objs(nfp_prog->subprog[0],
-					 nfp_prog->subprog_cnt, GFP_KERNEL);
+					 nfp_prog->subprog_cnt);
 	if (!nfp_prog->subprog)
 		return -ENOMEM;
 

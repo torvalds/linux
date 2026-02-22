@@ -999,8 +999,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 
 	if (n_dynamic_fields) {
 		event->dynamic_fields = kzalloc_objs(*event->dynamic_fields,
-						     n_dynamic_fields,
-						     GFP_KERNEL);
+						     n_dynamic_fields);
 		if (!event->dynamic_fields) {
 			free_synth_event(event);
 			event = ERR_PTR(-ENOMEM);

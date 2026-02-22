@@ -1320,8 +1320,7 @@ int hid_open_report(struct hid_device *device)
 	end = start + size;
 
 	device->collection = kzalloc_objs(struct hid_collection,
-					  HID_DEFAULT_NUM_COLLECTIONS,
-					  GFP_KERNEL);
+					  HID_DEFAULT_NUM_COLLECTIONS);
 	if (!device->collection) {
 		ret = -ENOMEM;
 		goto err;

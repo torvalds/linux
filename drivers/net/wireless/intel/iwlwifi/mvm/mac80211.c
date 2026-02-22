@@ -4349,8 +4349,7 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 			WARN_ON(rcu_access_pointer(mvmsta->ptk_pn[keyidx]));
 			ptk_pn = kzalloc_flex(*ptk_pn, q,
-					      mvm->trans->info.num_rxqs,
-					      GFP_KERNEL);
+					      mvm->trans->info.num_rxqs);
 			if (!ptk_pn) {
 				ret = -ENOMEM;
 				break;

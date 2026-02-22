@@ -440,7 +440,7 @@ static int ad5360_alloc_channels(struct iio_dev *indio_dev)
 	unsigned int i;
 
 	channels = kzalloc_objs(struct iio_chan_spec,
-				st->chip_info->num_channels, GFP_KERNEL);
+				st->chip_info->num_channels);
 
 	if (!channels)
 		return -ENOMEM;

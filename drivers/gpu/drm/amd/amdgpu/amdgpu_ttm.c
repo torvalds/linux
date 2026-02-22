@@ -1881,8 +1881,7 @@ static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
 		return 0;
 
 	adev->mman.ttm_pools = kzalloc_objs(*adev->mman.ttm_pools,
-					    adev->gmc.num_mem_partitions,
-					    GFP_KERNEL);
+					    adev->gmc.num_mem_partitions);
 	if (!adev->mman.ttm_pools)
 		return -ENOMEM;
 

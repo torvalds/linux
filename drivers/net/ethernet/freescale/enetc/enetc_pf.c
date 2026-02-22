@@ -959,7 +959,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	pf->total_vfs = pci_sriov_get_totalvfs(pdev);
 	if (pf->total_vfs) {
 		pf->vf_state = kzalloc_objs(struct enetc_vf_state,
-					    pf->total_vfs, GFP_KERNEL);
+					    pf->total_vfs);
 		if (!pf->vf_state)
 			goto err_alloc_vf_state;
 	}

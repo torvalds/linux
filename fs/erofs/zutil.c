@@ -138,8 +138,7 @@ int __init z_erofs_gbuf_init(void)
 	if (z_erofs_rsv_nrpages) {
 		z_erofs_rsvbuf = &z_erofs_gbufpool[total - 1];
 		z_erofs_rsvbuf->pages = kzalloc_objs(*z_erofs_rsvbuf->pages,
-						     z_erofs_rsv_nrpages,
-						     GFP_KERNEL);
+						     z_erofs_rsv_nrpages);
 		if (!z_erofs_rsvbuf->pages) {
 			z_erofs_rsvbuf = NULL;
 			z_erofs_rsv_nrpages = 0;

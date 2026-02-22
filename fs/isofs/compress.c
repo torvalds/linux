@@ -334,8 +334,7 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 		pcount = 1;
 	}
 	pages = kzalloc_objs(*pages,
-			     max_t(unsigned int, zisofs_pages_per_cblock, 1),
-			     GFP_KERNEL);
+			     max_t(unsigned int, zisofs_pages_per_cblock, 1));
 	if (!pages) {
 		folio_unlock(folio);
 		return -ENOMEM;

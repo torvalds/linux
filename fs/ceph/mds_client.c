@@ -4231,7 +4231,7 @@ static void handle_session(struct ceph_mds_session *session,
 		}
 
 		cap_auths = kzalloc_objs(struct ceph_mds_cap_auth,
-					 cap_auths_num, GFP_KERNEL);
+					 cap_auths_num);
 		if (!cap_auths) {
 			pr_err_client(cl, "No memory for cap_auths\n");
 			return;

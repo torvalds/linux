@@ -971,8 +971,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 
 	if (!edev->coal_entry) {
 		edev->coal_entry = kzalloc_objs(*edev->coal_entry,
-						QEDE_MAX_RSS_CNT(edev),
-						GFP_KERNEL);
+						QEDE_MAX_RSS_CNT(edev));
 		if (!edev->coal_entry) {
 			DP_ERR(edev, "coalesce entry allocation failed\n");
 			goto err;

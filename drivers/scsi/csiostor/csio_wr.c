@@ -279,7 +279,7 @@ csio_wr_alloc_q(struct csio_hw *hw, uint32_t qsize, uint32_t wrsize,
 
 			flq = wrm->q_arr[q->un.iq.flq_idx];
 			flq->un.fl.bufs = kzalloc_objs(struct csio_dma_buf,
-						       flq->credits, GFP_KERNEL);
+						       flq->credits);
 			if (!flq->un.fl.bufs) {
 				csio_err(hw,
 					 "Failed to allocate FL queue bufs"

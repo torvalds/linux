@@ -206,7 +206,7 @@ int mhi_ep_ring_start(struct mhi_ep_cntrl *mhi_cntrl, struct mhi_ep_ring *ring,
 
 	/* Allocate ring cache memory for holding the copy of host ring */
 	ring->ring_cache = kzalloc_objs(struct mhi_ring_element,
-					ring->ring_size, GFP_KERNEL);
+					ring->ring_size);
 	if (!ring->ring_cache)
 		return -ENOMEM;
 

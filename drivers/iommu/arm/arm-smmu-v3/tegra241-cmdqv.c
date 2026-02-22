@@ -743,7 +743,7 @@ static int tegra241_cmdqv_init_vintf(struct tegra241_cmdqv *cmdqv, u16 max_idx,
 	vintf->base = cmdqv->base + TEGRA241_VINTF(idx);
 
 	vintf->lvcmdqs = kzalloc_objs(*vintf->lvcmdqs,
-				      cmdqv->num_lvcmdqs_per_vintf, GFP_KERNEL);
+				      cmdqv->num_lvcmdqs_per_vintf);
 	if (!vintf->lvcmdqs) {
 		ida_free(&cmdqv->vintf_ids, idx);
 		return -ENOMEM;

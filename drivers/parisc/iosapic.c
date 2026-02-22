@@ -928,7 +928,7 @@ void *iosapic_register(unsigned long hpa, void __iomem *vaddr)
 	DBG_IRT("iosapic_register: num vectors = %d\n", isi->isi_num_vectors);
 
 	vip = isi->isi_vector = kzalloc_objs(struct vector_info,
-					     isi->isi_num_vectors, GFP_KERNEL);
+					     isi->isi_num_vectors);
 	if (vip == NULL) {
 		kfree(isi);
 		return NULL;

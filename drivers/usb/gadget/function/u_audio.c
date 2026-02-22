@@ -1210,7 +1210,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		prm->srate = params->c_srates[0];
 
 		prm->reqs = kzalloc_objs(struct usb_request *,
-					 params->req_number, GFP_KERNEL);
+					 params->req_number);
 		if (!prm->reqs) {
 			err = -ENOMEM;
 			goto fail;
@@ -1234,7 +1234,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		prm->srate = params->p_srates[0];
 
 		prm->reqs = kzalloc_objs(struct usb_request *,
-					 params->req_number, GFP_KERNEL);
+					 params->req_number);
 		if (!prm->reqs) {
 			err = -ENOMEM;
 			goto fail;

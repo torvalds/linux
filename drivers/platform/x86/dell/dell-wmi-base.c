@@ -657,8 +657,7 @@ static int dell_wmi_input_setup(struct wmi_device *wdev)
 	}
 
 	keymap = kzalloc_objs(struct key_entry,
-			      dmi_results.keymap_size + ARRAY_SIZE(dell_wmi_keymap_type_0000) + ARRAY_SIZE(dell_wmi_keymap_type_0010) + ARRAY_SIZE(dell_wmi_keymap_type_0011) + ARRAY_SIZE(dell_wmi_keymap_type_0012) + 1,
-			      GFP_KERNEL);
+			      dmi_results.keymap_size + ARRAY_SIZE(dell_wmi_keymap_type_0000) + ARRAY_SIZE(dell_wmi_keymap_type_0010) + ARRAY_SIZE(dell_wmi_keymap_type_0011) + ARRAY_SIZE(dell_wmi_keymap_type_0012) + 1);
 	if (!keymap) {
 		kfree(dmi_results.keymap);
 		err = -ENOMEM;

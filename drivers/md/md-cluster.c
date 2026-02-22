@@ -1544,7 +1544,7 @@ static int lock_all_bitmaps(struct mddev *mddev)
 
 	cinfo->other_bitmap_lockres =
 		kzalloc_objs(struct dlm_lock_resource *,
-			     mddev->bitmap_info.nodes - 1, GFP_KERNEL);
+			     mddev->bitmap_info.nodes - 1);
 	if (!cinfo->other_bitmap_lockres) {
 		pr_err("md: can't alloc mem for other bitmap locks\n");
 		return 0;

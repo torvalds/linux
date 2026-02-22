@@ -1134,7 +1134,7 @@ static int br_mdb_config_src_list_init(struct nlattr *src_list,
 	}
 
 	cfg->src_entries = kzalloc_objs(struct br_mdb_src_entry,
-					cfg->num_src_entries, GFP_KERNEL);
+					cfg->num_src_entries);
 	if (!cfg->src_entries)
 		return -ENOMEM;
 

@@ -7398,7 +7398,7 @@ static int __net_init addrconf_init_net(struct net *net)
 	spin_lock_init(&net->ipv6.addrconf_hash_lock);
 	INIT_DEFERRABLE_WORK(&net->ipv6.addr_chk_work, addrconf_verify_work);
 	net->ipv6.inet6_addr_lst = kzalloc_objs(struct hlist_head,
-						IN6_ADDR_HSIZE, GFP_KERNEL);
+						IN6_ADDR_HSIZE);
 	if (!net->ipv6.inet6_addr_lst)
 		goto err_alloc_addr;
 

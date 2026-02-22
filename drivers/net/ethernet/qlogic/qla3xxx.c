@@ -2579,7 +2579,7 @@ static int ql_alloc_buffer_queues(struct ql3_adapter *qdev)
 		qdev->lrg_buf_q_alloc_size = qdev->lrg_buf_q_size * 2;
 
 	qdev->lrg_buf = kmalloc_objs(struct ql_rcv_buf_cb,
-				     qdev->num_large_buffers, GFP_KERNEL);
+				     qdev->num_large_buffers);
 	if (qdev->lrg_buf == NULL)
 		return -ENOMEM;
 

@@ -342,7 +342,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	/* Allocate cluster boot configuration structs */
 	nclusters = mips_cps_numclusters();
 	mips_cps_cluster_bootcfg = kzalloc_objs(*mips_cps_cluster_bootcfg,
-						nclusters, GFP_KERNEL);
+						nclusters);
 	if (!mips_cps_cluster_bootcfg)
 		goto err_out;
 
@@ -368,8 +368,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 			int v;
 			core_vpes = core_vpe_count(cl, c);
 			core_bootcfg[c].vpe_config = kzalloc_objs(*core_bootcfg[c].vpe_config,
-								  core_vpes,
-								  GFP_KERNEL);
+								  core_vpes);
 			for (v = 0; v < core_vpes; v++)
 				cpumask_set_cpu(nvpe++, &mips_cps_cluster_bootcfg[cl].cpumask);
 			if (!core_bootcfg[c].vpe_config)

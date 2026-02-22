@@ -3433,12 +3433,12 @@ static int idpf_vport_params_buf_alloc(struct idpf_adapter *adapter)
 	u16 num_max_vports = idpf_get_max_vports(adapter);
 
 	adapter->vport_params_reqd = kzalloc_objs(*adapter->vport_params_reqd,
-						  num_max_vports, GFP_KERNEL);
+						  num_max_vports);
 	if (!adapter->vport_params_reqd)
 		return -ENOMEM;
 
 	adapter->vport_params_recvd = kzalloc_objs(*adapter->vport_params_recvd,
-						   num_max_vports, GFP_KERNEL);
+						   num_max_vports);
 	if (!adapter->vport_params_recvd)
 		goto err_mem;
 
@@ -3450,7 +3450,7 @@ static int idpf_vport_params_buf_alloc(struct idpf_adapter *adapter)
 		return 0;
 
 	adapter->vport_config = kzalloc_objs(*adapter->vport_config,
-					     num_max_vports, GFP_KERNEL);
+					     num_max_vports);
 	if (!adapter->vport_config)
 		goto err_mem;
 
@@ -3560,7 +3560,7 @@ restart:
 
 	if (!adapter->netdevs) {
 		adapter->netdevs = kzalloc_objs(struct net_device *,
-						num_max_vports, GFP_KERNEL);
+						num_max_vports);
 		if (!adapter->netdevs) {
 			err = -ENOMEM;
 			goto err_netdev_alloc;

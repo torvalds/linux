@@ -251,14 +251,14 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 	sprintf(dev->name, "tw%04X", pci_dev->device);
 
 	dev->video_channels = kzalloc_objs(*dev->video_channels,
-					   max_channels(dev), GFP_KERNEL);
+					   max_channels(dev));
 	if (!dev->video_channels) {
 		err = -ENOMEM;
 		goto free_dev;
 	}
 
 	dev->audio_channels = kzalloc_objs(*dev->audio_channels,
-					   max_channels(dev), GFP_KERNEL);
+					   max_channels(dev));
 	if (!dev->audio_channels) {
 		err = -ENOMEM;
 		goto free_video;

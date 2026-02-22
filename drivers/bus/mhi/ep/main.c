@@ -1137,7 +1137,7 @@ int mhi_ep_power_up(struct mhi_ep_cntrl *mhi_cntrl)
 	mhi_ep_mmio_init(mhi_cntrl);
 
 	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event,
-					    mhi_cntrl->event_rings, GFP_KERNEL);
+					    mhi_cntrl->event_rings);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
@@ -1400,7 +1400,7 @@ static int mhi_ep_chan_init(struct mhi_ep_cntrl *mhi_cntrl,
 	 * only the defined channels
 	 */
 	mhi_cntrl->mhi_chan = kzalloc_objs(*mhi_cntrl->mhi_chan,
-					   mhi_cntrl->max_chan, GFP_KERNEL);
+					   mhi_cntrl->max_chan);
 	if (!mhi_cntrl->mhi_chan)
 		return -ENOMEM;
 

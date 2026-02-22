@@ -2020,7 +2020,7 @@ static int mlxsw_sp_port_module_info_init(struct mlxsw_sp *mlxsw_sp)
 	int err;
 
 	mlxsw_sp->port_mapping = kzalloc_objs(struct mlxsw_sp_port_mapping,
-					      max_ports, GFP_KERNEL);
+					      max_ports);
 	if (!mlxsw_sp->port_mapping)
 		return -ENOMEM;
 

@@ -1947,8 +1947,7 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 
 		if (vs->inline_sg_cnt) {
 			tv_cmd->sgl = kzalloc_objs(struct scatterlist,
-						   vs->inline_sg_cnt,
-						   GFP_KERNEL);
+						   vs->inline_sg_cnt);
 			if (!tv_cmd->sgl) {
 				pr_err("Unable to allocate tv_cmd->sgl\n");
 				goto out;
@@ -1958,8 +1957,7 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 		if (vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI) &&
 		    vs->inline_sg_cnt) {
 			tv_cmd->prot_sgl = kzalloc_objs(struct scatterlist,
-							vs->inline_sg_cnt,
-							GFP_KERNEL);
+							vs->inline_sg_cnt);
 			if (!tv_cmd->prot_sgl) {
 				pr_err("Unable to allocate tv_cmd->prot_sgl\n");
 				goto out;

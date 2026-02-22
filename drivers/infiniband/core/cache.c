@@ -1472,7 +1472,7 @@ ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
 
 	if (update_pkeys) {
 		pkey_cache = kmalloc_flex(*pkey_cache, table,
-					  tprops->pkey_tbl_len, GFP_KERNEL);
+					  tprops->pkey_tbl_len);
 		if (!pkey_cache) {
 			ret = -ENOMEM;
 			goto err;

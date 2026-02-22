@@ -4605,8 +4605,7 @@ int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
 
 		num_commit_deps = hweight32(mst_state->pending_crtc_mask);
 		mst_state->commit_deps = kmalloc_objs(*mst_state->commit_deps,
-						      num_commit_deps,
-						      GFP_KERNEL);
+						      num_commit_deps);
 		if (!mst_state->commit_deps)
 			return -ENOMEM;
 		mst_state->num_commit_deps = num_commit_deps;

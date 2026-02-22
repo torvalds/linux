@@ -1628,7 +1628,7 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			* sizeof(struct zcrypt_device_status_ext);
 
 		device_status = kvzalloc_objs(struct zcrypt_device_status_ext,
-					      MAX_ZDEV_ENTRIES_EXT, GFP_KERNEL);
+					      MAX_ZDEV_ENTRIES_EXT);
 		if (!device_status)
 			return -ENOMEM;
 		zcrypt_device_status_mask_ext(device_status,

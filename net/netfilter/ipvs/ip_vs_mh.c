@@ -294,7 +294,7 @@ static int ip_vs_mh_reassign(struct ip_vs_mh_state *s,
 
 	if (svc->num_dests >= 1) {
 		s->dest_setup = kzalloc_objs(struct ip_vs_mh_dest_setup,
-					     svc->num_dests, GFP_KERNEL);
+					     svc->num_dests);
 		if (!s->dest_setup)
 			return -ENOMEM;
 	}

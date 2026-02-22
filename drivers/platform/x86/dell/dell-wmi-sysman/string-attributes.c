@@ -109,8 +109,7 @@ int alloc_str_data(void)
 
 	wmi_priv.str_instances_count = get_instance_count(DELL_WMI_BIOS_STRING_ATTRIBUTE_GUID);
 	wmi_priv.str_data = kzalloc_objs(struct str_data,
-					 wmi_priv.str_instances_count,
-					 GFP_KERNEL);
+					 wmi_priv.str_instances_count);
 	if (!wmi_priv.str_data) {
 		wmi_priv.str_instances_count = 0;
 		ret = -ENOMEM;

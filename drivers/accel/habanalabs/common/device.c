@@ -893,8 +893,7 @@ static int device_early_init(struct hl_device *hdev)
 
 	if (hdev->asic_prop.completion_queues_count) {
 		hdev->cq_wq = kzalloc_objs(struct workqueue_struct *,
-					   hdev->asic_prop.completion_queues_count,
-					   GFP_KERNEL);
+					   hdev->asic_prop.completion_queues_count);
 		if (!hdev->cq_wq) {
 			rc = -ENOMEM;
 			goto asid_fini;
@@ -2159,8 +2158,7 @@ int hl_device_init(struct hl_device *hdev)
 
 	if (user_interrupt_cnt) {
 		hdev->user_interrupt = kzalloc_objs(*hdev->user_interrupt,
-						    user_interrupt_cnt,
-						    GFP_KERNEL);
+						    user_interrupt_cnt);
 		if (!hdev->user_interrupt) {
 			rc = -ENOMEM;
 			goto early_fini;
@@ -2227,7 +2225,7 @@ int hl_device_init(struct hl_device *hdev)
 	 */
 	if (cq_cnt) {
 		hdev->completion_queue = kzalloc_objs(*hdev->completion_queue,
-						      cq_cnt, GFP_KERNEL);
+						      cq_cnt);
 
 		if (!hdev->completion_queue) {
 			dev_err(hdev->dev,
@@ -2249,8 +2247,7 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	hdev->shadow_cs_queue = kzalloc_objs(struct hl_cs *,
-					     hdev->asic_prop.max_pending_cs,
-					     GFP_KERNEL);
+					     hdev->asic_prop.max_pending_cs);
 	if (!hdev->shadow_cs_queue) {
 		rc = -ENOMEM;
 		goto cq_fini;

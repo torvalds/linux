@@ -8098,8 +8098,7 @@ long btrfs_ioctl_send(struct btrfs_root *send_root, const struct btrfs_ioctl_sen
 		}
 		send_buf_num_pages = sctx->send_max_size >> PAGE_SHIFT;
 		sctx->send_buf_pages = kzalloc_objs(*sctx->send_buf_pages,
-						    send_buf_num_pages,
-						    GFP_KERNEL);
+						    send_buf_num_pages);
 		if (!sctx->send_buf_pages) {
 			ret = -ENOMEM;
 			goto out;
@@ -8118,8 +8117,7 @@ long btrfs_ioctl_send(struct btrfs_root *send_root, const struct btrfs_ioctl_sen
 	}
 
 	sctx->clone_roots = kvzalloc_objs(*sctx->clone_roots,
-					  arg->clone_sources_count + 1,
-					  GFP_KERNEL);
+					  arg->clone_sources_count + 1);
 	if (!sctx->clone_roots) {
 		ret = -ENOMEM;
 		goto out;

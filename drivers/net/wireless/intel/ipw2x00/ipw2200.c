@@ -11278,7 +11278,7 @@ static int ipw_wdev_init(struct net_device *dev)
 		bg_band->band = NL80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
 		bg_band->channels = kzalloc_objs(struct ieee80211_channel,
-						 geo->bg_channels, GFP_KERNEL);
+						 geo->bg_channels);
 		if (!bg_band->channels) {
 			rc = -ENOMEM;
 			goto out;
@@ -11316,7 +11316,7 @@ static int ipw_wdev_init(struct net_device *dev)
 		a_band->band = NL80211_BAND_5GHZ;
 		a_band->n_channels = geo->a_channels;
 		a_band->channels = kzalloc_objs(struct ieee80211_channel,
-						geo->a_channels, GFP_KERNEL);
+						geo->a_channels);
 		if (!a_band->channels) {
 			rc = -ENOMEM;
 			goto out;

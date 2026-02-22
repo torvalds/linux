@@ -14308,7 +14308,7 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 
 	if (n_thresholds) {
 		cqm_config = kzalloc_flex(*cqm_config, rssi_thresholds,
-					  n_thresholds, GFP_KERNEL);
+					  n_thresholds);
 		if (!cqm_config)
 			return -ENOMEM;
 
@@ -15051,7 +15051,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		new_triggers.patterns = kzalloc_objs(new_triggers.patterns[0],
-						     n_patterns, GFP_KERNEL);
+						     n_patterns);
 		if (!new_triggers.patterns)
 			return -ENOMEM;
 

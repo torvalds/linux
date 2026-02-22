@@ -4624,7 +4624,7 @@ static int bnxt_init_ring_grps(struct bnxt *bp, bool irq_re_init)
 
 	if (irq_re_init) {
 		bp->grp_info = kzalloc_objs(struct bnxt_ring_grp_info,
-					    bp->cp_nr_rings, GFP_KERNEL);
+					    bp->cp_nr_rings);
 		if (!bp->grp_info)
 			return -ENOMEM;
 	}
@@ -5511,7 +5511,7 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		}
 
 		bp->rx_ring = kzalloc_objs(struct bnxt_rx_ring_info,
-					   bp->rx_nr_rings, GFP_KERNEL);
+					   bp->rx_nr_rings);
 		if (!bp->rx_ring)
 			return -ENOMEM;
 
@@ -5531,7 +5531,7 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		}
 
 		bp->tx_ring = kzalloc_objs(struct bnxt_tx_ring_info,
-					   bp->tx_nr_rings, GFP_KERNEL);
+					   bp->tx_nr_rings);
 		if (!bp->tx_ring)
 			return -ENOMEM;
 

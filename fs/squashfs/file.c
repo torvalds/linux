@@ -104,8 +104,7 @@ static struct meta_index *empty_meta_index(struct inode *inode, int offset,
 		 * if a 'large' file is read.
 		 */
 		msblk->meta_index = kzalloc_objs(*(msblk->meta_index),
-						 SQUASHFS_META_SLOTS,
-						 GFP_KERNEL);
+						 SQUASHFS_META_SLOTS);
 		if (msblk->meta_index == NULL) {
 			ERROR("Failed to allocate meta_index\n");
 			goto failed;

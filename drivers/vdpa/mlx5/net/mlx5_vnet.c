@@ -3810,7 +3810,7 @@ static void allocate_irqs(struct mlx5_vdpa_net *ndev)
 		return;
 
 	ndev->irqp.entries = kzalloc_objs(*ndev->irqp.entries,
-					  ndev->mvdev.max_vqs, GFP_KERNEL);
+					  ndev->mvdev.max_vqs);
 	if (!ndev->irqp.entries)
 		return;
 

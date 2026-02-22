@@ -186,8 +186,7 @@ int hp_alloc_password_data(void)
 {
 	bioscfg_drv.password_instances_count = hp_get_instance_count(HP_WMI_BIOS_PASSWORD_GUID);
 	bioscfg_drv.password_data = kzalloc_objs(*bioscfg_drv.password_data,
-						 bioscfg_drv.password_instances_count,
-						 GFP_KERNEL);
+						 bioscfg_drv.password_instances_count);
 	if (!bioscfg_drv.password_data) {
 		bioscfg_drv.password_instances_count = 0;
 		return -ENOMEM;

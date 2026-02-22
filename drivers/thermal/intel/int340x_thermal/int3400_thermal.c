@@ -391,7 +391,7 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 
 	if (priv->odvp_attrs == NULL) {
 		priv->odvp_attrs = kzalloc_objs(struct odvp_attr,
-						priv->odvp_count, GFP_KERNEL);
+						priv->odvp_count);
 		if (!priv->odvp_attrs) {
 			ret = -ENOMEM;
 			goto out_err;

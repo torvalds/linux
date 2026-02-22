@@ -1807,7 +1807,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 		goto __err_gpr;
 
 	controls = kzalloc_objs(struct snd_emu10k1_fx8010_control_gpr,
-				SND_EMU10K1_GPR_CONTROLS, GFP_KERNEL);
+				SND_EMU10K1_GPR_CONTROLS);
 	if (!controls)
 		goto __err_ctrls;
 

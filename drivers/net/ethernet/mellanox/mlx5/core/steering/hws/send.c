@@ -1034,7 +1034,7 @@ static int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
 	queue->used_entries = 0;
 
 	queue->completed.entries = kzalloc_objs(queue->completed.entries[0],
-						queue->num_entries, GFP_KERNEL);
+						queue->num_entries);
 	if (!queue->completed.entries)
 		return -ENOMEM;
 
@@ -1094,13 +1094,13 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 	ctx->queues += bwc_queues;
 
 	ctx->bwc_send_queue_locks = kzalloc_objs(*ctx->bwc_send_queue_locks,
-						 bwc_queues, GFP_KERNEL);
+						 bwc_queues);
 
 	if (!ctx->bwc_send_queue_locks)
 		return -ENOMEM;
 
 	ctx->bwc_lock_class_keys = kzalloc_objs(*ctx->bwc_lock_class_keys,
-						bwc_queues, GFP_KERNEL);
+						bwc_queues);
 	if (!ctx->bwc_lock_class_keys)
 		goto err_lock_class_keys;
 

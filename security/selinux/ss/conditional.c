@@ -166,7 +166,7 @@ int cond_init_bool_indexes(struct policydb *p)
 {
 	kfree(p->bool_val_to_struct);
 	p->bool_val_to_struct = kmalloc_objs(*p->bool_val_to_struct,
-					     p->p_bools.nprim, GFP_KERNEL);
+					     p->p_bools.nprim);
 	if (!p->bool_val_to_struct)
 		return -ENOMEM;
 
@@ -710,7 +710,7 @@ static int duplicate_policydb_bools(struct policydb *newdb,
 	int rc;
 
 	cond_bool_array = kmalloc_objs(*orig->bool_val_to_struct,
-				       orig->p_bools.nprim, GFP_KERNEL);
+				       orig->p_bools.nprim);
 	if (!cond_bool_array)
 		return -ENOMEM;
 

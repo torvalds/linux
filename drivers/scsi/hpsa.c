@@ -2206,7 +2206,7 @@ static int hpsa_allocate_ioaccel2_sg_chain_blocks(struct ctlr_info *h)
 	for (i = 0; i < h->nr_cmds; i++) {
 		h->ioaccel2_cmd_sg_list[i] =
 			kmalloc_objs(*h->ioaccel2_cmd_sg_list[i],
-				     h->maxsgentries, GFP_KERNEL);
+				     h->maxsgentries);
 		if (!h->ioaccel2_cmd_sg_list[i])
 			goto clean;
 	}
@@ -2244,7 +2244,7 @@ static int hpsa_alloc_sg_chain_blocks(struct ctlr_info *h)
 
 	for (i = 0; i < h->nr_cmds; i++) {
 		h->cmd_sg_list[i] = kmalloc_objs(*h->cmd_sg_list[i],
-						 h->chainsize, GFP_KERNEL);
+						 h->chainsize);
 		if (!h->cmd_sg_list[i])
 			goto clean;
 

@@ -318,8 +318,7 @@ audioreach_get_module_priv_data(const struct snd_soc_tplg_private *private)
 			struct audioreach_module_priv_data *pdata;
 
 			pdata = kzalloc_flex(*pdata, data,
-					     le32_to_cpu(mod_array->size),
-					     GFP_KERNEL);
+					     le32_to_cpu(mod_array->size));
 			if (!pdata)
 				return ERR_PTR(-ENOMEM);
 

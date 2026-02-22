@@ -990,8 +990,7 @@ guc_capture_alloc_one_node(struct intel_guc *guc)
 
 	for (i = 0; i < GUC_CAPTURE_LIST_TYPE_MAX; ++i) {
 		new->reginfo[i].regs = kzalloc_objs(struct guc_mmio_reg,
-						    guc->capture->max_mmio_per_node,
-						    GFP_KERNEL);
+						    guc->capture->max_mmio_per_node);
 		if (!new->reginfo[i].regs) {
 			while (i)
 				kfree(new->reginfo[--i].regs);

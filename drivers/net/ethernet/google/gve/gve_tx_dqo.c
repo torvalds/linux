@@ -267,7 +267,7 @@ static int gve_tx_qpl_buf_init(struct gve_tx_ring *tx)
 	int i;
 
 	tx->dqo.tx_qpl_buf_next = kvzalloc_objs(tx->dqo.tx_qpl_buf_next[0],
-						num_tx_qpl_bufs, GFP_KERNEL);
+						num_tx_qpl_bufs);
 	if (!tx->dqo.tx_qpl_buf_next)
 		return -ENOMEM;
 
@@ -337,8 +337,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 
 	tx->dqo.num_pending_packets = min_t(int, num_pending_packets, S16_MAX);
 	tx->dqo.pending_packets = kvzalloc_objs(tx->dqo.pending_packets[0],
-						tx->dqo.num_pending_packets,
-						GFP_KERNEL);
+						tx->dqo.num_pending_packets);
 	if (!tx->dqo.pending_packets)
 		goto err;
 

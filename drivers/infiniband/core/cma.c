@@ -5376,8 +5376,7 @@ static int cma_add_one(struct ib_device *device)
 
 	cma_dev->device = device;
 	cma_dev->default_gid_type = kzalloc_objs(*cma_dev->default_gid_type,
-						 device->phys_port_cnt,
-						 GFP_KERNEL);
+						 device->phys_port_cnt);
 	if (!cma_dev->default_gid_type) {
 		ret = -ENOMEM;
 		goto free_cma_dev;

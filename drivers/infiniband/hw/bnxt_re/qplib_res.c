@@ -873,7 +873,7 @@ int bnxt_qplib_alloc_res(struct bnxt_qplib_res *res, struct net_device *netdev)
 	/* Allocate one extra to hold the QP1 entries */
 	rcfw->qp_tbl_size = max_t(u32, BNXT_RE_MAX_QPC_COUNT + 1, dev_attr->max_qp);
 	rcfw->qp_tbl = kzalloc_objs(struct bnxt_qplib_qp_node,
-				    rcfw->qp_tbl_size, GFP_KERNEL);
+				    rcfw->qp_tbl_size);
 	if (!rcfw->qp_tbl)
 		return -ENOMEM;
 

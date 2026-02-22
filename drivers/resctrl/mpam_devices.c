@@ -2445,8 +2445,7 @@ static int __allocate_component_cfg(struct mpam_component *comp)
 				continue;
 
 			mbwu_state = kzalloc_objs(*ris->mbwu_state,
-						  ris->props.num_mbwu_mon,
-						  GFP_KERNEL);
+						  ris->props.num_mbwu_mon);
 			if (!mbwu_state) {
 				__destroy_component_cfg(comp);
 				return -ENOMEM;

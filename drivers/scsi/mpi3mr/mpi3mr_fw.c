@@ -2111,8 +2111,7 @@ static int mpi3mr_alloc_op_reply_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
 	    op_reply_q->segment_qd);
 
 	op_reply_q->q_segments = kzalloc_objs(struct segments,
-					      op_reply_q->num_segments,
-					      GFP_KERNEL);
+					      op_reply_q->num_segments);
 	if (!op_reply_q->q_segments)
 		return -ENOMEM;
 
@@ -2170,7 +2169,7 @@ static int mpi3mr_alloc_op_req_q_segments(struct mpi3mr_ioc *mrioc, u16 qidx)
 	    op_req_q->segment_qd);
 
 	op_req_q->q_segments = kzalloc_objs(struct segments,
-					    op_req_q->num_segments, GFP_KERNEL);
+					    op_req_q->num_segments);
 	if (!op_req_q->q_segments)
 		return -ENOMEM;
 

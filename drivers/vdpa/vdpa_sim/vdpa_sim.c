@@ -255,7 +255,7 @@ struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *dev_attr,
 		goto err_iommu;
 
 	vdpasim->iommu_pt = kmalloc_objs(*vdpasim->iommu_pt,
-					 vdpasim->dev_attr.nas, GFP_KERNEL);
+					 vdpasim->dev_attr.nas);
 	if (!vdpasim->iommu_pt)
 		goto err_iommu;
 

@@ -1795,7 +1795,7 @@ ni_gpct_device_construct(struct comedi_device *dev,
 
 	counter_dev->counters = kzalloc_objs(*counter, num_counters);
 	counter_dev->regs = kzalloc_objs(*counter_dev->regs,
-					 counter_dev->num_chips, GFP_KERNEL);
+					 counter_dev->num_chips);
 	if (!counter_dev->regs || !counter_dev->counters) {
 		kfree(counter_dev->regs);
 		kfree(counter_dev->counters);

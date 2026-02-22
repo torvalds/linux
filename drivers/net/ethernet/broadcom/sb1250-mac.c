@@ -623,8 +623,7 @@ static void sbdma_initctx(struct sbmacdma *d, struct sbmac_softc *s, int chan,
 	d->sbdma_maxdescr = maxdescr;
 
 	d->sbdma_dscrtable_unaligned = kzalloc_objs(*d->sbdma_dscrtable,
-						    d->sbdma_maxdescr + 1,
-						    GFP_KERNEL);
+						    d->sbdma_maxdescr + 1);
 
 	/*
 	 * The descriptor table must be aligned to at least 16 bytes or the

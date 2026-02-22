@@ -2573,14 +2573,14 @@ int isp1760_hcd_register(struct isp1760_hcd *priv, struct resource *mem,
 	priv->hcd = hcd;
 
 	priv->atl_slots = kzalloc_objs(struct isp1760_slotinfo,
-				       mem_layout->slot_num, GFP_KERNEL);
+				       mem_layout->slot_num);
 	if (!priv->atl_slots) {
 		ret = -ENOMEM;
 		goto put_hcd;
 	}
 
 	priv->int_slots = kzalloc_objs(struct isp1760_slotinfo,
-				       mem_layout->slot_num, GFP_KERNEL);
+				       mem_layout->slot_num);
 	if (!priv->int_slots) {
 		ret = -ENOMEM;
 		goto free_atl_slots;

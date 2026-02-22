@@ -110,8 +110,7 @@ int hp_alloc_integer_data(void)
 {
 	bioscfg_drv.integer_instances_count = hp_get_instance_count(HP_WMI_BIOS_INTEGER_GUID);
 	bioscfg_drv.integer_data = kzalloc_objs(*bioscfg_drv.integer_data,
-						bioscfg_drv.integer_instances_count,
-						GFP_KERNEL);
+						bioscfg_drv.integer_instances_count);
 
 	if (!bioscfg_drv.integer_data) {
 		bioscfg_drv.integer_instances_count = 0;

@@ -7028,8 +7028,7 @@ _scsih_sas_host_add(struct MPT3SAS_ADAPTER *ioc)
 	ioc->sas_hba.nr_phys_allocated = max_t(u8,
 	    MPT_MAX_HBA_NUM_PHYS, num_phys);
 	ioc->sas_hba.phy = kzalloc_objs(struct _sas_phy,
-					ioc->sas_hba.nr_phys_allocated,
-					GFP_KERNEL);
+					ioc->sas_hba.nr_phys_allocated);
 	if (!ioc->sas_hba.phy) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -7283,7 +7282,7 @@ _scsih_expander_add(struct MPT3SAS_ADAPTER *ioc, u16 handle)
 		goto out_fail;
 	}
 	sas_expander->phy = kzalloc_objs(struct _sas_phy,
-					 sas_expander->num_phys, GFP_KERNEL);
+					 sas_expander->num_phys);
 	if (!sas_expander->phy) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);

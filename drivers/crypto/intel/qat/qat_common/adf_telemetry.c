@@ -76,7 +76,7 @@ static int adf_tl_alloc_mem(struct adf_accel_dev *accel_dev)
 		goto err_free_tl;
 
 	telemetry->regs_hist_buff = kmalloc_objs(*telemetry->regs_hist_buff,
-						 tl_data->num_hbuff, GFP_KERNEL);
+						 tl_data->num_hbuff);
 	if (!telemetry->regs_hist_buff)
 		goto err_free_rp_indexes;
 

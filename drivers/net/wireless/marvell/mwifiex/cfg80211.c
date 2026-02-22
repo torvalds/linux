@@ -4678,8 +4678,7 @@ int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter)
 	 */
 	adapter->num_in_chan_stats = 2 * (n_channels_bg + n_channels_a);
 	adapter->chan_stats = kzalloc_objs(*adapter->chan_stats,
-					   adapter->num_in_chan_stats,
-					   GFP_KERNEL);
+					   adapter->num_in_chan_stats);
 
 	if (!adapter->chan_stats)
 		return -ENOMEM;

@@ -530,7 +530,7 @@ struct powercap_zone *powercap_register_zone(
 	if (!power_zone->name)
 		goto err_name_alloc;
 	power_zone->constraints = kzalloc_objs(*power_zone->constraints,
-					       nr_constraints, GFP_KERNEL);
+					       nr_constraints);
 	if (!power_zone->constraints)
 		goto err_const_alloc;
 

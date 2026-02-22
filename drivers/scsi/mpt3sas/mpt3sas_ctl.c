@@ -1332,7 +1332,7 @@ _ctl_eventenable(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	ioc->event_context = 0;
 	ioc->aen_event_read_flag = 0;
 	ioc->event_log = kzalloc_objs(struct MPT3_IOCTL_EVENTS,
-				      MPT3SAS_CTL_EVENT_LOG_SIZE, GFP_KERNEL);
+				      MPT3SAS_CTL_EVENT_LOG_SIZE);
 	if (!ioc->event_log) {
 		pr_err("failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);

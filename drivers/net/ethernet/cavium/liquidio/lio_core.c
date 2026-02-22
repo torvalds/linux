@@ -1050,7 +1050,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 				[IRQ_NAME_OFF(MAX_IOQ_INTERRUPTS_PER_PF)];
 
 		oct->msix_entries = kzalloc_objs(struct msix_entry,
-						 oct->num_msix_irqs, GFP_KERNEL);
+						 oct->num_msix_irqs);
 		if (!oct->msix_entries) {
 			dev_err(&oct->pci_dev->dev, "Memory Alloc failed...\n");
 			kfree(oct->irq_name_storage);

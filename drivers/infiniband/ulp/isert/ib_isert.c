@@ -153,7 +153,7 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
 	int i, j;
 
 	isert_conn->rx_descs = kzalloc_objs(struct iser_rx_desc,
-					    ISERT_QP_MAX_RECV_DTOS, GFP_KERNEL);
+					    ISERT_QP_MAX_RECV_DTOS);
 	if (!isert_conn->rx_descs)
 		return -ENOMEM;
 

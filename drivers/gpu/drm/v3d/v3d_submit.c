@@ -485,7 +485,7 @@ v3d_get_cpu_timestamp_query_params(struct drm_file *file_priv,
 	job->job_type = V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY;
 
 	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
-					    timestamp.count, GFP_KERNEL);
+					    timestamp.count);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -543,7 +543,7 @@ v3d_get_cpu_reset_timestamp_params(struct drm_file *file_priv,
 	job->job_type = V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY;
 
 	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
-					    reset.count, GFP_KERNEL);
+					    reset.count);
 	if (!query_info->queries)
 		return -ENOMEM;
 
@@ -599,7 +599,7 @@ v3d_get_cpu_copy_query_results_params(struct drm_file *file_priv,
 	job->job_type = V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY;
 
 	query_info->queries = kvmalloc_objs(struct v3d_timestamp_query,
-					    copy.count, GFP_KERNEL);
+					    copy.count);
 	if (!query_info->queries)
 		return -ENOMEM;
 

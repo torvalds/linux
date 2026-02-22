@@ -1699,8 +1699,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Needed for hotplug/migration */
 		if (!per_nest_pmu_arr) {
 			per_nest_pmu_arr = kzalloc_objs(struct imc_pmu *,
-							get_max_nest_dev() + 1,
-							GFP_KERNEL);
+							get_max_nest_dev() + 1);
 			if (!per_nest_pmu_arr)
 				goto err;
 		}

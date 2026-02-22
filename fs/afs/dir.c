@@ -835,7 +835,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 	/* Need space for examining all the selected files */
 	if (op->nr_files > 2) {
 		op->more_files = kvzalloc_objs(struct afs_vnode_param,
-					       op->nr_files - 2, GFP_KERNEL);
+					       op->nr_files - 2);
 		if (!op->more_files) {
 			afs_op_nomem(op);
 			goto out_op;

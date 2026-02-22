@@ -777,7 +777,7 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
 	mtd->eraseregions = kmalloc_objs(struct mtd_erase_region_info,
-					 mtd->numeraseregions, GFP_KERNEL);
+					 mtd->numeraseregions);
 	if (!mtd->eraseregions)
 		goto setup_err;
 

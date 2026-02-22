@@ -4583,8 +4583,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 			   index, cos);
 
 			txdata->tx_buf_ring = kzalloc_objs(struct sw_tx_bd,
-							   NUM_TX_BD,
-							   GFP_KERNEL);
+							   NUM_TX_BD);
 			if (!txdata->tx_buf_ring)
 				goto alloc_mem_err;
 			txdata->tx_desc_ring = BNX2X_PCI_ALLOC(&txdata->tx_desc_mapping,
@@ -4752,8 +4751,7 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	for (i = 0; i < bp->fp_array_size; i++) {
 		fp[i].tpa_info =
 			kzalloc_objs(struct bnx2x_agg_info,
-				     ETH_MAX_AGGREGATION_QUEUES_E1H_E2,
-				     GFP_KERNEL);
+				     ETH_MAX_AGGREGATION_QUEUES_E1H_E2);
 		if (!(fp[i].tpa_info))
 			goto alloc_err;
 	}
