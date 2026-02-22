@@ -224,8 +224,8 @@ static int mext_move_begin(struct mext_data *mext, struct folio *folio[2],
 	}
 
 	/* Adjust the moving length according to the length of shorter folio. */
-	move_len = umin(folio_pos(folio[0]) + folio_size(folio[0]) - orig_pos,
-			folio_pos(folio[1]) + folio_size(folio[1]) - donor_pos);
+	move_len = umin(folio_next_pos(folio[0]) - orig_pos,
+			folio_next_pos(folio[1]) - donor_pos);
 	move_len >>= blkbits;
 	if (move_len < mext->orig_map.m_len)
 		mext->orig_map.m_len = move_len;
