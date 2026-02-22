@@ -802,7 +802,7 @@ config SERIAL_CPM_CONSOLE
 
 config SERIAL_PIC32
 	tristate "Microchip PIC32 serial support"
-	depends on MACH_PIC32 || (MIPS && COMPILE_TEST)
+	depends on MACH_PIC32 || COMPILE_TEST
 	select SERIAL_CORE
 	help
 	  If you have a PIC32, this driver supports the serial ports.
