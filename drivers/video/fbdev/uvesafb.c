@@ -487,8 +487,7 @@ static int uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
 		mode++;
 	}
 
-	par->vbe_modes = kzalloc_objs(struct vbe_mode_ib, par->vbe_modes_cnt,
-				      GFP_KERNEL);
+	par->vbe_modes = kzalloc_objs(struct vbe_mode_ib, par->vbe_modes_cnt);
 	if (!par->vbe_modes)
 		return -ENOMEM;
 

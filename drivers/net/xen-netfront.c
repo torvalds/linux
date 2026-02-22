@@ -2212,8 +2212,7 @@ static int xennet_create_queues(struct netfront_info *info,
 	unsigned int i;
 	int ret;
 
-	info->queues = kzalloc_objs(struct netfront_queue, *num_queues,
-				    GFP_KERNEL);
+	info->queues = kzalloc_objs(struct netfront_queue, *num_queues);
 	if (!info->queues)
 		return -ENOMEM;
 

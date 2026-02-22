@@ -276,8 +276,7 @@ static int add_keys(struct mlx5_cache_ent *ent, unsigned int num)
 	int i;
 
 	for (i = 0; i < num; i++) {
-		async_create = kzalloc_obj(struct mlx5r_async_create_mkey,
-					   GFP_KERNEL);
+		async_create = kzalloc_obj(struct mlx5r_async_create_mkey);
 		if (!async_create)
 			return -ENOMEM;
 		mkc = MLX5_ADDR_OF(create_mkey_in, async_create->in,

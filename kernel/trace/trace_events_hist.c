@@ -5674,8 +5674,7 @@ static int print_entries(struct seq_file *m,
 			(HIST_FIELD_FL_PERCENT | HIST_FIELD_FL_GRAPH)))
 			continue;
 		if (!stats) {
-			stats = kzalloc_objs(*stats, hist_data->n_vals,
-					     GFP_KERNEL);
+			stats = kzalloc_objs(*stats, hist_data->n_vals);
 			if (!stats) {
 				n_entries = -ENOMEM;
 				goto out;

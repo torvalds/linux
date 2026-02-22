@@ -52,8 +52,7 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
 {
 	int ret = 0;
 
-	fd->entry_to_rb = kzalloc_objs(*fd->entry_to_rb, uctxt->expected_count,
-				       GFP_KERNEL);
+	fd->entry_to_rb = kzalloc_objs(*fd->entry_to_rb, uctxt->expected_count);
 	if (!fd->entry_to_rb)
 		return -ENOMEM;
 

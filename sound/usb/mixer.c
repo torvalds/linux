@@ -3603,8 +3603,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 		return -ENOMEM;
 	mixer->chip = chip;
 	mixer->ignore_ctl_error = !!(chip->quirk_flags & QUIRK_FLAG_IGNORE_CTL_ERROR);
-	mixer->id_elems = kzalloc_objs(*mixer->id_elems, MAX_ID_ELEMS,
-				       GFP_KERNEL);
+	mixer->id_elems = kzalloc_objs(*mixer->id_elems, MAX_ID_ELEMS);
 	if (!mixer->id_elems) {
 		kfree(mixer);
 		return -ENOMEM;

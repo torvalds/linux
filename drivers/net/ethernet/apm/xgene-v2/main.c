@@ -417,8 +417,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	if (!ring->desc_addr)
 		goto err;
 
-	ring->pkt_info = kzalloc_objs(*ring->pkt_info, XGENE_ENET_NUM_DESC,
-				      GFP_KERNEL);
+	ring->pkt_info = kzalloc_objs(*ring->pkt_info, XGENE_ENET_NUM_DESC);
 	if (!ring->pkt_info)
 		goto err;
 

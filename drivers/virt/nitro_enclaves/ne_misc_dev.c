@@ -934,8 +934,7 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 
 	max_nr_pages = mem_region.memory_size / NE_MIN_MEM_REGION_SIZE;
 
-	ne_mem_region->pages = kzalloc_objs(*ne_mem_region->pages, max_nr_pages,
-					    GFP_KERNEL);
+	ne_mem_region->pages = kzalloc_objs(*ne_mem_region->pages, max_nr_pages);
 	if (!ne_mem_region->pages) {
 		rc = -ENOMEM;
 

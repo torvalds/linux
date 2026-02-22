@@ -1711,8 +1711,7 @@ static struct config_group *
 gpio_virtuser_config_make_device_group(struct config_group *group,
 				       const char *name)
 {
-	struct gpio_virtuser_device *dev __free(kfree) = kzalloc_obj(*dev,
-								     GFP_KERNEL);
+	struct gpio_virtuser_device *dev __free(kfree) = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

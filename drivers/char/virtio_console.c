@@ -1812,8 +1812,7 @@ static int init_vqs(struct ports_device *portdev)
 	vqs = kmalloc_objs(struct virtqueue *, nr_queues);
 	vqs_info = kzalloc_objs(*vqs_info, nr_queues);
 	portdev->in_vqs = kmalloc_objs(struct virtqueue *, nr_ports);
-	portdev->out_vqs = kmalloc_objs(struct virtqueue *, nr_ports,
-					GFP_KERNEL);
+	portdev->out_vqs = kmalloc_objs(struct virtqueue *, nr_ports);
 	if (!vqs || !vqs_info || !portdev->in_vqs || !portdev->out_vqs) {
 		err = -ENOMEM;
 		goto free;

@@ -500,8 +500,7 @@ static int build_tokens_sysfs(struct platform_device *dev)
 		return -ENOMEM;
 
 	/* need to store both location and value + terminator*/
-	token_attrs = kzalloc_objs(*token_attrs, (2 * da_num_tokens) + 1,
-				   GFP_KERNEL);
+	token_attrs = kzalloc_objs(*token_attrs, (2 * da_num_tokens) + 1);
 	if (!token_attrs)
 		goto out_allocate_attrs;
 

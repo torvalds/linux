@@ -4161,8 +4161,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 	case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 		{
 			/* start IO enumeration */
-			struct sony_pic_ioport *ioport = kzalloc_obj(*ioport,
-								     GFP_KERNEL);
+			struct sony_pic_ioport *ioport = kzalloc_obj(*ioport);
 			if (!ioport)
 				return AE_ERROR;
 

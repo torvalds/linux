@@ -3486,16 +3486,14 @@ int mlx5_ib_fs_init(struct mlx5_ib_dev *dev)
 
 	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
 		dev->flow_db->rdma_transport_rx[i] =
-			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports,
-				     GFP_KERNEL);
+			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports);
 		if (!dev->flow_db->rdma_transport_rx[i])
 			goto free_rdma_transport_rx;
 	}
 
 	for (j = 0; j < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; j++) {
 		dev->flow_db->rdma_transport_tx[j] =
-			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports,
-				     GFP_KERNEL);
+			kzalloc_objs(struct mlx5_ib_flow_prio, dev->num_ports);
 		if (!dev->flow_db->rdma_transport_tx[j])
 			goto free_rdma_transport_tx;
 	}

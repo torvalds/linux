@@ -365,8 +365,7 @@ int amdgpu_virt_ras_sw_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
-	ras_mgr->virt_ras_cmd = kzalloc_obj(struct amdgpu_virt_ras_cmd,
-					    GFP_KERNEL);
+	ras_mgr->virt_ras_cmd = kzalloc_obj(struct amdgpu_virt_ras_cmd);
 	if (!ras_mgr->virt_ras_cmd)
 		return -ENOMEM;
 

@@ -66,8 +66,7 @@ static const struct drm_connector_helper_funcs malidp_mw_connector_helper_funcs 
 
 static void malidp_mw_connector_reset(struct drm_connector *connector)
 {
-	struct malidp_mw_connector_state *mw_state = kzalloc_obj(*mw_state,
-								 GFP_KERNEL);
+	struct malidp_mw_connector_state *mw_state = kzalloc_obj(*mw_state);
 
 	if (connector->state)
 		__drm_atomic_helper_connector_destroy_state(connector->state);

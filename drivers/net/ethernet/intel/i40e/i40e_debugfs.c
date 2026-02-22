@@ -983,8 +983,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			int i, ret;
 			u16 switch_id;
 
-			bw_data = kzalloc_obj(struct i40e_aqc_query_port_ets_config_resp,
-					      GFP_KERNEL);
+			bw_data = kzalloc_obj(struct i40e_aqc_query_port_ets_config_resp);
 			if (!bw_data) {
 				ret = -ENOMEM;
 				goto command_write_done;

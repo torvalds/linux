@@ -198,8 +198,7 @@ static int ni_670x_auto_attach(struct comedi_device *dev,
 	if (s->n_chan == 32) {
 		const struct comedi_lrange **range_table_list;
 
-		range_table_list = kmalloc_objs(*range_table_list, 32,
-						GFP_KERNEL);
+		range_table_list = kmalloc_objs(*range_table_list, 32);
 		if (!range_table_list)
 			return -ENOMEM;
 		s->range_table_list = range_table_list;

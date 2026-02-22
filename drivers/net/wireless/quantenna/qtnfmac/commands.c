@@ -1031,8 +1031,7 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
 		return -E2BIG;
 
-	mac->rd = kzalloc_flex(*mac->rd, reg_rules, resp->n_reg_rules,
-			       GFP_KERNEL);
+	mac->rd = kzalloc_flex(*mac->rd, reg_rules, resp->n_reg_rules);
 	if (!mac->rd)
 		return -ENOMEM;
 
@@ -1084,8 +1083,7 @@ qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 				return -EINVAL;
 			}
 
-			limits = kzalloc_objs(*limits, rec->n_limits,
-					      GFP_KERNEL);
+			limits = kzalloc_objs(*limits, rec->n_limits);
 			if (!limits)
 				return -ENOMEM;
 
@@ -1340,8 +1338,7 @@ static int qtnf_cmd_band_fill_iftype(const u8 *data,
 	if (band->n_iftype_data == 0)
 		return 0;
 
-	iftype_data = kzalloc_objs(*iftype_data, band->n_iftype_data,
-				   GFP_KERNEL);
+	iftype_data = kzalloc_objs(*iftype_data, band->n_iftype_data);
 	if (!iftype_data) {
 		band->n_iftype_data = 0;
 		return -ENOMEM;
@@ -1388,8 +1385,7 @@ qtnf_cmd_resp_fill_band_info(struct ieee80211_supported_band *band,
 		return 0;
 
 	if (!band->channels)
-		band->channels = kzalloc_objs(*chan, band->n_channels,
-					      GFP_KERNEL);
+		band->channels = kzalloc_objs(*chan, band->n_channels);
 	if (!band->channels) {
 		band->n_channels = 0;
 		return -ENOMEM;

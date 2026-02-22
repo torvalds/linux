@@ -203,15 +203,13 @@ static int uhdlc_init(struct ucc_hdlc_private *priv)
 		goto free_tx_bd;
 	}
 
-	priv->rx_skbuff = kzalloc_objs(*priv->rx_skbuff, priv->rx_ring_size,
-				       GFP_KERNEL);
+	priv->rx_skbuff = kzalloc_objs(*priv->rx_skbuff, priv->rx_ring_size);
 	if (!priv->rx_skbuff) {
 		ret = -ENOMEM;
 		goto free_ucc_pram;
 	}
 
-	priv->tx_skbuff = kzalloc_objs(*priv->tx_skbuff, priv->tx_ring_size,
-				       GFP_KERNEL);
+	priv->tx_skbuff = kzalloc_objs(*priv->tx_skbuff, priv->tx_ring_size);
 	if (!priv->tx_skbuff) {
 		ret = -ENOMEM;
 		goto free_rx_skbuff;

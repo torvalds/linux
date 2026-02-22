@@ -921,8 +921,7 @@ static int sienna_cichlid_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context,
-					   GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 

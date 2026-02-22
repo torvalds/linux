@@ -188,8 +188,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 		dev_info(&dev->dev, "Found %d message registers\n",
 				mpic_msgr_count);
 
-		mpic_msgrs = kzalloc_objs(*mpic_msgrs, mpic_msgr_count,
-					  GFP_KERNEL);
+		mpic_msgrs = kzalloc_objs(*mpic_msgrs, mpic_msgr_count);
 		if (!mpic_msgrs) {
 			dev_err(&dev->dev,
 				"No memory for message register blocks\n");

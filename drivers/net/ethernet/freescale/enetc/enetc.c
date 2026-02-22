@@ -2562,8 +2562,7 @@ int enetc_alloc_si_resources(struct enetc_ndev_priv *priv)
 {
 	struct enetc_si *si = priv->si;
 
-	priv->cls_rules = kzalloc_objs(*priv->cls_rules, si->num_fs_entries,
-				       GFP_KERNEL);
+	priv->cls_rules = kzalloc_objs(*priv->cls_rules, si->num_fs_entries);
 	if (!priv->cls_rules)
 		return -ENOMEM;
 

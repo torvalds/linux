@@ -1510,8 +1510,7 @@ int __init ip_vs_conn_init(void)
 	 */
 	tab_array_size = array_size(ip_vs_conn_tab_size,
 				    sizeof(*ip_vs_conn_tab));
-	ip_vs_conn_tab = kvmalloc_objs(*ip_vs_conn_tab, ip_vs_conn_tab_size,
-				       GFP_KERNEL);
+	ip_vs_conn_tab = kvmalloc_objs(*ip_vs_conn_tab, ip_vs_conn_tab_size);
 	if (!ip_vs_conn_tab)
 		return -ENOMEM;
 

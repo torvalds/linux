@@ -244,8 +244,7 @@ static int add_port_entries(struct mlx4_ib_dev *device, int port_num)
 	 *	gids (operational)
 	 *	mcg_table
 	 */
-	port->dentr_ar = kzalloc_obj(struct mlx4_ib_iov_sysfs_attr_ar,
-				     GFP_KERNEL);
+	port->dentr_ar = kzalloc_obj(struct mlx4_ib_iov_sysfs_attr_ar);
 	if (!port->dentr_ar) {
 		ret = -ENOMEM;
 		goto err;

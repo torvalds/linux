@@ -2332,8 +2332,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err_chk) {
 		master_num--;
 
-		tsi148_device->flush_image = kmalloc_obj(*tsi148_device->flush_image,
-							 GFP_KERNEL);
+		tsi148_device->flush_image = kmalloc_obj(*tsi148_device->flush_image);
 		if (!tsi148_device->flush_image) {
 			retval = -ENOMEM;
 			goto err_master;

@@ -782,8 +782,7 @@ static void gb_svc_pwrmon_debugfs_init(struct gb_svc *svc)
 	if (!rail_names)
 		goto err_pwrmon_debugfs;
 
-	svc->pwrmon_rails = kzalloc_objs(*svc->pwrmon_rails, rail_count,
-					 GFP_KERNEL);
+	svc->pwrmon_rails = kzalloc_objs(*svc->pwrmon_rails, rail_count);
 	if (!svc->pwrmon_rails)
 		goto err_pwrmon_debugfs_free;
 

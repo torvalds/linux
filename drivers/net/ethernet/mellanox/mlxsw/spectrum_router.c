@@ -1038,8 +1038,7 @@ static int mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
 		return -EIO;
 
 	max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
-	mlxsw_sp->router->vrs = kzalloc_objs(struct mlxsw_sp_vr, max_vrs,
-					     GFP_KERNEL);
+	mlxsw_sp->router->vrs = kzalloc_objs(struct mlxsw_sp_vr, max_vrs);
 	if (!mlxsw_sp->router->vrs)
 		return -ENOMEM;
 
@@ -11068,8 +11067,7 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp->router->max_rif_mac_profile =
 		MLXSW_CORE_RES_GET(core, MAX_RIF_MAC_PROFILES);
 
-	mlxsw_sp->router->rifs = kzalloc_objs(struct mlxsw_sp_rif *, max_rifs,
-					      GFP_KERNEL);
+	mlxsw_sp->router->rifs = kzalloc_objs(struct mlxsw_sp_rif *, max_rifs);
 	if (!mlxsw_sp->router->rifs)
 		return -ENOMEM;
 

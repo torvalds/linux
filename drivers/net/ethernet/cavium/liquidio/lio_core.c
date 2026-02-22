@@ -107,10 +107,8 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	/* allocate memory to store virtual and dma base address of
 	 * per glist consistent memory
 	 */
-	lio->glists_virt_base = kzalloc_objs(*lio->glists_virt_base, num_iqs,
-					     GFP_KERNEL);
-	lio->glists_dma_base = kzalloc_objs(*lio->glists_dma_base, num_iqs,
-					    GFP_KERNEL);
+	lio->glists_virt_base = kzalloc_objs(*lio->glists_virt_base, num_iqs);
+	lio->glists_dma_base = kzalloc_objs(*lio->glists_dma_base, num_iqs);
 
 	if (!lio->glists_virt_base || !lio->glists_dma_base) {
 		lio_delete_glists(lio);

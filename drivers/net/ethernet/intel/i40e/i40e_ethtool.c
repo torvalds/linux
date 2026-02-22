@@ -2120,8 +2120,7 @@ static int i40e_set_ringparam(struct net_device *netdev,
 		netdev_info(netdev,
 			    "Changing Tx descriptor count from %d to %d.\n",
 			    vsi->tx_rings[0]->count, new_tx_count);
-		tx_rings = kzalloc_objs(struct i40e_ring, tx_alloc_queue_pairs,
-					GFP_KERNEL);
+		tx_rings = kzalloc_objs(struct i40e_ring, tx_alloc_queue_pairs);
 		if (!tx_rings) {
 			err = -ENOMEM;
 			goto done;

@@ -524,8 +524,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
 		struct resource_allocator *res_alloc =
 			&priv->mfunc.master.res_tracker.res_alloc[i];
-		res_alloc->quota = kmalloc_objs(int, dev->persist->num_vfs + 1,
-						GFP_KERNEL);
+		res_alloc->quota = kmalloc_objs(int, dev->persist->num_vfs + 1);
 		res_alloc->guaranteed = kmalloc_objs(int,
 						     dev->persist->num_vfs + 1,
 						     GFP_KERNEL);
@@ -536,8 +535,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 					     GFP_KERNEL);
 		else
 			res_alloc->allocated =
-				kzalloc_objs(int, dev->persist->num_vfs + 1,
-					     GFP_KERNEL);
+				kzalloc_objs(int, dev->persist->num_vfs + 1);
 		/* Reduce the sink counter */
 		if (i == RES_COUNTER)
 			res_alloc->res_free = dev->caps.max_counters - 1;
@@ -1238,8 +1236,7 @@ int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
 
 	memset(data, 0, sizeof(*data));
 
-	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters,
-				    GFP_KERNEL);
+	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters);
 	if (!counters_arr)
 		return -ENOMEM;
 
@@ -5185,8 +5182,7 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
 			  slave);
 
-	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters,
-				    GFP_KERNEL);
+	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters);
 	if (!counters_arr)
 		return;
 

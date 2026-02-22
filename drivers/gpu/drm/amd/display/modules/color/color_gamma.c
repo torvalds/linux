@@ -1945,8 +1945,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 		if (!rgb_user)
 			goto rgb_user_alloc_fail;
 
-		axis_x = kvzalloc_objs(*axis_x, ramp->num_entries + 3,
-				       GFP_KERNEL);
+		axis_x = kvzalloc_objs(*axis_x, ramp->num_entries + 3);
 		if (!axis_x)
 			goto axis_x_alloc_fail;
 
@@ -1965,8 +1964,7 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 			scale_gamma_dx(rgb_user, ramp, dividers);
 	}
 
-	rgb_regamma = kvzalloc_objs(*rgb_regamma, MAX_HW_POINTS + _EXTRA_POINTS,
-				    GFP_KERNEL);
+	rgb_regamma = kvzalloc_objs(*rgb_regamma, MAX_HW_POINTS + _EXTRA_POINTS);
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
 

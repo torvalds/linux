@@ -1408,8 +1408,7 @@ static int xe_oa_parse_syncs(struct xe_oa *oa,
 	}
 
 	if (param->num_syncs) {
-		param->syncs = kzalloc_objs(*param->syncs, param->num_syncs,
-					    GFP_KERNEL);
+		param->syncs = kzalloc_objs(*param->syncs, param->num_syncs);
 		if (!param->syncs) {
 			ret = -ENOMEM;
 			goto exit;

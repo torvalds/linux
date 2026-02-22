@@ -349,8 +349,7 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 		if (count <= 0)
 			return -EINVAL;
 
-		rintc_acpi_data = kzalloc_objs(*rintc_acpi_data, count,
-					       GFP_KERNEL);
+		rintc_acpi_data = kzalloc_objs(*rintc_acpi_data, count);
 		if (!rintc_acpi_data)
 			return -ENOMEM;
 	}

@@ -213,8 +213,7 @@ static int rdma_rw_init_mr_wrs_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	int i, ret, count = 0;
 	u32 nents = 0;
 
-	ctx->reg = kzalloc_objs(*ctx->reg, DIV_ROUND_UP(nr_bvec, pages_per_mr),
-				GFP_KERNEL);
+	ctx->reg = kzalloc_objs(*ctx->reg, DIV_ROUND_UP(nr_bvec, pages_per_mr));
 	if (!ctx->reg)
 		return -ENOMEM;
 
@@ -222,8 +221,7 @@ static int rdma_rw_init_mr_wrs_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	 * Build scatterlist from bvecs using the iterator. This follows
 	 * the pattern from __blk_rq_map_sg.
 	 */
-	ctx->reg[0].sgt.sgl = kmalloc_objs(*ctx->reg[0].sgt.sgl, nr_bvec,
-					   GFP_KERNEL);
+	ctx->reg[0].sgt.sgl = kmalloc_objs(*ctx->reg[0].sgt.sgl, nr_bvec);
 	if (!ctx->reg[0].sgt.sgl) {
 		ret = -ENOMEM;
 		goto out_free_reg;

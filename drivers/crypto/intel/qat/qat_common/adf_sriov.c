@@ -173,8 +173,7 @@ static int adf_do_enable_sriov(struct adf_accel_dev *accel_dev)
 		goto err_del_cfg;
 
 	/* Allocate memory for VF info structs */
-	accel_dev->pf.vf_info = kzalloc_objs(struct adf_accel_vf_info, totalvfs,
-					     GFP_KERNEL);
+	accel_dev->pf.vf_info = kzalloc_objs(struct adf_accel_vf_info, totalvfs);
 	ret = -ENOMEM;
 	if (!accel_dev->pf.vf_info)
 		goto err_del_cfg;

@@ -275,8 +275,7 @@ static u32 gb_manifest_parse_cports(struct gb_bundle *bundle)
 	if (!count)
 		return 0;
 
-	bundle->cport_desc = kzalloc_objs(*bundle->cport_desc, count,
-					  GFP_KERNEL);
+	bundle->cport_desc = kzalloc_objs(*bundle->cport_desc, count);
 	if (!bundle->cport_desc)
 		goto exit;
 

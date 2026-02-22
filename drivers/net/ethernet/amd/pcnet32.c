@@ -2043,13 +2043,11 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 	if (!lp->rx_dma_addr)
 		return -ENOMEM;
 
-	lp->tx_skbuff = kzalloc_objs(struct sk_buff *, lp->tx_ring_size,
-				     GFP_KERNEL);
+	lp->tx_skbuff = kzalloc_objs(struct sk_buff *, lp->tx_ring_size);
 	if (!lp->tx_skbuff)
 		return -ENOMEM;
 
-	lp->rx_skbuff = kzalloc_objs(struct sk_buff *, lp->rx_ring_size,
-				     GFP_KERNEL);
+	lp->rx_skbuff = kzalloc_objs(struct sk_buff *, lp->rx_ring_size);
 	if (!lp->rx_skbuff)
 		return -ENOMEM;
 

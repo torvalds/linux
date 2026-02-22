@@ -603,8 +603,7 @@ static int uhci_start(struct usb_hcd *hcd)
 		goto err_alloc_frame;
 	}
 
-	uhci->frame_cpu = kzalloc_objs(*uhci->frame_cpu, UHCI_NUMFRAMES,
-				       GFP_KERNEL);
+	uhci->frame_cpu = kzalloc_objs(*uhci->frame_cpu, UHCI_NUMFRAMES);
 	if (!uhci->frame_cpu)
 		goto err_alloc_frame_cpu;
 

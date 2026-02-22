@@ -1029,8 +1029,7 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			return -EINVAL;
 
 		size = CHUNK_ALIGN(arg);
-		vec = kzalloc_objs(struct mon_pgmap, size / CHUNK_SIZE,
-				   GFP_KERNEL);
+		vec = kzalloc_objs(struct mon_pgmap, size / CHUNK_SIZE);
 		if (vec == NULL) {
 			ret = -ENOMEM;
 			break;

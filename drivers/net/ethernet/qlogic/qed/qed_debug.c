@@ -6821,8 +6821,7 @@ qed_mcp_trace_alloc_meta_data(struct qed_hwfn *p_hwfn,
 
 	/* Read number of formats and allocate memory for all formats */
 	meta->formats_num = qed_read_dword_from_buf(meta_buf_bytes, &offset);
-	meta->formats = kzalloc_objs(struct mcp_trace_format, meta->formats_num,
-				     GFP_KERNEL);
+	meta->formats = kzalloc_objs(struct mcp_trace_format, meta->formats_num);
 	if (!meta->formats)
 		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
 

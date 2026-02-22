@@ -1945,8 +1945,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 	/* CQ size of SQ */
 	qset->sqe_cnt = qset->sqe_cnt ? qset->sqe_cnt : Q_COUNT(Q_SIZE_4K);
 
-	qset->cq = kzalloc_objs(struct otx2_cq_queue, pf->qset.cq_cnt,
-				GFP_KERNEL);
+	qset->cq = kzalloc_objs(struct otx2_cq_queue, pf->qset.cq_cnt);
 	if (!qset->cq)
 		goto err_free_mem;
 
@@ -1955,8 +1954,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 	if (!qset->sq)
 		goto err_free_mem;
 
-	qset->rq = kzalloc_objs(struct otx2_rcv_queue, pf->hw.rx_queues,
-				GFP_KERNEL);
+	qset->rq = kzalloc_objs(struct otx2_rcv_queue, pf->hw.rx_queues);
 	if (!qset->rq)
 		goto err_free_mem;
 

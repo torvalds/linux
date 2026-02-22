@@ -167,8 +167,7 @@ static int icrdma_init_interrupts(struct irdma_pci_f *rf, struct iidc_rdma_core_
 	int i;
 
 	rf->msix_count = num_online_cpus() + IRDMA_NUM_AEQ_MSIX;
-	rf->msix_entries = kzalloc_objs(*rf->msix_entries, rf->msix_count,
-					GFP_KERNEL);
+	rf->msix_entries = kzalloc_objs(*rf->msix_entries, rf->msix_count);
 	if (!rf->msix_entries)
 		return -ENOMEM;
 

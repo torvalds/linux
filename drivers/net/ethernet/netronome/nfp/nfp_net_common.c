@@ -2537,8 +2537,7 @@ nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
 				  nn->dp.num_r_vecs, num_online_cpus());
 	nn->max_r_vecs = nn->dp.num_r_vecs;
 
-	nn->dp.xsk_pools = kzalloc_objs(*nn->dp.xsk_pools, nn->max_r_vecs,
-					GFP_KERNEL);
+	nn->dp.xsk_pools = kzalloc_objs(*nn->dp.xsk_pools, nn->max_r_vecs);
 	if (!nn->dp.xsk_pools) {
 		err = -ENOMEM;
 		goto err_free_nn;

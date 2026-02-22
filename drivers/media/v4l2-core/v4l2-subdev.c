@@ -1620,8 +1620,7 @@ __v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
 
 	/* Drivers that support streams do not need the legacy pad config */
 	if (!(sd->flags & V4L2_SUBDEV_FL_STREAMS) && sd->entity.num_pads) {
-		state->pads = kvzalloc_objs(*state->pads, sd->entity.num_pads,
-					    GFP_KERNEL);
+		state->pads = kvzalloc_objs(*state->pads, sd->entity.num_pads);
 		if (!state->pads) {
 			ret = -ENOMEM;
 			goto err;

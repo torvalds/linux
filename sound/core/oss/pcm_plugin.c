@@ -163,8 +163,7 @@ int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 		channels = src_format->channels;
 	else
 		channels = dst_format->channels;
-	plugin->buf_channels = kzalloc_objs(*plugin->buf_channels, channels,
-					    GFP_KERNEL);
+	plugin->buf_channels = kzalloc_objs(*plugin->buf_channels, channels);
 	if (plugin->buf_channels == NULL) {
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;

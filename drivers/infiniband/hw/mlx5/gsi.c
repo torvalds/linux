@@ -109,8 +109,7 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 		return -ENOMEM;
 
 	gsi->outstanding_wrs =
-		kzalloc_objs(*gsi->outstanding_wrs, attr->cap.max_send_wr,
-			     GFP_KERNEL);
+		kzalloc_objs(*gsi->outstanding_wrs, attr->cap.max_send_wr);
 	if (!gsi->outstanding_wrs) {
 		ret = -ENOMEM;
 		goto err_free_tx;

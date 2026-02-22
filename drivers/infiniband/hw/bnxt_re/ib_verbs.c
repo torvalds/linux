@@ -1547,8 +1547,7 @@ static int bnxt_re_create_shadow_gsi(struct bnxt_re_qp *qp,
 
 	rdev = qp->rdev;
 	/* Create a shadow QP to handle the QP1 traffic */
-	sqp_tbl = kzalloc_objs(*sqp_tbl, BNXT_RE_MAX_GSI_SQP_ENTRIES,
-			       GFP_KERNEL);
+	sqp_tbl = kzalloc_objs(*sqp_tbl, BNXT_RE_MAX_GSI_SQP_ENTRIES);
 	if (!sqp_tbl)
 		return -ENOMEM;
 	rdev->gsi_ctx.sqp_tbl = sqp_tbl;
@@ -3194,8 +3193,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		cq->qplib_cq.dpi = &uctx->dpi;
 	} else {
 		cq->max_cql = min_t(u32, entries, MAX_CQL_PER_POLL);
-		cq->cql = kzalloc_objs(struct bnxt_qplib_cqe, cq->max_cql,
-				       GFP_KERNEL);
+		cq->cql = kzalloc_objs(struct bnxt_qplib_cqe, cq->max_cql);
 		if (!cq->cql) {
 			rc = -ENOMEM;
 			goto fail;

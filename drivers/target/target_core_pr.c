@@ -1712,8 +1712,7 @@ core_scsi3_decode_spec_i_port(
 		 * the dest_node_acl and dest_se_deve pointers for the
 		 * loop below.
 		 */
-		tidh_new = kzalloc_obj(struct pr_transport_id_holder,
-				       GFP_KERNEL);
+		tidh_new = kzalloc_obj(struct pr_transport_id_holder);
 		if (!tidh_new) {
 			pr_err("Unable to allocate tidh_new\n");
 			core_scsi3_lunacl_undepend_item(dest_se_deve);

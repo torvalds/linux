@@ -293,8 +293,7 @@ static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 	int ret;
 
 	/* asking for the data path parameters */
-	wl->data_path = kzalloc_obj(struct acx_data_path_params_resp,
-				    GFP_KERNEL);
+	wl->data_path = kzalloc_obj(struct acx_data_path_params_resp);
 	if (!wl->data_path)
 		return -ENOMEM;
 

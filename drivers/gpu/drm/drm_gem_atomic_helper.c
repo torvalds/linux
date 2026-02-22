@@ -256,8 +256,7 @@ drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane)
 	if (!plane_state)
 		return NULL;
 
-	new_shadow_plane_state = kzalloc_obj(*new_shadow_plane_state,
-					     GFP_KERNEL);
+	new_shadow_plane_state = kzalloc_obj(*new_shadow_plane_state);
 	if (!new_shadow_plane_state)
 		return NULL;
 	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);

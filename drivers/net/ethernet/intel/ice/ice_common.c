@@ -1103,8 +1103,7 @@ int ice_init_hw(struct ice_hw *hw)
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
-	mac_buf = kzalloc_objs(struct ice_aqc_manage_mac_read_resp, 2,
-			       GFP_KERNEL);
+	mac_buf = kzalloc_objs(struct ice_aqc_manage_mac_read_resp, 2);
 	if (!mac_buf) {
 		status = -ENOMEM;
 		goto err_unroll_fltr_mgmt_struct;

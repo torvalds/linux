@@ -219,8 +219,7 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 		goto out_free_bufmap;
 
 	bufmap->desc_array =
-		kzalloc_objs(struct orangefs_bufmap_desc, bufmap->desc_count,
-			     GFP_KERNEL);
+		kzalloc_objs(struct orangefs_bufmap_desc, bufmap->desc_count);
 	if (!bufmap->desc_array)
 		goto out_free_index_array;
 

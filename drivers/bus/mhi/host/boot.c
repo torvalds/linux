@@ -380,8 +380,7 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 		return -ENOMEM;
 
 	/* Allocate memory for entries */
-	img_info->mhi_buf = kzalloc_objs(*img_info->mhi_buf, segments,
-					 GFP_KERNEL);
+	img_info->mhi_buf = kzalloc_objs(*img_info->mhi_buf, segments);
 	if (!img_info->mhi_buf)
 		goto error_alloc_mhi_buf;
 

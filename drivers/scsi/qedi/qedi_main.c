@@ -1668,8 +1668,7 @@ static int qedi_alloc_global_queues(struct qedi_ctx *qedi)
 	 */
 	for (i = 0; i < qedi->num_queues; i++) {
 		qedi->global_queues[i] =
-					kzalloc_obj(*qedi->global_queues[0],
-						    GFP_KERNEL);
+					kzalloc_obj(*qedi->global_queues[0]);
 		if (!qedi->global_queues[i]) {
 			QEDI_ERR(&qedi->dbg_ctx,
 				 "Unable to allocation global queue %d.\n", i);

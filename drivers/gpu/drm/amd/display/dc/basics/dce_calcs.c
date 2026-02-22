@@ -128,13 +128,11 @@ static void calculate_bandwidth(
 	if (!sclk)
 		goto free_yclk;
 
-	tiling_mode = kzalloc_objs(*tiling_mode, maximum_number_of_surfaces,
-				   GFP_KERNEL);
+	tiling_mode = kzalloc_objs(*tiling_mode, maximum_number_of_surfaces);
 	if (!tiling_mode)
 		goto free_sclk;
 
-	surface_type = kzalloc_objs(*surface_type, maximum_number_of_surfaces,
-				    GFP_KERNEL);
+	surface_type = kzalloc_objs(*surface_type, maximum_number_of_surfaces);
 	if (!surface_type)
 		goto free_tiling_mode;
 
@@ -3047,8 +3045,7 @@ bool bw_calcs(struct dc_context *ctx,
 	int pipe_count,
 	struct dce_bw_output *calcs_output)
 {
-	struct bw_calcs_data *data = kzalloc_obj(struct bw_calcs_data,
-						 GFP_KERNEL);
+	struct bw_calcs_data *data = kzalloc_obj(struct bw_calcs_data);
 	if (!data)
 		return false;
 

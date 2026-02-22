@@ -507,8 +507,7 @@ int smu_v15_0_init_power(struct smu_context *smu)
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
-	smu_power->power_context = kzalloc_obj(struct smu_15_0_dpm_context,
-					       GFP_KERNEL);
+	smu_power->power_context = kzalloc_obj(struct smu_15_0_dpm_context);
 	if (!smu_power->power_context)
 		return -ENOMEM;
 	smu_power->power_context_size = sizeof(struct smu_15_0_dpm_context);

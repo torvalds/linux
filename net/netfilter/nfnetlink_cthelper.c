@@ -322,8 +322,7 @@ static int nfnl_cthelper_update_policy_all(struct nlattr *tb[],
 	struct nf_conntrack_expect_policy *policy;
 	int i, ret = 0;
 
-	new_policy = kmalloc_objs(*new_policy, helper->expect_class_max + 1,
-				  GFP_KERNEL);
+	new_policy = kmalloc_objs(*new_policy, helper->expect_class_max + 1);
 	if (!new_policy)
 		return -ENOMEM;
 

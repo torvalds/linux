@@ -124,8 +124,7 @@ void __init mvebu_coreclk_setup(struct device_node *np,
 	if (desc->get_refclk_freq)
 		clk_data.clk_num += 1;
 
-	clk_data.clks = kzalloc_objs(*clk_data.clks, clk_data.clk_num,
-				     GFP_KERNEL);
+	clk_data.clks = kzalloc_objs(*clk_data.clks, clk_data.clk_num);
 	if (WARN_ON(!clk_data.clks)) {
 		iounmap(base);
 		return;

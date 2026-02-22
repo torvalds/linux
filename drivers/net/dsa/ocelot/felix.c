@@ -1539,8 +1539,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->npi_xtr_prefix	= OCELOT_TAG_PREFIX_SHORT;
 	ocelot->devlink		= felix->ds->devlink;
 
-	port_phy_modes = kzalloc_objs(phy_interface_t, num_phys_ports,
-				      GFP_KERNEL);
+	port_phy_modes = kzalloc_objs(phy_interface_t, num_phys_ports);
 	if (!port_phy_modes)
 		return -ENOMEM;
 

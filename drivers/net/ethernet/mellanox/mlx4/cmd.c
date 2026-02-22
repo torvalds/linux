@@ -2368,8 +2368,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		struct mlx4_vf_admin_state *vf_admin;
 
 		priv->mfunc.master.slave_state =
-			kzalloc_objs(struct mlx4_slave_state, dev->num_slaves,
-				     GFP_KERNEL);
+			kzalloc_objs(struct mlx4_slave_state, dev->num_slaves);
 		if (!priv->mfunc.master.slave_state)
 			goto err_comm;
 
@@ -2380,8 +2379,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 			goto err_comm_admin;
 
 		priv->mfunc.master.vf_oper =
-			kzalloc_objs(struct mlx4_vf_oper_state, dev->num_slaves,
-				     GFP_KERNEL);
+			kzalloc_objs(struct mlx4_vf_oper_state, dev->num_slaves);
 		if (!priv->mfunc.master.vf_oper)
 			goto err_comm_oper;
 
@@ -2405,8 +2403,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				struct mlx4_vport_state *oper_vport;
 
 				s_state->vlan_filter[port] =
-					kzalloc_obj(struct mlx4_vlan_fltr,
-						    GFP_KERNEL);
+					kzalloc_obj(struct mlx4_vlan_fltr);
 				if (!s_state->vlan_filter[port]) {
 					if (--port)
 						kfree(s_state->vlan_filter[port]);

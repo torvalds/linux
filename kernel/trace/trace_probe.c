@@ -842,8 +842,7 @@ static int __store_entry_arg(struct trace_probe *tp, int argnum)
 		if (!earg)
 			return -ENOMEM;
 		earg->size = 2 * tp->nr_args + 1;
-		earg->code = kzalloc_objs(struct fetch_insn, earg->size,
-					  GFP_KERNEL);
+		earg->code = kzalloc_objs(struct fetch_insn, earg->size);
 		if (!earg->code) {
 			kfree(earg);
 			return -ENOMEM;

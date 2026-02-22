@@ -767,8 +767,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		ret = PTR_ERR(metadata->sizes);
 		goto out_no_sizes;
 	}
-	srf->offsets = kmalloc_objs(*srf->offsets, metadata->num_sizes,
-				    GFP_KERNEL);
+	srf->offsets = kmalloc_objs(*srf->offsets, metadata->num_sizes);
 	if (unlikely(!srf->offsets)) {
 		ret = -ENOMEM;
 		goto out_no_offsets;

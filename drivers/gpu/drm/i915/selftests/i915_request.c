@@ -1768,8 +1768,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 
 	smoke[0].request_alloc = __live_request_alloc;
 	smoke[0].ncontexts = 64;
-	smoke[0].contexts = kzalloc_objs(*smoke[0].contexts, smoke[0].ncontexts,
-					 GFP_KERNEL);
+	smoke[0].contexts = kzalloc_objs(*smoke[0].contexts, smoke[0].ncontexts);
 	if (!smoke[0].contexts) {
 		ret = -ENOMEM;
 		goto out_threads;

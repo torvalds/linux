@@ -1667,8 +1667,7 @@ static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	int i;
 	int err;
 
-	mlxsw_pci->fw_area.items = kzalloc_objs(*mem_item, num_pages,
-						GFP_KERNEL);
+	mlxsw_pci->fw_area.items = kzalloc_objs(*mem_item, num_pages);
 	if (!mlxsw_pci->fw_area.items)
 		return -ENOMEM;
 	mlxsw_pci->fw_area.count = num_pages;

@@ -302,8 +302,7 @@ alloc_gid_entry(const struct ib_gid_attr *attr)
 
 	ndev = rcu_dereference_protected(attr->ndev, 1);
 	if (ndev) {
-		entry->ndev_storage = kzalloc_obj(*entry->ndev_storage,
-						  GFP_KERNEL);
+		entry->ndev_storage = kzalloc_obj(*entry->ndev_storage);
 		if (!entry->ndev_storage) {
 			kfree(entry);
 			return NULL;

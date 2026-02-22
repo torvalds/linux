@@ -1241,8 +1241,7 @@ static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ERANGE;
 	}
-	file_priv->descriptors[i] = kmalloc_obj(struct gpib_descriptor,
-						GFP_KERNEL);
+	file_priv->descriptors[i] = kmalloc_obj(struct gpib_descriptor);
 	if (!file_priv->descriptors[i]) {
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ENOMEM;

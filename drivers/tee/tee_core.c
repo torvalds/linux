@@ -560,8 +560,7 @@ static int tee_ioctl_open_session(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kzalloc_objs(struct tee_param, arg.num_params,
-				      GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;
@@ -638,8 +637,7 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kzalloc_objs(struct tee_param, arg.num_params,
-				      GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;
@@ -699,8 +697,7 @@ static int tee_ioctl_object_invoke(struct tee_context *ctx,
 		return -EINVAL;
 
 	if (arg.num_params) {
-		params = kzalloc_objs(struct tee_param, arg.num_params,
-				      GFP_KERNEL);
+		params = kzalloc_objs(struct tee_param, arg.num_params);
 		if (!params)
 			return -ENOMEM;
 		uparams = uarg->params;

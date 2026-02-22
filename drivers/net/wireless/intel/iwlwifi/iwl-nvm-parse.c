@@ -1377,11 +1377,9 @@ iwl_parse_mei_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 	u8 tx_chains = fw->valid_rx_ant;
 
 	if (cfg->uhb_supported)
-		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_UHB,
-				    GFP_KERNEL);
+		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_UHB);
 	else
-		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_EXT,
-				    GFP_KERNEL);
+		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_EXT);
 	if (!data)
 		return NULL;
 
@@ -1444,14 +1442,11 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 	const __le16 *ch_section;
 
 	if (cfg->uhb_supported)
-		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_UHB,
-				    GFP_KERNEL);
+		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_UHB);
 	else if (cfg->nvm_type != IWL_NVM_EXT)
-		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS,
-				    GFP_KERNEL);
+		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS);
 	else
-		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_EXT,
-				    GFP_KERNEL);
+		data = kzalloc_flex(*data, channels, IWL_NVM_NUM_CHANNELS_EXT);
 	if (!data)
 		return NULL;
 

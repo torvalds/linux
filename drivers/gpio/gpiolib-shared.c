@@ -84,8 +84,7 @@ static struct gpio_shared_ref *gpio_shared_make_ref(struct fwnode_handle *fwnode
 {
 	char *con_id_cpy __free(kfree) = NULL;
 
-	struct gpio_shared_ref *ref __free(kfree) = kzalloc_obj(*ref,
-								GFP_KERNEL);
+	struct gpio_shared_ref *ref __free(kfree) = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 

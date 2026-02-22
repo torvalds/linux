@@ -4685,13 +4685,11 @@ static int be_if_create(struct be_adapter *adapter)
 	if (!adapter->pmac_id)
 		return -ENOMEM;
 
-	adapter->mc_list = kzalloc_objs(*adapter->mc_list, be_max_mc(adapter),
-					GFP_KERNEL);
+	adapter->mc_list = kzalloc_objs(*adapter->mc_list, be_max_mc(adapter));
 	if (!adapter->mc_list)
 		return -ENOMEM;
 
-	adapter->uc_list = kzalloc_objs(*adapter->uc_list, be_max_uc(adapter),
-					GFP_KERNEL);
+	adapter->uc_list = kzalloc_objs(*adapter->uc_list, be_max_uc(adapter));
 	if (!adapter->uc_list)
 		return -ENOMEM;
 

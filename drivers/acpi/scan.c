@@ -757,8 +757,7 @@ int acpi_device_add(struct acpi_device *device)
 		if (result)
 			goto err_unlock;
 	} else {
-		acpi_device_bus_id = kzalloc_obj(*acpi_device_bus_id,
-						 GFP_KERNEL);
+		acpi_device_bus_id = kzalloc_obj(*acpi_device_bus_id);
 		if (!acpi_device_bus_id) {
 			result = -ENOMEM;
 			goto err_unlock;

@@ -345,8 +345,7 @@ int gve_tx_alloc_rings_gqi(struct gve_priv *priv,
 		return -EINVAL;
 	}
 
-	tx = kvzalloc_objs(struct gve_tx_ring, cfg->qcfg->max_queues,
-			   GFP_KERNEL);
+	tx = kvzalloc_objs(struct gve_tx_ring, cfg->qcfg->max_queues);
 	if (!tx)
 		return -ENOMEM;
 

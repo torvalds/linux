@@ -773,8 +773,7 @@ static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 	if (WARN_ON(trans_pcie->rxq))
 		return -EINVAL;
 
-	trans_pcie->rxq = kzalloc_objs(struct iwl_rxq, trans->info.num_rxqs,
-				       GFP_KERNEL);
+	trans_pcie->rxq = kzalloc_objs(struct iwl_rxq, trans->info.num_rxqs);
 	trans_pcie->rx_pool = kzalloc_objs(trans_pcie->rx_pool[0],
 					   RX_POOL_SIZE(trans_pcie->num_rx_bufs),
 					   GFP_KERNEL);

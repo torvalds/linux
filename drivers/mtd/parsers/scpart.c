@@ -171,8 +171,7 @@ static int scpart_parse(struct mtd_info *master,
 		goto free;
 	}
 
-	parts = kzalloc_objs(*parts, of_get_child_count(ofpart_node),
-			     GFP_KERNEL);
+	parts = kzalloc_objs(*parts, of_get_child_count(ofpart_node));
 	if (!parts) {
 		res = -ENOMEM;
 		goto free;

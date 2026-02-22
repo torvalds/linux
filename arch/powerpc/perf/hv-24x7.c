@@ -917,8 +917,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 		goto e_event_attrs;
 	}
 
-	event_long_descs = kmalloc_objs(*event_long_descs, event_idx + 1,
-					GFP_KERNEL);
+	event_long_descs = kmalloc_objs(*event_long_descs, event_idx + 1);
 	if (!event_long_descs) {
 		ret = -ENOMEM;
 		goto e_event_descs;

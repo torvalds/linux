@@ -642,8 +642,7 @@ static void sbdma_initctx(struct sbmacdma *d, struct sbmac_softc *s, int chan,
 	 * And context table
 	 */
 
-	d->sbdma_ctxtable = kzalloc_objs(*d->sbdma_ctxtable, d->sbdma_maxdescr,
-					 GFP_KERNEL);
+	d->sbdma_ctxtable = kzalloc_objs(*d->sbdma_ctxtable, d->sbdma_maxdescr);
 
 #ifdef CONFIG_SBMAC_COALESCE
 	/*

@@ -137,8 +137,7 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->dma_address = kvzalloc_objs(*ttm->dma_address, ttm->num_pages,
-					 GFP_KERNEL);
+	ttm->dma_address = kvzalloc_objs(*ttm->dma_address, ttm->num_pages);
 	if (!ttm->dma_address)
 		return -ENOMEM;
 

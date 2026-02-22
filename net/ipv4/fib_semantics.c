@@ -365,8 +365,7 @@ static struct hlist_head *fib_info_laddrhash_bucket(const struct net *net,
 static struct hlist_head *fib_info_hash_alloc(unsigned int hash_bits)
 {
 	/* The second half is used for prefsrc */
-	return kvzalloc_objs(struct hlist_head, (1 << hash_bits) * 2,
-			     GFP_KERNEL);
+	return kvzalloc_objs(struct hlist_head, (1 << hash_bits) * 2);
 }
 
 static void fib_info_hash_free(struct hlist_head *head)

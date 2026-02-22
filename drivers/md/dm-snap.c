@@ -362,8 +362,7 @@ static int init_origin_hash(void)
 	for (i = 0; i < ORIGIN_HASH_SIZE; i++)
 		INIT_LIST_HEAD(_origins + i);
 
-	_dm_origins = kmalloc_objs(struct list_head, ORIGIN_HASH_SIZE,
-				   GFP_KERNEL);
+	_dm_origins = kmalloc_objs(struct list_head, ORIGIN_HASH_SIZE);
 	if (!_dm_origins) {
 		DMERR("unable to allocate memory for _dm_origins");
 		kfree(_origins);

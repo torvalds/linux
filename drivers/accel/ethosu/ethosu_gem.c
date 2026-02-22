@@ -352,8 +352,7 @@ static int ethosu_gem_cmdstream_copy_and_validate(struct drm_device *ddev,
 						  struct ethosu_gem_object *bo,
 						  u32 size)
 {
-	struct ethosu_validated_cmdstream_info __free(kfree) *info = kzalloc_obj(*info,
-										 GFP_KERNEL);
+	struct ethosu_validated_cmdstream_info __free(kfree) *info = kzalloc_obj(*info);
 	struct ethosu_device *edev = to_ethosu_device(ddev);
 	u32 *bocmds = bo->base.vaddr;
 	struct cmd_state st;

@@ -274,8 +274,7 @@ static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 	mixer->rc_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!mixer->rc_urb)
 		return -ENOMEM;
-	mixer->rc_setup_packet = kmalloc_obj(*mixer->rc_setup_packet,
-					     GFP_KERNEL);
+	mixer->rc_setup_packet = kmalloc_obj(*mixer->rc_setup_packet);
 	if (!mixer->rc_setup_packet) {
 		usb_free_urb(mixer->rc_urb);
 		mixer->rc_urb = NULL;

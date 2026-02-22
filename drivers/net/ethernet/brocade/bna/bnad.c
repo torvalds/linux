@@ -1345,8 +1345,7 @@ bnad_mem_alloc(struct bnad *bnad,
 		return 0;
 	}
 
-	mem_info->mdl = kzalloc_objs(struct bna_mem_descr, mem_info->num,
-				     GFP_KERNEL);
+	mem_info->mdl = kzalloc_objs(struct bna_mem_descr, mem_info->num);
 	if (mem_info->mdl == NULL)
 		return -ENOMEM;
 

@@ -157,8 +157,7 @@ prestera_counter_block_get(struct prestera_counter *counter, u32 client)
 	if (err)
 		goto err_block;
 
-	block->stats = kzalloc_objs(*block->stats, block->num_counters,
-				    GFP_KERNEL);
+	block->stats = kzalloc_objs(*block->stats, block->num_counters);
 	if (!block->stats) {
 		err = -ENOMEM;
 		goto err_stats;

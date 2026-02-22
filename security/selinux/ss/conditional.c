@@ -631,8 +631,7 @@ static int duplicate_policydb_cond_list(struct policydb *newp,
 		return rc;
 
 	newp->cond_list_len = 0;
-	newp->cond_list = kzalloc_objs(*newp->cond_list, origp->cond_list_len,
-				       GFP_KERNEL);
+	newp->cond_list = kzalloc_objs(*newp->cond_list, origp->cond_list_len);
 	if (!newp->cond_list)
 		goto error;
 

@@ -1677,8 +1677,7 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	/* Initialize LED timers */
 	if (mos7840_port->has_led) {
 		mos7840_port->led_urb = usb_alloc_urb(0, GFP_KERNEL);
-		mos7840_port->led_dr = kmalloc_obj(*mos7840_port->led_dr,
-						   GFP_KERNEL);
+		mos7840_port->led_dr = kmalloc_obj(*mos7840_port->led_dr);
 		if (!mos7840_port->led_urb || !mos7840_port->led_dr) {
 			status = -ENOMEM;
 			goto error;

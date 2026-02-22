@@ -1639,8 +1639,7 @@ void __init mpic_init(struct mpic *mpic)
 
 #ifdef CONFIG_PM
 	/* allocate memory to save mpic state */
-	mpic->save_data = kmalloc_objs(*mpic->save_data, mpic->num_sources,
-				       GFP_KERNEL);
+	mpic->save_data = kmalloc_objs(*mpic->save_data, mpic->num_sources);
 	BUG_ON(mpic->save_data == NULL);
 #endif
 

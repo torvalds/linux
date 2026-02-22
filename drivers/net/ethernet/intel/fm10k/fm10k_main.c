@@ -1825,8 +1825,7 @@ static int fm10k_init_msix_capability(struct fm10k_intfc *interface)
 	v_budget = min_t(int, v_budget, hw->mac.max_msix_vectors);
 
 	/* A failure in MSI-X entry allocation is fatal. */
-	interface->msix_entries = kzalloc_objs(struct msix_entry, v_budget,
-					       GFP_KERNEL);
+	interface->msix_entries = kzalloc_objs(struct msix_entry, v_budget);
 	if (!interface->msix_entries)
 		return -ENOMEM;
 

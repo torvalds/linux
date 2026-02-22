@@ -614,8 +614,7 @@ static long efi_runtime_query_capsulecaps(unsigned long arg)
 	if (qcaps.capsule_count == ULONG_MAX)
 		return -EINVAL;
 
-	capsules = kzalloc_objs(efi_capsule_header_t, qcaps.capsule_count + 1,
-				GFP_KERNEL);
+	capsules = kzalloc_objs(efi_capsule_header_t, qcaps.capsule_count + 1);
 	if (!capsules)
 		return -ENOMEM;
 

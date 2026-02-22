@@ -538,14 +538,12 @@ static int ice_vsi_alloc_stat_arrays(struct ice_vsi *vsi)
 		return -ENOMEM;
 
 	vsi_stat->tx_ring_stats =
-		kzalloc_objs(*vsi_stat->tx_ring_stats, vsi->alloc_txq,
-			     GFP_KERNEL);
+		kzalloc_objs(*vsi_stat->tx_ring_stats, vsi->alloc_txq);
 	if (!vsi_stat->tx_ring_stats)
 		goto err_alloc_tx;
 
 	vsi_stat->rx_ring_stats =
-		kzalloc_objs(*vsi_stat->rx_ring_stats, vsi->alloc_rxq,
-			     GFP_KERNEL);
+		kzalloc_objs(*vsi_stat->rx_ring_stats, vsi->alloc_rxq);
 	if (!vsi_stat->rx_ring_stats)
 		goto err_alloc_rx;
 
@@ -3104,8 +3102,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, u32 vsi_flags)
 	if (ret)
 		goto unlock;
 
-	coalesce = kzalloc_objs(struct ice_coalesce_stored, vsi->num_q_vectors,
-				GFP_KERNEL);
+	coalesce = kzalloc_objs(struct ice_coalesce_stored, vsi->num_q_vectors);
 	if (!coalesce) {
 		ret = -ENOMEM;
 		goto decfg;

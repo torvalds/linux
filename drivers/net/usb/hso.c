@@ -2630,8 +2630,7 @@ static struct hso_device *hso_create_bulk_serial_device(
 		if (!serial->tiocmget)
 			goto exit;
 		serial->tiocmget->serial_state_notification
-			= kzalloc_obj(struct hso_serial_state_notification,
-				      GFP_KERNEL);
+			= kzalloc_obj(struct hso_serial_state_notification);
 		if (!serial->tiocmget->serial_state_notification)
 			goto exit;
 		tiocmget = serial->tiocmget;

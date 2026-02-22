@@ -847,8 +847,7 @@ static struct hubbub *dcn401_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
-	struct dcn20_hubbub *hubbub2 = kzalloc_obj(struct dcn20_hubbub,
-						   GFP_KERNEL);
+	struct dcn20_hubbub *hubbub2 = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub2)
 		return NULL;
@@ -1278,8 +1277,7 @@ static struct hpo_dp_stream_encoder *dcn401_hpo_dp_stream_encoder_create(
 	apg_inst = hpo_dp_inst;
 
 	/* allocate HPO stream encoder and create VPG sub-block */
-	hpo_dp_enc31 = kzalloc_obj(struct dcn31_hpo_dp_stream_encoder,
-				   GFP_KERNEL);
+	hpo_dp_enc31 = kzalloc_obj(struct dcn31_hpo_dp_stream_encoder);
 	vpg = dcn401_vpg_create(ctx, vpg_inst);
 	apg = dcn401_apg_create(ctx, apg_inst);
 
@@ -1551,8 +1549,7 @@ static bool dcn401_dwbc_create(struct dc_context *ctx, struct resource_pool *poo
 	uint32_t dwb_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < dwb_count; i++) {
-		struct dcn30_dwbc *dwbc401 = kzalloc_obj(struct dcn30_dwbc,
-							 GFP_KERNEL);
+		struct dcn30_dwbc *dwbc401 = kzalloc_obj(struct dcn30_dwbc);
 
 		if (!dwbc401) {
 			dm_error("DC: failed to create dwbc401!\n");
@@ -1582,8 +1579,7 @@ static bool dcn401_mmhubbub_create(struct dc_context *ctx, struct resource_pool 
 	uint32_t dwb_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < dwb_count; i++) {
-		struct dcn30_mmhubbub *mcif_wb30 = kzalloc_obj(struct dcn30_mmhubbub,
-							       GFP_KERNEL);
+		struct dcn30_mmhubbub *mcif_wb30 = kzalloc_obj(struct dcn30_mmhubbub);
 
 		if (!mcif_wb30) {
 			dm_error("DC: failed to create mcif_wb30!\n");

@@ -3265,8 +3265,7 @@ static struct swap_cluster_info *setup_clusters(struct swap_info_struct *si,
 		spin_lock_init(&cluster_info[i].lock);
 
 	if (!(si->flags & SWP_SOLIDSTATE)) {
-		si->global_cluster = kmalloc_obj(*si->global_cluster,
-						 GFP_KERNEL);
+		si->global_cluster = kmalloc_obj(*si->global_cluster);
 		if (!si->global_cluster)
 			goto err;
 		for (i = 0; i < SWAP_NR_ORDERS; i++)

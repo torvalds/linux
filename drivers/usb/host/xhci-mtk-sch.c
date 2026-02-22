@@ -179,8 +179,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 	if (utt->multi) {
 		tt_index = utt->hcpriv;
 		if (!tt_index) {	/* Create the index array */
-			tt_index = kzalloc_objs(*tt_index, utt->hub->maxchild,
-						GFP_KERNEL);
+			tt_index = kzalloc_objs(*tt_index, utt->hub->maxchild);
 			if (!tt_index)
 				return ERR_PTR(-ENOMEM);
 			utt->hcpriv = tt_index;

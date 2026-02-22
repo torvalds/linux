@@ -6895,8 +6895,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 
 	/* initialize static ixgbe jump table entries */
-	adapter->jump_tables[0] = kzalloc_obj(*adapter->jump_tables[0],
-					      GFP_KERNEL);
+	adapter->jump_tables[0] = kzalloc_obj(*adapter->jump_tables[0]);
 	if (!adapter->jump_tables[0])
 		return -ENOMEM;
 	adapter->jump_tables[0]->mat = ixgbe_ipv4_fields;

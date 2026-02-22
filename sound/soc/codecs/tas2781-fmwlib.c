@@ -509,8 +509,7 @@ static int fw_parse_data_kernel(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be32(&data[offset]);
 	offset += 4;
 
-	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk,
-					  GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -1239,8 +1238,7 @@ static int fw_parse_data(struct tasdevice_fw *tas_fmw,
 	img_data->nr_blk = get_unaligned_be16(&data[offset]);
 	offset += 2;
 
-	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk,
-					  GFP_KERNEL);
+	img_data->dev_blks = kzalloc_objs(struct tasdev_blk, img_data->nr_blk);
 	if (!img_data->dev_blks) {
 		offset = -ENOMEM;
 		goto out;
@@ -1284,8 +1282,7 @@ static int fw_parse_program_data(struct tasdevice_priv *tas_priv,
 	}
 
 	tas_fmw->programs =
-		kzalloc_objs(struct tasdevice_prog, tas_fmw->nr_programs,
-			     GFP_KERNEL);
+		kzalloc_objs(struct tasdevice_prog, tas_fmw->nr_programs);
 	if (!tas_fmw->programs) {
 		offset = -ENOMEM;
 		goto out;
@@ -2207,8 +2204,7 @@ int tas2781_load_calibration(void *context, char *file_name,
 	fmw.size = fw_entry->size;
 	fmw.data = fw_entry->data;
 
-	tas_fmw = tasdev->cali_data_fmw = kzalloc_obj(struct tasdevice_fw,
-						      GFP_KERNEL);
+	tas_fmw = tasdev->cali_data_fmw = kzalloc_obj(struct tasdevice_fw);
 	if (!tasdev->cali_data_fmw) {
 		ret = -ENOMEM;
 		goto out;

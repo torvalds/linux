@@ -1991,8 +1991,7 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 	if (sanity_check_entries(entries, cpuid->nent, type))
 		return -EINVAL;
 
-	array.entries = kvzalloc_objs(struct kvm_cpuid_entry2, cpuid->nent,
-				      GFP_KERNEL);
+	array.entries = kvzalloc_objs(struct kvm_cpuid_entry2, cpuid->nent);
 	if (!array.entries)
 		return -ENOMEM;
 

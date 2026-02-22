@@ -2453,8 +2453,7 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
 	}
 
 	if (!state->fake_commit) {
-		state->fake_commit = kzalloc_obj(*state->fake_commit,
-						 GFP_KERNEL);
+		state->fake_commit = kzalloc_obj(*state->fake_commit);
 		if (!state->fake_commit)
 			return NULL;
 

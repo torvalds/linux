@@ -551,8 +551,7 @@ int bnx2x_vf_mcast(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	else
 		set_bit(RAMROD_COMP_WAIT, &mcast.ramrod_flags);
 	if (mc_num) {
-		mc = kzalloc_objs(struct bnx2x_mcast_list_elem, mc_num,
-				  GFP_KERNEL);
+		mc = kzalloc_objs(struct bnx2x_mcast_list_elem, mc_num);
 		if (!mc) {
 			BNX2X_ERR("Cannot Configure multicasts due to lack of memory\n");
 			return -ENOMEM;
@@ -1247,8 +1246,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	   num_vfs_param, iov->nr_virtfn);
 
 	/* allocate the vf array */
-	bp->vfdb->vfs = kzalloc_objs(struct bnx2x_virtf, BNX2X_NR_VIRTFN(bp),
-				     GFP_KERNEL);
+	bp->vfdb->vfs = kzalloc_objs(struct bnx2x_virtf, BNX2X_NR_VIRTFN(bp));
 	if (!bp->vfdb->vfs) {
 		BNX2X_ERR("failed to allocate vf array\n");
 		err = -ENOMEM;

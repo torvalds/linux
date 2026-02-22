@@ -2224,8 +2224,7 @@ static int criu_restore_devices(struct kfd_process *p,
 	if (*priv_offset + (args->num_devices * sizeof(*device_privs)) > max_priv_data_size)
 		return -EINVAL;
 
-	device_buckets = kmalloc_objs(*device_buckets, args->num_devices,
-				      GFP_KERNEL);
+	device_buckets = kmalloc_objs(*device_buckets, args->num_devices);
 	if (!device_buckets)
 		return -ENOMEM;
 

@@ -1130,8 +1130,7 @@ static void aq_ptp_gpio_init(struct ptp_clock_info *info,
 	if (!info->n_pins)
 		return;
 
-	info->pin_config = kzalloc_objs(struct ptp_pin_desc, info->n_pins,
-					GFP_KERNEL);
+	info->pin_config = kzalloc_objs(struct ptp_pin_desc, info->n_pins);
 
 	if (!info->pin_config)
 		return;

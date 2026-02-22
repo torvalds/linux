@@ -689,8 +689,7 @@ static struct mem_input *dce80_mem_input_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input,
-						   GFP_KERNEL);
+	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input);
 
 	if (!dce_mi) {
 		BREAK_TO_DEBUGGER();

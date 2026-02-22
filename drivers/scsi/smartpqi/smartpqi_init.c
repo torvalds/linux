@@ -2472,8 +2472,7 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 	num_new_devices = num_physicals + num_logicals;
 
-	new_device_list = kmalloc_objs(*new_device_list, num_new_devices,
-				       GFP_KERNEL);
+	new_device_list = kmalloc_objs(*new_device_list, num_new_devices);
 	if (!new_device_list) {
 		dev_warn(&ctrl_info->pci_dev->dev, "%s\n", out_of_memory_msg);
 		rc = -ENOMEM;

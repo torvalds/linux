@@ -6504,8 +6504,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 			devip->max_open = sdeb_zbc_max_open;
 	}
 
-	devip->zstate = kzalloc_objs(struct sdeb_zone_state, devip->nr_zones,
-				     GFP_KERNEL);
+	devip->zstate = kzalloc_objs(struct sdeb_zone_state, devip->nr_zones);
 	if (!devip->zstate)
 		return -ENOMEM;
 
@@ -6649,8 +6648,7 @@ static int scsi_debug_sdev_configure(struct scsi_device *sdp,
 	if (sdebug_ptype == TYPE_TAPE) {
 		if (!devip->tape_blocks[0]) {
 			devip->tape_blocks[0] =
-				kzalloc_objs(struct tape_block, TAPE_UNITS,
-					     GFP_KERNEL);
+				kzalloc_objs(struct tape_block, TAPE_UNITS);
 			if (!devip->tape_blocks[0])
 				return 1;
 		}

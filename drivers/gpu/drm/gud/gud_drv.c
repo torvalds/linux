@@ -255,8 +255,7 @@ static int gud_plane_add_properties(struct gud_device *gdrm)
 	unsigned int i, num_properties;
 	int ret;
 
-	properties = kzalloc_objs(*properties, GUD_PROPERTIES_MAX_NUM,
-				  GFP_KERNEL);
+	properties = kzalloc_objs(*properties, GUD_PROPERTIES_MAX_NUM);
 	if (!properties)
 		return -ENOMEM;
 

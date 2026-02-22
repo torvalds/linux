@@ -275,8 +275,7 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 	channel->attr_group = kzalloc_obj(*channel->attr_group);
 	if (!channel->attr_group)
 		return -ENOMEM;
-	channel->attr_groups = kzalloc_objs(*channel->attr_groups, 2,
-					    GFP_KERNEL);
+	channel->attr_groups = kzalloc_objs(*channel->attr_groups, 2);
 	if (!channel->attr_groups)
 		return -ENOMEM;
 
@@ -1011,8 +1010,7 @@ static int gb_lights_light_config(struct gb_lights *glights, u8 id)
 	light->name = kstrndup(conf.name, NAMES_MAX, GFP_KERNEL);
 	if (!light->name)
 		return -ENOMEM;
-	light->channels = kzalloc_objs(struct gb_channel, conf.channel_count,
-				       GFP_KERNEL);
+	light->channels = kzalloc_objs(struct gb_channel, conf.channel_count);
 	if (!light->channels)
 		return -ENOMEM;
 	/*
@@ -1153,8 +1151,7 @@ static int gb_lights_create_all(struct gb_lights *glights)
 	if (ret < 0)
 		goto out;
 
-	glights->lights = kzalloc_objs(struct gb_light, glights->lights_count,
-				       GFP_KERNEL);
+	glights->lights = kzalloc_objs(struct gb_light, glights->lights_count);
 	if (!glights->lights) {
 		ret = -ENOMEM;
 		goto out;

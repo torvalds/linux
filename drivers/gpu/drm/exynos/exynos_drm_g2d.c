@@ -470,8 +470,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	offset = userptr & ~PAGE_MASK;
 	end = PAGE_ALIGN(userptr + size);
 	npages = (end - start) >> PAGE_SHIFT;
-	g2d_userptr->pages = kvmalloc_objs(*g2d_userptr->pages, npages,
-					   GFP_KERNEL);
+	g2d_userptr->pages = kvmalloc_objs(*g2d_userptr->pages, npages);
 	if (!g2d_userptr->pages) {
 		ret = -ENOMEM;
 		goto err_free;

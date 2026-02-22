@@ -488,8 +488,7 @@ setup_sge_txq_uld(struct adapter *adap, unsigned int uld_type,
 		i = min_t(int, uld_info->ntxq, num_online_cpus());
 		txq_info->ntxq = roundup(i, adap->params.nports);
 	}
-	txq_info->uldtxq = kzalloc_objs(struct sge_uld_txq, txq_info->ntxq,
-					GFP_KERNEL);
+	txq_info->uldtxq = kzalloc_objs(struct sge_uld_txq, txq_info->ntxq);
 	if (!txq_info->uldtxq) {
 		kfree(txq_info);
 		return -ENOMEM;
@@ -528,13 +527,11 @@ int t4_uld_mem_alloc(struct adapter *adap)
 	if (!adap->uld)
 		return -ENOMEM;
 
-	s->uld_rxq_info = kzalloc_objs(struct sge_uld_rxq_info *, CXGB4_ULD_MAX,
-				       GFP_KERNEL);
+	s->uld_rxq_info = kzalloc_objs(struct sge_uld_rxq_info *, CXGB4_ULD_MAX);
 	if (!s->uld_rxq_info)
 		goto err_uld;
 
-	s->uld_txq_info = kzalloc_objs(struct sge_uld_txq_info *, CXGB4_TX_MAX,
-				       GFP_KERNEL);
+	s->uld_txq_info = kzalloc_objs(struct sge_uld_txq_info *, CXGB4_TX_MAX);
 	if (!s->uld_txq_info)
 		goto err_uld_rx;
 	return 0;

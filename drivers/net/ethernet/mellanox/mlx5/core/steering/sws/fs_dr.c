@@ -275,8 +275,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (mlx5_fs_cmd_is_fw_term_table(ft))
 		return mlx5_fs_cmd_get_fw_cmds()->create_fte(ns, ft, group, fte);
 
-	actions = kzalloc_objs(*actions, MLX5_FLOW_CONTEXT_ACTION_MAX,
-			       GFP_KERNEL);
+	actions = kzalloc_objs(*actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!actions) {
 		err = -ENOMEM;
 		goto out_err;
@@ -289,8 +288,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		goto free_actions_alloc;
 	}
 
-	term_actions = kzalloc_objs(*term_actions, MLX5_FLOW_CONTEXT_ACTION_MAX,
-				    GFP_KERNEL);
+	term_actions = kzalloc_objs(*term_actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!term_actions) {
 		err = -ENOMEM;
 		goto free_fs_dr_actions_alloc;

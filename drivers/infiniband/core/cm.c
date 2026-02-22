@@ -4348,8 +4348,7 @@ static int cm_add_one(struct ib_device *ib_device)
 	int count = 0;
 	u32 i;
 
-	cm_dev = kzalloc_flex(*cm_dev, port, ib_device->phys_port_cnt,
-			      GFP_KERNEL);
+	cm_dev = kzalloc_flex(*cm_dev, port, ib_device->phys_port_cnt);
 	if (!cm_dev)
 		return -ENOMEM;
 

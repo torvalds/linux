@@ -1290,8 +1290,7 @@ idpf_vport_init_queue_reg_chunks(struct idpf_vport_config *vport_config,
 
 	kfree(q_info->queue_chunks);
 
-	q_info->queue_chunks = kzalloc_objs(*q_info->queue_chunks, num_chunks,
-					    GFP_KERNEL);
+	q_info->queue_chunks = kzalloc_objs(*q_info->queue_chunks, num_chunks);
 	if (!q_info->queue_chunks) {
 		q_info->num_chunks = 0;
 		return -ENOMEM;
@@ -3197,8 +3196,7 @@ static int idpf_send_get_rx_ptype_msg(struct idpf_adapter *adapter)
 	u16 next_ptype_id = 0;
 	ssize_t reply_sz;
 
-	singleq_pt_lkup = kzalloc_objs(*singleq_pt_lkup, IDPF_RX_MAX_BASE_PTYPE,
-				       GFP_KERNEL);
+	singleq_pt_lkup = kzalloc_objs(*singleq_pt_lkup, IDPF_RX_MAX_BASE_PTYPE);
 	if (!singleq_pt_lkup)
 		return -ENOMEM;
 
@@ -3484,8 +3482,7 @@ int idpf_vc_core_init(struct idpf_adapter *adapter)
 	int err = 0;
 
 	if (!adapter->vcxn_mngr) {
-		adapter->vcxn_mngr = kzalloc_obj(*adapter->vcxn_mngr,
-						 GFP_KERNEL);
+		adapter->vcxn_mngr = kzalloc_obj(*adapter->vcxn_mngr);
 		if (!adapter->vcxn_mngr) {
 			err = -ENOMEM;
 			goto init_failed;
@@ -3557,8 +3554,7 @@ restart:
 	pci_sriov_set_totalvfs(adapter->pdev, idpf_get_max_vfs(adapter));
 	num_max_vports = idpf_get_max_vports(adapter);
 	adapter->max_vports = num_max_vports;
-	adapter->vports = kzalloc_objs(*adapter->vports, num_max_vports,
-				       GFP_KERNEL);
+	adapter->vports = kzalloc_objs(*adapter->vports, num_max_vports);
 	if (!adapter->vports)
 		return -ENOMEM;
 

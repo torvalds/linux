@@ -457,8 +457,7 @@ static struct ssr_dump_info *alloc_dump_info(struct qaic_device *qdev,
 	}
 
 	/* Buffer used to send MEMORY READ request to device via MHI */
-	dump_info->read_buf_req = kzalloc_obj(*dump_info->read_buf_req,
-					      GFP_KERNEL);
+	dump_info->read_buf_req = kzalloc_obj(*dump_info->read_buf_req);
 	if (!dump_info->read_buf_req) {
 		ret = -ENOMEM;
 		goto free_dump_info;

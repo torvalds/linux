@@ -223,16 +223,14 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	}
 
 	if (!user) {
-		wq->sq.sw_sq = kzalloc_objs(*wq->sq.sw_sq, wq->sq.size,
-					    GFP_KERNEL);
+		wq->sq.sw_sq = kzalloc_objs(*wq->sq.sw_sq, wq->sq.size);
 		if (!wq->sq.sw_sq) {
 			ret = -ENOMEM;
 			goto free_rq_qid;//FIXME
 		}
 
 		if (need_rq) {
-			wq->rq.sw_rq = kzalloc_objs(*wq->rq.sw_rq, wq->rq.size,
-						    GFP_KERNEL);
+			wq->rq.sw_rq = kzalloc_objs(*wq->rq.sw_rq, wq->rq.size);
 			if (!wq->rq.sw_rq) {
 				ret = -ENOMEM;
 				goto free_sw_sq;
@@ -2246,8 +2244,7 @@ int c4iw_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *attrs,
 		}
 		memset(&uresp, 0, sizeof(uresp));
 		if (t4_sq_onchip(&qhp->wq.sq)) {
-			ma_sync_key_mm = kmalloc_obj(*ma_sync_key_mm,
-						     GFP_KERNEL);
+			ma_sync_key_mm = kmalloc_obj(*ma_sync_key_mm);
 			if (!ma_sync_key_mm) {
 				ret = -ENOMEM;
 				goto err_free_rq_db_key;

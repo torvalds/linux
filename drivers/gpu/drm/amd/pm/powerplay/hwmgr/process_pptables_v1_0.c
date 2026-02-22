@@ -321,8 +321,7 @@ static int get_valid_clk(
 	PP_ASSERT_WITH_CODE((0 != clk_volt_pp_table->count),
 		"Invalid PowerPlay Table!", return -1);
 
-	table = kzalloc_flex(*table, values, clk_volt_pp_table->count,
-			     GFP_KERNEL);
+	table = kzalloc_flex(*table, values, clk_volt_pp_table->count);
 	if (!table)
 		return -ENOMEM;
 

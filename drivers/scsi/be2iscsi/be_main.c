@@ -2491,8 +2491,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		return -ENOMEM;
 	}
 
-	mem_arr_orig = kmalloc_objs(*mem_arr_orig, BEISCSI_MAX_FRAGS_INIT,
-				    GFP_KERNEL);
+	mem_arr_orig = kmalloc_objs(*mem_arr_orig, BEISCSI_MAX_FRAGS_INIT);
 	if (!mem_arr_orig) {
 		kfree(phba->init_mem);
 		kfree(phwi_ctrlr->wrb_context);
@@ -3360,8 +3359,7 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 	idx = 0;
 	mem_descr = phba->init_mem;
 	mem_descr += HWI_MEM_WRB;
-	pwrb_arr = kmalloc_objs(*pwrb_arr, phba->params.cxns_per_ctrl,
-				GFP_KERNEL);
+	pwrb_arr = kmalloc_objs(*pwrb_arr, phba->params.cxns_per_ctrl);
 	if (!pwrb_arr) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BM_%d : Memory alloc failed in create wrb ring.\n");
@@ -4000,8 +3998,7 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
 		if (test_bit(ulp_num, (void *)&phba->fw_config.ulp_supported)) {
-			ptr_cid_info = kzalloc_obj(struct ulp_cid_info,
-						   GFP_KERNEL);
+			ptr_cid_info = kzalloc_obj(struct ulp_cid_info);
 
 			if (!ptr_cid_info) {
 				ret = -ENOMEM;

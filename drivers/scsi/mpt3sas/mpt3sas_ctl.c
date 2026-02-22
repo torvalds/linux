@@ -3881,8 +3881,7 @@ diag_trigger_master_store(struct device *cdev,
 	rc = min(sizeof(struct SL_WH_MASTER_TRIGGER_T), count);
 
 	if (ioc->supports_trigger_pages) {
-		master_tg = kzalloc_obj(struct SL_WH_MASTER_TRIGGER_T,
-					GFP_KERNEL);
+		master_tg = kzalloc_obj(struct SL_WH_MASTER_TRIGGER_T);
 		if (!master_tg)
 			return -ENOMEM;
 
@@ -3956,8 +3955,7 @@ diag_trigger_event_store(struct device *cdev,
 
 	sz = min(sizeof(struct SL_WH_EVENT_TRIGGERS_T), count);
 	if (ioc->supports_trigger_pages) {
-		event_tg = kzalloc_obj(struct SL_WH_EVENT_TRIGGERS_T,
-				       GFP_KERNEL);
+		event_tg = kzalloc_obj(struct SL_WH_EVENT_TRIGGERS_T);
 		if (!event_tg)
 			return -ENOMEM;
 

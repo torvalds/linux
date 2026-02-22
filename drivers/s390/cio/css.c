@@ -1005,8 +1005,7 @@ static int __init setup_css(int nr)
 		goto out_err;
 	}
 
-	css->pseudo_subchannel = kzalloc_obj(*css->pseudo_subchannel,
-					     GFP_KERNEL);
+	css->pseudo_subchannel = kzalloc_obj(*css->pseudo_subchannel);
 	if (!css->pseudo_subchannel) {
 		device_unregister(&css->device);
 		ret = -ENOMEM;

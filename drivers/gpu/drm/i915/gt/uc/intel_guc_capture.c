@@ -320,8 +320,7 @@ guc_capture_alloc_steered_lists(struct intel_guc *guc,
 		return;
 
 	/* allocate an extra for an end marker */
-	extlists = kzalloc_objs(struct __guc_mmio_reg_descr_group, 2,
-				GFP_KERNEL);
+	extlists = kzalloc_objs(struct __guc_mmio_reg_descr_group, 2);
 	if (!extlists)
 		return;
 

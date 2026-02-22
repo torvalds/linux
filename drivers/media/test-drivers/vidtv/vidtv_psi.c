@@ -1523,8 +1523,7 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat,
 		program = program->next;
 	}
 
-	pmt_secs = kzalloc_objs(struct vidtv_psi_table_pmt *, num_pmt,
-				GFP_KERNEL);
+	pmt_secs = kzalloc_objs(struct vidtv_psi_table_pmt *, num_pmt);
 	if (!pmt_secs)
 		return NULL;
 

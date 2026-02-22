@@ -2855,8 +2855,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kzalloc_objs(*pl08x->phy_chans, vd->channels,
-					GFP_KERNEL);
+	pl08x->phy_chans = kzalloc_objs(*pl08x->phy_chans, vd->channels);
 	if (!pl08x->phy_chans) {
 		ret = -ENOMEM;
 		goto out_no_phychans;

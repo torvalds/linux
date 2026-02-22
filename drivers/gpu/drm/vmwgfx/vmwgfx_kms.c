@@ -948,8 +948,7 @@ static int vmw_kms_check_topology(struct drm_device *dev,
 	uint32_t i;
 	int ret = 0;
 
-	rects = kzalloc_objs(struct drm_rect, dev->mode_config.num_crtc,
-			     GFP_KERNEL);
+	rects = kzalloc_objs(struct drm_rect, dev->mode_config.num_crtc);
 	if (!rects)
 		return -ENOMEM;
 

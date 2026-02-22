@@ -374,8 +374,7 @@ static int widget_tree_create(struct hdac_device *codec)
 	if (!tree->root)
 		return -ENOMEM;
 
-	tree->nodes = kzalloc_objs(*tree->nodes, codec->num_nodes + 1,
-				   GFP_KERNEL);
+	tree->nodes = kzalloc_objs(*tree->nodes, codec->num_nodes + 1);
 	if (!tree->nodes)
 		return -ENOMEM;
 

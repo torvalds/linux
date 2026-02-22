@@ -320,8 +320,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	BUG_ON(mm->max_order > DRM_BUDDY_MAX_ORDER);
 
-	mm->free_trees = kmalloc_objs(*mm->free_trees, DRM_BUDDY_MAX_FREE_TREES,
-				      GFP_KERNEL);
+	mm->free_trees = kmalloc_objs(*mm->free_trees, DRM_BUDDY_MAX_FREE_TREES);
 	if (!mm->free_trees)
 		return -ENOMEM;
 
@@ -337,8 +336,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 
 	mm->n_roots = hweight64(size);
 
-	mm->roots = kmalloc_objs(struct drm_buddy_block *, mm->n_roots,
-				 GFP_KERNEL);
+	mm->roots = kmalloc_objs(struct drm_buddy_block *, mm->n_roots);
 	if (!mm->roots)
 		goto out_free_tree;
 

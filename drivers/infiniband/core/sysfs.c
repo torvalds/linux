@@ -855,8 +855,7 @@ alloc_hw_stats_device(struct ib_device *ibdev)
 	 * Two extra attribue elements here, one for the lifespan entry and
 	 * one to NULL terminate the list for the sysfs core code
 	 */
-	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1),
-			    GFP_KERNEL);
+	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1));
 	if (!data)
 		goto err_free_stats;
 	data->group.attrs = kzalloc_objs(*data->group.attrs,
@@ -962,12 +961,10 @@ alloc_hw_stats_port(struct ib_port *port, struct attribute_group *group)
 	 * Two extra attribue elements here, one for the lifespan entry and
 	 * one to NULL terminate the list for the sysfs core code
 	 */
-	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1),
-			    GFP_KERNEL);
+	data = kzalloc_flex(*data, attrs, size_add(stats->num_counters, 1));
 	if (!data)
 		goto err_free_stats;
-	group->attrs = kzalloc_objs(*group->attrs, stats->num_counters + 2,
-				    GFP_KERNEL);
+	group->attrs = kzalloc_objs(*group->attrs, stats->num_counters + 2);
 	if (!group->attrs)
 		goto err_free_data;
 

@@ -819,8 +819,7 @@ int ingenic_cgu_register_clocks(struct ingenic_cgu *cgu)
 	unsigned i;
 	int err;
 
-	cgu->clocks.clks = kzalloc_objs(struct clk *, cgu->clocks.clk_num,
-					GFP_KERNEL);
+	cgu->clocks.clks = kzalloc_objs(struct clk *, cgu->clocks.clk_num);
 	if (!cgu->clocks.clks) {
 		err = -ENOMEM;
 		goto err_out;

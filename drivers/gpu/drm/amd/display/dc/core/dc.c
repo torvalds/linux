@@ -2613,8 +2613,7 @@ bool dc_set_generic_gpio_for_stereo(bool enable,
 	enum gpio_result gpio_result = GPIO_RESULT_NON_SPECIFIC_ERROR;
 	struct gpio_pin_info pin_info;
 	struct gpio *generic;
-	struct gpio_generic_mux_config *config = kzalloc_obj(struct gpio_generic_mux_config,
-							     GFP_KERNEL);
+	struct gpio_generic_mux_config *config = kzalloc_obj(struct gpio_generic_mux_config);
 
 	if (!config)
 		return false;

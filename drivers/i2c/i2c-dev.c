@@ -552,8 +552,7 @@ static long compat_i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned lo
 		if (rdwr_arg.nmsgs > I2C_RDWR_IOCTL_MAX_MSGS)
 			return -EINVAL;
 
-		rdwr_pa = kmalloc_objs(struct i2c_msg, rdwr_arg.nmsgs,
-				       GFP_KERNEL);
+		rdwr_pa = kmalloc_objs(struct i2c_msg, rdwr_arg.nmsgs);
 		if (!rdwr_pa)
 			return -ENOMEM;
 

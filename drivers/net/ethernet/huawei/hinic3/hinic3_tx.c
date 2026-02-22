@@ -681,8 +681,7 @@ int hinic3_alloc_txqs_res(struct net_device *netdev, u16 num_sq,
 	for (idx = 0; idx < num_sq; idx++) {
 		tqres = &txqs_res[idx];
 
-		tqres->tx_info = kzalloc_objs(*tqres->tx_info, sq_depth,
-					      GFP_KERNEL);
+		tqres->tx_info = kzalloc_objs(*tqres->tx_info, sq_depth);
 		if (!tqres->tx_info)
 			goto err_free_tqres;
 

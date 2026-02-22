@@ -242,8 +242,7 @@ static int bcm7038_l1_init_one(struct device_node *dn, unsigned int idx,
 		return -EINVAL;
 	}
 
-	cpu = intc->cpus[idx] = kzalloc_flex(*cpu, mask_cache, n_words,
-					     GFP_KERNEL);
+	cpu = intc->cpus[idx] = kzalloc_flex(*cpu, mask_cache, n_words);
 	if (!cpu)
 		return -ENOMEM;
 

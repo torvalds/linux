@@ -660,8 +660,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	if (mld->fw_status.in_hw_restart)
 		return 0;
 
-	dup_data = kzalloc_objs(*dup_data, mld->trans->info.num_rxqs,
-				GFP_KERNEL);
+	dup_data = kzalloc_objs(*dup_data, mld->trans->info.num_rxqs);
 	if (!dup_data)
 		return -ENOMEM;
 

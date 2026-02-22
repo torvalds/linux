@@ -1524,8 +1524,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 		data[i++] = xdp_tx;
 	}
 
-	pcpu_sum = kvmalloc_objs(struct netvsc_ethtool_pcpu_stats, nr_cpu_ids,
-				 GFP_KERNEL);
+	pcpu_sum = kvmalloc_objs(struct netvsc_ethtool_pcpu_stats, nr_cpu_ids);
 	if (!pcpu_sum)
 		return;
 

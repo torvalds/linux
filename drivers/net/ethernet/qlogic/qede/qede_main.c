@@ -963,8 +963,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	struct qede_fastpath *fp;
 	int i;
 
-	edev->fp_array = kzalloc_objs(*edev->fp_array, QEDE_QUEUE_CNT(edev),
-				      GFP_KERNEL);
+	edev->fp_array = kzalloc_objs(*edev->fp_array, QEDE_QUEUE_CNT(edev));
 	if (!edev->fp_array) {
 		DP_NOTICE(edev, "fp array allocation failed\n");
 		goto err;
@@ -1007,8 +1006,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
-			fp->txq = kzalloc_objs(*fp->txq, edev->dev_info.num_tc,
-					       GFP_KERNEL);
+			fp->txq = kzalloc_objs(*fp->txq, edev->dev_info.num_tc);
 			if (!fp->txq)
 				goto err;
 		}
@@ -1019,8 +1017,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 				goto err;
 
 			if (edev->xdp_prog) {
-				fp->xdp_tx = kzalloc_obj(*fp->xdp_tx,
-							 GFP_KERNEL);
+				fp->xdp_tx = kzalloc_obj(*fp->xdp_tx);
 				if (!fp->xdp_tx)
 					goto err;
 				fp->type |= QEDE_FASTPATH_XDP;

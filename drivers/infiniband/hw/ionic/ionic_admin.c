@@ -1095,8 +1095,7 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 		goto out;
 	}
 
-	dev->eq_vec = kmalloc_objs(*dev->eq_vec, dev->lif_cfg.eq_count,
-				   GFP_KERNEL);
+	dev->eq_vec = kmalloc_objs(*dev->eq_vec, dev->lif_cfg.eq_count);
 	if (!dev->eq_vec) {
 		rc = -ENOMEM;
 		goto out;
@@ -1126,8 +1125,7 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 
 	dev->lif_cfg.eq_count = eq_i;
 
-	dev->aq_vec = kmalloc_objs(*dev->aq_vec, dev->lif_cfg.aq_count,
-				   GFP_KERNEL);
+	dev->aq_vec = kmalloc_objs(*dev->aq_vec, dev->lif_cfg.aq_count);
 	if (!dev->aq_vec) {
 		rc = -ENOMEM;
 		goto out;

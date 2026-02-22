@@ -151,8 +151,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	switch (asic_id.chip_family) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case FAMILY_SI: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -164,8 +163,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 #endif
 	case FAMILY_CI:
 	case FAMILY_KV: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -175,8 +173,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		return &clk_mgr->base;
 	}
 	case FAMILY_CZ: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -186,8 +183,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		return &clk_mgr->base;
 	}
 	case FAMILY_VI: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -211,8 +207,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		return &clk_mgr->base;
 	}
 	case FAMILY_AI: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -226,8 +221,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 #if defined(CONFIG_DRM_AMD_DC_FP)
 	case FAMILY_RV: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -255,8 +249,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		return &clk_mgr->base;
 	}
 	case FAMILY_NV: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -283,8 +276,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 	case FAMILY_VGH:
 		if (ASICREV_IS_VANGOGH(asic_id.hw_internal_rev)) {
-			struct clk_mgr_vgh *clk_mgr = kzalloc_obj(*clk_mgr,
-								  GFP_KERNEL);
+			struct clk_mgr_vgh *clk_mgr = kzalloc_obj(*clk_mgr);
 
 			if (clk_mgr == NULL) {
 				BREAK_TO_DEBUGGER();
@@ -296,8 +288,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		break;
 
 	case FAMILY_YELLOW_CARP: {
-		struct clk_mgr_dcn31 *clk_mgr = kzalloc_obj(*clk_mgr,
-							    GFP_KERNEL);
+		struct clk_mgr_dcn31 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -309,8 +300,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 		break;
 	case AMDGPU_FAMILY_GC_10_3_6: {
-		struct clk_mgr_dcn315 *clk_mgr = kzalloc_obj(*clk_mgr,
-							     GFP_KERNEL);
+		struct clk_mgr_dcn315 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -322,8 +312,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 		break;
 	case AMDGPU_FAMILY_GC_10_3_7: {
-		struct clk_mgr_dcn316 *clk_mgr = kzalloc_obj(*clk_mgr,
-							     GFP_KERNEL);
+		struct clk_mgr_dcn316 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -335,8 +324,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0: {
-		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr,
-							       GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -347,8 +335,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 
 	case AMDGPU_FAMILY_GC_11_0_1: {
-		struct clk_mgr_dcn314 *clk_mgr = kzalloc_obj(*clk_mgr,
-							     GFP_KERNEL);
+		struct clk_mgr_dcn314 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -361,8 +348,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	break;
 
 	case AMDGPU_FAMILY_GC_11_5_0: {
-		struct clk_mgr_dcn35 *clk_mgr = kzalloc_obj(*clk_mgr,
-							    GFP_KERNEL);
+		struct clk_mgr_dcn35 *clk_mgr = kzalloc_obj(*clk_mgr);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();

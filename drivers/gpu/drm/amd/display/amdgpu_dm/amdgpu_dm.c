@@ -1650,8 +1650,7 @@ static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct 
 	int i = 0;
 	struct hpd_rx_irq_offload_work_queue *hpd_rx_offload_wq = NULL;
 
-	hpd_rx_offload_wq = kzalloc_objs(*hpd_rx_offload_wq, max_caps,
-					 GFP_KERNEL);
+	hpd_rx_offload_wq = kzalloc_objs(*hpd_rx_offload_wq, max_caps);
 
 	if (!hpd_rx_offload_wq)
 		return NULL;
@@ -2130,8 +2129,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	}
 	if (dc_is_dmub_outbox_supported(adev->dm.dc)) {
 		init_completion(&adev->dm.dmub_aux_transfer_done);
-		adev->dm.dmub_notify = kzalloc_obj(struct dmub_notification,
-						   GFP_KERNEL);
+		adev->dm.dmub_notify = kzalloc_obj(struct dmub_notification);
 		if (!adev->dm.dmub_notify) {
 			drm_info(adev_to_drm(adev), "fail to allocate adev->dm.dmub_notify");
 			goto error;
@@ -4160,8 +4158,7 @@ static void handle_hpd_irq(void *param)
 static void schedule_hpd_rx_offload_work(struct amdgpu_device *adev, struct hpd_rx_irq_offload_work_queue *offload_wq,
 							union hpd_irq_data hpd_irq_data)
 {
-	struct hpd_rx_irq_offload_work *offload_work = kzalloc_obj(*offload_work,
-								   GFP_KERNEL);
+	struct hpd_rx_irq_offload_work *offload_work = kzalloc_obj(*offload_work);
 
 	if (!offload_work) {
 		drm_err(adev_to_drm(adev), "Failed to allocate hpd_rx_irq_offload_work.\n");
@@ -5606,8 +5603,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		link = dc_get_link_at_index(dm->dc, i);
 
 		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL) {
-			struct amdgpu_dm_wb_connector *wbcon = kzalloc_obj(*wbcon,
-									   GFP_KERNEL);
+			struct amdgpu_dm_wb_connector *wbcon = kzalloc_obj(*wbcon);
 
 			if (!wbcon) {
 				drm_err(adev_to_drm(adev), "KMS: Failed to allocate writeback connector\n");

@@ -257,14 +257,12 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	mutex_init(&dev->port_mutex);
 	spin_lock_init(&dev->desc_lock);
 
-	dev->cq_tbl = kzalloc_objs(struct pvrdma_cq *, dev->dsr->caps.max_cq,
-				   GFP_KERNEL);
+	dev->cq_tbl = kzalloc_objs(struct pvrdma_cq *, dev->dsr->caps.max_cq);
 	if (!dev->cq_tbl)
 		return ret;
 	spin_lock_init(&dev->cq_tbl_lock);
 
-	dev->qp_tbl = kzalloc_objs(struct pvrdma_qp *, dev->dsr->caps.max_qp,
-				   GFP_KERNEL);
+	dev->qp_tbl = kzalloc_objs(struct pvrdma_qp *, dev->dsr->caps.max_qp);
 	if (!dev->qp_tbl)
 		goto err_cq_free;
 	spin_lock_init(&dev->qp_tbl_lock);
@@ -984,8 +982,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Allocate GID table */
-	dev->sgid_tbl = kzalloc_objs(union ib_gid, dev->dsr->caps.gid_tbl_len,
-				     GFP_KERNEL);
+	dev->sgid_tbl = kzalloc_objs(union ib_gid, dev->dsr->caps.gid_tbl_len);
 	if (!dev->sgid_tbl) {
 		ret = -ENOMEM;
 		goto err_free_uar_table;

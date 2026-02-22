@@ -647,8 +647,7 @@ static int mlxsw_sp_sb_ports_init(struct mlxsw_sp *mlxsw_sp)
 	int i;
 	int err;
 
-	mlxsw_sp->sb->ports = kzalloc_objs(struct mlxsw_sp_sb_port, max_ports,
-					   GFP_KERNEL);
+	mlxsw_sp->sb->ports = kzalloc_objs(struct mlxsw_sp_sb_port, max_ports);
 	if (!mlxsw_sp->sb->ports)
 		return -ENOMEM;
 

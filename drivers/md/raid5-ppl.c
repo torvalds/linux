@@ -1378,8 +1378,7 @@ int ppl_init_log(struct r5conf *conf)
 		goto err;
 
 	ppl_conf->count = conf->raid_disks;
-	ppl_conf->child_logs = kzalloc_objs(struct ppl_log, ppl_conf->count,
-					    GFP_KERNEL);
+	ppl_conf->child_logs = kzalloc_objs(struct ppl_log, ppl_conf->count);
 	if (!ppl_conf->child_logs) {
 		ret = -ENOMEM;
 		goto err;

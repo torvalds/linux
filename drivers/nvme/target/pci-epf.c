@@ -1562,13 +1562,11 @@ static int nvmet_pci_epf_alloc_queues(struct nvmet_pci_epf_ctrl *ctrl)
 {
 	unsigned int qid;
 
-	ctrl->sq = kzalloc_objs(struct nvmet_pci_epf_queue, ctrl->nr_queues,
-				GFP_KERNEL);
+	ctrl->sq = kzalloc_objs(struct nvmet_pci_epf_queue, ctrl->nr_queues);
 	if (!ctrl->sq)
 		return -ENOMEM;
 
-	ctrl->cq = kzalloc_objs(struct nvmet_pci_epf_queue, ctrl->nr_queues,
-				GFP_KERNEL);
+	ctrl->cq = kzalloc_objs(struct nvmet_pci_epf_queue, ctrl->nr_queues);
 	if (!ctrl->cq) {
 		kfree(ctrl->sq);
 		ctrl->sq = NULL;

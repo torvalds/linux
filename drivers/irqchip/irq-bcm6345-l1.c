@@ -238,8 +238,7 @@ static int __init bcm6345_l1_init_one(struct device_node *dn,
 	else if (intc->n_words != n_words)
 		return -EINVAL;
 
-	cpu = intc->cpus[idx] = kzalloc_flex(*cpu, enable_cache, n_words,
-					     GFP_KERNEL);
+	cpu = intc->cpus[idx] = kzalloc_flex(*cpu, enable_cache, n_words);
 	if (!cpu)
 		return -ENOMEM;
 

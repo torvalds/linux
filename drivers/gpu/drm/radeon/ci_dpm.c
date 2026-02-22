@@ -5740,8 +5740,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 	ci_set_private_data_variables_based_on_pptable(rdev);
 
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kzalloc_objs(struct radeon_clock_voltage_dependency_entry, 4,
-			     GFP_KERNEL);
+		kzalloc_objs(struct radeon_clock_voltage_dependency_entry, 4);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		ci_dpm_fini(rdev);
 		return -ENOMEM;

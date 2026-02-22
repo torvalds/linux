@@ -2107,8 +2107,7 @@ struct amdgpu_encoder_atom_dig *
 amdgpu_atombios_encoder_get_dig_info(struct amdgpu_encoder *amdgpu_encoder)
 {
 	int encoder_enum = (amdgpu_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
-	struct amdgpu_encoder_atom_dig *dig = kzalloc_obj(struct amdgpu_encoder_atom_dig,
-							  GFP_KERNEL);
+	struct amdgpu_encoder_atom_dig *dig = kzalloc_obj(struct amdgpu_encoder_atom_dig);
 
 	if (!dig)
 		return NULL;

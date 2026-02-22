@@ -713,8 +713,7 @@ struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc
 	if (!crtc_state)
 		return NULL;
 
-	new_mgag200_crtc_state = kzalloc_obj(*new_mgag200_crtc_state,
-					     GFP_KERNEL);
+	new_mgag200_crtc_state = kzalloc_obj(*new_mgag200_crtc_state);
 	if (!new_mgag200_crtc_state)
 		return NULL;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &new_mgag200_crtc_state->base);

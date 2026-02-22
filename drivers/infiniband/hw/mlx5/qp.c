@@ -1185,8 +1185,7 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 					sizeof(*qp->sq.wr_data), GFP_KERNEL);
 	qp->rq.wrid = kvmalloc_array(qp->rq.wqe_cnt,
 				     sizeof(*qp->rq.wrid), GFP_KERNEL);
-	qp->sq.w_list = kvmalloc_objs(*qp->sq.w_list, qp->sq.wqe_cnt,
-				      GFP_KERNEL);
+	qp->sq.w_list = kvmalloc_objs(*qp->sq.w_list, qp->sq.wqe_cnt);
 	qp->sq.wqe_head = kvmalloc_array(qp->sq.wqe_cnt,
 					 sizeof(*qp->sq.wqe_head), GFP_KERNEL);
 

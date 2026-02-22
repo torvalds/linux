@@ -296,8 +296,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	}
 	p->cs_flags = 0;
 	p->nchunks = cs->num_chunks;
-	p->chunks = kvzalloc_objs(struct radeon_cs_chunk, p->nchunks,
-				  GFP_KERNEL);
+	p->chunks = kvzalloc_objs(struct radeon_cs_chunk, p->nchunks);
 	if (p->chunks == NULL) {
 		return -ENOMEM;
 	}

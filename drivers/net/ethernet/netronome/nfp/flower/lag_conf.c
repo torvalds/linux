@@ -335,8 +335,7 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 			continue;
 		}
 
-		acti_netdevs = kmalloc_objs(*acti_netdevs, entry->slave_cnt,
-					    GFP_KERNEL);
+		acti_netdevs = kmalloc_objs(*acti_netdevs, entry->slave_cnt);
 		if (!acti_netdevs) {
 			schedule_delayed_work(&lag->work,
 					      NFP_FL_LAG_DELAY);

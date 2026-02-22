@@ -709,14 +709,12 @@ static int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 		return status;
 
 	iwqp->kqp.sq_wrid_mem =
-		kzalloc_objs(*iwqp->kqp.sq_wrid_mem, ukinfo->sq_depth,
-			     GFP_KERNEL);
+		kzalloc_objs(*iwqp->kqp.sq_wrid_mem, ukinfo->sq_depth);
 	if (!iwqp->kqp.sq_wrid_mem)
 		return -ENOMEM;
 
 	iwqp->kqp.rq_wrid_mem =
-		kzalloc_objs(*iwqp->kqp.rq_wrid_mem, ukinfo->rq_depth,
-			     GFP_KERNEL);
+		kzalloc_objs(*iwqp->kqp.rq_wrid_mem, ukinfo->rq_depth);
 
 	if (!iwqp->kqp.rq_wrid_mem) {
 		kfree(iwqp->kqp.sq_wrid_mem);

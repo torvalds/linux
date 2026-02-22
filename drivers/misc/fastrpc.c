@@ -616,8 +616,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 			kfree(ctx);
 			return ERR_PTR(-ENOMEM);
 		}
-		ctx->olaps = kzalloc_objs(*ctx->olaps, ctx->nscalars,
-					  GFP_KERNEL);
+		ctx->olaps = kzalloc_objs(*ctx->olaps, ctx->nscalars);
 		if (!ctx->olaps) {
 			kfree(ctx->maps);
 			kfree(ctx);
@@ -1306,8 +1305,7 @@ static int fastrpc_init_create_static_process(struct fastrpc_user *fl,
 	} inbuf;
 	u32 sc;
 
-	args = kzalloc_objs(*args, FASTRPC_CREATE_STATIC_PROCESS_NARGS,
-			    GFP_KERNEL);
+	args = kzalloc_objs(*args, FASTRPC_CREATE_STATIC_PROCESS_NARGS);
 	if (!args)
 		return -ENOMEM;
 

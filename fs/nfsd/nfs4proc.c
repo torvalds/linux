@@ -2171,8 +2171,7 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (atomic_inc_return(&nn->pending_async_copies) >
 				(int)rqstp->rq_pool->sp_nrthreads)
 			goto out_dec_async_copy_err;
-		async_copy->cp_src = kmalloc_obj(*async_copy->cp_src,
-						 GFP_KERNEL);
+		async_copy->cp_src = kmalloc_obj(*async_copy->cp_src);
 		if (!async_copy->cp_src)
 			goto out_dec_async_copy_err;
 		if (!nfs4_init_copy_state(nn, copy))

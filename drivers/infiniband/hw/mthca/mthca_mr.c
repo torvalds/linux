@@ -146,8 +146,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 
 	buddy->bits = kcalloc(buddy->max_order + 1, sizeof(*buddy->bits),
 			      GFP_KERNEL);
-	buddy->num_free = kzalloc_objs(*buddy->num_free, (buddy->max_order + 1),
-				       GFP_KERNEL);
+	buddy->num_free = kzalloc_objs(*buddy->num_free, (buddy->max_order + 1));
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 

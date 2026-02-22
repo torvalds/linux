@@ -786,8 +786,7 @@ static int he_init_group(struct he_dev *he_dev, int group)
 	}
 
 	/* rbpl_virt 64-bit pointers */
-	he_dev->rbpl_virt = kmalloc_objs(*he_dev->rbpl_virt, RBPL_TABLE_SIZE,
-					 GFP_KERNEL);
+	he_dev->rbpl_virt = kmalloc_objs(*he_dev->rbpl_virt, RBPL_TABLE_SIZE);
 	if (!he_dev->rbpl_virt) {
 		hprintk("unable to allocate rbpl virt table\n");
 		goto out_free_rbpl_table;

@@ -1907,8 +1907,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	}
 
 	if (is_dp_bridge) {
-		radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-						   GFP_KERNEL);
+		radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 		if (!radeon_dig_connector)
 			goto failed;
 		radeon_dig_connector->igp_lane_info = igp_lane_info;
@@ -2079,8 +2078,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			break;
 		case DRM_MODE_CONNECTOR_DVII:
 		case DRM_MODE_CONNECTOR_DVID:
-			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-							   GFP_KERNEL);
+			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 			if (!radeon_dig_connector)
 				goto failed;
 			radeon_dig_connector->igp_lane_info = igp_lane_info;
@@ -2142,8 +2140,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			break;
 		case DRM_MODE_CONNECTOR_HDMIA:
 		case DRM_MODE_CONNECTOR_HDMIB:
-			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-							   GFP_KERNEL);
+			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 			if (!radeon_dig_connector)
 				goto failed;
 			radeon_dig_connector->igp_lane_info = igp_lane_info;
@@ -2198,8 +2195,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_DisplayPort:
-			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-							   GFP_KERNEL);
+			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 			if (!radeon_dig_connector)
 				goto failed;
 			radeon_dig_connector->igp_lane_info = igp_lane_info;
@@ -2254,8 +2250,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_eDP:
-			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-							   GFP_KERNEL);
+			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 			if (!radeon_dig_connector)
 				goto failed;
 			radeon_dig_connector->igp_lane_info = igp_lane_info;
@@ -2302,8 +2297,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			connector->doublescan_allowed = false;
 			break;
 		case DRM_MODE_CONNECTOR_LVDS:
-			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig,
-							   GFP_KERNEL);
+			radeon_dig_connector = kzalloc_obj(struct radeon_connector_atom_dig);
 			if (!radeon_dig_connector)
 				goto failed;
 			radeon_dig_connector->igp_lane_info = igp_lane_info;

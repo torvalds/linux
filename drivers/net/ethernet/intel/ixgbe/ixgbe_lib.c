@@ -768,8 +768,7 @@ static int ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter)
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
-	adapter->msix_entries = kzalloc_objs(struct msix_entry, vectors,
-					     GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, vectors);
 	if (!adapter->msix_entries)
 		return -ENOMEM;
 

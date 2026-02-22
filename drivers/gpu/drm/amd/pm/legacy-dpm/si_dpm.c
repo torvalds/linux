@@ -7442,8 +7442,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 		return ret;
 
 	adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kzalloc_objs(struct amdgpu_clock_voltage_dependency_entry, 4,
-			     GFP_KERNEL);
+		kzalloc_objs(struct amdgpu_clock_voltage_dependency_entry, 4);
 	if (!adev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries)
 		return -ENOMEM;
 

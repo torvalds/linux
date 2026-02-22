@@ -1102,8 +1102,7 @@ int qla_create_buf_pool(struct scsi_qla_host *vha, struct qla_qpair *qp)
 		return -ENOMEM;
 	}
 	sz = qp->req->length * sizeof(dma_addr_t);
-	qp->buf_pool.dma_array = kzalloc_objs(dma_addr_t, qp->req->length,
-					      GFP_KERNEL);
+	qp->buf_pool.dma_array = kzalloc_objs(dma_addr_t, qp->req->length);
 	if (!qp->buf_pool.dma_array) {
 		ql_log(ql_log_warn, vha, 0x0186,
 		    "Failed to allocate dma_array(%d).\n", sz);

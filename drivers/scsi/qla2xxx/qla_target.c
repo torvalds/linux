@@ -7465,8 +7465,7 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 		return -ENOMEM;
 	}
 
-	tgt->qphints = kzalloc_objs(struct qla_qpair_hint, ha->max_qpairs + 1,
-				    GFP_KERNEL);
+	tgt->qphints = kzalloc_objs(struct qla_qpair_hint, ha->max_qpairs + 1);
 	if (!tgt->qphints) {
 		kfree(tgt);
 		ql_log(ql_log_warn, base_vha, 0x0197,

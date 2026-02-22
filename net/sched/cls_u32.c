@@ -1480,8 +1480,7 @@ static int __init init_u32(void)
 #ifdef CONFIG_NET_CLS_ACT
 	pr_info("    Actions configured\n");
 #endif
-	tc_u_common_hash = kvmalloc_objs(struct hlist_head, U32_HASH_SIZE,
-					 GFP_KERNEL);
+	tc_u_common_hash = kvmalloc_objs(struct hlist_head, U32_HASH_SIZE);
 	if (!tc_u_common_hash)
 		return -ENOMEM;
 

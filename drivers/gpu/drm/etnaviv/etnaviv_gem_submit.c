@@ -38,8 +38,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 	if (!submit)
 		return NULL;
 
-	submit->pmrs = kzalloc_objs(struct etnaviv_perfmon_request, nr_pmrs,
-				    GFP_KERNEL);
+	submit->pmrs = kzalloc_objs(struct etnaviv_perfmon_request, nr_pmrs);
 	if (!submit->pmrs) {
 		kfree(submit);
 		return NULL;

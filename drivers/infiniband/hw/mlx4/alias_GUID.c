@@ -835,8 +835,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 
 	if (!mlx4_is_master(dev->dev))
 		return 0;
-	dev->sriov.alias_guid.sa_client = kzalloc_obj(*dev->sriov.alias_guid.sa_client,
-						      GFP_KERNEL);
+	dev->sriov.alias_guid.sa_client = kzalloc_obj(*dev->sriov.alias_guid.sa_client);
 	if (!dev->sriov.alias_guid.sa_client)
 		return -ENOMEM;
 

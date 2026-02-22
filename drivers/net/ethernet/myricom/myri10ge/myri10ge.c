@@ -3703,8 +3703,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	 * slices. We give up on MSI-X if we can only get a single
 	 * vector. */
 
-	mgp->msix_vectors = kzalloc_objs(*mgp->msix_vectors, mgp->num_slices,
-					 GFP_KERNEL);
+	mgp->msix_vectors = kzalloc_objs(*mgp->msix_vectors, mgp->num_slices);
 	if (mgp->msix_vectors == NULL)
 		goto no_msix;
 	for (i = 0; i < mgp->num_slices; i++) {

@@ -4592,8 +4592,7 @@ rcu_torture_init(void)
 	if (WARN_ON(nocbs_toggle < 0))
 		nocbs_toggle = HZ;
 	if (nrealnocbers > 0) {
-		nocb_tasks = kzalloc_objs(nocb_tasks[0], nrealnocbers,
-					  GFP_KERNEL);
+		nocb_tasks = kzalloc_objs(nocb_tasks[0], nrealnocbers);
 		if (nocb_tasks == NULL) {
 			TOROUT_ERRSTRING("out of memory");
 			firsterr = -ENOMEM;

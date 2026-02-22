@@ -183,8 +183,7 @@ static int idpf_tx_buf_alloc_all(struct idpf_tx_queue *tx_q)
 		tx_q->buf_pool_size = U16_MAX;
 	else
 		tx_q->buf_pool_size = tx_q->desc_count;
-	tx_q->tx_buf = kzalloc_objs(*tx_q->tx_buf, tx_q->buf_pool_size,
-				    GFP_KERNEL);
+	tx_q->tx_buf = kzalloc_objs(*tx_q->tx_buf, tx_q->buf_pool_size);
 	if (!tx_q->tx_buf)
 		return -ENOMEM;
 
@@ -1710,8 +1709,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 {
 	bool split, flow_sch_en;
 
-	rsrc->txq_grps = kzalloc_objs(*rsrc->txq_grps, rsrc->num_txq_grp,
-				      GFP_KERNEL);
+	rsrc->txq_grps = kzalloc_objs(*rsrc->txq_grps, rsrc->num_txq_grp);
 	if (!rsrc->txq_grps)
 		return -ENOMEM;
 
@@ -1727,8 +1725,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 		tx_qgrp->num_txq = num_txq;
 
 		for (unsigned int j = 0; j < tx_qgrp->num_txq; j++) {
-			tx_qgrp->txqs[j] = kzalloc_obj(*tx_qgrp->txqs[j],
-						       GFP_KERNEL);
+			tx_qgrp->txqs[j] = kzalloc_obj(*tx_qgrp->txqs[j]);
 			if (!tx_qgrp->txqs[j])
 				goto err_alloc;
 		}
@@ -1805,8 +1802,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 	bool hs, rsc;
 	int err = 0;
 
-	rsrc->rxq_grps = kzalloc_objs(struct idpf_rxq_group, rsrc->num_rxq_grp,
-				      GFP_KERNEL);
+	rsrc->rxq_grps = kzalloc_objs(struct idpf_rxq_group, rsrc->num_rxq_grp);
 	if (!rsrc->rxq_grps)
 		return -ENOMEM;
 
@@ -1820,8 +1816,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 		if (!idpf_is_queue_model_split(rsrc->rxq_model)) {
 			rx_qgrp->singleq.num_rxq = num_rxq;
 			for (unsigned int j = 0; j < num_rxq; j++) {
-				rx_qgrp->singleq.rxqs[j] = kzalloc_obj(*rx_qgrp->singleq.rxqs[j],
-								       GFP_KERNEL);
+				rx_qgrp->singleq.rxqs[j] = kzalloc_obj(*rx_qgrp->singleq.rxqs[j]);
 				if (!rx_qgrp->singleq.rxqs[j]) {
 					err = -ENOMEM;
 					goto err_alloc;
@@ -4592,21 +4587,18 @@ int idpf_vport_intr_alloc(struct idpf_vport *vport,
 		q_vector->rx_intr_mode = q_coal->rx_intr_mode;
 		q_vector->rx_itr_idx = VIRTCHNL2_ITR_IDX_0;
 
-		q_vector->tx = kzalloc_objs(*q_vector->tx, txqs_per_vector,
-					    GFP_KERNEL);
+		q_vector->tx = kzalloc_objs(*q_vector->tx, txqs_per_vector);
 		if (!q_vector->tx)
 			goto error;
 
-		q_vector->rx = kzalloc_objs(*q_vector->rx, rxqs_per_vector,
-					    GFP_KERNEL);
+		q_vector->rx = kzalloc_objs(*q_vector->rx, rxqs_per_vector);
 		if (!q_vector->rx)
 			goto error;
 
 		if (!idpf_is_queue_model_split(rsrc->rxq_model))
 			continue;
 
-		q_vector->bufq = kzalloc_objs(*q_vector->bufq, bufqs_per_vector,
-					      GFP_KERNEL);
+		q_vector->bufq = kzalloc_objs(*q_vector->bufq, bufqs_per_vector);
 		if (!q_vector->bufq)
 			goto error;
 

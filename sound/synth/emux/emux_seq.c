@@ -136,8 +136,7 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	if (!p)
 		return NULL;
 
-	p->chset.channels = kzalloc_objs(*p->chset.channels, max_channels,
-					 GFP_KERNEL);
+	p->chset.channels = kzalloc_objs(*p->chset.channels, max_channels);
 	if (!p->chset.channels) {
 		kfree(p);
 		return NULL;

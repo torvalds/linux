@@ -2254,8 +2254,7 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	if (!eth_filter)
 		return -ENOMEM;
 
-	eth_filter_info = kzalloc_objs(*eth_filter_info, adap->params.nports,
-				       GFP_KERNEL);
+	eth_filter_info = kzalloc_objs(*eth_filter_info, adap->params.nports);
 	if (!eth_filter_info) {
 		ret = -ENOMEM;
 		goto free_eth_filter;

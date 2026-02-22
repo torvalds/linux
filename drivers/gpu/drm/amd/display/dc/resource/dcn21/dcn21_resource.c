@@ -999,8 +999,7 @@ static struct hubbub *dcn21_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
-	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub,
-						  GFP_KERNEL);
+	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub)
 		return NULL;

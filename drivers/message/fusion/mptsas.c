@@ -907,8 +907,7 @@ mptsas_setup_wide_ports(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		 * Forming a port
 		 */
 		if (!port_details) {
-			port_details = kzalloc_obj(struct mptsas_portinfo_details,
-						   GFP_KERNEL);
+			port_details = kzalloc_obj(struct mptsas_portinfo_details);
 			if (!port_details)
 				goto out;
 			port_details->num_phys = 1;

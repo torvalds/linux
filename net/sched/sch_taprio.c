@@ -1376,8 +1376,7 @@ static struct tc_taprio_qopt_offload *taprio_offload_alloc(int num_entries)
 {
 	struct __tc_taprio_qopt_offload *__offload;
 
-	__offload = kzalloc_flex(*__offload, offload.entries, num_entries,
-				 GFP_KERNEL);
+	__offload = kzalloc_flex(*__offload, offload.entries, num_entries);
 	if (!__offload)
 		return NULL;
 

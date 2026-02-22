@@ -447,8 +447,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		exit_handler = dev_info->exit;
 	}
 
-	i2c_clients = kzalloc_objs(*i2c_clients, dev_info->i2c_client_count,
-				   GFP_KERNEL);
+	i2c_clients = kzalloc_objs(*i2c_clients, dev_info->i2c_client_count);
 	if (!i2c_clients) {
 		x86_android_tablet_remove(pdev);
 		return -ENOMEM;

@@ -865,8 +865,7 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			SOF_IPC4_NODE_INDEX_INTEL_DMIC(ipc4_copier->dai_index);
 		break;
 	default:
-		ipc4_copier->gtw_attr = kzalloc_obj(*ipc4_copier->gtw_attr,
-						    GFP_KERNEL);
+		ipc4_copier->gtw_attr = kzalloc_obj(*ipc4_copier->gtw_attr);
 		if (!ipc4_copier->gtw_attr) {
 			ret = -ENOMEM;
 			goto free_available_fmt;

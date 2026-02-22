@@ -1548,8 +1548,7 @@ static int kbd_connect(struct input_handler *handler, struct input_dev *dev,
 {
 	int error;
 
-	struct input_handle __free(kfree) *handle = kzalloc_obj(*handle,
-								GFP_KERNEL);
+	struct input_handle __free(kfree) *handle = kzalloc_obj(*handle);
 	if (!handle)
 		return -ENOMEM;
 

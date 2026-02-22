@@ -3025,8 +3025,7 @@ static int its_alloc_collections(struct its_node *its)
 {
 	int i;
 
-	its->collections = kzalloc_objs(*its->collections, nr_cpu_ids,
-					GFP_KERNEL);
+	its->collections = kzalloc_objs(*its->collections, nr_cpu_ids);
 	if (!its->collections)
 		return -ENOMEM;
 

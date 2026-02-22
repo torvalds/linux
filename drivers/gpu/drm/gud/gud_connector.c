@@ -246,8 +246,7 @@ static int gud_connector_get_modes(struct drm_connector *connector)
 	if (drm_edid && edid_ctx.edid_override)
 		goto out;
 
-	reqmodes = kmalloc_objs(*reqmodes, GUD_CONNECTOR_MAX_NUM_MODES,
-				GFP_KERNEL);
+	reqmodes = kmalloc_objs(*reqmodes, GUD_CONNECTOR_MAX_NUM_MODES);
 	if (!reqmodes)
 		goto out;
 
@@ -480,8 +479,7 @@ static int gud_connector_add_properties(struct gud_device *gdrm, struct gud_conn
 	unsigned int i, num_properties;
 	int ret;
 
-	properties = kzalloc_objs(*properties, GUD_CONNECTOR_PROPERTIES_MAX_NUM,
-				  GFP_KERNEL);
+	properties = kzalloc_objs(*properties, GUD_CONNECTOR_PROPERTIES_MAX_NUM);
 	if (!properties)
 		return -ENOMEM;
 

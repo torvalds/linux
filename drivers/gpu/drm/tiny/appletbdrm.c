@@ -358,8 +358,7 @@ static int appletbdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	if (!appletbdrm_state->request)
 		return -ENOMEM;
 
-	appletbdrm_state->response = kzalloc_obj(*appletbdrm_state->response,
-						 GFP_KERNEL);
+	appletbdrm_state->response = kzalloc_obj(*appletbdrm_state->response);
 
 	if (!appletbdrm_state->response)
 		return -ENOMEM;

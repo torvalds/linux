@@ -52,8 +52,7 @@ static int __init init_vdso(void)
 
 	vdso_info.size = PAGE_ALIGN(vdso_end - vdso_start);
 	vdso_info.code_mapping.pages =
-		kzalloc_objs(struct page *, vdso_info.size / PAGE_SIZE,
-			     GFP_KERNEL);
+		kzalloc_objs(struct page *, vdso_info.size / PAGE_SIZE);
 
 	if (!vdso_info.code_mapping.pages)
 		return -ENOMEM;

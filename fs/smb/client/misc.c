@@ -673,8 +673,7 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
 		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
 
-	*target_nodes = kzalloc_objs(struct dfs_info3_param, *num_of_nodes,
-				     GFP_KERNEL);
+	*target_nodes = kzalloc_objs(struct dfs_info3_param, *num_of_nodes);
 	if (*target_nodes == NULL) {
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;

@@ -378,8 +378,7 @@ static int plx_dma_alloc_desc(struct plx_dma_dev *plxdev)
 	struct plx_dma_desc *desc;
 	int i;
 
-	plxdev->desc_ring = kzalloc_objs(*plxdev->desc_ring, PLX_DMA_RING_COUNT,
-					 GFP_KERNEL);
+	plxdev->desc_ring = kzalloc_objs(*plxdev->desc_ring, PLX_DMA_RING_COUNT);
 	if (!plxdev->desc_ring)
 		return -ENOMEM;
 

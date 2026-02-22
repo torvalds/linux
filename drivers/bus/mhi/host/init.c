@@ -699,8 +699,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 
 	num = config->num_events;
 	mhi_cntrl->total_ev_rings = num;
-	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event, num,
-					    GFP_KERNEL);
+	mhi_cntrl->mhi_event = kzalloc_objs(*mhi_cntrl->mhi_event, num);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
@@ -938,8 +937,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	if (ret)
 		return -EINVAL;
 
-	mhi_cntrl->mhi_cmd = kzalloc_objs(*mhi_cntrl->mhi_cmd, NR_OF_CMD_RINGS,
-					  GFP_KERNEL);
+	mhi_cntrl->mhi_cmd = kzalloc_objs(*mhi_cntrl->mhi_cmd, NR_OF_CMD_RINGS);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
 		goto err_free_event;

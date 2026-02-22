@@ -47,8 +47,7 @@ static int gem_alloc_pages_array(struct xen_gem_object *xen_obj,
 				 size_t buf_size)
 {
 	xen_obj->num_pages = DIV_ROUND_UP(buf_size, PAGE_SIZE);
-	xen_obj->pages = kvmalloc_objs(struct page *, xen_obj->num_pages,
-				       GFP_KERNEL);
+	xen_obj->pages = kvmalloc_objs(struct page *, xen_obj->num_pages);
 	return !xen_obj->pages ? -ENOMEM : 0;
 }
 

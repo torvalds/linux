@@ -1140,8 +1140,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	int i;
 
 	/* build initial monmap */
-	monc->monmap = kzalloc_flex(*monc->monmap, mon_inst, num_mon,
-				    GFP_KERNEL);
+	monc->monmap = kzalloc_flex(*monc->monmap, mon_inst, num_mon);
 	if (!monc->monmap)
 		return -ENOMEM;
 	monc->monmap->num_mon = num_mon;

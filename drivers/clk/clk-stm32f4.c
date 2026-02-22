@@ -1855,8 +1855,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 
 	stm32fx_end_primary_clk = data->end_primary;
 
-	clks = kmalloc_objs(*clks, data->gates_num + stm32fx_end_primary_clk,
-			    GFP_KERNEL);
+	clks = kmalloc_objs(*clks, data->gates_num + stm32fx_end_primary_clk);
 	if (!clks)
 		goto fail;
 

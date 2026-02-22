@@ -78,8 +78,7 @@ static struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 
 
 	/* Create array of pointers to the attributes */
-	attributes = kzalloc_objs(struct attribute *, NUM_ATTRIBUTES + 1,
-				  GFP_KERNEL);
+	attributes = kzalloc_objs(struct attribute *, NUM_ATTRIBUTES + 1);
 	if (!attributes)
 		goto error3;
 	attributes[0] = &vendor_attribute->dev_attr.attr;

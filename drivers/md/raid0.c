@@ -143,8 +143,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	}
 
 	err = -ENOMEM;
-	conf->strip_zone = kzalloc_objs(struct strip_zone, conf->nr_strip_zones,
-					GFP_KERNEL);
+	conf->strip_zone = kzalloc_objs(struct strip_zone, conf->nr_strip_zones);
 	if (!conf->strip_zone)
 		goto abort;
 	conf->devlist = kzalloc(array3_size(sizeof(struct md_rdev *),

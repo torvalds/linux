@@ -994,8 +994,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	act_pci_func = ahw->total_nic_func;
 
-	adapter->npars = kzalloc_objs(struct qlcnic_npar_info, act_pci_func,
-				      GFP_KERNEL);
+	adapter->npars = kzalloc_objs(struct qlcnic_npar_info, act_pci_func);
 	if (!adapter->npars) {
 		ret = -ENOMEM;
 		goto err_pci_info;

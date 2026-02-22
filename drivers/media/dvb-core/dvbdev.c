@@ -251,13 +251,11 @@ static int dvb_create_tsout_entity(struct dvb_device *dvbdev,
 {
 	int i;
 
-	dvbdev->tsout_pads = kzalloc_objs(*dvbdev->tsout_pads, npads,
-					  GFP_KERNEL);
+	dvbdev->tsout_pads = kzalloc_objs(*dvbdev->tsout_pads, npads);
 	if (!dvbdev->tsout_pads)
 		return -ENOMEM;
 
-	dvbdev->tsout_entity = kzalloc_objs(*dvbdev->tsout_entity, npads,
-					    GFP_KERNEL);
+	dvbdev->tsout_entity = kzalloc_objs(*dvbdev->tsout_entity, npads);
 	if (!dvbdev->tsout_entity)
 		return -ENOMEM;
 

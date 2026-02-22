@@ -2968,8 +2968,7 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	/* Driver ilate data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != il->cmd_queue) {
-		txq->skbs = kzalloc_objs(struct sk_buff *, TFD_QUEUE_SIZE_MAX,
-					 GFP_KERNEL);
+		txq->skbs = kzalloc_objs(struct sk_buff *, TFD_QUEUE_SIZE_MAX);
 		if (!txq->skbs) {
 			IL_ERR("Fail to alloc skbs\n");
 			goto error;
@@ -3442,8 +3441,7 @@ il_init_geos(struct il_priv *il)
 	}
 
 	channels =
-	    kzalloc_objs(struct ieee80211_channel, il->channel_count,
-			 GFP_KERNEL);
+	    kzalloc_objs(struct ieee80211_channel, il->channel_count);
 	if (!channels)
 		return -ENOMEM;
 
@@ -4609,8 +4607,7 @@ il_alloc_txq_mem(struct il_priv *il)
 {
 	if (!il->txq)
 		il->txq =
-		    kzalloc_objs(struct il_tx_queue, il->cfg->num_of_queues,
-				 GFP_KERNEL);
+		    kzalloc_objs(struct il_tx_queue, il->cfg->num_of_queues);
 	if (!il->txq) {
 		IL_ERR("Not enough memory for txq\n");
 		return -ENOMEM;

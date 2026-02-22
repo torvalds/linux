@@ -899,8 +899,7 @@ static struct tty3270_line *tty3270_alloc_screen(struct tty3270 *tp, unsigned in
 	if (!screen)
 		goto out_err;
 	for (lines = 0; lines < allocated; lines++) {
-		screen[lines].cells = kzalloc_objs(struct tty3270_cell, cols,
-						   GFP_KERNEL);
+		screen[lines].cells = kzalloc_objs(struct tty3270_cell, cols);
 		if (!screen[lines].cells)
 			goto out_screen;
 	}

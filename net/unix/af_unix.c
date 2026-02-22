@@ -3798,8 +3798,7 @@ static int __net_init unix_net_init(struct net *net)
 		goto err_sysctl;
 #endif
 
-	net->unx.table.locks = kvmalloc_objs(spinlock_t, UNIX_HASH_SIZE,
-					     GFP_KERNEL);
+	net->unx.table.locks = kvmalloc_objs(spinlock_t, UNIX_HASH_SIZE);
 	if (!net->unx.table.locks)
 		goto err_proc;
 

@@ -1073,8 +1073,7 @@ xpc_setup_msg_structures_uv(struct xpc_channel *ch)
 
 	DBUG_ON(ch->flags & XPC_C_SETUP);
 
-	ch_uv->cached_notify_gru_mq_desc = kmalloc_obj(struct gru_message_queue_desc,
-						       GFP_KERNEL);
+	ch_uv->cached_notify_gru_mq_desc = kmalloc_obj(struct gru_message_queue_desc);
 	if (ch_uv->cached_notify_gru_mq_desc == NULL)
 		return xpNoMemory;
 

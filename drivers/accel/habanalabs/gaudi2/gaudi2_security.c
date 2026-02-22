@@ -2620,8 +2620,7 @@ static int gaudi2_init_pb_tpc(struct hl_device *hdev)
 
 	block_array_size = ARRAY_SIZE(gaudi2_pb_dcr0_tpc0);
 
-	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, block_array_size,
-				GFP_KERNEL);
+	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, block_array_size);
 	if (!glbl_sec)
 		return -ENOMEM;
 

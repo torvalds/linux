@@ -1550,15 +1550,13 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 		if (!vol)
 			continue;
 
-		scan_eba[i] = kmalloc_objs(**scan_eba, vol->reserved_pebs,
-					   GFP_KERNEL);
+		scan_eba[i] = kmalloc_objs(**scan_eba, vol->reserved_pebs);
 		if (!scan_eba[i]) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
 
-		fm_eba[i] = kmalloc_objs(**fm_eba, vol->reserved_pebs,
-					 GFP_KERNEL);
+		fm_eba[i] = kmalloc_objs(**fm_eba, vol->reserved_pebs);
 		if (!fm_eba[i]) {
 			ret = -ENOMEM;
 			kfree(scan_eba[i]);

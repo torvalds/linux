@@ -1687,8 +1687,7 @@ static int __init once_over(void)
 
 				bus_cur->firstPFMemFromMem = pfmem_cur;
 
-				mem = kzalloc_obj(struct resource_node,
-						  GFP_KERNEL);
+				mem = kzalloc_obj(struct resource_node);
 				if (!mem)
 					return -ENOMEM;
 
@@ -1970,8 +1969,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						end_address |= (upper_io_end << 16);
 
 						if ((start_address) && (start_address <= end_address)) {
-							range = kzalloc_obj(struct range_node,
-									    GFP_KERNEL);
+							range = kzalloc_obj(struct range_node);
 							if (!range)
 								return -ENOMEM;
 
@@ -1995,8 +1993,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 							fix_resources(bus_sec);
 
 							if (ibmphp_find_resource(bus_cur, start_address, &io, IO)) {
-								io = kzalloc_obj(struct resource_node,
-										 GFP_KERNEL);
+								io = kzalloc_obj(struct resource_node);
 								if (!io) {
 									kfree(range);
 									return -ENOMEM;
@@ -2019,8 +2016,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 
 						if ((start_address) && (start_address <= end_address)) {
 
-							range = kzalloc_obj(struct range_node,
-									    GFP_KERNEL);
+							range = kzalloc_obj(struct range_node);
 							if (!range)
 								return -ENOMEM;
 
@@ -2045,8 +2041,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 							fix_resources(bus_sec);
 
 							if (ibmphp_find_resource(bus_cur, start_address, &mem, MEM)) {
-								mem = kzalloc_obj(struct resource_node,
-										  GFP_KERNEL);
+								mem = kzalloc_obj(struct resource_node);
 								if (!mem) {
 									kfree(range);
 									return -ENOMEM;
@@ -2073,8 +2068,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 
 						if ((start_address) && (start_address <= end_address)) {
 
-							range = kzalloc_obj(struct range_node,
-									    GFP_KERNEL);
+							range = kzalloc_obj(struct range_node);
 							if (!range)
 								return -ENOMEM;
 
@@ -2098,8 +2092,7 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 
 							fix_resources(bus_sec);
 							if (ibmphp_find_resource(bus_cur, start_address, &pfmem, PFMEM)) {
-								pfmem = kzalloc_obj(struct resource_node,
-										    GFP_KERNEL);
+								pfmem = kzalloc_obj(struct resource_node);
 								if (!pfmem) {
 									kfree(range);
 									return -ENOMEM;

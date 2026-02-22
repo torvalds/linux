@@ -51,8 +51,7 @@ nvif_fifo_runlists(struct nvif_device *device)
 		goto done;
 
 	device->runlists = fls64(a->v.runlists.data);
-	device->runlist = kzalloc_objs(*device->runlist, device->runlists,
-				       GFP_KERNEL);
+	device->runlist = kzalloc_objs(*device->runlist, device->runlists);
 	if (!device->runlist) {
 		ret = -ENOMEM;
 		goto done;

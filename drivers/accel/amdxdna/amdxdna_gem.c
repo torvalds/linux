@@ -210,8 +210,7 @@ static int amdxdna_hmm_register(struct amdxdna_gem_obj *abo,
 		return -ENOMEM;
 
 	nr_pages = (PAGE_ALIGN(addr + len) - (addr & PAGE_MASK)) >> PAGE_SHIFT;
-	mapp->range.hmm_pfns = kvzalloc_objs(*mapp->range.hmm_pfns, nr_pages,
-					     GFP_KERNEL);
+	mapp->range.hmm_pfns = kvzalloc_objs(*mapp->range.hmm_pfns, nr_pages);
 	if (!mapp->range.hmm_pfns) {
 		ret = -ENOMEM;
 		goto free_map;

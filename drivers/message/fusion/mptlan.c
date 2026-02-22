@@ -396,8 +396,7 @@ mpt_lan_open(struct net_device *dev)
 		goto out;
 	priv->mpt_txfidx_tail = -1;
 
-	priv->SendCtl = kzalloc_objs(struct BufferControl, priv->tx_max_out,
-				     GFP_KERNEL);
+	priv->SendCtl = kzalloc_objs(struct BufferControl, priv->tx_max_out);
 	if (priv->SendCtl == NULL)
 		goto out_mpt_txfidx;
 	for (i = 0; i < priv->tx_max_out; i++)
@@ -410,8 +409,7 @@ mpt_lan_open(struct net_device *dev)
 		goto out_SendCtl;
 	priv->mpt_rxfidx_tail = -1;
 
-	priv->RcvCtl = kzalloc_objs(struct BufferControl, priv->max_buckets_out,
-				    GFP_KERNEL);
+	priv->RcvCtl = kzalloc_objs(struct BufferControl, priv->max_buckets_out);
 	if (priv->RcvCtl == NULL)
 		goto out_mpt_rxfidx;
 	for (i = 0; i < priv->max_buckets_out; i++)

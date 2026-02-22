@@ -1255,8 +1255,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 			ATOM_PowerTune_Table *pt;
 			rdev->pm.dpm.dyn_state.cac_tdp_table =
-				kzalloc_obj(struct radeon_cac_tdp_table,
-					    GFP_KERNEL);
+				kzalloc_obj(struct radeon_cac_tdp_table);
 			if (!rdev->pm.dpm.dyn_state.cac_tdp_table) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;

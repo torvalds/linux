@@ -4838,8 +4838,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	if (ret < 0)
 		goto err_free_ei;
 
-	sch->global_dsqs = kzalloc_objs(sch->global_dsqs[0], nr_node_ids,
-					GFP_KERNEL);
+	sch->global_dsqs = kzalloc_objs(sch->global_dsqs[0], nr_node_ids);
 	if (!sch->global_dsqs) {
 		ret = -ENOMEM;
 		goto err_free_hash;

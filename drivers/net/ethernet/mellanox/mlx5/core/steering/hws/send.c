@@ -1132,8 +1132,7 @@ int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,
 	if (err)
 		return err;
 
-	ctx->send_queue = kzalloc_objs(*ctx->send_queue, ctx->queues,
-				       GFP_KERNEL);
+	ctx->send_queue = kzalloc_objs(*ctx->send_queue, ctx->queues);
 	if (!ctx->send_queue) {
 		err = -ENOMEM;
 		goto free_bwc_locks;

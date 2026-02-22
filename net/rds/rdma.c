@@ -934,8 +934,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		rm->atomic.op_notifier = kmalloc_obj(*rm->atomic.op_notifier,
-						     GFP_KERNEL);
+		rm->atomic.op_notifier = kmalloc_obj(*rm->atomic.op_notifier);
 		if (!rm->atomic.op_notifier) {
 			ret = -ENOMEM;
 			goto err;

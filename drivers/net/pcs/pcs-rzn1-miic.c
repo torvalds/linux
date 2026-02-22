@@ -679,8 +679,7 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	s8 *dt_val;
 	u32 conf;
 
-	dt_val = kmalloc_objs(*dt_val, miic->of_data->conf_conv_count,
-			      GFP_KERNEL);
+	dt_val = kmalloc_objs(*dt_val, miic->of_data->conf_conv_count);
 	if (!dt_val)
 		return -ENOMEM;
 

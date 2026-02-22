@@ -794,8 +794,7 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
 	void *va;
 	dma_addr_t pa;
 
-	mr->pbl_table = kzalloc_objs(struct ocrdma_pbl, mr->num_pbls,
-				     GFP_KERNEL);
+	mr->pbl_table = kzalloc_objs(struct ocrdma_pbl, mr->num_pbls);
 
 	if (!mr->pbl_table)
 		return -ENOMEM;

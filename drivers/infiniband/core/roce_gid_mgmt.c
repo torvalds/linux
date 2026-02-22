@@ -660,8 +660,7 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 				struct net_device *ndev)
 {
 	unsigned int i;
-	struct netdev_event_work *ndev_work = kmalloc_obj(*ndev_work,
-							  GFP_KERNEL);
+	struct netdev_event_work *ndev_work = kmalloc_obj(*ndev_work);
 
 	if (!ndev_work)
 		return NOTIFY_DONE;

@@ -3753,8 +3753,7 @@ static int pmu_alloc_topology(struct intel_uncore_type *type, int topology_type)
 		goto err;
 
 	for (die = 0; die < uncore_max_dies(); die++) {
-		topology[die] = kzalloc_objs(**topology, type->num_boxes,
-					     GFP_KERNEL);
+		topology[die] = kzalloc_objs(**topology, type->num_boxes);
 		if (!topology[die])
 			goto clear;
 		for (idx = 0; idx < type->num_boxes; idx++) {

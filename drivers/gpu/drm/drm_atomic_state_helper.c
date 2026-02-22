@@ -473,8 +473,7 @@ EXPORT_SYMBOL(__drm_atomic_helper_connector_reset);
  */
 void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 {
-	struct drm_connector_state *conn_state = kzalloc_obj(*conn_state,
-							     GFP_KERNEL);
+	struct drm_connector_state *conn_state = kzalloc_obj(*conn_state);
 
 	if (connector->state)
 		__drm_atomic_helper_connector_destroy_state(connector->state);

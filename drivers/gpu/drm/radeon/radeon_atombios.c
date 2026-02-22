@@ -1773,8 +1773,7 @@ radeon_atombios_get_primary_dac_info(struct radeon_encoder *encoder)
 		dac_info = (struct _COMPASSIONATE_DATA *)
 			(mode_info->atom_context->bios + data_offset);
 
-		p_dac = kzalloc_obj(struct radeon_encoder_primary_dac,
-				    GFP_KERNEL);
+		p_dac = kzalloc_obj(struct radeon_encoder_primary_dac);
 
 		if (!p_dac)
 			return NULL;
@@ -2127,8 +2126,7 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 		/* avoid memory leaks from invalid modes or unknown frev. */
 		if (!rdev->pm.power_state[state_index].clock_info) {
 			rdev->pm.power_state[state_index].clock_info =
-				kzalloc_obj(struct radeon_pm_clock_info,
-					    GFP_KERNEL);
+				kzalloc_obj(struct radeon_pm_clock_info);
 		}
 		if (!rdev->pm.power_state[state_index].clock_info)
 			goto out;
@@ -2785,12 +2783,10 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 	}
 
 	if (state_index == 0) {
-		rdev->pm.power_state = kzalloc_obj(struct radeon_power_state,
-						   GFP_KERNEL);
+		rdev->pm.power_state = kzalloc_obj(struct radeon_power_state);
 		if (rdev->pm.power_state) {
 			rdev->pm.power_state[0].clock_info =
-				kzalloc_objs(struct radeon_pm_clock_info, 1,
-				             GFP_KERNEL);
+				kzalloc_objs(struct radeon_pm_clock_info, 1);
 			if (rdev->pm.power_state[0].clock_info) {
 				/* add the default mode */
 				rdev->pm.power_state[state_index].type =

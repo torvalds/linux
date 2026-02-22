@@ -690,8 +690,7 @@ void __init intel_hfi_init(void)
 	 * This allocation may fail. CPU hotplug callbacks must check
 	 * for a null pointer.
 	 */
-	hfi_instances = kzalloc_objs(*hfi_instances, max_hfi_instances,
-				     GFP_KERNEL);
+	hfi_instances = kzalloc_objs(*hfi_instances, max_hfi_instances);
 	if (!hfi_instances)
 		return;
 

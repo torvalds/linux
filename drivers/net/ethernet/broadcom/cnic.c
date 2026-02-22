@@ -1261,13 +1261,11 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 			cp->fcoe_init_cid = 0x10;
 	}
 
-	cp->iscsi_tbl = kzalloc_objs(struct cnic_iscsi, MAX_ISCSI_TBL_SZ,
-				     GFP_KERNEL);
+	cp->iscsi_tbl = kzalloc_objs(struct cnic_iscsi, MAX_ISCSI_TBL_SZ);
 	if (!cp->iscsi_tbl)
 		goto error;
 
-	cp->ctx_tbl = kzalloc_objs(struct cnic_context, cp->max_cid_space,
-				   GFP_KERNEL);
+	cp->ctx_tbl = kzalloc_objs(struct cnic_context, cp->max_cid_space);
 	if (!cp->ctx_tbl)
 		goto error;
 
@@ -4105,8 +4103,7 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 	u32 port_id;
 	int i;
 
-	cp->csk_tbl = kvzalloc_objs(struct cnic_sock, MAX_CM_SK_TBL_SZ,
-				    GFP_KERNEL);
+	cp->csk_tbl = kvzalloc_objs(struct cnic_sock, MAX_CM_SK_TBL_SZ);
 	if (!cp->csk_tbl)
 		return -ENOMEM;
 

@@ -204,8 +204,7 @@ static int tmc_pages_alloc(struct tmc_pages *tmc_pages,
 	struct device *real_dev = dev->parent;
 
 	nr_pages = tmc_pages->nr_pages;
-	tmc_pages->daddrs = kzalloc_objs(*tmc_pages->daddrs, nr_pages,
-					 GFP_KERNEL);
+	tmc_pages->daddrs = kzalloc_objs(*tmc_pages->daddrs, nr_pages);
 	if (!tmc_pages->daddrs)
 		return -ENOMEM;
 	tmc_pages->pages = kzalloc_objs(*tmc_pages->pages, nr_pages);

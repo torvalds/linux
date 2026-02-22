@@ -230,8 +230,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		}
 
 		/* Allocate task parameters to pass to f/w init funcions */
-		io_req->task_params = kzalloc_obj(*io_req->task_params,
-						  GFP_KERNEL);
+		io_req->task_params = kzalloc_obj(*io_req->task_params);
 		if (!io_req->task_params) {
 			QEDF_ERR(&(qedf->dbg_ctx),
 				 "Failed to allocate task_params for xid=0x%x\n",
@@ -243,8 +242,7 @@ struct qedf_cmd_mgr *qedf_cmd_mgr_alloc(struct qedf_ctx *qedf)
 		 * Allocate scatter/gather list info to pass to f/w init
 		 * functions.
 		 */
-		io_req->sgl_task_params = kzalloc_obj(struct scsi_sgl_task_params,
-						      GFP_KERNEL);
+		io_req->sgl_task_params = kzalloc_obj(struct scsi_sgl_task_params);
 		if (!io_req->sgl_task_params) {
 			QEDF_ERR(&(qedf->dbg_ctx),
 				 "Failed to allocate sgl_task_params for xid=0x%x\n",

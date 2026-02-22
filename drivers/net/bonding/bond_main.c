@@ -1723,8 +1723,7 @@ static struct slave *bond_alloc_slave(struct bonding *bond,
 		return NULL;
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
-		SLAVE_AD_INFO(slave) = kzalloc_obj(struct ad_slave_info,
-						   GFP_KERNEL);
+		SLAVE_AD_INFO(slave) = kzalloc_obj(struct ad_slave_info);
 		if (!SLAVE_AD_INFO(slave)) {
 			kobject_put(&slave->kobj);
 			return NULL;
@@ -5097,8 +5096,7 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 
 	might_sleep();
 
-	usable_slaves = kzalloc_flex(*usable_slaves, arr, bond->slave_cnt,
-				     GFP_KERNEL);
+	usable_slaves = kzalloc_flex(*usable_slaves, arr, bond->slave_cnt);
 	all_slaves = kzalloc_flex(*all_slaves, arr, bond->slave_cnt);
 	if (!usable_slaves || !all_slaves) {
 		ret = -ENOMEM;

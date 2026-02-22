@@ -845,8 +845,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			conn_len = snd_hda_get_num_raw_conns(codec, nid);
 			if (conn_len > 0) {
-				conn = kmalloc_objs(hda_nid_t, conn_len,
-						    GFP_KERNEL);
+				conn = kmalloc_objs(hda_nid_t, conn_len);
 				if (!conn)
 					return;
 				if (snd_hda_get_raw_connections(codec, nid, conn,

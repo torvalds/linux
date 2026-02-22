@@ -170,8 +170,7 @@ err_vq:
 
 static int virtcrypto_alloc_queues(struct virtio_crypto *vi)
 {
-	vi->data_vq = kzalloc_objs(*vi->data_vq, vi->max_data_queues,
-				   GFP_KERNEL);
+	vi->data_vq = kzalloc_objs(*vi->data_vq, vi->max_data_queues);
 	if (!vi->data_vq)
 		return -ENOMEM;
 

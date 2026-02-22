@@ -1422,8 +1422,7 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 
 	*cs_chunk_array = kmalloc_objs(**cs_chunk_array, num_chunks, GFP_ATOMIC);
 	if (!*cs_chunk_array)
-		*cs_chunk_array = kmalloc_objs(**cs_chunk_array, num_chunks,
-					       GFP_KERNEL);
+		*cs_chunk_array = kmalloc_objs(**cs_chunk_array, num_chunks);
 	if (!*cs_chunk_array) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&hdev->aggregated_cs_counters.out_of_mem_drop_cnt);

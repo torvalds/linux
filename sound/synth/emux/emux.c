@@ -86,8 +86,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 
 	emu->card = card;
 	emu->name = kstrdup_const(name, GFP_KERNEL);
-	emu->voices = kzalloc_objs(struct snd_emux_voice, emu->max_voices,
-				   GFP_KERNEL);
+	emu->voices = kzalloc_objs(struct snd_emux_voice, emu->max_voices);
 	if (emu->name == NULL || emu->voices == NULL)
 		return -ENOMEM;
 

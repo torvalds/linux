@@ -9133,8 +9133,7 @@ static int netdev_offload_xstats_enable_l3(struct net_device *dev,
 	int err;
 	int rc;
 
-	dev->offload_xstats_l3 = kzalloc_obj(*dev->offload_xstats_l3,
-					     GFP_KERNEL);
+	dev->offload_xstats_l3 = kzalloc_obj(*dev->offload_xstats_l3);
 	if (!dev->offload_xstats_l3)
 		return -ENOMEM;
 

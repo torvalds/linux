@@ -164,8 +164,7 @@ int virtgpu_dma_buf_import_sgt(struct virtio_gpu_mem_entry **ents,
 	if (IS_ERR(sgt))
 		return PTR_ERR(sgt);
 
-	*ents = kvmalloc_objs(struct virtio_gpu_mem_entry, sgt->nents,
-			      GFP_KERNEL);
+	*ents = kvmalloc_objs(struct virtio_gpu_mem_entry, sgt->nents);
 	if (!(*ents)) {
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 		return -ENOMEM;

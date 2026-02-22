@@ -912,8 +912,7 @@ static int __init memory_tier_init(void)
 		panic("%s() failed to register memory tier subsystem\n", __func__);
 
 #ifdef CONFIG_MIGRATION
-	node_demotion = kzalloc_objs(struct demotion_nodes, nr_node_ids,
-				     GFP_KERNEL);
+	node_demotion = kzalloc_objs(struct demotion_nodes, nr_node_ids);
 	WARN_ON(!node_demotion);
 #endif
 

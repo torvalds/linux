@@ -299,8 +299,7 @@ static void wf_smu_create_drive_fans(void)
 	};
 
 	/* Alloc & initialize state */
-	wf_smu_drive_fans = kmalloc_obj(struct wf_smu_drive_fans_state,
-				        GFP_KERNEL);
+	wf_smu_drive_fans = kmalloc_obj(struct wf_smu_drive_fans_state);
 	if (wf_smu_drive_fans == NULL) {
 		printk(KERN_WARNING "windfarm: Memory allocation error"
 		       " max fan speed\n");
@@ -380,8 +379,7 @@ static void wf_smu_create_slots_fans(void)
 	};
 
 	/* Alloc & initialize state */
-	wf_smu_slots_fans = kmalloc_obj(struct wf_smu_slots_fans_state,
-				        GFP_KERNEL);
+	wf_smu_slots_fans = kmalloc_obj(struct wf_smu_slots_fans_state);
 	if (wf_smu_slots_fans == NULL) {
 		printk(KERN_WARNING "windfarm: Memory allocation error"
 		       " max fan speed\n");

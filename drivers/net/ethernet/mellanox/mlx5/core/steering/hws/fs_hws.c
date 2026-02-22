@@ -759,22 +759,19 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	int num_actions = 0;
 	int err;
 
-	*ractions = kzalloc_objs(**ractions, MLX5_FLOW_CONTEXT_ACTION_MAX,
-				 GFP_KERNEL);
+	*ractions = kzalloc_objs(**ractions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!*ractions) {
 		err = -ENOMEM;
 		goto out_err;
 	}
 
-	fs_actions = kzalloc_objs(*fs_actions, MLX5_FLOW_CONTEXT_ACTION_MAX,
-				  GFP_KERNEL);
+	fs_actions = kzalloc_objs(*fs_actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!fs_actions) {
 		err = -ENOMEM;
 		goto free_actions_alloc;
 	}
 
-	dest_actions = kzalloc_objs(*dest_actions, MLX5_FLOW_CONTEXT_ACTION_MAX,
-				    GFP_KERNEL);
+	dest_actions = kzalloc_objs(*dest_actions, MLX5_FLOW_CONTEXT_ACTION_MAX);
 	if (!dest_actions) {
 		err = -ENOMEM;
 		goto free_fs_actions_alloc;

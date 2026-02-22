@@ -397,8 +397,7 @@ dfl_dev_add(struct dfl_feature_dev_data *fdata,
 
 	/* then add irq resource */
 	if (feature->nr_irqs) {
-		ddev->irqs = kzalloc_objs(*ddev->irqs, feature->nr_irqs,
-					  GFP_KERNEL);
+		ddev->irqs = kzalloc_objs(*ddev->irqs, feature->nr_irqs);
 		if (!ddev->irqs) {
 			ret = -ENOMEM;
 			goto put_dev;
@@ -1182,8 +1181,7 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 	if (binfo->len - ofst < size)
 		return -EINVAL;
 
-	finfo = kzalloc_flex(*finfo, params, dfh_psize / sizeof(u64),
-			     GFP_KERNEL);
+	finfo = kzalloc_flex(*finfo, params, dfh_psize / sizeof(u64));
 	if (!finfo)
 		return -ENOMEM;
 

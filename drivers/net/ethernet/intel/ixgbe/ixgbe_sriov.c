@@ -64,8 +64,7 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			  IXGBE_FLAG_VMDQ_ENABLED;
 
 	/* Allocate memory for per VF control structures */
-	adapter->vfinfo = kzalloc_objs(struct vf_data_storage, num_vfs,
-				       GFP_KERNEL);
+	adapter->vfinfo = kzalloc_objs(struct vf_data_storage, num_vfs);
 	if (!adapter->vfinfo)
 		return -ENOMEM;
 

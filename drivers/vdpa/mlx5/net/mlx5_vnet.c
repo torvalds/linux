@@ -3903,8 +3903,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	mlx5_cmd_init_async_ctx(mdev, &mvdev->async_ctx);
 
 	ndev->vqs = kzalloc_objs(*ndev->vqs, max_vqs);
-	ndev->event_cbs = kzalloc_objs(*ndev->event_cbs, max_vqs + 1,
-				       GFP_KERNEL);
+	ndev->event_cbs = kzalloc_objs(*ndev->event_cbs, max_vqs + 1);
 	if (!ndev->vqs || !ndev->event_cbs) {
 		err = -ENOMEM;
 		goto err_alloc;

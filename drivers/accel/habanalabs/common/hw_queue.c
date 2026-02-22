@@ -837,8 +837,7 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 
 	q->kernel_address = p;
 
-	q->shadow_queue = kmalloc_objs(struct hl_cs_job *, HL_QUEUE_LENGTH,
-				       GFP_KERNEL);
+	q->shadow_queue = kmalloc_objs(struct hl_cs_job *, HL_QUEUE_LENGTH);
 	if (!q->shadow_queue) {
 		dev_err(hdev->dev,
 			"Failed to allocate shadow queue for H/W queue %d\n",

@@ -384,8 +384,7 @@ static u32 riscv_acpi_add_irq_dep(acpi_handle handle)
 	     riscv_acpi_irq_get_dep(handle, i, &gsi_handle);
 	     i++) {
 		dep_devices.count = 1;
-		dep_devices.handles = kzalloc_objs(*dep_devices.handles, 1,
-						   GFP_KERNEL);
+		dep_devices.handles = kzalloc_objs(*dep_devices.handles, 1);
 		if (!dep_devices.handles) {
 			acpi_handle_err(handle, "failed to allocate memory\n");
 			continue;

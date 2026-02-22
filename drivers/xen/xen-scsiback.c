@@ -543,8 +543,7 @@ static int scsiback_gnttab_data_map(struct vscsiif_request *ring_req,
 	}
 
 	/* free of (sgl) in fast_flush_area() */
-	pending_req->sgl = kmalloc_objs(struct scatterlist, nr_segments,
-					GFP_KERNEL);
+	pending_req->sgl = kmalloc_objs(struct scatterlist, nr_segments);
 	if (!pending_req->sgl)
 		return -ENOMEM;
 

@@ -3648,8 +3648,7 @@ static int live_preempt_smoke(void *arg)
 	u32 *cs;
 	int n;
 
-	smoke.contexts = kmalloc_objs(*smoke.contexts, smoke.ncontext,
-				      GFP_KERNEL);
+	smoke.contexts = kmalloc_objs(*smoke.contexts, smoke.ncontext);
 	if (!smoke.contexts)
 		return -ENOMEM;
 

@@ -8396,8 +8396,7 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 			goto alloc_mem_err;
 		allocated += bp->context[i].size;
 	}
-	bp->ilt->lines = kzalloc_objs(struct ilt_line, ILT_MAX_LINES,
-				      GFP_KERNEL);
+	bp->ilt->lines = kzalloc_objs(struct ilt_line, ILT_MAX_LINES);
 	if (!bp->ilt->lines)
 		goto alloc_mem_err;
 

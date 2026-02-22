@@ -227,8 +227,7 @@ static int dr_icm_buddy_init_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
 	int num_of_entries =
 		mlx5dr_icm_pool_chunk_size_to_entries(buddy->pool->max_log_chunk_sz);
 
-	buddy->ste_arr = kvzalloc_objs(struct mlx5dr_ste, num_of_entries,
-				       GFP_KERNEL);
+	buddy->ste_arr = kvzalloc_objs(struct mlx5dr_ste, num_of_entries);
 	if (!buddy->ste_arr)
 		return -ENOMEM;
 

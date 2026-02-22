@@ -672,8 +672,7 @@ static int sec_ctx_base_init(struct sec_ctx *ctx)
 	ctx->hlf_q_num = sec->ctx_q_num >> 1;
 
 	ctx->pbuf_supported = ctx->sec->iommu_used;
-	ctx->qp_ctx = kzalloc_objs(struct sec_qp_ctx, sec->ctx_q_num,
-				   GFP_KERNEL);
+	ctx->qp_ctx = kzalloc_objs(struct sec_qp_ctx, sec->ctx_q_num);
 	if (!ctx->qp_ctx) {
 		ret = -ENOMEM;
 		goto err_destroy_qps;

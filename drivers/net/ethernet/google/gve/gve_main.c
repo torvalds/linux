@@ -666,8 +666,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	}
 
 	if (!gve_is_gqi(priv)) {
-		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo,
-						   GFP_KERNEL);
+		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo);
 		if (!priv->ptype_lut_dqo) {
 			err = -ENOMEM;
 			goto abort_with_stats_report;

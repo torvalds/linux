@@ -1153,8 +1153,7 @@ void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_alloc_dfx_cnt(struct hns_roce_dev *hr_dev)
 {
-	hr_dev->dfx_cnt = kvzalloc_objs(atomic64_t, HNS_ROCE_DFX_CNT_TOTAL,
-					GFP_KERNEL);
+	hr_dev->dfx_cnt = kvzalloc_objs(atomic64_t, HNS_ROCE_DFX_CNT_TOTAL);
 	if (!hr_dev->dfx_cnt)
 		return -ENOMEM;
 

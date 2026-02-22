@@ -4464,8 +4464,7 @@ ia_css_dvs2_6axis_config_allocate(const struct ia_css_stream *stream)
 	if (!params || !params->pipe_dvs_6axis_config[IA_CSS_PIPE_ID_VIDEO])
 		goto err;
 
-	dvs_config = kvzalloc_objs(struct ia_css_dvs_6axis_config, 1,
-				   GFP_KERNEL);
+	dvs_config = kvzalloc_objs(struct ia_css_dvs_6axis_config, 1);
 	if (!dvs_config)
 		goto err;
 

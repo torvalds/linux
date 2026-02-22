@@ -531,8 +531,7 @@ static void pm121_create_sys_fans(int loop_id)
 	control = controls[param->control_id];
 
 	/* Alloc & initialize state */
-	pm121_sys_state[loop_id] = kmalloc_obj(struct pm121_sys_state,
-				               GFP_KERNEL);
+	pm121_sys_state[loop_id] = kmalloc_obj(struct pm121_sys_state);
 	if (pm121_sys_state[loop_id] == NULL) {
 		printk(KERN_WARNING "pm121: Memory allocation error\n");
 		goto fail;

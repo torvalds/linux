@@ -382,8 +382,7 @@ static int vhost_scsi_copy_cmd_log(struct vhost_virtqueue *vq,
 				   unsigned int log_num)
 {
 	if (!cmd->tvc_log)
-		cmd->tvc_log = kmalloc_objs(*cmd->tvc_log, vq->dev->iov_limit,
-					    GFP_KERNEL);
+		cmd->tvc_log = kmalloc_objs(*cmd->tvc_log, vq->dev->iov_limit);
 
 	if (unlikely(!cmd->tvc_log)) {
 		vq_err(vq, "Failed to alloc tvc_log\n");
@@ -1939,8 +1938,7 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 		return -ENOMEM;
 	}
 
-	svq->upages = kzalloc_objs(struct page *, VHOST_SCSI_PREALLOC_UPAGES,
-				   GFP_KERNEL);
+	svq->upages = kzalloc_objs(struct page *, VHOST_SCSI_PREALLOC_UPAGES);
 	if (!svq->upages)
 		goto out;
 

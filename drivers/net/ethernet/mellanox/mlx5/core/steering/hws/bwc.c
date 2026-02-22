@@ -236,8 +236,7 @@ int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 	struct mlx5hws_matcher_attr attr = {0};
 	int i;
 
-	bwc_matcher->rules = kzalloc_objs(*bwc_matcher->rules, bwc_queues,
-					  GFP_KERNEL);
+	bwc_matcher->rules = kzalloc_objs(*bwc_matcher->rules, bwc_queues);
 	if (!bwc_matcher->rules)
 		goto err;
 

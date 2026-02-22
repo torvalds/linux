@@ -720,8 +720,7 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 				&priv->spi->dev,
 				"Resetting MAC...\n");
 
-			mlme_reset_wpc = kmalloc_obj(*mlme_reset_wpc,
-						     GFP_KERNEL);
+			mlme_reset_wpc = kmalloc_obj(*mlme_reset_wpc);
 			if (!mlme_reset_wpc)
 				goto finish;
 			INIT_WORK(

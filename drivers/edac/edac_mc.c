@@ -231,8 +231,7 @@ static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
 		csr->csrow_idx = row;
 		csr->mci = mci;
 		csr->nr_channels = tot_channels;
-		csr->channels = kzalloc_objs(*csr->channels, tot_channels,
-					     GFP_KERNEL);
+		csr->channels = kzalloc_objs(*csr->channels, tot_channels);
 		if (!csr->channels)
 			return -ENOMEM;
 

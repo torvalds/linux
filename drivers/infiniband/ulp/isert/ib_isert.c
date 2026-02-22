@@ -332,8 +332,7 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 {
 	int ret;
 
-	isert_conn->login_desc = kzalloc_obj(*isert_conn->login_desc,
-					     GFP_KERNEL);
+	isert_conn->login_desc = kzalloc_obj(*isert_conn->login_desc);
 	if (!isert_conn->login_desc)
 		return -ENOMEM;
 

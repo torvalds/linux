@@ -843,8 +843,7 @@ int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 h
 		return -ENOMEM;
 	}
 
-	hr_priv->mmu_asid_hop0 = kvzalloc_objs(struct pgt_info, prop->max_asid,
-					       GFP_KERNEL);
+	hr_priv->mmu_asid_hop0 = kvzalloc_objs(struct pgt_info, prop->max_asid);
 	if (ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0)) {
 		dev_err(hdev->dev, "Failed to allocate hr-mmu hop0 table\n");
 		rc = -ENOMEM;

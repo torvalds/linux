@@ -1520,8 +1520,7 @@ static int rapl_detect_domains(struct rapl_package *rp)
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
 
-	rp->domains = kzalloc_objs(struct rapl_domain, rp->nr_domains,
-				   GFP_KERNEL);
+	rp->domains = kzalloc_objs(struct rapl_domain, rp->nr_domains);
 	if (!rp->domains)
 		return -ENOMEM;
 

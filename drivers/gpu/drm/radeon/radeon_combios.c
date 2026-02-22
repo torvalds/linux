@@ -2629,8 +2629,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	rdev->pm.default_power_state_index = -1;
 
 	/* allocate 2 power states */
-	rdev->pm.power_state = kzalloc_objs(struct radeon_power_state, 2,
-					    GFP_KERNEL);
+	rdev->pm.power_state = kzalloc_objs(struct radeon_power_state, 2);
 	if (rdev->pm.power_state) {
 		/* allocate 1 clock mode per state */
 		rdev->pm.power_state[0].clock_info =

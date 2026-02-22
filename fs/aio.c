@@ -510,8 +510,7 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 
 	ctx->ring_folios = ctx->internal_folios;
 	if (nr_pages > AIO_RING_PAGES) {
-		ctx->ring_folios = kzalloc_objs(struct folio *, nr_pages,
-						GFP_KERNEL);
+		ctx->ring_folios = kzalloc_objs(struct folio *, nr_pages);
 		if (!ctx->ring_folios) {
 			put_aio_ring_file(ctx);
 			return -ENOMEM;

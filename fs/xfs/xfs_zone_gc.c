@@ -202,8 +202,7 @@ xfs_zone_gc_data_alloc(
 	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
-	data->iter.recs = kzalloc_objs(*data->iter.recs, XFS_ZONE_GC_RECS,
-				       GFP_KERNEL);
+	data->iter.recs = kzalloc_objs(*data->iter.recs, XFS_ZONE_GC_RECS);
 	if (!data->iter.recs)
 		goto out_free_data;
 

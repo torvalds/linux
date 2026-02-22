@@ -3972,8 +3972,7 @@ static int dapm_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	 * stuff that increases stack usage.
 	 * So, we use kzalloc()/kfree() for params in this function.
 	 */
-	struct snd_pcm_hw_params *params __free(kfree) = kzalloc_obj(*params,
-								     GFP_KERNEL);
+	struct snd_pcm_hw_params *params __free(kfree) = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 

@@ -1352,8 +1352,7 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	bool input, output;
 	int err, num;
 
-	ump->out_cvts = kzalloc_objs(*ump->out_cvts, SNDRV_UMP_MAX_GROUPS,
-				     GFP_KERNEL);
+	ump->out_cvts = kzalloc_objs(*ump->out_cvts, SNDRV_UMP_MAX_GROUPS);
 	if (!ump->out_cvts)
 		return -ENOMEM;
 

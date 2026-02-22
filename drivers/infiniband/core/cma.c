@@ -2300,8 +2300,7 @@ cma_ib_new_conn_id(const struct rdma_cm_id *listen_id,
 
 	rt = &id->route;
 	rt->num_pri_alt_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc_objs(*rt->path_rec, rt->num_pri_alt_paths,
-				    GFP_KERNEL);
+	rt->path_rec = kmalloc_objs(*rt->path_rec, rt->num_pri_alt_paths);
 	if (!rt->path_rec)
 		goto err;
 
@@ -2880,8 +2879,7 @@ static int route_set_path_rec_inbound(struct cma_work *work,
 	struct rdma_route *route = &work->id->id.route;
 
 	if (!route->path_rec_inbound) {
-		route->path_rec_inbound = kzalloc_obj(*route->path_rec_inbound,
-						      GFP_KERNEL);
+		route->path_rec_inbound = kzalloc_obj(*route->path_rec_inbound);
 		if (!route->path_rec_inbound)
 			return -ENOMEM;
 	}
@@ -2896,8 +2894,7 @@ static int route_set_path_rec_outbound(struct cma_work *work,
 	struct rdma_route *route = &work->id->id.route;
 
 	if (!route->path_rec_outbound) {
-		route->path_rec_outbound = kzalloc_obj(*route->path_rec_outbound,
-						       GFP_KERNEL);
+		route->path_rec_outbound = kzalloc_obj(*route->path_rec_outbound);
 		if (!route->path_rec_outbound)
 			return -ENOMEM;
 	}

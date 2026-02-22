@@ -1287,8 +1287,7 @@ efct_hw_rx_post(struct efct_hw *hw)
 		for (i = 0; i < hw->hw_rq_count; i++)
 			count += hw->hw_rq[i]->entry_count;
 
-		hw->seq_pool = kmalloc_objs(struct efc_hw_sequence, count,
-					    GFP_KERNEL);
+		hw->seq_pool = kmalloc_objs(struct efc_hw_sequence, count);
 		if (!hw->seq_pool)
 			return -ENOMEM;
 	}

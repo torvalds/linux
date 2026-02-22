@@ -3151,8 +3151,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 	for (thread = 0; thread < port->priv->nthreads; thread++) {
 		txq_pcpu = per_cpu_ptr(txq->pcpu, thread);
 		txq_pcpu->size = txq->size;
-		txq_pcpu->buffs = kmalloc_objs(*txq_pcpu->buffs, txq_pcpu->size,
-					       GFP_KERNEL);
+		txq_pcpu->buffs = kmalloc_objs(*txq_pcpu->buffs, txq_pcpu->size);
 		if (!txq_pcpu->buffs)
 			return -ENOMEM;
 

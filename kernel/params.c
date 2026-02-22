@@ -638,8 +638,7 @@ static __init_or_module int add_sysfs_param(struct module_kobject *mk,
 			return -ENOMEM;
 		mk->mp->grp.name = "parameters";
 		/* NULL-terminated attribute array. */
-		mk->mp->grp.attrs = kzalloc_obj(mk->mp->grp.attrs[0],
-						GFP_KERNEL);
+		mk->mp->grp.attrs = kzalloc_obj(mk->mp->grp.attrs[0]);
 		/* Caller will cleanup via free_module_param_attrs */
 		if (!mk->mp->grp.attrs)
 			return -ENOMEM;

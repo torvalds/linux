@@ -117,8 +117,7 @@ static void btrfs_free_dummy_device(struct btrfs_device *dev)
 
 struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 {
-	struct btrfs_fs_info *fs_info = kzalloc_obj(struct btrfs_fs_info,
-						    GFP_KERNEL);
+	struct btrfs_fs_info *fs_info = kzalloc_obj(struct btrfs_fs_info);
 
 	if (!fs_info)
 		return fs_info;

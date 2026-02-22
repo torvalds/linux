@@ -459,8 +459,7 @@ static struct i7core_dev *alloc_i7core_dev(u8 socket,
 	if (!i7core_dev)
 		return NULL;
 
-	i7core_dev->pdev = kzalloc_objs(*i7core_dev->pdev, table->n_devs,
-					GFP_KERNEL);
+	i7core_dev->pdev = kzalloc_objs(*i7core_dev->pdev, table->n_devs);
 	if (!i7core_dev->pdev) {
 		kfree(i7core_dev);
 		return NULL;
@@ -1177,8 +1176,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 		goto err_put_addrmatch;
 
 	if (!pvt->is_registered) {
-		pvt->chancounts_dev = kzalloc_obj(*pvt->chancounts_dev,
-						  GFP_KERNEL);
+		pvt->chancounts_dev = kzalloc_obj(*pvt->chancounts_dev);
 		if (!pvt->chancounts_dev) {
 			rc = -ENOMEM;
 			goto err_del_addrmatch;

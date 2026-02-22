@@ -355,8 +355,7 @@ static int snmp6_alloc_dev(struct inet6_dev *idev)
 	}
 
 
-	idev->stats.icmpv6dev = kzalloc_obj(struct icmpv6_mib_device,
-					    GFP_KERNEL);
+	idev->stats.icmpv6dev = kzalloc_obj(struct icmpv6_mib_device);
 	if (!idev->stats.icmpv6dev)
 		goto err_icmp;
 	idev->stats.icmpv6msgdev = kzalloc_obj(struct icmpv6msg_mib_device,

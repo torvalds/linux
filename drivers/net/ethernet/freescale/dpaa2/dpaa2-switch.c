@@ -3408,15 +3408,13 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	if (err)
 		goto err_free_cmdport;
 
-	ethsw->ports = kzalloc_objs(*ethsw->ports, ethsw->sw_attr.num_ifs,
-				    GFP_KERNEL);
+	ethsw->ports = kzalloc_objs(*ethsw->ports, ethsw->sw_attr.num_ifs);
 	if (!(ethsw->ports)) {
 		err = -ENOMEM;
 		goto err_teardown;
 	}
 
-	ethsw->fdbs = kzalloc_objs(*ethsw->fdbs, ethsw->sw_attr.num_ifs,
-				   GFP_KERNEL);
+	ethsw->fdbs = kzalloc_objs(*ethsw->fdbs, ethsw->sw_attr.num_ifs);
 	if (!ethsw->fdbs) {
 		err = -ENOMEM;
 		goto err_free_ports;

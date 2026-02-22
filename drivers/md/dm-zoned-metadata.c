@@ -1686,8 +1686,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 	unsigned int bzone_id;
 
 	/* Metadata block array for the chunk mapping table */
-	zmd->map_mblk = kzalloc_objs(struct dmz_mblock *, zmd->nr_map_blocks,
-				     GFP_KERNEL);
+	zmd->map_mblk = kzalloc_objs(struct dmz_mblock *, zmd->nr_map_blocks);
 	if (!zmd->map_mblk)
 		return -ENOMEM;
 

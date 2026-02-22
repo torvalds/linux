@@ -1873,8 +1873,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	info->thread = kzalloc_flex(*info->thread, notes, info->thread_notes,
-				    GFP_KERNEL);
+	info->thread = kzalloc_flex(*info->thread, notes, info->thread_notes);
 	if (unlikely(!info->thread))
 		return 0;
 

@@ -482,8 +482,7 @@ static int zynqmp_dma_alloc_chan_resources(struct dma_chan *dchan)
 	if (ret < 0)
 		return ret;
 
-	chan->sw_desc_pool = kzalloc_objs(*desc, ZYNQMP_DMA_NUM_DESCS,
-					  GFP_KERNEL);
+	chan->sw_desc_pool = kzalloc_objs(*desc, ZYNQMP_DMA_NUM_DESCS);
 	if (!chan->sw_desc_pool)
 		return -ENOMEM;
 

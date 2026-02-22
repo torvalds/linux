@@ -742,8 +742,7 @@ static struct mpc *dcn201_mpc_create(struct dc_context *ctx, uint32_t num_mpcc)
 
 static struct hubbub *dcn201_hubbub_create(struct dc_context *ctx)
 {
-	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub,
-						  GFP_KERNEL);
+	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub)
 		return NULL;

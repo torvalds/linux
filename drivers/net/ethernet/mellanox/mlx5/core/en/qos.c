@@ -277,8 +277,7 @@ int mlx5e_qos_alloc_queues(struct mlx5e_priv *priv, struct mlx5e_channels *chs)
 	for (i = 0; i < chs->num; i++) {
 		struct mlx5e_txqsq **sqs;
 
-		sqs = kvzalloc_objs(struct mlx5e_txqsq *, qos_sqs_size,
-				    GFP_KERNEL);
+		sqs = kvzalloc_objs(struct mlx5e_txqsq *, qos_sqs_size);
 		if (!sqs)
 			goto err_free;
 

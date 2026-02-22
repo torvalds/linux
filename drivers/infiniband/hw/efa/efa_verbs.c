@@ -1374,8 +1374,7 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	chunk_list_size = DIV_ROUND_UP(page_cnt, EFA_PTRS_PER_CHUNK);
 
 	chunk_list->size = chunk_list_size;
-	chunk_list->chunks = kzalloc_objs(*chunk_list->chunks, chunk_list_size,
-					  GFP_KERNEL);
+	chunk_list->chunks = kzalloc_objs(*chunk_list->chunks, chunk_list_size);
 	if (!chunk_list->chunks)
 		return -ENOMEM;
 

@@ -253,8 +253,7 @@ static struct sdw_intel_ctx
 			num_slaves++;
 	}
 
-	ctx->peripherals = kmalloc_flex(*ctx->peripherals, array, num_slaves,
-					GFP_KERNEL);
+	ctx->peripherals = kmalloc_flex(*ctx->peripherals, array, num_slaves);
 	if (!ctx->peripherals)
 		goto err;
 	ctx->peripherals->num_peripherals = num_slaves;

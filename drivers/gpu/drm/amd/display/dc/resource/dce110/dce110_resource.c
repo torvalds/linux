@@ -608,8 +608,7 @@ static struct mem_input *dce110_mem_input_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input,
-						   GFP_KERNEL);
+	struct dce_mem_input *dce_mi = kzalloc_obj(struct dce_mem_input);
 
 	if (!dce_mi) {
 		BREAK_TO_DEBUGGER();
@@ -1250,10 +1249,8 @@ static const struct resource_funcs dce110_res_pool_funcs = {
 
 static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	struct dce110_timing_generator *dce110_tgv = kzalloc_obj(*dce110_tgv,
-								 GFP_KERNEL);
-	struct dce_transform *dce110_xfmv = kzalloc_obj(*dce110_xfmv,
-							GFP_KERNEL);
+	struct dce110_timing_generator *dce110_tgv = kzalloc_obj(*dce110_tgv);
+	struct dce_transform *dce110_xfmv = kzalloc_obj(*dce110_xfmv);
 	struct dce_mem_input *dce110_miv = kzalloc_obj(*dce110_miv);
 	struct dce110_opp *dce110_oppv = kzalloc_obj(*dce110_oppv);
 

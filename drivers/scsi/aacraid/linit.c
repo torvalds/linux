@@ -1661,8 +1661,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (aac_reset_devices || reset_devices)
 		aac->init_reset = true;
 
-	aac->fibs = kzalloc_objs(struct fib, shost->can_queue + AAC_NUM_MGT_FIB,
-				 GFP_KERNEL);
+	aac->fibs = kzalloc_objs(struct fib, shost->can_queue + AAC_NUM_MGT_FIB);
 	if (!aac->fibs) {
 		error = -ENOMEM;
 		goto out_free_host;

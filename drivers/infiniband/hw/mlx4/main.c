@@ -2748,8 +2748,7 @@ static int mlx4_ib_probe(struct auxiliary_device *adev,
 	if (mlx4_is_bonded(dev))
 		for (i = 1; i < ibdev->num_ports ; ++i) {
 			new_counter_index =
-					kmalloc_obj(struct counter_index,
-						    GFP_KERNEL);
+					kmalloc_obj(struct counter_index);
 			if (!new_counter_index) {
 				err = -ENOMEM;
 				goto err_counter;

@@ -1122,8 +1122,7 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 	db_count = (sbi->s_groups_count + EXT2_DESC_PER_BLOCK(sb) - 1) /
 		   EXT2_DESC_PER_BLOCK(sb);
-	sbi->s_group_desc = kvmalloc_objs(struct buffer_head *, db_count,
-					  GFP_KERNEL);
+	sbi->s_group_desc = kvmalloc_objs(struct buffer_head *, db_count);
 	if (sbi->s_group_desc == NULL) {
 		ret = -ENOMEM;
 		ext2_msg(sb, KERN_ERR, "error: not enough memory");

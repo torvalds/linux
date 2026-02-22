@@ -556,8 +556,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 			ATOM_PowerTune_Table *pt;
 			adev->pm.dpm.dyn_state.cac_tdp_table =
-				kzalloc_obj(struct amdgpu_cac_tdp_table,
-					    GFP_KERNEL);
+				kzalloc_obj(struct amdgpu_cac_tdp_table);
 			if (!adev->pm.dpm.dyn_state.cac_tdp_table)
 				return -ENOMEM;
 			if (rev > 0) {

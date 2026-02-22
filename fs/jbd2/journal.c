@@ -2268,8 +2268,7 @@ jbd2_journal_initialize_fast_commit(journal_t *journal)
 
 	/* Are we called twice? */
 	WARN_ON(journal->j_fc_wbuf != NULL);
-	journal->j_fc_wbuf = kmalloc_objs(struct buffer_head *, num_fc_blks,
-					  GFP_KERNEL);
+	journal->j_fc_wbuf = kmalloc_objs(struct buffer_head *, num_fc_blks);
 	if (!journal->j_fc_wbuf)
 		return -ENOMEM;
 

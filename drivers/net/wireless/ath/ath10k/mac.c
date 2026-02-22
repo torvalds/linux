@@ -7559,8 +7559,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		}
 
 		if (ath10k_debug_is_extd_tx_stats_enabled(ar)) {
-			arsta->tx_stats = kzalloc_obj(*arsta->tx_stats,
-						      GFP_KERNEL);
+			arsta->tx_stats = kzalloc_obj(*arsta->tx_stats);
 			if (!arsta->tx_stats) {
 				ath10k_mac_dec_num_stations(arvif, sta);
 				ret = -ENOMEM;

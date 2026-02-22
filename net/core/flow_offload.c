@@ -32,8 +32,7 @@ struct flow_offload_action *offload_action_alloc(unsigned int num_actions)
 	struct flow_offload_action *fl_action;
 	int i;
 
-	fl_action = kzalloc_flex(*fl_action, action.entries, num_actions,
-				 GFP_KERNEL);
+	fl_action = kzalloc_flex(*fl_action, action.entries, num_actions);
 	if (!fl_action)
 		return NULL;
 

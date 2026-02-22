@@ -1364,8 +1364,7 @@ static int alloc_path_reqs(struct rtrs_clt_path *clt_path)
 	enum ib_mr_type mr_type;
 	int i, err = -ENOMEM;
 
-	clt_path->reqs = kzalloc_objs(*clt_path->reqs, clt_path->queue_depth,
-				      GFP_KERNEL);
+	clt_path->reqs = kzalloc_objs(*clt_path->reqs, clt_path->queue_depth);
 	if (!clt_path->reqs)
 		return -ENOMEM;
 

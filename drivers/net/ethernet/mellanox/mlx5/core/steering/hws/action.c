@@ -2629,8 +2629,7 @@ mlx5hws_action_template_create(enum mlx5hws_action_type action_type[])
 		;
 
 	at->num_actions = num_actions - 1;
-	at->action_type_arr = kzalloc_objs(*action_type, num_actions,
-					   GFP_KERNEL);
+	at->action_type_arr = kzalloc_objs(*action_type, num_actions);
 	if (!at->action_type_arr)
 		goto free_at;
 

@@ -1094,8 +1094,7 @@ static int init_rx_pools(struct net_device *netdev)
 	/* Allocate/populate the pools. */
 	release_rx_pools(adapter);
 
-	adapter->rx_pool = kzalloc_objs(struct ibmvnic_rx_pool, num_pools,
-					GFP_KERNEL);
+	adapter->rx_pool = kzalloc_objs(struct ibmvnic_rx_pool, num_pools);
 	if (!adapter->rx_pool) {
 		dev_err(dev, "Failed to allocate rx pools\n");
 		return -ENOMEM;
@@ -1238,8 +1237,7 @@ static int init_one_tx_pool(struct net_device *netdev,
 {
 	int i;
 
-	tx_pool->tx_buff = kzalloc_objs(struct ibmvnic_tx_buff, pool_size,
-					GFP_KERNEL);
+	tx_pool->tx_buff = kzalloc_objs(struct ibmvnic_tx_buff, pool_size);
 	if (!tx_pool->tx_buff)
 		return -ENOMEM;
 
@@ -1335,13 +1333,11 @@ static int init_tx_pools(struct net_device *netdev)
 	pool_size = adapter->req_tx_entries_per_subcrq;
 	num_pools = adapter->num_active_tx_scrqs;
 
-	adapter->tx_pool = kzalloc_objs(struct ibmvnic_tx_pool, num_pools,
-					GFP_KERNEL);
+	adapter->tx_pool = kzalloc_objs(struct ibmvnic_tx_pool, num_pools);
 	if (!adapter->tx_pool)
 		return -ENOMEM;
 
-	adapter->tso_pool = kzalloc_objs(struct ibmvnic_tx_pool, num_pools,
-					 GFP_KERNEL);
+	adapter->tso_pool = kzalloc_objs(struct ibmvnic_tx_pool, num_pools);
 	/* To simplify release_tx_pools() ensure that ->tx_pool and
 	 * ->tso_pool are either both NULL or both non-NULL.
 	 */
@@ -1465,8 +1461,7 @@ static int init_napi(struct ibmvnic_adapter *adapter)
 {
 	int i;
 
-	adapter->napi = kzalloc_objs(struct napi_struct, adapter->req_rx_queues,
-				     GFP_KERNEL);
+	adapter->napi = kzalloc_objs(struct napi_struct, adapter->req_rx_queues);
 	if (!adapter->napi)
 		return -ENOMEM;
 

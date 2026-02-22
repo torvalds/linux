@@ -1503,8 +1503,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	adapter->scan_processing = true;
 	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
-	scan_cfg_out = kzalloc_obj(union mwifiex_scan_cmd_config_tlv,
-				   GFP_KERNEL);
+	scan_cfg_out = kzalloc_obj(union mwifiex_scan_cmd_config_tlv);
 	if (!scan_cfg_out) {
 		ret = -ENOMEM;
 		goto done;

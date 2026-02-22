@@ -156,8 +156,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	adapter->ahw->sriov = sriov;
 	sriov->num_vfs = num_vfs;
 	bc = &sriov->bc;
-	sriov->vf_info = kzalloc_objs(struct qlcnic_vf_info, num_vfs,
-				      GFP_KERNEL);
+	sriov->vf_info = kzalloc_objs(struct qlcnic_vf_info, num_vfs);
 	if (!sriov->vf_info) {
 		err = -ENOMEM;
 		goto qlcnic_free_sriov;

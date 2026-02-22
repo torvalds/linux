@@ -1187,8 +1187,7 @@ static int f_midi2_init_ep(struct f_midi2 *midi2, struct f_midi2_ep *ep,
 		return -ENODEV;
 	usb_ep->complete = complete;
 
-	usb_ep->reqs = kzalloc_objs(*usb_ep->reqs, midi2->info.num_reqs,
-				    GFP_KERNEL);
+	usb_ep->reqs = kzalloc_objs(*usb_ep->reqs, midi2->info.num_reqs);
 	if (!usb_ep->reqs)
 		return -ENOMEM;
 	for (i = 0; i < midi2->info.num_reqs; i++) {

@@ -2464,8 +2464,7 @@ static int mpi3mr_create_op_queues(struct mpi3mr_ioc *mrioc)
 	    num_queues);
 
 	if (!mrioc->req_qinfo) {
-		mrioc->req_qinfo = kzalloc_objs(struct op_req_qinfo, num_queues,
-						GFP_KERNEL);
+		mrioc->req_qinfo = kzalloc_objs(struct op_req_qinfo, num_queues);
 		if (!mrioc->req_qinfo) {
 			retval = -1;
 			goto out_failed;

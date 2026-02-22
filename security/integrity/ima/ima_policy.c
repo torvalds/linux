@@ -921,8 +921,7 @@ static int __init ima_init_arch_policy(void)
 	for (rules = arch_rules; *rules != NULL; rules++)
 		arch_entries++;
 
-	arch_policy_entry = kzalloc_objs(*arch_policy_entry, arch_entries + 1,
-					 GFP_KERNEL);
+	arch_policy_entry = kzalloc_objs(*arch_policy_entry, arch_entries + 1);
 	if (!arch_policy_entry)
 		return 0;
 

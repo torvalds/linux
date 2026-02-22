@@ -807,8 +807,7 @@ chromeos_laptop_prepare_acpi_peripherals(struct chromeos_laptop *cros_laptop,
 	if (!n_peripherals)
 		return 0;
 
-	acpi_peripherals = kzalloc_objs(*src->acpi_peripherals, n_peripherals,
-					GFP_KERNEL);
+	acpi_peripherals = kzalloc_objs(*src->acpi_peripherals, n_peripherals);
 	if (!acpi_peripherals)
 		return -ENOMEM;
 

@@ -2245,8 +2245,7 @@ static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
 		if (!dst->tx_ring[t])
 			goto err_free_tx;
 
-		dst->tx_cq[t] = kzalloc_objs(struct mlx4_en_cq *, MAX_TX_RINGS,
-					     GFP_KERNEL);
+		dst->tx_cq[t] = kzalloc_objs(struct mlx4_en_cq *, MAX_TX_RINGS);
 		if (!dst->tx_cq[t]) {
 			kfree(dst->tx_ring[t]);
 			goto err_free_tx;
@@ -3221,8 +3220,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			err = -ENOMEM;
 			goto out;
 		}
-		priv->tx_cq[t] = kzalloc_objs(struct mlx4_en_cq *, MAX_TX_RINGS,
-					      GFP_KERNEL);
+		priv->tx_cq[t] = kzalloc_objs(struct mlx4_en_cq *, MAX_TX_RINGS);
 		if (!priv->tx_cq[t]) {
 			err = -ENOMEM;
 			goto out;

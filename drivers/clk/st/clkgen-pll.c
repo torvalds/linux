@@ -788,8 +788,7 @@ static void __init clkgen_c32_pll_setup(struct device_node *np,
 		return;
 
 	clk_data->clk_num = num_odfs;
-	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num,
-				      GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num);
 
 	if (!clk_data->clks)
 		goto err;

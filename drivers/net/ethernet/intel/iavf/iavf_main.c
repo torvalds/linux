@@ -1585,12 +1585,10 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 					  (int)(num_online_cpus()));
 
 
-	adapter->tx_rings = kzalloc_objs(struct iavf_ring, num_active_queues,
-					 GFP_KERNEL);
+	adapter->tx_rings = kzalloc_objs(struct iavf_ring, num_active_queues);
 	if (!adapter->tx_rings)
 		goto err_out;
-	adapter->rx_rings = kzalloc_objs(struct iavf_ring, num_active_queues,
-					 GFP_KERNEL);
+	adapter->rx_rings = kzalloc_objs(struct iavf_ring, num_active_queues);
 	if (!adapter->rx_rings)
 		goto err_out;
 
@@ -1653,8 +1651,7 @@ static int iavf_set_interrupt_capability(struct iavf_adapter *adapter)
 	v_budget = min_t(int, pairs + NONQ_VECS,
 			 (int)adapter->vf_res->max_vectors);
 
-	adapter->msix_entries = kzalloc_objs(struct msix_entry, v_budget,
-					     GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, v_budget);
 	if (!adapter->msix_entries) {
 		err = -ENOMEM;
 		goto out;

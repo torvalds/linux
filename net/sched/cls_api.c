@@ -3341,8 +3341,7 @@ int tcf_exts_init_ex(struct tcf_exts *exts, struct net *net, int action,
 	 * This reference might be taken later from tcf_exts_get_net().
 	 */
 	exts->net = net;
-	exts->actions = kzalloc_objs(struct tc_action *, TCA_ACT_MAX_PRIO,
-				     GFP_KERNEL);
+	exts->actions = kzalloc_objs(struct tc_action *, TCA_ACT_MAX_PRIO);
 	if (!exts->actions)
 		return -ENOMEM;
 #endif

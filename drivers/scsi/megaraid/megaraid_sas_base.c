@@ -4467,8 +4467,7 @@ int megasas_alloc_cmds(struct megasas_instance *instance)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	instance->cmd_list = kzalloc_objs(struct megasas_cmd *, max_cmd,
-					  GFP_KERNEL);
+	instance->cmd_list = kzalloc_objs(struct megasas_cmd *, max_cmd);
 
 	if (!instance->cmd_list) {
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "out of memory\n");
@@ -4476,8 +4475,7 @@ int megasas_alloc_cmds(struct megasas_instance *instance)
 	}
 
 	for (i = 0; i < max_cmd; i++) {
-		instance->cmd_list[i] = kmalloc_obj(struct megasas_cmd,
-						    GFP_KERNEL);
+		instance->cmd_list[i] = kmalloc_obj(struct megasas_cmd);
 
 		if (!instance->cmd_list[i]) {
 

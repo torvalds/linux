@@ -1564,8 +1564,7 @@ static int l2cap_sock_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 	    (chan->mode == L2CAP_MODE_ERTM ||
 	     chan->mode == L2CAP_MODE_LE_FLOWCTL ||
 	     chan->mode == L2CAP_MODE_EXT_FLOWCTL)) {
-		struct l2cap_rx_busy *rx_busy = kmalloc_obj(*rx_busy,
-							    GFP_KERNEL);
+		struct l2cap_rx_busy *rx_busy = kmalloc_obj(*rx_busy);
 		if (!rx_busy) {
 			err = -ENOMEM;
 			goto done;

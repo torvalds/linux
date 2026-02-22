@@ -910,8 +910,7 @@ static struct bpf_prog_pack *alloc_new_pack(bpf_jit_fill_hole_t bpf_fill_ill_ins
 	struct bpf_prog_pack *pack;
 	int err;
 
-	pack = kzalloc_flex(*pack, bitmap, BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT),
-			    GFP_KERNEL);
+	pack = kzalloc_flex(*pack, bitmap, BITS_TO_LONGS(BPF_PROG_CHUNK_COUNT));
 	if (!pack)
 		return NULL;
 	pack->ptr = bpf_jit_alloc_exec(BPF_PROG_PACK_SIZE);

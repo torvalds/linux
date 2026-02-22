@@ -123,8 +123,7 @@ nfp_map_ptrs_record(struct nfp_app_bpf *bpf, struct nfp_prog *nfp_prog,
 	if (!cnt)
 		goto out;
 
-	nfp_prog->map_records = kmalloc_objs(nfp_prog->map_records[0], cnt,
-					     GFP_KERNEL);
+	nfp_prog->map_records = kmalloc_objs(nfp_prog->map_records[0], cnt);
 	if (!nfp_prog->map_records) {
 		err = -ENOMEM;
 		goto out;

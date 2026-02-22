@@ -87,8 +87,7 @@ static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
 
 static void vkms_atomic_crtc_reset(struct drm_crtc *crtc)
 {
-	struct vkms_crtc_state *vkms_state = kzalloc_obj(*vkms_state,
-						         GFP_KERNEL);
+	struct vkms_crtc_state *vkms_state = kzalloc_obj(*vkms_state);
 
 	if (crtc->state)
 		vkms_atomic_crtc_destroy_state(crtc, crtc->state);
@@ -137,8 +136,7 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 		i++;
 	}
 
-	vkms_state->active_planes = kzalloc_objs(*vkms_state->active_planes, i,
-						 GFP_KERNEL);
+	vkms_state->active_planes = kzalloc_objs(*vkms_state->active_planes, i);
 	if (!vkms_state->active_planes)
 		return -ENOMEM;
 	vkms_state->num_active_planes = i;

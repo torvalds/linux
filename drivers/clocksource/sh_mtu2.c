@@ -420,8 +420,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	mtu->num_channels = min_t(unsigned int, ret,
 				  ARRAY_SIZE(sh_mtu2_channel_offsets));
 
-	mtu->channels = kzalloc_objs(*mtu->channels, mtu->num_channels,
-				     GFP_KERNEL);
+	mtu->channels = kzalloc_objs(*mtu->channels, mtu->num_channels);
 	if (mtu->channels == NULL) {
 		ret = -ENOMEM;
 		goto err_unmap;

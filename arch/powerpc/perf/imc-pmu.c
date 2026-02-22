@@ -1527,8 +1527,7 @@ static int init_nest_pmu_ref(void)
 {
 	int nid, i, cpu;
 
-	nest_imc_refc = kzalloc_objs(*nest_imc_refc, num_possible_nodes(),
-				     GFP_KERNEL);
+	nest_imc_refc = kzalloc_objs(*nest_imc_refc, num_possible_nodes());
 
 	if (!nest_imc_refc)
 		return -ENOMEM;
@@ -1714,14 +1713,12 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			goto err;
 
 		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
-		pmu_ptr->mem_info = kzalloc_objs(struct imc_mem_info, nr_cores,
-						 GFP_KERNEL);
+		pmu_ptr->mem_info = kzalloc_objs(struct imc_mem_info, nr_cores);
 
 		if (!pmu_ptr->mem_info)
 			goto err;
 
-		core_imc_refc = kzalloc_objs(struct imc_pmu_ref, nr_cores,
-					     GFP_KERNEL);
+		core_imc_refc = kzalloc_objs(struct imc_pmu_ref, nr_cores);
 
 		if (!core_imc_refc) {
 			kfree(pmu_ptr->mem_info);
@@ -1754,8 +1751,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 			return -ENOMEM;
 
 		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
-		trace_imc_refc = kzalloc_objs(struct imc_pmu_ref, nr_cores,
-					      GFP_KERNEL);
+		trace_imc_refc = kzalloc_objs(struct imc_pmu_ref, nr_cores);
 		if (!trace_imc_refc)
 			return -ENOMEM;
 

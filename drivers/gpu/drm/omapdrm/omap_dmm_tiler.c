@@ -904,8 +904,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
 	}
 
-	omap_dmm->tcm = kzalloc_objs(*omap_dmm->tcm, omap_dmm->num_lut,
-				     GFP_KERNEL);
+	omap_dmm->tcm = kzalloc_objs(*omap_dmm->tcm, omap_dmm->num_lut);
 	if (!omap_dmm->tcm) {
 		ret = -ENOMEM;
 		goto fail;

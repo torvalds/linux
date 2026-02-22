@@ -207,8 +207,7 @@ static int build_maps(partition_t *part)
     for (i = 0; i < part->DataUnits; i++)
 	part->EUNInfo[i].Offset = 0xffffffff;
     part->XferInfo =
-	kmalloc_objs(struct xfer_info_t, part->header.NumTransferUnits,
-                     GFP_KERNEL);
+	kmalloc_objs(struct xfer_info_t, part->header.NumTransferUnits);
     if (!part->XferInfo)
 	    goto out_EUNInfo;
 

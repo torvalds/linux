@@ -216,8 +216,7 @@ static int uv_hubs_init(void)
 	u64 sz;
 	int i, ret;
 
-	prev_obj_to_cnode = kmalloc_objs(*prev_obj_to_cnode, uv_bios_obj_cnt,
-					 GFP_KERNEL);
+	prev_obj_to_cnode = kmalloc_objs(*prev_obj_to_cnode, uv_bios_obj_cnt);
 	if (!prev_obj_to_cnode)
 		return -ENOMEM;
 
@@ -398,8 +397,7 @@ static int uv_ports_init(void)
 	}
 	for (j = 0; j < uv_bios_obj_cnt; j++) {
 		for (k = 0; k < hub_buf[j].ports; k++) {
-			uv_hubs[j]->ports[k] = kzalloc_obj(*uv_hubs[j]->ports[k],
-							   GFP_KERNEL);
+			uv_hubs[j]->ports[k] = kzalloc_obj(*uv_hubs[j]->ports[k]);
 			if (!uv_hubs[j]->ports[k]) {
 				ret = -ENOMEM;
 				k--;
@@ -675,8 +673,7 @@ static int pci_topology_init(void)
 			}
 			num_pci_lines = l;
 
-			uv_pci_objs = kzalloc_objs(*uv_pci_objs, num_pci_lines,
-						   GFP_KERNEL);
+			uv_pci_objs = kzalloc_objs(*uv_pci_objs, num_pci_lines);
 			if (!uv_pci_objs) {
 				kfree(pci_top_str);
 				ret = -ENOMEM;
@@ -684,8 +681,7 @@ static int pci_topology_init(void)
 			}
 			start = pci_top_str;
 			while ((found = strsep(&start, "\n")) != NULL) {
-				uv_pci_objs[k] = kzalloc_obj(*uv_pci_objs[k],
-							     GFP_KERNEL);
+				uv_pci_objs[k] = kzalloc_obj(*uv_pci_objs[k]);
 				if (!uv_pci_objs[k]) {
 					ret = -ENOMEM;
 					goto err_pci_obj;

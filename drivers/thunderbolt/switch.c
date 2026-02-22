@@ -2503,8 +2503,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	}
 
 	/* initialize ports */
-	sw->ports = kzalloc_objs(*sw->ports, sw->config.max_port_number + 1,
-				 GFP_KERNEL);
+	sw->ports = kzalloc_objs(*sw->ports, sw->config.max_port_number + 1);
 	if (!sw->ports) {
 		ret = -ENOMEM;
 		goto err_free_sw_ports;

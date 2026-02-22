@@ -173,8 +173,7 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 	if (!dev->pdr)
 		return -ENOMEM;
 
-	dev->pdr_uinfo = kzalloc_objs(struct pd_uinfo, PPC4XX_NUM_PD,
-				      GFP_KERNEL);
+	dev->pdr_uinfo = kzalloc_objs(struct pd_uinfo, PPC4XX_NUM_PD);
 	if (!dev->pdr_uinfo) {
 		dma_free_coherent(dev->core_dev->device,
 				  sizeof(struct ce_pd) * PPC4XX_NUM_PD,

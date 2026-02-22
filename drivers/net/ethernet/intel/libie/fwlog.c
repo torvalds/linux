@@ -838,8 +838,7 @@ static void libie_debugfs_fwlog_init(struct libie_fwlog *fwlog,
 	/* allocate space for this first because if it fails then we don't
 	 * need to unwind
 	 */
-	fw_modules = kzalloc_objs(*fw_modules, LIBIE_NR_FW_LOG_MODULES,
-				  GFP_KERNEL);
+	fw_modules = kzalloc_objs(*fw_modules, LIBIE_NR_FW_LOG_MODULES);
 	if (!fw_modules)
 		return;
 

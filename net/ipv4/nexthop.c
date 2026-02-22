@@ -137,8 +137,7 @@ static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
 	int i;
 
 	info->type = NH_NOTIFIER_INFO_TYPE_GRP;
-	info->nh_grp = kzalloc_flex(*info->nh_grp, nh_entries, num_nh,
-				    GFP_KERNEL);
+	info->nh_grp = kzalloc_flex(*info->nh_grp, nh_entries, num_nh);
 	if (!info->nh_grp)
 		return -ENOMEM;
 

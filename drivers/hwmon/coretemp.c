@@ -804,8 +804,7 @@ static int __init coretemp_init(void)
 		return -ENODEV;
 
 	max_zones = topology_max_packages() * topology_max_dies_per_package();
-	zone_devices = kzalloc_objs(struct platform_device *, max_zones,
-				    GFP_KERNEL);
+	zone_devices = kzalloc_objs(struct platform_device *, max_zones);
 	if (!zone_devices)
 		return -ENOMEM;
 

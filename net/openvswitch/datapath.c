@@ -1797,8 +1797,7 @@ static int ovs_dp_vport_init(struct datapath *dp)
 {
 	int i;
 
-	dp->ports = kmalloc_objs(struct hlist_head, DP_VPORT_HASH_BUCKETS,
-				 GFP_KERNEL);
+	dp->ports = kmalloc_objs(struct hlist_head, DP_VPORT_HASH_BUCKETS);
 	if (!dp->ports)
 		return -ENOMEM;
 

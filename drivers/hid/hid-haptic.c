@@ -474,8 +474,7 @@ int hid_haptic_init(struct hid_device *hdev,
 		ret = -ENOMEM;
 		goto duration_map;
 	}
-	haptic->effect = kzalloc_objs(struct hid_haptic_effect, FF_MAX_EFFECTS,
-				      GFP_KERNEL);
+	haptic->effect = kzalloc_objs(struct hid_haptic_effect, FF_MAX_EFFECTS);
 	if (!haptic->effect) {
 		ret = -ENOMEM;
 		goto output_queue;

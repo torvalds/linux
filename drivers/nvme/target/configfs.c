@@ -2026,8 +2026,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
-	port->ana_state = kzalloc_objs(*port->ana_state, NVMET_MAX_ANAGRPS + 1,
-				       GFP_KERNEL);
+	port->ana_state = kzalloc_objs(*port->ana_state, NVMET_MAX_ANAGRPS + 1);
 	if (!port->ana_state) {
 		kfree(port);
 		return ERR_PTR(-ENOMEM);

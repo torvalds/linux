@@ -1296,8 +1296,7 @@ static int read_cons_helper(struct policydb *p, struct constraint_node **nodep,
 					return rc;
 				if (p->policyvers >=
 				    POLICYDB_VERSION_CONSTRAINT_NAMES) {
-					e->type_names = kzalloc_obj(*e->type_names,
-								    GFP_KERNEL);
+					e->type_names = kzalloc_obj(*e->type_names);
 					if (!e->type_names)
 						return -ENOMEM;
 					type_set_init(e->type_names);

@@ -1396,8 +1396,7 @@ static int ib_umad_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	umad_dev = kzalloc_flex(*umad_dev, ports, size_add(size_sub(e, s), 1),
-				GFP_KERNEL);
+	umad_dev = kzalloc_flex(*umad_dev, ports, size_add(size_sub(e, s), 1));
 	if (!umad_dev)
 		return -ENOMEM;
 

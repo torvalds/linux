@@ -903,8 +903,7 @@ static int zonefs_get_zone_info(struct zonefs_zone_data *zd)
 	struct block_device *bdev = zd->sb->s_bdev;
 	int ret;
 
-	zd->zones = kvzalloc_objs(struct blk_zone, bdev_nr_zones(bdev),
-				  GFP_KERNEL);
+	zd->zones = kvzalloc_objs(struct blk_zone, bdev_nr_zones(bdev));
 	if (!zd->zones)
 		return -ENOMEM;
 
@@ -948,8 +947,7 @@ static int zonefs_init_zgroup(struct super_block *sb,
 	if (!zgroup->g_nr_zones)
 		return 0;
 
-	zgroup->g_zones = kvzalloc_objs(struct zonefs_zone, zgroup->g_nr_zones,
-					GFP_KERNEL);
+	zgroup->g_zones = kvzalloc_objs(struct zonefs_zone, zgroup->g_nr_zones);
 	if (!zgroup->g_zones)
 		return -ENOMEM;
 

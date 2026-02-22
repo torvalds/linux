@@ -1635,8 +1635,7 @@ int gnttab_init(void)
 	 */
 	max_nr_glist_frames = max_nr_grefs / RPP;
 
-	gnttab_list = kmalloc_objs(grant_ref_t *, max_nr_glist_frames,
-				   GFP_KERNEL);
+	gnttab_list = kmalloc_objs(grant_ref_t *, max_nr_glist_frames);
 	if (gnttab_list == NULL)
 		return -ENOMEM;
 

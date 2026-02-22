@@ -3344,8 +3344,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 
 	if (!(flags & TTY_DRIVER_DEVPTS_MEM)) {
 		driver->ttys = kzalloc_objs(*driver->ttys, lines);
-		driver->termios = kzalloc_objs(*driver->termios, lines,
-					       GFP_KERNEL);
+		driver->termios = kzalloc_objs(*driver->termios, lines);
 		if (!driver->ttys || !driver->termios) {
 			err = -ENOMEM;
 			goto err_free_all;

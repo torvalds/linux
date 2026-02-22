@@ -612,8 +612,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	} else
 		clk_data->clk_num = data->outputs_nb;
 
-	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num,
-				      GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, clk_data->clk_num);
 	if (!clk_data->clks)
 		goto err;
 

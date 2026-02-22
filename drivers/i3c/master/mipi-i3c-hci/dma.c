@@ -363,8 +363,7 @@ static int hci_dma_init(struct i3c_hci *hci)
 		rh->resp = dma_alloc_coherent(rings->sysdev, resps_sz,
 					      &rh->resp_dma, GFP_KERNEL);
 		rh->src_xfers =
-			kmalloc_objs(*rh->src_xfers, rh->xfer_entries,
-				     GFP_KERNEL);
+			kmalloc_objs(*rh->src_xfers, rh->xfer_entries);
 		ret = -ENOMEM;
 		if (!rh->xfer || !rh->resp || !rh->src_xfers)
 			goto err_out;

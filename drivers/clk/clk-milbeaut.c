@@ -611,8 +611,7 @@ static void __init m10v_cc_init(struct device_node *np)
 	const char *parent_name;
 	struct clk_hw *hw;
 
-	m10v_clk_data = kzalloc_flex(*m10v_clk_data, hws, M10V_NUM_CLKS,
-				     GFP_KERNEL);
+	m10v_clk_data = kzalloc_flex(*m10v_clk_data, hws, M10V_NUM_CLKS);
 
 	if (!m10v_clk_data)
 		return;

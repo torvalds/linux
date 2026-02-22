@@ -140,8 +140,7 @@ nfp_nfd3_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 		goto err_alloc;
 	}
 
-	tx_ring->txbufs = kvzalloc_objs(*tx_ring->txbufs, tx_ring->cnt,
-					GFP_KERNEL);
+	tx_ring->txbufs = kvzalloc_objs(*tx_ring->txbufs, tx_ring->cnt);
 	if (!tx_ring->txbufs)
 		goto err_alloc;
 

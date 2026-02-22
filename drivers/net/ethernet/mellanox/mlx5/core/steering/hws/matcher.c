@@ -1090,8 +1090,7 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 
 	matcher->size_of_at_array =
 		num_of_at + matcher->attr.max_num_of_at_attach;
-	matcher->at = kvzalloc_objs(*matcher->at, matcher->size_of_at_array,
-				    GFP_KERNEL);
+	matcher->at = kvzalloc_objs(*matcher->at, matcher->size_of_at_array);
 	if (!matcher->at) {
 		mlx5hws_err(ctx, "Failed to allocate action template array\n");
 		ret = -ENOMEM;

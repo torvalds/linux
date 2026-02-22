@@ -183,8 +183,7 @@ int hv_synic_alloc(void)
 		memset(hv_cpu, 0, sizeof(*hv_cpu));
 	}
 
-	hv_context.hv_numa_map = kzalloc_objs(struct cpumask, nr_node_ids,
-					      GFP_KERNEL);
+	hv_context.hv_numa_map = kzalloc_objs(struct cpumask, nr_node_ids);
 	if (!hv_context.hv_numa_map) {
 		pr_err("Unable to allocate NUMA map\n");
 		goto err;

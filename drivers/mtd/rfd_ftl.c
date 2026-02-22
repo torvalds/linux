@@ -185,8 +185,7 @@ static int scan_header(struct partition *part)
 	if (!part->header_cache)
 		goto err;
 
-	part->blocks = kzalloc_objs(struct block, part->total_blocks,
-				    GFP_KERNEL);
+	part->blocks = kzalloc_objs(struct block, part->total_blocks);
 	if (!part->blocks)
 		goto err;
 

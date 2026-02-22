@@ -77,8 +77,7 @@ static int __scm_alloc_rq(void)
 	if (!scmrq->aob)
 		goto free;
 
-	scmrq->request = kzalloc_objs(scmrq->request[0], nr_requests_per_io,
-				      GFP_KERNEL);
+	scmrq->request = kzalloc_objs(scmrq->request[0], nr_requests_per_io);
 	if (!scmrq->request)
 		goto free;
 

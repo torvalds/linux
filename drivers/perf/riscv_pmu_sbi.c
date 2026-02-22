@@ -309,8 +309,7 @@ static int pmu_sbi_check_event_info(void)
 	int i, j, k, result = 0, count = 0;
 	struct sbiret ret;
 
-	event_info_shmem = kzalloc_objs(*event_info_shmem, num_events,
-					GFP_KERNEL);
+	event_info_shmem = kzalloc_objs(*event_info_shmem, num_events);
 	if (!event_info_shmem)
 		return -ENOMEM;
 

@@ -1430,8 +1430,7 @@ static int wm_adsp_buffer_populate(struct wm_adsp_compr_buf *buf)
 	u32 offset = 0;
 	int i, ret;
 
-	buf->regions = kzalloc_objs(*buf->regions, caps->num_regions,
-				    GFP_KERNEL);
+	buf->regions = kzalloc_objs(*buf->regions, caps->num_regions);
 	if (!buf->regions)
 		return -ENOMEM;
 

@@ -779,8 +779,7 @@ static int cfi_intelext_partition_fixup(struct mtd_info *mtd,
 		newcfi = kmalloc_flex(*newcfi, chips, numvirtchips);
 		if (!newcfi)
 			return -ENOMEM;
-		shared = kmalloc_objs(struct flchip_shared, cfi->numchips,
-				      GFP_KERNEL);
+		shared = kmalloc_objs(struct flchip_shared, cfi->numchips);
 		if (!shared) {
 			kfree(newcfi);
 			return -ENOMEM;

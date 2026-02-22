@@ -108,8 +108,7 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 								nr_chips))
 		goto error;
 
-	pmu_ptr->mem_info = kzalloc_objs(*pmu_ptr->mem_info, nr_chips + 1,
-					 GFP_KERNEL);
+	pmu_ptr->mem_info = kzalloc_objs(*pmu_ptr->mem_info, nr_chips + 1);
 	if (!pmu_ptr->mem_info)
 		goto error;
 

@@ -355,8 +355,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 		rc = -ENOMEM;
 		goto fail;
 	}
-	hwmon->group.attrs = kzalloc_objs(struct attribute *, n_attrs + 1,
-					  GFP_KERNEL);
+	hwmon->group.attrs = kzalloc_objs(struct attribute *, n_attrs + 1);
 	if (!hwmon->group.attrs) {
 		rc = -ENOMEM;
 		goto fail;

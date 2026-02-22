@@ -386,8 +386,7 @@ static int ip_vs_mh_init_svc(struct ip_vs_service *svc)
 	if (!s)
 		return -ENOMEM;
 
-	s->lookup = kzalloc_objs(struct ip_vs_mh_lookup, IP_VS_MH_TAB_SIZE,
-				 GFP_KERNEL);
+	s->lookup = kzalloc_objs(struct ip_vs_mh_lookup, IP_VS_MH_TAB_SIZE);
 	if (!s->lookup) {
 		kfree(s);
 		return -ENOMEM;

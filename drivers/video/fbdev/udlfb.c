@@ -1164,8 +1164,7 @@ static const struct fb_ops dlfb_ops = {
 
 static void dlfb_deferred_vfree(struct dlfb_data *dlfb, void *mem)
 {
-	struct dlfb_deferred_free *d = kmalloc_obj(struct dlfb_deferred_free,
-						   GFP_KERNEL);
+	struct dlfb_deferred_free *d = kmalloc_obj(struct dlfb_deferred_free);
 	if (!d)
 		return;
 	d->mem = mem;

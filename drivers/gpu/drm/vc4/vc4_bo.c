@@ -1014,8 +1014,7 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	 * use.  This lets us avoid a bunch of string reallocation in
 	 * the kernel's draw and BO allocation paths.
 	 */
-	vc4->bo_labels = kzalloc_objs(*vc4->bo_labels, VC4_BO_TYPE_COUNT,
-				      GFP_KERNEL);
+	vc4->bo_labels = kzalloc_objs(*vc4->bo_labels, VC4_BO_TYPE_COUNT);
 	if (!vc4->bo_labels)
 		return -ENOMEM;
 	vc4->num_labels = VC4_BO_TYPE_COUNT;

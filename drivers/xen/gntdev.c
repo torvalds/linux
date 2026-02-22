@@ -158,10 +158,8 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	    NULL == add->being_removed)
 		goto err;
 	if (xen_pv_domain()) {
-		add->kmap_ops   = kvmalloc_objs(add->kmap_ops[0], count,
-						GFP_KERNEL);
-		add->kunmap_ops = kvmalloc_objs(add->kunmap_ops[0], count,
-						GFP_KERNEL);
+		add->kmap_ops   = kvmalloc_objs(add->kmap_ops[0], count);
+		add->kunmap_ops = kvmalloc_objs(add->kunmap_ops[0], count);
 		if (NULL == add->kmap_ops || NULL == add->kunmap_ops)
 			goto err;
 	}

@@ -2239,8 +2239,7 @@ xfs_init_fs_context(
 	if (!mp)
 		return -ENOMEM;
 #ifdef DEBUG
-	mp->m_errortag = kzalloc_objs(*mp->m_errortag, XFS_ERRTAG_MAX,
-				      GFP_KERNEL);
+	mp->m_errortag = kzalloc_objs(*mp->m_errortag, XFS_ERRTAG_MAX);
 	if (!mp->m_errortag) {
 		kfree(mp);
 		return -ENOMEM;

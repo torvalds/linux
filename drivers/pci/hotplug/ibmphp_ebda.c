@@ -352,8 +352,7 @@ int __init ibmphp_access_ebda(void)
 			debug("now enter io table ---\n");
 			debug("rio blk id: %x\n", blk_id);
 
-			rio_table_ptr = kzalloc_obj(struct rio_table_hdr,
-						    GFP_KERNEL);
+			rio_table_ptr = kzalloc_obj(struct rio_table_hdr);
 			if (!rio_table_ptr) {
 				rc = -ENOMEM;
 				goto out;
@@ -500,8 +499,7 @@ static int combine_wpg_for_expansion(void)
 	list_for_each_entry(rio_detail_ptr, &rio_lo_head, rio_detail_list) {
 		opt_rio_lo_ptr = search_opt_lo(rio_detail_ptr->chassis_num);
 		if (!opt_rio_lo_ptr) {
-			opt_rio_lo_ptr = kzalloc_obj(struct opt_rio_lo,
-						     GFP_KERNEL);
+			opt_rio_lo_ptr = kzalloc_obj(struct opt_rio_lo);
 			if (!opt_rio_lo_ptr)
 				return -ENOMEM;
 			opt_rio_lo_ptr->rio_type = rio_detail_ptr->rio_type;
@@ -740,8 +738,7 @@ static int __init ebda_rsrc_controller(void)
 
 			bus_info_ptr2 = ibmphp_find_same_bus_num(slot_ptr->slot_bus_num);
 			if (!bus_info_ptr2) {
-				bus_info_ptr1 = kzalloc_obj(struct bus_info,
-							    GFP_KERNEL);
+				bus_info_ptr1 = kzalloc_obj(struct bus_info);
 				if (!bus_info_ptr1) {
 					rc = -ENOMEM;
 					goto error_no_slot;

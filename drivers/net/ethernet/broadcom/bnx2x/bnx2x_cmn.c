@@ -4761,14 +4761,12 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	bp->fp = fp;
 
 	/* allocate sp objs */
-	bp->sp_objs = kzalloc_objs(struct bnx2x_sp_objs, bp->fp_array_size,
-				   GFP_KERNEL);
+	bp->sp_objs = kzalloc_objs(struct bnx2x_sp_objs, bp->fp_array_size);
 	if (!bp->sp_objs)
 		goto alloc_err;
 
 	/* allocate fp_stats */
-	bp->fp_stats = kzalloc_objs(struct bnx2x_fp_stats, bp->fp_array_size,
-				    GFP_KERNEL);
+	bp->fp_stats = kzalloc_objs(struct bnx2x_fp_stats, bp->fp_array_size);
 	if (!bp->fp_stats)
 		goto alloc_err;
 
@@ -4777,8 +4775,7 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 		BNX2X_MAX_RSS_COUNT(bp) * BNX2X_MULTI_TX_COS + CNIC_SUPPORT(bp);
 	BNX2X_DEV_INFO("txq_array_size %d", txq_array_size);
 
-	bp->bnx2x_txq = kzalloc_objs(struct bnx2x_fp_txdata, txq_array_size,
-				     GFP_KERNEL);
+	bp->bnx2x_txq = kzalloc_objs(struct bnx2x_fp_txdata, txq_array_size);
 	if (!bp->bnx2x_txq)
 		goto alloc_err;
 

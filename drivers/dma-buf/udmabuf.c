@@ -215,8 +215,7 @@ static __always_inline int init_udmabuf(struct udmabuf *ubuf, pgoff_t pgcnt)
 	if (!ubuf->offsets)
 		return -ENOMEM;
 
-	ubuf->pinned_folios = kvmalloc_objs(*ubuf->pinned_folios, pgcnt,
-					    GFP_KERNEL);
+	ubuf->pinned_folios = kvmalloc_objs(*ubuf->pinned_folios, pgcnt);
 	if (!ubuf->pinned_folios)
 		return -ENOMEM;
 

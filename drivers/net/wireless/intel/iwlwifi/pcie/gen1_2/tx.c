@@ -741,8 +741,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	txq->n_window = slots_num;
 
-	txq->entries = kzalloc_objs(struct iwl_pcie_txq_entry, slots_num,
-				    GFP_KERNEL);
+	txq->entries = kzalloc_objs(struct iwl_pcie_txq_entry, slots_num);
 
 	if (!txq->entries)
 		goto error;

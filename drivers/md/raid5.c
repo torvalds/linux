@@ -7508,8 +7508,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 #endif
 	INIT_LIST_HEAD(&conf->free_list);
 	INIT_LIST_HEAD(&conf->pending_list);
-	conf->pending_data = kzalloc_objs(struct r5pending_data, PENDING_IO_MAX,
-					  GFP_KERNEL);
+	conf->pending_data = kzalloc_objs(struct r5pending_data, PENDING_IO_MAX);
 	if (!conf->pending_data)
 		goto abort;
 	for (i = 0; i < PENDING_IO_MAX; i++)

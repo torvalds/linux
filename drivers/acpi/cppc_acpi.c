@@ -636,8 +636,7 @@ static int pcc_data_alloc(int pcc_ss_id)
 	if (pcc_data[pcc_ss_id]) {
 		pcc_data[pcc_ss_id]->refcount++;
 	} else {
-		pcc_data[pcc_ss_id] = kzalloc_obj(struct cppc_pcc_data,
-						  GFP_KERNEL);
+		pcc_data[pcc_ss_id] = kzalloc_obj(struct cppc_pcc_data);
 		if (!pcc_data[pcc_ss_id])
 			return -ENOMEM;
 		pcc_data[pcc_ss_id]->refcount++;

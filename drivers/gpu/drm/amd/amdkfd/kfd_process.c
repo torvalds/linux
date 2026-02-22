@@ -291,8 +291,7 @@ static int kfd_get_cu_occupancy(struct attribute *attr, char *buffer)
 	wave_cnt = 0;
 	max_waves_per_cu = 0;
 
-	cu_occupancy = kzalloc_objs(*cu_occupancy, AMDGPU_MAX_QUEUES,
-				    GFP_KERNEL);
+	cu_occupancy = kzalloc_objs(*cu_occupancy, AMDGPU_MAX_QUEUES);
 	if (!cu_occupancy)
 		return -ENOMEM;
 

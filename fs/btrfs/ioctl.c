@@ -733,8 +733,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	ret = get_anon_bdev(&pending_snapshot->anon_dev);
 	if (ret < 0)
 		goto free_pending;
-	pending_snapshot->root_item = kzalloc_obj(struct btrfs_root_item,
-						  GFP_KERNEL);
+	pending_snapshot->root_item = kzalloc_obj(struct btrfs_root_item);
 	pending_snapshot->path = btrfs_alloc_path();
 	if (!pending_snapshot->root_item || !pending_snapshot->path) {
 		ret = -ENOMEM;

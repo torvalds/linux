@@ -1362,8 +1362,7 @@ static int ath12k_dp_cc_init(struct ath12k_base *ab)
 	if (dp->num_spt_pages > ATH12K_MAX_PPT_ENTRIES)
 		dp->num_spt_pages = ATH12K_MAX_PPT_ENTRIES;
 
-	dp->spt_info = kzalloc_objs(struct ath12k_spt_info, dp->num_spt_pages,
-				    GFP_KERNEL);
+	dp->spt_info = kzalloc_objs(struct ath12k_spt_info, dp->num_spt_pages);
 
 	if (!dp->spt_info) {
 		ath12k_warn(ab, "SPT page allocation failure");

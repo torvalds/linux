@@ -2567,16 +2567,14 @@ struct usb_hcd *__usb_create_hcd(const struct hc_driver *driver,
 	if (!hcd)
 		return NULL;
 	if (primary_hcd == NULL) {
-		hcd->address0_mutex = kmalloc_obj(*hcd->address0_mutex,
-						  GFP_KERNEL);
+		hcd->address0_mutex = kmalloc_obj(*hcd->address0_mutex);
 		if (!hcd->address0_mutex) {
 			kfree(hcd);
 			dev_dbg(dev, "hcd address0 mutex alloc failed\n");
 			return NULL;
 		}
 		mutex_init(hcd->address0_mutex);
-		hcd->bandwidth_mutex = kmalloc_obj(*hcd->bandwidth_mutex,
-						   GFP_KERNEL);
+		hcd->bandwidth_mutex = kmalloc_obj(*hcd->bandwidth_mutex);
 		if (!hcd->bandwidth_mutex) {
 			kfree(hcd->address0_mutex);
 			kfree(hcd);

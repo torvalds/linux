@@ -1286,8 +1286,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	if (!icode)
 		return err;
 
-	icode->gpr_map = kzalloc_objs(u_int32_t, 512 + 256 + 256 + 2 * 1024,
-				      GFP_KERNEL);
+	icode->gpr_map = kzalloc_objs(u_int32_t, 512 + 256 + 256 + 2 * 1024);
 	if (!icode->gpr_map)
 		goto __err_gpr;
 	controls = kzalloc_objs(*controls, SND_EMU10K1_GPR_CONTROLS);
@@ -1803,8 +1802,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	if (!icode)
 		return err;
 
-	icode->gpr_map = kzalloc_objs(u_int32_t, 256 + 160 + 160 + 2 * 512,
-				      GFP_KERNEL);
+	icode->gpr_map = kzalloc_objs(u_int32_t, 256 + 160 + 160 + 2 * 512);
 	if (!icode->gpr_map)
 		goto __err_gpr;
 

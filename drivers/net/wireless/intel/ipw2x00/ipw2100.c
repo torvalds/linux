@@ -3412,8 +3412,7 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 	dma_addr_t p;
 
 	priv->msg_buffers =
-	    kmalloc_objs(struct ipw2100_tx_packet, IPW_COMMAND_POOL_SIZE,
-			 GFP_KERNEL);
+	    kmalloc_objs(struct ipw2100_tx_packet, IPW_COMMAND_POOL_SIZE);
 	if (!priv->msg_buffers)
 		return -ENOMEM;
 

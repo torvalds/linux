@@ -8861,8 +8861,7 @@ static int ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 
 	ioa_cfg->ipr_cmnd_list = kzalloc_objs(struct ipr_cmnd *,
 					      IPR_NUM_CMD_BLKS, GFP_KERNEL);
-	ioa_cfg->ipr_cmnd_list_dma = kzalloc_objs(dma_addr_t, IPR_NUM_CMD_BLKS,
-						  GFP_KERNEL);
+	ioa_cfg->ipr_cmnd_list_dma = kzalloc_objs(dma_addr_t, IPR_NUM_CMD_BLKS);
 
 	if (!ioa_cfg->ipr_cmnd_list || !ioa_cfg->ipr_cmnd_list_dma) {
 		ipr_free_cmd_blks(ioa_cfg);

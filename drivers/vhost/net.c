@@ -293,8 +293,7 @@ static int vhost_net_set_ubuf_info(struct vhost_net *n)
 		if (!zcopy)
 			continue;
 		n->vqs[i].ubuf_info =
-			kmalloc_objs(*n->vqs[i].ubuf_info, UIO_MAXIOV,
-				     GFP_KERNEL);
+			kmalloc_objs(*n->vqs[i].ubuf_info, UIO_MAXIOV);
 		if  (!n->vqs[i].ubuf_info)
 			goto err;
 	}

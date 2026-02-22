@@ -152,8 +152,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 						cleanup_count = 6;
 						goto error;
 					}
-					newfunc = kzalloc_obj(*newfunc,
-							      GFP_KERNEL);
+					newfunc = kzalloc_obj(*newfunc);
 					if (!newfunc)
 						return -ENOMEM;
 
@@ -190,8 +189,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					flag = 0;
 					for (i = 0; i < 32; i++) {
 						if (func->devices[i]) {
-							newfunc = kzalloc_obj(*newfunc,
-									      GFP_KERNEL);
+							newfunc = kzalloc_obj(*newfunc);
 							if (!newfunc)
 								return -ENOMEM;
 
@@ -218,8 +216,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 						}
 					}
 
-					newfunc = kzalloc_obj(*newfunc,
-							      GFP_KERNEL);
+					newfunc = kzalloc_obj(*newfunc);
 					if (!newfunc)
 						return -ENOMEM;
 
@@ -264,8 +261,7 @@ int ibmphp_configure_card(struct pci_func *func, u8 slotno)
 					for (i = 0; i < 32; i++) {
 						if (func->devices[i]) {
 							debug("inside for loop, device is %x\n", i);
-							newfunc = kzalloc_obj(*newfunc,
-									      GFP_KERNEL);
+							newfunc = kzalloc_obj(*newfunc);
 							if (!newfunc)
 								return -ENOMEM;
 
@@ -388,8 +384,7 @@ static int configure_device(struct pci_func *func)
 
 			debug("len[count] in IO %x, count %d\n", len[count], count);
 
-			io[count] = kzalloc_obj(struct resource_node,
-						GFP_KERNEL);
+			io[count] = kzalloc_obj(struct resource_node);
 
 			if (!io[count])
 				return -ENOMEM;
@@ -426,8 +421,7 @@ static int configure_device(struct pci_func *func)
 
 				debug("len[count] in PFMEM %x, count %d\n", len[count], count);
 
-				pfmem[count] = kzalloc_obj(struct resource_node,
-							   GFP_KERNEL);
+				pfmem[count] = kzalloc_obj(struct resource_node);
 				if (!pfmem[count])
 					return -ENOMEM;
 
@@ -441,8 +435,7 @@ static int configure_device(struct pci_func *func)
 					ibmphp_add_resource(pfmem[count]);
 					func->pfmem[count] = pfmem[count];
 				} else {
-					mem_tmp = kzalloc_obj(*mem_tmp,
-							      GFP_KERNEL);
+					mem_tmp = kzalloc_obj(*mem_tmp);
 					if (!mem_tmp) {
 						kfree(pfmem[count]);
 						return -ENOMEM;
@@ -492,8 +485,7 @@ static int configure_device(struct pci_func *func)
 
 				debug("len[count] in Mem %x, count %d\n", len[count], count);
 
-				mem[count] = kzalloc_obj(struct resource_node,
-							 GFP_KERNEL);
+				mem[count] = kzalloc_obj(struct resource_node);
 				if (!mem[count])
 					return -ENOMEM;
 
@@ -656,8 +648,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 			debug("len[count] in IO = %x\n", len[count]);
 
-			bus_io[count] = kzalloc_obj(struct resource_node,
-						    GFP_KERNEL);
+			bus_io[count] = kzalloc_obj(struct resource_node);
 
 			if (!bus_io[count]) {
 				retval = -ENOMEM;
@@ -689,8 +680,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 				debug("len[count] in PFMEM = %x\n", len[count]);
 
-				bus_pfmem[count] = kzalloc_obj(struct resource_node,
-							       GFP_KERNEL);
+				bus_pfmem[count] = kzalloc_obj(struct resource_node);
 				if (!bus_pfmem[count]) {
 					retval = -ENOMEM;
 					goto error;
@@ -705,8 +695,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 					ibmphp_add_resource(bus_pfmem[count]);
 					func->pfmem[count] = bus_pfmem[count];
 				} else {
-					mem_tmp = kzalloc_obj(*mem_tmp,
-							      GFP_KERNEL);
+					mem_tmp = kzalloc_obj(*mem_tmp);
 					if (!mem_tmp) {
 						retval = -ENOMEM;
 						goto error;
@@ -746,8 +735,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 
 				debug("len[count] in Memory is %x\n", len[count]);
 
-				bus_mem[count] = kzalloc_obj(struct resource_node,
-							     GFP_KERNEL);
+				bus_mem[count] = kzalloc_obj(struct resource_node);
 				if (!bus_mem[count]) {
 					retval = -ENOMEM;
 					goto error;

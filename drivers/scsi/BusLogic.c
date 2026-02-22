@@ -2214,8 +2214,7 @@ static int __init blogic_init(void)
 	if (blogic_probe_options.noprobe)
 		return -ENODEV;
 	blogic_probeinfo_list =
-	    kzalloc_objs(struct blogic_probeinfo, BLOGIC_MAX_ADAPTERS,
-			 GFP_KERNEL);
+	    kzalloc_objs(struct blogic_probeinfo, BLOGIC_MAX_ADAPTERS);
 	if (blogic_probeinfo_list == NULL) {
 		blogic_err("BusLogic: Unable to allocate Probe Info List\n",
 				NULL);

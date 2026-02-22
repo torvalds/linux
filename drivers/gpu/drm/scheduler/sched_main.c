@@ -1358,8 +1358,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched, const struct drm_sched_init_
 		goto Out_check_own;
 	sched->num_rqs = args->num_rqs;
 	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
-		sched->sched_rq[i] = kzalloc_obj(*sched->sched_rq[i],
-						 GFP_KERNEL);
+		sched->sched_rq[i] = kzalloc_obj(*sched->sched_rq[i]);
 		if (!sched->sched_rq[i])
 			goto Out_unroll;
 		drm_sched_rq_init(sched, sched->sched_rq[i]);

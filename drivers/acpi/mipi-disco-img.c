@@ -91,8 +91,7 @@ static acpi_status parse_csi2_resource(struct acpi_resource *res, void *context)
 		return AE_OK;
 	}
 
-	conn = kmalloc_flex(*conn, remote_name, csi2_res_src_length + 1,
-			    GFP_KERNEL);
+	conn = kmalloc_flex(*conn, remote_name, csi2_res_src_length + 1);
 	if (!conn)
 		return AE_OK;
 

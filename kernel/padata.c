@@ -1106,8 +1106,7 @@ void __init padata_init(void)
 #endif
 
 	possible_cpus = num_possible_cpus();
-	padata_works = kmalloc_objs(struct padata_work, possible_cpus,
-				    GFP_KERNEL);
+	padata_works = kmalloc_objs(struct padata_work, possible_cpus);
 	if (!padata_works)
 		goto remove_dead_state;
 

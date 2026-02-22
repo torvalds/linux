@@ -3082,8 +3082,7 @@ static int qedf_alloc_global_queues(struct qedf_ctx *qedf)
 
 	/* Allocate a CQ and an associated PBL for each MSI-X vector */
 	for (i = 0; i < qedf->num_queues; i++) {
-		qedf->global_queues[i] = kzalloc_obj(struct global_queue,
-						     GFP_KERNEL);
+		qedf->global_queues[i] = kzalloc_obj(struct global_queue);
 		if (!qedf->global_queues[i]) {
 			QEDF_WARN(&(qedf->dbg_ctx), "Unable to allocate "
 				   "global queue %d.\n", i);

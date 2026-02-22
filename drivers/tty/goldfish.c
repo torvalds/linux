@@ -238,8 +238,7 @@ static int goldfish_tty_create_driver(void)
 	int ret;
 	struct tty_driver *tty;
 
-	goldfish_ttys = kzalloc_objs(*goldfish_ttys, goldfish_tty_line_count,
-				     GFP_KERNEL);
+	goldfish_ttys = kzalloc_objs(*goldfish_ttys, goldfish_tty_line_count);
 	if (goldfish_ttys == NULL) {
 		ret = -ENOMEM;
 		goto err_alloc_goldfish_ttys_failed;

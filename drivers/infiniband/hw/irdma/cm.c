@@ -1683,8 +1683,7 @@ static int irdma_add_mqh_6(struct irdma_device *iwdev,
 			ibdev_dbg(&iwdev->ibdev, "CM: IP=%pI6, vlan_id=%d, MAC=%pM\n",
 				  &ifp->addr, rdma_vlan_dev_vlan_id(ip_dev),
 				  ip_dev->dev_addr);
-			child_listen_node = kzalloc_obj(*child_listen_node,
-							GFP_KERNEL);
+			child_listen_node = kzalloc_obj(*child_listen_node);
 			ibdev_dbg(&iwdev->ibdev, "CM: Allocating child listener %p\n",
 				  child_listen_node);
 			if (!child_listen_node) {
@@ -1772,8 +1771,7 @@ static int irdma_add_mqh_4(struct irdma_device *iwdev,
 				  "CM: Allocating child CM Listener forIP=%pI4, vlan_id=%d, MAC=%pM\n",
 				  &ifa->ifa_address, rdma_vlan_dev_vlan_id(ip_dev),
 				  ip_dev->dev_addr);
-			child_listen_node = kzalloc_obj(*child_listen_node,
-							GFP_KERNEL);
+			child_listen_node = kzalloc_obj(*child_listen_node);
 			cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
 			ibdev_dbg(&iwdev->ibdev, "CM: Allocating child listener %p\n",
 				  child_listen_node);

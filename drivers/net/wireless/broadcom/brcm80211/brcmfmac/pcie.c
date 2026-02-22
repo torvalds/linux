@@ -2199,8 +2199,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 		bus->msgbuf->commonrings[i] =
 				&devinfo->shared.commonrings[i]->commonring;
 
-	flowrings = kzalloc_objs(*flowrings, devinfo->shared.max_flowrings,
-				 GFP_KERNEL);
+	flowrings = kzalloc_objs(*flowrings, devinfo->shared.max_flowrings);
 	if (!flowrings)
 		goto fail;
 

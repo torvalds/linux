@@ -1622,8 +1622,7 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			continue;
 
 		/* Reserve memory for all hw configs, eventually freed by widget */
-		config = kzalloc_objs(*config, slink->num_hw_configs,
-				      GFP_KERNEL);
+		config = kzalloc_objs(*config, slink->num_hw_configs);
 		if (!config) {
 			ret = -ENOMEM;
 			goto free_comp;

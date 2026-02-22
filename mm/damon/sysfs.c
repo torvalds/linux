@@ -609,8 +609,7 @@ static struct damon_sysfs_intervals *damon_sysfs_intervals_alloc(
 		unsigned long sample_us, unsigned long aggr_us,
 		unsigned long update_us)
 {
-	struct damon_sysfs_intervals *intervals = kmalloc_obj(*intervals,
-							      GFP_KERNEL);
+	struct damon_sysfs_intervals *intervals = kmalloc_obj(*intervals);
 
 	if (!intervals)
 		return NULL;

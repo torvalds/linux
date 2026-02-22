@@ -1220,8 +1220,7 @@ void mpi3mr_sas_host_add(struct mpi3mr_ioc *mrioc)
 	mrioc->sas_hba.host_node = 1;
 	INIT_LIST_HEAD(&mrioc->sas_hba.sas_port_list);
 	mrioc->sas_hba.parent_dev = &mrioc->shost->shost_gendev;
-	mrioc->sas_hba.phy = kzalloc_objs(struct mpi3mr_sas_phy, num_phys,
-					  GFP_KERNEL);
+	mrioc->sas_hba.phy = kzalloc_objs(struct mpi3mr_sas_phy, num_phys);
 	if (!mrioc->sas_hba.phy)
 		return;
 

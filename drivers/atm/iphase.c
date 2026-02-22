@@ -1978,8 +1978,7 @@ static int tx_init(struct atm_dev *dev)
 		buf_desc_ptr++;		  
 		tx_pkt_start += iadev->tx_buf_sz;  
 	}  
-	iadev->tx_buf = kmalloc_objs(*iadev->tx_buf, iadev->num_tx_desc,
-				     GFP_KERNEL);
+	iadev->tx_buf = kmalloc_objs(*iadev->tx_buf, iadev->num_tx_desc);
         if (!iadev->tx_buf) {
             printk(KERN_ERR DEV_LABEL " couldn't get mem\n");
 	    goto err_free_dle;
@@ -1999,8 +1998,7 @@ static int tx_init(struct atm_dev *dev)
 						       sizeof(*cpcs),
 						       DMA_TO_DEVICE);
         }
-	iadev->desc_tbl = kmalloc_objs(*iadev->desc_tbl, iadev->num_tx_desc,
-				       GFP_KERNEL);
+	iadev->desc_tbl = kmalloc_objs(*iadev->desc_tbl, iadev->num_tx_desc);
 	if (!iadev->desc_tbl) {
 		printk(KERN_ERR DEV_LABEL " couldn't get mem\n");
 		goto err_free_all_tx_bufs;
@@ -2128,8 +2126,7 @@ static int tx_init(struct atm_dev *dev)
 	memset((caddr_t)(iadev->seg_ram+i),  0, iadev->num_vc*4);
 	vc = (struct main_vc *)iadev->MAIN_VC_TABLE_ADDR;  
 	evc = (struct ext_vc *)iadev->EXT_VC_TABLE_ADDR;  
-	iadev->testTable = kmalloc_objs(*iadev->testTable, iadev->num_vc,
-					GFP_KERNEL);
+	iadev->testTable = kmalloc_objs(*iadev->testTable, iadev->num_vc);
         if (!iadev->testTable) {
            printk("Get freepage  failed\n");
 	   goto err_free_desc_tbl;
@@ -2138,8 +2135,7 @@ static int tx_init(struct atm_dev *dev)
 	{  
 		memset((caddr_t)vc, 0, sizeof(*vc));  
 		memset((caddr_t)evc, 0, sizeof(*evc));  
-                iadev->testTable[i] = kmalloc_obj(struct testTable_t,
-						  GFP_KERNEL);
+                iadev->testTable[i] = kmalloc_obj(struct testTable_t);
 		if (!iadev->testTable[i])
 			goto err_free_test_tables;
               	iadev->testTable[i]->lastTime = 0;

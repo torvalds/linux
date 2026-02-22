@@ -26,8 +26,7 @@ struct damon_sysfs_scheme_region {
 static struct damon_sysfs_scheme_region *damon_sysfs_scheme_region_alloc(
 		struct damon_region *region)
 {
-	struct damon_sysfs_scheme_region *sysfs_region = kmalloc_obj(*sysfs_region,
-								     GFP_KERNEL);
+	struct damon_sysfs_scheme_region *sysfs_region = kmalloc_obj(*sysfs_region);
 
 	if (!sysfs_region)
 		return NULL;
@@ -138,8 +137,7 @@ struct damon_sysfs_scheme_regions {
 static struct damon_sysfs_scheme_regions *
 damon_sysfs_scheme_regions_alloc(void)
 {
-	struct damon_sysfs_scheme_regions *regions = kmalloc_obj(*regions,
-								 GFP_KERNEL);
+	struct damon_sysfs_scheme_regions *regions = kmalloc_obj(*regions);
 
 	if (!regions)
 		return NULL;
@@ -851,8 +849,7 @@ static struct damon_sysfs_watermarks *damon_sysfs_watermarks_alloc(
 		enum damos_wmark_metric metric, unsigned long interval_us,
 		unsigned long high, unsigned long mid, unsigned long low)
 {
-	struct damon_sysfs_watermarks *watermarks = kmalloc_obj(*watermarks,
-								GFP_KERNEL);
+	struct damon_sysfs_watermarks *watermarks = kmalloc_obj(*watermarks);
 
 	if (!watermarks)
 		return NULL;
@@ -1659,8 +1656,7 @@ struct damon_sysfs_access_pattern {
 static
 struct damon_sysfs_access_pattern *damon_sysfs_access_pattern_alloc(void)
 {
-	struct damon_sysfs_access_pattern *access_pattern = kmalloc_obj(*access_pattern,
-									GFP_KERNEL);
+	struct damon_sysfs_access_pattern *access_pattern = kmalloc_obj(*access_pattern);
 
 	if (!access_pattern)
 		return NULL;
@@ -2681,12 +2677,10 @@ static int damos_sysfs_add_migrate_dest(struct damos *scheme,
 	struct damos_migrate_dests *dests = &scheme->migrate_dests;
 	int i;
 
-	dests->node_id_arr = kmalloc_objs(*dests->node_id_arr, sysfs_dests->nr,
-					  GFP_KERNEL);
+	dests->node_id_arr = kmalloc_objs(*dests->node_id_arr, sysfs_dests->nr);
 	if (!dests->node_id_arr)
 		return -ENOMEM;
-	dests->weight_arr = kmalloc_objs(*dests->weight_arr, sysfs_dests->nr,
-					 GFP_KERNEL);
+	dests->weight_arr = kmalloc_objs(*dests->weight_arr, sysfs_dests->nr);
 	if (!dests->weight_arr)
 		/* ->node_id_arr will be freed by scheme destruction */
 		return -ENOMEM;

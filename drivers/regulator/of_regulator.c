@@ -973,8 +973,7 @@ restart:
 	}
 	if (num_consumers == 0)
 		return 0;
-	_consumers = kmalloc_objs(struct regulator_bulk_data, num_consumers,
-				  GFP_KERNEL);
+	_consumers = kmalloc_objs(struct regulator_bulk_data, num_consumers);
 	if (!_consumers)
 		return -ENOMEM;
 	goto restart;

@@ -44,8 +44,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 	int i = 0;
 
 	/* Add terminating zero entry to enable index less iteration */
-	client->modesets = kzalloc_objs(*client->modesets, num_crtc + 1,
-					GFP_KERNEL);
+	client->modesets = kzalloc_objs(*client->modesets, num_crtc + 1);
 	if (!client->modesets)
 		return -ENOMEM;
 

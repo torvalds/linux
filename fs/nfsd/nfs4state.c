@@ -8959,12 +8959,10 @@ static int nfs4_state_create_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int i;
 
-	nn->conf_id_hashtbl = kmalloc_objs(struct list_head, CLIENT_HASH_SIZE,
-					   GFP_KERNEL);
+	nn->conf_id_hashtbl = kmalloc_objs(struct list_head, CLIENT_HASH_SIZE);
 	if (!nn->conf_id_hashtbl)
 		goto err;
-	nn->unconf_id_hashtbl = kmalloc_objs(struct list_head, CLIENT_HASH_SIZE,
-					     GFP_KERNEL);
+	nn->unconf_id_hashtbl = kmalloc_objs(struct list_head, CLIENT_HASH_SIZE);
 	if (!nn->unconf_id_hashtbl)
 		goto err_unconf_id;
 	nn->sessionid_hashtbl = kmalloc_objs(struct list_head,

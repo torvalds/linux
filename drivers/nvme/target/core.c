@@ -1642,13 +1642,11 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	if (!ctrl->changed_ns_list)
 		goto out_free_ctrl;
 
-	ctrl->sqs = kzalloc_objs(struct nvmet_sq *, subsys->max_qid + 1,
-				 GFP_KERNEL);
+	ctrl->sqs = kzalloc_objs(struct nvmet_sq *, subsys->max_qid + 1);
 	if (!ctrl->sqs)
 		goto out_free_changed_ns_list;
 
-	ctrl->cqs = kzalloc_objs(struct nvmet_cq *, subsys->max_qid + 1,
-				 GFP_KERNEL);
+	ctrl->cqs = kzalloc_objs(struct nvmet_cq *, subsys->max_qid + 1);
 	if (!ctrl->cqs)
 		goto out_free_sqs;
 

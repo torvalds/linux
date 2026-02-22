@@ -368,8 +368,7 @@ xe_pt_new_shared(struct xe_walk_update *wupd, struct xe_pt *parent,
 	entry->pt_bo->update_index = -1;
 
 	if (alloc_entries) {
-		entry->pt_entries = kmalloc_objs(*entry->pt_entries, XE_PDES,
-						 GFP_KERNEL);
+		entry->pt_entries = kmalloc_objs(*entry->pt_entries, XE_PDES);
 		if (!entry->pt_entries)
 			return -ENOMEM;
 	}

@@ -9831,8 +9831,7 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	 */
 	if (ca0132_use_pci_mmio(spec))
 		spec->desktop_init_verbs = ca0132_init_verbs1;
-	spec->spec_init_verbs = kzalloc_objs(struct hda_verb, NUM_SPEC_VERBS,
-					     GFP_KERNEL);
+	spec->spec_init_verbs = kzalloc_objs(struct hda_verb, NUM_SPEC_VERBS);
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
 

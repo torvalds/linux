@@ -23,8 +23,7 @@ static void mlx5e_xsk_unmap_pool(struct mlx5e_priv *priv,
 static int mlx5e_xsk_get_pools(struct mlx5e_xsk *xsk)
 {
 	if (!xsk->pools) {
-		xsk->pools = kzalloc_objs(*xsk->pools, MLX5E_MAX_NUM_CHANNELS,
-					  GFP_KERNEL);
+		xsk->pools = kzalloc_objs(*xsk->pools, MLX5E_MAX_NUM_CHANNELS);
 		if (unlikely(!xsk->pools))
 			return -ENOMEM;
 	}

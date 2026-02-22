@@ -381,8 +381,7 @@ static int pasemi_mac_setup_rx_resources(const struct net_device *dev)
 	spin_lock_init(&ring->lock);
 
 	ring->size = RX_RING_SIZE;
-	ring->ring_info = kzalloc_objs(struct pasemi_mac_buffer, RX_RING_SIZE,
-				       GFP_KERNEL);
+	ring->ring_info = kzalloc_objs(struct pasemi_mac_buffer, RX_RING_SIZE);
 
 	if (!ring->ring_info)
 		goto out_ring_info;
@@ -464,8 +463,7 @@ pasemi_mac_setup_tx_resources(const struct net_device *dev)
 	spin_lock_init(&ring->lock);
 
 	ring->size = TX_RING_SIZE;
-	ring->ring_info = kzalloc_objs(struct pasemi_mac_buffer, TX_RING_SIZE,
-				       GFP_KERNEL);
+	ring->ring_info = kzalloc_objs(struct pasemi_mac_buffer, TX_RING_SIZE);
 	if (!ring->ring_info)
 		goto out_ring_info;
 

@@ -3517,8 +3517,7 @@ static int arm_smmu_insert_master(struct arm_smmu_device *smmu,
 	int ret = 0;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(master->dev);
 
-	master->streams = kzalloc_objs(*master->streams, fwspec->num_ids,
-				       GFP_KERNEL);
+	master->streams = kzalloc_objs(*master->streams, fwspec->num_ids);
 	if (!master->streams)
 		return -ENOMEM;
 	master->num_streams = fwspec->num_ids;

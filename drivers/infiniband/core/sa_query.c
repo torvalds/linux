@@ -2414,8 +2414,7 @@ static int ib_sa_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	sa_dev = kzalloc_flex(*sa_dev, port, size_add(size_sub(e, s), 1),
-			      GFP_KERNEL);
+	sa_dev = kzalloc_flex(*sa_dev, port, size_add(size_sub(e, s), 1));
 	if (!sa_dev)
 		return -ENOMEM;
 

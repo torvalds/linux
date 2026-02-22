@@ -2290,8 +2290,7 @@ static struct nvme_rdma_ctrl *nvme_rdma_alloc_ctrl(struct device *dev,
 	ctrl->ctrl.kato = opts->kato;
 
 	ret = -ENOMEM;
-	ctrl->queues = kzalloc_objs(*ctrl->queues, ctrl->ctrl.queue_count,
-				    GFP_KERNEL);
+	ctrl->queues = kzalloc_objs(*ctrl->queues, ctrl->ctrl.queue_count);
 	if (!ctrl->queues)
 		goto out_free_ctrl;
 

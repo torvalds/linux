@@ -194,8 +194,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	/* Parse attribute filters */
 	if (filters) {
 		filter_count = kunit_get_filter_count(filters);
-		parsed_filters = kzalloc_objs(*parsed_filters, filter_count,
-					      GFP_KERNEL);
+		parsed_filters = kzalloc_objs(*parsed_filters, filter_count);
 		if (!parsed_filters) {
 			*err = -ENOMEM;
 			goto free_parsed_glob;

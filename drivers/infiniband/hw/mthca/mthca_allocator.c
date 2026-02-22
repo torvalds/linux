@@ -230,8 +230,7 @@ int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
 		if (!dma_list)
 			return -ENOMEM;
 
-		buf->page_list = kmalloc_objs(*buf->page_list, npages,
-					      GFP_KERNEL);
+		buf->page_list = kmalloc_objs(*buf->page_list, npages);
 		if (!buf->page_list)
 			goto err_out;
 

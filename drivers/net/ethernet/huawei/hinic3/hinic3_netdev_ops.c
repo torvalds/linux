@@ -138,8 +138,7 @@ static int hinic3_alloc_txrxq_resources(struct net_device *netdev,
 		goto err_free_txqs_res_arr;
 	}
 
-	q_params->irq_cfg = kzalloc_objs(*q_params->irq_cfg, q_params->num_qps,
-					 GFP_KERNEL);
+	q_params->irq_cfg = kzalloc_objs(*q_params->irq_cfg, q_params->num_qps);
 	if (!q_params->irq_cfg) {
 		err = -ENOMEM;
 		goto err_free_rxqs_res_arr;

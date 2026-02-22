@@ -855,8 +855,7 @@ struct mpc *dcn20_mpc_create(struct dc_context *ctx)
 struct hubbub *dcn20_hubbub_create(struct dc_context *ctx)
 {
 	int i;
-	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub,
-						  GFP_KERNEL);
+	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub)
 		return NULL;
@@ -2242,8 +2241,7 @@ bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < pipe_count; i++) {
-		struct dcn20_dwbc *dwbc20 = kzalloc_obj(struct dcn20_dwbc,
-							GFP_KERNEL);
+		struct dcn20_dwbc *dwbc20 = kzalloc_obj(struct dcn20_dwbc);
 
 		if (!dwbc20) {
 			dm_error("DC: failed to create dwbc20!\n");
@@ -2267,8 +2265,7 @@ bool dcn20_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 	ASSERT(pipe_count > 0);
 
 	for (i = 0; i < pipe_count; i++) {
-		struct dcn20_mmhubbub *mcif_wb20 = kzalloc_obj(struct dcn20_mmhubbub,
-							       GFP_KERNEL);
+		struct dcn20_mmhubbub *mcif_wb20 = kzalloc_obj(struct dcn20_mmhubbub);
 
 		if (!mcif_wb20) {
 			dm_error("DC: failed to create mcif_wb20!\n");

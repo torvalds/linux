@@ -749,12 +749,10 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 				   GFP_KERNEL);
 	if (!link->wr_rx_bufs)
 		goto no_mem_wr_tx_bufs;
-	link->wr_tx_ibs = kzalloc_objs(link->wr_tx_ibs[0], link->max_send_wr,
-				       GFP_KERNEL);
+	link->wr_tx_ibs = kzalloc_objs(link->wr_tx_ibs[0], link->max_send_wr);
 	if (!link->wr_tx_ibs)
 		goto no_mem_wr_rx_bufs;
-	link->wr_rx_ibs = kzalloc_objs(link->wr_rx_ibs[0], link->max_recv_wr,
-				       GFP_KERNEL);
+	link->wr_rx_ibs = kzalloc_objs(link->wr_rx_ibs[0], link->max_recv_wr);
 	if (!link->wr_rx_ibs)
 		goto no_mem_wr_tx_ibs;
 	link->wr_tx_rdmas = kzalloc_objs(link->wr_tx_rdmas[0],
@@ -765,8 +763,7 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 					     link->max_send_wr, GFP_KERNEL);
 	if (!link->wr_tx_rdma_sges)
 		goto no_mem_wr_tx_rdmas;
-	link->wr_tx_sges = kzalloc_objs(link->wr_tx_sges[0], link->max_send_wr,
-					GFP_KERNEL);
+	link->wr_tx_sges = kzalloc_objs(link->wr_tx_sges[0], link->max_send_wr);
 	if (!link->wr_tx_sges)
 		goto no_mem_wr_tx_rdma_sges;
 	link->wr_rx_sges = kcalloc(link->max_recv_wr,
@@ -790,12 +787,10 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 		link->wr_tx_v2_ib = kzalloc_obj(*link->wr_tx_v2_ib);
 		if (!link->wr_tx_v2_ib)
 			goto no_mem_tx_compl;
-		link->wr_tx_v2_sge = kzalloc_obj(*link->wr_tx_v2_sge,
-						 GFP_KERNEL);
+		link->wr_tx_v2_sge = kzalloc_obj(*link->wr_tx_v2_sge);
 		if (!link->wr_tx_v2_sge)
 			goto no_mem_v2_ib;
-		link->wr_tx_v2_pend = kzalloc_obj(*link->wr_tx_v2_pend,
-						  GFP_KERNEL);
+		link->wr_tx_v2_pend = kzalloc_obj(*link->wr_tx_v2_pend);
 		if (!link->wr_tx_v2_pend)
 			goto no_mem_v2_sge;
 	}

@@ -369,8 +369,7 @@ int idpf_intr_req(struct idpf_adapter *adapter)
 	}
 
 	num_lan_vecs = actual_vecs - num_rdma_vecs;
-	adapter->msix_entries = kzalloc_objs(struct msix_entry, num_lan_vecs,
-					     GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, num_lan_vecs);
 	if (!adapter->msix_entries) {
 		err = -ENOMEM;
 		goto free_rdma_msix;

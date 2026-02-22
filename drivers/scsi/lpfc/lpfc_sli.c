@@ -8046,8 +8046,7 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 				u32 entries)
 {
-	rx_monitor->ring = kmalloc_objs(struct rx_info_entry, entries,
-					GFP_KERNEL);
+	rx_monitor->ring = kmalloc_objs(struct rx_info_entry, entries);
 	if (!rx_monitor->ring)
 		return -ENOMEM;
 

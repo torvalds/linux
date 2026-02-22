@@ -545,8 +545,7 @@ static struct gcov_node *new_node(struct gcov_node *parent,
 	if (!node)
 		goto err_nomem;
 	if (info) {
-		node->loaded_info = kzalloc_objs(struct gcov_info *, 1,
-						 GFP_KERNEL);
+		node->loaded_info = kzalloc_objs(struct gcov_info *, 1);
 		if (!node->loaded_info)
 			goto err_nomem;
 	}

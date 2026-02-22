@@ -604,8 +604,7 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt,
 
 	if (!q->hh_flows) {
 		/* Initialize heavy-hitter flow table. */
-		q->hh_flows = kvzalloc_objs(struct list_head, HH_FLOWS_CNT,
-					    GFP_KERNEL);
+		q->hh_flows = kvzalloc_objs(struct list_head, HH_FLOWS_CNT);
 		if (!q->hh_flows)
 			return -ENOMEM;
 		for (i = 0; i < HH_FLOWS_CNT; i++)

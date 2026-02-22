@@ -2260,8 +2260,7 @@ static int _opp_set_regulators(struct opp_table *opp_table, struct device *dev,
 	if (opp_table->regulators)
 		return 0;
 
-	opp_table->regulators = kmalloc_objs(*opp_table->regulators, count,
-					     GFP_KERNEL);
+	opp_table->regulators = kmalloc_objs(*opp_table->regulators, count);
 	if (!opp_table->regulators)
 		return -ENOMEM;
 

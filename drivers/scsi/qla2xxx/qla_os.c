@@ -438,16 +438,14 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 {
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
-	ha->req_q_map = kzalloc_objs(struct req_que *, ha->max_req_queues,
-				     GFP_KERNEL);
+	ha->req_q_map = kzalloc_objs(struct req_que *, ha->max_req_queues);
 	if (!ha->req_q_map) {
 		ql_log(ql_log_fatal, vha, 0x003b,
 		    "Unable to allocate memory for request queue ptrs.\n");
 		goto fail_req_map;
 	}
 
-	ha->rsp_q_map = kzalloc_objs(struct rsp_que *, ha->max_rsp_queues,
-				     GFP_KERNEL);
+	ha->rsp_q_map = kzalloc_objs(struct rsp_que *, ha->max_rsp_queues);
 	if (!ha->rsp_q_map) {
 		ql_log(ql_log_fatal, vha, 0x003c,
 		    "Unable to allocate memory for response queue ptrs.\n");
@@ -4422,8 +4420,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	INIT_LIST_HEAD(&ha->vp_list);
 
 	/* Allocate memory for our loop_id bitmap */
-	ha->loop_id_map = kzalloc_objs(long, BITS_TO_LONGS(LOOPID_MAP_SIZE),
-				       GFP_KERNEL);
+	ha->loop_id_map = kzalloc_objs(long, BITS_TO_LONGS(LOOPID_MAP_SIZE));
 	if (!ha->loop_id_map)
 		goto fail_loop_id_map;
 	else {

@@ -279,8 +279,7 @@ static void
 nv10_overlay_init(struct drm_device *device)
 {
 	struct nouveau_drm *drm = nouveau_drm(device);
-	struct nouveau_plane *plane = kzalloc_obj(struct nouveau_plane,
-						  GFP_KERNEL);
+	struct nouveau_plane *plane = kzalloc_obj(struct nouveau_plane);
 	unsigned int num_formats = ARRAY_SIZE(formats);
 	int ret;
 
@@ -471,8 +470,7 @@ static void
 nv04_overlay_init(struct drm_device *device)
 {
 	struct nouveau_drm *drm = nouveau_drm(device);
-	struct nouveau_plane *plane = kzalloc_obj(struct nouveau_plane,
-						  GFP_KERNEL);
+	struct nouveau_plane *plane = kzalloc_obj(struct nouveau_plane);
 	int ret;
 
 	if (!plane)

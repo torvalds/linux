@@ -5021,8 +5021,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	adap->sge.egr_sz = val[0] - adap->sge.egr_start + 1;
 	adap->sge.ingr_sz = val[1] - adap->sge.ingr_start + 1;
 
-	adap->sge.egr_map = kzalloc_objs(*adap->sge.egr_map, adap->sge.egr_sz,
-					 GFP_KERNEL);
+	adap->sge.egr_map = kzalloc_objs(*adap->sge.egr_map, adap->sge.egr_sz);
 	if (!adap->sge.egr_map) {
 		ret = -ENOMEM;
 		goto bye;

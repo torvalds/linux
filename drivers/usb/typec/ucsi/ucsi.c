@@ -1865,8 +1865,7 @@ static int ucsi_init(struct ucsi *ucsi)
 	}
 
 	/* Allocate the connectors. Released in ucsi_unregister() */
-	connector = kzalloc_objs(*connector, ucsi->cap.num_connectors + 1,
-				 GFP_KERNEL);
+	connector = kzalloc_objs(*connector, ucsi->cap.num_connectors + 1);
 	if (!connector) {
 		ret = -ENOMEM;
 		goto err_reset;

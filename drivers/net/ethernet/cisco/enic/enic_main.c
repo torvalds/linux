@@ -2473,18 +2473,15 @@ static int enic_alloc_enic_resources(struct enic *enic)
 	if (!enic->napi)
 		goto free_queues;
 
-	enic->msix_entry = kzalloc_objs(struct msix_entry, enic->intr_avail,
-					GFP_KERNEL);
+	enic->msix_entry = kzalloc_objs(struct msix_entry, enic->intr_avail);
 	if (!enic->msix_entry)
 		goto free_queues;
 
-	enic->msix = kzalloc_objs(struct enic_msix_entry, enic->intr_avail,
-				  GFP_KERNEL);
+	enic->msix = kzalloc_objs(struct enic_msix_entry, enic->intr_avail);
 	if (!enic->msix)
 		goto free_queues;
 
-	enic->intr = kzalloc_objs(struct vnic_intr, enic->intr_avail,
-				  GFP_KERNEL);
+	enic->intr = kzalloc_objs(struct vnic_intr, enic->intr_avail);
 	if (!enic->intr)
 		goto free_queues;
 

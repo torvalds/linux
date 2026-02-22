@@ -66,8 +66,7 @@ static struct se_device *iblock_alloc_device(struct se_hba *hba, const char *nam
 	}
 	ib_dev->ibd_exclusive = true;
 
-	ib_dev->ibd_plug = kzalloc_objs(*ib_dev->ibd_plug, nr_cpu_ids,
-					GFP_KERNEL);
+	ib_dev->ibd_plug = kzalloc_objs(*ib_dev->ibd_plug, nr_cpu_ids);
 	if (!ib_dev->ibd_plug)
 		goto free_dev;
 

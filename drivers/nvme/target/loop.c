@@ -592,8 +592,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	ctrl->ctrl.kato = opts->kato;
 	ctrl->port = nvme_loop_find_port(&ctrl->ctrl);
 
-	ctrl->queues = kzalloc_objs(*ctrl->queues, opts->nr_io_queues + 1,
-				    GFP_KERNEL);
+	ctrl->queues = kzalloc_objs(*ctrl->queues, opts->nr_io_queues + 1);
 	if (!ctrl->queues)
 		goto out_uninit_ctrl;
 

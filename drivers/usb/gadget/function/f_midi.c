@@ -931,8 +931,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 
 	/* allocate temporary function list */
-	midi_function = kzalloc_objs(*midi_function, (MAX_PORTS * 4) + 11,
-				     GFP_KERNEL);
+	midi_function = kzalloc_objs(*midi_function, (MAX_PORTS * 4) + 11);
 	if (!midi_function) {
 		status = -ENOMEM;
 		goto fail;

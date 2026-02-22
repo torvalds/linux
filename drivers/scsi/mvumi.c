@@ -1572,8 +1572,7 @@ static int mvumi_probe_devices(struct mvumi_hba *mhba)
 			found = mvumi_match_devices(mhba, id, wwid);
 			if (!found) {
 				mvumi_remove_devices(mhba, id);
-				mv_dev = kzalloc_obj(struct mvumi_device,
-						     GFP_KERNEL);
+				mv_dev = kzalloc_obj(struct mvumi_device);
 				if (!mv_dev) {
 					dev_err(&mhba->pdev->dev,
 						"%s alloc mv_dev failed\n",

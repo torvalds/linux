@@ -855,8 +855,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 	/* if no inputs are present... */
 	if ((onyx->codec.connected & 0xC) == 0) {
 		if (!onyx->codec_info)
-			onyx->codec_info = kmalloc_obj(struct codec_info,
-						       GFP_KERNEL);
+			onyx->codec_info = kmalloc_obj(struct codec_info);
 		if (!onyx->codec_info)
 			return -ENOMEM;
 		ci = onyx->codec_info;
@@ -867,8 +866,7 @@ static int onyx_init_codec(struct aoa_codec *codec)
 	/* if no outputs are present... */
 	if ((onyx->codec.connected & 3) == 0) {
 		if (!onyx->codec_info)
-			onyx->codec_info = kmalloc_obj(struct codec_info,
-						       GFP_KERNEL);
+			onyx->codec_info = kmalloc_obj(struct codec_info);
 		if (!onyx->codec_info)
 			return -ENOMEM;
 		ci = onyx->codec_info;

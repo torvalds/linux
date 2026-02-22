@@ -965,8 +965,7 @@ static int srpt_alloc_rw_ctxs(struct srpt_send_ioctx *ioctx,
 	if (nbufs == 1) {
 		ioctx->rw_ctxs = &ioctx->s_rw_ctx;
 	} else {
-		ioctx->rw_ctxs = kmalloc_objs(*ioctx->rw_ctxs, nbufs,
-					      GFP_KERNEL);
+		ioctx->rw_ctxs = kmalloc_objs(*ioctx->rw_ctxs, nbufs);
 		if (!ioctx->rw_ctxs)
 			return -ENOMEM;
 	}

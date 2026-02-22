@@ -479,8 +479,7 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 
 static void ast_astdp_connector_reset(struct drm_connector *connector)
 {
-	struct ast_astdp_connector_state *astdp_state = kzalloc_obj(*astdp_state,
-								    GFP_KERNEL);
+	struct ast_astdp_connector_state *astdp_state = kzalloc_obj(*astdp_state);
 
 	if (connector->state)
 		connector->funcs->atomic_destroy_state(connector, connector->state);

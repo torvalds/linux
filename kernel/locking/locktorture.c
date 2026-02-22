@@ -1293,8 +1293,7 @@ static int __init lock_torture_init(void)
 	/* Initialize the statistics so that each run gets its own numbers. */
 	if (nwriters_stress) {
 		lock_is_write_held = false;
-		cxt.lwsa = kmalloc_objs(*cxt.lwsa, cxt.nrealwriters_stress,
-					GFP_KERNEL);
+		cxt.lwsa = kmalloc_objs(*cxt.lwsa, cxt.nrealwriters_stress);
 		if (cxt.lwsa == NULL) {
 			VERBOSE_TOROUT_STRING("cxt.lwsa: Out of memory");
 			firsterr = -ENOMEM;

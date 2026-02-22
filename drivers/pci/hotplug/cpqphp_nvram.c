@@ -532,8 +532,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		}
 
 		while (numpmem--) {
-			p_mem_node = kmalloc_obj(struct pci_resource,
-						 GFP_KERNEL);
+			p_mem_node = kmalloc_obj(struct pci_resource);
 
 			if (!p_mem_node)
 				break;

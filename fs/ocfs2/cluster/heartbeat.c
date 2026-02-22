@@ -1677,8 +1677,7 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 	if (reg->hr_tmp_block == NULL)
 		return -ENOMEM;
 
-	reg->hr_slots = kzalloc_objs(struct o2hb_disk_slot, reg->hr_blocks,
-				     GFP_KERNEL);
+	reg->hr_slots = kzalloc_objs(struct o2hb_disk_slot, reg->hr_blocks);
 	if (reg->hr_slots == NULL)
 		return -ENOMEM;
 
@@ -1694,8 +1693,7 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 			   "at %u blocks per page\n",
 	     reg->hr_num_pages, reg->hr_blocks, spp);
 
-	reg->hr_slot_data = kzalloc_objs(struct page *, reg->hr_num_pages,
-					 GFP_KERNEL);
+	reg->hr_slot_data = kzalloc_objs(struct page *, reg->hr_num_pages);
 	if (!reg->hr_slot_data)
 		return -ENOMEM;
 

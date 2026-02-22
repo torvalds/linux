@@ -133,8 +133,7 @@ struct radeon_bo_list *radeon_vm_get_bos(struct radeon_device *rdev,
 	struct radeon_bo_list *list;
 	unsigned i, idx;
 
-	list = kvmalloc_objs(struct radeon_bo_list, vm->max_pde_used + 2,
-			     GFP_KERNEL);
+	list = kvmalloc_objs(struct radeon_bo_list, vm->max_pde_used + 2);
 	if (!list)
 		return NULL;
 

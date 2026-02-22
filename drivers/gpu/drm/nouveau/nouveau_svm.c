@@ -1010,8 +1010,7 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	if (ret)
 		return ret;
 
-	buffer->fault = kvzalloc_objs(*buffer->fault, buffer->entries,
-				      GFP_KERNEL);
+	buffer->fault = kvzalloc_objs(*buffer->fault, buffer->entries);
 	if (!buffer->fault)
 		return -ENOMEM;
 

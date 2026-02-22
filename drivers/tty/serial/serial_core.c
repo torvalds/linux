@@ -3088,8 +3088,7 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (uport->attr_group)
 		num_groups++;
 
-	uport->tty_groups = kzalloc_objs(*uport->tty_groups, num_groups,
-					 GFP_KERNEL);
+	uport->tty_groups = kzalloc_objs(*uport->tty_groups, num_groups);
 	if (!uport->tty_groups)
 		return -ENOMEM;
 

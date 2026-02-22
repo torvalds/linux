@@ -1868,8 +1868,7 @@ static int ionic_qp_sq_init(struct ionic_ibdev *dev, struct ionic_ctx *ctx,
 
 		ionic_queue_dbell_init(&qp->sq, qp->qpid);
 
-		qp->sq_meta = kmalloc_objs(*qp->sq_meta, (u32)qp->sq.mask + 1,
-					   GFP_KERNEL);
+		qp->sq_meta = kmalloc_objs(*qp->sq_meta, (u32)qp->sq.mask + 1);
 		if (!qp->sq_meta) {
 			rc = -ENOMEM;
 			goto err_sq_meta;
@@ -2082,8 +2081,7 @@ static int ionic_qp_rq_init(struct ionic_ibdev *dev, struct ionic_ctx *ctx,
 
 		ionic_queue_dbell_init(&qp->rq, qp->qpid);
 
-		qp->rq_meta = kmalloc_objs(*qp->rq_meta, (u32)qp->rq.mask + 1,
-					   GFP_KERNEL);
+		qp->rq_meta = kmalloc_objs(*qp->rq_meta, (u32)qp->rq.mask + 1);
 		if (!qp->rq_meta) {
 			rc = -ENOMEM;
 			goto err_rq_meta;

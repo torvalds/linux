@@ -341,16 +341,14 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 		goto free;
 	}
 	priv->chan_num = max_channel_num;
-	priv->survey = kzalloc_objs(struct survey_info, max_channel_num,
-				    GFP_KERNEL);
+	priv->survey = kzalloc_objs(struct survey_info, max_channel_num);
 	if (!priv->survey) {
 		ret = -ENOMEM;
 		goto free;
 	}
 
 	list->max_entries = max_channel_num;
-	list->channels = kzalloc_objs(struct p54_channel_entry, max_channel_num,
-				      GFP_KERNEL);
+	list->channels = kzalloc_objs(struct p54_channel_entry, max_channel_num);
 	if (!list->channels) {
 		ret = -ENOMEM;
 		goto free;

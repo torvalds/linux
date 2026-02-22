@@ -181,8 +181,7 @@ int nitrox_mbox_init(struct nitrox_device *ndev)
 	struct nitrox_vfdev *vfdev;
 	int i;
 
-	ndev->iov.vfdev = kzalloc_objs(struct nitrox_vfdev, ndev->iov.num_vfs,
-				       GFP_KERNEL);
+	ndev->iov.vfdev = kzalloc_objs(struct nitrox_vfdev, ndev->iov.num_vfs);
 	if (!ndev->iov.vfdev)
 		return -ENOMEM;
 

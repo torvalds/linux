@@ -3073,13 +3073,11 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	if (!conf)
 		goto abort;
 
-	conf->nr_pending = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR,
-					GFP_KERNEL);
+	conf->nr_pending = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->nr_pending)
 		goto abort;
 
-	conf->nr_waiting = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR,
-					GFP_KERNEL);
+	conf->nr_waiting = kzalloc_objs(atomic_t, BARRIER_BUCKETS_NR);
 	if (!conf->nr_waiting)
 		goto abort;
 

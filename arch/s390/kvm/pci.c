@@ -126,8 +126,7 @@ int kvm_s390_pci_aen_init(u8 nisc)
 		return -EPERM;
 
 	mutex_lock(&aift->aift_lock);
-	aift->kzdev = kzalloc_objs(struct kvm_zdev *, ZPCI_NR_DEVICES,
-				   GFP_KERNEL);
+	aift->kzdev = kzalloc_objs(struct kvm_zdev *, ZPCI_NR_DEVICES);
 	if (!aift->kzdev) {
 		rc = -ENOMEM;
 		goto unlock;

@@ -1722,8 +1722,7 @@ static int dce_v8_0_afmt_init(struct amdgpu_device *adev)
 
 	/* DCE8 has audio blocks tied to DIG encoders */
 	for (i = 0; i < adev->mode_info.num_dig; i++) {
-		adev->mode_info.afmt[i] = kzalloc_obj(struct amdgpu_afmt,
-						      GFP_KERNEL);
+		adev->mode_info.afmt[i] = kzalloc_obj(struct amdgpu_afmt);
 		if (adev->mode_info.afmt[i]) {
 			adev->mode_info.afmt[i]->offset = dig_offsets[i];
 			adev->mode_info.afmt[i]->id = i;

@@ -720,8 +720,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	}
 
 	pipe->partitions = DIV_ROUND_UP(format->width, div_size);
-	pipe->part_table = kzalloc_objs(*pipe->part_table, pipe->partitions,
-					GFP_KERNEL);
+	pipe->part_table = kzalloc_objs(*pipe->part_table, pipe->partitions);
 	if (!pipe->part_table)
 		return -ENOMEM;
 

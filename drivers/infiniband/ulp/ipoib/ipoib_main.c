@@ -1773,8 +1773,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	ipoib_napi_add(dev);
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
-	priv->rx_ring =	kzalloc_objs(*priv->rx_ring, ipoib_recvq_size,
-					    GFP_KERNEL);
+	priv->rx_ring =	kzalloc_objs(*priv->rx_ring, ipoib_recvq_size);
 	if (!priv->rx_ring)
 		goto out;
 

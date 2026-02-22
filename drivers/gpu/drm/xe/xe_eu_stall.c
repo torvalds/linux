@@ -636,8 +636,7 @@ static int xe_eu_stall_data_buf_alloc(struct xe_eu_stall_data_stream *stream,
 	struct xe_bo *bo;
 	u32 size;
 
-	stream->xecore_buf = kzalloc_objs(*stream->xecore_buf, last_xecore,
-					  GFP_KERNEL);
+	stream->xecore_buf = kzalloc_objs(*stream->xecore_buf, last_xecore);
 	if (!stream->xecore_buf)
 		return -ENOMEM;
 

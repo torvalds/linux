@@ -1241,8 +1241,7 @@ int qxl_create_monitors_object(struct qxl_device *qdev)
 		qxl_bo_physical_address(qdev, qdev->monitors_config_bo, 0);
 
 	memset(qdev->monitors_config, 0, monitors_config_size);
-	qdev->dumb_heads = kzalloc_objs(qdev->dumb_heads[0], qxl_num_crtc,
-					GFP_KERNEL);
+	qdev->dumb_heads = kzalloc_objs(qdev->dumb_heads[0], qxl_num_crtc);
 	if (!qdev->dumb_heads) {
 		qxl_destroy_monitors_object(qdev);
 		return -ENOMEM;

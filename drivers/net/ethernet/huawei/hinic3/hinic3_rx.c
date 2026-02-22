@@ -419,8 +419,7 @@ int hinic3_alloc_rxqs_res(struct net_device *netdev, u16 num_rq,
 
 	for (idx = 0; idx < num_rq; idx++) {
 		rqres = &rxqs_res[idx];
-		rqres->rx_info = kzalloc_objs(*rqres->rx_info, rq_depth,
-					      GFP_KERNEL);
+		rqres->rx_info = kzalloc_objs(*rqres->rx_info, rq_depth);
 		if (!rqres->rx_info)
 			goto err_free_rqres;
 

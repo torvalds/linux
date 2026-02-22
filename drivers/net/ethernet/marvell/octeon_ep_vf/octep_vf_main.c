@@ -113,8 +113,7 @@ static int octep_vf_enable_msix_range(struct octep_vf_device *oct)
 	/* Generic interrupts apart from input/output queues */
 	//num_msix = oct->num_oqs + CFG_GET_NON_IOQ_MSIX(oct->conf);
 	num_msix = oct->num_oqs;
-	oct->msix_entries = kzalloc_objs(struct msix_entry, num_msix,
-					 GFP_KERNEL);
+	oct->msix_entries = kzalloc_objs(struct msix_entry, num_msix);
 	if (!oct->msix_entries)
 		goto msix_alloc_err;
 

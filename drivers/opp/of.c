@@ -303,8 +303,7 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 	if (!count)
 		return 0;
 
-	opp->required_opps = kzalloc_objs(*opp->required_opps, count,
-					  GFP_KERNEL);
+	opp->required_opps = kzalloc_objs(*opp->required_opps, count);
 	if (!opp->required_opps)
 		return -ENOMEM;
 

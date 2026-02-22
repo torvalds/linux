@@ -202,8 +202,7 @@ static int __tipc_nl_compat_dumpit(struct tipc_nl_compat_cmd_dump *cmd,
 		return -ENOMEM;
 	}
 
-	attrbuf = kzalloc_objs(struct nlattr *, tipc_genl_family.maxattr + 1,
-			       GFP_KERNEL);
+	attrbuf = kzalloc_objs(struct nlattr *, tipc_genl_family.maxattr + 1);
 	if (!attrbuf) {
 		err = -ENOMEM;
 		goto err_out;
@@ -338,8 +337,7 @@ static int __tipc_nl_compat_doit(struct tipc_nl_compat_cmd_doit *cmd,
 	if (!trans_buf)
 		return -ENOMEM;
 
-	attrbuf = kmalloc_objs(struct nlattr *, tipc_genl_family.maxattr + 1,
-			       GFP_KERNEL);
+	attrbuf = kmalloc_objs(struct nlattr *, tipc_genl_family.maxattr + 1);
 	if (!attrbuf) {
 		err = -ENOMEM;
 		goto trans_out;

@@ -43,8 +43,7 @@ pds_vfio_print_guest_region_info(struct pds_vfio_pci_device *pds_vfio,
 	u8 num_regions;
 	int err;
 
-	region_info = kzalloc_objs(struct pds_lm_dirty_region_info, max_regions,
-				   GFP_KERNEL);
+	region_info = kzalloc_objs(struct pds_lm_dirty_region_info, max_regions);
 	if (!region_info)
 		return;
 

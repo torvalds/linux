@@ -298,8 +298,7 @@ struct gcov_info *gcov_info_dup(struct gcov_info *info)
 	if (!dup->filename)
 		goto err_free;
 
-	dup->functions = kzalloc_objs(struct gcov_fn_info *, info->n_functions,
-				      GFP_KERNEL);
+	dup->functions = kzalloc_objs(struct gcov_fn_info *, info->n_functions);
 	if (!dup->functions)
 		goto err_free;
 

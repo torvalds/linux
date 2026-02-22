@@ -1106,8 +1106,7 @@ static int nl80211_prepare_wdev_dump(struct netlink_callback *cb,
 		struct nlattr **attrbuf_free = NULL;
 
 		if (!attrbuf) {
-			attrbuf = kzalloc_objs(*attrbuf, NUM_NL80211_ATTR,
-					       GFP_KERNEL);
+			attrbuf = kzalloc_objs(*attrbuf, NUM_NL80211_ATTR);
 			if (!attrbuf)
 				return -ENOMEM;
 			attrbuf_free = attrbuf;
@@ -15299,8 +15298,7 @@ static int nl80211_parse_coalesce_rule(struct cfg80211_registered_device *rdev,
 	if (n_patterns > coalesce->n_patterns)
 		return -EINVAL;
 
-	new_rule->patterns = kzalloc_objs(new_rule->patterns[0], n_patterns,
-					  GFP_KERNEL);
+	new_rule->patterns = kzalloc_objs(new_rule->patterns[0], n_patterns);
 	if (!new_rule->patterns)
 		return -ENOMEM;
 
@@ -16094,8 +16092,7 @@ static int nl80211_nan_add_func(struct sk_buff *skb,
 
 			func->srf_num_macs = n_entries;
 			func->srf_macs =
-				kzalloc_objs(*func->srf_macs, n_entries,
-					     GFP_KERNEL);
+				kzalloc_objs(*func->srf_macs, n_entries);
 			if (!func->srf_macs) {
 				err = -ENOMEM;
 				goto out;

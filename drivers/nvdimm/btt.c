@@ -539,8 +539,7 @@ static int btt_freelist_init(struct arena_info *arena)
 	struct log_entry log_new;
 	u32 i, map_entry, log_oldmap, log_newmap;
 
-	arena->freelist = kzalloc_objs(struct free_entry, arena->nfree,
-				       GFP_KERNEL);
+	arena->freelist = kzalloc_objs(struct free_entry, arena->nfree);
 	if (!arena->freelist)
 		return -ENOMEM;
 
@@ -733,8 +732,7 @@ static int btt_maplocks_init(struct arena_info *arena)
 {
 	u32 i;
 
-	arena->map_locks = kzalloc_objs(struct aligned_lock, arena->nfree,
-					GFP_KERNEL);
+	arena->map_locks = kzalloc_objs(struct aligned_lock, arena->nfree);
 	if (!arena->map_locks)
 		return -ENOMEM;
 

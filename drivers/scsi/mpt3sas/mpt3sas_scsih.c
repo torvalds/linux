@@ -6376,8 +6376,7 @@ _scsih_update_vphys_after_reset(struct MPT3SAS_ADAPTER *ioc)
 				port_id = sas_iounit_pg0->PhyData[i].Port;
 				mport = mpt3sas_get_port_by_id(ioc, port_id, 1);
 				if (!mport) {
-					mport = kzalloc_obj(struct hba_port,
-							    GFP_KERNEL);
+					mport = kzalloc_obj(struct hba_port);
 					if (!mport)
 						break;
 					mport->port_id = port_id;
@@ -6747,8 +6746,7 @@ _scsih_sas_port_refresh(struct MPT3SAS_ADAPTER *ioc)
 	}
 	ioc->sas_hba.num_phys = num_phys;
 
-	port_table = kzalloc_objs(struct hba_port, ioc->sas_hba.num_phys,
-				  GFP_KERNEL);
+	port_table = kzalloc_objs(struct hba_port, ioc->sas_hba.num_phys);
 	if (!port_table)
 		return;
 

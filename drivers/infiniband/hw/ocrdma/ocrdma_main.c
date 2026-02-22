@@ -219,14 +219,12 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 {
 	mutex_init(&dev->dev_lock);
-	dev->cq_tbl = kzalloc_objs(struct ocrdma_cq *, OCRDMA_MAX_CQ,
-				   GFP_KERNEL);
+	dev->cq_tbl = kzalloc_objs(struct ocrdma_cq *, OCRDMA_MAX_CQ);
 	if (!dev->cq_tbl)
 		goto alloc_err;
 
 	if (dev->attr.max_qp) {
-		dev->qp_tbl = kzalloc_objs(struct ocrdma_qp *, OCRDMA_MAX_QP,
-					   GFP_KERNEL);
+		dev->qp_tbl = kzalloc_objs(struct ocrdma_qp *, OCRDMA_MAX_QP);
 		if (!dev->qp_tbl)
 			goto alloc_err;
 	}

@@ -3991,8 +3991,7 @@ static void ksz_update_timer(struct ksz_timer_info *info)
  */
 static int ksz_alloc_soft_desc(struct ksz_desc_info *desc_info, int transmit)
 {
-	desc_info->ring = kzalloc_objs(struct ksz_desc, desc_info->alloc,
-				       GFP_KERNEL);
+	desc_info->ring = kzalloc_objs(struct ksz_desc, desc_info->alloc);
 	if (!desc_info->ring)
 		return 1;
 	hw_init_desc(desc_info, transmit);

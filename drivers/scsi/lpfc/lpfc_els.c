@@ -12324,8 +12324,7 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (!vport->qfpa_res) {
 		max_desc = FCELSSIZE / sizeof(*vport->qfpa_res);
-		vport->qfpa_res = kzalloc_objs(*vport->qfpa_res, max_desc,
-					       GFP_KERNEL);
+		vport->qfpa_res = kzalloc_objs(*vport->qfpa_res, max_desc);
 		if (!vport->qfpa_res)
 			goto out;
 	}
@@ -12338,8 +12337,7 @@ lpfc_cmpl_els_qfpa(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	desc = (struct priority_range_desc *)(pcmd + 8);
 	vmid_range = vport->vmid_priority.vmid_range;
 	if (!vmid_range) {
-		vmid_range = kzalloc_objs(*vmid_range, MAX_PRIORITY_DESC,
-					  GFP_KERNEL);
+		vmid_range = kzalloc_objs(*vmid_range, MAX_PRIORITY_DESC);
 		if (!vmid_range) {
 			kfree(vport->qfpa_res);
 			goto out;

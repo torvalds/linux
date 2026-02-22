@@ -486,8 +486,7 @@ init_bdb_block(struct intel_display *display,
 	if (section_id == BDB_MIPI_SEQUENCE && *(const u8 *)block >= 3)
 		block_size += 5;
 
-	entry = kzalloc_flex(*entry, data, max(min_size, block_size) + 3,
-			     GFP_KERNEL);
+	entry = kzalloc_flex(*entry, data, max(min_size, block_size) + 3);
 	if (!entry) {
 		kfree(temp_block);
 		return;

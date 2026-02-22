@@ -1931,8 +1931,7 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 
 	switch (le16_to_cpu(nps_info->v1.header.version_major)) {
 	case 1:
-		mem_ranges = kvzalloc_objs(*mem_ranges, nps_info->v1.count,
-					   GFP_KERNEL);
+		mem_ranges = kvzalloc_objs(*mem_ranges, nps_info->v1.count);
 		if (!mem_ranges)
 			return -ENOMEM;
 		*nps_type = nps_info->v1.nps_type;

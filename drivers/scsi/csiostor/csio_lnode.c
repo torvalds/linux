@@ -2029,8 +2029,7 @@ csio_ln_init(struct csio_lnode *ln)
 			ln->fcfinfo = pln->fcfinfo;
 		} else {
 			/* Another non-root physical lnode (FCF) */
-			ln->fcfinfo = kzalloc_obj(struct csio_fcf_info,
-						  GFP_KERNEL);
+			ln->fcfinfo = kzalloc_obj(struct csio_fcf_info);
 			if (!ln->fcfinfo) {
 				csio_ln_err(ln, "Failed to alloc FCF info\n");
 				CSIO_INC_STATS(hw, n_err_nomem);

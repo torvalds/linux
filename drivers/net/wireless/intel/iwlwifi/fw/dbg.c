@@ -2958,8 +2958,7 @@ int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_dump_desc *iwl_dump_error_desc;
 		int ret;
 
-		iwl_dump_error_desc = kmalloc_obj(*iwl_dump_error_desc,
-						  GFP_KERNEL);
+		iwl_dump_error_desc = kmalloc_obj(*iwl_dump_error_desc);
 
 		if (!iwl_dump_error_desc)
 			return -ENOMEM;

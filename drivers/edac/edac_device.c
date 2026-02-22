@@ -71,8 +71,7 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 	if (!dev_ctl)
 		return NULL;
 
-	dev_inst = kzalloc_objs(struct edac_device_instance, nr_instances,
-				GFP_KERNEL);
+	dev_inst = kzalloc_objs(struct edac_device_instance, nr_instances);
 	if (!dev_inst)
 		goto free;
 
@@ -648,8 +647,7 @@ int edac_dev_register(struct device *parent, char *name,
 	if (!ctx)
 		return -ENOMEM;
 
-	ras_attr_groups = kzalloc_objs(*ras_attr_groups, attr_gcnt + 1,
-				       GFP_KERNEL);
+	ras_attr_groups = kzalloc_objs(*ras_attr_groups, attr_gcnt + 1);
 	if (!ras_attr_groups)
 		goto ctx_free;
 
@@ -660,8 +658,7 @@ int edac_dev_register(struct device *parent, char *name,
 	}
 
 	if (mem_repair_cnt) {
-		ctx->mem_repair = kzalloc_objs(*ctx->mem_repair, mem_repair_cnt,
-					       GFP_KERNEL);
+		ctx->mem_repair = kzalloc_objs(*ctx->mem_repair, mem_repair_cnt);
 		if (!ctx->mem_repair)
 			goto data_mem_free;
 	}

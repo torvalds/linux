@@ -1852,8 +1852,7 @@ struct i3c_dma *i3c_master_dma_map_single(struct device *dev, void *buf,
 	void *bounce __free(kfree) = NULL;
 	void *dma_buf = buf;
 
-	struct i3c_dma *dma_xfer __free(kfree) = kzalloc_obj(*dma_xfer,
-							     GFP_KERNEL);
+	struct i3c_dma *dma_xfer __free(kfree) = kzalloc_obj(*dma_xfer);
 	if (!dma_xfer)
 		return NULL;
 

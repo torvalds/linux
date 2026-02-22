@@ -611,8 +611,7 @@ static bool unpack_secmark(struct aa_ext *e, struct aa_ruleset *rules)
 		if (!aa_unpack_array(e, NULL, &size))
 			goto fail;
 
-		rules->secmark = kzalloc_objs(struct aa_secmark, size,
-					      GFP_KERNEL);
+		rules->secmark = kzalloc_objs(struct aa_secmark, size);
 		if (!rules->secmark)
 			goto fail;
 

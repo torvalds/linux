@@ -545,8 +545,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		/* Determine how many packets to send */
 		state->packet_count = efx->txq_entries / 3;
 		state->packet_count = min(1 << (i << 2), state->packet_count);
-		state->skbs = kzalloc_objs(state->skbs[0], state->packet_count,
-					   GFP_KERNEL);
+		state->skbs = kzalloc_objs(state->skbs[0], state->packet_count);
 		if (!state->skbs)
 			return -ENOMEM;
 		state->flush = false;

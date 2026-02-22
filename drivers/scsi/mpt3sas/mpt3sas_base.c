@@ -6218,8 +6218,7 @@ base_alloc_rdpq_dma_pool(struct MPT3SAS_ADAPTER *ioc, int sz)
 		sizeof(Mpi2DefaultReplyDescriptor_t);
 	int count = ioc->rdpq_array_enable ? ioc->reply_queue_count : 1;
 
-	ioc->reply_post = kzalloc_objs(struct reply_post_struct, count,
-				       GFP_KERNEL);
+	ioc->reply_post = kzalloc_objs(struct reply_post_struct, count);
 	if (!ioc->reply_post)
 		return -ENOMEM;
 	/*

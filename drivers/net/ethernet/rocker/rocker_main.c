@@ -2647,8 +2647,7 @@ static int rocker_msix_init(struct rocker *rocker)
 	if (msix_entries != ROCKER_MSIX_VEC_COUNT(rocker->port_count))
 		return -EINVAL;
 
-	rocker->msix_entries = kmalloc_objs(struct msix_entry, msix_entries,
-					    GFP_KERNEL);
+	rocker->msix_entries = kmalloc_objs(struct msix_entry, msix_entries);
 	if (!rocker->msix_entries)
 		return -ENOMEM;
 

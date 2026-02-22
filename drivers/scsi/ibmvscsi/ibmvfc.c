@@ -6057,8 +6057,7 @@ static int ibmvfc_alloc_channels(struct ibmvfc_host *vhost,
 	int i, j;
 	int rc = 0;
 
-	channels->scrqs = kzalloc_objs(*channels->scrqs, channels->max_queues,
-				       GFP_KERNEL);
+	channels->scrqs = kzalloc_objs(*channels->scrqs, channels->max_queues);
 	if (!channels->scrqs)
 		return -ENOMEM;
 

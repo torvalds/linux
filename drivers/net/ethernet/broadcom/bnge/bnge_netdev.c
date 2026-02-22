@@ -509,8 +509,7 @@ static int bnge_alloc_tpa_info(struct bnge_net *bn)
 	for (i = 0; i < bd->rx_nr_rings; i++) {
 		struct bnge_rx_ring_info *rxr = &bn->rx_ring[i];
 
-		rxr->rx_tpa = kzalloc_objs(struct bnge_tpa_info, bn->max_tpa,
-					   GFP_KERNEL);
+		rxr->rx_tpa = kzalloc_objs(struct bnge_tpa_info, bn->max_tpa);
 		if (!rxr->rx_tpa)
 			goto err_free_tpa_info;
 
@@ -522,8 +521,7 @@ static int bnge_alloc_tpa_info(struct bnge_net *bn)
 				goto err_free_tpa_info;
 			rxr->rx_tpa[j].agg_arr = agg;
 		}
-		rxr->rx_tpa_idx_map = kzalloc_obj(*rxr->rx_tpa_idx_map,
-						  GFP_KERNEL);
+		rxr->rx_tpa_idx_map = kzalloc_obj(*rxr->rx_tpa_idx_map);
 		if (!rxr->rx_tpa_idx_map)
 			goto err_free_tpa_info;
 	}
@@ -812,8 +810,7 @@ static int bnge_alloc_vnics(struct bnge_net *bn)
 	 */
 	num_vnics = 1;
 
-	bn->vnic_info = kzalloc_objs(struct bnge_vnic_info, num_vnics,
-				     GFP_KERNEL);
+	bn->vnic_info = kzalloc_objs(struct bnge_vnic_info, num_vnics);
 	if (!bn->vnic_info)
 		return -ENOMEM;
 
@@ -840,8 +837,7 @@ static int bnge_init_ring_grps(struct bnge_net *bn)
 	struct bnge_dev *bd = bn->bd;
 	int i;
 
-	bn->grp_info = kzalloc_objs(struct bnge_ring_grp_info, bd->nq_nr_rings,
-				    GFP_KERNEL);
+	bn->grp_info = kzalloc_objs(struct bnge_ring_grp_info, bd->nq_nr_rings);
 	if (!bn->grp_info)
 		return -ENOMEM;
 	for (i = 0; i < bd->nq_nr_rings; i++) {
@@ -901,8 +897,7 @@ static int bnge_alloc_core(struct bnge_net *bn)
 		nqr->ring_struct.ring_mem.flags = BNGE_RMEM_RING_PTE_FLAG;
 	}
 
-	bn->rx_ring = kzalloc_objs(struct bnge_rx_ring_info, bd->rx_nr_rings,
-				   GFP_KERNEL);
+	bn->rx_ring = kzalloc_objs(struct bnge_rx_ring_info, bd->rx_nr_rings);
 	if (!bn->rx_ring)
 		goto err_free_core;
 
@@ -917,8 +912,7 @@ static int bnge_alloc_core(struct bnge_net *bn)
 		bn->bnapi[i]->rx_ring = &bn->rx_ring[i];
 	}
 
-	bn->tx_ring = kzalloc_objs(struct bnge_tx_ring_info, bd->tx_nr_rings,
-				   GFP_KERNEL);
+	bn->tx_ring = kzalloc_objs(struct bnge_tx_ring_info, bd->tx_nr_rings);
 	if (!bn->tx_ring)
 		goto err_free_core;
 

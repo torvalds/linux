@@ -946,8 +946,7 @@ static int ufx_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 	/* TODO: Help propose a standard fb.h ioctl to report mmap damage */
 	if (cmd == UFX_IOCTL_REPORT_DAMAGE) {
-		struct dloarea *area __free(kfree) = kmalloc_obj(*area,
-								 GFP_KERNEL);
+		struct dloarea *area __free(kfree) = kmalloc_obj(*area);
 		if (!area)
 			return -ENOMEM;
 

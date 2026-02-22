@@ -4633,8 +4633,7 @@ static void igc_set_interrupt_capability(struct igc_adapter *adapter,
 	/* add 1 vector for link status interrupts */
 	numvecs++;
 
-	adapter->msix_entries = kzalloc_objs(struct msix_entry, numvecs,
-				             GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, numvecs);
 
 	if (!adapter->msix_entries)
 		return;

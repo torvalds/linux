@@ -2212,8 +2212,7 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 		return ret;
 	}
 
-	rx_q->buf_pool = kzalloc_objs(*rx_q->buf_pool, dma_conf->dma_rx_size,
-				      GFP_KERNEL);
+	rx_q->buf_pool = kzalloc_objs(*rx_q->buf_pool, dma_conf->dma_rx_size);
 	if (!rx_q->buf_pool)
 		return -ENOMEM;
 
@@ -2301,8 +2300,7 @@ static int __alloc_dma_tx_desc_resources(struct stmmac_priv *priv,
 	if (!tx_q->tx_skbuff_dma)
 		return -ENOMEM;
 
-	tx_q->tx_skbuff = kzalloc_objs(struct sk_buff *, dma_conf->dma_tx_size,
-				       GFP_KERNEL);
+	tx_q->tx_skbuff = kzalloc_objs(struct sk_buff *, dma_conf->dma_tx_size);
 	if (!tx_q->tx_skbuff)
 		return -ENOMEM;
 

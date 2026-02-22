@@ -134,13 +134,11 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 
 	vp_dev->msix_vectors = nvectors;
 
-	vp_dev->msix_names = kmalloc_objs(*vp_dev->msix_names, nvectors,
-					  GFP_KERNEL);
+	vp_dev->msix_names = kmalloc_objs(*vp_dev->msix_names, nvectors);
 	if (!vp_dev->msix_names)
 		goto error;
 	vp_dev->msix_affinity_masks
-		= kzalloc_objs(*vp_dev->msix_affinity_masks, nvectors,
-			       GFP_KERNEL);
+		= kzalloc_objs(*vp_dev->msix_affinity_masks, nvectors);
 	if (!vp_dev->msix_affinity_masks)
 		goto error;
 	for (i = 0; i < nvectors; ++i)

@@ -101,8 +101,7 @@ static int ig3rdma_cfg_regions(struct irdma_hw *hw,
 		return -ENOMEM;
 
 	hw->num_io_regions = le16_to_cpu(idc_priv->num_memory_regions);
-	hw->io_regs = kzalloc_objs(struct irdma_mmio_region, hw->num_io_regions,
-				   GFP_KERNEL);
+	hw->io_regs = kzalloc_objs(struct irdma_mmio_region, hw->num_io_regions);
 
 	if (!hw->io_regs) {
 		iounmap(hw->rdma_reg.addr);

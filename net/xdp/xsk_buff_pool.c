@@ -42,8 +42,7 @@ void xp_destroy(struct xsk_buff_pool *pool)
 
 int xp_alloc_tx_descs(struct xsk_buff_pool *pool, struct xdp_sock *xs)
 {
-	pool->tx_descs = kvzalloc_objs(*pool->tx_descs, xs->tx->nentries,
-				       GFP_KERNEL);
+	pool->tx_descs = kvzalloc_objs(*pool->tx_descs, xs->tx->nentries);
 	if (!pool->tx_descs)
 		return -ENOMEM;
 
@@ -332,8 +331,7 @@ static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_devi
 	if (!dma_map)
 		return NULL;
 
-	dma_map->dma_pages = kvzalloc_objs(*dma_map->dma_pages, nr_pages,
-					   GFP_KERNEL);
+	dma_map->dma_pages = kvzalloc_objs(*dma_map->dma_pages, nr_pages);
 	if (!dma_map->dma_pages) {
 		kfree(dma_map);
 		return NULL;

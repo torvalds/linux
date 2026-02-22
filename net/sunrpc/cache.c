@@ -1745,8 +1745,7 @@ struct cache_detail *cache_create_net(const struct cache_detail *tmpl, struct ne
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	cd->hash_table = kzalloc_objs(struct hlist_head, cd->hash_size,
-				      GFP_KERNEL);
+	cd->hash_table = kzalloc_objs(struct hlist_head, cd->hash_size);
 	if (cd->hash_table == NULL) {
 		kfree(cd);
 		return ERR_PTR(-ENOMEM);

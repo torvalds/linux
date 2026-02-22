@@ -1098,8 +1098,7 @@ exit_done:
 				/* Allocate a writable buffer for this array */
 				count = var_size[variable_id];
 				long_tmp = vars[variable_id];
-				longptr_tmp = kzalloc_objs(long, count,
-							   GFP_KERNEL);
+				longptr_tmp = kzalloc_objs(long, count);
 				vars[variable_id] = (long)longptr_tmp;
 
 				if (vars[variable_id] == 0) {

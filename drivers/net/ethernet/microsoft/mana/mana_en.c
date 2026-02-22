@@ -2326,8 +2326,7 @@ static int mana_create_txq(struct mana_port_context *apc,
 	int err;
 	int i;
 
-	apc->tx_qp = kzalloc_objs(struct mana_tx_qp, apc->num_queues,
-				  GFP_KERNEL);
+	apc->tx_qp = kzalloc_objs(struct mana_tx_qp, apc->num_queues);
 	if (!apc->tx_qp)
 		return -ENOMEM;
 
@@ -2852,8 +2851,7 @@ static int mana_rss_table_alloc(struct mana_port_context *apc)
 	if (!apc->indir_table)
 		return -ENOMEM;
 
-	apc->rxobj_table = kzalloc_objs(mana_handle_t, apc->indir_table_sz,
-					GFP_KERNEL);
+	apc->rxobj_table = kzalloc_objs(mana_handle_t, apc->indir_table_sz);
 	if (!apc->rxobj_table) {
 		kfree(apc->indir_table);
 		return -ENOMEM;

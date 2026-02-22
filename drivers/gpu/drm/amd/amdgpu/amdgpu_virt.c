@@ -966,8 +966,7 @@ int amdgpu_virt_init_critical_region(struct amdgpu_device *adev)
 	}
 
 	/* Allocate for init_data_hdr */
-	init_data_hdr = kzalloc_obj(struct amd_sriov_msg_init_data_header,
-				    GFP_KERNEL);
+	init_data_hdr = kzalloc_obj(struct amd_sriov_msg_init_data_header);
 	if (!init_data_hdr)
 		return -ENOMEM;
 

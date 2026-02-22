@@ -4635,8 +4635,7 @@ lpfc_vmid_res_alloc(struct lpfc_hba *phba, struct lpfc_vport *vport)
 
 	if (lpfc_is_vmid_enabled(phba)) {
 		vport->vmid =
-		    kzalloc_objs(struct lpfc_vmid, phba->cfg_max_vmid,
-				 GFP_KERNEL);
+		    kzalloc_objs(struct lpfc_vmid, phba->cfg_max_vmid);
 		if (!vport->vmid)
 			return -ENOMEM;
 

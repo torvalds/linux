@@ -5024,8 +5024,7 @@ static struct ath12k_vif_cache *ath12k_ahvif_get_link_cache(struct ath12k_vif *a
 							    u8 link_id)
 {
 	if (!ahvif->cache[link_id]) {
-		ahvif->cache[link_id] = kzalloc_obj(*ahvif->cache[0],
-						    GFP_KERNEL);
+		ahvif->cache[link_id] = kzalloc_obj(*ahvif->cache[0]);
 		if (ahvif->cache[link_id])
 			INIT_LIST_HEAD(&ahvif->cache[link_id]->key_conf.list);
 	}
@@ -14250,8 +14249,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k_hw *ah)
 		if (ar->ab->hw_params->single_pdev_only)
 			n_combinations = 2;
 
-		combinations = kzalloc_objs(*combinations, n_combinations,
-					    GFP_KERNEL);
+		combinations = kzalloc_objs(*combinations, n_combinations);
 		if (!combinations)
 			return -ENOMEM;
 

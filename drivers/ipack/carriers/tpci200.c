@@ -461,8 +461,7 @@ static int tpci200_install(struct tpci200_board *tpci200)
 {
 	int res;
 
-	tpci200->slots = kzalloc_objs(struct tpci200_slot, TPCI200_NB_SLOT,
-				      GFP_KERNEL);
+	tpci200->slots = kzalloc_objs(struct tpci200_slot, TPCI200_NB_SLOT);
 	if (tpci200->slots == NULL)
 		return -ENOMEM;
 

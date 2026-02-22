@@ -1204,8 +1204,7 @@ found_leaf:
 			node = parent;
 
 			/* Create a new node to collapse into */
-			new_n0 = kzalloc_obj(struct assoc_array_node,
-					     GFP_KERNEL);
+			new_n0 = kzalloc_obj(struct assoc_array_node);
 			if (!new_n0)
 				goto enomem;
 			edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);

@@ -3752,8 +3752,7 @@ static int bnxt_alloc_one_tpa_info(struct bnxt *bp,
 	struct rx_agg_cmp *agg;
 	int i;
 
-	rxr->rx_tpa = kzalloc_objs(struct bnxt_tpa_info, bp->max_tpa,
-				   GFP_KERNEL);
+	rxr->rx_tpa = kzalloc_objs(struct bnxt_tpa_info, bp->max_tpa);
 	if (!rxr->rx_tpa)
 		return -ENOMEM;
 
@@ -4083,8 +4082,7 @@ static int bnxt_alloc_cp_arrays(struct bnxt_cp_ring_info *cpr, int n)
 	cpr->cp_desc_ring = kzalloc_objs(*cpr->cp_desc_ring, n);
 	if (!cpr->cp_desc_ring)
 		return -ENOMEM;
-	cpr->cp_desc_mapping = kzalloc_objs(*cpr->cp_desc_mapping, n,
-					    GFP_KERNEL);
+	cpr->cp_desc_mapping = kzalloc_objs(*cpr->cp_desc_mapping, n);
 	if (!cpr->cp_desc_mapping)
 		return -ENOMEM;
 	return 0;
@@ -4664,8 +4662,7 @@ static int bnxt_alloc_vnics(struct bnxt *bp)
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 		num_vnics++;
 
-	bp->vnic_info = kzalloc_objs(struct bnxt_vnic_info, num_vnics,
-				     GFP_KERNEL);
+	bp->vnic_info = kzalloc_objs(struct bnxt_vnic_info, num_vnics);
 	if (!bp->vnic_info)
 		return -ENOMEM;
 
@@ -9043,8 +9040,7 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt *bp,
 		int nr_tbls, i;
 
 		rmem->depth = 2;
-		ctx_pg->ctx_pg_tbl = kzalloc_objs(ctx_pg, MAX_CTX_PAGES,
-						  GFP_KERNEL);
+		ctx_pg->ctx_pg_tbl = kzalloc_objs(ctx_pg, MAX_CTX_PAGES);
 		if (!ctx_pg->ctx_pg_tbl)
 			return -ENOMEM;
 		nr_tbls = DIV_ROUND_UP(ctx_pg->nr_pages, MAX_CTX_PAGES);

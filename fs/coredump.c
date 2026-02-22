@@ -1736,8 +1736,7 @@ static bool dump_vma_snapshot(struct coredump_params *cprm)
 	gate_vma = get_gate_vma(mm);
 	cprm->vma_count = mm->map_count + (gate_vma ? 1 : 0);
 
-	cprm->vma_meta = kvmalloc_objs(*cprm->vma_meta, cprm->vma_count,
-				       GFP_KERNEL);
+	cprm->vma_meta = kvmalloc_objs(*cprm->vma_meta, cprm->vma_count);
 	if (!cprm->vma_meta) {
 		mmap_write_unlock(mm);
 		return false;

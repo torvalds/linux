@@ -320,8 +320,7 @@ int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
 	int err;
 	int i;
 
-	rx = kvzalloc_objs(struct gve_rx_ring, cfg->qcfg_rx->max_queues,
-			   GFP_KERNEL);
+	rx = kvzalloc_objs(struct gve_rx_ring, cfg->qcfg_rx->max_queues);
 	if (!rx)
 		return -ENOMEM;
 

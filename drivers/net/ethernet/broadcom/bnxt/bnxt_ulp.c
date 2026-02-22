@@ -333,8 +333,7 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 			return;
 
 		if (!err) {
-			ent = kzalloc_objs(*ent, ulp->msix_requested,
-					   GFP_KERNEL);
+			ent = kzalloc_objs(*ent, ulp->msix_requested);
 			if (!ent)
 				return;
 			bnxt_fill_msix_vecs(bp, ent);

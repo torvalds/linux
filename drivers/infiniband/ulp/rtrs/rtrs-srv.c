@@ -138,8 +138,7 @@ static int rtrs_srv_alloc_ops_ids(struct rtrs_srv_path *srv_path)
 	struct rtrs_srv_op *id;
 	int i, ret;
 
-	srv_path->ops_ids = kzalloc_objs(*srv_path->ops_ids, srv->queue_depth,
-					 GFP_KERNEL);
+	srv_path->ops_ids = kzalloc_objs(*srv_path->ops_ids, srv->queue_depth);
 	if (!srv_path->ops_ids)
 		goto err;
 
@@ -1820,8 +1819,7 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 
 	srv_path->stats->srv_path = srv_path;
 
-	srv_path->dma_addr = kzalloc_objs(*srv_path->dma_addr, srv->queue_depth,
-					  GFP_KERNEL);
+	srv_path->dma_addr = kzalloc_objs(*srv_path->dma_addr, srv->queue_depth);
 	if (!srv_path->dma_addr)
 		goto err_free_percpu;
 

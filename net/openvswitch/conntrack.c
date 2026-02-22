@@ -1586,15 +1586,13 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 {
 	int i, err;
 
-	ovs_net->ct_limit_info = kmalloc_obj(*ovs_net->ct_limit_info,
-					     GFP_KERNEL);
+	ovs_net->ct_limit_info = kmalloc_obj(*ovs_net->ct_limit_info);
 	if (!ovs_net->ct_limit_info)
 		return -ENOMEM;
 
 	ovs_net->ct_limit_info->default_limit = OVS_CT_LIMIT_DEFAULT;
 	ovs_net->ct_limit_info->limits =
-		kmalloc_objs(struct hlist_head, CT_LIMIT_HASH_BUCKETS,
-			     GFP_KERNEL);
+		kmalloc_objs(struct hlist_head, CT_LIMIT_HASH_BUCKETS);
 	if (!ovs_net->ct_limit_info->limits) {
 		kfree(ovs_net->ct_limit_info);
 		return -ENOMEM;

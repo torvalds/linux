@@ -327,8 +327,7 @@ mlxsw_afk_key_info_create(struct mlxsw_afk *mlxsw_afk,
 	struct mlxsw_afk_key_info *key_info;
 	int err;
 
-	key_info = kzalloc_flex(*key_info, blocks, mlxsw_afk->max_blocks,
-				GFP_KERNEL);
+	key_info = kzalloc_flex(*key_info, blocks, mlxsw_afk->max_blocks);
 	if (!key_info)
 		return ERR_PTR(-ENOMEM);
 	err = mlxsw_afk_picker(mlxsw_afk, key_info, elusage);

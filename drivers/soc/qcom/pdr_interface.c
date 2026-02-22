@@ -396,8 +396,7 @@ static int pdr_locate_service(struct pdr_handle *pdr, struct pdr_service *pds)
 	int domains_read = 0;
 	int ret, i;
 
-	struct servreg_get_domain_list_resp *resp __free(kfree) = kzalloc_obj(*resp,
-									      GFP_KERNEL);
+	struct servreg_get_domain_list_resp *resp __free(kfree) = kzalloc_obj(*resp);
 	if (!resp)
 		return -ENOMEM;
 

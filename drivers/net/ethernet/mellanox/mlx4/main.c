@@ -868,8 +868,7 @@ static int mlx4_slave_special_qp_cap(struct mlx4_dev *dev)
 	int i, err = 0;
 
 	func_cap = kzalloc_obj(*func_cap);
-	caps->spec_qps = kzalloc_objs(*caps->spec_qps, caps->num_ports,
-				      GFP_KERNEL);
+	caps->spec_qps = kzalloc_objs(*caps->spec_qps, caps->num_ports);
 
 	if (!func_cap || !caps->spec_qps) {
 		mlx4_err(dev, "Failed to allocate memory for special qps cap\n");
@@ -3279,8 +3278,7 @@ static u64 mlx4_enable_sriov(struct mlx4_dev *dev, struct pci_dev *pdev,
 					MLX4_MAX_NUM_VF);
 
 	if (reset_flow) {
-		dev->dev_vfs = kzalloc_objs(*dev->dev_vfs, total_vfs,
-					    GFP_KERNEL);
+		dev->dev_vfs = kzalloc_objs(*dev->dev_vfs, total_vfs);
 		if (!dev->dev_vfs)
 			goto free_mem;
 		return dev_flags;

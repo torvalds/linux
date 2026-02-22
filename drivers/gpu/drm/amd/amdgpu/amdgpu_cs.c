@@ -192,8 +192,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		return PTR_ERR(chunk_array);
 
 	p->nchunks = cs->in.num_chunks;
-	p->chunks = kvmalloc_objs(struct amdgpu_cs_chunk, p->nchunks,
-				  GFP_KERNEL);
+	p->chunks = kvmalloc_objs(struct amdgpu_cs_chunk, p->nchunks);
 	if (!p->chunks) {
 		ret = -ENOMEM;
 		goto free_chunk;

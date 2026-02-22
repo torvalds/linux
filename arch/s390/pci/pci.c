@@ -1073,8 +1073,7 @@ static int zpci_mem_init(void)
 	if (!zdev_fmb_cache)
 		goto error_fmb;
 
-	zpci_iomap_start = kzalloc_objs(*zpci_iomap_start, ZPCI_IOMAP_ENTRIES,
-					GFP_KERNEL);
+	zpci_iomap_start = kzalloc_objs(*zpci_iomap_start, ZPCI_IOMAP_ENTRIES);
 	if (!zpci_iomap_start)
 		goto error_iomap;
 

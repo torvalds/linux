@@ -399,8 +399,7 @@ int gma_intel_setup_gmbus(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	int ret, i;
 
-	dev_priv->gmbus = kzalloc_objs(struct intel_gmbus, GMBUS_NUM_PORTS,
-				       GFP_KERNEL);
+	dev_priv->gmbus = kzalloc_objs(struct intel_gmbus, GMBUS_NUM_PORTS);
 	if (dev_priv->gmbus == NULL)
 		return -ENOMEM;
 

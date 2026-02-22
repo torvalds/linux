@@ -3903,8 +3903,7 @@ __tracing_open(struct inode *inode, struct file *file, bool snapshot)
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
-	iter->buffer_iter = kzalloc_objs(*iter->buffer_iter, nr_cpu_ids,
-					 GFP_KERNEL);
+	iter->buffer_iter = kzalloc_objs(*iter->buffer_iter, nr_cpu_ids);
 	if (!iter->buffer_iter)
 		goto release;
 
@@ -9310,8 +9309,7 @@ static void setup_trace_scratch(struct trace_array *tr,
 	       mod_addr_comp, NULL, NULL);
 
 	if (IS_ENABLED(CONFIG_MODULES)) {
-		module_delta = kzalloc_flex(*module_delta, delta, nr_entries,
-					    GFP_KERNEL);
+		module_delta = kzalloc_flex(*module_delta, delta, nr_entries);
 		if (!module_delta) {
 			pr_info("module_delta allocation failed. Not able to decode module address.");
 			goto reset;
@@ -10929,8 +10927,7 @@ void __init ftrace_boot_snapshot(void)
 void __init early_trace_init(void)
 {
 	if (tracepoint_printk) {
-		tracepoint_print_iter = kzalloc_obj(*tracepoint_print_iter,
-						    GFP_KERNEL);
+		tracepoint_print_iter = kzalloc_obj(*tracepoint_print_iter);
 		if (MEM_FAIL(!tracepoint_print_iter,
 			     "Failed to allocate trace iterator\n"))
 			tracepoint_printk = 0;

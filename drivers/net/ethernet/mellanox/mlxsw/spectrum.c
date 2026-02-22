@@ -2489,8 +2489,7 @@ static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_CPU_POLICERS))
 		return -EIO;
 	max_policers = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_CPU_POLICERS);
-	trap = kzalloc_flex(*trap, policers_usage, BITS_TO_LONGS(max_policers),
-			    GFP_KERNEL);
+	trap = kzalloc_flex(*trap, policers_usage, BITS_TO_LONGS(max_policers));
 	if (!trap)
 		return -ENOMEM;
 	trap->max_policers = max_policers;
@@ -2623,8 +2622,7 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	mlxsw_sp->lags = kzalloc_objs(struct mlxsw_sp_lag, mlxsw_sp->max_lag,
-				      GFP_KERNEL);
+	mlxsw_sp->lags = kzalloc_objs(struct mlxsw_sp_lag, mlxsw_sp->max_lag);
 	if (!mlxsw_sp->lags) {
 		err = -ENOMEM;
 		goto err_kcalloc;

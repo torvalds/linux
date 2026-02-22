@@ -195,8 +195,7 @@ static int create_cpumask_attr_group(struct nvdimm_pmu *nd_pmu)
 	}
 
 	/* Allocate memory for cpumask attribute group */
-	nvdimm_pmu_cpumask_group = kzalloc_obj(*nvdimm_pmu_cpumask_group,
-					       GFP_KERNEL);
+	nvdimm_pmu_cpumask_group = kzalloc_obj(*nvdimm_pmu_cpumask_group);
 	if (!nvdimm_pmu_cpumask_group) {
 		kfree(pmu_events_attr);
 		kfree(attrs_group);

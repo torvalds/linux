@@ -294,8 +294,7 @@ static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_dpm_policy *policy;
 
-	smu_dpm->dpm_context = kzalloc_obj(struct smu_13_0_dpm_context,
-					   GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_13_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);

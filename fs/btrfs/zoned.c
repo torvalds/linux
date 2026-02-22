@@ -454,8 +454,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		goto out;
 	}
 
-	zones = kvzalloc_objs(struct blk_zone, BTRFS_REPORT_NR_ZONES,
-			      GFP_KERNEL);
+	zones = kvzalloc_objs(struct blk_zone, BTRFS_REPORT_NR_ZONES);
 	if (!zones) {
 		ret = -ENOMEM;
 		goto out;

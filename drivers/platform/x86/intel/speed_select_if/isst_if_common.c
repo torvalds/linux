@@ -425,13 +425,11 @@ static int isst_if_cpu_info_init(void)
 {
 	int ret;
 
-	isst_cpu_info = kzalloc_objs(*isst_cpu_info, num_possible_cpus(),
-				     GFP_KERNEL);
+	isst_cpu_info = kzalloc_objs(*isst_cpu_info, num_possible_cpus());
 	if (!isst_cpu_info)
 		return -ENOMEM;
 
-	isst_pkg_info = kzalloc_objs(*isst_pkg_info, topology_max_packages(),
-				     GFP_KERNEL);
+	isst_pkg_info = kzalloc_objs(*isst_pkg_info, topology_max_packages());
 	if (!isst_pkg_info) {
 		kfree(isst_cpu_info);
 		return -ENOMEM;

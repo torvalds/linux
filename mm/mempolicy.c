@@ -229,8 +229,7 @@ int mempolicy_set_node_perf(unsigned int node, struct access_coordinate *coords)
 	if (!new_bw)
 		return -ENOMEM;
 
-	new_wi_state = kmalloc_flex(*new_wi_state, iw_table, nr_node_ids,
-				    GFP_KERNEL);
+	new_wi_state = kmalloc_flex(*new_wi_state, iw_table, nr_node_ids);
 	if (!new_wi_state) {
 		kfree(new_bw);
 		return -ENOMEM;
@@ -3642,8 +3641,7 @@ static ssize_t node_store(struct kobject *kobj, struct kobj_attribute *attr,
 	    kstrtou8(buf, 0, &weight) || weight == 0)
 		return -EINVAL;
 
-	new_wi_state = kzalloc_flex(*new_wi_state, iw_table, nr_node_ids,
-				    GFP_KERNEL);
+	new_wi_state = kzalloc_flex(*new_wi_state, iw_table, nr_node_ids);
 	if (!new_wi_state)
 		return -ENOMEM;
 
@@ -3695,8 +3693,7 @@ static ssize_t weighted_interleave_auto_store(struct kobject *kobj,
 	if (kstrtobool(buf, &input))
 		return -EINVAL;
 
-	new_wi_state = kzalloc_flex(*new_wi_state, iw_table, nr_node_ids,
-				    GFP_KERNEL);
+	new_wi_state = kzalloc_flex(*new_wi_state, iw_table, nr_node_ids);
 	if (!new_wi_state)
 		return -ENOMEM;
 	for (i = 0; i < nr_node_ids; i++)

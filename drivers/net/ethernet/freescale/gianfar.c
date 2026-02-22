@@ -413,8 +413,7 @@ static int gfar_alloc_tx_queues(struct gfar_private *priv)
 	int i;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] = kzalloc_obj(struct gfar_priv_tx_q,
-						GFP_KERNEL);
+		priv->tx_queue[i] = kzalloc_obj(struct gfar_priv_tx_q);
 		if (!priv->tx_queue[i])
 			return -ENOMEM;
 
@@ -431,8 +430,7 @@ static int gfar_alloc_rx_queues(struct gfar_private *priv)
 	int i;
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = kzalloc_obj(struct gfar_priv_rx_q,
-						GFP_KERNEL);
+		priv->rx_queue[i] = kzalloc_obj(struct gfar_priv_rx_q);
 		if (!priv->rx_queue[i])
 			return -ENOMEM;
 
