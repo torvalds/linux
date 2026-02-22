@@ -103,7 +103,7 @@ static struct dma_buf *mock_dmabuf(int npages)
 	struct dma_buf *dmabuf;
 	int i;
 
-	mock = kmalloc_flex(*mock, pages, npages, GFP_KERNEL);
+	mock = kmalloc_flex(*mock, pages, npages);
 	if (!mock)
 		return ERR_PTR(-ENOMEM);
 

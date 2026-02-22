@@ -789,7 +789,7 @@ nvmet_fc_alloc_target_queue(struct nvmet_fc_tgt_assoc *assoc,
 	if (qid > NVMET_NR_QUEUES)
 		return NULL;
 
-	queue = kzalloc_flex(*queue, fod, sqsize, GFP_KERNEL);
+	queue = kzalloc_flex(*queue, fod, sqsize);
 	if (!queue)
 		return NULL;
 

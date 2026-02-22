@@ -1597,7 +1597,7 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 	ring_count = txr_count + rxr_count;
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc_flex(*q_vector, ring, ring_count, GFP_KERNEL);
+	q_vector = kzalloc_flex(*q_vector, ring, ring_count);
 	if (!q_vector)
 		return -ENOMEM;
 

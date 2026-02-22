@@ -257,7 +257,7 @@ static int imh_get_all_mmio_base_h(struct res_config *cfg, struct list_head *eda
 	struct skx_dev *d;
 
 	for (i = 0; i < n; i++) {
-		d = kzalloc_flex(*d, imc, imc_num, GFP_KERNEL);
+		d = kzalloc_flex(*d, imc, imc_num);
 		if (!d)
 			return -ENOMEM;
 

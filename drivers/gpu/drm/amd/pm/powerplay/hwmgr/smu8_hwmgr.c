@@ -276,7 +276,7 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 {
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 8, GFP_KERNEL);
+	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 8);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate memory!\n");

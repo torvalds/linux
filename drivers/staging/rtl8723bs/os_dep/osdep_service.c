@@ -193,7 +193,7 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 {
 	struct rtw_cbuf *cbuf;
 
-	cbuf = kzalloc_flex(*cbuf, bufs, size, GFP_KERNEL);
+	cbuf = kzalloc_flex(*cbuf, bufs, size);
 	cbuf->size = size;
 
 	return cbuf;

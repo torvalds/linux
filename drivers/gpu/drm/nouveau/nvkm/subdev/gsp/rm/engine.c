@@ -106,7 +106,7 @@ nvkm_rm_engine_ctor(void *(*dtor)(struct nvkm_engine *), struct nvkm_rm *rm,
 {
 	struct nvkm_engine_func *func;
 
-	func = kzalloc_flex(*func, sclass, nclass + 1, GFP_KERNEL);
+	func = kzalloc_flex(*func, sclass, nclass + 1);
 	if (!func)
 		return -ENOMEM;
 

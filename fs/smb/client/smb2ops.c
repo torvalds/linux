@@ -1888,7 +1888,7 @@ retry:
 		goto out;
 	}
 
-	cc_req = kzalloc_flex(*cc_req, Chunks, chunk_count, GFP_KERNEL);
+	cc_req = kzalloc_flex(*cc_req, Chunks, chunk_count);
 	if (!cc_req) {
 		rc = -ENOMEM;
 		goto out;

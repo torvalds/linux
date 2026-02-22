@@ -761,7 +761,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	if (nloads == 0)
 		return -ELIBBAD;
 
-	loadmap = kzalloc_flex(*loadmap, segs, nloads, GFP_KERNEL);
+	loadmap = kzalloc_flex(*loadmap, segs, nloads);
 	if (!loadmap)
 		return -ENOMEM;
 

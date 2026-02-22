@@ -1548,7 +1548,7 @@ static struct mlx5_flow_handle *alloc_handle(int num_rules)
 {
 	struct mlx5_flow_handle *handle;
 
-	handle = kzalloc_flex(*handle, rule, num_rules, GFP_KERNEL);
+	handle = kzalloc_flex(*handle, rule, num_rules);
 	if (!handle)
 		return NULL;
 

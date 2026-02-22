@@ -266,7 +266,7 @@ static struct solver_node *create_solver_node(struct solver_state *xrs,
 	struct solver_node *node;
 	int ret;
 
-	node = kzalloc_flex(*node, start_cols, cdop->cols_len, GFP_KERNEL);
+	node = kzalloc_flex(*node, start_cols, cdop->cols_len);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 

@@ -740,7 +740,7 @@ struct idpf_queue_set *idpf_alloc_queue_set(struct idpf_adapter *adapter,
 {
 	struct idpf_queue_set *qp;
 
-	qp = kzalloc_flex(*qp, qs, num, GFP_KERNEL);
+	qp = kzalloc_flex(*qp, qs, num);
 	if (!qp)
 		return NULL;
 

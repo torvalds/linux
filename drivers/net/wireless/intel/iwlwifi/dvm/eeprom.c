@@ -1067,7 +1067,7 @@ iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,
 	if (WARN_ON(!cfg || !cfg->eeprom_params))
 		return NULL;
 
-	data = kzalloc_flex(*data, channels, IWL_NUM_CHANNELS, GFP_KERNEL);
+	data = kzalloc_flex(*data, channels, IWL_NUM_CHANNELS);
 	if (!data)
 		return NULL;
 

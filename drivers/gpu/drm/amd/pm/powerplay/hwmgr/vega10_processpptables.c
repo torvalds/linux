@@ -755,7 +755,7 @@ static int get_dcefclk_voltage_dependency_table(
 		num_entries = clk_dep_table->ucNumEntries;
 
 
-	clk_table = kzalloc_flex(*clk_table, entries, num_entries, GFP_KERNEL);
+	clk_table = kzalloc_flex(*clk_table, entries, num_entries);
 	if (!clk_table)
 		return -ENOMEM;
 
@@ -1040,7 +1040,7 @@ static int get_vddc_lookup_table(
 	PP_ASSERT_WITH_CODE((vddc_lookup_pp_tables->ucNumEntries != 0),
 			"Invalid SOC_VDDD Lookup Table!", return 1);
 
-	table = kzalloc_flex(*table, entries, max_levels, GFP_KERNEL);
+	table = kzalloc_flex(*table, entries, max_levels);
 	if (!table)
 		return -ENOMEM;
 

@@ -256,7 +256,7 @@ int _snd_ctl_add_follower(struct snd_kcontrol *master,
 	struct link_master *master_link = snd_kcontrol_chip(master);
 	struct link_follower *srec;
 
-	srec = kzalloc_flex(*srec, follower.vd, follower->count, GFP_KERNEL);
+	srec = kzalloc_flex(*srec, follower.vd, follower->count);
 	if (!srec)
 		return -ENOMEM;
 	srec->kctl = follower;

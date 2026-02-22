@@ -742,7 +742,7 @@ static int __init init_rapl_pmus(struct rapl_pmus **rapl_pmus_ptr, int rapl_pmu_
 	else if (rapl_pmu_scope != PERF_PMU_SCOPE_PKG)
 		return -EINVAL;
 
-	rapl_pmus = kzalloc_flex(*rapl_pmus, rapl_pmu, nr_rapl_pmu, GFP_KERNEL);
+	rapl_pmus = kzalloc_flex(*rapl_pmus, rapl_pmu, nr_rapl_pmu);
 	if (!rapl_pmus)
 		return -ENOMEM;
 

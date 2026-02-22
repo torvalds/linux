@@ -823,7 +823,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 			nalts[i] = j = USB_MAXALTSETTING;
 		}
 
-		intfc = kzalloc_flex(*intfc, altsetting, j, GFP_KERNEL);
+		intfc = kzalloc_flex(*intfc, altsetting, j);
 		config->intf_cache[i] = intfc;
 		if (!intfc)
 			return -ENOMEM;

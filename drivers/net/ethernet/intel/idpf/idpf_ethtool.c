@@ -200,7 +200,7 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 	if (q_index >= num_rxq)
 		return -EINVAL;
 
-	rule = kzalloc_flex(*rule, rule_info, 1, GFP_KERNEL);
+	rule = kzalloc_flex(*rule, rule_info, 1);
 	if (!rule)
 		return -ENOMEM;
 
@@ -310,7 +310,7 @@ static int idpf_del_flow_steer(struct net_device *netdev,
 	if (!idpf_sideband_action_ena(vport, fsp))
 		return -EOPNOTSUPP;
 
-	rule = kzalloc_flex(*rule, rule_info, 1, GFP_KERNEL);
+	rule = kzalloc_flex(*rule, rule_info, 1);
 	if (!rule)
 		return -ENOMEM;
 

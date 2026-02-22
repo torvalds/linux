@@ -50,7 +50,7 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 		return -EINVAL;
 
 	struct input_mt *mt __free(kfree) =
-			kzalloc_flex(*mt, slots, num_slots, GFP_KERNEL);
+			kzalloc_flex(*mt, slots, num_slots);
 	if (!mt)
 		return -ENOMEM;
 

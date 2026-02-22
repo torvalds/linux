@@ -3934,7 +3934,7 @@ execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 	unsigned int n;
 	int err;
 
-	ve = kzalloc_flex(*ve, siblings, count, GFP_KERNEL);
+	ve = kzalloc_flex(*ve, siblings, count);
 	if (!ve)
 		return ERR_PTR(-ENOMEM);
 

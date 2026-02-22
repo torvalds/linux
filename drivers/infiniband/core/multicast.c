@@ -823,7 +823,7 @@ static int mcast_add_one(struct ib_device *device)
 	int i;
 	int count = 0;
 
-	dev = kmalloc_flex(*dev, port, device->phys_port_cnt, GFP_KERNEL);
+	dev = kmalloc_flex(*dev, port, device->phys_port_cnt);
 	if (!dev)
 		return -ENOMEM;
 

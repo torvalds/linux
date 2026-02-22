@@ -635,7 +635,7 @@ static int td_probe(struct platform_device *pdev)
 		DRIVER_NAME))
 		return -EBUSY;
 
-	td  = kzalloc_flex(*td, channels, pdata->nr_channels, GFP_KERNEL);
+	td  = kzalloc_flex(*td, channels, pdata->nr_channels);
 	if (!td) {
 		err = -ENOMEM;
 		goto err_release_region;

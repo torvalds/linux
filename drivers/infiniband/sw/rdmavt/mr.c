@@ -242,7 +242,7 @@ static struct rvt_mr *__rvt_alloc_mr(int count, struct ib_pd *pd)
 
 	/* Allocate struct plus pointers to first level page tables. */
 	m = (count + RVT_SEGSZ - 1) / RVT_SEGSZ;
-	mr = kzalloc_flex(*mr, mr.map, m, GFP_KERNEL);
+	mr = kzalloc_flex(*mr, mr.map, m);
 	if (!mr)
 		goto bail;
 

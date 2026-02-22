@@ -1172,7 +1172,7 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 		for (int k = 0; k < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; k++)
 			n_channels +=
 				hweight8(matches[i].matching_channels[k]);
-		match = kzalloc_flex(*match, channels, n_channels, GFP_KERNEL);
+		match = kzalloc_flex(*match, channels, n_channels);
 		if (!match)
 			return;
 

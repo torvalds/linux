@@ -195,7 +195,7 @@ static int queue_reply(struct list_head *queue, const void *data, size_t len)
 	if (len > XENSTORE_PAYLOAD_MAX)
 		return -EINVAL;
 
-	rb = kmalloc_flex(*rb, msg, len, GFP_KERNEL);
+	rb = kmalloc_flex(*rb, msg, len);
 	if (rb == NULL)
 		return -ENOMEM;
 

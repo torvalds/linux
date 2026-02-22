@@ -132,7 +132,7 @@ static int brcmf_c_download_blob(struct brcmf_if *ifp,
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	chunk_buf = kzalloc_flex(*chunk_buf, data, MAX_CHUNK_LEN, GFP_KERNEL);
+	chunk_buf = kzalloc_flex(*chunk_buf, data, MAX_CHUNK_LEN);
 	if (!chunk_buf) {
 		err = -ENOMEM;
 		return -ENOMEM;

@@ -478,7 +478,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 			if (!key)
 				return -ENOMEM;
 
-			lookup = kzalloc_flex(*lookup, table, 2, GFP_KERNEL);
+			lookup = kzalloc_flex(*lookup, table, 2);
 			if (!lookup)
 				return -ENOMEM;
 

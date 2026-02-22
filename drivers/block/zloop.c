@@ -997,7 +997,7 @@ static int zloop_ctl_add(struct zloop_options *opts)
 		goto out;
 	}
 
-	zlo = kvzalloc_flex(*zlo, zones, nr_zones, GFP_KERNEL);
+	zlo = kvzalloc_flex(*zlo, zones, nr_zones);
 	if (!zlo) {
 		ret = -ENOMEM;
 		goto out;

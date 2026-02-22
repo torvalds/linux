@@ -2017,7 +2017,7 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	if (!is_cxl_root(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlrd = kzalloc_flex(*cxlrd, cxlsd.target, nr_targets, GFP_KERNEL);
+	cxlrd = kzalloc_flex(*cxlrd, cxlsd.target, nr_targets);
 	if (!cxlrd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2070,7 +2070,7 @@ struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 	if (is_cxl_root(port) || is_cxl_endpoint(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlsd = kzalloc_flex(*cxlsd, target, nr_targets, GFP_KERNEL);
+	cxlsd = kzalloc_flex(*cxlsd, target, nr_targets);
 	if (!cxlsd)
 		return ERR_PTR(-ENOMEM);
 

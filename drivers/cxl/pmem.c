@@ -234,7 +234,7 @@ static int cxl_pmem_set_config_data(struct cxl_memdev_state *mds,
 		return -EINVAL;
 
 	set_lsa =
-		kvzalloc_flex(*set_lsa, data, cmd->in_length, GFP_KERNEL);
+		kvzalloc_flex(*set_lsa, data, cmd->in_length);
 	if (!set_lsa)
 		return -ENOMEM;
 

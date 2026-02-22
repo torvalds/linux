@@ -653,7 +653,7 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 	struct sched_table *s;
 	unsigned int i;
 
-	s = kvzalloc_flex(*s, tab, sched_size, GFP_KERNEL);
+	s = kvzalloc_flex(*s, tab, sched_size);
 	if (!s)
 		return NULL;
 

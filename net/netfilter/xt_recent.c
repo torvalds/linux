@@ -391,7 +391,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 
-	t = kvzalloc_flex(*t, iphash, ip_list_hash_size, GFP_KERNEL);
+	t = kvzalloc_flex(*t, iphash, ip_list_hash_size);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto out;

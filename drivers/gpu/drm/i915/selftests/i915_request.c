@@ -2841,7 +2841,7 @@ static int perf_series_engines(void *arg)
 	if (!stats)
 		return -ENOMEM;
 
-	ps = kzalloc_flex(*ps, ce, nengines, GFP_KERNEL);
+	ps = kzalloc_flex(*ps, ce, nengines);
 	if (!ps) {
 		kfree(stats);
 		return -ENOMEM;

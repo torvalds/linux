@@ -764,7 +764,7 @@ static int intel_dg_mtd_probe(struct auxiliary_device *aux_dev,
 		return -ENODEV;
 	}
 
-	nvm = kzalloc_flex(*nvm, regions, nregions, GFP_KERNEL);
+	nvm = kzalloc_flex(*nvm, regions, nregions);
 	if (!nvm)
 		return -ENOMEM;
 

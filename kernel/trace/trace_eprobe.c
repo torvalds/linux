@@ -211,7 +211,7 @@ static struct trace_eprobe *alloc_event_probe(const char *group,
 	sys_name = event->class->system;
 	event_name = trace_event_name(event);
 
-	ep = kzalloc_flex(*ep, tp.args, nargs, GFP_KERNEL);
+	ep = kzalloc_flex(*ep, tp.args, nargs);
 	if (!ep) {
 		trace_event_put_ref(event);
 		return ERR_PTR(-ENOMEM);

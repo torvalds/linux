@@ -5333,7 +5333,7 @@ static struct cfg80211_acl_data *parse_acl_data(struct wiphy *wiphy,
 	if (n_entries > wiphy->max_acl_mac_addrs)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	acl = kzalloc_flex(*acl, mac_addrs, n_entries, GFP_KERNEL);
+	acl = kzalloc_flex(*acl, mac_addrs, n_entries);
 	if (!acl)
 		return ERR_PTR(-ENOMEM);
 	acl->n_acl_entries = n_entries;
@@ -6113,7 +6113,7 @@ nl80211_parse_mbssid_elems(struct wiphy *wiphy, struct nlattr *attrs)
 		num_elems++;
 	}
 
-	elems = kzalloc_flex(*elems, elem, num_elems, GFP_KERNEL);
+	elems = kzalloc_flex(*elems, elem, num_elems);
 	if (!elems)
 		return ERR_PTR(-ENOMEM);
 	elems->cnt = num_elems;
@@ -6145,7 +6145,7 @@ nl80211_parse_rnr_elems(struct wiphy *wiphy, struct nlattr *attrs,
 		num_elems++;
 	}
 
-	elems = kzalloc_flex(*elems, elem, num_elems, GFP_KERNEL);
+	elems = kzalloc_flex(*elems, elem, num_elems);
 	if (!elems)
 		return ERR_PTR(-ENOMEM);
 	elems->cnt = num_elems;
@@ -10157,7 +10157,7 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	rd = kzalloc_flex(*rd, reg_rules, num_rules, GFP_KERNEL);
+	rd = kzalloc_flex(*rd, reg_rules, num_rules);
 	if (!rd) {
 		r = -ENOMEM;
 		goto out;
@@ -15378,7 +15378,7 @@ static int nl80211_set_coalesce(struct sk_buff *skb, struct genl_info *info)
 	if (n_rules > coalesce->n_rules)
 		return -EINVAL;
 
-	new_coalesce = kzalloc_flex(*new_coalesce, rules, n_rules, GFP_KERNEL);
+	new_coalesce = kzalloc_flex(*new_coalesce, rules, n_rules);
 	if (!new_coalesce)
 		return -ENOMEM;
 
@@ -17462,7 +17462,7 @@ static int nl80211_set_tid_config(struct sk_buff *skb,
 			    rem_conf)
 		num_conf++;
 
-	tid_config = kzalloc_flex(*tid_config, tid_conf, num_conf, GFP_KERNEL);
+	tid_config = kzalloc_flex(*tid_config, tid_conf, num_conf);
 	if (!tid_config)
 		return -ENOMEM;
 
@@ -18256,7 +18256,7 @@ static int nl80211_set_sar_specs(struct sk_buff *skb, struct genl_info *info)
 	if (specs > rdev->wiphy.sar_capa->num_freq_ranges)
 		return -EINVAL;
 
-	sar_spec = kzalloc_flex(*sar_spec, sub_specs, specs, GFP_KERNEL);
+	sar_spec = kzalloc_flex(*sar_spec, sub_specs, specs);
 	if (!sar_spec)
 		return -ENOMEM;
 

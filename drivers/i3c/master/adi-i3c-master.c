@@ -187,7 +187,7 @@ static struct adi_i3c_xfer *adi_i3c_master_alloc_xfer(struct adi_i3c_master *mas
 {
 	struct adi_i3c_xfer *xfer;
 
-	xfer = kzalloc_flex(*xfer, cmds, ncmds, GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds);
 	if (!xfer)
 		return NULL;
 

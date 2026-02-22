@@ -1258,7 +1258,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	}
 
 	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
-	priv = kzalloc_flex(*priv, clks, nclks, GFP_KERNEL);
+	priv = kzalloc_flex(*priv, clks, nclks);
 	if (!priv)
 		return -ENOMEM;
 

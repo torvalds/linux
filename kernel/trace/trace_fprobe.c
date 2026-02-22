@@ -579,7 +579,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 	struct trace_fprobe *tf __free(free_trace_fprobe) = NULL;
 	int ret = -ENOMEM;
 
-	tf = kzalloc_flex(*tf, tp.args, nargs, GFP_KERNEL);
+	tf = kzalloc_flex(*tf, tp.args, nargs);
 	if (!tf)
 		return ERR_PTR(ret);
 

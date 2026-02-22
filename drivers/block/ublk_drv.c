@@ -4613,7 +4613,7 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 		goto out_unlock;
 
 	ret = -ENOMEM;
-	ub = kzalloc_flex(*ub, queues, info.nr_hw_queues, GFP_KERNEL);
+	ub = kzalloc_flex(*ub, queues, info.nr_hw_queues);
 	if (!ub)
 		goto out_unlock;
 	mutex_init(&ub->mutex);

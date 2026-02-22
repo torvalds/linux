@@ -900,7 +900,7 @@ nouveau_pfns_alloc(unsigned long npages)
 {
 	struct nouveau_pfnmap_args *args;
 
-	args = kzalloc_flex(*args, p.phys, npages, GFP_KERNEL);
+	args = kzalloc_flex(*args, p.phys, npages);
 	if (!args)
 		return NULL;
 
@@ -1063,7 +1063,7 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_PASCAL)
 		return;
 
-	drm->svm = svm = kzalloc_flex(*drm->svm, buffer, 1, GFP_KERNEL);
+	drm->svm = svm = kzalloc_flex(*drm->svm, buffer, 1);
 	if (!drm->svm)
 		return;
 

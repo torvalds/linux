@@ -1085,7 +1085,7 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev)
 	if (!n_channels)
 		return cfg80211_scan_6ghz(rdev, true);
 
-	request = kzalloc_flex(*request, req.channels, n_channels, GFP_KERNEL);
+	request = kzalloc_flex(*request, req.channels, n_channels);
 	if (!request)
 		return -ENOMEM;
 

@@ -2236,7 +2236,7 @@ static int nft_pipapo_init(const struct nft_set *set,
 	if (field_count > NFT_PIPAPO_MAX_FIELDS)
 		return -EINVAL;
 
-	m = kmalloc_flex(*m, f, field_count, GFP_KERNEL);
+	m = kmalloc_flex(*m, f, field_count);
 	if (!m)
 		return -ENOMEM;
 

@@ -177,7 +177,7 @@ int ocfs2_recovery_init(struct ocfs2_super *osb)
 	osb->recovery_thread_task = NULL;
 	init_waitqueue_head(&osb->recovery_event);
 
-	rm = kzalloc_flex(*rm, rm_entries, osb->max_slots, GFP_KERNEL);
+	rm = kzalloc_flex(*rm, rm_entries, osb->max_slots);
 	if (!rm) {
 		mlog_errno(-ENOMEM);
 		return -ENOMEM;

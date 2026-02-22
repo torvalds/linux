@@ -477,7 +477,7 @@ static void lkdtm_FAM_BOUNDS(void)
 {
 	struct lkdtm_cb_fam *inst;
 
-	inst = kzalloc_flex(*inst, array, element_count + 1, GFP_KERNEL);
+	inst = kzalloc_flex(*inst, array, element_count + 1);
 	if (!inst) {
 		pr_err("FAIL: could not allocate test struct!\n");
 		return;

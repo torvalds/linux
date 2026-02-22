@@ -559,7 +559,7 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 	struct tz_episode *tze;
 	int i;
 
-	tze = kzalloc_flex(*tze, trip_stats, tz->num_trips, GFP_KERNEL);
+	tze = kzalloc_flex(*tze, trip_stats, tz->num_trips);
 	if (!tze)
 		return NULL;
 

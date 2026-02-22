@@ -3360,7 +3360,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 			i++;
 	}
 
-	rp = kmalloc_flex(*rp, addr, i, GFP_KERNEL);
+	rp = kmalloc_flex(*rp, addr, i);
 	if (!rp) {
 		err = -ENOMEM;
 		goto unlock;

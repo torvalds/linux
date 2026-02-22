@@ -12,7 +12,7 @@ struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 	struct flow_rule *rule;
 	int i;
 
-	rule = kzalloc_flex(*rule, action.entries, num_actions, GFP_KERNEL);
+	rule = kzalloc_flex(*rule, action.entries, num_actions);
 	if (!rule)
 		return NULL;
 

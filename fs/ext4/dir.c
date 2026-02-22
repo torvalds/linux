@@ -480,7 +480,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	p = &info->root.rb_node;
 
 	/* Create and allocate the fname structure */
-	new_fn = kzalloc_flex(*new_fn, name, ent_name->len + 1, GFP_KERNEL);
+	new_fn = kzalloc_flex(*new_fn, name, ent_name->len + 1);
 	if (!new_fn)
 		return -ENOMEM;
 	new_fn->hash = hash;

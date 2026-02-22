@@ -153,7 +153,7 @@ static void __init dir_add(const char *name, size_t nlen, time64_t mtime)
 {
 	struct dir_entry *de;
 
-	de = kmalloc_flex(*de, name, nlen, GFP_KERNEL);
+	de = kmalloc_flex(*de, name, nlen);
 	if (!de)
 		panic_show_mem("can't allocate dir_entry buffer");
 	INIT_LIST_HEAD(&de->list);

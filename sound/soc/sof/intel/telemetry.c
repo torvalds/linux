@@ -71,7 +71,7 @@ void sof_ipc4_intel_dump_telemetry_state(struct snd_sof_dev *sdev, u32 flags)
 		break;
 	}
 
-	xoops = kzalloc_flex(*xoops, ar, XTENSA_CORE_AR_REGS_COUNT, GFP_KERNEL);
+	xoops = kzalloc_flex(*xoops, ar, XTENSA_CORE_AR_REGS_COUNT);
 	if (!xoops)
 		goto free_block;
 

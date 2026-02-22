@@ -724,7 +724,7 @@ struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
 	if (!ops || !ops->attach_addr || !ops->detach_addr)
 		return ERR_PTR(-EINVAL);
 
-	atr = kzalloc_flex(*atr, adapter, max_adapters, GFP_KERNEL);
+	atr = kzalloc_flex(*atr, adapter, max_adapters);
 	if (!atr)
 		return ERR_PTR(-ENOMEM);
 

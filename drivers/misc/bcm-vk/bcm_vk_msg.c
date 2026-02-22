@@ -700,7 +700,7 @@ int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
 		return -EINVAL;
 	}
 
-	entry = kzalloc_flex(*entry, to_v_msg, 1, GFP_KERNEL);
+	entry = kzalloc_flex(*entry, to_v_msg, 1);
 	if (!entry)
 		return -ENOMEM;
 	entry->to_v_blks = 1;	/* always 1 block */

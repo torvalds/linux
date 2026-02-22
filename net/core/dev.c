@@ -6510,7 +6510,7 @@ struct flush_backlogs {
 
 static struct flush_backlogs *flush_backlogs_alloc(void)
 {
-	return kmalloc_flex(struct flush_backlogs, w, nr_cpu_ids, GFP_KERNEL);
+	return kmalloc_flex(struct flush_backlogs, w, nr_cpu_ids);
 }
 
 static struct flush_backlogs *flush_backlogs_fallback;

@@ -638,7 +638,7 @@ static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 	void *bufp;
 	int i;
 
-	data = kzalloc_flex(*data, buf, krule->buflen, GFP_KERNEL);
+	data = kzalloc_flex(*data, buf, krule->buflen);
 	if (unlikely(!data))
 		return NULL;
 

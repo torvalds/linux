@@ -1435,7 +1435,7 @@ static int dapm_widget_list_create(struct snd_soc_dapm_widget_list **list,
 	list_for_each(it, widgets)
 		size++;
 
-	*list = kzalloc_flex(**list, widgets, size, GFP_KERNEL);
+	*list = kzalloc_flex(**list, widgets, size);
 	if (*list == NULL)
 		return -ENOMEM;
 

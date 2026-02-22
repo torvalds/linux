@@ -884,7 +884,7 @@ static int setup_wait(struct ntsync_device *dev,
 	if (args->alert)
 		fds[count] = args->alert;
 
-	q = kmalloc_flex(*q, entries, total_count, GFP_KERNEL);
+	q = kmalloc_flex(*q, entries, total_count);
 	if (!q)
 		return -ENOMEM;
 	q->task = current;

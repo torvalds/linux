@@ -1610,7 +1610,7 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		return ret;
 
-	lr = kvzalloc_flex(*lr, lines, ulr.num_lines, GFP_KERNEL);
+	lr = kvzalloc_flex(*lr, lines, ulr.num_lines);
 	if (!lr)
 		return -ENOMEM;
 	lr->num_lines = ulr.num_lines;

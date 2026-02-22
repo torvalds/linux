@@ -56,7 +56,7 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 	struct nvkm_gr_func *func;
 	struct r535_gr *gr;
 
-	func = kzalloc_flex(*func, sclass, ARRAY_SIZE(classes) + 1, GFP_KERNEL);
+	func = kzalloc_flex(*func, sclass, ARRAY_SIZE(classes) + 1);
 	if (!func)
 		return -ENOMEM;
 

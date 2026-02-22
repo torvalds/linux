@@ -379,7 +379,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 		}
 	}
 
-	tcu->clocks = kzalloc_flex(*tcu->clocks, hws, TCU_CLK_COUNT, GFP_KERNEL);
+	tcu->clocks = kzalloc_flex(*tcu->clocks, hws, TCU_CLK_COUNT);
 	if (!tcu->clocks) {
 		ret = -ENOMEM;
 		goto err_clk_disable;

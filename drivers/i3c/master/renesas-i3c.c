@@ -345,7 +345,7 @@ static struct renesas_i3c_xfer *renesas_i3c_alloc_xfer(struct renesas_i3c *i3c,
 {
 	struct renesas_i3c_xfer *xfer;
 
-	xfer = kzalloc_flex(*xfer, cmds, ncmds, GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds);
 	if (!xfer)
 		return NULL;
 

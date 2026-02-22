@@ -2605,7 +2605,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		n_matches = 0;
 	}
 
-	net_detect = kzalloc_flex(*net_detect, matches, n_matches, GFP_KERNEL);
+	net_detect = kzalloc_flex(*net_detect, matches, n_matches);
 	if (!net_detect || !n_matches)
 		goto out_report_nd;
 	net_detect->n_matches = n_matches;
@@ -2619,7 +2619,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 							   d3_data->nd_results,
 							   i);
 
-		match = kzalloc_flex(*match, channels, n_channels, GFP_KERNEL);
+		match = kzalloc_flex(*match, channels, n_channels);
 		if (!match)
 			goto out_report_nd;
 		match->n_channels = n_channels;

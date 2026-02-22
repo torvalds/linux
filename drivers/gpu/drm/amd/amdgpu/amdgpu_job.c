@@ -198,7 +198,7 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (num_ibs == 0)
 		return -EINVAL;
 
-	*job = kzalloc_flex(**job, ibs, num_ibs, GFP_KERNEL);
+	*job = kzalloc_flex(**job, ibs, num_ibs);
 	if (!*job)
 		return -ENOMEM;
 

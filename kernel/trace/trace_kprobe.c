@@ -275,7 +275,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	struct trace_kprobe *tk __free(free_trace_kprobe) = NULL;
 	int ret = -ENOMEM;
 
-	tk = kzalloc_flex(*tk, tp.args, nargs, GFP_KERNEL);
+	tk = kzalloc_flex(*tk, tp.args, nargs);
 	if (!tk)
 		return ERR_PTR(ret);
 

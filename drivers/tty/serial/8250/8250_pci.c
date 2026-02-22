@@ -4148,7 +4148,7 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 			nr_ports = rc;
 	}
 
-	priv = kzalloc_flex(*priv, line, nr_ports, GFP_KERNEL);
+	priv = kzalloc_flex(*priv, line, nr_ports);
 	if (!priv) {
 		priv = ERR_PTR(-ENOMEM);
 		goto err_deinit;

@@ -2138,7 +2138,7 @@ static int pwm_cdev_open(struct inode *inode, struct file *file)
 	if (!chip->operational)
 		return -ENXIO;
 
-	cdata = kzalloc_flex(*cdata, pwm, chip->npwm, GFP_KERNEL);
+	cdata = kzalloc_flex(*cdata, pwm, chip->npwm);
 	if (!cdata)
 		return -ENOMEM;
 

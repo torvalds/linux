@@ -831,7 +831,7 @@ static int cxl_mem_abort_fw_xfer(struct cxl_memdev_state *mds)
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
 
-	transfer = kzalloc_flex(*transfer, data, 0, GFP_KERNEL);
+	transfer = kzalloc_flex(*transfer, data, 0);
 	if (!transfer)
 		return -ENOMEM;
 

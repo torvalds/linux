@@ -208,7 +208,7 @@ int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info)
 	 * Try harder to allocate and fallback to vmalloc to lower the chance
 	 * of a failing mount.
 	 */
-	table = kvzalloc_flex(*table, table, num_entries, GFP_KERNEL);
+	table = kvzalloc_flex(*table, table, num_entries);
 	if (!table)
 		return -ENOMEM;
 

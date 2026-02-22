@@ -212,7 +212,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	int32_t ctx_prio;
 	int r;
 
-	entity = kzalloc_flex(*entity, fences, amdgpu_sched_jobs, GFP_KERNEL);
+	entity = kzalloc_flex(*entity, fences, amdgpu_sched_jobs);
 	if (!entity)
 		return  -ENOMEM;
 

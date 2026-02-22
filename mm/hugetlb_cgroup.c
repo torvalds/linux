@@ -139,7 +139,7 @@ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 	struct hugetlb_cgroup *h_cgroup;
 	int node;
 
-	h_cgroup = kzalloc_flex(*h_cgroup, nodeinfo, nr_node_ids, GFP_KERNEL);
+	h_cgroup = kzalloc_flex(*h_cgroup, nodeinfo, nr_node_ids);
 
 	if (!h_cgroup)
 		return ERR_PTR(-ENOMEM);

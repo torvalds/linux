@@ -1542,7 +1542,7 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
 
-	tz = kzalloc_flex(*tz, trips, num_trips, GFP_KERNEL);
+	tz = kzalloc_flex(*tz, trips, num_trips);
 	if (!tz)
 		return ERR_PTR(-ENOMEM);
 

@@ -498,7 +498,7 @@ cdns_i3c_master_alloc_xfer(struct cdns_i3c_master *master, unsigned int ncmds)
 {
 	struct cdns_i3c_xfer *xfer;
 
-	xfer = kzalloc_flex(*xfer, cmds, ncmds, GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds);
 	if (!xfer)
 		return NULL;
 

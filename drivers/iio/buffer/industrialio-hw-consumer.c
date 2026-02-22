@@ -60,7 +60,7 @@ static struct hw_consumer_buffer *iio_hw_consumer_get_buffer(
 			return buf;
 	}
 
-	buf = kzalloc_flex(*buf, scan_mask, mask_longs, GFP_KERNEL);
+	buf = kzalloc_flex(*buf, scan_mask, mask_longs);
 	if (!buf)
 		return NULL;
 

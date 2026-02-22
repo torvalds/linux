@@ -941,7 +941,7 @@ static int ioctl_add_descriptor(struct client *client, union ioctl_arg *arg)
 	if (a->length > 256)
 		return -EINVAL;
 
-	r = kmalloc_flex(*r, data, a->length, GFP_KERNEL);
+	r = kmalloc_flex(*r, data, a->length);
 	if (r == NULL)
 		return -ENOMEM;
 

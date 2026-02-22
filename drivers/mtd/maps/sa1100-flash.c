@@ -170,7 +170,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	/*
 	 * Allocate the map_info structs in one go.
 	 */
-	info = kzalloc_flex(*info, subdev, nr, GFP_KERNEL);
+	info = kzalloc_flex(*info, subdev, nr);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out;

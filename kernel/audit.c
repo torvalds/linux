@@ -1517,7 +1517,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (err < 0)
 				return err;
 		}
-		sig_data = kmalloc_flex(*sig_data, ctx, lsmctx.len, GFP_KERNEL);
+		sig_data = kmalloc_flex(*sig_data, ctx, lsmctx.len);
 		if (!sig_data) {
 			if (lsmprop_is_set(&audit_sig_lsm))
 				security_release_secctx(&lsmctx);

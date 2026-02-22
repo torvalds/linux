@@ -418,7 +418,7 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	if (!devlink_reload_actions_valid(ops))
 		return NULL;
 
-	devlink = kvzalloc_flex(*devlink, priv, priv_size, GFP_KERNEL);
+	devlink = kvzalloc_flex(*devlink, priv, priv_size);
 	if (!devlink)
 		return NULL;
 

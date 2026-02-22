@@ -525,7 +525,7 @@ ivpu_job_create(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
 
-	job = kzalloc_flex(*job, bos, bo_count, GFP_KERNEL);
+	job = kzalloc_flex(*job, bos, bo_count);
 	if (!job)
 		return NULL;
 

@@ -172,7 +172,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	} while (c->nr_garbage && collect_garbage_slots(c) == 0);
 
 	/* All out of space.  Need to allocate a new page. */
-	kip = kmalloc_flex(*kip, slot_used, slots_per_page(c), GFP_KERNEL);
+	kip = kmalloc_flex(*kip, slot_used, slots_per_page(c));
 	if (!kip)
 		return NULL;
 

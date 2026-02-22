@@ -82,7 +82,7 @@ struct samsung_clk_provider * __init samsung_clk_init(struct device *dev,
 	struct samsung_clk_provider *ctx;
 	int i;
 
-	ctx = kzalloc_flex(*ctx, clk_data.hws, nr_clks, GFP_KERNEL);
+	ctx = kzalloc_flex(*ctx, clk_data.hws, nr_clks);
 	if (!ctx)
 		panic("could not allocate clock provider context.\n");
 

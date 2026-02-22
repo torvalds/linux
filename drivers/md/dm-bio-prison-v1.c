@@ -44,7 +44,7 @@ struct dm_bio_prison *dm_bio_prison_create(void)
 	struct dm_bio_prison *prison;
 
 	num_locks = dm_num_hash_locks();
-	prison = kzalloc_flex(*prison, regions, num_locks, GFP_KERNEL);
+	prison = kzalloc_flex(*prison, regions, num_locks);
 	if (!prison)
 		return NULL;
 	prison->num_locks = num_locks;

@@ -5099,7 +5099,7 @@ int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave)
 
 	usable_slaves = kzalloc_flex(*usable_slaves, arr, bond->slave_cnt,
 				     GFP_KERNEL);
-	all_slaves = kzalloc_flex(*all_slaves, arr, bond->slave_cnt, GFP_KERNEL);
+	all_slaves = kzalloc_flex(*all_slaves, arr, bond->slave_cnt);
 	if (!usable_slaves || !all_slaves) {
 		ret = -ENOMEM;
 		goto out;

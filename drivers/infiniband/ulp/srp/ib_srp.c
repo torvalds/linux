@@ -418,7 +418,7 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	if (pool_size <= 0)
 		goto err;
 	ret = -ENOMEM;
-	pool = kzalloc_flex(*pool, desc, pool_size, GFP_KERNEL);
+	pool = kzalloc_flex(*pool, desc, pool_size);
 	if (!pool)
 		goto err;
 	pool->size = pool_size;

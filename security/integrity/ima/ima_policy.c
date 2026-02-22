@@ -342,7 +342,7 @@ static struct ima_rule_opt_list *ima_alloc_rule_opt_list(const substring_t *src)
 		return ERR_PTR(-EINVAL);
 	}
 
-	opt_list = kzalloc_flex(*opt_list, items, count, GFP_KERNEL);
+	opt_list = kzalloc_flex(*opt_list, items, count);
 	if (!opt_list) {
 		kfree(src_copy);
 		return ERR_PTR(-ENOMEM);

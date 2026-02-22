@@ -270,7 +270,7 @@ static int sigma_fw_load_data(struct sigmadsp *sigmadsp,
 
 	length -= sizeof(*data_chunk);
 
-	data = kzalloc_flex(*data, data, length, GFP_KERNEL);
+	data = kzalloc_flex(*data, data, length);
 	if (!data)
 		return -ENOMEM;
 
@@ -413,7 +413,7 @@ static int process_sigma_action(struct sigmadsp *sigmadsp,
 		if (len < 3)
 			return -EINVAL;
 
-		data = kzalloc_flex(*data, data, size_sub(len, 2), GFP_KERNEL);
+		data = kzalloc_flex(*data, data, size_sub(len, 2));
 		if (!data)
 			return -ENOMEM;
 

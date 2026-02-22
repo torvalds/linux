@@ -172,7 +172,7 @@ static struct icc_path *path_init(struct device *dev, struct icc_node *dst,
 	struct icc_path *path;
 	int i;
 
-	path = kzalloc_flex(*path, reqs, num_nodes, GFP_KERNEL);
+	path = kzalloc_flex(*path, reqs, num_nodes);
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 

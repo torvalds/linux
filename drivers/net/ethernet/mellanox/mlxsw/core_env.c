@@ -1453,7 +1453,7 @@ int mlxsw_env_init(struct mlxsw_core *mlxsw_core,
 			   mlxsw_reg_mgpir_max_modules_per_slot_get(mgpir_pl) :
 			   module_count;
 
-	env = kzalloc_flex(*env, line_cards, num_of_slots + 1, GFP_KERNEL);
+	env = kzalloc_flex(*env, line_cards, num_of_slots + 1);
 	if (!env)
 		return -ENOMEM;
 

@@ -321,7 +321,7 @@ struct siw_pbl *siw_pbl_alloc(u32 num_buf)
 	if (num_buf == 0)
 		return ERR_PTR(-EINVAL);
 
-	pbl = kzalloc_flex(*pbl, pbe, num_buf, GFP_KERNEL);
+	pbl = kzalloc_flex(*pbl, pbe, num_buf);
 	if (!pbl)
 		return ERR_PTR(-ENOMEM);
 

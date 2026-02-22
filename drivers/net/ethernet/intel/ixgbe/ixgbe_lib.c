@@ -858,7 +858,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	q_vector = kzalloc_node(struct_size(q_vector, ring, ring_count),
 				GFP_KERNEL, node);
 	if (!q_vector)
-		q_vector = kzalloc_flex(*q_vector, ring, ring_count, GFP_KERNEL);
+		q_vector = kzalloc_flex(*q_vector, ring, ring_count);
 	if (!q_vector)
 		return -ENOMEM;
 

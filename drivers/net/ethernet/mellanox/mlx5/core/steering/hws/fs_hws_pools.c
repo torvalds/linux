@@ -117,7 +117,7 @@ mlx5_fs_hws_pr_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 		return NULL;
 	pr_pool_ctx = pool_ctx;
 	bulk_len = MLX5_FS_HWS_DEFAULT_BULK_LEN;
-	pr_bulk = kvzalloc_flex(*pr_bulk, prs_data, bulk_len, GFP_KERNEL);
+	pr_bulk = kvzalloc_flex(*pr_bulk, prs_data, bulk_len);
 	if (!pr_bulk)
 		return NULL;
 
@@ -273,7 +273,7 @@ mlx5_fs_hws_mh_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 
 	pattern = pool_ctx;
 	bulk_len = MLX5_FS_HWS_DEFAULT_BULK_LEN;
-	mh_bulk = kvzalloc_flex(*mh_bulk, mhs_data, bulk_len, GFP_KERNEL);
+	mh_bulk = kvzalloc_flex(*mh_bulk, mhs_data, bulk_len);
 	if (!mh_bulk)
 		return NULL;
 

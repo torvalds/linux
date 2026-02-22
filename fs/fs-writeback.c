@@ -724,7 +724,7 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
 	int nr;
 	bool restart = false;
 
-	isw = kzalloc_flex(*isw, inodes, WB_MAX_INODES_PER_ISW, GFP_KERNEL);
+	isw = kzalloc_flex(*isw, inodes, WB_MAX_INODES_PER_ISW);
 	if (!isw)
 		return restart;
 

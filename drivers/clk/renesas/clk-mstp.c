@@ -184,7 +184,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	struct clk **clks;
 	unsigned int i;
 
-	group = kzalloc_flex(*group, clks, MSTP_MAX_CLOCKS, GFP_KERNEL);
+	group = kzalloc_flex(*group, clks, MSTP_MAX_CLOCKS);
 	if (!group)
 		return;
 

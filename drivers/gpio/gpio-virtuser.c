@@ -1388,7 +1388,7 @@ gpio_virtuser_make_lookup_table(struct gpio_virtuser_device *dev)
 	lockdep_assert_held(&dev->lock);
 
 	struct gpiod_lookup_table *table __free(kfree) =
-		kzalloc_flex(*table, table, num_entries + 1, GFP_KERNEL);
+		kzalloc_flex(*table, table, num_entries + 1);
 	if (!table)
 		return -ENOMEM;
 

@@ -1360,7 +1360,7 @@ of_reset_control_array_get(struct device_node *np, enum reset_control_flags flag
 	if (num < 0)
 		return optional ? NULL : ERR_PTR(num);
 
-	resets = kzalloc_flex(*resets, rstc, num, GFP_KERNEL);
+	resets = kzalloc_flex(*resets, rstc, num);
 	if (!resets)
 		return ERR_PTR(-ENOMEM);
 	resets->num_rstcs = num;

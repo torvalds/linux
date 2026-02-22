@@ -1692,7 +1692,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 	const blk_opf_t write_flags = wbc_to_write_flags(wbc);
 
 	nofs_flag = memalloc_nofs_save();
-	ctx = kvmalloc_flex(*ctx, chunks, num_chunks, GFP_KERNEL);
+	ctx = kvmalloc_flex(*ctx, chunks, num_chunks);
 	memalloc_nofs_restore(nofs_flag);
 	if (!ctx)
 		return false;

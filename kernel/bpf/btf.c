@@ -9617,7 +9617,7 @@ btf_add_struct_ops(struct btf *btf, struct bpf_struct_ops *st_ops,
 
 	tab = btf->struct_ops_tab;
 	if (!tab) {
-		tab = kzalloc_flex(*tab, ops, 4, GFP_KERNEL);
+		tab = kzalloc_flex(*tab, ops, 4);
 		if (!tab)
 			return -ENOMEM;
 		tab->capacity = 4;

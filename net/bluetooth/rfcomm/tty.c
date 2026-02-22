@@ -510,7 +510,7 @@ static int rfcomm_get_dev_list(void __user *arg)
 	if (!dev_num || dev_num > (PAGE_SIZE * 4) / sizeof(*di))
 		return -EINVAL;
 
-	dl = kzalloc_flex(*dl, dev_info, dev_num, GFP_KERNEL);
+	dl = kzalloc_flex(*dl, dev_info, dev_num);
 	if (!dl)
 		return -ENOMEM;
 

@@ -1183,7 +1183,7 @@ static int intel_vgpu_ioctl_get_region_info(struct vfio_device *vfio_dev,
 			      VFIO_REGION_INFO_FLAG_WRITE;
 		info->size = gvt_aperture_sz(vgpu->gvt);
 
-		sparse = kzalloc_flex(*sparse, areas, nr_areas, GFP_KERNEL);
+		sparse = kzalloc_flex(*sparse, areas, nr_areas);
 		if (!sparse)
 			return -ENOMEM;
 

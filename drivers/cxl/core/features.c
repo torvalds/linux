@@ -94,7 +94,7 @@ get_supported_features(struct cxl_features_state *cxlfs)
 		return NULL;
 
 	struct cxl_feat_entries *entries __free(kvfree) =
-		kvmalloc_flex(*entries, ent, count, GFP_KERNEL);
+		kvmalloc_flex(*entries, ent, count);
 	if (!entries)
 		return NULL;
 

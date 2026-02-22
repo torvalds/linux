@@ -657,7 +657,7 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 	struct urb *urb;
 
 	if (usx2y->rate != rate) {
-		us = kzalloc_flex(*us, urb, NOOF_SETRATE_URBS, GFP_KERNEL);
+		us = kzalloc_flex(*us, urb, NOOF_SETRATE_URBS);
 		if (!us) {
 			err = -ENOMEM;
 			goto cleanup;

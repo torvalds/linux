@@ -73,7 +73,7 @@ static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 		goto exit;
 	}
 
-	raw_data = kmalloc_flex(*raw_data, data, len, GFP_KERNEL);
+	raw_data = kmalloc_flex(*raw_data, data, len);
 	if (!raw_data) {
 		retval = -ENOMEM;
 		goto exit;

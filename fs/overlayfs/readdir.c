@@ -180,7 +180,7 @@ static struct ovl_cache_entry *ovl_cache_entry_new(struct ovl_readdir_data *rdd,
 {
 	struct ovl_cache_entry *p;
 
-	p = kmalloc_flex(*p, name, len + 1, GFP_KERNEL);
+	p = kmalloc_flex(*p, name, len + 1);
 	if (!p)
 		return NULL;
 

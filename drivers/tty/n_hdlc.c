@@ -669,7 +669,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
 	unsigned int i;
 
 	for (i = 0; i < count; i++) {
-		buf = kmalloc_flex(*buf, buf, maxframe, GFP_KERNEL);
+		buf = kmalloc_flex(*buf, buf, maxframe);
 		if (!buf) {
 			pr_debug("%s(), kmalloc() failed for %s buffer %u\n",
 					__func__, name, i);

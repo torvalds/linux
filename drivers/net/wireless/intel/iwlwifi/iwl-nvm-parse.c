@@ -1687,7 +1687,7 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		      num_of_ch);
 
 	/* build a regdomain rule for every valid channel */
-	regd = kzalloc_flex(*regd, reg_rules, num_of_ch, GFP_KERNEL);
+	regd = kzalloc_flex(*regd, reg_rules, num_of_ch);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 
@@ -2036,7 +2036,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	if (empty_otp)
 		IWL_INFO(trans, "OTP is empty\n");
 
-	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS, GFP_KERNEL);
+	nvm = kzalloc_flex(*nvm, channels, IWL_NUM_CHANNELS);
 	if (!nvm) {
 		ret = -ENOMEM;
 		goto out;

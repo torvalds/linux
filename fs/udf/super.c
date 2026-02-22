@@ -1047,7 +1047,7 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 	struct udf_bitmap *bitmap;
 	int nr_groups = udf_compute_nr_groups(sb, index);
 
-	bitmap = kvzalloc_flex(*bitmap, s_block_bitmap, nr_groups, GFP_KERNEL);
+	bitmap = kvzalloc_flex(*bitmap, s_block_bitmap, nr_groups);
 	if (!bitmap)
 		return NULL;
 

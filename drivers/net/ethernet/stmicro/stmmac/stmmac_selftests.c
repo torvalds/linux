@@ -1095,7 +1095,7 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	if (!priv->dma_cap.frpsel)
 		return -EOPNOTSUPP;
 
-	sel = kzalloc_flex(*sel, keys, nk, GFP_KERNEL);
+	sel = kzalloc_flex(*sel, keys, nk);
 	if (!sel)
 		return -ENOMEM;
 
@@ -1368,7 +1368,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	cls->command = FLOW_CLS_REPLACE;
 	cls->cookie = dummy_cookie;
 
-	rule = kzalloc_flex(*rule, action.entries, 1, GFP_KERNEL);
+	rule = kzalloc_flex(*rule, action.entries, 1);
 	if (!rule) {
 		ret = -ENOMEM;
 		goto cleanup_cls;
@@ -1496,7 +1496,7 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 	cls->command = FLOW_CLS_REPLACE;
 	cls->cookie = dummy_cookie;
 
-	rule = kzalloc_flex(*rule, action.entries, 1, GFP_KERNEL);
+	rule = kzalloc_flex(*rule, action.entries, 1);
 	if (!rule) {
 		ret = -ENOMEM;
 		goto cleanup_cls;

@@ -117,7 +117,7 @@ static int add_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
 {
 	struct hda_conn_list *p;
 
-	p = kmalloc_flex(*p, conns, len, GFP_KERNEL);
+	p = kmalloc_flex(*p, conns, len);
 	if (!p)
 		return -ENOMEM;
 	p->len = len;

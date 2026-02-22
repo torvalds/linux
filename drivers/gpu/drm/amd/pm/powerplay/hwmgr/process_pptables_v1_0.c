@@ -165,7 +165,7 @@ static int get_vddc_lookup_table(
 	PP_ASSERT_WITH_CODE((0 != vddc_lookup_pp_tables->ucNumEntries),
 		"Invalid CAC Leakage PowerPlay Table!", return 1);
 
-	table = kzalloc_flex(*table, entries, max_levels, GFP_KERNEL);
+	table = kzalloc_flex(*table, entries, max_levels);
 	if (!table)
 		return -ENOMEM;
 

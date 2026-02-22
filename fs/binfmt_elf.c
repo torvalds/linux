@@ -1880,7 +1880,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	info->thread->task = dump_task;
 	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
-		t = kzalloc_flex(*t, notes, info->thread_notes, GFP_KERNEL);
+		t = kzalloc_flex(*t, notes, info->thread_notes);
 		if (unlikely(!t))
 			return 0;
 

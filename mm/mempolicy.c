@@ -3880,7 +3880,7 @@ static int __init add_weighted_interleave_group(struct kobject *mempolicy_kobj)
 {
 	int nid, err;
 
-	wi_group = kzalloc_flex(*wi_group, nattrs, nr_node_ids, GFP_KERNEL);
+	wi_group = kzalloc_flex(*wi_group, nattrs, nr_node_ids);
 	if (!wi_group)
 		return -ENOMEM;
 	mutex_init(&wi_group->kobj_lock);

@@ -143,7 +143,7 @@ struct ovl_entry *ovl_alloc_entry(unsigned int numlower)
 {
 	struct ovl_entry *oe;
 
-	oe = kzalloc_flex(*oe, __lowerstack, numlower, GFP_KERNEL);
+	oe = kzalloc_flex(*oe, __lowerstack, numlower);
 	if (oe)
 		oe->__numlower = numlower;
 

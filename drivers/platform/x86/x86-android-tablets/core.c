@@ -49,7 +49,7 @@ int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 	struct gpiod_lookup_table *lookup;
 	struct gpio_desc *gpiod;
 
-	lookup = kzalloc_flex(*lookup, table, 2, GFP_KERNEL);
+	lookup = kzalloc_flex(*lookup, table, 2);
 	if (!lookup)
 		return -ENOMEM;
 

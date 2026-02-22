@@ -176,7 +176,7 @@ struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
 {
 	struct tifm_adapter *fm;
 
-	fm = kzalloc_flex(*fm, sockets, num_sockets, GFP_KERNEL);
+	fm = kzalloc_flex(*fm, sockets, num_sockets);
 	if (fm) {
 		fm->dev.class = &tifm_adapter_class;
 		fm->dev.parent = dev;

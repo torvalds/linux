@@ -264,7 +264,7 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 	else
 		len = 1;
 
-	sch_ep = kzalloc_flex(*sch_ep, bw_budget_table, len, GFP_KERNEL);
+	sch_ep = kzalloc_flex(*sch_ep, bw_budget_table, len);
 	if (!sch_ep)
 		return ERR_PTR(-ENOMEM);
 

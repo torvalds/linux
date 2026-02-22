@@ -67,7 +67,7 @@ struct clk_hw_onecell_data *mtk_alloc_clk_data(unsigned int clk_num)
 {
 	struct clk_hw_onecell_data *clk_data;
 
-	clk_data = kzalloc_flex(*clk_data, hws, clk_num, GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, clk_num);
 	if (!clk_data)
 		return NULL;
 

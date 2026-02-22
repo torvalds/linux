@@ -124,7 +124,7 @@ svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, size_t len)
 {
 	struct svcxdr_tmpbuf *tb;
 
-	tb = kmalloc_flex(*tb, buf, len, GFP_KERNEL);
+	tb = kmalloc_flex(*tb, buf, len);
 	if (!tb)
 		return NULL;
 	tb->next = argp->to_free;

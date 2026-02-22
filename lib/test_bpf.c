@@ -15461,7 +15461,7 @@ static __init int prepare_tail_call_tests(struct bpf_array **pprogs)
 	int which, err;
 
 	/* Allocate the table of programs to be used for tail calls */
-	progs = kzalloc_flex(*progs, ptrs, ntests + 1, GFP_KERNEL);
+	progs = kzalloc_flex(*progs, ptrs, ntests + 1);
 	if (!progs)
 		goto out_nomem;
 

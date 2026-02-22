@@ -425,7 +425,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	struct ocfs2_slot_info *si;
 
-	si = kzalloc_flex(*si, si_slots, osb->max_slots, GFP_KERNEL);
+	si = kzalloc_flex(*si, si_slots, osb->max_slots);
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);

@@ -3464,7 +3464,7 @@ static int cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		return -ENXIO;
 
 	struct cxl_pmem_region *cxlr_pmem __free(kfree) =
-		kzalloc_flex(*cxlr_pmem, mapping, p->nr_targets, GFP_KERNEL);
+		kzalloc_flex(*cxlr_pmem, mapping, p->nr_targets);
 	if (!cxlr_pmem)
 		return -ENOMEM;
 

@@ -167,7 +167,7 @@ struct virtio_gpu_object_array *virtio_gpu_array_alloc(u32 nents)
 {
 	struct virtio_gpu_object_array *objs;
 
-	objs = kmalloc_flex(*objs, objs, nents, GFP_KERNEL);
+	objs = kmalloc_flex(*objs, objs, nents);
 	if (!objs)
 		return NULL;
 
