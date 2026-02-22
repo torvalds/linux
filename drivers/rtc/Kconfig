@@ -418,6 +418,7 @@ config RTC_DRV_SPACEMIT_P1
 
 config RTC_DRV_NVIDIA_VRS10
 	tristate "NVIDIA VRS10 RTC device"
+	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the battery backed RTC device
 	  of NVIDIA VRS (Voltage Regulator Specification). The RTC is connected via
