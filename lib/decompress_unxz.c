@@ -157,11 +157,11 @@
  * when XZ_DYNALLOC is used, but the pre-boot free() doesn't support it.
  * Workaround it here because the other decompressors don't need it.
  */
-#undef kmalloc
+#undef kmalloc_obj
 #undef kfree
 #undef vmalloc
 #undef vfree
-#define kmalloc(size, flags) malloc(size)
+#define kmalloc_obj(type) malloc(sizeof(type))
 #define kfree(ptr) free(ptr)
 #define vmalloc(size) malloc(size)
 #define vfree(ptr) do { if (ptr != NULL) free(ptr); } while (0)
