@@ -1187,7 +1187,7 @@ xfs_ioc_health_monitor(
 	if (!xfs_healthmon_validate(&hmo))
 		return -EINVAL;
 
-	hm = kzalloc_obj(*hm, GFP_KERNEL);
+	hm = kzalloc_obj(*hm);
 	if (!hm)
 		return -ENOMEM;
 	hm->dev = mp->m_super->s_dev;

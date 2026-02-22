@@ -159,7 +159,7 @@ gpio_aggregator_line_alloc(struct gpio_aggregator *parent, unsigned int idx,
 {
 	struct gpio_aggregator_line *line;
 
-	line = kzalloc_obj(*line, GFP_KERNEL);
+	line = kzalloc_obj(*line);
 	if (!line)
 		return ERR_PTR(-ENOMEM);
 

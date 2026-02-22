@@ -145,7 +145,7 @@ struct aa_loaddata *aa_loaddata_alloc(size_t size)
 {
 	struct aa_loaddata *d;
 
-	d = kzalloc_obj(*d, GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (d == NULL)
 		return ERR_PTR(-ENOMEM);
 	d->data = kvzalloc(size, GFP_KERNEL);
@@ -528,7 +528,7 @@ static int unpack_strs_table(struct aa_ext *e, const char *name, bool multi,
 			 * for size check here
 			 */
 			goto fail;
-		table = kzalloc_objs(struct aa_str_table_ent, size, GFP_KERNEL);
+		table = kzalloc_objs(struct aa_str_table_ent, size);
 		if (!table) {
 			error = -ENOMEM;
 			goto fail;
@@ -809,7 +809,7 @@ static int unpack_tag_headers(struct aa_ext *e, struct aa_tags_struct *tags)
 
 	if (!aa_unpack_array(e, "hdrs", &size))
 		goto fail_reset;
-	hdrs = kzalloc_objs(struct aa_tags_header, size, GFP_KERNEL);
+	hdrs = kzalloc_objs(struct aa_tags_header, size);
 	if (!hdrs) {
 		error = -ENOMEM;
 		goto fail_reset;
@@ -922,7 +922,7 @@ static ssize_t unpack_perms_table(struct aa_ext *e, struct aa_perms **perms)
 			goto fail_reset;
 		if (!aa_unpack_array(e, NULL, &size))
 			goto fail_reset;
-		*perms = kzalloc_objs(struct aa_perms, size, GFP_KERNEL);
+		*perms = kzalloc_objs(struct aa_perms, size);
 		if (!*perms) {
 			e->pos = pos;
 			return -ENOMEM;
@@ -1320,7 +1320,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	error = -EPROTO;
 	if (aa_unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
-		profile->data = kzalloc_obj(*profile->data, GFP_KERNEL);
+		profile->data = kzalloc_obj(*profile->data);
 		if (!profile->data) {
 			error = -ENOMEM;
 			goto fail;
@@ -1338,7 +1338,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		}
 
 		while (aa_unpack_strdup(e, &key, NULL)) {
-			data = kzalloc_obj(*data, GFP_KERNEL);
+			data = kzalloc_obj(*data);
 			if (!data) {
 				kfree_sensitive(key);
 				error = -ENOMEM;
@@ -1583,7 +1583,7 @@ void aa_load_ent_free(struct aa_load_ent *ent)
 
 struct aa_load_ent *aa_load_ent_alloc(void)
 {
-	struct aa_load_ent *ent = kzalloc_obj(*ent, GFP_KERNEL);
+	struct aa_load_ent *ent = kzalloc_obj(*ent);
 	if (ent)
 		INIT_LIST_HEAD(&ent->list);
 	return ent;

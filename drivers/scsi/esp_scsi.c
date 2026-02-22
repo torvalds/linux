@@ -2447,7 +2447,7 @@ static int esp_sdev_init(struct scsi_device *dev)
 	struct esp_target_data *tp = &esp->target[dev->id];
 	struct esp_lun_data *lp;
 
-	lp = kzalloc_obj(*lp, GFP_KERNEL);
+	lp = kzalloc_obj(*lp);
 	if (!lp)
 		return -ENOMEM;
 	dev->hostdata = lp;

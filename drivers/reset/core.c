@@ -778,7 +778,7 @@ __reset_control_get_internal(struct reset_controller_dev *rcdev,
 		}
 	}
 
-	rstc = kzalloc_obj(*rstc, GFP_KERNEL);
+	rstc = kzalloc_obj(*rstc);
 	if (!rstc)
 		return ERR_PTR(-ENOMEM);
 
@@ -836,7 +836,7 @@ static int reset_add_gpio_aux_device(struct device *parent,
 	struct auxiliary_device *adev;
 	int ret;
 
-	adev = kzalloc_obj(*adev, GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 
@@ -931,7 +931,7 @@ static int __reset_add_reset_gpio_device(const struct of_phandle_args *args)
 		return id;
 
 	/* Not freed on success, because it is persisent subsystem data. */
-	rgpio_dev = kzalloc_obj(*rgpio_dev, GFP_KERNEL);
+	rgpio_dev = kzalloc_obj(*rgpio_dev);
 	if (!rgpio_dev) {
 		ret = -ENOMEM;
 		goto err_ida_free;

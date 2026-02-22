@@ -3427,7 +3427,7 @@ retry_pids:
 		if (!vma->numab_state) {
 			struct vma_numab_state *ptr;
 
-			ptr = kzalloc_obj(*ptr, GFP_KERNEL);
+			ptr = kzalloc_obj(*ptr);
 			if (!ptr)
 				continue;
 
@@ -13622,10 +13622,10 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 	struct cfs_rq *cfs_rq;
 	int i;
 
-	tg->cfs_rq = kzalloc_objs(cfs_rq, nr_cpu_ids, GFP_KERNEL);
+	tg->cfs_rq = kzalloc_objs(cfs_rq, nr_cpu_ids);
 	if (!tg->cfs_rq)
 		goto err;
-	tg->se = kzalloc_objs(se, nr_cpu_ids, GFP_KERNEL);
+	tg->se = kzalloc_objs(se, nr_cpu_ids);
 	if (!tg->se)
 		goto err;
 

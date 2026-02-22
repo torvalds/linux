@@ -562,7 +562,7 @@ static int smack_add_opt(int token, const char *s, void **mnt_opts)
 	struct smack_known *skp;
 
 	if (!opts) {
-		opts = kzalloc_obj(struct smack_mnt_opts, GFP_KERNEL);
+		opts = kzalloc_obj(struct smack_mnt_opts);
 		if (!opts)
 			return -ENOMEM;
 		*mnt_opts = opts;
@@ -622,7 +622,7 @@ static int smack_fs_context_submount(struct fs_context *fc,
 	struct smack_mnt_opts *ctx;
 	struct inode_smack *isp;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	fc->security = ctx;
@@ -673,7 +673,7 @@ static int smack_fs_context_dup(struct fs_context *fc,
 	if (!src)
 		return 0;
 
-	fc->security = kzalloc_obj(struct smack_mnt_opts, GFP_KERNEL);
+	fc->security = kzalloc_obj(struct smack_mnt_opts);
 	if (!fc->security)
 		return -ENOMEM;
 
@@ -2817,7 +2817,7 @@ static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
 	/*
 	 * A new port entry is required.
 	 */
-	spp = kzalloc_obj(*spp, GFP_KERNEL);
+	spp = kzalloc_obj(*spp);
 	if (spp == NULL)
 		return;
 

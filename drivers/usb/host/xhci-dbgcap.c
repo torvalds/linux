@@ -1425,7 +1425,7 @@ xhci_alloc_dbc(struct device *dev, void __iomem *base, const struct dbc_driver *
 	struct xhci_dbc		*dbc;
 	int			ret;
 
-	dbc = kzalloc_obj(*dbc, GFP_KERNEL);
+	dbc = kzalloc_obj(*dbc);
 	if (!dbc)
 		return NULL;
 

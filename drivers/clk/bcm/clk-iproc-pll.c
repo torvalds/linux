@@ -731,7 +731,7 @@ void iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!pll_ctrl) || WARN_ON(!clk_ctrl))
 		return;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (WARN_ON(!pll))
 		return;
 
@@ -740,7 +740,7 @@ void iproc_pll_clk_setup(struct device_node *node,
 		goto err_clk_data;
 	clk_data->num = num_clks;
 
-	iclk_array = kzalloc_objs(struct iproc_clk, num_clks, GFP_KERNEL);
+	iclk_array = kzalloc_objs(struct iproc_clk, num_clks);
 	if (WARN_ON(!iclk_array))
 		goto err_clks;
 

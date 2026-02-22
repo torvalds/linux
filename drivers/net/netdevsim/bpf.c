@@ -222,7 +222,7 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 	char name[16];
 	int ret;
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

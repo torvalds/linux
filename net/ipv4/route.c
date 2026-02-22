@@ -315,7 +315,7 @@ static int rt_acct_proc_show(struct seq_file *m, void *v)
 	struct ip_rt_acct *dst, *src;
 	unsigned int i, j;
 
-	dst = kzalloc_objs(struct ip_rt_acct, 256, GFP_KERNEL);
+	dst = kzalloc_objs(struct ip_rt_acct, 256);
 	if (!dst)
 		return -ENOMEM;
 
@@ -3687,7 +3687,7 @@ static __net_initdata struct pernet_operations rt_genid_ops = {
 
 static int __net_init ipv4_inetpeer_init(struct net *net)
 {
-	struct inet_peer_base *bp = kmalloc_obj(*bp, GFP_KERNEL);
+	struct inet_peer_base *bp = kmalloc_obj(*bp);
 
 	if (!bp)
 		return -ENOMEM;

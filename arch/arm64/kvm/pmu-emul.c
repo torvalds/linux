@@ -797,7 +797,7 @@ void kvm_host_pmu_init(struct arm_pmu *pmu)
 
 	guard(mutex)(&arm_pmus_lock);
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return;
 

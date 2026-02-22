@@ -176,7 +176,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 	 * of audio cases, flexible configs have been introduced in the
 	 * dsp firmware.
 	 */
-	cfg_info = kzalloc_obj(struct tasdevice_config_info, GFP_KERNEL);
+	cfg_info = kzalloc_obj(struct tasdevice_config_info);
 	if (!cfg_info) {
 		*status = -ENOMEM;
 		goto out;
@@ -232,7 +232,7 @@ static struct tasdevice_config_info *tasdevice_add_config(
 				__func__, i, cfg_info->nblocks);
 			break;
 		}
-		bk_da[i] = kzalloc_obj(struct tasdev_blk_data, GFP_KERNEL);
+		bk_da[i] = kzalloc_obj(struct tasdev_blk_data);
 		if (!bk_da[i]) {
 			*status = -ENOMEM;
 			break;
@@ -379,7 +379,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 		goto out;
 	}
 
-	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig, GFP_KERNEL);
+	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig);
 	if (!cfg_info) {
 		ret = -ENOMEM;
 		tas_priv->fw_state = TASDEVICE_DSP_FW_FAIL;
@@ -2268,7 +2268,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 		return -EINVAL;
 	}
 
-	tas_priv->fmw = kzalloc_obj(struct tasdevice_fw, GFP_KERNEL);
+	tas_priv->fmw = kzalloc_obj(struct tasdevice_fw);
 	if (!tas_priv->fmw)
 		return -ENOMEM;
 

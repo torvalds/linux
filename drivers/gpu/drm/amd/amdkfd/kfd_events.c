@@ -67,7 +67,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 	void *backing_store;
 	struct kfd_signal_page *page;
 
-	page = kzalloc_obj(*page, GFP_KERNEL);
+	page = kzalloc_obj(*page);
 	if (!page)
 		return NULL;
 
@@ -337,7 +337,7 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 		return -EINVAL;
 	}
 
-	page = kzalloc_obj(*page, GFP_KERNEL);
+	page = kzalloc_obj(*page);
 	if (!page)
 		return -ENOMEM;
 
@@ -405,7 +405,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index)
 {
 	int ret = 0;
-	struct kfd_event *ev = kzalloc_obj(*ev, GFP_KERNEL);
+	struct kfd_event *ev = kzalloc_obj(*ev);
 
 	if (!ev)
 		return -ENOMEM;
@@ -458,11 +458,11 @@ int kfd_criu_restore_event(struct file *devkfd,
 	struct kfd_event *ev = NULL;
 	int ret = 0;
 
-	ev_priv = kmalloc_obj(*ev_priv, GFP_KERNEL);
+	ev_priv = kmalloc_obj(*ev_priv);
 	if (!ev_priv)
 		return -ENOMEM;
 
-	ev = kzalloc_obj(*ev, GFP_KERNEL);
+	ev = kzalloc_obj(*ev);
 	if (!ev) {
 		ret = -ENOMEM;
 		goto exit;

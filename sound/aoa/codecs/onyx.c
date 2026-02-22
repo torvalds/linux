@@ -959,7 +959,7 @@ static int onyx_i2c_probe(struct i2c_client *client)
 	struct onyx *onyx;
 	u8 dummy;
 
-	onyx = kzalloc_obj(struct onyx, GFP_KERNEL);
+	onyx = kzalloc_obj(struct onyx);
 
 	if (!onyx)
 		return -ENOMEM;

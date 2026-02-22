@@ -634,7 +634,7 @@ int rtw_startbss_cmd(struct adapter  *padapter, int flags)
 		start_bss_network(padapter);
 	} else {
 		/* need enqueue, prepare cmd_obj and enqueue */
-		pcmd = kzalloc_obj(*pcmd, GFP_KERNEL);
+		pcmd = kzalloc_obj(*pcmd);
 		if (!pcmd) {
 			res = _FAIL;
 			goto exit;
@@ -686,7 +686,7 @@ u8 rtw_joinbss_cmd(struct adapter  *padapter, struct wlan_network *pnetwork)
 	u32 tmp_len;
 	u8 *ptmp = NULL;
 
-	pcmd = kzalloc_obj(*pcmd, GFP_KERNEL);
+	pcmd = kzalloc_obj(*pcmd);
 	if (!pcmd) {
 		res = _FAIL;
 		goto exit;
@@ -795,7 +795,7 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueu
 	u8 res = _SUCCESS;
 
 	/* prepare cmd parameter */
-	param = kzalloc_obj(*param, GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param) {
 		res = _FAIL;
 		goto exit;
@@ -804,7 +804,7 @@ u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueu
 
 	if (enqueue) {
 		/* need enqueue, prepare cmd_obj and enqueue */
-		cmdobj = kzalloc_obj(*cmdobj, GFP_KERNEL);
+		cmdobj = kzalloc_obj(*cmdobj);
 		if (!cmdobj) {
 			res = _FAIL;
 			kfree(param);
@@ -831,7 +831,7 @@ u8 rtw_setopmode_cmd(struct adapter  *padapter, enum ndis_802_11_network_infrast
 	struct	cmd_priv   *pcmdpriv = &padapter->cmdpriv;
 	u8 res = _SUCCESS;
 
-	psetop = kzalloc_obj(*psetop, GFP_KERNEL);
+	psetop = kzalloc_obj(*psetop);
 	if (!psetop) {
 		res = _FAIL;
 		goto exit;
@@ -839,7 +839,7 @@ u8 rtw_setopmode_cmd(struct adapter  *padapter, enum ndis_802_11_network_infrast
 	psetop->mode = (u8)networktype;
 
 	if (enqueue) {
-		ph2c = kzalloc_obj(*ph2c, GFP_KERNEL);
+		ph2c = kzalloc_obj(*ph2c);
 		if (!ph2c) {
 			kfree(psetop);
 			res = _FAIL;
@@ -866,7 +866,7 @@ u8 rtw_setstakey_cmd(struct adapter *padapter, struct sta_info *sta, u8 unicast_
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 	u8 res = _SUCCESS;
 
-	psetstakey_para = kzalloc_obj(*psetstakey_para, GFP_KERNEL);
+	psetstakey_para = kzalloc_obj(*psetstakey_para);
 	if (!psetstakey_para) {
 		res = _FAIL;
 		goto exit;
@@ -888,14 +888,14 @@ u8 rtw_setstakey_cmd(struct adapter *padapter, struct sta_info *sta, u8 unicast_
 	padapter->securitypriv.busetkipkey = true;
 
 	if (enqueue) {
-		ph2c = kzalloc_obj(*ph2c, GFP_KERNEL);
+		ph2c = kzalloc_obj(*ph2c);
 		if (!ph2c) {
 			kfree(psetstakey_para);
 			res = _FAIL;
 			goto exit;
 		}
 
-		psetstakey_rsp = kzalloc_obj(*psetstakey_rsp, GFP_KERNEL);
+		psetstakey_rsp = kzalloc_obj(*psetstakey_rsp);
 		if (!psetstakey_rsp) {
 			kfree(ph2c);
 			kfree(psetstakey_para);
@@ -933,20 +933,20 @@ u8 rtw_clearstakey_cmd(struct adapter *padapter, struct sta_info *sta, u8 enqueu
 			rtw_camid_free(padapter, cam_id);
 		}
 	} else {
-		ph2c = kzalloc_obj(*ph2c, GFP_KERNEL);
+		ph2c = kzalloc_obj(*ph2c);
 		if (!ph2c) {
 			res = _FAIL;
 			goto exit;
 		}
 
-		psetstakey_para = kzalloc_obj(*psetstakey_para, GFP_KERNEL);
+		psetstakey_para = kzalloc_obj(*psetstakey_para);
 		if (!psetstakey_para) {
 			kfree(ph2c);
 			res = _FAIL;
 			goto exit;
 		}
 
-		psetstakey_rsp = kzalloc_obj(*psetstakey_rsp, GFP_KERNEL);
+		psetstakey_rsp = kzalloc_obj(*psetstakey_rsp);
 		if (!psetstakey_rsp) {
 			kfree(ph2c);
 			kfree(psetstakey_para);
@@ -1651,13 +1651,13 @@ u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 res = _SUCCESS;
 
-	ph2c = kzalloc_obj(*ph2c, GFP_KERNEL);
+	ph2c = kzalloc_obj(*ph2c);
 	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	pdrvextra_cmd_parm = kzalloc_obj(*pdrvextra_cmd_parm, GFP_KERNEL);
+	pdrvextra_cmd_parm = kzalloc_obj(*pdrvextra_cmd_parm);
 	if (!pdrvextra_cmd_parm) {
 		kfree(ph2c);
 		res = _FAIL;

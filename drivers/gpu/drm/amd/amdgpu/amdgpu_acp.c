@@ -246,7 +246,7 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 		return -EINVAL;
 
 	acp_base = adev->rmmio_base;
-	adev->acp.acp_genpd = kzalloc_obj(struct acp_pm_domain, GFP_KERNEL);
+	adev->acp.acp_genpd = kzalloc_obj(struct acp_pm_domain);
 	if (!adev->acp.acp_genpd)
 		return -ENOMEM;
 
@@ -267,7 +267,7 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 			goto failure;
 		}
 
-		adev->acp.acp_res = kzalloc_objs(struct resource, 3, GFP_KERNEL);
+		adev->acp.acp_res = kzalloc_objs(struct resource, 3);
 		if (!adev->acp.acp_res) {
 			r = -ENOMEM;
 			goto failure;
@@ -333,7 +333,7 @@ static int acp_hw_init(struct amdgpu_ip_block *ip_block)
 			goto failure;
 		}
 
-		adev->acp.acp_res = kzalloc_objs(struct resource, 5, GFP_KERNEL);
+		adev->acp.acp_res = kzalloc_objs(struct resource, 5);
 		if (!adev->acp.acp_res) {
 			r = -ENOMEM;
 			goto failure;

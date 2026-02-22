@@ -559,7 +559,7 @@ fcloop_tgt_discovery_evt(struct nvmet_fc_target_port *tgtport)
 {
 	struct fcloop_rscn *tgt_rscn;
 
-	tgt_rscn = kzalloc_obj(*tgt_rscn, GFP_KERNEL);
+	tgt_rscn = kzalloc_obj(*tgt_rscn);
 	if (!tgt_rscn)
 		return;
 
@@ -1194,11 +1194,11 @@ fcloop_create_local_port(struct device *dev, struct device_attribute *attr,
 	unsigned long flags;
 	int ret = -ENOMEM;
 
-	lport = kzalloc_obj(*lport, GFP_KERNEL);
+	lport = kzalloc_obj(*lport);
 	if (!lport)
 		return -ENOMEM;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		goto out_free_lport;
 
@@ -1345,7 +1345,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	u32 opts_mask = (remoteport) ? RPORT_OPTS : TGTPORT_OPTS;
 	int ret;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return NULL;
 
@@ -1357,7 +1357,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	if ((opts->mask & opts_mask) != opts_mask)
 		goto out_free_opts;
 
-	newnport = kzalloc_obj(*newnport, GFP_KERNEL);
+	newnport = kzalloc_obj(*newnport);
 	if (!newnport)
 		goto out_free_opts;
 

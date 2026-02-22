@@ -279,7 +279,7 @@ static int __init ingenic_ost_register_clock(struct ingenic_ost *ost,
 	struct ingenic_ost_clk *ost_clk;
 	int val, err;
 
-	ost_clk = kzalloc_obj(*ost_clk, GFP_KERNEL);
+	ost_clk = kzalloc_obj(*ost_clk);
 	if (!ost_clk)
 		return -ENOMEM;
 
@@ -432,7 +432,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	unsigned int i;
 	int ret;
 
-	ost = kzalloc_obj(*ost, GFP_KERNEL);
+	ost = kzalloc_obj(*ost);
 	if (!ost)
 		return -ENOMEM;
 

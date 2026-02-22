@@ -240,7 +240,7 @@ vhost_net_ubuf_alloc(struct vhost_virtqueue *vq, bool zcopy)
 	/* No zero copy backend? Nothing to count. */
 	if (!zcopy)
 		return NULL;
-	ubufs = kmalloc_obj(*ubufs, GFP_KERNEL);
+	ubufs = kmalloc_obj(*ubufs);
 	if (!ubufs)
 		return ERR_PTR(-ENOMEM);
 	atomic_set(&ubufs->refcount, 1);
@@ -1330,7 +1330,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	n = kvmalloc_obj(*n, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!n)
 		return -ENOMEM;
-	vqs = kmalloc_objs(*vqs, VHOST_NET_VQ_MAX, GFP_KERNEL);
+	vqs = kmalloc_objs(*vqs, VHOST_NET_VQ_MAX);
 	if (!vqs) {
 		kvfree(n);
 		return -ENOMEM;
@@ -1345,7 +1345,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	}
 	n->vqs[VHOST_NET_VQ_RX].rxq.queue = queue;
 
-	xdp = kmalloc_objs(*xdp, VHOST_NET_BATCH, GFP_KERNEL);
+	xdp = kmalloc_objs(*xdp, VHOST_NET_BATCH);
 	if (!xdp) {
 		kfree(vqs);
 		kvfree(n);

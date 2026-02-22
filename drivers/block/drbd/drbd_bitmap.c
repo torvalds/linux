@@ -434,7 +434,7 @@ int drbd_bm_init(struct drbd_device *device)
 {
 	struct drbd_bitmap *b = device->bitmap;
 	WARN_ON(b != NULL);
-	b = kzalloc_obj(struct drbd_bitmap, GFP_KERNEL);
+	b = kzalloc_obj(struct drbd_bitmap);
 	if (!b)
 		return -ENOMEM;
 	spin_lock_init(&b->bm_lock);

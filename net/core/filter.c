@@ -1161,7 +1161,7 @@ static int bpf_prog_store_orig_filter(struct bpf_prog *fp,
 	unsigned int fsize = bpf_classic_proglen(fprog);
 	struct sock_fprog_kern *fkprog;
 
-	fp->orig_prog = kmalloc_obj(*fkprog, GFP_KERNEL);
+	fp->orig_prog = kmalloc_obj(*fkprog);
 	if (!fp->orig_prog)
 		return -ENOMEM;
 
@@ -1481,7 +1481,7 @@ static int __sk_attach_prog(struct bpf_prog *prog, struct sock *sk)
 {
 	struct sk_filter *fp, *old_fp;
 
-	fp = kmalloc_obj(*fp, GFP_KERNEL);
+	fp = kmalloc_obj(*fp);
 	if (!fp)
 		return -ENOMEM;
 

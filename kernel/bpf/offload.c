@@ -72,7 +72,7 @@ static int __bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
 	struct bpf_offload_netdev *ondev;
 	int err;
 
-	ondev = kzalloc_obj(*ondev, GFP_KERNEL);
+	ondev = kzalloc_obj(*ondev);
 	if (!ondev)
 		return -ENOMEM;
 
@@ -777,7 +777,7 @@ bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops, void *priv)
 {
 	struct bpf_offload_dev *offdev;
 
-	offdev = kzalloc_obj(*offdev, GFP_KERNEL);
+	offdev = kzalloc_obj(*offdev);
 	if (!offdev)
 		return ERR_PTR(-ENOMEM);
 

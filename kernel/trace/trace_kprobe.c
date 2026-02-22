@@ -1082,7 +1082,7 @@ static int trace_kprobe_create_cb(int argc, const char *argv[])
 	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->flags = TPARG_FL_KERNEL;

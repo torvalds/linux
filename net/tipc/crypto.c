@@ -560,7 +560,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 			break;
 		}
 
-		tfm_entry = kmalloc_obj(*tfm_entry, GFP_KERNEL);
+		tfm_entry = kmalloc_obj(*tfm_entry);
 		if (unlikely(!tfm_entry)) {
 			crypto_free_aead(tfm);
 			err = -ENOMEM;

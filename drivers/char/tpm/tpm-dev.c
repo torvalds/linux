@@ -30,7 +30,7 @@ static int tpm_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (priv == NULL)
 		goto out;
 

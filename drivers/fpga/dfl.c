@@ -347,7 +347,7 @@ dfl_dev_add(struct dfl_feature_dev_data *fdata,
 	struct dfl_device *ddev;
 	int id, i, ret;
 
-	ddev = kzalloc_obj(*ddev, GFP_KERNEL);
+	ddev = kzalloc_obj(*ddev);
 	if (!ddev)
 		return ERR_PTR(-ENOMEM);
 

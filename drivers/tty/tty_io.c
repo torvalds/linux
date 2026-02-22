@@ -183,7 +183,7 @@ int tty_alloc_file(struct file *file)
 {
 	struct tty_file_private *priv;
 
-	priv = kmalloc_obj(*priv, GFP_KERNEL);
+	priv = kmalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1471,7 +1471,7 @@ void tty_save_termios(struct tty_struct *tty)
 	/* Stash the termios data */
 	tp = tty->driver->termios[idx];
 	if (tp == NULL) {
-		tp = kmalloc_obj(*tp, GFP_KERNEL);
+		tp = kmalloc_obj(*tp);
 		if (tp == NULL)
 			return;
 		tty->driver->termios[idx] = tp;
@@ -3244,7 +3244,7 @@ struct device *tty_register_device_attr(struct tty_driver *driver,
 	else
 		tty_line_name(driver, index, name);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -3333,7 +3333,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	if (!lines || (flags & TTY_DRIVER_UNNUMBERED_NODE && lines > 1))
 		return ERR_PTR(-EINVAL);
 
-	driver = kzalloc_obj(*driver, GFP_KERNEL);
+	driver = kzalloc_obj(*driver);
 	if (!driver)
 		return ERR_PTR(-ENOMEM);
 
@@ -3343,7 +3343,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	driver->flags = flags;
 
 	if (!(flags & TTY_DRIVER_DEVPTS_MEM)) {
-		driver->ttys = kzalloc_objs(*driver->ttys, lines, GFP_KERNEL);
+		driver->ttys = kzalloc_objs(*driver->ttys, lines);
 		driver->termios = kzalloc_objs(*driver->termios, lines,
 					       GFP_KERNEL);
 		if (!driver->ttys || !driver->termios) {
@@ -3353,7 +3353,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	}
 
 	if (!(flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
-		driver->ports = kzalloc_objs(*driver->ports, lines, GFP_KERNEL);
+		driver->ports = kzalloc_objs(*driver->ports, lines);
 		if (!driver->ports) {
 			err = -ENOMEM;
 			goto err_free_all;
@@ -3361,7 +3361,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 		cdevs = lines;
 	}
 
-	driver->cdevs = kzalloc_objs(*driver->cdevs, cdevs, GFP_KERNEL);
+	driver->cdevs = kzalloc_objs(*driver->cdevs, cdevs);
 	if (!driver->cdevs) {
 		err = -ENOMEM;
 		goto err_free_all;

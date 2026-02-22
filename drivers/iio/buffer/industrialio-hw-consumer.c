@@ -87,7 +87,7 @@ struct iio_hw_consumer *iio_hw_consumer_alloc(struct device *dev)
 	struct iio_channel *chan;
 	int ret;
 
-	hwc = kzalloc_obj(*hwc, GFP_KERNEL);
+	hwc = kzalloc_obj(*hwc);
 	if (!hwc)
 		return ERR_PTR(-ENOMEM);
 

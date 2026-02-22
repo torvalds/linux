@@ -163,16 +163,16 @@ static int yellow_carp_init_smc_tables(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->clocks_table = kzalloc_obj(DpmClocks_t, GFP_KERNEL);
+	smu_table->clocks_table = kzalloc_obj(DpmClocks_t);
 	if (!smu_table->clocks_table)
 		goto err0_out;
 
-	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t, GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		goto err1_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->watermarks_table = kzalloc_obj(Watermarks_t, GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 

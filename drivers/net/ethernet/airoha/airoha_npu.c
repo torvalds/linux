@@ -333,7 +333,7 @@ static int airoha_npu_ppe_init(struct airoha_npu *npu)
 	struct ppe_mbox_data *ppe_data;
 	int err;
 
-	ppe_data = kzalloc_obj(*ppe_data, GFP_KERNEL);
+	ppe_data = kzalloc_obj(*ppe_data);
 	if (!ppe_data)
 		return -ENOMEM;
 
@@ -354,7 +354,7 @@ static int airoha_npu_ppe_deinit(struct airoha_npu *npu)
 	struct ppe_mbox_data *ppe_data;
 	int err;
 
-	ppe_data = kzalloc_obj(*ppe_data, GFP_KERNEL);
+	ppe_data = kzalloc_obj(*ppe_data);
 	if (!ppe_data)
 		return -ENOMEM;
 
@@ -375,7 +375,7 @@ static int airoha_npu_ppe_flush_sram_entries(struct airoha_npu *npu,
 	struct ppe_mbox_data *ppe_data;
 	int err;
 
-	ppe_data = kzalloc_obj(*ppe_data, GFP_KERNEL);
+	ppe_data = kzalloc_obj(*ppe_data);
 	if (!ppe_data)
 		return -ENOMEM;
 

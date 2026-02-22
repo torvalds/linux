@@ -69,7 +69,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	struct md_rdev *smallest, *rdev1, *rdev2, *rdev, **dev;
 	struct strip_zone *zone;
 	int cnt;
-	struct r0conf *conf = kzalloc_obj(*conf, GFP_KERNEL);
+	struct r0conf *conf = kzalloc_obj(*conf);
 	unsigned int blksize = 512;
 
 	if (!mddev_is_dm(mddev))

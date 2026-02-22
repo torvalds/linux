@@ -820,7 +820,7 @@ static struct clk_hw *ast2700_clk_hw_register_gate(struct device *dev, const cha
 	struct clk_hw *hw;
 	int ret = -EINVAL;
 
-	gate = kzalloc_obj(*gate, GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

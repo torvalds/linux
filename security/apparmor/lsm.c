@@ -2468,7 +2468,7 @@ static int __init aa_setup_dfa_engine(void)
 		goto fail;
 	}
 	nullpdb->dfa = aa_get_dfa(nulldfa);
-	nullpdb->perms = kzalloc_objs(struct aa_perms, 2, GFP_KERNEL);
+	nullpdb->perms = kzalloc_objs(struct aa_perms, 2);
 	if (!nullpdb->perms)
 		goto fail;
 	nullpdb->size = 2;

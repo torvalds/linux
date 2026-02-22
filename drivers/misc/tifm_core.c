@@ -252,7 +252,7 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
 	if (!tifm_media_type_name(type, 0))
 		return sock;
 
-	sock = kzalloc_obj(struct tifm_dev, GFP_KERNEL);
+	sock = kzalloc_obj(struct tifm_dev);
 	if (sock) {
 		spin_lock_init(&sock->lock);
 		sock->type = type;

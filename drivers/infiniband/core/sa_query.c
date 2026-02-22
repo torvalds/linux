@@ -1607,7 +1607,7 @@ static void ib_sa_service_rec_callback(struct ib_sa_query *sa_query, int status,
 		return;
 	}
 
-	rec = kmalloc_objs(*rec, num_services, GFP_KERNEL);
+	rec = kmalloc_objs(*rec, num_services);
 	if (!rec) {
 		query->callback(-ENOMEM, NULL, 0, query->context);
 		return;
@@ -2188,7 +2188,7 @@ static void update_ib_cpi(struct work_struct *work)
 	}
 	spin_unlock_irqrestore(&port->classport_lock, flags);
 
-	cb_context = kmalloc_obj(*cb_context, GFP_KERNEL);
+	cb_context = kmalloc_obj(*cb_context);
 	if (!cb_context)
 		goto err_nomem;
 
@@ -2306,7 +2306,7 @@ static void update_sm_ah(struct work_struct *work)
 		return;
 	}
 
-	new_ah = kmalloc_obj(*new_ah, GFP_KERNEL);
+	new_ah = kmalloc_obj(*new_ah);
 	if (!new_ah)
 		return;
 

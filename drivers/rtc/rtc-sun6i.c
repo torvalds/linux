@@ -233,7 +233,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node,
 	const char *parents[2];
 	u32 reg;
 
-	rtc = kzalloc_obj(*rtc, GFP_KERNEL);
+	rtc = kzalloc_obj(*rtc);
 	if (!rtc)
 		return;
 

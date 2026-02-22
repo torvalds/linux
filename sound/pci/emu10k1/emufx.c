@@ -776,7 +776,7 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
 			return -ENOENT;
 	}
-	gctl = kmalloc_obj(*gctl, GFP_KERNEL);
+	gctl = kmalloc_obj(*gctl);
 	if (! gctl)
 		return -ENOMEM;
 	err = 0;
@@ -864,9 +864,9 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 	struct snd_ctl_elem_value *val;
 	int err = 0;
 
-	val = kmalloc_obj(*val, GFP_KERNEL);
-	gctl = kmalloc_obj(*gctl, GFP_KERNEL);
-	nctl = kmalloc_obj(*nctl, GFP_KERNEL);
+	val = kmalloc_obj(*val);
+	gctl = kmalloc_obj(*gctl);
+	nctl = kmalloc_obj(*nctl);
 	if (!val || !gctl || !nctl) {
 		err = -ENOMEM;
 		goto __error;
@@ -914,7 +914,7 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		nctl->max = gctl->max;
 		nctl->translation = gctl->translation;
 		if (ctl == NULL) {
-			ctl = kmalloc_obj(*ctl, GFP_KERNEL);
+			ctl = kmalloc_obj(*ctl);
 			if (ctl == NULL) {
 				err = -ENOMEM;
 				kfree(knew.tlv.p);
@@ -980,7 +980,7 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_ctl_elem_id *id;
 
-	gctl = kmalloc_obj(*gctl, GFP_KERNEL);
+	gctl = kmalloc_obj(*gctl);
 	if (! gctl)
 		return -ENOMEM;
 
@@ -1282,7 +1282,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 
 	err = -ENOMEM;
-	icode = kzalloc_obj(*icode, GFP_KERNEL);
+	icode = kzalloc_obj(*icode);
 	if (!icode)
 		return err;
 
@@ -1290,7 +1290,7 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 				      GFP_KERNEL);
 	if (!icode->gpr_map)
 		goto __err_gpr;
-	controls = kzalloc_objs(*controls, SND_EMU10K1_GPR_CONTROLS, GFP_KERNEL);
+	controls = kzalloc_objs(*controls, SND_EMU10K1_GPR_CONTROLS);
 	if (!controls)
 		goto __err_ctrls;
 
@@ -1799,7 +1799,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 
 	err = -ENOMEM;
-	icode = kzalloc_obj(*icode, GFP_KERNEL);
+	icode = kzalloc_obj(*icode);
 	if (!icode)
 		return err;
 
@@ -1813,7 +1813,7 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	if (!controls)
 		goto __err_ctrls;
 
-	ipcm = kzalloc_obj(*ipcm, GFP_KERNEL);
+	ipcm = kzalloc_obj(*ipcm);
 	if (!ipcm)
 		goto __err_ipcm;
 

@@ -898,7 +898,7 @@ static int uhdlc_suspend(struct device *dev)
 	priv->gumr = ioread32be(&uf_regs->gumr);
 	priv->guemr = ioread8(&uf_regs->guemr);
 
-	priv->ucc_pram_bak = kmalloc_obj(*priv->ucc_pram_bak, GFP_KERNEL);
+	priv->ucc_pram_bak = kmalloc_obj(*priv->ucc_pram_bak);
 	if (!priv->ucc_pram_bak)
 		return -ENOMEM;
 
@@ -1170,7 +1170,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	ut_info->uf_info.regs = res.start;
 	ut_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	uhdlc_priv = kzalloc_obj(*uhdlc_priv, GFP_KERNEL);
+	uhdlc_priv = kzalloc_obj(*uhdlc_priv);
 	if (!uhdlc_priv)
 		return -ENOMEM;
 
@@ -1183,7 +1183,7 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	uhdlc_priv->hdlc_bus = of_property_read_bool(np, "fsl,hdlc-bus");
 
 	if (uhdlc_priv->tsa == 1) {
-		utdm = kzalloc_obj(*utdm, GFP_KERNEL);
+		utdm = kzalloc_obj(*utdm);
 		if (!utdm) {
 			ret = -ENOMEM;
 			dev_err(&pdev->dev, "No mem to alloc ucc tdm data\n");

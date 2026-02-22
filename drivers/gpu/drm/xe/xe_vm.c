@@ -667,7 +667,7 @@ static int xe_vm_ops_add_rebind(struct xe_vma_ops *vops, struct xe_vma *vma,
 {
 	struct xe_vma_op *op;
 
-	op = kzalloc_obj(*op, GFP_KERNEL);
+	op = kzalloc_obj(*op);
 	if (!op)
 		return -ENOMEM;
 
@@ -803,7 +803,7 @@ xe_vm_ops_add_range_rebind(struct xe_vma_ops *vops,
 {
 	struct xe_vma_op *op;
 
-	op = kzalloc_obj(*op, GFP_KERNEL);
+	op = kzalloc_obj(*op);
 	if (!op)
 		return -ENOMEM;
 
@@ -889,7 +889,7 @@ xe_vm_ops_add_range_unbind(struct xe_vma_ops *vops,
 {
 	struct xe_vma_op *op;
 
-	op = kzalloc_obj(*op, GFP_KERNEL);
+	op = kzalloc_obj(*op);
 	if (!op)
 		return -ENOMEM;
 
@@ -1008,14 +1008,14 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	 * matches what was allocated.
 	 */
 	if (!bo && !is_null && !is_cpu_addr_mirror) {
-		struct xe_userptr_vma *uvma = kzalloc_obj(*uvma, GFP_KERNEL);
+		struct xe_userptr_vma *uvma = kzalloc_obj(*uvma);
 
 		if (!uvma)
 			return ERR_PTR(-ENOMEM);
 
 		vma = &uvma->vma;
 	} else {
-		vma = kzalloc_obj(*vma, GFP_KERNEL);
+		vma = kzalloc_obj(*vma);
 		if (!vma)
 			return ERR_PTR(-ENOMEM);
 
@@ -1235,7 +1235,7 @@ static struct drm_gpuva_op *xe_vm_op_alloc(void)
 {
 	struct xe_vma_op *op;
 
-	op = kzalloc_obj(*op, GFP_KERNEL);
+	op = kzalloc_obj(*op);
 
 	if (unlikely(!op))
 		return NULL;
@@ -3161,7 +3161,7 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 				++n_fence;
 	}
 
-	fences = kmalloc_objs(*fences, n_fence, GFP_KERNEL);
+	fences = kmalloc_objs(*fences, n_fence);
 	if (!fences) {
 		fence = ERR_PTR(-ENOMEM);
 		goto err_trace;
@@ -3705,7 +3705,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (args->num_syncs) {
-		syncs = kzalloc_objs(*syncs, args->num_syncs, GFP_KERNEL);
+		syncs = kzalloc_objs(*syncs, args->num_syncs);
 		if (!syncs) {
 			err = -ENOMEM;
 			goto put_obj;

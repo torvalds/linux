@@ -505,7 +505,7 @@ static void phy_enable_work(struct work_struct *work)
 
 static int sas_phy_setup(struct sas_phy *phy)
 {
-	struct sas_phy_data *d = kzalloc_obj(*d, GFP_KERNEL);
+	struct sas_phy_data *d = kzalloc_obj(*d);
 
 	if (!d)
 		return -ENOMEM;

@@ -1676,7 +1676,7 @@ fore200e_getstats(struct fore200e* fore200e)
     u32                     stats_dma_addr;
 
     if (fore200e->stats == NULL) {
-	fore200e->stats = kzalloc_obj(struct stats, GFP_KERNEL);
+	fore200e->stats = kzalloc_obj(struct stats);
 	if (fore200e->stats == NULL)
 	    return -ENOMEM;
     }
@@ -1955,7 +1955,7 @@ static int fore200e_irq_request(struct fore200e *fore200e)
 
 static int fore200e_get_esi(struct fore200e *fore200e)
 {
-    struct prom_data* prom = kzalloc_obj(struct prom_data, GFP_KERNEL);
+    struct prom_data* prom = kzalloc_obj(struct prom_data);
     int ok, i;
 
     if (!prom)
@@ -2000,7 +2000,7 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
 	    DPRINTK(2, "rx buffers %d / %d are being allocated\n", scheme, magn);
 
 	    /* allocate the array of receive buffers */
-	    buffer = bsq->buffer = kzalloc_objs(struct buffer, nbr, GFP_KERNEL);
+	    buffer = bsq->buffer = kzalloc_objs(struct buffer, nbr);
 
 	    if (buffer == NULL)
 		return -ENOMEM;
@@ -2528,7 +2528,7 @@ static int fore200e_sba_probe(struct platform_device *op)
 	static int index = 0;
 	int err;
 
-	fore200e = kzalloc_obj(struct fore200e, GFP_KERNEL);
+	fore200e = kzalloc_obj(struct fore200e);
 	if (!fore200e)
 		return -ENOMEM;
 
@@ -2596,7 +2596,7 @@ static int fore200e_pca_detect(struct pci_dev *pci_dev,
 	goto out;
     }
     
-    fore200e = kzalloc_obj(struct fore200e, GFP_KERNEL);
+    fore200e = kzalloc_obj(struct fore200e);
     if (fore200e == NULL) {
 	err = -ENOMEM;
 	goto out_disable;

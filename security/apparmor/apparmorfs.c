@@ -570,7 +570,7 @@ static ssize_t ns_revision_read(struct file *file, char __user *buf,
 
 static int ns_revision_open(struct inode *inode, struct file *file)
 {
-	struct aa_revision *rev = kzalloc_obj(*rev, GFP_KERNEL);
+	struct aa_revision *rev = kzalloc_obj(*rev);
 
 	if (!rev)
 		return -ENOMEM;

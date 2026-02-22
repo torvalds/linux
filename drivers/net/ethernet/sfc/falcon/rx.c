@@ -701,7 +701,7 @@ int ef4_probe_rx_queue(struct ef4_rx_queue *rx_queue)
 		  rx_queue->ptr_mask);
 
 	/* Allocate RX buffers */
-	rx_queue->buffer = kzalloc_objs(*rx_queue->buffer, entries, GFP_KERNEL);
+	rx_queue->buffer = kzalloc_objs(*rx_queue->buffer, entries);
 	if (!rx_queue->buffer)
 		return -ENOMEM;
 

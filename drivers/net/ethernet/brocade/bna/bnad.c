@@ -2640,7 +2640,7 @@ bnad_enable_msix(struct bnad *bnad)
 		return;
 
 	bnad->msix_table =
-		kzalloc_objs(struct msix_entry, bnad->msix_num, GFP_KERNEL);
+		kzalloc_objs(struct msix_entry, bnad->msix_num);
 
 	if (!bnad->msix_table)
 		goto intx_mode;

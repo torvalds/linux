@@ -247,7 +247,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 	int err, pos, total;
 	u32 id;
 
-	meter = kzalloc_obj(*meter, GFP_KERNEL);
+	meter = kzalloc_obj(*meter);
 	if (!meter)
 		return ERR_PTR(-ENOMEM);
 
@@ -526,7 +526,7 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	flow_meters = kzalloc_obj(*flow_meters, GFP_KERNEL);
+	flow_meters = kzalloc_obj(*flow_meters);
 	if (!flow_meters)
 		return ERR_PTR(-ENOMEM);
 

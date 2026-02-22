@@ -624,9 +624,9 @@ int ubifs_create_dflt_lpt(struct ubifs_info *c, int *main_lebs, int lpt_first,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	lsave = kmalloc_objs(int, c->lsave_cnt, GFP_KERNEL);
-	pnode = kzalloc_obj(struct ubifs_pnode, GFP_KERNEL);
-	nnode = kzalloc_obj(struct ubifs_nnode, GFP_KERNEL);
+	lsave = kmalloc_objs(int, c->lsave_cnt);
+	pnode = kzalloc_obj(struct ubifs_pnode);
+	nnode = kzalloc_obj(struct ubifs_nnode);
 	buf = vmalloc(c->leb_size);
 	ltab = vmalloc_array(c->lpt_lebs,
 			     sizeof(struct ubifs_lpt_lprops));

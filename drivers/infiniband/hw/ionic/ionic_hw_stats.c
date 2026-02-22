@@ -240,7 +240,7 @@ ionic_counter_alloc_stats(struct rdma_counter *counter)
 	struct ionic_counter *cntr;
 	int err;
 
-	cntr = kzalloc_obj(*cntr, GFP_KERNEL);
+	cntr = kzalloc_obj(*cntr);
 	if (!cntr)
 		return NULL;
 

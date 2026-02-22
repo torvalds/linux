@@ -2535,7 +2535,7 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	if (nr_slots > (INT_MAX / sizeof(struct hlist_nulls_head)))
 		return NULL;
 
-	hash = kvzalloc_objs(struct hlist_nulls_head, nr_slots, GFP_KERNEL);
+	hash = kvzalloc_objs(struct hlist_nulls_head, nr_slots);
 
 	if (hash && nulls)
 		for (i = 0; i < nr_slots; i++)

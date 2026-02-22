@@ -59,7 +59,7 @@ struct iwl_phy_db_chg_txp {
 
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 {
-	struct iwl_phy_db *phy_db = kzalloc_obj(struct iwl_phy_db, GFP_KERNEL);
+	struct iwl_phy_db *phy_db = kzalloc_obj(struct iwl_phy_db);
 
 	if (!phy_db)
 		return phy_db;

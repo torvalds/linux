@@ -1264,7 +1264,7 @@ static int mlxsw_pci_queue_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	if (!mem_item->buf)
 		return -ENOMEM;
 
-	q->elem_info = kzalloc_objs(*q->elem_info, q->count, GFP_KERNEL);
+	q->elem_info = kzalloc_objs(*q->elem_info, q->count);
 	if (!q->elem_info) {
 		err = -ENOMEM;
 		goto err_elem_info_alloc;
@@ -1316,7 +1316,7 @@ static int mlxsw_pci_queue_group_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	int err;
 
 	queue_group = mlxsw_pci_queue_type_group_get(mlxsw_pci, q_ops->type);
-	queue_group->q = kzalloc_objs(*queue_group->q, num_qs, GFP_KERNEL);
+	queue_group->q = kzalloc_objs(*queue_group->q, num_qs);
 	if (!queue_group->q)
 		return -ENOMEM;
 
@@ -2414,7 +2414,7 @@ static int mlxsw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct mlxsw_pci *mlxsw_pci;
 	int err;
 
-	mlxsw_pci = kzalloc_obj(*mlxsw_pci, GFP_KERNEL);
+	mlxsw_pci = kzalloc_obj(*mlxsw_pci);
 	if (!mlxsw_pci)
 		return -ENOMEM;
 

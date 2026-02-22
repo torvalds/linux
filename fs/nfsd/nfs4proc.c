@@ -451,7 +451,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	int accmode;
 	__be32 status;
 
-	*resfh = kmalloc_obj(struct svc_fh, GFP_KERNEL);
+	*resfh = kmalloc_obj(struct svc_fh);
 	if (!*resfh)
 		return nfserr_jukebox;
 	fh_init(*resfh, NFS4_FHSIZE);
@@ -1630,7 +1630,7 @@ static __be32 nfsd4_ssc_setup_dul(struct nfsd_net *nn, char *ipaddr,
 	__be32 status = 0;
 
 	*nsui = NULL;
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 try_again:
 	spin_lock(&nn->nfsd_ssc_lock);
 	list_for_each_entry_safe(ni, tmp, &nn->nfsd_ssc_mount_list, nsui_list) {
@@ -2160,7 +2160,7 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	memcpy(&copy->fh, &cstate->current_fh.fh_handle,
 		sizeof(struct knfsd_fh));
 	if (nfsd4_copy_is_async(copy)) {
-		async_copy = kzalloc_obj(struct nfsd4_copy, GFP_KERNEL);
+		async_copy = kzalloc_obj(struct nfsd4_copy);
 		if (!async_copy)
 			goto out_err;
 		async_copy->cp_nn = nn;

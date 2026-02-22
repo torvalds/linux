@@ -46,7 +46,7 @@ static void lan966x_fdb_add_entry(struct lan966x *lan966x,
 		return;
 	}
 
-	fdb_entry = kzalloc_obj(*fdb_entry, GFP_KERNEL);
+	fdb_entry = kzalloc_obj(*fdb_entry);
 	if (!fdb_entry)
 		return;
 

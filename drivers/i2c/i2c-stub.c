@@ -372,7 +372,7 @@ static int __init i2c_stub_init(void)
 
 	/* Allocate memory for all chips at once */
 	stub_chips_nr = i;
-	stub_chips = kzalloc_objs(struct stub_chip, stub_chips_nr, GFP_KERNEL);
+	stub_chips = kzalloc_objs(struct stub_chip, stub_chips_nr);
 	if (!stub_chips)
 		return -ENOMEM;
 

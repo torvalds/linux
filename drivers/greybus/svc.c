@@ -1128,7 +1128,7 @@ static int gb_svc_queue_deferred_request(struct gb_operation *operation)
 	struct gb_svc *svc = gb_connection_get_data(operation->connection);
 	struct gb_svc_deferred_request *dr;
 
-	dr = kmalloc_obj(*dr, GFP_KERNEL);
+	dr = kmalloc_obj(*dr);
 	if (!dr)
 		return -ENOMEM;
 
@@ -1315,7 +1315,7 @@ struct gb_svc *gb_svc_create(struct gb_host_device *hd)
 {
 	struct gb_svc *svc;
 
-	svc = kzalloc_obj(*svc, GFP_KERNEL);
+	svc = kzalloc_obj(*svc);
 	if (!svc)
 		return NULL;
 

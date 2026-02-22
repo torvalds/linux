@@ -829,11 +829,11 @@ int amdgpu_amdkfd_unmap_hiq(struct amdgpu_device *adev, u32 doorbell_off,
 	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
-	ring_funcs = kzalloc_obj(*ring_funcs, GFP_KERNEL);
+	ring_funcs = kzalloc_obj(*ring_funcs);
 	if (!ring_funcs)
 		return -ENOMEM;
 
-	ring = kzalloc_obj(*ring, GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring) {
 		r = -ENOMEM;
 		goto free_ring_funcs;

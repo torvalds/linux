@@ -1406,7 +1406,7 @@ static int mlx5_clock_alloc(struct mlx5_core_dev *mdev, bool shared)
 	struct mlx5_clock_priv *cpriv;
 	struct mlx5_clock *clock;
 
-	cpriv = kzalloc_obj(*cpriv, GFP_KERNEL);
+	cpriv = kzalloc_obj(*cpriv);
 	if (!cpriv)
 		return -ENOMEM;
 
@@ -1603,7 +1603,7 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 		return 0;
 	}
 
-	clock_state = kzalloc_obj(*clock_state, GFP_KERNEL);
+	clock_state = kzalloc_obj(*clock_state);
 	if (!clock_state)
 		return -ENOMEM;
 	clock_state->mdev = mdev;

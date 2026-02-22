@@ -1065,7 +1065,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 	/* although the numbers above are not valid since long ago, the
 	   point is still up-to-date and the comment still has its value
 	   even if only as a historical artifact.  --mj, July 1998 */
-	param.vc = vc = kzalloc_obj(struct vc_data, GFP_KERNEL);
+	param.vc = vc = kzalloc_obj(struct vc_data);
 	if (!vc)
 		return -ENOMEM;
 

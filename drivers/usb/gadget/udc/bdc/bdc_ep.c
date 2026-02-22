@@ -1945,7 +1945,7 @@ static int init_ep(struct bdc *bdc, u32 epnum, u32 dir)
 	struct bdc_ep *ep;
 
 	dev_dbg(bdc->dev, "%s epnum=%d dir=%d\n", __func__, epnum, dir);
-	ep = kzalloc_obj(*ep, GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 

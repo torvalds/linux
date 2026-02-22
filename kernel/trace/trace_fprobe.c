@@ -99,7 +99,7 @@ static struct tracepoint_user *__tracepoint_user_init(const char *name, struct t
 	struct tracepoint_user *tuser __free(tuser_free) = NULL;
 	int ret;
 
-	tuser = kzalloc_obj(*tuser, GFP_KERNEL);
+	tuser = kzalloc_obj(*tuser);
 	if (!tuser)
 		return NULL;
 	tuser->name = kstrdup(name, GFP_KERNEL);
@@ -1403,7 +1403,7 @@ static int trace_fprobe_create_cb(int argc, const char *argv[])
 	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

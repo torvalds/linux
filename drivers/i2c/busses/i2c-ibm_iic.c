@@ -687,7 +687,7 @@ static int iic_probe(struct platform_device *ofdev)
 	const u32 *freq;
 	int ret;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

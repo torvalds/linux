@@ -228,13 +228,13 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		args->vec.addr, args->vec.bytes, nr_pages);
 
 	/* XXX clamp nr_pages to limit the size of this alloc? */
-	pages = kzalloc_objs(struct page *, nr_pages, GFP_KERNEL);
+	pages = kzalloc_objs(struct page *, nr_pages);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	mr = kzalloc_obj(struct rds_mr, GFP_KERNEL);
+	mr = kzalloc_obj(struct rds_mr);
 	if (!mr) {
 		ret = -ENOMEM;
 		goto out;
@@ -269,7 +269,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		goto out;
 	} else {
 		nents = ret;
-		sg = kmalloc_objs(*sg, nents, GFP_KERNEL);
+		sg = kmalloc_objs(*sg, nents);
 		if (!sg) {
 			ret = -ENOMEM;
 			goto out;
@@ -571,7 +571,7 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 	if (args->nr_local > UIO_MAXIOV)
 		return -EMSGSIZE;
 
-	iov->iov = kzalloc_objs(struct rds_iovec, args->nr_local, GFP_KERNEL);
+	iov->iov = kzalloc_objs(struct rds_iovec, args->nr_local);
 	if (!iov->iov)
 		return -ENOMEM;
 
@@ -652,7 +652,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		goto out_ret;
 	}
 
-	pages = kzalloc_objs(struct page *, nr_pages, GFP_KERNEL);
+	pages = kzalloc_objs(struct page *, nr_pages);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out_ret;
@@ -679,7 +679,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		op->op_notifier = kmalloc_obj(struct rds_notifier, GFP_KERNEL);
+		op->op_notifier = kmalloc_obj(struct rds_notifier);
 		if (!op->op_notifier) {
 			ret = -ENOMEM;
 			goto out_pages;
@@ -728,7 +728,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 				ret = -EOPNOTSUPP;
 				goto out_pages;
 			}
-			local_odp_mr = kzalloc_obj(*local_odp_mr, GFP_KERNEL);
+			local_odp_mr = kzalloc_obj(*local_odp_mr);
 			if (!local_odp_mr) {
 				ret = -ENOMEM;
 				goto out_pages;

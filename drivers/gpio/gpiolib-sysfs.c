@@ -761,7 +761,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		goto err_clear_bit;
 	}
 
-	desc_data = kzalloc_obj(*desc_data, GFP_KERNEL);
+	desc_data = kzalloc_obj(*desc_data);
 	if (!desc_data) {
 		status = -ENOMEM;
 		goto err_clear_bit;
@@ -1014,7 +1014,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	else
 		parent = &gdev->dev;
 
-	data = kmalloc_obj(*data, GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

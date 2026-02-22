@@ -560,7 +560,7 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (!laddr->sin_port || !raddr->sin_port)
 		return -EINVAL;
 
-	ep = kzalloc_obj(*ep, GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 
@@ -672,7 +672,7 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	DP_DEBUG(dev, QEDR_MSG_IWARP,
 		 "Create Listener address: %pISpc\n", &cm_id->local_addr);
 
-	listener = kzalloc_obj(*listener, GFP_KERNEL);
+	listener = kzalloc_obj(*listener);
 	if (!listener)
 		return -ENOMEM;
 

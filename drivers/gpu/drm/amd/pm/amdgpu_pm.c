@@ -2746,7 +2746,7 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 			name, ret);
 	}
 
-	attr_entry = kmalloc_obj(*attr_entry, GFP_KERNEL);
+	attr_entry = kmalloc_obj(*attr_entry);
 	if (!attr_entry)
 		return -ENOMEM;
 
@@ -4592,7 +4592,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 	int ret;
 
 	/* Setup the top `gpu_od` directory which holds all other OD interfaces */
-	top_set = kzalloc_obj(*top_set, GFP_KERNEL);
+	top_set = kzalloc_obj(*top_set);
 	if (!top_set)
 		return -ENOMEM;
 	list_add(&top_set->entry, &adev->pm.od_kobj_list);
@@ -4629,7 +4629,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 			 * The container is presented as a plain file under top `gpu_od`
 			 * directory.
 			 */
-			attribute = kzalloc_obj(*attribute, GFP_KERNEL);
+			attribute = kzalloc_obj(*attribute);
 			if (!attribute) {
 				ret = -ENOMEM;
 				goto err_out;
@@ -4649,7 +4649,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 				goto err_out;
 		} else {
 			/* The container is presented as a sub directory. */
-			sub_set = kzalloc_obj(*sub_set, GFP_KERNEL);
+			sub_set = kzalloc_obj(*sub_set);
 			if (!sub_set) {
 				ret = -ENOMEM;
 				goto err_out;
@@ -4679,7 +4679,7 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 				 * With the container presented as a sub directory, the entry within
 				 * it is presented as a plain file under the sub directory.
 				 */
-				attribute = kzalloc_obj(*attribute, GFP_KERNEL);
+				attribute = kzalloc_obj(*attribute);
 				if (!attribute) {
 					ret = -ENOMEM;
 					goto err_out;

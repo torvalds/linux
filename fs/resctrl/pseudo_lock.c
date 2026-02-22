@@ -154,7 +154,7 @@ static int pseudo_lock_cstates_constrain(struct pseudo_lock_region *plr)
 	int ret;
 
 	for_each_cpu(cpu, &plr->d->hdr.cpu_mask) {
-		pm_req = kzalloc_obj(*pm_req, GFP_KERNEL);
+		pm_req = kzalloc_obj(*pm_req);
 		if (!pm_req) {
 			rdt_last_cmd_puts("Failure to allocate memory for PM QoS\n");
 			ret = -ENOMEM;
@@ -270,7 +270,7 @@ static int pseudo_lock_init(struct rdtgroup *rdtgrp)
 {
 	struct pseudo_lock_region *plr;
 
-	plr = kzalloc_obj(*plr, GFP_KERNEL);
+	plr = kzalloc_obj(*plr);
 	if (!plr)
 		return -ENOMEM;
 

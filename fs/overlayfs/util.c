@@ -113,7 +113,7 @@ bool ovl_verify_lower(struct super_block *sb)
 
 struct ovl_path *ovl_stack_alloc(unsigned int n)
 {
-	return kzalloc_objs(struct ovl_path, n, GFP_KERNEL);
+	return kzalloc_objs(struct ovl_path, n);
 }
 
 void ovl_stack_cpy(struct ovl_path *dst, struct ovl_path *src, unsigned int n)

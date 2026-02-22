@@ -110,7 +110,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 	struct cpufreq_frequency_table *table;
 	int i;
 
-	table = kzalloc_objs(*table, num + 1, GFP_KERNEL);
+	table = kzalloc_objs(*table, num + 1);
 	if (table == NULL)
 		return -ENOMEM;
 

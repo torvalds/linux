@@ -485,7 +485,7 @@ __prestera_kern_neigh_cache_create(struct prestera_switch *sw,
 	struct prestera_kern_neigh_cache *n_cache;
 	int err;
 
-	n_cache = kzalloc_obj(*n_cache, GFP_KERNEL);
+	n_cache = kzalloc_obj(*n_cache);
 	if (!n_cache)
 		goto err_kzalloc;
 
@@ -623,7 +623,7 @@ prestera_kern_fib_cache_create(struct prestera_switch *sw,
 	struct prestera_kern_fib_cache *fib_cache;
 	int err;
 
-	fib_cache = kzalloc_obj(*fib_cache, GFP_KERNEL);
+	fib_cache = kzalloc_obj(*fib_cache);
 	if (!fib_cache)
 		goto err_kzalloc;
 
@@ -1550,7 +1550,7 @@ int prestera_router_init(struct prestera_switch *sw)
 	struct prestera_router *router;
 	int err, nhgrp_cache_bytes;
 
-	router = kzalloc_obj(*sw->router, GFP_KERNEL);
+	router = kzalloc_obj(*sw->router);
 	if (!router)
 		return -ENOMEM;
 

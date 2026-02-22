@@ -287,7 +287,7 @@ struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
 	if (!allocated_image)
 		goto err_image;
 
-	resource = kmalloc_obj(*resource, GFP_KERNEL);
+	resource = kmalloc_obj(*resource);
 	if (!resource)
 		goto err_alloc;
 
@@ -484,7 +484,7 @@ struct vme_resource *vme_master_request(struct vme_dev *vdev, u32 address,
 		goto err_image;
 	}
 
-	resource = kmalloc_obj(*resource, GFP_KERNEL);
+	resource = kmalloc_obj(*resource);
 	if (!resource)
 		goto err_alloc;
 
@@ -854,7 +854,7 @@ struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 	if (!allocated_ctrlr)
 		goto err_ctrlr;
 
-	resource = kmalloc_obj(*resource, GFP_KERNEL);
+	resource = kmalloc_obj(*resource);
 	if (!resource)
 		goto err_alloc;
 
@@ -894,7 +894,7 @@ struct vme_dma_list *vme_new_dma_list(struct vme_resource *resource)
 		return NULL;
 	}
 
-	dma_list = kmalloc_obj(*dma_list, GFP_KERNEL);
+	dma_list = kmalloc_obj(*dma_list);
 	if (!dma_list)
 		return NULL;
 
@@ -924,11 +924,11 @@ struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern, u32 type)
 	struct vme_dma_attr *attributes;
 	struct vme_dma_pattern *pattern_attr;
 
-	attributes = kmalloc_obj(*attributes, GFP_KERNEL);
+	attributes = kmalloc_obj(*attributes);
 	if (!attributes)
 		goto err_attr;
 
-	pattern_attr = kmalloc_obj(*pattern_attr, GFP_KERNEL);
+	pattern_attr = kmalloc_obj(*pattern_attr);
 	if (!pattern_attr)
 		goto err_pat;
 
@@ -964,11 +964,11 @@ struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t address)
 
 	/* XXX Run some sanity checks here */
 
-	attributes = kmalloc_obj(*attributes, GFP_KERNEL);
+	attributes = kmalloc_obj(*attributes);
 	if (!attributes)
 		goto err_attr;
 
-	pci_attr = kmalloc_obj(*pci_attr, GFP_KERNEL);
+	pci_attr = kmalloc_obj(*pci_attr);
 	if (!pci_attr)
 		goto err_pci;
 
@@ -1005,11 +1005,11 @@ struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
 	struct vme_dma_attr *attributes;
 	struct vme_dma_vme *vme_attr;
 
-	attributes = kmalloc_obj(*attributes, GFP_KERNEL);
+	attributes = kmalloc_obj(*attributes);
 	if (!attributes)
 		goto err_attr;
 
-	vme_attr = kmalloc_obj(*vme_attr, GFP_KERNEL);
+	vme_attr = kmalloc_obj(*vme_attr);
 	if (!vme_attr)
 		goto err_vme;
 
@@ -1458,7 +1458,7 @@ struct vme_resource *vme_lm_request(struct vme_dev *vdev)
 	if (!allocated_lm)
 		goto err_lm;
 
-	resource = kmalloc_obj(*resource, GFP_KERNEL);
+	resource = kmalloc_obj(*resource);
 	if (!resource)
 		goto err_alloc;
 
@@ -1810,7 +1810,7 @@ static int __vme_register_driver_bus(struct vme_driver *drv,
 	struct vme_dev *tmp;
 
 	for (i = 0; i < ndevs; i++) {
-		vdev = kzalloc_obj(*vdev, GFP_KERNEL);
+		vdev = kzalloc_obj(*vdev);
 		if (!vdev) {
 			err = -ENOMEM;
 			goto err_devalloc;

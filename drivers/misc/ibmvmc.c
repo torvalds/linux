@@ -830,7 +830,7 @@ static int ibmvmc_open(struct inode *inode, struct file *file)
 		 (unsigned long)inode, (unsigned long)file,
 		 ibmvmc.state);
 
-	session = kzalloc_obj(*session, GFP_KERNEL);
+	session = kzalloc_obj(*session);
 	if (!session)
 		return -ENOMEM;
 

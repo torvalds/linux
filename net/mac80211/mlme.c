@@ -10839,7 +10839,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	if (added_links) {
 		bool uapsd_supported;
 
-		data = kzalloc_obj(*data, GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 

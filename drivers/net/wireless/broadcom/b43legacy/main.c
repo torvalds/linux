@@ -3738,7 +3738,7 @@ static int b43legacy_one_core_attach(struct ssb_device *dev,
 	struct b43legacy_wldev *wldev;
 	int err = -ENOMEM;
 
-	wldev = kzalloc_obj(*wldev, GFP_KERNEL);
+	wldev = kzalloc_obj(*wldev);
 	if (!wldev)
 		goto out;
 

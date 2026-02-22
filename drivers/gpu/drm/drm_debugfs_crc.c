@@ -224,7 +224,7 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 	if (WARN_ON(values_cnt == 0))
 		return -EINVAL;
 
-	entries = kzalloc_objs(*entries, DRM_CRC_ENTRIES_NR, GFP_KERNEL);
+	entries = kzalloc_objs(*entries, DRM_CRC_ENTRIES_NR);
 	if (!entries)
 		return -ENOMEM;
 

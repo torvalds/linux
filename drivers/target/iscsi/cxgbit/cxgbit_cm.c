@@ -79,7 +79,7 @@ static struct np_info *
 cxgbit_np_hash_add(struct cxgbit_device *cdev, struct cxgbit_np *cnp,
 		   unsigned int stid)
 {
-	struct np_info *p = kzalloc_obj(*p, GFP_KERNEL);
+	struct np_info *p = kzalloc_obj(*p);
 
 	if (p) {
 		int bucket = cxgbit_np_hashfn(cnp);
@@ -431,7 +431,7 @@ int cxgbit_setup_np(struct iscsi_np *np, struct sockaddr_storage *ksockaddr)
 	    (ksockaddr->ss_family != AF_INET6))
 		return -EINVAL;
 
-	cnp = kzalloc_obj(*cnp, GFP_KERNEL);
+	cnp = kzalloc_obj(*cnp);
 	if (!cnp)
 		return -ENOMEM;
 

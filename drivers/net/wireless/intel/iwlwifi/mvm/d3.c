@@ -460,7 +460,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 		struct wowlan_key_rsc_v5_data data = {};
 		int i;
 
-		data.rsc = kzalloc_obj(*data.rsc, GFP_KERNEL);
+		data.rsc = kzalloc_obj(*data.rsc);
 		if (!data.rsc)
 			return -ENOMEM;
 
@@ -483,7 +483,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 	} else if (ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
 		struct wowlan_key_rsc_tsc_data data = {};
 
-		data.rsc_tsc = kzalloc_obj(*data.rsc_tsc, GFP_KERNEL);
+		data.rsc_tsc = kzalloc_obj(*data.rsc_tsc);
 		if (!data.rsc_tsc)
 			return -ENOMEM;
 
@@ -3091,7 +3091,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm)
 	}
 
 	if (resume_notif_based) {
-		d3_data.status = kzalloc_obj(*d3_data.status, GFP_KERNEL);
+		d3_data.status = kzalloc_obj(*d3_data.status);
 		if (!d3_data.status) {
 			IWL_ERR(mvm, "Failed to allocate wowlan status\n");
 			ret = -ENOMEM;

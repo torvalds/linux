@@ -498,7 +498,7 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 	if (!sbi->xattr_prefix_count)
 		return 0;
 
-	pfs = kzalloc_objs(*pfs, sbi->xattr_prefix_count, GFP_KERNEL);
+	pfs = kzalloc_objs(*pfs, sbi->xattr_prefix_count);
 	if (!pfs)
 		return -ENOMEM;
 

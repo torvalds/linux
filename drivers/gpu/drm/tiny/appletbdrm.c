@@ -225,7 +225,7 @@ static int appletbdrm_send_msg(struct appletbdrm_device *adev, __le32 msg)
 	struct appletbdrm_msg_simple_request *request;
 	int ret;
 
-	request = kzalloc_obj(*request, GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request)
 		return -ENOMEM;
 
@@ -260,7 +260,7 @@ static int appletbdrm_get_information(struct appletbdrm_device *adev)
 	__le32 pixel_format;
 	int ret;
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -506,7 +506,7 @@ static void appletbdrm_primary_plane_reset(struct drm_plane *plane)
 
 	WARN_ON(plane->state);
 
-	appletbdrm_state = kzalloc_obj(*appletbdrm_state, GFP_KERNEL);
+	appletbdrm_state = kzalloc_obj(*appletbdrm_state);
 	if (!appletbdrm_state)
 		return;
 
@@ -521,7 +521,7 @@ static struct drm_plane_state *appletbdrm_primary_plane_duplicate_state(struct d
 	if (WARN_ON(!plane->state))
 		return NULL;
 
-	appletbdrm_state = kzalloc_obj(*appletbdrm_state, GFP_KERNEL);
+	appletbdrm_state = kzalloc_obj(*appletbdrm_state);
 	if (!appletbdrm_state)
 		return NULL;
 

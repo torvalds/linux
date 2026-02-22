@@ -2001,7 +2001,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	struct o2hb_region *reg = NULL;
 	int ret;
 
-	reg = kzalloc_obj(struct o2hb_region, GFP_KERNEL);
+	reg = kzalloc_obj(struct o2hb_region);
 	if (reg == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -2211,7 +2211,7 @@ struct config_group *o2hb_alloc_hb_set(void)
 	struct o2hb_heartbeat_group *hs = NULL;
 	struct config_group *ret = NULL;
 
-	hs = kzalloc_obj(struct o2hb_heartbeat_group, GFP_KERNEL);
+	hs = kzalloc_obj(struct o2hb_heartbeat_group);
 	if (hs == NULL)
 		goto out;
 

@@ -3035,7 +3035,7 @@ static int alloc_stream(struct vip_port *port, int stream_id, int vfl_type)
 	struct list_head *pos, *tmp;
 	int ret, i;
 
-	stream = kzalloc_obj(*stream, GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 

@@ -794,7 +794,7 @@ struct panfrost_mmu *panfrost_mmu_ctx_create(struct panfrost_device *pfdev)
 		fmt = ARM_MALI_LPAE;
 	}
 
-	mmu = kzalloc_obj(*mmu, GFP_KERNEL);
+	mmu = kzalloc_obj(*mmu);
 	if (!mmu)
 		return ERR_PTR(-ENOMEM);
 

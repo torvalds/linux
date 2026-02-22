@@ -580,7 +580,7 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 		return 0;
 
 	/* Allocate APLIC global state */
-	aplic = kzalloc_obj(*aplic, GFP_KERNEL);
+	aplic = kzalloc_obj(*aplic);
 	if (!aplic)
 		return -ENOMEM;
 	kvm->arch.aia.aplic_state = aplic;
@@ -588,7 +588,7 @@ int kvm_riscv_aia_aplic_init(struct kvm *kvm)
 	/* Setup APLIC IRQs */
 	aplic->nr_irqs = kvm->arch.aia.nr_sources + 1;
 	aplic->nr_words = DIV_ROUND_UP(aplic->nr_irqs, 32);
-	aplic->irqs = kzalloc_objs(*aplic->irqs, aplic->nr_irqs, GFP_KERNEL);
+	aplic->irqs = kzalloc_objs(*aplic->irqs, aplic->nr_irqs);
 	if (!aplic->irqs) {
 		ret = -ENOMEM;
 		goto fail_free_aplic;

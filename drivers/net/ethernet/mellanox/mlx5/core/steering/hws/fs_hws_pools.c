@@ -186,7 +186,7 @@ int mlx5_fs_hws_pr_pool_init(struct mlx5_fs_pool *pr_pool,
 	    reformat_type != MLX5HWS_ACTION_TYP_REFORMAT_L2_TO_TNL_L2)
 		return -EOPNOTSUPP;
 
-	pr_pool_ctx = kzalloc_obj(*pr_pool_ctx, GFP_KERNEL);
+	pr_pool_ctx = kzalloc_obj(*pr_pool_ctx);
 	if (!pr_pool_ctx)
 		return -ENOMEM;
 	pr_pool_ctx->reformat_type = reformat_type;
@@ -331,7 +331,7 @@ int mlx5_fs_hws_mh_pool_init(struct mlx5_fs_pool *fs_hws_mh_pool,
 {
 	struct mlx5hws_action_mh_pattern *pool_pattern;
 
-	pool_pattern = kzalloc_obj(*pool_pattern, GFP_KERNEL);
+	pool_pattern = kzalloc_obj(*pool_pattern);
 	if (!pool_pattern)
 		return -ENOMEM;
 	pool_pattern->data = kmemdup(pattern->data, pattern->sz, GFP_KERNEL);

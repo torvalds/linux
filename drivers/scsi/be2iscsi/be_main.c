@@ -2484,7 +2484,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		return -ENOMEM;
 	}
 
-	phba->init_mem = kzalloc_objs(*mem_descr, SE_MEM_MAX, GFP_KERNEL);
+	phba->init_mem = kzalloc_objs(*mem_descr, SE_MEM_MAX);
 	if (!phba->init_mem) {
 		kfree(phwi_ctrlr->wrb_context);
 		kfree(phba->phwi_ctrlr);
@@ -2540,7 +2540,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 		} while (alloc_size);
 		mem_descr->num_elements = j;
 		mem_descr->size_in_bytes = phba->mem_req[i];
-		mem_descr->mem_array = kmalloc_objs(*mem_arr, j, GFP_KERNEL);
+		mem_descr->mem_array = kmalloc_objs(*mem_arr, j);
 		if (!mem_descr->mem_array)
 			goto free_mem;
 

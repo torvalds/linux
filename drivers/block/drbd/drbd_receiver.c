@@ -3547,7 +3547,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 		}
 	}
 
-	new_net_conf = kmalloc_obj(struct net_conf, GFP_KERNEL);
+	new_net_conf = kmalloc_obj(struct net_conf);
 	if (!new_net_conf)
 		goto disconnect;
 
@@ -3708,7 +3708,7 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 	mutex_lock(&connection->resource->conf_update);
 	old_net_conf = peer_device->connection->net_conf;
 	if (get_ldev(device)) {
-		new_disk_conf = kzalloc_obj(struct disk_conf, GFP_KERNEL);
+		new_disk_conf = kzalloc_obj(struct disk_conf);
 		if (!new_disk_conf) {
 			put_ldev(device);
 			mutex_unlock(&connection->resource->conf_update);
@@ -3794,7 +3794,7 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 		}
 
 		if (verify_tfm || csums_tfm) {
-			new_net_conf = kzalloc_obj(struct net_conf, GFP_KERNEL);
+			new_net_conf = kzalloc_obj(struct net_conf);
 			if (!new_net_conf)
 				goto disconnect;
 

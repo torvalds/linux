@@ -37,7 +37,7 @@ static inline void ixgbe_alloc_vf_macvlans(struct ixgbe_adapter *adapter,
 	if (!num_vf_macvlans)
 		return;
 
-	mv_list = kzalloc_objs(struct vf_macvlans, num_vf_macvlans, GFP_KERNEL);
+	mv_list = kzalloc_objs(struct vf_macvlans, num_vf_macvlans);
 	if (mv_list) {
 		for (i = 0; i < num_vf_macvlans; i++) {
 			mv_list[i].vf = -1;

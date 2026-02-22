@@ -347,7 +347,7 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 	/*
 	 *    Allocate the ip_vs_lblc_table for this service
 	 */
-	tbl = kmalloc_obj(*tbl, GFP_KERNEL);
+	tbl = kmalloc_obj(*tbl);
 	if (tbl == NULL)
 		return -ENOMEM;
 

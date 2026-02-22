@@ -44,7 +44,7 @@ nvkm_rm_engine_obj_new(struct nvkm_gsp_object *chan, int chid, const struct nvkm
 	struct nvkm_rm_engine_obj *obj;
 	int ret;
 
-	obj = kzalloc_obj(*obj, GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return -ENOMEM;
 
@@ -130,7 +130,7 @@ nvkm_rm_engine_new_(struct nvkm_rm *rm, enum nvkm_subdev_type type, int inst, u3
 	struct nvkm_engine *engine;
 	int ret;
 
-	engine = kzalloc_obj(*engine, GFP_KERNEL);
+	engine = kzalloc_obj(*engine);
 	if (!engine)
 		return -ENOMEM;
 

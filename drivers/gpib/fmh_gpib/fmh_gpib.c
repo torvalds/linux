@@ -1250,7 +1250,7 @@ static int fmh_gpib_allocate_private(struct gpib_board *board)
 {
 	struct fmh_priv *priv;
 
-	board->private_data = kzalloc_obj(struct fmh_priv, GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct fmh_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;

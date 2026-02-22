@@ -3468,7 +3468,7 @@ static long pmcraid_chr_ioctl(
 	void __user *argp = (void __user *)arg;
 	int retval = -ENOTTY;
 
-	hdr = kmalloc_obj(struct pmcraid_ioctl_header, GFP_KERNEL);
+	hdr = kmalloc_obj(struct pmcraid_ioctl_header);
 
 	if (!hdr) {
 		pmcraid_err("failed to allocate memory for ioctl header\n");

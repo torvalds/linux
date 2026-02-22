@@ -291,7 +291,7 @@ static struct rdma_user_mmap_entry *
 erdma_user_mmap_entry_insert(struct erdma_ucontext *uctx, void *address,
 			     u32 size, u8 mmap_flag, u64 *mmap_offset)
 {
-	struct erdma_user_mmap_entry *entry = kzalloc_obj(*entry, GFP_KERNEL);
+	struct erdma_user_mmap_entry *entry = kzalloc_obj(*entry);
 	int ret;
 
 	if (!entry)
@@ -599,7 +599,7 @@ static struct erdma_mtt *erdma_create_cont_mtt(struct erdma_dev *dev,
 {
 	struct erdma_mtt *mtt;
 
-	mtt = kzalloc_obj(*mtt, GFP_KERNEL);
+	mtt = kzalloc_obj(*mtt);
 	if (!mtt)
 		return ERR_PTR(-ENOMEM);
 
@@ -724,7 +724,7 @@ static struct erdma_mtt *erdma_create_scatter_mtt(struct erdma_dev *dev,
 	struct erdma_mtt *mtt;
 	int ret = -ENOMEM;
 
-	mtt = kzalloc_obj(*mtt, GFP_KERNEL);
+	mtt = kzalloc_obj(*mtt);
 	if (!mtt)
 		return ERR_PTR(-ENOMEM);
 
@@ -887,7 +887,7 @@ static int erdma_map_user_dbrecords(struct erdma_ucontext *ctx,
 		if (page->va == (dbrecords_va & PAGE_MASK))
 			goto found;
 
-	page = kmalloc_obj(*page, GFP_KERNEL);
+	page = kmalloc_obj(*page);
 	if (!page) {
 		rv = -ENOMEM;
 		goto out;
@@ -1115,7 +1115,7 @@ struct ib_mr *erdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 	u32 stag;
 	int ret;
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1159,7 +1159,7 @@ struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	if (max_num_sg > ERDMA_MR_MAX_MTT_CNT)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1245,7 +1245,7 @@ struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (!len || len > dev->attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

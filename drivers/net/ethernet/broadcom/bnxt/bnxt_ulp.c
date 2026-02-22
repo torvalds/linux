@@ -479,7 +479,7 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
 		return;
 
-	aux_priv = kzalloc_obj(*bp->aux_priv, GFP_KERNEL);
+	aux_priv = kzalloc_obj(*bp->aux_priv);
 	if (!aux_priv)
 		goto exit;
 
@@ -509,13 +509,13 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	 * any error unwinding will need to include a call to
 	 * auxiliary_device_uninit.
 	 */
-	edev = kzalloc_obj(*edev, GFP_KERNEL);
+	edev = kzalloc_obj(*edev);
 	if (!edev)
 		goto aux_dev_uninit;
 
 	aux_priv->edev = edev;
 
-	ulp = kzalloc_obj(*ulp, GFP_KERNEL);
+	ulp = kzalloc_obj(*ulp);
 	if (!ulp)
 		goto aux_dev_uninit;
 

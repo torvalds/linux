@@ -227,7 +227,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 		struct mpic_msgr *msgr;
 		unsigned int reg_number;
 
-		msgr = kzalloc_obj(struct mpic_msgr, GFP_KERNEL);
+		msgr = kzalloc_obj(struct mpic_msgr);
 		if (!msgr) {
 			dev_err(&dev->dev, "No memory for message register\n");
 			return -ENOMEM;

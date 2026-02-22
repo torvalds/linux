@@ -1244,7 +1244,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->data_queues = 2 + rt2x00dev->ops->tx_queues + req_atim;
 
-	queue = kzalloc_objs(*queue, rt2x00dev->data_queues, GFP_KERNEL);
+	queue = kzalloc_objs(*queue, rt2x00dev->data_queues);
 	if (!queue)
 		return -ENOMEM;
 

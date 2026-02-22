@@ -167,7 +167,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	int i, mask;
 
 	struct dw_edma_pcie_data *vsec_data __free(kfree) =
-		kmalloc_obj(*vsec_data, GFP_KERNEL);
+		kmalloc_obj(*vsec_data);
 	if (!vsec_data)
 		return -ENOMEM;
 

@@ -937,7 +937,7 @@ ssize_t sdma_set_cpu_to_sde_map(struct sdma_engine *sde, const char *buf,
 		rht_node = rhashtable_lookup_fast(dd->sdma_rht, &cpu,
 						  sdma_rht_params);
 		if (!rht_node) {
-			rht_node = kzalloc_obj(*rht_node, GFP_KERNEL);
+			rht_node = kzalloc_obj(*rht_node);
 			if (!rht_node) {
 				ret = -ENOMEM;
 				goto out;
@@ -1481,7 +1481,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 	if (ret < 0)
 		goto bail;
 
-	tmp_sdma_rht = kzalloc_obj(*tmp_sdma_rht, GFP_KERNEL);
+	tmp_sdma_rht = kzalloc_obj(*tmp_sdma_rht);
 	if (!tmp_sdma_rht) {
 		ret = -ENOMEM;
 		goto bail;

@@ -32,7 +32,7 @@ int sdw_slave_add(struct sdw_bus *bus,
 	int ret;
 	int i;
 
-	slave = kzalloc_obj(*slave, GFP_KERNEL);
+	slave = kzalloc_obj(*slave);
 	if (!slave)
 		return -ENOMEM;
 

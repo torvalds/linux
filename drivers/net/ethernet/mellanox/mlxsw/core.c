@@ -2376,7 +2376,7 @@ int mlxsw_core_rx_listener_register(struct mlxsw_core *mlxsw_core,
 	rxl_item = __find_rx_listener_item(mlxsw_core, rxl);
 	if (rxl_item)
 		return -EEXIST;
-	rxl_item = kmalloc_obj(*rxl_item, GFP_KERNEL);
+	rxl_item = kmalloc_obj(*rxl_item);
 	if (!rxl_item)
 		return -ENOMEM;
 	rxl_item->rxl = *rxl;
@@ -2475,7 +2475,7 @@ int mlxsw_core_event_listener_register(struct mlxsw_core *mlxsw_core,
 	el_item = __find_event_listener_item(mlxsw_core, el);
 	if (el_item)
 		return -EEXIST;
-	el_item = kmalloc_obj(*el_item, GFP_KERNEL);
+	el_item = kmalloc_obj(*el_item);
 	if (!el_item)
 		return -ENOMEM;
 	el_item->mlxsw_core = mlxsw_core;
@@ -2684,7 +2684,7 @@ static int mlxsw_core_reg_access_emad(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_reg_trans *trans;
 	int err;
 
-	trans = kzalloc_obj(*trans, GFP_KERNEL);
+	trans = kzalloc_obj(*trans);
 	if (!trans)
 		return -ENOMEM;
 
@@ -2785,7 +2785,7 @@ int mlxsw_core_irq_event_handler_register(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_core_irq_event_handler_item *item;
 
-	item = kzalloc_obj(*item, GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item)
 		return -ENOMEM;
 	item->cb = cb;

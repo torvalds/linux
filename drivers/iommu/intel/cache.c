@@ -49,7 +49,7 @@ int cache_tag_assign(struct dmar_domain *domain, u16 did, struct device *dev,
 	struct list_head *prev;
 	unsigned long flags;
 
-	tag = kzalloc_obj(*tag, GFP_KERNEL);
+	tag = kzalloc_obj(*tag);
 	if (!tag)
 		return -ENOMEM;
 

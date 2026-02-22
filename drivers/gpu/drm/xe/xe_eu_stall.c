@@ -238,7 +238,7 @@ int xe_eu_stall_init(struct xe_gt *gt)
 	if (!xe_eu_stall_supported_on_platform(xe))
 		return 0;
 
-	gt->eu_stall = kzalloc_obj(*gt->eu_stall, GFP_KERNEL);
+	gt->eu_stall = kzalloc_obj(*gt->eu_stall);
 	if (!gt->eu_stall) {
 		ret = -ENOMEM;
 		goto exit;
@@ -906,7 +906,7 @@ static int xe_eu_stall_stream_open_locked(struct drm_device *dev,
 		return -EBUSY;
 	}
 
-	stream = kzalloc_obj(*stream, GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 

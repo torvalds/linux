@@ -672,7 +672,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		return -EINVAL;
 	}
 
-	regions = kmalloc_objs(regions[0], obj_desc->region_count, GFP_KERNEL);
+	regions = kmalloc_objs(regions[0], obj_desc->region_count);
 	if (!regions)
 		return -ENOMEM;
 
@@ -787,7 +787,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		/*
 		 * Allocate an MC bus device object:
 		 */
-		mc_bus = kzalloc_obj(*mc_bus, GFP_KERNEL);
+		mc_bus = kzalloc_obj(*mc_bus);
 		if (!mc_bus)
 			return -ENOMEM;
 
@@ -797,7 +797,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		/*
 		 * Allocate a regular fsl_mc_device object:
 		 */
-		mc_dev = kzalloc_obj(*mc_dev, GFP_KERNEL);
+		mc_dev = kzalloc_obj(*mc_dev);
 		if (!mc_dev)
 			return -ENOMEM;
 	}

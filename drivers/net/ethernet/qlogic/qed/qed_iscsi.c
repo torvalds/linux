@@ -710,7 +710,7 @@ static int qed_iscsi_allocate_connection(struct qed_hwfn *p_hwfn,
 	/* Need to allocate a new connection */
 	p_params = &p_hwfn->pf_params.iscsi_pf_params;
 
-	p_conn = kzalloc_obj(*p_conn, GFP_KERNEL);
+	p_conn = kzalloc_obj(*p_conn);
 	if (!p_conn)
 		return -ENOMEM;
 
@@ -845,7 +845,7 @@ int qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_iscsi_info *p_iscsi_info;
 
-	p_iscsi_info = kzalloc_obj(*p_iscsi_info, GFP_KERNEL);
+	p_iscsi_info = kzalloc_obj(*p_iscsi_info);
 	if (!p_iscsi_info)
 		return -ENOMEM;
 
@@ -1125,7 +1125,7 @@ static int qed_iscsi_start(struct qed_dev *cdev,
 	if (!tasks)
 		return 0;
 
-	tid_info = kzalloc_obj(*tid_info, GFP_KERNEL);
+	tid_info = kzalloc_obj(*tid_info);
 
 	if (!tid_info) {
 		qed_iscsi_stop(cdev);

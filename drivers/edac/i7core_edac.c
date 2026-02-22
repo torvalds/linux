@@ -455,7 +455,7 @@ static struct i7core_dev *alloc_i7core_dev(u8 socket,
 {
 	struct i7core_dev *i7core_dev;
 
-	i7core_dev = kzalloc_obj(*i7core_dev, GFP_KERNEL);
+	i7core_dev = kzalloc_obj(*i7core_dev);
 	if (!i7core_dev)
 		return NULL;
 
@@ -1159,7 +1159,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 	struct i7core_pvt *pvt = mci->pvt_info;
 	int rc;
 
-	pvt->addrmatch_dev = kzalloc_obj(*pvt->addrmatch_dev, GFP_KERNEL);
+	pvt->addrmatch_dev = kzalloc_obj(*pvt->addrmatch_dev);
 	if (!pvt->addrmatch_dev)
 		return -ENOMEM;
 

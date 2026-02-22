@@ -21,7 +21,7 @@ static int modify_region(struct acrn_vm *vm, struct vm_memory_region_op *region)
 	struct vm_memory_region_batch *regions;
 	int ret;
 
-	regions = kzalloc_obj(*regions, GFP_KERNEL);
+	regions = kzalloc_obj(*regions);
 	if (!regions)
 		return -ENOMEM;
 
@@ -55,7 +55,7 @@ int acrn_mm_region_add(struct acrn_vm *vm, u64 user_gpa, u64 service_gpa,
 	struct vm_memory_region_op *region;
 	int ret = 0;
 
-	region = kzalloc_obj(*region, GFP_KERNEL);
+	region = kzalloc_obj(*region);
 	if (!region)
 		return -ENOMEM;
 
@@ -87,7 +87,7 @@ int acrn_mm_region_del(struct acrn_vm *vm, u64 user_gpa, u64 size)
 	struct vm_memory_region_op *region;
 	int ret = 0;
 
-	region = kzalloc_obj(*region, GFP_KERNEL);
+	region = kzalloc_obj(*region);
 	if (!region)
 		return -ENOMEM;
 

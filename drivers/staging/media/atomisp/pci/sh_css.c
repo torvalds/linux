@@ -1880,7 +1880,7 @@ create_pipe(enum ia_css_pipe_mode mode,
 		return -EINVAL;
 	}
 
-	me = kmalloc_obj(*me, GFP_KERNEL);
+	me = kmalloc_obj(*me);
 	if (!me)
 		return -ENOMEM;
 
@@ -7910,7 +7910,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	}
 
 	/* allocate the stream instance */
-	curr_stream = kzalloc_obj(struct ia_css_stream, GFP_KERNEL);
+	curr_stream = kzalloc_obj(struct ia_css_stream);
 	if (!curr_stream) {
 		err = -ENOMEM;
 		IA_CSS_LEAVE_ERR(err);

@@ -20,7 +20,7 @@ static void test_kprobe_riscv(struct kunit *test)
 	while (test_kprobes_addresses[num_kprobe])
 		num_kprobe++;
 
-	kp = kzalloc_objs(*kp, num_kprobe, GFP_KERNEL);
+	kp = kzalloc_objs(*kp, num_kprobe);
 	KUNIT_EXPECT_TRUE(test, kp);
 	if (!kp)
 		return;

@@ -1164,11 +1164,11 @@ static int hid_modify_dquirk(const struct hid_device_id *id,
 	int list_edited = 0;
 	int ret = 0;
 
-	hdev = kzalloc_obj(*hdev, GFP_KERNEL);
+	hdev = kzalloc_obj(*hdev);
 	if (!hdev)
 		return -ENOMEM;
 
-	q_new = kmalloc_obj(struct quirks_list_struct, GFP_KERNEL);
+	q_new = kmalloc_obj(struct quirks_list_struct);
 	if (!q_new) {
 		ret = -ENOMEM;
 		goto out;

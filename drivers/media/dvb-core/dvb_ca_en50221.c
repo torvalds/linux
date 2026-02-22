@@ -1880,7 +1880,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 		return -EINVAL;
 
 	/* initialise the system data */
-	ca = kzalloc_obj(*ca, GFP_KERNEL);
+	ca = kzalloc_obj(*ca);
 	if (!ca) {
 		ret = -ENOMEM;
 		goto exit;
@@ -1889,7 +1889,7 @@ int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
-	ca->slot_info = kzalloc_objs(struct dvb_ca_slot, slot_count, GFP_KERNEL);
+	ca->slot_info = kzalloc_objs(struct dvb_ca_slot, slot_count);
 	if (!ca->slot_info) {
 		ret = -ENOMEM;
 		goto free_ca;

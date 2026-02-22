@@ -477,7 +477,7 @@ tape_alloc_device(void)
 {
 	struct tape_device *device;
 
-	device = kzalloc_obj(struct tape_device, GFP_KERNEL);
+	device = kzalloc_obj(struct tape_device);
 	if (device == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		return ERR_PTR(-ENOMEM);
@@ -678,7 +678,7 @@ tape_alloc_request(int cplength, int datasize)
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
-	request = kzalloc_obj(struct tape_request, GFP_KERNEL);
+	request = kzalloc_obj(struct tape_request);
 	if (request == NULL) {
 		DBF_EXCEPTION(1, "cqra nomem\n");
 		return ERR_PTR(-ENOMEM);

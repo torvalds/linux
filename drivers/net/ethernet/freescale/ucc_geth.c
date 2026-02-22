@@ -2677,7 +2677,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	 * allocated resources can be released when the channel is freed.
 	 */
 	if (!(ugeth->p_init_enet_param_shadow =
-	      kzalloc_obj(struct ucc_geth_init_pram, GFP_KERNEL))) {
+	      kzalloc_obj(struct ucc_geth_init_pram))) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Can not allocate memory for p_UccInitEnetParamShadows\n");
 		return -ENOMEM;

@@ -668,7 +668,7 @@ static void pm121_create_cpu_fans(void)
 		tmax = 0x5e0000; /* 94 degree default */
 
 	/* Alloc & initialize state */
-	pm121_cpu_state = kmalloc_obj(struct pm121_cpu_state, GFP_KERNEL);
+	pm121_cpu_state = kmalloc_obj(struct pm121_cpu_state);
 	if (pm121_cpu_state == NULL)
 		goto fail;
 	pm121_cpu_state->ticks = 1;

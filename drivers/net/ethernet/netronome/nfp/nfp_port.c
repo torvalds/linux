@@ -203,7 +203,7 @@ nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,
 {
 	struct nfp_port *port;
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 

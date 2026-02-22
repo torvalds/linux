@@ -489,7 +489,7 @@ int blk_mq_alloc_sched_ctx_batch(struct xarray *elv_tbl,
 	lockdep_assert_held_write(&set->update_nr_hwq_lock);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		ctx = kzalloc_obj(struct elv_change_ctx, GFP_KERNEL);
+		ctx = kzalloc_obj(struct elv_change_ctx);
 		if (!ctx)
 			return -ENOMEM;
 

@@ -601,7 +601,7 @@ static int queue_mode_select(struct scsi_device *sdev,
 	struct rdac_queue_data *qdata;
 	struct rdac_controller *ctlr;
 
-	qdata = kzalloc_obj(*qdata, GFP_KERNEL);
+	qdata = kzalloc_obj(*qdata);
 	if (!qdata)
 		return SCSI_DH_RETRY;
 
@@ -741,7 +741,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	char array_name[ARRAY_LABEL_LEN];
 	char array_id[UNIQUE_ID_LEN];
 
-	h = kzalloc_obj(*h, GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return SCSI_DH_NOMEM;
 	h->lun = UNINITIALIZED_LUN;

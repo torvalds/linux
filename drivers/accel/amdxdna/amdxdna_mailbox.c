@@ -475,7 +475,7 @@ xdna_mailbox_create_channel(struct mailbox *mb,
 		return NULL;
 	}
 
-	mb_chann = kzalloc_obj(*mb_chann, GFP_KERNEL);
+	mb_chann = kzalloc_obj(*mb_chann);
 	if (!mb_chann)
 		return NULL;
 

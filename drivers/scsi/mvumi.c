@@ -252,7 +252,7 @@ static struct mvumi_cmd *mvumi_create_internal_cmd(struct mvumi_hba *mhba,
 {
 	struct mvumi_cmd *cmd;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		dev_err(&mhba->pdev->dev, "failed to create a internal cmd\n");
 		return NULL;
@@ -368,7 +368,7 @@ static int mvumi_alloc_cmds(struct mvumi_hba *mhba)
 	struct mvumi_cmd *cmd;
 
 	for (i = 0; i < mhba->max_io; i++) {
-		cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+		cmd = kzalloc_obj(*cmd);
 		if (!cmd)
 			goto err_exit;
 
@@ -2193,7 +2193,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		mhba->mmio = mhba->base_addr[0];
 		base = mhba->mmio;
 		if (!mhba->regs) {
-			mhba->regs = kzalloc_obj(*regs, GFP_KERNEL);
+			mhba->regs = kzalloc_obj(*regs);
 			if (mhba->regs == NULL)
 				return -ENOMEM;
 		}
@@ -2245,7 +2245,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		mhba->mmio = mhba->base_addr[2];
 		base = mhba->mmio;
 		if (!mhba->regs) {
-			mhba->regs = kzalloc_obj(*regs, GFP_KERNEL);
+			mhba->regs = kzalloc_obj(*regs);
 			if (mhba->regs == NULL)
 				return -ENOMEM;
 		}

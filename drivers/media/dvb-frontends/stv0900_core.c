@@ -85,7 +85,7 @@ static struct stv0900_inode *append_internal(struct stv0900_internal *internal)
 	struct stv0900_inode *new_node = stv0900_first_inode;
 
 	if (new_node == NULL) {
-		new_node = kmalloc_obj(struct stv0900_inode, GFP_KERNEL);
+		new_node = kmalloc_obj(struct stv0900_inode);
 		stv0900_first_inode = new_node;
 	} else {
 		while (new_node->next_inode != NULL)
@@ -1903,7 +1903,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 	struct stv0900_init_params init_params;
 	enum fe_stv0900_error err_stv0900;
 
-	state = kzalloc_obj(struct stv0900_state, GFP_KERNEL);
+	state = kzalloc_obj(struct stv0900_state);
 	if (state == NULL)
 		goto error;
 

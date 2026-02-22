@@ -1370,7 +1370,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		       (hc->remoteip >> 8) & 0xff, hc->remoteip & 0xff,
 		       hc->remoteport, hc->ondemand);
 
-	dch = kzalloc_obj(struct dchannel, GFP_KERNEL);
+	dch = kzalloc_obj(struct dchannel);
 	if (!dch)
 		return -ENOMEM;
 	dch->debug = debug;
@@ -1391,7 +1391,7 @@ init_card(struct l1oip *hc, int pri, int bundle)
 	for (ch = 0; ch < dch->dev.nrbchan; ch++) {
 		if (ch == 15)
 			i++;
-		bch = kzalloc_obj(struct bchannel, GFP_KERNEL);
+		bch = kzalloc_obj(struct bchannel);
 		if (!bch) {
 			printk(KERN_ERR "%s: no memory for bchannel\n",
 			       __func__);

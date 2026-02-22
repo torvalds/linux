@@ -151,7 +151,7 @@ static __init int add_var(const char *name)
 	struct kobject *kobj;
 	int rc;
 
-	kobj = kzalloc_obj(*kobj, GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return -ENOMEM;
 

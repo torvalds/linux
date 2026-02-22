@@ -70,7 +70,7 @@ struct hsi_client *hsi_new_client(struct hsi_port *port,
 	struct hsi_client *cl;
 	size_t size;
 
-	cl = kzalloc_obj(*cl, GFP_KERNEL);
+	cl = kzalloc_obj(*cl);
 	if (!cl)
 		goto err;
 
@@ -203,7 +203,7 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 	char name[32];
 	int length, cells, err, i, max_chan, mode;
 
-	cl = kzalloc_obj(*cl, GFP_KERNEL);
+	cl = kzalloc_obj(*cl);
 	if (!cl)
 		return;
 
@@ -253,13 +253,13 @@ static void hsi_add_client_from_dt(struct hsi_port *port,
 
 	cl->rx_cfg.num_channels = cells;
 	cl->tx_cfg.num_channels = cells;
-	cl->rx_cfg.channels = kzalloc_objs(channel, cells, GFP_KERNEL);
+	cl->rx_cfg.channels = kzalloc_objs(channel, cells);
 	if (!cl->rx_cfg.channels) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	cl->tx_cfg.channels = kzalloc_objs(channel, cells, GFP_KERNEL);
+	cl->tx_cfg.channels = kzalloc_objs(channel, cells);
 	if (!cl->tx_cfg.channels) {
 		err = -ENOMEM;
 		goto err2;

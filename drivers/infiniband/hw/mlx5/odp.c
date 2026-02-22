@@ -1092,7 +1092,7 @@ next_mr:
 				continue;
 			}
 
-			frame = kzalloc_obj(*frame, GFP_KERNEL);
+			frame = kzalloc_obj(*frame);
 			if (!frame) {
 				ret = -ENOMEM;
 				goto end;

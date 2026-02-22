@@ -585,7 +585,7 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware, struct shrinker *shr
 		memcg_aware = false;
 #endif
 
-	lru->node = kzalloc_objs(*lru->node, nr_node_ids, GFP_KERNEL);
+	lru->node = kzalloc_objs(*lru->node, nr_node_ids);
 	if (!lru->node)
 		return -ENOMEM;
 

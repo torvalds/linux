@@ -285,7 +285,7 @@ static int pds_vfio_dirty_enable(struct pds_vfio_pci_device *pds_vfio,
 		num_ranges = max_regions;
 	}
 
-	region_info = kzalloc_objs(*region_info, num_ranges, GFP_KERNEL);
+	region_info = kzalloc_objs(*region_info, num_ranges);
 	if (!region_info)
 		return -ENOMEM;
 	len = num_ranges * sizeof(*region_info);
@@ -397,7 +397,7 @@ static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
 	 * will be enough pages to represent the bmp_bytes
 	 */
 	npages = DIV_ROUND_UP_ULL(bmp_bytes + page_offset, PAGE_SIZE);
-	pages = kmalloc_objs(*pages, npages, GFP_KERNEL);
+	pages = kmalloc_objs(*pages, npages);
 	if (!pages)
 		return -ENOMEM;
 

@@ -617,7 +617,7 @@ static int syscall_fault_buffer_enable(void)
 		return 0;
 	}
 
-	sbuf = kmalloc_obj(*sbuf, GFP_KERNEL);
+	sbuf = kmalloc_obj(*sbuf);
 	if (!sbuf)
 		return -ENOMEM;
 

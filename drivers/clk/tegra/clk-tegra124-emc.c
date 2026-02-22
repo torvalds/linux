@@ -492,7 +492,7 @@ struct clk *tegra124_clk_register_emc(void __iomem *base, struct device_node *np
 	struct clk *clk;
 	int err;
 
-	tegra = kzalloc_objs(*tegra, 1, GFP_KERNEL);
+	tegra = kzalloc_objs(*tegra, 1);
 	if (!tegra)
 		return ERR_PTR(-ENOMEM);
 

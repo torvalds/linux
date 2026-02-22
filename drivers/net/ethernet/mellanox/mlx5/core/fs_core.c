@@ -947,7 +947,7 @@ alloc_flow_table(struct mlx5_flow_table_attr *ft_attr, u16 vport,
 	struct mlx5_flow_table *ft;
 	int ret;
 
-	ft = kzalloc_obj(*ft, GFP_KERNEL);
+	ft = kzalloc_obj(*ft);
 	if (!ft)
 		return ERR_PTR(-ENOMEM);
 
@@ -1530,7 +1530,7 @@ static struct mlx5_flow_rule *alloc_rule(struct mlx5_flow_destination *dest)
 {
 	struct mlx5_flow_rule *rule;
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return NULL;
 
@@ -2178,7 +2178,7 @@ add_rule_dup_match_fte(struct fs_fte *fte,
 	int i = 0;
 
 	if (!fte->dup) {
-		dup = kvzalloc_obj(*dup, GFP_KERNEL);
+		dup = kvzalloc_obj(*dup);
 		if (!dup)
 			return ERR_PTR(-ENOMEM);
 		/* dup will be freed when the fte is freed
@@ -2471,7 +2471,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		goto unlock;
 	}
 
-	gen_dest = kzalloc_objs(*dest, num_dest + 1, GFP_KERNEL);
+	gen_dest = kzalloc_objs(*dest, num_dest + 1);
 	if (!gen_dest) {
 		handle = ERR_PTR(-ENOMEM);
 		goto unlock;
@@ -2848,7 +2848,7 @@ static struct fs_prio *_fs_create_prio(struct mlx5_flow_namespace *ns,
 {
 	struct fs_prio *fs_prio;
 
-	fs_prio = kzalloc_obj(*fs_prio, GFP_KERNEL);
+	fs_prio = kzalloc_obj(*fs_prio);
 	if (!fs_prio)
 		return ERR_PTR(-ENOMEM);
 
@@ -2888,7 +2888,7 @@ static struct mlx5_flow_namespace *fs_create_namespace(struct fs_prio *prio,
 {
 	struct mlx5_flow_namespace	*ns;
 
-	ns = kzalloc_obj(*ns, GFP_KERNEL);
+	ns = kzalloc_obj(*ns);
 	if (!ns)
 		return ERR_PTR(-ENOMEM);
 
@@ -3019,7 +3019,7 @@ static struct mlx5_flow_root_namespace
 	struct mlx5_flow_namespace *ns;
 
 	/* Create the root namespace */
-	root_ns = kzalloc_obj(*root_ns, GFP_KERNEL);
+	root_ns = kzalloc_obj(*root_ns);
 	if (!root_ns)
 		return NULL;
 
@@ -3670,7 +3670,7 @@ mlx5_fs_add_vport_acl_root_ns(struct mlx5_flow_steering *steering,
 	if (xa_load(esw_acl_root_ns, vport_idx))
 		return -EEXIST;
 
-	vport_ns = kzalloc_obj(*vport_ns, GFP_KERNEL);
+	vport_ns = kzalloc_obj(*vport_ns);
 	if (!vport_ns)
 		return -ENOMEM;
 
@@ -3989,7 +3989,7 @@ int mlx5_fs_core_alloc(struct mlx5_core_dev *dev)
 	if (err)
 		goto err;
 
-	steering = kzalloc_obj(*steering, GFP_KERNEL);
+	steering = kzalloc_obj(*steering);
 	if (!steering) {
 		err = -ENOMEM;
 		goto err;
@@ -4030,7 +4030,7 @@ int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn)
 	struct mlx5_ft_underlay_qp *new_uqp;
 	int err = 0;
 
-	new_uqp = kzalloc_obj(*new_uqp, GFP_KERNEL);
+	new_uqp = kzalloc_obj(*new_uqp);
 	if (!new_uqp)
 		return -ENOMEM;
 
@@ -4133,7 +4133,7 @@ struct mlx5_modify_hdr *mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	modify_hdr = kzalloc_obj(*modify_hdr, GFP_KERNEL);
+	modify_hdr = kzalloc_obj(*modify_hdr);
 	if (!modify_hdr)
 		return ERR_PTR(-ENOMEM);
 
@@ -4174,7 +4174,7 @@ struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	pkt_reformat = kzalloc_obj(*pkt_reformat, GFP_KERNEL);
+	pkt_reformat = kzalloc_obj(*pkt_reformat);
 	if (!pkt_reformat)
 		return ERR_PTR(-ENOMEM);
 
@@ -4222,7 +4222,7 @@ mlx5_create_match_definer(struct mlx5_core_dev *dev,
 	if (!root)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	definer = kzalloc_obj(*definer, GFP_KERNEL);
+	definer = kzalloc_obj(*definer);
 	if (!definer)
 		return ERR_PTR(-ENOMEM);
 

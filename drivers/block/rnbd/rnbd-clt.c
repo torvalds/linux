@@ -324,7 +324,7 @@ static struct rnbd_iu *rnbd_get_iu(struct rnbd_clt_session *sess,
 	struct rnbd_iu *iu;
 	struct rtrs_permit *permit;
 
-	iu = kzalloc_obj(*iu, GFP_KERNEL);
+	iu = kzalloc_obj(*iu);
 	if (!iu)
 		return NULL;
 
@@ -541,7 +541,7 @@ static int send_msg_open(struct rnbd_clt_dev *dev, enum wait_type wait)
 	};
 	int err, errno;
 
-	rsp = kzalloc_obj(*rsp, GFP_KERNEL);
+	rsp = kzalloc_obj(*rsp);
 	if (!rsp)
 		return -ENOMEM;
 
@@ -587,7 +587,7 @@ static int send_msg_sess_info(struct rnbd_clt_session *sess, enum wait_type wait
 	};
 	int err, errno;
 
-	rsp = kzalloc_obj(*rsp, GFP_KERNEL);
+	rsp = kzalloc_obj(*rsp);
 	if (!rsp)
 		return -ENOMEM;
 
@@ -1564,7 +1564,7 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 		goto put_dev;
 	}
 
-	rsp = kzalloc_obj(*rsp, GFP_KERNEL);
+	rsp = kzalloc_obj(*rsp);
 	if (!rsp) {
 		ret = -ENOMEM;
 		goto del_dev;

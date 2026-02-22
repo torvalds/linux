@@ -1373,7 +1373,7 @@ static int garmin_port_probe(struct usb_serial_port *port)
 	int status;
 	struct garmin_data *garmin_data_p;
 
-	garmin_data_p = kzalloc_obj(struct garmin_data, GFP_KERNEL);
+	garmin_data_p = kzalloc_obj(struct garmin_data);
 	if (!garmin_data_p)
 		return -ENOMEM;
 

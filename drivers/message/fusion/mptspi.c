@@ -405,7 +405,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 		return -ENODEV;
 
 	ioc = hd->ioc;
-	vtarget = kzalloc_obj(VirtTarget, GFP_KERNEL);
+	vtarget = kzalloc_obj(VirtTarget);
 	if (!vtarget)
 		return -ENOMEM;
 
@@ -725,7 +725,7 @@ static int mptspi_sdev_init(struct scsi_device *sdev)
 		mptscsih_is_phys_disk(ioc, 0, sdev->id) == 0)
 			return -ENXIO;
 
-	vdevice = kzalloc_obj(VirtDevice, GFP_KERNEL);
+	vdevice = kzalloc_obj(VirtDevice);
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "sdev_init kmalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));

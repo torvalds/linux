@@ -838,18 +838,18 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	/* Allocate and initialize the target descriptor */
-	dmz = kzalloc_obj(struct dmz_target, GFP_KERNEL);
+	dmz = kzalloc_obj(struct dmz_target);
 	if (!dmz) {
 		ti->error = "Unable to allocate the zoned target descriptor";
 		return -ENOMEM;
 	}
-	dmz->dev = kzalloc_objs(struct dmz_dev, argc, GFP_KERNEL);
+	dmz->dev = kzalloc_objs(struct dmz_dev, argc);
 	if (!dmz->dev) {
 		ti->error = "Unable to allocate the zoned device descriptors";
 		kfree(dmz);
 		return -ENOMEM;
 	}
-	dmz->ddev = kzalloc_objs(struct dm_dev *, argc, GFP_KERNEL);
+	dmz->ddev = kzalloc_objs(struct dm_dev *, argc);
 	if (!dmz->ddev) {
 		ti->error = "Unable to allocate the dm device descriptors";
 		ret = -ENOMEM;

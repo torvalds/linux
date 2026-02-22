@@ -1616,7 +1616,7 @@ static int vmballoon_enable_stats(struct vmballoon *b)
 	if (b->stats)
 		goto out;
 
-	b->stats = kzalloc_obj(*b->stats, GFP_KERNEL);
+	b->stats = kzalloc_obj(*b->stats);
 
 	if (!b->stats) {
 		/* allocation failed */

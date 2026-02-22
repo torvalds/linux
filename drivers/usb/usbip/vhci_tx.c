@@ -82,7 +82,7 @@ static int vhci_send_cmd_submit(struct vhci_device *vdev)
 		else
 			iovnum = 3;
 
-		iov = kzalloc_objs(*iov, iovnum, GFP_KERNEL);
+		iov = kzalloc_objs(*iov, iovnum);
 		if (!iov) {
 			usbip_event_add(&vdev->ud, SDEV_EVENT_ERROR_MALLOC);
 			return -ENOMEM;

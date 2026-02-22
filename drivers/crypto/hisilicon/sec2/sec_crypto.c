@@ -569,11 +569,11 @@ static int sec_alloc_qp_ctx_resource(struct sec_ctx *ctx, struct sec_qp_ctx *qp_
 	struct device *dev = ctx->dev;
 	int ret = -ENOMEM;
 
-	qp_ctx->req_list = kzalloc_objs(struct sec_req *, q_depth, GFP_KERNEL);
+	qp_ctx->req_list = kzalloc_objs(struct sec_req *, q_depth);
 	if (!qp_ctx->req_list)
 		return ret;
 
-	qp_ctx->res = kzalloc_objs(struct sec_alg_res, q_depth, GFP_KERNEL);
+	qp_ctx->res = kzalloc_objs(struct sec_alg_res, q_depth);
 	if (!qp_ctx->res)
 		goto err_free_req_list;
 	qp_ctx->res->depth = q_depth;

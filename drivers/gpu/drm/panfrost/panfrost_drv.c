@@ -316,7 +316,7 @@ static int panfrost_ioctl_submit(struct drm_device *dev, void *data,
 		goto out_put_syncout;
 	}
 
-	job = kzalloc_obj(*job, GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job) {
 		ret = -ENOMEM;
 		goto out_put_jm_ctx;
@@ -597,7 +597,7 @@ static int panfrost_ioctl_sync_bo(struct drm_device *ddev, void *data,
 	if (!args->op_count)
 		return 0;
 
-	ops = kvmalloc_objs(*ops, args->op_count, GFP_KERNEL);
+	ops = kvmalloc_objs(*ops, args->op_count);
 	if (!ops) {
 		DRM_DEBUG("Failed to allocate incoming BO sync ops array\n");
 		return -ENOMEM;
@@ -682,7 +682,7 @@ panfrost_open(struct drm_device *dev, struct drm_file *file)
 	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_file_priv *panfrost_priv;
 
-	panfrost_priv = kzalloc_obj(*panfrost_priv, GFP_KERNEL);
+	panfrost_priv = kzalloc_obj(*panfrost_priv);
 	if (!panfrost_priv)
 		return -ENOMEM;
 

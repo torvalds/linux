@@ -1243,7 +1243,7 @@ static int zonefs_fill_super(struct super_block *sb, struct fs_context *fc)
 	 * ZONEFS_F_AGGRCNV which increases the maximum file size of a file
 	 * beyond the zone size is taken into account.
 	 */
-	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -1388,7 +1388,7 @@ static int zonefs_init_fs_context(struct fs_context *fc)
 {
 	struct zonefs_context *ctx;
 
-	ctx = kzalloc_obj(struct zonefs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct zonefs_context);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->s_mount_opts = ZONEFS_MNTOPT_ERRORS_RO;

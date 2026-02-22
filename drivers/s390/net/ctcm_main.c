@@ -1268,7 +1268,7 @@ static int ctcm_probe_device(struct ccwgroup_device *cgdev)
 	if (!get_device(&cgdev->dev))
 		return -ENODEV;
 
-	priv = kzalloc_obj(struct ctcm_priv, GFP_KERNEL);
+	priv = kzalloc_obj(struct ctcm_priv);
 	if (!priv) {
 		CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 			"%s: memory allocation failure",
@@ -1307,7 +1307,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 		"%s(%s), type %d, proto %d",
 			__func__, dev_name(&cdev->dev),	type, priv->protocol);
 
-	ch = kzalloc_obj(struct channel, GFP_KERNEL);
+	ch = kzalloc_obj(struct channel);
 	if (ch == NULL)
 		return -ENOMEM;
 
@@ -1408,7 +1408,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 
 	fsm_newstate(ch->fsm, CTC_STATE_IDLE);
 
-	ch->irb = kzalloc_obj(struct irb, GFP_KERNEL);
+	ch->irb = kzalloc_obj(struct irb);
 	if (ch->irb == NULL)
 				goto nomem_return;
 

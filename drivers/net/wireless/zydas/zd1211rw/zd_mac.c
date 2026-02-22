@@ -722,7 +722,7 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 
 	/* Alloc memory for full beacon write at once. */
 	num_cmds = 1 + zd_chip_is_zd1211b(&mac->chip) + full_len;
-	ioreqs = kmalloc_objs(struct zd_ioreq32, num_cmds, GFP_KERNEL);
+	ioreqs = kmalloc_objs(struct zd_ioreq32, num_cmds);
 	if (!ioreqs) {
 		r = -ENOMEM;
 		goto out_nofree;

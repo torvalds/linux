@@ -681,7 +681,7 @@ static int xe_exec_queue_group_init(struct xe_device *xe, struct xe_exec_queue *
 	struct xe_exec_queue_group *group;
 	struct xe_bo *bo;
 
-	group = kzalloc_obj(*group, GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return -ENOMEM;
 

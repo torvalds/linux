@@ -1402,7 +1402,7 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 {
 	struct fwnet_peer *peer;
 
-	peer = kmalloc_obj(*peer, GFP_KERNEL);
+	peer = kmalloc_obj(*peer);
 	if (!peer)
 		return -ENOMEM;
 

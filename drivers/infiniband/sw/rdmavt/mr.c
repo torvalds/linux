@@ -292,7 +292,7 @@ struct ib_mr *rvt_get_dma_mr(struct ib_pd *pd, int acc)
 	if (ibpd_to_rvtpd(pd)->user)
 		return ERR_PTR(-EPERM);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		ret = ERR_PTR(-ENOMEM);
 		goto bail;

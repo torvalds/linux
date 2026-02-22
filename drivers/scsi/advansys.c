@@ -11314,7 +11314,7 @@ static int advansys_eisa_probe(struct device *dev)
 	struct eisa_scsi_data *data;
 
 	err = -ENOMEM;
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		goto fail;
 	ioport = edev->base_addr + 0xc30;

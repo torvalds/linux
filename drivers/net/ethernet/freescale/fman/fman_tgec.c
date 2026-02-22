@@ -711,12 +711,12 @@ static struct fman_mac *tgec_config(struct mac_device *mac_dev,
 	struct tgec_cfg *cfg;
 
 	/* allocate memory for the UCC GETH data structure. */
-	tgec = kzalloc_obj(*tgec, GFP_KERNEL);
+	tgec = kzalloc_obj(*tgec);
 	if (!tgec)
 		return NULL;
 
 	/* allocate memory for the 10G MAC driver parameters data structure. */
-	cfg = kzalloc_obj(*cfg, GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg) {
 		tgec_free(tgec);
 		return NULL;

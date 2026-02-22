@@ -848,7 +848,7 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	for (i = 0; i < ARRAY_SIZE(chan_desc); i++) {
 		struct sa11x0_dma_chan *c;
 
-		c = kzalloc_obj(*c, GFP_KERNEL);
+		c = kzalloc_obj(*c);
 		if (!c) {
 			dev_err(dev, "no memory for channel %u\n", i);
 			return -ENOMEM;
@@ -907,7 +907,7 @@ static int sa11x0_dma_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 
-	d = kzalloc_obj(*d, GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d) {
 		ret = -ENOMEM;
 		goto err_alloc;

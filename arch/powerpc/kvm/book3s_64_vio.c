@@ -178,7 +178,7 @@ long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 	}
 	rcu_read_unlock();
 
-	stit = kzalloc_obj(*stit, GFP_KERNEL);
+	stit = kzalloc_obj(*stit);
 	if (!stit) {
 		iommu_tce_table_put(tbl);
 		return -ENOMEM;

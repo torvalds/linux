@@ -1582,7 +1582,7 @@ static int tcmu_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct tcmu_hba *tcmu_hba;
 
-	tcmu_hba = kzalloc_obj(struct tcmu_hba, GFP_KERNEL);
+	tcmu_hba = kzalloc_obj(struct tcmu_hba);
 	if (!tcmu_hba)
 		return -ENOMEM;
 
@@ -1602,7 +1602,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct tcmu_dev *udev;
 
-	udev = kzalloc_obj(struct tcmu_dev, GFP_KERNEL);
+	udev = kzalloc_obj(struct tcmu_dev);
 	if (!udev)
 		return NULL;
 	kref_init(&udev->kref);

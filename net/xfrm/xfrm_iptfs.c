@@ -2678,7 +2678,7 @@ static int iptfs_init_state(struct xfrm_state *x)
 		/* We have arrived here from xfrm_state_clone() */
 		xtfs = x->mode_data;
 	} else {
-		xtfs = kzalloc_obj(*xtfs, GFP_KERNEL);
+		xtfs = kzalloc_obj(*xtfs);
 		if (!xtfs)
 			return -ENOMEM;
 	}

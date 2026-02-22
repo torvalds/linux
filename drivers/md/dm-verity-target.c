@@ -1369,7 +1369,7 @@ static int verity_setup_salt_and_hashstate(struct dm_verity *v, const char *arg)
 	if (likely(v->use_sha256_lib)) {
 		/* Implies version 1: salt at beginning */
 		v->initial_hashstate.sha256 =
-			kmalloc_obj(struct sha256_ctx, GFP_KERNEL);
+			kmalloc_obj(struct sha256_ctx);
 		if (!v->initial_hashstate.sha256) {
 			ti->error = "Cannot allocate initial hash state";
 			return -ENOMEM;
@@ -1430,7 +1430,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 	char *root_hash_digest_to_validate;
 
-	v = kzalloc_obj(struct dm_verity, GFP_KERNEL);
+	v = kzalloc_obj(struct dm_verity);
 	if (!v) {
 		ti->error = "Cannot allocate verity structure";
 		return -ENOMEM;

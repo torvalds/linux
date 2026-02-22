@@ -515,8 +515,8 @@ static int get_perf_mad(struct ib_device *dev, int port_num, __be16 attr,
 	if (!dev->ops.process_mad)
 		return -ENOSYS;
 
-	in_mad = kzalloc_obj(*in_mad, GFP_KERNEL);
-	out_mad = kzalloc_obj(*out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kzalloc_obj(*out_mad);
 	if (!in_mad || !out_mad) {
 		ret = -ENOMEM;
 		goto out;
@@ -1054,7 +1054,7 @@ alloc_port_table_group(const char *name, struct attribute_group *group,
 	struct attribute **attr_list;
 	int i;
 
-	attr_list = kzalloc_objs(*attr_list, num + 1, GFP_KERNEL);
+	attr_list = kzalloc_objs(*attr_list, num + 1);
 	if (!attr_list)
 		return -ENOMEM;
 

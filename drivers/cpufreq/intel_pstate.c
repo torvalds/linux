@@ -2745,7 +2745,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	if (!cpu) {
-		cpu = kzalloc_obj(*cpu, GFP_KERNEL);
+		cpu = kzalloc_obj(*cpu);
 		if (!cpu)
 			return -ENOMEM;
 
@@ -3301,7 +3301,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* This reflects the intel_pstate_get_cpu_pstates() setting. */
 	policy->cur = policy->cpuinfo.min_freq;
 
-	req = kzalloc_objs(*req, 2, GFP_KERNEL);
+	req = kzalloc_objs(*req, 2);
 	if (!req) {
 		ret = -ENOMEM;
 		goto pstate_exit;

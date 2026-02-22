@@ -863,7 +863,7 @@ skip_non_qcounters:
 	if (!cnts->descs)
 		return -ENOMEM;
 
-	cnts->offsets = kzalloc_objs(*cnts->offsets, num_counters, GFP_KERNEL);
+	cnts->offsets = kzalloc_objs(*cnts->offsets, num_counters);
 	if (!cnts->offsets)
 		goto err;
 

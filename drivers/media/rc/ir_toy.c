@@ -418,7 +418,7 @@ static int irtoy_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	irtoy = kzalloc_obj(*irtoy, GFP_KERNEL);
+	irtoy = kzalloc_obj(*irtoy);
 	if (!irtoy)
 		return -ENOMEM;
 

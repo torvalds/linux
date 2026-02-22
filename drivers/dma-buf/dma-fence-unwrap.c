@@ -155,7 +155,7 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 
 	dma_fence_put(unsignaled);
 
-	array = kmalloc_objs(*array, count, GFP_KERNEL);
+	array = kmalloc_objs(*array, count);
 	if (!array)
 		return NULL;
 

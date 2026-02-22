@@ -375,7 +375,7 @@ msm_gem_vma_new(struct drm_gpuvm *gpuvm, struct drm_gem_object *obj,
 
 	drm_gpuvm_resv_assert_held(&vm->base);
 
-	vma = kzalloc_obj(*vma, GFP_KERNEL);
+	vma = kzalloc_obj(*vma);
 	if (!vma)
 		return ERR_PTR(-ENOMEM);
 
@@ -465,7 +465,7 @@ struct op_arg {
 static int
 vm_op_enqueue(struct op_arg *arg, struct msm_vm_op _op)
 {
-	struct msm_vm_op *op = kmalloc_obj(*op, GFP_KERNEL);
+	struct msm_vm_op *op = kmalloc_obj(*op);
 	if (!op)
 		return -ENOMEM;
 
@@ -819,7 +819,7 @@ msm_gem_vm_create(struct drm_device *drm, struct msm_mmu *mmu, const char *name,
 	if (IS_ERR(mmu))
 		return ERR_CAST(mmu);
 
-	vm = kzalloc_obj(*vm, GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 

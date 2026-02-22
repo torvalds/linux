@@ -738,7 +738,7 @@ static struct debug_buffer
 {
 	struct debug_buffer *buf;
 
-	buf = kzalloc_obj(struct debug_buffer, GFP_KERNEL);
+	buf = kzalloc_obj(struct debug_buffer);
 
 	if (buf) {
 		buf->bus = bus;

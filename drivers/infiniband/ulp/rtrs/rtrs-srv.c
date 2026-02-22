@@ -144,7 +144,7 @@ static int rtrs_srv_alloc_ops_ids(struct rtrs_srv_path *srv_path)
 		goto err;
 
 	for (i = 0; i < srv->queue_depth; ++i) {
-		id = kzalloc_obj(*id, GFP_KERNEL);
+		id = kzalloc_obj(*id);
 		if (!id)
 			goto err;
 
@@ -588,7 +588,7 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 		chunks_per_mr = DIV_ROUND_UP(srv->queue_depth, mrs_num);
 	}
 
-	srv_path->mrs = kzalloc_objs(*srv_path->mrs, mrs_num, GFP_KERNEL);
+	srv_path->mrs = kzalloc_objs(*srv_path->mrs, mrs_num);
 	if (!srv_path->mrs)
 		return -ENOMEM;
 
@@ -836,7 +836,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	strscpy(srv_path->s.sessname, msg->pathname,
 		sizeof(srv_path->s.sessname));
 
-	rwr = kzalloc_objs(*rwr, srv_path->mrs_num, GFP_KERNEL);
+	rwr = kzalloc_objs(*rwr, srv_path->mrs_num);
 	if (!rwr)
 		return -ENOMEM;
 
@@ -1435,7 +1435,7 @@ static struct rtrs_srv_sess *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 	}
 
 	/* need to allocate a new srv */
-	srv = kzalloc_obj(*srv, GFP_KERNEL);
+	srv = kzalloc_obj(*srv);
 	if  (!srv)
 		return ERR_PTR(-ENOMEM);
 
@@ -1448,7 +1448,7 @@ static struct rtrs_srv_sess *get_or_create_srv(struct rtrs_srv_ctx *ctx,
 	device_initialize(&srv->dev);
 	srv->dev.release = rtrs_srv_dev_release;
 
-	srv->chunks = kzalloc_objs(*srv->chunks, srv->queue_depth, GFP_KERNEL);
+	srv->chunks = kzalloc_objs(*srv->chunks, srv->queue_depth);
 	if (!srv->chunks)
 		goto err_free_srv;
 
@@ -1713,7 +1713,7 @@ static int create_con(struct rtrs_srv_path *srv_path,
 	u32 cq_num, max_send_wr, max_recv_wr, wr_limit;
 	int err, cq_vector;
 
-	con = kzalloc_obj(*con, GFP_KERNEL);
+	con = kzalloc_obj(*con);
 	if (!con) {
 		err = -ENOMEM;
 		goto err;
@@ -1806,11 +1806,11 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 		err = -EEXIST;
 		goto err;
 	}
-	srv_path = kzalloc_obj(*srv_path, GFP_KERNEL);
+	srv_path = kzalloc_obj(*srv_path);
 	if (!srv_path)
 		goto err;
 
-	srv_path->stats = kzalloc_obj(*srv_path->stats, GFP_KERNEL);
+	srv_path->stats = kzalloc_obj(*srv_path->stats);
 	if (!srv_path->stats)
 		goto err_free_sess;
 
@@ -1825,7 +1825,7 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 	if (!srv_path->dma_addr)
 		goto err_free_percpu;
 
-	srv_path->s.con = kzalloc_objs(*srv_path->s.con, con_num, GFP_KERNEL);
+	srv_path->s.con = kzalloc_objs(*srv_path->s.con, con_num);
 	if (!srv_path->s.con)
 		goto err_free_dma_addr;
 
@@ -2158,7 +2158,7 @@ static struct rtrs_srv_ctx *alloc_srv_ctx(struct rtrs_srv_ops *ops)
 {
 	struct rtrs_srv_ctx *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 

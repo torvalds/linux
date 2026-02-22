@@ -1145,7 +1145,7 @@ int __ref smp_rescan_cpus(bool early)
 	struct sclp_core_info *info;
 	int nr;
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	smp_get_core_info(info, 0);

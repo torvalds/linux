@@ -209,7 +209,7 @@ static struct gelic_eurus_cmd *gelic_eurus_sync_cmd(struct gelic_wl_info *wl,
 	struct gelic_eurus_cmd *cmd;
 
 	/* allocate cmd */
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return NULL;
 

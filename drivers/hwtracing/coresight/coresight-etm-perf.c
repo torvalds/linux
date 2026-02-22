@@ -260,7 +260,7 @@ static void *alloc_event_data(int cpu)
 	struct etm_event_data *event_data;
 
 	/* First get memory for the session's data */
-	event_data = kzalloc_obj(struct etm_event_data, GFP_KERNEL);
+	event_data = kzalloc_obj(struct etm_event_data);
 	if (!event_data)
 		return NULL;
 

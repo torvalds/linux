@@ -244,7 +244,7 @@ static int imx1_dt_node_to_map(struct pinctrl_dev *pctldev,
 	for (i = 0; i < grp->npins; i++)
 		map_num++;
 
-	new_map = kmalloc_objs(struct pinctrl_map, map_num, GFP_KERNEL);
+	new_map = kmalloc_objs(struct pinctrl_map, map_num);
 	if (!new_map)
 		return -ENOMEM;
 

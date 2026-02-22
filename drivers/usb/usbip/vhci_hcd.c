@@ -1537,7 +1537,7 @@ static int __init vhci_hcd_init(void)
 	if (vhci_num_controllers < 1)
 		vhci_num_controllers = 1;
 
-	vhcis = kzalloc_objs(struct vhci, vhci_num_controllers, GFP_KERNEL);
+	vhcis = kzalloc_objs(struct vhci, vhci_num_controllers);
 	if (vhcis == NULL)
 		return -ENOMEM;
 

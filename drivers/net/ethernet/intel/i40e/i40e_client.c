@@ -291,7 +291,7 @@ static int i40e_register_auxiliary_dev(struct i40e_info *ldev, const char *name)
 	struct auxiliary_device *aux_dev;
 	int ret;
 
-	i40e_aux_dev = kzalloc_obj(*i40e_aux_dev, GFP_KERNEL);
+	i40e_aux_dev = kzalloc_obj(*i40e_aux_dev);
 	if (!i40e_aux_dev)
 		return -ENOMEM;
 
@@ -337,7 +337,7 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	struct i40e_client_instance *cdev = NULL;
 	struct netdev_hw_addr *mac = NULL;
 
-	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return;
 
@@ -466,7 +466,7 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 			goto out;
 		}
 	}
-	ldev = kzalloc_obj(*ldev, GFP_KERNEL);
+	ldev = kzalloc_obj(*ldev);
 	if (!ldev) {
 		ret = -ENOMEM;
 		goto out;

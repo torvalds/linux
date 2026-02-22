@@ -3035,7 +3035,7 @@ static inline struct pfnmap_track_ctx *pfnmap_track_ctx_alloc(unsigned long pfn,
 	if (pfnmap_track(pfn, size, prot))
 		return ERR_PTR(-EINVAL);
 
-	ctx = kmalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (unlikely(!ctx)) {
 		pfnmap_untrack(pfn, size);
 		return ERR_PTR(-ENOMEM);

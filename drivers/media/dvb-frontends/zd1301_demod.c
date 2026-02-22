@@ -470,7 +470,7 @@ static int zd1301_demod_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

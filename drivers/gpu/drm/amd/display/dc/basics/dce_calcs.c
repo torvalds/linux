@@ -120,11 +120,11 @@ static void calculate_bandwidth(
 	int32_t number_of_displays_enabled_with_margin = 0;
 	int32_t number_of_aligned_displays_with_no_margin = 0;
 
-	yclk = kzalloc_objs(*yclk, 3, GFP_KERNEL);
+	yclk = kzalloc_objs(*yclk, 3);
 	if (!yclk)
 		return;
 
-	sclk = kzalloc_objs(*sclk, 8, GFP_KERNEL);
+	sclk = kzalloc_objs(*sclk, 8);
 	if (!sclk)
 		goto free_yclk;
 
@@ -2051,11 +2051,11 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 
 	enum bw_calcs_version version = bw_calcs_version_from_asic_id(asic_id);
 
-	dceip = kzalloc_obj(*dceip, GFP_KERNEL);
+	dceip = kzalloc_obj(*dceip);
 	if (!dceip)
 		return;
 
-	vbios = kzalloc_obj(*vbios, GFP_KERNEL);
+	vbios = kzalloc_obj(*vbios);
 	if (!vbios) {
 		kfree(dceip);
 		return;

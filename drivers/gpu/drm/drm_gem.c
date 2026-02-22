@@ -684,7 +684,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 
 	npages = obj->size >> PAGE_SHIFT;
 
-	pages = kvmalloc_objs(struct page *, npages, GFP_KERNEL);
+	pages = kvmalloc_objs(struct page *, npages);
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 

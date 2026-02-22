@@ -1045,7 +1045,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		return -ENOMSG;
 	}
 
-	bos = kzalloc_obj(*bos, GFP_KERNEL);
+	bos = kzalloc_obj(*bos);
 	if (!bos)
 		return -ENOMEM;
 
@@ -1066,7 +1066,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 	if (total_len < length)
 		return -EINVAL;
 
-	dev->bos = kzalloc_obj(*dev->bos, GFP_KERNEL);
+	dev->bos = kzalloc_obj(*dev->bos);
 	if (!dev->bos)
 		return -ENOMEM;
 

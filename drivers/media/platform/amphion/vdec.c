@@ -1927,11 +1927,11 @@ static int vdec_open(struct file *file)
 	struct vdec_t *vdec;
 	int ret;
 
-	inst = kzalloc_obj(*inst, GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
-	vdec = kzalloc_obj(*vdec, GFP_KERNEL);
+	vdec = kzalloc_obj(*vdec);
 	if (!vdec) {
 		kfree(inst);
 		return -ENOMEM;

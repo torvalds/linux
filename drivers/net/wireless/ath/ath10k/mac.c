@@ -6431,7 +6431,7 @@ static int ath10k_hw_scan(struct ieee80211_hw *hw,
 	if (ret)
 		goto exit;
 
-	arg = kzalloc_obj(*arg, GFP_KERNEL);
+	arg = kzalloc_obj(*arg);
 	if (!arg) {
 		ret = -ENOMEM;
 		goto exit;
@@ -7972,7 +7972,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 
 	scan_time_msec = ar->hw->wiphy->max_remain_on_channel_duration * 2;
 
-	arg = kzalloc_obj(*arg, GFP_KERNEL);
+	arg = kzalloc_obj(*arg);
 	if (!arg) {
 		ret = -ENOMEM;
 		goto exit;
@@ -8954,7 +8954,7 @@ ath10k_mac_op_change_chanctx(struct ieee80211_hw *hw,
 		if (arg.n_vifs == 0)
 			goto radar;
 
-		arg.vifs = kzalloc_objs(arg.vifs[0], arg.n_vifs, GFP_KERNEL);
+		arg.vifs = kzalloc_objs(arg.vifs[0], arg.n_vifs);
 		if (!arg.vifs)
 			goto radar;
 

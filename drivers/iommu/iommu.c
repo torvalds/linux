@@ -233,7 +233,7 @@ static int __init iommu_subsys_init(void)
 			(iommu_cmd_line & IOMMU_CMD_LINE_STRICT) ?
 				" (set via kernel command line)" : "");
 
-	nb = kzalloc_objs(*nb, ARRAY_SIZE(iommu_buses), GFP_KERNEL);
+	nb = kzalloc_objs(*nb, ARRAY_SIZE(iommu_buses));
 	if (!nb)
 		return -ENOMEM;
 
@@ -383,7 +383,7 @@ static struct dev_iommu *dev_iommu_get(struct device *dev)
 	if (param)
 		return param;
 
-	param = kzalloc_obj(*param, GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		return NULL;
 
@@ -1053,7 +1053,7 @@ struct iommu_group *iommu_group_alloc(void)
 	struct iommu_group *group;
 	int ret;
 
-	group = kzalloc_obj(*group, GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
@@ -1244,7 +1244,7 @@ static struct group_device *iommu_group_alloc_device(struct iommu_group *group,
 	int ret, i = 0;
 	struct group_device *device;
 
-	device = kzalloc_obj(*device, GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		return ERR_PTR(-ENOMEM);
 

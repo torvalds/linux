@@ -533,7 +533,7 @@ static int scom_probe(struct fsi_device *fsi_dev)
 	struct scom_device *scom;
 	int rc, didx;
 
-	scom = kzalloc_obj(*scom, GFP_KERNEL);
+	scom = kzalloc_obj(*scom);
 	if (!scom)
 		return -ENOMEM;
 	fsi_set_drvdata(fsi_dev, scom);

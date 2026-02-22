@@ -47,7 +47,7 @@ static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 	if (ret || !data)
 		return NOTIFY_DONE;
 
-	wdata = kmalloc_objs(efi_char16_t, MAX_DATA_LEN, GFP_KERNEL);
+	wdata = kmalloc_objs(efi_char16_t, MAX_DATA_LEN);
 	if (!wdata)
 		return NOTIFY_DONE;
 

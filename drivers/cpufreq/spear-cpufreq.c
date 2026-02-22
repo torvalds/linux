@@ -191,7 +191,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 		goto out_put_node;
 	}
 
-	freq_tbl = kzalloc_objs(*freq_tbl, cnt + 1, GFP_KERNEL);
+	freq_tbl = kzalloc_objs(*freq_tbl, cnt + 1);
 	if (!freq_tbl) {
 		ret = -ENOMEM;
 		goto out_put_node;

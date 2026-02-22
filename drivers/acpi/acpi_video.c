@@ -825,7 +825,7 @@ int acpi_video_get_levels(struct acpi_device *device,
 		goto out;
 	}
 
-	br = kzalloc_obj(*br, GFP_KERNEL);
+	br = kzalloc_obj(*br);
 	if (!br) {
 		result = -ENOMEM;
 		goto out;
@@ -1141,7 +1141,7 @@ static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 	if (acpi_get_local_u64_address(device->handle, &device_id))
 		goto exit;
 
-	data = kzalloc_obj(struct acpi_video_device, GFP_KERNEL);
+	data = kzalloc_obj(struct acpi_video_device);
 	if (!data) {
 		dev_dbg(&device->dev, "Cannot attach\n");
 		return -ENOMEM;
@@ -2003,7 +2003,7 @@ static int acpi_video_bus_probe(struct platform_device *pdev)
 			return -ENODEV;
 	}
 
-	video = kzalloc_obj(struct acpi_video_bus, GFP_KERNEL);
+	video = kzalloc_obj(struct acpi_video_bus);
 	if (!video)
 		return -ENOMEM;
 

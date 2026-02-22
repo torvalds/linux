@@ -888,7 +888,7 @@ int tipc_nametbl_init(struct net *net)
 	struct name_table *nt;
 	int i;
 
-	nt = kzalloc_obj(*nt, GFP_KERNEL);
+	nt = kzalloc_obj(*nt);
 	if (!nt)
 		return -ENOMEM;
 

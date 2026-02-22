@@ -272,7 +272,7 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 	if (n == 0)
 		goto out;
 
-	args->devs = kmalloc_objs(*args->devs, n, GFP_KERNEL);
+	args->devs = kmalloc_objs(*args->devs, n);
 	if (!args->devs) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out;

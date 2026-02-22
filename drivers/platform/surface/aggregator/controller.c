@@ -344,7 +344,7 @@ ssam_nf_refcount_inc(struct ssam_nf *nf, struct ssam_event_registry reg,
 		}
 	}
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 

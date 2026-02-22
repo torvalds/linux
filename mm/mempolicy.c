@@ -3815,7 +3815,7 @@ static int sysfs_wi_node_add(int nid)
 		return -EINVAL;
 	}
 
-	new_attr = kzalloc_obj(*new_attr, GFP_KERNEL);
+	new_attr = kzalloc_obj(*new_attr);
 	if (!new_attr)
 		return -ENOMEM;
 

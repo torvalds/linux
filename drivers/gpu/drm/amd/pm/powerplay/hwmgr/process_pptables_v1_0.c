@@ -200,7 +200,7 @@ static int get_platform_power_management_table(
 		struct pp_hwmgr *hwmgr,
 		ATOM_Tonga_PPM_Table *atom_ppm_table)
 {
-	struct phm_ppm_table *ptr = kzalloc_obj(*ptr, GFP_KERNEL);
+	struct phm_ppm_table *ptr = kzalloc_obj(*ptr);
 	struct phm_ppt_v1_information *pp_table_information =
 		(struct phm_ppt_v1_information *)(hwmgr->pptable);
 
@@ -1142,7 +1142,7 @@ static int pp_tables_v1_0_initialize(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	const ATOM_Tonga_POWERPLAYTABLE *powerplay_table;
 
-	hwmgr->pptable = kzalloc_obj(struct phm_ppt_v1_information, GFP_KERNEL);
+	hwmgr->pptable = kzalloc_obj(struct phm_ppt_v1_information);
 
 	PP_ASSERT_WITH_CODE((NULL != hwmgr->pptable),
 			    "Failed to allocate hwmgr->pptable!", return -ENOMEM);

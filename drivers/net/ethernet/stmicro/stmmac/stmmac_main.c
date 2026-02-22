@@ -4013,7 +4013,7 @@ stmmac_setup_dma_desc(struct stmmac_priv *priv, unsigned int mtu)
 	struct stmmac_dma_conf *dma_conf;
 	int chan, bfsize, ret;
 
-	dma_conf = kzalloc_obj(*dma_conf, GFP_KERNEL);
+	dma_conf = kzalloc_obj(*dma_conf);
 	if (!dma_conf) {
 		netdev_err(priv->dev, "%s: DMA conf allocation failed\n",
 			   __func__);

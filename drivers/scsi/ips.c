@@ -6874,7 +6874,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	}
 
 	/* found a controller */
-	ha = kzalloc_obj(ips_ha_t, GFP_KERNEL);
+	ha = kzalloc_obj(ips_ha_t);
 	if (ha == NULL) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
 			   "Unable to allocate temporary ha struct\n");
@@ -6947,7 +6947,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 	ha->logical_drive_info_dma_addr = dma_address;
 
 
-	ha->conf = kmalloc_obj(IPS_CONF, GFP_KERNEL);
+	ha->conf = kmalloc_obj(IPS_CONF);
 
 	if (!ha->conf) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
@@ -6955,7 +6955,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 		return ips_abort_init(ha, index);
 	}
 
-	ha->nvram = kmalloc_obj(IPS_NVRAM_P5, GFP_KERNEL);
+	ha->nvram = kmalloc_obj(IPS_NVRAM_P5);
 
 	if (!ha->nvram) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,
@@ -6963,7 +6963,7 @@ ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr)
 		return ips_abort_init(ha, index);
 	}
 
-	ha->subsys = kmalloc_obj(IPS_SUBSYS, GFP_KERNEL);
+	ha->subsys = kmalloc_obj(IPS_SUBSYS);
 
 	if (!ha->subsys) {
 		IPS_PRINTK(KERN_WARNING, pci_dev,

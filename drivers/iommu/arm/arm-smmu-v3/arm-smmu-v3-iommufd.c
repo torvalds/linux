@@ -23,7 +23,7 @@ void *arm_smmu_hw_info(struct device *dev, u32 *length,
 		return impl_ops->hw_info(master->smmu, length, type);
 	}
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -121,7 +121,7 @@ int arm_smmu_attach_prepare_vmaster(struct arm_smmu_attach_state *state,
 		return ret;
 	}
 
-	vmaster = kzalloc_obj(*vmaster, GFP_KERNEL);
+	vmaster = kzalloc_obj(*vmaster);
 	if (!vmaster)
 		return -ENOMEM;
 	vmaster->vsmmu = nested_domain->vsmmu;
@@ -361,7 +361,7 @@ int arm_vsmmu_cache_invalidate(struct iommufd_viommu *viommu,
 	struct arm_vsmmu_invalidation_cmd *end;
 	int ret;
 
-	cmds = kzalloc_objs(*cmds, array->entry_num, GFP_KERNEL);
+	cmds = kzalloc_objs(*cmds, array->entry_num);
 	if (!cmds)
 		return -ENOMEM;
 	cur = cmds;

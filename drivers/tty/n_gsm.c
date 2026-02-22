@@ -3275,7 +3275,7 @@ static inline unsigned int mux_line_to_num(unsigned int line)
 static struct gsm_mux *gsm_alloc_mux(void)
 {
 	int i;
-	struct gsm_mux *gsm = kzalloc_obj(struct gsm_mux, GFP_KERNEL);
+	struct gsm_mux *gsm = kzalloc_obj(struct gsm_mux);
 	if (gsm == NULL)
 		return NULL;
 	gsm->buf = kmalloc(MAX_MRU + 1, GFP_KERNEL);

@@ -694,7 +694,7 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
-	rp = kzalloc_obj(struct mon_reader_bin, GFP_KERNEL);
+	rp = kzalloc_obj(struct mon_reader_bin);
 	if (rp == NULL) {
 		rc = -ENOMEM;
 		goto err_alloc;

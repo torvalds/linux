@@ -1218,7 +1218,7 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	}
 
 	/* allocate the vfs database */
-	bp->vfdb = kzalloc_obj(*(bp->vfdb), GFP_KERNEL);
+	bp->vfdb = kzalloc_obj(*(bp->vfdb));
 	if (!bp->vfdb) {
 		BNX2X_ERR("failed to allocate vf database\n");
 		err = -ENOMEM;

@@ -66,7 +66,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 {
 	struct i915_ppgtt *ppgtt;
 
-	ppgtt = kzalloc_obj(*ppgtt, GFP_KERNEL);
+	ppgtt = kzalloc_obj(*ppgtt);
 	if (!ppgtt)
 		return NULL;
 

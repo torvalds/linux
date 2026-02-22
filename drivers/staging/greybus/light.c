@@ -269,10 +269,10 @@ static int channel_attr_groups_set(struct gb_channel *channel,
 		return 0;
 
 	/* Set attributes based in the channel flags */
-	channel->attrs = kzalloc_objs(*channel->attrs, size + 1, GFP_KERNEL);
+	channel->attrs = kzalloc_objs(*channel->attrs, size + 1);
 	if (!channel->attrs)
 		return -ENOMEM;
-	channel->attr_group = kzalloc_obj(*channel->attr_group, GFP_KERNEL);
+	channel->attr_group = kzalloc_obj(*channel->attr_group);
 	if (!channel->attr_group)
 		return -ENOMEM;
 	channel->attr_groups = kzalloc_objs(*channel->attr_groups, 2,
@@ -1262,7 +1262,7 @@ static int gb_lights_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LIGHTS)
 		return -ENODEV;
 
-	glights = kzalloc_obj(*glights, GFP_KERNEL);
+	glights = kzalloc_obj(*glights);
 	if (!glights)
 		return -ENOMEM;
 

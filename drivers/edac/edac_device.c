@@ -67,7 +67,7 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 
 	edac_dbg(4, "instances=%d blocks=%d\n", nr_instances, nr_blocks);
 
-	dev_ctl = kzalloc_obj(struct edac_device_ctl_info, GFP_KERNEL);
+	dev_ctl = kzalloc_obj(struct edac_device_ctl_info);
 	if (!dev_ctl)
 		return NULL;
 
@@ -644,7 +644,7 @@ int edac_dev_register(struct device *parent, char *name,
 		}
 	}
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -654,7 +654,7 @@ int edac_dev_register(struct device *parent, char *name,
 		goto ctx_free;
 
 	if (scrub_cnt) {
-		ctx->scrub = kzalloc_objs(*ctx->scrub, scrub_cnt, GFP_KERNEL);
+		ctx->scrub = kzalloc_objs(*ctx->scrub, scrub_cnt);
 		if (!ctx->scrub)
 			goto groups_free;
 	}

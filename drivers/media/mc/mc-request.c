@@ -293,7 +293,7 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	if (mdev->ops->req_alloc)
 		req = mdev->ops->req_alloc(mdev);
 	else
-		req = kzalloc_obj(*req, GFP_KERNEL);
+		req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

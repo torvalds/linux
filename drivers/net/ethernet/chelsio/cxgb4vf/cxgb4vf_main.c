@@ -288,7 +288,7 @@ static int cxgb4vf_change_mac(struct port_info *pi, unsigned int viid,
 				goto set_hash;
 			}
 		}
-		new_entry = kzalloc_obj(*new_entry, GFP_KERNEL);
+		new_entry = kzalloc_obj(*new_entry);
 		if (!new_entry)
 			return -ENOMEM;
 		ether_addr_copy(new_entry->addr, addr);
@@ -2935,7 +2935,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	/*
 	 * Allocate our adapter data structure and attach it to the device.
 	 */
-	adapter = kzalloc_obj(*adapter, GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter) {
 		err = -ENOMEM;
 		goto err_release_regions;

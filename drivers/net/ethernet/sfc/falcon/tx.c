@@ -544,7 +544,7 @@ int ef4_probe_tx_queue(struct ef4_tx_queue *tx_queue)
 		  tx_queue->queue, efx->txq_entries, tx_queue->ptr_mask);
 
 	/* Allocate software ring */
-	tx_queue->buffer = kzalloc_objs(*tx_queue->buffer, entries, GFP_KERNEL);
+	tx_queue->buffer = kzalloc_objs(*tx_queue->buffer, entries);
 	if (!tx_queue->buffer)
 		return -ENOMEM;
 

@@ -394,7 +394,7 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 
 	CLASS(fd, f)(args->fd);
 
-	irqfd = kzalloc_obj(*irqfd, GFP_KERNEL);
+	irqfd = kzalloc_obj(*irqfd);
 	if (!irqfd)
 		return -ENOMEM;
 
@@ -707,7 +707,7 @@ static int mshv_assign_ioeventfd(struct mshv_partition *pt,
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	p = kzalloc_obj(*p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		ret = -ENOMEM;
 		goto fail;

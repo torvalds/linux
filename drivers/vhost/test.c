@@ -110,13 +110,13 @@ static void handle_vq_kick(struct vhost_work *work)
 
 static int vhost_test_open(struct inode *inode, struct file *f)
 {
-	struct vhost_test *n = kmalloc_obj(*n, GFP_KERNEL);
+	struct vhost_test *n = kmalloc_obj(*n);
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
 
 	if (!n)
 		return -ENOMEM;
-	vqs = kmalloc_objs(*vqs, VHOST_TEST_VQ_MAX, GFP_KERNEL);
+	vqs = kmalloc_objs(*vqs, VHOST_TEST_VQ_MAX);
 	if (!vqs) {
 		kfree(n);
 		return -ENOMEM;

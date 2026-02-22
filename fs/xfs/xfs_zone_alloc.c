@@ -1196,7 +1196,7 @@ xfs_alloc_zone_info(
 	struct xfs_zone_info	*zi;
 	int			i;
 
-	zi = kzalloc_obj(*zi, GFP_KERNEL);
+	zi = kzalloc_obj(*zi);
 	if (!zi)
 		return NULL;
 	INIT_LIST_HEAD(&zi->zi_open_zones);

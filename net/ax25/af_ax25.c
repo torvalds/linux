@@ -1249,7 +1249,7 @@ static int __must_check ax25_connect(struct socket *sock,
 			goto out_release;
 		}
 
-		if ((digi = kmalloc_obj(ax25_digi, GFP_KERNEL)) == NULL) {
+		if ((digi = kmalloc_obj(ax25_digi)) == NULL) {
 			err = -ENOBUFS;
 			goto out_release;
 		}

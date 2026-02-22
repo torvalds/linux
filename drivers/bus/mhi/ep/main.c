@@ -1275,7 +1275,7 @@ static struct mhi_ep_device *mhi_ep_alloc_device(struct mhi_ep_cntrl *mhi_cntrl,
 	struct mhi_ep_device *mhi_dev;
 	struct device *dev;
 
-	mhi_dev = kzalloc_obj(*mhi_dev, GFP_KERNEL);
+	mhi_dev = kzalloc_obj(*mhi_dev);
 	if (!mhi_dev)
 		return ERR_PTR(-ENOMEM);
 

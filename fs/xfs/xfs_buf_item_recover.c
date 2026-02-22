@@ -1180,7 +1180,7 @@ xlog_alloc_buf_cancel_table(
 
 	ASSERT(log->l_buf_cancel_table == NULL);
 
-	p = kmalloc_objs(struct list_head, XLOG_BC_TABLE_SIZE, GFP_KERNEL);
+	p = kmalloc_objs(struct list_head, XLOG_BC_TABLE_SIZE);
 	if (!p)
 		return -ENOMEM;
 

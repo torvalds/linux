@@ -82,7 +82,7 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	unsigned long flags;
 	int r;
 
-	fence_drv = kzalloc_obj(*fence_drv, GFP_KERNEL);
+	fence_drv = kzalloc_obj(*fence_drv);
 	if (!fence_drv)
 		return -ENOMEM;
 

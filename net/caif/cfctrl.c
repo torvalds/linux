@@ -270,7 +270,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 		cfpkt_destroy(pkt);
 		return -EINVAL;
 	}
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req) {
 		cfpkt_destroy(pkt);
 		return -ENOMEM;

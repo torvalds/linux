@@ -853,8 +853,8 @@ static int virtscsi_init(struct virtio_device *vdev,
 
 	num_req_vqs = vscsi->num_queues;
 	num_vqs = num_req_vqs + VIRTIO_SCSI_VQ_BASE;
-	vqs = kmalloc_objs(struct virtqueue *, num_vqs, GFP_KERNEL);
-	vqs_info = kzalloc_objs(*vqs_info, num_vqs, GFP_KERNEL);
+	vqs = kmalloc_objs(struct virtqueue *, num_vqs);
+	vqs_info = kzalloc_objs(*vqs_info, num_vqs);
 
 	if (!vqs || !vqs_info) {
 		err = -ENOMEM;

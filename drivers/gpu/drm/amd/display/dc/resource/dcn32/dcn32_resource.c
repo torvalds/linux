@@ -750,7 +750,7 @@ static struct dce_aux *dcn32_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc_obj(struct aux_engine_dce110, GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110);
 
 	if (!aux_engine)
 		return NULL;
@@ -790,7 +790,7 @@ static struct dce_i2c_hw *dcn32_i2c_hw_create(
 	uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc_obj(struct dce_i2c_hw, GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -817,7 +817,7 @@ static struct clock_source *dcn32_clock_source_create(
 		bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc_obj(struct dce110_clk_src, GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src);
 
 	if (!clk_src)
 		return NULL;
@@ -893,7 +893,7 @@ static struct hubp *dcn32_hubp_create(
 	uint32_t inst)
 {
 	struct dcn20_hubp *hubp2 =
-		kzalloc_obj(struct dcn20_hubp, GFP_KERNEL);
+		kzalloc_obj(struct dcn20_hubp);
 
 	if (!hubp2)
 		return NULL;
@@ -925,7 +925,7 @@ static struct dpp *dcn32_dpp_create(
 	uint32_t inst)
 {
 	struct dcn3_dpp *dpp3 =
-		kzalloc_obj(struct dcn3_dpp, GFP_KERNEL);
+		kzalloc_obj(struct dcn3_dpp);
 
 	if (!dpp3)
 		return NULL;
@@ -951,7 +951,7 @@ static struct mpc *dcn32_mpc_create(
 		int num_mpcc,
 		int num_rmu)
 {
-	struct dcn30_mpc *mpc30 = kzalloc_obj(struct dcn30_mpc, GFP_KERNEL);
+	struct dcn30_mpc *mpc30 = kzalloc_obj(struct dcn30_mpc);
 
 	if (!mpc30)
 		return NULL;
@@ -974,7 +974,7 @@ static struct output_pixel_processor *dcn32_opp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_opp *opp2 =
-		kzalloc_obj(struct dcn20_opp, GFP_KERNEL);
+		kzalloc_obj(struct dcn20_opp);
 
 	if (!opp2) {
 		BREAK_TO_DEBUGGER();
@@ -999,7 +999,7 @@ static struct timing_generator *dcn32_timing_generator_create(
 		uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc_obj(struct optc, GFP_KERNEL);
+		kzalloc_obj(struct optc);
 
 	if (!tgn10)
 		return NULL;
@@ -1040,7 +1040,7 @@ static struct link_encoder *dcn32_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
-		kzalloc_obj(struct dcn20_link_encoder, GFP_KERNEL);
+		kzalloc_obj(struct dcn20_link_encoder);
 
 	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
@@ -1084,7 +1084,7 @@ static struct link_encoder *dcn32_link_encoder_create(
 struct panel_cntl *dcn32_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dcn31_panel_cntl *panel_cntl =
-		kzalloc_obj(struct dcn31_panel_cntl, GFP_KERNEL);
+		kzalloc_obj(struct dcn31_panel_cntl);
 
 	if (!panel_cntl)
 		return NULL;
@@ -1123,7 +1123,7 @@ static struct vpg *dcn32_vpg_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn30_vpg *vpg3 = kzalloc_obj(struct dcn30_vpg, GFP_KERNEL);
+	struct dcn30_vpg *vpg3 = kzalloc_obj(struct dcn30_vpg);
 
 	if (!vpg3)
 		return NULL;
@@ -1153,7 +1153,7 @@ static struct afmt *dcn32_afmt_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn30_afmt *afmt3 = kzalloc_obj(struct dcn30_afmt, GFP_KERNEL);
+	struct dcn30_afmt *afmt3 = kzalloc_obj(struct dcn30_afmt);
 
 	if (!afmt3)
 		return NULL;
@@ -1179,7 +1179,7 @@ static struct apg *dcn31_apg_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
-	struct dcn31_apg *apg31 = kzalloc_obj(struct dcn31_apg, GFP_KERNEL);
+	struct dcn31_apg *apg31 = kzalloc_obj(struct dcn31_apg);
 
 	if (!apg31)
 		return NULL;
@@ -1216,7 +1216,7 @@ static struct stream_encoder *dcn32_stream_encoder_create(
 	vpg_inst = eng_id;
 	afmt_inst = eng_id;
 
-	enc1 = kzalloc_obj(struct dcn10_stream_encoder, GFP_KERNEL);
+	enc1 = kzalloc_obj(struct dcn10_stream_encoder);
 	vpg = dcn32_vpg_create(ctx, vpg_inst);
 	afmt = dcn32_afmt_create(ctx, afmt_inst);
 
@@ -1308,7 +1308,7 @@ static struct hpo_dp_link_encoder *dcn32_hpo_dp_link_encoder_create(
 	struct dcn31_hpo_dp_link_encoder *hpo_dp_enc31;
 
 	/* allocate HPO link encoder */
-	hpo_dp_enc31 = kzalloc_obj(struct dcn31_hpo_dp_link_encoder, GFP_KERNEL);
+	hpo_dp_enc31 = kzalloc_obj(struct dcn31_hpo_dp_link_encoder);
 	if (!hpo_dp_enc31)
 		return NULL; /* out of memory */
 
@@ -1327,7 +1327,7 @@ static struct hpo_dp_link_encoder *dcn32_hpo_dp_link_encoder_create(
 static struct dce_hwseq *dcn32_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq, GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq);
 
 #undef REG_STRUCT
 #define REG_STRUCT hwseq_reg
@@ -1566,7 +1566,7 @@ static struct display_stream_compressor *dcn32_dsc_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_dsc *dsc =
-		kzalloc_obj(struct dcn20_dsc, GFP_KERNEL);
+		kzalloc_obj(struct dcn20_dsc);
 
 	if (!dsc) {
 		BREAK_TO_DEBUGGER();
@@ -2572,7 +2572,7 @@ struct resource_pool *dcn32_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn32_resource_pool *pool =
-		kzalloc_obj(struct dcn32_resource_pool, GFP_KERNEL);
+		kzalloc_obj(struct dcn32_resource_pool);
 
 	if (!pool)
 		return NULL;

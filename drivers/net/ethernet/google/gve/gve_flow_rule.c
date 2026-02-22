@@ -269,7 +269,7 @@ int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd)
 	if (!priv->max_flow_rules)
 		return -EOPNOTSUPP;
 
-	rule = kvzalloc_obj(*rule, GFP_KERNEL);
+	rule = kvzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 

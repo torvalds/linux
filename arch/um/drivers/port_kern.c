@@ -170,7 +170,7 @@ void *port_data(int port_num)
 		if (port->port == port_num)
 			goto found;
 	}
-	port = kmalloc_obj(struct port_list, GFP_KERNEL);
+	port = kmalloc_obj(struct port_list);
 	if (port == NULL) {
 		printk(KERN_ERR "Allocation of port list failed\n");
 		goto out;
@@ -202,7 +202,7 @@ void *port_data(int port_num)
 	list_add(&port->list, &ports);
 
  found:
-	dev = kmalloc_obj(struct port_dev, GFP_KERNEL);
+	dev = kmalloc_obj(struct port_dev);
 	if (dev == NULL) {
 		printk(KERN_ERR "Allocation of port device entry failed\n");
 		goto out;

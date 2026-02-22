@@ -136,7 +136,7 @@ static struct attribute *device_str_attr_create(const char *name, const char *st
 {
 	struct perf_pmu_events_attr *attr;
 
-	attr = kzalloc_obj(*attr, GFP_KERNEL);
+	attr = kzalloc_obj(*attr);
 	if (!attr)
 		return NULL;
 	sysfs_attr_init(&attr->attr.attr);
@@ -257,7 +257,7 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	of_property_read_u32(node, "reg", &base_reg);
 
 	/* Allocate memory for the events */
-	pmu->events = kzalloc_objs(struct imc_events, ct, GFP_KERNEL);
+	pmu->events = kzalloc_objs(struct imc_events, ct);
 	if (!pmu->events) {
 		of_node_put(pmu_events);
 		return -ENOMEM;
@@ -274,7 +274,7 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	of_node_put(pmu_events);
 
 	/* Allocate memory for attribute group */
-	attr_group = kzalloc_obj(*attr_group, GFP_KERNEL);
+	attr_group = kzalloc_obj(*attr_group);
 	if (!attr_group) {
 		imc_free_events(pmu->events, ct);
 		return -ENOMEM;
@@ -288,7 +288,7 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	 * So allocate three times the "ct" (this includes event, event_scale and
 	 * event_unit).
 	 */
-	attrs = kzalloc_objs(struct attribute *, ((ct * 3) + 1), GFP_KERNEL);
+	attrs = kzalloc_objs(struct attribute *, ((ct * 3) + 1));
 	if (!attrs) {
 		kfree(attr_group);
 		imc_free_events(pmu->events, ct);

@@ -170,7 +170,7 @@ static int bnge_alloc_ctx_pg_tbls(struct bnge_dev *bd,
 		for (i = 0; i < nr_tbls; i++) {
 			struct bnge_ctx_pg_info *pg_tbl;
 
-			pg_tbl = kzalloc_obj(*pg_tbl, GFP_KERNEL);
+			pg_tbl = kzalloc_obj(*pg_tbl);
 			if (!pg_tbl)
 				return -ENOMEM;
 			ctx_pg->ctx_pg_tbl[i] = pg_tbl;

@@ -2525,7 +2525,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	funcs = state->dev->mode_config.helper_private;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		commit = kzalloc_obj(*commit, GFP_KERNEL);
+		commit = kzalloc_obj(*commit);
 		if (!commit)
 			return -ENOMEM;
 
@@ -2554,7 +2554,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		}
 
 		if (!new_crtc_state->event) {
-			commit->event = kzalloc_obj(*commit->event, GFP_KERNEL);
+			commit->event = kzalloc_obj(*commit->event);
 			if (!commit->event)
 				return -ENOMEM;
 
@@ -4080,7 +4080,7 @@ drm_atomic_helper_bridge_propagate_bus_fmt(struct drm_bridge *bridge,
 {
 	u32 *input_fmts;
 
-	input_fmts = kzalloc_obj(*input_fmts, GFP_KERNEL);
+	input_fmts = kzalloc_obj(*input_fmts);
 	if (!input_fmts) {
 		*num_input_fmts = 0;
 		return NULL;

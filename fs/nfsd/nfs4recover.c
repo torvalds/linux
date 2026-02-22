@@ -203,7 +203,7 @@ nfsd4_build_namelist(struct dir_context *__ctx, const char *name, int namlen,
 
 	if (namlen != HEXDIR_LEN - 1)
 		return true;
-	entry = kmalloc_obj(struct name_list, GFP_KERNEL);
+	entry = kmalloc_obj(struct name_list);
 	if (entry == NULL)
 		return false;
 	memcpy(entry->name, name, HEXDIR_LEN - 1);
@@ -897,7 +897,7 @@ __nfsd4_init_cld_pipe(struct net *net)
 	if (nn->cld_net)
 		return 0;
 
-	cn = kzalloc_obj(*cn, GFP_KERNEL);
+	cn = kzalloc_obj(*cn);
 	if (!cn) {
 		ret = -ENOMEM;
 		goto err;
@@ -959,7 +959,7 @@ alloc_cld_upcall(struct nfsd_net *nn)
 	struct cld_upcall *new, *tmp;
 	struct cld_net *cn = nn->cld_net;
 
-	new = kzalloc_obj(*new, GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return new;
 

@@ -135,7 +135,7 @@ int virtsnd_pcm_msg_alloc(struct virtio_pcm_substream *vss,
 	struct snd_pcm_runtime *runtime = vss->substream->runtime;
 	unsigned int i;
 
-	vss->msgs = kzalloc_objs(*vss->msgs, periods, GFP_KERNEL);
+	vss->msgs = kzalloc_objs(*vss->msgs, periods);
 	if (!vss->msgs)
 		return -ENOMEM;
 

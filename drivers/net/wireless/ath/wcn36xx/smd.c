@@ -847,7 +847,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	mutex_lock(&wcn->hal_mutex);
-	msg_body = kzalloc_obj(*msg_body, GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body) {
 		ret = -ENOMEM;
 		goto out;
@@ -942,7 +942,7 @@ int wcn36xx_smd_update_channel_list(struct wcn36xx *wcn, struct cfg80211_scan_re
 	struct wcn36xx_hal_update_channel_list_req_msg *msg_body;
 	int ret, i;
 
-	msg_body = kzalloc_obj(*msg_body, GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body)
 		return -ENOMEM;
 
@@ -1624,7 +1624,7 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	struct cfg80211_chan_def *chandef;
 	int ret;
 
-	msg_body = kzalloc_obj(*msg_body, GFP_KERNEL);
+	msg_body = kzalloc_obj(*msg_body);
 	if (!msg_body)
 		return -ENOMEM;
 
@@ -1744,7 +1744,7 @@ static int wcn36xx_smd_config_bss_v0(struct wcn36xx *wcn,
 	struct wcn36xx_hal_config_sta_params *sta_params;
 	int ret;
 
-	msg = kzalloc_obj(*msg, GFP_KERNEL);
+	msg = kzalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 

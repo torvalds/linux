@@ -234,7 +234,7 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 
 	periph_banks = banks;
 
-	clks = kzalloc_objs(struct clk *, num, GFP_KERNEL);
+	clks = kzalloc_objs(struct clk *, num);
 	if (!clks) {
 		kfree(periph_clk_enb_refcnt);
 		return NULL;

@@ -1372,7 +1372,7 @@ zl3073x_dpll_pin_alloc(struct zl3073x_dpll *zldpll, enum dpll_pin_direction dir,
 {
 	struct zl3073x_dpll_pin *pin;
 
-	pin = kzalloc_obj(*pin, GFP_KERNEL);
+	pin = kzalloc_obj(*pin);
 	if (!pin)
 		return ERR_PTR(-ENOMEM);
 
@@ -1944,7 +1944,7 @@ zl3073x_dpll_alloc(struct zl3073x_dev *zldev, u8 ch)
 {
 	struct zl3073x_dpll *zldpll;
 
-	zldpll = kzalloc_obj(*zldpll, GFP_KERNEL);
+	zldpll = kzalloc_obj(*zldpll);
 	if (!zldpll)
 		return ERR_PTR(-ENOMEM);
 

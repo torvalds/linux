@@ -250,7 +250,7 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	struct gvt_dma *new, *itr;
 	struct rb_node **link, *parent = NULL;
 
-	new = kzalloc_obj(struct gvt_dma, GFP_KERNEL);
+	new = kzalloc_obj(struct gvt_dma);
 	if (!new)
 		return -ENOMEM;
 
@@ -595,7 +595,7 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num)
 	struct vfio_edid_region *base;
 	int ret;
 
-	base = kzalloc_obj(*base, GFP_KERNEL);
+	base = kzalloc_obj(*base);
 	if (!base)
 		return -ENOMEM;
 
@@ -1829,7 +1829,7 @@ static int intel_gvt_init_device(struct drm_i915_private *i915)
 	if (drm_WARN_ON(&i915->drm, i915->gvt))
 		return -EEXIST;
 
-	gvt = kzalloc_obj(struct intel_gvt, GFP_KERNEL);
+	gvt = kzalloc_obj(struct intel_gvt);
 	if (!gvt)
 		return -ENOMEM;
 

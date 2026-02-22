@@ -2003,7 +2003,7 @@ static void r535_gsp_retain_logging(struct nvkm_gsp *gsp)
 		goto exit;
 	}
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		goto error;
 

@@ -856,10 +856,10 @@ static void __init __hugetlb_cgroup_file_pre_init(void)
 	int cft_count;
 
 	cft_count = hugetlb_max_hstate * DFL_TMPL_SIZE + 1; /* add terminator */
-	dfl_files = kzalloc_objs(struct cftype, cft_count, GFP_KERNEL);
+	dfl_files = kzalloc_objs(struct cftype, cft_count);
 	BUG_ON(!dfl_files);
 	cft_count = hugetlb_max_hstate * LEGACY_TMPL_SIZE + 1; /* add terminator */
-	legacy_files = kzalloc_objs(struct cftype, cft_count, GFP_KERNEL);
+	legacy_files = kzalloc_objs(struct cftype, cft_count);
 	BUG_ON(!legacy_files);
 }
 

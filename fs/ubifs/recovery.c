@@ -1258,7 +1258,7 @@ static int add_ino(struct ubifs_info *c, ino_t inum, loff_t i_size,
 			p = &(*p)->rb_right;
 	}
 
-	e = kzalloc_obj(struct size_entry, GFP_KERNEL);
+	e = kzalloc_obj(struct size_entry);
 	if (!e)
 		return -ENOMEM;
 

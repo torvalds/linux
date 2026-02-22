@@ -1333,7 +1333,7 @@ static int pwm_export_child(struct device *pwmchip_dev, struct pwm_device *pwm)
 	if (test_and_set_bit(PWMF_EXPORTED, &pwm->flags))
 		return -EBUSY;
 
-	export = kzalloc_obj(*export, GFP_KERNEL);
+	export = kzalloc_obj(*export);
 	if (!export) {
 		clear_bit(PWMF_EXPORTED, &pwm->flags);
 		return -ENOMEM;

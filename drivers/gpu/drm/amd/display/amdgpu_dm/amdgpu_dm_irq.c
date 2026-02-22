@@ -313,7 +313,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 	if (false == validate_irq_registration_params(int_params, ih))
 		return DAL_INVALID_IRQ_HANDLER_IDX;
 
-	handler_data = kzalloc_obj(*handler_data, GFP_KERNEL);
+	handler_data = kzalloc_obj(*handler_data);
 	if (!handler_data) {
 		DRM_ERROR("DM_IRQ: failed to allocate irq handler!\n");
 		return DAL_INVALID_IRQ_HANDLER_IDX;

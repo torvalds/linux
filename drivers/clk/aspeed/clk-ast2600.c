@@ -431,7 +431,7 @@ static struct clk_hw *aspeed_g6_clk_hw_register_gate(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	gate = kzalloc_obj(*gate, GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

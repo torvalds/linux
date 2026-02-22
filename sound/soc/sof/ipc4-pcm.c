@@ -939,7 +939,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 			return -ENOMEM;
 		}
 
-		stream_priv = kzalloc_obj(*stream_priv, GFP_KERNEL);
+		stream_priv = kzalloc_obj(*stream_priv);
 		if (!stream_priv) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
@@ -951,7 +951,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		if (!support_info || stream == SNDRV_PCM_STREAM_CAPTURE)
 			continue;
 
-		time_info = kzalloc_obj(*time_info, GFP_KERNEL);
+		time_info = kzalloc_obj(*time_info);
 		if (!time_info) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;

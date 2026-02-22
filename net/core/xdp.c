@@ -214,7 +214,7 @@ static int __mem_id_init_hash_table(void)
 	if (unlikely(mem_id_init))
 		return 0;
 
-	rht = kzalloc_obj(*rht, GFP_KERNEL);
+	rht = kzalloc_obj(*rht);
 	if (!rht)
 		return -ENOMEM;
 

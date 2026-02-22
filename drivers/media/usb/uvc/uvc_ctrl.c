@@ -600,7 +600,7 @@ static const struct uvc_control_mapping *uvc_ctrl_filter_plf_mapping(
 	u8 init_val;
 	int ret;
 
-	buf = kmalloc_obj(*buf, GFP_KERNEL);
+	buf = kmalloc_obj(*buf);
 	if (!buf)
 		return NULL;
 
@@ -3339,7 +3339,7 @@ static int uvc_ctrl_init_chain(struct uvc_video_chain *chain)
 		if (ncontrols == 0)
 			continue;
 
-		entity->controls = kzalloc_objs(*ctrl, ncontrols, GFP_KERNEL);
+		entity->controls = kzalloc_objs(*ctrl, ncontrols);
 		if (entity->controls == NULL)
 			return -ENOMEM;
 		entity->ncontrols = ncontrols;

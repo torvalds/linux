@@ -803,7 +803,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 		return -EINVAL;
 	}
 
-	configs = kzalloc_obj(*configs, GFP_KERNEL);
+	configs = kzalloc_obj(*configs);
 	if (!configs)
 		return -ENOMEM;
 	configs[0] = pinconf_to_config_packed(BCM2835_PINCONF_PARAM_PULL, pull);

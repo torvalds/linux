@@ -136,7 +136,7 @@ octep_hp_register_slot(struct octep_hp_controller *hp_ctrl,
 	struct octep_hp_slot *hp_slot;
 	int ret;
 
-	hp_slot = kzalloc_obj(*hp_slot, GFP_KERNEL);
+	hp_slot = kzalloc_obj(*hp_slot);
 	if (!hp_slot)
 		return ERR_PTR(-ENOMEM);
 

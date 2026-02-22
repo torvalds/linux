@@ -509,7 +509,7 @@ static int reg_schedule_apply(const struct ieee80211_regdomain *regdom)
 {
 	struct reg_regdb_apply_request *request;
 
-	request = kzalloc_obj(struct reg_regdb_apply_request, GFP_KERNEL);
+	request = kzalloc_obj(struct reg_regdb_apply_request);
 	if (!request) {
 		kfree(regdom);
 		return -ENOMEM;
@@ -1098,7 +1098,7 @@ int reg_reload_regdb(void)
 	/* reset regulatory domain */
 	current_regdomain = get_cfg80211_regdom();
 
-	request = kzalloc_obj(*request, GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -3222,7 +3222,7 @@ static int regulatory_hint_core(const char *alpha2)
 {
 	struct regulatory_request *request;
 
-	request = kzalloc_obj(struct regulatory_request, GFP_KERNEL);
+	request = kzalloc_obj(struct regulatory_request);
 	if (!request)
 		return -ENOMEM;
 
@@ -3248,7 +3248,7 @@ int regulatory_hint_user(const char *alpha2,
 	if (!is_world_regdom(alpha2) && !is_an_alpha2(alpha2))
 		return -EINVAL;
 
-	request = kzalloc_obj(struct regulatory_request, GFP_KERNEL);
+	request = kzalloc_obj(struct regulatory_request);
 	if (!request)
 		return -ENOMEM;
 
@@ -3318,7 +3318,7 @@ int regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 
 	wiphy->regulatory_flags &= ~REGULATORY_CUSTOM_REG;
 
-	request = kzalloc_obj(struct regulatory_request, GFP_KERNEL);
+	request = kzalloc_obj(struct regulatory_request);
 	if (!request)
 		return -ENOMEM;
 
@@ -3351,7 +3351,7 @@ void regulatory_hint_country_ie(struct wiphy *wiphy, enum nl80211_band band,
 	if (country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
 		return;
 
-	request = kzalloc_obj(*request, GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request)
 		return;
 

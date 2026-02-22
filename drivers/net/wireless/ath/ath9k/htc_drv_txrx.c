@@ -1193,7 +1193,7 @@ int ath9k_rx_init(struct ath9k_htc_priv *priv)
 
 	for (i = 0; i < ATH9K_HTC_RXBUF; i++) {
 		struct ath9k_htc_rxbuf *rxbuf =
-			kzalloc_obj(struct ath9k_htc_rxbuf, GFP_KERNEL);
+			kzalloc_obj(struct ath9k_htc_rxbuf);
 		if (rxbuf == NULL)
 			goto err;
 

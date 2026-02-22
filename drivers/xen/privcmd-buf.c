@@ -39,7 +39,7 @@ static int privcmd_buf_open(struct inode *ino, struct file *file)
 {
 	struct privcmd_buf_private *file_priv;
 
-	file_priv = kzalloc_obj(*file_priv, GFP_KERNEL);
+	file_priv = kzalloc_obj(*file_priv);
 	if (!file_priv)
 		return -ENOMEM;
 

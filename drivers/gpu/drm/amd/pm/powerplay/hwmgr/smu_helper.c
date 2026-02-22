@@ -211,7 +211,7 @@ int phm_trim_voltage_table(struct pp_atomctrl_voltage_table *vol_table)
 	PP_ASSERT_WITH_CODE((NULL != vol_table),
 			"Voltage Table empty.", return -EINVAL);
 
-	table = kzalloc_obj(struct pp_atomctrl_voltage_table, GFP_KERNEL);
+	table = kzalloc_obj(struct pp_atomctrl_voltage_table);
 
 	if (NULL == table)
 		return -EINVAL;
@@ -644,7 +644,7 @@ static const struct amdgpu_irq_src_funcs smu9_irq_funcs = {
 int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_irq_src *source =
-		kzalloc_obj(struct amdgpu_irq_src, GFP_KERNEL);
+		kzalloc_obj(struct amdgpu_irq_src);
 
 	if (!source)
 		return -ENOMEM;

@@ -438,7 +438,7 @@ static SIMPLE_DEV_PM_OPS(mdio_bus_phy_pm_ops, mdio_bus_phy_suspend,
 static int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 			      int (*run)(struct phy_device *))
 {
-	struct phy_fixup *fixup = kzalloc_obj(*fixup, GFP_KERNEL);
+	struct phy_fixup *fixup = kzalloc_obj(*fixup);
 
 	if (!fixup)
 		return -ENOMEM;
@@ -754,7 +754,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 	int ret = 0;
 
 	/* We allocate the device, and initialize the default values */
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

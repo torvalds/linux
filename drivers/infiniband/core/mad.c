@@ -386,7 +386,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	/* Allocate structures */
-	mad_agent_priv = kzalloc_obj(*mad_agent_priv, GFP_KERNEL);
+	mad_agent_priv = kzalloc_obj(*mad_agent_priv);
 	if (!mad_agent_priv) {
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
@@ -2612,7 +2612,7 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 		struct ib_qp_attr *attr;
 
 		/* Transition QP to RTS and fail offending send */
-		attr = kmalloc_obj(*attr, GFP_KERNEL);
+		attr = kmalloc_obj(*attr);
 		if (attr) {
 			attr->qp_state = IB_QPS_RTS;
 			attr->cur_qp_state = IB_QPS_SQE;
@@ -3042,7 +3042,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	struct ib_qp *qp;
 	u16 pkey_index;
 
-	attr = kmalloc_obj(*attr, GFP_KERNEL);
+	attr = kmalloc_obj(*attr);
 	if (!attr)
 		return -ENOMEM;
 
@@ -3207,7 +3207,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		return -EFAULT;
 
 	/* Create new device info */
-	port_priv = kzalloc_obj(*port_priv, GFP_KERNEL);
+	port_priv = kzalloc_obj(*port_priv);
 	if (!port_priv)
 		return -ENOMEM;
 

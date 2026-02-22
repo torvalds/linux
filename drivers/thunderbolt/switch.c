@@ -69,7 +69,7 @@ static void nvm_set_auth_status(const struct tb_switch *sw, u32 status)
 	st = __nvm_get_auth_status(sw);
 
 	if (!st) {
-		st = kzalloc_obj(*st, GFP_KERNEL);
+		st = kzalloc_obj(*st);
 		if (!st)
 			goto unlock;
 
@@ -2475,7 +2475,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	if (upstream_port < 0)
 		return ERR_PTR(upstream_port);
 
-	sw = kzalloc_obj(*sw, GFP_KERNEL);
+	sw = kzalloc_obj(*sw);
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 
@@ -2577,7 +2577,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
 {
 	struct tb_switch *sw;
 
-	sw = kzalloc_obj(*sw, GFP_KERNEL);
+	sw = kzalloc_obj(*sw);
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 

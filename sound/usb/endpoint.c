@@ -621,7 +621,7 @@ iface_ref_find(struct snd_usb_audio *chip, int iface)
 		if (ip->iface == iface)
 			return ip;
 
-	ip = kzalloc_obj(*ip, GFP_KERNEL);
+	ip = kzalloc_obj(*ip);
 	if (!ip)
 		return NULL;
 	ip->iface = iface;
@@ -639,7 +639,7 @@ clock_ref_find(struct snd_usb_audio *chip, int clock)
 		if (ref->clock == clock)
 			return ref;
 
-	ref = kzalloc_obj(*ref, GFP_KERNEL);
+	ref = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 	ref->clock = clock;
@@ -698,7 +698,7 @@ int snd_usb_add_endpoint(struct snd_usb_audio *chip, int ep_num, int type)
 	usb_audio_dbg(chip, "Creating new %s endpoint #%x\n",
 		      ep_type_name(type),
 		      ep_num);
-	ep = kzalloc_obj(*ep, GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 

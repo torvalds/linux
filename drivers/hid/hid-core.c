@@ -93,7 +93,7 @@ struct hid_report *hid_register_report(struct hid_device *device,
 	if (report_enum->report_id_hash[id])
 		return report_enum->report_id_hash[id];
 
-	report = kzalloc_obj(struct hid_report, GFP_KERNEL);
+	report = kzalloc_obj(struct hid_report);
 	if (!report)
 		return NULL;
 
@@ -1797,7 +1797,7 @@ static void hid_report_process_ordering(struct hid_device *hid,
 	}
 
 	/* allocate the memory to process the fields */
-	entries = kzalloc_objs(*entries, count, GFP_KERNEL);
+	entries = kzalloc_objs(*entries, count);
 	if (!entries)
 		return;
 
@@ -2611,7 +2611,7 @@ static ssize_t new_id_store(struct device_driver *drv, const char *buf,
 	if (ret < 3)
 		return -EINVAL;
 
-	dynid = kzalloc_obj(*dynid, GFP_KERNEL);
+	dynid = kzalloc_obj(*dynid);
 	if (!dynid)
 		return -ENOMEM;
 
@@ -2973,7 +2973,7 @@ struct hid_device *hid_allocate_device(void)
 	struct hid_device *hdev;
 	int ret = -ENOMEM;
 
-	hdev = kzalloc_obj(*hdev, GFP_KERNEL);
+	hdev = kzalloc_obj(*hdev);
 	if (hdev == NULL)
 		return ERR_PTR(ret);
 

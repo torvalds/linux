@@ -9139,7 +9139,7 @@ static int show_stat(struct kmem_cache *s, char *buf, enum stat_item si)
 	unsigned long sum  = 0;
 	int cpu;
 	int len = 0;
-	int *data = kmalloc_objs(int, nr_cpu_ids, GFP_KERNEL);
+	int *data = kmalloc_objs(int, nr_cpu_ids);
 
 	if (!data)
 		return -ENOMEM;
@@ -9510,7 +9510,7 @@ int sysfs_slab_alias(struct kmem_cache *s, const char *name)
 		return sysfs_create_link(&slab_kset->kobj, &s->kobj, name);
 	}
 
-	al = kmalloc_obj(struct saved_alias, GFP_KERNEL);
+	al = kmalloc_obj(struct saved_alias);
 	if (!al)
 		return -ENOMEM;
 

@@ -78,7 +78,7 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 	if (!sect_attrs)
 		return -ENOMEM;
 
-	gattr = kzalloc_objs(*gattr, nloaded + 1, GFP_KERNEL);
+	gattr = kzalloc_objs(*gattr, nloaded + 1);
 	if (!gattr) {
 		kfree(sect_attrs);
 		return -ENOMEM;
@@ -170,7 +170,7 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 	if (!notes_attrs)
 		return -ENOMEM;
 
-	gattr = kzalloc_objs(*gattr, notes + 1, GFP_KERNEL);
+	gattr = kzalloc_objs(*gattr, notes + 1);
 	if (!gattr) {
 		kfree(notes_attrs);
 		return -ENOMEM;

@@ -1905,7 +1905,7 @@ static int __cdnsp_gadget_init(struct cdns *cdns)
 
 	cdns_drd_gadget_on(cdns);
 
-	pdev = kzalloc_obj(*pdev, GFP_KERNEL);
+	pdev = kzalloc_obj(*pdev);
 	if (!pdev)
 		return -ENOMEM;
 

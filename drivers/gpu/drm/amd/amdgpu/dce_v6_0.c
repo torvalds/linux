@@ -3414,7 +3414,7 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 	}
 
 	/* add a new one */
-	amdgpu_encoder = kzalloc_obj(struct amdgpu_encoder, GFP_KERNEL);
+	amdgpu_encoder = kzalloc_obj(struct amdgpu_encoder);
 	if (!amdgpu_encoder)
 		return;
 

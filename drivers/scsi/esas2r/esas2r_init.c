@@ -783,7 +783,7 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* allocate requests for asynchronous events */
 	a->first_ae_req =
-		kzalloc_objs(struct esas2r_request, num_ae_requests, GFP_KERNEL);
+		kzalloc_objs(struct esas2r_request, num_ae_requests);
 
 	if (a->first_ae_req == NULL) {
 		esas2r_log(ESAS2R_LOG_CRIT,

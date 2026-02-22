@@ -194,7 +194,7 @@ void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 {
 	struct nvmet_async_event *aen;
 
-	aen = kmalloc_obj(*aen, GFP_KERNEL);
+	aen = kmalloc_obj(*aen);
 	if (!aen)
 		return;
 
@@ -693,7 +693,7 @@ struct nvmet_ns *nvmet_ns_alloc(struct nvmet_subsys *subsys, u32 nsid)
 	if (subsys->nr_namespaces == NVMET_MAX_NAMESPACES)
 		goto out_unlock;
 
-	ns = kzalloc_obj(*ns, GFP_KERNEL);
+	ns = kzalloc_obj(*ns);
 	if (!ns)
 		goto out_unlock;
 
@@ -1609,7 +1609,7 @@ struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args)
 	up_read(&nvmet_config_sem);
 
 	args->status = NVME_SC_INTERNAL;
-	ctrl = kzalloc_obj(*ctrl, GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		goto out_put_subsystem;
 	mutex_init(&ctrl->lock);
@@ -1828,7 +1828,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 	char serial[NVMET_SN_MAX_SIZE / 2];
 	int ret;
 
-	subsys = kzalloc_obj(*subsys, GFP_KERNEL);
+	subsys = kzalloc_obj(*subsys);
 	if (!subsys)
 		return ERR_PTR(-ENOMEM);
 

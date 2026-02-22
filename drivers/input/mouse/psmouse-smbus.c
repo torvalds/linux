@@ -154,7 +154,7 @@ static void psmouse_smbus_schedule_remove(struct i2c_client *client)
 {
 	struct psmouse_smbus_removal_work *rwork;
 
-	rwork = kzalloc_obj(*rwork, GFP_KERNEL);
+	rwork = kzalloc_obj(*rwork);
 	if (rwork) {
 		INIT_WORK(&rwork->work, psmouse_smbus_remove_i2c_device);
 		rwork->client = client;

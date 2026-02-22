@@ -61,7 +61,7 @@ static int quirks_param_set(const char *value, const struct kernel_param *kp)
 		quirk_list = NULL;
 	}
 
-	quirk_list = kzalloc_objs(struct quirk_entry, quirk_count, GFP_KERNEL);
+	quirk_list = kzalloc_objs(struct quirk_entry, quirk_count);
 	if (!quirk_list) {
 		quirk_count = 0;
 		mutex_unlock(&quirk_mutex);

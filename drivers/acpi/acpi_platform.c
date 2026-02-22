@@ -145,7 +145,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		if (count > 0) {
 			struct resource_entry *rentry;
 
-			resources = kzalloc_objs(*resources, count, GFP_KERNEL);
+			resources = kzalloc_objs(*resources, count);
 			if (!resources) {
 				acpi_dev_free_resource_list(&resource_list);
 				return ERR_PTR(-ENOMEM);

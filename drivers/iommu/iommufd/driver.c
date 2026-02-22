@@ -202,7 +202,7 @@ iommufd_sw_msi_get_map(struct iommufd_ctx *ictx, phys_addr_t msi_addr,
 	    BITS_PER_BYTE * sizeof_field(struct iommufd_sw_msi_maps, bitmap))
 		return ERR_PTR(-EOVERFLOW);
 
-	cur = kzalloc_obj(*cur, GFP_KERNEL);
+	cur = kzalloc_obj(*cur);
 	if (!cur)
 		return ERR_PTR(-ENOMEM);
 

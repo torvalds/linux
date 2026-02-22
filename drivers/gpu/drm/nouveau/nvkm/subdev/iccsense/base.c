@@ -188,7 +188,7 @@ nvkm_iccsense_create_sensor(struct nvkm_iccsense *iccsense, u8 id)
 		return NULL;
 	}
 
-	sensor = kmalloc_obj(*sensor, GFP_KERNEL);
+	sensor = kmalloc_obj(*sensor);
 	if (!sensor)
 		return NULL;
 
@@ -279,7 +279,7 @@ nvkm_iccsense_oneinit(struct nvkm_subdev *subdev)
 				continue;
 			}
 
-			rail = kmalloc_obj(*rail, GFP_KERNEL);
+			rail = kmalloc_obj(*rail);
 			if (!rail)
 				return -ENOMEM;
 
@@ -322,7 +322,7 @@ int
 nvkm_iccsense_new_(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		   struct nvkm_iccsense **iccsense)
 {
-	if (!(*iccsense = kzalloc_obj(**iccsense, GFP_KERNEL)))
+	if (!(*iccsense = kzalloc_obj(**iccsense)))
 		return -ENOMEM;
 	INIT_LIST_HEAD(&(*iccsense)->sensors);
 	INIT_LIST_HEAD(&(*iccsense)->rails);

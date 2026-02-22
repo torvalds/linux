@@ -1409,7 +1409,7 @@ void intel_overlay_setup(struct intel_display *display)
 	if (!engine || !engine->kernel_context)
 		return;
 
-	overlay = kzalloc_obj(*overlay, GFP_KERNEL);
+	overlay = kzalloc_obj(*overlay);
 	if (!overlay)
 		return;
 

@@ -87,11 +87,11 @@ lpe_audio_platdev_create(struct intel_display *display)
 	struct platform_device *platdev;
 	struct intel_hdmi_lpe_audio_pdata *pdata;
 
-	pdata = kzalloc_obj(*pdata, GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	rsc = kzalloc_objs(*rsc, 2, GFP_KERNEL);
+	rsc = kzalloc_objs(*rsc, 2);
 	if (!rsc) {
 		kfree(pdata);
 		return ERR_PTR(-ENOMEM);

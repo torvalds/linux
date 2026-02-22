@@ -48,7 +48,7 @@ int hinic3_alloc_txqs(struct net_device *netdev)
 	struct pci_dev *pdev = nic_dev->pdev;
 	struct hinic3_txq *txq;
 
-	nic_dev->txqs = kzalloc_objs(*nic_dev->txqs, num_txqs, GFP_KERNEL);
+	nic_dev->txqs = kzalloc_objs(*nic_dev->txqs, num_txqs);
 	if (!nic_dev->txqs)
 		return -ENOMEM;
 

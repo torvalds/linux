@@ -71,7 +71,7 @@ static int dg_create_handle(u32 resource_id,
 
 	handle = vmci_make_handle(context_id, resource_id);
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		pr_warn("Failed allocating memory for datagram entry\n");
 		return VMCI_ERROR_NO_MEM;

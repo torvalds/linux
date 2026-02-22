@@ -893,12 +893,12 @@ static int ext2_fill_super(struct super_block *sb, struct fs_context *fc)
 	__le32 features;
 	int err;
 
-	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 
 	sbi->s_blockgroup_lock =
-		kzalloc_obj(struct blockgroup_lock, GFP_KERNEL);
+		kzalloc_obj(struct blockgroup_lock);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
 		return -ENOMEM;
@@ -1669,7 +1669,7 @@ static int ext2_init_fs_context(struct fs_context *fc)
 {
 	struct ext2_fs_context *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

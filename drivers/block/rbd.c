@@ -707,7 +707,7 @@ static struct rbd_client *rbd_client_create(struct ceph_options *ceph_opts)
 	int ret = -ENOMEM;
 
 	dout("%s:\n", __func__);
-	rbdc = kmalloc_obj(struct rbd_client, GFP_KERNEL);
+	rbdc = kmalloc_obj(struct rbd_client);
 	if (!rbdc)
 		goto out_opt;
 
@@ -5289,7 +5289,7 @@ static struct rbd_spec *rbd_spec_alloc(void)
 {
 	struct rbd_spec *spec;
 
-	spec = kzalloc_obj(*spec, GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 
@@ -5352,7 +5352,7 @@ static struct rbd_device *__rbd_dev_create(struct rbd_spec *spec)
 {
 	struct rbd_device *rbd_dev;
 
-	rbd_dev = kzalloc_obj(*rbd_dev, GFP_KERNEL);
+	rbd_dev = kzalloc_obj(*rbd_dev);
 	if (!rbd_dev)
 		return NULL;
 
@@ -6509,7 +6509,7 @@ static int rbd_add_parse_args(const char *buf,
 
 	/* Initialize all rbd options to the defaults */
 
-	pctx.opts = kzalloc_obj(*pctx.opts, GFP_KERNEL);
+	pctx.opts = kzalloc_obj(*pctx.opts);
 	if (!pctx.opts)
 		goto out_mem;
 

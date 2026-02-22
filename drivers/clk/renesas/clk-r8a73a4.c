@@ -196,8 +196,8 @@ static void __init r8a73a4_cpg_clocks_init(struct device_node *np)
 		return;
 	}
 
-	cpg = kzalloc_obj(*cpg, GFP_KERNEL);
-	clks = kzalloc_objs(*clks, num_clks, GFP_KERNEL);
+	cpg = kzalloc_obj(*cpg);
+	clks = kzalloc_objs(*clks, num_clks);
 	if (cpg == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.

@@ -539,7 +539,7 @@ static int con_allocate_new(struct vc_data *vc)
 {
 	struct uni_pagedict *new, *old = *vc->uni_pagedict_loc;
 
-	new = kzalloc_obj(*new, GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return -ENOMEM;
 

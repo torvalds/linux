@@ -889,7 +889,7 @@ mountpoint:
 	}
 
 	if (!mp)
-		mp = kmalloc_obj(struct mountpoint, GFP_KERNEL);
+		mp = kmalloc_obj(struct mountpoint);
 	if (!mp)
 		return -ENOMEM;
 
@@ -2226,7 +2226,7 @@ static inline bool extend_array(struct path **res, struct path **to_free,
 
 	if (likely(n < *count))
 		return true;
-	p = kmalloc_objs(struct path, new_count, GFP_KERNEL);
+	p = kmalloc_objs(struct path, new_count);
 	if (p && *count)
 		memcpy(p, *res, *count * sizeof(struct path));
 	*count = new_count;

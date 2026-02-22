@@ -394,7 +394,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 		goto out;
 	}
 
-	p = kzalloc_obj(struct ip_tunnel_prl_entry, GFP_KERNEL);
+	p = kzalloc_obj(struct ip_tunnel_prl_entry);
 	if (!p) {
 		err = -ENOBUFS;
 		goto out;

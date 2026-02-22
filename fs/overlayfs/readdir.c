@@ -493,7 +493,7 @@ static struct ovl_dir_cache *ovl_cache_get(struct dentry *dentry)
 	}
 	ovl_set_dir_cache(d_inode(dentry), NULL);
 
-	cache = kzalloc_obj(struct ovl_dir_cache, GFP_KERNEL);
+	cache = kzalloc_obj(struct ovl_dir_cache);
 	if (!cache)
 		return ERR_PTR(-ENOMEM);
 
@@ -706,7 +706,7 @@ static struct ovl_dir_cache *ovl_cache_get_impure(const struct path *path)
 	ovl_dir_cache_free(inode);
 	ovl_set_dir_cache(inode, NULL);
 
-	cache = kzalloc_obj(struct ovl_dir_cache, GFP_KERNEL);
+	cache = kzalloc_obj(struct ovl_dir_cache);
 	if (!cache)
 		return ERR_PTR(-ENOMEM);
 

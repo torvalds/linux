@@ -245,7 +245,7 @@ int template_desc_init_fields(const char *template_fmt,
 	}
 
 	if (fields && num_fields) {
-		*fields = kmalloc_objs(**fields, i, GFP_KERNEL);
+		*fields = kmalloc_objs(**fields, i);
 		if (*fields == NULL)
 			return -ENOMEM;
 
@@ -334,7 +334,7 @@ static struct ima_template_desc *restore_template_fmt(char *template_name)
 		goto out;
 	}
 
-	template_desc = kzalloc_obj(*template_desc, GFP_KERNEL);
+	template_desc = kzalloc_obj(*template_desc);
 	if (!template_desc)
 		goto out;
 

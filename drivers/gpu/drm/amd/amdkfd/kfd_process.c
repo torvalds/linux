@@ -153,7 +153,7 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 		    (q->properties.type != KFD_QUEUE_TYPE_SDMA_XGMI))
 			continue;
 
-		sdma_q = kzalloc_obj(struct temp_sdma_queue_list, GFP_KERNEL);
+		sdma_q = kzalloc_obj(struct temp_sdma_queue_list);
 		if (!sdma_q) {
 			dqm_unlock(dqm);
 			goto cleanup;
@@ -1593,7 +1593,7 @@ struct kfd_process *create_process(const struct task_struct *thread, bool primar
 	struct mmu_notifier *mn;
 	int err = -ENOMEM;
 
-	process = kzalloc_obj(*process, GFP_KERNEL);
+	process = kzalloc_obj(*process);
 	if (!process)
 		goto err_alloc_process;
 
@@ -1709,7 +1709,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 
 	if (WARN_ON_ONCE(p->n_pdds >= MAX_GPU_INSTANCE))
 		return NULL;
-	pdd = kzalloc_obj(*pdd, GFP_KERNEL);
+	pdd = kzalloc_obj(*pdd);
 	if (!pdd)
 		return NULL;
 

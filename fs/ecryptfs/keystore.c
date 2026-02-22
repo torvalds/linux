@@ -623,7 +623,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	struct key *auth_tok_key = NULL;
 	int rc = 0;
 
-	s = kzalloc_obj(*s, GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
@@ -860,7 +860,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	(*packet_size) = 0;
 	(*filename_size) = 0;
 	(*filename) = NULL;
-	s = kzalloc_obj(*s, GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 

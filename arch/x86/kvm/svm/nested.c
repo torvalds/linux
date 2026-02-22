@@ -1781,7 +1781,7 @@ static int svm_get_nested_state(struct kvm_vcpu *vcpu,
 	if (clear_user(user_vmcb, KVM_STATE_NESTED_SVM_VMCB_SIZE))
 		return -EFAULT;
 
-	ctl = kzalloc_obj(*ctl, GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 

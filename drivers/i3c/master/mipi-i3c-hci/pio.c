@@ -977,7 +977,7 @@ static int hci_pio_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 	struct i3c_generic_ibi_pool *pool;
 	struct hci_pio_dev_ibi_data *dev_ibi;
 
-	dev_ibi = kmalloc_obj(*dev_ibi, GFP_KERNEL);
+	dev_ibi = kmalloc_obj(*dev_ibi);
 	if (!dev_ibi)
 		return -ENOMEM;
 	pool = i3c_generic_ibi_alloc_pool(dev, req);

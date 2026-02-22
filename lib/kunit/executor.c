@@ -131,7 +131,7 @@ kunit_filter_glob_tests(const struct kunit_suite *const suite, const char *test_
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
 
-	filtered = kzalloc_objs(*filtered, n + 1, GFP_KERNEL);
+	filtered = kzalloc_objs(*filtered, n + 1);
 	if (!filtered) {
 		kfree(copy);
 		return ERR_PTR(-ENOMEM);
@@ -179,7 +179,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 
 	const size_t max = suite_set->end - suite_set->start;
 
-	copy = kzalloc_objs(*copy, max, GFP_KERNEL);
+	copy = kzalloc_objs(*copy, max);
 	if (!copy) { /* won't be able to run anything, return an empty set */
 		return filtered;
 	}

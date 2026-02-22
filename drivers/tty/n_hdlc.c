@@ -686,7 +686,7 @@ static void n_hdlc_alloc_buf(struct n_hdlc_buf_list *list, unsigned int count,
  */
 static struct n_hdlc *n_hdlc_alloc(void)
 {
-	struct n_hdlc *n_hdlc = kzalloc_obj(*n_hdlc, GFP_KERNEL);
+	struct n_hdlc *n_hdlc = kzalloc_obj(*n_hdlc);
 
 	if (!n_hdlc)
 		return NULL;

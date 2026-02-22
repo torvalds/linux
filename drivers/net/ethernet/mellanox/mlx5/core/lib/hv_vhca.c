@@ -42,7 +42,7 @@ struct mlx5_hv_vhca *mlx5_hv_vhca_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_hv_vhca *hv_vhca;
 
-	hv_vhca = kzalloc_obj(*hv_vhca, GFP_KERNEL);
+	hv_vhca = kzalloc_obj(*hv_vhca);
 	if (!hv_vhca)
 		return ERR_PTR(-ENOMEM);
 
@@ -152,7 +152,7 @@ mlx5_hv_vhca_control_agent_invalidate(struct mlx5_hv_vhca_agent *agent,
 	u32 capabilities = 0;
 	int err;
 
-	block = kzalloc_obj(*block, GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return;
 
@@ -273,7 +273,7 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 	}
 	mutex_unlock(&hv_vhca->agents_lock);
 
-	agent = kzalloc_obj(*agent, GFP_KERNEL);
+	agent = kzalloc_obj(*agent);
 	if (!agent)
 		return ERR_PTR(-ENOMEM);
 

@@ -741,7 +741,7 @@ nf_flow_offload_rule_alloc(struct net *net,
 	struct nf_flow_rule *flow_rule;
 	int err = -ENOMEM;
 
-	flow_rule = kzalloc_obj(*flow_rule, GFP_KERNEL);
+	flow_rule = kzalloc_obj(*flow_rule);
 	if (!flow_rule)
 		goto err_flow;
 

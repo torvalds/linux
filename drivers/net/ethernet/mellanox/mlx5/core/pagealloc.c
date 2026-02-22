@@ -107,7 +107,7 @@ static struct rb_root *page_root_per_function(struct mlx5_core_dev *dev, u32 fun
 	if (root)
 		return root;
 
-	root = kzalloc_obj(*root, GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
@@ -148,7 +148,7 @@ static int insert_page(struct mlx5_core_dev *dev, u64 addr, struct page *page, u
 			return -EEXIST;
 	}
 
-	nfp = kzalloc_obj(*nfp, GFP_KERNEL);
+	nfp = kzalloc_obj(*nfp);
 	if (!nfp)
 		return -ENOMEM;
 

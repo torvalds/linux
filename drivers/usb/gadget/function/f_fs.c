@@ -814,7 +814,7 @@ static void *ffs_build_sg_list(struct sg_table *sgt, size_t sz)
 		return NULL;
 
 	n_pages = PAGE_ALIGN(sz) >> PAGE_SHIFT;
-	pages = kvmalloc_objs(struct page *, n_pages, GFP_KERNEL);
+	pages = kvmalloc_objs(struct page *, n_pages);
 	if (!pages) {
 		vfree(vaddr);
 
@@ -1245,7 +1245,7 @@ static ssize_t ffs_epfile_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	ssize_t res;
 
 	if (!is_sync_kiocb(kiocb)) {
-		p = kzalloc_obj(io_data, GFP_KERNEL);
+		p = kzalloc_obj(io_data);
 		if (!p)
 			return -ENOMEM;
 		p->aio = true;
@@ -1280,7 +1280,7 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	ssize_t res;
 
 	if (!is_sync_kiocb(kiocb)) {
-		p = kzalloc_obj(io_data, GFP_KERNEL);
+		p = kzalloc_obj(io_data);
 		if (!p)
 			return -ENOMEM;
 		p->aio = true;
@@ -1503,7 +1503,7 @@ static int ffs_dmabuf_attach(struct file *file, int fd)
 		goto err_dmabuf_put;
 	}
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		err = -ENOMEM;
 		goto err_dmabuf_detach;
@@ -1652,7 +1652,7 @@ static int ffs_dmabuf_transfer(struct file *file,
 	if (ret)
 		goto err_resv_unlock;
 
-	fence = kmalloc_obj(*fence, GFP_KERNEL);
+	fence = kmalloc_obj(*fence);
 	if (!fence) {
 		ret = -ENOMEM;
 		goto err_resv_unlock;
@@ -2067,7 +2067,7 @@ static int ffs_fs_init_fs_context(struct fs_context *fc)
 {
 	struct ffs_sb_fill_data *ctx;
 
-	ctx = kzalloc_obj(struct ffs_sb_fill_data, GFP_KERNEL);
+	ctx = kzalloc_obj(struct ffs_sb_fill_data);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -2183,7 +2183,7 @@ static void ffs_data_closed(struct ffs_data *ffs)
 
 static struct ffs_data *ffs_data_new(const char *dev_name)
 {
-	struct ffs_data *ffs = kzalloc_obj(*ffs, GFP_KERNEL);
+	struct ffs_data *ffs = kzalloc_obj(*ffs);
 	if (!ffs)
 		return NULL;
 
@@ -2330,7 +2330,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 	int err;
 
 	count = ffs->eps_count;
-	epfiles = kzalloc_objs(*epfiles, count, GFP_KERNEL);
+	epfiles = kzalloc_objs(*epfiles, count);
 	if (!epfiles)
 		return -ENOMEM;
 
@@ -4031,7 +4031,7 @@ static struct usb_function_instance *ffs_alloc_inst(void)
 	struct f_fs_opts *opts;
 	struct ffs_dev *dev;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -4107,7 +4107,7 @@ static struct usb_function *ffs_alloc(struct usb_function_instance *fi)
 {
 	struct ffs_function *func;
 
-	func = kzalloc_obj(*func, GFP_KERNEL);
+	func = kzalloc_obj(*func);
 	if (!func)
 		return ERR_PTR(-ENOMEM);
 
@@ -4138,7 +4138,7 @@ static struct ffs_dev *_ffs_alloc_dev(void)
 	if (_ffs_get_single_dev())
 			return ERR_PTR(-EBUSY);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

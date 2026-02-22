@@ -876,7 +876,7 @@ int ocfs2_journal_alloc(struct ocfs2_super *osb)
 	int status = 0;
 	struct ocfs2_journal *journal;
 
-	journal = kzalloc_obj(struct ocfs2_journal, GFP_KERNEL);
+	journal = kzalloc_obj(struct ocfs2_journal);
 	if (!journal) {
 		mlog(ML_ERROR, "unable to alloc journal\n");
 		status = -ENOMEM;

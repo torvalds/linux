@@ -94,7 +94,7 @@ drm_pagemap_zdd_alloc(struct drm_pagemap *dpagemap)
 {
 	struct drm_pagemap_zdd *zdd;
 
-	zdd = kmalloc_obj(*zdd, GFP_KERNEL);
+	zdd = kmalloc_obj(*zdd);
 	if (!zdd)
 		return NULL;
 
@@ -861,7 +861,7 @@ drm_pagemap_dev_hold(struct drm_pagemap *dpagemap)
 	struct drm_pagemap_dev_hold *dev_hold;
 	struct drm_device *drm = dpagemap->drm;
 
-	dev_hold = kzalloc_obj(*dev_hold, GFP_KERNEL);
+	dev_hold = kzalloc_obj(*dev_hold);
 	if (!dev_hold)
 		return ERR_PTR(-ENOMEM);
 

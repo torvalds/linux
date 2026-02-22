@@ -1124,7 +1124,7 @@ static void iwl_mvm_ftm_rtt_smoothing(struct iwl_mvm *mvm,
 	}
 
 	if (!resp) {
-		resp = kzalloc_obj(*resp, GFP_KERNEL);
+		resp = kzalloc_obj(*resp);
 		if (!resp)
 			return;
 

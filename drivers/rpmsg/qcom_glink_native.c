@@ -227,7 +227,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 {
 	struct glink_channel *channel;
 
-	channel = kzalloc_obj(*channel, GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
@@ -754,7 +754,7 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	int ret;
 	unsigned long flags;
 
-	intent = kzalloc_obj(*intent, GFP_KERNEL);
+	intent = kzalloc_obj(*intent);
 	if (!intent)
 		return NULL;
 
@@ -1669,7 +1669,7 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	complete_all(&channel->open_req);
 
 	if (create_device) {
-		rpdev = kzalloc_obj(*rpdev, GFP_KERNEL);
+		rpdev = kzalloc_obj(*rpdev);
 		if (!rpdev) {
 			ret = -ENOMEM;
 			goto rcid_remove;
@@ -1868,7 +1868,7 @@ static int qcom_glink_create_chrdev(struct qcom_glink *glink)
 	struct rpmsg_device *rpdev;
 	struct glink_channel *channel;
 
-	rpdev = kzalloc_obj(*rpdev, GFP_KERNEL);
+	rpdev = kzalloc_obj(*rpdev);
 	if (!rpdev)
 		return -ENOMEM;
 

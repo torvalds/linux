@@ -1611,7 +1611,7 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	local->cparams.target = MS2TIME(20);
 	local->cparams.ecn = true;
 
-	local->cvars = kvzalloc_objs(local->cvars[0], fq->flows_cnt, GFP_KERNEL);
+	local->cvars = kvzalloc_objs(local->cvars[0], fq->flows_cnt);
 	if (!local->cvars) {
 		spin_lock_bh(&fq->lock);
 		fq_reset(fq, fq_skb_free_func);

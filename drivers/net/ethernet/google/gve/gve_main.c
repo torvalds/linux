@@ -1090,17 +1090,17 @@ struct gve_queue_page_list *gve_alloc_queue_page_list(struct gve_priv *priv,
 	int err;
 	int i;
 
-	qpl = kvzalloc_obj(*qpl, GFP_KERNEL);
+	qpl = kvzalloc_obj(*qpl);
 	if (!qpl)
 		return NULL;
 
 	qpl->id = id;
 	qpl->num_entries = 0;
-	qpl->pages = kvzalloc_objs(*qpl->pages, pages, GFP_KERNEL);
+	qpl->pages = kvzalloc_objs(*qpl->pages, pages);
 	if (!qpl->pages)
 		goto abort;
 
-	qpl->page_buses = kvzalloc_objs(*qpl->page_buses, pages, GFP_KERNEL);
+	qpl->page_buses = kvzalloc_objs(*qpl->page_buses, pages);
 	if (!qpl->page_buses)
 		goto abort;
 

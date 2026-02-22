@@ -534,7 +534,7 @@ static int ice_init_arfs_cntrs(struct ice_vsi *vsi)
 	if (!vsi || vsi->type != ICE_VSI_PF)
 		return -EINVAL;
 
-	vsi->arfs_fltr_cntrs = kzalloc_obj(*vsi->arfs_fltr_cntrs, GFP_KERNEL);
+	vsi->arfs_fltr_cntrs = kzalloc_obj(*vsi->arfs_fltr_cntrs);
 	if (!vsi->arfs_fltr_cntrs)
 		return -ENOMEM;
 

@@ -772,7 +772,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 
 	num_pages = DIV_ROUND_UP(cfg->array + array_len - 1, PAGE_SIZE) -
 		    cfg->array / PAGE_SIZE;
-	pages = kmalloc_objs(*pages, num_pages, GFP_KERNEL);
+	pages = kmalloc_objs(*pages, num_pages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -792,13 +792,13 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 		goto put_pages;
 	}
 
-	privs[0] = kzalloc_objs(*privs[0], params.tlb_sizes[0], GFP_KERNEL);
+	privs[0] = kzalloc_objs(*privs[0], params.tlb_sizes[0]);
 	if (!privs[0]) {
 		ret = -ENOMEM;
 		goto put_pages;
 	}
 
-	privs[1] = kzalloc_objs(*privs[1], params.tlb_sizes[1], GFP_KERNEL);
+	privs[1] = kzalloc_objs(*privs[1], params.tlb_sizes[1]);
 	if (!privs[1]) {
 		ret = -ENOMEM;
 		goto free_privs_first;

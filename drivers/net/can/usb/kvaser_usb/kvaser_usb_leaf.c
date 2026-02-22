@@ -723,7 +723,7 @@ static int kvaser_usb_leaf_send_simple_cmd(const struct kvaser_usb *dev,
 	struct kvaser_cmd *cmd;
 	int rc;
 
-	cmd = kmalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kmalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -873,7 +873,7 @@ static int kvaser_usb_leaf_get_single_capability(struct kvaser_usb *dev,
 	int err;
 	int i;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -970,7 +970,7 @@ static int kvaser_usb_leaf_set_led(struct kvaser_usb_net_priv *priv,
 	struct kvaser_cmd *cmd;
 	int ret;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1752,7 +1752,7 @@ static int kvaser_usb_leaf_set_opt_mode(const struct kvaser_usb_net_priv *priv)
 	struct kvaser_cmd *cmd;
 	int rc;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1824,7 +1824,7 @@ static int kvaser_usb_leaf_flush_queue(struct kvaser_usb_net_priv *priv)
 	struct kvaser_cmd *cmd;
 	int rc;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1881,7 +1881,7 @@ static int kvaser_usb_leaf_set_bittiming(const struct net_device *netdev,
 	struct kvaser_cmd *cmd;
 	int rc;
 
-	cmd = kmalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kmalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

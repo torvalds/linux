@@ -360,7 +360,7 @@ struct brcmf_flowring *brcmf_flowring_attach(struct device *dev, u16 nrofrings)
 	struct brcmf_flowring *flow;
 	u32 i;
 
-	flow = kzalloc_obj(*flow, GFP_KERNEL);
+	flow = kzalloc_obj(*flow);
 	if (flow) {
 		flow->dev = dev;
 		flow->nrofrings = nrofrings;
@@ -369,7 +369,7 @@ struct brcmf_flowring *brcmf_flowring_attach(struct device *dev, u16 nrofrings)
 			flow->addr_mode[i] = ADDR_INDIRECT;
 		for (i = 0; i < ARRAY_SIZE(flow->hash); i++)
 			flow->hash[i].ifidx = BRCMF_FLOWRING_INVALID_IFIDX;
-		flow->rings = kzalloc_objs(*flow->rings, nrofrings, GFP_KERNEL);
+		flow->rings = kzalloc_objs(*flow->rings, nrofrings);
 		if (!flow->rings) {
 			kfree(flow);
 			flow = NULL;

@@ -670,7 +670,7 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	char devdir[16];
 
 	B43_WARN_ON(!dev);
-	e = kzalloc_obj(*e, GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e) {
 		b43err(dev->wl, "debugfs: add device OOM\n");
 		return;

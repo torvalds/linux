@@ -1191,7 +1191,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if (!g_audio)
 		return -EINVAL;
 
-	uac = kzalloc_obj(*uac, GFP_KERNEL);
+	uac = kzalloc_obj(*uac);
 	if (!uac)
 		return -ENOMEM;
 	g_audio->uac = uac;

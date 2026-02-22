@@ -648,7 +648,7 @@ struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 	struct uverbs_api *uapi;
 	int rc;
 
-	uapi = kzalloc_obj(*uapi, GFP_KERNEL);
+	uapi = kzalloc_obj(*uapi);
 	if (!uapi)
 		return ERR_PTR(-ENOMEM);
 

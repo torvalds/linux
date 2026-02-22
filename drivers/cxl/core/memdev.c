@@ -665,7 +665,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 	struct cdev *cdev;
 	int rc;
 
-	cxlmd = kzalloc_obj(*cxlmd, GFP_KERNEL);
+	cxlmd = kzalloc_obj(*cxlmd);
 	if (!cxlmd)
 		return ERR_PTR(-ENOMEM);
 

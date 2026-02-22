@@ -226,7 +226,7 @@ tegra_bpmp_probe_powergates(struct tegra_bpmp *bpmp,
 
 	dev_dbg(bpmp->dev, "maximum powergate ID: %u\n", max_id);
 
-	powergates = kzalloc_objs(*powergates, max_id + 1, GFP_KERNEL);
+	powergates = kzalloc_objs(*powergates, max_id + 1);
 	if (!powergates)
 		return -ENOMEM;
 
@@ -260,7 +260,7 @@ static int tegra_bpmp_add_powergates(struct tegra_bpmp *bpmp,
 	unsigned int i;
 	int err;
 
-	domains = kzalloc_objs(*domains, count, GFP_KERNEL);
+	domains = kzalloc_objs(*domains, count);
 	if (!domains)
 		return -ENOMEM;
 

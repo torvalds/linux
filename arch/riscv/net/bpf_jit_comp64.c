@@ -1195,7 +1195,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	}
 
 	if (fmod_ret->nr_links) {
-		branches_off = kzalloc_objs(int, fmod_ret->nr_links, GFP_KERNEL);
+		branches_off = kzalloc_objs(int, fmod_ret->nr_links);
 		if (!branches_off)
 			return -ENOMEM;
 

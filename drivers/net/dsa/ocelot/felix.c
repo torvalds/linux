@@ -109,7 +109,7 @@ static int felix_tag_8021q_vlan_add_rx(struct dsa_switch *ds, int port,
 
 	key_length = ocelot->vcap[VCAP_ES0].keys[VCAP_ES0_IGR_PORT].length;
 
-	outer_tagging_rule = kzalloc_obj(struct ocelot_vcap_filter, GFP_KERNEL);
+	outer_tagging_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!outer_tagging_rule)
 		return -ENOMEM;
 
@@ -177,11 +177,11 @@ static int felix_tag_8021q_vlan_add_tx(struct dsa_switch *ds, int port,
 	unsigned long cookie;
 	int err;
 
-	untagging_rule = kzalloc_obj(struct ocelot_vcap_filter, GFP_KERNEL);
+	untagging_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!untagging_rule)
 		return -ENOMEM;
 
-	redirect_rule = kzalloc_obj(struct ocelot_vcap_filter, GFP_KERNEL);
+	redirect_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!redirect_rule) {
 		kfree(untagging_rule);
 		return -ENOMEM;

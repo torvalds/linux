@@ -790,7 +790,7 @@ int ovl_init_fs_context(struct fs_context *fc)
 		goto out_err;
 	ctx->capacity = 3;
 
-	ofs = kzalloc_obj(struct ovl_fs, GFP_KERNEL);
+	ofs = kzalloc_obj(struct ovl_fs);
 	if (!ofs)
 		goto out_err;
 

@@ -242,7 +242,7 @@ static struct watch_adapter *alloc_watch_adapter(const char *path,
 {
 	struct watch_adapter *watch;
 
-	watch = kzalloc_obj(*watch, GFP_KERNEL);
+	watch = kzalloc_obj(*watch);
 	if (watch == NULL)
 		goto out_fail;
 
@@ -454,7 +454,7 @@ static int xenbus_write_transaction(unsigned msg_type,
 	} *msg = (void *)u->u.buffer;
 
 	if (msg_type == XS_TRANSACTION_START) {
-		trans = kzalloc_obj(*trans, GFP_KERNEL);
+		trans = kzalloc_obj(*trans);
 		if (!trans) {
 			rc = -ENOMEM;
 			goto out;
@@ -655,7 +655,7 @@ static int xenbus_file_open(struct inode *inode, struct file *filp)
 
 	stream_open(inode, filp);
 
-	u = kzalloc_obj(*u, GFP_KERNEL);
+	u = kzalloc_obj(*u);
 	if (u == NULL)
 		return -ENOMEM;
 

@@ -718,7 +718,7 @@ static struct thpsize *thpsize_create(int order, struct kobject *parent)
 	struct thpsize *thpsize;
 	int ret = -ENOMEM;
 
-	thpsize = kzalloc_obj(*thpsize, GFP_KERNEL);
+	thpsize = kzalloc_obj(*thpsize);
 	if (!thpsize)
 		goto err;
 

@@ -15,7 +15,7 @@ static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,
 	struct scatterlist *sg;
 	int i, err;
 
-	st = kmalloc_obj(*st, GFP_KERNEL);
+	st = kmalloc_obj(*st);
 	if (!st)
 		return ERR_PTR(-ENOMEM);
 

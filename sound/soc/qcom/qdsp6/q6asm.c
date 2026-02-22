@@ -850,7 +850,7 @@ struct audio_client *q6asm_audio_client_alloc(struct device *dev, q6asm_cb cb,
 		return ac;
 	}
 
-	ac = kzalloc_obj(*ac, GFP_KERNEL);
+	ac = kzalloc_obj(*ac);
 	if (!ac)
 		return ERR_PTR(-ENOMEM);
 

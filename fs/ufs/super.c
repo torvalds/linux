@@ -743,7 +743,7 @@ static int ufs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 #endif
 		
-	sbi = kzalloc_obj(struct ufs_sb_info, GFP_KERNEL);
+	sbi = kzalloc_obj(struct ufs_sb_info);
 	if (!sbi)
 		goto failed_nomem;
 	sb->s_fs_info = sbi;
@@ -768,7 +768,7 @@ static int ufs_fill_super(struct super_block *sb, struct fs_context *fc)
 		sbi->s_flavour = UFS_MOUNT_UFSTYPE_OLD;
 	}
 
-	uspi = kzalloc_obj(struct ufs_sb_private_info, GFP_KERNEL);
+	uspi = kzalloc_obj(struct ufs_sb_private_info);
 	sbi->s_uspi = uspi;
 	if (!uspi)
 		goto failed;
@@ -1437,7 +1437,7 @@ static int ufs_init_fs_context(struct fs_context *fc)
 {
 	struct ufs_fs_context *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

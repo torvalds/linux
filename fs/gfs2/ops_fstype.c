@@ -76,7 +76,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp;
 
-	sdp = kzalloc_obj(struct gfs2_sbd, GFP_KERNEL);
+	sdp = kzalloc_obj(struct gfs2_sbd);
 	if (!sdp)
 		return NULL;
 
@@ -562,7 +562,7 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 
 		error = -ENOMEM;
-		jd = kzalloc_obj(struct gfs2_jdesc, GFP_KERNEL);
+		jd = kzalloc_obj(struct gfs2_jdesc);
 		if (!jd)
 			break;
 
@@ -1637,7 +1637,7 @@ static int gfs2_init_fs_context(struct fs_context *fc)
 {
 	struct gfs2_args *args;
 
-	args = kmalloc_obj(*args, GFP_KERNEL);
+	args = kmalloc_obj(*args);
 	if (args == NULL)
 		return -ENOMEM;
 

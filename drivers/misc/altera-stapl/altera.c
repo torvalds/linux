@@ -290,13 +290,13 @@ static int altera_execute(struct altera_state *astate,
 	if (sym_count <= 0)
 		goto exit_done;
 
-	vars = kzalloc_objs(long, sym_count, GFP_KERNEL);
+	vars = kzalloc_objs(long, sym_count);
 
 	if (vars == NULL)
 		status = -ENOMEM;
 
 	if (status == 0) {
-		var_size = kzalloc_objs(s32, sym_count, GFP_KERNEL);
+		var_size = kzalloc_objs(s32, sym_count);
 
 		if (var_size == NULL)
 			status = -ENOMEM;
@@ -2342,7 +2342,7 @@ static int altera_get_act_info(u8 *p,
 			(p[proc_table + (13 * act_proc_id) + 8] & 0x03);
 
 		procptr =
-				kzalloc_obj(struct altera_procinfo, GFP_KERNEL);
+				kzalloc_obj(struct altera_procinfo);
 
 		if (procptr == NULL)
 			status = -ENOMEM;
@@ -2398,7 +2398,7 @@ int altera_init(struct altera_config *config, const struct firmware *fw)
 		retval = -ENOMEM;
 		goto free_key;
 	}
-	astate = kzalloc_obj(struct altera_state, GFP_KERNEL);
+	astate = kzalloc_obj(struct altera_state);
 	if (!astate) {
 		retval = -ENOMEM;
 		goto free_value;

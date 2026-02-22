@@ -221,7 +221,7 @@ static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
 	struct list_head *head = &rfcomm_dev_list;
 	int err = 0;
 
-	dev = kzalloc_obj(struct rfcomm_dev, GFP_KERNEL);
+	dev = kzalloc_obj(struct rfcomm_dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

@@ -201,7 +201,7 @@ randomised_engines(struct intel_gt *gt,
 	if (!n)
 		return NULL;
 
-	engines = kmalloc_objs(*engines, n, GFP_KERNEL);
+	engines = kmalloc_objs(*engines, n);
 	if (!engines)
 		return NULL;
 

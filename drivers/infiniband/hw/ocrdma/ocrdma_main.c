@@ -270,7 +270,7 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 		return NULL;
 	}
 
-	dev->mbx_cmd = kzalloc_obj(struct ocrdma_mqe_emb_cmd, GFP_KERNEL);
+	dev->mbx_cmd = kzalloc_obj(struct ocrdma_mqe_emb_cmd);
 	if (!dev->mbx_cmd)
 		goto init_err;
 

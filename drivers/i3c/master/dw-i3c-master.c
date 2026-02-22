@@ -1044,7 +1044,7 @@ static int dw_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -1162,7 +1162,7 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	if (pos < 0)
 		return pos;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

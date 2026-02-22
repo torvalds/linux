@@ -66,7 +66,7 @@ int hinic3_alloc_rxqs(struct net_device *netdev)
 	struct hinic3_rxq *rxq;
 	u16 q_id;
 
-	nic_dev->rxqs = kzalloc_objs(*nic_dev->rxqs, num_rxqs, GFP_KERNEL);
+	nic_dev->rxqs = kzalloc_objs(*nic_dev->rxqs, num_rxqs);
 	if (!nic_dev->rxqs)
 		return -ENOMEM;
 

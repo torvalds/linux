@@ -911,7 +911,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar)
 {
 	if (!vdev) {
-		vdev = kzalloc_obj(struct vnic_dev, GFP_KERNEL);
+		vdev = kzalloc_obj(struct vnic_dev);
 		if (!vdev)
 			return NULL;
 	}

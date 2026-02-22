@@ -320,7 +320,7 @@ nfs4_release_lockowner(struct nfs_server *server, struct nfs4_lock_state *lsp)
 	if (clp->cl_mvops->minor_version != 0)
 		return;
 
-	data = kmalloc_obj(*data, GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return;
 	data->lsp = lsp;

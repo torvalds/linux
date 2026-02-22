@@ -1460,7 +1460,7 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u32 port,
 	int err;
 	u16 ib_link_width_oper;
 
-	rep = kzalloc_obj(*rep, GFP_KERNEL);
+	rep = kzalloc_obj(*rep);
 	if (!rep) {
 		err = -ENOMEM;
 		goto out;
@@ -4042,7 +4042,7 @@ static int mlx5_ib_init_multiport_master(struct mlx5_ib_dev *dev)
 
 		/* build a stub multiport info struct for the native port. */
 		if (i == port_num) {
-			mpi = kzalloc_obj(*mpi, GFP_KERNEL);
+			mpi = kzalloc_obj(*mpi);
 			if (!mpi) {
 				mutex_unlock(&mlx5_ib_multiport_mutex);
 				mlx5_nic_vport_disable_roce(dev->mdev);
@@ -4148,7 +4148,7 @@ alloc_var_entry(struct mlx5_ib_ucontext *c)
 	int err;
 
 	var_table = &to_mdev(c->ibucontext.device)->var_table;
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -4269,7 +4269,7 @@ alloc_uar_entry(struct mlx5_ib_ucontext *c,
 	u32 uar_index;
 	int err;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -5250,7 +5250,7 @@ static int mlx5r_mp_probe(struct auxiliary_device *adev,
 	bool bound = false;
 	int err;
 
-	mpi = kzalloc_obj(*mpi, GFP_KERNEL);
+	mpi = kzalloc_obj(*mpi);
 	if (!mpi)
 		return -ENOMEM;
 
@@ -5326,7 +5326,7 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 			goto fail;
 	}
 
-	dev->port = kzalloc_objs(*dev->port, num_ports, GFP_KERNEL);
+	dev->port = kzalloc_objs(*dev->port, num_ports);
 	if (!dev->port) {
 		ret = -ENOMEM;
 		goto fail;

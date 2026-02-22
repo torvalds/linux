@@ -838,7 +838,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 	int i, err;
 	dma_addr_t dma_test;
 
-	ring = kzalloc_obj(*ring, GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		goto out;
 

@@ -167,7 +167,7 @@ static int oppanel_probe(struct platform_device *pdev)
 	if (!oppanel_data)
 		return -ENOMEM;
 
-	oppanel_lines = kzalloc_objs(oppanel_line_t, num_lines, GFP_KERNEL);
+	oppanel_lines = kzalloc_objs(oppanel_line_t, num_lines);
 	if (!oppanel_lines) {
 		rc = -ENOMEM;
 		goto free_oppanel_data;

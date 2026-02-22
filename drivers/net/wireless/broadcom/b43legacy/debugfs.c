@@ -358,7 +358,7 @@ void b43legacy_debugfs_add_device(struct b43legacy_wldev *dev)
 	char devdir[16];
 
 	B43legacy_WARN_ON(!dev);
-	e = kzalloc_obj(*e, GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e) {
 		b43legacyerr(dev->wl, "debugfs: add device OOM\n");
 		return;

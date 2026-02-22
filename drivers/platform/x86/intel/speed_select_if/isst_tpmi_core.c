@@ -1603,7 +1603,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 		 * devm_* allocation here as each partition is a
 		 * different device, which can be unbound.
 		 */
-		tpmi_sst = kzalloc_obj(*tpmi_sst, GFP_KERNEL);
+		tpmi_sst = kzalloc_obj(*tpmi_sst);
 		if (!tpmi_sst) {
 			ret = -ENOMEM;
 			goto unlock_exit;

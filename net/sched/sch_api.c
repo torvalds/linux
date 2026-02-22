@@ -437,7 +437,7 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		}
 	}
 
-	rtab = kmalloc_obj(*rtab, GFP_KERNEL);
+	rtab = kmalloc_obj(*rtab);
 	if (rtab) {
 		rtab->rate = *r;
 		rtab->refcnt = 1;
@@ -668,7 +668,7 @@ static struct hlist_head *qdisc_class_hash_alloc(unsigned int n)
 	struct hlist_head *h;
 	unsigned int i;
 
-	h = kvmalloc_objs(struct hlist_head, n, GFP_KERNEL);
+	h = kvmalloc_objs(struct hlist_head, n);
 
 	if (h != NULL) {
 		for (i = 0; i < n; i++)

@@ -541,7 +541,7 @@ static int aml_open(struct hci_uart *hu)
 		return -EOPNOTSUPP;
 	}
 
-	aml_data = kzalloc_obj(*aml_data, GFP_KERNEL);
+	aml_data = kzalloc_obj(*aml_data);
 	if (!aml_data)
 		return -ENOMEM;
 

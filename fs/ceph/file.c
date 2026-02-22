@@ -1572,7 +1572,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		 */
 		if (pos == iocb->ki_pos && !is_sync_kiocb(iocb) &&
 		    (len == count || pos + count <= i_size_read(inode))) {
-			aio_req = kzalloc_obj(*aio_req, GFP_KERNEL);
+			aio_req = kzalloc_obj(*aio_req);
 			if (aio_req) {
 				aio_req->iocb = iocb;
 				aio_req->write = write;

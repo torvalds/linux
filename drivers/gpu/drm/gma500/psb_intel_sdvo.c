@@ -2446,7 +2446,7 @@ bool psb_intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	struct psb_intel_sdvo *psb_intel_sdvo;
 	int i;
 
-	psb_intel_sdvo = kzalloc_obj(struct psb_intel_sdvo, GFP_KERNEL);
+	psb_intel_sdvo = kzalloc_obj(struct psb_intel_sdvo);
 	if (!psb_intel_sdvo)
 		return false;
 

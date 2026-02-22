@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(vhost_iotlb_init);
  */
 struct vhost_iotlb *vhost_iotlb_alloc(unsigned int limit, unsigned int flags)
 {
-	struct vhost_iotlb *iotlb = kzalloc_obj(*iotlb, GFP_KERNEL);
+	struct vhost_iotlb *iotlb = kzalloc_obj(*iotlb);
 
 	if (!iotlb)
 		return NULL;

@@ -181,7 +181,7 @@ static debug_entry_t ***debug_areas_alloc(int pages_per_area, int nr_areas)
 	debug_entry_t ***areas;
 	int i, j;
 
-	areas = kmalloc_objs(debug_entry_t **, nr_areas, GFP_KERNEL);
+	areas = kmalloc_objs(debug_entry_t **, nr_areas);
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
@@ -224,13 +224,13 @@ static debug_info_t *debug_info_alloc(const char *name, int pages_per_area,
 	debug_info_t *rc;
 
 	/* alloc everything */
-	rc = kmalloc_obj(debug_info_t, GFP_KERNEL);
+	rc = kmalloc_obj(debug_info_t);
 	if (!rc)
 		goto fail_malloc_rc;
-	rc->active_entries = kzalloc_objs(int, nr_areas, GFP_KERNEL);
+	rc->active_entries = kzalloc_objs(int, nr_areas);
 	if (!rc->active_entries)
 		goto fail_malloc_active_entries;
-	rc->active_pages = kzalloc_objs(int, nr_areas, GFP_KERNEL);
+	rc->active_pages = kzalloc_objs(int, nr_areas);
 	if (!rc->active_pages)
 		goto fail_malloc_active_pages;
 	if ((mode == ALL_AREAS) && (pages_per_area != 0)) {
@@ -630,7 +630,7 @@ static file_private_info_t *debug_file_private_alloc(debug_info_t *debug_info,
 
 	if (!debug_info_snapshot)
 		return NULL;
-	p_info = kmalloc_obj(file_private_info_t, GFP_KERNEL);
+	p_info = kmalloc_obj(file_private_info_t);
 	if (!p_info) {
 		debug_info_free(debug_info_snapshot);
 		return NULL;

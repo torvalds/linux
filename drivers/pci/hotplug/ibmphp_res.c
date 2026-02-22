@@ -41,7 +41,7 @@ static struct bus_node * __init alloc_error_bus(struct ebda_pci_rsrc *curr, u8 b
 		return NULL;
 	}
 
-	newbus = kzalloc_obj(struct bus_node, GFP_KERNEL);
+	newbus = kzalloc_obj(struct bus_node);
 	if (!newbus)
 		return NULL;
 
@@ -62,7 +62,7 @@ static struct resource_node * __init alloc_resources(struct ebda_pci_rsrc *curr)
 		return NULL;
 	}
 
-	rs = kzalloc_obj(struct resource_node, GFP_KERNEL);
+	rs = kzalloc_obj(struct resource_node);
 	if (!rs)
 		return NULL;
 
@@ -81,7 +81,7 @@ static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node *
 	u8 num_ranges = 0;
 
 	if (first_bus) {
-		newbus = kzalloc_obj(struct bus_node, GFP_KERNEL);
+		newbus = kzalloc_obj(struct bus_node);
 		if (!newbus)
 			return -ENOMEM;
 
@@ -101,7 +101,7 @@ static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node *
 		}
 	}
 
-	newrange = kzalloc_obj(struct range_node, GFP_KERNEL);
+	newrange = kzalloc_obj(struct range_node);
 	if (!newrange) {
 		if (first_bus)
 			kfree(newbus);

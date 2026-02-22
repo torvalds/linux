@@ -2842,7 +2842,7 @@ static int add_falloc_range(struct list_head *head, u64 start, u64 len)
 		}
 	}
 
-	range = kmalloc_obj(*range, GFP_KERNEL);
+	range = kmalloc_obj(*range);
 	if (!range)
 		return -ENOMEM;
 	range->start = start;
@@ -3572,7 +3572,7 @@ static loff_t find_desired_extent(struct file *file, loff_t offset, int whence)
 		 */
 		private = NULL;
 	} else if (!private) {
-		private = kzalloc_obj(*private, GFP_KERNEL);
+		private = kzalloc_obj(*private);
 		/*
 		 * No worries if memory allocation failed.
 		 * The private structure is used only for speeding up multiple

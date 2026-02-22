@@ -99,7 +99,7 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 		return crypto_kpp_set_secret(ctx->fallback, buf, len);
 	}
 
-	cmd = kmalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kmalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

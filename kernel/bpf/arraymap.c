@@ -1061,7 +1061,7 @@ static int prog_array_map_poke_track(struct bpf_map *map,
 			goto out;
 	}
 
-	elem = kmalloc_obj(*elem, GFP_KERNEL);
+	elem = kmalloc_obj(*elem);
 	if (!elem) {
 		ret = -ENOMEM;
 		goto out;
@@ -1237,7 +1237,7 @@ static struct bpf_event_entry *bpf_event_entry_gen(struct file *perf_file,
 {
 	struct bpf_event_entry *ee;
 
-	ee = kzalloc_obj(*ee, GFP_KERNEL);
+	ee = kzalloc_obj(*ee);
 	if (ee) {
 		ee->event = perf_file->private_data;
 		ee->perf_file = perf_file;

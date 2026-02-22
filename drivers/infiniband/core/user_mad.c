@@ -247,7 +247,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 	if (mad_recv_wc->wc->status != IB_WC_SUCCESS)
 		goto err1;
 
-	packet = kzalloc_obj(*packet, GFP_KERNEL);
+	packet = kzalloc_obj(*packet);
 	if (!packet)
 		goto err1;
 
@@ -1018,7 +1018,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	file = kzalloc_obj(*file, GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file) {
 		ret = -ENOMEM;
 		goto out;

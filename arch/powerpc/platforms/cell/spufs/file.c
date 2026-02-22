@@ -47,7 +47,7 @@ static int spufs_attr_open(struct inode *inode, struct file *file,
 {
 	struct spufs_attr *attr;
 
-	attr = kmalloc_obj(*attr, GFP_KERNEL);
+	attr = kmalloc_obj(*attr);
 	if (!attr)
 		return -ENOMEM;
 

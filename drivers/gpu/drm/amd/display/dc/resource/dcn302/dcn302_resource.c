@@ -300,7 +300,7 @@ static const struct dcn30_vpg_mask vpg_mask = {
 
 static struct vpg *dcn302_vpg_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn30_vpg *vpg3 = kzalloc_obj(struct dcn30_vpg, GFP_KERNEL);
+	struct dcn30_vpg *vpg3 = kzalloc_obj(struct dcn30_vpg);
 
 	if (!vpg3)
 		return NULL;
@@ -332,7 +332,7 @@ static const struct dcn30_afmt_mask afmt_mask = {
 
 static struct afmt *dcn302_afmt_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn30_afmt *afmt3 = kzalloc_obj(struct dcn30_afmt, GFP_KERNEL);
+	struct dcn30_afmt *afmt3 = kzalloc_obj(struct dcn30_afmt);
 
 	if (!afmt3)
 		return NULL;
@@ -407,7 +407,7 @@ static struct stream_encoder *dcn302_stream_encoder_create(enum engine_id eng_id
 	} else
 		return NULL;
 
-	enc1 = kzalloc_obj(struct dcn10_stream_encoder, GFP_KERNEL);
+	enc1 = kzalloc_obj(struct dcn10_stream_encoder);
 	vpg = dcn302_vpg_create(ctx, vpg_inst);
 	afmt = dcn302_afmt_create(ctx, afmt_inst);
 
@@ -476,7 +476,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 
 static struct dce_hwseq *dcn302_hwseq_create(struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq, GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -508,7 +508,7 @@ static const struct dcn_hubp2_mask hubp_mask = {
 
 static struct hubp *dcn302_hubp_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn20_hubp *hubp2 = kzalloc_obj(struct dcn20_hubp, GFP_KERNEL);
+	struct dcn20_hubp *hubp2 = kzalloc_obj(struct dcn20_hubp);
 
 	if (!hubp2)
 		return NULL;
@@ -542,7 +542,7 @@ static const struct dcn3_dpp_mask tf_mask = {
 
 static struct dpp *dcn302_dpp_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn3_dpp *dpp = kzalloc_obj(struct dcn3_dpp, GFP_KERNEL);
+	struct dcn3_dpp *dpp = kzalloc_obj(struct dcn3_dpp);
 
 	if (!dpp)
 		return NULL;
@@ -576,7 +576,7 @@ static const struct dcn20_opp_mask opp_mask = {
 
 static struct output_pixel_processor *dcn302_opp_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn20_opp *opp = kzalloc_obj(struct dcn20_opp, GFP_KERNEL);
+	struct dcn20_opp *opp = kzalloc_obj(struct dcn20_opp);
 
 	if (!opp) {
 		BREAK_TO_DEBUGGER();
@@ -608,7 +608,7 @@ static const struct dcn_optc_mask optc_mask = {
 
 static struct timing_generator *dcn302_timing_generator_create(struct dc_context *ctx, uint32_t instance)
 {
-	struct optc *tgn10 = kzalloc_obj(struct optc, GFP_KERNEL);
+	struct optc *tgn10 = kzalloc_obj(struct optc);
 
 	if (!tgn10)
 		return NULL;
@@ -653,7 +653,7 @@ static const struct dcn30_mpc_mask mpc_mask = {
 
 static struct mpc *dcn302_mpc_create(struct dc_context *ctx, int num_mpcc, int num_rmu)
 {
-	struct dcn30_mpc *mpc30 = kzalloc_obj(struct dcn30_mpc, GFP_KERNEL);
+	struct dcn30_mpc *mpc30 = kzalloc_obj(struct dcn30_mpc);
 
 	if (!mpc30)
 		return NULL;
@@ -684,7 +684,7 @@ static const struct dcn20_dsc_mask dsc_mask = {
 
 static struct display_stream_compressor *dcn302_dsc_create(struct dc_context *ctx, uint32_t inst)
 {
-	struct dcn20_dsc *dsc = kzalloc_obj(struct dcn20_dsc, GFP_KERNEL);
+	struct dcn20_dsc *dsc = kzalloc_obj(struct dcn20_dsc);
 
 	if (!dsc) {
 		BREAK_TO_DEBUGGER();

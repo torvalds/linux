@@ -197,7 +197,7 @@ static struct clk_hw *gemini_pci_clk_setup(const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	pciclk = kzalloc_obj(*pciclk, GFP_KERNEL);
+	pciclk = kzalloc_obj(*pciclk);
 	if (!pciclk)
 		return ERR_PTR(-ENOMEM);
 

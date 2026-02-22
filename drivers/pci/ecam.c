@@ -37,7 +37,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	if (busr->start > busr->end)
 		return ERR_PTR(-EINVAL);
 
-	cfg = kzalloc_obj(*cfg, GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -75,7 +75,7 @@ struct pci_config_window *pci_ecam_create(struct device *dev,
 	}
 
 	if (per_bus_mapping) {
-		cfg->winp = kzalloc_objs(*cfg->winp, bus_range, GFP_KERNEL);
+		cfg->winp = kzalloc_objs(*cfg->winp, bus_range);
 		if (!cfg->winp)
 			goto err_exit_malloc;
 	} else {

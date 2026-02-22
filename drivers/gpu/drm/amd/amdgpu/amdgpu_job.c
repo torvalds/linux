@@ -202,14 +202,14 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (!*job)
 		return -ENOMEM;
 
-	af = kzalloc_obj(struct amdgpu_fence, GFP_KERNEL);
+	af = kzalloc_obj(struct amdgpu_fence);
 	if (!af) {
 		r = -ENOMEM;
 		goto err_job;
 	}
 	(*job)->hw_fence = af;
 
-	af = kzalloc_obj(struct amdgpu_fence, GFP_KERNEL);
+	af = kzalloc_obj(struct amdgpu_fence);
 	if (!af) {
 		r = -ENOMEM;
 		goto err_fence;

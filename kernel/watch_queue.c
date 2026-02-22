@@ -278,7 +278,7 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 	pipe->nr_accounted = nr_pages;
 
 	ret = -ENOMEM;
-	pages = kzalloc_objs(struct page *, nr_pages, GFP_KERNEL);
+	pages = kzalloc_objs(struct page *, nr_pages);
 	if (!pages)
 		goto error;
 
@@ -692,7 +692,7 @@ int watch_queue_init(struct pipe_inode_info *pipe)
 {
 	struct watch_queue *wqueue;
 
-	wqueue = kzalloc_obj(*wqueue, GFP_KERNEL);
+	wqueue = kzalloc_obj(*wqueue);
 	if (!wqueue)
 		return -ENOMEM;
 

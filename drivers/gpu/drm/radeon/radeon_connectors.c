@@ -1887,7 +1887,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		}
 	}
 
-	radeon_connector = kzalloc_obj(struct radeon_connector, GFP_KERNEL);
+	radeon_connector = kzalloc_obj(struct radeon_connector);
 	if (!radeon_connector)
 		return;
 
@@ -2385,7 +2385,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		}
 	}
 
-	radeon_connector = kzalloc_obj(struct radeon_connector, GFP_KERNEL);
+	radeon_connector = kzalloc_obj(struct radeon_connector);
 	if (!radeon_connector)
 		return;
 

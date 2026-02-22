@@ -974,7 +974,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 		return -ENODEV;
 	}
 
-	new = kmalloc_obj(struct v2p_entry, GFP_KERNEL);
+	new = kmalloc_obj(struct v2p_entry);
 	if (new == NULL) {
 		err = -ENOMEM;
 		goto out_free;
@@ -1270,7 +1270,7 @@ static int scsiback_probe(struct xenbus_device *dev,
 {
 	int err;
 
-	struct vscsibk_info *info = kzalloc_obj(struct vscsibk_info, GFP_KERNEL);
+	struct vscsibk_info *info = kzalloc_obj(struct vscsibk_info);
 
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
@@ -1351,7 +1351,7 @@ scsiback_make_tport(struct target_fabric_configfs *tf,
 	u64 wwpn = 0;
 	int off = 0;
 
-	tport = kzalloc_obj(struct scsiback_tport, GFP_KERNEL);
+	tport = kzalloc_obj(struct scsiback_tport);
 	if (!tport)
 		return ERR_PTR(-ENOMEM);
 
@@ -1531,7 +1531,7 @@ static int scsiback_make_nexus(struct scsiback_tpg *tpg,
 		goto out_unlock;
 	}
 
-	tv_nexus = kzalloc_obj(struct scsiback_nexus, GFP_KERNEL);
+	tv_nexus = kzalloc_obj(struct scsiback_nexus);
 	if (!tv_nexus) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -1758,7 +1758,7 @@ scsiback_make_tpg(struct se_wwn *wwn, const char *name)
 	if (ret)
 		return ERR_PTR(ret);
 
-	tpg = kzalloc_obj(struct scsiback_tpg, GFP_KERNEL);
+	tpg = kzalloc_obj(struct scsiback_tpg);
 	if (!tpg)
 		return ERR_PTR(-ENOMEM);
 

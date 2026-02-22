@@ -84,7 +84,7 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 	if (flags & INPUT_MT_TRACK) {
 		unsigned int n2 = num_slots * num_slots;
-		mt->red = kzalloc_objs(*mt->red, n2, GFP_KERNEL);
+		mt->red = kzalloc_objs(*mt->red, n2);
 		if (!mt->red)
 			return -ENOMEM;
 	}

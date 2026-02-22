@@ -1159,7 +1159,7 @@ panthor_vm_op_ctx_prealloc_vmas(struct panthor_vm_op_ctx *op_ctx)
 	}
 
 	for (u32 i = 0; i < vma_count; i++) {
-		struct panthor_vma *vma = kzalloc_obj(*vma, GFP_KERNEL);
+		struct panthor_vma *vma = kzalloc_obj(*vma);
 
 		if (!vma)
 			return -ENOMEM;
@@ -1586,7 +1586,7 @@ void panthor_vm_pool_destroy(struct panthor_file *pfile)
  */
 int panthor_vm_pool_create(struct panthor_file *pfile)
 {
-	pfile->vms = kzalloc_obj(*pfile->vms, GFP_KERNEL);
+	pfile->vms = kzalloc_obj(*pfile->vms);
 	if (!pfile->vms)
 		return -ENOMEM;
 
@@ -2425,7 +2425,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	struct panthor_vm *vm;
 	int ret;
 
-	vm = kzalloc_obj(*vm, GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
@@ -2608,7 +2608,7 @@ panthor_vm_bind_job_create(struct drm_file *file,
 	if (vm->destroyed || vm->unusable)
 		return ERR_PTR(-EINVAL);
 
-	job = kzalloc_obj(*job, GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 

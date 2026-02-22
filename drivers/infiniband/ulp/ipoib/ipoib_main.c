@@ -169,7 +169,7 @@ static void ipoib_schedule_ifupdown_task(struct net_device *dev, bool up)
 	    (!up && !(dev->flags & IFF_UP)))
 		return;
 
-	work = kmalloc_obj(*work, GFP_KERNEL);
+	work = kmalloc_obj(*work);
 	if (!work)
 		return;
 	work->dev = dev;
@@ -673,7 +673,7 @@ struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
 {
 	struct ipoib_path_iter *iter;
 
-	iter = kmalloc_obj(*iter, GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return NULL;
 
@@ -1593,11 +1593,11 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 	ntbl->htbl = NULL;
-	htbl = kzalloc_obj(*htbl, GFP_KERNEL);
+	htbl = kzalloc_obj(*htbl);
 	if (!htbl)
 		return -ENOMEM;
 	size = roundup_pow_of_two(arp_tbl.gc_thresh3);
-	buckets = kvzalloc_objs(*buckets, size, GFP_KERNEL);
+	buckets = kvzalloc_objs(*buckets, size);
 	if (!buckets) {
 		kfree(htbl);
 		return -ENOMEM;
@@ -2277,7 +2277,7 @@ int ipoib_intf_init(struct ib_device *hca, u32 port, const char *name,
 	struct ipoib_dev_priv *priv;
 	int rc;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2663,7 +2663,7 @@ static int ipoib_add_one(struct ib_device *device)
 	unsigned int p;
 	int count = 0;
 
-	dev_list = kmalloc_obj(*dev_list, GFP_KERNEL);
+	dev_list = kmalloc_obj(*dev_list);
 	if (!dev_list)
 		return -ENOMEM;
 

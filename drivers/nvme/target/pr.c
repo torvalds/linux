@@ -230,7 +230,7 @@ static u16 nvmet_pr_register(struct nvmet_req *req,
 	u16 status = NVME_SC_SUCCESS;
 	u64 nrkey = le64_to_cpu(d->nrkey);
 
-	new = kmalloc_obj(*new, GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		return NVME_SC_INTERNAL;
 
@@ -380,7 +380,7 @@ static void nvmet_execute_pr_register(struct nvmet_req *req)
 	u8 reg_act = cdw10 & 0x07; /* Reservation Register Action, bit 02:00 */
 	u16 status;
 
-	d = kmalloc_obj(*d, GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -662,7 +662,7 @@ static void nvmet_execute_pr_acquire(struct nvmet_req *req)
 		goto out;
 	}
 
-	d = kmalloc_obj(*d, GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -773,7 +773,7 @@ static void nvmet_execute_pr_release(struct nvmet_req *req)
 		goto out;
 	}
 
-	d = kmalloc_obj(*d, GFP_KERNEL);
+	d = kmalloc_obj(*d);
 	if (!d) {
 		status = NVME_SC_INTERNAL;
 		goto out;

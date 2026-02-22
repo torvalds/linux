@@ -517,7 +517,7 @@ struct snd_seq_pool *snd_seq_pool_new(int poolsize)
 	struct snd_seq_pool *pool;
 
 	/* create pool block */
-	pool = kzalloc_obj(*pool, GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 	spin_lock_init(&pool->lock);

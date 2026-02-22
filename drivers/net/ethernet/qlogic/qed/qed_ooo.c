@@ -107,7 +107,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 		return -EINVAL;
 	}
 
-	p_ooo_info = kzalloc_obj(*p_ooo_info, GFP_KERNEL);
+	p_ooo_info = kzalloc_obj(*p_ooo_info);
 	if (!p_ooo_info)
 		return -ENOMEM;
 

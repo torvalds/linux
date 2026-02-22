@@ -1175,7 +1175,7 @@ static int jbd2_seq_info_open(struct inode *inode, struct file *file)
 	struct jbd2_stats_proc_session *s;
 	int rc, size;
 
-	s = kmalloc_obj(*s, GFP_KERNEL);
+	s = kmalloc_obj(*s);
 	if (s == NULL)
 		return -ENOMEM;
 	size = sizeof(struct transaction_stats_s);
@@ -1525,7 +1525,7 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	int err;
 	int n;
 
-	journal = kzalloc_obj(*journal, GFP_KERNEL);
+	journal = kzalloc_obj(*journal);
 	if (!journal)
 		return ERR_PTR(-ENOMEM);
 
@@ -1578,7 +1578,7 @@ static journal_t *journal_init_common(struct block_device *bdev,
 	n = journal->j_blocksize / jbd2_min_tag_size();
 	journal->j_wbufsize = n;
 	journal->j_fc_wbuf = NULL;
-	journal->j_wbuf = kmalloc_objs(struct buffer_head *, n, GFP_KERNEL);
+	journal->j_wbuf = kmalloc_objs(struct buffer_head *, n);
 	if (!journal->j_wbuf)
 		goto err_cleanup;
 

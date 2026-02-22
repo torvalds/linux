@@ -628,7 +628,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 			   const struct xenbus_device_id *id)
 {
 	int err;
-	struct backend_info *be = kzalloc_obj(struct backend_info, GFP_KERNEL);
+	struct backend_info *be = kzalloc_obj(struct backend_info);
 
 	/* match the pr_debug in xen_blkbk_remove */
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
@@ -1009,7 +1009,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 
 	err = -ENOMEM;
 	for (i = 0; i < nr_grefs * XEN_BLKIF_REQS_PER_PAGE; i++) {
-		req = kzalloc_obj(*req, GFP_KERNEL);
+		req = kzalloc_obj(*req);
 		if (!req)
 			goto fail;
 		list_add_tail(&req->free_list, &ring->pending_free);

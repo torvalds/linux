@@ -382,7 +382,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 {
 	struct btrfs_fs_devices *fs_devs;
 
-	fs_devs = kzalloc_obj(*fs_devs, GFP_KERNEL);
+	fs_devs = kzalloc_obj(*fs_devs);
 	if (!fs_devs)
 		return ERR_PTR(-ENOMEM);
 
@@ -7202,7 +7202,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 	if (WARN_ON(!devid && !fs_info))
 		return ERR_PTR(-EINVAL);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

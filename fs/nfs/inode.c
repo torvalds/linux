@@ -1777,7 +1777,7 @@ struct nfs_fattr *nfs_alloc_fattr(void)
 {
 	struct nfs_fattr *fattr;
 
-	fattr = kmalloc_obj(*fattr, GFP_KERNEL);
+	fattr = kmalloc_obj(*fattr);
 	if (fattr != NULL) {
 		nfs_fattr_init(fattr);
 		fattr->label = NULL;
@@ -1807,7 +1807,7 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 {
 	struct nfs_fh *fh;
 
-	fh = kmalloc_obj(struct nfs_fh, GFP_KERNEL);
+	fh = kmalloc_obj(struct nfs_fh);
 	if (fh != NULL)
 		fh->size = 0;
 	return fh;

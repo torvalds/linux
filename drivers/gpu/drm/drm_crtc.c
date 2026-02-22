@@ -185,7 +185,7 @@ struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc)
 {
 	struct dma_fence *fence;
 
-	fence = kzalloc_obj(*fence, GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 

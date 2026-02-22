@@ -1463,7 +1463,7 @@ static int rtl8187_probe(struct usb_interface *intf,
 	priv->is_rtl8187b = (id->driver_info == DEVICE_RTL8187B);
 
 	/* allocate "DMA aware" buffer for register accesses */
-	priv->io_dmabuf = kmalloc_obj(*priv->io_dmabuf, GFP_KERNEL);
+	priv->io_dmabuf = kmalloc_obj(*priv->io_dmabuf);
 	if (!priv->io_dmabuf) {
 		err = -ENOMEM;
 		goto err_free_dev;

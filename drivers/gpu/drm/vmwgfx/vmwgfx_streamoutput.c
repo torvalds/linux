@@ -284,7 +284,7 @@ int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
 	struct vmw_private *dev_priv = ctx->dev_priv;
 	int ret;
 
-	so = kmalloc_obj(*so, GFP_KERNEL);
+	so = kmalloc_obj(*so);
 	if (!so) {
 		return -ENOMEM;
 	}

@@ -54,7 +54,7 @@ static int zpci_setup_aipb(u8 nisc)
 	struct page *page;
 	int size, rc;
 
-	zpci_aipb = kzalloc_obj(union zpci_sic_iib, GFP_KERNEL);
+	zpci_aipb = kzalloc_obj(union zpci_sic_iib);
 	if (!zpci_aipb)
 		return -ENOMEM;
 
@@ -404,7 +404,7 @@ static int kvm_s390_pci_dev_open(struct zpci_dev *zdev)
 {
 	struct kvm_zdev *kzdev;
 
-	kzdev = kzalloc_obj(struct kvm_zdev, GFP_KERNEL);
+	kzdev = kzalloc_obj(struct kvm_zdev);
 	if (!kzdev)
 		return -ENOMEM;
 
@@ -666,7 +666,7 @@ int __init kvm_s390_pci_init(void)
 	if (!kvm_s390_pci_interp_allowed())
 		return 0;
 
-	aift = kzalloc_obj(struct zpci_aift, GFP_KERNEL);
+	aift = kzalloc_obj(struct zpci_aift);
 	if (!aift)
 		return -ENOMEM;
 

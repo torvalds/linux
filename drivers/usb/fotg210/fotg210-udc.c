@@ -1183,7 +1183,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 		return irq;
 
 	/* initialize udc */
-	fotg210 = kzalloc_obj(struct fotg210_udc, GFP_KERNEL);
+	fotg210 = kzalloc_obj(struct fotg210_udc);
 	if (fotg210 == NULL)
 		return -ENOMEM;
 
@@ -1207,7 +1207,7 @@ int fotg210_udc_probe(struct platform_device *pdev, struct fotg210 *fotg)
 	ret = -ENOMEM;
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
-		fotg210->ep[i] = kzalloc_obj(struct fotg210_ep, GFP_KERNEL);
+		fotg210->ep[i] = kzalloc_obj(struct fotg210_ep);
 		if (!fotg210->ep[i])
 			goto err_alloc;
 	}

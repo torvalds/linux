@@ -227,7 +227,7 @@ nfnl_cthelper_create(const struct nlattr * const tb[],
 	if (!tb[NFCTH_TUPLE] || !tb[NFCTH_POLICY] || !tb[NFCTH_PRIV_DATA_LEN])
 		return -EINVAL;
 
-	nfcth = kzalloc_obj(*nfcth, GFP_KERNEL);
+	nfcth = kzalloc_obj(*nfcth);
 	if (nfcth == NULL)
 		return -ENOMEM;
 	helper = &nfcth->helper;

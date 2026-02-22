@@ -299,7 +299,7 @@ static struct nfs3_createdata *nfs3_alloc_createdata(void)
 {
 	struct nfs3_createdata *data;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data != NULL) {
 		data->msg.rpc_argp = &data->arg;
 		data->msg.rpc_resp = &data->res;

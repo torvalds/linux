@@ -314,7 +314,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 
 	if (n_pages > ARRAY_SIZE(stack)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pages = kvmalloc_objs(*pages, n_pages, GFP_KERNEL);
+		pages = kvmalloc_objs(*pages, n_pages);
 		if (!pages)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -437,7 +437,7 @@ struct intel_panic *i915_gem_object_alloc_panic(void)
 {
 	struct intel_panic *panic;
 
-	panic = kzalloc_obj(*panic, GFP_KERNEL);
+	panic = kzalloc_obj(*panic);
 
 	return panic;
 }

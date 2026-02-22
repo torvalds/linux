@@ -97,7 +97,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 	else
 		iovnum = 2;
 
-	iov = kzalloc_objs(*iov, iovnum, GFP_KERNEL);
+	iov = kzalloc_objs(*iov, iovnum);
 	if (!iov) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);
 		ret = -ENOMEM;

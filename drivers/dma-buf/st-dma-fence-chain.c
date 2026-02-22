@@ -450,7 +450,7 @@ static int find_race(void *arg)
 	if (err)
 		return err;
 
-	threads = kmalloc_objs(*threads, ncpus, GFP_KERNEL);
+	threads = kmalloc_objs(*threads, ncpus);
 	if (!threads) {
 		err = -ENOMEM;
 		goto err;

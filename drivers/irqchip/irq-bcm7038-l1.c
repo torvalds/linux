@@ -398,7 +398,7 @@ static int bcm7038_l1_probe(struct platform_device *pdev, struct device_node *pa
 	struct bcm7038_l1_chip *intc;
 	int idx, ret;
 
-	intc = kzalloc_obj(*intc, GFP_KERNEL);
+	intc = kzalloc_obj(*intc);
 	if (!intc)
 		return -ENOMEM;
 

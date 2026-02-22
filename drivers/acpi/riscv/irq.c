@@ -136,7 +136,7 @@ static int __init riscv_acpi_register_ext_intc(u32 gsi_base, u32 nr_irqs, u32 nr
 {
 	struct riscv_ext_intc_list *ext_intc_element, *node, *prev;
 
-	ext_intc_element = kzalloc_obj(*ext_intc_element, GFP_KERNEL);
+	ext_intc_element = kzalloc_obj(*ext_intc_element);
 	if (!ext_intc_element)
 		return -ENOMEM;
 

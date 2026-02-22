@@ -62,7 +62,7 @@ static int ksz_connect(struct dsa_switch *ds)
 	struct ksz_tagger_private *priv;
 	int ret;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

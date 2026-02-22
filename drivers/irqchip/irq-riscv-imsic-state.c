@@ -810,7 +810,7 @@ int __init imsic_setup_state(struct fwnode_handle *fwnode, void *opaque)
 		return -ENODEV;
 	}
 
-	imsic = kzalloc_obj(*imsic, GFP_KERNEL);
+	imsic = kzalloc_obj(*imsic);
 	if (!imsic)
 		return -ENOMEM;
 	imsic->fwnode = fwnode;
@@ -828,14 +828,14 @@ int __init imsic_setup_state(struct fwnode_handle *fwnode, void *opaque)
 		goto out_free_local;
 
 	/* Allocate MMIO resource array */
-	mmios = kzalloc_objs(*mmios, nr_mmios, GFP_KERNEL);
+	mmios = kzalloc_objs(*mmios, nr_mmios);
 	if (!mmios) {
 		rc = -ENOMEM;
 		goto out_free_local;
 	}
 
 	/* Allocate MMIO virtual address array */
-	mmios_va = kzalloc_objs(*mmios_va, nr_mmios, GFP_KERNEL);
+	mmios_va = kzalloc_objs(*mmios_va, nr_mmios);
 	if (!mmios_va) {
 		rc = -ENOMEM;
 		goto out_iounmap;

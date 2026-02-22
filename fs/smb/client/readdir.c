@@ -358,7 +358,7 @@ _initiate_cifs_search(const unsigned int xid, struct file *file,
 		if (IS_ERR(tlink))
 			return PTR_ERR(tlink);
 
-		cifsFile = kzalloc_obj(struct cifsFileInfo, GFP_KERNEL);
+		cifsFile = kzalloc_obj(struct cifsFileInfo);
 		if (cifsFile == NULL) {
 			rc = -ENOMEM;
 			goto error_exit;

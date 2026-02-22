@@ -748,7 +748,7 @@ int icssm_prueth_sw_init_fdb_table(struct prueth *prueth)
 	if (prueth->emac_configured)
 		return 0;
 
-	prueth->fdb_tbl = kmalloc_obj(*prueth->fdb_tbl, GFP_KERNEL);
+	prueth->fdb_tbl = kmalloc_obj(*prueth->fdb_tbl);
 	if (!prueth->fdb_tbl)
 		return -ENOMEM;
 

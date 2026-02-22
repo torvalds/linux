@@ -100,7 +100,7 @@ static int cxgb4_init_eosw_txq(struct net_device *dev,
 
 	memset(eosw_txq, 0, sizeof(*eosw_txq));
 
-	ring = kzalloc_objs(*ring, CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM, GFP_KERNEL);
+	ring = kzalloc_objs(*ring, CXGB4_EOSW_TXQ_DEFAULT_DESC_NUM);
 	if (!ring)
 		return -ENOMEM;
 
@@ -654,7 +654,7 @@ int cxgb4_init_tc_mqprio(struct adapter *adap)
 	int ret = 0;
 	u8 i;
 
-	tc_mqprio = kzalloc_obj(*tc_mqprio, GFP_KERNEL);
+	tc_mqprio = kzalloc_obj(*tc_mqprio);
 	if (!tc_mqprio)
 		return -ENOMEM;
 

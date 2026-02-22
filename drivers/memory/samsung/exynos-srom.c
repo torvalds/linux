@@ -54,7 +54,7 @@ exynos_srom_alloc_reg_dump(const unsigned long *rdump,
 	struct exynos_srom_reg_dump *rd;
 	unsigned int i;
 
-	rd = kzalloc_objs(*rd, nr_rdump, GFP_KERNEL);
+	rd = kzalloc_objs(*rd, nr_rdump);
 	if (!rd)
 		return NULL;
 

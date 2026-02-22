@@ -1259,7 +1259,7 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
 	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_INFO,
 			"Enter %s(%p)", CTCM_FUNTAIL, priv);
 
-	grp = kzalloc_obj(struct mpc_group, GFP_KERNEL);
+	grp = kzalloc_obj(struct mpc_group);
 	if (grp == NULL)
 		return NULL;
 

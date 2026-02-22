@@ -487,14 +487,14 @@ efct_hw_setup_io(struct efct_hw *hw)
 	struct efct *efct = hw->os;
 
 	if (!hw->io) {
-		hw->io = kmalloc_objs(io, hw->config.n_io, GFP_KERNEL);
+		hw->io = kmalloc_objs(io, hw->config.n_io);
 		if (!hw->io)
 			return -ENOMEM;
 
 		memset(hw->io, 0, hw->config.n_io * sizeof(io));
 
 		for (i = 0; i < hw->config.n_io; i++) {
-			hw->io[i] = kzalloc_obj(*io, GFP_KERNEL);
+			hw->io[i] = kzalloc_obj(*io);
 			if (!hw->io[i])
 				goto error;
 		}
@@ -611,7 +611,7 @@ efct_hw_init_prereg_io(struct efct_hw *hw)
 	struct efc_dma req;
 	struct efct *efct = hw->os;
 
-	sgls = kmalloc_objs(*sgls, sgls_per_request, GFP_KERNEL);
+	sgls = kmalloc_objs(*sgls, sgls_per_request);
 	if (!sgls)
 		return -ENOMEM;
 
@@ -1182,7 +1182,7 @@ efct_hw_rx_buffer_alloc(struct efct_hw *hw, u32 rqindex, u32 count,
 	if (!count)
 		return NULL;
 
-	rq_buf = kmalloc_objs(*rq_buf, count, GFP_KERNEL);
+	rq_buf = kmalloc_objs(*rq_buf, count);
 	if (!rq_buf)
 		return NULL;
 	memset(rq_buf, 0, sizeof(*rq_buf) * count);
@@ -2064,7 +2064,7 @@ efct_hw_reqtag_pool_alloc(struct efct_hw *hw)
 	struct reqtag_pool *reqtag_pool;
 	struct hw_wq_callback *wqcb;
 
-	reqtag_pool = kzalloc_obj(*reqtag_pool, GFP_KERNEL);
+	reqtag_pool = kzalloc_obj(*reqtag_pool);
 	if (!reqtag_pool)
 		return NULL;
 
@@ -2072,7 +2072,7 @@ efct_hw_reqtag_pool_alloc(struct efct_hw *hw)
 	/* initialize reqtag pool lock */
 	spin_lock_init(&reqtag_pool->lock);
 	for (i = 0; i < U16_MAX; i++) {
-		wqcb = kmalloc_obj(*wqcb, GFP_KERNEL);
+		wqcb = kmalloc_obj(*wqcb);
 		if (!wqcb)
 			break;
 
@@ -3239,7 +3239,7 @@ efct_hw_async_call(struct efct_hw *hw, efct_hw_async_cb_t callback, void *arg)
 	 * we need this to be persistent as the mbox cmd submission may be
 	 * queued and executed later execution.
 	 */
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -3307,7 +3307,7 @@ efct_hw_firmware_write(struct efct_hw *hw, struct efc_dma *dma, u32 size,
 	struct efct_hw_fw_wr_cb_arg *cb_arg;
 	int noc = 0;
 
-	cb_arg = kzalloc_obj(*cb_arg, GFP_KERNEL);
+	cb_arg = kzalloc_obj(*cb_arg);
 	if (!cb_arg)
 		return -ENOMEM;
 

@@ -50,7 +50,7 @@ static int add_badrange(struct badrange *badrange, u64 addr, u64 length)
 	struct badrange_entry *bre, *bre_new;
 
 	spin_unlock(&badrange->lock);
-	bre_new = kzalloc_obj(*bre_new, GFP_KERNEL);
+	bre_new = kzalloc_obj(*bre_new);
 	spin_lock(&badrange->lock);
 
 	if (list_empty(&badrange->list)) {

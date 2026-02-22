@@ -536,7 +536,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 	unsigned long flags;
 	u32 slot_bytes;
 
-	block = kzalloc_obj(*block, GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 
@@ -571,7 +571,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 
 struct tiler_block *tiler_reserve_1d(size_t size)
 {
-	struct tiler_block *block = kzalloc_obj(*block, GFP_KERNEL);
+	struct tiler_block *block = kzalloc_obj(*block);
 	int num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned long flags;
 
@@ -774,7 +774,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 	u32 hwinfo, pat_geom;
 	struct resource *mem;
 
-	omap_dmm = kzalloc_obj(*omap_dmm, GFP_KERNEL);
+	omap_dmm = kzalloc_obj(*omap_dmm);
 	if (!omap_dmm)
 		goto fail;
 

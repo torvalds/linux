@@ -499,7 +499,7 @@ static struct clk * __init ti_fapll_synth_setup(struct fapll_data *fd,
 	struct fapll_synth *synth;
 	struct clk *clk = ERR_PTR(-ENOMEM);
 
-	init = kzalloc_obj(*init, GFP_KERNEL);
+	init = kzalloc_obj(*init);
 	if (!init)
 		return ERR_PTR(-ENOMEM);
 
@@ -508,7 +508,7 @@ static struct clk * __init ti_fapll_synth_setup(struct fapll_data *fd,
 	init->parent_names = &parent;
 	init->num_parents = 1;
 
-	synth = kzalloc_obj(*synth, GFP_KERNEL);
+	synth = kzalloc_obj(*synth);
 	if (!synth)
 		goto free;
 
@@ -544,7 +544,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 	const char *name;
 	int i;
 
-	fd = kzalloc_obj(*fd, GFP_KERNEL);
+	fd = kzalloc_obj(*fd);
 	if (!fd)
 		return;
 
@@ -554,7 +554,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 	if (!fd->outputs.clks)
 		goto free;
 
-	init = kzalloc_obj(*init, GFP_KERNEL);
+	init = kzalloc_obj(*init);
 	if (!init)
 		goto free;
 

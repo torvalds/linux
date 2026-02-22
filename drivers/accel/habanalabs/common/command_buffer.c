@@ -119,7 +119,7 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 		cb = kzalloc_obj(*cb, GFP_ATOMIC);
 
 	if (!cb)
-		cb = kzalloc_obj(*cb, GFP_KERNEL);
+		cb = kzalloc_obj(*cb);
 
 	if (!cb)
 		return NULL;

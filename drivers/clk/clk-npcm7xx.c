@@ -74,7 +74,7 @@ npcm7xx_clk_register_pll(void __iomem *pllcon, const char *name,
 	struct clk_hw *hw;
 	int ret;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

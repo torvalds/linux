@@ -99,7 +99,7 @@ static int subdev_open(struct file *file)
 	struct v4l2_subdev_fh *subdev_fh;
 	int ret;
 
-	subdev_fh = kzalloc_obj(*subdev_fh, GFP_KERNEL);
+	subdev_fh = kzalloc_obj(*subdev_fh);
 	if (subdev_fh == NULL)
 		return -ENOMEM;
 
@@ -1606,7 +1606,7 @@ __v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
 	struct v4l2_subdev_state *state;
 	int ret;
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 

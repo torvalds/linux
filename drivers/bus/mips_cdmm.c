@@ -541,7 +541,7 @@ static void mips_cdmm_bus_discover(struct mips_cdmm_bus *bus)
 			(drb + size + 1) * CDMM_DRB_SIZE - 1,
 			type, rev);
 
-		dev = kzalloc_obj(*dev, GFP_KERNEL);
+		dev = kzalloc_obj(*dev);
 		if (!dev)
 			break;
 

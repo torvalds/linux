@@ -889,13 +889,13 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	down_write(&ubi->fm_protect);
 	memset(ubi->fm_buf, 0, ubi->fm_size);
 
-	fmsb = kmalloc_obj(*fmsb, GFP_KERNEL);
+	fmsb = kmalloc_obj(*fmsb);
 	if (!fmsb) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	fm = kzalloc_obj(*fm, GFP_KERNEL);
+	fm = kzalloc_obj(*fm);
 	if (!fm) {
 		ret = -ENOMEM;
 		kfree(fmsb);

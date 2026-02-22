@@ -3153,7 +3153,7 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 	if (!virts)
 		return -ENOMEM;
 
-	phys = kmalloc_objs(dma_addr_t, CB_NUMBER_OF_ELEMENTS_SMALL, GFP_KERNEL);
+	phys = kmalloc_objs(dma_addr_t, CB_NUMBER_OF_ELEMENTS_SMALL);
 	if (!phys) {
 		kfree(virts);
 		return -ENOMEM;
@@ -3722,7 +3722,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 {
 	struct pci_dev *dev = priv->pci_dev;
 
-	q->txb = kmalloc_objs(q->txb[0], count, GFP_KERNEL);
+	q->txb = kmalloc_objs(q->txb[0], count);
 	if (!q->txb)
 		return -ENOMEM;
 
@@ -5200,7 +5200,7 @@ static struct ipw_rx_queue *ipw_rx_queue_alloc(struct ipw_priv *priv)
 	struct ipw_rx_queue *rxq;
 	int i;
 
-	rxq = kzalloc_obj(*rxq, GFP_KERNEL);
+	rxq = kzalloc_obj(*rxq);
 	if (unlikely(!rxq)) {
 		IPW_ERROR("memory allocation failed\n");
 		return NULL;
@@ -11118,7 +11118,7 @@ static int ipw_up(struct ipw_priv *priv)
 		return -EIO;
 
 	if (cmdlog && !priv->cmdlog) {
-		priv->cmdlog = kzalloc_objs(*priv->cmdlog, cmdlog, GFP_KERNEL);
+		priv->cmdlog = kzalloc_objs(*priv->cmdlog, cmdlog);
 		if (priv->cmdlog == NULL) {
 			IPW_ERROR("Error allocating %d command log entries.\n",
 				  cmdlog);

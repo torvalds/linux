@@ -123,7 +123,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	acpi_status status;
 	int i, ret;
 
-	int34x_zone = kzalloc_obj(*int34x_zone, GFP_KERNEL);
+	int34x_zone = kzalloc_obj(*int34x_zone);
 	if (!int34x_zone)
 		return ERR_PTR(-ENOMEM);
 

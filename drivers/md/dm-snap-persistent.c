@@ -854,7 +854,7 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 	int r;
 
 	/* allocate the pstore */
-	ps = kzalloc_obj(*ps, GFP_KERNEL);
+	ps = kzalloc_obj(*ps);
 	if (!ps)
 		return -ENOMEM;
 

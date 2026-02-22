@@ -97,7 +97,7 @@ static int cyan_skillfish_tables_init(struct smu_context *smu)
 				PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t, GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 

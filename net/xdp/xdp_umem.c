@@ -250,7 +250,7 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	struct xdp_umem *umem;
 	int err;
 
-	umem = kzalloc_obj(*umem, GFP_KERNEL);
+	umem = kzalloc_obj(*umem);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 

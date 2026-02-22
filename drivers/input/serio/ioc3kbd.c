@@ -139,11 +139,11 @@ static int ioc3kbd_probe(struct platform_device *pdev)
 	if (!d)
 		return -ENOMEM;
 
-	sk = kzalloc_obj(*sk, GFP_KERNEL);
+	sk = kzalloc_obj(*sk);
 	if (!sk)
 		return -ENOMEM;
 
-	sa = kzalloc_obj(*sa, GFP_KERNEL);
+	sa = kzalloc_obj(*sa);
 	if (!sa) {
 		kfree(sk);
 		return -ENOMEM;

@@ -303,7 +303,7 @@ static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
 static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
 				  unsigned int zone_id, struct dmz_dev *dev)
 {
-	struct dm_zone *zone = kzalloc_obj(struct dm_zone, GFP_KERNEL);
+	struct dm_zone *zone = kzalloc_obj(struct dm_zone);
 
 	if (!zone)
 		return ERR_PTR(-ENOMEM);
@@ -1311,7 +1311,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 		int i;
 		struct dmz_sb *sb;
 
-		sb = kzalloc_obj(struct dmz_sb, GFP_KERNEL);
+		sb = kzalloc_obj(struct dmz_sb);
 		if (!sb)
 			return -ENOMEM;
 		for (i = 1; i < zmd->nr_devs; i++) {
@@ -2868,7 +2868,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	struct dm_zone *zone;
 	int ret;
 
-	zmd = kzalloc_obj(struct dmz_metadata, GFP_KERNEL);
+	zmd = kzalloc_obj(struct dmz_metadata);
 	if (!zmd)
 		return -ENOMEM;
 

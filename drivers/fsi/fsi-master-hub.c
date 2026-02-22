@@ -215,7 +215,7 @@ static int hub_master_probe(struct fsi_device *fsi_dev)
 		return rc;
 	}
 
-	hub = kzalloc_obj(*hub, GFP_KERNEL);
+	hub = kzalloc_obj(*hub);
 	if (!hub) {
 		rc = -ENOMEM;
 		goto err_release;

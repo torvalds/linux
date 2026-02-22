@@ -358,7 +358,7 @@ struct mb_cache *mb_cache_create(int bucket_bits)
 	unsigned long bucket_count = 1UL << bucket_bits;
 	unsigned long i;
 
-	cache = kzalloc_obj(struct mb_cache, GFP_KERNEL);
+	cache = kzalloc_obj(struct mb_cache);
 	if (!cache)
 		goto err_out;
 	cache->c_bucket_bits = bucket_bits;

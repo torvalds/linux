@@ -610,7 +610,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 	int nr_slots;
 	dma_addr_t dma_test;
 
-	ring = kzalloc_obj(*ring, GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		goto out;
 	ring->type = type;

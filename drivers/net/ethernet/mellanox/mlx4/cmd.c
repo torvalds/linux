@@ -1674,7 +1674,7 @@ static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
 	int err = 0;
 
 	/* Create sw representation of Virtual HCR */
-	vhcr = kzalloc_obj(struct mlx4_vhcr, GFP_KERNEL);
+	vhcr = kzalloc_obj(struct mlx4_vhcr);
 	if (!vhcr)
 		return -ENOMEM;
 
@@ -1873,7 +1873,7 @@ static int mlx4_master_immediate_activate_vlan_qos(struct mlx4_priv *priv,
 		 vp_admin->default_vlan, vp_admin->default_qos,
 		 vp_admin->link_state);
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
@@ -2689,7 +2689,7 @@ struct mlx4_cmd_mailbox *mlx4_alloc_cmd_mailbox(struct mlx4_dev *dev)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 
-	mailbox = kmalloc_obj(*mailbox, GFP_KERNEL);
+	mailbox = kmalloc_obj(*mailbox);
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 

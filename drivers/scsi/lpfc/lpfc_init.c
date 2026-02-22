@@ -2820,7 +2820,7 @@ lpfc_sli3_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cn
 
 		/* 2 buffers can be posted per command */
 		/* Allocate buffer to post */
-		mp1 = kmalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
+		mp1 = kmalloc_obj(struct lpfc_dmabuf);
 		if (mp1)
 		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &mp1->phys);
 		if (!mp1 || !mp1->virt) {
@@ -2833,7 +2833,7 @@ lpfc_sli3_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cn
 		INIT_LIST_HEAD(&mp1->list);
 		/* Allocate buffer to post */
 		if (cnt > 1) {
-			mp2 = kmalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
+			mp2 = kmalloc_obj(struct lpfc_dmabuf);
 			if (mp2)
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
@@ -3539,7 +3539,7 @@ void lpfc_create_multixri_pools(struct lpfc_hba *phba)
 	count_per_hwq = phba->sli4_hba.io_xri_cnt / hwq_count;
 
 	for (i = 0; i < hwq_count; i++) {
-		multixri_pool = kzalloc_obj(*multixri_pool, GFP_KERNEL);
+		multixri_pool = kzalloc_obj(*multixri_pool);
 
 		if (!multixri_pool) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -4064,7 +4064,7 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 				els_xri_cnt);
 		/* allocate the additional els sgls */
 		for (i = 0; i < xri_cnt; i++) {
-			sglq_entry = kzalloc_obj(struct lpfc_sglq, GFP_KERNEL);
+			sglq_entry = kzalloc_obj(struct lpfc_sglq);
 			if (sglq_entry == NULL) {
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_TRACE_EVENT,
@@ -4183,7 +4183,7 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 				phba->sli4_hba.nvmet_xri_cnt, nvmet_xri_cnt);
 		/* allocate the additional nvmet sgls */
 		for (i = 0; i < xri_cnt; i++) {
-			sglq_entry = kzalloc_obj(struct lpfc_sglq, GFP_KERNEL);
+			sglq_entry = kzalloc_obj(struct lpfc_sglq);
 			if (sglq_entry == NULL) {
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_TRACE_EVENT,
@@ -4476,7 +4476,7 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 
 	phba->sli4_hba.io_xri_cnt = 0;
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
-		lpfc_ncmd = kzalloc_obj(*lpfc_ncmd, GFP_KERNEL);
+		lpfc_ncmd = kzalloc_obj(*lpfc_ncmd);
 		if (!lpfc_ncmd)
 			break;
 		/*
@@ -8661,7 +8661,7 @@ lpfc_init_iocb_list(struct lpfc_hba *phba, int iocb_count)
 	/* Initialize and populate the iocb list per host.  */
 	INIT_LIST_HEAD(&phba->lpfc_iocb_list);
 	for (i = 0; i < iocb_count; i++) {
-		iocbq_entry = kzalloc_obj(struct lpfc_iocbq, GFP_KERNEL);
+		iocbq_entry = kzalloc_obj(struct lpfc_iocbq);
 		if (iocbq_entry == NULL) {
 			printk(KERN_ERR "%s: only allocated %d iocbs of "
 				"expected %d count. Unloading driver.\n",
@@ -8911,7 +8911,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * First allocate the protocol header region for the port.  The
 	 * port expects a 4KB DMA-mapped memory region that is 4K aligned.
 	 */
-	dmabuf = kzalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return NULL;
 
@@ -8929,7 +8929,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	}
 
 	/* Save the rpi header data for cleanup later. */
-	rpi_hdr = kzalloc_obj(struct lpfc_rpi_hdr, GFP_KERNEL);
+	rpi_hdr = kzalloc_obj(struct lpfc_rpi_hdr);
 	if (!rpi_hdr)
 		goto err_free_coherent;
 
@@ -9002,7 +9002,7 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 	struct lpfc_hba *phba;
 
 	/* Allocate memory for HBA structure */
-	phba = kzalloc_obj(struct lpfc_hba, GFP_KERNEL);
+	phba = kzalloc_obj(struct lpfc_hba);
 	if (!phba) {
 		dev_err(&pdev->dev, "failed to allocate hba struct\n");
 		return NULL;
@@ -9720,7 +9720,7 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 	uint32_t pa_addr;
 	uint64_t phys_addr;
 
-	dmabuf = kzalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return -ENOMEM;
 
@@ -11507,7 +11507,7 @@ lpfc_sli4_cq_event_pool_create(struct lpfc_hba *phba)
 	int i;
 
 	for (i = 0; i < (4 * phba->sli4_hba.cq_ecount); i++) {
-		cq_event = kmalloc_obj(struct lpfc_cq_event, GFP_KERNEL);
+		cq_event = kmalloc_obj(struct lpfc_cq_event);
 		if (!cq_event)
 			goto out_pool_create_fail;
 		list_add_tail(&cq_event->list,
@@ -14612,7 +14612,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 			     "New Version:%s\n",
 			     fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
-			dmabuf = kzalloc_obj(struct lpfc_dmabuf, GFP_KERNEL);
+			dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 			if (!dmabuf) {
 				rc = -ENOMEM;
 				goto release_out;

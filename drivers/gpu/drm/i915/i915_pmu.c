@@ -1028,16 +1028,16 @@ create_event_attributes(struct i915_pmu *pmu)
 	}
 
 	/* Allocate attribute objects and table. */
-	i915_attr = kzalloc_objs(*i915_attr, count, GFP_KERNEL);
+	i915_attr = kzalloc_objs(*i915_attr, count);
 	if (!i915_attr)
 		goto err_alloc;
 
-	pmu_attr = kzalloc_objs(*pmu_attr, count, GFP_KERNEL);
+	pmu_attr = kzalloc_objs(*pmu_attr, count);
 	if (!pmu_attr)
 		goto err_alloc;
 
 	/* Max one pointer of each attribute type plus a termination entry. */
-	attr = kzalloc_objs(*attr, count * 2 + 1, GFP_KERNEL);
+	attr = kzalloc_objs(*attr, count * 2 + 1);
 	if (!attr)
 		goto err_alloc;
 

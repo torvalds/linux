@@ -112,7 +112,7 @@ static int memfd_luo_preserve_folios(struct file *file,
 	 * up being smaller if there are higher order folios.
 	 */
 	max_folios = PAGE_ALIGN(size) / PAGE_SIZE;
-	folios = kvmalloc_objs(*folios, max_folios, GFP_KERNEL);
+	folios = kvmalloc_objs(*folios, max_folios);
 	if (!folios)
 		return -ENOMEM;
 

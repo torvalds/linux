@@ -223,7 +223,7 @@ nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
 {
 	struct nouveau_ivmm *ivmm;
 	if (svmm) {
-		if (!(ivmm = kmalloc_obj(*ivmm, GFP_KERNEL)))
+		if (!(ivmm = kmalloc_obj(*ivmm)))
 			return -ENOMEM;
 		ivmm->svmm = svmm;
 		ivmm->inst = inst;
@@ -326,7 +326,7 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 		return -ENOSYS;
 
 	/* Allocate tracking for SVM-enabled VMM. */
-	if (!(svmm = kzalloc_obj(*svmm, GFP_KERNEL)))
+	if (!(svmm = kzalloc_obj(*svmm)))
 		return -ENOMEM;
 	svmm->vmm = &cli->svm;
 	svmm->unmanaged.start = args->unmanaged_addr;
@@ -475,7 +475,7 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
 	nvif_mask(memory, offset + 0x1c, 0x80000000, 0x00000000);
 
 	if (!buffer->fault[buffer->fault_nr]) {
-		fault = kmalloc_obj(*fault, GFP_KERNEL);
+		fault = kmalloc_obj(*fault);
 		if (WARN_ON(!fault)) {
 			nouveau_svm_fault_cancel(svm, inst, hub, gpc, client);
 			return;

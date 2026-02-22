@@ -174,7 +174,7 @@ iio_dma_buffer_alloc_block(struct iio_dma_buffer_queue *queue, size_t size,
 			   bool fileio)
 {
 	struct iio_dma_buffer_block *block __free(kfree) =
-			kzalloc_obj(*block, GFP_KERNEL);
+			kzalloc_obj(*block);
 	if (!block)
 		return NULL;
 

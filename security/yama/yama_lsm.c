@@ -143,7 +143,7 @@ static int yama_ptracer_add(struct task_struct *tracer,
 {
 	struct ptrace_relation *relation, *added;
 
-	added = kmalloc_obj(*added, GFP_KERNEL);
+	added = kmalloc_obj(*added);
 	if (!added)
 		return -ENOMEM;
 

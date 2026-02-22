@@ -64,7 +64,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	struct ipvl_port *port;
 	int err, idx;
 
-	port = kzalloc_obj(struct ipvl_port, GFP_KERNEL);
+	port = kzalloc_obj(struct ipvl_port);
 	if (!port)
 		return -ENOMEM;
 

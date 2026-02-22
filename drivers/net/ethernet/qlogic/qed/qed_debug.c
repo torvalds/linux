@@ -7535,7 +7535,7 @@ enum dbg_status qed_dbg_user_set_bin_ptr(struct qed_hwfn *p_hwfn,
 enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn,
 					void **user_data_ptr)
 {
-	*user_data_ptr = kzalloc_obj(struct dbg_tools_user_data, GFP_KERNEL);
+	*user_data_ptr = kzalloc_obj(struct dbg_tools_user_data);
 	if (!(*user_data_ptr))
 		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
 

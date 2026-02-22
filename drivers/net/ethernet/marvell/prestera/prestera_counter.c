@@ -147,7 +147,7 @@ prestera_counter_block_get(struct prestera_counter *counter, u32 client)
 	if (block)
 		return block;
 
-	block = kzalloc_obj(*block, GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 
@@ -437,11 +437,11 @@ int prestera_counter_init(struct prestera_switch *sw)
 {
 	struct prestera_counter *counter;
 
-	counter = kzalloc_obj(*counter, GFP_KERNEL);
+	counter = kzalloc_obj(*counter);
 	if (!counter)
 		return -ENOMEM;
 
-	counter->block_list = kzalloc_obj(*counter->block_list, GFP_KERNEL);
+	counter->block_list = kzalloc_obj(*counter->block_list);
 	if (!counter->block_list) {
 		kfree(counter);
 		return -ENOMEM;

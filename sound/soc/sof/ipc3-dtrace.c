@@ -126,7 +126,7 @@ static int trace_filter_parse(struct snd_sof_dev *sdev, char *string,
 		capacity += TRACE_FILTER_ELEMENTS_PER_ENTRY;
 		entry = strchr(entry + 1, entry_delimiter[0]);
 	}
-	*out = kmalloc_objs(**out, capacity, GFP_KERNEL);
+	*out = kmalloc_objs(**out, capacity);
 	if (!*out)
 		return -ENOMEM;
 

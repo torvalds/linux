@@ -237,7 +237,7 @@ int dpaa2_eth_dl_traps_register(struct dpaa2_eth_priv *priv)
 	struct device *dev = net_dev->dev.parent;
 	int err;
 
-	dpaa2_eth_trap_data = kzalloc_obj(*dpaa2_eth_trap_data, GFP_KERNEL);
+	dpaa2_eth_trap_data = kzalloc_obj(*dpaa2_eth_trap_data);
 	if (!dpaa2_eth_trap_data)
 		return -ENOMEM;
 	priv->trap_data = dpaa2_eth_trap_data;

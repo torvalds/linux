@@ -111,7 +111,7 @@ static struct crs_csi2 *acpi_mipi_add_crs_csi2(acpi_handle handle,
 {
 	struct crs_csi2 *csi2;
 
-	csi2 = kzalloc_obj(*csi2, GFP_KERNEL);
+	csi2 = kzalloc_obj(*csi2);
 	if (!csi2)
 		return NULL;
 

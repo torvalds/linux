@@ -434,7 +434,7 @@ int allocate_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops)
 {
 	struct fgraph_ops *gops;
 
-	gops = kzalloc_obj(*gops, GFP_KERNEL);
+	gops = kzalloc_obj(*gops);
 	if (!gops)
 		return -ENOMEM;
 

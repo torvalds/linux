@@ -802,7 +802,7 @@ static int can_pernet_init(struct net *net)
 					      GFP_KERNEL);
 	if (!net->can.rx_alldev_list)
 		goto out;
-	net->can.pkg_stats = kzalloc_obj(*net->can.pkg_stats, GFP_KERNEL);
+	net->can.pkg_stats = kzalloc_obj(*net->can.pkg_stats);
 	if (!net->can.pkg_stats)
 		goto out_free_rx_alldev_list;
 	net->can.rcv_lists_stats = kzalloc_obj(*net->can.rcv_lists_stats,

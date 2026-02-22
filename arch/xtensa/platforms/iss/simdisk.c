@@ -320,7 +320,7 @@ static int __init simdisk_init(void)
 	if (simdisk_count > MAX_SIMDISK_COUNT)
 		simdisk_count = MAX_SIMDISK_COUNT;
 
-	sddev = kmalloc_objs(*sddev, simdisk_count, GFP_KERNEL);
+	sddev = kmalloc_objs(*sddev, simdisk_count);
 	if (sddev == NULL)
 		goto out_unregister;
 

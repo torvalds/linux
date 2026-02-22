@@ -354,7 +354,7 @@ int virtsnd_pcm_parse_cfg(struct virtio_snd *snd)
 		spin_lock_init(&vss->lock);
 	}
 
-	info = kzalloc_objs(*info, snd->nsubstreams, GFP_KERNEL);
+	info = kzalloc_objs(*info, snd->nsubstreams);
 	if (!info)
 		return -ENOMEM;
 

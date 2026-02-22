@@ -168,7 +168,7 @@ static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
 	LIBFCOE_FIP_DBG(fip, "New FCF fab %16.16llx mac %pM\n",
 			new->fabric_name, new->fcf_mac);
 
-	temp = kzalloc_obj(*temp, GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp)
 		goto out;
 

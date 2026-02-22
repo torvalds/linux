@@ -4598,7 +4598,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	if (!skip_rx_queue(bp, index)) {
 		/* fastpath rx rings: rx_buf rx_desc rx_comp */
 		bnx2x_fp(bp, index, rx_buf_ring) =
-			kzalloc_objs(struct sw_rx_bd, NUM_RX_BD, GFP_KERNEL);
+			kzalloc_objs(struct sw_rx_bd, NUM_RX_BD);
 		if (!bnx2x_fp(bp, index, rx_buf_ring))
 			goto alloc_mem_err;
 		bnx2x_fp(bp, index, rx_desc_ring) =
@@ -4616,7 +4616,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 
 		/* SGE ring */
 		bnx2x_fp(bp, index, rx_page_ring) =
-			kzalloc_objs(struct sw_rx_page, NUM_RX_SGE, GFP_KERNEL);
+			kzalloc_objs(struct sw_rx_page, NUM_RX_SGE);
 		if (!bnx2x_fp(bp, index, rx_page_ring))
 			goto alloc_mem_err;
 		bnx2x_fp(bp, index, rx_sge_ring) =
@@ -4746,7 +4746,7 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	bp->fp_array_size = fp_array_size;
 	BNX2X_DEV_INFO("fp_array_size %d\n", bp->fp_array_size);
 
-	fp = kzalloc_objs(*fp, bp->fp_array_size, GFP_KERNEL);
+	fp = kzalloc_objs(*fp, bp->fp_array_size);
 	if (!fp)
 		goto alloc_err;
 	for (i = 0; i < bp->fp_array_size; i++) {
@@ -4783,13 +4783,13 @@ int bnx2x_alloc_mem_bp(struct bnx2x *bp)
 		goto alloc_err;
 
 	/* msix table */
-	tbl = kzalloc_objs(*tbl, msix_table_size, GFP_KERNEL);
+	tbl = kzalloc_objs(*tbl, msix_table_size);
 	if (!tbl)
 		goto alloc_err;
 	bp->msix_table = tbl;
 
 	/* ilt */
-	ilt = kzalloc_obj(*ilt, GFP_KERNEL);
+	ilt = kzalloc_obj(*ilt);
 	if (!ilt)
 		goto alloc_err;
 	bp->ilt = ilt;

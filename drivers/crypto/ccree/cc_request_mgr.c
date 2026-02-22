@@ -116,7 +116,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 	struct device *dev = drvdata_to_dev(drvdata);
 	int rc = 0;
 
-	req_mgr_h = kzalloc_obj(*req_mgr_h, GFP_KERNEL);
+	req_mgr_h = kzalloc_obj(*req_mgr_h);
 	if (!req_mgr_h) {
 		rc = -ENOMEM;
 		goto req_mgr_init_err;

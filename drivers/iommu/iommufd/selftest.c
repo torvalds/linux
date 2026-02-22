@@ -308,7 +308,7 @@ static void *mock_domain_hw_info(struct device *dev, u32 *length,
 	    *type != IOMMU_HW_INFO_TYPE_SELFTEST)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -353,7 +353,7 @@ __mock_domain_alloc_nested(const struct iommu_user_data *user_data)
 	if (rc)
 		return ERR_PTR(rc);
 
-	mock_nested = kzalloc_obj(*mock_nested, GFP_KERNEL);
+	mock_nested = kzalloc_obj(*mock_nested);
 	if (!mock_nested)
 		return ERR_PTR(-ENOMEM);
 	mock_nested->domain.ops = &domain_nested_ops;
@@ -441,7 +441,7 @@ mock_domain_alloc_pgtable(struct device *dev,
 	struct mock_iommu_domain *mock;
 	int rc;
 
-	mock = kzalloc_obj(*mock, GFP_KERNEL);
+	mock = kzalloc_obj(*mock);
 	if (!mock)
 		return ERR_PTR(-ENOMEM);
 	mock->domain.type = IOMMU_DOMAIN_UNMANAGED;
@@ -674,7 +674,7 @@ static int mock_viommu_cache_invalidate(struct iommufd_viommu *viommu,
 		return 0;
 	}
 
-	cmds = kzalloc_objs(*cmds, array->entry_num, GFP_KERNEL);
+	cmds = kzalloc_objs(*cmds, array->entry_num);
 	if (!cmds)
 		return -ENOMEM;
 	cur = cmds;
@@ -1023,7 +1023,7 @@ static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 	if (dev_flags & ~valid_flags)
 		return ERR_PTR(-EINVAL);
 
-	mdev = kzalloc_obj(*mdev, GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -2032,7 +2032,7 @@ static int iommufd_test_dmabuf_get(struct iommufd_ucmd *ucmd,
 	if (len == 0 || len > PAGE_SIZE * 512)
 		return -EINVAL;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -373,7 +373,7 @@ static int bind_virq_for_mce(void)
 
 	/* Fetch each CPU Physical Info for later reference*/
 	ncpus = mc_op.u.mc_physcpuinfo.ncpus;
-	g_physinfo = kzalloc_objs(struct mcinfo_logical_cpu, ncpus, GFP_KERNEL);
+	g_physinfo = kzalloc_objs(struct mcinfo_logical_cpu, ncpus);
 	if (!g_physinfo)
 		return -ENOMEM;
 	set_xen_guest_handle(mc_op.u.mc_physcpuinfo.info, g_physinfo);

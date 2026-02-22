@@ -1210,7 +1210,7 @@ static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 {
 	int err;
 
-	cq->resize_buf = kzalloc_obj(*cq->resize_buf, GFP_KERNEL);
+	cq->resize_buf = kzalloc_obj(*cq->resize_buf);
 	if (!cq->resize_buf)
 		return -ENOMEM;
 

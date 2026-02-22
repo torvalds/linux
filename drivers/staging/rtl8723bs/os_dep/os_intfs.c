@@ -568,7 +568,7 @@ struct dvobj_priv *devobj_init(void)
 {
 	struct dvobj_priv *pdvobj = NULL;
 
-	pdvobj = kzalloc_obj(*pdvobj, GFP_KERNEL);
+	pdvobj = kzalloc_obj(*pdvobj);
 	if (!pdvobj)
 		return NULL;
 

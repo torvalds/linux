@@ -2882,7 +2882,7 @@ static int blk_iocost_init(struct gendisk *disk)
 	struct ioc *ioc;
 	int i, cpu, ret;
 
-	ioc = kzalloc_obj(*ioc, GFP_KERNEL);
+	ioc = kzalloc_obj(*ioc);
 	if (!ioc)
 		return -ENOMEM;
 

@@ -233,7 +233,7 @@ static int ath12k_dp_link_peer_rhash_addr_tbl_init(struct ath12k_dp *dp)
 
 	lockdep_assert_held(&dp->link_peer_rhash_tbl_lock);
 
-	rhash_addr_tbl = kzalloc_obj(*dp->rhead_peer_addr, GFP_KERNEL);
+	rhash_addr_tbl = kzalloc_obj(*dp->rhead_peer_addr);
 	if (!rhash_addr_tbl)
 		return -ENOMEM;
 

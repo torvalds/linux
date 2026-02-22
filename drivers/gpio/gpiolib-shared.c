@@ -228,7 +228,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 			entry = gpio_shared_find_entry(fwnode, offset);
 			if (!entry) {
-				entry = kzalloc_obj(*entry, GFP_KERNEL);
+				entry = kzalloc_obj(*entry);
 				if (!entry)
 					return -ENOMEM;
 
@@ -627,7 +627,7 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 
 	lockdep_assert_held(&entry->lock);
 
-	shared_desc = kzalloc_obj(*shared_desc, GFP_KERNEL);
+	shared_desc = kzalloc_obj(*shared_desc);
 	if (!shared_desc)
 		return ERR_PTR(-ENOMEM);
 

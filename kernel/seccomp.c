@@ -1893,7 +1893,7 @@ static struct file *init_listener(struct seccomp_filter *filter)
 	struct file *ret;
 
 	ret = ERR_PTR(-ENOMEM);
-	filter->notif = kzalloc_obj(*(filter->notif), GFP_KERNEL);
+	filter->notif = kzalloc_obj(*(filter->notif));
 	if (!filter->notif)
 		goto out;
 

@@ -395,13 +395,13 @@ static int soc_card_dai_links_create(struct snd_soc_card *card)
 
 	/* One per DAI link, worst case is a DAI link for every endpoint */
 	struct asoc_sdw_dailink *soc_dais __free(kfree) =
-		kzalloc_objs(*soc_dais, num_ends, GFP_KERNEL);
+		kzalloc_objs(*soc_dais, num_ends);
 	if (!soc_dais)
 		return -ENOMEM;
 
 	/* One per endpoint, ie. each DAI on each codec/amp */
 	struct asoc_sdw_endpoint *soc_ends __free(kfree) =
-		kzalloc_objs(*soc_ends, num_ends, GFP_KERNEL);
+		kzalloc_objs(*soc_ends, num_ends);
 	if (!soc_ends)
 		return -ENOMEM;
 

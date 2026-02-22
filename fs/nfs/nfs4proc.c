@@ -4107,7 +4107,7 @@ static int _nfs4_discover_trunking(struct nfs_server *server,
 	page = alloc_page(GFP_KERNEL);
 	if (!page)
 		goto out_put_cred;
-	locations = kmalloc_obj(struct nfs4_fs_locations, GFP_KERNEL);
+	locations = kmalloc_obj(struct nfs4_fs_locations);
 	if (!locations)
 		goto out_free;
 	locations->fattr = nfs_alloc_fattr();
@@ -4341,7 +4341,7 @@ static int nfs4_get_referral(struct rpc_clnt *client, struct inode *dir,
 	page = alloc_page(GFP_KERNEL);
 	if (page == NULL)
 		goto out;
-	locations = kmalloc_obj(struct nfs4_fs_locations, GFP_KERNEL);
+	locations = kmalloc_obj(struct nfs4_fs_locations);
 	if (locations == NULL)
 		goto out;
 
@@ -5130,7 +5130,7 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 {
 	struct nfs4_createdata *data;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data != NULL) {
 		struct nfs_server *server = NFS_SERVER(dir);
 
@@ -6023,7 +6023,7 @@ static void nfs4_write_cached_acl(struct inode *inode, struct page **pages,
 		acl->cached = 1;
 		_copy_from_pages(acl->data, pages, pgbase, acl_len);
 	} else {
-		acl = kmalloc_obj(*acl, GFP_KERNEL);
+		acl = kmalloc_obj(*acl);
 		if (acl == NULL)
 			goto out;
 		acl->cached = 0;
@@ -6070,7 +6070,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 		buflen = server->rsize;
 
 	npages = DIV_ROUND_UP(buflen, PAGE_SIZE) + 1;
-	pages = kmalloc_objs(struct page *, npages, GFP_KERNEL);
+	pages = kmalloc_objs(struct page *, npages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -6822,7 +6822,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, const struct cred *cred,
 	if (nfs_server_capable(inode, NFS_CAP_MOVEABLE))
 		task_setup_data.flags |= RPC_TASK_MOVEABLE;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -7026,7 +7026,7 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	struct inode *inode = state->inode;
 	struct nfs_lock_context *l_ctx;
 
-	p = kzalloc_obj(*p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (p == NULL)
 		return NULL;
 	l_ctx = nfs_get_lock_context(ctx);
@@ -9396,7 +9396,7 @@ static struct rpc_task *_nfs41_proc_sequence(struct nfs_client *clp,
 		goto out_err;
 
 	ret = ERR_PTR(-ENOMEM);
-	calldata = kzalloc_obj(*calldata, GFP_KERNEL);
+	calldata = kzalloc_obj(*calldata);
 	if (calldata == NULL)
 		goto out_put_clp;
 	nfs4_init_sequence(clp, &calldata->args, &calldata->res, 0, is_privileged);
@@ -10358,7 +10358,7 @@ static int nfs41_free_stateid(struct nfs_server *server,
 		&task_setup.rpc_client, &msg);
 
 	dprintk("NFS call  free_stateid %p\n", stateid);
-	data = kmalloc_obj(*data, GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	data->server = server;

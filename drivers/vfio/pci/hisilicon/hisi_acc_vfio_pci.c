@@ -1498,7 +1498,7 @@ static int hisi_acc_vf_dev_read(struct seq_file *seq, void *data)
 	}
 
 	mutex_lock(&hisi_acc_vdev->state_mutex);
-	vf_data = kzalloc_obj(*vf_data, GFP_KERNEL);
+	vf_data = kzalloc_obj(*vf_data);
 	if (!vf_data) {
 		ret = -ENOMEM;
 		goto mutex_release;
@@ -1679,7 +1679,7 @@ static void hisi_acc_vfio_debug_init(struct hisi_acc_vf_core_device *hisi_acc_vd
 		return;
 	}
 
-	migf = kzalloc_obj(*migf, GFP_KERNEL);
+	migf = kzalloc_obj(*migf);
 	if (!migf) {
 		dput(vfio_dev_migration);
 		return;

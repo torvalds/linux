@@ -306,10 +306,10 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	u8 *fwfilepath;
 	u8 tmp_ps;
 
-	pFirmware = kzalloc_obj(struct rt_firmware, GFP_KERNEL);
+	pFirmware = kzalloc_obj(struct rt_firmware);
 	if (!pFirmware)
 		return _FAIL;
-	pBTFirmware = kzalloc_obj(struct rt_firmware, GFP_KERNEL);
+	pBTFirmware = kzalloc_obj(struct rt_firmware);
 	if (!pBTFirmware) {
 		kfree(pFirmware);
 		return _FAIL;

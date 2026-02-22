@@ -622,7 +622,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	if (iova_limit <= bounce_size)
 		return NULL;
 
-	domain = kzalloc_obj(*domain, GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return NULL;
 

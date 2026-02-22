@@ -157,7 +157,7 @@ int mthca_array_init(struct mthca_array *array, int nent)
 	int npage = (nent * sizeof (void *) + PAGE_SIZE - 1) / PAGE_SIZE;
 	int i;
 
-	array->page_list = kmalloc_objs(*array->page_list, npage, GFP_KERNEL);
+	array->page_list = kmalloc_objs(*array->page_list, npage);
 	if (!array->page_list)
 		return -ENOMEM;
 

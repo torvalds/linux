@@ -826,7 +826,7 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
 				 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset) +
 				 (power_state->v1.ucClockStateIndices[0] *
 				  power_info->pplib.ucClockInfoSize));
-			ps = kzalloc_obj(struct igp_ps, GFP_KERNEL);
+			ps = kzalloc_obj(struct igp_ps);
 			if (ps == NULL) {
 				kfree(rdev->pm.dpm.ps);
 				return -ENOMEM;
@@ -853,7 +853,7 @@ int rs780_dpm_init(struct radeon_device *rdev)
 	u8 frev, crev;
 	int ret;
 
-	pi = kzalloc_obj(struct igp_power_info, GFP_KERNEL);
+	pi = kzalloc_obj(struct igp_power_info);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;

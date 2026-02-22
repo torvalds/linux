@@ -707,7 +707,7 @@ int mthca_init_db_tab(struct mthca_dev *dev)
 	if (!mthca_is_memfree(dev))
 		return 0;
 
-	dev->db_tab = kmalloc_obj(*dev->db_tab, GFP_KERNEL);
+	dev->db_tab = kmalloc_obj(*dev->db_tab);
 	if (!dev->db_tab)
 		return -ENOMEM;
 

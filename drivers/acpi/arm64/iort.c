@@ -165,7 +165,7 @@ int iort_register_domain_token(int trans_id, phys_addr_t base,
 {
 	struct iort_its_msi_chip *its_msi_chip;
 
-	its_msi_chip = kzalloc_obj(*its_msi_chip, GFP_KERNEL);
+	its_msi_chip = kzalloc_obj(*its_msi_chip);
 	if (!its_msi_chip)
 		return -ENOMEM;
 
@@ -938,7 +938,7 @@ static struct iommu_iort_rmr_data *iort_rmr_alloc(
 	u32 *sids_copy;
 	u64 addr = rmr_desc->base_address, size = rmr_desc->length;
 
-	rmr_data = kmalloc_obj(*rmr_data, GFP_KERNEL);
+	rmr_data = kmalloc_obj(*rmr_data);
 	if (!rmr_data)
 		return NULL;
 
@@ -1942,7 +1942,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 
 	count = ops->dev_count_resources(node);
 
-	r = kzalloc_objs(*r, count, GFP_KERNEL);
+	r = kzalloc_objs(*r, count);
 	if (!r) {
 		ret = -ENOMEM;
 		goto dev_put;

@@ -712,7 +712,7 @@ static int bcm_qspi_setup(struct spi_device *spi)
 
 	xp = spi_get_ctldata(spi);
 	if (!xp) {
-		xp = kzalloc_obj(*xp, GFP_KERNEL);
+		xp = kzalloc_obj(*xp);
 		if (!xp)
 			return -ENOMEM;
 		spi_set_ctldata(spi, xp);

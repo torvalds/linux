@@ -468,9 +468,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 * Copy the command submission and bo array to kernel space in
 	 * one go, and do this outside of any locks.
 	 */
-	bos = kvmalloc_objs(*bos, args->nr_bos, GFP_KERNEL);
-	relocs = kvmalloc_objs(*relocs, args->nr_relocs, GFP_KERNEL);
-	pmrs = kvmalloc_objs(*pmrs, args->nr_pmrs, GFP_KERNEL);
+	bos = kvmalloc_objs(*bos, args->nr_bos);
+	relocs = kvmalloc_objs(*relocs, args->nr_relocs);
+	pmrs = kvmalloc_objs(*pmrs, args->nr_pmrs);
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	if (!bos || !relocs || !pmrs || !stream) {
 		ret = -ENOMEM;

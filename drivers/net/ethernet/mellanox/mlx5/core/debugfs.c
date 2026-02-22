@@ -201,7 +201,7 @@ static const struct file_operations slots_fops = {
 static struct mlx5_cmd_stats *
 mlx5_cmdif_alloc_stats(struct xarray *stats_xa, int opcode)
 {
-	struct mlx5_cmd_stats *stats = kzalloc_obj(*stats, GFP_KERNEL);
+	struct mlx5_cmd_stats *stats = kzalloc_obj(*stats);
 	int err;
 
 	if (!stats)

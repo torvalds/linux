@@ -364,7 +364,7 @@ static struct kobject *create_xe_sriov_kobj(struct xe_device *xe, unsigned int v
 
 	xe_sriov_pf_assert_vfid(xe, vfid);
 
-	vkobj = kzalloc_obj(*vkobj, GFP_KERNEL);
+	vkobj = kzalloc_obj(*vkobj);
 	if (!vkobj)
 		return ERR_PTR(-ENOMEM);
 

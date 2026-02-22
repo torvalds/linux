@@ -2767,7 +2767,7 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		goto failed;
 	}
 
-	uuid = kmalloc_obj(*uuid, GFP_KERNEL);
+	uuid = kmalloc_obj(*uuid);
 	if (!uuid) {
 		err = -ENOMEM;
 		goto failed;
@@ -4377,7 +4377,7 @@ static int set_blocked_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	hci_blocked_keys_clear(hdev);
 
 	for (i = 0; i < key_count; ++i) {
-		struct blocked_key *b = kzalloc_obj(*b, GFP_KERNEL);
+		struct blocked_key *b = kzalloc_obj(*b);
 
 		if (!b) {
 			err = MGMT_STATUS_NO_RESOURCES;
@@ -5490,7 +5490,7 @@ static u8 parse_adv_monitor_pattern(struct adv_monitor *m, u8 pattern_count,
 		    (offset + length) > HCI_MAX_AD_LENGTH)
 			return MGMT_STATUS_INVALID_PARAMS;
 
-		p = kmalloc_obj(*p, GFP_KERNEL);
+		p = kmalloc_obj(*p);
 		if (!p)
 			return MGMT_STATUS_NO_RESOURCES;
 
@@ -5527,7 +5527,7 @@ static int add_adv_patterns_monitor(struct sock *sk, struct hci_dev *hdev,
 		goto done;
 	}
 
-	m = kzalloc_obj(*m, GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (!m) {
 		status = MGMT_STATUS_NO_RESOURCES;
 		goto done;
@@ -5564,7 +5564,7 @@ static int add_adv_patterns_monitor_rssi(struct sock *sk, struct hci_dev *hdev,
 		goto done;
 	}
 
-	m = kzalloc_obj(*m, GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (!m) {
 		status = MGMT_STATUS_NO_RESOURCES;
 		goto done;

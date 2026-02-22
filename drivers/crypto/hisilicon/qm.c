@@ -2722,7 +2722,7 @@ static int qm_hw_err_isolate(struct hisi_qm *qm)
 	if (qm->uacce->is_vf || isolate->is_isolate || !isolate->err_threshold)
 		return 0;
 
-	hw_err = kzalloc_obj(*hw_err, GFP_KERNEL);
+	hw_err = kzalloc_obj(*hw_err);
 	if (!hw_err)
 		return -ENOMEM;
 
@@ -3747,7 +3747,7 @@ static int hisi_qm_sort_devices(int node, struct list_head *head,
 		if (dev_node < 0)
 			dev_node = 0;
 
-		res = kzalloc_obj(*res, GFP_KERNEL);
+		res = kzalloc_obj(*res);
 		if (!res)
 			return -ENOMEM;
 
@@ -5767,7 +5767,7 @@ static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 	size_t qp_dma_size;
 	int i, ret;
 
-	qm->qp_array = kzalloc_objs(struct hisi_qp, qm->qp_num, GFP_KERNEL);
+	qm->qp_array = kzalloc_objs(struct hisi_qp, qm->qp_num);
 	if (!qm->qp_array)
 		return -ENOMEM;
 

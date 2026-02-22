@@ -476,7 +476,7 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	}
 
 	/* create and init new class */
-	cl = kzalloc_obj(struct qfq_class, GFP_KERNEL);
+	cl = kzalloc_obj(struct qfq_class);
 	if (cl == NULL)
 		return -ENOBUFS;
 
@@ -508,7 +508,7 @@ set_change_agg:
 	new_agg = qfq_find_agg(q, lmax, weight);
 	if (new_agg == NULL) { /* create new aggregate */
 		sch_tree_unlock(sch);
-		new_agg = kzalloc_obj(*new_agg, GFP_KERNEL);
+		new_agg = kzalloc_obj(*new_agg);
 		if (new_agg == NULL) {
 			err = -ENOBUFS;
 			gen_kill_estimator(&cl->rate_est);

@@ -546,7 +546,7 @@ qed_iwarp_create_ep(struct qed_hwfn *p_hwfn, struct qed_iwarp_ep **ep_out)
 	struct qed_iwarp_ep *ep;
 	int rc;
 
-	ep = kzalloc_obj(*ep, GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 
@@ -2602,7 +2602,7 @@ qed_iwarp_ll2_alloc_buffers(struct qed_hwfn *p_hwfn,
 	int i;
 
 	for (i = 0; i < num_rx_bufs; i++) {
-		buffer = kzalloc_obj(*buffer, GFP_KERNEL);
+		buffer = kzalloc_obj(*buffer);
 		if (!buffer) {
 			rc = -ENOMEM;
 			break;
@@ -3166,7 +3166,7 @@ qed_iwarp_create_listen(void *rdma_cxt,
 	struct qed_hwfn *p_hwfn = rdma_cxt;
 	struct qed_iwarp_listener *listener;
 
-	listener = kzalloc_obj(*listener, GFP_KERNEL);
+	listener = kzalloc_obj(*listener);
 	if (!listener)
 		return -ENOMEM;
 

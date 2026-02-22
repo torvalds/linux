@@ -813,7 +813,7 @@ struct cached_fids *init_cached_dirs(void)
 {
 	struct cached_fids *cfids;
 
-	cfids = kzalloc_obj(*cfids, GFP_KERNEL);
+	cfids = kzalloc_obj(*cfids);
 	if (!cfids)
 		return NULL;
 	spin_lock_init(&cfids->cfid_list_lock);

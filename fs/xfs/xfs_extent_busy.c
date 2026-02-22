@@ -717,7 +717,7 @@ xfs_extent_busy_alloc(void)
 {
 	struct xfs_extent_busy_tree *eb;
 
-	eb = kzalloc_obj(*eb, GFP_KERNEL);
+	eb = kzalloc_obj(*eb);
 	if (!eb)
 		return NULL;
 	spin_lock_init(&eb->eb_lock);

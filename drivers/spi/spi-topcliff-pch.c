@@ -1527,11 +1527,11 @@ static int pch_spi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int i;
 	struct pch_pd_dev_save *pd_dev_save;
 
-	pd_dev_save = kzalloc_obj(*pd_dev_save, GFP_KERNEL);
+	pd_dev_save = kzalloc_obj(*pd_dev_save);
 	if (!pd_dev_save)
 		return -ENOMEM;
 
-	board_dat = kzalloc_obj(*board_dat, GFP_KERNEL);
+	board_dat = kzalloc_obj(*board_dat);
 	if (!board_dat) {
 		retval = -ENOMEM;
 		goto err_no_mem;

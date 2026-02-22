@@ -715,7 +715,7 @@ static int ses_intf_add(struct device *cdev)
 	if (sdev->type != TYPE_ENCLOSURE)
 		sdev_printk(KERN_NOTICE, sdev, "Embedded Enclosure Device\n");
 
-	ses_dev = kzalloc_obj(*ses_dev, GFP_KERNEL);
+	ses_dev = kzalloc_obj(*ses_dev);
 	hdr_buf = kzalloc(INIT_ALLOC_SIZE, GFP_KERNEL);
 	if (!hdr_buf || !ses_dev)
 		goto err_init_free;

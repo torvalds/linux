@@ -884,7 +884,7 @@ void nfp_tunnel_add_ipv4_off(struct nfp_app *app, __be32 ipv4)
 		}
 	}
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		mutex_unlock(&priv->tun.ipv4_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
@@ -959,7 +959,7 @@ nfp_tunnel_add_ipv6_off(struct nfp_app *app, struct in6_addr *ipv6)
 			return entry;
 		}
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		mutex_unlock(&priv->tun.ipv6_off_lock);
 		nfp_flower_cmsg_warn(app, "Mem error when offloading IP address.\n");
@@ -1117,7 +1117,7 @@ nfp_tunnel_add_shared_mac(struct nfp_app *app, struct net_device *netdev,
 	}
 
 	if (!entry) {
-		entry = kzalloc_obj(*entry, GFP_KERNEL);
+		entry = kzalloc_obj(*entry);
 		if (!entry) {
 			err = -ENOMEM;
 			goto err_free_ida;

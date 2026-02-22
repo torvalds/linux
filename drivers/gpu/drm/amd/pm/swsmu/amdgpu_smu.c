@@ -803,7 +803,7 @@ static int smu_early_init(struct amdgpu_ip_block *ip_block)
 	struct smu_context *smu;
 	int r;
 
-	smu = kzalloc_obj(struct smu_context, GFP_KERNEL);
+	smu = kzalloc_obj(struct smu_context);
 	if (!smu)
 		return -ENOMEM;
 

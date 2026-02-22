@@ -1117,7 +1117,7 @@ static int init_rx_pools(struct net_device *netdev)
 		rx_pool->index = i;
 		rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 
-		rx_pool->free_map = kzalloc_objs(int, rx_pool->size, GFP_KERNEL);
+		rx_pool->free_map = kzalloc_objs(int, rx_pool->size);
 		if (!rx_pool->free_map) {
 			dev_err(dev, "Couldn't alloc free_map %d\n", i);
 			rc = -ENOMEM;
@@ -1243,7 +1243,7 @@ static int init_one_tx_pool(struct net_device *netdev,
 	if (!tx_pool->tx_buff)
 		return -ENOMEM;
 
-	tx_pool->free_map = kzalloc_objs(int, pool_size, GFP_KERNEL);
+	tx_pool->free_map = kzalloc_objs(int, pool_size);
 	if (!tx_pool->free_map) {
 		kfree(tx_pool->tx_buff);
 		tx_pool->tx_buff = NULL;
@@ -1853,7 +1853,7 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	if (rc)
 		return rc;
 
-	adapter->vpd = kzalloc_obj(*adapter->vpd, GFP_KERNEL);
+	adapter->vpd = kzalloc_obj(*adapter->vpd);
 	if (!adapter->vpd)
 		return -ENOMEM;
 
@@ -4049,7 +4049,7 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 	struct ibmvnic_sub_crq_queue *scrq;
 	int rc;
 
-	scrq = kzalloc_obj(*scrq, GFP_KERNEL);
+	scrq = kzalloc_obj(*scrq);
 	if (!scrq)
 		return NULL;
 
@@ -4441,7 +4441,7 @@ static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 
 	total_queues = adapter->req_tx_queues + adapter->req_rx_queues;
 
-	allqueues = kzalloc_objs(*allqueues, total_queues, GFP_KERNEL);
+	allqueues = kzalloc_objs(*allqueues, total_queues);
 	if (!allqueues)
 		return -ENOMEM;
 

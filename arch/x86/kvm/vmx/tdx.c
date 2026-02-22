@@ -2743,7 +2743,7 @@ static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 		goto out;
 	}
 
-	td_params = kzalloc_obj(struct td_params, GFP_KERNEL);
+	td_params = kzalloc_obj(struct td_params);
 	if (!td_params) {
 		ret = -ENOMEM;
 		goto out;

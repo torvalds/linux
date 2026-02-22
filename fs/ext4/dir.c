@@ -672,7 +672,7 @@ static int ext4_dir_open(struct inode *inode, struct file *file)
 {
 	struct dir_private_info *info;
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	file->private_data = info;

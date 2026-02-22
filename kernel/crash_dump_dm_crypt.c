@@ -252,7 +252,7 @@ static struct config_item *config_keys_make_item(struct config_group *group,
 		return ERR_PTR(-EINVAL);
 	}
 
-	config_key = kzalloc_obj(struct config_key, GFP_KERNEL);
+	config_key = kzalloc_obj(struct config_key);
 	if (!config_key)
 		return ERR_PTR(-ENOMEM);
 

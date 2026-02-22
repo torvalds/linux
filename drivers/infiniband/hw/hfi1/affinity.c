@@ -199,7 +199,7 @@ static struct hfi1_affinity_node *node_affinity_allocate(int node)
 {
 	struct hfi1_affinity_node *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 	entry->node = node;

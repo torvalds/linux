@@ -702,7 +702,7 @@ static int ftrace_profile_init_cpu(int cpu)
 	 */
 	size = FTRACE_PROFILE_HASH_SIZE;
 
-	stat->hash = kzalloc_objs(struct hlist_head, size, GFP_KERNEL);
+	stat->hash = kzalloc_objs(struct hlist_head, size);
 
 	if (!stat->hash)
 		return -ENOMEM;
@@ -1215,7 +1215,7 @@ add_ftrace_hash_entry_direct(struct ftrace_hash *hash, unsigned long ip, unsigne
 {
 	struct ftrace_func_entry *entry;
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -1335,12 +1335,12 @@ struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 	struct ftrace_hash *hash;
 	int size;
 
-	hash = kzalloc_obj(*hash, GFP_KERNEL);
+	hash = kzalloc_obj(*hash);
 	if (!hash)
 		return NULL;
 
 	size = 1 << size_bits;
-	hash->buckets = kzalloc_objs(*hash->buckets, size, GFP_KERNEL);
+	hash->buckets = kzalloc_objs(*hash->buckets, size);
 
 	if (!hash->buckets) {
 		kfree(hash);
@@ -1360,7 +1360,7 @@ static int ftrace_add_mod(struct trace_array *tr,
 	struct ftrace_mod_load *ftrace_mod;
 	struct list_head *mod_head = enable ? &tr->mod_trace : &tr->mod_notrace;
 
-	ftrace_mod = kzalloc_obj(*ftrace_mod, GFP_KERNEL);
+	ftrace_mod = kzalloc_obj(*ftrace_mod);
 	if (!ftrace_mod)
 		return -ENOMEM;
 
@@ -3911,7 +3911,7 @@ ftrace_allocate_pages(unsigned long num_to_init, unsigned long *num_pages)
 	if (!num_to_init)
 		return NULL;
 
-	start_pg = pg = kzalloc_obj(*pg, GFP_KERNEL);
+	start_pg = pg = kzalloc_obj(*pg);
 	if (!pg)
 		return NULL;
 
@@ -3929,7 +3929,7 @@ ftrace_allocate_pages(unsigned long num_to_init, unsigned long *num_pages)
 		if (!num_to_init)
 			break;
 
-		pg->next = kzalloc_obj(*pg, GFP_KERNEL);
+		pg->next = kzalloc_obj(*pg);
 		if (!pg->next)
 			goto free_pages;
 
@@ -4686,7 +4686,7 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 	if (tracing_check_open_get_tr(tr))
 		return -ENODEV;
 
-	iter = kzalloc_obj(*iter, GFP_KERNEL);
+	iter = kzalloc_obj(*iter);
 	if (!iter)
 		goto out;
 
@@ -5334,7 +5334,7 @@ int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
 	if (entry)
 		return -EBUSY;
 
-	map = kmalloc_obj(*map, GFP_KERNEL);
+	map = kmalloc_obj(*map);
 	if (!map)
 		return -ENOMEM;
 
@@ -5474,7 +5474,7 @@ register_ftrace_function_probe(char *glob, struct trace_array *tr,
 		}
 	}
 	if (!probe) {
-		probe = kzalloc_obj(*probe, GFP_KERNEL);
+		probe = kzalloc_obj(*probe);
 		if (!probe) {
 			mutex_unlock(&ftrace_lock);
 			return -ENOMEM;
@@ -7223,7 +7223,7 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	fgd = kmalloc_obj(*fgd, GFP_KERNEL);
+	fgd = kmalloc_obj(*fgd);
 	if (fgd == NULL)
 		return -ENOMEM;
 
@@ -7251,7 +7251,7 @@ ftrace_graph_notrace_open(struct inode *inode, struct file *file)
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	fgd = kmalloc_obj(*fgd, GFP_KERNEL);
+	fgd = kmalloc_obj(*fgd);
 	if (fgd == NULL)
 		return -ENOMEM;
 
@@ -8041,7 +8041,7 @@ static void save_ftrace_mod_rec(struct ftrace_mod_map *mod_map,
 	if (!ret)
 		return;
 
-	mod_func = kmalloc_obj(*mod_func, GFP_KERNEL);
+	mod_func = kmalloc_obj(*mod_func);
 	if (!mod_func)
 		return;
 
@@ -8068,7 +8068,7 @@ allocate_ftrace_mod_map(struct module *mod,
 	if (ftrace_disabled)
 		return NULL;
 
-	mod_map = kmalloc_obj(*mod_map, GFP_KERNEL);
+	mod_map = kmalloc_obj(*mod_map);
 	if (!mod_map)
 		return NULL;
 
@@ -8241,7 +8241,7 @@ static void add_to_clear_hash_list(struct list_head *clear_list,
 {
 	struct ftrace_init_func *func;
 
-	func = kmalloc_obj(*func, GFP_KERNEL);
+	func = kmalloc_obj(*func);
 	if (!func) {
 		MEM_FAIL(1, "alloc failure, ftrace filter could be stale\n");
 		return;

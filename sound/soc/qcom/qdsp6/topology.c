@@ -42,7 +42,7 @@ static struct audioreach_graph_info *audioreach_tplg_alloc_graph_info(struct q6a
 	}
 
 	*found = false;
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -92,7 +92,7 @@ static struct audioreach_sub_graph *audioreach_tplg_alloc_sub_graph(struct q6apm
 	}
 
 	*found = false;
-	sg = kzalloc_obj(*sg, GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -134,7 +134,7 @@ static struct audioreach_container *audioreach_tplg_alloc_container(struct q6apm
 	}
 	*found = false;
 
-	cont = kzalloc_obj(*cont, GFP_KERNEL);
+	cont = kzalloc_obj(*cont);
 	if (!cont)
 		return ERR_PTR(-ENOMEM);
 
@@ -176,7 +176,7 @@ static struct audioreach_module *audioreach_tplg_alloc_module(struct q6apm *apm,
 		return mod;
 	}
 	*found = false;
-	mod = kzalloc_obj(*mod, GFP_KERNEL);
+	mod = kzalloc_obj(*mod);
 	if (!mod)
 		return ERR_PTR(-ENOMEM);
 
@@ -830,7 +830,7 @@ static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 
 	w_array = &tplg_w->priv.array[0];
 
-	scontrol = kzalloc_obj(*scontrol, GFP_KERNEL);
+	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
 		return -ENOMEM;
 
@@ -1247,7 +1247,7 @@ static int audioreach_control_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_dobj *dobj;
 	int ret = 0;
 
-	scontrol = kzalloc_obj(*scontrol, GFP_KERNEL);
+	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
 		return -ENOMEM;
 

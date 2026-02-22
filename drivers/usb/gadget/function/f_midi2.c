@@ -2340,7 +2340,7 @@ static int f_midi2_block_opts_create(struct f_midi2_ep_opts *ep_opts,
 		goto out;
 	}
 
-	block_opts = kzalloc_obj(*block_opts, GFP_KERNEL);
+	block_opts = kzalloc_obj(*block_opts);
 	if (!block_opts) {
 		ret = -ENOMEM;
 		goto out;
@@ -2502,7 +2502,7 @@ static int f_midi2_ep_opts_create(struct f_midi2_opts *opts,
 {
 	struct f_midi2_ep_opts *ep_opts;
 
-	ep_opts = kzalloc_obj(*ep_opts, GFP_KERNEL);
+	ep_opts = kzalloc_obj(*ep_opts);
 	if (!ep_opts)
 		return -ENOMEM;
 
@@ -2652,7 +2652,7 @@ static struct usb_function_instance *f_midi2_alloc_inst(void)
 	struct f_midi2_block_opts *block_opts;
 	int ret;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -2813,7 +2813,7 @@ static struct usb_function *f_midi2_alloc(struct usb_function_instance *fi)
 	struct f_midi2_block *bp;
 	int i, num_eps, blk;
 
-	midi2 = kzalloc_obj(*midi2, GFP_KERNEL);
+	midi2 = kzalloc_obj(*midi2);
 	if (!midi2)
 		return ERR_PTR(-ENOMEM);
 

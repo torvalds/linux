@@ -318,7 +318,7 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		return ret;
 
-	lh = kzalloc_obj(*lh, GFP_KERNEL);
+	lh = kzalloc_obj(*lh);
 	if (!lh)
 		return -ENOMEM;
 	lh->gdev = gpio_device_get(gdev);
@@ -1280,7 +1280,7 @@ static long linereq_get_values(struct linereq *lr, void __user *ip)
 
 	if (num_get != 1) {
 		/* build compacted desc array */
-		descs = kmalloc_objs(*descs, num_get, GFP_KERNEL);
+		descs = kmalloc_objs(*descs, num_get);
 		if (!descs)
 			return -ENOMEM;
 		for (didx = 0, i = 0; i < lr->num_lines; i++) {
@@ -1355,7 +1355,7 @@ static long linereq_set_values(struct linereq *lr, void __user *ip)
 
 	if (num_set != 1) {
 		/* build compacted desc array */
-		descs = kmalloc_objs(*descs, num_set, GFP_KERNEL);
+		descs = kmalloc_objs(*descs, num_set);
 		if (!descs)
 			return -ENOMEM;
 		for (didx = 0, i = 0; i < lr->num_lines; i++) {
@@ -2054,7 +2054,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	     (lflags & GPIOHANDLE_REQUEST_BIAS_PULL_UP)))
 		return -EINVAL;
 
-	le = kzalloc_obj(*le, GFP_KERNEL);
+	le = kzalloc_obj(*le);
 	if (!le)
 		return -ENOMEM;
 	le->gdev = gpio_device_get(gdev);

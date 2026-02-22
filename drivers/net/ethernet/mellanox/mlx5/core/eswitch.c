@@ -221,7 +221,7 @@ __esw_fdb_set_vport_rule(struct mlx5_eswitch *esw, u16 vport, bool rx_rule,
 	if (rx_rule)
 		match_header |= MLX5_MATCH_MISC_PARAMETERS;
 
-	spec = kvzalloc_obj(*spec, GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 
@@ -1862,7 +1862,7 @@ int mlx5_esw_vport_alloc(struct mlx5_eswitch *esw, int index, u16 vport_num)
 	struct mlx5_vport *vport;
 	int err;
 
-	vport = kzalloc_obj(*vport, GFP_KERNEL);
+	vport = kzalloc_obj(*vport);
 	if (!vport)
 		return -ENOMEM;
 
@@ -2022,7 +2022,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	if (!MLX5_VPORT_MANAGER(dev) && !MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
-	esw = kzalloc_obj(*esw, GFP_KERNEL);
+	esw = kzalloc_obj(*esw);
 	if (!esw)
 		return -ENOMEM;
 

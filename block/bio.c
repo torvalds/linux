@@ -84,7 +84,7 @@ static DEFINE_XARRAY(bio_slabs);
 
 static struct bio_slab *create_bio_slab(unsigned int size)
 {
-	struct bio_slab *bslab = kzalloc_obj(*bslab, GFP_KERNEL);
+	struct bio_slab *bslab = kzalloc_obj(*bslab);
 
 	if (!bslab)
 		return NULL;

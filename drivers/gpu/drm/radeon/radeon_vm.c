@@ -321,7 +321,7 @@ struct radeon_bo_va *radeon_vm_bo_add(struct radeon_device *rdev,
 {
 	struct radeon_bo_va *bo_va;
 
-	bo_va = kzalloc_obj(struct radeon_bo_va, GFP_KERNEL);
+	bo_va = kzalloc_obj(struct radeon_bo_va);
 	if (bo_va == NULL)
 		return NULL;
 
@@ -495,7 +495,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	if (bo_va->it.start || bo_va->it.last) {
 		/* add a clone of the bo_va to clear the old address */
 		struct radeon_bo_va *tmp;
-		tmp = kzalloc_obj(struct radeon_bo_va, GFP_KERNEL);
+		tmp = kzalloc_obj(struct radeon_bo_va);
 		if (!tmp) {
 			mutex_unlock(&vm->mutex);
 			r = -ENOMEM;

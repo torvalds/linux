@@ -621,7 +621,7 @@ static int gud_connector_create(struct gud_device *gdrm, unsigned int index,
 	int ret, connector_type;
 	u32 flags;
 
-	gconn = kzalloc_obj(*gconn, GFP_KERNEL);
+	gconn = kzalloc_obj(*gconn);
 	if (!gconn)
 		return -ENOMEM;
 
@@ -700,7 +700,7 @@ int gud_get_connectors(struct gud_device *gdrm)
 	unsigned int i, num_connectors;
 	int ret;
 
-	descs = kmalloc_objs(*descs, GUD_CONNECTORS_MAX_NUM, GFP_KERNEL);
+	descs = kmalloc_objs(*descs, GUD_CONNECTORS_MAX_NUM);
 	if (!descs)
 		return -ENOMEM;
 

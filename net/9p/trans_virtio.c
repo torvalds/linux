@@ -601,7 +601,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	chan = kmalloc_obj(struct virtio_chan, GFP_KERNEL);
+	chan = kmalloc_obj(struct virtio_chan);
 	if (!chan) {
 		pr_err("Failed to allocate virtio 9P channel\n");
 		err = -ENOMEM;
@@ -641,7 +641,7 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	if (err) {
 		goto out_free_tag;
 	}
-	chan->vc_wq = kmalloc_obj(wait_queue_head_t, GFP_KERNEL);
+	chan->vc_wq = kmalloc_obj(wait_queue_head_t);
 	if (!chan->vc_wq) {
 		err = -ENOMEM;
 		goto out_remove_file;

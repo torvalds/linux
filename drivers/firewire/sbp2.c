@@ -966,7 +966,7 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 {
 	struct sbp2_logical_unit *lu;
 
-	lu = kmalloc_obj(*lu, GFP_KERNEL);
+	lu = kmalloc_obj(*lu);
 	if (!lu)
 		return -ENOMEM;
 

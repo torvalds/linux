@@ -1417,7 +1417,7 @@ void intel_dmc_init(struct intel_display *display)
 	 */
 	intel_dmc_runtime_pm_get(display);
 
-	dmc = kzalloc_obj(*dmc, GFP_KERNEL);
+	dmc = kzalloc_obj(*dmc);
 	if (!dmc)
 		return;
 

@@ -1503,7 +1503,7 @@ static int omap_dma_chan_init(struct omap_dmadev *od)
 {
 	struct omap_chan *c;
 
-	c = kzalloc_obj(*c, GFP_KERNEL);
+	c = kzalloc_obj(*c);
 	if (!c)
 		return -ENOMEM;
 

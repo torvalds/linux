@@ -258,7 +258,7 @@ static int icrdma_probe(struct auxiliary_device *aux_dev, const struct auxiliary
 	iwdev = ib_alloc_device(irdma_device, ibdev);
 	if (!iwdev)
 		return -ENOMEM;
-	iwdev->rf = kzalloc_obj(*rf, GFP_KERNEL);
+	iwdev->rf = kzalloc_obj(*rf);
 	if (!iwdev->rf) {
 		ib_dealloc_device(&iwdev->ibdev);
 		return -ENOMEM;

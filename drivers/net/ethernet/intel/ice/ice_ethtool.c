@@ -1652,7 +1652,7 @@ ice_get_fecparam(struct net_device *netdev, struct ethtool_fecparam *fecparam)
 		break;
 	}
 
-	caps = kzalloc_obj(*caps, GFP_KERNEL);
+	caps = kzalloc_obj(*caps);
 	if (!caps)
 		return -ENOMEM;
 
@@ -2364,7 +2364,7 @@ ice_get_link_ksettings(struct net_device *netdev,
 	/* flow control is symmetric and always supported */
 	ethtool_link_ksettings_add_link_mode(ks, supported, Pause);
 
-	caps = kzalloc_obj(*caps, GFP_KERNEL);
+	caps = kzalloc_obj(*caps);
 	if (!caps)
 		return -ENOMEM;
 
@@ -2629,7 +2629,7 @@ ice_set_link_ksettings(struct net_device *netdev,
 	    pi->phy.link_info.link_info & ICE_AQ_LINK_UP)
 		return -EOPNOTSUPP;
 
-	phy_caps = kzalloc_obj(*phy_caps, GFP_KERNEL);
+	phy_caps = kzalloc_obj(*phy_caps);
 	if (!phy_caps)
 		return -ENOMEM;
 
@@ -3265,7 +3265,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	netdev_info(netdev, "Changing Tx descriptor count from %d to %d\n",
 		    vsi->tx_rings[0]->count, new_tx_cnt);
 
-	tx_rings = kzalloc_objs(*tx_rings, vsi->num_txq, GFP_KERNEL);
+	tx_rings = kzalloc_objs(*tx_rings, vsi->num_txq);
 	if (!tx_rings) {
 		err = -ENOMEM;
 		goto done;
@@ -3295,7 +3295,7 @@ ice_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
 	netdev_info(netdev, "Changing XDP descriptor count from %d to %d\n",
 		    vsi->xdp_rings[0]->count, new_tx_cnt);
 
-	xdp_rings = kzalloc_objs(*xdp_rings, vsi->num_xdp_txq, GFP_KERNEL);
+	xdp_rings = kzalloc_objs(*xdp_rings, vsi->num_xdp_txq);
 	if (!xdp_rings) {
 		err = -ENOMEM;
 		goto free_tx;
@@ -3325,7 +3325,7 @@ process_rx:
 	netdev_info(netdev, "Changing Rx descriptor count from %d to %d\n",
 		    vsi->rx_rings[0]->count, new_rx_cnt);
 
-	rx_rings = kzalloc_objs(*rx_rings, vsi->num_rxq, GFP_KERNEL);
+	rx_rings = kzalloc_objs(*rx_rings, vsi->num_rxq);
 	if (!rx_rings) {
 		err = -ENOMEM;
 		goto done;
@@ -3445,7 +3445,7 @@ ice_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 
 	dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return;
 
@@ -3511,7 +3511,7 @@ ice_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause)
 	 * so compare pause->autoneg with SW configured to prevent the user from
 	 * using set pause param to chance autoneg.
 	 */
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 

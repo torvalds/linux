@@ -136,7 +136,7 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 	struct drm_file *file;
 	int ret;
 
-	file = kzalloc_obj(*file, GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file)
 		return ERR_PTR(-ENOMEM);
 

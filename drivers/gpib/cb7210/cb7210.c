@@ -856,7 +856,7 @@ static int cb7210_allocate_private(struct gpib_board *board)
 {
 	struct cb7210_priv *priv;
 
-	board->private_data = kzalloc_obj(struct cb7210_priv, GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct cb7210_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;
@@ -1188,7 +1188,7 @@ static int cb_gpib_probe(struct pcmcia_device *link)
 	int ret;
 
 	/* Allocate space for private device-specific data */
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

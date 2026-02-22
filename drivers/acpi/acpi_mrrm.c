@@ -161,7 +161,7 @@ static __init int add_boot_memory_ranges(void)
 	if (!pkobj)
 		return -ENOMEM;
 
-	kobjs = kzalloc_objs(*kobjs, mrrm_mem_entry_num, GFP_KERNEL);
+	kobjs = kzalloc_objs(*kobjs, mrrm_mem_entry_num);
 	if (!kobjs) {
 		kobject_put(pkobj);
 		return -ENOMEM;

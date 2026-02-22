@@ -188,7 +188,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 	if (WARN_ON(!gate || !div))
 		return;
 
-	asiu = kzalloc_obj(*asiu, GFP_KERNEL);
+	asiu = kzalloc_obj(*asiu);
 	if (WARN_ON(!asiu))
 		return;
 
@@ -198,7 +198,7 @@ void __init iproc_asiu_setup(struct device_node *node,
 		goto err_clks;
 	asiu->clk_data->num = num_clks;
 
-	asiu->clks = kzalloc_objs(*asiu->clks, num_clks, GFP_KERNEL);
+	asiu->clks = kzalloc_objs(*asiu->clks, num_clks);
 	if (WARN_ON(!asiu->clks))
 		goto err_asiu_clks;
 

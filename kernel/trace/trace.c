@@ -1064,7 +1064,7 @@ int tracing_snapshot_cond_enable(struct trace_array *tr, void *cond_data,
 				 cond_update_fn_t update)
 {
 	struct cond_snapshot *cond_snapshot __free(kfree) =
-		kzalloc_obj(*cond_snapshot, GFP_KERNEL);
+		kzalloc_obj(*cond_snapshot);
 	int ret;
 
 	if (!cond_snapshot)
@@ -5132,7 +5132,7 @@ trace_insert_eval_map_file(struct module *mod, struct trace_eval_map **start,
 	 * where the head holds the module and length of array, and the
 	 * tail holds a pointer to the next list.
 	 */
-	map_array = kmalloc_objs(*map_array, len + 2, GFP_KERNEL);
+	map_array = kmalloc_objs(*map_array, len + 2);
 	if (!map_array) {
 		pr_warn("Unable to allocate trace eval mapping\n");
 		return;
@@ -5809,7 +5809,7 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 		goto fail_pipe_on_cpu;
 
 	/* create a buffer to store the information to pass to userspace */
-	iter = kzalloc_obj(*iter, GFP_KERNEL);
+	iter = kzalloc_obj(*iter);
 	if (!iter) {
 		ret = -ENOMEM;
 		goto fail_alloc_iter;
@@ -6628,7 +6628,7 @@ static int user_buffer_init(struct trace_user_buf_info **tinfo, size_t size)
 
 	if (!*tinfo) {
 		alloc = true;
-		*tinfo = kzalloc_obj(**tinfo, GFP_KERNEL);
+		*tinfo = kzalloc_obj(**tinfo);
 		if (!*tinfo)
 			return -ENOMEM;
 	}
@@ -7153,10 +7153,10 @@ static int tracing_snapshot_open(struct inode *inode, struct file *file)
 	} else {
 		/* Writes still need the seq_file to hold the private data */
 		ret = -ENOMEM;
-		m = kzalloc_obj(*m, GFP_KERNEL);
+		m = kzalloc_obj(*m);
 		if (!m)
 			goto out;
-		iter = kzalloc_obj(*iter, GFP_KERNEL);
+		iter = kzalloc_obj(*iter);
 		if (!iter) {
 			kfree(m);
 			goto out;
@@ -7545,7 +7545,7 @@ static struct tracing_log_err *alloc_tracing_log_err(int len)
 {
 	struct tracing_log_err *err;
 
-	err = kzalloc_obj(*err, GFP_KERNEL);
+	err = kzalloc_obj(*err);
 	if (!err)
 		return ERR_PTR(-ENOMEM);
 
@@ -7804,7 +7804,7 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 	if (ret)
 		return ret;
 
-	info = kvzalloc_obj(*info, GFP_KERNEL);
+	info = kvzalloc_obj(*info);
 	if (!info) {
 		trace_array_put(tr);
 		return -ENOMEM;
@@ -8065,7 +8065,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		struct page *page;
 		int r;
 
-		ref = kzalloc_obj(*ref, GFP_KERNEL);
+		ref = kzalloc_obj(*ref);
 		if (!ref) {
 			ret = -ENOMEM;
 			break;
@@ -8284,7 +8284,7 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	unsigned long long t;
 	unsigned long usec_rem;
 
-	s = kmalloc_obj(*s, GFP_KERNEL);
+	s = kmalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
@@ -8878,7 +8878,7 @@ create_trace_option_files(struct trace_array *tr, struct tracer *tracer,
 	for (cnt = 0; opts[cnt].name; cnt++)
 		;
 
-	topts = kzalloc_objs(*topts, cnt + 1, GFP_KERNEL);
+	topts = kzalloc_objs(*topts, cnt + 1);
 	if (!topts)
 		return 0;
 
@@ -8950,7 +8950,7 @@ static int add_tracer(struct trace_array *tr, struct tracer *tracer)
 	if (!trace_ok_for_array(tracer, tr))
 		return 0;
 
-	t = kmalloc_obj(*t, GFP_KERNEL);
+	t = kmalloc_obj(*t);
 	if (!t)
 		return -ENOMEM;
 
@@ -8967,7 +8967,7 @@ static int add_tracer(struct trace_array *tr, struct tracer *tracer)
 		 * If the tracer defines default flags, it means the flags are
 		 * per trace instance.
 		 */
-		flags = kmalloc_obj(*flags, GFP_KERNEL);
+		flags = kmalloc_obj(*flags);
 		if (!flags)
 			return -ENOMEM;
 
@@ -9538,7 +9538,7 @@ trace_array_create_systems(const char *name, const char *systems,
 	int ret;
 
 	ret = -ENOMEM;
-	tr = kzalloc_obj(*tr, GFP_KERNEL);
+	tr = kzalloc_obj(*tr);
 	if (!tr)
 		return ERR_PTR(ret);
 

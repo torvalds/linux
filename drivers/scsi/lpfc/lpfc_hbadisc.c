@@ -3643,7 +3643,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		 * defaults.
 		 */
 		if (!test_bit(HBA_FIP_SUPPORT, &phba->hba_flag)) {
-			fcf_record = kzalloc_obj(struct fcf_record, GFP_KERNEL);
+			fcf_record = kzalloc_obj(struct fcf_record);
 			if (unlikely(!fcf_record)) {
 				lpfc_printf_log(phba, KERN_ERR,
 					LOG_TRACE_EVENT,
@@ -4054,7 +4054,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb = &pmb->u.mb;
 
-	vport_info = kzalloc_obj(struct static_vport_info, GFP_KERNEL);
+	vport_info = kzalloc_obj(struct static_vport_info);
 	if (!vport_info) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0543 lpfc_create_static_vport failed to"
@@ -7010,7 +7010,7 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 	for (i = 0; i < record_count; i++) {
 		if (!(conn_rec[i].flags & FCFCNCT_VALID))
 			continue;
-		conn_entry = kzalloc_obj(struct lpfc_fcf_conn_entry, GFP_KERNEL);
+		conn_entry = kzalloc_obj(struct lpfc_fcf_conn_entry);
 		if (!conn_entry) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"2566 Failed to allocate connection"

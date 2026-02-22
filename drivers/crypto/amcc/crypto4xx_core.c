@@ -974,7 +974,7 @@ static int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 	int rc = 0;
 
 	for (i = 0; i < array_size; i++) {
-		alg = kzalloc_obj(struct crypto4xx_alg, GFP_KERNEL);
+		alg = kzalloc_obj(struct crypto4xx_alg);
 		if (!alg)
 			return -ENOMEM;
 

@@ -260,7 +260,7 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 	int err;
 	u8 *mc;
 
-	ft->g = kzalloc_objs(*ft->g, MLX5E_ARFS_NUM_GROUPS, GFP_KERNEL);
+	ft->g = kzalloc_objs(*ft->g, MLX5E_ARFS_NUM_GROUPS);
 	if (!ft->g)
 		return -ENOMEM;
 
@@ -391,7 +391,7 @@ int mlx5e_arfs_create_tables(struct mlx5e_flow_steering *fs,
 	if (!ntuple)
 		return 0;
 
-	arfs = kvzalloc_obj(*arfs, GFP_KERNEL);
+	arfs = kvzalloc_obj(*arfs);
 	if (!arfs)
 		return -ENOMEM;
 
@@ -522,7 +522,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_table *ft;
 	int err = 0;
 
-	spec = kvzalloc_obj(*spec, GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		priv->channel_stats[arfs_rule->rxq]->rq.arfs_err++;
 		err = -ENOMEM;

@@ -106,7 +106,7 @@ static struct clk *clk_reg_prcc(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	clk = kzalloc_obj(*clk, GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 

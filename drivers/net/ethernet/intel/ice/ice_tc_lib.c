@@ -2191,7 +2191,7 @@ ice_add_tc_fltr(struct net_device *netdev, struct ice_vsi *vsi,
 	/* by default, set output to be INVALID */
 	*__fltr = NULL;
 
-	fltr = kzalloc_obj(*fltr, GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr)
 		return -ENOMEM;
 

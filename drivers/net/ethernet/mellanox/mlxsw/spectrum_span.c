@@ -1120,7 +1120,7 @@ mlxsw_sp_span_analyzed_port_create(struct mlxsw_sp_span *span,
 	struct mlxsw_sp_span_analyzed_port *analyzed_port;
 	int err;
 
-	analyzed_port = kzalloc_obj(*analyzed_port, GFP_KERNEL);
+	analyzed_port = kzalloc_obj(*analyzed_port);
 	if (!analyzed_port)
 		return ERR_PTR(-ENOMEM);
 
@@ -1505,7 +1505,7 @@ mlxsw_sp_span_trigger_entry_create(struct mlxsw_sp_span *span,
 	struct mlxsw_sp_span_trigger_entry *trigger_entry;
 	int err;
 
-	trigger_entry = kzalloc_obj(*trigger_entry, GFP_KERNEL);
+	trigger_entry = kzalloc_obj(*trigger_entry);
 	if (!trigger_entry)
 		return ERR_PTR(-ENOMEM);
 

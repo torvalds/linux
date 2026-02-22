@@ -331,7 +331,7 @@ static blk_status_t scm_blk_request(struct blk_mq_hw_ctx *hctx,
 static int scm_blk_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 			     unsigned int idx)
 {
-	struct scm_queue *qd = kzalloc_obj(*qd, GFP_KERNEL);
+	struct scm_queue *qd = kzalloc_obj(*qd);
 
 	if (!qd)
 		return -ENOMEM;

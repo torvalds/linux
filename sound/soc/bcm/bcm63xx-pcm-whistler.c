@@ -210,7 +210,7 @@ static int bcm63xx_pcm_open(struct snd_soc_component *component,
 		goto out;
 
 	ret = -ENOMEM;
-	prtd = kzalloc_obj(*prtd, GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		goto out;
 

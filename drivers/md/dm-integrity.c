@@ -4296,7 +4296,7 @@ static struct scatterlist **dm_integrity_alloc_journal_scatterlist(struct dm_int
 
 		n_pages = (end_index - start_index + 1);
 
-		s = kvmalloc_objs(struct scatterlist, n_pages, GFP_KERNEL);
+		s = kvmalloc_objs(struct scatterlist, n_pages);
 		if (!s) {
 			dm_integrity_free_journal_scatterlist(ic, sl);
 			return NULL;
@@ -4701,7 +4701,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned int argc, char **argv
 		return -EINVAL;
 	}
 
-	ic = kzalloc_obj(struct dm_integrity_c, GFP_KERNEL);
+	ic = kzalloc_obj(struct dm_integrity_c);
 	if (!ic) {
 		ti->error = "Cannot allocate integrity context";
 		return -ENOMEM;

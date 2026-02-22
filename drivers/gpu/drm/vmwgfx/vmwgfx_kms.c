@@ -224,7 +224,7 @@ void vmw_du_crtc_reset(struct drm_crtc *crtc)
 		kfree(vmw_crtc_state_to_vcs(crtc->state));
 	}
 
-	vcs = kzalloc_obj(*vcs, GFP_KERNEL);
+	vcs = kzalloc_obj(*vcs);
 
 	if (!vcs) {
 		DRM_ERROR("Cannot allocate vmw_crtc_state\n");
@@ -300,7 +300,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 	if (plane->state)
 		vmw_du_plane_destroy_state(plane, plane->state);
 
-	vps = kzalloc_obj(*vps, GFP_KERNEL);
+	vps = kzalloc_obj(*vps);
 
 	if (!vps) {
 		DRM_ERROR("Cannot allocate vmw_plane_state\n");
@@ -382,7 +382,7 @@ void vmw_du_connector_reset(struct drm_connector *connector)
 		kfree(vmw_connector_state_to_vcs(connector->state));
 	}
 
-	vcs = kzalloc_obj(*vcs, GFP_KERNEL);
+	vcs = kzalloc_obj(*vcs);
 
 	if (!vcs) {
 		DRM_ERROR("Cannot allocate vmw_connector_state\n");
@@ -543,7 +543,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	vfbs = kzalloc_obj(*vfbs, GFP_KERNEL);
+	vfbs = kzalloc_obj(*vfbs);
 	if (!vfbs) {
 		ret = -ENOMEM;
 		goto out_err1;
@@ -632,7 +632,7 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	vfbd = kzalloc_obj(*vfbd, GFP_KERNEL);
+	vfbd = kzalloc_obj(*vfbd);
 	if (!vfbd) {
 		ret = -ENOMEM;
 		goto out_err1;
@@ -1422,7 +1422,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	}
 
 	rects_size = arg->num_outputs * sizeof(struct drm_vmw_rect);
-	rects = kzalloc_objs(struct drm_vmw_rect, arg->num_outputs, GFP_KERNEL);
+	rects = kzalloc_objs(struct drm_vmw_rect, arg->num_outputs);
 	if (unlikely(!rects))
 		return -ENOMEM;
 

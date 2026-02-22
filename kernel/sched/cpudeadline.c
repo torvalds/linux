@@ -252,7 +252,7 @@ int cpudl_init(struct cpudl *cp)
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
 
-	cp->elements = kzalloc_objs(struct cpudl_item, nr_cpu_ids, GFP_KERNEL);
+	cp->elements = kzalloc_objs(struct cpudl_item, nr_cpu_ids);
 	if (!cp->elements)
 		return -ENOMEM;
 

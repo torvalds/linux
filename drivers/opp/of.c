@@ -470,7 +470,7 @@ int dev_pm_opp_of_find_icc_paths(struct device *dev,
 	}
 
 	num_paths = count / 2;
-	paths = kzalloc_objs(*paths, num_paths, GFP_KERNEL);
+	paths = kzalloc_objs(*paths, num_paths);
 	if (!paths)
 		return -ENOMEM;
 

@@ -99,7 +99,7 @@ static int egalax_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int error;
 
-	egalax = kzalloc_obj(*egalax, GFP_KERNEL);
+	egalax = kzalloc_obj(*egalax);
 	input_dev = input_allocate_device();
 	if (!egalax || !input_dev) {
 		error = -ENOMEM;

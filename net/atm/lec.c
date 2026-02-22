@@ -696,7 +696,7 @@ static int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 	ioc_data.dev_num = array_index_nospec(ioc_data.dev_num, MAX_LEC_ITF);
 	if (!dev_lec[ioc_data.dev_num])
 		return -EINVAL;
-	vpriv = kmalloc_obj(struct lec_vcc_priv, GFP_KERNEL);
+	vpriv = kmalloc_obj(struct lec_vcc_priv);
 	if (!vpriv)
 		return -ENOMEM;
 	vpriv->xoff = 0;
@@ -2125,7 +2125,7 @@ static int lec_mcast_make(struct lec_priv *priv, struct atm_vcc *vcc)
 	struct lec_vcc_priv *vpriv;
 	int err = 0;
 
-	vpriv = kmalloc_obj(struct lec_vcc_priv, GFP_KERNEL);
+	vpriv = kmalloc_obj(struct lec_vcc_priv);
 	if (!vpriv)
 		return -ENOMEM;
 	vpriv->xoff = 0;

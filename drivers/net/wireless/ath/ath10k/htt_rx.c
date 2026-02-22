@@ -807,7 +807,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	}
 
 	htt->rx_ring.netbufs_ring =
-		kzalloc_objs(struct sk_buff *, htt->rx_ring.size, GFP_KERNEL);
+		kzalloc_objs(struct sk_buff *, htt->rx_ring.size);
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
 

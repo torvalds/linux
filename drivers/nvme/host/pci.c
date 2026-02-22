@@ -2447,7 +2447,7 @@ static int nvme_alloc_host_mem_multi(struct nvme_dev *dev, u64 preferred,
 	if (!descs)
 		goto out;
 
-	bufs = kzalloc_objs(*bufs, max_entries, GFP_KERNEL);
+	bufs = kzalloc_objs(*bufs, max_entries);
 	if (!bufs)
 		goto out_free_descs;
 

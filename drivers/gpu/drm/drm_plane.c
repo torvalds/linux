@@ -1514,7 +1514,7 @@ retry:
 	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		e = kzalloc_obj(*e, GFP_KERNEL);
+		e = kzalloc_obj(*e);
 		if (!e) {
 			ret = -ENOMEM;
 			goto out;

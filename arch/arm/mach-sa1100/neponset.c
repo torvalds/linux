@@ -276,7 +276,7 @@ static int neponset_probe(struct platform_device *dev)
 		goto err_alloc;
 	}
 
-	d = kzalloc_obj(*d, GFP_KERNEL);
+	d = kzalloc_obj(*d);
 	if (!d) {
 		ret = -ENOMEM;
 		goto err_alloc;

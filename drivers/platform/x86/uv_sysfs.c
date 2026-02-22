@@ -242,14 +242,14 @@ static int uv_hubs_init(void)
 		goto err_enum_objs;
 	}
 
-	uv_hubs = kzalloc_objs(*uv_hubs, uv_bios_obj_cnt, GFP_KERNEL);
+	uv_hubs = kzalloc_objs(*uv_hubs, uv_bios_obj_cnt);
 	if (!uv_hubs) {
 		ret = -ENOMEM;
 		goto err_enum_objs;
 	}
 
 	for (i = 0; i < uv_bios_obj_cnt; i++) {
-		uv_hubs[i] = kzalloc_obj(*uv_hubs[i], GFP_KERNEL);
+		uv_hubs[i] = kzalloc_obj(*uv_hubs[i]);
 		if (!uv_hubs[i]) {
 			i--;
 			ret = -ENOMEM;
@@ -368,7 +368,7 @@ static int uv_ports_init(void)
 	s64 biosr;
 	int j = 0, k = 0, ret, sz;
 
-	port_buf = kzalloc_objs(*port_buf, uv_bios_obj_cnt, GFP_KERNEL);
+	port_buf = kzalloc_objs(*port_buf, uv_bios_obj_cnt);
 	if (!port_buf)
 		return -ENOMEM;
 

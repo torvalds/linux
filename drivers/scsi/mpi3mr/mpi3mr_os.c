@@ -1710,7 +1710,7 @@ static void mpi3mr_encldev_add_chg_evt_bh(struct mpi3mr_ioc *mrioc,
 		    encl_handle);
 	if (!enclosure_dev && present) {
 		enclosure_dev =
-			kzalloc_obj(struct mpi3mr_enclosure_node, GFP_KERNEL);
+			kzalloc_obj(struct mpi3mr_enclosure_node);
 		if (!enclosure_dev)
 			return;
 		list_add_tail(&enclosure_dev->list,
@@ -4897,7 +4897,7 @@ static int mpi3mr_sdev_init(struct scsi_device *sdev)
 
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
 
-	scsi_dev_priv_data = kzalloc_obj(*scsi_dev_priv_data, GFP_KERNEL);
+	scsi_dev_priv_data = kzalloc_obj(*scsi_dev_priv_data);
 	if (!scsi_dev_priv_data)
 		return -ENOMEM;
 
@@ -4928,7 +4928,7 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 	int retval = 0;
 	struct sas_rphy *rphy = NULL;
 
-	scsi_tgt_priv_data = kzalloc_obj(*scsi_tgt_priv_data, GFP_KERNEL);
+	scsi_tgt_priv_data = kzalloc_obj(*scsi_tgt_priv_data);
 	if (!scsi_tgt_priv_data)
 		return -ENOMEM;
 

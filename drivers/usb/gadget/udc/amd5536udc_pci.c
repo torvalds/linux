@@ -95,7 +95,7 @@ static int udc_pci_probe(
 	}
 
 	/* init */
-	dev = kzalloc_obj(struct udc, GFP_KERNEL);
+	dev = kzalloc_obj(struct udc);
 	if (!dev)
 		return -ENOMEM;
 

@@ -99,7 +99,7 @@ static int fujitsu_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	fujitsu = kzalloc_obj(*fujitsu, GFP_KERNEL);
+	fujitsu = kzalloc_obj(*fujitsu);
 	input_dev = input_allocate_device();
 	if (!fujitsu || !input_dev) {
 		err = -ENOMEM;

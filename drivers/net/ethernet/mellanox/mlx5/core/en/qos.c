@@ -99,7 +99,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	if (!priv->htb_qos_sq_stats[node_qid]) {
 		struct mlx5e_sq_stats *stats;
 
-		stats = kzalloc_obj(*stats, GFP_KERNEL);
+		stats = kzalloc_obj(*stats);
 		if (!stats)
 			return -ENOMEM;
 
@@ -115,7 +115,7 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	c = chs->c[ix];
 
 	qos_sqs = mlx5e_state_dereference(priv, c->qos_sqs);
-	sq = kzalloc_obj(*sq, GFP_KERNEL);
+	sq = kzalloc_obj(*sq);
 
 	if (!sq)
 		return -ENOMEM;
@@ -462,7 +462,7 @@ struct mlx5e_mqprio_rl {
 
 struct mlx5e_mqprio_rl *mlx5e_mqprio_rl_alloc(void)
 {
-	return kvzalloc_obj(struct mlx5e_mqprio_rl, GFP_KERNEL);
+	return kvzalloc_obj(struct mlx5e_mqprio_rl);
 }
 
 void mlx5e_mqprio_rl_free(struct mlx5e_mqprio_rl *rl)

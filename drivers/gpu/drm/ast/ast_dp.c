@@ -500,7 +500,7 @@ ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
 	if (drm_WARN_ON(dev, !connector->state))
 		return NULL;
 
-	new_astdp_state = kmalloc_obj(*new_astdp_state, GFP_KERNEL);
+	new_astdp_state = kmalloc_obj(*new_astdp_state);
 	if (!new_astdp_state)
 		return NULL;
 	__drm_atomic_helper_connector_duplicate_state(connector, &new_astdp_state->base);

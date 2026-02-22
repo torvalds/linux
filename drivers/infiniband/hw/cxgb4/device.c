@@ -330,7 +330,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	unsigned long index;
 	int count = 1;
 
-	qpd = kmalloc_obj(*qpd, GFP_KERNEL);
+	qpd = kmalloc_obj(*qpd);
 	if (!qpd)
 		return -ENOMEM;
 
@@ -424,7 +424,7 @@ static int stag_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	int count = 1;
 
-	stagd = kmalloc_obj(*stagd, GFP_KERNEL);
+	stagd = kmalloc_obj(*stagd);
 	if (!stagd) {
 		ret = -ENOMEM;
 		goto out;
@@ -675,7 +675,7 @@ static int ep_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	int count = 1;
 
-	epd = kmalloc_obj(*epd, GFP_KERNEL);
+	epd = kmalloc_obj(*epd);
 	if (!epd) {
 		ret = -ENOMEM;
 		goto out;
@@ -1078,7 +1078,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
 			DRV_VERSION);
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ctx = ERR_PTR(-ENOMEM);
 		goto out;

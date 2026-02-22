@@ -1114,7 +1114,7 @@ int qed_cxt_mngr_alloc(struct qed_hwfn *p_hwfn)
 	struct qed_cxt_mngr *p_mngr;
 	u32 i;
 
-	p_mngr = kzalloc_obj(*p_mngr, GFP_KERNEL);
+	p_mngr = kzalloc_obj(*p_mngr);
 	if (!p_mngr)
 		return -ENOMEM;
 

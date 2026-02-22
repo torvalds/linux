@@ -680,7 +680,7 @@ int rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig)
 /* ---- RFCOMM sessions ---- */
 static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 {
-	struct rfcomm_session *s = kzalloc_obj(*s, GFP_KERNEL);
+	struct rfcomm_session *s = kzalloc_obj(*s);
 
 	if (!s)
 		return NULL;

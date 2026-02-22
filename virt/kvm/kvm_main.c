@@ -4505,7 +4505,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		struct kvm_regs *kvm_regs;
 
 		r = -ENOMEM;
-		kvm_regs = kzalloc_obj(struct kvm_regs, GFP_KERNEL);
+		kvm_regs = kzalloc_obj(struct kvm_regs);
 		if (!kvm_regs)
 			goto out;
 		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, kvm_regs);
@@ -4532,7 +4532,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_SREGS: {
-		kvm_sregs = kzalloc_obj(struct kvm_sregs, GFP_KERNEL);
+		kvm_sregs = kzalloc_obj(struct kvm_sregs);
 		r = -ENOMEM;
 		if (!kvm_sregs)
 			goto out;
@@ -4624,7 +4624,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_FPU: {
-		fpu = kzalloc_obj(struct kvm_fpu, GFP_KERNEL);
+		fpu = kzalloc_obj(struct kvm_fpu);
 		r = -ENOMEM;
 		if (!fpu)
 			goto out;
@@ -6326,7 +6326,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	active = kvm_active_vms;
 	mutex_unlock(&kvm_lock);
 
-	env = kzalloc_obj(*env, GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return;
 

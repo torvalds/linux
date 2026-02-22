@@ -1392,7 +1392,7 @@ static int link_show(struct seq_file *s, void *data)
 	struct station_info *sinfo;
 	int i, rc = 0;
 
-	sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return -ENOMEM;
 

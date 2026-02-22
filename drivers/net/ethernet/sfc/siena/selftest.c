@@ -633,7 +633,7 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Set the port loopback_selftest member. From this point on
 	 * all received packets will be dropped. Mark the state as
 	 * "flushing" so all inflight packets are dropped */
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return -ENOMEM;
 	BUG_ON(efx->loopback_selftest);

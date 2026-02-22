@@ -99,7 +99,7 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 	if (*cnt == 0)
 		return NULL;
 
-	return kzalloc_objs(struct dmar_dev_scope, *cnt, GFP_KERNEL);
+	return kzalloc_objs(struct dmar_dev_scope, *cnt);
 }
 
 void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt)
@@ -1046,7 +1046,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		return -EINVAL;
 	}
 
-	iommu = kzalloc_obj(*iommu, GFP_KERNEL);
+	iommu = kzalloc_obj(*iommu);
 	if (!iommu)
 		return -ENOMEM;
 

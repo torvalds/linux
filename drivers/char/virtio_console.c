@@ -1325,7 +1325,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	dev_t devt;
 	int err;
 
-	port = kmalloc_obj(*port, GFP_KERNEL);
+	port = kmalloc_obj(*port);
 	if (!port) {
 		err = -ENOMEM;
 		goto fail;
@@ -1809,9 +1809,9 @@ static int init_vqs(struct ports_device *portdev)
 	nr_ports = portdev->max_nr_ports;
 	nr_queues = use_multiport(portdev) ? (nr_ports + 1) * 2 : 2;
 
-	vqs = kmalloc_objs(struct virtqueue *, nr_queues, GFP_KERNEL);
-	vqs_info = kzalloc_objs(*vqs_info, nr_queues, GFP_KERNEL);
-	portdev->in_vqs = kmalloc_objs(struct virtqueue *, nr_ports, GFP_KERNEL);
+	vqs = kmalloc_objs(struct virtqueue *, nr_queues);
+	vqs_info = kzalloc_objs(*vqs_info, nr_queues);
+	portdev->in_vqs = kmalloc_objs(struct virtqueue *, nr_ports);
 	portdev->out_vqs = kmalloc_objs(struct virtqueue *, nr_ports,
 					GFP_KERNEL);
 	if (!vqs || !vqs_info || !portdev->in_vqs || !portdev->out_vqs) {
@@ -1964,7 +1964,7 @@ static int virtcons_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	portdev = kmalloc_obj(*portdev, GFP_KERNEL);
+	portdev = kmalloc_obj(*portdev);
 	if (!portdev) {
 		err = -ENOMEM;
 		goto fail;

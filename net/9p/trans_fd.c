@@ -719,7 +719,7 @@ static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
 
 static int p9_fd_open(struct p9_client *client, int rfd, int wfd)
 {
-	struct p9_trans_fd *ts = kzalloc_obj(struct p9_trans_fd, GFP_KERNEL);
+	struct p9_trans_fd *ts = kzalloc_obj(struct p9_trans_fd);
 	if (!ts)
 		return -ENOMEM;
 
@@ -763,7 +763,7 @@ static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 	struct p9_trans_fd *p;
 	struct file *file;
 
-	p = kzalloc_obj(struct p9_trans_fd, GFP_KERNEL);
+	p = kzalloc_obj(struct p9_trans_fd);
 	if (!p) {
 		sock_release(csocket);
 		return -ENOMEM;

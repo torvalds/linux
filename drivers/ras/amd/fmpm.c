@@ -819,7 +819,7 @@ static int allocate_records(void)
 {
 	int i, ret = 0;
 
-	fru_records = kzalloc_objs(struct fru_rec *, max_nr_fru, GFP_KERNEL);
+	fru_records = kzalloc_objs(struct fru_rec *, max_nr_fru);
 	if (!fru_records) {
 		ret = -ENOMEM;
 		goto out;

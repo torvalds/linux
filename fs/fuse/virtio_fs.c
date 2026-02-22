@@ -947,14 +947,14 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	fs->num_request_queues = min_t(unsigned int, fs->num_request_queues,
 					nr_cpu_ids);
 	fs->nvqs = VQ_REQUEST + fs->num_request_queues;
-	fs->vqs = kzalloc_objs(fs->vqs[VQ_HIPRIO], fs->nvqs, GFP_KERNEL);
+	fs->vqs = kzalloc_objs(fs->vqs[VQ_HIPRIO], fs->nvqs);
 	if (!fs->vqs)
 		return -ENOMEM;
 
-	vqs = kmalloc_objs(vqs[VQ_HIPRIO], fs->nvqs, GFP_KERNEL);
+	vqs = kmalloc_objs(vqs[VQ_HIPRIO], fs->nvqs);
 	fs->mq_map = kcalloc_node(nr_cpu_ids, sizeof(*fs->mq_map), GFP_KERNEL,
 					dev_to_node(&vdev->dev));
-	vqs_info = kzalloc_objs(*vqs_info, fs->nvqs, GFP_KERNEL);
+	vqs_info = kzalloc_objs(*vqs_info, fs->nvqs);
 	if (!vqs || !vqs_info || !fs->mq_map) {
 		ret = -ENOMEM;
 		goto out;
@@ -1120,7 +1120,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 	struct virtio_fs *fs;
 	int ret;
 
-	fs = kzalloc_obj(*fs, GFP_KERNEL);
+	fs = kzalloc_obj(*fs);
 	if (!fs)
 		return -ENOMEM;
 	kobject_init(&fs->kobj, &virtio_fs_ktype);
@@ -1684,11 +1684,11 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 		goto out_err;
 
 	err = -ENOMEM;
-	fc = kzalloc_obj(struct fuse_conn, GFP_KERNEL);
+	fc = kzalloc_obj(struct fuse_conn);
 	if (!fc)
 		goto out_err;
 
-	fm = kzalloc_obj(struct fuse_mount, GFP_KERNEL);
+	fm = kzalloc_obj(struct fuse_mount);
 	if (!fm)
 		goto out_err;
 
@@ -1743,7 +1743,7 @@ static int virtio_fs_init_fs_context(struct fs_context *fsc)
 	if (fsc->purpose == FS_CONTEXT_FOR_SUBMOUNT)
 		return fuse_init_fs_context_submount(fsc);
 
-	ctx = kzalloc_obj(struct fuse_fs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct fuse_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 	fsc->fs_private = ctx;

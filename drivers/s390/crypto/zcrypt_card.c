@@ -138,7 +138,7 @@ struct zcrypt_card *zcrypt_card_alloc(void)
 {
 	struct zcrypt_card *zc;
 
-	zc = kzalloc_obj(*zc, GFP_KERNEL);
+	zc = kzalloc_obj(*zc);
 	if (!zc)
 		return NULL;
 	INIT_LIST_HEAD(&zc->list);

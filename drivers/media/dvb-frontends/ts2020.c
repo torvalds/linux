@@ -566,7 +566,7 @@ static int ts2020_probe(struct i2c_client *client)
 	}
 
 	fe = pdata->fe;
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

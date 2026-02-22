@@ -231,7 +231,7 @@ int __init mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent)
 		return -EINVAL;
 
 	mbi_range_nr = n / 2;
-	mbi_ranges = kzalloc_objs(*mbi_ranges, mbi_range_nr, GFP_KERNEL);
+	mbi_ranges = kzalloc_objs(*mbi_ranges, mbi_range_nr);
 	if (!mbi_ranges)
 		return -ENOMEM;
 

@@ -171,7 +171,7 @@ static int mlx5_lag_mpesw_queue_work(struct mlx5_core_dev *dev,
 	if (!ldev)
 		return 0;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 

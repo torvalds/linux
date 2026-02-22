@@ -705,7 +705,7 @@ static struct ntsync_obj *ntsync_alloc_obj(struct ntsync_device *dev,
 {
 	struct ntsync_obj *obj;
 
-	obj = kzalloc_obj(*obj, GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return NULL;
 	obj->type = type;
@@ -1145,7 +1145,7 @@ static int ntsync_char_open(struct inode *inode, struct file *file)
 {
 	struct ntsync_device *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

@@ -1310,7 +1310,7 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 	if (efx->filter_state) /* already probed */
 		return 0;
 
-	table = kzalloc_obj(*table, GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return -ENOMEM;
 
@@ -1586,7 +1586,7 @@ int efx_mcdi_filter_add_vlan(struct efx_nic *efx, u16 vid)
 		return -EALREADY;
 	}
 
-	vlan = kzalloc_obj(*vlan, GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan)
 		return -ENOMEM;
 

@@ -198,7 +198,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 	const char *type;
 	u32 curr_freq;
 
-	props = kzalloc_obj(*props, GFP_KERNEL);
+	props = kzalloc_obj(*props);
 	if (!props)
 		return ERR_PTR(-ENOMEM);
 
@@ -289,7 +289,7 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 
 skip_fwnode_props:
 	/* Allocate frequency ranges list - extra slot for current frequency */
-	ranges = kzalloc_objs(*ranges, num_freqs + 1, GFP_KERNEL);
+	ranges = kzalloc_objs(*ranges, num_freqs + 1);
 	if (!ranges) {
 		rc = -ENOMEM;
 		goto err_alloc_ranges;

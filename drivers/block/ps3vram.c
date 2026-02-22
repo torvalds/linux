@@ -612,7 +612,7 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	    reports_size, xdr_lpar;
 	char *rest;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto fail;

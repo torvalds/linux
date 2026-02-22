@@ -3993,7 +3993,7 @@ __bpf_kfunc struct bpf_key *bpf_lookup_user_key(s32 serial, u64 flags)
 	if (IS_ERR(key_ref))
 		return NULL;
 
-	bkey = kmalloc_obj(*bkey, GFP_KERNEL);
+	bkey = kmalloc_obj(*bkey);
 	if (!bkey) {
 		key_put(key_ref_to_ptr(key_ref));
 		return NULL;

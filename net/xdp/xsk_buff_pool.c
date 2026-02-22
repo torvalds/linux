@@ -63,7 +63,7 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	if (!pool)
 		goto out;
 
-	pool->heads = kvzalloc_objs(*pool->heads, umem->chunks, GFP_KERNEL);
+	pool->heads = kvzalloc_objs(*pool->heads, umem->chunks);
 	if (!pool->heads)
 		goto out;
 
@@ -328,7 +328,7 @@ static struct xsk_dma_map *xp_create_dma_map(struct device *dev, struct net_devi
 {
 	struct xsk_dma_map *dma_map;
 
-	dma_map = kzalloc_obj(*dma_map, GFP_KERNEL);
+	dma_map = kzalloc_obj(*dma_map);
 	if (!dma_map)
 		return NULL;
 

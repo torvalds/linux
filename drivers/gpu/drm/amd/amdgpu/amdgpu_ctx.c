@@ -482,7 +482,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 	struct amdgpu_ctx *ctx;
 	int r;
 
-	ctx = kmalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

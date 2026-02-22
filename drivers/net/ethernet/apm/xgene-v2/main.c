@@ -405,7 +405,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	struct xge_desc_ring *ring;
 	u16 size;
 
-	ring = kzalloc_obj(*ring, GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		return NULL;
 

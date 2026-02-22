@@ -194,7 +194,7 @@ struct genwqe_ddcb_cmd *ddcb_requ_alloc(void)
 {
 	struct ddcb_requ *req;
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 

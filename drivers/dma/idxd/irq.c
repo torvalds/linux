@@ -567,7 +567,7 @@ bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc)
 	struct idxd_device *idxd = wq->idxd;
 	struct idxd_resubmit *irw;
 
-	irw = kzalloc_obj(*irw, GFP_KERNEL);
+	irw = kzalloc_obj(*irw);
 	if (!irw)
 		return false;
 

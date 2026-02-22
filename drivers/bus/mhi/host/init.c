@@ -313,7 +313,7 @@ static int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	atomic_set(&mhi_cntrl->dev_wake, 0);
 	atomic_set(&mhi_cntrl->pending_pkts, 0);
 
-	mhi_ctxt = kzalloc_obj(*mhi_ctxt, GFP_KERNEL);
+	mhi_ctxt = kzalloc_obj(*mhi_ctxt);
 	if (!mhi_ctxt)
 		return -ENOMEM;
 
@@ -1095,7 +1095,7 @@ struct mhi_controller *mhi_alloc_controller(void)
 {
 	struct mhi_controller *mhi_cntrl;
 
-	mhi_cntrl = kzalloc_obj(*mhi_cntrl, GFP_KERNEL);
+	mhi_cntrl = kzalloc_obj(*mhi_cntrl);
 
 	return mhi_cntrl;
 }
@@ -1232,7 +1232,7 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	struct mhi_device *mhi_dev;
 	struct device *dev;
 
-	mhi_dev = kzalloc_obj(*mhi_dev, GFP_KERNEL);
+	mhi_dev = kzalloc_obj(*mhi_dev);
 	if (!mhi_dev)
 		return ERR_PTR(-ENOMEM);
 

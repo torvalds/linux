@@ -61,7 +61,7 @@ static struct cs8409_spec *cs8409_alloc_spec(struct hda_codec *codec)
 {
 	struct cs8409_spec *spec;
 
-	spec = kzalloc_obj(*spec, GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return NULL;
 	codec->spec = spec;

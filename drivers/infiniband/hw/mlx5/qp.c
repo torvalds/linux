@@ -5488,7 +5488,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 	dev = to_mdev(pd->device);
 	switch (init_attr->wq_type) {
 	case IB_WQT_RQ:
-		rwq = kzalloc_obj(*rwq, GFP_KERNEL);
+		rwq = kzalloc_obj(*rwq);
 		if (!rwq)
 			return ERR_PTR(-ENOMEM);
 		err = prepare_user_rq(pd, init_attr, udata, rwq);

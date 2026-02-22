@@ -1229,13 +1229,13 @@ u8 rtw_ap_set_pairwise_key(struct adapter *padapter, struct sta_info *psta)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	u8 res = _SUCCESS;
 
-	ph2c = kzalloc_obj(*ph2c, GFP_KERNEL);
+	ph2c = kzalloc_obj(*ph2c);
 	if (!ph2c) {
 		res = _FAIL;
 		goto exit;
 	}
 
-	psetstakey_para = kzalloc_obj(*psetstakey_para, GFP_KERNEL);
+	psetstakey_para = kzalloc_obj(*psetstakey_para);
 	if (!psetstakey_para) {
 		kfree(ph2c);
 		res = _FAIL;
@@ -1269,12 +1269,12 @@ static int rtw_ap_set_key(struct adapter *padapter,
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	int res = _SUCCESS;
 
-	pcmd = kzalloc_obj(*pcmd, GFP_KERNEL);
+	pcmd = kzalloc_obj(*pcmd);
 	if (!pcmd) {
 		res = _FAIL;
 		goto exit;
 	}
-	psetkeyparm = kzalloc_obj(*psetkeyparm, GFP_KERNEL);
+	psetkeyparm = kzalloc_obj(*psetkeyparm);
 	if (!psetkeyparm) {
 		kfree(pcmd);
 		res = _FAIL;

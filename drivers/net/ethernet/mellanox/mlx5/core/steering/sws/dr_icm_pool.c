@@ -116,7 +116,7 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 	size_t log_align_base = 0;
 	int err;
 
-	icm_mr = kvzalloc_obj(*icm_mr, GFP_KERNEL);
+	icm_mr = kvzalloc_obj(*icm_mr);
 	if (!icm_mr)
 		return NULL;
 
@@ -269,7 +269,7 @@ static int dr_icm_buddy_create(struct mlx5dr_icm_pool *pool)
 	if (!icm_mr)
 		return -ENOMEM;
 
-	buddy = kvzalloc_obj(*buddy, GFP_KERNEL);
+	buddy = kvzalloc_obj(*buddy);
 	if (!buddy)
 		goto free_mr;
 
@@ -509,7 +509,7 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 	struct mlx5dr_icm_pool *pool;
 	u32 max_hot_size = 0;
 
-	pool = kvzalloc_obj(*pool, GFP_KERNEL);
+	pool = kvzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 

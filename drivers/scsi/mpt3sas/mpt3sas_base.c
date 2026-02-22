@@ -3161,7 +3161,7 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index)
 	struct adapter_reply_queue *reply_q;
 	int r, qid;
 
-	reply_q =  kzalloc_obj(struct adapter_reply_queue, GFP_KERNEL);
+	reply_q =  kzalloc_obj(struct adapter_reply_queue);
 	if (!reply_q) {
 		ioc_err(ioc, "unable to allocate memory %zu!\n",
 			sizeof(struct adapter_reply_queue));

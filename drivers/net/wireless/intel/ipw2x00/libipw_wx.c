@@ -365,7 +365,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		struct libipw_crypt_data *new_crypt;
 
 		/* take WEP into use */
-		new_crypt = kzalloc_obj(struct libipw_crypt_data, GFP_KERNEL);
+		new_crypt = kzalloc_obj(struct libipw_crypt_data);
 		if (new_crypt == NULL)
 			return -ENOMEM;
 		new_crypt->ops = libipw_get_crypto_ops("WEP");
@@ -597,7 +597,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 
 		libipw_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
-		new_crypt = kzalloc_obj(*new_crypt, GFP_KERNEL);
+		new_crypt = kzalloc_obj(*new_crypt);
 		if (new_crypt == NULL) {
 			ret = -ENOMEM;
 			goto done;

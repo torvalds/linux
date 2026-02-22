@@ -67,7 +67,7 @@ sesInfoAlloc(void)
 {
 	struct cifs_ses *ret_buf;
 
-	ret_buf = kzalloc_obj(struct cifs_ses, GFP_KERNEL);
+	ret_buf = kzalloc_obj(struct cifs_ses);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
 		spin_lock_init(&ret_buf->ses_lock);
@@ -118,7 +118,7 @@ tcon_info_alloc(bool dir_leases_enabled, enum smb3_tcon_ref_trace trace)
 	struct cifs_tcon *ret_buf;
 	static atomic_t tcon_debug_id;
 
-	ret_buf = kzalloc_obj(*ret_buf, GFP_KERNEL);
+	ret_buf = kzalloc_obj(*ret_buf);
 	if (!ret_buf)
 		return NULL;
 

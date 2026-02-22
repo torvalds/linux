@@ -1652,7 +1652,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 		}
 	}
 
-	amdgpu_connector = kzalloc_obj(struct amdgpu_connector, GFP_KERNEL);
+	amdgpu_connector = kzalloc_obj(struct amdgpu_connector);
 	if (!amdgpu_connector)
 		return;
 

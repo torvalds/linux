@@ -921,7 +921,7 @@ ice_alloc_dynamic_port(struct ice_pf *pf,
 	if (err)
 		return err;
 
-	dyn_port = kzalloc_obj(*dyn_port, GFP_KERNEL);
+	dyn_port = kzalloc_obj(*dyn_port);
 	if (!dyn_port) {
 		err = -ENOMEM;
 		goto unroll_reserve_sf_num;

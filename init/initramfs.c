@@ -102,7 +102,7 @@ static char __init *find_link(int major, int minor, int ino,
 			continue;
 		return (*p)->name;
 	}
-	q = kmalloc_obj(struct hash, GFP_KERNEL);
+	q = kmalloc_obj(struct hash);
 	if (!q)
 		panic_show_mem("can't allocate link hash entry");
 	q->major = major;
@@ -517,7 +517,7 @@ char * __init unpack_to_rootfs(char *buf, unsigned long len)
 		char header[CPIO_HDRLEN];
 		char symlink[PATH_MAX + N_ALIGN(PATH_MAX) + 1];
 		char name[N_ALIGN(PATH_MAX)];
-	} *bufs = kmalloc_obj(*bufs, GFP_KERNEL);
+	} *bufs = kmalloc_obj(*bufs);
 
 	if (!bufs)
 		panic_show_mem("can't allocate buffers");

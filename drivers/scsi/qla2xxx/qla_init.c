@@ -9230,7 +9230,7 @@ qla84xx_get_chip(struct scsi_qla_host *vha)
 		}
 	}
 
-	cs84xx = kzalloc_obj(*cs84xx, GFP_KERNEL);
+	cs84xx = kzalloc_obj(*cs84xx);
 	if (!cs84xx)
 		goto done;
 
@@ -9884,7 +9884,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 	}
 
 	if (ql2xmqsupport || ql2xnvmeenable) {
-		qpair = kzalloc_obj(struct qla_qpair, GFP_KERNEL);
+		qpair = kzalloc_obj(struct qla_qpair);
 		if (qpair == NULL) {
 			ql_log(ql_log_warn, vha, 0x0182,
 			    "Failed to allocate memory for queue pair.\n");

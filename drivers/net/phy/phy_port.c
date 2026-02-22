@@ -19,7 +19,7 @@ struct phy_port *phy_port_alloc(void)
 {
 	struct phy_port *port;
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return NULL;
 

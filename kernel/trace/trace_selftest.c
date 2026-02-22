@@ -248,7 +248,7 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 		goto out;
 
 	/* Add a dynamic probe */
-	dyn_ops = kzalloc_obj(*dyn_ops, GFP_KERNEL);
+	dyn_ops = kzalloc_obj(*dyn_ops);
 	if (!dyn_ops) {
 		printk("MEMORY ERROR ");
 		goto out;

@@ -204,7 +204,7 @@ int devm_cxl_setup_features(struct cxl_dev_state *cxlds)
 		return -ENODEV;
 
 	struct cxl_features_state *cxlfs __free(kfree) =
-		kzalloc_obj(*cxlfs, GFP_KERNEL);
+		kzalloc_obj(*cxlfs);
 	if (!cxlfs)
 		return -ENOMEM;
 

@@ -409,7 +409,7 @@ int trackpoint_detect(struct psmouse *psmouse, bool set_properties)
 	if (!set_properties)
 		return 0;
 
-	tp = kzalloc_obj(*tp, GFP_KERNEL);
+	tp = kzalloc_obj(*tp);
 	if (!tp)
 		return -ENOMEM;
 

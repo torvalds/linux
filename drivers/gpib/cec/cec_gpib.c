@@ -220,7 +220,7 @@ static int cec_allocate_private(struct gpib_board *board)
 {
 	struct cec_priv *priv;
 
-	board->private_data = kzalloc_obj(struct cec_priv, GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct cec_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;

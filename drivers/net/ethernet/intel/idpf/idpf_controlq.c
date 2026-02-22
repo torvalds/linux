@@ -127,7 +127,7 @@ int idpf_ctlq_add(struct idpf_hw *hw,
 	bool is_rxq = false;
 	int err;
 
-	cq = kzalloc_obj(*cq, GFP_KERNEL);
+	cq = kzalloc_obj(*cq);
 	if (!cq)
 		return -ENOMEM;
 

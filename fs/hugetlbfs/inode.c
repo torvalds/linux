@@ -1407,7 +1407,7 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct hugetlbfs_fs_context *ctx = fc->fs_private;
 	struct hugetlbfs_sb_info *sbinfo;
 
-	sbinfo = kmalloc_obj(struct hugetlbfs_sb_info, GFP_KERNEL);
+	sbinfo = kmalloc_obj(struct hugetlbfs_sb_info);
 	if (!sbinfo)
 		return -ENOMEM;
 	sb->s_fs_info = sbinfo;
@@ -1478,7 +1478,7 @@ static int hugetlbfs_init_fs_context(struct fs_context *fc)
 {
 	struct hugetlbfs_fs_context *ctx;
 
-	ctx = kzalloc_obj(struct hugetlbfs_fs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct hugetlbfs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

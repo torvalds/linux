@@ -1465,7 +1465,7 @@ int nicvf_open(struct net_device *netdev)
 
 	/* Register NAPI handler for processing CQEs */
 	for (qidx = 0; qidx < qs->cq_cnt; qidx++) {
-		cq_poll = kzalloc_obj(*cq_poll, GFP_KERNEL);
+		cq_poll = kzalloc_obj(*cq_poll);
 		if (!cq_poll) {
 			err = -ENOMEM;
 			goto napi_del;

@@ -117,7 +117,7 @@ mshv_ioctl_create_vtl(void __user *user_arg, struct device *module_dev)
 	struct file *file;
 	int fd;
 
-	vtl = kzalloc_obj(*vtl, GFP_KERNEL);
+	vtl = kzalloc_obj(*vtl);
 	if (!vtl)
 		return -ENOMEM;
 
@@ -393,7 +393,7 @@ static int mshv_vtl_ioctl_add_vtl0_mem(struct mshv_vtl *vtl, void __user *arg)
 		return -EFAULT;
 	}
 
-	pgmap = kzalloc_obj(*pgmap, GFP_KERNEL);
+	pgmap = kzalloc_obj(*pgmap);
 	if (!pgmap)
 		return -ENOMEM;
 
@@ -1344,7 +1344,7 @@ static int __init mshv_vtl_init(void)
 	/*
 	 * "mshv vtl mem dev" device is later used to setup VTL0 memory.
 	 */
-	mem_dev = kzalloc_obj(*mem_dev, GFP_KERNEL);
+	mem_dev = kzalloc_obj(*mem_dev);
 	if (!mem_dev) {
 		ret = -ENOMEM;
 		goto free_low;

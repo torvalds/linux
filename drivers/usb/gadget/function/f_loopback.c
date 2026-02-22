@@ -425,7 +425,7 @@ static struct usb_function *loopback_alloc(struct usb_function_instance *fi)
 	struct f_loopback	*loop;
 	struct f_lb_opts	*lb_opts;
 
-	loop = kzalloc_obj(*loop, GFP_KERNEL);
+	loop = kzalloc_obj(*loop);
 	if (!loop)
 		return ERR_PTR(-ENOMEM);
 
@@ -568,7 +568,7 @@ static struct usb_function_instance *loopback_alloc_instance(void)
 {
 	struct f_lb_opts *lb_opts;
 
-	lb_opts = kzalloc_obj(*lb_opts, GFP_KERNEL);
+	lb_opts = kzalloc_obj(*lb_opts);
 	if (!lb_opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&lb_opts->lock);

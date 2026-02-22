@@ -98,7 +98,7 @@ malidp_mw_connector_duplicate_state(struct drm_connector *connector)
 	if (WARN_ON(!connector->state))
 		return NULL;
 
-	mw_state = kzalloc_obj(*mw_state, GFP_KERNEL);
+	mw_state = kzalloc_obj(*mw_state);
 	if (!mw_state)
 		return NULL;
 

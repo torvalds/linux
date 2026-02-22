@@ -1229,8 +1229,8 @@ static int query_virtqueues(struct mlx5_vdpa_net *ndev,
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "query vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvzalloc_objs(*cmds, num_vqs, GFP_KERNEL);
-	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs, GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1562,8 +1562,8 @@ static int modify_virtqueues(struct mlx5_vdpa_net *ndev, int start_vq, int num_v
 	WARN(start_vq + num_vqs > mvdev->max_vqs, "modify vq range invalid [%d, %d), max_vqs: %u\n",
 	     start_vq, start_vq + num_vqs, mvdev->max_vqs);
 
-	cmds = kvzalloc_objs(*cmds, num_vqs, GFP_KERNEL);
-	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs, GFP_KERNEL);
+	cmds = kvzalloc_objs(*cmds, num_vqs);
+	cmd_mem = kvzalloc_objs(*cmd_mem, num_vqs);
 	if (!cmds || !cmd_mem) {
 		err = -ENOMEM;
 		goto done;
@@ -1649,7 +1649,7 @@ static int suspend_vqs(struct mlx5_vdpa_net *ndev, int start_vq, int num_vqs)
 	if (err)
 		return err;
 
-	attrs = kzalloc_objs(struct mlx5_virtq_attr, num_vqs, GFP_KERNEL);
+	attrs = kzalloc_objs(struct mlx5_virtq_attr, num_vqs);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -1922,7 +1922,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 	int err;
 	u16 vid;
 
-	spec = kvzalloc_obj(*spec, GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -2034,7 +2034,7 @@ static int mac_vlan_add(struct mlx5_vdpa_net *ndev, u8 *mac, u16 vid, bool tagge
 	if (mac_vlan_lookup(ndev, val))
 		return -EEXIST;
 
-	ptr = kzalloc_obj(*ptr, GFP_KERNEL);
+	ptr = kzalloc_obj(*ptr);
 	if (!ptr)
 		return -ENOMEM;
 
@@ -3902,7 +3902,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 
 	mlx5_cmd_init_async_ctx(mdev, &mvdev->async_ctx);
 
-	ndev->vqs = kzalloc_objs(*ndev->vqs, max_vqs, GFP_KERNEL);
+	ndev->vqs = kzalloc_objs(*ndev->vqs, max_vqs);
 	ndev->event_cbs = kzalloc_objs(*ndev->event_cbs, max_vqs + 1,
 				       GFP_KERNEL);
 	if (!ndev->vqs || !ndev->event_cbs) {
@@ -4104,7 +4104,7 @@ static int mlx5v_probe(struct auxiliary_device *adev,
 	struct mlx5_vdpa_mgmtdev *mgtdev;
 	int err;
 
-	mgtdev = kzalloc_obj(*mgtdev, GFP_KERNEL);
+	mgtdev = kzalloc_obj(*mgtdev);
 	if (!mgtdev)
 		return -ENOMEM;
 

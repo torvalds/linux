@@ -309,7 +309,7 @@ dcssblk_load_segment(char *name, struct segment_info **seg_info)
 		return -EEXIST;
 
 	/* get a struct segment_info */
-	*seg_info = kzalloc_obj(struct segment_info, GFP_KERNEL);
+	*seg_info = kzalloc_obj(struct segment_info);
 	if (*seg_info == NULL)
 		return -ENOMEM;
 

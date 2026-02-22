@@ -873,7 +873,7 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 
 	BUG_ON(!ibm->acpi);
 
-	ibm->acpi->driver = kzalloc_obj(struct acpi_driver, GFP_KERNEL);
+	ibm->acpi->driver = kzalloc_obj(struct acpi_driver);
 	if (!ibm->acpi->driver) {
 		pr_err("failed to allocate memory for ibm->acpi->driver\n");
 		return -ENOMEM;
@@ -1197,7 +1197,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
-	atp_rfk = kzalloc_obj(struct tpacpi_rfk, GFP_KERNEL);
+	atp_rfk = kzalloc_obj(struct tpacpi_rfk);
 	if (atp_rfk)
 		atp_rfk->rfkill = rfkill_alloc(name,
 						&tpacpi_pdev->dev,
@@ -5817,7 +5817,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	if (led_supported == TPACPI_LED_NONE)
 		return -ENODEV;
 
-	tpacpi_leds = kzalloc_objs(*tpacpi_leds, TPACPI_LED_NUMLEDS, GFP_KERNEL);
+	tpacpi_leds = kzalloc_objs(*tpacpi_leds, TPACPI_LED_NUMLEDS);
 	if (!tpacpi_leds) {
 		pr_err("Out of memory for LED data\n");
 		return -ENOMEM;

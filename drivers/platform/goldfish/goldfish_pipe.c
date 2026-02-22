@@ -699,7 +699,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	int status;
 
 	/* Allocate new pipe kernel object */
-	struct goldfish_pipe *pipe = kzalloc_obj(*pipe, GFP_KERNEL);
+	struct goldfish_pipe *pipe = kzalloc_obj(*pipe);
 
 	if (!pipe)
 		return -ENOMEM;
@@ -826,7 +826,7 @@ static int goldfish_pipe_device_init(struct platform_device *pdev,
 	dev->pdev_dev = &pdev->dev;
 	dev->first_signalled_pipe = NULL;
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
-	dev->pipes = kzalloc_objs(*dev->pipes, dev->pipes_capacity, GFP_KERNEL);
+	dev->pipes = kzalloc_objs(*dev->pipes, dev->pipes_capacity);
 	if (!dev->pipes) {
 		misc_deregister(&dev->miscdev);
 		return -ENOMEM;

@@ -2372,7 +2372,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 	 * to cope with that situation.
 	 */
 	for (i = 0; i < channels; i++) {
-		chan = kzalloc_obj(*chan, GFP_KERNEL);
+		chan = kzalloc_obj(*chan);
 		if (!chan)
 			return -ENOMEM;
 
@@ -2390,7 +2390,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			chan->signal = i;
 			pl08x_dma_slave_init(chan);
 		} else {
-			chan->cd = kzalloc_obj(*chan->cd, GFP_KERNEL);
+			chan->cd = kzalloc_obj(*chan->cd);
 			if (!chan->cd) {
 				kfree(chan);
 				return -ENOMEM;
@@ -2709,7 +2709,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_pl08x;
 
 	/* Create the driver state holder */
-	pl08x = kzalloc_obj(*pl08x, GFP_KERNEL);
+	pl08x = kzalloc_obj(*pl08x);
 	if (!pl08x) {
 		ret = -ENOMEM;
 		goto out_no_pl08x;

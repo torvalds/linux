@@ -354,7 +354,7 @@ static void __init mt7621_clk_init(struct device_node *node)
 	struct clk_hw_onecell_data *clk_data;
 	int ret, i, count;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return;
 

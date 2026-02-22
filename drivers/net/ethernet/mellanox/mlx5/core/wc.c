@@ -366,7 +366,7 @@ static void mlx5_core_test_wc(struct mlx5_core_dev *mdev)
 	if (mdev->wc_state != MLX5_WC_STATE_UNINITIALIZED)
 		return;
 
-	sq = kzalloc_obj(*sq, GFP_KERNEL);
+	sq = kzalloc_obj(*sq);
 	if (!sq)
 		return;
 

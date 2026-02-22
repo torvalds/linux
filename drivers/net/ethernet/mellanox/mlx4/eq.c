@@ -987,7 +987,7 @@ static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 	 */
 	npages = PAGE_ALIGN(eq->nent * dev->caps.eqe_size) / PAGE_SIZE;
 
-	eq->page_list = kmalloc_objs(*eq->page_list, npages, GFP_KERNEL);
+	eq->page_list = kmalloc_objs(*eq->page_list, npages);
 	if (!eq->page_list)
 		goto err_out;
 

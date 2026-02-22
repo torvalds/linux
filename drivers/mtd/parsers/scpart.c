@@ -80,7 +80,7 @@ static int scpart_scan_partmap(struct mtd_info *master, loff_t partmap_offs,
 	if (cnt > 0) {
 		int bytes = cnt * sizeof(*pdesc);
 
-		pdesc = kzalloc_objs(*pdesc, cnt, GFP_KERNEL);
+		pdesc = kzalloc_objs(*pdesc, cnt);
 		if (!pdesc) {
 			res = -ENOMEM;
 			goto free;

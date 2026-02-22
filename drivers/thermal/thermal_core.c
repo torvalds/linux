@@ -844,7 +844,7 @@ static int thermal_bind_cdev_to_trip(struct thermal_zone_device *tz,
 	if (cool_spec->lower > cool_spec->upper || cool_spec->upper > cdev->max_state)
 		return -EINVAL;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -1070,7 +1070,7 @@ __thermal_cooling_device_register(struct device_node *np,
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
 
-	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1899,7 +1899,7 @@ static int __init thermal_init(void)
 	if (result)
 		goto unregister_netlink;
 
-	thermal_class = kzalloc_obj(*thermal_class, GFP_KERNEL);
+	thermal_class = kzalloc_obj(*thermal_class);
 	if (!thermal_class) {
 		result = -ENOMEM;
 		goto unregister_governors;

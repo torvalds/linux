@@ -77,7 +77,7 @@ gm20b_volt_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		return -EINVAL;
 	}
 
-	volt = kzalloc_obj(*volt, GFP_KERNEL);
+	volt = kzalloc_obj(*volt);
 	if (!volt)
 		return -ENOMEM;
 	*pvolt = &volt->base;

@@ -289,7 +289,7 @@ static struct page *binder_page_alloc(struct binder_alloc *alloc,
 		return NULL;
 
 	/* allocate and install shrinker metadata under page->private */
-	mdata = kzalloc_obj(*mdata, GFP_KERNEL);
+	mdata = kzalloc_obj(*mdata);
 	if (!mdata) {
 		__free_page(page);
 		return NULL;
@@ -672,7 +672,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 	}
 
 	/* Preallocate the next buffer */
-	next = kzalloc_obj(*next, GFP_KERNEL);
+	next = kzalloc_obj(*next);
 	if (!next)
 		return ERR_PTR(-ENOMEM);
 
@@ -924,7 +924,7 @@ int binder_alloc_mmap_handler(struct binder_alloc *alloc,
 		goto err_alloc_pages_failed;
 	}
 
-	buffer = kzalloc_obj(*buffer, GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer);
 	if (!buffer) {
 		ret = -ENOMEM;
 		failure_string = "alloc buffer struct";

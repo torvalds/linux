@@ -250,7 +250,7 @@ static struct zram_pp_ctl *init_pp_ctl(void)
 	struct zram_pp_ctl *ctl;
 	u32 idx;
 
-	ctl = kmalloc_obj(*ctl, GFP_KERNEL);
+	ctl = kmalloc_obj(*ctl);
 	if (!ctl)
 		return NULL;
 
@@ -855,7 +855,7 @@ static struct zram_wb_ctl *init_wb_ctl(struct zram *zram)
 	struct zram_wb_ctl *wb_ctl;
 	int i;
 
-	wb_ctl = kmalloc_obj(*wb_ctl, GFP_KERNEL);
+	wb_ctl = kmalloc_obj(*wb_ctl);
 	if (!wb_ctl)
 		return NULL;
 
@@ -3079,7 +3079,7 @@ static int zram_add(void)
 	struct zram *zram;
 	int ret, device_id;
 
-	zram = kzalloc_obj(struct zram, GFP_KERNEL);
+	zram = kzalloc_obj(struct zram);
 	if (!zram)
 		return -ENOMEM;
 

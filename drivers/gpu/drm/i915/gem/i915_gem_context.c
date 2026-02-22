@@ -285,7 +285,7 @@ proto_context_create(struct drm_i915_file_private *fpriv,
 {
 	struct i915_gem_proto_context *pc, *err;
 
-	pc = kzalloc_obj(*pc, GFP_KERNEL);
+	pc = kzalloc_obj(*pc);
 	if (!pc)
 		return ERR_PTR(-ENOMEM);
 
@@ -442,7 +442,7 @@ set_proto_ctx_engines_balance(struct i915_user_extension __user *base,
 	if (num_siblings == 0)
 		return 0;
 
-	siblings = kmalloc_objs(*siblings, num_siblings, GFP_KERNEL);
+	siblings = kmalloc_objs(*siblings, num_siblings);
 	if (!siblings)
 		return -ENOMEM;
 
@@ -644,7 +644,7 @@ set_proto_ctx_engines_parallel_submit(struct i915_user_extension __user *base,
 		return -EINVAL;
 	}
 
-	siblings = kmalloc_objs(*siblings, num_siblings * width, GFP_KERNEL);
+	siblings = kmalloc_objs(*siblings, num_siblings * width);
 	if (!siblings)
 		return -ENOMEM;
 
@@ -759,7 +759,7 @@ static int set_proto_ctx_engines(struct drm_i915_file_private *fpriv,
 	if (set.num_engines > I915_EXEC_RING_MASK + 1)
 		return -EINVAL;
 
-	set.engines = kmalloc_objs(*set.engines, set.num_engines, GFP_KERNEL);
+	set.engines = kmalloc_objs(*set.engines, set.num_engines);
 	if (!set.engines)
 		return -ENOMEM;
 
@@ -1609,7 +1609,7 @@ i915_gem_create_context(struct drm_i915_private *i915,
 	int err;
 	int i;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

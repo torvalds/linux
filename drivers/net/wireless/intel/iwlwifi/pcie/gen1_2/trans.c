@@ -2748,7 +2748,7 @@ static void *iwl_dbgfs_tx_queue_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos >= priv->trans->mac_cfg->base->num_of_queues)
 		return NULL;
 
-	state = kmalloc_obj(*state, GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 	state->pos = *pos;

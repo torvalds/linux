@@ -454,7 +454,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 		return -EIO;
 	}
 
-	buf = kzalloc_objs(struct crb_addr_pair, n, GFP_KERNEL);
+	buf = kzalloc_objs(struct crb_addr_pair, n);
 	if (buf == NULL)
 		return -ENOMEM;
 

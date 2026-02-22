@@ -1228,7 +1228,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		struct libie_aq_desc *desc;
 		int ret;
 
-		desc = kzalloc_obj(*desc, GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[11],
@@ -1276,7 +1276,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		u8 *buff;
 		int ret;
 
-		desc = kzalloc_obj(*desc, GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			goto command_write_done;
 		cnt = sscanf(&cmd_buf[20],

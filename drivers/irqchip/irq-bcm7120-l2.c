@@ -220,7 +220,7 @@ static int bcm7120_l2_intc_probe(struct platform_device *pdev, struct device_nod
 	unsigned int idx, irq, flags;
 	u32 valid_mask[MAX_WORDS] = { };
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

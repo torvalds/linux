@@ -157,7 +157,7 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	else
 		return -EOPNOTSUPP;
 
-	yacl = kzalloc_obj(struct yfs_acl, GFP_KERNEL);
+	yacl = kzalloc_obj(struct yfs_acl);
 	if (!yacl)
 		goto error;
 

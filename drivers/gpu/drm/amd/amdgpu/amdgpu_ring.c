@@ -507,13 +507,13 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 	const uint8_t ring_header_size = 12;
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	struct ras_cmd_cper_snapshot_req *snapshot_req __free(kfree) =
-		kzalloc_obj(struct ras_cmd_cper_snapshot_req, GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_snapshot_req);
 	struct ras_cmd_cper_snapshot_rsp *snapshot_rsp __free(kfree) =
-		kzalloc_obj(struct ras_cmd_cper_snapshot_rsp, GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_snapshot_rsp);
 	struct ras_cmd_cper_record_req *record_req __free(kfree) =
-		kzalloc_obj(struct ras_cmd_cper_record_req, GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_record_req);
 	struct ras_cmd_cper_record_rsp *record_rsp __free(kfree) =
-		kzalloc_obj(struct ras_cmd_cper_record_rsp, GFP_KERNEL);
+		kzalloc_obj(struct ras_cmd_cper_record_rsp);
 	uint8_t *ring_header __free(kfree) =
 		kzalloc(ring_header_size, GFP_KERNEL);
 	uint32_t total_cper_num;

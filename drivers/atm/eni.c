@@ -1925,7 +1925,7 @@ static int eni_open(struct atm_vcc *vcc)
 	DPRINTK(DEV_LABEL "(itf %d): open %d.%d\n",vcc->dev->number,vcc->vpi,
 	    vcc->vci);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
-		eni_vcc = kmalloc_obj(struct eni_vcc, GFP_KERNEL);
+		eni_vcc = kmalloc_obj(struct eni_vcc);
 		if (!eni_vcc) return -ENOMEM;
 		vcc->dev_data = eni_vcc;
 		eni_vcc->tx = NULL; /* for eni_close after open_rx */
@@ -2229,7 +2229,7 @@ static int eni_init_one(struct pci_dev *pci_dev,
 		goto err_disable;
 
 	rc = -ENOMEM;
-	eni_dev = kmalloc_obj(struct eni_dev, GFP_KERNEL);
+	eni_dev = kmalloc_obj(struct eni_dev);
 	if (!eni_dev)
 		goto err_disable;
 

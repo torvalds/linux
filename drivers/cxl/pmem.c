@@ -426,7 +426,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 	set_bit(ND_REGION_CXL, &ndr_desc.flags);
 	set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc.flags);
 
-	info = kmalloc_objs(*info, cxlr_pmem->nr_mappings, GFP_KERNEL);
+	info = kmalloc_objs(*info, cxlr_pmem->nr_mappings);
 	if (!info)
 		return -ENOMEM;
 

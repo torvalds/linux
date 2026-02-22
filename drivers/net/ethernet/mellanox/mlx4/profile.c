@@ -85,7 +85,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	struct sysinfo si;
 	int i, j;
 
-	profile = kzalloc_objs(*profile, MLX4_RES_NUM, GFP_KERNEL);
+	profile = kzalloc_objs(*profile, MLX4_RES_NUM);
 	if (!profile)
 		return -ENOMEM;
 

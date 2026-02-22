@@ -593,7 +593,7 @@ static int sh_tmu_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	tmu = kzalloc_obj(*tmu, GFP_KERNEL);
+	tmu = kzalloc_obj(*tmu);
 	if (tmu == NULL)
 		return -ENOMEM;
 

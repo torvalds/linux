@@ -438,7 +438,7 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 	struct ibmpex_bmc_data *data;
 	int err;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return;
 

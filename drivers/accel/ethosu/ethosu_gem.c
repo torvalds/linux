@@ -50,7 +50,7 @@ struct drm_gem_object *ethosu_gem_create_object(struct drm_device *ddev, size_t 
 {
 	struct ethosu_gem_object *obj;
 
-	obj = kzalloc_obj(*obj, GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return ERR_PTR(-ENOMEM);
 

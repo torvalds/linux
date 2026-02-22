@@ -619,7 +619,7 @@ static int alloc_rsp_fq_cpu(struct device *qidev, unsigned int cpu)
 	struct qman_fq *fq;
 	int ret;
 
-	fq = kzalloc_obj(*fq, GFP_KERNEL);
+	fq = kzalloc_obj(*fq);
 	if (!fq)
 		return -ENOMEM;
 

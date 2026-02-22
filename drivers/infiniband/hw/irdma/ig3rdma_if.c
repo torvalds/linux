@@ -175,7 +175,7 @@ static int ig3rdma_core_probe(struct auxiliary_device *aux_dev,
 	struct irdma_pci_f *rf;
 	int err;
 
-	rf = kzalloc_obj(*rf, GFP_KERNEL);
+	rf = kzalloc_obj(*rf);
 	if (!rf)
 		return -ENOMEM;
 

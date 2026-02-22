@@ -229,13 +229,13 @@ struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 	if (entries == 0)
 		return NULL;
 
-	cache = kzalloc_obj(*cache, GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (cache == NULL) {
 		ERROR("Failed to allocate %s cache\n", name);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cache->entry = kzalloc_objs(*(cache->entry), entries, GFP_KERNEL);
+	cache->entry = kzalloc_objs(*(cache->entry), entries);
 	if (cache->entry == NULL) {
 		ERROR("Failed to allocate %s cache\n", name);
 		goto cleanup;

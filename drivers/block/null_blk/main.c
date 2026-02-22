@@ -778,7 +778,7 @@ static struct nullb_device *null_alloc_dev(void)
 {
 	struct nullb_device *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -1818,7 +1818,7 @@ static int setup_queues(struct nullb *nullb)
 	if (g_poll_queues)
 		nqueues += g_poll_queues;
 
-	nullb->queues = kzalloc_objs(struct nullb_queue, nqueues, GFP_KERNEL);
+	nullb->queues = kzalloc_objs(struct nullb_queue, nqueues);
 	if (!nullb->queues)
 		return -ENOMEM;
 

@@ -455,7 +455,7 @@ static noinline_for_stack struct scrub_ctx *scrub_setup_ctx(
 	/* Since sctx has inline 128 stripes, it can go beyond 64K easily.  Use
 	 * kvzalloc().
 	 */
-	sctx = kvzalloc_obj(*sctx, GFP_KERNEL);
+	sctx = kvzalloc_obj(*sctx);
 	if (!sctx)
 		goto nomem;
 	refcount_set(&sctx->refs, 1);

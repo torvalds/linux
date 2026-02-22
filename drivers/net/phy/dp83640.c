@@ -1027,7 +1027,7 @@ static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
 	if (clock)
 		goto out;
 
-	clock = kzalloc_obj(struct dp83640_clock, GFP_KERNEL);
+	clock = kzalloc_obj(struct dp83640_clock);
 	if (!clock)
 		goto out;
 
@@ -1411,7 +1411,7 @@ static int dp83640_probe(struct phy_device *phydev)
 	if (!clock)
 		goto no_clock;
 
-	dp83640 = kzalloc_obj(struct dp83640_private, GFP_KERNEL);
+	dp83640 = kzalloc_obj(struct dp83640_private);
 	if (!dp83640)
 		goto no_memory;
 

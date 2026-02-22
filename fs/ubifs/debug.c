@@ -3035,7 +3035,7 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
  */
 int ubifs_debugging_init(struct ubifs_info *c)
 {
-	c->dbg = kzalloc_obj(struct ubifs_debug_info, GFP_KERNEL);
+	c->dbg = kzalloc_obj(struct ubifs_debug_info);
 	if (!c->dbg)
 		return -ENOMEM;
 

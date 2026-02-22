@@ -531,7 +531,7 @@ int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
 
 	if (!linecards)
 		return 0;
-	item = kzalloc_obj(*item, GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item)
 		return -ENOMEM;
 	item->event_ops = ops;
@@ -1446,7 +1446,7 @@ static int mlxsw_linecard_types_init(struct mlxsw_core *mlxsw_core,
 		return 0;
 	}
 
-	types_info = kzalloc_obj(*types_info, GFP_KERNEL);
+	types_info = kzalloc_obj(*types_info);
 	if (!types_info) {
 		release_firmware(firmware);
 		return -ENOMEM;

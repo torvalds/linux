@@ -160,7 +160,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		return -ENODEV;
 	}
 
-	sgt = sg = kzalloc_objs(*sg, sg_num, GFP_KERNEL);
+	sgt = sg = kzalloc_objs(*sg, sg_num);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto sg_err;

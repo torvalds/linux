@@ -26,7 +26,7 @@ int snd_emux_new(struct snd_emux **remu)
 	struct snd_emux *emu;
 
 	*remu = NULL;
-	emu = kzalloc_obj(*emu, GFP_KERNEL);
+	emu = kzalloc_obj(*emu);
 	if (emu == NULL)
 		return -ENOMEM;
 

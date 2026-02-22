@@ -1904,7 +1904,7 @@ caam_hash_alloc(struct caam_hash_template *template,
 	struct ahash_alg *halg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc_obj(*t_alg, GFP_KERNEL);
+	t_alg = kzalloc_obj(*t_alg);
 	if (!t_alg)
 		return ERR_PTR(-ENOMEM);
 

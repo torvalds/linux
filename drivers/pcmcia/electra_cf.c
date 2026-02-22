@@ -190,7 +190,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	if (err)
 		return -EINVAL;
 
-	cf = kzalloc_obj(*cf, GFP_KERNEL);
+	cf = kzalloc_obj(*cf);
 	if (!cf)
 		return -ENOMEM;
 

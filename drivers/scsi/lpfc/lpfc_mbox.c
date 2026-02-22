@@ -64,7 +64,7 @@ lpfc_mbox_rsrc_prep(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	struct lpfc_dmabuf *mp;
 
-	mp = kmalloc_obj(*mp, GFP_KERNEL);
+	mp = kmalloc_obj(*mp);
 	if (!mp)
 		return -ENOMEM;
 

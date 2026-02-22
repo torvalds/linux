@@ -852,7 +852,7 @@ static int atp_probe(struct usb_interface *iface,
 	}
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	input_dev = input_allocate_device();
 	if (!dev || !input_dev) {
 		dev_err(&iface->dev, "Out of memory\n");

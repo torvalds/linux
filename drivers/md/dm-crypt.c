@@ -2363,7 +2363,7 @@ static int crypt_alloc_tfms_aead(struct crypt_config *cc, char *ciphermode)
 {
 	int err;
 
-	cc->cipher_tfm.tfms = kmalloc_obj(struct crypto_skcipher *, GFP_KERNEL);
+	cc->cipher_tfm.tfms = kmalloc_obj(struct crypto_skcipher *);
 	if (!cc->cipher_tfm.tfms)
 		return -ENOMEM;
 

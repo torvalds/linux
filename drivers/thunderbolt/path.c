@@ -150,7 +150,7 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 		num_hops++;
 	}
 
-	path = kzalloc_obj(*path, GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path)
 		return NULL;
 
@@ -160,7 +160,7 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 	path->activated = true;
 	path->alloc_hopid = alloc_hopid;
 
-	path->hops = kzalloc_objs(*path->hops, num_hops, GFP_KERNEL);
+	path->hops = kzalloc_objs(*path->hops, num_hops);
 	if (!path->hops) {
 		kfree(path);
 		return NULL;
@@ -245,7 +245,7 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	size_t num_hops;
 	int i, ret;
 
-	path = kzalloc_obj(*path, GFP_KERNEL);
+	path = kzalloc_obj(*path);
 	if (!path)
 		return NULL;
 
@@ -267,7 +267,7 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	/* Each hop takes two ports */
 	num_hops = i / 2;
 
-	path->hops = kzalloc_objs(*path->hops, num_hops, GFP_KERNEL);
+	path->hops = kzalloc_objs(*path->hops, num_hops);
 	if (!path->hops) {
 		kfree(path);
 		return NULL;

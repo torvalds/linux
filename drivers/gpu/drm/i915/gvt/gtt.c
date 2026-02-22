@@ -1770,7 +1770,7 @@ static struct intel_vgpu_mm *vgpu_alloc_mm(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_mm *mm;
 
-	mm = kzalloc_obj(*mm, GFP_KERNEL);
+	mm = kzalloc_obj(*mm);
 	if (!mm)
 		return NULL;
 
@@ -2206,7 +2206,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 		if (!found) {
 			/* the first partial part */
-			partial_pte = kzalloc_obj(*partial_pte, GFP_KERNEL);
+			partial_pte = kzalloc_obj(*partial_pte);
 			if (!partial_pte)
 				return -ENOMEM;
 			partial_pte->offset = off;
@@ -2502,7 +2502,7 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 	INIT_LIST_HEAD(&gtt->oos_page_use_list_head);
 
 	for (i = 0; i < preallocated_oos_pages; i++) {
-		oos_page = kzalloc_obj(*oos_page, GFP_KERNEL);
+		oos_page = kzalloc_obj(*oos_page);
 		if (!oos_page) {
 			ret = -ENOMEM;
 			goto fail;

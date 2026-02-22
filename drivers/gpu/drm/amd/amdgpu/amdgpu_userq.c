@@ -217,7 +217,7 @@ static int amdgpu_userq_buffer_va_list_add(struct amdgpu_usermode_queue *queue,
 	struct amdgpu_userq_va_cursor *va_cursor;
 	struct userq_va_list;
 
-	va_cursor = kzalloc_obj(*va_cursor, GFP_KERNEL);
+	va_cursor = kzalloc_obj(*va_cursor);
 	if (!va_cursor)
 		return -ENOMEM;
 
@@ -781,7 +781,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 
-	queue = kzalloc_obj(struct amdgpu_usermode_queue, GFP_KERNEL);
+	queue = kzalloc_obj(struct amdgpu_usermode_queue);
 	if (!queue) {
 		drm_file_err(uq_mgr->file, "Failed to allocate memory for queue\n");
 		r = -ENOMEM;

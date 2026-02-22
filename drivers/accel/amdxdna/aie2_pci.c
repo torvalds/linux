@@ -653,7 +653,7 @@ static int aie2_get_aie_metadata(struct amdxdna_client *client,
 	int ret = 0;
 
 	ndev = xdna->dev_handle;
-	meta = kzalloc_obj(*meta, GFP_KERNEL);
+	meta = kzalloc_obj(*meta);
 	if (!meta)
 		return -ENOMEM;
 
@@ -748,7 +748,7 @@ static int aie2_get_clock_metadata(struct amdxdna_client *client,
 	int ret = 0;
 
 	ndev = xdna->dev_handle;
-	clock = kzalloc_obj(*clock, GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock)
 		return -ENOMEM;
 
@@ -775,7 +775,7 @@ static int aie2_hwctx_status_cb(struct amdxdna_hwctx *hwctx, void *arg)
 	if (!array_args->num_element)
 		return -EINVAL;
 
-	tmp = kzalloc_obj(*tmp, GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 

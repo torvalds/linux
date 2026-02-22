@@ -207,7 +207,7 @@ static int stream_alloc(struct pci_dev *pdev, struct pci_ide **ide,
 
 static struct pci_tsm *tio_pf0_probe(struct pci_dev *pdev, struct sev_device *sev)
 {
-	struct tio_dsm *dsm __free(kfree) = kzalloc_obj(*dsm, GFP_KERNEL);
+	struct tio_dsm *dsm __free(kfree) = kzalloc_obj(*dsm);
 	int rc;
 
 	if (!dsm)
@@ -341,7 +341,7 @@ static struct pci_tsm_ops sev_tsm_ops = {
 
 void sev_tsm_init_locked(struct sev_device *sev, void *tio_status_page)
 {
-	struct sev_tio_status *t = kzalloc_obj(*t, GFP_KERNEL);
+	struct sev_tio_status *t = kzalloc_obj(*t);
 	struct tsm_dev *tsmdev;
 	int ret;
 

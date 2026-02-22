@@ -525,7 +525,7 @@ struct objagg *objagg_create(const struct objagg_ops *ops,
 		    !ops->delta_destroy))
 		return ERR_PTR(-EINVAL);
 
-	objagg = kzalloc_obj(*objagg, GFP_KERNEL);
+	objagg = kzalloc_obj(*objagg);
 	if (!objagg)
 		return ERR_PTR(-ENOMEM);
 	objagg->ops = ops;
@@ -786,11 +786,11 @@ static struct objagg_tmp_graph *objagg_tmp_graph_create(struct objagg *objagg)
 	struct objagg_obj *objagg_obj;
 	int i, j;
 
-	graph = kzalloc_obj(*graph, GFP_KERNEL);
+	graph = kzalloc_obj(*graph);
 	if (!graph)
 		return NULL;
 
-	graph->nodes = kzalloc_objs(*graph->nodes, nodes_count, GFP_KERNEL);
+	graph->nodes = kzalloc_objs(*graph->nodes, nodes_count);
 	if (!graph->nodes)
 		goto err_nodes_alloc;
 	graph->nodes_count = nodes_count;
@@ -930,7 +930,7 @@ struct objagg_hints *objagg_hints_get(struct objagg *objagg,
 	struct objagg_hints *objagg_hints;
 	int err;
 
-	objagg_hints = kzalloc_obj(*objagg_hints, GFP_KERNEL);
+	objagg_hints = kzalloc_obj(*objagg_hints);
 	if (!objagg_hints)
 		return ERR_PTR(-ENOMEM);
 

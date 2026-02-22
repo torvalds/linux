@@ -225,7 +225,7 @@ static struct qeth_buffer_pool_entry *qeth_alloc_pool_entry(unsigned int pages)
 	struct qeth_buffer_pool_entry *entry;
 	unsigned int i;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -324,7 +324,7 @@ static void qeth_free_qdio_queue(struct qeth_qdio_q *q)
 
 static struct qeth_qdio_q *qeth_alloc_qdio_queue(void)
 {
-	struct qeth_qdio_q *q = kzalloc_obj(*q, GFP_KERNEL);
+	struct qeth_qdio_q *q = kzalloc_obj(*q);
 	int i;
 
 	if (!q)
@@ -930,7 +930,7 @@ static struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
 	if (length > QETH_BUFSIZE)
 		return NULL;
 
-	iob = kzalloc_obj(*iob, GFP_KERNEL);
+	iob = kzalloc_obj(*iob);
 	if (!iob)
 		return NULL;
 
@@ -1626,7 +1626,7 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 	struct qeth_card *card;
 
 	QETH_DBF_TEXT(SETUP, 2, "alloccrd");
-	card = kzalloc_obj(*card, GFP_KERNEL);
+	card = kzalloc_obj(*card);
 	if (!card)
 		goto out;
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
@@ -2591,7 +2591,7 @@ static void qeth_free_output_queue(struct qeth_qdio_out_q *q)
 
 static struct qeth_qdio_out_q *qeth_alloc_output_queue(void)
 {
-	struct qeth_qdio_out_q *q = kzalloc_obj(*q, GFP_KERNEL);
+	struct qeth_qdio_out_q *q = kzalloc_obj(*q);
 	unsigned int i;
 
 	if (!q)
@@ -6249,7 +6249,7 @@ static int qeth_add_dbf_entry(struct qeth_card *card, char *name)
 	}
 	if (debug_register_view(card->debug, &debug_hex_ascii_view))
 		goto err_dbg;
-	new_entry = kzalloc_obj(struct qeth_dbf_entry, GFP_KERNEL);
+	new_entry = kzalloc_obj(struct qeth_dbf_entry);
 	if (!new_entry)
 		goto err_dbg;
 	strscpy(new_entry->dbf_name, name, sizeof(new_entry->dbf_name));

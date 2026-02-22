@@ -118,7 +118,7 @@ static struct xen_gem_object *gem_create_obj(struct drm_device *dev,
 	struct xen_gem_object *xen_obj;
 	int ret;
 
-	xen_obj = kzalloc_obj(*xen_obj, GFP_KERNEL);
+	xen_obj = kzalloc_obj(*xen_obj);
 	if (!xen_obj)
 		return ERR_PTR(-ENOMEM);
 

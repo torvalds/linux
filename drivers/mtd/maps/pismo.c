@@ -218,7 +218,7 @@ static int pismo_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	pismo = kzalloc_obj(*pismo, GFP_KERNEL);
+	pismo = kzalloc_obj(*pismo);
 	if (!pismo)
 		return -ENOMEM;
 

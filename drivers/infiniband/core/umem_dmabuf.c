@@ -136,7 +136,7 @@ ib_umem_dmabuf_get_with_dma_device(struct ib_device *device,
 	if (dmabuf->size < end)
 		goto out_release_dmabuf;
 
-	umem_dmabuf = kzalloc_obj(*umem_dmabuf, GFP_KERNEL);
+	umem_dmabuf = kzalloc_obj(*umem_dmabuf);
 	if (!umem_dmabuf) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_release_dmabuf;

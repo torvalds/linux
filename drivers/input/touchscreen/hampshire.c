@@ -109,7 +109,7 @@ static int hampshire_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	phampshire = kzalloc_obj(*phampshire, GFP_KERNEL);
+	phampshire = kzalloc_obj(*phampshire);
 	input_dev = input_allocate_device();
 	if (!phampshire || !input_dev) {
 		err = -ENOMEM;

@@ -124,11 +124,11 @@ struct ubi_eba_table *ubi_eba_create_table(struct ubi_volume *vol,
 	int err = -ENOMEM;
 	int i;
 
-	tbl = kzalloc_obj(*tbl, GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (!tbl)
 		return ERR_PTR(-ENOMEM);
 
-	tbl->entries = kmalloc_objs(*tbl->entries, nentries, GFP_KERNEL);
+	tbl->entries = kmalloc_objs(*tbl->entries, nentries);
 	if (!tbl->entries)
 		goto err;
 
@@ -1535,11 +1535,11 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
-	scan_eba = kmalloc_objs(*scan_eba, num_volumes, GFP_KERNEL);
+	scan_eba = kmalloc_objs(*scan_eba, num_volumes);
 	if (!scan_eba)
 		return -ENOMEM;
 
-	fm_eba = kmalloc_objs(*fm_eba, num_volumes, GFP_KERNEL);
+	fm_eba = kmalloc_objs(*fm_eba, num_volumes);
 	if (!fm_eba) {
 		kfree(scan_eba);
 		return -ENOMEM;

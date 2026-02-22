@@ -443,7 +443,7 @@ static int find_and_map_user_pages(struct qaic_device *qdev,
 		goto put_pages;
 	}
 
-	sgt = kmalloc_obj(*sgt, GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto put_pages;
@@ -582,7 +582,7 @@ static int encode_dma(struct qaic_device *qdev, void *trans, struct wrapper_list
 	    QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOMEM;
 
-	xfer = kmalloc_obj(*xfer, GFP_KERNEL);
+	xfer = kmalloc_obj(*xfer);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -1166,7 +1166,7 @@ static struct wrapper_list *alloc_wrapper_list(void)
 {
 	struct wrapper_list *wrappers;
 
-	wrappers = kmalloc_obj(*wrappers, GFP_KERNEL);
+	wrappers = kmalloc_obj(*wrappers);
 	if (!wrappers)
 		return NULL;
 	INIT_LIST_HEAD(&wrappers->list);

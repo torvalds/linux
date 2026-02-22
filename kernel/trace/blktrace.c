@@ -671,7 +671,7 @@ static struct blk_trace *blk_trace_setup_prepare(struct request_queue *q,
 		return ERR_PTR(-EBUSY);
 	}
 
-	bt = kzalloc_obj(*bt, GFP_KERNEL);
+	bt = kzalloc_obj(*bt);
 	if (!bt)
 		return ERR_PTR(-ENOMEM);
 
@@ -1904,7 +1904,7 @@ static int blk_trace_setup_queue(struct request_queue *q,
 	struct blk_trace *bt = NULL;
 	int ret = -ENOMEM;
 
-	bt = kzalloc_obj(*bt, GFP_KERNEL);
+	bt = kzalloc_obj(*bt);
 	if (!bt)
 		return -ENOMEM;
 

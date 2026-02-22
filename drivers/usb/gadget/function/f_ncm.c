@@ -1683,7 +1683,7 @@ static struct usb_function_instance *ncm_alloc_inst(void)
 	char *names[1];
 	struct config_group *ncm_interf_group;
 
-	struct f_ncm_opts *opts __free(kfree) = kzalloc_obj(*opts, GFP_KERNEL);
+	struct f_ncm_opts *opts __free(kfree) = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 

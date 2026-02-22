@@ -111,7 +111,7 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	static u32 next;
 	int err;
 
-	rel = kzalloc_obj(*rel, GFP_KERNEL);
+	rel = kzalloc_obj(*rel);
 	if (!rel)
 		return ERR_PTR(-ENOMEM);
 

@@ -1273,7 +1273,7 @@ static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
 	    !of_find_matching_node(NULL, pdrv->driver.of_match_table))
 		return;
 
-	sh_pfc_regs = kzalloc_objs(*sh_pfc_regs, SH_PFC_MAX_REGS, GFP_KERNEL);
+	sh_pfc_regs = kzalloc_objs(*sh_pfc_regs, SH_PFC_MAX_REGS);
 	if (!sh_pfc_regs)
 		return;
 

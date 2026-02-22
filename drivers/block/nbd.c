@@ -1274,7 +1274,7 @@ static int nbd_add_socket(struct nbd_device *nbd, unsigned long arg,
 		goto put_socket;
 	}
 
-	nsock = kzalloc_obj(*nsock, GFP_KERNEL);
+	nsock = kzalloc_obj(*nsock);
 	if (!nsock) {
 		err = -ENOMEM;
 		goto put_socket;
@@ -1322,7 +1322,7 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 	if (!sock)
 		return err;
 
-	args = kzalloc_obj(*args, GFP_KERNEL);
+	args = kzalloc_obj(*args);
 	if (!args) {
 		sockfd_put(sock);
 		return -ENOMEM;
@@ -1510,7 +1510,7 @@ retry:
 	for (i = 0; i < num_connections; i++) {
 		struct recv_thread_args *args;
 
-		args = kzalloc_obj(*args, GFP_KERNEL);
+		args = kzalloc_obj(*args);
 		if (!args) {
 			sock_shutdown(nbd);
 			/*
@@ -1916,7 +1916,7 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 	struct gendisk *disk;
 	int err = -ENOMEM;
 
-	nbd = kzalloc_obj(struct nbd_device, GFP_KERNEL);
+	nbd = kzalloc_obj(struct nbd_device);
 	if (!nbd)
 		goto out;
 

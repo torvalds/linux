@@ -448,7 +448,7 @@ int amdgpu_irq_add_id(struct amdgpu_device *adev,
 	if (source->num_types && !source->enabled_types) {
 		atomic_t *types;
 
-		types = kzalloc_objs(atomic_t, source->num_types, GFP_KERNEL);
+		types = kzalloc_objs(atomic_t, source->num_types);
 		if (!types)
 			return -ENOMEM;
 

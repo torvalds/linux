@@ -224,13 +224,13 @@ static inline struct eth_hash_t *alloc_hash_table(u16 size)
 	struct eth_hash_t *hash;
 
 	/* Allocate address hash table */
-	hash = kmalloc_obj(*hash, GFP_KERNEL);
+	hash = kmalloc_obj(*hash);
 	if (!hash)
 		return NULL;
 
 	hash->size = size;
 
-	hash->lsts = kmalloc_objs(struct list_head, hash->size, GFP_KERNEL);
+	hash->lsts = kmalloc_objs(struct list_head, hash->size);
 	if (!hash->lsts) {
 		kfree(hash);
 		return NULL;

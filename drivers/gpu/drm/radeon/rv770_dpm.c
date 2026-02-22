@@ -2301,7 +2301,7 @@ int rv7xx_parse_power_table(struct radeon_device *rdev)
 			  power_info->pplib.ucNonClockSize));
 		if (power_info->pplib.ucStateEntrySize - 1) {
 			u8 *idx;
-			ps = kzalloc_obj(struct rv7xx_ps, GFP_KERNEL);
+			ps = kzalloc_obj(struct rv7xx_ps);
 			if (ps == NULL) {
 				kfree(rdev->pm.dpm.ps);
 				return -ENOMEM;
@@ -2348,7 +2348,7 @@ int rv770_dpm_init(struct radeon_device *rdev)
 	struct atom_clock_dividers dividers;
 	int ret;
 
-	pi = kzalloc_obj(struct rv7xx_power_info, GFP_KERNEL);
+	pi = kzalloc_obj(struct rv7xx_power_info);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;

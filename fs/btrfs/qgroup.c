@@ -495,7 +495,7 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 			struct btrfs_qgroup *prealloc;
 			struct btrfs_root *tree_root = fs_info->tree_root;
 
-			prealloc = kzalloc_obj(*prealloc, GFP_KERNEL);
+			prealloc = kzalloc_obj(*prealloc);
 			if (!prealloc) {
 				ret = -ENOMEM;
 				goto out;
@@ -585,7 +585,7 @@ next1:
 			goto next2;
 		}
 
-		list = kzalloc_obj(*list, GFP_KERNEL);
+		list = kzalloc_obj(*list);
 		if (!list) {
 			ret = -ENOMEM;
 			goto out;

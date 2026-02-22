@@ -1107,7 +1107,7 @@ static int lowpan_enable_set(void *data, u64 val)
 {
 	struct set_enable *set_enable;
 
-	set_enable = kzalloc_obj(*set_enable, GFP_KERNEL);
+	set_enable = kzalloc_obj(*set_enable);
 	if (!set_enable)
 		return -ENOMEM;
 

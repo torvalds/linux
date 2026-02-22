@@ -764,7 +764,7 @@ static int amd_set_sdw_stream(struct snd_soc_dai *dai, void *stream, int directi
 		}
 
 		/* allocate and set dai_runtime info */
-		dai_runtime = kzalloc_obj(*dai_runtime, GFP_KERNEL);
+		dai_runtime = kzalloc_obj(*dai_runtime);
 		if (!dai_runtime)
 			return -ENOMEM;
 

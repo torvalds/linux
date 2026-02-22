@@ -205,7 +205,7 @@ static int amdxdna_hmm_register(struct amdxdna_gem_obj *abo,
 	if (!xdna->dev_info->ops->hmm_invalidate)
 		return 0;
 
-	mapp = kzalloc_obj(*mapp, GFP_KERNEL);
+	mapp = kzalloc_obj(*mapp);
 	if (!mapp)
 		return -ENOMEM;
 
@@ -499,7 +499,7 @@ amdxdna_gem_create_obj(struct drm_device *dev, size_t size)
 {
 	struct amdxdna_gem_obj *abo;
 
-	abo = kzalloc_obj(*abo, GFP_KERNEL);
+	abo = kzalloc_obj(*abo);
 	if (!abo)
 		return ERR_PTR(-ENOMEM);
 

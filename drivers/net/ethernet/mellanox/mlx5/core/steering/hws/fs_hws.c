@@ -1239,7 +1239,7 @@ mlx5_fs_get_pr_encap_pool(struct mlx5_core_dev *dev, struct xarray *pr_pools,
 	if (pr_pool)
 		return pr_pool;
 
-	pr_pool = kzalloc_obj(*pr_pool, GFP_KERNEL);
+	pr_pool = kzalloc_obj(*pr_pool);
 	if (!pr_pool)
 		return ERR_PTR(-ENOMEM);
 	err = mlx5_fs_hws_pr_pool_init(pr_pool, dev, size, reformat_type);
@@ -1430,7 +1430,7 @@ mlx5_fs_create_mh_pool(struct mlx5_core_dev *dev,
 	struct mlx5_fs_pool *pool;
 	int err;
 
-	pool = kzalloc_obj(*pool, GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 	err = mlx5_fs_hws_mh_pool_init(pool, dev, pattern);

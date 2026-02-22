@@ -233,7 +233,7 @@ static void atif_drop_device(struct net_device *dev)
 static struct atalk_iface *atif_add_device(struct net_device *dev,
 					   struct atalk_addr *sa)
 {
-	struct atalk_iface *iface = kzalloc_obj(*iface, GFP_KERNEL);
+	struct atalk_iface *iface = kzalloc_obj(*iface);
 
 	if (!iface)
 		goto out;

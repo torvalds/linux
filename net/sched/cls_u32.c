@@ -375,7 +375,7 @@ static int u32_init(struct tcf_proto *tp)
 	idr_init(&root_ht->handle_idr);
 
 	if (tp_c == NULL) {
-		tp_c = kzalloc_obj(*tp_c, GFP_KERNEL);
+		tp_c = kzalloc_obj(*tp_c);
 		if (tp_c == NULL) {
 			kfree(root_ht);
 			return -ENOBUFS;

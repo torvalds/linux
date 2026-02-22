@@ -255,7 +255,7 @@ static int grow_tree_refs(struct audit_context *ctx)
 {
 	struct audit_tree_refs *p = ctx->trees;
 
-	ctx->trees = kzalloc_obj(struct audit_tree_refs, GFP_KERNEL);
+	ctx->trees = kzalloc_obj(struct audit_tree_refs);
 	if (!ctx->trees) {
 		ctx->trees = p;
 		return 0;
@@ -1032,7 +1032,7 @@ static inline struct audit_context *audit_alloc_context(enum audit_state state)
 {
 	struct audit_context *context;
 
-	context = kzalloc_obj(*context, GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return NULL;
 	context->context = AUDIT_CTX_UNUSED;
@@ -2650,7 +2650,7 @@ int __audit_sockaddr(int len, void *a)
 	struct audit_context *context = audit_context();
 
 	if (!context->sockaddr) {
-		void *p = kmalloc_obj(struct sockaddr_storage, GFP_KERNEL);
+		void *p = kmalloc_obj(struct sockaddr_storage);
 
 		if (!p)
 			return -ENOMEM;
@@ -2743,7 +2743,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	struct audit_context *context = audit_context();
 	struct cpu_vfs_cap_data vcaps;
 
-	ax = kmalloc_obj(*ax, GFP_KERNEL);
+	ax = kmalloc_obj(*ax);
 	if (!ax)
 		return -ENOMEM;
 

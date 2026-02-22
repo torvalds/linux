@@ -918,7 +918,7 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 	unsigned int reserve_pages;
 	struct dm_kcopyd_client *kc;
 
-	kc = kzalloc_obj(*kc, GFP_KERNEL);
+	kc = kzalloc_obj(*kc);
 	if (!kc)
 		return ERR_PTR(-ENOMEM);
 

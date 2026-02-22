@@ -382,7 +382,7 @@ static int ip_vs_mh_init_svc(struct ip_vs_service *svc)
 	struct ip_vs_mh_state *s;
 
 	/* Allocate the MH table for this service */
-	s = kzalloc_obj(*s, GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 

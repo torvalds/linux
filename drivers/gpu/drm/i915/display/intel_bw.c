@@ -1470,7 +1470,7 @@ int intel_bw_init(struct intel_display *display)
 {
 	struct intel_bw_state *state;
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

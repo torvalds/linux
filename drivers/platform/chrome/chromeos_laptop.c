@@ -880,7 +880,7 @@ chromeos_laptop_prepare(const struct chromeos_laptop *src)
 	struct chromeos_laptop *cros_laptop;
 	int error;
 
-	cros_laptop = kzalloc_obj(*cros_laptop, GFP_KERNEL);
+	cros_laptop = kzalloc_obj(*cros_laptop);
 	if (!cros_laptop)
 		return ERR_PTR(-ENOMEM);
 

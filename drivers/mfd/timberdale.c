@@ -649,7 +649,7 @@ static int timb_probe(struct pci_dev *dev,
 	struct msix_entry *msix_entries = NULL;
 	u8 ip_setup;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

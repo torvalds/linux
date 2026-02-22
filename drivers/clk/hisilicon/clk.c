@@ -68,12 +68,12 @@ struct hisi_clock_data *hisi_clk_init(struct device_node *np,
 		goto err;
 	}
 
-	clk_data = kzalloc_obj(*clk_data, GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data)
 		goto err;
 
 	clk_data->base = base;
-	clk_table = kzalloc_objs(*clk_table, nr_clks, GFP_KERNEL);
+	clk_table = kzalloc_objs(*clk_table, nr_clks);
 	if (!clk_table)
 		goto err_data;
 

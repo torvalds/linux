@@ -971,7 +971,7 @@ static int __init setup_css(int nr)
 	struct channel_subsystem *css;
 	int ret;
 
-	css = kzalloc_obj(*css, GFP_KERNEL);
+	css = kzalloc_obj(*css);
 	if (!css)
 		return -ENOMEM;
 

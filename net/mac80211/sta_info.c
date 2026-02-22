@@ -903,7 +903,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		goto out_cleanup;
 	}
 
-	sinfo = kzalloc_obj(struct station_info, GFP_KERNEL);
+	sinfo = kzalloc_obj(struct station_info);
 	if (!sinfo) {
 		err = -ENOMEM;
 		goto out_cleanup;
@@ -1545,7 +1545,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 		}
 	}
 
-	sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (sinfo)
 		sta_set_sinfo(sta, sinfo, true);
 
@@ -3306,7 +3306,7 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 		    sta->link[link_id]))
 		return -EBUSY;
 
-	alloc = kzalloc_obj(*alloc, GFP_KERNEL);
+	alloc = kzalloc_obj(*alloc);
 	if (!alloc)
 		return -ENOMEM;
 

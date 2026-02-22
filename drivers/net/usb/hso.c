@@ -2313,7 +2313,7 @@ static struct hso_device *hso_create_device(struct usb_interface *intf,
 {
 	struct hso_device *hso_dev;
 
-	hso_dev = kzalloc_obj(*hso_dev, GFP_KERNEL);
+	hso_dev = kzalloc_obj(*hso_dev);
 	if (!hso_dev)
 		return NULL;
 
@@ -2617,7 +2617,7 @@ static struct hso_device *hso_create_bulk_serial_device(
 	if (!hso_dev)
 		return NULL;
 
-	serial = kzalloc_obj(*serial, GFP_KERNEL);
+	serial = kzalloc_obj(*serial);
 	if (!serial)
 		goto exit;
 
@@ -2626,7 +2626,7 @@ static struct hso_device *hso_create_bulk_serial_device(
 
 	if ((port & HSO_PORT_MASK) == HSO_PORT_MODEM) {
 		num_urbs = 2;
-		serial->tiocmget = kzalloc_obj(struct hso_tiocmget, GFP_KERNEL);
+		serial->tiocmget = kzalloc_obj(struct hso_tiocmget);
 		if (!serial->tiocmget)
 			goto exit;
 		serial->tiocmget->serial_state_notification
@@ -2710,7 +2710,7 @@ struct hso_device *hso_create_mux_serial_device(struct usb_interface *interface,
 	if (!hso_dev)
 		return NULL;
 
-	serial = kzalloc_obj(*serial, GFP_KERNEL);
+	serial = kzalloc_obj(*serial);
 	if (!serial)
 		goto err_free_dev;
 
@@ -2754,7 +2754,7 @@ static void hso_free_shared_int(struct hso_shared_int *mux)
 static
 struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 {
-	struct hso_shared_int *mux = kzalloc_obj(*mux, GFP_KERNEL);
+	struct hso_shared_int *mux = kzalloc_obj(*mux);
 
 	if (!mux)
 		return NULL;

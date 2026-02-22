@@ -1571,7 +1571,7 @@ static int m66592_probe(struct platform_device *pdev)
 	}
 
 	/* initialize ucd */
-	m66592 = kzalloc_obj(struct m66592, GFP_KERNEL);
+	m66592 = kzalloc_obj(struct m66592);
 	if (m66592 == NULL) {
 		ret = -ENOMEM;
 		goto clean_up;

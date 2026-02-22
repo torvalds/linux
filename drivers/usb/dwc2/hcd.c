@@ -5218,7 +5218,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	memset(&hsotg->hc_ptr_array[0], 0, sizeof(hsotg->hc_ptr_array));
 
 	for (i = 0; i < num_channels; i++) {
-		channel = kzalloc_obj(*channel, GFP_KERNEL);
+		channel = kzalloc_obj(*channel);
 		if (!channel)
 			goto error3;
 		channel->hc_num = i;

@@ -693,7 +693,7 @@ tegra241_vintf_alloc_lvcmdq(struct tegra241_vintf *vintf, u16 lidx)
 	char header[64];
 	int ret;
 
-	vcmdq = kzalloc_obj(*vcmdq, GFP_KERNEL);
+	vcmdq = kzalloc_obj(*vcmdq);
 	if (!vcmdq)
 		return ERR_PTR(-ENOMEM);
 
@@ -818,7 +818,7 @@ static void *tegra241_cmdqv_hw_info(struct arm_smmu_device *smmu, u32 *length,
 	if (*type != IOMMU_HW_INFO_TYPE_TEGRA241_CMDQV)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -860,7 +860,7 @@ static int tegra241_cmdqv_init_structures(struct arm_smmu_device *smmu)
 	int lidx;
 	int ret;
 
-	vintf = kzalloc_obj(*vintf, GFP_KERNEL);
+	vintf = kzalloc_obj(*vintf);
 	if (!vintf)
 		return -ENOMEM;
 
@@ -947,7 +947,7 @@ __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,
 		1 << FIELD_GET(CMDQV_NUM_SID_PER_VM_LOG2, regval);
 
 	cmdqv->vintfs =
-		kzalloc_objs(*cmdqv->vintfs, cmdqv->num_vintfs, GFP_KERNEL);
+		kzalloc_objs(*cmdqv->vintfs, cmdqv->num_vintfs);
 	if (!cmdqv->vintfs)
 		goto free_irq;
 

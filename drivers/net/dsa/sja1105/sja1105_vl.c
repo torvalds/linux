@@ -16,7 +16,7 @@ static int sja1105_insert_gate_entry(struct sja1105_gating_config *gating_cfg,
 	struct sja1105_gate_entry *e;
 	int rc;
 
-	e = kzalloc_obj(*e, GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return -ENOMEM;
 
@@ -524,7 +524,7 @@ int sja1105_vl_redirect(struct sja1105_private *priv, int port,
 	}
 
 	if (!rule) {
-		rule = kzalloc_obj(*rule, GFP_KERNEL);
+		rule = kzalloc_obj(*rule);
 		if (!rule)
 			return -ENOMEM;
 
@@ -622,7 +622,7 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 	}
 
 	if (!rule) {
-		rule = kzalloc_obj(*rule, GFP_KERNEL);
+		rule = kzalloc_obj(*rule);
 		if (!rule)
 			return -ENOMEM;
 

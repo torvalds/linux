@@ -307,7 +307,7 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	if (!ff)
 		return -ENOMEM;
 
-	ff->effects = kzalloc_objs(*ff->effects, max_effects, GFP_KERNEL);
+	ff->effects = kzalloc_objs(*ff->effects, max_effects);
 	if (!ff->effects)
 		return -ENOMEM;
 

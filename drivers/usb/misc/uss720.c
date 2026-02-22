@@ -701,7 +701,7 @@ static int uss720_probe(struct usb_interface *intf,
 	/*
 	 * Allocate parport interface 
 	 */
-	priv = kzalloc_obj(struct parport_uss720_private, GFP_KERNEL);
+	priv = kzalloc_obj(struct parport_uss720_private);
 	if (!priv) {
 		usb_put_dev(usbdev);
 		return -ENOMEM;

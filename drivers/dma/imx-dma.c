@@ -746,7 +746,7 @@ static int imxdma_alloc_chan_resources(struct dma_chan *chan)
 	while (imxdmac->descs_allocated < IMXDMA_MAX_CHAN_DESCRIPTORS) {
 		struct imxdma_desc *desc;
 
-		desc = kzalloc_obj(*desc, GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 		dma_async_tx_descriptor_init(&desc->desc, chan);

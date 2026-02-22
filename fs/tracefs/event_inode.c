@@ -439,7 +439,7 @@ static inline struct eventfs_inode *init_ei(struct eventfs_inode *ei, const char
 
 static inline struct eventfs_inode *alloc_ei(const char *name)
 {
-	struct eventfs_inode *ei = kzalloc_obj(*ei, GFP_KERNEL);
+	struct eventfs_inode *ei = kzalloc_obj(*ei);
 	struct eventfs_inode *result;
 
 	if (!ei)
@@ -454,7 +454,7 @@ static inline struct eventfs_inode *alloc_ei(const char *name)
 
 static inline struct eventfs_inode *alloc_root_ei(const char *name)
 {
-	struct eventfs_root_inode *rei = kzalloc_obj(*rei, GFP_KERNEL);
+	struct eventfs_root_inode *rei = kzalloc_obj(*rei);
 	struct eventfs_inode *ei;
 
 	if (!rei)

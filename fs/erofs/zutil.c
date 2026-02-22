@@ -79,7 +79,7 @@ int z_erofs_gbuf_growsize(unsigned int nrpages)
 
 	for (i = 0; i < z_erofs_gbuf_count; ++i) {
 		gbuf = &z_erofs_gbufpool[i];
-		tmp_pages = kzalloc_objs(*tmp_pages, nrpages, GFP_KERNEL);
+		tmp_pages = kzalloc_objs(*tmp_pages, nrpages);
 		if (!tmp_pages)
 			goto out;
 
@@ -131,7 +131,7 @@ int __init z_erofs_gbuf_init(void)
 	/* The last (special) global buffer is the reserved buffer */
 	total += !!z_erofs_rsv_nrpages;
 
-	z_erofs_gbufpool = kzalloc_objs(*z_erofs_gbufpool, total, GFP_KERNEL);
+	z_erofs_gbufpool = kzalloc_objs(*z_erofs_gbufpool, total);
 	if (!z_erofs_gbufpool)
 		return -ENOMEM;
 

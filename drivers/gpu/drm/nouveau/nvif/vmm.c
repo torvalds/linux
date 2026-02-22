@@ -234,7 +234,7 @@ nvif_vmm_ctor(struct nvif_mmu *mmu, const char *name, s32 oclass,
 	vmm->limit = args->size;
 
 	vmm->page_nr = args->page_nr;
-	vmm->page = kmalloc_objs(*vmm->page, vmm->page_nr, GFP_KERNEL);
+	vmm->page = kmalloc_objs(*vmm->page, vmm->page_nr);
 	if (!vmm->page) {
 		ret = -ENOMEM;
 		goto done;

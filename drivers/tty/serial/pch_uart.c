@@ -1651,7 +1651,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
 
-	priv = kzalloc_obj(struct eg20t_port, GFP_KERNEL);
+	priv = kzalloc_obj(struct eg20t_port);
 	if (priv == NULL)
 		goto init_port_alloc_err;
 

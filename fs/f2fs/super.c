@@ -3725,7 +3725,7 @@ static struct block_device **f2fs_get_devices(struct super_block *sb,
 	if (!f2fs_is_multi_device(sbi))
 		return NULL;
 
-	devs = kmalloc_objs(*devs, sbi->s_ndevs, GFP_KERNEL);
+	devs = kmalloc_objs(*devs, sbi->s_ndevs);
 	if (!devs)
 		return ERR_PTR(-ENOMEM);
 
@@ -4501,7 +4501,7 @@ static int read_raw_super_block(struct f2fs_sb_info *sbi,
 	struct f2fs_super_block *super;
 	int err = 0;
 
-	super = kzalloc_obj(struct f2fs_super_block, GFP_KERNEL);
+	super = kzalloc_obj(struct f2fs_super_block);
 	if (!super)
 		return -ENOMEM;
 
@@ -4938,7 +4938,7 @@ try_onemore:
 	recovery = 0;
 
 	/* allocate memory for f2fs-specific super block info */
-	sbi = kzalloc_obj(struct f2fs_sb_info, GFP_KERNEL);
+	sbi = kzalloc_obj(struct f2fs_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -5509,7 +5509,7 @@ static int f2fs_init_fs_context(struct fs_context *fc)
 {
 	struct f2fs_fs_context *ctx;
 
-	ctx = kzalloc_obj(struct f2fs_fs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct f2fs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

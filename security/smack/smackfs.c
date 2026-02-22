@@ -1249,7 +1249,7 @@ static ssize_t smk_write_net4addr(struct file *file, const char __user *buf,
 	smk_netlabel_audit_set(&audit_info);
 
 	if (found == 0) {
-		snp = kzalloc_obj(*snp, GFP_KERNEL);
+		snp = kzalloc_obj(*snp);
 		if (snp == NULL)
 			rc = -ENOMEM;
 		else {
@@ -1526,7 +1526,7 @@ static ssize_t smk_write_net6addr(struct file *file, const char __user *buf,
 			break;
 	}
 	if (found == 0) {
-		snp = kzalloc_obj(*snp, GFP_KERNEL);
+		snp = kzalloc_obj(*snp);
 		if (snp == NULL)
 			rc = -ENOMEM;
 		else {
@@ -1970,7 +1970,7 @@ static int smk_parse_label_list(char *data, struct list_head *list)
 		if (IS_ERR(skp))
 			return PTR_ERR(skp);
 
-		sklep = kzalloc_obj(*sklep, GFP_KERNEL);
+		sklep = kzalloc_obj(*sklep);
 		if (sklep == NULL)
 			return -ENOMEM;
 

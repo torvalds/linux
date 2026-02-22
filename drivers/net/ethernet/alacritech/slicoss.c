@@ -845,7 +845,7 @@ static int slic_init_tx_queue(struct slic_device *sdev)
 	txq->put_idx = 0;
 	txq->done_idx = 0;
 
-	txq->txbuffs = kzalloc_objs(*buff, txq->len, GFP_KERNEL);
+	txq->txbuffs = kzalloc_objs(*buff, txq->len);
 	if (!txq->txbuffs)
 		return -ENOMEM;
 
@@ -922,7 +922,7 @@ static int slic_init_rx_queue(struct slic_device *sdev)
 	rxq->done_idx = 0;
 	rxq->put_idx = 0;
 
-	buff = kzalloc_objs(*buff, rxq->len, GFP_KERNEL);
+	buff = kzalloc_objs(*buff, rxq->len);
 	if (!buff)
 		return -ENOMEM;
 

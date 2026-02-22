@@ -74,7 +74,7 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 		return ERR_PTR(-ENODEV);
 	}
 
-	i2c_dev = kzalloc_obj(*i2c_dev, GFP_KERNEL);
+	i2c_dev = kzalloc_obj(*i2c_dev);
 	if (!i2c_dev)
 		return ERR_PTR(-ENOMEM);
 	i2c_dev->adap = adap;
@@ -612,7 +612,7 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	 * or I2C core code!!  It just holds private copies of addressing
 	 * information and maybe a PEC flag.
 	 */
-	client = kzalloc_obj(*client, GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client) {
 		i2c_put_adapter(adap);
 		return -ENOMEM;

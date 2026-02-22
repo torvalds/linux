@@ -52,7 +52,7 @@ static struct mlx5_macsec_device *get_macsec_device(void *macdev,
 	if (macsec_device)
 		return macsec_device;
 
-	macsec_device = kzalloc_obj(*macsec_device, GFP_KERNEL);
+	macsec_device = kzalloc_obj(*macsec_device);
 	if (!macsec_device)
 		return NULL;
 
@@ -82,7 +82,7 @@ static void mlx5_macsec_save_roce_gid(struct mlx5_macsec_device *macsec_device,
 {
 	struct mlx5_roce_gids *roce_gids;
 
-	roce_gids = kzalloc_obj(*roce_gids, GFP_KERNEL);
+	roce_gids = kzalloc_obj(*roce_gids);
 	if (!roce_gids)
 		return;
 

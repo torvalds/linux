@@ -351,7 +351,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 	vpn_start = (addr & PAGE_MASK) >> PAGE_SHIFT;
 	vpn_last = vpn_start + npages - 1;
 
-	uiomr = kmalloc_obj(*uiomr, GFP_KERNEL);
+	uiomr = kmalloc_obj(*uiomr);
 	if (!uiomr)
 		return ERR_PTR(-ENOMEM);
 
@@ -439,7 +439,7 @@ struct usnic_uiom_pd *usnic_uiom_alloc_pd(struct device *dev)
 	struct usnic_uiom_pd *pd;
 	void *domain;
 
-	pd = kzalloc_obj(*pd, GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 

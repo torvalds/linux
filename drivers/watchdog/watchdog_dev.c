@@ -1019,7 +1019,7 @@ static int watchdog_cdev_register(struct watchdog_device *wdd)
 	struct watchdog_core_data *wd_data;
 	int err;
 
-	wd_data = kzalloc_obj(struct watchdog_core_data, GFP_KERNEL);
+	wd_data = kzalloc_obj(struct watchdog_core_data);
 	if (!wd_data)
 		return -ENOMEM;
 	mutex_init(&wd_data->lock);

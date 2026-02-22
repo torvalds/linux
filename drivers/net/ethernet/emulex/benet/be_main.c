@@ -4207,7 +4207,7 @@ static int be_vf_setup_init(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	int vf;
 
-	adapter->vf_cfg = kzalloc_objs(*vf_cfg, adapter->num_vfs, GFP_KERNEL);
+	adapter->vf_cfg = kzalloc_objs(*vf_cfg, adapter->num_vfs);
 	if (!adapter->vf_cfg)
 		return -ENOMEM;
 

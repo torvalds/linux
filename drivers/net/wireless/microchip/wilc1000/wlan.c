@@ -1209,7 +1209,7 @@ static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 
 	offset += size;
 	wilc->rx_buffer_offset = offset;
-	rqe = kmalloc_obj(*rqe, GFP_KERNEL);
+	rqe = kmalloc_obj(*rqe);
 	if (!rqe)
 		return;
 

@@ -1549,7 +1549,7 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 		goto err_dma_release_rx;
 	}
 	for (i = 0; i < TX_BD_NUM_MAX; i++) {
-		skbuf_dma = kzalloc_obj(*skbuf_dma, GFP_KERNEL);
+		skbuf_dma = kzalloc_obj(*skbuf_dma);
 		if (!skbuf_dma) {
 			ret = -ENOMEM;
 			goto err_free_tx_skb_ring;
@@ -1564,7 +1564,7 @@ static int axienet_init_dmaengine(struct net_device *ndev)
 		goto err_free_tx_skb_ring;
 	}
 	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++) {
-		skbuf_dma = kzalloc_obj(*skbuf_dma, GFP_KERNEL);
+		skbuf_dma = kzalloc_obj(*skbuf_dma);
 		if (!skbuf_dma) {
 			ret = -ENOMEM;
 			goto err_free_rx_skb_ring;

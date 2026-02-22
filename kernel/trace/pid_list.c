@@ -423,7 +423,7 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 	/* According to linux/thread.h, pids can be no bigger that 30 bits */
 	WARN_ON_ONCE(init_pid_ns.pid_max > (1 << 30));
 
-	pid_list = kzalloc_obj(*pid_list, GFP_KERNEL);
+	pid_list = kzalloc_obj(*pid_list);
 	if (!pid_list)
 		return NULL;
 
@@ -435,7 +435,7 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 	for (i = 0; i < CHUNK_ALLOC; i++) {
 		union upper_chunk *chunk;
 
-		chunk = kzalloc_obj(*chunk, GFP_KERNEL);
+		chunk = kzalloc_obj(*chunk);
 		if (!chunk)
 			break;
 		chunk->next = pid_list->upper_list;
@@ -446,7 +446,7 @@ struct trace_pid_list *trace_pid_list_alloc(void)
 	for (i = 0; i < CHUNK_ALLOC; i++) {
 		union lower_chunk *chunk;
 
-		chunk = kzalloc_obj(*chunk, GFP_KERNEL);
+		chunk = kzalloc_obj(*chunk);
 		if (!chunk)
 			break;
 		chunk->next = pid_list->lower_list;

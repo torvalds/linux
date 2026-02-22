@@ -5050,7 +5050,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	int wait_type, local_unlock_result, local_cancel_result;
 	int dir_nodeid;
 
-	ms_local = kmalloc_obj(*ms_local, GFP_KERNEL);
+	ms_local = kmalloc_obj(*ms_local);
 	if (!ms_local)
 		return;
 

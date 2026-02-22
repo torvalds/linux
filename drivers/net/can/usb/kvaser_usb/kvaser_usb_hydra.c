@@ -580,7 +580,7 @@ static int kvaser_usb_hydra_send_simple_cmd(struct kvaser_usb *dev,
 	size_t cmd_len;
 	int err;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -742,7 +742,7 @@ static int kvaser_usb_hydra_map_channel(struct kvaser_usb *dev, u16 transid,
 	struct kvaser_cmd *cmd;
 	int err;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -784,7 +784,7 @@ static int kvaser_usb_hydra_get_single_capability(struct kvaser_usb *dev,
 	int err;
 	int i;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1610,7 +1610,7 @@ static int kvaser_usb_hydra_get_busparams(struct kvaser_usb_net_priv *priv,
 	if (!hydra)
 		return -EINVAL;
 
-	cmd = kzalloc_objs(struct kvaser_cmd, 1, GFP_KERNEL);
+	cmd = kzalloc_objs(struct kvaser_cmd, 1);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1655,7 +1655,7 @@ static int kvaser_usb_hydra_set_bittiming(const struct net_device *netdev,
 	size_t cmd_len;
 	int err;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1685,7 +1685,7 @@ static int kvaser_usb_hydra_set_data_bittiming(const struct net_device *netdev,
 	size_t cmd_len;
 	int err;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1842,7 +1842,7 @@ static int kvaser_usb_hydra_get_software_details(struct kvaser_usb *dev)
 	u32 fw_version;
 	struct kvaser_usb_dev_card_data *card_data = &dev->card_data;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -1985,7 +1985,7 @@ static int kvaser_usb_hydra_set_led(struct kvaser_usb_net_priv *priv,
 	size_t cmd_len;
 	int ret;
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -2021,7 +2021,7 @@ static int kvaser_usb_hydra_set_opt_mode(const struct kvaser_usb_net_priv *priv)
 		return -EINVAL;
 	}
 
-	cmd = kzalloc_obj(*cmd, GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

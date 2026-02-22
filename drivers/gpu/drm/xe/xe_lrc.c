@@ -1616,7 +1616,7 @@ struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
 	struct xe_lrc *lrc;
 	int err;
 
-	lrc = kzalloc_obj(*lrc, GFP_KERNEL);
+	lrc = kzalloc_obj(*lrc);
 	if (!lrc)
 		return ERR_PTR(-ENOMEM);
 

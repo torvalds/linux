@@ -184,7 +184,7 @@ int ttm_range_man_init_nocheck(struct ttm_device *bdev,
 	struct ttm_resource_manager *man;
 	struct ttm_range_manager *rman;
 
-	rman = kzalloc_obj(*rman, GFP_KERNEL);
+	rman = kzalloc_obj(*rman);
 	if (!rman)
 		return -ENOMEM;
 

@@ -2926,7 +2926,7 @@ int ppp_register_net_channel(struct net *net, struct ppp_channel *chan)
 	struct channel *pch;
 	struct ppp_net *pn;
 
-	pch = kzalloc_obj(struct channel, GFP_KERNEL);
+	pch = kzalloc_obj(struct channel);
 	if (!pch)
 		return -ENOMEM;
 

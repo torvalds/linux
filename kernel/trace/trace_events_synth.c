@@ -711,7 +711,7 @@ static struct synth_field *parse_synth_field(int argc, char **argv,
 
 	*field_version = check_field_version(prefix, field_type, field_name);
 
-	field = kzalloc_obj(*field, GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field)
 		return ERR_PTR(-ENOMEM);
 
@@ -819,7 +819,7 @@ static struct tracepoint *alloc_synth_tracepoint(char *name)
 {
 	struct tracepoint *tp;
 
-	tp = kzalloc_obj(*tp, GFP_KERNEL);
+	tp = kzalloc_obj(*tp);
 	if (!tp)
 		return ERR_PTR(-ENOMEM);
 
@@ -973,7 +973,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 	unsigned int i, j, n_dynamic_fields = 0;
 	struct synth_event *event;
 
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	if (!event) {
 		event = ERR_PTR(-ENOMEM);
 		goto out;
@@ -986,7 +986,7 @@ static struct synth_event *alloc_synth_event(const char *name, int n_fields,
 		goto out;
 	}
 
-	event->fields = kzalloc_objs(*event->fields, n_fields, GFP_KERNEL);
+	event->fields = kzalloc_objs(*event->fields, n_fields);
 	if (!event->fields) {
 		free_synth_event(event);
 		event = ERR_PTR(-ENOMEM);

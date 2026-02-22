@@ -1486,7 +1486,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	/* Simple descriptors partitioning for now */
 	size = 256;
 
-	ring->cbs = kzalloc_objs(struct bcm_sysport_cb, size, GFP_KERNEL);
+	ring->cbs = kzalloc_objs(struct bcm_sysport_cb, size);
 	if (!ring->cbs) {
 		netif_err(priv, hw, priv->netdev, "CB allocation failed\n");
 		return -ENOMEM;

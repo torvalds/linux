@@ -119,7 +119,7 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 		return ERR_PTR(id);
 	}
 
-	group = kmalloc_obj(*group, GFP_KERNEL);
+	group = kmalloc_obj(*group);
 	if (!group) {
 		ida_free(&lag->ida_handle, id);
 		return ERR_PTR(-ENOMEM);

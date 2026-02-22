@@ -89,7 +89,7 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 {
 	struct isst_cmd *sst_cmd;
 
-	sst_cmd = kmalloc_obj(*sst_cmd, GFP_KERNEL);
+	sst_cmd = kmalloc_obj(*sst_cmd);
 	if (!sst_cmd)
 		return -ENOMEM;
 

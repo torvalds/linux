@@ -465,7 +465,7 @@ static int sparx5_alloc_mdb_entry(struct sparx5 *sparx5,
 	u16 pgid_idx;
 	int err;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

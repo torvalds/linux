@@ -127,11 +127,11 @@ static void bnge_free_cp_desc_arr(struct bnge_cp_ring_info *cpr)
 
 static int bnge_alloc_nq_desc_arr(struct bnge_nq_ring_info *nqr, int n)
 {
-	nqr->desc_ring = kzalloc_objs(*nqr->desc_ring, n, GFP_KERNEL);
+	nqr->desc_ring = kzalloc_objs(*nqr->desc_ring, n);
 	if (!nqr->desc_ring)
 		return -ENOMEM;
 
-	nqr->desc_mapping = kzalloc_objs(*nqr->desc_mapping, n, GFP_KERNEL);
+	nqr->desc_mapping = kzalloc_objs(*nqr->desc_mapping, n);
 	if (!nqr->desc_mapping)
 		goto err_free_desc_ring;
 	return 0;
@@ -144,11 +144,11 @@ err_free_desc_ring:
 
 static int bnge_alloc_cp_desc_arr(struct bnge_cp_ring_info *cpr, int n)
 {
-	cpr->desc_ring = kzalloc_objs(*cpr->desc_ring, n, GFP_KERNEL);
+	cpr->desc_ring = kzalloc_objs(*cpr->desc_ring, n);
 	if (!cpr->desc_ring)
 		return -ENOMEM;
 
-	cpr->desc_mapping = kzalloc_objs(*cpr->desc_mapping, n, GFP_KERNEL);
+	cpr->desc_mapping = kzalloc_objs(*cpr->desc_mapping, n);
 	if (!cpr->desc_mapping)
 		goto err_free_desc_ring;
 	return 0;
@@ -287,7 +287,7 @@ static int bnge_alloc_nq_tree(struct bnge_net *bn)
 			tx = 1;
 		}
 
-		nqr->cp_ring_arr = kzalloc_objs(*cpr, cp_count, GFP_KERNEL);
+		nqr->cp_ring_arr = kzalloc_objs(*cpr, cp_count);
 		if (!nqr->cp_ring_arr) {
 			rc = -ENOMEM;
 			goto err_free_nq_tree;
@@ -517,7 +517,7 @@ static int bnge_alloc_tpa_info(struct bnge_net *bn)
 		for (j = 0; j < bn->max_tpa; j++) {
 			struct rx_agg_cmp *agg;
 
-			agg = kzalloc_objs(*agg, MAX_SKB_FRAGS, GFP_KERNEL);
+			agg = kzalloc_objs(*agg, MAX_SKB_FRAGS);
 			if (!agg)
 				goto err_free_tpa_info;
 			rxr->rx_tpa[j].agg_arr = agg;

@@ -462,7 +462,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	ref_table = kzalloc_objs(*ref_table, TABLE_SIZE, GFP_KERNEL);
+	ref_table = kzalloc_objs(*ref_table, TABLE_SIZE);
 	if (!ref_table) {
 		ret = -ENOMEM;
 		goto err_alloc;

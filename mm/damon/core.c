@@ -273,7 +273,7 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 {
 	struct damos_filter *filter;
 
-	filter = kmalloc_obj(*filter, GFP_KERNEL);
+	filter = kmalloc_obj(*filter);
 	if (!filter)
 		return NULL;
 	filter->type = type;
@@ -332,7 +332,7 @@ struct damos_quota_goal *damos_new_quota_goal(
 {
 	struct damos_quota_goal *goal;
 
-	goal = kmalloc_obj(*goal, GFP_KERNEL);
+	goal = kmalloc_obj(*goal);
 	if (!goal)
 		return NULL;
 	goal->metric = metric;
@@ -385,7 +385,7 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 {
 	struct damos *scheme;
 
-	scheme = kmalloc_obj(*scheme, GFP_KERNEL);
+	scheme = kmalloc_obj(*scheme);
 	if (!scheme)
 		return NULL;
 	scheme->pattern = *pattern;
@@ -473,7 +473,7 @@ struct damon_target *damon_new_target(void)
 {
 	struct damon_target *t;
 
-	t = kmalloc_obj(*t, GFP_KERNEL);
+	t = kmalloc_obj(*t);
 	if (!t)
 		return NULL;
 
@@ -529,7 +529,7 @@ struct damon_ctx *damon_new_ctx(void)
 {
 	struct damon_ctx *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 

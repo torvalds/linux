@@ -45,7 +45,7 @@ static struct dma_fence *rocket_fence_create(struct rocket_core *core)
 {
 	struct dma_fence *fence;
 
-	fence = kzalloc_obj(*fence, GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return ERR_PTR(-ENOMEM);
 
@@ -71,7 +71,7 @@ rocket_copy_tasks(struct drm_device *dev,
 	if (!rjob->task_count)
 		return 0;
 
-	rjob->tasks = kvmalloc_objs(*rjob->tasks, job->task_count, GFP_KERNEL);
+	rjob->tasks = kvmalloc_objs(*rjob->tasks, job->task_count);
 	if (!rjob->tasks) {
 		drm_dbg(dev, "Failed to allocate task array\n");
 		return -ENOMEM;
@@ -543,7 +543,7 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	if (job->task_count == 0)
 		return -EINVAL;
 
-	rjob = kzalloc_obj(*rjob, GFP_KERNEL);
+	rjob = kzalloc_obj(*rjob);
 	if (!rjob)
 		return -ENOMEM;
 
@@ -610,7 +610,7 @@ int rocket_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 		return -EINVAL;
 	}
 
-	jobs = kvmalloc_objs(*jobs, args->job_count, GFP_KERNEL);
+	jobs = kvmalloc_objs(*jobs, args->job_count);
 	if (!jobs) {
 		drm_dbg(dev, "Failed to allocate incoming job array\n");
 		return -ENOMEM;

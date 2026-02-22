@@ -227,7 +227,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 		}
 	}
 
-	new_memtier = kzalloc_obj(struct memory_tier, GFP_KERNEL);
+	new_memtier = kzalloc_obj(struct memory_tier);
 	if (!new_memtier)
 		return ERR_PTR(-ENOMEM);
 
@@ -625,7 +625,7 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 {
 	struct memory_dev_type *memtype;
 
-	memtype = kmalloc_obj(*memtype, GFP_KERNEL);
+	memtype = kmalloc_obj(*memtype);
 	if (!memtype)
 		return ERR_PTR(-ENOMEM);
 

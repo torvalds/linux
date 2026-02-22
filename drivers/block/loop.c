@@ -2009,7 +2009,7 @@ static int loop_add(int i)
 	int err;
 
 	err = -ENOMEM;
-	lo = kzalloc_obj(*lo, GFP_KERNEL);
+	lo = kzalloc_obj(*lo);
 	if (!lo)
 		goto out;
 	lo->worker_tree = RB_ROOT;

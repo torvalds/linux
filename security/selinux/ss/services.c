@@ -2312,11 +2312,11 @@ int security_load_policy(void *data, size_t len,
 	int rc = 0;
 	struct policy_file file = { data, len }, *fp = &file;
 
-	newpolicy = kzalloc_obj(*newpolicy, GFP_KERNEL);
+	newpolicy = kzalloc_obj(*newpolicy);
 	if (!newpolicy)
 		return -ENOMEM;
 
-	newpolicy->sidtab = kzalloc_obj(*newpolicy->sidtab, GFP_KERNEL);
+	newpolicy->sidtab = kzalloc_obj(*newpolicy->sidtab);
 	if (!newpolicy->sidtab) {
 		rc = -ENOMEM;
 		goto err_policy;
@@ -2360,7 +2360,7 @@ int security_load_policy(void *data, size_t len,
 	 * in the new SID table.
 	 */
 
-	convert_data = kmalloc_obj(*convert_data, GFP_KERNEL);
+	convert_data = kmalloc_obj(*convert_data);
 	if (!convert_data) {
 		rc = -ENOMEM;
 		goto err_free_isids;

@@ -212,7 +212,7 @@ static struct mthca_mtt *__mthca_alloc_mtt(struct mthca_dev *dev, int size,
 	if (size <= 0)
 		return ERR_PTR(-EINVAL);
 
-	mtt = kmalloc_obj(*mtt, GFP_KERNEL);
+	mtt = kmalloc_obj(*mtt);
 	if (!mtt)
 		return ERR_PTR(-ENOMEM);
 

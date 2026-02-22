@@ -1178,7 +1178,7 @@ static int mgmt_tx(struct wiphy *wiphy,
 	if (!ieee80211_is_mgmt(mgmt->frame_control))
 		goto out;
 
-	mgmt_tx = kmalloc_obj(*mgmt_tx, GFP_KERNEL);
+	mgmt_tx = kmalloc_obj(*mgmt_tx);
 	if (!mgmt_tx) {
 		ret = -ENOMEM;
 		goto out;

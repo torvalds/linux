@@ -452,7 +452,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 	}
 
 	ret = -ENOMEM;
-	area = kzalloc_obj(*area, GFP_KERNEL);
+	area = kzalloc_obj(*area);
 	if (!area)
 		goto err;
 	area->ifq = ifq;
@@ -514,7 +514,7 @@ static struct io_zcrx_ifq *io_zcrx_ifq_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_zcrx_ifq *ifq;
 
-	ifq = kzalloc_obj(*ifq, GFP_KERNEL);
+	ifq = kzalloc_obj(*ifq);
 	if (!ifq)
 		return NULL;
 

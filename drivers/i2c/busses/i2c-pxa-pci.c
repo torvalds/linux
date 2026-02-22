@@ -112,7 +112,7 @@ static int ce4100_i2c_probe(struct pci_dev *dev,
 		dev_err(&dev->dev, "Missing device tree node.\n");
 		return -EINVAL;
 	}
-	sds = kzalloc_obj(*sds, GFP_KERNEL);
+	sds = kzalloc_obj(*sds);
 	if (!sds)
 		return -ENOMEM;
 

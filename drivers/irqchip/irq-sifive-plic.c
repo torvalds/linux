@@ -640,7 +640,7 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	if (error)
 		goto fail_free_regs;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto fail_free_regs;

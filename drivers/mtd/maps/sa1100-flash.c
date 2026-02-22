@@ -222,7 +222,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	} else if (info->num_subdev > 1) {
 		struct mtd_info **cdev;
 
-		cdev = kmalloc_objs(*cdev, nr, GFP_KERNEL);
+		cdev = kmalloc_objs(*cdev, nr);
 		if (!cdev) {
 			ret = -ENOMEM;
 			goto err;

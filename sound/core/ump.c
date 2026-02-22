@@ -166,7 +166,7 @@ int snd_ump_endpoint_new(struct snd_card *card, char *id, int device,
 	if (input && output)
 		info_flags |= SNDRV_RAWMIDI_INFO_DUPLEX;
 
-	ump = kzalloc_obj(*ump, GFP_KERNEL);
+	ump = kzalloc_obj(*ump);
 	if (!ump)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ump->block_list);
@@ -408,7 +408,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 	if (snd_ump_get_block(ump, blk))
 		return -EBUSY;
 
-	fb = kzalloc_obj(*fb, GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb)
 		return -ENOMEM;
 

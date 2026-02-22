@@ -391,7 +391,7 @@ mpt_lan_open(struct net_device *dev)
 				"a moment.\n");
 	}
 
-	priv->mpt_txfidx = kmalloc_objs(int, priv->tx_max_out, GFP_KERNEL);
+	priv->mpt_txfidx = kmalloc_objs(int, priv->tx_max_out);
 	if (priv->mpt_txfidx == NULL)
 		goto out;
 	priv->mpt_txfidx_tail = -1;
@@ -405,7 +405,7 @@ mpt_lan_open(struct net_device *dev)
 
 	dlprintk((KERN_INFO MYNAM "@lo: Finished initializing SendCtl\n"));
 
-	priv->mpt_rxfidx = kmalloc_objs(int, priv->max_buckets_out, GFP_KERNEL);
+	priv->mpt_rxfidx = kmalloc_objs(int, priv->max_buckets_out);
 	if (priv->mpt_rxfidx == NULL)
 		goto out_SendCtl;
 	priv->mpt_rxfidx_tail = -1;

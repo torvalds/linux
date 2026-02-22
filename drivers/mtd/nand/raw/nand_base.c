@@ -1062,7 +1062,7 @@ static int nand_choose_interface_config(struct nand_chip *chip)
 	if (!nand_controller_can_setup_interface(chip))
 		return 0;
 
-	iface = kzalloc_obj(*iface, GFP_KERNEL);
+	iface = kzalloc_obj(*iface);
 	if (!iface)
 		return -ENOMEM;
 

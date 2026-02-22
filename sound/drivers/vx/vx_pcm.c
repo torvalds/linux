@@ -414,7 +414,7 @@ static int vx_alloc_pipe(struct vx_core *chip, int capture,
 		return err;
 
 	/* initialize the pipe record */
-	pipe = kzalloc_obj(*pipe, GFP_KERNEL);
+	pipe = kzalloc_obj(*pipe);
 	if (! pipe) {
 		/* release the pipe */
 		vx_init_rmh(&rmh, CMD_FREE_PIPE);

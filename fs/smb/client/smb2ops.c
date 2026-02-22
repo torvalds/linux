@@ -731,7 +731,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		spin_unlock(&ses->iface_lock);
 
 		/* no match. insert the entry in the list */
-		info = kmalloc_obj(struct cifs_server_iface, GFP_KERNEL);
+		info = kmalloc_obj(struct cifs_server_iface);
 		if (!info) {
 			rc = -ENOMEM;
 			goto out;
@@ -1201,7 +1201,7 @@ replay_again:
 
 	ea = NULL;
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	vars = kzalloc_obj(*vars, GFP_KERNEL);
+	vars = kzalloc_obj(*vars);
 	if (!vars) {
 		rc = -ENOMEM;
 		goto out_free_path;
@@ -2849,7 +2849,7 @@ replay_again:
 		flags |= CIFS_TRANSFORM_REQ;
 
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	vars = kzalloc_obj(*vars, GFP_KERNEL);
+	vars = kzalloc_obj(*vars);
 	if (!vars) {
 		rc = -ENOMEM;
 		goto out_free_path;
@@ -4220,7 +4220,7 @@ smb2_create_lease_buf(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 fla
 {
 	struct create_lease *buf;
 
-	buf = kzalloc_obj(struct create_lease, GFP_KERNEL);
+	buf = kzalloc_obj(struct create_lease);
 	if (!buf)
 		return NULL;
 
@@ -4246,7 +4246,7 @@ smb3_create_lease_buf(u8 *lease_key, u8 oplock, u8 *parent_lease_key, __le32 fla
 {
 	struct create_lease_v2 *buf;
 
-	buf = kzalloc_obj(struct create_lease_v2, GFP_KERNEL);
+	buf = kzalloc_obj(struct create_lease_v2);
 	if (!buf)
 		return NULL;
 
@@ -4930,7 +4930,7 @@ receive_encrypted_read(struct TCP_Server_Info *server, struct mid_q_entry **mid,
 	int rc;
 	struct smb2_decrypt_work *dw;
 
-	dw = kzalloc_obj(struct smb2_decrypt_work, GFP_KERNEL);
+	dw = kzalloc_obj(struct smb2_decrypt_work);
 	if (!dw)
 		return -ENOMEM;
 	INIT_WORK(&dw->decrypt, smb2_decrypt_offload);

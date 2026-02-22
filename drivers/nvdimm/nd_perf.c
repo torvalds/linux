@@ -184,7 +184,7 @@ static int create_cpumask_attr_group(struct nvdimm_pmu *nd_pmu)
 	struct attribute **attrs_group;
 	struct attribute_group *nvdimm_pmu_cpumask_group;
 
-	pmu_events_attr = kzalloc_obj(*pmu_events_attr, GFP_KERNEL);
+	pmu_events_attr = kzalloc_obj(*pmu_events_attr);
 	if (!pmu_events_attr)
 		return -ENOMEM;
 

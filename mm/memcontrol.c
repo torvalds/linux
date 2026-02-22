@@ -192,7 +192,7 @@ static struct obj_cgroup *obj_cgroup_alloc(void)
 	struct obj_cgroup *objcg;
 	int ret;
 
-	objcg = kzalloc_obj(struct obj_cgroup, GFP_KERNEL);
+	objcg = kzalloc_obj(struct obj_cgroup);
 	if (!objcg)
 		return NULL;
 

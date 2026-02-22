@@ -1173,7 +1173,7 @@ static int airoha_ppe_flow_offload_replace(struct airoha_eth *eth,
 			return err;
 	}
 
-	e = kzalloc_obj(*e, GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return -ENOMEM;
 

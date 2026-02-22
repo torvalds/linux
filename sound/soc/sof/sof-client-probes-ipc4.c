@@ -327,7 +327,7 @@ static int ipc4_probes_points_add(struct sof_client_dev *cdev,
 	 * performance issue I wrote the conversion explicitly open for
 	 * future development.
 	 */
-	points = kzalloc_objs(*points, num_desc, GFP_KERNEL);
+	points = kzalloc_objs(*points, num_desc);
 	if (!points)
 		return -ENOMEM;
 

@@ -1234,7 +1234,7 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 	struct pcmdevice_block_data **bk_da;
 	unsigned int config_offset = 0, i;
 
-	cfg_info = kzalloc_obj(struct pcmdevice_config_info, GFP_KERNEL);
+	cfg_info = kzalloc_obj(struct pcmdevice_config_info);
 	if (!cfg_info) {
 		*status = -ENOMEM;
 		goto out;
@@ -1276,7 +1276,7 @@ static struct pcmdevice_config_info *pcmdevice_add_config(void *ctxt,
 				__func__, i, cfg_info->nblocks);
 			break;
 		}
-		bk_da[i] = kzalloc_obj(struct pcmdevice_block_data, GFP_KERNEL);
+		bk_da[i] = kzalloc_obj(struct pcmdevice_block_data);
 		if (!bk_da[i]) {
 			*status = -ENOMEM;
 			break;
@@ -1548,7 +1548,7 @@ static int pcmdev_regbin_ready(const struct firmware *fmw, void *ctxt)
 		ret = -EINVAL;
 		goto out;
 	}
-	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig, GFP_KERNEL);
+	cfg_info = kzalloc_objs(*cfg_info, fw_hdr->nconfig);
 	if (!cfg_info) {
 		pcm_dev->fw_state = PCMDEVICE_FW_LOAD_FAILED;
 		ret = -ENOMEM;

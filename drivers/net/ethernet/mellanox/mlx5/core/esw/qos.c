@@ -38,7 +38,7 @@ static struct mlx5_qos_domain *esw_qos_domain_alloc(void)
 {
 	struct mlx5_qos_domain *qos_domain;
 
-	qos_domain = kzalloc_obj(*qos_domain, GFP_KERNEL);
+	qos_domain = kzalloc_obj(*qos_domain);
 	if (!qos_domain)
 		return NULL;
 
@@ -518,7 +518,7 @@ __esw_qos_alloc_node(struct mlx5_eswitch *esw, u32 tsar_ix, enum sched_node_type
 {
 	struct mlx5_esw_sched_node *node;
 
-	node = kzalloc_obj(*node, GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return NULL;
 

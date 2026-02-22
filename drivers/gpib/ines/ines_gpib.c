@@ -657,7 +657,7 @@ static int ines_allocate_private(struct gpib_board *board)
 {
 	struct ines_priv *priv;
 
-	board->private_data = kzalloc_obj(struct ines_priv, GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct ines_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;
@@ -1061,7 +1061,7 @@ static int ines_gpib_probe(struct pcmcia_device *link)
 //	int ret, i;
 
 	/* Allocate space for private device-specific data */
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

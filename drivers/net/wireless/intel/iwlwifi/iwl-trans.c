@@ -113,7 +113,7 @@ static void iwl_trans_schedule_reprobe(struct iwl_trans *trans,
 		return;
 	}
 
-	reprobe = kzalloc_obj(*reprobe, GFP_KERNEL);
+	reprobe = kzalloc_obj(*reprobe);
 	if (!reprobe) {
 		module_put(THIS_MODULE);
 		return;

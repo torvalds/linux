@@ -1022,7 +1022,7 @@ mpi3mr_alloc_hba_port(struct mpi3mr_ioc *mrioc, u16 port_id)
 {
 	struct mpi3mr_hba_port *hba_port;
 
-	hba_port = kzalloc_obj(struct mpi3mr_hba_port, GFP_KERNEL);
+	hba_port = kzalloc_obj(struct mpi3mr_hba_port);
 	if (!hba_port)
 		return NULL;
 	hba_port->port_id = port_id;
@@ -1343,7 +1343,7 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		return NULL;
 	}
 
-	mr_sas_port = kzalloc_obj(struct mpi3mr_sas_port, GFP_KERNEL);
+	mr_sas_port = kzalloc_obj(struct mpi3mr_sas_port);
 	if (!mr_sas_port)
 		return NULL;
 
@@ -1720,7 +1720,7 @@ mpi3mr_refresh_sas_ports(struct mpi3mr_ioc *mrioc)
 	sas_io_unit_pg0 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_io_unit_pg0)
 		return;
-	h_port = kzalloc_objs(struct host_port, 64, GFP_KERNEL);
+	h_port = kzalloc_objs(struct host_port, 64);
 	if (!h_port)
 		goto out;
 
@@ -2097,7 +2097,7 @@ int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle)
 	if (sas_expander)
 		return 0;
 
-	sas_expander = kzalloc_obj(struct mpi3mr_sas_node, GFP_KERNEL);
+	sas_expander = kzalloc_obj(struct mpi3mr_sas_node);
 	if (!sas_expander)
 		return -ENOMEM;
 

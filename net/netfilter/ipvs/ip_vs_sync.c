@@ -1827,7 +1827,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		struct ipvs_master_sync_state *ms;
 
 		result = -ENOMEM;
-		ipvs->ms = kzalloc_objs(ipvs->ms[0], count, GFP_KERNEL);
+		ipvs->ms = kzalloc_objs(ipvs->ms[0], count);
 		if (!ipvs->ms)
 			goto out;
 		ms = ipvs->ms;
@@ -1841,7 +1841,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		}
 	}
 	result = -ENOMEM;
-	ti = kzalloc_objs(struct ip_vs_sync_thread_data, count, GFP_KERNEL);
+	ti = kzalloc_objs(struct ip_vs_sync_thread_data, count);
 	if (!ti)
 		goto out;
 

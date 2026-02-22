@@ -858,7 +858,7 @@ i3c_master_alloc_i2c_dev(struct i3c_master_controller *master,
 {
 	struct i2c_dev_desc *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -983,7 +983,7 @@ i3c_master_alloc_i3c_dev(struct i3c_master_controller *master,
 {
 	struct i3c_dev_desc *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1742,7 +1742,7 @@ i3c_master_register_new_i3c_devs(struct i3c_master_controller *master)
 		if (desc->dev || !desc->info.dyn_addr || desc == master->this)
 			continue;
 
-		desc->dev = kzalloc_obj(*desc->dev, GFP_KERNEL);
+		desc->dev = kzalloc_obj(*desc->dev);
 		if (!desc->dev)
 			continue;
 
@@ -2848,7 +2848,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 	unsigned int i;
 	int ret;
 
-	pool = kzalloc_obj(*pool, GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
@@ -2856,7 +2856,7 @@ i3c_generic_ibi_alloc_pool(struct i3c_dev_desc *dev,
 	INIT_LIST_HEAD(&pool->free_slots);
 	INIT_LIST_HEAD(&pool->pending);
 
-	pool->slots = kzalloc_objs(*slot, req->num_slots, GFP_KERNEL);
+	pool->slots = kzalloc_objs(*slot, req->num_slots);
 	if (!pool->slots) {
 		ret = -ENOMEM;
 		goto err_free_pool;
@@ -3219,7 +3219,7 @@ int i3c_dev_request_ibi_locked(struct i3c_dev_desc *dev,
 	if (dev->ibi)
 		return -EBUSY;
 
-	ibi = kzalloc_obj(*ibi, GFP_KERNEL);
+	ibi = kzalloc_obj(*ibi);
 	if (!ibi)
 		return -ENOMEM;
 

@@ -344,7 +344,7 @@ void __iomem __ref
 		goto out;
 	}
 
-	map = kzalloc_obj(*map, GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
 		return NULL;
@@ -1197,7 +1197,7 @@ acpi_status acpi_hotplug_schedule(struct acpi_device *adev, u32 src)
 			  "Scheduling hotplug event %u for deferred handling\n",
 			   src);
 
-	hpw = kmalloc_obj(*hpw, GFP_KERNEL);
+	hpw = kmalloc_obj(*hpw);
 	if (!hpw)
 		return AE_NO_MEMORY;
 

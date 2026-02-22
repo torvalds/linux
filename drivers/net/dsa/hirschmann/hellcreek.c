@@ -1265,7 +1265,7 @@ static int hellcreek_devlink_region_vlan_snapshot(struct devlink *dl,
 	struct hellcreek *hellcreek = ds->priv;
 	int i;
 
-	table = kzalloc_objs(*entry, VLAN_N_VID, GFP_KERNEL);
+	table = kzalloc_objs(*entry, VLAN_N_VID);
 	if (!table)
 		return -ENOMEM;
 
@@ -1293,7 +1293,7 @@ static int hellcreek_devlink_region_fdb_snapshot(struct devlink *dl,
 	struct hellcreek *hellcreek = ds->priv;
 	size_t i;
 
-	table = kzalloc_objs(*entry, hellcreek->fdb_entries, GFP_KERNEL);
+	table = kzalloc_objs(*entry, hellcreek->fdb_entries);
 	if (!table)
 		return -ENOMEM;
 

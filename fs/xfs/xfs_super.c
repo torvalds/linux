@@ -2235,7 +2235,7 @@ xfs_init_fs_context(
 	struct xfs_mount	*mp;
 	int			i;
 
-	mp = kzalloc_obj(struct xfs_mount, GFP_KERNEL);
+	mp = kzalloc_obj(struct xfs_mount);
 	if (!mp)
 		return -ENOMEM;
 #ifdef DEBUG

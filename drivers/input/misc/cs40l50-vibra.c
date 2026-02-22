@@ -276,7 +276,7 @@ static void cs40l50_add_worker(struct work_struct *work)
 	/* Update effect if already uploaded, otherwise create new effect */
 	effect = cs40l50_find_effect(work_data->effect->id, &vib->effect_head);
 	if (!effect) {
-		effect = kzalloc_obj(*effect, GFP_KERNEL);
+		effect = kzalloc_obj(*effect);
 		if (!effect) {
 			error = -ENOMEM;
 			goto err_pm;

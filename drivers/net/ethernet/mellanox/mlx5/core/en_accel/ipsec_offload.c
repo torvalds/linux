@@ -522,7 +522,7 @@ int mlx5e_ipsec_aso_init(struct mlx5e_ipsec *ipsec)
 	struct device *pdev;
 	int err;
 
-	aso = kzalloc_obj(*ipsec->aso, GFP_KERNEL);
+	aso = kzalloc_obj(*ipsec->aso);
 	if (!aso)
 		return -ENOMEM;
 

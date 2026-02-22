@@ -2057,7 +2057,7 @@ static int _snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head *
 {
 	struct snd_kctl_ioctl *pn;
 
-	pn = kzalloc_obj(struct snd_kctl_ioctl, GFP_KERNEL);
+	pn = kzalloc_obj(struct snd_kctl_ioctl);
 	if (pn == NULL)
 		return -ENOMEM;
 	pn->fioctl = fcn;

@@ -1829,7 +1829,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 	xprt_init(xprt, net);
 
 	for (i = 0; i < num_prealloc; i++) {
-		req = kzalloc_obj(struct rpc_rqst, GFP_KERNEL);
+		req = kzalloc_obj(struct rpc_rqst);
 		if (!req)
 			goto out_free;
 		list_add(&req->rq_list, &xprt->free);

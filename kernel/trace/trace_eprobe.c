@@ -529,8 +529,8 @@ new_eprobe_trigger(struct trace_eprobe *ep, struct trace_event_file *file)
 	struct eprobe_data *edata;
 	int ret;
 
-	edata = kzalloc_obj(*edata, GFP_KERNEL);
-	trigger = kzalloc_obj(*trigger, GFP_KERNEL);
+	edata = kzalloc_obj(*edata);
+	trigger = kzalloc_obj(*trigger);
 	if (!trigger || !edata) {
 		ret = -ENOMEM;
 		goto error;

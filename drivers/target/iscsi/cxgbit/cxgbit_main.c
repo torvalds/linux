@@ -57,7 +57,7 @@ static void *cxgbit_uld_add(const struct cxgb4_lld_info *lldi)
 	if (is_t4(lldi->adapter_type))
 		return ERR_PTR(-ENODEV);
 
-	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 

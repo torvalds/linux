@@ -1875,13 +1875,13 @@ signed int rtw_set_auth(struct adapter *adapter, struct security_priv *psecurity
 	struct	cmd_priv *pcmdpriv = &adapter->cmdpriv;
 	signed int		res = _SUCCESS;
 
-	pcmd = kzalloc_obj(*pcmd, GFP_KERNEL);
+	pcmd = kzalloc_obj(*pcmd);
 	if (!pcmd) {
 		res = _FAIL;  /* try again */
 		goto exit;
 	}
 
-	psetauthparm = kzalloc_obj(*psetauthparm, GFP_KERNEL);
+	psetauthparm = kzalloc_obj(*psetauthparm);
 	if (!psetauthparm) {
 		kfree(pcmd);
 		res = _FAIL;
@@ -1912,7 +1912,7 @@ signed int rtw_set_key(struct adapter *adapter, struct security_priv *psecurityp
 	struct cmd_priv *pcmdpriv = &adapter->cmdpriv;
 	signed int	res = _SUCCESS;
 
-	psetkeyparm = kzalloc_obj(*psetkeyparm, GFP_KERNEL);
+	psetkeyparm = kzalloc_obj(*psetkeyparm);
 	if (!psetkeyparm) {
 		res = _FAIL;
 		goto exit;
@@ -1954,7 +1954,7 @@ signed int rtw_set_key(struct adapter *adapter, struct security_priv *psecurityp
 	}
 
 	if (enqueue) {
-		pcmd = kzalloc_obj(*pcmd, GFP_KERNEL);
+		pcmd = kzalloc_obj(*pcmd);
 		if (!pcmd) {
 			kfree(psetkeyparm);
 			res = _FAIL;  /* try again */

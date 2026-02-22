@@ -132,7 +132,7 @@ struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
 	struct clk_init_data init;
 	int ret;
 
-	pfd = kzalloc_obj(*pfd, GFP_KERNEL);
+	pfd = kzalloc_obj(*pfd);
 	if (!pfd)
 		return ERR_PTR(-ENOMEM);
 

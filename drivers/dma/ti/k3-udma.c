@@ -4686,7 +4686,7 @@ static int udma_setup_resources(struct udma_dev *ud)
 		irq_res.sets += rm_res->sets;
 	}
 
-	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets, GFP_KERNEL);
+	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets);
 	if (!irq_res.desc)
 		return -ENOMEM;
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_TCHAN];
@@ -4878,7 +4878,7 @@ static int bcdma_setup_resources(struct udma_dev *ud)
 		}
 	}
 
-	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets, GFP_KERNEL);
+	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets);
 	if (!irq_res.desc)
 		return -ENOMEM;
 	if (ud->bchan_cnt) {
@@ -5080,7 +5080,7 @@ static int pktdma_setup_resources(struct udma_dev *ud)
 		irq_res.sets += rm_res->sets;
 	}
 
-	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets, GFP_KERNEL);
+	irq_res.desc = kzalloc_objs(*irq_res.desc, irq_res.sets);
 	if (!irq_res.desc)
 		return -ENOMEM;
 	rm_res = tisci_rm->rm_ranges[RM_RANGE_TFLOW];

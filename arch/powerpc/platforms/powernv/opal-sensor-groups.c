@@ -168,7 +168,7 @@ void __init opal_sensor_groups_init(void)
 		return;
 	}
 
-	sgs = kzalloc_objs(*sgs, of_get_child_count(sg), GFP_KERNEL);
+	sgs = kzalloc_objs(*sgs, of_get_child_count(sg));
 	if (!sgs)
 		goto out_sg_put;
 

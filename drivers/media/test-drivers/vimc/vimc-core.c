@@ -354,7 +354,7 @@ static int vimc_probe(struct platform_device *pdev)
 	if (vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG)
 		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
-	vimc = kzalloc_obj(*vimc, GFP_KERNEL);
+	vimc = kzalloc_obj(*vimc);
 	if (!vimc)
 		return -ENOMEM;
 

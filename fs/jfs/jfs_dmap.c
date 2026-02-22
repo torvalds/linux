@@ -161,7 +161,7 @@ int dbMount(struct inode *ipbmap)
 	 * allocate/initialize the in-memory bmap descriptor
 	 */
 	/* allocate memory for the in-memory bmap descriptor */
-	bmp = kmalloc_obj(struct bmap, GFP_KERNEL);
+	bmp = kmalloc_obj(struct bmap);
 	if (bmp == NULL)
 		return -ENOMEM;
 

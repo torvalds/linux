@@ -459,7 +459,7 @@ static int adi_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	int slot;
 	u8 addr;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -531,7 +531,7 @@ static int adi_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	if (slot < 0)
 		return slot;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

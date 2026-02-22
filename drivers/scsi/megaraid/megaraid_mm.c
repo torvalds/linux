@@ -913,7 +913,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	if (lld_adp->drvr_type != DRVRTYPE_MBOX)
 		return (-EINVAL);
 
-	adapter = kzalloc_obj(mraid_mmadp_t, GFP_KERNEL);
+	adapter = kzalloc_obj(mraid_mmadp_t);
 
 	if (!adapter)
 		return -ENOMEM;

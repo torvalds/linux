@@ -821,7 +821,7 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 
 	/* Create UDP tunnel state structures */
 	if (info->shared) {
-		node = kzalloc_obj(*node, GFP_KERNEL);
+		node = kzalloc_obj(*node);
 		if (!node)
 			return -ENOMEM;
 

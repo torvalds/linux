@@ -299,7 +299,7 @@ find_or_allocate_block(struct nfs4_lockowner *lo, struct knfsd_fh *fh,
 
 	nbl = find_blocked_lock(lo, fh, nn);
 	if (!nbl) {
-		nbl = kmalloc_obj(*nbl, GFP_KERNEL);
+		nbl = kmalloc_obj(*nbl);
 		if (nbl) {
 			INIT_LIST_HEAD(&nbl->nbl_list);
 			INIT_LIST_HEAD(&nbl->nbl_lru);
@@ -974,7 +974,7 @@ struct nfs4_cpntf_state *nfs4_alloc_init_cpntf_state(struct nfsd_net *nn,
 {
 	struct nfs4_cpntf_state *cps;
 
-	cps = kzalloc_obj(struct nfs4_cpntf_state, GFP_KERNEL);
+	cps = kzalloc_obj(struct nfs4_cpntf_state);
 	if (!cps)
 		return NULL;
 	cps->cpntf_time = ktime_get_boottime_seconds();
@@ -2047,7 +2047,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	struct nfsd4_slot *slot;
 	int i;
 
-	new = kzalloc_obj(*new, GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return NULL;
 	xa_init(&new->se_slots);
@@ -2108,7 +2108,7 @@ static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp, u32 flags)
 {
 	struct nfsd4_conn *conn;
 
-	conn = kmalloc_obj(struct nfsd4_conn, GFP_KERNEL);
+	conn = kmalloc_obj(struct nfsd4_conn);
 	if (!conn)
 		return NULL;
 	svc_xprt_get(rqstp->rq_xprt);
@@ -3308,7 +3308,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 		free_client(clp);
 		return NULL;
 	}
-	clp->cl_ra = kzalloc_obj(*clp->cl_ra, GFP_KERNEL);
+	clp->cl_ra = kzalloc_obj(*clp->cl_ra);
 	if (!clp->cl_ra) {
 		free_client(clp);
 		return NULL;
@@ -8822,7 +8822,7 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 static inline struct nfs4_client_reclaim *
 alloc_reclaim(void)
 {
-	return kmalloc_obj(struct nfs4_client_reclaim, GFP_KERNEL);
+	return kmalloc_obj(struct nfs4_client_reclaim);
 }
 
 bool

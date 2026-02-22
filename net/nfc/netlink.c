@@ -604,7 +604,7 @@ static int nfc_genl_dump_devices(struct sk_buff *skb,
 
 	if (!iter) {
 		first_call = true;
-		iter = kmalloc_obj(struct class_dev_iter, GFP_KERNEL);
+		iter = kmalloc_obj(struct class_dev_iter);
 		if (!iter)
 			return -ENOMEM;
 		cb->args[0] = (long) iter;
@@ -1370,7 +1370,7 @@ static int nfc_genl_dump_ses(struct sk_buff *skb,
 
 	if (!iter) {
 		first_call = true;
-		iter = kmalloc_obj(struct class_dev_iter, GFP_KERNEL);
+		iter = kmalloc_obj(struct class_dev_iter);
 		if (!iter)
 			return -ENOMEM;
 		cb->args[0] = (long) iter;
@@ -1541,7 +1541,7 @@ static int nfc_genl_se_io(struct sk_buff *skb, struct genl_info *info)
 
 	apdu = nla_data(info->attrs[NFC_ATTR_SE_APDU]);
 
-	ctx = kzalloc_obj(struct se_io_ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(struct se_io_ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto put_dev;

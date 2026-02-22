@@ -907,7 +907,7 @@ il_init_channel_map(struct il_priv *il)
 	D_EEPROM("Parsing data for %d channels.\n", il->channel_count);
 
 	il->channel_info =
-	    kzalloc_objs(struct il_channel_info, il->channel_count, GFP_KERNEL);
+	    kzalloc_objs(struct il_channel_info, il->channel_count);
 	if (!il->channel_info) {
 		IL_ERR("Could not allocate channel_info\n");
 		il->channel_count = 0;
@@ -3022,9 +3022,9 @@ il_tx_queue_init(struct il_priv *il, u32 txq_id)
 	}
 
 	txq->meta =
-	    kzalloc_objs(struct il_cmd_meta, actual_slots, GFP_KERNEL);
+	    kzalloc_objs(struct il_cmd_meta, actual_slots);
 	txq->cmd =
-	    kzalloc_objs(struct il_device_cmd *, actual_slots, GFP_KERNEL);
+	    kzalloc_objs(struct il_device_cmd *, actual_slots);
 
 	if (!txq->meta || !txq->cmd)
 		goto out_free_arrays;
@@ -3447,7 +3447,7 @@ il_init_geos(struct il_priv *il)
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc_objs(*rates, RATE_COUNT_LEGACY, GFP_KERNEL);
+	rates = kzalloc_objs(*rates, RATE_COUNT_LEGACY);
 	if (!rates) {
 		kfree(channels);
 		return -ENOMEM;

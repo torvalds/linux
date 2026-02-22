@@ -150,13 +150,13 @@ static void __table_instance_destroy(struct table_instance *ti)
 
 static struct table_instance *table_instance_alloc(int new_size)
 {
-	struct table_instance *ti = kmalloc_obj(*ti, GFP_KERNEL);
+	struct table_instance *ti = kmalloc_obj(*ti);
 	int i;
 
 	if (!ti)
 		return NULL;
 
-	ti->buckets = kvmalloc_objs(struct hlist_head, new_size, GFP_KERNEL);
+	ti->buckets = kvmalloc_objs(struct hlist_head, new_size);
 	if (!ti->buckets) {
 		kfree(ti);
 		return NULL;
@@ -366,7 +366,7 @@ static struct mask_cache *tbl_mask_cache_alloc(u32 size)
 	    (size * sizeof(struct mask_cache_entry)) > PCPU_MIN_UNIT_SIZE)
 		return NULL;
 
-	new = kzalloc_obj(*new, GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return NULL;
 
@@ -964,7 +964,7 @@ static struct sw_flow_mask *mask_alloc(void)
 {
 	struct sw_flow_mask *mask;
 
-	mask = kmalloc_obj(*mask, GFP_KERNEL);
+	mask = kmalloc_obj(*mask);
 	if (mask)
 		mask->ref_count = 1;
 
@@ -1109,7 +1109,7 @@ void ovs_flow_masks_rebalance(struct flow_table *table)
 	int i;
 
 	/* Build array of all current entries with use counters. */
-	masks_and_count = kmalloc_objs(*masks_and_count, ma->max, GFP_KERNEL);
+	masks_and_count = kmalloc_objs(*masks_and_count, ma->max);
 	if (!masks_and_count)
 		return;
 

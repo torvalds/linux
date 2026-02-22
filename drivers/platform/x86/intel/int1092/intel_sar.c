@@ -248,7 +248,7 @@ static int sar_probe(struct platform_device *device)
 	int reg;
 	int result;
 
-	context = kzalloc_obj(*context, GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return -ENOMEM;
 

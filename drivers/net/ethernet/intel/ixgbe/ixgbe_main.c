@@ -10272,15 +10272,15 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			    (__force u32)cls->knode.sel->offmask)
 				return err;
 
-			jump = kzalloc_obj(*jump, GFP_KERNEL);
+			jump = kzalloc_obj(*jump);
 			if (!jump)
 				return -ENOMEM;
-			input = kzalloc_obj(*input, GFP_KERNEL);
+			input = kzalloc_obj(*input);
 			if (!input) {
 				err = -ENOMEM;
 				goto free_jump;
 			}
-			mask = kzalloc_obj(*mask, GFP_KERNEL);
+			mask = kzalloc_obj(*mask);
 			if (!mask) {
 				err = -ENOMEM;
 				goto free_input;
@@ -10304,10 +10304,10 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		return 0;
 	}
 
-	input = kzalloc_obj(*input, GFP_KERNEL);
+	input = kzalloc_obj(*input);
 	if (!input)
 		return -ENOMEM;
-	mask = kzalloc_obj(*mask, GFP_KERNEL);
+	mask = kzalloc_obj(*mask);
 	if (!mask) {
 		err = -ENOMEM;
 		goto free_input;
@@ -10785,7 +10785,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 			return ERR_PTR(-ENOMEM);
 	}
 
-	accel = kzalloc_obj(*accel, GFP_KERNEL);
+	accel = kzalloc_obj(*accel);
 	if (!accel)
 		return ERR_PTR(-ENOMEM);
 

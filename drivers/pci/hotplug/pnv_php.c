@@ -791,7 +791,7 @@ static struct pnv_php_slot *pnv_php_alloc_slot(struct device_node *dn)
 	if (!bus)
 		return NULL;
 
-	php_slot = kzalloc_obj(*php_slot, GFP_KERNEL);
+	php_slot = kzalloc_obj(*php_slot);
 	if (!php_slot)
 		return NULL;
 

@@ -3754,7 +3754,7 @@ int ext4_mb_init(struct super_block *sb)
 	} while (i < MB_NUM_ORDERS(sb));
 
 	sbi->s_mb_avg_fragment_size =
-		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb), GFP_KERNEL);
+		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb));
 	if (!sbi->s_mb_avg_fragment_size) {
 		ret = -ENOMEM;
 		goto out;
@@ -3763,7 +3763,7 @@ int ext4_mb_init(struct super_block *sb)
 		xa_init(&sbi->s_mb_avg_fragment_size[i]);
 
 	sbi->s_mb_largest_free_orders =
-		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb), GFP_KERNEL);
+		kmalloc_objs(struct xarray, MB_NUM_ORDERS(sb));
 	if (!sbi->s_mb_largest_free_orders) {
 		ret = -ENOMEM;
 		goto out;

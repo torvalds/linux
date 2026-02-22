@@ -164,7 +164,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_RAW)
 		return -ENODEV;
 
-	raw = kzalloc_obj(*raw, GFP_KERNEL);
+	raw = kzalloc_obj(*raw);
 	if (!raw)
 		return -ENOMEM;
 

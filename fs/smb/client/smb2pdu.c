@@ -1009,7 +1009,7 @@ create_posix_buf(umode_t mode)
 {
 	struct create_posix *buf;
 
-	buf = kzalloc_obj(struct create_posix, GFP_KERNEL);
+	buf = kzalloc_obj(struct create_posix);
 	if (!buf)
 		return NULL;
 
@@ -1785,7 +1785,7 @@ SMB2_sess_auth_rawntlmssp_negotiate(struct SMB2_sess_data *sess_data)
 	 * If memory allocation is successful, caller of this function
 	 * frees it.
 	 */
-	ses->ntlmssp = kmalloc_obj(struct ntlmssp_auth, GFP_KERNEL);
+	ses->ntlmssp = kmalloc_obj(struct ntlmssp_auth);
 	if (!ses->ntlmssp) {
 		rc = -ENOMEM;
 		goto out_err;
@@ -1983,7 +1983,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 		return smb_EIO(smb_eio_trace_null_pointers);
 	}
 
-	sess_data = kzalloc_obj(struct SMB2_sess_data, GFP_KERNEL);
+	sess_data = kzalloc_obj(struct SMB2_sess_data);
 	if (!sess_data)
 		return -ENOMEM;
 
@@ -2297,7 +2297,7 @@ create_durable_buf(void)
 {
 	create_durable_req_t *buf;
 
-	buf = kzalloc_obj(create_durable_req_t, GFP_KERNEL);
+	buf = kzalloc_obj(create_durable_req_t);
 	if (!buf)
 		return NULL;
 
@@ -2320,7 +2320,7 @@ create_reconnect_durable_buf(struct cifs_fid *fid)
 {
 	create_durable_req_t *buf;
 
-	buf = kzalloc_obj(create_durable_req_t, GFP_KERNEL);
+	buf = kzalloc_obj(create_durable_req_t);
 	if (!buf)
 		return NULL;
 
@@ -2492,7 +2492,7 @@ create_durable_v2_buf(struct cifs_open_parms *oparms)
 	struct cifs_fid *pfid = oparms->fid;
 	struct create_durable_req_v2 *buf;
 
-	buf = kzalloc_obj(struct create_durable_req_v2, GFP_KERNEL);
+	buf = kzalloc_obj(struct create_durable_req_v2);
 	if (!buf)
 		return NULL;
 
@@ -2533,7 +2533,7 @@ create_reconnect_durable_v2_buf(struct cifs_fid *fid)
 {
 	struct create_durable_handle_reconnect_v2 *buf;
 
-	buf = kzalloc_obj(struct create_durable_handle_reconnect_v2, GFP_KERNEL);
+	buf = kzalloc_obj(struct create_durable_handle_reconnect_v2);
 	if (!buf)
 		return NULL;
 
@@ -2624,7 +2624,7 @@ create_twarp_buf(__u64 timewarp)
 {
 	struct crt_twarp_ctxt *buf;
 
-	buf = kzalloc_obj(struct crt_twarp_ctxt, GFP_KERNEL);
+	buf = kzalloc_obj(struct crt_twarp_ctxt);
 	if (!buf)
 		return NULL;
 
@@ -2791,7 +2791,7 @@ create_query_id_buf(void)
 {
 	struct crt_query_id_ctxt *buf;
 
-	buf = kzalloc_obj(struct crt_query_id_ctxt, GFP_KERNEL);
+	buf = kzalloc_obj(struct crt_query_id_ctxt);
 	if (!buf)
 		return NULL;
 
@@ -5843,7 +5843,7 @@ replay_again:
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	iov = kmalloc_objs(struct kvec, num, GFP_KERNEL);
+	iov = kmalloc_objs(struct kvec, num);
 	if (!iov)
 		return -ENOMEM;
 

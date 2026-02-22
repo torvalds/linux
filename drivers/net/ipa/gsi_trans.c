@@ -746,7 +746,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * Each entry in this map records the transaction associated
 	 * with a corresponding completed TRE.
 	 */
-	trans_info->map = kzalloc_objs(*trans_info->map, tre_count, GFP_KERNEL);
+	trans_info->map = kzalloc_objs(*trans_info->map, tre_count);
 	if (!trans_info->map) {
 		ret = -ENOMEM;
 		goto err_trans_free;

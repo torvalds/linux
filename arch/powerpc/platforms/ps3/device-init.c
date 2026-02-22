@@ -31,7 +31,7 @@ static int __init ps3_register_lpm_devices(void)
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -126,7 +126,7 @@ static int __init ps3_setup_gelic_device(
 	BUG_ON(repo->bus_type != PS3_BUS_TYPE_SB);
 	BUG_ON(repo->dev_type != PS3_DEV_TYPE_SB_GELIC);
 
-	p = kzalloc_obj(struct layout, GFP_KERNEL);
+	p = kzalloc_obj(struct layout);
 
 	if (!p) {
 		result = -ENOMEM;
@@ -197,7 +197,7 @@ static int __init ps3_setup_uhc_device(
 	BUG_ON(repo->bus_type != PS3_BUS_TYPE_SB);
 	BUG_ON(repo->dev_type != PS3_DEV_TYPE_SB_USB);
 
-	p = kzalloc_obj(struct layout, GFP_KERNEL);
+	p = kzalloc_obj(struct layout);
 
 	if (!p) {
 		result = -ENOMEM;
@@ -294,7 +294,7 @@ static int __init ps3_setup_vuart_device(enum ps3_match_id match_id,
 	pr_debug(" -> %s:%d: match_id %u, port %u\n", __func__, __LINE__,
 		match_id, port_number);
 
-	p = kzalloc_obj(struct layout, GFP_KERNEL);
+	p = kzalloc_obj(struct layout);
 
 	if (!p)
 		return -ENOMEM;
@@ -447,7 +447,7 @@ static int __init ps3_register_sound_devices(void)
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	p = kzalloc_obj(*p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 
@@ -481,7 +481,7 @@ static int __init ps3_register_graphics_devices(void)
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	p = kzalloc_obj(struct layout, GFP_KERNEL);
+	p = kzalloc_obj(struct layout);
 
 	if (!p)
 		return -ENOMEM;
@@ -516,7 +516,7 @@ static int __init ps3_register_ramdisk_device(void)
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	p = kzalloc_obj(struct layout, GFP_KERNEL);
+	p = kzalloc_obj(struct layout);
 
 	if (!p)
 		return -ENOMEM;
@@ -783,7 +783,7 @@ static int ps3_probe_thread(void *data)
 
 	pr_debug(" -> %s:%u: kthread started\n", __func__, __LINE__);
 
-	local = kzalloc_obj(*local, GFP_KERNEL);
+	local = kzalloc_obj(*local);
 	if (!local)
 		return -ENOMEM;
 

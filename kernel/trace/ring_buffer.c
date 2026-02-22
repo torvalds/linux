@@ -6509,7 +6509,7 @@ ring_buffer_alloc_read_page(struct trace_buffer *buffer, int cpu)
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return ERR_PTR(-ENODEV);
 
-	bpage = kzalloc_obj(*bpage, GFP_KERNEL);
+	bpage = kzalloc_obj(*bpage);
 	if (!bpage)
 		return ERR_PTR(-ENOMEM);
 
@@ -7190,7 +7190,7 @@ static int __rb_map_vma(struct ring_buffer_per_cpu *cpu_buffer,
 
 	nr_pages = nr_vma_pages;
 
-	pages = kzalloc_objs(*pages, nr_pages, GFP_KERNEL);
+	pages = kzalloc_objs(*pages, nr_pages);
 	if (!pages)
 		return -ENOMEM;
 

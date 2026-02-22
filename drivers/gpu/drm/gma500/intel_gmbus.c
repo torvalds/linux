@@ -187,7 +187,7 @@ intel_gpio_create(struct drm_psb_private *dev_priv, u32 pin)
 	if (pin >= ARRAY_SIZE(map_pin_to_reg) || !map_pin_to_reg[pin])
 		return NULL;
 
-	gpio = kzalloc_obj(struct intel_gpio, GFP_KERNEL);
+	gpio = kzalloc_obj(struct intel_gpio);
 	if (gpio == NULL)
 		return NULL;
 

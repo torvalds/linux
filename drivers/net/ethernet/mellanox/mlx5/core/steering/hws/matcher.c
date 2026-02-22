@@ -912,7 +912,7 @@ hws_matcher_create_col_matcher(struct mlx5hws_matcher *matcher)
 	    !hws_matcher_requires_col_tbl(size_tx->rule.num_log))
 		return 0;
 
-	col_matcher = kzalloc_obj(*matcher, GFP_KERNEL);
+	col_matcher = kzalloc_obj(*matcher);
 	if (!col_matcher)
 		return -ENOMEM;
 
@@ -1084,7 +1084,7 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 		return -EOPNOTSUPP;
 	}
 
-	matcher->mt = kzalloc_objs(*matcher->mt, num_of_mt, GFP_KERNEL);
+	matcher->mt = kzalloc_objs(*matcher->mt, num_of_mt);
 	if (!matcher->mt)
 		return -ENOMEM;
 
@@ -1133,7 +1133,7 @@ mlx5hws_matcher_create(struct mlx5hws_table *tbl,
 	struct mlx5hws_matcher *matcher;
 	int ret;
 
-	matcher = kzalloc_obj(*matcher, GFP_KERNEL);
+	matcher = kzalloc_obj(*matcher);
 	if (!matcher)
 		return NULL;
 
@@ -1179,7 +1179,7 @@ mlx5hws_match_template_create(struct mlx5hws_context *ctx,
 {
 	struct mlx5hws_match_template *mt;
 
-	mt = kzalloc_obj(*mt, GFP_KERNEL);
+	mt = kzalloc_obj(*mt);
 	if (!mt)
 		return NULL;
 

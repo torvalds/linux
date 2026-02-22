@@ -22769,7 +22769,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		goto out_undo_insn;
 
 	err = -ENOMEM;
-	func = kzalloc_objs(prog, env->subprog_cnt, GFP_KERNEL);
+	func = kzalloc_objs(prog, env->subprog_cnt);
 	if (!func)
 		goto out_undo_insn;
 

@@ -517,7 +517,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!pgnames)
 		return -ENOMEM;
 
-	map = kzalloc_objs(*map, nmaps, GFP_KERNEL);
+	map = kzalloc_objs(*map, nmaps);
 	if (!map)
 		return -ENOMEM;
 

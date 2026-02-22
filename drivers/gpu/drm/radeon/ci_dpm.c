@@ -4579,7 +4579,7 @@ static int ci_initialize_mc_reg_table(struct radeon_device *rdev)
 	u8 module_index = rv770_get_memory_module_index(rdev);
 	int ret;
 
-	table = kzalloc_obj(struct atom_mc_reg_table, GFP_KERNEL);
+	table = kzalloc_obj(struct atom_mc_reg_table);
 	if (!table)
 		return -ENOMEM;
 
@@ -5533,7 +5533,7 @@ static int ci_parse_power_table(struct radeon_device *rdev)
 			ret = -EINVAL;
 			goto err_free_ps;
 		}
-		ps = kzalloc_obj(struct ci_ps, GFP_KERNEL);
+		ps = kzalloc_obj(struct ci_ps);
 		if (ps == NULL) {
 			ret = -ENOMEM;
 			goto err_free_ps;
@@ -5637,7 +5637,7 @@ int ci_dpm_init(struct radeon_device *rdev)
 	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
 
-	pi = kzalloc_obj(struct ci_power_info, GFP_KERNEL);
+	pi = kzalloc_obj(struct ci_power_info);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;

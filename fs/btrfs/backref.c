@@ -1805,7 +1805,7 @@ struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void)
 {
 	struct btrfs_backref_share_check_ctx *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -2797,7 +2797,7 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 	if (IS_ERR(fspath))
 		return ERR_CAST(fspath);
 
-	ifp = kmalloc_obj(*ifp, GFP_KERNEL);
+	ifp = kmalloc_obj(*ifp);
 	if (!ifp) {
 		kvfree(fspath);
 		return ERR_PTR(-ENOMEM);

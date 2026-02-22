@@ -1067,7 +1067,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps) {
 		status = -ENOMEM;
 		goto err_unroll_sched;
@@ -3630,7 +3630,7 @@ int ice_update_link_info(struct ice_port_info *pi)
 	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
 		struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 
-		pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+		pcaps = kzalloc_obj(*pcaps);
 		if (!pcaps)
 			return -ENOMEM;
 
@@ -3881,7 +3881,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	*aq_failures = 0;
 	hw = pi->hw;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -4020,7 +4020,7 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 
 	hw = pi->hw;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -4358,7 +4358,7 @@ int ice_get_phy_lane_number(struct ice_hw *hw)
 	    hw->device_id == ICE_DEV_ID_E825C_SGMII)
 		return hw->pf_id;
 
-	options = kzalloc_objs(*options, ICE_AQC_PORT_OPT_MAX, GFP_KERNEL);
+	options = kzalloc_objs(*options, ICE_AQC_PORT_OPT_MAX);
 	if (!options)
 		return -ENOMEM;
 

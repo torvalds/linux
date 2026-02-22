@@ -1148,7 +1148,7 @@ static void __init nxcop_get_capabilities(void)
 	u64 feat;
 	int rc;
 
-	hv_caps = kmalloc_obj(*hv_caps, GFP_KERNEL);
+	hv_caps = kmalloc_obj(*hv_caps);
 	if (!hv_caps)
 		return;
 	/*
@@ -1167,7 +1167,7 @@ static void __init nxcop_get_capabilities(void)
 	/*
 	 * NX-GZIP feature available
 	 */
-	hv_nxc = kmalloc_obj(*hv_nxc, GFP_KERNEL);
+	hv_nxc = kmalloc_obj(*hv_nxc);
 	if (!hv_nxc)
 		return;
 	/*
@@ -1217,7 +1217,7 @@ static int __init nx842_pseries_init(void)
 	of_node_put(np);
 
 	RCU_INIT_POINTER(devdata, NULL);
-	new_devdata = kzalloc_obj(*new_devdata, GFP_KERNEL);
+	new_devdata = kzalloc_obj(*new_devdata);
 	if (!new_devdata)
 		return -ENOMEM;
 

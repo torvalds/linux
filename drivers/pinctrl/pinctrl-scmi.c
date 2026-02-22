@@ -319,7 +319,7 @@ pinctrl_scmi_alloc_configs(struct pinctrl_dev *pctldev, u32 num_configs,
 	if (!*p_config_value)
 		return -ENOMEM;
 
-	*p_config_type = kzalloc_objs(**p_config_type, num_configs, GFP_KERNEL);
+	*p_config_type = kzalloc_objs(**p_config_type, num_configs);
 	if (!*p_config_type) {
 		kfree(*p_config_value);
 		return -ENOMEM;

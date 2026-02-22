@@ -513,7 +513,7 @@ init_stripe_shared_pages(struct stripe_head *sh, struct r5conf *conf, int disks)
 	cnt = PAGE_SIZE / conf->stripe_size;
 	nr_pages = (disks + cnt - 1) / cnt;
 
-	sh->pages = kzalloc_objs(struct page *, nr_pages, GFP_KERNEL);
+	sh->pages = kzalloc_objs(struct page *, nr_pages);
 	if (!sh->pages)
 		return -ENOMEM;
 	sh->nr_pages = nr_pages;
@@ -7497,7 +7497,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	conf = kzalloc_obj(struct r5conf, GFP_KERNEL);
+	conf = kzalloc_obj(struct r5conf);
 	if (conf == NULL)
 		goto abort;
 
@@ -7556,7 +7556,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 		conf->previous_raid_disks = mddev->raid_disks - mddev->delta_disks;
 	max_disks = max(conf->raid_disks, conf->previous_raid_disks);
 
-	conf->disks = kzalloc_objs(struct disk_info, max_disks, GFP_KERNEL);
+	conf->disks = kzalloc_objs(struct disk_info, max_disks);
 
 	if (!conf->disks)
 		goto abort;

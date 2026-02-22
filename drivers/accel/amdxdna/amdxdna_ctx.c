@@ -50,7 +50,7 @@ static struct dma_fence *amdxdna_fence_create(struct amdxdna_hwctx *hwctx)
 {
 	struct amdxdna_fence *fence;
 
-	fence = kzalloc_obj(*fence, GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -161,7 +161,7 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	if (args->ext || args->ext_flags)
 		return -EINVAL;
 
-	hwctx = kzalloc_obj(*hwctx, GFP_KERNEL);
+	hwctx = kzalloc_obj(*hwctx);
 	if (!hwctx)
 		return -ENOMEM;
 

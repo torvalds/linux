@@ -277,7 +277,7 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		return -EINVAL;
 	}
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

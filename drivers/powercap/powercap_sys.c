@@ -501,7 +501,7 @@ struct powercap_zone *powercap_register_zone(
 			return ERR_PTR(-EINVAL);
 		memset(power_zone, 0, sizeof(*power_zone));
 	} else {
-		power_zone = kzalloc_obj(*power_zone, GFP_KERNEL);
+		power_zone = kzalloc_obj(*power_zone);
 		if (!power_zone)
 			return ERR_PTR(-ENOMEM);
 		power_zone->allocated = true;
@@ -613,7 +613,7 @@ struct powercap_control_type *powercap_register_control_type(
 			return ERR_PTR(-EINVAL);
 		memset(control_type, 0, sizeof(*control_type));
 	} else {
-		control_type = kzalloc_obj(*control_type, GFP_KERNEL);
+		control_type = kzalloc_obj(*control_type);
 		if (!control_type)
 			return ERR_PTR(-ENOMEM);
 		control_type->allocated = true;

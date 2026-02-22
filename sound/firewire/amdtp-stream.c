@@ -1783,7 +1783,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	// for runtime of PCM substream in the interval equivalent to the size of PCM buffer. It
 	// could take a round over queue of AMDTP packet descriptors and small loss of history. For
 	// safe, keep more 8 elements for the queue, equivalent to 1 ms.
-	descs = kzalloc_objs(*descs, s->queue_size + 8, GFP_KERNEL);
+	descs = kzalloc_objs(*descs, s->queue_size + 8);
 	if (!descs) {
 		err = -ENOMEM;
 		goto err_context;

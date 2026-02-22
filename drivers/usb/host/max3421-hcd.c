@@ -1878,10 +1878,10 @@ max3421_probe(struct spi_device *spi)
 	INIT_LIST_HEAD(&max3421_hcd->ep_list);
 	spi_set_drvdata(spi, max3421_hcd);
 
-	max3421_hcd->tx = kmalloc_obj(*max3421_hcd->tx, GFP_KERNEL);
+	max3421_hcd->tx = kmalloc_obj(*max3421_hcd->tx);
 	if (!max3421_hcd->tx)
 		goto error;
-	max3421_hcd->rx = kmalloc_obj(*max3421_hcd->rx, GFP_KERNEL);
+	max3421_hcd->rx = kmalloc_obj(*max3421_hcd->rx);
 	if (!max3421_hcd->rx)
 		goto error;
 

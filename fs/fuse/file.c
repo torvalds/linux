@@ -684,7 +684,7 @@ static struct fuse_io_args *fuse_io_alloc(struct fuse_io_priv *io,
 {
 	struct fuse_io_args *ia;
 
-	ia = kzalloc_obj(*ia, GFP_KERNEL);
+	ia = kzalloc_obj(*ia);
 	if (ia) {
 		ia->io = io;
 		ia->ap.folios = fuse_folios_alloc(nfolios, GFP_KERNEL,
@@ -2834,7 +2834,7 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if ((iov_iter_rw(iter) == READ) && (offset >= i_size))
 		return 0;
 
-	io = kmalloc_obj(struct fuse_io_priv, GFP_KERNEL);
+	io = kmalloc_obj(struct fuse_io_priv);
 	if (!io)
 		return -ENOMEM;
 	spin_lock_init(&io->lock);

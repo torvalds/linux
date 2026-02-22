@@ -1532,7 +1532,7 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 	pnum = port->port_number;
 
 	dev_dbg(&port->dev, "mos7840_startup: configuring port %d\n", pnum);
-	mos7840_port = kzalloc_obj(struct moschip_port, GFP_KERNEL);
+	mos7840_port = kzalloc_obj(struct moschip_port);
 	if (!mos7840_port)
 		return -ENOMEM;
 

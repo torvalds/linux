@@ -566,7 +566,7 @@ static int snd_usb_extigy_boot_quirk(struct usb_device *dev, struct usb_interfac
 		if (err < 0)
 			dev_dbg(&dev->dev, "error sending boot message: %d\n", err);
 		struct usb_device_descriptor *new_device_descriptor __free(kfree) =
-			kmalloc_obj(*new_device_descriptor, GFP_KERNEL);
+			kmalloc_obj(*new_device_descriptor);
 		if (!new_device_descriptor)
 			return -ENOMEM;
 		err = usb_get_descriptor(dev, USB_DT_DEVICE, 0,
@@ -944,7 +944,7 @@ static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 	dev_dbg(&dev->dev, "device initialised!\n");
 
 	struct usb_device_descriptor *new_device_descriptor __free(kfree) =
-		kmalloc_obj(*new_device_descriptor, GFP_KERNEL);
+		kmalloc_obj(*new_device_descriptor);
 	if (!new_device_descriptor)
 		return -ENOMEM;
 
@@ -1279,7 +1279,7 @@ static int snd_usb_mbox3_boot_quirk(struct usb_device *dev)
 	dev_dbg(&dev->dev, "MBOX3: device initialised!\n");
 
 	struct usb_device_descriptor *new_device_descriptor __free(kfree) =
-		kmalloc_obj(*new_device_descriptor, GFP_KERNEL);
+		kmalloc_obj(*new_device_descriptor);
 	if (!new_device_descriptor)
 		return -ENOMEM;
 

@@ -316,7 +316,7 @@ void fdls_schedule_oxid_free_retry_work(struct work_struct *work)
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			"Schedule oxid free. oxid idx: %d\n", idx);
 
-		reclaim_entry = kzalloc_obj(*reclaim_entry, GFP_KERNEL);
+		reclaim_entry = kzalloc_obj(*reclaim_entry);
 		if (!reclaim_entry) {
 			schedule_delayed_work(&oxid_pool->schedule_oxid_free_retry,
 				msecs_to_jiffies(SCHEDULE_OXID_FREE_RETRY_TIME));

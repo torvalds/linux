@@ -2456,15 +2456,15 @@ static void enic_free_enic_resources(struct enic *enic)
 
 static int enic_alloc_enic_resources(struct enic *enic)
 {
-	enic->wq = kzalloc_objs(struct enic_wq, enic->wq_avail, GFP_KERNEL);
+	enic->wq = kzalloc_objs(struct enic_wq, enic->wq_avail);
 	if (!enic->wq)
 		goto free_queues;
 
-	enic->rq = kzalloc_objs(struct enic_rq, enic->rq_avail, GFP_KERNEL);
+	enic->rq = kzalloc_objs(struct enic_rq, enic->rq_avail);
 	if (!enic->rq)
 		goto free_queues;
 
-	enic->cq = kzalloc_objs(struct vnic_cq, enic->cq_avail, GFP_KERNEL);
+	enic->cq = kzalloc_objs(struct vnic_cq, enic->cq_avail);
 	if (!enic->cq)
 		goto free_queues;
 
@@ -2737,7 +2737,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	/* Allocate structure for port profiles */
-	enic->pp = kzalloc_objs(*enic->pp, num_pps, GFP_KERNEL);
+	enic->pp = kzalloc_objs(*enic->pp, num_pps);
 	if (!enic->pp) {
 		err = -ENOMEM;
 		goto err_out_disable_sriov_pp;

@@ -227,7 +227,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 	int id;
 	int ret;
 
-	gdev = kzalloc_obj(*gdev, GFP_KERNEL);
+	gdev = kzalloc_obj(*gdev);
 	if (!gdev)
 		return NULL;
 

@@ -3206,7 +3206,7 @@ int alps_detect(struct psmouse *psmouse, bool set_properties)
 	 */
 	psmouse_reset(psmouse);
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

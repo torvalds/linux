@@ -170,7 +170,7 @@ static int mock_hwsp_freelist(void *arg)
 
 	state.max = PAGE_SIZE / sizeof(*state.history);
 	state.count = 0;
-	state.history = kzalloc_objs(*state.history, state.max, GFP_KERNEL);
+	state.history = kzalloc_objs(*state.history, state.max);
 	if (!state.history) {
 		err = -ENOMEM;
 		goto err_put;

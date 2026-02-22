@@ -222,7 +222,7 @@ static struct clk_hw *clk_register_ready_gate(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	rgate = kzalloc_obj(*rgate, GFP_KERNEL);
+	rgate = kzalloc_obj(*rgate);
 	if (!rgate)
 		return ERR_PTR(-ENOMEM);
 
@@ -297,7 +297,7 @@ static struct clk_mux *_get_cmux(void __iomem *reg, u8 shift, u8 width,
 {
 	struct clk_mux *mux;
 
-	mux = kzalloc_obj(*mux, GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		return ERR_PTR(-ENOMEM);
 
@@ -315,7 +315,7 @@ static struct clk_divider *_get_cdiv(void __iomem *reg, u8 shift, u8 width,
 {
 	struct clk_divider *div;
 
-	div = kzalloc_obj(*div, GFP_KERNEL);
+	div = kzalloc_obj(*div);
 
 	if (!div)
 		return ERR_PTR(-ENOMEM);
@@ -334,7 +334,7 @@ static struct clk_gate *_get_cgate(void __iomem *reg, u8 bit_idx, u32 flags,
 {
 	struct clk_gate *gate;
 
-	gate = kzalloc_obj(*gate, GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -467,7 +467,7 @@ static struct clk_hw *clk_register_stm32_timer_ker(struct device *dev,
 	struct clk_hw *hw;
 	int err;
 
-	element = kzalloc_obj(*element, GFP_KERNEL);
+	element = kzalloc_obj(*element);
 	if (!element)
 		return ERR_PTR(-ENOMEM);
 
@@ -792,7 +792,7 @@ static struct clk_hw *clk_register_stm32_pll(struct device *dev,
 	struct stm32_fractional_divider *div = NULL;
 	struct stm32_ready_gate *rgate;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

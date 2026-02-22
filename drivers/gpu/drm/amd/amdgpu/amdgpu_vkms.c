@@ -411,7 +411,7 @@ static struct drm_plane *amdgpu_vkms_plane_init(struct drm_device *dev,
 	struct drm_plane *plane;
 	int ret;
 
-	plane = kzalloc_obj(*plane, GFP_KERNEL);
+	plane = kzalloc_obj(*plane);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 

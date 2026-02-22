@@ -212,7 +212,7 @@ static void update_capabilities(struct hfi_instance *hfi_instance)
 	if (!cpu_count)
 		goto out;
 
-	cpu_caps = kzalloc_objs(*cpu_caps, cpu_count, GFP_KERNEL);
+	cpu_caps = kzalloc_objs(*cpu_caps, cpu_count);
 	if (!cpu_caps)
 		goto out;
 

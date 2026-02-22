@@ -407,7 +407,7 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 	int ret;
 
 	/* Allocate EQ struct */
-	p_eq = kzalloc_obj(*p_eq, GFP_KERNEL);
+	p_eq = kzalloc_obj(*p_eq);
 	if (!p_eq)
 		return -ENOMEM;
 
@@ -562,7 +562,7 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 	int ret;
 
 	/* SPQ struct */
-	p_spq = kzalloc_obj(*p_spq, GFP_KERNEL);
+	p_spq = kzalloc_obj(*p_spq);
 	if (!p_spq)
 		return -ENOMEM;
 
@@ -1013,7 +1013,7 @@ int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 	int ret;
 
 	/* Allocate ConsQ struct */
-	p_consq = kzalloc_obj(*p_consq, GFP_KERNEL);
+	p_consq = kzalloc_obj(*p_consq);
 	if (!p_consq)
 		return -ENOMEM;
 

@@ -102,7 +102,7 @@ static struct tpmi_rapl_package *trp_alloc(int pkg_id)
 		}
 	}
 
-	trp = kzalloc_obj(*trp, GFP_KERNEL);
+	trp = kzalloc_obj(*trp);
 	if (!trp) {
 		ret = -ENOMEM;
 		goto err_del_powercap;

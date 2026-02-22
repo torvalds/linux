@@ -59,7 +59,7 @@ static const struct vm_operations_struct relay_file_mmap_ops = {
  */
 static struct page **relay_alloc_page_array(unsigned int n_pages)
 {
-	return kvzalloc_objs(struct page *, n_pages, GFP_KERNEL);
+	return kvzalloc_objs(struct page *, n_pages);
 }
 
 /*
@@ -150,10 +150,10 @@ static struct rchan_buf *relay_create_buf(struct rchan *chan)
 	if (chan->n_subbufs > KMALLOC_MAX_SIZE / sizeof(size_t))
 		return NULL;
 
-	buf = kzalloc_obj(struct rchan_buf, GFP_KERNEL);
+	buf = kzalloc_obj(struct rchan_buf);
 	if (!buf)
 		return NULL;
-	buf->padding = kmalloc_objs(size_t, chan->n_subbufs, GFP_KERNEL);
+	buf->padding = kmalloc_objs(size_t, chan->n_subbufs);
 	if (!buf->padding)
 		goto free_buf;
 
@@ -489,7 +489,7 @@ struct rchan *relay_open(const char *base_filename,
 	if (!cb || !cb->create_buf_file || !cb->remove_buf_file)
 		return NULL;
 
-	chan = kzalloc_obj(struct rchan, GFP_KERNEL);
+	chan = kzalloc_obj(struct rchan);
 	if (!chan)
 		return NULL;
 

@@ -451,7 +451,7 @@ static ssize_t coresperchip_show(struct device *dev,
 
 static struct attribute *device_str_attr_create_(char *name, char *str)
 {
-	struct dev_ext_attribute *attr = kzalloc_obj(*attr, GFP_KERNEL);
+	struct dev_ext_attribute *attr = kzalloc_obj(*attr);
 
 	if (!attr)
 		return NULL;
@@ -647,7 +647,7 @@ static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 		}
 	}
 
-	data = kmalloc_obj(*data, GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -905,13 +905,13 @@ static int create_events_from_catalog(struct attribute ***events_,
 		pr_warn("event buffer ended before listed # of events were parsed (got %zu, wanted %zu, junk %zu)\n",
 				event_idx_last, event_entry_count, junk_events);
 
-	events = kmalloc_objs(*events, attr_max + 1, GFP_KERNEL);
+	events = kmalloc_objs(*events, attr_max + 1);
 	if (!events) {
 		ret = -ENOMEM;
 		goto e_event_data;
 	}
 
-	event_descs = kmalloc_objs(*event_descs, event_idx + 1, GFP_KERNEL);
+	event_descs = kmalloc_objs(*event_descs, event_idx + 1);
 	if (!event_descs) {
 		ret = -ENOMEM;
 		goto e_event_attrs;

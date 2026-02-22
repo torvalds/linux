@@ -2464,7 +2464,7 @@ static int __net_init fib6_net_init(struct net *net)
 	INIT_LIST_HEAD(&net->ipv6.fib6_walkers);
 	timer_setup(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, 0);
 
-	net->ipv6.rt6_stats = kzalloc_obj(*net->ipv6.rt6_stats, GFP_KERNEL);
+	net->ipv6.rt6_stats = kzalloc_obj(*net->ipv6.rt6_stats);
 	if (!net->ipv6.rt6_stats)
 		goto out_notifier;
 

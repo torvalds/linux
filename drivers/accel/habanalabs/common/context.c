@@ -155,7 +155,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	struct hl_ctx *ctx;
 	int rc;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out_err;

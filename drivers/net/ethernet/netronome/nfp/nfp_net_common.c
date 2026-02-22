@@ -1554,7 +1554,7 @@ struct nfp_net_dp *nfp_net_clone_dp(struct nfp_net *nn)
 {
 	struct nfp_net_dp *new;
 
-	new = kmalloc_obj(*new, GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		return NULL;
 

@@ -814,7 +814,7 @@ struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
 	if (!attr->recv_cb)
 		return ERR_PTR(-EINVAL);
 
-	conn = kzalloc_obj(*conn, GFP_KERNEL);
+	conn = kzalloc_obj(*conn);
 	if (!conn)
 		return ERR_PTR(-ENOMEM);
 

@@ -1504,7 +1504,7 @@ arm_iommu_create_mapping(struct device *dev, dma_addr_t base, u64 size)
 		bitmap_size = PAGE_SIZE;
 	}
 
-	mapping = kzalloc_obj(struct dma_iommu_mapping, GFP_KERNEL);
+	mapping = kzalloc_obj(struct dma_iommu_mapping);
 	if (!mapping)
 		goto err;
 

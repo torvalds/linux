@@ -502,7 +502,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usPPMTableOffset));
 			adev->pm.dpm.dyn_state.ppm_table =
-				kzalloc_obj(struct amdgpu_ppm_table, GFP_KERNEL);
+				kzalloc_obj(struct amdgpu_ppm_table);
 			if (!adev->pm.dpm.dyn_state.ppm_table)
 				return -ENOMEM;
 			adev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;

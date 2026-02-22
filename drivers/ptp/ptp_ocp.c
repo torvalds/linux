@@ -2241,7 +2241,7 @@ ptp_ocp_register_ext(struct ptp_ocp *bp, struct ocp_resource *r)
 	struct ptp_ocp_ext_src *ext;
 	int err;
 
-	ext = kzalloc_obj(*ext, GFP_KERNEL);
+	ext = kzalloc_obj(*ext);
 	if (!ext)
 		return -ENOMEM;
 
@@ -2378,7 +2378,7 @@ ptp_ocp_attr_group_add(struct ptp_ocp *bp,
 		if (attr_tbl[i].cap & bp->fw_cap)
 			count++;
 
-	bp->attr_group = kzalloc_objs(*bp->attr_group, count + 1, GFP_KERNEL);
+	bp->attr_group = kzalloc_objs(*bp->attr_group, count + 1);
 	if (!bp->attr_group)
 		return -ENOMEM;
 
@@ -2645,7 +2645,7 @@ ptp_ocp_set_pins(struct ptp_ocp *bp)
 	struct ptp_pin_desc *config;
 	int i;
 
-	config = kzalloc_objs(*config, 4, GFP_KERNEL);
+	config = kzalloc_objs(*config, 4);
 	if (!config)
 		return -ENOMEM;
 

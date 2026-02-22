@@ -540,7 +540,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	struct padata_instance *pinst = ps->pinst;
 	struct parallel_data *pd;
 
-	pd = kzalloc_obj(struct parallel_data, GFP_KERNEL);
+	pd = kzalloc_obj(struct parallel_data);
 	if (!pd)
 		goto err;
 
@@ -952,7 +952,7 @@ struct padata_instance *padata_alloc(const char *name)
 {
 	struct padata_instance *pinst;
 
-	pinst = kzalloc_obj(struct padata_instance, GFP_KERNEL);
+	pinst = kzalloc_obj(struct padata_instance);
 	if (!pinst)
 		goto err;
 
@@ -1038,7 +1038,7 @@ struct padata_shell *padata_alloc_shell(struct padata_instance *pinst)
 	struct parallel_data *pd;
 	struct padata_shell *ps;
 
-	ps = kzalloc_obj(*ps, GFP_KERNEL);
+	ps = kzalloc_obj(*ps);
 	if (!ps)
 		goto out;
 

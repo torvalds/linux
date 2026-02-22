@@ -522,7 +522,7 @@ drm_gpusvm_notifier_alloc(struct drm_gpusvm *gpusvm, unsigned long fault_addr)
 	if (gpusvm->ops->notifier_alloc)
 		notifier = gpusvm->ops->notifier_alloc();
 	else
-		notifier = kzalloc_obj(*notifier, GFP_KERNEL);
+		notifier = kzalloc_obj(*notifier);
 
 	if (!notifier)
 		return ERR_PTR(-ENOMEM);
@@ -629,7 +629,7 @@ drm_gpusvm_range_alloc(struct drm_gpusvm *gpusvm,
 	if (gpusvm->ops->range_alloc)
 		range = gpusvm->ops->range_alloc(gpusvm);
 	else
-		range = kzalloc_obj(*range, GFP_KERNEL);
+		range = kzalloc_obj(*range);
 
 	if (!range)
 		return ERR_PTR(-ENOMEM);
@@ -1471,7 +1471,7 @@ map_pages:
 		/* Unlock and restart mapping to allocate memory. */
 		drm_gpusvm_notifier_unlock(gpusvm);
 		svm_pages->dma_addr =
-			kvmalloc_objs(*svm_pages->dma_addr, npages, GFP_KERNEL);
+			kvmalloc_objs(*svm_pages->dma_addr, npages);
 		if (!svm_pages->dma_addr) {
 			err = -ENOMEM;
 			goto err_free;

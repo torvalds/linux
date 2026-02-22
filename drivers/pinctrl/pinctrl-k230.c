@@ -211,7 +211,7 @@ static int k230_dt_node_to_map(struct pinctrl_dev *pctldev,
 		map_num += info->groups[grp_id].num_pins + 1;
 	}
 
-	new_map = kzalloc_objs(*new_map, map_num, GFP_KERNEL);
+	new_map = kzalloc_objs(*new_map, map_num);
 	if (!new_map)
 		return -ENOMEM;
 	*map = new_map;

@@ -512,7 +512,7 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 		goto fail;
 	}
 
-	clock = kzalloc_obj(*clock, GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock) {
 		clk = ERR_PTR(-ENOMEM);
 		goto fail;

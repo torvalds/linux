@@ -288,7 +288,7 @@ int unix_prepare_fpl(struct scm_fp_list *fpl)
 		return 0;
 
 	for (i = 0; i < fpl->count_unix; i++) {
-		vertex = kmalloc_obj(*vertex, GFP_KERNEL);
+		vertex = kmalloc_obj(*vertex);
 		if (!vertex)
 			goto err;
 

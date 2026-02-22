@@ -550,7 +550,7 @@ static int smu10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct smu10_hwmgr *data;
 
-	data = kzalloc_obj(struct smu10_hwmgr, GFP_KERNEL);
+	data = kzalloc_obj(struct smu10_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 

@@ -670,7 +670,7 @@ static struct iommu_domain *viommu_domain_alloc_paging(struct device *dev)
 		return ERR_PTR(-ENODEV);
 	}
 
-	vdomain = kzalloc_obj(*vdomain, GFP_KERNEL);
+	vdomain = kzalloc_obj(*vdomain);
 	if (!vdomain)
 		return ERR_PTR(-ENOMEM);
 
@@ -1028,7 +1028,7 @@ static struct iommu_device *viommu_probe_device(struct device *dev)
 	if (!viommu)
 		return ERR_PTR(-ENODEV);
 
-	vdev = kzalloc_obj(*vdev, GFP_KERNEL);
+	vdev = kzalloc_obj(*vdev);
 	if (!vdev)
 		return ERR_PTR(-ENOMEM);
 

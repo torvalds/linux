@@ -523,7 +523,7 @@ static struct resource *__alloc_res(struct zpci_dev *zdev, unsigned long start,
 {
 	struct resource *r;
 
-	r = kzalloc_obj(*r, GFP_KERNEL);
+	r = kzalloc_obj(*r);
 	if (!r)
 		return NULL;
 
@@ -824,7 +824,7 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	struct zpci_dev *zdev;
 	int rc;
 
-	zdev = kzalloc_obj(*zdev, GFP_KERNEL);
+	zdev = kzalloc_obj(*zdev);
 	if (!zdev)
 		return ERR_PTR(-ENOMEM);
 

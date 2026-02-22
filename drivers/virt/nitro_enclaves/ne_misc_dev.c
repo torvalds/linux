@@ -928,7 +928,7 @@ static int ne_set_user_memory_region_ioctl(struct ne_enclave *ne_enclave,
 	if (rc < 0)
 		return rc;
 
-	ne_mem_region = kzalloc_obj(*ne_mem_region, GFP_KERNEL);
+	ne_mem_region = kzalloc_obj(*ne_mem_region);
 	if (!ne_mem_region)
 		return -ENOMEM;
 
@@ -1616,7 +1616,7 @@ static int ne_create_vm_ioctl(struct ne_pci_dev *ne_pci_dev, u64 __user *slot_ui
 
 	mutex_unlock(&ne_cpu_pool.mutex);
 
-	ne_enclave = kzalloc_obj(*ne_enclave, GFP_KERNEL);
+	ne_enclave = kzalloc_obj(*ne_enclave);
 	if (!ne_enclave)
 		return -ENOMEM;
 

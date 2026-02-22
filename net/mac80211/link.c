@@ -295,7 +295,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 
 	/* allocate new link structures first */
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
-		link = kzalloc_obj(*link, GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link) {
 			ret = -ENOMEM;
 			goto free;

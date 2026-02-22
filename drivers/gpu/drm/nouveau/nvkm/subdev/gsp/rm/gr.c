@@ -74,7 +74,7 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 		func->sclass[i].ctor = nvkm_rm_gr_obj_ctor;
 	}
 
-	gr = kzalloc_obj(*gr, GFP_KERNEL);
+	gr = kzalloc_obj(*gr);
 	if (!gr) {
 		kfree(func);
 		return -ENOMEM;

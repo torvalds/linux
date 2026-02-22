@@ -9647,7 +9647,7 @@ static u8 __rtl_get_hw_ver(struct usb_device *udev)
 	int ret;
 	int i;
 
-	tmp = kmalloc_obj(*tmp, GFP_KERNEL);
+	tmp = kmalloc_obj(*tmp);
 	if (!tmp)
 		return 0;
 

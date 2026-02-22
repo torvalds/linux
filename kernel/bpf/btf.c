@@ -8306,7 +8306,7 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 
 	switch (op) {
 	case MODULE_STATE_COMING:
-		btf_mod = kzalloc_obj(*btf_mod, GFP_KERNEL);
+		btf_mod = kzalloc_obj(*btf_mod);
 		if (!btf_mod) {
 			err = -ENOMEM;
 			goto out;
@@ -8341,7 +8341,7 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		if (IS_ENABLED(CONFIG_SYSFS)) {
 			struct bin_attribute *attr;
 
-			attr = kzalloc_obj(*attr, GFP_KERNEL);
+			attr = kzalloc_obj(*attr);
 			if (!attr)
 				goto out;
 

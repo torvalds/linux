@@ -1056,7 +1056,7 @@ static int s5p_hash_copy_sg_lists(struct s5p_hash_reqctx *ctx,
 	if (ctx->bufcnt)
 		n++;
 
-	ctx->sg = kmalloc_objs(*sg, n, GFP_KERNEL);
+	ctx->sg = kmalloc_objs(*sg, n);
 	if (!ctx->sg) {
 		ctx->error = true;
 		return -ENOMEM;

@@ -377,7 +377,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 	if (device->zone_info)
 		return 0;
 
-	zone_info = kzalloc_obj(*zone_info, GFP_KERNEL);
+	zone_info = kzalloc_obj(*zone_info);
 	if (!zone_info)
 		return -ENOMEM;
 

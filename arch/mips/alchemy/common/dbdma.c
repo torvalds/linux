@@ -1057,7 +1057,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 {
 	int ret;
 
-	dbdev_tab = kzalloc_objs(dbdev_tab_t, DBDEV_TAB_SIZE, GFP_KERNEL);
+	dbdev_tab = kzalloc_objs(dbdev_tab_t, DBDEV_TAB_SIZE);
 	if (!dbdev_tab)
 		return -ENOMEM;
 

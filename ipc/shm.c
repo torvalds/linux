@@ -1618,7 +1618,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	rcu_read_unlock();
 
 	err = -ENOMEM;
-	sfd = kzalloc_obj(*sfd, GFP_KERNEL);
+	sfd = kzalloc_obj(*sfd);
 	if (!sfd) {
 		fput(base);
 		goto out_nattch;

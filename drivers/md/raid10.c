@@ -3852,7 +3852,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	}
 
 	err = -ENOMEM;
-	conf = kzalloc_obj(struct r10conf, GFP_KERNEL);
+	conf = kzalloc_obj(struct r10conf);
 	if (!conf)
 		goto out;
 

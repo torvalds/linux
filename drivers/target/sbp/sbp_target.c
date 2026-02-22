@@ -186,7 +186,7 @@ static struct sbp_session *sbp_session_create(
 
 	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
 
-	sess = kmalloc_obj(*sess, GFP_KERNEL);
+	sess = kmalloc_obj(*sess);
 	if (!sess)
 		return ERR_PTR(-ENOMEM);
 
@@ -391,7 +391,7 @@ static void sbp_management_request_login(
 		1 << LOGIN_ORB_RECONNECT(be32_to_cpu(req->orb.misc)),
 		tport->max_reconnect_timeout) - 1;
 
-	login = kmalloc_obj(*login, GFP_KERNEL);
+	login = kmalloc_obj(*login);
 	if (!login) {
 		pr_err("failed to allocate login descriptor\n");
 
@@ -428,7 +428,7 @@ static void sbp_management_request_login(
 	spin_unlock_bh(&sess->lock);
 
 already_logged_in:
-	response = kzalloc_obj(*response, GFP_KERNEL);
+	response = kzalloc_obj(*response);
 	if (!response) {
 		pr_err("failed to allocate login response block\n");
 
@@ -1014,7 +1014,7 @@ static struct sbp_target_agent *sbp_target_agent_register(
 	struct sbp_target_agent *agent;
 	int ret;
 
-	agent = kmalloc_obj(*agent, GFP_KERNEL);
+	agent = kmalloc_obj(*agent);
 	if (!agent)
 		return ERR_PTR(-ENOMEM);
 
@@ -1636,7 +1636,7 @@ static struct sbp_management_agent *sbp_management_agent_register(
 	int ret;
 	struct sbp_management_agent *agent;
 
-	agent = kmalloc_obj(*agent, GFP_KERNEL);
+	agent = kmalloc_obj(*agent);
 	if (!agent)
 		return ERR_PTR(-ENOMEM);
 
@@ -1973,7 +1973,7 @@ static struct se_portal_group *sbp_make_tpg(struct se_wwn *wwn,
 		return ERR_PTR(-EBUSY);
 	}
 
-	tpg = kzalloc_obj(*tpg, GFP_KERNEL);
+	tpg = kzalloc_obj(*tpg);
 	if (!tpg)
 		return ERR_PTR(-ENOMEM);
 
@@ -2030,7 +2030,7 @@ static struct se_wwn *sbp_make_tport(
 	if (sbp_parse_wwn(name, &guid) < 0)
 		return ERR_PTR(-EINVAL);
 
-	tport = kzalloc_obj(*tport, GFP_KERNEL);
+	tport = kzalloc_obj(*tport);
 	if (!tport)
 		return ERR_PTR(-ENOMEM);
 

@@ -487,7 +487,7 @@ static int share_pfn_hyp(u64 pfn)
 		goto unlock;
 	}
 
-	this = kzalloc_obj(*this, GFP_KERNEL);
+	this = kzalloc_obj(*this);
 	if (!this) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -2329,7 +2329,7 @@ int __init kvm_mmu_init(u32 hyp_va_bits)
 		goto out;
 	}
 
-	hyp_pgtable = kzalloc_obj(*hyp_pgtable, GFP_KERNEL);
+	hyp_pgtable = kzalloc_obj(*hyp_pgtable);
 	if (!hyp_pgtable) {
 		kvm_err("Hyp mode page-table not allocated\n");
 		err = -ENOMEM;

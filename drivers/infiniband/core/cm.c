@@ -827,7 +827,7 @@ static struct cm_id_private *cm_alloc_id_priv(struct ib_device *device,
 	u32 id;
 	int ret;
 
-	cm_id_priv = kzalloc_obj(*cm_id_priv, GFP_KERNEL);
+	cm_id_priv = kzalloc_obj(*cm_id_priv);
 	if (!cm_id_priv)
 		return ERR_PTR(-ENOMEM);
 
@@ -976,7 +976,7 @@ static struct cm_timewait_info *cm_create_timewait_info(__be32 local_id)
 {
 	struct cm_timewait_info *timewait_info;
 
-	timewait_info = kzalloc_obj(*timewait_info, GFP_KERNEL);
+	timewait_info = kzalloc_obj(*timewait_info);
 	if (!timewait_info)
 		return ERR_PTR(-ENOMEM);
 
@@ -4366,7 +4366,7 @@ static int cm_add_one(struct ib_device *ib_device)
 		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
-		port = kzalloc_obj(*port, GFP_KERNEL);
+		port = kzalloc_obj(*port);
 		if (!port) {
 			ret = -ENOMEM;
 			goto error1;

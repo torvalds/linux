@@ -1844,7 +1844,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		}
 	}
 	/* allocate memory */
-	vfs = kzalloc_objs(struct i40e_vf, num_alloc_vfs, GFP_KERNEL);
+	vfs = kzalloc_objs(struct i40e_vf, num_alloc_vfs);
 	if (!vfs) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -3956,7 +3956,7 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		goto err_out;
 	}
 
-	cfilter = kzalloc_obj(*cfilter, GFP_KERNEL);
+	cfilter = kzalloc_obj(*cfilter);
 	if (!cfilter) {
 		aq_ret = -ENOMEM;
 		goto err_out;

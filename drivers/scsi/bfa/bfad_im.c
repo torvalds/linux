@@ -698,7 +698,7 @@ bfad_im_probe(struct bfad_s *bfad)
 {
 	struct bfad_im_s      *im;
 
-	im = kzalloc_obj(struct bfad_im_s, GFP_KERNEL);
+	im = kzalloc_obj(struct bfad_im_s);
 	if (im == NULL)
 		return BFA_STATUS_ENOMEM;
 
@@ -994,7 +994,7 @@ bfad_im_supported_speeds(struct bfa_s *bfa)
 	struct bfa_ioc_attr_s *ioc_attr;
 	u32 supported_speed = 0;
 
-	ioc_attr = kzalloc_obj(struct bfa_ioc_attr_s, GFP_KERNEL);
+	ioc_attr = kzalloc_obj(struct bfa_ioc_attr_s);
 	if (!ioc_attr)
 		return 0;
 

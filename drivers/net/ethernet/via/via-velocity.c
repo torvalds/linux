@@ -2304,7 +2304,7 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		struct rx_info rx;
 		struct tx_info tx;
 
-		tmp_vptr = kzalloc_obj(*tmp_vptr, GFP_KERNEL);
+		tmp_vptr = kzalloc_obj(*tmp_vptr);
 		if (!tmp_vptr) {
 			ret = -ENOMEM;
 			goto out_0;

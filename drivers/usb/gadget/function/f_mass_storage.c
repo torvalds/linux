@@ -2699,7 +2699,7 @@ static void fsg_lun_release(struct device *dev)
 static struct fsg_common *fsg_common_setup(struct fsg_common *common)
 {
 	if (!common) {
-		common = kzalloc_obj(*common, GFP_KERNEL);
+		common = kzalloc_obj(*common);
 		if (!common)
 			return ERR_PTR(-ENOMEM);
 		common->free_storage_on_release = 1;
@@ -2740,7 +2740,7 @@ int fsg_common_set_num_buffers(struct fsg_common *common, unsigned int n)
 	struct fsg_buffhd *bh, *buffhds;
 	int i;
 
-	buffhds = kzalloc_objs(*buffhds, n, GFP_KERNEL);
+	buffhds = kzalloc_objs(*buffhds, n);
 	if (!buffhds)
 		return -ENOMEM;
 
@@ -2887,7 +2887,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 		return -EINVAL;
 	}
 
-	lun = kzalloc_obj(*lun, GFP_KERNEL);
+	lun = kzalloc_obj(*lun);
 	if (!lun)
 		return -ENOMEM;
 
@@ -3311,7 +3311,7 @@ static struct config_group *fsg_lun_make(struct config_group *group,
 		goto out;
 	}
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts) {
 		ret = -ENOMEM;
 		goto out;
@@ -3489,7 +3489,7 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 	struct fsg_lun_config config;
 	int rc;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&opts->lock);
@@ -3554,7 +3554,7 @@ static struct usb_function *fsg_alloc(struct usb_function_instance *fi)
 	struct fsg_common *common = opts->common;
 	struct fsg_dev *fsg;
 
-	fsg = kzalloc_obj(*fsg, GFP_KERNEL);
+	fsg = kzalloc_obj(*fsg);
 	if (unlikely(!fsg))
 		return ERR_PTR(-ENOMEM);
 

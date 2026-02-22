@@ -238,7 +238,7 @@ static bool init_srcu_struct_nodes(struct srcu_struct *ssp, gfp_t gfp_flags)
 static int init_srcu_struct_fields(struct srcu_struct *ssp, bool is_static)
 {
 	if (!is_static)
-		ssp->srcu_sup = kzalloc_obj(*ssp->srcu_sup, GFP_KERNEL);
+		ssp->srcu_sup = kzalloc_obj(*ssp->srcu_sup);
 	if (!ssp->srcu_sup)
 		return -ENOMEM;
 	if (!is_static)

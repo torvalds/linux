@@ -586,7 +586,7 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	driver_pptable = kzalloc_obj(struct PPTable_t, GFP_KERNEL);
+	driver_pptable = kzalloc_obj(struct PPTable_t);
 	if (!driver_pptable)
 		return -ENOMEM;
 
@@ -690,13 +690,13 @@ static int smu_v13_0_6_allocate_dpm_context(struct smu_context *smu)
 	struct smu_dpm_policy *policy;
 
 	smu_dpm->dpm_context =
-		kzalloc_obj(struct smu_13_0_dpm_context, GFP_KERNEL);
+		kzalloc_obj(struct smu_13_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
 
 	smu_dpm->dpm_policies =
-		kzalloc_obj(struct smu_dpm_policy_ctxt, GFP_KERNEL);
+		kzalloc_obj(struct smu_dpm_policy_ctxt);
 	if (!smu_dpm->dpm_policies) {
 		kfree(smu_dpm->dpm_context);
 		return -ENOMEM;
@@ -2341,7 +2341,7 @@ static int smu_v13_0_6_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

@@ -756,7 +756,7 @@ static int vmbus_add_dynid(struct hv_driver *drv, guid_t *guid)
 {
 	struct vmbus_dynid *dynid;
 
-	dynid = kzalloc_obj(*dynid, GFP_KERNEL);
+	dynid = kzalloc_obj(*dynid);
 	if (!dynid)
 		return -ENOMEM;
 
@@ -2156,7 +2156,7 @@ struct hv_device *vmbus_device_create(const guid_t *type,
 {
 	struct hv_device *child_device_obj;
 
-	child_device_obj = kzalloc_obj(struct hv_device, GFP_KERNEL);
+	child_device_obj = kzalloc_obj(struct hv_device);
 	if (!child_device_obj) {
 		pr_err("Unable to allocate device object for child device\n");
 		return NULL;
@@ -2672,7 +2672,7 @@ static int vmbus_device_add(struct platform_device *pdev)
 	for_each_of_range(&parser, &range) {
 		struct resource *res;
 
-		res = kzalloc_obj(*res, GFP_KERNEL);
+		res = kzalloc_obj(*res);
 		if (!res) {
 			vmbus_mmio_remove();
 			return -ENOMEM;

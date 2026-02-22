@@ -164,7 +164,7 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 		return p;
 	}
 
-	dma = kmalloc_obj(*dma, GFP_KERNEL);
+	dma = kmalloc_obj(*dma);
 	if (!dma)
 		return NULL;
 

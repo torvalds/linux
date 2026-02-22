@@ -3392,11 +3392,11 @@ static int dspxfr_image(struct hda_codec *codec,
 	if (fls_data == NULL)
 		return -EINVAL;
 
-	dma_engine = kzalloc_obj(*dma_engine, GFP_KERNEL);
+	dma_engine = kzalloc_obj(*dma_engine);
 	if (!dma_engine)
 		return -ENOMEM;
 
-	dma_engine->dmab = kzalloc_obj(*dma_engine->dmab, GFP_KERNEL);
+	dma_engine->dmab = kzalloc_obj(*dma_engine->dmab);
 	if (!dma_engine->dmab) {
 		kfree(dma_engine);
 		return -ENOMEM;
@@ -9899,7 +9899,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
 
 	codec_dbg(codec, "%s\n", __func__);
 
-	spec = kzalloc_obj(*spec, GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;

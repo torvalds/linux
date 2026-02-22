@@ -1296,7 +1296,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			continue;
 		}
 
-		wblock = kzalloc_obj(*wblock, GFP_KERNEL);
+		wblock = kzalloc_obj(*wblock);
 		if (!wblock)
 			continue;
 

@@ -109,11 +109,11 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	int err;
 
 	if (level) {
-		struct xe_pt_dir *dir = kzalloc_obj(*dir, GFP_KERNEL);
+		struct xe_pt_dir *dir = kzalloc_obj(*dir);
 
 		pt = (dir) ? &dir->pt : NULL;
 	} else {
-		pt = kzalloc_obj(*pt, GFP_KERNEL);
+		pt = kzalloc_obj(*pt);
 	}
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
@@ -2573,7 +2573,7 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 		}
 	}
 
-	rfence = kzalloc_obj(*rfence, GFP_KERNEL);
+	rfence = kzalloc_obj(*rfence);
 	if (!rfence) {
 		err = -ENOMEM;
 		goto free_ijob;

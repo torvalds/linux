@@ -2512,7 +2512,7 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

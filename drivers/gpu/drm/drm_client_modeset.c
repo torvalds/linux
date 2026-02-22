@@ -567,7 +567,7 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kzalloc_objs(*crtcs, connector_count, GFP_KERNEL);
+	crtcs = kzalloc_objs(*crtcs, connector_count);
 	if (!crtcs)
 		return best_score;
 
@@ -643,7 +643,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	if (drm_WARN_ON(dev, count <= 0))
 		return false;
 
-	save_enabled = kzalloc_objs(bool, count, GFP_KERNEL);
+	save_enabled = kzalloc_objs(bool, count);
 	if (!save_enabled)
 		return false;
 
@@ -855,10 +855,10 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 	if (!connector_count)
 		return 0;
 
-	crtcs = kzalloc_objs(*crtcs, connector_count, GFP_KERNEL);
-	modes = kzalloc_objs(*modes, connector_count, GFP_KERNEL);
-	offsets = kzalloc_objs(*offsets, connector_count, GFP_KERNEL);
-	enabled = kzalloc_objs(bool, connector_count, GFP_KERNEL);
+	crtcs = kzalloc_objs(*crtcs, connector_count);
+	modes = kzalloc_objs(*modes, connector_count);
+	offsets = kzalloc_objs(*offsets, connector_count);
+	enabled = kzalloc_objs(bool, connector_count);
 	if (!crtcs || !modes || !enabled || !offsets) {
 		ret = -ENOMEM;
 		goto out;

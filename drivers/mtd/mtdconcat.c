@@ -416,7 +416,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	/* make a local copy of instr to avoid modifying the caller's struct */
-	erase = kmalloc_obj(struct erase_info, GFP_KERNEL);
+	erase = kmalloc_obj(struct erase_info);
 
 	if (!erase)
 		return -ENOMEM;

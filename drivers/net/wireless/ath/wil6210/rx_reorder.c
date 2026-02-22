@@ -241,13 +241,13 @@ out:
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn)
 {
-	struct wil_tid_ampdu_rx *r = kzalloc_obj(*r, GFP_KERNEL);
+	struct wil_tid_ampdu_rx *r = kzalloc_obj(*r);
 
 	if (!r)
 		return NULL;
 
 	r->reorder_buf =
-		kzalloc_objs(struct sk_buff *, size, GFP_KERNEL);
+		kzalloc_objs(struct sk_buff *, size);
 	if (!r->reorder_buf) {
 		kfree(r);
 		return NULL;

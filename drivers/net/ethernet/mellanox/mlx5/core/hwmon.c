@@ -298,7 +298,7 @@ static struct mlx5_hwmon *mlx5_hwmon_alloc(struct mlx5_core_dev *mdev)
 	u32 sensors_count;
 	int err;
 
-	hwmon = kzalloc_obj(*mdev->hwmon, GFP_KERNEL);
+	hwmon = kzalloc_obj(*mdev->hwmon);
 	if (!hwmon)
 		return ERR_PTR(-ENOMEM);
 

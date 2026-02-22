@@ -485,7 +485,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 			   keymgmt, ucipher, auth, apsd_info);
 
 	/* send event to application */
-	sinfo = kzalloc_obj(*sinfo, GFP_KERNEL);
+	sinfo = kzalloc_obj(*sinfo);
 	if (!sinfo)
 		return;
 

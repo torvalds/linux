@@ -2250,7 +2250,7 @@ static int struct_udc_setup(struct fsl_udc *udc,
 	pdata = dev_get_platdata(&pdev->dev);
 	udc->phy_mode = pdata->phy_mode;
 
-	udc->eps = kzalloc_objs(struct fsl_ep, udc->max_ep, GFP_KERNEL);
+	udc->eps = kzalloc_objs(struct fsl_ep, udc->max_ep);
 	if (!udc->eps) {
 		dev_err(&udc->gadget.dev, "kmalloc udc endpoint status failed\n");
 		goto eps_alloc_failed;
@@ -2369,7 +2369,7 @@ static int fsl_udc_probe(struct platform_device *pdev)
 	unsigned int i;
 	u32 dccparams;
 
-	udc_controller = kzalloc_obj(struct fsl_udc, GFP_KERNEL);
+	udc_controller = kzalloc_obj(struct fsl_udc);
 	if (udc_controller == NULL)
 		return -ENOMEM;
 

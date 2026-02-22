@@ -2216,7 +2216,7 @@ struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *pr
 	struct rapl_package *rp;
 	int ret;
 
-	rp = kzalloc_obj(struct rapl_package, GFP_KERNEL);
+	rp = kzalloc_obj(struct rapl_package);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 

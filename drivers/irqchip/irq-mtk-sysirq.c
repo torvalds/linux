@@ -133,7 +133,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	chip_data = kzalloc_obj(*chip_data, GFP_KERNEL);
+	chip_data = kzalloc_obj(*chip_data);
 	if (!chip_data)
 		return -ENOMEM;
 

@@ -1186,7 +1186,7 @@ static struct ib_qp *__ib_open_qp(struct ib_qp *real_qp,
 	unsigned long flags;
 	int err;
 
-	qp = kzalloc_obj(*qp, GFP_KERNEL);
+	qp = kzalloc_obj(*qp);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 
@@ -2420,7 +2420,7 @@ struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
 		goto out;
 	}
 
-	sig_attrs = kzalloc_obj(struct ib_sig_attrs, GFP_KERNEL);
+	sig_attrs = kzalloc_obj(struct ib_sig_attrs);
 	if (!sig_attrs) {
 		mr = ERR_PTR(-ENOMEM);
 		goto out;

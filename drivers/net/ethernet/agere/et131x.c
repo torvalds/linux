@@ -1866,10 +1866,10 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct fbr_lookup *fbr;
 
 	/* Alloc memory for the lookup table */
-	rx_ring->fbr[0] = kzalloc_obj(*fbr, GFP_KERNEL);
+	rx_ring->fbr[0] = kzalloc_obj(*fbr);
 	if (rx_ring->fbr[0] == NULL)
 		return -ENOMEM;
-	rx_ring->fbr[1] = kzalloc_obj(*fbr, GFP_KERNEL);
+	rx_ring->fbr[1] = kzalloc_obj(*fbr);
 	if (rx_ring->fbr[1] == NULL)
 		return -ENOMEM;
 

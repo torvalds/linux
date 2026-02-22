@@ -7458,7 +7458,7 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 
 	BUG_ON(base_vha->vha_tgt.qla_tgt != NULL);
 
-	tgt = kzalloc_obj(struct qla_tgt, GFP_KERNEL);
+	tgt = kzalloc_obj(struct qla_tgt);
 	if (!tgt) {
 		ql_dbg(ql_dbg_tgt, base_vha, 0xe066,
 		    "Unable to allocate struct qla_tgt\n");

@@ -1086,12 +1086,12 @@ static struct fman_mac *memac_config(struct mac_device *mac_dev,
 	struct memac_cfg *memac_drv_param;
 
 	/* allocate memory for the m_emac data structure */
-	memac = kzalloc_obj(*memac, GFP_KERNEL);
+	memac = kzalloc_obj(*memac);
 	if (!memac)
 		return NULL;
 
 	/* allocate memory for the m_emac driver parameters data structure */
-	memac_drv_param = kzalloc_obj(*memac_drv_param, GFP_KERNEL);
+	memac_drv_param = kzalloc_obj(*memac_drv_param);
 	if (!memac_drv_param) {
 		memac_free(memac);
 		return NULL;

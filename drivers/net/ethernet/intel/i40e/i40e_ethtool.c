@@ -3976,7 +3976,7 @@ static int i40e_add_flex_offset(struct list_head *flex_pit_list,
 {
 	struct i40e_flex_pit *new_pit, *entry;
 
-	new_pit = kzalloc_obj(*entry, GFP_KERNEL);
+	new_pit = kzalloc_obj(*entry);
 	if (!new_pit)
 		return -ENOMEM;
 
@@ -4867,7 +4867,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		q_index = ring;
 	}
 
-	input = kzalloc_obj(*input, GFP_KERNEL);
+	input = kzalloc_obj(*input);
 
 	if (!input)
 		return -ENOMEM;

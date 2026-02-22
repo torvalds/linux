@@ -792,7 +792,7 @@ static int sbefifo_user_open(struct inode *inode, struct file *file)
 	struct sbefifo *sbefifo = container_of(inode->i_cdev, struct sbefifo, cdev);
 	struct sbefifo_user *user;
 
-	user = kzalloc_obj(struct sbefifo_user, GFP_KERNEL);
+	user = kzalloc_obj(struct sbefifo_user);
 	if (!user)
 		return -ENOMEM;
 
@@ -1033,7 +1033,7 @@ static int sbefifo_probe(struct fsi_device *fsi_dev)
 
 	dev_dbg(dev, "Found sbefifo device\n");
 
-	sbefifo = kzalloc_obj(*sbefifo, GFP_KERNEL);
+	sbefifo = kzalloc_obj(*sbefifo);
 	if (!sbefifo)
 		return -ENOMEM;
 

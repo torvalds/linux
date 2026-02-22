@@ -296,7 +296,7 @@ alloc_gid_entry(const struct ib_gid_attr *attr)
 	struct ib_gid_table_entry *entry;
 	struct net_device *ndev;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -771,12 +771,12 @@ const struct ib_gid_attr *rdma_find_gid_by_filter(
 
 static struct ib_gid_table *alloc_gid_table(int sz)
 {
-	struct ib_gid_table *table = kzalloc_obj(*table, GFP_KERNEL);
+	struct ib_gid_table *table = kzalloc_obj(*table);
 
 	if (!table)
 		return NULL;
 
-	table->data_vec = kzalloc_objs(*table->data_vec, sz, GFP_KERNEL);
+	table->data_vec = kzalloc_objs(*table->data_vec, sz);
 	if (!table->data_vec)
 		goto err_free_table;
 
@@ -1452,7 +1452,7 @@ ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
 	if (!rdma_is_port_valid(device, port))
 		return -EINVAL;
 
-	tprops = kmalloc_obj(*tprops, GFP_KERNEL);
+	tprops = kmalloc_obj(*tprops);
 	if (!tprops)
 		return -ENOMEM;
 

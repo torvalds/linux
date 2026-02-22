@@ -444,7 +444,7 @@ int trace_alloc_tgid_map(void)
 		return 0;
 
 	tgid_map_max = init_pid_ns.pid_max;
-	map = kvzalloc_objs(*tgid_map, tgid_map_max + 1, GFP_KERNEL);
+	map = kvzalloc_objs(*tgid_map, tgid_map_max + 1);
 	if (!map)
 		return -ENOMEM;
 

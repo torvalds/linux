@@ -264,7 +264,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	bfa_status_t    rc;
 	unsigned long   flags;
 
-	fcstats = kzalloc_obj(union bfa_port_stats_u, GFP_KERNEL);
+	fcstats = kzalloc_obj(union bfa_port_stats_u);
 	if (fcstats == NULL)
 		return NULL;
 

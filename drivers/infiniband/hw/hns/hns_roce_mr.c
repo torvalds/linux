@@ -200,7 +200,7 @@ struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc)
 	struct hns_roce_mr *mr;
 	int ret;
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return  ERR_PTR(-ENOMEM);
 
@@ -243,7 +243,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		goto err_out;
 	}
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		ret = -ENOMEM;
 		goto err_out;
@@ -395,7 +395,7 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 		return ERR_PTR(-EINVAL);
 	}
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -651,7 +651,7 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
 	page_shift = need_split_huge_page(mtr) ? HNS_HW_PAGE_SHIFT :
 						 mtr->hem_cfg.buf_pg_shift;
 	/* alloc a tmp array to store buffer's dma address */
-	pages = kvzalloc_objs(dma_addr_t, page_count, GFP_KERNEL);
+	pages = kvzalloc_objs(dma_addr_t, page_count);
 	if (!pages)
 		return -ENOMEM;
 

@@ -895,7 +895,7 @@ qp_guest_endpoint_create(struct vmci_handle handle,
 		handle = vmci_make_handle(context_id, VMCI_INVALID_ID);
 	}
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (entry) {
 		entry->qp.peer = peer;
 		entry->qp.flags = flags;
@@ -2722,7 +2722,7 @@ int vmci_qpair_alloc(struct vmci_qp **qpair,
 		return VMCI_ERROR_INVALID_ARGS;
 	}
 
-	my_qpair = kzalloc_obj(*my_qpair, GFP_KERNEL);
+	my_qpair = kzalloc_obj(*my_qpair);
 	if (!my_qpair)
 		return VMCI_ERROR_NO_MEM;
 

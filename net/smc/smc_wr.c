@@ -787,7 +787,7 @@ int smc_wr_alloc_link_mem(struct smc_link *link)
 		goto no_mem_wr_tx_pends;
 
 	if (link->lgr->smc_version == SMC_V2) {
-		link->wr_tx_v2_ib = kzalloc_obj(*link->wr_tx_v2_ib, GFP_KERNEL);
+		link->wr_tx_v2_ib = kzalloc_obj(*link->wr_tx_v2_ib);
 		if (!link->wr_tx_v2_ib)
 			goto no_mem_tx_compl;
 		link->wr_tx_v2_sge = kzalloc_obj(*link->wr_tx_v2_sge,

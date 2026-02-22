@@ -1344,7 +1344,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 		/* Generate a new random key */
 		get_random_bytes(sign.csrk, sizeof(sign.csrk));
 
-		csrk = kzalloc_obj(*csrk, GFP_KERNEL);
+		csrk = kzalloc_obj(*csrk);
 		if (csrk) {
 			if (hcon->sec_level > BT_SECURITY_MEDIUM)
 				csrk->type = MGMT_CSRK_LOCAL_AUTHENTICATED;
@@ -2664,7 +2664,7 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	csrk = kzalloc_obj(*csrk, GFP_KERNEL);
+	csrk = kzalloc_obj(*csrk);
 	if (csrk) {
 		if (conn->hcon->sec_level > BT_SECURITY_MEDIUM)
 			csrk->type = MGMT_CSRK_REMOTE_AUTHENTICATED;
@@ -3293,7 +3293,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 		goto create_chan;
 	}
 
-	smp = kzalloc_obj(*smp, GFP_KERNEL);
+	smp = kzalloc_obj(*smp);
 	if (!smp)
 		return ERR_PTR(-ENOMEM);
 

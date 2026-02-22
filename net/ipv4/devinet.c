@@ -270,7 +270,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 
 	ASSERT_RTNL();
 
-	in_dev = kzalloc_obj(*in_dev, GFP_KERNEL);
+	in_dev = kzalloc_obj(*in_dev);
 	if (!in_dev)
 		goto out;
 	memcpy(&in_dev->cnf, dev_net(dev)->ipv4.devconf_dflt,

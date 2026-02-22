@@ -1016,7 +1016,7 @@ static struct xive_irq_data *xive_irq_alloc_data(unsigned int virq, irq_hw_numbe
 	struct xive_irq_data *xd;
 	int rc;
 
-	xd = kzalloc_obj(struct xive_irq_data, GFP_KERNEL);
+	xd = kzalloc_obj(struct xive_irq_data);
 	if (!xd)
 		return ERR_PTR(-ENOMEM);
 	rc = xive_ops->populate_irq_data(hw, xd);

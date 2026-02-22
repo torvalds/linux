@@ -141,16 +141,16 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	struct gntdev_grant_map *add;
 	int i;
 
-	add = kzalloc_obj(*add, GFP_KERNEL);
+	add = kzalloc_obj(*add);
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kvmalloc_objs(add->grants[0], count, GFP_KERNEL);
-	add->map_ops   = kvmalloc_objs(add->map_ops[0], count, GFP_KERNEL);
-	add->unmap_ops = kvmalloc_objs(add->unmap_ops[0], count, GFP_KERNEL);
-	add->pages     = kvzalloc_objs(add->pages[0], count, GFP_KERNEL);
+	add->grants    = kvmalloc_objs(add->grants[0], count);
+	add->map_ops   = kvmalloc_objs(add->map_ops[0], count);
+	add->unmap_ops = kvmalloc_objs(add->unmap_ops[0], count);
+	add->pages     = kvzalloc_objs(add->pages[0], count);
 	add->being_removed =
-		kvzalloc_objs(add->being_removed[0], count, GFP_KERNEL);
+		kvzalloc_objs(add->being_removed[0], count);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
@@ -176,7 +176,7 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 	if (dma_flags & (GNTDEV_DMA_FLAG_WC | GNTDEV_DMA_FLAG_COHERENT)) {
 		struct gnttab_dma_alloc_args args;
 
-		add->frames = kvzalloc_objs(add->frames[0], count, GFP_KERNEL);
+		add->frames = kvzalloc_objs(add->frames[0], count);
 		if (!add->frames)
 			goto err;
 
@@ -583,7 +583,7 @@ static int gntdev_open(struct inode *inode, struct file *flip)
 {
 	struct gntdev_priv *priv;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -968,7 +968,7 @@ static long gntdev_ioctl_grant_copy(struct gntdev_priv *priv, void __user *u)
 
 	mutex_lock(&priv->batch_lock);
 	if (!priv->batch) {
-		batch = kmalloc_obj(*batch, GFP_KERNEL);
+		batch = kmalloc_obj(*batch);
 	} else {
 		batch = priv->batch;
 		priv->batch = batch->next;

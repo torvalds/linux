@@ -229,7 +229,7 @@ bnge_hwrm_create_token(struct bnge_dev *bd, enum bnge_hwrm_chnl dst)
 {
 	struct bnge_hwrm_wait_token *token;
 
-	token = kzalloc_obj(*token, GFP_KERNEL);
+	token = kzalloc_obj(*token);
 	if (!token)
 		return NULL;
 

@@ -2672,7 +2672,7 @@ static int efx_tc_configure_default_rule(struct efx_nic *efx, u32 ing_port,
 
 	match->value.ingress_port = ing_port;
 	match->mask.ingress_port = ~0;
-	act = kzalloc_obj(*act, GFP_KERNEL);
+	act = kzalloc_obj(*act);
 	if (!act)
 		return -ENOMEM;
 	act->deliver = 1;
@@ -2745,7 +2745,7 @@ static int efx_tc_configure_fallback_acts(struct efx_nic *efx, u32 eg_port,
 	struct efx_tc_action_set *act;
 	int rc;
 
-	act = kzalloc_obj(*act, GFP_KERNEL);
+	act = kzalloc_obj(*act);
 	if (!act)
 		return -ENOMEM;
 	act->deliver = 1;
@@ -2988,10 +2988,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	if (efx->type->is_vf)
 		return 0;
 
-	efx->tc = kzalloc_obj(*efx->tc, GFP_KERNEL);
+	efx->tc = kzalloc_obj(*efx->tc);
 	if (!efx->tc)
 		return -ENOMEM;
-	efx->tc->caps = kzalloc_obj(struct mae_caps, GFP_KERNEL);
+	efx->tc->caps = kzalloc_obj(struct mae_caps);
 	if (!efx->tc->caps) {
 		rc = -ENOMEM;
 		goto fail_alloc_caps;

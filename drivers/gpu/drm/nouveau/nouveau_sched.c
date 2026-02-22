@@ -467,7 +467,7 @@ nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
 	struct nouveau_sched *sched;
 	int ret;
 
-	sched = kzalloc_obj(*sched, GFP_KERNEL);
+	sched = kzalloc_obj(*sched);
 	if (!sched)
 		return -ENOMEM;
 

@@ -1040,7 +1040,7 @@ static int nvmet_port_subsys_allow_link(struct config_item *parent,
 		return -EINVAL;
 	}
 	subsys = to_subsys(target);
-	link = kmalloc_obj(*link, GFP_KERNEL);
+	link = kmalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 	link->subsys = subsys;
@@ -1120,7 +1120,7 @@ static int nvmet_allowed_hosts_allow_link(struct config_item *parent,
 	}
 
 	host = to_host(target);
-	link = kmalloc_obj(*link, GFP_KERNEL);
+	link = kmalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 	link->host = host;
@@ -1825,7 +1825,7 @@ static struct config_group *nvmet_referral_make(
 {
 	struct nvmet_port *port;
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
@@ -1943,7 +1943,7 @@ static struct config_group *nvmet_ana_groups_make_group(
 		goto out;
 
 	ret = -ENOMEM;
-	grp = kzalloc_obj(*grp, GFP_KERNEL);
+	grp = kzalloc_obj(*grp);
 	if (!grp)
 		goto out;
 	grp->port = port;
@@ -2022,7 +2022,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	if (kstrtou16(name, 0, &portid))
 		return ERR_PTR(-EINVAL);
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
@@ -2257,7 +2257,7 @@ static struct config_group *nvmet_hosts_make_group(struct config_group *group,
 {
 	struct nvmet_host *host;
 
-	host = kzalloc_obj(*host, GFP_KERNEL);
+	host = kzalloc_obj(*host);
 	if (!host)
 		return ERR_PTR(-ENOMEM);
 

@@ -128,7 +128,7 @@ static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	mtouch = kzalloc_obj(*mtouch, GFP_KERNEL);
+	mtouch = kzalloc_obj(*mtouch);
 	input_dev = input_allocate_device();
 	if (!mtouch || !input_dev) {
 		err = -ENOMEM;

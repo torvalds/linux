@@ -2228,7 +2228,7 @@ static int __tun_set_ebpf(struct tun_struct *tun,
 	struct tun_prog *old, *new = NULL;
 
 	if (prog) {
-		new = kmalloc_obj(*new, GFP_KERNEL);
+		new = kmalloc_obj(*new);
 		if (!new)
 			return -ENOMEM;
 		new->prog = prog;
@@ -3605,7 +3605,7 @@ static int tun_queue_resize(struct tun_struct *tun)
 	int n = tun->numqueues + tun->numdisabled;
 	int ret, i;
 
-	rings = kmalloc_objs(*rings, n, GFP_KERNEL);
+	rings = kmalloc_objs(*rings, n);
 	if (!rings)
 		return -ENOMEM;
 

@@ -2250,7 +2250,7 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 	u32 nentries, i;
 	int ret;
 
-	eth_filter = kzalloc_obj(*eth_filter, GFP_KERNEL);
+	eth_filter = kzalloc_obj(*eth_filter);
 	if (!eth_filter)
 		return -ENOMEM;
 

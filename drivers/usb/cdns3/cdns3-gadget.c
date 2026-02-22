@@ -3287,7 +3287,7 @@ static int cdns3_gadget_start(struct cdns *cdns)
 	u32 max_speed;
 	int ret;
 
-	priv_dev = kzalloc_obj(*priv_dev, GFP_KERNEL);
+	priv_dev = kzalloc_obj(*priv_dev);
 	if (!priv_dev)
 		return -ENOMEM;
 

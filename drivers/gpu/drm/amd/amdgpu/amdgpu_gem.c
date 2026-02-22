@@ -1183,7 +1183,7 @@ int amdgpu_gem_list_handles_ioctl(struct drm_device *dev, void *data,
 		return 0;
 	}
 
-	bo_entries = kvzalloc_objs(*bo_entries, num_bos, GFP_KERNEL);
+	bo_entries = kvzalloc_objs(*bo_entries, num_bos);
 	if (!bo_entries)
 		return -ENOMEM;
 

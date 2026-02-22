@@ -3564,7 +3564,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 	unsigned long count;
 	int err = 0;
 
-	arg = kmalloc_objs(*arg, I915_NUM_ENGINES, GFP_KERNEL);
+	arg = kmalloc_objs(*arg, I915_NUM_ENGINES);
 	if (!arg)
 		return -ENOMEM;
 

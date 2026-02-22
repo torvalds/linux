@@ -385,7 +385,7 @@ struct clk_hw *mtk_clk_register_pll(struct device *dev,
 	struct clk_hw *hw;
 	const struct clk_ops *pll_ops = data->ops ? data->ops : &mtk_pll_ops;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

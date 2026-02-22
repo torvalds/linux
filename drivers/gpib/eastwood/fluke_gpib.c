@@ -853,7 +853,7 @@ static int fluke_allocate_private(struct gpib_board *board)
 {
 	struct fluke_priv *priv;
 
-	board->private_data = kzalloc_obj(struct fluke_priv, GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct fluke_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;

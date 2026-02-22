@@ -1572,7 +1572,7 @@ int l2tp_tunnel_create(int fd, int version, u32 tunnel_id, u32 peer_tunnel_id,
 	if (cfg)
 		encap = cfg->encap;
 
-	tunnel = kzalloc_obj(*tunnel, GFP_KERNEL);
+	tunnel = kzalloc_obj(*tunnel);
 	if (!tunnel) {
 		err = -ENOMEM;
 		goto err;

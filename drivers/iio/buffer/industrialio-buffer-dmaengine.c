@@ -224,7 +224,7 @@ static struct iio_buffer *iio_dmaengine_buffer_alloc(struct dma_chan *chan)
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	dmaengine_buffer = kzalloc_obj(*dmaengine_buffer, GFP_KERNEL);
+	dmaengine_buffer = kzalloc_obj(*dmaengine_buffer);
 	if (!dmaengine_buffer)
 		return ERR_PTR(-ENOMEM);
 

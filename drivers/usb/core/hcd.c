@@ -2193,7 +2193,7 @@ int ehset_single_step_set_feature(struct usb_hcd *hcd, int port)
 	if (!buf)
 		return -ENOMEM;
 
-	dr = kmalloc_obj(struct usb_ctrlrequest, GFP_KERNEL);
+	dr = kmalloc_obj(struct usb_ctrlrequest);
 	if (!dr) {
 		kfree(buf);
 		return -ENOMEM;

@@ -1318,7 +1318,7 @@ static int dsa_user_netpoll_setup(struct net_device *dev)
 	struct netpoll *netpoll;
 	int err = 0;
 
-	netpoll = kzalloc_obj(*netpoll, GFP_KERNEL);
+	netpoll = kzalloc_obj(*netpoll);
 	if (!netpoll)
 		return -ENOMEM;
 
@@ -1430,7 +1430,7 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	mall_tc_entry = kzalloc_obj(*mall_tc_entry, GFP_KERNEL);
+	mall_tc_entry = kzalloc_obj(*mall_tc_entry);
 	if (!mall_tc_entry)
 		return -ENOMEM;
 
@@ -1490,7 +1490,7 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 
 	act = &cls->rule->action.entries[0];
 
-	mall_tc_entry = kzalloc_obj(*mall_tc_entry, GFP_KERNEL);
+	mall_tc_entry = kzalloc_obj(*mall_tc_entry);
 	if (!mall_tc_entry)
 		return -ENOMEM;
 
@@ -1823,7 +1823,7 @@ static int dsa_user_vlan_rx_add_vid(struct net_device *dev, __be16 proto,
 	    !dsa_switch_supports_mc_filtering(ds))
 		return 0;
 
-	v = kzalloc_obj(*v, GFP_KERNEL);
+	v = kzalloc_obj(*v);
 	if (!v) {
 		ret = -ENOMEM;
 		goto rollback;
@@ -2070,7 +2070,7 @@ static void dsa_bridge_mtu_normalization(struct dsa_port *dp)
 			if (min_mtu > user->mtu)
 				min_mtu = user->mtu;
 
-			hw_port = kzalloc_obj(*hw_port, GFP_KERNEL);
+			hw_port = kzalloc_obj(*hw_port);
 			if (!hw_port)
 				goto out;
 

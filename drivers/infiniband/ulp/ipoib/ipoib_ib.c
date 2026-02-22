@@ -59,7 +59,7 @@ struct ipoib_ah *ipoib_create_ah(struct net_device *dev,
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;
 
-	ah = kmalloc_obj(*ah, GFP_KERNEL);
+	ah = kmalloc_obj(*ah);
 	if (!ah)
 		return ERR_PTR(-ENOMEM);
 

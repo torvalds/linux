@@ -1233,7 +1233,7 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 	if (t_dis || r_dis)
 		return;
 
-	ipsec = kzalloc_obj(*ipsec, GFP_KERNEL);
+	ipsec = kzalloc_obj(*ipsec);
 	if (!ipsec)
 		goto err1;
 	hash_init(ipsec->rx_sa_list);

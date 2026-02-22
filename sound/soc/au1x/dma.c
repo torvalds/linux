@@ -81,7 +81,7 @@ static int au1000_setup_dma_link(struct audio_stream *stream,
 	stream->period_size = period_bytes;
 	stream->periods = periods;
 
-	stream->buffer = kmalloc_obj(struct pcm_period, GFP_KERNEL);
+	stream->buffer = kmalloc_obj(struct pcm_period);
 	if (!stream->buffer)
 		return -ENOMEM;
 	pointer = stream->buffer;

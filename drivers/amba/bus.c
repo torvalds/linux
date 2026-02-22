@@ -611,7 +611,7 @@ struct amba_device *amba_device_alloc(const char *name, resource_size_t base,
 {
 	struct amba_device *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev) {
 		amba_device_initialize(dev, name);
 		dev->res.start = base;

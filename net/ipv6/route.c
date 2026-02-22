@@ -5331,7 +5331,7 @@ static int ip6_route_info_append(struct list_head *rt6_nh_list,
 			return -EEXIST;
 	}
 
-	nh = kzalloc_obj(*nh, GFP_KERNEL);
+	nh = kzalloc_obj(*nh);
 	if (!nh)
 		return -ENOMEM;
 
@@ -6778,7 +6778,7 @@ static struct pernet_operations ip6_route_net_ops = {
 
 static int __net_init ipv6_inetpeer_init(struct net *net)
 {
-	struct inet_peer_base *bp = kmalloc_obj(*bp, GFP_KERNEL);
+	struct inet_peer_base *bp = kmalloc_obj(*bp);
 
 	if (!bp)
 		return -ENOMEM;

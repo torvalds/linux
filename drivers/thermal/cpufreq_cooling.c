@@ -542,7 +542,7 @@ __cpufreq_cooling_register(struct device_node *np,
 		return ERR_PTR(-ENODEV);
 	}
 
-	cpufreq_cdev = kzalloc_obj(*cpufreq_cdev, GFP_KERNEL);
+	cpufreq_cdev = kzalloc_obj(*cpufreq_cdev);
 	if (!cpufreq_cdev)
 		return ERR_PTR(-ENOMEM);
 

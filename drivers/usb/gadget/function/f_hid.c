@@ -650,7 +650,7 @@ static int f_hidg_get_report(struct file *file, struct usb_hidg_report __user *b
 	struct report_entry *ptr;
 	__u8 report_id;
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1530,7 +1530,7 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 	struct usb_function_instance *ret;
 	int status = 0;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&opts->lock);
@@ -1596,7 +1596,7 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	int ret;
 
 	/* allocate and initialize one new instance */
-	hidg = kzalloc_obj(*hidg, GFP_KERNEL);
+	hidg = kzalloc_obj(*hidg);
 	if (!hidg)
 		return ERR_PTR(-ENOMEM);
 

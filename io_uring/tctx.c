@@ -23,7 +23,7 @@ static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 	mutex_lock(&ctx->uring_lock);
 	hash = ctx->hash_map;
 	if (!hash) {
-		hash = kzalloc_obj(*hash, GFP_KERNEL);
+		hash = kzalloc_obj(*hash);
 		if (!hash) {
 			mutex_unlock(&ctx->uring_lock);
 			return ERR_PTR(-ENOMEM);
@@ -80,7 +80,7 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	struct io_uring_task *tctx;
 	int ret;
 
-	tctx = kzalloc_obj(*tctx, GFP_KERNEL);
+	tctx = kzalloc_obj(*tctx);
 	if (unlikely(!tctx))
 		return -ENOMEM;
 
@@ -139,7 +139,7 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 	if (tctx->io_wq)
 		io_wq_set_exit_on_idle(tctx->io_wq, false);
 	if (!xa_load(&tctx->xa, (unsigned long)ctx)) {
-		node = kmalloc_obj(*node, GFP_KERNEL);
+		node = kmalloc_obj(*node);
 		if (!node)
 			return -ENOMEM;
 		node->ctx = ctx;

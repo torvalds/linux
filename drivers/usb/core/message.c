@@ -2287,7 +2287,7 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 {
 	struct set_config_request *req;
 
-	req = kmalloc_obj(*req, GFP_KERNEL);
+	req = kmalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 	req->udev = udev;

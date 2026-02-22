@@ -1197,7 +1197,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usPPMTableOffset));
 			rdev->pm.dpm.dyn_state.ppm_table =
-				kzalloc_obj(struct radeon_ppm_table, GFP_KERNEL);
+				kzalloc_obj(struct radeon_ppm_table);
 			if (!rdev->pm.dpm.dyn_state.ppm_table) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;

@@ -1279,7 +1279,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 {
 	struct f_midi_opts *opts;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 

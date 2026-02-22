@@ -381,7 +381,7 @@ static int wil_ring_alloc_desc_ring(struct wil6210_priv *wil,
 
 	ring->swhead = 0;
 	ring->swtail = 0;
-	ring->ctx = kzalloc_objs(ring->ctx[0], ring->size, GFP_KERNEL);
+	ring->ctx = kzalloc_objs(ring->ctx[0], ring->size);
 	if (!ring->ctx)
 		goto err;
 

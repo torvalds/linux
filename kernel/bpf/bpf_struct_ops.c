@@ -218,7 +218,7 @@ static int prepare_arg_info(struct btf *btf,
 	args = btf_params(func_proto);
 	stub_args = btf_params(stub_func_proto);
 
-	info_buf = kzalloc_objs(*info_buf, nargs, GFP_KERNEL);
+	info_buf = kzalloc_objs(*info_buf, nargs);
 	if (!info_buf)
 		return -ENOMEM;
 
@@ -378,7 +378,7 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 	if (!is_valid_value_type(btf, value_id, t, value_name))
 		return -EINVAL;
 
-	arg_info = kzalloc_objs(*arg_info, btf_type_vlen(t), GFP_KERNEL);
+	arg_info = kzalloc_objs(*arg_info, btf_type_vlen(t));
 	if (!arg_info)
 		return -ENOMEM;
 
@@ -720,7 +720,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (uvalue->common.state || refcount_read(&uvalue->common.refcnt))
 		return -EINVAL;
 
-	tlinks = kzalloc_objs(*tlinks, BPF_TRAMP_MAX, GFP_KERNEL);
+	tlinks = kzalloc_objs(*tlinks, BPF_TRAMP_MAX);
 	if (!tlinks)
 		return -ENOMEM;
 

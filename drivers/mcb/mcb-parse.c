@@ -146,14 +146,14 @@ static int chameleon_get_bar(void __iomem **base, phys_addr_t mapbase,
 		if (bar_count <= 0 || bar_count > CHAMELEON_BAR_MAX)
 			return -ENODEV;
 
-		c = kzalloc_objs(struct chameleon_bar, bar_count, GFP_KERNEL);
+		c = kzalloc_objs(struct chameleon_bar, bar_count);
 		if (!c)
 			return -ENOMEM;
 
 		chameleon_parse_bar(*base, c, bar_count);
 		*base += BAR_DESC_SIZE(bar_count);
 	} else {
-		c = kzalloc_obj(struct chameleon_bar, GFP_KERNEL);
+		c = kzalloc_obj(struct chameleon_bar);
 		if (!c)
 			return -ENOMEM;
 

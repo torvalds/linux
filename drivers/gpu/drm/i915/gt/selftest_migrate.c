@@ -689,7 +689,7 @@ static int threaded_migrate(struct intel_migrate *migrate,
 	unsigned int i;
 	int err = 0;
 
-	thread = kzalloc_objs(*thread, n_cpus, GFP_KERNEL);
+	thread = kzalloc_objs(*thread, n_cpus);
 	if (!thread)
 		return 0;
 

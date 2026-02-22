@@ -311,12 +311,12 @@ static int usnic_vnic_alloc_res_chunk(struct usnic_vnic *vnic,
 	}
 
 	chunk->cnt = chunk->free_cnt = cnt;
-	chunk->res = kzalloc_objs(*(chunk->res), cnt, GFP_KERNEL);
+	chunk->res = kzalloc_objs(*(chunk->res), cnt);
 	if (!chunk->res)
 		return -ENOMEM;
 
 	for (i = 0; i < cnt; i++) {
-		res = kzalloc_obj(*res, GFP_KERNEL);
+		res = kzalloc_obj(*res);
 		if (!res) {
 			err = -ENOMEM;
 			goto fail;
@@ -445,7 +445,7 @@ struct usnic_vnic *usnic_vnic_alloc(struct pci_dev *pdev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	vnic = kzalloc_obj(*vnic, GFP_KERNEL);
+	vnic = kzalloc_obj(*vnic);
 	if (!vnic)
 		return ERR_PTR(-ENOMEM);
 

@@ -113,7 +113,7 @@ int iwpm_create_mapinfo(struct sockaddr_storage *local_sockaddr,
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	map_info = kzalloc_obj(struct iwpm_mapping_info, GFP_KERNEL);
+	map_info = kzalloc_obj(struct iwpm_mapping_info);
 	if (!map_info)
 		return -ENOMEM;
 

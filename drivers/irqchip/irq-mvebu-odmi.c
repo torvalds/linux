@@ -178,7 +178,7 @@ static int __init mvebu_odmi_init(struct device_node *node,
 	if (of_property_read_u32(node, "marvell,odmi-frames", &odmis_count))
 		return -EINVAL;
 
-	odmis = kzalloc_objs(struct odmi_data, odmis_count, GFP_KERNEL);
+	odmis = kzalloc_objs(struct odmi_data, odmis_count);
 	if (!odmis)
 		return -ENOMEM;
 

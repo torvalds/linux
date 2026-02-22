@@ -2586,7 +2586,7 @@ static int si_initialize_smc_dte_tables(struct amdgpu_device *adev)
 	if (dte_data->k <= 0)
 		return -EINVAL;
 
-	dte_tables = kzalloc_obj(Smc_SIslands_DTE_Configuration, GFP_KERNEL);
+	dte_tables = kzalloc_obj(Smc_SIslands_DTE_Configuration);
 	if (dte_tables == NULL) {
 		si_pi->enable_dte = false;
 		return -ENOMEM;
@@ -2767,7 +2767,7 @@ static int si_initialize_smc_cac_tables(struct amdgpu_device *adev)
 	if (ni_pi->enable_cac == false)
 		return 0;
 
-	cac_tables = kzalloc_obj(PP_SIslands_CacConfig, GFP_KERNEL);
+	cac_tables = kzalloc_obj(PP_SIslands_CacConfig);
 	if (!cac_tables)
 		return -ENOMEM;
 
@@ -2964,7 +2964,7 @@ static int si_init_smc_spll_table(struct amdgpu_device *adev)
 	if (si_pi->spll_table_start == 0)
 		return -EINVAL;
 
-	spll_table = kzalloc_obj(SMC_SISLANDS_SPLL_DIV_TABLE, GFP_KERNEL);
+	spll_table = kzalloc_obj(SMC_SISLANDS_SPLL_DIV_TABLE);
 	if (spll_table == NULL)
 		return -ENOMEM;
 
@@ -6054,7 +6054,7 @@ static int si_initialize_mc_reg_table(struct amdgpu_device *adev)
 	u8 module_index = rv770_get_memory_module_index(adev);
 	int ret;
 
-	table = kzalloc_obj(struct atom_mc_reg_table, GFP_KERNEL);
+	table = kzalloc_obj(struct atom_mc_reg_table);
 	if (!table)
 		return -ENOMEM;
 
@@ -7352,7 +7352,7 @@ static int si_parse_power_table(struct amdgpu_device *adev)
 		non_clock_array_index = power_state->v2.nonClockInfoIndex;
 		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
 			&non_clock_info_array->nonClockInfo[non_clock_array_index];
-		ps = kzalloc_obj(struct si_ps, GFP_KERNEL);
+		ps = kzalloc_obj(struct si_ps);
 		if (ps == NULL)
 			return -ENOMEM;
 		adev->pm.dpm.ps[i].ps_priv = ps;
@@ -7405,7 +7405,7 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	struct atom_clock_dividers dividers;
 	int ret;
 
-	si_pi = kzalloc_obj(struct si_power_info, GFP_KERNEL);
+	si_pi = kzalloc_obj(struct si_power_info);
 	if (si_pi == NULL)
 		return -ENOMEM;
 	adev->pm.dpm.priv = si_pi;

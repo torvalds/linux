@@ -274,7 +274,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 	int bus_nr;
 	int rc;
 
-	bus = kzalloc_obj(struct mcb_bus, GFP_KERNEL);
+	bus = kzalloc_obj(struct mcb_bus);
 	if (!bus)
 		return ERR_PTR(-ENOMEM);
 
@@ -366,7 +366,7 @@ struct mcb_device *mcb_alloc_dev(struct mcb_bus *bus)
 {
 	struct mcb_device *dev;
 
-	dev = kzalloc_obj(struct mcb_device, GFP_KERNEL);
+	dev = kzalloc_obj(struct mcb_device);
 	if (!dev)
 		return NULL;
 

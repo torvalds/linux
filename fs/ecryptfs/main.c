@@ -610,7 +610,7 @@ static int ecryptfs_init_fs_context(struct fs_context *fc)
 	struct ecryptfs_fs_context *ctx;
 	struct ecryptfs_sb_info *sbi = NULL;
 
-	ctx = kzalloc_obj(struct ecryptfs_fs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct ecryptfs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);

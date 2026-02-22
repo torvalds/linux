@@ -844,7 +844,7 @@ static struct usb_function *source_sink_alloc_func(
 	struct f_sourcesink     *ss;
 	struct f_ss_opts	*ss_opts;
 
-	ss = kzalloc_obj(*ss, GFP_KERNEL);
+	ss = kzalloc_obj(*ss);
 	if (!ss)
 		return ERR_PTR(-ENOMEM);
 
@@ -1297,7 +1297,7 @@ static struct usb_function_instance *source_sink_alloc_inst(void)
 {
 	struct f_ss_opts *ss_opts;
 
-	ss_opts = kzalloc_obj(*ss_opts, GFP_KERNEL);
+	ss_opts = kzalloc_obj(*ss_opts);
 	if (!ss_opts)
 		return ERR_PTR(-ENOMEM);
 	mutex_init(&ss_opts->lock);

@@ -273,7 +273,7 @@ static int __init ingenic_tcu_register_clock(struct ingenic_tcu *tcu,
 	struct ingenic_tcu_clk *tcu_clk;
 	int err;
 
-	tcu_clk = kzalloc_obj(*tcu_clk, GFP_KERNEL);
+	tcu_clk = kzalloc_obj(*tcu_clk);
 	if (!tcu_clk)
 		return -ENOMEM;
 
@@ -344,7 +344,7 @@ static int __init ingenic_tcu_probe(struct device_node *np)
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	tcu = kzalloc_obj(*tcu, GFP_KERNEL);
+	tcu = kzalloc_obj(*tcu);
 	if (!tcu)
 		return -ENOMEM;
 

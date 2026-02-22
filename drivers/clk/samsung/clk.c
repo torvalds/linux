@@ -55,7 +55,7 @@ struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 	struct samsung_clk_reg_dump *rd;
 	unsigned int i;
 
-	rd = kzalloc_objs(*rd, nr_rdump, GFP_KERNEL);
+	rd = kzalloc_objs(*rd, nr_rdump);
 	if (!rd)
 		return NULL;
 
@@ -301,7 +301,7 @@ struct clk_hw *samsung_register_auto_gate(struct device *dev,
 	int ret = -EINVAL;
 
 	/* allocate the gate */
-	gate = kzalloc_obj(*gate, GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
@@ -431,7 +431,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	reg_cache = kzalloc_obj(struct samsung_clock_reg_cache, GFP_KERNEL);
+	reg_cache = kzalloc_obj(struct samsung_clock_reg_cache);
 	if (!reg_cache)
 		panic("could not allocate register reg_cache.\n");
 	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);

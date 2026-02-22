@@ -2969,7 +2969,7 @@ irdma_make_listen_node(struct irdma_cm_core *cm_core,
 		/* create a CM listen node
 		 * 1/2 node to compare incoming traffic to
 		 */
-		listener = kzalloc_obj(*listener, GFP_KERNEL);
+		listener = kzalloc_obj(*listener);
 		if (!listener)
 			return NULL;
 		cm_core->stats_listen_nodes_created++;

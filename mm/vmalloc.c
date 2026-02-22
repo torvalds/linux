@@ -4920,14 +4920,14 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
 		return NULL;
 	}
 
-	vms = kzalloc_objs(vms[0], nr_vms, GFP_KERNEL);
-	vas = kzalloc_objs(vas[0], nr_vms, GFP_KERNEL);
+	vms = kzalloc_objs(vms[0], nr_vms);
+	vas = kzalloc_objs(vas[0], nr_vms);
 	if (!vas || !vms)
 		goto err_free2;
 
 	for (area = 0; area < nr_vms; area++) {
 		vas[area] = kmem_cache_zalloc(vmap_area_cachep, GFP_KERNEL);
-		vms[area] = kzalloc_obj(struct vm_struct, GFP_KERNEL);
+		vms[area] = kzalloc_obj(struct vm_struct);
 		if (!vas[area] || !vms[area])
 			goto err_free;
 	}

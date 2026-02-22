@@ -353,7 +353,7 @@ static int __cold dpaa2_qdma_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	priv->num_pairs = min(priv->dpdmai_attr.num_of_priorities, prio_def);
-	ppriv = kzalloc_objs(*ppriv, priv->num_pairs, GFP_KERNEL);
+	ppriv = kzalloc_objs(*ppriv, priv->num_pairs);
 	if (!ppriv) {
 		err = -ENOMEM;
 		goto exit;
@@ -659,7 +659,7 @@ static int dpaa2_qdma_probe(struct fsl_mc_device *dpdmai_dev)
 	struct dpaa2_qdma_priv *priv;
 	int err;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 	dev_set_drvdata(dev, priv);
@@ -707,7 +707,7 @@ static int dpaa2_qdma_probe(struct fsl_mc_device *dpdmai_dev)
 		goto err_enable;
 	}
 
-	dpaa2_qdma = kzalloc_obj(*dpaa2_qdma, GFP_KERNEL);
+	dpaa2_qdma = kzalloc_obj(*dpaa2_qdma);
 	if (!dpaa2_qdma) {
 		err = -ENOMEM;
 		goto err_eng;

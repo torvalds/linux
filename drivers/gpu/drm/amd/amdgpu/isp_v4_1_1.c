@@ -259,7 +259,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 		return -EINVAL;
 	}
 
-	isp->isp_cell = kzalloc_objs(struct mfd_cell, 3, GFP_KERNEL);
+	isp->isp_cell = kzalloc_objs(struct mfd_cell, 3);
 	if (!isp->isp_cell) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd cell alloc failed (%d)\n", r);
@@ -268,14 +268,14 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 
 	num_res = MAX_ISP411_MEM_RES + MAX_ISP411_INT_SRC;
 
-	isp->isp_res = kzalloc_objs(struct resource, num_res, GFP_KERNEL);
+	isp->isp_res = kzalloc_objs(struct resource, num_res);
 	if (!isp->isp_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd resource alloc failed (%d)\n", r);
 		goto failure;
 	}
 
-	isp->isp_pdata = kzalloc_obj(*isp->isp_pdata, GFP_KERNEL);
+	isp->isp_pdata = kzalloc_obj(*isp->isp_pdata);
 	if (!isp->isp_pdata) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp platform data alloc failed (%d)\n", r);
@@ -317,7 +317,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp i2c platform data */
-	isp->isp_i2c_res = kzalloc_objs(struct resource, 1, GFP_KERNEL);
+	isp->isp_i2c_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_i2c_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp mfd res alloc failed (%d)\n", r);
@@ -336,7 +336,7 @@ static int isp_v4_1_1_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[1].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp gpiochip platform data */
-	isp->isp_gpio_res = kzalloc_objs(struct resource, 1, GFP_KERNEL);
+	isp->isp_gpio_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_gpio_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev, "isp gpio resource alloc failed (%d)\n", r);

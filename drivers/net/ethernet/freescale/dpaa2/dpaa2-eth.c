@@ -3125,7 +3125,7 @@ static struct dpaa2_eth_channel *dpaa2_eth_alloc_channel(struct dpaa2_eth_priv *
 	struct device *dev = priv->net_dev->dev.parent;
 	int err;
 
-	channel = kzalloc_obj(*channel, GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel)
 		return NULL;
 
@@ -3392,7 +3392,7 @@ struct dpaa2_eth_bp *dpaa2_eth_allocate_dpbp(struct dpaa2_eth_priv *priv)
 		return ERR_PTR(err);
 	}
 
-	bp = kzalloc_obj(*bp, GFP_KERNEL);
+	bp = kzalloc_obj(*bp);
 	if (!bp) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -4673,7 +4673,7 @@ static int dpaa2_eth_connect_mac(struct dpaa2_eth_priv *priv)
 		goto out_put_device;
 	}
 
-	mac = kzalloc_obj(struct dpaa2_mac, GFP_KERNEL);
+	mac = kzalloc_obj(struct dpaa2_mac);
 	if (!mac) {
 		err = -ENOMEM;
 		goto out_put_device;

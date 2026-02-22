@@ -449,7 +449,7 @@ int smu_v13_0_init_smc_tables(struct smu_context *smu)
 	}
 
 	smu_table->max_sustainable_clocks =
-		kzalloc_obj(struct smu_13_0_max_sustainable_clocks, GFP_KERNEL);
+		kzalloc_obj(struct smu_13_0_max_sustainable_clocks);
 	if (!smu_table->max_sustainable_clocks) {
 		ret = -ENOMEM;
 		goto err1_out;

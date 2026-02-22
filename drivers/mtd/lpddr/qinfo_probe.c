@@ -120,7 +120,7 @@ out:
 static int lpddr_chip_setup(struct map_info *map, struct lpddr_private *lpddr)
 {
 
-	lpddr->qinfo = kzalloc_obj(struct qinfo_chip, GFP_KERNEL);
+	lpddr->qinfo = kzalloc_obj(struct qinfo_chip);
 	if (!lpddr->qinfo)
 		return 0;
 

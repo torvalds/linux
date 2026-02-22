@@ -1348,12 +1348,12 @@ static struct fman_mac *dtsec_config(struct mac_device *mac_dev,
 	struct dtsec_cfg *dtsec_drv_param;
 
 	/* allocate memory for the UCC GETH data structure. */
-	dtsec = kzalloc_obj(*dtsec, GFP_KERNEL);
+	dtsec = kzalloc_obj(*dtsec);
 	if (!dtsec)
 		return NULL;
 
 	/* allocate memory for the d_tsec driver parameters data structure. */
-	dtsec_drv_param = kzalloc_obj(*dtsec_drv_param, GFP_KERNEL);
+	dtsec_drv_param = kzalloc_obj(*dtsec_drv_param);
 	if (!dtsec_drv_param)
 		goto err_dtsec;
 

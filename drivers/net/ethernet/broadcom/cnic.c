@@ -1208,7 +1208,7 @@ static int cnic_alloc_bnx2x_context(struct cnic_dev *dev)
 	if (blks > cp->ethdev->ctx_tbl_len)
 		return -ENOMEM;
 
-	cp->ctx_arr = kzalloc_objs(struct cnic_ctx, blks, GFP_KERNEL);
+	cp->ctx_arr = kzalloc_objs(struct cnic_ctx, blks);
 	if (cp->ctx_arr == NULL)
 		return -ENOMEM;
 

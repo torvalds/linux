@@ -129,7 +129,7 @@ static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
 
-	net_device = kzalloc_obj(struct netvsc_device, GFP_KERNEL);
+	net_device = kzalloc_obj(struct netvsc_device);
 	if (!net_device)
 		return NULL;
 

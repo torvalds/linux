@@ -689,7 +689,7 @@ static void print_dpmst_connections(struct snd_info_buffer *buffer, struct hda_c
 	if (conn_len <= 0)
 		return;
 
-	conn = kmalloc_objs(hda_nid_t, conn_len, GFP_KERNEL);
+	conn = kmalloc_objs(hda_nid_t, conn_len);
 	if (!conn)
 		return;
 

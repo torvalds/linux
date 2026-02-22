@@ -1003,7 +1003,7 @@ void dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
 
-	dwc->regset = kzalloc_obj(*dwc->regset, GFP_KERNEL);
+	dwc->regset = kzalloc_obj(*dwc->regset);
 	if (!dwc->regset)
 		return;
 

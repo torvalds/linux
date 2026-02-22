@@ -699,7 +699,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	memset(&path, 0, sizeof(path));
 	tu->filename = no_free_ptr(filename);
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->flags = (is_return ? TPARG_FL_RETURN : 0) | TPARG_FL_USER;

@@ -1676,7 +1676,7 @@ static struct se_portal_group *usbg_make_tpg(struct se_wwn *wwn,
 			goto unlock_dep;
 	}
 
-	tpg = kzalloc_obj(struct usbg_tpg, GFP_KERNEL);
+	tpg = kzalloc_obj(struct usbg_tpg);
 	ret = -ENOMEM;
 	if (!tpg)
 		goto unref_dep;
@@ -1768,7 +1768,7 @@ static struct se_wwn *usbg_make_tport(
 	if (!wnn_name)
 		return ERR_PTR(-EINVAL);
 
-	tport = kzalloc_obj(struct usbg_tport, GFP_KERNEL);
+	tport = kzalloc_obj(struct usbg_tport);
 	if (!(tport))
 		return ERR_PTR(-ENOMEM);
 
@@ -1861,7 +1861,7 @@ static int tcm_usbg_make_nexus(struct usbg_tpg *tpg, char *name)
 		goto out_unlock;
 	}
 
-	tv_nexus = kzalloc_obj(*tv_nexus, GFP_KERNEL);
+	tv_nexus = kzalloc_obj(*tv_nexus);
 	if (!tv_nexus) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -2535,7 +2535,7 @@ static struct usb_function_instance *tcm_alloc_inst(void)
 	int i;
 
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -2590,7 +2590,7 @@ static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENODEV);
 	}
 
-	fu = kzalloc_obj(*fu, GFP_KERNEL);
+	fu = kzalloc_obj(*fu);
 	if (!fu) {
 		mutex_unlock(&tpg_instances_lock);
 		return ERR_PTR(-ENOMEM);

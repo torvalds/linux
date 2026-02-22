@@ -1536,7 +1536,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	new_disk_conf = kmalloc_obj(struct disk_conf, GFP_KERNEL);
+	new_disk_conf = kmalloc_obj(struct disk_conf);
 	if (!new_disk_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
@@ -1785,14 +1785,14 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	atomic_set(&device->rs_pending_cnt, 0);
 
 	/* allocation not in the IO path, drbdsetup context */
-	nbc = kzalloc_obj(struct drbd_backing_dev, GFP_KERNEL);
+	nbc = kzalloc_obj(struct drbd_backing_dev);
 	if (!nbc) {
 		retcode = ERR_NOMEM;
 		goto fail;
 	}
 	spin_lock_init(&nbc->md.uuid_lock);
 
-	new_disk_conf = kzalloc_obj(struct disk_conf, GFP_KERNEL);
+	new_disk_conf = kzalloc_obj(struct disk_conf);
 	if (!new_disk_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
@@ -2390,7 +2390,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	connection = adm_ctx.connection;
 	mutex_lock(&adm_ctx.resource->adm_mutex);
 
-	new_net_conf = kzalloc_obj(struct net_conf, GFP_KERNEL);
+	new_net_conf = kzalloc_obj(struct net_conf);
 	if (!new_net_conf) {
 		retcode = ERR_NOMEM;
 		goto out;
@@ -2570,7 +2570,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* allocation not in the IO path, drbdsetup / netlink process context */
-	new_net_conf = kzalloc_obj(*new_net_conf, GFP_KERNEL);
+	new_net_conf = kzalloc_obj(*new_net_conf);
 	if (!new_net_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
@@ -2840,7 +2840,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	u_size = rcu_dereference(device->ldev->disk_conf)->disk_size;
 	rcu_read_unlock();
 	if (u_size != (sector_t)rs.resize_size) {
-		new_disk_conf = kmalloc_obj(struct disk_conf, GFP_KERNEL);
+		new_disk_conf = kmalloc_obj(struct disk_conf);
 		if (!new_disk_conf) {
 			retcode = ERR_NOMEM;
 			goto fail_ldev;

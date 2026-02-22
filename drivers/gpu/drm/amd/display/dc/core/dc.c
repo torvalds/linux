@@ -284,7 +284,7 @@ static bool create_links(
 	}
 
 	for (i = 0; i < num_virtual_links; i++) {
-		struct dc_link *link = kzalloc_obj(*link, GFP_KERNEL);
+		struct dc_link *link = kzalloc_obj(*link);
 		struct encoder_init_data enc_init = {0};
 
 		if (link == NULL) {
@@ -304,7 +304,7 @@ static bool create_links(
 		link->link_id.enum_id = ENUM_ID_1;
 		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 		link->replay_settings.config.replay_version = DC_REPLAY_VERSION_UNSUPPORTED;
-		link->link_enc = kzalloc_obj(*link->link_enc, GFP_KERNEL);
+		link->link_enc = kzalloc_obj(*link->link_enc);
 
 		if (!link->link_enc) {
 			BREAK_TO_DEBUGGER();
@@ -409,7 +409,7 @@ static void destroy_link_encoders(struct dc *dc)
 
 static struct dc_perf_trace *dc_perf_trace_create(void)
 {
-	return kzalloc_obj(struct dc_perf_trace, GFP_KERNEL);
+	return kzalloc_obj(struct dc_perf_trace);
 }
 
 static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
@@ -1005,7 +1005,7 @@ static bool dc_construct_ctx(struct dc *dc,
 {
 	struct dc_context *dc_ctx;
 
-	dc_ctx = kzalloc_obj(*dc_ctx, GFP_KERNEL);
+	dc_ctx = kzalloc_obj(*dc_ctx);
 	if (!dc_ctx)
 		return false;
 
@@ -1023,7 +1023,7 @@ static bool dc_construct_ctx(struct dc *dc,
 	dc_ctx->clk_reg_offsets = init_params->clk_reg_offsets;
 
 	/* Create logger */
-	dc_ctx->logger = kmalloc_obj(*dc_ctx->logger, GFP_KERNEL);
+	dc_ctx->logger = kmalloc_obj(*dc_ctx->logger);
 
 	if (!dc_ctx->logger) {
 		kfree(dc_ctx);
@@ -1063,7 +1063,7 @@ static bool dc_construct(struct dc *dc,
 	dc->config = init_params->flags;
 
 	// Allocate memory for the vm_helper
-	dc->vm_helper = kzalloc_obj(struct vm_helper, GFP_KERNEL);
+	dc->vm_helper = kzalloc_obj(struct vm_helper);
 	if (!dc->vm_helper) {
 		dm_error("%s: failed to create dc->vm_helper\n", __func__);
 		goto fail;
@@ -1071,7 +1071,7 @@ static bool dc_construct(struct dc *dc,
 
 	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
 
-	dc_dceip = kzalloc_obj(*dc_dceip, GFP_KERNEL);
+	dc_dceip = kzalloc_obj(*dc_dceip);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
 		goto fail;
@@ -1079,14 +1079,14 @@ static bool dc_construct(struct dc *dc,
 
 	dc->bw_dceip = dc_dceip;
 
-	dc_vbios = kzalloc_obj(*dc_vbios, GFP_KERNEL);
+	dc_vbios = kzalloc_obj(*dc_vbios);
 	if (!dc_vbios) {
 		dm_error("%s: failed to create vbios\n", __func__);
 		goto fail;
 	}
 
 	dc->bw_vbios = dc_vbios;
-	dcn_soc = kzalloc_obj(*dcn_soc, GFP_KERNEL);
+	dcn_soc = kzalloc_obj(*dcn_soc);
 	if (!dcn_soc) {
 		dm_error("%s: failed to create dcn_soc\n", __func__);
 		goto fail;
@@ -1094,7 +1094,7 @@ static bool dc_construct(struct dc *dc,
 
 	dc->dcn_soc = dcn_soc;
 
-	dcn_ip = kzalloc_obj(*dcn_ip, GFP_KERNEL);
+	dcn_ip = kzalloc_obj(*dcn_ip);
 	if (!dcn_ip) {
 		dm_error("%s: failed to create dcn_ip\n", __func__);
 		goto fail;
@@ -1496,7 +1496,7 @@ static void disable_vbios_mode_if_required(
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
-	struct dc *dc = kzalloc_obj(*dc, GFP_KERNEL);
+	struct dc *dc = kzalloc_obj(*dc);
 	unsigned int full_pipe_count;
 
 	if (!dc)

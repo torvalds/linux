@@ -62,7 +62,7 @@ vkms_atomic_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	vkms_state = kzalloc_obj(*vkms_state, GFP_KERNEL);
+	vkms_state = kzalloc_obj(*vkms_state);
 	if (!vkms_state)
 		return NULL;
 

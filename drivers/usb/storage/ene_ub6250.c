@@ -2336,7 +2336,7 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 		return result;
 
 	/* FIXME: where should the code alloc extra buf ? */
-	us->extra = kzalloc_obj(struct ene_ub6250_info, GFP_KERNEL);
+	us->extra = kzalloc_obj(struct ene_ub6250_info);
 	if (!us->extra)
 		return -ENOMEM;
 	us->extra_destructor = ene_ub6250_info_destructor;

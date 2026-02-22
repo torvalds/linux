@@ -469,7 +469,7 @@ int byd_init(struct psmouse *psmouse)
 	if (byd_reset_touchpad(psmouse))
 		return -EIO;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -333,12 +333,12 @@ static int mhi_alloc_bhi_buffer(struct mhi_controller *mhi_cntrl,
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
 
-	img_info = kzalloc_obj(*img_info, GFP_KERNEL);
+	img_info = kzalloc_obj(*img_info);
 	if (!img_info)
 		return -ENOMEM;
 
 	/* Allocate memory for entry */
-	img_info->mhi_buf = kzalloc_obj(*img_info->mhi_buf, GFP_KERNEL);
+	img_info->mhi_buf = kzalloc_obj(*img_info->mhi_buf);
 	if (!img_info->mhi_buf)
 		goto error_alloc_mhi_buf;
 
@@ -375,7 +375,7 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
 
-	img_info = kzalloc_obj(*img_info, GFP_KERNEL);
+	img_info = kzalloc_obj(*img_info);
 	if (!img_info)
 		return -ENOMEM;
 

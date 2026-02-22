@@ -48,7 +48,7 @@ static struct kobject *rpc_sysfs_object_alloc(const char *name,
 {
 	struct kobject *kobj;
 
-	kobj = kzalloc_obj(*kobj, GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (kobj) {
 		kobj->kset = kset;
 		if (kobject_init_and_add(kobj, &rpc_sysfs_object_type,
@@ -397,7 +397,7 @@ static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
 	dst_addr = kstrndup(buf, buf_len, GFP_KERNEL);
 	if (!dst_addr)
 		goto out_err;
-	saved_addr = kzalloc_obj(*saved_addr, GFP_KERNEL);
+	saved_addr = kzalloc_obj(*saved_addr);
 	if (!saved_addr)
 		goto out_err_free;
 	saved_addr->addr =
@@ -663,7 +663,7 @@ static struct rpc_sysfs_client *rpc_sysfs_client_alloc(struct kobject *parent,
 {
 	struct rpc_sysfs_client *p;
 
-	p = kzalloc_obj(*p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (p) {
 		p->net = net;
 		p->kobject.kset = rpc_sunrpc_kset;

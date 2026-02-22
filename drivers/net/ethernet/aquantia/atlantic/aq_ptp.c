@@ -1183,7 +1183,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 
 	aq_ptp_offset_init(&mbox.info.ptp_offset);
 
-	aq_ptp = kzalloc_obj(*aq_ptp, GFP_KERNEL);
+	aq_ptp = kzalloc_obj(*aq_ptp);
 	if (!aq_ptp) {
 		err = -ENOMEM;
 		goto err_exit;

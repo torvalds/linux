@@ -193,7 +193,7 @@ static struct thermal_debugfs *thermal_debugfs_add_id(struct dentry *d, int id)
 	struct thermal_debugfs *thermal_dbg;
 	char ids[IDSLENGTH];
 
-	thermal_dbg = kzalloc_obj(*thermal_dbg, GFP_KERNEL);
+	thermal_dbg = kzalloc_obj(*thermal_dbg);
 	if (!thermal_dbg)
 		return NULL;
 
@@ -226,7 +226,7 @@ thermal_debugfs_cdev_record_alloc(struct thermal_debugfs *thermal_dbg,
 {
 	struct cdev_record *cdev_record;
 
-	cdev_record = kzalloc_obj(*cdev_record, GFP_KERNEL);
+	cdev_record = kzalloc_obj(*cdev_record);
 	if (!cdev_record)
 		return NULL;
 
@@ -876,7 +876,7 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 
 	tz_dbg->tz = tz;
 
-	tz_dbg->trips_crossed = kzalloc_objs(int, tz->num_trips, GFP_KERNEL);
+	tz_dbg->trips_crossed = kzalloc_objs(int, tz->num_trips);
 	if (!tz_dbg->trips_crossed) {
 		thermal_debugfs_remove_id(thermal_dbg);
 		return;

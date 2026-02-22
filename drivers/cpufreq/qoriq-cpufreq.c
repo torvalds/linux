@@ -168,7 +168,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (!np)
 		return -ENODEV;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		goto err_np;
 
@@ -181,11 +181,11 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	hwclk = __clk_get_hw(policy->clk);
 	count = clk_hw_get_num_parents(hwclk);
 
-	data->pclk = kzalloc_objs(struct clk *, count, GFP_KERNEL);
+	data->pclk = kzalloc_objs(struct clk *, count);
 	if (!data->pclk)
 		goto err_nomem2;
 
-	table = kzalloc_objs(*table, count + 1, GFP_KERNEL);
+	table = kzalloc_objs(*table, count + 1);
 	if (!table)
 		goto err_pclk;
 

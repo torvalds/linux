@@ -245,7 +245,7 @@ static int aldebaran_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t, GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetrics_t);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
@@ -301,7 +301,7 @@ static int aldebaran_allocate_dpm_context(struct smu_context *smu)
 	smu_dpm->dpm_context_size = sizeof(struct smu_13_0_dpm_context);
 
 	smu_dpm->dpm_policies =
-		kzalloc_obj(struct smu_dpm_policy_ctxt, GFP_KERNEL);
+		kzalloc_obj(struct smu_dpm_policy_ctxt);
 
 	if (!smu_dpm->dpm_policies)
 		return -ENOMEM;
@@ -1422,7 +1422,7 @@ static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

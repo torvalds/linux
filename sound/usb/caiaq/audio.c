@@ -681,7 +681,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 		usb_sndisocpipe(usb_dev, ENDPOINT_PLAYBACK) :
 		usb_rcvisocpipe(usb_dev, ENDPOINT_CAPTURE);
 
-	urbs = kmalloc_objs(*urbs, N_URBS, GFP_KERNEL);
+	urbs = kmalloc_objs(*urbs, N_URBS);
 	if (!urbs) {
 		*ret = -ENOMEM;
 		return NULL;
@@ -813,7 +813,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 				       NULL, 0, 0);
 
 	cdev->data_cb_info =
-		kmalloc_objs(struct snd_usb_caiaq_cb_info, N_URBS, GFP_KERNEL);
+		kmalloc_objs(struct snd_usb_caiaq_cb_info, N_URBS);
 
 	if (!cdev->data_cb_info)
 		return -ENOMEM;

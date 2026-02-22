@@ -191,7 +191,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		else
 			iovnum = 2;
 
-		iov = kzalloc_objs(struct kvec, iovnum, GFP_KERNEL);
+		iov = kzalloc_objs(struct kvec, iovnum);
 
 		if (!iov) {
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);

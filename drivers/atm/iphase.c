@@ -2709,7 +2709,7 @@ static int ia_open(struct atm_vcc *vcc)
                                  vcc->dev->number, vcc->vpi, vcc->vci);)  
   
 	/* Device dependent initialization */  
-	ia_vcc = kmalloc_obj(*ia_vcc, GFP_KERNEL);  
+	ia_vcc = kmalloc_obj(*ia_vcc);  
 	if (!ia_vcc) return -ENOMEM;  
 	vcc->dev_data = ia_vcc;
   
@@ -2795,7 +2795,7 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
              rfredn_t        *rfL;
                      
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	     regs_local = kmalloc_obj(*regs_local, GFP_KERNEL);
+	     regs_local = kmalloc_obj(*regs_local);
 	     if (!regs_local) return -ENOMEM;
 	     ffL = &regs_local->ffredn;
 	     rfL = &regs_local->rfredn;
@@ -3165,7 +3165,7 @@ static int ia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	IADEV *iadev;  
 	int ret;
 
-	iadev = kzalloc_obj(*iadev, GFP_KERNEL);
+	iadev = kzalloc_obj(*iadev);
 	if (!iadev) {
 		ret = -ENOMEM;
 		goto err_out;

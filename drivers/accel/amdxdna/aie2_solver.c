@@ -197,7 +197,7 @@ static int get_free_partition(struct solver_state *xrs,
 	if (i == snode->cols_len)
 		return -ENODEV;
 
-	pt_node = kzalloc_obj(*pt_node, GFP_KERNEL);
+	pt_node = kzalloc_obj(*pt_node);
 	if (!pt_node)
 		return -ENOMEM;
 

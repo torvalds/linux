@@ -398,7 +398,7 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 	/* Add slot for main board. */
 	mlxsw_m->num_of_slots += 1;
 
-	mlxsw_m->ports = kzalloc_objs(*mlxsw_m->ports, max_ports, GFP_KERNEL);
+	mlxsw_m->ports = kzalloc_objs(*mlxsw_m->ports, max_ports);
 	if (!mlxsw_m->ports)
 		return -ENOMEM;
 

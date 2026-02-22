@@ -1538,7 +1538,7 @@ static __init int sctp_init(void)
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
 	sctp_ep_hashtable =
-		kmalloc_objs(struct sctp_hashbucket, 64, GFP_KERNEL);
+		kmalloc_objs(struct sctp_hashbucket, 64);
 	if (!sctp_ep_hashtable) {
 		pr_err("Failed endpoint_hash alloc\n");
 		status = -ENOMEM;

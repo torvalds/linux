@@ -442,7 +442,7 @@ struct serdev_device *serdev_device_alloc(struct serdev_controller *ctrl)
 {
 	struct serdev_device *serdev;
 
-	serdev = kzalloc_obj(*serdev, GFP_KERNEL);
+	serdev = kzalloc_obj(*serdev);
 	if (!serdev)
 		return NULL;
 

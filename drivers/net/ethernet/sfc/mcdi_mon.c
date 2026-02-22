@@ -350,7 +350,7 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 	 * value, min, max, crit, alarm and label for each sensor.
 	 */
 	n_attrs = 6 * n_sensors;
-	hwmon->attrs = kzalloc_objs(*hwmon->attrs, n_attrs, GFP_KERNEL);
+	hwmon->attrs = kzalloc_objs(*hwmon->attrs, n_attrs);
 	if (!hwmon->attrs) {
 		rc = -ENOMEM;
 		goto fail;

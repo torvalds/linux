@@ -352,7 +352,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	for (cl = 0; cl < nclusters; cl++) {
 		/* Allocate core boot configuration structs */
 		ncores = mips_cps_numcores(cl);
-		core_bootcfg = kzalloc_objs(*core_bootcfg, ncores, GFP_KERNEL);
+		core_bootcfg = kzalloc_objs(*core_bootcfg, ncores);
 		if (!core_bootcfg)
 			goto err_out;
 		mips_cps_cluster_bootcfg[cl].core_config = core_bootcfg;

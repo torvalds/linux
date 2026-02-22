@@ -545,7 +545,7 @@ static int auditd_set(struct pid *pid, u32 portid, struct net *net,
 	if (!pid || !net)
 		return -EINVAL;
 
-	ac_new = kzalloc_obj(*ac_new, GFP_KERNEL);
+	ac_new = kzalloc_obj(*ac_new);
 	if (!ac_new)
 		return -ENOMEM;
 	ac_new->pid = get_pid(pid);
@@ -1044,7 +1044,7 @@ static void audit_send_reply(struct sk_buff *request_skb, int seq, int type, int
 	struct task_struct *tsk;
 	struct audit_reply *reply;
 
-	reply = kzalloc_obj(*reply, GFP_KERNEL);
+	reply = kzalloc_obj(*reply);
 	if (!reply)
 		return;
 

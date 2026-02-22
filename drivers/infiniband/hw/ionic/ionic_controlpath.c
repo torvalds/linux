@@ -343,7 +343,7 @@ ionic_mmap_entry_insert(struct ionic_ctx *ctx, unsigned long size,
 	struct ionic_mmap_entry *entry;
 	int rc;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -852,7 +852,7 @@ struct ib_mr *ionic_get_dma_mr(struct ib_pd *ibpd, int access)
 	struct ionic_pd *pd = to_ionic_pd(ibpd);
 	struct ionic_mr *mr;
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -878,7 +878,7 @@ struct ib_mr *ionic_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (dmah)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -945,7 +945,7 @@ struct ib_mr *ionic_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 offset,
 	if (dmah)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1039,7 +1039,7 @@ struct ib_mr *ionic_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type type,
 	if (type != IB_MR_TYPE_MEM_REG)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -2203,7 +2203,7 @@ int ionic_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attr,
 	qp->has_ah = attr->qp_type == IB_QPT_RC;
 
 	if (qp->has_ah) {
-		qp->hdr = kzalloc_obj(*qp->hdr, GFP_KERNEL);
+		qp->hdr = kzalloc_obj(*qp->hdr);
 		if (!qp->hdr) {
 			rc = -ENOMEM;
 			goto err_ah_alloc;

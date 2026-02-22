@@ -502,7 +502,7 @@ int walk_system_ram_res_rev(u64 start, u64 end, void *arg,
 	int ret = -1;
 
 	/* create a list */
-	rams = kvzalloc_objs(struct resource, rams_size, GFP_KERNEL);
+	rams = kvzalloc_objs(struct resource, rams_size);
 	if (!rams)
 		return ret;
 

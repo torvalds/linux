@@ -179,7 +179,7 @@ static int __init vdso_init(void)
 	text_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
 
 	/* Allocate the VDSO text pagelist */
-	vdso_text_pagelist = kzalloc_objs(struct page *, text_pages, GFP_KERNEL);
+	vdso_text_pagelist = kzalloc_objs(struct page *, text_pages);
 	if (vdso_text_pagelist == NULL)
 		return -ENOMEM;
 

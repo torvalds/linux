@@ -1665,7 +1665,7 @@ static int tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
 	u32 *data_cpy;
 	int ret = -ENOMEM;
 
-	event = kzalloc_obj(*event, GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	if (!event)
 		goto err_event;
 

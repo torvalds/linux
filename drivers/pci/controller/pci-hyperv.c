@@ -945,7 +945,7 @@ static int hv_pci_irqchip_init(void)
 	struct irq_domain *irq_domain_parent = NULL;
 	int ret = -ENOMEM;
 
-	chip_data = kzalloc_obj(*chip_data, GFP_KERNEL);
+	chip_data = kzalloc_obj(*chip_data);
 	if (!chip_data)
 		return ret;
 
@@ -2592,7 +2592,7 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	unsigned long flags;
 	int ret;
 
-	hpdev = kzalloc_obj(*hpdev, GFP_KERNEL);
+	hpdev = kzalloc_obj(*hpdev);
 	if (!hpdev)
 		return NULL;
 
@@ -3713,7 +3713,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	if (!bridge)
 		return -ENOMEM;
 
-	hbus = kzalloc_obj(*hbus, GFP_KERNEL);
+	hbus = kzalloc_obj(*hbus);
 	if (!hbus)
 		return -ENOMEM;
 

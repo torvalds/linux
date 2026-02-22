@@ -218,7 +218,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 		return;
 	}
 
-	pdata = kmalloc_obj(struct radeon_backlight_privdata, GFP_KERNEL);
+	pdata = kmalloc_obj(struct radeon_backlight_privdata);
 	if (!pdata) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto error;
@@ -2678,7 +2678,7 @@ radeon_add_atom_encoder(struct drm_device *dev,
 	}
 
 	/* add a new one */
-	radeon_encoder = kzalloc_obj(struct radeon_encoder, GFP_KERNEL);
+	radeon_encoder = kzalloc_obj(struct radeon_encoder);
 	if (!radeon_encoder)
 		return;
 

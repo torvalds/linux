@@ -595,7 +595,7 @@ static struct scatterlist *alloc_sgtable(ssize_t size)
 			nents -= n_fill;
 		}
 
-		new = kzalloc_objs(*new, n_alloc, GFP_KERNEL);
+		new = kzalloc_objs(*new, n_alloc);
 		if (!new) {
 			if (result)
 				_devcd_free_sgtable(result);

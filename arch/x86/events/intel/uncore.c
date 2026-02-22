@@ -107,7 +107,7 @@ lookup:
 
 	if (!alloc) {
 		raw_spin_unlock(&pci2phy_map_lock);
-		alloc = kmalloc_obj(struct pci2phy_map, GFP_KERNEL);
+		alloc = kmalloc_obj(struct pci2phy_map);
 		raw_spin_lock(&pci2phy_map_lock);
 
 		if (!alloc)
@@ -990,7 +990,7 @@ static int __init uncore_type_init(struct intel_uncore_type *type)
 	size_t size;
 	int i, j;
 
-	pmus = kzalloc_objs(*pmus, type->num_boxes, GFP_KERNEL);
+	pmus = kzalloc_objs(*pmus, type->num_boxes);
 	if (!pmus)
 		return -ENOMEM;
 

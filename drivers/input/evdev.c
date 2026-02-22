@@ -1346,7 +1346,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 		return error;
 	}
 
-	evdev = kzalloc_obj(struct evdev, GFP_KERNEL);
+	evdev = kzalloc_obj(struct evdev);
 	if (!evdev) {
 		error = -ENOMEM;
 		goto err_free_minor;

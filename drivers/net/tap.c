@@ -1197,7 +1197,7 @@ int tap_queue_resize(struct tap_dev *tap)
 	int n = tap->numqueues;
 	int ret, i = 0;
 
-	rings = kmalloc_objs(*rings, n, GFP_KERNEL);
+	rings = kmalloc_objs(*rings, n);
 	if (!rings)
 		return -ENOMEM;
 

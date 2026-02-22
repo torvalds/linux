@@ -191,7 +191,7 @@ static int alloc_ad_spec(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
 
-	spec = kzalloc_obj(*spec, GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;

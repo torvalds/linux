@@ -2108,7 +2108,7 @@ static struct lpi_range *mk_lpi_range(u32 base, u32 span)
 {
 	struct lpi_range *range;
 
-	range = kmalloc_obj(*range, GFP_KERNEL);
+	range = kmalloc_obj(*range);
 	if (range) {
 		range->base_id = base;
 		range->span = span;
@@ -3493,7 +3493,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 
 	itt = itt_alloc_pool(its->numa_node, sz);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
@@ -5139,7 +5139,7 @@ static int its_init_domain(struct its_node *its)
 	};
 	struct msi_domain_info *info;
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
@@ -5169,7 +5169,7 @@ static int its_init_vpe_domain(void)
 	its = list_first_entry(&its_nodes, struct its_node, entry);
 
 	entries = roundup_pow_of_two(nr_cpu_ids);
-	vpe_proxy.vpes = kzalloc_objs(*vpe_proxy.vpes, entries, GFP_KERNEL);
+	vpe_proxy.vpes = kzalloc_objs(*vpe_proxy.vpes, entries);
 	if (!vpe_proxy.vpes)
 		return -ENOMEM;
 
@@ -5513,7 +5513,7 @@ static struct its_node __init *its_node_init(struct resource *res,
 
 	pr_info("ITS %pR\n", res);
 
-	its = kzalloc_obj(*its, GFP_KERNEL);
+	its = kzalloc_obj(*its);
 	if (!its)
 		goto out_unmap;
 
@@ -5679,7 +5679,7 @@ static void __init acpi_table_parse_srat_its(void)
 	if (count <= 0)
 		return;
 
-	its_srat_maps = kmalloc_objs(struct its_srat_map, count, GFP_KERNEL);
+	its_srat_maps = kmalloc_objs(struct its_srat_map, count);
 	if (!its_srat_maps)
 		return;
 

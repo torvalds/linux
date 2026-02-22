@@ -287,7 +287,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 		return -ENOMEM;
 	}
 
-	node = kzalloc_objs(*node, G2D_CMDLIST_NUM, GFP_KERNEL);
+	node = kzalloc_objs(*node, G2D_CMDLIST_NUM);
 	if (!node) {
 		ret = -ENOMEM;
 		goto err;
@@ -459,7 +459,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 		}
 	}
 
-	g2d_userptr = kzalloc_obj(*g2d_userptr, GFP_KERNEL);
+	g2d_userptr = kzalloc_obj(*g2d_userptr);
 	if (!g2d_userptr)
 		return ERR_PTR(-ENOMEM);
 
@@ -491,7 +491,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct g2d_data *g2d,
 	}
 	g2d_userptr->npages = npages;
 
-	sgt = kzalloc_obj(*sgt, GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto err_unpin_pages;
@@ -1169,7 +1169,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	node->event = NULL;
 
 	if (req->event_type != G2D_EVENT_NOT) {
-		e = kzalloc_obj(*node->event, GFP_KERNEL);
+		e = kzalloc_obj(*node->event);
 		if (!e) {
 			ret = -ENOMEM;
 			goto err;

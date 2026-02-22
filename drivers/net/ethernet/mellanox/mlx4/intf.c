@@ -115,7 +115,7 @@ static struct mlx4_adev *add_adev(struct mlx4_dev *dev, int idx)
 	struct mlx4_adev *madev;
 	int ret;
 
-	madev = kzalloc_obj(*madev, GFP_KERNEL);
+	madev = kzalloc_obj(*madev);
 	if (!madev)
 		return ERR_PTR(-ENOMEM);
 

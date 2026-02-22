@@ -2941,7 +2941,7 @@ static int vc4_hdmi_build_regset(struct drm_device *drm,
 	unsigned int i;
 	int ret;
 
-	regs = kzalloc_objs(*regs, variant->num_registers, GFP_KERNEL);
+	regs = kzalloc_objs(*regs, variant->num_registers);
 	if (!regs)
 		return -ENOMEM;
 

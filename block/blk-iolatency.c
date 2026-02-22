@@ -760,7 +760,7 @@ static int blk_iolatency_init(struct gendisk *disk)
 	struct blk_iolatency *blkiolat;
 	int ret;
 
-	blkiolat = kzalloc_obj(*blkiolat, GFP_KERNEL);
+	blkiolat = kzalloc_obj(*blkiolat);
 	if (!blkiolat)
 		return -ENOMEM;
 

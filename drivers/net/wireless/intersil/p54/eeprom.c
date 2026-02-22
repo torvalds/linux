@@ -154,7 +154,7 @@ static int p54_generate_band(struct ieee80211_hw *dev,
 	if ((!list->entries) || (!list->band_channel_num[band]))
 		return -EINVAL;
 
-	tmp = kzalloc_obj(*tmp, GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		goto err_out;
 
@@ -335,7 +335,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	max_channel_num = max_t(unsigned int, max_channel_num,
 				priv->curve_data->entries);
 
-	list = kzalloc_obj(*list, GFP_KERNEL);
+	list = kzalloc_obj(*list);
 	if (!list) {
 		ret = -ENOMEM;
 		goto free;

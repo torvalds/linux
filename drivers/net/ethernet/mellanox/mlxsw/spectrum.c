@@ -972,7 +972,7 @@ mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	if (err)
 		return ERR_PTR(err);
 
-	mlxsw_sp_port_vlan = kzalloc_obj(*mlxsw_sp_port_vlan, GFP_KERNEL);
+	mlxsw_sp_port_vlan = kzalloc_obj(*mlxsw_sp_port_vlan);
 	if (!mlxsw_sp_port_vlan) {
 		err = -ENOMEM;
 		goto err_port_vlan_alloc;
@@ -1776,7 +1776,7 @@ static int mlxsw_sp_cpu_port_create(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	int err;
 
-	mlxsw_sp_port = kzalloc_obj(*mlxsw_sp_port, GFP_KERNEL);
+	mlxsw_sp_port = kzalloc_obj(*mlxsw_sp_port);
 	if (!mlxsw_sp_port)
 		return -ENOMEM;
 
@@ -2747,7 +2747,7 @@ mlxsw_sp_sample_trigger_node_init(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_sample_trigger_node *trigger_node;
 	int err;
 
-	trigger_node = kzalloc_obj(*trigger_node, GFP_KERNEL);
+	trigger_node = kzalloc_obj(*trigger_node);
 	if (!trigger_node)
 		return -ENOMEM;
 
@@ -2893,7 +2893,7 @@ mlxsw_sp_ipv6_addr_init(struct mlxsw_sp *mlxsw_sp, const struct in6_addr *addr6,
 	if (err)
 		goto err_rips_write;
 
-	node = kzalloc_obj(*node, GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node) {
 		err = -ENOMEM;
 		goto err_node_alloc;

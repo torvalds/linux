@@ -586,7 +586,7 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 		return;
 	}
 
-	keymap = kzalloc_objs(struct key_entry, hotkey_num, GFP_KERNEL);
+	keymap = kzalloc_objs(struct key_entry, hotkey_num);
 	if (!keymap) {
 		results->err = -ENOMEM;
 		return;
@@ -769,7 +769,7 @@ static int dell_wmi_events_set_enabled(bool enable)
 	struct calling_interface_buffer *buffer;
 	int ret;
 
-	buffer = kzalloc_obj(struct calling_interface_buffer, GFP_KERNEL);
+	buffer = kzalloc_obj(struct calling_interface_buffer);
 	if (!buffer)
 		return -ENOMEM;
 	buffer->cmd_class = CLASS_INFO;

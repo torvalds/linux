@@ -4164,7 +4164,7 @@ int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	struct qlcnic_mailbox *mbx;
 
-	ahw->mailbox = kzalloc_obj(*mbx, GFP_KERNEL);
+	ahw->mailbox = kzalloc_obj(*mbx);
 	if (!ahw->mailbox)
 		return -ENOMEM;
 

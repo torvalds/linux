@@ -311,7 +311,7 @@ static inline int span_iteration_check(void) {return 0; }
 
 static int interval_tree_test_init(void)
 {
-	nodes = kmalloc_objs(struct interval_tree_node, nnodes, GFP_KERNEL);
+	nodes = kmalloc_objs(struct interval_tree_node, nnodes);
 	if (!nodes)
 		return -ENOMEM;
 

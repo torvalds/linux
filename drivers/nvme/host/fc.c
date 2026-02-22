@@ -1724,15 +1724,15 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 		goto out_put;
 	}
 
-	lsop = kzalloc_obj(*lsop, GFP_KERNEL);
+	lsop = kzalloc_obj(*lsop);
 	if (!lsop) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
 		goto out_put;
 	}
 
-	lsop->rqstbuf = kzalloc_obj(*lsop->rqstbuf, GFP_KERNEL);
-	lsop->rspbuf = kzalloc_obj(*lsop->rspbuf, GFP_KERNEL);
+	lsop->rqstbuf = kzalloc_obj(*lsop->rqstbuf);
+	lsop->rspbuf = kzalloc_obj(*lsop->rspbuf);
 	if (!lsop->rqstbuf || !lsop->rspbuf) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
@@ -3443,7 +3443,7 @@ nvme_fc_alloc_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		goto out_fail;
 	}
 
-	ctrl = kzalloc_obj(*ctrl, GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl) {
 		ret = -ENOMEM;
 		goto out_fail;

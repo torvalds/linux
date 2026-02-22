@@ -2288,7 +2288,7 @@ static int sdma_probe(struct platform_device *pdev)
 
 	sdma->irq = irq;
 
-	sdma->script_addrs = kzalloc_obj(*sdma->script_addrs, GFP_KERNEL);
+	sdma->script_addrs = kzalloc_obj(*sdma->script_addrs);
 	if (!sdma->script_addrs) {
 		ret = -ENOMEM;
 		goto err_irq;

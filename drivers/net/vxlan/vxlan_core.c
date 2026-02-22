@@ -3578,7 +3578,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 	ASSERT_RTNL();
 
-	vs = kzalloc_obj(*vs, GFP_KERNEL);
+	vs = kzalloc_obj(*vs);
 	if (!vs)
 		return ERR_PTR(-ENOMEM);
 

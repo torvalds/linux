@@ -333,7 +333,7 @@ static struct clk_hw *m10v_clk_hw_register_mux(struct device *dev,
 	struct clk_init_data init;
 	int ret;
 
-	mux = kzalloc_obj(*mux, GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		return ERR_PTR(-ENOMEM);
 
@@ -464,7 +464,7 @@ static struct clk_hw *m10v_clk_hw_register_divider(struct device *dev,
 	struct clk_init_data init;
 	int ret;
 
-	div = kzalloc_obj(*div, GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 

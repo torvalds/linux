@@ -1059,7 +1059,7 @@ static int idpf_send_get_lan_memory_regions(struct idpf_adapter *adapter)
 		return -EINVAL;
 
 	hw = &adapter->hw;
-	hw->lan_regs = kzalloc_objs(*hw->lan_regs, num_regions, GFP_KERNEL);
+	hw->lan_regs = kzalloc_objs(*hw->lan_regs, num_regions);
 	if (!hw->lan_regs)
 		return -ENOMEM;
 
@@ -1091,7 +1091,7 @@ static int idpf_calc_remaining_mmio_regs(struct idpf_adapter *adapter)
 	struct idpf_hw *hw = &adapter->hw;
 
 	hw->num_lan_regs = IDPF_MMIO_MAP_FALLBACK_MAX_REMAINING;
-	hw->lan_regs = kzalloc_objs(*hw->lan_regs, hw->num_lan_regs, GFP_KERNEL);
+	hw->lan_regs = kzalloc_objs(*hw->lan_regs, hw->num_lan_regs);
 	if (!hw->lan_regs)
 		return -ENOMEM;
 
@@ -1844,7 +1844,7 @@ static int idpf_send_config_tx_queue_set_msg(const struct idpf_queue_set *qs)
 		.chunk_sz	= sizeof(*qi),
 	};
 
-	qi = kzalloc_objs(*qi, qs->num, GFP_KERNEL);
+	qi = kzalloc_objs(*qi, qs->num);
 	if (!qi)
 		return -ENOMEM;
 
@@ -2033,7 +2033,7 @@ static int idpf_send_config_rx_queue_set_msg(const struct idpf_queue_set *qs)
 		.chunk_sz	= sizeof(*qi),
 	};
 
-	qi = kzalloc_objs(*qi, qs->num, GFP_KERNEL);
+	qi = kzalloc_objs(*qi, qs->num);
 	if (!qi)
 		return -ENOMEM;
 
@@ -2160,7 +2160,7 @@ static int idpf_send_ena_dis_queue_set_msg(const struct idpf_queue_set *qs,
 		.num_chunks	= qs->num,
 	};
 
-	qc = kzalloc_objs(*qc, qs->num, GFP_KERNEL);
+	qc = kzalloc_objs(*qc, qs->num);
 	if (!qc)
 		return -ENOMEM;
 
@@ -2327,7 +2327,7 @@ idpf_send_map_unmap_queue_set_vector_msg(const struct idpf_queue_set *qs,
 	};
 	bool split;
 
-	vqv = kzalloc_objs(*vqv, qs->num, GFP_KERNEL);
+	vqv = kzalloc_objs(*vqv, qs->num);
 	if (!vqv)
 		return -ENOMEM;
 
@@ -3202,11 +3202,11 @@ static int idpf_send_get_rx_ptype_msg(struct idpf_adapter *adapter)
 	if (!singleq_pt_lkup)
 		return -ENOMEM;
 
-	splitq_pt_lkup = kzalloc_objs(*splitq_pt_lkup, max_ptype, GFP_KERNEL);
+	splitq_pt_lkup = kzalloc_objs(*splitq_pt_lkup, max_ptype);
 	if (!splitq_pt_lkup)
 		return -ENOMEM;
 
-	get_ptype_info = kzalloc_obj(*get_ptype_info, GFP_KERNEL);
+	get_ptype_info = kzalloc_obj(*get_ptype_info);
 	if (!get_ptype_info)
 		return -ENOMEM;
 

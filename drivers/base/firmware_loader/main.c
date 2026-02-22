@@ -747,7 +747,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	struct fw_priv *fw_priv;
 	int ret;
 
-	*firmware_p = firmware = kzalloc_obj(*firmware, GFP_KERNEL);
+	*firmware_p = firmware = kzalloc_obj(*firmware);
 	if (!firmware) {
 		dev_err(device, "%s: kmalloc(struct firmware) failed\n",
 			__func__);

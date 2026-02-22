@@ -892,7 +892,7 @@ static int acpi_power_meter_add(struct acpi_device *device)
 	if (!device)
 		return -EINVAL;
 
-	resource = kzalloc_obj(*resource, GFP_KERNEL);
+	resource = kzalloc_obj(*resource);
 	if (!resource)
 		return -ENOMEM;
 

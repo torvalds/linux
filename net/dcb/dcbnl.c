@@ -1021,7 +1021,7 @@ static int dcbnl_build_peer_app(struct net_device *netdev, struct sk_buff* skb,
 	 */
 	err = ops->peer_getappinfo(netdev, &info, &app_count);
 	if (!err && app_count) {
-		table = kmalloc_objs(struct dcb_app, app_count, GFP_KERNEL);
+		table = kmalloc_objs(struct dcb_app, app_count);
 		if (!table)
 			return -ENOMEM;
 

@@ -2310,7 +2310,7 @@ ice_lag_event_handler(struct notifier_block *notif_blk, unsigned long event,
 		return NOTIFY_DONE;
 
 	/* This memory will be freed at the end of ice_lag_process_event */
-	lag_work = kzalloc_obj(*lag_work, GFP_KERNEL);
+	lag_work = kzalloc_obj(*lag_work);
 	if (!lag_work)
 		return -ENOMEM;
 
@@ -2577,7 +2577,7 @@ int ice_init_lag(struct ice_pf *pf)
 	if (!ice_is_feature_supported(pf, ICE_F_SRIOV_LAG))
 		return 0;
 
-	pf->lag = kzalloc_obj(*lag, GFP_KERNEL);
+	pf->lag = kzalloc_obj(*lag);
 	if (!pf->lag)
 		return -ENOMEM;
 	lag = pf->lag;

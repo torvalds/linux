@@ -211,7 +211,7 @@ static struct fsi_device *fsi_create_device(struct fsi_slave *slave)
 {
 	struct fsi_device *dev;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -1083,7 +1083,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	/* We can communicate with a slave; create the slave device and
 	 * register.
 	 */
-	slave = kzalloc_obj(*slave, GFP_KERNEL);
+	slave = kzalloc_obj(*slave);
 	if (!slave)
 		return -ENOMEM;
 

@@ -1665,7 +1665,7 @@ static int btintel_pcie_setup_txq_bufs(struct btintel_pcie_data *data,
 	struct data_buf *buf;
 
 	/* Allocate the same number of buffers as the descriptor */
-	txq->bufs = kmalloc_objs(*buf, txq->count, GFP_KERNEL);
+	txq->bufs = kmalloc_objs(*buf, txq->count);
 	if (!txq->bufs)
 		return -ENOMEM;
 
@@ -1709,7 +1709,7 @@ static int btintel_pcie_setup_rxq_bufs(struct btintel_pcie_data *data,
 	struct data_buf *buf;
 
 	/* Allocate the same number of buffers as the descriptor */
-	rxq->bufs = kmalloc_objs(*buf, rxq->count, GFP_KERNEL);
+	rxq->bufs = kmalloc_objs(*buf, rxq->count);
 	if (!rxq->bufs)
 		return -ENOMEM;
 

@@ -1970,7 +1970,7 @@ static int storvsc_probe(struct hv_device *device,
 	host_dev->host = host;
 
 
-	stor_device = kzalloc_obj(struct storvsc_device, GFP_KERNEL);
+	stor_device = kzalloc_obj(struct storvsc_device);
 	if (!stor_device) {
 		ret = -ENOMEM;
 		goto err_out0;

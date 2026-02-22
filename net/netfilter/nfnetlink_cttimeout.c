@@ -74,7 +74,7 @@ ctnl_timeout_parse_policy(void *timeout,
 	struct nlattr **tb;
 	int ret = 0;
 
-	tb = kzalloc_objs(*tb, l4proto->ctnl_timeout.nlattr_max + 1, GFP_KERNEL);
+	tb = kzalloc_objs(*tb, l4proto->ctnl_timeout.nlattr_max + 1);
 
 	if (!tb)
 		return -ENOMEM;

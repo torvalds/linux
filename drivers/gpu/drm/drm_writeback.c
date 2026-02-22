@@ -581,7 +581,7 @@ drm_writeback_get_out_fence(struct drm_writeback_connector *wb_connector)
 		    DRM_MODE_CONNECTOR_WRITEBACK))
 		return NULL;
 
-	fence = kzalloc_obj(*fence, GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 

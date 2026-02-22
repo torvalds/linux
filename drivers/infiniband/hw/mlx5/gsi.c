@@ -104,7 +104,7 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 	}
 
 	gsi = &mqp->gsi;
-	gsi->tx_qps = kzalloc_objs(*gsi->tx_qps, num_qps, GFP_KERNEL);
+	gsi->tx_qps = kzalloc_objs(*gsi->tx_qps, num_qps);
 	if (!gsi->tx_qps)
 		return -ENOMEM;
 

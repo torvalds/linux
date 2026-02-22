@@ -501,7 +501,7 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kzalloc_obj(*mtd, GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;

@@ -35,7 +35,7 @@ static void *diag0c_store(unsigned int *count)
 
 	cpus_read_lock();
 	cpu_count = num_online_cpus();
-	cpu_vec = kmalloc_objs(*cpu_vec, num_possible_cpus(), GFP_KERNEL);
+	cpu_vec = kmalloc_objs(*cpu_vec, num_possible_cpus());
 	if (!cpu_vec)
 		goto fail_unlock_cpus;
 	/* Note: Diag 0c needs 8 byte alignment and real storage */

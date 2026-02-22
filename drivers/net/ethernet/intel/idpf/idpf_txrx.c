@@ -1439,7 +1439,7 @@ static int idpf_vport_init_fast_path_txqs(struct idpf_vport *vport,
 	struct work_struct *tstamp_task = &vport->tstamp_task;
 	int k = 0;
 
-	vport->txqs = kzalloc_objs(*vport->txqs, rsrc->num_txq, GFP_KERNEL);
+	vport->txqs = kzalloc_objs(*vport->txqs, rsrc->num_txq);
 	if (!vport->txqs)
 		return -ENOMEM;
 
@@ -1755,7 +1755,7 @@ static int idpf_txq_group_alloc(struct idpf_vport *vport,
 
 			idpf_queue_set(FLOW_SCH_EN, q);
 
-			q->refillq = kzalloc_obj(*q->refillq, GFP_KERNEL);
+			q->refillq = kzalloc_obj(*q->refillq);
 			if (!q->refillq)
 				goto err_alloc;
 
@@ -1833,7 +1833,7 @@ static int idpf_rxq_group_alloc(struct idpf_vport *vport,
 
 		for (unsigned int j = 0; j < num_rxq; j++) {
 			rx_qgrp->splitq.rxq_sets[j] =
-				kzalloc_obj(struct idpf_rxq_set, GFP_KERNEL);
+				kzalloc_obj(struct idpf_rxq_set);
 			if (!rx_qgrp->splitq.rxq_sets[j]) {
 				err = -ENOMEM;
 				goto err_alloc;

@@ -171,7 +171,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 		return -ENODEV;
 	}
 
-	parent = kzalloc_obj(*parent, GFP_KERNEL);
+	parent = kzalloc_obj(*parent);
 	if (!parent)
 		return -ENOMEM;
 

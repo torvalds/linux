@@ -1793,7 +1793,7 @@ int ecryptfs_encrypt_and_encode_filename(
 				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)) {
 		struct ecryptfs_filename *filename;
 
-		filename = kzalloc_obj(*filename, GFP_KERNEL);
+		filename = kzalloc_obj(*filename);
 		if (!filename) {
 			rc = -ENOMEM;
 			goto out;

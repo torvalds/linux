@@ -1936,7 +1936,7 @@ int otx2_alloc_queue_mem(struct otx2_nic *pf)
 
 	pf->qset.cq_cnt = pf->hw.rx_queues + otx2_get_total_tx_queues(pf);
 
-	qset->napi = kzalloc_objs(*cq_poll, pf->hw.cint_cnt, GFP_KERNEL);
+	qset->napi = kzalloc_objs(*cq_poll, pf->hw.cint_cnt);
 	if (!qset->napi)
 		return -ENOMEM;
 

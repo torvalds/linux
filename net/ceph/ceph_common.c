@@ -309,12 +309,12 @@ struct ceph_options *ceph_alloc_options(void)
 {
 	struct ceph_options *opt;
 
-	opt = kzalloc_obj(*opt, GFP_KERNEL);
+	opt = kzalloc_obj(*opt);
 	if (!opt)
 		return NULL;
 
 	opt->crush_locs = RB_ROOT;
-	opt->mon_addr = kzalloc_objs(*opt->mon_addr, CEPH_MAX_MON, GFP_KERNEL);
+	opt->mon_addr = kzalloc_objs(*opt->mon_addr, CEPH_MAX_MON);
 	if (!opt->mon_addr) {
 		kfree(opt);
 		return NULL;
@@ -455,7 +455,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		ceph_crypto_key_destroy(opt->key);
 		kfree(opt->key);
 
-		opt->key = kzalloc_obj(*opt->key, GFP_KERNEL);
+		opt->key = kzalloc_obj(*opt->key);
 		if (!opt->key)
 			return -ENOMEM;
 		err = ceph_crypto_key_unarmor(opt->key, param->string);
@@ -468,7 +468,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		ceph_crypto_key_destroy(opt->key);
 		kfree(opt->key);
 
-		opt->key = kzalloc_obj(*opt->key, GFP_KERNEL);
+		opt->key = kzalloc_obj(*opt->key);
 		if (!opt->key)
 			return -ENOMEM;
 		return get_secret(opt->key, param->string, &log);
@@ -713,7 +713,7 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 	if (err < 0)
 		return ERR_PTR(err);
 
-	client = kzalloc_obj(*client, GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (client == NULL)
 		return ERR_PTR(-ENOMEM);
 

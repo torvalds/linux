@@ -583,7 +583,7 @@ int iio_device_register_eventset(struct iio_dev *indio_dev)
 	      iio_check_for_dynamic_events(indio_dev)))
 		return 0;
 
-	ev_int = kzalloc_obj(*ev_int, GFP_KERNEL);
+	ev_int = kzalloc_obj(*ev_int);
 	if (!ev_int)
 		return -ENOMEM;
 

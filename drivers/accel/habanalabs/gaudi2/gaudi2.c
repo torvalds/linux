@@ -4057,7 +4057,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	int i, rc;
 
 	/* Allocate device structure */
-	gaudi2 = kzalloc_obj(*gaudi2, GFP_KERNEL);
+	gaudi2 = kzalloc_obj(*gaudi2);
 	if (!gaudi2)
 		return -ENOMEM;
 

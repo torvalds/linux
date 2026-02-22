@@ -223,7 +223,7 @@ struct mlx4_zone_entry {
 
 struct mlx4_zone_allocator *mlx4_zone_allocator_create(enum mlx4_zone_alloc_flags flags)
 {
-	struct mlx4_zone_allocator *zones = kmalloc_obj(*zones, GFP_KERNEL);
+	struct mlx4_zone_allocator *zones = kmalloc_obj(*zones);
 
 	if (NULL == zones)
 		return NULL;
@@ -247,7 +247,7 @@ int mlx4_zone_add_one(struct mlx4_zone_allocator *zone_alloc,
 {
 	u32 mask = mlx4_bitmap_masked_value(bitmap, (u32)-1);
 	struct mlx4_zone_entry *it;
-	struct mlx4_zone_entry *zone = kmalloc_obj(*zone, GFP_KERNEL);
+	struct mlx4_zone_entry *zone = kmalloc_obj(*zone);
 
 	if (NULL == zone)
 		return -ENOMEM;
@@ -642,7 +642,7 @@ static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device)
 {
 	struct mlx4_db_pgdir *pgdir;
 
-	pgdir = kzalloc_obj(*pgdir, GFP_KERNEL);
+	pgdir = kzalloc_obj(*pgdir);
 	if (!pgdir)
 		return NULL;
 

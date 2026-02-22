@@ -1202,7 +1202,7 @@ static int ocfs2_add_branch(handle_t *handle,
 	}
 
 	/* allocate the number of new eb blocks we need */
-	new_eb_bhs = kzalloc_objs(struct buffer_head *, new_blocks, GFP_KERNEL);
+	new_eb_bhs = kzalloc_objs(struct buffer_head *, new_blocks);
 	if (!new_eb_bhs) {
 		status = -ENOMEM;
 		mlog_errno(status);

@@ -1369,7 +1369,7 @@ struct ia_css_morph_table *ia_css_morph_table_allocate(
 
 	IA_CSS_ENTER("");
 
-	me = kvmalloc_obj(*me, GFP_KERNEL);
+	me = kvmalloc_obj(*me);
 	if (!me) {
 		IA_CSS_ERROR("out of memory");
 		return me;
@@ -1516,7 +1516,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
-	me = kvmalloc_obj(*me, GFP_KERNEL);
+	me = kvmalloc_obj(*me);
 	if (!me) {
 		IA_CSS_LEAVE("cannot allocate memory");
 		goto err;
@@ -2136,7 +2136,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	if (!grid->enable)
 		return NULL;
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -2200,7 +2200,7 @@ ia_css_metadata_allocate(const struct ia_css_metadata_info *metadata_info)
 	if (metadata_info->size == 0)
 		return NULL;
 
-	md = kvmalloc_obj(*md, GFP_KERNEL);
+	md = kvmalloc_obj(*md);
 	if (!md)
 		goto error;
 
@@ -2330,7 +2330,7 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 	int err;
 	size_t params_size;
 	struct ia_css_isp_parameters *params =
-	kvmalloc_obj(struct ia_css_isp_parameters, GFP_KERNEL);
+	kvmalloc_obj(struct ia_css_isp_parameters);
 
 	if (!params) {
 		*isp_params_out = NULL;
@@ -4161,7 +4161,7 @@ ia_css_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 
 	assert(grid);
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -4201,7 +4201,7 @@ ia_css_dvs_statistics_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -4239,7 +4239,7 @@ ia_css_dvs_coefficients_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -4280,7 +4280,7 @@ ia_css_dvs2_statistics_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 
@@ -4371,7 +4371,7 @@ ia_css_dvs2_coefficients_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = kvzalloc_objs(*me, 1, GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 

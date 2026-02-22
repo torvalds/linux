@@ -667,7 +667,7 @@ struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 	if (!ops)
 		return ERR_PTR(-EINVAL);
 
-	rtk = kzalloc_obj(*rtk, GFP_KERNEL);
+	rtk = kzalloc_obj(*rtk);
 	if (!rtk)
 		return ERR_PTR(-ENOMEM);
 

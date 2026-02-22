@@ -683,7 +683,7 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 	unsigned i, j;
 
 	/* Store head pages only*/
-	new_array = kvmalloc_objs(struct page *, nr_folios, GFP_KERNEL);
+	new_array = kvmalloc_objs(struct page *, nr_folios);
 	if (!new_array)
 		return false;
 

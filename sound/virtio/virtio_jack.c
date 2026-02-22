@@ -144,7 +144,7 @@ int virtsnd_jack_parse_cfg(struct virtio_snd *snd)
 	if (!snd->jacks)
 		return -ENOMEM;
 
-	info = kzalloc_objs(*info, snd->njacks, GFP_KERNEL);
+	info = kzalloc_objs(*info, snd->njacks);
 	if (!info)
 		return -ENOMEM;
 

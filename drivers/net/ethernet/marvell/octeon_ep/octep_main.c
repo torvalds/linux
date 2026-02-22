@@ -1293,7 +1293,7 @@ int octep_device_setup(struct octep_device *oct)
 	int i, ret;
 
 	/* allocate memory for oct->conf */
-	oct->conf = kzalloc_obj(*oct->conf, GFP_KERNEL);
+	oct->conf = kzalloc_obj(*oct->conf);
 	if (!oct->conf)
 		return -ENOMEM;
 

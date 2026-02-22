@@ -63,7 +63,7 @@ void *shmem_pin_map(struct file *file)
 	void *vaddr;
 
 	n_pages = file->f_mapping->host->i_size >> PAGE_SHIFT;
-	pages = kvmalloc_objs(*pages, n_pages, GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, n_pages);
 	if (!pages)
 		return NULL;
 

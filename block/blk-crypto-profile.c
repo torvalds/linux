@@ -93,7 +93,7 @@ int blk_crypto_profile_init(struct blk_crypto_profile *profile,
 
 	/* Initialize keyslot management data. */
 
-	profile->slots = kvzalloc_objs(profile->slots[0], num_slots, GFP_KERNEL);
+	profile->slots = kvzalloc_objs(profile->slots[0], num_slots);
 	if (!profile->slots)
 		goto err_destroy;
 

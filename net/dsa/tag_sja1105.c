@@ -701,7 +701,7 @@ static int sja1105_connect(struct dsa_switch *ds)
 	struct kthread_worker *xmit_worker;
 	int err;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

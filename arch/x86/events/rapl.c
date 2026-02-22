@@ -704,7 +704,7 @@ static int __init init_rapl_pmu(struct rapl_pmus *rapl_pmus)
 	int idx;
 
 	for (idx = 0; idx < rapl_pmus->nr_rapl_pmu; idx++) {
-		rapl_pmu = kzalloc_obj(*rapl_pmu, GFP_KERNEL);
+		rapl_pmu = kzalloc_obj(*rapl_pmu);
 		if (!rapl_pmu)
 			goto free;
 

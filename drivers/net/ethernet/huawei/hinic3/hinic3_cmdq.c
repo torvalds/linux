@@ -738,7 +738,7 @@ static int init_cmdqs(struct hinic3_hwdev *hwdev)
 {
 	struct hinic3_cmdqs *cmdqs;
 
-	cmdqs = kzalloc_obj(*cmdqs, GFP_KERNEL);
+	cmdqs = kzalloc_obj(*cmdqs);
 	if (!cmdqs)
 		return -ENOMEM;
 

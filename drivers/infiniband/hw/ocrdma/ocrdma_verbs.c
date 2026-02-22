@@ -195,7 +195,7 @@ static int ocrdma_add_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 {
 	struct ocrdma_mm *mm;
 
-	mm = kzalloc_obj(*mm, GFP_KERNEL);
+	mm = kzalloc_obj(*mm);
 	if (mm == NULL)
 		return -ENOMEM;
 	mm->key.phy_addr = phy_addr;
@@ -727,7 +727,7 @@ struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 		return ERR_PTR(-EINVAL);
 	}
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -863,7 +863,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE))
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(status);
 	mr->umem = ib_umem_get(ibpd->device, start, len, acc);
@@ -1255,7 +1255,7 @@ static void ocrdma_set_qp_db(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 static int ocrdma_alloc_wr_id_tbl(struct ocrdma_qp *qp)
 {
 	qp->wqe_wr_id_tbl =
-	    kzalloc_objs(*(qp->wqe_wr_id_tbl), qp->sq.max_cnt, GFP_KERNEL);
+	    kzalloc_objs(*(qp->wqe_wr_id_tbl), qp->sq.max_cnt);
 	if (qp->wqe_wr_id_tbl == NULL)
 		return -ENOMEM;
 	qp->rqe_wr_id_tbl =
@@ -2910,7 +2910,7 @@ struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	if (max_num_sg > dev->attr.max_pages_per_frmr)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

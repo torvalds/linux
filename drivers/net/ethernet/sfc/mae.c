@@ -1158,7 +1158,7 @@ int efx_mae_enumerate_mports(struct efx_nic *efx)
 		for (i = 0; i < count; i++) {
 			struct mae_mport_desc *d;
 
-			d = kzalloc_obj(*d, GFP_KERNEL);
+			d = kzalloc_obj(*d);
 			if (!d) {
 				rc = -ENOMEM;
 				goto fail;
@@ -2313,7 +2313,7 @@ int efx_init_mae(struct efx_nic *efx)
 	if (!nic_data->have_mport)
 		return -EINVAL;
 
-	mae = kmalloc_obj(*mae, GFP_KERNEL);
+	mae = kmalloc_obj(*mae);
 	if (!mae)
 		return -ENOMEM;
 

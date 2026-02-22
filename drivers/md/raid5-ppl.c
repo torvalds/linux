@@ -1352,7 +1352,7 @@ int ppl_init_log(struct r5conf *conf)
 		return -EINVAL;
 	}
 
-	ppl_conf = kzalloc_obj(struct ppl_conf, GFP_KERNEL);
+	ppl_conf = kzalloc_obj(struct ppl_conf);
 	if (!ppl_conf)
 		return -ENOMEM;
 

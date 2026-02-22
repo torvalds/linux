@@ -713,7 +713,7 @@ mshv_vp_ioctl_get_set_state_pfn(struct mshv_vp *vp,
 		return -EOVERFLOW;
 
 	/* Pin user pages so hypervisor can copy directly to them */
-	pages = kzalloc_objs(struct page *, page_count, GFP_KERNEL);
+	pages = kzalloc_objs(struct page *, page_count);
 	if (!pages)
 		return -ENOMEM;
 
@@ -1072,7 +1072,7 @@ mshv_partition_ioctl_create_vp(struct mshv_partition *partition,
 	if (ret)
 		goto unmap_ghcb_page;
 
-	vp = kzalloc_obj(*vp, GFP_KERNEL);
+	vp = kzalloc_obj(*vp);
 	if (!vp)
 		goto unmap_stats_pages;
 
@@ -1977,7 +1977,7 @@ mshv_ioctl_create_partition(void __user *user_arg, struct device *module_dev)
 	if (ret)
 		return ret;
 
-	partition = kzalloc_obj(*partition, GFP_KERNEL);
+	partition = kzalloc_obj(*partition);
 	if (!partition)
 		return -ENOMEM;
 

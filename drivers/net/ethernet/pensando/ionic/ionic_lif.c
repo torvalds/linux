@@ -2694,7 +2694,7 @@ static int ionic_register_rxq_info(struct ionic_queue *q, unsigned int napi_id)
 	struct xdp_rxq_info *rxq_info;
 	int err;
 
-	rxq_info = kzalloc_obj(*rxq_info, GFP_KERNEL);
+	rxq_info = kzalloc_obj(*rxq_info);
 	if (!rxq_info)
 		return -ENOMEM;
 
@@ -3177,7 +3177,7 @@ static int ionic_affinity_masks_alloc(struct ionic *ionic)
 	int nintrs = ionic->nintrs;
 	int i;
 
-	affinity_masks = kzalloc_objs(cpumask_var_t, nintrs, GFP_KERNEL);
+	affinity_masks = kzalloc_objs(cpumask_var_t, nintrs);
 	if (!affinity_masks)
 		return -ENOMEM;
 
@@ -3218,7 +3218,7 @@ int ionic_lif_alloc(struct ionic *ionic)
 	int tbl_sz;
 	int err;
 
-	lid = kzalloc_obj(*lid, GFP_KERNEL);
+	lid = kzalloc_obj(*lid);
 	if (!lid)
 		return -ENOMEM;
 

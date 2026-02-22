@@ -1500,7 +1500,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 
 	dev_info(&dev->intf->dev, "Binding DVB extension\n");
 
-	dvb = kzalloc_obj(*dvb, GFP_KERNEL);
+	dvb = kzalloc_obj(*dvb);
 	if (!dvb)
 		return -ENOMEM;
 

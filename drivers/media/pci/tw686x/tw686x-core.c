@@ -243,7 +243,7 @@ static int tw686x_probe(struct pci_dev *pci_dev,
 	struct tw686x_dev *dev;
 	int err;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 	dev->type = pci_id->driver_data;

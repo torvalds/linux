@@ -229,7 +229,7 @@ static int virtinput_probe(struct virtio_device *vdev)
 	if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1))
 		return -ENODEV;
 
-	vi = kzalloc_obj(*vi, GFP_KERNEL);
+	vi = kzalloc_obj(*vi);
 	if (!vi)
 		return -ENOMEM;
 

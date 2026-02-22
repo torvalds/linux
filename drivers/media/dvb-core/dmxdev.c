@@ -892,7 +892,7 @@ static int dvb_dmxdev_add_pid(struct dmxdev *dmxdev,
 	    (!list_empty(&filter->feed.ts)))
 		return -EINVAL;
 
-	feed = kzalloc_obj(struct dmxdev_feed, GFP_KERNEL);
+	feed = kzalloc_obj(struct dmxdev_feed);
 	if (feed == NULL)
 		return -ENOMEM;
 

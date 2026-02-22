@@ -207,7 +207,7 @@ static int ath11k_mhi_get_msi(struct ath11k_pci *ab_pci)
 	ath11k_dbg(ab, ATH11K_DBG_PCI, "num_vectors %d base_vector %d\n",
 		   num_vectors, base_vector);
 
-	irq = kzalloc_objs(int, num_vectors, GFP_KERNEL);
+	irq = kzalloc_objs(int, num_vectors);
 	if (!irq)
 		return -ENOMEM;
 

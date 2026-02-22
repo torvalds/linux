@@ -367,11 +367,11 @@ int __init netlbl_domhsh_init(u32 size)
 	if (size == 0)
 		return -EINVAL;
 
-	hsh_tbl = kmalloc_obj(*hsh_tbl, GFP_KERNEL);
+	hsh_tbl = kmalloc_obj(*hsh_tbl);
 	if (hsh_tbl == NULL)
 		return -ENOMEM;
 	hsh_tbl->size = 1 << size;
-	hsh_tbl->tbl = kzalloc_objs(struct list_head, hsh_tbl->size, GFP_KERNEL);
+	hsh_tbl->tbl = kzalloc_objs(struct list_head, hsh_tbl->size);
 	if (hsh_tbl->tbl == NULL) {
 		kfree(hsh_tbl);
 		return -ENOMEM;

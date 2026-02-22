@@ -293,7 +293,7 @@ static int ucsi_partner_task(struct ucsi_connector *con,
 	if (!con->partner)
 		return 0;
 
-	uwork = kzalloc_obj(*uwork, GFP_KERNEL);
+	uwork = kzalloc_obj(*uwork);
 	if (!uwork)
 		return -ENOMEM;
 
@@ -2044,7 +2044,7 @@ struct ucsi *ucsi_create(struct device *dev, const struct ucsi_operations *ops)
 	    !ops->read_message_in || !ops->sync_control || !ops->async_control)
 		return ERR_PTR(-EINVAL);
 
-	ucsi = kzalloc_obj(*ucsi, GFP_KERNEL);
+	ucsi = kzalloc_obj(*ucsi);
 	if (!ucsi)
 		return ERR_PTR(-ENOMEM);
 

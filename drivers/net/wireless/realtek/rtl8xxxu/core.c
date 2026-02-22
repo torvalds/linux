@@ -7381,7 +7381,7 @@ static int rtl8xxxu_start(struct ieee80211_hw *hw)
 	}
 
 	for (i = 0; i < RTL8XXXU_TX_URBS; i++) {
-		tx_urb = kmalloc_obj(struct rtl8xxxu_tx_urb, GFP_KERNEL);
+		tx_urb = kmalloc_obj(struct rtl8xxxu_tx_urb);
 		if (!tx_urb) {
 			if (!i)
 				ret = -ENOMEM;
@@ -7402,7 +7402,7 @@ static int rtl8xxxu_start(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&priv->rx_urb_lock, flags);
 
 	for (i = 0; i < RTL8XXXU_RX_URBS; i++) {
-		rx_urb = kmalloc_obj(struct rtl8xxxu_rx_urb, GFP_KERNEL);
+		rx_urb = kmalloc_obj(struct rtl8xxxu_rx_urb);
 		if (!rx_urb) {
 			if (!i)
 				ret = -ENOMEM;

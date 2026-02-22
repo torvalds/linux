@@ -149,7 +149,7 @@ int hashtab_duplicate(struct hashtab *new, const struct hashtab *orig,
 
 	memset(new, 0, sizeof(*new));
 
-	new->htable = kzalloc_objs(*new->htable, orig->size, GFP_KERNEL);
+	new->htable = kzalloc_objs(*new->htable, orig->size);
 	if (!new->htable)
 		return -ENOMEM;
 

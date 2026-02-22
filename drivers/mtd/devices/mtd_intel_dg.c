@@ -720,7 +720,7 @@ static int intel_dg_nvm_init_mtd(struct intel_dg_nvm *nvm, struct device *device
 	nvm->mtd.erasesize = SZ_4K; /* 4K bytes granularity */
 	nvm->mtd.size = nvm->size;
 
-	parts = kzalloc_objs(*parts, nvm->nregions, GFP_KERNEL);
+	parts = kzalloc_objs(*parts, nvm->nregions);
 	if (!parts)
 		return -ENOMEM;
 

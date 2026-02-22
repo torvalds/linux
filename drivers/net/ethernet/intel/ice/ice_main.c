@@ -875,7 +875,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		an = "False";
 
 	/* Get FEC mode requested based on PHY caps last SW configuration */
-	caps = kzalloc_obj(*caps, GFP_KERNEL);
+	caps = kzalloc_obj(*caps);
 	if (!caps) {
 		fec_req = "Unknown";
 		an_advertised = "Unknown";
@@ -1951,7 +1951,7 @@ static int ice_force_phys_link_state(struct ice_vsi *vsi, bool link_up)
 
 	pi = vsi->port_info;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -2010,7 +2010,7 @@ static int ice_init_nvm_phy_type(struct ice_port_info *pi)
 	struct ice_pf *pf = pi->hw->back;
 	int err;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -2122,7 +2122,7 @@ static int ice_init_phy_user_cfg(struct ice_port_info *pi)
 	if (!(phy->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE))
 		return -EIO;
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -2202,7 +2202,7 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 	if (test_bit(ICE_FLAG_LINK_DOWN_ON_CLOSE_ENA, pf->flags))
 		return ice_force_phys_link_state(vsi, true);
 
-	pcaps = kzalloc_obj(*pcaps, GFP_KERNEL);
+	pcaps = kzalloc_obj(*pcaps);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -2236,7 +2236,7 @@ static int ice_configure_phy(struct ice_vsi *vsi)
 		goto done;
 	}
 
-	cfg = kzalloc_obj(*cfg, GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg) {
 		err = -ENOMEM;
 		goto done;
@@ -2385,7 +2385,7 @@ static void ice_service_task(struct work_struct *work)
 	if (test_and_clear_bit(ICE_AUX_ERR_PENDING, pf->state)) {
 		struct iidc_rdma_event *event;
 
-		event = kzalloc_obj(*event, GFP_KERNEL);
+		event = kzalloc_obj(*event);
 		if (event) {
 			set_bit(IIDC_RDMA_EVENT_CRIT_ERR, event->type);
 			/* report the entire OICR value to AUX driver */
@@ -2408,7 +2408,7 @@ static void ice_service_task(struct work_struct *work)
 	if (test_and_clear_bit(ICE_FLAG_MTU_CHANGED, pf->flags)) {
 		struct iidc_rdma_event *event;
 
-		event = kzalloc_obj(*event, GFP_KERNEL);
+		event = kzalloc_obj(*event);
 		if (event) {
 			set_bit(IIDC_RDMA_EVENT_AFTER_MTU_CHANGE, event->type);
 			ice_send_event_to_aux(pf, event);
@@ -2609,11 +2609,11 @@ static int ice_xdp_alloc_setup_rings(struct ice_vsi *vsi)
 		struct ice_ring_stats *ring_stats;
 		struct ice_tx_ring *xdp_ring;
 
-		xdp_ring = kzalloc_obj(*xdp_ring, GFP_KERNEL);
+		xdp_ring = kzalloc_obj(*xdp_ring);
 		if (!xdp_ring)
 			goto free_xdp_rings;
 
-		ring_stats = kzalloc_obj(*ring_stats, GFP_KERNEL);
+		ring_stats = kzalloc_obj(*ring_stats);
 		if (!ring_stats) {
 			ice_free_tx_ring(xdp_ring);
 			goto free_xdp_rings;
@@ -4204,7 +4204,7 @@ static void ice_set_safe_mode_vlan_cfg(struct ice_pf *pf)
 	if (!vsi)
 		return;
 
-	ctxt = kzalloc_obj(*ctxt, GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return;
 
@@ -4910,7 +4910,7 @@ static int ice_init_pf_sw(struct ice_pf *pf)
 	int err;
 
 	/* create switch struct for the switch element created by FW on boot */
-	pf->first_sw = kzalloc_obj(*pf->first_sw, GFP_KERNEL);
+	pf->first_sw = kzalloc_obj(*pf->first_sw);
 	if (!pf->first_sw)
 		return -ENOMEM;
 
@@ -8096,7 +8096,7 @@ int ice_set_rss_hfunc(struct ice_vsi *vsi, u8 hfunc)
 	    hfunc != ICE_AQ_VSI_Q_OPT_RSS_HASH_SYM_TPLZ)
 		return -EOPNOTSUPP;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -8168,7 +8168,7 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
 
 	vsi_props = &vsi->info;
 
-	ctxt = kzalloc_obj(*ctxt, GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt)
 		return -ENOMEM;
 
@@ -9142,7 +9142,7 @@ static int ice_create_q_channels(struct ice_vsi *vsi)
 		if (!(vsi->all_enatc & BIT(i)))
 			continue;
 
-		ch = kzalloc_obj(*ch, GFP_KERNEL);
+		ch = kzalloc_obj(*ch);
 		if (!ch) {
 			ret = -ENOMEM;
 			goto err_free;
@@ -9573,7 +9573,7 @@ ice_indr_setup_tc_block(struct net_device *netdev, struct Qdisc *sch,
 		if (indr_priv)
 			return -EEXIST;
 
-		indr_priv = kzalloc_obj(*indr_priv, GFP_KERNEL);
+		indr_priv = kzalloc_obj(*indr_priv);
 		if (!indr_priv)
 			return -ENOMEM;
 

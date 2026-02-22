@@ -1748,7 +1748,7 @@ static struct usb_function_instance *f_audio_alloc_inst(void)
 {
 	struct f_uac1_opts *opts;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -1831,7 +1831,7 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 	struct f_uac1_opts *opts;
 
 	/* allocate and initialize one new instance */
-	uac1 = kzalloc_obj(*uac1, GFP_KERNEL);
+	uac1 = kzalloc_obj(*uac1);
 	if (!uac1)
 		return ERR_PTR(-ENOMEM);
 

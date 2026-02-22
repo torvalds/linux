@@ -424,7 +424,7 @@ static int __fastrpc_buf_alloc(struct fastrpc_user *fl, struct device *dev,
 {
 	struct fastrpc_buf *buf;
 
-	buf = kzalloc_obj(*buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 
@@ -600,7 +600,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 	unsigned long flags;
 	int ret;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -611,7 +611,7 @@ static struct fastrpc_invoke_ctx *fastrpc_context_alloc(
 		     REMOTE_SCALARS_OUTBUFS(sc);
 
 	if (ctx->nscalars) {
-		ctx->maps = kzalloc_objs(*ctx->maps, ctx->nscalars, GFP_KERNEL);
+		ctx->maps = kzalloc_objs(*ctx->maps, ctx->nscalars);
 		if (!ctx->maps) {
 			kfree(ctx);
 			return ERR_PTR(-ENOMEM);
@@ -704,7 +704,7 @@ static int fastrpc_dma_buf_attach(struct dma_buf *dmabuf,
 	struct fastrpc_buf *buffer = dmabuf->priv;
 	int ret;
 
-	a = kzalloc_obj(*a, GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a)
 		return -ENOMEM;
 
@@ -786,7 +786,7 @@ static int fastrpc_map_attach(struct fastrpc_user *fl, int fd,
 	struct scatterlist *sgl = NULL;
 	int err = 0, sgl_index = 0;
 
-	map = kzalloc_obj(*map, GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return -ENOMEM;
 
@@ -1432,7 +1432,7 @@ static int fastrpc_init_create_process(struct fastrpc_user *fl,
 	u32 sc;
 	bool unsigned_module = false;
 
-	args = kzalloc_objs(*args, FASTRPC_CREATE_PROCESS_NARGS, GFP_KERNEL);
+	args = kzalloc_objs(*args, FASTRPC_CREATE_PROCESS_NARGS);
 	if (!args)
 		return -ENOMEM;
 
@@ -1627,7 +1627,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	fdevice = miscdev_to_fdevice(filp->private_data);
 	cctx = fdevice->cctx;
 
-	fl = kzalloc_obj(*fl, GFP_KERNEL);
+	fl = kzalloc_obj(*fl);
 	if (!fl)
 		return -ENOMEM;
 
@@ -1734,7 +1734,7 @@ static int fastrpc_invoke(struct fastrpc_user *fl, char __user *argp)
 	/* nscalars is truncated here to max supported value */
 	nscalars = REMOTE_SCALARS_LENGTH(inv.sc);
 	if (nscalars) {
-		args = kzalloc_objs(*args, nscalars, GFP_KERNEL);
+		args = kzalloc_objs(*args, nscalars);
 		if (!args)
 			return -ENOMEM;
 
@@ -2371,7 +2371,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
 	else if (!qcom_scm_is_available())
 		return -EPROBE_DEFER;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

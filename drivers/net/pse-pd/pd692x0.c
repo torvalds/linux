@@ -1259,7 +1259,7 @@ static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 	struct pd692x0_manager *manager;
 	int ret;
 
-	manager = kzalloc_objs(*manager, PD692X0_MAX_MANAGERS, GFP_KERNEL);
+	manager = kzalloc_objs(*manager, PD692X0_MAX_MANAGERS);
 	if (!manager)
 		return -ENOMEM;
 

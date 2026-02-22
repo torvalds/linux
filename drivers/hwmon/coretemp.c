@@ -498,7 +498,7 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 			return NULL;
 	}
 
-	tdata = kzalloc_obj(struct temp_data, GFP_KERNEL);
+	tdata = kzalloc_obj(struct temp_data);
 	if (!tdata)
 		return NULL;
 
@@ -625,7 +625,7 @@ static int coretemp_device_add(int zoneid)
 	int err;
 
 	/* Initialize the per-zone data structures */
-	pdata = kzalloc_obj(*pdata, GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 

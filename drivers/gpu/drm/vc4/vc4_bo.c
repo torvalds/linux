@@ -205,7 +205,7 @@ static struct list_head *vc4_get_cache_list_for_size(struct drm_device *dev,
 		struct list_head *new_list;
 		uint32_t i;
 
-		new_list = kmalloc_objs(struct list_head, new_size, GFP_KERNEL);
+		new_list = kmalloc_objs(struct list_head, new_size);
 		if (!new_list)
 			return NULL;
 
@@ -399,7 +399,7 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return ERR_PTR(-ENODEV);
 
-	bo = kzalloc_obj(*bo, GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

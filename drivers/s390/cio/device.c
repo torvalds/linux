@@ -686,7 +686,7 @@ static struct ccw_device * io_subchannel_allocate_dev(struct subchannel *sch)
 	struct gen_pool *dma_pool;
 	int ret;
 
-	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev) {
 		ret = -ENOMEM;
 		goto err_cdev;

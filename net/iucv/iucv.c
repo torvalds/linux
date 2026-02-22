@@ -90,7 +90,7 @@ struct device *iucv_alloc_device(const struct attribute_group **attrs,
 	char buf[20];
 	int rc;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto out_error;
 	va_start(vargs, fmt);

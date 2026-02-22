@@ -1976,7 +1976,7 @@ ssize_t ima_parse_add_rule(char *rule)
 	if (*p == '#' || *p == '\0')
 		return len;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
 				    NULL, op, "-ENOMEM", -ENOMEM, audit_info);

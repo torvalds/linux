@@ -765,7 +765,7 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 	if (!brcmf_fw_request_is_valid(req))
 		return -EINVAL;
 
-	fwctx = kzalloc_obj(*fwctx, GFP_KERNEL);
+	fwctx = kzalloc_obj(*fwctx);
 	if (!fwctx)
 		return -ENOMEM;
 

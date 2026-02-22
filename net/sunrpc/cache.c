@@ -1038,7 +1038,7 @@ static int cache_open(struct inode *inode, struct file *filp,
 		return -EACCES;
 	nonseekable_open(inode, filp);
 	if (filp->f_mode & FMODE_READ) {
-		rp = kmalloc_obj(*rp, GFP_KERNEL);
+		rp = kmalloc_obj(*rp);
 		if (!rp) {
 			module_put(cd->owner);
 			return -ENOMEM;
@@ -1225,7 +1225,7 @@ static int cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h)
 	if (!buf)
 		return -EAGAIN;
 
-	crq = kmalloc_obj(*crq, GFP_KERNEL);
+	crq = kmalloc_obj(*crq);
 	if (!crq) {
 		kfree(buf);
 		return -EAGAIN;

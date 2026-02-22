@@ -75,7 +75,7 @@ int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
 	if (!phy || !dev_id || !con_id)
 		return -EINVAL;
 
-	pl = kzalloc_obj(*pl, GFP_KERNEL);
+	pl = kzalloc_obj(*pl);
 	if (!pl)
 		return -ENOMEM;
 
@@ -1004,7 +1004,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	phy = kzalloc_obj(*phy, GFP_KERNEL);
+	phy = kzalloc_obj(*phy);
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
@@ -1174,7 +1174,7 @@ struct phy_provider *__of_phy_provider_register(struct device *dev,
 		children = dev->of_node;
 	}
 
-	phy_provider = kzalloc_obj(*phy_provider, GFP_KERNEL);
+	phy_provider = kzalloc_obj(*phy_provider);
 	if (!phy_provider)
 		return ERR_PTR(-ENOMEM);
 

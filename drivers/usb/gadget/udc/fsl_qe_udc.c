@@ -2344,7 +2344,7 @@ static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 	u64 size;
 	u32 offset;
 
-	udc = kzalloc_obj(*udc, GFP_KERNEL);
+	udc = kzalloc_obj(*udc);
 	if (!udc)
 		goto cleanup;
 

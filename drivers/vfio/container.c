@@ -95,7 +95,7 @@ int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops)
 	if (WARN_ON(!ops->register_device != !ops->unregister_device))
 		return -EINVAL;
 
-	driver = kzalloc_obj(*driver, GFP_KERNEL);
+	driver = kzalloc_obj(*driver);
 	if (!driver)
 		return -ENOMEM;
 

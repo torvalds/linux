@@ -565,7 +565,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	 * when the last reference is released.
 	 */
 	if (!video->rwpf->entity.pipe) {
-		pipe = kzalloc_obj(*pipe, GFP_KERNEL);
+		pipe = kzalloc_obj(*pipe);
 		if (!pipe)
 			return ERR_PTR(-ENOMEM);
 
@@ -1074,7 +1074,7 @@ static int vsp1_video_open(struct file *file)
 	struct v4l2_fh *vfh;
 	int ret = 0;
 
-	vfh = kzalloc_obj(*vfh, GFP_KERNEL);
+	vfh = kzalloc_obj(*vfh);
 	if (vfh == NULL)
 		return -ENOMEM;
 

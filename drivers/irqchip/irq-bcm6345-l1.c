@@ -296,7 +296,7 @@ static int __init bcm6345_l1_of_init(struct device_node *dn,
 	unsigned int idx;
 	int ret;
 
-	intc = kzalloc_obj(*intc, GFP_KERNEL);
+	intc = kzalloc_obj(*intc);
 	if (!intc)
 		return -ENOMEM;
 

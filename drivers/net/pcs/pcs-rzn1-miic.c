@@ -487,7 +487,7 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 		return ERR_PTR(-EINVAL);
 	}
 
-	miic_port = kzalloc_obj(*miic_port, GFP_KERNEL);
+	miic_port = kzalloc_obj(*miic_port);
 	if (!miic_port) {
 		put_device(&pdev->dev);
 		return ERR_PTR(-ENOMEM);

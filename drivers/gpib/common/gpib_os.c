@@ -199,7 +199,7 @@ int push_status_byte(struct gpib_board *board, struct gpib_status_queue *device,
 			return retval;
 	}
 
-	status = kmalloc_obj(*status, GFP_KERNEL);
+	status = kmalloc_obj(*status);
 	if (!status)
 		return -ENOMEM;
 
@@ -513,7 +513,7 @@ static int init_gpib_file_private(struct gpib_file_private *priv)
 {
 	memset(priv, 0, sizeof(*priv));
 	atomic_set(&priv->holding_mutex, 0);
-	priv->descriptors[0] = kmalloc_obj(struct gpib_descriptor, GFP_KERNEL);
+	priv->descriptors[0] = kmalloc_obj(struct gpib_descriptor);
 	if (!priv->descriptors[0]) {
 		pr_err("gpib: failed to allocate default board descriptor\n");
 		return -ENOMEM;
@@ -537,7 +537,7 @@ int ibopen(struct inode *inode, struct file *filep)
 
 	board = &board_array[minor];
 
-	filep->private_data = kmalloc_obj(struct gpib_file_private, GFP_KERNEL);
+	filep->private_data = kmalloc_obj(struct gpib_file_private);
 	if (!filep->private_data)
 		return -ENOMEM;
 
@@ -2042,7 +2042,7 @@ int gpib_register_driver(struct gpib_interface *interface, struct module *provid
 {
 	struct gpib_interface_list *entry;
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

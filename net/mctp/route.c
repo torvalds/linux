@@ -675,7 +675,7 @@ static struct mctp_route *mctp_route_alloc(void)
 {
 	struct mctp_route *rt;
 
-	rt = kzalloc_obj(*rt, GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return NULL;
 

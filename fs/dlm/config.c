@@ -602,7 +602,7 @@ static void drop_node(struct config_group *g, struct config_item *i)
 	struct dlm_node *nd = config_item_to_node(i);
 	struct dlm_member_gone *mb_gone;
 
-	mb_gone = kzalloc_obj(*mb_gone, GFP_KERNEL);
+	mb_gone = kzalloc_obj(*mb_gone);
 	if (!mb_gone)
 		return;
 

@@ -3067,7 +3067,7 @@ static int ca8210_probe(struct spi_device *spi_device)
 	ca8210_hw_setup(hw);
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
-	pdata = kmalloc_obj(*pdata, GFP_KERNEL);
+	pdata = kmalloc_obj(*pdata);
 	if (!pdata) {
 		ret = -ENOMEM;
 		goto error;

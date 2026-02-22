@@ -701,7 +701,7 @@ static int hws_send_ring_alloc_sq(struct mlx5_core_dev *mdev,
 	wq->db = &wq->db[MLX5_SND_DBR];
 
 	buf_sz = queue->num_entries * MAX_WQES_PER_RULE;
-	sq->dep_wqe = kzalloc_objs(*sq->dep_wqe, queue->num_entries, GFP_KERNEL);
+	sq->dep_wqe = kzalloc_objs(*sq->dep_wqe, queue->num_entries);
 	if (!sq->dep_wqe) {
 		err = -ENOMEM;
 		goto destroy_wq_cyc;

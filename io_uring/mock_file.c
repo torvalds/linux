@@ -115,7 +115,7 @@ static ssize_t io_mock_delay_rw(struct kiocb *iocb, size_t len)
 	struct io_mock_file *mf = iocb->ki_filp->private_data;
 	struct io_mock_iocb *mio;
 
-	mio = kzalloc_obj(*mio, GFP_KERNEL);
+	mio = kzalloc_obj(*mio);
 	if (!mio)
 		return -ENOMEM;
 

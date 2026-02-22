@@ -1725,7 +1725,7 @@ static int ubifs_dir_open(struct inode *inode, struct file *file)
 {
 	struct ubifs_dir_data *data;
 
-	data = kzalloc_obj(struct ubifs_dir_data, GFP_KERNEL);
+	data = kzalloc_obj(struct ubifs_dir_data);
 	if (!data)
 		return -ENOMEM;
 	file->private_data = data;

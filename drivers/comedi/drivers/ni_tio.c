@@ -1778,7 +1778,7 @@ ni_gpct_device_construct(struct comedi_device *dev,
 	if (num_counters == 0 || counters_per_chip == 0)
 		return NULL;
 
-	counter_dev = kzalloc_obj(*counter_dev, GFP_KERNEL);
+	counter_dev = kzalloc_obj(*counter_dev);
 	if (!counter_dev)
 		return NULL;
 
@@ -1793,7 +1793,7 @@ ni_gpct_device_construct(struct comedi_device *dev,
 	counter_dev->num_counters = num_counters;
 	counter_dev->num_chips = DIV_ROUND_UP(num_counters, counters_per_chip);
 
-	counter_dev->counters = kzalloc_objs(*counter, num_counters, GFP_KERNEL);
+	counter_dev->counters = kzalloc_objs(*counter, num_counters);
 	counter_dev->regs = kzalloc_objs(*counter_dev->regs,
 					 counter_dev->num_chips, GFP_KERNEL);
 	if (!counter_dev->regs || !counter_dev->counters) {

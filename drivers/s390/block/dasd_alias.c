@@ -98,7 +98,7 @@ static struct alias_server *_allocate_server(struct dasd_uid *uid)
 {
 	struct alias_server *server;
 
-	server = kzalloc_obj(*server, GFP_KERNEL);
+	server = kzalloc_obj(*server);
 	if (!server)
 		return ERR_PTR(-ENOMEM);
 	memcpy(server->uid.vendor, uid->vendor, sizeof(uid->vendor));
@@ -117,7 +117,7 @@ static struct alias_lcu *_allocate_lcu(struct dasd_uid *uid)
 {
 	struct alias_lcu *lcu;
 
-	lcu = kzalloc_obj(*lcu, GFP_KERNEL);
+	lcu = kzalloc_obj(*lcu);
 	if (!lcu)
 		return ERR_PTR(-ENOMEM);
 	lcu->uac = kzalloc_obj(*(lcu->uac), GFP_KERNEL | GFP_DMA);

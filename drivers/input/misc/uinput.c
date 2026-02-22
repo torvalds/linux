@@ -379,7 +379,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 {
 	struct uinput_device *newdev;
 
-	newdev = kzalloc_obj(*newdev, GFP_KERNEL);
+	newdev = kzalloc_obj(*newdev);
 	if (!newdev)
 		return -ENOMEM;
 

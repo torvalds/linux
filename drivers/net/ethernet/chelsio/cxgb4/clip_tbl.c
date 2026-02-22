@@ -301,7 +301,7 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	for (i = 0; i < ctbl->clipt_size; ++i)
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
-	cl_list = kvzalloc_objs(struct clip_entry, clipt_size, GFP_KERNEL);
+	cl_list = kvzalloc_objs(struct clip_entry, clipt_size);
 	if (!cl_list) {
 		kvfree(ctbl);
 		return NULL;

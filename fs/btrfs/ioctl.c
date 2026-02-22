@@ -726,7 +726,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		return -ETXTBSY;
 	}
 
-	pending_snapshot = kzalloc_obj(*pending_snapshot, GFP_KERNEL);
+	pending_snapshot = kzalloc_obj(*pending_snapshot);
 	if (!pending_snapshot)
 		return -ENOMEM;
 
@@ -1958,7 +1958,7 @@ static int btrfs_ioctl_get_subvol_info(struct inode *inode, void __user *argp)
 	if (!path)
 		return -ENOMEM;
 
-	subvol_info = kzalloc_obj(*subvol_info, GFP_KERNEL);
+	subvol_info = kzalloc_obj(*subvol_info);
 	if (!subvol_info) {
 		btrfs_free_path(path);
 		return -ENOMEM;
@@ -3423,7 +3423,7 @@ static long btrfs_ioctl_balance(struct file *file, void __user *arg)
 		goto out_unlock;
 	}
 
-	bctl = kzalloc_obj(*bctl, GFP_KERNEL);
+	bctl = kzalloc_obj(*bctl);
 	if (!bctl) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -3604,7 +3604,7 @@ static long btrfs_ioctl_qgroup_assign(struct file *file, void __user *arg)
 	}
 
 	if (sa->assign) {
-		prealloc = kzalloc_obj(*prealloc, GFP_KERNEL);
+		prealloc = kzalloc_obj(*prealloc);
 		if (!prealloc) {
 			ret = -ENOMEM;
 			goto out;
@@ -3924,7 +3924,7 @@ static long btrfs_ioctl_set_received_subvol_32(struct file *file,
 	if (IS_ERR(args32))
 		return PTR_ERR(args32);
 
-	args64 = kmalloc_obj(*args64, GFP_KERNEL);
+	args64 = kmalloc_obj(*args64);
 	if (!args64) {
 		ret = -ENOMEM;
 		goto out;
@@ -4234,7 +4234,7 @@ static int _btrfs_ioctl_send(struct btrfs_root *root, void __user *argp, bool co
 		ret = copy_from_user(&args32, argp, sizeof(args32));
 		if (ret)
 			return -EFAULT;
-		arg = kzalloc_obj(*arg, GFP_KERNEL);
+		arg = kzalloc_obj(*arg);
 		if (!arg)
 			return -ENOMEM;
 		arg->send_fd = args32.send_fd;

@@ -2245,7 +2245,7 @@ static int writecache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	as.argc = argc;
 	as.argv = argv;
 
-	wc = kzalloc_obj(struct dm_writecache, GFP_KERNEL);
+	wc = kzalloc_obj(struct dm_writecache);
 	if (!wc) {
 		ti->error = "Cannot allocate writecache structure";
 		r = -ENOMEM;

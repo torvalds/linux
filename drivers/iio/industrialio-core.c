@@ -1192,7 +1192,7 @@ int __iio_add_chan_devattr(const char *postfix,
 	int ret;
 	struct iio_dev_attr *iio_attr, *t;
 
-	iio_attr = kzalloc_obj(*iio_attr, GFP_KERNEL);
+	iio_attr = kzalloc_obj(*iio_attr);
 	if (iio_attr == NULL)
 		return -ENOMEM;
 	ret = __iio_device_attr_init(&iio_attr->dev_attr,
@@ -1796,7 +1796,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 
 	iio_device_get(indio_dev);
 
-	ib = kmalloc_obj(*ib, GFP_KERNEL);
+	ib = kmalloc_obj(*ib);
 	if (!ib) {
 		iio_device_put(indio_dev);
 		clear_bit(IIO_BUSY_BIT_POS, &iio_dev_opaque->flags);

@@ -763,7 +763,7 @@ static int zynqmp_clk_setup(struct device_node *np)
 	if (!zynqmp_data)
 		return -ENOMEM;
 
-	clock = kzalloc_objs(*clock, clock_max_idx, GFP_KERNEL);
+	clock = kzalloc_objs(*clock, clock_max_idx);
 	if (!clock) {
 		kfree(zynqmp_data);
 		return -ENOMEM;

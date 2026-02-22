@@ -525,7 +525,7 @@ efa_user_mmap_entry_insert(struct ib_ucontext *ucontext,
 			   u64 address, size_t length,
 			   u8 mmap_flag, u64 *offset)
 {
-	struct efa_user_mmap_entry *entry = kzalloc_obj(*entry, GFP_KERNEL);
+	struct efa_user_mmap_entry *entry = kzalloc_obj(*entry);
 	int err;
 
 	if (!entry)
@@ -1335,7 +1335,7 @@ static struct scatterlist *efa_vmalloc_buf_to_sg(u64 *buf, int page_cnt)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc_objs(*sglist, page_cnt, GFP_KERNEL);
+	sglist = kmalloc_objs(*sglist, page_cnt);
 	if (!sglist)
 		return NULL;
 	sg_init_table(sglist, page_cnt);
@@ -1681,7 +1681,7 @@ static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

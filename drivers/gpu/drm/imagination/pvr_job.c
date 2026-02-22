@@ -415,7 +415,7 @@ create_job(struct pvr_device *pvr_dev,
 	    (args->hwrt.set_handle || args->hwrt.data_index))
 		return ERR_PTR(-EINVAL);
 
-	job = kzalloc_obj(*job, GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 

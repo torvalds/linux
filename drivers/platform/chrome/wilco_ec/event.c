@@ -457,7 +457,7 @@ static int event_device_add(struct acpi_device *adev)
 		return error;
 	}
 
-	dev_data = kzalloc_obj(*dev_data, GFP_KERNEL);
+	dev_data = kzalloc_obj(*dev_data);
 	if (!dev_data) {
 		error = -ENOMEM;
 		goto free_minor;

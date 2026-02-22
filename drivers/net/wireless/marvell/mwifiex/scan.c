@@ -1649,7 +1649,7 @@ static int mwifiex_save_hidden_ssid_channels(struct mwifiex_private *priv,
 	int chid;
 
 	/* Allocate and fill new bss descriptor */
-	bss_desc = kzalloc_obj(*bss_desc, GFP_KERNEL);
+	bss_desc = kzalloc_obj(*bss_desc);
 	if (!bss_desc)
 		return -ENOMEM;
 
@@ -1692,7 +1692,7 @@ static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 	int ret;
 
 	/* Allocate and fill new bss descriptor */
-	bss_desc = kzalloc_obj(struct mwifiex_bssdescriptor, GFP_KERNEL);
+	bss_desc = kzalloc_obj(struct mwifiex_bssdescriptor);
 	if (!bss_desc)
 		return -ENOMEM;
 
@@ -1931,7 +1931,7 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 		mwifiex_dbg(adapter, INFO, "No BSS with hidden SSID found on DFS channels\n");
 		return 0;
 	}
-	user_scan_cfg = kzalloc_obj(*user_scan_cfg, GFP_KERNEL);
+	user_scan_cfg = kzalloc_obj(*user_scan_cfg);
 
 	if (!user_scan_cfg)
 		return -ENOMEM;
@@ -2450,7 +2450,7 @@ int mwifiex_stop_bg_scan(struct mwifiex_private *priv)
 		return 0;
 	}
 
-	bgscan_cfg = kzalloc_obj(*bgscan_cfg, GFP_KERNEL);
+	bgscan_cfg = kzalloc_obj(*bgscan_cfg);
 	if (!bgscan_cfg)
 		return -ENOMEM;
 
@@ -2777,7 +2777,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 		return -EBUSY;
 	}
 
-	scan_cfg = kzalloc_obj(struct mwifiex_user_scan_cfg, GFP_KERNEL);
+	scan_cfg = kzalloc_obj(struct mwifiex_user_scan_cfg);
 	if (!scan_cfg)
 		return -ENOMEM;
 

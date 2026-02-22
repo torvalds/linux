@@ -1248,7 +1248,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 		goto check_need_indicate_scan_done;
 	}
 
-	ssid = kzalloc_objs(*ssid, RTW_SSID_SCAN_AMOUNT, GFP_KERNEL);
+	ssid = kzalloc_objs(*ssid, RTW_SSID_SCAN_AMOUNT);
 	if (!ssid) {
 		ret = -ENOMEM;
 		goto check_need_indicate_scan_done;
@@ -2145,7 +2145,7 @@ static int rtw_cfg80211_add_monitor_if(struct adapter *padapter, char *name, str
 	pnpi->sizeof_priv = sizeof(struct adapter);
 
 	/*  wdev */
-	mon_wdev = kzalloc_obj(*mon_wdev, GFP_KERNEL);
+	mon_wdev = kzalloc_obj(*mon_wdev);
 	if (!mon_wdev) {
 		ret = -ENOMEM;
 		goto out;
@@ -2726,7 +2726,7 @@ int rtw_wdev_alloc(struct adapter *padapter, struct device *dev)
 		goto free_wiphy;
 
 	/*  wdev */
-	wdev = kzalloc_obj(*wdev, GFP_KERNEL);
+	wdev = kzalloc_obj(*wdev);
 	if (!wdev) {
 		ret = -ENOMEM;
 		goto unregister_wiphy;

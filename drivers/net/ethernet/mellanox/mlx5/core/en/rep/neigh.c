@@ -376,7 +376,7 @@ int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 {
 	int err;
 
-	*nhe = kzalloc_obj(**nhe, GFP_KERNEL);
+	*nhe = kzalloc_obj(**nhe);
 	if (!*nhe)
 		return -ENOMEM;
 

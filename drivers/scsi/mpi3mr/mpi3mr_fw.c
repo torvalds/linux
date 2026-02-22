@@ -1288,7 +1288,7 @@ static void mpi3mr_fault_uevent_emit(struct mpi3mr_ioc *mrioc)
 	struct kobj_uevent_env *env;
 	int ret;
 
-	env = kzalloc_obj(*env, GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return;
 

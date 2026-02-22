@@ -1063,7 +1063,7 @@ static int gb_power_supply_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_POWER_SUPPLY)
 		return -ENODEV;
 
-	supplies = kzalloc_obj(*supplies, GFP_KERNEL);
+	supplies = kzalloc_obj(*supplies);
 	if (!supplies)
 		return -ENOMEM;
 

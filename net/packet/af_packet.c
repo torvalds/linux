@@ -1711,7 +1711,7 @@ static int fanout_add(struct sock *sk, struct fanout_args *args)
 	if (type == PACKET_FANOUT_ROLLOVER ||
 	    (type_flags & PACKET_FANOUT_FLAG_ROLLOVER)) {
 		err = -ENOMEM;
-		rollover = kzalloc_obj(*rollover, GFP_KERNEL);
+		rollover = kzalloc_obj(*rollover);
 		if (!rollover)
 			goto out;
 		atomic_long_set(&rollover->num, 0);
@@ -3693,7 +3693,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -ENOBUFS;
-	i = kmalloc_obj(*i, GFP_KERNEL);
+	i = kmalloc_obj(*i);
 	if (i == NULL)
 		goto done;
 

@@ -408,7 +408,7 @@ struct icc_node_data *of_icc_get_from_provider(const struct of_phandle_args *spe
 		return ERR_CAST(node);
 
 	if (!data) {
-		data = kzalloc_obj(*data, GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return ERR_PTR(-ENOMEM);
 		data->node = node;
@@ -827,7 +827,7 @@ static struct icc_node *icc_node_create_nolock(int id)
 	if (node)
 		return node;
 
-	node = kzalloc_obj(*node, GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 

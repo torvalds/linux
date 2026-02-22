@@ -618,10 +618,10 @@ _cdebbuf *capi_message2str(u8 *msg)
 
 int __init cdebug_init(void)
 {
-	g_cmsg = kmalloc_obj(_cmsg, GFP_KERNEL);
+	g_cmsg = kmalloc_obj(_cmsg);
 	if (!g_cmsg)
 		return -ENOMEM;
-	g_debbuf = kmalloc_obj(_cdebbuf, GFP_KERNEL);
+	g_debbuf = kmalloc_obj(_cdebbuf);
 	if (!g_debbuf) {
 		kfree(g_cmsg);
 		return -ENOMEM;

@@ -3705,7 +3705,7 @@ static void tegra210_mbist_clk_init(void)
 		if (!num_clks)
 			continue;
 
-		clk_data = kmalloc_objs(*clk_data, num_clks, GFP_KERNEL);
+		clk_data = kmalloc_objs(*clk_data, num_clks);
 		if (WARN_ON(!clk_data))
 			return;
 

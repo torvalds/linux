@@ -1193,7 +1193,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	if (ar->debug.dbr_debug[dbr_id])
 		return 0;
 
-	ar->debug.dbr_debug[dbr_id] = kzalloc_obj(*dbr_debug, GFP_KERNEL);
+	ar->debug.dbr_debug[dbr_id] = kzalloc_obj(*dbr_debug);
 
 	if (!ar->debug.dbr_debug[dbr_id])
 		return -ENOMEM;

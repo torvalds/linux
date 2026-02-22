@@ -195,7 +195,7 @@ static inline struct idal_buffer **idal_buffer_array_alloc(size_t size, int page
 	int i;
 
 	count = (size + CCW_MAX_BYTE_COUNT - 1) / CCW_MAX_BYTE_COUNT;
-	ibs = kmalloc_objs(*ibs, count + 1, GFP_KERNEL);
+	ibs = kmalloc_objs(*ibs, count + 1);
 	for (i = 0; i < count; i++) {
 		/* Determine size for the current idal buffer */
 		ib_size = min(size, CCW_MAX_BYTE_COUNT);

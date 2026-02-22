@@ -3729,7 +3729,7 @@ static int dasd_in_copy_relation(struct dasd_device *device)
 	if (!dasd_eckd_pprc_enabled(device))
 		return 0;
 
-	temp = kzalloc_obj(*temp, GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp)
 		return -ENOMEM;
 
@@ -6721,7 +6721,7 @@ static void dasd_eckd_check_attention_work(struct work_struct *work)
 
 	data = container_of(work, struct check_attention_work_data, worker);
 	device = data->device;
-	messages = kzalloc_obj(*messages, GFP_KERNEL);
+	messages = kzalloc_obj(*messages);
 	if (!messages) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "Could not allocate attention message buffer");

@@ -1070,11 +1070,11 @@ static int wl1271_setup(struct wl1271 *wl)
 	if (!wl->raw_fw_status)
 		goto err;
 
-	wl->fw_status = kzalloc_obj(*wl->fw_status, GFP_KERNEL);
+	wl->fw_status = kzalloc_obj(*wl->fw_status);
 	if (!wl->fw_status)
 		goto err;
 
-	wl->tx_res_if = kzalloc_obj(*wl->tx_res_if, GFP_KERNEL);
+	wl->tx_res_if = kzalloc_obj(*wl->tx_res_if);
 	if (!wl->tx_res_if)
 		goto err;
 
@@ -1477,7 +1477,7 @@ wl1271_validate_wowlan_pattern(struct cfg80211_pkt_pattern *p)
 
 struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void)
 {
-	return kzalloc_obj(struct wl12xx_rx_filter, GFP_KERNEL);
+	return kzalloc_obj(struct wl12xx_rx_filter);
 }
 
 void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter)
@@ -3346,7 +3346,7 @@ static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (i == MAX_NUM_KEYS)
 		return -EBUSY;
 
-	ap_key = kzalloc_obj(*ap_key, GFP_KERNEL);
+	ap_key = kzalloc_obj(*ap_key);
 	if (!ap_key)
 		return -ENOMEM;
 
@@ -6459,7 +6459,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 		goto err_fwlog;
 	}
 
-	wl->buffer_32 = kmalloc_obj(*wl->buffer_32, GFP_KERNEL);
+	wl->buffer_32 = kmalloc_obj(*wl->buffer_32);
 	if (!wl->buffer_32) {
 		ret = -ENOMEM;
 		goto err_mbox;

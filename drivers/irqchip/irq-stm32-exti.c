@@ -269,7 +269,7 @@ stm32_exti_host_data *stm32_exti_host_init(const struct stm32_exti_drv_data *dd,
 {
 	struct stm32_exti_host_data *host_data;
 
-	host_data = kzalloc_obj(*host_data, GFP_KERNEL);
+	host_data = kzalloc_obj(*host_data);
 	if (!host_data)
 		return NULL;
 

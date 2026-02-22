@@ -579,7 +579,7 @@ nfp_flower_add_meter_entry(struct nfp_app *app, u32 meter_id)
 	if (meter_entry)
 		return meter_entry;
 
-	meter_entry = kzalloc_obj(*meter_entry, GFP_KERNEL);
+	meter_entry = kzalloc_obj(*meter_entry);
 	if (!meter_entry)
 		return NULL;
 

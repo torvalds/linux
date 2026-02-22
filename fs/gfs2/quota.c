@@ -1318,7 +1318,7 @@ int gfs2_quota_sync(struct super_block *sb, int type)
 	if (sb_rdonly(sdp->sd_vfs))
 		return 0;
 
-	qda = kzalloc_objs(struct gfs2_quota_data *, max_qd, GFP_KERNEL);
+	qda = kzalloc_objs(struct gfs2_quota_data *, max_qd);
 	if (!qda)
 		return -ENOMEM;
 

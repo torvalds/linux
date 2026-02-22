@@ -623,7 +623,7 @@ static struct usb_function_instance *phonet_alloc_inst(void)
 {
 	struct f_phonet_opts *opts;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 

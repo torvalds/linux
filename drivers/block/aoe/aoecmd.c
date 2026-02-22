@@ -1699,17 +1699,17 @@ aoecmd_init(void)
 
 	ncpus = num_online_cpus();
 
-	iocq = kzalloc_objs(struct iocq_ktio, ncpus, GFP_KERNEL);
+	iocq = kzalloc_objs(struct iocq_ktio, ncpus);
 	if (!iocq)
 		return -ENOMEM;
 
-	kts = kzalloc_objs(struct ktstate, ncpus, GFP_KERNEL);
+	kts = kzalloc_objs(struct ktstate, ncpus);
 	if (!kts) {
 		ret = -ENOMEM;
 		goto kts_fail;
 	}
 
-	ktiowq = kzalloc_objs(wait_queue_head_t, ncpus, GFP_KERNEL);
+	ktiowq = kzalloc_objs(wait_queue_head_t, ncpus);
 	if (!ktiowq) {
 		ret = -ENOMEM;
 		goto ktiowq_fail;

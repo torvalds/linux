@@ -86,7 +86,7 @@ struct mlxsw_afk *mlxsw_afk_create(unsigned int max_blocks,
 {
 	struct mlxsw_afk *mlxsw_afk;
 
-	mlxsw_afk = kzalloc_obj(*mlxsw_afk, GFP_KERNEL);
+	mlxsw_afk = kzalloc_obj(*mlxsw_afk);
 	if (!mlxsw_afk)
 		return NULL;
 	INIT_LIST_HEAD(&mlxsw_afk->key_info_list);
@@ -262,7 +262,7 @@ static int mlxsw_afk_picker(struct mlxsw_afk *mlxsw_afk,
 	enum mlxsw_afk_element element;
 	int err;
 
-	picker = kzalloc_objs(*picker, mlxsw_afk->blocks_count, GFP_KERNEL);
+	picker = kzalloc_objs(*picker, mlxsw_afk->blocks_count);
 	if (!picker)
 		return -ENOMEM;
 

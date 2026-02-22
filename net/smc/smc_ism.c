@@ -142,7 +142,7 @@ int smc_ism_get_vlan(struct smcd_dev *smcd, unsigned short vlanid)
 		return -EOPNOTSUPP;
 
 	/* create new vlan entry, in case we need it */
-	new_vlan = kzalloc_obj(*new_vlan, GFP_KERNEL);
+	new_vlan = kzalloc_obj(*new_vlan);
 	if (!new_vlan)
 		return -ENOMEM;
 	new_vlan->vlanid = vlanid;
@@ -467,10 +467,10 @@ static struct smcd_dev *smcd_alloc_dev(const char *name, int max_dmbs)
 {
 	struct smcd_dev *smcd;
 
-	smcd = kzalloc_obj(*smcd, GFP_KERNEL);
+	smcd = kzalloc_obj(*smcd);
 	if (!smcd)
 		return NULL;
-	smcd->conn = kzalloc_objs(struct smc_connection *, max_dmbs, GFP_KERNEL);
+	smcd->conn = kzalloc_objs(struct smc_connection *, max_dmbs);
 	if (!smcd->conn)
 		goto free_smcd;
 

@@ -1297,7 +1297,7 @@ static int __init slip_init(void)
 	printk(KERN_INFO "SLIP linefill/keepalive option.\n");
 #endif
 
-	slip_devs = kzalloc_objs(struct net_device *, slip_maxdev, GFP_KERNEL);
+	slip_devs = kzalloc_objs(struct net_device *, slip_maxdev);
 	if (!slip_devs)
 		return -ENOMEM;
 

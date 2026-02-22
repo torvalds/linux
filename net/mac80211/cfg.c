@@ -4742,7 +4742,7 @@ static int ieee80211_set_qos_map(struct wiphy *wiphy,
 	struct mac80211_qos_map *new_qos_map, *old_qos_map;
 
 	if (qos_map) {
-		new_qos_map = kzalloc_obj(*new_qos_map, GFP_KERNEL);
+		new_qos_map = kzalloc_obj(*new_qos_map);
 		if (!new_qos_map)
 			return -ENOMEM;
 		memcpy(&new_qos_map->qos_map, qos_map, sizeof(*qos_map));

@@ -1766,7 +1766,7 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node,
 	int i, top = 0, err = 0, start_lvl = 0;
 	bool root_mismatch = false;
 
-	stack = kzalloc_objs(*stack, tmigr_hierarchy_levels, GFP_KERNEL);
+	stack = kzalloc_objs(*stack, tmigr_hierarchy_levels);
 	if (!stack)
 		return -ENOMEM;
 

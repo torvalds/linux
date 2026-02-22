@@ -654,7 +654,7 @@ static struct gic_kvm_info *gic_kvm_info;
 void __init vgic_set_kvm_info(const struct gic_kvm_info *info)
 {
 	BUG_ON(gic_kvm_info != NULL);
-	gic_kvm_info = kmalloc_obj(*gic_kvm_info, GFP_KERNEL);
+	gic_kvm_info = kmalloc_obj(*gic_kvm_info);
 	if (gic_kvm_info)
 		*gic_kvm_info = *info;
 }

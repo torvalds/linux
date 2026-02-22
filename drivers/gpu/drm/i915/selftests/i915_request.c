@@ -329,7 +329,7 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 	 * that the fences were marked as signaled.
 	 */
 
-	requests = kzalloc_objs(*requests, total, GFP_KERNEL);
+	requests = kzalloc_objs(*requests, total);
 	if (!requests) {
 		thread->result = -ENOMEM;
 		return;
@@ -472,11 +472,11 @@ static int mock_breadcrumbs_smoketest(void *arg)
 	 * See __igt_breadcrumbs_smoketest();
 	 */
 
-	threads = kzalloc_objs(*threads, ncpus, GFP_KERNEL);
+	threads = kzalloc_objs(*threads, ncpus);
 	if (!threads)
 		return -ENOMEM;
 
-	t.contexts = kzalloc_objs(*t.contexts, t.ncontexts, GFP_KERNEL);
+	t.contexts = kzalloc_objs(*t.contexts, t.ncontexts);
 	if (!t.contexts) {
 		ret = -ENOMEM;
 		goto out_threads;
@@ -1203,7 +1203,7 @@ static int live_all_engines(void *arg)
 	 * block doing so, and that they don't complete too soon.
 	 */
 
-	request = kzalloc_objs(*request, nengines, GFP_KERNEL);
+	request = kzalloc_objs(*request, nengines);
 	if (!request)
 		return -ENOMEM;
 
@@ -1333,7 +1333,7 @@ static int live_sequential_engines(void *arg)
 	 * they are running on independent engines.
 	 */
 
-	request = kzalloc_objs(*request, nengines, GFP_KERNEL);
+	request = kzalloc_objs(*request, nengines);
 	if (!request)
 		return -ENOMEM;
 
@@ -1626,7 +1626,7 @@ static int live_parallel_engines(void *arg)
 	 * tests that we load up the system maximally.
 	 */
 
-	threads = kzalloc_objs(*threads, nengines, GFP_KERNEL);
+	threads = kzalloc_objs(*threads, nengines);
 	if (!threads)
 		return -ENOMEM;
 
@@ -1754,13 +1754,13 @@ static int live_breadcrumbs_smoketest(void *arg)
 		goto out_rpm;
 	}
 
-	smoke = kzalloc_objs(*smoke, nengines, GFP_KERNEL);
+	smoke = kzalloc_objs(*smoke, nengines);
 	if (!smoke) {
 		ret = -ENOMEM;
 		goto out_file;
 	}
 
-	threads = kzalloc_objs(*threads, ncpus * nengines, GFP_KERNEL);
+	threads = kzalloc_objs(*threads, ncpus * nengines);
 	if (!threads) {
 		ret = -ENOMEM;
 		goto out_smoke;
@@ -2837,7 +2837,7 @@ static int perf_series_engines(void *arg)
 	unsigned int idx;
 	int err = 0;
 
-	stats = kzalloc_objs(*stats, nengines, GFP_KERNEL);
+	stats = kzalloc_objs(*stats, nengines);
 	if (!stats)
 		return -ENOMEM;
 
@@ -3193,7 +3193,7 @@ static int perf_parallel_engines(void *arg)
 	struct p_thread *engines;
 	int err = 0;
 
-	engines = kzalloc_objs(*engines, nengines, GFP_KERNEL);
+	engines = kzalloc_objs(*engines, nengines);
 	if (!engines)
 		return -ENOMEM;
 

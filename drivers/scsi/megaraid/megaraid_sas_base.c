@@ -2137,7 +2137,7 @@ static int megasas_sdev_init(struct scsi_device *sdev)
 	}
 
 scan_target:
-	mr_device_priv_data = kzalloc_obj(*mr_device_priv_data, GFP_KERNEL);
+	mr_device_priv_data = kzalloc_obj(*mr_device_priv_data);
 	if (!mr_device_priv_data)
 		return -ENOMEM;
 
@@ -6386,7 +6386,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		}
 		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
 			fusion->stream_detect_by_ld[i] =
-				kzalloc_obj(struct LD_STREAM_DETECT, GFP_KERNEL);
+				kzalloc_obj(struct LD_STREAM_DETECT);
 			if (!fusion->stream_detect_by_ld[i]) {
 				dev_err(&instance->pdev->dev,
 					"unable to allocate stream detect by LD\n");
@@ -8494,7 +8494,7 @@ megasas_compat_iocpacket_get_user(void __user *arg)
 	int err = -EFAULT;
 	int i;
 
-	ioc = kzalloc_obj(*ioc, GFP_KERNEL);
+	ioc = kzalloc_obj(*ioc);
 	if (!ioc)
 		return ERR_PTR(-ENOMEM);
 	size = offsetof(struct megasas_iocpacket, frame) + sizeof(ioc->frame);

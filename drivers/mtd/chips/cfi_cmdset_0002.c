@@ -604,7 +604,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	struct mtd_info *mtd;
 	int i;
 
-	mtd = kzalloc_obj(*mtd, GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;
@@ -2818,7 +2818,7 @@ static int __maybe_unused cfi_ppb_unlock(struct mtd_info *mtd, loff_t ofs,
 	for (i = 0; i < mtd->numeraseregions; i++)
 		max_sectors += regions[i].numblocks;
 
-	sect = kzalloc_objs(struct ppb_lock, max_sectors, GFP_KERNEL);
+	sect = kzalloc_objs(struct ppb_lock, max_sectors);
 	if (!sect)
 		return -ENOMEM;
 

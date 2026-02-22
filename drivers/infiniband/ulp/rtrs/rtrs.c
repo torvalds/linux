@@ -618,7 +618,7 @@ rtrs_ib_dev_find_or_add(struct ib_device *ib_dev,
 			goto out_unlock;
 	}
 	mutex_unlock(&pool->mutex);
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto out_err;
 

@@ -426,7 +426,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 		return -EINVAL;
 	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
 
-	table->icm      = kvzalloc_objs(*table->icm, num_icm, GFP_KERNEL);
+	table->icm      = kvzalloc_objs(*table->icm, num_icm);
 	if (!table->icm)
 		return -ENOMEM;
 	table->virt     = virt;

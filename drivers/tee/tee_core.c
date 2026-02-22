@@ -51,7 +51,7 @@ struct tee_context *teedev_open(struct tee_device *teedev)
 	if (!tee_device_get(teedev))
 		return ERR_PTR(-EINVAL);
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto err;
@@ -844,7 +844,7 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 	if (size_add(sizeof(*uarg), TEE_IOCTL_PARAM_SIZE(num_params)) != buf.buf_len)
 		return -EINVAL;
 
-	params = kzalloc_objs(struct tee_param, num_params, GFP_KERNEL);
+	params = kzalloc_objs(struct tee_param, num_params);
 	if (!params)
 		return -ENOMEM;
 
@@ -958,7 +958,7 @@ static int tee_ioctl_supp_send(struct tee_context *ctx,
 	if (size_add(sizeof(*uarg), TEE_IOCTL_PARAM_SIZE(num_params)) > buf.buf_len)
 		return -EINVAL;
 
-	params = kzalloc_objs(struct tee_param, num_params, GFP_KERNEL);
+	params = kzalloc_objs(struct tee_param, num_params);
 	if (!params)
 		return -ENOMEM;
 
@@ -1052,7 +1052,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 	    !teedesc->ops->release)
 		return ERR_PTR(-EINVAL);
 
-	teedev = kzalloc_obj(*teedev, GFP_KERNEL);
+	teedev = kzalloc_obj(*teedev);
 	if (!teedev) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err;

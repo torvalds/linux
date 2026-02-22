@@ -340,7 +340,7 @@ struct dw_apb_clocksource *
 dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
 			unsigned long freq)
 {
-	struct dw_apb_clocksource *dw_cs = kzalloc_obj(*dw_cs, GFP_KERNEL);
+	struct dw_apb_clocksource *dw_cs = kzalloc_obj(*dw_cs);
 
 	if (!dw_cs)
 		return NULL;

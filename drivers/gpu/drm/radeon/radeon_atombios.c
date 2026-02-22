@@ -1632,7 +1632,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		lvds_info =
 			(union lvds_info *)(mode_info->atom_context->bios + data_offset);
 		lvds =
-		    kzalloc_obj(struct radeon_encoder_atom_dig, GFP_KERNEL);
+		    kzalloc_obj(struct radeon_encoder_atom_dig);
 
 		if (!lvds)
 			return NULL;
@@ -1961,7 +1961,7 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 		dac_info = (struct _COMPASSIONATE_DATA *)
 			(mode_info->atom_context->bios + data_offset);
 
-		tv_dac = kzalloc_obj(struct radeon_encoder_tv_dac, GFP_KERNEL);
+		tv_dac = kzalloc_obj(struct radeon_encoder_tv_dac);
 
 		if (!tv_dac)
 			return NULL;

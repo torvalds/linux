@@ -1008,7 +1008,7 @@ static int qdev_crtc_init(struct drm_device *dev, int crtc_id)
 	struct qxl_device *qdev = to_qxl(dev);
 	int r;
 
-	qxl_crtc = kzalloc_obj(struct qxl_crtc, GFP_KERNEL);
+	qxl_crtc = kzalloc_obj(struct qxl_crtc);
 	if (!qxl_crtc)
 		return -ENOMEM;
 
@@ -1159,7 +1159,7 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	struct drm_encoder *encoder;
 	int ret;
 
-	qxl_output = kzalloc_obj(struct qxl_output, GFP_KERNEL);
+	qxl_output = kzalloc_obj(struct qxl_output);
 	if (!qxl_output)
 		return -ENOMEM;
 

@@ -750,7 +750,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (cmd_queue)
 		for (i = 0; i < slots_num; i++) {
 			txq->entries[i].cmd =
-				kmalloc_obj(struct iwl_device_cmd, GFP_KERNEL);
+				kmalloc_obj(struct iwl_device_cmd);
 			if (!txq->entries[i].cmd)
 				goto error;
 		}

@@ -2418,7 +2418,7 @@ int hclge_buffer_alloc(struct hclge_dev *hdev)
 	struct hclge_pkt_buf_alloc *pkt_buf;
 	int ret;
 
-	pkt_buf = kzalloc_obj(*pkt_buf, GFP_KERNEL);
+	pkt_buf = kzalloc_obj(*pkt_buf);
 	if (!pkt_buf)
 		return -ENOMEM;
 
@@ -6582,7 +6582,7 @@ static int hclge_add_fd_entry(struct hnae3_handle *handle,
 	if (ret)
 		return ret;
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 
@@ -7410,7 +7410,7 @@ static int hclge_add_cls_flower(struct hnae3_handle *handle,
 		return ret;
 	}
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 
@@ -10093,7 +10093,7 @@ static void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 		}
 	}
 
-	vlan = kzalloc_obj(*vlan, GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan) {
 		mutex_unlock(&hdev->vport_lock);
 		return;

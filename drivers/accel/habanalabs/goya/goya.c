@@ -969,7 +969,7 @@ static int goya_sw_init(struct hl_device *hdev)
 	int rc;
 
 	/* Allocate device structure */
-	goya = kzalloc_obj(*goya, GFP_KERNEL);
+	goya = kzalloc_obj(*goya);
 	if (!goya)
 		return -ENOMEM;
 
@@ -1030,7 +1030,7 @@ static int goya_sw_init(struct hl_device *hdev)
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
-	goya->goya_work = kmalloc_obj(struct goya_work_freq, GFP_KERNEL);
+	goya->goya_work = kmalloc_obj(struct goya_work_freq);
 	if (!goya->goya_work) {
 		rc = -ENOMEM;
 		goto free_cpu_accessible_dma_pool;
@@ -3335,7 +3335,7 @@ static int goya_pin_memory_before_cs(struct hl_device *hdev,
 			parser->job_userptr_list, &userptr))
 		goto already_pinned;
 
-	userptr = kzalloc_obj(*userptr, GFP_KERNEL);
+	userptr = kzalloc_obj(*userptr);
 	if (!userptr)
 		return -ENOMEM;
 

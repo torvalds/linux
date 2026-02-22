@@ -2342,7 +2342,7 @@ struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr)
 	int rc;
 	u32 mode;
 
-	fws = kzalloc_obj(*fws, GFP_KERNEL);
+	fws = kzalloc_obj(*fws);
 	if (!fws) {
 		rc = -ENOMEM;
 		goto fail;

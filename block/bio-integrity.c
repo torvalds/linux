@@ -322,7 +322,7 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 	if (nr_vecs > BIO_MAX_VECS)
 		return -E2BIG;
 	if (nr_vecs > UIO_FASTIOV) {
-		bvec = kzalloc_objs(*bvec, nr_vecs, GFP_KERNEL);
+		bvec = kzalloc_objs(*bvec, nr_vecs);
 		if (!bvec)
 			return -ENOMEM;
 		pages = NULL;

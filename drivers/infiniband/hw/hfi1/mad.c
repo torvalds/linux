@@ -3736,7 +3736,7 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 {
 	struct cc_state *old_cc_state, *new_cc_state;
 
-	new_cc_state = kzalloc_obj(*new_cc_state, GFP_KERNEL);
+	new_cc_state = kzalloc_obj(*new_cc_state);
 	if (!new_cc_state)
 		return;
 

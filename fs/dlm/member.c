@@ -511,7 +511,7 @@ void dlm_lsop_recover_done(struct dlm_ls *ls)
 		return;
 
 	num = ls->ls_num_nodes;
-	slots = kzalloc_objs(*slots, num, GFP_KERNEL);
+	slots = kzalloc_objs(*slots, num);
 	if (!slots)
 		return;
 

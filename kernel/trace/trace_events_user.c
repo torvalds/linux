@@ -370,7 +370,7 @@ static struct user_event_group *user_event_group_create(void)
 {
 	struct user_event_group *group;
 
-	group = kzalloc_obj(*group, GFP_KERNEL);
+	group = kzalloc_obj(*group);
 
 	if (!group)
 		return NULL;

@@ -761,11 +761,11 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 	list_for_each_entry(intf, &ipmi_interfaces, link)
 		count++;
 	if (count > 0) {
-		interfaces = kmalloc_objs(*interfaces, count, GFP_KERNEL);
+		interfaces = kmalloc_objs(*interfaces, count);
 		if (!interfaces) {
 			rv = -ENOMEM;
 		} else {
-			devices = kmalloc_objs(*devices, count, GFP_KERNEL);
+			devices = kmalloc_objs(*devices, count);
 			if (!devices) {
 				kfree(interfaces);
 				interfaces = NULL;
@@ -1684,7 +1684,7 @@ int ipmi_register_for_cmd(struct ipmi_user *user,
 	if (!user)
 		return -ENODEV;
 
-	rcvr = kmalloc_obj(*rcvr, GFP_KERNEL);
+	rcvr = kmalloc_obj(*rcvr);
 	if (!rcvr) {
 		rv = -ENOMEM;
 		goto out_release;
@@ -3144,7 +3144,7 @@ static int __ipmi_bmc_register(struct ipmi_smi *intf,
 			 bmc->id.product_id,
 			 bmc->id.device_id);
 	} else {
-		bmc = kzalloc_obj(*bmc, GFP_KERNEL);
+		bmc = kzalloc_obj(*bmc);
 		if (!bmc) {
 			rv = -ENOMEM;
 			goto out;
@@ -3580,7 +3580,7 @@ int ipmi_add_smi(struct module         *owner,
 	if (rv)
 		return rv;
 
-	intf = kzalloc_obj(*intf, GFP_KERNEL);
+	intf = kzalloc_obj(*intf);
 	if (!intf)
 		return -ENOMEM;
 

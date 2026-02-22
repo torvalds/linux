@@ -1812,7 +1812,7 @@ static int iavf_alloc_q_vectors(struct iavf_adapter *adapter)
 	struct iavf_q_vector *q_vector;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
-	adapter->q_vectors = kzalloc_objs(*q_vector, num_q_vectors, GFP_KERNEL);
+	adapter->q_vectors = kzalloc_objs(*q_vector, num_q_vectors);
 	if (!adapter->q_vectors)
 		return -ENOMEM;
 
@@ -4118,7 +4118,7 @@ static int iavf_configure_clsflower(struct iavf_adapter *adapter,
 		return -EINVAL;
 	}
 
-	filter = kzalloc_obj(*filter, GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 	filter->cookie = cls_flower->cookie;
@@ -4233,7 +4233,7 @@ static int iavf_add_cls_u32(struct iavf_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	fltr = kzalloc_obj(*fltr, GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr)
 		return -ENOMEM;
 

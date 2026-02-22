@@ -342,7 +342,7 @@ static void pxad_init_debugfs(struct pxad_device *pdev)
 	struct dentry *chandir;
 
 	pdev->dbgfs_chan =
-		kmalloc_objs(struct dentry *, pdev->nr_chans, GFP_KERNEL);
+		kmalloc_objs(struct dentry *, pdev->nr_chans);
 	if (!pdev->dbgfs_chan)
 		return;
 

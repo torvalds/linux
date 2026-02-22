@@ -145,7 +145,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 		goto register_sys_interface;
 	}
 
-	hwmon = kzalloc_obj(*hwmon, GFP_KERNEL);
+	hwmon = kzalloc_obj(*hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 
@@ -160,7 +160,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	}
 
  register_sys_interface:
-	temp = kzalloc_obj(*temp, GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp) {
 		result = -ENOMEM;
 		goto unregister_name;

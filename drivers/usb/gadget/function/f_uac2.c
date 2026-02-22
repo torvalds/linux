@@ -2189,7 +2189,7 @@ static struct usb_function_instance *afunc_alloc_inst(void)
 {
 	struct f_uac2_opts *opts;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -2278,7 +2278,7 @@ static struct usb_function *afunc_alloc(struct usb_function_instance *fi)
 	struct f_uac2	*uac2;
 	struct f_uac2_opts *opts;
 
-	uac2 = kzalloc_obj(*uac2, GFP_KERNEL);
+	uac2 = kzalloc_obj(*uac2);
 	if (uac2 == NULL)
 		return ERR_PTR(-ENOMEM);
 

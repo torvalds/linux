@@ -270,7 +270,7 @@ static int udf_init_fs_context(struct fs_context *fc)
 {
 	struct udf_options *uopt;
 
-	uopt = kzalloc_obj(*uopt, GFP_KERNEL);
+	uopt = kzalloc_obj(*uopt);
 	if (!uopt)
 		return -ENOMEM;
 
@@ -320,7 +320,7 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
-	sbi->s_partmaps = kzalloc_objs(*sbi->s_partmaps, count, GFP_KERNEL);
+	sbi->s_partmaps = kzalloc_objs(*sbi->s_partmaps, count);
 	if (!sbi->s_partmaps) {
 		sbi->s_partitions = 0;
 		return -ENOMEM;
@@ -1696,7 +1696,7 @@ static struct udf_vds_record *handle_partition_descriptor(
 		struct part_desc_seq_scan_data *new_loc;
 		unsigned int new_size = ALIGN(partnum, PART_DESC_ALLOC_STEP);
 
-		new_loc = kzalloc_objs(*new_loc, new_size, GFP_KERNEL);
+		new_loc = kzalloc_objs(*new_loc, new_size);
 		if (!new_loc)
 			return ERR_PTR(-ENOMEM);
 		memcpy(new_loc, data->part_descs_loc,
@@ -2156,7 +2156,7 @@ static int udf_fill_super(struct super_block *sb, struct fs_context *fc)
 	bool lvid_open = false;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	sbi = kzalloc_obj(*sbi, GFP_KERNEL);
+	sbi = kzalloc_obj(*sbi);
 	if (!sbi)
 		return -ENOMEM;
 

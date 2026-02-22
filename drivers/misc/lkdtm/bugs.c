@@ -533,7 +533,7 @@ static void lkdtm_PTR_BOUNDS(void)
 {
 	struct lkdtm_cb_ptr *inst;
 
-	inst = kzalloc_obj(*inst, GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst) {
 		pr_err("FAIL: could not allocate struct lkdtm_cb_ptr!\n");
 		return;
@@ -547,7 +547,7 @@ static void lkdtm_PTR_BOUNDS(void)
 	inst->len = element_count;
 
 	/* Double element_count */
-	inst->extra = kzalloc_objs(*inst->extra, element_count * 2, GFP_KERNEL);
+	inst->extra = kzalloc_objs(*inst->extra, element_count * 2);
 	inst->nr_extra = element_count * 2;
 
 	pr_info("Pointer access within bounds ...\n");

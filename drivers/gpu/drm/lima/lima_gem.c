@@ -73,7 +73,7 @@ int lima_heap_alloc(struct lima_bo *bo, struct lima_vm *vm)
 		dma_unmap_sgtable(dev, bo->base.sgt, DMA_BIDIRECTIONAL, 0);
 		sg_free_table(bo->base.sgt);
 	} else {
-		bo->base.sgt = kmalloc_obj(*bo->base.sgt, GFP_KERNEL);
+		bo->base.sgt = kmalloc_obj(*bo->base.sgt);
 		if (!bo->base.sgt) {
 			ret = -ENOMEM;
 			goto err_out0;
@@ -226,7 +226,7 @@ struct drm_gem_object *lima_gem_create_object(struct drm_device *dev, size_t siz
 {
 	struct lima_bo *bo;
 
-	bo = kzalloc_obj(*bo, GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 

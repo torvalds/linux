@@ -722,7 +722,7 @@ static int device_init_cdev(struct hl_device *hdev, const struct class *class,
 	cdev_init(cdev, fops);
 	cdev->owner = THIS_MODULE;
 
-	*dev = kzalloc_obj(**dev, GFP_KERNEL);
+	*dev = kzalloc_obj(**dev);
 	if (!*dev)
 		return -ENOMEM;
 
@@ -945,7 +945,7 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_ts_free_wq;
 	}
 
-	hdev->hl_chip_info = kzalloc_obj(struct hwmon_chip_info, GFP_KERNEL);
+	hdev->hl_chip_info = kzalloc_obj(struct hwmon_chip_info);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
 		goto free_prefetch_wq;
@@ -1851,7 +1851,7 @@ kill_processes:
 		}
 
 		/* Allocate the kernel context */
-		hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx, GFP_KERNEL);
+		hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx);
 		if (!hdev->kernel_ctx) {
 			rc = -ENOMEM;
 			hl_mmu_fini(hdev);
@@ -2275,7 +2275,7 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/* Allocate the kernel context */
-	hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx, GFP_KERNEL);
+	hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx);
 	if (!hdev->kernel_ctx) {
 		rc = -ENOMEM;
 		goto mmu_fini;

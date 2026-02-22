@@ -203,7 +203,7 @@ static void nvmet_execute_get_supported_log_pages(struct nvmet_req *req)
 	struct nvme_supported_log *logs;
 	u16 status;
 
-	logs = kzalloc_obj(*logs, GFP_KERNEL);
+	logs = kzalloc_obj(*logs);
 	if (!logs) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -308,7 +308,7 @@ static void nvmet_execute_get_log_page_rmi(struct nvmet_req *req)
 		goto out;
 	}
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		goto out;
 
@@ -334,7 +334,7 @@ static void nvmet_execute_get_log_page_smart(struct nvmet_req *req)
 	if (req->transfer_len != sizeof(*log))
 		goto out;
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log)
 		goto out;
 
@@ -409,7 +409,7 @@ static void nvmet_execute_get_log_cmd_effects_ns(struct nvmet_req *req)
 	struct nvme_effects_log *log;
 	u16 status = NVME_SC_SUCCESS;
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -504,7 +504,7 @@ static void nvmet_execute_get_log_page_endgrp(struct nvmet_req *req)
 	if (status)
 		goto out;
 
-	log = kzalloc_obj(*log, GFP_KERNEL);
+	log = kzalloc_obj(*log);
 	if (!log) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -580,7 +580,7 @@ static void nvmet_execute_get_log_page_features(struct nvmet_req *req)
 	struct nvme_supported_features_log *features;
 	u16 status;
 
-	features = kzalloc_obj(*features, GFP_KERNEL);
+	features = kzalloc_obj(*features);
 	if (!features) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -659,7 +659,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 		mutex_unlock(&subsys->lock);
 	}
 
-	id = kzalloc_obj(*id, GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -808,7 +808,7 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 		goto out;
 	}
 
-	id = kzalloc_obj(*id, GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -1052,7 +1052,7 @@ static void nvme_execute_identify_ns_nvm(struct nvmet_req *req)
 	if (status)
 		goto out;
 
-	id = kzalloc_obj(*id, GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id) {
 		status = NVME_SC_INTERNAL;
 		goto out;
@@ -1072,7 +1072,7 @@ static void nvmet_execute_id_cs_indep(struct nvmet_req *req)
 	if (status)
 		goto out;
 
-	id = kzalloc_obj(*id, GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id) {
 		status = NVME_SC_INTERNAL;
 		goto out;

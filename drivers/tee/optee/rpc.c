@@ -55,7 +55,7 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 		return;
 	}
 
-	params = kmalloc_objs(struct tee_param, arg->num_params, GFP_KERNEL);
+	params = kmalloc_objs(struct tee_param, arg->num_params);
 	if (!params) {
 		arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
 		return;
@@ -191,7 +191,7 @@ static void handle_rpc_supp_cmd(struct tee_context *ctx, struct optee *optee,
 
 	arg->ret_origin = TEEC_ORIGIN_COMMS;
 
-	params = kmalloc_objs(struct tee_param, arg->num_params, GFP_KERNEL);
+	params = kmalloc_objs(struct tee_param, arg->num_params);
 	if (!params) {
 		arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
 		return;

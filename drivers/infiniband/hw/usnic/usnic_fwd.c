@@ -85,7 +85,7 @@ struct usnic_fwd_dev *usnic_fwd_dev_alloc(struct pci_dev *pdev)
 {
 	struct usnic_fwd_dev *ufdev;
 
-	ufdev = kzalloc_obj(*ufdev, GFP_KERNEL);
+	ufdev = kzalloc_obj(*ufdev);
 	if (!ufdev)
 		return NULL;
 

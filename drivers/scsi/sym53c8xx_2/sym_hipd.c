@@ -5655,7 +5655,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	/*
 	 *  Allocate the array of lists of CCBs hashed by DSA.
 	 */
-	np->ccbh = kzalloc_objs(*np->ccbh, CCB_HASH_SIZE, GFP_KERNEL);
+	np->ccbh = kzalloc_objs(*np->ccbh, CCB_HASH_SIZE);
 	if (!np->ccbh)
 		goto attach_failed;
 

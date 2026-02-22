@@ -3625,7 +3625,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int			retval, i;
 
 	/* alloc, and start init */
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		retval = -ENOMEM;
 		goto done;

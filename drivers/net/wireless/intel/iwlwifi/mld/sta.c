@@ -539,7 +539,7 @@ iwl_mld_add_link_sta(struct iwl_mld *mld, struct ieee80211_link_sta *link_sta)
 	if (link_sta == &link_sta->sta->deflink) {
 		mld_link_sta = &mld_sta->deflink;
 	} else {
-		mld_link_sta = kzalloc_obj(*mld_link_sta, GFP_KERNEL);
+		mld_link_sta = kzalloc_obj(*mld_link_sta);
 		if (!mld_link_sta)
 			return -ENOMEM;
 	}

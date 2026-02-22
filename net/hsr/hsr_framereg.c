@@ -80,7 +80,7 @@ int hsr_create_self_node(struct hsr_priv *hsr,
 {
 	struct hsr_self_node *sn, *old;
 
-	sn = kmalloc_obj(*sn, GFP_KERNEL);
+	sn = kmalloc_obj(*sn);
 	if (!sn)
 		return -ENOMEM;
 

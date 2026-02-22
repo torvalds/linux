@@ -1007,7 +1007,7 @@ static int netback_probe(struct xenbus_device *dev,
 	int err;
 	int sg;
 	const char *script;
-	struct backend_info *be = kzalloc_obj(*be, GFP_KERNEL);
+	struct backend_info *be = kzalloc_obj(*be);
 
 	if (!be) {
 		xenbus_dev_fatal(dev, -ENOMEM,

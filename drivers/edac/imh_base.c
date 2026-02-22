@@ -171,7 +171,7 @@ static int __get_ddr_munits(struct res_config *cfg, struct skx_dev *d,
 		d->imc[lmc].lmc = lmc;
 
 		/* Create the imc device instance. */
-		dev = kzalloc_obj(*dev, GFP_KERNEL);
+		dev = kzalloc_obj(*dev);
 		if (!dev)
 			return -ENOMEM;
 

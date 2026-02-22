@@ -771,7 +771,7 @@ static struct sbridge_dev *alloc_sbridge_dev(int seg, u8 bus, enum domain dom,
 {
 	struct sbridge_dev *sbridge_dev;
 
-	sbridge_dev = kzalloc_obj(*sbridge_dev, GFP_KERNEL);
+	sbridge_dev = kzalloc_obj(*sbridge_dev);
 	if (!sbridge_dev)
 		return NULL;
 

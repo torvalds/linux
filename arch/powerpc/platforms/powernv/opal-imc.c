@@ -146,7 +146,7 @@ static struct imc_pmu *imc_pmu_create(struct device_node *parent, int pmu_index,
 		return NULL;
 
 	/* memory for pmu */
-	pmu_ptr = kzalloc_obj(*pmu_ptr, GFP_KERNEL);
+	pmu_ptr = kzalloc_obj(*pmu_ptr);
 	if (!pmu_ptr)
 		return NULL;
 

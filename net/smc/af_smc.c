@@ -1195,7 +1195,7 @@ void smc_fill_gid_list(struct smc_link_group *lgr,
 	memset(gidlist, 0, sizeof(*gidlist));
 	memcpy(gidlist->list[gidlist->len++], known_gid, SMC_GID_SIZE);
 
-	alt_ini = kzalloc_obj(*alt_ini, GFP_KERNEL);
+	alt_ini = kzalloc_obj(*alt_ini);
 	if (!alt_ini)
 		goto out;
 
@@ -1522,7 +1522,7 @@ static int __smc_connect(struct smc_sock *smc)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_IPSEC,
 						    version);
 
-	ini = kzalloc_obj(*ini, GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini)
 		return smc_connect_decline_fallback(smc, SMC_CLC_DECL_MEM,
 						    version);
@@ -2470,7 +2470,7 @@ static void smc_listen_work(struct work_struct *work)
 	/* do inband token exchange -
 	 * wait for and receive SMC Proposal CLC message
 	 */
-	buf = kzalloc_obj(*buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf) {
 		rc = SMC_CLC_DECL_MEM;
 		goto out_decl;
@@ -2490,7 +2490,7 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_decl;
 	}
 
-	ini = kzalloc_obj(*ini, GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini) {
 		rc = SMC_CLC_DECL_MEM;
 		goto out_decl;

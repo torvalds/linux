@@ -527,7 +527,7 @@ static int kcov_open(struct inode *inode, struct file *filep)
 {
 	struct kcov *kcov;
 
-	kcov = kzalloc_obj(*kcov, GFP_KERNEL);
+	kcov = kzalloc_obj(*kcov);
 	if (!kcov)
 		return -ENOMEM;
 	guard(spinlock_init)(&kcov->lock);

@@ -918,7 +918,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 		struct fb_deferred_io *fbdefio;
 
-		fbdefio = kzalloc_obj(struct fb_deferred_io, GFP_KERNEL);
+		fbdefio = kzalloc_obj(struct fb_deferred_io);
 
 		if (fbdefio) {
 			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
@@ -1607,7 +1607,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	static u8 out_ep[] = {OUT_EP_NUM + USB_DIR_OUT, 0};
 
 	/* usb initialization */
-	dlfb = kzalloc_obj(*dlfb, GFP_KERNEL);
+	dlfb = kzalloc_obj(*dlfb);
 	if (!dlfb) {
 		dev_err(&intf->dev, "%s: failed to allocate dlfb\n", __func__);
 		return -ENOMEM;
@@ -1853,7 +1853,7 @@ retry:
 	dlfb->urbs.available = 0;
 
 	while (dlfb->urbs.count * size < wanted_size) {
-		unode = kzalloc_obj(*unode, GFP_KERNEL);
+		unode = kzalloc_obj(*unode);
 		if (!unode)
 			break;
 		unode->dlfb = dlfb;

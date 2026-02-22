@@ -816,7 +816,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		flag_io = 1;
 	} else {
 		debug("it wants %x IO behind the bridge\n", amount_needed->io);
-		io = kzalloc_obj(*io, GFP_KERNEL);
+		io = kzalloc_obj(*io);
 
 		if (!io) {
 			retval = -ENOMEM;
@@ -838,7 +838,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		flag_mem = 1;
 	} else {
 		debug("it wants %x memory behind the bridge\n", amount_needed->mem);
-		mem = kzalloc_obj(*mem, GFP_KERNEL);
+		mem = kzalloc_obj(*mem);
 		if (!mem) {
 			retval = -ENOMEM;
 			goto error;
@@ -859,7 +859,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		flag_pfmem = 1;
 	} else {
 		debug("it wants %x pfmemory behind the bridge\n", amount_needed->pfmem);
-		pfmem = kzalloc_obj(*pfmem, GFP_KERNEL);
+		pfmem = kzalloc_obj(*pfmem);
 		if (!pfmem) {
 			retval = -ENOMEM;
 			goto error;
@@ -873,7 +873,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 			ibmphp_add_resource(pfmem);
 			flag_pfmem = 1;
 		} else {
-			mem_tmp = kzalloc_obj(*mem_tmp, GFP_KERNEL);
+			mem_tmp = kzalloc_obj(*mem_tmp);
 			if (!mem_tmp) {
 				retval = -ENOMEM;
 				goto error;
@@ -903,7 +903,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 		 */
 		bus = ibmphp_find_res_bus(sec_number);
 		if (!bus) {
-			bus = kzalloc_obj(*bus, GFP_KERNEL);
+			bus = kzalloc_obj(*bus);
 			if (!bus) {
 				retval = -ENOMEM;
 				goto error;
@@ -1076,7 +1076,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 	};
 	struct res_needed *amount;
 
-	amount = kzalloc_obj(*amount, GFP_KERNEL);
+	amount = kzalloc_obj(*amount);
 	if (amount == NULL)
 		return NULL;
 
@@ -1630,7 +1630,7 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 		list_add(&bus->bus_list, &cur_bus->bus_list);
 	}
 	if (io) {
-		io_range = kzalloc_obj(*io_range, GFP_KERNEL);
+		io_range = kzalloc_obj(*io_range);
 		if (!io_range)
 			return -ENOMEM;
 
@@ -1641,7 +1641,7 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 		bus->rangeIO = io_range;
 	}
 	if (mem) {
-		mem_range = kzalloc_obj(*mem_range, GFP_KERNEL);
+		mem_range = kzalloc_obj(*mem_range);
 		if (!mem_range)
 			return -ENOMEM;
 
@@ -1652,7 +1652,7 @@ static int add_new_bus(struct bus_node *bus, struct resource_node *io, struct re
 		bus->rangeMem = mem_range;
 	}
 	if (pfmem) {
-		pfmem_range = kzalloc_obj(*pfmem_range, GFP_KERNEL);
+		pfmem_range = kzalloc_obj(*pfmem_range);
 		if (!pfmem_range)
 			return -ENOMEM;
 

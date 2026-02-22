@@ -751,7 +751,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 	u64 logsize, mapsize, datasize;
 	u64 available = size;
 
-	arena = kzalloc_obj(*arena, GFP_KERNEL);
+	arena = kzalloc_obj(*arena);
 	if (!arena)
 		return NULL;
 	arena->nd_btt = btt->nd_btt;
@@ -854,7 +854,7 @@ static int discover_arenas(struct btt *btt)
 	size_t cur_off = 0;
 	int num_arenas = 0;
 
-	struct btt_sb *super __free(kfree) = kzalloc_obj(*super, GFP_KERNEL);
+	struct btt_sb *super __free(kfree) = kzalloc_obj(*super);
 	if (!super)
 		return -ENOMEM;
 

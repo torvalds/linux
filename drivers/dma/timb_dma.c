@@ -325,7 +325,7 @@ static struct timb_dma_desc *td_alloc_init_desc(struct timb_dma_chan *td_chan)
 	struct timb_dma_desc *td_desc;
 	int err;
 
-	td_desc = kzalloc_obj(struct timb_dma_desc, GFP_KERNEL);
+	td_desc = kzalloc_obj(struct timb_dma_desc);
 	if (!td_desc)
 		goto out;
 

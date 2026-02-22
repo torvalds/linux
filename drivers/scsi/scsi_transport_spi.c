@@ -1570,7 +1570,7 @@ static int spi_target_configure(struct transport_container *tc,
 struct scsi_transport_template *
 spi_attach_transport(struct spi_function_template *ft)
 {
-	struct spi_internal *i = kzalloc_obj(struct spi_internal, GFP_KERNEL);
+	struct spi_internal *i = kzalloc_obj(struct spi_internal);
 
 	if (unlikely(!i))
 		return NULL;

@@ -255,7 +255,7 @@ static struct clk_hw *visconti_register_pll(struct visconti_pll_provider *ctx,
 	size_t len;
 	int ret;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

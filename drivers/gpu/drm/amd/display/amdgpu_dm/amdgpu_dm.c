@@ -1724,7 +1724,7 @@ dm_allocate_gpu_mem(
 		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
 	int ret;
 
-	da = kzalloc_obj(struct dal_allocation, GFP_KERNEL);
+	da = kzalloc_obj(struct dal_allocation);
 	if (!da)
 		return NULL;
 
@@ -2526,7 +2526,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 
-	adev->dm.dmub_srv = kzalloc_obj(*adev->dm.dmub_srv, GFP_KERNEL);
+	adev->dm.dmub_srv = kzalloc_obj(*adev->dm.dmub_srv);
 	dmub_srv = adev->dm.dmub_srv;
 
 	if (!dmub_srv) {
@@ -2607,7 +2607,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	memory_params.region_info = &region_info;
 	memory_params.window_memory_type = window_memory_type;
 
-	adev->dm.dmub_fb_info = kzalloc_obj(*adev->dm.dmub_fb_info, GFP_KERNEL);
+	adev->dm.dmub_fb_info = kzalloc_obj(*adev->dm.dmub_fb_info);
 	fb_info = adev->dm.dmub_fb_info;
 
 	if (!fb_info) {
@@ -3363,7 +3363,7 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 	} *bundle __free(kfree);
 	int k, m;
 
-	bundle = kzalloc_obj(*bundle, GFP_KERNEL);
+	bundle = kzalloc_obj(*bundle);
 
 	if (!bundle) {
 		drm_err(dm->ddev, "Failed to allocate update bundle\n");
@@ -3931,7 +3931,7 @@ void amdgpu_dm_update_connector_after_detect(
 
 		if (!aconnector->timing_requested) {
 			aconnector->timing_requested =
-				kzalloc_obj(struct dc_crtc_timing, GFP_KERNEL);
+				kzalloc_obj(struct dc_crtc_timing);
 			if (!aconnector->timing_requested)
 				drm_err(dev,
 					"failed to create aconnector->requested_timing\n");
@@ -4882,7 +4882,7 @@ dm_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	struct dm_atomic_state *old_state, *new_state;
 
-	new_state = kzalloc_obj(*new_state, GFP_KERNEL);
+	new_state = kzalloc_obj(*new_state);
 	if (!new_state)
 		return NULL;
 
@@ -4939,7 +4939,7 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	/* indicates support for immediate flip */
 	adev_to_drm(adev)->mode_config.async_page_flip = true;
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 
@@ -5367,7 +5367,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 	unsigned long possible_crtcs;
 	int ret = 0;
 
-	plane = kzalloc_obj(struct drm_plane, GFP_KERNEL);
+	plane = kzalloc_obj(struct drm_plane);
 	if (!plane) {
 		drm_err(adev_to_drm(dm->adev), "KMS: Failed to allocate plane\n");
 		return -ENOMEM;
@@ -5626,11 +5626,11 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 			continue;
 		}
 
-		aconnector = kzalloc_obj(*aconnector, GFP_KERNEL);
+		aconnector = kzalloc_obj(*aconnector);
 		if (!aconnector)
 			goto fail;
 
-		aencoder = kzalloc_obj(*aencoder, GFP_KERNEL);
+		aencoder = kzalloc_obj(*aencoder);
 		if (!aencoder)
 			goto fail;
 
@@ -7824,7 +7824,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 
 	kfree(state);
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 
 	if (state) {
 		state->scaling = RMX_OFF;
@@ -9099,7 +9099,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!ddc_service->ddc_pin)
 		return result;
 
-	cmd.payloads = kzalloc_objs(struct i2c_payload, num, GFP_KERNEL);
+	cmd.payloads = kzalloc_objs(struct i2c_payload, num);
 
 	if (!cmd.payloads)
 		return result;
@@ -9148,7 +9148,7 @@ create_i2c(struct ddc_service *ddc_service, bool oem)
 	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
 	struct amdgpu_i2c_adapter *i2c;
 
-	i2c = kzalloc_obj(struct amdgpu_i2c_adapter, GFP_KERNEL);
+	i2c = kzalloc_obj(struct amdgpu_i2c_adapter);
 	if (!i2c)
 		return NULL;
 	i2c->base.owner = THIS_MODULE;
@@ -9949,7 +9949,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		struct dc_stream_update stream_update;
 	} *bundle;
 
-	bundle = kzalloc_obj(*bundle, GFP_KERNEL);
+	bundle = kzalloc_obj(*bundle);
 
 	if (!bundle) {
 		drm_err(dev, "Failed to allocate update bundle\n");
@@ -10624,7 +10624,7 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	struct amdgpu_framebuffer *afb;
 	int i = 0;
 
-	wb_info = kzalloc_obj(*wb_info, GFP_KERNEL);
+	wb_info = kzalloc_obj(*wb_info);
 	if (!wb_info) {
 		drm_err(adev_to_drm(adev), "Failed to allocate wb_info\n");
 		return;

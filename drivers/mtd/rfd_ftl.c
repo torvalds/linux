@@ -270,7 +270,7 @@ static int erase_block(struct partition *part, int block)
 	struct erase_info *erase;
 	int rc;
 
-	erase = kmalloc_obj(struct erase_info, GFP_KERNEL);
+	erase = kmalloc_obj(struct erase_info);
 	if (!erase)
 		return -ENOMEM;
 
@@ -752,7 +752,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	    mtd->size > UINT_MAX)
 		return;
 
-	part = kzalloc_obj(struct partition, GFP_KERNEL);
+	part = kzalloc_obj(struct partition);
 	if (!part)
 		return;
 

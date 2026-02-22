@@ -2597,7 +2597,7 @@ int btrfs_sysfs_add_qgroups(struct btrfs_fs_info *fs_info)
 	if (fs_info->qgroups_kobj)
 		return 0;
 
-	fs_info->qgroups_kobj = kzalloc_obj(struct kobject, GFP_KERNEL);
+	fs_info->qgroups_kobj = kzalloc_obj(struct kobject);
 	if (!fs_info->qgroups_kobj)
 		return -ENOMEM;
 

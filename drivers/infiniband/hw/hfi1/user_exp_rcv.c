@@ -169,7 +169,7 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 	}
 
 	/* Allocate the array of struct page pointers needed for pinning */
-	pages = kzalloc_objs(*pages, npages, GFP_KERNEL);
+	pages = kzalloc_objs(*pages, npages);
 	if (!pages)
 		return -ENOMEM;
 

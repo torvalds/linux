@@ -262,7 +262,7 @@ vmci_transport_alloc_send_control_pkt(struct sockaddr_vm *src,
 	struct vmci_transport_packet *pkt;
 	int err;
 
-	pkt = kmalloc_obj(*pkt, GFP_KERNEL);
+	pkt = kmalloc_obj(*pkt);
 	if (!pkt)
 		return -ENOMEM;
 
@@ -1583,7 +1583,7 @@ static int vmci_transport_recv_connected(struct sock *sk,
 static int vmci_transport_socket_init(struct vsock_sock *vsk,
 				      struct vsock_sock *psk)
 {
-	vsk->trans = kmalloc_obj(struct vmci_transport, GFP_KERNEL);
+	vsk->trans = kmalloc_obj(struct vmci_transport);
 	if (!vsk->trans)
 		return -ENOMEM;
 

@@ -2468,7 +2468,7 @@ static int criu_restore_bos(struct kfd_process *p,
 	/* Prevent MMU notifications until stage-4 IOCTL (CRIU_RESUME) is received */
 	amdgpu_amdkfd_block_mmu_notifications(p->kgd_process_info);
 
-	bo_buckets = kvmalloc_objs(*bo_buckets, args->num_bos, GFP_KERNEL);
+	bo_buckets = kvmalloc_objs(*bo_buckets, args->num_bos);
 	if (!bo_buckets)
 		return -ENOMEM;
 
@@ -2486,7 +2486,7 @@ static int criu_restore_bos(struct kfd_process *p,
 		goto exit;
 	}
 
-	bo_privs = kvmalloc_objs(*bo_privs, args->num_bos, GFP_KERNEL);
+	bo_privs = kvmalloc_objs(*bo_privs, args->num_bos);
 	if (!bo_privs) {
 		ret = -ENOMEM;
 		goto exit;

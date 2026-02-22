@@ -1149,7 +1149,7 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			 * block if not yet registered.
 			 */
 			if (!ip_hw_id) {
-				ip_hw_id = kzalloc_obj(*ip_hw_id, GFP_KERNEL);
+				ip_hw_id = kzalloc_obj(*ip_hw_id);
 				if (!ip_hw_id)
 					return -ENOMEM;
 				ip_hw_id->hw_id = ii;
@@ -1255,7 +1255,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 		 * amdgpu_discovery_reg_base_init().
 		 */
 
-		ip_die_entry = kzalloc_obj(*ip_die_entry, GFP_KERNEL);
+		ip_die_entry = kzalloc_obj(*ip_die_entry);
 		if (!ip_die_entry)
 			return -ENOMEM;
 
@@ -1287,7 +1287,7 @@ static int amdgpu_discovery_sysfs_init(struct amdgpu_device *adev)
 	if (!discovery_bin)
 		return -EINVAL;
 
-	ip_top = kzalloc_obj(*ip_top, GFP_KERNEL);
+	ip_top = kzalloc_obj(*ip_top);
 	if (!ip_top)
 		return -ENOMEM;
 

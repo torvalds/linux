@@ -3776,7 +3776,7 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 	order = get_order(sg_size);
 
 	/* Allocate a scatter/gather list for the DMA */
-	sglist = kzalloc_obj(struct ipr_sglist, GFP_KERNEL);
+	sglist = kzalloc_obj(struct ipr_sglist);
 	if (sglist == NULL) {
 		ipr_trace;
 		return NULL;
@@ -4273,7 +4273,7 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	__be32 **ioa_data;
 	unsigned long lock_flags = 0;
 
-	dump = kzalloc_obj(struct ipr_dump, GFP_KERNEL);
+	dump = kzalloc_obj(struct ipr_dump);
 
 	if (!dump) {
 		ipr_err("Dump memory allocation failed\n");

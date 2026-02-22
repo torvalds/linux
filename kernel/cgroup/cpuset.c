@@ -536,7 +536,7 @@ static struct cpuset *dup_or_alloc_cpuset(struct cpuset *cs)
 
 	/* Allocate base structure */
 	trial = cs ? kmemdup(cs, sizeof(*cs), GFP_KERNEL) :
-		     kzalloc_obj(*cs, GFP_KERNEL);
+		     kzalloc_obj(*cs);
 	if (!trial)
 		return NULL;
 
@@ -791,7 +791,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 		goto generate_doms;
 	}
 
-	csa = kmalloc_objs(cp, nr_cpusets(), GFP_KERNEL);
+	csa = kmalloc_objs(cp, nr_cpusets());
 	if (!csa)
 		goto done;
 
@@ -835,7 +835,7 @@ generate_doms:
 	 * The rest of the code, including the scheduler, can deal with
 	 * dattr==NULL case. No need to abort if alloc fails.
 	 */
-	dattr = kmalloc_objs(struct sched_domain_attr, ndoms, GFP_KERNEL);
+	dattr = kmalloc_objs(struct sched_domain_attr, ndoms);
 
 	/*
 	 * Cgroup v2 doesn't support domain attributes, just set all of them
@@ -2478,7 +2478,7 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
 		return;
 	}
 
-	mwork = kzalloc_obj(*mwork, GFP_KERNEL);
+	mwork = kzalloc_obj(*mwork);
 	if (mwork) {
 		mwork->mm = mm;
 		mwork->from = *from;
@@ -2500,7 +2500,7 @@ static void schedule_flush_migrate_mm(void)
 {
 	struct callback_head *flush_cb;
 
-	flush_cb = kzalloc_obj(struct callback_head, GFP_KERNEL);
+	flush_cb = kzalloc_obj(struct callback_head);
 	if (!flush_cb)
 		return;
 

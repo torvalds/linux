@@ -1029,7 +1029,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 	u16 maj_err, min_err;
 	int i, status;
 
-	cqp->cqp_requests = kzalloc_objs(*cqp->cqp_requests, sqsize, GFP_KERNEL);
+	cqp->cqp_requests = kzalloc_objs(*cqp->cqp_requests, sqsize);
 	if (!cqp->cqp_requests)
 		return -ENOMEM;
 
@@ -1039,7 +1039,7 @@ static int irdma_create_cqp(struct irdma_pci_f *rf)
 		goto err_scratch;
 	}
 
-	cqp->oop_op_array = kzalloc_objs(*cqp->oop_op_array, sqsize, GFP_KERNEL);
+	cqp->oop_op_array = kzalloc_objs(*cqp->oop_op_array, sqsize);
 	if (!cqp->oop_op_array) {
 		status = -ENOMEM;
 		goto err_oop;
@@ -1365,7 +1365,7 @@ static int irdma_setup_ceq_0(struct irdma_pci_f *rf)
 	u32 num_ceqs;
 
 	num_ceqs = min(rf->msix_count, rf->sc_dev.hmc_fpm_misc.max_ceqs);
-	rf->ceqlist = kzalloc_objs(*rf->ceqlist, num_ceqs, GFP_KERNEL);
+	rf->ceqlist = kzalloc_objs(*rf->ceqlist, num_ceqs);
 	if (!rf->ceqlist) {
 		status = -ENOMEM;
 		goto exit;

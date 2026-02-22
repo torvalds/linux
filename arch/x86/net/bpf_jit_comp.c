@@ -3758,7 +3758,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	jit_data = prog->aux->jit_data;
 	if (!jit_data) {
-		jit_data = kzalloc_obj(*jit_data, GFP_KERNEL);
+		jit_data = kzalloc_obj(*jit_data);
 		if (!jit_data) {
 			prog = orig_prog;
 			goto out;
@@ -3794,7 +3794,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		padding = true;
 		goto skip_init_addrs;
 	}
-	addrs = kvmalloc_objs(*addrs, prog->len + 1, GFP_KERNEL);
+	addrs = kvmalloc_objs(*addrs, prog->len + 1);
 	if (!addrs) {
 		prog = orig_prog;
 		goto out_addrs;

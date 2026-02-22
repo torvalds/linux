@@ -157,7 +157,7 @@ static int identify_descriptor(struct gb_interface *intf,
 			 expected_size, desc_size);
 	}
 
-	descriptor = kzalloc_obj(*descriptor, GFP_KERNEL);
+	descriptor = kzalloc_obj(*descriptor);
 	if (!descriptor)
 		return -ENOMEM;
 

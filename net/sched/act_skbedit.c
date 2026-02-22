@@ -242,7 +242,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	if (err < 0)
 		goto release_idr;
 
-	params_new = kzalloc_obj(*params_new, GFP_KERNEL);
+	params_new = kzalloc_obj(*params_new);
 	if (unlikely(!params_new)) {
 		err = -ENOMEM;
 		goto put_chain;

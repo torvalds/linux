@@ -1132,7 +1132,7 @@ int i40e_ptp_alloc_pins(struct i40e_pf *pf)
 		return 0;
 
 	pf->ptp_pins =
-		kzalloc_obj(struct i40e_ptp_pins_settings, GFP_KERNEL);
+		kzalloc_obj(struct i40e_ptp_pins_settings);
 
 	if (!pf->ptp_pins) {
 		dev_warn(&pf->pdev->dev, "Cannot allocate memory for PTP pins structure.\n");

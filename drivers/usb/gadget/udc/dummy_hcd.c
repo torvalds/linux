@@ -2819,7 +2819,7 @@ static int __init dummy_hcd_init(void)
 		}
 	}
 	for (i = 0; i < mod_data.num; i++) {
-		dum[i] = kzalloc_obj(struct dummy, GFP_KERNEL);
+		dum[i] = kzalloc_obj(struct dummy);
 		if (!dum[i]) {
 			retval = -ENOMEM;
 			goto err_add_pdata;

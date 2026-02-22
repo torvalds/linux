@@ -964,7 +964,7 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	bool need_put = false;
 	int status;
 
-	client = kzalloc_obj(*client, GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return ERR_PTR(-ENOMEM);
 
@@ -2529,7 +2529,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		return 0;
 
 	/* Set up a temporary client to help detect callback */
-	temp_client = kzalloc_obj(*temp_client, GFP_KERNEL);
+	temp_client = kzalloc_obj(*temp_client);
 	if (!temp_client)
 		return -ENOMEM;
 

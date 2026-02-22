@@ -556,7 +556,7 @@ static int bnxt_qplib_alloc_sgid_tbl(struct bnxt_qplib_res *res,
 				     struct bnxt_qplib_sgid_tbl *sgid_tbl,
 				     u16 max)
 {
-	sgid_tbl->tbl = kzalloc_objs(*sgid_tbl->tbl, max, GFP_KERNEL);
+	sgid_tbl->tbl = kzalloc_objs(*sgid_tbl->tbl, max);
 	if (!sgid_tbl->tbl)
 		return -ENOMEM;
 

@@ -744,7 +744,7 @@ efct_lio_make_nport(struct target_fabric_configfs *tf,
 		return ERR_PTR(-ENXIO);
 	}
 
-	lio_nport = kzalloc_obj(*lio_nport, GFP_KERNEL);
+	lio_nport = kzalloc_obj(*lio_nport);
 	if (!lio_nport)
 		return ERR_PTR(-ENOMEM);
 
@@ -796,7 +796,7 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 		return ERR_PTR(-ENXIO);
 	}
 
-	lio_vport = kzalloc_obj(*lio_vport, GFP_KERNEL);
+	lio_vport = kzalloc_obj(*lio_vport);
 	if (!lio_vport)
 		return ERR_PTR(-ENOMEM);
 
@@ -808,7 +808,7 @@ efct_lio_npiv_make_nport(struct target_fabric_configfs *tf,
 	efct_format_wwn(lio_vport->wwpn_str, sizeof(lio_vport->wwpn_str),
 			"naa.", npiv_wwpn);
 
-	vport_list = kzalloc_obj(*vport_list, GFP_KERNEL);
+	vport_list = kzalloc_obj(*vport_list);
 	if (!vport_list) {
 		kfree(lio_vport);
 		return ERR_PTR(-ENOMEM);
@@ -895,7 +895,7 @@ efct_lio_make_tpg(struct se_wwn *wwn, const char *name)
 	if (kstrtoul(name + 5, 10, &n) || n > USHRT_MAX)
 		return ERR_PTR(-EINVAL);
 
-	tpg = kzalloc_obj(*tpg, GFP_KERNEL);
+	tpg = kzalloc_obj(*tpg);
 	if (!tpg)
 		return ERR_PTR(-ENOMEM);
 
@@ -958,7 +958,7 @@ efct_lio_npiv_make_tpg(struct se_wwn *wwn, const char *name)
 		return ERR_PTR(-EINVAL);
 	}
 
-	tpg = kzalloc_obj(*tpg, GFP_KERNEL);
+	tpg = kzalloc_obj(*tpg);
 	if (!tpg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1069,7 +1069,7 @@ static int efct_session_cb(struct se_portal_group *se_tpg,
 	struct efct_node *tgt_node;
 	struct efct *efct = node->efc->base;
 
-	tgt_node = kzalloc_obj(*tgt_node, GFP_KERNEL);
+	tgt_node = kzalloc_obj(*tgt_node);
 	if (!tgt_node)
 		return -ENOMEM;
 

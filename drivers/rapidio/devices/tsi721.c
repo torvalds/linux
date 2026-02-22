@@ -2774,7 +2774,7 @@ static int tsi721_probe(struct pci_dev *pdev,
 	struct tsi721_device *priv;
 	int err;
 
-	priv = kzalloc_obj(struct tsi721_device, GFP_KERNEL);
+	priv = kzalloc_obj(struct tsi721_device);
 	if (!priv) {
 		err = -ENOMEM;
 		goto err_exit;

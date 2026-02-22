@@ -66,7 +66,7 @@ int sclp_sync_request_timeout(sclp_cmdw_t cmd, void *sccb, int timeout)
 	struct sclp_req *request;
 	int rc;
 
-	request = kzalloc_obj(*request, GFP_KERNEL);
+	request = kzalloc_obj(*request);
 	if (!request)
 		return -ENOMEM;
 	if (timeout)

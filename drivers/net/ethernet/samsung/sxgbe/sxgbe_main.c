@@ -489,7 +489,7 @@ static int init_rx_ring(struct net_device *dev, u8 queue_no,
 		return -ENOMEM;
 
 	/* allocate memory for RX skbuff array */
-	rx_ring->rx_skbuff_dma = kmalloc_objs(dma_addr_t, rx_rsize, GFP_KERNEL);
+	rx_ring->rx_skbuff_dma = kmalloc_objs(dma_addr_t, rx_rsize);
 	if (!rx_ring->rx_skbuff_dma) {
 		ret = -ENOMEM;
 		goto err_free_dma_rx;
@@ -2006,7 +2006,7 @@ static int sxgbe_hw_init(struct sxgbe_priv_data * const priv)
 {
 	u32 ctrl_ids;
 
-	priv->hw = kmalloc_obj(*priv->hw, GFP_KERNEL);
+	priv->hw = kmalloc_obj(*priv->hw);
 	if(!priv->hw)
 		return -ENOMEM;
 

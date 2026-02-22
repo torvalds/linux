@@ -680,7 +680,7 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
 	if (!vsock)
 		return -ENOMEM;
 
-	vqs = kmalloc_objs(*vqs, ARRAY_SIZE(vsock->vqs), GFP_KERNEL);
+	vqs = kmalloc_objs(*vqs, ARRAY_SIZE(vsock->vqs));
 	if (!vqs) {
 		ret = -ENOMEM;
 		goto out;

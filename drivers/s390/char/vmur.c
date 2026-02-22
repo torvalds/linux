@@ -107,7 +107,7 @@ static struct urdev *urdev_alloc(struct ccw_device *cdev)
 {
 	struct urdev *urd;
 
-	urd = kzalloc_obj(struct urdev, GFP_KERNEL);
+	urd = kzalloc_obj(struct urdev);
 	if (!urd)
 		return NULL;
 	urd->reclen = cdev->id.driver_info;
@@ -396,7 +396,7 @@ static struct urfile *urfile_alloc(struct urdev *urd)
 {
 	struct urfile *urf;
 
-	urf = kzalloc_obj(struct urfile, GFP_KERNEL);
+	urf = kzalloc_obj(struct urfile);
 	if (!urf)
 		return NULL;
 	urf->urd = urd;

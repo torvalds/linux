@@ -490,7 +490,7 @@ static int vidtv_bridge_probe(struct platform_device *pdev)
 	struct vidtv_dvb *dvb;
 	int ret;
 
-	dvb = kzalloc_obj(*dvb, GFP_KERNEL);
+	dvb = kzalloc_obj(*dvb);
 	if (!dvb)
 		return -ENOMEM;
 

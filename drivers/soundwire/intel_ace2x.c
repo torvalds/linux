@@ -127,7 +127,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	sconfig.bps = 32; /* this is required for BPT/BRA */
 
 	/* Port configuration */
-	pconfig = kzalloc_objs(*pconfig, 2, GFP_KERNEL);
+	pconfig = kzalloc_objs(*pconfig, 2);
 	if (!pconfig) {
 		ret =  -ENOMEM;
 		goto remove_slave;

@@ -980,7 +980,7 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
 
-	iter = kmalloc_obj(*iter, GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return NULL;
 

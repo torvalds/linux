@@ -168,7 +168,7 @@ static bool __report_matches(const struct expect_report *r)
 	if (!report_available())
 		return false;
 
-	expect = kmalloc_obj(observed.lines, GFP_KERNEL);
+	expect = kmalloc_obj(observed.lines);
 	if (WARN_ON(!expect))
 		return false;
 
@@ -1538,7 +1538,7 @@ static int test_init(struct kunit *test)
 	if (WARN_ON(!nthreads))
 		goto err;
 
-	threads = kzalloc_objs(struct task_struct *, nthreads + 1, GFP_KERNEL);
+	threads = kzalloc_objs(struct task_struct *, nthreads + 1);
 	if (WARN_ON(!threads))
 		goto err;
 

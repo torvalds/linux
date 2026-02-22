@@ -184,7 +184,7 @@ int nfp_net_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
 {
 	unsigned int r;
 
-	dp->tx_rings = kzalloc_objs(*dp->tx_rings, dp->num_tx_rings, GFP_KERNEL);
+	dp->tx_rings = kzalloc_objs(*dp->tx_rings, dp->num_tx_rings);
 	if (!dp->tx_rings)
 		return -ENOMEM;
 
@@ -339,7 +339,7 @@ int nfp_net_rx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp)
 {
 	unsigned int r;
 
-	dp->rx_rings = kzalloc_objs(*dp->rx_rings, dp->num_rx_rings, GFP_KERNEL);
+	dp->rx_rings = kzalloc_objs(*dp->rx_rings, dp->num_rx_rings);
 	if (!dp->rx_rings)
 		return -ENOMEM;
 

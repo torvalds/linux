@@ -324,7 +324,7 @@ static int __test_cycle(struct ww_class *class, unsigned int nthreads)
 	unsigned int n, last = nthreads - 1;
 	int ret;
 
-	cycles = kmalloc_objs(*cycles, nthreads, GFP_KERNEL);
+	cycles = kmalloc_objs(*cycles, nthreads);
 	if (!cycles)
 		return -ENOMEM;
 
@@ -412,7 +412,7 @@ static int *get_random_order(int count)
 	int *order;
 	int n, r;
 
-	order = kmalloc_objs(*order, count, GFP_KERNEL);
+	order = kmalloc_objs(*order, count);
 	if (!order)
 		return order;
 
@@ -506,7 +506,7 @@ static void stress_reorder_work(struct work_struct *work)
 		return;
 
 	for (n = 0; n < stress->nlocks; n++) {
-		ll = kmalloc_obj(*ll, GFP_KERNEL);
+		ll = kmalloc_obj(*ll);
 		if (!ll)
 			goto out;
 
@@ -582,11 +582,11 @@ static int stress(struct ww_class *class, int nlocks, int nthreads, unsigned int
 	struct stress *stress_array;
 	int n, count;
 
-	locks = kmalloc_objs(*locks, nlocks, GFP_KERNEL);
+	locks = kmalloc_objs(*locks, nlocks);
 	if (!locks)
 		return -ENOMEM;
 
-	stress_array = kmalloc_objs(*stress_array, nthreads, GFP_KERNEL);
+	stress_array = kmalloc_objs(*stress_array, nthreads);
 	if (!stress_array) {
 		kfree(locks);
 		return -ENOMEM;

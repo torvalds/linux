@@ -990,7 +990,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	for_each_queue(i) {
 		fp = &edev->fp_array[i];
 
-		fp->sb_info = kzalloc_obj(*fp->sb_info, GFP_KERNEL);
+		fp->sb_info = kzalloc_obj(*fp->sb_info);
 		if (!fp->sb_info) {
 			DP_NOTICE(edev, "sb info struct allocation failed\n");
 			goto err;
@@ -1014,7 +1014,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 		}
 
 		if (fp->type & QEDE_FASTPATH_RX) {
-			fp->rxq = kzalloc_obj(*fp->rxq, GFP_KERNEL);
+			fp->rxq = kzalloc_obj(*fp->rxq);
 			if (!fp->rxq)
 				goto err;
 

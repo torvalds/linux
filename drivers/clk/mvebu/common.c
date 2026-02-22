@@ -258,7 +258,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 		clk_put(clk);
 	}
 
-	ctrl = kzalloc_obj(*ctrl, GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (WARN_ON(!ctrl))
 		goto ctrl_out;
 
@@ -272,7 +272,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 		n++;
 
 	ctrl->num_gates = n;
-	ctrl->gates = kzalloc_objs(*ctrl->gates, ctrl->num_gates, GFP_KERNEL);
+	ctrl->gates = kzalloc_objs(*ctrl->gates, ctrl->num_gates);
 	if (WARN_ON(!ctrl->gates))
 		goto gates_out;
 

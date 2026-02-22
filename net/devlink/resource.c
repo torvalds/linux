@@ -347,7 +347,7 @@ int devl_resource_register(struct devlink *devlink,
 	if (resource)
 		return -EEXIST;
 
-	resource = kzalloc_obj(*resource, GFP_KERNEL);
+	resource = kzalloc_obj(*resource);
 	if (!resource)
 		return -ENOMEM;
 

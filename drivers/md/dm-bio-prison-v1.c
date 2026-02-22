@@ -301,7 +301,7 @@ struct dm_deferred_set *dm_deferred_set_create(void)
 	int i;
 	struct dm_deferred_set *ds;
 
-	ds = kmalloc_obj(*ds, GFP_KERNEL);
+	ds = kmalloc_obj(*ds);
 	if (!ds)
 		return NULL;
 

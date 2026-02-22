@@ -614,7 +614,7 @@ static int tracepoint_module_coming(struct module *mod)
 	if (trace_module_has_bad_taint(mod))
 		return 0;
 
-	tp_mod = kmalloc_obj(struct tp_module, GFP_KERNEL);
+	tp_mod = kmalloc_obj(struct tp_module);
 	if (!tp_mod)
 		return -ENOMEM;
 	tp_mod->mod = mod;

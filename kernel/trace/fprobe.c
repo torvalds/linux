@@ -805,7 +805,7 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 	if (!addrs)
 		return -ENOMEM;
 
-	mods = kzalloc_objs(*mods, num, GFP_KERNEL);
+	mods = kzalloc_objs(*mods, num);
 	if (!mods)
 		return -ENOMEM;
 

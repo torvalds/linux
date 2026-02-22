@@ -1168,7 +1168,7 @@ static int allocate_cgrp_cset_links(int count, struct list_head *tmp_links)
 	INIT_LIST_HEAD(tmp_links);
 
 	for (i = 0; i < count; i++) {
-		link = kzalloc_obj(*link, GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link) {
 			free_cgrp_cset_links(tmp_links);
 			return -ENOMEM;
@@ -1241,7 +1241,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	if (cset)
 		return cset;
 
-	cset = kzalloc_obj(*cset, GFP_KERNEL);
+	cset = kzalloc_obj(*cset);
 	if (!cset)
 		return NULL;
 
@@ -2350,7 +2350,7 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx;
 
-	ctx = kzalloc_obj(struct cgroup_fs_context, GFP_KERNEL);
+	ctx = kzalloc_obj(struct cgroup_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -4251,7 +4251,7 @@ static int cgroup_file_open(struct kernfs_open_file *of)
 	struct cgroup_file_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

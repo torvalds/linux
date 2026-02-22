@@ -329,7 +329,7 @@ static int fcp_add_new_ctl(struct usb_mixer_interface *mixer,
 	struct usb_mixer_elem_info *elem;
 	int err;
 
-	elem = kzalloc_obj(*elem, GFP_KERNEL);
+	elem = kzalloc_obj(*elem);
 	if (!elem)
 		return -ENOMEM;
 
@@ -654,7 +654,7 @@ static int fcp_ioctl_set_meter_map(struct usb_mixer_interface *mixer,
 	if (!private->meter_ctl) {
 		/* Allocate buffer for the map */
 		s16 *new_map __free(kfree) =
-			kmalloc_objs(s16, map.map_size, GFP_KERNEL);
+			kmalloc_objs(s16, map.map_size);
 		if (!new_map)
 			return -ENOMEM;
 
@@ -1045,7 +1045,7 @@ static int fcp_init(struct usb_mixer_interface *mixer,
 static int fcp_init_private(struct usb_mixer_interface *mixer)
 {
 	struct fcp_data *private =
-		kzalloc_obj(struct fcp_data, GFP_KERNEL);
+		kzalloc_obj(struct fcp_data);
 
 	if (!private)
 		return -ENOMEM;

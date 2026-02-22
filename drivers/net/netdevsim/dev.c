@@ -935,7 +935,7 @@ static int nsim_dev_traps_init(struct devlink *devlink)
 	struct nsim_trap_data *nsim_trap_data;
 	int err;
 
-	nsim_trap_data = kzalloc_obj(*nsim_trap_data, GFP_KERNEL);
+	nsim_trap_data = kzalloc_obj(*nsim_trap_data);
 	if (!nsim_trap_data)
 		return -ENOMEM;
 
@@ -1348,7 +1348,7 @@ static int nsim_rate_node_new(struct devlink_rate *node, void **priv,
 		return -EOPNOTSUPP;
 	}
 
-	nsim_node = kzalloc_obj(*nsim_node, GFP_KERNEL);
+	nsim_node = kzalloc_obj(*nsim_node);
 	if (!nsim_node)
 		return -ENOMEM;
 
@@ -1464,7 +1464,7 @@ static int __nsim_dev_port_add(struct nsim_dev *nsim_dev, enum nsim_dev_port_typ
 	if (type == NSIM_DEV_PORT_TYPE_VF && !nsim_dev_get_vfs(nsim_dev))
 		return -EINVAL;
 
-	nsim_dev_port = kzalloc_obj(*nsim_dev_port, GFP_KERNEL);
+	nsim_dev_port = kzalloc_obj(*nsim_dev_port);
 	if (!nsim_dev_port)
 		return -ENOMEM;
 	nsim_dev_port->port_index = nsim_dev_port_index(type, port_index);

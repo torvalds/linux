@@ -697,7 +697,7 @@ void mgag200_crtc_reset(struct drm_crtc *crtc)
 	if (crtc->state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
 
-	mgag200_crtc_state = kzalloc_obj(*mgag200_crtc_state, GFP_KERNEL);
+	mgag200_crtc_state = kzalloc_obj(*mgag200_crtc_state);
 	if (mgag200_crtc_state)
 		__drm_atomic_helper_crtc_reset(crtc, &mgag200_crtc_state->base);
 	else

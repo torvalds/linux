@@ -317,7 +317,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		goto out_free;
 	}
 
-	seg->res = kzalloc_obj(struct resource, GFP_KERNEL);
+	seg->res = kzalloc_obj(struct resource);
 	if (seg->res == NULL) {
 		rc = -ENOMEM;
 		goto out_free;

@@ -531,7 +531,7 @@ int cxgb4_init_tc_matchall(struct adapter *adap)
 	struct cxgb4_tc_matchall *tc_matchall;
 	int ret;
 
-	tc_matchall = kzalloc_obj(*tc_matchall, GFP_KERNEL);
+	tc_matchall = kzalloc_obj(*tc_matchall);
 	if (!tc_matchall)
 		return -ENOMEM;
 

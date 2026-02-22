@@ -1060,7 +1060,7 @@ struct extcon_dev *extcon_dev_allocate(const unsigned int *supported_cable)
 	if (!supported_cable)
 		return ERR_PTR(-EINVAL);
 
-	edev = kzalloc_obj(*edev, GFP_KERNEL);
+	edev = kzalloc_obj(*edev);
 	if (!edev)
 		return ERR_PTR(-ENOMEM);
 

@@ -107,7 +107,7 @@ static int uml_vfio_open_group(int group_id)
 		}
 	}
 
-	group = kzalloc_obj(*group, GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group)
 		return -ENOMEM;
 
@@ -599,7 +599,7 @@ static struct uml_vfio_device *uml_vfio_add_device(const char *device)
 	if (uml_vfio_find_device(device))
 		return ERR_PTR(-EEXIST);
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

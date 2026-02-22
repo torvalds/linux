@@ -495,7 +495,7 @@ static int build_tokens_sysfs(struct platform_device *dev)
 	int ret;
 	int i, j;
 
-	token_entries = kzalloc_objs(*token_entries, da_num_tokens, GFP_KERNEL);
+	token_entries = kzalloc_objs(*token_entries, da_num_tokens);
 	if (!token_entries)
 		return -ENOMEM;
 

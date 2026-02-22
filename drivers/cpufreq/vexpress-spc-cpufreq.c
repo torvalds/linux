@@ -252,7 +252,7 @@ static int merge_cluster_tables(void)
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		count += get_table_count(freq_table[i]);
 
-	table = kzalloc_objs(*table, count, GFP_KERNEL);
+	table = kzalloc_objs(*table, count);
 	if (!table)
 		return -ENOMEM;
 

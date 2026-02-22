@@ -32,7 +32,7 @@ static void ext4_rcu_ptr_callback(struct rcu_head *head)
 
 void ext4_kvfree_array_rcu(void *to_free)
 {
-	struct ext4_rcu_ptr *ptr = kzalloc_obj(*ptr, GFP_KERNEL);
+	struct ext4_rcu_ptr *ptr = kzalloc_obj(*ptr);
 
 	if (ptr) {
 		ptr->ptr = to_free;

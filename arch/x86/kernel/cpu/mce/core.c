@@ -2692,7 +2692,7 @@ static int mce_device_create(unsigned int cpu)
 	if (dev)
 		return 0;
 
-	dev = kzalloc_obj(*dev, GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 	dev->id  = cpu;

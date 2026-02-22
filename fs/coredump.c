@@ -262,7 +262,7 @@ static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 	switch (cn->core_type) {
 	case COREDUMP_PIPE: {
 		int argvs = sizeof(core_pattern) / 2;
-		(*argv) = kmalloc_objs(**argv, argvs, GFP_KERNEL);
+		(*argv) = kmalloc_objs(**argv, argvs);
 		if (!(*argv))
 			return false;
 		(*argv)[(*argc)++] = 0;

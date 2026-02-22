@@ -838,7 +838,7 @@ static int ofdpa_flow_tbl_ig_port(struct ofdpa_port *ofdpa_port, int flags,
 {
 	struct ofdpa_flow_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -860,7 +860,7 @@ static int ofdpa_flow_tbl_vlan(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_flow_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -886,7 +886,7 @@ static int ofdpa_flow_tbl_term_mac(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_flow_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -976,7 +976,7 @@ static int ofdpa_flow_tbl_ucast4_routing(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_flow_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1006,7 +1006,7 @@ static int ofdpa_flow_tbl_acl(struct ofdpa_port *ofdpa_port, int flags,
 	u32 priority;
 	struct ofdpa_flow_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1150,7 +1150,7 @@ static int ofdpa_group_l2_interface(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_group_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1166,7 +1166,7 @@ static int ofdpa_group_l2_fan_out(struct ofdpa_port *ofdpa_port,
 {
 	struct ofdpa_group_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1199,7 +1199,7 @@ static int ofdpa_group_l3_unicast(struct ofdpa_port *ofdpa_port, int flags,
 {
 	struct ofdpa_group_tbl_entry *entry;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1386,7 +1386,7 @@ static int ofdpa_port_ipv4_nh(struct ofdpa_port *ofdpa_port,
 	bool resolved = true;
 	int err = 0;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1904,7 +1904,7 @@ static int ofdpa_port_fdb(struct ofdpa_port *ofdpa_port,
 	bool removing = (flags & OFDPA_OP_FLAG_REMOVE);
 	unsigned long lock_flags;
 
-	fdb = kzalloc_obj(*fdb, GFP_KERNEL);
+	fdb = kzalloc_obj(*fdb);
 	if (!fdb)
 		return -ENOMEM;
 
@@ -2232,7 +2232,7 @@ static __be16 ofdpa_port_internal_vlan_id_get(struct ofdpa_port *ofdpa_port,
 	unsigned long lock_flags;
 	int i;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return 0;
 

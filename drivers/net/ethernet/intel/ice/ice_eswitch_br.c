@@ -129,7 +129,7 @@ ice_eswitch_br_fwd_rule_create(struct ice_hw *hw, int vsi_idx, int port_type,
 
 	lkups_cnt = ice_eswitch_br_get_lkups_cnt(vid);
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return ERR_PTR(-ENOMEM);
 
@@ -190,7 +190,7 @@ ice_eswitch_br_guard_rule_create(struct ice_hw *hw, u16 vsi_idx,
 
 	lkups_cnt = ice_eswitch_br_get_lkups_cnt(vid);
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		goto err_exit;
 
@@ -233,7 +233,7 @@ ice_eswitch_br_flow_create(struct device *dev, struct ice_hw *hw, int vsi_idx,
 	struct ice_esw_br_flow *flow;
 	int err;
 
-	flow = kzalloc_obj(*flow, GFP_KERNEL);
+	flow = kzalloc_obj(*flow);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 
@@ -418,7 +418,7 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 	if (fdb_entry)
 		ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, fdb_entry);
 
-	fdb_entry = kzalloc_obj(*fdb_entry, GFP_KERNEL);
+	fdb_entry = kzalloc_obj(*fdb_entry);
 	if (!fdb_entry) {
 		err = -ENOMEM;
 		goto err_exit;
@@ -698,7 +698,7 @@ ice_eswitch_br_vlan_create(u16 vid, u16 flags, struct ice_esw_br_port *port)
 	struct ice_esw_br_vlan *vlan;
 	int err;
 
-	vlan = kzalloc_obj(*vlan, GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan)
 		return ERR_PTR(-ENOMEM);
 
@@ -916,7 +916,7 @@ ice_eswitch_br_port_init(struct ice_esw_br *bridge)
 {
 	struct ice_esw_br_port *br_port;
 
-	br_port = kzalloc_obj(*br_port, GFP_KERNEL);
+	br_port = kzalloc_obj(*br_port);
 	if (!br_port)
 		return ERR_PTR(-ENOMEM);
 
@@ -1013,7 +1013,7 @@ ice_eswitch_br_init(struct ice_esw_br_offloads *br_offloads, int ifindex)
 	struct ice_esw_br *bridge;
 	int err;
 
-	bridge = kzalloc_obj(*bridge, GFP_KERNEL);
+	bridge = kzalloc_obj(*bridge);
 	if (!bridge)
 		return ERR_PTR(-ENOMEM);
 
@@ -1217,7 +1217,7 @@ ice_eswitch_br_offloads_alloc(struct ice_pf *pf)
 	if (pf->eswitch.br_offloads)
 		return ERR_PTR(-EEXIST);
 
-	br_offloads = kzalloc_obj(*br_offloads, GFP_KERNEL);
+	br_offloads = kzalloc_obj(*br_offloads);
 	if (!br_offloads)
 		return ERR_PTR(-ENOMEM);
 

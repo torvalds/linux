@@ -317,7 +317,7 @@ static struct usb_function_instance *gser_alloc_inst(void)
 	struct f_serial_opts *opts;
 	int ret;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -376,7 +376,7 @@ static struct usb_function *gser_alloc(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 
 	/* allocate and initialize one new instance */
-	gser = kzalloc_obj(*gser, GFP_KERNEL);
+	gser = kzalloc_obj(*gser);
 	if (!gser)
 		return ERR_PTR(-ENOMEM);
 

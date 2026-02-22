@@ -196,7 +196,7 @@ static struct dlm_lock_resource *lockres_init(struct mddev *mddev,
 	int ret, namelen;
 	struct md_cluster_info *cinfo = mddev->cluster_info;
 
-	res = kzalloc_obj(struct dlm_lock_resource, GFP_KERNEL);
+	res = kzalloc_obj(struct dlm_lock_resource);
 	if (!res)
 		return NULL;
 	init_waitqueue_head(&res->sync_locking);
@@ -886,7 +886,7 @@ static int join(struct mddev *mddev, int nodes)
 	int ret, ops_rv;
 	char str[64];
 
-	cinfo = kzalloc_obj(struct md_cluster_info, GFP_KERNEL);
+	cinfo = kzalloc_obj(struct md_cluster_info);
 	if (!cinfo)
 		return -ENOMEM;
 

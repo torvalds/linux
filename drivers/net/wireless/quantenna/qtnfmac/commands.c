@@ -981,7 +981,7 @@ qtnf_parse_wowlan_info(struct qtnf_wmac *mac,
 	const struct qlink_wowlan_support *data1;
 	struct wiphy_wowlan_support *supp;
 
-	supp = kzalloc_obj(*supp, GFP_KERNEL);
+	supp = kzalloc_obj(*supp);
 	if (!supp)
 		return;
 

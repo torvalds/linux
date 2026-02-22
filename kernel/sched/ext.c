@@ -4223,11 +4223,11 @@ static struct scx_exit_info *alloc_exit_info(size_t exit_dump_len)
 {
 	struct scx_exit_info *ei;
 
-	ei = kzalloc_obj(*ei, GFP_KERNEL);
+	ei = kzalloc_obj(*ei);
 	if (!ei)
 		return NULL;
 
-	ei->bt = kzalloc_objs(ei->bt[0], SCX_EXIT_BT_LEN, GFP_KERNEL);
+	ei->bt = kzalloc_objs(ei->bt[0], SCX_EXIT_BT_LEN);
 	ei->msg = kzalloc(SCX_EXIT_MSG_LEN, GFP_KERNEL);
 	ei->dump = kvzalloc(exit_dump_len, GFP_KERNEL);
 
@@ -4824,7 +4824,7 @@ static struct scx_sched *scx_alloc_and_add_sched(struct sched_ext_ops *ops)
 	struct scx_sched *sch;
 	int node, ret;
 
-	sch = kzalloc_obj(*sch, GFP_KERNEL);
+	sch = kzalloc_obj(*sch);
 	if (!sch)
 		return ERR_PTR(-ENOMEM);
 

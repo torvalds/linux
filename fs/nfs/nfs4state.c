@@ -2054,7 +2054,7 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 			clp->cl_hostname);
 
 	page = alloc_page(GFP_KERNEL);
-	locations = kmalloc_obj(struct nfs4_fs_locations, GFP_KERNEL);
+	locations = kmalloc_obj(struct nfs4_fs_locations);
 	fattr = nfs_alloc_fattr();
 	if (page == NULL || locations == NULL || fattr == NULL) {
 		dprintk("<-- %s: no memory\n", __func__);

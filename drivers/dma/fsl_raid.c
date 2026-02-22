@@ -579,7 +579,7 @@ static int fsl_re_alloc_chan_resources(struct dma_chan *chan)
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	for (i = 0; i < FSL_RE_MIN_DESCS; i++) {
-		desc = kzalloc_obj(*desc, GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 

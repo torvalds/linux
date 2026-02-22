@@ -950,7 +950,7 @@ static int qlcnic_get_act_pci_func(struct qlcnic_adapter *adapter)
 	if (ahw->op_mode == QLCNIC_MGMT_FUNC)
 		return 0;
 
-	pci_info = kzalloc_objs(*pci_info, ahw->max_vnic_func, GFP_KERNEL);
+	pci_info = kzalloc_objs(*pci_info, ahw->max_vnic_func);
 	if (!pci_info)
 		return -ENOMEM;
 
@@ -984,7 +984,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 	u16 act_pci_func;
 	u8 pfn;
 
-	pci_info = kzalloc_objs(*pci_info, ahw->max_vnic_func, GFP_KERNEL);
+	pci_info = kzalloc_objs(*pci_info, ahw->max_vnic_func);
 	if (!pci_info)
 		return -ENOMEM;
 
@@ -2055,7 +2055,7 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err = 0;
 
-	adapter->recv_ctx = kzalloc_obj(struct qlcnic_recv_context, GFP_KERNEL);
+	adapter->recv_ctx = kzalloc_obj(struct qlcnic_recv_context);
 	if (!adapter->recv_ctx) {
 		err = -ENOMEM;
 		goto err_out;
@@ -2439,7 +2439,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	ahw = kzalloc_obj(struct qlcnic_hardware_context, GFP_KERNEL);
+	ahw = kzalloc_obj(struct qlcnic_hardware_context);
 	if (!ahw) {
 		err = -ENOMEM;
 		goto err_out_free_res;

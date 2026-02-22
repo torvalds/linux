@@ -986,7 +986,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			h.ctx->sched.priority = 1024;
 	}
 
-	threads = kmalloc_objs(*threads, I915_NUM_ENGINES, GFP_KERNEL);
+	threads = kmalloc_objs(*threads, I915_NUM_ENGINES);
 	if (!threads)
 		return -ENOMEM;
 

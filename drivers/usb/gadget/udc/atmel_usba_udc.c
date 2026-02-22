@@ -40,7 +40,7 @@ static int queue_dbg_open(struct inode *inode, struct file *file)
 	struct usba_request *req, *req_copy;
 	struct list_head *queue_data;
 
-	queue_data = kmalloc_obj(*queue_data, GFP_KERNEL);
+	queue_data = kmalloc_obj(*queue_data);
 	if (!queue_data)
 		return -ENOMEM;
 	INIT_LIST_HEAD(queue_data);

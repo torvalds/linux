@@ -443,7 +443,7 @@ static int rz_dmac_alloc_chan_resources(struct dma_chan *chan)
 	while (channel->descs_allocated < RZ_DMAC_MAX_CHAN_DESCRIPTORS) {
 		struct rz_dmac_desc *desc;
 
-		desc = kzalloc_obj(*desc, GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 

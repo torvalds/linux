@@ -2711,7 +2711,7 @@ static int igb_configure_clsflower(struct igb_adapter *adapter,
 		return -EINVAL;
 	}
 
-	filter = kzalloc_obj(*filter, GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 

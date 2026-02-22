@@ -263,7 +263,7 @@ int uvc_status_init(struct uvc_device *dev)
 	if (ep == NULL)
 		return 0;
 
-	dev->status = kzalloc_obj(*dev->status, GFP_KERNEL);
+	dev->status = kzalloc_obj(*dev->status);
 	if (!dev->status)
 		return -ENOMEM;
 

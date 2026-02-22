@@ -1029,7 +1029,7 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	/* Extract key. */
-	key = kzalloc_obj(*key, GFP_KERNEL);
+	key = kzalloc_obj(*key);
 	if (!key) {
 		error = -ENOMEM;
 		goto err_kfree_flow;
@@ -1827,7 +1827,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 
 	err = -ENOMEM;
-	dp = kzalloc_obj(*dp, GFP_KERNEL);
+	dp = kzalloc_obj(*dp);
 	if (dp == NULL)
 		goto err_destroy_reply;
 

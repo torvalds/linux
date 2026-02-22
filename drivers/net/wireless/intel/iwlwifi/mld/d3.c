@@ -1654,7 +1654,7 @@ iwl_mld_suspend_send_security_cmds(struct iwl_mld *mld,
 	struct iwl_mld_suspend_key_iter_data data = {};
 	int ret;
 
-	data.rsc = kzalloc_obj(*data.rsc, GFP_KERNEL);
+	data.rsc = kzalloc_obj(*data.rsc);
 	if (!data.rsc)
 		return -ENOMEM;
 

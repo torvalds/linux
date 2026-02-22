@@ -799,7 +799,7 @@ static int bnxt_qplib_alloc_init_swq(struct bnxt_qplib_q *que)
 {
 	int indx;
 
-	que->swq = kzalloc_objs(*que->swq, que->max_sw_wqe, GFP_KERNEL);
+	que->swq = kzalloc_objs(*que->swq, que->max_sw_wqe);
 	if (!que->swq)
 		return -ENOMEM;
 

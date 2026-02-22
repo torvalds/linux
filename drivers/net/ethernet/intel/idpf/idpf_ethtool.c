@@ -204,7 +204,7 @@ static int idpf_add_flow_steer(struct net_device *netdev,
 	if (!rule)
 		return -ENOMEM;
 
-	fltr = kzalloc_obj(*fltr, GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr) {
 		err = -ENOMEM;
 		goto out_free_rule;

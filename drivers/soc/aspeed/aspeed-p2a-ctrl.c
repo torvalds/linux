@@ -238,7 +238,7 @@ static int aspeed_p2a_open(struct inode *inode, struct file *file)
 {
 	struct aspeed_p2a_user *priv;
 
-	priv = kmalloc_obj(*priv, GFP_KERNEL);
+	priv = kmalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -1828,7 +1828,7 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
  */
 struct pvr_mmu_context *pvr_mmu_context_create(struct pvr_device *pvr_dev)
 {
-	struct pvr_mmu_context *ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	struct pvr_mmu_context *ctx = kzalloc_obj(*ctx);
 	int err;
 
 	if (!ctx)
@@ -1877,7 +1877,7 @@ pvr_page_table_l1_alloc(struct pvr_mmu_context *ctx)
 {
 	int err;
 
-	struct pvr_page_table_l1 *table = kzalloc_obj(*table, GFP_KERNEL);
+	struct pvr_page_table_l1 *table = kzalloc_obj(*table);
 
 	if (!table)
 		return ERR_PTR(-ENOMEM);
@@ -1905,7 +1905,7 @@ pvr_page_table_l0_alloc(struct pvr_mmu_context *ctx)
 {
 	int err;
 
-	struct pvr_page_table_l0 *table = kzalloc_obj(*table, GFP_KERNEL);
+	struct pvr_page_table_l0 *table = kzalloc_obj(*table);
 
 	if (!table)
 		return ERR_PTR(-ENOMEM);
@@ -2350,7 +2350,7 @@ pvr_mmu_op_context_create(struct pvr_mmu_context *ctx, struct sg_table *sgt,
 {
 	int err;
 
-	struct pvr_mmu_op_context *op_ctx = kzalloc_obj(*op_ctx, GFP_KERNEL);
+	struct pvr_mmu_op_context *op_ctx = kzalloc_obj(*op_ctx);
 
 	if (!op_ctx)
 		return ERR_PTR(-ENOMEM);

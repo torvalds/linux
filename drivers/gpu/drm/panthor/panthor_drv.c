@@ -382,7 +382,7 @@ panthor_submit_ctx_add_sync_signal(struct panthor_submit_ctx *ctx, u32 handle, u
 	struct dma_fence *cur_fence;
 	int ret;
 
-	sig_sync = kzalloc_obj(*sig_sync, GFP_KERNEL);
+	sig_sync = kzalloc_obj(*sig_sync);
 	if (!sig_sync)
 		return -ENOMEM;
 
@@ -1471,7 +1471,7 @@ panthor_open(struct drm_device *ddev, struct drm_file *file)
 	struct panthor_file *pfile;
 	int ret;
 
-	pfile = kzalloc_obj(*pfile, GFP_KERNEL);
+	pfile = kzalloc_obj(*pfile);
 	if (!pfile)
 		return -ENOMEM;
 

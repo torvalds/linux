@@ -372,7 +372,7 @@ static int he_init_one(struct pci_dev *pci_dev,
 	}
 	pci_set_drvdata(pci_dev, atm_dev);
 
-	he_dev = kzalloc_obj(struct he_dev, GFP_KERNEL);
+	he_dev = kzalloc_obj(struct he_dev);
 	if (!he_dev) {
 		err = -ENOMEM;
 		goto init_one_failure;

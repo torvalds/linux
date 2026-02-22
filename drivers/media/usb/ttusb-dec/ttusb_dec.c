@@ -1642,7 +1642,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	udev = interface_to_usbdev(intf);
 
-	if (!(dec = kzalloc_obj(struct ttusb_dec, GFP_KERNEL))) {
+	if (!(dec = kzalloc_obj(struct ttusb_dec))) {
 		printk("%s: couldn't allocate memory.\n", __func__);
 		return -ENOMEM;
 	}

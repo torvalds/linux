@@ -55,7 +55,7 @@ static struct acpi_processor_performance *eps_acpi_cpu_perf;
 /* Minimum necessary to get acpi_processor_get_bios_limit() working */
 static int eps_acpi_init(void)
 {
-	eps_acpi_cpu_perf = kzalloc_obj(*eps_acpi_cpu_perf, GFP_KERNEL);
+	eps_acpi_cpu_perf = kzalloc_obj(*eps_acpi_cpu_perf);
 	if (!eps_acpi_cpu_perf)
 		return -ENOMEM;
 

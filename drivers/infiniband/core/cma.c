@@ -490,7 +490,7 @@ static int cma_add_id_to_tree(struct rdma_id_private *node_id_priv)
 	unsigned long flags;
 	int result;
 
-	node = kzalloc_obj(*node, GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return -ENOMEM;
 
@@ -1013,7 +1013,7 @@ __rdma_create_id(struct net *net, rdma_cm_event_handler event_handler,
 {
 	struct rdma_id_private *id_priv;
 
-	id_priv = kzalloc_obj(*id_priv, GFP_KERNEL);
+	id_priv = kzalloc_obj(*id_priv);
 	if (!id_priv)
 		return ERR_PTR(-ENOMEM);
 
@@ -3083,14 +3083,14 @@ static int cma_resolve_ib_route(struct rdma_id_private *id_priv,
 	struct cma_work *work;
 	int ret;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
 	cma_init_resolve_route_work(work, id_priv);
 
 	if (!route->path_rec)
-		route->path_rec = kmalloc_obj(*route->path_rec, GFP_KERNEL);
+		route->path_rec = kmalloc_obj(*route->path_rec);
 	if (!route->path_rec) {
 		ret = -ENOMEM;
 		goto err1;
@@ -3204,7 +3204,7 @@ static int cma_resolve_iw_route(struct rdma_id_private *id_priv)
 {
 	struct cma_work *work;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
@@ -3311,11 +3311,11 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	tos = id_priv->tos_set ? id_priv->tos : default_roce_tos;
 	mutex_unlock(&id_priv->qp_mutex);
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
-	route->path_rec = kzalloc_obj(*route->path_rec, GFP_KERNEL);
+	route->path_rec = kzalloc_obj(*route->path_rec);
 	if (!route->path_rec) {
 		ret = -ENOMEM;
 		goto err1;
@@ -3560,7 +3560,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	union ib_gid gid;
 	int ret;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
@@ -3585,7 +3585,7 @@ static int cma_resolve_ib_addr(struct rdma_id_private *id_priv)
 	struct cma_work *work;
 	int ret;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
@@ -3685,7 +3685,7 @@ static int cma_alloc_port(enum rdma_ucm_port_space ps,
 
 	lockdep_assert_held(&lock);
 
-	bind_list = kzalloc_obj(*bind_list, GFP_KERNEL);
+	bind_list = kzalloc_obj(*bind_list);
 	if (!bind_list)
 		return -ENOMEM;
 
@@ -5100,7 +5100,7 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 	if (id_priv->id.qp_type != IB_QPT_UD)
 		return -EINVAL;
 
-	mc = kzalloc_obj(*mc, GFP_KERNEL);
+	mc = kzalloc_obj(*mc);
 	if (!mc)
 		return -ENOMEM;
 
@@ -5166,7 +5166,7 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 	    memcmp(dev_addr->src_dev_addr, ndev->dev_addr, ndev->addr_len)) {
 		pr_info("RDMA CM addr change for ndev %s used by id %p\n",
 			ndev->name, &id_priv->id);
-		work = kzalloc_obj(*work, GFP_KERNEL);
+		work = kzalloc_obj(*work);
 		if (!work)
 			return -ENOMEM;
 
@@ -5373,7 +5373,7 @@ static int cma_add_one(struct ib_device *device)
 	if (!cma_supported(device))
 		return -EOPNOTSUPP;
 
-	cma_dev = kmalloc_obj(*cma_dev, GFP_KERNEL);
+	cma_dev = kmalloc_obj(*cma_dev);
 	if (!cma_dev)
 		return -ENOMEM;
 
@@ -5570,7 +5570,7 @@ static void cma_query_ib_service_handler(int status,
 	}
 
 	id_priv->id.route.service_recs =
-		kmalloc_objs(*recs, num_recs, GFP_KERNEL);
+		kmalloc_objs(*recs, num_recs);
 	if (!id_priv->id.route.service_recs) {
 		status = -ENOMEM;
 		goto fail;
@@ -5610,7 +5610,7 @@ static int cma_resolve_ib_service(struct rdma_id_private *id_priv,
 	ib_sa_comp_mask mask = 0;
 	struct cma_work *work;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 

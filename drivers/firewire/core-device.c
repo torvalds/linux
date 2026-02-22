@@ -849,7 +849,7 @@ static void create_units(struct fw_device *device)
 		 * Get the address of the unit directory and try to
 		 * match the drivers id_tables against it.
 		 */
-		unit = kzalloc_obj(*unit, GFP_KERNEL);
+		unit = kzalloc_obj(*unit);
 		if (unit == NULL)
 			continue;
 

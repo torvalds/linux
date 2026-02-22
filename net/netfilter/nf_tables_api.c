@@ -1104,7 +1104,7 @@ __printf(2, 3) int nft_request_module(struct net *net, const char *fmt,
 		}
 	}
 
-	req = kmalloc_obj(*req, GFP_KERNEL);
+	req = kmalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -8075,7 +8075,7 @@ static struct nft_object *nft_obj_init(const struct nft_ctx *ctx,
 	struct nft_object *obj;
 	int err = -ENOMEM;
 
-	tb = kmalloc_objs(*tb, type->maxattr + 1, GFP_KERNEL);
+	tb = kmalloc_objs(*tb, type->maxattr + 1);
 	if (!tb)
 		goto err1;
 
@@ -10688,7 +10688,7 @@ static int nf_tables_commit_audit_alloc(struct list_head *adl,
 		if (adp->table == table)
 			return 0;
 	}
-	adp = kzalloc_obj(*adp, GFP_KERNEL);
+	adp = kzalloc_obj(*adp);
 	if (!adp)
 		return -ENOMEM;
 	adp->table = table;

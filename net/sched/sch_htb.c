@@ -1845,7 +1845,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			goto failure;
 		}
 		err = -ENOBUFS;
-		cl = kzalloc_obj(*cl, GFP_KERNEL);
+		cl = kzalloc_obj(*cl);
 		if (!cl)
 			goto failure;
 

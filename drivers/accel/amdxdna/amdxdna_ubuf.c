@@ -27,7 +27,7 @@ static struct sg_table *amdxdna_ubuf_map(struct dma_buf_attachment *attach,
 	struct sg_table *sg;
 	int ret;
 
-	sg = kzalloc_obj(*sg, GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -147,7 +147,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	ubuf = kzalloc_obj(*ubuf, GFP_KERNEL);
+	ubuf = kzalloc_obj(*ubuf);
 	if (!ubuf)
 		return ERR_PTR(-ENOMEM);
 
@@ -155,7 +155,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	ubuf->mm = current->mm;
 	mmgrab(ubuf->mm);
 
-	va_ent = kvzalloc_objs(*va_ent, num_entries, GFP_KERNEL);
+	va_ent = kvzalloc_objs(*va_ent, num_entries);
 	if (!va_ent) {
 		ret = -ENOMEM;
 		goto free_ubuf;
@@ -189,7 +189,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 		goto sub_pin_cnt;
 	}
 
-	ubuf->pages = kvmalloc_objs(*ubuf->pages, ubuf->nr_pages, GFP_KERNEL);
+	ubuf->pages = kvmalloc_objs(*ubuf->pages, ubuf->nr_pages);
 	if (!ubuf->pages) {
 		ret = -ENOMEM;
 		goto sub_pin_cnt;

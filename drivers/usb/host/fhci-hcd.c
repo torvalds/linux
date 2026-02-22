@@ -193,7 +193,7 @@ static int fhci_mem_init(struct fhci_hcd *fhci)
 {
 	int i;
 
-	fhci->hc_list = kzalloc_obj(*fhci->hc_list, GFP_KERNEL);
+	fhci->hc_list = kzalloc_obj(*fhci->hc_list);
 	if (!fhci->hc_list)
 		goto err;
 
@@ -203,7 +203,7 @@ static int fhci_mem_init(struct fhci_hcd *fhci)
 	INIT_LIST_HEAD(&fhci->hc_list->intr_list);
 	INIT_LIST_HEAD(&fhci->hc_list->done_list);
 
-	fhci->vroot_hub = kzalloc_obj(*fhci->vroot_hub, GFP_KERNEL);
+	fhci->vroot_hub = kzalloc_obj(*fhci->vroot_hub);
 	if (!fhci->vroot_hub)
 		goto err;
 
@@ -217,7 +217,7 @@ static int fhci_mem_init(struct fhci_hcd *fhci)
 	for (i = 0; i < MAX_TDS; i++) {
 		struct td *td;
 
-		td = kmalloc_obj(*td, GFP_KERNEL);
+		td = kmalloc_obj(*td);
 		if (!td)
 			goto err;
 		fhci_recycle_empty_td(fhci, td);
@@ -225,7 +225,7 @@ static int fhci_mem_init(struct fhci_hcd *fhci)
 	for (i = 0; i < MAX_EDS; i++) {
 		struct ed *ed;
 
-		ed = kmalloc_obj(*ed, GFP_KERNEL);
+		ed = kmalloc_obj(*ed);
 		if (!ed)
 			goto err;
 		fhci_recycle_empty_ed(fhci, ed);
@@ -264,7 +264,7 @@ static int fhci_usb_init(struct fhci_hcd *fhci)
 	usb->max_frame_usage = FRAME_TIME_USAGE;
 	usb->sw_transaction_time = SW_FIX_TIME_BETWEEN_TRANSACTION;
 
-	usb->actual_frame = kzalloc_obj(*usb->actual_frame, GFP_KERNEL);
+	usb->actual_frame = kzalloc_obj(*usb->actual_frame);
 	if (!usb->actual_frame) {
 		fhci_usb_free(usb);
 		return -ENOMEM;
@@ -306,7 +306,7 @@ static struct fhci_usb *fhci_create_lld(struct fhci_hcd *fhci)
 	struct fhci_usb *usb;
 
 	/* allocate memory for SCC data structure */
-	usb = kzalloc_obj(*usb, GFP_KERNEL);
+	usb = kzalloc_obj(*usb);
 	if (!usb)
 		return NULL;
 

@@ -897,7 +897,7 @@ static struct amdgpu_numa_info *amdgpu_acpi_get_numa_info(uint32_t pxm)
 	if (!numa_info) {
 		struct sysinfo info;
 
-		numa_info = kzalloc_obj(*numa_info, GFP_KERNEL);
+		numa_info = kzalloc_obj(*numa_info);
 		if (!numa_info)
 			return NULL;
 
@@ -1016,7 +1016,7 @@ static int amdgpu_acpi_dev_init(struct amdgpu_acpi_dev_info **dev_info,
 	int ret = -ENOENT;
 
 	*dev_info = NULL;
-	tmp = kzalloc_obj(struct amdgpu_acpi_dev_info, GFP_KERNEL);
+	tmp = kzalloc_obj(struct amdgpu_acpi_dev_info);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1166,7 +1166,7 @@ int amdgpu_acpi_enumerate_xcc(void)
 			break;
 		}
 
-		xcc_info = kzalloc_obj(struct amdgpu_acpi_xcc_info, GFP_KERNEL);
+		xcc_info = kzalloc_obj(struct amdgpu_acpi_xcc_info);
 		if (!xcc_info)
 			return -ENOMEM;
 

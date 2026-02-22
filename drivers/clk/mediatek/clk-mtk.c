@@ -230,7 +230,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	int ret;
 
 	if (mc->mux_shift >= 0) {
-		mux = kzalloc_obj(*mux, GFP_KERNEL);
+		mux = kzalloc_obj(*mux);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -251,7 +251,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	}
 
 	if (mc->gate_shift >= 0) {
-		gate = kzalloc_obj(*gate, GFP_KERNEL);
+		gate = kzalloc_obj(*gate);
 		if (!gate) {
 			ret = -ENOMEM;
 			goto err_out;
@@ -267,7 +267,7 @@ static struct clk_hw *mtk_clk_register_composite(struct device *dev,
 	}
 
 	if (mc->divider_shift >= 0) {
-		div = kzalloc_obj(*div, GFP_KERNEL);
+		div = kzalloc_obj(*div);
 		if (!div) {
 			ret = -ENOMEM;
 			goto err_out;

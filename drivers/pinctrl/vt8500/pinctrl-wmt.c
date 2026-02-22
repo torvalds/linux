@@ -251,7 +251,7 @@ static int wmt_pctl_dt_node_to_map_pull(struct wmt_pinctrl_data *data,
 		return group;
 	}
 
-	configs = kzalloc_obj(*configs, GFP_KERNEL);
+	configs = kzalloc_obj(*configs);
 	if (!configs)
 		return -ENOMEM;
 

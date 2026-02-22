@@ -952,7 +952,7 @@ int octep_vf_device_setup(struct octep_vf_device *oct)
 	struct pci_dev *pdev = oct->pdev;
 
 	/* allocate memory for oct->conf */
-	oct->conf = kzalloc_obj(*oct->conf, GFP_KERNEL);
+	oct->conf = kzalloc_obj(*oct->conf);
 	if (!oct->conf)
 		return -ENOMEM;
 

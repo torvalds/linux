@@ -976,7 +976,7 @@ static __init struct attribute **merge_attr(struct attribute **a,
 		j++;
 	j++;
 
-	new = kmalloc_objs(struct attribute *, j, GFP_KERNEL);
+	new = kmalloc_objs(struct attribute *, j);
 	if (!new)
 		return NULL;
 	j = 0;

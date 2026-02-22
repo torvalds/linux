@@ -1583,7 +1583,7 @@ static int dropmon_net_event(struct notifier_block *ev_block,
 	case NETDEV_REGISTER:
 		if (WARN_ON_ONCE(rtnl_dereference(dev->dm_private)))
 			break;
-		stat = kzalloc_obj(*stat, GFP_KERNEL);
+		stat = kzalloc_obj(*stat);
 		if (!stat)
 			break;
 

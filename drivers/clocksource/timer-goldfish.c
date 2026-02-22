@@ -102,7 +102,7 @@ int __init goldfish_timer_init(int irq, void __iomem *base)
 	struct goldfish_timer *timerdrv;
 	int ret;
 
-	timerdrv = kzalloc_obj(*timerdrv, GFP_KERNEL);
+	timerdrv = kzalloc_obj(*timerdrv);
 	if (!timerdrv)
 		return -ENOMEM;
 

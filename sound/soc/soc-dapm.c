@@ -638,7 +638,7 @@ static int dapm_add_path(
 	if (ret)
 		return ret;
 
-	path = kzalloc_obj(struct snd_soc_dapm_path, GFP_KERNEL);
+	path = kzalloc_obj(struct snd_soc_dapm_path);
 	if (!path)
 		return -ENOMEM;
 
@@ -713,7 +713,7 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	const char *name;
 	int ret;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -3977,7 +3977,7 @@ static int dapm_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	if (!params)
 		return -ENOMEM;
 
-	runtime = kzalloc_obj(*runtime, GFP_KERNEL);
+	runtime = kzalloc_obj(*runtime);
 	if (!runtime)
 		return -ENOMEM;
 

@@ -741,7 +741,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	user_srf = kzalloc_obj(*user_srf, GFP_KERNEL);
+	user_srf = kzalloc_obj(*user_srf);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -2144,7 +2144,7 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	if (req->sizes != NULL)
 		return -EINVAL;
 
-	user_srf = kzalloc_obj(*user_srf, GFP_KERNEL);
+	user_srf = kzalloc_obj(*user_srf);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
 		goto out_unlock;

@@ -520,7 +520,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	if (parm->flags & ~IFE_ENCODE)
 		return -EINVAL;
 
-	p = kzalloc_obj(*p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 

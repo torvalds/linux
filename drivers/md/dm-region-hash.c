@@ -184,7 +184,7 @@ struct dm_region_hash *dm_region_hash_create(
 		;
 	nr_buckets >>= 1;
 
-	rh = kzalloc_obj(*rh, GFP_KERNEL);
+	rh = kzalloc_obj(*rh);
 	if (!rh) {
 		DMERR("unable to allocate region hash memory");
 		return ERR_PTR(-ENOMEM);

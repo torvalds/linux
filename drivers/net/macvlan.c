@@ -163,7 +163,7 @@ static int macvlan_hash_add_source(struct macvlan_dev *vlan,
 	if (entry)
 		return 0;
 
-	entry = kmalloc_obj(*entry, GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1131,7 +1131,7 @@ static int macvlan_dev_netpoll_setup(struct net_device *dev)
 	struct netpoll *netpoll;
 	int err;
 
-	netpoll = kzalloc_obj(*netpoll, GFP_KERNEL);
+	netpoll = kzalloc_obj(*netpoll);
 	err = -ENOMEM;
 	if (!netpoll)
 		goto out;
@@ -1249,7 +1249,7 @@ static int macvlan_port_create(struct net_device *dev)
 	if (netdev_is_rx_handler_busy(dev))
 		return -EBUSY;
 
-	port = kzalloc_obj(*port, GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (port == NULL)
 		return -ENOMEM;
 

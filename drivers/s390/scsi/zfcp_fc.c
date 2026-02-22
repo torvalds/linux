@@ -1116,7 +1116,7 @@ int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)
 {
 	struct zfcp_fc_wka_ports *wka_ports;
 
-	wka_ports = kzalloc_obj(struct zfcp_fc_wka_ports, GFP_KERNEL);
+	wka_ports = kzalloc_obj(struct zfcp_fc_wka_ports);
 	if (!wka_ports)
 		return -ENOMEM;
 

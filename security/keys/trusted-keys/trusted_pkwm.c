@@ -62,10 +62,10 @@ static struct trusted_key_options *trusted_options_alloc(void)
 	struct trusted_key_options *options;
 	struct trusted_pkwm_options *pkwm;
 
-	options = kzalloc_obj(*options, GFP_KERNEL);
+	options = kzalloc_obj(*options);
 
 	if (options) {
-		pkwm = kzalloc_obj(*pkwm, GFP_KERNEL);
+		pkwm = kzalloc_obj(*pkwm);
 
 		if (!pkwm) {
 			kfree_sensitive(options);

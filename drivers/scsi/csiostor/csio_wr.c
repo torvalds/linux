@@ -1650,12 +1650,12 @@ csio_wrm_init(struct csio_wrm *wrm, struct csio_hw *hw)
 		return -EINVAL;
 	}
 
-	wrm->q_arr = kzalloc_objs(struct csio_q *, wrm->num_q, GFP_KERNEL);
+	wrm->q_arr = kzalloc_objs(struct csio_q *, wrm->num_q);
 	if (!wrm->q_arr)
 		goto err;
 
 	for (i = 0; i < wrm->num_q; i++) {
-		wrm->q_arr[i] = kzalloc_obj(struct csio_q, GFP_KERNEL);
+		wrm->q_arr[i] = kzalloc_obj(struct csio_q);
 		if (!wrm->q_arr[i]) {
 			while (--i >= 0)
 				kfree(wrm->q_arr[i]);

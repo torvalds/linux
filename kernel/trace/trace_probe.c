@@ -838,7 +838,7 @@ static int __store_entry_arg(struct trace_probe *tp, int argnum)
 	int i, offset, last_offset = 0;
 
 	if (!earg) {
-		earg = kzalloc_obj(*tp->entry_arg, GFP_KERNEL);
+		earg = kzalloc_obj(*tp->entry_arg);
 		if (!earg)
 			return -ENOMEM;
 		earg->size = 2 * tp->nr_args + 1;
@@ -1499,7 +1499,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
-	code = tmp = kzalloc_objs(*code, FETCH_INSN_MAX, GFP_KERNEL);
+	code = tmp = kzalloc_objs(*code, FETCH_INSN_MAX);
 	if (!code)
 		return -ENOMEM;
 	code[FETCH_INSN_MAX - 1].op = FETCH_OP_END;
@@ -1543,7 +1543,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		if (code->op == FETCH_OP_END)
 			break;
 	/* Shrink down the code buffer */
-	parg->code = kzalloc_objs(*code, code - tmp + 1, GFP_KERNEL);
+	parg->code = kzalloc_objs(*code, code - tmp + 1);
 	if (!parg->code)
 		ret = -ENOMEM;
 	else
@@ -2149,7 +2149,7 @@ int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file)
 {
 	struct event_file_link *link;
 
-	link = kmalloc_obj(*link, GFP_KERNEL);
+	link = kmalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 

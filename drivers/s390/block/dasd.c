@@ -868,7 +868,7 @@ int dasd_profile_on(struct dasd_profile *profile)
 {
 	struct dasd_profile_info *data;
 
-	data = kzalloc_obj(*data, GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	spin_lock_bh(&profile->lock);
@@ -3180,7 +3180,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req)
 static int dasd_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 			  unsigned int idx)
 {
-	struct dasd_queue *dq = kzalloc_obj(*dq, GFP_KERNEL);
+	struct dasd_queue *dq = kzalloc_obj(*dq);
 
 	if (!dq)
 		return -ENOMEM;

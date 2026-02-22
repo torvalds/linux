@@ -178,7 +178,7 @@ int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 {
 	int i;
 
-	sdata->u.mesh.rmc = kmalloc_obj(struct mesh_rmc, GFP_KERNEL);
+	sdata->u.mesh.rmc = kmalloc_obj(struct mesh_rmc);
 	if (!sdata->u.mesh.rmc)
 		return -ENOMEM;
 	sdata->u.mesh.rmc->idx_mask = RMC_BUCKETS - 1;

@@ -462,7 +462,7 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	mtu = kzalloc_obj(*mtu, GFP_KERNEL);
+	mtu = kzalloc_obj(*mtu);
 	if (mtu == NULL)
 		return -ENOMEM;
 

@@ -326,7 +326,7 @@ struct clk_hw *zynqmp_clk_register_pll(const char *name, u32 clk_id,
 	init.parent_names = parents;
 	init.num_parents = 1;
 
-	pll = kzalloc_obj(*pll, GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

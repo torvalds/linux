@@ -707,7 +707,7 @@ static int qcomtee_probe(struct platform_device *pdev)
 	struct qcomtee *qcomtee;
 	int err;
 
-	qcomtee = kzalloc_obj(*qcomtee, GFP_KERNEL);
+	qcomtee = kzalloc_obj(*qcomtee);
 	if (!qcomtee)
 		return -ENOMEM;
 

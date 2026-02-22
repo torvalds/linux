@@ -231,7 +231,7 @@ struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
 {
 	struct idle_workqueue *idle_work;
 
-	idle_work = kzalloc_obj(*idle_work, GFP_KERNEL);
+	idle_work = kzalloc_obj(*idle_work);
 	if (ZERO_OR_NULL_PTR(idle_work))
 		return NULL;
 
@@ -447,7 +447,7 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -487,7 +487,7 @@ static void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
 	if (crtc->state)
 		amdgpu_dm_crtc_destroy_state(crtc, crtc->state);
 
-	state = kzalloc_obj(*state, GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (WARN_ON(!state))
 		return;
 
@@ -728,14 +728,14 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	bool has_degamma;
 	int res = -ENOMEM;
 
-	cursor_plane = kzalloc_obj(*cursor_plane, GFP_KERNEL);
+	cursor_plane = kzalloc_obj(*cursor_plane);
 	if (!cursor_plane)
 		goto fail;
 
 	cursor_plane->type = DRM_PLANE_TYPE_CURSOR;
 	res = amdgpu_dm_plane_init(dm, cursor_plane, 0, NULL);
 
-	acrtc = kzalloc_obj(struct amdgpu_crtc, GFP_KERNEL);
+	acrtc = kzalloc_obj(struct amdgpu_crtc);
 	if (!acrtc)
 		goto fail;
 

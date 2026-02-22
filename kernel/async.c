@@ -261,7 +261,7 @@ bool async_schedule_dev_nocall(async_func_t func, struct device *dev)
 {
 	struct async_entry *entry;
 
-	entry = kzalloc_obj(struct async_entry, GFP_KERNEL);
+	entry = kzalloc_obj(struct async_entry);
 
 	/* Give up if there is no memory or too much work. */
 	if (!entry || atomic_read(&entry_count) > MAX_WORK) {

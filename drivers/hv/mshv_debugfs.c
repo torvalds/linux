@@ -511,7 +511,7 @@ static int __init mshv_debugfs_parent_partition_create(void)
 	if (err)
 		goto remove_debugfs_partition;
 
-	parent_vp_stats = kzalloc_objs(*parent_vp_stats, nr_cpu_ids, GFP_KERNEL);
+	parent_vp_stats = kzalloc_objs(*parent_vp_stats, nr_cpu_ids);
 	if (!parent_vp_stats) {
 		err = -ENOMEM;
 		goto remove_debugfs_partition;

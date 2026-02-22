@@ -454,7 +454,7 @@ static int qla2x00_alloc_queues(struct qla_hw_data *ha, struct req_que *req,
 		goto fail_rsp_map;
 	}
 
-	ha->base_qpair = kzalloc_obj(struct qla_qpair, GFP_KERNEL);
+	ha->base_qpair = kzalloc_obj(struct qla_qpair);
 	if (ha->base_qpair == NULL) {
 		ql_log(ql_log_warn, vha, 0x00e0,
 		    "Failed to allocate base queue pair memory.\n");
@@ -2960,7 +2960,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ql2xallocfwdump = 0;
 	}
 
-	ha = kzalloc_obj(struct qla_hw_data, GFP_KERNEL);
+	ha = kzalloc_obj(struct qla_hw_data);
 	if (!ha) {
 		ql_log_pci(ql_log_fatal, pdev, 0x0009,
 		    "Unable to allocate memory for ha.\n");
@@ -4336,7 +4336,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	}
 
 	/* Allocate memory for request ring */
-	*req = kzalloc_obj(struct req_que, GFP_KERNEL);
+	*req = kzalloc_obj(struct req_que);
 	if (!*req) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0028,
 		    "Failed to allocate memory for req.\n");
@@ -4352,7 +4352,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		goto fail_req_ring;
 	}
 	/* Allocate memory for response ring */
-	*rsp = kzalloc_obj(struct rsp_que, GFP_KERNEL);
+	*rsp = kzalloc_obj(struct rsp_que);
 	if (!*rsp) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x002a,
 		    "Failed to allocate memory for rsp.\n");
@@ -6017,7 +6017,7 @@ qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
 
 	ql_dbg(ql_dbg_init, vha, 0x0181, "%s: s_id=%#x\n", __func__, sid);
 
-	pdb = kzalloc_obj(*pdb, GFP_KERNEL);
+	pdb = kzalloc_obj(*pdb);
 	if (!pdb) {
 		ql_dbg(ql_dbg_init, vha, 0x0181,
 		    "%s: Failed allocate pdb\n", __func__);

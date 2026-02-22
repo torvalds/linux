@@ -1291,7 +1291,7 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 		goto header;
 	}
 
-	devices = kzalloc_objs(*devices, count, GFP_KERNEL);
+	devices = kzalloc_objs(*devices, count);
 	if (!devices)
 		return -ENOMEM;
 
@@ -1350,8 +1350,8 @@ vfio_pci_ioctl_pci_hot_reset_groups(struct vfio_pci_core_device *vdev,
 	if (array_count > count)
 		return -EINVAL;
 
-	group_fds = kzalloc_objs(*group_fds, array_count, GFP_KERNEL);
-	files = kzalloc_objs(*files, array_count, GFP_KERNEL);
+	group_fds = kzalloc_objs(*group_fds, array_count);
+	files = kzalloc_objs(*files, array_count);
 	if (!group_fds || !files) {
 		kfree(group_fds);
 		kfree(files);
@@ -2034,7 +2034,7 @@ static int vfio_pci_vf_init(struct vfio_pci_core_device *vdev)
 	if (!pdev->is_physfn)
 		return 0;
 
-	vdev->vf_token = kzalloc_obj(*vdev->vf_token, GFP_KERNEL);
+	vdev->vf_token = kzalloc_obj(*vdev->vf_token);
 	if (!vdev->vf_token)
 		return -ENOMEM;
 

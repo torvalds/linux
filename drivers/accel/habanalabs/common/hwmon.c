@@ -203,7 +203,7 @@ int hl_build_hwmon_channel_info(struct hl_device *hdev, struct cpucp_sensor *sen
 	}
 
 	for (i = 0 ; i < num_active_sensor_types ; i++) {
-		channels_info[i] = kzalloc_obj(*channels_info[i], GFP_KERNEL);
+		channels_info[i] = kzalloc_obj(*channels_info[i]);
 		if (!channels_info[i]) {
 			rc = -ENOMEM;
 			goto channel_info_err;

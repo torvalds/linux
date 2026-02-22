@@ -150,7 +150,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	struct mstp_clock *clock;
 	struct clk *clk;
 
-	clock = kzalloc_obj(*clock, GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 
@@ -316,7 +316,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 		return;
 	}
 
-	pd = kzalloc_obj(*pd, GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return;
 

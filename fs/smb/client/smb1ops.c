@@ -506,7 +506,7 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	FILE_ALL_INFO *file_info;
 
-	file_info = kmalloc_obj(FILE_ALL_INFO, GFP_KERNEL);
+	file_info = kmalloc_obj(FILE_ALL_INFO);
 	if (file_info == NULL)
 		return -ENOMEM;
 

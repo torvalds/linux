@@ -193,7 +193,7 @@ static struct mu3h_sch_tt *find_tt(struct usb_device *udev)
 
 	tt = *ptt;
 	if (!tt) {	/* Create the mu3h_sch_tt */
-		tt = kzalloc_obj(*tt, GFP_KERNEL);
+		tt = kzalloc_obj(*tt);
 		if (!tt) {
 			if (allocated_index) {
 				utt->hcpriv = NULL;
@@ -891,7 +891,7 @@ int xhci_mtk_sch_init(struct xhci_hcd_mtk *mtk)
 	/* ss IN and OUT are separated */
 	num_usb_bus = xhci->usb3_rhub.num_ports * 2 + xhci->usb2_rhub.num_ports;
 
-	sch_array = kzalloc_objs(*sch_array, num_usb_bus, GFP_KERNEL);
+	sch_array = kzalloc_objs(*sch_array, num_usb_bus);
 	if (sch_array == NULL)
 		return -ENOMEM;
 

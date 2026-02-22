@@ -1542,7 +1542,7 @@ static struct aesgcm_ctx *snp_init_crypto(u8 *key, size_t keylen)
 {
 	struct aesgcm_ctx *ctx;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -1590,7 +1590,7 @@ struct snp_msg_desc *snp_msg_alloc(void)
 
 	BUILD_BUG_ON(sizeof(struct snp_guest_msg) > PAGE_SIZE);
 
-	mdesc = kzalloc_obj(struct snp_msg_desc, GFP_KERNEL);
+	mdesc = kzalloc_obj(struct snp_msg_desc);
 	if (!mdesc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1945,7 +1945,7 @@ static int __init snp_get_tsc_info(void)
 	struct snp_guest_req req = {};
 	int rc = -ENOMEM;
 
-	tsc_req = kzalloc_obj(*tsc_req, GFP_KERNEL);
+	tsc_req = kzalloc_obj(*tsc_req);
 	if (!tsc_req)
 		return rc;
 

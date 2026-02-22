@@ -106,7 +106,7 @@ static int ocelot_connect(struct dsa_switch *ds)
 	struct ocelot_8021q_tagger_private *priv;
 	int err;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -53,7 +53,7 @@ static int curr_dbg_uidn_show(struct seq_file *s, void *unused, int uid)
 	if (entries == 0)
 		return 0;
 
-	regs = kzalloc_objs(*regs, entries, GFP_KERNEL);
+	regs = kzalloc_objs(*regs, entries);
 	if (regs == NULL)
 		return -ENOMEM;
 
@@ -122,7 +122,7 @@ static int curr_regs_show(struct seq_file *s, void *unused)
 	unsigned int i;
 	struct genwqe_reg *regs;
 
-	regs = kzalloc_objs(*regs, GENWQE_FFDC_REGS, GFP_KERNEL);
+	regs = kzalloc_objs(*regs, GENWQE_FFDC_REGS);
 	if (regs == NULL)
 		return -ENOMEM;
 

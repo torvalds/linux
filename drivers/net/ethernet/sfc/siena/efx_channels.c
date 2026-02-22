@@ -536,7 +536,7 @@ static struct efx_channel *efx_alloc_channel(struct efx_nic *efx, int i)
 	struct efx_channel *channel;
 	int j;
 
-	channel = kzalloc_obj(*channel, GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel)
 		return NULL;
 
@@ -607,7 +607,7 @@ struct efx_channel *efx_copy_channel(const struct efx_channel *old_channel)
 	struct efx_channel *channel;
 	int j;
 
-	channel = kmalloc_obj(*channel, GFP_KERNEL);
+	channel = kmalloc_obj(*channel);
 	if (!channel)
 		return NULL;
 

@@ -215,7 +215,7 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 	struct device *dev;
 	unsigned int minor;
 
-	mp = kzalloc_obj(*mp, GFP_KERNEL);
+	mp = kzalloc_obj(*mp);
 	if (!mp) {
 		printk(KERN_ERR "capi: can't alloc capiminor\n");
 		return NULL;
@@ -341,7 +341,7 @@ static struct capincci *capincci_alloc(struct capidev *cdev, u32 ncci)
 {
 	struct capincci *np;
 
-	np = kzalloc_obj(*np, GFP_KERNEL);
+	np = kzalloc_obj(*np);
 	if (!np)
 		return NULL;
 	np->ncci = ncci;
@@ -981,7 +981,7 @@ static int capi_open(struct inode *inode, struct file *file)
 {
 	struct capidev *cdev;
 
-	cdev = kzalloc_obj(*cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return -ENOMEM;
 

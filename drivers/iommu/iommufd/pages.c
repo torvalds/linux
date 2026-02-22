@@ -1575,7 +1575,7 @@ int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
 		if (WARN_ON(track->domain == domain && track->area == area))
 			return -EINVAL;
 
-	track = kzalloc_obj(*track, GFP_KERNEL);
+	track = kzalloc_obj(*track);
 	if (!track)
 		return -ENOMEM;
 	track->domain = domain;

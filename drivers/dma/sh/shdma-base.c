@@ -740,7 +740,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	 * Allocate the sg list dynamically as it would consume too much stack
 	 * space.
 	 */
-	sgl = kmalloc_objs(*sgl, sg_len, GFP_KERNEL);
+	sgl = kmalloc_objs(*sgl, sg_len);
 	if (!sgl)
 		return NULL;
 
@@ -1012,7 +1012,7 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 	    !sdev->ops->desc_completed)
 		return -EINVAL;
 
-	sdev->schan = kzalloc_objs(*sdev->schan, chan_num, GFP_KERNEL);
+	sdev->schan = kzalloc_objs(*sdev->schan, chan_num);
 	if (!sdev->schan)
 		return -ENOMEM;
 

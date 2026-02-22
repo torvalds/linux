@@ -262,7 +262,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 		return NULL;
 	}
 
-	hem = kmalloc_obj(*hem, GFP_KERNEL);
+	hem = kmalloc_obj(*hem);
 	if (!hem)
 		return NULL;
 
@@ -737,7 +737,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		obj_per_chunk = table->table_chunk_size / obj_size;
 		num_hem = DIV_ROUND_UP(nobj, obj_per_chunk);
 
-		table->hem = kzalloc_objs(*table->hem, num_hem, GFP_KERNEL);
+		table->hem = kzalloc_objs(*table->hem, num_hem);
 		if (!table->hem)
 			return -ENOMEM;
 	} else {
@@ -763,7 +763,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		if (type >= HEM_TYPE_MTT)
 			num_bt_l0 = bt_chunk_num;
 
-		table->hem = kzalloc_objs(*table->hem, num_hem, GFP_KERNEL);
+		table->hem = kzalloc_objs(*table->hem, num_hem);
 		if (!table->hem)
 			goto err_kcalloc_hem_buf;
 
@@ -938,7 +938,7 @@ hem_list_alloc_item(struct hns_roce_dev *hr_dev, int start, int end, int count,
 {
 	struct hns_roce_hem_item *hem;
 
-	hem = kzalloc_obj(*hem, GFP_KERNEL);
+	hem = kzalloc_obj(*hem);
 	if (!hem)
 		return NULL;
 

@@ -737,7 +737,7 @@ static void rdma_umap_open(struct vm_area_struct *vma)
 	if (!ufile->ucontext)
 		goto out_unlock;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		goto out_unlock;
 	rdma_umap_priv_init(priv, vma, opriv->entry);
@@ -966,7 +966,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		}
 	}
 
-	file = kzalloc_obj(*file, GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file) {
 		ret = -ENOMEM;
 		if (module_dependent)
@@ -1154,7 +1154,7 @@ static int ib_uverbs_add_one(struct ib_device *device)
 	    device->type == RDMA_DEVICE_TYPE_SMI)
 		return -EOPNOTSUPP;
 
-	uverbs_dev = kzalloc_obj(*uverbs_dev, GFP_KERNEL);
+	uverbs_dev = kzalloc_obj(*uverbs_dev);
 	if (!uverbs_dev)
 		return -ENOMEM;
 

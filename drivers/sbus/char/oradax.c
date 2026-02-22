@@ -643,11 +643,11 @@ static int dax_open(struct inode *inode, struct file *f)
 	struct dax_ctx *ctx = NULL;
 	int i;
 
-	ctx = kzalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (ctx == NULL)
 		goto done;
 
-	ctx->ccb_buf = kzalloc_objs(struct dax_ccb, DAX_MAX_CCBS, GFP_KERNEL);
+	ctx->ccb_buf = kzalloc_objs(struct dax_ccb, DAX_MAX_CCBS);
 	if (ctx->ccb_buf == NULL)
 		goto done;
 

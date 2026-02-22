@@ -184,7 +184,7 @@ static int rvu_cgx_send_link_info(int cgx_id, int lmac_id, struct rvu *rvu)
 	unsigned long flags;
 	int err;
 
-	qentry = kmalloc_obj(*qentry, GFP_KERNEL);
+	qentry = kmalloc_obj(*qentry);
 	if (!qentry)
 		return -ENOMEM;
 

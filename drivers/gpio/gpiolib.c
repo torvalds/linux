@@ -2332,7 +2332,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc_obj(*pin_range, GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2393,7 +2393,7 @@ int gpiochip_add_pin_range_with_pins(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc_obj(*pin_range, GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -5369,7 +5369,7 @@ static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 
 	s->private = NULL;
 
-	priv = kzalloc_obj(*priv, GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 

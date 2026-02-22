@@ -3859,7 +3859,7 @@ static struct udp_table __net_init *udp_pernet_table_alloc(unsigned int hash_ent
 	unsigned int slot_size;
 	int i;
 
-	udptable = kmalloc_obj(*udptable, GFP_KERNEL);
+	udptable = kmalloc_obj(*udptable);
 	if (!udptable)
 		goto out;
 

@@ -820,7 +820,7 @@ int aac_probe_container(struct aac_dev *dev, int cid)
 {
 	struct aac_cmd_priv *cmd_priv;
 	struct scsi_cmnd *scsicmd = kzalloc(sizeof(*scsicmd) + sizeof(*cmd_priv), GFP_KERNEL);
-	struct scsi_device *scsidev = kzalloc_obj(*scsidev, GFP_KERNEL);
+	struct scsi_device *scsidev = kzalloc_obj(*scsidev);
 	int status;
 
 	if (!scsicmd || !scsidev) {

@@ -542,7 +542,7 @@ static void wm_adsp_ctl_work(struct work_struct *work)
 					   cs_dsp);
 	struct snd_kcontrol_new *kcontrol;
 
-	kcontrol = kzalloc_obj(*kcontrol, GFP_KERNEL);
+	kcontrol = kzalloc_obj(*kcontrol);
 	if (!kcontrol)
 		return;
 
@@ -627,7 +627,7 @@ int wm_adsp_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
 			 " %.*s", cs_ctl->subname_len - skip, cs_ctl->subname + skip);
 	}
 
-	ctl = kzalloc_obj(*ctl, GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 	ctl->cs_ctl = cs_ctl;
@@ -1259,7 +1259,7 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 		}
 	}
 
-	compr = kzalloc_obj(*compr, GFP_KERNEL);
+	compr = kzalloc_obj(*compr);
 	if (!compr) {
 		ret = -ENOMEM;
 		goto out;
@@ -1477,7 +1477,7 @@ static struct wm_adsp_compr_buf *wm_adsp_buffer_alloc(struct wm_adsp *dsp)
 {
 	struct wm_adsp_compr_buf *buf;
 
-	buf = kzalloc_obj(*buf, GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return NULL;
 

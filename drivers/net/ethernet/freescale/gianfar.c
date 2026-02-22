@@ -507,7 +507,7 @@ static int gfar_parse_group(struct device_node *np,
 	int i;
 
 	for (i = 0; i < GFAR_NUM_IRQS; i++) {
-		grp->irqinfo[i] = kzalloc_obj(struct gfar_irqinfo, GFP_KERNEL);
+		grp->irqinfo[i] = kzalloc_obj(struct gfar_irqinfo);
 		if (!grp->irqinfo[i])
 			return -ENOMEM;
 	}

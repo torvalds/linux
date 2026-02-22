@@ -150,7 +150,7 @@ void __init opal_powercap_init(void)
 		return;
 	}
 
-	pcaps = kzalloc_objs(*pcaps, of_get_child_count(powercap), GFP_KERNEL);
+	pcaps = kzalloc_objs(*pcaps, of_get_child_count(powercap));
 	if (!pcaps)
 		goto out_put_powercap;
 

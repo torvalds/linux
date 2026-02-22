@@ -1139,7 +1139,7 @@ static int sh_cmt_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	cmt = kzalloc_obj(*cmt, GFP_KERNEL);
+	cmt = kzalloc_obj(*cmt);
 	if (cmt == NULL)
 		return -ENOMEM;
 

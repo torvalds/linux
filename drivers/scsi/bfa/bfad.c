@@ -640,7 +640,7 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 	unsigned long	flags;
 	struct completion fcomp;
 
-	vport = kzalloc_obj(struct bfad_vport_s, GFP_KERNEL);
+	vport = kzalloc_obj(struct bfad_vport_s);
 	if (!vport) {
 		rc = BFA_STATUS_ENOMEM;
 		goto ext;
@@ -1271,13 +1271,13 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 		(PCI_FUNC(pdev->devfn) != 0))
 		return -ENODEV;
 
-	bfad = kzalloc_obj(struct bfad_s, GFP_KERNEL);
+	bfad = kzalloc_obj(struct bfad_s);
 	if (!bfad) {
 		error = -ENOMEM;
 		goto out;
 	}
 
-	bfad->trcmod = kzalloc_obj(struct bfa_trc_mod_s, GFP_KERNEL);
+	bfad->trcmod = kzalloc_obj(struct bfa_trc_mod_s);
 	if (!bfad->trcmod) {
 		printk(KERN_WARNING "Error alloc trace buffer!\n");
 		error = -ENOMEM;

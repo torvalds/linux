@@ -84,7 +84,7 @@ static int comp_vdev_open(struct file *filp)
 		return -EINVAL;
 	}
 
-	fh = kzalloc_obj(*fh, GFP_KERNEL);
+	fh = kzalloc_obj(*fh);
 	if (!fh)
 		return -ENOMEM;
 
@@ -474,7 +474,7 @@ static int comp_probe_channel(struct most_interface *iface, int channel_idx,
 		return -EINVAL;
 	}
 
-	mdev = kzalloc_obj(*mdev, GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return -ENOMEM;
 

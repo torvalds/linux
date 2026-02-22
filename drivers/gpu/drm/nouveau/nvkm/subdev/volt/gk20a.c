@@ -176,7 +176,7 @@ gk20a_volt_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	struct gk20a_volt *volt;
 
-	volt = kzalloc_obj(*volt, GFP_KERNEL);
+	volt = kzalloc_obj(*volt);
 	if (!volt)
 		return -ENOMEM;
 	*pvolt = &volt->base;

@@ -1514,7 +1514,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 			return true;
 		}
 
-		ports = kmalloc_objs(*ports, sched_poll.nr_ports, GFP_KERNEL);
+		ports = kmalloc_objs(*ports, sched_poll.nr_ports);
 		if (!ports) {
 			*r = -ENOMEM;
 			return true;
@@ -2115,7 +2115,7 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm,
 	struct evtchnfd *evtchnfd;
 	int ret = -EINVAL;
 
-	evtchnfd = kzalloc_obj(struct evtchnfd, GFP_KERNEL);
+	evtchnfd = kzalloc_obj(struct evtchnfd);
 	if (!evtchnfd)
 		return -ENOMEM;
 
@@ -2213,7 +2213,7 @@ static int kvm_xen_eventfd_reset(struct kvm *kvm)
 	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i)
 		n++;
 
-	all_evtchnfds = kmalloc_objs(struct evtchnfd *, n, GFP_KERNEL);
+	all_evtchnfds = kmalloc_objs(struct evtchnfd *, n);
 	if (!all_evtchnfds) {
 		mutex_unlock(&kvm->arch.xen.xen_lock);
 		return -ENOMEM;

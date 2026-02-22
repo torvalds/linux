@@ -102,7 +102,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 {
 	struct via_spec *spec;
 
-	spec = kzalloc_obj(*spec, GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (spec == NULL)
 		return NULL;
 

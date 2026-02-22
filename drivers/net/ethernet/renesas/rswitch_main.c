@@ -357,7 +357,7 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 						 sizeof(struct rswitch_ext_ts_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
 	} else {
-		gq->skbs = kzalloc_objs(*gq->skbs, gq->ring_size, GFP_KERNEL);
+		gq->skbs = kzalloc_objs(*gq->skbs, gq->ring_size);
 		if (!gq->skbs)
 			return -ENOMEM;
 		gq->unmap_addrs = kzalloc_objs(*gq->unmap_addrs, gq->ring_size,

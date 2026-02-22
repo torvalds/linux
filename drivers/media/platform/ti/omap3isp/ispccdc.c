@@ -419,7 +419,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 		return -EINVAL;
 	}
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (req == NULL)
 		return -ENOMEM;
 

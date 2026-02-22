@@ -252,7 +252,7 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		rc = -ENOMEM;
-		cpump = kzalloc_obj(*cpump, GFP_KERNEL);
+		cpump = kzalloc_obj(*cpump);
 		if (!cpump)
 			goto undo;
 		/* Allocate memory for counter page and counter extraction.
@@ -315,7 +315,7 @@ static int pai_alloc(struct perf_event *event)
 	struct cpumask *maskptr;
 	int cpu, rc = -ENOMEM;
 
-	maskptr = kzalloc_obj(*maskptr, GFP_KERNEL);
+	maskptr = kzalloc_obj(*maskptr);
 	if (!maskptr)
 		goto out;
 
@@ -1070,7 +1070,7 @@ static struct attribute * __init attr_event_init_one(int num,
 {
 	struct perf_pmu_events_attr *pa;
 
-	pa = kzalloc_obj(*pa, GFP_KERNEL);
+	pa = kzalloc_obj(*pa);
 	if (!pa)
 		return NULL;
 

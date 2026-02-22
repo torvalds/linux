@@ -231,7 +231,7 @@ int tsnep_rxnfc_add_rule(struct tsnep_adapter *adapter,
 		return -EINVAL;
 	}
 
-	rule = kzalloc_obj(*rule, GFP_KERNEL);
+	rule = kzalloc_obj(*rule);
 	if (!rule)
 		return -ENOMEM;
 

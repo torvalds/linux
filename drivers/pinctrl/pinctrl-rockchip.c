@@ -415,7 +415,7 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	map_num += grp->npins;
 
-	new_map = kzalloc_objs(*new_map, map_num, GFP_KERNEL);
+	new_map = kzalloc_objs(*new_map, map_num);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -3604,7 +3604,7 @@ static int rockchip_pinconf_defer_pin(struct rockchip_pin_bank *bank,
 {
 	struct rockchip_pin_deferred *cfg;
 
-	cfg = kzalloc_obj(*cfg, GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return -ENOMEM;
 

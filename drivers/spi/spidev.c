@@ -214,7 +214,7 @@ static int spidev_message(struct spidev_data *spidev,
 	int			status = -EFAULT;
 
 	spi_message_init(&msg);
-	k_xfers = kzalloc_objs(*k_tmp, n_xfers, GFP_KERNEL);
+	k_xfers = kzalloc_objs(*k_tmp, n_xfers);
 	if (k_xfers == NULL)
 		return -ENOMEM;
 
@@ -777,7 +777,7 @@ static int spidev_probe(struct spi_device *spi)
 	}
 
 	/* Allocate driver data */
-	spidev = kzalloc_obj(*spidev, GFP_KERNEL);
+	spidev = kzalloc_obj(*spidev);
 	if (!spidev)
 		return -ENOMEM;
 

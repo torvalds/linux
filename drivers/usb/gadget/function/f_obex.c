@@ -426,7 +426,7 @@ static struct usb_function_instance *obex_alloc_inst(void)
 	struct f_serial_opts *opts;
 	int ret;
 
-	opts = kzalloc_obj(*opts, GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 
@@ -461,7 +461,7 @@ static struct usb_function *obex_alloc(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 
 	/* allocate and initialize one new instance */
-	obex = kzalloc_obj(*obex, GFP_KERNEL);
+	obex = kzalloc_obj(*obex);
 	if (!obex)
 		return ERR_PTR(-ENOMEM);
 

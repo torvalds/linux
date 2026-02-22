@@ -2222,7 +2222,7 @@ static int __init blogic_init(void)
 		return -ENOMEM;
 	}
 
-	adapter = kzalloc_obj(struct blogic_adapter, GFP_KERNEL);
+	adapter = kzalloc_obj(struct blogic_adapter);
 	if (adapter == NULL) {
 		kfree(blogic_probeinfo_list);
 		blogic_err("BusLogic: Unable to allocate Prototype Host Adapter\n", NULL);

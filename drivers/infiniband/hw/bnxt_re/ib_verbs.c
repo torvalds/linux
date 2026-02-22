@@ -461,7 +461,7 @@ int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 		return rc;
 	}
 
-	ctx = kmalloc_obj(*ctx, GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx_tbl = sgid_tbl->ctx;
@@ -593,7 +593,7 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 	fence->dma_addr = dma_addr;
 
 	/* Allocate a MR */
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr) {
 		rc = -ENOMEM;
 		goto fail;
@@ -651,7 +651,7 @@ bnxt_re_mmap_entry_insert(struct bnxt_re_ucontext *uctx, u64 mem_offset,
 	struct bnxt_re_user_mmap_entry *entry;
 	int ret;
 
-	entry = kzalloc_obj(*entry, GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -1190,7 +1190,7 @@ static struct bnxt_re_ah *bnxt_re_create_shadow_qp_ah
 	union ib_gid sgid;
 	int rc;
 
-	ah = kzalloc_obj(*ah, GFP_KERNEL);
+	ah = kzalloc_obj(*ah);
 	if (!ah)
 		return NULL;
 
@@ -1237,7 +1237,7 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	struct bnxt_re_qp *qp;
 	int rc;
 
-	qp = kzalloc_obj(*qp, GFP_KERNEL);
+	qp = kzalloc_obj(*qp);
 	if (!qp)
 		return NULL;
 
@@ -2359,7 +2359,7 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	struct bnxt_qplib_qp *qplib_qp;
 	int rc;
 
-	qplib_qp = kzalloc_obj(*qplib_qp, GFP_KERNEL);
+	qplib_qp = kzalloc_obj(*qplib_qp);
 	if (!qplib_qp)
 		return -ENOMEM;
 
@@ -4030,7 +4030,7 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *ib_pd, int mr_access_flags)
 	u32 active_mrs;
 	int rc;
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -4133,7 +4133,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 	if (max_num_sg > MAX_PBL_LVL_1_PGS)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -4185,7 +4185,7 @@ struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 	u32 active_mws;
 	int rc;
 
-	mw = kzalloc_obj(*mw, GFP_KERNEL);
+	mw = kzalloc_obj(*mw);
 	if (!mw)
 		return ERR_PTR(-ENOMEM);
 	mw->rdev = rdev;
@@ -4250,7 +4250,7 @@ static struct ib_mr *__bnxt_re_user_reg_mr(struct ib_pd *ib_pd, u64 length, u64 
 		return ERR_PTR(-EINVAL);
 	}
 
-	mr = kzalloc_obj(*mr, GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -4507,7 +4507,7 @@ struct ib_flow *bnxt_re_create_flow(struct ib_qp *ib_qp,
 		return ERR_PTR(-EBUSY);
 	}
 
-	flow = kzalloc_obj(*flow, GFP_KERNEL);
+	flow = kzalloc_obj(*flow);
 	if (!flow) {
 		mutex_unlock(&rdev->qp_lock);
 		return ERR_PTR(-ENOMEM);

@@ -234,7 +234,7 @@ static inline void expkey_update(struct cache_head *cnew,
 
 static struct cache_head *expkey_alloc(void)
 {
-	struct svc_expkey *i = kmalloc_obj(*i, GFP_KERNEL);
+	struct svc_expkey *i = kmalloc_obj(*i);
 	if (i)
 		return &i->h;
 	else
@@ -870,11 +870,11 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 
 static struct cache_head *svc_export_alloc(void)
 {
-	struct svc_export *i = kmalloc_obj(*i, GFP_KERNEL);
+	struct svc_export *i = kmalloc_obj(*i);
 	if (!i)
 		return NULL;
 
-	i->ex_stats = kmalloc_obj(*(i->ex_stats), GFP_KERNEL);
+	i->ex_stats = kmalloc_obj(*(i->ex_stats));
 	if (!i->ex_stats) {
 		kfree(i);
 		return NULL;

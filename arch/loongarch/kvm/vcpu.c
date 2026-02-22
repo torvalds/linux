@@ -1547,7 +1547,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.handle_exit = kvm_handle_exit;
 	vcpu->arch.guest_eentry = (unsigned long)kvm_loongarch_ops->exc_entry;
-	vcpu->arch.csr = kzalloc_obj(struct loongarch_csrs, GFP_KERNEL);
+	vcpu->arch.csr = kzalloc_obj(struct loongarch_csrs);
 	if (!vcpu->arch.csr)
 		return -ENOMEM;
 

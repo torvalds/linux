@@ -153,7 +153,7 @@ int mlx5_vhca_event_init(struct mlx5_core_dev *dev)
 	if (!mlx5_vhca_event_supported(dev))
 		return 0;
 
-	events = kzalloc_obj(*events, GFP_KERNEL);
+	events = kzalloc_obj(*events);
 	if (!events)
 		return -ENOMEM;
 

@@ -1605,7 +1605,7 @@ gpio_virtuser_make_lookup_entry_group(struct config_group *group,
 		return ERR_PTR(-EBUSY);
 
 	struct gpio_virtuser_lookup_entry *entry __free(kfree) =
-				kzalloc_obj(*entry, GFP_KERNEL);
+				kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -1661,7 +1661,7 @@ gpio_virtuser_make_lookup_group(struct config_group *group, const char *name)
 		return ERR_PTR(-EBUSY);
 
 	struct gpio_virtuser_lookup *lookup __free(kfree) =
-				kzalloc_obj(*lookup, GFP_KERNEL);
+				kzalloc_obj(*lookup);
 	if (!lookup)
 		return ERR_PTR(-ENOMEM);
 

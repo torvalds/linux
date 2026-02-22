@@ -2606,7 +2606,7 @@ static const struct dib0090_wbd_slope dib0090_wbd_table_default[] = {
 
 struct dvb_frontend *dib0090_register(struct dvb_frontend *fe, struct i2c_adapter *i2c, const struct dib0090_config *config)
 {
-	struct dib0090_state *st = kzalloc_obj(struct dib0090_state, GFP_KERNEL);
+	struct dib0090_state *st = kzalloc_obj(struct dib0090_state);
 	if (st == NULL)
 		return NULL;
 

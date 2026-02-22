@@ -539,7 +539,7 @@ static int ramoops_init_przs(const char *name,
 		goto fail;
 	}
 
-	prz_ar = kzalloc_objs(**przs, *cnt, GFP_KERNEL);
+	prz_ar = kzalloc_objs(**przs, *cnt);
 	if (!prz_ar)
 		goto fail;
 

@@ -397,7 +397,7 @@ static int ice_alloc_tstamp_ring(struct ice_tx_ring *tx_ring)
 	struct ice_tstamp_ring *tstamp_ring;
 
 	/* allocate with kzalloc(), free with kfree_rcu() */
-	tstamp_ring = kzalloc_obj(*tstamp_ring, GFP_KERNEL);
+	tstamp_ring = kzalloc_obj(*tstamp_ring);
 	if (!tstamp_ring)
 		return -ENOMEM;
 

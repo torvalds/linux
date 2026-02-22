@@ -238,7 +238,7 @@ static int mip_msi_probe(struct platform_device *pdev, struct device_node *paren
 	struct mip_priv *mip;
 	int ret;
 
-	mip = kzalloc_obj(*mip, GFP_KERNEL);
+	mip = kzalloc_obj(*mip);
 	if (!mip)
 		return -ENOMEM;
 

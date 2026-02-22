@@ -334,7 +334,7 @@ mlx5hws_bwc_matcher_create(struct mlx5hws_table *table,
 		return NULL;
 	}
 
-	bwc_matcher = kzalloc_obj(*bwc_matcher, GFP_KERNEL);
+	bwc_matcher = kzalloc_obj(*bwc_matcher);
 	if (!bwc_matcher)
 		return NULL;
 
@@ -483,11 +483,11 @@ mlx5hws_bwc_rule_alloc(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
 	struct mlx5hws_bwc_rule *bwc_rule;
 
-	bwc_rule = kzalloc_obj(*bwc_rule, GFP_KERNEL);
+	bwc_rule = kzalloc_obj(*bwc_rule);
 	if (unlikely(!bwc_rule))
 		goto out_err;
 
-	bwc_rule->rule = kzalloc_obj(*bwc_rule->rule, GFP_KERNEL);
+	bwc_rule->rule = kzalloc_obj(*bwc_rule->rule);
 	if (unlikely(!bwc_rule->rule))
 		goto free_rule;
 

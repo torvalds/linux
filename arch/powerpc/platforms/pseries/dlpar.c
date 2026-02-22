@@ -53,7 +53,7 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 	char *name;
 	char *value;
 
-	prop = kzalloc_obj(*prop, GFP_KERNEL);
+	prop = kzalloc_obj(*prop);
 	if (!prop)
 		return NULL;
 
@@ -80,7 +80,7 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 	struct device_node *dn;
 	const char *name;
 
-	dn = kzalloc_obj(*dn, GFP_KERNEL);
+	dn = kzalloc_obj(*dn);
 	if (!dn)
 		return NULL;
 

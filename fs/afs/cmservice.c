@@ -339,7 +339,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc_obj(struct afs_uuid, GFP_KERNEL);
+		call->request = kmalloc_obj(struct afs_uuid);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -456,7 +456,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc_obj(struct afs_uuid, GFP_KERNEL);
+		call->request = kmalloc_obj(struct afs_uuid);
 		if (!call->request)
 			return -ENOMEM;
 

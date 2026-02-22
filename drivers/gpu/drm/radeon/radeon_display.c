@@ -494,7 +494,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	unsigned long flags;
 	int r;
 
-	work = kzalloc_obj(*work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -682,7 +682,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc;
 
-	radeon_crtc = kzalloc_obj(*radeon_crtc, GFP_KERNEL);
+	radeon_crtc = kzalloc_obj(*radeon_crtc);
 	if (radeon_crtc == NULL)
 		return;
 
@@ -1346,7 +1346,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	fb = kzalloc_obj(*fb, GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (fb == NULL) {
 		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);

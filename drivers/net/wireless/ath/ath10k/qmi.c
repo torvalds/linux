@@ -245,7 +245,7 @@ static int ath10k_qmi_bdf_dnld_send_sync(struct ath10k_qmi *qmi)
 	const u8 *temp;
 	int ret;
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -437,7 +437,7 @@ ath10k_qmi_cfg_send_sync_msg(struct ath10k *ar,
 	int ret;
 	u32 i;
 
-	req = kzalloc_obj(*req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -578,7 +578,7 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 	struct qmi_txn txn;
 	int ret;
 
-	resp = kzalloc_obj(*resp, GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp)
 		return -ENOMEM;
 
@@ -1075,7 +1075,7 @@ int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 	struct ath10k_qmi *qmi;
 	int ret;
 
-	qmi = kzalloc_obj(*qmi, GFP_KERNEL);
+	qmi = kzalloc_obj(*qmi);
 	if (!qmi)
 		return -ENOMEM;
 

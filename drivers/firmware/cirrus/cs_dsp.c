@@ -1059,7 +1059,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 		}
 	}
 
-	ctl = kzalloc_obj(*ctl, GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 
@@ -1781,7 +1781,7 @@ static struct cs_dsp_alg_region *cs_dsp_create_region(struct cs_dsp *dsp,
 {
 	struct cs_dsp_alg_region_list_item *item;
 
-	item = kzalloc_obj(*item, GFP_KERNEL);
+	item = kzalloc_obj(*item);
 	if (!item)
 		return ERR_PTR(-ENOMEM);
 

@@ -1239,7 +1239,7 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 	if (idx == IDPF_NO_FREE_SLOT)
 		return NULL;
 
-	vport = kzalloc_obj(*vport, GFP_KERNEL);
+	vport = kzalloc_obj(*vport);
 	if (!vport)
 		return vport;
 
@@ -1248,14 +1248,14 @@ static struct idpf_vport *idpf_vport_alloc(struct idpf_adapter *adapter,
 		struct idpf_vport_config *vport_config;
 		struct idpf_q_coalesce *q_coal;
 
-		vport_config = kzalloc_obj(*vport_config, GFP_KERNEL);
+		vport_config = kzalloc_obj(*vport_config);
 		if (!vport_config) {
 			kfree(vport);
 
 			return NULL;
 		}
 
-		q_coal = kzalloc_objs(*q_coal, num_max_q, GFP_KERNEL);
+		q_coal = kzalloc_objs(*q_coal, num_max_q);
 		if (!q_coal) {
 			kfree(vport_config);
 			kfree(vport);
@@ -2027,7 +2027,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 * error occurred, the existing vport will be untouched.
 	 *
 	 */
-	new_vport = kzalloc_obj(*vport, GFP_KERNEL);
+	new_vport = kzalloc_obj(*vport);
 	if (!new_vport)
 		return -ENOMEM;
 

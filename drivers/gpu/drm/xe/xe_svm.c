@@ -109,7 +109,7 @@ xe_svm_range_alloc(struct drm_gpusvm *gpusvm)
 {
 	struct xe_svm_range *range;
 
-	range = kzalloc_obj(*range, GFP_KERNEL);
+	range = kzalloc_obj(*range);
 	if (!range)
 		return NULL;
 
@@ -1748,7 +1748,7 @@ static struct xe_pagemap *xe_pagemap_create(struct xe_device *xe, struct xe_vram
 	void *addr;
 	int err;
 
-	xpagemap = kzalloc_obj(*xpagemap, GFP_KERNEL);
+	xpagemap = kzalloc_obj(*xpagemap);
 	if (!xpagemap)
 		return ERR_PTR(-ENOMEM);
 

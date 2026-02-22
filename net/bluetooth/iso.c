@@ -212,7 +212,7 @@ static struct iso_conn *iso_conn_add(struct hci_conn *hcon)
 		return conn;
 	}
 
-	conn = kzalloc_obj(*conn, GFP_KERNEL);
+	conn = kzalloc_obj(*conn);
 	if (!conn)
 		return NULL;
 

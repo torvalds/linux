@@ -294,15 +294,15 @@ static int amdgpu_virt_init_ras_err_handler_data(struct amdgpu_device *adev)
 	void *bps = NULL;
 	struct amdgpu_bo **bps_bo = NULL;
 
-	*data = kmalloc_obj(struct amdgpu_virt_ras_err_handler_data, GFP_KERNEL);
+	*data = kmalloc_obj(struct amdgpu_virt_ras_err_handler_data);
 	if (!*data)
 		goto data_failure;
 
-	bps = kmalloc_objs(*(*data)->bps, align_space, GFP_KERNEL);
+	bps = kmalloc_objs(*(*data)->bps, align_space);
 	if (!bps)
 		goto bps_failure;
 
-	bps_bo = kmalloc_objs(*(*data)->bps_bo, align_space, GFP_KERNEL);
+	bps_bo = kmalloc_objs(*(*data)->bps_bo, align_space);
 	if (!bps_bo)
 		goto bps_bo_failure;
 

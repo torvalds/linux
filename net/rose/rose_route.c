@@ -368,7 +368,7 @@ void rose_add_loopback_neigh(void)
 {
 	struct rose_neigh *sn;
 
-	rose_loopback_neigh = kmalloc_obj(struct rose_neigh, GFP_KERNEL);
+	rose_loopback_neigh = kmalloc_obj(struct rose_neigh);
 	if (!rose_loopback_neigh)
 		return;
 	sn = rose_loopback_neigh;

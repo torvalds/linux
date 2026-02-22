@@ -714,7 +714,7 @@ static struct irq_info *xen_irq_init(unsigned int irq)
 {
 	struct irq_info *info;
 
-	info = kzalloc_obj(*info, GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (info) {
 		info->irq = irq;
 		info->type = IRQT_UNBOUND;

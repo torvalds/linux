@@ -565,7 +565,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	struct nvme_loop_ctrl *ctrl;
 	int ret;
 
-	ctrl = kzalloc_obj(*ctrl, GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 	ctrl->ctrl.opts = opts;

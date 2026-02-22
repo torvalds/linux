@@ -275,8 +275,8 @@ int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc 
 	if (max_usage <= PIPE_DEF_BUFFERS)
 		return 0;
 
-	spd->pages = kmalloc_objs(struct page *, max_usage, GFP_KERNEL);
-	spd->partial = kmalloc_objs(struct partial_page, max_usage, GFP_KERNEL);
+	spd->pages = kmalloc_objs(struct page *, max_usage);
+	spd->partial = kmalloc_objs(struct partial_page, max_usage);
 
 	if (spd->pages && spd->partial)
 		return 0;
@@ -675,7 +675,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	if (!out->f_op->write_iter)
 		return -EINVAL;
 
-	array = kzalloc_objs(struct bio_vec, nbufs, GFP_KERNEL);
+	array = kzalloc_objs(struct bio_vec, nbufs);
 	if (unlikely(!array))
 		return -ENOMEM;
 
@@ -696,7 +696,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		if (unlikely(nbufs < pipe->max_usage)) {
 			kfree(array);
 			nbufs = pipe->max_usage;
-			array = kzalloc_objs(struct bio_vec, nbufs, GFP_KERNEL);
+			array = kzalloc_objs(struct bio_vec, nbufs);
 			if (!array) {
 				ret = -ENOMEM;
 				break;

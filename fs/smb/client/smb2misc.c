@@ -526,7 +526,7 @@ smb2_queue_pending_open_break(struct tcon_link *tlink, __u8 *lease_key,
 {
 	struct smb2_lease_break_work *lw;
 
-	lw = kmalloc_obj(struct smb2_lease_break_work, GFP_KERNEL);
+	lw = kmalloc_obj(struct smb2_lease_break_work);
 	if (!lw) {
 		cifs_put_tlink(tlink);
 		return;
@@ -798,7 +798,7 @@ __smb2_handle_cancelled_cmd(struct cifs_tcon *tcon, __u16 cmd, __u64 mid,
 {
 	struct close_cancelled_open *cancelled;
 
-	cancelled = kzalloc_obj(*cancelled, GFP_KERNEL);
+	cancelled = kzalloc_obj(*cancelled);
 	if (!cancelled)
 		return -ENOMEM;
 

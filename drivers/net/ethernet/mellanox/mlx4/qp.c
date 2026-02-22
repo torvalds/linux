@@ -564,7 +564,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 	if (NULL == qp_table->zones)
 		return -ENOMEM;
 
-	bitmap = kmalloc_obj(*bitmap, GFP_KERNEL);
+	bitmap = kmalloc_obj(*bitmap);
 
 	if (NULL == bitmap) {
 		err = -ENOMEM;

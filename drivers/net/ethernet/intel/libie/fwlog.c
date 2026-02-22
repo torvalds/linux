@@ -153,7 +153,7 @@ static void libie_fwlog_realloc_rings(struct libie_fwlog *fwlog, int index)
 	 * old rings and buffers. that way if we don't have enough
 	 * memory then we at least have what we had before
 	 */
-	ring.rings = kzalloc_objs(*ring.rings, ring_size, GFP_KERNEL);
+	ring.rings = kzalloc_objs(*ring.rings, ring_size);
 	if (!ring.rings)
 		return;
 
@@ -208,7 +208,7 @@ libie_aq_fwlog_set(struct libie_fwlog *fwlog,
 	int status;
 	int i;
 
-	fw_modules = kzalloc_objs(*fw_modules, num_entries, GFP_KERNEL);
+	fw_modules = kzalloc_objs(*fw_modules, num_entries);
 	if (!fw_modules)
 		return -ENOMEM;
 
@@ -978,7 +978,7 @@ static void libie_fwlog_set_supported(struct libie_fwlog *fwlog)
 
 	fwlog->supported = false;
 
-	cfg = kzalloc_obj(*cfg, GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return;
 

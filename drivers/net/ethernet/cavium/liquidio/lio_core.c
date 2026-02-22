@@ -89,12 +89,12 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	int i, j;
 
 	lio->glist_lock =
-	    kzalloc_objs(*lio->glist_lock, num_iqs, GFP_KERNEL);
+	    kzalloc_objs(*lio->glist_lock, num_iqs);
 	if (!lio->glist_lock)
 		return -ENOMEM;
 
 	lio->glist =
-	    kzalloc_objs(*lio->glist, num_iqs, GFP_KERNEL);
+	    kzalloc_objs(*lio->glist, num_iqs);
 	if (!lio->glist) {
 		kfree(lio->glist_lock);
 		lio->glist_lock = NULL;
@@ -138,7 +138,7 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
 					 numa_node);
 			if (!g)
-				g = kzalloc_obj(*g, GFP_KERNEL);
+				g = kzalloc_obj(*g);
 			if (!g)
 				break;
 
