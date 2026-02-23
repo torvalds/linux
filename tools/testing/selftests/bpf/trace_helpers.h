@@ -23,7 +23,14 @@ struct ksym {
 	long addr;
 	char *name;
 };
-struct ksyms;
+
+struct ksyms {
+	struct ksym *syms;
+	size_t sym_cap;
+	size_t sym_cnt;
+	char **filtered_syms;
+	size_t filtered_cnt;
+};
 
 typedef int (*ksym_cmp_t)(const void *p1, const void *p2);
 typedef int (*ksym_search_cmp_t)(const void *p1, const struct ksym *p2);
@@ -53,7 +60,7 @@ ssize_t get_rel_offset(uintptr_t addr);
 
 int read_build_id(const char *path, char *build_id, size_t size);
 
-int bpf_get_ksyms(char ***symsp, size_t *cntp, bool kernel);
+int bpf_get_ksyms(struct ksyms **ksymsp, bool kernel);
 int bpf_get_addrs(unsigned long **addrsp, size_t *cntp, bool kernel);
 
 #endif
