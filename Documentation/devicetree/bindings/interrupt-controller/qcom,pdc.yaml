@@ -26,6 +26,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,eliza-pdc
           - qcom,glymur-pdc
           - qcom,kaanapali-pdc
           - qcom,milos-pdc
