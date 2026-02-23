@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include "bpftool_helpers.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+
+#include "bpf_util.h"
+#include "bpftool_helpers.h"
 
 #define BPFTOOL_PATH_MAX_LEN		64
 #define BPFTOOL_FULL_CMD_MAX_LEN	512
 
 #define BPFTOOL_DEFAULT_PATH		"tools/sbin/bpftool"
 
-static int detect_bpftool_path(char *buffer)
+static int detect_bpftool_path(char *buffer, size_t size)
 {
 	char tmp[BPFTOOL_PATH_MAX_LEN];
 
@@ -18,7 +20,7 @@ static int detect_bpftool_path(char *buffer)
 	 */
 	snprintf(tmp, BPFTOOL_PATH_MAX_LEN, "./%s", BPFTOOL_DEFAULT_PATH);
 	if (access(tmp, X_OK) == 0) {
-		strncpy(buffer, tmp, BPFTOOL_PATH_MAX_LEN);
+		strscpy(buffer, tmp, size);
 		return 0;
 	}
 
@@ -27,7 +29,7 @@ static int detect_bpftool_path(char *buffer)
 	 */
 	snprintf(tmp, BPFTOOL_PATH_MAX_LEN, "../%s", BPFTOOL_DEFAULT_PATH);
 	if (access(tmp, X_OK) == 0) {
-		strncpy(buffer, tmp, BPFTOOL_PATH_MAX_LEN);
+		strscpy(buffer, tmp, size);
 		return 0;
 	}
 
@@ -44,7 +46,7 @@ static int run_command(char *args, char *output_buf, size_t output_max_len)
 	int ret;
 
 	/* Detect and cache bpftool binary location */
-	if (bpftool_path[0] == 0 && detect_bpftool_path(bpftool_path))
+	if (bpftool_path[0] == 0 && detect_bpftool_path(bpftool_path, sizeof(bpftool_path)))
 		return 1;
 
 	ret = snprintf(command, BPFTOOL_FULL_CMD_MAX_LEN, "%s %s%s",
