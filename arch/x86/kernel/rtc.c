@@ -2,6 +2,7 @@
 /*
  * RTC related functions
  */
+#include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/mc146818rtc.h>
 #include <linux/export.h>
@@ -146,6 +147,9 @@ static __init int add_rtc_cmos(void)
 		}
 	}
 #endif
+	if (cmos_rtc_platform_device_present)
+		return 0;
+
 	if (!x86_platform.legacy.rtc)
 		return -ENODEV;
 

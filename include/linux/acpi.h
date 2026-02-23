@@ -791,6 +791,8 @@ const char *acpi_get_subsystem_id(acpi_handle handle);
 int acpi_mrrm_max_mem_region(void);
 #endif
 
+extern bool cmos_rtc_platform_device_present;
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -1115,6 +1117,8 @@ static inline int acpi_mrrm_max_mem_region(void)
 {
 	return 1;
 }
+
+#define cmos_rtc_platform_device_present	false
 
 #endif	/* !CONFIG_ACPI */
 
