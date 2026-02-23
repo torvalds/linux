@@ -651,7 +651,8 @@ static int ntfs_iomap_bio_read_folio_range(const struct iomap_iter *iter,
 	return 0;
 }
 
-static void ntfs_iomap_bio_submit_read(struct iomap_read_folio_ctx *ctx)
+static void ntfs_iomap_bio_submit_read(const struct iomap_iter *iter,
+		struct iomap_read_folio_ctx *ctx)
 {
 	struct bio *bio = ctx->read_ctx;
 
