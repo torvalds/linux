@@ -363,7 +363,7 @@ void optc31_read_reg_state(struct timing_generator *optc, struct dcn_optc_reg_st
 	optc_reg_state->otg_crc3_data_rg = REG_READ(OTG_CRC3_DATA_RG);
 	optc_reg_state->otg_dlpc_control = REG_READ(OTG_DLPC_CONTROL);
 	optc_reg_state->otg_double_buffer_control = REG_READ(OTG_DOUBLE_BUFFER_CONTROL);
-	optc_reg_state->otg_drr_control2 = REG_READ(OTG_DRR_CONTROL2);
+	optc_reg_state->otg_drr_control2 = REG_READ(OTG_DRR_CONTOL2);
 	optc_reg_state->otg_drr_control = REG_READ(OTG_DRR_CONTROL);
 	optc_reg_state->otg_drr_timing_int_status = REG_READ(OTG_DRR_TIMING_INT_STATUS);
 	optc_reg_state->otg_drr_trigger_window = REG_READ(OTG_DRR_TRIGGER_WINDOW);
