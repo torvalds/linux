@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
+#include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/wait.h>
@@ -2373,7 +2374,7 @@ static int btintel_pcie_hci_drv_read_info(struct hci_dev *hdev, void *data,
 	u16 opcode, num_supported_commands =
 		ARRAY_SIZE(btintel_pcie_hci_drv_supported_commands);
 
-	rp_size = sizeof(*rp) + num_supported_commands * 2;
+	rp_size = struct_size(rp, supported_commands, num_supported_commands);
 
 	rp = kmalloc(rp_size, GFP_KERNEL);
 	if (!rp)
