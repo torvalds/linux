@@ -59,6 +59,10 @@ properties:
           - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
+            # Aosong temperature & humidity sensors with I2C interface
+          - aosong,aht10
+          - aosong,aht20
+          - aosong,dht20
             # Arduino microcontroller interface over SPI on UnoQ board
           - arduino,unoq-mcu
             # Temperature monitoring of Astera Labs PT5161L PCIe retimer
