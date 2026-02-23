@@ -198,17 +198,10 @@ obj-$(CONFIG_RV_MON_%s) += monitors/%s/%s.o
             os.mkdir(path)
         except FileExistsError:
             return
-        except:
-            print("Fail creating the output dir: %s" % self.name)
 
     def __write_file(self, file_name, content):
-        try:
-            file = open(file_name, 'w')
-        except:
-            print("Fail writing to file: %s" % file_name)
-
+        file = open(file_name, 'w')
         file.write(content)
-
         file.close()
 
     def _create_file(self, file_name, content):
