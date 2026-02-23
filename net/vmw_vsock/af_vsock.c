@@ -2825,7 +2825,7 @@ static int vsock_net_mode_string(const struct ctl_table *table, int write,
 	if (write)
 		return -EPERM;
 
-	net = current->nsproxy->net_ns;
+	net = container_of(table->data, struct net, vsock.mode);
 
 	return __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				       vsock_net_mode(net), NULL);
@@ -2838,7 +2838,7 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 	struct net *net;
 	int ret;
 
-	net = current->nsproxy->net_ns;
+	net = container_of(table->data, struct net, vsock.child_ns_mode);
 
 	ret = __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				      vsock_net_child_mode(net), &new_mode);
