@@ -791,7 +791,7 @@ endif
 
 CC_FLAGS_DIALECT := -std=gnu11
 # Allow including a tagged struct or union anonymously in another struct/union.
-CC_FLAGS_DIALECT += -fms-extensions
+CC_FLAGS_DIALECT += $(CONFIG_CC_MS_EXTENSIONS)
 # Clang enables warnings about GNU and Microsoft extensions by default, disable
 # them because this is expected with the above options.
 ifdef CONFIG_CC_IS_CLANG
