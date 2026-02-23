@@ -44,6 +44,7 @@ class Automata:
 
     invalid_state_str = "INVALID_STATE"
     init_marker = "__init_"
+    node_marker = "{node"
     # val can be numerical, uppercase (constant or macro), lowercase (parameter or function)
     # only numerical values should have units
     constraint_rule = re.compile(r"""
@@ -112,7 +113,7 @@ class Automata:
         for cursor, line in enumerate(self.__dot_lines):
             split_line = line.split()
 
-            if len(split_line) and split_line[0] == "{node":
+            if len(split_line) and split_line[0] == self.node_marker:
                 return cursor
 
         raise AutomataError("Could not find a beginning state")
@@ -127,9 +128,9 @@ class Automata:
                 continue
 
             if state == 0:
-                if line[0] == "{node":
+                if line[0] == self.node_marker:
                     state = 1
-            elif line[0] != "{node":
+            elif line[0] != self.node_marker:
                 break
         else:
             raise AutomataError("Could not find beginning event")
@@ -151,7 +152,7 @@ class Automata:
         # process nodes
         for line in islice(self.__dot_lines, cursor, None):
             split_line = line.split()
-            if not split_line or split_line[0] != "{node":
+            if not split_line or split_line[0] != self.node_marker:
                 break
 
             raw_state = split_line[-1]
