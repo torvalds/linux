@@ -134,8 +134,8 @@ class dot2k(Monitor, Dot2c):
         tp_args = tp_args_dict[tp_type]
         if self._is_id_monitor():
             tp_args.insert(0, tp_args_id)
-        tp_proto_c = ", ".join([a+b for a,b in tp_args])
-        tp_args_c = ", ".join([b for a,b in tp_args])
+        tp_proto_c = ", ".join([a + b for a, b in tp_args])
+        tp_args_c = ", ".join([b for a, b in tp_args])
         buff.append(f"	     TP_PROTO({tp_proto_c}),")
         buff.append(f"	     TP_ARGS({tp_args_c})")
         return '\n'.join(buff)

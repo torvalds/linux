@@ -135,7 +135,7 @@ class Automata:
             raw_state = line[-1]
 
             #  "enabled_fired"}; -> enabled_fired
-            state = raw_state.replace('"', '').replace('};', '').replace(',','_')
+            state = raw_state.replace('"', '').replace('};', '').replace(',', '_')
             if state[0:7] == "__init_":
                 initial_state = state[7:]
             else:
@@ -264,7 +264,7 @@ class Automata:
             nr_state += 1
 
         # declare the matrix....
-        matrix = [[ self.invalid_state_str for x in range(nr_event)] for y in range(nr_state)]
+        matrix = [[self.invalid_state_str for x in range(nr_event)] for y in range(nr_state)]
         constraints: dict[_ConstraintKey, list[str]] = {}
 
         # and we are back! Let's fill the matrix
@@ -273,8 +273,8 @@ class Automata:
         while self.__dot_lines[cursor].lstrip()[0] == '"':
             if self.__dot_lines[cursor].split()[1] == "->":
                 line = self.__dot_lines[cursor].split()
-                origin_state = line[0].replace('"','').replace(',','_')
-                dest_state = line[2].replace('"','').replace(',','_')
+                origin_state = line[0].replace('"', '').replace(',', '_')
+                dest_state = line[2].replace('"', '').replace(',', '_')
                 possible_events = "".join(line[line.index("label") + 2:-1]).replace('"', '')
                 for event in possible_events.split("\\n"):
                     event, *constr = event.split(";")

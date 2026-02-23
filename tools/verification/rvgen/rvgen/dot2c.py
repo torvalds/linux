@@ -182,7 +182,7 @@ class Dot2c(Automata):
                     line += f"\t\t\t{next_state}"
                 else:
                     line += f"{next_state:>{maxlen}}"
-                if y != nr_events-1:
+                if y != nr_events - 1:
                     line += ",\n" if linetoolong else ", "
                 else:
                     line += ",\n\t\t}," if linetoolong else " },"
