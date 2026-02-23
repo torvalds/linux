@@ -29,17 +29,17 @@ class Dot2c(Automata):
 
     def __get_enum_states_content(self) -> list[str]:
         buff = []
-        buff.append("\t%s%s," % (self.initial_state, self.enum_suffix))
+        buff.append(f"\t{self.initial_state}{self.enum_suffix},")
         for state in self.states:
             if state != self.initial_state:
-                buff.append("\t%s%s," % (state, self.enum_suffix))
-        buff.append("\tstate_max%s," % (self.enum_suffix))
+                buff.append(f"\t{state}{self.enum_suffix},")
+        buff.append(f"\tstate_max{self.enum_suffix},")
 
         return buff
 
     def format_states_enum(self) -> list[str]:
         buff = []
-        buff.append("enum %s {" % self.enum_states_def)
+        buff.append(f"enum {self.enum_states_def} {{")
         buff += self.__get_enum_states_content()
         buff.append("};\n")
 
@@ -48,15 +48,15 @@ class Dot2c(Automata):
     def __get_enum_events_content(self) -> list[str]:
         buff = []
         for event in self.events:
-            buff.append("\t%s%s," % (event, self.enum_suffix))
+            buff.append(f"\t{event}{self.enum_suffix},")
 
-        buff.append("\tevent_max%s," % self.enum_suffix)
+        buff.append(f"\tevent_max{self.enum_suffix},")
 
         return buff
 
     def format_events_enum(self) -> list[str]:
         buff = []
-        buff.append("enum %s {" % self.enum_events_def)
+        buff.append(f"enum {self.enum_events_def} {{")
         buff += self.__get_enum_events_content()
         buff.append("};\n")
 
@@ -103,27 +103,27 @@ class Dot2c(Automata):
             min_type = "unsigned int"
 
         if self.states.__len__() > 1000000:
-            raise AutomataError("Too many states: %d" % self.states.__len__())
+            raise AutomataError(f"Too many states: {self.states.__len__()}")
 
         return min_type
 
     def format_automaton_definition(self) -> list[str]:
         min_type = self.get_minimun_type()
         buff = []
-        buff.append("struct %s {" % self.struct_automaton_def)
-        buff.append("\tchar *state_names[state_max%s];" % (self.enum_suffix))
-        buff.append("\tchar *event_names[event_max%s];" % (self.enum_suffix))
+        buff.append(f"struct {self.struct_automaton_def} {{")
+        buff.append(f"\tchar *state_names[state_max{self.enum_suffix}];")
+        buff.append(f"\tchar *event_names[event_max{self.enum_suffix}];")
         if self.is_hybrid_automata():
             buff.append(f"\tchar *env_names[env_max{self.enum_suffix}];")
-        buff.append("\t%s function[state_max%s][event_max%s];" % (min_type, self.enum_suffix, self.enum_suffix))
-        buff.append("\t%s initial_state;" % min_type)
-        buff.append("\tbool final_states[state_max%s];" % (self.enum_suffix))
+        buff.append(f"\t{min_type} function[state_max{self.enum_suffix}][event_max{self.enum_suffix}];")
+        buff.append(f"\t{min_type} initial_state;")
+        buff.append(f"\tbool final_states[state_max{self.enum_suffix}];")
         buff.append("};\n")
         return buff
 
     def format_aut_init_header(self) -> list[str]:
         buff = []
-        buff.append("static const struct %s %s = {" % (self.struct_automaton_def, self.var_automaton_def))
+        buff.append(f"static const struct {self.struct_automaton_def} {self.var_automaton_def} = {{")
         return buff
 
     def __get_string_vector_per_line_content(self, entries: list[str]) -> str:
@@ -179,9 +179,9 @@ class Dot2c(Automata):
                     next_state = self.function[x][y] + self.enum_suffix
 
                 if linetoolong:
-                    line += "\t\t\t%s" % next_state
+                    line += f"\t\t\t{next_state}"
                 else:
-                    line += "%*s" % (maxlen, next_state)
+                    line += f"{next_state:>{maxlen}}"
                 if y != nr_events-1:
                     line += ",\n" if linetoolong else ", "
                 else:
@@ -225,7 +225,7 @@ class Dot2c(Automata):
 
     def format_aut_init_final_states(self) -> list[str]:
        buff = []
-       buff.append("\t.final_states = { %s }," % self.get_aut_init_final_states())
+       buff.append(f"\t.final_states = {{ {self.get_aut_init_final_states()} }},")
 
        return buff
 
@@ -241,7 +241,7 @@ class Dot2c(Automata):
 
     def format_invalid_state(self) -> list[str]:
         buff = []
-        buff.append("#define %s state_max%s\n" % (self.invalid_state_str, self.enum_suffix))
+        buff.append(f"#define {self.invalid_state_str} state_max{self.enum_suffix}\n")
 
         return buff
 

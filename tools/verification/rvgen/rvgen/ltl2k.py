@@ -77,7 +77,7 @@ class ltl2k(generator.Monitor):
         ]
 
         for node in self.ba:
-            buf.append("\tS%i," % node.id)
+            buf.append(f"\tS{node.id},")
         buf.append("\tRV_NUM_BA_STATES")
         buf.append("};")
         buf.append("static_assert(RV_NUM_BA_STATES <= RV_MAX_BA_STATES);")
@@ -86,7 +86,7 @@ class ltl2k(generator.Monitor):
     def _fill_atoms(self):
         buf = ["enum ltl_atom {"]
         for a in sorted(self.atoms):
-            buf.append("\tLTL_%s," % a)
+            buf.append(f"\tLTL_{a},")
         buf.append("\tLTL_NUM_ATOM")
         buf.append("};")
         buf.append("static_assert(LTL_NUM_ATOM <= RV_MAX_LTL_ATOM);")
@@ -100,7 +100,7 @@ class ltl2k(generator.Monitor):
         ]
 
         for name in self.atoms_abbr:
-            buf.append("\t\t\"%s\"," % name)
+            buf.append(f"\t\t\"{name}\",")
 
         buf.extend([
             "\t};",
@@ -117,19 +117,19 @@ class ltl2k(generator.Monitor):
                 continue
 
             if isinstance(node.op, ltl2ba.AndOp):
-                buf.append("\tbool %s = %s && %s;" % (node, node.op.left, node.op.right))
+                buf.append(f"\tbool {node} = {node.op.left} && {node.op.right};")
                 required_values |= {str(node.op.left), str(node.op.right)}
             elif isinstance(node.op, ltl2ba.OrOp):
-                buf.append("\tbool %s = %s || %s;" % (node, node.op.left, node.op.right))
+                buf.append(f"\tbool {node} = {node.op.left} || {node.op.right};")
                 required_values |= {str(node.op.left), str(node.op.right)}
             elif isinstance(node.op, ltl2ba.NotOp):
-                buf.append("\tbool %s = !%s;" % (node, node.op.child))
+                buf.append(f"\tbool {node} = !{node.op.child};")
                 required_values.add(str(node.op.child))
 
         for atom in self.atoms:
             if atom.lower() not in required_values:
                 continue
-            buf.append("\tbool %s = test_bit(LTL_%s, mon->atoms);" % (atom.lower(), atom))
+            buf.append(f"\tbool {atom.lower()} = test_bit(LTL_{atom}, mon->atoms);")
 
         buf.reverse()
 
@@ -157,7 +157,7 @@ class ltl2k(generator.Monitor):
         ])
 
         for node in self.ba:
-            buf.append("\tcase S%i:" % node.id)
+            buf.append(f"\tcase S{node.id}:")
 
             for o in sorted(node.outgoing):
                 line   = "\t\tif "
@@ -167,7 +167,7 @@ class ltl2k(generator.Monitor):
                 lines = break_long_line(line, indent)
                 buf.extend(lines)
 
-                buf.append("\t\t\t__set_bit(S%i, next);" % o.id)
+                buf.append(f"\t\t\t__set_bit(S{o.id}, next);")
             buf.append("\t\tbreak;")
         buf.extend([
             "\t}",
@@ -201,7 +201,7 @@ class ltl2k(generator.Monitor):
             lines = break_long_line(line, indent)
             buf.extend(lines)
 
-            buf.append("\t\t__set_bit(S%i, mon->states);" % node.id)
+            buf.append(f"\t\t__set_bit(S{node.id}, mon->states);")
         buf.append("}")
         return buf
 
@@ -209,23 +209,21 @@ class ltl2k(generator.Monitor):
         buff = []
         buff.append("static void handle_example_event(void *data, /* XXX: fill header */)")
         buff.append("{")
-        buff.append("\tltl_atom_update(task, LTL_%s, true/false);" % self.atoms[0])
+        buff.append(f"\tltl_atom_update(task, LTL_{self.atoms[0]}, true/false);")
         buff.append("}")
         buff.append("")
         return '\n'.join(buff)
 
     def fill_tracepoint_attach_probe(self):
-        return "\trv_attach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_example_event);" \
-                % self.name
+        return f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_example_event);"
 
     def fill_tracepoint_detach_helper(self):
-        return "\trv_detach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_sample_event);" \
-                % self.name
+        return f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_sample_event);"
 
     def fill_atoms_init(self):
         buff = []
         for a in self.atoms:
-            buff.append("\tltl_atom_set(mon, LTL_%s, true/false);" % a)
+            buff.append(f"\tltl_atom_set(mon, LTL_{a}, true/false);")
         return '\n'.join(buff)
 
     def fill_model_h(self):

@@ -21,7 +21,8 @@ class dot2k(Monitor, Dot2c):
         self.monitor_type = MonitorType
         Monitor.__init__(self, extra_params)
         Dot2c.__init__(self, file_path, extra_params.get("model_name"))
-        self.enum_suffix = "_%s" % self.name
+        self.enum_suffix = f"_{self.name}"
+        self.enum_suffix = f"_{self.name}"
         self.monitor_class = extra_params["monitor_class"]
 
     def fill_monitor_type(self) -> str:
@@ -35,7 +36,7 @@ class dot2k(Monitor, Dot2c):
         buff = []
         buff += self._fill_hybrid_definitions()
         for event in self.events:
-            buff.append("static void handle_%s(void *data, /* XXX: fill header */)" % event)
+            buff.append(f"static void handle_{event}(void *data, /* XXX: fill header */)")
             buff.append("{")
             handle = "handle_event"
             if self.is_start_event(event):
@@ -46,13 +47,13 @@ class dot2k(Monitor, Dot2c):
                 handle = "handle_start_run_event"
             if self.monitor_type == "per_task":
                 buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;");
-                buff.append("\tda_%s(p, %s%s);" % (handle, event, self.enum_suffix));
+                buff.append(f"\tda_{handle}(p, {event}{self.enum_suffix});");
             elif self.monitor_type == "per_obj":
                 buff.append("\tint id = /* XXX: how do I get the id? */;")
                 buff.append("\tmonitor_target t = /* XXX: how do I get t? */;")
                 buff.append(f"\tda_{handle}(id, t, {event}{self.enum_suffix});")
             else:
-                buff.append("\tda_%s(%s%s);" % (handle, event, self.enum_suffix));
+                buff.append(f"\tda_{handle}({event}{self.enum_suffix});");
             buff.append("}")
             buff.append("")
         return '\n'.join(buff)
@@ -60,25 +61,25 @@ class dot2k(Monitor, Dot2c):
     def fill_tracepoint_attach_probe(self) -> str:
         buff = []
         for event in self.events:
-            buff.append("\trv_attach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
+            buff.append(f"\trv_attach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
         return '\n'.join(buff)
 
     def fill_tracepoint_detach_helper(self) -> str:
         buff = []
         for event in self.events:
-            buff.append("\trv_detach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
+            buff.append(f"\trv_detach_trace_probe(\"{self.name}\", /* XXX: tracepoint */, handle_{event});")
         return '\n'.join(buff)
 
     def fill_model_h_header(self) -> list[str]:
         buff = []
         buff.append("/* SPDX-License-Identifier: GPL-2.0 */")
         buff.append("/*")
-        buff.append(" * Automatically generated C representation of %s automaton" % (self.name))
+        buff.append(f" * Automatically generated C representation of {self.name} automaton")
         buff.append(" * For further information about this format, see kernel documentation:")
         buff.append(" *   Documentation/trace/rv/deterministic_automata.rst")
         buff.append(" */")
         buff.append("")
-        buff.append("#define MONITOR_NAME %s" % (self.name))
+        buff.append(f"#define MONITOR_NAME {self.name}")
         buff.append("")
 
         return buff
@@ -87,11 +88,11 @@ class dot2k(Monitor, Dot2c):
         #
         # Adjust the definition names
         #
-        self.enum_states_def = "states_%s" % self.name
-        self.enum_events_def = "events_%s" % self.name
+        self.enum_states_def = f"states_{self.name}"
+        self.enum_events_def = f"events_{self.name}"
         self.enum_envs_def = f"envs_{self.name}"
-        self.struct_automaton_def = "automaton_%s" % self.name
-        self.var_automaton_def = "automaton_%s" % self.name
+        self.struct_automaton_def = f"automaton_{self.name}"
+        self.var_automaton_def = f"automaton_{self.name}"
 
         buff = self.fill_model_h_header()
         buff += self.format_model()
@@ -135,8 +136,8 @@ class dot2k(Monitor, Dot2c):
             tp_args.insert(0, tp_args_id)
         tp_proto_c = ", ".join([a+b for a,b in tp_args])
         tp_args_c = ", ".join([b for a,b in tp_args])
-        buff.append("	     TP_PROTO(%s)," % tp_proto_c)
-        buff.append("	     TP_ARGS(%s)" % tp_args_c)
+        buff.append(f"	     TP_PROTO({tp_proto_c}),")
+        buff.append(f"	     TP_ARGS({tp_args_c})")
         return '\n'.join(buff)
 
     def _fill_hybrid_definitions(self) -> list:

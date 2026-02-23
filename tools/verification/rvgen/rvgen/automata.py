@@ -79,11 +79,11 @@ class Automata:
         basename = ntpath.basename(self.__dot_path)
         if not basename.endswith(".dot") and not basename.endswith(".gv"):
             print("not a dot file")
-            raise AutomataError("not a dot file: %s" % self.__dot_path)
+            raise AutomataError(f"not a dot file: {self.__dot_path}")
 
         model_name = ntpath.splitext(basename)[0]
         if model_name.__len__() == 0:
-            raise AutomataError("not a dot file: %s" % self.__dot_path)
+            raise AutomataError(f"not a dot file: {self.__dot_path}")
 
         return model_name
 
@@ -102,7 +102,7 @@ class Automata:
         line = dot_lines[cursor].split()
 
         if (line[0] != "digraph") and (line[1] != "state_automaton"):
-            raise AutomataError("Not a valid .dot format: %s" % self.__dot_path)
+            raise AutomataError(f"Not a valid .dot format: {self.__dot_path}")
         else:
             cursor += 1
         return dot_lines
