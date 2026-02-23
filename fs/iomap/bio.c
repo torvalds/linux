@@ -3,6 +3,7 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * Copyright (C) 2016-2023 Christoph Hellwig.
  */
+#include <linux/bio-integrity.h>
 #include <linux/iomap.h>
 #include <linux/pagemap.h>
 #include "internal.h"
@@ -17,6 +18,8 @@ static u32 __iomap_read_end_io(struct bio *bio, int error)
 		iomap_finish_folio_read(fi.folio, fi.offset, fi.length, error);
 		folio_count++;
 	}
+	if (bio_integrity(bio))
+		fs_bio_integrity_free(bio);
 	bio_put(bio);
 	return folio_count;
 }
@@ -34,7 +37,11 @@ u32 iomap_finish_ioend_buffered_read(struct iomap_ioend *ioend)
 static void iomap_bio_submit_read(const struct iomap_iter *iter,
 		struct iomap_read_folio_ctx *ctx)
 {
-	submit_bio(ctx->read_ctx);
+	struct bio *bio = ctx->read_ctx;
+
+	if (iter->iomap.flags & IOMAP_F_INTEGRITY)
+		fs_bio_integrity_alloc(bio);
+	submit_bio(bio);
 }
 
 static struct bio_set *iomap_read_bio_set(struct iomap_read_folio_ctx *ctx)
@@ -91,6 +98,7 @@ int iomap_bio_read_folio_range(const struct iomap_iter *iter,
 
 	if (!bio ||
 	    bio_end_sector(bio) != iomap_sector(&iter->iomap, iter->pos) ||
+	    bio->bi_iter.bi_size > iomap_max_bio_size(&iter->iomap) - plen ||
 	    !bio_add_folio(bio, folio, plen, offset_in_folio(folio, iter->pos)))
 		iomap_read_alloc_bio(iter, ctx, plen);
 	return 0;
@@ -107,11 +115,21 @@ int iomap_bio_read_folio_range_sync(const struct iomap_iter *iter,
 		struct folio *folio, loff_t pos, size_t len)
 {
 	const struct iomap *srcmap = iomap_iter_srcmap(iter);
+	sector_t sector = iomap_sector(srcmap, pos);
 	struct bio_vec bvec;
 	struct bio bio;
+	int error;
 
 	bio_init(&bio, srcmap->bdev, &bvec, 1, REQ_OP_READ);
-	bio.bi_iter.bi_sector = iomap_sector(srcmap, pos);
+	bio.bi_iter.bi_sector = sector;
 	bio_add_folio_nofail(&bio, folio, len, offset_in_folio(folio, pos));
-	return submit_bio_wait(&bio);
+	if (srcmap->flags & IOMAP_F_INTEGRITY)
+		fs_bio_integrity_alloc(&bio);
+	error = submit_bio_wait(&bio);
+	if (srcmap->flags & IOMAP_F_INTEGRITY) {
+		if (!error)
+			error = fs_bio_integrity_verify(&bio, sector, len);
+		fs_bio_integrity_free(&bio);
+	}
+	return error;
 }
