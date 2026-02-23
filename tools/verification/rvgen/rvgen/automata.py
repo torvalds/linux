@@ -82,7 +82,7 @@ class Automata:
             raise AutomataError(f"not a dot file: {self.__dot_path}")
 
         model_name = ntpath.splitext(basename)[0]
-        if model_name.__len__() == 0:
+        if not model_name:
             raise AutomataError(f"not a dot file: {self.__dot_path}")
 
         return model_name

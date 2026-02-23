@@ -96,14 +96,14 @@ class Dot2c(Automata):
     def get_minimun_type(self) -> str:
         min_type = "unsigned char"
 
-        if self.states.__len__() > 255:
+        if len(self.states) > 255:
             min_type = "unsigned short"
 
-        if self.states.__len__() > 65535:
+        if len(self.states) > 65535:
             min_type = "unsigned int"
 
-        if self.states.__len__() > 1000000:
-            raise AutomataError(f"Too many states: {self.states.__len__()}")
+        if len(self.states) > 1000000:
+            raise AutomataError(f"Too many states: {len(self.states)}")
 
         return min_type
 
@@ -159,12 +159,12 @@ class Dot2c(Automata):
         return buff
 
     def __get_max_strlen_of_states(self) -> int:
-        max_state_name = max(self.states, key = len).__len__()
-        return max(max_state_name, self.invalid_state_str.__len__())
+        max_state_name = len(max(self.states, key=len))
+        return max(max_state_name, len(self.invalid_state_str))
 
     def get_aut_init_function(self) -> str:
-        nr_states = self.states.__len__()
-        nr_events = self.events.__len__()
+        nr_states = len(self.states)
+        nr_events = len(self.events)
         buff = []
 
         maxlen = self.__get_max_strlen_of_states() + len(self.enum_suffix)
