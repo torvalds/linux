@@ -29,10 +29,11 @@ if __name__ == '__main__':
     monitor_parser.add_argument('-n', "--model_name", dest="model_name")
     monitor_parser.add_argument("-p", "--parent", dest="parent",
                                 required=False, help="Create a monitor nested to parent")
-    monitor_parser.add_argument('-c', "--class", dest="monitor_class",
+    monitor_parser.add_argument('-c', "--class", dest="monitor_class", required=True,
                                 help="Monitor class, either \"da\", \"ha\" or \"ltl\"")
-    monitor_parser.add_argument('-s', "--spec", dest="spec", help="Monitor specification file")
-    monitor_parser.add_argument('-t', "--monitor_type", dest="monitor_type",
+    monitor_parser.add_argument('-s', "--spec", dest="spec", required=True,
+                                help="Monitor specification file")
+    monitor_parser.add_argument('-t', "--monitor_type", dest="monitor_type", required=True,
                                 help=f"Available options: {', '.join(Monitor.monitor_types.keys())}")
 
     container_parser = subparsers.add_parser("container")
