@@ -395,7 +395,7 @@ class Variable:
     @staticmethod
     def expand(n: ASTNode, node: GraphNode, node_set) -> set[GraphNode]:
         for f in node.old:
-            if isinstance(f, NotOp) and f.op.child is n:
+            if isinstance(f.op, NotOp) and f.op.child is n:
                 return node_set
         node.old |= {n}
         return node.expand(node_set)
