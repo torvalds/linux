@@ -86,7 +86,7 @@
 		charger: charger {
 			compatible = "richtek,rt5033-charger";
 			monitored-battery = <&battery>;
-			richtek,usb-connector = <&usb_con>;
+			richtek,usb-connector = <&usb_con_sm5502>;
 		};
 	};
 };
@@ -94,4 +94,17 @@
 &mpss_mem {
 	/* Firmware for gprimeltecan needs more space */
 	reg = <0x0 0x86800000 0x0 0x5400000>;
+};
+
+&muic_sm5502 {
+	status = "okay";
+};
+
+&usb {
+	extcon = <&muic_sm5502>, <&muic_sm5502>;
+	status = "okay";
+};
+
+&usb_hs_phy {
+	extcon = <&muic_sm5502>;
 };
