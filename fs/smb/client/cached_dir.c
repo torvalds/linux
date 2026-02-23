@@ -118,7 +118,7 @@ static const char *path_no_prefix(struct cifs_sb_info *cifs_sb,
 	if (!*path)
 		return path;
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
+	if ((cifs_sb_flags(cifs_sb) & CIFS_MOUNT_USE_PREFIX_PATH) &&
 	    cifs_sb->prepath) {
 		len = strlen(cifs_sb->prepath) + 1;
 		if (unlikely(len > strlen(path)))

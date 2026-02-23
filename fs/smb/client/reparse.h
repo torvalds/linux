@@ -33,7 +33,7 @@ static inline kuid_t wsl_make_kuid(struct cifs_sb_info *cifs_sb,
 {
 	u32 uid = le32_to_cpu(*(__le32 *)ptr);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
+	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_OVERR_UID)
 		return cifs_sb->ctx->linux_uid;
 	return make_kuid(current_user_ns(), uid);
 }
@@ -43,7 +43,7 @@ static inline kgid_t wsl_make_kgid(struct cifs_sb_info *cifs_sb,
 {
 	u32 gid = le32_to_cpu(*(__le32 *)ptr);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
+	if (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_OVERR_GID)
 		return cifs_sb->ctx->linux_gid;
 	return make_kgid(current_user_ns(), gid);
 }

@@ -3182,22 +3182,19 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 	}
 
 	if ((oparms->disposition != FILE_OPEN) && (oparms->cifs_sb)) {
+		unsigned int sbflags = cifs_sb_flags(oparms->cifs_sb);
 		bool set_mode;
 		bool set_owner;
 
-		if ((oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
-		    (oparms->mode != ACL_NO_MODE))
+		if ((sbflags & CIFS_MOUNT_MODE_FROM_SID) &&
+		    oparms->mode != ACL_NO_MODE) {
 			set_mode = true;
-		else {
+		} else {
 			set_mode = false;
 			oparms->mode = ACL_NO_MODE;
 		}
 
-		if (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL)
-			set_owner = true;
-		else
-			set_owner = false;
-
+		set_owner = sbflags & CIFS_MOUNT_UID_FROM_ACL;
 		if (set_owner | set_mode) {
 			cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
 			rc = add_sd_context(iov, &n_iov, oparms->mode, set_owner);

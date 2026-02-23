@@ -2915,8 +2915,8 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 {
 	struct cifs_sb_info *old = CIFS_SB(sb);
 	struct cifs_sb_info *new = mnt_data->cifs_sb;
-	unsigned int oldflags = old->mnt_cifs_flags & CIFS_MOUNT_MASK;
-	unsigned int newflags = new->mnt_cifs_flags & CIFS_MOUNT_MASK;
+	unsigned int oldflags = cifs_sb_flags(old) & CIFS_MOUNT_MASK;
+	unsigned int newflags = cifs_sb_flags(new) & CIFS_MOUNT_MASK;
 
 	if ((sb->s_flags & CIFS_MS_MASK) != (mnt_data->flags & CIFS_MS_MASK))
 		return 0;
@@ -2971,9 +2971,9 @@ static int match_prepath(struct super_block *sb,
 	struct smb3_fs_context *ctx = mnt_data->ctx;
 	struct cifs_sb_info *old = CIFS_SB(sb);
 	struct cifs_sb_info *new = mnt_data->cifs_sb;
-	bool old_set = (old->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
+	bool old_set = (cifs_sb_flags(old) & CIFS_MOUNT_USE_PREFIX_PATH) &&
 		old->prepath;
-	bool new_set = (new->mnt_cifs_flags & CIFS_MOUNT_USE_PREFIX_PATH) &&
+	bool new_set = (cifs_sb_flags(new) & CIFS_MOUNT_USE_PREFIX_PATH) &&
 		new->prepath;
 
 	if (tcon->origin_fullpath &&
@@ -3004,7 +3004,7 @@ cifs_match_super(struct super_block *sb, void *data)
 	cifs_sb = CIFS_SB(sb);
 
 	/* We do not want to use a superblock that has been shutdown */
-	if (CIFS_MOUNT_SHUTDOWN & cifs_sb->mnt_cifs_flags) {
+	if (cifs_forced_shutdown(cifs_sb)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
@@ -3469,6 +3469,8 @@ ip_connect(struct TCP_Server_Info *server)
 int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 {
 	struct smb3_fs_context *ctx = cifs_sb->ctx;
+	unsigned int sbflags;
+	int rc = 0;
 
 	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
 	INIT_LIST_HEAD(&cifs_sb->tcon_sb_link);
@@ -3493,17 +3495,16 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 	}
 	ctx->local_nls = cifs_sb->local_nls;
 
-	smb3_update_mnt_flags(cifs_sb);
+	sbflags = smb3_update_mnt_flags(cifs_sb);
 
 	if (ctx->direct_io)
 		cifs_dbg(FYI, "mounting share using direct i/o\n");
 	if (ctx->cache_ro) {
 		cifs_dbg(VFS, "mounting share with read only caching. Ensure that the share will not be modified while in use.\n");
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_RO_CACHE;
+		sbflags |= CIFS_MOUNT_RO_CACHE;
 	} else if (ctx->cache_rw) {
 		cifs_dbg(VFS, "mounting share in single client RW caching mode. Ensure that no other systems will be accessing the share.\n");
-		cifs_sb->mnt_cifs_flags |= (CIFS_MOUNT_RO_CACHE |
-					    CIFS_MOUNT_RW_CACHE);
+		sbflags |= CIFS_MOUNT_RO_CACHE | CIFS_MOUNT_RW_CACHE;
 	}
 
 	if ((ctx->cifs_acl) && (ctx->dynperm))
@@ -3512,16 +3513,19 @@ int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 	if (ctx->prepath) {
 		cifs_sb->prepath = kstrdup(ctx->prepath, GFP_KERNEL);
 		if (cifs_sb->prepath == NULL)
-			return -ENOMEM;
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+			rc = -ENOMEM;
+		else
+			sbflags |= CIFS_MOUNT_USE_PREFIX_PATH;
 	}
 
-	return 0;
+	atomic_set(&cifs_sb->mnt_cifs_flags, sbflags);
+	return rc;
 }
 
 /* Release all succeed connections */
 void cifs_mount_put_conns(struct cifs_mount_ctx *mnt_ctx)
 {
+	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
 	int rc = 0;
 
 	if (mnt_ctx->tcon)
@@ -3533,7 +3537,7 @@ void cifs_mount_put_conns(struct cifs_mount_ctx *mnt_ctx)
 	mnt_ctx->ses = NULL;
 	mnt_ctx->tcon = NULL;
 	mnt_ctx->server = NULL;
-	mnt_ctx->cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_POSIX_PATHS;
+	atomic_andnot(CIFS_MOUNT_POSIX_PATHS, &cifs_sb->mnt_cifs_flags);
 	free_xid(mnt_ctx->xid);
 }
 
@@ -3587,19 +3591,23 @@ out:
 int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 {
 	struct TCP_Server_Info *server;
+	struct cifs_tcon *tcon = NULL;
 	struct cifs_sb_info *cifs_sb;
 	struct smb3_fs_context *ctx;
-	struct cifs_tcon *tcon = NULL;
+	unsigned int sbflags;
 	int rc = 0;
 
-	if (WARN_ON_ONCE(!mnt_ctx || !mnt_ctx->server || !mnt_ctx->ses || !mnt_ctx->fs_ctx ||
-			 !mnt_ctx->cifs_sb)) {
-		rc = -EINVAL;
-		goto out;
+	if (WARN_ON_ONCE(!mnt_ctx))
+		return -EINVAL;
+	if (WARN_ON_ONCE(!mnt_ctx->server || !mnt_ctx->ses ||
+			 !mnt_ctx->fs_ctx || !mnt_ctx->cifs_sb)) {
+		mnt_ctx->tcon = NULL;
+		return -EINVAL;
 	}
 	server = mnt_ctx->server;
 	ctx = mnt_ctx->fs_ctx;
 	cifs_sb = mnt_ctx->cifs_sb;
+	sbflags = cifs_sb_flags(cifs_sb);
 
 	/* search for existing tcon to this server share */
 	tcon = cifs_get_tcon(mnt_ctx->ses, ctx);
@@ -3614,9 +3622,9 @@ int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 	 * path (i.e., do not remap / and \ and do not map any special characters)
 	 */
 	if (tcon->posix_extensions) {
-		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
-		cifs_sb->mnt_cifs_flags &= ~(CIFS_MOUNT_MAP_SFM_CHR |
-					     CIFS_MOUNT_MAP_SPECIAL_CHR);
+		sbflags |= CIFS_MOUNT_POSIX_PATHS;
+		sbflags &= ~(CIFS_MOUNT_MAP_SFM_CHR |
+			     CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
@@ -3643,12 +3651,11 @@ int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 	/* do not care if a following call succeed - informational */
 	if (!tcon->pipe && server->ops->qfs_tcon) {
 		server->ops->qfs_tcon(mnt_ctx->xid, tcon, cifs_sb);
-		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE) {
+		if (sbflags & CIFS_MOUNT_RO_CACHE) {
 			if (tcon->fsDevInfo.DeviceCharacteristics &
 			    cpu_to_le32(FILE_READ_ONLY_DEVICE))
 				cifs_dbg(VFS, "mounted to read only share\n");
-			else if ((cifs_sb->mnt_cifs_flags &
-				  CIFS_MOUNT_RW_CACHE) == 0)
+			else if (!(sbflags & CIFS_MOUNT_RW_CACHE))
 				cifs_dbg(VFS, "read only mount of RW share\n");
 			/* no need to log a RW mount of a typical RW share */
 		}
@@ -3660,11 +3667,12 @@ int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 	 * Inside cifs_fscache_get_super_cookie it checks
 	 * that we do not get super cookie twice.
 	 */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE)
+	if (sbflags & CIFS_MOUNT_FSCACHE)
 		cifs_fscache_get_super_cookie(tcon);
 
 out:
 	mnt_ctx->tcon = tcon;
+	atomic_set(&cifs_sb->mnt_cifs_flags, sbflags);
 	return rc;
 }
 
@@ -3783,7 +3791,8 @@ int cifs_is_path_remote(struct cifs_mount_ctx *mnt_ctx)
 			cifs_sb, full_path, tcon->Flags & SMB_SHARE_IS_IN_DFS);
 		if (rc != 0) {
 			cifs_server_dbg(VFS, "cannot query dirs between root and final path, enabling CIFS_MOUNT_USE_PREFIX_PATH\n");
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+			atomic_or(CIFS_MOUNT_USE_PREFIX_PATH,
+				  &cifs_sb->mnt_cifs_flags);
 			rc = 0;
 		}
 	}
@@ -3863,7 +3872,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	 * Force the use of prefix path to support failover on DFS paths that resolve to targets
 	 * that have different prefix paths.
 	 */
-	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+	atomic_or(CIFS_MOUNT_USE_PREFIX_PATH, &cifs_sb->mnt_cifs_flags);
 	kfree(cifs_sb->prepath);
 	cifs_sb->prepath = ctx->prepath;
 	ctx->prepath = NULL;
@@ -4357,7 +4366,7 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 	kuid_t fsuid = current_fsuid();
 	int err;
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
+	if (!(cifs_sb_flags(cifs_sb) & CIFS_MOUNT_MULTIUSER))
 		return cifs_get_tlink(cifs_sb_master_tlink(cifs_sb));
 
 	spin_lock(&cifs_sb->tlink_tree_lock);

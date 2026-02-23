@@ -1580,24 +1580,59 @@ CIFS_I(struct inode *inode)
 	return container_of(inode, struct cifsInodeInfo, netfs.inode);
 }
 
-static inline struct cifs_sb_info *
-CIFS_SB(struct super_block *sb)
+static inline void *cinode_to_fsinfo(struct cifsInodeInfo *cinode)
+{
+	return cinode->netfs.inode.i_sb->s_fs_info;
+}
+
+static inline void *super_to_fsinfo(struct super_block *sb)
 {
 	return sb->s_fs_info;
 }
 
-static inline struct cifs_sb_info *
-CIFS_FILE_SB(struct file *file)
+static inline void *inode_to_fsinfo(struct inode *inode)
 {
-	return CIFS_SB(file_inode(file)->i_sb);
+	return inode->i_sb->s_fs_info;
+}
+
+static inline void *file_to_fsinfo(struct file *file)
+{
+	return file_inode(file)->i_sb->s_fs_info;
+}
+
+static inline void *dentry_to_fsinfo(struct dentry *dentry)
+{
+	return dentry->d_sb->s_fs_info;
+}
+
+static inline void *const_dentry_to_fsinfo(const struct dentry *dentry)
+{
+	return dentry->d_sb->s_fs_info;
+}
+
+#define CIFS_SB(_ptr) \
+	((struct cifs_sb_info *) \
+	 _Generic((_ptr), \
+		  struct cifsInodeInfo * : cinode_to_fsinfo, \
+		  const struct dentry * : const_dentry_to_fsinfo, \
+		  struct super_block * : super_to_fsinfo, \
+		  struct dentry * : dentry_to_fsinfo, \
+		  struct inode * : inode_to_fsinfo, \
+		  struct file * : file_to_fsinfo)(_ptr))
+
+/*
+ * Use atomic_t for @cifs_sb->mnt_cifs_flags as it is currently accessed
+ * locklessly and may be changed concurrently by mount/remount and reconnect
+ * paths.
+ */
+static inline unsigned int cifs_sb_flags(const struct cifs_sb_info *cifs_sb)
+{
+	return atomic_read(&cifs_sb->mnt_cifs_flags);
 }
 
 static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 {
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
-		return '/';
-	else
-		return '\\';
+	return (cifs_sb_flags(cifs_sb) & CIFS_MOUNT_POSIX_PATHS) ? '/' : '\\';
 }
 
 static inline void
@@ -2314,9 +2349,8 @@ static inline bool __cifs_cache_state_check(struct cifsInodeInfo *cinode,
 					    unsigned int oplock_flags,
 					    unsigned int sb_flags)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(cinode->netfs.inode.i_sb);
+	unsigned int sflags = cifs_sb_flags(CIFS_SB(cinode));
 	unsigned int oplock = READ_ONCE(cinode->oplock);
-	unsigned int sflags = cifs_sb->mnt_cifs_flags;
 
 	return (oplock & oplock_flags) || (sflags & sb_flags);
 }
@@ -2334,6 +2368,11 @@ static inline void cifs_reset_oplock(struct cifsInodeInfo *cinode)
 {
 	scoped_guard(spinlock, &cinode->open_file_lock)
 		WRITE_ONCE(cinode->oplock, 0);
+}
+
+static inline bool cifs_forced_shutdown(const struct cifs_sb_info *sbi)
+{
+	return cifs_sb_flags(sbi) & CIFS_MOUNT_SHUTDOWN;
 }
 
 #endif	/* _CIFS_GLOB_H */

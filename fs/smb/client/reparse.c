@@ -55,17 +55,18 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 				 const char *full_path, const char *symname)
 {
 	struct reparse_symlink_data_buffer *buf = NULL;
-	struct cifs_open_info_data data = {};
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode);
 	const char *symroot = cifs_sb->ctx->symlinkroot;
-	struct inode *new;
-	struct kvec iov;
-	__le16 *path = NULL;
-	bool directory;
-	char *symlink_target = NULL;
-	char *sym = NULL;
+	struct cifs_open_info_data data = {};
 	char sep = CIFS_DIR_SEP(cifs_sb);
+	char *symlink_target = NULL;
 	u16 len, plen, poff, slen;
+	unsigned int sbflags;
+	__le16 *path = NULL;
+	struct inode *new;
+	char *sym = NULL;
+	struct kvec iov;
+	bool directory;
 	int rc = 0;
 
 	if (strlen(symname) > REPARSE_SYM_PATH_MAX)
@@ -83,8 +84,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		.symlink_target = symlink_target,
 	};
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
-	    symroot && symname[0] == '/') {
+	sbflags = cifs_sb_flags(cifs_sb);
+	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symroot && symname[0] == '/') {
 		/*
 		 * This is a request to create an absolute symlink on the server
 		 * which does not support POSIX paths, and expects symlink in
@@ -164,7 +165,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	 * mask these characters in NT object prefix by '_' and then change
 	 * them back.
 	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
+	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
 		sym[0] = sym[1] = sym[2] = sym[5] = '_';
 
 	path = cifs_convert_path_to_utf16(sym, cifs_sb);
@@ -173,7 +174,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		goto out;
 	}
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
 		sym[0] = '\\';
 		sym[1] = sym[2] = '?';
 		sym[5] = ':';
@@ -197,7 +198,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	slen = 2 * UniStrnlen((wchar_t *)path, REPARSE_SYM_PATH_MAX);
 	poff = 0;
 	plen = slen;
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
 		/*
 		 * For absolute NT symlinks skip leading "\\??\\" in PrintName as
 		 * PrintName is user visible location in DOS/Win32 format (not in NT format).
@@ -824,7 +825,7 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		goto out;
 	}
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	if (!(cifs_sb_flags(cifs_sb) & CIFS_MOUNT_POSIX_PATHS) &&
 	    symroot && !relative) {
 		/*
 		 * This is an absolute symlink from the server which does not
