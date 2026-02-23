@@ -75,7 +75,7 @@ class ltl2k(generator.Monitor):
         if not self.name:
             self.name = Path(file_path).stem
 
-    def _fill_states(self) -> str:
+    def _fill_states(self) -> list[str]:
         buf = [
             "enum ltl_buchi_state {",
         ]
