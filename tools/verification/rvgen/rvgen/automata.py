@@ -42,6 +42,7 @@ class Automata:
     """
 
     invalid_state_str = "INVALID_STATE"
+    init_marker = "__init_"
     # val can be numerical, uppercase (constant or macro), lowercase (parameter or function)
     # only numerical values should have units
     constraint_rule = re.compile(r"""
@@ -136,8 +137,8 @@ class Automata:
 
             #  "enabled_fired"}; -> enabled_fired
             state = raw_state.replace('"', '').replace('};', '').replace(',', '_')
-            if state[0:7] == "__init_":
-                initial_state = state[7:]
+            if state.startswith(self.init_marker):
+                initial_state = state[len(self.init_marker):]
             else:
                 states.append(state)
                 if "doublecircle" in self.__dot_lines[cursor]:
