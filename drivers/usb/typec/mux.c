@@ -35,7 +35,9 @@ static int switch_fwnode_match(struct device *dev, const void *fwnode)
 static void *typec_switch_match(const struct fwnode_handle *fwnode,
 				const char *id, void *data)
 {
+	struct typec_switch_dev **sw_devs = data;
 	struct device *dev;
+	int i;
 
 	/*
 	 * Device graph (OF graph) does not give any means to identify the
@@ -55,6 +57,13 @@ static void *typec_switch_match(const struct fwnode_handle *fwnode,
 	 */
 	dev = class_find_device(&typec_mux_class, NULL, fwnode,
 				switch_fwnode_match);
+
+	/* Skip duplicates */
+	for (i = 0; i < TYPEC_MUX_MAX_DEVS; i++)
+		if (to_typec_switch_dev(dev) == sw_devs[i]) {
+			put_device(dev);
+			return NULL;
+		}
 
 	return dev ? to_typec_switch_dev(dev) : ERR_PTR(-EPROBE_DEFER);
 }
@@ -80,7 +89,8 @@ struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 
-	count = fwnode_connection_find_matches(fwnode, "orientation-switch", NULL,
+	count = fwnode_connection_find_matches(fwnode, "orientation-switch",
+					       (void **)sw_devs,
 					       typec_switch_match,
 					       (void **)sw_devs,
 					       ARRAY_SIZE(sw_devs));
