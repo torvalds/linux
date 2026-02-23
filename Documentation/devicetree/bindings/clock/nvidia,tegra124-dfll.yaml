@@ -1,0 +1,290 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/nvidia,tegra124-dfll.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra124 (and later) DFLL FCPU clocksource
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description:
+  The DFLL IP block on Tegra is a root clocksource designed for clocking
+  the fast CPU cluster. It consists of a free-running voltage controlled
+  oscillator connected to the CPU voltage rail (VDD_CPU), and a closed
+  loop control module that will automatically adjust the VDD_CPU voltage
+  by communicating with an off-chip PMIC either via an I2C bus or via
+  PWM signals.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra124-dfll
+      - nvidia,tegra210-dfll
+
+  reg:
+    items:
+      - description: DFLL control logic
+      - description: I2C output logic
+      - description: Integrated I2C controller
+      - description: Look-up table RAM for voltage register values
+
+  interrupts:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+
+  clocks:
+    items:
+      - description: Clock source for the DFLL control logic
+      - description: Closed loop reference clock
+      - description: Clock source for the integrated I2C controller
+
+  clock-names:
+    items:
+      - const: soc
+      - const: ref
+      - const: i2c
+
+  clock-output-names:
+    description: Name of the clock output
+    items:
+      - const: dfllCPU_out
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names:
+    minItems: 1
+    items:
+      - const: dvco
+      - const: dfll
+
+  vdd-cpu-supply:
+    description: Regulator for the CPU voltage rail that the DFLL
+      hardware will start controlling. The regulator will be queried for
+      the I2C register, control values and supported voltages.
+
+  nvidia,sample-rate:
+    description: Sample rate of the DFLL control loop
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 12500
+    maximum: 25000
+
+  nvidia,droop-ctrl:
+    description: Droop control parameter (CL_DVFS_DROOP_CTRL) in the TRM
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  nvidia,force-mode:
+    description: See the field DFLL_PARAMS_FORCE_MODE in the TRM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    oneOf:
+      - description: disabled
+        const: 0
+      - description: fixed delay mode
+        const: 1
+      - description: auto mode
+        const: 2
+
+  nvidia,cf:
+    description: Numeric value, see the field DFLL_PARAMS_CF_PARAM in the TRM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 63
+
+  nvidia,ci:
+    description: Numeric value, see the field DFLL_PARAMS_CI_PARAM in the TRM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+
+  nvidia,cg:
+    description: Numeric value, see the field DFLL_PARAMS_CG_PARAM in the TRM
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+
+  # optional properties
+  nvidia,cg-scale:
+    description: Boolean value, see the field DFLL_PARAMS_CG_SCALE in the TRM
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nvidia,pwm-to-pmic:
+    description: Use PWM to control regulator rather than I2C
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  nvidia,i2c-fs-rate:
+    description: I2C transfer rate, if using full speed mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [100000, 400000]
+
+  # required properties for PWM mode
+  nvidia,pwm-period-nanoseconds:
+    description: Period of PWM square wave in nanoseconds
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1000
+    maximum: 1000000000
+
+  nvidia,pwm-tristate-microvolts:
+    description: Regulator voltage in microvolts when PWM control is disabled
+      and the PWM output is tristated. Note that this voltage is configured in
+      hardware, typically via a resistor divider.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3300000
+
+  nvidia,pwm-min-microvolts:
+    description: Regulator voltage in microvolts when PWM control is enabled
+      and PWM output is low. Hence, this is the minimum output voltage that
+      the regulator supports when PWM control is enabled.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 3300000
+
+  nvidia,pwm-voltage-step-microvolts:
+    description: |
+      Voltage increase in micro volts corresponding to a 1/33th increase
+      in duty cycle. For example, the voltage for 2/33th duty cycle would be:
+
+        nvidia,pwm-min-microvolts + nvidia,pwm-voltage-step-microvolts * 2
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 100000
+
+  pinctrl-0:
+    description: I/O pad configuration when PWM control is enabled
+
+  pinctrl-1:
+    description: I/O pad configuration when PWM control is disabled
+
+  pinctrl-names:
+    items:
+      - const: dvfs_pwm_enable
+      - const: dvfs_pwm_disable
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - "#clock-cells"
+  - clocks
+  - clock-names
+  - clock-output-names
+  - resets
+  - reset-names
+  - nvidia,sample-rate
+  - nvidia,droop-ctrl
+  - nvidia,force-mode
+  - nvidia,cf
+  - nvidia,ci
+  - nvidia,cg
+
+additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra124-dfll
+    then:
+      properties:
+        resets:
+          maxItems: 1
+
+        reset-names:
+          maxItems: 1
+    else:
+      properties:
+        resets:
+          minItems: 2
+
+        reset-names:
+          minItems: 2
+
+  - if:
+      required:
+        - nvidia,pwm-to-pmic
+    then:
+      required:
+        - nvidia,pwm-min-microvolts
+        - nvidia,pwm-period-nanoseconds
+        - nvidia,pwm-tristate-microvolts
+        - nvidia,pwm-voltage-step-microvolts
+    else:
+      required:
+        - vdd-cpu-supply
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra124-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/reset/tegra124-car.h>
+
+    clock@70110000 {
+        compatible = "nvidia,tegra124-dfll";
+        reg = <0x70110000 0x100>, /* DFLL control */
+              <0x70110000 0x100>, /* I2C output control */
+              <0x70110100 0x100>, /* Integrated I2C controller */
+              <0x70110200 0x100>; /* Look-up table RAM */
+        interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA124_CLK_DFLL_SOC>,
+                 <&tegra_car TEGRA124_CLK_DFLL_REF>,
+                 <&tegra_car TEGRA124_CLK_I2C5>;
+        clock-names = "soc", "ref", "i2c";
+        resets = <&tegra_car TEGRA124_RST_DFLL_DVCO>;
+        reset-names = "dvco";
+        #clock-cells = <0>;
+        clock-output-names = "dfllCPU_out";
+        vdd-cpu-supply = <&vdd_cpu>;
+
+        nvidia,sample-rate = <12500>;
+        nvidia,droop-ctrl = <0x00000f00>;
+        nvidia,force-mode = <1>;
+        nvidia,cf = <10>;
+        nvidia,ci = <0>;
+        nvidia,cg = <2>;
+
+        nvidia,i2c-fs-rate = <400000>;
+    };
+
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/reset/tegra210-car.h>
+
+    clock@70110000 {
+        compatible = "nvidia,tegra210-dfll";
+        reg = <0x70110000 0x100>, /* DFLL control */
+              <0x70110000 0x100>, /* I2C output control */
+              <0x70110100 0x100>, /* Integrated I2C controller */
+              <0x70110200 0x100>; /* Look-up table RAM */
+        interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_DFLL_SOC>,
+                 <&tegra_car TEGRA210_CLK_DFLL_REF>,
+                 <&tegra_car TEGRA210_CLK_I2C5>;
+        clock-names = "soc", "ref", "i2c";
+        resets = <&tegra_car TEGRA210_RST_DFLL_DVCO>,
+                 <&tegra_car 155>;
+        reset-names = "dvco", "dfll";
+        #clock-cells = <0>;
+        clock-output-names = "dfllCPU_out";
+        vdd-cpu-supply = <&vdd_cpu>;
+
+        nvidia,sample-rate = <25000>;
+        nvidia,droop-ctrl = <0x00000f00>;
+        nvidia,force-mode = <1>;
+        nvidia,cf = <6>;
+        nvidia,ci = <0>;
+        nvidia,cg = <2>;
+
+        nvidia,pwm-min-microvolts = <708000>; /* 708mV */
+        nvidia,pwm-period-nanoseconds = <2500>; /* 2.5us */
+        nvidia,pwm-to-pmic;
+        nvidia,pwm-tristate-microvolts = <1000000>;
+        nvidia,pwm-voltage-step-microvolts = <19200>; /* 19.2mV */
+    };
