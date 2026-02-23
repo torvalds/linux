@@ -301,16 +301,16 @@ typedef int (*__nolibc_printf_cb)(intptr_t state, const char *buf, size_t size);
 static __attribute__((unused, format(printf, 4, 0)))
 int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char *fmt, va_list args)
 {
-	char escape, lpref, c;
+	char escape, lpref, ch;
 	unsigned long long v;
 	unsigned int written, width;
 	size_t len, ofs, w;
-	char tmpbuf[21];
+	char outbuf[21];
 	const char *outstr;
 
 	written = ofs = escape = lpref = 0;
 	while (1) {
-		c = fmt[ofs++];
+		ch = fmt[ofs++];
 		width = 0;
 
 		if (escape) {
@@ -318,17 +318,17 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 			escape = 0;
 
 			/* width */
-			while (c >= '0' && c <= '9') {
+			while (ch >= '0' && ch <= '9') {
 				width *= 10;
-				width += c - '0';
+				width += ch - '0';
 
-				c = fmt[ofs++];
+				ch = fmt[ofs++];
 			}
 
-			if (c == 'c' || c == 'd' || c == 'u' || c == 'x' || c == 'p') {
-				char *out = tmpbuf;
+			if (ch == 'c' || ch == 'd' || ch == 'u' || ch == 'x' || ch == 'p') {
+				char *out = outbuf;
 
-				if (c == 'p')
+				if (ch == 'p')
 					v = va_arg(args, unsigned long);
 				else if (lpref) {
 					if (lpref > 1)
@@ -338,7 +338,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 				} else
 					v = va_arg(args, unsigned int);
 
-				if (c == 'd') {
+				if (ch == 'd') {
 					/* sign-extend the value */
 					if (lpref == 0)
 						v = (long long)(int)v;
@@ -346,7 +346,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 						v = (long long)(long)v;
 				}
 
-				switch (c) {
+				switch (ch) {
 				case 'c':
 					out[0] = v;
 					out[1] = 0;
@@ -365,30 +365,30 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 					u64toh_r(v, out);
 					break;
 				}
-				outstr = tmpbuf;
+				outstr = outbuf;
 			}
-			else if (c == 's') {
+			else if (ch == 's') {
 				outstr = va_arg(args, char *);
 				if (!outstr)
 					outstr="(null)";
 			}
-			else if (c == 'm') {
+			else if (ch == 'm') {
 #ifdef NOLIBC_IGNORE_ERRNO
 				outstr = "unknown error";
 #else
 				outstr = strerror(errno);
 #endif /* NOLIBC_IGNORE_ERRNO */
 			}
-			else if (c == '%') {
+			else if (ch == '%') {
 				/* queue it verbatim */
 				continue;
 			}
 			else {
 				/* modifiers or final 0 */
-				if (c == 'l') {
+				if (ch == 'l') {
 					/* long format prefix, maintain the escape */
 					lpref++;
-				} else if (c == 'j') {
+				} else if (ch == 'j') {
 					lpref = 2;
 				}
 				escape = 1;
@@ -399,7 +399,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 		}
 
 		/* not an escape sequence */
-		if (c == 0 || c == '%') {
+		if (ch == 0 || ch == '%') {
 			/* flush pending data on escape or end */
 			escape = 1;
 			lpref = 0;
@@ -420,7 +420,7 @@ int __nolibc_printf(__nolibc_printf_cb cb, intptr_t state, size_t n, const char 
 
 			written += len;
 		do_escape:
-			if (c == 0)
+			if (ch == 0)
 				break;
 			fmt += ofs;
 			ofs = 0;
