@@ -44,13 +44,17 @@ def abbreviate_atoms(atoms: list[str]) -> list[str]:
         skip = ["is", "by", "or", "and"]
         return '_'.join([x[:2] for x in s.lower().split('_') if x not in skip])
 
-    abbrs = []
-    for atom in atoms:
+    def find_share_length(atom: str) -> int:
         for i in range(len(atom), -1, -1):
             if sum(a.startswith(atom[:i]) for a in atoms) > 1:
-                break
-        share = atom[:i]
-        unique = atom[i:]
+                return i
+        return 0
+
+    abbrs = []
+    for atom in atoms:
+        share_len = find_share_length(atom)
+        share = atom[:share_len]
+        unique = atom[share_len:]
         abbrs.append((shorten(share) + shorten(unique)))
     return abbrs
 
