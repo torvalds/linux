@@ -172,7 +172,6 @@ struct altr_sdram_prv_data {
 	int ecc_irq_clr_mask;
 	int ecc_cnt_rst_offset;
 	int ecc_cnt_rst_mask;
-	struct edac_dev_sysfs_attribute *eccmgr_sysfs_attr;
 	int ecc_enable_mask;
 	int ce_set_mask;
 	int ue_set_mask;
