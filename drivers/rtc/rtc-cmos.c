@@ -27,6 +27,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1476,6 +1477,14 @@ static __init void cmos_of_init(struct platform_device *pdev)
 #else
 static inline void cmos_of_init(struct platform_device *pdev) {}
 #endif
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id acpi_cmos_rtc_ids[] = {
+	ACPI_CMOS_RTC_IDS
+};
+MODULE_DEVICE_TABLE(acpi, acpi_cmos_rtc_ids);
+#endif
+
 /*----------------------------------------------------------------*/
 
 /* Platform setup should have set up an RTC device, when PNP is
@@ -1530,6 +1539,7 @@ static struct platform_driver cmos_platform_driver = {
 		.name		= driver_name,
 		.pm		= &cmos_pm_ops,
 		.of_match_table = of_match_ptr(of_cmos_match),
+		.acpi_match_table = ACPI_PTR(acpi_cmos_rtc_ids),
 	}
 };
 

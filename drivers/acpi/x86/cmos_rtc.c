@@ -18,10 +18,7 @@
 #include "../internal.h"
 
 static const struct acpi_device_id acpi_cmos_rtc_ids[] = {
-	{ "PNP0B00" },
-	{ "PNP0B01" },
-	{ "PNP0B02" },
-	{}
+	ACPI_CMOS_RTC_IDS
 };
 
 bool cmos_rtc_platform_device_present;

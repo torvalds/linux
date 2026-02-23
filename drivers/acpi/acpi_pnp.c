@@ -368,7 +368,7 @@ static int is_cmos_rtc_device(struct acpi_device *adev)
 		{ "PNP0B02" },
 		{""},
 	};
-	return !acpi_match_device_ids(adev, ids);
+	return !cmos_rtc_platform_device_present && !acpi_match_device_ids(adev, ids);
 }
 
 bool acpi_is_pnp_device(struct acpi_device *adev)
