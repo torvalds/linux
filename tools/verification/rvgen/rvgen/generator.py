@@ -205,12 +205,6 @@ obj-$(CONFIG_RV_MON_{name_up}) += monitors/{name}/{name}.o
             path = os.path.join(self.rv_dir, "monitors", path)
         self.__write_file(path, content)
 
-    def __get_main_name(self):
-        path = f"{self.name}/main.c"
-        if not os.path.exists(path):
-            return "main.c"
-        return "__main.c"
-
     def print_files(self):
         main_c = self.fill_main_c()
 
