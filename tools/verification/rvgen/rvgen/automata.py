@@ -99,7 +99,7 @@ class Automata:
         # checking the first line:
         line = dot_lines[cursor].split()
 
-        if (line[0] != "digraph") and (line[1] != "state_automaton"):
+        if (line[0] != "digraph") or (line[1] != "state_automaton"):
             raise AutomataError(f"Not a valid .dot format: {self.__dot_path}")
         else:
             cursor += 1
