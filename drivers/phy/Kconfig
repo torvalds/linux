@@ -47,6 +47,26 @@ config GENERIC_PHY_MIPI_DPHY
 	  Provides a number of helpers a core functions for MIPI D-PHY
 	  drivers to us.
 
+config PHY_AIROHA_PCIE
+	tristate "Airoha PCIe-PHY Driver"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Say Y here to add support for Airoha PCIe PHY driver.
+	  This driver create the basic PHY instance and provides initialize
+	  callback for PCIe GEN3 port.
+
+config PHY_CAN_TRANSCEIVER
+	tristate "CAN transceiver PHY"
+	select GENERIC_PHY
+	select MULTIPLEXER
+	help
+	  This option enables support for CAN transceivers as a PHY. This
+	  driver provides function for putting the transceivers in various
+	  functional modes using gpios and sets the attribute max link
+	  rate, for CAN drivers.
+
 config PHY_GOOGLE_USB
 	tristate "Google Tensor SoC USB PHY driver"
 	select GENERIC_PHY
@@ -58,6 +78,18 @@ config PHY_GOOGLE_USB
 	  both of which are integrated with the DWC3 USB DRD controller.
 	  This driver currently supports USB high-speed.
 
+config USB_LGM_PHY
+	tristate "INTEL Lightning Mountain USB PHY Driver"
+	depends on USB_SUPPORT
+	depends on X86 || COMPILE_TEST
+	select USB_PHY
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	help
+	  Enable this to support Intel DWC3 PHY USB phy. This driver provides
+	  interface to interact with USB GEN-II and USB 3.x PHY that is part
+	  of the Intel network SOC.
+
 config PHY_LPC18XX_USB_OTG
 	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
@@ -68,6 +100,17 @@ config PHY_LPC18XX_USB_OTG
 
 	  This driver is need for USB0 support on LPC18xx/43xx and takes
 	  care of enabling and clock setup.
+
+config PHY_NXP_PTN3222
+	tristate "NXP PTN3222 1-port eUSB2 to USB2 redriver"
+	depends on I2C
+	depends on OF
+	select GENERIC_PHY
+	help
+	  Enable this to support NXP PTN3222 1-port eUSB2 to USB2 Redriver.
+	  This redriver performs translation between eUSB2 and USB2 signalling
+	  schemes. It supports all three USB 2.0 data rates: Low Speed, Full
+	  Speed and High Speed.
 
 config PHY_PISTACHIO_USB
 	tristate "IMG Pistachio USB2.0 PHY driver"
@@ -91,49 +134,6 @@ config PHY_XGENE
 	help
 	  This option enables support for APM X-Gene SoC multi-purpose PHY.
 
-config USB_LGM_PHY
-	tristate "INTEL Lightning Mountain USB PHY Driver"
-	depends on USB_SUPPORT
-	depends on X86 || COMPILE_TEST
-	select USB_PHY
-	select REGULATOR
-	select REGULATOR_FIXED_VOLTAGE
-	help
-	  Enable this to support Intel DWC3 PHY USB phy. This driver provides
-	  interface to interact with USB GEN-II and USB 3.x PHY that is part
-	  of the Intel network SOC.
-
-config PHY_CAN_TRANSCEIVER
-	tristate "CAN transceiver PHY"
-	select GENERIC_PHY
-	select MULTIPLEXER
-	help
-	  This option enables support for CAN transceivers as a PHY. This
-	  driver provides function for putting the transceivers in various
-	  functional modes using gpios and sets the attribute max link
-	  rate, for CAN drivers.
-
-config PHY_AIROHA_PCIE
-	tristate "Airoha PCIe-PHY Driver"
-	depends on ARCH_AIROHA || COMPILE_TEST
-	depends on OF
-	select GENERIC_PHY
-	help
-	  Say Y here to add support for Airoha PCIe PHY driver.
-	  This driver create the basic PHY instance and provides initialize
-	  callback for PCIe GEN3 port.
-
-config PHY_NXP_PTN3222
-	tristate "NXP PTN3222 1-port eUSB2 to USB2 redriver"
-	depends on I2C
-	depends on OF
-	select GENERIC_PHY
-	help
-	  Enable this to support NXP PTN3222 1-port eUSB2 to USB2 Redriver.
-	  This redriver performs translation between eUSB2 and USB2 signalling
-	  schemes. It supports all three USB 2.0 data rates: Low Speed, Full
-	  Speed and High Speed.
-
 source "drivers/phy/allwinner/Kconfig"
 source "drivers/phy/amlogic/Kconfig"
 source "drivers/phy/apple/Kconfig"
@@ -142,6 +142,7 @@ source "drivers/phy/cadence/Kconfig"
 source "drivers/phy/freescale/Kconfig"
 source "drivers/phy/hisilicon/Kconfig"
 source "drivers/phy/ingenic/Kconfig"
+source "drivers/phy/intel/Kconfig"
 source "drivers/phy/lantiq/Kconfig"
 source "drivers/phy/marvell/Kconfig"
 source "drivers/phy/mediatek/Kconfig"
@@ -163,7 +164,6 @@ source "drivers/phy/starfive/Kconfig"
 source "drivers/phy/sunplus/Kconfig"
 source "drivers/phy/tegra/Kconfig"
 source "drivers/phy/ti/Kconfig"
-source "drivers/phy/intel/Kconfig"
 source "drivers/phy/xilinx/Kconfig"
 
 endmenu
