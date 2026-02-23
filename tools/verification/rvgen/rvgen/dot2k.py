@@ -46,14 +46,14 @@ class dot2k(Monitor, Dot2c):
                 buff.append("\t/* XXX: validate that this event is only valid in the initial state */")
                 handle = "handle_start_run_event"
             if self.monitor_type == "per_task":
-                buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;");
-                buff.append(f"\tda_{handle}(p, {event}{self.enum_suffix});");
+                buff.append("\tstruct task_struct *p = /* XXX: how do I get p? */;")
+                buff.append(f"\tda_{handle}(p, {event}{self.enum_suffix});")
             elif self.monitor_type == "per_obj":
                 buff.append("\tint id = /* XXX: how do I get the id? */;")
                 buff.append("\tmonitor_target t = /* XXX: how do I get t? */;")
                 buff.append(f"\tda_{handle}(id, t, {event}{self.enum_suffix});")
             else:
-                buff.append(f"\tda_{handle}({event}{self.enum_suffix});");
+                buff.append(f"\tda_{handle}({event}{self.enum_suffix});")
             buff.append("}")
             buff.append("")
         return '\n'.join(buff)
