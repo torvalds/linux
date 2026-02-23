@@ -573,8 +573,7 @@ static void edac_device_delete_block(struct edac_device_ctl_info *edac_dev,
 		for (i = 0; i < block->nr_attribs; i++, sysfs_attrib++) {
 
 			/* remove each block_attrib file */
-			sysfs_remove_file(&block->kobj,
-				(struct attribute *) sysfs_attrib);
+			sysfs_remove_file(&block->kobj, &sysfs_attrib->attr);
 		}
 	}
 
@@ -734,7 +733,7 @@ static int edac_device_add_main_sysfs_attributes(
 		 */
 		while (sysfs_attrib->attr.name != NULL) {
 			err = sysfs_create_file(&edac_dev->kobj,
-				(struct attribute*) sysfs_attrib);
+				&sysfs_attrib->attr);
 			if (err)
 				goto err_out;
 
@@ -762,8 +761,7 @@ static void edac_device_remove_main_sysfs_attributes(
 	sysfs_attrib = edac_dev->sysfs_attributes;
 	if (sysfs_attrib) {
 		while (sysfs_attrib->attr.name != NULL) {
-			sysfs_remove_file(&edac_dev->kobj,
-					(struct attribute *) sysfs_attrib);
+			sysfs_remove_file(&edac_dev->kobj, &sysfs_attrib->attr);
 			sysfs_attrib++;
 		}
 	}
