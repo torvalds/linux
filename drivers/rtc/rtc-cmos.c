@@ -1370,85 +1370,6 @@ static int __maybe_unused cmos_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cmos_pm_ops, cmos_suspend, cmos_resume);
 
-/*----------------------------------------------------------------*/
-
-/* On non-x86 systems, a "CMOS" RTC lives most naturally on platform_bus.
- * ACPI systems always list these as PNPACPI devices, and pre-ACPI PCs
- * probably list them in similar PNPBIOS tables; so PNP is more common.
- *
- * We don't use legacy "poke at the hardware" probing.  Ancient PCs that
- * predate even PNPBIOS should set up platform_bus devices.
- */
-
-#ifdef	CONFIG_PNP
-
-#include <linux/pnp.h>
-
-static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
-{
-	int irq;
-
-	if (pnp_port_start(pnp, 0) == 0x70 && !pnp_irq_valid(pnp, 0)) {
-		irq = 0;
-#ifdef CONFIG_X86
-		/* Some machines contain a PNP entry for the RTC, but
-		 * don't define the IRQ. It should always be safe to
-		 * hardcode it on systems with a legacy PIC.
-		 */
-		if (nr_legacy_irqs())
-			irq = RTC_IRQ;
-#endif
-	} else {
-		irq = pnp_irq(pnp, 0);
-	}
-
-	return cmos_do_probe(&pnp->dev, pnp_get_resource(pnp, IORESOURCE_IO, 0), irq);
-}
-
-static void cmos_pnp_remove(struct pnp_dev *pnp)
-{
-	cmos_do_remove(&pnp->dev);
-}
-
-static void cmos_pnp_shutdown(struct pnp_dev *pnp)
-{
-	struct device *dev = &pnp->dev;
-	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
-
-	if (system_state == SYSTEM_POWER_OFF) {
-		int retval = cmos_poweroff(dev);
-
-		if (cmos_aie_poweroff(dev) < 0 && !retval)
-			return;
-	}
-
-	cmos_do_shutdown(cmos->irq);
-}
-
-static const struct pnp_device_id rtc_ids[] = {
-	{ .id = "PNP0b00", },
-	{ .id = "PNP0b01", },
-	{ .id = "PNP0b02", },
-	{ },
-};
-MODULE_DEVICE_TABLE(pnp, rtc_ids);
-
-static struct pnp_driver cmos_pnp_driver = {
-	.name		= driver_name,
-	.id_table	= rtc_ids,
-	.probe		= cmos_pnp_probe,
-	.remove		= cmos_pnp_remove,
-	.shutdown	= cmos_pnp_shutdown,
-
-	/* flag ensures resume() gets called, and stops syslog spam */
-	.flags		= PNP_DRIVER_RES_DO_NOT_CHANGE,
-	.driver		= {
-			.pm = &cmos_pm_ops,
-	},
-};
-
-#endif	/* CONFIG_PNP */
-
 #ifdef CONFIG_OF
 static const struct of_device_id of_cmos_match[] = {
 	{
@@ -1543,45 +1464,27 @@ static struct platform_driver cmos_platform_driver = {
 	}
 };
 
-#ifdef CONFIG_PNP
-static bool pnp_driver_registered;
-#endif
 static bool platform_driver_registered;
 
 static int __init cmos_init(void)
 {
-	int retval = 0;
+	int retval;
 
-#ifdef	CONFIG_PNP
-	retval = pnp_register_driver(&cmos_pnp_driver);
-	if (retval == 0)
-		pnp_driver_registered = true;
-#endif
-
-	if (!cmos_rtc.dev) {
-		retval = platform_driver_probe(&cmos_platform_driver,
-					       cmos_platform_probe);
-		if (retval == 0)
-			platform_driver_registered = true;
-	}
-
-	if (retval == 0)
+	if (cmos_rtc.dev)
 		return 0;
 
-#ifdef	CONFIG_PNP
-	if (pnp_driver_registered)
-		pnp_unregister_driver(&cmos_pnp_driver);
-#endif
-	return retval;
+	retval = platform_driver_probe(&cmos_platform_driver, cmos_platform_probe);
+	if (retval)
+		return retval;
+
+	platform_driver_registered = true;
+
+	return 0;
 }
 module_init(cmos_init);
 
 static void __exit cmos_exit(void)
 {
-#ifdef	CONFIG_PNP
-	if (pnp_driver_registered)
-		pnp_unregister_driver(&cmos_pnp_driver);
-#endif
 	if (platform_driver_registered)
 		platform_driver_unregister(&cmos_platform_driver);
 }
