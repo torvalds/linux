@@ -145,6 +145,7 @@ class Automata:
         # wait for node declaration
         states = []
         final_states = []
+        initial_state = ""
 
         has_final_states = False
         cursor = self.__get_cursor_begin_states()
@@ -170,6 +171,9 @@ class Automata:
                 if "ellipse" in line:
                     final_states.append(state)
                     has_final_states = True
+
+        if not initial_state:
+            raise AutomataError("The automaton doesn't have an initial state")
 
         states = sorted(set(states))
         states.remove(initial_state)
