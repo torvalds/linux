@@ -2003,9 +2003,17 @@ int testapp_stats_tx_invalid_descs(struct test_spec *test)
 
 int testapp_stats_rx_full(struct test_spec *test)
 {
-	if (pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE))
+	struct pkt_stream *tmp;
+
+	tmp = pkt_stream_generate(DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
+	if (!tmp)
 		return TEST_FAILURE;
-	test->ifobj_rx->xsk->pkt_stream = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
+	test->ifobj_tx->xsk->pkt_stream = tmp;
+
+	tmp = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
+	if (!tmp)
+		return TEST_FAILURE;
+	test->ifobj_rx->xsk->pkt_stream = tmp;
 
 	test->ifobj_rx->xsk->rxqsize = DEFAULT_UMEM_BUFFERS;
 	test->ifobj_rx->release_rx = false;
@@ -2015,9 +2023,17 @@ int testapp_stats_rx_full(struct test_spec *test)
 
 int testapp_stats_fill_empty(struct test_spec *test)
 {
-	if (pkt_stream_replace(test, DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE))
+	struct pkt_stream *tmp;
+
+	tmp = pkt_stream_generate(DEFAULT_UMEM_BUFFERS + DEFAULT_UMEM_BUFFERS / 2, MIN_PKT_SIZE);
+	if (!tmp)
 		return TEST_FAILURE;
-	test->ifobj_rx->xsk->pkt_stream = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
+	test->ifobj_tx->xsk->pkt_stream = tmp;
+
+	tmp = pkt_stream_generate(DEFAULT_UMEM_BUFFERS, MIN_PKT_SIZE);
+	if (!tmp)
+		return TEST_FAILURE;
+	test->ifobj_rx->xsk->pkt_stream = tmp;
 
 	test->ifobj_rx->use_fill_ring = false;
 	test->ifobj_rx->validation_func = validate_fill_empty;
