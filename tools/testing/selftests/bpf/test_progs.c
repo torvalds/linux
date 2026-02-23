@@ -1261,14 +1261,8 @@ int get_bpf_max_tramp_links(void)
 	return ret;
 }
 
-#define MAX_BACKTRACE_SZ 128
-void crash_handler(int signum)
+static void dump_crash_log(void)
 {
-	void *bt[MAX_BACKTRACE_SZ];
-	size_t sz;
-
-	sz = backtrace(bt, ARRAY_SIZE(bt));
-
 	fflush(stdout);
 	stdout = env.stdout_saved;
 	stderr = env.stderr_saved;
@@ -1277,11 +1271,31 @@ void crash_handler(int signum)
 		env.test_state->error_cnt++;
 		dump_test_log(env.test, env.test_state, true, false, NULL);
 	}
+}
+
+#define MAX_BACKTRACE_SZ 128
+
+void crash_handler(int signum)
+{
+	void *bt[MAX_BACKTRACE_SZ];
+	size_t sz;
+
+	sz = backtrace(bt, ARRAY_SIZE(bt));
+
+	dump_crash_log();
+
 	if (env.worker_id != -1)
 		fprintf(stderr, "[%d]: ", env.worker_id);
 	fprintf(stderr, "Caught signal #%d!\nStack trace:\n", signum);
 	backtrace_symbols_fd(bt, sz, STDERR_FILENO);
 }
+
+#ifdef __SANITIZE_ADDRESS__
+void __asan_on_error(void)
+{
+	dump_crash_log();
+}
+#endif
 
 void hexdump(const char *prefix, const void *buf, size_t len)
 {
@@ -1944,13 +1958,15 @@ int main(int argc, char **argv)
 		.parser = parse_arg,
 		.doc = argp_program_doc,
 	};
+	int err, i;
+
+#ifndef __SANITIZE_ADDRESS__
 	struct sigaction sigact = {
 		.sa_handler = crash_handler,
 		.sa_flags = SA_RESETHAND,
-		};
-	int err, i;
-
+	};
 	sigaction(SIGSEGV, &sigact, NULL);
+#endif
 
 	env.stdout_saved = stdout;
 	env.stderr_saved = stderr;
