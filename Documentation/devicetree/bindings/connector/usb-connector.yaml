@@ -300,6 +300,40 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint8-array
     maxItems: 4
 
+  sink-load-step:
+    description: Indicates the preferred load step slew rate in mA/usec for
+      the port (in sink mode). This property is defined in "6.5.13.7" of
+      "USB Power Delivery Specification Revision 3.1 Version 1.8".
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [150, 500]
+    default: 150
+
+  sink-load-characteristics:
+    description: Indicates the port's (in sink mode) preferred load
+      characteristics. Users can leverage SINK_LOAD_CHAR() defined in
+      dt-bindings/usb/pd.h to populate this field. This property is defined in
+      "6.5.13.8" of "USB Power Delivery Specification Revision 3.1 Version 1.8".
+    $ref: /schemas/types.yaml#/definitions/uint16
+
+  sink-compliance:
+    description: Represents the types of sources the sink device has been tested
+      and certified with. This property is defined in "6.5.13.9" of
+      "USB Power Delivery Specification Revision 3.1 Version 1.8"
+      Bit 0 when set indicates it has been tested on LPS compliant source
+      Bit 1 when set indicates it has been tested on PS1 compliant source
+      Bit 2 when set indicates it has been tested on PS2 compliant source
+    $ref: /schemas/types.yaml#/definitions/uint8
+    maximum: 7
+
+  charging-adapter-pdp-milliwatt:
+    description: This corresponds to the Power Delivery Profile rating of the
+      charging adapter shipped or recommended for use with the connector port.
+      This property is a requirement to infer the USB PD property
+      "SPR Sink Operational PDP" given in "6.5.13.14" of
+      "USB Power Delivery Specification Revision 3.1 Version 1.8".
+    minimum: 0
+    maximum: 100000
+
 dependencies:
   sink-vdos-v1: [ sink-vdos ]
   sink-vdos: [ sink-vdos-v1 ]
