@@ -723,7 +723,7 @@ static void edac_device_delete_instances(struct edac_device_ctl_info *edac_dev)
 static int edac_device_add_main_sysfs_attributes(
 			struct edac_device_ctl_info *edac_dev)
 {
-	struct edac_dev_sysfs_attribute *sysfs_attrib;
+	const struct edac_dev_sysfs_attribute *sysfs_attrib;
 	int err = 0;
 
 	sysfs_attrib = edac_dev->sysfs_attributes;
@@ -752,7 +752,7 @@ err_out:
 static void edac_device_remove_main_sysfs_attributes(
 			struct edac_device_ctl_info *edac_dev)
 {
-	struct edac_dev_sysfs_attribute *sysfs_attrib;
+	const struct edac_dev_sysfs_attribute *sysfs_attrib;
 
 	/* if there are main attributes, defined, remove them. First,
 	 * point to the start of the array and iterate over it
