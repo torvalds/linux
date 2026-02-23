@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <syscall.h>
 #include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
+#include <linux/args.h>
 
 static inline unsigned int bpf_num_possible_cpus(void)
 {
@@ -21,24 +22,42 @@ static inline unsigned int bpf_num_possible_cpus(void)
 	return possible_cpus;
 }
 
-/* Copy up to sz - 1 bytes from zero-terminated src string and ensure that dst
- * is zero-terminated string no matter what (unless sz == 0, in which case
- * it's a no-op). It's conceptually close to FreeBSD's strlcpy(), but differs
- * in what is returned. Given this is internal helper, it's trivial to extend
- * this, when necessary. Use this instead of strncpy inside libbpf source code.
+/*
+ * Simplified strscpy() implementation. The kernel one is in lib/string.c
  */
-static inline void bpf_strlcpy(char *dst, const char *src, size_t sz)
+static inline ssize_t sized_strscpy(char *dest, const char *src, size_t count)
 {
-	size_t i;
+	long res = 0;
 
-	if (sz == 0)
-		return;
+	if (count == 0)
+		return -E2BIG;
 
-	sz--;
-	for (i = 0; i < sz && src[i]; i++)
-		dst[i] = src[i];
-	dst[i] = '\0';
+	while (count > 1) {
+		char c;
+
+		c = src[res];
+		dest[res] = c;
+		if (!c)
+			return res;
+		res++;
+		count--;
+	}
+
+	/* Force NUL-termination. */
+	dest[res] = '\0';
+
+	/* Return E2BIG if the source didn't stop */
+	return src[res] ? -E2BIG : res;
 }
+
+#define __strscpy0(dst, src, ...)	\
+	sized_strscpy(dst, src, sizeof(dst))
+#define __strscpy1(dst, src, size)	\
+	sized_strscpy(dst, src, size)
+
+#undef strscpy /* Redefine the placeholder from tools/include/linux/string.h */
+#define strscpy(dst, src, ...)	\
+	CONCATENATE(__strscpy, COUNT_ARGS(__VA_ARGS__))(dst, src, __VA_ARGS__)
 
 #define __bpf_percpu_val_align	__attribute__((__aligned__(8)))
 
