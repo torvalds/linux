@@ -983,32 +983,14 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			r = -EFAULT;
 			goto free_fences;
 		}
-
-		kfree(fences);
-		kfree(fence_info);
 	}
 
-	drm_exec_fini(&exec);
-	for (i = 0; i < num_read_bo_handles; i++)
-		drm_gem_object_put(gobj_read[i]);
-	kfree(gobj_read);
-
-	for (i = 0; i < num_write_bo_handles; i++)
-		drm_gem_object_put(gobj_write[i]);
-	kfree(gobj_write);
-
-	kfree(timeline_points);
-	kfree(timeline_handles);
-	kfree(syncobj_handles);
-	kfree(bo_handles_write);
-	kfree(bo_handles_read);
-
-	return 0;
-
 free_fences:
-	while (num_fences-- > 0)
-		dma_fence_put(fences[num_fences]);
-	kfree(fences);
+	if (fences) {
+		while (num_fences-- > 0)
+			dma_fence_put(fences[num_fences]);
+		kfree(fences);
+	}
 free_fence_info:
 	kfree(fence_info);
 exec_fini:
