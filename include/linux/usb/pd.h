@@ -34,7 +34,8 @@ enum pd_ctrl_msg_type {
 	PD_CTRL_FR_SWAP = 19,
 	PD_CTRL_GET_PPS_STATUS = 20,
 	PD_CTRL_GET_COUNTRY_CODES = 21,
-	/* 22-23 Reserved */
+	PD_CTRL_GET_SINK_CAP_EXT = 22,
+	/* 23 Reserved */
 	PD_CTRL_GET_REVISION = 24,
 	/* 25-31 Reserved */
 };
@@ -72,7 +73,8 @@ enum pd_ext_msg_type {
 	PD_EXT_PPS_STATUS = 12,
 	PD_EXT_COUNTRY_INFO = 13,
 	PD_EXT_COUNTRY_CODES = 14,
-	/* 15-31 Reserved */
+	PD_EXT_SINK_CAP_EXT = 15,
+	/* 16-31 Reserved */
 };
 
 #define PD_REV10	0x0
@@ -205,6 +207,72 @@ struct pd_message {
 	};
 } __packed;
 
+/*
+ * count_chunked_data_objs - Helper to calculate number of Data Objects on a 4
+ *   byte boundary.
+ * @size: Size of data block for extended message. Should *not* include extended
+ *   header size.
+ */
+static inline u8 count_chunked_data_objs(u32 size)
+{
+	size += offsetof(struct pd_chunked_ext_message_data, data);
+	return ((size / 4) + (size % 4 ? 1 : 0));
+}
+
+/* Sink Caps Extended Data Block Version */
+#define SKEDB_VER_1_0				1
+
+/* Sink Caps Extended Sink Modes */
+#define SINK_MODE_PPS		BIT(0)
+#define SINK_MODE_VBUS		BIT(1)
+#define SINK_MODE_AC_SUPPLY	BIT(2)
+#define SINK_MODE_BATT		BIT(3)
+#define SINK_MODE_BATT_UL	BIT(4) /* Unlimited battery power supply */
+#define SINK_MODE_AVS		BIT(5)
+
+/**
+ * struct sink_caps_ext_msg - Sink extended capability PD message
+ * @vid: Vendor ID
+ * @pid: Product ID
+ * @xid: Value assigned by USB-IF for product
+ * @fw: Firmware version
+ * @hw: Hardware version
+ * @skedb_ver: Sink Caps Extended Data Block (SKEDB) Version
+ * @load_step: Indicates the load step slew rate.
+ * @load_char: Sink overload characteristics
+ * @compliance: Types of sources the sink has been tested & certified on
+ * @touch_temp: Indicates the IEC standard to which the touch temperature
+ *              conforms to (if applicable).
+ * @batt_info: Indicates number batteries and hot swappable ports
+ * @modes: Charging caps & power sources supported
+ * @spr_min_pdp: Sink Minimum PDP for SPR mode
+ * @spr_op_pdp: Sink Operational PDP for SPR mode
+ * @spr_max_pdp: Sink Maximum PDP for SPR mode
+ * @epr_min_pdp: Sink Minimum PDP for EPR mode
+ * @epr_op_pdp: Sink Operational PDP for EPR mode
+ * @epr_max_pdp: Sink Maximum PDP for EPR mode
+ */
+struct sink_caps_ext_msg {
+	__le16 vid;
+	__le16 pid;
+	__le32 xid;
+	u8 fw;
+	u8 hw;
+	u8 skedb_ver;
+	u8 load_step;
+	__le16 load_char;
+	u8 compliance;
+	u8 touch_temp;
+	u8 batt_info;
+	u8 modes;
+	u8 spr_min_pdp;
+	u8 spr_op_pdp;
+	u8 spr_max_pdp;
+	u8 epr_min_pdp;
+	u8 epr_op_pdp;
+	u8 epr_max_pdp;
+} __packed;
+
 /* PDO: Power Data Object */
 #define PDO_MAX_OBJECTS		7
 
@@ -329,6 +397,11 @@ enum pd_apdo_type {
 #define PDO_SPR_AVS_APDO_9V_TO_15V_MAX_CURR	GENMASK(19, 10)	/* 10mA unit */
 #define PDO_SPR_AVS_APDO_15V_TO_20V_MAX_CURR	GENMASK(9, 0)	/* 10mA unit */
 
+/* SPR AVS has two different current ranges 9V - 15V, 15V - 20V */
+#define SPR_AVS_TIER1_MIN_VOLT_MV		9000
+#define SPR_AVS_TIER1_MAX_VOLT_MV		15000
+#define SPR_AVS_TIER2_MAX_VOLT_MV		20000
+
 static inline enum pd_pdo_type pdo_type(u32 pdo)
 {
 	return (pdo >> PDO_TYPE_SHIFT) & PDO_TYPE_MASK;
@@ -337,6 +410,11 @@ static inline enum pd_pdo_type pdo_type(u32 pdo)
 static inline unsigned int pdo_fixed_voltage(u32 pdo)
 {
 	return ((pdo >> PDO_FIXED_VOLT_SHIFT) & PDO_VOLT_MASK) * 50;
+}
+
+static inline unsigned int pdo_fixed_current(u32 pdo)
+{
+	return ((pdo >> PDO_FIXED_CURR_SHIFT) & PDO_CURR_MASK) * 10;
 }
 
 static inline unsigned int pdo_min_voltage(u32 pdo)
