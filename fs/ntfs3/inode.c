@@ -656,8 +656,7 @@ static void ntfs_iomap_bio_submit_read(const struct iomap_iter *iter,
 {
 	struct bio *bio = ctx->read_ctx;
 
-	if (bio)
-		submit_bio(bio);
+	submit_bio(bio);
 }
 
 static const struct iomap_read_ops ntfs_iomap_bio_read_ops = {
