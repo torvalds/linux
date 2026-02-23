@@ -550,7 +550,7 @@ static int rxq_num(const char *ifname)
 	struct ifreq ifr = {
 		.ifr_data = (void *)&ch,
 	};
-	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE - 1);
+	strscpy(ifr.ifr_name, ifname);
 	int fd, ret;
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -571,7 +571,7 @@ static void hwtstamp_ioctl(int op, const char *ifname, struct hwtstamp_config *c
 	struct ifreq ifr = {
 		.ifr_data = (void *)cfg,
 	};
-	strncpy(ifr.ifr_name, ifname, IF_NAMESIZE - 1);
+	strscpy(ifr.ifr_name, ifname);
 	int fd, ret;
 
 	fd = socket(AF_UNIX, SOCK_DGRAM, 0);
