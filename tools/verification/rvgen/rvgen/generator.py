@@ -51,11 +51,8 @@ class RVGenerator:
         raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
 
     def _read_file(self, path):
-        fd = open(path, 'r')
-
-        content = fd.read()
-
-        fd.close()
+        with open(path, 'r') as fd:
+            content = fd.read()
         return content
 
     def _read_template_file(self, file):
@@ -199,9 +196,8 @@ obj-$(CONFIG_RV_MON_{name_up}) += monitors/{name}/{name}.o
             return
 
     def __write_file(self, file_name, content):
-        file = open(file_name, 'w')
-        file.write(content)
-        file.close()
+        with open(file_name, 'w') as file:
+            file.write(content)
 
     def _create_file(self, file_name, content):
         path = f"{self.name}/{file_name}"

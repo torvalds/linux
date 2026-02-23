@@ -91,12 +91,10 @@ class Automata:
         cursor = 0
         dot_lines = []
         try:
-            dot_file = open(self.__dot_path)
+            with open(self.__dot_path) as dot_file:
+                dot_lines = dot_file.read().splitlines()
         except OSError as exc:
             raise AutomataError(exc.strerror) from exc
-
-        dot_lines = dot_file.read().splitlines()
-        dot_file.close()
 
         # checking the first line:
         line = dot_lines[cursor].split()
