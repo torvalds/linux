@@ -1984,11 +1984,10 @@ static int amdgpu_discovery_refresh_nps_info(struct amdgpu_device *adev,
 
 int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 				  uint32_t *nps_type,
-				  struct amdgpu_gmc_memrange **ranges,
+				  struct amdgpu_gmc_memrange *ranges,
 				  int *range_cnt, bool refresh)
 {
 	uint8_t *discovery_bin = adev->discovery.bin;
-	struct amdgpu_gmc_memrange *mem_ranges;
 	struct table_info *info;
 	union nps_info *nps_info;
 	union nps_info nps_data;
@@ -2026,20 +2025,22 @@ int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 
 	switch (le16_to_cpu(nps_info->v1.header.version_major)) {
 	case 1:
-		mem_ranges = kvzalloc_objs(*mem_ranges, nps_info->v1.count);
-		if (!mem_ranges)
-			return -ENOMEM;
 		*nps_type = nps_info->v1.nps_type;
+		if (*range_cnt < nps_info->v1.count) {
+			dev_dbg(adev->dev,
+				"not enough space for nps ranges: %d < %d\n",
+				*range_cnt, nps_info->v1.count);
+			return -ENOSPC;
+		}
 		*range_cnt = nps_info->v1.count;
 		for (i = 0; i < *range_cnt; i++) {
-			mem_ranges[i].base_address =
+			ranges[i].base_address =
 				nps_info->v1.instance_info[i].base_address;
-			mem_ranges[i].limit_address =
+			ranges[i].limit_address =
 				nps_info->v1.instance_info[i].limit_address;
-			mem_ranges[i].nid_mask = -1;
-			mem_ranges[i].flags = 0;
+			ranges[i].nid_mask = -1;
+			ranges[i].flags = 0;
 		}
-		*ranges = mem_ranges;
 		break;
 	default:
 		dev_err(adev->dev, "Unhandled NPS info table %d.%d\n",

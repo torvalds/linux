@@ -1374,18 +1374,18 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 				 struct amdgpu_mem_partition_info *mem_ranges,
 				 uint8_t *exp_ranges)
 {
-	struct amdgpu_gmc_memrange *ranges;
+	struct amdgpu_gmc_memrange ranges[AMDGPU_MAX_MEM_RANGES];
 	int range_cnt, ret, i, j;
 	uint32_t nps_type;
 	bool refresh;
 
 	if (!mem_ranges || !exp_ranges)
 		return -EINVAL;
-
+	range_cnt = AMDGPU_MAX_MEM_RANGES;
 	refresh = (adev->init_lvl->level != AMDGPU_INIT_LEVEL_MINIMAL_XGMI) &&
 		  (adev->gmc.reset_flags & AMDGPU_GMC_INIT_RESET_NPS);
-	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
-					    &range_cnt, refresh);
+	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, ranges, &range_cnt,
+					    refresh);
 
 	if (ret)
 		return ret;
@@ -1446,8 +1446,6 @@ int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
 	if (!*exp_ranges)
 		*exp_ranges = range_cnt;
 err:
-	kvfree(ranges);
-
 	return ret;
 }
 
