@@ -47,7 +47,7 @@ static int load_prog(struct bpf_prog_load_opts *opts, bool expect_load_error)
 static void verif_log_subtest(const char *name, bool expect_load_error, int log_level)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts);
-	char *exp_log, prog_name[16], op_name[32];
+	char *exp_log, prog_name[24], op_name[32];
 	struct test_log_buf *skel;
 	struct bpf_program *prog;
 	size_t fixed_log_sz;
