@@ -2913,7 +2913,6 @@ F:	include/linux/soc/ixp4xx/qmgr.h
 
 ARM/INTEL KEEMBAY ARCHITECTURE
 M:	Paul J. Murphy <paul.j.murphy@intel.com>
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/intel,keembay.yaml
 F:	arch/arm64/boot/dts/intel/keembay-evm.dts
@@ -12985,8 +12984,7 @@ F:	Documentation/devicetree/bindings/display/intel,keembay-display.yaml
 F:	drivers/gpu/drm/kmb/
 
 INTEL KEEM BAY OCS AES/SM4 CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
-S:	Maintained
+S:	Orphan
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-aes.yaml
 F:	drivers/crypto/intel/keembay/Kconfig
 F:	drivers/crypto/intel/keembay/Makefile
@@ -12995,7 +12993,6 @@ F:	drivers/crypto/intel/keembay/ocs-aes.c
 F:	drivers/crypto/intel/keembay/ocs-aes.h
 
 INTEL KEEM BAY OCS ECC CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 M:	Prabhjot Khurana <prabhjot.khurana@intel.com>
 M:	Mark Gross <mgross@linux.intel.com>
 S:	Maintained
@@ -13005,7 +13002,6 @@ F:	drivers/crypto/intel/keembay/Makefile
 F:	drivers/crypto/intel/keembay/keembay-ocs-ecc.c
 
 INTEL KEEM BAY OCS HCU CRYPTO DRIVER
-M:	Daniele Alessandrelli <daniele.alessandrelli@intel.com>
 M:	Declan Murphy <declan.murphy@intel.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/intel,keembay-ocs-hcu.yaml
