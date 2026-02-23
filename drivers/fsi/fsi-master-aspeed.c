@@ -546,7 +546,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	aspeed = kzalloc(sizeof(*aspeed), GFP_KERNEL);
+	aspeed = kzalloc_obj(*aspeed);
 	if (!aspeed)
 		return -ENOMEM;
 

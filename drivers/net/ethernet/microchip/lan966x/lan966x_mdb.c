@@ -74,7 +74,7 @@ lan966x_mdb_entry_add(struct lan966x *lan966x,
 {
 	struct lan966x_mdb_entry *mdb_entry;
 
-	mdb_entry = kzalloc(sizeof(*mdb_entry), GFP_KERNEL);
+	mdb_entry = kzalloc_obj(*mdb_entry);
 	if (!mdb_entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -184,7 +184,7 @@ lan966x_pgid_entry_add(struct lan966x *lan966x, int index, u16 ports)
 {
 	struct lan966x_pgid_entry *pgid_entry;
 
-	pgid_entry = kzalloc(sizeof(*pgid_entry), GFP_KERNEL);
+	pgid_entry = kzalloc_obj(*pgid_entry);
 	if (!pgid_entry)
 		return ERR_PTR(-ENOMEM);
 

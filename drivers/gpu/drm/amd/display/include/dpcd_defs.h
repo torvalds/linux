@@ -37,6 +37,21 @@
 #ifndef DP_PANEL_REPLAY_CAPABILITY // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_CAPABILITY 0x0b1
 #endif /* DP_PANEL_REPLAY_CAPABILITY */
+#ifndef DP_PR_SU_X_GRANULARITY_LOW         // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_X_GRANULARITY_LOW			0x0b2
+#endif /* DP_PR_SU_X_GRANULARITY_LOW */
+#ifndef DP_PR_SU_X_GRANULARITY_HIGH        // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_X_GRANULARITY_HIGH			0x0b3
+#endif /* DP_PR_SU_X_GRANULARITY_HIGH */
+#ifndef DP_PR_SU_Y_GRANULARITY             // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY				0x0b4
+#endif /* DP_PR_SU_Y_GRANULARITY */
+#ifndef DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW		0x0b5
+#endif /* DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW */
+#ifndef DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH	0x0b6
+#endif /* DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH */
 #ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  0x1b0
 #endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1 */
@@ -46,6 +61,21 @@
 #ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 0x1b1
 #endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 */
+#ifndef DP_PR_ERROR_STATUS                  // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_ERROR_STATUS                  0x2020  /* DP 2.0 */
+#endif /* DP_PR_ERROR_STATUS */
+#ifndef DP_PR_LINK_CRC_ERROR               // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_LINK_CRC_ERROR               (1 << 0)
+#endif /* DP_PR_LINK_CRC_ERROR */
+#ifndef DP_PR_RFB_STORAGE_ERROR            // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_RFB_STORAGE_ERROR            (1 << 1)
+#endif /* DP_PR_RFB_STORAGE_ERROR */
+#ifndef DP_PR_VSC_SDP_UNCORRECTABLE_ERROR // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_VSC_SDP_UNCORRECTABLE_ERROR  (1 << 2) /* eDP 1.4 */
+#endif /* DP_PR_VSC_SDP_UNCORRECTABLE_ERROR */
+#ifndef DP_PR_ASSDP_MISSING_ERROR          // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PR_ASSDP_MISSING_ERROR          (1 << 3) /* eDP 1.5 */
+#endif /* DP_PR_ASSDP_MISSING_ERROR */
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,
@@ -188,11 +218,13 @@ enum dpcd_psr_sink_states {
 #define DP_SOURCE_BACKLIGHT_CURRENT_PEAK        0x326
 #define DP_SOURCE_BACKLIGHT_CONTROL             0x32E
 #define DP_SOURCE_BACKLIGHT_ENABLE              0x32F
+#define DP_SINK_DRR_GRANULARITY                 0x33B
 #define DP_SOURCE_MINIMUM_HBLANK_SUPPORTED      0x340
 #define DP_SINK_PR_REPLAY_STATUS                0x378
 #define DP_SINK_PR_PIXEL_DEVIATION_PER_LINE     0x379
 #define DP_SINK_PR_MAX_NUMBER_OF_DEVIATION_LINE 0x37A
 #define DP_SINK_EMISSION_RATE                   0x37E
+#define DP_SINK_PR_FRAME_SKIP_COUNT             0x337
 
 /* Remove once drm_dp_helper.h is updated upstream */
 #ifndef DP_TOTAL_LTTPR_CNT

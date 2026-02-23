@@ -249,8 +249,25 @@ struct dccg *dccg35_create(
 
 void dccg35_init(struct dccg *dccg);
 
+void dccg35_trigger_dio_fifo_resync(struct dccg *dccg);
+
+void dccg35_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk);
+
 void dccg35_enable_global_fgcg_rep(struct dccg *dccg, bool value);
 void dccg35_root_gate_disable_control(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 
+void dccg35_set_dpstreamclk_root_clock_gating(struct dccg *dccg, int dp_hpo_inst, bool enable);
+
+void dccg35_set_hdmistreamclk_root_clock_gating(struct dccg *dccg, bool enable);
+
+void dccg35_dpp_root_clock_control(struct dccg *dccg, unsigned int dpp_inst, bool clock_on);
+
+void dccg35_disable_symclk32_se(struct dccg *dccg, int hpo_se_inst);
+
+void dccg35_enable_dscclk(struct dccg *dccg, int inst);
+void dccg35_disable_dscclk(struct dccg *dccg, int inst);
+
+void dccg35_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
+void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
 
 #endif //__DCN35_DCCG_H__

@@ -38,26 +38,28 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_reg.h"
+#include "display/i9xx_plane_regs.h"
 #include "display/intel_display_regs.h"
+#include "display/intel_sprite_regs.h"
+
+#include "gem/i915_gem_context.h"
+#include "gem/i915_gem_pm.h"
+
+#include "gt/intel_context.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt_regs.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
-#include "gt/intel_gt_requests.h"
 #include "gt/shmem_utils.h"
-#include "gvt.h"
-#include "i915_pvinfo.h"
-#include "trace.h"
 
-#include "display/i9xx_plane_regs.h"
-#include "display/intel_display_core.h"
-#include "display/intel_sprite_regs.h"
-#include "gem/i915_gem_context.h"
-#include "gem/i915_gem_pm.h"
-#include "gt/intel_context.h"
+#include "display_helpers.h"
+#include "gvt.h"
+#include "i915_drv.h"
+#include "i915_pvinfo.h"
+#include "i915_reg.h"
+#include "trace.h"
 
 #define INVALID_OP    (~0U)
 
@@ -1919,7 +1921,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (ret)
 		return ret;
 
-	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	bb = kzalloc_obj(*bb);
 	if (!bb)
 		return -ENOMEM;
 
@@ -3224,7 +3226,7 @@ static int init_cmd_table(struct intel_gvt *gvt)
 		if (!(cmd_info[i].devices & gen_type))
 			continue;
 
-		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		e = kzalloc_obj(*e);
 		if (!e)
 			return -ENOMEM;
 

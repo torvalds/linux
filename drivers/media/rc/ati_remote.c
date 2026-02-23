@@ -839,7 +839,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
+	ati_remote = kzalloc_obj(struct ati_remote);
 	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ati_remote || !rc_dev)
 		goto exit_free_dev_rdev;

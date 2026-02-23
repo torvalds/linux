@@ -55,7 +55,7 @@ static int spk_ttyio_ldisc_open(struct tty_struct *tty)
 	if (!tty->ops->write)
 		return -EOPNOTSUPP;
 
-	ldisc_data = kmalloc(sizeof(*ldisc_data), GFP_KERNEL);
+	ldisc_data = kmalloc_obj(*ldisc_data);
 	if (!ldisc_data)
 		return -ENOMEM;
 

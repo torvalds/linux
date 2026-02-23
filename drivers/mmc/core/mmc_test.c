@@ -348,11 +348,11 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 	if (max_segs > max_page_cnt)
 		max_segs = max_page_cnt;
 
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	mem = kzalloc_obj(*mem);
 	if (!mem)
 		return NULL;
 
-	mem->arr = kcalloc(max_segs, sizeof(*mem->arr), GFP_KERNEL);
+	mem->arr = kzalloc_objs(*mem->arr, max_segs);
 	if (!mem->arr)
 		goto out_free;
 
@@ -533,7 +533,7 @@ static void mmc_test_save_transfer_result(struct mmc_test_card *test,
 	if (!test->gr)
 		return;
 
-	tr = kmalloc(sizeof(*tr), GFP_KERNEL);
+	tr = kmalloc_obj(*tr);
 	if (!tr)
 		return;
 
@@ -765,7 +765,7 @@ static void mmc_test_req_reset(struct mmc_test_req *rq)
 
 static struct mmc_test_req *mmc_test_req_alloc(void)
 {
-	struct mmc_test_req *rq = kmalloc(sizeof(*rq), GFP_KERNEL);
+	struct mmc_test_req *rq = kmalloc_obj(*rq);
 
 	if (rq)
 		mmc_test_req_reset(rq);
@@ -1570,14 +1570,13 @@ static int mmc_test_area_init(struct mmc_test_card *test, int erase, int fill)
 	if (!t->mem)
 		return -ENOMEM;
 
-	t->sg = kmalloc_array(t->max_segs, sizeof(*t->sg), GFP_KERNEL);
+	t->sg = kmalloc_objs(*t->sg, t->max_segs);
 	if (!t->sg) {
 		ret = -ENOMEM;
 		goto out_free;
 	}
 
-	t->sg_areq = kmalloc_array(t->max_segs, sizeof(*t->sg_areq),
-				   GFP_KERNEL);
+	t->sg_areq = kmalloc_objs(*t->sg_areq, t->max_segs);
 	if (!t->sg_areq) {
 		ret = -ENOMEM;
 		goto out_free;
@@ -2968,7 +2967,7 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 			}
 		}
 
-		gr = kzalloc(sizeof(*gr), GFP_KERNEL);
+		gr = kzalloc_obj(*gr);
 		if (gr) {
 			INIT_LIST_HEAD(&gr->tr_lst);
 
@@ -3100,7 +3099,7 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	if (ret)
 		return ret;
 
-	test = kzalloc(sizeof(*test), GFP_KERNEL);
+	test = kzalloc_obj(*test);
 	if (!test)
 		return -ENOMEM;
 
@@ -3189,7 +3188,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 		file = debugfs_create_file(name, mode, card->debugfs_root,
 					   card, fops);
 
-	df = kmalloc(sizeof(*df), GFP_KERNEL);
+	df = kmalloc_obj(*df);
 	if (!df) {
 		debugfs_remove(file);
 		return -ENOMEM;

@@ -145,7 +145,7 @@ static void cxgb4_action_natmode_tweak(struct ch_filter_specification *fs,
 
 static struct ch_tc_flower_entry *allocate_flower_entry(void)
 {
-	struct ch_tc_flower_entry *new = kzalloc(sizeof(*new), GFP_KERNEL);
+	struct ch_tc_flower_entry *new = kzalloc_obj(*new);
 	if (new)
 		spin_lock_init(&new->lock);
 	return new;

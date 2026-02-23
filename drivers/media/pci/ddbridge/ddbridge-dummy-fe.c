@@ -100,7 +100,7 @@ struct dvb_frontend *ddbridge_dummy_fe_qam_attach(void)
 	struct ddbridge_dummy_fe_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct ddbridge_dummy_fe_state), GFP_KERNEL);
+	state = kzalloc_obj(struct ddbridge_dummy_fe_state);
 	if (!state)
 		return NULL;
 

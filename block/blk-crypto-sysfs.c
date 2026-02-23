@@ -170,7 +170,7 @@ int blk_crypto_sysfs_register(struct gendisk *disk)
 	if (!q->crypto_profile)
 		return 0;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return -ENOMEM;
 	obj->profile = q->crypto_profile;

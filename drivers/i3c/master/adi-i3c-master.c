@@ -187,7 +187,7 @@ static struct adi_i3c_xfer *adi_i3c_master_alloc_xfer(struct adi_i3c_master *mas
 {
 	struct adi_i3c_xfer *xfer;
 
-	xfer = kzalloc(struct_size(xfer, cmds, ncmds), GFP_KERNEL);
+	xfer = kzalloc_flex(*xfer, cmds, ncmds);
 	if (!xfer)
 		return NULL;
 
@@ -459,7 +459,7 @@ static int adi_i3c_master_attach_i3c_dev(struct i3c_dev_desc *dev)
 	int slot;
 	u8 addr;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -531,7 +531,7 @@ static int adi_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 	if (slot < 0)
 		return slot;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

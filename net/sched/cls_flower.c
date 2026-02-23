@@ -363,7 +363,7 @@ static int fl_init(struct tcf_proto *tp)
 {
 	struct cls_fl_head *head;
 
-	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	head = kzalloc_obj(*head);
 	if (!head)
 		return -ENOBUFS;
 
@@ -2237,7 +2237,7 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 	struct fl_flow_mask *newmask;
 	int err;
 
-	newmask = kzalloc(sizeof(*newmask), GFP_KERNEL);
+	newmask = kzalloc_obj(*newmask);
 	if (!newmask)
 		return ERR_PTR(-ENOMEM);
 
@@ -2376,13 +2376,13 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_fold;
 	}
 
-	mask = kzalloc(sizeof(struct fl_flow_mask), GFP_KERNEL);
+	mask = kzalloc_obj(struct fl_flow_mask);
 	if (!mask) {
 		err = -ENOBUFS;
 		goto errout_fold;
 	}
 
-	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
+	tb = kzalloc_objs(struct nlattr *, TCA_FLOWER_MAX + 1);
 	if (!tb) {
 		err = -ENOBUFS;
 		goto errout_mask_alloc;
@@ -2398,7 +2398,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		goto errout_tb;
 	}
 
-	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
+	fnew = kzalloc_obj(*fnew);
 	if (!fnew) {
 		err = -ENOBUFS;
 		goto errout_tb;
@@ -2815,7 +2815,7 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 	if (!tca_opts)
 		return ERR_PTR(-EINVAL);
 
-	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
+	tb = kzalloc_objs(struct nlattr *, TCA_FLOWER_MAX + 1);
 	if (!tb)
 		return ERR_PTR(-ENOBUFS);
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
@@ -2823,7 +2823,7 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 	if (err)
 		goto errout_tb;
 
-	tmplt = kzalloc(sizeof(*tmplt), GFP_KERNEL);
+	tmplt = kzalloc_obj(*tmplt);
 	if (!tmplt) {
 		err = -ENOMEM;
 		goto errout_tb;

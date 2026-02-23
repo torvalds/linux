@@ -38,7 +38,7 @@ mr_table_alloc(struct net *net, u32 id,
 	struct mr_table *mrt;
 	int err;
 
-	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
+	mrt = kzalloc_obj(*mrt);
 	if (!mrt)
 		return ERR_PTR(-ENOMEM);
 	mrt->id = id;

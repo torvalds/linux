@@ -129,7 +129,7 @@ static struct netvsc_device *alloc_net_device(void)
 {
 	struct netvsc_device *net_device;
 
-	net_device = kzalloc(sizeof(struct netvsc_device), GFP_KERNEL);
+	net_device = kzalloc_obj(struct netvsc_device);
 	if (!net_device)
 		return NULL;
 
@@ -1025,9 +1025,8 @@ static int netvsc_dma_map(struct hv_device *hv_dev,
 	if (!hv_is_isolation_supported())
 		return 0;
 
-	packet->dma_range = kcalloc(page_count,
-				    sizeof(*packet->dma_range),
-				    GFP_ATOMIC);
+	packet->dma_range = kzalloc_objs(*packet->dma_range, page_count,
+					 GFP_ATOMIC);
 	if (!packet->dma_range)
 		return -ENOMEM;
 

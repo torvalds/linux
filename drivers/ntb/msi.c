@@ -315,37 +315,6 @@ int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb, irq_handler_t handler,
 }
 EXPORT_SYMBOL(ntbm_msi_request_threaded_irq);
 
-static int ntbm_msi_callback_match(struct device *dev, void *res, void *data)
-{
-	struct ntb_dev *ntb = dev_ntb(dev);
-	struct ntb_msi_devres *dr = res;
-
-	return dr->ntb == ntb && dr->entry == data;
-}
-
-/**
- * ntbm_msi_free_irq() - free an interrupt
- * @ntb:	NTB device context
- * @irq:	Interrupt line to free
- * @dev_id:	Device identity to free
- *
- * This function should be used to manually free IRQs allocated with
- * ntbm_request_[threaded_]irq().
- */
-void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq, void *dev_id)
-{
-	struct msi_desc *entry = irq_get_msi_desc(irq);
-
-	entry->write_msi_msg = NULL;
-	entry->write_msi_msg_data = NULL;
-
-	WARN_ON(devres_destroy(&ntb->dev, ntbm_msi_callback_release,
-			       ntbm_msi_callback_match, entry));
-
-	devm_free_irq(&ntb->dev, irq, dev_id);
-}
-EXPORT_SYMBOL(ntbm_msi_free_irq);
-
 /**
  * ntb_msi_peer_trigger() - Trigger an interrupt handler on a peer
  * @ntb:	NTB device context
@@ -373,36 +342,3 @@ int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
 	return 0;
 }
 EXPORT_SYMBOL(ntb_msi_peer_trigger);
-
-/**
- * ntb_msi_peer_addr() - Get the DMA address to trigger a peer's MSI interrupt
- * @ntb:	NTB device context
- * @peer:	Peer index
- * @desc:	MSI descriptor data which triggers the interrupt
- * @msi_addr:   Physical address to trigger the interrupt
- *
- * This function allows using DMA engines to trigger an interrupt
- * (for example, trigger an interrupt to process the data after
- * sending it). To trigger the interrupt, write @desc.data to the address
- * returned in @msi_addr
- *
- * Return: Zero on success, otherwise a negative error number.
- */
-int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
-		      struct ntb_msi_desc *desc,
-		      phys_addr_t *msi_addr)
-{
-	int peer_widx = ntb_peer_mw_count(ntb) - 1 - peer;
-	phys_addr_t mw_phys_addr;
-	int ret;
-
-	ret = ntb_peer_mw_get_addr(ntb, peer_widx, &mw_phys_addr, NULL);
-	if (ret)
-		return ret;
-
-	if (msi_addr)
-		*msi_addr = mw_phys_addr + desc->addr_offset;
-
-	return 0;
-}
-EXPORT_SYMBOL(ntb_msi_peer_addr);

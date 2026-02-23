@@ -305,8 +305,8 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 	int ret;
 
 	/* Max num GPIOs we've seen plus a terminator */
-	int3472 = kzalloc(struct_size(int3472, gpios.table, INT3472_MAX_SENSOR_GPIOS + 1),
-			  GFP_KERNEL);
+	int3472 = kzalloc_flex(*int3472, gpios.table,
+			       INT3472_MAX_SENSOR_GPIOS + 1);
 	if (!int3472)
 		return -ENOMEM;
 

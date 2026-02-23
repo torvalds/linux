@@ -122,7 +122,7 @@ static int osnoise_register_instance(struct trace_array *tr)
 	 */
 	lockdep_assert_held(&trace_types_lock);
 
-	inst = kmalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kmalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 

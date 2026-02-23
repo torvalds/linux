@@ -82,7 +82,7 @@
 #define DFH_TYPE_FIU		4
 
 /*
- * DFHv1 Register Offset definitons
+ * DFHv1 Register Offset definitions
  * In DHFv1, DFH + GUID + CSR_START + CSR_SIZE_GROUP + PARAM_HDR + PARAM_DATA
  * as common header registers
  */

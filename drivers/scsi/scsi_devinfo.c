@@ -355,7 +355,7 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 	if (IS_ERR(devinfo_table))
 		return PTR_ERR(devinfo_table);
 
-	devinfo = kmalloc(sizeof(*devinfo), GFP_KERNEL);
+	devinfo = kmalloc_obj(*devinfo);
 	if (!devinfo) {
 		printk(KERN_ERR "%s: no memory\n", __func__);
 		return -ENOMEM;
@@ -615,7 +615,7 @@ static int devinfo_seq_show(struct seq_file *m, void *v)
 
 static void *devinfo_seq_start(struct seq_file *m, loff_t *ppos)
 {
-	struct double_list *dl = kmalloc(sizeof(*dl), GFP_KERNEL);
+	struct double_list *dl = kmalloc_obj(*dl);
 	loff_t pos = *ppos;
 
 	if (!dl)
@@ -759,7 +759,7 @@ int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name)
 		/* list already exists */
 		return -EEXIST;
 
-	devinfo_table = kmalloc(sizeof(*devinfo_table), GFP_KERNEL);
+	devinfo_table = kmalloc_obj(*devinfo_table);
 
 	if (!devinfo_table)
 		return -ENOMEM;

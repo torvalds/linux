@@ -366,7 +366,7 @@ create_stack(struct mISDNdevice *dev)
 	int			err;
 	DECLARE_COMPLETION_ONSTACK(done);
 
-	newst = kzalloc(sizeof(struct mISDNstack), GFP_KERNEL);
+	newst = kzalloc_obj(struct mISDNstack);
 	if (!newst) {
 		printk(KERN_ERR "kmalloc mISDN_stack failed\n");
 		return -ENOMEM;

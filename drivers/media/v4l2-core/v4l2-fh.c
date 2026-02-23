@@ -57,7 +57,7 @@ EXPORT_SYMBOL_GPL(v4l2_fh_add);
 int v4l2_fh_open(struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
-	struct v4l2_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	struct v4l2_fh *fh = kzalloc_obj(*fh);
 
 	if (fh == NULL)
 		return -ENOMEM;

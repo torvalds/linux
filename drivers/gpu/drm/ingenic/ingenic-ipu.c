@@ -887,7 +887,7 @@ static int ingenic_ipu_bind(struct device *dev, struct device *master, void *d)
 		return err;
 	}
 
-	private_state = kzalloc(sizeof(*private_state), GFP_KERNEL);
+	private_state = kzalloc_obj(*private_state);
 	if (!private_state) {
 		err = -ENOMEM;
 		goto err_clk_unprepare;

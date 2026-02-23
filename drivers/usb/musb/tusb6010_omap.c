@@ -596,7 +596,7 @@ tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 		| TUSB_DMA_REQ_CONF_DMA_REQ_EN(0x3f)
 		| TUSB_DMA_REQ_CONF_DMA_REQ_ASSER(2));
 
-	tusb_dma = kzalloc(sizeof(struct tusb_omap_dma), GFP_KERNEL);
+	tusb_dma = kzalloc_obj(struct tusb_omap_dma);
 	if (!tusb_dma)
 		goto out;
 
@@ -615,13 +615,13 @@ tusb_dma_controller_create(struct musb *musb, void __iomem *base)
 		struct dma_channel	*ch;
 		struct tusb_omap_dma_ch	*chdat;
 
-		ch = kzalloc(sizeof(struct dma_channel), GFP_KERNEL);
+		ch = kzalloc_obj(struct dma_channel);
 		if (!ch)
 			goto cleanup;
 
 		dma_channel_pool[i] = ch;
 
-		chdat = kzalloc(sizeof(struct tusb_omap_dma_ch), GFP_KERNEL);
+		chdat = kzalloc_obj(struct tusb_omap_dma_ch);
 		if (!chdat)
 			goto cleanup;
 

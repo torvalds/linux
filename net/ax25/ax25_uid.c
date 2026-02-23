@@ -101,7 +101,7 @@ int ax25_uid_ioctl(int cmd, struct sockaddr_ax25 *sax)
 		}
 		if (sax->sax25_uid == 0)
 			return -EINVAL;
-		if ((ax25_uid = kmalloc(sizeof(*ax25_uid), GFP_KERNEL)) == NULL)
+		if ((ax25_uid = kmalloc_obj(*ax25_uid)) == NULL)
 			return -ENOMEM;
 
 		refcount_set(&ax25_uid->refcount, 1);

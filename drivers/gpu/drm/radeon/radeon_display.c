@@ -41,6 +41,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
+#include <drm/drm_print.h>
 
 #include "atom.h"
 #include "radeon.h"
@@ -273,7 +274,7 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 		radeon_bo_unpin(work->old_rbo);
 		radeon_bo_unreserve(work->old_rbo);
 	} else
-		DRM_ERROR("failed to reserve buffer after flip\n");
+		drm_err(&work->rdev->ddev, "failed to reserve buffer after flip\n");
 
 	drm_gem_object_put(&work->old_rbo->tbo.base);
 	kfree(work);
@@ -434,7 +435,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 			r = dma_fence_wait(work->fence, false);
 
 		if (r)
-			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
+			drm_err(dev, "failed to wait on page flip fence (%d)!\n", r);
 
 		/* We continue with the page flip even if we failed to wait on
 		 * the fence, otherwise the DRM core and userspace will be
@@ -493,7 +494,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	unsigned long flags;
 	int r;
 
-	work = kzalloc(sizeof *work, GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -521,7 +522,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 
 	r = radeon_bo_reserve(new_rbo, false);
 	if (unlikely(r != 0)) {
-		DRM_ERROR("failed to reserve new rbo buffer before flip\n");
+		drm_err(dev, "failed to reserve new rbo buffer before flip\n");
 		goto cleanup;
 	}
 	/* Only 27 bit offset for legacy CRTC */
@@ -530,14 +531,14 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	if (unlikely(r != 0)) {
 		radeon_bo_unreserve(new_rbo);
 		r = -EINVAL;
-		DRM_ERROR("failed to pin new rbo buffer before flip\n");
+		drm_err(dev, "failed to pin new rbo buffer before flip\n");
 		goto cleanup;
 	}
 	r = dma_resv_get_singleton(new_rbo->tbo.base.resv, DMA_RESV_USAGE_WRITE,
 				   &work->fence);
 	if (r) {
 		radeon_bo_unreserve(new_rbo);
-		DRM_ERROR("failed to get new rbo buffer fences\n");
+		drm_err(dev, "failed to get new rbo buffer fences\n");
 		goto cleanup;
 	}
 	radeon_bo_get_tiling_flags(new_rbo, &tiling_flags, NULL);
@@ -604,7 +605,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 
 pflip_cleanup:
 	if (unlikely(radeon_bo_reserve(new_rbo, false) != 0)) {
-		DRM_ERROR("failed to reserve new rbo in error path\n");
+		drm_err(dev, "failed to reserve new rbo in error path\n");
 		goto cleanup;
 	}
 	radeon_bo_unpin(new_rbo);
@@ -681,7 +682,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc;
 
-	radeon_crtc = kzalloc(sizeof(*radeon_crtc), GFP_KERNEL);
+	radeon_crtc = kzalloc_obj(*radeon_crtc);
 	if (radeon_crtc == NULL)
 		return;
 
@@ -772,15 +773,15 @@ static void radeon_print_display_setup(struct drm_device *dev)
 	uint32_t devices;
 	int i = 0;
 
-	DRM_INFO("Radeon Display Connectors\n");
+	drm_info(dev, "Radeon Display Connectors\n");
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		radeon_connector = to_radeon_connector(connector);
-		DRM_INFO("Connector %d:\n", i);
-		DRM_INFO("  %s\n", connector->name);
+		drm_info(dev, "Connector %d:\n", i);
+		drm_info(dev, "  %s\n", connector->name);
 		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
-			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
+			drm_info(dev, "  %s\n", hpd_names[radeon_connector->hpd.hpd]);
 		if (radeon_connector->ddc_bus) {
-			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+			drm_info(dev, "  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
 				 radeon_connector->ddc_bus->rec.a_clk_reg,
@@ -790,11 +791,11 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
 			if (radeon_connector->router.ddc_valid)
-				DRM_INFO("  DDC Router 0x%x/0x%x\n",
+				drm_info(dev, "  DDC Router 0x%x/0x%x\n",
 					 radeon_connector->router.ddc_mux_control_pin,
 					 radeon_connector->router.ddc_mux_state);
 			if (radeon_connector->router.cd_valid)
-				DRM_INFO("  Clock/Data Router 0x%x/0x%x\n",
+				drm_info(dev, "  Clock/Data Router 0x%x/0x%x\n",
 					 radeon_connector->router.cd_mux_control_pin,
 					 radeon_connector->router.cd_mux_state);
 		} else {
@@ -804,35 +805,46 @@ static void radeon_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				drm_info(dev, "  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
 		}
-		DRM_INFO("  Encoders:\n");
+		drm_info(dev, "  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);
 			devices = radeon_encoder->devices & radeon_connector->devices;
 			if (devices) {
 				if (devices & ATOM_DEVICE_CRT1_SUPPORT)
-					DRM_INFO("    CRT1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    CRT1: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_CRT2_SUPPORT)
-					DRM_INFO("    CRT2: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    CRT2: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_LCD1_SUPPORT)
-					DRM_INFO("    LCD1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    LCD1: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP1_SUPPORT)
-					DRM_INFO("    DFP1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP1: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP2_SUPPORT)
-					DRM_INFO("    DFP2: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP2: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP3_SUPPORT)
-					DRM_INFO("    DFP3: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP3: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP4_SUPPORT)
-					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP4: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP5_SUPPORT)
-					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP5: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP6_SUPPORT)
-					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    DFP6: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_TV1_SUPPORT)
-					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    TV1: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_CV_SUPPORT)
-					DRM_INFO("    CV: %s\n", encoder_names[radeon_encoder->encoder_id]);
+					drm_info(dev, "    CV: %s\n",
+						encoder_names[radeon_encoder->encoder_id]);
 			}
 		}
 		i++;
@@ -1334,7 +1346,7 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (fb == NULL) {
 		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);
@@ -1527,7 +1539,7 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 
 		BUG_ON(num_afmt > ARRAY_SIZE(eg_offsets));
 		for (i = 0; i < num_afmt; i++) {
-			rdev->mode_info.afmt[i] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			rdev->mode_info.afmt[i] = kzalloc_obj(struct radeon_afmt);
 			if (rdev->mode_info.afmt[i]) {
 				rdev->mode_info.afmt[i]->offset = eg_offsets[i];
 				rdev->mode_info.afmt[i]->id = i;
@@ -1535,26 +1547,26 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 		}
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* DCE3.x has 2 audio blocks tied to DIG encoders */
-		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		rdev->mode_info.afmt[0] = kzalloc_obj(struct radeon_afmt);
 		if (rdev->mode_info.afmt[0]) {
 			rdev->mode_info.afmt[0]->offset = DCE3_HDMI_OFFSET0;
 			rdev->mode_info.afmt[0]->id = 0;
 		}
-		rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		rdev->mode_info.afmt[1] = kzalloc_obj(struct radeon_afmt);
 		if (rdev->mode_info.afmt[1]) {
 			rdev->mode_info.afmt[1]->offset = DCE3_HDMI_OFFSET1;
 			rdev->mode_info.afmt[1]->id = 1;
 		}
 	} else if (ASIC_IS_DCE2(rdev)) {
 		/* DCE2 has at least 1 routable audio block */
-		rdev->mode_info.afmt[0] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+		rdev->mode_info.afmt[0] = kzalloc_obj(struct radeon_afmt);
 		if (rdev->mode_info.afmt[0]) {
 			rdev->mode_info.afmt[0]->offset = DCE2_HDMI_OFFSET0;
 			rdev->mode_info.afmt[0]->id = 0;
 		}
 		/* r6xx has 2 routable audio blocks */
 		if (rdev->family >= CHIP_R600) {
-			rdev->mode_info.afmt[1] = kzalloc(sizeof(struct radeon_afmt), GFP_KERNEL);
+			rdev->mode_info.afmt[1] = kzalloc_obj(struct radeon_afmt);
 			if (rdev->mode_info.afmt[1]) {
 				rdev->mode_info.afmt[1]->offset = DCE2_HDMI_OFFSET1;
 				rdev->mode_info.afmt[1]->id = 1;
@@ -1747,7 +1759,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				 * (ie all encoder can work with the same
 				 *  scaling).
 				 */
-				DRM_ERROR("Scaling not consistent across encoder.\n");
+				drm_err(dev, "Scaling not consistent across encoder.\n");
 				return false;
 			}
 		}

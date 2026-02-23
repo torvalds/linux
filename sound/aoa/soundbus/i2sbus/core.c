@@ -171,7 +171,7 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 	if (strncmp(node_name, "i2s-", 4))
 		return 0;
 
-	dev = kzalloc(sizeof(struct i2sbus_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct i2sbus_dev);
 	if (!dev)
 		return 0;
 

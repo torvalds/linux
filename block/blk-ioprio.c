@@ -99,7 +99,7 @@ static struct blkcg_policy_data *ioprio_alloc_cpd(gfp_t gfp)
 {
 	struct ioprio_blkcg *blkcg;
 
-	blkcg = kzalloc(sizeof(*blkcg), gfp);
+	blkcg = kzalloc_obj(*blkcg, gfp);
 	if (!blkcg)
 		return NULL;
 	blkcg->prio_policy = POLICY_NO_CHANGE;

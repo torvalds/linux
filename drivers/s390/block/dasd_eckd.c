@@ -1468,7 +1468,7 @@ static int dasd_eckd_pe_handler(struct dasd_device *device,
 {
 	struct pe_handler_work_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_ATOMIC | GFP_DMA);
+	data = kzalloc_obj(*data, GFP_ATOMIC | GFP_DMA);
 	if (!data) {
 		if (mutex_trylock(&dasd_pe_handler_mutex)) {
 			data = pe_handler_worker;
@@ -1720,7 +1720,7 @@ static int dasd_eckd_ext_pool_exhaust(struct dasd_device *device,
 {
 	struct ext_pool_exhaust_work_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_ATOMIC);
+	data = kzalloc_obj(*data, GFP_ATOMIC);
 	if (!data)
 		return -ENOMEM;
 	INIT_WORK(&data->worker, dasd_eckd_ext_pool_exhaust_work);
@@ -2070,7 +2070,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 			 "The DASD is not operating in multipath mode\n");
 	}
 	if (!private) {
-		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		private = kzalloc_obj(*private, GFP_KERNEL | GFP_DMA);
 		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD data "
@@ -3729,7 +3729,7 @@ static int dasd_in_copy_relation(struct dasd_device *device)
 	if (!dasd_eckd_pprc_enabled(device))
 		return 0;
 
-	temp = kzalloc(sizeof(*temp), GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp)
 		return -ENOMEM;
 
@@ -5951,7 +5951,7 @@ static int dasd_eckd_query_host_access(struct dasd_device *device,
 				"Could not allocate read message buffer request");
 		return PTR_ERR(cqr);
 	}
-	host_access = kzalloc(sizeof(*host_access), GFP_KERNEL | GFP_DMA);
+	host_access = kzalloc_obj(*host_access, GFP_KERNEL | GFP_DMA);
 	if (!host_access) {
 		dasd_sfree_request(cqr, device);
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
@@ -6017,7 +6017,7 @@ static int dasd_eckd_host_access_count(struct dasd_device *device)
 	int count = 0;
 	int rc, i;
 
-	access = kzalloc(sizeof(*access), GFP_NOIO);
+	access = kzalloc_obj(*access, GFP_NOIO);
 	if (!access) {
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
 				"Could not allocate access buffer");
@@ -6053,7 +6053,7 @@ static int dasd_hosts_print(struct dasd_device *device, struct seq_file *m)
 	char sysplex[9] = "";
 	int rc, i;
 
-	access = kzalloc(sizeof(*access), GFP_NOIO);
+	access = kzalloc_obj(*access, GFP_NOIO);
 	if (!access) {
 		DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
 				"Could not allocate access buffer");
@@ -6721,7 +6721,7 @@ static void dasd_eckd_check_attention_work(struct work_struct *work)
 
 	data = container_of(work, struct check_attention_work_data, worker);
 	device = data->device;
-	messages = kzalloc(sizeof(*messages), GFP_KERNEL);
+	messages = kzalloc_obj(*messages);
 	if (!messages) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "Could not allocate attention message buffer");
@@ -6748,7 +6748,7 @@ static int dasd_eckd_check_attention(struct dasd_device *device, __u8 lpum)
 {
 	struct check_attention_work_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_ATOMIC);
+	data = kzalloc_obj(*data, GFP_ATOMIC);
 	if (!data)
 		return -ENOMEM;
 	INIT_WORK(&data->worker, dasd_eckd_check_attention_work);
@@ -6912,18 +6912,17 @@ dasd_eckd_init(void)
 	int ret;
 
 	ASCEBC(dasd_eckd_discipline.ebcname, 4);
-	dasd_reserve_req = kmalloc(sizeof(*dasd_reserve_req),
-				   GFP_KERNEL | GFP_DMA);
+	dasd_reserve_req = kmalloc_obj(*dasd_reserve_req, GFP_KERNEL | GFP_DMA);
 	if (!dasd_reserve_req)
 		return -ENOMEM;
-	dasd_vol_info_req = kmalloc(sizeof(*dasd_vol_info_req),
-				    GFP_KERNEL | GFP_DMA);
+	dasd_vol_info_req = kmalloc_obj(*dasd_vol_info_req,
+					GFP_KERNEL | GFP_DMA);
 	if (!dasd_vol_info_req) {
 		kfree(dasd_reserve_req);
 		return -ENOMEM;
 	}
-	pe_handler_worker = kmalloc(sizeof(*pe_handler_worker),
-				    GFP_KERNEL | GFP_DMA);
+	pe_handler_worker = kmalloc_obj(*pe_handler_worker,
+					GFP_KERNEL | GFP_DMA);
 	if (!pe_handler_worker) {
 		kfree(dasd_reserve_req);
 		kfree(dasd_vol_info_req);

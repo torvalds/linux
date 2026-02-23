@@ -162,6 +162,9 @@ struct hinic3_clean_queue_ctxt {
 #define SQ_CTXT_WQ_BLOCK_SET(val, member)  \
 	FIELD_PREP(SQ_CTXT_WQ_BLOCK_##member##_MASK, val)
 
+/* reuse SQ macro for RQ because the hardware format is identical */
+#define RQ_CTXT_PREF_CI_HI(val)            SQ_CTXT_PREF_CI_HI(val)
+
 #define RQ_CTXT_PI_IDX_MASK                GENMASK(15, 0)
 #define RQ_CTXT_CI_IDX_MASK                GENMASK(31, 16)
 #define RQ_CTXT_CI_PI_SET(val, member)  \
@@ -209,7 +212,7 @@ int hinic3_init_nic_io(struct hinic3_nic_dev *nic_dev)
 	struct hinic3_nic_io *nic_io;
 	int err;
 
-	nic_io = kzalloc(sizeof(*nic_io), GFP_KERNEL);
+	nic_io = kzalloc_obj(*nic_io);
 	if (!nic_io)
 		return -ENOMEM;
 
@@ -405,13 +408,13 @@ int hinic3_alloc_qps(struct hinic3_nic_dev *nic_dev,
 	if (qp_params->num_qps > nic_io->max_qps || !qp_params->num_qps)
 		return -EINVAL;
 
-	sqs = kcalloc(qp_params->num_qps, sizeof(*sqs), GFP_KERNEL);
+	sqs = kzalloc_objs(*sqs, qp_params->num_qps);
 	if (!sqs) {
 		err = -ENOMEM;
 		goto err_out;
 	}
 
-	rqs = kcalloc(qp_params->num_qps, sizeof(*rqs), GFP_KERNEL);
+	rqs = kzalloc_objs(*rqs, qp_params->num_qps);
 	if (!rqs) {
 		err = -ENOMEM;
 		goto err_free_sqs;
@@ -629,7 +632,8 @@ static void hinic3_rq_prepare_ctxt(struct hinic3_io_queue *rq,
 			    RQ_CTXT_PREF_SET(RQ_WQ_PREFETCH_THRESHOLD, CACHE_THRESHOLD));
 
 	rq_ctxt->pref_ci_owner =
-		cpu_to_le32(RQ_CTXT_PREF_SET(SQ_CTXT_PREF_CI_HI(ci_start), CI_HI) |
+		cpu_to_le32(RQ_CTXT_PREF_SET(RQ_CTXT_PREF_CI_HI(ci_start),
+					     CI_HI) |
 			    RQ_CTXT_PREF_SET(1, OWNER));
 
 	rq_ctxt->pref_wq_pfn_hi_ci =

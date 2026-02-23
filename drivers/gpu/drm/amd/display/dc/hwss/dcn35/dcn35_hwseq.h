@@ -108,5 +108,8 @@ void dcn35_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe
 void dcn35_notify_cursor_offload_drr_update(struct dc *dc, struct dc_state *context,
 					    const struct dc_stream_state *stream);
 void dcn35_program_cursor_offload_now(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn35_disable_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
 
 #endif /* __DC_HWSS_DCN35_H__ */

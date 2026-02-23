@@ -204,7 +204,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 
 	wl = hw->priv;
 
-	wl_sdio = kzalloc(sizeof(*wl_sdio), GFP_KERNEL);
+	wl_sdio = kzalloc_obj(*wl_sdio);
 	if (wl_sdio == NULL) {
 		ret = -ENOMEM;
 		goto out_free_hw;

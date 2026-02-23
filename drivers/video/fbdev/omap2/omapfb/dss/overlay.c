@@ -49,8 +49,7 @@ void dss_init_overlays(struct platform_device *pdev)
 
 	num_overlays = dss_feat_get_num_ovls();
 
-	overlays = kcalloc(num_overlays, sizeof(struct omap_overlay),
-			   GFP_KERNEL);
+	overlays = kzalloc_objs(struct omap_overlay, num_overlays);
 
 	BUG_ON(overlays == NULL);
 

@@ -243,7 +243,7 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 				      SNDRV_PCM_HW_PARAM_PERIODS);
 	snd_soc_set_runtime_hwparams(substream, &ls_pcm_hardware);
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		return -ENOMEM;
 

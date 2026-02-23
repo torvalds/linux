@@ -401,16 +401,16 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x87e0 0x24000000 0x0 0x1000>;
 			interrupts = <1 21 4>;
-			clocks = <&refclk50mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk50mhz>, <&refclk50mhz>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uaa1: serial@87e025000000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x87e0 0x25000000 0x0 0x1000>;
 			interrupts = <1 22 4>;
-			clocks = <&refclk50mhz>;
-			clock-names = "apb_pclk";
+			clocks = <&refclk50mhz>, <&refclk50mhz>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 	};
 };

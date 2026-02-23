@@ -446,12 +446,12 @@ static const struct pci_device_id hisi_zip_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
 
-int zip_create_qps(struct hisi_qp **qps, int qp_num, int node)
+int zip_create_qps(struct hisi_qp **qps, int qp_num, int node, u8 *alg_type)
 {
 	if (node == NUMA_NO_NODE)
 		node = cpu_to_node(raw_smp_processor_id());
 
-	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, 0, node, qps);
+	return hisi_qm_alloc_qps_node(&zip_devices, qp_num, alg_type, node, qps);
 }
 
 bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)

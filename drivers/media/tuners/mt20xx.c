@@ -596,7 +596,7 @@ struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
 	unsigned char buf[21];
 	int company_code;
 
-	priv = kzalloc(sizeof(struct microtune_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct microtune_priv);
 	if (priv == NULL)
 		return NULL;
 	fe->tuner_priv = priv;

@@ -119,7 +119,7 @@ static int __init zevio_timer_add(struct device_node *node)
 	struct resource res;
 	int irqnr, ret;
 
-	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
+	timer = kzalloc_obj(*timer);
 	if (!timer)
 		return -ENOMEM;
 

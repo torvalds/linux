@@ -95,7 +95,7 @@ static struct clk *_register_gate(struct device_node *node, const char *name,
 	struct clk_hw_omap *clk_hw;
 	struct clk *clk;
 
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw);
 	if (!clk_hw)
 		return ERR_PTR(-ENOMEM);
 
@@ -169,7 +169,7 @@ _of_ti_composite_gate_clk_setup(struct device_node *node,
 {
 	struct clk_hw_omap *gate;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return;
 

@@ -24,7 +24,7 @@ static void query_edid(struct via_aux_drv *drv)
 	if (spec) {
 		fb_destroy_modedb(spec->modedb);
 	} else {
-		spec = kmalloc(sizeof(*spec), GFP_KERNEL);
+		spec = kmalloc_obj(*spec);
 		if (!spec)
 			return;
 	}

@@ -331,7 +331,7 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 
 	/* Files only get access rights that make sense. */
 	if (!d_is_dir(path->dentry) &&
-	    (access_rights | ACCESS_FILE) != ACCESS_FILE)
+	    !access_mask_subset(access_rights, ACCESS_FILE))
 		return -EINVAL;
 	if (WARN_ON_ONCE(ruleset->num_layers != 1))
 		return -EINVAL;
@@ -399,56 +399,54 @@ static const struct access_masks any_fs = {
 };
 
 /*
+ * Returns true iff the child file with the given src_child access rights under
+ * src_parent would result in having the same or fewer access rights if it were
+ * moved under new_parent.
+ */
+static bool may_refer(const struct layer_access_masks *const src_parent,
+		      const struct layer_access_masks *const src_child,
+		      const struct layer_access_masks *const new_parent,
+		      const bool child_is_dir)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(new_parent->access); i++) {
+		access_mask_t child_access = src_parent->access[i] &
+					     src_child->access[i];
+		access_mask_t parent_access = new_parent->access[i];
+
+		if (!child_is_dir) {
+			child_access &= ACCESS_FILE;
+			parent_access &= ACCESS_FILE;
+		}
+
+		if (!access_mask_subset(child_access, parent_access))
+			return false;
+	}
+	return true;
+}
+
+/*
  * Check that a destination file hierarchy has more restrictions than a source
  * file hierarchy.  This is only used for link and rename actions.
  *
- * @layer_masks_child2: Optional child masks.
+ * Returns: true if child1 may be moved from parent1 to parent2 without
+ * increasing its access rights.  If child2 is set, an additional condition is
+ * that child2 may be used from parent2 to parent1 without increasing its access
+ * rights.
  */
-static bool no_more_access(
-	const layer_mask_t (*const layer_masks_parent1)[LANDLOCK_NUM_ACCESS_FS],
-	const layer_mask_t (*const layer_masks_child1)[LANDLOCK_NUM_ACCESS_FS],
-	const bool child1_is_directory,
-	const layer_mask_t (*const layer_masks_parent2)[LANDLOCK_NUM_ACCESS_FS],
-	const layer_mask_t (*const layer_masks_child2)[LANDLOCK_NUM_ACCESS_FS],
-	const bool child2_is_directory)
+static bool no_more_access(const struct layer_access_masks *const parent1,
+			   const struct layer_access_masks *const child1,
+			   const bool child1_is_dir,
+			   const struct layer_access_masks *const parent2,
+			   const struct layer_access_masks *const child2,
+			   const bool child2_is_dir)
 {
-	unsigned long access_bit;
+	if (!may_refer(parent1, child1, parent2, child1_is_dir))
+		return false;
 
-	for (access_bit = 0; access_bit < ARRAY_SIZE(*layer_masks_parent2);
-	     access_bit++) {
-		/* Ignores accesses that only make sense for directories. */
-		const bool is_file_access =
-			!!(BIT_ULL(access_bit) & ACCESS_FILE);
+	if (!child2)
+		return true;
 
-		if (child1_is_directory || is_file_access) {
-			/*
-			 * Checks if the destination restrictions are a
-			 * superset of the source ones (i.e. inherited access
-			 * rights without child exceptions):
-			 * restrictions(parent2) >= restrictions(child1)
-			 */
-			if ((((*layer_masks_parent1)[access_bit] &
-			      (*layer_masks_child1)[access_bit]) |
-			     (*layer_masks_parent2)[access_bit]) !=
-			    (*layer_masks_parent2)[access_bit])
-				return false;
-		}
-
-		if (!layer_masks_child2)
-			continue;
-		if (child2_is_directory || is_file_access) {
-			/*
-			 * Checks inverted restrictions for RENAME_EXCHANGE:
-			 * restrictions(parent1) >= restrictions(child2)
-			 */
-			if ((((*layer_masks_parent2)[access_bit] &
-			      (*layer_masks_child2)[access_bit]) |
-			     (*layer_masks_parent1)[access_bit]) !=
-			    (*layer_masks_parent1)[access_bit])
-				return false;
-		}
-	}
-	return true;
+	return may_refer(parent2, child2, parent1, child2_is_dir);
 }
 
 #define NMA_TRUE(...) KUNIT_EXPECT_TRUE(test, no_more_access(__VA_ARGS__))
@@ -458,25 +456,25 @@ static bool no_more_access(
 
 static void test_no_more_access(struct kunit *const test)
 {
-	const layer_mask_t rx0[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_READ_FILE)] = BIT_ULL(0),
+	const struct layer_access_masks rx0 = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE |
+			     LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	const layer_mask_t mx0[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_REG)] = BIT_ULL(0),
+	const struct layer_access_masks mx0 = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE |
+			     LANDLOCK_ACCESS_FS_MAKE_REG,
 	};
-	const layer_mask_t x0[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0),
+	const struct layer_access_masks x0 = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE,
 	};
-	const layer_mask_t x1[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(1),
+	const struct layer_access_masks x1 = {
+		.access[1] = LANDLOCK_ACCESS_FS_EXECUTE,
 	};
-	const layer_mask_t x01[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0) |
-							  BIT_ULL(1),
+	const struct layer_access_masks x01 = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE,
+		.access[1] = LANDLOCK_ACCESS_FS_EXECUTE,
 	};
-	const layer_mask_t allows_all[LANDLOCK_NUM_ACCESS_FS] = {};
+	const struct layer_access_masks allows_all = {};
 
 	/* Checks without restriction. */
 	NMA_TRUE(&x0, &allows_all, false, &allows_all, NULL, false);
@@ -564,31 +562,30 @@ static void test_no_more_access(struct kunit *const test)
 #undef NMA_TRUE
 #undef NMA_FALSE
 
-static bool is_layer_masks_allowed(
-	layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS])
+static bool is_layer_masks_allowed(const struct layer_access_masks *masks)
 {
-	return !memchr_inv(layer_masks, 0, sizeof(*layer_masks));
+	return !memchr_inv(&masks->access, 0, sizeof(masks->access));
 }
 
 /*
- * Removes @layer_masks accesses that are not requested.
+ * Removes @masks accesses that are not requested.
  *
  * Returns true if the request is allowed, false otherwise.
  */
-static bool
-scope_to_request(const access_mask_t access_request,
-		 layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS])
+static bool scope_to_request(const access_mask_t access_request,
+			     struct layer_access_masks *masks)
 {
-	const unsigned long access_req = access_request;
-	unsigned long access_bit;
+	bool saw_unfulfilled_access = false;
 
-	if (WARN_ON_ONCE(!layer_masks))
+	if (WARN_ON_ONCE(!masks))
 		return true;
 
-	for_each_clear_bit(access_bit, &access_req, ARRAY_SIZE(*layer_masks))
-		(*layer_masks)[access_bit] = 0;
-
-	return is_layer_masks_allowed(layer_masks);
+	for (size_t i = 0; i < ARRAY_SIZE(masks->access); i++) {
+		masks->access[i] &= access_request;
+		if (masks->access[i])
+			saw_unfulfilled_access = true;
+	}
+	return !saw_unfulfilled_access;
 }
 
 #ifdef CONFIG_SECURITY_LANDLOCK_KUNIT_TEST
@@ -596,48 +593,41 @@ scope_to_request(const access_mask_t access_request,
 static void test_scope_to_request_with_exec_none(struct kunit *const test)
 {
 	/* Allows everything. */
-	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct layer_access_masks masks = {};
 
 	/* Checks and scopes with execute. */
-	KUNIT_EXPECT_TRUE(test, scope_to_request(LANDLOCK_ACCESS_FS_EXECUTE,
-						 &layer_masks));
-	KUNIT_EXPECT_EQ(test, 0,
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)]);
-	KUNIT_EXPECT_EQ(test, 0,
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)]);
+	KUNIT_EXPECT_TRUE(test,
+			  scope_to_request(LANDLOCK_ACCESS_FS_EXECUTE, &masks));
+	KUNIT_EXPECT_EQ(test, 0, masks.access[0]);
 }
 
 static void test_scope_to_request_with_exec_some(struct kunit *const test)
 {
 	/* Denies execute and write. */
-	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)] = BIT_ULL(1),
+	struct layer_access_masks masks = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE,
+		.access[1] = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	};
 
 	/* Checks and scopes with execute. */
 	KUNIT_EXPECT_FALSE(test, scope_to_request(LANDLOCK_ACCESS_FS_EXECUTE,
-						  &layer_masks));
-	KUNIT_EXPECT_EQ(test, BIT_ULL(0),
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)]);
-	KUNIT_EXPECT_EQ(test, 0,
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)]);
+						  &masks));
+	KUNIT_EXPECT_EQ(test, LANDLOCK_ACCESS_FS_EXECUTE, masks.access[0]);
+	KUNIT_EXPECT_EQ(test, 0, masks.access[1]);
 }
 
 static void test_scope_to_request_without_access(struct kunit *const test)
 {
 	/* Denies execute and write. */
-	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = BIT_ULL(0),
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)] = BIT_ULL(1),
+	struct layer_access_masks masks = {
+		.access[0] = LANDLOCK_ACCESS_FS_EXECUTE,
+		.access[1] = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	};
 
 	/* Checks and scopes without access request. */
-	KUNIT_EXPECT_TRUE(test, scope_to_request(0, &layer_masks));
-	KUNIT_EXPECT_EQ(test, 0,
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)]);
-	KUNIT_EXPECT_EQ(test, 0,
-			layer_masks[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)]);
+	KUNIT_EXPECT_TRUE(test, scope_to_request(0, &masks));
+	KUNIT_EXPECT_EQ(test, 0, masks.access[0]);
+	KUNIT_EXPECT_EQ(test, 0, masks.access[1]);
 }
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
@@ -646,20 +636,16 @@ static void test_scope_to_request_without_access(struct kunit *const test)
  * Returns true if there is at least one access right different than
  * LANDLOCK_ACCESS_FS_REFER.
  */
-static bool
-is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
-	  const access_mask_t access_request)
+static bool is_eacces(const struct layer_access_masks *masks,
+		      const access_mask_t access_request)
 {
-	unsigned long access_bit;
-	/* LANDLOCK_ACCESS_FS_REFER alone must return -EXDEV. */
-	const unsigned long access_check = access_request &
-					   ~LANDLOCK_ACCESS_FS_REFER;
-
-	if (!layer_masks)
+	if (!masks)
 		return false;
 
-	for_each_set_bit(access_bit, &access_check, ARRAY_SIZE(*layer_masks)) {
-		if ((*layer_masks)[access_bit])
+	for (size_t i = 0; i < ARRAY_SIZE(masks->access); i++) {
+		/* LANDLOCK_ACCESS_FS_REFER alone must return -EXDEV. */
+		if (masks->access[i] & access_request &
+		    ~LANDLOCK_ACCESS_FS_REFER)
 			return true;
 	}
 	return false;
@@ -672,37 +658,37 @@ is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
 
 static void test_is_eacces_with_none(struct kunit *const test)
 {
-	const layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	const struct layer_access_masks masks = {};
 
-	IE_FALSE(&layer_masks, 0);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_REFER);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_EXECUTE);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
+	IE_FALSE(&masks, 0);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_REFER);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_EXECUTE);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
 }
 
 static void test_is_eacces_with_refer(struct kunit *const test)
 {
-	const layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_REFER)] = BIT_ULL(0),
+	const struct layer_access_masks masks = {
+		.access[0] = LANDLOCK_ACCESS_FS_REFER,
 	};
 
-	IE_FALSE(&layer_masks, 0);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_REFER);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_EXECUTE);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
+	IE_FALSE(&masks, 0);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_REFER);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_EXECUTE);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
 }
 
 static void test_is_eacces_with_write(struct kunit *const test)
 {
-	const layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {
-		[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)] = BIT_ULL(0),
+	const struct layer_access_masks masks = {
+		.access[0] = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	};
 
-	IE_FALSE(&layer_masks, 0);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_REFER);
-	IE_FALSE(&layer_masks, LANDLOCK_ACCESS_FS_EXECUTE);
+	IE_FALSE(&masks, 0);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_REFER);
+	IE_FALSE(&masks, LANDLOCK_ACCESS_FS_EXECUTE);
 
-	IE_TRUE(&layer_masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
+	IE_TRUE(&masks, LANDLOCK_ACCESS_FS_WRITE_FILE);
 }
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
@@ -752,26 +738,25 @@ static void test_is_eacces_with_write(struct kunit *const test)
  * - true if the access request is granted;
  * - false otherwise.
  */
-static bool is_access_to_paths_allowed(
-	const struct landlock_ruleset *const domain,
-	const struct path *const path,
-	const access_mask_t access_request_parent1,
-	layer_mask_t (*const layer_masks_parent1)[LANDLOCK_NUM_ACCESS_FS],
-	struct landlock_request *const log_request_parent1,
-	struct dentry *const dentry_child1,
-	const access_mask_t access_request_parent2,
-	layer_mask_t (*const layer_masks_parent2)[LANDLOCK_NUM_ACCESS_FS],
-	struct landlock_request *const log_request_parent2,
-	struct dentry *const dentry_child2)
+static bool
+is_access_to_paths_allowed(const struct landlock_ruleset *const domain,
+			   const struct path *const path,
+			   const access_mask_t access_request_parent1,
+			   struct layer_access_masks *layer_masks_parent1,
+			   struct landlock_request *const log_request_parent1,
+			   struct dentry *const dentry_child1,
+			   const access_mask_t access_request_parent2,
+			   struct layer_access_masks *layer_masks_parent2,
+			   struct landlock_request *const log_request_parent2,
+			   struct dentry *const dentry_child2)
 {
 	bool allowed_parent1 = false, allowed_parent2 = false, is_dom_check,
 	     child1_is_directory = true, child2_is_directory = true;
 	struct path walker_path;
 	access_mask_t access_masked_parent1, access_masked_parent2;
-	layer_mask_t _layer_masks_child1[LANDLOCK_NUM_ACCESS_FS],
-		_layer_masks_child2[LANDLOCK_NUM_ACCESS_FS];
-	layer_mask_t(*layer_masks_child1)[LANDLOCK_NUM_ACCESS_FS] = NULL,
-	(*layer_masks_child2)[LANDLOCK_NUM_ACCESS_FS] = NULL;
+	struct layer_access_masks _layer_masks_child1, _layer_masks_child2;
+	struct layer_access_masks *layer_masks_child1 = NULL,
+				  *layer_masks_child2 = NULL;
 
 	if (!access_request_parent1 && !access_request_parent2)
 		return true;
@@ -811,22 +796,20 @@ static bool is_access_to_paths_allowed(
 	}
 
 	if (unlikely(dentry_child1)) {
-		landlock_unmask_layers(
-			find_rule(domain, dentry_child1),
-			landlock_init_layer_masks(
-				domain, LANDLOCK_MASK_ACCESS_FS,
-				&_layer_masks_child1, LANDLOCK_KEY_INODE),
-			&_layer_masks_child1, ARRAY_SIZE(_layer_masks_child1));
+		if (landlock_init_layer_masks(domain, LANDLOCK_MASK_ACCESS_FS,
+					      &_layer_masks_child1,
+					      LANDLOCK_KEY_INODE))
+			landlock_unmask_layers(find_rule(domain, dentry_child1),
+					       &_layer_masks_child1);
 		layer_masks_child1 = &_layer_masks_child1;
 		child1_is_directory = d_is_dir(dentry_child1);
 	}
 	if (unlikely(dentry_child2)) {
-		landlock_unmask_layers(
-			find_rule(domain, dentry_child2),
-			landlock_init_layer_masks(
-				domain, LANDLOCK_MASK_ACCESS_FS,
-				&_layer_masks_child2, LANDLOCK_KEY_INODE),
-			&_layer_masks_child2, ARRAY_SIZE(_layer_masks_child2));
+		if (landlock_init_layer_masks(domain, LANDLOCK_MASK_ACCESS_FS,
+					      &_layer_masks_child2,
+					      LANDLOCK_KEY_INODE))
+			landlock_unmask_layers(find_rule(domain, dentry_child2),
+					       &_layer_masks_child2);
 		layer_masks_child2 = &_layer_masks_child2;
 		child2_is_directory = d_is_dir(dentry_child2);
 	}
@@ -881,16 +864,12 @@ static bool is_access_to_paths_allowed(
 		}
 
 		rule = find_rule(domain, walker_path.dentry);
-		allowed_parent1 = allowed_parent1 ||
-				  landlock_unmask_layers(
-					  rule, access_masked_parent1,
-					  layer_masks_parent1,
-					  ARRAY_SIZE(*layer_masks_parent1));
-		allowed_parent2 = allowed_parent2 ||
-				  landlock_unmask_layers(
-					  rule, access_masked_parent2,
-					  layer_masks_parent2,
-					  ARRAY_SIZE(*layer_masks_parent2));
+		allowed_parent1 =
+			allowed_parent1 ||
+			landlock_unmask_layers(rule, layer_masks_parent1);
+		allowed_parent2 =
+			allowed_parent2 ||
+			landlock_unmask_layers(rule, layer_masks_parent2);
 
 		/* Stops when a rule from each layer grants access. */
 		if (allowed_parent1 && allowed_parent2)
@@ -939,25 +918,28 @@ jump_up:
 	}
 	path_put(&walker_path);
 
-	if (!allowed_parent1) {
+	/*
+	 * Check CONFIG_AUDIT to enable elision of log_request_parent* and
+	 * associated caller's stack variables thanks to dead code elimination.
+	 */
+#ifdef CONFIG_AUDIT
+	if (!allowed_parent1 && log_request_parent1) {
 		log_request_parent1->type = LANDLOCK_REQUEST_FS_ACCESS;
 		log_request_parent1->audit.type = LSM_AUDIT_DATA_PATH;
 		log_request_parent1->audit.u.path = *path;
 		log_request_parent1->access = access_masked_parent1;
 		log_request_parent1->layer_masks = layer_masks_parent1;
-		log_request_parent1->layer_masks_size =
-			ARRAY_SIZE(*layer_masks_parent1);
 	}
 
-	if (!allowed_parent2) {
+	if (!allowed_parent2 && log_request_parent2) {
 		log_request_parent2->type = LANDLOCK_REQUEST_FS_ACCESS;
 		log_request_parent2->audit.type = LSM_AUDIT_DATA_PATH;
 		log_request_parent2->audit.u.path = *path;
 		log_request_parent2->access = access_masked_parent2;
 		log_request_parent2->layer_masks = layer_masks_parent2;
-		log_request_parent2->layer_masks_size =
-			ARRAY_SIZE(*layer_masks_parent2);
 	}
+#endif /* CONFIG_AUDIT */
+
 	return allowed_parent1 && allowed_parent2;
 }
 
@@ -969,7 +951,7 @@ static int current_check_access_path(const struct path *const path,
 	};
 	const struct landlock_cred_security *const subject =
 		landlock_get_applicable_subject(current_cred(), masks, NULL);
-	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct layer_access_masks layer_masks;
 	struct landlock_request request = {};
 
 	if (!subject)
@@ -1044,12 +1026,11 @@ static access_mask_t maybe_remove(const struct dentry *const dentry)
  * - true if all the domain access rights are allowed for @dir;
  * - false if the walk reached @mnt_root.
  */
-static bool collect_domain_accesses(
-	const struct landlock_ruleset *const domain,
-	const struct dentry *const mnt_root, struct dentry *dir,
-	layer_mask_t (*const layer_masks_dom)[LANDLOCK_NUM_ACCESS_FS])
+static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
+				    const struct dentry *const mnt_root,
+				    struct dentry *dir,
+				    struct layer_access_masks *layer_masks_dom)
 {
-	unsigned long access_dom;
 	bool ret = false;
 
 	if (WARN_ON_ONCE(!domain || !mnt_root || !dir || !layer_masks_dom))
@@ -1057,18 +1038,17 @@ static bool collect_domain_accesses(
 	if (is_nouser_or_private(dir))
 		return true;
 
-	access_dom = landlock_init_layer_masks(domain, LANDLOCK_MASK_ACCESS_FS,
-					       layer_masks_dom,
-					       LANDLOCK_KEY_INODE);
+	if (!landlock_init_layer_masks(domain, LANDLOCK_MASK_ACCESS_FS,
+				       layer_masks_dom, LANDLOCK_KEY_INODE))
+		return true;
 
 	dget(dir);
 	while (true) {
 		struct dentry *parent_dentry;
 
 		/* Gets all layers allowing all domain accesses. */
-		if (landlock_unmask_layers(find_rule(domain, dir), access_dom,
-					   layer_masks_dom,
-					   ARRAY_SIZE(*layer_masks_dom))) {
+		if (landlock_unmask_layers(find_rule(domain, dir),
+					   layer_masks_dom)) {
 			/*
 			 * Stops when all handled accesses are allowed by at
 			 * least one rule in each layer.
@@ -1156,8 +1136,8 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	access_mask_t access_request_parent1, access_request_parent2;
 	struct path mnt_dir;
 	struct dentry *old_parent;
-	layer_mask_t layer_masks_parent1[LANDLOCK_NUM_ACCESS_FS] = {},
-		     layer_masks_parent2[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct layer_access_masks layer_masks_parent1 = {},
+				  layer_masks_parent2 = {};
 	struct landlock_request request1 = {}, request2 = {};
 
 	if (!subject)
@@ -1314,7 +1294,8 @@ static void hook_sb_delete(struct super_block *const sb)
 		 * second call to iput() for the same Landlock object.  Also
 		 * checks I_NEW because such inode cannot be tied to an object.
 		 */
-		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE | I_NEW)) {
+		if (inode_state_read(inode) &
+		    (I_FREEING | I_WILL_FREE | I_NEW)) {
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
@@ -1632,7 +1613,7 @@ static bool is_device(const struct file *const file)
 
 static int hook_file_open(struct file *const file)
 {
-	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
+	struct layer_access_masks layer_masks = {};
 	access_mask_t open_access_request, full_access_request, allowed_access,
 		optional_access;
 	const struct landlock_cred_security *const subject =
@@ -1667,20 +1648,14 @@ static int hook_file_open(struct file *const file)
 		    &layer_masks, &request, NULL, 0, NULL, NULL, NULL)) {
 		allowed_access = full_access_request;
 	} else {
-		unsigned long access_bit;
-		const unsigned long access_req = full_access_request;
-
 		/*
 		 * Calculate the actual allowed access rights from layer_masks.
-		 * Add each access right to allowed_access which has not been
-		 * vetoed by any layer.
+		 * Remove the access rights from the full access request which
+		 * are still unfulfilled in any of the layers.
 		 */
-		allowed_access = 0;
-		for_each_set_bit(access_bit, &access_req,
-				 ARRAY_SIZE(layer_masks)) {
-			if (!layer_masks[access_bit])
-				allowed_access |= BIT_ULL(access_bit);
-		}
+		allowed_access = full_access_request;
+		for (size_t i = 0; i < ARRAY_SIZE(layer_masks.access); i++)
+			allowed_access &= ~layer_masks.access[i];
 	}
 
 	/*
@@ -1692,11 +1667,10 @@ static int hook_file_open(struct file *const file)
 	landlock_file(file)->allowed_access = allowed_access;
 #ifdef CONFIG_AUDIT
 	landlock_file(file)->deny_masks = landlock_get_deny_masks(
-		_LANDLOCK_ACCESS_FS_OPTIONAL, optional_access, &layer_masks,
-		ARRAY_SIZE(layer_masks));
+		_LANDLOCK_ACCESS_FS_OPTIONAL, optional_access, &layer_masks);
 #endif /* CONFIG_AUDIT */
 
-	if ((open_access_request & allowed_access) == open_access_request)
+	if (access_mask_subset(open_access_request, allowed_access))
 		return 0;
 
 	/* Sets access to reflect the actual request. */

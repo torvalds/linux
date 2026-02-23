@@ -1814,7 +1814,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	int i;
 
 	/* allocate main vivid state structure */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

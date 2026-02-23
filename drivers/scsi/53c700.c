@@ -152,8 +152,8 @@ MODULE_LICENSE("GPL");
 /* This is the script */
 #include "53c700_d.h"
 
-
-STATIC int NCR_700_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *);
+STATIC enum scsi_qc_status NCR_700_queuecommand(struct Scsi_Host *h,
+						struct scsi_cmnd *);
 STATIC int NCR_700_abort(struct scsi_cmnd * SCpnt);
 STATIC int NCR_700_host_reset(struct scsi_cmnd * SCpnt);
 STATIC void NCR_700_chip_setup(struct Scsi_Host *host);
@@ -1751,7 +1751,7 @@ NCR_700_intr(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-static int NCR_700_queuecommand_lck(struct scsi_cmnd *SCp)
+static enum scsi_qc_status NCR_700_queuecommand_lck(struct scsi_cmnd *SCp)
 {
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)SCp->device->host->hostdata[0];
@@ -2020,8 +2020,7 @@ NCR_700_set_offset(struct scsi_target *STp, int offset)
 STATIC int
 NCR_700_sdev_init(struct scsi_device *SDp)
 {
-	SDp->hostdata = kzalloc(sizeof(struct NCR_700_Device_Parameters),
-				GFP_KERNEL);
+	SDp->hostdata = kzalloc_obj(struct NCR_700_Device_Parameters);
 
 	if (!SDp->hostdata)
 		return -ENOMEM;

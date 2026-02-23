@@ -761,13 +761,11 @@ int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 	list_for_each_entry(intf, &ipmi_interfaces, link)
 		count++;
 	if (count > 0) {
-		interfaces = kmalloc_array(count, sizeof(*interfaces),
-					   GFP_KERNEL);
+		interfaces = kmalloc_objs(*interfaces, count);
 		if (!interfaces) {
 			rv = -ENOMEM;
 		} else {
-			devices = kmalloc_array(count, sizeof(*devices),
-						GFP_KERNEL);
+			devices = kmalloc_objs(*devices, count);
 			if (!devices) {
 				kfree(interfaces);
 				interfaces = NULL;
@@ -1686,7 +1684,7 @@ int ipmi_register_for_cmd(struct ipmi_user *user,
 	if (!user)
 		return -ENODEV;
 
-	rcvr = kmalloc(sizeof(*rcvr), GFP_KERNEL);
+	rcvr = kmalloc_obj(*rcvr);
 	if (!rcvr) {
 		rv = -ENOMEM;
 		goto out_release;
@@ -3146,7 +3144,7 @@ static int __ipmi_bmc_register(struct ipmi_smi *intf,
 			 bmc->id.product_id,
 			 bmc->id.device_id);
 	} else {
-		bmc = kzalloc(sizeof(*bmc), GFP_KERNEL);
+		bmc = kzalloc_obj(*bmc);
 		if (!bmc) {
 			rv = -ENOMEM;
 			goto out;
@@ -3582,7 +3580,7 @@ int ipmi_add_smi(struct module         *owner,
 	if (rv)
 		return rv;
 
-	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
+	intf = kzalloc_obj(*intf);
 	if (!intf)
 		return -ENOMEM;
 
@@ -5195,7 +5193,7 @@ static void free_smi_msg(struct ipmi_smi_msg *msg)
 struct ipmi_smi_msg *ipmi_alloc_smi_msg(void)
 {
 	struct ipmi_smi_msg *rv;
-	rv = kmalloc(sizeof(struct ipmi_smi_msg), GFP_ATOMIC);
+	rv = kmalloc_obj(struct ipmi_smi_msg, GFP_ATOMIC);
 	if (rv) {
 		rv->done = free_smi_msg;
 		rv->recv_msg = NULL;
@@ -5225,7 +5223,7 @@ static struct ipmi_recv_msg *ipmi_alloc_recv_msg(struct ipmi_user *user)
 		}
 	}
 
-	rv = kmalloc(sizeof(struct ipmi_recv_msg), GFP_ATOMIC);
+	rv = kmalloc_obj(struct ipmi_recv_msg, GFP_ATOMIC);
 	if (!rv) {
 		if (user)
 			atomic_dec(&user->nr_msgs);

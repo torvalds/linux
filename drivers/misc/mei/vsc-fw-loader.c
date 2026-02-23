@@ -721,7 +721,7 @@ int vsc_tp_init(struct vsc_tp *tp, struct device *dev)
 	void *rx_buf __free(kfree) = NULL;
 	int ret;
 
-	fw_loader = kzalloc(sizeof(*fw_loader), GFP_KERNEL);
+	fw_loader = kzalloc_obj(*fw_loader);
 	if (!fw_loader)
 		return -ENOMEM;
 

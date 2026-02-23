@@ -49,7 +49,7 @@ int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 	struct gpiod_lookup_table *lookup;
 	struct gpio_desc *gpiod;
 
-	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	lookup = kzalloc_flex(*lookup, table, 2);
 	if (!lookup)
 		return -ENOMEM;
 
@@ -447,7 +447,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		exit_handler = dev_info->exit;
 	}
 
-	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
+	i2c_clients = kzalloc_objs(*i2c_clients, dev_info->i2c_client_count);
 	if (!i2c_clients) {
 		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
@@ -462,7 +462,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		}
 	}
 
-	spi_devs = kcalloc(dev_info->spi_dev_count, sizeof(*spi_devs), GFP_KERNEL);
+	spi_devs = kzalloc_objs(*spi_devs, dev_info->spi_dev_count);
 	if (!spi_devs) {
 		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
@@ -478,7 +478,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	}
 
 	/* + 1 to make space for the (optional) gpio_keys_button platform device */
-	pdevs = kcalloc(dev_info->pdev_count + 1, sizeof(*pdevs), GFP_KERNEL);
+	pdevs = kzalloc_objs(*pdevs, dev_info->pdev_count + 1);
 	if (!pdevs) {
 		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
@@ -494,7 +494,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 		}
 	}
 
-	serdevs = kcalloc(dev_info->serdev_count, sizeof(*serdevs), GFP_KERNEL);
+	serdevs = kzalloc_objs(*serdevs, dev_info->serdev_count);
 	if (!serdevs) {
 		x86_android_tablet_remove(pdev);
 		return -ENOMEM;

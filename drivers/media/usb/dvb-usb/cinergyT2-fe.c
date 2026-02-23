@@ -268,8 +268,7 @@ static const struct dvb_frontend_ops cinergyt2_fe_ops;
 
 struct dvb_frontend *cinergyt2_fe_attach(struct dvb_usb_device *d)
 {
-	struct cinergyt2_fe_state *s = kzalloc(sizeof(
-					struct cinergyt2_fe_state), GFP_KERNEL);
+	struct cinergyt2_fe_state *s = kzalloc_obj(struct cinergyt2_fe_state);
 	if (s == NULL)
 		return NULL;
 

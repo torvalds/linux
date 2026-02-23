@@ -74,7 +74,7 @@ mlxsw_sp_acl_atcam_region_generic_init(struct mlxsw_sp_acl_atcam_region *aregion
 {
 	struct mlxsw_sp_acl_atcam_region_generic *region_generic;
 
-	region_generic = kzalloc(sizeof(*region_generic), GFP_KERNEL);
+	region_generic = kzalloc_obj(*region_generic);
 	if (!region_generic)
 		return -ENOMEM;
 
@@ -126,7 +126,7 @@ mlxsw_sp_acl_atcam_region_12kb_init(struct mlxsw_sp_acl_atcam_region *aregion)
 		return -EIO;
 
 	max_lkey_id = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_LARGE_KEY_ID);
-	region_12kb = kzalloc(sizeof(*region_12kb), GFP_KERNEL);
+	region_12kb = kzalloc_obj(*region_12kb);
 	if (!region_12kb)
 		return -ENOMEM;
 
@@ -179,7 +179,7 @@ mlxsw_sp_acl_atcam_lkey_id_create(struct mlxsw_sp_acl_atcam_region *aregion,
 	else
 		return ERR_PTR(-ENOBUFS);
 
-	lkey_id = kzalloc(sizeof(*lkey_id), GFP_KERNEL);
+	lkey_id = kzalloc_obj(*lkey_id);
 	if (!lkey_id) {
 		err = -ENOMEM;
 		goto err_lkey_id_alloc;

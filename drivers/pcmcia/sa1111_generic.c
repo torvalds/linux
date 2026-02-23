@@ -153,7 +153,7 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 	ops->socket_state = sa1111_pcmcia_socket_state;
 
 	for (i = 0; i < ops->nr; i++) {
-		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		s = kzalloc_obj(*s);
 		if (!s)
 			return -ENOMEM;
 

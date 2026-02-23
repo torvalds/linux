@@ -1043,7 +1043,7 @@ struct dvb_frontend *cx24123_attach(const struct cx24123_config *config,
 {
 	/* allocate memory for the internal state */
 	struct cx24123_state *state =
-		kzalloc(sizeof(struct cx24123_state), GFP_KERNEL);
+		kzalloc_obj(struct cx24123_state);
 
 	dprintk("\n");
 	if (state == NULL) {

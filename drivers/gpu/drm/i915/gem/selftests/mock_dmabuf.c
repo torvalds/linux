@@ -15,7 +15,7 @@ static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,
 	struct scatterlist *sg;
 	int i, err;
 
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	st = kmalloc_obj(*st);
 	if (!st)
 		return ERR_PTR(-ENOMEM);
 
@@ -103,7 +103,7 @@ static struct dma_buf *mock_dmabuf(int npages)
 	struct dma_buf *dmabuf;
 	int i;
 
-	mock = kmalloc(struct_size(mock, pages, npages), GFP_KERNEL);
+	mock = kmalloc_flex(*mock, pages, npages);
 	if (!mock)
 		return ERR_PTR(-ENOMEM);
 

@@ -97,7 +97,7 @@ nvkm_fanpwm_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 	     therm->func->pwm_get(therm, func->line, &divs, &duty) == -ENODEV)
 		return -ENODEV;
 
-	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
+	fan = kzalloc_obj(*fan);
 	if (!fan)
 		return -ENOMEM;
 

@@ -768,7 +768,7 @@ static struct iommu_domain *apple_dart_domain_alloc_paging(struct device *dev)
 {
 	struct apple_dart_domain *dart_domain;
 
-	dart_domain = kzalloc(sizeof(*dart_domain), GFP_KERNEL);
+	dart_domain = kzalloc_obj(*dart_domain);
 	if (!dart_domain)
 		return NULL;
 
@@ -812,7 +812,7 @@ static int apple_dart_of_xlate(struct device *dev,
 	sid = args->args[0];
 
 	if (!cfg) {
-		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+		cfg = kzalloc_obj(*cfg);
 		if (!cfg)
 			return -ENOMEM;
 		/* Will be ANDed with DART capabilities */

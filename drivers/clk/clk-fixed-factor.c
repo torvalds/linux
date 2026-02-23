@@ -110,7 +110,7 @@ __clk_hw_register_fixed_factor(struct device *dev, struct device_node *np,
 		fix = devres_alloc(devm_clk_hw_register_fixed_factor_release,
 				sizeof(*fix), GFP_KERNEL);
 	else
-		fix = kmalloc(sizeof(*fix), GFP_KERNEL);
+		fix = kmalloc_obj(*fix);
 	if (!fix)
 		return ERR_PTR(-ENOMEM);
 

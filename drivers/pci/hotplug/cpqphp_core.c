@@ -593,7 +593,7 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	slot_number = ctrl->first_slot;
 
 	while (number_of_slots) {
-		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc_obj(*slot);
 		if (!slot) {
 			result = -ENOMEM;
 			goto error;
@@ -822,7 +822,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_disable_device;
 	}
 
-	ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
+	ctrl = kzalloc_obj(struct controller);
 	if (!ctrl) {
 		rc = -ENOMEM;
 		goto err_disable_device;

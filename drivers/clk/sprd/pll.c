@@ -155,7 +155,7 @@ static int _sprd_pll_set_rate(const struct sprd_pll *pll,
 	unsigned long kint, nint;
 	u64 tmp, refin, fvco = rate;
 
-	cfg = kcalloc(regs_num, sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_objs(*cfg, regs_num);
 	if (!cfg)
 		return -ENOMEM;
 

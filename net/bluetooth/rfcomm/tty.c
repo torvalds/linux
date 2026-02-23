@@ -221,7 +221,7 @@ static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
 	struct list_head *head = &rfcomm_dev_list;
 	int err = 0;
 
-	dev = kzalloc(sizeof(struct rfcomm_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct rfcomm_dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -510,7 +510,7 @@ static int rfcomm_get_dev_list(void __user *arg)
 	if (!dev_num || dev_num > (PAGE_SIZE * 4) / sizeof(*di))
 		return -EINVAL;
 
-	dl = kzalloc(struct_size(dl, dev_info, dev_num), GFP_KERNEL);
+	dl = kzalloc_flex(*dl, dev_info, dev_num);
 	if (!dl)
 		return -ENOMEM;
 

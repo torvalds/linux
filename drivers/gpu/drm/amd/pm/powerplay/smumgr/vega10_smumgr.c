@@ -218,7 +218,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	if (ret || !info.kptr)
 		return -EINVAL;
 
-	priv = kzalloc(sizeof(struct vega10_smumgr), GFP_KERNEL);
+	priv = kzalloc_obj(struct vega10_smumgr);
 
 	if (!priv)
 		return -ENOMEM;

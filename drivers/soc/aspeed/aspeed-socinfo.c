@@ -113,7 +113,7 @@ static int __init aspeed_socinfo_init(void)
 	}
 	of_node_put(np);
 
-	attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_obj(*attrs);
 	if (!attrs)
 		return -ENODEV;
 

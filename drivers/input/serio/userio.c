@@ -73,7 +73,7 @@ static int userio_device_write(struct serio *id, unsigned char val)
 static int userio_char_open(struct inode *inode, struct file *file)
 {
 	struct userio_device *userio __free(kfree) =
-			kzalloc(sizeof(*userio), GFP_KERNEL);
+			kzalloc_obj(*userio);
 	if (!userio)
 		return -ENOMEM;
 
@@ -81,7 +81,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	spin_lock_init(&userio->buf_lock);
 	init_waitqueue_head(&userio->waitq);
 
-	userio->serio = kzalloc(sizeof(*userio->serio), GFP_KERNEL);
+	userio->serio = kzalloc_obj(*userio->serio);
 	if (!userio->serio)
 		return -ENOMEM;
 

@@ -67,7 +67,7 @@ mv88e639x_pcs_alloc(struct device *dev, struct mii_bus *bus, unsigned int addr,
 {
 	struct mv88e639x_pcs *mpcs;
 
-	mpcs = kzalloc(sizeof(*mpcs), GFP_KERNEL);
+	mpcs = kzalloc_obj(*mpcs);
 	if (!mpcs)
 		return NULL;
 

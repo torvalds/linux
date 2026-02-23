@@ -470,7 +470,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 		goto err_rio_regs;
 	}
 
-	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
+	ops = kzalloc_obj(struct rio_ops);
 	if (!ops) {
 		rc = -ENOMEM;
 		goto err_ops;
@@ -517,7 +517,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENODEV;
 		goto err_dbell;
 	}
-	dbell = kzalloc(sizeof(struct fsl_rio_dbell), GFP_KERNEL);
+	dbell = kzalloc_obj(struct fsl_rio_dbell);
 	if (!(dbell)) {
 		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_dbell'\n");
 		rc = -ENOMEM;
@@ -543,7 +543,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENODEV;
 		goto err_pw;
 	}
-	pw = kzalloc(sizeof(struct fsl_rio_pw), GFP_KERNEL);
+	pw = kzalloc_obj(struct fsl_rio_pw);
 	if (!(pw)) {
 		dev_err(&dev->dev, "Can't alloc memory for 'fsl_rio_pw'\n");
 		rc = -ENOMEM;
@@ -580,7 +580,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 		dev_info(&dev->dev, "%pOF: LAW %pR\n",
 				np, &res);
 
-		port = kzalloc(sizeof(struct rio_mport), GFP_KERNEL);
+		port = kzalloc_obj(struct rio_mport);
 		if (!port)
 			continue;
 
@@ -593,7 +593,7 @@ static int fsl_rio_setup(struct platform_device *dev)
 		i = *port_index - 1;
 		port->index = (unsigned char)i;
 
-		priv = kzalloc(sizeof(struct rio_priv), GFP_KERNEL);
+		priv = kzalloc_obj(struct rio_priv);
 		if (!priv) {
 			dev_err(&dev->dev, "Can't alloc memory for 'priv'\n");
 			kfree(port);

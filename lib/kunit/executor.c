@@ -131,7 +131,7 @@ kunit_filter_glob_tests(const struct kunit_suite *const suite, const char *test_
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
 
-	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
+	filtered = kzalloc_objs(*filtered, n + 1);
 	if (!filtered) {
 		kfree(copy);
 		return ERR_PTR(-ENOMEM);
@@ -179,7 +179,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 
 	const size_t max = suite_set->end - suite_set->start;
 
-	copy = kcalloc(max, sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_objs(*copy, max);
 	if (!copy) { /* won't be able to run anything, return an empty set */
 		return filtered;
 	}
@@ -194,7 +194,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	/* Parse attribute filters */
 	if (filters) {
 		filter_count = kunit_get_filter_count(filters);
-		parsed_filters = kcalloc(filter_count, sizeof(*parsed_filters), GFP_KERNEL);
+		parsed_filters = kzalloc_objs(*parsed_filters, filter_count);
 		if (!parsed_filters) {
 			*err = -ENOMEM;
 			goto free_parsed_glob;

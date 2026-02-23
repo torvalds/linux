@@ -65,7 +65,7 @@ pcirom_init(struct nvkm_bios *bios, const char *name)
 
 	if (!(ret = pci_enable_rom(pdev))) {
 		if (ret = -ENOMEM,
-		    (priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
+		    (priv = kmalloc_obj(*priv))) {
 			if (ret = -EFAULT,
 			    (priv->rom = pci_map_rom(pdev, &priv->size))) {
 				priv->pdev = pdev;
@@ -104,7 +104,7 @@ platform_init(struct nvkm_bios *bios, const char *name)
 	if (!pdev->rom || pdev->romlen == 0)
 		return ERR_PTR(-ENODEV);
 
-	if ((priv = kmalloc(sizeof(*priv), GFP_KERNEL))) {
+	if ((priv = kmalloc_obj(*priv))) {
 		priv->size = pdev->romlen;
 		if (ret = -ENODEV,
 		    (priv->rom = ioremap(pdev->rom, pdev->romlen)))

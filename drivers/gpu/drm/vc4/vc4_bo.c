@@ -205,8 +205,7 @@ static struct list_head *vc4_get_cache_list_for_size(struct drm_device *dev,
 		struct list_head *new_list;
 		uint32_t i;
 
-		new_list = kmalloc_array(new_size, sizeof(struct list_head),
-					 GFP_KERNEL);
+		new_list = kmalloc_objs(struct list_head, new_size);
 		if (!new_list)
 			return NULL;
 
@@ -400,7 +399,7 @@ struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size)
 	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return ERR_PTR(-ENODEV);
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 
@@ -1015,8 +1014,7 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	 * use.  This lets us avoid a bunch of string reallocation in
 	 * the kernel's draw and BO allocation paths.
 	 */
-	vc4->bo_labels = kcalloc(VC4_BO_TYPE_COUNT, sizeof(*vc4->bo_labels),
-				 GFP_KERNEL);
+	vc4->bo_labels = kzalloc_objs(*vc4->bo_labels, VC4_BO_TYPE_COUNT);
 	if (!vc4->bo_labels)
 		return -ENOMEM;
 	vc4->num_labels = VC4_BO_TYPE_COUNT;

@@ -341,7 +341,7 @@ static int cpu_latency_qos_open(struct inode *inode, struct file *filp)
 {
 	struct pm_qos_request *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -440,7 +440,7 @@ static int cpu_wakeup_latency_qos_open(struct inode *inode, struct file *filp)
 {
 	struct pm_qos_request *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

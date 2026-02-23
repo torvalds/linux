@@ -136,7 +136,7 @@ octep_hp_register_slot(struct octep_hp_controller *hp_ctrl,
 	struct octep_hp_slot *hp_slot;
 	int ret;
 
-	hp_slot = kzalloc(sizeof(*hp_slot), GFP_KERNEL);
+	hp_slot = kzalloc_obj(*hp_slot);
 	if (!hp_slot)
 		return ERR_PTR(-ENOMEM);
 
@@ -271,7 +271,7 @@ static irqreturn_t octep_hp_intr_handler(int irq, void *data)
 	intr_val = readq(hp_ctrl->base + OCTEP_HP_INTR_OFFSET(type));
 	writeq(intr_val, hp_ctrl->base + OCTEP_HP_INTR_OFFSET(type));
 
-	hp_cmd = kzalloc(sizeof(*hp_cmd), GFP_ATOMIC);
+	hp_cmd = kzalloc_obj(*hp_cmd, GFP_ATOMIC);
 	if (!hp_cmd)
 		return IRQ_HANDLED;
 

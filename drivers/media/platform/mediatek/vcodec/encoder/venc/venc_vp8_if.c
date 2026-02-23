@@ -316,7 +316,7 @@ static int vp8_enc_init(struct mtk_vcodec_enc_ctx *ctx)
 	int ret = 0;
 	struct venc_vp8_inst *inst;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 

@@ -1048,7 +1048,7 @@ static int dlm_send_regions(struct dlm_ctxt *dlm, unsigned long *node_map)
 	if (find_first_bit(node_map, O2NM_MAX_NODES) >= O2NM_MAX_NODES)
 		goto bail;
 
-	qr = kzalloc(sizeof(struct dlm_query_region), GFP_KERNEL);
+	qr = kzalloc_obj(struct dlm_query_region);
 	if (!qr) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -1105,7 +1105,7 @@ static int dlm_query_region_handler(struct o2net_msg *msg, u32 len,
 	mlog(0, "Node %u queries hb regions on domain %s\n", qr->qr_node,
 	     qr->qr_domain);
 
-	/* buffer used in dlm_mast_regions() */
+	/* buffer used in dlm_match_regions() */
 	local = kmalloc(sizeof(qr->qr_regions), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
@@ -1220,7 +1220,7 @@ static int dlm_send_nodeinfo(struct dlm_ctxt *dlm, unsigned long *node_map)
 	if (find_first_bit(node_map, O2NM_MAX_NODES) >= O2NM_MAX_NODES)
 		goto bail;
 
-	qn = kzalloc(sizeof(struct dlm_query_nodeinfo), GFP_KERNEL);
+	qn = kzalloc_obj(struct dlm_query_nodeinfo);
 	if (!qn) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -1592,7 +1592,7 @@ static int dlm_try_to_join_domain(struct dlm_ctxt *dlm)
 
 	mlog(0, "%p", dlm);
 
-	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
+	ctxt = kzalloc_obj(*ctxt);
 	if (!ctxt) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -1946,7 +1946,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	int ret;
 	struct dlm_ctxt *dlm = NULL;
 
-	dlm = kzalloc(sizeof(*dlm), GFP_KERNEL);
+	dlm = kzalloc_obj(*dlm);
 	if (!dlm) {
 		ret = -ENOMEM;
 		mlog_errno(ret);

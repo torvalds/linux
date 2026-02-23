@@ -111,7 +111,7 @@ nv04_sw_chan_new(struct nvkm_sw *sw, struct nvkm_chan *fifo,
 {
 	struct nv04_sw_chan *chan;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	atomic_set(&chan->ref, 0);
 	*pobject = &chan->base.object;

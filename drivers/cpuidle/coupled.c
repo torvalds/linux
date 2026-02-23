@@ -651,7 +651,7 @@ int cpuidle_coupled_register_device(struct cpuidle_device *dev)
 	}
 
 	/* No existing coupled info found, create a new one */
-	coupled = kzalloc(sizeof(struct cpuidle_coupled), GFP_KERNEL);
+	coupled = kzalloc_obj(struct cpuidle_coupled);
 	if (!coupled)
 		return -ENOMEM;
 

@@ -72,7 +72,6 @@ struct xfs_zone_info {
 	/*
 	 * Free zone search cursor and number of free zones:
 	 */
-	unsigned long		zi_free_zone_cursor;
 	atomic_t		zi_nr_free_zones;
 
 	/*

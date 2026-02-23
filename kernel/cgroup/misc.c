@@ -445,7 +445,7 @@ misc_cg_alloc(struct cgroup_subsys_state *parent_css)
 	if (!parent_css) {
 		cg = &root_cg;
 	} else {
-		cg = kzalloc(sizeof(*cg), GFP_KERNEL);
+		cg = kzalloc_obj(*cg);
 		if (!cg)
 			return ERR_PTR(-ENOMEM);
 	}

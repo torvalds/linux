@@ -18,26 +18,6 @@ maintainers:
   - Hans de Goede <hdegoede@redhat.com>
   - Jens Axboe <axboe@kernel.dk>
 
-select:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - brcm,iproc-ahci
-          - cavium,octeon-7130-ahci
-          - hisilicon,hisi-ahci
-          - ibm,476gtr-ahci
-          - marvell,armada-3700-ahci
-          - marvell,armada-8k-ahci
-          - marvell,berlin2q-ahci
-          - qcom,apq8064-ahci
-          - qcom,ipq806x-ahci
-          - socionext,uniphier-pro4-ahci
-          - socionext,uniphier-pxs2-ahci
-          - socionext,uniphier-pxs3-ahci
-  required:
-    - compatible
-
 properties:
   compatible:
     oneOf:

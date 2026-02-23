@@ -166,7 +166,7 @@ static int dmirror_fops_open(struct inode *inode, struct file *filp)
 	int ret;
 
 	/* Mirror this process address space */
-	dmirror = kzalloc(sizeof(*dmirror), GFP_KERNEL);
+	dmirror = kzalloc_obj(*dmirror);
 	if (dmirror == NULL)
 		return -ENOMEM;
 
@@ -504,7 +504,7 @@ static int dmirror_allocate_chunk(struct dmirror_device *mdevice,
 	void *ptr;
 	int ret = -ENOMEM;
 
-	devmem = kzalloc(sizeof(*devmem), GFP_KERNEL);
+	devmem = kzalloc_obj(*devmem);
 	if (!devmem)
 		return ret;
 
@@ -662,7 +662,9 @@ static struct page *dmirror_devmem_alloc_page(struct dmirror *dmirror,
 			goto error;
 	}
 
-	zone_device_folio_init(page_folio(dpage), order);
+	zone_device_folio_init(page_folio(dpage),
+			       page_pgmap(folio_page(page_folio(dpage), 0)),
+			       order);
 	dpage->zone_device_data = rpage;
 	return dpage;
 

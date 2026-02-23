@@ -115,7 +115,7 @@ struct zcrypt_queue *zcrypt_queue_alloc(size_t reply_buf_size)
 {
 	struct zcrypt_queue *zq;
 
-	zq = kzalloc(sizeof(*zq), GFP_KERNEL);
+	zq = kzalloc_obj(*zq);
 	if (!zq)
 		return NULL;
 	zq->reply.msg = kmalloc(reply_buf_size, GFP_KERNEL);

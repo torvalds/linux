@@ -260,7 +260,7 @@ static int nfnl_acct_start(struct netlink_callback *cb)
 	if (!tb[NFACCT_FILTER_MASK] || !tb[NFACCT_FILTER_VALUE])
 		return -EINVAL;
 
-	filter = kzalloc(sizeof(struct nfacct_filter), GFP_KERNEL);
+	filter = kzalloc_obj(struct nfacct_filter);
 	if (!filter)
 		return -ENOMEM;
 

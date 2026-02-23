@@ -251,7 +251,7 @@ struct clk * __init cpg_div6_register(const char *name,
 	struct clk *clk;
 	unsigned int i;
 
-	clock = kzalloc(struct_size(clock, parents, num_parents), GFP_KERNEL);
+	clock = kzalloc_flex(*clock, parents, num_parents);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 

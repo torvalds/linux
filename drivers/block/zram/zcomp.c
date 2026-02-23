@@ -238,7 +238,7 @@ struct zcomp *zcomp_create(const char *alg, struct zcomp_params *params)
 	 */
 	BUILD_BUG_ON(ARRAY_SIZE(backends) <= 1);
 
-	comp = kzalloc(sizeof(struct zcomp), GFP_KERNEL);
+	comp = kzalloc_obj(struct zcomp);
 	if (!comp)
 		return ERR_PTR(-ENOMEM);
 

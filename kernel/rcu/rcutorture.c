@@ -1178,10 +1178,9 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.deferred_free	= rcu_tasks_tracing_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks_trace,
 	.exp_sync	= synchronize_rcu_tasks_trace,
+	.exp_current	= rcu_tasks_trace_expedite_current,
 	.call		= call_rcu_tasks_trace,
 	.cb_barrier	= rcu_barrier_tasks_trace,
-	.gp_kthread_dbg	= show_rcu_tasks_trace_gp_kthread,
-	.get_gp_data    = rcu_tasks_trace_get_gp_data,
 	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.slow_gps	= 1,
@@ -1627,7 +1626,7 @@ rcu_torture_writer(void *arg)
 			ulo_size = cur_ops->poll_active;
 	}
 	if (cur_ops->poll_active_full > 0) {
-		rgo = kcalloc(cur_ops->poll_active_full, sizeof(*rgo), GFP_KERNEL);
+		rgo = kzalloc_objs(*rgo, cur_ops->poll_active_full);
 		if (!WARN_ON(!rgo))
 			rgo_size = cur_ops->poll_active_full;
 	}
@@ -1750,7 +1749,7 @@ rcu_torture_writer(void *arg)
 					ulo[i] = cur_ops->get_comp_state();
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
-				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+				if (cur_ops->exp_current && !(torture_random(&rand) & 0xff))
 					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
 					gp_snap1 = cur_ops->get_gp_state();
@@ -1772,7 +1771,7 @@ rcu_torture_writer(void *arg)
 					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
-				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+				if (cur_ops->exp_current && !(torture_random(&rand) & 0xff))
 					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					cur_ops->get_gp_state_full(&gp_snap1_full);
@@ -2455,12 +2454,15 @@ static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
  */
 static void rcu_torture_timer(struct timer_list *unused)
 {
+	WARN_ON_ONCE(!in_serving_softirq());
+	WARN_ON_ONCE(in_hardirq());
+	WARN_ON_ONCE(in_nmi());
 	atomic_long_inc(&n_rcu_torture_timers);
 	(void)rcu_torture_one_read(this_cpu_ptr(&rcu_torture_timer_rand), -1);
 
 	/* Test call_rcu() invocation from interrupt handler. */
 	if (cur_ops->call) {
-		struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_NOWAIT);
+		struct rcu_head *rhp = kmalloc_obj(*rhp, GFP_NOWAIT);
 
 		if (rhp)
 			cur_ops->call(rhp, rcu_torture_timer_cb);
@@ -2556,7 +2558,7 @@ static int rcu_torture_updown_init(void)
 		VERBOSE_TOROUT_STRING("rcu_torture_updown_init: Disabling up/down reader tests due to lack of primitives");
 		return 0;
 	}
-	updownreaders = kcalloc(n_up_down, sizeof(*updownreaders), GFP_KERNEL);
+	updownreaders = kzalloc_objs(*updownreaders, n_up_down);
 	if (!updownreaders) {
 		VERBOSE_TOROUT_STRING("rcu_torture_updown_init: Out of memory, disabling up/down reader tests");
 		return -ENOMEM;
@@ -2889,7 +2891,7 @@ static void rcu_torture_mem_dump_obj(void)
 	mem_dump_obj(&z);
 	kmem_cache_free(kcp, rhp);
 	kmem_cache_destroy(kcp);
-	rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+	rhp = kmalloc_obj(*rhp);
 	if (WARN_ON_ONCE(!rhp))
 		return;
 	pr_alert("mem_dump_obj() kmalloc test: rcu_torture_stats = %px, &rhp = %px, rhp = %px\n", stats_task, &rhp, rhp);
@@ -3397,7 +3399,7 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 			n_launders++;
 			n_launders_sa++;
 		} else if (!cur_ops->cbflood_max || cur_ops->cbflood_max > n_max_cbs) {
-			rfcp = kmalloc(sizeof(*rfcp), GFP_KERNEL);
+			rfcp = kmalloc_obj(*rfcp);
 			if (WARN_ON_ONCE(!rfcp)) {
 				schedule_timeout_interruptible(1);
 				continue;
@@ -3585,8 +3587,8 @@ static int __init rcu_torture_fwd_prog_init(void)
 		fwd_progress_holdoff = 1;
 	if (fwd_progress_div <= 0)
 		fwd_progress_div = 4;
-	rfp = kcalloc(fwd_progress, sizeof(*rfp), GFP_KERNEL);
-	fwd_prog_tasks = kcalloc(fwd_progress, sizeof(*fwd_prog_tasks), GFP_KERNEL);
+	rfp = kzalloc_objs(*rfp, fwd_progress);
+	fwd_prog_tasks = kzalloc_objs(*fwd_prog_tasks, fwd_progress);
 	if (!rfp || !fwd_prog_tasks) {
 		kfree(rfp);
 		kfree(fwd_prog_tasks);
@@ -3752,10 +3754,9 @@ static int rcu_torture_barrier_init(void)
 	atomic_set(&barrier_cbs_count, 0);
 	atomic_set(&barrier_cbs_invoked, 0);
 	barrier_cbs_tasks =
-		kcalloc(n_barrier_cbs, sizeof(barrier_cbs_tasks[0]),
-			GFP_KERNEL);
+		kzalloc_objs(barrier_cbs_tasks[0], n_barrier_cbs);
 	barrier_cbs_wq =
-		kcalloc(n_barrier_cbs, sizeof(barrier_cbs_wq[0]), GFP_KERNEL);
+		kzalloc_objs(barrier_cbs_wq[0], n_barrier_cbs);
 	if (barrier_cbs_tasks == NULL || !barrier_cbs_wq)
 		return -ENOMEM;
 	for (i = 0; i < n_barrier_cbs; i++) {
@@ -4222,7 +4223,7 @@ static void rcu_test_debug_objects(void)
 			(!cur_ops->call || !cur_ops->cb_barrier)))
 		return;
 
-	struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+	struct rcu_head *rhp = kmalloc_obj(*rhp);
 
 	init_rcu_head_on_stack(&rh1);
 	init_rcu_head_on_stack(&rh2);
@@ -4547,9 +4548,8 @@ rcu_torture_init(void)
 
 	rcu_torture_write_types();
 	if (nrealfakewriters > 0) {
-		fakewriter_tasks = kcalloc(nrealfakewriters,
-					   sizeof(fakewriter_tasks[0]),
-					   GFP_KERNEL);
+		fakewriter_tasks = kzalloc_objs(fakewriter_tasks[0],
+						nrealfakewriters);
 		if (fakewriter_tasks == NULL) {
 			TOROUT_ERRSTRING("out of memory");
 			firsterr = -ENOMEM;
@@ -4562,10 +4562,9 @@ rcu_torture_init(void)
 		if (torture_init_error(firsterr))
 			goto unwind;
 	}
-	reader_tasks = kcalloc(nrealreaders, sizeof(reader_tasks[0]),
-			       GFP_KERNEL);
-	rcu_torture_reader_mbchk = kcalloc(nrealreaders, sizeof(*rcu_torture_reader_mbchk),
-					   GFP_KERNEL);
+	reader_tasks = kzalloc_objs(reader_tasks[0], nrealreaders);
+	rcu_torture_reader_mbchk = kzalloc_objs(*rcu_torture_reader_mbchk,
+						nrealreaders);
 	if (!reader_tasks || !rcu_torture_reader_mbchk) {
 		TOROUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;
@@ -4593,7 +4592,7 @@ rcu_torture_init(void)
 	if (WARN_ON(nocbs_toggle < 0))
 		nocbs_toggle = HZ;
 	if (nrealnocbers > 0) {
-		nocb_tasks = kcalloc(nrealnocbers, sizeof(nocb_tasks[0]), GFP_KERNEL);
+		nocb_tasks = kzalloc_objs(nocb_tasks[0], nrealnocbers);
 		if (nocb_tasks == NULL) {
 			TOROUT_ERRSTRING("out of memory");
 			firsterr = -ENOMEM;

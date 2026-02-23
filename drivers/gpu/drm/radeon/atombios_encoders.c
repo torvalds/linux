@@ -218,7 +218,7 @@ void radeon_atom_backlight_init(struct radeon_encoder *radeon_encoder,
 		return;
 	}
 
-	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
+	pdata = kmalloc_obj(struct radeon_backlight_privdata);
 	if (!pdata) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto error;
@@ -2625,7 +2625,7 @@ radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 {
 	struct drm_device *dev = radeon_encoder->base.dev;
 	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder_atom_dac *dac = kzalloc(sizeof(struct radeon_encoder_atom_dac), GFP_KERNEL);
+	struct radeon_encoder_atom_dac *dac = kzalloc_obj(struct radeon_encoder_atom_dac);
 
 	if (!dac)
 		return NULL;
@@ -2638,7 +2638,7 @@ static struct radeon_encoder_atom_dig *
 radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 {
 	int encoder_enum = (radeon_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
-	struct radeon_encoder_atom_dig *dig = kzalloc(sizeof(struct radeon_encoder_atom_dig), GFP_KERNEL);
+	struct radeon_encoder_atom_dig *dig = kzalloc_obj(struct radeon_encoder_atom_dig);
 
 	if (!dig)
 		return NULL;
@@ -2676,7 +2676,7 @@ radeon_add_atom_encoder(struct drm_device *dev,
 	}
 
 	/* add a new one */
-	radeon_encoder = kzalloc(sizeof(struct radeon_encoder), GFP_KERNEL);
+	radeon_encoder = kzalloc_obj(struct radeon_encoder);
 	if (!radeon_encoder)
 		return;
 

@@ -42,7 +42,7 @@ struct path_info {
 
 static struct selector *alloc_selector(void)
 {
-	struct selector *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct selector *s = kmalloc_obj(*s);
 
 	if (s) {
 		INIT_LIST_HEAD(&s->valid_paths);
@@ -142,7 +142,7 @@ static int ql_add_path(struct path_selector *ps, struct dm_path *path,
 	}
 
 	/* Allocate the path information structure */
-	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
+	pi = kmalloc_obj(*pi);
 	if (!pi) {
 		*error = "queue-length ps: Error allocating path information";
 		return -ENOMEM;

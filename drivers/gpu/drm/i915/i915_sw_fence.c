@@ -360,7 +360,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 
 	pending = I915_SW_FENCE_FLAG_FENCE;
 	if (!wq) {
-		wq = kmalloc(sizeof(*wq), gfp);
+		wq = kmalloc_obj(*wq, gfp);
 		if (!wq) {
 			if (!gfpflags_allow_blocking(gfp))
 				return -ENOMEM;

@@ -54,7 +54,7 @@ static int ocelot_mrp_redirect_add_vcap(struct ocelot *ocelot, int src_port,
 	struct ocelot_vcap_filter *filter;
 	int err;
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 

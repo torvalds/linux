@@ -429,7 +429,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	if (index < 0)
 		return ERR_PTR(index);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (p == NULL)
 		return ERR_PTR(-ENOMEM);
 

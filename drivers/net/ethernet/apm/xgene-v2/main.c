@@ -405,7 +405,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	struct xge_desc_ring *ring;
 	u16 size;
 
-	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		return NULL;
 
@@ -417,8 +417,7 @@ static struct xge_desc_ring *xge_create_desc_ring(struct net_device *ndev)
 	if (!ring->desc_addr)
 		goto err;
 
-	ring->pkt_info = kcalloc(XGENE_ENET_NUM_DESC, sizeof(*ring->pkt_info),
-				 GFP_KERNEL);
+	ring->pkt_info = kzalloc_objs(*ring->pkt_info, XGENE_ENET_NUM_DESC);
 	if (!ring->pkt_info)
 		goto err;
 

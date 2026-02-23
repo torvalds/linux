@@ -164,7 +164,7 @@ static int esre_create_sysfs_entry(void *esre, int entry_num)
 {
 	struct esre_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

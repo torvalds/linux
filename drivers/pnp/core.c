@@ -122,7 +122,7 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id,
 	struct pnp_dev *dev;
 	struct pnp_id *dev_id;
 
-	dev = kzalloc(sizeof(struct pnp_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct pnp_dev);
 	if (!dev)
 		return NULL;
 

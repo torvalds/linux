@@ -29,7 +29,7 @@ static int uvc_debugfs_stats_open(struct inode *inode, struct file *file)
 	struct uvc_streaming *stream = inode->i_private;
 	struct uvc_debugfs_buffer *buf;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kmalloc_obj(*buf);
 	if (buf == NULL)
 		return -ENOMEM;
 

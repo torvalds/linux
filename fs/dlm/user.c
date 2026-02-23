@@ -262,7 +262,7 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		goto out;
 	}
 
-	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
+	ua = kzalloc_obj(struct dlm_user_args, GFP_NOFS);
 	if (!ua)
 		goto out;
 	ua->proc = proc;
@@ -307,7 +307,7 @@ static int device_user_unlock(struct dlm_user_proc *proc,
 	if (!ls)
 		return -ENOENT;
 
-	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
+	ua = kzalloc_obj(struct dlm_user_args, GFP_NOFS);
 	if (!ua)
 		goto out;
 	ua->proc = proc;
@@ -645,7 +645,7 @@ static int device_open(struct inode *inode, struct file *file)
 	if (!ls)
 		return -ENOENT;
 
-	proc = kzalloc(sizeof(struct dlm_user_proc), GFP_NOFS);
+	proc = kzalloc_obj(struct dlm_user_proc, GFP_NOFS);
 	if (!proc) {
 		dlm_put_lockspace(ls);
 		return -ENOMEM;

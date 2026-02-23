@@ -1309,7 +1309,7 @@ static ssize_t upload_register_store(struct device *dev,
 		goto free_name;
 	}
 
-	tst = kzalloc(sizeof(*tst), GFP_KERNEL);
+	tst = kzalloc_obj(*tst);
 	if (!tst) {
 		ret = -ENOMEM;
 		goto free_name;
@@ -1526,7 +1526,7 @@ static int __init test_firmware_init(void)
 {
 	int rc;
 
-	test_fw_config = kzalloc(sizeof(struct test_config), GFP_KERNEL);
+	test_fw_config = kzalloc_obj(struct test_config);
 	if (!test_fw_config)
 		return -ENOMEM;
 

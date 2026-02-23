@@ -58,6 +58,10 @@ int asoc_sdw_ti_spk_rtd_init(struct snd_soc_pcm_runtime *rtd,
 			strscpy(speaker, "Left Spk", sizeof(speaker));
 		} else if (!strncmp(prefix, "tas2783-2", strlen("tas2783-2"))) {
 			strscpy(speaker, "Right Spk", sizeof(speaker));
+		} else if (!strncmp(prefix, "tas2783-3", strlen("tas2783-3"))) {
+			strscpy(speaker, "Left Spk2", sizeof(speaker));
+		} else if (!strncmp(prefix, "tas2783-4", strlen("tas2783-4"))) {
+			strscpy(speaker, "Right Spk2", sizeof(speaker));
 		} else {
 			ret = -EINVAL;
 			dev_err(card->dev, "unhandled prefix %s", prefix);

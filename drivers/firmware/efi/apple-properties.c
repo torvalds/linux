@@ -146,8 +146,7 @@ static int __init unmarshal_devices(struct properties_header *properties)
 			goto skip_device;
 		}
 
-		entry = kcalloc(dev_header->prop_count + 1, sizeof(*entry),
-				GFP_KERNEL);
+		entry = kzalloc_objs(*entry, dev_header->prop_count + 1);
 		if (!entry) {
 			dev_err(dev, "cannot allocate properties\n");
 			goto skip_device;

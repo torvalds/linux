@@ -3,7 +3,7 @@
 # Makefile for the Linux networking core.
 #
 
-obj-y := sock.o request_sock.o skbuff.o datagram.o stream.o scm.o \
+obj-y := sock.o skbuff.o datagram.o stream.o scm.o \
 	 gen_stats.o gen_estimator.o net_namespace.o secure_seq.o \
 	 flow_dissector.o
 
@@ -19,6 +19,7 @@ obj-$(CONFIG_NETDEV_ADDR_LIST_TEST) += dev_addr_lists_test.o
 
 obj-y += net-sysfs.o
 obj-y += hotdata.o
+obj-y += netdev_config.o
 obj-y += netdev_rx_queue.o
 obj-y += netdev_queues.o
 obj-$(CONFIG_PAGE_POOL) += page_pool.o page_pool_user.o

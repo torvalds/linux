@@ -205,7 +205,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 
 	/* Allocate beacon command */
 	if (!priv->beacon_cmd)
-		priv->beacon_cmd = kzalloc(sizeof(*tx_beacon_cmd), GFP_KERNEL);
+		priv->beacon_cmd = kzalloc_obj(*tx_beacon_cmd);
 	tx_beacon_cmd = priv->beacon_cmd;
 	if (!tx_beacon_cmd)
 		return -ENOMEM;

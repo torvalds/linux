@@ -117,7 +117,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 		   struct enclosure_component_callbacks *cb)
 {
 	struct enclosure_device *edev =
-		kzalloc(struct_size(edev, component, components), GFP_KERNEL);
+		kzalloc_flex(*edev, component, components);
 	int err, i;
 
 	BUG_ON(!cb);

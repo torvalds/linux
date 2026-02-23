@@ -142,7 +142,7 @@ static struct viot_iommu * __init viot_get_iommu(unsigned int offset)
 	if (viot_check_bounds(hdr))
 		return NULL;
 
-	viommu = kzalloc(sizeof(*viommu), GFP_KERNEL);
+	viommu = kzalloc_obj(*viommu);
 	if (!viommu)
 		return NULL;
 
@@ -193,7 +193,7 @@ static int __init viot_parse_node(const struct acpi_viot_header *hdr)
 	    hdr->type == ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO)
 		return 0;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 

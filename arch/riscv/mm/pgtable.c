@@ -47,6 +47,7 @@ pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 
 	return (pud_t *)p4d;
 }
+EXPORT_SYMBOL_GPL(pud_offset);
 
 p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 {
@@ -55,6 +56,7 @@ p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 	return (p4d_t *)pgd;
 }
+EXPORT_SYMBOL_GPL(p4d_offset);
 #endif
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
@@ -163,3 +165,19 @@ pud_t pudp_invalidate(struct vm_area_struct *vma, unsigned long address,
 	return old;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+pte_t pte_mkwrite(pte_t pte, struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_SHADOW_STACK)
+		return pte_mkwrite_shstk(pte);
+
+	return pte_mkwrite_novma(pte);
+}
+
+pmd_t pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & VM_SHADOW_STACK)
+		return pmd_mkwrite_shstk(pmd);
+
+	return pmd_mkwrite_novma(pmd);
+}

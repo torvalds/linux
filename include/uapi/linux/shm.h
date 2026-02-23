@@ -5,9 +5,6 @@
 #include <linux/ipc.h>
 #include <linux/errno.h>
 #include <asm-generic/hugetlb_encode.h>
-#ifndef __KERNEL__
-#include <unistd.h>
-#endif
 
 /*
  * SHMMNI, SHMMAX and SHMALL are default upper limits which can be

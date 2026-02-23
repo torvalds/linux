@@ -1845,9 +1845,8 @@ static int eni_start(struct atm_dev *dev)
 	/* initialize memory management */
 	buffer_mem = eni_dev->mem - (buf - eni_dev->ram);
 	eni_dev->free_list_size = buffer_mem/MID_MIN_BUF_SIZE/2;
-	eni_dev->free_list = kmalloc_array(eni_dev->free_list_size + 1,
-					   sizeof(*eni_dev->free_list),
-					   GFP_KERNEL);
+	eni_dev->free_list = kmalloc_objs(*eni_dev->free_list,
+					  eni_dev->free_list_size + 1);
 	if (!eni_dev->free_list) {
 		printk(KERN_ERR DEV_LABEL "(itf %d): couldn't get free page\n",
 		    dev->number);
@@ -1925,7 +1924,7 @@ static int eni_open(struct atm_vcc *vcc)
 	DPRINTK(DEV_LABEL "(itf %d): open %d.%d\n",vcc->dev->number,vcc->vpi,
 	    vcc->vci);
 	if (!test_bit(ATM_VF_PARTIAL,&vcc->flags)) {
-		eni_vcc = kmalloc(sizeof(struct eni_vcc),GFP_KERNEL);
+		eni_vcc = kmalloc_obj(struct eni_vcc);
 		if (!eni_vcc) return -ENOMEM;
 		vcc->dev_data = eni_vcc;
 		eni_vcc->tx = NULL; /* for eni_close after open_rx */
@@ -2229,7 +2228,7 @@ static int eni_init_one(struct pci_dev *pci_dev,
 		goto err_disable;
 
 	rc = -ENOMEM;
-	eni_dev = kmalloc(sizeof(struct eni_dev), GFP_KERNEL);
+	eni_dev = kmalloc_obj(struct eni_dev);
 	if (!eni_dev)
 		goto err_disable;
 

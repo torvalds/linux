@@ -370,7 +370,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	if (mask != q->tab_mask) {
 		struct sk_buff **ntab;
 
-		ntab = kvcalloc(mask + 1, sizeof(struct sk_buff *), GFP_KERNEL);
+		ntab = kvzalloc_objs(struct sk_buff *, mask + 1);
 		if (!ntab)
 			return -ENOMEM;
 

@@ -138,7 +138,7 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 			return piar;
 		}
 	}
-	piar = kzalloc(sizeof(struct pci_io_addr_range), GFP_ATOMIC);
+	piar = kzalloc_obj(struct pci_io_addr_range, GFP_ATOMIC);
 	if (!piar)
 		return NULL;
 

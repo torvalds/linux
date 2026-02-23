@@ -710,8 +710,11 @@ zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
 		if (rc)
 			return rc;
 
-		/* Convert to ppm -> ffo = (10^6 * value) / 2^32 */
-		zldev->ref[i].ffo = mul_s64_u64_shr(value, 1000000, 32);
+		/* Convert to ppt
+		 * ffo = (10^12 * value) / 2^32
+		 * ffo = ( 5^12 * value) / 2^20
+		 */
+		zldev->ref[i].ffo = mul_s64_u64_shr(value, 244140625, 20);
 	}
 
 	return 0;

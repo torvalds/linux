@@ -14,10 +14,3 @@ on how to write client drivers.
    cdev
    dtx
    san
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

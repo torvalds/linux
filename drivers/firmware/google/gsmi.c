@@ -153,7 +153,7 @@ static struct gsmi_buf *gsmi_buf_alloc(void)
 {
 	struct gsmi_buf *smibuf;
 
-	smibuf = kzalloc(sizeof(*smibuf), GFP_KERNEL);
+	smibuf = kzalloc_obj(*smibuf);
 	if (!smibuf) {
 		printk(KERN_ERR "gsmi: out of memory\n");
 		return NULL;

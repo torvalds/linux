@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 
 struct xstats xfsstats;
 
@@ -23,7 +23,8 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 	uint64_t	xs_xstrat_bytes = 0;
 	uint64_t	xs_write_bytes = 0;
 	uint64_t	xs_read_bytes = 0;
-	uint64_t	defer_relog = 0;
+	uint64_t	xs_defer_relog = 0;
+	uint64_t	xs_gc_bytes = 0;
 
 	static const struct xstats_entry {
 		char	*desc;
@@ -57,7 +58,8 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "rtrmapbt_mem",	xfsstats_offset(xs_rtrefcbt_2)	},
 		{ "rtrefcntbt",		xfsstats_offset(xs_qm_dqreclaims)},
 		/* we print both series of quota information together */
-		{ "qm",			xfsstats_offset(xs_xstrat_bytes)},
+		{ "qm",			xfsstats_offset(xs_gc_read_calls)},
+		{ "zoned",		xfsstats_offset(__pad1)},
 	};
 
 	/* Loop over all stats groups */
@@ -76,19 +78,21 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		xs_xstrat_bytes += per_cpu_ptr(stats, i)->s.xs_xstrat_bytes;
 		xs_write_bytes += per_cpu_ptr(stats, i)->s.xs_write_bytes;
 		xs_read_bytes += per_cpu_ptr(stats, i)->s.xs_read_bytes;
-		defer_relog += per_cpu_ptr(stats, i)->s.defer_relog;
+		xs_defer_relog += per_cpu_ptr(stats, i)->s.xs_defer_relog;
+		xs_gc_bytes += per_cpu_ptr(stats, i)->s.xs_gc_bytes;
 	}
 
 	len += scnprintf(buf + len, PATH_MAX-len, "xpc %llu %llu %llu\n",
 			xs_xstrat_bytes, xs_write_bytes, xs_read_bytes);
 	len += scnprintf(buf + len, PATH_MAX-len, "defer_relog %llu\n",
-			defer_relog);
+			xs_defer_relog);
 	len += scnprintf(buf + len, PATH_MAX-len, "debug %u\n",
 #if defined(DEBUG)
 		1);
 #else
 		0);
 #endif
+	len += scnprintf(buf + len, PATH_MAX-len, "gc xpc %llu\n", xs_gc_bytes);
 
 	return len;
 }

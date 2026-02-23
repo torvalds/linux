@@ -370,7 +370,7 @@ is built-in to the kernel image, there is no need to do anything.
 
 The driver will create one virtual ethernet interface per Thunderbolt
 port which are named like ``thunderbolt0`` and so on. From this point
-you can either use standard userspace tools like ``ifconfig`` to
+you can either use standard userspace tools like ``ip`` to
 configure the interface or let your GUI handle it automatically.
 
 Forcing power

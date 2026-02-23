@@ -39,7 +39,7 @@ static void *vb2_vmalloc_alloc(struct vb2_buffer *vb, struct device *dev,
 {
 	struct vb2_vmalloc_buf *buf;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL | vb->vb2_queue->gfp_flags);
+	buf = kzalloc_obj(*buf, GFP_KERNEL | vb->vb2_queue->gfp_flags);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -78,7 +78,7 @@ static void *vb2_vmalloc_get_userptr(struct vb2_buffer *vb, struct device *dev,
 	int n_pages, offset, i;
 	int ret = -ENOMEM;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
@@ -221,7 +221,7 @@ static int vb2_vmalloc_dmabuf_ops_attach(struct dma_buf *dbuf,
 	int ret;
 	int i;
 
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	attach = kzalloc_obj(*attach);
 	if (!attach)
 		return -ENOMEM;
 
@@ -409,7 +409,7 @@ static void *vb2_vmalloc_attach_dmabuf(struct vb2_buffer *vb,
 	if (dbuf->size < size)
 		return ERR_PTR(-EFAULT);
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 

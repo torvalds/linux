@@ -4990,8 +4990,8 @@ struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 	 *  Allocate the table of pointers for LUN(s) > 0, if needed.
 	 */
 	if (ln && !tp->lunmp) {
-		tp->lunmp = kcalloc(SYM_CONF_MAX_LUN, sizeof(struct sym_lcb *),
-				GFP_ATOMIC);
+		tp->lunmp = kzalloc_objs(struct sym_lcb *, SYM_CONF_MAX_LUN,
+					 GFP_ATOMIC);
 		if (!tp->lunmp)
 			goto fail;
 	}
@@ -5655,7 +5655,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	/*
 	 *  Allocate the array of lists of CCBs hashed by DSA.
 	 */
-	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(*np->ccbh), GFP_KERNEL);
+	np->ccbh = kzalloc_objs(*np->ccbh, CCB_HASH_SIZE);
 	if (!np->ccbh)
 		goto attach_failed;
 

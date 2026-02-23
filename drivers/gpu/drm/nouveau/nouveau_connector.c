@@ -232,7 +232,7 @@ nouveau_conn_atomic_duplicate_state(struct drm_connector *connector)
 {
 	struct nouveau_conn_atom *armc = nouveau_conn_atom(connector->state);
 	struct nouveau_conn_atom *asyc;
-	if (!(asyc = kmalloc(sizeof(*asyc), GFP_KERNEL)))
+	if (!(asyc = kmalloc_obj(*asyc)))
 		return NULL;
 	__drm_atomic_helper_connector_duplicate_state(connector, &asyc->state);
 	asyc->dither = armc->dither;
@@ -249,7 +249,7 @@ nouveau_conn_reset(struct drm_connector *connector)
 	struct nouveau_conn_atom *asyc;
 
 	if (drm_drv_uses_atomic_modeset(connector->dev)) {
-		if (WARN_ON(!(asyc = kzalloc(sizeof(*asyc), GFP_KERNEL))))
+		if (WARN_ON(!(asyc = kzalloc_obj(*asyc))))
 			return;
 
 		if (connector->state)
@@ -1298,7 +1298,7 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
+	nv_connector = kzalloc_obj(*nv_connector);
 	if (!nv_connector)
 		return ERR_PTR(-ENOMEM);
 

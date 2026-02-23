@@ -101,7 +101,7 @@ static struct agp_memory *agp_create_user_memory(unsigned long num_agp_pages)
 	if (INT_MAX/sizeof(struct page *) < num_agp_pages)
 		return NULL;
 
-	new = kzalloc(sizeof(struct agp_memory), GFP_KERNEL);
+	new = kzalloc_obj(struct agp_memory);
 	if (new == NULL)
 		return NULL;
 
@@ -127,7 +127,7 @@ struct agp_memory *agp_create_memory(int scratch_pages)
 {
 	struct agp_memory *new;
 
-	new = kzalloc(sizeof(struct agp_memory), GFP_KERNEL);
+	new = kzalloc_obj(struct agp_memory);
 	if (new == NULL)
 		return NULL;
 

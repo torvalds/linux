@@ -86,8 +86,7 @@ static int hinic3_init_irq_info(struct hinic3_hwdev *hwdev)
 	}
 
 	irq_info = &cfg_mgmt->irq_info;
-	irq_info->irq = kcalloc(intr_num, sizeof(struct hinic3_irq),
-				GFP_KERNEL);
+	irq_info->irq = kzalloc_objs(struct hinic3_irq, intr_num);
 	if (!irq_info->irq)
 		return -ENOMEM;
 
@@ -130,7 +129,7 @@ int hinic3_init_cfg_mgmt(struct hinic3_hwdev *hwdev)
 	struct hinic3_cfg_mgmt_info *cfg_mgmt;
 	int err;
 
-	cfg_mgmt = kzalloc(sizeof(*cfg_mgmt), GFP_KERNEL);
+	cfg_mgmt = kzalloc_obj(*cfg_mgmt);
 	if (!cfg_mgmt)
 		return -ENOMEM;
 

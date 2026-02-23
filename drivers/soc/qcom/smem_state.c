@@ -197,7 +197,7 @@ struct qcom_smem_state *qcom_smem_state_register(struct device_node *of_node,
 {
 	struct qcom_smem_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 

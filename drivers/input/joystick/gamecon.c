@@ -291,7 +291,7 @@ static int gc_n64_init_ff(struct input_dev *dev, int i)
 	struct gc_subdev *sdev;
 	int err;
 
-	sdev = kmalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kmalloc_obj(*sdev);
 	if (!sdev)
 		return -ENOMEM;
 
@@ -948,7 +948,7 @@ static void gc_attach(struct parport *pp)
 		return;
 	}
 
-	gc = kzalloc(sizeof(*gc), GFP_KERNEL);
+	gc = kzalloc_obj(*gc);
 	if (!gc) {
 		pr_err("Not enough memory\n");
 		goto err_unreg_pardev;

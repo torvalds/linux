@@ -772,7 +772,7 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 	if (alt->desc.bInterfaceNumber)
 		return -ENODEV;
 
-	ar2 = kzalloc(sizeof (struct ati_remote2), GFP_KERNEL);
+	ar2 = kzalloc_obj(struct ati_remote2);
 	if (!ar2)
 		return -ENOMEM;
 

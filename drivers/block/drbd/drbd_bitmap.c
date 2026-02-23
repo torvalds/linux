@@ -434,7 +434,7 @@ int drbd_bm_init(struct drbd_device *device)
 {
 	struct drbd_bitmap *b = device->bitmap;
 	WARN_ON(b != NULL);
-	b = kzalloc(sizeof(struct drbd_bitmap), GFP_KERNEL);
+	b = kzalloc_obj(struct drbd_bitmap);
 	if (!b)
 		return -ENOMEM;
 	spin_lock_init(&b->bm_lock);
@@ -1078,7 +1078,7 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 	 * as we submit copies of pages anyways.
 	 */
 
-	ctx = kmalloc(sizeof(struct drbd_bm_aio_ctx), GFP_NOIO);
+	ctx = kmalloc_obj(struct drbd_bm_aio_ctx, GFP_NOIO);
 	if (!ctx)
 		return -ENOMEM;
 

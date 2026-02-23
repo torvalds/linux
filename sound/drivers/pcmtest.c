@@ -377,7 +377,7 @@ static int snd_pcmtst_pcm_open(struct snd_pcm_substream *substream)
 	if (inject_open_err)
 		return -EBUSY;
 
-	v_iter = kzalloc(sizeof(*v_iter), GFP_KERNEL);
+	v_iter = kzalloc_obj(*v_iter);
 	if (!v_iter)
 		return -ENOMEM;
 
@@ -575,7 +575,7 @@ static int snd_pcmtst_create(struct snd_card *card, struct platform_device *pdev
 		.dev_free = snd_pcmtst_dev_free,
 	};
 
-	pcmtst = kzalloc(sizeof(*pcmtst), GFP_KERNEL);
+	pcmtst = kzalloc_obj(*pcmtst);
 	if (!pcmtst)
 		return -ENOMEM;
 	pcmtst->card = card;

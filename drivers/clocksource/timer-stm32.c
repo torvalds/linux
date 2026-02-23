@@ -291,7 +291,7 @@ static int __init stm32_timer_init(struct device_node *node)
 	struct timer_of *to;
 	int ret;
 
-	to = kzalloc(sizeof(*to), GFP_KERNEL);
+	to = kzalloc_obj(*to);
 	if (!to)
 		return -ENOMEM;
 
@@ -302,8 +302,7 @@ static int __init stm32_timer_init(struct device_node *node)
 	if (ret)
 		goto err;
 
-	to->private_data = kzalloc(sizeof(struct stm32_timer_private),
-				   GFP_KERNEL);
+	to->private_data = kzalloc_obj(struct stm32_timer_private);
 	if (!to->private_data) {
 		ret = -ENOMEM;
 		goto deinit;

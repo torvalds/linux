@@ -35,7 +35,7 @@ static int wm831x_auxadc_read_irq(struct wm831x *wm831x,
 	int ret;
 	bool ena = false;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

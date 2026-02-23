@@ -30,7 +30,6 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_util.h>
-#include <drm/drm_colorop.h>
 
 /**
  * struct drm_crtc_commit - track modeset commits on a CRTC
@@ -339,6 +338,11 @@ struct drm_private_state_funcs {
  * drm_atomic_helper_wait_for_dependencies().
  */
 struct drm_private_obj {
+	/**
+	 * @dev: parent DRM device
+	 */
+	struct drm_device *dev;
+
 	/**
 	 * @head: List entry used to attach a private object to a &drm_device
 	 * (queued to &drm_mode_config.privobj_list).
@@ -707,6 +711,14 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 struct drm_colorop_state *
 drm_atomic_get_colorop_state(struct drm_atomic_state *state,
 			     struct drm_colorop *colorop);
+
+struct drm_colorop_state *
+drm_atomic_get_old_colorop_state(struct drm_atomic_state *state,
+				 struct drm_colorop *colorop);
+struct drm_colorop_state *
+drm_atomic_get_new_colorop_state(struct drm_atomic_state *state,
+				 struct drm_colorop *colorop);
+
 struct drm_connector_state * __must_check
 drm_atomic_get_connector_state(struct drm_atomic_state *state,
 			       struct drm_connector *connector);
@@ -801,36 +813,6 @@ drm_atomic_get_new_plane_state(const struct drm_atomic_state *state,
 			       struct drm_plane *plane)
 {
 	return state->planes[drm_plane_index(plane)].new_state;
-}
-
-/**
- * drm_atomic_get_old_colorop_state - get colorop state, if it exists
- * @state: global atomic state object
- * @colorop: colorop to grab
- *
- * This function returns the old colorop state for the given colorop, or
- * NULL if the colorop is not part of the global atomic state.
- */
-static inline struct drm_colorop_state *
-drm_atomic_get_old_colorop_state(struct drm_atomic_state *state,
-				 struct drm_colorop *colorop)
-{
-	return state->colorops[drm_colorop_index(colorop)].old_state;
-}
-
-/**
- * drm_atomic_get_new_colorop_state - get colorop state, if it exists
- * @state: global atomic state object
- * @colorop: colorop to grab
- *
- * This function returns the new colorop state for the given colorop, or
- * NULL if the colorop is not part of the global atomic state.
- */
-static inline struct drm_colorop_state *
-drm_atomic_get_new_colorop_state(struct drm_atomic_state *state,
-				 struct drm_colorop *colorop)
-{
-	return state->colorops[drm_colorop_index(colorop)].new_state;
 }
 
 /**

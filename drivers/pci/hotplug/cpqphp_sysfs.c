@@ -134,7 +134,7 @@ static int open(struct inode *inode, struct file *file)
 	int retval = -ENOMEM;
 
 	mutex_lock(&cpqphp_mutex);
-	dbg = kmalloc(sizeof(*dbg), GFP_KERNEL);
+	dbg = kmalloc_obj(*dbg);
 	if (!dbg)
 		goto exit;
 	dbg->data = kmalloc(MAX_OUTPUT, GFP_KERNEL);

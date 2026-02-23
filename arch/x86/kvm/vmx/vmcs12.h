@@ -374,8 +374,10 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(guest_pml_index, 996);
 }
 
-extern const unsigned short vmcs12_field_offsets[];
-extern const unsigned int nr_vmcs12_fields;
+extern u16 vmcs12_field_offsets[] __ro_after_init;
+extern unsigned int nr_vmcs12_fields __ro_after_init;
+
+void __init nested_vmx_setup_vmcs12_fields(void);
 
 static inline short get_vmcs12_field_offset(unsigned long field)
 {
@@ -385,7 +387,7 @@ static inline short get_vmcs12_field_offset(unsigned long field)
 	if (field >> 15)
 		return -ENOENT;
 
-	index = ROL16(field, 6);
+	index = ENC_TO_VMCS12_IDX(field);
 	if (index >= nr_vmcs12_fields)
 		return -ENOENT;
 

@@ -31,7 +31,7 @@ proc_read_hwinfo(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 	unsigned short i;
 	struct snd_efw_hwinfo *hwinfo;
 
-	hwinfo = kmalloc(sizeof(struct snd_efw_hwinfo), GFP_KERNEL);
+	hwinfo = kmalloc_obj(struct snd_efw_hwinfo);
 	if (hwinfo == NULL)
 		return;
 

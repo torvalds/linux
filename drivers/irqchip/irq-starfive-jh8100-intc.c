@@ -123,7 +123,7 @@ static int starfive_intc_probe(struct platform_device *pdev, struct device_node 
 	int parent_irq;
 	int ret;
 
-	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
+	irqc = kzalloc_obj(*irqc);
 	if (!irqc)
 		return -ENOMEM;
 

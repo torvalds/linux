@@ -38,7 +38,7 @@ config X86_REQUIRED_FEATURE_ALWAYS
 
 config X86_REQUIRED_FEATURE_NOPL
 	def_bool y
-	depends on X86_64 || X86_P6_NOP
+	depends on X86_64
 
 config X86_REQUIRED_FEATURE_CX8
 	def_bool y
@@ -55,6 +55,10 @@ config X86_REQUIRED_FEATURE_CMOV
 config X86_REQUIRED_FEATURE_MOVBE
 	def_bool y
 	depends on MATOM
+
+config X86_REQUIRED_FEATURE_SYSFAST32
+	def_bool y
+	depends on X86_64 && !X86_FRED
 
 config X86_REQUIRED_FEATURE_CPUID
 	def_bool y
@@ -119,6 +123,10 @@ config X86_DISABLED_FEATURE_CYRIX_ARR
 config X86_DISABLED_FEATURE_CENTAUR_MCR
 	def_bool y
 	depends on X86_64
+
+config X86_DISABLED_FEATURE_SYSCALL32
+	def_bool y
+	depends on !X86_64
 
 config X86_DISABLED_FEATURE_PCID
 	def_bool y

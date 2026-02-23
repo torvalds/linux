@@ -1176,8 +1176,7 @@ static int ivtvfb_init_card(struct ivtv *itv)
 		return -EBUSY;
 	}
 
-	itv->osd_info = kzalloc(sizeof(struct osd_info),
-					GFP_KERNEL|__GFP_NOWARN);
+	itv->osd_info = kzalloc_obj(struct osd_info, GFP_KERNEL | __GFP_NOWARN);
 	if (itv->osd_info == NULL) {
 		IVTVFB_ERR("Failed to allocate memory for osd_info\n");
 		return -ENOMEM;

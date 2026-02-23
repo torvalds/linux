@@ -89,7 +89,7 @@ struct tb_cfg_request *tb_cfg_request_alloc(void)
 {
 	struct tb_cfg_request *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 
@@ -333,7 +333,7 @@ static void tb_ctl_pkg_free(struct ctl_pkg *pkg)
 
 static struct ctl_pkg *tb_ctl_pkg_alloc(struct tb_ctl *ctl)
 {
-	struct ctl_pkg *pkg = kzalloc(sizeof(*pkg), GFP_KERNEL);
+	struct ctl_pkg *pkg = kzalloc_obj(*pkg);
 	if (!pkg)
 		return NULL;
 	pkg->ctl = ctl;
@@ -654,7 +654,7 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, int index, int timeout_msec,
 			    event_cb cb, void *cb_data)
 {
 	int i;
-	struct tb_ctl *ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	struct tb_ctl *ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return NULL;
 

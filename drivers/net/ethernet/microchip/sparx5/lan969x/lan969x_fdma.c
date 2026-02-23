@@ -186,9 +186,7 @@ static int lan969x_fdma_tx_alloc(struct sparx5 *sparx5)
 	struct fdma *fdma = &tx->fdma;
 	int err;
 
-	tx->dbs = kcalloc(fdma->n_dcbs,
-			  sizeof(struct sparx5_tx_buf),
-			  GFP_KERNEL);
+	tx->dbs = kzalloc_objs(struct sparx5_tx_buf, fdma->n_dcbs);
 	if (!tx->dbs)
 		return -ENOMEM;
 

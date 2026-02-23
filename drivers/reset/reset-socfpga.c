@@ -27,7 +27,7 @@ static int a10_reset_init(struct device_node *np)
 	int ret;
 	u32 reg_offset = 0x10;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

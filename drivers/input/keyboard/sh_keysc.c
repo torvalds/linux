@@ -184,7 +184,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		goto err0;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (priv == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		error = -ENOMEM;

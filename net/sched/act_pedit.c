@@ -51,7 +51,7 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 	if (!nla)
 		return NULL;
 
-	keys_ex = kcalloc(n, sizeof(*k), GFP_KERNEL);
+	keys_ex = kzalloc_objs(*k, n);
 	if (!keys_ex)
 		return ERR_PTR(-ENOMEM);
 
@@ -223,7 +223,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		goto out_release;
 	}
 
-	nparms = kzalloc(sizeof(*nparms), GFP_KERNEL);
+	nparms = kzalloc_obj(*nparms);
 	if (!nparms) {
 		ret = -ENOMEM;
 		goto out_release;

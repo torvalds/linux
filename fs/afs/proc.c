@@ -572,7 +572,7 @@ static int afs_proc_sysname_write(struct file *file, char *buf, size_t size)
 	char *s, *p, *sub;
 	int ret, len;
 
-	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
+	sysnames = kzalloc_obj(*sysnames);
 	if (!sysnames)
 		return -ENOMEM;
 	refcount_set(&sysnames->usage, 1);

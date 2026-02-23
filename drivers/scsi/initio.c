@@ -2606,7 +2606,7 @@ static void initio_build_scb(struct initio_host * host, struct scsi_ctrl_blk * c
  *	zero if successful or indicate a host busy condition if not (which
  *	will cause the mid layer to call us again later with the command)
  */
-static int i91u_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status i91u_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct initio_host *host = (struct initio_host *) cmd->device->host->hostdata;
 	struct scsi_ctrl_blk *cmnd;

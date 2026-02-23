@@ -117,7 +117,7 @@ static struct afs_server *afs_alloc_server(struct afs_cell *cell, const uuid_t *
 
 	_enter("");
 
-	server = kzalloc(sizeof(struct afs_server), GFP_KERNEL);
+	server = kzalloc_obj(struct afs_server);
 	if (!server)
 		return NULL;
 

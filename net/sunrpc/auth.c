@@ -290,12 +290,12 @@ rpcauth_init_credcache(struct rpc_auth *auth)
 	struct rpc_cred_cache *new;
 	unsigned int hashsize;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new)
 		goto out_nocache;
 	new->hashbits = auth_hashbits;
 	hashsize = 1U << new->hashbits;
-	new->hashtable = kcalloc(hashsize, sizeof(new->hashtable[0]), GFP_KERNEL);
+	new->hashtable = kzalloc_objs(new->hashtable[0], hashsize);
 	if (!new->hashtable)
 		goto out_nohashtbl;
 	spin_lock_init(&new->lock);

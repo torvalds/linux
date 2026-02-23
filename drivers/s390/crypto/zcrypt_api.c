@@ -50,7 +50,7 @@ MODULE_DESCRIPTION("Cryptographic Coprocessor interface, " \
 MODULE_LICENSE("GPL");
 
 unsigned int zcrypt_mempool_threshold = 5;
-module_param_named(mempool_threshold, zcrypt_mempool_threshold, uint, 0440);
+module_param_named(mempool_threshold, zcrypt_mempool_threshold, uint, 0400);
 MODULE_PARM_DESC(mempool_threshold, "CCA and EP11 request/reply mempool minimal items (min: 1)");
 
 /*
@@ -397,7 +397,7 @@ static int zcdn_create(const char *name)
 	}
 
 	/* alloc and prepare a new zcdn device */
-	zcdndev = kzalloc(sizeof(*zcdndev), GFP_KERNEL);
+	zcdndev = kzalloc_obj(*zcdndev);
 	if (!zcdndev) {
 		rc = -ENOMEM;
 		goto unlockout;
@@ -1065,7 +1065,7 @@ static long _zcrypt_send_ep11_cprb(u32 xflags, struct ap_perms *perms,
 	rc = -ENOMEM;
 	if (target_num != 0) {
 		if (userspace) {
-			targets = kcalloc(target_num, sizeof(*targets), GFP_KERNEL);
+			targets = kzalloc_objs(*targets, target_num);
 			if (!targets)
 				goto out;
 			if (copy_from_user(targets, xcrb->targets,
@@ -1627,9 +1627,8 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		size_t total_size = MAX_ZDEV_ENTRIES_EXT
 			* sizeof(struct zcrypt_device_status_ext);
 
-		device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
-					 sizeof(struct zcrypt_device_status_ext),
-					 GFP_KERNEL);
+		device_status = kvzalloc_objs(struct zcrypt_device_status_ext,
+					      MAX_ZDEV_ENTRIES_EXT);
 		if (!device_status)
 			return -ENOMEM;
 		zcrypt_device_status_mask_ext(device_status,

@@ -756,7 +756,7 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 		return NULL;
 	}
 
-	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
+	controller = kzalloc_obj(*controller);
 	if (!controller)
 		goto kzalloc_fail;
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Copyright 2018-2023 Broadcom Inc. All rights reserved.
+ *  Copyright 2018-2026 Broadcom Inc. All rights reserved.
  */
 #ifndef MPI30_IMAGE_H
 #define MPI30_IMAGE_H     1
@@ -135,7 +135,7 @@ struct mpi3_ci_manifest_mpi {
 	__le32                                   package_version_string_offset;
 	__le32                                   package_build_date_string_offset;
 	__le32                                   package_build_time_string_offset;
-	__le32                                   reserved4c;
+	__le32                                   diag_authorization_key_offset;
 	__le32                                   diag_authorization_identifier[16];
 	struct mpi3_ci_manifest_mpi_comp_image_ref   component_image_ref[MPI3_CI_MANIFEST_MPI_MAX];
 };
@@ -148,16 +148,112 @@ struct mpi3_ci_manifest_mpi {
 #define MPI3_CI_MANIFEST_MPI_RELEASE_LEVEL_GCA                        (0x50)
 #define MPI3_CI_MANIFEST_MPI_RELEASE_LEVEL_POINT                      (0x60)
 #define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTHORIZATION                 (0x01)
+#define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTH_ANCHOR_MASK		(0x06)
+#define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTH_ANCHOR_SHIFT		(1)
+#define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTH_ANCHOR_IDENTIFIER		(0x00)
+#define MPI3_CI_MANIFEST_MPI_FLAGS_DIAG_AUTH_ANCHOR_KEY_OFFSET		(0x02)
 #define MPI3_CI_MANIFEST_MPI_SUBSYSTEMID_IGNORED                   (0xffff)
 #define MPI3_CI_MANIFEST_MPI_PKG_VER_STR_OFF_UNSPECIFIED           (0x00000000)
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_DATE_STR_OFF_UNSPECIFIED    (0x00000000)
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_TIME_STR_OFF_UNSPECIFIED    (0x00000000)
+
+struct mpi3_sb_manifest_ci_digest {
+	__le32                      signature1;
+	__le32                      reserved04[2];
+	u8                          hash_algorithm;
+	u8                          reserved09[3];
+	struct mpi3_comp_image_version  component_image_version;
+	__le32                      component_image_version_string_offset;
+	__le32                      digest[16];
+};
+
+struct mpi3_sb_manifest_ci_ref_element {
+	u8                              num_ci_digests;
+	u8                              reserved01[3];
+	struct mpi3_sb_manifest_ci_digest	ci_digest[];
+};
+
+struct mpi3_sb_manifest_embedded_key_element {
+	__le32                      reserved00[3];
+	u8                          key_algorithm;
+	u8                          flags;
+	__le16                      public_key_size;
+	__le32                      start_tag;
+	__le32                      public_key[];
+};
+
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_FLAGS_KEYINDEX_MASK		(0x03)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_FLAGS_KEYINDEX_STRT		(0x00)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_FLAGS_KEYINDEX_K2GO		(0x01)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_STARTTAG_STRT			(0x54525453)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_STARTTAG_K2GO			(0x4f47324b)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_ENDTAG_STOP			(0x504f5453)
+#define MPI3_SB_MANIFEST_EMBEDDED_KEY_ENDTAG_K2ST			(0x5453324b)
+
+struct mpi3_sb_manifest_diag_key_element {
+	__le32                      reserved00[3];
+	u8                          key_algorithm;
+	u8                          flags;
+	__le16                      public_key_size;
+	__le32                      public_key[];
+};
+
+#define MPI3_SB_MANIFEST_DIAG_KEY_FLAGS_KEYINDEX_MASK		(0x03)
+#define MPI3_SB_MANIFEST_DIAG_KEY_FLAGS_KEYSELECT_FW_KEY	(0x04)
+union mpi3_sb_manifest_element_data {
+	struct mpi3_sb_manifest_ci_ref_element           ci_ref;
+	struct mpi3_sb_manifest_embedded_key_element     embed_key;
+	struct mpi3_sb_manifest_diag_key_element         diag_key;
+	__le32                                       dword;
+};
+struct mpi3_sb_manifest_element {
+	u8                                   manifest_element_form;
+	u8                                   reserved01[3];
+	union mpi3_sb_manifest_element_data     form_specific[];
+};
+#define MPI3_SB_MANIFEST_ELEMENT_FORM_CI_REFS		(0x01)
+#define MPI3_SB_MANIFEST_ELEMENT_FORM_EMBED_KEY		(0x02)
+#define MPI3_SB_MANIFEST_ELEMENT_FORM_DIAG_KEY		(0x03)
+struct mpi3_sb_manifest_mpi {
+	u8                                       manifest_type;
+	u8                                       reserved01[3];
+	__le32                                   reserved04[3];
+	u8                                       reserved10;
+	u8                                       release_level;
+	__le16                                   reserved12;
+	__le16                                   reserved14;
+	__le16                                   flags;
+	__le32                                   reserved18[2];
+	__le16                                   vendor_id;
+	__le16                                   device_id;
+	__le16                                   subsystem_vendor_id;
+	__le16                                   subsystem_id;
+	__le32                                   reserved28[2];
+	union mpi3_version_union                    package_security_version;
+	__le32                                   reserved34;
+	struct mpi3_comp_image_version               package_version;
+	__le32                                   package_version_string_offset;
+	__le32                                   package_build_date_string_offset;
+	__le32                                   package_build_time_string_offset;
+	__le32                                   component_image_references_offset;
+	__le32                                   embedded_key0offset;
+	__le32                                   embedded_key1offset;
+	__le32                                   diag_authorization_key_offset;
+	__le32                                   reserved5c[9];
+	struct mpi3_sb_manifest_element              manifest_elements[];
+};
+
 union mpi3_ci_manifest {
 	struct mpi3_ci_manifest_mpi               mpi;
+	struct mpi3_sb_manifest_mpi               sb_mpi;
 	__le32                                dword[1];
 };
 
-#define MPI3_CI_MANIFEST_TYPE_MPI                                  (0x00)
+#define MPI3_SB_MANIFEST_APU_IMMEDIATE_DEFER_APU_ENABLE			(0x01)
+
+#define MPI3_CI_MANIFEST_TYPE_MPI			(0x00)
+#define MPI3_CI_MANIFEST_TYPE_SB			(0x01)
+
 struct mpi3_extended_image_header {
 	u8                                image_type;
 	u8                                reserved01[3];

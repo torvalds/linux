@@ -125,7 +125,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	phb = kzalloc(sizeof(struct pci_controller), GFP_KERNEL);
+	phb = kzalloc_obj(struct pci_controller);
 	if (phb == NULL)
 		return NULL;
 
@@ -432,7 +432,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	struct pci_intx_virq *vi, *vitmp;
 
 	/* Preallocate vi as rewind is complex if this fails after mapping */
-	vi = kzalloc(sizeof(struct pci_intx_virq), GFP_KERNEL);
+	vi = kzalloc_obj(struct pci_intx_virq);
 	if (!vi)
 		return -1;
 
@@ -1368,7 +1368,7 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	if (!(hose->io_resource.flags & IORESOURCE_IO))
 		goto no_io;
 	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	BUG_ON(res == NULL);
 	res->name = "Legacy IO";
 	res->flags = IORESOURCE_IO;
@@ -1396,7 +1396,7 @@ static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
 	}
 	if (i >= 3)
 		return;
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	BUG_ON(res == NULL);
 	res->name = "Legacy VGA memory";
 	res->flags = IORESOURCE_MEM;

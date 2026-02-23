@@ -238,7 +238,7 @@ int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 		if (!memcmp(mac_addr, empty_mac, ARRAY_SIZE(empty_mac)))
 			continue;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		node = kzalloc_obj(*node);
 		if (!node) {
 			rc = -ENOMEM;
 			goto updt_done;
@@ -265,7 +265,7 @@ int opa_vnic_update_mac_tbl(struct opa_vnic_adapter *adapter,
 		    (node->index < (loffset + lnum_entries)))
 			continue;
 
-		new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+		new_node = kzalloc_obj(*new_node);
 		if (!new_node) {
 			rc = -ENOMEM;
 			goto updt_done;

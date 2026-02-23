@@ -267,7 +267,7 @@ static int ipwireless_attach(struct pcmcia_device *link)
 	struct ipw_dev *ipw;
 	int ret;
 
-	ipw = kzalloc(sizeof(struct ipw_dev), GFP_KERNEL);
+	ipw = kzalloc_obj(struct ipw_dev);
 	if (!ipw)
 		return -ENOMEM;
 

@@ -598,7 +598,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ism_dev *ism;
 	int ret;
 
-	ism = kzalloc(sizeof(*ism), GFP_KERNEL);
+	ism = kzalloc_obj(*ism);
 	if (!ism)
 		return -ENOMEM;
 

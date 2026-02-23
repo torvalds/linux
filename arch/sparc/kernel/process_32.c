@@ -247,6 +247,8 @@ clone_stackframe(struct sparc_stackf __user *dst,
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  *
+ * clone3() - Uses regular kernel return value conventions
+ *
  * NOTE: We have a separate fork kpsr/kwim because
  *       the parent could change these values between
  *       sys_fork invocation and when we reach here
@@ -261,11 +263,11 @@ extern void ret_from_kernel_thread(void);
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	u64 clone_flags = args->flags;
-	unsigned long sp = args->stack;
 	unsigned long tls = args->tls;
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs, *regs = current_pt_regs();
 	char *new_stack;
+	unsigned long sp = args->stack ? args->stack : regs->u_regs[UREG_FP];
 
 #ifndef CONFIG_SMP
 	if(last_task_used_math == current) {
@@ -350,13 +352,22 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	childregs->psr &= ~PSR_EF;
 	clear_tsk_thread_flag(p, TIF_USEDFPU);
 #endif
+	/* Handle return value conventions */
+	if (regs->u_regs[UREG_G1] == __NR_clone3) {
+		/* clone3() - use regular kernel return value convention */
 
-	/* Set the return value for the child. */
-	childregs->u_regs[UREG_I0] = current->pid;
-	childregs->u_regs[UREG_I1] = 1;
+		/* Set the return value for the child. */
+		childregs->u_regs[UREG_I0] = 0;
+	} else {
+		/* clone()/fork() - use SunOS return value convention */
 
-	/* Set the return value for the parent. */
-	regs->u_regs[UREG_I1] = 0;
+		/* Set the return value for the child. */
+		childregs->u_regs[UREG_I0] = current->pid;
+		childregs->u_regs[UREG_I1] = 1;
+
+		/* Set the return value for the parent. */
+		regs->u_regs[UREG_I1] = 0;
+	}
 
 	if (clone_flags & CLONE_SETTLS)
 		childregs->u_regs[UREG_G7] = tls;

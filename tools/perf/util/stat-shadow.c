@@ -57,7 +57,6 @@ static int prepare_metric(struct perf_stat_config *config,
 		bool is_tool_time =
 			tool_pmu__is_time_event(config, metric_events[i], &tool_aggr_idx);
 		struct perf_stat_evsel *ps = metric_events[i]->stats;
-		struct perf_stat_aggr *aggr;
 		char *n;
 		double val;
 
@@ -82,8 +81,7 @@ static int prepare_metric(struct perf_stat_config *config,
 			}
 		}
 		/* Time events are always on CPU0, the first aggregation index. */
-		aggr = &ps->aggr[is_tool_time ? tool_aggr_idx : aggr_idx];
-		if (!aggr || !metric_events[i]->supported) {
+		if (!ps || !metric_events[i]->supported) {
 			/*
 			 * Not supported events will have a count of 0, which
 			 * can be confusing in a metric. Explicitly set the
@@ -93,11 +91,21 @@ static int prepare_metric(struct perf_stat_config *config,
 			val = NAN;
 			source_count = 0;
 		} else {
-			val = aggr->counts.val;
-			if (is_tool_time)
-				val *= 1e-9; /* Convert time event nanoseconds to seconds. */
-			if (!source_count)
-				source_count = evsel__source_count(metric_events[i]);
+			struct perf_stat_aggr *aggr =
+				&ps->aggr[is_tool_time ? tool_aggr_idx : aggr_idx];
+
+			if (aggr->counts.run == 0) {
+				val = NAN;
+				source_count = 0;
+			} else {
+				val = aggr->counts.val;
+				if (is_tool_time) {
+					/* Convert time event nanoseconds to seconds. */
+					val *= 1e-9;
+				}
+				if (!source_count)
+					source_count = evsel__source_count(metric_events[i]);
+			}
 		}
 		n = strdup(evsel__metric_id(metric_events[i]));
 		if (!n)
@@ -335,14 +343,10 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
  * perf_stat__skip_metric_event - Skip the evsel in the Default metricgroup,
  *				  if it's not running or not the metric event.
  */
-bool perf_stat__skip_metric_event(struct evsel *evsel,
-				  u64 ena, u64 run)
+bool perf_stat__skip_metric_event(struct evsel *evsel)
 {
 	if (!evsel->default_metricgroup)
 		return false;
-
-	if (!ena || !run)
-		return true;
 
 	return !metricgroup__lookup(&evsel->evlist->metric_events, evsel, false);
 }

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# SoC audio configuration for cv1800b
+#
+
+menu "Sophgo"
+	depends on COMPILE_TEST || ARCH_SOPHGO
+
+config SND_SOC_CV1800B_TDM
+	tristate "Sophgo CV1800B I2S/TDM support"
+	depends on SND_SOC && OF
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  This option enables the I2S/TDM audio controller found in Sophgo
+	  CV1800B / SG2002 SoCs. The controller supports standard I2S
+	  audio modes for playback and capture.
+
+	  The driver integrates with the ASoC framework and uses the DMA
+	  engine for audio data transfer. It is intended to be configured
+	  via Device Tree along with simple-audio-card module.
+
+	  To compile the driver as a module, choose M here: the module will
+	  be called cv1800b_tdm.
+
+config SND_SOC_CV1800B_ADC_CODEC
+	tristate "Sophgo CV1800B/SG2002 internal ADC codec"
+	depends on SND_SOC
+	help
+	  This driver provides an ASoC codec DAI for capture and basic
+	  control of the RXADC registers.
+
+	  Say Y or M to build support for the Sophgo CV1800B
+	  internal analog ADC codec block (RXADC).
+	  The module will be called cv1800b-sound-adc
+
+config SND_SOC_CV1800B_DAC_CODEC
+	tristate "Sophgo CV1800B/SG2002 internal DAC codec"
+	depends on SND_SOC
+	help
+	  This driver provides an ASoC codec DAI for playback and basic
+	  control of the TXDAC registers.
+
+	  Say Y or M to build support for the Sophgo CV1800B
+	  internal analog DAC codec block (TXDAC).
+	  The module will be called cv1800b-sound-dac
+
+endmenu

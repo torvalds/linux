@@ -44,7 +44,7 @@ static void qmi_recv_new_server(struct qmi_handle *qmi,
 	if (!node && !port)
 		return;
 
-	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
+	svc = kzalloc_obj(*svc);
 	if (!svc)
 		return;
 
@@ -209,7 +209,7 @@ int qmi_add_lookup(struct qmi_handle *qmi, unsigned int service,
 {
 	struct qmi_service *svc;
 
-	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
+	svc = kzalloc_obj(*svc);
 	if (!svc)
 		return -ENOMEM;
 
@@ -273,7 +273,7 @@ int qmi_add_server(struct qmi_handle *qmi, unsigned int service,
 {
 	struct qmi_service *svc;
 
-	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
+	svc = kzalloc_obj(*svc);
 	if (!svc)
 		return -ENOMEM;
 

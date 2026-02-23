@@ -39,7 +39,7 @@ static int nvdimm_probe(struct device *dev)
 	 */
 	nvdimm_clear_locked(dev);
 
-	ndd = kzalloc(sizeof(*ndd), GFP_KERNEL);
+	ndd = kzalloc_obj(*ndd);
 	if (!ndd)
 		return -ENOMEM;
 

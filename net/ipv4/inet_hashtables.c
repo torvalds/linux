@@ -1284,7 +1284,7 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 
 int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
 {
-	h->lhash2 = kmalloc_array(INET_LHTABLE_SIZE, sizeof(*h->lhash2), GFP_KERNEL);
+	h->lhash2 = kmalloc_objs(*h->lhash2, INET_LHTABLE_SIZE);
 	if (!h->lhash2)
 		return -ENOMEM;
 

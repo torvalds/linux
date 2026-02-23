@@ -103,31 +103,12 @@ static void _stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&ctx->slock, flags);
 }
 
-static void _dmxdev_lock(struct vb2_queue *vq)
-{
-	struct dvb_vb2_ctx *ctx = vb2_get_drv_priv(vq);
-
-	mutex_lock(&ctx->mutex);
-	dprintk(3, "[%s]\n", ctx->name);
-}
-
-static void _dmxdev_unlock(struct vb2_queue *vq)
-{
-	struct dvb_vb2_ctx *ctx = vb2_get_drv_priv(vq);
-
-	if (mutex_is_locked(&ctx->mutex))
-		mutex_unlock(&ctx->mutex);
-	dprintk(3, "[%s]\n", ctx->name);
-}
-
 static const struct vb2_ops dvb_vb2_qops = {
 	.queue_setup		= _queue_setup,
 	.buf_prepare		= _buffer_prepare,
 	.buf_queue		= _buffer_queue,
 	.start_streaming	= _start_streaming,
 	.stop_streaming		= _stop_streaming,
-	.wait_prepare		= _dmxdev_unlock,
-	.wait_finish		= _dmxdev_lock,
 };
 
 static void _fill_dmx_buffer(struct vb2_buffer *vb, void *pb)
@@ -158,9 +139,10 @@ static const struct vb2_buf_ops dvb_vb2_buf_ops = {
 };
 
 /*
- * Videobuf operations
+ * vb2 operations
  */
-int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
+int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name,
+		 struct mutex *mutex, int nonblocking)
 {
 	struct vb2_queue *q = &ctx->vb_q;
 	int ret;
@@ -175,20 +157,20 @@ int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
 	q->ops = &dvb_vb2_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->buf_ops = &dvb_vb2_buf_ops;
-	ret = vb2_core_queue_init(q);
-	if (ret) {
-		ctx->state = DVB_VB2_STATE_NONE;
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
-		return ret;
-	}
-
-	mutex_init(&ctx->mutex);
+	q->lock = mutex;
 	spin_lock_init(&ctx->slock);
 	INIT_LIST_HEAD(&ctx->dvb_q);
 
 	strscpy(ctx->name, name, DVB_VB2_NAME_MAX);
 	ctx->nonblocking = nonblocking;
 	ctx->state = DVB_VB2_STATE_INIT;
+
+	ret = vb2_core_queue_init(q);
+	if (ret) {
+		ctx->state = DVB_VB2_STATE_NONE;
+		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		return ret;
+	}
 
 	dprintk(3, "[%s]\n", ctx->name);
 
@@ -249,7 +231,8 @@ int dvb_vb2_is_streaming(struct dvb_vb2_ctx *ctx)
 
 int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 			const unsigned char *src, int len,
-			enum dmx_buffer_flags *buffer_flags)
+			enum dmx_buffer_flags *buffer_flags,
+			bool flush)
 {
 	unsigned long flags = 0;
 	void *vbuf = NULL;
@@ -306,7 +289,7 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 		}
 	}
 
-	if (ctx->nonblocking && ctx->buf) {
+	if (flush && ctx->buf) {
 		vb2_set_plane_payload(&ctx->buf->vb, 0, ll);
 		vb2_buffer_done(&ctx->buf->vb, VB2_BUF_STATE_DONE);
 		list_del(&ctx->buf->list);

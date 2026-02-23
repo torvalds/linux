@@ -385,7 +385,7 @@ static int it913x_probe(struct platform_device *pdev)
 	int ret;
 	char *chip_ver_str;
 
-	dev = kzalloc(sizeof(struct it913x_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct it913x_dev);
 	if (dev == NULL) {
 		ret = -ENOMEM;
 		dev_err(&pdev->dev, "kzalloc() failed\n");

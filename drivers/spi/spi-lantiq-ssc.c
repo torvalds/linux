@@ -962,7 +962,6 @@ static int lantiq_ssc_probe(struct platform_device *pdev)
 	spi->bits_per_word = 8;
 	spi->speed_hz = 0;
 
-	host->dev.of_node = pdev->dev.of_node;
 	host->num_chipselect = num_cs;
 	host->use_gpio_descriptors = true;
 	host->setup = lantiq_ssc_setup;

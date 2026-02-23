@@ -50,7 +50,7 @@ static struct vidtv_mux_pid_ctx
 	if (ctx)
 		return ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -480,7 +480,7 @@ struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
 {
 	struct vidtv_mux *m;
 
-	m = kzalloc(sizeof(*m), GFP_KERNEL);
+	m = kzalloc_obj(*m);
 	if (!m)
 		return NULL;
 

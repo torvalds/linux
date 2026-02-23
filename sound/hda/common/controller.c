@@ -715,7 +715,7 @@ int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
 	if (err < 0)
 		return err;
 	strscpy(pcm->name, cpcm->name, sizeof(pcm->name));
-	apcm = kzalloc(sizeof(*apcm), GFP_KERNEL);
+	apcm = kzalloc_obj(*apcm);
 	if (apcm == NULL) {
 		snd_device_free(chip->card, pcm);
 		return -ENOMEM;
@@ -1283,7 +1283,7 @@ int azx_init_streams(struct azx *chip)
 	 * and initialize
 	 */
 	for (i = 0; i < chip->num_streams; i++) {
-		struct azx_dev *azx_dev = kzalloc(sizeof(*azx_dev), GFP_KERNEL);
+		struct azx_dev *azx_dev = kzalloc_obj(*azx_dev);
 		int dir, tag;
 
 		if (!azx_dev)

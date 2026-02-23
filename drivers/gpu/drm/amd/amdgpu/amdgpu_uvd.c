@@ -279,7 +279,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
 		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
-		DRM_INFO("Found UVD firmware Version: %u.%u Family ID: %u\n",
+		drm_info(adev_to_drm(adev), "Found UVD firmware Version: %u.%u Family ID: %u\n",
 			version_major, version_minor, family_id);
 
 		/*
@@ -306,7 +306,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 		dec_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
 		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 24) & 0x3f;
 		enc_major = (le32_to_cpu(hdr->ucode_version) >> 30) & 0x3;
-		DRM_INFO("Found UVD firmware ENC: %u.%u DEC: .%u Family ID: %u\n",
+		drm_info(adev_to_drm(adev), "Found UVD firmware ENC: %u.%u DEC: .%u Family ID: %u\n",
 			enc_major, enc_minor, dec_minor, family_id);
 
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
@@ -467,7 +467,8 @@ int amdgpu_uvd_prepare_suspend(struct amdgpu_device *adev)
 int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 {
 	if (amdgpu_ras_intr_triggered())
-		DRM_WARN("UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
+		drm_warn(adev_to_drm(adev),
+			"UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
 
 	return 0;
 }

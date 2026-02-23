@@ -168,7 +168,7 @@ static int virtblk_setup_discard_write_zeroes_erase(struct request *req, bool un
 	if (unmap)
 		flags |= VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP;
 
-	range = kmalloc_array(segments, sizeof(*range), GFP_ATOMIC);
+	range = kmalloc_objs(*range, segments, GFP_ATOMIC);
 	if (!range)
 		return -ENOMEM;
 
@@ -991,12 +991,12 @@ static int init_vq(struct virtio_blk *vblk)
 				vblk->io_queues[HCTX_TYPE_READ],
 				vblk->io_queues[HCTX_TYPE_POLL]);
 
-	vblk->vqs = kmalloc_array(num_vqs, sizeof(*vblk->vqs), GFP_KERNEL);
+	vblk->vqs = kmalloc_objs(*vblk->vqs, num_vqs);
 	if (!vblk->vqs)
 		return -ENOMEM;
 
-	vqs_info = kcalloc(num_vqs, sizeof(*vqs_info), GFP_KERNEL);
-	vqs = kmalloc_array(num_vqs, sizeof(*vqs), GFP_KERNEL);
+	vqs_info = kzalloc_objs(*vqs_info, num_vqs);
+	vqs = kmalloc_objs(*vqs, num_vqs);
 	if (!vqs_info || !vqs) {
 		err = -ENOMEM;
 		goto out;
@@ -1455,7 +1455,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out;
 	index = err;
 
-	vdev->priv = vblk = kmalloc(sizeof(*vblk), GFP_KERNEL);
+	vdev->priv = vblk = kmalloc_obj(*vblk);
 	if (!vblk) {
 		err = -ENOMEM;
 		goto out_free_index;

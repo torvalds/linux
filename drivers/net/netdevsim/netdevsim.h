@@ -109,10 +109,10 @@ struct netdevsim {
 	int rq_reset_mode;
 
 	struct {
-		u64 rx_packets;
-		u64 rx_bytes;
-		u64 tx_packets;
-		u64 tx_bytes;
+		u64_stats_t rx_packets;
+		u64_stats_t rx_bytes;
+		u64_stats_t tx_packets;
+		u64_stats_t tx_bytes;
 		struct u64_stats_sync syncp;
 		struct psp_dev *dev;
 		u32 spi;
@@ -324,6 +324,7 @@ struct nsim_dev {
 	u32 prog_id_gen;
 	struct list_head bpf_bound_progs;
 	struct list_head bpf_bound_maps;
+	struct mutex progs_list_lock;
 	struct netdev_phys_item_id switch_id;
 	struct list_head port_list;
 	bool fw_update_status;

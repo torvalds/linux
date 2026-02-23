@@ -488,6 +488,10 @@ static void tcp_count_delivered(struct tcp_sock *tp, u32 delivered,
 		tcp_count_delivered_ce(tp, delivered);
 }
 
+#define PKTS_ACKED_WEIGHT	6
+#define PKTS_ACKED_PREC		6
+#define ACK_COMP_THRESH		4
+
 /* Returns the ECN CE delta */
 static u32 __tcp_accecn_process(struct sock *sk, const struct sk_buff *skb,
 				u32 delivered_pkts, u32 delivered_bytes,
@@ -499,6 +503,7 @@ static u32 __tcp_accecn_process(struct sock *sk, const struct sk_buff *skb,
 	u32 delta, safe_delta, d_ceb;
 	bool opt_deltas_valid;
 	u32 corrected_ace;
+	u32 ewma;
 
 	/* Reordered ACK or uncertain due to lack of data to send and ts */
 	if (!(flag & (FLAG_FORWARD_PROGRESS | FLAG_TS_PROGRESS)))
@@ -506,6 +511,18 @@ static u32 __tcp_accecn_process(struct sock *sk, const struct sk_buff *skb,
 
 	opt_deltas_valid = tcp_accecn_process_option(tp, skb,
 						     delivered_bytes, flag);
+
+	if (delivered_pkts) {
+		if (!tp->pkts_acked_ewma) {
+			ewma = delivered_pkts << PKTS_ACKED_PREC;
+		} else {
+			ewma = tp->pkts_acked_ewma;
+			ewma = (((ewma << PKTS_ACKED_WEIGHT) - ewma) +
+				(delivered_pkts << PKTS_ACKED_PREC)) >>
+				PKTS_ACKED_WEIGHT;
+		}
+		tp->pkts_acked_ewma = min_t(u32, ewma, 0xFFFFU);
+	}
 
 	if (!(flag & FLAG_SLOWPATH)) {
 		/* AccECN counter might overflow on large ACKs */
@@ -555,7 +572,8 @@ static u32 __tcp_accecn_process(struct sock *sk, const struct sk_buff *skb,
 		if (d_ceb <
 		    safe_delta * tp->mss_cache >> TCP_ACCECN_SAFETY_SHIFT)
 			return delta;
-	}
+	} else if (tp->pkts_acked_ewma > (ACK_COMP_THRESH << PKTS_ACKED_PREC))
+		return delta;
 
 	return safe_delta;
 }
@@ -1558,6 +1576,38 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
+/* Record the most recently (re)sent time among the (s)acked packets
+ * This is "Step 3: Advance RACK.xmit_time and update RACK.RTT" from
+ * draft-cheng-tcpm-rack-00.txt
+ */
+static void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
+			     u32 end_seq, u64 xmit_time)
+{
+	u32 rtt_us;
+
+	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
+	if (rtt_us < tcp_min_rtt(tp) && (sacked & TCPCB_RETRANS)) {
+		/* If the sacked packet was retransmitted, it's ambiguous
+		 * whether the retransmission or the original (or the prior
+		 * retransmission) was sacked.
+		 *
+		 * If the original is lost, there is no ambiguity. Otherwise
+		 * we assume the original can be delayed up to aRTT + min_rtt.
+		 * the aRTT term is bounded by the fast recovery or timeout,
+		 * so it's at least one RTT (i.e., retransmission is at least
+		 * an RTT later).
+		 */
+		return;
+	}
+	tp->rack.advanced = 1;
+	tp->rack.rtt_us = rtt_us;
+	if (tcp_skb_sent_after(xmit_time, tp->rack.mstamp,
+			       end_seq, tp->rack.end_seq)) {
+		tp->rack.mstamp = xmit_time;
+		tp->rack.end_seq = end_seq;
+	}
+}
+
 /* Mark the given newly-SACKed range as such, adjusting counters and hints. */
 static u8 tcp_sacktag_one(struct sock *sk,
 			  struct tcp_sacktag_state *state, u8 sacked,
@@ -1635,6 +1685,160 @@ static u8 tcp_sacktag_one(struct sock *sk,
 	}
 
 	return sacked;
+}
+
+/* The bandwidth estimator estimates the rate at which the network
+ * can currently deliver outbound data packets for this flow. At a high
+ * level, it operates by taking a delivery rate sample for each ACK.
+ *
+ * A rate sample records the rate at which the network delivered packets
+ * for this flow, calculated over the time interval between the transmission
+ * of a data packet and the acknowledgment of that packet.
+ *
+ * Specifically, over the interval between each transmit and corresponding ACK,
+ * the estimator generates a delivery rate sample. Typically it uses the rate
+ * at which packets were acknowledged. However, the approach of using only the
+ * acknowledgment rate faces a challenge under the prevalent ACK decimation or
+ * compression: packets can temporarily appear to be delivered much quicker
+ * than the bottleneck rate. Since it is physically impossible to do that in a
+ * sustained fashion, when the estimator notices that the ACK rate is faster
+ * than the transmit rate, it uses the latter:
+ *
+ *    send_rate = #pkts_delivered/(last_snd_time - first_snd_time)
+ *    ack_rate  = #pkts_delivered/(last_ack_time - first_ack_time)
+ *    bw = min(send_rate, ack_rate)
+ *
+ * Notice the estimator essentially estimates the goodput, not always the
+ * network bottleneck link rate when the sending or receiving is limited by
+ * other factors like applications or receiver window limits.  The estimator
+ * deliberately avoids using the inter-packet spacing approach because that
+ * approach requires a large number of samples and sophisticated filtering.
+ *
+ * TCP flows can often be application-limited in request/response workloads.
+ * The estimator marks a bandwidth sample as application-limited if there
+ * was some moment during the sampled window of packets when there was no data
+ * ready to send in the write queue.
+ */
+
+/* Update the connection delivery information and generate a rate sample. */
+static void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
+			 bool is_sack_reneg, struct rate_sample *rs)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	u32 snd_us, ack_us;
+
+	/* Clear app limited if bubble is acked and gone. */
+	if (tp->app_limited && after(tp->delivered, tp->app_limited))
+		tp->app_limited = 0;
+
+	/* TODO: there are multiple places throughout tcp_ack() to get
+	 * current time. Refactor the code using a new "tcp_acktag_state"
+	 * to carry current time, flags, stats like "tcp_sacktag_state".
+	 */
+	if (delivered)
+		tp->delivered_mstamp = tp->tcp_mstamp;
+
+	rs->acked_sacked = delivered;	/* freshly ACKed or SACKed */
+	rs->losses = lost;		/* freshly marked lost */
+	/* Return an invalid sample if no timing information is available or
+	 * in recovery from loss with SACK reneging. Rate samples taken during
+	 * a SACK reneging event may overestimate bw by including packets that
+	 * were SACKed before the reneg.
+	 */
+	if (!rs->prior_mstamp || is_sack_reneg) {
+		rs->delivered = -1;
+		rs->interval_us = -1;
+		return;
+	}
+	rs->delivered   = tp->delivered - rs->prior_delivered;
+
+	rs->delivered_ce = tp->delivered_ce - rs->prior_delivered_ce;
+	/* delivered_ce occupies less than 32 bits in the skb control block */
+	rs->delivered_ce &= TCPCB_DELIVERED_CE_MASK;
+
+	/* Model sending data and receiving ACKs as separate pipeline phases
+	 * for a window. Usually the ACK phase is longer, but with ACK
+	 * compression the send phase can be longer. To be safe we use the
+	 * longer phase.
+	 */
+	snd_us = rs->interval_us;				/* send phase */
+	ack_us = tcp_stamp_us_delta(tp->tcp_mstamp,
+				    rs->prior_mstamp); /* ack phase */
+	rs->interval_us = max(snd_us, ack_us);
+
+	/* Record both segment send and ack receive intervals */
+	rs->snd_interval_us = snd_us;
+	rs->rcv_interval_us = ack_us;
+
+	/* Normally we expect interval_us >= min-rtt.
+	 * Note that rate may still be over-estimated when a spuriously
+	 * retransmistted skb was first (s)acked because "interval_us"
+	 * is under-estimated (up to an RTT). However continuously
+	 * measuring the delivery rate during loss recovery is crucial
+	 * for connections suffer heavy or prolonged losses.
+	 */
+	if (unlikely(rs->interval_us < tcp_min_rtt(tp))) {
+		if (!rs->is_retrans)
+			pr_debug("tcp rate: %ld %d %u %u %u\n",
+				 rs->interval_us, rs->delivered,
+				 inet_csk(sk)->icsk_ca_state,
+				 tp->rx_opt.sack_ok, tcp_min_rtt(tp));
+		rs->interval_us = -1;
+		return;
+	}
+
+	/* Record the last non-app-limited or the highest app-limited bw */
+	if (!rs->is_app_limited ||
+	    ((u64)rs->delivered * tp->rate_interval_us >=
+	     (u64)tp->rate_delivered * rs->interval_us)) {
+		tp->rate_delivered = rs->delivered;
+		tp->rate_interval_us = rs->interval_us;
+		tp->rate_app_limited = rs->is_app_limited;
+	}
+}
+
+/* When an skb is sacked or acked, we fill in the rate sample with the (prior)
+ * delivery information when the skb was last transmitted.
+ *
+ * If an ACK (s)acks multiple skbs (e.g., stretched-acks), this function is
+ * called multiple times. We favor the information from the most recently
+ * sent skb, i.e., the skb with the most recently sent time and the highest
+ * sequence.
+ */
+static void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
+				   struct rate_sample *rs)
+{
+	struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
+	struct tcp_sock *tp = tcp_sk(sk);
+	u64 tx_tstamp;
+
+	if (!scb->tx.delivered_mstamp)
+		return;
+
+	tx_tstamp = tcp_skb_timestamp_us(skb);
+	if (!rs->prior_delivered ||
+	    tcp_skb_sent_after(tx_tstamp, tp->first_tx_mstamp,
+			       scb->end_seq, rs->last_end_seq)) {
+		rs->prior_delivered_ce  = scb->tx.delivered_ce;
+		rs->prior_delivered  = scb->tx.delivered;
+		rs->prior_mstamp     = scb->tx.delivered_mstamp;
+		rs->is_app_limited   = scb->tx.is_app_limited;
+		rs->is_retrans	     = scb->sacked & TCPCB_RETRANS;
+		rs->last_end_seq     = scb->end_seq;
+
+		/* Record send time of most recently ACKed packet: */
+		tp->first_tx_mstamp  = tx_tstamp;
+		/* Find the duration of the "send phase" of this window: */
+		rs->interval_us = tcp_stamp_us_delta(tp->first_tx_mstamp,
+						     scb->tx.first_tx_mstamp);
+
+	}
+	/* Mark off the skb delivered once it's sacked to avoid being
+	 * used again when it's cumulatively acked. For acked packets
+	 * we don't need to reset since it'll be freed soon.
+	 */
+	if (scb->sacked & TCPCB_SACKED_ACKED)
+		scb->tx.delivered_mstamp = 0;
 }
 
 /* Shift newly-SACKed bytes from this skb to the immediately previous
@@ -3995,6 +4199,49 @@ static u32 tcp_newly_delivered(struct sock *sk, u32 prior_delivered,
 	return delivered;
 }
 
+/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
+ *
+ * If a DSACK is received that seems like it may have been due to reordering
+ * triggering fast recovery, increment reo_wnd by min_rtt/4 (upper bounded
+ * by srtt), since there is possibility that spurious retransmission was
+ * due to reordering delay longer than reo_wnd.
+ *
+ * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
+ * no. of successful recoveries (accounts for full DSACK-based loss
+ * recovery undo). After that, reset it to default (min_rtt/4).
+ *
+ * At max, reo_wnd is incremented only once per rtt. So that the new
+ * DSACK on which we are reacting, is due to the spurious retx (approx)
+ * after the reo_wnd has been updated last time.
+ *
+ * reo_wnd is tracked in terms of steps (of min_rtt/4), rather than
+ * absolute value to account for change in rtt.
+ */
+static void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if ((READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_recovery) &
+	     TCP_RACK_STATIC_REO_WND) ||
+	    !rs->prior_delivered)
+		return;
+
+	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
+	if (before(rs->prior_delivered, tp->rack.last_delivered))
+		tp->rack.dsack_seen = 0;
+
+	/* Adjust the reo_wnd if update is pending */
+	if (tp->rack.dsack_seen) {
+		tp->rack.reo_wnd_steps = min_t(u32, 0xFF,
+					       tp->rack.reo_wnd_steps + 1);
+		tp->rack.dsack_seen = 0;
+		tp->rack.last_delivered = tp->delivered;
+		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
+	} else if (!tp->rack.reo_wnd_persist) {
+		tp->rack.reo_wnd_steps = 1;
+	}
+}
+
 /* This routine deals with incoming acks, but not outgoing ones. */
 static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 {
@@ -4129,7 +4376,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	tcp_in_ack_event(sk, flag);
 
-	if (tp->tlp_high_seq)
+	if (unlikely(tp->tlp_high_seq))
 		tcp_process_tlp_ack(sk, ack, flag);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
@@ -4179,7 +4426,7 @@ no_queue:
 	 */
 	tcp_ack_probe(sk);
 
-	if (tp->tlp_high_seq)
+	if (unlikely(tp->tlp_high_seq))
 		tcp_process_tlp_ack(sk, ack, flag);
 	return 1;
 
@@ -4799,8 +5046,11 @@ static void tcp_dsack_extend(struct sock *sk, u32 seq, u32 end_seq)
 		tcp_sack_extend(tp->duplicate_sack, seq, end_seq);
 }
 
-static void tcp_rcv_spurious_retrans(struct sock *sk, const struct sk_buff *skb)
+static void tcp_rcv_spurious_retrans(struct sock *sk,
+				     const struct sk_buff *skb)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	/* When the ACK path fails or drops most ACKs, the sender would
 	 * timeout and spuriously retransmit the same segment repeatedly.
 	 * If it seems our ACKs are not reaching the other side,
@@ -4820,6 +5070,14 @@ static void tcp_rcv_spurious_retrans(struct sock *sk, const struct sk_buff *skb)
 	/* Save last flowlabel after a spurious retrans. */
 	tcp_save_lrcv_flowlabel(sk, skb);
 #endif
+	/* Check DSACK info to detect that the previous ACK carrying the
+	 * AccECN option was lost after the second retransmision, and then
+	 * stop sending AccECN option in all subsequent ACKs.
+	 */
+	if (tcp_ecn_mode_accecn(tp) &&
+	    tp->accecn_opt_sent_w_dsack &&
+	    TCP_SKB_CB(skb)->seq == tp->duplicate_sack[0].start_seq)
+		tcp_accecn_fail_mode_set(tp, TCP_ACCECN_OPT_FAIL_SEND);
 }
 
 static void tcp_send_dupack(struct sock *sk, const struct sk_buff *skb)
@@ -5527,25 +5785,6 @@ static struct sk_buff *tcp_collapse_one(struct sock *sk, struct sk_buff *skb,
 	return next;
 }
 
-/* Insert skb into rb tree, ordered by TCP_SKB_CB(skb)->seq */
-void tcp_rbtree_insert(struct rb_root *root, struct sk_buff *skb)
-{
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct sk_buff *skb1;
-
-	while (*p) {
-		parent = *p;
-		skb1 = rb_to_skb(parent);
-		if (before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb1)->seq))
-			p = &parent->rb_left;
-		else
-			p = &parent->rb_right;
-	}
-	rb_link_node(&skb->rbnode, parent, p);
-	rb_insert_color(&skb->rbnode, root);
-}
-
 /* Collapse contiguous sequence of skbs head..tail with
  * sequence numbers start..end.
  *
@@ -5879,16 +6118,11 @@ static void tcp_new_space(struct sock *sk)
  *    small enough that tcp_stream_memory_free() decides it
  *    is time to generate EPOLLOUT.
  */
-void tcp_check_space(struct sock *sk)
+void __tcp_check_space(struct sock *sk)
 {
-	/* pairs with tcp_poll() */
-	smp_mb();
-	if (sk->sk_socket &&
-	    test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		tcp_new_space(sk);
-		if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
-			tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
-	}
+	tcp_new_space(sk);
+	if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
 }
 
 static inline void tcp_data_snd_check(struct sock *sk)
@@ -6222,6 +6456,8 @@ step1:
 	if (th->syn) {
 		if (tcp_ecn_mode_accecn(tp)) {
 			accecn_reflector = true;
+			tp->syn_ect_rcv = TCP_SKB_CB(skb)->ip_dsfield &
+					  INET_ECN_MASK;
 			if (tp->rx_opt.accecn &&
 			    tp->saw_accecn_opt < TCP_ACCECN_OPT_COUNTER_SEEN) {
 				u8 saw_opt = tcp_accecn_option_init(skb, tp->rx_opt.accecn);
@@ -6843,7 +7079,7 @@ consume:
 		tp->snd_wl1    = TCP_SKB_CB(skb)->seq;
 		tp->max_window = tp->snd_wnd;
 
-		tcp_ecn_rcv_syn(tp, th, skb);
+		tcp_ecn_rcv_syn(sk, th, skb);
 
 		tcp_mtup_init(sk);
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
@@ -7248,7 +7484,8 @@ static void tcp_ecn_create_request(struct request_sock *req,
 	u32 ecn_ok_dst;
 
 	if (tcp_accecn_syn_requested(th) &&
-	    READ_ONCE(net->ipv4.sysctl_tcp_ecn) >= 3) {
+	    (READ_ONCE(net->ipv4.sysctl_tcp_ecn) >= 3 ||
+	     tcp_ca_needs_accecn(listen_sk))) {
 		inet_rsk(req)->ecn_ok = 1;
 		tcp_rsk(req)->accecn_ok = 1;
 		tcp_rsk(req)->syn_ect_rcv = TCP_SKB_CB(skb)->ip_dsfield &
@@ -7361,8 +7598,7 @@ static void tcp_reqsk_record_syn(const struct sock *sk,
 			mac_hdrlen = 0;
 		}
 
-		saved_syn = kmalloc(struct_size(saved_syn, data, len),
-				    GFP_ATOMIC);
+		saved_syn = kmalloc_flex(*saved_syn, data, len, GFP_ATOMIC);
 		if (saved_syn) {
 			saved_syn->mac_hdrlen = mac_hdrlen;
 			saved_syn->network_hdrlen = skb_network_header_len(skb);

@@ -324,7 +324,14 @@ To beat some sense out of the internal editor, do this:
 
   - Set ``mailnews.send_plaintext_flowed`` to ``false``
 
-  - Set ``mailnews.wraplength`` from ``72`` to ``0``
+  - Set ``mailnews.wraplength`` from ``72`` to ``0`` **or** install the
+    "Toggle Line Wrap" extension
+
+    https://github.com/jan-kiszka/togglelinewrap
+
+    https://addons.thunderbird.net/thunderbird/addon/toggle-line-wrap
+
+    to control this registry on the fly.
 
 - Don't write HTML messages! Go to the main window
   :menuselection:`Main Menu-->Account Settings-->youracc@server.something-->Composition & Addressing`!

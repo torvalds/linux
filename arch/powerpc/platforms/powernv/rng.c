@@ -120,7 +120,7 @@ static __init int rng_create(struct device_node *dn)
 	struct resource res;
 	unsigned long val;
 
-	rng = kzalloc(sizeof(*rng), GFP_KERNEL);
+	rng = kzalloc_obj(*rng);
 	if (!rng)
 		return -ENOMEM;
 

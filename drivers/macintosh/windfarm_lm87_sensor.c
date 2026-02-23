@@ -128,7 +128,7 @@ static int wf_lm87_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	lm = kzalloc(sizeof(struct wf_lm87_sensor), GFP_KERNEL);
+	lm = kzalloc_obj(struct wf_lm87_sensor);
 	if (lm == NULL)
 		return -ENODEV;
 

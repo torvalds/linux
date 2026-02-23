@@ -172,7 +172,7 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 			goto unlock;
 		}
 		num_devices++;
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (!map) {
 			ret = -ENOMEM;
 			goto unlock;
@@ -204,7 +204,7 @@ int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 			goto unlock;
 		}
 
-		map = kzalloc(sizeof(*map), GFP_KERNEL);
+		map = kzalloc_obj(*map);
 		if (!map) {
 			ret = -ENOMEM;
 			goto unlock;

@@ -212,7 +212,7 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, irq;
 
-	sock = kzalloc(sizeof(struct xxs1500_pcmcia_sock), GFP_KERNEL);
+	sock = kzalloc_obj(struct xxs1500_pcmcia_sock);
 	if (!sock)
 		return -ENOMEM;
 

@@ -529,7 +529,7 @@ static int ljca_new_client_device(struct ljca_adapter *adap, u8 type, u8 id,
 	struct ljca_client *client;
 	int ret;
 
-	client = kzalloc(sizeof *client, GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client) {
 		kfree(data);
 		return -ENOMEM;
@@ -597,7 +597,7 @@ static int ljca_enumerate_gpio(struct ljca_adapter *adap)
 		return -EINVAL;
 
 	/* construct platform data */
-	gpio_info = kzalloc(sizeof *gpio_info, GFP_KERNEL);
+	gpio_info = kzalloc_obj(*gpio_info);
 	if (!gpio_info)
 		return -ENOMEM;
 	gpio_info->num = gpio_num;
@@ -630,7 +630,7 @@ static int ljca_enumerate_i2c(struct ljca_adapter *adap)
 
 	for (i = 0; i < desc->num; i++) {
 		/* construct platform data */
-		i2c_info = kzalloc(sizeof *i2c_info, GFP_KERNEL);
+		i2c_info = kzalloc_obj(*i2c_info);
 		if (!i2c_info)
 			return -ENOMEM;
 
@@ -669,7 +669,7 @@ static int ljca_enumerate_spi(struct ljca_adapter *adap)
 
 	for (i = 0; i < desc->num; i++) {
 		/* construct platform data */
-		spi_info = kzalloc(sizeof *spi_info, GFP_KERNEL);
+		spi_info = kzalloc_obj(*spi_info);
 		if (!spi_info)
 			return -ENOMEM;
 

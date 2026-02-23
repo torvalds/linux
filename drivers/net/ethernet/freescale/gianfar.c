@@ -413,8 +413,7 @@ static int gfar_alloc_tx_queues(struct gfar_private *priv)
 	int i;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] = kzalloc(sizeof(struct gfar_priv_tx_q),
-					    GFP_KERNEL);
+		priv->tx_queue[i] = kzalloc_obj(struct gfar_priv_tx_q);
 		if (!priv->tx_queue[i])
 			return -ENOMEM;
 
@@ -431,8 +430,7 @@ static int gfar_alloc_rx_queues(struct gfar_private *priv)
 	int i;
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = kzalloc(sizeof(struct gfar_priv_rx_q),
-					    GFP_KERNEL);
+		priv->rx_queue[i] = kzalloc_obj(struct gfar_priv_rx_q);
 		if (!priv->rx_queue[i])
 			return -ENOMEM;
 
@@ -507,8 +505,7 @@ static int gfar_parse_group(struct device_node *np,
 	int i;
 
 	for (i = 0; i < GFAR_NUM_IRQS; i++) {
-		grp->irqinfo[i] = kzalloc(sizeof(struct gfar_irqinfo),
-					  GFP_KERNEL);
+		grp->irqinfo[i] = kzalloc_obj(struct gfar_irqinfo);
 		if (!grp->irqinfo[i])
 			return -ENOMEM;
 	}
@@ -1376,9 +1373,8 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
 		tx_queue->tx_skbuff =
-			kmalloc_array(tx_queue->tx_ring_size,
-				      sizeof(*tx_queue->tx_skbuff),
-				      GFP_KERNEL);
+			kmalloc_objs(*tx_queue->tx_skbuff,
+				     tx_queue->tx_ring_size);
 		if (!tx_queue->tx_skbuff)
 			goto cleanup;
 
@@ -1388,9 +1384,8 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		rx_queue->rx_buff = kcalloc(rx_queue->rx_ring_size,
-					    sizeof(*rx_queue->rx_buff),
-					    GFP_KERNEL);
+		rx_queue->rx_buff = kzalloc_objs(*rx_queue->rx_buff,
+						 rx_queue->rx_ring_size);
 		if (!rx_queue->rx_buff)
 			goto cleanup;
 	}

@@ -788,7 +788,7 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 
 	disable_irq_nosync(irq);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc_obj(*ctx, GFP_ATOMIC);
 	if (!ctx) {
 		enable_irq(irq);
 		return IRQ_NONE;

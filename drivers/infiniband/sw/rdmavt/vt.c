@@ -53,7 +53,7 @@ struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 	if (!rdi)
 		return rdi;
 
-	rdi->ports = kcalloc(nports, sizeof(*rdi->ports), GFP_KERNEL);
+	rdi->ports = kzalloc_objs(*rdi->ports, nports);
 	if (!rdi->ports)
 		ib_dealloc_device(&rdi->ibdev);
 

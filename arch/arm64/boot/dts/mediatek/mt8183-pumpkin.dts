@@ -241,7 +241,7 @@
 };
 
 &pio {
-	i2c_pins_0: i2c0 {
+	i2c_pins_0: i2c0-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO82__FUNC_SDA0>,
 				 <PINMUX_GPIO83__FUNC_SCL0>;
@@ -249,7 +249,7 @@
 		};
 	};
 
-	i2c_pins_1: i2c1 {
+	i2c_pins_1: i2c1-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO81__FUNC_SDA1>,
 				 <PINMUX_GPIO84__FUNC_SCL1>;
@@ -257,7 +257,7 @@
 		};
 	};
 
-	i2c_pins_2: i2c2 {
+	i2c_pins_2: i2c2-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO103__FUNC_SCL2>,
 				 <PINMUX_GPIO104__FUNC_SDA2>;
@@ -265,7 +265,7 @@
 		};
 	};
 
-	i2c_pins_3: i2c3 {
+	i2c_pins_3: i2c3-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO50__FUNC_SCL3>,
 				 <PINMUX_GPIO51__FUNC_SDA3>;
@@ -273,7 +273,7 @@
 		};
 	};
 
-	i2c_pins_4: i2c4 {
+	i2c_pins_4: i2c4-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO105__FUNC_SCL4>,
 				 <PINMUX_GPIO106__FUNC_SDA4>;
@@ -281,7 +281,7 @@
 		};
 	};
 
-	i2c_pins_5: i2c5 {
+	i2c_pins_5: i2c5-pins {
 		pins_i2c {
 			pinmux = <PINMUX_GPIO48__FUNC_SCL5>,
 				 <PINMUX_GPIO49__FUNC_SDA5>;
@@ -289,7 +289,7 @@
 		};
 	};
 
-	i2c6_pins: i2c6 {
+	i2c6_pins: i2c6-pins {
 		pins_cmd_dat {
 			pinmux = <PINMUX_GPIO113__FUNC_SCL6>,
 				 <PINMUX_GPIO114__FUNC_SDA6>;
@@ -297,7 +297,7 @@
 		};
 	};
 
-	keyboard_pins: keyboard {
+	keyboard_pins: keyboard-pins {
 		pins_keyboard {
 			pinmux = <PINMUX_GPIO91__FUNC_KPROW1>,
 				 <PINMUX_GPIO92__FUNC_KPROW0>,

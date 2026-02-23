@@ -48,7 +48,7 @@ static int power_supply_register_led_trigger(struct power_supply *psy,
 	if (err && *err)
 		return *err;
 
-	psy_trig = kzalloc(sizeof(*psy_trig), GFP_KERNEL);
+	psy_trig = kzalloc_obj(*psy_trig);
 	if (!psy_trig)
 		goto err_free_trigger;
 

@@ -482,7 +482,7 @@ char *tracepoint_id_to_name(u64 config)
 static struct tracepoint_path *tracepoint_name_to_path(const char *name)
 {
 	struct tracepoint_path *path = zalloc(sizeof(*path));
-	char *str = strchr(name, ':');
+	const char *str = strchr(name, ':');
 
 	if (path == NULL || str == NULL) {
 		free(path);

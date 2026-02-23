@@ -76,7 +76,7 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_call *call,
 	static atomic_t rxrpc_bundle_id;
 	struct rxrpc_bundle *bundle;
 
-	bundle = kzalloc(sizeof(*bundle), gfp);
+	bundle = kzalloc_obj(*bundle, gfp);
 	if (bundle) {
 		bundle->local		= call->local;
 		bundle->peer		= rxrpc_get_peer(call->peer, rxrpc_peer_get_bundle);

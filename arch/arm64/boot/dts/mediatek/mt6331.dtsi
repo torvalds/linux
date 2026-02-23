@@ -217,7 +217,7 @@
 			};
 
 			mt6331_vcamio_reg: ldo-vcamio {
-				regulator-name = "vcam_io";
+				regulator-name = "vcamio";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-ramp-delay = <0>;

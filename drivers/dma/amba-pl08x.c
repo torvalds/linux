@@ -1010,7 +1010,7 @@ static inline u32 pl08x_lli_control_bits(struct pl08x_driver_data *pl08x,
 	/*
 	 * Remove all src, dst and transfer size bits, then set the
 	 * width and size according to the parameters. The bit offsets
-	 * are different in the FTDMAC020 so we need to accound for this.
+	 * are different in the FTDMAC020 so we need to account for this.
 	 */
 	if (pl08x->vd->ftdmac020) {
 		retbits &= ~FTDMAC020_LLI_DST_WIDTH_MSK;
@@ -1743,7 +1743,7 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 
 static struct pl08x_txd *pl08x_get_txd(struct pl08x_dma_chan *plchan)
 {
-	struct pl08x_txd *txd = kzalloc(sizeof(*txd), GFP_NOWAIT);
+	struct pl08x_txd *txd = kzalloc_obj(*txd, GFP_NOWAIT);
 
 	if (txd)
 		INIT_LIST_HEAD(&txd->dsg_list);
@@ -1895,7 +1895,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 		return NULL;
 	}
 
-	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
+	dsg = kzalloc_obj(struct pl08x_sg, GFP_NOWAIT);
 	if (!dsg) {
 		pl08x_free_txd(pl08x, txd);
 		return NULL;
@@ -2020,7 +2020,7 @@ static int pl08x_tx_add_sg(struct pl08x_txd *txd,
 {
 	struct pl08x_sg *dsg;
 
-	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
+	dsg = kzalloc_obj(struct pl08x_sg, GFP_NOWAIT);
 	if (!dsg)
 		return -ENOMEM;
 
@@ -2372,7 +2372,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 	 * to cope with that situation.
 	 */
 	for (i = 0; i < channels; i++) {
-		chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+		chan = kzalloc_obj(*chan);
 		if (!chan)
 			return -ENOMEM;
 
@@ -2390,7 +2390,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			chan->signal = i;
 			pl08x_dma_slave_init(chan);
 		} else {
-			chan->cd = kzalloc(sizeof(*chan->cd), GFP_KERNEL);
+			chan->cd = kzalloc_obj(*chan->cd);
 			if (!chan->cd) {
 				kfree(chan);
 				return -ENOMEM;
@@ -2709,7 +2709,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		goto out_no_pl08x;
 
 	/* Create the driver state holder */
-	pl08x = kzalloc(sizeof(*pl08x), GFP_KERNEL);
+	pl08x = kzalloc_obj(*pl08x);
 	if (!pl08x) {
 		ret = -ENOMEM;
 		goto out_no_pl08x;
@@ -2855,8 +2855,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kcalloc(vd->channels, sizeof(*pl08x->phy_chans),
-				   GFP_KERNEL);
+	pl08x->phy_chans = kzalloc_objs(*pl08x->phy_chans, vd->channels);
 	if (!pl08x->phy_chans) {
 		ret = -ENOMEM;
 		goto out_no_phychans;
@@ -2978,7 +2977,7 @@ out_no_pl08x:
 	return ret;
 }
 
-/* PL080 has 8 channels and the PL080 have just 2 */
+/* PL080 has 8 channels and the PL081 have just 2 */
 static struct vendor_data vendor_pl080 = {
 	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 MediaTek Inc.
+ * Copyright (c) 2025 Collabora Ltd.
+ *                    AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
  */
 
 #include <linux/dma-buf.h>
@@ -18,24 +20,64 @@
 
 static int mtk_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
-static const struct vm_operations_struct vm_ops = {
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
+static void mtk_gem_free_object(struct drm_gem_object *obj)
+{
+	struct drm_gem_dma_object *dma_obj = to_drm_gem_dma_obj(obj);
+	struct mtk_drm_private *priv = obj->dev->dev_private;
+
+	if (dma_obj->sgt)
+		drm_prime_gem_destroy(obj, dma_obj->sgt);
+	else
+		dma_free_wc(priv->dma_dev, dma_obj->base.size,
+			    dma_obj->vaddr, dma_obj->dma_addr);
+
+	/* release file pointer to gem object. */
+	drm_gem_object_release(obj);
+
+	kfree(dma_obj);
+}
+
+/*
+ * Allocate a sg_table for this GEM object.
+ * Note: Both the table's contents, and the sg_table itself must be freed by
+ *       the caller.
+ * Returns a pointer to the newly allocated sg_table, or an ERR_PTR() error.
+ */
+static struct sg_table *mtk_gem_prime_get_sg_table(struct drm_gem_object *obj)
+{
+	struct drm_gem_dma_object *dma_obj = to_drm_gem_dma_obj(obj);
+	struct mtk_drm_private *priv = obj->dev->dev_private;
+	struct sg_table *sgt;
+	int ret;
+
+	sgt = kzalloc_obj(*sgt);
+	if (!sgt)
+		return ERR_PTR(-ENOMEM);
+
+	ret = dma_get_sgtable(priv->dma_dev, sgt, dma_obj->vaddr,
+			      dma_obj->dma_addr, obj->size);
+	if (ret) {
+		DRM_ERROR("failed to allocate sgt, %d\n", ret);
+		kfree(sgt);
+		return ERR_PTR(ret);
+	}
+
+	return sgt;
+}
 
 static const struct drm_gem_object_funcs mtk_gem_object_funcs = {
 	.free = mtk_gem_free_object,
+	.print_info = drm_gem_dma_object_print_info,
 	.get_sg_table = mtk_gem_prime_get_sg_table,
-	.vmap = mtk_gem_prime_vmap,
-	.vunmap = mtk_gem_prime_vunmap,
+	.vmap = drm_gem_dma_object_vmap,
 	.mmap = mtk_gem_object_mmap,
-	.vm_ops = &vm_ops,
+	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
-static struct mtk_gem_obj *mtk_gem_init(struct drm_device *dev,
-					unsigned long size)
+static struct drm_gem_dma_object *mtk_gem_init(struct drm_device *dev,
+					unsigned long size, bool private)
 {
-	struct mtk_gem_obj *mtk_gem_obj;
+	struct drm_gem_dma_object *dma_obj;
 	int ret;
 
 	size = round_up(size, PAGE_SIZE);
@@ -43,86 +85,65 @@ static struct mtk_gem_obj *mtk_gem_init(struct drm_device *dev,
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	mtk_gem_obj = kzalloc(sizeof(*mtk_gem_obj), GFP_KERNEL);
-	if (!mtk_gem_obj)
+	dma_obj = kzalloc_obj(*dma_obj);
+	if (!dma_obj)
 		return ERR_PTR(-ENOMEM);
 
-	mtk_gem_obj->base.funcs = &mtk_gem_object_funcs;
+	dma_obj->base.funcs = &mtk_gem_object_funcs;
 
-	ret = drm_gem_object_init(dev, &mtk_gem_obj->base, size);
-	if (ret < 0) {
+	if (private) {
+		ret = 0;
+		drm_gem_private_object_init(dev, &dma_obj->base, size);
+	} else {
+		ret = drm_gem_object_init(dev, &dma_obj->base, size);
+	}
+	if (ret) {
 		DRM_ERROR("failed to initialize gem object\n");
-		kfree(mtk_gem_obj);
+		kfree(dma_obj);
 		return ERR_PTR(ret);
 	}
 
-	return mtk_gem_obj;
+	return dma_obj;
 }
 
-struct mtk_gem_obj *mtk_gem_create(struct drm_device *dev,
-				   size_t size, bool alloc_kmap)
+static struct drm_gem_dma_object *mtk_gem_create(struct drm_device *dev, size_t size)
 {
 	struct mtk_drm_private *priv = dev->dev_private;
-	struct mtk_gem_obj *mtk_gem;
+	struct drm_gem_dma_object *dma_obj;
 	struct drm_gem_object *obj;
 	int ret;
 
-	mtk_gem = mtk_gem_init(dev, size);
-	if (IS_ERR(mtk_gem))
-		return ERR_CAST(mtk_gem);
+	dma_obj = mtk_gem_init(dev, size, false);
+	if (IS_ERR(dma_obj))
+		return ERR_CAST(dma_obj);
 
-	obj = &mtk_gem->base;
+	obj = &dma_obj->base;
 
-	mtk_gem->dma_attrs = DMA_ATTR_WRITE_COMBINE;
-
-	if (!alloc_kmap)
-		mtk_gem->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
-
-	mtk_gem->cookie = dma_alloc_attrs(priv->dma_dev, obj->size,
-					  &mtk_gem->dma_addr, GFP_KERNEL,
-					  mtk_gem->dma_attrs);
-	if (!mtk_gem->cookie) {
+	dma_obj->vaddr = dma_alloc_wc(priv->dma_dev, obj->size,
+				      &dma_obj->dma_addr,
+				      GFP_KERNEL | __GFP_NOWARN);
+	if (!dma_obj->vaddr) {
 		DRM_ERROR("failed to allocate %zx byte dma buffer", obj->size);
 		ret = -ENOMEM;
 		goto err_gem_free;
 	}
 
-	if (alloc_kmap)
-		mtk_gem->kvaddr = mtk_gem->cookie;
-
-	DRM_DEBUG_DRIVER("cookie = %p dma_addr = %pad size = %zu\n",
-			 mtk_gem->cookie, &mtk_gem->dma_addr,
+	DRM_DEBUG_DRIVER("vaddr = %p dma_addr = %pad size = %zu\n",
+			 dma_obj->vaddr, &dma_obj->dma_addr,
 			 size);
 
-	return mtk_gem;
+	return dma_obj;
 
 err_gem_free:
 	drm_gem_object_release(obj);
-	kfree(mtk_gem);
+	kfree(dma_obj);
 	return ERR_PTR(ret);
-}
-
-void mtk_gem_free_object(struct drm_gem_object *obj)
-{
-	struct mtk_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	struct mtk_drm_private *priv = obj->dev->dev_private;
-
-	if (mtk_gem->sg)
-		drm_prime_gem_destroy(obj, mtk_gem->sg);
-	else
-		dma_free_attrs(priv->dma_dev, obj->size, mtk_gem->cookie,
-			       mtk_gem->dma_addr, mtk_gem->dma_attrs);
-
-	/* release file pointer to gem object. */
-	drm_gem_object_release(obj);
-
-	kfree(mtk_gem);
 }
 
 int mtk_gem_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 			struct drm_mode_create_dumb *args)
 {
-	struct mtk_gem_obj *mtk_gem;
+	struct drm_gem_dma_object *dma_obj;
 	int ret;
 
 	args->pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
@@ -135,25 +156,25 @@ int mtk_gem_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	args->size = args->pitch;
 	args->size *= args->height;
 
-	mtk_gem = mtk_gem_create(dev, args->size, false);
-	if (IS_ERR(mtk_gem))
-		return PTR_ERR(mtk_gem);
+	dma_obj = mtk_gem_create(dev, args->size);
+	if (IS_ERR(dma_obj))
+		return PTR_ERR(dma_obj);
 
 	/*
 	 * allocate a id of idr table where the obj is registered
 	 * and handle has the id what user can see.
 	 */
-	ret = drm_gem_handle_create(file_priv, &mtk_gem->base, &args->handle);
+	ret = drm_gem_handle_create(file_priv, &dma_obj->base, &args->handle);
 	if (ret)
 		goto err_handle_create;
 
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put(&mtk_gem->base);
+	drm_gem_object_put(&dma_obj->base);
 
 	return 0;
 
 err_handle_create:
-	mtk_gem_free_object(&mtk_gem->base);
+	mtk_gem_free_object(&dma_obj->base);
 	return ret;
 }
 
@@ -161,129 +182,50 @@ static int mtk_gem_object_mmap(struct drm_gem_object *obj,
 			       struct vm_area_struct *vma)
 
 {
-	int ret;
-	struct mtk_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+	struct drm_gem_dma_object *dma_obj = to_drm_gem_dma_obj(obj);
 	struct mtk_drm_private *priv = obj->dev->dev_private;
+	int ret;
 
 	/*
 	 * Set vm_pgoff (used as a fake buffer offset by DRM) to 0 and map the
 	 * whole buffer from the start.
 	 */
-	vma->vm_pgoff = 0;
+	vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
 
 	/*
 	 * dma_alloc_attrs() allocated a struct page table for mtk_gem, so clear
 	 * VM_PFNMAP flag that was set by drm_gem_mmap_obj()/drm_gem_mmap().
 	 */
-	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
+	vm_flags_mod(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP, VM_PFNMAP);
+
 	vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 
-	ret = dma_mmap_attrs(priv->dma_dev, vma, mtk_gem->cookie,
-			     mtk_gem->dma_addr, obj->size, mtk_gem->dma_attrs);
+	ret = dma_mmap_wc(priv->dma_dev, vma, dma_obj->vaddr,
+			  dma_obj->dma_addr, obj->size);
+	if (ret)
+		drm_gem_vm_close(vma);
 
 	return ret;
 }
 
-/*
- * Allocate a sg_table for this GEM object.
- * Note: Both the table's contents, and the sg_table itself must be freed by
- *       the caller.
- * Returns a pointer to the newly allocated sg_table, or an ERR_PTR() error.
- */
-struct sg_table *mtk_gem_prime_get_sg_table(struct drm_gem_object *obj)
-{
-	struct mtk_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	struct mtk_drm_private *priv = obj->dev->dev_private;
-	struct sg_table *sgt;
-	int ret;
-
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt)
-		return ERR_PTR(-ENOMEM);
-
-	ret = dma_get_sgtable_attrs(priv->dma_dev, sgt, mtk_gem->cookie,
-				    mtk_gem->dma_addr, obj->size,
-				    mtk_gem->dma_attrs);
-	if (ret) {
-		DRM_ERROR("failed to allocate sgt, %d\n", ret);
-		kfree(sgt);
-		return ERR_PTR(ret);
-	}
-
-	return sgt;
-}
-
 struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
-			struct dma_buf_attachment *attach, struct sg_table *sg)
+			struct dma_buf_attachment *attach, struct sg_table *sgt)
 {
-	struct mtk_gem_obj *mtk_gem;
+	struct drm_gem_dma_object *dma_obj;
 
 	/* check if the entries in the sg_table are contiguous */
-	if (drm_prime_get_contiguous_size(sg) < attach->dmabuf->size) {
+	if (drm_prime_get_contiguous_size(sgt) < attach->dmabuf->size) {
 		DRM_ERROR("sg_table is not contiguous");
 		return ERR_PTR(-EINVAL);
 	}
 
-	mtk_gem = mtk_gem_init(dev, attach->dmabuf->size);
-	if (IS_ERR(mtk_gem))
-		return ERR_CAST(mtk_gem);
+	dma_obj = mtk_gem_init(dev, attach->dmabuf->size, true);
+	if (IS_ERR(dma_obj))
+		return ERR_CAST(dma_obj);
 
-	mtk_gem->dma_addr = sg_dma_address(sg->sgl);
-	mtk_gem->sg = sg;
+	dma_obj->dma_addr = sg_dma_address(sgt->sgl);
+	dma_obj->sgt = sgt;
 
-	return &mtk_gem->base;
-}
-
-int mtk_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
-{
-	struct mtk_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	struct sg_table *sgt = NULL;
-	unsigned int npages;
-
-	if (mtk_gem->kvaddr)
-		goto out;
-
-	sgt = mtk_gem_prime_get_sg_table(obj);
-	if (IS_ERR(sgt))
-		return PTR_ERR(sgt);
-
-	npages = obj->size >> PAGE_SHIFT;
-	mtk_gem->pages = kcalloc(npages, sizeof(*mtk_gem->pages), GFP_KERNEL);
-	if (!mtk_gem->pages) {
-		sg_free_table(sgt);
-		kfree(sgt);
-		return -ENOMEM;
-	}
-
-	drm_prime_sg_to_page_array(sgt, mtk_gem->pages, npages);
-
-	mtk_gem->kvaddr = vmap(mtk_gem->pages, npages, VM_MAP,
-			       pgprot_writecombine(PAGE_KERNEL));
-	if (!mtk_gem->kvaddr) {
-		sg_free_table(sgt);
-		kfree(sgt);
-		kfree(mtk_gem->pages);
-		return -ENOMEM;
-	}
-	sg_free_table(sgt);
-	kfree(sgt);
-
-out:
-	iosys_map_set_vaddr(map, mtk_gem->kvaddr);
-
-	return 0;
-}
-
-void mtk_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
-{
-	struct mtk_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	void *vaddr = map->vaddr;
-
-	if (!mtk_gem->pages)
-		return;
-
-	vunmap(vaddr);
-	mtk_gem->kvaddr = NULL;
-	kfree(mtk_gem->pages);
+	return &dma_obj->base;
 }

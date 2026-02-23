@@ -267,7 +267,7 @@ static int dma_test_submit_rx(struct dma_test *dt, size_t npackets)
 		struct dma_test_frame *tf;
 		dma_addr_t dma_addr;
 
-		tf = kzalloc(sizeof(*tf), GFP_KERNEL);
+		tf = kzalloc_obj(*tf);
 		if (!tf)
 			return -ENOMEM;
 
@@ -318,7 +318,7 @@ static int dma_test_submit_tx(struct dma_test *dt, size_t npackets)
 		struct dma_test_frame *tf;
 		dma_addr_t dma_addr;
 
-		tf = kzalloc(sizeof(*tf), GFP_KERNEL);
+		tf = kzalloc_obj(*tf);
 		if (!tf)
 			return -ENOMEM;
 

@@ -46,7 +46,7 @@ static int switch_drv_probe(struct platform_device *pdev)
 	struct push_switch *psw;
 	int ret, irq;
 
-	psw = kzalloc(sizeof(struct push_switch), GFP_KERNEL);
+	psw = kzalloc_obj(struct push_switch);
 	if (unlikely(!psw))
 		return -ENOMEM;
 

@@ -1616,7 +1616,7 @@ static int ceu_probe(struct platform_device *pdev)
 	int num_subdevs;
 	int ret;
 
-	ceudev = kzalloc(sizeof(*ceudev), GFP_KERNEL);
+	ceudev = kzalloc_obj(*ceudev);
 	if (!ceudev)
 		return -ENOMEM;
 

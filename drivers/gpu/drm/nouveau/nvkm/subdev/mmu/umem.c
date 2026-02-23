@@ -161,7 +161,7 @@ nvkm_umem_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	if (type >= mmu->type_nr)
 		return -EINVAL;
 
-	if (!(umem = kzalloc(sizeof(*umem), GFP_KERNEL)))
+	if (!(umem = kzalloc_obj(*umem)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nvkm_umem, oclass, &umem->object);
 	umem->mmu = mmu;

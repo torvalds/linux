@@ -371,8 +371,7 @@ int mempool_resize(struct mempool *pool, int new_min_nr)
 	spin_unlock_irqrestore(&pool->lock, flags);
 
 	/* Grow the pool */
-	new_elements = kmalloc_array(new_min_nr, sizeof(*new_elements),
-				     GFP_KERNEL);
+	new_elements = kmalloc_objs(*new_elements, new_min_nr);
 	if (!new_elements)
 		return -ENOMEM;
 

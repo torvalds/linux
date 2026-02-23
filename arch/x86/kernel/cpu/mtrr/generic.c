@@ -410,7 +410,7 @@ void __init mtrr_copy_map(void)
 
 	mutex_lock(&mtrr_mutex);
 
-	cache_map = kcalloc(new_size, sizeof(*cache_map), GFP_KERNEL);
+	cache_map = kzalloc_objs(*cache_map, new_size);
 	if (cache_map) {
 		memmove(cache_map, init_cache_map,
 			cache_map_n * sizeof(*cache_map));

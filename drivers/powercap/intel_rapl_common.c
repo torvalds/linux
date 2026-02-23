@@ -254,7 +254,7 @@ static void rapl_init_domains(struct rapl_package *rp);
 static int rapl_read_data_raw(struct rapl_domain *rd,
 			      enum rapl_primitives prim,
 			      bool xlate, u64 *data,
-			      bool atomic);
+			      bool pmu_ctx);
 static int rapl_write_data_raw(struct rapl_domain *rd,
 			       enum rapl_primitives prim,
 			       unsigned long long value);
@@ -832,7 +832,7 @@ prim_fixups(struct rapl_domain *rd, enum rapl_primitives prim)
  */
 static int rapl_read_data_raw(struct rapl_domain *rd,
 			      enum rapl_primitives prim, bool xlate, u64 *data,
-			      bool atomic)
+			      bool pmu_ctx)
 {
 	u64 value;
 	enum rapl_primitives prim_fixed = prim_fixups(rd, prim);
@@ -854,7 +854,7 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 
 	ra.mask = rpi->mask;
 
-	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra, atomic)) {
+	if (rd->rp->priv->read_raw(get_rid(rd->rp), &ra, pmu_ctx)) {
 		pr_debug("failed to read reg 0x%llx for %s:%s\n", ra.reg.val, rd->rp->name, rd->name);
 		return -EIO;
 	}
@@ -1520,8 +1520,7 @@ static int rapl_detect_domains(struct rapl_package *rp)
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
 
-	rp->domains = kcalloc(rp->nr_domains, sizeof(struct rapl_domain),
-			      GFP_KERNEL);
+	rp->domains = kzalloc_objs(struct rapl_domain, rp->nr_domains);
 	if (!rp->domains)
 		return -ENOMEM;
 
@@ -1590,23 +1589,21 @@ static struct rapl_pmu rapl_pmu;
 
 /* PMU helpers */
 
-static int get_pmu_cpu(struct rapl_package *rp)
+static void set_pmu_cpumask(struct rapl_package *rp, cpumask_var_t mask)
 {
 	int cpu;
 
 	if (!rp->has_pmu)
-		return nr_cpu_ids;
+		return;
 
 	/* Only TPMI & MSR RAPL are supported for now */
 	if (rp->priv->type != RAPL_IF_TPMI && rp->priv->type != RAPL_IF_MSR)
-		return nr_cpu_ids;
+		return;
 
 	/* TPMI/MSR RAPL uses any CPU in the package for PMU */
 	for_each_online_cpu(cpu)
 		if (topology_physical_package_id(cpu) == rp->id)
-			return cpu;
-
-	return nr_cpu_ids;
+			cpumask_set_cpu(cpu, mask);
 }
 
 static bool is_rp_pmu_cpu(struct rapl_package *rp, int cpu)
@@ -1883,7 +1880,6 @@ static ssize_t cpumask_show(struct device *dev,
 {
 	struct rapl_package *rp;
 	cpumask_var_t cpu_mask;
-	int cpu;
 	int ret;
 
 	if (!alloc_cpumask_var(&cpu_mask, GFP_KERNEL))
@@ -1895,9 +1891,7 @@ static ssize_t cpumask_show(struct device *dev,
 
 	/* Choose a cpu for each RAPL Package */
 	list_for_each_entry(rp, &rapl_packages, plist) {
-		cpu = get_pmu_cpu(rp);
-		if (cpu < nr_cpu_ids)
-			cpumask_set_cpu(cpu, cpu_mask);
+		set_pmu_cpumask(rp, cpu_mask);
 	}
 	cpus_read_unlock();
 
@@ -2221,7 +2215,7 @@ struct rapl_package *rapl_add_package_cpuslocked(int id, struct rapl_if_priv *pr
 	struct rapl_package *rp;
 	int ret;
 
-	rp = kzalloc(sizeof(struct rapl_package), GFP_KERNEL);
+	rp = kzalloc_obj(struct rapl_package);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 

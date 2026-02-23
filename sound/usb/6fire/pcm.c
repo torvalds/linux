@@ -587,7 +587,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	int ret;
 	struct snd_pcm *pcm;
 	struct pcm_runtime *rt =
-			kzalloc(sizeof(struct pcm_runtime), GFP_KERNEL);
+			kzalloc_obj(struct pcm_runtime);
 
 	if (!rt)
 		return -ENOMEM;

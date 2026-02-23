@@ -32,7 +32,6 @@
 #include <net/ipv6.h>
 #include <linux/parser.h>
 #include <linux/bvec.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
@@ -63,6 +62,10 @@ static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
+
+static struct mchan_mount *mchan_mount_alloc(struct cifs_ses *ses);
+static void mchan_mount_free(struct mchan_mount *mchan_mount);
+static void mchan_mount_work_fn(struct work_struct *work);
 
 /*
  * Resolve hostname and set ip addr in tcp ses. Useful for hostnames that may
@@ -1752,7 +1755,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	if (tcp_ses)
 		return tcp_ses;
 
-	tcp_ses = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
+	tcp_ses = kzalloc_obj(struct TCP_Server_Info);
 	if (!tcp_ses) {
 		rc = -ENOMEM;
 		goto out_err;
@@ -3463,115 +3466,6 @@ ip_connect(struct TCP_Server_Info *server)
 	return generic_ip_connect(server);
 }
 
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
-			  struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
-{
-	/*
-	 * If we are reconnecting then should we check to see if
-	 * any requested capabilities changed locally e.g. via
-	 * remount but we can not do much about it here
-	 * if they have (even if we could detect it by the following)
-	 * Perhaps we could add a backpointer to array of sb from tcon
-	 * or if we change to make all sb to same share the same
-	 * sb as NFS - then we only have one backpointer to sb.
-	 * What if we wanted to mount the server share twice once with
-	 * and once without posixacls or posix paths?
-	 */
-	__u64 saved_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-
-	if (ctx && ctx->no_linux_ext) {
-		tcon->fsUnixInfo.Capability = 0;
-		tcon->unix_ext = 0; /* Unix Extensions disabled */
-		cifs_dbg(FYI, "Linux protocol extensions disabled\n");
-		return;
-	} else if (ctx)
-		tcon->unix_ext = 1; /* Unix Extensions supported */
-
-	if (!tcon->unix_ext) {
-		cifs_dbg(FYI, "Unix extensions disabled so not set on reconnect\n");
-		return;
-	}
-
-	if (!CIFSSMBQFSUnixInfo(xid, tcon)) {
-		__u64 cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
-
-		cifs_dbg(FYI, "unix caps which server supports %lld\n", cap);
-		/*
-		 * check for reconnect case in which we do not
-		 * want to change the mount behavior if we can avoid it
-		 */
-		if (ctx == NULL) {
-			/*
-			 * turn off POSIX ACL and PATHNAMES if not set
-			 * originally at mount time
-			 */
-			if ((saved_cap & CIFS_UNIX_POSIX_ACL_CAP) == 0)
-				cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
-			if ((saved_cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0) {
-				if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
-					cifs_dbg(VFS, "POSIXPATH support change\n");
-				cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
-			} else if ((cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0) {
-				cifs_dbg(VFS, "possible reconnect error\n");
-				cifs_dbg(VFS, "server disabled POSIX path support\n");
-			}
-		}
-
-		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)
-			cifs_dbg(VFS, "per-share encryption not supported yet\n");
-
-		cap &= CIFS_UNIX_CAP_MASK;
-		if (ctx && ctx->no_psx_acl)
-			cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
-		else if (CIFS_UNIX_POSIX_ACL_CAP & cap) {
-			cifs_dbg(FYI, "negotiated posix acl support\n");
-			if (cifs_sb)
-				cifs_sb->mnt_cifs_flags |=
-					CIFS_MOUNT_POSIXACL;
-		}
-
-		if (ctx && ctx->posix_paths == 0)
-			cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
-		else if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
-			cifs_dbg(FYI, "negotiate posix pathnames\n");
-			if (cifs_sb)
-				cifs_sb->mnt_cifs_flags |=
-					CIFS_MOUNT_POSIX_PATHS;
-		}
-
-		cifs_dbg(FYI, "Negotiate caps 0x%x\n", (int)cap);
-#ifdef CONFIG_CIFS_DEBUG2
-		if (cap & CIFS_UNIX_FCNTL_CAP)
-			cifs_dbg(FYI, "FCNTL cap\n");
-		if (cap & CIFS_UNIX_EXTATTR_CAP)
-			cifs_dbg(FYI, "EXTATTR cap\n");
-		if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
-			cifs_dbg(FYI, "POSIX path cap\n");
-		if (cap & CIFS_UNIX_XATTR_CAP)
-			cifs_dbg(FYI, "XATTR cap\n");
-		if (cap & CIFS_UNIX_POSIX_ACL_CAP)
-			cifs_dbg(FYI, "POSIX ACL cap\n");
-		if (cap & CIFS_UNIX_LARGE_READ_CAP)
-			cifs_dbg(FYI, "very large read cap\n");
-		if (cap & CIFS_UNIX_LARGE_WRITE_CAP)
-			cifs_dbg(FYI, "very large write cap\n");
-		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_CAP)
-			cifs_dbg(FYI, "transport encryption cap\n");
-		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)
-			cifs_dbg(FYI, "mandatory transport encryption cap\n");
-#endif /* CIFS_DEBUG2 */
-		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
-			if (ctx == NULL)
-				cifs_dbg(FYI, "resetting capabilities failed\n");
-			else
-				cifs_dbg(VFS, "Negotiating Unix capabilities with the server failed. Consider mounting with the Unix Extensions disabled if problems are found by specifying the nounix mount option.\n");
-
-		}
-	}
-}
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-
 int cifs_setup_cifs_sb(struct cifs_sb_info *cifs_sb)
 {
 	struct smb3_fs_context *ctx = cifs_sb->ctx;
@@ -3780,7 +3674,7 @@ static int mount_setup_tlink(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	struct tcon_link *tlink;
 
 	/* hang the tcon off of the superblock */
-	tlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
+	tlink = kzalloc_obj(*tlink);
 	if (tlink == NULL)
 		return -ENOMEM;
 
@@ -3899,15 +3793,64 @@ out:
 	return rc;
 }
 
+static struct mchan_mount *
+mchan_mount_alloc(struct cifs_ses *ses)
+{
+	struct mchan_mount *mchan_mount;
+
+	mchan_mount = kzalloc_obj(*mchan_mount);
+	if (!mchan_mount)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_WORK(&mchan_mount->work, mchan_mount_work_fn);
+
+	spin_lock(&cifs_tcp_ses_lock);
+	cifs_smb_ses_inc_refcount(ses);
+	spin_unlock(&cifs_tcp_ses_lock);
+	mchan_mount->ses = ses;
+
+	return mchan_mount;
+}
+
+static void
+mchan_mount_free(struct mchan_mount *mchan_mount)
+{
+	cifs_put_smb_ses(mchan_mount->ses);
+	kfree(mchan_mount);
+}
+
+static void
+mchan_mount_work_fn(struct work_struct *work)
+{
+	struct mchan_mount *mchan_mount = container_of(work, struct mchan_mount, work);
+
+	smb3_update_ses_channels(mchan_mount->ses,
+				 mchan_mount->ses->server,
+				 false /* from_reconnect */,
+				 false /* disable_mchan */);
+
+	mchan_mount_free(mchan_mount);
+}
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
 int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 {
 	struct cifs_mount_ctx mnt_ctx = { .cifs_sb = cifs_sb, .fs_ctx = ctx, };
+	struct mchan_mount *mchan_mount = NULL;
 	int rc;
 
 	rc = dfs_mount_share(&mnt_ctx);
 	if (rc)
 		goto error;
+
+	if (ctx->multichannel) {
+		mchan_mount = mchan_mount_alloc(mnt_ctx.ses);
+		if (IS_ERR(mchan_mount)) {
+			rc = PTR_ERR(mchan_mount);
+			goto error;
+		}
+	}
+
 	if (!ctx->dfs_conn)
 		goto out;
 
@@ -3926,17 +3869,19 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	ctx->prepath = NULL;
 
 out:
-	smb3_update_ses_channels(mnt_ctx.ses, mnt_ctx.server,
-				  false /* from_reconnect */,
-				  false /* disable_mchan */);
 	rc = mount_setup_tlink(cifs_sb, mnt_ctx.ses, mnt_ctx.tcon);
 	if (rc)
 		goto error;
+
+	if (ctx->multichannel)
+		queue_work(cifsiod_wq, &mchan_mount->work);
 
 	free_xid(mnt_ctx.xid);
 	return rc;
 
 error:
+	if (ctx->multichannel && !IS_ERR_OR_NULL(mchan_mount))
+		mchan_mount_free(mchan_mount);
 	cifs_mount_put_conns(&mnt_ctx);
 	return rc;
 }
@@ -3945,6 +3890,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 {
 	int rc = 0;
 	struct cifs_mount_ctx mnt_ctx = { .cifs_sb = cifs_sb, .fs_ctx = ctx, };
+	struct mchan_mount *mchan_mount = NULL;
 
 	rc = cifs_mount_get_session(&mnt_ctx);
 	if (rc)
@@ -3972,160 +3918,31 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	if (rc)
 		goto error;
 
+	if (ctx->multichannel) {
+		mchan_mount = mchan_mount_alloc(mnt_ctx.ses);
+		if (IS_ERR(mchan_mount)) {
+			rc = PTR_ERR(mchan_mount);
+			goto error;
+		}
+	}
+
 	rc = mount_setup_tlink(cifs_sb, mnt_ctx.ses, mnt_ctx.tcon);
 	if (rc)
 		goto error;
+
+	if (ctx->multichannel)
+		queue_work(cifsiod_wq, &mchan_mount->work);
 
 	free_xid(mnt_ctx.xid);
 	return rc;
 
 error:
+	if (ctx->multichannel && !IS_ERR_OR_NULL(mchan_mount))
+		mchan_mount_free(mchan_mount);
 	cifs_mount_put_conns(&mnt_ctx);
 	return rc;
 }
 #endif
-
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-/*
- * Issue a TREE_CONNECT request.
- */
-int
-CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
-	 const char *tree, struct cifs_tcon *tcon,
-	 const struct nls_table *nls_codepage)
-{
-	struct smb_hdr *smb_buffer;
-	struct smb_hdr *smb_buffer_response;
-	TCONX_REQ *pSMB;
-	TCONX_RSP *pSMBr;
-	unsigned char *bcc_ptr;
-	int rc = 0;
-	int length, in_len;
-	__u16 bytes_left, count;
-
-	if (ses == NULL)
-		return smb_EIO(smb_eio_trace_null_pointers);
-
-	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL)
-		return -ENOMEM;
-
-	smb_buffer_response = smb_buffer;
-
-	in_len = header_assemble(smb_buffer, SMB_COM_TREE_CONNECT_ANDX,
-				 NULL /*no tid */, 4 /*wct */);
-
-	smb_buffer->Mid = get_next_mid(ses->server);
-	smb_buffer->Uid = ses->Suid;
-	pSMB = (TCONX_REQ *) smb_buffer;
-	pSMBr = (TCONX_RSP *) smb_buffer_response;
-
-	pSMB->AndXCommand = 0xFF;
-	pSMB->Flags = cpu_to_le16(TCON_EXTENDED_SECINFO);
-	bcc_ptr = &pSMB->Password[0];
-
-	pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
-	*bcc_ptr = 0; /* password is null byte */
-	bcc_ptr++;              /* skip password */
-	/* already aligned so no need to do it below */
-
-	if (ses->server->sign)
-		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-
-	if (ses->capabilities & CAP_STATUS32)
-		smb_buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-
-	if (ses->capabilities & CAP_DFS)
-		smb_buffer->Flags2 |= SMBFLG2_DFS;
-
-	if (ses->capabilities & CAP_UNICODE) {
-		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
-		length =
-		    cifs_strtoUTF16((__le16 *) bcc_ptr, tree,
-			6 /* max utf8 char length in bytes */ *
-			(/* server len*/ + 256 /* share len */), nls_codepage);
-		bcc_ptr += 2 * length;	/* convert num 16 bit words to bytes */
-		bcc_ptr += 2;	/* skip trailing null */
-	} else {		/* ASCII */
-		strcpy(bcc_ptr, tree);
-		bcc_ptr += strlen(tree) + 1;
-	}
-	strcpy(bcc_ptr, "?????");
-	bcc_ptr += strlen("?????");
-	bcc_ptr += 1;
-	count = bcc_ptr - &pSMB->Password[0];
-	in_len += count;
-	pSMB->ByteCount = cpu_to_le16(count);
-
-	rc = SendReceive(xid, ses, smb_buffer, in_len, smb_buffer_response,
-			 &length, 0);
-
-	/* above now done in SendReceive */
-	if (rc == 0) {
-		bool is_unicode;
-
-		tcon->tid = smb_buffer_response->Tid;
-		bcc_ptr = pByteArea(smb_buffer_response);
-		bytes_left = get_bcc(smb_buffer_response);
-		length = strnlen(bcc_ptr, bytes_left - 2);
-		if (smb_buffer->Flags2 & SMBFLG2_UNICODE)
-			is_unicode = true;
-		else
-			is_unicode = false;
-
-
-		/* skip service field (NB: this field is always ASCII) */
-		if (length == 3) {
-			if ((bcc_ptr[0] == 'I') && (bcc_ptr[1] == 'P') &&
-			    (bcc_ptr[2] == 'C')) {
-				cifs_dbg(FYI, "IPC connection\n");
-				tcon->ipc = true;
-				tcon->pipe = true;
-			}
-		} else if (length == 2) {
-			if ((bcc_ptr[0] == 'A') && (bcc_ptr[1] == ':')) {
-				/* the most common case */
-				cifs_dbg(FYI, "disk share connection\n");
-			}
-		}
-		bcc_ptr += length + 1;
-		bytes_left -= (length + 1);
-		strscpy(tcon->tree_name, tree, sizeof(tcon->tree_name));
-
-		/* mostly informational -- no need to fail on error here */
-		kfree(tcon->nativeFileSystem);
-		tcon->nativeFileSystem = cifs_strndup_from_utf16(bcc_ptr,
-						      bytes_left, is_unicode,
-						      nls_codepage);
-
-		cifs_dbg(FYI, "nativeFileSystem=%s\n", tcon->nativeFileSystem);
-
-		if ((smb_buffer_response->WordCount == 3) ||
-			 (smb_buffer_response->WordCount == 7))
-			/* field is in same location */
-			tcon->Flags = le16_to_cpu(pSMBr->OptionalSupport);
-		else
-			tcon->Flags = 0;
-		cifs_dbg(FYI, "Tcon flags: 0x%x\n", tcon->Flags);
-
-		/*
-		 * reset_cifs_unix_caps calls QFSInfo which requires
-		 * need_reconnect to be false, but we would not need to call
-		 * reset_caps if this were not a reconnect case so must check
-		 * need_reconnect flag here.  The caller will also clear
-		 * need_reconnect when tcon was successful but needed to be
-		 * cleared earlier in the case of unix extensions reconnect
-		 */
-		if (tcon->need_reconnect && tcon->unix_ext) {
-			cifs_dbg(FYI, "resetting caps for %s\n", tcon->tree_name);
-			tcon->need_reconnect = false;
-			reset_cifs_unix_caps(xid, tcon, NULL, NULL);
-		}
-	}
-	cifs_buf_release(smb_buffer);
-	return rc;
-}
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 static void delayed_free(struct rcu_head *p)
 {
@@ -4270,7 +4087,9 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		ses->ses_status = SES_IN_SETUP;
 
 		/* force iface_list refresh */
+		spin_lock(&ses->iface_lock);
 		ses->iface_last_update = 0;
+		spin_unlock(&ses->iface_lock);
 	}
 	spin_unlock(&ses->ses_lock);
 
@@ -4374,7 +4193,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	struct smb3_fs_context *ctx;
 	char *origin_fullpath = NULL;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (ctx == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -4548,7 +4367,7 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	if (tlink == NULL) {
-		newtlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
+		newtlink = kzalloc_obj(*tlink);
 		if (newtlink == NULL)
 			return ERR_PTR(-ENOMEM);
 		newtlink->tl_uid = fsuid;

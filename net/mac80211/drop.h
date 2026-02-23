@@ -2,7 +2,7 @@
 /*
  * mac80211 drop reason list
  *
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2024, 2026 Intel Corporation
  */
 
 #ifndef MAC80211_DROP_H
@@ -65,6 +65,49 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	/* 0x30 */				\
 	R(RX_DROP_U_BAD_MGMT_KEYIDX)		\
 	R(RX_DROP_U_UNKNOWN_ACTION_REJECTED)	\
+	R(RX_DROP_U_MESH_DS_BITS)		\
+	R(RX_DROP_U_MESH_A3_MISMATCH)		\
+	R(RX_DROP_U_MESH_NO_A4)			\
+	R(RX_DROP_U_MESH_A4_MISMATCH)		\
+	R(RX_DROP_U_MESH_UNEXP_DATA)		\
+	R(RX_DROP_U_MESH_WRONG_ACTION)		\
+	R(RX_DROP_U_MESH_UNEXP_MGMT)		\
+	R(RX_DROP_U_SPURIOUS_NOTIF)		\
+	R(RX_DROP_U_RUNT_DATA)			\
+	R(RX_DROP_U_KEY_TAINTED)		\
+	R(RX_DROP_U_UNPROTECTED)		\
+	R(RX_DROP_U_MCAST_FRAGMENT)		\
+	R(RX_DROP_U_DEFRAG_MISMATCH)		\
+	R(RX_DROP_U_RUNT_MESH_DATA)		\
+	/* 0x40 */				\
+	R(RX_DROP_U_MESH_NO_TTL)		\
+	R(RX_DROP_U_MESH_RMC)			\
+	R(RX_DROP_U_MESH_BAD_AE)		\
+	R(RX_DROP_U_MESH_TTL_EXPIRED)		\
+	R(RX_DROP_U_MESH_NOT_FORWARDING)	\
+	R(RX_DROP_U_AMSDU_WITHOUT_DATA)		\
+	R(RX_DROP_U_NULL_DATA)			\
+	R(RX_DROP_U_UNEXPECTED_4ADDR)		\
+	R(RX_DROP_U_PORT_CONTROL)		\
+	R(RX_DROP_U_UNKNOWN_STA)		\
+	R(RX_DROP_U_RUNT_BAR)			\
+	R(RX_DROP_U_BAR_OUTSIDE_SESSION)	\
+	R(RX_DROP_U_CTRL_FRAME)			\
+	R(RX_DROP_U_RUNT_MGMT)			\
+	R(RX_DROP_U_EXPECTED_MGMT)		\
+	R(RX_DROP_U_NONBCAST_BEACON)		\
+	/* 0x50 */				\
+	R(RX_DROP_U_MALFORMED_ACTION)		\
+	R(RX_DROP_U_UNKNOWN_MCAST_ACTION)	\
+	R(RX_DROP_U_UNEXPECTED_EXT_FRAME)	\
+	R(RX_DROP_U_UNHANDLED_MGMT)		\
+	R(RX_DROP_U_MCAST_DEAUTH)		\
+	R(RX_DROP_U_UNHANDLED_DEAUTH)		\
+	R(RX_DROP_U_MCAST_DISASSOC)		\
+	R(RX_DROP_U_UNHANDLED_DISASSOC)		\
+	R(RX_DROP_U_UNHANDLED_PREQ)		\
+	R(RX_DROP_U_UNHANDLED_MGMT_STYPE)	\
+	R(RX_DROP_U_NO_LINK)			\
 /* this line for the trailing \ - add before this */
 
 /* having two enums allows for checking ieee80211_rx_result use with sparse */
@@ -85,7 +128,6 @@ enum ___mac80211_drop_reason {
 enum mac80211_drop_reason {
 	RX_CONTINUE	= (__force ieee80211_rx_result)___RX_CONTINUE,
 	RX_QUEUED	= (__force ieee80211_rx_result)___RX_QUEUED,
-	RX_DROP		= (__force ieee80211_rx_result)___RX_DROP_UNUSABLE,
 #define DEF(x) x = (__force ieee80211_rx_result)___ ## x,
 	MAC80211_DROP_REASONS_UNUSABLE(DEF)
 #undef DEF

@@ -159,5 +159,6 @@ const char *objtool_disas_insn(struct instruction *insn);
 
 extern size_t sym_name_max_len;
 extern struct disas_context *objtool_disas_ctx;
+int pv_ops_idx_off(const char *symname);
 
 #endif /* _CHECK_H */

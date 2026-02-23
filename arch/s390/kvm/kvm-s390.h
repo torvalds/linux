@@ -19,8 +19,18 @@
 #include <asm/facility.h>
 #include <asm/processor.h>
 #include <asm/sclp.h>
+#include "dat.h"
+#include "gmap.h"
 
 #define KVM_S390_UCONTROL_MEMSLOT (KVM_USER_MEM_SLOTS + 0)
+
+union kvm_s390_quad {
+	__uint128_t sixteen;
+	unsigned long eight;
+	unsigned int four;
+	unsigned short two;
+	unsigned char one;
+};
 
 static inline void kvm_s390_fpu_store(struct kvm_run *run)
 {
@@ -106,9 +116,7 @@ static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 static inline int kvm_is_ucontrol(struct kvm *kvm)
 {
 #ifdef CONFIG_KVM_S390_UCONTROL
-	if (kvm->arch.gmap)
-		return 0;
-	return 1;
+	return test_bit(GMAP_FLAG_IS_UCONTROL, &kvm->arch.gmap->flags);
 #else
 	return 0;
 #endif
@@ -432,14 +440,9 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu);
 /* implemented in vsie.c */
 int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
 void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
-void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
-				 unsigned long end);
+void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, gpa_t start, gpa_t end);
 void kvm_s390_vsie_init(struct kvm *kvm);
 void kvm_s390_vsie_destroy(struct kvm *kvm);
-int gmap_shadow_valid(struct gmap *sg, unsigned long asce, int edat_level);
-
-/* implemented in gmap-vsie.c */
-struct gmap *gmap_shadow(struct gmap *parent, unsigned long asce, int edat_level);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
@@ -461,14 +464,10 @@ void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu);
 void kvm_s390_set_cpu_timer(struct kvm_vcpu *vcpu, __u64 cputm);
 __u64 kvm_s390_get_cpu_timer(struct kvm_vcpu *vcpu);
 int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rc, u16 *rrc);
-int __kvm_s390_handle_dat_fault(struct kvm_vcpu *vcpu, gfn_t gfn, gpa_t gaddr, unsigned int flags);
 int __kvm_s390_mprotect_many(struct gmap *gmap, gpa_t gpa, u8 npages, unsigned int prot,
 			     unsigned long bits);
 
-static inline int kvm_s390_handle_dat_fault(struct kvm_vcpu *vcpu, gpa_t gaddr, unsigned int flags)
-{
-	return __kvm_s390_handle_dat_fault(vcpu, gpa_to_gfn(gaddr), gaddr, flags);
-}
+bool kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu);
 
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);

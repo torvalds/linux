@@ -1298,7 +1298,7 @@ static int nozomi_card_init(struct pci_dev *pdev,
 		goto err;
 	}
 
-	dc = kzalloc(sizeof(struct nozomi), GFP_KERNEL);
+	dc = kzalloc_obj(struct nozomi);
 	if (unlikely(!dc)) {
 		dev_err(&pdev->dev, "Could not allocate memory\n");
 		ret = -ENOMEM;

@@ -9,34 +9,13 @@ title: Samsung Exynos SoC series Power Management Unit (PMU)
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
-# Custom select to avoid matching all nodes with 'syscon'
-select:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - google,gs101-pmu
-          - samsung,exynos3250-pmu
-          - samsung,exynos4210-pmu
-          - samsung,exynos4212-pmu
-          - samsung,exynos4412-pmu
-          - samsung,exynos5250-pmu
-          - samsung,exynos5260-pmu
-          - samsung,exynos5410-pmu
-          - samsung,exynos5420-pmu
-          - samsung,exynos5433-pmu
-          - samsung,exynos7-pmu
-          - samsung,exynos850-pmu
-          - samsung-s5pv210-pmu
-  required:
-    - compatible
-
 properties:
   compatible:
     oneOf:
+      - enum:
+          - google,gs101-pmu
       - items:
           - enum:
-              - google,gs101-pmu
               - samsung,exynos3250-pmu
               - samsung,exynos4210-pmu
               - samsung,exynos4212-pmu
@@ -52,6 +31,7 @@ properties:
           - const: syscon
       - items:
           - enum:
+              - axis,artpec9-pmu
               - samsung,exynos2200-pmu
               - samsung,exynos7870-pmu
               - samsung,exynos7885-pmu

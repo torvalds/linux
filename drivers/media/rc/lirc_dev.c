@@ -128,7 +128,7 @@ static int lirc_open(struct inode *inode, struct file *file)
 {
 	struct rc_dev *dev = container_of(inode->i_cdev, struct rc_dev,
 					  lirc_cdev);
-	struct lirc_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	struct lirc_fh *fh = kzalloc_obj(*fh);
 	unsigned long flags;
 	int retval;
 
@@ -267,7 +267,7 @@ static ssize_t lirc_transmit(struct file *file, const char __user *buf,
 			goto out_unlock;
 		}
 
-		raw = kmalloc_array(LIRCBUF_SIZE, sizeof(*raw), GFP_KERNEL);
+		raw = kmalloc_objs(*raw, LIRCBUF_SIZE);
 		if (!raw) {
 			ret = -ENOMEM;
 			goto out_unlock;

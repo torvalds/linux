@@ -626,7 +626,7 @@ static int qt2_attach(struct usb_serial *serial)
 		return status;
 	}
 
-	serial_priv = kzalloc(sizeof(*serial_priv), GFP_KERNEL);
+	serial_priv = kzalloc_obj(*serial_priv);
 	if (!serial_priv)
 		return -ENOMEM;
 
@@ -657,7 +657,7 @@ static int qt2_port_probe(struct usb_serial_port *port)
 	struct qt2_port_private *port_priv;
 	u8 bEndpointAddress;
 
-	port_priv = kzalloc(sizeof(*port_priv), GFP_KERNEL);
+	port_priv = kzalloc_obj(*port_priv);
 	if (!port_priv)
 		return -ENOMEM;
 

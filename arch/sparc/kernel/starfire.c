@@ -50,7 +50,7 @@ void starfire_hookup(int upaid)
 	struct starfire_irqinfo *p;
 	unsigned long treg_base, hwmid, i;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p);
 	if (!p) {
 		prom_printf("starfire_hookup: No memory, this is insane.\n");
 		prom_halt();

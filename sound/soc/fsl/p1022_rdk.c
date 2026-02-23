@@ -226,7 +226,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mdata = kzalloc(sizeof(struct machine_data), GFP_KERNEL);
+	mdata = kzalloc_obj(struct machine_data);
 	if (!mdata) {
 		ret = -ENOMEM;
 		goto error_put;

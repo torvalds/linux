@@ -158,7 +158,7 @@ static int dsa_port_do_tag_8021q_vlan_add(struct dsa_port *dp, u16 vid,
 		return 0;
 	}
 
-	v = kzalloc(sizeof(*v), GFP_KERNEL);
+	v = kzalloc_obj(*v);
 	if (!v)
 		return -ENOMEM;
 
@@ -420,7 +420,7 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto)
 	struct dsa_8021q_context *ctx;
 	int err;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

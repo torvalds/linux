@@ -32,7 +32,7 @@ static void ext4_rcu_ptr_callback(struct rcu_head *head)
 
 void ext4_kvfree_array_rcu(void *to_free)
 {
-	struct ext4_rcu_ptr *ptr = kzalloc(sizeof(*ptr), GFP_KERNEL);
+	struct ext4_rcu_ptr *ptr = kzalloc_obj(*ptr);
 
 	if (ptr) {
 		ptr->ptr = to_free;
@@ -242,7 +242,7 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size,
 	unsigned int max_resize_bg;
 	struct ext4_new_flex_group_data *flex_gd;
 
-	flex_gd = kmalloc(sizeof(*flex_gd), GFP_NOFS);
+	flex_gd = kmalloc_obj(*flex_gd, GFP_NOFS);
 	if (flex_gd == NULL)
 		goto out3;
 
@@ -260,9 +260,8 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned int flexbg_size,
 	if (WARN_ON_ONCE(flex_gd->resize_bg > max_resize_bg))
 		flex_gd->resize_bg = max_resize_bg;
 
-	flex_gd->groups = kmalloc_array(flex_gd->resize_bg,
-					sizeof(struct ext4_new_group_data),
-					GFP_NOFS);
+	flex_gd->groups = kmalloc_objs(struct ext4_new_group_data,
+				       flex_gd->resize_bg, GFP_NOFS);
 	if (flex_gd->groups == NULL)
 		goto out2;
 
@@ -1031,7 +1030,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	int res, i;
 	int err;
 
-	primary = kmalloc_array(reserved_gdb, sizeof(*primary), GFP_NOFS);
+	primary = kmalloc_objs(*primary, reserved_gdb, GFP_NOFS);
 	if (!primary)
 		return -ENOMEM;
 
@@ -1479,7 +1478,7 @@ static void ext4_update_super(struct super_block *sb,
 
 	/* Update the global fs size fields */
 	sbi->s_groups_count += flex_gd->count;
-	sbi->s_blockfile_groups = min_t(ext4_group_t, sbi->s_groups_count,
+	sbi->s_blockfile_groups = min(sbi->s_groups_count,
 			(EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb)));
 
 	/* Update the reserved block counts only once the new group is

@@ -320,8 +320,7 @@ int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
 	int err;
 	int i;
 
-	rx = kvcalloc(cfg->qcfg_rx->max_queues, sizeof(struct gve_rx_ring),
-		      GFP_KERNEL);
+	rx = kvzalloc_objs(struct gve_rx_ring, cfg->qcfg_rx->max_queues);
 	if (!rx)
 		return -ENOMEM;
 
@@ -484,7 +483,7 @@ int gve_xdp_rx_timestamp(const struct xdp_md *_ctx, u64 *timestamp)
 {
 	const struct gve_xdp_buff *ctx = (void *)_ctx;
 
-	if (!ctx->gve->nic_ts_report)
+	if (!gve_is_clock_enabled(ctx->gve))
 		return -ENODATA;
 
 	if (!(ctx->compl_desc->ts_sub_nsecs_low & GVE_DQO_RX_HWTSTAMP_VALID))

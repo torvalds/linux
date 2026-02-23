@@ -95,7 +95,7 @@ struct generic_pm_domain *dt_idle_pd_alloc(struct device_node *np,
 	struct genpd_power_state *states = NULL;
 	int ret, state_count = 0;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		goto out;
 

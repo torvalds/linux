@@ -411,7 +411,7 @@ static unsigned int npcm_video_add_rect(struct npcm_video *video,
 	struct rect_list *list = NULL;
 	struct v4l2_rect *r;
 
-	list = kzalloc(sizeof(*list), GFP_KERNEL);
+	list = kzalloc_obj(*list);
 	if (!list)
 		return 0;
 
@@ -466,7 +466,7 @@ static struct rect_list *npcm_video_new_rect(struct npcm_video *video,
 	struct rect_list *list = NULL;
 	struct v4l2_rect *r;
 
-	list = kzalloc(sizeof(*list), GFP_KERNEL);
+	list = kzalloc_obj(*list);
 	if (!list)
 		return NULL;
 
@@ -1733,7 +1733,7 @@ static int npcm_video_init(struct npcm_video *video)
 
 static int npcm_video_probe(struct platform_device *pdev)
 {
-	struct npcm_video *video = kzalloc(sizeof(*video), GFP_KERNEL);
+	struct npcm_video *video = kzalloc_obj(*video);
 	int rc;
 	void __iomem *regs;
 

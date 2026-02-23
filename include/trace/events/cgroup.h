@@ -16,7 +16,7 @@ DECLARE_EVENT_CLASS(cgroup_root,
 
 	TP_STRUCT__entry(
 		__field(	int,		root			)
-		__field(	u16,		ss_mask			)
+		__field(	u32,		ss_mask			)
 		__string(	name,		root->name		)
 	),
 

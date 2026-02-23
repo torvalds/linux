@@ -77,8 +77,7 @@ static int __scm_alloc_rq(void)
 	if (!scmrq->aob)
 		goto free;
 
-	scmrq->request = kcalloc(nr_requests_per_io, sizeof(scmrq->request[0]),
-				 GFP_KERNEL);
+	scmrq->request = kzalloc_objs(scmrq->request[0], nr_requests_per_io);
 	if (!scmrq->request)
 		goto free;
 
@@ -331,7 +330,7 @@ static blk_status_t scm_blk_request(struct blk_mq_hw_ctx *hctx,
 static int scm_blk_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 			     unsigned int idx)
 {
-	struct scm_queue *qd = kzalloc(sizeof(*qd), GFP_KERNEL);
+	struct scm_queue *qd = kzalloc_obj(*qd);
 
 	if (!qd)
 		return -ENOMEM;

@@ -166,7 +166,7 @@ static __init int ixp4xx_timer_register(void __iomem *base,
 	struct ixp4xx_timer *tmr;
 	int ret;
 
-	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
+	tmr = kzalloc_obj(*tmr);
 	if (!tmr)
 		return -ENOMEM;
 	tmr->base = base;

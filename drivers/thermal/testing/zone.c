@@ -186,12 +186,11 @@ int tt_add_tz(void)
 {
 	int ret;
 
-	struct tt_thermal_zone *tt_zone __free(kfree) = kzalloc(sizeof(*tt_zone),
-								GFP_KERNEL);
+	struct tt_thermal_zone *tt_zone __free(kfree) = kzalloc_obj(*tt_zone);
 	if (!tt_zone)
 		return -ENOMEM;
 
-	struct tt_work *tt_work __free(kfree) = kzalloc(sizeof(*tt_work), GFP_KERNEL);
+	struct tt_work *tt_work __free(kfree) = kzalloc_obj(*tt_work);
 	if (!tt_work)
 		return -ENOMEM;
 
@@ -244,7 +243,7 @@ int tt_del_tz(const char *arg)
 	if (ret != 1)
 		return -EINVAL;
 
-	struct tt_work *tt_work __free(kfree) = kzalloc(sizeof(*tt_work), GFP_KERNEL);
+	struct tt_work *tt_work __free(kfree) = kzalloc_obj(*tt_work);
 	if (!tt_work)
 		return -ENOMEM;
 
@@ -330,11 +329,11 @@ int tt_zone_add_trip(const char *arg)
 {
 	int id;
 
-	struct tt_work *tt_work __free(kfree) = kzalloc(sizeof(*tt_work), GFP_KERNEL);
+	struct tt_work *tt_work __free(kfree) = kzalloc_obj(*tt_work);
 	if (!tt_work)
 		return -ENOMEM;
 
-	struct tt_trip *tt_trip __free(kfree) = kzalloc(sizeof(*tt_trip), GFP_KERNEL);
+	struct tt_trip *tt_trip __free(kfree) = kzalloc_obj(*tt_trip);
 	if (!tt_trip)
 		return -ENOMEM;
 
@@ -391,8 +390,8 @@ static int tt_zone_register_tz(struct tt_thermal_zone *tt_zone)
 	if (tt_zone->tz)
 		return -EINVAL;
 
-	struct thermal_trip *trips __free(kfree) = kcalloc(tt_zone->num_trips,
-							   sizeof(*trips), GFP_KERNEL);
+	struct thermal_trip *trips __free(kfree) = kzalloc_objs(*trips,
+								tt_zone->num_trips);
 	if (!trips)
 		return -ENOMEM;
 

@@ -86,7 +86,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
 		/* Add the address to the local list.  */
-		addr = kzalloc(sizeof(*addr), GFP_ATOMIC);
+		addr = kzalloc_obj(*addr, GFP_ATOMIC);
 		if (addr) {
 			addr->a.v4.sin_family = AF_INET;
 			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
@@ -774,7 +774,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 
 	switch (ev) {
 	case NETDEV_UP:
-		addr = kzalloc(sizeof(*addr), GFP_ATOMIC);
+		addr = kzalloc_obj(*addr, GFP_ATOMIC);
 		if (addr) {
 			addr->a.v4.sin_family = AF_INET;
 			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
@@ -1538,7 +1538,7 @@ static __init int sctp_init(void)
 	/* Allocate and initialize the endpoint hash table.  */
 	sctp_ep_hashsize = 64;
 	sctp_ep_hashtable =
-		kmalloc_array(64, sizeof(struct sctp_hashbucket), GFP_KERNEL);
+		kmalloc_objs(struct sctp_hashbucket, 64);
 	if (!sctp_ep_hashtable) {
 		pr_err("Failed endpoint_hash alloc\n");
 		status = -ENOMEM;

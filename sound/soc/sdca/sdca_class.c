@@ -205,6 +205,7 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 	drv->dev = dev;
 	drv->sdw = sdw;
 	mutex_init(&drv->regmap_lock);
+	mutex_init(&drv->init_lock);
 
 	dev_set_drvdata(drv->dev, drv);
 
@@ -234,6 +235,38 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 		return ret;
 
 	queue_work(system_long_wq, &drv->boot_work);
+
+	return 0;
+}
+
+static int class_suspend(struct device *dev)
+{
+	struct sdca_class_drv *drv = dev_get_drvdata(dev);
+	int ret;
+
+	disable_irq(drv->sdw->irq);
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to force suspend: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int class_resume(struct device *dev)
+{
+	struct sdca_class_drv *drv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to force resume: %d\n", ret);
+		return ret;
+	}
+
+	enable_irq(drv->sdw->irq);
 
 	return 0;
 }
@@ -278,6 +311,7 @@ err:
 }
 
 static const struct dev_pm_ops class_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(class_suspend, class_resume)
 	RUNTIME_PM_OPS(class_runtime_suspend, class_runtime_resume, NULL)
 };
 

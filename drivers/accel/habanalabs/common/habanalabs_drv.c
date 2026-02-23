@@ -181,7 +181,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 	struct hl_fpriv *hpriv;
 	int rc;
 
-	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	hpriv = kzalloc_obj(*hpriv);
 	if (!hpriv)
 		return -ENOMEM;
 
@@ -291,7 +291,7 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 		return -ENXIO;
 	}
 
-	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
+	hpriv = kzalloc_obj(*hpriv);
 	if (!hpriv)
 		return -ENOMEM;
 

@@ -138,8 +138,8 @@ int __init ima_init_crypto(void)
 	if (ima_hash_algo_idx < 0)
 		ima_hash_algo_idx = NR_BANKS(ima_tpm_chip) + ima_extra_slots++;
 
-	ima_algo_array = kcalloc(NR_BANKS(ima_tpm_chip) + ima_extra_slots,
-				 sizeof(*ima_algo_array), GFP_KERNEL);
+	ima_algo_array = kzalloc_objs(*ima_algo_array,
+				      NR_BANKS(ima_tpm_chip) + ima_extra_slots);
 	if (!ima_algo_array) {
 		rc = -ENOMEM;
 		goto out;

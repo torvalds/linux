@@ -318,7 +318,7 @@ mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
 	struct mlxsw_sp_acl_rule_info *rulei;
 	int err;
 
-	rulei = kzalloc(sizeof(*rulei), GFP_KERNEL);
+	rulei = kzalloc_obj(*rulei);
 	if (!rulei)
 		return ERR_PTR(-ENOMEM);
 

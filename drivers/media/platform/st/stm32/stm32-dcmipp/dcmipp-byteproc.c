@@ -49,6 +49,8 @@ struct dcmipp_byteproc_pix_map {
 static const struct dcmipp_byteproc_pix_map dcmipp_byteproc_pix_map_list[] = {
 	PIXMAP_MBUS_BPP(RGB565_2X8_LE, 2),
 	PIXMAP_MBUS_BPP(RGB565_1X16, 2),
+	PIXMAP_MBUS_BPP(RGB888_3X8, 3),
+	PIXMAP_MBUS_BPP(RGB888_1X24, 3),
 	PIXMAP_MBUS_BPP(YUYV8_2X8, 2),
 	PIXMAP_MBUS_BPP(YUYV8_1X16, 2),
 	PIXMAP_MBUS_BPP(YVYU8_2X8, 2),
@@ -58,6 +60,9 @@ static const struct dcmipp_byteproc_pix_map dcmipp_byteproc_pix_map_list[] = {
 	PIXMAP_MBUS_BPP(VYUY8_2X8, 2),
 	PIXMAP_MBUS_BPP(VYUY8_1X16, 2),
 	PIXMAP_MBUS_BPP(Y8_1X8, 1),
+	PIXMAP_MBUS_BPP(Y10_1X10, 2),
+	PIXMAP_MBUS_BPP(Y12_1X12, 2),
+	PIXMAP_MBUS_BPP(Y14_1X14, 2),
 	PIXMAP_MBUS_BPP(SBGGR8_1X8, 1),
 	PIXMAP_MBUS_BPP(SGBRG8_1X8, 1),
 	PIXMAP_MBUS_BPP(SGRBG8_1X8, 1),
@@ -126,15 +131,22 @@ static void dcmipp_byteproc_adjust_crop(struct v4l2_rect *r,
 static void dcmipp_byteproc_adjust_compose(struct v4l2_rect *r,
 					   const struct v4l2_mbus_framefmt *fmt)
 {
+	const struct dcmipp_byteproc_pix_map *vpix;
+
 	r->top = 0;
 	r->left = 0;
 
 	/* Compose is not possible for JPEG or Bayer formats */
-	if (fmt->code == MEDIA_BUS_FMT_JPEG_1X8 ||
-	    fmt->code == MEDIA_BUS_FMT_SBGGR8_1X8 ||
-	    fmt->code == MEDIA_BUS_FMT_SGBRG8_1X8 ||
-	    fmt->code == MEDIA_BUS_FMT_SGRBG8_1X8 ||
-	    fmt->code == MEDIA_BUS_FMT_SRGGB8_1X8) {
+	if (fmt->code >= MEDIA_BUS_FMT_SBGGR8_1X8 &&
+	    fmt->code <= MEDIA_BUS_FMT_JPEG_1X8) {
+		r->width = fmt->width;
+		r->height = fmt->height;
+		return;
+	}
+
+	/* Prevent compose on formats which are not 1 or 2 bytes per pixel */
+	vpix = dcmipp_byteproc_pix_map_by_code(fmt->code);
+	if (vpix->bpp != 1 && vpix->bpp != 2) {
 		r->width = fmt->width;
 		r->height = fmt->height;
 		return;
@@ -147,7 +159,7 @@ static void dcmipp_byteproc_adjust_compose(struct v4l2_rect *r,
 		r->height = fmt->height;
 
 	/* Adjust width /2 or /4 for 8bits formats and /2 for 16bits formats */
-	if (fmt->code == MEDIA_BUS_FMT_Y8_1X8 && r->width <= (fmt->width / 4))
+	if (vpix->bpp == 1 && r->width <= (fmt->width / 4))
 		r->width = fmt->width / 4;
 	else if (r->width <= (fmt->width / 2))
 		r->width = fmt->width / 2;
@@ -569,7 +581,7 @@ dcmipp_byteproc_ent_init(struct device *dev, const char *entity_name,
 	int ret;
 
 	/* Allocate the byteproc struct */
-	byteproc = kzalloc(sizeof(*byteproc), GFP_KERNEL);
+	byteproc = kzalloc_obj(*byteproc);
 	if (!byteproc)
 		return ERR_PTR(-ENOMEM);
 

@@ -19,7 +19,7 @@
 
 int i2sbus_control_init(struct macio_dev* dev, struct i2sbus_control **c)
 {
-	*c = kzalloc(sizeof(struct i2sbus_control), GFP_KERNEL);
+	*c = kzalloc_obj(struct i2sbus_control);
 	if (!*c)
 		return -ENOMEM;
 

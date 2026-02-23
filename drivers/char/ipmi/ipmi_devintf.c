@@ -90,7 +90,7 @@ static int ipmi_open(struct inode *inode, struct file *file)
 	int                      rv;
 	struct ipmi_file_private *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kmalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -813,7 +813,7 @@ static void ipmi_new_smi(int if_num, struct device *device)
 	dev_t dev = MKDEV(ipmi_major, if_num);
 	struct ipmi_reg_list *entry;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		pr_err("ipmi_devintf: Unable to create the ipmi class device link\n");
 		return;

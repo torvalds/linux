@@ -365,9 +365,8 @@ static int mlxsw_sp_qdisc_create(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 
 	if (ops->num_classes) {
-		mlxsw_sp_qdisc->qdiscs = kcalloc(ops->num_classes,
-						 sizeof(*mlxsw_sp_qdisc->qdiscs),
-						 GFP_KERNEL);
+		mlxsw_sp_qdisc->qdiscs = kzalloc_objs(*mlxsw_sp_qdisc->qdiscs,
+						      ops->num_classes);
 		if (!mlxsw_sp_qdisc->qdiscs)
 			return -ENOMEM;
 
@@ -1332,7 +1331,7 @@ __mlxsw_sp_qdisc_ets_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 
 	if (!ets_data) {
-		ets_data = kzalloc(sizeof(*ets_data), GFP_KERNEL);
+		ets_data = kzalloc_obj(*ets_data);
 		if (!ets_data)
 			return -ENOMEM;
 		mlxsw_sp_qdisc->ets_data = ets_data;
@@ -2021,7 +2020,7 @@ static int mlxsw_sp_qevent_mall_replace(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 	}
 
-	mall_entry = kzalloc(sizeof(*mall_entry), GFP_KERNEL);
+	mall_entry = kzalloc_obj(*mall_entry);
 	if (!mall_entry)
 		return -ENOMEM;
 	mall_entry->cookie = f->cookie;
@@ -2100,7 +2099,7 @@ static struct mlxsw_sp_qevent_block *mlxsw_sp_qevent_block_create(struct mlxsw_s
 {
 	struct mlxsw_sp_qevent_block *qevent_block;
 
-	qevent_block = kzalloc(sizeof(*qevent_block), GFP_KERNEL);
+	qevent_block = kzalloc_obj(*qevent_block);
 	if (!qevent_block)
 		return NULL;
 
@@ -2132,7 +2131,7 @@ mlxsw_sp_qevent_binding_create(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle, 
 {
 	struct mlxsw_sp_qevent_binding *binding;
 
-	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	binding = kzalloc_obj(*binding);
 	if (!binding)
 		return ERR_PTR(-ENOMEM);
 
@@ -2321,7 +2320,7 @@ int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_qdisc_state *qdisc_state;
 
-	qdisc_state = kzalloc(sizeof(*qdisc_state), GFP_KERNEL);
+	qdisc_state = kzalloc_obj(*qdisc_state);
 	if (!qdisc_state)
 		return -ENOMEM;
 

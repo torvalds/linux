@@ -265,8 +265,8 @@ int __init opal_async_comp_init(void)
 	}
 
 	opal_max_async_tokens = be32_to_cpup(async);
-	opal_async_tokens = kcalloc(opal_max_async_tokens,
-			sizeof(*opal_async_tokens), GFP_KERNEL);
+	opal_async_tokens = kzalloc_objs(*opal_async_tokens,
+					 opal_max_async_tokens);
 	if (!opal_async_tokens) {
 		err = -ENOMEM;
 		goto out_opal_node;

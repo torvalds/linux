@@ -296,7 +296,7 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	ctx->dpi_addr = oparams.dpi_addr;
 	ctx->dpi_phys_addr = oparams.dpi_phys_addr;
 	ctx->dpi_size = oparams.dpi_size;
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		rc = -ENOMEM;
 		goto err;
@@ -537,7 +537,7 @@ static struct qedr_pbl *qedr_alloc_pbl_tbl(struct qedr_dev *dev,
 	void *va;
 	int i;
 
-	pbl_table = kcalloc(pbl_info->num_pbls, sizeof(*pbl_table), flags);
+	pbl_table = kzalloc_objs(*pbl_table, pbl_info->num_pbls, flags);
 	if (!pbl_table)
 		return ERR_PTR(-ENOMEM);
 
@@ -761,7 +761,7 @@ static int qedr_init_user_db_rec(struct ib_udata *udata,
 		return -ENOMEM;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		goto err_free_db_data;
 
@@ -820,7 +820,7 @@ static inline int qedr_init_user_queue(struct ib_udata *udata,
 		qedr_populate_pbls(dev, q->umem, q->pbl_tbl, &q->pbl_info,
 				   FW_PAGE_SHIFT);
 	} else {
-		q->pbl_tbl = kzalloc(sizeof(*q->pbl_tbl), GFP_KERNEL);
+		q->pbl_tbl = kzalloc_obj(*q->pbl_tbl);
 		if (!q->pbl_tbl) {
 			rc = -ENOMEM;
 			goto err0;
@@ -2187,8 +2187,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->sq.max_wr = min_t(u32, attrs->cap.max_send_wr * dev->wq_multiplier,
 			      dev->attr.max_sqe);
 
-	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
-				GFP_KERNEL);
+	qp->wqe_wr_id = kzalloc_objs(*qp->wqe_wr_id, qp->sq.max_wr);
 	if (!qp->wqe_wr_id) {
 		DP_ERR(dev, "create qp: failed SQ shadow memory allocation\n");
 		return -ENOMEM;
@@ -2205,8 +2204,7 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 	qp->rq.max_wr = (u16) max_t(u32, attrs->cap.max_recv_wr, 1);
 
 	/* Allocate driver internal RQ array */
-	qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
-				GFP_KERNEL);
+	qp->rqe_wr_id = kzalloc_objs(*qp->rqe_wr_id, qp->rq.max_wr);
 	if (!qp->rqe_wr_id) {
 		DP_ERR(dev,
 		       "create qp: failed RQ shadow memory allocation\n");
@@ -2972,7 +2970,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE))
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(rc);
 
@@ -3080,7 +3078,7 @@ static struct qedr_mr *__qedr_alloc_mr(struct ib_pd *ibpd,
 		 "qedr_alloc_frmr pd = %d max_page_list_len= %d\n", pd->pd_id,
 		 max_page_list_len);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(rc);
 
@@ -3221,7 +3219,7 @@ struct ib_mr *qedr_get_dma_mr(struct ib_pd *ibpd, int acc)
 	struct qedr_mr *mr;
 	int rc;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

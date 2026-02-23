@@ -274,7 +274,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 		    priv->child_type == IPOIB_LEGACY_CHILD) {
 			struct ipoib_vlan_delete_work *work;
 
-			work = kmalloc(sizeof(*work), GFP_KERNEL);
+			work = kmalloc_obj(*work);
 			if (!work) {
 				rc = -ENOMEM;
 				goto out;

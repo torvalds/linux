@@ -351,13 +351,6 @@ struct vb2_buffer {
  *			\*num_buffers are being allocated additionally to
  *			the buffers already allocated. If either \*num_planes
  *			or the requested sizes are invalid callback must return %-EINVAL.
- * @wait_prepare:	release any locks taken while calling vb2 functions;
- *			it is called before an ioctl needs to wait for a new
- *			buffer to arrive; required to avoid a deadlock in
- *			blocking access type.
- * @wait_finish:	reacquire all locks released in the previous callback;
- *			required to continue operation after sleeping while
- *			waiting for a new buffer to arrive.
  * @buf_out_validate:	called when the output buffer is prepared or queued
  *			to a request; drivers can use this to validate
  *			userspace-provided information; this is required only
@@ -435,9 +428,6 @@ struct vb2_ops {
 	int (*queue_setup)(struct vb2_queue *q,
 			   unsigned int *num_buffers, unsigned int *num_planes,
 			   unsigned int sizes[], struct device *alloc_devs[]);
-
-	void (*wait_prepare)(struct vb2_queue *q);
-	void (*wait_finish)(struct vb2_queue *q);
 
 	int (*buf_out_validate)(struct vb2_buffer *vb);
 	int (*buf_init)(struct vb2_buffer *vb);
@@ -521,10 +511,10 @@ struct vb2_buf_ops {
  * @non_coherent_mem: when set queue will attempt to allocate buffers using
  *		non-coherent memory.
  * @lock:	pointer to a mutex that protects the &struct vb2_queue. The
- *		driver can set this to a mutex to let the v4l2 core serialize
- *		the queuing ioctls. If the driver wants to handle locking
- *		itself, then this should be set to NULL. This lock is not used
- *		by the videobuf2 core API.
+ *		driver must set this to a mutex to let the v4l2 core serialize
+ *		the queuing ioctls. This lock is used when waiting for a new
+ *		buffer to arrive: the lock is released, we wait for the new
+ *		buffer, and then retaken.
  * @owner:	The filehandle that 'owns' the buffers, i.e. the filehandle
  *		that called reqbufs, create_buffers or started fileio.
  *		This field is not used by the videobuf2 core API, but it allows
@@ -680,8 +670,6 @@ struct vb2_queue {
 	 * called. Used to check for unbalanced ops.
 	 */
 	u32				cnt_queue_setup;
-	u32				cnt_wait_prepare;
-	u32				cnt_wait_finish;
 	u32				cnt_prepare_streaming;
 	u32				cnt_start_streaming;
 	u32				cnt_stop_streaming;
@@ -766,8 +754,7 @@ void vb2_discard_done(struct vb2_queue *q);
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
  * This function will wait until all buffers that have been given to the driver
- * by &vb2_ops->buf_queue are given back to vb2 with vb2_buffer_done(). It
- * doesn't call &vb2_ops->wait_prepare/&vb2_ops->wait_finish pair.
+ * by &vb2_ops->buf_queue are given back to vb2 with vb2_buffer_done().
  * It is intended to be called with all locks taken, for example from
  * &vb2_ops->stop_streaming callback.
  */

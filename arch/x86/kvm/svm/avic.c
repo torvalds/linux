@@ -376,6 +376,7 @@ void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 
 static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 {
+	u32 max_id = x2avic_enabled ? x2avic_max_physical_id : AVIC_MAX_PHYSICAL_ID;
 	struct kvm_svm *kvm_svm = to_kvm_svm(vcpu->kvm);
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 id = vcpu->vcpu_id;
@@ -388,8 +389,7 @@ static int avic_init_backing_page(struct kvm_vcpu *vcpu)
 	 * avic_vcpu_load() expects to be called if and only if the vCPU has
 	 * fully initialized AVIC.
 	 */
-	if ((!x2avic_enabled && id > AVIC_MAX_PHYSICAL_ID) ||
-	    (id > x2avic_max_physical_id)) {
+	if (id > max_id) {
 		kvm_set_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_PHYSICAL_ID_TOO_BIG);
 		vcpu->arch.apic->apicv_active = false;
 		return 0;
@@ -1224,13 +1224,13 @@ static bool __init avic_want_avic_enabled(void)
 	 * In "auto" mode, enable AVIC by default for Zen4+ if x2AVIC is
 	 * supported (to avoid enabling partial support by default, and because
 	 * x2AVIC should be supported by all Zen4+ CPUs).  Explicitly check for
-	 * family 0x19 and later (Zen5+), as the kernel's synthetic ZenX flags
+	 * family 0x1A and later (Zen5+), as the kernel's synthetic ZenX flags
 	 * aren't inclusive of previous generations, i.e. the kernel will set
 	 * at most one ZenX feature flag.
 	 */
 	if (avic == AVIC_AUTO_MODE)
 		avic = boot_cpu_has(X86_FEATURE_X2AVIC) &&
-		       (boot_cpu_data.x86 > 0x19 || cpu_feature_enabled(X86_FEATURE_ZEN4));
+		       (cpu_feature_enabled(X86_FEATURE_ZEN4) || boot_cpu_data.x86 >= 0x1A);
 
 	if (!avic || !npt_enabled)
 		return false;

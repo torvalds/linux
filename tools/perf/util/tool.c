@@ -253,7 +253,25 @@ static int perf_event__process_bpf_metadata_stub(const struct perf_tool *tool __
 {
 	if (dump_trace)
 		perf_event__fprintf_bpf_metadata(event, stdout);
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+static int process_schedstat_cpu_stub(const struct perf_tool *tool __maybe_unused,
+				      struct perf_session *perf_session __maybe_unused,
+				      union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_schedstat_cpu(event, stdout);
+	dump_printf(": unhandled!\n");
+	return 0;
+}
 
+static int process_schedstat_domain_stub(const struct perf_tool *tool __maybe_unused,
+					 struct perf_session *perf_session __maybe_unused,
+					 union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_schedstat_domain(event, stdout);
 	dump_printf(": unhandled!\n");
 	return 0;
 }
@@ -317,6 +335,8 @@ void perf_tool__init(struct perf_tool *tool, bool ordered_events)
 #endif
 	tool->finished_init = process_event_op2_stub;
 	tool->bpf_metadata = perf_event__process_bpf_metadata_stub;
+	tool->schedstat_cpu = process_schedstat_cpu_stub;
+	tool->schedstat_domain = process_schedstat_domain_stub;
 }
 
 bool perf_tool__compressed_is_stub(const struct perf_tool *tool)

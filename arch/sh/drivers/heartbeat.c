@@ -91,7 +91,7 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 	if (pdev->dev.platform_data) {
 		hd = pdev->dev.platform_data;
 	} else {
-		hd = kzalloc(sizeof(struct heartbeat_data), GFP_KERNEL);
+		hd = kzalloc_obj(struct heartbeat_data);
 		if (unlikely(!hd))
 			return -ENOMEM;
 	}

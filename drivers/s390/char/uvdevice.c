@@ -196,7 +196,7 @@ static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 		goto out;
 
 	ret = -ENOMEM;
-	uvio_attest = kzalloc(sizeof(*uvio_attest), GFP_KERNEL);
+	uvio_attest = kzalloc_obj(*uvio_attest);
 	if (!uvio_attest)
 		goto out;
 
@@ -216,7 +216,7 @@ static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 			goto out;
 	}
 
-	uvcb_attest = kzalloc(sizeof(*uvcb_attest), GFP_KERNEL);
+	uvcb_attest = kzalloc_obj(*uvcb_attest);
 	if (!uvcb_attest)
 		goto out;
 

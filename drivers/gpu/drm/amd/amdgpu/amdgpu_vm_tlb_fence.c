@@ -80,7 +80,7 @@ void amdgpu_vm_tlb_fence_create(struct amdgpu_device *adev, struct amdgpu_vm *vm
 {
 	struct amdgpu_tlb_fence *f;
 
-	f = kmalloc(sizeof(*f), GFP_KERNEL);
+	f = kmalloc_obj(*f);
 	if (!f) {
 		/*
 		 * We can't fail since the PDEs and PTEs are already updated, so

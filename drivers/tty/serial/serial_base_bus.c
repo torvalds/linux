@@ -116,7 +116,7 @@ struct serial_ctrl_device *serial_base_ctrl_add(struct uart_port *port,
 	struct serial_ctrl_device *ctrl_dev;
 	int err;
 
-	ctrl_dev = kzalloc(sizeof(*ctrl_dev), GFP_KERNEL);
+	ctrl_dev = kzalloc_obj(*ctrl_dev);
 	if (!ctrl_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -156,7 +156,7 @@ struct serial_port_device *serial_base_port_add(struct uart_port *port,
 	int min = 0, max = -1;	/* Use -1 for max to apply IDA defaults */
 	int err;
 
-	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
+	port_dev = kzalloc_obj(*port_dev);
 	if (!port_dev)
 		return ERR_PTR(-ENOMEM);
 

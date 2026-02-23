@@ -89,7 +89,7 @@ static void mdp5_plane_reset(struct drm_plane *plane)
 
 	kfree(to_mdp5_plane_state(plane->state));
 	plane->state = NULL;
-	mdp5_state = kzalloc(sizeof(*mdp5_state), GFP_KERNEL);
+	mdp5_state = kzalloc_obj(*mdp5_state);
 	if (!mdp5_state)
 		return;
 	__drm_atomic_helper_plane_reset(plane, &mdp5_state->base);

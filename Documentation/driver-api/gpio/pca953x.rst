@@ -178,6 +178,8 @@ pcal9554b      8       yes    00     01     02        03
 pcal6416      16       yes    00     02     04        06
 pcal9535      16       yes    00     02     04        06
 pcal9555a     16       yes    00     02     04        06
+tcal6408       8       yes    00     01     02        03
+tcal6416      16       yes    00     02     04        06
 ========== ===== ========= ===== ====== ====== =========
 
 These chips have several additional features:
@@ -196,6 +198,8 @@ pcal9554b            40       42      43       44       45         46       4F
 pcal6416             40       44      46       48       4A         4C       4F
 pcal9535             40       44      46       48       4A         4C       4F
 pcal9555a            40       44      46       48       4A         4C       4F
+tcal6408             40       42      43       44       45         46       4F
+tcal6416             40       44      46       48       4A         4C       4F
 ========== ============ ======== ======= ======== ======== ========== ========
 
 Currently the driver has support for the input latch, pull-up/pull-down
@@ -332,6 +336,8 @@ Layouts:
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 5 and 6, closely packed banks
         - pcal6534
@@ -383,6 +389,13 @@ disabled.
 Currently the driver enables the latch for each line with interrupt
 enabled.
 
+An interrupt status register records which pins triggered an interrupt.
+However, the status register and the input port register must be read
+separately; there is no atomic mechanism to read both simultaneously, so races
+are possible. Refer to the chapter `Interrupt source detection`_ to understand
+the implications of this and how the driver still makes use of the latching
+feature.
+
     1. base offset 0x40, bank 2, bank offsets of 2^n
         - pcal6408
         - pcal6416
@@ -390,6 +403,8 @@ enabled.
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 2, closely packed banks
         - pcal6534
@@ -462,6 +477,8 @@ Layout:
         - pcal9535
         - pcal9554b
         - pcal9555a
+        - tcal6408
+        - tcal6416
 
 `PCAL chips with extended interrupt and output configuration functions`_
 can set this for each line individually. They have the same per-port out_conf
@@ -505,11 +522,81 @@ bits drive strength
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 0 and 1, closely packed banks
         - pcal6534
 
 Currently not supported by the driver.
+
+Interrupt source detection
+==========================
+
+When triggered by the GPIO expander's interrupt, the driver determines which
+IRQs are pending by reading the input port register.
+
+To be able to filter on specific interrupt events for all compatible devices,
+the driver keeps track of the previous input state of the lines, and emits an
+IRQ only for the correct edge or level. This system works irrespective of the
+number of enabled interrupts. Events will not be missed even if they occur
+between the GPIO expander's interrupt and the actual I2C read. Edges could of
+course be missed if the related signal level changes back to the value
+previously saved by the driver before the I2C read. PCAL variants offer input
+latching for that reason.
+
+PCAL input latching
+-------------------
+
+The PCAL variants have an input latch and the driver enables this for all
+interrupt-enabled lines. The interrupt is then only cleared when the input port
+is read out. These variants provide an interrupt status register that records
+which pins triggered an interrupt, but the status and input registers cannot be
+read atomically. If another interrupt occurs on a different line after the
+status register has been read but before the input port register is sampled,
+that event will not be reflected in the earlier status snapshot, so relying
+solely on the interrupt status register is insufficient.
+
+Thus, the PCAL variants also have to use the existing level-change logic.
+
+For short pulses, the first edge is captured when the input register is read,
+but if the signal returns to its previous level before this read, the second
+edge is not observed. As a result, successive pulses can produce identical
+input values at read time and no level change is detected, causing interrupts
+to be missed. Below timing diagram shows this situation where the top signal is
+the input pin level and the bottom signal indicates the latched value::
+
+  ─────┐     ┌──*───────────────┐     ┌──*─────────────────┐     ┌──*───
+       │     │  .               │     │  .                 │     │  .
+       │     │  │               │     │  │                 │     │  │
+       └──*──┘  │               └──*──┘  │                 └──*──┘  │
+  Input   │     │                  │     │                    │     │
+          ▼     │                  ▼     │                    ▼     │
+         IRQ    │                 IRQ    │                   IRQ    │
+                .                        .                          .
+  ─────┐        .┌──────────────┐        .┌────────────────┐        .┌──
+       │         │              │         │                │         │
+       │         │              │         │                │         │
+       └────────*┘              └────────*┘                └────────*┘
+  Latched       │                        │                          │
+                ▼                        ▼                          ▼
+              READ 0                   READ 0                     READ 0
+                                     NO CHANGE                  NO CHANGE
+
+To deal with this, events indicated by the interrupt status register are merged
+with events detected through the existing level-change logic. As a result:
+
+- short pulses, whose second edges are invisible, are detected via the
+  interrupt status register, and
+- interrupts that occur between the status and input reads are still
+  caught by the generic level-change logic.
+
+Note that this is still best-effort: the status and input registers are read
+separately, and short pulses on other lines may occur in between those reads.
+Such pulses can still be latched as an interrupt without leaving an observable
+level change at read time, and may not be attributable to a specific edge. This
+does not reduce detection compared to the generic path, but reflects inherent
+atomicity limitations.
 
 Datasheets
 ==========

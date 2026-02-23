@@ -56,7 +56,7 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	if (WARN_ON_ONCE(nr_pages > INT_MAX))
 		return ERR_PTR(-EOVERFLOW);
 
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kvmalloc_objs(struct page *, nr_pages, GFP_KERNEL_ACCOUNT);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
@@ -158,7 +158,7 @@ static int io_region_allocate_pages(struct io_mapped_region *mr,
 	unsigned long nr_allocated;
 	struct page **pages;
 
-	pages = kvmalloc_array(mr->nr_pages, sizeof(*pages), gfp);
+	pages = kvmalloc_objs(*pages, mr->nr_pages, gfp);
 	if (!pages)
 		return -ENOMEM;
 

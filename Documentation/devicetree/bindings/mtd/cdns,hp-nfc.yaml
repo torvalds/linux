@@ -40,6 +40,8 @@ properties:
   dmas:
     maxItems: 1
 
+  dma-coherent: true
+
   iommus:
     maxItems: 1
 

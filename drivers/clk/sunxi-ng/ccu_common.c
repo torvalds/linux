@@ -242,7 +242,7 @@ void of_sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
 	struct sunxi_ccu *ccu;
 	int ret;
 
-	ccu = kzalloc(sizeof(*ccu), GFP_KERNEL);
+	ccu = kzalloc_obj(*ccu);
 	if (!ccu)
 		return;
 

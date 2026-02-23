@@ -43,7 +43,7 @@ static int scm_probe(struct scm_device *scmdev)
 	if (scmdev->attrs.oper_state != OP_STATE_GOOD)
 		return -EINVAL;
 
-	bdev = kzalloc(sizeof(*bdev), GFP_KERNEL);
+	bdev = kzalloc_obj(*bdev);
 	if (!bdev)
 		return -ENOMEM;
 

@@ -1002,7 +1002,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	}
 
 	/* Now allocate and setup the descriptor. */
-	d = kzalloc(struct_size(d, sg, sglen), GFP_ATOMIC);
+	d = kzalloc_flex(*d, sg, sglen, GFP_ATOMIC);
 	if (!d)
 		return NULL;
 	d->sglen = sglen;
@@ -1503,7 +1503,7 @@ static int omap_dma_chan_init(struct omap_dmadev *od)
 {
 	struct omap_chan *c;
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc_obj(*c);
 	if (!c)
 		return -ENOMEM;
 
@@ -1808,6 +1808,8 @@ static int omap_dma_probe(struct platform_device *pdev)
 	if (rc) {
 		pr_warn("OMAP-DMA: failed to register slave DMA engine device: %d\n",
 			rc);
+		if (od->ll123_supported)
+			dma_pool_destroy(od->desc_pool);
 		omap_dma_free(od);
 		return rc;
 	}
@@ -1823,6 +1825,8 @@ static int omap_dma_probe(struct platform_device *pdev)
 		if (rc) {
 			pr_warn("OMAP-DMA: failed to register DMA controller\n");
 			dma_async_device_unregister(&od->ddev);
+			if (od->ll123_supported)
+				dma_pool_destroy(od->desc_pool);
 			omap_dma_free(od);
 		}
 	}

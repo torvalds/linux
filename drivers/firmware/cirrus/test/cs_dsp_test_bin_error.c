@@ -18,6 +18,8 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 
+#include "../cs_dsp.h"
+
 KUNIT_DEFINE_ACTION_WRAPPER(_put_device_wrapper, put_device, struct device *);
 KUNIT_DEFINE_ACTION_WRAPPER(_cs_dsp_remove_wrapper, cs_dsp_remove, struct cs_dsp *);
 
@@ -66,24 +68,24 @@ static void bin_load_with_unknown_blocks(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xf5, 0,
+				      0xf5, 0, 0,
 				      random_data, sizeof(random_data));
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xf500, 0,
+				      0xf500, 0, 0,
 				      random_data, sizeof(random_data));
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      0xc300, 0,
+				      0xc300, 0, 0,
 				      random_data, sizeof(random_data));
 
 	/* Add a single payload to be written to DSP memory */
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      WMFW_ADSP2_YM, 0,
+				      WMFW_ADSP2_YM, 0, 0,
 				      payload_data, payload_size_bytes);
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -277,7 +279,7 @@ static void bin_too_short_for_block_header(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      NULL, 0);
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -309,7 +311,7 @@ static void bin_too_short_for_block_payload(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      payload, sizeof(payload));
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -341,7 +343,7 @@ static void bin_block_payload_len_garbage(struct kunit *test)
 	cs_dsp_mock_bin_add_raw_block(local->bin_builder,
 				      cs_dsp_bin_err_test_mock_algs[0].id,
 				      cs_dsp_bin_err_test_mock_algs[0].ver,
-				      param->block_type, 0,
+				      param->block_type, 0, 0,
 				      &payload, sizeof(payload));
 
 	bin = cs_dsp_mock_bin_get_firmware(local->bin_builder);
@@ -380,11 +382,9 @@ static void bin_block_payload_len_garbage(struct kunit *test)
 
 static void cs_dsp_bin_err_test_exit(struct kunit *test)
 {
-	/*
-	 * Testing error conditions can produce a lot of log output
-	 * from cs_dsp error messages, so rate limit the test cases.
-	 */
-	usleep_range(200, 500);
+	cs_dsp_suppress_err_messages = false;
+	cs_dsp_suppress_warn_messages = false;
+	cs_dsp_suppress_info_messages = false;
 }
 
 static int cs_dsp_bin_err_test_common_init(struct kunit *test, struct cs_dsp *dsp,
@@ -474,7 +474,19 @@ static int cs_dsp_bin_err_test_common_init(struct kunit *test, struct cs_dsp *ds
 		return ret;
 
 	/* Automatically call cs_dsp_remove() when test case ends */
-	return kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	ret = kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
+	if (ret)
+		return ret;
+
+	/*
+	 * Testing error conditions can produce a lot of log output
+	 * from cs_dsp error messages, so suppress messages.
+	 */
+	cs_dsp_suppress_err_messages = true;
+	cs_dsp_suppress_warn_messages = true;
+	cs_dsp_suppress_info_messages = true;
+
+	return 0;
 }
 
 static int cs_dsp_bin_err_test_halo_init(struct kunit *test)

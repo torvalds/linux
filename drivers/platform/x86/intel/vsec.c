@@ -299,11 +299,11 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 		return -EINVAL;
 	}
 
-	intel_vsec_dev = kzalloc(sizeof(*intel_vsec_dev), GFP_KERNEL);
+	intel_vsec_dev = kzalloc_obj(*intel_vsec_dev);
 	if (!intel_vsec_dev)
 		return -ENOMEM;
 
-	res = kcalloc(header->num_entries, sizeof(*res), GFP_KERNEL);
+	res = kzalloc_objs(*res, header->num_entries);
 	if (!res)
 		return -ENOMEM;
 
@@ -766,6 +766,7 @@ static const struct intel_vsec_platform_info lnl_info = {
 #define PCI_DEVICE_ID_INTEL_VSEC_LNL_M		0x647d
 #define PCI_DEVICE_ID_INTEL_VSEC_PTL		0xb07d
 #define PCI_DEVICE_ID_INTEL_VSEC_WCL		0xfd7d
+#define PCI_DEVICE_ID_INTEL_VSEC_NVL		0xd70d
 static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_ADL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_DG1, &dg1_info) },
@@ -778,6 +779,7 @@ static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_LNL_M, &lnl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_PTL, &mtl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_WCL, &mtl_info) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_NVL, &mtl_info) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, intel_vsec_pci_ids);

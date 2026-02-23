@@ -246,6 +246,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &hdptxphy {
 	status = "okay";
 };
@@ -688,6 +692,10 @@
 };
 
 &rng {
+	status = "okay";
+};
+
+&sai6 {
 	status = "okay";
 };
 

@@ -1735,7 +1735,7 @@ __smq_create(dm_cblock_t cache_size, sector_t origin_size, sector_t cache_block_
 	unsigned int i;
 	unsigned int nr_sentinels_per_queue = 2u * NR_CACHE_LEVELS;
 	unsigned int total_sentinels = 2u * nr_sentinels_per_queue;
-	struct smq_policy *mq = kzalloc(sizeof(*mq), GFP_KERNEL);
+	struct smq_policy *mq = kzalloc_obj(*mq);
 
 	if (!mq)
 		return NULL;

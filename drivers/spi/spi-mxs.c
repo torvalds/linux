@@ -182,7 +182,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi,
 	if (!len)
 		return -EINVAL;
 
-	dma_xfer = kcalloc(sgs, sizeof(*dma_xfer), GFP_KERNEL);
+	dma_xfer = kzalloc_objs(*dma_xfer, sgs);
 	if (!dma_xfer)
 		return -ENOMEM;
 

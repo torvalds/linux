@@ -33,7 +33,7 @@ properties:
   interrupts:
     description:
       Specifies the interrupt lines to be used by the controller.
-      Each interrupt line is shared by upto 4 GPIO lines.
+      Each interrupt line is shared by up to 4 GPIO lines.
     maxItems: 8
 
   interrupt-controller: true

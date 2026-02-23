@@ -1658,7 +1658,7 @@ static int ice_vc_get_offload_vlan_v2_caps(struct ice_vf *vf)
 		goto out;
 	}
 
-	caps = kzalloc(sizeof(*caps), GFP_KERNEL);
+	caps = kzalloc_obj(*caps);
 	if (!caps) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		goto out;
@@ -2477,7 +2477,7 @@ static int ice_vc_get_phc_time(struct ice_vf *vf)
 
 	v_ret = VIRTCHNL_STATUS_SUCCESS;
 
-	phc_time = kzalloc(sizeof(*phc_time), GFP_KERNEL);
+	phc_time = kzalloc_obj(*phc_time);
 	if (!phc_time) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		goto err;

@@ -265,7 +265,7 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 	struct clk_init_data init = { };
 	int ret;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (!pll_clk)
 		return;
 

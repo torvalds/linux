@@ -484,16 +484,16 @@ cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
 	return to;
 }
 
-__le32
-smb2_get_lease_state(struct cifsInodeInfo *cinode)
+__le32 smb2_get_lease_state(struct cifsInodeInfo *cinode, unsigned int oplock)
 {
+	unsigned int sbflags = CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags;
 	__le32 lease = 0;
 
-	if (CIFS_CACHE_WRITE(cinode))
+	if ((oplock & CIFS_CACHE_WRITE_FLG) || (sbflags & CIFS_MOUNT_RW_CACHE))
 		lease |= SMB2_LEASE_WRITE_CACHING_LE;
-	if (CIFS_CACHE_HANDLE(cinode))
+	if (oplock & CIFS_CACHE_HANDLE_FLG)
 		lease |= SMB2_LEASE_HANDLE_CACHING_LE;
-	if (CIFS_CACHE_READ(cinode))
+	if ((oplock & CIFS_CACHE_READ_FLG) || (sbflags & CIFS_MOUNT_RO_CACHE))
 		lease |= SMB2_LEASE_READ_CACHING_LE;
 	return lease;
 }
@@ -526,7 +526,7 @@ smb2_queue_pending_open_break(struct tcon_link *tlink, __u8 *lease_key,
 {
 	struct smb2_lease_break_work *lw;
 
-	lw = kmalloc(sizeof(struct smb2_lease_break_work), GFP_KERNEL);
+	lw = kmalloc_obj(struct smb2_lease_break_work);
 	if (!lw) {
 		cifs_put_tlink(tlink);
 		return;
@@ -798,7 +798,7 @@ __smb2_handle_cancelled_cmd(struct cifs_tcon *tcon, __u16 cmd, __u64 mid,
 {
 	struct close_cancelled_open *cancelled;
 
-	cancelled = kzalloc(sizeof(*cancelled), GFP_KERNEL);
+	cancelled = kzalloc_obj(*cancelled);
 	if (!cancelled)
 		return -ENOMEM;
 
@@ -820,14 +820,14 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 	int rc;
 
 	cifs_dbg(FYI, "%s: tc_count=%d\n", __func__, tcon->tc_count);
-	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&tcon->tc_lock);
 	if (tcon->tc_count <= 0) {
 		struct TCP_Server_Info *server = NULL;
 
 		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
 				    netfs_trace_tcon_ref_see_cancelled_close);
 		WARN_ONCE(tcon->tc_count < 0, "tcon refcount is negative");
-		spin_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&tcon->tc_lock);
 
 		if (tcon->ses) {
 			server = tcon->ses->server;
@@ -841,7 +841,7 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 	tcon->tc_count++;
 	trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
 			    netfs_trace_tcon_ref_get_cancelled_close);
-	spin_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&tcon->tc_lock);
 
 	rc = __smb2_handle_cancelled_cmd(tcon, SMB2_CLOSE_HE, 0,
 					 persistent_fid, volatile_fid);

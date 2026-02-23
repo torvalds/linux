@@ -28,6 +28,7 @@
 #include "ras_sys.h"
 #include "amdgpu_ras_cmd.h"
 #include "amdgpu_ras_mgr.h"
+#include "amdgpu_virt_ras_cmd.h"
 
 /* inject address is 52 bits */
 #define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
@@ -252,12 +253,16 @@ int amdgpu_ras_handle_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx 
 
 int amdgpu_ras_submit_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx *cmd)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
 	struct ras_core_context *cmd_core = ras_core;
 	int timeout = 60;
 	int res;
 
 	cmd->cmd_res = RAS_CMD__ERROR_INVALID_CMD;
 	cmd->output_size = 0;
+
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_virt_ras_handle_cmd(cmd_core, cmd);
 
 	if (!ras_core_is_enabled(cmd_core))
 		return RAS_CMD__ERROR_ACCESS_DENIED;

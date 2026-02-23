@@ -252,7 +252,7 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		rc = -ENOMEM;
-		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
+		cpump = kzalloc_obj(*cpump);
 		if (!cpump)
 			goto undo;
 		/* Allocate memory for counter page and counter extraction.
@@ -281,9 +281,8 @@ static int pai_alloc_cpu(struct perf_event *event, int cpu)
 			cpump->paiext_cb = kzalloc(PAIE1_CB_SZ, GFP_KERNEL);
 			need_paiext_cb = true;
 		}
-		cpump->save = kvmalloc_array(pai_pmu[idx].num_avail + 1,
-					     sizeof(struct pai_userdata),
-					     GFP_KERNEL);
+		cpump->save = kvmalloc_objs(struct pai_userdata,
+					    pai_pmu[idx].num_avail + 1);
 		if (!cpump->area || !cpump->save ||
 		    (need_paiext_cb && !cpump->paiext_cb)) {
 			pai_free(mp);
@@ -315,7 +314,7 @@ static int pai_alloc(struct perf_event *event)
 	struct cpumask *maskptr;
 	int cpu, rc = -ENOMEM;
 
-	maskptr = kzalloc(sizeof(*maskptr), GFP_KERNEL);
+	maskptr = kzalloc_obj(*maskptr);
 	if (!maskptr)
 		goto out;
 
@@ -1070,7 +1069,7 @@ static struct attribute * __init attr_event_init_one(int num,
 {
 	struct perf_pmu_events_attr *pa;
 
-	pa = kzalloc(sizeof(*pa), GFP_KERNEL);
+	pa = kzalloc_obj(*pa);
 	if (!pa)
 		return NULL;
 
@@ -1089,7 +1088,7 @@ static struct attribute ** __init attr_event_init(struct pai_pmu *p)
 	struct attribute **attrs;
 	unsigned int i;
 
-	attrs = kmalloc_array(min_attr + 1, sizeof(*attrs), GFP_KERNEL | __GFP_ZERO);
+	attrs = kmalloc_objs(*attrs, min_attr + 1, GFP_KERNEL | __GFP_ZERO);
 	if (!attrs)
 		goto out;
 	for (i = 0; i < min_attr; i++) {

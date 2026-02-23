@@ -382,8 +382,7 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 
 	if (priv->odvp == NULL) {
 		priv->odvp_count = obj->package.count;
-		priv->odvp = kmalloc_array(priv->odvp_count, sizeof(int),
-				     GFP_KERNEL);
+		priv->odvp = kmalloc_objs(int, priv->odvp_count);
 		if (!priv->odvp) {
 			ret = -ENOMEM;
 			goto out_err;
@@ -391,9 +390,8 @@ static int evaluate_odvp(struct int3400_thermal_priv *priv)
 	}
 
 	if (priv->odvp_attrs == NULL) {
-		priv->odvp_attrs = kcalloc(priv->odvp_count,
-					   sizeof(struct odvp_attr),
-					   GFP_KERNEL);
+		priv->odvp_attrs = kzalloc_objs(struct odvp_attr,
+						priv->odvp_count);
 		if (!priv->odvp_attrs) {
 			ret = -ENOMEM;
 			goto out_err;
@@ -563,7 +561,7 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (!adev)
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

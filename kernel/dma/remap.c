@@ -45,7 +45,7 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 	void *vaddr;
 	int i;
 
-	pages = kvmalloc_array(count, sizeof(struct page *), GFP_KERNEL);
+	pages = kvmalloc_objs(struct page *, count);
 	if (!pages)
 		return NULL;
 	for (i = 0; i < count; i++)

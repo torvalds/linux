@@ -280,7 +280,7 @@ void t1_espi_destroy(struct peespi *espi)
 
 struct peespi *t1_espi_create(adapter_t *adapter)
 {
-	struct peespi *espi = kzalloc(sizeof(*espi), GFP_KERNEL);
+	struct peespi *espi = kzalloc_obj(*espi);
 
 	if (espi)
 		espi->adapter = adapter;

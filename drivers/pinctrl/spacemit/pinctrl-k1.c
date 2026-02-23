@@ -7,8 +7,10 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -24,11 +26,12 @@
 #include "pinctrl-k1.h"
 
 /*
- * +---------+----------+-----------+--------+--------+----------+--------+
- * |   pull  |   drive  | schmitter |  slew  |  edge  |  strong  |   mux  |
- * | up/down | strength |  trigger  |  rate  | detect |   pull   |  mode  |
- * +---------+----------+-----------+--------+--------+----------+--------+
- *   3 bits     3 bits     2 bits     1 bit    3 bits     1 bit    3 bits
+ *     |   pull  |   drive  | schmitter | slew  |  edge  | strong |   mux  |
+ * SoC | up/down | strength |  trigger  | rate  | detect |  pull  |  mode  |
+ *-----+---------+----------+-----------+-------+--------+--------+--------+
+ * K1  | 3 bits  |  3 bits  |   2 bits  | 1 bit | 3 bits |  1 bit | 3 bits |
+ *-----+---------+----------+-----------+-------+--------+--------+--------+
+ * K3  | 3 bits  |  4 bits  |   1 bits  | 1 bit | 3 bits |  1 bit | 3 bits |
  */
 
 #define PAD_MUX			GENMASK(2, 0)
@@ -38,11 +41,49 @@
 #define PAD_EDGE_CLEAR		BIT(6)
 #define PAD_SLEW_RATE		GENMASK(12, 11)
 #define PAD_SLEW_RATE_EN	BIT(7)
-#define PAD_SCHMITT		GENMASK(9, 8)
-#define PAD_DRIVE		GENMASK(12, 10)
+#define PAD_SCHMITT_K1		GENMASK(9, 8)
+#define PAD_DRIVE_K1		GENMASK(12, 10)
+#define PAD_SCHMITT_K3		BIT(8)
+#define PAD_DRIVE_K3		GENMASK(12, 9)
 #define PAD_PULLDOWN		BIT(13)
 #define PAD_PULLUP		BIT(14)
 #define PAD_PULL_EN		BIT(15)
+
+#define IO_PWR_DOMAIN_OFFSET	0x800
+
+#define IO_PWR_DOMAIN_GPIO2_Kx  0x0c
+#define IO_PWR_DOMAIN_MMC_Kx    0x1c
+
+#define IO_PWR_DOMAIN_GPIO3_K1  0x10
+#define IO_PWR_DOMAIN_QSPI_K1   0x20
+
+#define IO_PWR_DOMAIN_GPIO1_K3  0x04
+#define IO_PWR_DOMAIN_GPIO5_K3  0x10
+#define IO_PWR_DOMAIN_GPIO4_K3  0x20
+#define IO_PWR_DOMAIN_QSPI_K3   0x2c
+
+#define IO_PWR_DOMAIN_V18EN	BIT(2)
+
+#define APBC_ASFAR		0x50
+#define APBC_ASSAR		0x54
+
+#define APBC_ASFAR_AKEY		0xbaba
+#define APBC_ASSAR_AKEY		0xeb10
+
+struct spacemit_pin_drv_strength {
+	u8		val;
+	u32		mA;
+};
+
+struct spacemit_pinctrl_dconf {
+	u64				schmitt_mask;
+	u64				drive_mask;
+
+	struct spacemit_pin_drv_strength *ds_1v8_tbl;
+	size_t				 ds_1v8_tbl_num;
+	struct spacemit_pin_drv_strength *ds_3v3_tbl;
+	size_t				 ds_3v3_tbl_num;
+};
 
 struct spacemit_pin {
 	u16				pin;
@@ -60,12 +101,17 @@ struct spacemit_pinctrl {
 	raw_spinlock_t				lock;
 
 	void __iomem				*regs;
+
+	struct regmap				*regmap_apbc;
 };
 
 struct spacemit_pinctrl_data {
 	const struct pinctrl_pin_desc   *pins;
 	const struct spacemit_pin	*data;
 	u16				npins;
+	unsigned int			(*pin_to_offset)(unsigned int pin);
+	unsigned int			(*pin_to_io_pd_offset)(unsigned int pin);
+	const struct spacemit_pinctrl_dconf	*dconf;
 };
 
 struct spacemit_pin_mux_config {
@@ -73,13 +119,8 @@ struct spacemit_pin_mux_config {
 	u32				config;
 };
 
-struct spacemit_pin_drv_strength {
-	u8		val;
-	u32		mA;
-};
-
 /* map pin id to pinctrl register offset, refer MFPR definition */
-static unsigned int spacemit_pin_to_offset(unsigned int pin)
+static unsigned int spacemit_k1_pin_to_offset(unsigned int pin)
 {
 	unsigned int offset = 0;
 
@@ -124,10 +165,67 @@ static unsigned int spacemit_pin_to_offset(unsigned int pin)
 	return offset << 2;
 }
 
+static unsigned int spacemit_k3_pin_to_offset(unsigned int pin)
+{
+	unsigned int offset = pin > 130 ? (pin + 2) : pin;
+
+	return offset << 2;
+}
+
+static unsigned int spacemit_k1_pin_to_io_pd_offset(unsigned int pin)
+{
+	unsigned int offset = 0;
+
+	switch (pin) {
+	case 47 ... 52:
+		offset = IO_PWR_DOMAIN_GPIO3_K1;
+		break;
+	case 75 ... 80:
+		offset = IO_PWR_DOMAIN_GPIO2_Kx;
+		break;
+	case 98 ... 103:
+		offset = IO_PWR_DOMAIN_QSPI_K1;
+		break;
+	case 104 ... 109:
+		offset = IO_PWR_DOMAIN_MMC_Kx;
+		break;
+	}
+
+	return offset;
+}
+
+static unsigned int spacemit_k3_pin_to_io_pd_offset(unsigned int pin)
+{
+	unsigned int offset = 0;
+
+	switch (pin) {
+	case 0 ... 20:
+		offset = IO_PWR_DOMAIN_GPIO1_K3;
+		break;
+	case 21 ... 41:
+		offset = IO_PWR_DOMAIN_GPIO2_Kx;
+		break;
+	case 76 ... 98:
+		offset = IO_PWR_DOMAIN_GPIO4_K3;
+		break;
+	case 99 ... 127:
+		offset = IO_PWR_DOMAIN_GPIO5_K3;
+		break;
+	case 132 ... 137:
+		offset = IO_PWR_DOMAIN_MMC_Kx;
+		break;
+	case 138 ... 144:
+		offset = IO_PWR_DOMAIN_QSPI_K3;
+		break;
+	}
+
+	return offset;
+}
+
 static inline void __iomem *spacemit_pin_to_reg(struct spacemit_pinctrl *pctrl,
 						unsigned int pin)
 {
-	return pctrl->regs + spacemit_pin_to_offset(pin);
+	return pctrl->regs + pctrl->data->pin_to_offset(pin);
 }
 
 static u16 spacemit_dt_get_pin(u32 value)
@@ -177,7 +275,7 @@ static void spacemit_pctrl_dbg_show(struct pinctrl_dev *pctldev,
 	void __iomem *reg;
 	u32 value;
 
-	seq_printf(seq, "offset: 0x%04x ", spacemit_pin_to_offset(pin));
+	seq_printf(seq, "offset: 0x%04x ", pctrl->data->pin_to_offset(pin));
 	seq_printf(seq, "type: %s ", io_type_desc[type]);
 
 	reg = spacemit_pin_to_reg(pctrl, pin);
@@ -185,23 +283,70 @@ static void spacemit_pctrl_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(seq, "mux: %ld reg: 0x%04x", (value & PAD_MUX), value);
 }
 
-/* use IO high level output current as the table */
-static struct spacemit_pin_drv_strength spacemit_ds_1v8_tbl[4] = {
-	{ 0, 11 },
-	{ 2, 21 },
-	{ 4, 32 },
-	{ 6, 42 },
+static const struct spacemit_pinctrl_dconf k1_drive_conf = {
+	.drive_mask = PAD_DRIVE_K1,
+	.schmitt_mask = PAD_SCHMITT_K1,
+	.ds_1v8_tbl = (struct spacemit_pin_drv_strength[]) {
+		{ 0, 11 },
+		{ 2, 21 },
+		{ 4, 32 },
+		{ 6, 42 },
+	},
+	.ds_1v8_tbl_num = 4,
+	.ds_3v3_tbl = (struct spacemit_pin_drv_strength[]) {
+		{ 0,  7 },
+		{ 2, 10 },
+		{ 4, 13 },
+		{ 6, 16 },
+		{ 1, 19 },
+		{ 3, 23 },
+		{ 5, 26 },
+		{ 7, 29 },
+	},
+	.ds_3v3_tbl_num = 8,
 };
 
-static struct spacemit_pin_drv_strength spacemit_ds_3v3_tbl[8] = {
-	{ 0,  7 },
-	{ 2, 10 },
-	{ 4, 13 },
-	{ 6, 16 },
-	{ 1, 19 },
-	{ 3, 23 },
-	{ 5, 26 },
-	{ 7, 29 },
+static const struct spacemit_pinctrl_dconf k3_drive_conf = {
+	.drive_mask = PAD_DRIVE_K3,
+	.schmitt_mask = PAD_SCHMITT_K3,
+	.ds_1v8_tbl = (struct spacemit_pin_drv_strength[]) {
+		{ 0,  2 },
+		{ 1,  4 },
+		{ 2,  6 },
+		{ 3,  7 },
+		{ 4,  9 },
+		{ 5,  11 },
+		{ 6,  13 },
+		{ 7,  14 },
+		{ 8,  21 },
+		{ 9,  23 },
+		{ 10, 25 },
+		{ 11, 26 },
+		{ 12, 28 },
+		{ 13, 30 },
+		{ 14, 31 },
+		{ 15, 33 },
+	},
+	.ds_1v8_tbl_num = 16,
+	.ds_3v3_tbl = (struct spacemit_pin_drv_strength[]) {
+		{ 0,  3 },
+		{ 1,  5 },
+		{ 2,  7 },
+		{ 3,  9 },
+		{ 4,  11 },
+		{ 5,  13 },
+		{ 6,  15 },
+		{ 7,  17 },
+		{ 8,  25 },
+		{ 9,  27 },
+		{ 10, 29 },
+		{ 11, 31 },
+		{ 12, 33 },
+		{ 13, 35 },
+		{ 14, 37 },
+		{ 15, 38 },
+	},
+	.ds_3v3_tbl_num = 16,
 };
 
 static inline u8 spacemit_get_ds_value(struct spacemit_pin_drv_strength *tbl,
@@ -229,16 +374,17 @@ static inline u32 spacemit_get_ds_mA(struct spacemit_pin_drv_strength *tbl,
 }
 
 static inline u8 spacemit_get_driver_strength(enum spacemit_pin_io_type type,
+					      const struct spacemit_pinctrl_dconf *dconf,
 					      u32 mA)
 {
 	switch (type) {
 	case IO_TYPE_1V8:
-		return spacemit_get_ds_value(spacemit_ds_1v8_tbl,
-					     ARRAY_SIZE(spacemit_ds_1v8_tbl),
+		return spacemit_get_ds_value(dconf->ds_1v8_tbl,
+					     dconf->ds_1v8_tbl_num,
 					     mA);
 	case IO_TYPE_3V3:
-		return spacemit_get_ds_value(spacemit_ds_3v3_tbl,
-					     ARRAY_SIZE(spacemit_ds_3v3_tbl),
+		return spacemit_get_ds_value(dconf->ds_3v3_tbl,
+					     dconf->ds_3v3_tbl_num,
 					     mA);
 	default:
 		return 0;
@@ -246,16 +392,17 @@ static inline u8 spacemit_get_driver_strength(enum spacemit_pin_io_type type,
 }
 
 static inline u32 spacemit_get_drive_strength_mA(enum spacemit_pin_io_type type,
+						 const struct spacemit_pinctrl_dconf *dconf,
 						 u32 value)
 {
 	switch (type) {
 	case IO_TYPE_1V8:
-		return spacemit_get_ds_mA(spacemit_ds_1v8_tbl,
-					  ARRAY_SIZE(spacemit_ds_1v8_tbl),
-					  value & 0x6);
+		return spacemit_get_ds_mA(dconf->ds_1v8_tbl,
+					  dconf->ds_1v8_tbl_num,
+					  value);
 	case IO_TYPE_3V3:
-		return spacemit_get_ds_mA(spacemit_ds_3v3_tbl,
-					  ARRAY_SIZE(spacemit_ds_3v3_tbl),
+		return spacemit_get_ds_mA(dconf->ds_3v3_tbl,
+					  dconf->ds_3v3_tbl_num,
 					  value);
 	default:
 		return 0;
@@ -294,6 +441,42 @@ static int spacemit_pctrl_check_power(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static void spacemit_set_io_pwr_domain(struct spacemit_pinctrl *pctrl,
+				      const struct spacemit_pin *spin,
+				      const enum spacemit_pin_io_type type)
+{
+	u32 offset, val = 0;
+
+	if (!pctrl->regmap_apbc)
+		return;
+
+	offset = pctrl->data->pin_to_io_pd_offset(spin->pin);
+
+	/* Other bits are reserved so don't need to save them */
+	if (type == IO_TYPE_1V8)
+		val = IO_PWR_DOMAIN_V18EN;
+
+	/*
+	 * IO power domain registers are protected and cannot be accessed
+	 * directly. Before performing any read or write to the IO power
+	 * domain registers, an explicit unlock sequence must be issued
+	 * via the AIB Secure Access Register (ASAR).
+	 *
+	 * The unlock sequence allows exactly one subsequent access to the
+	 * IO power domain registers. After that access completes, the ASAR
+	 * keys are automatically cleared, and the registers become locked
+	 * again.
+	 *
+	 * This mechanism ensures that IO power domain configuration is
+	 * performed intentionally, as incorrect voltage settings may
+	 * result in functional failures or hardware damage.
+	 */
+	regmap_write(pctrl->regmap_apbc, APBC_ASFAR, APBC_ASFAR_AKEY);
+	regmap_write(pctrl->regmap_apbc, APBC_ASSAR, APBC_ASSAR_AKEY);
+
+	writel_relaxed(val, pctrl->regs + IO_PWR_DOMAIN_OFFSET + offset);
+}
+
 static int spacemit_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 					 struct device_node *np,
 					 struct pinctrl_map **maps,
@@ -316,7 +499,7 @@ static int spacemit_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!grpnames)
 		return -ENOMEM;
 
-	map = kcalloc(ngroups * 2, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, ngroups * 2);
 	if (!map)
 		return -ENOMEM;
 
@@ -501,7 +684,9 @@ static int spacemit_pinconf_get(struct pinctrl_dev *pctldev,
 
 #define ENABLE_DRV_STRENGTH	BIT(1)
 #define ENABLE_SLEW_RATE	BIT(2)
-static int spacemit_pinconf_generate_config(const struct spacemit_pin *spin,
+static int spacemit_pinconf_generate_config(struct spacemit_pinctrl *pctrl,
+					    const struct spacemit_pin *spin,
+					    const struct spacemit_pinctrl_dconf *dconf,
 					    unsigned long *configs,
 					    unsigned int num_configs,
 					    u32 *value)
@@ -539,8 +724,8 @@ static int spacemit_pinconf_generate_config(const struct spacemit_pin *spin,
 			drv_strength = arg;
 			break;
 		case PIN_CONFIG_INPUT_SCHMITT:
-			v &= ~PAD_SCHMITT;
-			v |= FIELD_PREP(PAD_SCHMITT, arg);
+			v &= ~dconf->schmitt_mask;
+			v |= (arg << __ffs(dconf->schmitt_mask)) & dconf->schmitt_mask;
 			break;
 		case PIN_CONFIG_POWER_SOURCE:
 			voltage = arg;
@@ -574,12 +759,13 @@ static int spacemit_pinconf_generate_config(const struct spacemit_pin *spin,
 			default:
 				return -EINVAL;
 			}
+			spacemit_set_io_pwr_domain(pctrl, spin, type);
 		}
 
-		val = spacemit_get_driver_strength(type, drv_strength);
+		val = spacemit_get_driver_strength(type, dconf, drv_strength);
 
-		v &= ~PAD_DRIVE;
-		v |= FIELD_PREP(PAD_DRIVE, val);
+		v &= ~dconf->drive_mask;
+		v |= (val << __ffs(dconf->drive_mask)) & dconf->drive_mask;
 	}
 
 	if (flag & ENABLE_SLEW_RATE) {
@@ -629,7 +815,8 @@ static int spacemit_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct spacemit_pin *spin = spacemit_get_pin(pctrl, pin);
 	u32 value;
 
-	if (spacemit_pinconf_generate_config(spin, configs, num_configs, &value))
+	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
+					     configs, num_configs, &value))
 		return -EINVAL;
 
 	return spacemit_pin_set_config(pctrl, pin, value);
@@ -651,7 +838,8 @@ static int spacemit_pinconf_group_set(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	spin = spacemit_get_pin(pctrl, group->grp.pins[0]);
-	if (spacemit_pinconf_generate_config(spin, configs, num_configs, &value))
+	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
+					     configs, num_configs, &value))
 		return -EINVAL;
 
 	for (i = 0; i < group->grp.npins; i++)
@@ -685,6 +873,7 @@ static void spacemit_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				      struct seq_file *seq, unsigned int pin)
 {
 	struct spacemit_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct spacemit_pinctrl_dconf *dconf = pctrl->data->dconf;
 	const struct spacemit_pin *spin = spacemit_get_pin(pctrl, pin);
 	enum spacemit_pin_io_type type = spacemit_to_pin_io_type(spin);
 	void __iomem *reg = spacemit_pin_to_reg(pctrl, pin);
@@ -695,17 +884,17 @@ static void spacemit_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 
 	seq_printf(seq, ", io type (%s)", io_type_desc[type]);
 
-	tmp = FIELD_GET(PAD_DRIVE, value);
+	tmp = (value & dconf->drive_mask) >> __ffs(dconf->drive_mask);
 	if (type == IO_TYPE_1V8 || type == IO_TYPE_3V3) {
-		mA = spacemit_get_drive_strength_mA(type, tmp);
+		mA = spacemit_get_drive_strength_mA(type, dconf, tmp);
 		seq_printf(seq, ", drive strength (%d mA)", mA);
 	}
 
 	/* drive strength depend on power source, so show all values */
 	if (type == IO_TYPE_EXTERNAL)
 		seq_printf(seq, ", drive strength (%d or %d mA)",
-			   spacemit_get_drive_strength_mA(IO_TYPE_1V8, tmp),
-			   spacemit_get_drive_strength_mA(IO_TYPE_3V3, tmp));
+			   spacemit_get_drive_strength_mA(IO_TYPE_1V8, dconf, tmp),
+			   spacemit_get_drive_strength_mA(IO_TYPE_3V3, dconf, tmp));
 
 	seq_printf(seq, ", register (0x%04x)", value);
 }
@@ -720,6 +909,7 @@ static const struct pinconf_ops spacemit_pinconf_ops = {
 
 static int spacemit_pinctrl_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spacemit_pinctrl *pctrl;
 	struct clk *func_clk, *bus_clk;
@@ -740,6 +930,12 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->regs))
 		return PTR_ERR(pctrl->regs);
+
+	pctrl->regmap_apbc = syscon_regmap_lookup_by_phandle(np, "spacemit,apbc");
+	if (IS_ERR(pctrl->regmap_apbc)) {
+		dev_warn(dev, "no syscon found, disable power voltage switch functionality\n");
+		pctrl->regmap_apbc = NULL;
+	}
 
 	func_clk = devm_clk_get_enabled(dev, "func");
 	if (IS_ERR(func_clk))
@@ -1042,10 +1238,352 @@ static const struct spacemit_pinctrl_data k1_pinctrl_data = {
 	.pins = k1_pin_desc,
 	.data = k1_pin_data,
 	.npins = ARRAY_SIZE(k1_pin_desc),
+	.pin_to_offset = spacemit_k1_pin_to_offset,
+	.pin_to_io_pd_offset = spacemit_k1_pin_to_io_pd_offset,
+	.dconf = &k1_drive_conf,
+};
+
+static const struct pinctrl_pin_desc k3_pin_desc[] = {
+	PINCTRL_PIN(0, "GPIO_00"),
+	PINCTRL_PIN(1, "GPIO_01"),
+	PINCTRL_PIN(2, "GPIO_02"),
+	PINCTRL_PIN(3, "GPIO_03"),
+	PINCTRL_PIN(4, "GPIO_04"),
+	PINCTRL_PIN(5, "GPIO_05"),
+	PINCTRL_PIN(6, "GPIO_06"),
+	PINCTRL_PIN(7, "GPIO_07"),
+	PINCTRL_PIN(8, "GPIO_08"),
+	PINCTRL_PIN(9, "GPIO_09"),
+	PINCTRL_PIN(10, "GPIO_10"),
+	PINCTRL_PIN(11, "GPIO_11"),
+	PINCTRL_PIN(12, "GPIO_12"),
+	PINCTRL_PIN(13, "GPIO_13"),
+	PINCTRL_PIN(14, "GPIO_14"),
+	PINCTRL_PIN(15, "GPIO_15"),
+	PINCTRL_PIN(16, "GPIO_16"),
+	PINCTRL_PIN(17, "GPIO_17"),
+	PINCTRL_PIN(18, "GPIO_18"),
+	PINCTRL_PIN(19, "GPIO_19"),
+	PINCTRL_PIN(20, "GPIO_20"),
+	PINCTRL_PIN(21, "GPIO_21"),
+	PINCTRL_PIN(22, "GPIO_22"),
+	PINCTRL_PIN(23, "GPIO_23"),
+	PINCTRL_PIN(24, "GPIO_24"),
+	PINCTRL_PIN(25, "GPIO_25"),
+	PINCTRL_PIN(26, "GPIO_26"),
+	PINCTRL_PIN(27, "GPIO_27"),
+	PINCTRL_PIN(28, "GPIO_28"),
+	PINCTRL_PIN(29, "GPIO_29"),
+	PINCTRL_PIN(30, "GPIO_30"),
+	PINCTRL_PIN(31, "GPIO_31"),
+	PINCTRL_PIN(32, "GPIO_32"),
+	PINCTRL_PIN(33, "GPIO_33"),
+	PINCTRL_PIN(34, "GPIO_34"),
+	PINCTRL_PIN(35, "GPIO_35"),
+	PINCTRL_PIN(36, "GPIO_36"),
+	PINCTRL_PIN(37, "GPIO_37"),
+	PINCTRL_PIN(38, "GPIO_38"),
+	PINCTRL_PIN(39, "GPIO_39"),
+	PINCTRL_PIN(40, "GPIO_40"),
+	PINCTRL_PIN(41, "GPIO_41"),
+	PINCTRL_PIN(42, "GPIO_42"),
+	PINCTRL_PIN(43, "GPIO_43"),
+	PINCTRL_PIN(44, "GPIO_44"),
+	PINCTRL_PIN(45, "GPIO_45"),
+	PINCTRL_PIN(46, "GPIO_46"),
+	PINCTRL_PIN(47, "GPIO_47"),
+	PINCTRL_PIN(48, "GPIO_48"),
+	PINCTRL_PIN(49, "GPIO_49"),
+	PINCTRL_PIN(50, "GPIO_50"),
+	PINCTRL_PIN(51, "GPIO_51"),
+	PINCTRL_PIN(52, "GPIO_52"),
+	PINCTRL_PIN(53, "GPIO_53"),
+	PINCTRL_PIN(54, "GPIO_54"),
+	PINCTRL_PIN(55, "GPIO_55"),
+	PINCTRL_PIN(56, "GPIO_56"),
+	PINCTRL_PIN(57, "GPIO_57"),
+	PINCTRL_PIN(58, "GPIO_58"),
+	PINCTRL_PIN(59, "GPIO_59"),
+	PINCTRL_PIN(60, "GPIO_60"),
+	PINCTRL_PIN(61, "GPIO_61"),
+	PINCTRL_PIN(62, "GPIO_62"),
+	PINCTRL_PIN(63, "GPIO_63"),
+	PINCTRL_PIN(64, "GPIO_64"),
+	PINCTRL_PIN(65, "GPIO_65"),
+	PINCTRL_PIN(66, "GPIO_66"),
+	PINCTRL_PIN(67, "GPIO_67"),
+	PINCTRL_PIN(68, "GPIO_68"),
+	PINCTRL_PIN(69, "GPIO_69"),
+	PINCTRL_PIN(70, "GPIO_70"),
+	PINCTRL_PIN(71, "GPIO_71"),
+	PINCTRL_PIN(72, "GPIO_72"),
+	PINCTRL_PIN(73, "GPIO_73"),
+	PINCTRL_PIN(74, "GPIO_74"),
+	PINCTRL_PIN(75, "GPIO_75"),
+	PINCTRL_PIN(76, "GPIO_76"),
+	PINCTRL_PIN(77, "GPIO_77"),
+	PINCTRL_PIN(78, "GPIO_78"),
+	PINCTRL_PIN(79, "GPIO_79"),
+	PINCTRL_PIN(80, "GPIO_80"),
+	PINCTRL_PIN(81, "GPIO_81"),
+	PINCTRL_PIN(82, "GPIO_82"),
+	PINCTRL_PIN(83, "GPIO_83"),
+	PINCTRL_PIN(84, "GPIO_84"),
+	PINCTRL_PIN(85, "GPIO_85"),
+	PINCTRL_PIN(86, "GPIO_86"),
+	PINCTRL_PIN(87, "GPIO_87"),
+	PINCTRL_PIN(88, "GPIO_88"),
+	PINCTRL_PIN(89, "GPIO_89"),
+	PINCTRL_PIN(90, "GPIO_90"),
+	PINCTRL_PIN(91, "GPIO_91"),
+	PINCTRL_PIN(92, "GPIO_92"),
+	PINCTRL_PIN(93, "GPIO_93"),
+	PINCTRL_PIN(94, "GPIO_94"),
+	PINCTRL_PIN(95, "GPIO_95"),
+	PINCTRL_PIN(96, "GPIO_96"),
+	PINCTRL_PIN(97, "GPIO_97"),
+	PINCTRL_PIN(98,  "GPIO_98"),
+	PINCTRL_PIN(99,  "GPIO_99"),
+	PINCTRL_PIN(100, "GPIO_100"),
+	PINCTRL_PIN(101, "GPIO_101"),
+	PINCTRL_PIN(102, "GPIO_102"),
+	PINCTRL_PIN(103, "GPIO_103"),
+	PINCTRL_PIN(104, "GPIO_104"),
+	PINCTRL_PIN(105, "GPIO_105"),
+	PINCTRL_PIN(106, "GPIO_106"),
+	PINCTRL_PIN(107, "GPIO_107"),
+	PINCTRL_PIN(108, "GPIO_108"),
+	PINCTRL_PIN(109, "GPIO_109"),
+	PINCTRL_PIN(110, "GPIO_110"),
+	PINCTRL_PIN(111, "GPIO_111"),
+	PINCTRL_PIN(112, "GPIO_112"),
+	PINCTRL_PIN(113, "GPIO_113"),
+	PINCTRL_PIN(114, "GPIO_114"),
+	PINCTRL_PIN(115, "GPIO_115"),
+	PINCTRL_PIN(116, "GPIO_116"),
+	PINCTRL_PIN(117, "GPIO_117"),
+	PINCTRL_PIN(118, "GPIO_118"),
+	PINCTRL_PIN(119, "GPIO_119"),
+	PINCTRL_PIN(120, "GPIO_120"),
+	PINCTRL_PIN(121, "GPIO_121"),
+	PINCTRL_PIN(122, "GPIO_122"),
+	PINCTRL_PIN(123, "GPIO_123"),
+	PINCTRL_PIN(124, "GPIO_124"),
+	PINCTRL_PIN(125, "GPIO_125"),
+	PINCTRL_PIN(126, "GPIO_126"),
+	PINCTRL_PIN(127, "GPIO_127"),
+	PINCTRL_PIN(128, "PWR_SCL"),
+	PINCTRL_PIN(129, "PWR_SDA"),
+	PINCTRL_PIN(130, "VCXO_EN"),
+	PINCTRL_PIN(131, "PMIC_INT_N"),
+	PINCTRL_PIN(132, "MMC1_DAT3"),
+	PINCTRL_PIN(133, "MMC1_DAT2"),
+	PINCTRL_PIN(134, "MMC1_DAT1"),
+	PINCTRL_PIN(135, "MMC1_DAT0"),
+	PINCTRL_PIN(136, "MMC1_CMD"),
+	PINCTRL_PIN(137, "MMC1_CLK"),
+	PINCTRL_PIN(138, "QSPI_DAT0"),
+	PINCTRL_PIN(139, "QSPI_DAT1"),
+	PINCTRL_PIN(140, "QSPI_DAT2"),
+	PINCTRL_PIN(141, "QSPI_DAT3"),
+	PINCTRL_PIN(142, "QSPI_CS0"),
+	PINCTRL_PIN(143, "QSPI_CS1"),
+	PINCTRL_PIN(144, "QSPI_CLK"),
+	PINCTRL_PIN(145, "PRI_TDI"),
+	PINCTRL_PIN(146, "PRI_TMS"),
+	PINCTRL_PIN(147, "PRI_TCK"),
+	PINCTRL_PIN(148, "PRI_TDO"),
+	PINCTRL_PIN(149, "PWR_SSP_SCLK"),
+	PINCTRL_PIN(150, "PWR_SSP_FRM"),
+	PINCTRL_PIN(151, "PWR_SSP_TXD"),
+	PINCTRL_PIN(152, "PWR_SSP_RXD"),
+};
+
+static const struct spacemit_pin k3_pin_data[ARRAY_SIZE(k3_pin_desc)] = {
+	/* GPIO1 bank */
+	K1_FUNC_PIN(0, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(1, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(2, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(3, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(4, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(5, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(6, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(7, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(8, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(9, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(10, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(11, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(12, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(13, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(14, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(15, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(16, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(17, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(18, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(19, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(20, 0, IO_TYPE_EXTERNAL),
+
+	/* GPIO2 bank */
+	K1_FUNC_PIN(21, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(22, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(23, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(24, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(25, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(26, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(27, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(28, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(29, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(30, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(31, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(32, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(33, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(34, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(35, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(36, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(37, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(38, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(39, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(40, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(41, 0, IO_TYPE_EXTERNAL),
+
+	/* GPIO3 bank */
+	K1_FUNC_PIN(42, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(43, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(44, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(45, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(46, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(47, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(48, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(49, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(50, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(51, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(52, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(53, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(54, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(55, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(56, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(57, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(58, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(59, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(60, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(61, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(62, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(63, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(64, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(65, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(66, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(67, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(68, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(69, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(70, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(71, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(72, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(73, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(74, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(75, 0, IO_TYPE_1V8),
+
+	/* GPIO4 bank */
+	K1_FUNC_PIN(76, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(77, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(78, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(79, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(80, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(81, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(82, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(83, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(84, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(85, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(86, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(87, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(88, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(89, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(90, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(91, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(92, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(93, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(94, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(95, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(96, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(97, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(98, 0, IO_TYPE_EXTERNAL),
+
+	/* GPIO5 bank */
+	K1_FUNC_PIN(99, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(100, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(101, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(102, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(103, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(104, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(105, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(106, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(107, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(108, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(109, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(110, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(111, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(112, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(113, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(114, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(115, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(116, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(117, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(118, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(119, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(120, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(121, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(122, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(123, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(124, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(125, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(126, 0, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(127, 0, IO_TYPE_EXTERNAL),
+
+	/* PMIC */
+	K1_FUNC_PIN(128, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(129, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(130, 0, IO_TYPE_1V8),
+	K1_FUNC_PIN(131, 0, IO_TYPE_1V8),
+
+	/* SD/MMC1 */
+	K1_FUNC_PIN(132, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(133, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(134, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(135, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(136, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(137, 1, IO_TYPE_EXTERNAL),
+
+	/* QSPI */
+	K1_FUNC_PIN(138, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(139, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(140, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(141, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(142, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(143, 1, IO_TYPE_EXTERNAL),
+	K1_FUNC_PIN(144, 1, IO_TYPE_EXTERNAL),
+
+	/* PMIC */
+	K1_FUNC_PIN(145, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(146, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(147, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(148, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(149, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(150, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(151, 1, IO_TYPE_1V8),
+	K1_FUNC_PIN(152, 1, IO_TYPE_1V8),
+};
+
+static const struct spacemit_pinctrl_data k3_pinctrl_data = {
+	.pins = k3_pin_desc,
+	.data = k3_pin_data,
+	.npins = ARRAY_SIZE(k3_pin_desc),
+	.pin_to_offset = spacemit_k3_pin_to_offset,
+	.pin_to_io_pd_offset = spacemit_k3_pin_to_io_pd_offset,
+	.dconf = &k3_drive_conf,
 };
 
 static const struct of_device_id k1_pinctrl_ids[] = {
 	{ .compatible = "spacemit,k1-pinctrl", .data = &k1_pinctrl_data },
+	{ .compatible = "spacemit,k3-pinctrl", .data = &k3_pinctrl_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, k1_pinctrl_ids);
@@ -1061,5 +1599,5 @@ static struct platform_driver k1_pinctrl_driver = {
 builtin_platform_driver(k1_pinctrl_driver);
 
 MODULE_AUTHOR("Yixun Lan <dlan@gentoo.org>");
-MODULE_DESCRIPTION("Pinctrl driver for the SpacemiT K1 SoC");
+MODULE_DESCRIPTION("Pinctrl driver for the SpacemiT K1/K3 SoC");
 MODULE_LICENSE("GPL");

@@ -341,9 +341,8 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 
 	/* Allocate cluster boot configuration structs */
 	nclusters = mips_cps_numclusters();
-	mips_cps_cluster_bootcfg = kcalloc(nclusters,
-					   sizeof(*mips_cps_cluster_bootcfg),
-					   GFP_KERNEL);
+	mips_cps_cluster_bootcfg = kzalloc_objs(*mips_cps_cluster_bootcfg,
+						nclusters);
 	if (!mips_cps_cluster_bootcfg)
 		goto err_out;
 
@@ -353,8 +352,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	for (cl = 0; cl < nclusters; cl++) {
 		/* Allocate core boot configuration structs */
 		ncores = mips_cps_numcores(cl);
-		core_bootcfg = kcalloc(ncores, sizeof(*core_bootcfg),
-					GFP_KERNEL);
+		core_bootcfg = kzalloc_objs(*core_bootcfg, ncores);
 		if (!core_bootcfg)
 			goto err_out;
 		mips_cps_cluster_bootcfg[cl].core_config = core_bootcfg;
@@ -369,9 +367,8 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 		for (c = 0; c < ncores; c++) {
 			int v;
 			core_vpes = core_vpe_count(cl, c);
-			core_bootcfg[c].vpe_config = kcalloc(core_vpes,
-					sizeof(*core_bootcfg[c].vpe_config),
-					GFP_KERNEL);
+			core_bootcfg[c].vpe_config = kzalloc_objs(*core_bootcfg[c].vpe_config,
+								  core_vpes);
 			for (v = 0; v < core_vpes; v++)
 				cpumask_set_cpu(nvpe++, &mips_cps_cluster_bootcfg[cl].cpumask);
 			if (!core_bootcfg[c].vpe_config)

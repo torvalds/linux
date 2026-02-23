@@ -1443,7 +1443,7 @@ static int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 	int rc = 0;
 	unsigned int pos;
 
-	ptp = kzalloc(sizeof(struct efx_ptp_data), GFP_KERNEL);
+	ptp = kzalloc_obj(struct efx_ptp_data);
 	efx->ptp_data = ptp;
 	if (!efx->ptp_data)
 		return -ENOMEM;

@@ -67,7 +67,6 @@ struct nfsd_net {
 	struct lock_manager nfsd4_manager;
 	bool grace_ended;
 	bool grace_end_forced;
-	bool client_tracking_active;
 	time64_t boot_time;
 
 	struct dentry *nfsd_client_dir;
@@ -129,6 +128,12 @@ struct nfsd_net {
 
 	seqlock_t writeverf_lock;
 	unsigned char writeverf[8];
+
+	/*
+	 * Minimum number of threads to run per pool.  If 0 then the
+	 * min == max requested number of threads.
+	 */
+	unsigned int min_threads;
 
 	u32 clientid_base;
 	u32 clientid_counter;

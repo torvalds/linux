@@ -1006,7 +1006,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 	struct i915_ppgtt *ppgtt;
 	int err;
 
-	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	ppgtt = kzalloc_obj(*ppgtt);
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 

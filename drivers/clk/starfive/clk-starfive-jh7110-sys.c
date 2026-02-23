@@ -347,7 +347,7 @@ int jh7110_reset_controller_register(struct jh71x0_clk_priv *priv,
 	struct auxiliary_device *adev;
 	int ret;
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev);
 	if (!rdev)
 		return -ENOMEM;
 

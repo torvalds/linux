@@ -445,7 +445,7 @@ static void ccu_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	struct ccu_pll_dbgfs_fld *flds;
 	int idx;
 
-	bits = kcalloc(CCU_PLL_DBGFS_BIT_NUM, sizeof(*bits), GFP_KERNEL);
+	bits = kzalloc_objs(*bits, CCU_PLL_DBGFS_BIT_NUM);
 	if (!bits)
 		return;
 
@@ -458,7 +458,7 @@ static void ccu_pll_debug_init(struct clk_hw *hw, struct dentry *dentry)
 					   &ccu_pll_dbgfs_bit_fops);
 	}
 
-	flds = kcalloc(CCU_PLL_DBGFS_FLD_NUM, sizeof(*flds), GFP_KERNEL);
+	flds = kzalloc_objs(*flds, CCU_PLL_DBGFS_FLD_NUM);
 	if (!flds)
 		return;
 
@@ -508,7 +508,7 @@ struct ccu_pll *ccu_pll_hw_register(const struct ccu_pll_init_data *pll_init)
 	if (!pll_init)
 		return ERR_PTR(-EINVAL);
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

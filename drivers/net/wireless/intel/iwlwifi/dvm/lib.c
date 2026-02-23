@@ -1056,7 +1056,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	int ret, i;
 	u16 seq;
 
-	key_data.rsc_tsc = kzalloc(sizeof(*key_data.rsc_tsc), GFP_KERNEL);
+	key_data.rsc_tsc = kzalloc_obj(*key_data.rsc_tsc);
 	if (!key_data.rsc_tsc)
 		return -ENOMEM;
 

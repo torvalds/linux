@@ -70,13 +70,10 @@ static int sdio_alloc_irq(struct dvobj_priv *dvobj)
 	sdio_claim_host(func);
 
 	err = sdio_claim_irq(func, &sd_sync_int_hdl);
-	if (err) {
-		dvobj->drv_dbg.dbg_sdio_alloc_irq_error_cnt++;
+	if (err)
 		netdev_crit(dvobj->if1->pnetdev, "%s: sdio_claim_irq FAIL(%d)!\n", __func__, err);
-	} else {
-		dvobj->drv_dbg.dbg_sdio_alloc_irq_cnt++;
+	else
 		dvobj->irq_alloc = 1;
-	}
 
 	sdio_release_host(func);
 
@@ -97,12 +94,10 @@ static void sdio_free_irq(struct dvobj_priv *dvobj)
 			sdio_claim_host(func);
 			err = sdio_release_irq(func);
 			if (err) {
-				dvobj->drv_dbg.dbg_sdio_free_irq_error_cnt++;
 				netdev_err(dvobj->if1->pnetdev,
 					   "%s: sdio_release_irq FAIL(%d)!\n",
 					   __func__, err);
-			} else
-				dvobj->drv_dbg.dbg_sdio_free_irq_cnt++;
+			}
 			sdio_release_host(func);
 		}
 		dvobj->irq_alloc = 0;
@@ -122,16 +117,13 @@ static u32 sdio_init(struct dvobj_priv *dvobj)
 	sdio_claim_host(func);
 
 	err = sdio_enable_func(func);
-	if (err) {
-		dvobj->drv_dbg.dbg_sdio_init_error_cnt++;
+	if (err)
 		goto release;
-	}
 
 	err = sdio_set_block_size(func, 512);
-	if (err) {
-		dvobj->drv_dbg.dbg_sdio_init_error_cnt++;
+	if (err)
 		goto release;
-	}
+
 	psdio_data->block_transfer_len = 512;
 	psdio_data->tx_block_mode = 1;
 	psdio_data->rx_block_mode = 1;
@@ -147,22 +139,15 @@ release:
 static void sdio_deinit(struct dvobj_priv *dvobj)
 {
 	struct sdio_func *func;
-	int err;
 
 	func = dvobj->intf_data.func;
 
 	if (func) {
 		sdio_claim_host(func);
-		err = sdio_disable_func(func);
-		if (err)
-			dvobj->drv_dbg.dbg_sdio_deinit_error_cnt++;
+		sdio_disable_func(func);
 
 		if (dvobj->irq_alloc) {
-			err = sdio_release_irq(func);
-			if (err)
-				dvobj->drv_dbg.dbg_sdio_free_irq_error_cnt++;
-			else
-				dvobj->drv_dbg.dbg_sdio_free_irq_cnt++;
+			sdio_release_irq(func);
 		}
 
 		sdio_release_host(func);
@@ -377,7 +362,8 @@ static int rtw_drv_init(
 	if (status != _SUCCESS)
 		goto free_if1;
 
-	if (sdio_alloc_irq(dvobj) != _SUCCESS)
+	status = sdio_alloc_irq(dvobj);
+	if (status != _SUCCESS)
 		goto free_if1;
 
 	status = _SUCCESS;
@@ -433,15 +419,12 @@ static int rtw_sdio_suspend(struct device *dev)
 	struct dvobj_priv *psdpriv = sdio_get_drvdata(func);
 	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct adapter *padapter = psdpriv->if1;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (padapter->bDriverStopped)
 		return 0;
 
-	if (pwrpriv->bInSuspend) {
-		pdbgpriv->dbg_suspend_error_cnt++;
+	if (pwrpriv->bInSuspend)
 		return 0;
-	}
 
 	rtw_suspend_common(padapter);
 
@@ -451,13 +434,9 @@ static int rtw_sdio_suspend(struct device *dev)
 static int rtw_resume_process(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	if (!pwrpriv->bInSuspend) {
-		pdbgpriv->dbg_resume_error_cnt++;
+	if (!pwrpriv->bInSuspend)
 		return -1;
-	}
 
 	return rtw_resume_common(padapter);
 }
@@ -469,9 +448,6 @@ static int rtw_sdio_resume(struct device *dev)
 	struct adapter *padapter = psdpriv->if1;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	int ret = 0;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-
-	pdbgpriv->dbg_resume_cnt++;
 
 	ret = rtw_resume_process(padapter);
 

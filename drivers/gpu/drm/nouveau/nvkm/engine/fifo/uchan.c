@@ -166,7 +166,7 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		return -EINVAL;
 
 	/* Allocate SW object. */
-	if (!(uobj = kzalloc(sizeof(*uobj), GFP_KERNEL)))
+	if (!(uobj = kzalloc_obj(*uobj)))
 		return -ENOMEM;
 
 	nvkm_oproxy_ctor(&nvkm_uchan_object, oclass, &uobj->oproxy);
@@ -375,7 +375,7 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	}
 
 	/* Allocate channel. */
-	if (!(uchan = kzalloc(sizeof(*uchan), GFP_KERNEL))) {
+	if (!(uchan = kzalloc_obj(*uchan))) {
 		ret = -ENOMEM;
 		goto done;
 	}

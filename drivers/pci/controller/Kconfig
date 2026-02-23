@@ -58,6 +58,22 @@ config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
 	depends on ARCH_VERSATILE || COMPILE_TEST
 
+config PCIE_ASPEED
+	bool "ASPEED PCIe controller"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF
+	depends on PCI_MSI
+	select IRQ_MSI_LIB
+	help
+	  Enable this option to support the PCIe controller found on ASPEED
+	  SoCs.
+
+	  This driver provides initialization and management for PCIe
+	  Root Complex functionality, including INTx and MSI support.
+
+	  Select Y if your platform uses an ASPEED SoC and requires PCIe
+	  connectivity.
+
 config PCIE_BRCMSTB
 	tristate "Broadcom Brcmstb PCIe controller"
 	depends on ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCMBCA || \
@@ -232,7 +248,7 @@ config PCI_HYPERV_INTERFACE
 	  driver.
 
 config PCI_TEGRA
-	bool "NVIDIA Tegra PCIe controller"
+	tristate "NVIDIA Tegra PCIe controller"
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on PCI_MSI
 	select IRQ_MSI_LIB
@@ -243,6 +259,7 @@ config PCI_TEGRA
 config PCIE_RCAR_HOST
 	bool "Renesas R-Car PCIe controller (host mode)"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on OF
 	depends on PCI_MSI
 	select IRQ_MSI_LIB
 	help

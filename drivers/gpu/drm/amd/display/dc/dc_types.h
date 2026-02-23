@@ -275,6 +275,7 @@ enum dc_timing_source {
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
 	TIMING_SOURCE_HDMI_VIC,
+	TIMING_SOURCE_CEA_VIC,
 
 	/* implicitly specified by display device, still safe but less important*/
 	TIMING_SOURCE_DEFAULT,
@@ -354,7 +355,7 @@ enum dc_connection_type {
 	dc_connection_single,
 	dc_connection_mst_branch,
 	dc_connection_sst_branch,
-	dc_connection_dac_load
+	dc_connection_analog_load
 };
 
 struct dc_csc_adjustments {
@@ -963,6 +964,13 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum dc_panel_type {
+	PANEL_TYPE_NONE = 0, // UNKONWN, not determined yet
+	PANEL_TYPE_LCD = 1,
+	PANEL_TYPE_OLED = 2,
+	PANEL_TYPE_MINILED = 3,
+};
+
 enum backlight_control_type {
 	BACKLIGHT_CONTROL_PWM = 0,
 	BACKLIGHT_CONTROL_VESA_AUX = 1,
@@ -1078,6 +1086,7 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_STATIC,
 	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
 	PR_COASTING_TYPE_TEST_HARNESS,
+	PR_COASTING_TYPE_VIDEO_CONFERENCING_V2,
 	PR_COASTING_TYPE_NUM,
 };
 
@@ -1099,7 +1108,6 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
-	Replay_Set_Version,
 	Replay_Set_General_Cmd,
 };
 
@@ -1131,6 +1139,17 @@ union replay_low_refresh_rate_enable_options {
 		unsigned int ENABLE_STATIC_FLICKER_CHECK    :1;
 		unsigned int RESERVED_17_31                 :15;
 	} bits;
+	unsigned int raw;
+};
+
+union replay_optimization {
+	struct {
+		//BIT[0-3]: Replay Teams Optimization
+		unsigned int TEAMS_OPTIMIZATION_VER_1           :1;
+		unsigned int TEAMS_OPTIMIZATION_VER_2           :1;
+		unsigned int RESERVED_2_3                       :2;
+	} bits;
+
 	unsigned int raw;
 };
 
@@ -1171,6 +1190,10 @@ struct replay_config {
 	enum dc_alpm_mode alpm_mode;
 	/* Replay full screen only */
 	bool os_request_force_ffu;
+	/* Replay optimization */
+	union replay_optimization replay_optimization;
+	/* Replay sub feature Frame Skipping is supported */
+	bool frame_skip_supported;
 };
 
 /* Replay feature flags*/
@@ -1207,6 +1230,8 @@ struct replay_settings {
 	uint32_t replay_desync_error_fail_count;
 	/* The frame skip number dal send to DMUB */
 	uint16_t frame_skip_number;
+	/* Current Panel Replay events */
+	uint32_t replay_events;
 };
 
 /* To split out "global" and "per-panel" config settings.
@@ -1231,7 +1256,7 @@ struct dc_panel_config {
 		unsigned int max_nonboost_brightness_millinits;
 		unsigned int min_brightness_millinits;
 	} nits_brightness;
-	/* PSR */
+	/* PSR/Replay */
 	struct psr {
 		bool disable_psr;
 		bool disallow_psrsu;
@@ -1241,6 +1266,8 @@ struct dc_panel_config {
 		bool rc_allow_fullscreen_VPB;
 		bool read_psrcap_again;
 		unsigned int replay_enable_option;
+		bool enable_frame_skipping;
+		bool enable_teams_optimization;
 	} psr;
 	/* ABM */
 	struct varib {
@@ -1257,6 +1284,27 @@ struct dc_panel_config {
 	struct ilr {
 		bool optimize_edp_link_rate; /* eDP ILR */
 	} ilr;
+	/* Adaptive VariBright*/
+	struct adaptive_vb {
+		bool disable_adaptive_vb;
+		unsigned int default_abm_vb_levels;        // default value = 0xDCAA6414
+		unsigned int default_cacp_vb_levels;
+		unsigned int default_abm_vb_hdr_levels;    // default value = 0xB4805A40
+		unsigned int default_cacp_vb_hdr_levels;
+		unsigned int abm_scaling_factors;          // default value = 0x23210012
+		unsigned int cacp_scaling_factors;
+		unsigned int battery_life_configures;      // default value = 0x0A141E
+		unsigned int abm_backlight_adaptive_pwl_1; // default value = 0x6A4F7244
+		unsigned int abm_backlight_adaptive_pwl_2; // default value = 0x4C615659
+		unsigned int abm_backlight_adaptive_pwl_3; // default value = 0x0064
+		unsigned int cacp_backlight_adaptive_pwl_1;
+		unsigned int cacp_backlight_adaptive_pwl_2;
+		unsigned int cacp_backlight_adaptive_pwl_3;
+	} adaptive_vb;
+	/* Ramless Idle Opt*/
+	struct rio {
+		bool disable_rio;
+	} rio;
 };
 
 #define MAX_SINKS_PER_LINK 4

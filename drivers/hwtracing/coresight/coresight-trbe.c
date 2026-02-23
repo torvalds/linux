@@ -751,7 +751,7 @@ static void *arm_trbe_alloc_buffer(struct coresight_device *csdev,
 	if (!buf)
 		return NULL;
 
-	pglist = kcalloc(nr_pages, sizeof(*pglist), GFP_KERNEL);
+	pglist = kzalloc_objs(*pglist, nr_pages);
 	if (!pglist) {
 		kfree(buf);
 		return NULL;

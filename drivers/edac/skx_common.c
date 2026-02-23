@@ -346,7 +346,7 @@ int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list)
 		if (!pdev)
 			break;
 		ndev++;
-		d = kzalloc(struct_size(d, imc, imc_num), GFP_KERNEL);
+		d = kzalloc_flex(*d, imc, imc_num);
 		if (!d) {
 			pci_dev_put(pdev);
 			return -ENOMEM;

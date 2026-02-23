@@ -361,7 +361,7 @@ static int ps3flash_probe(struct ps3_system_bus_device *_dev)
 
 	ps3flash_dev = dev;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto fail;

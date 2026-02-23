@@ -56,7 +56,7 @@ nvkm_uvfn_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 	if (argc != 0)
 		return -ENOSYS;
 
-	if (!(uvfn = kzalloc(sizeof(*uvfn), GFP_KERNEL)))
+	if (!(uvfn = kzalloc_obj(*uvfn)))
 		return -ENOMEM;
 
 	nvkm_object_ctor(&nvkm_uvfn, oclass, &uvfn->object);

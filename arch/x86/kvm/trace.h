@@ -383,10 +383,10 @@ TRACE_EVENT(kvm_apic,
 #define kvm_print_exit_reason(exit_reason, isa)				\
 	(isa == KVM_ISA_VMX) ?						\
 	__print_symbolic(exit_reason & 0xffff, VMX_EXIT_REASONS) :	\
-	__print_symbolic(exit_reason, SVM_EXIT_REASONS),		\
+	__print_symbolic_u64(exit_reason, SVM_EXIT_REASONS),		\
 	(isa == KVM_ISA_VMX && exit_reason & ~0xffff) ? " " : "",	\
 	(isa == KVM_ISA_VMX) ?						\
-	__print_flags(exit_reason & ~0xffff, " ", VMX_EXIT_REASON_FLAGS) : ""
+	__print_flags_u64(exit_reason & ~0xffff, " ", VMX_EXIT_REASON_FLAGS) : ""
 
 #define TRACE_EVENT_KVM_EXIT(name)					     \
 TRACE_EVENT(name,							     \
@@ -781,7 +781,7 @@ TRACE_EVENT_KVM_EXIT(kvm_nested_vmexit);
  * Tracepoint for #VMEXIT reinjected to the guest
  */
 TRACE_EVENT(kvm_nested_vmexit_inject,
-	    TP_PROTO(__u32 exit_code,
+	    TP_PROTO(__u64 exit_code,
 		     __u64 exit_info1, __u64 exit_info2,
 		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
 	    TP_ARGS(exit_code, exit_info1, exit_info2,

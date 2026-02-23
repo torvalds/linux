@@ -226,7 +226,7 @@ static int mxb_probe(struct saa7146_dev *dev)
 			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
 	if (hdl->error)
 		return hdl->error;
-	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
+	mxb = kzalloc_obj(struct mxb);
 	if (mxb == NULL) {
 		DEB_D("not enough kernel memory\n");
 		return -ENOMEM;

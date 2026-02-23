@@ -11,7 +11,6 @@
 #include <linux/bug.h>
 #include <linux/list.h>
 #include <linux/string_choices.h>
-#include <crypto/hash.h>
 #include "messages.h"
 #include "ctree.h"
 #include "discard.h"
@@ -26,7 +25,6 @@
 #include "misc.h"
 #include "fs.h"
 #include "accessors.h"
-#include "zoned.h"
 
 /*
  * Structure name                       Path
@@ -301,6 +299,8 @@ BTRFS_FEAT_ATTR_INCOMPAT(zoned, ZONED);
 BTRFS_FEAT_ATTR_INCOMPAT(extent_tree_v2, EXTENT_TREE_V2);
 /* Remove once support for raid stripe tree is feature complete. */
 BTRFS_FEAT_ATTR_INCOMPAT(raid_stripe_tree, RAID_STRIPE_TREE);
+/* Remove once support for remap tree is feature complete. */
+BTRFS_FEAT_ATTR_INCOMPAT(remap_tree, REMAP_TREE);
 #endif
 #ifdef CONFIG_FS_VERITY
 BTRFS_FEAT_ATTR_COMPAT_RO(verity, VERITY);
@@ -333,6 +333,7 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	BTRFS_FEAT_ATTR_PTR(extent_tree_v2),
 	BTRFS_FEAT_ATTR_PTR(raid_stripe_tree),
+	BTRFS_FEAT_ATTR_PTR(remap_tree),
 #endif
 #ifdef CONFIG_FS_VERITY
 	BTRFS_FEAT_ATTR_PTR(verity),
@@ -1189,56 +1190,6 @@ static ssize_t btrfs_commit_stats_store(struct kobject *kobj,
 }
 BTRFS_ATTR_RW(, commit_stats, btrfs_commit_stats_show, btrfs_commit_stats_store);
 
-static ssize_t btrfs_zoned_stats_show(struct kobject *kobj,
-				      struct kobj_attribute *a, char *buf)
-{
-	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	struct btrfs_block_group *bg;
-	size_t ret = 0;
-
-
-	if (!btrfs_is_zoned(fs_info))
-		return ret;
-
-	spin_lock(&fs_info->zone_active_bgs_lock);
-	ret += sysfs_emit_at(buf, ret, "active block-groups: %zu\n",
-			     list_count_nodes(&fs_info->zone_active_bgs));
-	spin_unlock(&fs_info->zone_active_bgs_lock);
-
-	mutex_lock(&fs_info->reclaim_bgs_lock);
-	spin_lock(&fs_info->unused_bgs_lock);
-	ret += sysfs_emit_at(buf, ret, "\treclaimable: %zu\n",
-			     list_count_nodes(&fs_info->reclaim_bgs));
-	ret += sysfs_emit_at(buf, ret, "\tunused: %zu\n",
-			     list_count_nodes(&fs_info->unused_bgs));
-	spin_unlock(&fs_info->unused_bgs_lock);
-	mutex_unlock(&fs_info->reclaim_bgs_lock);
-
-	ret += sysfs_emit_at(buf, ret, "\tneed reclaim: %s\n",
-			     str_true_false(btrfs_zoned_should_reclaim(fs_info)));
-
-	if (fs_info->data_reloc_bg)
-		ret += sysfs_emit_at(buf, ret,
-				     "data relocation block-group: %llu\n",
-				     fs_info->data_reloc_bg);
-	if (fs_info->treelog_bg)
-		ret += sysfs_emit_at(buf, ret,
-				     "tree-log block-group: %llu\n",
-				     fs_info->treelog_bg);
-
-	spin_lock(&fs_info->zone_active_bgs_lock);
-	ret += sysfs_emit_at(buf, ret, "active zones:\n");
-	list_for_each_entry(bg, &fs_info->zone_active_bgs, active_bg_list) {
-		ret += sysfs_emit_at(buf, ret,
-				     "\tstart: %llu, wp: %llu used: %llu, reserved: %llu, unusable: %llu\n",
-				     bg->start, bg->alloc_offset, bg->used,
-				     bg->reserved, bg->zone_unusable);
-	}
-	spin_unlock(&fs_info->zone_active_bgs_lock);
-	return ret;
-}
-BTRFS_ATTR(, zoned_stats, btrfs_zoned_stats_show);
-
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
@@ -1304,10 +1255,9 @@ static ssize_t btrfs_checksum_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	u16 csum_type = btrfs_super_csum_type(fs_info->super_copy);
+	const char *csum_name = btrfs_super_csum_name(csum_type);
 
-	return sysfs_emit(buf, "%s (%s)\n",
-			  btrfs_super_csum_name(csum_type),
-			  crypto_shash_driver_name(fs_info->csum_shash));
+	return sysfs_emit(buf, "%s (%s-lib)\n", csum_name, csum_name);
 }
 
 BTRFS_ATTR(, checksum, btrfs_checksum_show);
@@ -1591,47 +1541,6 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 BTRFS_ATTR_RW(, bg_reclaim_threshold, btrfs_bg_reclaim_threshold_show,
 	      btrfs_bg_reclaim_threshold_store);
 
-#ifdef CONFIG_BTRFS_EXPERIMENTAL
-static ssize_t btrfs_offload_csum_show(struct kobject *kobj,
-				       struct kobj_attribute *a, char *buf)
-{
-	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
-
-	switch (READ_ONCE(fs_devices->offload_csum_mode)) {
-	case BTRFS_OFFLOAD_CSUM_AUTO:
-		return sysfs_emit(buf, "auto\n");
-	case BTRFS_OFFLOAD_CSUM_FORCE_ON:
-		return sysfs_emit(buf, "1\n");
-	case BTRFS_OFFLOAD_CSUM_FORCE_OFF:
-		return sysfs_emit(buf, "0\n");
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-}
-
-static ssize_t btrfs_offload_csum_store(struct kobject *kobj,
-					struct kobj_attribute *a, const char *buf,
-					size_t len)
-{
-	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
-	int ret;
-	bool val;
-
-	ret = kstrtobool(buf, &val);
-	if (ret == 0)
-		WRITE_ONCE(fs_devices->offload_csum_mode,
-			   val ? BTRFS_OFFLOAD_CSUM_FORCE_ON : BTRFS_OFFLOAD_CSUM_FORCE_OFF);
-	else if (ret == -EINVAL && sysfs_streq(buf, "auto"))
-		WRITE_ONCE(fs_devices->offload_csum_mode, BTRFS_OFFLOAD_CSUM_AUTO);
-	else
-		return -EINVAL;
-
-	return len;
-}
-BTRFS_ATTR_RW(, offload_csum, btrfs_offload_csum_show, btrfs_offload_csum_store);
-#endif
-
 /*
  * Per-filesystem information and stats.
  *
@@ -1651,10 +1560,6 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
 	BTRFS_ATTR_PTR(, commit_stats),
 	BTRFS_ATTR_PTR(, temp_fsid),
-	BTRFS_ATTR_PTR(, zoned_stats),
-#ifdef CONFIG_BTRFS_EXPERIMENTAL
-	BTRFS_ATTR_PTR(, offload_csum),
-#endif
 	NULL,
 };
 
@@ -1928,7 +1833,7 @@ void btrfs_sysfs_add_block_group_type(struct btrfs_block_group *cache)
 	 */
 	nofs_flag = memalloc_nofs_save();
 
-	rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
+	rkobj = kzalloc_obj(*rkobj, GFP_NOFS);
 	if (!rkobj) {
 		memalloc_nofs_restore(nofs_flag);
 		btrfs_warn(cache->fs_info,
@@ -2024,6 +1929,8 @@ static const char *alloc_name(struct btrfs_space_info *space_info)
 	case BTRFS_BLOCK_GROUP_SYSTEM:
 		ASSERT(space_info->subgroup_id == BTRFS_SUB_GROUP_PRIMARY);
 		return "system";
+	case BTRFS_BLOCK_GROUP_METADATA_REMAP:
+		return "metadata-remap";
 	default:
 		WARN_ON(1);
 		return "invalid-combination";
@@ -2690,7 +2597,7 @@ int btrfs_sysfs_add_qgroups(struct btrfs_fs_info *fs_info)
 	if (fs_info->qgroups_kobj)
 		return 0;
 
-	fs_info->qgroups_kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	fs_info->qgroups_kobj = kzalloc_obj(struct kobject);
 	if (!fs_info->qgroups_kobj)
 		return -ENOMEM;
 

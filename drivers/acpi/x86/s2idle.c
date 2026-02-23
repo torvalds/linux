@@ -28,6 +28,10 @@ static bool sleep_no_lps0 __read_mostly;
 module_param(sleep_no_lps0, bool, 0644);
 MODULE_PARM_DESC(sleep_no_lps0, "Do not use the special LPS0 device interface");
 
+static bool check_lps0_constraints __read_mostly;
+module_param(check_lps0_constraints, bool, 0644);
+MODULE_PARM_DESC(check_lps0_constraints, "Check LPS0 device constraints");
+
 static const struct acpi_device_id lps0_device_ids[] = {
 	{"PNP0D80", },
 	{"", },
@@ -45,6 +49,7 @@ static const struct acpi_device_id lps0_device_ids[] = {
 #define ACPI_LPS0_EXIT		6
 #define ACPI_LPS0_MS_ENTRY      7
 #define ACPI_LPS0_MS_EXIT       8
+#define ACPI_MS_TURN_ON_DISPLAY 9
 
 /* AMD */
 #define ACPI_LPS0_DSM_UUID_AMD      "e3f32452-febc-43ce-9039-932122d37721"
@@ -124,9 +129,8 @@ static void lpi_device_get_constraints_amd(void)
 				goto free_acpi_buffer;
 			}
 
-			lpi_constraints_table = kcalloc(package->package.count,
-							sizeof(*lpi_constraints_table),
-							GFP_KERNEL);
+			lpi_constraints_table = kzalloc_objs(*lpi_constraints_table,
+							     package->package.count);
 
 			if (!lpi_constraints_table)
 				goto free_acpi_buffer;
@@ -204,9 +208,8 @@ static void lpi_device_get_constraints(void)
 	if (!out_obj)
 		return;
 
-	lpi_constraints_table = kcalloc(out_obj->package.count,
-					sizeof(*lpi_constraints_table),
-					GFP_KERNEL);
+	lpi_constraints_table = kzalloc_objs(*lpi_constraints_table,
+					     out_obj->package.count);
 	if (!lpi_constraints_table)
 		goto free_acpi_buffer;
 
@@ -352,6 +355,8 @@ static const char *acpi_sleep_dsm_state_to_str(unsigned int state)
 			return "lps0 ms entry";
 		case ACPI_LPS0_MS_EXIT:
 			return "lps0 ms exit";
+		case ACPI_MS_TURN_ON_DISPLAY:
+			return "lps0 ms turn on display";
 		}
 	} else {
 		switch (state) {
@@ -459,9 +464,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 			lps0_dsm_func_mask = (lps0_dsm_func_mask << 1) | 0x1;
 			acpi_handle_debug(adev->handle, "_DSM UUID %s: Adjusted function mask: 0x%x\n",
 					  ACPI_LPS0_DSM_UUID_AMD, lps0_dsm_func_mask);
-		} else if (lps0_dsm_func_mask_microsoft > 0 && rev_id) {
-			lps0_dsm_func_mask_microsoft = -EINVAL;
-			acpi_handle_debug(adev->handle, "_DSM Using AMD method\n");
 		}
 	} else {
 		rev_id = 1;
@@ -515,7 +517,8 @@ static struct acpi_scan_handler lps0_handler = {
 
 static int acpi_s2idle_begin_lps0(void)
 {
-	if (pm_debug_messages_on && !lpi_constraints_table) {
+	if (lps0_device_handle && !sleep_no_lps0 && check_lps0_constraints &&
+	    !lpi_constraints_table) {
 		if (acpi_s2idle_vendor_amd())
 			lpi_device_get_constraints_amd();
 		else
@@ -539,7 +542,7 @@ static int acpi_s2idle_prepare_late_lps0(void)
 	if (!lps0_device_handle || sleep_no_lps0)
 		return 0;
 
-	if (pm_debug_messages_on)
+	if (check_lps0_constraints)
 		lpi_check_constraints();
 
 	/* Screen off */
@@ -611,6 +614,9 @@ static void acpi_s2idle_restore_early_lps0(void)
 
 	if (lps0_dsm_func_mask_microsoft > 0) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT,
+				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+		/* Intent to turn on display */
+		acpi_sleep_run_lps0_dsm(ACPI_MS_TURN_ON_DISPLAY,
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
 		/* Modern Standby exit */
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_MS_EXIT,

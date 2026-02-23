@@ -229,7 +229,7 @@ _at91sam9x5_clk_register_usb(struct regmap *regmap, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	usb = kzalloc(sizeof(*usb), GFP_KERNEL);
+	usb = kzalloc_obj(*usb);
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 
@@ -280,7 +280,7 @@ at91sam9n12_clk_register_usb(struct regmap *regmap, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	usb = kzalloc(sizeof(*usb), GFP_KERNEL);
+	usb = kzalloc_obj(*usb);
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 
@@ -399,7 +399,7 @@ at91rm9200_clk_register_usb(struct regmap *regmap, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	usb = kzalloc(sizeof(*usb), GFP_KERNEL);
+	usb = kzalloc_obj(*usb);
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 

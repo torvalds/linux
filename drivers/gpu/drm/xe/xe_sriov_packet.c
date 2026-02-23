@@ -6,7 +6,6 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_guc_klv_helpers.h"
-#include "xe_printk.h"
 #include "xe_sriov_packet.h"
 #include "xe_sriov_packet_types.h"
 #include "xe_sriov_pf_helpers.h"
@@ -90,7 +89,7 @@ struct xe_sriov_packet *xe_sriov_packet_alloc(struct xe_device *xe)
 {
 	struct xe_sriov_packet *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 
@@ -358,7 +357,7 @@ ssize_t xe_sriov_packet_write_single(struct xe_device *xe, unsigned int vfid,
 
 #define MIGRATION_DESCRIPTOR_DWORDS	(GUC_KLV_LEN_MIN + MIGRATION_KLV_DEVICE_DEVID_LEN + \
 					 GUC_KLV_LEN_MIN + MIGRATION_KLV_DEVICE_REVID_LEN)
-static size_t pf_descriptor_init(struct xe_device *xe, unsigned int vfid)
+static int pf_descriptor_init(struct xe_device *xe, unsigned int vfid)
 {
 	struct xe_sriov_packet **desc = pf_pick_descriptor(xe, vfid);
 	struct xe_sriov_packet *data;

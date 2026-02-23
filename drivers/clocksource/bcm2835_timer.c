@@ -98,7 +98,7 @@ static int __init bcm2835_timer_init(struct device_node *node)
 		goto err_iounmap;
 	}
 
-	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
+	timer = kzalloc_obj(*timer);
 	if (!timer) {
 		ret = -ENOMEM;
 		goto err_iounmap;

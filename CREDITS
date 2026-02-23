@@ -695,7 +695,7 @@ S: USA
 N: Chih-Jen Chang
 E: chihjenc@scf.usc.edu
 E: chihjen@iis.sinica.edu.tw
-D: IGMP(Internet Group Management Protocol) version 2
+D: IGMP (Internet Group Management Protocol) version 2
 S: 3F, 65 Tajen street
 S: Tamsui town, Taipei county,
 S: Taiwan 251
@@ -1997,7 +1997,7 @@ E: bkaindl@netway.at
 E: edv@bartelt.via.at
 D: Author of a menu based configuration tool, kmenu, which
 D: is the predecessor of 'make menuconfig' and 'make xconfig'.
-D: digiboard driver update(modularisation work and 2.1.x upd)
+D: digiboard driver update (modularisation work and 2.1.x upd)
 S: Tallak 95
 S: 8103 Rein
 S: Austria
@@ -2230,6 +2230,10 @@ S: 7170 Warden Avenue, Unit 2
 S: Markham, Ontario
 S: L3R 8B2
 S: Canada
+
+N: Krzysztof Kozlowski
+E: krzk@kernel.org
+D: NFC network subsystem and drivers maintainer
 
 N: Christian Krafft
 D: PowerPC Cell support
@@ -2658,6 +2662,10 @@ S: MS 42
 S: 3404 E. Harmony Road
 S: Fort Collins, CO 80528
 S: USA
+
+N: Jon Mason
+E: jdmason@kudzu.us
+D: Neterion 10GbE drivers (s2io/vxge)
 
 N: Torben Mathiasen
 E: torben.mathiasen@compaq.com
@@ -3484,7 +3492,8 @@ S: Brazil
 N: Stephen Rothwell
 E: sfr@canb.auug.org.au
 W: http://www.canb.auug.org.au/~sfr
-P: 1024/BD8C7805 CD A4 9D 01 10 6E 7E 3B  91 88 FA D9 C8 40 AA 02
+P: 4096R/5AD24211C060D1C8 D41C A3ED 5B30 275C F5A0  1B05 5AD2 4211 C060 D1C8
+D: Created linux-next and maintained it 2008-2026
 D: Boot/setup/build work for setup > 2K
 D: Author, APM driver
 D: Directory notification
@@ -3609,7 +3618,7 @@ S: Finland
 N: Deepak Saxena
 E: dsaxena@plexity.net
 D: I2O kernel layer (config, block, core, pci, net). I2O disk support for LILO
-D: XScale(IOP, IXP) porting and other random ARM bits
+D: XScale (IOP, IXP) porting and other random ARM bits
 S: Portland, OR
 
 N: Eric Schenk
@@ -3767,6 +3776,11 @@ S: 10 Stockalls Place
 S: Minto, NSW, 2566
 S: Australia
 
+N: Tim Small
+E: tim@buttersideup.com
+D: Intel 82443BX/GX (440BX/GX chipset) EDAC driver
+D: Radisys 82600 embedded chipset EDAC driver
+
 N: Stephen Smalley
 E: sds@tycho.nsa.gov
 D: portions of the Linux Security Module (LSM) framework and security modules
@@ -3800,6 +3814,10 @@ S: MS 352, Fermilab
 S: Post Office Box 500
 S: Batavia, Illinois 60510
 S: USA
+
+N: Jes Sorensen
+E: jes@trained-monkey.org
+D: HIPPI support and Essential RoadRunner driver
 
 N: Leo Spiekman
 E: leo@netlabs.net
@@ -3986,7 +4004,7 @@ S: D-50968 Köln
 
 N: Tsu-Sheng Tsao
 E: tsusheng@scf.usc.edu
-D: IGMP(Internet Group Management Protocol) version 2
+D: IGMP (Internet Group Management Protocol) version 2
 S: 2F 14 ALY 31 LN 166 SEC 1 SHIH-PEI RD
 S: Taipei
 S: Taiwan 112

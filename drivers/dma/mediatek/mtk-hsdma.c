@@ -334,7 +334,7 @@ static int mtk_hsdma_alloc_pchan(struct mtk_hsdma_device *hsdma,
 	ring->cur_tptr = 0;
 	ring->cur_rptr = MTK_DMA_SIZE - 1;
 
-	ring->cb = kcalloc(MTK_DMA_SIZE, sizeof(*ring->cb), GFP_NOWAIT);
+	ring->cb = kzalloc_objs(*ring->cb, MTK_DMA_SIZE, GFP_NOWAIT);
 	if (!ring->cb) {
 		err = -ENOMEM;
 		goto err_free_dma;
@@ -722,7 +722,7 @@ mtk_hsdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest,
 {
 	struct mtk_hsdma_vdesc *hvd;
 
-	hvd = kzalloc(sizeof(*hvd), GFP_NOWAIT);
+	hvd = kzalloc_obj(*hvd, GFP_NOWAIT);
 	if (!hvd)
 		return NULL;
 

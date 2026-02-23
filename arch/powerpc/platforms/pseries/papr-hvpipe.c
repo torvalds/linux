@@ -495,7 +495,7 @@ static int papr_hvpipe_dev_create_handle(u32 srcID)
 	}
 	spin_unlock(&hvpipe_src_list_lock);
 
-	src_info = kzalloc(sizeof(*src_info), GFP_KERNEL_ACCOUNT);
+	src_info = kzalloc_obj(*src_info, GFP_KERNEL_ACCOUNT);
 	if (!src_info)
 		return -ENOMEM;
 
@@ -762,7 +762,7 @@ static int __init papr_hvpipe_init(void)
 		!rtas_function_implemented(RTAS_FN_IBM_RECEIVE_HVPIPE_MSG))
 		return -ENODEV;
 
-	papr_hvpipe_work = kzalloc(sizeof(struct work_struct), GFP_ATOMIC);
+	papr_hvpipe_work = kzalloc_obj(struct work_struct, GFP_ATOMIC);
 	if (!papr_hvpipe_work)
 		return -ENOMEM;
 

@@ -111,7 +111,7 @@ static int create_packet(void *data, size_t length) __must_hold(&rbu_data.lock)
 
 	spin_unlock(&rbu_data.lock);
 
-	newpacket = kzalloc(sizeof (struct packet_data), GFP_KERNEL);
+	newpacket = kzalloc_obj(struct packet_data);
 
 	if (!newpacket) {
 		pr_warn("failed to allocate new packet\n");

@@ -57,7 +57,7 @@ impl pci::Driver for DmaSampleDriver {
 
     fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         pin_init::pin_init_scope(move || {
-            dev_info!(pdev.as_ref(), "Probe DMA test driver.\n");
+            dev_info!(pdev, "Probe DMA test driver.\n");
 
             let mask = DmaMask::new::<64>();
 
@@ -88,9 +88,7 @@ impl pci::Driver for DmaSampleDriver {
 #[pinned_drop]
 impl PinnedDrop for DmaSampleDriver {
     fn drop(self: Pin<&mut Self>) {
-        let dev = self.pdev.as_ref();
-
-        dev_info!(dev, "Unload DMA test driver.\n");
+        dev_info!(self.pdev, "Unload DMA test driver.\n");
 
         for (i, value) in TEST_VALUES.into_iter().enumerate() {
             let val0 = kernel::dma_read!(self.ca[i].h);
@@ -107,7 +105,12 @@ impl PinnedDrop for DmaSampleDriver {
         }
 
         for (i, entry) in self.sgt.iter().enumerate() {
-            dev_info!(dev, "Entry[{}]: DMA address: {:#x}", i, entry.dma_address());
+            dev_info!(
+                self.pdev,
+                "Entry[{}]: DMA address: {:#x}",
+                i,
+                entry.dma_address(),
+            );
         }
     }
 }

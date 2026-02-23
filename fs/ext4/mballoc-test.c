@@ -34,7 +34,7 @@ static struct inode *mbt_alloc_inode(struct super_block *sb)
 {
 	struct ext4_inode_info *ei;
 
-	ei = kmalloc(sizeof(struct ext4_inode_info), GFP_KERNEL);
+	ei = kmalloc_obj(struct ext4_inode_info);
 	if (!ei)
 		return NULL;
 
@@ -73,11 +73,11 @@ static int mbt_mb_init(struct super_block *sb)
 	int ret;
 
 	/* needed by ext4_mb_init->bdev_nonrot(sb->s_bdev) */
-	sb->s_bdev = kzalloc(sizeof(*sb->s_bdev), GFP_KERNEL);
+	sb->s_bdev = kzalloc_obj(*sb->s_bdev);
 	if (sb->s_bdev == NULL)
 		return -ENOMEM;
 
-	sb->s_bdev->bd_queue = kzalloc(sizeof(struct request_queue), GFP_KERNEL);
+	sb->s_bdev->bd_queue = kzalloc_obj(struct request_queue);
 	if (sb->s_bdev->bd_queue == NULL) {
 		kfree(sb->s_bdev);
 		return -ENOMEM;
@@ -137,7 +137,7 @@ static struct super_block *mbt_ext4_alloc_super_block(void)
 	struct super_block *sb;
 	struct ext4_sb_info *sbi;
 
-	fsb = kzalloc(sizeof(*fsb), GFP_KERNEL);
+	fsb = kzalloc_obj(*fsb);
 	if (fsb == NULL)
 		return NULL;
 
@@ -148,7 +148,7 @@ static struct super_block *mbt_ext4_alloc_super_block(void)
 	sbi = &fsb->sbi;
 
 	sbi->s_blockgroup_lock =
-		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
+		kzalloc_obj(struct blockgroup_lock);
 	if (!sbi->s_blockgroup_lock)
 		goto out_deactivate;
 
@@ -252,8 +252,7 @@ static int mbt_ctx_init(struct super_block *sb)
 	struct mbt_ctx *ctx = MBT_CTX(sb);
 	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 
-	ctx->grp_ctx = kcalloc(ngroups, sizeof(struct mbt_grp_ctx),
-			       GFP_KERNEL);
+	ctx->grp_ctx = kzalloc_objs(struct mbt_grp_ctx, ngroups);
 	if (ctx->grp_ctx == NULL)
 		return -ENOMEM;
 
@@ -567,7 +566,7 @@ test_mark_diskspace_used_range(struct kunit *test,
 
 	bitmap = mbt_ctx_bitmap(sb, TEST_GOAL_GROUP);
 	memset(bitmap, 0, sb->s_blocksize);
-	ret = ext4_mb_mark_diskspace_used(ac, NULL, 0);
+	ret = ext4_mb_mark_diskspace_used(ac, NULL);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	max = EXT4_CLUSTERS_PER_GROUP(sb);

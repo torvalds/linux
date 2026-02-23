@@ -454,8 +454,7 @@ static int mshw0011_install_space_handler(struct i2c_client *client)
 	if (!adev)
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct mshw0011_handler_data),
-			    GFP_KERNEL);
+	data = kzalloc_obj(struct mshw0011_handler_data);
 	if (!data)
 		return -ENOMEM;
 

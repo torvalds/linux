@@ -531,7 +531,7 @@ static struct iommu_domain *s390_domain_alloc_paging(struct device *dev)
 	struct s390_domain *s390_domain;
 	u64 aperture_size;
 
-	s390_domain = kzalloc(sizeof(*s390_domain), GFP_KERNEL);
+	s390_domain = kzalloc_obj(*s390_domain);
 	if (!s390_domain)
 		return NULL;
 

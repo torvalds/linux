@@ -1961,11 +1961,11 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
 	struct spi_transfer xfer[2] = { };
 	int err;
 
-	buf_rx = kzalloc(sizeof(*buf_rx), GFP_KERNEL);
+	buf_rx = kzalloc_obj(*buf_rx);
 	if (!buf_rx)
 		return -ENOMEM;
 
-	buf_tx = kzalloc(sizeof(*buf_tx), GFP_KERNEL);
+	buf_tx = kzalloc_obj(*buf_tx);
 	if (!buf_tx) {
 		err = -ENOMEM;
 		goto out_kfree_buf_rx;

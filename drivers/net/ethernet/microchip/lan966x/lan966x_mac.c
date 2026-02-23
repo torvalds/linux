@@ -206,7 +206,7 @@ static struct lan966x_mac_entry *lan966x_mac_alloc_entry(struct lan966x_port *po
 {
 	struct lan966x_mac_entry *mac_entry;
 
-	mac_entry = kzalloc(sizeof(*mac_entry), GFP_ATOMIC);
+	mac_entry = kzalloc_obj(*mac_entry, GFP_ATOMIC);
 	if (!mac_entry)
 		return NULL;
 

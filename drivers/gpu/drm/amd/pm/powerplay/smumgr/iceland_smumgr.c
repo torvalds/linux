@@ -261,7 +261,7 @@ static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct iceland_smumgr *iceland_priv;
 
-	iceland_priv = kzalloc(sizeof(struct iceland_smumgr), GFP_KERNEL);
+	iceland_priv = kzalloc_obj(struct iceland_smumgr);
 
 	if (iceland_priv == NULL)
 		return -ENOMEM;
@@ -2608,7 +2608,7 @@ static int iceland_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	struct iceland_mc_reg_table *ni_table = &smu_data->mc_reg_table;
 	uint8_t module_index = iceland_get_memory_modile_index(hwmgr);
 
-	table = kzalloc(sizeof(pp_atomctrl_mc_reg_table), GFP_KERNEL);
+	table = kzalloc_obj(pp_atomctrl_mc_reg_table);
 
 	if (NULL == table)
 		return -ENOMEM;

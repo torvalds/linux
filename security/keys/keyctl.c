@@ -1796,13 +1796,13 @@ long keyctl_watch_key(key_serial_t id, int watch_queue_fd, int watch_id)
 	if (watch_id >= 0) {
 		ret = -ENOMEM;
 		if (!key->watchers) {
-			wlist = kzalloc(sizeof(*wlist), GFP_KERNEL);
+			wlist = kzalloc_obj(*wlist);
 			if (!wlist)
 				goto err_wqueue;
 			init_watch_list(wlist, NULL);
 		}
 
-		watch = kzalloc(sizeof(*watch), GFP_KERNEL);
+		watch = kzalloc_obj(*watch);
 		if (!watch)
 			goto err_wlist;
 

@@ -81,7 +81,7 @@ static int optee_register_device(const uuid_t *device_uuid, u32 func)
 	struct tee_client_device *optee_device = NULL;
 	int rc;
 
-	optee_device = kzalloc(sizeof(*optee_device), GFP_KERNEL);
+	optee_device = kzalloc_obj(*optee_device);
 	if (!optee_device)
 		return -ENOMEM;
 

@@ -155,6 +155,7 @@ struct ta_ras_init_flags {
 	uint8_t channel_dis_num;
 	uint8_t nps_mode;
 	uint32_t active_umc_mask;
+	uint8_t vram_type;
 };
 
 struct ta_ras_mca_addr {

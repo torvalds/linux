@@ -100,6 +100,9 @@
 #define OMAP_UART_REV_52 0x0502
 #define OMAP_UART_REV_63 0x0603
 
+/* Resume register */
+#define UART_OMAP_RESUME		0x0B
+
 /* Interrupt Enable Register 2 */
 #define UART_OMAP_IER2			0x1B
 #define UART_OMAP_IER2_RHR_IT_DIS	BIT(2)
@@ -119,7 +122,6 @@
 /* Timeout low and High */
 #define UART_OMAP_TO_L                 0x26
 #define UART_OMAP_TO_H                 0x27
-
 struct omap8250_priv {
 	void __iomem *membase;
 	int line;
@@ -241,22 +243,6 @@ static void omap_8250_get_divisor(struct uart_port *port, unsigned int baud,
 	unsigned int div_13, div_16;
 	unsigned int abs_d13, abs_d16;
 
-	/*
-	 * Old custom speed handling.
-	 */
-	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST) {
-		priv->quot = port->custom_divisor & UART_DIV_MAX;
-		/*
-		 * I assume that nobody is using this. But hey, if somebody
-		 * would like to specify the divisor _and_ the mode then the
-		 * driver is ready and waiting for it.
-		 */
-		if (port->custom_divisor & (1 << 16))
-			priv->mdr1 = UART_OMAP_MDR1_13X_MODE;
-		else
-			priv->mdr1 = UART_OMAP_MDR1_16X_MODE;
-		return;
-	}
 	div_13 = DIV_ROUND_CLOSEST(uartclk, 13 * baud);
 	div_16 = DIV_ROUND_CLOSEST(uartclk, 16 * baud);
 
@@ -929,7 +915,6 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 		goto out;
 
 	cookie = dma->rx_cookie;
-	dma->rx_running = 0;
 
 	/* Re-enable RX FIFO interrupt now that transfer is complete */
 	if (priv->habit & UART_HAS_RHR_IT_DIS) {
@@ -963,6 +948,7 @@ static void __dma_rx_do_complete(struct uart_8250_port *p)
 		goto out;
 	ret = tty_insert_flip_string(tty_port, dma->rx_buf, count);
 
+	dma->rx_running = 0;
 	p->port.icount.rx += ret;
 	p->port.icount.buf_overrun += count - ret;
 out:
@@ -1256,6 +1242,20 @@ static u16 omap_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir, u16 status
 	return status;
 }
 
+static void am654_8250_handle_uart_errors(struct uart_8250_port *up, u8 iir, u16 status)
+{
+	if (status & UART_LSR_OE) {
+		serial8250_clear_and_reinit_fifos(up);
+		serial_in(up, UART_LSR);
+		serial_in(up, UART_OMAP_RESUME);
+	} else {
+		if (status & (UART_LSR_FE | UART_LSR_PE | UART_LSR_BI))
+			serial_in(up, UART_RX);
+		if (iir & UART_IIR_XOFF)
+			serial_in(up, UART_IIR);
+	}
+}
+
 static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 				     u16 status)
 {
@@ -1266,7 +1266,8 @@ static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 	 * Queue a new transfer if FIFO has data.
 	 */
 	if ((status & (UART_LSR_DR | UART_LSR_BI)) &&
-	    (up->ier & UART_IER_RDI)) {
+	    (up->ier & UART_IER_RDI) && !(status & UART_LSR_OE)) {
+		am654_8250_handle_uart_errors(up, iir, status);
 		omap_8250_rx_dma(up);
 		serial_out(up, UART_OMAP_EFR2, UART_OMAP_EFR2_TIMEOUT_BEHAVE);
 	} else if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
@@ -1282,6 +1283,8 @@ static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 		serial_out(up, UART_OMAP_EFR2, 0x0);
 		up->ier |= UART_IER_RLSI | UART_IER_RDI;
 		serial_out(up, UART_IER, up->ier);
+	} else {
+		am654_8250_handle_uart_errors(up, iir, status);
 	}
 }
 
@@ -1362,6 +1365,8 @@ static int omap8250_select_wakeup_pinctrl(struct device *dev,
 
 	if (!device_may_wakeup(dev))
 		return 0;
+
+	device_set_out_band_wakeup(dev);
 
 	return pinctrl_select_state(priv->pinctrl, priv->pinctrl_wakeup);
 }

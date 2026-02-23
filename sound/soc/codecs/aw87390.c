@@ -314,10 +314,57 @@ static int aw87390_drv_event(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
+static int aw87391_rgds_drv_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(component);
+	struct aw_device *aw_dev = aw87390->aw_pa;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		if (!IS_ERR(aw87390->vdd_reg)) {
+			if (regulator_enable(aw87390->vdd_reg))
+				dev_warn(aw_dev->dev, "Failed to enable vdd\n");
+	}
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_write(aw_dev->regmap, AW87391_SYSCTRL_REG,
+			     AW87391_REG_VER_SEL_LOW | AW87391_REG_EN_ADAP |
+			     AW87391_REG_EN_2X | AW87391_EN_SPK |
+			     AW87391_EN_PA | AW87391_REG_EN_CP |
+			     AW87391_EN_SW);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_write(aw_dev->regmap, AW87390_SYSCTRL_REG,
+			     AW87390_POWER_DOWN_VALUE);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (!IS_ERR(aw87390->vdd_reg)) {
+			if (regulator_disable(aw87390->vdd_reg))
+				dev_warn(aw_dev->dev, "Failed to disable vdd\n");
+	}
+		break;
+	default:
+		dev_err(aw_dev->dev, "%s: invalid event %d\n", __func__, event);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget aw87390_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("IN"),
 	SND_SOC_DAPM_PGA_E("SPK PA", SND_SOC_NOPM, 0, 0, NULL, 0, aw87390_drv_event,
 			       SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_OUTPUT("OUT"),
+};
+
+static const struct snd_soc_dapm_widget aw87391_rgds_dapm_widgets[] = {
+	SND_SOC_DAPM_INPUT("IN"),
+	SND_SOC_DAPM_PGA_E("SPK PA", SND_SOC_NOPM, 0, 0, NULL, 0, aw87391_rgds_drv_event,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+			   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
@@ -339,6 +386,80 @@ static int aw87390_codec_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+/*
+ * Firmware typically is used to load the sequence of init commands,
+ * however for the Anbernic RG-DS we don't have a firmware file just
+ * a list of registers and values. Most of these values are undocumented
+ * in the AW87391 datasheet.
+ */
+static void aw87391_rgds_codec_init(struct aw87390 *aw87390)
+{
+	struct aw_device *aw_dev = aw87390->aw_pa;
+
+	/* Undocumented command per datasheet. */
+	regmap_write(aw_dev->regmap, 0x64, 0x3a);
+
+	/* Bits 7:4 are undocumented but provided by manufacturer. */
+	regmap_write(aw_dev->regmap, AW87391_CP_REG,
+		     (5 << 4) | AW87391_REG_CP_OVP_8_50V);
+
+	regmap_write(aw_dev->regmap, AW87391_AGCPO_REG,
+		     AW87391_AK1_S_016 | AW87391_AGC2PO_MW(500));
+
+	regmap_write(aw_dev->regmap, AW87391_AGC2PA_REG,
+		     AW87391_RK_S_20_48 | AW87391_AK2_S_41 | AW87391_AK2F_S_41);
+
+	/* Undocumented commands per datasheet. */
+	regmap_write(aw_dev->regmap, 0x5d, 0x00);
+	regmap_write(aw_dev->regmap, 0x5e, 0xb4);
+	regmap_write(aw_dev->regmap, 0x5f, 0x30);
+	regmap_write(aw_dev->regmap, 0x60, 0x39);
+	regmap_write(aw_dev->regmap, 0x61, 0x10);
+	regmap_write(aw_dev->regmap, 0x62, 0x03);
+	regmap_write(aw_dev->regmap, 0x63, 0x7d);
+	regmap_write(aw_dev->regmap, 0x65, 0xa0);
+	regmap_write(aw_dev->regmap, 0x66, 0x21);
+	regmap_write(aw_dev->regmap, 0x67, 0x41);
+	regmap_write(aw_dev->regmap, 0x68, 0x3b);
+	regmap_write(aw_dev->regmap, 0x6e, 0x00);
+	regmap_write(aw_dev->regmap, 0x6f, 0x00);
+	regmap_write(aw_dev->regmap, 0x70, 0x00);
+	regmap_write(aw_dev->regmap, 0x71, 0x00);
+	regmap_write(aw_dev->regmap, 0x72, 0x34);
+	regmap_write(aw_dev->regmap, 0x73, 0x06);
+	regmap_write(aw_dev->regmap, 0x74, 0x10);
+	regmap_write(aw_dev->regmap, 0x75, 0x00);
+	regmap_write(aw_dev->regmap, 0x7a, 0x00);
+	regmap_write(aw_dev->regmap, 0x7b, 0x00);
+	regmap_write(aw_dev->regmap, 0x7c, 0x00);
+	regmap_write(aw_dev->regmap, 0x7d, 0x00);
+
+	regmap_write(aw_dev->regmap, AW87391_PAG_REG, AW87391_GAIN_12DB);
+	regmap_write(aw_dev->regmap, AW87391_SYSCTRL_REG,
+		     AW87391_EN_PA | AW87391_REG_EN_CP | AW87391_EN_SW);
+	regmap_write(aw_dev->regmap, AW87391_SYSCTRL_REG,
+		     AW87391_REG_VER_SEL_LOW | AW87391_REG_EN_ADAP |
+		     AW87391_REG_EN_2X | AW87391_EN_SPK | AW87391_EN_PA |
+		     AW87391_REG_EN_CP | AW87391_EN_SW);
+	regmap_write(aw_dev->regmap, AW87391_PAG_REG, AW87391_GAIN_15DB);
+}
+
+static int aw87391_rgds_codec_probe(struct snd_soc_component *component)
+{
+	struct aw87390 *aw87390 = snd_soc_component_get_drvdata(component);
+
+	aw87390->vdd_reg = devm_regulator_get_optional(aw87390->aw_pa->dev,
+						       "vdd");
+	if (IS_ERR(aw87390->vdd_reg) && PTR_ERR(aw87390->vdd_reg) != -ENODEV)
+		return dev_err_probe(aw87390->aw_pa->dev,
+				     PTR_ERR(aw87390->vdd_reg),
+				     "Could not get vdd regulator\n");
+
+	aw87391_rgds_codec_init(aw87390);
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_aw87390 = {
 	.probe = aw87390_codec_probe,
 	.dapm_widgets = aw87390_dapm_widgets,
@@ -347,6 +468,14 @@ static const struct snd_soc_component_driver soc_codec_dev_aw87390 = {
 	.num_dapm_routes = ARRAY_SIZE(aw87390_dapm_routes),
 	.controls = aw87390_controls,
 	.num_controls = ARRAY_SIZE(aw87390_controls),
+};
+
+static const struct snd_soc_component_driver soc_codec_dev_anbernic_rgds = {
+	.probe = aw87391_rgds_codec_probe,
+	.dapm_widgets = aw87391_rgds_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aw87391_rgds_dapm_widgets),
+	.dapm_routes = aw87390_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(aw87390_dapm_routes),
 };
 
 static void aw87390_parse_channel_dt(struct aw87390 *aw87390)
@@ -366,6 +495,10 @@ static int aw87390_init(struct aw87390 *aw87390, struct i2c_client *i2c, struct 
 	unsigned int chip_id;
 	int ret;
 
+	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
+	if (!aw_dev)
+		return -ENOMEM;
+
 	/* read chip id */
 	ret = regmap_read(regmap, AW87390_ID_REG, &chip_id);
 	if (ret) {
@@ -373,22 +506,24 @@ static int aw87390_init(struct aw87390 *aw87390, struct i2c_client *i2c, struct 
 		return ret;
 	}
 
-	if (chip_id != AW87390_CHIP_ID) {
+	switch (chip_id) {
+	case AW87390_CHIP_ID:
+		aw_dev->chip_id = AW87390_CHIP_ID;
+		break;
+	case AW87391_CHIP_ID:
+		aw_dev->chip_id = AW87391_CHIP_ID;
+		break;
+	default:
 		dev_err(&i2c->dev, "unsupported device\n");
 		return -ENXIO;
 	}
 
 	dev_dbg(&i2c->dev, "chip id = 0x%x\n", chip_id);
 
-	aw_dev = devm_kzalloc(&i2c->dev, sizeof(*aw_dev), GFP_KERNEL);
-	if (!aw_dev)
-		return -ENOMEM;
-
 	aw87390->aw_pa = aw_dev;
 	aw_dev->i2c = i2c;
 	aw_dev->regmap = regmap;
 	aw_dev->dev = &i2c->dev;
-	aw_dev->chip_id = AW87390_CHIP_ID;
 	aw_dev->acf = NULL;
 	aw_dev->prof_info.prof_desc = NULL;
 	aw_dev->prof_info.count = 0;
@@ -406,6 +541,7 @@ static int aw87390_init(struct aw87390 *aw87390, struct i2c_client *i2c, struct 
 static int aw87390_i2c_probe(struct i2c_client *i2c)
 {
 	struct aw87390 *aw87390;
+	const struct snd_soc_component_driver *priv;
 	int ret;
 
 	ret = i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C);
@@ -434,16 +570,38 @@ static int aw87390_i2c_probe(struct i2c_client *i2c)
 	if (ret)
 		return ret;
 
-	ret = devm_snd_soc_register_component(&i2c->dev,
-				&soc_codec_dev_aw87390, NULL, 0);
+	switch (aw87390->aw_pa->chip_id) {
+	case AW87390_CHIP_ID:
+		ret = devm_snd_soc_register_component(&i2c->dev,
+					&soc_codec_dev_aw87390, NULL, 0);
+		break;
+	case AW87391_CHIP_ID:
+		priv = of_device_get_match_data(&i2c->dev);
+		if (!priv)
+			return dev_err_probe(&i2c->dev, -EINVAL,
+					     "aw87391 not currently supported\n");
+		ret = devm_snd_soc_register_component(&i2c->dev, priv, NULL, 0);
+		break;
+	default:
+		return -ENXIO;
+	}
+
 	if (ret)
 		dev_err(&i2c->dev, "failed to register aw87390: %d\n", ret);
 
 	return ret;
 }
 
+static const struct of_device_id aw87390_of_match[] = {
+	{ .compatible = "awinic,aw87390" },
+	{ .compatible = "anbernic,rgds-amp", .data = &soc_codec_dev_anbernic_rgds },
+	{},
+};
+MODULE_DEVICE_TABLE(of, aw87390_of_match);
+
 static const struct i2c_device_id aw87390_i2c_id[] = {
 	{ AW87390_I2C_NAME },
+	{ AW87391_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, aw87390_i2c_id);
@@ -451,6 +609,7 @@ MODULE_DEVICE_TABLE(i2c, aw87390_i2c_id);
 static struct i2c_driver aw87390_i2c_driver = {
 	.driver = {
 		.name = AW87390_I2C_NAME,
+		.of_match_table = of_match_ptr(aw87390_of_match),
 	},
 	.probe = aw87390_i2c_probe,
 	.id_table = aw87390_i2c_id,

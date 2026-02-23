@@ -113,7 +113,7 @@ int __init geode_create_leds(const char *label, const struct geode_led *leds,
 		return -EINVAL;
 	}
 
-	swnodes = kcalloc(n_leds, sizeof(*swnodes), GFP_KERNEL);
+	swnodes = kzalloc_objs(*swnodes, n_leds);
 	if (!swnodes)
 		return -ENOMEM;
 
@@ -121,7 +121,7 @@ int __init geode_create_leds(const char *label, const struct geode_led *leds,
 	 * Each LED is represented by 3 properties: "gpios",
 	 * "linux,default-trigger", and am empty terminator.
 	 */
-	props = kcalloc(n_leds * 3, sizeof(*props), GFP_KERNEL);
+	props = kzalloc_objs(*props, n_leds * 3);
 	if (!props) {
 		err = -ENOMEM;
 		goto err_free_swnodes;

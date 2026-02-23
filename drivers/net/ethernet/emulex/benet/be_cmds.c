@@ -1941,7 +1941,7 @@ int be_cmd_modify_eqd(struct be_adapter *adapter, struct be_set_eqd *set_eqd,
 	return 0;
 }
 
-/* Uses sycnhronous mcc */
+/* Uses synchronous mcc */
 int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id, u16 *vtag_array,
 		       u32 num, u32 domain)
 {
@@ -2035,7 +2035,7 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 	return __be_cmd_rx_filter(adapter, flags, value);
 }
 
-/* Uses synchrounous mcc */
+/* Uses synchronous mcc */
 int be_cmd_set_flow_control(struct be_adapter *adapter, u32 tx_fc, u32 rx_fc)
 {
 	struct be_mcc_wrb *wrb;
@@ -2074,7 +2074,7 @@ err:
 	return status;
 }
 
-/* Uses sycn mcc */
+/* Uses sync mcc */
 int be_cmd_get_flow_control(struct be_adapter *adapter, u32 *tx_fc, u32 *rx_fc)
 {
 	struct be_mcc_wrb *wrb;
@@ -3801,6 +3801,7 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
 {
 	int status;
 	bool pmac_valid = false;
+	u32 pmac_id;
 
 	eth_zero_addr(mac);
 
@@ -3813,7 +3814,7 @@ int be_cmd_get_perm_mac(struct be_adapter *adapter, u8 *mac)
 						       adapter->if_handle, 0);
 	} else {
 		status = be_cmd_get_mac_from_list(adapter, mac, &pmac_valid,
-						  NULL, adapter->if_handle, 0);
+						  &pmac_id, adapter->if_handle, 0);
 	}
 
 	return status;

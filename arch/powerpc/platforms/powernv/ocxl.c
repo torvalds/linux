@@ -149,7 +149,7 @@ static struct npu_link *find_link(struct pci_dev *dev)
 	}
 
 	/* link doesn't exist yet. Allocate one */
-	link = kzalloc(sizeof(struct npu_link), GFP_KERNEL);
+	link = kzalloc_obj(struct npu_link);
 	if (!link)
 		return NULL;
 	link->domain = pci_domain_nr(dev->bus);
@@ -439,7 +439,7 @@ int pnv_ocxl_spa_setup(struct pci_dev *dev, void *spa_mem, int PE_mask,
 	u32 bdfn;
 	int rc;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

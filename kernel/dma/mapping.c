@@ -638,7 +638,7 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	/* let the implementation decide on the zone to allocate from: */
 	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
-	if (dma_alloc_direct(dev, ops)) {
+	if (dma_alloc_direct(dev, ops) || arch_dma_alloc_direct(dev)) {
 		cpu_addr = dma_direct_alloc(dev, size, dma_handle, flag, attrs);
 	} else if (use_dma_iommu(dev)) {
 		cpu_addr = iommu_dma_alloc(dev, size, dma_handle, flag, attrs);
@@ -679,7 +679,7 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		return;
 
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-	if (dma_alloc_direct(dev, ops))
+	if (dma_alloc_direct(dev, ops) || arch_dma_free_direct(dev, dma_handle))
 		dma_direct_free(dev, size, cpu_addr, dma_handle, attrs);
 	else if (use_dma_iommu(dev))
 		iommu_dma_free(dev, size, cpu_addr, dma_handle, attrs);
@@ -768,7 +768,7 @@ static struct sg_table *alloc_single_sgt(struct device *dev, size_t size,
 	struct sg_table *sgt;
 	struct page *page;
 
-	sgt = kmalloc(sizeof(*sgt), gfp);
+	sgt = kmalloc_obj(*sgt, gfp);
 	if (!sgt)
 		return NULL;
 	if (sg_alloc_table(sgt, 1, gfp))

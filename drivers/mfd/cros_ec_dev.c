@@ -188,7 +188,7 @@ static int ec_device_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
-	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
+	struct cros_ec_dev *ec = kzalloc_obj(*ec);
 	struct ec_response_pchg_count pchg_count;
 	int i;
 

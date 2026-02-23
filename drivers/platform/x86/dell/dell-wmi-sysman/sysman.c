@@ -460,7 +460,7 @@ static int init_bios_attributes(int attr_type, const char *guid)
 		}
 
 		/* build attribute */
-		attr_name_kobj = kzalloc(sizeof(*attr_name_kobj), GFP_KERNEL);
+		attr_name_kobj = kzalloc_obj(*attr_name_kobj);
 		if (!attr_name_kobj) {
 			retval = -ENOMEM;
 			goto err_attr_init;

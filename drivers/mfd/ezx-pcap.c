@@ -302,7 +302,7 @@ int pcap_adc_async(struct pcap_chip *pcap, u8 bank, u32 flags, u8 ch[],
 	unsigned long irq_flags;
 
 	/* This will be freed after we have a result */
-	req = kmalloc(sizeof(struct pcap_adc_request), GFP_KERNEL);
+	req = kmalloc_obj(struct pcap_adc_request);
 	if (!req)
 		return -ENOMEM;
 

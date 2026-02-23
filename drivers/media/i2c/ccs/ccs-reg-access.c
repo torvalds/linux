@@ -12,6 +12,7 @@
 #include <linux/unaligned.h>
 
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/i2c.h>
 
 #include "ccs.h"

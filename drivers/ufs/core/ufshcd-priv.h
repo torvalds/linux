@@ -348,9 +348,9 @@ static inline int ufshcd_rpm_resume(struct ufs_hba *hba)
 	return pm_runtime_resume(&hba->ufs_device_wlun->sdev_gendev);
 }
 
-static inline int ufshcd_rpm_put(struct ufs_hba *hba)
+static inline void ufshcd_rpm_put(struct ufs_hba *hba)
 {
-	return pm_runtime_put(&hba->ufs_device_wlun->sdev_gendev);
+	pm_runtime_put(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 /**
@@ -374,12 +374,7 @@ static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info, u8 
  */
 static inline struct scsi_cmnd *ufshcd_tag_to_cmd(struct ufs_hba *hba, u32 tag)
 {
-	/*
-	 * Host-wide tags are enabled in MCQ mode only. See also the
-	 * host->host_tagset assignment in ufs-mcq.c.
-	 */
-	struct blk_mq_tags *tags = hba->host->tag_set.shared_tags ?:
-					   hba->host->tag_set.tags[0];
+	struct blk_mq_tags *tags = hba->host->tag_set.shared_tags;
 	struct request *rq = blk_mq_tag_to_rq(tags, tag);
 
 	if (WARN_ON_ONCE(!rq))

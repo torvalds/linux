@@ -281,7 +281,7 @@ nosy_open(struct inode *inode, struct file *file)
 	if (lynx == NULL)
 		return -ENODEV;
 
-	client = kmalloc(sizeof *client, GFP_KERNEL);
+	client = kmalloc_obj(*client);
 	if (client == NULL)
 		goto fail;
 
@@ -545,7 +545,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	}
 	pci_set_master(dev);
 
-	lynx = kzalloc(sizeof *lynx, GFP_KERNEL);
+	lynx = kzalloc_obj(*lynx);
 	if (lynx == NULL) {
 		dev_err(&dev->dev, "Failed to allocate control structure\n");
 		ret = -ENOMEM;

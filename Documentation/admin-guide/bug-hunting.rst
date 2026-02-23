@@ -52,14 +52,14 @@ line is usually required to identify and handle the bug. Along this chapter,
 we'll refer to "Oops" for all kinds of stack traces that need to be analyzed.
 
 If the kernel is compiled with ``CONFIG_DEBUG_INFO``, you can enhance the
-quality of the stack trace by using file:`scripts/decode_stacktrace.sh`.
+quality of the stack trace by using ``scripts/decode_stacktrace.sh``.
 
 Modules linked in
 -----------------
 
 Modules that are tainted or are being loaded or unloaded are marked with
 "(...)", where the taint flags are described in
-file:`Documentation/admin-guide/tainted-kernels.rst`, "being loaded" is
+Documentation/admin-guide/tainted-kernels.rst, "being loaded" is
 annotated with "+", and "being unloaded" is annotated with "-".
 
 
@@ -235,7 +235,7 @@ Dave Miller)::
          mov        0x8(%ebp), %ebx         ! %ebx = skb->sk
          mov        0x13c(%ebx), %eax       ! %eax = inet_sk(sk)->opt
 
-file:`scripts/decodecode` can be used to automate most of this, depending
+``scripts/decodecode`` can be used to automate most of this, depending
 on what CPU architecture is being debugged.
 
 Reporting the bug

@@ -716,7 +716,7 @@ static void omap_crtc_reset(struct drm_crtc *crtc)
 
 	kfree(crtc->state);
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state)
 		__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
@@ -731,7 +731,7 @@ omap_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	current_state = to_omap_crtc_state(crtc->state);
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -793,7 +793,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	DBG("%s", channel_names[channel]);
 
-	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
+	omap_crtc = kzalloc_obj(*omap_crtc);
 	if (!omap_crtc)
 		return ERR_PTR(-ENOMEM);
 

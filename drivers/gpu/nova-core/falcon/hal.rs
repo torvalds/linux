@@ -13,6 +13,16 @@ use crate::{
 };
 
 mod ga102;
+mod tu102;
+
+/// Method used to load data into falcon memory. Some GPU architectures need
+/// PIO and others can use DMA.
+pub(crate) enum LoadMethod {
+    /// Programmed I/O
+    Pio,
+    /// Direct Memory Access
+    Dma,
+}
 
 /// Hardware Abstraction Layer for Falcon cores.
 ///
@@ -37,6 +47,19 @@ pub(crate) trait FalconHal<E: FalconEngine>: Send + Sync {
 
     /// Program the boot ROM registers prior to starting a secure firmware.
     fn program_brom(&self, falcon: &Falcon<E>, bar: &Bar0, params: &FalconBromParams) -> Result;
+
+    /// Check if the RISC-V core is active.
+    /// Returns `true` if the RISC-V core is active, `false` otherwise.
+    fn is_riscv_active(&self, bar: &Bar0) -> bool;
+
+    /// Wait for memory scrubbing to complete.
+    fn reset_wait_mem_scrubbing(&self, bar: &Bar0) -> Result;
+
+    /// Reset the falcon engine.
+    fn reset_eng(&self, bar: &Bar0) -> Result;
+
+    /// returns the method needed to load data into Falcon memory
+    fn load_method(&self) -> LoadMethod;
 }
 
 /// Returns a boxed falcon HAL adequate for `chipset`.
@@ -50,6 +73,9 @@ pub(super) fn falcon_hal<E: FalconEngine + 'static>(
     use Chipset::*;
 
     let hal = match chipset {
+        TU102 | TU104 | TU106 | TU116 | TU117 => {
+            KBox::new(tu102::Tu102::<E>::new(), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
+        }
         GA102 | GA103 | GA104 | GA106 | GA107 | AD102 | AD103 | AD104 | AD106 | AD107 => {
             KBox::new(ga102::Ga102::<E>::new(), GFP_KERNEL)? as KBox<dyn FalconHal<E>>
         }

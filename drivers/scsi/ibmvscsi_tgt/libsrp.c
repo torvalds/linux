@@ -27,10 +27,10 @@ static int srp_iu_pool_alloc(struct srp_queue *q, size_t max,
 	struct iu_entry *iue;
 	int i;
 
-	q->pool = kcalloc(max, sizeof(struct iu_entry *), GFP_KERNEL);
+	q->pool = kzalloc_objs(struct iu_entry *, max);
 	if (!q->pool)
 		return -ENOMEM;
-	q->items = kcalloc(max, sizeof(struct iu_entry), GFP_KERNEL);
+	q->items = kzalloc_objs(struct iu_entry, max);
 	if (!q->items)
 		goto free_pool;
 
@@ -61,12 +61,12 @@ static struct srp_buf **srp_ring_alloc(struct device *dev,
 	struct srp_buf **ring;
 	int i;
 
-	ring = kcalloc(max, sizeof(struct srp_buf *), GFP_KERNEL);
+	ring = kzalloc_objs(struct srp_buf *, max);
 	if (!ring)
 		return NULL;
 
 	for (i = 0; i < max; i++) {
-		ring[i] = kzalloc(sizeof(*ring[i]), GFP_KERNEL);
+		ring[i] = kzalloc_obj(*ring[i]);
 		if (!ring[i])
 			goto out;
 		ring[i]->buf = dma_alloc_coherent(dev, size, &ring[i]->dma,

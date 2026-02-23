@@ -451,7 +451,7 @@ void wl1251_tx_complete(struct wl1251 *wl)
 	if (unlikely(wl->state != WL1251_STATE_ON))
 		return;
 
-	result = kmalloc_array(FW_TX_CMPLT_BLOCK_SIZE, sizeof(*result), GFP_KERNEL);
+	result = kmalloc_objs(*result, FW_TX_CMPLT_BLOCK_SIZE);
 	if (!result) {
 		wl1251_error("can not allocate result buffer");
 		return;

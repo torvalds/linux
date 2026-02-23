@@ -446,25 +446,24 @@ static int amdgpu_pmu_alloc_pmu_attrs(
 				struct amdgpu_pmu_event_attribute **evt_attr,
 				struct amdgpu_pmu_config *config)
 {
-	*fmt_attr = kcalloc(config->num_formats, sizeof(**fmt_attr),
-								GFP_KERNEL);
+	*fmt_attr = kzalloc_objs(**fmt_attr, config->num_formats);
 
 	if (!(*fmt_attr))
 		return -ENOMEM;
 
-	fmt_attr_group->attrs = kcalloc(config->num_formats + 1,
-				sizeof(*fmt_attr_group->attrs), GFP_KERNEL);
+	fmt_attr_group->attrs = kzalloc_objs(*fmt_attr_group->attrs,
+					     config->num_formats + 1);
 
 	if (!fmt_attr_group->attrs)
 		goto err_fmt_attr_grp;
 
-	*evt_attr = kcalloc(config->num_events, sizeof(**evt_attr), GFP_KERNEL);
+	*evt_attr = kzalloc_objs(**evt_attr, config->num_events);
 
 	if (!(*evt_attr))
 		goto err_evt_attr;
 
-	evt_attr_group->attrs = kcalloc(config->num_events + 1,
-				sizeof(*evt_attr_group->attrs), GFP_KERNEL);
+	evt_attr_group->attrs = kzalloc_objs(*evt_attr_group->attrs,
+					     config->num_events + 1);
 
 	if (!evt_attr_group->attrs)
 		goto err_evt_attr_grp;
@@ -599,7 +598,7 @@ static struct amdgpu_pmu_entry *create_pmu_entry(struct amdgpu_device *adev,
 {
 	struct amdgpu_pmu_entry *pmu_entry;
 
-	pmu_entry = kzalloc(sizeof(struct amdgpu_pmu_entry), GFP_KERNEL);
+	pmu_entry = kzalloc_obj(struct amdgpu_pmu_entry);
 
 	if (!pmu_entry)
 		return pmu_entry;

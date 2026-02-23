@@ -32,7 +32,7 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 {
 	struct slot *slot;
 
-	slot = kzalloc(sizeof(struct slot), GFP_KERNEL);
+	slot = kzalloc_obj(struct slot);
 	if (!slot)
 		goto error_nomem;
 	slot->name = kstrdup(drc_name, GFP_KERNEL);

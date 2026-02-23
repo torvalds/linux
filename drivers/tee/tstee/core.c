@@ -59,7 +59,7 @@ static int tstee_open(struct tee_context *ctx)
 {
 	struct ts_context_data *ctxdata;
 
-	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
+	ctxdata = kzalloc_obj(*ctxdata);
 	if (!ctxdata)
 		return -ENOMEM;
 
@@ -122,7 +122,7 @@ static int tstee_open_session(struct tee_context *ctx,
 	if (ffa_args[TS_RPC_SERVICE_INFO_IFACE] > U8_MAX)
 		return -EINVAL;
 
-	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	sess = kzalloc_obj(*sess);
 	if (!sess)
 		return -ENOMEM;
 
@@ -376,7 +376,7 @@ static const struct tee_shm_pool_ops pool_ops = {
 
 static struct tee_shm_pool *tstee_create_shm_pool(void)
 {
-	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc_obj(*pool);
 
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
@@ -414,7 +414,7 @@ static int tstee_probe(struct ffa_device *ffa_dev)
 	if (!tstee_check_rpc_compatible(ffa_dev))
 		return -EINVAL;
 
-	tstee = kzalloc(sizeof(*tstee), GFP_KERNEL);
+	tstee = kzalloc_obj(*tstee);
 	if (!tstee)
 		return -ENOMEM;
 

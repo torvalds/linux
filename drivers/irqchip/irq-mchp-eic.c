@@ -209,7 +209,7 @@ static int mchp_eic_probe(struct platform_device *pdev, struct device_node *pare
 	struct irq_domain *parent_domain = NULL;
 	int ret, i;
 
-	eic = kzalloc(sizeof(*eic), GFP_KERNEL);
+	eic = kzalloc_obj(*eic);
 	if (!eic)
 		return -ENOMEM;
 

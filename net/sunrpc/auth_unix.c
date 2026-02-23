@@ -45,7 +45,7 @@ static struct rpc_cred *unx_lookup_cred(struct rpc_auth *auth,
 {
 	struct rpc_cred *ret;
 
-	ret = kmalloc(sizeof(*ret), rpc_task_gfp_mask());
+	ret = kmalloc_obj(*ret, rpc_task_gfp_mask());
 	if (!ret) {
 		if (!(flags & RPCAUTH_LOOKUP_ASYNC))
 			return ERR_PTR(-ENOMEM);

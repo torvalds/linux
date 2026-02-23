@@ -37,9 +37,9 @@
 #define  EXTIOI_ENABLE_INT_ENCODE      BIT(2)
 #define  EXTIOI_ENABLE_CPU_ENCODE      BIT(3)
 
-#define VEC_REG_COUNT		4
-#define VEC_COUNT_PER_REG	64
-#define VEC_COUNT		(VEC_REG_COUNT * VEC_COUNT_PER_REG)
+#define VEC_COUNT		256
+#define VEC_COUNT_PER_REG	BITS_PER_LONG
+#define VEC_REG_COUNT		(VEC_COUNT / BITS_PER_LONG)
 #define VEC_REG_IDX(irq_id)	((irq_id) / VEC_COUNT_PER_REG)
 #define VEC_REG_BIT(irq_id)     ((irq_id) % VEC_COUNT_PER_REG)
 #define EIOINTC_ALL_ENABLE	0xffffffff
@@ -85,11 +85,13 @@ static struct eiointc_priv *eiointc_priv[MAX_IO_PICS];
 
 static void eiointc_enable(void)
 {
+#ifdef CONFIG_MACH_LOONGSON64
 	uint64_t misc;
 
 	misc = iocsr_read64(LOONGARCH_IOCSR_MISC_FUNC);
 	misc |= IOCSR_MISC_FUNC_EXT_IOI_EN;
 	iocsr_write64(misc, LOONGARCH_IOCSR_MISC_FUNC);
+#endif
 }
 
 static int cpu_to_eio_node(int cpu)
@@ -281,12 +283,34 @@ static int eiointc_router_init(unsigned int cpu)
 	return 0;
 }
 
+#if VEC_COUNT_PER_REG == 32
+static inline unsigned long read_isr(int i)
+{
+	return iocsr_read32(EIOINTC_REG_ISR + (i << 2));
+}
+
+static inline void write_isr(int i, unsigned long val)
+{
+	iocsr_write32(val, EIOINTC_REG_ISR + (i << 2));
+}
+#else
+static inline unsigned long read_isr(int i)
+{
+	return iocsr_read64(EIOINTC_REG_ISR + (i << 3));
+}
+
+static inline void write_isr(int i, unsigned long val)
+{
+	iocsr_write64(val, EIOINTC_REG_ISR + (i << 3));
+}
+#endif
+
 static void eiointc_irq_dispatch(struct irq_desc *desc)
 {
 	struct eiointc_ip_route *info = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned long pending;
 	bool handled = false;
-	u64 pending;
 	int i;
 
 	chained_irq_enter(chip, desc);
@@ -299,14 +323,14 @@ static void eiointc_irq_dispatch(struct irq_desc *desc)
 	 * read ISR for these 64 interrupt vectors rather than all vectors
 	 */
 	for (i = info->start; i < info->end; i++) {
-		pending = iocsr_read64(EIOINTC_REG_ISR + (i << 3));
+		pending = read_isr(i);
 
 		/* Skip handling if pending bitmap is zero */
 		if (!pending)
 			continue;
 
 		/* Clear the IRQs */
-		iocsr_write64(pending, EIOINTC_REG_ISR + (i << 3));
+		write_isr(i, pending);
 		while (pending) {
 			int bit = __ffs(pending);
 			int irq = bit + VEC_COUNT_PER_REG * i;
@@ -560,7 +584,7 @@ int __init eiointc_acpi_init(struct irq_domain *parent,
 	struct eiointc_priv *priv;
 	int node;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -609,7 +633,7 @@ static int __init eiointc_of_init(struct device_node *of_node,
 	struct irq_data *irq_data;
 	int parent_irq, ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

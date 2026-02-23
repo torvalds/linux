@@ -338,13 +338,10 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 
 	/*  Read Tx Power Limit File */
 	PHY_InitTxPowerLimit(Adapter);
-	if (
-		Adapter->registrypriv.RegEnableTxPowerLimit == 1 ||
-		(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
-	) {
-		ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv,
-					   CONFIG_RF_TXPWR_LMT, 0);
-	}
+	if (Adapter->registrypriv.reg_enable_tx_power_limit == 1 ||
+	    (Adapter->registrypriv.reg_enable_tx_power_limit == 2 &&
+	   pHalData->EEPROMRegulatory == 1))
+		ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, 0);
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
@@ -353,20 +350,18 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 
 	/*  If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	PHY_InitTxPowerByRate(Adapter);
-	if (
-		Adapter->registrypriv.RegEnableTxPowerByRate == 1 ||
-		(Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2)
-	) {
-		ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv,
-					   CONFIG_BB_PHY_REG_PG);
+
+	if (Adapter->registrypriv.reg_enable_tx_power_by_rate == 1 ||
+	    (Adapter->registrypriv.reg_enable_tx_power_by_rate == 2 &&
+	   pHalData->EEPROMRegulatory != 2)) {
+		ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG);
 
 		if (pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE)
 			PHY_TxPowerByRateConfiguration(Adapter);
 
-		if (
-			Adapter->registrypriv.RegEnableTxPowerLimit == 1 ||
-			(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
-		)
+		if (Adapter->registrypriv.reg_enable_tx_power_limit == 1 ||
+		    (Adapter->registrypriv.reg_enable_tx_power_limit == 2 &&
+		   pHalData->EEPROMRegulatory == 1))
 			PHY_ConvertTxPowerLimitToPowerIndex(Adapter);
 	}
 
@@ -541,7 +536,7 @@ u8 PHY_GetTxPowerIndex(
 
 	limit = phy_get_tx_pwr_lmt(
 		padapter,
-		padapter->registrypriv.RegPwrTblSel,
+		padapter->registrypriv.reg_pwr_tbl_sel,
 		pHalData->CurrentChannelBW,
 		RFPath,
 		Rate,

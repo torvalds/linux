@@ -112,7 +112,7 @@ static int rsi_hci_attach(void *priv, struct rsi_proto_ops *ops)
 	struct hci_dev *hdev;
 	int err = 0;
 
-	h_adapter = kzalloc(sizeof(*h_adapter), GFP_KERNEL);
+	h_adapter = kzalloc_obj(*h_adapter);
 	if (!h_adapter)
 		return -ENOMEM;
 

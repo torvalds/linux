@@ -236,7 +236,6 @@ struct prueth_emac {
 	/* Mutex to serialize access to firmware command interface */
 	struct mutex cmd_lock;
 	struct work_struct rx_mode_work;
-	struct workqueue_struct	*cmd_wq;
 
 	struct pruss_mem_region dram;
 

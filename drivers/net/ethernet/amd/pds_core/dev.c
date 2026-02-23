@@ -359,7 +359,7 @@ int pdsc_dev_init(struct pdsc *pdsc)
 	nintrs = min_t(unsigned int, num_online_cpus(), nintrs);
 
 	/* Get intr_info struct array for tracking */
-	pdsc->intr_info = kcalloc(nintrs, sizeof(*pdsc->intr_info), GFP_KERNEL);
+	pdsc->intr_info = kzalloc_objs(*pdsc->intr_info, nintrs);
 	if (!pdsc->intr_info)
 		return -ENOMEM;
 

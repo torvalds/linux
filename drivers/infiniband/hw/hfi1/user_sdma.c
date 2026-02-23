@@ -120,7 +120,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 
 	dd = uctxt->dd;
 
-	pq = kzalloc(sizeof(*pq), GFP_KERNEL);
+	pq = kzalloc_obj(*pq);
 	if (!pq)
 		return -ENOMEM;
 	pq->dd = dd;
@@ -135,9 +135,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 		    activate_packet_queue, NULL, NULL);
 	pq->reqidx = 0;
 
-	pq->reqs = kcalloc(hfi1_sdma_comp_ring_size,
-			   sizeof(*pq->reqs),
-			   GFP_KERNEL);
+	pq->reqs = kzalloc_objs(*pq->reqs, hfi1_sdma_comp_ring_size);
 	if (!pq->reqs)
 		goto pq_reqs_nomem;
 
@@ -158,7 +156,7 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 		goto pq_txreq_nomem;
 	}
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	cq = kzalloc_obj(*cq);
 	if (!cq)
 		goto cq_nomem;
 

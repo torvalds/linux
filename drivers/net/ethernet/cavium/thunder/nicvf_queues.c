@@ -289,8 +289,7 @@ static int  nicvf_init_rbdr(struct nicvf *nic, struct rbdr *rbdr,
 		rbdr->is_xdp = true;
 	}
 	rbdr->pgcnt = roundup_pow_of_two(rbdr->pgcnt);
-	rbdr->pgcache = kcalloc(rbdr->pgcnt, sizeof(*rbdr->pgcache),
-				GFP_KERNEL);
+	rbdr->pgcache = kzalloc_objs(*rbdr->pgcache, rbdr->pgcnt);
 	if (!rbdr->pgcache)
 		return -ENOMEM;
 	rbdr->pgidx = 0;

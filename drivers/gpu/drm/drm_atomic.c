@@ -132,16 +132,15 @@ drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 	 */
 	state->allow_modeset = true;
 
-	state->crtcs = kcalloc(dev->mode_config.num_crtc,
-			       sizeof(*state->crtcs), GFP_KERNEL);
+	state->crtcs = kzalloc_objs(*state->crtcs, dev->mode_config.num_crtc);
 	if (!state->crtcs)
 		goto fail;
-	state->planes = kcalloc(dev->mode_config.num_total_plane,
-				sizeof(*state->planes), GFP_KERNEL);
+	state->planes = kzalloc_objs(*state->planes,
+				     dev->mode_config.num_total_plane);
 	if (!state->planes)
 		goto fail;
-	state->colorops = kcalloc(dev->mode_config.num_colorop,
-				  sizeof(*state->colorops), GFP_KERNEL);
+	state->colorops = kzalloc_objs(*state->colorops,
+				       dev->mode_config.num_colorop);
 	if (!state->colorops)
 		goto fail;
 
@@ -176,7 +175,7 @@ drm_atomic_state_alloc(struct drm_device *dev)
 	if (!config->funcs->atomic_state_alloc) {
 		struct drm_atomic_state *state;
 
-		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		state = kzalloc_obj(*state);
 		if (!state)
 			return NULL;
 		if (drm_atomic_state_init(dev, state) < 0) {
@@ -641,6 +640,38 @@ drm_atomic_get_colorop_state(struct drm_atomic_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_get_colorop_state);
 
+/**
+ * drm_atomic_get_old_colorop_state - get colorop state, if it exists
+ * @state: global atomic state object
+ * @colorop: colorop to grab
+ *
+ * This function returns the old colorop state for the given colorop, or
+ * NULL if the colorop is not part of the global atomic state.
+ */
+struct drm_colorop_state *
+drm_atomic_get_old_colorop_state(struct drm_atomic_state *state,
+				 struct drm_colorop *colorop)
+{
+	return state->colorops[drm_colorop_index(colorop)].old_state;
+}
+EXPORT_SYMBOL(drm_atomic_get_old_colorop_state);
+
+/**
+ * drm_atomic_get_new_colorop_state - get colorop state, if it exists
+ * @state: global atomic state object
+ * @colorop: colorop to grab
+ *
+ * This function returns the new colorop state for the given colorop, or
+ * NULL if the colorop is not part of the global atomic state.
+ */
+struct drm_colorop_state *
+drm_atomic_get_new_colorop_state(struct drm_atomic_state *state,
+				 struct drm_colorop *colorop)
+{
+	return state->colorops[drm_colorop_index(colorop)].new_state;
+}
+EXPORT_SYMBOL(drm_atomic_get_new_colorop_state);
+
 static bool
 plane_switching_crtc(const struct drm_plane_state *old_plane_state,
 		     const struct drm_plane_state *new_plane_state)
@@ -906,6 +937,7 @@ drm_atomic_private_obj_init(struct drm_device *dev,
 
 	drm_modeset_lock_init(&obj->lock);
 
+	obj->dev = dev;
 	obj->state = state;
 	obj->funcs = funcs;
 	list_add_tail(&obj->head, &dev->mode_config.privobj_list);

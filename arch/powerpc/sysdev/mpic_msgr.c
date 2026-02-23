@@ -188,8 +188,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 		dev_info(&dev->dev, "Found %d message registers\n",
 				mpic_msgr_count);
 
-		mpic_msgrs = kcalloc(mpic_msgr_count, sizeof(*mpic_msgrs),
-							 GFP_KERNEL);
+		mpic_msgrs = kzalloc_objs(*mpic_msgrs, mpic_msgr_count);
 		if (!mpic_msgrs) {
 			dev_err(&dev->dev,
 				"No memory for message register blocks\n");
@@ -227,7 +226,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 		struct mpic_msgr *msgr;
 		unsigned int reg_number;
 
-		msgr = kzalloc(sizeof(struct mpic_msgr), GFP_KERNEL);
+		msgr = kzalloc_obj(struct mpic_msgr);
 		if (!msgr) {
 			dev_err(&dev->dev, "No memory for message register\n");
 			return -ENOMEM;

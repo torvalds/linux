@@ -37,6 +37,11 @@ static bool userspace_control;
  */
 static bool has_manual_suspend;
 
+/*
+ * Lightbar version
+ */
+static int lb_version;
+
 static ssize_t interval_msec_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -93,11 +98,8 @@ out:
 
 static struct cros_ec_command *alloc_lightbar_cmd_msg(struct cros_ec_dev *ec)
 {
+	int len = max(ec->ec_dev->max_response, ec->ec_dev->max_request);
 	struct cros_ec_command *msg;
-	int len;
-
-	len = max(sizeof(struct ec_params_lightbar),
-		  sizeof(struct ec_response_lightbar));
 
 	msg = kmalloc(sizeof(*msg) + len, GFP_KERNEL);
 	if (!msg)
@@ -105,6 +107,11 @@ static struct cros_ec_command *alloc_lightbar_cmd_msg(struct cros_ec_dev *ec)
 
 	msg->version = 0;
 	msg->command = EC_CMD_LIGHTBAR_CMD + ec->cmd_offset;
+	/*
+	 * Default sizes for regular commands.
+	 * Can be set smaller to optimize transfer,
+	 * larger when sending large light sequences.
+	 */
 	msg->outsize = sizeof(struct ec_params_lightbar);
 	msg->insize = sizeof(struct ec_response_lightbar);
 
@@ -126,7 +133,7 @@ static int get_lightbar_version(struct cros_ec_dev *ec,
 	param = (struct ec_params_lightbar *)msg->data;
 	param->cmd = LIGHTBAR_CMD_VERSION;
 	msg->outsize = sizeof(param->cmd);
-	msg->result = sizeof(resp->version);
+	msg->insize = sizeof(resp->version);
 	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 	if (ret < 0 && ret != -EINVAL) {
 		ret = 0;
@@ -178,6 +185,47 @@ static ssize_t version_show(struct device *dev,
 		return -EIO;
 
 	return sysfs_emit(buf, "%d %d\n", version, flags);
+}
+
+static ssize_t num_segments_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ec_params_lightbar *param;
+	struct ec_response_lightbar *resp;
+	struct cros_ec_command *msg;
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	uint32_t num = 0;
+	int ret;
+
+	ret = lb_throttle();
+	if (ret)
+		return ret;
+
+	msg = alloc_lightbar_cmd_msg(ec);
+	if (!msg)
+		return -ENOMEM;
+
+	param = (struct ec_params_lightbar *)msg->data;
+	param->cmd = LIGHTBAR_CMD_GET_PARAMS_V3;
+	msg->outsize = sizeof(param->cmd);
+	msg->insize = sizeof(resp->get_params_v3);
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret < 0 && ret != -EINVAL)
+		goto exit;
+
+	if (msg->result == EC_RES_SUCCESS) {
+		resp = (struct ec_response_lightbar *)msg->data;
+		num = resp->get_params_v3.reported_led_num;
+	}
+
+	/*
+	 * Anything else (ie, EC_RES_INVALID_COMMAND) - no direct control over
+	 * LEDs, return that no leds are supported.
+	 */
+	ret = sysfs_emit(buf, "%u\n", num);
+exit:
+	kfree(msg);
+	return ret;
 }
 
 static ssize_t brightness_store(struct device *dev,
@@ -430,10 +478,11 @@ exit:
 static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	int extra_bytes, max_size, ret;
+	size_t extra_bytes, max_size;
 	struct ec_params_lightbar *param;
 	struct cros_ec_command *msg;
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	int ret;
 
 	/*
 	 * We might need to reject the program for size reasons. The EC
@@ -441,14 +490,22 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 	 * and send a program that is too big for the protocol. In order
 	 * to ensure the latter, we also need to ensure we have extra bytes
 	 * to represent the rest of the packet.
+	 * With V3, larger program can be sent, limited only by the EC.
+	 * Only the protocol limit the payload size.
 	 */
-	extra_bytes = sizeof(*param) - sizeof(param->set_program.data);
-	max_size = min(EC_LB_PROG_LEN, ec->ec_dev->max_request - extra_bytes);
-	if (count > max_size) {
-		dev_err(dev, "Program is %u bytes, too long to send (max: %u)",
-			(unsigned int)count, max_size);
+	if (lb_version < 3) {
+		extra_bytes = sizeof(*param) - sizeof(param->set_program.data);
+		max_size = min(EC_LB_PROG_LEN, ec->ec_dev->max_request - extra_bytes);
+		if (count > max_size) {
+			dev_err(dev, "Program is %zu bytes, too long to send (max: %zu)",
+				count, max_size);
 
-		return -EINVAL;
+			return -EINVAL;
+		}
+	} else {
+		extra_bytes = offsetof(typeof(*param), set_program_ex) +
+			sizeof(param->set_program_ex);
+		max_size = ec->ec_dev->max_request - extra_bytes;
 	}
 
 	msg = alloc_lightbar_cmd_msg(ec);
@@ -458,26 +515,44 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 	ret = lb_throttle();
 	if (ret)
 		goto exit;
-
-	dev_info(dev, "Copying %zu byte program to EC", count);
-
 	param = (struct ec_params_lightbar *)msg->data;
-	param->cmd = LIGHTBAR_CMD_SET_PROGRAM;
 
-	param->set_program.size = count;
-	memcpy(param->set_program.data, buf, count);
+	if (lb_version < 3) {
+		dev_info(dev, "Copying %zu byte program to EC", count);
 
-	/*
-	 * We need to set the message size manually or else it will use
-	 * EC_LB_PROG_LEN. This might be too long, and the program
-	 * is unlikely to use all of the space.
-	 */
-	msg->outsize = count + extra_bytes;
+		param->cmd = LIGHTBAR_CMD_SET_PROGRAM;
 
-	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
-	if (ret < 0)
-		goto exit;
+		param->set_program.size = count;
+		memcpy(param->set_program.data, buf, count);
 
+		/*
+		 * We need to set the message size manually or else it will use
+		 * EC_LB_PROG_LEN. This might be too long, and the program
+		 * is unlikely to use all of the space.
+		 */
+		msg->outsize = count + extra_bytes;
+
+		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+		if (ret < 0)
+			goto exit;
+	} else {
+		size_t offset = 0;
+		size_t payload = 0;
+
+		param->cmd = LIGHTBAR_CMD_SET_PROGRAM_EX;
+		while (offset < count) {
+			payload = min(max_size, count - offset);
+			param->set_program_ex.offset = offset;
+			param->set_program_ex.size = payload;
+			memcpy(param->set_program_ex.data, &buf[offset], payload);
+			msg->outsize = payload + extra_bytes;
+
+			ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+			if (ret < 0)
+				goto exit;
+			offset += payload;
+		}
+	}
 	ret = count;
 exit:
 	kfree(msg);
@@ -512,6 +587,7 @@ static ssize_t userspace_control_store(struct device *dev,
 /* Module initialization */
 
 static DEVICE_ATTR_RW(interval_msec);
+static DEVICE_ATTR_RO(num_segments);
 static DEVICE_ATTR_RO(version);
 static DEVICE_ATTR_WO(brightness);
 static DEVICE_ATTR_WO(led_rgb);
@@ -521,6 +597,7 @@ static DEVICE_ATTR_RW(userspace_control);
 
 static struct attribute *__lb_cmds_attrs[] = {
 	&dev_attr_interval_msec.attr,
+	&dev_attr_num_segments.attr,
 	&dev_attr_version.attr,
 	&dev_attr_brightness.attr,
 	&dev_attr_led_rgb.attr,
@@ -553,7 +630,7 @@ static int cros_ec_lightbar_probe(struct platform_device *pd)
 	 * Ask then for the lightbar version, if it's 0 then the 'cros_ec'
 	 * doesn't have a lightbar.
 	 */
-	if (!get_lightbar_version(ec_dev, NULL, NULL))
+	if (!get_lightbar_version(ec_dev, &lb_version, NULL))
 		return -ENODEV;
 
 	/* Take control of the lightbar from the EC. */

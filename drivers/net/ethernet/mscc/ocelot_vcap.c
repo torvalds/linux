@@ -910,7 +910,7 @@ int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			return 0;
 		}
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 

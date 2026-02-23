@@ -871,8 +871,7 @@ int mlxsw_hwmon_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, NULL,
 			       &num_of_slots);
 
-	mlxsw_hwmon = kzalloc(struct_size(mlxsw_hwmon, line_cards,
-					  num_of_slots + 1), GFP_KERNEL);
+	mlxsw_hwmon = kzalloc_flex(*mlxsw_hwmon, line_cards, num_of_slots + 1);
 	if (!mlxsw_hwmon)
 		return -ENOMEM;
 

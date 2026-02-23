@@ -123,7 +123,7 @@ enum adin1110_chips_id {
 
 struct adin1110_cfg {
 	enum adin1110_chips_id	id;
-	char			name[MDIO_NAME_SIZE];
+	const char		*name;
 	u32			phy_ids[PHY_MAX_ADDR];
 	u32			ports_nr;
 	u32			phy_id_val;
@@ -1089,6 +1089,9 @@ static int adin1110_check_spi(struct adin1110_priv *priv)
 
 	reset_gpio = devm_gpiod_get_optional(&priv->spidev->dev, "reset",
 					     GPIOD_OUT_LOW);
+	if (IS_ERR(reset_gpio))
+		return dev_err_probe(&priv->spidev->dev, PTR_ERR(reset_gpio),
+				     "failed to get reset gpio\n");
 	if (reset_gpio) {
 		/* MISO pin is used for internal configuration, can't have
 		 * anyone else disturbing the SDO line.
@@ -1489,7 +1492,7 @@ static int adin1110_switchdev_event(struct notifier_block *unused,
 	if (!adin1110_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (WARN_ON(!switchdev_work))
 		return NOTIFY_BAD;
 

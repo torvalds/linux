@@ -51,6 +51,9 @@ class KernRe:
         """
         return self.regex.pattern
 
+    def __repr__(self):
+        return f're.compile("{self.regex.pattern}")'
+
     def __add__(self, other):
         """
         Allows adding two regular expressions into one.
@@ -61,7 +64,7 @@ class KernRe:
 
     def match(self, string):
         """
-        Handles a re.match storing its results
+        Handles a re.match storing its results.
         """
 
         self.last_match = self.regex.match(string)
@@ -69,7 +72,7 @@ class KernRe:
 
     def search(self, string):
         """
-        Handles a re.search storing its results
+        Handles a re.search storing its results.
         """
 
         self.last_match = self.regex.search(string)
@@ -77,28 +80,28 @@ class KernRe:
 
     def findall(self, string):
         """
-        Alias to re.findall
+        Alias to re.findall.
         """
 
         return self.regex.findall(string)
 
     def split(self, string):
         """
-        Alias to re.split
+        Alias to re.split.
         """
 
         return self.regex.split(string)
 
     def sub(self, sub, string, count=0):
         """
-        Alias to re.sub
+        Alias to re.sub.
         """
 
         return self.regex.sub(sub, string, count=count)
 
     def group(self, num):
         """
-        Returns the group results of the last match
+        Returns the group results of the last match.
         """
 
         return self.last_match.group(num)
@@ -110,7 +113,7 @@ class NestedMatch:
     even harder on Python with its normal re module, as there are several
     advanced regular expressions that are missing.
 
-    This is the case of this pattern:
+    This is the case of this pattern::
 
             '\\bSTRUCT_GROUP(\\(((?:(?>[^)(]+)|(?1))*)\\))[^;]*;'
 
@@ -121,6 +124,7 @@ class NestedMatch:
     replace nested expressions.
 
     The original approach was suggested by:
+
         https://stackoverflow.com/questions/5454322/python-how-to-match-nested-parentheses-with-regex
 
     Although I re-implemented it to make it more generic and match 3 types
@@ -224,14 +228,18 @@ class NestedMatch:
             yield line[t[0]:t[2]]
 
     def sub(self, regex, sub, line, count=0):
-        """
+        r"""
         This is similar to re.sub:
 
         It matches a regex that it is followed by a delimiter,
         replacing occurrences only if all delimiters are paired.
 
-        if r'\1' is used, it works just like re: it places there the
-        matched paired data with the delimiter stripped.
+        if the sub argument contains::
+
+            r'\1'
+
+        it will work just like re: it places there the matched paired data
+        with the delimiter stripped.
 
         If count is different than zero, it will replace at most count
         items.

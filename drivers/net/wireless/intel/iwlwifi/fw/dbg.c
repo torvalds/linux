@@ -595,7 +595,7 @@ static struct scatterlist *alloc_sgtable(ssize_t size)
 			nents -= n_fill;
 		}
 
-		new = kcalloc(n_alloc, sizeof(*new), GFP_KERNEL);
+		new = kzalloc_objs(*new, n_alloc);
 		if (!new) {
 			if (result)
 				_devcd_free_sgtable(result);
@@ -2958,8 +2958,7 @@ int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_dump_desc *iwl_dump_error_desc;
 		int ret;
 
-		iwl_dump_error_desc =
-			kmalloc(sizeof(*iwl_dump_error_desc), GFP_KERNEL);
+		iwl_dump_error_desc = kmalloc_obj(*iwl_dump_error_desc);
 
 		if (!iwl_dump_error_desc)
 			return -ENOMEM;
@@ -3011,7 +3010,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 		delay = le32_to_cpu(trigger->stop_delay) * USEC_PER_MSEC;
 	}
 
-	desc = kzalloc(struct_size(desc, trig_desc.data, len), GFP_ATOMIC);
+	desc = kzalloc_flex(*desc, trig_desc.data, len, GFP_ATOMIC);
 	if (!desc)
 		return -ENOMEM;
 

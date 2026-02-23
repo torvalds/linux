@@ -223,7 +223,7 @@ devcgroup_css_alloc(struct cgroup_subsys_state *parent_css)
 {
 	struct dev_cgroup *dev_cgroup;
 
-	dev_cgroup = kzalloc(sizeof(*dev_cgroup), GFP_KERNEL);
+	dev_cgroup = kzalloc_obj(*dev_cgroup);
 	if (!dev_cgroup)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);

@@ -5,13 +5,10 @@
 
 #include <drm/drm_managed.h>
 
-#include "abi/guc_actions_abi.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_force_wake.h"
-#include "xe_gt.h"
-#include "xe_gt_printk.h"
 #include "xe_gt_stats.h"
-#include "xe_guc.h"
+#include "xe_gt_types.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_tlb_inval.h"
 #include "xe_mmio.h"
@@ -94,7 +91,7 @@ static void xe_tlb_inval_fence_timeout(struct work_struct *work)
 		xe_tlb_inval_fence_signal(fence);
 	}
 	if (!list_empty(&tlb_inval->pending_fences))
-		queue_delayed_work(system_wq, &tlb_inval->fence_tdr,
+		queue_delayed_work(tlb_inval->timeout_wq, &tlb_inval->fence_tdr,
 				   timeout_delay);
 	spin_unlock_irq(&tlb_inval->pending_lock);
 }
@@ -115,7 +112,7 @@ static void tlb_inval_fini(struct drm_device *drm, void *arg)
 }
 
 /**
- * xe_gt_tlb_inval_init - Initialize TLB invalidation state
+ * xe_gt_tlb_inval_init_early() - Initialize TLB invalidation state
  * @gt: GT structure
  *
  * Initialize TLB invalidation state, purely software initialization, should
@@ -145,6 +142,10 @@ int xe_gt_tlb_inval_init_early(struct xe_gt *gt)
 							 WQ_MEM_RECLAIM);
 	if (IS_ERR(tlb_inval->job_wq))
 		return PTR_ERR(tlb_inval->job_wq);
+
+	tlb_inval->timeout_wq = gt->ordered_wq;
+	if (IS_ERR(tlb_inval->timeout_wq))
+		return PTR_ERR(tlb_inval->timeout_wq);
 
 	/* XXX: Blindly setting up backend to GuC */
 	xe_guc_tlb_inval_init_early(&gt->uc.guc, tlb_inval);
@@ -199,6 +200,20 @@ void xe_tlb_inval_reset(struct xe_tlb_inval *tlb_inval)
 	mutex_unlock(&tlb_inval->seqno_lock);
 }
 
+/**
+ * xe_tlb_inval_reset_timeout() - Reset TLB inval fence timeout
+ * @tlb_inval: TLB invalidation client
+ *
+ * Reset the TLB invalidation timeout timer.
+ */
+static void xe_tlb_inval_reset_timeout(struct xe_tlb_inval *tlb_inval)
+{
+	lockdep_assert_held(&tlb_inval->pending_lock);
+
+	mod_delayed_work(system_wq, &tlb_inval->fence_tdr,
+			 tlb_inval->ops->timeout_delay(tlb_inval));
+}
+
 static bool xe_tlb_inval_seqno_past(struct xe_tlb_inval *tlb_inval, int seqno)
 {
 	int seqno_recv = READ_ONCE(tlb_inval->seqno_recv);
@@ -226,7 +241,7 @@ static void xe_tlb_inval_fence_prep(struct xe_tlb_inval_fence *fence)
 	list_add_tail(&fence->link, &tlb_inval->pending_fences);
 
 	if (list_is_singular(&tlb_inval->pending_fences))
-		queue_delayed_work(system_wq, &tlb_inval->fence_tdr,
+		queue_delayed_work(tlb_inval->timeout_wq, &tlb_inval->fence_tdr,
 				   tlb_inval->ops->timeout_delay(tlb_inval));
 	spin_unlock_irq(&tlb_inval->pending_lock);
 
@@ -299,6 +314,7 @@ int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval)
  * @start: start address
  * @end: end address
  * @asid: address space id
+ * @prl_sa: suballocation of page reclaim list if used, NULL indicates PPC flush
  *
  * Issue a range based TLB invalidation if supported, if not fallback to a full
  * TLB invalidation. Completion of TLB is asynchronous and caller can use
@@ -308,10 +324,10 @@ int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval)
  */
 int xe_tlb_inval_range(struct xe_tlb_inval *tlb_inval,
 		       struct xe_tlb_inval_fence *fence, u64 start, u64 end,
-		       u32 asid)
+		       u32 asid, struct drm_suballoc *prl_sa)
 {
 	return xe_tlb_inval_issue(tlb_inval, fence, tlb_inval->ops->ppgtt,
-				  start, end, asid);
+				  start, end, asid, prl_sa);
 }
 
 /**
@@ -327,7 +343,7 @@ void xe_tlb_inval_vm(struct xe_tlb_inval *tlb_inval, struct xe_vm *vm)
 	u64 range = 1ull << vm->xe->info.va_bits;
 
 	xe_tlb_inval_fence_init(tlb_inval, &fence, true);
-	xe_tlb_inval_range(tlb_inval, &fence, 0, range, vm->usm.asid);
+	xe_tlb_inval_range(tlb_inval, &fence, 0, range, vm->usm.asid, NULL);
 	xe_tlb_inval_fence_wait(&fence);
 }
 
@@ -360,6 +376,12 @@ void xe_tlb_inval_done_handler(struct xe_tlb_inval *tlb_inval, int seqno)
 	 * process_g2h_msg().
 	 */
 	spin_lock_irqsave(&tlb_inval->pending_lock, flags);
+	if (seqno == TLB_INVALIDATION_SEQNO_INVALID) {
+		xe_tlb_inval_reset_timeout(tlb_inval);
+		spin_unlock_irqrestore(&tlb_inval->pending_lock, flags);
+		return;
+	}
+
 	if (xe_tlb_inval_seqno_past(tlb_inval, seqno)) {
 		spin_unlock_irqrestore(&tlb_inval->pending_lock, flags);
 		return;
@@ -378,7 +400,7 @@ void xe_tlb_inval_done_handler(struct xe_tlb_inval *tlb_inval, int seqno)
 	}
 
 	if (!list_empty(&tlb_inval->pending_fences))
-		mod_delayed_work(system_wq,
+		mod_delayed_work(tlb_inval->timeout_wq,
 				 &tlb_inval->fence_tdr,
 				 tlb_inval->ops->timeout_delay(tlb_inval));
 	else

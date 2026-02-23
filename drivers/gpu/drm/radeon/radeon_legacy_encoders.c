@@ -394,7 +394,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 		return;
 	}
 
-	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
+	pdata = kmalloc_obj(struct radeon_backlight_privdata);
 	if (!pdata) {
 		DRM_ERROR("Memory allocation failed\n");
 		goto error;
@@ -1695,7 +1695,7 @@ static struct radeon_encoder_int_tmds *radeon_legacy_get_tmds_info(struct radeon
 	struct radeon_encoder_int_tmds *tmds;
 	bool ret;
 
-	tmds = kzalloc(sizeof(struct radeon_encoder_int_tmds), GFP_KERNEL);
+	tmds = kzalloc_obj(struct radeon_encoder_int_tmds);
 
 	if (!tmds)
 		return NULL;
@@ -1721,7 +1721,7 @@ static struct radeon_encoder_ext_tmds *radeon_legacy_get_ext_tmds_info(struct ra
 	if (rdev->is_atom_bios)
 		return NULL;
 
-	tmds = kzalloc(sizeof(struct radeon_encoder_ext_tmds), GFP_KERNEL);
+	tmds = kzalloc_obj(struct radeon_encoder_ext_tmds);
 
 	if (!tmds)
 		return NULL;
@@ -1752,7 +1752,7 @@ radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_
 	}
 
 	/* add a new one */
-	radeon_encoder = kzalloc(sizeof(struct radeon_encoder), GFP_KERNEL);
+	radeon_encoder = kzalloc_obj(struct radeon_encoder);
 	if (!radeon_encoder)
 		return;
 

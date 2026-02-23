@@ -8,6 +8,7 @@
 
 #include <linux/fs.h>
 #include <linux/dlm.h>
+#include <linux/hex.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
@@ -74,13 +75,13 @@ static inline void gfs2_update_reply_times(struct gfs2_glock *gl,
 					   bool blocking)
 {
 	struct gfs2_pcpu_lkstats *lks;
-	const unsigned gltype = gl->gl_name.ln_type;
+	const unsigned gltype = glock_type(gl);
 	unsigned index = blocking ? GFS2_LKS_SRTTB : GFS2_LKS_SRTT;
 	s64 rtt;
 
 	preempt_disable();
 	rtt = ktime_to_ns(ktime_sub(ktime_get_real(), gl->gl_dstamp));
-	lks = this_cpu_ptr(gl->gl_name.ln_sbd->sd_lkstats);
+	lks = this_cpu_ptr(glock_sbd(gl)->sd_lkstats);
 	gfs2_update_stats(&gl->gl_stats, index, rtt);		/* Local */
 	gfs2_update_stats(&lks->lkstats[gltype], index, rtt);	/* Global */
 	preempt_enable();
@@ -100,7 +101,7 @@ static inline void gfs2_update_reply_times(struct gfs2_glock *gl,
 static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 {
 	struct gfs2_pcpu_lkstats *lks;
-	const unsigned gltype = gl->gl_name.ln_type;
+	const unsigned gltype = glock_type(gl);
 	ktime_t dstamp;
 	s64 irt;
 
@@ -108,7 +109,7 @@ static inline void gfs2_update_request_times(struct gfs2_glock *gl)
 	dstamp = gl->gl_dstamp;
 	gl->gl_dstamp = ktime_get_real();
 	irt = ktime_to_ns(ktime_sub(gl->gl_dstamp, dstamp));
-	lks = this_cpu_ptr(gl->gl_name.ln_sbd->sd_lkstats);
+	lks = this_cpu_ptr(glock_sbd(gl)->sd_lkstats);
 	gfs2_update_stats(&gl->gl_stats, GFS2_LKS_SIRT, irt);		/* Local */
 	gfs2_update_stats(&lks->lkstats[gltype], GFS2_LKS_SIRT, irt);	/* Global */
 	preempt_enable();
@@ -195,7 +196,7 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
+		fs_err(glock_sbd(gl), "unknown bast mode %d\n", mode);
 		BUG();
 	}
 }
@@ -276,7 +277,7 @@ static void gfs2_reverse_hex(char *c, u64 value)
 static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 		     unsigned int flags)
 {
-	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
+	struct lm_lockstruct *ls = &glock_sbd(gl)->sd_lockstruct;
 	bool blocking;
 	int cur, req;
 	u32 lkf;
@@ -284,8 +285,8 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	int error;
 
 	gl->gl_req = req_state;
-	cur = make_mode(gl->gl_name.ln_sbd, gl->gl_state);
-	req = make_mode(gl->gl_name.ln_sbd, req_state);
+	cur = make_mode(glock_sbd(gl), gl->gl_state);
+	req = make_mode(glock_sbd(gl), req_state);
 	blocking = !down_conversion(cur, req) &&
 		   !(flags & (LM_FLAG_TRY|LM_FLAG_TRY_1CB));
 	lkf = make_flags(gl, flags, req, blocking);
@@ -296,8 +297,8 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		memset(strname, ' ', GDLM_STRNAME_BYTES - 1);
 		strname[GDLM_STRNAME_BYTES - 1] = '\0';
-		gfs2_reverse_hex(strname + 7, gl->gl_name.ln_type);
-		gfs2_reverse_hex(strname + 23, gl->gl_name.ln_number);
+		gfs2_reverse_hex(strname + 7, glock_type(gl));
+		gfs2_reverse_hex(strname + 23, glock_number(gl));
 		gl->gl_dstamp = ktime_get_real();
 	} else {
 		gfs2_update_request_times(gl);
@@ -323,7 +324,7 @@ again:
 
 static void gdlm_put_lock(struct gfs2_glock *gl)
 {
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct gfs2_sbd *sdp = glock_sbd(gl);
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	uint32_t flags = 0;
 	int error;
@@ -375,14 +376,14 @@ again:
 
 	if (error) {
 		fs_err(sdp, "gdlm_unlock %x,%llx err=%d\n",
-		       gl->gl_name.ln_type,
-		       (unsigned long long)gl->gl_name.ln_number, error);
+		       glock_type(gl),
+		       (unsigned long long) glock_number(gl), error);
 	}
 }
 
 static void gdlm_cancel(struct gfs2_glock *gl)
 {
-	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
+	struct lm_lockstruct *ls = &glock_sbd(gl)->sd_lockstruct;
 
 	down_read(&ls->ls_sem);
 	if (likely(ls->ls_dlm != NULL)) {

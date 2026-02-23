@@ -82,7 +82,7 @@ static int gud_get_display_descriptor(struct usb_interface *intf,
 	void *buf;
 	int ret;
 
-	buf = kmalloc(sizeof(*desc), GFP_KERNEL);
+	buf = kmalloc_obj(*desc);
 	if (!buf)
 		return -ENOMEM;
 
@@ -135,7 +135,7 @@ static int gud_usb_get_status(struct usb_interface *intf)
 	int ret, status = -EIO;
 	u8 *buf;
 
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kmalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 
@@ -255,7 +255,7 @@ static int gud_plane_add_properties(struct gud_device *gdrm)
 	unsigned int i, num_properties;
 	int ret;
 
-	properties = kcalloc(GUD_PROPERTIES_MAX_NUM, sizeof(*properties), GFP_KERNEL);
+	properties = kzalloc_objs(*properties, GUD_PROPERTIES_MAX_NUM);
 	if (!properties)
 		return -ENOMEM;
 
@@ -401,7 +401,7 @@ static int gud_alloc_bulk_buffer(struct gud_device *gdrm)
 		return -ENOMEM;
 
 	num_pages = DIV_ROUND_UP(gdrm->bulk_len, PAGE_SIZE);
-	pages = kmalloc_array(num_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kmalloc_objs(struct page *, num_pages);
 	if (!pages)
 		return -ENOMEM;
 

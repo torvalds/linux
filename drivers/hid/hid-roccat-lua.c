@@ -119,7 +119,7 @@ static int lua_init_specials(struct hid_device *hdev)
 	struct lua_device *lua;
 	int retval;
 
-	lua = kzalloc(sizeof(*lua), GFP_KERNEL);
+	lua = kzalloc_obj(*lua);
 	if (!lua) {
 		hid_err(hdev, "can't alloc device descriptor\n");
 		return -ENOMEM;

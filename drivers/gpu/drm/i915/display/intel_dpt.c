@@ -280,7 +280,7 @@ intel_dpt_create(struct intel_framebuffer *fb)
 		return ERR_PTR(ret);
 	}
 
-	dpt = kzalloc(sizeof(*dpt), GFP_KERNEL);
+	dpt = kzalloc_obj(*dpt);
 	if (!dpt) {
 		i915_gem_object_put(dpt_obj);
 		return ERR_PTR(-ENOMEM);

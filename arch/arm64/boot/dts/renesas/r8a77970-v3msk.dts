@@ -255,7 +255,7 @@
 				reg = <0x00040000 0x080000>;
 				read-only;
 			};
-			cert_header_sa3@c0000 {
+			cert-header-sa3@c0000 {
 				reg = <0x000c0000 0x080000>;
 				read-only;
 			};
@@ -263,7 +263,7 @@
 				reg = <0x00140000 0x040000>;
 				read-only;
 			};
-			cert_header_sa6@180000 {
+			cert-header-sa6@180000 {
 				reg = <0x00180000 0x040000>;
 				read-only;
 			};

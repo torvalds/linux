@@ -772,7 +772,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 
 	num_pages = DIV_ROUND_UP(cfg->array + array_len - 1, PAGE_SIZE) -
 		    cfg->array / PAGE_SIZE;
-	pages = kmalloc_array(num_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, num_pages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -792,13 +792,13 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 		goto put_pages;
 	}
 
-	privs[0] = kcalloc(params.tlb_sizes[0], sizeof(*privs[0]), GFP_KERNEL);
+	privs[0] = kzalloc_objs(*privs[0], params.tlb_sizes[0]);
 	if (!privs[0]) {
 		ret = -ENOMEM;
 		goto put_pages;
 	}
 
-	privs[1] = kcalloc(params.tlb_sizes[1], sizeof(*privs[1]), GFP_KERNEL);
+	privs[1] = kzalloc_objs(*privs[1], params.tlb_sizes[1]);
 	if (!privs[1]) {
 		ret = -ENOMEM;
 		goto free_privs_first;
@@ -912,25 +912,21 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	vcpu_e500->gtlb_params[1].ways = KVM_E500_TLB1_SIZE;
 	vcpu_e500->gtlb_params[1].sets = 1;
 
-	vcpu_e500->gtlb_arch = kmalloc_array(KVM_E500_TLB0_SIZE +
-					     KVM_E500_TLB1_SIZE,
-					     sizeof(*vcpu_e500->gtlb_arch),
-					     GFP_KERNEL);
+	vcpu_e500->gtlb_arch = kmalloc_objs(*vcpu_e500->gtlb_arch,
+					    KVM_E500_TLB0_SIZE + KVM_E500_TLB1_SIZE);
 	if (!vcpu_e500->gtlb_arch)
 		return -ENOMEM;
 
 	vcpu_e500->gtlb_offset[0] = 0;
 	vcpu_e500->gtlb_offset[1] = KVM_E500_TLB0_SIZE;
 
-	vcpu_e500->gtlb_priv[0] = kcalloc(vcpu_e500->gtlb_params[0].entries,
-					  sizeof(struct tlbe_ref),
-					  GFP_KERNEL);
+	vcpu_e500->gtlb_priv[0] = kzalloc_objs(struct tlbe_ref,
+					       vcpu_e500->gtlb_params[0].entries);
 	if (!vcpu_e500->gtlb_priv[0])
 		goto free_vcpu;
 
-	vcpu_e500->gtlb_priv[1] = kcalloc(vcpu_e500->gtlb_params[1].entries,
-					  sizeof(struct tlbe_ref),
-					  GFP_KERNEL);
+	vcpu_e500->gtlb_priv[1] = kzalloc_objs(struct tlbe_ref,
+					       vcpu_e500->gtlb_params[1].entries);
 	if (!vcpu_e500->gtlb_priv[1])
 		goto free_vcpu;
 

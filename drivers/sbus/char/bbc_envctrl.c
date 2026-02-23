@@ -448,7 +448,7 @@ static void attach_one_temp(struct bbc_i2c_bus *bp, struct platform_device *op,
 {
 	struct bbc_cpu_temperature *tp;
 
-	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
+	tp = kzalloc_obj(*tp);
 	if (!tp)
 		return;
 
@@ -496,7 +496,7 @@ static void attach_one_fan(struct bbc_i2c_bus *bp, struct platform_device *op,
 {
 	struct bbc_fan_control *fp;
 
-	fp = kzalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kzalloc_obj(*fp);
 	if (!fp)
 		return;
 

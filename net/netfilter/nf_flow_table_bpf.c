@@ -105,7 +105,7 @@ __diag_pop()
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(nf_ft_kfunc_set)
-BTF_ID_FLAGS(func, bpf_xdp_flow_lookup, KF_TRUSTED_ARGS | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_xdp_flow_lookup, KF_RET_NULL)
 BTF_KFUNCS_END(nf_ft_kfunc_set)
 
 static const struct btf_kfunc_id_set nf_flow_kfunc_set = {

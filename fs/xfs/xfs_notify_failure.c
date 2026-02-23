@@ -3,7 +3,7 @@
  * Copyright (c) 2022 Fujitsu.  All Rights Reserved.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -22,10 +22,12 @@
 #include "xfs_notify_failure.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_healthmon.h"
 
 #include <linux/mm.h>
 #include <linux/dax.h>
 #include <linux/fs.h>
+#include <linux/fserror.h>
 
 struct xfs_failure_info {
 	xfs_agblock_t		startblock;
@@ -115,6 +117,9 @@ xfs_dax_failure_fn(
 	if (notify->mf_flags & MF_MEM_PRE_REMOVE)
 		invalidate_inode_pages2_range(mapping, pgoff,
 					      pgoff + pgcnt - 1);
+
+	fserror_report_data_lost(VFS_I(ip), (u64)pgoff << PAGE_SHIFT,
+			(u64)pgcnt << PAGE_SHIFT, GFP_NOFS);
 
 	xfs_irele(ip);
 	return error;
@@ -215,6 +220,8 @@ xfs_dax_notify_logdev_failure(
 	if (error)
 		return error;
 
+	xfs_healthmon_report_media(mp, XFS_DEV_LOG, daddr, bblen);
+
 	/*
 	 * In the pre-remove case the failure notification is attempting to
 	 * trigger a force unmount.  The expectation is that the device is
@@ -248,15 +255,19 @@ xfs_dax_notify_dev_failure(
 	uint64_t		bblen;
 	struct xfs_group	*xg = NULL;
 
-	if (!xfs_has_rmapbt(mp)) {
-		xfs_debug(mp, "notify_failure() needs rmapbt enabled!");
-		return -EOPNOTSUPP;
-	}
-
 	error = xfs_dax_translate_range(xfs_group_type_buftarg(mp, type),
 			offset, len, &daddr, &bblen);
 	if (error)
 		return error;
+
+	xfs_healthmon_report_media(mp,
+			type == XG_TYPE_RTG ?  XFS_DEV_RT : XFS_DEV_DATA,
+			daddr, bblen);
+
+	if (!xfs_has_rmapbt(mp)) {
+		xfs_debug(mp, "notify_failure() needs rmapbt enabled!");
+		return -EOPNOTSUPP;
+	}
 
 	if (type == XG_TYPE_RTG) {
 		start_bno = xfs_daddr_to_rtb(mp, daddr);

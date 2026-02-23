@@ -336,7 +336,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 	int err;
 	u32 out;
 
-	aux_entry = kzalloc(sizeof(*aux_entry), GFP_KERNEL);
+	aux_entry = kzalloc_obj(*aux_entry);
 	if (!aux_entry) {
 		err = -ENOMEM;
 		return ERR_PTR(-ENOMEM);

@@ -140,7 +140,7 @@ static struct pds_auxiliary_dev *pdsc_auxbus_dev_register(struct pdsc *cf,
 	struct pds_auxiliary_dev *padev;
 	int err;
 
-	padev = kzalloc(sizeof(*padev), GFP_KERNEL);
+	padev = kzalloc_obj(*padev);
 	if (!padev)
 		return ERR_PTR(-ENOMEM);
 

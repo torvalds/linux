@@ -862,7 +862,7 @@ int ice_get_pending_updates(struct ice_pf *pf, u8 *pending,
 	struct ice_hw *hw = &pf->hw;
 	int err;
 
-	dev_caps = kzalloc(sizeof(*dev_caps), GFP_KERNEL);
+	dev_caps = kzalloc_obj(*dev_caps);
 	if (!dev_caps)
 		return -ENOMEM;
 

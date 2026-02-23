@@ -74,11 +74,11 @@ static int add_sect_attrs(struct module *mod, const struct load_info *info)
 	for (i = 0; i < info->hdr->e_shnum; i++)
 		if (!sect_empty(&info->sechdrs[i]))
 			nloaded++;
-	sect_attrs = kzalloc(struct_size(sect_attrs, attrs, nloaded), GFP_KERNEL);
+	sect_attrs = kzalloc_flex(*sect_attrs, attrs, nloaded);
 	if (!sect_attrs)
 		return -ENOMEM;
 
-	gattr = kcalloc(nloaded + 1, sizeof(*gattr), GFP_KERNEL);
+	gattr = kzalloc_objs(*gattr, nloaded + 1);
 	if (!gattr) {
 		kfree(sect_attrs);
 		return -ENOMEM;
@@ -166,12 +166,11 @@ static int add_notes_attrs(struct module *mod, const struct load_info *info)
 	if (notes == 0)
 		return 0;
 
-	notes_attrs = kzalloc(struct_size(notes_attrs, attrs, notes),
-			      GFP_KERNEL);
+	notes_attrs = kzalloc_flex(*notes_attrs, attrs, notes);
 	if (!notes_attrs)
 		return -ENOMEM;
 
-	gattr = kcalloc(notes + 1, sizeof(*gattr), GFP_KERNEL);
+	gattr = kzalloc_objs(*gattr, notes + 1);
 	if (!gattr) {
 		kfree(notes_attrs);
 		return -ENOMEM;

@@ -611,7 +611,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 
-	ibmvtpm = kzalloc(sizeof(struct ibmvtpm_dev), GFP_KERNEL);
+	ibmvtpm = kzalloc_obj(struct ibmvtpm_dev);
 	if (!ibmvtpm) {
 		dev_err(dev, "kzalloc for ibmvtpm failed\n");
 		goto cleanup;

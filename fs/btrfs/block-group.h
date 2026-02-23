@@ -49,6 +49,7 @@ enum btrfs_discard_state {
 	BTRFS_DISCARD_EXTENTS,
 	BTRFS_DISCARD_BITMAPS,
 	BTRFS_DISCARD_RESET_CURSOR,
+	BTRFS_DISCARD_FULLY_REMAPPED,
 };
 
 /*
@@ -92,6 +93,8 @@ enum btrfs_block_group_flags {
 	 * transaction.
 	 */
 	BLOCK_GROUP_FLAG_NEW,
+	BLOCK_GROUP_FLAG_FULLY_REMAPPED,
+	BLOCK_GROUP_FLAG_STRIPE_REMOVAL_PENDING,
 };
 
 enum btrfs_caching_type {
@@ -129,13 +132,22 @@ struct btrfs_block_group {
 	u64 flags;
 	u64 cache_generation;
 	u64 global_root_id;
+	u64 remap_bytes;
+	u32 identity_remap_count;
 
 	/*
 	 * The last committed used bytes of this block group, if the above @used
-	 * is still the same as @commit_used, we don't need to update block
+	 * is still the same as @last_used, we don't need to update block
 	 * group item of this block group.
 	 */
-	u64 commit_used;
+	u64 last_used;
+	/* The last committed remap_bytes value of this block group. */
+	u64 last_remap_bytes;
+	/* The last commited identity_remap_count value of this block group. */
+	u32 last_identity_remap_count;
+	/* The last committed flags value for this block group. */
+	u64 last_flags;
+
 	/*
 	 * If the free space extent count exceeds this number, convert the block
 	 * group to bitmaps.
@@ -282,7 +294,8 @@ static inline bool btrfs_is_block_group_used(const struct btrfs_block_group *bg)
 {
 	lockdep_assert_held(&bg->lock);
 
-	return (bg->used > 0 || bg->reserved > 0 || bg->pinned > 0);
+	return (bg->used > 0 || bg->reserved > 0 || bg->pinned > 0 ||
+		bg->remap_bytes > 0);
 }
 
 static inline bool btrfs_is_block_group_data_only(const struct btrfs_block_group *block_group)
@@ -293,6 +306,14 @@ static inline bool btrfs_is_block_group_data_only(const struct btrfs_block_group
 	 */
 	return (block_group->flags & BTRFS_BLOCK_GROUP_DATA) &&
 	       !(block_group->flags & BTRFS_BLOCK_GROUP_METADATA);
+}
+
+static inline u64 btrfs_block_group_available_space(const struct btrfs_block_group *bg)
+{
+	lockdep_assert_held(&bg->lock);
+
+	return (bg->length - bg->used - bg->pinned - bg->reserved -
+		bg->bytes_super - bg->zone_unusable);
 }
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -324,6 +345,7 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group,
 struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 				struct btrfs_fs_info *fs_info,
 				const u64 chunk_offset);
+void btrfs_remove_bg_from_sinfo(struct btrfs_block_group *bg);
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_chunk_map *map);
 void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
@@ -395,5 +417,8 @@ int btrfs_use_block_group_size_class(struct btrfs_block_group *bg,
 				     enum btrfs_block_group_size_class size_class,
 				     bool force_wrong_size_class);
 bool btrfs_block_group_should_use_size_class(const struct btrfs_block_group *bg);
+void btrfs_mark_bg_fully_remapped(struct btrfs_block_group *bg,
+				  struct btrfs_trans_handle *trans);
+int btrfs_populate_fully_remapped_bgs_list(struct btrfs_fs_info *fs_info);
 
 #endif /* BTRFS_BLOCK_GROUP_H */

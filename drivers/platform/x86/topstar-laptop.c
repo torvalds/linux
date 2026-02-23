@@ -292,7 +292,7 @@ static int topstar_acpi_add(struct acpi_device *device)
 
 	dmi_check_system(topstar_dmi_ids);
 
-	topstar = kzalloc(sizeof(struct topstar_laptop), GFP_KERNEL);
+	topstar = kzalloc_obj(struct topstar_laptop);
 	if (!topstar)
 		return -ENOMEM;
 

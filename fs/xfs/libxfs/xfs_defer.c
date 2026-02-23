@@ -3,7 +3,7 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -565,7 +565,7 @@ xfs_defer_relog(
 			continue;
 
 		trace_xfs_defer_relog_intent((*tpp)->t_mountp, dfp);
-		XFS_STATS_INC((*tpp)->t_mountp, defer_relog);
+		XFS_STATS_INC((*tpp)->t_mountp, xs_defer_relog);
 
 		xfs_defer_relog_intent(*tpp, dfp);
 	}
@@ -982,7 +982,7 @@ xfs_defer_ops_capture(
 		return ERR_PTR(error);
 
 	/* Create an object to capture the defer ops. */
-	dfc = kzalloc(sizeof(*dfc), GFP_KERNEL | __GFP_NOFAIL);
+	dfc = kzalloc_obj(*dfc, GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&dfc->dfc_list);
 	INIT_LIST_HEAD(&dfc->dfc_dfops);
 

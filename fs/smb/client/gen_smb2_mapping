@@ -1,0 +1,86 @@
+#!/usr/bin/perl -w
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Generate an SMB2 status -> error mapping table,
+# sorted by NT status code (cpu-endian, ascending).
+#
+# Copyright (C) 2025 Red Hat, Inc. All Rights Reserved.
+# Written by David Howells (dhowells@redhat.com)
+#
+use strict;
+
+if ($#ARGV != 1) {
+	print STDERR "Format: ", $0, " <in-h-file> <out-c-file>\n";
+	exit(2);
+}
+
+my %statuses = ();
+my @list = ();
+
+#
+# Read the file
+#
+open IN_FILE, "<$ARGV[0]" || die;
+while (<IN_FILE>) {
+	chomp;
+
+	if (m!^#define\s*([A-Za-z0-9_]+)\s+cpu_to_le32[(]([0-9a-fA-Fx]+)[)]\s+//\s+([-A-Z0-9_]+)!) {
+		my $status = $1;
+		my $code = $2;
+		my $ncode = hex($2);
+		my $error = $3;
+		my $s;
+
+		next if ($status =~ /^STATUS_SEVERITY/);
+
+		die "Duplicate status $status"
+			if exists($statuses{$status});
+
+		my %s = (
+			status => $status,
+			code   => $code,
+			ncode  => $ncode,
+			error  => $error
+		);
+		$statuses{$status} = \%s;
+		push @list, \%s;
+	}
+}
+close IN_FILE || die;
+
+
+@list = sort( { $a->{ncode} <=> $b->{ncode} } @list);
+
+open OUT_FILE, ">$ARGV[1]" || die;
+my $list_size = scalar @list;
+my $full_status = "";
+for (my $i = 0; $i < $list_size; $i++) {
+	my $entry = $list[$i];
+	my $status = $entry->{status};
+	my $code   = $entry->{code};
+	my $ncode  = $entry->{ncode};
+	my $error  = $entry->{error};
+
+	next if ($ncode == 0);
+
+	$full_status .= $status;
+	# There may be synonyms
+	if ($i < $list_size - 1) {
+		my $next_entry = $list[$i + 1];
+		my $next_ncode = $next_entry->{ncode};
+		if ($next_ncode == $ncode) {
+			$full_status .= " or ";
+			next;
+		}
+	}
+
+	my $pad = " ";
+	if (length($full_status) < 40) {
+		my $n = 40 - length($full_status);
+		$pad = "\t" x ((($n-1) / 8) + 1);
+	}
+	print(OUT_FILE "{ $code, $error, \"$full_status\" },\n");
+
+	$full_status = "";
+}
+close OUT_FILE || die;

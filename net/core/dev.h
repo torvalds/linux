@@ -10,6 +10,7 @@
 
 struct net;
 struct netlink_ext_ack;
+struct netdev_queue_config;
 struct cpumask;
 
 /* Random bits of netdevice that don't need to be exposed */
@@ -90,6 +91,10 @@ extern struct rw_semaphore dev_addr_sem;
 /* rtnl helpers */
 extern struct list_head net_todo_list;
 void netdev_run_todo(void);
+
+int netdev_queue_config_validate(struct net_device *dev, int rxq_idx,
+				 struct netdev_queue_config *qcfg,
+				 struct netlink_ext_ack *extack);
 
 /* netdev management, shared between various uAPI entry points */
 struct netdev_name_node {

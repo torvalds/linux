@@ -408,7 +408,7 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 	}
 	mutex_unlock(&pfvf->mbox.lock);
 
-	ptp_ptr = kzalloc(sizeof(*ptp_ptr), GFP_KERNEL);
+	ptp_ptr = kzalloc_obj(*ptp_ptr);
 	if (!ptp_ptr) {
 		err = -ENOMEM;
 		goto error;

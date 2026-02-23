@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * memfd_create system call and file sealing support
  *
  * Code was originally included in shmem.c, and broken out to facilitate
  * use by hugetlbfs as well as tmpfs.
- *
- * This file is released under the GPL.
  */
 
 #include <linux/fs.h>
@@ -87,7 +86,7 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 		gfp_mask &= ~(__GFP_HIGHMEM | __GFP_MOVABLE);
 		idx >>= huge_page_order(h);
 
-		nr_resv = hugetlb_reserve_pages(inode, idx, idx + 1, NULL, 0);
+		nr_resv = hugetlb_reserve_pages(inode, idx, idx + 1, NULL, EMPTY_VMA_FLAGS);
 		if (nr_resv < 0)
 			return ERR_PTR(nr_resv);
 
@@ -456,7 +455,7 @@ err_name:
 	return ERR_PTR(error);
 }
 
-static struct file *alloc_file(const char *name, unsigned int flags)
+struct file *memfd_alloc_file(const char *name, unsigned int flags)
 {
 	unsigned int *file_seals;
 	struct file *file;
@@ -464,12 +463,12 @@ static struct file *alloc_file(const char *name, unsigned int flags)
 	int err = 0;
 
 	if (flags & MFD_HUGETLB) {
-		file = hugetlb_file_setup(name, 0, VM_NORESERVE,
+		file = hugetlb_file_setup(name, 0, mk_vma_flags(VMA_NORESERVE_BIT),
 					HUGETLB_ANONHUGE_INODE,
 					(flags >> MFD_HUGE_SHIFT) &
 					MFD_HUGE_MASK);
 	} else {
-		file = shmem_file_setup(name, 0, VM_NORESERVE);
+		file = shmem_file_setup(name, 0, mk_vma_flags(VMA_NORESERVE_BIT));
 	}
 	if (IS_ERR(file))
 		return file;
@@ -520,5 +519,5 @@ SYSCALL_DEFINE2(memfd_create,
 		return PTR_ERR(name);
 
 	fd_flags = (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0;
-	return FD_ADD(fd_flags, alloc_file(name, flags));
+	return FD_ADD(fd_flags, memfd_alloc_file(name, flags));
 }

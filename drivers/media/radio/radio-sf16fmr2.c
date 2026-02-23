@@ -252,7 +252,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 
 static int fmr2_isa_match(struct device *pdev, unsigned int ndev)
 {
-	struct fmr2 *fmr2 = kzalloc(sizeof(*fmr2), GFP_KERNEL);
+	struct fmr2 *fmr2 = kzalloc_obj(*fmr2);
 	if (!fmr2)
 		return 0;
 
@@ -269,7 +269,7 @@ static int fmr2_isa_match(struct device *pdev, unsigned int ndev)
 static int fmr2_pnp_probe(struct pnp_dev *pdev, const struct pnp_device_id *id)
 {
 	int ret;
-	struct fmr2 *fmr2 = kzalloc(sizeof(*fmr2), GFP_KERNEL);
+	struct fmr2 *fmr2 = kzalloc_obj(*fmr2);
 	if (!fmr2)
 		return -ENOMEM;
 

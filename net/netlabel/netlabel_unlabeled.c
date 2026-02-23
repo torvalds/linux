@@ -236,7 +236,7 @@ static int netlbl_unlhsh_add_addr4(struct netlbl_unlhsh_iface *iface,
 	int ret_val;
 	struct netlbl_unlhsh_addr4 *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
 
@@ -276,7 +276,7 @@ static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
 	int ret_val;
 	struct netlbl_unlhsh_addr6 *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc_obj(*entry, GFP_ATOMIC);
 	if (entry == NULL)
 		return -ENOMEM;
 
@@ -314,7 +314,7 @@ static struct netlbl_unlhsh_iface *netlbl_unlhsh_add_iface(int ifindex)
 	u32 bkt;
 	struct netlbl_unlhsh_iface *iface;
 
-	iface = kzalloc(sizeof(*iface), GFP_ATOMIC);
+	iface = kzalloc_obj(*iface, GFP_ATOMIC);
 	if (iface == NULL)
 		return NULL;
 
@@ -1413,13 +1413,11 @@ int __init netlbl_unlabel_init(u32 size)
 	if (size == 0)
 		return -EINVAL;
 
-	hsh_tbl = kmalloc(sizeof(*hsh_tbl), GFP_KERNEL);
+	hsh_tbl = kmalloc_obj(*hsh_tbl);
 	if (hsh_tbl == NULL)
 		return -ENOMEM;
 	hsh_tbl->size = 1 << size;
-	hsh_tbl->tbl = kcalloc(hsh_tbl->size,
-			       sizeof(struct list_head),
-			       GFP_KERNEL);
+	hsh_tbl->tbl = kzalloc_objs(struct list_head, hsh_tbl->size);
 	if (hsh_tbl->tbl == NULL) {
 		kfree(hsh_tbl);
 		return -ENOMEM;
@@ -1534,7 +1532,7 @@ int __init netlbl_unlabel_defconf(void)
 	audit_info.loginuid = GLOBAL_ROOT_UID;
 	audit_info.sessionid = 0;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->family = AF_UNSPEC;

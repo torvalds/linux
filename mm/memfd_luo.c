@@ -78,6 +78,7 @@
 #include <linux/liveupdate.h>
 #include <linux/shmem_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/memfd.h>
 #include "internal.h"
 
 static int memfd_luo_preserve_folios(struct file *file,
@@ -111,7 +112,7 @@ static int memfd_luo_preserve_folios(struct file *file,
 	 * up being smaller if there are higher order folios.
 	 */
 	max_folios = PAGE_ALIGN(size) / PAGE_SIZE;
-	folios = kvmalloc_array(max_folios, sizeof(*folios), GFP_KERNEL);
+	folios = kvmalloc_objs(*folios, max_folios);
 	if (!folios)
 		return -ENOMEM;
 
@@ -443,11 +444,11 @@ static int memfd_luo_retrieve(struct liveupdate_file_op_args *args)
 	if (!ser)
 		return -EINVAL;
 
-	file = shmem_file_setup("", 0, VM_NORESERVE);
-
+	file = memfd_alloc_file("", 0);
 	if (IS_ERR(file)) {
 		pr_err("failed to setup file: %pe\n", file);
-		return PTR_ERR(file);
+		err = PTR_ERR(file);
+		goto free_ser;
 	}
 
 	vfs_setpos(file, ser->pos, MAX_LFS_FILESIZE);
@@ -473,7 +474,8 @@ static int memfd_luo_retrieve(struct liveupdate_file_op_args *args)
 
 put_file:
 	fput(file);
-
+free_ser:
+	kho_restore_free(ser);
 	return err;
 }
 

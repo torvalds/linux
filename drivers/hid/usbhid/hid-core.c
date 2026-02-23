@@ -858,7 +858,7 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 			&usbhid->inbuf_dma);
 	usbhid->outbuf = usb_alloc_coherent(dev, usbhid->bufsize, GFP_KERNEL,
 			&usbhid->outbuf_dma);
-	usbhid->cr = kmalloc(sizeof(*usbhid->cr), GFP_KERNEL);
+	usbhid->cr = kmalloc_obj(*usbhid->cr);
 	usbhid->ctrlbuf = usb_alloc_coherent(dev, usbhid->bufsize, GFP_KERNEL,
 			&usbhid->ctrlbuf_dma);
 	if (!usbhid->inbuf || !usbhid->outbuf || !usbhid->cr ||
@@ -1430,7 +1430,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (usb_string(dev, dev->descriptor.iSerialNumber, hid->uniq, 64) <= 0)
 		hid->uniq[0] = 0;
 
-	usbhid = kzalloc(sizeof(*usbhid), GFP_KERNEL);
+	usbhid = kzalloc_obj(*usbhid);
 	if (usbhid == NULL) {
 		ret = -ENOMEM;
 		goto err;

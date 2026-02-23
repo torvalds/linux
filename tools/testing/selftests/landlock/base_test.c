@@ -76,7 +76,7 @@ TEST(abi_version)
 	const struct landlock_ruleset_attr ruleset_attr = {
 		.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE,
 	};
-	ASSERT_EQ(7, landlock_create_ruleset(NULL, 0,
+	ASSERT_EQ(8, landlock_create_ruleset(NULL, 0,
 					     LANDLOCK_CREATE_RULESET_VERSION));
 
 	ASSERT_EQ(-1, landlock_create_ruleset(&ruleset_attr, 0,
@@ -288,7 +288,7 @@ TEST(restrict_self_fd)
 	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_fd_flags)
+TEST(restrict_self_fd_logging_flags)
 {
 	int fd;
 
@@ -304,9 +304,9 @@ TEST(restrict_self_fd_flags)
 	EXPECT_EQ(EBADFD, errno);
 }
 
-TEST(restrict_self_flags)
+TEST(restrict_self_logging_flags)
 {
-	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF;
+	const __u32 last_flag = LANDLOCK_RESTRICT_SELF_TSYNC;
 
 	/* Tests invalid flag combinations. */
 

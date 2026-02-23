@@ -476,7 +476,7 @@ struct dvb_frontend *s921_attach(const struct s921_config *config,
 {
 	/* allocate memory for the internal state */
 	struct s921_state *state =
-		kzalloc(sizeof(struct s921_state), GFP_KERNEL);
+		kzalloc_obj(struct s921_state);
 
 	dprintk("\n");
 	if (!state) {

@@ -531,7 +531,7 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 	if (quirks & HID_BATTERY_QUIRK_IGNORE)
 		return 0;
 
-	psy_desc = kzalloc(sizeof(*psy_desc), GFP_KERNEL);
+	psy_desc = kzalloc_obj(*psy_desc);
 	if (!psy_desc)
 		return -ENOMEM;
 
@@ -2023,7 +2023,7 @@ static void report_features(struct hid_device *hid)
 static struct hid_input *hidinput_allocate(struct hid_device *hid,
 					   unsigned int application)
 {
-	struct hid_input *hidinput = kzalloc(sizeof(*hidinput), GFP_KERNEL);
+	struct hid_input *hidinput = kzalloc_obj(*hidinput);
 	struct input_dev *input_dev = input_allocate_device();
 	const char *suffix = NULL;
 	size_t suffix_len, name_len;

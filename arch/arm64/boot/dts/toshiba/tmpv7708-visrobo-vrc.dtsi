@@ -26,7 +26,7 @@
 &spi0 {
 	status = "okay";
 
-	mmc-slot@0 {
+	mmc@0 {
 		compatible = "mmc-spi-slot";
 		reg = <0>;
 		gpios = <&gpio 15 GPIO_ACTIVE_LOW>;

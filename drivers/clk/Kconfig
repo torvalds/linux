@@ -284,18 +284,6 @@ config COMMON_CLK_LAN966X
 	  LAN966X SoC. GCK generates and supplies clock to various peripherals
 	  within the SoC.
 
-config COMMON_CLK_ASPEED
-	bool "Clock driver for Aspeed BMC SoCs"
-	depends on ARCH_ASPEED || COMPILE_TEST
-	default ARCH_ASPEED
-	select MFD_SYSCON
-	select RESET_CONTROLLER
-	help
-	  This driver supports the SoC clocks on the Aspeed BMC platforms.
-
-	  The G4 and G5 series, including the ast2400 and ast2500, are supported
-	  by this driver.
-
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
 	depends on MFD_SEC_CORE || COMPILE_TEST
@@ -475,8 +463,8 @@ config COMMON_CLK_BD718XX
 	tristate "Clock driver for 32K clk gates on ROHM PMICs"
 	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD71828
 	help
-	  This driver supports ROHM BD71837, BD71847, BD71850, BD71815
-	  and BD71828 PMICs clock gates.
+	  This driver supports ROHM BD71837, BD71847, BD71850, BD71815,
+	  BD71828, and BD72720 PMICs clock gates.
 
 config COMMON_CLK_FIXED_MMIO
 	bool "Clock driver for Memory Mapped Fixed values"
@@ -513,6 +501,7 @@ config COMMON_CLK_RPMI
 
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
+source "drivers/clk/aspeed/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"

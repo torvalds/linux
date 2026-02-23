@@ -31,7 +31,7 @@ int __alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
 	}
 
 	if (sizeof(spinlock_t) != 0) {
-		tlocks = kvmalloc_array(size, sizeof(spinlock_t), gfp);
+		tlocks = kvmalloc_objs(spinlock_t, size, gfp);
 		if (!tlocks)
 			return -ENOMEM;
 		for (i = 0; i < size; i++) {

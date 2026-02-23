@@ -1070,11 +1070,11 @@ static int wl1271_setup(struct wl1271 *wl)
 	if (!wl->raw_fw_status)
 		goto err;
 
-	wl->fw_status = kzalloc(sizeof(*wl->fw_status), GFP_KERNEL);
+	wl->fw_status = kzalloc_obj(*wl->fw_status);
 	if (!wl->fw_status)
 		goto err;
 
-	wl->tx_res_if = kzalloc(sizeof(*wl->tx_res_if), GFP_KERNEL);
+	wl->tx_res_if = kzalloc_obj(*wl->tx_res_if);
 	if (!wl->tx_res_if)
 		goto err;
 
@@ -1477,7 +1477,7 @@ wl1271_validate_wowlan_pattern(struct cfg80211_pkt_pattern *p)
 
 struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void)
 {
-	return kzalloc(sizeof(struct wl12xx_rx_filter), GFP_KERNEL);
+	return kzalloc_obj(struct wl12xx_rx_filter);
 }
 
 void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter)
@@ -2419,6 +2419,11 @@ power_off:
 	strscpy(wiphy->fw_version, wl->chip.fw_ver_str,
 		sizeof(wiphy->fw_version));
 
+	/* WLAN_CIPHER_SUITE_AES_CMAC must be last in cipher_suites;
+	   support only with firmware 8.9.1 and newer */
+	if (wl->chip.fw_ver[FW_VER_MAJOR] < 1)
+		wl->hw->wiphy->n_cipher_suites--;
+
 	/*
 	 * Now we know if 11a is supported (info from the NVS), so disable
 	 * 11a channels if not supported
@@ -3210,7 +3215,7 @@ static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 	struct wl1271_filter_params *fp;
 	struct netdev_hw_addr *ha;
 
-	fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
+	fp = kzalloc_obj(*fp, GFP_ATOMIC);
 	if (!fp) {
 		wl1271_error("Out of memory setting filters.");
 		return 0;
@@ -3341,7 +3346,7 @@ static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (i == MAX_NUM_KEYS)
 		return -EBUSY;
 
-	ap_key = kzalloc(sizeof(*ap_key), GFP_KERNEL);
+	ap_key = kzalloc_obj(*ap_key);
 	if (!ap_key)
 		return -ENOMEM;
 
@@ -3584,6 +3589,9 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		break;
 	case WL1271_CIPHER_SUITE_GEM:
 		key_type = KEY_GEM;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		key_type = KEY_IGTK;
 		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
@@ -6196,6 +6204,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
 		WL1271_CIPHER_SUITE_GEM,
+		WLAN_CIPHER_SUITE_AES_CMAC,
 	};
 
 	/* The tx descriptor buffer */
@@ -6450,7 +6459,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 		goto err_fwlog;
 	}
 
-	wl->buffer_32 = kmalloc(sizeof(*wl->buffer_32), GFP_KERNEL);
+	wl->buffer_32 = kmalloc_obj(*wl->buffer_32);
 	if (!wl->buffer_32) {
 		ret = -ENOMEM;
 		goto err_mbox;

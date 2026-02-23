@@ -249,7 +249,7 @@ int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)
 {
 	struct kvmppc_uvmem_slot *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 	p->pfns = vcalloc(slot->npages, sizeof(*p->pfns));
@@ -711,7 +711,7 @@ static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm)
 	bitmap_set(kvmppc_uvmem_bitmap, bit, 1);
 	spin_unlock(&kvmppc_uvmem_bitmap_lock);
 
-	pvt = kzalloc(sizeof(*pvt), GFP_KERNEL);
+	pvt = kzalloc_obj(*pvt);
 	if (!pvt)
 		goto out_clear;
 
@@ -723,7 +723,7 @@ static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm)
 
 	dpage = pfn_to_page(uvmem_pfn);
 	dpage->zone_device_data = pvt;
-	zone_device_page_init(dpage, 0);
+	zone_device_page_init(dpage, &kvmppc_uvmem_pgmap, 0);
 	return dpage;
 out_clear:
 	spin_lock(&kvmppc_uvmem_bitmap_lock);

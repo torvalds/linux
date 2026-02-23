@@ -140,7 +140,7 @@ struct nfp_cpp_mutex *nfp_cpp_mutex_alloc(struct nfp_cpp *cpp, int target,
 	if (tmp != key)
 		return NULL;
 
-	mutex = kzalloc(sizeof(*mutex), GFP_KERNEL);
+	mutex = kzalloc_obj(*mutex);
 	if (!mutex)
 		return NULL;
 

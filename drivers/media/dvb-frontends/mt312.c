@@ -780,7 +780,7 @@ struct dvb_frontend *mt312_attach(const struct mt312_config *config,
 	struct mt312_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct mt312_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mt312_state);
 	if (state == NULL)
 		goto error;
 

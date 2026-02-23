@@ -33,7 +33,7 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 	else
 		burst_max_length = burst_length;
 
-	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
+	adis->xfer = kzalloc_objs(*adis->xfer, 2);
 	if (!adis->xfer)
 		return -ENOMEM;
 
@@ -81,7 +81,7 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 
 	scan_count = indio_dev->scan_bytes / 2;
 
-	adis->xfer = kcalloc(scan_count + 1, sizeof(*adis->xfer), GFP_KERNEL);
+	adis->xfer = kzalloc_objs(*adis->xfer, scan_count + 1);
 	if (!adis->xfer)
 		return -ENOMEM;
 

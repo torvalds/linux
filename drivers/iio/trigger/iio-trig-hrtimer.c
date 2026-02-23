@@ -131,7 +131,7 @@ static struct iio_sw_trigger *iio_trig_hrtimer_probe(const char *name)
 	struct iio_hrtimer_info *trig_info;
 	int ret;
 
-	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
+	trig_info = kzalloc_obj(*trig_info);
 	if (!trig_info)
 		return ERR_PTR(-ENOMEM);
 

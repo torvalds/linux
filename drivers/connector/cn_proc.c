@@ -429,8 +429,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 	if (nsp->sk) {
 		sk = nsp->sk;
 		if (sk->sk_user_data == NULL) {
-			sk->sk_user_data = kzalloc(sizeof(struct proc_input),
-						   GFP_KERNEL);
+			sk->sk_user_data = kzalloc_obj(struct proc_input);
 			if (sk->sk_user_data == NULL) {
 				err = ENOMEM;
 				goto out;

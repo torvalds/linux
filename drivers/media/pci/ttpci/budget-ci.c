@@ -1456,7 +1456,7 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 	struct budget_ci *budget_ci;
 	int err;
 
-	budget_ci = kzalloc(sizeof(struct budget_ci), GFP_KERNEL);
+	budget_ci = kzalloc_obj(struct budget_ci);
 	if (!budget_ci) {
 		err = -ENOMEM;
 		goto out1;

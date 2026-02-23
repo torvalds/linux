@@ -1736,7 +1736,7 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	bhs = kcalloc(blocks, sizeof(struct buffer_head *), GFP_KERNEL);
+	bhs = kzalloc_objs(struct buffer_head *, blocks);
 	if (!bhs) {
 		status = -ENOMEM;
 		mlog_errno(status);

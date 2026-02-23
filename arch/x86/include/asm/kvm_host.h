@@ -195,7 +195,15 @@ enum kvm_reg {
 
 	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
 	VCPU_EXREG_CR0,
+	/*
+	 * Alias AMD's ERAPS (not a real register) to CR3 so that common code
+	 * can trigger emulation of the RAP (Return Address Predictor) with
+	 * minimal support required in common code.  Piggyback CR3 as the RAP
+	 * is cleared on writes to CR3, i.e. marking CR3 dirty will naturally
+	 * mark ERAPS dirty as well.
+	 */
 	VCPU_EXREG_CR3,
+	VCPU_EXREG_ERAPS = VCPU_EXREG_CR3,
 	VCPU_EXREG_CR4,
 	VCPU_EXREG_RFLAGS,
 	VCPU_EXREG_SEGMENTS,
@@ -529,6 +537,7 @@ struct kvm_pmc {
 	 */
 	u64 emulated_counter;
 	u64 eventsel;
+	u64 eventsel_hw;
 	struct perf_event *perf_event;
 	struct kvm_vcpu *vcpu;
 	/*
@@ -557,6 +566,7 @@ struct kvm_pmu {
 	unsigned nr_arch_fixed_counters;
 	unsigned available_event_types;
 	u64 fixed_ctr_ctrl;
+	u64 fixed_ctr_ctrl_hw;
 	u64 fixed_ctr_ctrl_rsvd;
 	u64 global_ctrl;
 	u64 global_status;
@@ -776,6 +786,8 @@ enum kvm_only_cpuid_leafs {
 	CPUID_24_0_EBX,
 	CPUID_8000_0021_ECX,
 	CPUID_7_1_ECX,
+	CPUID_1E_1_EAX,
+	CPUID_24_1_ECX,
 	NR_KVM_CPU_CAPS,
 
 	NKVMCAPINTS = NR_KVM_CPU_CAPS - NCAPINTS,
@@ -1222,8 +1234,16 @@ struct kvm_xen {
 
 enum kvm_irqchip_mode {
 	KVM_IRQCHIP_NONE,
+#ifdef CONFIG_KVM_IOAPIC
 	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
+#endif
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
+};
+
+enum kvm_suppress_eoi_broadcast_mode {
+	KVM_SUPPRESS_EOI_BROADCAST_QUIRKED, /* Legacy behavior */
+	KVM_SUPPRESS_EOI_BROADCAST_ENABLED, /* Enable Suppress EOI broadcast */
+	KVM_SUPPRESS_EOI_BROADCAST_DISABLED /* Disable Suppress EOI broadcast */
 };
 
 struct kvm_x86_msr_filter {
@@ -1475,6 +1495,7 @@ struct kvm_arch {
 
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
+	enum kvm_suppress_eoi_broadcast_mode suppress_eoi_broadcast_mode;
 
 	bool has_mapped_host_mmio;
 	bool guest_can_read_msr_platform_info;
@@ -1484,6 +1505,7 @@ struct kvm_arch {
 
 	bool bus_lock_detection_enabled;
 	bool enable_pmu;
+	bool created_mediated_pmu;
 
 	u32 notify_window;
 	u32 notify_vmexit_flags;

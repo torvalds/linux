@@ -112,12 +112,12 @@ static inline unsigned int disk_zone_wplugs_hash_size(struct gendisk *disk)
 #define BLK_ZONE_WPLUG_UNHASHED		(1U << 2)
 
 /**
- * blk_zone_cond_str - Return string XXX in BLK_ZONE_COND_XXX.
- * @zone_cond: BLK_ZONE_COND_XXX.
+ * blk_zone_cond_str - Return a zone condition name string
+ * @zone_cond: a zone condition BLK_ZONE_COND_name
  *
- * Description: Centralize block layer function to convert BLK_ZONE_COND_XXX
- * into string format. Useful in the debugging and tracing zone conditions. For
- * invalid BLK_ZONE_COND_XXX it returns string "UNKNOWN".
+ * Convert a BLK_ZONE_COND_name zone condition into the string "name". Useful
+ * for the debugging and tracing zone conditions. For an invalid zone
+ * conditions, the string "UNKNOWN" is returned.
  */
 const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 {
@@ -1804,8 +1804,8 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 		min(ilog2(pool_size) + 1, BLK_ZONE_WPLUG_MAX_HASH_BITS);
 
 	disk->zone_wplugs_hash =
-		kcalloc(disk_zone_wplugs_hash_size(disk),
-			sizeof(struct hlist_head), GFP_KERNEL);
+		kzalloc_objs(struct hlist_head,
+			     disk_zone_wplugs_hash_size(disk));
 	if (!disk->zone_wplugs_hash)
 		return -ENOMEM;
 
@@ -1957,6 +1957,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 
 	disk->nr_zones = args->nr_zones;
 	if (args->nr_conv_zones >= disk->nr_zones) {
+		queue_limits_cancel_update(q);
 		pr_warn("%s: Invalid number of conventional zones %u / %u\n",
 			disk->disk_name, args->nr_conv_zones, disk->nr_zones);
 		ret = -ENODEV;

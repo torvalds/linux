@@ -33,7 +33,7 @@ int devm_cxl_pmu_add(struct device *parent, struct cxl_pmu_regs *regs,
 	struct device *dev;
 	int rc;
 
-	pmu = kzalloc(sizeof(*pmu), GFP_KERNEL);
+	pmu = kzalloc_obj(*pmu);
 	if (!pmu)
 		return -ENOMEM;
 

@@ -353,7 +353,7 @@ static int mtk_xfi_tphy_power_on(struct phy *phy)
  * Disable and unprepare all clocks previously enabled.
  *
  * Return:
- * See clk_bulk_prepare_disable().
+ * See clk_bulk_disable_unprepare().
  */
 static int mtk_xfi_tphy_power_off(struct phy *phy)
 {

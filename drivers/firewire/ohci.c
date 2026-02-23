@@ -86,7 +86,7 @@ struct descriptor {
 #define AR_BUFFER_SIZE	(32*1024)
 #define AR_BUFFERS_MIN	DIV_ROUND_UP(AR_BUFFER_SIZE, PAGE_SIZE)
 /* we need at least two pages for proper list management */
-#define AR_BUFFERS	(AR_BUFFERS_MIN >= 2 ? AR_BUFFERS_MIN : 2)
+#define AR_BUFFERS	MAX(2, AR_BUFFERS_MIN)
 
 #define MAX_ASYNC_PAYLOAD	4096
 #define MAX_AR_PACKET_SIZE	(16 + MAX_ASYNC_PAYLOAD + 4)
@@ -96,6 +96,7 @@ struct ar_context {
 	struct fw_ohci *ohci;
 	struct page *pages[AR_BUFFERS];
 	void *buffer;
+	dma_addr_t dma_addrs[AR_BUFFERS];
 	struct descriptor *descriptors;
 	dma_addr_t descriptors_bus;
 	void *pointer;
@@ -167,14 +168,20 @@ struct at_context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
-	void *header;
-	size_t header_length;
 	unsigned long flushing_completions;
-	u32 mc_buffer_bus;
-	u16 mc_completed;
-	u16 last_timestamp;
 	u8 sync;
 	u8 tags;
+	union {
+		struct {
+			u16 last_timestamp;
+			size_t header_length;
+			void *header;
+		} sc;
+		struct {
+			u32 buffer_bus;
+			u16 completed;
+		} mc;
+	};
 };
 
 #define CONFIG_ROM_SIZE		(CSR_CONFIG_ROM_END - CSR_CONFIG_ROM)
@@ -513,11 +520,6 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	return update_phy_reg(ohci, addr, clear_bits, set_bits);
 }
 
-static inline dma_addr_t ar_buffer_bus(struct ar_context *ctx, unsigned int i)
-{
-	return page_private(ctx->pages[i]);
-}
-
 static void ar_context_link_page(struct ar_context *ctx, unsigned int index)
 {
 	struct descriptor *d;
@@ -539,18 +541,22 @@ static void ar_context_link_page(struct ar_context *ctx, unsigned int index)
 static void ar_context_release(struct ar_context *ctx)
 {
 	struct device *dev = ctx->ohci->card.device;
-	unsigned int i;
 
 	if (!ctx->buffer)
 		return;
 
-	vunmap(ctx->buffer);
-
-	for (i = 0; i < AR_BUFFERS; i++) {
-		if (ctx->pages[i])
-			dma_free_pages(dev, PAGE_SIZE, ctx->pages[i],
-				       ar_buffer_bus(ctx, i), DMA_FROM_DEVICE);
+	for (int i = 0; i < AR_BUFFERS; ++i) {
+		dma_addr_t dma_addr = ctx->dma_addrs[i];
+		if (dma_addr)
+			dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
 	}
+	memset(ctx->dma_addrs, 0, sizeof(ctx->dma_addrs));
+
+	vunmap(ctx->buffer);
+	ctx->buffer = NULL;
+
+	release_pages(ctx->pages, AR_BUFFERS);
+	memset(ctx->pages, 0, sizeof(ctx->pages));
 }
 
 static void ar_context_abort(struct ar_context *ctx, const char *error_msg)
@@ -643,14 +649,12 @@ static void ar_sync_buffers_for_cpu(struct ar_context *ctx,
 
 	i = ar_first_buffer_index(ctx);
 	while (i != end_buffer_index) {
-		dma_sync_single_for_cpu(ctx->ohci->card.device,
-					ar_buffer_bus(ctx, i),
-					PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(ctx->ohci->card.device, ctx->dma_addrs[i], PAGE_SIZE,
+					DMA_FROM_DEVICE);
 		i = ar_next_buffer_index(i);
 	}
 	if (end_buffer_offset > 0)
-		dma_sync_single_for_cpu(ctx->ohci->card.device,
-					ar_buffer_bus(ctx, i),
+		dma_sync_single_for_cpu(ctx->ohci->card.device, ctx->dma_addrs[i],
 					end_buffer_offset, DMA_FROM_DEVICE);
 }
 
@@ -791,9 +795,8 @@ static void ar_recycle_buffers(struct ar_context *ctx, unsigned int end_buffer)
 
 	i = ar_first_buffer_index(ctx);
 	while (i != end_buffer) {
-		dma_sync_single_for_device(ctx->ohci->card.device,
-					   ar_buffer_bus(ctx, i),
-					   PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_device(ctx->ohci->card.device, ctx->dma_addrs[i], PAGE_SIZE,
+					   DMA_FROM_DEVICE);
 		ar_context_link_page(ctx, i);
 		i = ar_next_buffer_index(i);
 	}
@@ -845,31 +848,57 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 {
 	struct device *dev = ohci->card.device;
 	unsigned int i;
-	dma_addr_t dma_addr;
 	struct page *pages[AR_BUFFERS + AR_WRAPAROUND_PAGES];
+	dma_addr_t dma_addrs[AR_BUFFERS];
+	void *vaddr;
 	struct descriptor *d;
 
 	ctx->regs        = regs;
 	ctx->ohci        = ohci;
 	INIT_WORK(&ctx->work, ohci_ar_context_work);
 
-	for (i = 0; i < AR_BUFFERS; i++) {
-		ctx->pages[i] = dma_alloc_pages(dev, PAGE_SIZE, &dma_addr,
-						DMA_FROM_DEVICE, GFP_KERNEL);
-		if (!ctx->pages[i])
-			goto out_of_memory;
-		set_page_private(ctx->pages[i], dma_addr);
-		dma_sync_single_for_device(dev, dma_addr, PAGE_SIZE,
-					   DMA_FROM_DEVICE);
+	// Retrieve noncontiguous pages. The descriptors for 1394 OHCI AR DMA contexts have a set
+	// of address and length per each. The reason to use pages is to construct contiguous
+	// address range in kernel virtual address space.
+	unsigned long nr_populated = alloc_pages_bulk(GFP_KERNEL | GFP_DMA32, AR_BUFFERS, pages);
+
+	if (nr_populated != AR_BUFFERS) {
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
 	}
 
-	for (i = 0; i < AR_BUFFERS; i++)
-		pages[i]              = ctx->pages[i];
+	// Map the pages into contiguous kernel virtual addresses so that the packet data
+	// across the pages can be referred as being contiguous, especially across the last
+	// and first pages.
 	for (i = 0; i < AR_WRAPAROUND_PAGES; i++)
-		pages[AR_BUFFERS + i] = ctx->pages[i];
-	ctx->buffer = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
-	if (!ctx->buffer)
-		goto out_of_memory;
+		pages[AR_BUFFERS + i] = pages[i];
+	vaddr = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
+	if (!vaddr) {
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
+	}
+
+	// Retrieve DMA mapping addresses for the pages. They are not contiguous. Maintain the cache
+	// coherency for the pages by hand.
+	for (i = 0; i < AR_BUFFERS; i++) {
+		// The dma_map_phys() with a physical address per page is available here, instead.
+		dma_addr_t dma_addr = dma_map_page(dev, pages[i], 0, PAGE_SIZE, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, dma_addr))
+			break;
+		dma_addrs[i] = dma_addr;
+		dma_sync_single_for_device(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+	if (i < AR_BUFFERS) {
+		while (i-- > 0)
+			dma_unmap_page(dev, dma_addrs[i], PAGE_SIZE, DMA_FROM_DEVICE);
+		vunmap(vaddr);
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
+	}
+
+	memcpy(ctx->dma_addrs, dma_addrs, sizeof(ctx->dma_addrs));
+	ctx->buffer = vaddr;
+	memcpy(ctx->pages, pages, sizeof(ctx->pages));
 
 	ctx->descriptors     = ohci->misc_buffer     + descriptors_offset;
 	ctx->descriptors_bus = ohci->misc_buffer_bus + descriptors_offset;
@@ -880,17 +909,12 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 		d->control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
 						DESCRIPTOR_STATUS |
 						DESCRIPTOR_BRANCH_ALWAYS);
-		d->data_address   = cpu_to_le32(ar_buffer_bus(ctx, i));
+		d->data_address   = cpu_to_le32(ctx->dma_addrs[i]);
 		d->branch_address = cpu_to_le32(ctx->descriptors_bus +
 			ar_next_buffer_index(i) * sizeof(struct descriptor));
 	}
 
 	return 0;
-
-out_of_memory:
-	ar_context_release(ctx);
-
-	return -ENOMEM;
 }
 
 static void ar_context_run(struct ar_context *ctx)
@@ -2717,29 +2741,28 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 
 static void flush_iso_completions(struct iso_context *ctx, enum fw_iso_context_completions_cause cause)
 {
-	trace_isoc_inbound_single_completions(&ctx->base, ctx->last_timestamp, cause, ctx->header,
-					      ctx->header_length);
-	trace_isoc_outbound_completions(&ctx->base, ctx->last_timestamp, cause, ctx->header,
-					ctx->header_length);
+	trace_isoc_inbound_single_completions(&ctx->base, ctx->sc.last_timestamp, cause,
+					      ctx->sc.header, ctx->sc.header_length);
+	trace_isoc_outbound_completions(&ctx->base, ctx->sc.last_timestamp, cause, ctx->sc.header,
+					ctx->sc.header_length);
 
-	ctx->base.callback.sc(&ctx->base, ctx->last_timestamp,
-			      ctx->header_length, ctx->header,
-			      ctx->base.callback_data);
-	ctx->header_length = 0;
+	ctx->base.callback.sc(&ctx->base, ctx->sc.last_timestamp, ctx->sc.header_length,
+			      ctx->sc.header, ctx->base.callback_data);
+	ctx->sc.header_length = 0;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
 	u32 *ctx_hdr;
 
-	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE) {
-		if (ctx->base.drop_overflow_headers)
+	if (ctx->sc.header_length + ctx->base.header_size > ctx->base.header_storage_size) {
+		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}
 
-	ctx_hdr = ctx->header + ctx->header_length;
-	ctx->last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
+	ctx_hdr = ctx->sc.header + ctx->sc.header_length;
+	ctx->sc.last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
 
 	/*
 	 * The two iso header quadlets are byteswapped to little
@@ -2752,7 +2775,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 		ctx_hdr[1] = swab32(dma_hdr[0]); /* timestamp */
 	if (ctx->base.header_size > 8)
 		memcpy(&ctx_hdr[2], &dma_hdr[2], ctx->base.header_size - 8);
-	ctx->header_length += ctx->base.header_size;
+	ctx->sc.header_length += ctx->base.header_size;
 }
 
 static int handle_ir_packet_per_buffer(struct context *context,
@@ -2805,8 +2828,8 @@ static int handle_ir_buffer_fill(struct context *context,
 	buffer_dma = le32_to_cpu(last->data_address);
 
 	if (completed > 0) {
-		ctx->mc_buffer_bus = buffer_dma;
-		ctx->mc_completed = completed;
+		ctx->mc.buffer_bus = buffer_dma;
+		ctx->mc.completed = completed;
 	}
 
 	if (res_count != 0)
@@ -2825,7 +2848,7 @@ static int handle_ir_buffer_fill(struct context *context,
 		ctx->base.callback.mc(&ctx->base,
 				      buffer_dma + completed,
 				      ctx->base.callback_data);
-		ctx->mc_completed = 0;
+		ctx->mc.completed = 0;
 	}
 
 	return 1;
@@ -2834,17 +2857,16 @@ static int handle_ir_buffer_fill(struct context *context,
 static void flush_ir_buffer_fill(struct iso_context *ctx)
 {
 	dma_sync_single_range_for_cpu(ctx->context.ohci->card.device,
-				      ctx->mc_buffer_bus & PAGE_MASK,
-				      ctx->mc_buffer_bus & ~PAGE_MASK,
-				      ctx->mc_completed, DMA_FROM_DEVICE);
+				      ctx->mc.buffer_bus & PAGE_MASK,
+				      ctx->mc.buffer_bus & ~PAGE_MASK,
+				      ctx->mc.completed, DMA_FROM_DEVICE);
 
-	trace_isoc_inbound_multiple_completions(&ctx->base, ctx->mc_completed,
+	trace_isoc_inbound_multiple_completions(&ctx->base, ctx->mc.completed,
 						FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH);
 
-	ctx->base.callback.mc(&ctx->base,
-			      ctx->mc_buffer_bus + ctx->mc_completed,
+	ctx->base.callback.mc(&ctx->base, ctx->mc.buffer_bus + ctx->mc.completed,
 			      ctx->base.callback_data);
-	ctx->mc_completed = 0;
+	ctx->mc.completed = 0;
 }
 
 static inline void sync_it_packet_for_cpu(struct context *context,
@@ -2902,18 +2924,18 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	if (ctx->header_length + 4 > PAGE_SIZE) {
-		if (ctx->base.drop_overflow_headers)
+	if (ctx->sc.header_length + 4 > ctx->base.header_storage_size) {
+		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return 1;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}
 
-	ctx_hdr = ctx->header + ctx->header_length;
-	ctx->last_timestamp = le16_to_cpu(last->res_count);
+	ctx_hdr = ctx->sc.header + ctx->sc.header_length;
+	ctx->sc.last_timestamp = le16_to_cpu(last->res_count);
 	/* Present this value as big-endian to match the receive code */
 	*ctx_hdr = cpu_to_be32((le16_to_cpu(pd->transfer_status) << 16) |
 			       le16_to_cpu(pd->res_count));
-	ctx->header_length += 4;
+	ctx->sc.header_length += 4;
 
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_INTERRUPT);
@@ -2932,10 +2954,11 @@ static void set_multichannel_mask(struct fw_ohci *ohci, u64 channels)
 	ohci->mc_channels = channels;
 }
 
-static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
-				int type, int channel, size_t header_size)
+static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card, int type, int channel,
+		size_t header_size, size_t header_storage_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
+	void *header __free(kvfree) = NULL;
 	struct iso_context *ctx;
 	descriptor_callback_t callback;
 	u64 *channels;
@@ -2990,26 +3013,29 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	}
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->header_length = 0;
-	ctx->header = (void *) __get_free_page(GFP_KERNEL);
-	if (ctx->header == NULL) {
-		ret = -ENOMEM;
-		goto out;
+
+	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		ctx->sc.header_length = 0;
+		header = kvmalloc(header_storage_size, GFP_KERNEL);
+		if (!header) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
+
 	ret = context_init(&ctx->context, ohci, regs, callback);
 	if (ret < 0)
-		goto out_with_header;
+		goto out;
 	fw_iso_context_init_work(&ctx->base, ohci_isoc_context_work);
 
-	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		ctx->sc.header = no_free_ptr(header);
+	} else {
 		set_multichannel_mask(ohci, 0);
-		ctx->mc_completed = 0;
+		ctx->mc.completed = 0;
 	}
 
 	return &ctx->base;
-
- out_with_header:
-	free_page((unsigned long)ctx->header);
  out:
 	scoped_guard(spinlock_irq, &ohci->lock) {
 		switch (type) {
@@ -3109,7 +3135,11 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 
 	ohci_stop_iso(base);
 	context_release(&ctx->context);
-	free_page((unsigned long)ctx->header);
+
+	if (base->type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		kvfree(ctx->sc.header);
+		ctx->sc.header = NULL;
+	}
 
 	guard(spinlock_irqsave)(&ohci->lock);
 
@@ -3184,7 +3214,7 @@ static int queue_iso_transmit(struct iso_context *ctx,
 	struct descriptor *d, *last, *pd;
 	struct fw_iso_packet *p;
 	__le32 *header;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	u32 z, header_z, payload_z, irq;
 	u32 payload_index, payload_end_index, next_page_index;
 	int page, end_page, i, length, offset;
@@ -3254,11 +3284,11 @@ static int queue_iso_transmit(struct iso_context *ctx,
 			min(next_page_index, payload_end_index) - payload_index;
 		pd[i].req_count    = cpu_to_le16(length);
 
-		page_bus = page_private(buffer->pages[page]);
-		pd[i].data_address = cpu_to_le32(page_bus + offset);
+		dma_addr_t dma_addr = buffer->dma_addrs[page];
+		pd[i].data_address = cpu_to_le32(dma_addr + offset);
 
 		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
-						 page_bus, offset, length,
+						 dma_addr, offset, length,
 						 DMA_TO_DEVICE);
 
 		payload_index += length;
@@ -3287,7 +3317,7 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 {
 	struct device *device = ctx->context.ohci->card.device;
 	struct descriptor *d, *pd;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	u32 z, header_z, rest;
 	int i, j, length;
 	int page, offset, packet_count, header_size, payload_per_buffer;
@@ -3337,10 +3367,10 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 			pd->res_count = pd->req_count;
 			pd->transfer_status = 0;
 
-			page_bus = page_private(buffer->pages[page]);
-			pd->data_address = cpu_to_le32(page_bus + offset);
+			dma_addr_t dma_addr = buffer->dma_addrs[page];
+			pd->data_address = cpu_to_le32(dma_addr + offset);
 
-			dma_sync_single_range_for_device(device, page_bus,
+			dma_sync_single_range_for_device(device, dma_addr,
 							 offset, length,
 							 DMA_FROM_DEVICE);
 
@@ -3367,7 +3397,7 @@ static int queue_iso_buffer_fill(struct iso_context *ctx,
 				 unsigned long payload)
 {
 	struct descriptor *d;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	int page, offset, rest, z, i, length;
 
 	page   = payload >> PAGE_SHIFT;
@@ -3400,11 +3430,11 @@ static int queue_iso_buffer_fill(struct iso_context *ctx,
 		d->res_count = d->req_count;
 		d->transfer_status = 0;
 
-		page_bus = page_private(buffer->pages[page]);
-		d->data_address = cpu_to_le32(page_bus + offset);
+		dma_addr_t dma_addr = buffer->dma_addrs[page];
+		d->data_address = cpu_to_le32(dma_addr + offset);
 
 		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
-						 page_bus, offset, length,
+						 dma_addr, offset, length,
 						 DMA_FROM_DEVICE);
 
 		rest -= length;
@@ -3457,11 +3487,11 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 		switch (base->type) {
 		case FW_ISO_CONTEXT_TRANSMIT:
 		case FW_ISO_CONTEXT_RECEIVE:
-			if (ctx->header_length != 0)
+			if (ctx->sc.header_length != 0)
 				flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH);
 			break;
 		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
-			if (ctx->mc_completed != 0)
+			if (ctx->mc.completed != 0)
 				flush_ir_buffer_fill(ctx);
 			break;
 		default:

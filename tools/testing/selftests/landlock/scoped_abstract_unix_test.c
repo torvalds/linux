@@ -543,7 +543,7 @@ TEST_F(scoped_vs_unscoped, unix_scoping)
 
 		ASSERT_EQ(1, write(pipe_child[1], ".", 1));
 		ASSERT_EQ(grand_child, waitpid(grand_child, &status, 0));
-		EXPECT_EQ(0, close(stream_server_child))
+		EXPECT_EQ(0, close(stream_server_child));
 		EXPECT_EQ(0, close(dgram_server_child));
 		return;
 	}
@@ -779,7 +779,6 @@ FIXTURE_TEARDOWN(various_address_sockets)
 
 TEST_F(various_address_sockets, scoped_pathname_sockets)
 {
-	socklen_t size_stream, size_dgram;
 	pid_t child;
 	int status;
 	char buf_child, buf_parent;
@@ -798,12 +797,8 @@ TEST_F(various_address_sockets, scoped_pathname_sockets)
 	/* Pathname address. */
 	snprintf(stream_pathname_addr.sun_path,
 		 sizeof(stream_pathname_addr.sun_path), "%s", stream_path);
-	size_stream = offsetof(struct sockaddr_un, sun_path) +
-		      strlen(stream_pathname_addr.sun_path);
 	snprintf(dgram_pathname_addr.sun_path,
 		 sizeof(dgram_pathname_addr.sun_path), "%s", dgram_path);
-	size_dgram = offsetof(struct sockaddr_un, sun_path) +
-		     strlen(dgram_pathname_addr.sun_path);
 
 	/* Abstract address. */
 	memset(&stream_abstract_addr, 0, sizeof(stream_abstract_addr));
@@ -841,8 +836,9 @@ TEST_F(various_address_sockets, scoped_pathname_sockets)
 		/* Connects with pathname sockets. */
 		stream_pathname_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 		ASSERT_LE(0, stream_pathname_socket);
-		ASSERT_EQ(0, connect(stream_pathname_socket,
-				     &stream_pathname_addr, size_stream));
+		ASSERT_EQ(0,
+			  connect(stream_pathname_socket, &stream_pathname_addr,
+				  sizeof(stream_pathname_addr)));
 		ASSERT_EQ(1, write(stream_pathname_socket, "b", 1));
 		EXPECT_EQ(0, close(stream_pathname_socket));
 
@@ -850,12 +846,13 @@ TEST_F(various_address_sockets, scoped_pathname_sockets)
 		dgram_pathname_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
 		ASSERT_LE(0, dgram_pathname_socket);
 		err = sendto(dgram_pathname_socket, "c", 1, 0,
-			     &dgram_pathname_addr, size_dgram);
+			     &dgram_pathname_addr, sizeof(dgram_pathname_addr));
 		EXPECT_EQ(1, err);
 
 		/* Sends with connection. */
-		ASSERT_EQ(0, connect(dgram_pathname_socket,
-				     &dgram_pathname_addr, size_dgram));
+		ASSERT_EQ(0,
+			  connect(dgram_pathname_socket, &dgram_pathname_addr,
+				  sizeof(dgram_pathname_addr)));
 		ASSERT_EQ(1, write(dgram_pathname_socket, "d", 1));
 		EXPECT_EQ(0, close(dgram_pathname_socket));
 
@@ -910,13 +907,13 @@ TEST_F(various_address_sockets, scoped_pathname_sockets)
 	stream_pathname_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	ASSERT_LE(0, stream_pathname_socket);
 	ASSERT_EQ(0, bind(stream_pathname_socket, &stream_pathname_addr,
-			  size_stream));
+			  sizeof(stream_pathname_addr)));
 	ASSERT_EQ(0, listen(stream_pathname_socket, backlog));
 
 	dgram_pathname_socket = socket(AF_UNIX, SOCK_DGRAM, 0);
 	ASSERT_LE(0, dgram_pathname_socket);
 	ASSERT_EQ(0, bind(dgram_pathname_socket, &dgram_pathname_addr,
-			  size_dgram));
+			  sizeof(dgram_pathname_addr)));
 
 	/* Sets up abstract servers. */
 	stream_abstract_socket = socket(AF_UNIX, SOCK_STREAM, 0);

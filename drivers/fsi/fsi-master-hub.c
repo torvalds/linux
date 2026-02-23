@@ -192,9 +192,9 @@ static int hub_master_init(struct fsi_master_hub *hub)
 	return fsi_device_write(dev, FSI_MRESB0, &reg, sizeof(reg));
 }
 
-static int hub_master_probe(struct device *dev)
+static int hub_master_probe(struct fsi_device *fsi_dev)
 {
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	struct device *dev = &fsi_dev->dev;
 	struct fsi_master_hub *hub;
 	uint32_t reg, links;
 	__be32 __reg;
@@ -215,7 +215,7 @@ static int hub_master_probe(struct device *dev)
 		return rc;
 	}
 
-	hub = kzalloc(sizeof(*hub), GFP_KERNEL);
+	hub = kzalloc_obj(*hub);
 	if (!hub) {
 		rc = -ENOMEM;
 		goto err_release;
@@ -235,7 +235,7 @@ static int hub_master_probe(struct device *dev)
 	hub->master.send_break = hub_master_break;
 	hub->master.link_enable = hub_master_link_enable;
 
-	dev_set_drvdata(dev, hub);
+	fsi_set_drvdata(fsi_dev, hub);
 
 	hub_master_init(hub);
 
@@ -259,9 +259,9 @@ err_release:
 	return rc;
 }
 
-static int hub_master_remove(struct device *dev)
+static void hub_master_remove(struct fsi_device *fsi_dev)
 {
-	struct fsi_master_hub *hub = dev_get_drvdata(dev);
+	struct fsi_master_hub *hub = fsi_get_drvdata(fsi_dev);
 
 	fsi_master_unregister(&hub->master);
 	fsi_slave_release_range(hub->upstream->slave, hub->addr, hub->size);
@@ -272,8 +272,6 @@ static int hub_master_remove(struct device *dev)
 	 * the hub
 	 */
 	put_device(&hub->master.dev);
-
-	return 0;
 }
 
 static const struct fsi_device_id hub_master_ids[] = {
@@ -286,11 +284,10 @@ static const struct fsi_device_id hub_master_ids[] = {
 
 static struct fsi_driver hub_master_driver = {
 	.id_table = hub_master_ids,
+	.probe = hub_master_probe,
+	.remove = hub_master_remove,
 	.drv = {
 		.name = "fsi-master-hub",
-		.bus = &fsi_bus_type,
-		.probe = hub_master_probe,
-		.remove = hub_master_remove,
 	}
 };
 

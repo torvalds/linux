@@ -10,7 +10,6 @@
 #include <linux/ctype.h>
 #include <linux/mempool.h>
 #include <linux/vmalloc.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -19,6 +18,7 @@
 #include "cifs_unicode.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
+#include "smb1proto.h"
 #include "cifsfs.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dns_resolve.h"
@@ -67,7 +67,7 @@ sesInfoAlloc(void)
 {
 	struct cifs_ses *ret_buf;
 
-	ret_buf = kzalloc(sizeof(struct cifs_ses), GFP_KERNEL);
+	ret_buf = kzalloc_obj(struct cifs_ses);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
 		spin_lock_init(&ret_buf->ses_lock);
@@ -118,7 +118,7 @@ tcon_info_alloc(bool dir_leases_enabled, enum smb3_tcon_ref_trace trace)
 	struct cifs_tcon *ret_buf;
 	static atomic_t tcon_debug_id;
 
-	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
+	ret_buf = kzalloc_obj(*ret_buf);
 	if (!ret_buf)
 		return NULL;
 
@@ -178,10 +178,10 @@ tconInfoFree(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
 	kfree(tcon);
 }
 
-struct smb_hdr *
+void *
 cifs_buf_get(void)
 {
-	struct smb_hdr *ret_buf = NULL;
+	void *ret_buf = NULL;
 	/*
 	 * SMB2 header is bigger than CIFS one - no problems to clean some
 	 * more bytes for CIFS.
@@ -220,10 +220,10 @@ cifs_buf_release(void *buf_to_free)
 	return;
 }
 
-struct smb_hdr *
+void *
 cifs_small_buf_get(void)
 {
-	struct smb_hdr *ret_buf = NULL;
+	void *ret_buf = NULL;
 
 /* We could use negotiated size instead of max_msgsize -
    but it may be more efficient to always alloc same size
@@ -231,7 +231,6 @@ cifs_small_buf_get(void)
    defaults to this and can not be bigger */
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
-	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
 	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&total_small_buf_alloc_count);
@@ -261,297 +260,6 @@ free_rsp_buf(int resp_buftype, void *rsp)
 		cifs_small_buf_release(rsp);
 	else if (resp_buftype == CIFS_LARGE_BUFFER)
 		cifs_buf_release(rsp);
-}
-
-/* NB: MID can not be set if treeCon not passed in, in that
-   case it is responsibility of caller to set the mid */
-unsigned int
-header_assemble(struct smb_hdr *buffer, char smb_command,
-		const struct cifs_tcon *treeCon, int word_count
-		/* length of fixed section (word count) in two byte units  */)
-{
-	unsigned int in_len;
-	char *temp = (char *) buffer;
-
-	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
-
-	in_len = (2 * word_count) + sizeof(struct smb_hdr) +
-		2 /* for bcc field itself */;
-
-	buffer->Protocol[0] = 0xFF;
-	buffer->Protocol[1] = 'S';
-	buffer->Protocol[2] = 'M';
-	buffer->Protocol[3] = 'B';
-	buffer->Command = smb_command;
-	buffer->Flags = 0x00;	/* case sensitive */
-	buffer->Flags2 = SMBFLG2_KNOWS_LONG_NAMES;
-	buffer->Pid = cpu_to_le16((__u16)current->tgid);
-	buffer->PidHigh = cpu_to_le16((__u16)(current->tgid >> 16));
-	if (treeCon) {
-		buffer->Tid = treeCon->tid;
-		if (treeCon->ses) {
-			if (treeCon->ses->capabilities & CAP_UNICODE)
-				buffer->Flags2 |= SMBFLG2_UNICODE;
-			if (treeCon->ses->capabilities & CAP_STATUS32)
-				buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-
-			/* Uid is not converted */
-			buffer->Uid = treeCon->ses->Suid;
-			if (treeCon->ses->server)
-				buffer->Mid = get_next_mid(treeCon->ses->server);
-		}
-		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
-			buffer->Flags2 |= SMBFLG2_DFS;
-		if (treeCon->nocase)
-			buffer->Flags  |= SMBFLG_CASELESS;
-		if ((treeCon->ses) && (treeCon->ses->server))
-			if (treeCon->ses->server->sign)
-				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-	}
-
-/*  endian conversion of flags is now done just before sending */
-	buffer->WordCount = (char) word_count;
-	return in_len;
-}
-
-static int
-check_smb_hdr(struct smb_hdr *smb)
-{
-	/* does it have the right SMB "signature" ? */
-	if (*(__le32 *) smb->Protocol != SMB1_PROTO_NUMBER) {
-		cifs_dbg(VFS, "Bad protocol string signature header 0x%x\n",
-			 *(unsigned int *)smb->Protocol);
-		return 1;
-	}
-
-	/* if it's a response then accept */
-	if (smb->Flags & SMBFLG_RESPONSE)
-		return 0;
-
-	/* only one valid case where server sends us request */
-	if (smb->Command == SMB_COM_LOCKING_ANDX)
-		return 0;
-
-	/*
-	 * Windows NT server returns error resposne (e.g. STATUS_DELETE_PENDING
-	 * or STATUS_OBJECT_NAME_NOT_FOUND or ERRDOS/ERRbadfile or any other)
-	 * for some TRANS2 requests without the RESPONSE flag set in header.
-	 */
-	if (smb->Command == SMB_COM_TRANSACTION2 && smb->Status.CifsError != 0)
-		return 0;
-
-	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n",
-		 get_mid(smb));
-	return 1;
-}
-
-int
-checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
-	 struct TCP_Server_Info *server)
-{
-	struct smb_hdr *smb = (struct smb_hdr *)buf;
-	__u32 rfclen = pdu_len;
-	__u32 clc_len;  /* calculated length */
-	cifs_dbg(FYI, "checkSMB Length: 0x%x, smb_buf_length: 0x%x\n",
-		 total_read, rfclen);
-
-	/* is this frame too small to even get to a BCC? */
-	if (total_read < 2 + sizeof(struct smb_hdr)) {
-		if ((total_read >= sizeof(struct smb_hdr) - 1)
-			    && (smb->Status.CifsError != 0)) {
-			/* it's an error return */
-			smb->WordCount = 0;
-			/* some error cases do not return wct and bcc */
-			return 0;
-		} else if ((total_read == sizeof(struct smb_hdr) + 1) &&
-				(smb->WordCount == 0)) {
-			char *tmp = (char *)smb;
-			/* Need to work around a bug in two servers here */
-			/* First, check if the part of bcc they sent was zero */
-			if (tmp[sizeof(struct smb_hdr)] == 0) {
-				/* some servers return only half of bcc
-				 * on simple responses (wct, bcc both zero)
-				 * in particular have seen this on
-				 * ulogoffX and FindClose. This leaves
-				 * one byte of bcc potentially uninitialized
-				 */
-				/* zero rest of bcc */
-				tmp[sizeof(struct smb_hdr)+1] = 0;
-				return 0;
-			}
-			cifs_dbg(VFS, "rcvd invalid byte count (bcc)\n");
-			return smb_EIO1(smb_eio_trace_rx_inv_bcc, tmp[sizeof(struct smb_hdr)]);
-		} else {
-			cifs_dbg(VFS, "Length less than smb header size\n");
-			return smb_EIO2(smb_eio_trace_rx_too_short,
-					total_read, smb->WordCount);
-		}
-	} else if (total_read < sizeof(*smb) + 2 * smb->WordCount) {
-		cifs_dbg(VFS, "%s: can't read BCC due to invalid WordCount(%u)\n",
-			 __func__, smb->WordCount);
-		return smb_EIO2(smb_eio_trace_rx_check_rsp,
-				total_read, 2 + sizeof(struct smb_hdr));
-	}
-
-	/* otherwise, there is enough to get to the BCC */
-	if (check_smb_hdr(smb))
-		return smb_EIO1(smb_eio_trace_rx_rfc1002_magic, *(u32 *)smb->Protocol);
-	clc_len = smbCalcSize(smb);
-
-	if (rfclen != total_read) {
-		cifs_dbg(VFS, "Length read does not match RFC1001 length %d/%d\n",
-			 rfclen, total_read);
-		return smb_EIO2(smb_eio_trace_rx_check_rsp,
-				total_read, rfclen);
-	}
-
-	if (rfclen != clc_len) {
-		__u16 mid = get_mid(smb);
-		/* check if bcc wrapped around for large read responses */
-		if ((rfclen > 64 * 1024) && (rfclen > clc_len)) {
-			/* check if lengths match mod 64K */
-			if (((rfclen) & 0xFFFF) == (clc_len & 0xFFFF))
-				return 0; /* bcc wrapped */
-		}
-		cifs_dbg(FYI, "Calculated size %u vs length %u mismatch for mid=%u\n",
-			 clc_len, rfclen, mid);
-
-		if (rfclen < clc_len) {
-			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
-				 rfclen, mid);
-			return smb_EIO2(smb_eio_trace_rx_calc_len_too_big,
-					rfclen, clc_len);
-		} else if (rfclen > clc_len + 512) {
-			/*
-			 * Some servers (Windows XP in particular) send more
-			 * data than the lengths in the SMB packet would
-			 * indicate on certain calls (byte range locks and
-			 * trans2 find first calls in particular). While the
-			 * client can handle such a frame by ignoring the
-			 * trailing data, we choose limit the amount of extra
-			 * data to 512 bytes.
-			 */
-			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
-				 rfclen, mid);
-			return smb_EIO2(smb_eio_trace_rx_overlong,
-					rfclen, clc_len + 512);
-		}
-	}
-	return 0;
-}
-
-bool
-is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
-{
-	struct smb_hdr *buf = (struct smb_hdr *)buffer;
-	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
-	struct TCP_Server_Info *pserver;
-	struct cifs_ses *ses;
-	struct cifs_tcon *tcon;
-	struct cifsInodeInfo *pCifsInode;
-	struct cifsFileInfo *netfile;
-
-	cifs_dbg(FYI, "Checking for oplock break or dnotify response\n");
-	if ((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
-	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
-		struct smb_com_transaction_change_notify_rsp *pSMBr =
-			(struct smb_com_transaction_change_notify_rsp *)buf;
-		struct file_notify_information *pnotify;
-		__u32 data_offset = 0;
-		size_t len = srv->total_read - srv->pdu_size;
-
-		if (get_bcc(buf) > sizeof(struct file_notify_information)) {
-			data_offset = le32_to_cpu(pSMBr->DataOffset);
-
-			if (data_offset >
-			    len - sizeof(struct file_notify_information)) {
-				cifs_dbg(FYI, "Invalid data_offset %u\n",
-					 data_offset);
-				return true;
-			}
-			pnotify = (struct file_notify_information *)
-				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",
-				 pnotify->FileName, pnotify->Action);
-			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
-				sizeof(struct smb_hdr)+60); */
-			return true;
-		}
-		if (pSMBr->hdr.Status.CifsError) {
-			cifs_dbg(FYI, "notify err 0x%x\n",
-				 pSMBr->hdr.Status.CifsError);
-			return true;
-		}
-		return false;
-	}
-	if (pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
-		return false;
-	if (pSMB->hdr.Flags & SMBFLG_RESPONSE) {
-		/* no sense logging error on invalid handle on oplock
-		   break - harmless race between close request and oplock
-		   break response is expected from time to time writing out
-		   large dirty files cached on the client */
-		if ((NT_STATUS_INVALID_HANDLE) ==
-		   le32_to_cpu(pSMB->hdr.Status.CifsError)) {
-			cifs_dbg(FYI, "Invalid handle on oplock break\n");
-			return true;
-		} else if (ERRbadfid ==
-		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
-			return true;
-		} else {
-			return false; /* on valid oplock brk we get "request" */
-		}
-	}
-	if (pSMB->hdr.WordCount != 8)
-		return false;
-
-	cifs_dbg(FYI, "oplock type 0x%x level 0x%x\n",
-		 pSMB->LockType, pSMB->OplockLevel);
-	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
-		return false;
-
-	/* If server is a channel, select the primary channel */
-	pserver = SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
-
-	/* look up tcon based on tid & uid */
-	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
-		if (cifs_ses_exiting(ses))
-			continue;
-		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
-			if (tcon->tid != buf->Tid)
-				continue;
-
-			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
-			spin_lock(&tcon->open_file_lock);
-			list_for_each_entry(netfile, &tcon->openFileList, tlist) {
-				if (pSMB->Fid != netfile->fid.netfid)
-					continue;
-
-				cifs_dbg(FYI, "file id match, oplock break\n");
-				pCifsInode = CIFS_I(d_inode(netfile->dentry));
-
-				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
-					&pCifsInode->flags);
-
-				netfile->oplock_epoch = 0;
-				netfile->oplock_level = pSMB->OplockLevel;
-				netfile->oplock_break_cancelled = false;
-				cifs_queue_oplock_break(netfile);
-
-				spin_unlock(&tcon->open_file_lock);
-				spin_unlock(&cifs_tcp_ses_lock);
-				return true;
-			}
-			spin_unlock(&tcon->open_file_lock);
-			spin_unlock(&cifs_tcp_ses_lock);
-			cifs_dbg(FYI, "No matching file for oplock break\n");
-			return true;
-		}
-	}
-	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
-	return true;
 }
 
 void
@@ -791,7 +499,8 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 				cifs_del_deferred_close(cfile);
 				spin_unlock(&cifs_inode->deferred_lock);
 
-				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				tmp_list = kmalloc_obj(struct file_list,
+						       GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
 				tmp_list->cfile = cfile;
@@ -823,7 +532,8 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 				cifs_del_deferred_close(cfile);
 				spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
-				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+				tmp_list = kmalloc_obj(struct file_list,
+						       GFP_ATOMIC);
 				if (tmp_list == NULL)
 					break;
 				tmp_list->cfile = cfile;
@@ -856,7 +566,7 @@ void cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon,
 			cifs_del_deferred_close(cfile);
 			spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
-			tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
+			tmp_list = kmalloc_obj(struct file_list, GFP_ATOMIC);
 			if (tmp_list == NULL)
 				break;
 			tmp_list->cfile = cfile;
@@ -963,8 +673,7 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
 		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
 
-	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
-				GFP_KERNEL);
+	*target_nodes = kzalloc_objs(struct dfs_info3_param, *num_of_nodes);
 	if (*target_nodes == NULL) {
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;

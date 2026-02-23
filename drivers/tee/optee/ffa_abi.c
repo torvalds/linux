@@ -78,7 +78,7 @@ static int optee_shm_add_ffa_handle(struct optee *optee, struct tee_shm *shm,
 	struct shm_rhash *r;
 	int rc;
 
-	r = kmalloc(sizeof(*r), GFP_KERNEL);
+	r = kmalloc_obj(*r);
 	if (!r)
 		return -ENOMEM;
 	r->shm = shm;
@@ -404,7 +404,7 @@ static const struct tee_shm_pool_ops pool_ffa_ops = {
  */
 static struct tee_shm_pool *optee_ffa_shm_pool_alloc_pages(void)
 {
-	struct tee_shm_pool *pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	struct tee_shm_pool *pool = kzalloc_obj(*pool);
 
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
@@ -697,7 +697,7 @@ static int optee_ffa_lend_protmem(struct optee *optee, struct tee_shm *protmem,
 	unsigned int n;
 	int rc;
 
-	mem_attr = kcalloc(ma_count, sizeof(*mem_attr), GFP_KERNEL);
+	mem_attr = kzalloc_objs(*mem_attr, ma_count);
 	for (n = 0; n < ma_count; n++) {
 		mem_attr[n].receiver = mem_attrs[n] & U16_MAX;
 		mem_attr[n].attrs = mem_attrs[n] >> 16;
@@ -775,6 +775,39 @@ static int optee_ffa_reclaim_protmem(struct optee *optee,
  * with a matching configuration.
  */
 
+static bool optee_ffa_get_os_revision(struct ffa_device *ffa_dev,
+				      const struct ffa_ops *ops,
+				      struct optee_revision *revision)
+{
+	const struct ffa_msg_ops *msg_ops = ops->msg_ops;
+	struct ffa_send_direct_data data = {
+		.data0 = OPTEE_FFA_GET_OS_VERSION,
+	};
+	int rc;
+
+	msg_ops->mode_32bit_set(ffa_dev);
+
+	rc = msg_ops->sync_send_receive(ffa_dev, &data);
+	if (rc) {
+		pr_err("Unexpected error %d\n", rc);
+		return false;
+	}
+
+	if (revision) {
+		revision->os_major = data.data0;
+		revision->os_minor = data.data1;
+		revision->os_build_id = data.data2;
+	}
+
+	if (data.data2)
+		pr_info("revision %lu.%lu (%08lx)",
+			data.data0, data.data1, data.data2);
+	else
+		pr_info("revision %lu.%lu", data.data0, data.data1);
+
+	return true;
+}
+
 static bool optee_ffa_api_is_compatible(struct ffa_device *ffa_dev,
 					const struct ffa_ops *ops)
 {
@@ -797,20 +830,6 @@ static bool optee_ffa_api_is_compatible(struct ffa_device *ffa_dev,
 		       data.data0, data.data1);
 		return false;
 	}
-
-	data = (struct ffa_send_direct_data){
-		.data0 = OPTEE_FFA_GET_OS_VERSION,
-	};
-	rc = msg_ops->sync_send_receive(ffa_dev, &data);
-	if (rc) {
-		pr_err("Unexpected error %d\n", rc);
-		return false;
-	}
-	if (data.data2)
-		pr_info("revision %lu.%lu (%08lx)",
-			data.data0, data.data1, data.data2);
-	else
-		pr_info("revision %lu.%lu", data.data0, data.data1);
 
 	return true;
 }
@@ -900,6 +919,7 @@ static int optee_ffa_open(struct tee_context *ctx)
 
 static const struct tee_driver_ops optee_ffa_clnt_ops = {
 	.get_version = optee_ffa_get_version,
+	.get_tee_revision = optee_get_revision,
 	.open = optee_ffa_open,
 	.release = optee_release,
 	.open_session = optee_open_session,
@@ -918,6 +938,7 @@ static const struct tee_desc optee_ffa_clnt_desc = {
 
 static const struct tee_driver_ops optee_ffa_supp_ops = {
 	.get_version = optee_ffa_get_version,
+	.get_tee_revision = optee_get_revision,
 	.open = optee_ffa_open,
 	.release = optee_release_supp,
 	.supp_recv = optee_supp_recv,
@@ -1056,9 +1077,14 @@ static int optee_ffa_probe(struct ffa_device *ffa_dev)
 	if (sec_caps & OPTEE_FFA_SEC_CAP_ARG_OFFSET)
 		arg_cache_flags |= OPTEE_SHM_ARG_SHARED;
 
-	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
+	optee = kzalloc_obj(*optee);
 	if (!optee)
 		return -ENOMEM;
+
+	if (!optee_ffa_get_os_revision(ffa_dev, ffa_ops, &optee->revision)) {
+		rc = -EINVAL;
+		goto err_free_optee;
+	}
 
 	pool = optee_ffa_shm_pool_alloc_pages();
 	if (IS_ERR(pool)) {

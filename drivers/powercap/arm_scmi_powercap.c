@@ -370,7 +370,7 @@ static int scmi_zones_register(struct device *dev,
 	unsigned int sp = 0, reg_zones = 0;
 	struct scmi_powercap_zone *spz, **zones_stack;
 
-	zones_stack = kcalloc(pr->num_zones, sizeof(spz), GFP_KERNEL);
+	zones_stack = kzalloc_objs(spz, pr->num_zones);
 	if (!zones_stack)
 		return -ENOMEM;
 

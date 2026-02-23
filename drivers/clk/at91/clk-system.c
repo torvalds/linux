@@ -116,7 +116,7 @@ at91_clk_register_system(struct regmap *regmap, const char *name,
 	if (!(parent_name || parent_hw) || id > SYSTEM_MAX_ID)
 		return ERR_PTR(-EINVAL);
 
-	sys = kzalloc(sizeof(*sys), GFP_KERNEL);
+	sys = kzalloc_obj(*sys);
 	if (!sys)
 		return ERR_PTR(-ENOMEM);
 

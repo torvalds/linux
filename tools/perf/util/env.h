@@ -54,6 +54,19 @@ struct pmu_caps {
 	char            *pmu_name;
 };
 
+struct domain_info {
+	u32	domain;
+	char	*dname;
+	char	*cpumask;
+	char	*cpulist;
+};
+
+struct cpu_domain_map {
+	u32			cpu;
+	u32			nr_domains;
+	struct domain_info	**domains;
+};
+
 typedef const char *(arch_syscalls__strerrno_t)(int err);
 
 struct perf_env {
@@ -61,6 +74,9 @@ struct perf_env {
 	char			*os_release;
 	char			*version;
 	char			*arch;
+	/* e_machine expanded from 16 to 32-bits for alignment. */
+	u32			e_machine;
+	u32			e_flags;
 	int			nr_cpus_online;
 	int			nr_cpus_avail;
 	char			*cpu_desc;
@@ -70,6 +86,8 @@ struct perf_env {
 	unsigned int		max_branches;
 	unsigned int		br_cntr_nr;
 	unsigned int		br_cntr_width;
+	unsigned int		schedstat_version;
+	unsigned int		max_sched_domains;
 	int			kernel_is_64_bit;
 
 	int			nr_cmdline;
@@ -92,6 +110,7 @@ struct perf_env {
 	char			**cpu_pmu_caps;
 	struct cpu_topology_map	*cpu;
 	struct cpu_cache_level	*caches;
+	struct cpu_domain_map	**cpu_domain;
 	int			 caches_cnt;
 	u32			comp_ratio;
 	u32			comp_ver;
@@ -151,6 +170,7 @@ struct bpf_prog_info_node;
 struct btf_node;
 
 int perf_env__read_core_pmu_caps(struct perf_env *env);
+void free_cpu_domain_info(struct cpu_domain_map **cd_map, u32 schedstat_version, u32 nr);
 void perf_env__exit(struct perf_env *env);
 
 int perf_env__kernel_is_64_bit(struct perf_env *env);

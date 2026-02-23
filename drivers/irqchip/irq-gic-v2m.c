@@ -293,7 +293,7 @@ static int __init gicv2m_init_one(struct fwnode_handle *fwnode,
 	int ret;
 	struct v2m_data *v2m;
 
-	v2m = kzalloc(sizeof(struct v2m_data), GFP_KERNEL);
+	v2m = kzalloc_obj(struct v2m_data);
 	if (!v2m)
 		return -ENOMEM;
 

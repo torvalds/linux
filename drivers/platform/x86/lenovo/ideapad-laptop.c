@@ -219,38 +219,32 @@ MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
 static bool allow_v4_dytc;
 module_param(allow_v4_dytc, bool, 0444);
 MODULE_PARM_DESC(allow_v4_dytc,
-	"Enable DYTC version 4 platform-profile support. "
-	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+		 "Enable DYTC version 4 platform-profile support. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 static bool hw_rfkill_switch;
 module_param(hw_rfkill_switch, bool, 0444);
 MODULE_PARM_DESC(hw_rfkill_switch,
-	"Enable rfkill support for laptops with a hw on/off wifi switch/slider. "
-	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+		 "Enable rfkill support for laptops with a hw on/off wifi switch/slider. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 static bool set_fn_lock_led;
 module_param(set_fn_lock_led, bool, 0444);
 MODULE_PARM_DESC(set_fn_lock_led,
-	"Enable driver based updates of the fn-lock LED on fn-lock changes. "
-	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+		 "Enable driver based updates of the fn-lock LED on fn-lock changes. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 static bool ctrl_ps2_aux_port;
 module_param(ctrl_ps2_aux_port, bool, 0444);
 MODULE_PARM_DESC(ctrl_ps2_aux_port,
-	"Enable driver based PS/2 aux port en-/dis-abling on touchpad on/off toggle. "
-	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+		 "Enable driver based PS/2 aux port en-/dis-abling on touchpad on/off toggle. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 static bool touchpad_ctrl_via_ec;
 module_param(touchpad_ctrl_via_ec, bool, 0444);
 MODULE_PARM_DESC(touchpad_ctrl_via_ec,
-	"Enable registering a 'touchpad' sysfs-attribute which can be used to manually "
-	"tell the EC to enable/disable the touchpad. This may not work on all models.");
+		 "Enable registering a 'touchpad' sysfs-attribute which can be used to manually tell the EC to enable/disable the touchpad. This may not work on all models.");
 
 static bool ymc_ec_trigger __read_mostly;
 module_param(ymc_ec_trigger, bool, 0444);
 MODULE_PARM_DESC(ymc_ec_trigger,
-	"Enable EC triggering work-around to force emitting tablet mode events. "
-	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+		 "Enable EC triggering work-around to force emitting tablet mode events. If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
 /*
  * shared data
@@ -1178,7 +1172,7 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 		return -ENODEV;
 	}
 
-	priv->dytc = kzalloc(sizeof(*priv->dytc), GFP_KERNEL);
+	priv->dytc = kzalloc_obj(*priv->dytc);
 	if (!priv->dytc)
 		return -ENOMEM;
 
@@ -1446,7 +1440,7 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 		if (read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value))
 			return;
 
-	for_each_set_bit (bit, &value, 16) {
+	for_each_set_bit(bit, &value, 16) {
 		switch (bit) {
 		case 6:	/* Z570 */
 		case 0:	/* Z580 */
@@ -1706,11 +1700,10 @@ static int ideapad_kbd_bl_init(struct ideapad_private *priv)
 	if (WARN_ON(priv->kbd_bl.initialized))
 		return -EEXIST;
 
-	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type)) {
+	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type))
 		priv->kbd_bl.led.max_brightness = 2;
-	} else {
+	else
 		priv->kbd_bl.led.max_brightness = 1;
-	}
 
 	brightness = ideapad_kbd_bl_brightness_get(priv);
 	if (brightness < 0)
@@ -1752,7 +1745,7 @@ static enum led_brightness ideapad_fn_lock_led_cdev_get(struct led_classdev *led
 }
 
 static int ideapad_fn_lock_led_cdev_set(struct led_classdev *led_cdev,
-	enum led_brightness brightness)
+					enum led_brightness brightness)
 {
 	struct ideapad_private *priv = container_of(led_cdev, struct ideapad_private, fn_lock.led);
 
@@ -1928,7 +1921,7 @@ static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 
 	vpc1 = (vpc2 << 8) | vpc1;
 
-	for_each_set_bit (bit, &vpc1, 16) {
+	for_each_set_bit(bit, &vpc1, 16) {
 		switch (bit) {
 		case 13:
 		case 11:
@@ -2142,14 +2135,14 @@ static const enum power_supply_property ideapad_power_supply_props[] = {
 	}
 
 DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(ideapad_battery_ext_v1,
-	(BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
-	 BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
+				      (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+				       BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
 );
 
 DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(ideapad_battery_ext_v2,
-	(BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
-	 BIT(POWER_SUPPLY_CHARGE_TYPE_FAST) |
-	 BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
+				      (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+				       BIT(POWER_SUPPLY_CHARGE_TYPE_FAST) |
+				       BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
 );
 
 static int ideapad_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)

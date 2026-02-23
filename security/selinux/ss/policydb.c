@@ -390,7 +390,7 @@ static int roles_init(struct policydb *p)
 	int rc;
 	struct role_datum *role;
 
-	role = kzalloc(sizeof(*role), GFP_KERNEL);
+	role = kzalloc_obj(*role);
 	if (!role)
 		return -ENOMEM;
 
@@ -738,24 +738,23 @@ static int policydb_index(struct policydb *p)
 	avtab_hash_eval(&p->te_avtab, "rules");
 	symtab_hash_eval(p->symtab);
 
-	p->class_val_to_struct = kcalloc(p->p_classes.nprim,
-					 sizeof(*p->class_val_to_struct),
-					 GFP_KERNEL);
+	p->class_val_to_struct = kzalloc_objs(*p->class_val_to_struct,
+					      p->p_classes.nprim);
 	if (!p->class_val_to_struct)
 		return -ENOMEM;
 
-	p->role_val_to_struct = kcalloc(
-		p->p_roles.nprim, sizeof(*p->role_val_to_struct), GFP_KERNEL);
+	p->role_val_to_struct = kzalloc_objs(*p->role_val_to_struct,
+					     p->p_roles.nprim);
 	if (!p->role_val_to_struct)
 		return -ENOMEM;
 
-	p->user_val_to_struct = kcalloc(
-		p->p_users.nprim, sizeof(*p->user_val_to_struct), GFP_KERNEL);
+	p->user_val_to_struct = kzalloc_objs(*p->user_val_to_struct,
+					     p->p_users.nprim);
 	if (!p->user_val_to_struct)
 		return -ENOMEM;
 
-	p->type_val_to_struct = kvcalloc(
-		p->p_types.nprim, sizeof(*p->type_val_to_struct), GFP_KERNEL);
+	p->type_val_to_struct = kvzalloc_objs(*p->type_val_to_struct,
+					      p->p_types.nprim);
 	if (!p->type_val_to_struct)
 		return -ENOMEM;
 
@@ -1131,7 +1130,7 @@ static int perm_read(struct policydb *p, struct symtab *s, struct policy_file *f
 	__le32 buf[2];
 	u32 len;
 
-	perdatum = kzalloc(sizeof(*perdatum), GFP_KERNEL);
+	perdatum = kzalloc_obj(*perdatum);
 	if (!perdatum)
 		return -ENOMEM;
 
@@ -1164,7 +1163,7 @@ static int common_read(struct policydb *p, struct symtab *s, struct policy_file 
 	u32 i, len, nel;
 	int rc;
 
-	comdatum = kzalloc(sizeof(*comdatum), GFP_KERNEL);
+	comdatum = kzalloc_obj(*comdatum);
 	if (!comdatum)
 		return -ENOMEM;
 
@@ -1237,7 +1236,7 @@ static int read_cons_helper(struct policydb *p, struct constraint_node **nodep,
 
 	lc = NULL;
 	for (i = 0; i < ncons; i++) {
-		c = kzalloc(sizeof(*c), GFP_KERNEL);
+		c = kzalloc_obj(*c);
 		if (!c)
 			return -ENOMEM;
 
@@ -1254,7 +1253,7 @@ static int read_cons_helper(struct policydb *p, struct constraint_node **nodep,
 		le = NULL;
 		depth = -1;
 		for (j = 0; j < nexpr; j++) {
-			e = kzalloc(sizeof(*e), GFP_KERNEL);
+			e = kzalloc_obj(*e);
 			if (!e)
 				return -ENOMEM;
 
@@ -1297,9 +1296,7 @@ static int read_cons_helper(struct policydb *p, struct constraint_node **nodep,
 					return rc;
 				if (p->policyvers >=
 				    POLICYDB_VERSION_CONSTRAINT_NAMES) {
-					e->type_names =
-						kzalloc(sizeof(*e->type_names),
-							GFP_KERNEL);
+					e->type_names = kzalloc_obj(*e->type_names);
 					if (!e->type_names)
 						return -ENOMEM;
 					type_set_init(e->type_names);
@@ -1329,7 +1326,7 @@ static int class_read(struct policydb *p, struct symtab *s, struct policy_file *
 	u32 i, len, len2, ncons, nel;
 	int rc;
 
-	cladatum = kzalloc(sizeof(*cladatum), GFP_KERNEL);
+	cladatum = kzalloc_obj(*cladatum);
 	if (!cladatum)
 		return -ENOMEM;
 
@@ -1427,7 +1424,7 @@ static int role_read(struct policydb *p, struct symtab *s, struct policy_file *f
 	__le32 buf[3];
 	u32 len;
 
-	role = kzalloc(sizeof(*role), GFP_KERNEL);
+	role = kzalloc_obj(*role);
 	if (!role)
 		return -ENOMEM;
 
@@ -1484,7 +1481,7 @@ static int type_read(struct policydb *p, struct symtab *s, struct policy_file *f
 	__le32 buf[4];
 	u32 len;
 
-	typdatum = kzalloc(sizeof(*typdatum), GFP_KERNEL);
+	typdatum = kzalloc_obj(*typdatum);
 	if (!typdatum)
 		return -ENOMEM;
 
@@ -1558,7 +1555,7 @@ static int user_read(struct policydb *p, struct symtab *s, struct policy_file *f
 	__le32 buf[3];
 	u32 len;
 
-	usrdatum = kzalloc(sizeof(*usrdatum), GFP_KERNEL);
+	usrdatum = kzalloc_obj(*usrdatum);
 	if (!usrdatum)
 		return -ENOMEM;
 
@@ -1608,7 +1605,7 @@ static int sens_read(struct policydb *p, struct symtab *s, struct policy_file *f
 	__le32 buf[2];
 	u32 len;
 
-	levdatum = kzalloc(sizeof(*levdatum), GFP_KERNEL);
+	levdatum = kzalloc_obj(*levdatum);
 	if (!levdatum)
 		return -ENOMEM;
 
@@ -1644,7 +1641,7 @@ static int cat_read(struct policydb *p, struct symtab *s, struct policy_file *fp
 	__le32 buf[3];
 	u32 len;
 
-	catdatum = kzalloc(sizeof(*catdatum), GFP_KERNEL);
+	catdatum = kzalloc_obj(*catdatum);
 	if (!catdatum)
 		return -ENOMEM;
 
@@ -1864,7 +1861,7 @@ static int range_read(struct policydb *p, struct policy_file *fp)
 
 	for (i = 0; i < nel; i++) {
 		rc = -ENOMEM;
-		rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+		rt = kzalloc_obj(*rt);
 		if (!rt)
 			goto out;
 
@@ -1889,7 +1886,7 @@ static int range_read(struct policydb *p, struct policy_file *fp)
 			goto out;
 
 		rc = -ENOMEM;
-		r = kzalloc(sizeof(*r), GFP_KERNEL);
+		r = kzalloc_obj(*r);
 		if (!r)
 			goto out;
 
@@ -1965,7 +1962,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, struct policy_f
 	}
 	if (!datum) {
 		rc = -ENOMEM;
-		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
+		datum = kmalloc_obj(*datum);
 		if (!datum)
 			goto out;
 
@@ -2040,7 +2037,7 @@ static int filename_trans_read_helper(struct policydb *p, struct policy_file *fp
 	dst = &first;
 	for (i = 0; i < ndatum; i++) {
 		rc = -ENOMEM;
-		datum = kmalloc(sizeof(*datum), GFP_KERNEL);
+		datum = kmalloc_obj(*datum);
 		if (!datum)
 			goto out;
 
@@ -2062,7 +2059,7 @@ static int filename_trans_read_helper(struct policydb *p, struct policy_file *fp
 	}
 
 	rc = -ENOMEM;
-	ft = kmalloc(sizeof(*ft), GFP_KERNEL);
+	ft = kmalloc_obj(*ft);
 	if (!ft)
 		goto out;
 
@@ -2155,7 +2152,7 @@ static int genfs_read(struct policydb *p, struct policy_file *fp)
 		len = le32_to_cpu(buf[0]);
 
 		rc = -ENOMEM;
-		newgenfs = kzalloc(sizeof(*newgenfs), GFP_KERNEL);
+		newgenfs = kzalloc_obj(*newgenfs);
 		if (!newgenfs)
 			goto out;
 
@@ -2194,7 +2191,7 @@ static int genfs_read(struct policydb *p, struct policy_file *fp)
 			len = le32_to_cpu(buf[0]);
 
 			rc = -ENOMEM;
-			newc = kzalloc(sizeof(*newc), GFP_KERNEL);
+			newc = kzalloc_obj(*newc);
 			if (!newc)
 				goto out;
 
@@ -2266,7 +2263,7 @@ static int ocontext_read(struct policydb *p,
 		l = NULL;
 		for (j = 0; j < nel; j++) {
 			rc = -ENOMEM;
-			c = kzalloc(sizeof(*c), GFP_KERNEL);
+			c = kzalloc_obj(*c);
 			if (!c)
 				goto out;
 			if (l)
@@ -2623,12 +2620,12 @@ int policydb_read(struct policydb *p, struct policy_file *fp)
 		goto bad;
 	for (i = 0; i < nel; i++) {
 		rc = -ENOMEM;
-		rtk = kmalloc(sizeof(*rtk), GFP_KERNEL);
+		rtk = kmalloc_obj(*rtk);
 		if (!rtk)
 			goto bad;
 
 		rc = -ENOMEM;
-		rtd = kmalloc(sizeof(*rtd), GFP_KERNEL);
+		rtd = kmalloc_obj(*rtd);
 		if (!rtd)
 			goto bad;
 
@@ -2671,7 +2668,7 @@ int policydb_read(struct policydb *p, struct policy_file *fp)
 	lra = NULL;
 	for (i = 0; i < nel; i++) {
 		rc = -ENOMEM;
-		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
+		ra = kzalloc_obj(*ra);
 		if (!ra)
 			goto bad;
 		if (lra)
@@ -2726,8 +2723,8 @@ int policydb_read(struct policydb *p, struct policy_file *fp)
 		goto bad;
 
 	rc = -ENOMEM;
-	p->type_attr_map_array = kvcalloc(
-		p->p_types.nprim, sizeof(*p->type_attr_map_array), GFP_KERNEL);
+	p->type_attr_map_array = kvzalloc_objs(*p->type_attr_map_array,
+					       p->p_types.nprim);
 	if (!p->type_attr_map_array)
 		goto bad;
 

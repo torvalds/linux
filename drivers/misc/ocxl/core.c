@@ -17,7 +17,7 @@ static struct ocxl_afu *alloc_afu(struct ocxl_fn *fn)
 {
 	struct ocxl_afu *afu;
 
-	afu = kzalloc(sizeof(struct ocxl_afu), GFP_KERNEL);
+	afu = kzalloc_obj(struct ocxl_afu);
 	if (!afu)
 		return NULL;
 
@@ -300,7 +300,7 @@ static struct ocxl_fn *alloc_function(void)
 {
 	struct ocxl_fn *fn;
 
-	fn = kzalloc(sizeof(struct ocxl_fn), GFP_KERNEL);
+	fn = kzalloc_obj(struct ocxl_fn);
 	if (!fn)
 		return NULL;
 

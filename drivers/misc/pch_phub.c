@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/uaccess.h>
 #include <linux/string.h>
 #include <linux/pci.h>
@@ -665,7 +666,7 @@ static int pch_phub_probe(struct pci_dev *pdev,
 	int ret;
 	struct pch_phub_reg *chip;
 
-	chip = kzalloc(sizeof(struct pch_phub_reg), GFP_KERNEL);
+	chip = kzalloc_obj(struct pch_phub_reg);
 	if (chip == NULL)
 		return -ENOMEM;
 

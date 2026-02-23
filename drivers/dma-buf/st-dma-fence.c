@@ -33,50 +33,9 @@ static void mock_fence_release(struct dma_fence *f)
 	kmem_cache_free(slab_fences, to_mock_fence(f));
 }
 
-struct wait_cb {
-	struct dma_fence_cb cb;
-	struct task_struct *task;
-};
-
-static void mock_wakeup(struct dma_fence *f, struct dma_fence_cb *cb)
-{
-	wake_up_process(container_of(cb, struct wait_cb, cb)->task);
-}
-
-static long mock_wait(struct dma_fence *f, bool intr, long timeout)
-{
-	const int state = intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
-	struct wait_cb cb = { .task = current };
-
-	if (dma_fence_add_callback(f, &cb.cb, mock_wakeup))
-		return timeout;
-
-	while (timeout) {
-		set_current_state(state);
-
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &f->flags))
-			break;
-
-		if (signal_pending_state(state, current))
-			break;
-
-		timeout = schedule_timeout(timeout);
-	}
-	__set_current_state(TASK_RUNNING);
-
-	if (!dma_fence_remove_callback(f, &cb.cb))
-		return timeout;
-
-	if (signal_pending_state(state, current))
-		return -ERESTARTSYS;
-
-	return -ETIME;
-}
-
 static const struct dma_fence_ops mock_ops = {
 	.get_driver_name = mock_name,
 	.get_timeline_name = mock_name,
-	.wait = mock_wait,
 	.release = mock_fence_release,
 };
 
@@ -126,7 +85,7 @@ static int test_signaling(void *arg)
 		goto err_free;
 	}
 
-	if (dma_fence_signal(f)) {
+	if (dma_fence_check_and_signal(f)) {
 		pr_err("Fence reported being already signaled\n");
 		goto err_free;
 	}
@@ -136,7 +95,7 @@ static int test_signaling(void *arg)
 		goto err_free;
 	}
 
-	if (!dma_fence_signal(f)) {
+	if (!dma_fence_test_signaled_flag(f)) {
 		pr_err("Fence reported not being already signaled\n");
 		goto err_free;
 	}
@@ -349,14 +308,14 @@ static int test_wait(void *arg)
 
 	dma_fence_enable_sw_signaling(f);
 
-	if (dma_fence_wait_timeout(f, false, 0) != -ETIME) {
+	if (dma_fence_wait_timeout(f, false, 0) != 0) {
 		pr_err("Wait reported complete before being signaled\n");
 		goto err_free;
 	}
 
 	dma_fence_signal(f);
 
-	if (dma_fence_wait_timeout(f, false, 0) != 0) {
+	if (dma_fence_wait_timeout(f, false, 0) != 1) {
 		pr_err("Wait reported incomplete after being signaled\n");
 		goto err_free;
 	}
@@ -393,16 +352,16 @@ static int test_wait_timeout(void *arg)
 
 	dma_fence_enable_sw_signaling(wt.f);
 
-	if (dma_fence_wait_timeout(wt.f, false, 1) != -ETIME) {
+	if (dma_fence_wait_timeout(wt.f, false, 1) != 0) {
 		pr_err("Wait reported complete before being signaled\n");
 		goto err_free;
 	}
 
 	mod_timer(&wt.timer, jiffies + 1);
 
-	if (dma_fence_wait_timeout(wt.f, false, 2) == -ETIME) {
+	if (dma_fence_wait_timeout(wt.f, false, HZ) == 0) {
 		if (timer_pending(&wt.timer)) {
-			pr_notice("Timer did not fire within the jiffy!\n");
+			pr_notice("Timer did not fire within one HZ!\n");
 			err = 0; /* not our fault! */
 		} else {
 			pr_err("Wait reported incomplete after timeout\n");

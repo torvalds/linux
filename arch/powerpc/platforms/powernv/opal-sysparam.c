@@ -222,7 +222,7 @@ void __init opal_sys_param_init(void)
 		goto out_free_perm;
 	}
 
-	attr = kcalloc(count, sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_objs(*attr, count);
 	if (!attr) {
 		pr_err("SYSPARAM: Failed to allocate memory for parameter "
 				"attributes\n");

@@ -307,7 +307,7 @@ int fb_deferred_io_init(struct fb_info *info)
 	npagerefs = DIV_ROUND_UP(info->fix.smem_len, PAGE_SIZE);
 
 	/* alloc a page ref for each page of the display memory */
-	pagerefs = kvcalloc(npagerefs, sizeof(*pagerefs), GFP_KERNEL);
+	pagerefs = kvzalloc_objs(*pagerefs, npagerefs);
 	if (!pagerefs) {
 		ret = -ENOMEM;
 		goto err;

@@ -17,10 +17,17 @@ description:
 properties:
   compatible:
     oneOf:
-      - const: renesas,r9a09g047-tsu # RZ/G3E
+      - enum:
+          - renesas,r9a09g047-tsu # RZ/G3E
+          - renesas,r9a09g077-tsu # RZ/T2H
       - items:
-          - const: renesas,r9a09g057-tsu # RZ/V2H
+          - enum:
+              - renesas,r9a09g056-tsu # RZ/V2N
+              - renesas,r9a09g057-tsu # RZ/V2H
           - const: renesas,r9a09g047-tsu # RZ/G3E
+      - items:
+          - const: renesas,r9a09g087-tsu # RZ/N2H
+          - const: renesas,r9a09g077-tsu # RZ/T2H
 
   reg:
     maxItems: 1
@@ -63,12 +70,31 @@ required:
   - compatible
   - reg
   - clocks
-  - resets
   - power-domains
   - interrupts
   - interrupt-names
   - "#thermal-sensor-cells"
-  - renesas,tsu-trim
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g047-tsu
+    then:
+      required:
+        - resets
+        - renesas,tsu-trim
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g077-tsu
+    then:
+      properties:
+        resets: false
+        renesas,tsu-trim: false
 
 additionalProperties: false
 

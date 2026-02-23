@@ -107,22 +107,22 @@ Get sum and peak of delays, since system boot, for all pids with tgid 242::
 	TGID    242
 
 
-	CPU         count     real total  virtual total    delay total  delay average      delay max      delay min
-	               39      156000000      156576579        2111069          0.054ms     0.212296ms     0.031307ms
-	IO          count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
-	SWAP        count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
-	RECLAIM     count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
-	THRASHING   count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
-	COMPACT     count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
-	WPCOPY      count    delay total  delay average      delay max      delay min
-	              156       11215873          0.072ms     0.207403ms     0.033913ms
-	IRQ         count    delay total  delay average      delay max      delay min
-	                0              0          0.000ms     0.000000ms     0.000000ms
+	CPU         count     real total  virtual total    delay total  delay average      delay max      delay min      delay max timestamp
+	               46      188000000      192348334        4098012          0.089ms     0.429260ms     0.051205ms    2026-01-15T15:06:58
+	IO          count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
+	SWAP        count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
+	RECLAIM     count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
+	THRASHING   count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
+	COMPACT     count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
+	WPCOPY      count    delay total  delay average      delay max      delay min      delay max timestamp
+	              182       19413338          0.107ms     0.547353ms     0.022462ms    2026-01-15T15:05:24
+	IRQ         count    delay total  delay average      delay max      delay min      delay max timestamp
+	                0              0          0.000ms     0.000000ms     0.000000ms                    N/A
 
 Get IO accounting for pid 1, it works only with -p::
 

@@ -87,7 +87,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 		return 0;
 	}
 
-	if (!(vma = *pvma = kmalloc(sizeof(*vma), GFP_KERNEL)))
+	if (!(vma = *pvma = kmalloc_obj(*vma)))
 		return -ENOMEM;
 	vma->vmm = vmm;
 	vma->refs = 1;

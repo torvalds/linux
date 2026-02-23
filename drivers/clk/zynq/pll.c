@@ -200,7 +200,7 @@ struct clk *clk_register_zynq_pll(const char *name, const char *parent,
 		.flags = 0
 	};
 
-	pll = kmalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kmalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

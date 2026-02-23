@@ -23,6 +23,9 @@
  * Authors: AMD
  *
  */
+
+#include <drm/drm_colorop.h>
+
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
@@ -1224,7 +1227,7 @@ int amdgpu_dm_check_crtc_color_mgmt(struct dm_crtc_state *crtc,
 	crtc->cm_is_degamma_srgb = false;
 
 	if (check_only) {
-		out_tf = kvzalloc(sizeof(*out_tf), GFP_KERNEL);
+		out_tf = kvzalloc_obj(*out_tf);
 		if (!out_tf)
 			return -ENOMEM;
 	} else {

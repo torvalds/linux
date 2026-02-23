@@ -276,7 +276,7 @@ struct dvb_frontend *ec100_attach(const struct ec100_config *config,
 	u8 tmp;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct ec100_state), GFP_KERNEL);
+	state = kzalloc_obj(struct ec100_state);
 	if (state == NULL)
 		goto error;
 

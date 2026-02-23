@@ -554,7 +554,7 @@ static int gmac_setup_txqs(struct net_device *netdev)
 
 	rwptr_reg = port->dma_base + GMAC_SW_TX_QUEUE0_PTR_REG;
 
-	skb_tab = kcalloc(len, sizeof(*skb_tab), GFP_KERNEL);
+	skb_tab = kzalloc_objs(*skb_tab, len);
 	if (!skb_tab)
 		return -ENOMEM;
 
@@ -940,8 +940,7 @@ static int geth_setup_freeq(struct gemini_ethernet *geth)
 	}
 
 	/* Allocate a mapping to page look-up index */
-	geth->freeq_pages = kcalloc(pages, sizeof(*geth->freeq_pages),
-				    GFP_KERNEL);
+	geth->freeq_pages = kzalloc_objs(*geth->freeq_pages, pages);
 	if (!geth->freeq_pages)
 		goto err_freeq;
 	geth->num_freeq_pages = pages;

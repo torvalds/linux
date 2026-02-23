@@ -24,6 +24,7 @@ struct imx_rproc_plat_ops {
 	int (*stop)(struct rproc *rproc);
 	int (*detach)(struct rproc *rproc);
 	int (*detect_mode)(struct rproc *rproc);
+	int (*prepare)(struct rproc *rproc);
 };
 
 struct imx_rproc_dcfg {
@@ -37,6 +38,9 @@ struct imx_rproc_dcfg {
 	size_t				att_size;
 	u32				flags;
 	const struct imx_rproc_plat_ops	*ops;
+	/* For System Manager(SM) based SoCs */
+	u32				cpuid; /* ID of the remote core */
+	u32				lmid;  /* ID of the Logcial Machine */
 };
 
 #endif /* _IMX_RPROC_H */

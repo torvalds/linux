@@ -55,7 +55,7 @@ k3_cppi_desc_pool_create_name(struct device *dev, size_t size,
 	const char *pool_name = NULL;
 	int ret = -ENOMEM;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(ret);
 
@@ -77,8 +77,7 @@ k3_cppi_desc_pool_create_name(struct device *dev, size_t size,
 
 	pool->gen_pool->name = pool_name;
 
-	pool->desc_infos = kcalloc(pool->num_desc,
-				   sizeof(*pool->desc_infos), GFP_KERNEL);
+	pool->desc_infos = kzalloc_objs(*pool->desc_infos, pool->num_desc);
 	if (!pool->desc_infos)
 		goto gen_pool_desc_infos_alloc_fail;
 

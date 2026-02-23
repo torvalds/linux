@@ -439,7 +439,7 @@ static int usbio_add_client(struct usbio_device *usbio, char *name, u8 id, void 
 	struct auxiliary_device *adev;
 	int ret;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
 

@@ -156,9 +156,9 @@ enum {
  * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
  * @must_probe_vswitching: Flag: vswitching has yet to be setup after MC reboot
  * @pf_index: The number for this PF, or the parent PF if this is a VF
-#ifdef CONFIG_SFC_SRIOV
- * @vf: Pointer to VF data structure
-#endif
+ * @port_id: Ethernet address of owning PF, used for phys_port_id
+ * @vf_index: The number for this VF, or 0xFFFF if this is a VF
+ * @vf: for a PF, array of VF data structures indexed by VF's @vf_index
  * @vport_mac: The MAC address on the vport, only for PFs; VFs will be zero
  * @vlan_list: List of VLANs added over the interface. Serialised by vlan_lock.
  * @vlan_lock: Lock to serialize access to vlan_list.
@@ -166,6 +166,7 @@ enum {
  * @udp_tunnels_dirty: flag indicating a reboot occurred while pushing
  *	@udp_tunnels to hardware and thus the push must be re-done.
  * @udp_tunnels_lock: Serialises writes to @udp_tunnels and @udp_tunnels_dirty.
+ * @licensed_features: Flags for licensed firmware features.
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;

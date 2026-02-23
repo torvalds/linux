@@ -76,7 +76,7 @@ struct typec_switch *fwnode_typec_switch_get(struct fwnode_handle *fwnode)
 	int err;
 	int i;
 
-	sw = kzalloc(sizeof(*sw), GFP_KERNEL);
+	sw = kzalloc_obj(*sw);
 	if (!sw)
 		return ERR_PTR(-ENOMEM);
 
@@ -171,7 +171,7 @@ typec_switch_register(struct device *parent,
 	if (!desc || !desc->set)
 		return ERR_PTR(-EINVAL);
 
-	sw_dev = kzalloc(sizeof(*sw_dev), GFP_KERNEL);
+	sw_dev = kzalloc_obj(*sw_dev);
 	if (!sw_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -301,7 +301,7 @@ struct typec_mux *fwnode_typec_mux_get(struct fwnode_handle *fwnode)
 	int err;
 	int i;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		return ERR_PTR(-ENOMEM);
 
@@ -415,7 +415,7 @@ typec_mux_register(struct device *parent, const struct typec_mux_desc *desc)
 	if (!desc || !desc->set)
 		return ERR_PTR(-EINVAL);
 
-	mux_dev = kzalloc(sizeof(*mux_dev), GFP_KERNEL);
+	mux_dev = kzalloc_obj(*mux_dev);
 	if (!mux_dev)
 		return ERR_PTR(-ENOMEM);
 

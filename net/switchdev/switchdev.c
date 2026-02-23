@@ -114,7 +114,7 @@ static int switchdev_deferred_enqueue(struct net_device *dev,
 {
 	struct switchdev_deferred_item *dfitem;
 
-	dfitem = kmalloc(struct_size(dfitem, data, data_len), GFP_ATOMIC);
+	dfitem = kmalloc_flex(*dfitem, data, data_len, GFP_ATOMIC);
 	if (!dfitem)
 		return -ENOMEM;
 	dfitem->dev = dev;

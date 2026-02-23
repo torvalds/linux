@@ -209,7 +209,7 @@ int hfi1_fault_init_debugfs(struct hfi1_ibdev *ibd)
 	struct dentry *parent = ibd->hfi1_ibdev_dbg;
 	struct dentry *fault_dir;
 
-	ibd->fault = kzalloc(sizeof(*ibd->fault), GFP_KERNEL);
+	ibd->fault = kzalloc_obj(*ibd->fault);
 	if (!ibd->fault)
 		return -ENOMEM;
 

@@ -431,7 +431,7 @@ static struct ali_drw_pmu_irq *__ali_drw_pmu_init_irq(struct platform_device
 			return irq;
 	}
 
-	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
+	irq = kzalloc_obj(*irq);
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 

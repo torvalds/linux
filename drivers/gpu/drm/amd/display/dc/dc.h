@@ -63,7 +63,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.359"
+#define DC_VER "3.2.369"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -81,6 +81,8 @@ struct dcn_dccg_reg_state;
 #define MAX_HOST_ROUTERS_NUM 3
 #define MAX_DPIA_PER_HOST_ROUTER 3
 #define MAX_DPIA_NUM  (MAX_HOST_ROUTERS_NUM * MAX_DPIA_PER_HOST_ROUTER)
+
+#define NUM_FAST_FLIPS_TO_STEADY_STATE 20
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -293,6 +295,9 @@ struct dc_check_config {
 	 */
 	unsigned int max_optimizable_video_width;
 	bool enable_legacy_fast_update;
+
+	bool deferred_transition_state;
+	unsigned int transition_countdown_to_steady_state;
 };
 
 struct dc_caps {
@@ -500,7 +505,6 @@ union allow_lttpr_non_transparent_mode {
 	} bits;
 	unsigned char raw;
 };
-
 /* Structure to hold configuration flags set by dm at dc creation. */
 struct dc_config {
 	bool gpu_vm_support;
@@ -555,6 +559,7 @@ struct dc_config {
 	bool enable_dpia_pre_training;
 	bool unify_link_enc_assignment;
 	bool enable_cursor_offload;
+	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
 };
@@ -951,6 +956,19 @@ struct dc_bounding_box_overrides {
 	int min_dcfclk_mhz;
 };
 
+struct dc_qos_info {
+	uint32_t actual_peak_bw_in_mbps;
+	uint32_t qos_bandwidth_lb_in_mbps;
+	uint32_t actual_avg_bw_in_mbps;
+	uint32_t calculated_avg_bw_in_mbps;
+	uint32_t actual_max_latency_in_ns;
+	uint32_t actual_min_latency_in_ns;
+	uint32_t qos_max_latency_ub_in_ns;
+	uint32_t actual_avg_latency_in_ns;
+	uint32_t qos_avg_latency_ub_in_ns;
+	uint32_t dcn_bandwidth_ub_in_mbps;
+};
+
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
@@ -1188,6 +1206,11 @@ struct dc_debug_options {
 	short auxless_alpm_lfps_t1t2_offset_us;
 	bool disable_stutter_for_wm_program;
 	bool enable_block_sequence_programming;
+	uint32_t custom_psp_footer_size;
+	bool disable_deferred_minimal_transitions;
+	unsigned int num_fast_flips_to_steady_state_override;
+	bool enable_dmu_recovery;
+	unsigned int force_vmin_threshold;
 };
 
 
@@ -1707,13 +1730,13 @@ struct dc_scratch_space {
 	struct dc_link_status link_status;
 	struct dprx_states dprx_states;
 
-	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 	bool is_dds;
 	bool is_display_mux_present;
 	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
 
 	struct dc_panel_config panel_config;
+	enum dc_panel_type panel_type;
 	struct phy_state phy_state;
 	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY
@@ -2455,6 +2478,48 @@ bool dc_link_set_replay_allow_active(struct dc_link *dc_link, const bool *enable
 
 bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
+/*
+ * Enable or disable Panel Replay on the specified link:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @enable: enable or disable Panel Replay
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_set_pr_enable(struct dc_link *link, bool enable);
+
+/*
+ * Update Panel Replay state parameters:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @update_state_data: pointer to state update data structure
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_update_pr_state(struct dc_link *link,
+		struct dmub_cmd_pr_update_state_data *update_state_data);
+
+/*
+ * Send general command to Panel Replay firmware:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @general_cmd_data: pointer to general command data structure
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_set_pr_general_cmd(struct dc_link *link,
+		struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
+
+/*
+ * Get Panel Replay state:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @state: pointer to store the Panel Replay state
+ *
+ * return: true if successful, false otherwise
+ */
+bool dc_link_get_pr_state(const struct dc_link *link, uint64_t *state);
+
 /* On eDP links this function call will stall until T12 has elapsed.
  * If the panel is not in power off state, this function will return
  * immediately.
@@ -2793,7 +2858,7 @@ void dc_get_underflow_debug_data_for_otg(struct dc *dc, int primary_otg_inst, st
 
 void dc_get_power_feature_status(struct dc *dc, int primary_otg_inst, struct power_features *out_data);
 
-/**
+/*
  * Software state variables used to program register fields across the display pipeline
  */
 struct dc_register_software_state {
@@ -3279,5 +3344,29 @@ struct dc_register_software_state {
  * Return: true if state was successfully captured, false on error
  */
 bool dc_capture_register_software_state(struct dc *dc, struct dc_register_software_state *state);
+
+/**
+ * dc_get_qos_info() - Retrieve Quality of Service (QoS) information from display core
+ * @dc: DC context containing current display configuration
+ * @info: Pointer to dc_qos_info structure to populate with QoS metrics
+ *
+ * This function retrieves QoS metrics from the display core that can be used by
+ * benchmark tools to analyze display system performance. The function may take
+ * several milliseconds to execute due to hardware measurement requirements.
+ *
+ * QoS information includes:
+ * - Bandwidth bounds (lower limits in Mbps)
+ * - Latency bounds (upper limits in nanoseconds)
+ * - Hardware-measured bandwidth metrics (peak/average in Mbps)
+ * - Hardware-measured latency metrics (maximum/average in nanoseconds)
+ *
+ * The function will populate the provided dc_qos_info structure with current
+ * QoS measurements. If hardware measurement functions are not available for
+ * the current DCN version, the function returns false with zero'd info structure.
+ *
+ * Return: true if QoS information was successfully retrieved, false if measurement
+ *         functions are unavailable or hardware measurements cannot be performed
+ */
+bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info);
 
 #endif /* DC_INTERFACE_H_ */

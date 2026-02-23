@@ -695,7 +695,7 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 	pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_pdev_id);
 
 	for (u16 vf_id = 0; vf_id < num_vfs; vf_id++) {
-		vf = kzalloc(sizeof(*vf), GFP_KERNEL);
+		vf = kzalloc_obj(*vf);
 		if (!vf) {
 			err = -ENOMEM;
 			goto err_free_entries;

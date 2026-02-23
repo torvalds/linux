@@ -16,6 +16,35 @@ config ABP060MG
 	  To compile this driver as a module, choose M here: the module
 	  will be called abp060mg.
 
+config ABP2030PA
+	tristate
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+
+config ABP2030PA_I2C
+	tristate "Honeywell ABP2 pressure sensor series I2C driver"
+	depends on I2C
+	select ABP2030PA
+	help
+	  Say Y here to build I2C bus support for the Honeywell ABP2
+	  series pressure and temperature digital sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called abp2030pa_i2c and you will also get abp2030pa
+	  for the core module.
+
+config ABP2030PA_SPI
+	tristate "Honeywell ABP2 pressure sensor series SPI driver"
+	depends on SPI_MASTER
+	select ABP2030PA
+	help
+	  Say Y here to build SPI bus support for the Honeywell ABP2
+	  series pressure and temperature digital sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called abp2030pa_spi and you will also get abp2030pa
+	  for the core module.
+
 config ROHM_BM1390
 	tristate "ROHM BM1390GLV-Z pressure sensor driver"
 	depends on I2C
@@ -187,29 +216,33 @@ config MPL3115
 	  will be called mpl3115.
 
 config MPRLS0025PA
-	tristate "Honeywell MPRLS0025PA (MicroPressure sensors series)"
-	depends on (I2C || SPI_MASTER)
-	select MPRLS0025PA_I2C if I2C
-	select MPRLS0025PA_SPI if SPI_MASTER
+	tristate
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
-	help
-	  Say Y here to build support for the Honeywell MicroPressure pressure
-	  sensor series. There are many different types with different pressure
-	  range. These ranges can be set up in the device tree.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called mprls0025pa.
 
 config MPRLS0025PA_I2C
-	tristate
-	depends on MPRLS0025PA
+	tristate "Honeywell MPR pressure sensor series I2C driver"
 	depends on I2C
+	select MPRLS0025PA
+	help
+	  Say Y here to build I2C bus support for the Honeywell MicroPressure
+	  series sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mprls0025pa_i2c and you will also get mprls0025pa
+	  for the core module.
 
 config MPRLS0025PA_SPI
-	tristate
-	depends on MPRLS0025PA
+	tristate "Honeywell MPR pressure sensor series SPI driver"
 	depends on SPI_MASTER
+	select MPRLS0025PA
+	help
+	  Say Y here to build SPI bus support for the Honeywell MicroPressure
+	  series sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mprls0025pa_spi and you will also get mprls0025pa
+	  for the core module.
 
 config MS5611
 	tristate "Measurement Specialties MS5611 pressure sensor driver"

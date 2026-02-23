@@ -1303,7 +1303,7 @@ int ebt_register_template(const struct ebt_table *t, int (*table_init)(struct ne
 		}
 	}
 
-	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	tmpl = kzalloc_obj(*tmpl);
 	if (!tmpl) {
 		mutex_unlock(&ebt_mutex);
 		return -ENOMEM;

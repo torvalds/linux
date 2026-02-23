@@ -339,7 +339,7 @@ static int mac802154_associate(struct wpan_phy *wpan_phy,
 	if (coord->mode == IEEE802154_SHORT_ADDRESSING)
 		return -EINVAL;
 
-	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+	parent = kzalloc_obj(*parent);
 	if (!parent)
 		return -ENOMEM;
 

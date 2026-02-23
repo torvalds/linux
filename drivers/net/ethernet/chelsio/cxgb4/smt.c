@@ -47,7 +47,7 @@ struct smt_data *t4_init_smt(void)
 
 	smt_size = SMT_SIZE;
 
-	s = kvzalloc(struct_size(s, smtab, smt_size), GFP_KERNEL);
+	s = kvzalloc_flex(*s, smtab, smt_size);
 	if (!s)
 		return NULL;
 	s->smt_size = smt_size;

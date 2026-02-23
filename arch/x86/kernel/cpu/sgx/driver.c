@@ -19,7 +19,7 @@ static int __sgx_open(struct inode *inode, struct file *file)
 	struct sgx_encl *encl;
 	int ret;
 
-	encl = kzalloc(sizeof(*encl), GFP_KERNEL);
+	encl = kzalloc_obj(*encl);
 	if (!encl)
 		return -ENOMEM;
 

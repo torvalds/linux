@@ -32,7 +32,7 @@ ga102_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 	struct nvkm_acr_lsfw *lsfw;
 	u32 offset = 0;
 
-	lsb = kvmalloc(sizeof(*lsb), GFP_KERNEL);
+	lsb = kvmalloc_obj(*lsb);
 	if (!lsb)
 		return -ENOMEM;
 
@@ -67,7 +67,7 @@ ga102_acr_wpr_build_lsb(struct nvkm_acr *acr, struct nvkm_acr_lsfw *lsfw)
 	if (WARN_ON(lsfw->sig->size != sizeof(hdr->signature)))
 		return -EINVAL;
 
-	hdr = kvzalloc(sizeof(*hdr), GFP_KERNEL);
+	hdr = kvzalloc_obj(*hdr);
 	if (!hdr)
 		return -ENOMEM;
 

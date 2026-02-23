@@ -1333,7 +1333,8 @@ static void nvme_queue_keep_alive_work(struct nvme_ctrl *ctrl)
 }
 
 static enum rq_end_io_ret nvme_keep_alive_end_io(struct request *rq,
-						 blk_status_t status)
+						 blk_status_t status,
+						 const struct io_comp_batch *iob)
 {
 	struct nvme_ctrl *ctrl = rq->end_io_data;
 	unsigned long rtt = jiffies - (rq->deadline - rq->timeout);
@@ -1468,7 +1469,7 @@ static int nvme_identify_ctrl(struct nvme_ctrl *dev, struct nvme_id_ctrl **id)
 	c.identify.opcode = nvme_admin_identify;
 	c.identify.cns = NVME_ID_CNS_CTRL;
 
-	*id = kmalloc(sizeof(struct nvme_id_ctrl), GFP_KERNEL);
+	*id = kmalloc_obj(struct nvme_id_ctrl);
 	if (!*id)
 		return -ENOMEM;
 
@@ -1598,7 +1599,7 @@ int nvme_identify_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	c.identify.nsid = cpu_to_le32(nsid);
 	c.identify.cns = NVME_ID_CNS_NS;
 
-	*id = kmalloc(sizeof(**id), GFP_KERNEL);
+	*id = kmalloc_obj(**id);
 	if (!*id)
 		return -ENOMEM;
 
@@ -1662,7 +1663,7 @@ static int nvme_ns_info_from_id_cs_indep(struct nvme_ctrl *ctrl,
 	};
 	int ret;
 
-	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	id = kmalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 
@@ -1922,7 +1923,7 @@ static int nvme_identify_ns_nvm(struct nvme_ctrl *ctrl, unsigned int nsid,
 	struct nvme_id_ns_nvm *nvm;
 	int ret;
 
-	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+	nvm = kzalloc_obj(*nvm);
 	if (!nvm)
 		return -ENOMEM;
 
@@ -2783,7 +2784,7 @@ static int nvme_configure_host_options(struct nvme_ctrl *ctrl)
 	if (!acre && !lbafee)
 		return 0;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc_obj(*host);
 	if (!host)
 		return 0;
 
@@ -2872,7 +2873,7 @@ static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 		return 0;
 	}
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return 0;
 
@@ -3207,7 +3208,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	struct nvme_subsystem *subsys, *found;
 	int ret;
 
-	subsys = kzalloc(sizeof(*subsys), GFP_KERNEL);
+	subsys = kzalloc_obj(*subsys);
 	if (!subsys)
 		return -ENOMEM;
 
@@ -3325,7 +3326,7 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 	if (cel)
 		goto out;
 
-	cel = kzalloc(sizeof(*cel), GFP_KERNEL);
+	cel = kzalloc_obj(*cel);
 	if (!cel)
 		return -ENOMEM;
 
@@ -3378,7 +3379,7 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
 	    test_bit(NVME_CTRL_SKIP_ID_CNS_CS, &ctrl->flags))
 		return 0;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 
@@ -3407,7 +3408,7 @@ static int nvme_init_effects_log(struct nvme_ctrl *ctrl,
 {
 	struct nvme_effects_log *effects, *old;
 
-	effects = kzalloc(sizeof(*effects), GFP_KERNEL);
+	effects = kzalloc_obj(*effects);
 	if (!effects)
 		return -ENOMEM;
 
@@ -4687,7 +4688,7 @@ static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 	struct nvme_fw_slot_info_log *log;
 	u8 next_fw_slot, cur_fw_slot;
 
-	log = kmalloc(sizeof(*log), GFP_KERNEL);
+	log = kmalloc_obj(*log);
 	if (!log)
 		return;
 

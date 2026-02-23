@@ -22,7 +22,7 @@ struct mlx5e_tir_builder *mlx5e_tir_builder_alloc(bool modify)
 {
 	struct mlx5e_tir_builder *builder;
 
-	builder = kvzalloc(sizeof(*builder), GFP_KERNEL);
+	builder = kvzalloc_obj(*builder);
 	if (!builder)
 		return NULL;
 

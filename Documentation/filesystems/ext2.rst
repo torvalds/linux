@@ -388,7 +388,7 @@ Implementations for:
 
 =======================	===========================================================
 Windows 95/98/NT/2000	http://www.chrysocome.net/explore2fs
-Windows 95 [1]_		http://www.yipton.net/content.html#FSDEXT2
+Windows 95 [1]_		http://www.yipton.net/content/fsdext2/
 DOS client [1]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
 OS/2 [2]_		ftp://metalab.unc.edu/pub/Linux/system/filesystems/ext2/
 RISC OS client		http://www.esw-heim.tu-clausthal.de/~marco/smorbrod/IscaFS/

@@ -838,12 +838,11 @@ static int __store_entry_arg(struct trace_probe *tp, int argnum)
 	int i, offset, last_offset = 0;
 
 	if (!earg) {
-		earg = kzalloc(sizeof(*tp->entry_arg), GFP_KERNEL);
+		earg = kzalloc_obj(*tp->entry_arg);
 		if (!earg)
 			return -ENOMEM;
 		earg->size = 2 * tp->nr_args + 1;
-		earg->code = kcalloc(earg->size, sizeof(struct fetch_insn),
-				     GFP_KERNEL);
+		earg->code = kzalloc_objs(struct fetch_insn, earg->size);
 		if (!earg->code) {
 			kfree(earg);
 			return -ENOMEM;
@@ -1499,7 +1498,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
-	code = tmp = kcalloc(FETCH_INSN_MAX, sizeof(*code), GFP_KERNEL);
+	code = tmp = kzalloc_objs(*code, FETCH_INSN_MAX);
 	if (!code)
 		return -ENOMEM;
 	code[FETCH_INSN_MAX - 1].op = FETCH_OP_END;
@@ -1543,7 +1542,7 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		if (code->op == FETCH_OP_END)
 			break;
 	/* Shrink down the code buffer */
-	parg->code = kcalloc(code - tmp + 1, sizeof(*code), GFP_KERNEL);
+	parg->code = kzalloc_objs(*code, code - tmp + 1);
 	if (!parg->code)
 		ret = -ENOMEM;
 	else
@@ -2149,7 +2148,7 @@ int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file)
 {
 	struct event_file_link *link;
 
-	link = kmalloc(sizeof(*link), GFP_KERNEL);
+	link = kmalloc_obj(*link);
 	if (!link)
 		return -ENOMEM;
 

@@ -220,7 +220,7 @@ static void ioremap_trace_core(resource_size_t offset, unsigned long size,
 							void __iomem *addr)
 {
 	static atomic_t next_id;
-	struct remap_trace *trace = kmalloc(sizeof(*trace), GFP_KERNEL);
+	struct remap_trace *trace = kmalloc_obj(*trace);
 	/* These are page-unaligned. */
 	struct mmiotrace_map map = {
 		.phys = offset,

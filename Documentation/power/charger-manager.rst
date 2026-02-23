@@ -183,17 +183,7 @@ struct charger_desc elements:
 	the value of measure_battery_temp.
 
 
-5. Notify Charger-Manager of charger events: cm_notify_event()
-==============================================================
-If there is an charger event is required to notify
-Charger Manager, a charger device driver that triggers the event can call
-cm_notify_event(psy, type, msg) to notify the corresponding Charger Manager.
-In the function, psy is the charger driver's power_supply pointer, which is
-associated with Charger-Manager. The parameter "type"
-is the same as irq's type (enum cm_event_types). The event message "msg" is
-optional and is effective only if the event type is "UNDESCRIBED" or "OTHERS".
-
-6. Other Considerations
+5. Other Considerations
 =======================
 
 At the charger/battery-related events such as battery-pulled-out,

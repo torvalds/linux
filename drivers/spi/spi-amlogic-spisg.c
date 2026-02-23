@@ -781,7 +781,6 @@ static int aml_spisg_probe(struct platform_device *pdev)
 	pm_runtime_resume_and_get(&spisg->pdev->dev);
 
 	ctlr->num_chipselect = 4;
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST |
 			  SPI_3WIRE | SPI_TX_QUAD | SPI_RX_QUAD;
 	ctlr->max_speed_hz = 1000 * 1000 * 100;

@@ -130,7 +130,7 @@ static int kobil_port_probe(struct usb_serial_port *port)
 	struct usb_serial *serial = port->serial;
 	struct kobil_private *priv;
 
-	priv = kmalloc(sizeof(struct kobil_private), GFP_KERNEL);
+	priv = kmalloc_obj(struct kobil_private);
 	if (!priv)
 		return -ENOMEM;
 

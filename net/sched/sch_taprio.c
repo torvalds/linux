@@ -1103,7 +1103,7 @@ static int parse_sched_list(struct taprio_sched *q, struct nlattr *list,
 			continue;
 		}
 
-		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		entry = kzalloc_obj(*entry);
 		if (!entry) {
 			NL_SET_ERR_MSG(extack, "Not enough memory for entry");
 			return -ENOMEM;
@@ -1376,8 +1376,7 @@ static struct tc_taprio_qopt_offload *taprio_offload_alloc(int num_entries)
 {
 	struct __tc_taprio_qopt_offload *__offload;
 
-	__offload = kzalloc(struct_size(__offload, offload.entries, num_entries),
-			    GFP_KERNEL);
+	__offload = kzalloc_flex(*__offload, offload.entries, num_entries);
 	if (!__offload)
 		return NULL;
 
@@ -1870,7 +1869,7 @@ static int taprio_change(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		return err;
 
-	new_admin = kzalloc(sizeof(*new_admin), GFP_KERNEL);
+	new_admin = kzalloc_obj(*new_admin);
 	if (!new_admin) {
 		NL_SET_ERR_MSG(extack, "Not enough memory for a new schedule");
 		return -ENOMEM;
@@ -2091,8 +2090,7 @@ static int taprio_init(struct Qdisc *sch, struct nlattr *opt,
 		return -EOPNOTSUPP;
 	}
 
-	q->qdiscs = kcalloc(dev->num_tx_queues, sizeof(q->qdiscs[0]),
-			    GFP_KERNEL);
+	q->qdiscs = kzalloc_objs(q->qdiscs[0], dev->num_tx_queues);
 	if (!q->qdiscs)
 		return -ENOMEM;
 

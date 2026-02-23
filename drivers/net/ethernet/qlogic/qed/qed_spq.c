@@ -407,7 +407,7 @@ int qed_eq_alloc(struct qed_hwfn *p_hwfn, u16 num_elem)
 	int ret;
 
 	/* Allocate EQ struct */
-	p_eq = kzalloc(sizeof(*p_eq), GFP_KERNEL);
+	p_eq = kzalloc_obj(*p_eq);
 	if (!p_eq)
 		return -ENOMEM;
 
@@ -562,7 +562,7 @@ int qed_spq_alloc(struct qed_hwfn *p_hwfn)
 	int ret;
 
 	/* SPQ struct */
-	p_spq = kzalloc(sizeof(*p_spq), GFP_KERNEL);
+	p_spq = kzalloc_obj(*p_spq);
 	if (!p_spq)
 		return -ENOMEM;
 
@@ -633,7 +633,7 @@ int qed_spq_get_entry(struct qed_hwfn *p_hwfn, struct qed_spq_entry **pp_ent)
 	spin_lock_bh(&p_spq->lock);
 
 	if (list_empty(&p_spq->free_pool)) {
-		p_ent = kzalloc(sizeof(*p_ent), GFP_ATOMIC);
+		p_ent = kzalloc_obj(*p_ent, GFP_ATOMIC);
 		if (!p_ent) {
 			DP_NOTICE(p_hwfn,
 				  "Failed to allocate an SPQ entry for a pending ramrod\n");
@@ -1013,7 +1013,7 @@ int qed_consq_alloc(struct qed_hwfn *p_hwfn)
 	int ret;
 
 	/* Allocate ConsQ struct */
-	p_consq = kzalloc(sizeof(*p_consq), GFP_KERNEL);
+	p_consq = kzalloc_obj(*p_consq);
 	if (!p_consq)
 		return -ENOMEM;
 

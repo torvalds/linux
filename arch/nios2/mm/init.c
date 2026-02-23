@@ -38,6 +38,11 @@
 
 pgd_t *pgd_current;
 
+void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
+{
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+}
+
 /*
  * paging_init() continues the virtual memory environment setup which
  * was begun by the code in arch/head.S.
@@ -46,15 +51,8 @@ pgd_t *pgd_current;
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
 	pagetable_init();
 	pgd_current = swapper_pg_dir;
-
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
-
-	/* pass the memory from the bootmem allocator to the main allocator */
-	free_area_init(max_zone_pfn);
 
 	flush_dcache_range((unsigned long)empty_zero_page,
 			(unsigned long)empty_zero_page + PAGE_SIZE);

@@ -194,7 +194,7 @@ static struct al_fic *al_fic_wire_init(struct device_node *node,
 	int ret;
 	u32 control = CONTROL_MASK_MSI_X;
 
-	fic = kzalloc(sizeof(*fic), GFP_KERNEL);
+	fic = kzalloc_obj(*fic);
 	if (!fic)
 		return ERR_PTR(-ENOMEM);
 

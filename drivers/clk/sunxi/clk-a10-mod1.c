@@ -32,11 +32,11 @@ static void __init sun4i_mod1_clk_setup(struct device_node *node)
 	if (IS_ERR(reg))
 		return;
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		goto err_unmap;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		goto err_free_mux;
 

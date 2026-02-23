@@ -224,9 +224,12 @@ content to the console.
 
 ::
 
-  #include <linux/kernel.h>
+  #include <linux/dev_printk.h>
+  #include <linux/mod_devicetable.h>
   #include <linux/module.h>
+  #include <linux/printk.h>
   #include <linux/rpmsg.h>
+  #include <linux/types.h>
 
   static void rpmsg_sample_cb(struct rpmsg_channel *rpdev, void *data, int len,
 						void *priv, u32 src)
@@ -244,7 +247,7 @@ content to the console.
 	/* send a message on our channel */
 	err = rpmsg_send(rpdev->ept, "hello!", 6);
 	if (err) {
-		pr_err("rpmsg_send failed: %d\n", err);
+		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", err);
 		return err;
 	}
 

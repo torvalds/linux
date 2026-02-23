@@ -465,7 +465,7 @@ static int espintcp_init_sk(struct sock *sk)
 	if (sk->sk_user_data)
 		return -EBUSY;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

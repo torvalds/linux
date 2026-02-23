@@ -27,6 +27,7 @@ struct timerlat_params {
 	int			dump_tasks;
 	int			deepest_idle_state;
 	enum timerlat_tracing_mode mode;
+	const char		*bpf_action_program;
 };
 
 #define to_timerlat_params(ptr) container_of(ptr, struct timerlat_params, common)
@@ -36,4 +37,3 @@ int timerlat_main(int argc, char *argv[]);
 int timerlat_enable(struct osnoise_tool *tool);
 void timerlat_analyze(struct osnoise_tool *tool, bool stopped);
 void timerlat_free(struct osnoise_tool *tool);
-

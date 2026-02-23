@@ -151,8 +151,8 @@ static int gve_alloc_flow_rule_caches(struct gve_priv *priv)
 		return 0;
 
 	flow_rules_cache->rules_cache =
-		kvcalloc(GVE_FLOW_RULES_CACHE_SIZE, sizeof(*flow_rules_cache->rules_cache),
-			 GFP_KERNEL);
+		kvzalloc_objs(*flow_rules_cache->rules_cache,
+			      GVE_FLOW_RULES_CACHE_SIZE);
 	if (!flow_rules_cache->rules_cache) {
 		dev_err(&priv->pdev->dev, "Cannot alloc flow rules cache\n");
 		return -ENOMEM;
@@ -283,9 +283,9 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 	int tx_stats_num, rx_stats_num;
 
 	tx_stats_num = (GVE_TX_STATS_REPORT_NUM + NIC_TX_STATS_REPORT_NUM) *
-		       gve_num_tx_queues(priv);
+				priv->tx_cfg.max_queues;
 	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
-		       priv->rx_cfg.num_queues;
+				priv->rx_cfg.max_queues;
 	priv->stats_report_len = struct_size(priv->stats_report, stats,
 					     size_add(tx_stats_num, rx_stats_num));
 	priv->stats_report =
@@ -485,8 +485,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	int i, j;
 	int err;
 
-	priv->msix_vectors = kvcalloc(num_vecs_requested,
-				      sizeof(*priv->msix_vectors), GFP_KERNEL);
+	priv->msix_vectors = kvzalloc_objs(*priv->msix_vectors,
+					   num_vecs_requested);
 	if (!priv->msix_vectors)
 		return -ENOMEM;
 	for (i = 0; i < num_vecs_requested; i++)
@@ -666,8 +666,7 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	}
 
 	if (!gve_is_gqi(priv)) {
-		priv->ptype_lut_dqo = kvzalloc(sizeof(*priv->ptype_lut_dqo),
-					       GFP_KERNEL);
+		priv->ptype_lut_dqo = kvzalloc_obj(*priv->ptype_lut_dqo);
 		if (!priv->ptype_lut_dqo) {
 			err = -ENOMEM;
 			goto abort_with_stats_report;
@@ -680,10 +679,12 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 		}
 	}
 
-	err = gve_init_clock(priv);
-	if (err) {
-		dev_err(&priv->pdev->dev, "Failed to init clock");
-		goto abort_with_ptype_lut;
+	if (priv->nic_timestamp_supported) {
+		err = gve_init_clock(priv);
+		if (err) {
+			dev_warn(&priv->pdev->dev, "Failed to init clock, continuing without PTP support");
+			err = 0;
+		}
 	}
 
 	err = gve_init_rss_config(priv, priv->rx_cfg.num_queues);
@@ -1088,17 +1089,17 @@ struct gve_queue_page_list *gve_alloc_queue_page_list(struct gve_priv *priv,
 	int err;
 	int i;
 
-	qpl = kvzalloc(sizeof(*qpl), GFP_KERNEL);
+	qpl = kvzalloc_obj(*qpl);
 	if (!qpl)
 		return NULL;
 
 	qpl->id = id;
 	qpl->num_entries = 0;
-	qpl->pages = kvcalloc(pages, sizeof(*qpl->pages), GFP_KERNEL);
+	qpl->pages = kvzalloc_objs(*qpl->pages, pages);
 	if (!qpl->pages)
 		goto abort;
 
-	qpl->page_buses = kvcalloc(pages, sizeof(*qpl->page_buses), GFP_KERNEL);
+	qpl->page_buses = kvzalloc_objs(*qpl->page_buses, pages);
 	if (!qpl->page_buses)
 		goto abort;
 
@@ -2183,7 +2184,7 @@ static int gve_set_ts_config(struct net_device *dev,
 	}
 
 	if (kernel_config->rx_filter != HWTSTAMP_FILTER_NONE) {
-		if (!priv->nic_ts_report) {
+		if (!gve_is_clock_enabled(priv)) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "RX timestamping is not supported");
 			kernel_config->rx_filter = HWTSTAMP_FILTER_NONE;
@@ -2616,8 +2617,9 @@ static void gve_rx_queue_mem_free(struct net_device *dev, void *per_q_mem)
 		gve_rx_free_ring_dqo(priv, gve_per_q_mem, &cfg);
 }
 
-static int gve_rx_queue_mem_alloc(struct net_device *dev, void *per_q_mem,
-				  int idx)
+static int gve_rx_queue_mem_alloc(struct net_device *dev,
+				  struct netdev_queue_config *qcfg,
+				  void *per_q_mem, int idx)
 {
 	struct gve_priv *priv = netdev_priv(dev);
 	struct gve_rx_alloc_rings_cfg cfg = {0};
@@ -2638,7 +2640,9 @@ static int gve_rx_queue_mem_alloc(struct net_device *dev, void *per_q_mem,
 	return err;
 }
 
-static int gve_rx_queue_start(struct net_device *dev, void *per_q_mem, int idx)
+static int gve_rx_queue_start(struct net_device *dev,
+			      struct netdev_queue_config *qcfg,
+			      void *per_q_mem, int idx)
 {
 	struct gve_priv *priv = netdev_priv(dev);
 	struct gve_rx_ring *gve_per_q_mem;

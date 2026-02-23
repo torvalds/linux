@@ -141,7 +141,7 @@ static int amd_stb_handle_efr(struct file *filp)
 	u32 fsize;
 
 	fsize = dev->dram_size - S2D_RSVD_RAM_SPACE;
-	stb_data_arr = kmalloc(struct_size(stb_data_arr, data, fsize), GFP_KERNEL);
+	stb_data_arr = kmalloc_flex(*stb_data_arr, data, fsize);
 	if (!stb_data_arr)
 		return -ENOMEM;
 
@@ -189,7 +189,7 @@ static int amd_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 	}
 
 	fsize = min(num_samples, S2D_TELEMETRY_BYTES_MAX);
-	stb_data_arr = kmalloc(struct_size(stb_data_arr, data, fsize), GFP_KERNEL);
+	stb_data_arr = kmalloc_flex(*stb_data_arr, data, fsize);
 	if (!stb_data_arr)
 		return -ENOMEM;
 

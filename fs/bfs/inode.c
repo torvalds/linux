@@ -334,7 +334,7 @@ static int bfs_fill_super(struct super_block *s, struct fs_context *fc)
 	unsigned long i_sblock, i_eblock, i_eoff, s_size;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	mutex_init(&info->bfs_lock);

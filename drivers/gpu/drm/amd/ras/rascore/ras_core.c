@@ -263,11 +263,11 @@ struct ras_core_context *ras_core_create(struct ras_core_config *init_config)
 	struct ras_core_context *ras_core;
 	struct ras_core_config *config;
 
-	ras_core = kzalloc(sizeof(*ras_core), GFP_KERNEL);
+	ras_core = kzalloc_obj(*ras_core);
 	if (!ras_core)
 		return NULL;
 
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	config = kzalloc_obj(*config);
 	if (!config) {
 		kfree(ras_core);
 		return NULL;
@@ -600,4 +600,27 @@ int ras_core_get_device_system_info(struct ras_core_context *ras_core,
 		return ras_core->sys_fn->get_device_system_info(ras_core, dev_info);
 
 	return -RAS_CORE_NOT_SUPPORTED;
+}
+
+int ras_core_convert_soc_pa_to_cur_nps_pages(struct ras_core_context *ras_core,
+		uint64_t soc_pa, uint64_t *page_pfn, uint32_t max_pages)
+{
+	struct eeprom_umc_record record;
+	uint32_t cur_nps_mode;
+	int count = 0;
+
+	if (!ras_core || !page_pfn || !max_pages)
+		return -EINVAL;
+
+	cur_nps_mode = ras_core_get_curr_nps_mode(ras_core);
+	if (!cur_nps_mode || cur_nps_mode > UMC_MEMORY_PARTITION_MODE_NPS8)
+		return -EINVAL;
+
+	memset(&record, 0, sizeof(record));
+	record.cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(soc_pa);
+
+	count = ras_umc_convert_record_to_nps_pages(ras_core,
+				&record, cur_nps_mode, page_pfn, max_pages);
+
+	return count;
 }

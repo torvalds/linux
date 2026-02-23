@@ -24,7 +24,7 @@ struct qat_mig_dev *qat_vfmig_create(struct pci_dev *pdev, int vf_id)
 	    !ops->load_state || !ops->save_setup || !ops->load_setup)
 		return ERR_PTR(-EINVAL);
 
-	mdev = kmalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kmalloc_obj(*mdev);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 

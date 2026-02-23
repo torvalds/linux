@@ -701,8 +701,7 @@ int ef4_probe_rx_queue(struct ef4_rx_queue *rx_queue)
 		  rx_queue->ptr_mask);
 
 	/* Allocate RX buffers */
-	rx_queue->buffer = kcalloc(entries, sizeof(*rx_queue->buffer),
-				   GFP_KERNEL);
+	rx_queue->buffer = kzalloc_objs(*rx_queue->buffer, entries);
 	if (!rx_queue->buffer)
 		return -ENOMEM;
 
@@ -734,8 +733,7 @@ static void ef4_init_rx_recycle_ring(struct ef4_nic *efx,
 
 	page_ring_size = roundup_pow_of_two(bufs_in_recycle_ring /
 					    efx->rx_bufs_per_page);
-	rx_queue->page_ring = kcalloc(page_ring_size,
-				      sizeof(*rx_queue->page_ring), GFP_KERNEL);
+	rx_queue->page_ring = kzalloc_objs(*rx_queue->page_ring, page_ring_size);
 	if (!rx_queue->page_ring)
 		rx_queue->page_ptr_mask = 0;
 	else

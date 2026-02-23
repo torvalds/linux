@@ -52,7 +52,7 @@ static struct clflush *clflush_work_create(struct drm_i915_gem_object *obj)
 
 	GEM_BUG_ON(!obj->cache_dirty);
 
-	clflush = kmalloc(sizeof(*clflush), GFP_KERNEL);
+	clflush = kmalloc_obj(*clflush);
 	if (!clflush)
 		return NULL;
 
@@ -113,7 +113,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (clflush) {
 		i915_sw_fence_await_reservation(&clflush->base.chain,
 						obj->base.resv, true,
-						i915_fence_timeout(i915),
+						i915_fence_timeout(),
 						I915_FENCE_GFP);
 		dma_resv_add_fence(obj->base.resv, &clflush->base.dma,
 				   DMA_RESV_USAGE_KERNEL);

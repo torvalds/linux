@@ -121,7 +121,7 @@ int intel_pmdemand_init(struct intel_display *display)
 {
 	struct intel_pmdemand_state *pmdemand_state;
 
-	pmdemand_state = kzalloc(sizeof(*pmdemand_state), GFP_KERNEL);
+	pmdemand_state = kzalloc_obj(*pmdemand_state);
 	if (!pmdemand_state)
 		return -ENOMEM;
 

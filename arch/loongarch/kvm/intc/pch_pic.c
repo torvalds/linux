@@ -74,7 +74,7 @@ void pch_msi_set_irq(struct kvm *kvm, int irq, int level)
 
 static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int len, void *val)
 {
-	int ret = 0, offset;
+	int offset;
 	u64 data = 0;
 	void *ptemp;
 
@@ -121,34 +121,32 @@ static int loongarch_pch_pic_read(struct loongarch_pch_pic *s, gpa_t addr, int l
 		data = s->isr;
 		break;
 	default:
-		ret = -EINVAL;
+		break;
 	}
 	spin_unlock(&s->lock);
 
-	if (ret == 0) {
-		offset = (addr - s->pch_pic_base) & 7;
-		data = data >> (offset * 8);
-		memcpy(val, &data, len);
-	}
+	offset = (addr - s->pch_pic_base) & 7;
+	data = data >> (offset * 8);
+	memcpy(val, &data, len);
 
-	return ret;
+	return 0;
 }
 
 static int kvm_pch_pic_read(struct kvm_vcpu *vcpu,
 			struct kvm_io_device *dev,
 			gpa_t addr, int len, void *val)
 {
-	int ret;
+	int ret = 0;
 	struct loongarch_pch_pic *s = vcpu->kvm->arch.pch_pic;
 
 	if (!s) {
 		kvm_err("%s: pch pic irqchip not valid!\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (addr & (len - 1)) {
 		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* statistics of pch pic reading */
@@ -161,7 +159,7 @@ static int kvm_pch_pic_read(struct kvm_vcpu *vcpu,
 static int loongarch_pch_pic_write(struct loongarch_pch_pic *s, gpa_t addr,
 					int len, const void *val)
 {
-	int ret = 0, offset;
+	int offset;
 	u64 old, data, mask;
 	void *ptemp;
 
@@ -226,29 +224,28 @@ static int loongarch_pch_pic_write(struct loongarch_pch_pic *s, gpa_t addr,
 	case PCH_PIC_ROUTE_ENTRY_START ... PCH_PIC_ROUTE_ENTRY_END:
 		break;
 	default:
-		ret = -EINVAL;
 		break;
 	}
 	spin_unlock(&s->lock);
 
-	return ret;
+	return 0;
 }
 
 static int kvm_pch_pic_write(struct kvm_vcpu *vcpu,
 			struct kvm_io_device *dev,
 			gpa_t addr, int len, const void *val)
 {
-	int ret;
+	int ret = 0;
 	struct loongarch_pch_pic *s = vcpu->kvm->arch.pch_pic;
 
 	if (!s) {
 		kvm_err("%s: pch pic irqchip not valid!\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (addr & (len - 1)) {
 		kvm_err("%s: pch pic not aligned addr %llx len %d\n", __func__, addr, len);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* statistics of pch pic writing */
@@ -405,7 +402,7 @@ static int kvm_setup_default_irq_routing(struct kvm *kvm)
 	u32 nr = KVM_IRQCHIP_NUM_PINS;
 	struct kvm_irq_routing_entry *entries;
 
-	entries = kcalloc(nr, sizeof(*entries), GFP_KERNEL);
+	entries = kzalloc_objs(*entries, nr);
 	if (!entries)
 		return -ENOMEM;
 
@@ -435,7 +432,7 @@ static int kvm_pch_pic_create(struct kvm_device *dev, u32 type)
 	if (ret)
 		return -ENOMEM;
 
-	s = kzalloc(sizeof(struct loongarch_pch_pic), GFP_KERNEL);
+	s = kzalloc_obj(struct loongarch_pch_pic);
 	if (!s)
 		return -ENOMEM;
 
@@ -475,6 +472,7 @@ static void kvm_pch_pic_destroy(struct kvm_device *dev)
 	/* unregister pch pic device and free it's memory */
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &s->device);
 	kfree(s);
+	kfree(dev);
 }
 
 static struct kvm_device_ops kvm_pch_pic_dev_ops = {

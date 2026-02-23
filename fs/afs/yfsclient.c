@@ -2048,7 +2048,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 		size = round_up(size, 4);
 
 		if (yacl->flags & YFS_ACL_WANT_ACL) {
-			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+			acl = kmalloc_flex(*acl, data, size);
 			if (!acl)
 				return -ENOMEM;
 			yacl->acl = acl;
@@ -2080,7 +2080,7 @@ static int yfs_deliver_fs_fetch_opaque_acl(struct afs_call *call)
 		size = round_up(size, 4);
 
 		if (yacl->flags & YFS_ACL_WANT_VOL_ACL) {
-			acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
+			acl = kmalloc_flex(*acl, data, size);
 			if (!acl)
 				return -ENOMEM;
 			yacl->vol_acl = acl;

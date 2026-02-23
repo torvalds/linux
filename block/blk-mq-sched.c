@@ -390,13 +390,14 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q, unsigned int fla
 void blk_mq_sched_reg_debugfs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
+	unsigned int memflags;
 	unsigned long i;
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 	blk_mq_debugfs_register_sched(q);
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_register_sched_hctx(q, hctx);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock(q, memflags);
 }
 
 void blk_mq_sched_unreg_debugfs(struct request_queue *q)
@@ -404,11 +405,11 @@ void blk_mq_sched_unreg_debugfs(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
 
-	mutex_lock(&q->debugfs_mutex);
+	blk_debugfs_lock_nomemsave(q);
 	queue_for_each_hw_ctx(q, hctx, i)
 		blk_mq_debugfs_unregister_sched_hctx(hctx);
 	blk_mq_debugfs_unregister_sched(q);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock_nomemrestore(q);
 }
 
 void blk_mq_free_sched_tags(struct elevator_tags *et,
@@ -488,7 +489,7 @@ int blk_mq_alloc_sched_ctx_batch(struct xarray *elv_tbl,
 	lockdep_assert_held_write(&set->update_nr_hwq_lock);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		ctx = kzalloc(sizeof(struct elv_change_ctx), GFP_KERNEL);
+		ctx = kzalloc_obj(struct elv_change_ctx);
 		if (!ctx)
 			return -ENOMEM;
 
@@ -513,7 +514,7 @@ struct elevator_tags *blk_mq_alloc_sched_tags(struct blk_mq_tag_set *set,
 	else
 		nr_tags = nr_hw_queues;
 
-	et = kmalloc(struct_size(et, tags, nr_tags), gfp);
+	et = kmalloc_flex(*et, tags, nr_tags, gfp);
 	if (!et)
 		return NULL;
 

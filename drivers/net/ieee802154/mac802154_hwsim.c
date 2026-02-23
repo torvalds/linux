@@ -98,7 +98,7 @@ static int hwsim_update_pib(struct ieee802154_hw *hw, u8 page, u8 channel,
 	struct hwsim_phy *phy = hw->priv;
 	struct hwsim_pib *pib, *pib_old;
 
-	pib = kzalloc(sizeof(*pib), GFP_ATOMIC);
+	pib = kzalloc_obj(*pib, GFP_ATOMIC);
 	if (!pib)
 		return -ENOMEM;
 
@@ -545,11 +545,11 @@ static struct hwsim_edge *hwsim_alloc_edge(struct hwsim_phy *endpoint, u8 lqi)
 	struct hwsim_edge_info *einfo;
 	struct hwsim_edge *e;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return NULL;
 
-	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
+	einfo = kzalloc_obj(*einfo);
 	if (!einfo) {
 		kfree(e);
 		return NULL;
@@ -713,7 +713,7 @@ static int hwsim_set_edge_lqi(struct sk_buff *msg, struct genl_info *info)
 		return -ENOENT;
 	}
 
-	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
+	einfo = kzalloc_obj(*einfo);
 	if (!einfo) {
 		mutex_unlock(&hwsim_phys_lock);
 		return -ENOMEM;
@@ -946,7 +946,7 @@ static int hwsim_add_one(struct genl_info *info, struct device *dev,
 
 	/* hwsim phy channel 13 as default */
 	hw->phy->current_channel = 13;
-	pib = kzalloc(sizeof(*pib), GFP_KERNEL);
+	pib = kzalloc_obj(*pib);
 	if (!pib) {
 		err = -ENOMEM;
 		goto err_pib;

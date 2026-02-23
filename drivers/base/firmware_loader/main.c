@@ -127,7 +127,7 @@ static struct fw_priv *__allocate_fw_priv(const char *fw_name,
 	if (offset != 0 && !(opt_flags & FW_OPT_PARTIAL))
 		return NULL;
 
-	fw_priv = kzalloc(sizeof(*fw_priv), GFP_ATOMIC);
+	fw_priv = kzalloc_obj(*fw_priv, GFP_ATOMIC);
 	if (!fw_priv)
 		return NULL;
 
@@ -747,7 +747,7 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	struct fw_priv *fw_priv;
 	int ret;
 
-	*firmware_p = firmware = kzalloc(sizeof(*firmware), GFP_KERNEL);
+	*firmware_p = firmware = kzalloc_obj(*firmware);
 	if (!firmware) {
 		dev_err(device, "%s: kmalloc(struct firmware) failed\n",
 			__func__);
@@ -1165,7 +1165,7 @@ static int _request_firmware_nowait(
 {
 	struct firmware_work *fw_work;
 
-	fw_work = kzalloc(sizeof(struct firmware_work), gfp);
+	fw_work = kzalloc_obj(struct firmware_work, gfp);
 	if (!fw_work)
 		return -ENOMEM;
 
@@ -1338,7 +1338,7 @@ static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
 {
 	struct fw_cache_entry *fce;
 
-	fce = kzalloc(sizeof(*fce), GFP_ATOMIC);
+	fce = kzalloc_obj(*fce, GFP_ATOMIC);
 	if (!fce)
 		goto exit;
 

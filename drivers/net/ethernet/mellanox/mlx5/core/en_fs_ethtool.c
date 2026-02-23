@@ -465,7 +465,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 	err = set_flow_attrs(spec->match_criteria, spec->match_value,
@@ -476,7 +476,7 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 	if (fs->ring_cookie == RX_CLS_FLOW_DISC) {
 		flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
 	} else {
-		dst = kzalloc(sizeof(*dst), GFP_KERNEL);
+		dst = kzalloc_obj(*dst);
 		if (!dst) {
 			err = -ENOMEM;
 			goto free;
@@ -541,7 +541,7 @@ static struct mlx5e_ethtool_rule *get_ethtool_rule(struct mlx5e_priv *priv,
 	if (eth_rule)
 		del_ethtool_rule(priv->fs, eth_rule);
 
-	eth_rule = kzalloc(sizeof(*eth_rule), GFP_KERNEL);
+	eth_rule = kzalloc_obj(*eth_rule);
 	if (!eth_rule)
 		return ERR_PTR(-ENOMEM);
 
@@ -836,7 +836,7 @@ mlx5e_ethtool_get_all_flows(struct mlx5e_priv *priv,
 
 int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool)
 {
-	*ethtool =  kvzalloc(sizeof(**ethtool), GFP_KERNEL);
+	*ethtool = kvzalloc_obj(**ethtool);
 	if (!*ethtool)
 		return -ENOMEM;
 	return 0;

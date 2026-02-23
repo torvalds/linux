@@ -2,6 +2,7 @@
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
  */
+#include <linux/platform_device.h>
 #include <linux/list_sort.h>
 #include <linux/libnvdimm.h>
 #include <linux/module.h>
@@ -89,15 +90,22 @@ static const guid_t *to_nfit_bus_uuid(int family)
 static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nvdimm_bus_descriptor *nd_desc = &acpi_desc->nd_desc;
+	struct acpi_device *adev;
 
-	/*
-	 * If provider == 'ACPI.NFIT' we can assume 'dev' is a struct
-	 * acpi_device.
-	 */
+	/* If provider == 'ACPI.NFIT', a struct acpi_device is there. */
 	if (!nd_desc->provider_name
 			|| strcmp(nd_desc->provider_name, "ACPI.NFIT") != 0)
 		return NULL;
 
+	/*
+	 * But it can be the ACPI companion of acpi_desc->dev when it cones from
+	 * acpi_nfit_probe().
+	 */
+	adev = ACPI_COMPANION(acpi_desc->dev);
+	if (adev)
+		return adev;
+
+	/* Or it is acpi_desc->dev itself when it comes from nfit_ctl_test(). */
 	return to_acpi_device(acpi_desc->dev);
 }
 
@@ -2263,9 +2271,9 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 {
 	u16 nr = ndr_desc->num_mappings;
 	struct nfit_set_info2 *info2 __free(kfree) =
-		kcalloc(nr, sizeof(*info2), GFP_KERNEL);
+		kzalloc_objs(*info2, nr);
 	struct nfit_set_info *info __free(kfree) =
-		kcalloc(nr, sizeof(*info), GFP_KERNEL);
+		kzalloc_objs(*info, nr);
 	struct device *dev = acpi_desc->dev;
 	struct nd_interleave_set *nd_set;
 	int i;
@@ -3283,11 +3291,11 @@ static void acpi_nfit_put_table(void *table)
 
 static void acpi_nfit_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_device *adev = data;
+	struct device *dev = data;
 
-	device_lock(&adev->dev);
-	__acpi_nfit_notify(&adev->dev, handle, event);
-	device_unlock(&adev->dev);
+	device_lock(dev);
+	__acpi_nfit_notify(dev, handle, event);
+	device_unlock(dev);
 }
 
 static void acpi_nfit_remove_notify_handler(void *data)
@@ -3328,18 +3336,19 @@ void acpi_nfit_shutdown(void *data)
 }
 EXPORT_SYMBOL_GPL(acpi_nfit_shutdown);
 
-static int acpi_nfit_add(struct acpi_device *adev)
+static int acpi_nfit_probe(struct platform_device *pdev)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_nfit_desc *acpi_desc;
-	struct device *dev = &adev->dev;
+	struct device *dev = &pdev->dev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_table_header *tbl;
 	acpi_status status = AE_OK;
 	acpi_size sz;
 	int rc = 0;
 
 	rc = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
-					     acpi_nfit_notify, adev);
+					     acpi_nfit_notify, dev);
 	if (rc)
 		return rc;
 
@@ -3369,7 +3378,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 	acpi_desc = devm_kzalloc(dev, sizeof(*acpi_desc), GFP_KERNEL);
 	if (!acpi_desc)
 		return -ENOMEM;
-	acpi_nfit_desc_init(acpi_desc, &adev->dev);
+	acpi_nfit_desc_init(acpi_desc, dev);
 
 	/* Save the acpi header for exporting the revision via sysfs */
 	acpi_desc->acpi_header = *tbl;
@@ -3474,11 +3483,11 @@ static const struct acpi_device_id acpi_nfit_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, acpi_nfit_ids);
 
-static struct acpi_driver acpi_nfit_driver = {
-	.name = KBUILD_MODNAME,
-	.ids = acpi_nfit_ids,
-	.ops = {
-		.add = acpi_nfit_add,
+static struct platform_driver acpi_nfit_driver = {
+	.probe = acpi_nfit_probe,
+	.driver = {
+		.name = "acpi-nfit",
+		.acpi_match_table = acpi_nfit_ids,
 	},
 };
 
@@ -3516,7 +3525,7 @@ static __init int nfit_init(void)
 		return -ENOMEM;
 
 	nfit_mce_register();
-	ret = acpi_bus_register_driver(&acpi_nfit_driver);
+	ret = platform_driver_register(&acpi_nfit_driver);
 	if (ret) {
 		nfit_mce_unregister();
 		destroy_workqueue(nfit_wq);
@@ -3529,7 +3538,7 @@ static __init int nfit_init(void)
 static __exit void nfit_exit(void)
 {
 	nfit_mce_unregister();
-	acpi_bus_unregister_driver(&acpi_nfit_driver);
+	platform_driver_unregister(&acpi_nfit_driver);
 	destroy_workqueue(nfit_wq);
 	WARN_ON(!list_empty(&acpi_descs));
 }

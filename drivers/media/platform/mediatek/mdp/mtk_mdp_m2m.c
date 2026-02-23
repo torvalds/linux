@@ -1053,7 +1053,7 @@ static int mtk_mdp_m2m_open(struct file *file)
 	int ret;
 	struct v4l2_format default_format;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

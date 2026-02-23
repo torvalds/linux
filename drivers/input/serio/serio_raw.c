@@ -270,7 +270,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	struct serio_raw *serio_raw;
 	int err;
 
-	serio_raw = kzalloc(sizeof(*serio_raw), GFP_KERNEL);
+	serio_raw = kzalloc_obj(*serio_raw);
 	if (!serio_raw) {
 		dev_dbg(&serio->dev, "can't allocate memory for a device\n");
 		return -ENOMEM;

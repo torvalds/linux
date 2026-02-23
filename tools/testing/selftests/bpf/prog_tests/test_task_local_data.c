@@ -4,7 +4,7 @@
 #include <test_progs.h>
 
 #define TLD_FREE_DATA_ON_THREAD_EXIT
-#define TLD_DYN_DATA_SIZE 4096
+#define TLD_DYN_DATA_SIZE (getpagesize() - 8)
 #include "task_local_data.h"
 
 struct test_tld_struct {

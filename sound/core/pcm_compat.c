@@ -235,7 +235,6 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 					  int refine, 
 					  struct snd_pcm_hw_params32 __user *data32)
 {
-	struct snd_pcm_hw_params *data __free(kfree) = NULL;
 	struct snd_pcm_runtime *runtime;
 	int err;
 
@@ -243,7 +242,8 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 	if (!runtime)
 		return -ENOTTY;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	struct snd_pcm_hw_params *data __free(kfree) =
+		kmalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -332,7 +332,6 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	compat_caddr_t buf;
 	compat_caddr_t __user *bufptr;
 	u32 frames;
-	void __user **bufs __free(kfree) = NULL;
 	int err, ch, i;
 
 	if (! substream->runtime)
@@ -349,7 +348,9 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	    get_user(frames, &data32->frames))
 		return -EFAULT;
 	bufptr = compat_ptr(buf);
-	bufs = kmalloc_array(ch, sizeof(void __user *), GFP_KERNEL);
+
+	void __user **bufs __free(kfree) =
+		kmalloc_array(ch, sizeof(void __user *), GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
 	for (i = 0; i < ch; i++) {

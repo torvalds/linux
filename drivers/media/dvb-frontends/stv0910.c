@@ -1766,7 +1766,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 	struct stv *state;
 	struct stv_base *base;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -1788,7 +1788,7 @@ struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
 		base->count++;
 		state->base = base;
 	} else {
-		base = kzalloc(sizeof(*base), GFP_KERNEL);
+		base = kzalloc_obj(*base);
 		if (!base)
 			goto fail;
 		base->i2c = i2c;

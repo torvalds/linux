@@ -12,7 +12,7 @@ struct sched_core_cookie {
 
 static unsigned long sched_core_alloc_cookie(void)
 {
-	struct sched_core_cookie *ck = kmalloc(sizeof(*ck), GFP_KERNEL);
+	struct sched_core_cookie *ck = kmalloc_obj(*ck);
 	if (!ck)
 		return 0;
 

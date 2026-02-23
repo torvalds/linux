@@ -41,7 +41,7 @@ static int mlx5_rdma_enable_roce_steering(struct mlx5_core_dev *dev)
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
 	if (!flow_group_in)
 		return -ENOMEM;
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		kvfree(flow_group_in);
 		return -ENOMEM;

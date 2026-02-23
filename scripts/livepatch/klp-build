@@ -249,6 +249,10 @@ validate_config() {
 	[[ -v CONFIG_GCC_PLUGIN_RANDSTRUCT ]] &&	\
 		die "kernel option 'CONFIG_GCC_PLUGIN_RANDSTRUCT' not supported"
 
+	[[ -v CONFIG_AS_IS_LLVM ]] &&				\
+		[[ "$CONFIG_AS_VERSION" -lt 200000 ]] &&	\
+		die "Clang assembler version < 20 not supported"
+
 	return 0
 }
 
@@ -555,13 +559,11 @@ copy_orig_objects() {
 		local file_dir="$(dirname "$file")"
 		local orig_file="$ORIG_DIR/$rel_file"
 		local orig_dir="$(dirname "$orig_file")"
-		local cmd_file="$file_dir/.$(basename "$file").cmd"
 
 		[[ ! -f "$file" ]] && die "missing $(basename "$file") for $_file"
 
 		mkdir -p "$orig_dir"
 		cp -f "$file" "$orig_dir"
-		[[ -e "$cmd_file" ]] && cp -f "$cmd_file" "$orig_dir"
 	done
 	xtrace_restore
 
@@ -740,14 +742,16 @@ build_patch_module() {
 		local orig_dir="$(dirname "$orig_file")"
 		local kmod_file="$KMOD_DIR/$rel_file"
 		local kmod_dir="$(dirname "$kmod_file")"
-		local cmd_file="$orig_dir/.$(basename "$file").cmd"
+		local cmd_file="$kmod_dir/.$(basename "$file").cmd"
 
 		mkdir -p "$kmod_dir"
 		cp -f "$file" "$kmod_dir"
-		[[ -e "$cmd_file" ]] && cp -f "$cmd_file" "$kmod_dir"
 
 		# Tell kbuild this is a prebuilt object
 		cp -f "$file" "${kmod_file}_shipped"
+
+		# Make modpost happy
+		touch "$cmd_file"
 
 		echo -n " $rel_file" >> "$makefile"
 	done

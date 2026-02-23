@@ -141,6 +141,31 @@ static struct amdgpu_video_codecs sriov_vcn_4_0_0_video_codecs_decode_vcn1 = {
 	.codec_array = sriov_vcn_4_0_0_video_codecs_decode_array_vcn1,
 };
 
+static const struct amdgpu_video_codec_info vcn_5_3_0_video_codecs_encode_array_vcn0[] = {
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_3_0_video_codecs_encode_vcn0 = {
+        .codec_count = ARRAY_SIZE(vcn_5_3_0_video_codecs_encode_array_vcn0),
+        .codec_array = vcn_5_3_0_video_codecs_encode_array_vcn0,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_3_0_video_codecs_decode_array_vcn0[] = {
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+        {codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_3_0_video_codecs_decode_vcn0 = {
+        .codec_count = ARRAY_SIZE(vcn_5_3_0_video_codecs_decode_array_vcn0),
+        .codec_array = vcn_5_3_0_video_codecs_decode_array_vcn0,
+};
+
+
 static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 				 const struct amdgpu_video_codecs **codecs)
 {
@@ -185,6 +210,12 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 		else
 			*codecs = &vcn_4_0_0_video_codecs_decode_vcn0;
 		return 0;
+	case IP_VERSION(5, 3, 0):
+		if (encode)
+			*codecs = &vcn_5_3_0_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_5_3_0_video_codecs_decode_vcn0;
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -225,7 +256,13 @@ static u32 soc21_get_config_memsize(struct amdgpu_device *adev)
 
 static u32 soc21_get_xclk(struct amdgpu_device *adev)
 {
-	return adev->clock.spll.reference_freq;
+	u32 reference_clock = adev->clock.spll.reference_freq;
+
+	/* reference clock is actually 99.81 Mhz rather than 100 Mhz */
+	if ((adev->flags & AMD_IS_APU) && reference_clock == 10000)
+		return 9981;
+
+	return reference_clock;
 }
 
 
@@ -385,6 +422,7 @@ soc21_asic_reset_method(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 1):
 	case IP_VERSION(14, 0, 4):
 	case IP_VERSION(14, 0, 5):
+	case IP_VERSION(15, 0, 0):
 		return AMD_RESET_METHOD_MODE2;
 	default:
 		if (amdgpu_dpm_is_baco_supported(adev))
@@ -513,10 +551,6 @@ static void soc21_init_doorbell_index(struct amdgpu_device *adev)
 	adev->doorbell_index.sdma_doorbell_range = 20;
 }
 
-static void soc21_pre_asic_init(struct amdgpu_device *adev)
-{
-}
-
 static int soc21_update_umd_stable_pstate(struct amdgpu_device *adev,
 					  bool enter)
 {
@@ -546,7 +580,6 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs = {
 	.need_reset_on_init = &soc21_need_reset_on_init,
 	.get_pcie_replay_count = &amdgpu_nbio_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
-	.pre_asic_init = &soc21_pre_asic_init,
 	.query_video_codecs = &soc21_query_video_codecs,
 	.update_umd_stable_pstate = &soc21_update_umd_stable_pstate,
 };
@@ -804,6 +837,32 @@ static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 			AMD_PG_SUPPORT_GFX_PG;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
+	case IP_VERSION(11, 5, 4):
+		adev->cg_flags = AMD_CG_SUPPORT_VCN_MGCG |
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_FGCG |
+			AMD_CG_SUPPORT_REPEATER_FGCG |
+			AMD_CG_SUPPORT_GFX_PERF_CLK |
+			AMD_CG_SUPPORT_GFX_3D_CGCG |
+			AMD_CG_SUPPORT_GFX_3D_CGLS |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_HDP_DS |
+			AMD_CG_SUPPORT_HDP_SD |
+			AMD_CG_SUPPORT_ATHUB_MGCG |
+			AMD_CG_SUPPORT_ATHUB_LS |
+			AMD_CG_SUPPORT_IH_CG |
+			AMD_CG_SUPPORT_BIF_MGCG |
+			AMD_CG_SUPPORT_BIF_LS;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_JPEG |
+			AMD_PG_SUPPORT_GFX_PG;
+		adev->external_rev_id = adev->rev_id + 0x1;
+               break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
@@ -965,6 +1024,7 @@ static int soc21_common_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	case IP_VERSION(7, 11, 1):
 	case IP_VERSION(7, 11, 2):
 	case IP_VERSION(7, 11, 3):
+	case IP_VERSION(7, 11, 4):
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,

@@ -771,7 +771,7 @@ static struct sunqec *get_qec(struct platform_device *child)
 
 	qecp = platform_get_drvdata(op);
 	if (!qecp) {
-		qecp = kzalloc(sizeof(struct sunqec), GFP_KERNEL);
+		qecp = kzalloc_obj(struct sunqec);
 		if (qecp) {
 			u32 ctrl;
 

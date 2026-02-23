@@ -237,8 +237,8 @@ static struct aac_driver_ident aac_drivers[] = {
  *	TODO: unify with aac_scsi_cmd().
  */
 
-static int aac_queuecommand(struct Scsi_Host *shost,
-			    struct scsi_cmnd *cmd)
+static enum scsi_qc_status aac_queuecommand(struct Scsi_Host *shost,
+					    struct scsi_cmnd *cmd)
 {
 	aac_priv(cmd)->owner = AAC_OWNER_LOWLEVEL;
 
@@ -1661,9 +1661,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (aac_reset_devices || reset_devices)
 		aac->init_reset = true;
 
-	aac->fibs = kcalloc(shost->can_queue + AAC_NUM_MGT_FIB,
-			    sizeof(struct fib),
-			    GFP_KERNEL);
+	aac->fibs = kzalloc_objs(struct fib, shost->can_queue + AAC_NUM_MGT_FIB);
 	if (!aac->fibs) {
 		error = -ENOMEM;
 		goto out_free_host;

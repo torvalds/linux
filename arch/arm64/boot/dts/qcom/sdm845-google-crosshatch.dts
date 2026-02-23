@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "sdm845-google-common.dtsi"
+
+/ {
+	model = "Google Pixel 3 XL";
+	compatible = "google,crosshatch", "qcom,sdm845";
+};
+
+&battery {
+	charge-full-design-microamp-hours = <3480000>;
+	voltage-min-design-microvolt = <3600000>;
+	voltage-max-design-microvolt = <4400000>;
+};
+
+&dispcc {
+	/* Disable for now so simple-framebuffer continues working */
+	status = "disabled";
+};
+
+&framebuffer0 {
+	width = <1440>;
+	height = <2960>;
+	stride = <(1440 * 4)>;
+};
+
+&mdss {
+	/* Disable for now so simple-framebuffer continues working */
+	status = "disabled";
+};
+
+&wifi {
+	qcom,calibration-variant = "Google_crosshatch";
+};

@@ -56,7 +56,7 @@ static int live_nop_switch(void *arg)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_objs(*ctx, nctx);
 	if (!ctx) {
 		err = -ENOMEM;
 		goto out_file;
@@ -317,7 +317,7 @@ static int live_parallel_switch(void *arg)
 	engines = i915_gem_context_lock_engines(ctx);
 	count = engines->num_engines;
 
-	data = kcalloc(count, sizeof(*data), GFP_KERNEL);
+	data = kzalloc_objs(*data, count);
 	if (!data) {
 		i915_gem_context_unlock_engines(ctx);
 		err = -ENOMEM;
@@ -1054,7 +1054,7 @@ __sseu_prepare(const char *name,
 	if (!(flags & (TEST_BUSY | TEST_RESET)))
 		return 0;
 
-	*spin = kzalloc(sizeof(**spin), GFP_KERNEL);
+	*spin = kzalloc_obj(**spin);
 	if (!*spin)
 		return -ENOMEM;
 

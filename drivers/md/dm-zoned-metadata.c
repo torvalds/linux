@@ -303,7 +303,7 @@ static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
 static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
 				  unsigned int zone_id, struct dmz_dev *dev)
 {
-	struct dm_zone *zone = kzalloc(sizeof(struct dm_zone), GFP_KERNEL);
+	struct dm_zone *zone = kzalloc_obj(struct dm_zone);
 
 	if (!zone)
 		return ERR_PTR(-ENOMEM);
@@ -419,7 +419,7 @@ static struct dmz_mblock *dmz_alloc_mblock(struct dmz_metadata *zmd,
 	}
 
 	/* Allocate a new block */
-	mblk = kmalloc(sizeof(struct dmz_mblock), GFP_NOIO);
+	mblk = kmalloc_obj(struct dmz_mblock, GFP_NOIO);
 	if (!mblk)
 		return NULL;
 
@@ -1311,7 +1311,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 		int i;
 		struct dmz_sb *sb;
 
-		sb = kzalloc(sizeof(struct dmz_sb), GFP_KERNEL);
+		sb = kzalloc_obj(struct dmz_sb);
 		if (!sb)
 			return -ENOMEM;
 		for (i = 1; i < zmd->nr_devs; i++) {
@@ -1686,8 +1686,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 	unsigned int bzone_id;
 
 	/* Metadata block array for the chunk mapping table */
-	zmd->map_mblk = kcalloc(zmd->nr_map_blocks,
-				sizeof(struct dmz_mblk *), GFP_KERNEL);
+	zmd->map_mblk = kzalloc_objs(struct dmz_mblock *, zmd->nr_map_blocks);
 	if (!zmd->map_mblk)
 		return -ENOMEM;
 
@@ -2868,7 +2867,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	struct dm_zone *zone;
 	int ret;
 
-	zmd = kzalloc(sizeof(struct dmz_metadata), GFP_KERNEL);
+	zmd = kzalloc_obj(struct dmz_metadata);
 	if (!zmd)
 		return -ENOMEM;
 

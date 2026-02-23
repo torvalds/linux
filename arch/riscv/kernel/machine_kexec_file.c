@@ -64,7 +64,7 @@ static int prepare_elf_headers(void **addr, unsigned long *sz)
 	nr_ranges = 1; /* For exclusion of crashkernel region */
 	walk_system_ram_res(0, -1, &nr_ranges, get_nr_ram_ranges_callback);
 
-	cmem = kmalloc(struct_size(cmem, ranges, nr_ranges), GFP_KERNEL);
+	cmem = kmalloc_flex(*cmem, ranges, nr_ranges);
 	if (!cmem)
 		return -ENOMEM;
 

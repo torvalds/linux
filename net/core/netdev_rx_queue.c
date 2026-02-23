@@ -7,6 +7,7 @@
 #include <net/netdev_rx_queue.h>
 #include <net/page_pool/memory_provider.h>
 
+#include "dev.h"
 #include "page_pool_priv.h"
 
 /* See also page_pool_is_unreadable() */
@@ -18,7 +19,10 @@ bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx)
 }
 EXPORT_SYMBOL(netif_rxq_has_unreadable_mp);
 
-int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
+static int netdev_rx_queue_reconfig(struct net_device *dev,
+				    unsigned int rxq_idx,
+				    struct netdev_queue_config *qcfg_old,
+				    struct netdev_queue_config *qcfg_new)
 {
 	struct netdev_rx_queue *rxq = __netif_get_rx_queue(dev, rxq_idx);
 	const struct netdev_queue_mgmt_ops *qops = dev->queue_mgmt_ops;
@@ -41,7 +45,7 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 		goto err_free_new_mem;
 	}
 
-	err = qops->ndo_queue_mem_alloc(dev, new_mem, rxq_idx);
+	err = qops->ndo_queue_mem_alloc(dev, qcfg_new, new_mem, rxq_idx);
 	if (err)
 		goto err_free_old_mem;
 
@@ -54,7 +58,7 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 		if (err)
 			goto err_free_new_queue_mem;
 
-		err = qops->ndo_queue_start(dev, new_mem, rxq_idx);
+		err = qops->ndo_queue_start(dev, qcfg_new, new_mem, rxq_idx);
 		if (err)
 			goto err_start_queue;
 	} else {
@@ -76,7 +80,7 @@ err_start_queue:
 	 * WARN if we fail to recover the old rx queue, and at least free
 	 * old_mem so we don't also leak that.
 	 */
-	if (qops->ndo_queue_start(dev, old_mem, rxq_idx)) {
+	if (qops->ndo_queue_start(dev, qcfg_old, old_mem, rxq_idx)) {
 		WARN(1,
 		     "Failed to restart old queue in error path. RX queue %d may be unhealthy.",
 		     rxq_idx);
@@ -94,12 +98,22 @@ err_free_new_mem:
 
 	return err;
 }
+
+int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
+{
+	struct netdev_queue_config qcfg;
+
+	netdev_queue_config(dev, rxq_idx, &qcfg);
+	return netdev_rx_queue_reconfig(dev, rxq_idx, &qcfg, &qcfg);
+}
 EXPORT_SYMBOL_NS_GPL(netdev_rx_queue_restart, "NETDEV_INTERNAL");
 
 int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 		      const struct pp_memory_provider_params *p,
 		      struct netlink_ext_ack *extack)
 {
+	const struct netdev_queue_mgmt_ops *qops = dev->queue_mgmt_ops;
+	struct netdev_queue_config qcfg[2];
 	struct netdev_rx_queue *rxq;
 	int ret;
 
@@ -124,6 +138,10 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 		NL_SET_ERR_MSG(extack, "unable to custom memory provider to device with XDP program attached");
 		return -EEXIST;
 	}
+	if (p->rx_page_size && !(qops->supported_params & QCFG_RX_PAGE_SIZE)) {
+		NL_SET_ERR_MSG(extack, "device does not support: rx_page_size");
+		return -EOPNOTSUPP;
+	}
 
 	rxq = __netif_get_rx_queue(dev, rxq_idx);
 	if (rxq->mp_params.mp_ops) {
@@ -137,12 +155,20 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 	}
 #endif
 
+	netdev_queue_config(dev, rxq_idx, &qcfg[0]);
 	rxq->mp_params = *p;
-	ret = netdev_rx_queue_restart(dev, rxq_idx);
-	if (ret) {
-		rxq->mp_params.mp_ops = NULL;
-		rxq->mp_params.mp_priv = NULL;
-	}
+	ret = netdev_queue_config_validate(dev, rxq_idx, &qcfg[1], extack);
+	if (ret)
+		goto err_clear_mp;
+
+	ret = netdev_rx_queue_reconfig(dev, rxq_idx, &qcfg[0], &qcfg[1]);
+	if (ret)
+		goto err_clear_mp;
+
+	return 0;
+
+err_clear_mp:
+	memset(&rxq->mp_params, 0, sizeof(rxq->mp_params));
 	return ret;
 }
 
@@ -160,6 +186,7 @@ int net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 			const struct pp_memory_provider_params *old_p)
 {
+	struct netdev_queue_config qcfg[2];
 	struct netdev_rx_queue *rxq;
 	int err;
 
@@ -179,9 +206,11 @@ void __net_mp_close_rxq(struct net_device *dev, unsigned int ifq_idx,
 			 rxq->mp_params.mp_priv != old_p->mp_priv))
 		return;
 
-	rxq->mp_params.mp_ops = NULL;
-	rxq->mp_params.mp_priv = NULL;
-	err = netdev_rx_queue_restart(dev, ifq_idx);
+	netdev_queue_config(dev, ifq_idx, &qcfg[0]);
+	memset(&rxq->mp_params, 0, sizeof(rxq->mp_params));
+	netdev_queue_config(dev, ifq_idx, &qcfg[1]);
+
+	err = netdev_rx_queue_reconfig(dev, ifq_idx, &qcfg[0], &qcfg[1]);
 	WARN_ON(err && err != -ENETDOWN);
 }
 

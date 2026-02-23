@@ -137,7 +137,7 @@ static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases, b
 	struct i2c_atr_alias_pool *alias_pool;
 	int ret;
 
-	alias_pool = kzalloc(sizeof(*alias_pool), GFP_KERNEL);
+	alias_pool = kzalloc_obj(*alias_pool);
 	if (!alias_pool)
 		return ERR_PTR(-ENOMEM);
 
@@ -183,7 +183,7 @@ static struct i2c_atr_alias_pair *i2c_atr_create_c2a(struct i2c_atr_chan *chan,
 
 	lockdep_assert_held(&chan->alias_pairs_lock);
 
-	c2a = kzalloc(sizeof(*c2a), GFP_KERNEL);
+	c2a = kzalloc_obj(*c2a);
 	if (!c2a)
 		return NULL;
 
@@ -724,7 +724,7 @@ struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
 	if (!ops || !ops->attach_addr || !ops->detach_addr)
 		return ERR_PTR(-EINVAL);
 
-	atr = kzalloc(struct_size(atr, adapter, max_adapters), GFP_KERNEL);
+	atr = kzalloc_flex(*atr, adapter, max_adapters);
 	if (!atr)
 		return ERR_PTR(-ENOMEM);
 
@@ -800,7 +800,7 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, struct i2c_atr_adap_desc *desc)
 		return -EEXIST;
 	}
 
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return -ENOMEM;
 

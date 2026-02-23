@@ -209,6 +209,7 @@ struct nfs4_sequence_args {
 };
 
 struct nfs4_sequence_res {
+	const struct nfs4_sequence_slot_ops *sr_slot_ops;
 	struct nfs4_slot	*sr_slot;	/* slot used to send request */
 	unsigned long		sr_timestamp;
 	int			sr_status;	/* sequence operation status */
@@ -1323,10 +1324,6 @@ struct nfs4_fsid_present_res {
 	unsigned char			renew:1;
 };
 
-#endif /* CONFIG_NFS_V4 */
-
-#ifdef CONFIG_NFS_V4_1
-
 struct pnfs_commit_bucket {
 	struct list_head written;
 	struct list_head committing;
@@ -1466,7 +1463,7 @@ struct nfs41_free_stateid_res {
 struct pnfs_ds_commit_info {
 };
 
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_V4_2
 struct nfs42_falloc_args {
@@ -1849,7 +1846,7 @@ struct nfs_rpc_ops {
 				struct iattr *iattr,
 				int *);
 	int (*have_delegation)(struct inode *, fmode_t, int);
-	int (*return_delegation)(struct inode *);
+	void (*return_delegation)(struct inode *);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *(*init_client) (struct nfs_client *,
 				const struct nfs_client_initdata *);

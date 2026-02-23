@@ -77,7 +77,7 @@ static int snd_cx18_card_create(struct v4l2_device *v4l2_dev,
 				       struct snd_card *sc,
 				       struct snd_cx18_card **cxsc)
 {
-	*cxsc = kzalloc(sizeof(struct snd_cx18_card), GFP_KERNEL);
+	*cxsc = kzalloc_obj(struct snd_cx18_card);
 	if (*cxsc == NULL)
 		return -ENOMEM;
 

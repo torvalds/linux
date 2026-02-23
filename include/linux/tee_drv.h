@@ -315,11 +315,23 @@ struct tee_client_device {
  * @driver:		driver structure
  */
 struct tee_client_driver {
+	int (*probe)(struct tee_client_device *);
+	void (*remove)(struct tee_client_device *);
+	void (*shutdown)(struct tee_client_device *);
 	const struct tee_client_device_id *id_table;
 	struct device_driver driver;
 };
 
 #define to_tee_client_driver(d) \
 		container_of_const(d, struct tee_client_driver, driver)
+
+#define tee_client_driver_register(drv) \
+        __tee_client_driver_register(drv, THIS_MODULE)
+int __tee_client_driver_register(struct tee_client_driver *, struct module *);
+void tee_client_driver_unregister(struct tee_client_driver *);
+
+#define module_tee_client_driver(__tee_client_driver) \
+	module_driver(__tee_client_driver, tee_client_driver_register, \
+		      tee_client_driver_unregister)
 
 #endif /*__TEE_DRV_H*/

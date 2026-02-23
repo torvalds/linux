@@ -139,7 +139,7 @@ ipsec_fs_roce_rx_rule_setup(struct mlx5_core_dev *mdev,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -242,7 +242,7 @@ static int ipsec_fs_roce_tx_mpv_rule_setup(struct mlx5_core_dev *mdev,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -850,7 +850,7 @@ struct mlx5_ipsec_fs *mlx5_ipsec_fs_roce_init(struct mlx5_core_dev *mdev,
 		return NULL;
 	}
 
-	roce_ipsec = kzalloc(sizeof(*roce_ipsec), GFP_KERNEL);
+	roce_ipsec = kzalloc_obj(*roce_ipsec);
 	if (!roce_ipsec)
 		return NULL;
 

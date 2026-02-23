@@ -374,7 +374,7 @@ static struct sys_off_handler *alloc_sys_off_handler(int priority)
 		else
 			flags = GFP_KERNEL;
 
-		handler = kzalloc(sizeof(*handler), flags);
+		handler = kzalloc_obj(*handler, flags);
 		if (!handler)
 			return ERR_PTR(-ENOMEM);
 	}

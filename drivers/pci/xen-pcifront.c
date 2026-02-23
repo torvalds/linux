@@ -462,8 +462,8 @@ static int pcifront_scan_root(struct pcifront_device *pdev,
 	dev_info(&pdev->xdev->dev, "Creating PCI Frontend Bus %04x:%02x\n",
 		 domain, bus);
 
-	bus_entry = kzalloc(sizeof(*bus_entry), GFP_KERNEL);
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
+	bus_entry = kzalloc_obj(*bus_entry);
+	sd = kzalloc_obj(*sd);
 	if (!bus_entry || !sd) {
 		err = -ENOMEM;
 		goto err_out;
@@ -687,7 +687,7 @@ static struct pcifront_device *alloc_pdev(struct xenbus_device *xdev)
 {
 	struct pcifront_device *pdev;
 
-	pdev = kzalloc(sizeof(struct pcifront_device), GFP_KERNEL);
+	pdev = kzalloc_obj(struct pcifront_device);
 	if (pdev == NULL)
 		goto out;
 

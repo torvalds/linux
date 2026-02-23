@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2021 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+
+#include "imx8mn-pinfunc.h"
+
+&pinctrl_ecspi1 {
+	fsl,pins = <
+		MX8MN_IOMUXC_ECSPI1_SCLK_ECSPI1_SCLK		0x10
+		MX8MN_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI		0x10
+		MX8MN_IOMUXC_ECSPI1_MISO_ECSPI1_MISO		0x90
+		/* KS8794 nCS */
+		MX8MN_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x150
+		/* ANV32C81 nCS */
+		MX8MN_IOMUXC_ECSPI1_SS0_GPIO5_IO9		0x150
+	>;
+};
+
+#include "imx8mn-vhip4-evalboard-ksz8794-common.dtsi"

@@ -224,7 +224,7 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	dc = kzalloc(sizeof(*dc), GFP_KERNEL);
+	dc = kzalloc_obj(*dc);
 	if (!dc) {
 		ti->error = "Cannot allocate context";
 		return -ENOMEM;
@@ -290,7 +290,9 @@ out:
 	} else {
 		timer_setup(&dc->delay_timer, handle_delayed_timer, 0);
 		INIT_WORK(&dc->flush_expired_bios, flush_expired_bios);
-		dc->kdelayd_wq = alloc_workqueue("kdelayd", WQ_MEM_RECLAIM, 0);
+		dc->kdelayd_wq = alloc_workqueue("kdelayd",
+						 WQ_MEM_RECLAIM | WQ_PERCPU,
+						 0);
 		if (!dc->kdelayd_wq) {
 			ret = -EINVAL;
 			DMERR("Couldn't start kdelayd");

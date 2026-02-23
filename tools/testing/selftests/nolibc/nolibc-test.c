@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/ptrace.h>
 #include <sys/random.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
@@ -877,6 +878,58 @@ int test_file_stream(void)
 	return 0;
 }
 
+int test_file_stream_wsr(void)
+{
+	const char dataout[] = "foo";
+	const size_t datasz = sizeof(dataout);
+	char datain[datasz];
+	int fd, r;
+	FILE *f;
+
+	fd = open("/tmp", O_TMPFILE | O_RDWR, 0644);
+	if (fd == -1)
+		return -1;
+
+	f = fdopen(fd, "w+");
+	if (!f)
+		return -1;
+
+	errno = 0;
+	r = fwrite(dataout, 1, datasz, f);
+	if (r != datasz)
+		return -1;
+
+	/* Attempt to read from the file without rewinding,
+	 * we should read 0 items.
+	 */
+	r = fread(datain, 1, datasz, f);
+	if (r)
+		return -1;
+
+	/* Rewind the file to the start */
+	r = fseek(f, 0, SEEK_SET);
+	if (r)
+		return -1;
+
+	/* Attempt to read back more than was written to
+	 * make sure we handle short reads properly.
+	 * fread() should return the number of complete items.
+	 */
+	r = fread(datain, 1, datasz + 1, f);
+	if (r != datasz)
+		return -1;
+
+	/* Data we read should match the data we just wrote */
+	if (memcmp(datain, dataout, datasz) != 0)
+		return -1;
+
+	r = fclose(f);
+	if (r)
+		return -1;
+
+	return 0;
+}
+
 enum fork_type {
 	FORK_STANDARD,
 	FORK_VFORK,
@@ -1351,6 +1404,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(fchdir_stdin);      EXPECT_SYSER(1, fchdir(STDIN_FILENO), -1, ENOTDIR); break;
 		CASE_TEST(fchdir_badfd);      EXPECT_SYSER(1, fchdir(-1), -1, EBADF); break;
 		CASE_TEST(file_stream);       EXPECT_SYSZR(1, test_file_stream()); break;
+		CASE_TEST(file_stream_wsr);   EXPECT_SYSZR(1, test_file_stream_wsr()); break;
 		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork(FORK_STANDARD)); break;
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
@@ -1403,9 +1457,10 @@ int run_syscall(int min, int max)
 		CASE_TEST(write_badf);        EXPECT_SYSER(1, write(-1, &tmp, 1), -1, EBADF); break;
 		CASE_TEST(write_zero);        EXPECT_SYSZR(1, write(1, &tmp, 0)); break;
 		CASE_TEST(readv_badf);        EXPECT_SYSER(1, readv(-1, &iov_one, 1), -1, EBADF); break;
-		CASE_TEST(readv_zero);        EXPECT_SYSZR(1, readv(1, NULL, 0)); break;
+		CASE_TEST(readv_zero);        EXPECT_SYSZR(1, readv(0, NULL, 0)); break;
 		CASE_TEST(writev_badf);       EXPECT_SYSER(1, writev(-1, &iov_one, 1), -1, EBADF); break;
 		CASE_TEST(writev_zero);       EXPECT_SYSZR(1, writev(1, NULL, 0)); break;
+		CASE_TEST(ptrace);            EXPECT_SYSER(1, ptrace(PTRACE_CONT, getpid(), NULL, NULL), -1, ESRCH); break;
 		CASE_TEST(syscall_noargs);    EXPECT_SYSEQ(1, syscall(__NR_getpid), getpid()); break;
 		CASE_TEST(syscall_args);      EXPECT_SYSER(1, syscall(__NR_statx, 0, NULL, 0, 0, NULL), -1, EFAULT); break;
 		CASE_TEST(namespace);         EXPECT_SYSZR(euid0 && proc, test_namespace()); break;
@@ -1424,6 +1479,34 @@ int test_difftime(void)
 
 	if (difftime(100., 200.) != -100.)
 		return 1;
+
+	return 0;
+}
+
+int test_time_types(void)
+{
+#ifdef NOLIBC
+	struct __kernel_timespec kts;
+	struct timespec ts;
+
+	if (!__builtin_types_compatible_p(time_t, __kernel_time64_t))
+		return 1;
+
+	if (sizeof(ts) != sizeof(kts))
+		return 1;
+
+	if (!__builtin_types_compatible_p(__typeof__(ts.tv_sec), __typeof__(kts.tv_sec)))
+		return 1;
+
+	if (!__builtin_types_compatible_p(__typeof__(ts.tv_nsec), __typeof__(kts.tv_nsec)))
+		return 1;
+
+	if (offsetof(__typeof__(ts), tv_sec) != offsetof(__typeof__(kts), tv_sec))
+		return 1;
+
+	if (offsetof(__typeof__(ts), tv_nsec) != offsetof(__typeof__(kts), tv_nsec))
+		return 1;
+#endif /* NOLIBC */
 
 	return 0;
 }
@@ -1553,6 +1636,7 @@ int run_stdlib(int min, int max)
 		CASE_TEST(difftime);                EXPECT_ZR(1, test_difftime()); break;
 		CASE_TEST(memchr_foobar6_o);        EXPECT_STREQ(1, memchr("foobar", 'o', 6), "oobar"); break;
 		CASE_TEST(memchr_foobar3_b);        EXPECT_STRZR(1, memchr("foobar", 'b', 3)); break;
+		CASE_TEST(time_types);              EXPECT_ZR(is_nolibc, test_time_types()); break;
 
 		case __LINE__:
 			return ret; /* must be last */

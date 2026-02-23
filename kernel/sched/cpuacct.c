@@ -61,7 +61,7 @@ cpuacct_css_alloc(struct cgroup_subsys_state *parent_css)
 	if (!parent_css)
 		return &root_cpuacct.css;
 
-	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
+	ca = kzalloc_obj(*ca);
 	if (!ca)
 		goto out;
 

@@ -82,6 +82,7 @@ static struct trace_kprobe *to_trace_kprobe(struct dyn_event *ev)
 #define for_each_trace_kprobe(pos, dpos)	\
 	for_each_dyn_event(dpos)		\
 		if (is_trace_kprobe(dpos) && (pos = to_trace_kprobe(dpos)))
+#define trace_kprobe_list_empty() list_empty(&dyn_event_list)
 
 static nokprobe_inline bool trace_kprobe_is_return(struct trace_kprobe *tk)
 {
@@ -274,7 +275,7 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 	struct trace_kprobe *tk __free(free_trace_kprobe) = NULL;
 	int ret = -ENOMEM;
 
-	tk = kzalloc(struct_size(tk, tp.args, nargs), GFP_KERNEL);
+	tk = kzalloc_flex(*tk, tp.args, nargs);
 	if (!tk)
 		return ERR_PTR(ret);
 
@@ -1081,7 +1082,7 @@ static int trace_kprobe_create_cb(int argc, const char *argv[])
 	struct traceprobe_parse_context *ctx __free(traceprobe_parse_context) = NULL;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->flags = TPARG_FL_KERNEL;
@@ -1982,6 +1983,9 @@ static __init void enable_boot_kprobe_events(void)
 	struct trace_kprobe *tk;
 	struct dyn_event *pos;
 
+	if (trace_kprobe_list_empty())
+		return;
+
 	guard(mutex)(&event_mutex);
 	for_each_trace_kprobe(tk, pos) {
 		list_for_each_entry(file, &tr->events, list)
@@ -2048,6 +2052,10 @@ static __init int init_kprobe_trace(void)
 	trace_create_file("kprobe_profile", TRACE_MODE_READ,
 			  NULL, NULL, &kprobe_profile_ops);
 
+	/* If no 'kprobe_event=' cmd is provided, return directly. */
+	if (kprobe_boot_events_buf[0] == '\0')
+		return 0;
+
 	setup_boot_kprobe_events();
 
 	return 0;
@@ -2079,7 +2087,7 @@ static __init int kprobe_trace_self_tests_init(void)
 	struct trace_kprobe *tk;
 	struct trace_event_file *file;
 
-	if (tracing_is_disabled())
+	if (unlikely(tracing_disabled))
 		return -ENODEV;
 
 	if (tracing_selftest_disabled)

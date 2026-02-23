@@ -55,7 +55,7 @@ struct trust {
 
 static struct radio_isa_card *trust_alloc(void)
 {
-	struct trust *tr = kzalloc(sizeof(*tr), GFP_KERNEL);
+	struct trust *tr = kzalloc_obj(*tr);
 
 	return tr ? &tr->isa : NULL;
 }

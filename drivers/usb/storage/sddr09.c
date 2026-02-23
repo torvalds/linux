@@ -1232,8 +1232,8 @@ sddr09_read_map(struct us_data *us) {
 
 	kfree(info->lba_to_pba);
 	kfree(info->pba_to_lba);
-	info->lba_to_pba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
-	info->pba_to_lba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
+	info->lba_to_pba = kmalloc_objs(int, numblocks, GFP_NOIO);
+	info->pba_to_lba = kmalloc_objs(int, numblocks, GFP_NOIO);
 
 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
 		printk(KERN_WARNING "sddr09_read_map: out of memory\n");
@@ -1428,7 +1428,7 @@ sddr09_common_init(struct us_data *us) {
 		return -EINVAL;
 	}
 
-	us->extra = kzalloc(sizeof(struct sddr09_card_info), GFP_NOIO);
+	us->extra = kzalloc_obj(struct sddr09_card_info, GFP_NOIO);
 	if (!us->extra)
 		return -ENOMEM;
 	us->extra_destructor = sddr09_card_info_destructor;

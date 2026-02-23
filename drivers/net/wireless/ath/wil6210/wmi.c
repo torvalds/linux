@@ -1080,7 +1080,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 			goto out;
 		}
 
-		sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+		sinfo = kzalloc_obj(*sinfo);
 		if (!sinfo) {
 			rc = -ENOMEM;
 			goto out;

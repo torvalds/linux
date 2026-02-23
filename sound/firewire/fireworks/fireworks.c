@@ -76,7 +76,7 @@ get_hardware_info(struct snd_efw *efw)
 	char version[12] = {0};
 	int err;
 
-	hwinfo = kzalloc(sizeof(struct snd_efw_hwinfo), GFP_KERNEL);
+	hwinfo = kzalloc_obj(struct snd_efw_hwinfo);
 	if (hwinfo == NULL)
 		return -ENOMEM;
 

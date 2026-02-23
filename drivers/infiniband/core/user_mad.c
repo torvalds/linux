@@ -247,7 +247,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 	if (mad_recv_wc->wc->status != IB_WC_SUCCESS)
 		goto err1;
 
-	packet = kzalloc(sizeof *packet, GFP_KERNEL);
+	packet = kzalloc_obj(*packet);
 	if (!packet)
 		goto err1;
 
@@ -514,7 +514,8 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	struct rdma_ah_attr ah_attr;
 	struct ib_ah *ah;
 	__be64 *tid;
-	int ret, data_len, hdr_len, copy_offset, rmpp_active;
+	int ret, hdr_len, copy_offset, rmpp_active;
+	size_t data_len;
 	u8 base_version;
 
 	if (count < hdr_size(file) + IB_MGMT_RMPP_HDR)
@@ -588,7 +589,10 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	base_version = ((struct ib_mad_hdr *)&packet->mad.data)->base_version;
-	data_len = count - hdr_size(file) - hdr_len;
+	if (check_sub_overflow(count, hdr_size(file) + hdr_len, &data_len)) {
+		ret = -EINVAL;
+		goto err_ah;
+	}
 	packet->msg = ib_create_send_mad(agent,
 					 be32_to_cpu(packet->mad.hdr.qpn),
 					 packet->mad.hdr.pkey_index, rmpp_active,
@@ -1014,7 +1018,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 		goto out;
 	}
 
-	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file) {
 		ret = -ENOMEM;
 		goto out;
@@ -1392,9 +1396,7 @@ static int ib_umad_add_one(struct ib_device *device)
 	s = rdma_start_port(device);
 	e = rdma_end_port(device);
 
-	umad_dev = kzalloc(struct_size(umad_dev, ports,
-				       size_add(size_sub(e, s), 1)),
-			   GFP_KERNEL);
+	umad_dev = kzalloc_flex(*umad_dev, ports, size_add(size_sub(e, s), 1));
 	if (!umad_dev)
 		return -ENOMEM;
 

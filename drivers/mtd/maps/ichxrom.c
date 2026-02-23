@@ -212,7 +212,7 @@ static int __init ichxrom_init_one(struct pci_dev *pdev,
 		int i;
 
 		if (!map) {
-			map = kmalloc(sizeof(*map), GFP_KERNEL);
+			map = kmalloc_obj(*map);
 			if (!map)
 				goto out;
 		}

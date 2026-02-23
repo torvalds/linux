@@ -355,7 +355,7 @@ static int opal_lpc_debugfs_create_type(struct dentry *folder,
 					enum OpalLPCAddressType type)
 {
 	struct lpc_debugfs_entry *entry;
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 	entry->lpc_type = type;

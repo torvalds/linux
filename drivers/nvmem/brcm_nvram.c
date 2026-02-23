@@ -5,6 +5,7 @@
 
 #include <linux/bcm47xx_nvram.h>
 #include <linux/etherdevice.h>
+#include <linux/hex.h>
 #include <linux/if_ether.h>
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>

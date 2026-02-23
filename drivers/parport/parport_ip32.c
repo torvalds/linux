@@ -2031,8 +2031,8 @@ static __init struct parport *parport_ip32_probe_port(void)
 	parport_ip32_make_isa_registers(&regs, &mace->isa.parallel,
 					&mace->isa.ecp1284, 8 /* regshift */);
 
-	ops = kmalloc(sizeof(struct parport_operations), GFP_KERNEL);
-	priv = kmalloc(sizeof(struct parport_ip32_private), GFP_KERNEL);
+	ops = kmalloc_obj(struct parport_operations);
+	priv = kmalloc_obj(struct parport_ip32_private);
 	p = parport_register_port(0, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, ops);
 	if (ops == NULL || priv == NULL || p == NULL) {
 		err = -ENOMEM;

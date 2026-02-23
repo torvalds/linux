@@ -1070,8 +1070,7 @@ int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 		}
 	}
 	if (!found) {
-		modelist = kmalloc(sizeof(struct fb_modelist),
-						  GFP_KERNEL);
+		modelist = kmalloc_obj(struct fb_modelist);
 
 		if (!modelist)
 			return -ENOMEM;

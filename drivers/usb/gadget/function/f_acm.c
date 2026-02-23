@@ -748,7 +748,7 @@ static struct usb_function *acm_alloc_func(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 	struct f_acm *acm;
 
-	acm = kzalloc(sizeof(*acm), GFP_KERNEL);
+	acm = kzalloc_obj(*acm);
 	if (!acm)
 		return ERR_PTR(-ENOMEM);
 
@@ -793,7 +793,7 @@ static void acm_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations acm_item_ops = {
+static const struct configfs_item_operations acm_item_ops = {
 	.release                = acm_attr_release,
 };
 
@@ -882,7 +882,7 @@ static struct usb_function_instance *acm_alloc_instance(void)
 	struct f_serial_opts *opts;
 	int ret;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	opts->protocol = USB_CDC_ACM_PROTO_AT_V25TER;

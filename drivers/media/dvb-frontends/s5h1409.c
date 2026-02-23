@@ -946,7 +946,7 @@ struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 	u16 reg;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct s5h1409_state), GFP_KERNEL);
+	state = kzalloc_obj(struct s5h1409_state);
 	if (state == NULL)
 		goto error;
 

@@ -413,7 +413,7 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 	    !capable(CAP_WAKE_ALARM))
 		return -EPERM;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

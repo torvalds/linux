@@ -300,7 +300,7 @@ static int pci_bus_set_aer_ops(struct pci_bus *bus)
 	struct pci_bus_ops *bus_ops;
 	unsigned long flags;
 
-	bus_ops = kmalloc(sizeof(*bus_ops), GFP_KERNEL);
+	bus_ops = kmalloc_obj(*bus_ops);
 	if (!bus_ops)
 		return -ENOMEM;
 	ops = pci_bus_set_ops(bus, &aer_inj_pci_ops);
@@ -360,12 +360,12 @@ static int aer_inject(struct aer_error_inj *einj)
 		goto out_put;
 	}
 
-	err_alloc =  kzalloc(sizeof(struct aer_error), GFP_KERNEL);
+	err_alloc =  kzalloc_obj(struct aer_error);
 	if (!err_alloc) {
 		ret = -ENOMEM;
 		goto out_put;
 	}
-	rperr_alloc =  kzalloc(sizeof(struct aer_error), GFP_KERNEL);
+	rperr_alloc =  kzalloc_obj(struct aer_error);
 	if (!rperr_alloc) {
 		ret = -ENOMEM;
 		goto out_put;

@@ -121,7 +121,7 @@ int dm_dirty_log_type_register(struct dm_dirty_log_type *type)
 	if (!__find_dirty_log_type(type->name))
 		list_add(&type->list, &_log_types);
 	else
-		r = -EEXIST;
+		r = -EBUSY;
 	spin_unlock(&_lock);
 
 	return r;
@@ -153,7 +153,7 @@ struct dm_dirty_log *dm_dirty_log_create(const char *type_name,
 	struct dm_dirty_log_type *type;
 	struct dm_dirty_log *log;
 
-	log = kmalloc(sizeof(*log), GFP_KERNEL);
+	log = kmalloc_obj(*log);
 	if (!log)
 		return NULL;
 
@@ -402,7 +402,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 
 	region_count = dm_sector_div_up(ti->len, region_size);
 
-	lc = kmalloc(sizeof(*lc), GFP_KERNEL);
+	lc = kmalloc_obj(*lc);
 	if (!lc) {
 		DMWARN("couldn't allocate core log");
 		return -ENOMEM;

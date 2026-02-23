@@ -712,7 +712,7 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct sas_phy *phy;
 
-	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc_obj(*phy);
 	if (!phy)
 		return NULL;
 
@@ -907,7 +907,7 @@ struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct sas_port *port;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return NULL;
 
@@ -1467,7 +1467,7 @@ struct sas_rphy *sas_end_device_alloc(struct sas_port *parent)
 	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
 	struct sas_end_device *rdev;
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev);
 	if (!rdev) {
 		return NULL;
 	}
@@ -1511,7 +1511,7 @@ struct sas_rphy *sas_expander_alloc(struct sas_port *parent,
 	BUG_ON(type != SAS_EDGE_EXPANDER_DEVICE &&
 	       type != SAS_FANOUT_EXPANDER_DEVICE);
 
-	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc_obj(*rdev);
 	if (!rdev) {
 		return NULL;
 	}
@@ -1815,7 +1815,7 @@ sas_attach_transport(struct sas_function_template *ft)
 	struct sas_internal *i;
 	int count;
 
-	i = kzalloc(sizeof(struct sas_internal), GFP_KERNEL);
+	i = kzalloc_obj(struct sas_internal);
 	if (!i)
 		return NULL;
 

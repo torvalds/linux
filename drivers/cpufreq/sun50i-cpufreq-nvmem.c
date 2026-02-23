@@ -244,8 +244,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 	int speed;
 	int ret;
 
-	opp_tokens = kcalloc(num_possible_cpus(), sizeof(*opp_tokens),
-			     GFP_KERNEL);
+	opp_tokens = kzalloc_objs(*opp_tokens, num_possible_cpus());
 	if (!opp_tokens)
 		return -ENOMEM;
 

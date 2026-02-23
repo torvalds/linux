@@ -667,7 +667,7 @@ uvc_v4l2_open(struct file *file)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct uvc_file_handle *handle;
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (handle == NULL)
 		return -ENOMEM;
 

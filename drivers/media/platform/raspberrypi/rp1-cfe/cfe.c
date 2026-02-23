@@ -2279,7 +2279,7 @@ static int cfe_probe(struct platform_device *pdev)
 	char debugfs_name[32];
 	int ret;
 
-	cfe = kzalloc(sizeof(*cfe), GFP_KERNEL);
+	cfe = kzalloc_obj(*cfe);
 	if (!cfe)
 		return -ENOMEM;
 

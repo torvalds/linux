@@ -142,7 +142,7 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 	__le16 *dma_buf;
 	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 
-	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
+	dma_buf = kzalloc_obj(*dma_buf);
 	if (!dma_buf)
 		return -ENOMEM;
 
@@ -960,7 +960,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = -ENOMEM;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return -ENOMEM;
 
@@ -1000,11 +1000,11 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	mdev->dev.init_name = mdev->description;
 	mdev->dev.parent = &interface->dev;
 	mdev->dev.release = release_mdev;
-	mdev->conf = kcalloc(num_endpoints, sizeof(*mdev->conf), GFP_KERNEL);
+	mdev->conf = kzalloc_objs(*mdev->conf, num_endpoints);
 	if (!mdev->conf)
 		goto err_free_mdev;
 
-	mdev->cap = kcalloc(num_endpoints, sizeof(*mdev->cap), GFP_KERNEL);
+	mdev->cap = kzalloc_objs(*mdev->cap, num_endpoints);
 	if (!mdev->cap)
 		goto err_free_conf;
 
@@ -1015,7 +1015,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		goto err_free_cap;
 
 	mdev->busy_urbs =
-		kcalloc(num_endpoints, sizeof(*mdev->busy_urbs), GFP_KERNEL);
+		kzalloc_objs(*mdev->busy_urbs, num_endpoints);
 	if (!mdev->busy_urbs)
 		goto err_free_ep_address;
 
@@ -1064,7 +1064,7 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	if (le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81118 ||
 	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81119 ||
 	    le16_to_cpu(usb_dev->descriptor.idProduct) == USB_DEV_ID_OS81210) {
-		mdev->dci = kzalloc(sizeof(*mdev->dci), GFP_KERNEL);
+		mdev->dci = kzalloc_obj(*mdev->dci);
 		if (!mdev->dci) {
 			mutex_unlock(&mdev->io_mutex);
 			most_deregister_interface(&mdev->iface);

@@ -45,7 +45,19 @@ This package provides kernel headers and makefiles sufficient to build modules
 against the %{version} kernel package.
 %endif
 
-%if %{with_debuginfo}
+%if %{with_debuginfo_manual}
+%package debuginfo
+Summary: Debug information package for the Linux kernel
+Group: Development/Debug
+AutoReq: 0
+AutoProv: 1
+%description debuginfo
+This package provides debug information for the kernel image and modules from the
+%{version} package.
+%define install_mod_strip 1
+%endif
+
+%if %{with_debuginfo_rpm}
 # list of debuginfo-related options taken from distribution kernel.spec
 # files
 %undefine _include_minidebuginfo
@@ -59,11 +71,6 @@ against the %{version} kernel package.
 %global _missing_build_ids_terminate_build 1
 %global _no_recompute_build_ids 1
 %{debug_package}
-%endif
-# some (but not all) versions of rpmbuild emit %%debug_package with
-# %%install. since we've already emitted it manually, that would cause
-# a package redefinition error. ensure that doesn't happen
-%define debug_package %{nil}
 
 # later, we make all modules executable so that find-debuginfo.sh strips
 # them up. but they don't actually need to be executable, so remove the
@@ -74,6 +81,13 @@ against the %{version} kernel package.
 	%{__os_install_post} \
 	find %{buildroot}/lib/modules/%{KERNELRELEASE} -name "*.ko" -type f \\\
 		| xargs --no-run-if-empty chmod u-x
+%else
+%define __spec_install_post /usr/lib/rpm/brp-compress || :
+%endif
+# some (but not all) versions of rpmbuild emit %%debug_package with
+# %%install. since we've already emitted it manually, that would cause
+# a package redefinition error. ensure that doesn't happen
+%define debug_package %{nil}
 
 %prep
 %setup -q -n linux
@@ -87,7 +101,7 @@ patch -p1 < %{SOURCE2}
 mkdir -p %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp $(%{make} %{makeflags} -s image_name) %{buildroot}/lib/modules/%{KERNELRELEASE}/vmlinuz
 # DEPMOD=true makes depmod no-op. We do not package depmod-generated files.
-%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} DEPMOD=true modules_install
+%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} %{?install_mod_strip:INSTALL_MOD_STRIP=1} DEPMOD=true modules_install
 %{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 cp System.map %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp .config %{buildroot}/lib/modules/%{KERNELRELEASE}/config
@@ -118,22 +132,43 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	echo "%exclude /lib/modules/%{KERNELRELEASE}/build"
 } > %{buildroot}/kernel.list
 
-# make modules executable so that find-debuginfo.sh strips them. this
-# will be undone later in %%__spec_install_post
-find %{buildroot}/lib/modules/%{KERNELRELEASE} -name "*.ko" -type f \
-	| xargs --no-run-if-empty chmod u+x
-
-%if %{with_debuginfo}
+%if 0%{with_debuginfo_manual}%{with_debuginfo_rpm} > 0
 # copying vmlinux directly to the debug directory means it will not get
 # stripped (but its source paths will still be collected + fixed up)
 mkdir -p %{buildroot}/usr/lib/debug/lib/modules/%{KERNELRELEASE}
 cp vmlinux %{buildroot}/usr/lib/debug/lib/modules/%{KERNELRELEASE}
 %endif
 
+%if %{with_debuginfo_rpm}
+# make modules executable so that find-debuginfo.sh strips them. this
+# will be undone later in %%__spec_install_post
+find %{buildroot}/lib/modules/%{KERNELRELEASE} -name "*.ko" -type f \
+	| xargs --no-run-if-empty chmod u+x
+%endif
+
+%if %{with_debuginfo_manual}
+echo /usr/lib/debug/lib/modules/%{KERNELRELEASE}/vmlinux > %{buildroot}/debuginfo.list
+while read -r mod; do
+	mod="${mod%.o}.ko"
+	dbg="%{buildroot}/usr/lib/debug/lib/modules/%{KERNELRELEASE}/kernel/${mod}"
+	buildid=$("${READELF:-readelf}" -n "${mod}" | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p')
+	link="%{buildroot}/usr/lib/debug/.build-id/${buildid}.debug"
+
+	mkdir -p "${dbg%/*}" "${link%/*}"
+	"${OBJCOPY:-objcopy}" --only-keep-debug "${mod}" "${dbg}"
+	ln -sf --relative "${dbg}" "${link}"
+
+	echo "${dbg#%{buildroot}}" >> %{buildroot}/debuginfo.list
+	echo "${link#%{buildroot}}" >> %{buildroot}/debuginfo.list
+done < modules.order
+%endif
+
 %clean
 rm -rf %{buildroot}
+%if %{with_debuginfo_rpm}
 rm -f debugfiles.list debuglinks.list debugsourcefiles.list debugsources.list \
 	elfbins.list
+%endif
 
 %post
 if [ -x /usr/bin/kernel-install ]; then
@@ -171,4 +206,10 @@ fi
 %defattr (-, root, root)
 /usr/src/kernels/%{KERNELRELEASE}
 /lib/modules/%{KERNELRELEASE}/build
+%endif
+
+%if %{with_debuginfo_manual}
+%files -f %{buildroot}/debuginfo.list debuginfo
+%defattr (-, root, root)
+%exclude /debuginfo.list
 %endif

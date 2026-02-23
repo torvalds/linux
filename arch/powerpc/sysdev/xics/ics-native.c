@@ -186,7 +186,7 @@ static int __init ics_native_add_one(struct device_node *np)
 	u32 ranges[2];
 	int rc, count;
 
-	ics = kzalloc(sizeof(struct ics_native), GFP_KERNEL);
+	ics = kzalloc_obj(struct ics_native);
 	if (!ics)
 		return -ENOMEM;
 	ics->node = of_node_get(np);

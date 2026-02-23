@@ -2102,14 +2102,12 @@ int tsnep_enable_xsk(struct tsnep_queue *queue, struct xsk_buff_pool *pool)
 	if (frame_size < TSNEP_XSK_RX_BUF_SIZE)
 		return -EOPNOTSUPP;
 
-	queue->rx->page_buffer = kcalloc(TSNEP_RING_SIZE,
-					 sizeof(*queue->rx->page_buffer),
-					 GFP_KERNEL);
+	queue->rx->page_buffer = kzalloc_objs(*queue->rx->page_buffer,
+					      TSNEP_RING_SIZE);
 	if (!queue->rx->page_buffer)
 		return -ENOMEM;
-	queue->rx->xdp_batch = kcalloc(TSNEP_RING_SIZE,
-				       sizeof(*queue->rx->xdp_batch),
-				       GFP_KERNEL);
+	queue->rx->xdp_batch = kzalloc_objs(*queue->rx->xdp_batch,
+					    TSNEP_RING_SIZE);
 	if (!queue->rx->xdp_batch) {
 		kfree(queue->rx->page_buffer);
 		queue->rx->page_buffer = NULL;

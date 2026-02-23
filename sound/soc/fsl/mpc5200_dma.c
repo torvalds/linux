@@ -333,7 +333,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	}
 
 	/* Allocate and initialize the driver private data */
-	psc_dma = kzalloc(sizeof *psc_dma, GFP_KERNEL);
+	psc_dma = kzalloc_obj(*psc_dma);
 	if (!psc_dma) {
 		ret = -ENOMEM;
 		goto out_unmap;

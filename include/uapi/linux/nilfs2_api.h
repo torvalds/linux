@@ -58,7 +58,7 @@ NILFS_CPINFO_FNS(INVALID, invalid)
 NILFS_CPINFO_FNS(MINOR, minor)
 
 /**
- * nilfs_suinfo - segment usage information
+ * struct nilfs_suinfo - segment usage information
  * @sui_lastmod: timestamp of last modification
  * @sui_nblocks: number of written blocks in segment
  * @sui_flags: segment usage flags
@@ -93,7 +93,7 @@ static inline int nilfs_suinfo_clean(const struct nilfs_suinfo *si)
 }
 
 /**
- * nilfs_suinfo_update - segment usage information update
+ * struct nilfs_suinfo_update - segment usage information update
  * @sup_segnum: segment number
  * @sup_flags: flags for which fields are active in sup_sui
  * @sup_reserved: reserved necessary for alignment

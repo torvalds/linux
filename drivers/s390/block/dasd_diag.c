@@ -325,7 +325,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	int rc;
 
 	if (private == NULL) {
-		private = kzalloc(sizeof(*private), GFP_KERNEL);
+		private = kzalloc_obj(*private);
 		if (private == NULL) {
 			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 				"Allocating memory for private DASD data "
@@ -395,7 +395,7 @@ dasd_diag_check_device(struct dasd_device *device)
 		rc = -ENOMEM;
 		goto out;
 	}
-	bio = kzalloc(sizeof(*bio), GFP_KERNEL);
+	bio = kzalloc_obj(*bio);
 	if (bio == NULL)  {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "No memory to allocate initialization bio");

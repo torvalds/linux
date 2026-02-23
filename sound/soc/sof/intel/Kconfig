@@ -319,6 +319,7 @@ config SND_SOC_SOF_NOVALAKE
 
 config SND_SOC_SOF_HDA_COMMON
 	tristate
+	select SND_HDA_EXT_CORE
 
 config SND_SOC_SOF_HDA_GENERIC
 	tristate

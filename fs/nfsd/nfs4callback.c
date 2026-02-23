@@ -1378,7 +1378,7 @@ void nfsd41_cb_referring_call(struct nfsd4_callback *cb,
 		}
 	}
 	if (!found) {
-		rcl = kmalloc(sizeof(*rcl), GFP_KERNEL);
+		rcl = kmalloc_obj(*rcl);
 		if (!rcl)
 			return;
 		memcpy(rcl->rcl_sessionid.data, sessionid->data,
@@ -1397,7 +1397,7 @@ void nfsd41_cb_referring_call(struct nfsd4_callback *cb,
 		}
 	}
 	if (!found) {
-		rc = kmalloc(sizeof(*rc), GFP_KERNEL);
+		rc = kmalloc_obj(*rc);
 		if (!rc)
 			goto out;
 		rc->rc_sequenceid = seqno;

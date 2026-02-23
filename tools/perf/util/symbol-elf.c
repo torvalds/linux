@@ -1105,14 +1105,14 @@ static Elf *read_gnu_debugdata(struct dso *dso, Elf *elf, const char *name, int 
 
 	wrapped = fmemopen(scn_data->d_buf, scn_data->d_size, "r");
 	if (!wrapped) {
-		pr_debug("%s: fmemopen: %s\n", __func__, strerror(errno));
+		pr_debug("%s: fmemopen: %m\n", __func__);
 		*dso__load_errno(dso) = -errno;
 		return NULL;
 	}
 
 	temp_fd = mkstemp(temp_filename);
 	if (temp_fd < 0) {
-		pr_debug("%s: mkstemp: %s\n", __func__, strerror(errno));
+		pr_debug("%s: mkstemp: %m\n", __func__);
 		*dso__load_errno(dso) = -errno;
 		fclose(wrapped);
 		return NULL;
@@ -1173,7 +1173,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		Elf *embedded = read_gnu_debugdata(dso, elf, name, &new_fd);
 
 		if (!embedded)
-			goto out_close;
+			goto out_elf_end;
 
 		elf_end(elf);
 		close(fd);

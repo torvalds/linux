@@ -363,7 +363,7 @@ struct clk *icst_clk_setup(struct device *dev,
 	struct clk_init_data init;
 	struct icst_params *pclone;
 
-	icst = kzalloc(sizeof(*icst), GFP_KERNEL);
+	icst = kzalloc_obj(*icst);
 	if (!icst)
 		return ERR_PTR(-ENOMEM);
 

@@ -10,6 +10,7 @@
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/cleanup.h>
 
 #include <linux/major.h>
 #include <linux/errno.h>
@@ -97,7 +98,8 @@ static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
 {
-	struct char_device_struct *cd, *curr, *prev = NULL;
+	struct char_device_struct *cd __free(kfree) = NULL;
+	struct char_device_struct *curr, *prev = NULL;
 	int ret;
 	int i;
 
@@ -113,18 +115,18 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		return ERR_PTR(-EINVAL);
 	}
 
-	cd = kzalloc(sizeof(struct char_device_struct), GFP_KERNEL);
+	cd = kzalloc_obj(struct char_device_struct);
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&chrdevs_lock);
+	guard(mutex)(&chrdevs_lock);
 
 	if (major == 0) {
 		ret = find_dynamic_major();
 		if (ret < 0) {
 			pr_err("CHRDEV \"%s\" dynamic allocation region is full\n",
 			       name);
-			goto out;
+			return ERR_PTR(ret);
 		}
 		major = ret;
 	}
@@ -144,7 +146,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		if (curr->baseminor >= baseminor + minorct)
 			break;
 
-		goto out;
+		return ERR_PTR(ret);
 	}
 
 	cd->major = major;
@@ -160,12 +162,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		prev->next = cd;
 	}
 
-	mutex_unlock(&chrdevs_lock);
-	return cd;
-out:
-	mutex_unlock(&chrdevs_lock);
-	kfree(cd);
-	return ERR_PTR(ret);
+	return_ptr(cd);
 }
 
 static struct char_device_struct *
@@ -343,7 +340,7 @@ void __unregister_chrdev(unsigned int major, unsigned int baseminor,
 	kfree(cd);
 }
 
-static DEFINE_SPINLOCK(cdev_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(cdev_lock);
 
 static struct kobject *cdev_get(struct cdev *p)
 {
@@ -639,7 +636,7 @@ static struct kobj_type ktype_cdev_dynamic = {
  */
 struct cdev *cdev_alloc(void)
 {
-	struct cdev *p = kzalloc(sizeof(struct cdev), GFP_KERNEL);
+	struct cdev *p = kzalloc_obj(struct cdev);
 	if (p) {
 		INIT_LIST_HEAD(&p->list);
 		kobject_init(&p->kobj, &ktype_cdev_dynamic);

@@ -509,7 +509,7 @@ gk104_clk_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	struct gk104_clk *clk;
 
-	if (!(clk = kzalloc(sizeof(*clk), GFP_KERNEL)))
+	if (!(clk = kzalloc_obj(*clk)))
 		return -ENOMEM;
 	*pclk = &clk->base;
 

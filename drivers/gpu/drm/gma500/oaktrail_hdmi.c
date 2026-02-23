@@ -633,11 +633,11 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 
-	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	gma_encoder = kzalloc_obj(struct gma_encoder);
 	if (!gma_encoder)
 		return;
 
-	gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+	gma_connector = kzalloc_obj(struct gma_connector);
 	if (!gma_connector)
 		goto failed_connector;
 
@@ -677,7 +677,7 @@ void oaktrail_hdmi_setup(struct drm_device *dev)
 	if (!pdev)
 		return;
 
-	hdmi_dev = kzalloc(sizeof(struct oaktrail_hdmi_dev), GFP_KERNEL);
+	hdmi_dev = kzalloc_obj(struct oaktrail_hdmi_dev);
 	if (!hdmi_dev) {
 		dev_err(dev->dev, "failed to allocate memory\n");
 		goto out;

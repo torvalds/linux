@@ -1358,13 +1358,13 @@ static int uclogic_params_ugee_v2_init_event_hooks(struct hid_device *hdev,
 	if (!uclogic_params_ugee_v2_has_battery(hdev))
 		return 0;
 
-	p->event_hooks = kzalloc(sizeof(*p->event_hooks), GFP_KERNEL);
+	p->event_hooks = kzalloc_obj(*p->event_hooks);
 	if (!p->event_hooks)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&p->event_hooks->list);
 
-	event_hook = kzalloc(sizeof(*event_hook), GFP_KERNEL);
+	event_hook = kzalloc_obj(*event_hook);
 	if (!event_hook)
 		return -ENOMEM;
 

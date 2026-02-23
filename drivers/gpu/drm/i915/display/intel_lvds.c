@@ -105,7 +105,7 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	wakeref = intel_display_power_get_if_enabled(display, encoder->power_domain);
@@ -886,7 +886,7 @@ void intel_lvds_init(struct intel_display *display)
 			    "LVDS is not present in VBT, but enabled anyway\n");
 	}
 
-	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
+	lvds_encoder = kzalloc_obj(*lvds_encoder);
 	if (!lvds_encoder)
 		return;
 

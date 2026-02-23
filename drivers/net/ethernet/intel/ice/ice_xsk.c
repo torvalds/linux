@@ -174,9 +174,8 @@ int
 ice_realloc_rx_xdp_bufs(struct ice_rx_ring *rx_ring, bool pool_present)
 {
 	if (pool_present) {
-		rx_ring->xdp_buf = kcalloc(rx_ring->count,
-					   sizeof(*rx_ring->xdp_buf),
-					   GFP_KERNEL);
+		rx_ring->xdp_buf = kzalloc_objs(*rx_ring->xdp_buf,
+						rx_ring->count);
 		if (!rx_ring->xdp_buf)
 			return -ENOMEM;
 	} else {
@@ -497,7 +496,7 @@ static int ice_xmit_xdp_tx_zc(struct xdp_buff *xdp,
 	return ICE_XDP_TX;
 
 busy:
-	xdp_ring->ring_stats->tx_stats.tx_busy++;
+	ice_stats_inc(xdp_ring->ring_stats, tx_busy);
 
 	return ICE_XDP_CONSUMED;
 }
@@ -659,7 +658,7 @@ construct_skb:
 			xsk_buff_free(first);
 			first = NULL;
 
-			rx_ring->ring_stats->rx_stats.alloc_buf_failed++;
+			ice_stats_inc(rx_ring->ring_stats, rx_buf_failed);
 			continue;
 		}
 

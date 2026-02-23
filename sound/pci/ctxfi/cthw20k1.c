@@ -157,7 +157,7 @@ static int src_get_rsc_ctrl_blk(void **rblk)
 	struct src_rsc_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -483,7 +483,7 @@ static int src_mgr_get_ctrl_blk(void **rblk)
 	struct src_mgr_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -504,7 +504,7 @@ static int srcimp_mgr_get_ctrl_blk(void **rblk)
 	struct srcimp_mgr_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -691,7 +691,7 @@ static int amixer_rsc_get_ctrl_blk(void **rblk)
 	struct amixer_rsc_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -898,7 +898,7 @@ static int dai_get_ctrl_blk(void **rblk)
 	struct dai_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -947,7 +947,7 @@ static int dao_get_ctrl_blk(void **rblk)
 	struct dao_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -1141,7 +1141,7 @@ static int daio_mgr_get_ctrl_blk(struct hw *hw, void **rblk)
 	struct daio_mgr_ctrl_blk *blk;
 
 	*rblk = NULL;
-	blk = kzalloc(sizeof(*blk), GFP_KERNEL);
+	blk = kzalloc_obj(*blk);
 	if (!blk)
 		return -ENOMEM;
 
@@ -2227,7 +2227,7 @@ int create_20k1_hw_obj(struct hw **rhw)
 	struct hw20k1 *hw20k1;
 
 	*rhw = NULL;
-	hw20k1 = kzalloc(sizeof(*hw20k1), GFP_KERNEL);
+	hw20k1 = kzalloc_obj(*hw20k1);
 	if (!hw20k1)
 		return -ENOMEM;
 

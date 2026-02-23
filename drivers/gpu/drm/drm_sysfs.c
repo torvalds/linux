@@ -349,7 +349,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	if (connector->kdev)
 		return 0;
 
-	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
+	kdev = kzalloc_obj(*kdev);
 	if (!kdev)
 		return -ENOMEM;
 
@@ -554,7 +554,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	struct device *kdev;
 	int r;
 
-	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
+	kdev = kzalloc_obj(*kdev);
 	if (!kdev)
 		return ERR_PTR(-ENOMEM);
 

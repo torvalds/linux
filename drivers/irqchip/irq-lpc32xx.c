@@ -198,7 +198,7 @@ static int __init lpc32xx_of_ic_init(struct device_node *node,
 	const __be32 *reg = of_get_property(node, "reg", NULL);
 	u32 parent_irq, i, addr = reg ? be32_to_cpu(*reg) : 0;
 
-	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
+	irqc = kzalloc_obj(*irqc);
 	if (!irqc)
 		return -ENOMEM;
 

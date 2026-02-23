@@ -280,7 +280,7 @@ int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 		goto err_did_get_np;
 	}
 
-	aux_ep_with_data = kzalloc(sizeof(*aux_ep_with_data), GFP_KERNEL);
+	aux_ep_with_data = kzalloc_obj(*aux_ep_with_data);
 	if (!aux_ep_with_data) {
 		ret = -ENOMEM;
 		goto err_did_set_populated;

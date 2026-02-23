@@ -66,7 +66,7 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 	struct aspeed_i2c_ic *i2c_ic;
 	int ret = 0;
 
-	i2c_ic = kzalloc(sizeof(*i2c_ic), GFP_KERNEL);
+	i2c_ic = kzalloc_obj(*i2c_ic);
 	if (!i2c_ic)
 		return -ENOMEM;
 

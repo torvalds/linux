@@ -296,7 +296,7 @@ int
 nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	     enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
+	if (!(*pfb = kzalloc_obj(**pfb)))
 		return -ENOMEM;
 	return nvkm_fb_ctor(func, device, type, inst, *pfb);
 }

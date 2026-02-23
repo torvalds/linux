@@ -28,7 +28,7 @@ class Automata:
         self.function = self.__create_matrix()
         self.events_start, self.events_start_run = self.__store_init_events()
 
-    def __get_model_name(self):
+    def __get_model_name(self) -> str:
         basename = ntpath.basename(self.__dot_path)
         if not basename.endswith(".dot") and not basename.endswith(".gv"):
             print("not a dot file")
@@ -40,7 +40,7 @@ class Automata:
 
         return model_name
 
-    def __open_dot(self):
+    def __open_dot(self) -> list[str]:
         cursor = 0
         dot_lines = []
         try:
@@ -60,13 +60,13 @@ class Automata:
             cursor += 1
         return dot_lines
 
-    def __get_cursor_begin_states(self):
+    def __get_cursor_begin_states(self) -> int:
         cursor = 0
         while self.__dot_lines[cursor].split()[0] != "{node":
             cursor += 1
         return cursor
 
-    def __get_cursor_begin_events(self):
+    def __get_cursor_begin_events(self) -> int:
         cursor = 0
         while self.__dot_lines[cursor].split()[0] != "{node":
             cursor += 1
@@ -76,7 +76,7 @@ class Automata:
         cursor += 1
         return cursor
 
-    def __get_state_variables(self):
+    def __get_state_variables(self) -> tuple[list[str], str, list[str]]:
         # wait for node declaration
         states = []
         final_states = []
@@ -116,7 +116,7 @@ class Automata:
 
         return states, initial_state, final_states
 
-    def __get_event_variables(self):
+    def __get_event_variables(self) -> list[str]:
         # here we are at the begin of transitions, take a note, we will return later.
         cursor = self.__get_cursor_begin_events()
 
@@ -140,7 +140,7 @@ class Automata:
 
         return sorted(set(events))
 
-    def __create_matrix(self):
+    def __create_matrix(self) -> list[list[str]]:
         # transform the array into a dictionary
         events = self.events
         states = self.states
@@ -174,7 +174,7 @@ class Automata:
 
         return matrix
 
-    def __store_init_events(self):
+    def __store_init_events(self) -> tuple[list[bool], list[bool]]:
         events_start = [False] * len(self.events)
         events_start_run = [False] * len(self.events)
         for i, _ in enumerate(self.events):
@@ -196,10 +196,10 @@ class Automata:
                 events_start_run[i] = True
         return events_start, events_start_run
 
-    def is_start_event(self, event):
+    def is_start_event(self, event: str) -> bool:
         return self.events_start[self.events.index(event)]
 
-    def is_start_run_event(self, event):
+    def is_start_run_event(self, event: str) -> bool:
         # prefer handle_start_event if there
         if any(self.events_start):
             return False

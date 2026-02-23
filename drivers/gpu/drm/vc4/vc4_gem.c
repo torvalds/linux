@@ -110,7 +110,7 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 	state->bo = get_state->bo;
 	memcpy(get_state, state, sizeof(*state));
 
-	bo_state = kcalloc(state->bo_count, sizeof(*bo_state), GFP_KERNEL);
+	bo_state = kzalloc_objs(*bo_state, state->bo_count);
 	if (!bo_state) {
 		ret = -ENOMEM;
 		goto err_free;
@@ -161,7 +161,7 @@ vc4_save_hang_state(struct drm_device *dev)
 	unsigned long irqflags;
 	unsigned int i, j, k, unref_list_count;
 
-	kernel_state = kcalloc(1, sizeof(*kernel_state), GFP_KERNEL);
+	kernel_state = kzalloc_objs(*kernel_state, 1);
 	if (!kernel_state)
 		return;
 
@@ -187,8 +187,8 @@ vc4_save_hang_state(struct drm_device *dev)
 		state->bo_count += exec[i]->bo_count + unref_list_count;
 	}
 
-	kernel_state->bo = kcalloc(state->bo_count,
-				   sizeof(*kernel_state->bo), GFP_ATOMIC);
+	kernel_state->bo = kzalloc_objs(*kernel_state->bo, state->bo_count,
+					GFP_ATOMIC);
 
 	if (!kernel_state->bo) {
 		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
@@ -622,7 +622,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 	unsigned long irqflags;
 	struct vc4_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return -ENOMEM;
 	fence->dev = dev;
@@ -1043,7 +1043,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
+	exec = kzalloc_objs(*exec, 1);
 	if (!exec)
 		return -ENOMEM;
 

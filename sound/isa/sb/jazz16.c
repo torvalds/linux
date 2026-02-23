@@ -1,14 +1,9 @@
-
+// SPDX-License-Identifier: GPL-2.0
 /*
  * jazz16.c - driver for Media Vision Jazz16 based soundcards.
  * Copyright (C) 2009 Krzysztof Helt <krzysztof.h1@wp.pl>
  * Based on patches posted by Rask Ingemann Lambertsen and Rene Herman.
  * Based on OSS Sound Blaster driver.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive for
- * more details.
- *
  */
 
 #include <linux/init.h>

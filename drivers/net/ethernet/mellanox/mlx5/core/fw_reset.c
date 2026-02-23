@@ -899,7 +899,7 @@ int mlx5_fw_reset_init(struct mlx5_core_dev *dev)
 	if (!MLX5_CAP_MCAM_REG(dev, mfrl))
 		return 0;
 
-	fw_reset = kzalloc(sizeof(*fw_reset), GFP_KERNEL);
+	fw_reset = kzalloc_obj(*fw_reset);
 	if (!fw_reset)
 		return -ENOMEM;
 	fw_reset->wq = create_singlethread_workqueue("mlx5_fw_reset_events");

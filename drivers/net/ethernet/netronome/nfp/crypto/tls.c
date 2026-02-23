@@ -180,7 +180,9 @@ nfp_net_tls_set_ipv4(struct nfp_net *nn, struct nfp_crypto_req_add_v4 *req,
 	req->front.key_len += sizeof(__be32) * 2;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		nfp_net_tls_assign_conn_id(nn, &req->front);
+		nfp_net_tls_assign_conn_id(nn,
+			container_of(&req->front,
+				     struct nfp_crypto_req_add_front, __hdr));
 	} else {
 		req->src_ip = inet->inet_daddr;
 		req->dst_ip = inet->inet_saddr;
@@ -199,7 +201,9 @@ nfp_net_tls_set_ipv6(struct nfp_net *nn, struct nfp_crypto_req_add_v6 *req,
 	req->front.key_len += sizeof(struct in6_addr) * 2;
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
-		nfp_net_tls_assign_conn_id(nn, &req->front);
+		nfp_net_tls_assign_conn_id(nn,
+			container_of(&req->front,
+				     struct nfp_crypto_req_add_front, __hdr));
 	} else {
 		memcpy(req->src_ip, &sk->sk_v6_daddr, sizeof(req->src_ip));
 		memcpy(req->dst_ip, &np->saddr, sizeof(req->dst_ip));

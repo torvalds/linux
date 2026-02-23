@@ -152,7 +152,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	struct bb_info *bitbang;
 	int ret = -ENOMEM;
 
-	bitbang = kzalloc(sizeof(struct bb_info), GFP_KERNEL);
+	bitbang = kzalloc_obj(struct bb_info);
 	if (!bitbang)
 		goto out;
 

@@ -25,7 +25,7 @@ static struct fscache_cache *fscache_alloc_cache(const char *name)
 {
 	struct fscache_cache *cache;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (cache) {
 		if (name) {
 			cache->name = kstrdup(name, GFP_KERNEL);

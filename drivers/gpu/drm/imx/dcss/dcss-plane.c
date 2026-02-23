@@ -381,7 +381,7 @@ struct dcss_plane *dcss_plane_init(struct drm_device *drm,
 	if (zpos > 2)
 		return ERR_PTR(-EINVAL);
 
-	dcss_plane = kzalloc(sizeof(*dcss_plane), GFP_KERNEL);
+	dcss_plane = kzalloc_obj(*dcss_plane);
 	if (!dcss_plane) {
 		DRM_ERROR("failed to allocate plane\n");
 		return ERR_PTR(-ENOMEM);

@@ -462,8 +462,6 @@ void __mptcp_sync_state(struct sock *sk, int state)
 
 	subflow = mptcp_subflow_ctx(ssk);
 	__mptcp_propagate_sndbuf(sk, ssk);
-	if (!msk->rcvspace_init)
-		mptcp_rcv_space_init(msk, ssk);
 
 	if (sk->sk_state == TCP_SYN_SENT) {
 		/* subflow->idsn is always available is TCP_SYN_SENT state,
@@ -1844,7 +1842,7 @@ static struct mptcp_subflow_context *subflow_create_ctx(struct sock *sk,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct mptcp_subflow_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), priority);
+	ctx = kzalloc_obj(*ctx, priority);
 	if (!ctx)
 		return NULL;
 

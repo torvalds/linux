@@ -378,7 +378,7 @@ ioat_alloc_ring(struct dma_chan *c, int order, gfp_t flags)
 	int i, chunks;
 
 	/* allocate the array to hold the software ring */
-	ring = kcalloc(total_descs, sizeof(*ring), flags);
+	ring = kzalloc_objs(*ring, total_descs, flags);
 	if (!ring)
 		return NULL;
 

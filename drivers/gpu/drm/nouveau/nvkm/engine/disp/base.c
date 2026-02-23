@@ -232,7 +232,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	struct nvkm_disp *disp;
 	int ret;
 
-	if (!(disp = *pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
+	if (!(disp = *pdisp = kzalloc_obj(**pdisp)))
 		return -ENOMEM;
 
 	disp->func = func;

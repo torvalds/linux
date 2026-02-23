@@ -1426,7 +1426,7 @@ int power_supply_register_extension(struct power_supply *psy, const struct power
 		if (power_supply_has_property(psy, ext->properties[i]))
 			return -EEXIST;
 
-	reg = kmalloc(sizeof(*reg), GFP_KERNEL);
+	reg = kmalloc_obj(*reg);
 	if (!reg)
 		return -ENOMEM;
 

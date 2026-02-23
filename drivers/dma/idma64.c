@@ -196,11 +196,11 @@ static struct idma64_desc *idma64_alloc_desc(unsigned int ndesc)
 {
 	struct idma64_desc *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
-	desc->hw = kcalloc(ndesc, sizeof(*desc->hw), GFP_NOWAIT);
+	desc->hw = kzalloc_objs(*desc->hw, ndesc, GFP_NOWAIT);
 	if (!desc->hw) {
 		kfree(desc);
 		return NULL;

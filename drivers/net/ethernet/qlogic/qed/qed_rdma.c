@@ -119,7 +119,7 @@ int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn)
 {
 	struct qed_rdma_info *p_rdma_info;
 
-	p_rdma_info = kzalloc(sizeof(*p_rdma_info), GFP_KERNEL);
+	p_rdma_info = kzalloc_obj(*p_rdma_info);
 	if (!p_rdma_info)
 		return -ENOMEM;
 
@@ -168,12 +168,12 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn)
 	p_rdma_info->max_queue_zones = (u16)RESC_NUM(p_hwfn, QED_L2_QUEUE);
 
 	/* Allocate a struct with device params and fill it */
-	p_rdma_info->dev = kzalloc(sizeof(*p_rdma_info->dev), GFP_KERNEL);
+	p_rdma_info->dev = kzalloc_obj(*p_rdma_info->dev);
 	if (!p_rdma_info->dev)
 		return rc;
 
 	/* Allocate a struct with port params and fill it */
-	p_rdma_info->port = kzalloc(sizeof(*p_rdma_info->port), GFP_KERNEL);
+	p_rdma_info->port = kzalloc_obj(*p_rdma_info->port);
 	if (!p_rdma_info->port)
 		goto free_rdma_dev;
 
@@ -1293,7 +1293,7 @@ qed_rdma_create_qp(void *rdma_cxt,
 		}
 	}
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	qp = kzalloc_obj(*qp);
 	if (!qp)
 		return NULL;
 

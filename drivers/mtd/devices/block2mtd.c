@@ -271,7 +271,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	if (!devname)
 		return NULL;
 
-	dev = kzalloc(sizeof(struct block2mtd_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct block2mtd_dev);
 	if (!dev)
 		return NULL;
 

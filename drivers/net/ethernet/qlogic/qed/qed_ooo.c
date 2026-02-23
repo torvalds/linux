@@ -107,7 +107,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 		return -EINVAL;
 	}
 
-	p_ooo_info = kzalloc(sizeof(*p_ooo_info), GFP_KERNEL);
+	p_ooo_info = kzalloc_obj(*p_ooo_info);
 	if (!p_ooo_info)
 		return -ENOMEM;
 
@@ -118,9 +118,8 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	INIT_LIST_HEAD(&p_ooo_info->ready_buffers_list);
 	INIT_LIST_HEAD(&p_ooo_info->free_isles_list);
 
-	p_ooo_info->p_isles_mem = kcalloc(max_num_isles,
-					  sizeof(struct qed_ooo_isle),
-					  GFP_KERNEL);
+	p_ooo_info->p_isles_mem = kzalloc_objs(struct qed_ooo_isle,
+					       max_num_isles);
 	if (!p_ooo_info->p_isles_mem)
 		goto no_isles_mem;
 
@@ -131,9 +130,8 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	}
 
 	p_ooo_info->p_archipelagos_mem =
-				kcalloc(max_num_archipelagos,
-					sizeof(struct qed_ooo_archipelago),
-					GFP_KERNEL);
+				kzalloc_objs(struct qed_ooo_archipelago,
+					     max_num_archipelagos);
 	if (!p_ooo_info->p_archipelagos_mem)
 		goto no_archipelagos_mem;
 
@@ -141,9 +139,8 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 		INIT_LIST_HEAD(&p_ooo_info->p_archipelagos_mem[i].isles_list);
 
 	p_ooo_info->ooo_history.p_cqes =
-				kcalloc(QED_MAX_NUM_OOO_HISTORY_ENTRIES,
-					sizeof(struct ooo_opaque),
-					GFP_KERNEL);
+				kzalloc_objs(struct ooo_opaque,
+					     QED_MAX_NUM_OOO_HISTORY_ENTRIES);
 	if (!p_ooo_info->ooo_history.p_cqes)
 		goto no_history_mem;
 

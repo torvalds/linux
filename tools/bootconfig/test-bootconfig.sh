@@ -179,6 +179,9 @@ done
 echo "=== expected success cases ==="
 for i in samples/good-* ; do
   xpass $BOOTCONF -a $i $INITRD
+  x="samples/exp-"`basename $i`
+  $BOOTCONF $i > $TEMPCONF
+  xpass diff $x $TEMPCONF
 done
 
 

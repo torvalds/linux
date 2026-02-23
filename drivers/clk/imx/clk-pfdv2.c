@@ -210,7 +210,7 @@ struct clk_hw *imx_clk_hw_pfdv2(enum imx_pfdv2_type type, const char *name,
 
 	WARN_ON(idx > 3);
 
-	pfd = kzalloc(sizeof(*pfd), GFP_KERNEL);
+	pfd = kzalloc_obj(*pfd);
 	if (!pfd)
 		return ERR_PTR(-ENOMEM);
 

@@ -123,7 +123,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 	struct clk_init_data init = {};
 	struct clk *clk;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (!pll_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -271,7 +271,7 @@ static struct clk * __init __cpg_z_clk_register(const char *name,
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 
-	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
+	zclk = kzalloc_obj(*zclk);
 	if (!zclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -410,7 +410,7 @@ struct clk * __init rcar_gen3_cpg_clk_register(struct device *dev,
 		if (cpg_quirks & RCKCR_CKSEL) {
 			struct cpg_simple_notifier *csn;
 
-			csn = kzalloc(sizeof(*csn), GFP_KERNEL);
+			csn = kzalloc_obj(*csn);
 			if (!csn)
 				return ERR_PTR(-ENOMEM);
 

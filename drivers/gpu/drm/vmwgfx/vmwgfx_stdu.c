@@ -1541,7 +1541,7 @@ static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_crtc *crtc;
 	int    ret;
 
-	stdu = kzalloc(sizeof(*stdu), GFP_KERNEL);
+	stdu = kzalloc_obj(*stdu);
 	if (!stdu)
 		return -ENOMEM;
 

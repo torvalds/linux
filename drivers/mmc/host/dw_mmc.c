@@ -834,7 +834,7 @@ static int dw_mci_edmac_start_dma(struct dw_mci *host,
 static int dw_mci_edmac_init(struct dw_mci *host)
 {
 	/* Request external dma channel */
-	host->dms = kzalloc(sizeof(struct dw_mci_dma_slave), GFP_KERNEL);
+	host->dms = kzalloc_obj(struct dw_mci_dma_slave);
 	if (!host->dms)
 		return -ENOMEM;
 

@@ -93,7 +93,7 @@ int ubifs_sysfs_register(struct ubifs_info *c)
 	int ret, n;
 	char dfs_dir_name[UBIFS_DFS_DIR_LEN];
 
-	c->stats = kzalloc(sizeof(struct ubifs_stats_info), GFP_KERNEL);
+	c->stats = kzalloc_obj(struct ubifs_stats_info);
 	if (!c->stats) {
 		ret = -ENOMEM;
 		goto out_last;

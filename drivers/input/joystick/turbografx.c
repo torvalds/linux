@@ -170,7 +170,7 @@ static void tgfx_attach(struct parport *pp)
 		return;
 	}
 
-	tgfx = kzalloc(sizeof(*tgfx), GFP_KERNEL);
+	tgfx = kzalloc_obj(*tgfx);
 	if (!tgfx) {
 		printk(KERN_ERR "turbografx.c: Not enough memory\n");
 		goto err_unreg_pardev;

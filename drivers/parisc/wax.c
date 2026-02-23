@@ -70,7 +70,7 @@ static int __init wax_init_chip(struct parisc_device *dev)
 	struct parisc_device *parent;
 	int ret;
 
-	wax = kzalloc(sizeof(*wax), GFP_KERNEL);
+	wax = kzalloc_obj(*wax);
 	if (!wax)
 		return -ENOMEM;
 

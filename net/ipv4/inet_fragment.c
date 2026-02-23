@@ -188,7 +188,7 @@ static void fqdir_work_fn(struct work_struct *work)
 
 int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net)
 {
-	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
+	struct fqdir *fqdir = kzalloc_obj(*fqdir);
 	int res;
 
 	if (!fqdir)

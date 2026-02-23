@@ -115,8 +115,7 @@ static int octep_enable_msix_range(struct octep_device *oct)
 
 	/* Generic interrupts apart from input/output queues */
 	num_msix = oct->num_oqs + CFG_GET_NON_IOQ_MSIX(oct->conf);
-	oct->msix_entries = kcalloc(num_msix,
-				    sizeof(struct msix_entry), GFP_KERNEL);
+	oct->msix_entries = kzalloc_objs(struct msix_entry, num_msix);
 	if (!oct->msix_entries)
 		goto msix_alloc_err;
 
@@ -1293,7 +1292,7 @@ int octep_device_setup(struct octep_device *oct)
 	int i, ret;
 
 	/* allocate memory for oct->conf */
-	oct->conf = kzalloc(sizeof(*oct->conf), GFP_KERNEL);
+	oct->conf = kzalloc_obj(*oct->conf);
 	if (!oct->conf)
 		return -ENOMEM;
 
@@ -1338,7 +1337,7 @@ int octep_device_setup(struct octep_device *oct)
 
 	ret = octep_ctrl_net_init(oct);
 	if (ret)
-		return ret;
+		goto unsupported_dev;
 
 	INIT_WORK(&oct->tx_timeout_task, octep_tx_timeout_task);
 	INIT_WORK(&oct->ctrl_mbox_task, octep_ctrl_mbox_task);

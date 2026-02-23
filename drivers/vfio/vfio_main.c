@@ -82,7 +82,7 @@ int vfio_assign_device_set(struct vfio_device *device, void *set_id)
 		goto found_get_ref;
 	xa_unlock(&vfio_device_set_xa);
 
-	new_dev_set = kzalloc(sizeof(*new_dev_set), GFP_KERNEL);
+	new_dev_set = kzalloc_obj(*new_dev_set);
 	if (!new_dev_set)
 		return -ENOMEM;
 	mutex_init(&new_dev_set->lock);
@@ -495,7 +495,7 @@ vfio_allocate_device_file(struct vfio_device *device)
 {
 	struct vfio_device_file *df;
 
-	df = kzalloc(sizeof(*df), GFP_KERNEL_ACCOUNT);
+	df = kzalloc_obj(*df, GFP_KERNEL_ACCOUNT);
 	if (!df)
 		return ERR_PTR(-ENOMEM);
 
@@ -1083,8 +1083,7 @@ vfio_ioctl_device_feature_logging_start(struct vfio_device *device,
 		return -E2BIG;
 
 	ranges = u64_to_user_ptr(control.ranges);
-	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
-			      GFP_KERNEL);
+	nodes = kmalloc_objs(struct interval_tree_node, nnodes);
 	if (!nodes)
 		return -ENOMEM;
 

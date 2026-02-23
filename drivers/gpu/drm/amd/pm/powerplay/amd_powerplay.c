@@ -41,7 +41,7 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 	if (adev == NULL)
 		return -EINVAL;
 
-	hwmgr = kzalloc(sizeof(struct pp_hwmgr), GFP_KERNEL);
+	hwmgr = kzalloc_obj(struct pp_hwmgr);
 	if (hwmgr == NULL)
 		return -ENOMEM;
 
@@ -198,7 +198,7 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 						&adev->pm.smu_prv_buffer,
 						&gpu_addr,
 						&cpu_ptr)) {
-		DRM_ERROR("amdgpu: failed to create smu prv buffer\n");
+		drm_err(adev_to_drm(adev), "failed to create smu prv buffer\n");
 		return;
 	}
 
@@ -213,7 +213,7 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 	if (r) {
 		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);
 		adev->pm.smu_prv_buffer = NULL;
-		DRM_ERROR("amdgpu: failed to notify SMU buffer address\n");
+		drm_err(adev_to_drm(adev), "failed to notify SMU buffer address\n");
 	}
 }
 
@@ -724,21 +724,6 @@ static int pp_dpm_emit_clock_levels(void *handle,
 	return hwmgr->hwmgr_func->emit_clock_levels(hwmgr, type, buf, offset);
 }
 
-static int pp_dpm_print_clock_levels(void *handle,
-		enum pp_clock_type type, char *buf)
-{
-	struct pp_hwmgr *hwmgr = handle;
-
-	if (!hwmgr || !hwmgr->pm_en)
-		return -EINVAL;
-
-	if (hwmgr->hwmgr_func->print_clock_levels == NULL) {
-		pr_info_ratelimited("%s was not implemented.\n", __func__);
-		return 0;
-	}
-	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
-}
-
 static int pp_dpm_get_sclk_od(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
@@ -1068,7 +1053,8 @@ static int pp_get_current_clocks(void *handle,
 					&hw_clocks, PHM_PerformanceLevelDesignation_Activity);
 
 	if (ret) {
-		pr_debug("Error in phm_get_clock_info \n");
+		drm_err(adev_to_drm(hwmgr->adev),
+		       "Error in phm_get_clock_info\n");
 		return -EINVAL;
 	}
 
@@ -1582,7 +1568,6 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_pp_table = pp_dpm_set_pp_table,
 	.force_clock_level = pp_dpm_force_clock_level,
 	.emit_clock_levels = pp_dpm_emit_clock_levels,
-	.print_clock_levels = pp_dpm_print_clock_levels,
 	.get_sclk_od = pp_dpm_get_sclk_od,
 	.set_sclk_od = pp_dpm_set_sclk_od,
 	.get_mclk_od = pp_dpm_get_mclk_od,

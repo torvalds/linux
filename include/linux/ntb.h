@@ -1647,12 +1647,8 @@ int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb, irq_handler_t handler,
 				  irq_handler_t thread_fn,
 				  const char *name, void *dev_id,
 				  struct ntb_msi_desc *msi_desc);
-void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq, void *dev_id);
 int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
 			 struct ntb_msi_desc *desc);
-int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
-		      struct ntb_msi_desc *desc,
-		      phys_addr_t *msi_addr);
 
 #else /* not CONFIG_NTB_MSI */
 
@@ -1674,21 +1670,11 @@ static inline int ntbm_msi_request_threaded_irq(struct ntb_dev *ntb,
 {
 	return -EOPNOTSUPP;
 }
-static inline void ntbm_msi_free_irq(struct ntb_dev *ntb, unsigned int irq,
-				     void *dev_id) {}
 static inline int ntb_msi_peer_trigger(struct ntb_dev *ntb, int peer,
 				       struct ntb_msi_desc *desc)
 {
 	return -EOPNOTSUPP;
 }
-static inline int ntb_msi_peer_addr(struct ntb_dev *ntb, int peer,
-				    struct ntb_msi_desc *desc,
-				    phys_addr_t *msi_addr)
-{
-	return -EOPNOTSUPP;
-
-}
-
 #endif /* CONFIG_NTB_MSI */
 
 static inline int ntbm_msi_request_irq(struct ntb_dev *ntb,

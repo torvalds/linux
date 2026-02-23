@@ -451,7 +451,7 @@ static int cci_probe_ports(struct device_node *np)
 
 	nb_cci_ports = cci_config->nb_ace + cci_config->nb_ace_lite;
 
-	ports = kcalloc(nb_cci_ports, sizeof(*ports), GFP_KERNEL);
+	ports = kzalloc_objs(*ports, nb_cci_ports);
 	if (!ports)
 		return -ENOMEM;
 

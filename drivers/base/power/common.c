@@ -27,7 +27,7 @@ int dev_pm_get_subsys_data(struct device *dev)
 {
 	struct pm_subsys_data *psd;
 
-	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
+	psd = kzalloc_obj(*psd);
 	if (!psd)
 		return -ENOMEM;
 
@@ -222,7 +222,7 @@ int dev_pm_domain_attach_list(struct device *dev,
 	if (num_pds <= 0)
 		return 0;
 
-	pds = kzalloc(sizeof(*pds), GFP_KERNEL);
+	pds = kzalloc_obj(*pds);
 	if (!pds)
 		return -ENOMEM;
 

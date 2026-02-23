@@ -438,7 +438,7 @@ static unsigned long uaudio_get_iova(unsigned long *curr_iova,
 		}
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		iova = 0;
 		goto done;
@@ -1432,9 +1432,8 @@ static int prepare_qmi_response(struct snd_usb_substream *subs,
 		init_waitqueue_head(&uadev[card_num].disconnect_wq);
 		uadev[card_num].num_intf =
 			subs->dev->config->desc.bNumInterfaces;
-		uadev[card_num].info = kcalloc(uadev[card_num].num_intf,
-					       sizeof(struct intf_info),
-					       GFP_KERNEL);
+		uadev[card_num].info = kzalloc_objs(struct intf_info,
+						    uadev[card_num].num_intf);
 		if (!uadev[card_num].info) {
 			ret = -ENOMEM;
 			goto unmap_er;
@@ -1687,7 +1686,7 @@ static struct qmi_msg_handler uaudio_stream_req_handlers = {
  */
 static int qc_usb_audio_offload_init_qmi_dev(void)
 {
-	uaudio_qdev = kzalloc(sizeof(*uaudio_qdev), GFP_KERNEL);
+	uaudio_qdev = kzalloc_obj(*uaudio_qdev);
 	if (!uaudio_qdev)
 		return -ENOMEM;
 
@@ -1759,7 +1758,7 @@ static void qc_usb_audio_offload_probe(struct snd_usb_audio *chip)
 	guard(mutex)(&qdev_mutex);
 	guard(mutex)(&chip->mutex);
 	if (!uadev[chip->card->number].chip) {
-		sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+		sdev = kzalloc_obj(*sdev);
 		if (!sdev)
 			return;
 
@@ -1914,11 +1913,11 @@ static int qc_usb_audio_probe(struct auxiliary_device *auxdev,
 	struct uaudio_qmi_svc *svc;
 	int ret;
 
-	svc = kzalloc(sizeof(*svc), GFP_KERNEL);
+	svc = kzalloc_obj(*svc);
 	if (!svc)
 		return -ENOMEM;
 
-	svc->uaudio_svc_hdl = kzalloc(sizeof(*svc->uaudio_svc_hdl), GFP_KERNEL);
+	svc->uaudio_svc_hdl = kzalloc_obj(*svc->uaudio_svc_hdl);
 	if (!svc->uaudio_svc_hdl) {
 		ret = -ENOMEM;
 		goto free_svc;

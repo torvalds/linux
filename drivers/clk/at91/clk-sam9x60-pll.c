@@ -652,7 +652,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 	if (id > PLL_MAX_ID || !lock || !parent_hw)
 		return ERR_PTR(-EINVAL);
 
-	frac = kzalloc(sizeof(*frac), GFP_KERNEL);
+	frac = kzalloc_obj(*frac);
 	if (!frac)
 		return ERR_PTR(-ENOMEM);
 
@@ -744,7 +744,7 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	if (safe_div >= PLL_DIV_MAX)
 		safe_div = PLL_DIV_MAX - 1;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 

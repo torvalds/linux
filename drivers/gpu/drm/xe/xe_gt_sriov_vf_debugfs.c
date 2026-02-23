@@ -69,4 +69,16 @@ void xe_gt_sriov_vf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 	vfdentry->d_inode->i_private = gt;
 
 	drm_debugfs_create_files(vf_info, ARRAY_SIZE(vf_info), vfdentry, minor);
+
+	/*
+	 *      /sys/kernel/debug/dri/BDF/
+	 *      ├── tile0
+	 *          ├── gt0
+	 *              ├── vf
+	 *                  ├── resfix_stoppers
+	 */
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
+		debugfs_create_x8("resfix_stoppers", 0600, vfdentry,
+				  &gt->sriov.vf.migration.debug.resfix_stoppers);
+	}
 }

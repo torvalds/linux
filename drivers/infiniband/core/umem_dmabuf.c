@@ -129,9 +129,6 @@ ib_umem_dmabuf_get_with_dma_device(struct ib_device *device,
 	if (check_add_overflow(offset, (unsigned long)size, &end))
 		return ret;
 
-	if (unlikely(!ops || !ops->move_notify))
-		return ret;
-
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf))
 		return ERR_CAST(dmabuf);
@@ -139,7 +136,7 @@ ib_umem_dmabuf_get_with_dma_device(struct ib_device *device,
 	if (dmabuf->size < end)
 		goto out_release_dmabuf;
 
-	umem_dmabuf = kzalloc(sizeof(*umem_dmabuf), GFP_KERNEL);
+	umem_dmabuf = kzalloc_obj(*umem_dmabuf);
 	if (!umem_dmabuf) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_release_dmabuf;

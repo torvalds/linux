@@ -1320,7 +1320,7 @@ nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev, const struct nfp_dev_info *dev_i
 		 dev_info->chip_names);
 	pcie_print_link_status(pdev);
 
-	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
+	nfp = kzalloc_obj(*nfp);
 	if (!nfp) {
 		err = -ENOMEM;
 		goto err_ret;

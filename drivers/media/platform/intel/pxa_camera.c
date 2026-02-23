@@ -741,7 +741,7 @@ static struct pxa_camera_format_xlate *pxa_mbus_build_fmts_xlate(
 	if (!fmts)
 		return ERR_PTR(-ENXIO);
 
-	user_formats = kcalloc(fmts + 1, sizeof(*user_formats), GFP_KERNEL);
+	user_formats = kzalloc_objs(*user_formats, fmts + 1);
 	if (!user_formats)
 		return ERR_PTR(-ENOMEM);
 

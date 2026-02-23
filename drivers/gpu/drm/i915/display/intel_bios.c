@@ -34,14 +34,13 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_rom.h"
-
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
 #include "intel_gmbus.h"
+#include "intel_rom.h"
 
 #define _INTEL_BIOS_PRIVATE
 #include "intel_vbt_defs.h"
@@ -487,8 +486,7 @@ init_bdb_block(struct intel_display *display,
 	if (section_id == BDB_MIPI_SEQUENCE && *(const u8 *)block >= 3)
 		block_size += 5;
 
-	entry = kzalloc(struct_size(entry, data, max(min_size, block_size) + 3),
-			GFP_KERNEL);
+	entry = kzalloc_flex(*entry, data, max(min_size, block_size) + 3);
 	if (!entry) {
 		kfree(temp_block);
 		return;
@@ -853,7 +851,7 @@ parse_lfp_panel_dtd(struct intel_display *display,
 					      lfp_data_ptrs,
 					      panel_type);
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -969,7 +967,7 @@ parse_generic_dtd(struct intel_display *display,
 
 	dtd = &generic_dtd->dtd[panel->vbt.panel_type];
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -1142,7 +1140,7 @@ parse_sdvo_lvds_data(struct intel_display *display,
 		return;
 	}
 
-	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
+	panel_fixed_mode = kzalloc_obj(*panel_fixed_mode);
 	if (!panel_fixed_mode)
 		return;
 
@@ -2529,6 +2527,54 @@ intel_bios_encoder_reject_edp_rate(const struct intel_bios_encoder_data *devdata
 	return devdata->child.edp_data_rate_override & edp_rate_override_mask(rate);
 }
 
+static void sanitize_dedicated_external(struct intel_bios_encoder_data *devdata,
+					enum port port)
+{
+	struct intel_display *display = devdata->display;
+
+	if (!intel_bios_encoder_is_dedicated_external(devdata))
+		return;
+
+	/*
+	 * Since dedicated_external is for ports connected to PHYs outside of
+	 * the Type-C subsystem, clear bits that would only make sense for ports
+	 * with PHYs in the Type-C subsystem.
+	 */
+
+	/*
+	 * Bit dp_usb_type_c is marked as "don't care" in Bspec when
+	 * dedicated_external is set.
+	 */
+	if (devdata->child.dp_usb_type_c) {
+		drm_dbg_kms(display->drm,
+			    "VBT claims Port %c supports USB Type-C, but the port is dedicated external, ignoring\n",
+			    port_name(port));
+		devdata->child.dp_usb_type_c = 0;
+	}
+
+	/*
+	 * Bit tbt is marked as "don't care" in Bspec when dedicated_external is
+	 * set.
+	 */
+	if (devdata->child.tbt) {
+		drm_dbg_kms(display->drm,
+			    "VBT claims Port %c supports TBT, but the port is dedicated external, ignoring\n",
+			    port_name(port));
+		devdata->child.tbt = 0;
+	}
+
+	/*
+	 * DDI allocation for TC capable ports only make sense for PHYs in the
+	 * Type-C subsystem.
+	 */
+	if (devdata->child.dyn_port_over_tc) {
+		drm_dbg_kms(display->drm,
+			    "VBT claims Port %c supports dynamic DDI allocation in TCSS, but the port is dedicated external, ignoring\n",
+			    port_name(port));
+		devdata->child.dyn_port_over_tc = 0;
+	}
+}
+
 static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 				 enum port port)
 {
@@ -2693,6 +2739,16 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata)
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
 
+	if (intel_bios_encoder_is_dedicated_external(devdata))
+		drm_dbg_kms(display->drm,
+			    "Port %c is dedicated external\n",
+			    port_name(port));
+
+	if (intel_bios_encoder_supports_dyn_port_over_tc(devdata))
+		drm_dbg_kms(display->drm,
+			    "Port %c supports dynamic DDI allocation in TCSS\n",
+			    port_name(port));
+
 	hdmi_level_shift = intel_bios_hdmi_level_shift(devdata);
 	if (hdmi_level_shift >= 0) {
 		drm_dbg_kms(display->drm,
@@ -2750,6 +2806,7 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 		return;
 	}
 
+	sanitize_dedicated_external(devdata, port);
 	sanitize_device_type(devdata, port);
 	sanitize_hdmi_level_shift(devdata, port);
 }
@@ -2777,7 +2834,7 @@ static int child_device_expected_size(u16 version)
 {
 	BUILD_BUG_ON(sizeof(struct child_device_config) < 40);
 
-	if (version > 263)
+	if (version > 264)
 		return -ENOENT;
 	else if (version >= 263)
 		return 44;
@@ -2871,7 +2928,7 @@ parse_general_definitions(struct intel_display *display)
 			    "Found VBT child device with type 0x%x\n",
 			    child->device_type);
 
-		devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+		devdata = kzalloc_obj(*devdata);
 		if (!devdata)
 			break;
 
@@ -2952,7 +3009,7 @@ init_vbt_missing_defaults(struct intel_display *display)
 			continue;
 
 		/* Create fake child device config */
-		devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
+		devdata = kzalloc_obj(*devdata);
 		if (!devdata)
 			break;
 
@@ -3719,6 +3776,18 @@ bool intel_bios_encoder_supports_typec_usb(const struct intel_bios_encoder_data 
 bool intel_bios_encoder_supports_tbt(const struct intel_bios_encoder_data *devdata)
 {
 	return devdata->display->vbt.version >= 209 && devdata->child.tbt;
+}
+
+bool intel_bios_encoder_is_dedicated_external(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata->display->vbt.version >= 264 &&
+		devdata->child.dedicated_external;
+}
+
+bool intel_bios_encoder_supports_dyn_port_over_tc(const struct intel_bios_encoder_data *devdata)
+{
+	return devdata->display->vbt.version >= 264 &&
+		devdata->child.dyn_port_over_tc;
 }
 
 bool intel_bios_encoder_lane_reversal(const struct intel_bios_encoder_data *devdata)

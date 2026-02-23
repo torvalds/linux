@@ -650,7 +650,7 @@ static void pci_claim_legacy_resources(struct pci_dev *dev)
 	if ((dev->class >> 8) != PCI_CLASS_DISPLAY_VGA)
 		return;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return;
 

@@ -586,8 +586,7 @@ acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
 		goto out;
 
 	mutex_lock(&acpi_pm_notifier_lock);
-	adev->wakeup.ws = wakeup_source_register(&adev->dev,
-						 dev_name(&adev->dev));
+	adev->wakeup.ws = wakeup_source_register(dev, dev_name(&adev->dev));
 	adev->wakeup.context.dev = dev;
 	adev->wakeup.context.func = func;
 	adev->wakeup.flags.notifier_present = true;
@@ -1252,7 +1251,7 @@ static int acpi_subsys_resume_early(struct device *dev)
 		return 0;
 
 	if (pm && !pm->resume_early) {
-		dev_dbg(dev, "postponing D0 transition to normal resume stage\n");
+		dev_dbg(dev, "Postponing ACPI PM to normal resume stage\n");
 		return 0;
 	}
 
@@ -1274,7 +1273,7 @@ static int acpi_subsys_resume(struct device *dev)
 	int ret = 0;
 
 	if (!dev_pm_skip_resume(dev) && pm && !pm->resume_early) {
-		dev_dbg(dev, "executing postponed D0 transition\n");
+		dev_dbg(dev, "Applying postponed ACPI PM\n");
 		ret = acpi_dev_resume(dev);
 	}
 
@@ -1456,6 +1455,15 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 
 	if (!adev || !acpi_match_device_ids(adev, special_pm_ids))
 		return 0;
+
+	/*
+	 * Skip devices whose ACPI companions don't support power management and
+	 * don't have a wakeup GPE.
+	 */
+	if (!acpi_device_power_manageable(adev) && !acpi_device_can_wakeup(adev)) {
+		dev_dbg(dev, "No ACPI power management or wakeup GPE\n");
+		return 0;
+	}
 
 	/*
 	 * Only attach the power domain to the first device if the

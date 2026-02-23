@@ -85,7 +85,7 @@ struct usnic_fwd_dev *usnic_fwd_dev_alloc(struct pci_dev *pdev)
 {
 	struct usnic_fwd_dev *ufdev;
 
-	ufdev = kzalloc(sizeof(*ufdev), GFP_KERNEL);
+	ufdev = kzalloc_obj(*ufdev);
 	if (!ufdev)
 		return NULL;
 
@@ -210,7 +210,7 @@ usnic_fwd_alloc_flow(struct usnic_fwd_dev *ufdev, struct filter *filter,
 	tlv_size = (2*sizeof(struct filter_tlv) + sizeof(struct filter) +
 			sizeof(struct filter_action));
 
-	flow = kzalloc(sizeof(*flow), GFP_ATOMIC);
+	flow = kzalloc_obj(*flow, GFP_ATOMIC);
 	if (!flow)
 		return ERR_PTR(-ENOMEM);
 

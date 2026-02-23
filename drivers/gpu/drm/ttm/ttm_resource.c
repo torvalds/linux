@@ -446,9 +446,6 @@ bool ttm_resource_intersects(struct ttm_device *bdev,
 {
 	struct ttm_resource_manager *man;
 
-	if (!res)
-		return false;
-
 	man = ttm_manager_type(bdev, res->mem_type);
 	if (!place || !man->func->intersects)
 		return true;
@@ -548,10 +545,7 @@ EXPORT_SYMBOL(ttm_resource_manager_init);
 int ttm_resource_manager_evict_all(struct ttm_device *bdev,
 				   struct ttm_resource_manager *man)
 {
-	struct ttm_operation_ctx ctx = {
-		.interruptible = false,
-		.no_wait_gpu = false,
-	};
+	struct ttm_operation_ctx ctx = { };
 	struct dma_fence *fence;
 	int ret, i;
 
@@ -628,11 +622,11 @@ ttm_resource_cursor_check_bulk(struct ttm_resource_cursor *cursor,
 			       struct ttm_lru_item *next_lru)
 {
 	struct ttm_resource *next = ttm_lru_item_to_res(next_lru);
-	struct ttm_lru_bulk_move *bulk = NULL;
-	struct ttm_buffer_object *bo = next->bo;
+	struct ttm_lru_bulk_move *bulk;
 
 	lockdep_assert_held(&cursor->man->bdev->lru_lock);
-	bulk = bo->bulk_move;
+
+	bulk = next->bo->bulk_move;
 
 	if (cursor->bulk != bulk) {
 		if (bulk) {

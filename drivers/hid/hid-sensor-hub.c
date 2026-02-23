@@ -139,7 +139,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 			spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 			return -EINVAL;
 		}
-	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
+	callback = kzalloc_obj(*callback, GFP_ATOMIC);
 	if (!callback) {
 		spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 		return -ENOMEM;
@@ -422,7 +422,6 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 }
 EXPORT_SYMBOL_GPL(sensor_hub_input_get_attribute_info);
 
-#ifdef CONFIG_PM
 static int sensor_hub_suspend(struct hid_device *hdev, pm_message_t message)
 {
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
@@ -463,7 +462,6 @@ static int sensor_hub_reset_resume(struct hid_device *hdev)
 {
 	return 0;
 }
-#endif
 
 /*
  * Handle raw report as sent by device
@@ -772,11 +770,9 @@ static struct hid_driver sensor_hub_driver = {
 	.remove = sensor_hub_remove,
 	.raw_event = sensor_hub_raw_event,
 	.report_fixup = sensor_hub_report_fixup,
-#ifdef CONFIG_PM
-	.suspend = sensor_hub_suspend,
-	.resume = sensor_hub_resume,
-	.reset_resume = sensor_hub_reset_resume,
-#endif
+	.suspend = pm_ptr(sensor_hub_suspend),
+	.resume = pm_ptr(sensor_hub_resume),
+	.reset_resume = pm_ptr(sensor_hub_reset_resume),
 };
 module_hid_driver(sensor_hub_driver);
 

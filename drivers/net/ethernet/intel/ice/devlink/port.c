@@ -58,8 +58,8 @@ static void ice_devlink_port_options_print(struct ice_pf *pf)
 	const char *str;
 	int status;
 
-	options = kcalloc(ICE_AQC_PORT_OPT_MAX * ICE_MAX_PORT_PER_PCI_DEV,
-			  sizeof(*options), GFP_KERNEL);
+	options = kzalloc_objs(*options,
+			       ICE_AQC_PORT_OPT_MAX * ICE_MAX_PORT_PER_PCI_DEV);
 	if (!options)
 		return;
 
@@ -920,7 +920,7 @@ ice_alloc_dynamic_port(struct ice_pf *pf,
 	if (err)
 		return err;
 
-	dyn_port = kzalloc(sizeof(*dyn_port), GFP_KERNEL);
+	dyn_port = kzalloc_obj(*dyn_port);
 	if (!dyn_port) {
 		err = -ENOMEM;
 		goto unroll_reserve_sf_num;

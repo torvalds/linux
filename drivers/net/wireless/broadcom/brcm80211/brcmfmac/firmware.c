@@ -765,7 +765,7 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 	if (!brcmf_fw_request_is_valid(req))
 		return -EINVAL;
 
-	fwctx = kzalloc(sizeof(*fwctx), GFP_KERNEL);
+	fwctx = kzalloc_obj(*fwctx);
 	if (!fwctx)
 		return -ENOMEM;
 
@@ -825,7 +825,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		return NULL;
 	}
 
-	fwreq = kzalloc(struct_size(fwreq, items, n_fwnames), GFP_KERNEL);
+	fwreq = kzalloc_flex(*fwreq, items, n_fwnames);
 	if (!fwreq)
 		return NULL;
 

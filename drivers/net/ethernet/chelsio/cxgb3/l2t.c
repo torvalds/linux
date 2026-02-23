@@ -408,7 +408,7 @@ struct l2t_data *t3_init_l2t(unsigned int l2t_capacity)
 	struct l2t_data *d;
 	int i;
 
-	d = kvzalloc(struct_size(d, l2tab, l2t_capacity), GFP_KERNEL);
+	d = kvzalloc_flex(*d, l2tab, l2t_capacity);
 	if (!d)
 		return NULL;
 

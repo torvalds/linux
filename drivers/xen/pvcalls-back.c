@@ -324,7 +324,7 @@ static struct sock_mapping *pvcalls_new_active_socket(
 	struct sock_mapping *map;
 	void *page;
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (map == NULL) {
 		sock_release(sock);
 		return NULL;
@@ -632,7 +632,7 @@ static int pvcalls_back_bind(struct xenbus_device *dev,
 
 	fedata = dev_get_drvdata(&dev->dev);
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (map == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -934,7 +934,7 @@ static int backend_connect(struct xenbus_device *dev)
 	grant_ref_t ring_ref;
 	struct pvcalls_fedata *fedata = NULL;
 
-	fedata = kzalloc(sizeof(struct pvcalls_fedata), GFP_KERNEL);
+	fedata = kzalloc_obj(struct pvcalls_fedata);
 	if (!fedata)
 		return -ENOMEM;
 

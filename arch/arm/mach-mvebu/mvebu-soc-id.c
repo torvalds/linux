@@ -154,7 +154,7 @@ static int __init mvebu_soc_device(void)
 	if (!is_id_valid)
 		return 0;
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENOMEM;
 

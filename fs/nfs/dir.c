@@ -72,7 +72,7 @@ const struct address_space_operations nfs_dir_aops = {
 	.free_folio = nfs_readdir_clear_array,
 };
 
-#define NFS_INIT_DTSIZE PAGE_SIZE
+#define NFS_INIT_DTSIZE SZ_64K
 
 static struct nfs_open_dir_context *
 alloc_nfs_open_dir_context(struct inode *dir)
@@ -80,10 +80,10 @@ alloc_nfs_open_dir_context(struct inode *dir)
 	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_open_dir_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL_ACCOUNT);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL_ACCOUNT);
 	if (ctx != NULL) {
 		ctx->attr_gencount = nfsi->attr_gencount;
-		ctx->dtsize = NFS_INIT_DTSIZE;
+		ctx->dtsize = min(NFS_SERVER(dir)->dtsize, NFS_INIT_DTSIZE);
 		spin_lock(&dir->i_lock);
 		if (list_empty(&nfsi->open_files) &&
 		    (nfsi->cache_validity & NFS_INO_DATA_INVAL_DEFER))
@@ -912,7 +912,7 @@ static struct page **nfs_readdir_alloc_pages(size_t npages)
 	struct page **pages;
 	size_t i;
 
-	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, npages);
 	if (!pages)
 		return NULL;
 	for (i = 0; i < npages; i++) {
@@ -942,7 +942,7 @@ static int nfs_readdir_xdr_to_array(struct nfs_readdir_descriptor *desc,
 	unsigned int pglen;
 	int status = -ENOMEM;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 	entry->cookie = nfs_readdir_folio_last_cookie(folio);
@@ -1154,7 +1154,7 @@ static int uncached_readdir(struct nfs_readdir_descriptor *desc)
 	dfprintk(DIRCACHE, "NFS: uncached_readdir() searching for cookie %llu\n",
 			(unsigned long long)desc->dir_cookie);
 
-	arrays = kcalloc(sz, sizeof(*arrays), GFP_KERNEL);
+	arrays = kzalloc_objs(*arrays, sz);
 	if (!arrays)
 		goto out;
 	arrays[0] = nfs_readdir_folio_array_alloc(desc->dir_cookie, GFP_KERNEL);
@@ -1245,7 +1245,7 @@ static int nfs_readdir(struct file *file, struct dir_context *ctx)
 	nfs_revalidate_mapping(inode, file->f_mapping);
 
 	res = -ENOMEM;
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		goto out;
 	desc->file = file;
@@ -1440,7 +1440,8 @@ static void nfs_set_verifier_locked(struct dentry *dentry, unsigned long verf)
 
 	if (!dir || !nfs_verify_change_attribute(dir, verf))
 		return;
-	if (inode && NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0))
+	if (NFS_PROTO(dir)->have_delegation(dir, FMODE_READ, 0) ||
+	    (inode && NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0)))
 		nfs_set_verifier_delegated(&verf);
 	dentry->d_time = verf;
 }
@@ -1465,6 +1466,49 @@ void nfs_set_verifier(struct dentry *dentry, unsigned long verf)
 EXPORT_SYMBOL_GPL(nfs_set_verifier);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+static void nfs_clear_verifier_file(struct inode *inode)
+{
+	struct dentry *alias;
+	struct inode *dir;
+
+	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+		spin_lock(&alias->d_lock);
+		dir = d_inode_rcu(alias->d_parent);
+		if (!dir ||
+		    !NFS_PROTO(dir)->have_delegation(dir, FMODE_READ, 0))
+			nfs_unset_verifier_delegated(&alias->d_time);
+		spin_unlock(&alias->d_lock);
+	}
+}
+
+static void nfs_clear_verifier_directory(struct inode *dir)
+{
+	struct dentry *this_parent;
+	struct dentry *dentry;
+	struct inode *inode;
+
+	if (hlist_empty(&dir->i_dentry))
+		return;
+	this_parent =
+		hlist_entry(dir->i_dentry.first, struct dentry, d_u.d_alias);
+
+	spin_lock(&this_parent->d_lock);
+	nfs_unset_verifier_delegated(&this_parent->d_time);
+	dentry = d_first_child(this_parent);
+	hlist_for_each_entry_from(dentry, d_sib) {
+		if (unlikely(dentry->d_flags & DCACHE_DENTRY_CURSOR))
+			continue;
+		inode = d_inode_rcu(dentry);
+		if (inode &&
+		    NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0))
+			continue;
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+		nfs_unset_verifier_delegated(&dentry->d_time);
+		spin_unlock(&dentry->d_lock);
+	}
+	spin_unlock(&this_parent->d_lock);
+}
+
 /**
  * nfs_clear_verifier_delegated - clear the dir verifier delegation tag
  * @inode: pointer to inode
@@ -1477,16 +1521,13 @@ EXPORT_SYMBOL_GPL(nfs_set_verifier);
  */
 void nfs_clear_verifier_delegated(struct inode *inode)
 {
-	struct dentry *alias;
-
 	if (!inode)
 		return;
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
-		spin_lock(&alias->d_lock);
-		nfs_unset_verifier_delegated(&alias->d_time);
-		spin_unlock(&alias->d_lock);
-	}
+	if (S_ISREG(inode->i_mode))
+		nfs_clear_verifier_file(inode);
+	else if (S_ISDIR(inode->i_mode))
+		nfs_clear_verifier_directory(inode);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_clear_verifier_delegated);
@@ -1514,14 +1555,6 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
 		return 0;
 	if (!nfs_dentry_verify_change(dir, dentry))
-		return 0;
-
-	/*
-	 * If we have a directory delegation then we don't need to revalidate
-	 * the directory. The delegation will either get recalled or we will
-	 * receive a notification when it changes.
-	 */
-	if (nfs_have_directory_delegation(dir))
 		return 0;
 
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
@@ -2217,13 +2250,6 @@ no_open:
 EXPORT_SYMBOL_GPL(nfs_atomic_open);
 
 static int
-nfs_lookup_revalidate_delegated_parent(struct inode *dir, struct dentry *dentry,
-				       struct inode *inode)
-{
-	return nfs_lookup_revalidate_done(dir, dentry, inode, 1);
-}
-
-static int
 nfs4_lookup_revalidate(struct inode *dir, const struct qstr *name,
 		       struct dentry *dentry, unsigned int flags)
 {
@@ -2247,11 +2273,9 @@ nfs4_lookup_revalidate(struct inode *dir, const struct qstr *name,
 	if (inode == NULL)
 		goto full_reval;
 
-	if (nfs_verifier_is_delegated(dentry))
+	if (nfs_verifier_is_delegated(dentry) ||
+	    nfs_have_directory_delegation(inode))
 		return nfs_lookup_revalidate_delegated(dir, dentry, inode);
-
-	if (nfs_have_directory_delegation(dir))
-		return nfs_lookup_revalidate_delegated_parent(dir, dentry, inode);
 
 	/* NFS only supports OPEN on regular files */
 	if (!S_ISREG(inode->i_mode))
@@ -3192,7 +3216,7 @@ found:
 void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set,
 			  const struct cred *cred)
 {
-	struct nfs_access_entry *cache = kmalloc(sizeof(*cache), GFP_KERNEL);
+	struct nfs_access_entry *cache = kmalloc_obj(*cache);
 	if (cache == NULL)
 		return;
 	RB_CLEAR_NODE(&cache->rb_node);

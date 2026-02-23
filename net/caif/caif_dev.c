@@ -94,7 +94,7 @@ static struct caif_device_entry *caif_device_alloc(struct net_device *dev)
 {
 	struct caif_device_entry *caifd;
 
-	caifd = kzalloc(sizeof(*caifd), GFP_KERNEL);
+	caifd = kzalloc_obj(*caifd);
 	if (!caifd)
 		return NULL;
 	caifd->pcpu_refcnt = alloc_percpu(int);

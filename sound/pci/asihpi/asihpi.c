@@ -975,7 +975,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware snd_card_asihpi_playback;
 	int err;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc_obj(*dpcm);
 	if (dpcm == NULL)
 		return -ENOMEM;
 
@@ -1145,7 +1145,7 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware snd_card_asihpi_capture;
 	int err;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc_obj(*dpcm);
 	if (dpcm == NULL)
 		return -ENOMEM;
 

@@ -169,7 +169,7 @@ static int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mc
 	if (!entry)
 		return -EINVAL;
 
-	node = kvzalloc(sizeof(*node), GFP_KERNEL);
+	node = kvzalloc_obj(*node);
 	if (!node)
 		return -ENOMEM;
 

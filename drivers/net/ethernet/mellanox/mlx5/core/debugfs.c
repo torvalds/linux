@@ -201,7 +201,7 @@ static const struct file_operations slots_fops = {
 static struct mlx5_cmd_stats *
 mlx5_cmdif_alloc_stats(struct xarray *stats_xa, int opcode)
 {
-	struct mlx5_cmd_stats *stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+	struct mlx5_cmd_stats *stats = kzalloc_obj(*stats);
 	int err;
 
 	if (!stats)
@@ -509,7 +509,7 @@ static int add_res_tree(struct mlx5_core_dev *dev, enum dbg_rsc_type type,
 	char resn[32];
 	int i;
 
-	d = kzalloc(struct_size(d, fields, nfile), GFP_KERNEL);
+	d = kzalloc_flex(*d, fields, nfile);
 	if (!d)
 		return -ENOMEM;
 
@@ -612,4 +612,20 @@ void mlx5_debug_cq_remove(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq)
 		rem_res_tree(cq->dbg);
 		cq->dbg = NULL;
 	}
+}
+
+static int vhca_id_show(struct seq_file *file, void *priv)
+{
+	struct mlx5_core_dev *dev = file->private;
+
+	seq_printf(file, "0x%x\n", MLX5_CAP_GEN(dev, vhca_id));
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(vhca_id);
+
+void mlx5_vhca_debugfs_init(struct mlx5_core_dev *dev)
+{
+	debugfs_create_file("vhca_id", 0400, dev->priv.dbg.dbg_root, dev,
+			    &vhca_id_fops);
 }

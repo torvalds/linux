@@ -821,9 +821,8 @@ static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependen
 	int i;
 	ATOM_PPLIB_Clock_Voltage_Dependency_Record *entry;
 
-	radeon_table->entries = kcalloc(atom_table->ucNumEntries,
-					sizeof(struct radeon_clock_voltage_dependency_entry),
-					GFP_KERNEL);
+	radeon_table->entries = kzalloc_objs(struct radeon_clock_voltage_dependency_entry,
+					     atom_table->ucNumEntries);
 	if (!radeon_table->entries)
 		return -ENOMEM;
 
@@ -988,9 +987,8 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
 
 			rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
-				kcalloc(psl->ucNumEntries,
-					sizeof(struct radeon_phase_shedding_limits_entry),
-					GFP_KERNEL);
+				kzalloc_objs(struct radeon_phase_shedding_limits_entry,
+					     psl->ucNumEntries);
 			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
@@ -1198,7 +1196,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				(mode_info->atom_context->bios + data_offset +
 				 le16_to_cpu(ext_hdr->usPPMTableOffset));
 			rdev->pm.dpm.dyn_state.ppm_table =
-				kzalloc(sizeof(struct radeon_ppm_table), GFP_KERNEL);
+				kzalloc_obj(struct radeon_ppm_table);
 			if (!rdev->pm.dpm.dyn_state.ppm_table) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
@@ -1256,7 +1254,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
 			ATOM_PowerTune_Table *pt;
 			rdev->pm.dpm.dyn_state.cac_tdp_table =
-				kzalloc(sizeof(struct radeon_cac_tdp_table), GFP_KERNEL);
+				kzalloc_obj(struct radeon_cac_tdp_table);
 			if (!rdev->pm.dpm.dyn_state.cac_tdp_table) {
 				r600_free_extended_power_table(rdev);
 				return -ENOMEM;

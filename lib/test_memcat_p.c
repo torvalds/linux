@@ -24,20 +24,20 @@ static int __init test_memcat_p_init(void)
 	struct test_struct **in0, **in1, **out, **p;
 	int err = -ENOMEM, i, r, total = 0;
 
-	in0 = kcalloc(INPUT_MAX, sizeof(*in0), GFP_KERNEL);
+	in0 = kzalloc_objs(*in0, INPUT_MAX);
 	if (!in0)
 		return err;
 
-	in1 = kcalloc(INPUT_MAX, sizeof(*in1), GFP_KERNEL);
+	in1 = kzalloc_objs(*in1, INPUT_MAX);
 	if (!in1)
 		goto err_free_in0;
 
 	for (i = 0, r = 1; i < INPUT_MAX - 1; i++) {
-		in0[i] = kmalloc(sizeof(**in0), GFP_KERNEL);
+		in0[i] = kmalloc_obj(**in0);
 		if (!in0[i])
 			goto err_free_elements;
 
-		in1[i] = kmalloc(sizeof(**in1), GFP_KERNEL);
+		in1[i] = kmalloc_obj(**in1);
 		if (!in1[i]) {
 			kfree(in0[i]);
 			goto err_free_elements;

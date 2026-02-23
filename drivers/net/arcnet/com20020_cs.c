@@ -119,7 +119,7 @@ static int com20020_probe(struct pcmcia_device *p_dev)
 	dev_dbg(&p_dev->dev, "com20020_attach()\n");
 
 	/* Create new network device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		goto fail_alloc_info;
 

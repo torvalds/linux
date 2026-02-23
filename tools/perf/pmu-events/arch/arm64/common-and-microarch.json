@@ -433,22 +433,10 @@
         "BriefDescription": "Trace buffer current write pointer wrapped"
     },
     {
-        "PublicDescription": "PMU overflow, counters accessible to EL1 and EL0",
-        "EventCode": "0x400D",
-        "EventName": "PMU_OVFS",
-        "BriefDescription": "PMU overflow, counters accessible to EL1 and EL0"
-    },
-    {
         "PublicDescription": "Trace buffer Trigger Event",
         "EventCode": "0x400E",
         "EventName": "TRB_TRIG",
         "BriefDescription": "Trace buffer Trigger Event"
-    },
-    {
-        "PublicDescription": "PMU overflow, counters reserved for use by EL2",
-        "EventCode": "0x400F",
-        "EventName": "PMU_HOVFS",
-        "BriefDescription": "PMU overflow, counters reserved for use by EL2"
     },
     {
         "PublicDescription": "PE Trace Unit external output 0",

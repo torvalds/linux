@@ -670,7 +670,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		pr_err("%s() Unable to allocate memory\n", __func__);
 		return -ENOMEM;

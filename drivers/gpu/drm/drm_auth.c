@@ -132,7 +132,7 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 {
 	struct drm_master *master;
 
-	master = kzalloc(sizeof(*master), GFP_KERNEL);
+	master = kzalloc_obj(*master);
 	if (!master)
 		return NULL;
 

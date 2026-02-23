@@ -31,7 +31,7 @@ static int ssb_host_pcmcia_probe(struct pcmcia_device *dev)
 	int err = -ENOMEM;
 	int res = 0;
 
-	ssb = kzalloc(sizeof(*ssb), GFP_KERNEL);
+	ssb = kzalloc_obj(*ssb);
 	if (!ssb)
 		goto out_error;
 

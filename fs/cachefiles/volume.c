@@ -28,7 +28,7 @@ void cachefiles_acquire_volume(struct fscache_volume *vcookie)
 
 	_enter("");
 
-	volume = kzalloc(sizeof(struct cachefiles_volume), GFP_KERNEL);
+	volume = kzalloc_obj(struct cachefiles_volume);
 	if (!volume)
 		return;
 	volume->vcookie = vcookie;

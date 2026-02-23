@@ -159,6 +159,9 @@ struct scmi_proto_helpers_ops;
  * struct scmi_protocol_handle  - Reference to an initialized protocol instance
  *
  * @dev: A reference to the associated SCMI instance device (handle->dev).
+ * @version: The protocol version currently effectively in use by this
+ *	     initialized instance of the protocol as determined at the end of
+ *	     any possibly needed negotiations performed by the core.
  * @xops: A reference to a struct holding refs to the core xfer operations that
  *	  can be used by the protocol implementation to generate SCMI messages.
  * @set_priv: A method to set protocol private data for this instance.
@@ -177,10 +180,10 @@ struct scmi_proto_helpers_ops;
  */
 struct scmi_protocol_handle {
 	struct device *dev;
+	unsigned int version;
 	const struct scmi_xfer_ops *xops;
 	const struct scmi_proto_helpers_ops *hops;
-	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv,
-			u32 version);
+	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv);
 	void *(*get_priv)(const struct scmi_protocol_handle *ph);
 };
 
@@ -287,7 +290,6 @@ struct scmi_proto_helpers_ops {
 
 /**
  * struct scmi_xfer_ops  - References to the core SCMI xfer operations.
- * @version_get: Get this version protocol.
  * @xfer_get_init: Initialize one struct xfer if any xfer slot is free.
  * @reset_rx_to_maxsz: Reset rx size to max transport size.
  * @do_xfer: Do the SCMI transfer.
@@ -300,7 +302,6 @@ struct scmi_proto_helpers_ops {
  * another protocol.
  */
 struct scmi_xfer_ops {
-	int (*version_get)(const struct scmi_protocol_handle *ph, u32 *version);
 	int (*xfer_get_init)(const struct scmi_protocol_handle *ph, u8 msg_id,
 			     size_t tx_size, size_t rx_size,
 			     struct scmi_xfer **p);

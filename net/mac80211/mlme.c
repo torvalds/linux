@@ -8,7 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2025 Intel Corporation
+ * Copyright (C) 2018 - 2026 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -162,6 +162,7 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 	const struct ieee80211_vht_operation *vht_oper = elems->vht_operation;
 	const struct ieee80211_he_operation *he_oper = elems->he_operation;
 	const struct ieee80211_eht_operation *eht_oper = elems->eht_operation;
+	const struct ieee80211_uhr_operation *uhr_oper = elems->uhr_operation;
 	struct ieee80211_supported_band *sband =
 		sdata->local->hw.wiphy->bands[channel->band];
 	struct cfg80211_chan_def vht_chandef;
@@ -192,7 +193,7 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 
 	/* get special 6 GHz case out of the way */
 	if (sband->band == NL80211_BAND_6GHZ) {
-		enum ieee80211_conn_mode mode = IEEE80211_CONN_MODE_EHT;
+		enum ieee80211_conn_mode mode = IEEE80211_CONN_MODE_HIGHEST;
 
 		/* this is an error */
 		if (conn->mode < IEEE80211_CONN_MODE_HE)
@@ -215,7 +216,9 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 			return IEEE80211_CONN_MODE_LEGACY;
 		}
 
-		return mode;
+		if (mode <= IEEE80211_CONN_MODE_EHT)
+			return mode;
+		goto check_uhr;
 	}
 
 	/* now we have the progression HT, VHT, ... */
@@ -340,7 +343,63 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 		*chandef = eht_chandef;
 	}
 
-	return IEEE80211_CONN_MODE_EHT;
+check_uhr:
+	if (conn->mode < IEEE80211_CONN_MODE_UHR || !uhr_oper)
+		return IEEE80211_CONN_MODE_EHT;
+
+	/*
+	 * In beacons we don't have all the data - but we know the size was OK,
+	 * so if the size is valid as a non-beacon case, we have more data and
+	 * can validate the NPCA parameters.
+	 */
+	if (ieee80211_uhr_oper_size_ok((const void *)uhr_oper,
+				       elems->uhr_operation_len,
+				       false)) {
+		struct cfg80211_chan_def npca_chandef = *chandef;
+		const struct ieee80211_uhr_npca_info *npca;
+		const __le16 *dis_subch_bmap;
+		u16 punct = chandef->punctured, npca_punct;
+
+		npca = ieee80211_uhr_npca_info(uhr_oper);
+		if (npca) {
+			int width = cfg80211_chandef_get_width(chandef);
+			u8 offs = le32_get_bits(npca->params,
+						IEEE80211_UHR_NPCA_PARAMS_PRIMARY_CHAN_OFFS);
+			u32 cf1 = chandef->center_freq1;
+			bool pri_upper, npca_upper;
+
+			pri_upper = chandef->chan->center_freq > cf1;
+			npca_upper = 20 * offs >= width / 2;
+
+			if (20 * offs >= cfg80211_chandef_get_width(chandef) ||
+			    pri_upper == npca_upper) {
+				sdata_info(sdata,
+					   "AP UHR NPCA primary channel invalid, disabling UHR\n");
+				return IEEE80211_CONN_MODE_EHT;
+			}
+		}
+
+		dis_subch_bmap = ieee80211_uhr_npca_dis_subch_bitmap(uhr_oper);
+
+		if (dis_subch_bmap) {
+			npca_punct = get_unaligned_le16(dis_subch_bmap);
+			npca_chandef.punctured = npca_punct;
+		}
+
+		/*
+		 * must be a valid puncturing pattern for this channel as
+		 * well as puncturing all subchannels that are already in
+		 * the disabled subchannel bitmap on the primary channel
+		 */
+		if (!cfg80211_chandef_valid(&npca_chandef) ||
+		    ((punct & npca_punct) != punct)) {
+			sdata_info(sdata,
+				   "AP UHR NPCA disabled subchannel bitmap invalid, disabling UHR\n");
+			return IEEE80211_CONN_MODE_EHT;
+		}
+	}
+
+	return IEEE80211_CONN_MODE_UHR;
 }
 
 static bool
@@ -1091,6 +1150,7 @@ again:
 				       IEEE80211_CONN_BW_LIMIT_160);
 		break;
 	case IEEE80211_CONN_MODE_EHT:
+	case IEEE80211_CONN_MODE_UHR:
 		conn->bw_limit = min_t(enum ieee80211_conn_bw_limit,
 				       conn->bw_limit,
 				       IEEE80211_CONN_BW_LIMIT_320);
@@ -1108,6 +1168,8 @@ again:
 		set_bit(BSS_MEMBERSHIP_SELECTOR_HE_PHY, sta_selectors);
 	if (conn->mode >= IEEE80211_CONN_MODE_EHT)
 		set_bit(BSS_MEMBERSHIP_SELECTOR_EHT_PHY, sta_selectors);
+	if (conn->mode >= IEEE80211_CONN_MODE_UHR)
+		set_bit(BSS_MEMBERSHIP_SELECTOR_UHR_PHY, sta_selectors);
 
 	/*
 	 * We do not support EPD or GLK so never add them.
@@ -1154,6 +1216,11 @@ again:
 				       conn->bw_limit,
 				       IEEE80211_CONN_BW_LIMIT_160);
 	}
+
+	if (conn->mode >= IEEE80211_CONN_MODE_UHR &&
+	    !cfg80211_chandef_usable(sdata->wdev.wiphy, &chanreq->oper,
+				     IEEE80211_CHAN_NO_UHR))
+		conn->mode = IEEE80211_CONN_MODE_EHT;
 
 	if (chanreq->oper.width != ap_chandef->width || ap_mode != conn->mode)
 		link_id_info(sdata, link_id,
@@ -1548,7 +1615,7 @@ static void ieee80211_assoc_add_rates(struct ieee80211_local *local,
 		 * in the association request (e.g. D-Link DAP 1353 in
 		 * b-only mode)...
 		 */
-		ieee80211_parse_bitrates(width, sband,
+		ieee80211_parse_bitrates(sband,
 					 assoc_data->supp_rates,
 					 assoc_data->supp_rates_len,
 					 &rates);
@@ -1884,11 +1951,13 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 
 	/*
 	 * careful - need to know about all the present elems before
-	 * calling ieee80211_assoc_add_ml_elem(), so add this one if
-	 * we're going to put it after the ML element
+	 * calling ieee80211_assoc_add_ml_elem(), so add these if
+	 * we're going to put them after the ML element
 	 */
 	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_EHT)
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_EHT_CAPABILITY);
+	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_UHR)
+		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_UHR_CAPA);
 
 	if (link_id == assoc_data->assoc_link_id)
 		ieee80211_assoc_add_ml_elem(sdata, skb, orig_capab, ext_capa,
@@ -1900,6 +1969,9 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_EHT)
 		ieee80211_put_eht_cap(skb, sdata, sband,
 				      &assoc_data->link[link_id].conn);
+
+	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_UHR)
+		ieee80211_put_uhr_cap(skb, sdata, sband);
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
 		ieee80211_add_aid_request_ie(sdata, skb);
@@ -2135,6 +2207,9 @@ ieee80211_link_common_elems_size(struct ieee80211_sub_if_data *sdata,
 		sizeof(struct ieee80211_eht_mcs_nss_supp) +
 		IEEE80211_EHT_PPE_THRES_MAX_LEN;
 
+	size += 2 + 1 + sizeof(struct ieee80211_uhr_cap) +
+		sizeof(struct ieee80211_uhr_cap_phy);
+
 	return size;
 }
 
@@ -2155,6 +2230,8 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_prep_tx_info info = {};
 	unsigned int link_id, n_links = 0;
 	u16 present_elems[PRESENT_ELEMS_MAX] = {};
+	struct sta_info *sta;
+	bool assoc_encrypt;
 	void *capab_pos;
 	size_t size;
 	int ret;
@@ -2335,7 +2412,15 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	info.link_id = assoc_data->assoc_link_id;
 	drv_mgd_prepare_tx(local, sdata, &info);
 
-	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	sta = sta_info_get_bss(sdata, sdata->vif.cfg.ap_addr);
+
+	assoc_encrypt = sta && sta->sta.epp_peer &&
+			wiphy_dereference(sdata->local->hw.wiphy,
+					  sta->ptk[sta->ptk_idx]);
+
+	if (!assoc_encrypt)
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
 	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS |
 						IEEE80211_TX_INTFL_MLME_CONN_TX;
@@ -4911,6 +4996,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	case WLAN_AUTH_FILS_SK:
 	case WLAN_AUTH_FILS_SK_PFS:
 	case WLAN_AUTH_FILS_PK:
+	case WLAN_AUTH_EPPKE:
 		break;
 	case WLAN_AUTH_SHARED_KEY:
 		if (ifmgd->auth_data->expected_transaction != 4) {
@@ -5520,6 +5606,18 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		bss_conf->epcs_support = false;
 	}
 
+	if (elems->uhr_operation && elems->uhr_cap &&
+	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_UHR) {
+		ieee80211_uhr_cap_ie_to_sta_uhr_cap(sdata, sband,
+						    elems->uhr_cap,
+						    elems->uhr_cap_len,
+						    link_sta);
+
+		bss_conf->uhr_support = link_sta->pub->uhr_cap.has_uhr;
+	} else {
+		bss_conf->uhr_support = false;
+	}
+
 	if (elems->s1g_oper &&
 	    link->u.mgd.conn.mode == IEEE80211_CONN_MODE_S1G &&
 	    elems->s1g_capab)
@@ -5810,6 +5908,7 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 	bool is_6ghz = sband->band == NL80211_BAND_6GHZ;
 	const struct ieee80211_sta_he_cap *he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap;
+	const struct ieee80211_sta_uhr_cap *uhr_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
@@ -5985,9 +6084,6 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 				 "no EHT support, limiting to HE\n");
 		goto out;
 	}
-
-	/* we have EHT */
-
 	conn->mode = IEEE80211_CONN_MODE_EHT;
 
 	/* check bandwidth */
@@ -5997,6 +6093,20 @@ ieee80211_determine_our_sta_mode(struct ieee80211_sub_if_data *sdata,
 	else if (is_6ghz)
 		mlme_link_id_dbg(sdata, link_id,
 				 "no EHT 320 MHz cap in 6 GHz, limiting to 160 MHz\n");
+
+	if (req && req->flags & ASSOC_REQ_DISABLE_UHR) {
+		mlme_link_id_dbg(sdata, link_id,
+				 "UHR disabled by flag, limiting to EHT\n");
+		goto out;
+	}
+
+	uhr_cap = ieee80211_get_uhr_iftype_cap_vif(sband, &sdata->vif);
+	if (!uhr_cap) {
+		mlme_link_id_dbg(sdata, link_id,
+				 "no UHR support, limiting to EHT\n");
+		goto out;
+	}
+	conn->mode = IEEE80211_CONN_MODE_UHR;
 
 out:
 	mlme_link_id_dbg(sdata, link_id,
@@ -6161,6 +6271,100 @@ static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
 	return true;
 }
 
+static u16 ieee80211_get_ttlm(u8 bm_size, u8 *data)
+{
+	if (bm_size == 1)
+		return *data;
+
+	return get_unaligned_le16(data);
+}
+
+static int
+ieee80211_parse_adv_t2l(struct ieee80211_sub_if_data *sdata,
+			const struct ieee80211_ttlm_elem *ttlm,
+			struct ieee80211_adv_ttlm_info *ttlm_info)
+{
+	/* The element size was already validated in
+	 * ieee80211_tid_to_link_map_size_ok()
+	 */
+	u8 control, link_map_presence, map_size, tid;
+	u8 *pos;
+
+	memset(ttlm_info, 0, sizeof(*ttlm_info));
+	pos = (void *)ttlm->optional;
+	control	= ttlm->control;
+
+	if ((control & IEEE80211_TTLM_CONTROL_DIRECTION) !=
+	    IEEE80211_TTLM_DIRECTION_BOTH) {
+		sdata_info(sdata, "Invalid advertised T2L map direction\n");
+		return -EINVAL;
+	}
+
+	if (!(control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP)) {
+		link_map_presence = *pos;
+		pos++;
+	}
+
+	if (control & IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT) {
+		ttlm_info->switch_time = get_unaligned_le16(pos);
+
+		/* Since ttlm_info->switch_time == 0 means no switch time, bump
+		 * it by 1.
+		 */
+		if (!ttlm_info->switch_time)
+			ttlm_info->switch_time = 1;
+
+		pos += 2;
+	}
+
+	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT) {
+		ttlm_info->duration = pos[0] | pos[1] << 8 | pos[2] << 16;
+		pos += 3;
+	}
+
+	if (control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP) {
+		ttlm_info->map = 0xffff;
+		return 0;
+	}
+
+	if (control & IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE)
+		map_size = 1;
+	else
+		map_size = 2;
+
+	/* According to Draft P802.11be_D3.0 clause 35.3.7.1.7, an AP MLD shall
+	 * not advertise a TID-to-link mapping that does not map all TIDs to the
+	 * same link set, reject frame if not all links have mapping
+	 */
+	if (link_map_presence != 0xff) {
+		sdata_info(sdata,
+			   "Invalid advertised T2L mapping presence indicator\n");
+		return -EINVAL;
+	}
+
+	ttlm_info->map = ieee80211_get_ttlm(map_size, pos);
+	if (!ttlm_info->map) {
+		sdata_info(sdata,
+			   "Invalid advertised T2L map for TID 0\n");
+		return -EINVAL;
+	}
+
+	pos += map_size;
+
+	for (tid = 1; tid < 8; tid++) {
+		u16 map = ieee80211_get_ttlm(map_size, pos);
+
+		if (map != ttlm_info->map) {
+			sdata_info(sdata, "Invalid advertised T2L map for tid %d\n",
+				   tid);
+			return -EINVAL;
+		}
+
+		pos += map_size;
+	}
+	return 0;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    struct ieee802_11_elems *elems,
@@ -6192,14 +6396,39 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				continue;
 
 			valid_links |= BIT(link_id);
-			if (assoc_data->link[link_id].disabled)
-				dormant_links |= BIT(link_id);
 
 			if (link_id != assoc_data->assoc_link_id) {
 				err = ieee80211_sta_allocate_link(sta, link_id);
 				if (err)
 					goto out_err;
 			}
+		}
+
+		/*
+		 * We do not support setting a negotiated TTLM during
+		 * association. As such, we can assume that if there is a TTLM,
+		 * then it is the currently active advertised TTLM.
+		 * In that case, there must be exactly one TTLM that does not
+		 * have a switch time set. This mapping should also leave us
+		 * with at least one usable link.
+		 */
+		if (elems->ttlm_num > 1) {
+			sdata_info(sdata,
+				   "More than one advertised TTLM in association response\n");
+			goto out_err;
+		} else if (elems->ttlm_num == 1) {
+			if (ieee80211_parse_adv_t2l(sdata, elems->ttlm[0],
+						    &sdata->u.mgd.ttlm_info) ||
+			    sdata->u.mgd.ttlm_info.switch_time != 0 ||
+			    !(valid_links & sdata->u.mgd.ttlm_info.map)) {
+				sdata_info(sdata,
+					   "Invalid advertised TTLM in association response\n");
+				goto out_err;
+			}
+
+			sdata->u.mgd.ttlm_info.active = true;
+			dormant_links =
+				valid_links & ~sdata->u.mgd.ttlm_info.map;
 		}
 
 		ieee80211_vif_set_links(sdata, valid_links, dormant_links);
@@ -6990,95 +7219,6 @@ static void ieee80211_tid_to_link_map_work(struct wiphy *wiphy,
 
 	sdata->u.mgd.ttlm_info.active = true;
 	sdata->u.mgd.ttlm_info.switch_time = 0;
-}
-
-static u16 ieee80211_get_ttlm(u8 bm_size, u8 *data)
-{
-	if (bm_size == 1)
-		return *data;
-	else
-		return get_unaligned_le16(data);
-}
-
-static int
-ieee80211_parse_adv_t2l(struct ieee80211_sub_if_data *sdata,
-			const struct ieee80211_ttlm_elem *ttlm,
-			struct ieee80211_adv_ttlm_info *ttlm_info)
-{
-	/* The element size was already validated in
-	 * ieee80211_tid_to_link_map_size_ok()
-	 */
-	u8 control, link_map_presence, map_size, tid;
-	u8 *pos;
-
-	memset(ttlm_info, 0, sizeof(*ttlm_info));
-	pos = (void *)ttlm->optional;
-	control	= ttlm->control;
-
-	if ((control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP) ||
-	    !(control & IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT))
-		return 0;
-
-	if ((control & IEEE80211_TTLM_CONTROL_DIRECTION) !=
-	    IEEE80211_TTLM_DIRECTION_BOTH) {
-		sdata_info(sdata, "Invalid advertised T2L map direction\n");
-		return -EINVAL;
-	}
-
-	link_map_presence = *pos;
-	pos++;
-
-	ttlm_info->switch_time = get_unaligned_le16(pos);
-
-	/* Since ttlm_info->switch_time == 0 means no switch time, bump it
-	 * by 1.
-	 */
-	if (!ttlm_info->switch_time)
-		ttlm_info->switch_time = 1;
-
-	pos += 2;
-
-	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT) {
-		ttlm_info->duration = pos[0] | pos[1] << 8 | pos[2] << 16;
-		pos += 3;
-	}
-
-	if (control & IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE)
-		map_size = 1;
-	else
-		map_size = 2;
-
-	/* According to Draft P802.11be_D3.0 clause 35.3.7.1.7, an AP MLD shall
-	 * not advertise a TID-to-link mapping that does not map all TIDs to the
-	 * same link set, reject frame if not all links have mapping
-	 */
-	if (link_map_presence != 0xff) {
-		sdata_info(sdata,
-			   "Invalid advertised T2L mapping presence indicator\n");
-		return -EINVAL;
-	}
-
-	ttlm_info->map = ieee80211_get_ttlm(map_size, pos);
-	if (!ttlm_info->map) {
-		sdata_info(sdata,
-			   "Invalid advertised T2L map for TID 0\n");
-		return -EINVAL;
-	}
-
-	pos += map_size;
-
-	for (tid = 1; tid < 8; tid++) {
-		u16 map = ieee80211_get_ttlm(map_size, pos);
-
-		if (map != ttlm_info->map) {
-			sdata_info(sdata, "Invalid advertised T2L map for tid %d\n",
-				   tid);
-			return -EINVAL;
-		}
-
-		pos += map_size;
-	}
-	return 0;
 }
 
 static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
@@ -8277,6 +8417,12 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON_ONCE(!auth_data))
 		return -EINVAL;
 
+	if (auth_data->algorithm == WLAN_AUTH_EPPKE &&
+	    ieee80211_vif_is_mld(&sdata->vif) &&
+	    !cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
+				    auth_data->data, auth_data->data_len))
+		return -EINVAL;
+
 	auth_data->tries++;
 
 	if (auth_data->tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -8305,9 +8451,12 @@ static int ieee80211_auth(struct ieee80211_sub_if_data *sdata)
 	auth_data->expected_transaction = 2;
 
 	if (auth_data->algorithm == WLAN_AUTH_SAE) {
-		trans = auth_data->sae_trans;
-		status = auth_data->sae_status;
+		trans = auth_data->trans;
+		status = auth_data->status;
 		auth_data->expected_transaction = trans;
+	} else if (auth_data->algorithm == WLAN_AUTH_EPPKE) {
+		trans = auth_data->trans;
+		status = auth_data->status;
 	}
 
 	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
@@ -8964,6 +9113,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 		}
 
+		if (ifmgd->auth_data &&
+		    ifmgd->auth_data->algorithm == WLAN_AUTH_EPPKE)
+			new_sta->sta.epp_peer = true;
+
 		new_sta->sta.mlo = mlo;
 	}
 
@@ -9218,6 +9371,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	case NL80211_AUTHTYPE_FILS_PK:
 		auth_alg = WLAN_AUTH_FILS_PK;
 		break;
+	case NL80211_AUTHTYPE_EPPKE:
+		auth_alg = WLAN_AUTH_EPPKE;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -9242,12 +9398,14 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	auth_data->link_id = req->link_id;
 
 	if (req->auth_data_len >= 4) {
-		if (req->auth_type == NL80211_AUTHTYPE_SAE) {
+		if (req->auth_type == NL80211_AUTHTYPE_SAE ||
+		    req->auth_type == NL80211_AUTHTYPE_EPPKE) {
 			__le16 *pos = (__le16 *) req->auth_data;
 
-			auth_data->sae_trans = le16_to_cpu(pos[0]);
-			auth_data->sae_status = le16_to_cpu(pos[1]);
+			auth_data->trans = le16_to_cpu(pos[0]);
+			auth_data->status = le16_to_cpu(pos[1]);
 		}
+
 		memcpy(auth_data->data, req->auth_data + 4,
 		       req->auth_data_len - 4);
 		auth_data->data_len += req->auth_data_len - 4;
@@ -9298,7 +9456,11 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	 * out SAE Confirm.
 	 */
 	if (cont_auth && req->auth_type == NL80211_AUTHTYPE_SAE &&
-	    auth_data->peer_confirmed && auth_data->sae_trans == 2)
+	    auth_data->peer_confirmed && auth_data->trans == 2)
+		ieee80211_mark_sta_auth(sdata);
+
+	if (cont_auth && req->auth_type == NL80211_AUTHTYPE_EPPKE &&
+	    auth_data->trans == 3)
 		ieee80211_mark_sta_auth(sdata);
 
 	if (ifmgd->associated) {
@@ -9737,7 +9899,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 							       req, true, i,
 							       &assoc_data->link[i].conn);
 			assoc_data->link[i].bss = link_cbss;
-			assoc_data->link[i].disabled = req->links[i].disabled;
 
 			if (!bss->uapsd_supported)
 				uapsd_supported = false;
@@ -10678,7 +10839,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	if (added_links) {
 		bool uapsd_supported;
 
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
+		data = kzalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 
@@ -10719,8 +10880,6 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 							 &data->link[link_id].conn);
 
 			data->link[link_id].bss = link_cbss;
-			data->link[link_id].disabled =
-				req->add_links[link_id].disabled;
 			data->link[link_id].elems =
 				(u8 *)req->add_links[link_id].elems;
 			data->link[link_id].elems_len =

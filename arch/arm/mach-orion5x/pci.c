@@ -169,7 +169,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * Request resources.
 	 */
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	if (!res)
 		panic("pcie_setup unable to alloc resources");
 
@@ -490,7 +490,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * Request resources
 	 */
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_obj(struct resource);
 	if (!res)
 		panic("pci_setup unable to alloc resources");
 

@@ -170,7 +170,7 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 	if (!cfg || !cfg->cell_start || !cfg->cell_ready)
 		return NULL;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 	ctx->dmem_addr = base + cfg->dmem_addr + REGMEM_OFFSET;

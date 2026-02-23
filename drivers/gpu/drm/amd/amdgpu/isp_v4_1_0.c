@@ -50,7 +50,7 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 
 	isp_base = adev->rmmio_base;
 
-	isp->isp_cell = kcalloc(3, sizeof(struct mfd_cell), GFP_KERNEL);
+	isp->isp_cell = kzalloc_objs(struct mfd_cell, 3);
 	if (!isp->isp_cell) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev,
@@ -59,8 +59,7 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 	}
 
 	num_res = MAX_ISP410_MEM_RES + MAX_ISP410_INT_SRC;
-	isp->isp_res = kcalloc(num_res, sizeof(struct resource),
-			       GFP_KERNEL);
+	isp->isp_res = kzalloc_objs(struct resource, num_res);
 	if (!isp->isp_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev,
@@ -68,7 +67,7 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 		goto failure;
 	}
 
-	isp->isp_pdata = kzalloc(sizeof(*isp->isp_pdata), GFP_KERNEL);
+	isp->isp_pdata = kzalloc_obj(*isp->isp_pdata);
 	if (!isp->isp_pdata) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev,
@@ -107,7 +106,7 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[0].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp i2c platform data */
-	isp->isp_i2c_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	isp->isp_i2c_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_i2c_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev,
@@ -127,7 +126,7 @@ static int isp_v4_1_0_hw_init(struct amdgpu_isp *isp)
 	isp->isp_cell[1].pdata_size = sizeof(struct isp_platform_data);
 
 	/* initialize isp gpiochip platform data */
-	isp->isp_gpio_res = kcalloc(1, sizeof(struct resource), GFP_KERNEL);
+	isp->isp_gpio_res = kzalloc_objs(struct resource, 1);
 	if (!isp->isp_gpio_res) {
 		r = -ENOMEM;
 		drm_err(&adev->ddev,

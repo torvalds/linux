@@ -387,19 +387,6 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_disabled_adaptive_sync_sdp.data.force_disabled =
 			cmd_element->disabled_adaptive_sync_sdp_data.force_disabled;
 		break;
-	case Replay_Set_Version:
-		//Header
-		cmd.replay_set_version.header.sub_type =
-			DMUB_CMD__REPLAY_SET_VERSION;
-		cmd.replay_set_version.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_version) -
-			sizeof(struct dmub_cmd_header);
-		//Cmd Body
-		cmd.replay_set_version.replay_set_version_data.panel_inst =
-			cmd_element->version_data.panel_inst;
-		cmd.replay_set_version.replay_set_version_data.version =
-			cmd_element->version_data.version;
-		break;
 	case Replay_Set_General_Cmd:
 		//Header
 		cmd.replay_set_general_cmd.header.sub_type =
@@ -451,7 +438,7 @@ static void dmub_replay_construct(struct dmub_replay *replay, struct dc_context 
  */
 struct dmub_replay *dmub_replay_create(struct dc_context *ctx)
 {
-	struct dmub_replay *replay = kzalloc(sizeof(struct dmub_replay), GFP_KERNEL);
+	struct dmub_replay *replay = kzalloc_obj(struct dmub_replay);
 
 	if (replay == NULL) {
 		BREAK_TO_DEBUGGER();

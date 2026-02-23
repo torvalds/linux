@@ -12,11 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_data/pic32.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/watchdog.h>
-
-#include <asm/mach-pic32/pic32.h>
 
 /* Deadman Timer Regs */
 #define DMTCON_REG	0x00

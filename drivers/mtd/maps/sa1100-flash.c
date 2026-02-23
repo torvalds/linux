@@ -170,7 +170,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	/*
 	 * Allocate the map_info structs in one go.
 	 */
-	info = kzalloc(struct_size(info, subdev, nr), GFP_KERNEL);
+	info = kzalloc_flex(*info, subdev, nr);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out;
@@ -222,7 +222,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 	} else if (info->num_subdev > 1) {
 		struct mtd_info **cdev;
 
-		cdev = kmalloc_array(nr, sizeof(*cdev), GFP_KERNEL);
+		cdev = kmalloc_objs(*cdev, nr);
 		if (!cdev) {
 			ret = -ENOMEM;
 			goto err;

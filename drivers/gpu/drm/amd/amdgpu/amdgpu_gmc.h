@@ -32,9 +32,11 @@
 #include "amdgpu_xgmi.h"
 #include "amdgpu_ras.h"
 
-/* VA hole for 48bit addresses on Vega10 */
-#define AMDGPU_GMC_HOLE_START	0x0000800000000000ULL
-#define AMDGPU_GMC_HOLE_END	0xffff800000000000ULL
+/* VA hole for 48bit and 57bit addresses */
+#define AMDGPU_GMC_HOLE_START	(adev->vm_manager.max_level == 4 ?\
+				0x0100000000000000ULL : 0x0000800000000000ULL)
+#define AMDGPU_GMC_HOLE_END	(adev->vm_manager.max_level == 4 ?\
+				0xff00000000000000ULL : 0xffff800000000000ULL)
 
 /*
  * Hardware is programmed as if the hole doesn't exists with start and end
@@ -43,7 +45,8 @@
  * This mask is used to remove the upper 16bits of the VA and so come up with
  * the linear addr value.
  */
-#define AMDGPU_GMC_HOLE_MASK	0x0000ffffffffffffULL
+#define AMDGPU_GMC_HOLE_MASK	(adev->vm_manager.max_level == 4 ?\
+				0x01ffffffffffffffULL : 0x0000ffffffffffffULL)
 
 /*
  * Ring size as power of two for the log of recent faults.
@@ -353,6 +356,7 @@ struct amdgpu_gmc {
 	u64 MC_VM_MX_L1_TLB_CNTL;
 
 	u64 noretry_flags;
+	u64 init_pte_flags;
 
 	bool flush_tlb_needs_extra_type_0;
 	bool flush_tlb_needs_extra_type_2;
@@ -394,13 +398,8 @@ static inline bool amdgpu_gmc_vram_full_visible(struct amdgpu_gmc *gmc)
  *
  * @addr: address to extend
  */
-static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
-{
-	if (addr >= AMDGPU_GMC_HOLE_START)
-		addr |= AMDGPU_GMC_HOLE_END;
-
-	return addr;
-}
+#define amdgpu_gmc_sign_extend(addr)	((addr) >= AMDGPU_GMC_HOLE_START ?\
+					((addr) | AMDGPU_GMC_HOLE_END) : (addr))
 
 bool amdgpu_gmc_is_pdb0_enabled(struct amdgpu_device *adev);
 int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev);
@@ -426,6 +425,12 @@ bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev,
 			      uint16_t pasid, uint64_t timestamp);
 void amdgpu_gmc_filter_faults_remove(struct amdgpu_device *adev, uint64_t addr,
 				     uint16_t pasid);
+int amdgpu_gmc_handle_retry_fault(struct amdgpu_device *adev,
+				  struct amdgpu_iv_entry *entry,
+				  u64 addr,
+				  u32 cam_index,
+				  u32 node_id,
+				  bool write_fault);
 int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev);
 void amdgpu_gmc_ras_fini(struct amdgpu_device *adev);

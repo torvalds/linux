@@ -132,8 +132,8 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	mutex_lock(&binderfs_minors_mutex);
 	if (++info->device_count <= info->mount_opts.max)
 		minor = ida_alloc_max(&binderfs_minors,
-				      use_reserve ? BINDERFS_MAX_MINOR :
-						    BINDERFS_MAX_MINOR_CAPPED,
+				      use_reserve ? BINDERFS_MAX_MINOR - 1 :
+						    BINDERFS_MAX_MINOR_CAPPED - 1,
 				      GFP_KERNEL);
 	else
 		minor = -ENOSPC;
@@ -145,7 +145,7 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	mutex_unlock(&binderfs_minors_mutex);
 
 	ret = -ENOMEM;
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		goto err;
 
@@ -387,15 +387,9 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	bool use_reserve = true;
 #endif
 
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device)
 		return -ENOMEM;
-
-	/* If we have already created a binder-control node, return. */
-	if (info->control_dentry) {
-		ret = 0;
-		goto out;
-	}
 
 	ret = -ENOMEM;
 	inode = new_inode(sb);
@@ -405,8 +399,8 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	/* Reserve a new minor number for the new device. */
 	mutex_lock(&binderfs_minors_mutex);
 	minor = ida_alloc_max(&binderfs_minors,
-			      use_reserve ? BINDERFS_MAX_MINOR :
-					    BINDERFS_MAX_MINOR_CAPPED,
+			      use_reserve ? BINDERFS_MAX_MINOR - 1 :
+					    BINDERFS_MAX_MINOR_CAPPED - 1,
 			      GFP_KERNEL);
 	mutex_unlock(&binderfs_minors_mutex);
 	if (minor < 0) {
@@ -431,7 +425,8 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 
 	inode->i_private = device;
 	info->control_dentry = dentry;
-	d_add(dentry, inode);
+	d_make_persistent(dentry, inode);
+	dput(dentry);
 
 	return 0;
 
@@ -647,7 +642,7 @@ static int binderfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &binderfs_super_ops;
 	sb->s_time_gran = 1;
 
-	sb->s_fs_info = kzalloc(sizeof(struct binderfs_info), GFP_KERNEL);
+	sb->s_fs_info = kzalloc_obj(struct binderfs_info);
 	if (!sb->s_fs_info)
 		return -ENOMEM;
 	info = sb->s_fs_info;
@@ -726,7 +721,7 @@ static int binderfs_init_fs_context(struct fs_context *fc)
 {
 	struct binderfs_mount_opts *ctx;
 
-	ctx = kzalloc(sizeof(struct binderfs_mount_opts), GFP_KERNEL);
+	ctx = kzalloc_obj(struct binderfs_mount_opts);
 	if (!ctx)
 		return -ENOMEM;
 

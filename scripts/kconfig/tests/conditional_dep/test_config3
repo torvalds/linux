@@ -1,0 +1,6 @@
+# If FOO is not selected, but BAR is also not selected, then TEST_BASIC
+# should pass since the dependency on FOO is conditional on BAR.
+# TEST_COMPLEX should be also set since neither FOO nor BAR are selected
+# so it has no dependencies.
+CONFIG_FOO=n
+CONFIG_BAR=n

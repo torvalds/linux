@@ -402,14 +402,6 @@ static void __init arch_mem_init(char **cmdline_p)
 
 	check_kernel_sections_mem();
 
-	/*
-	 * In order to reduce the possibility of kernel panic when failed to
-	 * get IO TLB memory under CONFIG_SWIOTLB, it is better to allocate
-	 * low memory as small as possible before swiotlb_init(), so make
-	 * sparse_init() using top-down allocation.
-	 */
-	memblock_set_bottom_up(false);
-	sparse_init();
 	memblock_set_bottom_up(true);
 
 	swiotlb_init(true, SWIOTLB_VERBOSE);
@@ -421,6 +413,7 @@ static void __init arch_mem_init(char **cmdline_p)
 				   PFN_UP(__pa_symbol(&__nosave_end)));
 
 	memblock_dump_all();
+	memblock_set_bottom_up(false);
 
 	early_memtest(PFN_PHYS(ARCH_PFN_OFFSET), PFN_PHYS(max_low_pfn));
 }
@@ -477,7 +470,7 @@ static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
 	unsigned long vaddr;
 	struct logic_pio_hwaddr *range;
 
-	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	range = kzalloc_obj(*range, GFP_ATOMIC);
 	if (!range)
 		return -ENOMEM;
 
@@ -620,8 +613,6 @@ void __init setup_arch(char **cmdline_p)
 	plat_smp_setup();
 	prefill_possible_map();
 #endif
-
-	paging_init();
 
 #ifdef CONFIG_KASAN
 	kasan_init();

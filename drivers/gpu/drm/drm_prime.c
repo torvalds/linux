@@ -100,7 +100,7 @@ int drm_prime_add_buf_handle(struct drm_prime_file_private *prime_fpriv,
 	struct drm_prime_member *member;
 	struct rb_node **p, *rb;
 
-	member = kmalloc(sizeof(*member), GFP_KERNEL);
+	member = kmalloc_obj(*member);
 	if (!member)
 		return -ENOMEM;
 
@@ -780,8 +780,8 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 		return 0;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	fil = kzalloc(sizeof(*fil), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
+	fil = kzalloc_obj(*fil);
 	if (!priv || !fil) {
 		ret = -ENOMEM;
 		goto out;
@@ -854,7 +854,7 @@ struct sg_table *drm_prime_pages_to_sg(struct drm_device *dev,
 	size_t max_segment = 0;
 	int err;
 
-	sg = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+	sg = kmalloc_obj(struct sg_table);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 

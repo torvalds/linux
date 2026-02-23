@@ -272,7 +272,7 @@ int reject_untrusted_xchg(struct __sk_buff *ctx)
 
 SEC("?tc")
 __failure
-__msg("invalid kptr access, R2 type=ptr_prog_test_ref_kfunc expected=ptr_prog_test_member")
+__msg("invalid kptr access, R2 type=trusted_ptr_prog_test_ref_kfunc expected=ptr_prog_test_member")
 int reject_bad_type_xchg(struct __sk_buff *ctx)
 {
 	struct prog_test_ref_kfunc *ref_ptr;
@@ -291,7 +291,7 @@ int reject_bad_type_xchg(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
-__failure __msg("invalid kptr access, R2 type=ptr_prog_test_ref_kfunc")
+__failure __msg("invalid kptr access, R2 type=trusted_ptr_prog_test_ref_kfunc")
 int reject_member_of_ref_xchg(struct __sk_buff *ctx)
 {
 	struct prog_test_ref_kfunc *ref_ptr;

@@ -52,6 +52,10 @@ void maps__set_addr_space(struct maps *maps, void *addr_space);
 const struct unwind_libunwind_ops *maps__unwind_libunwind_ops(const struct maps *maps);
 void maps__set_unwind_libunwind_ops(struct maps *maps, const struct unwind_libunwind_ops *ops);
 #endif
+#ifdef HAVE_LIBDW_SUPPORT
+void *maps__libdw_addr_space_dwfl(const struct maps *maps);
+void maps__set_libdw_addr_space_dwfl(struct maps *maps, void *dwfl);
+#endif
 
 size_t maps__fprintf(struct maps *maps, FILE *fp);
 

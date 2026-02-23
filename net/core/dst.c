@@ -68,6 +68,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->lwtstate = NULL;
 	rcuref_init(&dst->__rcuref, 1);
 	INIT_LIST_HEAD(&dst->rt_uncached);
+	dst->rt_uncached_list = NULL;
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
@@ -190,7 +191,7 @@ EXPORT_SYMBOL(dst_release_immediate);
 
 u32 *dst_cow_metrics_generic(struct dst_entry *dst, unsigned long old)
 {
-	struct dst_metrics *p = kmalloc(sizeof(*p), GFP_ATOMIC);
+	struct dst_metrics *p = kmalloc_obj(*p, GFP_ATOMIC);
 
 	if (p) {
 		struct dst_metrics *old_p = (struct dst_metrics *)__DST_METRICS_PTR(old);
@@ -294,8 +295,7 @@ struct metadata_dst *metadata_dst_alloc(u8 optslen, enum metadata_type type,
 {
 	struct metadata_dst *md_dst;
 
-	md_dst = kmalloc(struct_size(md_dst, u.tun_info.options, optslen),
-			 flags);
+	md_dst = kmalloc_flex(*md_dst, u.tun_info.options, optslen, flags);
 	if (!md_dst)
 		return NULL;
 

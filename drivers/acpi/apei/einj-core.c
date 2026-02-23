@@ -679,7 +679,7 @@ static bool is_allowed_range(u64 base_addr, u64 size)
 	 * region intersects with known resource. So do an allow list check for
 	 * IORES_DESCs that definitely or most likely not MMIO.
 	 */
-	int non_mmio_desc[] = {
+	static const int non_mmio_desc[] = {
 		IORES_DESC_CRASH_KERNEL,
 		IORES_DESC_ACPI_TABLES,
 		IORES_DESC_ACPI_NV_STORAGE,
@@ -1021,7 +1021,7 @@ static bool setup_einjv2_component_files(void)
 {
 	char name[32];
 
-	syndrome_data = kcalloc(max_nr_components, sizeof(syndrome_data[0]), GFP_KERNEL);
+	syndrome_data = kzalloc_objs(syndrome_data[0], max_nr_components);
 	if (!syndrome_data)
 		return false;
 

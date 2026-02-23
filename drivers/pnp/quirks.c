@@ -29,7 +29,7 @@ static void quirk_awe32_add_ports(struct pnp_dev *dev,
 {
 	struct pnp_option *new_option;
 
-	new_option = kmalloc(sizeof(struct pnp_option), GFP_KERNEL);
+	new_option = kmalloc_obj(struct pnp_option);
 	if (!new_option) {
 		dev_err(&dev->dev, "couldn't add ioport region to option set "
 			"%d\n", pnp_option_set(option));
@@ -155,8 +155,7 @@ static struct pnp_option *pnp_clone_dependent_set(struct pnp_dev *dev,
 	list_for_each_entry(option, &dev->options, list) {
 		if (pnp_option_is_dependent(option) &&
 		    pnp_option_set(option) == set) {
-			new_option = kmalloc(sizeof(struct pnp_option),
-					     GFP_KERNEL);
+			new_option = kmalloc_obj(struct pnp_option);
 			if (!new_option) {
 				dev_err(&dev->dev, "couldn't clone dependent "
 					"set %d\n", set);

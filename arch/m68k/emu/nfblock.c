@@ -112,7 +112,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 		return -EINVAL;
 	}
 
-	dev = kmalloc(sizeof(struct nfhd_device), GFP_KERNEL);
+	dev = kmalloc_obj(struct nfhd_device);
 	if (!dev)
 		goto out;
 

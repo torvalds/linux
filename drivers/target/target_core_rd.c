@@ -34,7 +34,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct rd_host *rd_host;
 
-	rd_host = kzalloc(sizeof(*rd_host), GFP_KERNEL);
+	rd_host = kzalloc_obj(*rd_host);
 	if (!rd_host)
 		return -ENOMEM;
 
@@ -131,8 +131,7 @@ static int rd_allocate_sgl_table(struct rd_dev *rd_dev, struct rd_dev_sg_table *
 		if (sg_per_table < total_sg_needed)
 			chain_entry = 1;
 
-		sg = kmalloc_array(sg_per_table + chain_entry, sizeof(*sg),
-				GFP_KERNEL);
+		sg = kmalloc_objs(*sg, sg_per_table + chain_entry);
 		if (!sg)
 			return -ENOMEM;
 
@@ -192,7 +191,7 @@ static int rd_build_device_space(struct rd_dev *rd_dev)
 	total_sg_needed = rd_dev->rd_page_count;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
-	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
+	sg_table = kzalloc_objs(*sg_table, sg_tables);
 	if (!sg_table)
 		return -ENOMEM;
 
@@ -249,7 +248,7 @@ static int rd_build_prot_space(struct rd_dev *rd_dev, int prot_length, int block
 	total_sg_needed = (rd_dev->rd_page_count * prot_length / block_size) + 1;
 
 	sg_tables = (total_sg_needed / max_sg_per_table) + 1;
-	sg_table = kcalloc(sg_tables, sizeof(*sg_table), GFP_KERNEL);
+	sg_table = kzalloc_objs(*sg_table, sg_tables);
 	if (!sg_table)
 		return -ENOMEM;
 
@@ -272,7 +271,7 @@ static struct se_device *rd_alloc_device(struct se_hba *hba, const char *name)
 	struct rd_dev *rd_dev;
 	struct rd_host *rd_host = hba->hba_ptr;
 
-	rd_dev = kzalloc(sizeof(*rd_dev), GFP_KERNEL);
+	rd_dev = kzalloc_obj(*rd_dev);
 	if (!rd_dev)
 		return NULL;
 

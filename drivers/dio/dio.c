@@ -221,7 +221,7 @@ static int __init dio_init(void)
 		}
 
 		/* Found a board, allocate it an entry in the list */
-		dev = kzalloc(sizeof(struct dio_dev), GFP_KERNEL);
+		dev = kzalloc_obj(struct dio_dev);
 		if (!dev) {
 			if (scode >= DIOII_SCBASE)
 				iounmap(va);

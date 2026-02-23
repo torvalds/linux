@@ -794,7 +794,7 @@ static int s5p_mfc_open(struct file *file)
 	}
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
 	/* Allocate memory for context */
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto err_alloc;

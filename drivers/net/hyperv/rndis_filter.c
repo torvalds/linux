@@ -64,7 +64,7 @@ static struct rndis_device *get_rndis_device(void)
 {
 	struct rndis_device *device;
 
-	device = kzalloc(sizeof(struct rndis_device), GFP_KERNEL);
+	device = kzalloc_obj(struct rndis_device);
 	if (!device)
 		return NULL;
 
@@ -87,7 +87,7 @@ static struct rndis_request *get_rndis_request(struct rndis_device *dev,
 	struct rndis_set_request *set;
 	unsigned long flags;
 
-	request = kzalloc(sizeof(struct rndis_request), GFP_KERNEL);
+	request = kzalloc_obj(struct rndis_request);
 	if (!request)
 		return NULL;
 

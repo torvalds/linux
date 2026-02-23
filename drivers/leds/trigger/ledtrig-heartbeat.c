@@ -129,7 +129,7 @@ static int heartbeat_trig_activate(struct led_classdev *led_cdev)
 {
 	struct heartbeat_trig_data *heartbeat_data;
 
-	heartbeat_data = kzalloc(sizeof(*heartbeat_data), GFP_KERNEL);
+	heartbeat_data = kzalloc_obj(*heartbeat_data);
 	if (!heartbeat_data)
 		return -ENOMEM;
 

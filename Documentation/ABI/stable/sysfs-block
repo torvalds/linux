@@ -609,6 +609,51 @@ Description:
 		enabled, and whether tags are shared.
 
 
+What:		/sys/block/<disk>/queue/async_depth
+Date:		August 2025
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RW] Controls how many asynchronous requests may be allocated
+		in the block layer. The value is always capped at nr_requests.
+
+		When no elevator is active (none):
+
+		- async_depth is always equal to nr_requests.
+
+		For bfq scheduler:
+
+		- By default, async_depth is set to 75% of nr_requests.
+		  Internal limits are then derived from this value:
+
+		  * Sync writes: limited to async_depth (≈75% of nr_requests).
+		  * Async I/O: limited to ~2/3 of async_depth (≈50% of
+		    nr_requests).
+
+		  If a bfq_queue is weight-raised:
+
+		  * Sync writes: limited to ~1/2 of async_depth (≈37% of
+		    nr_requests).
+		  * Async I/O: limited to ~1/4 of async_depth (≈18% of
+		    nr_requests).
+
+		- If the user writes a custom value to async_depth, BFQ will
+		  recompute these limits proportionally based on the new value.
+
+		For Kyber:
+
+		- By default async_depth is set to 75% of nr_requests.
+		- If the user writes a custom value to async_depth, then it
+		  overrides the default and directly controls the limit for
+		  writes and async I/O.
+
+		For mq-deadline:
+
+		- By default async_depth is set to nr_requests.
+		- If the user writes a custom value to async_depth, then it
+		  overrides the default and directly controls the limit for
+		  writes and async I/O.
+
+
 What:		/sys/block/<disk>/queue/nr_zones
 Date:		November 2018
 Contact:	Damien Le Moal <damien.lemoal@wdc.com>

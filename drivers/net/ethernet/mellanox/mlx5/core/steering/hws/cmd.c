@@ -299,7 +299,7 @@ mlx5hws_cmd_forward_tbl_create(struct mlx5_core_dev *mdev,
 	struct mlx5hws_cmd_forward_tbl *tbl;
 	int ret;
 
-	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (!tbl)
 		return NULL;
 

@@ -296,7 +296,7 @@ static int __configfs_open_file(struct inode *inode, struct file *file, int type
 	int error;
 
 	error = -ENOMEM;
-	buffer = kzalloc(sizeof(struct configfs_buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(struct configfs_buffer);
 	if (!buffer)
 		goto out;
 

@@ -199,7 +199,7 @@ int mt8195_audsys_clk_register(struct mtk_base_afe *afe)
 		}
 
 		/* add clk_lookup for devm_clk_get(SND_SOC_DAPM_CLOCK_SUPPLY) */
-		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+		cl = kzalloc_obj(*cl);
 		if (!cl)
 			return -ENOMEM;
 

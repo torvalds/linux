@@ -210,7 +210,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	struct clk *clk;
 	int ret;
 
-	mmc_clock = kmalloc(sizeof(*mmc_clock), GFP_KERNEL);
+	mmc_clock = kmalloc_obj(*mmc_clock);
 	if (!mmc_clock)
 		return ERR_PTR(-ENOMEM);
 

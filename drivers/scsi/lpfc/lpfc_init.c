@@ -2820,7 +2820,7 @@ lpfc_sli3_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cn
 
 		/* 2 buffers can be posted per command */
 		/* Allocate buffer to post */
-		mp1 = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+		mp1 = kmalloc_obj(struct lpfc_dmabuf);
 		if (mp1)
 		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &mp1->phys);
 		if (!mp1 || !mp1->virt) {
@@ -2833,7 +2833,7 @@ lpfc_sli3_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cn
 		INIT_LIST_HEAD(&mp1->list);
 		/* Allocate buffer to post */
 		if (cnt > 1) {
-			mp2 = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+			mp2 = kmalloc_obj(struct lpfc_dmabuf);
 			if (mp2)
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
@@ -3539,7 +3539,7 @@ void lpfc_create_multixri_pools(struct lpfc_hba *phba)
 	count_per_hwq = phba->sli4_hba.io_xri_cnt / hwq_count;
 
 	for (i = 0; i < hwq_count; i++) {
-		multixri_pool = kzalloc(sizeof(*multixri_pool), GFP_KERNEL);
+		multixri_pool = kzalloc_obj(*multixri_pool);
 
 		if (!multixri_pool) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -4064,8 +4064,7 @@ lpfc_sli4_els_sgl_update(struct lpfc_hba *phba)
 				els_xri_cnt);
 		/* allocate the additional els sgls */
 		for (i = 0; i < xri_cnt; i++) {
-			sglq_entry = kzalloc(sizeof(struct lpfc_sglq),
-					     GFP_KERNEL);
+			sglq_entry = kzalloc_obj(struct lpfc_sglq);
 			if (sglq_entry == NULL) {
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_TRACE_EVENT,
@@ -4184,8 +4183,7 @@ lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba)
 				phba->sli4_hba.nvmet_xri_cnt, nvmet_xri_cnt);
 		/* allocate the additional nvmet sgls */
 		for (i = 0; i < xri_cnt; i++) {
-			sglq_entry = kzalloc(sizeof(struct lpfc_sglq),
-					     GFP_KERNEL);
+			sglq_entry = kzalloc_obj(struct lpfc_sglq);
 			if (sglq_entry == NULL) {
 				lpfc_printf_log(phba, KERN_ERR,
 						LOG_TRACE_EVENT,
@@ -4478,7 +4476,7 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 
 	phba->sli4_hba.io_xri_cnt = 0;
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
-		lpfc_ncmd = kzalloc(sizeof(*lpfc_ncmd), GFP_KERNEL);
+		lpfc_ncmd = kzalloc_obj(*lpfc_ncmd);
 		if (!lpfc_ncmd)
 			break;
 		/*
@@ -4637,8 +4635,7 @@ lpfc_vmid_res_alloc(struct lpfc_hba *phba, struct lpfc_vport *vport)
 
 	if (lpfc_is_vmid_enabled(phba)) {
 		vport->vmid =
-		    kcalloc(phba->cfg_max_vmid, sizeof(struct lpfc_vmid),
-			    GFP_KERNEL);
+		    kzalloc_objs(struct lpfc_vmid, phba->cfg_max_vmid);
 		if (!vport->vmid)
 			return -ENOMEM;
 
@@ -7773,9 +7770,8 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		return -ENODEV;
 
 	if (!phba->sli.sli3_ring)
-		phba->sli.sli3_ring = kcalloc(LPFC_SLI3_MAX_RING,
-					      sizeof(struct lpfc_sli_ring),
-					      GFP_KERNEL);
+		phba->sli.sli3_ring = kzalloc_objs(struct lpfc_sli_ring,
+						   LPFC_SLI3_MAX_RING);
 	if (!phba->sli.sli3_ring)
 		return -ENOMEM;
 
@@ -8357,9 +8353,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_remove_rpi_hdrs;
 	}
 
-	phba->sli4_hba.hba_eq_hdl = kcalloc(phba->cfg_irq_chann,
-					    sizeof(struct lpfc_hba_eq_hdl),
-					    GFP_KERNEL);
+	phba->sli4_hba.hba_eq_hdl = kzalloc_objs(struct lpfc_hba_eq_hdl,
+						 phba->cfg_irq_chann);
 	if (!phba->sli4_hba.hba_eq_hdl) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2572 Failed allocate memory for "
@@ -8368,9 +8363,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcf_rr_bmask;
 	}
 
-	phba->sli4_hba.cpu_map = kcalloc(phba->sli4_hba.num_possible_cpu,
-					sizeof(struct lpfc_vector_map_info),
-					GFP_KERNEL);
+	phba->sli4_hba.cpu_map = kzalloc_objs(struct lpfc_vector_map_info,
+					      phba->sli4_hba.num_possible_cpu);
 	if (!phba->sli4_hba.cpu_map) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3327 Failed allocate memory for msi-x "
@@ -8387,9 +8381,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_hba_cpu_map;
 	}
 
-	phba->sli4_hba.idle_stat = kcalloc(phba->sli4_hba.num_possible_cpu,
-					   sizeof(*phba->sli4_hba.idle_stat),
-					   GFP_KERNEL);
+	phba->sli4_hba.idle_stat = kzalloc_objs(*phba->sli4_hba.idle_stat,
+						phba->sli4_hba.num_possible_cpu);
 	if (!phba->sli4_hba.idle_stat) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3390 Failed allocation for idle_stat\n");
@@ -8663,7 +8656,7 @@ lpfc_init_iocb_list(struct lpfc_hba *phba, int iocb_count)
 	/* Initialize and populate the iocb list per host.  */
 	INIT_LIST_HEAD(&phba->lpfc_iocb_list);
 	for (i = 0; i < iocb_count; i++) {
-		iocbq_entry = kzalloc(sizeof(struct lpfc_iocbq), GFP_KERNEL);
+		iocbq_entry = kzalloc_obj(struct lpfc_iocbq);
 		if (iocbq_entry == NULL) {
 			printk(KERN_ERR "%s: only allocated %d iocbs of "
 				"expected %d count. Unloading driver.\n",
@@ -8913,7 +8906,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * First allocate the protocol header region for the port.  The
 	 * port expects a 4KB DMA-mapped memory region that is 4K aligned.
 	 */
-	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return NULL;
 
@@ -8931,7 +8924,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	}
 
 	/* Save the rpi header data for cleanup later. */
-	rpi_hdr = kzalloc(sizeof(struct lpfc_rpi_hdr), GFP_KERNEL);
+	rpi_hdr = kzalloc_obj(struct lpfc_rpi_hdr);
 	if (!rpi_hdr)
 		goto err_free_coherent;
 
@@ -9004,7 +8997,7 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 	struct lpfc_hba *phba;
 
 	/* Allocate memory for HBA structure */
-	phba = kzalloc(sizeof(struct lpfc_hba), GFP_KERNEL);
+	phba = kzalloc_obj(struct lpfc_hba);
 	if (!phba) {
 		dev_err(&pdev->dev, "failed to allocate hba struct\n");
 		return NULL;
@@ -9722,7 +9715,7 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 	uint32_t pa_addr;
 	uint64_t phys_addr;
 
-	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return -ENOMEM;
 
@@ -9998,6 +9991,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
+
+		if (bf_get(lpfc_mbx_rd_conf_fedif, rd_config))
+			phba->sli4_hba.encryption_support = true;
+		else
+			phba->sli4_hba.encryption_support = false;
 
 		/* Next decide on FPIN or Signal E2E CGN support
 		 * For congestion alarms and warnings valid combination are:
@@ -10437,9 +10435,8 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	phba->sli4_hba.cq_ecount = LPFC_CQE_DEF_COUNT;
 
 	if (!phba->sli4_hba.hdwq) {
-		phba->sli4_hba.hdwq = kcalloc(
-			phba->cfg_hdw_queue, sizeof(struct lpfc_sli4_hdw_queue),
-			GFP_KERNEL);
+		phba->sli4_hba.hdwq = kzalloc_objs(struct lpfc_sli4_hdw_queue,
+						   phba->cfg_hdw_queue);
 		if (!phba->sli4_hba.hdwq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"6427 Failed allocate memory for "
@@ -10468,30 +10465,24 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		if (phba->nvmet_support) {
-			phba->sli4_hba.nvmet_cqset = kcalloc(
-					phba->cfg_nvmet_mrq,
-					sizeof(struct lpfc_queue *),
-					GFP_KERNEL);
+			phba->sli4_hba.nvmet_cqset = kzalloc_objs(struct lpfc_queue *,
+								  phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_cqset) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3121 Fail allocate memory for "
 					"fast-path CQ set array\n");
 				goto out_error;
 			}
-			phba->sli4_hba.nvmet_mrq_hdr = kcalloc(
-					phba->cfg_nvmet_mrq,
-					sizeof(struct lpfc_queue *),
-					GFP_KERNEL);
+			phba->sli4_hba.nvmet_mrq_hdr = kzalloc_objs(struct lpfc_queue *,
+								    phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_mrq_hdr) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3122 Fail allocate memory for "
 					"fast-path RQ set hdr array\n");
 				goto out_error;
 			}
-			phba->sli4_hba.nvmet_mrq_data = kcalloc(
-					phba->cfg_nvmet_mrq,
-					sizeof(struct lpfc_queue *),
-					GFP_KERNEL);
+			phba->sli4_hba.nvmet_mrq_data = kzalloc_objs(struct lpfc_queue *,
+								     phba->cfg_nvmet_mrq);
 			if (!phba->sli4_hba.nvmet_mrq_data) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"3124 Fail allocate memory for "
@@ -11376,8 +11367,8 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 
 	if (phba->sli4_hba.cq_max) {
 		kfree(phba->sli4_hba.cq_lookup);
-		phba->sli4_hba.cq_lookup = kcalloc((phba->sli4_hba.cq_max + 1),
-			sizeof(struct lpfc_queue *), GFP_KERNEL);
+		phba->sli4_hba.cq_lookup = kzalloc_objs(struct lpfc_queue *,
+							(phba->sli4_hba.cq_max + 1));
 		if (!phba->sli4_hba.cq_lookup) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 					"0549 Failed setup of CQ Lookup table: "
@@ -11506,7 +11497,7 @@ lpfc_sli4_cq_event_pool_create(struct lpfc_hba *phba)
 	int i;
 
 	for (i = 0; i < (4 * phba->sli4_hba.cq_ecount); i++) {
-		cq_event = kmalloc(sizeof(struct lpfc_cq_event), GFP_KERNEL);
+		cq_event = kmalloc_obj(struct lpfc_cq_event);
 		if (!cq_event)
 			goto out_pool_create_fail;
 		list_add_tail(&cq_event->list,
@@ -14611,8 +14602,7 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 			     "New Version:%s\n",
 			     fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
-			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
-					 GFP_KERNEL);
+			dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 			if (!dmabuf) {
 				rc = -ENOMEM;
 				goto release_out;

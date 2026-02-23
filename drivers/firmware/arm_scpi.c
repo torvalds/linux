@@ -633,14 +633,14 @@ static struct scpi_dvfs_info *scpi_dvfs_get_info(u8 domain)
 	if (!buf.opp_count)
 		return ERR_PTR(-ENOENT);
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kmalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
 	info->count = buf.opp_count;
 	info->latency = le16_to_cpu(buf.latency) * 1000; /* uS to nS */
 
-	info->opps = kcalloc(info->count, sizeof(*opp), GFP_KERNEL);
+	info->opps = kzalloc_objs(*opp, info->count);
 	if (!info->opps) {
 		kfree(info);
 		return ERR_PTR(-ENOMEM);

@@ -17,7 +17,7 @@ struct via_aux_bus *via_aux_probe(struct i2c_adapter *adap)
 	if (!adap)
 		return NULL;
 
-	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kmalloc_obj(*bus);
 	if (!bus)
 		return NULL;
 

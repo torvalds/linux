@@ -237,11 +237,10 @@ static int allocate_private(struct gpib_board *board)
 {
 	struct pc2_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct pc2_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct pc2_priv);
 	if (!board->private_data)
-		return -1;
+		return -ENOMEM;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct pc2_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	return 0;
 }
@@ -257,10 +256,12 @@ static int pc2_generic_attach(struct gpib_board *board, const struct gpib_board_
 {
 	struct pc2_priv *pc2_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
-	if (allocate_private(board))
-		return -ENOMEM;
+	retval = allocate_private(board);
+	if (retval)
+		return retval;
 	pc2_priv = board->private_data;
 	nec_priv = &pc2_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_ioport_read_byte;

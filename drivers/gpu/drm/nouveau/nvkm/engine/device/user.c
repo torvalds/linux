@@ -327,7 +327,7 @@ nvkm_udevice_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_udevice *udev;
 
-	if (!(udev = kzalloc(sizeof(*udev), GFP_KERNEL)))
+	if (!(udev = kzalloc_obj(*udev)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nvkm_udevice, oclass, &udev->object);
 	*pobject = &udev->object;

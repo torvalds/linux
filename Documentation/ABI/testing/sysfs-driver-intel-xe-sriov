@@ -119,7 +119,7 @@ Description:
 			The GT preemption timeout (PT) in [us] to be applied to all functions.
 			See sriov_admin/{pf,vf<N>}/profile/preempt_timeout_us for more details.
 
-		sched_priority: (RW/RO) string
+		sched_priority: (WO) string
 			The GT scheduling priority to be applied for all functions.
 			See sriov_admin/{pf,vf<N>}/profile/sched_priority for more details.
 

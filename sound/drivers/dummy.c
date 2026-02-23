@@ -329,7 +329,7 @@ static int dummy_systimer_create(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc_obj(*dpcm);
 	if (!dpcm)
 		return -ENOMEM;
 	substream->runtime->private_data = dpcm;
@@ -450,7 +450,7 @@ static int dummy_hrtimer_create(struct snd_pcm_substream *substream)
 {
 	struct dummy_hrtimer_pcm *dpcm;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	dpcm = kzalloc_obj(*dpcm);
 	if (!dpcm)
 		return -ENOMEM;
 	substream->runtime->private_data = dpcm;

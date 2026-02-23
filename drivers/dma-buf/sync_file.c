@@ -24,7 +24,7 @@ static struct sync_file *sync_file_alloc(void)
 {
 	struct sync_file *sync_file;
 
-	sync_file = kzalloc(sizeof(*sync_file), GFP_KERNEL);
+	sync_file = kzalloc_obj(*sync_file);
 	if (!sync_file)
 		return NULL;
 

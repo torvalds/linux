@@ -1208,7 +1208,7 @@ static int vdec_h264_slice_init(struct mtk_vcodec_dec_ctx *ctx)
 	int err, vsi_size;
 	unsigned char *temp;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 

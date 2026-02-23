@@ -390,7 +390,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	omap_fb = kzalloc(sizeof(*omap_fb), GFP_KERNEL);
+	omap_fb = kzalloc_obj(*omap_fb);
 	if (!omap_fb) {
 		ret = -ENOMEM;
 		goto fail;

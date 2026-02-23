@@ -3298,7 +3298,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 {
 	struct brcmnand_platform_data *pd = dev_get_platdata(&pdev->dev);
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_node *dn = dev->of_node;
 	struct brcmnand_controller *ctrl;
 	struct brcmnand_host *host;
 	struct resource *res;
@@ -3486,12 +3486,11 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 		}
 	}
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_node_scoped(dn, child) {
 		if (of_device_is_compatible(child, "brcm,nandcs")) {
 
 			host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 			if (!host) {
-				of_node_put(child);
 				ret = -ENOMEM;
 				goto err;
 			}
@@ -3509,10 +3508,9 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 
 			ret = brcmnand_init_cs(host, NULL);
 			if (ret) {
-				if (ret == -EPROBE_DEFER) {
-					of_node_put(child);
+				if (ret == -EPROBE_DEFER)
 					goto err;
-				}
+
 				devm_kfree(dev, host);
 				continue; /* Try all chip-selects */
 			}

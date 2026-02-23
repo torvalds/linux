@@ -750,7 +750,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	if (!dev->adev.transfer_buffer)
 		return -ENOMEM;
 
-	dev->adev.urb = kcalloc(num_urb, sizeof(*dev->adev.urb), GFP_KERNEL);
+	dev->adev.urb = kzalloc_objs(*dev->adev.urb, num_urb);
 	if (!dev->adev.urb) {
 		kfree(dev->adev.transfer_buffer);
 		return -ENOMEM;

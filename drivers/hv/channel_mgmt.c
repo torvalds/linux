@@ -354,7 +354,7 @@ static struct vmbus_channel *alloc_channel(void)
 {
 	struct vmbus_channel *channel;
 
-	channel = kzalloc(sizeof(*channel), GFP_ATOMIC);
+	channel = kzalloc_obj(*channel, GFP_ATOMIC);
 	if (!channel)
 		return NULL;
 

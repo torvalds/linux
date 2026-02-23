@@ -32,6 +32,7 @@
 #include "dc.h"
 #include "amdgpu_securedisplay.h"
 #include "amdgpu_dm_psr.h"
+#include "amdgpu_dm_replay.h"
 
 static const char *const pipe_crc_sources[] = {
 	"none",
@@ -105,7 +106,9 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 			continue;
 
 		if (idx >= AMDGPU_DM_MAX_CRTC) {
-			DRM_WARN("%s connected connectors exceed max crtc\n", __func__);
+			drm_warn(adev_to_drm(adev),
+				"%s connected connectors exceed max crtc\n",
+				__func__);
 			mutex_unlock(&ddev->mode_config.mutex);
 			return;
 		}
@@ -500,23 +503,44 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 {
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 	struct dc_stream_state *stream_state = dm_crtc_state->stream;
+	struct amdgpu_dm_connector *aconnector = NULL;
 	bool enable = amdgpu_dm_is_valid_crc_source(source);
 	int ret = 0;
+	enum crc_poly_mode crc_poly_mode = CRC_POLY_MODE_16;
 
 	/* Configuration will be deferred to stream enable. */
 	if (!stream_state)
 		return -EINVAL;
 
+	/* Get connector from stream */
+	aconnector = (struct amdgpu_dm_connector *)stream_state->dm_stream_context;
+
 	mutex_lock(&adev->dm.dc_lock);
 
-	/* For PSR1, check that the panel has exited PSR */
-	if (stream_state->link->psr_settings.psr_version < DC_PSR_VERSION_SU_1)
-		amdgpu_dm_psr_wait_disable(stream_state);
+
+	if (enable) {
+		/* For PSR1, check that the panel has exited PSR */
+		if (stream_state->link->psr_settings.psr_version < DC_PSR_VERSION_SU_1)
+			amdgpu_dm_psr_wait_disable(stream_state);
+
+		/* Set flag to disallow enter replay when CRC source is enabled */
+		if (aconnector)
+			aconnector->disallow_edp_enter_replay = true;
+		amdgpu_dm_replay_disable(stream_state);
+	}
+
+	/* CRC polynomial selection only support for DCN3.6+ except DCN4.0.1 */
+	if ((amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 6, 0)) &&
+		(amdgpu_ip_version(adev, DCE_HWIP, 0) != IP_VERSION(4, 0, 1))) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+		crc_poly_mode = acrtc->dm_irq_params.crc_poly_mode;
+	}
 
 	/* Enable or disable CRTC CRC generation */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
-					     stream_state, NULL, enable, enable, 0, true)) {
+					     stream_state, NULL, enable, enable, 0, true, crc_poly_mode)) {
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -532,6 +556,12 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 					    DITHER_OPTION_DEFAULT);
 		dc_stream_set_dyn_expansion(stream_state->ctx->dc, stream_state,
 					    DYN_EXPANSION_AUTO);
+	}
+
+	if (!enable) {
+		/* Clear flag to allow enter replay when CRC source is disabled */
+		if (aconnector)
+			aconnector->disallow_edp_enter_replay = false;
 	}
 
 unlock:
@@ -856,7 +886,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 			else if (adev->dm.secure_display_ctx.op_mode == DISPLAY_CRC_MODE)
 				/* update ROI via dm*/
 				dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-					&crc_window, true, true, i, false);
+					&crc_window, true, true, i, false, (enum crc_poly_mode)acrtc->dm_irq_params.crc_poly_mode);
 
 			reset_crc_frame_count[i] = true;
 
@@ -880,7 +910,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 			else if (adev->dm.secure_display_ctx.op_mode == DISPLAY_CRC_MODE)
 				/* Avoid ROI window get changed, keep overwriting. */
 				dc_stream_configure_crc(stream_state->ctx->dc, stream_state,
-						&crc_window, true, true, i, false);
+						&crc_window, true, true, i, false, (enum crc_poly_mode)acrtc->dm_irq_params.crc_poly_mode);
 
 			/* crc ready for psp to read out */
 			crtc_ctx->crc_info.crc[i].crc_ready = true;
@@ -928,9 +958,8 @@ void amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 	struct secure_display_crtc_context *crtc_ctx = NULL;
 	int i;
 
-	crtc_ctx = kcalloc(adev->mode_info.num_crtc,
-				      sizeof(struct secure_display_crtc_context),
-				      GFP_KERNEL);
+	crtc_ctx = kzalloc_objs(struct secure_display_crtc_context,
+				adev->mode_info.num_crtc);
 
 	if (!crtc_ctx) {
 		adev->dm.secure_display_ctx.crtc_ctx = NULL;

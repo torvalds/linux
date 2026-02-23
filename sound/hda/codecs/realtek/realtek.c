@@ -215,12 +215,13 @@ void alc_update_knob_master(struct hda_codec *codec,
 {
 	unsigned int val;
 	struct snd_kcontrol *kctl;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 
 	kctl = snd_hda_find_mixer_ctl(codec, "Master Playback Volume");
 	if (!kctl)
 		return;
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc_obj(*uctl);
 	if (!uctl)
 		return;
 	val = snd_hda_codec_read(codec, jack->nid, 0,
@@ -1027,7 +1028,7 @@ EXPORT_SYMBOL_NS_GPL(alc_parse_auto_config, "SND_HDA_CODEC_REALTEK");
 /* common preparation job for alc_spec */
 int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 {
-	struct alc_spec *spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	struct alc_spec *spec = kzalloc_obj(*spec);
 	int err;
 
 	if (!spec)

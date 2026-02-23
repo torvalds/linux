@@ -66,7 +66,7 @@ mcp77_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct mcp77_ram *ram;
 	int ret;
 
-	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 	*pram = &ram->base;
 

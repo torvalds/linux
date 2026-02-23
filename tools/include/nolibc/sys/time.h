@@ -22,9 +22,6 @@ static int sys_clock_gettime(clockid_t clockid, struct timespec *tp);
 static __attribute__((unused))
 int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
-#ifdef __NR_gettimeofday
-	return my_syscall2(__NR_gettimeofday, tv, tz);
-#else
 	(void) tz; /* Non-NULL tz is undefined behaviour */
 
 	struct timespec tp;
@@ -33,11 +30,10 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 	ret = sys_clock_gettime(CLOCK_REALTIME, &tp);
 	if (!ret && tv) {
 		tv->tv_sec = tp.tv_sec;
-		tv->tv_usec = tp.tv_nsec / 1000;
+		tv->tv_usec = (uint32_t)tp.tv_nsec / 1000;
 	}
 
 	return ret;
-#endif
 }
 
 static __attribute__((unused))

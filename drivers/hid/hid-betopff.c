@@ -100,7 +100,7 @@ static int betopff_init(struct hid_device *hid)
 		}
 	}
 
-	betopff = kzalloc(sizeof(*betopff), GFP_KERNEL);
+	betopff = kzalloc_obj(*betopff);
 	if (!betopff)
 		return -ENOMEM;
 

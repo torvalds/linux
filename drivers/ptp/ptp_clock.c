@@ -328,7 +328,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 		return ERR_PTR(-EINVAL);
 
 	/* Initialize a clock structure. */
-	ptp = kzalloc(sizeof(struct ptp_clock), GFP_KERNEL);
+	ptp = kzalloc_obj(struct ptp_clock);
 	if (!ptp) {
 		err = -ENOMEM;
 		goto no_memory;
@@ -344,7 +344,7 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	ptp->devid = MKDEV(major, index);
 	ptp->index = index;
 	INIT_LIST_HEAD(&ptp->tsevqs);
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue);
 	if (!queue) {
 		err = -ENOMEM;
 		goto no_memory_queue;

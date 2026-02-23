@@ -75,7 +75,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 
 	/* Because zlib is not thread-safe, do all the I/O at the top. */
 	blocknum = block_start >> bufshift;
-	bhs = kcalloc(needblocks + 1, sizeof(*bhs), GFP_KERNEL);
+	bhs = kzalloc_objs(*bhs, needblocks + 1);
 	if (!bhs) {
 		*errp = -ENOMEM;
 		return 0;
@@ -333,8 +333,8 @@ static int zisofs_read_folio(struct file *file, struct folio *folio)
 		full_page = 0;
 		pcount = 1;
 	}
-	pages = kcalloc(max_t(unsigned int, zisofs_pages_per_cblock, 1),
-					sizeof(*pages), GFP_KERNEL);
+	pages = kzalloc_objs(*pages,
+			     max_t(unsigned int, zisofs_pages_per_cblock, 1));
 	if (!pages) {
 		folio_unlock(folio);
 		return -ENOMEM;

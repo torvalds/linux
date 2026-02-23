@@ -183,7 +183,7 @@ int tty_alloc_file(struct file *file)
 {
 	struct tty_file_private *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kmalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1471,7 +1471,7 @@ void tty_save_termios(struct tty_struct *tty)
 	/* Stash the termios data */
 	tp = tty->driver->termios[idx];
 	if (tp == NULL) {
-		tp = kmalloc(sizeof(*tp), GFP_KERNEL);
+		tp = kmalloc_obj(*tp);
 		if (tp == NULL)
 			return;
 		tty->driver->termios[idx] = tp;
@@ -3099,7 +3099,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 {
 	struct tty_struct *tty;
 
-	tty = kzalloc(sizeof(*tty), GFP_KERNEL_ACCOUNT);
+	tty = kzalloc_obj(*tty, GFP_KERNEL_ACCOUNT);
 	if (!tty)
 		return NULL;
 
@@ -3244,7 +3244,7 @@ struct device *tty_register_device_attr(struct tty_driver *driver,
 	else
 		tty_line_name(driver, index, name);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -3333,7 +3333,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	if (!lines || (flags & TTY_DRIVER_UNNUMBERED_NODE && lines > 1))
 		return ERR_PTR(-EINVAL);
 
-	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
+	driver = kzalloc_obj(*driver);
 	if (!driver)
 		return ERR_PTR(-ENOMEM);
 
@@ -3343,10 +3343,8 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	driver->flags = flags;
 
 	if (!(flags & TTY_DRIVER_DEVPTS_MEM)) {
-		driver->ttys = kcalloc(lines, sizeof(*driver->ttys),
-				GFP_KERNEL);
-		driver->termios = kcalloc(lines, sizeof(*driver->termios),
-				GFP_KERNEL);
+		driver->ttys = kzalloc_objs(*driver->ttys, lines);
+		driver->termios = kzalloc_objs(*driver->termios, lines);
 		if (!driver->ttys || !driver->termios) {
 			err = -ENOMEM;
 			goto err_free_all;
@@ -3354,8 +3352,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	}
 
 	if (!(flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
-		driver->ports = kcalloc(lines, sizeof(*driver->ports),
-				GFP_KERNEL);
+		driver->ports = kzalloc_objs(*driver->ports, lines);
 		if (!driver->ports) {
 			err = -ENOMEM;
 			goto err_free_all;
@@ -3363,7 +3360,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 		cdevs = lines;
 	}
 
-	driver->cdevs = kcalloc(cdevs, sizeof(*driver->cdevs), GFP_KERNEL);
+	driver->cdevs = kzalloc_objs(*driver->cdevs, cdevs);
 	if (!driver->cdevs) {
 		err = -ENOMEM;
 		goto err_free_all;

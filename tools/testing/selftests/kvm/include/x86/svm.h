@@ -92,8 +92,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 int_vector;
 	u32 int_state;
 	u8 reserved_3[4];
-	u32 exit_code;
-	u32 exit_code_hi;
+	u64 exit_code;
 	u64 exit_info_1;
 	u64 exit_info_2;
 	u32 exit_int_info;

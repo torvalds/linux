@@ -283,7 +283,7 @@ static void example_slow_test(struct kunit *test)
  */
 static int example_resource_init(struct kunit_resource *res, void *context)
 {
-	int *info = kmalloc(sizeof(*info), GFP_KERNEL);
+	int *info = kmalloc_obj(*info);
 
 	if (!info)
 		return -ENOMEM;

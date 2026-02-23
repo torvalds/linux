@@ -262,7 +262,7 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	sunkbd = kzalloc(sizeof(*sunkbd), GFP_KERNEL);
+	sunkbd = kzalloc_obj(*sunkbd);
 	input_dev = input_allocate_device();
 	if (!sunkbd || !input_dev)
 		goto fail1;

@@ -494,7 +494,7 @@ static struct blkcg_policy_data *bfq_cpd_alloc(gfp_t gfp)
 {
 	struct bfq_group_data *bgd;
 
-	bgd = kzalloc(sizeof(*bgd), gfp);
+	bgd = kzalloc_obj(*bgd, gfp);
 	if (!bgd)
 		return NULL;
 

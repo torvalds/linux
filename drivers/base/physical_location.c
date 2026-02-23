@@ -21,8 +21,7 @@ bool dev_add_physical_location(struct device *dev)
 	if (!acpi_get_physical_device_location(ACPI_HANDLE(dev), &pld))
 		return false;
 
-	dev->physical_location =
-		kzalloc(sizeof(*dev->physical_location), GFP_KERNEL);
+	dev->physical_location = kzalloc_obj(*dev->physical_location);
 	if (!dev->physical_location) {
 		ACPI_FREE(pld);
 		return false;

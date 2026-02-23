@@ -11,11 +11,13 @@ from unittest import mock
 
 import tempfile, shutil # Handling test_tmpdir
 
+import io
 import itertools
 import json
 import os
 import signal
 import subprocess
+import sys
 from typing import Iterable
 
 import kunit_config
@@ -36,7 +38,7 @@ def setUpModule():
 def tearDownModule():
 	shutil.rmtree(test_tmpdir)
 
-def test_data_path(path):
+def _test_data_path(path):
 	return os.path.join(abs_test_data_dir, path)
 
 class KconfigTest(unittest.TestCase):
@@ -52,7 +54,7 @@ class KconfigTest(unittest.TestCase):
 		self.assertFalse(kconfig1.is_subset_of(kconfig0))
 
 	def test_read_from_file(self):
-		kconfig_path = test_data_path('test_read_from_file.kconfig')
+		kconfig_path = _test_data_path('test_read_from_file.kconfig')
 
 		kconfig = kunit_config.parse_file(kconfig_path)
 
@@ -98,7 +100,7 @@ class KUnitParserTest(unittest.TestCase):
 		raise AssertionError(f'"{needle}" not found in {list(backup)}!')
 
 	def test_output_isolated_correctly(self):
-		log_path = test_data_path('test_output_isolated_correctly.log')
+		log_path = _test_data_path('test_output_isolated_correctly.log')
 		with open(log_path) as file:
 			result = kunit_parser.extract_tap_lines(file.readlines())
 		self.assertContains('TAP version 14', result)
@@ -109,7 +111,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertContains('ok 1 - example', result)
 
 	def test_output_with_prefix_isolated_correctly(self):
-		log_path = test_data_path('test_pound_sign.log')
+		log_path = _test_data_path('test_pound_sign.log')
 		with open(log_path) as file:
 			result = kunit_parser.extract_tap_lines(file.readlines())
 		self.assertContains('TAP version 14', result)
@@ -138,35 +140,46 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertContains('ok 3 - string-stream-test', result)
 
 	def test_parse_successful_test_log(self):
-		all_passed_log = test_data_path('test_is_test_passed-all_passed.log')
+		all_passed_log = _test_data_path('test_is_test_passed-all_passed.log')
 		with open(all_passed_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_parse_successful_nested_tests_log(self):
-		all_passed_log = test_data_path('test_is_test_passed-all_passed_nested.log')
+		all_passed_log = _test_data_path('test_is_test_passed-all_passed_nested.log')
 		with open(all_passed_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_kselftest_nested(self):
-		kselftest_log = test_data_path('test_is_test_passed-kselftest.log')
+		kselftest_log = _test_data_path('test_is_test_passed-kselftest.log')
 		with open(kselftest_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_parse_failed_test_log(self):
-		failed_log = test_data_path('test_is_test_passed-failure.log')
+		failed_log = _test_data_path('test_is_test_passed-failure.log')
 		with open(failed_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.status)
 		self.assertEqual(result.counts.errors, 0)
 
+	def test_parse_failed_nested_tests_log(self):
+		nested_log = _test_data_path('test_is_test_passed-failure-nested.log')
+		with open(nested_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
+		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.status)
+		self.assertEqual(result.counts.failed, 2)
+		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.subtests[0].status)
+		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.subtests[0].subtests[0].status)
+		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.subtests[1].status)
+		self.assertEqual(kunit_parser.TestStatus.FAILURE, result.subtests[1].subtests[0].status)
+
 	def test_no_header(self):
-		empty_log = test_data_path('test_is_test_passed-no_tests_run_no_header.log')
+		empty_log = _test_data_path('test_is_test_passed-no_tests_run_no_header.log')
 		with open(empty_log) as file:
 			result = kunit_parser.parse_run_tests(
 				kunit_parser.extract_tap_lines(file.readlines()), stdout)
@@ -175,7 +188,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 1)
 
 	def test_missing_test_plan(self):
-		missing_plan_log = test_data_path('test_is_test_passed-'
+		missing_plan_log = _test_data_path('test_is_test_passed-'
 			'missing_plan.log')
 		with open(missing_plan_log) as file:
 			result = kunit_parser.parse_run_tests(
@@ -186,7 +199,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
 
 	def test_no_tests(self):
-		header_log = test_data_path('test_is_test_passed-no_tests_run_with_header.log')
+		header_log = _test_data_path('test_is_test_passed-no_tests_run_with_header.log')
 		with open(header_log) as file:
 			result = kunit_parser.parse_run_tests(
 				kunit_parser.extract_tap_lines(file.readlines()), stdout)
@@ -195,7 +208,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 1)
 
 	def test_no_tests_no_plan(self):
-		no_plan_log = test_data_path('test_is_test_passed-no_tests_no_plan.log')
+		no_plan_log = _test_data_path('test_is_test_passed-no_tests_no_plan.log')
 		with open(no_plan_log) as file:
 			result = kunit_parser.parse_run_tests(
 				kunit_parser.extract_tap_lines(file.readlines()), stdout)
@@ -207,7 +220,7 @@ class KUnitParserTest(unittest.TestCase):
 
 
 	def test_no_kunit_output(self):
-		crash_log = test_data_path('test_insufficient_memory.log')
+		crash_log = _test_data_path('test_insufficient_memory.log')
 		print_mock = mock.patch('kunit_printer.Printer.print').start()
 		with open(crash_log) as file:
 			result = kunit_parser.parse_run_tests(
@@ -218,7 +231,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 1)
 
 	def test_skipped_test(self):
-		skipped_log = test_data_path('test_skip_tests.log')
+		skipped_log = _test_data_path('test_skip_tests.log')
 		with open(skipped_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 
@@ -227,7 +240,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=4, skipped=1))
 
 	def test_skipped_all_tests(self):
-		skipped_log = test_data_path('test_skip_all_tests.log')
+		skipped_log = _test_data_path('test_skip_all_tests.log')
 		with open(skipped_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 
@@ -235,7 +248,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts, kunit_parser.TestCounts(skipped=5))
 
 	def test_ignores_hyphen(self):
-		hyphen_log = test_data_path('test_strip_hyphen.log')
+		hyphen_log = _test_data_path('test_strip_hyphen.log')
 		with open(hyphen_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 
@@ -249,7 +262,7 @@ class KUnitParserTest(unittest.TestCase):
 			result.subtests[1].name)
 
 	def test_ignores_prefix_printk_time(self):
-		prefix_log = test_data_path('test_config_printk_time.log')
+		prefix_log = _test_data_path('test_config_printk_time.log')
 		with open(prefix_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
@@ -257,7 +270,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_ignores_multiple_prefixes(self):
-		prefix_log = test_data_path('test_multiple_prefixes.log')
+		prefix_log = _test_data_path('test_multiple_prefixes.log')
 		with open(prefix_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
@@ -265,7 +278,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_prefix_mixed_kernel_output(self):
-		mixed_prefix_log = test_data_path('test_interrupted_tap_output.log')
+		mixed_prefix_log = _test_data_path('test_interrupted_tap_output.log')
 		with open(mixed_prefix_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
@@ -273,7 +286,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_prefix_poundsign(self):
-		pound_log = test_data_path('test_pound_sign.log')
+		pound_log = _test_data_path('test_pound_sign.log')
 		with open(pound_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
@@ -281,7 +294,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual(result.counts.errors, 0)
 
 	def test_kernel_panic_end(self):
-		panic_log = test_data_path('test_kernel_panic_interrupt.log')
+		panic_log = _test_data_path('test_kernel_panic_interrupt.log')
 		with open(panic_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.TEST_CRASHED, result.status)
@@ -289,7 +302,7 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertGreaterEqual(result.counts.errors, 1)
 
 	def test_pound_no_prefix(self):
-		pound_log = test_data_path('test_pound_no_prefix.log')
+		pound_log = _test_data_path('test_pound_no_prefix.log')
 		with open(pound_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
@@ -318,7 +331,7 @@ class KUnitParserTest(unittest.TestCase):
 			'Failures: all_failed_suite, some_failed_suite.test2')
 
 	def test_ktap_format(self):
-		ktap_log = test_data_path('test_parse_ktap_output.log')
+		ktap_log = _test_data_path('test_parse_ktap_output.log')
 		with open(ktap_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=3))
@@ -327,13 +340,13 @@ class KUnitParserTest(unittest.TestCase):
 		self.assertEqual('case_2', result.subtests[0].subtests[1].name)
 
 	def test_parse_subtest_header(self):
-		ktap_log = test_data_path('test_parse_subtest_header.log')
+		ktap_log = _test_data_path('test_parse_subtest_header.log')
 		with open(ktap_log) as file:
 			kunit_parser.parse_run_tests(file.readlines(), stdout)
 		self.print_mock.assert_any_call(StrContains('suite (1 subtest)'))
 
 	def test_parse_attributes(self):
-		ktap_log = test_data_path('test_parse_attributes.log')
+		ktap_log = _test_data_path('test_parse_attributes.log')
 		with open(ktap_log) as file:
 			result = kunit_parser.parse_run_tests(file.readlines(), stdout)
 
@@ -466,7 +479,8 @@ class LinuxSourceTreeTest(unittest.TestCase):
 		want_kconfig = kunit_config.Kconfig()
 		want_kconfig.add_entry('NOT_REAL', 'y')
 
-		tree = kunit_kernel.LinuxSourceTree('', kconfig_add=['CONFIG_NOT_REAL=y'])
+		tree = kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[os.devnull],
+						    kconfig_add=['CONFIG_NOT_REAL=y'])
 		self.assertTrue(want_kconfig.is_subset_of(tree._kconfig), msg=tree._kconfig)
 
 	def test_invalid_arch(self):
@@ -478,7 +492,7 @@ class LinuxSourceTreeTest(unittest.TestCase):
 			return subprocess.Popen(['echo "hi\nbye"'], shell=True, text=True, stdout=subprocess.PIPE)
 
 		with tempfile.TemporaryDirectory('') as build_dir:
-			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			tree = kunit_kernel.LinuxSourceTree(build_dir, kunitconfig_paths=[os.devnull])
 			mock.patch.object(tree._ops, 'start', side_effect=fake_start).start()
 
 			with self.assertRaises(ValueError):
@@ -555,7 +569,7 @@ class KUnitJsonTest(unittest.TestCase):
 		self.addCleanup(mock.patch.stopall)
 
 	def _json_for(self, log_file):
-		with open(test_data_path(log_file)) as file:
+		with open(_test_data_path(log_file)) as file:
 			test_result = kunit_parser.parse_run_tests(file, stdout)
 			json_obj = kunit_json.get_json_result(
 				test=test_result,
@@ -596,11 +610,12 @@ class StrContains(str):
 
 class KUnitMainTest(unittest.TestCase):
 	def setUp(self):
-		path = test_data_path('test_is_test_passed-all_passed.log')
+		path = _test_data_path('test_is_test_passed-all_passed.log')
 		with open(path) as file:
 			all_passed_log = file.readlines()
 
 		self.print_mock = mock.patch('kunit_printer.Printer.print').start()
+		mock.patch.dict(os.environ, clear=True).start()
 		self.addCleanup(mock.patch.stopall)
 
 		self.mock_linux_init = mock.patch.object(kunit_kernel, 'LinuxSourceTree').start()
@@ -716,6 +731,24 @@ class KUnitMainTest(unittest.TestCase):
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_builddir(self):
+		build_dir = '.kunit'
+		kunit.main(['run', '--build_dir=.kunit'])
+		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
+		self.linux_source_mock.run_kernel.assert_called_once_with(
+			args=None, build_dir=build_dir, filter_glob='', filter='', filter_action=None, timeout=300)
+		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
+	@mock.patch.dict(os.environ, {'KBUILD_OUTPUT': '/tmp'})
+	def test_run_builddir_from_env(self):
+		build_dir = '/tmp/.kunit'
+		kunit.main(['run'])
+		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
+		self.linux_source_mock.run_kernel.assert_called_once_with(
+			args=None, build_dir=build_dir, filter_glob='', filter='', filter_action=None, timeout=300)
+		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
+	@mock.patch.dict(os.environ, {'KBUILD_OUTPUT': '/tmp'})
+	def test_run_builddir_override(self):
 		build_dir = '.kunit'
 		kunit.main(['run', '--build_dir=.kunit'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
@@ -854,6 +887,25 @@ class KUnitMainTest(unittest.TestCase):
 			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test2', filter='', filter_action=None, timeout=300),
 			mock.call(args=None, build_dir='.kunit', filter_glob='suite2.test1', filter='', filter_action=None, timeout=300),
 		])
+
+	@mock.patch.object(sys, 'stdout', new_callable=io.StringIO)
+	def test_list_cmds(self, mock_stdout):
+		kunit.main(['--list-cmds'])
+		output = mock_stdout.getvalue()
+		output_cmds = sorted(output.split())
+		expected_cmds = sorted(['build', 'config', 'exec', 'parse', 'run'])
+		self.assertEqual(output_cmds, expected_cmds)
+
+	@mock.patch.object(sys, 'stdout', new_callable=io.StringIO)
+	def test_run_list_opts(self, mock_stdout):
+		kunit.main(['run', '--list-opts'])
+		output = mock_stdout.getvalue()
+		output_cmds = set(output.split())
+		self.assertIn('--help', output_cmds)
+		self.assertIn('--kunitconfig', output_cmds)
+		self.assertIn('--jobs', output_cmds)
+		self.assertIn('--kernel_args', output_cmds)
+		self.assertIn('--raw_output', output_cmds)
 
 if __name__ == '__main__':
 	unittest.main()

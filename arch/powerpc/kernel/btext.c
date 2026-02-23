@@ -6,6 +6,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/font.h>

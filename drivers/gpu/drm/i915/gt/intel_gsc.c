@@ -204,7 +204,7 @@ static void gsc_init_one(struct drm_i915_private *i915, struct intel_gsc *gsc,
 	}
 
 add_device:
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		goto fail;
 

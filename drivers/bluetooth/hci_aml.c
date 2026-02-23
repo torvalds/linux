@@ -541,7 +541,7 @@ static int aml_open(struct hci_uart *hu)
 		return -EOPNOTSUPP;
 	}
 
-	aml_data = kzalloc(sizeof(*aml_data), GFP_KERNEL);
+	aml_data = kzalloc_obj(*aml_data);
 	if (!aml_data)
 		return -ENOMEM;
 
@@ -677,13 +677,6 @@ static const struct hci_uart_proto aml_hci_proto = {
 	.dequeue	= aml_dequeue,
 };
 
-static void aml_device_driver_shutdown(struct device *dev)
-{
-	struct aml_serdev *amldev = dev_get_drvdata(dev);
-
-	aml_power_off(amldev);
-}
-
 static int aml_serdev_probe(struct serdev_device *serdev)
 {
 	struct aml_serdev *amldev;
@@ -714,6 +707,13 @@ static void aml_serdev_remove(struct serdev_device *serdev)
 	hci_uart_unregister_device(&amldev->serdev_hu);
 }
 
+static void aml_serdev_shutdown(struct serdev_device *serdev)
+{
+	struct aml_serdev *amldev = serdev_device_get_drvdata(serdev);
+
+	aml_power_off(amldev);
+}
+
 static const struct aml_device_data data_w155s2 = {
 	.iccm_offset = 256 * 1024,
 };
@@ -732,10 +732,10 @@ MODULE_DEVICE_TABLE(of, aml_bluetooth_of_match);
 static struct serdev_device_driver aml_serdev_driver = {
 	.probe = aml_serdev_probe,
 	.remove = aml_serdev_remove,
+	.shutdown = aml_serdev_shutdown,
 	.driver = {
 		.name = "hci_uart_aml",
 		.of_match_table = aml_bluetooth_of_match,
-		.shutdown = aml_device_driver_shutdown,
 	},
 };
 

@@ -158,8 +158,7 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		goto release_transport;
 	}
 
-	ibdev->port = kcalloc(num_ports, sizeof(*ibdev->port),
-			      GFP_KERNEL);
+	ibdev->port = kzalloc_objs(*ibdev->port, num_ports);
 	if (!ibdev->port) {
 		ret = -ENOMEM;
 		goto fail_port;

@@ -440,7 +440,7 @@ static int usb_gpib_attach(struct gpib_board *board, const struct gpib_board_con
 		return -EIO;
 	}
 
-	board->private_data = kzalloc(sizeof(struct usb_gpib_priv), GFP_KERNEL);
+	board->private_data = kzalloc_obj(struct usb_gpib_priv);
 	if (!board->private_data)
 		return -ENOMEM;
 
@@ -1864,7 +1864,7 @@ static int skel_probe(struct usb_interface *interface,
 	mutex_init(&minors_lock);   /* required for handling minor numbers table */
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

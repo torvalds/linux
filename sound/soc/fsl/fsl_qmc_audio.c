@@ -316,7 +316,7 @@ static int qmc_audio_pcm_open(struct snd_soc_component *component,
 	if (ret < 0)
 		return ret;
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		return -ENOMEM;
 

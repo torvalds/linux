@@ -46,7 +46,7 @@ static inline struct dfs_ref_walk *ref_walk_alloc(void)
 {
 	struct dfs_ref_walk *rw;
 
-	rw = kmalloc(sizeof(*rw), GFP_KERNEL);
+	rw = kmalloc_obj(*rw);
 	if (!rw)
 		return ERR_PTR(-ENOMEM);
 	return rw;
@@ -151,7 +151,8 @@ static inline void ref_walk_mark_end(struct dfs_ref_walk *rw)
 	ref->tit = ERR_PTR(-ENOENT); /* end marker */
 }
 
-int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
+int dfs_parse_target_referral(const char *full_path,
+			      const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx);
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx);
 

@@ -963,17 +963,15 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	struct qede_fastpath *fp;
 	int i;
 
-	edev->fp_array = kcalloc(QEDE_QUEUE_CNT(edev),
-				 sizeof(*edev->fp_array), GFP_KERNEL);
+	edev->fp_array = kzalloc_objs(*edev->fp_array, QEDE_QUEUE_CNT(edev));
 	if (!edev->fp_array) {
 		DP_NOTICE(edev, "fp array allocation failed\n");
 		goto err;
 	}
 
 	if (!edev->coal_entry) {
-		edev->coal_entry = kcalloc(QEDE_MAX_RSS_CNT(edev),
-					   sizeof(*edev->coal_entry),
-					   GFP_KERNEL);
+		edev->coal_entry = kzalloc_objs(*edev->coal_entry,
+						QEDE_MAX_RSS_CNT(edev));
 		if (!edev->coal_entry) {
 			DP_ERR(edev, "coalesce entry allocation failed\n");
 			goto err;
@@ -990,7 +988,7 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 	for_each_queue(i) {
 		fp = &edev->fp_array[i];
 
-		fp->sb_info = kzalloc(sizeof(*fp->sb_info), GFP_KERNEL);
+		fp->sb_info = kzalloc_obj(*fp->sb_info);
 		if (!fp->sb_info) {
 			DP_NOTICE(edev, "sb info struct allocation failed\n");
 			goto err;
@@ -1007,20 +1005,18 @@ static int qede_alloc_fp_array(struct qede_dev *edev)
 		}
 
 		if (fp->type & QEDE_FASTPATH_TX) {
-			fp->txq = kcalloc(edev->dev_info.num_tc,
-					  sizeof(*fp->txq), GFP_KERNEL);
+			fp->txq = kzalloc_objs(*fp->txq, edev->dev_info.num_tc);
 			if (!fp->txq)
 				goto err;
 		}
 
 		if (fp->type & QEDE_FASTPATH_RX) {
-			fp->rxq = kzalloc(sizeof(*fp->rxq), GFP_KERNEL);
+			fp->rxq = kzalloc_obj(*fp->rxq);
 			if (!fp->rxq)
 				goto err;
 
 			if (edev->xdp_prog) {
-				fp->xdp_tx = kzalloc(sizeof(*fp->xdp_tx),
-						     GFP_KERNEL);
+				fp->xdp_tx = kzalloc_obj(*fp->xdp_tx);
 				if (!fp->xdp_tx)
 					goto err;
 				fp->type |= QEDE_FASTPATH_XDP;

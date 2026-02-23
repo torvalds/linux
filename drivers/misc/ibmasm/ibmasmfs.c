@@ -235,7 +235,7 @@ static int command_file_open(struct inode *inode, struct file *file)
 	if (!inode->i_private)
 		return -ENODEV;
 
-	command_data = kmalloc(sizeof(struct ibmasmfs_command_data), GFP_KERNEL);
+	command_data = kmalloc_obj(struct ibmasmfs_command_data);
 	if (!command_data)
 		return -ENOMEM;
 
@@ -344,7 +344,7 @@ static int event_file_open(struct inode *inode, struct file *file)
 
 	sp = inode->i_private;
 
-	event_data = kmalloc(sizeof(struct ibmasmfs_event_data), GFP_KERNEL);
+	event_data = kmalloc_obj(struct ibmasmfs_event_data);
 	if (!event_data)
 		return -ENOMEM;
 
@@ -430,7 +430,7 @@ static int r_heartbeat_file_open(struct inode *inode, struct file *file)
 	if (!inode->i_private)
 		return -ENODEV;
 
-	rhbeat = kmalloc(sizeof(struct ibmasmfs_heartbeat_data), GFP_KERNEL);
+	rhbeat = kmalloc_obj(struct ibmasmfs_heartbeat_data);
 	if (!rhbeat)
 		return -ENOMEM;
 

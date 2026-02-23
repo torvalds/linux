@@ -181,7 +181,7 @@ static struct qman_fq *create_caam_req_fq(struct device *qidev,
 	struct qman_fq *req_fq;
 	struct qm_mcc_initfq opts;
 
-	req_fq = kzalloc(sizeof(*req_fq), GFP_ATOMIC);
+	req_fq = kzalloc_obj(*req_fq, GFP_ATOMIC);
 	if (!req_fq)
 		return ERR_PTR(-ENOMEM);
 
@@ -416,7 +416,7 @@ struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	drv_ctx = kzalloc(sizeof(*drv_ctx), GFP_ATOMIC);
+	drv_ctx = kzalloc_obj(*drv_ctx, GFP_ATOMIC);
 	if (!drv_ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -619,7 +619,7 @@ static int alloc_rsp_fq_cpu(struct device *qidev, unsigned int cpu)
 	struct qman_fq *fq;
 	int ret;
 
-	fq = kzalloc(sizeof(*fq), GFP_KERNEL);
+	fq = kzalloc_obj(*fq);
 	if (!fq)
 		return -ENOMEM;
 

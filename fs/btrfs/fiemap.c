@@ -646,9 +646,8 @@ static int extent_fiemap(struct btrfs_inode *inode,
 	int ret;
 
 	cache.entries_size = PAGE_SIZE / sizeof(struct btrfs_fiemap_entry);
-	cache.entries = kmalloc_array(cache.entries_size,
-				      sizeof(struct btrfs_fiemap_entry),
-				      GFP_KERNEL);
+	cache.entries = kmalloc_objs(struct btrfs_fiemap_entry,
+				     cache.entries_size);
 	backref_ctx = btrfs_alloc_backref_share_check_ctx();
 	path = btrfs_alloc_path();
 	if (!cache.entries || !backref_ctx || !path) {

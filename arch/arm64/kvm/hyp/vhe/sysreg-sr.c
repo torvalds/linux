@@ -205,7 +205,7 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 
 	/*
 	 * When running a normal EL1 guest, we only load a new vcpu
-	 * after a context switch, which imvolves a DSB, so all
+	 * after a context switch, which involves a DSB, so all
 	 * speculative EL1&0 walks will have already completed.
 	 * If running NV, the vcpu may transition between vEL1 and
 	 * vEL2 without a context switch, so make sure we complete

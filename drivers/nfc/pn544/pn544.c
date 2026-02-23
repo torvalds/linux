@@ -910,7 +910,7 @@ int pn544_hci_probe(void *phy_id, const struct nfc_phy_ops *phy_ops,
 	struct nfc_hci_init_data init_data;
 	int r;
 
-	info = kzalloc(sizeof(struct pn544_hci_info), GFP_KERNEL);
+	info = kzalloc_obj(struct pn544_hci_info);
 	if (!info) {
 		r = -ENOMEM;
 		goto err_info_alloc;

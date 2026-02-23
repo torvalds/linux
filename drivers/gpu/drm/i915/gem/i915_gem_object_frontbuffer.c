@@ -32,7 +32,7 @@ i915_gem_object_frontbuffer_get(struct drm_i915_gem_object *obj)
 	if (front)
 		return front;
 
-	front = kmalloc(sizeof(*front), GFP_KERNEL);
+	front = kmalloc_obj(*front);
 	if (!front)
 		return NULL;
 

@@ -1715,7 +1715,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 		pipe = usb_rcvbulkpipe(dev, ep_in->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe);
 
-	ir = kzalloc(sizeof(struct mceusb_dev), GFP_KERNEL);
+	ir = kzalloc_obj(struct mceusb_dev);
 	if (!ir)
 		goto mem_alloc_fail;
 

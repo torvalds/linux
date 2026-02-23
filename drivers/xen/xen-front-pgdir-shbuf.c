@@ -205,8 +205,7 @@ static int backend_unmap(struct xen_front_pgdir_shbuf *buf)
 	if (!buf->pages || !buf->backend_map_handles || !buf->grefs)
 		return 0;
 
-	unmap_ops = kcalloc(buf->num_pages, sizeof(*unmap_ops),
-			    GFP_KERNEL);
+	unmap_ops = kzalloc_objs(*unmap_ops, buf->num_pages);
 	if (!unmap_ops)
 		return -ENOMEM;
 
@@ -250,13 +249,12 @@ static int backend_map(struct xen_front_pgdir_shbuf *buf)
 	unsigned char *ptr;
 	int ret, cur_gref, cur_dir_page, cur_page, grefs_left;
 
-	map_ops = kcalloc(buf->num_pages, sizeof(*map_ops), GFP_KERNEL);
+	map_ops = kzalloc_objs(*map_ops, buf->num_pages);
 	if (!map_ops)
 		return -ENOMEM;
 
-	buf->backend_map_handles = kcalloc(buf->num_pages,
-					   sizeof(*buf->backend_map_handles),
-					   GFP_KERNEL);
+	buf->backend_map_handles = kzalloc_objs(*buf->backend_map_handles,
+						buf->num_pages);
 	if (!buf->backend_map_handles) {
 		kfree(map_ops);
 		return -ENOMEM;
@@ -474,7 +472,7 @@ static int grant_references(struct xen_front_pgdir_shbuf *buf)
  */
 static int alloc_storage(struct xen_front_pgdir_shbuf *buf)
 {
-	buf->grefs = kcalloc(buf->num_grefs, sizeof(*buf->grefs), GFP_KERNEL);
+	buf->grefs = kzalloc_objs(*buf->grefs, buf->num_grefs);
 	if (!buf->grefs)
 		return -ENOMEM;
 

@@ -109,7 +109,7 @@ int
 nvkm_i2c_pad_new_(const struct nvkm_i2c_pad_func *func, struct nvkm_i2c *i2c,
 		  int id, struct nvkm_i2c_pad **ppad)
 {
-	if (!(*ppad = kzalloc(sizeof(**ppad), GFP_KERNEL)))
+	if (!(*ppad = kzalloc_obj(**ppad)))
 		return -ENOMEM;
 	nvkm_i2c_pad_ctor(func, i2c, id, *ppad);
 	return 0;

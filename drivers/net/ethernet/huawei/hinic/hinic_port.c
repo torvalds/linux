@@ -1032,7 +1032,7 @@ int hinic_get_phy_port_stats(struct hinic_dev *nic_dev,
 	struct pci_dev *pdev = hwif->pdev;
 	int err;
 
-	port_stats = kzalloc(sizeof(*port_stats), GFP_KERNEL);
+	port_stats = kzalloc_obj(*port_stats);
 	if (!port_stats)
 		return -ENOMEM;
 

@@ -427,7 +427,7 @@ static int icm_fr_get_route(struct tb *tb, u8 link, u8 depth, u64 *route)
 	int ret, index;
 	u8 i;
 
-	switches = kcalloc(npackets, sizeof(*switches), GFP_KERNEL);
+	switches = kzalloc_objs(*switches, npackets);
 	if (!switches)
 		return -ENOMEM;
 
@@ -1769,7 +1769,7 @@ static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
 {
 	struct icm_notification *n;
 
-	n = kmalloc(sizeof(*n), GFP_KERNEL);
+	n = kmalloc_obj(*n);
 	if (!n)
 		return;
 
@@ -2246,7 +2246,7 @@ static int icm_usb4_switch_nvm_authenticate(struct tb *tb, u64 route)
 	struct tb_cfg_request *req;
 	int ret;
 
-	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	auth = kzalloc_obj(*auth);
 	if (!auth)
 		return -ENOMEM;
 

@@ -623,7 +623,7 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	if (!dev_desc)
 		return -EINVAL;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 

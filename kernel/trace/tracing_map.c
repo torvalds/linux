@@ -324,7 +324,7 @@ static struct tracing_map_array *tracing_map_array_alloc(unsigned int n_elts,
 	struct tracing_map_array *a;
 	unsigned int i;
 
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
+	a = kzalloc_obj(*a);
 	if (!a)
 		return NULL;
 
@@ -405,7 +405,7 @@ static struct tracing_map_elt *tracing_map_elt_alloc(struct tracing_map *map)
 	struct tracing_map_elt *elt;
 	int err = 0;
 
-	elt = kzalloc(sizeof(*elt), GFP_KERNEL);
+	elt = kzalloc_obj(*elt);
 	if (!elt)
 		return ERR_PTR(-ENOMEM);
 
@@ -417,19 +417,19 @@ static struct tracing_map_elt *tracing_map_elt_alloc(struct tracing_map *map)
 		goto free;
 	}
 
-	elt->fields = kcalloc(map->n_fields, sizeof(*elt->fields), GFP_KERNEL);
+	elt->fields = kzalloc_objs(*elt->fields, map->n_fields);
 	if (!elt->fields) {
 		err = -ENOMEM;
 		goto free;
 	}
 
-	elt->vars = kcalloc(map->n_vars, sizeof(*elt->vars), GFP_KERNEL);
+	elt->vars = kzalloc_objs(*elt->vars, map->n_vars);
 	if (!elt->vars) {
 		err = -ENOMEM;
 		goto free;
 	}
 
-	elt->var_set = kcalloc(map->n_vars, sizeof(*elt->var_set), GFP_KERNEL);
+	elt->var_set = kzalloc_objs(*elt->var_set, map->n_vars);
 	if (!elt->var_set) {
 		err = -ENOMEM;
 		goto free;
@@ -777,7 +777,7 @@ struct tracing_map *tracing_map_create(unsigned int map_bits,
 	    map_bits > TRACING_MAP_BITS_MAX)
 		return ERR_PTR(-EINVAL);
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
@@ -949,7 +949,7 @@ create_sort_entry(void *key, struct tracing_map_elt *elt)
 {
 	struct tracing_map_sort_entry *sort_entry;
 
-	sort_entry = kzalloc(sizeof(*sort_entry), GFP_KERNEL);
+	sort_entry = kzalloc_obj(*sort_entry);
 	if (!sort_entry)
 		return NULL;
 

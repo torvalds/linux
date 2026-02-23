@@ -288,7 +288,7 @@ static void i2c_parport_attach(struct parport *port)
 		return;
 	}
 
-	adapter = kzalloc(sizeof(struct i2c_par), GFP_KERNEL);
+	adapter = kzalloc_obj(struct i2c_par);
 	if (!adapter)
 		return;
 	memset(&i2c_parport_cb, 0, sizeof(i2c_parport_cb));

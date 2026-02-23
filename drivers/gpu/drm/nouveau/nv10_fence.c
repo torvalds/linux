@@ -70,7 +70,7 @@ nv10_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv10_fence_chan *fctx;
 
-	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	fctx = chan->fence = kzalloc_obj(*fctx);
 	if (!fctx)
 		return -ENOMEM;
 
@@ -96,7 +96,7 @@ nv10_fence_create(struct nouveau_drm *drm)
 {
 	struct nv10_fence_priv *priv;
 
-	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

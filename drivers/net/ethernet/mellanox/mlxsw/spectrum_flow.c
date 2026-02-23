@@ -14,7 +14,7 @@ mlxsw_sp_flow_block_create(struct mlxsw_sp *mlxsw_sp, struct net *net)
 {
 	struct mlxsw_sp_flow_block *block;
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return NULL;
 	INIT_LIST_HEAD(&block->binding_list);
@@ -75,7 +75,7 @@ static int mlxsw_sp_flow_block_bind(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	binding = kzalloc_obj(*binding);
 	if (!binding) {
 		err = -ENOMEM;
 		goto err_binding_alloc;

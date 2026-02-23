@@ -104,7 +104,7 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 	struct ac97_codec_device *codec;
 	int ret;
 
-	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
+	codec = kzalloc_obj(*codec);
 	if (!codec)
 		return -ENOMEM;
 	ac97_ctrl->codecs[idx] = codec;
@@ -351,7 +351,7 @@ struct ac97_controller *snd_ac97_controller_register(
 	struct ac97_controller *ac97_ctrl;
 	int ret, i;
 
-	ac97_ctrl = kzalloc(sizeof(*ac97_ctrl), GFP_KERNEL);
+	ac97_ctrl = kzalloc_obj(*ac97_ctrl);
 	if (!ac97_ctrl)
 		return ERR_PTR(-ENOMEM);
 

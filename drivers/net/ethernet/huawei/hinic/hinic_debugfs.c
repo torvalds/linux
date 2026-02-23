@@ -88,7 +88,7 @@ static int hinic_dbg_get_func_table(struct hinic_dev *nic_dev, int idx)
 	int ret = ~0;
 	int err;
 
-	read_data = kzalloc(sizeof(*read_data), GFP_KERNEL);
+	read_data = kzalloc_obj(*read_data);
 	if (!read_data)
 		return ~0;
 
@@ -182,7 +182,7 @@ static int create_dbg_files(struct hinic_dev *dev, enum hinic_dbg_type type, voi
 	struct hinic_debug_priv *tmp;
 	int i;
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 

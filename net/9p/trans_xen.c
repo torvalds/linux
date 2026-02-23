@@ -136,8 +136,8 @@ static int p9_xen_request(struct p9_client *client, struct p9_req_t *p9_req)
 	ring = &priv->rings[num];
 
 again:
-	while (wait_event_killable(ring->wq,
-				   p9_xen_write_todo(ring, size)) != 0)
+	while (io_wait_event_killable(ring->wq,
+				      p9_xen_write_todo(ring, size)) != 0)
 		;
 
 	spin_lock_irqsave(&ring->lock, flags);
@@ -277,45 +277,52 @@ static void xen_9pfs_front_free(struct xen_9pfs_front_priv *priv)
 {
 	int i, j;
 
-	write_lock(&xen_9pfs_lock);
-	list_del(&priv->list);
-	write_unlock(&xen_9pfs_lock);
+	if (priv->rings) {
+		for (i = 0; i < XEN_9PFS_NUM_RINGS; i++) {
+			struct xen_9pfs_dataring *ring = &priv->rings[i];
 
-	for (i = 0; i < XEN_9PFS_NUM_RINGS; i++) {
-		struct xen_9pfs_dataring *ring = &priv->rings[i];
+			cancel_work_sync(&ring->work);
 
-		cancel_work_sync(&ring->work);
+			if (!priv->rings[i].intf)
+				break;
+			if (priv->rings[i].irq > 0)
+				unbind_from_irqhandler(priv->rings[i].irq, ring);
+			if (priv->rings[i].data.in) {
+				for (j = 0;
+				     j < (1 << priv->rings[i].intf->ring_order);
+				     j++) {
+					grant_ref_t ref;
 
-		if (!priv->rings[i].intf)
-			break;
-		if (priv->rings[i].irq > 0)
-			unbind_from_irqhandler(priv->rings[i].irq, ring);
-		if (priv->rings[i].data.in) {
-			for (j = 0;
-			     j < (1 << priv->rings[i].intf->ring_order);
-			     j++) {
-				grant_ref_t ref;
-
-				ref = priv->rings[i].intf->ref[j];
-				gnttab_end_foreign_access(ref, NULL);
-			}
-			free_pages_exact(priv->rings[i].data.in,
+					ref = priv->rings[i].intf->ref[j];
+					gnttab_end_foreign_access(ref, NULL);
+				}
+				free_pages_exact(priv->rings[i].data.in,
 				   1UL << (priv->rings[i].intf->ring_order +
 					   XEN_PAGE_SHIFT));
+			}
+			gnttab_end_foreign_access(priv->rings[i].ref, NULL);
+			free_page((unsigned long)priv->rings[i].intf);
 		}
-		gnttab_end_foreign_access(priv->rings[i].ref, NULL);
-		free_page((unsigned long)priv->rings[i].intf);
+		kfree(priv->rings);
 	}
-	kfree(priv->rings);
 	kfree(priv->tag);
 	kfree(priv);
 }
 
 static void xen_9pfs_front_remove(struct xenbus_device *dev)
 {
-	struct xen_9pfs_front_priv *priv = dev_get_drvdata(&dev->dev);
+	struct xen_9pfs_front_priv *priv;
 
+	write_lock(&xen_9pfs_lock);
+	priv = dev_get_drvdata(&dev->dev);
+	if (priv == NULL) {
+		write_unlock(&xen_9pfs_lock);
+		return;
+	}
 	dev_set_drvdata(&dev->dev, NULL);
+	list_del(&priv->list);
+	write_unlock(&xen_9pfs_lock);
+
 	xen_9pfs_front_free(priv);
 }
 
@@ -382,7 +389,7 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 {
 	int ret, i;
 	struct xenbus_transaction xbt;
-	struct xen_9pfs_front_priv *priv = dev_get_drvdata(&dev->dev);
+	struct xen_9pfs_front_priv *priv;
 	char *versions, *v;
 	unsigned int max_rings, max_ring_order, len = 0;
 
@@ -410,8 +417,11 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 	if (p9_xen_trans.maxsize > XEN_FLEX_RING_SIZE(max_ring_order))
 		p9_xen_trans.maxsize = XEN_FLEX_RING_SIZE(max_ring_order) / 2;
 
-	priv->rings = kcalloc(XEN_9PFS_NUM_RINGS, sizeof(*priv->rings),
-			      GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
+	if (!priv)
+		return -ENOMEM;
+	priv->dev = dev;
+	priv->rings = kzalloc_objs(*priv->rings, XEN_9PFS_NUM_RINGS);
 	if (!priv->rings) {
 		kfree(priv);
 		return -ENOMEM;
@@ -468,6 +478,11 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 		goto error;
 	}
 
+	write_lock(&xen_9pfs_lock);
+	dev_set_drvdata(&dev->dev, priv);
+	list_add_tail(&priv->list, &xen_9pfs_devs);
+	write_unlock(&xen_9pfs_lock);
+
 	xenbus_switch_state(dev, XenbusStateInitialised);
 	return 0;
 
@@ -482,19 +497,6 @@ static int xen_9pfs_front_init(struct xenbus_device *dev)
 static int xen_9pfs_front_probe(struct xenbus_device *dev,
 				const struct xenbus_device_id *id)
 {
-	struct xen_9pfs_front_priv *priv = NULL;
-
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->dev = dev;
-	dev_set_drvdata(&dev->dev, priv);
-
-	write_lock(&xen_9pfs_lock);
-	list_add_tail(&priv->list, &xen_9pfs_devs);
-	write_unlock(&xen_9pfs_lock);
-
 	return 0;
 }
 

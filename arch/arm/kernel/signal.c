@@ -337,7 +337,8 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 			return 1;
 	}
 
-	cpsr |= PSR_ENDSTATE;
+	if (IS_ENABLED(CONFIG_CPU_ENDIAN_BE8))
+		cpsr |= PSR_E_BIT;
 
 	/*
 	 * Maybe we need to deliver a 32-bit signal to a 26-bit task.

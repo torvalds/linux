@@ -21,7 +21,7 @@ static int omap_crypto_copy_sg_lists(int total, int bs,
 	struct scatterlist *tmp;
 
 	if (!(flags & OMAP_CRYPTO_FORCE_SINGLE_ENTRY)) {
-		new_sg = kmalloc_array(n, sizeof(*sg), GFP_KERNEL);
+		new_sg = kmalloc_objs(*new_sg, n);
 		if (!new_sg)
 			return -ENOMEM;
 

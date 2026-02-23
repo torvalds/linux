@@ -449,7 +449,7 @@ int vmw_bo_create(struct vmw_private *vmw,
 {
 	int ret;
 
-	*p_bo = kmalloc(sizeof(**p_bo), GFP_KERNEL);
+	*p_bo = kmalloc_obj(**p_bo);
 	if (unlikely(!*p_bo)) {
 		DRM_ERROR("Failed to allocate a buffer.\n");
 		return -ENOMEM;

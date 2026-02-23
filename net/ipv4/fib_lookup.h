@@ -28,8 +28,10 @@ struct fib_alias {
 /* Don't write on fa_state unless needed, to keep it shared on all cpus */
 static inline void fib_alias_accessed(struct fib_alias *fa)
 {
-	if (!(fa->fa_state & FA_S_ACCESSED))
-		fa->fa_state |= FA_S_ACCESSED;
+	u8 fa_state = READ_ONCE(fa->fa_state);
+
+	if (!(fa_state & FA_S_ACCESSED))
+		WRITE_ONCE(fa->fa_state, fa_state | FA_S_ACCESSED);
 }
 
 /* Exported by fib_semantics.c */

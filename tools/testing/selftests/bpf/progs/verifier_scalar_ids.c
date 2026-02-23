@@ -715,6 +715,51 @@ __naked void ignore_unique_scalar_ids_old(void)
 	: __clobber_all);
 }
 
+/* Check that two registers with 0 scalar IDs in a verified state can be mapped
+ * to the same scalar ID in current state.
+ */
+SEC("socket")
+__success __log_level(2)
+/* The states should be equivalent on reaching insn 12.
+ */
+__msg("12: safe")
+__msg("processed 17 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void two_nil_old_ids_one_cur_id(void)
+{
+	asm volatile (
+	/* Give unique scalar IDs to r{6,7} */
+	"call %[bpf_ktime_get_ns];"
+	"r0 &= 0xff;"
+	"r6 = r0;"
+	"r6 *= 1;"
+	"call %[bpf_ktime_get_ns];"
+	"r0 &= 0xff;"
+	"r7 = r0;"
+	"r7 *= 1;"
+	"r0 = 0;"
+	/* Maybe make r{6,7} IDs identical */
+	"if r6 > r7 goto l0_%=;"
+	"goto l1_%=;"
+"l0_%=:"
+	"r6 = r7;"
+"l1_%=:"
+	/* Mark r{6,7} precise.
+	 * Get here in two states:
+	 * - first:  r6{.id=0}, r7{.id=0} (cached state)
+	 * - second: r6{.id=A}, r7{.id=A}
+	 * Verifier considers such states equivalent.
+	 * Thus "exit;" would be verified only once.
+	 */
+	"r2 = r10;"
+	"r2 += r6;"
+	"r2 += r7;"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 /* Check that two different scalar IDs in a verified state can't be
  * mapped to the same scalar ID in current state.
  */
@@ -723,9 +768,9 @@ __success __log_level(2)
 /* The exit instruction should be reachable from two states,
  * use two matches and "processed .. insns" to ensure this.
  */
-__msg("13: (95) exit")
-__msg("13: (95) exit")
-__msg("processed 18 insns")
+__msg("15: (95) exit")
+__msg("15: (95) exit")
+__msg("processed 20 insns")
 __flag(BPF_F_TEST_STATE_FREQ)
 __naked void two_old_ids_one_cur_id(void)
 {
@@ -734,9 +779,11 @@ __naked void two_old_ids_one_cur_id(void)
 	"call %[bpf_ktime_get_ns];"
 	"r0 &= 0xff;"
 	"r6 = r0;"
+	"r8 = r0;"
 	"call %[bpf_ktime_get_ns];"
 	"r0 &= 0xff;"
 	"r7 = r0;"
+	"r9 = r0;"
 	"r0 = 0;"
 	/* Maybe make r{6,7} IDs identical */
 	"if r6 > r7 goto l0_%=;"

@@ -1068,26 +1068,6 @@ u32 mlx5e_shampo_hd_per_wq(struct mlx5_core_dev *mdev,
 	return hd_per_wq;
 }
 
-static u32 mlx5e_shampo_icosq_sz(struct mlx5_core_dev *mdev,
-				 struct mlx5e_params *params,
-				 struct mlx5e_rq_param *rq_param)
-{
-	int max_num_of_umr_per_wqe, max_hd_per_wqe, max_ksm_per_umr, rest;
-	void *wqc = MLX5_ADDR_OF(rqc, rq_param->rqc, wq);
-	int wq_size = BIT(MLX5_GET(wq, wqc, log_wq_sz));
-	u32 wqebbs;
-
-	max_ksm_per_umr = MLX5E_MAX_KSM_PER_WQE(mdev);
-	max_hd_per_wqe = mlx5e_shampo_hd_per_wqe(mdev, params, rq_param);
-	max_num_of_umr_per_wqe = max_hd_per_wqe / max_ksm_per_umr;
-	rest = max_hd_per_wqe % max_ksm_per_umr;
-	wqebbs = MLX5E_KSM_UMR_WQEBBS(max_ksm_per_umr) * max_num_of_umr_per_wqe;
-	if (rest)
-		wqebbs += MLX5E_KSM_UMR_WQEBBS(rest);
-	wqebbs *= wq_size;
-	return wqebbs;
-}
-
 #define MLX5E_LRO_TIMEOUT_ARR_SIZE                      4
 
 u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeout)
@@ -1172,9 +1152,6 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 		wqebbs += max_xsk_wqebbs;
 	}
-
-	if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO)
-		wqebbs += mlx5e_shampo_icosq_sz(mdev, params, rqp);
 
 	/* UMR WQEs don't cross the page boundary, they are padded with NOPs.
 	 * This padding is always smaller than the max WQE size. That gives us

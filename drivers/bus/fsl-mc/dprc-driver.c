@@ -381,17 +381,6 @@ int dprc_scan_container(struct fsl_mc_device *mc_bus_dev,
 EXPORT_SYMBOL_GPL(dprc_scan_container);
 
 /**
- * dprc_irq0_handler - Regular ISR for DPRC interrupt 0
- *
- * @irq_num: IRQ number of the interrupt being handled
- * @arg: Pointer to device structure
- */
-static irqreturn_t dprc_irq0_handler(int irq_num, void *arg)
-{
-	return IRQ_WAKE_THREAD;
-}
-
-/**
  * dprc_irq0_handler_thread - Handler thread function for DPRC interrupt 0
  *
  * @irq_num: IRQ number of the interrupt being handled
@@ -527,7 +516,7 @@ static int register_dprc_irq_handler(struct fsl_mc_device *mc_dev)
 	 */
 	error = devm_request_threaded_irq(&mc_dev->dev,
 					  irq->virq,
-					  dprc_irq0_handler,
+					  NULL,
 					  dprc_irq0_handler_thread,
 					  IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					  dev_name(&mc_dev->dev),

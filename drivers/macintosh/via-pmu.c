@@ -2147,7 +2147,7 @@ pmu_open(struct inode *inode, struct file *file)
 	struct pmu_private *pp;
 	unsigned long flags;
 
-	pp = kmalloc(sizeof(struct pmu_private), GFP_KERNEL);
+	pp = kmalloc_obj(struct pmu_private);
 	if (!pp)
 		return -ENOMEM;
 	pp->rb_get = pp->rb_put = 0;

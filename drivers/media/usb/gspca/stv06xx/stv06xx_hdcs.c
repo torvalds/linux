@@ -368,7 +368,7 @@ static int hdcs_probe_1x00(struct sd *sd)
 	sd->gspca_dev.cam.cam_mode = hdcs1x00_mode;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(hdcs1x00_mode);
 
-	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
+	hdcs = kmalloc_obj(struct hdcs);
 	if (!hdcs)
 		return -ENOMEM;
 
@@ -425,7 +425,7 @@ static int hdcs_probe_1020(struct sd *sd)
 	sd->gspca_dev.cam.cam_mode = hdcs1020_mode;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(hdcs1020_mode);
 
-	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
+	hdcs = kmalloc_obj(struct hdcs);
 	if (!hdcs)
 		return -ENOMEM;
 

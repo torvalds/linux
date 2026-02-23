@@ -278,7 +278,7 @@ out:
 struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 			      struct iosm_imem *imem)
 {
-	struct iosm_mux *ipc_mux = kzalloc(sizeof(*ipc_mux), GFP_KERNEL);
+	struct iosm_mux *ipc_mux = kzalloc_obj(*ipc_mux);
 	int i, j, ul_tds, ul_td_size;
 	struct sk_buff_head *free_list;
 	struct sk_buff *skb;

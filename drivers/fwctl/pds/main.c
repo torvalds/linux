@@ -58,7 +58,7 @@ static void *pdsfc_info(struct fwctl_uctx *uctx, size_t *length)
 	struct pdsfc_uctx *pdsfc_uctx = container_of(uctx, struct pdsfc_uctx, uctx);
 	struct fwctl_info_pds *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 

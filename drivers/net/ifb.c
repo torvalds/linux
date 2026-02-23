@@ -39,8 +39,8 @@
 #define TX_Q_LIMIT    32
 
 struct ifb_q_stats {
-	u64 packets;
-	u64 bytes;
+	u64_stats_t packets;
+	u64_stats_t bytes;
 	struct u64_stats_sync	sync;
 };
 
@@ -81,8 +81,8 @@ static int ifb_close(struct net_device *dev);
 static void ifb_update_q_stats(struct ifb_q_stats *stats, int len)
 {
 	u64_stats_update_begin(&stats->sync);
-	stats->packets++;
-	stats->bytes += len;
+	u64_stats_inc(&stats->packets);
+	u64_stats_add(&stats->bytes, len);
 	u64_stats_update_end(&stats->sync);
 }
 
@@ -163,16 +163,16 @@ static void ifb_stats64(struct net_device *dev,
 	for (i = 0; i < dev->num_tx_queues; i++,txp++) {
 		do {
 			start = u64_stats_fetch_begin(&txp->rx_stats.sync);
-			packets = txp->rx_stats.packets;
-			bytes = txp->rx_stats.bytes;
+			packets = u64_stats_read(&txp->rx_stats.packets);
+			bytes = u64_stats_read(&txp->rx_stats.bytes);
 		} while (u64_stats_fetch_retry(&txp->rx_stats.sync, start));
 		stats->rx_packets += packets;
 		stats->rx_bytes += bytes;
 
 		do {
 			start = u64_stats_fetch_begin(&txp->tx_stats.sync);
-			packets = txp->tx_stats.packets;
-			bytes = txp->tx_stats.bytes;
+			packets = u64_stats_read(&txp->tx_stats.packets);
+			bytes = u64_stats_read(&txp->tx_stats.bytes);
 		} while (u64_stats_fetch_retry(&txp->tx_stats.sync, start));
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
@@ -187,7 +187,7 @@ static int ifb_dev_init(struct net_device *dev)
 	struct ifb_q_private *txp;
 	int i;
 
-	txp = kcalloc(dev->num_tx_queues, sizeof(*txp), GFP_KERNEL);
+	txp = kzalloc_objs(*txp, dev->num_tx_queues);
 	if (!txp)
 		return -ENOMEM;
 	dp->tx_private = txp;
@@ -248,7 +248,7 @@ static void ifb_fill_stats_data(u64 **data,
 		start = u64_stats_fetch_begin(&q_stats->sync);
 		for (j = 0; j < IFB_Q_STATS_LEN; j++) {
 			offset = ifb_q_stats_desc[j].offset;
-			(*data)[j] = *(u64 *)(stats_base + offset);
+			(*data)[j] = u64_stats_read((u64_stats_t *)(stats_base + offset));
 		}
 	} while (u64_stats_fetch_retry(&q_stats->sync, start));
 

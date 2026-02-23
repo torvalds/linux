@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Generic process-grouping system.
  *
@@ -20,10 +21,6 @@
  *  2003-10-22 Updates by Stephen Hemminger.
  *  2004 May-July Rework by Paul Jackson.
  *  ---------------------------------------------------
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -206,13 +203,13 @@ EXPORT_SYMBOL_GPL(cgrp_dfl_root);
 bool cgrp_dfl_visible;
 
 /* some controllers are not supported in the default hierarchy */
-static u16 cgrp_dfl_inhibit_ss_mask;
+static u32 cgrp_dfl_inhibit_ss_mask;
 
 /* some controllers are implicitly enabled on the default hierarchy */
-static u16 cgrp_dfl_implicit_ss_mask;
+static u32 cgrp_dfl_implicit_ss_mask;
 
 /* some controllers can be threaded on the default hierarchy */
-static u16 cgrp_dfl_threaded_ss_mask;
+static u32 cgrp_dfl_threaded_ss_mask;
 
 /* The list of hierarchy roots */
 LIST_HEAD(cgroup_roots);
@@ -234,10 +231,10 @@ static u64 css_serial_nr_next = 1;
  * These bitmasks identify subsystems with specific features to avoid
  * having to do iterative checks repeatedly.
  */
-static u16 have_fork_callback __read_mostly;
-static u16 have_exit_callback __read_mostly;
-static u16 have_release_callback __read_mostly;
-static u16 have_canfork_callback __read_mostly;
+static u32 have_fork_callback __read_mostly;
+static u32 have_exit_callback __read_mostly;
+static u32 have_release_callback __read_mostly;
+static u32 have_canfork_callback __read_mostly;
 
 static bool have_favordynmods __ro_after_init = IS_ENABLED(CONFIG_CGROUP_FAVOR_DYNMODS);
 
@@ -475,13 +472,13 @@ static bool cgroup_is_valid_domain(struct cgroup *cgrp)
 }
 
 /* subsystems visibly enabled on a cgroup */
-static u16 cgroup_control(struct cgroup *cgrp)
+static u32 cgroup_control(struct cgroup *cgrp)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
-	u16 root_ss_mask = cgrp->root->subsys_mask;
+	u32 root_ss_mask = cgrp->root->subsys_mask;
 
 	if (parent) {
-		u16 ss_mask = parent->subtree_control;
+		u32 ss_mask = parent->subtree_control;
 
 		/* threaded cgroups can only have threaded controllers */
 		if (cgroup_is_threaded(cgrp))
@@ -496,12 +493,12 @@ static u16 cgroup_control(struct cgroup *cgrp)
 }
 
 /* subsystems enabled on a cgroup */
-static u16 cgroup_ss_mask(struct cgroup *cgrp)
+static u32 cgroup_ss_mask(struct cgroup *cgrp)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
 
 	if (parent) {
-		u16 ss_mask = parent->subtree_ss_mask;
+		u32 ss_mask = parent->subtree_ss_mask;
 
 		/* threaded cgroups can only have threaded controllers */
 		if (cgroup_is_threaded(cgrp))
@@ -1171,7 +1168,7 @@ static int allocate_cgrp_cset_links(int count, struct list_head *tmp_links)
 	INIT_LIST_HEAD(tmp_links);
 
 	for (i = 0; i < count; i++) {
-		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		link = kzalloc_obj(*link);
 		if (!link) {
 			free_cgrp_cset_links(tmp_links);
 			return -ENOMEM;
@@ -1244,7 +1241,7 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	if (cset)
 		return cset;
 
-	cset = kzalloc(sizeof(*cset), GFP_KERNEL);
+	cset = kzalloc_obj(*cset);
 	if (!cset)
 		return NULL;
 
@@ -1636,9 +1633,9 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
  * This function calculates which subsystems need to be enabled if
  * @subtree_control is to be applied while restricted to @this_ss_mask.
  */
-static u16 cgroup_calc_subtree_ss_mask(u16 subtree_control, u16 this_ss_mask)
+static u32 cgroup_calc_subtree_ss_mask(u32 subtree_control, u32 this_ss_mask)
 {
-	u16 cur_ss_mask = subtree_control;
+	u32 cur_ss_mask = subtree_control;
 	struct cgroup_subsys *ss;
 	int ssid;
 
@@ -1647,7 +1644,7 @@ static u16 cgroup_calc_subtree_ss_mask(u16 subtree_control, u16 this_ss_mask)
 	cur_ss_mask |= cgrp_dfl_implicit_ss_mask;
 
 	while (true) {
-		u16 new_ss_mask = cur_ss_mask;
+		u32 new_ss_mask = cur_ss_mask;
 
 		do_each_subsys_mask(ss, ssid, cur_ss_mask) {
 			new_ss_mask |= ss->depends_on;
@@ -1851,12 +1848,12 @@ err:
 	return ret;
 }
 
-int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask)
+int rebind_subsystems(struct cgroup_root *dst_root, u32 ss_mask)
 {
 	struct cgroup *dcgrp = &dst_root->cgrp;
 	struct cgroup_subsys *ss;
 	int ssid, ret;
-	u16 dfl_disable_ss_mask = 0;
+	u32 dfl_disable_ss_mask = 0;
 
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -2152,7 +2149,7 @@ void init_cgroup_root(struct cgroup_fs_context *ctx)
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
 
-int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask)
+int cgroup_setup_root(struct cgroup_root *root, u32 ss_mask)
 {
 	LIST_HEAD(tmp_links);
 	struct cgroup *root_cgrp = &root->cgrp;
@@ -2353,7 +2350,7 @@ static int cgroup_init_fs_context(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct cgroup_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct cgroup_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -3134,7 +3131,7 @@ void cgroup_procs_write_finish(struct task_struct *task,
 	put_task_struct(task);
 }
 
-static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
+static void cgroup_print_ss_mask(struct seq_file *seq, u32 ss_mask)
 {
 	struct cgroup_subsys *ss;
 	bool printed = false;
@@ -3499,9 +3496,9 @@ static void cgroup_finalize_control(struct cgroup *cgrp, int ret)
 	cgroup_apply_control_disable(cgrp);
 }
 
-static int cgroup_vet_subtree_control_enable(struct cgroup *cgrp, u16 enable)
+static int cgroup_vet_subtree_control_enable(struct cgroup *cgrp, u32 enable)
 {
-	u16 domain_enable = enable & ~cgrp_dfl_threaded_ss_mask;
+	u32 domain_enable = enable & ~cgrp_dfl_threaded_ss_mask;
 
 	/* if nothing is getting enabled, nothing to worry about */
 	if (!enable)
@@ -3544,7 +3541,7 @@ static ssize_t cgroup_subtree_control_write(struct kernfs_open_file *of,
 					    char *buf, size_t nbytes,
 					    loff_t off)
 {
-	u16 enable = 0, disable = 0;
+	u32 enable = 0, disable = 0;
 	struct cgroup *cgrp, *child;
 	struct cgroup_subsys *ss;
 	char *tok;
@@ -4254,7 +4251,7 @@ static int cgroup_file_open(struct kernfs_open_file *of)
 	struct cgroup_file_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -4948,7 +4945,7 @@ bool css_has_online_children(struct cgroup_subsys_state *css)
 
 	rcu_read_lock();
 	css_for_each_child(child, css) {
-		if (child->flags & CSS_ONLINE) {
+		if (css_is_online(child)) {
 			ret = true;
 			break;
 		}
@@ -5753,7 +5750,7 @@ static void offline_css(struct cgroup_subsys_state *css)
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	if (!(css->flags & CSS_ONLINE))
+	if (!css_is_online(css))
 		return;
 
 	if (ss->css_offline)
@@ -5847,7 +5844,7 @@ static struct cgroup *cgroup_create(struct cgroup *parent, const char *name,
 	int ret;
 
 	/* allocate the cgroup and its ID, 0 is reserved for the root */
-	cgrp = kzalloc(struct_size(cgrp, ancestors, (level + 1)), GFP_KERNEL);
+	cgrp = kzalloc_flex(*cgrp, _low_ancestors, level);
 	if (!cgrp)
 		return ERR_PTR(-ENOMEM);
 
@@ -6350,7 +6347,7 @@ int __init cgroup_init(void)
 	struct cgroup_subsys *ss;
 	int ssid;
 
-	BUILD_BUG_ON(CGROUP_SUBSYS_COUNT > 16);
+	BUILD_BUG_ON(CGROUP_SUBSYS_COUNT > 32);
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_base_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup_psi_files));
 	BUG_ON(cgroup_init_cftypes(NULL, cgroup1_base_files));

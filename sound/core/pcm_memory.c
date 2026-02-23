@@ -448,7 +448,7 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 		/* dma_max=0 means the fixed size preallocation */
 		if (substream->dma_buffer.area && !substream->dma_max)
 			return -ENOMEM;
-		dmab = kzalloc(sizeof(*dmab), GFP_KERNEL);
+		dmab = kzalloc_obj(*dmab);
 		if (! dmab)
 			return -ENOMEM;
 		dmab->dev = substream->dma_buffer.dev;

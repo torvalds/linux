@@ -58,9 +58,9 @@
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/fs.h>
-#include <linux/fs_struct.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/fs_struct.h>
 #include <linux/log2.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
@@ -264,9 +264,13 @@ enum Opt {
 	Opt_windows_names,
 	Opt_showmeta,
 	Opt_acl,
+	Opt_acl_bool,
 	Opt_iocharset,
 	Opt_prealloc,
+	Opt_prealloc_bool,
 	Opt_nocase,
+	Opt_delalloc,
+	Opt_delalloc_bool,
 	Opt_err,
 };
 
@@ -285,10 +289,14 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag("hide_dot_files",	Opt_hide_dot_files),
 	fsparam_flag("windows_names",	Opt_windows_names),
 	fsparam_flag("showmeta",	Opt_showmeta),
-	fsparam_flag_no("acl",		Opt_acl),
+	fsparam_flag("acl",		Opt_acl),
+	fsparam_bool("acl",		Opt_acl_bool),
 	fsparam_string("iocharset",	Opt_iocharset),
-	fsparam_flag_no("prealloc",	Opt_prealloc),
+	fsparam_flag("prealloc",	Opt_prealloc),
+	fsparam_bool("prealloc",	Opt_prealloc_bool),
 	fsparam_flag("nocase",		Opt_nocase),
+	fsparam_flag("delalloc",	Opt_delalloc),
+	fsparam_bool("delalloc",	Opt_delalloc_bool),
 	{}
 };
 // clang-format on
@@ -379,15 +387,17 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 	case Opt_showmeta:
 		opts->showmeta = 1;
 		break;
-	case Opt_acl:
-		if (!result.negated)
+	case Opt_acl_bool:
+		if (result.boolean) {
+			fallthrough;
+		case Opt_acl:
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 			fc->sb_flags |= SB_POSIXACL;
 #else
 			return invalf(
 				fc, "ntfs3: Support for ACL not compiled in!");
 #endif
-		else
+		} else
 			fc->sb_flags &= ~SB_POSIXACL;
 		break;
 	case Opt_iocharset:
@@ -396,10 +406,19 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		param->string = NULL;
 		break;
 	case Opt_prealloc:
-		opts->prealloc = !result.negated;
+		opts->prealloc = 1;
+		break;
+	case Opt_prealloc_bool:
+		opts->prealloc = result.boolean;
 		break;
 	case Opt_nocase:
 		opts->nocase = 1;
+		break;
+	case Opt_delalloc:
+		opts->delalloc = 1;
+		break;
+	case Opt_delalloc_bool:
+		opts->delalloc = result.boolean;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
@@ -674,7 +693,7 @@ static noinline void ntfs3_put_sbi(struct ntfs_sb_info *sbi)
 		sbi->volume.ni = NULL;
 	}
 
-	ntfs_update_mftmirr(sbi, 0);
+	ntfs_update_mftmirr(sbi);
 
 	indx_clear(&sbi->security.index_sii);
 	indx_clear(&sbi->security.index_sdh);
@@ -705,9 +724,7 @@ static void ntfs_put_super(struct super_block *sb)
 	ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
 
 	if (sbi->options) {
-		unload_nls(sbi->options->nls);
-		kfree(sbi->options->nls_name);
-		kfree(sbi->options);
+		put_mount_options(sbi->options);
 		sbi->options = NULL;
 	}
 
@@ -719,14 +736,22 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb = dentry->d_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
+	CLST da_clusters = ntfs_get_da(sbi);
 
 	buf->f_type = sb->s_magic;
-	buf->f_bsize = sbi->cluster_size;
+	buf->f_bsize = buf->f_frsize = sbi->cluster_size;
 	buf->f_blocks = wnd->nbits;
 
-	buf->f_bfree = buf->f_bavail = wnd_zeroes(wnd);
+	buf->f_bfree = wnd_zeroes(wnd);
+	if (buf->f_bfree > da_clusters) {
+		buf->f_bfree -= da_clusters;
+	} else {
+		buf->f_bfree = 0;
+	}
+	buf->f_bavail = buf->f_bfree;
+
 	buf->f_fsid.val[0] = sbi->volume.ser_num;
-	buf->f_fsid.val[1] = (sbi->volume.ser_num >> 32);
+	buf->f_fsid.val[1] = sbi->volume.ser_num >> 32;
 	buf->f_namelen = NTFS_NAME_LEN;
 
 	return 0;
@@ -771,6 +796,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",prealloc");
 	if (opts->nocase)
 		seq_puts(m, ",nocase");
+	if (opts->delalloc)
+		seq_puts(m, ",delalloc");
 
 	return 0;
 }
@@ -823,7 +850,12 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 	if (!err)
 		ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
 
-	ntfs_update_mftmirr(sbi, wait);
+	ntfs_update_mftmirr(sbi);
+
+	if (wait) {
+		sync_blockdev(sb->s_bdev);
+		blkdev_issue_flush(sb->s_bdev);
+	}
 
 	return err;
 }
@@ -1076,7 +1108,7 @@ read_boot:
 		dev_size += sector_size - 1;
 	}
 
-	sbi->bdev_blocksize_mask = max(boot_sector_size, sector_size) - 1;
+	sbi->bdev_blocksize = max(boot_sector_size, sector_size);
 	sbi->mft.lbo = mlcn << cluster_bits;
 	sbi->mft.lbo2 = mlcn2 << cluster_bits;
 
@@ -1253,7 +1285,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		}
 	}
 	sbi->options = options;
-	fc->fs_private = NULL;
 	sb->s_flags |= SB_NODIRATIME;
 	sb->s_magic = 0x7366746e; // "ntfs"
 	sb->s_op = &ntfs_sops;
@@ -1652,9 +1683,7 @@ load_root:
 		 */
 		struct buffer_head *bh0 = sb_getblk(sb, 0);
 		if (bh0) {
-			if (buffer_locked(bh0))
-				__wait_on_buffer(bh0);
-
+			wait_on_buffer(bh0);
 			lock_buffer(bh0);
 			memcpy(bh0->b_data, boot2, sizeof(*boot2));
 			set_buffer_uptodate(bh0);
@@ -1679,9 +1708,7 @@ put_inode_out:
 out:
 	/* sbi->options == options */
 	if (options) {
-		unload_nls(options->nls);
-		kfree(options->nls_name);
-		kfree(options);
+		put_mount_options(sbi->options);
 		sbi->options = NULL;
 	}
 
@@ -1801,7 +1828,7 @@ static int __ntfs_init_fs_context(struct fs_context *fc)
 	struct ntfs_mount_options *opts;
 	struct ntfs_sb_info *sbi;
 
-	opts = kzalloc(sizeof(struct ntfs_mount_options), GFP_NOFS);
+	opts = kzalloc_obj(struct ntfs_mount_options, GFP_NOFS);
 	if (!opts)
 		return -ENOMEM;
 
@@ -1820,7 +1847,7 @@ static int __ntfs_init_fs_context(struct fs_context *fc)
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
 		goto ok;
 
-	sbi = kzalloc(sizeof(struct ntfs_sb_info), GFP_NOFS);
+	sbi = kzalloc_obj(struct ntfs_sb_info, GFP_NOFS);
 	if (!sbi)
 		goto free_opts;
 

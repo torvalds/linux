@@ -231,6 +231,21 @@ struct flow_action_cookie *flow_action_cookie_create(void *data,
 						     gfp_t gfp);
 void flow_action_cookie_destroy(struct flow_action_cookie *cookie);
 
+struct flow_action_police {
+	u32 burst;
+	u64 rate_bytes_ps;
+	u64 peakrate_bytes_ps;
+	u32 avrate;
+	u16 overhead;
+	u64 burst_pkt;
+	u64 rate_pkt_ps;
+	u32 mtu;
+	struct {
+		enum flow_action_id act_id;
+		u32 extval;
+	} exceed, notexceed;
+};
+
 struct flow_action_entry {
 	enum flow_action_id		id;
 	u32				hw_index;
@@ -275,20 +290,7 @@ struct flow_action_entry {
 			u32			trunc_size;
 			bool			truncate;
 		} sample;
-		struct {				/* FLOW_ACTION_POLICE */
-			u32			burst;
-			u64			rate_bytes_ps;
-			u64			peakrate_bytes_ps;
-			u32			avrate;
-			u16			overhead;
-			u64			burst_pkt;
-			u64			rate_pkt_ps;
-			u32			mtu;
-			struct {
-				enum flow_action_id	act_id;
-				u32			extval;
-			} exceed, notexceed;
-		} police;
+		struct flow_action_police police;	/* FLOW_ACTION_POLICE */
 		struct {				/* FLOW_ACTION_CT */
 			int action;
 			u16 zone;
@@ -526,7 +528,7 @@ static inline bool flow_rule_has_enc_control_flags(const u32 enc_ctrl_flags,
  *
  * Return: true if control flags are set, false otherwise.
  */
-static inline bool flow_rule_match_has_control_flags(struct flow_rule *rule,
+static inline bool flow_rule_match_has_control_flags(const struct flow_rule *rule,
 						     struct netlink_ext_ack *extack)
 {
 	struct flow_match_control match;
@@ -718,7 +720,7 @@ struct flow_offload_action {
 struct flow_offload_action *offload_action_alloc(unsigned int num_actions);
 
 static inline struct flow_rule *
-flow_cls_offload_flow_rule(struct flow_cls_offload *flow_cmd)
+flow_cls_offload_flow_rule(const struct flow_cls_offload *flow_cmd)
 {
 	return flow_cmd->rule;
 }

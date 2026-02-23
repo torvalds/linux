@@ -57,6 +57,8 @@ config CRYPTO_DEV_HISI_ZIP
 	depends on UACCE || UACCE=n
 	depends on ACPI
 	select CRYPTO_DEV_HISI_QM
+	select CRYPTO_DEFLATE
+	select CRYPTO_LZ4
 	help
 	  Support for HiSilicon ZIP Driver
 

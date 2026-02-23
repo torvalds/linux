@@ -96,7 +96,7 @@ lsdc_ttm_tt_create(struct ttm_buffer_object *tbo, uint32_t page_flags)
 	struct ttm_tt *tt;
 	int ret;
 
-	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
+	tt = kzalloc_obj(*tt);
 	if (!tt)
 		return NULL;
 
@@ -441,7 +441,7 @@ struct lsdc_bo *lsdc_bo_create(struct drm_device *ddev,
 	enum ttm_bo_type bo_type;
 	int ret;
 
-	lbo = kzalloc(sizeof(*lbo), GFP_KERNEL);
+	lbo = kzalloc_obj(*lbo);
 	if (!lbo)
 		return ERR_PTR(-ENOMEM);
 

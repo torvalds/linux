@@ -28,6 +28,8 @@ static const size_t acpi_dsm_size[DSM_FUNC_NUM_FUNCS] = {
 	[DSM_FUNC_ENERGY_DETECTION_THRESHOLD] =	sizeof(u32),
 	[DSM_FUNC_RFI_CONFIG] =			sizeof(u32),
 	[DSM_FUNC_ENABLE_11BE] =		sizeof(u32),
+	[DSM_FUNC_ENABLE_UNII_9] =		sizeof(u32),
+	[DSM_FUNC_ENABLE_11BN] =		sizeof(u32),
 };
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
@@ -156,6 +158,70 @@ out:
 }
 
 /*
+ * This function loads all the DSM functions, it checks the size and populates
+ * the cache with the values in a 32-bit field.
+ * In case the expected size is smaller than 32-bit, padding will be added.
+ */
+static int iwl_acpi_load_dsm_values(struct iwl_fw_runtime *fwrt)
+{
+	u64 query_func_val;
+	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(acpi_dsm_size) != DSM_FUNC_NUM_FUNCS);
+
+	ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV,
+				       DSM_FUNC_QUERY,
+				       &iwl_guid, &query_func_val,
+				       acpi_dsm_size[DSM_FUNC_QUERY]);
+
+	if (ret) {
+		IWL_DEBUG_RADIO(fwrt, "ACPI QUERY FUNC not valid: %d\n", ret);
+		return ret;
+	}
+
+	fwrt->dsm_revision = ACPI_DSM_REV;
+	fwrt->dsm_source = BIOS_SOURCE_ACPI;
+
+	IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
+			(u32)query_func_val);
+
+	/* DSM_FUNC_QUERY is 0, start from 1 */
+	for (int func = 1; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
+		size_t expected_size = acpi_dsm_size[func];
+		u64 tmp;
+
+		if (!(query_func_val & BIT(func))) {
+			IWL_DEBUG_RADIO(fwrt,
+					"ACPI DSM %d not indicated as valid\n",
+					func);
+			continue;
+		}
+
+		/* This is an invalid function (5 for example) */
+		if (!expected_size)
+			continue;
+
+		/* Currently all ACPI DSMs are either 8-bit or 32-bit */
+		if (expected_size != sizeof(u8) && expected_size != sizeof(u32))
+			continue;
+
+		ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV, func,
+					       &iwl_guid, &tmp, expected_size);
+		if (ret)
+			continue;
+
+		if ((expected_size == sizeof(u8) && tmp != (u8)tmp) ||
+		    (expected_size == sizeof(u32) && tmp != (u32)tmp))
+			IWL_DEBUG_RADIO(fwrt,
+					"DSM value overflows the expected size, truncating\n");
+		fwrt->dsm_values[func] = (u32)tmp;
+		fwrt->dsm_funcs_valid |= BIT(func);
+	}
+
+	return 0;
+}
+
+/*
  * This function receives a DSM function number, calculates its expected size
  * according to Intel BIOS spec, and fills in the value in a 32-bit field.
  * In case the expected size is smaller than 32-bit, padding will be added.
@@ -163,54 +229,33 @@ out:
 int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 		     enum iwl_dsm_funcs func, u32 *value)
 {
-	size_t expected_size;
-	u64 tmp;
-	int ret;
+	if (!fwrt->dsm_funcs_valid) {
+		int ret = iwl_acpi_load_dsm_values(fwrt);
 
-	BUILD_BUG_ON(ARRAY_SIZE(acpi_dsm_size) != DSM_FUNC_NUM_FUNCS);
+		/*
+		 * Always set the valid bit for DSM_FUNC_QUERY so that even if
+		 * DSM_FUNC_QUERY returns 0 (no DSM function is valid), we will
+		 * still consider the cache as valid.
+		 */
+		fwrt->dsm_funcs_valid |= BIT(DSM_FUNC_QUERY);
 
-	if (WARN_ON(func >= ARRAY_SIZE(acpi_dsm_size) || !func))
-		return -EINVAL;
-
-	expected_size = acpi_dsm_size[func];
-
-	/* Currently all ACPI DSMs are either 8-bit or 32-bit */
-	if (expected_size != sizeof(u8) && expected_size != sizeof(u32))
-		return -EOPNOTSUPP;
-
-	if (!fwrt->acpi_dsm_funcs_valid) {
-		ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV,
-					       DSM_FUNC_QUERY,
-					       &iwl_guid, &tmp,
-					       acpi_dsm_size[DSM_FUNC_QUERY]);
-		if (ret) {
-			/* always indicate BIT(0) to avoid re-reading */
-			fwrt->acpi_dsm_funcs_valid = BIT(0);
+		if (ret)
 			return ret;
-		}
-
-		IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
-				(u32)tmp);
-		/* always indicate BIT(0) to avoid re-reading */
-		fwrt->acpi_dsm_funcs_valid = tmp | BIT(0);
 	}
 
-	if (!(fwrt->acpi_dsm_funcs_valid & BIT(func))) {
+	BUILD_BUG_ON(ARRAY_SIZE(fwrt->dsm_values) != DSM_FUNC_NUM_FUNCS);
+	BUILD_BUG_ON(BITS_PER_TYPE(fwrt->dsm_funcs_valid) < DSM_FUNC_NUM_FUNCS);
+
+	if (WARN_ON(func >= ARRAY_SIZE(fwrt->dsm_values) || !func))
+		return -EINVAL;
+
+	if (!(fwrt->dsm_funcs_valid & BIT(func))) {
 		IWL_DEBUG_RADIO(fwrt, "ACPI DSM %d not indicated as valid\n",
 				func);
 		return -ENODATA;
 	}
 
-	ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV, func,
-				       &iwl_guid, &tmp, expected_size);
-	if (ret)
-		return ret;
-
-	if ((expected_size == sizeof(u8) && tmp != (u8)tmp) ||
-	    (expected_size == sizeof(u32) && tmp != (u32)tmp))
-		IWL_DEBUG_RADIO(fwrt,
-				"DSM value overflows the expected size, truncating\n");
-	*value = (u32)tmp;
+	*value = fwrt->dsm_values[func];
 
 	return 0;
 }

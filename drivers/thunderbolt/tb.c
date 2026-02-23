@@ -94,7 +94,7 @@ static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
 {
 	struct tb_hotplug_event *ev;
 
-	ev = kmalloc(sizeof(*ev), GFP_KERNEL);
+	ev = kmalloc_obj(*ev);
 	if (!ev)
 		return;
 
@@ -2862,7 +2862,7 @@ static void tb_queue_dp_bandwidth_request(struct tb *tb, u64 route, u8 port,
 {
 	struct tb_hotplug_event *ev;
 
-	ev = kmalloc(sizeof(*ev), GFP_KERNEL);
+	ev = kmalloc_obj(*ev);
 	if (!ev)
 		return;
 

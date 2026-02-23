@@ -312,9 +312,7 @@ int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
 	int i, j;
 	struct hl_block_glbl_sec *glbl_sec;
 
-	glbl_sec = kcalloc(blocks_array_size,
-			sizeof(struct hl_block_glbl_sec),
-			GFP_KERNEL);
+	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, blocks_array_size);
 	if (!glbl_sec)
 		return -ENOMEM;
 
@@ -393,9 +391,7 @@ int hl_init_pb_ranges_with_mask(struct hl_device *hdev, u32 num_dcores,
 	int i, j, rc = 0;
 	struct hl_block_glbl_sec *glbl_sec;
 
-	glbl_sec = kcalloc(blocks_array_size,
-			sizeof(struct hl_block_glbl_sec),
-			GFP_KERNEL);
+	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, blocks_array_size);
 	if (!glbl_sec)
 		return -ENOMEM;
 
@@ -476,9 +472,7 @@ int hl_init_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 	int i, rc = 0;
 	struct hl_block_glbl_sec *glbl_sec;
 
-	glbl_sec = kcalloc(blocks_array_size,
-			sizeof(struct hl_block_glbl_sec),
-			GFP_KERNEL);
+	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, blocks_array_size);
 	if (!glbl_sec)
 		return -ENOMEM;
 
@@ -524,9 +518,7 @@ int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
 	int i;
 	struct hl_block_glbl_sec *glbl_sec;
 
-	glbl_sec = kcalloc(blocks_array_size,
-			sizeof(struct hl_block_glbl_sec),
-			GFP_KERNEL);
+	glbl_sec = kzalloc_objs(struct hl_block_glbl_sec, blocks_array_size);
 	if (!glbl_sec)
 		return -ENOMEM;
 

@@ -13,10 +13,10 @@
 #include <linux/io.h>
 #include <linux/irqchip.h>
 #include <linux/irq.h>
+#include <linux/platform_data/pic32.h>
 
 #include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/mach-pic32/pic32.h>
 
 #define REG_INTCON	0x0000
 #define REG_INTSTAT	0x0020
@@ -221,7 +221,7 @@ static int __init pic32_of_init(struct device_node *node,
 	if (!evic_base)
 		return -ENOMEM;
 
-	priv = kcalloc(nchips, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_objs(*priv, nchips);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err_iounmap;

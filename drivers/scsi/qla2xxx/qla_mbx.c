@@ -43,6 +43,7 @@ static struct rom_cmd {
 } rom_cmds[] = {
 	{ MBC_LOAD_RAM },
 	{ MBC_EXECUTE_FIRMWARE },
+	{ MBC_LOAD_FLASH_FIRMWARE },
 	{ MBC_READ_RAM_WORD },
 	{ MBC_MAILBOX_REGISTER_TEST },
 	{ MBC_VERIFY_CHECKSUM },
@@ -823,6 +824,53 @@ done:
 
 	return rval;
 }
+
+/*
+ * qla2x00_load_flash_firmware
+ *	Load firmware from flash.
+ *
+ * Input:
+ *	vha = adapter block pointer.
+ *
+ * Returns:
+ *	qla28xx local function return status code.
+ *
+ * Context:
+ *	Kernel context.
+ */
+int
+qla28xx_load_flash_firmware(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	int rval = QLA_COMMAND_ERROR;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA28XX(ha))
+		return rval;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x11a6,
+	       "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_LOAD_FLASH_FIRMWARE;
+	mcp->out_mb = MBX_2 | MBX_1 | MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_log_info, vha, 0x11a7,
+		       "Failed=%x cmd error=%x img error=%x.\n",
+		       rval, mcp->mb[1], mcp->mb[2]);
+	} else {
+		ql_dbg(ql_log_info, vha, 0x11a8,
+		       "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
 
 /*
  * qla_get_exlogin_status
@@ -7153,6 +7201,46 @@ int qla_mailbox_passthru(scsi_qla_host_t *vha,
 		       __func__);
 		/* passing all 32 register's contents */
 		memcpy(mbx_out, &mcp->mb, 32 * sizeof(uint16_t));
+	}
+
+	return rval;
+}
+
+int qla_mpipt_validate_fw(scsi_qla_host_t *vha, u16 img_idx, uint16_t *state)
+{
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval;
+
+	if (!IS_QLA28XX(ha)) {
+		ql_dbg(ql_dbg_mbx, vha, 0xffff, "%s %d\n", __func__, __LINE__);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	if (img_idx > 1) {
+		ql_log(ql_log_info, vha, 0xffff,
+				"%s %d Invalid flash image index [%d]\n",
+				__func__, __LINE__, img_idx);
+		return QLA_INVALID_COMMAND;
+	}
+
+	memset(&mc, 0, sizeof(mc));
+	mcp->mb[0] = MBC_MPI_PASSTHROUGH;
+	mcp->mb[1] = MPIPT_SUBCMD_VALIDATE_FW;
+	mcp->mb[2] = img_idx;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+
+	/* send mb via iocb */
+	rval = qla24xx_send_mb_cmd(vha, &mc);
+	if (rval) {
+		ql_log(ql_log_info, vha, 0xffff, "%s:Failed %x (mb=%x,%x)\n",
+				__func__, rval, mcp->mb[0], mcp->mb[1]);
+		*state = mcp->mb[1];
+	} else {
+		ql_log(ql_log_info, vha, 0xffff, "%s: mb=%x,%x,%x\n", __func__,
+				mcp->mb[0], mcp->mb[1], mcp->mb[2]);
 	}
 
 	return rval;

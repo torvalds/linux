@@ -56,7 +56,7 @@ nvkm_head_new_(const struct nvkm_head_func *func,
 	       struct nvkm_disp *disp, int id)
 {
 	struct nvkm_head *head;
-	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
+	if (!(head = kzalloc_obj(*head)))
 		return -ENOMEM;
 	head->func = func;
 	head->disp = disp;

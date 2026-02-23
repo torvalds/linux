@@ -51,12 +51,18 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 				-ntohl(res->status));
 		goto out;
 	}
-	rcu_read_lock();
+
 	delegation = nfs4_get_valid_delegation(inode);
-	if (delegation == NULL || (delegation->type & FMODE_WRITE) == 0)
+	if (!delegation)
 		goto out_iput;
-	res->size = i_size_read(inode);
+	if ((delegation->type & FMODE_WRITE) == 0) {
+		nfs_put_delegation(delegation);
+		goto out_iput;
+	}
 	res->change_attr = delegation->change_attr;
+	nfs_put_delegation(delegation);
+
+	res->size = i_size_read(inode);
 	if (nfs_have_writebacks(inode))
 		res->change_attr++;
 	res->atime = inode_get_atime(inode);
@@ -71,7 +77,6 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 			  FATTR4_WORD2_TIME_DELEG_MODIFY) & args->bitmap[2];
 	res->status = 0;
 out_iput:
-	rcu_read_unlock();
 	trace_nfs4_cb_getattr(cps->clp, &args->fh, inode, -ntohl(res->status));
 	nfs_iput_and_deactive(inode);
 out:
@@ -120,8 +125,6 @@ out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(res));
 	return res;
 }
-
-#if defined(CONFIG_NFS_V4_1)
 
 /*
  * Lookup a layout inode by stateid
@@ -693,7 +696,6 @@ __be32 nfs4_callback_notify_lock(void *argp, void *resp,
 
 	return htonl(NFS4_OK);
 }
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 static void nfs4_copy_cb_args(struct nfs4_copy_state *cp_state,
 				struct cb_offloadargs *args)
@@ -716,7 +718,7 @@ __be32 nfs4_callback_offload(void *data, void *dummy,
 	struct nfs4_copy_state *copy, *tmp_copy;
 	bool found = false;
 
-	copy = kzalloc(sizeof(struct nfs4_copy_state), GFP_KERNEL);
+	copy = kzalloc_obj(struct nfs4_copy_state);
 	if (!copy)
 		return cpu_to_be32(NFS4ERR_DELAY);
 

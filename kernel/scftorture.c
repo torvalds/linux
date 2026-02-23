@@ -350,7 +350,7 @@ static void scftorture_invoke_one(struct scf_statistics *scfp, struct torture_ra
 	struct scf_selector *scfsp = scf_sel_rand(trsp);
 
 	if (scfsp->scfs_prim == SCF_PRIM_SINGLE || scfsp->scfs_wait) {
-		scfcp = kmalloc(sizeof(*scfcp), GFP_ATOMIC);
+		scfcp = kmalloc_obj(*scfcp, GFP_ATOMIC);
 		if (!scfcp) {
 			WARN_ON_ONCE(!IS_ENABLED(CONFIG_KASAN));
 			atomic_inc(&n_alloc_errs);
@@ -661,7 +661,7 @@ static int __init scf_torture_init(void)
 	// Worker tasks invoking smp_call_function().
 	if (nthreads < 0)
 		nthreads = num_online_cpus();
-	scf_stats_p = kcalloc(nthreads, sizeof(scf_stats_p[0]), GFP_KERNEL);
+	scf_stats_p = kzalloc_objs(scf_stats_p[0], nthreads);
 	if (!scf_stats_p) {
 		SCFTORTOUT_ERRSTRING("out of memory");
 		firsterr = -ENOMEM;

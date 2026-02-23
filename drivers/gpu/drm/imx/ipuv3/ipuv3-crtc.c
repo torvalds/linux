@@ -117,7 +117,7 @@ static void imx_drm_crtc_reset(struct drm_crtc *crtc)
 	kfree(to_imx_crtc_state(crtc->state));
 	crtc->state = NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state)
 		__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
@@ -126,7 +126,7 @@ static struct drm_crtc_state *imx_drm_crtc_duplicate_state(struct drm_crtc *crtc
 {
 	struct imx_crtc_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 

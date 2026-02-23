@@ -191,7 +191,7 @@ static void sun9i_a80_cpus_setup(struct device_node *node)
 	struct clk *clk;
 	int ret;
 
-	cpus = kzalloc(sizeof(*cpus), GFP_KERNEL);
+	cpus = kzalloc_obj(*cpus);
 	if (!cpus)
 		return;
 
@@ -204,7 +204,7 @@ static void sun9i_a80_cpus_setup(struct device_node *node)
 	/* we have a mux, we will have >1 parents */
 	ret = of_clk_parent_fill(node, parents, SUN9I_CPUS_MAX_PARENTS);
 
-	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+	mux = kzalloc_obj(*mux);
 	if (!mux)
 		goto err_unmap;
 

@@ -47,17 +47,17 @@
 			reg = <0x00600000 0x03200000>;
 		};
 
-		tclinux_slave@3800000 {
+		tclinux-slave@3800000 {
 			label = "tclinux_alt";
 			reg = <0x03800000 0x03200000>;
 		};
 
-		rootfs_data@6a00000 {
+		rootfs-data@6a00000 {
 			label = "rootfs_data";
 			reg = <0x06a00000 0x01400000>;
 		};
 
-		reserved_bmt@7e00000 {
+		reserved-bmt@7e00000 {
 			label = "reserved_bmt";
 			reg = <0x07e00000 0x00200000>;
 			read-only;

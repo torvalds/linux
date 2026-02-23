@@ -609,10 +609,9 @@ iwl_mld_handle_wowlan_info_notif(struct iwl_mld *mld,
 							5))
 			return true;
 
-		converted_notif = kzalloc(struct_size(converted_notif,
-						      mlo_gtks,
-						      notif_v5->num_mlo_link_keys),
-					  GFP_ATOMIC);
+		converted_notif = kzalloc_flex(*converted_notif, mlo_gtks,
+					       notif_v5->num_mlo_link_keys,
+					       GFP_ATOMIC);
 		if (!converted_notif) {
 			IWL_ERR(mld,
 				"Failed to allocate memory for converted wowlan_info_notif\n");
@@ -996,8 +995,6 @@ static void iwl_mld_mlo_rekey(struct iwl_mld *mld,
 			      struct iwl_mld_wowlan_status *wowlan_status,
 			      struct ieee80211_vif *vif)
 {
-	struct iwl_mld_old_mlo_keys *old_keys __free(kfree) = NULL;
-
 	IWL_DEBUG_WOWLAN(mld, "Num of MLO Keys: %d\n", wowlan_status->num_mlo_keys);
 
 	if (!wowlan_status->num_mlo_keys)
@@ -1175,8 +1172,7 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 		for (int k = 0; k < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; k++)
 			n_channels +=
 				hweight8(matches[i].matching_channels[k]);
-		match = kzalloc(struct_size(match, channels, n_channels),
-				GFP_KERNEL);
+		match = kzalloc_flex(*match, channels, n_channels);
 		if (!match)
 			return;
 
@@ -1253,8 +1249,7 @@ iwl_mld_process_netdetect_res(struct iwl_mld *mld,
 		goto out;
 	}
 	n_matches = hweight_long(matched_profiles);
-	netdetect_info = kzalloc(struct_size(netdetect_info, matches,
-					     n_matches), GFP_KERNEL);
+	netdetect_info = kzalloc_flex(*netdetect_info, matches, n_matches);
 	if (netdetect_info)
 		iwl_mld_set_netdetect_info(mld, netdetect_cfg, netdetect_info,
 					   resume_data->netdetect_res,
@@ -1658,7 +1653,7 @@ iwl_mld_suspend_send_security_cmds(struct iwl_mld *mld,
 	struct iwl_mld_suspend_key_iter_data data = {};
 	int ret;
 
-	data.rsc = kzalloc(sizeof(*data.rsc), GFP_KERNEL);
+	data.rsc = kzalloc_obj(*data.rsc);
 	if (!data.rsc)
 		return -ENOMEM;
 
@@ -2004,8 +1999,7 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 
 	iwl_fw_dbg_read_d3_debug_data(&mld->fwrt);
 
-	resume_data.wowlan_status = kzalloc(sizeof(*resume_data.wowlan_status),
-					    GFP_KERNEL);
+	resume_data.wowlan_status = kzalloc_obj(*resume_data.wowlan_status);
 	if (!resume_data.wowlan_status)
 		return -ENOMEM;
 

@@ -2110,7 +2110,7 @@ static int init_tlb_lookup(struct intel_guc *guc)
 
 	xa_init_flags(&guc->tlb_lookup, XA_FLAGS_ALLOC);
 
-	wait = kzalloc(sizeof(*wait), GFP_KERNEL);
+	wait = kzalloc_obj(*wait);
 	if (!wait)
 		return -ENOMEM;
 
@@ -4222,9 +4222,7 @@ guc_create_parallel(struct intel_engine_cs **engines,
 	struct intel_context *parent = NULL, *ce, *err;
 	int i, j;
 
-	siblings = kmalloc_array(num_siblings,
-				 sizeof(*siblings),
-				 GFP_KERNEL);
+	siblings = kmalloc_objs(*siblings, num_siblings);
 	if (!siblings)
 		return ERR_PTR(-ENOMEM);
 
@@ -5907,7 +5905,7 @@ guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 	unsigned int n;
 	int err;
 
-	ve = kzalloc(sizeof(*ve), GFP_KERNEL);
+	ve = kzalloc_obj(*ve);
 	if (!ve)
 		return ERR_PTR(-ENOMEM);
 

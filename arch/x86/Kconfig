@@ -331,11 +331,11 @@ config X86
 	select FUNCTION_ALIGNMENT_4B
 	imply IMA_SECURE_AND_OR_TRUSTED_BOOT    if EFI
 	select HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
-	select ARCH_SUPPORTS_PT_RECLAIM		if X86_64
 	select ARCH_SUPPORTS_SCHED_SMT		if SMP
 	select SCHED_SMT			if SMP
 	select ARCH_SUPPORTS_SCHED_CLUSTER	if SMP
 	select ARCH_SUPPORTS_SCHED_MC		if SMP
+	select HAVE_SINGLE_FTRACE_DIRECT_OPS	if X86_64 && DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -537,6 +537,19 @@ config X86_CPU_RESCTRL
 	  AMD calls this AMD Platform Quality of Service (AMD QoS).
 	  More information about AMD QoS can be found in the AMD64 Technology
 	  Platform Quality of Service Extensions manual.
+
+	  Say N if unsure.
+
+config X86_CPU_RESCTRL_INTEL_AET
+	bool "Intel Application Energy Telemetry"
+	depends on X86_64 && X86_CPU_RESCTRL && CPU_SUP_INTEL && INTEL_PMT_TELEMETRY=y && INTEL_TPMI=y
+	help
+	  Enable per-RMID telemetry events in resctrl.
+
+	  Intel feature that collects per-RMID execution data
+	  about energy consumption, measure of frequency independent
+	  activity and other performance metrics. Data is aggregated
+	  per package.
 
 	  Say N if unsure.
 
@@ -799,6 +812,7 @@ if HYPERVISOR_GUEST
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	depends on HAVE_STATIC_CALL
+	select HAVE_PV_STEAL_CLOCK_GEN
 	help
 	  This changes the kernel so it can modify itself when it is run
 	  under a hypervisor, potentially improving performance significantly
@@ -808,13 +822,7 @@ config PARAVIRT
 config PARAVIRT_XXL
 	bool
 	depends on X86_64
-
-config PARAVIRT_DEBUG
-	bool "paravirt-ops debugging"
-	depends on PARAVIRT && DEBUG_KERNEL
-	help
-	  Enable to debug paravirt_ops internals.  Specifically, BUG if
-	  a paravirt_op is missing when it is called.
+	select ARCH_HAS_LAZY_MMU_MODE
 
 config PARAVIRT_SPINLOCKS
 	bool "Paravirtualization layer for spinlocks"
@@ -1366,10 +1374,12 @@ config MICROCODE_DBG
 	default n
 	depends on MICROCODE
 	help
-	  Enable code which allows for debugging the microcode loader in
-	  a guest. Meaning the patch loading is simulated but everything else
+	  Enable code which allows to debug the microcode loader. When running
+	  in a guest the patch loading is simulated but everything else
 	  related to patch parsing and handling is done as on baremetal with
-	  the purpose of debugging solely the software side of things.
+	  the purpose of debugging solely the software side of things. On
+	  baremetal, it simply dumps additional debugging information during
+	  normal operation.
 
 	  You almost certainly want to say n here.
 
@@ -1816,7 +1826,7 @@ config ARCH_PKEY_BITS
 choice
 	prompt "TSX enable mode"
 	depends on CPU_SUP_INTEL
-	default X86_INTEL_TSX_MODE_OFF
+	default X86_INTEL_TSX_MODE_AUTO
 	help
 	  Intel's TSX (Transactional Synchronization Extensions) feature
 	  allows to optimize locking protocols through lock elision which

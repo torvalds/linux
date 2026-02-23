@@ -804,7 +804,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 		goto fail;
 	}
 
-	new = kzalloc(sizeof(struct usbatm_vcc_data), GFP_KERNEL);
+	new = kzalloc_obj(struct usbatm_vcc_data);
 	if (!new) {
 		ret = -ENOMEM;
 		goto fail;

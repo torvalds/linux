@@ -357,7 +357,7 @@ static void __init of_hsdk_pll_clk_setup(struct device_node *node)
 	struct hsdk_pll_clk *pll_clk;
 	struct clk_init_data init = { };
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (!pll_clk)
 		return;
 

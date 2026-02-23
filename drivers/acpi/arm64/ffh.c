@@ -33,7 +33,7 @@ int acpi_ffh_address_space_arch_setup(void *handler_ctxt, void **region_ctxt)
 		return -EOPNOTSUPP;
 	}
 
-	ffh_ctxt = kzalloc(sizeof(*ffh_ctxt), GFP_KERNEL);
+	ffh_ctxt = kzalloc_obj(*ffh_ctxt);
 	if (!ffh_ctxt)
 		return -ENOMEM;
 

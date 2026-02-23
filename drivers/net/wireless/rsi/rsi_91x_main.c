@@ -304,11 +304,11 @@ struct rsi_hw *rsi_91x_init(u16 oper_mode)
 	struct rsi_common *common = NULL;
 	u8 ii = 0;
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter)
 		return NULL;
 
-	adapter->priv = kzalloc(sizeof(*common), GFP_KERNEL);
+	adapter->priv = kzalloc_obj(*common);
 	if (adapter->priv == NULL) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of memory\n",
 			__func__);
@@ -425,35 +425,6 @@ void rsi_91x_deinit(struct rsi_hw *adapter)
 }
 EXPORT_SYMBOL_GPL(rsi_91x_deinit);
 
-/**
- * rsi_91x_hal_module_init() - This function is invoked when the module is
- *			       loaded into the kernel.
- *			       It registers the client driver.
- * @void: Void.
- *
- * Return: 0 on success, -1 on failure.
- */
-static int rsi_91x_hal_module_init(void)
-{
-	rsi_dbg(INIT_ZONE, "%s: Module init called\n", __func__);
-	return 0;
-}
-
-/**
- * rsi_91x_hal_module_exit() - This function is called at the time of
- *			       removing/unloading the module.
- *			       It unregisters the client driver.
- * @void: Void.
- *
- * Return: None.
- */
-static void rsi_91x_hal_module_exit(void)
-{
-	rsi_dbg(INIT_ZONE, "%s: Module exit called\n", __func__);
-}
-
-module_init(rsi_91x_hal_module_init);
-module_exit(rsi_91x_hal_module_exit);
 MODULE_AUTHOR("Redpine Signals Inc");
 MODULE_DESCRIPTION("Station driver for RSI 91x devices");
 MODULE_VERSION("0.1");

@@ -41,6 +41,7 @@
 #include "protocols/link_dp_phy.h"
 #include "protocols/link_dp_training.h"
 #include "protocols/link_edp_panel_control.h"
+#include "protocols/link_dp_panel_replay.h"
 #include "protocols/link_hpd.h"
 #include "gpio_service_interface.h"
 #include "atomfirmware.h"
@@ -73,7 +74,6 @@ static void construct_link_service_detection(struct link_service *link_srv)
 	link_srv->add_remote_sink = link_add_remote_sink;
 	link_srv->remove_remote_sink = link_remove_remote_sink;
 	link_srv->get_hpd_state = link_get_hpd_state;
-	link_srv->get_hpd_gpio = link_get_hpd_gpio;
 	link_srv->enable_hpd = link_enable_hpd;
 	link_srv->disable_hpd = link_disable_hpd;
 	link_srv->enable_hpd_filter = link_enable_hpd_filter;
@@ -215,7 +215,6 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 
 	link_srv->edp_get_replay_state = edp_get_replay_state;
 	link_srv->edp_set_replay_allow_active = edp_set_replay_allow_active;
-	link_srv->edp_setup_replay = edp_setup_replay;
 	link_srv->edp_send_replay_cmd = edp_send_replay_cmd;
 	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
 	link_srv->edp_replay_residency = edp_replay_residency;
@@ -230,6 +229,18 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
 	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
 	link_srv->edp_set_panel_power = edp_set_panel_power;
+}
+
+/* link dp panel replay implements DP panel replay functionality.
+ */
+static void construct_link_service_dp_panel_replay(struct link_service *link_srv)
+{
+	link_srv->dp_setup_replay = dp_setup_replay;
+	link_srv->dp_pr_get_panel_inst = dp_pr_get_panel_inst;
+	link_srv->dp_pr_enable = dp_pr_enable;
+	link_srv->dp_pr_update_state = dp_pr_update_state;
+	link_srv->dp_pr_set_general_cmd = dp_pr_set_general_cmd;
+	link_srv->dp_pr_get_state = dp_pr_get_state;
 }
 
 /* link dp cts implements dp compliance test automation protocols and manual
@@ -284,13 +295,14 @@ static void construct_link_service(struct link_service *link_srv)
 	construct_link_service_dp_phy_or_dpia(link_srv);
 	construct_link_service_dp_irq_handler(link_srv);
 	construct_link_service_edp_panel_control(link_srv);
+	construct_link_service_dp_panel_replay(link_srv);
 	construct_link_service_dp_cts(link_srv);
 	construct_link_service_dp_trace(link_srv);
 }
 
 struct link_service *link_create_link_service(void)
 {
-	struct link_service *link_srv = kzalloc(sizeof(*link_srv), GFP_KERNEL);
+	struct link_service *link_srv = kzalloc_obj(*link_srv);
 
 	if (link_srv == NULL)
 		goto fail;
@@ -350,24 +362,6 @@ static enum transmitter translate_encoder_to_transmitter(
 			return TRANSMITTER_UNKNOWN;
 		}
 	break;
-	case ENCODER_ID_EXTERNAL_NUTMEG:
-		switch (encoder.enum_id) {
-		case ENUM_ID_1:
-			return TRANSMITTER_NUTMEG_CRT;
-		default:
-			return TRANSMITTER_UNKNOWN;
-		}
-	break;
-	case ENCODER_ID_EXTERNAL_TRAVIS:
-		switch (encoder.enum_id) {
-		case ENUM_ID_1:
-			return TRANSMITTER_TRAVIS_CRT;
-		case ENUM_ID_2:
-			return TRANSMITTER_TRAVIS_LCD;
-		default:
-			return TRANSMITTER_UNKNOWN;
-		}
-	break;
 	default:
 		return TRANSMITTER_UNKNOWN;
 	}
@@ -376,11 +370,6 @@ static enum transmitter translate_encoder_to_transmitter(
 static void link_destruct(struct dc_link *link)
 {
 	int i;
-
-	if (link->hpd_gpio) {
-		dal_gpio_destroy_irq(&link->hpd_gpio);
-		link->hpd_gpio = NULL;
-	}
 
 	if (link->ddc)
 		link_destroy_ddc_service(&link->ddc);
@@ -451,20 +440,19 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
-static enum engine_id find_analog_engine(struct dc_link *link)
+static enum engine_id find_analog_engine(struct dc_link *link, struct graphics_object_id *enc)
 {
 	struct dc_bios *bp = link->ctx->dc_bios;
-	struct graphics_object_id encoder = {0};
 	enum bp_result bp_result = BP_RESULT_OK;
 	int i;
 
 	for (i = 0; i < 3; i++) {
-		bp_result = bp->funcs->get_src_obj(bp, link->link_id, i, &encoder);
+		bp_result = bp->funcs->get_src_obj(bp, link->link_id, i, enc);
 
 		if (bp_result != BP_RESULT_OK)
 			return ENGINE_ID_UNKNOWN;
 
-		switch (encoder.id) {
+		switch (enc->id) {
 		case ENCODER_ID_INTERNAL_DAC1:
 		case ENCODER_ID_INTERNAL_KLDSCP_DAC1:
 			return ENGINE_ID_DACA;
@@ -474,15 +462,8 @@ static enum engine_id find_analog_engine(struct dc_link *link)
 		}
 	}
 
+	memset(enc, 0, sizeof(*enc));
 	return ENGINE_ID_UNKNOWN;
-}
-
-static bool transmitter_supported(const enum transmitter transmitter)
-{
-	return transmitter != TRANSMITTER_UNKNOWN &&
-		transmitter != TRANSMITTER_NUTMEG_CRT &&
-		transmitter != TRANSMITTER_TRAVIS_CRT &&
-		transmitter != TRANSMITTER_TRAVIS_LCD;
 }
 
 static bool analog_engine_supported(const enum engine_id engine_id)
@@ -502,6 +483,9 @@ static bool construct_phy(struct dc_link *link,
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
 	struct bp_disp_connector_caps_info disp_connect_caps_info = { 0 };
+	struct graphics_object_id link_encoder = { 0 };
+	enum transmitter transmitter_from_encoder;
+	enum engine_id link_analog_engine;
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
@@ -522,21 +506,21 @@ static bool construct_phy(struct dc_link *link,
 	link->link_id =
 		bios->funcs->get_connector_id(bios, init_params->connector_index);
 
-	/* Determine early if the link has any supported encoders,
-	 * so that we avoid initializing DDC and HPD, etc.
-	 */
-	bp_funcs->get_src_obj(bios, link->link_id, 0, &enc_init_data.encoder);
-	enc_init_data.transmitter = translate_encoder_to_transmitter(enc_init_data.encoder);
-	enc_init_data.analog_engine = find_analog_engine(link);
-
 	link->ep_type = DISPLAY_ENDPOINT_PHY;
 
 	DC_LOG_DC("BIOS object table - link_id: %d", link->link_id.id);
 
-	if (!transmitter_supported(enc_init_data.transmitter) &&
-	    !analog_engine_supported(enc_init_data.analog_engine)) {
+	/* Determine early if the link has any supported encoders,
+	 * so that we avoid initializing DDC and HPD, etc.
+	 */
+	bp_funcs->get_src_obj(bios, link->link_id, 0, &link_encoder);
+	transmitter_from_encoder = translate_encoder_to_transmitter(link_encoder);
+	link_analog_engine = find_analog_engine(link, &enc_init_data.analog_encoder);
+
+	if (transmitter_from_encoder == TRANSMITTER_UNKNOWN &&
+	    !analog_engine_supported(link_analog_engine)) {
 		DC_LOG_WARNING("link_id %d has unsupported encoder\n", link->link_id.id);
-		goto unsupported_fail;
+		goto create_fail;
 	}
 
 	if (bios->funcs->get_disp_connector_caps_info) {
@@ -554,99 +538,6 @@ static bool construct_phy(struct dc_link *link,
 
 	if (link->dc->res_pool->funcs->link_init)
 		link->dc->res_pool->funcs->link_init(link);
-
-	link->hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
-				      link->ctx->gpio_service);
-
-	if (link->hpd_gpio) {
-		dal_gpio_open(link->hpd_gpio, GPIO_MODE_INTERRUPT);
-		dal_gpio_unlock_pin(link->hpd_gpio);
-		link->irq_source_hpd = dal_irq_get_source(link->hpd_gpio);
-
-		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", link->hpd_gpio->id);
-		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", link->hpd_gpio->en);
-	}
-
-	switch (link->link_id.id) {
-	case CONNECTOR_ID_HDMI_TYPE_A:
-		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
-
-		if (link->hpd_gpio)
-			link->irq_source_read_request =
-					dal_irq_get_read_request(link->hpd_gpio);
-		break;
-	case CONNECTOR_ID_SINGLE_LINK_DVID:
-	case CONNECTOR_ID_SINGLE_LINK_DVII:
-		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
-		break;
-	case CONNECTOR_ID_DUAL_LINK_DVID:
-	case CONNECTOR_ID_DUAL_LINK_DVII:
-		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
-		break;
-	case CONNECTOR_ID_VGA:
-		link->connector_signal = SIGNAL_TYPE_RGB;
-		break;
-	case CONNECTOR_ID_DISPLAY_PORT:
-	case CONNECTOR_ID_MXM:
-	case CONNECTOR_ID_USBC:
-		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
-
-		if (link->hpd_gpio)
-			link->irq_source_hpd_rx =
-					dal_irq_get_rx_source(link->hpd_gpio);
-
-		break;
-	case CONNECTOR_ID_EDP:
-		// If smartmux is supported, only create the link on the primary eDP.
-		// Dual eDP is not supported with smartmux.
-		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
-			goto create_fail;
-
-		link->connector_signal = SIGNAL_TYPE_EDP;
-
-		if (link->hpd_gpio) {
-			if (!link->dc->config.allow_edp_hotplug_detection
-				&& !is_smartmux_suported(link))
-				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-
-			switch (link->dc->config.allow_edp_hotplug_detection) {
-			case HPD_EN_FOR_ALL_EDP:
-				link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				break;
-			case HPD_EN_FOR_PRIMARY_EDP_ONLY:
-				if (link->link_index == 0)
-					link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				else
-					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			case HPD_EN_FOR_SECONDARY_EDP_ONLY:
-				if (link->link_index == 1)
-					link->irq_source_hpd_rx =
-						dal_irq_get_rx_source(link->hpd_gpio);
-				else
-					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			default:
-				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-				break;
-			}
-		}
-
-		break;
-	case CONNECTOR_ID_LVDS:
-		link->connector_signal = SIGNAL_TYPE_LVDS;
-		break;
-	default:
-		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
-			       link->link_id.id);
-		goto create_fail;
-	}
-
-	LINK_INFO("Connector[%d] description: signal: %s\n",
-		  init_params->connector_index,
-		  signal_type_to_string(link->connector_signal));
 
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
@@ -669,9 +560,36 @@ static bool construct_phy(struct dc_link *link,
 	enc_init_data.ctx = dc_ctx;
 	enc_init_data.connector = link->link_id;
 	enc_init_data.channel = get_ddc_line(link);
-	enc_init_data.hpd_source = get_hpd_line(link);
+	enc_init_data.transmitter = transmitter_from_encoder;
+	enc_init_data.encoder = link_encoder;
+	enc_init_data.analog_engine = link_analog_engine;
+	if (link->ctx->dce_version <= DCN_VERSION_4_01)
+		enc_init_data.hpd_gpio = link_get_hpd_gpio(link->ctx->dc_bios, link->link_id,
+					      link->ctx->gpio_service);
+	else
+		enc_init_data.hpd_gpio = NULL;
+	if (enc_init_data.hpd_gpio) {
+		dal_gpio_open(enc_init_data.hpd_gpio, GPIO_MODE_INTERRUPT);
+		dal_gpio_unlock_pin(enc_init_data.hpd_gpio);
+		link->irq_source_hpd = dal_irq_get_source(enc_init_data.hpd_gpio);
+		enc_init_data.hpd_source = get_hpd_line(link);
+		link->hpd_src = enc_init_data.hpd_source;
 
-	link->hpd_src = enc_init_data.hpd_source;
+		DC_LOG_DC("BIOS object table - hpd_gpio id: %d", enc_init_data.hpd_gpio->id);
+		DC_LOG_DC("BIOS object table - hpd_gpio en: %d", enc_init_data.hpd_gpio->en);
+	} else {
+		struct graphics_object_hpd_info hpd_info;
+
+		if (link->ctx->dc_bios->funcs->get_hpd_info(link->ctx->dc_bios, link->link_id, &hpd_info) == BP_RESULT_OK) {
+			link->hpd_src = hpd_info.hpd_int_gpio_uid - 1;
+			link->irq_source_hpd =  DC_IRQ_SOURCE_HPD1 + link->hpd_src;
+			enc_init_data.hpd_source = link->hpd_src;
+			DC_LOG_DC("BIOS object table - hpd_int_gpio_uid id: %d", hpd_info.hpd_int_gpio_uid);
+		} else {
+			ASSERT(0);
+			enc_init_data.hpd_source = HPD_SOURCEID_UNKNOWN;
+		}
+	}
 
 	link->link_enc =
 		link->dc->res_pool->funcs->link_enc_create(dc_ctx, &enc_init_data);
@@ -683,6 +601,99 @@ static bool construct_phy(struct dc_link *link,
 
 	DC_LOG_DC("BIOS object table - DP_IS_USB_C: %d", link->link_enc->features.flags.bits.DP_IS_USB_C);
 	DC_LOG_DC("BIOS object table - IS_DP2_CAPABLE: %d", link->link_enc->features.flags.bits.IS_DP2_CAPABLE);
+
+	switch (link->link_id.id) {
+	case CONNECTOR_ID_HDMI_TYPE_A:
+		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+
+		if (link->link_enc->hpd_gpio)
+			link->irq_source_read_request =
+					dal_irq_get_read_request(link->link_enc->hpd_gpio);
+		else if (link->hpd_src != HPD_SOURCEID_UNKNOWN)
+			link->irq_source_read_request = DC_IRQ_SOURCE_DCI2C_RR_DDC1 + link->hpd_src;
+		break;
+	case CONNECTOR_ID_SINGLE_LINK_DVID:
+	case CONNECTOR_ID_SINGLE_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		break;
+	case CONNECTOR_ID_DUAL_LINK_DVID:
+	case CONNECTOR_ID_DUAL_LINK_DVII:
+		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		break;
+	case CONNECTOR_ID_VGA:
+		link->connector_signal = SIGNAL_TYPE_RGB;
+		break;
+	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_MXM:
+	case CONNECTOR_ID_USBC:
+		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+		if (link->link_enc->hpd_gpio)
+			link->irq_source_hpd_rx =
+					dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+		else if (link->hpd_src != HPD_SOURCEID_UNKNOWN)
+			link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+
+		break;
+	case CONNECTOR_ID_EDP:
+		// If smartmux is supported, only create the link on the primary eDP.
+		// Dual eDP is not supported with smartmux.
+		if (!(!link->dc->config.smart_mux_version || dc_ctx->dc_edp_id_count == 0))
+			goto create_fail;
+
+		link->connector_signal = SIGNAL_TYPE_EDP;
+		if (!link->dc->config.allow_edp_hotplug_detection
+			&& !is_smartmux_suported(link))
+			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+
+		switch (link->dc->config.allow_edp_hotplug_detection) {
+		case HPD_EN_FOR_ALL_EDP:
+			if (link->link_enc->hpd_gpio) {
+				link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			break;
+		case HPD_EN_FOR_PRIMARY_EDP_ONLY:
+			if (link->link_index == 0) {
+				if (link->link_enc->hpd_gpio) {
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			} else
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		case HPD_EN_FOR_SECONDARY_EDP_ONLY:
+			if (link->link_index == 1) {
+				if (link->link_enc->hpd_gpio) {
+					link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->link_enc->hpd_gpio);
+				} else if (link->hpd_src != HPD_SOURCEID_UNKNOWN) {
+					link->irq_source_hpd_rx = DC_IRQ_SOURCE_HPD1RX + link->hpd_src;
+				}
+			} else
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		default:
+			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			break;
+		}
+		break;
+	case CONNECTOR_ID_LVDS:
+		link->connector_signal = SIGNAL_TYPE_LVDS;
+		break;
+	default:
+		DC_LOG_WARNING("Unsupported Connector type:%d!\n",
+			       link->link_id.id);
+		goto create_fail;
+	}
+
+	LINK_INFO("Connector[%d] description: signal: %s\n",
+		  init_params->connector_index,
+		  signal_type_to_string(link->connector_signal));
 
 	/* Update link encoder tracking variables. These are used for the dynamic
 	 * assignment of link encoders to streams.
@@ -792,21 +803,17 @@ static bool construct_phy(struct dc_link *link,
 	DC_LOG_DC("BIOS object table - %s finished successfully.\n", __func__);
 	return true;
 device_tag_fail:
-	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
-	if (link->panel_cntl != NULL)
-		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 panel_cntl_create_fail:
-	link_destroy_ddc_service(&link->ddc);
 ddc_create_fail:
 create_fail:
+	if (link->ddc)
+		link_destroy_ddc_service(&link->ddc);
+	if (link->panel_cntl)
+		link->panel_cntl->funcs->destroy(&link->panel_cntl);
+	if (link->link_enc)
+		link->link_enc->funcs->destroy(&link->link_enc);
 
-	if (link->hpd_gpio) {
-		dal_gpio_destroy_irq(&link->hpd_gpio);
-		link->hpd_gpio = NULL;
-	}
-
-unsupported_fail:
 	DC_LOG_DC("BIOS object table - %s failed.\n", __func__);
 	return false;
 }
@@ -890,8 +897,7 @@ static bool link_construct(struct dc_link *link,
 
 struct dc_link *link_create(const struct link_init_data *init_params)
 {
-	struct dc_link *link =
-			kzalloc(sizeof(*link), GFP_KERNEL);
+	struct dc_link *link = kzalloc_obj(*link);
 
 	if (NULL == link)
 		goto alloc_fail;

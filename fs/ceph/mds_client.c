@@ -973,7 +973,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	if (mds >= mdsc->mdsmap->possible_max_rank)
 		return ERR_PTR(-EINVAL);
 
-	s = kzalloc(sizeof(*s), GFP_NOFS);
+	s = kzalloc_obj(*s, GFP_NOFS);
 	if (!s)
 		return ERR_PTR(-ENOMEM);
 
@@ -4230,9 +4230,8 @@ static void handle_session(struct ceph_mds_session *session,
 			goto skip_cap_auths;
 		}
 
-		cap_auths = kcalloc(cap_auths_num,
-				    sizeof(struct ceph_mds_cap_auth),
-				    GFP_KERNEL);
+		cap_auths = kzalloc_objs(struct ceph_mds_cap_auth,
+					 cap_auths_num);
 		if (!cap_auths) {
 			pr_err_client(cl, "No memory for cap_auths\n");
 			return;
@@ -4731,9 +4730,9 @@ encode_again:
 			num_flock_locks = 0;
 		}
 		if (num_fcntl_locks + num_flock_locks > 0) {
-			flocks = kmalloc_array(num_fcntl_locks + num_flock_locks,
-					       sizeof(struct ceph_filelock),
-					       GFP_NOFS);
+			flocks = kmalloc_objs(struct ceph_filelock,
+					      num_fcntl_locks + num_flock_locks,
+					      GFP_NOFS);
 			if (!flocks) {
 				err = -ENOMEM;
 				goto out_err;
@@ -5534,12 +5533,12 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	struct ceph_mds_client *mdsc;
 	int err;
 
-	mdsc = kzalloc(sizeof(struct ceph_mds_client), GFP_NOFS);
+	mdsc = kzalloc_obj(struct ceph_mds_client, GFP_NOFS);
 	if (!mdsc)
 		return -ENOMEM;
 	mdsc->fsc = fsc;
 	mutex_init(&mdsc->mutex);
-	mdsc->mdsmap = kzalloc(sizeof(*mdsc->mdsmap), GFP_NOFS);
+	mdsc->mdsmap = kzalloc_obj(*mdsc->mdsmap, GFP_NOFS);
 	if (!mdsc->mdsmap) {
 		err = -ENOMEM;
 		goto err_mdsc;
@@ -5671,7 +5670,7 @@ static int ceph_mds_auth_match(struct ceph_mds_client *mdsc,
 	u32 caller_uid = from_kuid(&init_user_ns, cred->fsuid);
 	u32 caller_gid = from_kgid(&init_user_ns, cred->fsgid);
 	struct ceph_client *cl = mdsc->fsc->client;
-	const char *fs_name = mdsc->fsc->mount_options->mds_namespace;
+	const char *fs_name = mdsc->mdsmap->m_fs_name;
 	const char *spath = mdsc->fsc->mount_options->server_path;
 	bool gid_matched = false;
 	u32 gid, tlen, len;
@@ -5679,7 +5678,8 @@ static int ceph_mds_auth_match(struct ceph_mds_client *mdsc,
 
 	doutc(cl, "fsname check fs_name=%s  match.fs_name=%s\n",
 	      fs_name, auth->match.fs_name ? auth->match.fs_name : "");
-	if (auth->match.fs_name && strcmp(auth->match.fs_name, fs_name)) {
+
+	if (!ceph_namespace_match(auth->match.fs_name, fs_name)) {
 		/* fsname mismatch, try next one */
 		return 0;
 	}

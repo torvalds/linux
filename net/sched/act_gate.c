@@ -243,7 +243,7 @@ static int parse_gate_list(struct nlattr *list_attr,
 			continue;
 		}
 
-		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kzalloc_obj(*entry, GFP_ATOMIC);
 		if (!entry) {
 			NL_SET_ERR_MSG(extack, "Not enough memory for entry");
 			err = -ENOMEM;

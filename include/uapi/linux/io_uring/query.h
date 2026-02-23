@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
 /*
  * Header file for the io_uring query interface.
+ *
+ * Copyright (C) 2026 Pavel Begunkov <asml.silence@gmail.com>
+ * Copyright (C) Meta Platforms, Inc.
  */
 #ifndef LINUX_IO_URING_QUERY_H
 #define LINUX_IO_URING_QUERY_H
@@ -50,7 +53,8 @@ struct io_uring_query_zcrx {
 	__u64 area_flags;
 	/* The number of supported ZCRX_CTRL_* opcodes */
 	__u32 nr_ctrl_opcodes;
-	__u32 __resv1;
+	/* Bitmask of ZCRX_FEATURE_* indicating which features are available */
+	__u32 features;
 	/* The refill ring header size */
 	__u32 rq_hdr_size;
 	/* The alignment for the header */

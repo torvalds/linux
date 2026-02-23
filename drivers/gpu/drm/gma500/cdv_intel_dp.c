@@ -1953,13 +1953,13 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	const char *name = NULL;
 	int type = DRM_MODE_CONNECTOR_DisplayPort;
 
-	gma_encoder = kzalloc(sizeof(struct gma_encoder), GFP_KERNEL);
+	gma_encoder = kzalloc_obj(struct gma_encoder);
 	if (!gma_encoder)
 		return;
-        gma_connector = kzalloc(sizeof(struct gma_connector), GFP_KERNEL);
+        gma_connector = kzalloc_obj(struct gma_connector);
         if (!gma_connector)
                 goto err_connector;
-	intel_dp = kzalloc(sizeof(struct cdv_intel_dp), GFP_KERNEL);
+	intel_dp = kzalloc_obj(struct cdv_intel_dp);
 	if (!intel_dp)
 	        goto err_priv;
 

@@ -457,22 +457,8 @@ static void mlx5e_ptpsq_unhealthy_work(struct work_struct *work)
 {
 	struct mlx5e_ptpsq *ptpsq =
 		container_of(work, struct mlx5e_ptpsq, report_unhealthy_work);
-	struct mlx5e_txqsq *sq = &ptpsq->txqsq;
-
-	/* Recovering the PTP SQ means re-enabling NAPI, which requires the
-	 * netdev instance lock. However, SQ closing has to wait for this work
-	 * task to finish while also holding the same lock. So either get the
-	 * lock or find that the SQ is no longer enabled and thus this work is
-	 * not relevant anymore.
-	 */
-	while (!netdev_trylock(sq->netdev)) {
-		if (!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state))
-			return;
-		msleep(20);
-	}
 
 	mlx5e_reporter_tx_ptpsq_unhealthy(ptpsq);
-	netdev_unlock(sq->netdev);
 }
 
 static int mlx5e_ptp_open_txqsq(struct mlx5e_ptp *c, u32 tisn,
@@ -897,7 +883,7 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 
 	c = kvzalloc_node(sizeof(*c), GFP_KERNEL, dev_to_node(mlx5_core_dma_dev(mdev)));
-	cparams = kvzalloc(sizeof(*cparams), GFP_KERNEL);
+	cparams = kvzalloc_obj(*cparams);
 	if (!c || !cparams) {
 		err = -ENOMEM;
 		goto err_free;
@@ -1002,7 +988,7 @@ int mlx5e_ptp_alloc_rx_fs(struct mlx5e_flow_steering *fs,
 	if (!mlx5e_profile_feature_cap(profile, PTP_RX))
 		return 0;
 
-	ptp_fs = kzalloc(sizeof(*ptp_fs), GFP_KERNEL);
+	ptp_fs = kzalloc_obj(*ptp_fs);
 	if (!ptp_fs)
 		return -ENOMEM;
 	mlx5e_fs_set_ptp(fs, ptp_fs);

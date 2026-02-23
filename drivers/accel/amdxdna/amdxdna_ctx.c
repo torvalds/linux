@@ -50,7 +50,7 @@ static struct dma_fence *amdxdna_fence_create(struct amdxdna_hwctx *hwctx)
 {
 	struct amdxdna_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -161,7 +161,7 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	if (args->ext || args->ext_flags)
 		return -EINVAL;
 
-	hwctx = kzalloc(sizeof(*hwctx), GFP_KERNEL);
+	hwctx = kzalloc_obj(*hwctx);
 	if (!hwctx)
 		return -ENOMEM;
 
@@ -436,7 +436,7 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	int ret, idx;
 
 	XDNA_DBG(xdna, "Command BO hdl %d, Arg BO count %d", cmd_bo_hdl, arg_bo_cnt);
-	job = kzalloc(struct_size(job, bos, arg_bo_cnt), GFP_KERNEL);
+	job = kzalloc_flex(*job, bos, arg_bo_cnt);
 	if (!job)
 		return -ENOMEM;
 

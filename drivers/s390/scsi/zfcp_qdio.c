@@ -549,7 +549,7 @@ int zfcp_qdio_setup(struct zfcp_adapter *adapter)
 {
 	struct zfcp_qdio *qdio;
 
-	qdio = kzalloc(sizeof(struct zfcp_qdio), GFP_KERNEL);
+	qdio = kzalloc_obj(struct zfcp_qdio);
 	if (!qdio)
 		return -ENOMEM;
 

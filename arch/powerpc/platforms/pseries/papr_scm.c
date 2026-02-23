@@ -445,7 +445,7 @@ static void papr_scm_pmu_register(struct papr_scm_priv *p)
 	struct nvdimm_pmu *nd_pmu;
 	int rc, nodeid;
 
-	nd_pmu = kzalloc(sizeof(*nd_pmu), GFP_KERNEL);
+	nd_pmu = kzalloc_obj(*nd_pmu);
 	if (!nd_pmu) {
 		rc = -ENOMEM;
 		goto pmu_err_print;
@@ -1398,7 +1398,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 	 */
 	update_numa_distance(dn);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 

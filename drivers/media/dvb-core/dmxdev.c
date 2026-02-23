@@ -171,6 +171,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
 		if (dmxdev->may_do_mmap)
 			dvb_vb2_init(&dmxdev->dvr_vb2_ctx, "dvr",
+				     &dmxdev->mutex,
 				     file->f_flags & O_NONBLOCK);
 		dvbdev->readers--;
 	}
@@ -397,11 +398,11 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx)) {
 		ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
 					  buffer1, buffer1_len,
-					  buffer_flags);
+					  buffer_flags, true);
 		if (ret == buffer1_len)
 			ret = dvb_vb2_fill_buffer(&dmxdevfilter->vb2_ctx,
 						  buffer2, buffer2_len,
-						  buffer_flags);
+						  buffer_flags, true);
 	} else {
 		ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer,
 					      buffer1, buffer1_len);
@@ -452,10 +453,10 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 
 	if (dvb_vb2_is_streaming(ctx)) {
 		ret = dvb_vb2_fill_buffer(ctx, buffer1, buffer1_len,
-					  buffer_flags);
+					  buffer_flags, false);
 		if (ret == buffer1_len)
 			ret = dvb_vb2_fill_buffer(ctx, buffer2, buffer2_len,
-						  buffer_flags);
+						  buffer_flags, false);
 	} else {
 		if (buffer->error) {
 			spin_unlock(&dmxdevfilter->dev->lock);
@@ -815,9 +816,21 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	dmxdev->may_do_mmap = 0;
 #endif
 
+	/*
+	 * The mutex passed to dvb_vb2_init is unlocked when a buffer
+	 * is in a blocking wait. However, dmxdevfilter has two mutexes:
+	 * dmxdevfilter->mutex and dmxdev->mutex. So this will not work.
+	 * The solution would be to support unlocking two mutexes in vb2,
+	 * but since this problem has been here since the beginning and
+	 * nobody ever complained, we leave it as-is rather than adding
+	 * that second mutex pointer to vb2.
+	 *
+	 * In the unlikely event that someone complains about this, then
+	 * this comment will hopefully help.
+	 */
 	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dvb_vb2_init(&dmxdevfilter->vb2_ctx, "demux_filter",
-		     file->f_flags & O_NONBLOCK);
+		     &dmxdevfilter->mutex, file->f_flags & O_NONBLOCK);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	timer_setup(&dmxdevfilter->timer, dvb_dmxdev_filter_timeout, 0);
@@ -879,7 +892,7 @@ static int dvb_dmxdev_add_pid(struct dmxdev *dmxdev,
 	    (!list_empty(&filter->feed.ts)))
 		return -EINVAL;
 
-	feed = kzalloc(sizeof(struct dmxdev_feed), GFP_KERNEL);
+	feed = kzalloc_obj(struct dmxdev_feed);
 	if (feed == NULL)
 		return -ENOMEM;
 
@@ -1217,24 +1230,11 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;
-	int ret;
 
 	if (!dmxdev->may_do_mmap)
 		return -ENOTTY;
 
-	if (mutex_lock_interruptible(&dmxdev->mutex))
-		return -ERESTARTSYS;
-
-	if (mutex_lock_interruptible(&dmxdevfilter->mutex)) {
-		mutex_unlock(&dmxdev->mutex);
-		return -ERESTARTSYS;
-	}
-	ret = dvb_vb2_mmap(&dmxdevfilter->vb2_ctx, vma);
-
-	mutex_unlock(&dmxdevfilter->mutex);
-	mutex_unlock(&dmxdev->mutex);
-
-	return ret;
+	return dvb_vb2_mmap(&dmxdevfilter->vb2_ctx, vma);
 }
 #endif
 
@@ -1367,7 +1367,6 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
-	int ret;
 
 	if (!dmxdev->may_do_mmap)
 		return -ENOTTY;
@@ -1375,12 +1374,7 @@ static int dvb_dvr_mmap(struct file *file, struct vm_area_struct *vma)
 	if (dmxdev->exit)
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&dmxdev->mutex))
-		return -ERESTARTSYS;
-
-	ret = dvb_vb2_mmap(&dmxdev->dvr_vb2_ctx, vma);
-	mutex_unlock(&dmxdev->mutex);
-	return ret;
+	return dvb_vb2_mmap(&dmxdev->dvr_vb2_ctx, vma);
 }
 #endif
 

@@ -9,6 +9,7 @@
 #include <linux/bitops.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/limits.h>
@@ -20,6 +21,8 @@
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
 #include <linux/wait.h>
+
+#include "internals.h"
 
 /* Registers */
 #define RSPI_SPDR		0x00
@@ -37,6 +40,7 @@
 /* Register SPCR */
 #define RSPI_SPCR_BPEN		BIT(31)
 #define RSPI_SPCR_MSTR		BIT(30)
+#define RSPI_SPCR_SPTIE		BIT(20)
 #define RSPI_SPCR_SPRIE		BIT(17)
 #define RSPI_SPCR_SCKASE	BIT(12)
 #define RSPI_SPCR_SPE		BIT(0)
@@ -93,31 +97,29 @@ struct rzv2h_rspi_info {
 };
 
 struct rzv2h_rspi_priv {
-	struct reset_control_bulk_data resets[RSPI_RESET_NUM];
 	struct spi_controller *controller;
 	const struct rzv2h_rspi_info *info;
+	struct platform_device *pdev;
 	void __iomem *base;
 	struct clk *tclk;
 	struct clk *pclk;
 	wait_queue_head_t wait;
 	unsigned int bytes_per_word;
+	int irq_rx;
 	u32 last_speed_hz;
 	u32 freq;
 	u16 status;
 	u8 spr;
 	u8 brdv;
 	bool use_pclk;
+	bool dma_callbacked;
 };
 
 #define RZV2H_RSPI_TX(func, type)					\
 static inline void rzv2h_rspi_tx_##type(struct rzv2h_rspi_priv *rspi,	\
 					const void *txbuf,		\
 					unsigned int index) {		\
-	type buf = 0;							\
-									\
-	if (txbuf)							\
-		buf = ((type *)txbuf)[index];				\
-									\
+	type buf = ((type *)txbuf)[index];				\
 	func(buf, rspi->base + RSPI_SPDR);				\
 }
 
@@ -126,9 +128,7 @@ static inline void rzv2h_rspi_rx_##type(struct rzv2h_rspi_priv *rspi,	\
 					void *rxbuf,			\
 					unsigned int index) {		\
 	type buf = func(rspi->base + RSPI_SPDR);			\
-									\
-	if (rxbuf)							\
-		((type *)rxbuf)[index] = buf;				\
+	((type *)rxbuf)[index] = buf;					\
 }
 
 RZV2H_RSPI_TX(writel, u32)
@@ -224,16 +224,27 @@ static int rzv2h_rspi_receive(struct rzv2h_rspi_priv *rspi, void *rxbuf,
 	return 0;
 }
 
-static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
-				  struct spi_device *spi,
-				  struct spi_transfer *transfer)
+static bool rzv2h_rspi_can_dma(struct spi_controller *ctlr, struct spi_device *spi,
+			       struct spi_transfer *xfer)
 {
-	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
-	unsigned int words_to_transfer, i;
-	int ret = 0;
+	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(ctlr);
 
-	transfer->effective_speed_hz = rspi->freq;
-	words_to_transfer = transfer->len / rspi->bytes_per_word;
+	if (ctlr->fallback)
+		return false;
+
+	if (!ctlr->dma_tx || !ctlr->dma_rx)
+		return false;
+
+	return xfer->len > rspi->info->fifo_size;
+}
+
+static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer,
+				   unsigned int words_to_transfer)
+{
+	unsigned int i;
+	int ret = 0;
 
 	for (i = 0; i < words_to_transfer; i++) {
 		rzv2h_rspi_clear_all_irqs(rspi);
@@ -245,12 +256,151 @@ static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 			break;
 	}
 
+	return ret;
+}
+
+static void rzv2h_rspi_dma_complete(void *arg)
+{
+	struct rzv2h_rspi_priv *rspi = arg;
+
+	rspi->dma_callbacked = 1;
+	wake_up_interruptible(&rspi->wait);
+}
+
+static struct dma_async_tx_descriptor *
+rzv2h_rspi_setup_dma_channel(struct rzv2h_rspi_priv *rspi,
+			     struct dma_chan *chan, struct sg_table *sg,
+			     enum dma_slave_buswidth width,
+			     enum dma_transfer_direction direction)
+{
+	struct dma_slave_config config = {
+		.dst_addr = rspi->pdev->resource->start + RSPI_SPDR,
+		.src_addr = rspi->pdev->resource->start + RSPI_SPDR,
+		.dst_addr_width = width,
+		.src_addr_width = width,
+		.direction = direction,
+	};
+	struct dma_async_tx_descriptor *desc;
+	int ret;
+
+	ret = dmaengine_slave_config(chan, &config);
+	if (ret)
+		return ERR_PTR(ret);
+
+	desc = dmaengine_prep_slave_sg(chan, sg->sgl, sg->nents, direction,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (!desc)
+		return ERR_PTR(-EAGAIN);
+
+	if (direction == DMA_DEV_TO_MEM) {
+		desc->callback = rzv2h_rspi_dma_complete;
+		desc->callback_param = rspi;
+	}
+
+	return desc;
+}
+
+static enum dma_slave_buswidth
+rzv2h_rspi_dma_width(struct rzv2h_rspi_priv *rspi)
+{
+	switch (rspi->bytes_per_word) {
+	case 4:
+		return DMA_SLAVE_BUSWIDTH_4_BYTES;
+	case 2:
+		return DMA_SLAVE_BUSWIDTH_2_BYTES;
+	case 1:
+		return DMA_SLAVE_BUSWIDTH_1_BYTE;
+	default:
+		return DMA_SLAVE_BUSWIDTH_UNDEFINED;
+	}
+}
+
+static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer,
+				   unsigned int words_to_transfer)
+{
+	struct dma_async_tx_descriptor *tx_desc = NULL, *rx_desc = NULL;
+	enum dma_slave_buswidth width;
+	dma_cookie_t cookie;
+	int ret;
+
+	width = rzv2h_rspi_dma_width(rspi);
+	if (width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
+		return -EINVAL;
+
+	rx_desc = rzv2h_rspi_setup_dma_channel(rspi, rspi->controller->dma_rx,
+					       &transfer->rx_sg, width,
+					       DMA_DEV_TO_MEM);
+	if (IS_ERR(rx_desc))
+		return PTR_ERR(rx_desc);
+
+	tx_desc = rzv2h_rspi_setup_dma_channel(rspi, rspi->controller->dma_tx,
+					       &transfer->tx_sg, width,
+					       DMA_MEM_TO_DEV);
+	if (IS_ERR(tx_desc))
+		return PTR_ERR(tx_desc);
+
+	cookie = dmaengine_submit(rx_desc);
+	if (dma_submit_error(cookie))
+		return cookie;
+
+	cookie = dmaengine_submit(tx_desc);
+	if (dma_submit_error(cookie)) {
+		dmaengine_terminate_sync(rspi->controller->dma_rx);
+		return cookie;
+	}
+
+	/*
+	 * DMA transfer does not need IRQs to be enabled.
+	 * For PIO, we only use RX IRQ, so disable that.
+	 */
+	disable_irq(rspi->irq_rx);
+
+	rspi->dma_callbacked = 0;
+
+	dma_async_issue_pending(rspi->controller->dma_rx);
+	dma_async_issue_pending(rspi->controller->dma_tx);
 	rzv2h_rspi_clear_all_irqs(rspi);
 
-	if (ret)
-		transfer->error = SPI_TRANS_FAIL_IO;
+	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked, HZ);
+	if (ret) {
+		dmaengine_synchronize(rspi->controller->dma_tx);
+		dmaengine_synchronize(rspi->controller->dma_rx);
+		ret = 0;
+	} else {
+		dmaengine_terminate_sync(rspi->controller->dma_tx);
+		dmaengine_terminate_sync(rspi->controller->dma_rx);
+		ret = -ETIMEDOUT;
+	}
 
-	spi_finalize_current_transfer(controller);
+	enable_irq(rspi->irq_rx);
+
+	return ret;
+}
+
+static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
+				   struct spi_device *spi,
+				   struct spi_transfer *transfer)
+{
+	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(controller);
+	bool is_dma = spi_xfer_is_dma_mapped(controller, spi, transfer);
+	unsigned int words_to_transfer;
+	int ret;
+
+	transfer->effective_speed_hz = rspi->freq;
+	words_to_transfer = transfer->len / rspi->bytes_per_word;
+
+	if (is_dma)
+		ret = rzv2h_rspi_transfer_dma(rspi, spi, transfer, words_to_transfer);
+	else
+		ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
+
+	rzv2h_rspi_clear_all_irqs(rspi);
+
+	if (is_dma && ret == -EAGAIN)
+		/* Retry with PIO */
+		transfer->error = SPI_TRANS_FAIL_NO_START;
 
 	return ret;
 }
@@ -485,6 +635,9 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	/* SPI receive buffer full interrupt enable */
 	conf32 |= RSPI_SPCR_SPRIE;
 
+	/* SPI transmit buffer empty interrupt enable */
+	conf32 |= RSPI_SPCR_SPTIE;
+
 	/* Bypass synchronization circuit */
 	conf32 |= FIELD_PREP(RSPI_SPCR_BPEN, rspi->use_pclk);
 
@@ -512,7 +665,7 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 		writeb(0, rspi->base + RSPI_SSLP);
 
 	/* Setup FIFO thresholds */
-	conf16 = FIELD_PREP(RSPI_SPDCR2_TTRG, rspi->info->fifo_size - 1);
+	conf16 = FIELD_PREP(RSPI_SPDCR2_TTRG, 0);
 	conf16 |= FIELD_PREP(RSPI_SPDCR2_RTRG, 0);
 	writew(conf16, rspi->base + RSPI_SPDCR2);
 
@@ -538,9 +691,10 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct spi_controller *controller;
 	struct device *dev = &pdev->dev;
 	struct rzv2h_rspi_priv *rspi;
+	struct reset_control *reset;
 	struct clk_bulk_data *clks;
-	int irq_rx, ret, i;
 	long tclk_rate;
+	int ret, i;
 
 	controller = devm_spi_alloc_host(dev, sizeof(*rspi));
 	if (!controller)
@@ -550,6 +704,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rspi);
 
 	rspi->controller = controller;
+	rspi->pdev = pdev;
 
 	rspi->info = device_get_match_data(dev);
 
@@ -573,81 +728,80 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	if (!rspi->tclk)
 		return dev_err_probe(dev, -EINVAL, "Failed to get tclk\n");
 
-	rspi->resets[0].id = "presetn";
-	rspi->resets[1].id = "tresetn";
-	ret = devm_reset_control_bulk_get_optional_exclusive(dev, RSPI_RESET_NUM,
-							     rspi->resets);
-	if (ret)
-		return dev_err_probe(dev, ret, "cannot get resets\n");
+	reset = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev,
+								     "presetn");
+	if (IS_ERR(reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
+				     "cannot get presetn reset\n");
 
-	irq_rx = platform_get_irq_byname(pdev, "rx");
-	if (irq_rx < 0)
-		return dev_err_probe(dev, irq_rx, "cannot get IRQ 'rx'\n");
+	reset = devm_reset_control_get_optional_exclusive_deasserted(&pdev->dev,
+								     "tresetn");
+	if (IS_ERR(reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(reset),
+				     "cannot get tresetn reset\n");
 
-	ret = reset_control_bulk_deassert(RSPI_RESET_NUM, rspi->resets);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to deassert resets\n");
+	rspi->irq_rx = platform_get_irq_byname(pdev, "rx");
+	if (rspi->irq_rx < 0)
+		return dev_err_probe(dev, rspi->irq_rx, "cannot get IRQ 'rx'\n");
 
 	init_waitqueue_head(&rspi->wait);
 
-	ret = devm_request_irq(dev, irq_rx, rzv2h_rx_irq_handler, 0,
+	ret = devm_request_irq(dev, rspi->irq_rx, rzv2h_rx_irq_handler, 0,
 			       dev_name(dev), rspi);
 	if (ret) {
 		dev_err(dev, "cannot request `rx` IRQ\n");
-		goto quit_resets;
+		return ret;
 	}
 
 	controller->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH |
 				SPI_LSB_FIRST | SPI_LOOP;
+	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	controller->prepare_message = rzv2h_rspi_prepare_message;
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
 	controller->num_chipselect = 4;
 	controller->transfer_one = rzv2h_rspi_transfer_one;
+	controller->can_dma = rzv2h_rspi_can_dma;
 
 	tclk_rate = clk_round_rate(rspi->tclk, 0);
-	if (tclk_rate < 0) {
-		ret = tclk_rate;
-		goto quit_resets;
-	}
+	if (tclk_rate < 0)
+		return tclk_rate;
 
 	controller->min_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MAX,
 							   RSPI_SPCMD_BRDV_MAX);
 
 	tclk_rate = clk_round_rate(rspi->tclk, ULONG_MAX);
-	if (tclk_rate < 0) {
-		ret = tclk_rate;
-		goto quit_resets;
-	}
+	if (tclk_rate < 0)
+		return tclk_rate;
 
 	controller->max_speed_hz = rzv2h_rspi_calc_bitrate(tclk_rate,
 							   RSPI_SPBR_SPR_MIN,
 							   RSPI_SPCMD_BRDV_MIN);
 
-	device_set_node(&controller->dev, dev_fwnode(dev));
-
-	ret = spi_register_controller(controller);
-	if (ret) {
-		dev_err(dev, "register controller failed\n");
-		goto quit_resets;
+	controller->dma_tx = devm_dma_request_chan(dev, "tx");
+	if (IS_ERR(controller->dma_tx)) {
+		ret = dev_warn_probe(dev, PTR_ERR(controller->dma_tx),
+				     "failed to request TX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		controller->dma_tx = NULL;
 	}
 
-	return 0;
+	controller->dma_rx = devm_dma_request_chan(dev, "rx");
+	if (IS_ERR(controller->dma_rx)) {
+		ret = dev_warn_probe(dev, PTR_ERR(controller->dma_rx),
+				     "failed to request RX DMA channel\n");
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		controller->dma_rx = NULL;
+	}
 
-quit_resets:
-	reset_control_bulk_assert(RSPI_RESET_NUM, rspi->resets);
+	ret = devm_spi_register_controller(dev, controller);
+	if (ret)
+		dev_err(dev, "register controller failed\n");
 
 	return ret;
-}
-
-static void rzv2h_rspi_remove(struct platform_device *pdev)
-{
-	struct rzv2h_rspi_priv *rspi = platform_get_drvdata(pdev);
-
-	spi_unregister_controller(rspi->controller);
-
-	reset_control_bulk_assert(RSPI_RESET_NUM, rspi->resets);
 }
 
 static const struct rzv2h_rspi_info rzv2h_info = {
@@ -674,7 +828,6 @@ MODULE_DEVICE_TABLE(of, rzv2h_rspi_match);
 
 static struct platform_driver rzv2h_rspi_drv = {
 	.probe = rzv2h_rspi_probe,
-	.remove = rzv2h_rspi_remove,
 	.driver = {
 		.name = "rzv2h_rspi",
 		.of_match_table = rzv2h_rspi_match,

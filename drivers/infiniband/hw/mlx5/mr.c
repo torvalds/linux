@@ -156,7 +156,7 @@ static int push_mkey_locked(struct mlx5_cache_ent *ent, u32 mkey)
 	lockdep_assert_held(&ent->mkeys_queue.lock);
 	if (ent->mkeys_queue.ci >=
 	    ent->mkeys_queue.num_pages * NUM_MKEYS_PER_PAGE) {
-		page = kzalloc(sizeof(*page), GFP_ATOMIC);
+		page = kzalloc_obj(*page, GFP_ATOMIC);
 		if (!page)
 			return -ENOMEM;
 		ent->mkeys_queue.num_pages++;
@@ -276,8 +276,7 @@ static int add_keys(struct mlx5_cache_ent *ent, unsigned int num)
 	int i;
 
 	for (i = 0; i < num; i++) {
-		async_create = kzalloc(sizeof(struct mlx5r_async_create_mkey),
-				       GFP_KERNEL);
+		async_create = kzalloc_obj(struct mlx5r_async_create_mkey);
 		if (!async_create)
 			return -ENOMEM;
 		mkc = MLX5_ADDR_OF(create_mkey_in, async_create->in,
@@ -742,7 +741,7 @@ static struct mlx5_ib_mr *_mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	struct mlx5_ib_mr *mr;
 	int err;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -867,7 +866,7 @@ static int mlx5r_mkeys_init(struct mlx5_cache_ent *ent)
 {
 	struct mlx5_mkeys_page *page;
 
-	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	page = kzalloc_obj(*page);
 	if (!page)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ent->mkeys_queue.pages_list);
@@ -897,7 +896,7 @@ mlx5r_cache_create_ent_locked(struct mlx5_ib_dev *dev,
 	int order;
 	int ret;
 
-	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kzalloc_obj(*ent);
 	if (!ent)
 		return ERR_PTR(-ENOMEM);
 
@@ -1059,7 +1058,7 @@ struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc)
 	u32 *in;
 	int err;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1207,7 +1206,7 @@ reg_create_crossing_vhca_mr(struct ib_pd *pd, u64 iova, u64 length, int access_f
 	if (!MLX5_CAP_GEN(dev->mdev, crossing_vhca_mkey))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1272,7 +1271,7 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 
 	if (!page_size)
 		return ERR_PTR(-EINVAL);
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1370,7 +1369,7 @@ static struct ib_mr *mlx5_ib_get_dm_mr(struct ib_pd *pd, u64 start_addr,
 	u32 *in;
 	int err;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -1646,10 +1645,13 @@ reg_user_mr_dmabuf(struct ib_pd *pd, struct device *dma_device,
 						 offset, length, fd,
 						 access_flags,
 						 &mlx5_ib_dmabuf_attach_ops);
-	else
+	else if (dma_device)
 		umem_dmabuf = ib_umem_dmabuf_get_pinned_with_dma_device(&dev->ib_dev,
 				dma_device, offset, length,
 				fd, access_flags);
+	else
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(
+			&dev->ib_dev, offset, length, fd, access_flags);
 
 	if (IS_ERR(umem_dmabuf)) {
 		mlx5_ib_dbg(dev, "umem_dmabuf get failed (%pe)\n", umem_dmabuf);
@@ -1782,10 +1784,8 @@ struct ib_mr *mlx5_ib_reg_user_mr_dmabuf(struct ib_pd *pd, u64 offset,
 		return reg_user_mr_dmabuf_by_data_direct(pd, offset, length, virt_addr,
 							 fd, access_flags);
 
-	return reg_user_mr_dmabuf(pd, pd->device->dma_device,
-				  offset, length, virt_addr,
-				  fd, access_flags, MLX5_MKC_ACCESS_MODE_MTT,
-				  dmah);
+	return reg_user_mr_dmabuf(pd, NULL, offset, length, virt_addr, fd,
+				  access_flags, MLX5_MKC_ACCESS_MODE_MTT, dmah);
 }
 
 /*
@@ -2342,7 +2342,7 @@ static struct mlx5_ib_mr *mlx5_ib_alloc_pi_mr(struct ib_pd *pd,
 	u32 *in;
 	int err;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -2399,7 +2399,7 @@ static int mlx5_alloc_integrity_descs(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 	void *mkc;
 	int err;
 
-	mr->sig = kzalloc(sizeof(*mr->sig), GFP_KERNEL);
+	mr->sig = kzalloc_obj(*mr->sig);
 	if (!mr->sig)
 		return -ENOMEM;
 
@@ -2479,7 +2479,7 @@ static struct ib_mr *__mlx5_ib_alloc_mr(struct ib_pd *pd,
 	u32 *in;
 	int err;
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

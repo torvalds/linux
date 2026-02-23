@@ -356,7 +356,7 @@ struct gru_vma_data *gru_alloc_vma_data(struct vm_area_struct *vma, int tsid)
 {
 	struct gru_vma_data *vdata = NULL;
 
-	vdata = kmalloc(sizeof(*vdata), GFP_KERNEL);
+	vdata = kmalloc_obj(*vdata);
 	if (!vdata)
 		return NULL;
 

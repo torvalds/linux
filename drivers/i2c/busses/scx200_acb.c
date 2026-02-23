@@ -418,7 +418,7 @@ static struct scx200_acb_iface *scx200_create_iface(const char *text,
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
 
-	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
+	iface = kzalloc_obj(*iface);
 	if (!iface)
 		return NULL;
 

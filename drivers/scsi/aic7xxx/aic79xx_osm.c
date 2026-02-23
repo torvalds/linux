@@ -359,7 +359,7 @@ static void ahd_linux_initialize_scsi_bus(struct ahd_softc *ahd);
 static u_int ahd_linux_user_tagdepth(struct ahd_softc *ahd,
 				     struct ahd_devinfo *devinfo);
 static void ahd_linux_device_queue_depth(struct scsi_device *);
-static int ahd_linux_run_command(struct ahd_softc*,
+static enum scsi_qc_status ahd_linux_run_command(struct ahd_softc*,
 				 struct ahd_linux_device *,
 				 struct scsi_cmnd *);
 static void ahd_linux_setup_tag_info_global(char *p);
@@ -577,11 +577,11 @@ ahd_linux_info(struct Scsi_Host *host)
 /*
  * Queue an SCB to the controller.
  */
-static int ahd_linux_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status ahd_linux_queue_lck(struct scsi_cmnd *cmd)
 {
-	struct	 ahd_softc *ahd;
-	struct	 ahd_linux_device *dev = scsi_transport_device_data(cmd->device);
-	int rtn = SCSI_MLQUEUE_HOST_BUSY;
+	struct ahd_linux_device *dev = scsi_transport_device_data(cmd->device);
+	enum scsi_qc_status rtn = SCSI_MLQUEUE_HOST_BUSY;
+	struct ahd_softc *ahd;
 
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
 
@@ -923,7 +923,7 @@ ahd_dma_tag_create(struct ahd_softc *ahd, bus_dma_tag_t parent,
 {
 	bus_dma_tag_t dmat;
 
-	dmat = kmalloc(sizeof(*dmat), GFP_ATOMIC);
+	dmat = kmalloc_obj(*dmat, GFP_ATOMIC);
 	if (dmat == NULL)
 		return (ENOMEM);
 
@@ -1309,7 +1309,7 @@ int
 ahd_platform_alloc(struct ahd_softc *ahd, void *platform_arg)
 {
 	ahd->platform_data =
-	    kzalloc(sizeof(struct ahd_platform_data), GFP_ATOMIC);
+	    kzalloc_obj(struct ahd_platform_data, GFP_ATOMIC);
 	if (ahd->platform_data == NULL)
 		return (ENOMEM);
 	ahd->platform_data->irq = AHD_LINUX_NOIRQ;
@@ -1535,7 +1535,7 @@ ahd_linux_device_queue_depth(struct scsi_device *sdev)
 	}
 }
 
-static int
+static enum scsi_qc_status
 ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 		      struct scsi_cmnd *cmd)
 {

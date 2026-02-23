@@ -423,7 +423,7 @@ ef4_alloc_channel(struct ef4_nic *efx, int i, struct ef4_channel *old_channel)
 	struct ef4_tx_queue *tx_queue;
 	int j;
 
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel)
 		return NULL;
 
@@ -456,7 +456,7 @@ ef4_copy_channel(const struct ef4_channel *old_channel)
 	struct ef4_tx_queue *tx_queue;
 	int j;
 
-	channel = kmalloc(sizeof(*channel), GFP_KERNEL);
+	channel = kmalloc_obj(*channel);
 	if (!channel)
 		return NULL;
 

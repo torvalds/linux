@@ -427,7 +427,7 @@ static int k90_init_backlight(struct hid_device *dev)
 	size_t name_sz;
 	char *name;
 
-	drvdata->backlight = kzalloc(sizeof(struct k90_led), GFP_KERNEL);
+	drvdata->backlight = kzalloc_obj(struct k90_led);
 	if (!drvdata->backlight) {
 		ret = -ENOMEM;
 		goto fail_backlight_alloc;
@@ -471,7 +471,7 @@ static int k90_init_macro_functions(struct hid_device *dev)
 	size_t name_sz;
 	char *name;
 
-	k90 = kzalloc(sizeof(struct k90_drvdata), GFP_KERNEL);
+	k90 = kzalloc_obj(struct k90_drvdata);
 	if (!k90) {
 		ret = -ENOMEM;
 		goto fail_drvdata;

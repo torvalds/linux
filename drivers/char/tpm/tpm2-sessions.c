@@ -126,7 +126,7 @@ struct tpm2_auth {
 	u8 session_key[SHA256_DIGEST_SIZE];
 	u8 passphrase[SHA256_DIGEST_SIZE];
 	int passphrase_len;
-	struct crypto_aes_ctx aes_ctx;
+	struct aes_enckey aes_key;
 	/* saved session attributes: */
 	u8 attrs;
 	__be32 ordinal;
@@ -677,8 +677,8 @@ int tpm_buf_fill_hmac_session(struct tpm_chip *chip, struct tpm_buf *buf)
 			  auth->scratch);
 
 		len = tpm_buf_read_u16(buf, &offset_p);
-		aes_expandkey(&auth->aes_ctx, auth->scratch, AES_KEY_BYTES);
-		aescfb_encrypt(&auth->aes_ctx, &buf->data[offset_p],
+		aes_prepareenckey(&auth->aes_key, auth->scratch, AES_KEY_BYTES);
+		aescfb_encrypt(&auth->aes_key, &buf->data[offset_p],
 			       &buf->data[offset_p], len,
 			       auth->scratch + AES_KEY_BYTES);
 		/* reset p to beginning of parameters for HMAC */
@@ -858,8 +858,8 @@ int tpm_buf_check_hmac_response(struct tpm_chip *chip, struct tpm_buf *buf,
 			  auth->scratch);
 
 		len = tpm_buf_read_u16(buf, &offset_p);
-		aes_expandkey(&auth->aes_ctx, auth->scratch, AES_KEY_BYTES);
-		aescfb_decrypt(&auth->aes_ctx, &buf->data[offset_p],
+		aes_prepareenckey(&auth->aes_key, auth->scratch, AES_KEY_BYTES);
+		aescfb_decrypt(&auth->aes_key, &buf->data[offset_p],
 			       &buf->data[offset_p], len,
 			       auth->scratch + AES_KEY_BYTES);
 	}
@@ -991,7 +991,7 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 		return 0;
 	}
 
-	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	auth = kzalloc_obj(*auth);
 	if (!auth)
 		return -ENOMEM;
 

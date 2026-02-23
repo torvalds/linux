@@ -242,10 +242,10 @@ int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 int snd_pcm_info_user(struct snd_pcm_substream *substream,
 		      struct snd_pcm_info __user * _info)
 {
-	struct snd_pcm_info *info __free(kfree) = NULL;
 	int err;
+	struct snd_pcm_info *info __free(kfree) =
+		kmalloc_obj(*info);
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	err = snd_pcm_info(substream, info);
@@ -364,7 +364,6 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_constraints *constrs =
 					&substream->runtime->hw_constraints;
 	unsigned int k;
-	unsigned int *rstamps __free(kfree) = NULL;
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp;
 	struct snd_pcm_hw_rule *r;
@@ -380,7 +379,8 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	 * Each member of 'rstamps' array represents the sequence number of
 	 * recent application of corresponding rule.
 	 */
-	rstamps = kcalloc(constrs->rules_num, sizeof(unsigned int), GFP_KERNEL);
+	unsigned int *rstamps __free(kfree) =
+		kcalloc(constrs->rules_num, sizeof(unsigned int), GFP_KERNEL);
 	if (!rstamps)
 		return -ENOMEM;
 
@@ -583,10 +583,10 @@ EXPORT_SYMBOL(snd_pcm_hw_refine);
 static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params __user * _params)
 {
-	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	int err;
+	struct snd_pcm_hw_params *params __free(kfree) =
+		memdup_user(_params, sizeof(*params));
 
-	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
 		return PTR_ERR(params);
 
@@ -730,13 +730,18 @@ static void snd_pcm_buffer_access_unlock(struct snd_pcm_runtime *runtime)
 }
 
 /* fill the PCM buffer with the current silence format; called from pcm_oss.c */
-void snd_pcm_runtime_buffer_set_silence(struct snd_pcm_runtime *runtime)
+int snd_pcm_runtime_buffer_set_silence(struct snd_pcm_runtime *runtime)
 {
-	snd_pcm_buffer_access_lock(runtime);
+	int err;
+
+	err = snd_pcm_buffer_access_lock(runtime);
+	if (err < 0)
+		return err;
 	if (runtime->dma_area)
 		snd_pcm_format_set_silence(runtime->format, runtime->dma_area,
 					   bytes_to_samples(runtime, runtime->dma_bytes));
 	snd_pcm_buffer_access_unlock(runtime);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_pcm_runtime_buffer_set_silence);
 
@@ -884,10 +889,10 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params __user * _params)
 {
-	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	int err;
+	struct snd_pcm_hw_params *params __free(kfree) =
+		memdup_user(_params, sizeof(*params));
 
-	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
 		return PTR_ERR(params);
 
@@ -2262,7 +2267,6 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 {
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
-	struct snd_pcm_group *group __free(kfree) = NULL;
 	struct snd_pcm_group *target_group;
 	bool nonatomic = substream->pcm->nonatomic;
 	CLASS(fd, f)(fd);
@@ -2278,7 +2282,8 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	if (substream == substream1)
 		return -EINVAL;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	struct snd_pcm_group *group __free(kfree) =
+		kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return -ENOMEM;
 	snd_pcm_group_init(group);
@@ -2807,7 +2812,7 @@ static int snd_pcm_open_file(struct file *file,
 	if (err < 0)
 		return err;
 
-	pcm_file = kzalloc(sizeof(*pcm_file), GFP_KERNEL);
+	pcm_file = kzalloc_obj(*pcm_file);
 	if (pcm_file == NULL) {
 		snd_pcm_release_substream(substream);
 		return -ENOMEM;
@@ -3572,7 +3577,6 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 	struct snd_pcm_runtime *runtime;
 	snd_pcm_sframes_t result;
 	unsigned long i;
-	void __user **bufs __free(kfree) = NULL;
 	snd_pcm_uframes_t frames;
 	const struct iovec *iov = iter_iov(to);
 
@@ -3591,7 +3595,9 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 	if (!frame_aligned(runtime, iov->iov_len))
 		return -EINVAL;
 	frames = bytes_to_samples(runtime, iov->iov_len);
-	bufs = kmalloc_array(to->nr_segs, sizeof(void *), GFP_KERNEL);
+
+	void __user **bufs __free(kfree) =
+		kmalloc_array(to->nr_segs, sizeof(void *), GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
 	for (i = 0; i < to->nr_segs; ++i) {
@@ -3611,7 +3617,6 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct snd_pcm_runtime *runtime;
 	snd_pcm_sframes_t result;
 	unsigned long i;
-	void __user **bufs __free(kfree) = NULL;
 	snd_pcm_uframes_t frames;
 	const struct iovec *iov = iter_iov(from);
 
@@ -3629,7 +3634,9 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	    !frame_aligned(runtime, iov->iov_len))
 		return -EINVAL;
 	frames = bytes_to_samples(runtime, iov->iov_len);
-	bufs = kmalloc_array(from->nr_segs, sizeof(void *), GFP_KERNEL);
+
+	void __user **bufs __free(kfree) =
+		kmalloc_array(from->nr_segs, sizeof(void *), GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
 	for (i = 0; i < from->nr_segs; ++i) {
@@ -4101,15 +4108,15 @@ static void snd_pcm_hw_convert_to_old_params(struct snd_pcm_hw_params_old *opara
 static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams)
 {
-	struct snd_pcm_hw_params *params __free(kfree) = NULL;
-	struct snd_pcm_hw_params_old *oparams __free(kfree) = NULL;
 	int err;
 
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
+	struct snd_pcm_hw_params *params __free(kfree) =
+		kmalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
-	oparams = memdup_user(_oparams, sizeof(*oparams));
+	struct snd_pcm_hw_params_old *oparams __free(kfree) =
+		memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
 		return PTR_ERR(oparams);
 	snd_pcm_hw_convert_from_old_params(params, oparams);
@@ -4130,15 +4137,15 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams)
 {
-	struct snd_pcm_hw_params *params __free(kfree) = NULL;
-	struct snd_pcm_hw_params_old *oparams __free(kfree) = NULL;
 	int err;
 
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
+	struct snd_pcm_hw_params *params __free(kfree) =
+		kmalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
-	oparams = memdup_user(_oparams, sizeof(*oparams));
+	struct snd_pcm_hw_params_old *oparams __free(kfree) =
+		memdup_user(_oparams, sizeof(*oparams));
 	if (IS_ERR(oparams))
 		return PTR_ERR(oparams);
 

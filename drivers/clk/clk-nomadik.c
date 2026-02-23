@@ -270,7 +270,7 @@ pll_clk_register(struct device *dev, const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -357,7 +357,7 @@ src_clk_register(struct device *dev, const char *name,
 	struct clk_src *sclk;
 	struct clk_init_data init;
 
-	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
+	sclk = kzalloc_obj(*sclk);
 	if (!sclk)
 		return ERR_PTR(-ENOMEM);
 

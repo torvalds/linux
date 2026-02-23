@@ -120,7 +120,7 @@ static int mon_mgmt_tx(struct net_device *dev, const u8 *buf, size_t len)
 		return -EFAULT;
 
 	netif_stop_queue(dev);
-	mgmt_tx = kmalloc(sizeof(*mgmt_tx), GFP_ATOMIC);
+	mgmt_tx = kmalloc_obj(*mgmt_tx, GFP_ATOMIC);
 	if (!mgmt_tx)
 		return -ENOMEM;
 

@@ -178,7 +178,7 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 {
 	local_info_t *local;
 
-	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc_obj(local_info_t);
 	if (!local)
 		return -ENOMEM;
 	local->p_dev = link;

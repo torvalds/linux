@@ -5,19 +5,21 @@
  *   Documentation/trace/rv/deterministic_automata.rst
  */
 
+#define MONITOR_NAME sco
+
 enum states_sco {
-	thread_context_sco = 0,
+	thread_context_sco,
 	scheduling_context_sco,
-	state_max_sco
+	state_max_sco,
 };
 
 #define INVALID_STATE state_max_sco
 
 enum events_sco {
-	sched_set_state_sco = 0,
+	sched_set_state_sco,
 	schedule_entry_sco,
 	schedule_exit_sco,
-	event_max_sco
+	event_max_sco,
 };
 
 struct automaton_sco {
@@ -31,12 +33,12 @@ struct automaton_sco {
 static const struct automaton_sco automaton_sco = {
 	.state_names = {
 		"thread_context",
-		"scheduling_context"
+		"scheduling_context",
 	},
 	.event_names = {
 		"sched_set_state",
 		"schedule_entry",
-		"schedule_exit"
+		"schedule_exit",
 	},
 	.function = {
 		{     thread_context_sco, scheduling_context_sco,          INVALID_STATE },

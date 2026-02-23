@@ -107,7 +107,7 @@ anx9805_bus_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	struct anx9805_bus *bus;
 	int ret;
 
-	if (!(bus = kzalloc(sizeof(*bus), GFP_KERNEL)))
+	if (!(bus = kzalloc_obj(*bus)))
 		return -ENOMEM;
 	*pbus = &bus->base;
 	bus->pad = pad;
@@ -236,7 +236,7 @@ anx9805_aux_new(struct nvkm_i2c_pad *base, int id, u8 drive,
 	struct anx9805_aux *aux;
 	int ret;
 
-	if (!(aux = kzalloc(sizeof(*aux), GFP_KERNEL)))
+	if (!(aux = kzalloc_obj(*aux)))
 		return -ENOMEM;
 	*pbus = &aux->base;
 	aux->pad = pad;
@@ -267,7 +267,7 @@ anx9805_pad_new(struct nvkm_i2c_bus *bus, int id, u8 addr,
 {
 	struct anx9805_pad *pad;
 
-	if (!(pad = kzalloc(sizeof(*pad), GFP_KERNEL)))
+	if (!(pad = kzalloc_obj(*pad)))
 		return -ENOMEM;
 	*ppad = &pad->base;
 

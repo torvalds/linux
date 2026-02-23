@@ -2429,7 +2429,7 @@ csio_hw_flash_fw(struct csio_hw *hw, int *reset)
 	/* allocate memory to read the header of the firmware on the
 	 * card
 	 */
-	card_fw = kmalloc(sizeof(*card_fw), GFP_KERNEL);
+	card_fw = kmalloc_obj(*card_fw);
 	if (!card_fw)
 		return -ENOMEM;
 
@@ -4389,7 +4389,7 @@ csio_hw_init(struct csio_hw *hw)
 	INIT_LIST_HEAD(&hw->evt_free_q);
 	for (i = 0; i < csio_evtq_sz; i++) {
 
-		evt_entry = kzalloc(sizeof(struct csio_evt_msg), GFP_KERNEL);
+		evt_entry = kzalloc_obj(struct csio_evt_msg);
 		if (!evt_entry) {
 			rv = -ENOMEM;
 			csio_err(hw, "Failed to initialize eventq");

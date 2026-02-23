@@ -171,7 +171,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	struct xintc_irq_chip *irqc;
 	int ret, irq;
 
-	irqc = kzalloc(sizeof(*irqc), GFP_KERNEL);
+	irqc = kzalloc_obj(*irqc);
 	if (!irqc)
 		return -ENOMEM;
 	irqc->base = of_iomap(intc, 0);

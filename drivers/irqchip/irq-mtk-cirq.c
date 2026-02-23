@@ -311,7 +311,7 @@ static int __init mtk_cirq_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	cirq_data = kzalloc(sizeof(*cirq_data), GFP_KERNEL);
+	cirq_data = kzalloc_obj(*cirq_data);
 	if (!cirq_data)
 		return -ENOMEM;
 

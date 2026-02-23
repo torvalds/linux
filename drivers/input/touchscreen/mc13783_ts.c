@@ -168,7 +168,7 @@ static int __init mc13783_ts_probe(struct platform_device *pdev)
 	struct input_dev *idev;
 	int ret = -ENOMEM;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	idev = input_allocate_device();
 	if (!priv || !idev)
 		goto err_free_mem;

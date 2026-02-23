@@ -482,7 +482,7 @@ struct dvb_frontend *mxl111sf_tuner_attach(struct dvb_frontend *fe,
 
 	mxl_dbg("()");
 
-	state = kzalloc(sizeof(struct mxl111sf_tuner_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mxl111sf_tuner_state);
 	if (state == NULL)
 		return NULL;
 

@@ -72,7 +72,7 @@ int snd_i2c_bus_create(struct snd_card *card, const char *name,
 	};
 
 	*ri2c = NULL;
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kzalloc_obj(*bus);
 	if (bus == NULL)
 		return -ENOMEM;
 	mutex_init(&bus->lock_mutex);
@@ -104,7 +104,7 @@ int snd_i2c_device_create(struct snd_i2c_bus *bus, const char *name,
 	*rdevice = NULL;
 	if (snd_BUG_ON(!bus))
 		return -EINVAL;
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (device == NULL)
 		return -ENOMEM;
 	device->addr = addr;

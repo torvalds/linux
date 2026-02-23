@@ -516,7 +516,7 @@ static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 {
 	struct csio_hw *hw;
 
-	hw = kzalloc(sizeof(struct csio_hw), GFP_KERNEL);
+	hw = kzalloc_obj(struct csio_hw);
 	if (!hw)
 		goto err;
 

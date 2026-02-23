@@ -1076,7 +1076,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	/* name the actual pll */
 	snprintf(pll_name, sizeof(pll_name), "pll_%s", name);
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

@@ -44,8 +44,7 @@ int hinic3_queue_pages_alloc(struct hinic3_hwdev *hwdev,
 	u32 pg_idx;
 	int err;
 
-	qpages->pages = kcalloc(qpages->num_pages, sizeof(qpages->pages[0]),
-				GFP_KERNEL);
+	qpages->pages = kzalloc_objs(qpages->pages[0], qpages->num_pages);
 	if (!qpages->pages)
 		return -ENOMEM;
 

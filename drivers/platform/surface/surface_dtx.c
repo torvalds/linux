@@ -403,7 +403,7 @@ static int surface_dtx_open(struct inode *inode, struct file *file)
 	struct sdtx_client *client;
 
 	/* Initialize client. */
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
 
@@ -1044,7 +1044,7 @@ static struct sdtx_device *sdtx_device_create(struct device *dev, struct ssam_co
 	struct sdtx_device *ddev;
 	int status;
 
-	ddev = kzalloc(sizeof(*ddev), GFP_KERNEL);
+	ddev = kzalloc_obj(*ddev);
 	if (!ddev)
 		return ERR_PTR(-ENOMEM);
 

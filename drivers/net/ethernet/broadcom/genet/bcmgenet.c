@@ -3083,8 +3083,7 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv, bool flush_rx)
 	/* Initialize common Rx ring structures */
 	priv->rx_bds = priv->base + priv->hw_params->rdma_offset;
 	priv->num_rx_bds = TOTAL_DESC;
-	priv->rx_cbs = kcalloc(priv->num_rx_bds, sizeof(struct enet_cb),
-			       GFP_KERNEL);
+	priv->rx_cbs = kzalloc_objs(struct enet_cb, priv->num_rx_bds);
 	if (!priv->rx_cbs)
 		return -ENOMEM;
 
@@ -3096,8 +3095,7 @@ static int bcmgenet_init_dma(struct bcmgenet_priv *priv, bool flush_rx)
 	/* Initialize common TX ring structures */
 	priv->tx_bds = priv->base + priv->hw_params->tdma_offset;
 	priv->num_tx_bds = TOTAL_DESC;
-	priv->tx_cbs = kcalloc(priv->num_tx_bds, sizeof(struct enet_cb),
-			       GFP_KERNEL);
+	priv->tx_cbs = kzalloc_objs(struct enet_cb, priv->num_tx_bds);
 	if (!priv->tx_cbs) {
 		kfree(priv->rx_cbs);
 		return -ENOMEM;

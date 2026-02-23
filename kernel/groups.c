@@ -15,7 +15,7 @@
 struct group_info *groups_alloc(int gidsetsize)
 {
 	struct group_info *gi;
-	gi = kvmalloc(struct_size(gi, gid, gidsetsize), GFP_KERNEL_ACCOUNT);
+	gi = kvmalloc_flex(*gi, gid, gidsetsize, GFP_KERNEL_ACCOUNT);
 	if (!gi)
 		return NULL;
 

@@ -1302,20 +1302,6 @@ void vb2_video_unregister_device(struct video_device *vdev)
 }
 EXPORT_SYMBOL_GPL(vb2_video_unregister_device);
 
-/* vb2_ops helpers. Only use if vq->lock is non-NULL. */
-
-void vb2_ops_wait_prepare(struct vb2_queue *vq)
-{
-	mutex_unlock(vq->lock);
-}
-EXPORT_SYMBOL_GPL(vb2_ops_wait_prepare);
-
-void vb2_ops_wait_finish(struct vb2_queue *vq)
-{
-	mutex_lock(vq->lock);
-}
-EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
-
 /*
  * Note that this function is called during validation time and
  * thus the req_queue_mutex is held to ensure no request objects

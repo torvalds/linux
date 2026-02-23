@@ -124,7 +124,7 @@ avs_module_ida_alloc(struct avs_dev *adev, struct avs_mods_info *newinfo, bool p
 		tocopy_count = oldinfo->count;
 	}
 
-	ida_ptrs = kcalloc(newinfo->count, sizeof(*ida_ptrs), GFP_KERNEL);
+	ida_ptrs = kzalloc_objs(*ida_ptrs, newinfo->count);
 	if (!ida_ptrs)
 		return -ENOMEM;
 
@@ -132,7 +132,7 @@ avs_module_ida_alloc(struct avs_dev *adev, struct avs_mods_info *newinfo, bool p
 		memcpy(ida_ptrs, adev->mod_idas, tocopy_count * sizeof(*ida_ptrs));
 
 	for (i = tocopy_count; i < newinfo->count; i++) {
-		ida_ptrs[i] = kzalloc(sizeof(**ida_ptrs), GFP_KERNEL);
+		ida_ptrs[i] = kzalloc_obj(**ida_ptrs);
 		if (!ida_ptrs[i]) {
 			while (i--)
 				kfree(ida_ptrs[i]);
@@ -246,7 +246,7 @@ int avs_request_firmware(struct avs_dev *adev, const struct firmware **fw_p, con
 	}
 
 	/* FW is not loaded, let's load it now and add to the list */
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

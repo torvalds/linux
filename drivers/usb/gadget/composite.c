@@ -2531,7 +2531,7 @@ static int composite_bind(struct usb_gadget *gadget,
 	struct usb_composite_driver	*composite = to_cdriver(gdriver);
 	int				status = -ENOMEM;
 
-	cdev = kzalloc(sizeof *cdev, GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return status;
 

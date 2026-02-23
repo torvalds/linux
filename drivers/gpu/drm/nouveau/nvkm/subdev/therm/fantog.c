@@ -99,7 +99,7 @@ nvkm_fantog_create(struct nvkm_therm *therm, struct dcb_gpio_func *func)
 			return ret;
 	}
 
-	fan = kzalloc(sizeof(*fan), GFP_KERNEL);
+	fan = kzalloc_obj(*fan);
 	if (!fan)
 		return -ENOMEM;
 

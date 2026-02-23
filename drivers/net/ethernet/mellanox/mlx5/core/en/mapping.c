@@ -198,7 +198,7 @@ mapping_create(size_t data_size, u32 max_id, bool delayed_removal)
 {
 	struct mapping_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

@@ -126,7 +126,7 @@ enum {
 
 #define GL_GLOCK_MAX_HOLD        (long)(HZ / 5)
 #define GL_GLOCK_DFT_HOLD        (long)(HZ / 5)
-#define GL_GLOCK_MIN_HOLD        (long)(10)
+#define GL_GLOCK_MIN_HOLD        (long)(HZ / 100)
 #define GL_GLOCK_HOLD_INCR       (long)(HZ / 20)
 #define GL_GLOCK_HOLD_DECR       (long)(HZ / 40)
 
@@ -204,7 +204,8 @@ int gfs2_glock_poll(struct gfs2_holder *gh);
 int gfs2_instantiate(struct gfs2_holder *gh);
 int gfs2_glock_holder_ready(struct gfs2_holder *gh);
 int gfs2_glock_wait(struct gfs2_holder *gh);
-int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
+int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs,
+			  unsigned int retries);
 void gfs2_glock_dq(struct gfs2_holder *gh);
 void gfs2_glock_dq_wait(struct gfs2_holder *gh);
 void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
@@ -221,11 +222,11 @@ void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
 			BUG(); } } while(0)
 #define gfs2_glock_assert_warn(gl, x) do { if (unlikely(!(x))) {	\
 			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_warn((gl)->gl_name.ln_sbd, (x)); } } \
+			gfs2_assert_warn(glock_sbd(gl), (x)); } } \
 	while (0)
 #define gfs2_glock_assert_withdraw(gl, x) do { if (unlikely(!(x))) {	\
 			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_withdraw((gl)->gl_name.ln_sbd, (x)); } } \
+			gfs2_assert_withdraw(glock_sbd(gl), (x)); } } \
 	while (0)
 
 __printf(2, 3)

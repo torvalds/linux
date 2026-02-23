@@ -111,7 +111,7 @@ static int __init fsl_wakeup_sys_init(void)
 	struct device *dev_root;
 	int ret = -EINVAL;
 
-	fsl_wakeup = kzalloc(sizeof(struct fsl_mpic_timer_wakeup), GFP_KERNEL);
+	fsl_wakeup = kzalloc_obj(struct fsl_mpic_timer_wakeup);
 	if (!fsl_wakeup)
 		return -ENOMEM;
 

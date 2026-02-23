@@ -68,15 +68,17 @@
 #define PLIC_QUIRK_CP100_CLAIM_REGISTER_ERRATUM	1
 
 struct plic_priv {
-	struct fwnode_handle *fwnode;
-	struct cpumask lmask;
-	struct irq_domain *irqdomain;
-	void __iomem *regs;
-	unsigned long plic_quirks;
-	unsigned int nr_irqs;
-	unsigned long *prio_save;
-	u32 gsi_base;
-	int acpi_plic_id;
+	struct fwnode_handle	*fwnode;
+	struct cpumask		lmask;
+	struct irq_domain	*irqdomain;
+	void __iomem		*regs;
+	unsigned long		plic_quirks;
+	/* device interrupts + 1 to compensate for the reserved hwirq 0 */
+	unsigned int __private	total_irqs;
+	unsigned int		irq_groups;
+	unsigned long		*prio_save;
+	u32			gsi_base;
+	int			acpi_plic_id;
 };
 
 struct plic_handler {
@@ -91,6 +93,12 @@ struct plic_handler {
 	u32			*enable_save;
 	struct plic_priv	*priv;
 };
+
+/*
+ * Macro to deal with the insanity of hardware interrupt 0 being reserved */
+#define for_each_device_irq(iter, priv)	\
+	for (unsigned int iter = 1; iter < ACCESS_PRIVATE(priv, total_irqs); iter++)
+
 static int plic_parent_irq __ro_after_init;
 static bool plic_global_setup_done __ro_after_init;
 static DEFINE_PER_CPU(struct plic_handler, plic_handlers);
@@ -257,14 +265,11 @@ static int plic_irq_set_type(struct irq_data *d, unsigned int type)
 
 static int plic_irq_suspend(void *data)
 {
-	struct plic_priv *priv;
+	struct plic_priv *priv = this_cpu_ptr(&plic_handlers)->priv;
 
-	priv = per_cpu_ptr(&plic_handlers, smp_processor_id())->priv;
-
-	/* irq ID 0 is reserved */
-	for (unsigned int i = 1; i < priv->nr_irqs; i++) {
-		__assign_bit(i, priv->prio_save,
-			     readl(priv->regs + PRIORITY_BASE + i * PRIORITY_PER_ID));
+	for_each_device_irq(irq, priv) {
+		__assign_bit(irq, priv->prio_save,
+			     readl(priv->regs + PRIORITY_BASE + irq * PRIORITY_PER_ID));
 	}
 
 	return 0;
@@ -272,18 +277,15 @@ static int plic_irq_suspend(void *data)
 
 static void plic_irq_resume(void *data)
 {
-	unsigned int i, index, cpu;
+	struct plic_priv *priv = this_cpu_ptr(&plic_handlers)->priv;
+	unsigned int index, cpu;
 	unsigned long flags;
 	u32 __iomem *reg;
-	struct plic_priv *priv;
 
-	priv = per_cpu_ptr(&plic_handlers, smp_processor_id())->priv;
-
-	/* irq ID 0 is reserved */
-	for (i = 1; i < priv->nr_irqs; i++) {
-		index = BIT_WORD(i);
-		writel((priv->prio_save[index] & BIT_MASK(i)) ? 1 : 0,
-		       priv->regs + PRIORITY_BASE + i * PRIORITY_PER_ID);
+	for_each_device_irq(irq, priv) {
+		index = BIT_WORD(irq);
+		writel((priv->prio_save[index] & BIT_MASK(irq)) ? 1 : 0,
+		       priv->regs + PRIORITY_BASE + irq * PRIORITY_PER_ID);
 	}
 
 	for_each_present_cpu(cpu) {
@@ -293,7 +295,7 @@ static void plic_irq_resume(void *data)
 			continue;
 
 		raw_spin_lock_irqsave(&handler->enable_lock, flags);
-		for (i = 0; i < DIV_ROUND_UP(priv->nr_irqs, 32); i++) {
+		for (unsigned int i = 0; i < priv->irq_groups; i++) {
 			reg = handler->enable_base + i * sizeof(u32);
 			writel(handler->enable_save[i], reg);
 		}
@@ -431,7 +433,7 @@ static u32 cp100_isolate_pending_irq(int nr_irq_groups, struct plic_handler *han
 
 static irq_hw_number_t cp100_get_hwirq(struct plic_handler *handler, void __iomem *claim)
 {
-	int nr_irq_groups = DIV_ROUND_UP(handler->priv->nr_irqs, 32);
+	int nr_irq_groups = handler->priv->irq_groups;
 	u32 __iomem *enable = handler->enable_base;
 	irq_hw_number_t hwirq = 0;
 	u32 iso_mask;
@@ -614,7 +616,6 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	struct plic_handler *handler;
 	u32 nr_irqs, parent_hwirq;
 	struct plic_priv *priv;
-	irq_hw_number_t hwirq;
 	void __iomem *regs;
 	int id, context_id;
 	u32 gsi_base;
@@ -639,7 +640,7 @@ static int plic_probe(struct fwnode_handle *fwnode)
 	if (error)
 		goto fail_free_regs;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto fail_free_regs;
@@ -647,7 +648,16 @@ static int plic_probe(struct fwnode_handle *fwnode)
 
 	priv->fwnode = fwnode;
 	priv->plic_quirks = plic_quirks;
-	priv->nr_irqs = nr_irqs;
+	/*
+	 * The firmware provides the number of device interrupts. As
+	 * hardware interrupt 0 is reserved, the number of total interrupts
+	 * is nr_irqs + 1.
+	 */
+	nr_irqs++;
+	ACCESS_PRIVATE(priv, total_irqs) = nr_irqs;
+	/* Precalculate the number of register groups */
+	priv->irq_groups = DIV_ROUND_UP(nr_irqs, 32);
+
 	priv->regs = regs;
 	priv->gsi_base = gsi_base;
 	priv->acpi_plic_id = id;
@@ -686,7 +696,7 @@ static int plic_probe(struct fwnode_handle *fwnode)
 				u32 __iomem *enable_base = priv->regs +	CONTEXT_ENABLE_BASE +
 							   i * CONTEXT_ENABLE_SIZE;
 
-				for (int j = 0; j <= nr_irqs / 32; j++)
+				for (int j = 0; j < priv->irq_groups; j++)
 					writel(0, enable_base + j);
 			}
 			continue;
@@ -718,23 +728,21 @@ static int plic_probe(struct fwnode_handle *fwnode)
 			context_id * CONTEXT_ENABLE_SIZE;
 		handler->priv = priv;
 
-		handler->enable_save = kcalloc(DIV_ROUND_UP(nr_irqs, 32),
-					       sizeof(*handler->enable_save), GFP_KERNEL);
+		handler->enable_save = kcalloc(priv->irq_groups, sizeof(*handler->enable_save),
+					       GFP_KERNEL);
 		if (!handler->enable_save) {
 			error = -ENOMEM;
 			goto fail_cleanup_contexts;
 		}
 done:
-		for (hwirq = 1; hwirq <= nr_irqs; hwirq++) {
+		for_each_device_irq(hwirq, priv) {
 			plic_toggle(handler, hwirq, 0);
-			writel(1, priv->regs + PRIORITY_BASE +
-				  hwirq * PRIORITY_PER_ID);
+			writel(1, priv->regs + PRIORITY_BASE + hwirq * PRIORITY_PER_ID);
 		}
 		nr_handlers++;
 	}
 
-	priv->irqdomain = irq_domain_create_linear(fwnode, nr_irqs + 1,
-						   &plic_irqdomain_ops, priv);
+	priv->irqdomain = irq_domain_create_linear(fwnode, nr_irqs, &plic_irqdomain_ops, priv);
 	if (WARN_ON(!priv->irqdomain)) {
 		error = -ENOMEM;
 		goto fail_cleanup_contexts;

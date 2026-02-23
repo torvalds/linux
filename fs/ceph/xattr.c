@@ -819,15 +819,15 @@ start:
 		xattr_version = ci->i_xattrs.version;
 		spin_unlock(&ci->i_ceph_lock);
 
-		xattrs = kcalloc(numattr, sizeof(struct ceph_inode_xattr *),
-				 GFP_NOFS);
+		xattrs = kzalloc_objs(struct ceph_inode_xattr *, numattr,
+				      GFP_NOFS);
 		err = -ENOMEM;
 		if (!xattrs)
 			goto bad_lock;
 
 		for (i = 0; i < numattr; i++) {
-			xattrs[i] = kmalloc(sizeof(struct ceph_inode_xattr),
-					    GFP_NOFS);
+			xattrs[i] = kmalloc_obj(struct ceph_inode_xattr,
+						GFP_NOFS);
 			if (!xattrs[i])
 				goto bad_lock;
 		}
@@ -1220,7 +1220,7 @@ int __ceph_setxattr(struct inode *inode, const char *name,
 			goto out;
 	}
 
-	xattr = kmalloc(sizeof(struct ceph_inode_xattr), GFP_NOFS);
+	xattr = kmalloc_obj(struct ceph_inode_xattr, GFP_NOFS);
 	if (!xattr)
 		goto out;
 

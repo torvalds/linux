@@ -43,7 +43,7 @@ RSSS    Shuts down the HDD protection interface for a few seconds,
 ====	=====================================================================
 
 Note:
-  The presence of Solid State Drives (SSD) can make this driver to fail loading,
+  The presence of Solid State Drives (SSD) can cause this driver to fail loading,
   given the fact that such drives have no movable parts, and thus, not requiring
   any "protection" as well as failing during the evaluation of the _STA method
   found under this device.

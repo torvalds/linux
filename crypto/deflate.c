@@ -40,7 +40,7 @@ static void *deflate_alloc_stream(void)
 						     DEFLATE_DEF_MEMLEVEL));
 	struct deflate_stream *ctx;
 
-	ctx = kvmalloc(struct_size(ctx, workspace, size), GFP_KERNEL);
+	ctx = kvmalloc_flex(*ctx, workspace, size);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

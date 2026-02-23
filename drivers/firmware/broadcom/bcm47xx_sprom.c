@@ -30,6 +30,7 @@
 #include <linux/bcm47xx_sprom.h>
 #include <linux/bcma/bcma.h>
 #include <linux/etherdevice.h>
+#include <linux/hex.h>
 #include <linux/if_ether.h>
 #include <linux/ssb/ssb.h>
 

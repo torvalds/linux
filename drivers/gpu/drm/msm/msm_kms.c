@@ -128,7 +128,7 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 {
 	struct msm_vblank_work *vbl_work;
 
-	vbl_work = kzalloc(sizeof(*vbl_work), GFP_ATOMIC);
+	vbl_work = kzalloc_obj(*vbl_work, GFP_ATOMIC);
 	if (!vbl_work)
 		return -ENOMEM;
 

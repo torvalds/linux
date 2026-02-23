@@ -2650,7 +2650,7 @@ struct rvt_qp_iter *rvt_qp_iter_init(struct rvt_dev_info *rdi,
 {
 	struct rvt_qp_iter *i;
 
-	i = kzalloc(sizeof(*i), GFP_KERNEL);
+	i = kzalloc_obj(*i);
 	if (!i)
 		return NULL;
 

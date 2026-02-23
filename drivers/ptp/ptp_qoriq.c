@@ -613,7 +613,7 @@ static int ptp_qoriq_probe(struct platform_device *dev)
 	int err = -ENOMEM;
 	void __iomem *base;
 
-	ptp_qoriq = kzalloc(sizeof(*ptp_qoriq), GFP_KERNEL);
+	ptp_qoriq = kzalloc_obj(*ptp_qoriq);
 	if (!ptp_qoriq)
 		goto no_memory;
 

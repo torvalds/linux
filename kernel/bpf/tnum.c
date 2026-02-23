@@ -8,6 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/tnum.h>
+#include <linux/swab.h>
 
 #define TNUM(_v, _m)	(struct tnum){.value = _v, .mask = _m}
 /* A completely unknown value */
@@ -252,4 +253,19 @@ struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg)
 struct tnum tnum_const_subreg(struct tnum a, u32 value)
 {
 	return tnum_with_subreg(a, tnum_const(value));
+}
+
+struct tnum tnum_bswap16(struct tnum a)
+{
+	return TNUM(swab16(a.value & 0xFFFF), swab16(a.mask & 0xFFFF));
+}
+
+struct tnum tnum_bswap32(struct tnum a)
+{
+	return TNUM(swab32(a.value & 0xFFFFFFFF), swab32(a.mask & 0xFFFFFFFF));
+}
+
+struct tnum tnum_bswap64(struct tnum a)
+{
+	return TNUM(swab64(a.value), swab64(a.mask));
 }

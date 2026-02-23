@@ -203,7 +203,7 @@ mlx5_ct_fs_hmfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	if (!mlx5e_tc_ct_is_valid_flow_rule(fs->netdev, flow_rule))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	hmfs_rule = kzalloc(sizeof(*hmfs_rule), GFP_KERNEL);
+	hmfs_rule = kzalloc_obj(*hmfs_rule);
 	if (!hmfs_rule)
 		return ERR_PTR(-ENOMEM);
 

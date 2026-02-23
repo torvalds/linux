@@ -289,7 +289,7 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,ctl_id);
 	if (!cptr) return;
 
-	cip = kzalloc(sizeof(*cip),GFP_KERNEL);
+	cip = kzalloc_obj(*cip);
 	if (!cip) return;
 	pvr2_sysfs_trace("Creating pvr2_sysfs_ctl_item id=%p",cip);
 
@@ -411,7 +411,7 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	struct pvr2_sysfs_debugifc *dip;
 	int ret;
 
-	dip = kzalloc(sizeof(*dip),GFP_KERNEL);
+	dip = kzalloc_obj(*dip);
 	if (!dip) return;
 	sysfs_attr_init(&dip->attr_debugcmd.attr);
 	dip->attr_debugcmd.attr.name = "debugcmd";
@@ -615,7 +615,7 @@ static void class_dev_create(struct pvr2_sysfs *sfp)
 
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
 	if (!usb_dev) return;
-	class_dev = kzalloc(sizeof(*class_dev),GFP_KERNEL);
+	class_dev = kzalloc_obj(*class_dev);
 	if (!class_dev) return;
 
 	pvr2_sysfs_trace("Creating class_dev id=%p",class_dev);
@@ -748,7 +748,7 @@ static void pvr2_sysfs_internal_check(struct pvr2_channel *chp)
 void pvr2_sysfs_create(struct pvr2_context *mp)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = kzalloc(sizeof(*sfp),GFP_KERNEL);
+	sfp = kzalloc_obj(*sfp);
 	if (!sfp)
 		return;
 	pvr2_trace(PVR2_TRACE_STRUCT,"Creating pvr2_sysfs id=%p",sfp);

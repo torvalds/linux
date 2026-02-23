@@ -349,7 +349,7 @@ nvkm_runl_add(struct nvkm_runl *runl, int engi, const struct nvkm_engn_func *fun
 		return NULL;
 	}
 
-	if (!(engn = kzalloc(sizeof(*engn), GFP_KERNEL)))
+	if (!(engn = kzalloc_obj(*engn)))
 		return NULL;
 
 	engn->func = func;
@@ -398,7 +398,7 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 	struct nvkm_runl *runl;
 	int ret;
 
-	if (!(runl = kzalloc(sizeof(*runl), GFP_KERNEL)))
+	if (!(runl = kzalloc_obj(*runl)))
 		return ERR_PTR(-ENOMEM);
 
 	runl->func = fifo->func->runl;

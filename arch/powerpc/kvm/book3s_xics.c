@@ -1037,7 +1037,7 @@ static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
 		goto out;
 
 	/* Create the ICS */
-	ics = kzalloc(sizeof(struct kvmppc_ics), GFP_KERNEL);
+	ics = kzalloc_obj(struct kvmppc_ics);
 	if (!ics)
 		goto out;
 
@@ -1069,7 +1069,7 @@ static int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_nu
 	if (kvmppc_xics_find_server(vcpu->kvm, server_num))
 		return -EEXIST;
 
-	icp = kzalloc(sizeof(struct kvmppc_icp), GFP_KERNEL);
+	icp = kzalloc_obj(struct kvmppc_icp);
 	if (!icp)
 		return -ENOMEM;
 
@@ -1388,7 +1388,7 @@ static struct kvmppc_xics *kvmppc_xics_get_device(struct kvm *kvm)
 	struct kvmppc_xics *xics = *kvm_xics_device;
 
 	if (!xics) {
-		xics = kzalloc(sizeof(*xics), GFP_KERNEL);
+		xics = kzalloc_obj(*xics);
 		*kvm_xics_device = xics;
 	} else {
 		memset(xics, 0, sizeof(*xics));

@@ -288,7 +288,7 @@ static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 	struct lynx_pcs *lynx;
 	int i;
 
-	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
+	lynx = kzalloc_obj(*lynx);
 	if (!lynx)
 		return ERR_PTR(-ENOMEM);
 

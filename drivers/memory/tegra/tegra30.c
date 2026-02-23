@@ -1344,7 +1344,7 @@ tegra30_mc_of_icc_xlate_extended(const struct of_phandle_args *spec, void *data)
 		if (node->id != idx)
 			continue;
 
-		ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
+		ndata = kzalloc_obj(*ndata);
 		if (!ndata)
 			return ERR_PTR(-ENOMEM);
 

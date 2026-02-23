@@ -40,6 +40,7 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_CREATE_MR, sizeof(req),
 			     sizeof(resp));
+	req.hdr.req.msg_version = GDMA_MESSAGE_V2;
 	req.pd_handle = mr_params->pd_handle;
 	req.mr_type = mr_params->mr_type;
 
@@ -54,6 +55,12 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 	case GDMA_MR_TYPE_ZBVA:
 		req.zbva.dma_region_handle = mr_params->zbva.dma_region_handle;
 		req.zbva.access_flags = mr_params->zbva.access_flags;
+		break;
+	case GDMA_MR_TYPE_DM:
+		req.da_ext.length = mr_params->da.length;
+		req.da.dm_handle = mr_params->da.dm_handle;
+		req.da.offset = mr_params->da.offset;
+		req.da.access_flags = mr_params->da.access_flags;
 		break;
 	default:
 		ibdev_dbg(&dev->ib_dev,
@@ -130,7 +137,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (access_flags & ~VALID_MR_FLAGS)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -214,7 +221,7 @@ struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 leng
 	if (access_flags & ~VALID_MR_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -279,7 +286,7 @@ struct ib_mr *mana_ib_get_dma_mr(struct ib_pd *ibpd, int access_flags)
 	if (access_flags & ~VALID_DMA_MR_FLAGS)
 		return ERR_PTR(-EINVAL);
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -316,4 +323,127 @@ int mana_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	kfree(mr);
 
 	return 0;
+}
+
+static int mana_ib_gd_alloc_dm(struct mana_ib_dev *mdev, struct mana_ib_dm *dm,
+			       struct ib_dm_alloc_attr *attr)
+{
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct gdma_alloc_dm_resp resp = {};
+	struct gdma_alloc_dm_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, GDMA_ALLOC_DM, sizeof(req), sizeof(resp));
+	req.length = attr->length;
+	req.alignment = attr->alignment;
+	req.flags =  attr->flags;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err || resp.hdr.status) {
+		if (!err)
+			err = -EPROTO;
+
+		return err;
+	}
+
+	dm->dm_handle = resp.dm_handle;
+
+	return 0;
+}
+
+struct ib_dm *mana_ib_alloc_dm(struct ib_device *ibdev,
+			       struct ib_ucontext *context,
+			       struct ib_dm_alloc_attr *attr,
+			       struct uverbs_attr_bundle *attrs)
+{
+	struct mana_ib_dev *dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
+	struct mana_ib_dm *dm;
+	int err;
+
+	dm = kzalloc_obj(*dm);
+	if (!dm)
+		return ERR_PTR(-ENOMEM);
+
+	err = mana_ib_gd_alloc_dm(dev, dm, attr);
+	if (err)
+		goto err_free;
+
+	return &dm->ibdm;
+
+err_free:
+	kfree(dm);
+	return ERR_PTR(err);
+}
+
+static int mana_ib_gd_destroy_dm(struct mana_ib_dev *mdev, struct mana_ib_dm *dm)
+{
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct gdma_destroy_dm_resp resp = {};
+	struct gdma_destroy_dm_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, GDMA_DESTROY_DM, sizeof(req), sizeof(resp));
+	req.dm_handle = dm->dm_handle;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err || resp.hdr.status) {
+		if (!err)
+			err = -EPROTO;
+
+		return err;
+	}
+
+	return 0;
+}
+
+int mana_ib_dealloc_dm(struct ib_dm *ibdm, struct uverbs_attr_bundle *attrs)
+{
+	struct mana_ib_dev *dev = container_of(ibdm->device, struct mana_ib_dev, ib_dev);
+	struct mana_ib_dm *dm = container_of(ibdm, struct mana_ib_dm, ibdm);
+	int err;
+
+	err = mana_ib_gd_destroy_dm(dev, dm);
+	if (err)
+		return err;
+
+	kfree(dm);
+	return 0;
+}
+
+struct ib_mr *mana_ib_reg_dm_mr(struct ib_pd *ibpd, struct ib_dm *ibdm,
+				struct ib_dm_mr_attr *attr,
+				struct uverbs_attr_bundle *attrs)
+{
+	struct mana_ib_dev *dev = container_of(ibpd->device, struct mana_ib_dev, ib_dev);
+	struct mana_ib_dm *mana_dm = container_of(ibdm, struct mana_ib_dm, ibdm);
+	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
+	struct gdma_create_mr_params mr_params = {};
+	struct mana_ib_mr *mr;
+	int err;
+
+	attr->access_flags &= ~IB_ACCESS_OPTIONAL;
+	if (attr->access_flags & ~VALID_MR_FLAGS)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mr = kzalloc_obj(*mr);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
+
+	mr_params.pd_handle = pd->pd_handle;
+	mr_params.mr_type = GDMA_MR_TYPE_DM;
+	mr_params.da.dm_handle = mana_dm->dm_handle;
+	mr_params.da.offset = attr->offset;
+	mr_params.da.length = attr->length;
+	mr_params.da.access_flags =
+		mana_ib_verbs_to_gdma_access_flags(attr->access_flags);
+
+	err = mana_ib_gd_create_mr(dev, mr, &mr_params);
+	if (err)
+		goto err_free;
+
+	return &mr->ibmr;
+
+err_free:
+	kfree(mr);
+	return ERR_PTR(err);
 }

@@ -1571,7 +1571,7 @@ static void __update_mc_list(struct vnet *vp, struct net_device *dev)
 		}
 
 		if (!m) {
-			m = kzalloc(sizeof(*m), GFP_ATOMIC);
+			m = kzalloc_obj(*m, GFP_ATOMIC);
 			if (!m)
 				continue;
 			memcpy(m->addr, ha->addr, ETH_ALEN);

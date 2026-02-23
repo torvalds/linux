@@ -97,7 +97,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 	else
 		iovnum = 2;
 
-	iov = kcalloc(iovnum, sizeof(*iov), GFP_KERNEL);
+	iov = kzalloc_objs(*iov, iovnum);
 	if (!iov) {
 		usbip_event_add(&udc->ud, VUDC_EVENT_ERROR_MALLOC);
 		ret = -ENOMEM;
@@ -246,12 +246,12 @@ void v_enqueue_ret_unlink(struct vudc *udc, __u32 seqnum, __u32 status)
 	struct tx_item *txi;
 	struct v_unlink *unlink;
 
-	txi = kzalloc(sizeof(*txi), GFP_ATOMIC);
+	txi = kzalloc_obj(*txi, GFP_ATOMIC);
 	if (!txi) {
 		usbip_event_add(&udc->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
-	unlink = kzalloc(sizeof(*unlink), GFP_ATOMIC);
+	unlink = kzalloc_obj(*unlink, GFP_ATOMIC);
 	if (!unlink) {
 		kfree(txi);
 		usbip_event_add(&udc->ud, VDEV_EVENT_ERROR_MALLOC);
@@ -271,7 +271,7 @@ void v_enqueue_ret_submit(struct vudc *udc, struct urbp *urb_p)
 {
 	struct tx_item *txi;
 
-	txi = kzalloc(sizeof(*txi), GFP_ATOMIC);
+	txi = kzalloc_obj(*txi, GFP_ATOMIC);
 	if (!txi) {
 		usbip_event_add(&udc->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;

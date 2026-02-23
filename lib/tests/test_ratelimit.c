@@ -104,7 +104,7 @@ static void test_ratelimit_stress(struct kunit *test)
 	int i;
 	const int n_stress_kthread = cpumask_weight(cpu_online_mask);
 	struct stress_kthread skt = { 0 };
-	struct stress_kthread *sktp = kcalloc(n_stress_kthread, sizeof(*sktp), GFP_KERNEL);
+	struct stress_kthread *sktp = kzalloc_objs(*sktp, n_stress_kthread);
 
 	KUNIT_EXPECT_NOT_NULL_MSG(test, sktp, "Memory allocation failure");
 	for (i = 0; i < n_stress_kthread; i++) {

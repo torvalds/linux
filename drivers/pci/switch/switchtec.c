@@ -86,7 +86,7 @@ static struct switchtec_user *stuser_create(struct switchtec_dev *stdev)
 {
 	struct switchtec_user *stuser;
 
-	stuser = kzalloc(sizeof(*stuser), GFP_KERNEL);
+	stuser = kzalloc_obj(*stuser);
 	if (!stuser)
 		return ERR_PTR(-ENOMEM);
 
@@ -895,7 +895,7 @@ static int ioctl_event_summary(struct switchtec_dev *stdev,
 	u32 reg;
 	int ret = 0;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 

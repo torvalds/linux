@@ -187,7 +187,7 @@ struct cs5535_mfgpt_timer *cs5535_mfgpt_alloc_timer(int timer_nr, int domain)
 	if (timer_nr < 0)
 		goto done;
 
-	timer = kmalloc(sizeof(*timer), GFP_KERNEL);
+	timer = kmalloc_obj(*timer);
 	if (!timer) {
 		/* aw hell */
 		spin_lock_irqsave(&mfgpt->lock, flags);

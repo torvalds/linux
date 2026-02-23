@@ -313,9 +313,8 @@ int vmbus_connect(void)
 	pr_info("Vmbus version:%d.%d\n",
 		version >> 16, version & 0xFFFF);
 
-	vmbus_connection.channels = kcalloc(MAX_CHANNEL_RELIDS,
-					    sizeof(struct vmbus_channel *),
-					    GFP_KERNEL);
+	vmbus_connection.channels = kzalloc_objs(struct vmbus_channel *,
+						 MAX_CHANNEL_RELIDS);
 	if (vmbus_connection.channels == NULL) {
 		ret = -ENOMEM;
 		goto cleanup;

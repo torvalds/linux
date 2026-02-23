@@ -54,7 +54,7 @@ static int deflate_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 	size_t sz;
 	int ret;
 
-	zctx = kzalloc(sizeof(*zctx), GFP_KERNEL);
+	zctx = kzalloc_obj(*zctx);
 	if (!zctx)
 		return -ENOMEM;
 

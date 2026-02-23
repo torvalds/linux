@@ -225,7 +225,7 @@ drm_client_buffer_create(struct drm_client_dev *client, u32 width, u32 height,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 

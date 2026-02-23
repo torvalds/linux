@@ -706,7 +706,7 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	void __iomem *hcr_base = host_priv->hcr_base;
 	u32 temp;
 
-	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc_obj(*pp);
 	if (!pp)
 		return -ENOMEM;
 
@@ -1451,7 +1451,7 @@ static int sata_fsl_probe(struct platform_device *ofdev)
 	dev_dbg(&ofdev->dev, "@reset i/o = 0x%x\n",
 		ioread32(csr_base + TRANSCFG));
 
-	host_priv = kzalloc(sizeof(struct sata_fsl_host_priv), GFP_KERNEL);
+	host_priv = kzalloc_obj(struct sata_fsl_host_priv);
 	if (!host_priv)
 		goto error_exit_with_cleanup;
 

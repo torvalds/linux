@@ -334,7 +334,7 @@ static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct fiji_smumgr *fiji_priv;
 
-	fiji_priv = kzalloc(sizeof(struct fiji_smumgr), GFP_KERNEL);
+	fiji_priv = kzalloc_obj(struct fiji_smumgr);
 
 	if (fiji_priv == NULL)
 		return -ENOMEM;

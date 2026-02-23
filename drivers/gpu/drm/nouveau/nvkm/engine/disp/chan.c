@@ -86,7 +86,7 @@ nvkm_disp_chan_child_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct nvkm_disp_chan_object *object;
 	int ret;
 
-	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
+	if (!(object = kzalloc_obj(*object)))
 		return -ENOMEM;
 	nvkm_oproxy_ctor(&nvkm_disp_chan_child_func_, oclass, &object->oproxy);
 	object->disp = disp;
@@ -195,7 +195,7 @@ nvkm_disp_chan_new_(struct nvkm_disp *disp, int nr, const struct nvkm_oclass *oc
 	if (args->v0.id >= nr || !args->v0.pushbuf != !user->func->push)
 		return -EINVAL;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	*pobject = &chan->object;
 

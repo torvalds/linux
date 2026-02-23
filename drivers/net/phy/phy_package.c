@@ -219,7 +219,7 @@ int phy_package_join(struct phy_device *phydev, int base_addr, size_t priv_size)
 	shared = bus->shared[base_addr];
 	if (!shared) {
 		ret = -ENOMEM;
-		shared = kzalloc(sizeof(*shared), GFP_KERNEL);
+		shared = kzalloc_obj(*shared);
 		if (!shared)
 			goto err_unlock;
 		if (priv_size) {

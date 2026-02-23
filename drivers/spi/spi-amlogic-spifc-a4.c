@@ -986,7 +986,7 @@ static int aml_sfc_ecc_init_ctx(struct nand_device *nand)
 
 	nand->ecc.ctx.conf.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 
-	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
+	ecc_cfg = kzalloc_obj(*ecc_cfg);
 	if (!ecc_cfg)
 		return -ENOMEM;
 

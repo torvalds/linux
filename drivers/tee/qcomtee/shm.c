@@ -140,7 +140,7 @@ struct tee_shm_pool *qcomtee_shm_pool_alloc(void)
 {
 	struct tee_shm_pool *pool;
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 

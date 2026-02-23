@@ -223,7 +223,7 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	}
 
 	/* speculative alloc of new mcg */
-	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
+	mcg = kzalloc_obj(*mcg);
 	if (!mcg) {
 		err = -ENOMEM;
 		goto err_dec;
@@ -363,7 +363,7 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 	spin_unlock_bh(&rxe->mcg_lock);
 
 	/* speculative alloc new mca without using GFP_ATOMIC */
-	mca = kzalloc(sizeof(*mca), GFP_KERNEL);
+	mca = kzalloc_obj(*mca);
 	if (!mca)
 		return -ENOMEM;
 

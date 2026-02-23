@@ -822,6 +822,8 @@ static int parse_thread_groups(struct device_node *dn,
 
 	count = of_property_count_u32_elems(dn, "ibm,thread-groups");
 	thread_group_array = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	if (!thread_group_array)
+		return -ENOMEM;
 	ret = of_property_read_u32_array(dn, "ibm,thread-groups",
 					 thread_group_array, count);
 	if (ret)
@@ -1170,7 +1172,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * Assumption: if boot_cpuid doesn't have a chip-id, then no
 		 * other CPUs, will also not have chip-id.
 		 */
-		chip_id_lookup_table = kcalloc(idx, sizeof(int), GFP_KERNEL);
+		chip_id_lookup_table = kzalloc_objs(int, idx);
 		if (chip_id_lookup_table)
 			memset(chip_id_lookup_table, -1, sizeof(int) * idx);
 	}

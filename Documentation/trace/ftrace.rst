@@ -684,6 +684,22 @@ of ftrace. Here is a list of some of the key files:
 
 	See events.rst for more information.
 
+  show_event_filters:
+
+	A list of events that have filters. This shows the
+	system/event pair along with the filter that is attached to
+	the event.
+
+	See events.rst for more information.
+
+  show_event_triggers:
+
+	A list of events that have triggers. This shows the
+	system/event pair along with the trigger that is attached to
+	the event.
+
+	See events.rst for more information.
+
   available_events:
 
 	A list of events that can be enabled in tracing.
@@ -1289,6 +1305,15 @@ Here are the available options:
         hashed pointer value instead of real address.
         This will be useful if you want to find out which hashed
         value is corresponding to the real value in trace log.
+
+  bitmask-list
+        When enabled, bitmasks are displayed as a human-readable list of
+        ranges (e.g., 0,2-5,7) using the printk "%*pbl" format specifier.
+        When disabled (the default), bitmasks are displayed in the
+        traditional hexadecimal bitmap representation. The list format is
+        particularly useful for tracing CPU masks and other large bitmasks
+        where individual bit positions are more meaningful than their
+        hexadecimal encoding.
 
   record-cmd
 	When any event or tracer is enabled, a hook is enabled

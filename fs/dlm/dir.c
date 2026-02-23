@@ -62,7 +62,7 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 	char *b, *last_name = NULL;
 	int error = -ENOMEM, last_len, nodeid, result;
 	uint16_t namelen;
-	unsigned int count = 0, count_match = 0, count_bad = 0, count_add = 0;
+	unsigned int count = 0, count_bad = 0, count_add = 0;
 
 	log_rinfo(ls, "dlm_recover_directory");
 
@@ -157,12 +157,12 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 				}
 
 				/* The name was found in rsbtbl, and the
-				 * master nodeid matches memb->nodeid. */
+				 * master nodeid matches memb->nodeid.
 
 				if (result == DLM_LU_MATCH &&
 				    nodeid == memb->nodeid) {
 					count_match++;
-				}
+				}*/
 
 				/* The name was not found in rsbtbl and was
 				 * added with memb->nodeid as the master. */
@@ -276,7 +276,7 @@ static struct dlm_dir_dump *init_dir_dump(struct dlm_ls *ls, int nodeid)
 		drop_dir_ctx(ls, nodeid);
 	}
 
-	dd = kzalloc(sizeof(*dd), GFP_ATOMIC);
+	dd = kzalloc_obj(*dd, GFP_ATOMIC);
 	if (!dd)
 		return NULL;
 

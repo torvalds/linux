@@ -688,7 +688,7 @@ int aq_add_rxnfc_rule(struct aq_nic_s *aq_nic, const struct ethtool_rxnfc *cmd)
 	if (err)
 		goto err_exit;
 
-	aq_rx_fltr = kzalloc(sizeof(*aq_rx_fltr), GFP_KERNEL);
+	aq_rx_fltr = kzalloc_obj(*aq_rx_fltr);
 	if (unlikely(!aq_rx_fltr)) {
 		err = -ENOMEM;
 		goto err_exit;

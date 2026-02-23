@@ -155,7 +155,7 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 	struct hl_ctx *ctx;
 	int rc;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		rc = -ENOMEM;
 		goto out_err;
@@ -209,9 +209,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
-	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
-				sizeof(struct hl_fence *),
-				GFP_KERNEL);
+	ctx->cs_pending = kzalloc_objs(struct hl_fence *,
+				       hdev->asic_prop.max_pending_cs);
 	if (!ctx->cs_pending)
 		return -ENOMEM;
 

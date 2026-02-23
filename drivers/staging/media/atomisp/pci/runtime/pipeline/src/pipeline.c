@@ -579,7 +579,7 @@ static int pipeline_stage_create(
 		out_frame[i] = stage_desc->out_frame[i];
 	}
 
-	stage = kvzalloc(sizeof(*stage), GFP_KERNEL);
+	stage = kvzalloc_obj(*stage);
 	if (!stage) {
 		err = -ENOMEM;
 		goto ERR;

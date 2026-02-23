@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2023 Marvell International Ltd.
+ *
+ * Device tree for the Falcon DB Type 7 Com Express carrier board,
+ * This (DB-98CX8540/80) specific carrier board only maintains
+ * a PCIe link with the COM Express CPU module, which does not
+ * require any special DTS definitions.
+ *
+ * The board contains the 98CX8540/80 Switch, which connects by
+ * PCIe to the COM Express CPU module.
+ * This CPU module can be any standard COM Express CPU module with
+ * PCIe support.
+ *
+ * There is no Linux CPU booting in this mode on the carrier,
+ * only on the COM Express CPU module.
+ */
+
+/ {
+	model = "Marvell Armada Falcon DB COM EXPRESS type 7 carrier board";
+	compatible = "marvell,db-falcon-carrier";
+};

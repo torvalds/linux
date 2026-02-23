@@ -56,7 +56,7 @@ int mlx4_ib_db_map_user(struct ib_udata *udata, unsigned long virt,
 		if (page->user_virt == (virt & PAGE_MASK))
 			goto found;
 
-	page = kmalloc(sizeof *page, GFP_KERNEL);
+	page = kmalloc_obj(*page);
 	if (!page) {
 		err = -ENOMEM;
 		goto out;

@@ -89,7 +89,7 @@ nvkm_chid_new(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 	struct nvkm_chid *chid;
 	int id;
 
-	if (!(chid = *pchid = kzalloc(struct_size(chid, used, nr), GFP_KERNEL)))
+	if (!(chid = *pchid = kzalloc_flex(*chid, used, nr)))
 		return -ENOMEM;
 
 	kref_init(&chid->kref);

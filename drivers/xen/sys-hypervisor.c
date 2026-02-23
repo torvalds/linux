@@ -182,7 +182,7 @@ static ssize_t compiler_show(struct hyp_sysfs_attr *attr, char *buffer)
 	int ret = -ENOMEM;
 	struct xen_compile_info *info;
 
-	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
+	info = kmalloc_obj(struct xen_compile_info);
 	if (info) {
 		ret = HYPERVISOR_xen_version(XENVER_compile_info, info);
 		if (!ret)
@@ -200,7 +200,7 @@ static ssize_t compiled_by_show(struct hyp_sysfs_attr *attr, char *buffer)
 	int ret = -ENOMEM;
 	struct xen_compile_info *info;
 
-	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
+	info = kmalloc_obj(struct xen_compile_info);
 	if (info) {
 		ret = HYPERVISOR_xen_version(XENVER_compile_info, info);
 		if (!ret)
@@ -218,7 +218,7 @@ static ssize_t compile_date_show(struct hyp_sysfs_attr *attr, char *buffer)
 	int ret = -ENOMEM;
 	struct xen_compile_info *info;
 
-	info = kmalloc(sizeof(struct xen_compile_info), GFP_KERNEL);
+	info = kmalloc_obj(struct xen_compile_info);
 	if (info) {
 		ret = HYPERVISOR_xen_version(XENVER_compile_info, info);
 		if (!ret)
@@ -291,7 +291,7 @@ static ssize_t virtual_start_show(struct hyp_sysfs_attr *attr, char *buffer)
 	int ret = -ENOMEM;
 	struct xen_platform_parameters *parms;
 
-	parms = kmalloc(sizeof(struct xen_platform_parameters), GFP_KERNEL);
+	parms = kmalloc_obj(struct xen_platform_parameters);
 	if (parms) {
 		ret = HYPERVISOR_xen_version(XENVER_platform_parameters,
 					     parms);

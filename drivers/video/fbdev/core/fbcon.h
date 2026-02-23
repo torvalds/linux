@@ -30,7 +30,6 @@ struct fbcon_display {
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
     u_short scrollmode;             /* Scroll Method, use fb_scrollmode() */
 #endif
-    u_short inverse;                /* != 0 text black on white as default */
     short yscroll;                  /* Hardware scrolling */
     int vrows;                      /* number of virtual rows */
     int cursor_shape;
@@ -79,7 +78,6 @@ struct fbcon_par {
 	int    cursor_reset;
 	int    blank_state;
 	int    graphics;
-	int    save_graphics; /* for debug enter/leave */
 	bool   initialized;
 	int    rotate;
 	int    cur_rotate;

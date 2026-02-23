@@ -13,7 +13,7 @@ endif
 CFLAGS += -I../lib -I../generated -I../../../include/uapi/
 
 SRC_VERSION := \
-	$(shell make --no-print-directory -sC ../../../.. kernelversion || \
+	$(shell make --no-print-directory -sC ../../../.. kernelversion 2>/dev/null || \
 		echo "unknown")
 
 CFLAGS += -DSRC_VERSION='"$(SRC_VERSION)"'

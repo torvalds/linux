@@ -98,7 +98,7 @@ int hl_dec_init(struct hl_device *hdev)
 	if (!prop->max_dec)
 		return 0;
 
-	hdev->dec = kcalloc(prop->max_dec, sizeof(struct hl_dec), GFP_KERNEL);
+	hdev->dec = kzalloc_objs(struct hl_dec, prop->max_dec);
 	if (!hdev->dec)
 		return -ENOMEM;
 

@@ -19,6 +19,11 @@
 
 #include "pseries.h"
 
+struct pseries_msi_device {
+	unsigned int msi_quota;
+	unsigned int msi_used;
+};
+
 static int query_token, change_token;
 
 #define RTAS_QUERY_FN		0
@@ -383,7 +388,7 @@ static int rtas_prepare_msi_irqs(struct pci_dev *pdev, int nvec_in, int type,
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		if (pdev->no_64bit_msi) {
+		if (pdev->msi_addr_mask < DMA_BIT_MASK(64)) {
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
 			if (rc < 0) {
 				/*
@@ -409,7 +414,7 @@ again:
 		if (use_32bit_msi_hack && rc > 0)
 			rtas_hack_32bit_msi_gen2(pdev);
 	} else {
-		if (pdev->no_64bit_msi)
+		if (pdev->msi_addr_mask < DMA_BIT_MASK(64))
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSIX_FN, nvec);
 		else
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
@@ -433,8 +438,28 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
 	struct msi_domain_info *info = domain->host_data;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int type = (info->flags & MSI_FLAG_PCI_MSIX) ? PCI_CAP_ID_MSIX : PCI_CAP_ID_MSI;
+	int ret;
 
-	return rtas_prepare_msi_irqs(pdev, nvec, type, arg);
+	struct pseries_msi_device *pseries_dev __free(kfree)
+		= kmalloc_obj(*pseries_dev);
+	if (!pseries_dev)
+		return -ENOMEM;
+
+	while (1) {
+		ret = rtas_prepare_msi_irqs(pdev, nvec, type, arg);
+		if (!ret)
+			break;
+		else if (ret > 0)
+			nvec = ret;
+		else
+			return ret;
+	}
+
+	pseries_dev->msi_quota = nvec;
+	pseries_dev->msi_used = 0;
+
+	arg->scratchpad[0].ptr = no_free_ptr(pseries_dev);
+	return 0;
 }
 
 /*
@@ -443,9 +468,13 @@ static int pseries_msi_ops_prepare(struct irq_domain *domain, struct device *dev
  */
 static void pseries_msi_ops_teardown(struct irq_domain *domain, msi_alloc_info_t *arg)
 {
+	struct pseries_msi_device *pseries_dev = arg->scratchpad[0].ptr;
 	struct pci_dev *pdev = to_pci_dev(domain->dev);
 
 	rtas_disable_msi(pdev);
+
+	WARN_ON(pseries_dev->msi_used);
+	kfree(pseries_dev);
 }
 
 static void pseries_msi_shutdown(struct irq_data *d)
@@ -546,11 +575,17 @@ static int pseries_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 				    unsigned int nr_irqs, void *arg)
 {
 	struct pci_controller *phb = domain->host_data;
+	struct pseries_msi_device *pseries_dev;
 	msi_alloc_info_t *info = arg;
 	struct msi_desc *desc = info->desc;
 	struct pci_dev *pdev = msi_desc_to_pci_dev(desc);
 	int hwirq;
 	int i, ret;
+
+	pseries_dev = info->scratchpad[0].ptr;
+
+	if (pseries_dev->msi_used + nr_irqs > pseries_dev->msi_quota)
+		return -ENOSPC;
 
 	hwirq = rtas_query_irq_number(pci_get_pdn(pdev), desc->msi_index);
 	if (hwirq < 0) {
@@ -567,9 +602,10 @@ static int pseries_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 			goto out;
 
 		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
-					      &pseries_msi_irq_chip, domain->host_data);
+					      &pseries_msi_irq_chip, pseries_dev);
 	}
 
+	pseries_dev->msi_used++;
 	return 0;
 
 out:
@@ -582,9 +618,11 @@ static void pseries_irq_domain_free(struct irq_domain *domain, unsigned int virq
 				    unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
-	struct pci_controller *phb = irq_data_get_irq_chip_data(d);
+	struct pseries_msi_device *pseries_dev = irq_data_get_irq_chip_data(d);
+	struct pci_controller *phb = domain->host_data;
 
 	pr_debug("%s bridge %pOF %d #%d\n", __func__, phb->dn, virq, nr_irqs);
+	pseries_dev->msi_used -= nr_irqs;
 	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
 

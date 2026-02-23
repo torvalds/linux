@@ -13,17 +13,14 @@
 #include "abi/guc_log_abi.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
-#include "regs/xe_guc_regs.h"
-#include "regs/xe_regs.h"
 
-#include "xe_bo.h"
+#include "xe_bo_types.h"
 #include "xe_device.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"
-#include "xe_guc_ads.h"
 #include "xe_guc_capture.h"
 #include "xe_guc_capture_types.h"
 #include "xe_guc_ct.h"
@@ -843,7 +840,7 @@ static void check_guc_capture_size(struct xe_guc *guc)
 {
 	int capture_size = guc_capture_output_size_est(guc);
 	int spare_size = capture_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER;
-	u32 buffer_size = xe_guc_log_section_size_capture(&guc->log);
+	u32 buffer_size = XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE;
 
 	/*
 	 * NOTE: capture_size is much smaller than the capture region
@@ -949,7 +946,7 @@ guc_capture_init_node(struct xe_guc *guc, struct __guc_capture_parsed_output *no
  *                  ADS module also calls separately for PF vs VF.
  *
  *     --> alloc B: GuC output capture buf (registered via guc_init_params(log_param))
- *                  Size = #define CAPTURE_BUFFER_SIZE (warns if on too-small)
+ *                  Size = XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE (warns if on too-small)
  *                  Note2: 'x 3' to hold multiple capture groups
  *
  * GUC Runtime notify capture:
@@ -1367,7 +1364,7 @@ static int __guc_capture_flushlog_complete(struct xe_guc *guc)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE,
-		GUC_LOG_BUFFER_CAPTURE
+		GUC_LOG_TYPE_STATE_CAPTURE
 	};
 
 	return xe_guc_ct_send_g2h_handler(&guc->ct, action, ARRAY_SIZE(action));
@@ -1384,8 +1381,8 @@ static void __guc_capture_process_output(struct xe_guc *guc)
 	u32 log_buf_state_offset;
 	u32 src_data_offset;
 
-	log_buf_state_offset = sizeof(struct guc_log_buffer_state) * GUC_LOG_BUFFER_CAPTURE;
-	src_data_offset = xe_guc_get_log_buffer_offset(&guc->log, GUC_LOG_BUFFER_CAPTURE);
+	log_buf_state_offset = sizeof(struct guc_log_buffer_state) * GUC_LOG_TYPE_STATE_CAPTURE;
+	src_data_offset = XE_GUC_LOG_STATE_CAPTURE_OFFSET;
 
 	/*
 	 * Make a copy of the state structure, inside GuC log buffer
@@ -1395,15 +1392,15 @@ static void __guc_capture_process_output(struct xe_guc *guc)
 	xe_map_memcpy_from(guc_to_xe(guc), &log_buf_state_local, &guc->log.bo->vmap,
 			   log_buf_state_offset, sizeof(struct guc_log_buffer_state));
 
-	buffer_size = xe_guc_get_log_buffer_size(&guc->log, GUC_LOG_BUFFER_CAPTURE);
+	buffer_size = XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE;
 	read_offset = log_buf_state_local.read_ptr;
 	write_offset = log_buf_state_local.sampled_write_ptr;
 	full_count = FIELD_GET(GUC_LOG_BUFFER_STATE_BUFFER_FULL_CNT, log_buf_state_local.flags);
 
 	/* Bookkeeping stuff */
 	tmp = FIELD_GET(GUC_LOG_BUFFER_STATE_FLUSH_TO_FILE, log_buf_state_local.flags);
-	guc->log.stats[GUC_LOG_BUFFER_CAPTURE].flush += tmp;
-	new_overflow = xe_guc_check_log_buf_overflow(&guc->log, GUC_LOG_BUFFER_CAPTURE,
+	guc->log.stats[GUC_LOG_TYPE_STATE_CAPTURE].flush += tmp;
+	new_overflow = xe_guc_check_log_buf_overflow(&guc->log, GUC_LOG_TYPE_STATE_CAPTURE,
 						     full_count);
 
 	/* Now copy the actual logs. */
@@ -1889,7 +1886,14 @@ xe_guc_capture_get_matching_and_lock(struct xe_exec_queue *q)
 		return NULL;
 
 	xe = gt_to_xe(q->gt);
-	if (xe->wedged.mode >= 2 || !xe_device_uc_enabled(xe) || IS_SRIOV_VF(xe))
+
+	if (xe->wedged.mode == XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET)
+		return NULL;
+
+	if (!xe_device_uc_enabled(xe))
+		return NULL;
+
+	if (IS_SRIOV_VF(xe))
 		return NULL;
 
 	ss = &xe->devcoredump.snapshot;

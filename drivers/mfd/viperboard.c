@@ -53,7 +53,7 @@ static int vprbrd_probe(struct usb_interface *interface,
 	int pipe, ret;
 
 	/* allocate memory for our device state and initialize it */
-	vb = kzalloc(sizeof(*vb), GFP_KERNEL);
+	vb = kzalloc_obj(*vb);
 	if (!vb)
 		return -ENOMEM;
 

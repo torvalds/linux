@@ -162,7 +162,7 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 	const u32 *reg;
 	const char *l;
 
-	fct = kmalloc(sizeof(struct smu_fan_control), GFP_KERNEL);
+	fct = kmalloc_obj(struct smu_fan_control);
 	if (fct == NULL)
 		return NULL;
 	fct->ctrl.ops = &smu_fan_ops;

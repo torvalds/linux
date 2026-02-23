@@ -218,7 +218,8 @@ int sdca_regmap_count_constants(struct device *dev,
 		struct sdca_entity *entity = &function->entities[i];
 
 		for (j = 0; j < entity->num_controls; j++) {
-			if (entity->controls[j].mode == SDCA_ACCESS_MODE_DC)
+			if (entity->controls[j].mode == SDCA_ACCESS_MODE_DC ||
+			    entity->controls[j].has_reset)
 				nconsts += hweight64(entity->controls[j].cn_list);
 		}
 	}
@@ -255,7 +256,8 @@ int sdca_regmap_populate_constants(struct device *dev,
 			struct sdca_control *control = &entity->controls[j];
 			int cn;
 
-			if (control->mode != SDCA_ACCESS_MODE_DC)
+			if (control->mode != SDCA_ACCESS_MODE_DC &&
+			    !control->has_reset)
 				continue;
 
 			l = 0;
@@ -264,7 +266,10 @@ int sdca_regmap_populate_constants(struct device *dev,
 				consts[k].reg = SDW_SDCA_CTL(function->desc->adr,
 							     entity->id,
 							     control->sel, cn);
-				consts[k].def = control->values[l];
+				if (control->mode == SDCA_ACCESS_MODE_DC)
+					consts[k].def = control->values[l];
+				else
+					consts[k].def = control->reset;
 				k++;
 				l++;
 			}
@@ -306,6 +311,9 @@ static int populate_control_defaults(struct device *dev, struct regmap *regmap,
 
 			i++;
 		} else if (!control->is_volatile) {
+			if (control->has_reset)
+				regcache_drop_region(regmap, reg, reg);
+
 			ret = regmap_read(regmap, reg, &val);
 			if (ret) {
 				dev_err(dev, "Failed to read initial %#x: %d\n",

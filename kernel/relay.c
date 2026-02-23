@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Public API and common code for kernel->userspace relay file support.
  *
@@ -9,8 +10,6 @@
  * Moved to kernel/relay.c by Paul Mundt, 2006.
  * November 2006 - CPU hotplug support by Mathieu Desnoyers
  * 	(mathieu.desnoyers@polymtl.ca)
- *
- * This file is released under the GPL.
  */
 #include <linux/errno.h>
 #include <linux/stddef.h>
@@ -60,7 +59,7 @@ static const struct vm_operations_struct relay_file_mmap_ops = {
  */
 static struct page **relay_alloc_page_array(unsigned int n_pages)
 {
-	return kvcalloc(n_pages, sizeof(struct page *), GFP_KERNEL);
+	return kvzalloc_objs(struct page *, n_pages);
 }
 
 /*
@@ -92,7 +91,7 @@ static int relay_mmap_prepare_buf(struct rchan_buf *buf,
 		return -EINVAL;
 
 	desc->vm_ops = &relay_file_mmap_ops;
-	desc->vm_flags |= VM_DONTEXPAND;
+	vma_desc_set_flags(desc, VMA_DONTEXPAND_BIT);
 	desc->private_data = buf;
 
 	return 0;
@@ -151,11 +150,10 @@ static struct rchan_buf *relay_create_buf(struct rchan *chan)
 	if (chan->n_subbufs > KMALLOC_MAX_SIZE / sizeof(size_t))
 		return NULL;
 
-	buf = kzalloc(sizeof(struct rchan_buf), GFP_KERNEL);
+	buf = kzalloc_obj(struct rchan_buf);
 	if (!buf)
 		return NULL;
-	buf->padding = kmalloc_array(chan->n_subbufs, sizeof(size_t),
-				     GFP_KERNEL);
+	buf->padding = kmalloc_objs(size_t, chan->n_subbufs);
 	if (!buf->padding)
 		goto free_buf;
 
@@ -491,7 +489,7 @@ struct rchan *relay_open(const char *base_filename,
 	if (!cb || !cb->create_buf_file || !cb->remove_buf_file)
 		return NULL;
 
-	chan = kzalloc(sizeof(struct rchan), GFP_KERNEL);
+	chan = kzalloc_obj(struct rchan);
 	if (!chan)
 		return NULL;
 

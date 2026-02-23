@@ -55,7 +55,7 @@ get_vm_block(struct ct_vm *vm, unsigned int size, struct ct_atc *atc)
 		return entry;
 	}
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return NULL;
 
@@ -170,7 +170,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 
 	*rvm = NULL;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return -ENOMEM;
 
@@ -195,7 +195,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 	vm->get_ptp_phys = ct_get_ptp_phys;
 	INIT_LIST_HEAD(&vm->unused);
 	INIT_LIST_HEAD(&vm->used);
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (NULL != block) {
 		block->addr = 0;
 		block->size = vm->size;

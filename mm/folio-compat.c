@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Compatibility functions which bloat the callers too much to make inline.
  * All of the callers of these functions should be converted to use folios

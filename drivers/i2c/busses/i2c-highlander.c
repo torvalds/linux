@@ -365,7 +365,7 @@ static int highlander_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = kzalloc(sizeof(struct highlander_i2c_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct highlander_i2c_dev);
 	if (unlikely(!dev))
 		return -ENOMEM;
 

@@ -729,8 +729,7 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
 
 	netdev_dbg(priv->dev, "mtu [%d] bfsize [%d]\n", dev->mtu, bfsize);
 
-	priv->rx_skbuff = kcalloc(DMA_RX_RING_SZ, sizeof(struct sk_buff *),
-				  GFP_KERNEL);
+	priv->rx_skbuff = kzalloc_objs(struct sk_buff *, DMA_RX_RING_SZ);
 	if (!priv->rx_skbuff)
 		return -ENOMEM;
 
@@ -742,8 +741,7 @@ static int xgmac_dma_desc_rings_init(struct net_device *dev)
 	if (!priv->dma_rx)
 		goto err_dma_rx;
 
-	priv->tx_skbuff = kcalloc(DMA_TX_RING_SZ, sizeof(struct sk_buff *),
-				  GFP_KERNEL);
+	priv->tx_skbuff = kzalloc_objs(struct sk_buff *, DMA_TX_RING_SZ);
 	if (!priv->tx_skbuff)
 		goto err_tx_skb;
 

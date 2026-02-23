@@ -130,7 +130,7 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 
 			/* No cache entry?  Start a new one */
 			if (!c) {
-				c = kzalloc(sizeof(*c), GFP_KERNEL);
+				c = kzalloc_obj(*c);
 				if (!c) {
 					regmap_debugfs_free_dump_cache(map);
 					mutex_unlock(&map->cache_lock);
@@ -555,7 +555,7 @@ void regmap_debugfs_init(struct regmap *map)
 	/* If we don't have the debugfs root yet, postpone init */
 	if (!regmap_debugfs_root) {
 		struct regmap_debugfs_node *node;
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		node = kzalloc_obj(*node);
 		if (!node)
 			return;
 		node->map = map;

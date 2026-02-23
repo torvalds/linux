@@ -96,6 +96,9 @@ properties:
       The region should be defined as child node of the AHB SRAM node
       as per the generic bindings in Documentation/devicetree/bindings/sram/sram.yaml
 
+  power-domains:
+    maxItems: 1
+
   access-controllers:
     minItems: 1
     maxItems: 2

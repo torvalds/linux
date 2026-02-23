@@ -395,7 +395,7 @@ static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 	struct ucb1x00_dev *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct ucb1x00_dev), GFP_KERNEL);
+	dev = kmalloc_obj(struct ucb1x00_dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -513,7 +513,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto out;
 	}
 
-	ucb = kzalloc(sizeof(struct ucb1x00), GFP_KERNEL);
+	ucb = kzalloc_obj(struct ucb1x00);
 	ret = -ENOMEM;
 	if (!ucb)
 		goto out;

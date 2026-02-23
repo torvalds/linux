@@ -1088,7 +1088,7 @@ static int allocate_threshold_blocks(unsigned int cpu, struct threshold_bank *tb
 	     (high & MASK_LOCKED_HI))
 		goto recurse;
 
-	b = kzalloc(sizeof(struct threshold_block), GFP_KERNEL);
+	b = kzalloc_obj(struct threshold_block);
 	if (!b)
 		return -ENOMEM;
 
@@ -1147,7 +1147,7 @@ static int threshold_create_bank(struct threshold_bank **bp, unsigned int cpu,
 	if (!dev)
 		return -ENODEV;
 
-	b = kzalloc(sizeof(struct threshold_bank), GFP_KERNEL);
+	b = kzalloc_obj(struct threshold_bank);
 	if (!b) {
 		err = -ENOMEM;
 		goto out;
@@ -1250,7 +1250,7 @@ void mce_threshold_create_device(unsigned int cpu)
 		return;
 
 	numbanks = this_cpu_read(mce_num_banks);
-	bp = kcalloc(numbanks, sizeof(*bp), GFP_KERNEL);
+	bp = kzalloc_objs(*bp, numbanks);
 	if (!bp)
 		return;
 

@@ -121,6 +121,12 @@
 #define VPU_50XX_HOST_SS_AON_PWR_ISLAND_STATUS_DLY			0x0003006cu
 #define VPU_50XX_HOST_SS_AON_PWR_ISLAND_STATUS_DLY_STATUS_DLY_MASK	GENMASK(7, 0)
 
+#define VPU_40XX_HOST_SS_AON_RETENTION0                                 0x0003000cu
+#define VPU_40XX_HOST_SS_AON_RETENTION1                                 0x00030010u
+#define VPU_40XX_HOST_SS_AON_RETENTION2                                 0x00030014u
+#define VPU_40XX_HOST_SS_AON_RETENTION3                                 0x00030018u
+#define VPU_40XX_HOST_SS_AON_RETENTION4                                 0x0003001cu
+
 #define VPU_40XX_HOST_SS_AON_IDLE_GEN					0x00030200u
 #define VPU_40XX_HOST_SS_AON_IDLE_GEN_EN_MASK				BIT_MASK(0)
 #define VPU_40XX_HOST_SS_AON_IDLE_GEN_HW_PG_EN_MASK			BIT_MASK(1)

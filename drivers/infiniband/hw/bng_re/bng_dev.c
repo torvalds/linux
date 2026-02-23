@@ -77,7 +77,7 @@ static int bng_re_setup_chip_ctx(struct bng_re_dev *rdev)
 	aux_dev = rdev->aux_dev;
 	rdev->bng_res.pdev = aux_dev->pdev;
 	rdev->rcfw.res = &rdev->bng_res;
-	chip_ctx = kzalloc(sizeof(*chip_ctx), GFP_KERNEL);
+	chip_ctx = kzalloc_obj(*chip_ctx);
 	if (!chip_ctx)
 		return -ENOMEM;
 	chip_ctx->chip_num = aux_dev->chip_num;
@@ -85,7 +85,7 @@ static int bng_re_setup_chip_ctx(struct bng_re_dev *rdev)
 
 	rdev->chip_ctx = chip_ctx;
 	rdev->bng_res.cctx = rdev->chip_ctx;
-	rdev->dev_attr = kzalloc(sizeof(*rdev->dev_attr), GFP_KERNEL);
+	rdev->dev_attr = kzalloc_obj(*rdev->dev_attr);
 	if (!rdev->dev_attr)
 		goto free_chip_ctx;
 	rdev->bng_res.dattr = rdev->dev_attr;
@@ -337,7 +337,7 @@ static int bng_re_dev_init(struct bng_re_dev *rdev)
 	}
 
 	/* Allocate nq record memory */
-	rdev->nqr = kzalloc(sizeof(*rdev->nqr), GFP_KERNEL);
+	rdev->nqr = kzalloc_obj(*rdev->nqr);
 	if (!rdev->nqr) {
 		bng_re_destroy_chip_ctx(rdev);
 		bnge_unregister_dev(rdev->aux_dev);
@@ -464,7 +464,7 @@ static int bng_re_probe(struct auxiliary_device *adev,
 	struct bng_re_en_dev_info *en_info;
 	int rc;
 
-	en_info = kzalloc(sizeof(*en_info), GFP_KERNEL);
+	en_info = kzalloc_obj(*en_info);
 	if (!en_info)
 		return -ENOMEM;
 

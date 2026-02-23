@@ -1026,7 +1026,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		PWC_WARNING("Warning: more than 1 configuration available.\n");
 
 	/* Allocate structure, initialize pointers, mutexes, etc. and link it to the usb_device */
-	pdev = kzalloc(sizeof(struct pwc_device), GFP_KERNEL);
+	pdev = kzalloc_obj(struct pwc_device);
 	if (pdev == NULL) {
 		PWC_ERROR("Oops, could not allocate memory for pwc_device.\n");
 		return -ENOMEM;

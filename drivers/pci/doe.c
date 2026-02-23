@@ -167,7 +167,7 @@ static int pci_doe_sysfs_feature_populate(struct pci_dev *pdev,
 	xa_for_each(&doe_mb->feats, i, entry)
 		num_features++;
 
-	attrs = kcalloc(num_features, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, num_features);
 	if (!attrs) {
 		pci_warn(pdev, "Failed allocating the device_attribute array\n");
 		return -ENOMEM;
@@ -641,7 +641,7 @@ static struct pci_doe_mb *pci_doe_create_mb(struct pci_dev *pdev,
 	struct pci_doe_mb *doe_mb;
 	int rc;
 
-	doe_mb = kzalloc(sizeof(*doe_mb), GFP_KERNEL);
+	doe_mb = kzalloc_obj(*doe_mb);
 	if (!doe_mb)
 		return ERR_PTR(-ENOMEM);
 

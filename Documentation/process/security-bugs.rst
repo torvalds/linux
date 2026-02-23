@@ -33,12 +33,16 @@ that can speed up the process considerably.  It is possible that the
 security team will bring in extra help from area maintainers to
 understand and fix the security vulnerability.
 
-Please send plain text emails without attachments where possible.
+Please send **plain text** emails without attachments where possible.
 It is much harder to have a context-quoted discussion about a complex
 issue if all the details are hidden away in attachments.  Think of it like a
 :doc:`regular patch submission <../process/submitting-patches>`
 (even if you don't have a patch yet): describe the problem and impact, list
 reproduction steps, and follow it with a proposed fix, all in plain text.
+Markdown, HTML and RST formatted reports are particularly frowned upon since
+they're quite hard to read for humans and encourage to use dedicated viewers,
+sometimes online, which by definition is not acceptable for a confidential
+security report.
 
 Disclosure and embargoed information
 ------------------------------------

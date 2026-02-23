@@ -372,11 +372,11 @@ mega_runpendq(adapter_t *adapter)
  *
  * The command queuing entry point for the mid-layer.
  */
-static int megaraid_queue_lck(struct scsi_cmnd *scmd)
+static enum scsi_qc_status megaraid_queue_lck(struct scsi_cmnd *scmd)
 {
 	adapter_t	*adapter;
 	scb_t	*scb;
-	int	busy=0;
+	enum scsi_qc_status busy = 0;
 	unsigned long flags;
 
 	adapter = (adapter_t *)scmd->device->host->hostdata;
@@ -518,7 +518,8 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
  * boot settings.
  */
 static scb_t *
-mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
+mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd,
+	       enum scsi_qc_status *busy)
 {
 	mega_passthru	*pthru;
 	scb_t	*scb;
@@ -640,7 +641,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			}
 
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -688,7 +689,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize passthru */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 			pthru = scb->pthru;
@@ -730,7 +731,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 			mbox = (mbox_t *)scb->raw_mbox;
@@ -870,7 +871,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -898,7 +899,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 	else {
 		/* Allocate a SCB and initialize passthru */
 		if(!(scb = mega_allocate_scb(adapter, cmd))) {
-			*busy = 1;
+			*busy = SCSI_MLQUEUE_HOST_BUSY;
 			return NULL;
 		}
 
@@ -4253,8 +4254,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_host_put;
 	}
 
-	adapter->scb_list = kmalloc_array(MAX_COMMANDS, sizeof(scb_t),
-					  GFP_KERNEL);
+	adapter->scb_list = kmalloc_objs(scb_t, MAX_COMMANDS);
 	if (!adapter->scb_list) {
 		dev_warn(&pdev->dev, "out of RAM\n");
 		goto out_free_cmd_buffer;

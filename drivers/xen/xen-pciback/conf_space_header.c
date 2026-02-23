@@ -33,7 +33,7 @@ struct pci_bar_info {
 
 static void *command_init(struct pci_dev *dev, int offset)
 {
-	struct pci_cmd_info *cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
+	struct pci_cmd_info *cmd = kmalloc_obj(*cmd);
 	int err;
 
 	if (!cmd)
@@ -211,7 +211,7 @@ static void *bar_init(struct pci_dev *dev, int offset)
 {
 	unsigned int pos;
 	const struct resource *res = dev->resource;
-	struct pci_bar_info *bar = kzalloc(sizeof(*bar), GFP_KERNEL);
+	struct pci_bar_info *bar = kzalloc_obj(*bar);
 
 	if (!bar)
 		return ERR_PTR(-ENOMEM);

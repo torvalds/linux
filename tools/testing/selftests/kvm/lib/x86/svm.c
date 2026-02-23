@@ -46,6 +46,9 @@ vcpu_alloc_svm(struct kvm_vm *vm, vm_vaddr_t *p_svm_gva)
 	svm->msr_gpa = addr_gva2gpa(vm, (uintptr_t)svm->msr);
 	memset(svm->msr_hva, 0, getpagesize());
 
+	if (vm->stage2_mmu.pgd_created)
+		svm->ncr3_gpa = vm->stage2_mmu.pgd;
+
 	*p_svm_gva = svm_gva;
 	return svm;
 }
@@ -57,6 +60,25 @@ static void vmcb_set_seg(struct vmcb_seg *seg, u16 selector,
 	seg->attrib = attr;
 	seg->limit = limit;
 	seg->base = base;
+}
+
+void vm_enable_npt(struct kvm_vm *vm)
+{
+	struct pte_masks pte_masks;
+
+	TEST_ASSERT(kvm_cpu_has_npt(), "KVM doesn't supported nested NPT");
+
+	/*
+	 * NPTs use the same PTE format, but deliberately drop the C-bit as the
+	 * per-VM shared vs. private information is only meant for stage-1.
+	 */
+	pte_masks = vm->mmu.arch.pte_masks;
+	pte_masks.c = 0;
+
+	/* NPT walks are treated as user accesses, so set the 'user' bit. */
+	pte_masks.always_set = pte_masks.user;
+
+	tdp_mmu_init(vm, vm->mmu.pgtable_levels, &pte_masks);
 }
 
 void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_rsp)
@@ -102,6 +124,11 @@ void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_r
 	vmcb->save.rip = (u64)guest_rip;
 	vmcb->save.rsp = (u64)guest_rsp;
 	guest_regs.rdi = (u64)svm;
+
+	if (svm->ncr3_gpa) {
+		ctrl->nested_ctl |= SVM_NESTED_CTL_NP_ENABLE;
+		ctrl->nested_cr3 = svm->ncr3_gpa;
+	}
 }
 
 /*

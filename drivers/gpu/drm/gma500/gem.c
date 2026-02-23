@@ -146,7 +146,7 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 	size = roundup(size, PAGE_SIZE);
 
-	pobj = kzalloc(sizeof(*pobj), GFP_KERNEL);
+	pobj = kzalloc_obj(*pobj);
 	if (!pobj)
 		return ERR_PTR(-ENOMEM);
 	obj = &pobj->base;

@@ -503,7 +503,7 @@ static void komeda_crtc_reset(struct drm_crtc *crtc)
 	kfree(to_kcrtc_st(crtc->state));
 	crtc->state = NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state)
 		__drm_atomic_helper_crtc_reset(crtc, &state->base);
 }
@@ -514,7 +514,7 @@ komeda_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	struct komeda_crtc_state *old = to_kcrtc_st(crtc->state);
 	struct komeda_crtc_state *new;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new)
 		return NULL;
 

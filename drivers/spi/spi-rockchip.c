@@ -805,8 +805,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_put_ctlr;
 
-	ret = devm_request_threaded_irq(&pdev->dev, ret, rockchip_spi_isr, NULL,
-					IRQF_ONESHOT, dev_name(&pdev->dev), ctlr);
+	ret = devm_request_irq(&pdev->dev, ret, rockchip_spi_isr, 0,
+			       dev_name(&pdev->dev), ctlr);
 	if (ret)
 		goto err_put_ctlr;
 
@@ -858,7 +858,6 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->num_chipselect = num_cs;
 		ctlr->use_gpio_descriptors = true;
 	}
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8) | SPI_BPW_MASK(4);
 	ctlr->min_speed_hz = rs->freq / BAUDR_SCKDV_MAX;
 	ctlr->max_speed_hz = min(rs->freq / BAUDR_SCKDV_MIN, MAX_SCLK_OUT);

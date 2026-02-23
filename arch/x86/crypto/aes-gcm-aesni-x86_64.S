@@ -143,10 +143,11 @@
 	.octa	0
 
 // Offsets in struct aes_gcm_key_aesni
-#define OFFSETOF_AESKEYLEN	480
-#define OFFSETOF_H_POWERS	496
-#define OFFSETOF_H_POWERS_XORED	624
-#define OFFSETOF_H_TIMES_X64	688
+#define OFFSETOF_AESKEYLEN	0
+#define OFFSETOF_AESROUNDKEYS	16
+#define OFFSETOF_H_POWERS	272
+#define OFFSETOF_H_POWERS_XORED	400
+#define OFFSETOF_H_TIMES_X64	464
 
 .text
 
@@ -505,9 +506,9 @@
 
 	// Encrypt an all-zeroes block to get the raw hash subkey.
 	movl		OFFSETOF_AESKEYLEN(KEY), %eax
-	lea		6*16(KEY,%rax,4), RNDKEYLAST_PTR
-	movdqa		(KEY), H_POW1  // Zero-th round key XOR all-zeroes block
-	lea		16(KEY), %rax
+	lea		OFFSETOF_AESROUNDKEYS+6*16(KEY,%rax,4), RNDKEYLAST_PTR
+	movdqa		OFFSETOF_AESROUNDKEYS(KEY), H_POW1
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rax
 1:
 	aesenc		(%rax), H_POW1
 	add		$16, %rax
@@ -624,7 +625,7 @@
 // the zero-th AES round key.  Clobbers TMP0 and TMP1.
 .macro	_ctr_begin_8x
 	movq		.Lone(%rip), TMP0
-	movdqa		(KEY), TMP1		// zero-th round key
+	movdqa		OFFSETOF_AESROUNDKEYS(KEY), TMP1 // zero-th round key
 .irp i, 0,1,2,3,4,5,6,7
 	_vpshufb	BSWAP_MASK, LE_CTR, AESDATA\i
 	pxor		TMP1, AESDATA\i
@@ -726,7 +727,7 @@
 	movdqu		(LE_CTR_PTR), LE_CTR
 
 	movl		OFFSETOF_AESKEYLEN(KEY), AESKEYLEN
-	lea		6*16(KEY,AESKEYLEN64,4), RNDKEYLAST_PTR
+	lea		OFFSETOF_AESROUNDKEYS+6*16(KEY,AESKEYLEN64,4), RNDKEYLAST_PTR
 
 	// If there are at least 8*16 bytes of data, then continue into the main
 	// loop, which processes 8*16 bytes of data per iteration.
@@ -745,7 +746,7 @@
 .if \enc
 	// Encrypt the first 8 plaintext blocks.
 	_ctr_begin_8x
-	lea		16(KEY), %rsi
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rsi
 	.p2align 4
 1:
 	movdqa		(%rsi), TMP0
@@ -767,7 +768,7 @@
 
 	// Generate the next set of 8 counter blocks and start encrypting them.
 	_ctr_begin_8x
-	lea		16(KEY), %rsi
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rsi
 
 	// Do a round of AES, and start the GHASH update of 8 ciphertext blocks
 	// by doing the unreduced multiplication for the first ciphertext block.
@@ -869,7 +870,7 @@
 	// Encrypt the next counter block.
 	_vpshufb	BSWAP_MASK, LE_CTR, TMP0
 	paddd		ONE, LE_CTR
-	pxor		(KEY), TMP0
+	pxor		OFFSETOF_AESROUNDKEYS(KEY), TMP0
 	lea		-6*16(RNDKEYLAST_PTR), %rsi	// Reduce code size
 	cmp		$24, AESKEYLEN
 	jl		128f	// AES-128?
@@ -926,8 +927,8 @@
 
 	// Encrypt a counter block for the last time.
 	pshufb		BSWAP_MASK, LE_CTR
-	pxor		(KEY), LE_CTR
-	lea		16(KEY), %rsi
+	pxor		OFFSETOF_AESROUNDKEYS(KEY), LE_CTR
+	lea		OFFSETOF_AESROUNDKEYS+16(KEY), %rsi
 1:
 	aesenc		(%rsi), LE_CTR
 	add		$16, %rsi
@@ -1038,12 +1039,12 @@
 
 	// Make %rax point to the 6th from last AES round key.  (Using signed
 	// byte offsets -7*16 through 6*16 decreases code size.)
-	lea		(KEY,AESKEYLEN64,4), %rax
+	lea		OFFSETOF_AESROUNDKEYS(KEY,AESKEYLEN64,4), %rax
 
 	// AES-encrypt the counter block and also multiply GHASH_ACC by H^1.
 	// Interleave the AES and GHASH instructions to improve performance.
 	pshufb		BSWAP_MASK, %xmm0
-	pxor		(KEY), %xmm0
+	pxor		OFFSETOF_AESROUNDKEYS(KEY), %xmm0
 	cmp		$24, AESKEYLEN
 	jl		128f	// AES-128?
 	je		192f	// AES-192?

@@ -129,7 +129,7 @@ zl3073x_fw_component_alloc(size_t size)
 {
 	struct zl3073x_fw_component *comp;
 
-	comp = kzalloc(sizeof(*comp), GFP_KERNEL);
+	comp = kzalloc_obj(*comp);
 	if (!comp)
 		return NULL;
 
@@ -313,7 +313,7 @@ struct zl3073x_fw *zl3073x_fw_load(struct zl3073x_dev *zldev, const char *data,
 	ssize_t rc;
 
 	/* Allocate firmware structure */
-	fw = kzalloc(sizeof(*fw), GFP_KERNEL);
+	fw = kzalloc_obj(*fw);
 	if (!fw)
 		return ERR_PTR(-ENOMEM);
 

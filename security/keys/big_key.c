@@ -103,7 +103,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 					 0, enckey);
 
 		/* save aligned data to file */
-		file = shmem_kernel_file_setup("", enclen, 0);
+		file = shmem_kernel_file_setup("", enclen, EMPTY_VMA_FLAGS);
 		if (IS_ERR(file)) {
 			ret = PTR_ERR(file);
 			goto err_enckey;

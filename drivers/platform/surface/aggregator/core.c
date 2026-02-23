@@ -380,9 +380,9 @@ static int ssam_serdev_setup(struct acpi_device *ssh, struct serdev_device *serd
 
 /* -- Power management. ----------------------------------------------------- */
 
-static void ssam_serial_hub_shutdown(struct device *dev)
+static void ssam_serial_hub_shutdown(struct serdev_device *serdev)
 {
-	struct ssam_controller *c = dev_get_drvdata(dev);
+	struct ssam_controller *c = dev_get_drvdata(&serdev->dev);
 	int status;
 
 	/*
@@ -652,7 +652,7 @@ static int ssam_serial_hub_probe(struct serdev_device *serdev)
 	}
 
 	/* Allocate controller. */
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -834,12 +834,12 @@ MODULE_DEVICE_TABLE(of, ssam_serial_hub_of_match);
 static struct serdev_device_driver ssam_serial_hub = {
 	.probe = ssam_serial_hub_probe,
 	.remove = ssam_serial_hub_remove,
+	.shutdown = ssam_serial_hub_shutdown,
 	.driver = {
 		.name = "surface_serial_hub",
 		.acpi_match_table = ACPI_PTR(ssam_serial_hub_acpi_match),
 		.of_match_table = of_match_ptr(ssam_serial_hub_of_match),
 		.pm = &ssam_serial_hub_pm_ops,
-		.shutdown = ssam_serial_hub_shutdown,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };

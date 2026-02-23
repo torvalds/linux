@@ -177,18 +177,20 @@ static int uvc_start_streaming_video(struct vb2_queue *vq, unsigned int count)
 
 	ret = uvc_pm_get(stream->dev);
 	if (ret)
-		return ret;
+		goto err_buffers;
 
 	queue->buf_used = 0;
 
 	ret = uvc_video_start_streaming(stream);
-	if (ret == 0)
-		return 0;
+	if (ret)
+		goto err_pm;
 
+	return 0;
+
+err_pm:
 	uvc_pm_put(stream->dev);
-
+err_buffers:
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_QUEUED);
-
 	return ret;
 }
 
@@ -339,7 +341,7 @@ struct uvc_buffer *uvc_queue_get_current_buffer(struct uvc_video_queue *queue)
  * the device has been disconnected.
  */
 static void uvc_queue_buffer_requeue(struct uvc_video_queue *queue,
-		struct uvc_buffer *buf)
+				     struct uvc_buffer *buf)
 {
 	buf->error = 0;
 	buf->state = UVC_BUF_STATE_QUEUED;

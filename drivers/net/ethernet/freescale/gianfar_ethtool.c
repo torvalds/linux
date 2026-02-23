@@ -1241,7 +1241,7 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 	s32 ret = 0;
 
 	/* So index is set to zero, too! */
-	tab = kzalloc(sizeof(*tab), GFP_KERNEL);
+	tab = kzalloc_obj(*tab);
 	if (tab == NULL)
 		return -ENOMEM;
 
@@ -1293,7 +1293,7 @@ static int gfar_add_cls(struct gfar_private *priv,
 	struct ethtool_flow_spec_container *temp, *comp;
 	int ret = 0;
 
-	temp = kmalloc(sizeof(*temp), GFP_KERNEL);
+	temp = kmalloc_obj(*temp);
 	if (temp == NULL)
 		return -ENOMEM;
 	memcpy(&temp->fs, flow, sizeof(temp->fs));

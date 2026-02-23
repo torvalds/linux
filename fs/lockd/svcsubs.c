@@ -128,7 +128,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	nlm_debug_print_fh("creating file for", &lock->fh);
 
 	nfserr = nlm_lck_denied_nolocks;
-	file = kzalloc(sizeof(*file), GFP_KERNEL);
+	file = kzalloc_obj(*file);
 	if (!file)
 		goto out_free;
 

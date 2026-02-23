@@ -2150,7 +2150,7 @@ ipu7_isys_init(struct pci_dev *pdev, struct device *parent,
 		}
 	}
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -2197,7 +2197,7 @@ ipu7_psys_init(struct pci_dev *pdev, struct device *parent,
 	struct ipu7_psys_pdata *pdata;
 	int ret;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -2271,7 +2271,7 @@ static int ipu7_map_fw_code_region(struct ipu7_bus_device *sys,
 
 	n_pages = PFN_UP(size);
 
-	pages = kmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, n_pages);
 	if (!pages)
 		return -ENOMEM;
 
@@ -2620,7 +2620,7 @@ out_ipu_bus_del_devices:
 	if (!IS_ERR_OR_NULL(isp->isys) && !IS_ERR_OR_NULL(isp->isys->mmu))
 		ipu7_mmu_cleanup(isp->isys->mmu);
 	if (!IS_ERR_OR_NULL(isp->psys))
-		pm_runtime_put(&isp->psys->auxdev.dev);
+		pm_runtime_put_sync(&isp->psys->auxdev.dev);
 	ipu7_bus_del_devices(pdev);
 	release_firmware(isp->cpd_fw);
 buttress_exit:
@@ -2684,6 +2684,10 @@ static void ipu7_pci_reset_done(struct pci_dev *pdev)
  */
 static int ipu7_suspend(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	synchronize_irq(pdev->irq);
+
 	return 0;
 }
 

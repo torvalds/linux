@@ -249,7 +249,7 @@ static int simplefb_clocks_get(struct simplefb_par *par,
 	if (!par->clk_count)
 		return 0;
 
-	par->clks = kcalloc(par->clk_count, sizeof(struct clk *), GFP_KERNEL);
+	par->clks = kzalloc_objs(struct clk *, par->clk_count);
 	if (!par->clks)
 		return -ENOMEM;
 

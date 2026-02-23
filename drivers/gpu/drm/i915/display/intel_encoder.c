@@ -108,7 +108,7 @@ struct intel_digital_port *intel_dig_port_alloc(void)
 {
 	struct intel_digital_port *dig_port;
 
-	dig_port = kzalloc(sizeof(*dig_port), GFP_KERNEL);
+	dig_port = kzalloc_obj(*dig_port);
 	if (!dig_port)
 		return NULL;
 

@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/platform_data/x86/apple.h>
 #include <acpi/battery.h>
@@ -95,7 +96,7 @@ struct acpi_sbs {
 
 #define to_acpi_sbs(x) power_supply_get_drvdata(x)
 
-static void acpi_sbs_remove(struct acpi_device *device);
+static void acpi_sbs_remove(struct platform_device *pdev);
 static int acpi_battery_get_state(struct acpi_battery *battery);
 
 static inline int battery_scale(int log)
@@ -628,13 +629,14 @@ static void acpi_sbs_callback(void *context)
 	}
 }
 
-static int acpi_sbs_add(struct acpi_device *device)
+static int acpi_sbs_probe(struct platform_device *pdev)
 {
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_sbs *sbs;
 	int result = 0;
 	int id;
 
-	sbs = kzalloc(sizeof(struct acpi_sbs), GFP_KERNEL);
+	sbs = kzalloc_obj(struct acpi_sbs);
 	if (!sbs) {
 		result = -ENOMEM;
 		goto end;
@@ -642,11 +644,12 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 	mutex_init(&sbs->lock);
 
-	sbs->hc = acpi_driver_data(acpi_dev_parent(device));
+	platform_set_drvdata(pdev, sbs);
+
+	sbs->hc = dev_get_drvdata(pdev->dev.parent);
 	sbs->device = device;
 	strscpy(acpi_device_name(device), ACPI_SBS_DEVICE_NAME);
 	strscpy(acpi_device_class(device), ACPI_SBS_CLASS);
-	device->driver_data = sbs;
 
 	result = acpi_charger_add(sbs);
 	if (result && result != -ENODEV)
@@ -670,20 +673,15 @@ static int acpi_sbs_add(struct acpi_device *device)
 	acpi_smbus_register_callback(sbs->hc, acpi_sbs_callback, sbs);
 end:
 	if (result)
-		acpi_sbs_remove(device);
+		acpi_sbs_remove(pdev);
 	return result;
 }
 
-static void acpi_sbs_remove(struct acpi_device *device)
+static void acpi_sbs_remove(struct platform_device *pdev)
 {
-	struct acpi_sbs *sbs;
+	struct acpi_sbs *sbs = platform_get_drvdata(pdev);
 	int id;
 
-	if (!device)
-		return;
-	sbs = acpi_driver_data(device);
-	if (!sbs)
-		return;
 	mutex_lock(&sbs->lock);
 	acpi_smbus_unregister_callback(sbs->hc);
 	for (id = 0; id < MAX_SBS_BAT; ++id)
@@ -697,11 +695,7 @@ static void acpi_sbs_remove(struct acpi_device *device)
 #ifdef CONFIG_PM_SLEEP
 static int acpi_sbs_resume(struct device *dev)
 {
-	struct acpi_sbs *sbs;
-	if (!dev)
-		return -EINVAL;
-	sbs = to_acpi_device(dev)->driver_data;
-	acpi_sbs_callback(sbs);
+	acpi_sbs_callback(dev_get_drvdata(dev));
 	return 0;
 }
 #else
@@ -710,14 +704,14 @@ static int acpi_sbs_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(acpi_sbs_pm, NULL, acpi_sbs_resume);
 
-static struct acpi_driver acpi_sbs_driver = {
-	.name = "sbs",
-	.class = ACPI_SBS_CLASS,
-	.ids = sbs_device_ids,
-	.ops = {
-		.add = acpi_sbs_add,
-		.remove = acpi_sbs_remove,
-		},
-	.drv.pm = &acpi_sbs_pm,
+static struct platform_driver acpi_sbs_driver = {
+	.probe = acpi_sbs_probe,
+	.remove = acpi_sbs_remove,
+	.driver = {
+		.name = "acpi-sbs",
+		.acpi_match_table = sbs_device_ids,
+		.pm = &acpi_sbs_pm,
+	},
 };
-module_acpi_driver(acpi_sbs_driver);
+
+module_platform_driver(acpi_sbs_driver);

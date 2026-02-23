@@ -383,7 +383,7 @@ static int isl29003_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	data = kzalloc(sizeof(struct isl29003_data), GFP_KERNEL);
+	data = kzalloc_obj(struct isl29003_data);
 	if (!data)
 		return -ENOMEM;
 

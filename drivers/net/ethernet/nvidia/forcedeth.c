@@ -5854,8 +5854,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];
 	}
-	np->rx_skb = kcalloc(np->rx_ring_size, sizeof(struct nv_skb_map), GFP_KERNEL);
-	np->tx_skb = kcalloc(np->tx_ring_size, sizeof(struct nv_skb_map), GFP_KERNEL);
+	np->rx_skb = kzalloc_objs(struct nv_skb_map, np->rx_ring_size);
+	np->tx_skb = kzalloc_objs(struct nv_skb_map, np->tx_ring_size);
 	if (!np->rx_skb || !np->tx_skb)
 		goto out_freering;
 

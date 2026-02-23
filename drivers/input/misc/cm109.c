@@ -696,7 +696,7 @@ static int cm109_usb_probe(struct usb_interface *intf,
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 
@@ -721,7 +721,7 @@ static int cm109_usb_probe(struct usb_interface *intf,
 	if (!dev->ctl_data)
 		goto err_out;
 
-	dev->ctl_req = kmalloc(sizeof(*(dev->ctl_req)), GFP_KERNEL);
+	dev->ctl_req = kmalloc_obj(*(dev->ctl_req));
 	if (!dev->ctl_req)
 		goto err_out;
 

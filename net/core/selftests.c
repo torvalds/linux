@@ -237,7 +237,7 @@ static int __net_test_loopback(struct net_device *ndev,
 	struct sk_buff *skb = NULL;
 	int ret = 0;
 
-	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
+	tpriv = kzalloc_obj(*tpriv);
 	if (!tpriv)
 		return -ENOMEM;
 

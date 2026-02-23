@@ -40,6 +40,9 @@ properties:
       - const: isr1
     minItems: 2
 
+  '#address-cells':
+    const: 0
+
   interrupt-controller: true
 
   interrupts:

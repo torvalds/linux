@@ -6,6 +6,7 @@ config DRM_TYR
 	depends on RUST
 	depends on ARM || ARM64 || COMPILE_TEST
 	depends on !GENERIC_ATOMIC64  # for IOMMU_IO_PGTABLE_LPAE
+	depends on COMMON_CLK
 	default n
 	help
 	  Rust DRM driver for ARM Mali CSF-based GPUs.

@@ -135,7 +135,7 @@ struct dvb_frontend *lnbh29_attach(struct dvb_frontend *fe,
 {
 	struct lnbh29_priv *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 

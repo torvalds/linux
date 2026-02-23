@@ -564,7 +564,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!login_mbox)
 		goto out;
 
-	save_iocb = kzalloc(sizeof(*save_iocb), GFP_KERNEL);
+	save_iocb = kzalloc_obj(*save_iocb);
 	if (!save_iocb)
 		goto out;
 
@@ -764,7 +764,7 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 * registered.
 			 */
 			if (test_bit(NLP_RPI_REGISTERED, &ndlp->nlp_flag)) {
-				elsiocb = kmalloc(sizeof(*elsiocb), GFP_KERNEL);
+				elsiocb = kmalloc_obj(*elsiocb);
 				if (elsiocb) {
 					/* Save info from cmd IOCB used in
 					 * rsp

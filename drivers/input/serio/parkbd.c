@@ -165,7 +165,7 @@ static struct serio *parkbd_allocate_serio(void)
 {
 	struct serio *serio;
 
-	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
+	serio = kzalloc_obj(*serio);
 	if (serio) {
 		serio->id.type = parkbd_mode;
 		serio->write = parkbd_write;

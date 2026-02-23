@@ -1350,7 +1350,7 @@ skip_normal_probe:
 made_compressed_probe:
 	dev_dbg(&intf->dev, "interfaces are valid\n");
 
-	acm = kzalloc(sizeof(struct acm), GFP_KERNEL);
+	acm = kzalloc_obj(struct acm);
 	if (!acm)
 		return -ENOMEM;
 

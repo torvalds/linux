@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Reset support for SpacemiT platforms"
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+
+config RESET_SPACEMIT_COMMON
+	tristate
+	select AUXILIARY_BUS
+	help
+	  Common reset controller infrastructure for SpacemiT SoCs.
+	  This provides shared code and helper functions used by
+	  reset drivers for various SpacemiT SoC families.
+
+config RESET_SPACEMIT_K1
+	tristate "Support for SpacemiT K1 SoC"
+	depends on SPACEMIT_K1_CCU
+	select RESET_SPACEMIT_COMMON
+	default SPACEMIT_K1_CCU
+	help
+	  Support for reset controller in SpacemiT K1 SoC.
+	  This driver works with the SpacemiT K1 clock controller
+	  unit (CCU) driver to provide reset control functionality
+	  for various peripherals and subsystems in the SoC.
+
+config RESET_SPACEMIT_K3
+	tristate "Support for SpacemiT K3 SoC"
+	depends on SPACEMIT_K3_CCU
+	select RESET_SPACEMIT_COMMON
+	default SPACEMIT_K3_CCU
+	help
+	  Support for reset controller in SpacemiT K3 SoC.
+	  This driver works with the SpacemiT K3 clock controller
+	  unit (CCU) driver to provide reset control functionality
+	  for various peripherals and subsystems in the SoC.
+
+endmenu

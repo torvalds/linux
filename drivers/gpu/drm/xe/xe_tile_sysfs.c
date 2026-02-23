@@ -36,7 +36,7 @@ int xe_tile_sysfs_init(struct xe_tile *tile)
 	struct kobj_tile *kt;
 	int err;
 
-	kt = kzalloc(sizeof(*kt), GFP_KERNEL);
+	kt = kzalloc_obj(*kt);
 	if (!kt)
 		return -ENOMEM;
 

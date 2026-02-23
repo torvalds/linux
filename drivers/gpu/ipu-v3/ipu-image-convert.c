@@ -2082,7 +2082,7 @@ ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 
 	chan = &priv->chan[ic_task];
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -2402,7 +2402,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
-	run = kzalloc(sizeof(*run), GFP_KERNEL);
+	run = kzalloc_obj(*run);
 	if (!run) {
 		ipu_image_convert_unprepare(ctx);
 		return ERR_PTR(-ENOMEM);

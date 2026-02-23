@@ -264,7 +264,7 @@ int __register_blkdev(unsigned int major, const char *name,
 		goto out;
 	}
 
-	p = kmalloc(sizeof(struct blk_major_name), GFP_KERNEL);
+	p = kmalloc_obj(struct blk_major_name);
 	if (p == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -914,7 +914,7 @@ static void *disk_seqf_start(struct seq_file *seqf, loff_t *pos)
 	struct class_dev_iter *iter;
 	struct device *dev;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 

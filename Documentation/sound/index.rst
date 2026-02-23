@@ -15,10 +15,3 @@ Sound Subsystem Documentation
    cards/index
    codecs/index
    utimers
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -402,8 +402,9 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	if (uats_data->revision != 1)
 		return -EINVAL;
 
-	memcpy(fwrt->uats_table.offset_map, uats_data->offset_map,
-	       sizeof(fwrt->uats_table.offset_map));
+	memcpy(fwrt->uats_table.mcc_to_ap_type_map,
+	       uats_data->mcc_to_ap_type_map,
+	       sizeof(fwrt->uats_table.mcc_to_ap_type_map));
 
 	fwrt->uats_valid = true;
 
@@ -721,17 +722,12 @@ out:
 	return ret;
 }
 
-int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
-		     u32 *value)
+static int iwl_uefi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_var_general_cfg *data;
 	int ret = -EINVAL;
 
-	BUILD_BUG_ON(ARRAY_SIZE(data->functions) < DSM_FUNC_NUM_FUNCS);
-
-	/* Not supported function index */
-	if (func >= DSM_FUNC_NUM_FUNCS || func == 5)
-		return -EOPNOTSUPP;
+	BUILD_BUG_ON(ARRAY_SIZE(data->functions) < ARRAY_SIZE(fwrt->dsm_values));
 
 	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_DSM_NAME,
 					      "DSM", sizeof(*data), NULL);
@@ -743,22 +739,64 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 				data->revision);
 		goto out;
 	}
+	fwrt->dsm_revision = data->revision;
+	fwrt->dsm_source = BIOS_SOURCE_UEFI;
 
-	if (!(data->functions[DSM_FUNC_QUERY] & BIT(func))) {
-		IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
-				func, data->functions[DSM_FUNC_QUERY]);
-		goto out;
+	fwrt->dsm_funcs_valid = data->functions[DSM_FUNC_QUERY];
+
+	/*
+	 * Make sure we don't load the DSM values twice. Set this only after we
+	 * validated the DSM table so that if the table in UEFI is not valid,
+	 * we will fallback to ACPI.
+	 */
+	fwrt->dsm_funcs_valid |= BIT(DSM_FUNC_QUERY);
+
+	for (int func = 1; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
+		if (!(fwrt->dsm_funcs_valid & BIT(func))) {
+			IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
+					func, fwrt->dsm_funcs_valid);
+			continue;
+		}
+
+		fwrt->dsm_values[func] = data->functions[func];
+
+		IWL_DEBUG_RADIO(fwrt,
+				"UEFI: DSM func=%d: value=%d\n", func,
+				fwrt->dsm_values[func]);
+	}
+	ret = 0;
+
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
+		     u32 *value)
+{
+	/* Not supported function index */
+	if (func >= DSM_FUNC_NUM_FUNCS || func == 5)
+		return -EOPNOTSUPP;
+
+	if (!fwrt->dsm_funcs_valid) {
+		int ret = iwl_uefi_load_dsm_values(fwrt);
+
+		if (ret)
+			return ret;
 	}
 
-	*value = data->functions[func];
+	if (!(fwrt->dsm_funcs_valid & BIT(func))) {
+		IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
+				func, fwrt->dsm_funcs_valid);
+		return -EINVAL;
+	}
+
+	*value = fwrt->dsm_values[func];
 
 	IWL_DEBUG_RADIO(fwrt,
 			"UEFI: DSM func=%d: value=%d\n", func, *value);
 
-	ret = 0;
-out:
-	kfree(data);
-	return ret;
+	return 0;
 }
 
 int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)

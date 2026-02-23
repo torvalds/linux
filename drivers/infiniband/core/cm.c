@@ -827,7 +827,7 @@ static struct cm_id_private *cm_alloc_id_priv(struct ib_device *device,
 	u32 id;
 	int ret;
 
-	cm_id_priv = kzalloc(sizeof *cm_id_priv, GFP_KERNEL);
+	cm_id_priv = kzalloc_obj(*cm_id_priv);
 	if (!cm_id_priv)
 		return ERR_PTR(-ENOMEM);
 
@@ -976,7 +976,7 @@ static struct cm_timewait_info *cm_create_timewait_info(__be32 local_id)
 {
 	struct cm_timewait_info *timewait_info;
 
-	timewait_info = kzalloc(sizeof *timewait_info, GFP_KERNEL);
+	timewait_info = kzalloc_obj(*timewait_info);
 	if (!timewait_info)
 		return ERR_PTR(-ENOMEM);
 
@@ -3902,7 +3902,7 @@ static int cm_establish(struct ib_cm_id *cm_id)
 	if (!cm_dev)
 		return -ENODEV;
 
-	work = kmalloc(sizeof *work, GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return -ENOMEM;
 
@@ -4050,7 +4050,7 @@ static void cm_recv_handler(struct ib_mad_agent *mad_agent,
 	attr_id = be16_to_cpu(mad_recv_wc->recv_buf.mad->mad_hdr.attr_id);
 	atomic_long_inc(&port->counters[CM_RECV][attr_id - CM_ATTR_ID_OFFSET]);
 
-	work = kmalloc(struct_size(work, path, paths), GFP_KERNEL);
+	work = kmalloc_flex(*work, path, paths);
 	if (!work) {
 		ib_free_recv_mad(mad_recv_wc);
 		return;
@@ -4348,8 +4348,7 @@ static int cm_add_one(struct ib_device *ib_device)
 	int count = 0;
 	u32 i;
 
-	cm_dev = kzalloc(struct_size(cm_dev, port, ib_device->phys_port_cnt),
-			 GFP_KERNEL);
+	cm_dev = kzalloc_flex(*cm_dev, port, ib_device->phys_port_cnt);
 	if (!cm_dev)
 		return -ENOMEM;
 
@@ -4366,7 +4365,7 @@ static int cm_add_one(struct ib_device *ib_device)
 		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
-		port = kzalloc(sizeof *port, GFP_KERNEL);
+		port = kzalloc_obj(*port);
 		if (!port) {
 			ret = -ENOMEM;
 			goto error1;

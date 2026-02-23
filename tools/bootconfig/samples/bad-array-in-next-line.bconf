@@ -1,0 +1,4 @@
+# the first array value must be on the same line as the key
+key =
+  value1,
+  value2

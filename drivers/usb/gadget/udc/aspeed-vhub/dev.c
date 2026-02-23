@@ -560,7 +560,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	 * endpoint 0.
 	 */
 	d->max_epns = min_t(u32, vhub->max_epns, 30);
-	d->epns = kcalloc(d->max_epns, sizeof(*d->epns), GFP_KERNEL);
+	d->epns = kzalloc_objs(*d->epns, d->max_epns);
 	if (!d->epns)
 		return -ENOMEM;
 
@@ -569,7 +569,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
 	 * named "parent" devices for each port so we create a sub device
 	 * here for that purpose
 	 */
-	d->port_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	d->port_dev = kzalloc_obj(struct device);
 	if (!d->port_dev) {
 		rc = -ENOMEM;
 		goto fail_alloc;

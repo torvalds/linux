@@ -148,7 +148,7 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl,
 	int ret;
 	u32 rate;
 
-	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
+	tmpl = kzalloc_obj(*tmpl);
 	if (!tmpl) {
 		ret = -ENOMEM;
 		goto out;
@@ -175,7 +175,7 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl,
 	int ret;
 	u32 rate;
 
-	nullfunc = kzalloc(sizeof(*nullfunc), GFP_KERNEL);
+	nullfunc = kzalloc_obj(*nullfunc);
 	if (!nullfunc) {
 		ret = -ENOMEM;
 		goto out;
@@ -208,7 +208,7 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl,
 	int ret;
 	u32 rate;
 
-	qosnull = kzalloc(sizeof(*qosnull), GFP_KERNEL);
+	qosnull = kzalloc_obj(*qosnull);
 	if (!qosnull) {
 		ret = -ENOMEM;
 		goto out;

@@ -147,8 +147,7 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 	struct gpio_desc_label *new = NULL, *old;
 
 	if (label) {
-		new = kzalloc(struct_size(new, str, strlen(label) + 1),
-			      GFP_KERNEL);
+		new = kzalloc_flex(*new, str, strlen(label) + 1);
 		if (!new)
 			return -ENOMEM;
 
@@ -467,9 +466,6 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (test_bit(GPIOD_FLAG_OPEN_DRAIN, &flags) &&
 	    test_bit(GPIOD_FLAG_IS_OUT, &flags))
 		return 0;
-
-	if (!guard.gc->get_direction)
-		return -ENOTSUPP;
 
 	ret = gpiochip_get_direction(guard.gc, offset);
 	if (ret < 0)
@@ -2336,7 +2332,7 @@ int gpiochip_add_pingroup_range(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2397,7 +2393,7 @@ int gpiochip_add_pin_range_with_pins(struct gpio_chip *gc,
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc_obj(*pin_range);
 	if (!pin_range)
 		return -ENOMEM;
 
@@ -2456,7 +2452,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
  * on each other, and help provide better diagnostics in debugfs.
  * They're called even less than the "set direction" calls.
  */
-static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
+int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 {
 	unsigned int offset;
 	int ret;
@@ -2518,7 +2514,7 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 	return ret;
 }
 
-static void gpiod_free_commit(struct gpio_desc *desc)
+void gpiod_free_commit(struct gpio_desc *desc)
 {
 	unsigned long flags;
 
@@ -5264,27 +5260,21 @@ void gpiod_put_array(struct gpio_descs *descs)
 }
 EXPORT_SYMBOL_GPL(gpiod_put_array);
 
-static int gpio_stub_drv_probe(struct device *dev)
-{
-	/*
-	 * The DT node of some GPIO chips have a "compatible" property, but
-	 * never have a struct device added and probed by a driver to register
-	 * the GPIO chip with gpiolib. In such cases, fw_devlink=on will cause
-	 * the consumers of the GPIO chip to get probe deferred forever because
-	 * they will be waiting for a device associated with the GPIO chip
-	 * firmware node to get added and bound to a driver.
-	 *
-	 * To allow these consumers to probe, we associate the struct
-	 * gpio_device of the GPIO chip with the firmware node and then simply
-	 * bind it to this stub driver.
-	 */
-	return 0;
-}
-
+/*
+ * The DT node of some GPIO chips have a "compatible" property, but
+ * never have a struct device added and probed by a driver to register
+ * the GPIO chip with gpiolib. In such cases, fw_devlink=on will cause
+ * the consumers of the GPIO chip to get probe deferred forever because
+ * they will be waiting for a device associated with the GPIO chip
+ * firmware node to get added and bound to a driver.
+ *
+ * To allow these consumers to probe, we associate the struct
+ * gpio_device of the GPIO chip with the firmware node and then simply
+ * bind it to this stub driver.
+ */
 static struct device_driver gpio_stub_drv = {
 	.name = "gpio_stub_drv",
 	.bus = &gpio_bus_type,
-	.probe = gpio_stub_drv_probe,
 };
 
 static int __init gpiolib_dev_init(void)
@@ -5379,7 +5369,7 @@ static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 
 	s->private = NULL;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return NULL;
 

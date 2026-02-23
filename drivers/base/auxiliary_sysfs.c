@@ -63,7 +63,7 @@ int auxiliary_device_sysfs_irq_add(struct auxiliary_device *auxdev, int irq)
 	if (ret)
 		return ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

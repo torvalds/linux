@@ -122,7 +122,7 @@ struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 	padsz = (4 - (volnamesz & 3)) & 3;
 	reqsz = 8 + volnamesz + padsz;
 
-	entry = kzalloc(sizeof(struct afs_vldb_entry), GFP_KERNEL);
+	entry = kzalloc_obj(struct afs_vldb_entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 

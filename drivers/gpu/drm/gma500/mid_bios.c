@@ -228,7 +228,7 @@ static int mid_get_vbt_data_r10(struct drm_psb_private *dev_priv, u32 addr)
 	if (read_vbt_r10(addr, &vbt))
 		return -1;
 
-	gct = kmalloc_array(vbt.panel_count, sizeof(*gct), GFP_KERNEL);
+	gct = kmalloc_objs(*gct, vbt.panel_count);
 	if (!gct)
 		return -ENOMEM;
 

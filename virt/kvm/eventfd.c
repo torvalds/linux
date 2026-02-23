@@ -157,21 +157,28 @@ irqfd_shutdown(struct work_struct *work)
 }
 
 
-/* assumes kvm->irqfds.lock is held */
-static bool
-irqfd_is_active(struct kvm_kernel_irqfd *irqfd)
+static bool irqfd_is_active(struct kvm_kernel_irqfd *irqfd)
 {
+	/*
+	 * Assert that either irqfds.lock or SRCU is held, as irqfds.lock must
+	 * be held to prevent false positives (on the irqfd being active), and
+	 * while false negatives are impossible as irqfds are never added back
+	 * to the list once they're deactivated, the caller must at least hold
+	 * SRCU to guard against routing changes if the irqfd is deactivated.
+	 */
+	lockdep_assert_once(lockdep_is_held(&irqfd->kvm->irqfds.lock) ||
+			    srcu_read_lock_held(&irqfd->kvm->irq_srcu));
+
 	return list_empty(&irqfd->list) ? false : true;
 }
 
 /*
  * Mark the irqfd as inactive and schedule it for removal
- *
- * assumes kvm->irqfds.lock is held
  */
-static void
-irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
+static void irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 {
+	lockdep_assert_held(&irqfd->kvm->irqfds.lock);
+
 	BUG_ON(!irqfd_is_active(irqfd));
 
 	list_del_init(&irqfd->list);
@@ -217,8 +224,15 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
 			irq = irqfd->irq_entry;
 		} while (read_seqcount_retry(&irqfd->irq_entry_sc, seq));
-		/* An event has been signaled, inject an interrupt */
-		if (kvm_arch_set_irq_inatomic(&irq, kvm,
+
+		/*
+		 * An event has been signaled, inject an interrupt unless the
+		 * irqfd is being deassigned (isn't active), in which case the
+		 * routing information may be stale (once the irqfd is removed
+		 * from the list, it will stop receiving routing updates).
+		 */
+		if (unlikely(!irqfd_is_active(irqfd)) ||
+		    kvm_arch_set_irq_inatomic(&irq, kvm,
 					      KVM_USERSPACE_IRQ_SOURCE_ID, 1,
 					      false) == -EWOULDBLOCK)
 			schedule_work(&irqfd->inject);
@@ -368,7 +382,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	if (!kvm_arch_irqfd_allowed(kvm, args))
 		return -EINVAL;
 
-	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL_ACCOUNT);
+	irqfd = kzalloc_obj(*irqfd, GFP_KERNEL_ACCOUNT);
 	if (!irqfd)
 		return -ENOMEM;
 
@@ -416,8 +430,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 		}
 
 		if (!irqfd->resampler) {
-			resampler = kzalloc(sizeof(*resampler),
-					    GFP_KERNEL_ACCOUNT);
+			resampler = kzalloc_obj(*resampler, GFP_KERNEL_ACCOUNT);
 			if (!resampler) {
 				ret = -ENOMEM;
 				mutex_unlock(&kvm->irqfds.resampler_lock);
@@ -585,18 +598,8 @@ kvm_irqfd_deassign(struct kvm *kvm, struct kvm_irqfd *args)
 	spin_lock_irq(&kvm->irqfds.lock);
 
 	list_for_each_entry_safe(irqfd, tmp, &kvm->irqfds.items, list) {
-		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi) {
-			/*
-			 * This clearing of irq_entry.type is needed for when
-			 * another thread calls kvm_irq_routing_update before
-			 * we flush workqueue below (we synchronize with
-			 * kvm_irq_routing_update using irqfds.lock).
-			 */
-			write_seqcount_begin(&irqfd->irq_entry_sc);
-			irqfd->irq_entry.type = 0;
-			write_seqcount_end(&irqfd->irq_entry_sc);
+		if (irqfd->eventfd == eventfd && irqfd->gsi == args->gsi)
 			irqfd_deactivate(irqfd);
-		}
 	}
 
 	spin_unlock_irq(&kvm->irqfds.lock);
@@ -870,7 +873,7 @@ static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
 	if (IS_ERR(eventfd))
 		return PTR_ERR(eventfd);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL_ACCOUNT);
+	p = kzalloc_obj(*p, GFP_KERNEL_ACCOUNT);
 	if (!p) {
 		ret = -ENOMEM;
 		goto fail;

@@ -335,7 +335,7 @@ static int cp500_register_i2c(struct cp500 *cp500)
 {
 	int ret;
 
-	cp500->i2c = kzalloc(sizeof(*cp500->i2c), GFP_KERNEL);
+	cp500->i2c = kzalloc_obj(*cp500->i2c);
 	if (!cp500->i2c)
 		return -ENOMEM;
 
@@ -386,7 +386,7 @@ static int cp500_register_spi(struct cp500 *cp500, u8 esc_type)
 	int info_size;
 	int ret;
 
-	cp500->spi = kzalloc(sizeof(*cp500->spi), GFP_KERNEL);
+	cp500->spi = kzalloc_obj(*cp500->spi);
 	if (!cp500->spi)
 		return -ENOMEM;
 
@@ -443,7 +443,7 @@ static int cp500_register_fan(struct cp500 *cp500)
 {
 	int ret;
 
-	cp500->fan = kzalloc(sizeof(*cp500->fan), GFP_KERNEL);
+	cp500->fan = kzalloc_obj(*cp500->fan);
 	if (!cp500->fan)
 		return -ENOMEM;
 
@@ -491,7 +491,7 @@ static int cp500_register_batt(struct cp500 *cp500)
 {
 	int ret;
 
-	cp500->batt = kzalloc(sizeof(*cp500->batt), GFP_KERNEL);
+	cp500->batt = kzalloc_obj(*cp500->batt);
 	if (!cp500->batt)
 		return -ENOMEM;
 
@@ -541,7 +541,7 @@ static int cp500_register_uart(struct cp500 *cp500,
 {
 	int ret;
 
-	*uart = kzalloc(sizeof(**uart), GFP_KERNEL);
+	*uart = kzalloc_obj(**uart);
 	if (!*uart)
 		return -ENOMEM;
 

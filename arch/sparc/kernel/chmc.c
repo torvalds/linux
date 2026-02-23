@@ -417,7 +417,7 @@ static int jbusmc_probe(struct platform_device *op)
 	num_mem_regs = len / sizeof(*mem_regs);
 
 	err = -ENOMEM;
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		printk(KERN_ERR PFX "Cannot allocate struct jbusmc.\n");
 		goto out;
@@ -718,7 +718,7 @@ static int chmc_probe(struct platform_device *op)
 	}
 
 	err = -ENOMEM;
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		printk(KERN_ERR PFX "Could not allocate struct chmc.\n");
 		goto out;

@@ -83,7 +83,7 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 	    (remain_sgl > 0 && block_num > HISI_ACC_MEM_BLOCK_NR - 1))
 		return ERR_PTR(-EINVAL);
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 	block = pool->mem_block;
@@ -260,7 +260,7 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev, struct scatterlist *sgl,
 	return curr_hw_sgl;
 
 err_unmap:
-	dma_unmap_sg(dev, sgl, sg_n, DMA_BIDIRECTIONAL);
+	dma_unmap_sg(dev, sgl, sg_n, dir);
 
 	return ERR_PTR(ret);
 }

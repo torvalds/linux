@@ -628,24 +628,36 @@ static int rtw8922a_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
 	rtw8922a_efuse_parsing_tssi(rtwdev, map);
 	rtw8922a_efuse_parsing_gain_offset(rtwdev, map);
 
-	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
-
 	return 0;
 }
 
 static int rtw8922a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 			       enum rtw89_efuse_block block)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	int ret;
+
 	switch (block) {
 	case RTW89_EFUSE_BLOCK_HCI_DIG_PCIE_SDIO:
-		return rtw8922a_read_efuse_pci_sdio(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_pci_sdio(rtwdev, log_map);
+		break;
 	case RTW89_EFUSE_BLOCK_HCI_DIG_USB:
-		return rtw8922a_read_efuse_usb(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_usb(rtwdev, log_map);
+		break;
 	case RTW89_EFUSE_BLOCK_RF:
-		return rtw8922a_read_efuse_rf(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_rf(rtwdev, log_map);
+		break;
 	default:
-		return 0;
+		ret = 0;
+		break;
 	}
+
+	if (!ret && is_zero_ether_addr(efuse->addr)) {
+		rtw89_info(rtwdev, "efuse mac address is zero, using random mac\n");
+		eth_random_addr(efuse->addr);
+	}
+
+	return ret;
 }
 
 #define THM_TRIM_POSITIVE_MASK BIT(6)
@@ -1756,6 +1768,32 @@ static int rtw8922a_ctrl_rx_path_tmac(struct rtw89_dev *rtwdev,
 }
 
 #define DIGITAL_PWR_COMP_REG_NUM 22
+static const u32 rtw8922a_digital_pwr_comp_2g_s0_val[][DIGITAL_PWR_COMP_REG_NUM] = {
+	{0x012C0064, 0x04B00258, 0x00432710, 0x019000A7, 0x06400320,
+	 0x0D05091D, 0x14D50FA0, 0x00000000, 0x01010000, 0x00000101,
+	 0x01010101, 0x02020201, 0x02010000, 0x03030202, 0x00000303,
+	 0x03020101, 0x06060504, 0x01010000, 0x06050403, 0x01000606,
+	 0x05040202, 0x07070706},
+	{0x012C0064, 0x04B00258, 0x00432710, 0x019000A7, 0x06400320,
+	 0x0D05091D, 0x14D50FA0, 0x00000000, 0x01010100, 0x00000101,
+	 0x01000000, 0x01010101, 0x01010000, 0x02020202, 0x00000404,
+	 0x03020101, 0x04040303, 0x02010000, 0x03030303, 0x00000505,
+	 0x03030201, 0x05050303},
+};
+
+static const u32 rtw8922a_digital_pwr_comp_2g_s1_val[][DIGITAL_PWR_COMP_REG_NUM] = {
+	{0x012C0064, 0x04B00258, 0x00432710, 0x019000A7, 0x06400320,
+	 0x0D05091D, 0x14D50FA0, 0x01010000, 0x01010101, 0x00000101,
+	 0x01010100, 0x01010101, 0x01010000, 0x02020202, 0x01000202,
+	 0x02020101, 0x03030202, 0x02010000, 0x05040403, 0x01000606,
+	 0x05040302, 0x07070605},
+	{0x012C0064, 0x04B00258, 0x00432710, 0x019000A7, 0x06400320,
+	 0x0D05091D, 0x14D50FA0, 0x00000000, 0x01010100, 0x00000101,
+	 0x01010000, 0x02020201, 0x02010100, 0x03030202, 0x01000404,
+	 0x04030201, 0x05050404, 0x01010100, 0x04030303, 0x01000505,
+	 0x03030101, 0x05050404},
+};
+
 static const u32 rtw8922a_digital_pwr_comp_val[][DIGITAL_PWR_COMP_REG_NUM] = {
 	{0x012C0096, 0x044C02BC, 0x00322710, 0x015E0096, 0x03C8028A,
 	 0x0BB80708, 0x17701194, 0x02020100, 0x03030303, 0x01000303,
@@ -1770,7 +1808,7 @@ static const u32 rtw8922a_digital_pwr_comp_val[][DIGITAL_PWR_COMP_REG_NUM] = {
 };
 
 static void rtw8922a_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
-					  bool enable, u8 nss,
+					  u8 band, u8 nss,
 					  enum rtw89_rf_path path)
 {
 	static const u32 ltpc_t0[2] = {R_BE_LTPC_T0_PATH0, R_BE_LTPC_T0_PATH1};
@@ -1778,14 +1816,25 @@ static void rtw8922a_set_digital_pwr_comp(struct rtw89_dev *rtwdev,
 	u32 addr, val;
 	u32 i;
 
-	if (nss == 1)
-		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[0];
-	else
-		digital_pwr_comp = rtw8922a_digital_pwr_comp_val[1];
+	if (nss == 1) {
+		if (band == RTW89_BAND_2G)
+			digital_pwr_comp = path == RF_PATH_A ?
+				rtw8922a_digital_pwr_comp_2g_s0_val[0] :
+				rtw8922a_digital_pwr_comp_2g_s1_val[0];
+		else
+			digital_pwr_comp = rtw8922a_digital_pwr_comp_val[0];
+	} else {
+		if (band == RTW89_BAND_2G)
+			digital_pwr_comp = path == RF_PATH_A ?
+				rtw8922a_digital_pwr_comp_2g_s0_val[1] :
+				rtw8922a_digital_pwr_comp_2g_s1_val[1];
+		else
+			digital_pwr_comp = rtw8922a_digital_pwr_comp_val[1];
+	}
 
 	addr = ltpc_t0[path];
 	for (i = 0; i < DIGITAL_PWR_COMP_REG_NUM; i++, addr += 4) {
-		val = enable ? digital_pwr_comp[i] : 0;
+		val = digital_pwr_comp[i];
 		rtw89_phy_write32(rtwdev, addr, val);
 	}
 }
@@ -1794,7 +1843,7 @@ static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
-	bool enable = chan->band_type != RTW89_BAND_2G;
+	u8 band = chan->band_type;
 	u8 path;
 
 	if (rtwdev->mlo_dbcc_mode == MLO_1_PLUS_1_1RF) {
@@ -1802,10 +1851,10 @@ static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
 			path = RF_PATH_A;
 		else
 			path = RF_PATH_B;
-		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 1, path);
+		rtw8922a_set_digital_pwr_comp(rtwdev, band, 1, path);
 	} else {
-		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_A);
-		rtw8922a_set_digital_pwr_comp(rtwdev, enable, 2, RF_PATH_B);
+		rtw8922a_set_digital_pwr_comp(rtwdev, band, 2, RF_PATH_A);
+		rtw8922a_set_digital_pwr_comp(rtwdev, band, 2, RF_PATH_B);
 	}
 }
 
@@ -2826,6 +2875,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.cfg_txrx_path		= rtw8922a_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= NULL,
 	.digital_pwr_comp	= rtw8922a_digital_pwr_comp,
+	.calc_rx_gain_normal	= NULL,
 	.pwr_on_func		= rtw8922a_pwr_on_func,
 	.pwr_off_func		= rtw8922a_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc_v2,
@@ -2847,6 +2897,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v2,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
 	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
+	.h2c_wow_cam_update	= rtw89_fw_h2c_wow_cam_update,
 
 	.btc_set_rfe		= rtw8922a_btc_set_rfe,
 	.btc_init_cfg		= rtw8922a_btc_init_cfg,
@@ -2875,6 +2926,10 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,
 	.max_amsdu_limit	= 8000,
+	.max_vht_mpdu_cap	= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+	.max_eht_mpdu_cap	= IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991,
+	.max_tx_agg_num		= 128,
+	.max_rx_agg_num		= 64,
 	.dis_2g_40m_ul_ofdma	= false,
 	.rsvd_ple_ofst		= 0x8f800,
 	.hfc_param_ini		= {rtw8922a_hfc_param_ini_pcie, NULL, NULL},
@@ -2988,12 +3043,14 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
 	.rfkill_init		= &rtw8922a_rfkill_regs,
 	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
+	.btc_sb			= {{{R_BE_SCOREBOARD, R_BE_SCOREBOARD},}},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8922a,
 #endif
 	.xtal_info		= NULL,
+	.default_quirks		= 0,
 };
 EXPORT_SYMBOL(rtw8922a_chip_info);
 

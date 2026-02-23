@@ -173,7 +173,7 @@ static struct neigh_update_work *mlx5e_alloc_neigh_update_work(struct mlx5e_priv
 	struct mlx5e_neigh_hash_entry *nhe;
 	struct mlx5e_neigh m_neigh = {};
 
-	update_work = kzalloc(sizeof(*update_work), GFP_ATOMIC);
+	update_work = kzalloc_obj(*update_work, GFP_ATOMIC);
 	if (WARN_ON(!update_work))
 		return NULL;
 
@@ -376,7 +376,7 @@ int mlx5e_rep_neigh_entry_create(struct mlx5e_priv *priv,
 {
 	int err;
 
-	*nhe = kzalloc(sizeof(**nhe), GFP_KERNEL);
+	*nhe = kzalloc_obj(**nhe);
 	if (!*nhe)
 		return -ENOMEM;
 

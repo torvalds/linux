@@ -1003,7 +1003,6 @@ void __init setup_arch(char **cmdline_p)
 	fadump_cma_init();
 	kdump_cma_reserve();
 	kvm_cma_reserve();
-	gigantic_hugetlb_cma_reserve();
 
 	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 

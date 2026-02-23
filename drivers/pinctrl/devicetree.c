@@ -84,7 +84,7 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 	}
 
 	/* Remember the converted mapping table entries */
-	dt_map = kzalloc(sizeof(*dt_map), GFP_KERNEL);
+	dt_map = kzalloc_obj(*dt_map);
 	if (!dt_map)
 		goto err_free_map;
 
@@ -187,7 +187,7 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 {
 	struct pinctrl_map *map;
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return -ENOMEM;
 

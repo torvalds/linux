@@ -324,7 +324,7 @@ struct ulpi *ulpi_register_interface(struct device *dev,
 	struct ulpi *ulpi;
 	int ret;
 
-	ulpi = kzalloc(sizeof(*ulpi), GFP_KERNEL);
+	ulpi = kzalloc_obj(*ulpi);
 	if (!ulpi)
 		return ERR_PTR(-ENOMEM);
 

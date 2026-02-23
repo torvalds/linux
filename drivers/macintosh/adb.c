@@ -674,7 +674,7 @@ static int adb_open(struct inode *inode, struct file *file)
 		ret = -ENXIO;
 		goto out;
 	}
-	state = kmalloc(sizeof(struct adbdev_state), GFP_KERNEL);
+	state = kmalloc_obj(struct adbdev_state);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out;
@@ -783,8 +783,7 @@ static ssize_t adb_write(struct file *file, const char __user *buf,
 	if (adb_controller == NULL)
 		return -ENXIO;
 
-	req = kmalloc(sizeof(struct adb_request),
-					     GFP_KERNEL);
+	req = kmalloc_obj(struct adb_request);
 	if (req == NULL)
 		return -ENOMEM;
 

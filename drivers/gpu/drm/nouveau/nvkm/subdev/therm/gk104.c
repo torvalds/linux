@@ -112,7 +112,7 @@ gk104_therm_new_(const struct nvkm_therm_func *func, struct nvkm_device *device,
 		 const struct gf100_idle_filter *idle_filter,
 		 struct nvkm_therm **ptherm)
 {
-	struct gk104_therm *therm = kzalloc(sizeof(*therm), GFP_KERNEL);
+	struct gk104_therm *therm = kzalloc_obj(*therm);
 
 	if (!therm)
 		return -ENOMEM;

@@ -267,7 +267,7 @@ struct dvb_frontend *ix2505v_attach(struct dvb_frontend *fe,
 		goto error;
 	}
 
-	state = kzalloc(sizeof(struct ix2505v_state), GFP_KERNEL);
+	state = kzalloc_obj(struct ix2505v_state);
 	if (NULL == state)
 		return NULL;
 

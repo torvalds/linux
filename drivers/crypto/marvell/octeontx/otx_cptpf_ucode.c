@@ -318,7 +318,7 @@ static int process_tar_file(struct device *dev,
 		return -EINVAL;
 	}
 
-	tar_info = kzalloc(sizeof(struct tar_ucode_info_t), GFP_KERNEL);
+	tar_info = kzalloc_obj(struct tar_ucode_info_t);
 	if (!tar_info)
 		return -ENOMEM;
 
@@ -412,7 +412,7 @@ static struct tar_arch_info_t *load_tar_archive(struct device *dev,
 	size_t tar_size;
 	int ret;
 
-	tar_arch = kzalloc(sizeof(struct tar_arch_info_t), GFP_KERNEL);
+	tar_arch = kzalloc_obj(struct tar_arch_info_t);
 	if (!tar_arch)
 		return NULL;
 
@@ -1326,7 +1326,7 @@ static ssize_t ucode_load_store(struct device *dev,
 	int del_grp_idx = -1;
 	int ucode_idx = 0;
 
-	if (strlen(buf) > OTX_CPT_UCODE_NAME_LENGTH)
+	if (count >= OTX_CPT_UCODE_NAME_LENGTH)
 		return -EINVAL;
 
 	eng_grps = container_of(attr, struct otx_cpt_eng_grps, ucode_load_attr);

@@ -3392,11 +3392,11 @@ static int dspxfr_image(struct hda_codec *codec,
 	if (fls_data == NULL)
 		return -EINVAL;
 
-	dma_engine = kzalloc(sizeof(*dma_engine), GFP_KERNEL);
+	dma_engine = kzalloc_obj(*dma_engine);
 	if (!dma_engine)
 		return -ENOMEM;
 
-	dma_engine->dmab = kzalloc(sizeof(*dma_engine->dmab), GFP_KERNEL);
+	dma_engine->dmab = kzalloc_obj(*dma_engine->dmab);
 	if (!dma_engine->dmab) {
 		kfree(dma_engine);
 		return -ENOMEM;
@@ -9831,9 +9831,7 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	 */
 	if (ca0132_use_pci_mmio(spec))
 		spec->desktop_init_verbs = ca0132_init_verbs1;
-	spec->spec_init_verbs = kcalloc(NUM_SPEC_VERBS,
-					sizeof(struct hda_verb),
-					GFP_KERNEL);
+	spec->spec_init_verbs = kzalloc_objs(struct hda_verb, NUM_SPEC_VERBS);
 	if (!spec->spec_init_verbs)
 		return -ENOMEM;
 
@@ -9900,7 +9898,7 @@ static int ca0132_codec_probe(struct hda_codec *codec,
 
 	codec_dbg(codec, "%s\n", __func__);
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;

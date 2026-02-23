@@ -439,7 +439,7 @@ void input_alloc_absinfo(struct input_dev *dev)
 	if (dev->absinfo)
 		return;
 
-	dev->absinfo = kcalloc(ABS_CNT, sizeof(*dev->absinfo), GFP_KERNEL);
+	dev->absinfo = kzalloc_objs(*dev->absinfo, ABS_CNT);
 	if (!dev->absinfo) {
 		dev_err(dev->dev.parent ?: &dev->dev,
 			"%s: unable to allocate memory\n", __func__);
@@ -1887,7 +1887,7 @@ struct input_dev *input_allocate_device(void)
 	static atomic_t input_no = ATOMIC_INIT(-1);
 	struct input_dev *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -1897,7 +1897,7 @@ struct input_dev *input_allocate_device(void)
 	 * when we register the device.
 	 */
 	dev->max_vals = 10;
-	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
+	dev->vals = kzalloc_objs(*dev->vals, dev->max_vals);
 	if (!dev->vals) {
 		kfree(dev);
 		return NULL;

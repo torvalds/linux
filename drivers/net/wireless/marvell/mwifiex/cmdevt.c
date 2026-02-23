@@ -389,8 +389,8 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 	u32 i;
 
 	/* Allocate and initialize struct cmd_ctrl_node */
-	cmd_array = kcalloc(MWIFIEX_NUM_OF_CMD_BUFFER,
-			    sizeof(struct cmd_ctrl_node), GFP_KERNEL);
+	cmd_array = kzalloc_objs(struct cmd_ctrl_node,
+				 MWIFIEX_NUM_OF_CMD_BUFFER);
 	if (!cmd_array)
 		return -ENOMEM;
 

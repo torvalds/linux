@@ -734,7 +734,7 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	struct tda8290_priv *priv = NULL;
 	char *name;
 
-	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct tda8290_priv);
 	if (priv == NULL)
 		return NULL;
 	fe->analog_demod_priv = priv;

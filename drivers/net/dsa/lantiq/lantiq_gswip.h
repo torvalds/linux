@@ -243,6 +243,8 @@
 
 #define GSWIP_VLAN_UNAWARE_PVID	0
 
+#define GSWIP_MAX_PORTS		7
+
 struct gswip_pce_microcode {
 	u16 val_3;
 	u16 val_2;
@@ -253,8 +255,8 @@ struct gswip_pce_microcode {
 struct gswip_hw_info {
 	int max_ports;
 	unsigned int allowed_cpu_ports;
-	unsigned int mii_ports;
-	int mii_port_reg_offset;
+	s16 mii_cfg[GSWIP_MAX_PORTS];
+	s16 mii_pcdu[GSWIP_MAX_PORTS];
 	bool supports_2500m;
 	const struct gswip_pce_microcode (*pce_microcode)[];
 	size_t pce_microcode_size;
@@ -263,6 +265,7 @@ struct gswip_hw_info {
 				 struct phylink_config *config);
 	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
 					      phy_interface_t interface);
+	int (*port_setup)(struct dsa_switch *ds, int port);
 };
 
 struct gswip_gphy_fw {

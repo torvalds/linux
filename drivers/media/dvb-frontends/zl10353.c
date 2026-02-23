@@ -598,7 +598,7 @@ struct dvb_frontend *zl10353_attach(const struct zl10353_config *config,
 	int id;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct zl10353_state), GFP_KERNEL);
+	state = kzalloc_obj(struct zl10353_state);
 	if (state == NULL)
 		goto error;
 

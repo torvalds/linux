@@ -855,7 +855,7 @@ static int xenvif_mcast_add(struct xenvif *vif, const u8 *addr)
 		return -ENOSPC;
 	}
 
-	mcast = kzalloc(sizeof(*mcast), GFP_ATOMIC);
+	mcast = kzalloc_obj(*mcast, GFP_ATOMIC);
 	if (!mcast)
 		return -ENOMEM;
 

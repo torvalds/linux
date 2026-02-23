@@ -2,7 +2,7 @@
 /*
  *Copyright(c) 2018 Broadcom
  */
-	usb {
+	usb-bus@68500000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -26,16 +26,6 @@
 			reg = <0x0 0x00001000 0x0 0x1000>;
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
 			phys = <&usbphy0 1>, <&usbphy0 0>;
-			phy-names = "phy0", "phy1";
-			dma-coherent;
-			status = "disabled";
-		};
-
-		bdc0: usb@2000 {
-			compatible = "brcm,bdc-v0.16";
-			reg = <0x0 0x00002000 0x0 0x1000>;
-			interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usbphy0 0>, <&usbphy0 1>;
 			phy-names = "phy0", "phy1";
 			dma-coherent;
 			status = "disabled";
@@ -65,13 +55,4 @@
 			status = "disabled";
 		};
 
-		bdc1: usb@21000 {
-			compatible = "brcm,bdc-v0.16";
-			reg = <0x0 0x00021000 0x0 0x1000>;
-			interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usbphy2>;
-			phy-names = "phy0";
-			dma-coherent;
-			status = "disabled";
-		};
 	};

@@ -78,6 +78,7 @@
 #include <net/mpls.h>
 #include <net/mptcp.h>
 #include <net/mctp.h>
+#include <net/can.h>
 #include <net/page_pool/helpers.h>
 #include <net/psp/types.h>
 #include <net/dropreason.h>
@@ -280,7 +281,7 @@ EXPORT_SYMBOL(__netdev_alloc_frag_align);
  */
 static u32 skbuff_cache_size __read_mostly;
 
-static struct sk_buff *napi_skb_cache_get(bool alloc)
+static inline struct sk_buff *napi_skb_cache_get(bool alloc)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	struct sk_buff *skb;
@@ -305,6 +306,23 @@ static struct sk_buff *napi_skb_cache_get(bool alloc)
 	kasan_mempool_unpoison_object(skb, skbuff_cache_size);
 
 	return skb;
+}
+
+/*
+ * Only clear those fields we need to clear, not those that we will
+ * actually initialise later. Hence, don't put any more fields after
+ * the tail pointer in struct sk_buff!
+ */
+static inline void skbuff_clear(struct sk_buff *skb)
+{
+	/* Replace memset(skb, 0, offsetof(struct sk_buff, tail))
+	 * with two smaller memset(), with a barrier() between them.
+	 * This forces the compiler to inline both calls.
+	 */
+	BUILD_BUG_ON(offsetof(struct sk_buff, tail) <= 128);
+	memset(skb, 0, 128);
+	barrier();
+	memset((void *)skb + 128, 0, offsetof(struct sk_buff, tail) - 128);
 }
 
 /**
@@ -357,7 +375,7 @@ get:
 		skbs[i] = nc->skb_cache[base + i];
 
 		kasan_mempool_unpoison_object(skbs[i], skbuff_cache_size);
-		memset(skbs[i], 0, offsetof(struct sk_buff, tail));
+		skbuff_clear(skbs[i]);
 	}
 
 	nc->skb_count -= n;
@@ -424,7 +442,7 @@ struct sk_buff *slab_build_skb(void *data)
 	if (unlikely(!skb))
 		return NULL;
 
-	memset(skb, 0, offsetof(struct sk_buff, tail));
+	skbuff_clear(skb);
 	data = __slab_build_skb(data, &size);
 	__finalize_skb_around(skb, data, size);
 
@@ -476,7 +494,7 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 	if (unlikely(!skb))
 		return NULL;
 
-	memset(skb, 0, offsetof(struct sk_buff, tail));
+	skbuff_clear(skb);
 	__build_skb_around(skb, data, frag_size);
 
 	return skb;
@@ -537,7 +555,7 @@ static struct sk_buff *__napi_build_skb(void *data, unsigned int frag_size)
 	if (unlikely(!skb))
 		return NULL;
 
-	memset(skb, 0, offsetof(struct sk_buff, tail));
+	skbuff_clear(skb);
 	__build_skb_around(skb, data, frag_size);
 
 	return skb;
@@ -566,6 +584,16 @@ struct sk_buff *napi_build_skb(void *data, unsigned int frag_size)
 }
 EXPORT_SYMBOL(napi_build_skb);
 
+static void *kmalloc_pfmemalloc(size_t obj_size, gfp_t flags, int node)
+{
+	if (!gfp_pfmemalloc_allowed(flags))
+		return NULL;
+	if (!obj_size)
+		return kmem_cache_alloc_node(net_hotdata.skb_small_head_cache,
+					     flags, node);
+	return kmalloc_node_track_caller(obj_size, flags, node);
+}
+
 /*
  * kmalloc_reserve is a wrapper around kmalloc_node_track_caller that tells
  * the caller if emergency pfmemalloc reserves are being used. If it is and
@@ -574,9 +602,8 @@ EXPORT_SYMBOL(napi_build_skb);
  * memory is free
  */
 static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
-			     bool *pfmemalloc)
+			     struct sk_buff *skb)
 {
-	bool ret_pfmemalloc = false;
 	size_t obj_size;
 	void *obj;
 
@@ -587,12 +614,12 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 				flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
 				node);
 		*size = SKB_SMALL_HEAD_CACHE_SIZE;
-		if (obj || !(gfp_pfmemalloc_allowed(flags)))
+		if (likely(obj))
 			goto out;
 		/* Try again but now we are using pfmemalloc reserves */
-		ret_pfmemalloc = true;
-		obj = kmem_cache_alloc_node(net_hotdata.skb_small_head_cache, flags, node);
-		goto out;
+		if (skb)
+			skb->pfmemalloc = true;
+		return kmalloc_pfmemalloc(0, flags, node);
 	}
 
 	obj_size = kmalloc_size_roundup(obj_size);
@@ -608,17 +635,14 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 	obj = kmalloc_node_track_caller(obj_size,
 					flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
 					node);
-	if (obj || !(gfp_pfmemalloc_allowed(flags)))
+	if (likely(obj))
 		goto out;
 
 	/* Try again but now we are using pfmemalloc reserves */
-	ret_pfmemalloc = true;
-	obj = kmalloc_node_track_caller(obj_size, flags, node);
-
+	if (skb)
+		skb->pfmemalloc = true;
+	obj = kmalloc_pfmemalloc(obj_size, flags, node);
 out:
-	if (pfmemalloc)
-		*pfmemalloc = ret_pfmemalloc;
-
 	return obj;
 }
 
@@ -650,7 +674,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 {
 	struct sk_buff *skb = NULL;
 	struct kmem_cache *cache;
-	bool pfmemalloc;
 	u8 *data;
 
 	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
@@ -680,37 +703,35 @@ fallback:
 		if (unlikely(!skb))
 			return NULL;
 	}
-	prefetchw(skb);
+	skbuff_clear(skb);
 
 	/* We do our best to align skb_shared_info on a separate cache
 	 * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
 	 * aligned memory blocks, unless SLUB/SLAB debug is enabled.
 	 * Both skb->head and skb_shared_info are cache line aligned.
 	 */
-	data = kmalloc_reserve(&size, gfp_mask, node, &pfmemalloc);
+	data = kmalloc_reserve(&size, gfp_mask, node, skb);
 	if (unlikely(!data))
 		goto nodata;
 	/* kmalloc_size_roundup() might give us more room than requested.
 	 * Put skb_shared_info exactly at the end of allocated zone,
 	 * to allow max possible filling before reallocation.
 	 */
-	prefetchw(data + SKB_WITH_OVERHEAD(size));
-
-	/*
-	 * Only clear those fields we need to clear, not those that we will
-	 * actually initialise below. Hence, don't put any more fields after
-	 * the tail pointer in struct sk_buff!
-	 */
-	memset(skb, 0, offsetof(struct sk_buff, tail));
-	__build_skb_around(skb, data, size);
-	skb->pfmemalloc = pfmemalloc;
+	__finalize_skb_around(skb, data, size);
 
 	if (flags & SKB_ALLOC_FCLONE) {
 		struct sk_buff_fclones *fclones;
 
 		fclones = container_of(skb, struct sk_buff_fclones, skb1);
 
-		skb->fclone = SKB_FCLONE_ORIG;
+		/* skb->fclone is a 2bits field.
+		 * Replace expensive RMW (skb->fclone = SKB_FCLONE_ORIG)
+		 * with a single OR.
+		 */
+		BUILD_BUG_ON(SKB_FCLONE_UNAVAILABLE != 0);
+		DEBUG_NET_WARN_ON_ONCE(skb->fclone != SKB_FCLONE_UNAVAILABLE);
+		skb->fclone |= SKB_FCLONE_ORIG;
+
 		refcount_set(&fclones->fclone_ref, 1);
 	}
 
@@ -1312,14 +1333,15 @@ void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt)
 	has_mac = skb_mac_header_was_set(skb);
 	has_trans = skb_transport_header_was_set(skb);
 
-	printk("%sskb len=%u headroom=%u headlen=%u tailroom=%u\n"
-	       "mac=(%d,%d) mac_len=%u net=(%d,%d) trans=%d\n"
+	printk("%sskb len=%u data_len=%u headroom=%u headlen=%u tailroom=%u\n"
+	       "end-tail=%u mac=(%d,%d) mac_len=%u net=(%d,%d) trans=%d\n"
 	       "shinfo(txflags=%u nr_frags=%u gso(size=%hu type=%u segs=%hu))\n"
 	       "csum(0x%x start=%u offset=%u ip_summed=%u complete_sw=%u valid=%u level=%u)\n"
 	       "hash(0x%x sw=%u l4=%u) proto=0x%04x pkttype=%u iif=%d\n"
 	       "priority=0x%x mark=0x%x alloc_cpu=%u vlan_all=0x%x\n"
 	       "encapsulation=%d inner(proto=0x%04x, mac=%u, net=%u, trans=%u)\n",
-	       level, skb->len, headroom, skb_headlen(skb), tailroom,
+	       level, skb->len, skb->data_len, headroom, skb_headlen(skb),
+	       tailroom, skb->end - skb->tail,
 	       has_mac ? skb->mac_header : -1,
 	       has_mac ? skb_mac_header_len(skb) : -1,
 	       skb->mac_len,
@@ -1487,9 +1509,20 @@ void napi_skb_free_stolen_head(struct sk_buff *skb)
 	napi_skb_cache_put(skb);
 }
 
+/**
+ * napi_consume_skb() - consume skb in NAPI context, try to feed skb cache
+ * @skb: buffer to free
+ * @budget: NAPI budget
+ *
+ * Non-zero @budget must come from the @budget argument passed by the core
+ * to a NAPI poll function. Note that core may pass budget of 0 to NAPI poll
+ * for example when polling for netpoll / netconsole.
+ *
+ * Passing @budget of 0 is safe from any context, it turns this function
+ * into dev_consume_skb_any().
+ */
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
-	/* Zero budget indicate non-NAPI context called us, like netpoll */
 	if (unlikely(!budget || !skb)) {
 		dev_consume_skb_any(skb);
 		return;
@@ -5107,6 +5140,9 @@ static const u8 skb_ext_type_len[] = {
 #if IS_ENABLED(CONFIG_INET_PSP)
 	[SKB_EXT_PSP] = SKB_EXT_CHUNKSIZEOF(struct psp_skb_ext),
 #endif
+#if IS_ENABLED(CONFIG_CAN)
+	[SKB_EXT_CAN] = SKB_EXT_CHUNKSIZEOF(struct can_skb_ext),
+#endif
 };
 
 static __always_inline unsigned int skb_ext_total_length(void)
@@ -5122,7 +5158,7 @@ static __always_inline unsigned int skb_ext_total_length(void)
 
 static void skb_extensions_init(void)
 {
-	BUILD_BUG_ON(SKB_EXT_NUM >= 8);
+	BUILD_BUG_ON(SKB_EXT_NUM > 8);
 #if !IS_ENABLED(CONFIG_KCOV_INSTRUMENT_ALL)
 	BUILD_BUG_ON(skb_ext_total_length() > 255);
 #endif
@@ -7230,10 +7266,15 @@ void skb_attempt_defer_free(struct sk_buff *skb)
 {
 	struct skb_defer_node *sdn;
 	unsigned long defer_count;
-	int cpu = skb->alloc_cpu;
 	unsigned int defer_max;
 	bool kick;
+	int cpu;
 
+	/* zero copy notifications should not be delayed. */
+	if (skb_zcopy(skb))
+		goto nodefer;
+
+	cpu = skb->alloc_cpu;
 	if (cpu == raw_smp_processor_id() ||
 	    WARN_ON_ONCE(cpu >= nr_cpu_ids) ||
 	    !cpu_online(cpu)) {
@@ -7391,31 +7432,56 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes,
 }
 EXPORT_SYMBOL(csum_and_copy_from_iter_full);
 
-void get_netmem(netmem_ref netmem)
+void __get_netmem(netmem_ref netmem)
 {
-	struct net_iov *niov;
+	struct net_iov *niov = netmem_to_net_iov(netmem);
 
-	if (netmem_is_net_iov(netmem)) {
-		niov = netmem_to_net_iov(netmem);
-		if (net_is_devmem_iov(niov))
-			net_devmem_get_net_iov(netmem_to_net_iov(netmem));
-		return;
-	}
-	get_page(netmem_to_page(netmem));
+	if (net_is_devmem_iov(niov))
+		net_devmem_get_net_iov(netmem_to_net_iov(netmem));
 }
-EXPORT_SYMBOL(get_netmem);
+EXPORT_SYMBOL(__get_netmem);
 
-void put_netmem(netmem_ref netmem)
+void __put_netmem(netmem_ref netmem)
 {
-	struct net_iov *niov;
+	struct net_iov *niov = netmem_to_net_iov(netmem);
 
-	if (netmem_is_net_iov(netmem)) {
-		niov = netmem_to_net_iov(netmem);
-		if (net_is_devmem_iov(niov))
-			net_devmem_put_net_iov(netmem_to_net_iov(netmem));
-		return;
-	}
-
-	put_page(netmem_to_page(netmem));
+	if (net_is_devmem_iov(niov))
+		net_devmem_put_net_iov(netmem_to_net_iov(netmem));
 }
-EXPORT_SYMBOL(put_netmem);
+EXPORT_SYMBOL(__put_netmem);
+
+struct vlan_type_depth __vlan_get_protocol_offset(const struct sk_buff *skb,
+						  __be16 type,
+						  int mac_offset)
+{
+	unsigned int vlan_depth = skb->mac_len, parse_depth = VLAN_MAX_DEPTH;
+
+	/* if type is 802.1Q/AD then the header should already be
+	 * present at mac_len - VLAN_HLEN (if mac_len > 0), or at
+	 * ETH_HLEN otherwise
+	 */
+	if (vlan_depth) {
+		if (WARN_ON_ONCE(vlan_depth < VLAN_HLEN))
+			return (struct vlan_type_depth) { 0 };
+		vlan_depth -= VLAN_HLEN;
+	} else {
+		vlan_depth = ETH_HLEN;
+	}
+	do {
+		struct vlan_hdr vhdr, *vh;
+
+		vh = skb_header_pointer(skb, mac_offset + vlan_depth,
+					sizeof(vhdr), &vhdr);
+		if (unlikely(!vh || !--parse_depth))
+			return (struct vlan_type_depth) { 0 };
+
+		type = vh->h_vlan_encapsulated_proto;
+		vlan_depth += VLAN_HLEN;
+	} while (eth_type_vlan(type));
+
+	return (struct vlan_type_depth) {
+		.type = type,
+		.depth = vlan_depth
+	};
+}
+EXPORT_SYMBOL(__vlan_get_protocol_offset);

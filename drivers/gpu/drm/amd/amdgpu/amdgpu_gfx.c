@@ -100,6 +100,7 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
 /**
  * amdgpu_gfx_parse_disable_cu - Parse the disable_cu module parameter
  *
+ * @adev: amdgpu device pointer
  * @mask: array in which the per-shader array disable masks will be stored
  * @max_se: number of SEs
  * @max_sh: number of SHs
@@ -107,7 +108,8 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
  * The bitmask of CUs to be disabled in the shader array determined by se and
  * sh is stored in mask[se * max_sh + sh].
  */
-void amdgpu_gfx_parse_disable_cu(unsigned int *mask, unsigned int max_se, unsigned int max_sh)
+void amdgpu_gfx_parse_disable_cu(struct amdgpu_device *adev, unsigned int *mask,
+				 unsigned int max_se, unsigned int max_sh)
 {
 	unsigned int se, sh, cu;
 	const char *p;
@@ -123,16 +125,16 @@ void amdgpu_gfx_parse_disable_cu(unsigned int *mask, unsigned int max_se, unsign
 		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
 
 		if (ret < 3) {
-			DRM_ERROR("amdgpu: could not parse disable_cu\n");
+			drm_err(adev_to_drm(adev), "could not parse disable_cu\n");
 			return;
 		}
 
 		if (se < max_se && sh < max_sh && cu < 16) {
-			DRM_INFO("amdgpu: disabling CU %u.%u.%u\n", se, sh, cu);
+			drm_info(adev_to_drm(adev), "Disabling CU %u.%u.%u\n", se, sh, cu);
 			mask[se * max_sh + sh] |= 1u << cu;
 		} else {
-			DRM_ERROR("amdgpu: disable_cu %u.%u.%u is out of range\n",
-				  se, sh, cu);
+			drm_err(adev_to_drm(adev), "disable_cu %u.%u.%u is out of range\n",
+				se, sh, cu);
 		}
 
 		next = strchr(p, ',');
@@ -150,7 +152,7 @@ static bool amdgpu_gfx_is_graphics_multipipe_capable(struct amdgpu_device *adev)
 static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 {
 	if (amdgpu_compute_multipipe != -1) {
-		dev_info(adev->dev, "amdgpu: forcing compute pipe policy %d\n",
+		dev_info(adev->dev, " forcing compute pipe policy %d\n",
 			 amdgpu_compute_multipipe);
 		return amdgpu_compute_multipipe == 1;
 	}
@@ -383,6 +385,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq[xcc_id];
 	struct amdgpu_ring *ring = &kiq->ring;
 	u32 domain = AMDGPU_GEM_DOMAIN_GTT;
+	u32 gfx_mqd_size = max(adev->mqds[AMDGPU_HW_IP_GFX].mqd_size, mqd_size);
+	u32 compute_mqd_size = max(adev->mqds[AMDGPU_HW_IP_COMPUTE].mqd_size, mqd_size);
 
 #if !defined(CONFIG_ARM) && !defined(CONFIG_ARM64)
 	/* Only enable on gfx10 and 11 for now to avoid changing behavior on older chips */
@@ -422,17 +426,17 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			ring = &adev->gfx.gfx_ring[i];
 			if (!ring->mqd_obj) {
-				r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-							    domain, &ring->mqd_obj,
+				r = amdgpu_bo_create_kernel(adev, AMDGPU_MQD_SIZE_ALIGN(gfx_mqd_size),
+								PAGE_SIZE, domain, &ring->mqd_obj,
 							    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 				if (r) {
 					dev_warn(adev->dev, "failed to create ring mqd bo (%d)", r);
 					return r;
 				}
 
-				ring->mqd_size = mqd_size;
+				ring->mqd_size = gfx_mqd_size;
 				/* prepare MQD backup */
-				adev->gfx.me.mqd_backup[i] = kzalloc(mqd_size, GFP_KERNEL);
+				adev->gfx.me.mqd_backup[i] = kzalloc(gfx_mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 					return -ENOMEM;
@@ -446,17 +450,17 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		j = i + xcc_id * adev->gfx.num_compute_rings;
 		ring = &adev->gfx.compute_ring[j];
 		if (!ring->mqd_obj) {
-			r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
-						    domain, &ring->mqd_obj,
+			r = amdgpu_bo_create_kernel(adev, AMDGPU_MQD_SIZE_ALIGN(compute_mqd_size),
+							PAGE_SIZE, domain, &ring->mqd_obj,
 						    &ring->mqd_gpu_addr, &ring->mqd_ptr);
 			if (r) {
 				dev_warn(adev->dev, "failed to create ring mqd bo (%d)", r);
 				return r;
 			}
 
-			ring->mqd_size = mqd_size;
+			ring->mqd_size = compute_mqd_size;
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[j] = kzalloc(mqd_size, GFP_KERNEL);
+			adev->gfx.mec.mqd_backup[j] = kzalloc(compute_mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[j]) {
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 				return -ENOMEM;
@@ -511,7 +515,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 			j = i + xcc_id * adev->gfx.num_compute_rings;
 			amdgpu_mes_unmap_legacy_queue(adev,
 						   &adev->gfx.compute_ring[j],
-						   RESET_QUEUES, 0, 0);
+						   RESET_QUEUES, 0, 0, xcc_id);
 		}
 		return 0;
 	}
@@ -562,7 +566,7 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 				j = i + xcc_id * adev->gfx.num_gfx_rings;
 				amdgpu_mes_unmap_legacy_queue(adev,
 						      &adev->gfx.gfx_ring[j],
-						      PREEMPT_QUEUES, 0, 0);
+						      PREEMPT_QUEUES, 0, 0, xcc_id);
 			}
 		}
 		return 0;
@@ -644,7 +648,8 @@ static int amdgpu_gfx_mes_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		j = i + xcc_id * adev->gfx.num_compute_rings;
 		r = amdgpu_mes_map_legacy_queue(adev,
-						&adev->gfx.compute_ring[j]);
+						&adev->gfx.compute_ring[j],
+						xcc_id);
 		if (r) {
 			dev_err(adev->dev, "failed to map compute queue\n");
 			return r;
@@ -733,7 +738,8 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			r = amdgpu_mes_map_legacy_queue(adev,
-							&adev->gfx.gfx_ring[j]);
+							&adev->gfx.gfx_ring[j],
+							xcc_id);
 			if (r) {
 				dev_err(adev->dev, "failed to map gfx queue\n");
 				return r;
@@ -1067,7 +1073,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 		return 0;
 
 	if (adev->mes.ring[0].sched.ready)
-		return amdgpu_mes_rreg(adev, reg);
+		return amdgpu_mes_rreg(adev, reg, xcc_id);
 
 	BUG_ON(!ring->funcs->emit_rreg);
 
@@ -1143,7 +1149,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 		return;
 
 	if (adev->mes.ring[0].sched.ready) {
-		amdgpu_mes_wreg(adev, reg, v);
+		amdgpu_mes_wreg(adev, reg, v, xcc_id);
 		return;
 	}
 
@@ -1193,6 +1199,40 @@ failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
+}
+
+void amdgpu_gfx_get_hdp_flush_mask(struct amdgpu_ring *ring,
+		uint32_t *hdp_flush_mask, uint32_t *reg_mem_engine)
+{
+
+	if (!ring || !hdp_flush_mask || !reg_mem_engine) {
+		DRM_INFO("%s:invalid params\n", __func__);
+		return;
+	}
+
+	const struct nbio_hdp_flush_reg *nbio_hf_reg = ring->adev->nbio.hdp_flush_reg;
+
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp0 << ring->pipe;
+		*reg_mem_engine = 1; /* pfp */
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp2 << ring->pipe;
+		*reg_mem_engine = 0;
+		break;
+	case AMDGPU_RING_TYPE_MES:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp8;
+		*reg_mem_engine = 0;
+		break;
+	case AMDGPU_RING_TYPE_KIQ:
+		*hdp_flush_mask = nbio_hf_reg->ref_and_mask_cp9;
+		*reg_mem_engine = 0;
+		break;
+	default:
+		DRM_ERROR("%s:unsupported ring type %d\n", __func__, ring->funcs->type);
+		return;
+	}
 }
 
 int amdgpu_kiq_hdp_flush(struct amdgpu_device *adev)
@@ -1260,7 +1300,8 @@ failed_undo:
 failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_hdp_flush:
-	dev_err(adev->dev, "failed to flush HDP via KIQ\n");
+	if (!amdgpu_in_reset(adev))
+		dev_err(adev->dev, "failed to flush HDP via KIQ\n");
 	return r < 0 ? r : -EIO;
 }
 

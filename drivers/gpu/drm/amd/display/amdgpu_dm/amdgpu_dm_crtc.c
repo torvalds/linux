@@ -231,7 +231,7 @@ struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
 {
 	struct idle_workqueue *idle_work;
 
-	idle_work = kzalloc(sizeof(*idle_work), GFP_KERNEL);
+	idle_work = kzalloc_obj(*idle_work);
 	if (ZERO_OR_NULL_PTR(idle_work))
 		return NULL;
 
@@ -248,8 +248,6 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	struct vblank_control_work *vblank_work =
 		container_of(work, struct vblank_control_work, work);
 	struct amdgpu_display_manager *dm = vblank_work->dm;
-	struct amdgpu_device *adev = drm_to_adev(dm->ddev);
-	int r;
 
 	mutex_lock(&dm->dc_lock);
 
@@ -279,16 +277,7 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 
 	if (dm->active_vblank_irq_count == 0) {
 		dc_post_update_surfaces_to_stream(dm->dc);
-
-		r = amdgpu_dpm_pause_power_profile(adev, true);
-		if (r)
-			dev_warn(adev->dev, "failed to set default power profile mode\n");
-
 		dc_allow_idle_optimizations(dm->dc, true);
-
-		r = amdgpu_dpm_pause_power_profile(adev, false);
-		if (r)
-			dev_warn(adev->dev, "failed to restore the power profile mode\n");
 	}
 
 	mutex_unlock(&dm->dc_lock);
@@ -403,7 +392,7 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 		return 0;
 
 	if (dm->vblank_control_workqueue) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
+		work = kzalloc_obj(*work, GFP_ATOMIC);
 		if (!work)
 			return -ENOMEM;
 
@@ -458,7 +447,7 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 	if (WARN_ON(!crtc->state))
 		return NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -498,7 +487,7 @@ static void amdgpu_dm_crtc_reset_state(struct drm_crtc *crtc)
 	if (crtc->state)
 		amdgpu_dm_crtc_destroy_state(crtc, crtc->state);
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (WARN_ON(!state))
 		return;
 
@@ -739,14 +728,14 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	bool has_degamma;
 	int res = -ENOMEM;
 
-	cursor_plane = kzalloc(sizeof(*cursor_plane), GFP_KERNEL);
+	cursor_plane = kzalloc_obj(*cursor_plane);
 	if (!cursor_plane)
 		goto fail;
 
 	cursor_plane->type = DRM_PLANE_TYPE_CURSOR;
 	res = amdgpu_dm_plane_init(dm, cursor_plane, 0, NULL);
 
-	acrtc = kzalloc(sizeof(struct amdgpu_crtc), GFP_KERNEL);
+	acrtc = kzalloc_obj(struct amdgpu_crtc);
 	if (!acrtc)
 		goto fail;
 

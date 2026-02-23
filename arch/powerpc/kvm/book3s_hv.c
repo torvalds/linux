@@ -2790,7 +2790,7 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int id)
 {
 	struct kvmppc_vcore *vcore;
 
-	vcore = kzalloc(sizeof(struct kvmppc_vcore), GFP_KERNEL);
+	vcore = kzalloc_obj(struct kvmppc_vcore);
 
 	if (vcore == NULL)
 		return NULL;
@@ -2842,7 +2842,7 @@ static int debugfs_timings_open(struct inode *inode, struct file *file)
 	struct kvm_vcpu *vcpu = inode->i_private;
 	struct debugfs_timings_state *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 
@@ -5637,7 +5637,7 @@ void kvmppc_alloc_host_rm_ops(void)
 	if (kvmppc_host_rm_ops_hv != NULL)
 		return;
 
-	ops = kzalloc(sizeof(struct kvmppc_host_rm_ops), GFP_KERNEL);
+	ops = kzalloc_obj(struct kvmppc_host_rm_ops);
 	if (!ops)
 		return;
 
@@ -5960,7 +5960,7 @@ void kvmppc_free_pimap(struct kvm *kvm)
 
 static struct kvmppc_passthru_irqmap *kvmppc_alloc_pimap(void)
 {
-	return kzalloc(sizeof(struct kvmppc_passthru_irqmap), GFP_KERNEL);
+	return kzalloc_obj(struct kvmppc_passthru_irqmap);
 }
 
 static int kvmppc_set_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)

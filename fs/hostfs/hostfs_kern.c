@@ -1047,7 +1047,7 @@ static int hostfs_init_fs_context(struct fs_context *fc)
 {
 	struct hostfs_fs_info *fsi;
 
-	fsi = kzalloc(sizeof(*fsi), GFP_KERNEL);
+	fsi = kzalloc_obj(*fsi);
 	if (!fsi)
 		return -ENOMEM;
 

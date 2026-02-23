@@ -39,7 +39,7 @@ use core::ops::{Deref, DerefMut};
 /// fn set_clear_cpu(ptr: *mut bindings::cpumask, set_cpu: CpuId, clear_cpu: CpuId) {
 ///     // SAFETY: The `ptr` is valid for writing and remains valid for the lifetime of the
 ///     // returned reference.
-///     let mask = unsafe { Cpumask::as_mut_ref(ptr) };
+///     let mask = unsafe { Cpumask::from_raw_mut(ptr) };
 ///
 ///     mask.set(set_cpu);
 ///     mask.clear(clear_cpu);
@@ -49,13 +49,13 @@ use core::ops::{Deref, DerefMut};
 pub struct Cpumask(Opaque<bindings::cpumask>);
 
 impl Cpumask {
-    /// Creates a mutable reference to an existing `struct cpumask` pointer.
+    /// Creates a mutable reference from an existing `struct cpumask` pointer.
     ///
     /// # Safety
     ///
     /// The caller must ensure that `ptr` is valid for writing and remains valid for the lifetime
     /// of the returned reference.
-    pub unsafe fn as_mut_ref<'a>(ptr: *mut bindings::cpumask) -> &'a mut Self {
+    pub unsafe fn from_raw_mut<'a>(ptr: *mut bindings::cpumask) -> &'a mut Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
         // INVARIANT: The caller ensures that `ptr` is valid for writing and remains valid for the
@@ -63,13 +63,13 @@ impl Cpumask {
         unsafe { &mut *ptr.cast() }
     }
 
-    /// Creates a reference to an existing `struct cpumask` pointer.
+    /// Creates a reference from an existing `struct cpumask` pointer.
     ///
     /// # Safety
     ///
     /// The caller must ensure that `ptr` is valid for reading and remains valid for the lifetime
     /// of the returned reference.
-    pub unsafe fn as_ref<'a>(ptr: *const bindings::cpumask) -> &'a Self {
+    pub unsafe fn from_raw<'a>(ptr: *const bindings::cpumask) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         //
         // INVARIANT: The caller ensures that `ptr` is valid for reading and remains valid for the

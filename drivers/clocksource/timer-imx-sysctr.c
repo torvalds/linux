@@ -139,7 +139,7 @@ static int __init __sysctr_timer_init(struct device_node *np)
 	void __iomem *base;
 	int ret;
 
-	priv = kzalloc(sizeof(struct sysctr_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct sysctr_private);
 	if (!priv)
 		return -ENOMEM;
 

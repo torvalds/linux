@@ -443,7 +443,7 @@ static int davinci_spi_of_setup(struct spi_device *spi)
 	u32 prop;
 
 	if (spicfg == NULL && np) {
-		spicfg = kzalloc(sizeof(*spicfg), GFP_KERNEL);
+		spicfg = kzalloc_obj(*spicfg);
 		if (!spicfg)
 			return -ENOMEM;
 		*spicfg = davinci_spi_default_cfg;
@@ -988,7 +988,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	}
 
 	host->use_gpio_descriptors = true;
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = pdev->id;
 	host->num_chipselect = pdata->num_chipselect;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);

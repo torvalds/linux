@@ -320,7 +320,7 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 {
 	struct w1_f23_data *data;
 
-	data = kzalloc(sizeof(struct w1_f23_data), GFP_KERNEL);
+	data = kzalloc_obj(struct w1_f23_data);
 	if (!data)
 		return -ENOMEM;
 

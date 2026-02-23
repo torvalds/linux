@@ -1950,7 +1950,7 @@ subscribe_event_xa_alloc(struct mlx5_devx_event_table *devx_event_table,
 
 	event = xa_load(&devx_event_table->event_xa, key_level1);
 	if (!event) {
-		event = kzalloc(sizeof(*event), GFP_KERNEL);
+		event = kzalloc_obj(*event);
 		if (!event)
 			return -ENOMEM;
 
@@ -1972,7 +1972,7 @@ subscribe_event_xa_alloc(struct mlx5_devx_event_table *devx_event_table,
 
 	obj_event = xa_load(&event->object_ids, key_level2);
 	if (!obj_event) {
-		obj_event = kzalloc(sizeof(*obj_event), GFP_KERNEL);
+		obj_event = kzalloc_obj(*obj_event);
 		if (!obj_event)
 			/* Level1 is valid for future use, no need to free */
 			return -ENOMEM;
@@ -2697,7 +2697,7 @@ void mlx5_ib_ufile_hw_cleanup(struct ib_uverbs_file *ufile)
 	int head = 0;
 	int tail = 0;
 
-	async_cmd = kcalloc(MAX_ASYNC_CMDS, sizeof(*async_cmd), GFP_KERNEL);
+	async_cmd = kzalloc_objs(*async_cmd, MAX_ASYNC_CMDS);
 	if (!async_cmd)
 		return;
 

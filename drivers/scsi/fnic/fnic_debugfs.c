@@ -200,7 +200,7 @@ static int fnic_trace_debugfs_open(struct inode *inode,
 	fnic_dbgfs_t *fnic_dbg_prt;
 	u8 *rdata_ptr;
 	rdata_ptr = (u8 *)inode->i_private;
-	fnic_dbg_prt = kzalloc(sizeof(fnic_dbgfs_t), GFP_KERNEL);
+	fnic_dbg_prt = kzalloc_obj(fnic_dbgfs_t);
 	if (!fnic_dbg_prt)
 		return -ENOMEM;
 
@@ -436,7 +436,7 @@ static int fnic_reset_stats_open(struct inode *inode, struct file *file)
 {
 	struct stats_debug_info *debug;
 
-	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
+	debug = kzalloc_obj(struct stats_debug_info);
 	if (!debug)
 		return -ENOMEM;
 
@@ -583,7 +583,7 @@ static int fnic_stats_debugfs_open(struct inode *inode,
 	struct stats_debug_info *debug;
 	int buf_size = 2 * PAGE_SIZE;
 
-	debug = kzalloc(sizeof(struct stats_debug_info), GFP_KERNEL);
+	debug = kzalloc_obj(struct stats_debug_info);
 	if (!debug)
 		return -ENOMEM;
 

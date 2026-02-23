@@ -531,7 +531,7 @@ static int init_volumes(struct ubi_device *ubi,
 		if (be32_to_cpu(vtbl[i].reserved_pebs) == 0)
 			continue; /* Empty record */
 
-		vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
+		vol = kzalloc_obj(struct ubi_volume);
 		if (!vol)
 			return -ENOMEM;
 
@@ -623,7 +623,7 @@ static int init_volumes(struct ubi_device *ubi,
 	}
 
 	/* And add the layout volume */
-	vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
+	vol = kzalloc_obj(struct ubi_volume);
 	if (!vol)
 		return -ENOMEM;
 

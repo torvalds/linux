@@ -341,7 +341,7 @@ static int bridge_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (nr_irqs > 1 || !info)
 		return -EINVAL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

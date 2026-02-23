@@ -132,6 +132,11 @@
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
 #define PCI_SUBORDINATE_BUS	0x1a	/* Highest bus number behind the bridge */
 #define PCI_SEC_LATENCY_TIMER	0x1b	/* Latency timer for secondary interface */
+/* Masks for dword-sized processing of Bus Number and Sec Latency Timer fields */
+#define  PCI_PRIMARY_BUS_MASK		0x000000ff
+#define  PCI_SECONDARY_BUS_MASK		0x0000ff00
+#define  PCI_SUBORDINATE_BUS_MASK	0x00ff0000
+#define  PCI_SEC_LATENCY_TIMER_MASK	0xff000000
 #define PCI_IO_BASE		0x1c	/* I/O range behind the bridge */
 #define PCI_IO_LIMIT		0x1d
 #define  PCI_IO_RANGE_TYPE_MASK	0x0fUL	/* I/O bridging type */
@@ -1253,11 +1258,6 @@
 #define PCI_DEV3_STA		0x0c	/* Device 3 Status Register */
 #define  PCI_DEV3_STA_SEGMENT	0x8	/* Segment Captured (end-to-end flit-mode detected) */
 
-/* Compute Express Link (CXL r3.1, sec 8.1.5) */
-#define PCI_DVSEC_CXL_PORT				3
-#define PCI_DVSEC_CXL_PORT_CTL				0x0c
-#define PCI_DVSEC_CXL_PORT_CTL_UNMASK_SBR		0x00000001
-
 /* Integrity and Data Encryption Extended Capability */
 #define PCI_IDE_CAP			0x04
 #define  PCI_IDE_CAP_LINK		0x1  /* Link IDE Stream Supported */
@@ -1337,5 +1337,64 @@
 /* IDE Address Association Register 3 is "Memory Base Upper" */
 #define  PCI_IDE_SEL_ADDR_3(x)		(28 + (x) * PCI_IDE_SEL_ADDR_BLOCK_SIZE)
 #define PCI_IDE_SEL_BLOCK_SIZE(nr_assoc)  (20 + PCI_IDE_SEL_ADDR_BLOCK_SIZE * (nr_assoc))
+
+/*
+ * Compute Express Link (CXL r4.0, sec 8.1)
+ *
+ * Note that CXL DVSEC id 3 and 7 to be ignored when the CXL link state
+ * is "disconnected" (CXL r4.0, sec 9.12.3). Re-enumerate these
+ * registers on downstream link-up events.
+ */
+
+/* CXL r4.0, 8.1.3: PCIe DVSEC for CXL Device */
+#define PCI_DVSEC_CXL_DEVICE				0
+#define  PCI_DVSEC_CXL_CAP				0xA
+#define   PCI_DVSEC_CXL_MEM_CAPABLE			_BITUL(2)
+#define   PCI_DVSEC_CXL_HDM_COUNT			__GENMASK(5, 4)
+#define  PCI_DVSEC_CXL_CTRL				0xC
+#define   PCI_DVSEC_CXL_MEM_ENABLE			_BITUL(2)
+#define  PCI_DVSEC_CXL_RANGE_SIZE_HIGH(i)		(0x18 + (i * 0x10))
+#define  PCI_DVSEC_CXL_RANGE_SIZE_LOW(i)		(0x1C + (i * 0x10))
+#define   PCI_DVSEC_CXL_MEM_INFO_VALID			_BITUL(0)
+#define   PCI_DVSEC_CXL_MEM_ACTIVE			_BITUL(1)
+#define   PCI_DVSEC_CXL_MEM_SIZE_LOW			__GENMASK(31, 28)
+#define  PCI_DVSEC_CXL_RANGE_BASE_HIGH(i)		(0x20 + (i * 0x10))
+#define  PCI_DVSEC_CXL_RANGE_BASE_LOW(i)		(0x24 + (i * 0x10))
+#define   PCI_DVSEC_CXL_MEM_BASE_LOW			__GENMASK(31, 28)
+
+#define CXL_DVSEC_RANGE_MAX				2
+
+/* CXL r4.0, 8.1.4: Non-CXL Function Map DVSEC */
+#define PCI_DVSEC_CXL_FUNCTION_MAP			2
+
+/* CXL r4.0, 8.1.5: Extensions DVSEC for Ports */
+#define PCI_DVSEC_CXL_PORT				3
+#define  PCI_DVSEC_CXL_PORT_CTL				0x0c
+#define   PCI_DVSEC_CXL_PORT_CTL_UNMASK_SBR		0x00000001
+
+/* CXL r4.0, 8.1.6: GPF DVSEC for CXL Port */
+#define PCI_DVSEC_CXL_PORT_GPF				4
+#define  PCI_DVSEC_CXL_PORT_GPF_PHASE_1_CONTROL		0x0C
+#define   PCI_DVSEC_CXL_PORT_GPF_PHASE_1_TMO_BASE	__GENMASK(3, 0)
+#define   PCI_DVSEC_CXL_PORT_GPF_PHASE_1_TMO_SCALE	__GENMASK(11, 8)
+#define  PCI_DVSEC_CXL_PORT_GPF_PHASE_2_CONTROL		0xE
+#define   PCI_DVSEC_CXL_PORT_GPF_PHASE_2_TMO_BASE	__GENMASK(3, 0)
+#define   PCI_DVSEC_CXL_PORT_GPF_PHASE_2_TMO_SCALE	__GENMASK(11, 8)
+
+/* CXL r4.0, 8.1.7: GPF DVSEC for CXL Device */
+#define PCI_DVSEC_CXL_DEVICE_GPF			5
+
+/* CXL r4.0, 8.1.8: Flex Bus DVSEC */
+#define PCI_DVSEC_CXL_FLEXBUS_PORT			7
+#define  PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS		0xE
+#define   PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS_CACHE	_BITUL(0)
+#define   PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS_MEM		_BITUL(2)
+
+/* CXL r4.0, 8.1.9: Register Locator DVSEC */
+#define PCI_DVSEC_CXL_REG_LOCATOR			8
+#define  PCI_DVSEC_CXL_REG_LOCATOR_BLOCK1		0xC
+#define   PCI_DVSEC_CXL_REG_LOCATOR_BIR			__GENMASK(2, 0)
+#define   PCI_DVSEC_CXL_REG_LOCATOR_BLOCK_ID		__GENMASK(15, 8)
+#define   PCI_DVSEC_CXL_REG_LOCATOR_BLOCK_OFF_LOW	__GENMASK(31, 16)
 
 #endif /* LINUX_PCI_REGS_H */

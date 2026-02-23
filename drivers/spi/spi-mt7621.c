@@ -348,7 +348,6 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	host->set_cs = mt7621_spi_set_native_cs;
 	host->transfer_one = mt7621_spi_transfer_one;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = pdev->dev.of_node;
 	host->max_native_cs = MT7621_NATIVE_CS_COUNT;
 	host->num_chipselect = MT7621_NATIVE_CS_COUNT;
 	host->use_gpio_descriptors = true;

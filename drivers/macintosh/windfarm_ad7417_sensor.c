@@ -260,7 +260,7 @@ static int wf_ad7417_probe(struct i2c_client *client)
 		return -ENXIO;
 	}
 
-	pv = kzalloc(sizeof(struct wf_ad7417_priv), GFP_KERNEL);
+	pv = kzalloc_obj(struct wf_ad7417_priv);
 	if (pv == NULL)
 		return -ENODEV;
 

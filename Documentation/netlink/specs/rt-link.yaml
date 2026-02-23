@@ -1914,6 +1914,9 @@ attribute-sets:
         name: port-range
         type: binary
         struct: ifla-geneve-port-range
+      -
+        name: gro-hint
+        type: flag
   -
     name: linkinfo-hsr-attrs
     name-prefix: ifla-hsr-

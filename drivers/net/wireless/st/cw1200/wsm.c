@@ -922,7 +922,7 @@ static int wsm_event_indication(struct cw1200_common *priv, struct wsm_buf *buf)
 		return 0;
 	}
 
-	event = kzalloc(sizeof(struct cw1200_wsm_event), GFP_KERNEL);
+	event = kzalloc_obj(struct cw1200_wsm_event);
 	if (!event)
 		return -ENOMEM;
 

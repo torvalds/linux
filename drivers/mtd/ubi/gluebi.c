@@ -281,7 +281,7 @@ static int gluebi_create(struct ubi_device_info *di,
 	struct gluebi_device *gluebi, *g;
 	struct mtd_info *mtd;
 
-	gluebi = kzalloc(sizeof(struct gluebi_device), GFP_KERNEL);
+	gluebi = kzalloc_obj(struct gluebi_device);
 	if (!gluebi)
 		return -ENOMEM;
 

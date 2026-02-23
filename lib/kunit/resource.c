@@ -98,7 +98,7 @@ int kunit_add_action(struct kunit *test, void (*action)(void *), void *ctx)
 
 	KUNIT_ASSERT_NOT_NULL_MSG(test, action, "Tried to action a NULL function!");
 
-	action_ctx = kzalloc(sizeof(*action_ctx), GFP_KERNEL);
+	action_ctx = kzalloc_obj(*action_ctx);
 	if (!action_ctx)
 		return -ENOMEM;
 

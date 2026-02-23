@@ -104,7 +104,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks,
 	struct clk *clk;
 
 	for (i = 0; i < nb_clks; i++) {
-		pxa_clk = kzalloc(sizeof(*pxa_clk), GFP_KERNEL);
+		pxa_clk = kzalloc_obj(*pxa_clk);
 		if (!pxa_clk)
 			return -ENOMEM;
 		pxa_clk->is_in_low_power = clks[i].is_in_low_power;

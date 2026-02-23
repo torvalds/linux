@@ -360,8 +360,7 @@ static const struct file_operations fops_wsm_dumps = {
 int cw1200_debug_init(struct cw1200_common *priv)
 {
 	int ret = -ENOMEM;
-	struct cw1200_debug_priv *d = kzalloc(sizeof(struct cw1200_debug_priv),
-			GFP_KERNEL);
+	struct cw1200_debug_priv *d = kzalloc_obj(struct cw1200_debug_priv);
 	priv->debug = d;
 	if (!d)
 		return ret;

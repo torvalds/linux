@@ -79,7 +79,7 @@ static struct pcistub_device *pcistub_device_alloc(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "pcistub_device_alloc\n");
 
-	psdev = kzalloc(sizeof(*psdev), GFP_KERNEL);
+	psdev = kzalloc_obj(*psdev);
 	if (!psdev)
 		return NULL;
 
@@ -623,7 +623,7 @@ static int pcistub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		}
 
 		if (!match) {
-			pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_KERNEL);
+			pci_dev_id = kmalloc_obj(*pci_dev_id);
 			if (!pci_dev_id) {
 				err = -ENOMEM;
 				goto out;
@@ -1129,7 +1129,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 	    || PCI_FUNC(devfn) != func)
 		return -EINVAL;
 
-	pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_KERNEL);
+	pci_dev_id = kmalloc_obj(*pci_dev_id);
 	if (!pci_dev_id)
 		return -ENOMEM;
 
@@ -1189,7 +1189,7 @@ static int pcistub_reg_add(int domain, int bus, int slot, int func,
 	}
 	dev = psdev->dev;
 
-	field = kzalloc(sizeof(*field), GFP_KERNEL);
+	field = kzalloc_obj(*field);
 	if (!field) {
 		err = -ENOMEM;
 		goto out;

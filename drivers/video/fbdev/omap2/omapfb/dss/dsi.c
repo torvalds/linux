@@ -1539,7 +1539,7 @@ static void dsi_dump_dsidev_irqs(struct platform_device *dsidev,
 	unsigned long flags;
 	struct dsi_irq_stats *stats;
 
-	stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+	stats = kzalloc_obj(*stats);
 	if (!stats) {
 		seq_printf(s, "out of memory\n");
 		return;

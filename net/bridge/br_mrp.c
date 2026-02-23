@@ -516,7 +516,7 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 	    !br_mrp_unique_ifindex(br, instance->s_ifindex))
 		return -EINVAL;
 
-	mrp = kzalloc(sizeof(*mrp), GFP_KERNEL);
+	mrp = kzalloc_obj(*mrp);
 	if (!mrp)
 		return -ENOMEM;
 

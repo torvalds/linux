@@ -314,7 +314,7 @@ struct drm_gem_object *pvr_gem_create_object(struct drm_device *drm_dev, size_t 
 	struct drm_gem_object *gem_obj;
 	struct pvr_gem_object *pvr_obj;
 
-	pvr_obj = kzalloc(sizeof(*pvr_obj), GFP_KERNEL);
+	pvr_obj = kzalloc_obj(*pvr_obj);
 	if (!pvr_obj)
 		return ERR_PTR(-ENOMEM);
 

@@ -624,7 +624,7 @@ static int mxc_isi_m2m_open(struct file *file)
 	struct mxc_isi_m2m_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

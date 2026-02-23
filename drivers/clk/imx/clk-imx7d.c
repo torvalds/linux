@@ -382,8 +382,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	struct device_node *np;
 	void __iomem *base;
 
-	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
-					  IMX7D_CLK_END), GFP_KERNEL);
+	clk_hw_data = kzalloc_flex(*clk_hw_data, hws, IMX7D_CLK_END);
 	if (WARN_ON(!clk_hw_data))
 		return;
 

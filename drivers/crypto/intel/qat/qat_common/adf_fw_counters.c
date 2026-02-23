@@ -83,7 +83,7 @@ static struct adf_fw_counters *adf_fw_counters_allocate(unsigned long ae_count)
 	if (unlikely(!ae_count))
 		return ERR_PTR(-EINVAL);
 
-	fw_counters = kmalloc(struct_size(fw_counters, ae_counters, ae_count), GFP_KERNEL);
+	fw_counters = kmalloc_flex(*fw_counters, ae_counters, ae_count);
 	if (!fw_counters)
 		return ERR_PTR(-ENOMEM);
 

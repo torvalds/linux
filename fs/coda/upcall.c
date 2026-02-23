@@ -724,7 +724,7 @@ static int coda_upcall(struct venus_comm *vcp,
 	}
 
 	/* Format the request message. */
-	req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
+	req = kmalloc_obj(struct upc_req);
 	if (!req) {
 		error = -ENOMEM;
 		goto exit;
@@ -788,10 +788,10 @@ static int coda_upcall(struct venus_comm *vcp,
 	}
 
 	error = -ENOMEM;
-	sig_req = kmalloc(sizeof(struct upc_req), GFP_KERNEL);
+	sig_req = kmalloc_obj(struct upc_req);
 	if (!sig_req) goto exit;
 
-	sig_inputArgs = kvzalloc(sizeof(*sig_inputArgs), GFP_KERNEL);
+	sig_inputArgs = kvzalloc_obj(*sig_inputArgs);
 	if (!sig_inputArgs) {
 		kfree(sig_req);
 		goto exit;

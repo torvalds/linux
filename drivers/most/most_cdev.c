@@ -429,7 +429,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	if (current_minor < 0)
 		return current_minor;
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc_obj(*c);
 	if (!c) {
 		retval = -ENOMEM;
 		goto err_remove_ida;

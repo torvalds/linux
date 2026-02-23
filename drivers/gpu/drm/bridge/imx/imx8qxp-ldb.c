@@ -62,6 +62,18 @@ static inline struct imx8qxp_ldb *base_to_imx8qxp_ldb(struct ldb *base)
 	return container_of(base, struct imx8qxp_ldb, base);
 }
 
+static void imx8qxp_ldb_bridge_destroy(struct drm_bridge *bridge)
+{
+	struct ldb_channel *ldb_ch = bridge->driver_private;
+	struct imx8qxp_ldb *imx8qxp_ldb;
+
+	if (!ldb_ch)
+		return;
+
+	imx8qxp_ldb = base_to_imx8qxp_ldb(ldb_ch->ldb);
+	drm_bridge_put(imx8qxp_ldb->companion);
+}
+
 static void imx8qxp_ldb_set_phy_cfg(struct imx8qxp_ldb *imx8qxp_ldb,
 				    unsigned long di_clk, bool is_split,
 				    struct phy_configure_opts_lvds *phy_cfg)
@@ -282,9 +294,7 @@ static void imx8qxp_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (is_split && companion)
 		companion->funcs->atomic_disable(companion, state);
 
-	ret = pm_runtime_put(dev);
-	if (ret < 0)
-		DRM_DEV_ERROR(dev, "failed to put runtime PM: %d\n", ret);
+	pm_runtime_put(dev);
 }
 
 static const u32 imx8qxp_ldb_bus_output_fmts[] = {
@@ -323,7 +333,7 @@ imx8qxp_ldb_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 
 	*num_input_fmts = 1;
 
-	input_fmts = kmalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kmalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 
@@ -391,6 +401,7 @@ imx8qxp_ldb_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs imx8qxp_ldb_bridge_funcs = {
+	.destroy		= imx8qxp_ldb_bridge_destroy,
 	.atomic_duplicate_state	= drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset		= drm_atomic_helper_bridge_reset,
@@ -552,7 +563,7 @@ static int imx8qxp_ldb_parse_dt_companion(struct imx8qxp_ldb *imx8qxp_ldb)
 		goto out;
 	}
 
-	imx8qxp_ldb->companion = of_drm_find_bridge(companion_port);
+	imx8qxp_ldb->companion = of_drm_find_and_get_bridge(companion_port);
 	if (!imx8qxp_ldb->companion) {
 		ret = -EPROBE_DEFER;
 		DRM_DEV_DEBUG_DRIVER(dev,

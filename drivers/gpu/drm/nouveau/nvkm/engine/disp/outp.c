@@ -379,7 +379,7 @@ nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
 	enum nvkm_ior_proto proto;
 	enum nvkm_ior_type type;
 
-	if (!(outp = *poutp = kzalloc(sizeof(*outp), GFP_KERNEL)))
+	if (!(outp = *poutp = kzalloc_obj(*outp)))
 		return -ENOMEM;
 
 	outp->func = func;

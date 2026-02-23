@@ -218,7 +218,7 @@ struct dvb_frontend *stb6000_attach(struct dvb_frontend *fe, int addr,
 	if (ret != 2)
 		return NULL;
 
-	priv = kzalloc(sizeof(struct stb6000_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct stb6000_priv);
 	if (priv == NULL)
 		return NULL;
 

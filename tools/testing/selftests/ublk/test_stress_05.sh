@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
-TID="stress_05"
 ERR_CODE=0
 
 if ! _have_program fio; then

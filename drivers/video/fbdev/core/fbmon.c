@@ -32,11 +32,13 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <video/edid.h>
+#include <linux/string_choices.h>
+#include <linux/sysfb.h>
+
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
 #include "../edid.h"
-#include <linux/string_choices.h>
 
 /*
  * EDID parser
@@ -386,7 +388,7 @@ static void calc_mode_timings(int xres, int yres, int refresh,
 {
 	struct fb_var_screeninfo *var;
 
-	var = kzalloc(sizeof(struct fb_var_screeninfo), GFP_KERNEL);
+	var = kzalloc_obj(struct fb_var_screeninfo);
 
 	if (var) {
 		var->xres = xres;
@@ -624,7 +626,7 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
 	int num = 0, i, first = 1;
 	int ver, rev;
 
-	mode = kcalloc(50, sizeof(struct fb_videomode), GFP_KERNEL);
+	mode = kzalloc_objs(struct fb_videomode, 50);
 	if (mode == NULL)
 		return NULL;
 
@@ -675,7 +677,7 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize,
 	}
 
 	*dbsize = num;
-	m = kmalloc_array(num, sizeof(struct fb_videomode), GFP_KERNEL);
+	m = kmalloc_objs(struct fb_videomode, num);
 	if (!m)
 		return mode;
 	memmove(m, mode, num * sizeof(struct fb_videomode));
@@ -1222,7 +1224,7 @@ int fb_get_mode(int flags, u32 val, struct fb_var_screeninfo *var, struct fb_inf
 	u32 hfmin, hfmax, vfmin, vfmax, dclkmin, dclkmax, err = 0;
 
 
-	timings = kzalloc(sizeof(struct __fb_timings), GFP_KERNEL);
+	timings = kzalloc_obj(struct __fb_timings);
 
 	if (!timings)
 		return -ENOMEM;
@@ -1504,7 +1506,7 @@ const unsigned char *fb_firmware_edid(struct device *device)
 		res = &dev->resource[PCI_ROM_RESOURCE];
 
 	if (res && res->flags & IORESOURCE_ROM_SHADOW)
-		edid = edid_info.dummy;
+		edid = sysfb_primary_display.edid.dummy;
 
 	return edid;
 }

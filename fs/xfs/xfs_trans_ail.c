@@ -4,7 +4,7 @@
  * Copyright (c) 2008 Dave Chinner
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -922,8 +922,7 @@ xfs_trans_ail_init(
 {
 	struct xfs_ail	*ailp;
 
-	ailp = kzalloc(sizeof(struct xfs_ail),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	ailp = kzalloc_obj(struct xfs_ail, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!ailp)
 		return -ENOMEM;
 

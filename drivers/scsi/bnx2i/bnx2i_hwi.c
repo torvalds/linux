@@ -1925,7 +1925,7 @@ static int bnx2i_queue_scsi_cmd_resp(struct iscsi_session *session,
 		goto err;
 	}
 	/* Alloc and copy to the cqe */
-	bnx2i_work = kzalloc(sizeof(struct bnx2i_work), GFP_ATOMIC);
+	bnx2i_work = kzalloc_obj(struct bnx2i_work, GFP_ATOMIC);
 	if (bnx2i_work) {
 		INIT_LIST_HEAD(&bnx2i_work->list);
 		bnx2i_work->session = session;

@@ -1196,7 +1196,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	uint32_t data32;
 	struct solos_card *card;
 
-	card = kzalloc(sizeof(*card), GFP_KERNEL);
+	card = kzalloc_obj(*card);
 	if (!card)
 		return -ENOMEM;
 

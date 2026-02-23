@@ -382,7 +382,7 @@ static struct vimc_ent_device *vimc_sensor_add(struct vimc_device *vimc,
 	int ret;
 
 	/* Allocate the vsensor struct */
-	vsensor = kzalloc(sizeof(*vsensor), GFP_KERNEL);
+	vsensor = kzalloc_obj(*vsensor);
 	if (!vsensor)
 		return ERR_PTR(-ENOMEM);
 

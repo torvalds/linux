@@ -946,6 +946,20 @@ void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt)
 }
 EXPORT_SYMBOL_GPL(nbcon_reacquire_nobuf);
 
+#ifdef CONFIG_PRINTK_EXECUTION_CTX
+static void wctxt_load_execution_ctx(struct nbcon_write_context *wctxt,
+				     struct printk_message *pmsg)
+{
+	wctxt->cpu = pmsg->cpu;
+	wctxt->pid = pmsg->pid;
+	memcpy(wctxt->comm, pmsg->comm, sizeof(wctxt->comm));
+	static_assert(sizeof(wctxt->comm) == sizeof(pmsg->comm));
+}
+#else
+static void wctxt_load_execution_ctx(struct nbcon_write_context *wctxt,
+				     struct printk_message *pmsg) {}
+#endif
+
 /**
  * nbcon_emit_next_record - Emit a record in the acquired context
  * @wctxt:	The write context that will be handed to the write function
@@ -1047,6 +1061,8 @@ static bool nbcon_emit_next_record(struct nbcon_write_context *wctxt, bool use_a
 
 	/* Initialize the write context for driver callbacks. */
 	nbcon_write_context_set_buf(wctxt, &pmsg.pbufs->outbuf[0], pmsg.outbuf_len);
+
+	wctxt_load_execution_ctx(wctxt, &pmsg);
 
 	if (use_atomic)
 		con->write_atomic(con, wctxt);
@@ -1557,18 +1573,27 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq)
 	ctxt->allow_unsafe_takeover	= nbcon_allow_unsafe_takeover();
 
 	while (nbcon_seq_read(con) < stop_seq) {
-		if (!nbcon_context_try_acquire(ctxt, false))
-			return -EPERM;
-
 		/*
-		 * nbcon_emit_next_record() returns false when the console was
-		 * handed over or taken over. In both cases the context is no
-		 * longer valid.
+		 * Atomic flushing does not use console driver synchronization
+		 * (i.e. it does not hold the port lock for uart consoles).
+		 * Therefore IRQs must be disabled to avoid being interrupted
+		 * and then calling into a driver that will deadlock trying
+		 * to acquire console ownership.
 		 */
-		if (!nbcon_emit_next_record(&wctxt, true))
-			return -EAGAIN;
+		scoped_guard(irqsave) {
+			if (!nbcon_context_try_acquire(ctxt, false))
+				return -EPERM;
 
-		nbcon_context_release(ctxt);
+			/*
+			 * nbcon_emit_next_record() returns false when
+			 * the console was handed over or taken over.
+			 * In both cases the context is no longer valid.
+			 */
+			if (!nbcon_emit_next_record(&wctxt, true))
+				return -EAGAIN;
+
+			nbcon_context_release(ctxt);
+		}
 
 		if (!ctxt->backlog) {
 			/* Are there reserved but not yet finalized records? */
@@ -1595,21 +1620,10 @@ static int __nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq)
 static void nbcon_atomic_flush_pending_con(struct console *con, u64 stop_seq)
 {
 	struct console_flush_type ft;
-	unsigned long flags;
 	int err;
 
 again:
-	/*
-	 * Atomic flushing does not use console driver synchronization (i.e.
-	 * it does not hold the port lock for uart consoles). Therefore IRQs
-	 * must be disabled to avoid being interrupted and then calling into
-	 * a driver that will deadlock trying to acquire console ownership.
-	 */
-	local_irq_save(flags);
-
 	err = __nbcon_atomic_flush_pending_con(con, stop_seq);
-
-	local_irq_restore(flags);
 
 	/*
 	 * If there was a new owner (-EPERM, -EAGAIN), that context is
@@ -1760,9 +1774,12 @@ bool nbcon_alloc(struct console *con)
 	/* Synchronize the kthread start. */
 	lockdep_assert_console_list_lock_held();
 
-	/* The write_thread() callback is mandatory. */
-	if (WARN_ON(!con->write_thread))
+	/* Check for mandatory nbcon callbacks. */
+	if (WARN_ON(!con->write_thread ||
+		    !con->device_lock ||
+		    !con->device_unlock)) {
 		return false;
+	}
 
 	rcuwait_init(&con->rcuwait);
 	init_irq_work(&con->irq_work, nbcon_irq_work);
@@ -1784,7 +1801,7 @@ bool nbcon_alloc(struct console *con)
 		 */
 		con->pbufs = &printk_shared_pbufs;
 	} else {
-		con->pbufs = kmalloc(sizeof(*con->pbufs), GFP_KERNEL);
+		con->pbufs = kmalloc_obj(*con->pbufs);
 		if (!con->pbufs) {
 			con_printk(KERN_ERR, con, "failed to allocate printing buffer\n");
 			return false;

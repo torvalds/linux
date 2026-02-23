@@ -84,7 +84,7 @@ static int __init ebsa285_leds_init(void)
 	for (i = 0; i < ARRAY_SIZE(ebsa285_leds); i++) {
 		struct ebsa285_led *led;
 
-		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		led = kzalloc_obj(*led);
 		if (!led)
 			break;
 

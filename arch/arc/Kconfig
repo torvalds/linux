@@ -121,7 +121,6 @@ choice
 config ARC_CPU_770
 	bool "ARC770"
 	depends on ISA_ARCOMPACT
-	select ARC_HAS_SWAPE
 	help
 	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
 	  This core has a bunch of cool new features:
@@ -339,10 +338,6 @@ config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
 	depends on !ARC_CANT_LLSC
-
-config ARC_HAS_SWAPE
-	bool "Insn: SWAPE (endian-swap)"
-	default y
 
 if ISA_ARCV2
 

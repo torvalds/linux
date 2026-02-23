@@ -81,7 +81,7 @@ static int raid_setup(struct transport_container *tc, struct device *dev,
 
 	BUG_ON(dev_get_drvdata(cdev));
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return -ENOMEM;
 
@@ -212,8 +212,7 @@ raid_attr_ro_state_fn(state);
 struct raid_template *
 raid_class_attach(struct raid_function_template *ft)
 {
-	struct raid_internal *i = kzalloc(sizeof(struct raid_internal),
-					  GFP_KERNEL);
+	struct raid_internal *i = kzalloc_obj(struct raid_internal);
 	int count = 0;
 
 	if (unlikely(!i))

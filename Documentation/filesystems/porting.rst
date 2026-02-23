@@ -448,11 +448,8 @@ a file off.
 
 **mandatory**
 
-->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
-a matter of switching from calling ``get_sb_``... to ``mount_``... and changing
-the function type.  If you were doing it manually, just switch from setting
-->mnt_root to some pointer to returning that pointer.  On errors return
-ERR_PTR(...).
+->get_sb() and ->mount() are gone. Switch to using the new mount API. See
+Documentation/filesystems/mount_api.rst for more details.
 
 ---
 
@@ -1334,3 +1331,33 @@ end_creating() and the parent will be unlocked precisely when necessary.
 
 kill_litter_super() is gone; convert to DCACHE_PERSISTENT use (as all
 in-tree filesystems have done).
+
+---
+
+**mandatory**
+
+The ->setlease() file_operation must now be explicitly set in order to provide
+support for leases. When set to NULL, the kernel will now return -EINVAL to
+attempts to set a lease. Filesystems that wish to use the kernel-internal lease
+implementation should set it to generic_setlease().
+
+---
+
+**mandatory**
+
+fs/namei.c primitives that consume filesystem references (do_renameat2(),
+do_linkat(), do_symlinkat(), do_mkdirat(), do_mknodat(), do_unlinkat()
+and do_rmdir()) are gone; they are replaced with non-consuming analogues
+(filename_renameat2(), etc.)
+Callers are adjusted - responsibility for dropping the filenames belongs
+to them now.
+
+---
+
+**mandatory**
+
+readlink_copy() now requires link length as the 4th argument. Said length needs
+to match what strlen() would return if it was ran on the string.
+
+However, if the string is freely accessible for the duration of inode's
+lifetime, consider using inode_set_cached_link() instead.

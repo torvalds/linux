@@ -316,7 +316,9 @@ static struct nfc_llcp_local *nfc_llcp_remove_local(struct nfc_dev *dev)
 	spin_lock(&llcp_devices_lock);
 	list_for_each_entry_safe(local, tmp, &llcp_devices, list)
 		if (local->dev == dev) {
-			list_del(&local->list);
+			spin_lock(&local->tx_queue.lock);
+			list_del_init(&local->list);
+			spin_unlock(&local->tx_queue.lock);
 			spin_unlock(&llcp_devices_lock);
 			return local;
 		}
@@ -1619,7 +1621,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 {
 	struct nfc_llcp_local *local;
 
-	local = kzalloc(sizeof(struct nfc_llcp_local), GFP_KERNEL);
+	local = kzalloc_obj(struct nfc_llcp_local);
 	if (local == NULL)
 		return -ENOMEM;
 

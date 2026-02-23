@@ -77,7 +77,7 @@ ivpu_create_userptr_dmabuf(struct ivpu_device *vdev, void __user *user_ptr,
 	if (!(flags & DRM_IVPU_BO_READ_ONLY))
 		gup_flags |= FOLL_WRITE;
 
-	pages = kvmalloc_array(nr_pages, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, nr_pages);
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 
@@ -94,7 +94,7 @@ ivpu_create_userptr_dmabuf(struct ivpu_device *vdev, void __user *user_ptr,
 		goto unpin_pages;
 	}
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto unpin_pages;

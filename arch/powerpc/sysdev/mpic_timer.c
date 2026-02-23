@@ -464,7 +464,7 @@ static void __init timer_group_init(struct device_node *np)
 	unsigned int i = 0;
 	int ret;
 
-	priv = kzalloc(sizeof(struct timer_group_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct timer_group_priv);
 	if (!priv) {
 		pr_err("%pOF: cannot allocate memory for group.\n", np);
 		return;

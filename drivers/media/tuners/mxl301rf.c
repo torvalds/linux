@@ -289,7 +289,7 @@ static int mxl301rf_probe(struct i2c_client *client)
 	struct mxl301rf_config *cfg;
 	struct dvb_frontend *fe;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

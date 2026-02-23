@@ -944,7 +944,7 @@ static int __init control_of_init(struct device_node *dp)
 		printk(KERN_ERR "can't get 2 addresses for control\n");
 		return -ENXIO;
 	}
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 	control_fb = p;	/* save it for cleanups */

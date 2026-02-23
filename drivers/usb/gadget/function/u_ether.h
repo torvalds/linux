@@ -38,6 +38,31 @@
 
 struct eth_dev;
 
+/**
+ * struct gether_opts - Options for Ethernet gadget function instances
+ * @name: Pattern for the network interface name (e.g., "usb%d").
+ *        Used to generate the net device name.
+ * @qmult: Queue length multiplier for high/super speed.
+ * @host_mac: The MAC address to be used by the host side.
+ * @dev_mac: The MAC address to be used by the device side.
+ * @ifname_set: True if the interface name pattern has been set by userspace.
+ * @addr_assign_type: The method used for assigning the device MAC address
+ *                    (e.g., NET_ADDR_RANDOM, NET_ADDR_SET).
+ *
+ * This structure caches network-related settings provided through configfs
+ * before the net_device is fully instantiated. This allows for early
+ * configuration while deferring net_device allocation until the function
+ * is bound.
+ */
+struct gether_opts {
+	char			name[IFNAMSIZ];
+	unsigned int		qmult;
+	u8			host_mac[ETH_ALEN];
+	u8			dev_mac[ETH_ALEN];
+	bool			ifname_set;
+	unsigned char		addr_assign_type;
+};
+
 /*
  * This represents the USB side of an "ethernet" link, managed by a USB
  * function which provides control and (maybe) framing.  Two functions
@@ -258,6 +283,11 @@ int gether_get_ifname(struct net_device *net, char *name, int len);
 int gether_set_ifname(struct net_device *net, const char *name, int len);
 
 void gether_cleanup(struct eth_dev *dev);
+void gether_unregister_free_netdev(struct net_device *net);
+DEFINE_FREE(free_gether_netdev, struct net_device *, gether_unregister_free_netdev(_T));
+
+void gether_setup_opts_default(struct gether_opts *opts, const char *name);
+void gether_apply_opts(struct net_device *net, struct gether_opts *opts);
 
 void gether_suspend(struct gether *link);
 void gether_resume(struct gether *link);

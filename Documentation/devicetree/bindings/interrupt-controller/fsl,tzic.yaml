@@ -14,6 +14,14 @@ properties:
     oneOf:
       - items:
           - enum:
+              - fsl,imx1-aitc
+              - fsl,imx25-asic
+              - fsl,imx27-aitc
+              - fsl,imx31-avic
+              - fsl,imx35-avic
+          - const: fsl,avic
+      - items:
+          - enum:
               - fsl,imx51-tzic
               - fsl,imx53-tzic
           - const: fsl,tzic

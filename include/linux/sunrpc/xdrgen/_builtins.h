@@ -46,6 +46,66 @@ xdrgen_encode_bool(struct xdr_stream *xdr, bool val)
 	return true;
 }
 
+/*
+ * De facto (non-standard but commonly implemented) signed short type:
+ *  - Wire sends sign-extended 32-bit value (e.g., 0xFFFFFFFF)
+ *  - be32_to_cpup() returns u32 (0xFFFFFFFF)
+ *  - Explicit (s16) cast truncates to 16 bits (0xFFFF = -1)
+ */
+static inline bool
+xdrgen_decode_short(struct xdr_stream *xdr, s16 *ptr)
+{
+	__be32 *p = xdr_inline_decode(xdr, XDR_UNIT);
+
+	if (unlikely(!p))
+		return false;
+	*ptr = (s16)be32_to_cpup(p);
+	return true;
+}
+
+/*
+ * De facto (non-standard but commonly implemented) signed short type:
+ *  - C integer promotion sign-extends s16 val to int before passing to
+ *    cpu_to_be32()
+ *  - This is well-defined: -1 as s16 -1 as int 0xFFFFFFFF on wire
+ */
+static inline bool
+xdrgen_encode_short(struct xdr_stream *xdr, s16 val)
+{
+	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
+
+	if (unlikely(!p))
+		return false;
+	*p = cpu_to_be32(val);
+	return true;
+}
+
+/*
+ * De facto (non-standard but commonly implemented) unsigned short type:
+ * 16-bit integer zero-extended to fill one XDR_UNIT.
+ */
+static inline bool
+xdrgen_decode_unsigned_short(struct xdr_stream *xdr, u16 *ptr)
+{
+	__be32 *p = xdr_inline_decode(xdr, XDR_UNIT);
+
+	if (unlikely(!p))
+		return false;
+	*ptr = (u16)be32_to_cpup(p);
+	return true;
+}
+
+static inline bool
+xdrgen_encode_unsigned_short(struct xdr_stream *xdr, u16 val)
+{
+	__be32 *p = xdr_reserve_space(xdr, XDR_UNIT);
+
+	if (unlikely(!p))
+		return false;
+	*p = cpu_to_be32(val);
+	return true;
+}
+
 static inline bool
 xdrgen_decode_int(struct xdr_stream *xdr, s32 *ptr)
 {
@@ -188,12 +248,10 @@ xdrgen_decode_string(struct xdr_stream *xdr, string *ptr, u32 maxlen)
 		return false;
 	if (unlikely(maxlen && len > maxlen))
 		return false;
-	if (len != 0) {
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			return false;
-		ptr->data = (unsigned char *)p;
-	}
+	p = xdr_inline_decode(xdr, len);
+	if (unlikely(!p))
+		return false;
+	ptr->data = (unsigned char *)p;
 	ptr->len = len;
 	return true;
 }
@@ -219,12 +277,10 @@ xdrgen_decode_opaque(struct xdr_stream *xdr, opaque *ptr, u32 maxlen)
 		return false;
 	if (unlikely(maxlen && len > maxlen))
 		return false;
-	if (len != 0) {
-		p = xdr_inline_decode(xdr, len);
-		if (unlikely(!p))
-			return false;
-		ptr->data = (u8 *)p;
-	}
+	p = xdr_inline_decode(xdr, len);
+	if (unlikely(!p))
+		return false;
+	ptr->data = (u8 *)p;
 	ptr->len = len;
 	return true;
 }

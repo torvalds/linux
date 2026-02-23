@@ -75,7 +75,7 @@ gv100_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	u32 kind, page;
 	int ret;
 
-	if (!(dmaobj = kzalloc(sizeof(*dmaobj), GFP_KERNEL)))
+	if (!(dmaobj = kzalloc_obj(*dmaobj)))
 		return -ENOMEM;
 	*pdmaobj = &dmaobj->base;
 

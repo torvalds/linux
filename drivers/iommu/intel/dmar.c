@@ -99,7 +99,7 @@ void *dmar_alloc_dev_scope(void *start, void *end, int *cnt)
 	if (*cnt == 0)
 		return NULL;
 
-	return kcalloc(*cnt, sizeof(struct dmar_dev_scope), GFP_KERNEL);
+	return kzalloc_objs(struct dmar_dev_scope, *cnt);
 }
 
 void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt)
@@ -1046,7 +1046,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 		return -EINVAL;
 	}
 
-	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
+	iommu = kzalloc_obj(*iommu);
 	if (!iommu)
 		return -ENOMEM;
 
@@ -1692,7 +1692,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	if (iommu->qi)
 		return 0;
 
-	iommu->qi = kmalloc(sizeof(*qi), GFP_ATOMIC);
+	iommu->qi = kmalloc_obj(*qi, GFP_ATOMIC);
 	if (!iommu->qi)
 		return -ENOMEM;
 
@@ -1713,7 +1713,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	qi->desc = desc;
 
-	qi->desc_status = kcalloc(QI_LENGTH, sizeof(int), GFP_ATOMIC);
+	qi->desc_status = kzalloc_objs(int, QI_LENGTH, GFP_ATOMIC);
 	if (!qi->desc_status) {
 		iommu_free_pages(qi->desc);
 		kfree(qi);

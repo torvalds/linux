@@ -37,70 +37,6 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 	return clk_get_rate(dev->clk) / HZ_PER_KHZ;
 }
 
-#ifdef CONFIG_OF
-#define BT1_I2C_CTL			0x100
-#define BT1_I2C_CTL_ADDR_MASK		GENMASK(7, 0)
-#define BT1_I2C_CTL_WR			BIT(8)
-#define BT1_I2C_CTL_GO			BIT(31)
-#define BT1_I2C_DI			0x104
-#define BT1_I2C_DO			0x108
-
-static int bt1_i2c_read(void *context, unsigned int reg, unsigned int *val)
-{
-	struct dw_i2c_dev *dev = context;
-	int ret;
-
-	/*
-	 * Note these methods shouldn't ever fail because the system controller
-	 * registers are memory mapped. We check the return value just in case.
-	 */
-	ret = regmap_write(dev->sysmap, BT1_I2C_CTL,
-			   BT1_I2C_CTL_GO | (reg & BT1_I2C_CTL_ADDR_MASK));
-	if (ret)
-		return ret;
-
-	return regmap_read(dev->sysmap, BT1_I2C_DO, val);
-}
-
-static int bt1_i2c_write(void *context, unsigned int reg, unsigned int val)
-{
-	struct dw_i2c_dev *dev = context;
-	int ret;
-
-	ret = regmap_write(dev->sysmap, BT1_I2C_DI, val);
-	if (ret)
-		return ret;
-
-	return regmap_write(dev->sysmap, BT1_I2C_CTL,
-			    BT1_I2C_CTL_GO | BT1_I2C_CTL_WR | (reg & BT1_I2C_CTL_ADDR_MASK));
-}
-
-static const struct regmap_config bt1_i2c_cfg = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.fast_io = true,
-	.reg_read = bt1_i2c_read,
-	.reg_write = bt1_i2c_write,
-	.max_register = DW_IC_COMP_TYPE,
-};
-
-static int bt1_i2c_request_regs(struct dw_i2c_dev *dev)
-{
-	dev->sysmap = syscon_node_to_regmap(dev->dev->of_node->parent);
-	if (IS_ERR(dev->sysmap))
-		return PTR_ERR(dev->sysmap);
-
-	dev->map = devm_regmap_init(dev->dev, NULL, dev, &bt1_i2c_cfg);
-	return PTR_ERR_OR_ZERO(dev->map);
-}
-#else
-static int bt1_i2c_request_regs(struct dw_i2c_dev *dev)
-{
-	return -ENODEV;
-}
-#endif
-
 static int dw_i2c_get_parent_regmap(struct dw_i2c_dev *dev)
 {
 	dev->map = dev_get_regmap(dev->dev->parent, NULL);
@@ -127,9 +63,6 @@ static int dw_i2c_plat_request_regs(struct dw_i2c_dev *dev)
 		return dw_i2c_get_parent_regmap(dev);
 
 	switch (dev->flags & MODEL_MASK) {
-	case MODEL_BAIKAL_BT1:
-		ret = bt1_i2c_request_regs(dev);
-		break;
 	case MODEL_WANGXUN_SP:
 		ret = dw_i2c_get_parent_regmap(dev);
 		break;
@@ -227,40 +160,32 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev->rst = devm_reset_control_get_optional_exclusive(device, NULL);
+	dev->rst = devm_reset_control_get_optional_exclusive_deasserted(device, NULL);
 	if (IS_ERR(dev->rst))
 		return dev_err_probe(device, PTR_ERR(dev->rst), "failed to acquire reset\n");
 
-	reset_control_deassert(dev->rst);
-
 	ret = i2c_dw_fw_parse_and_configure(dev);
 	if (ret)
-		goto exit_reset;
+		return ret;
 
 	ret = i2c_dw_probe_lock_support(dev);
-	if (ret) {
-		dev_err_probe(device, ret, "failed to probe lock support\n");
-		goto exit_reset;
-	}
+	if (ret)
+		return dev_err_probe(device, ret, "failed to probe lock support\n");
 
 	i2c_dw_configure(dev);
 
 	/* Optional interface clock */
 	dev->pclk = devm_clk_get_optional(device, "pclk");
-	if (IS_ERR(dev->pclk)) {
-		ret = dev_err_probe(device, PTR_ERR(dev->pclk), "failed to acquire pclk\n");
-		goto exit_reset;
-	}
+	if (IS_ERR(dev->pclk))
+		return dev_err_probe(device, PTR_ERR(dev->pclk), "failed to acquire pclk\n");
 
 	dev->clk = devm_clk_get_optional(device, NULL);
-	if (IS_ERR(dev->clk)) {
-		ret = dev_err_probe(device, PTR_ERR(dev->clk), "failed to acquire clock\n");
-		goto exit_reset;
-	}
+	if (IS_ERR(dev->clk))
+		return dev_err_probe(device, PTR_ERR(dev->clk), "failed to acquire clock\n");
 
 	ret = i2c_dw_prepare_clk(dev, true);
 	if (ret)
-		goto exit_reset;
+		return ret;
 
 	if (dev->clk) {
 		struct i2c_timings *t = &dev->timings;
@@ -300,16 +225,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	pm_runtime_enable(device);
 
 	ret = i2c_dw_probe(dev);
-	if (ret)
-		goto exit_probe;
+	if (ret) {
+		dw_i2c_plat_pm_cleanup(dev);
+		i2c_dw_prepare_clk(dev, false);
+	}
 
-	return ret;
-
-exit_probe:
-	dw_i2c_plat_pm_cleanup(dev);
-	i2c_dw_prepare_clk(dev, false);
-exit_reset:
-	reset_control_assert(dev->rst);
 	return ret;
 }
 
@@ -329,14 +249,12 @@ static void dw_i2c_plat_remove(struct platform_device *pdev)
 	dw_i2c_plat_pm_cleanup(dev);
 
 	i2c_dw_prepare_clk(dev, false);
-
-	reset_control_assert(dev->rst);
 }
 
 static const struct of_device_id dw_i2c_of_match[] = {
-	{ .compatible = "snps,designware-i2c", },
-	{ .compatible = "mscc,ocelot-i2c", .data = (void *)MODEL_MSCC_OCELOT },
-	{ .compatible = "baikal,bt1-sys-i2c", .data = (void *)MODEL_BAIKAL_BT1 },
+	{ .compatible = "mobileye,eyeq6lplus-i2c" },
+	{ .compatible = "mscc,ocelot-i2c" },
+	{ .compatible = "snps,designware-i2c" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_i2c_of_match);

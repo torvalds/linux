@@ -340,13 +340,12 @@ typedef unsigned int __bitwise blk_features_t;
 /* skip this queue in blk_mq_(un)quiesce_tagset */
 #define BLK_FEAT_SKIP_TAGSET_QUIESCE	((__force blk_features_t)(1u << 13))
 
+/* atomic writes enabled */
+#define BLK_FEAT_ATOMIC_WRITES		((__force blk_features_t)(1u << 14))
+
 /* undocumented magic for bcache */
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
-
-/* atomic writes enabled */
-#define BLK_FEAT_ATOMIC_WRITES \
-	((__force blk_features_t)(1u << 16))
 
 /*
  * Flags automatically inherited when stacking limits.
@@ -551,7 +550,8 @@ struct request_queue {
 	/*
 	 * queue settings
 	 */
-	unsigned long		nr_requests;	/* Max # of requests */
+	unsigned int		nr_requests;	/* Max # of requests */
+	unsigned int		async_depth;	/* Max # of async requests */
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	struct blk_crypto_profile *crypto_profile;
@@ -681,7 +681,7 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_noxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
-#define blk_queue_nonrot(q)	(!((q)->limits.features & BLK_FEAT_ROTATIONAL))
+#define blk_queue_rot(q)	((q)->limits.features & BLK_FEAT_ROTATIONAL)
 #define blk_queue_io_stat(q)	((q)->limits.features & BLK_FEAT_IO_STAT)
 #define blk_queue_passthrough_stat(q)	\
 	((q)->limits.flags & BLK_FLAG_IOSTATS_PASSTHROUGH)
@@ -1026,7 +1026,7 @@ extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 
-/* Helper to convert REQ_OP_XXX to its string format XXX */
+/* Convert a request operation REQ_OP_name into the string "name" */
 extern const char *blk_op_str(enum req_op op);
 
 int blk_status_to_errno(blk_status_t status);
@@ -1044,7 +1044,7 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 	return bdev->bd_queue;	/* this is never NULL */
 }
 
-/* Helper to convert BLK_ZONE_ZONE_XXX to its string format XXX */
+/* Convert a zone condition BLK_ZONE_COND_name into the string "name" */
 const char *blk_zone_cond_str(enum blk_zone_cond zone_cond);
 
 static inline unsigned int bio_zone_no(struct bio *bio)
@@ -1259,7 +1259,7 @@ extern void blk_io_schedule(void);
 
 int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask);
-int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+void __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop);
 int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp);
@@ -1462,9 +1462,14 @@ bdev_write_zeroes_unmap_sectors(struct block_device *bdev)
 	return bdev_limits(bdev)->max_wzeroes_unmap_sectors;
 }
 
+static inline bool bdev_rot(struct block_device *bdev)
+{
+	return blk_queue_rot(bdev_get_queue(bdev));
+}
+
 static inline bool bdev_nonrot(struct block_device *bdev)
 {
-	return blk_queue_nonrot(bdev_get_queue(bdev));
+	return !bdev_rot(bdev);
 }
 
 static inline bool bdev_synchronous(struct block_device *bdev)
@@ -1822,6 +1827,7 @@ struct io_comp_batch {
 	struct rq_list req_list;
 	bool need_ts;
 	void (*complete)(struct io_comp_batch *);
+	void *poll_ctx;
 };
 
 static inline bool blk_atomic_write_start_sect_aligned(sector_t sector,

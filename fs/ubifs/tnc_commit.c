@@ -359,8 +359,7 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 
 	dbg_gc("%d znodes to write", cnt);
 
-	c->gap_lebs = kmalloc_array(c->lst.idx_lebs + 1, sizeof(int),
-				    GFP_NOFS);
+	c->gap_lebs = kmalloc_objs(int, c->lst.idx_lebs + 1, GFP_NOFS);
 	if (!c->gap_lebs)
 		return -ENOMEM;
 
@@ -692,7 +691,7 @@ static int alloc_idx_lebs(struct ubifs_info *c, int cnt)
 	dbg_cmt("need about %d empty LEBS for TNC commit", leb_cnt);
 	if (!leb_cnt)
 		return 0;
-	c->ilebs = kmalloc_array(leb_cnt, sizeof(int), GFP_NOFS);
+	c->ilebs = kmalloc_objs(int, leb_cnt, GFP_NOFS);
 	if (!c->ilebs)
 		return -ENOMEM;
 	for (i = 0; i < leb_cnt; i++) {

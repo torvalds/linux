@@ -166,6 +166,8 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 			container_of(rlc_hdr_v2_2, struct rlc_firmware_header_v2_3, v2_2);
 		const struct rlc_firmware_header_v2_4 *rlc_hdr_v2_4 =
 			container_of(rlc_hdr_v2_3, struct rlc_firmware_header_v2_4, v2_3);
+		const struct rlc_firmware_header_v2_5 *rlc_hdr_v2_5 =
+			container_of(rlc_hdr_v2_2, struct rlc_firmware_header_v2_5, v2_2);
 
 		switch (version_minor) {
 		case 0:
@@ -286,6 +288,26 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr)
 				  le32_to_cpu(rlc_hdr_v2_4->se3_tap_delays_ucode_size_bytes));
 			DRM_DEBUG("se3_tap_delays_ucode_offset_bytes: %u\n",
 				  le32_to_cpu(rlc_hdr_v2_4->se3_tap_delays_ucode_offset_bytes));
+			break;
+		case 5:
+			/* rlc_hdr v2_5 */
+			DRM_INFO("rlc_iram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_size_bytes));
+			DRM_INFO("rlc_iram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_iram_ucode_offset_bytes));
+			DRM_INFO("rlc_dram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_size_bytes));
+			DRM_INFO("rlc_dram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->v2_2.rlc_dram_ucode_offset_bytes));
+			/* rlc_hdr v2_5 */
+			DRM_INFO("rlc_1_iram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_size_bytes));
+			DRM_INFO("rlc_1_iram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_iram_ucode_offset_bytes));
+			DRM_INFO("rlc_1_dram_ucode_size_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_size_bytes));
+			DRM_INFO("rlc_1_dram_ucode_offset_bytes: %u\n",
+				  le32_to_cpu(rlc_hdr_v2_5->rlc_1_dram_ucode_offset_bytes));
 			break;
 		default:
 			DRM_ERROR("Unknown RLC v2 ucode: v2.%u\n", version_minor);
@@ -631,6 +653,10 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "RLC_IRAM";
 	case AMDGPU_UCODE_ID_RLC_DRAM:
 		return "RLC_DRAM";
+	case AMDGPU_UCODE_ID_RLC_IRAM_1:
+		return "RLC_IRAM_1";
+	case AMDGPU_UCODE_ID_RLC_DRAM_1:
+		return "RLC_DRAM_1";
 	case AMDGPU_UCODE_ID_RLC_G:
 		return "RLC_G";
 	case AMDGPU_UCODE_ID_RLC_P:
@@ -910,6 +936,14 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 		case AMDGPU_UCODE_ID_RLC_DRAM:
 			ucode->ucode_size = adev->gfx.rlc.rlc_dram_ucode_size_bytes;
 			ucode_addr = adev->gfx.rlc.rlc_dram_ucode;
+			break;
+		case AMDGPU_UCODE_ID_RLC_IRAM_1:
+			ucode->ucode_size = adev->gfx.rlc.rlc_1_iram_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.rlc_1_iram_ucode;
+			break;
+		case AMDGPU_UCODE_ID_RLC_DRAM_1:
+			ucode->ucode_size = adev->gfx.rlc.rlc_1_dram_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.rlc_1_dram_ucode;
 			break;
 		case AMDGPU_UCODE_ID_RLC_P:
 			ucode->ucode_size = adev->gfx.rlc.rlcp_ucode_size_bytes;

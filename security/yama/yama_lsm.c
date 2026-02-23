@@ -89,7 +89,7 @@ static void report_access(const char *access, struct task_struct *target,
 		return;
 	}
 
-	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	info = kmalloc_obj(*info, GFP_ATOMIC);
 	if (!info)
 		return;
 	init_task_work(&info->work, __report_access);
@@ -143,7 +143,7 @@ static int yama_ptracer_add(struct task_struct *tracer,
 {
 	struct ptrace_relation *relation, *added;
 
-	added = kmalloc(sizeof(*added), GFP_KERNEL);
+	added = kmalloc_obj(*added);
 	if (!added)
 		return -ENOMEM;
 

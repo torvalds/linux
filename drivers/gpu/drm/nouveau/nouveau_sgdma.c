@@ -79,7 +79,7 @@ nouveau_sgdma_create_ttm(struct ttm_buffer_object *bo, uint32_t page_flags)
 	else
 		caching = ttm_cached;
 
-	nvbe = kzalloc(sizeof(*nvbe), GFP_KERNEL);
+	nvbe = kzalloc_obj(*nvbe);
 	if (!nvbe)
 		return NULL;
 

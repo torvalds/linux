@@ -477,7 +477,7 @@ int omap3isp_hist_init(struct isp_device *isp)
 	struct omap3isp_hist_config *hist_cfg;
 	int ret;
 
-	hist_cfg = kzalloc(sizeof(*hist_cfg), GFP_KERNEL);
+	hist_cfg = kzalloc_obj(*hist_cfg);
 	if (hist_cfg == NULL)
 		return -ENOMEM;
 

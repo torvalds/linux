@@ -651,7 +651,6 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xspi = spi_controller_get_devdata(ctlr);
-	ctlr->dev.of_node = pdev->dev.of_node;
 	platform_set_drvdata(pdev, ctlr);
 
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -729,6 +728,7 @@ static int cdns_spi_probe(struct platform_device *pdev)
 	ctlr->unprepare_transfer_hardware = cdns_unprepare_transfer_hardware;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
+	ctlr->flags = SPI_CONTROLLER_MUST_TX;
 
 	if (of_device_is_compatible(pdev->dev.of_node, "cix,sky1-spi-r1p6"))
 		ctlr->bits_per_word_mask |= SPI_BPW_MASK(16) | SPI_BPW_MASK(32);

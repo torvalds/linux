@@ -142,7 +142,7 @@ struct clk *tegra_clk_register_super_cclk(const char *name,
 	if (WARN_ON(cclk_super))
 		return ERR_PTR(-EBUSY);
 
-	super = kzalloc(sizeof(*super), GFP_KERNEL);
+	super = kzalloc_obj(*super);
 	if (!super)
 		return ERR_PTR(-ENOMEM);
 

@@ -75,7 +75,7 @@ struct typhoon {
 
 static struct radio_isa_card *typhoon_alloc(void)
 {
-	struct typhoon *ty = kzalloc(sizeof(*ty), GFP_KERNEL);
+	struct typhoon *ty = kzalloc_obj(*ty);
 
 	return ty ? &ty->isa : NULL;
 }

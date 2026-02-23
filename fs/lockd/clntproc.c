@@ -105,7 +105,7 @@ static struct nlm_lockowner *nlmclnt_find_lockowner(struct nlm_host *host, fl_ow
 	res = __nlmclnt_find_lockowner(host, owner);
 	if (res == NULL) {
 		spin_unlock(&host->h_lock);
-		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		new = kmalloc_obj(*new);
 		spin_lock(&host->h_lock);
 		res = __nlmclnt_find_lockowner(host, owner);
 		if (res == NULL && new != NULL) {
@@ -208,7 +208,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 	struct nlm_rqst	*call;
 
 	for(;;) {
-		call = kzalloc(sizeof(*call), GFP_KERNEL);
+		call = kzalloc_obj(*call);
 		if (call != NULL) {
 			refcount_set(&call->a_count, 1);
 			locks_init_lock(&call->a_args.lock.fl);

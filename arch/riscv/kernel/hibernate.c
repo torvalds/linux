@@ -415,7 +415,7 @@ int hibernate_resume_nonboot_cpu_disable(void)
 
 static int __init riscv_hibernate_init(void)
 {
-	hibernate_cpu_context = kzalloc(sizeof(*hibernate_cpu_context), GFP_KERNEL);
+	hibernate_cpu_context = kzalloc_obj(*hibernate_cpu_context);
 
 	if (WARN_ON(!hibernate_cpu_context))
 		return -ENOMEM;

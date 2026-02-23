@@ -518,7 +518,7 @@ int zd_rf_init_uw2453(struct zd_rf *rf)
 	/* we have our own TX integration code */
 	rf->update_channel_int = 0;
 
-	rf->priv = kmalloc(sizeof(struct uw2453_priv), GFP_KERNEL);
+	rf->priv = kmalloc_obj(struct uw2453_priv);
 	if (rf->priv == NULL)
 		return -ENOMEM;
 

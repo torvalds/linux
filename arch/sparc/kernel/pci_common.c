@@ -336,7 +336,7 @@ static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 					  NULL);
 
 	if (vdma) {
-		struct resource *rp = kzalloc(sizeof(*rp), GFP_KERNEL);
+		struct resource *rp = kzalloc_obj(*rp);
 
 		if (!rp) {
 			pr_info("%s: Cannot allocate IOMMU resource.\n",

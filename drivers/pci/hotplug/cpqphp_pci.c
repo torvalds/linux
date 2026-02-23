@@ -151,8 +151,8 @@ int cpqhp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 		struct pci_bus *fakebus;
 		u16 temp_word;
 
-		fakedev = kmalloc(sizeof(*fakedev), GFP_KERNEL);
-		fakebus = kmalloc(sizeof(*fakebus), GFP_KERNEL);
+		fakedev = kmalloc_obj(*fakedev);
+		fakebus = kmalloc_obj(*fakebus);
 		if (!fakedev || !fakebus) {
 			kfree(fakedev);
 			kfree(fakebus);
@@ -721,7 +721,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 			pci_bus_read_config_byte(pci_bus, devfn, PCI_SECONDARY_BUS, &secondary_bus);
 			pci_bus_read_config_byte(pci_bus, devfn, PCI_SUBORDINATE_BUS, &temp_byte);
 
-			bus_node = kmalloc(sizeof(*bus_node), GFP_KERNEL);
+			bus_node = kmalloc_obj(*bus_node);
 			if (!bus_node)
 				return -ENOMEM;
 
@@ -736,7 +736,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 			pci_bus_read_config_byte(pci_bus, devfn, PCI_IO_LIMIT, &b_length);
 
 			if ((b_base <= b_length) && (save_command & 0x01)) {
-				io_node = kmalloc(sizeof(*io_node), GFP_KERNEL);
+				io_node = kmalloc_obj(*io_node);
 				if (!io_node)
 					return -ENOMEM;
 
@@ -752,7 +752,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 			pci_bus_read_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, &w_length);
 
 			if ((w_base <= w_length) && (save_command & 0x02)) {
-				mem_node = kmalloc(sizeof(*mem_node), GFP_KERNEL);
+				mem_node = kmalloc_obj(*mem_node);
 				if (!mem_node)
 					return -ENOMEM;
 
@@ -768,7 +768,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 			pci_bus_read_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, &w_length);
 
 			if ((w_base <= w_length) && (save_command & 0x02)) {
-				p_mem_node = kmalloc(sizeof(*p_mem_node), GFP_KERNEL);
+				p_mem_node = kmalloc_obj(*p_mem_node);
 				if (!p_mem_node)
 					return -ENOMEM;
 
@@ -799,8 +799,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFFE;
 						temp_register = (~temp_register) + 1;
 
-						io_node = kmalloc(sizeof(*io_node),
-								GFP_KERNEL);
+						io_node = kmalloc_obj(*io_node);
 						if (!io_node)
 							return -ENOMEM;
 
@@ -817,8 +816,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFF0;
 						temp_register = (~temp_register) + 1;
 
-						p_mem_node = kmalloc(sizeof(*p_mem_node),
-								GFP_KERNEL);
+						p_mem_node = kmalloc_obj(*p_mem_node);
 						if (!p_mem_node)
 							return -ENOMEM;
 
@@ -834,8 +832,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFF0;
 						temp_register = (~temp_register) + 1;
 
-						mem_node = kmalloc(sizeof(*mem_node),
-								GFP_KERNEL);
+						mem_node = kmalloc_obj(*mem_node);
 						if (!mem_node)
 							return -ENOMEM;
 
@@ -871,8 +868,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFFE;
 						temp_register = (~temp_register) + 1;
 
-						io_node = kmalloc(sizeof(*io_node),
-								GFP_KERNEL);
+						io_node = kmalloc_obj(*io_node);
 						if (!io_node)
 							return -ENOMEM;
 
@@ -888,8 +884,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFF0;
 						temp_register = (~temp_register) + 1;
 
-						p_mem_node = kmalloc(sizeof(*p_mem_node),
-								GFP_KERNEL);
+						p_mem_node = kmalloc_obj(*p_mem_node);
 						if (!p_mem_node)
 							return -ENOMEM;
 
@@ -905,8 +900,7 @@ int cpqhp_save_used_resources(struct controller *ctrl, struct pci_func *func)
 						temp_register = base & 0xFFFFFFF0;
 						temp_register = (~temp_register) + 1;
 
-						mem_node = kmalloc(sizeof(*mem_node),
-								GFP_KERNEL);
+						mem_node = kmalloc_obj(*mem_node);
 						if (!mem_node)
 							return -ENOMEM;
 
@@ -1293,7 +1287,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 		temp_dword = io_base + io_length;
 
 		if ((io_base) && (temp_dword < 0x10000)) {
-			io_node = kmalloc(sizeof(*io_node), GFP_KERNEL);
+			io_node = kmalloc_obj(*io_node);
 			if (!io_node)
 				return -ENOMEM;
 
@@ -1315,7 +1309,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 		/* If we've got a valid memory base, use it */
 		temp_dword = mem_base + mem_length;
 		if ((mem_base) && (temp_dword < 0x10000)) {
-			mem_node = kmalloc(sizeof(*mem_node), GFP_KERNEL);
+			mem_node = kmalloc_obj(*mem_node);
 			if (!mem_node)
 				return -ENOMEM;
 
@@ -1340,7 +1334,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 		 */
 		temp_dword = pre_mem_base + pre_mem_length;
 		if ((pre_mem_base) && (temp_dword < 0x10000)) {
-			p_mem_node = kmalloc(sizeof(*p_mem_node), GFP_KERNEL);
+			p_mem_node = kmalloc_obj(*p_mem_node);
 			if (!p_mem_node)
 				return -ENOMEM;
 
@@ -1365,7 +1359,7 @@ int cpqhp_find_available_resources(struct controller *ctrl, void __iomem *rom_st
 		 * populated slots that don't have PCI-PCI bridges
 		 */
 		if (secondary_bus && (secondary_bus != primary_bus)) {
-			bus_node = kmalloc(sizeof(*bus_node), GFP_KERNEL);
+			bus_node = kmalloc_obj(*bus_node);
 			if (!bus_node)
 				return -ENOMEM;
 

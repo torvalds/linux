@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
+#include <net/netns/vsock.h>
 #include <net/sock.h>
 #include <uapi/linux/vm_sockets.h>
 
@@ -124,7 +125,7 @@ struct vsock_transport {
 			     size_t len, int flags);
 	int (*dgram_enqueue)(struct vsock_sock *, struct sockaddr_vm *,
 			     struct msghdr *, size_t len);
-	bool (*dgram_allow)(u32 cid, u32 port);
+	bool (*dgram_allow)(struct vsock_sock *vsk, u32 cid, u32 port);
 
 	/* STREAM. */
 	/* TODO: stream_bind() */
@@ -136,14 +137,14 @@ struct vsock_transport {
 	s64 (*stream_has_space)(struct vsock_sock *);
 	u64 (*stream_rcvhiwat)(struct vsock_sock *);
 	bool (*stream_is_active)(struct vsock_sock *);
-	bool (*stream_allow)(u32 cid, u32 port);
+	bool (*stream_allow)(struct vsock_sock *vsk, u32 cid, u32 port);
 
 	/* SEQ_PACKET. */
 	ssize_t (*seqpacket_dequeue)(struct vsock_sock *vsk, struct msghdr *msg,
 				     int flags);
 	int (*seqpacket_enqueue)(struct vsock_sock *vsk, struct msghdr *msg,
 				 size_t len);
-	bool (*seqpacket_allow)(u32 remote_cid);
+	bool (*seqpacket_allow)(struct vsock_sock *vsk, u32 remote_cid);
 	u32 (*seqpacket_has_data)(struct vsock_sock *vsk);
 
 	/* Notification. */
@@ -216,6 +217,11 @@ void vsock_remove_connected(struct vsock_sock *vsk);
 struct sock *vsock_find_bound_socket(struct sockaddr_vm *addr);
 struct sock *vsock_find_connected_socket(struct sockaddr_vm *src,
 					 struct sockaddr_vm *dst);
+struct sock *vsock_find_bound_socket_net(struct sockaddr_vm *addr,
+					 struct net *net);
+struct sock *vsock_find_connected_socket_net(struct sockaddr_vm *src,
+					     struct sockaddr_vm *dst,
+					     struct net *net);
 void vsock_remove_sock(struct vsock_sock *vsk);
 void vsock_for_each_connected_socket(struct vsock_transport *transport,
 				     void (*fn)(struct sock *sk));
@@ -255,5 +261,54 @@ static inline void __init vsock_bpf_build_proto(void)
 static inline bool vsock_msgzerocopy_allow(const struct vsock_transport *t)
 {
 	return t->msgzerocopy_allow && t->msgzerocopy_allow();
+}
+
+static inline enum vsock_net_mode vsock_net_mode(struct net *net)
+{
+	if (!net)
+		return VSOCK_NET_MODE_GLOBAL;
+
+	return READ_ONCE(net->vsock.mode);
+}
+
+static inline bool vsock_net_mode_global(struct vsock_sock *vsk)
+{
+	return vsock_net_mode(sock_net(sk_vsock(vsk))) == VSOCK_NET_MODE_GLOBAL;
+}
+
+static inline void vsock_net_set_child_mode(struct net *net,
+					    enum vsock_net_mode mode)
+{
+	WRITE_ONCE(net->vsock.child_ns_mode, mode);
+}
+
+static inline enum vsock_net_mode vsock_net_child_mode(struct net *net)
+{
+	return READ_ONCE(net->vsock.child_ns_mode);
+}
+
+/* Return true if two namespaces pass the mode rules. Otherwise, return false.
+ *
+ * A NULL namespace is treated as VSOCK_NET_MODE_GLOBAL.
+ *
+ * Read more about modes in the comment header of net/vmw_vsock/af_vsock.c.
+ */
+static inline bool vsock_net_check_mode(struct net *ns0, struct net *ns1)
+{
+	enum vsock_net_mode mode0, mode1;
+
+	/* Any vsocks within the same network namespace are always reachable,
+	 * regardless of the mode.
+	 */
+	if (net_eq(ns0, ns1))
+		return true;
+
+	mode0 = vsock_net_mode(ns0);
+	mode1 = vsock_net_mode(ns1);
+
+	/* Different namespaces are only reachable if they are both
+	 * global mode.
+	 */
+	return mode0 == VSOCK_NET_MODE_GLOBAL && mode0 == mode1;
 }
 #endif /* __AF_VSOCK_H__ */

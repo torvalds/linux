@@ -104,7 +104,8 @@ struct qlogicfas408_priv {
 #define get_priv_by_host(x) (struct qlogicfas408_priv *)&((x)->hostdata[0])
 
 irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id);
-int qlogicfas408_queuecommand(struct Scsi_Host *h, struct scsi_cmnd * cmd);
+enum scsi_qc_status qlogicfas408_queuecommand(struct Scsi_Host *h,
+					      struct scsi_cmnd *cmd);
 int qlogicfas408_biosparam(struct scsi_device * disk,
 			   struct gendisk *unused,
 			   sector_t capacity, int ip[]);

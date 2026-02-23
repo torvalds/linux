@@ -38,10 +38,3 @@ Power Management
     regulator/machine
     regulator/overview
     regulator/regulator
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

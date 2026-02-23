@@ -435,7 +435,7 @@ static int sunxi_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	 * any configuration.
 	 */
 	nmaps = npins * 2;
-	*map = kmalloc_array(nmaps, sizeof(struct pinctrl_map), GFP_KERNEL);
+	*map = kmalloc_objs(struct pinctrl_map, nmaps);
 	if (!*map)
 		return -ENOMEM;
 
@@ -1328,9 +1328,7 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 	 * special functions per pin, plus one entry for the sentinel.
 	 * We'll reallocate that later anyway.
 	 */
-	pctl->functions = kcalloc(7 * pctl->ngroups + 4,
-				  sizeof(*pctl->functions),
-				  GFP_KERNEL);
+	pctl->functions = kzalloc_objs(*pctl->functions, 7 * pctl->ngroups + 4);
 	if (!pctl->functions)
 		return -ENOMEM;
 

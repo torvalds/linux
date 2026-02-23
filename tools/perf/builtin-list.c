@@ -648,7 +648,7 @@ int cmd_list(int argc, const char **argv)
 	}
 
 	for (i = 0; i < argc; ++i) {
-		char *sep, *s;
+		char *s;
 
 		if (strcmp(argv[i], "tracepoint") == 0) {
 			char *old_pmu_glob = default_ps.pmu_glob;
@@ -720,7 +720,7 @@ int cmd_list(int argc, const char **argv)
 		else if (strcmp(argv[i], "pfm") == 0)
 			print_libpfm_events(&print_cb, ps);
 #endif
-		else if ((sep = strchr(argv[i], ':')) != NULL) {
+		else if (strchr(argv[i], ':') != NULL) {
 			char *old_pmu_glob = ps->pmu_glob;
 			char *old_event_glob = ps->event_glob;
 

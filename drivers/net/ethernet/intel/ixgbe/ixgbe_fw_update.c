@@ -516,7 +516,7 @@ int ixgbe_get_pending_updates(struct ixgbe_adapter *adapter, u8 *pending,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
 
-	dev_caps = kzalloc(sizeof(*dev_caps), GFP_KERNEL);
+	dev_caps = kzalloc_obj(*dev_caps);
 	if (!dev_caps)
 		return -ENOMEM;
 

@@ -421,10 +421,6 @@
 	status = "okay";
 };
 
-&hdmi_sound {
-	status = "okay";
-};
-
 &i2c0 {
 	clock-frequency = <400000>;
 	i2c-scl-falling-time-ns = <4>;
@@ -969,7 +965,6 @@
 };
 
 &spi1 {
-	max-freq = <10000000>;
 	status = "okay";
 
 	spiflash: flash@0 {

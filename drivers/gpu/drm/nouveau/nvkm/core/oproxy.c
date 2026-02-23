@@ -178,7 +178,7 @@ int
 nvkm_oproxy_new_(const struct nvkm_oproxy_func *func,
 		 const struct nvkm_oclass *oclass, struct nvkm_oproxy **poproxy)
 {
-	if (!(*poproxy = kzalloc(sizeof(**poproxy), GFP_KERNEL)))
+	if (!(*poproxy = kzalloc_obj(**poproxy)))
 		return -ENOMEM;
 	nvkm_oproxy_ctor(func, oclass, *poproxy);
 	return 0;

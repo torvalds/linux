@@ -2601,7 +2601,7 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
 
 	if (WARN_ON(pcm->streams[stream].chmap_kctl))
 		return -EBUSY;
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	info->pcm = pcm;

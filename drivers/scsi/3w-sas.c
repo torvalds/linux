@@ -1052,7 +1052,7 @@ static int twl_initialize_device_extension(TW_Device_Extension *tw_dev)
 	}
 
 	/* Allocate event info space */
-	tw_dev->event_queue[0] = kcalloc(TW_Q_LENGTH, sizeof(TW_Event), GFP_KERNEL);
+	tw_dev->event_queue[0] = kzalloc_objs(TW_Event, TW_Q_LENGTH);
 	if (!tw_dev->event_queue[0]) {
 		TW_PRINTK(tw_dev->host, TW_DRIVER, 0xc, "Event info memory allocation failed");
 		goto out;
@@ -1453,11 +1453,13 @@ out:
 } /* End twl_scsi_eh_reset() */
 
 /* This is the main scsi queue function to handle scsi opcodes */
-static int twl_scsi_queue_lck(struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status twl_scsi_queue_lck(struct scsi_cmnd *SCpnt)
 {
+	TW_Device_Extension *tw_dev =
+		(TW_Device_Extension *)SCpnt->device->host->hostdata;
 	void (*done)(struct scsi_cmnd *) = scsi_done;
-	int request_id, retval;
-	TW_Device_Extension *tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
+	enum scsi_qc_status retval;
+	int request_id;
 
 	/* If we are resetting due to timed out ioctl, report as busy */
 	if (test_bit(TW_IN_RESET, &tw_dev->flags)) {

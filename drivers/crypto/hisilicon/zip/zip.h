@@ -99,7 +99,7 @@ enum zip_cap_table_type {
 	ZIP_CORE5_BITMAP,
 };
 
-int zip_create_qps(struct hisi_qp **qps, int qp_num, int node);
+int zip_create_qps(struct hisi_qp **qps, int qp_num, int node, u8 *alg_type);
 int hisi_zip_register_to_crypto(struct hisi_qm *qm);
 void hisi_zip_unregister_from_crypto(struct hisi_qm *qm);
 bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg);

@@ -260,7 +260,7 @@ int stm32_firewall_populate_bus(struct stm32_firewall_controller *firewall_contr
 			return -EINVAL;
 		}
 
-		firewalls = kcalloc(len, sizeof(*firewalls), GFP_KERNEL);
+		firewalls = kzalloc_objs(*firewalls, len);
 		if (!firewalls) {
 			of_node_put(child);
 			return -ENOMEM;

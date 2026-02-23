@@ -669,8 +669,10 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 			return -ENOMEM;
 
 		if (sg_copy_to_buffer(req->src, sg_nents_for_len(req->src, cryp->assoclen),
-				      rctx->adata, cryp->assoclen) != cryp->assoclen)
+				      rctx->adata, cryp->assoclen) != cryp->assoclen) {
+			kfree(rctx->adata);
 			return -EINVAL;
+		}
 	}
 
 	if (cryp->total_in)
@@ -681,8 +683,11 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	ctx->rctx = rctx;
 
 	ret = starfive_aes_hw_init(ctx);
-	if (ret)
+	if (ret) {
+		if (cryp->assoclen)
+			kfree(rctx->adata);
 		return ret;
+	}
 
 	if (!cryp->assoclen)
 		goto write_text;
@@ -983,27 +988,27 @@ static int starfive_aes_ccm_decrypt(struct aead_request *req)
 
 static int starfive_aes_ecb_init_tfm(struct crypto_skcipher *tfm)
 {
-	return starfive_aes_init_tfm(tfm, "ecb(aes-generic)");
+	return starfive_aes_init_tfm(tfm, "ecb(aes-lib)");
 }
 
 static int starfive_aes_cbc_init_tfm(struct crypto_skcipher *tfm)
 {
-	return starfive_aes_init_tfm(tfm, "cbc(aes-generic)");
+	return starfive_aes_init_tfm(tfm, "cbc(aes-lib)");
 }
 
 static int starfive_aes_ctr_init_tfm(struct crypto_skcipher *tfm)
 {
-	return starfive_aes_init_tfm(tfm, "ctr(aes-generic)");
+	return starfive_aes_init_tfm(tfm, "ctr(aes-lib)");
 }
 
 static int starfive_aes_ccm_init_tfm(struct crypto_aead *tfm)
 {
-	return starfive_aes_aead_init_tfm(tfm, "ccm_base(ctr(aes-generic),cbcmac(aes-generic))");
+	return starfive_aes_aead_init_tfm(tfm, "ccm_base(ctr(aes-lib),cbcmac(aes-lib))");
 }
 
 static int starfive_aes_gcm_init_tfm(struct crypto_aead *tfm)
 {
-	return starfive_aes_aead_init_tfm(tfm, "gcm_base(ctr(aes-generic),ghash-generic)");
+	return starfive_aes_aead_init_tfm(tfm, "gcm_base(ctr(aes-lib),ghash-generic)");
 }
 
 static struct skcipher_engine_alg skcipher_algs[] = {

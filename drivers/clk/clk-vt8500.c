@@ -235,7 +235,7 @@ static __init void vtwm_device_clk_init(struct device_node *node)
 	if (!pmc_base)
 		vtwm_set_pmc_base();
 
-	dev_clk = kzalloc(sizeof(*dev_clk), GFP_KERNEL);
+	dev_clk = kzalloc_obj(*dev_clk);
 	if (WARN_ON(!dev_clk))
 		return;
 
@@ -698,7 +698,7 @@ static __init void vtwm_pll_clk_init(struct device_node *node, int pll_type)
 	if (WARN_ON(rc))
 		return;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (WARN_ON(!pll_clk))
 		return;
 

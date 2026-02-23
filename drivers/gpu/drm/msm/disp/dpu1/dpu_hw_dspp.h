@@ -33,6 +33,25 @@ struct dpu_hw_pcc_cfg {
 	struct dpu_hw_pcc_coeff b;
 };
 
+#define DPU_GAMMA_LUT_SIZE 1024
+#define PGC_TBL_LEN 512
+#define PGC_8B_ROUND BIT(0)
+
+/**
+ * struct dpu_hw_gc_lut - gc lut feature structure
+ * @flags: flags for the feature values can be:
+ *         - PGC_8B_ROUND
+ * @c0: color0 component lut
+ * @c1: color1 component lut
+ * @c2: color2 component lut
+ */
+struct dpu_hw_gc_lut {
+	__u64 flags;
+	__u32 c0[PGC_TBL_LEN];
+	__u32 c1[PGC_TBL_LEN];
+	__u32 c2[PGC_TBL_LEN];
+};
+
 /**
  * struct dpu_hw_dspp_ops - interface to the dspp hardware driver functions
  * Caller must call the init function to get the dspp context for each dspp
@@ -45,6 +64,13 @@ struct dpu_hw_dspp_ops {
 	 * @cfg: Pointer to configuration
 	 */
 	void (*setup_pcc)(struct dpu_hw_dspp *ctx, struct dpu_hw_pcc_cfg *cfg);
+
+	/**
+	 * setup_gc - setup dspp gc
+	 * @ctx: Pointer to dspp context
+	 * @gc_lut: Pointer to lut content
+	 */
+	void (*setup_gc)(struct dpu_hw_dspp *ctx, struct dpu_hw_gc_lut *gc_lut);
 
 };
 

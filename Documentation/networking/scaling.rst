@@ -38,11 +38,15 @@ that is not the focus of these techniques.
 The filter used in RSS is typically a hash function over the network
 and/or transport layer headers-- for example, a 4-tuple hash over
 IP addresses and TCP ports of a packet. The most common hardware
-implementation of RSS uses a 128-entry indirection table where each entry
+implementation of RSS uses an indirection table where each entry
 stores a queue number. The receive queue for a packet is determined
-by masking out the low order seven bits of the computed hash for the
-packet (usually a Toeplitz hash), taking this number as a key into the
-indirection table and reading the corresponding value.
+by indexing the indirection table with the low order bits of the
+computed hash for the packet (usually a Toeplitz hash).
+
+The indirection table helps even out the traffic distribution when queue
+count is not a power of two. NICs should provide an indirection table
+at least 4 times larger than the queue count. 4x table results in ~16%
+imbalance between the queues, which is acceptable for most applications.
 
 Some NICs support symmetric RSS hashing where, if the IP (source address,
 destination address) and TCP/UDP (source port, destination port) tuples

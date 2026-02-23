@@ -42,7 +42,17 @@ endif
 ifeq ($(CONFIG_BPF_JIT),y)
 obj-$(CONFIG_BPF_SYSCALL) += bpf_struct_ops.o
 obj-$(CONFIG_BPF_SYSCALL) += cpumask.o
-obj-${CONFIG_BPF_LSM} += bpf_lsm.o
+# bpf_lsm_proto.o must precede bpf_lsm.o. The current pahole logic
+# deduplicates function prototypes within
+# btf_encoder__add_saved_func() by keeping the first instance seen. We
+# need the function prototype(s) in bpf_lsm_proto.o to take precedence
+# over those within bpf_lsm.o. Having bpf_lsm_proto.o precede
+# bpf_lsm.o ensures its DWARF CU is processed early, forcing the
+# generated BTF to contain the overrides.
+#
+# Notably, this is a temporary workaround whilst the deduplication
+# semantics within pahole are revisited accordingly.
+obj-${CONFIG_BPF_LSM} += bpf_lsm_proto.o bpf_lsm.o
 endif
 ifneq ($(CONFIG_CRYPTO),)
 obj-$(CONFIG_BPF_SYSCALL) += crypto.o

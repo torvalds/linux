@@ -1070,7 +1070,7 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	card = kzalloc(sizeof(struct tiger_hw), GFP_KERNEL);
+	card = kzalloc_obj(struct tiger_hw);
 	if (!card) {
 		pr_info("No kmem for Netjet\n");
 		return err;

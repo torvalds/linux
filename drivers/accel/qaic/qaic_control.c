@@ -423,7 +423,8 @@ static int find_and_map_user_pages(struct qaic_device *qdev,
 	nr_pages = need_pages;
 
 	while (1) {
-		page_list = kmalloc_array(nr_pages, sizeof(*page_list), GFP_KERNEL | __GFP_NOWARN);
+		page_list = kmalloc_objs(*page_list, nr_pages,
+					 GFP_KERNEL | __GFP_NOWARN);
 		if (!page_list) {
 			nr_pages = nr_pages / 2;
 			if (!nr_pages)
@@ -442,7 +443,7 @@ static int find_and_map_user_pages(struct qaic_device *qdev,
 		goto put_pages;
 	}
 
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto put_pages;
@@ -581,7 +582,7 @@ static int encode_dma(struct qaic_device *qdev, void *trans, struct wrapper_list
 	    QAIC_MANAGE_WIRE_MSG_LENGTH)
 		return -ENOMEM;
 
-	xfer = kmalloc(sizeof(*xfer), GFP_KERNEL);
+	xfer = kmalloc_obj(*xfer);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -1165,7 +1166,7 @@ static struct wrapper_list *alloc_wrapper_list(void)
 {
 	struct wrapper_list *wrappers;
 
-	wrappers = kmalloc(sizeof(*wrappers), GFP_KERNEL);
+	wrappers = kmalloc_obj(*wrappers);
 	if (!wrappers)
 		return NULL;
 	INIT_LIST_HEAD(&wrappers->list);
@@ -1457,7 +1458,7 @@ void qaic_mhi_dl_xfer_cb(struct mhi_device *mhi_dev, struct mhi_result *mhi_resu
 		return;
 	}
 
-	resp = kmalloc(sizeof(*resp), GFP_ATOMIC);
+	resp = kmalloc_obj(*resp, GFP_ATOMIC);
 	if (!resp) {
 		kfree(msg);
 		return;

@@ -126,7 +126,7 @@ irda_usb_find_class_desc(struct usb_serial *serial, unsigned int ifnum)
 	struct usb_irda_cs_descriptor *desc;
 	int ret;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 

@@ -192,7 +192,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 	}
 
-	rmtfs_mem = kzalloc(sizeof(*rmtfs_mem), GFP_KERNEL);
+	rmtfs_mem = kzalloc_obj(*rmtfs_mem);
 	if (!rmtfs_mem)
 		return -ENOMEM;
 

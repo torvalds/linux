@@ -50,7 +50,7 @@ static int komeda_layer_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_layer_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -92,7 +92,7 @@ static int komeda_scaler_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_scaler_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -135,7 +135,7 @@ static int komeda_compiz_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_compiz_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -178,7 +178,7 @@ static int komeda_splitter_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_splitter_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -221,7 +221,7 @@ static int komeda_merger_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_merger_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int komeda_improc_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_improc_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -308,7 +308,7 @@ static int komeda_timing_ctrlr_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_compiz_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 
@@ -352,7 +352,7 @@ static int komeda_pipeline_obj_add(struct komeda_kms_dev *kms,
 {
 	struct komeda_pipeline_state *st;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = kzalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 

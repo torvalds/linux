@@ -981,10 +981,8 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	BUG_ON(dev_priv->mksstat_user_pages[slot]);
 
 	/* Allocate statically-sized temp arrays for pages -- too big to keep in frame */
-	pages_stat = (struct page **)kmalloc_array(
-		ARRAY_SIZE(pdesc->statPPNs) +
-		ARRAY_SIZE(pdesc->infoPPNs) +
-		ARRAY_SIZE(pdesc->strsPPNs), sizeof(*pages_stat), GFP_KERNEL);
+	pages_stat = (struct page **) kmalloc_objs(*pages_stat,
+						   ARRAY_SIZE(pdesc->statPPNs) + ARRAY_SIZE(pdesc->infoPPNs) + ARRAY_SIZE(pdesc->strsPPNs));
 
 	if (!pages_stat)
 		goto err_nomem;

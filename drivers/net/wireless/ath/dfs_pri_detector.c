@@ -202,7 +202,7 @@ static bool pulse_queue_enqueue(struct pri_detector *pde, u64 ts)
 {
 	struct pulse_elem *p = pool_get_pulse_elem();
 	if (p == NULL) {
-		p = kmalloc(sizeof(*p), GFP_ATOMIC);
+		p = kmalloc_obj(*p, GFP_ATOMIC);
 		if (p == NULL) {
 			DFS_POOL_STAT_INC(pulse_alloc_error);
 			return false;
@@ -284,7 +284,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 		ps.deadline_ts = ps.first_ts + ps.dur;
 		new_ps = pool_get_pseq_elem();
 		if (new_ps == NULL) {
-			new_ps = kmalloc(sizeof(*new_ps), GFP_ATOMIC);
+			new_ps = kmalloc_obj(*new_ps, GFP_ATOMIC);
 			if (new_ps == NULL) {
 				DFS_POOL_STAT_INC(pseq_alloc_error);
 				return false;
@@ -418,7 +418,7 @@ struct pri_detector *pri_detector_init(const struct radar_detector_specs *rs)
 {
 	struct pri_detector *de;
 
-	de = kzalloc(sizeof(*de), GFP_ATOMIC);
+	de = kzalloc_obj(*de, GFP_ATOMIC);
 	if (de == NULL)
 		return NULL;
 	de->exit = pri_detector_exit;

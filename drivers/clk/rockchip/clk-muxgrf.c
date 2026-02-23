@@ -67,7 +67,7 @@ struct clk *rockchip_clk_register_muxgrf(const char *name,
 		return ERR_PTR(-ENOTSUPP);
 	}
 
-	muxgrf_clock = kmalloc(sizeof(*muxgrf_clock), GFP_KERNEL);
+	muxgrf_clock = kmalloc_obj(*muxgrf_clock);
 	if (!muxgrf_clock)
 		return ERR_PTR(-ENOMEM);
 

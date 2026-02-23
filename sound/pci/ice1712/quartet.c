@@ -969,7 +969,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 	val = inb(ICEMT1724(ice, RATE));
 	outb(val | VT1724_SPDIF_MASTER, ICEMT1724(ice, RATE));
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	/* qtet is clocked by Xilinx array */
@@ -1005,7 +1005,7 @@ static int qtet_init(struct snd_ice1712 *ice)
 	ice->num_total_dacs = 2;
 	ice->num_total_adcs = 2;
 
-	ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_objs(struct snd_akm4xxx, 2);
 	ak = ice->akm;
 	if (!ak)
 		return -ENOMEM;

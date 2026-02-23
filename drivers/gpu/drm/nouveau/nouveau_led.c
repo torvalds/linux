@@ -89,7 +89,7 @@ nouveau_led_init(struct drm_device *dev)
 	if (nvkm_gpio_find(gpio, 0, DCB_GPIO_LOGO_LED_PWM, 0xff, &logo_led))
 		return 0;
 
-	drm->led = kzalloc(sizeof(*drm->led), GFP_KERNEL);
+	drm->led = kzalloc_obj(*drm->led);
 	if (!drm->led)
 		return -ENOMEM;
 	drm->led->dev = dev;

@@ -431,7 +431,7 @@ static int __init sclp_init_mem(void)
 
 	max_sclp_mems = roundup(sclp.rnmax * sclp.rzm, block_size) / block_size;
 	/* Allocate memory for all blocks ahead of time. */
-	sclp_mems = kcalloc(max_sclp_mems, sizeof(struct sclp_mem), GFP_KERNEL);
+	sclp_mems = kzalloc_objs(struct sclp_mem, max_sclp_mems);
 	if (!sclp_mems)
 		return -ENOMEM;
 	kset = kset_create_and_add("memory", NULL, firmware_kobj);
@@ -453,7 +453,7 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 	struct list_head *prev;
 	u16 last_rn;
 
-	new_incr = kzalloc(sizeof(*new_incr), GFP_KERNEL);
+	new_incr = kzalloc_obj(*new_incr);
 	if (!new_incr)
 		return;
 	new_incr->rn = rn;

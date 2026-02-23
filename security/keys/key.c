@@ -77,7 +77,7 @@ try_again:
 		spin_unlock(&key_user_lock);
 
 		user = NULL;
-		candidate = kmalloc(sizeof(struct key_user), GFP_KERNEL);
+		candidate = kmalloc_obj(struct key_user);
 		if (unlikely(!candidate))
 			goto out;
 

@@ -114,7 +114,7 @@ static inline struct action_gate_entry
 	if (i != num_entries)
 		return NULL;
 
-	oe = kcalloc(num_entries, sizeof(*oe), GFP_ATOMIC);
+	oe = kzalloc_objs(*oe, num_entries, GFP_ATOMIC);
 	if (!oe)
 		return NULL;
 

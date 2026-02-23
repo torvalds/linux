@@ -1247,7 +1247,7 @@ static int ucc_uart_probe(struct platform_device *ofdev)
 	if (ret)
 		return ret;
 
-	qe_port = kzalloc(sizeof(struct uart_qe_port), GFP_KERNEL);
+	qe_port = kzalloc_obj(struct uart_qe_port);
 	if (!qe_port) {
 		dev_err(&ofdev->dev, "can't allocate QE port structure\n");
 		return -ENOMEM;

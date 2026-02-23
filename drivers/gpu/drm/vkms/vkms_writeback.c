@@ -81,7 +81,7 @@ static int vkms_wb_prepare_job(struct drm_writeback_connector *wb_connector,
 	if (!job->fb)
 		return 0;
 
-	vkmsjob = kzalloc(sizeof(*vkmsjob), GFP_KERNEL);
+	vkmsjob = kzalloc_obj(*vkmsjob);
 	if (!vkmsjob)
 		return -ENOMEM;
 

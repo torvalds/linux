@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/simple-partition.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Simple partition types
+
+description:
+  Simple partition types which only define a "compatible" value and no custom
+  properties.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+  - Simon Glass <sjg@chromium.org>
+
+allOf:
+  - $ref: partition.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: brcm,bcm4908-firmware
+        description:
+          Broadcom BCM4908 CFE bootloader firmware partition
+
+      - const: brcm,bcm963xx-imagetag
+        description:
+          The BCM963XX ImageTag is a simple firmware header describing the
+          offsets and sizes of the rootfs and kernel parts contained in the
+          firmware.
+
+      - const: seama
+        description:
+          The SEAttle iMAge (SEAMA) partition is a type of partition used for
+          NAND flash devices. This type of flash image is found in some D-Link
+          routers such as DIR-645, DIR-842, DIR-859, DIR-860L, DIR-885L, DIR890L
+          and DCH-M225, as well as in WD and NEC routers on the ath79 (MIPS),
+          Broadcom BCM53xx, and RAMIPS platforms. This partition type does not
+          have children defined in the device tree, they need to be detected by
+          software.
+
+      - const: u-boot
+        description: >
+          u-boot.bin from U-Boot project.
+
+          This corresponds to a binman 'entry'. It is a single partition which holds
+          data of a defined type.
+
+          Binman uses the type to indicate what data file / type to place in the
+          partition. There are quite a number of binman-specific entry types, such as
+          section, fill and files, to be added later.
+
+      - const: tfa-bl31
+        description: >
+          bl31.bin or bl31.elf from TF-A project
+
+          This corresponds to a binman 'entry'. It is a single partition which holds
+          data of a defined type.
+
+unevaluatedProperties: false

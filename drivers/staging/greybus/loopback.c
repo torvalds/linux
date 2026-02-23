@@ -471,7 +471,7 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	struct gb_operation *operation;
 	int ret;
 
-	op_async = kzalloc(sizeof(*op_async), GFP_KERNEL);
+	op_async = kzalloc_obj(*op_async);
 	if (!op_async)
 		return -ENOMEM;
 
@@ -989,7 +989,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_LOOPBACK)
 		return -ENODEV;
 
-	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
+	gb = kzalloc_obj(*gb);
 	if (!gb)
 		return -ENOMEM;
 

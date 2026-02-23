@@ -208,7 +208,7 @@ qm1d1b0004_probe(struct i2c_client *client)
 	fe = cfg->fe;
 	i2c_set_clientdata(client, fe);
 
-	fe->tuner_priv = kzalloc(sizeof(struct qm1d1b0004_state), GFP_KERNEL);
+	fe->tuner_priv = kzalloc_obj(struct qm1d1b0004_state);
 	if (!fe->tuner_priv) {
 		ret = -ENOMEM;
 		goto err_mem;

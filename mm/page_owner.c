@@ -181,7 +181,7 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 		return;
 
 	set_current_in_page_owner();
-	stack = kmalloc(sizeof(*stack), gfp_nested_mask(gfp_mask));
+	stack = kmalloc_obj(*stack, gfp_nested_mask(gfp_mask));
 	if (!stack) {
 		unset_current_in_page_owner();
 		return;
@@ -530,7 +530,7 @@ static inline int print_page_owner_memcg(char *kbuf, size_t count, int ret,
 	if (!memcg)
 		goto out_unlock;
 
-	online = (memcg->css.flags & CSS_ONLINE);
+	online = css_is_online(&memcg->css);
 	cgroup_name(memcg->css.cgroup, name, sizeof(name));
 	ret += scnprintf(kbuf + ret, count - ret,
 			"Charged %sto %smemcg %s\n",

@@ -129,7 +129,7 @@ static u64 fixed_ema(u64 last, u64 next, u64 weight)
 
 static struct selector *alloc_selector(void)
 {
-	struct selector *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct selector *s = kmalloc_obj(*s);
 
 	if (s) {
 		INIT_LIST_HEAD(&s->valid_paths);
@@ -289,7 +289,7 @@ static int hst_add_path(struct path_selector *ps, struct dm_path *path,
 	}
 
 	/* allocate the path */
-	pi = kmalloc(sizeof(*pi), GFP_KERNEL);
+	pi = kmalloc_obj(*pi);
 	if (!pi) {
 		*error = "historical-service-time ps: Error allocating path context";
 		return -ENOMEM;

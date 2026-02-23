@@ -73,7 +73,7 @@ struct dst_metrics *ip_fib_metrics_init(struct nlattr *fc_mx,
 	if (!fc_mx)
 		return (struct dst_metrics *)&dst_default_metrics;
 
-	fib_metrics = kzalloc(sizeof(*fib_metrics), GFP_KERNEL);
+	fib_metrics = kzalloc_obj(*fib_metrics);
 	if (unlikely(!fib_metrics))
 		return ERR_PTR(-ENOMEM);
 
@@ -88,4 +88,4 @@ struct dst_metrics *ip_fib_metrics_init(struct nlattr *fc_mx,
 
 	return fib_metrics;
 }
-EXPORT_SYMBOL_GPL(ip_fib_metrics_init);
+EXPORT_IPV6_MOD_GPL(ip_fib_metrics_init);

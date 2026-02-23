@@ -67,7 +67,7 @@ int pci_epf_alloc_doorbell(struct pci_epf *epf, u16 num_db)
 
 	dev_set_msi_domain(epc->dev.parent, domain);
 
-	msg = kcalloc(num_db, sizeof(struct pci_epf_doorbell_msg), GFP_KERNEL);
+	msg = kzalloc_objs(struct pci_epf_doorbell_msg, num_db);
 	if (!msg)
 		return -ENOMEM;
 

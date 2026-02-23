@@ -9,6 +9,37 @@
 
 #include "sdm630.dtsi"
 
+/delete-node/ &buffer_mem;
+
+/ {
+	smp2p-cdsp {
+		compatible = "qcom,smp2p";
+		qcom,smem = <94>, <432>;
+		interrupts = <GIC_SPI 514 IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&apcs_glb 30>;
+		qcom,local-pid = <0>;
+		qcom,remote-pid = <5>;
+
+		cdsp_smp2p_out: master-kernel {
+			qcom,entry-name = "master-kernel";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		cdsp_smp2p_in: slave-kernel {
+			qcom,entry-name = "slave-kernel";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	reserved-memory {
+		cdsp_region: cdsp@94a00000 {
+			reg = <0x0 0x94a00000 0x00 0x600000>;
+			no-map;
+		};
+	};
+};
+
 &adreno_gpu {
 	compatible = "qcom,adreno-512.0", "qcom,adreno";
 	operating-points-v2 = <&gpu_sdm660_opp_table>;
@@ -163,7 +194,7 @@
 
 		/* DSI1 shares the OPP table with DSI0 */
 		operating-points-v2 = <&dsi_opp_table>;
-		power-domains = <&rpmpd SDM660_VDDCX>;
+		power-domains = <&rpmpd RPMPD_VDDCX>;
 
 		interrupt-parent = <&mdss>;
 		interrupts = <5>;
@@ -245,6 +276,136 @@
 			<&mdss_dsi1_phy DSI_BYTE_PLL_CLK>,
 			<0>,
 			<0>;
+};
+
+&soc {
+	cdsp_smmu: iommu@5180000 {
+		compatible = "qcom,sdm630-smmu-v2", "qcom,smmu-v2";
+		reg = <0x5180000 0x40000>;
+		#iommu-cells = <1>;
+
+		#global-interrupts = <2>;
+		interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 534 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 535 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 536 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 537 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 538 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 539 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 540 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 541 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 545 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 546 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 547 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 548 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 549 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&gcc GCC_HLOS1_VOTE_TURING_ADSP_SMMU_CLK>;
+		clock-names = "bus";
+
+		power-domains = <&gcc HLOS1_VOTE_TURING_ADSP_GDSC>;
+
+	};
+
+	remoteproc_cdsp: remoteproc@1a300000 {
+		compatible = "qcom,sdm660-cdsp-pas";
+		reg = <0x1a300000 0x00100>;
+		interrupts-extended = <&intc GIC_SPI 518 IRQ_TYPE_EDGE_RISING>,
+				      <&cdsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				      <&cdsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				      <&cdsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				      <&cdsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog",
+				  "fatal",
+				  "ready",
+				  "handover",
+				  "stop-ack";
+
+		clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>;
+		clock-names = "xo";
+
+		memory-region = <&cdsp_region>;
+		power-domains = <&rpmpd SDM660_VDDCX>;
+		power-domain-names = "cx";
+
+		qcom,smem-states = <&cdsp_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
+
+		glink-edge {
+			interrupts = <GIC_SPI 513 IRQ_TYPE_EDGE_RISING>;
+
+			label = "cdsp";
+			mboxes = <&apcs_glb 29>;
+			qcom,remote-pid = <5>;
+
+			fastrpc {
+				compatible = "qcom,fastrpc";
+				qcom,glink-channels = "fastrpcglink-apps-dsp";
+				label = "cdsp";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				compute-cb@5 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <5>;
+					iommus = <&cdsp_smmu 3>;
+				};
+
+				compute-cb@6 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <6>;
+					iommus = <&cdsp_smmu 4>;
+				};
+
+				compute-cb@7 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <7>;
+					iommus = <&cdsp_smmu 5>;
+				};
+
+				compute-cb@8 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <8>;
+					iommus = <&cdsp_smmu 6>;
+				};
+
+				compute-cb@9 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <9>;
+					iommus = <&cdsp_smmu 7>;
+				};
+
+				compute-cb@10 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <10>;
+					iommus = <&cdsp_smmu 8>;
+				};
+
+				compute-cb@11 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <11>;
+					iommus = <&cdsp_smmu 9>;
+				};
+
+				compute-cb@12 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <12>;
+					iommus = <&cdsp_smmu 10>;
+				};
+
+				compute-cb@13 {
+					compatible = "qcom,fastrpc-compute-cb";
+					reg = <13>;
+					iommus = <&cdsp_smmu 11>;
+				};
+			};
+		};
+	};
 };
 
 &tlmm {

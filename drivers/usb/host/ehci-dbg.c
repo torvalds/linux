@@ -629,7 +629,7 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 	unsigned		i;
 	__hc32			tag;
 
-	seen = kmalloc_array(DBG_SCHED_LIMIT, sizeof(*seen), GFP_ATOMIC);
+	seen = kmalloc_objs(*seen, DBG_SCHED_LIMIT, GFP_ATOMIC);
 	if (!seen)
 		return 0;
 	seen_count = 0;
@@ -917,7 +917,7 @@ static struct debug_buffer *alloc_buffer(struct usb_bus *bus,
 {
 	struct debug_buffer *buf;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 
 	if (buf) {
 		buf->bus = bus;

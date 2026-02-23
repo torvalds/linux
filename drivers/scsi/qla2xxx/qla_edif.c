@@ -174,7 +174,7 @@ static int qla_edif_list_add_sa_update_index(fc_port_t *fcport,
 	 * when update is called for the first two sa_indexes
 	 * followed by a delete of the first sa_index
 	 */
-	entry = kzalloc((sizeof(struct edif_list_entry)), GFP_ATOMIC);
+	entry = kzalloc_obj(struct edif_list_entry, GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
@@ -1393,7 +1393,7 @@ qla_edif_add_sa_ctl(fc_port_t *fcport, struct qla_sa_update_frame *sa_frame,
 	int	index = sa_frame->fast_sa_index;
 	unsigned long flags = 0;
 
-	sa_ctl = kzalloc(sizeof(*sa_ctl), GFP_KERNEL);
+	sa_ctl = kzalloc_obj(*sa_ctl);
 	if (!sa_ctl) {
 		/* couldn't get space */
 		ql_dbg(ql_dbg_edif, fcport->vha, 0x9100,
@@ -2187,7 +2187,7 @@ qla_edb_node_alloc(scsi_qla_host_t *vha, uint32_t ntype)
 {
 	struct edb_node	*node;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	node = kzalloc_obj(*node, GFP_ATOMIC);
 	if (!node) {
 		/* couldn't get space */
 		ql_dbg(ql_dbg_edif, vha, 0x9100,
@@ -3279,7 +3279,7 @@ static uint16_t qla_edif_sadb_get_sa_index(fc_port_t *fcport,
 		}
 
 		/* if there is no entry for this nport, add one */
-		entry = kzalloc((sizeof(struct edif_sa_index_entry)), GFP_ATOMIC);
+		entry = kzalloc_obj(struct edif_sa_index_entry, GFP_ATOMIC);
 		if (!entry)
 			return INVALID_EDIF_SA_INDEX;
 
@@ -3381,7 +3381,7 @@ void qla_edif_sadb_release(struct qla_hw_data *ha)
 int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha)
 {
 	ha->edif_tx_sa_id_map =
-	    kcalloc(BITS_TO_LONGS(EDIF_NUM_SA_INDEX), sizeof(long), GFP_KERNEL);
+	    kzalloc_objs(long, BITS_TO_LONGS(EDIF_NUM_SA_INDEX));
 
 	if (!ha->edif_tx_sa_id_map) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0009,
@@ -3390,7 +3390,7 @@ int qla_edif_sadb_build_free_pool(struct qla_hw_data *ha)
 	}
 
 	ha->edif_rx_sa_id_map =
-	    kcalloc(BITS_TO_LONGS(EDIF_NUM_SA_INDEX), sizeof(long), GFP_KERNEL);
+	    kzalloc_objs(long, BITS_TO_LONGS(EDIF_NUM_SA_INDEX));
 	if (!ha->edif_rx_sa_id_map) {
 		kfree(ha->edif_tx_sa_id_map);
 		ha->edif_tx_sa_id_map = NULL;

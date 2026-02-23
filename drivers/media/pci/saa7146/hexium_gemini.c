@@ -250,7 +250,7 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 
 	DEB_EE("\n");
 
-	hexium = kzalloc(sizeof(*hexium), GFP_KERNEL);
+	hexium = kzalloc_obj(*hexium);
 	if (!hexium)
 		return -ENOMEM;
 

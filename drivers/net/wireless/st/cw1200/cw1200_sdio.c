@@ -287,7 +287,7 @@ static int cw1200_sdio_probe(struct sdio_func *func,
 	if (func->num != 0x01)
 		return -ENODEV;
 
-	self = kzalloc(sizeof(*self), GFP_KERNEL);
+	self = kzalloc_obj(*self);
 	if (!self) {
 		pr_err("Can't allocate SDIO hwbus_priv.\n");
 		return -ENOMEM;

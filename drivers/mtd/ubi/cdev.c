@@ -727,7 +727,7 @@ static int rename_volumes(struct ubi_device *ubi,
 		int name_len = req->ents[i].name_len;
 		const char *name = req->ents[i].name;
 
-		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		re = kzalloc_obj(struct ubi_rename_entry);
 		if (!re) {
 			err = -ENOMEM;
 			goto out_free;
@@ -801,7 +801,7 @@ static int rename_volumes(struct ubi_device *ubi,
 			goto out_free;
 		}
 
-		re1 = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		re1 = kzalloc_obj(struct ubi_rename_entry);
 		if (!re1) {
 			err = -ENOMEM;
 			ubi_close_volume(desc);
@@ -1007,7 +1007,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		struct ubi_rnvol_req *req;
 
 		dbg_gen("re-name volumes");
-		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
+		req = kmalloc_obj(struct ubi_rnvol_req);
 		if (!req) {
 			err = -ENOMEM;
 			break;

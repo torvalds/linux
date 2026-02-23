@@ -322,7 +322,6 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	rate = clk_get_rate(spifc->clk);
 
 	host->num_chipselect = 1;
-	host->dev.of_node = pdev->dev.of_node;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->auto_runtime_pm = true;
 	host->transfer_one = meson_spifc_transfer_one;

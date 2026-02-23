@@ -33,7 +33,7 @@ static int qrtr_tun_open(struct inode *inode, struct file *filp)
 	struct qrtr_tun *tun;
 	int ret;
 
-	tun = kzalloc(sizeof(*tun), GFP_KERNEL);
+	tun = kzalloc_obj(*tun);
 	if (!tun)
 		return -ENOMEM;
 

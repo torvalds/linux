@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
+#include <linux/compiler.h>
 #include <linux/string.h>
 
 #include "tests.h"
@@ -28,7 +29,7 @@
 static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 {
 	int i, err = -1;
-	volatile int tmp = 0;
+	volatile int tmp __maybe_unused = 0;
 	u64 total_periods = 0;
 	int nr_samples = 0;
 	char sbuf[STRERR_BUFSIZE];

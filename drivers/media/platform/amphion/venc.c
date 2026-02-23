@@ -13,14 +13,12 @@
 #include <linux/videodev2.h>
 #include <linux/ktime.h>
 #include <linux/rational.h>
-#include <linux/vmalloc.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/videobuf2-vmalloc.h>
 #include "vpu.h"
 #include "vpu_defs.h"
 #include "vpu_core.h"
@@ -844,7 +842,7 @@ static int venc_get_encoded_frames(struct vpu_inst *inst)
 					       v4l2_m2m_dst_buf_remove(inst->fh.m2m_ctx)))
 			break;
 		list_del_init(&frame->list);
-		vfree(frame);
+		kfree(frame);
 	}
 
 	return 0;
@@ -860,7 +858,7 @@ static int venc_frame_encoded(struct vpu_inst *inst, void *arg)
 	if (!info)
 		return -EINVAL;
 	venc = inst->priv;
-	frame = vzalloc(sizeof(*frame));
+	frame = kzalloc_obj(*frame);
 	if (!frame)
 		return -ENOMEM;
 
@@ -912,9 +910,9 @@ static void venc_cleanup(struct vpu_inst *inst)
 		return;
 
 	venc = inst->priv;
-	vfree(venc);
+	kfree(venc);
 	inst->priv = NULL;
-	vfree(inst);
+	kfree(inst);
 }
 
 static int venc_start_session(struct vpu_inst *inst, u32 type)
@@ -1067,7 +1065,7 @@ static void venc_cleanup_frames(struct venc_t *venc)
 
 	list_for_each_entry_safe(frame, tmp, &venc->frames, list) {
 		list_del_init(&frame->list);
-		vfree(frame);
+		kfree(frame);
 	}
 }
 
@@ -1151,7 +1149,7 @@ static int venc_process_capture(struct vpu_inst *inst, struct vb2_buffer *vb)
 		return ret;
 
 	list_del_init(&frame->list);
-	vfree(frame);
+	kfree(frame);
 	return 0;
 }
 
@@ -1309,13 +1307,13 @@ static int venc_open(struct file *file)
 	struct venc_t *venc;
 	int ret;
 
-	inst = vzalloc(sizeof(*inst));
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
-	venc = vzalloc(sizeof(*venc));
+	venc = kzalloc_obj(*venc);
 	if (!venc) {
-		vfree(inst);
+		kfree(inst);
 		return -ENOMEM;
 	}
 

@@ -230,7 +230,7 @@ void ath10k_peer_map_event(struct ath10k_htt *htt,
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, ev->vdev_id, ev->addr);
 	if (!peer) {
-		peer = kzalloc(sizeof(*peer), GFP_ATOMIC);
+		peer = kzalloc_obj(*peer, GFP_ATOMIC);
 		if (!peer)
 			goto exit;
 

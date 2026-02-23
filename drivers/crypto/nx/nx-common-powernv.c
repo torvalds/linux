@@ -810,7 +810,7 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 		return ret;
 	}
 
-	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
+	coproc = kzalloc_obj(*coproc);
 	if (!coproc)
 		return -ENOMEM;
 
@@ -908,7 +908,6 @@ static int __init nx_powernv_probe_vas(struct device_node *pn)
 {
 	int chip_id, vasid, ret = 0;
 	int ct_842 = 0, ct_gzip = 0;
-	struct device_node *dn;
 
 	chip_id = of_get_ibm_chip_id(pn);
 	if (chip_id < 0) {
@@ -922,7 +921,7 @@ static int __init nx_powernv_probe_vas(struct device_node *pn)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(pn, dn) {
+	for_each_child_of_node_scoped(pn, dn) {
 		ret = find_nx_device_tree(dn, chip_id, vasid, NX_CT_842,
 					"ibm,p9-nx-842", &ct_842);
 
@@ -930,10 +929,8 @@ static int __init nx_powernv_probe_vas(struct device_node *pn)
 			ret = find_nx_device_tree(dn, chip_id, vasid,
 				NX_CT_GZIP, "ibm,p9-nx-gzip", &ct_gzip);
 
-		if (ret) {
-			of_node_put(dn);
+		if (ret)
 			return ret;
-		}
 	}
 
 	if (!ct_842 || !ct_gzip) {
@@ -971,7 +968,7 @@ static int __init nx842_powernv_probe(struct device_node *dn)
 		return -EINVAL;
 	}
 
-	coproc = kzalloc(sizeof(*coproc), GFP_KERNEL);
+	coproc = kzalloc_obj(*coproc);
 	if (!coproc)
 		return -ENOMEM;
 

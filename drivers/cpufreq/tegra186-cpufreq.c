@@ -135,7 +135,7 @@ static int tegra_cpufreq_init_cpufreq_table(struct cpufreq_policy *policy,
 		dev_pm_opp_disable(cpu_dev, rate);
 	}
 
-	freq_table = kcalloc((max_opps + 1), sizeof(*freq_table), GFP_KERNEL);
+	freq_table = kzalloc_objs(*freq_table, (max_opps + 1));
 	if (!freq_table)
 		return -ENOMEM;
 

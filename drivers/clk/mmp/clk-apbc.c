@@ -124,7 +124,7 @@ struct clk *mmp_clk_register_apbc(const char *name, const char *parent_name,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	apbc = kzalloc(sizeof(*apbc), GFP_KERNEL);
+	apbc = kzalloc_obj(*apbc);
 	if (!apbc)
 		return NULL;
 

@@ -767,7 +767,7 @@ static int softing_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	card = kzalloc(sizeof(*card), GFP_KERNEL);
+	card = kzalloc_obj(*card);
 	if (!card)
 		return -ENOMEM;
 	card->pdat = pdat;

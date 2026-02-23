@@ -1724,15 +1724,15 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 		goto out_put;
 	}
 
-	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
+	lsop = kzalloc_obj(*lsop);
 	if (!lsop) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
 		goto out_put;
 	}
 
-	lsop->rqstbuf = kzalloc(sizeof(*lsop->rqstbuf), GFP_KERNEL);
-	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
+	lsop->rqstbuf = kzalloc_obj(*lsop->rqstbuf);
+	lsop->rspbuf = kzalloc_obj(*lsop->rspbuf);
 	if (!lsop->rqstbuf || !lsop->rspbuf) {
 		nvme_fc_rcv_ls_req_err_msg(lport, w0);
 		ret = -ENOMEM;
@@ -3443,7 +3443,7 @@ nvme_fc_alloc_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 		goto out_fail;
 	}
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl) {
 		ret = -ENOMEM;
 		goto out_fail;
@@ -3497,8 +3497,8 @@ nvme_fc_alloc_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->ctrl.cntlid = 0xffff;
 
 	ret = -ENOMEM;
-	ctrl->queues = kcalloc(ctrl->ctrl.queue_count,
-				sizeof(struct nvme_fc_queue), GFP_KERNEL);
+	ctrl->queues = kzalloc_objs(struct nvme_fc_queue,
+				    ctrl->ctrl.queue_count);
 	if (!ctrl->queues)
 		goto out_free_ida;
 
@@ -3587,6 +3587,8 @@ fail_ctrl:
 
 	ctrl->ctrl.opts = NULL;
 
+	if (ctrl->ctrl.admin_tagset)
+		nvme_remove_admin_tag_set(&ctrl->ctrl);
 	/* initiate nvme ctrl ref counting teardown */
 	nvme_uninit_ctrl(&ctrl->ctrl);
 

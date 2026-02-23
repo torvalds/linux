@@ -499,7 +499,7 @@ struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
 	struct htc_endpoint *endpoint;
 	struct htc_target *target;
 
-	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
+	target = kzalloc_obj(struct htc_target);
 	if (!target)
 		return NULL;
 

@@ -362,7 +362,7 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 
 	cii = ITOC(file_inode(coda_file));
 
-	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
+	vdir = kmalloc_obj(*vdir);
 	if (!vdir) return -ENOMEM;
 
 	if (!dir_emit_dots(coda_file, ctx))

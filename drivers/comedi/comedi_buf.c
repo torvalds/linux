@@ -70,7 +70,7 @@ comedi_buf_map_alloc(struct comedi_device *dev, enum dma_data_direction dma_dir,
 	struct comedi_buf_page *buf;
 	unsigned int i;
 
-	bm = kzalloc(sizeof(*bm), GFP_KERNEL);
+	bm = kzalloc_obj(*bm);
 	if (!bm)
 		return NULL;
 

@@ -141,8 +141,8 @@ static int vfio_platform_regions_init(struct vfio_platform_device *vdev)
 	while (vdev->get_resource(vdev, cnt))
 		cnt++;
 
-	vdev->regions = kcalloc(cnt, sizeof(struct vfio_platform_region),
-				GFP_KERNEL_ACCOUNT);
+	vdev->regions = kzalloc_objs(struct vfio_platform_region, cnt,
+				     GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
 		return -ENOMEM;
 

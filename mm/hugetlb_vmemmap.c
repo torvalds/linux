@@ -794,14 +794,6 @@ void __init hugetlb_vmemmap_init_early(int nid)
 	struct huge_bootmem_page *m = NULL;
 	void *map;
 
-	/*
-	 * Noting to do if bootmem pages were not allocated
-	 * early in boot, or if HVO wasn't enabled in the
-	 * first place.
-	 */
-	if (!hugetlb_bootmem_allocated())
-		return;
-
 	if (!READ_ONCE(vmemmap_optimize_enabled))
 		return;
 
@@ -846,9 +838,6 @@ void __init hugetlb_vmemmap_init_late(int nid)
 	unsigned long pfn, nr_mmap;
 	struct hstate *h;
 	void *map;
-
-	if (!hugetlb_bootmem_allocated())
-		return;
 
 	if (!READ_ONCE(vmemmap_optimize_enabled))
 		return;

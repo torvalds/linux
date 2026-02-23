@@ -736,7 +736,7 @@ int phy_ethtool_set_plca_cfg(struct phy_device *phydev,
 		goto out;
 	}
 
-	curr_plca_cfg = kmalloc(sizeof(*curr_plca_cfg), GFP_KERNEL);
+	curr_plca_cfg = kmalloc_obj(*curr_plca_cfg);
 	if (!curr_plca_cfg) {
 		ret = -ENOMEM;
 		goto out;

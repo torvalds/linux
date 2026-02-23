@@ -313,7 +313,7 @@ struct clk *rockchip_clk_register_cpuclk(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
+	cpuclk = kzalloc_obj(*cpuclk);
 	if (!cpuclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -479,7 +479,7 @@ struct clk *rockchip_clk_register_cpuclk_multi_pll(const char *name,
 	int ret;
 
 	if (num_parents > 1) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 
@@ -493,7 +493,7 @@ struct clk *rockchip_clk_register_cpuclk_multi_pll(const char *name,
 	}
 
 	if (div_width > 0) {
-		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		div = kzalloc_obj(*div);
 		if (!div) {
 			ret = -ENOMEM;
 			goto free_mux;
@@ -521,7 +521,7 @@ struct clk *rockchip_clk_register_cpuclk_multi_pll(const char *name,
 		goto free_div;
 	}
 
-	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
+	cpuclk = kzalloc_obj(*cpuclk);
 	if (!cpuclk) {
 		ret = -ENOMEM;
 		goto unregister_clk;

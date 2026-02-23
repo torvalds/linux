@@ -160,8 +160,7 @@ fw_handle_brd_file(struct wil6210_priv *wil, const void *data,
 		return -EINVAL;
 	}
 
-	wil->brd_info = kcalloc(max_num_ent, sizeof(struct wil_brd_info),
-				GFP_KERNEL);
+	wil->brd_info = kzalloc_objs(struct wil_brd_info, max_num_ent);
 	if (!wil->brd_info)
 		return -ENOMEM;
 

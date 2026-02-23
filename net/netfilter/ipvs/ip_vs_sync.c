@@ -329,7 +329,7 @@ ip_vs_sync_buff_create(struct netns_ipvs *ipvs, unsigned int len)
 {
 	struct ip_vs_sync_buff *sb;
 
-	if (!(sb=kmalloc(sizeof(struct ip_vs_sync_buff), GFP_ATOMIC)))
+	if (!(sb=kmalloc_obj(struct ip_vs_sync_buff, GFP_ATOMIC)))
 		return NULL;
 
 	len = max_t(unsigned int, len + sizeof(struct ip_vs_sync_mesg),
@@ -417,7 +417,7 @@ ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs, unsigned int len)
 	struct ip_vs_sync_buff *sb;
 	struct ip_vs_sync_mesg_v0 *mesg;
 
-	if (!(sb=kmalloc(sizeof(struct ip_vs_sync_buff), GFP_ATOMIC)))
+	if (!(sb=kmalloc_obj(struct ip_vs_sync_buff, GFP_ATOMIC)))
 		return NULL;
 
 	len = max_t(unsigned int, len + sizeof(struct ip_vs_sync_mesg_v0),
@@ -1827,7 +1827,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		struct ipvs_master_sync_state *ms;
 
 		result = -ENOMEM;
-		ipvs->ms = kcalloc(count, sizeof(ipvs->ms[0]), GFP_KERNEL);
+		ipvs->ms = kzalloc_objs(ipvs->ms[0], count);
 		if (!ipvs->ms)
 			goto out;
 		ms = ipvs->ms;
@@ -1841,8 +1841,7 @@ int start_sync_thread(struct netns_ipvs *ipvs, struct ipvs_sync_daemon_cfg *c,
 		}
 	}
 	result = -ENOMEM;
-	ti = kcalloc(count, sizeof(struct ip_vs_sync_thread_data),
-		     GFP_KERNEL);
+	ti = kzalloc_objs(struct ip_vs_sync_thread_data, count);
 	if (!ti)
 		goto out;
 

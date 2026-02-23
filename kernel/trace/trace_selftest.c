@@ -248,7 +248,7 @@ static int trace_selftest_ops(struct trace_array *tr, int cnt)
 		goto out;
 
 	/* Add a dynamic probe */
-	dyn_ops = kzalloc(sizeof(*dyn_ops), GFP_KERNEL);
+	dyn_ops = kzalloc_obj(*dyn_ops);
 	if (!dyn_ops) {
 		printk("MEMORY ERROR ");
 		goto out;
@@ -1225,7 +1225,7 @@ trace_selftest_startup_irqsoff(struct tracer *trace, struct trace_array *tr)
 	/* check both trace buffers */
 	ret = trace_test_buffer(&tr->array_buffer, NULL);
 	if (!ret)
-		ret = trace_test_buffer(&tr->max_buffer, &count);
+		ret = trace_test_buffer(&tr->snapshot_buffer, &count);
 	trace->reset(tr);
 	tracing_start();
 
@@ -1287,7 +1287,7 @@ trace_selftest_startup_preemptoff(struct tracer *trace, struct trace_array *tr)
 	/* check both trace buffers */
 	ret = trace_test_buffer(&tr->array_buffer, NULL);
 	if (!ret)
-		ret = trace_test_buffer(&tr->max_buffer, &count);
+		ret = trace_test_buffer(&tr->snapshot_buffer, &count);
 	trace->reset(tr);
 	tracing_start();
 
@@ -1355,7 +1355,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	if (ret)
 		goto out;
 
-	ret = trace_test_buffer(&tr->max_buffer, &count);
+	ret = trace_test_buffer(&tr->snapshot_buffer, &count);
 	if (ret)
 		goto out;
 
@@ -1385,7 +1385,7 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 	if (ret)
 		goto out;
 
-	ret = trace_test_buffer(&tr->max_buffer, &count);
+	ret = trace_test_buffer(&tr->snapshot_buffer, &count);
 
 	if (!ret && !count) {
 		printk(KERN_CONT ".. no entries found ..");
@@ -1513,7 +1513,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	/* check both trace buffers */
 	ret = trace_test_buffer(&tr->array_buffer, NULL);
 	if (!ret)
-		ret = trace_test_buffer(&tr->max_buffer, &count);
+		ret = trace_test_buffer(&tr->snapshot_buffer, &count);
 
 
 	trace->reset(tr);

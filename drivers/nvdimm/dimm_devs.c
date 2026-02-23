@@ -575,7 +575,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		const struct nvdimm_security_ops *sec_ops,
 		const struct nvdimm_fw_ops *fw_ops)
 {
-	struct nvdimm *nvdimm = kzalloc(sizeof(*nvdimm), GFP_KERNEL);
+	struct nvdimm *nvdimm = kzalloc_obj(*nvdimm);
 	struct device *dev;
 
 	if (!nvdimm)

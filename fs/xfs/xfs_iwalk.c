@@ -3,7 +3,7 @@
  * Copyright (C) 2019 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -659,8 +659,8 @@ xfs_iwalk_threaded(
 		if (xfs_pwork_ctl_want_abort(&pctl))
 			break;
 
-		iwag = kzalloc(sizeof(struct xfs_iwalk_ag),
-				GFP_KERNEL | __GFP_NOFAIL);
+		iwag = kzalloc_obj(struct xfs_iwalk_ag,
+				   GFP_KERNEL | __GFP_NOFAIL);
 		iwag->mp = mp;
 
 		/*

@@ -587,9 +587,7 @@ static int max77759_add_chained_charger(struct i2c_client *client,
 static int max77759_probe(struct i2c_client *client)
 {
 	struct regmap_irq_chip_data *irq_chip_data_pmic;
-	struct irq_data *irq_data;
 	struct max77759 *max77759;
-	unsigned long irq_flags;
 	unsigned int pmic_id;
 	int ret;
 
@@ -628,16 +626,8 @@ static int max77759_probe(struct i2c_client *client)
 			return ret;
 	}
 
-	irq_data = irq_get_irq_data(client->irq);
-	if (!irq_data)
-		return dev_err_probe(&client->dev, -EINVAL,
-				     "invalid IRQ: %d\n", client->irq);
-
-	irq_flags = IRQF_ONESHOT | IRQF_SHARED;
-	irq_flags |= irqd_get_trigger_type(irq_data);
-
 	ret = devm_regmap_add_irq_chip(&client->dev, max77759->regmap_top,
-				       client->irq, irq_flags, 0,
+				       client->irq, IRQF_ONESHOT | IRQF_SHARED, 0,
 				       &max77759_pmic_irq_chip,
 				       &irq_chip_data_pmic);
 	if (ret)

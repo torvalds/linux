@@ -117,7 +117,7 @@ static int __init cma_sysfs_init(void)
 		return -ENOMEM;
 
 	for (i = 0; i < cma_area_count; i++) {
-		cma_kobj = kzalloc(sizeof(*cma_kobj), GFP_KERNEL);
+		cma_kobj = kzalloc_obj(*cma_kobj);
 		if (!cma_kobj) {
 			err = -ENOMEM;
 			goto out;

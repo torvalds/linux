@@ -147,7 +147,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	    prt->pin + 1 != pin)
 		return -ENODEV;
 
-	entry = kzalloc(sizeof(struct acpi_prt_entry), GFP_KERNEL);
+	entry = kzalloc_obj(struct acpi_prt_entry);
 	if (!entry)
 		return -ENOMEM;
 

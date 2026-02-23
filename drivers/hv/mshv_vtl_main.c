@@ -117,7 +117,7 @@ mshv_ioctl_create_vtl(void __user *user_arg, struct device *module_dev)
 	struct file *file;
 	int fd;
 
-	vtl = kzalloc(sizeof(*vtl), GFP_KERNEL);
+	vtl = kzalloc_obj(*vtl);
 	if (!vtl)
 		return -ENOMEM;
 
@@ -393,7 +393,7 @@ static int mshv_vtl_ioctl_add_vtl0_mem(struct mshv_vtl *vtl, void __user *arg)
 		return -EFAULT;
 	}
 
-	pgmap = kzalloc(sizeof(*pgmap), GFP_KERNEL);
+	pgmap = kzalloc_obj(*pgmap);
 	if (!pgmap)
 		return -ENOMEM;
 
@@ -845,9 +845,10 @@ static const struct file_operations mshv_vtl_fops = {
 	.mmap = mshv_vtl_mmap,
 };
 
-static void mshv_vtl_synic_mask_vmbus_sint(const u8 *mask)
+static void mshv_vtl_synic_mask_vmbus_sint(void *info)
 {
 	union hv_synic_sint sint;
+	const u8 *mask = info;
 
 	sint.as_uint64 = 0;
 	sint.vector = HYPERVISOR_CALLBACK_VECTOR;
@@ -999,7 +1000,7 @@ static int mshv_vtl_sint_ioctl_pause_msg_stream(struct mshv_sint_mask __user *ar
 	if (copy_from_user(&mask, arg, sizeof(mask)))
 		return -EFAULT;
 	guard(mutex)(&vtl2_vmbus_sint_mask_mutex);
-	on_each_cpu((smp_call_func_t)mshv_vtl_synic_mask_vmbus_sint, &mask.mask, 1);
+	on_each_cpu(mshv_vtl_synic_mask_vmbus_sint, &mask.mask, 1);
 	WRITE_ONCE(vtl_synic_mask_vmbus_sint_masked, mask.mask != 0);
 	if (mask.mask)
 		wake_up_interruptible_poll(&fd_wait_queue, EPOLLIN);
@@ -1343,7 +1344,7 @@ static int __init mshv_vtl_init(void)
 	/*
 	 * "mshv vtl mem dev" device is later used to setup VTL0 memory.
 	 */
-	mem_dev = kzalloc(sizeof(*mem_dev), GFP_KERNEL);
+	mem_dev = kzalloc_obj(*mem_dev);
 	if (!mem_dev) {
 		ret = -ENOMEM;
 		goto free_low;

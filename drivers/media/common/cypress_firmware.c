@@ -75,7 +75,7 @@ int cypress_load_firmware(struct usb_device *udev,
 	struct hexline *hx;
 	int ret, pos = 0;
 
-	hx = kmalloc(sizeof(*hx), GFP_KERNEL);
+	hx = kmalloc_obj(*hx);
 	if (!hx)
 		return -ENOMEM;
 

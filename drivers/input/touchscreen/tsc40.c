@@ -83,7 +83,7 @@ static int tsc_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int error;
 
-	ptsc = kzalloc(sizeof(*ptsc), GFP_KERNEL);
+	ptsc = kzalloc_obj(*ptsc);
 	input_dev = input_allocate_device();
 	if (!ptsc || !input_dev) {
 		error = -ENOMEM;
@@ -92,7 +92,7 @@ static int tsc_connect(struct serio *serio, struct serio_driver *drv)
 
 	ptsc->serio = serio;
 	ptsc->dev = input_dev;
-	snprintf(ptsc->phys, sizeof(ptsc->phys), "%s/input0", serio->phys);
+	scnprintf(ptsc->phys, sizeof(ptsc->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "TSC-10/25/40 Serial TouchScreen";
 	input_dev->phys = ptsc->phys;

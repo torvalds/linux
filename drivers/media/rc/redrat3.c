@@ -502,7 +502,7 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutus)
 	__be32 *timeout;
 	int ret;
 
-	timeout = kmalloc(sizeof(*timeout), GFP_KERNEL);
+	timeout = kmalloc_obj(*timeout);
 	if (!timeout)
 		return -ENOMEM;
 
@@ -768,13 +768,11 @@ static int redrat3_transmit_ir(struct rc_dev *rcdev, unsigned *txbuf,
 	/* rr3 will disable rc detector on transmit */
 	rr3->transmitting = true;
 
-	sample_lens = kcalloc(RR3_DRIVER_MAXLENS,
-			      sizeof(*sample_lens),
-			      GFP_KERNEL);
+	sample_lens = kzalloc_objs(*sample_lens, RR3_DRIVER_MAXLENS);
 	if (!sample_lens)
 		return -ENOMEM;
 
-	irdata = kzalloc(sizeof(*irdata), GFP_KERNEL);
+	irdata = kzalloc_obj(*irdata);
 	if (!irdata) {
 		ret = -ENOMEM;
 		goto out;
@@ -1022,7 +1020,7 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	}
 
 	/* allocate memory for our device state and initialize it */
-	rr3 = kzalloc(sizeof(*rr3), GFP_KERNEL);
+	rr3 = kzalloc_obj(*rr3);
 	if (!rr3)
 		goto no_endpoints;
 

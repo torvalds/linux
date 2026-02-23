@@ -66,7 +66,7 @@ static int init_slots(struct controller *ctrl)
 	int i;
 
 	for (i = 0; i < ctrl->num_slots; i++) {
-		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc_obj(*slot);
 		if (!slot) {
 			retval = -ENOMEM;
 			goto error;
@@ -80,7 +80,8 @@ static int init_slots(struct controller *ctrl)
 		slot->device = ctrl->slot_device_offset + i;
 		slot->number = ctrl->first_slot + (ctrl->slot_num_inc * i);
 
-		slot->wq = alloc_workqueue("shpchp-%d", 0, 0, slot->number);
+		slot->wq = alloc_workqueue("shpchp-%d", WQ_PERCPU, 0,
+					   slot->number);
 		if (!slot->wq) {
 			retval = -ENOMEM;
 			goto error_slot;
@@ -258,7 +259,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (acpi_get_hp_hw_control_from_firmware(pdev))
 		return -ENODEV;
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		goto err_out_none;
 

@@ -46,7 +46,7 @@ static void lan966x_fdb_add_entry(struct lan966x *lan966x,
 		return;
 	}
 
-	fdb_entry = kzalloc(sizeof(*fdb_entry), GFP_KERNEL);
+	fdb_entry = kzalloc_obj(*fdb_entry);
 	if (!fdb_entry)
 		return;
 
@@ -262,7 +262,7 @@ int lan966x_handle_fdb(struct net_device *dev,
 		    !fdb_info->added_by_user)
 			break;
 
-		fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
+		fdb_work = kzalloc_obj(*fdb_work, GFP_ATOMIC);
 		if (!fdb_work)
 			return -ENOMEM;
 

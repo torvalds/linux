@@ -706,7 +706,7 @@ static int mchp_pdmc_add_chmap_ctls(struct snd_pcm *pcm, struct mchp_pdmc *dd)
 
 	if (WARN_ON(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].chmap_kctl))
 		return -EBUSY;
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	info->pcm = pcm;

@@ -313,7 +313,7 @@ struct devfreq_event_dev *devfreq_event_add_edev(struct device *dev,
 	if (!desc->ops->set_event || !desc->ops->get_event)
 		return ERR_PTR(-EINVAL);
 
-	edev = kzalloc(sizeof(struct devfreq_event_dev), GFP_KERNEL);
+	edev = kzalloc_obj(struct devfreq_event_dev);
 	if (!edev)
 		return ERR_PTR(-ENOMEM);
 

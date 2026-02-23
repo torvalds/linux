@@ -24,7 +24,7 @@ static int cmedia_probe(struct hda_codec *codec, const struct hda_device_id *id)
 	bool is_cmi8888 = id->vendor_id == 0x13f68888;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (spec == NULL)
 		return -ENOMEM;
 

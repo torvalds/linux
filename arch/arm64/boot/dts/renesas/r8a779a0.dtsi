@@ -3032,6 +3032,166 @@
 			};
 		};
 
+		wwdt0: watchdog@ffc90000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffc90000 0 0x10>;
+			interrupts = <GIC_SPI 480 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 481 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1200>, <&cpg 1318>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt1: watchdog@ffca0000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffca0000 0 0x10>;
+			interrupts = <GIC_SPI 482 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 483 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1201>, <&cpg 1319>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt2: watchdog@ffcb0000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffcb0000 0 0x10>;
+			interrupts = <GIC_SPI 484 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 485 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1202>, <&cpg 1320>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt3: watchdog@ffcc0000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffcc0000 0 0x10>;
+			interrupts = <GIC_SPI 486 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 487 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1203>, <&cpg 1321>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt4: watchdog@ffcf0000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffcf0000 0 0x10>;
+			interrupts = <GIC_SPI 488 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 489 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1204>, <&cpg 1322>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt5: watchdog@ffef0000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xffef0000 0 0x10>;
+			interrupts = <GIC_SPI 490 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 491 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1205>, <&cpg 1323>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt6: watchdog@fff10000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xfff10000 0 0x10>;
+			interrupts = <GIC_SPI 492 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 493 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1206>, <&cpg 1324>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt7: watchdog@fff20000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xfff20000 0 0x10>;
+			interrupts = <GIC_SPI 494 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 495 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1207>, <&cpg 1325>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt8: watchdog@fff30000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xfff30000 0 0x10>;
+			interrupts = <GIC_SPI 496 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 497 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1208>, <&cpg 1326>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
+		wwdt9: watchdog@fff40000 {
+			compatible = "renesas,r8a779a0-wwdt",
+				     "renesas,rcar-gen4-wwdt";
+			reg = <0 0xfff40000 0 0x10>;
+			interrupts = <GIC_SPI 498 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 499 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pretimeout", "error";
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_R>,
+				 <&cpg CPG_CORE R8A779A0_CLK_CP>;
+			clock-names = "cnt", "bus";
+			power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+			resets = <&cpg 1209>, <&cpg 1327>;
+			reset-names = "cnt", "bus";
+			status = "disabled";
+		};
+
 		prr: chipid@fff00044 {
 			compatible = "renesas,prr";
 			reg = <0 0xfff00044 0 4>;

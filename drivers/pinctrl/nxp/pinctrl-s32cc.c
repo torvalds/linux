@@ -386,7 +386,7 @@ static int s32_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 		return ret;
 
 	/* Save current configuration */
-	gpio_pin = kmalloc(sizeof(*gpio_pin), GFP_KERNEL);
+	gpio_pin = kmalloc_obj(*gpio_pin);
 	if (!gpio_pin)
 		return -ENOMEM;
 

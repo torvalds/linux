@@ -103,7 +103,7 @@ static int ima_add_digest_entry(struct ima_template_entry *entry,
 	struct ima_queue_entry *qe;
 	unsigned int key;
 
-	qe = kmalloc(sizeof(*qe), GFP_KERNEL);
+	qe = kmalloc_obj(*qe);
 	if (qe == NULL) {
 		pr_err("OUT OF MEMORY ERROR creating queue entry\n");
 		return -ENOMEM;
@@ -269,8 +269,8 @@ int __init ima_init_digests(void)
 	if (!ima_tpm_chip)
 		return 0;
 
-	digests = kcalloc(ima_tpm_chip->nr_allocated_banks, sizeof(*digests),
-			  GFP_NOFS);
+	digests = kzalloc_objs(*digests, ima_tpm_chip->nr_allocated_banks,
+			       GFP_NOFS);
 	if (!digests)
 		return -ENOMEM;
 

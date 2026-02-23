@@ -3,7 +3,7 @@
  * Copyright (c) 2010 Red Hat, Inc. All Rights Reserved.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -100,7 +100,7 @@ xlog_cil_ctx_alloc(void)
 {
 	struct xfs_cil_ctx	*ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
+	ctx = kzalloc_obj(*ctx, GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents.extent_list);
 	INIT_LIST_HEAD(&ctx->log_items);
@@ -409,6 +409,102 @@ xfs_cil_prepare_item(
 		lv->lv_item->li_seq = log->l_cilp->xc_ctx->sequence;
 }
 
+struct xlog_format_buf {
+	struct xfs_log_vec	*lv;
+	unsigned int		idx;
+};
+
+/*
+ * We need to make sure the buffer pointer returned is naturally aligned for the
+ * biggest basic data type we put into it. We have already accounted for this
+ * padding when sizing the buffer.
+ *
+ * However, this padding does not get written into the log, and hence we have to
+ * track the space used by the log vectors separately to prevent log space hangs
+ * due to inaccurate accounting (i.e. a leak) of the used log space through the
+ * CIL context ticket.
+ *
+ * We also add space for the xlog_op_header that describes this region in the
+ * log. This prepends the data region we return to the caller to copy their data
+ * into, so do all the static initialisation of the ophdr now. Because the ophdr
+ * is not 8 byte aligned, we have to be careful to ensure that we align the
+ * start of the buffer such that the region we return to the call is 8 byte
+ * aligned and packed against the tail of the ophdr.
+ */
+void *
+xlog_format_start(
+	struct xlog_format_buf	*lfb,
+	uint16_t		type)
+{
+	struct xfs_log_vec	*lv = lfb->lv;
+	struct xfs_log_iovec	*vec = &lv->lv_iovecp[lfb->idx];
+	struct xlog_op_header	*oph;
+	uint32_t		len;
+	void			*buf;
+
+	ASSERT(lfb->idx < lv->lv_niovecs);
+
+	len = lv->lv_buf_used + sizeof(struct xlog_op_header);
+	if (!IS_ALIGNED(len, sizeof(uint64_t))) {
+		lv->lv_buf_used = round_up(len, sizeof(uint64_t)) -
+					sizeof(struct xlog_op_header);
+	}
+
+	vec->i_type = type;
+	vec->i_addr = lv->lv_buf + lv->lv_buf_used;
+
+	oph = vec->i_addr;
+	oph->oh_clientid = XFS_TRANSACTION;
+	oph->oh_res2 = 0;
+	oph->oh_flags = 0;
+
+	buf = vec->i_addr + sizeof(struct xlog_op_header);
+	ASSERT(IS_ALIGNED((unsigned long)buf, sizeof(uint64_t)));
+	return buf;
+}
+
+void
+xlog_format_commit(
+	struct xlog_format_buf	*lfb,
+	unsigned int		data_len)
+{
+	struct xfs_log_vec	*lv = lfb->lv;
+	struct xfs_log_iovec	*vec = &lv->lv_iovecp[lfb->idx];
+	struct xlog_op_header	*oph = vec->i_addr;
+	int			len;
+
+	/*
+	 * Always round up the length to the correct alignment so callers don't
+	 * need to know anything about this log vec layout requirement. This
+	 * means we have to zero the area the data to be written does not cover.
+	 * This is complicated by fact the payload region is offset into the
+	 * logvec region by the opheader that tracks the payload.
+	 */
+	len = xlog_calc_iovec_len(data_len);
+	if (len - data_len != 0) {
+		char	*buf = vec->i_addr + sizeof(struct xlog_op_header);
+
+		memset(buf + data_len, 0, len - data_len);
+	}
+
+	/*
+	 * The opheader tracks aligned payload length, whilst the logvec tracks
+	 * the overall region length.
+	 */
+	oph->oh_len = cpu_to_be32(len);
+
+	len += sizeof(struct xlog_op_header);
+	lv->lv_buf_used += len;
+	lv->lv_bytes += len;
+	vec->i_len = len;
+
+	/* Catch buffer overruns */
+	ASSERT((void *)lv->lv_buf + lv->lv_bytes <=
+		(void *)lv + lv->lv_alloc_size);
+
+	lfb->idx++;
+}
+
 /*
  * Format log item into a flat buffers
  *
@@ -454,6 +550,7 @@ xlog_cil_insert_format_items(
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv = lip->li_lv;
 		struct xfs_log_vec *shadow = lip->li_lv_shadow;
+		struct xlog_format_buf lfb = { };
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
@@ -501,8 +598,9 @@ xlog_cil_insert_format_items(
 			lv->lv_item = lip;
 		}
 
+		lfb.lv = lv;
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
-		lip->li_ops->iop_format(lip, lv);
+		lip->li_ops->iop_format(lip, &lfb);
 		xfs_cil_prepare_item(log, lip, lv, diff_len);
 	}
 }
@@ -1098,13 +1196,7 @@ xlog_cil_write_commit_record(
 		.i_len = sizeof(struct xlog_op_header),
 		.i_type = XLOG_REG_TYPE_COMMIT,
 	};
-	struct xfs_log_vec	vec = {
-		.lv_niovecs = 1,
-		.lv_iovecp = &reg,
-	};
 	int			error;
-	LIST_HEAD(lv_chain);
-	list_add(&vec.lv_list, &lv_chain);
 
 	if (xlog_is_shutdown(log))
 		return -EIO;
@@ -1112,10 +1204,7 @@ xlog_cil_write_commit_record(
 	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _COMMIT_RECORD);
 	if (error)
 		return error;
-
-	/* account for space used by record data */
-	ctx->ticket->t_curr_res -= reg.i_len;
-	error = xlog_write(log, ctx, &lv_chain, ctx->ticket, reg.i_len);
+	error = xlog_write_one_vec(log, ctx, &reg, ctx->ticket);
 	if (error)
 		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	return error;
@@ -1917,7 +2006,7 @@ xlog_cil_init(
 	struct xlog_cil_pcp	*cilpcp;
 	int			cpu;
 
-	cil = kzalloc(sizeof(*cil), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	cil = kzalloc_obj(*cil, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!cil)
 		return -ENOMEM;
 	/*

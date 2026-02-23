@@ -189,7 +189,7 @@ int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node)
 		}
 		uar = kmalloc_node(sizeof(*uar), GFP_KERNEL, node);
 		if (!uar) {
-			uar = kmalloc(sizeof(*uar), GFP_KERNEL);
+			uar = kmalloc_obj(*uar);
 			if (!uar) {
 				err = -ENOMEM;
 				goto out;

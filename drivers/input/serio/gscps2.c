@@ -350,8 +350,8 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	if (dev->id.sversion == 0x96)
 		hpa += GSC_DINO_OFFSET;
 
-	ps2port = kzalloc(sizeof(*ps2port), GFP_KERNEL);
-	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
+	ps2port = kzalloc_obj(*ps2port);
+	serio = kzalloc_obj(*serio);
 	if (!ps2port || !serio) {
 		ret = -ENOMEM;
 		goto fail_nomem;

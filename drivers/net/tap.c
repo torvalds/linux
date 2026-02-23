@@ -1197,7 +1197,7 @@ int tap_queue_resize(struct tap_dev *tap)
 	int n = tap->numqueues;
 	int ret, i = 0;
 
-	rings = kmalloc_array(n, sizeof(*rings), GFP_KERNEL);
+	rings = kmalloc_objs(*rings, n);
 	if (!rings)
 		return -ENOMEM;
 
@@ -1217,7 +1217,7 @@ static int tap_list_add(dev_t major, const char *device_name)
 {
 	struct major_info *tap_major;
 
-	tap_major = kzalloc(sizeof(*tap_major), GFP_ATOMIC);
+	tap_major = kzalloc_obj(*tap_major, GFP_ATOMIC);
 	if (!tap_major)
 		return -ENOMEM;
 

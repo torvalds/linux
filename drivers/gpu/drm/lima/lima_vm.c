@@ -109,7 +109,7 @@ int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create)
 		return -ENOENT;
 	}
 
-	bo_va = kzalloc(sizeof(*bo_va), GFP_KERNEL);
+	bo_va = kzalloc_obj(*bo_va);
 	if (!bo_va) {
 		err = -ENOMEM;
 		goto err_out0;
@@ -201,7 +201,7 @@ struct lima_vm *lima_vm_create(struct lima_device *dev)
 {
 	struct lima_vm *vm;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return NULL;
 

@@ -199,7 +199,7 @@ int aix_partition(struct parsed_partitions *state)
 		numlvs = be16_to_cpu(p->numlvs);
 		put_dev_sector(sect);
 	}
-	lvip = kcalloc(state->limit, sizeof(struct lv_info), GFP_KERNEL);
+	lvip = kzalloc_objs(struct lv_info, state->limit);
 	if (!lvip)
 		return 0;
 	if (numlvs && (d = read_part_sector(state, vgda_sector + 1, &sect))) {

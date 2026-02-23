@@ -151,16 +151,16 @@
 		};
 
 		dspi1-grp3 {
-			pinmux = <0x5F0>;
+			pinmux = <0x5f0>;
 			input-enable;
 			slew-rate = <150>;
 			bias-pull-up;
 		};
 
 		dspi1-grp4 {
-			pinmux = <0x3D92>,
-				 <0x3DA2>,
-				 <0x3DB2>;
+			pinmux = <0x3d92>,
+				 <0x3da2>,
+				 <0x3db2>;
 		};
 	};
 
@@ -173,26 +173,26 @@
 		};
 
 		dspi5-grp1 {
-			pinmux = <0xA0>;
+			pinmux = <0xa0>;
 			input-enable;
 			slew-rate = <150>;
 			bias-pull-up;
 		};
 
 		dspi5-grp2 {
-			pinmux = <0x3ED2>,
-				 <0x3EE2>,
-				 <0x3EF2>;
+			pinmux = <0x3ed2>,
+				 <0x3ee2>,
+				 <0x3ef2>;
 		};
 
 		dspi5-grp3 {
-			pinmux = <0xB3>;
+			pinmux = <0xb3>;
 			output-enable;
 			slew-rate = <150>;
 		};
 
 		dspi5-grp4 {
-			pinmux = <0xC3>;
+			pinmux = <0xc3>;
 			output-enable;
 			input-enable;
 			slew-rate = <150>;

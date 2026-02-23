@@ -89,7 +89,7 @@ static int __init aspeed_intc_ic_of_init(struct device_node *node,
 	struct aspeed_intc_ic *intc_ic;
 	int irq, i, ret = 0;
 
-	intc_ic = kzalloc(sizeof(*intc_ic), GFP_KERNEL);
+	intc_ic = kzalloc_obj(*intc_ic);
 	if (!intc_ic)
 		return -ENOMEM;
 

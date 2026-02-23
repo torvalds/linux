@@ -7486,8 +7486,8 @@ static int asc_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 			return ASC_ERROR;
 		}
 
-		asc_sg_head = kzalloc(struct_size(asc_sg_head, sg_list, use_sg),
-				      GFP_ATOMIC);
+		asc_sg_head = kzalloc_flex(*asc_sg_head, sg_list, use_sg,
+					   GFP_ATOMIC);
 		if (!asc_sg_head) {
 			scsi_dma_unmap(scp);
 			set_host_byte(scp, DID_SOFT_ERROR);
@@ -8462,10 +8462,11 @@ static int asc_execute_scsi_cmnd(struct scsi_cmnd *scp)
  * This function always returns 0. Command return status is saved
  * in the 'scp' result field.
  */
-static int advansys_queuecommand_lck(struct scsi_cmnd *scp)
+static enum scsi_qc_status advansys_queuecommand_lck(struct scsi_cmnd *scp)
 {
 	struct Scsi_Host *shost = scp->device->host;
-	int asc_res, result = 0;
+	enum scsi_qc_status result = 0;
+	int asc_res;
 
 	ASC_STATS(shost, queuecommand);
 
@@ -11313,7 +11314,7 @@ static int advansys_eisa_probe(struct device *dev)
 	struct eisa_scsi_data *data;
 
 	err = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		goto fail;
 	ioport = edev->base_addr + 0xc30;

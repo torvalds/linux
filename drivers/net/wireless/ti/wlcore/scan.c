@@ -389,7 +389,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		goto out;
 	}
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		ret = -ENOMEM;
 		goto out;

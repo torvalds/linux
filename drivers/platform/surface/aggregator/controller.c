@@ -344,7 +344,7 @@ ssam_nf_refcount_inc(struct ssam_nf *nf, struct ssam_event_registry reg,
 		}
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -623,7 +623,7 @@ static struct ssam_event_item *ssam_event_item_alloc(size_t len, gfp_t flags)
 
 		item->ops.free = __ssam_event_item_free_cached;
 	} else {
-		item = kzalloc(struct_size(item, event.data, len), flags);
+		item = kzalloc_flex(*item, event.data, len, flags);
 		if (!item)
 			return NULL;
 

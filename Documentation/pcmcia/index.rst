@@ -11,10 +11,3 @@ PCMCIA
     devicetable
     locking
     driver-changes
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

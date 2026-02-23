@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include "rocket_device.h"
 #include "rocket_drv.h"
 #include "rocket_gem.h"
 #include "rocket_job.h"
@@ -37,7 +38,7 @@ rocket_iommu_domain_destroy(struct kref *kref)
 static struct rocket_iommu_domain*
 rocket_iommu_domain_create(struct device *dev)
 {
-	struct rocket_iommu_domain *domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	struct rocket_iommu_domain *domain = kmalloc_obj(*domain);
 	void *err;
 
 	if (!domain)
@@ -78,7 +79,7 @@ rocket_open(struct drm_device *dev, struct drm_file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
-	rocket_priv = kzalloc(sizeof(*rocket_priv), GFP_KERNEL);
+	rocket_priv = kzalloc_obj(*rocket_priv);
 	if (!rocket_priv) {
 		ret = -ENOMEM;
 		goto err_put_mod;
@@ -158,6 +159,8 @@ static const struct drm_driver rocket_drm_driver = {
 
 static int rocket_probe(struct platform_device *pdev)
 {
+	int ret;
+
 	if (rdev == NULL) {
 		/* First core probing, initialize DRM device. */
 		rdev = rocket_device_init(drm_dev, &rocket_drm_driver);
@@ -177,20 +180,31 @@ static int rocket_probe(struct platform_device *pdev)
 
 	rdev->num_cores++;
 
-	return rocket_core_init(&rdev->cores[core]);
+	ret = rocket_core_init(&rdev->cores[core]);
+	if (ret) {
+		rdev->num_cores--;
+
+		if (rdev->num_cores == 0) {
+			rocket_device_fini(rdev);
+			rdev = NULL;
+		}
+	}
+
+	return ret;
 }
+
+static int find_core_for_dev(struct device *dev);
 
 static void rocket_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	int core = find_core_for_dev(dev);
 
-	for (unsigned int core = 0; core < rdev->num_cores; core++) {
-		if (rdev->cores[core].dev == dev) {
-			rocket_core_fini(&rdev->cores[core]);
-			rdev->num_cores--;
-			break;
-		}
-	}
+	if (core < 0)
+		return;
+
+	rocket_core_fini(&rdev->cores[core]);
+	rdev->num_cores--;
 
 	if (rdev->num_cores == 0) {
 		/* Last core removed, deinitialize DRM device. */

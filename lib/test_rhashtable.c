@@ -524,7 +524,7 @@ static int __init test_insert_dup(struct test_obj_rhl *rhl_test_objects,
 	const char *key;
 	int err = 0;
 
-	rhlt = kmalloc(sizeof(*rhlt), GFP_KERNEL);
+	rhlt = kmalloc_obj(*rhlt);
 	if (WARN_ON(!rhlt))
 		return -EINVAL;
 

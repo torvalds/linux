@@ -146,7 +146,7 @@ int qed_db_recovery_add(struct qed_dev *cdev,
 	p_hwfn = qed_db_rec_find_hwfn(cdev, db_addr);
 
 	/* Create entry */
-	db_entry = kzalloc(sizeof(*db_entry), GFP_KERNEL);
+	db_entry = kzalloc_obj(*db_entry);
 	if (!db_entry) {
 		DP_NOTICE(cdev, "Failed to allocate a db recovery entry\n");
 		return -ENOMEM;
@@ -383,7 +383,7 @@ static int qed_llh_alloc(struct qed_dev *cdev)
 	struct qed_llh_info *p_llh_info;
 	u32 size, i;
 
-	p_llh_info = kzalloc(sizeof(*p_llh_info), GFP_KERNEL);
+	p_llh_info = kzalloc_obj(*p_llh_info);
 	if (!p_llh_info)
 		return -ENOMEM;
 	cdev->p_llh_info = p_llh_info;
@@ -2108,27 +2108,23 @@ static int qed_alloc_qm_data(struct qed_hwfn *p_hwfn)
 	if (rc)
 		goto alloc_err;
 
-	qm_info->qm_pq_params = kcalloc(qed_init_qm_get_num_pqs(p_hwfn),
-					sizeof(*qm_info->qm_pq_params),
-					GFP_KERNEL);
+	qm_info->qm_pq_params = kzalloc_objs(*qm_info->qm_pq_params,
+					     qed_init_qm_get_num_pqs(p_hwfn));
 	if (!qm_info->qm_pq_params)
 		goto alloc_err;
 
-	qm_info->qm_vport_params = kcalloc(qed_init_qm_get_num_vports(p_hwfn),
-					   sizeof(*qm_info->qm_vport_params),
-					   GFP_KERNEL);
+	qm_info->qm_vport_params = kzalloc_objs(*qm_info->qm_vport_params,
+						qed_init_qm_get_num_vports(p_hwfn));
 	if (!qm_info->qm_vport_params)
 		goto alloc_err;
 
-	qm_info->qm_port_params = kcalloc(p_hwfn->cdev->num_ports_in_engine,
-					  sizeof(*qm_info->qm_port_params),
-					  GFP_KERNEL);
+	qm_info->qm_port_params = kzalloc_objs(*qm_info->qm_port_params,
+					       p_hwfn->cdev->num_ports_in_engine);
 	if (!qm_info->qm_port_params)
 		goto alloc_err;
 
-	qm_info->wfq_data = kcalloc(qed_init_qm_get_num_vports(p_hwfn),
-				    sizeof(*qm_info->wfq_data),
-				    GFP_KERNEL);
+	qm_info->wfq_data = kzalloc_objs(*qm_info->wfq_data,
+					 qed_init_qm_get_num_vports(p_hwfn));
 	if (!qm_info->wfq_data)
 		goto alloc_err;
 
@@ -2155,7 +2151,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		return rc;
 	}
 
-	cdev->fw_data = kzalloc(sizeof(*cdev->fw_data), GFP_KERNEL);
+	cdev->fw_data = kzalloc_obj(*cdev->fw_data);
 	if (!cdev->fw_data)
 		return -ENOMEM;
 
@@ -2345,7 +2341,7 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		goto alloc_err;
 	}
 
-	cdev->reset_stats = kzalloc(sizeof(*cdev->reset_stats), GFP_KERNEL);
+	cdev->reset_stats = kzalloc_obj(*cdev->reset_stats);
 	if (!cdev->reset_stats)
 		goto alloc_no_mem;
 
@@ -2642,7 +2638,7 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 	u32 concrete_fid;
 	int rc = 0;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params) {
 		DP_NOTICE(p_hwfn->cdev,
 			  "Failed to allocate common init params\n");

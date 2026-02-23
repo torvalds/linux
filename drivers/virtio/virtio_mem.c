@@ -2940,7 +2940,7 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	BUILD_BUG_ON(sizeof(struct virtio_mem_req) != 24);
 	BUILD_BUG_ON(sizeof(struct virtio_mem_resp) != 10);
 
-	vdev->priv = vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vdev->priv = vm = kzalloc_obj(*vm);
 	if (!vm)
 		return -ENOMEM;
 

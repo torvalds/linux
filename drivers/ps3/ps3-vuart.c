@@ -914,7 +914,7 @@ static int ps3_vuart_bus_interrupt_get(void)
 
 	BUG_ON(vuart_bus_priv.bmp);
 
-	vuart_bus_priv.bmp = kzalloc(sizeof(struct ports_bmp), GFP_KERNEL);
+	vuart_bus_priv.bmp = kzalloc_obj(struct ports_bmp);
 
 	if (!vuart_bus_priv.bmp) {
 		result = -ENOMEM;
@@ -1015,8 +1015,7 @@ static int ps3_vuart_probe(struct ps3_system_bus_device *dev)
 
 	/* Setup dev->driver_priv. */
 
-	dev->driver_priv = kzalloc(sizeof(struct ps3_vuart_port_priv),
-		GFP_KERNEL);
+	dev->driver_priv = kzalloc_obj(struct ps3_vuart_port_priv);
 
 	if (!dev->driver_priv) {
 		result = -ENOMEM;

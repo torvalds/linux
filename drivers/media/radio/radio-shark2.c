@@ -293,7 +293,7 @@ static int usb_shark_probe(struct usb_interface *intf,
 		return -EINVAL;
 	}
 
-	shark = kzalloc(sizeof(struct shark_device), GFP_KERNEL);
+	shark = kzalloc_obj(struct shark_device);
 	if (!shark)
 		return retval;
 

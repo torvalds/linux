@@ -274,7 +274,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 {
 	struct hvutil_transport *hvt;
 
-	hvt = kzalloc(sizeof(*hvt), GFP_KERNEL);
+	hvt = kzalloc_obj(*hvt);
 	if (!hvt)
 		return NULL;
 

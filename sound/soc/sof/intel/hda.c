@@ -482,7 +482,7 @@ static int mclk_id_override = -1;
 module_param_named(mclk_id, mclk_id_override, int, 0444);
 MODULE_PARM_DESC(mclk_id, "SOF SSP mclk_id");
 
-static int bt_link_mask_override;
+static int bt_link_mask_override = -1;
 module_param_named(bt_link_mask, bt_link_mask_override, int, 0444);
 MODULE_PARM_DESC(bt_link_mask, "SOF BT offload link mask");
 
@@ -1138,6 +1138,12 @@ static bool is_endpoint_present(struct sdw_slave *sdw_device,
 {
 	int i;
 
+	/* If SDCA is not present, assume the endpoint is present */
+	if (!sdw_device->sdca_data.interface_revision) {
+		dev_warn(&sdw_device->dev, "SDCA properties not found in BIOS\n");
+		return true;
+	}
+
 	for (i = 0; i < sdw_device->sdca_data.num_functions; i++) {
 		if (dai_type == dai_info->dais[i].dai_type)
 			return true;
@@ -1304,9 +1310,8 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 	int i;
 
 	hdev = pdata->hw_pdata;
-	link_mask = hdev->info.link_mask;
 
-	if (!link_mask) {
+	if (!hdev->info.link_mask) {
 		dev_info(sdev->dev, "SoundWire links not enabled\n");
 		return NULL;
 	}
@@ -1337,7 +1342,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		 * link_mask supported by hw and then go on searching
 		 * link_adr
 		 */
-		if (~link_mask & mach->link_mask)
+		if (~hdev->info.link_mask & mach->link_mask)
 			continue;
 
 		/* No need to match adr if there is no links defined */
@@ -1532,7 +1537,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		 mach->mach_params.bt_link_mask);
 
 	/* allow for module parameter override */
-	if (bt_link_mask_override) {
+	if (bt_link_mask_override != -1) {
 		dev_dbg(sdev->dev, "overriding BT link detected in NHLT tables %#x by kernel param %#x\n",
 			mach->mach_params.bt_link_mask, bt_link_mask_override);
 		mach->mach_params.bt_link_mask = bt_link_mask_override;
@@ -1623,7 +1628,6 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER &&
 		    mach->mach_params.i2s_link_mask) {
 			int ssp_num;
-			int mclk_mask;
 
 			if (hweight_long(mach->mach_params.i2s_link_mask) > 1 &&
 			    !(mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_MSB))
@@ -1648,19 +1652,28 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 
 			sof_pdata->tplg_filename = tplg_filename;
 
-			mclk_mask = check_nhlt_ssp_mclk_mask(sdev, ssp_num);
+			if (sof_pdata->ipc_type == SOF_IPC_TYPE_3) {
+				int mclk_mask = check_nhlt_ssp_mclk_mask(sdev,
+									 ssp_num);
 
-			if (mclk_mask < 0) {
-				dev_err(sdev->dev, "Invalid MCLK configuration\n");
-				return NULL;
-			}
+				if (mclk_mask < 0) {
+					dev_err(sdev->dev,
+						"Invalid MCLK configuration for SSP%d\n",
+						ssp_num);
+					return NULL;
+				}
 
-			dev_dbg(sdev->dev, "MCLK mask %#x found in NHLT\n", mclk_mask);
-
-			if (mclk_mask) {
-				dev_info(sdev->dev, "Overriding topology with MCLK mask %#x from NHLT\n", mclk_mask);
-				sdev->mclk_id_override = true;
-				sdev->mclk_id_quirk = (mclk_mask & BIT(0)) ? 0 : 1;
+				if (mclk_mask) {
+					sdev->mclk_id_override = true;
+					sdev->mclk_id_quirk = (mclk_mask & BIT(0)) ? 0 : 1;
+					dev_info(sdev->dev,
+						 "SSP%d to use MCLK id %d (mask: %#x)\n",
+						 ssp_num, sdev->mclk_id_quirk, mclk_mask);
+				} else {
+					dev_dbg(sdev->dev,
+						"MCLK mask is empty for SSP%d in NHLT\n",
+						ssp_num);
+				}
 			}
 		}
 

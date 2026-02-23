@@ -741,7 +741,7 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	unsigned long flags;
 	int count;
 
-	cie = kzalloc(sizeof(*cie), GFP_KERNEL);
+	cie = kzalloc_obj(*cie);
 	if (!cie)
 		return -ENOMEM;
 
@@ -874,7 +874,7 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	int count;
 	void *p = start;
 
-	fde = kzalloc(sizeof(*fde), GFP_KERNEL);
+	fde = kzalloc_obj(*fde);
 	if (!fde)
 		return -ENOMEM;
 

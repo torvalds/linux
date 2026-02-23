@@ -646,7 +646,7 @@ int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 	struct addr_req *req;
 	int ret = 0;
 
-	req = kzalloc(sizeof *req, GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

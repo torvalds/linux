@@ -75,7 +75,7 @@ int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
 	if (!phy || !dev_id || !con_id)
 		return -EINVAL;
 
-	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	pl = kzalloc_obj(*pl);
 	if (!pl)
 		return -ENOMEM;
 
@@ -138,17 +138,14 @@ static struct phy *phy_find(struct device *dev, const char *con_id)
 static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 {
 	struct phy_provider *phy_provider;
-	struct device_node *child;
 
 	list_for_each_entry(phy_provider, &phy_provider_list, list) {
 		if (phy_provider->dev->of_node == node)
 			return phy_provider;
 
-		for_each_child_of_node(phy_provider->children, child)
-			if (child == node) {
-				of_node_put(child);
+		for_each_child_of_node_scoped(phy_provider->children, child)
+			if (child == node)
 				return phy_provider;
-			}
 	}
 
 	return ERR_PTR(-EPROBE_DEFER);
@@ -190,15 +187,15 @@ int phy_pm_runtime_get_sync(struct phy *phy)
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get_sync);
 
-int phy_pm_runtime_put(struct phy *phy)
+void phy_pm_runtime_put(struct phy *phy)
 {
 	if (!phy)
-		return 0;
+		return;
 
 	if (!pm_runtime_enabled(&phy->dev))
-		return -ENOTSUPP;
+		return;
 
-	return pm_runtime_put(&phy->dev);
+	pm_runtime_put(&phy->dev);
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_put);
 
@@ -1007,7 +1004,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	if (WARN_ON(!dev))
 		return ERR_PTR(-EINVAL);
 
-	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
+	phy = kzalloc_obj(*phy);
 	if (!phy)
 		return ERR_PTR(-ENOMEM);
 
@@ -1177,7 +1174,7 @@ struct phy_provider *__of_phy_provider_register(struct device *dev,
 		children = dev->of_node;
 	}
 
-	phy_provider = kzalloc(sizeof(*phy_provider), GFP_KERNEL);
+	phy_provider = kzalloc_obj(*phy_provider);
 	if (!phy_provider)
 		return ERR_PTR(-ENOMEM);
 

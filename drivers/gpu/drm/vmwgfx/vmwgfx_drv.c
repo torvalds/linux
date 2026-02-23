@@ -1209,7 +1209,7 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	struct vmw_fpriv *vmw_fp;
 	int ret = -ENOMEM;
 
-	vmw_fp = kzalloc(sizeof(*vmw_fp), GFP_KERNEL);
+	vmw_fp = kzalloc_obj(*vmw_fp);
 	if (unlikely(!vmw_fp))
 		return ret;
 

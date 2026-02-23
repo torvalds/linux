@@ -529,7 +529,7 @@ static int bnxt_dcbnl_ieee_getets(struct net_device *dev, struct ieee_ets *ets)
 		if (bp->dcbx_cap & DCB_CAP_DCBX_HOST)
 			return 0;
 
-		my_ets = kzalloc(sizeof(*my_ets), GFP_KERNEL);
+		my_ets = kzalloc_obj(*my_ets);
 		if (!my_ets)
 			return -ENOMEM;
 		rc = bnxt_hwrm_queue_cos2bw_qcfg(bp, my_ets);
@@ -568,7 +568,7 @@ static int bnxt_dcbnl_ieee_setets(struct net_device *dev, struct ieee_ets *ets)
 	rc = bnxt_ets_validate(bp, ets, &max_tc);
 	if (!rc) {
 		if (!my_ets) {
-			my_ets = kzalloc(sizeof(*my_ets), GFP_KERNEL);
+			my_ets = kzalloc_obj(*my_ets);
 			if (!my_ets)
 				return -ENOMEM;
 			/* initialize PRI2TC mappings to invalid value */
@@ -604,7 +604,7 @@ static int bnxt_dcbnl_ieee_getpfc(struct net_device *dev, struct ieee_pfc *pfc)
 		if (bp->dcbx_cap & DCB_CAP_DCBX_HOST)
 			return 0;
 
-		my_pfc = kzalloc(sizeof(*my_pfc), GFP_KERNEL);
+		my_pfc = kzalloc_obj(*my_pfc);
 		if (!my_pfc)
 			return 0;
 		bp->ieee_pfc = my_pfc;
@@ -642,7 +642,7 @@ static int bnxt_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 		return -EINVAL;
 
 	if (!my_pfc) {
-		my_pfc = kzalloc(sizeof(*my_pfc), GFP_KERNEL);
+		my_pfc = kzalloc_obj(*my_pfc);
 		if (!my_pfc)
 			return -ENOMEM;
 		bp->ieee_pfc = my_pfc;

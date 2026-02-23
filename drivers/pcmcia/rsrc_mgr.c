@@ -31,7 +31,7 @@ struct resource *pcmcia_make_resource(resource_size_t start,
 					resource_size_t end,
 					unsigned long flags, const char *name)
 {
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc_obj(*res);
 
 	if (res) {
 		res->name = name;

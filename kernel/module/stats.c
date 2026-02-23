@@ -250,7 +250,7 @@ int try_add_failed_module(const char *name, enum fail_dup_mod_reason reason)
 		}
 	}
 
-	mod_fail = kzalloc(sizeof(*mod_fail), GFP_KERNEL);
+	mod_fail = kzalloc_obj(*mod_fail);
 	if (!mod_fail)
 		return -ENOMEM;
 	memcpy(mod_fail->name, name, strlen(name));

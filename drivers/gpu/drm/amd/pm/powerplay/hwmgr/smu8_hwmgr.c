@@ -276,8 +276,7 @@ static int smu8_init_dynamic_state_adjustment_rule_settings(
 {
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 8),
-				GFP_KERNEL);
+	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 8);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate memory!\n");
@@ -1122,7 +1121,7 @@ static int smu8_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct smu8_hwmgr *data;
 
-	data = kzalloc(sizeof(struct smu8_hwmgr), GFP_KERNEL);
+	data = kzalloc_obj(struct smu8_hwmgr);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1564,14 +1563,15 @@ static int smu8_force_clock_level(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
-		enum pp_clock_type type, char *buf)
+static int smu8_emit_clock_levels(struct pp_hwmgr *hwmgr,
+				  enum pp_clock_type type, char *buf,
+				  int *offset)
 {
 	struct smu8_hwmgr *data = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
 	uint32_t i, now;
-	int size = 0;
+	int size = *offset;
 
 	switch (type) {
 	case PP_SCLK:
@@ -1582,9 +1582,9 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 				CURR_SCLK_INDEX);
 
 		for (i = 0; i < sclk_table->count; i++)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					i, sclk_table->entries[i].clk / 100,
-					(i == now) ? "*" : "");
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+					      sclk_table->entries[i].clk / 100,
+					      (i == now) ? "*" : "");
 		break;
 	case PP_MCLK:
 		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
@@ -1594,14 +1594,20 @@ static int smu8_print_clock_levels(struct pp_hwmgr *hwmgr,
 				CURR_MCLK_INDEX);
 
 		for (i = SMU8_NUM_NBPMEMORYCLOCK; i > 0; i--)
-			size += sprintf(buf + size, "%d: %uMhz %s\n",
-					SMU8_NUM_NBPMEMORYCLOCK-i, data->sys_info.nbp_memory_clock[i-1] / 100,
-					(SMU8_NUM_NBPMEMORYCLOCK-i == now) ? "*" : "");
+			size += sysfs_emit_at(
+				buf, size, "%d: %uMhz %s\n",
+				SMU8_NUM_NBPMEMORYCLOCK - i,
+				data->sys_info.nbp_memory_clock[i - 1] / 100,
+				(SMU8_NUM_NBPMEMORYCLOCK - i == now) ? "*" :
+								       "");
 		break;
 	default:
 		break;
 	}
-	return size;
+
+	*offset = size;
+
+	return 0;
 }
 
 static int smu8_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *state,
@@ -2055,7 +2061,7 @@ static const struct pp_hwmgr_func smu8_hwmgr_funcs = {
 	.set_cpu_power_state = smu8_set_cpu_power_state,
 	.store_cc6_data = smu8_store_cc6_data,
 	.force_clock_level = smu8_force_clock_level,
-	.print_clock_levels = smu8_print_clock_levels,
+	.emit_clock_levels = smu8_emit_clock_levels,
 	.get_dal_power_level = smu8_get_dal_power_level,
 	.get_performance_level = smu8_get_performance_level,
 	.get_current_shallow_sleep_clocks = smu8_get_current_shallow_sleep_clocks,

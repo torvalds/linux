@@ -803,7 +803,7 @@ create_new_tei(struct manager *mgr, int tei, int sapi)
 		printk(KERN_WARNING "%s:no memory for layer2\n", __func__);
 		return NULL;
 	}
-	l2->tm = kzalloc(sizeof(struct teimgr), GFP_KERNEL);
+	l2->tm = kzalloc_obj(struct teimgr);
 	if (!l2->tm) {
 		kfree(l2);
 		printk(KERN_WARNING "%s:no memory for teimgr\n", __func__);
@@ -1046,7 +1046,7 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		       crq->adr.tei, crq->adr.sapi);
 	if (!l2)
 		return -ENOMEM;
-	l2->tm = kzalloc(sizeof(struct teimgr), GFP_KERNEL);
+	l2->tm = kzalloc_obj(struct teimgr);
 	if (!l2->tm) {
 		kfree(l2);
 		printk(KERN_ERR "kmalloc teimgr failed\n");
@@ -1345,7 +1345,7 @@ create_teimanager(struct mISDNdevice *dev)
 {
 	struct manager *mgr;
 
-	mgr = kzalloc(sizeof(struct manager), GFP_KERNEL);
+	mgr = kzalloc_obj(struct manager);
 	if (!mgr)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&mgr->layer2);

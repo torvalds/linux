@@ -319,7 +319,7 @@ pinctrl_scmi_alloc_configs(struct pinctrl_dev *pctldev, u32 num_configs,
 	if (!*p_config_value)
 		return -ENOMEM;
 
-	*p_config_type = kcalloc(num_configs, sizeof(**p_config_type), GFP_KERNEL);
+	*p_config_type = kzalloc_objs(**p_config_type, num_configs);
 	if (!*p_config_type) {
 		kfree(*p_config_value);
 		return -ENOMEM;
@@ -504,8 +504,9 @@ static int pinctrl_scmi_get_pins(struct scmi_pinctrl *pmx,
 }
 
 static const char * const scmi_pinctrl_blocklist[] = {
-	"fsl,imx95",
 	"fsl,imx94",
+	"fsl,imx95",
+	"fsl,imx952",
 	NULL
 };
 

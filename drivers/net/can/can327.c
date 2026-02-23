@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>

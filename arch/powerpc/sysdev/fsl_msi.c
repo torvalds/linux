@@ -361,7 +361,7 @@ static int fsl_msi_setup_hwirq(struct fsl_msi *msi, struct platform_device *dev,
 		return 0;
 	}
 
-	cascade_data = kzalloc(sizeof(struct fsl_msi_cascade_data), GFP_KERNEL);
+	cascade_data = kzalloc_obj(struct fsl_msi_cascade_data);
 	if (!cascade_data) {
 		dev_err(&dev->dev, "No memory for MSI cascade data\n");
 		return -ENOMEM;
@@ -405,7 +405,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
-	msi = kzalloc(sizeof(struct fsl_msi), GFP_KERNEL);
+	msi = kzalloc_obj(struct fsl_msi);
 	if (!msi) {
 		dev_err(&dev->dev, "No memory for MSI structure\n");
 		return -ENOMEM;

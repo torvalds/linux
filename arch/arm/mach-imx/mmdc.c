@@ -477,7 +477,7 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	char *name;
 	int ret;
 
-	pmu_mmdc = kzalloc(sizeof(*pmu_mmdc), GFP_KERNEL);
+	pmu_mmdc = kzalloc_obj(*pmu_mmdc);
 	if (!pmu_mmdc) {
 		pr_err("failed to allocate PMU device!\n");
 		return -ENOMEM;

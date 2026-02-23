@@ -81,7 +81,7 @@ bool kernel_initiated;
 
 static struct opalcore * __init get_new_element(void)
 {
-	return kzalloc(sizeof(struct opalcore), GFP_KERNEL);
+	return kzalloc_obj(struct opalcore);
 }
 
 static inline int is_opalcore_usable(void)
@@ -497,7 +497,7 @@ static void __init opalcore_config_init(void)
 	opalc_cpu_metadata = __va(addr);
 
 	/* Allocate memory for config buffer */
-	oc_conf = kzalloc(sizeof(struct opalcore_config), GFP_KERNEL);
+	oc_conf = kzalloc_obj(struct opalcore_config);
 	if (oc_conf == NULL)
 		goto error_out;
 

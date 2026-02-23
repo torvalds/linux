@@ -1410,13 +1410,11 @@ static int sh_eth_ring_init(struct net_device *ndev)
 		mdp->rx_buf_sz += NET_IP_ALIGN;
 
 	/* Allocate RX and TX skb rings */
-	mdp->rx_skbuff = kcalloc(mdp->num_rx_ring, sizeof(*mdp->rx_skbuff),
-				 GFP_KERNEL);
+	mdp->rx_skbuff = kzalloc_objs(*mdp->rx_skbuff, mdp->num_rx_ring);
 	if (!mdp->rx_skbuff)
 		return -ENOMEM;
 
-	mdp->tx_skbuff = kcalloc(mdp->num_tx_ring, sizeof(*mdp->tx_skbuff),
-				 GFP_KERNEL);
+	mdp->tx_skbuff = kzalloc_objs(*mdp->tx_skbuff, mdp->num_tx_ring);
 	if (!mdp->tx_skbuff)
 		goto ring_free;
 

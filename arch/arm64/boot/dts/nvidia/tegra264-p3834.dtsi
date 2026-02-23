@@ -23,7 +23,15 @@
 			status = "okay";
 		};
 
+		cmdqv@5200000 {
+			status = "okay";
+		};
+
 		iommu@6000000 {
+			status = "okay";
+		};
+
+		cmdqv@6200000 {
 			status = "okay";
 		};
 	};

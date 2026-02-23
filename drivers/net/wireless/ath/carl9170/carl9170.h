@@ -375,11 +375,6 @@ struct ar9170 {
 	u8 *readbuf;
 	spinlock_t cmd_lock;
 	struct completion cmd_wait;
-	union {
-		__le32 cmd_buf[PAYLOAD_MAX + 1];
-		struct carl9170_cmd cmd;
-		struct carl9170_rsp rsp;
-	};
 
 	/* statistics */
 	unsigned int tx_dropped;
@@ -463,6 +458,13 @@ struct ar9170 {
 		unsigned int cache_idx;
 	} rng;
 #endif /* CONFIG_CARL9170_HWRNG */
+
+	/* Must be last as it ends in a flexible-array member. */
+	union {
+		__le32 cmd_buf[PAYLOAD_MAX + 1];
+		struct carl9170_cmd cmd;
+		struct carl9170_rsp rsp;
+	};
 };
 
 enum carl9170_ps_off_override_reasons {

@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/vmalloc.h>
 #include "vpu.h"
 #include "vpu_defs.h"
 #include "vpu_cmds.h"
@@ -84,13 +83,13 @@ static struct vpu_cmd_t *vpu_alloc_cmd(struct vpu_inst *inst, u32 id, void *data
 	int i;
 	int ret;
 
-	cmd = vzalloc(sizeof(*cmd));
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return NULL;
 
-	cmd->pkt = vzalloc(sizeof(*cmd->pkt));
+	cmd->pkt = kzalloc_obj(*cmd->pkt);
 	if (!cmd->pkt) {
-		vfree(cmd);
+		kfree(cmd);
 		return NULL;
 	}
 
@@ -98,8 +97,8 @@ static struct vpu_cmd_t *vpu_alloc_cmd(struct vpu_inst *inst, u32 id, void *data
 	ret = vpu_iface_pack_cmd(inst->core, cmd->pkt, inst->id, id, data);
 	if (ret) {
 		dev_err(inst->dev, "iface pack cmd %s fail\n", vpu_id_name(id));
-		vfree(cmd->pkt);
-		vfree(cmd);
+		kfree(cmd->pkt);
+		kfree(cmd);
 		return NULL;
 	}
 	for (i = 0; i < ARRAY_SIZE(vpu_cmd_requests); i++) {
@@ -118,8 +117,8 @@ static void vpu_free_cmd(struct vpu_cmd_t *cmd)
 		return;
 	if (cmd->last_response_cmd)
 		atomic_long_set(cmd->last_response_cmd, cmd->key);
-	vfree(cmd->pkt);
-	vfree(cmd);
+	kfree(cmd->pkt);
+	kfree(cmd);
 }
 
 static int vpu_session_process_cmd(struct vpu_inst *inst, struct vpu_cmd_t *cmd)

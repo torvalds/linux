@@ -161,6 +161,17 @@ config SAMPLE_RUST_DRIVER_AUXILIARY
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_SOC
+	tristate "SoC Driver"
+	select SOC_BUS
+	help
+	  This option builds the Rust SoC driver sample.
+
+	  To compile this as a module, choose M here:
+	  the module will be called rust_soc.
+
+	  If unsure, say N.
+
 config SAMPLE_RUST_HOSTPROGS
 	bool "Host programs"
 	help

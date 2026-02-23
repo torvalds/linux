@@ -633,7 +633,7 @@ static struct comedi_8254 *__i8254_init(comedi_8254_iocb_fn *iocb,
 	if (!iocb)
 		return ERR_PTR(-EINVAL);
 
-	i8254 = kzalloc(sizeof(*i8254), GFP_KERNEL);
+	i8254 = kzalloc_obj(*i8254);
 	if (!i8254)
 		return ERR_PTR(-ENOMEM);
 

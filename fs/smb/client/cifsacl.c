@@ -17,7 +17,6 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <keys/user-type.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsacl.h"
 #include "cifsproto.h"
@@ -806,8 +805,7 @@ static void parse_dacl(struct smb_acl *pdacl, char *end_of_acl,
 				 offsetof(struct smb_sid, sub_auth) + sizeof(__le16)))
 			return;
 
-		ppace = kmalloc_array(num_aces, sizeof(struct smb_ace *),
-				      GFP_KERNEL);
+		ppace = kmalloc_objs(struct smb_ace *, num_aces);
 		if (!ppace)
 			return;
 
@@ -1333,8 +1331,7 @@ static int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *pnntsd,
 
 		if (uid_valid(uid)) { /* chown */
 			uid_t id;
-			nowner_sid_ptr = kzalloc(sizeof(struct smb_sid),
-								GFP_KERNEL);
+			nowner_sid_ptr = kzalloc_obj(struct smb_sid);
 			if (!nowner_sid_ptr) {
 				rc = -ENOMEM;
 				goto chown_chgrp_exit;
@@ -1362,8 +1359,7 @@ static int build_sec_desc(struct smb_ntsd *pntsd, struct smb_ntsd *pnntsd,
 		}
 		if (gid_valid(gid)) { /* chgrp */
 			gid_t id;
-			ngroup_sid_ptr = kzalloc(sizeof(struct smb_sid),
-								GFP_KERNEL);
+			ngroup_sid_ptr = kzalloc_obj(struct smb_sid);
 			if (!ngroup_sid_ptr) {
 				rc = -ENOMEM;
 				goto chown_chgrp_exit;

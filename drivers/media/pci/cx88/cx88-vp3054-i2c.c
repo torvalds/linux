@@ -97,7 +97,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	if (core->boardnr != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
 		return 0;
 
-	vp3054_i2c = kzalloc(sizeof(*vp3054_i2c), GFP_KERNEL);
+	vp3054_i2c = kzalloc_obj(*vp3054_i2c);
 	if (!vp3054_i2c)
 		return -ENOMEM;
 	dev->vp3054 = vp3054_i2c;

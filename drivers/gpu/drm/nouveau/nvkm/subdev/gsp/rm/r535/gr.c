@@ -147,7 +147,7 @@ r535_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *chan, const struct nvkm
 	struct r535_gr_chan *grc;
 	int ret;
 
-	if (!(grc = kzalloc(sizeof(*grc), GFP_KERNEL)))
+	if (!(grc = kzalloc_obj(*grc)))
 		return -ENOMEM;
 
 	nvkm_object_ctor(&r535_gr_chan, oclass, &grc->object);

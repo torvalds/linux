@@ -938,7 +938,7 @@ int ip_vs_stats_init_alloc(struct ip_vs_stats *s)
 
 struct ip_vs_stats *ip_vs_stats_alloc(void)
 {
-	struct ip_vs_stats *s = kzalloc(sizeof(*s), GFP_KERNEL);
+	struct ip_vs_stats *s = kzalloc_obj(*s);
 
 	if (s && ip_vs_stats_init_alloc(s) >= 0)
 		return s;
@@ -1079,7 +1079,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 			return -EINVAL;
 	}
 
-	dest = kzalloc(sizeof(struct ip_vs_dest), GFP_KERNEL);
+	dest = kzalloc_obj(struct ip_vs_dest);
 	if (dest == NULL)
 		return -ENOMEM;
 
@@ -1421,7 +1421,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		ret_hooks = ret;
 	}
 
-	svc = kzalloc(sizeof(struct ip_vs_service), GFP_KERNEL);
+	svc = kzalloc_obj(struct ip_vs_service);
 	if (svc == NULL) {
 		IP_VS_DBG(1, "%s(): no memory\n", __func__);
 		ret = -ENOMEM;
@@ -4439,7 +4439,7 @@ int __net_init ip_vs_control_net_init(struct netns_ipvs *ipvs)
 	INIT_DELAYED_WORK(&ipvs->est_reload_work, est_reload_work_handler);
 
 	/* procfs stats */
-	ipvs->tot_stats = kzalloc(sizeof(*ipvs->tot_stats), GFP_KERNEL);
+	ipvs->tot_stats = kzalloc_obj(*ipvs->tot_stats);
 	if (!ipvs->tot_stats)
 		goto out;
 	if (ip_vs_stats_init_alloc(&ipvs->tot_stats->s) < 0)

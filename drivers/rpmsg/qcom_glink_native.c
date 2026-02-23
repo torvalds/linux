@@ -227,7 +227,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 {
 	struct glink_channel *channel;
 
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	channel = kzalloc_obj(*channel);
 	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
@@ -754,7 +754,7 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	int ret;
 	unsigned long flags;
 
-	intent = kzalloc(sizeof(*intent), GFP_KERNEL);
+	intent = kzalloc_obj(*intent);
 	if (!intent)
 		return NULL;
 
@@ -875,7 +875,7 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 		return -ENXIO;
 	}
 
-	dcmd = kzalloc(struct_size(dcmd, data, extra), GFP_ATOMIC);
+	dcmd = kzalloc_flex(*dcmd, data, extra, GFP_ATOMIC);
 	if (!dcmd)
 		return -ENOMEM;
 
@@ -945,7 +945,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	if (glink->intentless) {
 		/* Might have an ongoing, fragmented, message to append */
 		if (!channel->buf) {
-			intent = kzalloc(sizeof(*intent), GFP_ATOMIC);
+			intent = kzalloc_obj(*intent, GFP_ATOMIC);
 			if (!intent)
 				return -ENOMEM;
 
@@ -1070,7 +1070,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 				       count > 0 ? msg->intents[0].iid : 0);
 
 	for (i = 0; i < count; ++i) {
-		intent = kzalloc(sizeof(*intent), GFP_ATOMIC);
+		intent = kzalloc_obj(*intent, GFP_ATOMIC);
 		if (!intent)
 			break;
 
@@ -1669,7 +1669,7 @@ static int qcom_glink_rx_open(struct qcom_glink *glink, unsigned int rcid,
 	complete_all(&channel->open_req);
 
 	if (create_device) {
-		rpdev = kzalloc(sizeof(*rpdev), GFP_KERNEL);
+		rpdev = kzalloc_obj(*rpdev);
 		if (!rpdev) {
 			ret = -ENOMEM;
 			goto rcid_remove;
@@ -1868,7 +1868,7 @@ static int qcom_glink_create_chrdev(struct qcom_glink *glink)
 	struct rpmsg_device *rpdev;
 	struct glink_channel *channel;
 
-	rpdev = kzalloc(sizeof(*rpdev), GFP_KERNEL);
+	rpdev = kzalloc_obj(*rpdev);
 	if (!rpdev)
 		return -ENOMEM;
 

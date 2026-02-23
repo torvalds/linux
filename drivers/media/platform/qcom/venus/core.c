@@ -213,7 +213,7 @@ static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 	if (core->res->hfi_version != HFI_VERSION_1XX)
 		return 0;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 
@@ -329,7 +329,7 @@ static int venus_add_dynamic_nodes(struct venus_core *core)
 	struct device *dev = core->dev;
 	int ret;
 
-	core->ocs = kmalloc(sizeof(*core->ocs), GFP_KERNEL);
+	core->ocs = kmalloc_obj(*core->ocs);
 	if (!core->ocs)
 		return -ENOMEM;
 

@@ -201,7 +201,7 @@ struct kvm_s2_mmu {
 	 * host to parse the guest S2.
 	 * This either contains:
 	 * - the virtual VTTBR programmed by the guest hypervisor with
-         *   CnP cleared
+	 *   CnP cleared
 	 * - The value 1 (VMID=0, BADDR=0, CnP=1) if invalid
 	 *
 	 * We also cache the full VTCR which gets used for TLB invalidation,
@@ -373,9 +373,6 @@ struct kvm_arch {
 	/* Maximum number of counters for the guest */
 	u8 nr_pmu_counters;
 
-	/* Iterator for idreg debugfs */
-	u8	idreg_debugfs_iter;
-
 	/* Hypercall features firmware registers' descriptor */
 	struct kvm_smccc_features smccc_feat;
 	struct maple_tree smccc_filter;
@@ -495,7 +492,6 @@ enum vcpu_sysreg {
 	DBGVCR32_EL2,	/* Debug Vector Catch Register */
 
 	/* EL2 registers */
-	SCTLR_EL2,	/* System Control Register (EL2) */
 	ACTLR_EL2,	/* Auxiliary Control Register (EL2) */
 	CPTR_EL2,	/* Architectural Feature Trap Register (EL2) */
 	HACR_EL2,	/* Hypervisor Auxiliary Control Register */
@@ -526,6 +522,7 @@ enum vcpu_sysreg {
 
 	/* Anything from this can be RES0/RES1 sanitised */
 	MARKER(__SANITISED_REG_START__),
+	SCTLR_EL2,	/* System Control Register (EL2) */
 	TCR2_EL2,	/* Extended Translation Control Register (EL2) */
 	SCTLR2_EL2,	/* System Control Register 2 (EL2) */
 	MDCR_EL2,	/* Monitor Debug Configuration Register (EL2) */
@@ -626,18 +623,45 @@ enum vcpu_sysreg {
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
-struct kvm_sysreg_masks {
-	struct {
-		u64	res0;
-		u64	res1;
-	} mask[NR_SYS_REGS - __SANITISED_REG_START__];
+struct resx {
+	u64	res0;
+	u64	res1;
 };
+
+struct kvm_sysreg_masks {
+	struct resx mask[NR_SYS_REGS - __SANITISED_REG_START__];
+};
+
+static inline struct resx __kvm_get_sysreg_resx(struct kvm_arch *arch,
+						enum vcpu_sysreg sr)
+{
+	struct kvm_sysreg_masks *masks;
+
+	masks = arch->sysreg_masks;
+	if (likely(masks &&
+		   sr >= __SANITISED_REG_START__ && sr < NR_SYS_REGS))
+		return masks->mask[sr - __SANITISED_REG_START__];
+
+	return (struct resx){};
+}
+
+#define kvm_get_sysreg_resx(k, sr) __kvm_get_sysreg_resx(&(k)->arch, (sr))
+
+static inline void __kvm_set_sysreg_resx(struct kvm_arch *arch,
+					 enum vcpu_sysreg sr, struct resx resx)
+{
+	arch->sysreg_masks->mask[sr - __SANITISED_REG_START__] = resx;
+}
+
+#define kvm_set_sysreg_resx(k, sr, resx)		\
+	__kvm_set_sysreg_resx(&(k)->arch, (sr), (resx))
 
 struct fgt_masks {
 	const char	*str;
 	u64		mask;
 	u64		nmask;
 	u64		res0;
+	u64		res1;
 };
 
 extern struct fgt_masks hfgrtr_masks;
@@ -710,11 +734,11 @@ struct cpu_sve_state {
 struct kvm_host_data {
 #define KVM_HOST_DATA_FLAG_HAS_SPE			0
 #define KVM_HOST_DATA_FLAG_HAS_TRBE			1
-#define KVM_HOST_DATA_FLAG_TRBE_ENABLED			4
-#define KVM_HOST_DATA_FLAG_EL1_TRACING_CONFIGURED	5
-#define KVM_HOST_DATA_FLAG_VCPU_IN_HYP_CONTEXT		6
-#define KVM_HOST_DATA_FLAG_L1_VNCR_MAPPED		7
-#define KVM_HOST_DATA_FLAG_HAS_BRBE			8
+#define KVM_HOST_DATA_FLAG_TRBE_ENABLED			2
+#define KVM_HOST_DATA_FLAG_EL1_TRACING_CONFIGURED	3
+#define KVM_HOST_DATA_FLAG_VCPU_IN_HYP_CONTEXT		4
+#define KVM_HOST_DATA_FLAG_L1_VNCR_MAPPED		5
+#define KVM_HOST_DATA_FLAG_HAS_BRBE			6
 	unsigned long flags;
 
 	struct kvm_cpu_context host_ctxt;
@@ -1606,7 +1630,7 @@ static inline bool kvm_arch_has_irq_bypass(void)
 }
 
 void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt);
-void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1);
+struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg);
 void check_feature_map(void);
 void kvm_vcpu_load_fgt(struct kvm_vcpu *vcpu);
 
@@ -1654,5 +1678,7 @@ static __always_inline enum fgt_group_id __fgt_reg_to_group_id(enum vcpu_sysreg 
 									\
 		p;							\
 	})
+
+long kvm_get_cap_for_kvm_ioctl(unsigned int ioctl, long *ext);
 
 #endif /* __ARM64_KVM_HOST_H__ */

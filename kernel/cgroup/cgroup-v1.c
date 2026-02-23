@@ -28,7 +28,7 @@
 #define CGROUP_PIDLIST_DESTROY_DELAY	HZ
 
 /* Controllers blocked by the commandline in v1 */
-static u16 cgroup_no_v1_mask;
+static u32 cgroup_no_v1_mask;
 
 /* disable named v1 mounts */
 static bool cgroup_no_v1_named;
@@ -317,7 +317,7 @@ static struct cgroup_pidlist *cgroup_pidlist_find_create(struct cgroup *cgrp,
 		return l;
 
 	/* entry not found; create a new one */
-	l = kzalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
+	l = kzalloc_obj(struct cgroup_pidlist);
 	if (!l)
 		return l;
 
@@ -352,7 +352,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	 * show up until sometime later on.
 	 */
 	length = cgroup_task_count(cgrp);
-	array = kvmalloc_array(length, sizeof(pid_t), GFP_KERNEL);
+	array = kvmalloc_objs(pid_t, length);
 	if (!array)
 		return -ENOMEM;
 	/* now, populate the array */
@@ -1037,13 +1037,13 @@ int cgroup1_parse_param(struct fs_context *fc, struct fs_parameter *param)
 static int check_cgroupfs_options(struct fs_context *fc)
 {
 	struct cgroup_fs_context *ctx = cgroup_fc2context(fc);
-	u16 mask = U16_MAX;
-	u16 enabled = 0;
+	u32 mask = U32_MAX;
+	u32 enabled = 0;
 	struct cgroup_subsys *ss;
 	int i;
 
 #ifdef CONFIG_CPUSETS
-	mask = ~((u16)1 << cpuset_cgrp_id);
+	mask = ~((u32)1 << cpuset_cgrp_id);
 #endif
 	for_each_subsys(ss, i)
 		if (cgroup_ssid_enabled(i) && !cgroup1_ssid_disabled(i) &&
@@ -1095,7 +1095,7 @@ int cgroup1_reconfigure(struct fs_context *fc)
 	struct kernfs_root *kf_root = kernfs_root_from_sb(fc->root->d_sb);
 	struct cgroup_root *root = cgroup_root_from_kf(kf_root);
 	int ret = 0;
-	u16 added_mask, removed_mask;
+	u32 added_mask, removed_mask;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
@@ -1237,7 +1237,7 @@ static int cgroup1_root_to_use(struct fs_context *fc)
 	if (ctx->ns != &init_cgroup_ns)
 		return -EPERM;
 
-	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return -ENOMEM;
 
@@ -1343,7 +1343,7 @@ static int __init cgroup_no_v1(char *str)
 			continue;
 
 		if (!strcmp(token, "all")) {
-			cgroup_no_v1_mask = U16_MAX;
+			cgroup_no_v1_mask = U32_MAX;
 			continue;
 		}
 

@@ -544,7 +544,7 @@ static int stm32f7_i2c_compute_timing(struct stm32f7_i2c_dev *i2c_dev,
 				if (((sdadel >= sdadel_min) &&
 				     (sdadel <= sdadel_max)) &&
 				    (p != p_prev)) {
-					v = kmalloc(sizeof(*v), GFP_KERNEL);
+					v = kmalloc_obj(*v);
 					if (!v) {
 						ret = -ENOMEM;
 						goto exit;

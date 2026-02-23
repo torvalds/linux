@@ -14,11 +14,21 @@ struct vfio_pci_dma_buf {
 	struct vfio_pci_core_device *vdev;
 	struct list_head dmabufs_elm;
 	size_t size;
-	struct dma_buf_phys_vec *phys_vec;
+	struct phys_vec *phys_vec;
 	struct p2pdma_provider *provider;
 	u32 nr_ranges;
 	u8 revoked : 1;
 };
+
+static int vfio_pci_dma_buf_pin(struct dma_buf_attachment *attachment)
+{
+	return -EOPNOTSUPP;
+}
+
+static void vfio_pci_dma_buf_unpin(struct dma_buf_attachment *attachment)
+{
+	/* Do nothing */
+}
 
 static int vfio_pci_dma_buf_attach(struct dma_buf *dmabuf,
 				   struct dma_buf_attachment *attachment)
@@ -76,6 +86,8 @@ static void vfio_pci_dma_buf_release(struct dma_buf *dmabuf)
 }
 
 static const struct dma_buf_ops vfio_pci_dmabuf_ops = {
+	.pin = vfio_pci_dma_buf_pin,
+	.unpin = vfio_pci_dma_buf_unpin,
 	.attach = vfio_pci_dma_buf_attach,
 	.map_dma_buf = vfio_pci_dma_buf_map,
 	.unmap_dma_buf = vfio_pci_dma_buf_unmap,
@@ -94,7 +106,7 @@ static const struct dma_buf_ops vfio_pci_dmabuf_ops = {
  *    will fail if it is currently revoked
  */
 int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys)
+				 struct phys_vec *phys)
 {
 	struct vfio_pci_dma_buf *priv;
 
@@ -116,7 +128,7 @@ int vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
 }
 EXPORT_SYMBOL_FOR_MODULES(vfio_pci_dma_buf_iommufd_map, "iommufd");
 
-int vfio_pci_core_fill_phys_vec(struct dma_buf_phys_vec *phys_vec,
+int vfio_pci_core_fill_phys_vec(struct phys_vec *phys_vec,
 				struct vfio_region_dma_range *dma_ranges,
 				size_t nr_ranges, phys_addr_t start,
 				phys_addr_t len)
@@ -148,7 +160,7 @@ EXPORT_SYMBOL_GPL(vfio_pci_core_fill_phys_vec);
 int vfio_pci_core_get_dmabuf_phys(struct vfio_pci_core_device *vdev,
 				  struct p2pdma_provider **provider,
 				  unsigned int region_index,
-				  struct dma_buf_phys_vec *phys_vec,
+				  struct phys_vec *phys_vec,
 				  struct vfio_region_dma_range *dma_ranges,
 				  size_t nr_ranges)
 {
@@ -234,13 +246,12 @@ int vfio_pci_core_feature_dma_buf(struct vfio_pci_core_device *vdev, u32 flags,
 	if (ret)
 		goto err_free_ranges;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto err_free_ranges;
 	}
-	priv->phys_vec = kcalloc(get_dma_buf.nr_ranges, sizeof(*priv->phys_vec),
-				 GFP_KERNEL);
+	priv->phys_vec = kzalloc_objs(*priv->phys_vec, get_dma_buf.nr_ranges);
 	if (!priv->phys_vec) {
 		ret = -ENOMEM;
 		goto err_free_priv;

@@ -408,7 +408,7 @@ nouveau_fence_create(struct nouveau_fence **pfence,
 	if (unlikely(!chan->fence))
 		return -ENODEV;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return -ENOMEM;
 

@@ -116,7 +116,7 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 	size_t log_align_base = 0;
 	int err;
 
-	icm_mr = kvzalloc(sizeof(*icm_mr), GFP_KERNEL);
+	icm_mr = kvzalloc_obj(*icm_mr);
 	if (!icm_mr)
 		return NULL;
 
@@ -227,8 +227,7 @@ static int dr_icm_buddy_init_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
 	int num_of_entries =
 		mlx5dr_icm_pool_chunk_size_to_entries(buddy->pool->max_log_chunk_sz);
 
-	buddy->ste_arr = kvcalloc(num_of_entries,
-				  sizeof(struct mlx5dr_ste), GFP_KERNEL);
+	buddy->ste_arr = kvzalloc_objs(struct mlx5dr_ste, num_of_entries);
 	if (!buddy->ste_arr)
 		return -ENOMEM;
 
@@ -269,7 +268,7 @@ static int dr_icm_buddy_create(struct mlx5dr_icm_pool *pool)
 	if (!icm_mr)
 		return -ENOMEM;
 
-	buddy = kvzalloc(sizeof(*buddy), GFP_KERNEL);
+	buddy = kvzalloc_obj(*buddy);
 	if (!buddy)
 		goto free_mr;
 
@@ -509,7 +508,7 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 	struct mlx5dr_icm_pool *pool;
 	u32 max_hot_size = 0;
 
-	pool = kvzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kvzalloc_obj(*pool);
 	if (!pool)
 		return NULL;
 
@@ -548,9 +547,8 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 	num_of_chunks = DIV_ROUND_UP(max_hot_size, entry_size) + 1;
 	pool->th = max_hot_size;
 
-	pool->hot_chunks_arr = kvcalloc(num_of_chunks,
-					sizeof(struct mlx5dr_icm_hot_chunk),
-					GFP_KERNEL);
+	pool->hot_chunks_arr = kvzalloc_objs(struct mlx5dr_icm_hot_chunk,
+					     num_of_chunks);
 	if (!pool->hot_chunks_arr)
 		goto free_pool;
 

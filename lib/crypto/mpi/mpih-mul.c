@@ -372,7 +372,7 @@ mpihelp_mul_karatsuba_case(mpi_ptr_t prodp,
 				return -ENOMEM;
 		} else {
 			if (!ctx->next) {
-				ctx->next = kzalloc(sizeof *ctx, GFP_KERNEL);
+				ctx->next = kzalloc_obj(*ctx);
 				if (!ctx->next)
 					return -ENOMEM;
 			}

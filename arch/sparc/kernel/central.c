@@ -63,7 +63,7 @@ static int clock_board_calc_nslots(struct clock_board *p)
 
 static int clock_board_probe(struct platform_device *op)
 {
-	struct clock_board *p = kzalloc(sizeof(*p), GFP_KERNEL);
+	struct clock_board *p = kzalloc_obj(*p);
 	int err = -ENOMEM;
 
 	if (!p) {
@@ -159,7 +159,7 @@ static struct platform_driver clock_board_driver = {
 
 static int fhc_probe(struct platform_device *op)
 {
-	struct fhc *p = kzalloc(sizeof(*p), GFP_KERNEL);
+	struct fhc *p = kzalloc_obj(*p);
 	int err = -ENOMEM;
 	u32 reg;
 

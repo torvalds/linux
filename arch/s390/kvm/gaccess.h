@@ -206,8 +206,8 @@ int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 		      void *data, unsigned long len, enum gacc_mode mode);
 
-int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t *old,
-			       __uint128_t new, u8 access_key, bool *success);
+int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, union kvm_s390_quad *old,
+			       union kvm_s390_quad new, u8 access_key, bool *success);
 
 /**
  * write_guest_with_key - copy data from kernel space to guest space
@@ -450,11 +450,17 @@ void ipte_unlock(struct kvm *kvm);
 int ipte_lock_held(struct kvm *kvm);
 int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 
-/* MVPG PEI indication bits */
-#define PEI_DAT_PROT 2
-#define PEI_NOT_PTE 4
+union mvpg_pei {
+	unsigned long val;
+	struct {
+		unsigned long addr    : 61;
+		unsigned long not_pte :  1;
+		unsigned long dat_prot:  1;
+		unsigned long real    :  1;
+	};
+};
 
-int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *shadow,
-			  unsigned long saddr, unsigned long *datptr);
+int gaccess_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *sg, gpa_t saddr,
+			 union mvpg_pei *datptr, bool wr);
 
 #endif /* __KVM_S390_GACCESS_H */

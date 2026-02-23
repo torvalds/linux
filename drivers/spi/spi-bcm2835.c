@@ -1313,7 +1313,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 * More on the problem that it addresses:
 	 *   https://www.spinics.net/lists/linux-gpio/msg36218.html
 	 */
-	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	lookup = kzalloc_flex(*lookup, table, 2);
 	if (!lookup) {
 		ret = -ENOMEM;
 		goto err_cleanup;
@@ -1368,7 +1368,6 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one = bcm2835_spi_transfer_one;
 	ctlr->handle_err = bcm2835_spi_handle_err;
 	ctlr->prepare_message = bcm2835_spi_prepare_message;
-	ctlr->dev.of_node = pdev->dev.of_node;
 
 	bs = spi_controller_get_devdata(ctlr);
 	bs->ctlr = ctlr;

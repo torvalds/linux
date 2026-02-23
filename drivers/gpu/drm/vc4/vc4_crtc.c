@@ -997,7 +997,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 	struct drm_plane *plane = crtc->primary;
 	struct vc4_async_flip_state *flip_state;
 
-	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
+	flip_state = kzalloc_obj(*flip_state);
 	if (!flip_state)
 		return -ENOMEM;
 
@@ -1105,7 +1105,7 @@ struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct vc4_crtc_state *vc4_state, *old_vc4_state;
 
-	vc4_state = kzalloc(sizeof(*vc4_state), GFP_KERNEL);
+	vc4_state = kzalloc_obj(*vc4_state);
 	if (!vc4_state)
 		return NULL;
 
@@ -1142,7 +1142,7 @@ void vc4_crtc_reset(struct drm_crtc *crtc)
 	if (crtc->state)
 		vc4_crtc_destroy_state(crtc, crtc->state);
 
-	vc4_crtc_state = kzalloc(sizeof(*vc4_crtc_state), GFP_KERNEL);
+	vc4_crtc_state = kzalloc_obj(*vc4_crtc_state);
 	if (!vc4_crtc_state) {
 		crtc->state = NULL;
 		return;

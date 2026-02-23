@@ -3153,8 +3153,7 @@ static int ipw_load_firmware(struct ipw_priv *priv, u8 * data, size_t len)
 	if (!virts)
 		return -ENOMEM;
 
-	phys = kmalloc_array(CB_NUMBER_OF_ELEMENTS_SMALL, sizeof(dma_addr_t),
-			     GFP_KERNEL);
+	phys = kmalloc_objs(dma_addr_t, CB_NUMBER_OF_ELEMENTS_SMALL);
 	if (!phys) {
 		kfree(virts);
 		return -ENOMEM;
@@ -3723,7 +3722,7 @@ static int ipw_queue_tx_init(struct ipw_priv *priv,
 {
 	struct pci_dev *dev = priv->pci_dev;
 
-	q->txb = kmalloc_array(count, sizeof(q->txb[0]), GFP_KERNEL);
+	q->txb = kmalloc_objs(q->txb[0], count);
 	if (!q->txb)
 		return -ENOMEM;
 
@@ -5201,7 +5200,7 @@ static struct ipw_rx_queue *ipw_rx_queue_alloc(struct ipw_priv *priv)
 	struct ipw_rx_queue *rxq;
 	int i;
 
-	rxq = kzalloc(sizeof(*rxq), GFP_KERNEL);
+	rxq = kzalloc_obj(*rxq);
 	if (unlikely(!rxq)) {
 		IPW_ERROR("memory allocation failed\n");
 		return NULL;
@@ -8103,7 +8102,7 @@ static  int is_duplicate_packet(struct ipw_priv *priv,
 					break;
 			}
 			if (p == &priv->ibss_mac_hash[index]) {
-				entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+				entry = kmalloc_obj(*entry, GFP_ATOMIC);
 				if (!entry) {
 					IPW_ERROR
 					    ("Cannot malloc new mac entry\n");
@@ -11119,8 +11118,7 @@ static int ipw_up(struct ipw_priv *priv)
 		return -EIO;
 
 	if (cmdlog && !priv->cmdlog) {
-		priv->cmdlog = kcalloc(cmdlog, sizeof(*priv->cmdlog),
-				       GFP_KERNEL);
+		priv->cmdlog = kzalloc_objs(*priv->cmdlog, cmdlog);
 		if (priv->cmdlog == NULL) {
 			IPW_ERROR("Error allocating %d command log entries.\n",
 				  cmdlog);
@@ -11279,9 +11277,8 @@ static int ipw_wdev_init(struct net_device *dev)
 
 		bg_band->band = NL80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels = kcalloc(geo->bg_channels,
-					    sizeof(struct ieee80211_channel),
-					    GFP_KERNEL);
+		bg_band->channels = kzalloc_objs(struct ieee80211_channel,
+						 geo->bg_channels);
 		if (!bg_band->channels) {
 			rc = -ENOMEM;
 			goto out;
@@ -11318,9 +11315,8 @@ static int ipw_wdev_init(struct net_device *dev)
 
 		a_band->band = NL80211_BAND_5GHZ;
 		a_band->n_channels = geo->a_channels;
-		a_band->channels = kcalloc(geo->a_channels,
-					   sizeof(struct ieee80211_channel),
-					   GFP_KERNEL);
+		a_band->channels = kzalloc_objs(struct ieee80211_channel,
+						geo->a_channels);
 		if (!a_band->channels) {
 			rc = -ENOMEM;
 			goto out;
@@ -11387,7 +11383,13 @@ static const struct pci_device_id card_ids[] = {
 	{PCI_VENDOR_ID_INTEL, 0x1043, 0x8086, 0x2754, 0, 0, 0},
 	{PCI_VENDOR_ID_INTEL, 0x1043, 0x8086, 0x2761, 0, 0, 0},
 	{PCI_VENDOR_ID_INTEL, 0x1043, 0x8086, 0x2762, 0, 0, 0},
-	{PCI_VDEVICE(INTEL, 0x104f), 0},
+	/*
+	 * This ID conflicts with i40e, but the devices can be differentiated
+	 * because i40e devices use PCI_CLASS_NETWORK_ETHERNET and ipw2200
+	 * devices use PCI_CLASS_NETWORK_OTHER.
+	 */
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x104f),
+		PCI_CLASS_NETWORK_OTHER << 8, 0xffff00, 0},
 	{PCI_VDEVICE(INTEL, 0x4220), 0},	/* BG */
 	{PCI_VDEVICE(INTEL, 0x4221), 0},	/* BG */
 	{PCI_VDEVICE(INTEL, 0x4223), 0},	/* ABG */

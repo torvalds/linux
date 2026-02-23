@@ -424,7 +424,7 @@ static struct funeth_txq **alloc_xdpqs(struct net_device *dev, unsigned int nqs,
 	unsigned int i;
 	int err;
 
-	xdpqs = kcalloc(nqs, sizeof(*xdpqs), GFP_KERNEL);
+	xdpqs = kzalloc_objs(*xdpqs, nqs);
 	if (!xdpqs)
 		return ERR_PTR(-ENOMEM);
 
@@ -486,7 +486,7 @@ static int fun_alloc_rings(struct net_device *netdev, struct fun_qset *qset)
 	if (err)
 		return err;
 
-	rxqs = kcalloc(qset->ntxqs + qset->nrxqs, sizeof(*rxqs), GFP_KERNEL);
+	rxqs = kzalloc_objs(*rxqs, qset->ntxqs + qset->nrxqs);
 	if (!rxqs)
 		return -ENOMEM;
 
@@ -1175,7 +1175,7 @@ static int fun_init_vports(struct fun_ethdev *ed, unsigned int n)
 	if (ed->num_vports)
 		return -EINVAL;
 
-	ed->vport_info = kvcalloc(n, sizeof(*ed->vport_info), GFP_KERNEL);
+	ed->vport_info = kvzalloc_objs(*ed->vport_info, n);
 	if (!ed->vport_info)
 		return -ENOMEM;
 	ed->num_vports = n;
@@ -1833,7 +1833,7 @@ static int fun_create_ports(struct fun_ethdev *ed, unsigned int nports)
 		return -EINVAL;
 	}
 
-	ed->netdevs = kcalloc(nports, sizeof(*ed->netdevs), GFP_KERNEL);
+	ed->netdevs = kzalloc_objs(*ed->netdevs, nports);
 	if (!ed->netdevs)
 		return -ENOMEM;
 

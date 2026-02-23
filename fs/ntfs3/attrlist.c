@@ -52,6 +52,11 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 
 	if (!attr->non_res) {
 		lsize = le32_to_cpu(attr->res.data_size);
+		if (!lsize) {
+			err = -EINVAL;
+			goto out;
+		}
+
 		/* attr is resident: lsize < record_size (1K or 4K) */
 		le = kvmalloc(al_aligned(lsize), GFP_KERNEL);
 		if (!le) {
@@ -66,6 +71,10 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 		u16 run_off = le16_to_cpu(attr->nres.run_off);
 
 		lsize = le64_to_cpu(attr->nres.data_size);
+		if (!lsize) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		run_init(&ni->attr_list.run);
 
@@ -336,8 +345,8 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	le->id = id;
 	memcpy(le->name, name, sizeof(short) * name_len);
 
-	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, new_size,
-			    &new_size, true, &attr);
+	err = attr_set_size_ex(ni, ATTR_LIST, NULL, 0, &al->run, new_size,
+			       &new_size, true, &attr, false);
 	if (err) {
 		/* Undo memmove above. */
 		memmove(le, Add2Ptr(le, sz), old_size - off);
@@ -395,8 +404,8 @@ int al_update(struct ntfs_inode *ni, int sync)
 	 * Attribute list increased on demand in al_add_le.
 	 * Attribute list decreased here.
 	 */
-	err = attr_set_size(ni, ATTR_LIST, NULL, 0, &al->run, al->size, NULL,
-			    false, &attr);
+	err = attr_set_size_ex(ni, ATTR_LIST, NULL, 0, &al->run, al->size, NULL,
+			       false, &attr, false);
 	if (err)
 		goto out;
 

@@ -431,7 +431,7 @@ static int qc_attach(struct usb_serial *serial)
 	struct usb_wwan_intf_private *data;
 	bool sendsetup;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

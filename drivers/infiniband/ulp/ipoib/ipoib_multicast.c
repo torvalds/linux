@@ -139,7 +139,7 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev)
 {
 	struct ipoib_mcast *mcast;
 
-	mcast = kzalloc(sizeof(*mcast), GFP_ATOMIC);
+	mcast = kzalloc_obj(*mcast, GFP_ATOMIC);
 	if (!mcast)
 		return NULL;
 
@@ -980,7 +980,7 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return NULL;
 

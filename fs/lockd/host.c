@@ -126,7 +126,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 		}
 	}
 
-	host = kmalloc(sizeof(*host), GFP_KERNEL);
+	host = kmalloc_obj(*host);
 	if (unlikely(host == NULL)) {
 		dprintk("lockd: %s failed; no memory\n", __func__);
 		nsm_release(nsm);

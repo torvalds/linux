@@ -147,6 +147,7 @@
 #define INTERNAL_CMDS_COUNT		10	/* reserved cmds */
 /* reserved for issuing internally framed scsi io cmds */
 #define INTERNAL_SCSIIO_CMDS_COUNT	3
+#define INTERNAL_SCSIIO_FOR_DISCOVERY	2
 
 #define MPI3_HIM_MASK			0xFFFFFFFF /* mask every bit*/
 
@@ -480,6 +481,7 @@ struct MPT3SAS_DEVICE {
 	u32	flags;
 	u8	configured_lun;
 	u8	block;
+	u8	deleted;
 	u8	tlr_snoop_check;
 	u8	ignore_delay_remove;
 	/* Iopriority Command Handling */
@@ -577,7 +579,9 @@ struct _sas_device {
 	u8	chassis_slot;
 	u8	is_chassis_slot_valid;
 	u8	connector_name[5];
+	u8	ssd_device;
 	struct kref refcount;
+
 	u8	port_type;
 	struct hba_port *port;
 	struct sas_rphy *rphy;
@@ -1159,9 +1163,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @mask_interrupts: ignore interrupt
  * @pci_access_mutex: Mutex to synchronize ioctl, sysfs show path and
  *			pci resource handling
- * @fault_reset_work_q_name: fw fault work queue
- * @fault_reset_work_q: ""
- * @fault_reset_work: ""
+ * @fault_reset_work_q: fw fault workqueue
+ * @fault_reset_work: fw fault work
  * @firmware_event_thread: fw event work queue
  * @fw_event_lock:
  * @fw_event_list: list of fw events
@@ -1345,7 +1348,6 @@ struct MPT3SAS_ADAPTER {
 	u8		mask_interrupts;
 
 	/* fw fault handler */
-	char		fault_reset_work_q_name[20];
 	struct workqueue_struct *fault_reset_work_q;
 	struct delayed_work fault_reset_work;
 

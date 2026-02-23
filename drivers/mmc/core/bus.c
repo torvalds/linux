@@ -279,7 +279,7 @@ struct mmc_card *mmc_alloc_card(struct mmc_host *host, const struct device_type 
 {
 	struct mmc_card *card;
 
-	card = kzalloc(sizeof(struct mmc_card), GFP_KERNEL);
+	card = kzalloc_obj(struct mmc_card);
 	if (!card)
 		return ERR_PTR(-ENOMEM);
 

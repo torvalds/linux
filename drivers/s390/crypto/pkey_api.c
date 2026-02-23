@@ -223,7 +223,7 @@ static int pkey_ioctl_findcard(struct pkey_findcard __user *ufc)
 		return -EFAULT;
 
 	nr_apqns = MAXAPQNSINLIST;
-	apqns = kmalloc_array(nr_apqns, sizeof(struct pkey_apqn), GFP_KERNEL);
+	apqns = kmalloc_objs(struct pkey_apqn, nr_apqns);
 	if (!apqns)
 		return -ENOMEM;
 
@@ -569,9 +569,7 @@ static int pkey_ioctl_apqns4k(struct pkey_apqns4key __user *uak)
 		return -EFAULT;
 	nr_apqns = kak.apqn_entries;
 	if (nr_apqns) {
-		apqns = kmalloc_array(nr_apqns,
-				      sizeof(struct pkey_apqn),
-				      GFP_KERNEL);
+		apqns = kmalloc_objs(struct pkey_apqn, nr_apqns);
 		if (!apqns)
 			return -ENOMEM;
 	}
@@ -620,9 +618,7 @@ static int pkey_ioctl_apqns4kt(struct pkey_apqns4keytype __user *uat)
 		return -EFAULT;
 	nr_apqns = kat.apqn_entries;
 	if (nr_apqns) {
-		apqns = kmalloc_array(nr_apqns,
-				      sizeof(struct pkey_apqn),
-				      GFP_KERNEL);
+		apqns = kmalloc_objs(struct pkey_apqn, nr_apqns);
 		if (!apqns)
 			return -ENOMEM;
 	}

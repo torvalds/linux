@@ -113,6 +113,28 @@
 				     <&A57_3>;
 	};
 
+	osc: clock-25000000 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+	};
+
+	iprocmed: iprocmed {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	iprocslow: iprocslow {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
+		clock-div = <4>;
+		clock-mult = <1>;
+	};
+
 	pcie0: pcie@20020000 {
 		compatible = "brcm,iproc-pcie";
 		reg = <0 0x20020000 0 0x1000>;
@@ -132,7 +154,6 @@
 		ranges = <0x83000000 0 0x00000000 0 0x00000000 0 0x20000000>;
 
 		brcm,pcie-ob;
-		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x00000000>;
 
 		status = "disabled";
@@ -162,7 +183,6 @@
 		ranges = <0x83000000 0 0x00000000 0 0x30000000 0 0x20000000>;
 
 		brcm,pcie-ob;
-		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x30000000>;
 
 		status = "disabled";
@@ -196,8 +216,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
-
-		#include "ns2-clock.dtsi"
 
 		enet: ethernet@61000000 {
 			compatible = "brcm,ns2-amac";
@@ -334,6 +352,55 @@
 			#iommu-cells = <1>;
 		};
 
+		lcpll_ddr: clock-controller@6501d058 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-lcpll-ddr";
+			reg = <0x6501d058 0x20>,
+			      <0x6501c020 0x4>,
+			      <0x6501d04c 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll_ddr", "pcie_sata_usb",
+					     "ddr", "ddr_ch2_unused",
+					     "ddr_ch3_unused", "ddr_ch4_unused",
+					     "ddr_ch5_unused";
+		};
+
+		lcpll_ports: clock-controller@6501d078 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-lcpll-ports";
+			reg = <0x6501d078 0x20>,
+			      <0x6501c020 0x4>,
+			      <0x6501d054 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll_ports", "wan", "rgmii",
+					     "ports_ch2_unused",
+					     "ports_ch3_unused",
+					     "ports_ch4_unused",
+					     "ports_ch5_unused";
+		};
+
+		genpll_scr: clock-controller@6501d098 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-genpll-scr";
+			reg = <0x6501d098 0x32>,
+			      <0x6501c020 0x4>,
+			      <0x6501d044 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll_scr", "scr", "fs",
+					     "audio_ref", "scr_ch3_unused",
+					     "scr_ch4_unused", "scr_ch5_unused";
+		};
+
+		genpll_sw: clock-controller@6501d0c4 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-genpll-sw";
+			reg = <0x6501d0c4 0x32>,
+			      <0x6501c020 0x4>,
+			      <0x6501d044 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll_sw", "rpe", "250", "nic",
+					     "chimp", "port", "sdio";
+		};
 		pinctrl: pinctrl@6501d130 {
 			compatible = "brcm,ns2-pinmux";
 			reg = <0x6501d130 0x08>,
@@ -438,8 +505,7 @@
 			ranges = <0 0x65590000 0x10000>;
 
 			pmu@9000 {
-				compatible = "arm,cci-400-pmu,r1",
-					     "arm,cci-400-pmu";
+				compatible = "arm,cci-400-pmu,r1";
 				reg = <0x9000 0x4000>;
 				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
@@ -657,7 +723,7 @@
 			reg = <0x66220000 0x28>;
 		};
 
-		sata_phy: sata_phy@663f0100 {
+		sata_phy: sata-phy@663f0100 {
 			compatible = "brcm,iproc-ns2-sata-phy";
 			reg = <0x663f0100 0x1f00>,
 			      <0x663f004c 0x10>;
@@ -701,7 +767,7 @@
 			};
 		};
 
-		sdio0: sdhci@66420000 {
+		sdio0: mmc@66420000 {
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x66420000 0x100>;
 			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
@@ -711,7 +777,7 @@
 			status = "disabled";
 		};
 
-		sdio1: sdhci@66430000 {
+		sdio1: mmc@66430000 {
 			compatible = "brcm,sdhci-iproc-cygnus";
 			reg = <0x66430000 0x100>;
 			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
@@ -721,7 +787,7 @@
 			status = "disabled";
 		};
 
-		nand: nand@66460000 {
+		nand: nand-controller@66460000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x66460000 0x600>,
 			      <0x67015408 0x600>,
@@ -746,7 +812,6 @@
 			interrupts = <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "spi_l1_intr";
 			clocks = <&iprocmed>;
-			clock-names = "iprocmed";
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;

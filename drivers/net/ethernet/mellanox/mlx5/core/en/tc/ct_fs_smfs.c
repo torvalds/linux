@@ -92,7 +92,7 @@ mlx5_ct_fs_smfs_matcher_create(struct mlx5_ct_fs *fs, struct mlx5dr_table *tbl, 
 	struct mlx5dr_matcher *dr_matcher;
 	struct mlx5_flow_spec *spec;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -234,7 +234,7 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	if (!mlx5e_tc_ct_is_valid_flow_rule(fs->netdev, flow_rule))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	smfs_rule = kzalloc(sizeof(*smfs_rule), GFP_KERNEL);
+	smfs_rule = kzalloc_obj(*smfs_rule);
 	if (!smfs_rule)
 		return ERR_PTR(-ENOMEM);
 

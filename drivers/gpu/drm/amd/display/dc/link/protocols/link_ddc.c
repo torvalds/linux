@@ -156,7 +156,7 @@ struct ddc_service *link_create_ddc_service(
 {
 	struct ddc_service *ddc_service;
 
-	ddc_service = kzalloc(sizeof(struct ddc_service), GFP_KERNEL);
+	ddc_service = kzalloc_obj(struct ddc_service);
 
 	if (!ddc_service)
 		return NULL;

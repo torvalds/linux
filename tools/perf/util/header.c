@@ -76,6 +76,7 @@ static const u64 __perf_magic2    = 0x32454c4946524550ULL;
 static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
 #define PERF_MAGIC	__perf_magic2
+#define DNAME_LEN	16
 
 const char perf_version_string[] = PERF_VERSION;
 
@@ -376,6 +377,21 @@ static int write_arch(struct feat_fd *ff,
 		return -1;
 
 	return do_write_string(ff, uts.machine);
+}
+
+static int write_e_machine(struct feat_fd *ff,
+			   struct evlist *evlist __maybe_unused)
+{
+	/* e_machine expanded from 16 to 32-bits for alignment. */
+	uint32_t e_flags;
+	uint32_t e_machine = perf_session__e_machine(evlist->session, &e_flags);
+	int ret;
+
+	ret = do_write(ff, &e_machine, sizeof(e_machine));
+	if (ret)
+		return ret;
+
+	return do_write(ff, &e_flags, sizeof(e_flags));
 }
 
 static int write_version(struct feat_fd *ff,
@@ -1614,6 +1630,161 @@ static int write_pmu_caps(struct feat_fd *ff,
 	return 0;
 }
 
+struct cpu_domain_map **build_cpu_domain_map(u32 *schedstat_version, u32 *max_sched_domains, u32 nr)
+{
+	char dname[DNAME_LEN], cpumask[MAX_NR_CPUS];
+	struct domain_info *domain_info;
+	struct cpu_domain_map **cd_map;
+	char cpulist[MAX_NR_CPUS];
+	char *line = NULL;
+	u32 cpu, domain;
+	u32 dcount = 0;
+	size_t len;
+	FILE *fp;
+
+	fp = fopen("/proc/schedstat", "r");
+	if (!fp) {
+		pr_err("Failed to open /proc/schedstat\n");
+		return NULL;
+	}
+
+	cd_map = zalloc(sizeof(*cd_map) * nr);
+	if (!cd_map)
+		goto out;
+
+	while (getline(&line, &len, fp) > 0) {
+		int retval;
+
+		if (strncmp(line, "version", 7) == 0) {
+			retval = sscanf(line, "version %d\n", schedstat_version);
+			if (retval != 1)
+				continue;
+
+		} else if (strncmp(line, "cpu", 3) == 0) {
+			retval = sscanf(line, "cpu%u %*s", &cpu);
+			if (retval == 1) {
+				cd_map[cpu] = zalloc(sizeof(*cd_map[cpu]));
+				if (!cd_map[cpu])
+					goto out_free_line;
+				cd_map[cpu]->cpu = cpu;
+			} else
+				continue;
+
+			dcount = 0;
+		} else if (strncmp(line, "domain", 6) == 0) {
+			struct domain_info **temp_domains;
+
+			dcount++;
+			temp_domains = realloc(cd_map[cpu]->domains, dcount * sizeof(domain_info));
+			if (!temp_domains)
+				goto out_free_line;
+			else
+				cd_map[cpu]->domains = temp_domains;
+
+			domain_info = zalloc(sizeof(*domain_info));
+			if (!domain_info)
+				goto out_free_line;
+
+			cd_map[cpu]->domains[dcount - 1] = domain_info;
+
+			if (*schedstat_version >= 17) {
+				retval = sscanf(line, "domain%u %s %s %*s", &domain, dname,
+						cpumask);
+				if (retval != 3)
+					continue;
+
+				domain_info->dname = strdup(dname);
+				if (!domain_info->dname)
+					goto out_free_line;
+			} else {
+				retval = sscanf(line, "domain%u %s %*s", &domain, cpumask);
+				if (retval != 2)
+					continue;
+			}
+
+			domain_info->domain = domain;
+			if (domain > *max_sched_domains)
+				*max_sched_domains = domain;
+
+			domain_info->cpumask = strdup(cpumask);
+			if (!domain_info->cpumask)
+				goto out_free_line;
+
+			cpumask_to_cpulist(cpumask, cpulist);
+			domain_info->cpulist = strdup(cpulist);
+			if (!domain_info->cpulist)
+				goto out_free_line;
+
+			cd_map[cpu]->nr_domains = dcount;
+		}
+	}
+
+out_free_line:
+	free(line);
+out:
+	fclose(fp);
+	return cd_map;
+}
+
+static int write_cpu_domain_info(struct feat_fd *ff,
+				 struct evlist *evlist __maybe_unused)
+{
+	u32 max_sched_domains = 0, schedstat_version = 0;
+	struct cpu_domain_map **cd_map;
+	u32 i, j, nr, ret;
+
+	nr = cpu__max_present_cpu().cpu;
+
+	cd_map = build_cpu_domain_map(&schedstat_version, &max_sched_domains, nr);
+	if (!cd_map)
+		return -1;
+
+	ret = do_write(ff, &schedstat_version, sizeof(u32));
+	if (ret < 0)
+		goto out;
+
+	max_sched_domains += 1;
+	ret = do_write(ff, &max_sched_domains, sizeof(u32));
+	if (ret < 0)
+		goto out;
+
+	for (i = 0; i < nr; i++) {
+		if (!cd_map[i])
+			continue;
+
+		ret = do_write(ff, &cd_map[i]->cpu, sizeof(u32));
+		if (ret < 0)
+			goto out;
+
+		ret = do_write(ff, &cd_map[i]->nr_domains, sizeof(u32));
+		if (ret < 0)
+			goto out;
+
+		for (j = 0; j < cd_map[i]->nr_domains; j++) {
+			ret = do_write(ff, &cd_map[i]->domains[j]->domain, sizeof(u32));
+			if (ret < 0)
+				goto out;
+			if (schedstat_version >= 17) {
+				ret = do_write_string(ff, cd_map[i]->domains[j]->dname);
+				if (ret < 0)
+					goto out;
+			}
+
+			ret = do_write_string(ff, cd_map[i]->domains[j]->cpumask);
+			if (ret < 0)
+				goto out;
+
+			ret = do_write_string(ff, cd_map[i]->domains[j]->cpulist);
+			if (ret < 0)
+				goto out;
+		}
+	}
+
+out:
+	free_cpu_domain_info(cd_map, schedstat_version, nr);
+	return ret;
+}
+
 static void print_hostname(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# hostname : %s\n", ff->ph->env.hostname);
@@ -1627,6 +1798,12 @@ static void print_osrelease(struct feat_fd *ff, FILE *fp)
 static void print_arch(struct feat_fd *ff, FILE *fp)
 {
 	fprintf(fp, "# arch : %s\n", ff->ph->env.arch);
+}
+
+static void print_e_machine(struct feat_fd *ff, FILE *fp)
+{
+	fprintf(fp, "# e_machine : %u\n", ff->ph->env.e_machine);
+	fprintf(fp, "#   e_flags : %u\n", ff->ph->env.e_flags);
 }
 
 static void print_cpudesc(struct feat_fd *ff, FILE *fp)
@@ -2247,6 +2424,39 @@ static void print_mem_topology(struct feat_fd *ff, FILE *fp)
 	}
 }
 
+static void print_cpu_domain_info(struct feat_fd *ff, FILE *fp)
+{
+	struct cpu_domain_map **cd_map = ff->ph->env.cpu_domain;
+	u32 nr = ff->ph->env.nr_cpus_avail;
+	struct domain_info *d_info;
+	u32 i, j;
+
+	fprintf(fp, "# schedstat version	: %u\n", ff->ph->env.schedstat_version);
+	fprintf(fp, "# Maximum sched domains	: %u\n", ff->ph->env.max_sched_domains);
+
+	for (i = 0; i < nr; i++) {
+		if (!cd_map[i])
+			continue;
+
+		fprintf(fp, "# cpu		: %u\n", cd_map[i]->cpu);
+		fprintf(fp, "# nr_domains	: %u\n", cd_map[i]->nr_domains);
+
+		for (j = 0; j < cd_map[i]->nr_domains; j++) {
+			d_info = cd_map[i]->domains[j];
+			if (!d_info)
+				continue;
+
+			fprintf(fp, "# Domain		: %u\n", d_info->domain);
+
+			if (ff->ph->env.schedstat_version >= 17)
+				fprintf(fp, "# Domain name      : %s\n", d_info->dname);
+
+			fprintf(fp, "# Domain cpu map   : %s\n", d_info->cpumask);
+			fprintf(fp, "# Domain cpu list  : %s\n", d_info->cpulist);
+		}
+	}
+}
+
 static int __event_process_build_id(struct perf_record_header_build_id *bev,
 				    char *filename,
 				    struct perf_session *session)
@@ -2422,6 +2632,17 @@ FEAT_PROCESS_STR_FUN(version, version);
 FEAT_PROCESS_STR_FUN(arch, arch);
 FEAT_PROCESS_STR_FUN(cpudesc, cpu_desc);
 FEAT_PROCESS_STR_FUN(cpuid, cpuid);
+
+static int process_e_machine(struct feat_fd *ff, void *data __maybe_unused)
+{
+	int ret;
+
+	ret = do_read_u32(ff, &ff->ph->env.e_machine);
+	if (ret)
+		return ret;
+
+	return do_read_u32(ff, &ff->ph->env.e_flags);
+}
 
 #ifdef HAVE_LIBTRACEEVENT
 static int process_tracing_data(struct feat_fd *ff, void *data)
@@ -3388,6 +3609,93 @@ err:
 	return ret;
 }
 
+static int process_cpu_domain_info(struct feat_fd *ff, void *data __maybe_unused)
+{
+	u32 schedstat_version, max_sched_domains, cpu, domain, nr_domains;
+	struct perf_env *env = &ff->ph->env;
+	char *dname, *cpumask, *cpulist;
+	struct cpu_domain_map **cd_map;
+	struct domain_info *d_info;
+	u32 nra, nr, i, j;
+	int ret;
+
+	nra = env->nr_cpus_avail;
+	nr = env->nr_cpus_online;
+
+	cd_map = zalloc(sizeof(*cd_map) * nra);
+	if (!cd_map)
+		return -1;
+
+	env->cpu_domain = cd_map;
+
+	ret = do_read_u32(ff, &schedstat_version);
+	if (ret)
+		return ret;
+
+	env->schedstat_version = schedstat_version;
+
+	ret = do_read_u32(ff, &max_sched_domains);
+	if (ret)
+		return ret;
+
+	env->max_sched_domains = max_sched_domains;
+
+	for (i = 0; i < nr; i++) {
+		if (do_read_u32(ff, &cpu))
+			return -1;
+
+		cd_map[cpu] = zalloc(sizeof(*cd_map[cpu]));
+		if (!cd_map[cpu])
+			return -1;
+
+		cd_map[cpu]->cpu = cpu;
+
+		if (do_read_u32(ff, &nr_domains))
+			return -1;
+
+		cd_map[cpu]->nr_domains = nr_domains;
+
+		cd_map[cpu]->domains = zalloc(sizeof(*d_info) * max_sched_domains);
+		if (!cd_map[cpu]->domains)
+			return -1;
+
+		for (j = 0; j < nr_domains; j++) {
+			if (do_read_u32(ff, &domain))
+				return -1;
+
+			d_info = zalloc(sizeof(*d_info));
+			if (!d_info)
+				return -1;
+
+			assert(cd_map[cpu]->domains[domain] == NULL);
+			cd_map[cpu]->domains[domain] = d_info;
+			d_info->domain = domain;
+
+			if (schedstat_version >= 17) {
+				dname = do_read_string(ff);
+				if (!dname)
+					return -1;
+
+				d_info->dname = dname;
+			}
+
+			cpumask = do_read_string(ff);
+			if (!cpumask)
+				return -1;
+
+			d_info->cpumask = cpumask;
+
+			cpulist = do_read_string(ff);
+			if (!cpulist)
+				return -1;
+
+			d_info->cpulist = cpulist;
+		}
+	}
+
+	return ret;
+}
+
 #define FEAT_OPR(n, func, __full_only) \
 	[HEADER_##n] = {					\
 		.name	    = __stringify(n),			\
@@ -3453,6 +3761,8 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
 	FEAT_OPN(HYBRID_TOPOLOGY,	hybrid_topology,	true),
 	FEAT_OPR(PMU_CAPS,	pmu_caps,	false),
+	FEAT_OPR(CPU_DOMAIN_INFO,	cpu_domain_info,	true),
+	FEAT_OPR(E_MACHINE,	e_machine,	false),
 };
 
 struct header_print_data {

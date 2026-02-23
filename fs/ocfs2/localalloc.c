@@ -905,13 +905,11 @@ bail:
 static void ocfs2_clear_local_alloc(struct ocfs2_dinode *alloc)
 {
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
-	int i;
 
 	alloc->id1.bitmap1.i_total = 0;
 	alloc->id1.bitmap1.i_used = 0;
 	la->la_bm_off = 0;
-	for(i = 0; i < le16_to_cpu(la->la_size); i++)
-		la->la_bitmap[i] = 0;
+	memset(la->la_bitmap, 0, le16_to_cpu(la->la_size));
 }
 
 #if 0
@@ -1096,7 +1094,7 @@ static int ocfs2_local_alloc_reserve_for_window(struct ocfs2_super *osb,
 {
 	int status;
 
-	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
+	*ac = kzalloc_obj(struct ocfs2_alloc_context);
 	if (!(*ac)) {
 		status = -ENOMEM;
 		mlog_errno(status);

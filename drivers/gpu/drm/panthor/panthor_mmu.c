@@ -375,6 +375,15 @@ struct panthor_vm {
 	 * flagged as faulty as a result.
 	 */
 	bool unhandled_fault;
+
+	/** @locked_region: Information about the currently locked region currently. */
+	struct {
+		/** @locked_region.start: Start of the locked region. */
+		u64 start;
+
+		/** @locked_region.size: Size of the locked region. */
+		u64 size;
+	} locked_region;
 };
 
 /**
@@ -510,27 +519,27 @@ static int wait_ready(struct panthor_device *ptdev, u32 as_nr)
 	return ret;
 }
 
-static int write_cmd(struct panthor_device *ptdev, u32 as_nr, u32 cmd)
+static int as_send_cmd_and_wait(struct panthor_device *ptdev, u32 as_nr, u32 cmd)
 {
 	int status;
 
 	/* write AS_COMMAND when MMU is ready to accept another command */
 	status = wait_ready(ptdev, as_nr);
-	if (!status)
+	if (!status) {
 		gpu_write(ptdev, AS_COMMAND(as_nr), cmd);
+		status = wait_ready(ptdev, as_nr);
+	}
 
 	return status;
 }
 
-static void lock_region(struct panthor_device *ptdev, u32 as_nr,
-			u64 region_start, u64 size)
+static u64 pack_region_range(struct panthor_device *ptdev, u64 *region_start, u64 *size)
 {
 	u8 region_width;
-	u64 region;
-	u64 region_end = region_start + size;
+	u64 region_end = *region_start + *size;
 
-	if (!size)
-		return;
+	if (drm_WARN_ON_ONCE(&ptdev->base, !*size))
+		return 0;
 
 	/*
 	 * The locked region is a naturally aligned power of 2 block encoded as
@@ -540,115 +549,61 @@ static void lock_region(struct panthor_device *ptdev, u32 as_nr,
 	 * change, the desired region starts with this bit (and subsequent bits)
 	 * zeroed and ends with the bit (and subsequent bits) set to one.
 	 */
-	region_width = max(fls64(region_start ^ (region_end - 1)),
+	region_width = max(fls64(*region_start ^ (region_end - 1)),
 			   const_ilog2(AS_LOCK_REGION_MIN_SIZE)) - 1;
 
 	/*
 	 * Mask off the low bits of region_start (which would be ignored by
 	 * the hardware anyway)
 	 */
-	region_start &= GENMASK_ULL(63, region_width);
+	*region_start &= GENMASK_ULL(63, region_width);
+	*size = 1ull << (region_width + 1);
 
-	region = region_width | region_start;
-
-	/* Lock the region that needs to be updated */
-	gpu_write64(ptdev, AS_LOCKADDR(as_nr), region);
-	write_cmd(ptdev, as_nr, AS_COMMAND_LOCK);
-}
-
-static int mmu_hw_do_operation_locked(struct panthor_device *ptdev, int as_nr,
-				      u64 iova, u64 size, u32 op)
-{
-	const u32 l2_flush_op = CACHE_CLEAN | CACHE_INV;
-	u32 lsc_flush_op;
-	int ret;
-
-	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
-
-	switch (op) {
-	case AS_COMMAND_FLUSH_MEM:
-		lsc_flush_op = CACHE_CLEAN | CACHE_INV;
-		break;
-	case AS_COMMAND_FLUSH_PT:
-		lsc_flush_op = 0;
-		break;
-	default:
-		drm_WARN(&ptdev->base, 1, "Unexpected AS_COMMAND: %d", op);
-		return -EINVAL;
-	}
-
-	if (as_nr < 0)
-		return 0;
-
-	/*
-	 * If the AS number is greater than zero, then we can be sure
-	 * the device is up and running, so we don't need to explicitly
-	 * power it up
-	 */
-
-	lock_region(ptdev, as_nr, iova, size);
-
-	ret = wait_ready(ptdev, as_nr);
-	if (ret)
-		return ret;
-
-	ret = panthor_gpu_flush_caches(ptdev, l2_flush_op, lsc_flush_op, 0);
-	if (ret)
-		return ret;
-
-	/*
-	 * Explicitly unlock the region as the AS is not unlocked automatically
-	 * at the end of the GPU_CONTROL cache flush command, unlike
-	 * AS_COMMAND_FLUSH_MEM or AS_COMMAND_FLUSH_PT.
-	 */
-	write_cmd(ptdev, as_nr, AS_COMMAND_UNLOCK);
-
-	/* Wait for the unlock command to complete */
-	return wait_ready(ptdev, as_nr);
-}
-
-static int mmu_hw_do_operation(struct panthor_vm *vm,
-			       u64 iova, u64 size, u32 op)
-{
-	struct panthor_device *ptdev = vm->ptdev;
-	int ret;
-
-	mutex_lock(&ptdev->mmu->as.slots_lock);
-	ret = mmu_hw_do_operation_locked(ptdev, vm->as.id, iova, size, op);
-	mutex_unlock(&ptdev->mmu->as.slots_lock);
-
-	return ret;
+	return region_width | *region_start;
 }
 
 static int panthor_mmu_as_enable(struct panthor_device *ptdev, u32 as_nr,
 				 u64 transtab, u64 transcfg, u64 memattr)
 {
-	int ret;
-
-	ret = mmu_hw_do_operation_locked(ptdev, as_nr, 0, ~0ULL, AS_COMMAND_FLUSH_MEM);
-	if (ret)
-		return ret;
-
 	gpu_write64(ptdev, AS_TRANSTAB(as_nr), transtab);
 	gpu_write64(ptdev, AS_MEMATTR(as_nr), memattr);
 	gpu_write64(ptdev, AS_TRANSCFG(as_nr), transcfg);
 
-	return write_cmd(ptdev, as_nr, AS_COMMAND_UPDATE);
+	return as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_UPDATE);
 }
 
-static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr)
+static int panthor_mmu_as_disable(struct panthor_device *ptdev, u32 as_nr,
+				  bool recycle_slot)
 {
+	struct panthor_vm *vm = ptdev->mmu->as.slots[as_nr].vm;
 	int ret;
 
-	ret = mmu_hw_do_operation_locked(ptdev, as_nr, 0, ~0ULL, AS_COMMAND_FLUSH_MEM);
+	lockdep_assert_held(&ptdev->mmu->as.slots_lock);
+
+	/* Flush+invalidate RW caches, invalidate RO ones. */
+	ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
+				       CACHE_CLEAN | CACHE_INV, CACHE_INV);
 	if (ret)
 		return ret;
+
+	if (vm && vm->locked_region.size) {
+		/* Unlock the region if there's a lock pending. */
+		ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_UNLOCK);
+		if (ret)
+			return ret;
+	}
+
+	/* If the slot is going to be used immediately, don't bother changing
+	 * the config.
+	 */
+	if (recycle_slot)
+		return 0;
 
 	gpu_write64(ptdev, AS_TRANSTAB(as_nr), 0);
 	gpu_write64(ptdev, AS_MEMATTR(as_nr), 0);
 	gpu_write64(ptdev, AS_TRANSCFG(as_nr), AS_TRANSCFG_ADRMODE_UNMAPPED);
 
-	return write_cmd(ptdev, as_nr, AS_COMMAND_UPDATE);
+	return as_send_cmd_and_wait(ptdev, as_nr, AS_COMMAND_UPDATE);
 }
 
 static u32 panthor_mmu_fault_mask(struct panthor_device *ptdev, u32 value)
@@ -722,6 +677,10 @@ int panthor_vm_active(struct panthor_vm *vm)
 	if (refcount_inc_not_zero(&vm->as.active_cnt))
 		goto out_dev_exit;
 
+	/* Make sure we don't race with lock/unlock_region() calls
+	 * happening around VM bind operations.
+	 */
+	mutex_lock(&vm->op_lock);
 	mutex_lock(&ptdev->mmu->as.slots_lock);
 
 	if (refcount_inc_not_zero(&vm->as.active_cnt))
@@ -759,6 +718,11 @@ int panthor_vm_active(struct panthor_vm *vm)
 
 		drm_WARN_ON(&ptdev->base, refcount_read(&lru_vm->as.active_cnt));
 		as = lru_vm->as.id;
+
+		ret = panthor_mmu_as_disable(ptdev, as, true);
+		if (ret)
+			goto out_unlock;
+
 		panthor_vm_release_as_locked(lru_vm);
 	}
 
@@ -789,6 +753,10 @@ out_enable_as:
 		gpu_write(ptdev, MMU_INT_MASK, ~ptdev->mmu->as.faulty_mask);
 	}
 
+	/* The VM update is guarded by ::op_lock, which we take at the beginning
+	 * of this function, so we don't expect any locked region here.
+	 */
+	drm_WARN_ON(&vm->ptdev->base, vm->locked_region.size > 0);
 	ret = panthor_mmu_as_enable(vm->ptdev, vm->as.id, transtab, transcfg, vm->memattr);
 
 out_make_active:
@@ -799,6 +767,7 @@ out_make_active:
 
 out_unlock:
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
+	mutex_unlock(&vm->op_lock);
 
 out_dev_exit:
 	drm_dev_exit(cookie);
@@ -882,44 +851,64 @@ static size_t get_pgsize(u64 addr, size_t size, size_t *count)
 	return SZ_2M;
 }
 
-static int panthor_vm_flush_range(struct panthor_vm *vm, u64 iova, u64 size)
+static void panthor_vm_declare_unusable(struct panthor_vm *vm)
 {
 	struct panthor_device *ptdev = vm->ptdev;
-	int ret = 0, cookie;
+	int cookie;
 
-	if (vm->as.id < 0)
-		return 0;
+	if (vm->unusable)
+		return;
 
-	/* If the device is unplugged, we just silently skip the flush. */
-	if (!drm_dev_enter(&ptdev->base, &cookie))
-		return 0;
-
-	ret = mmu_hw_do_operation(vm, iova, size, AS_COMMAND_FLUSH_PT);
-
-	drm_dev_exit(cookie);
-	return ret;
+	vm->unusable = true;
+	mutex_lock(&ptdev->mmu->as.slots_lock);
+	if (vm->as.id >= 0 && drm_dev_enter(&ptdev->base, &cookie)) {
+		panthor_mmu_as_disable(ptdev, vm->as.id, false);
+		drm_dev_exit(cookie);
+	}
+	mutex_unlock(&ptdev->mmu->as.slots_lock);
 }
 
-static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
+static void panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
 {
 	struct panthor_device *ptdev = vm->ptdev;
 	struct io_pgtable_ops *ops = vm->pgtbl_ops;
 	u64 start_iova = iova;
 	u64 offset = 0;
 
+	if (!size)
+		return;
+
+	drm_WARN_ON(&ptdev->base,
+		    (iova < vm->locked_region.start) ||
+		    (iova + size > vm->locked_region.start + vm->locked_region.size));
+
 	while (offset < size) {
 		size_t unmapped_sz = 0, pgcount;
 		size_t pgsize = get_pgsize(iova + offset, size - offset, &pgcount);
 
 		unmapped_sz = ops->unmap_pages(ops, iova + offset, pgsize, pgcount, NULL);
+		if (drm_WARN_ON_ONCE(&ptdev->base, unmapped_sz != pgsize * pgcount)) {
+			/* Gracefully handle sparsely unmapped regions to avoid leaving
+			 * page table pages behind when the drm_gpuvm and VM page table
+			 * are out-of-sync. This is not supposed to happen, hence the
+			 * above WARN_ON().
+			 */
+			while (!ops->iova_to_phys(ops, iova + unmapped_sz) &&
+			       unmapped_sz < pgsize * pgcount)
+				unmapped_sz += SZ_4K;
 
-		if (drm_WARN_ON(&ptdev->base, unmapped_sz != pgsize * pgcount)) {
-			drm_err(&ptdev->base, "failed to unmap range %llx-%llx (requested range %llx-%llx)\n",
-				iova + offset + unmapped_sz,
-				iova + offset + pgsize * pgcount,
-				iova, iova + size);
-			panthor_vm_flush_range(vm, iova, offset + unmapped_sz);
-			return  -EINVAL;
+			/* We're passed the point where we can try to fix things,
+			 * so flag the VM unusable to make sure it's not going
+			 * to be used anymore.
+			 */
+			panthor_vm_declare_unusable(vm);
+
+			/* If we don't make progress, we're screwed. That also means
+			 * something else prevents us from unmapping the region, but
+			 * there's not much we can do here: time for debugging.
+			 */
+			if (drm_WARN_ON_ONCE(&ptdev->base, !unmapped_sz))
+				return;
 		}
 
 		drm_dbg(&ptdev->base,
@@ -929,8 +918,6 @@ static int panthor_vm_unmap_pages(struct panthor_vm *vm, u64 iova, u64 size)
 
 		offset += unmapped_sz;
 	}
-
-	return panthor_vm_flush_range(vm, iova, size);
 }
 
 static int
@@ -947,6 +934,10 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 
 	if (!size)
 		return 0;
+
+	drm_WARN_ON(&ptdev->base,
+		    (iova < vm->locked_region.start) ||
+		    (iova + size > vm->locked_region.start + vm->locked_region.size));
 
 	for_each_sgtable_dma_sg(sgt, sgl, count) {
 		dma_addr_t paddr = sg_dma_address(sgl);
@@ -978,16 +969,17 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 			paddr += mapped;
 			len -= mapped;
 
-			if (drm_WARN_ON(&ptdev->base, !ret && !mapped))
+			/* If nothing was mapped, consider it an ENOMEM. */
+			if (!ret && !mapped)
 				ret = -ENOMEM;
 
-			if (ret) {
-				/* If something failed, unmap what we've already mapped before
-				 * returning. The unmap call is not supposed to fail.
+			/* If something fails, we stop there, and flag the VM unusable. */
+			if (drm_WARN_ON_ONCE(&ptdev->base, ret)) {
+				/* Unmap what we've already mapped to avoid leaving page
+				 * table pages behind.
 				 */
-				drm_WARN_ON(&ptdev->base,
-					    panthor_vm_unmap_pages(vm, start_iova,
-								   iova - start_iova));
+				panthor_vm_unmap_pages(vm, start_iova, iova - start_iova);
+				panthor_vm_declare_unusable(vm);
 				return ret;
 			}
 		}
@@ -998,7 +990,7 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 		offset = 0;
 	}
 
-	return panthor_vm_flush_range(vm, start_iova, iova - start_iova);
+	return 0;
 }
 
 static int flags_to_prot(u32 flags)
@@ -1167,7 +1159,7 @@ panthor_vm_op_ctx_prealloc_vmas(struct panthor_vm_op_ctx *op_ctx)
 	}
 
 	for (u32 i = 0; i < vma_count; i++) {
-		struct panthor_vma *vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+		struct panthor_vma *vma = kzalloc_obj(*vma);
 
 		if (!vma)
 			return -ENOMEM;
@@ -1265,9 +1257,8 @@ static int panthor_vm_prepare_map_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		   ((ALIGN(va + size, 1ull << 30) - ALIGN_DOWN(va, 1ull << 30)) >> 30) +
 		   ((ALIGN(va + size, 1ull << 21) - ALIGN_DOWN(va, 1ull << 21)) >> 21);
 
-	op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
-						 sizeof(*op_ctx->rsvd_page_tables.pages),
-						 GFP_KERNEL);
+	op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
+						      pt_count);
 	if (!op_ctx->rsvd_page_tables.pages) {
 		ret = -ENOMEM;
 		goto err_cleanup;
@@ -1320,9 +1311,8 @@ static int panthor_vm_prepare_unmap_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		goto err_cleanup;
 
 	if (pt_count) {
-		op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
-							 sizeof(*op_ctx->rsvd_page_tables.pages),
-							 GFP_KERNEL);
+		op_ctx->rsvd_page_tables.pages = kzalloc_objs(*op_ctx->rsvd_page_tables.pages,
+							      pt_count);
 		if (!op_ctx->rsvd_page_tables.pages) {
 			ret = -ENOMEM;
 			goto err_cleanup;
@@ -1503,6 +1493,10 @@ static void panthor_vm_destroy(struct panthor_vm *vm)
 
 	vm->destroyed = true;
 
+	/* Tell scheduler to stop all GPU work related to this VM */
+	if (refcount_read(&vm->as.active_cnt) > 0)
+		panthor_sched_prepare_for_vm_destruction(vm->ptdev);
+
 	mutex_lock(&vm->heaps.lock);
 	panthor_heap_pool_destroy(vm->heaps.pool);
 	vm->heaps.pool = NULL;
@@ -1591,7 +1585,7 @@ void panthor_vm_pool_destroy(struct panthor_file *pfile)
  */
 int panthor_vm_pool_create(struct panthor_file *pfile)
 {
-	pfile->vms = kzalloc(sizeof(*pfile->vms), GFP_KERNEL);
+	pfile->vms = kzalloc_obj(*pfile->vms);
 	if (!pfile->vms)
 		return -ENOMEM;
 
@@ -1629,6 +1623,69 @@ static const char *access_type_name(struct panthor_device *ptdev,
 		drm_WARN_ON(&ptdev->base, 1);
 		return NULL;
 	}
+}
+
+static int panthor_vm_lock_region(struct panthor_vm *vm, u64 start, u64 size)
+{
+	struct panthor_device *ptdev = vm->ptdev;
+	int ret = 0;
+
+	/* sm_step_remap() can call panthor_vm_lock_region() to account for
+	 * the wider unmap needed when doing a partial huge page unamp. We
+	 * need to ignore the lock if it's already part of the locked region.
+	 */
+	if (start >= vm->locked_region.start &&
+	    start + size <= vm->locked_region.start + vm->locked_region.size)
+		return 0;
+
+	mutex_lock(&ptdev->mmu->as.slots_lock);
+	if (vm->as.id >= 0 && size) {
+		/* Lock the region that needs to be updated */
+		gpu_write64(ptdev, AS_LOCKADDR(vm->as.id),
+			    pack_region_range(ptdev, &start, &size));
+
+		/* If the lock succeeded, update the locked_region info. */
+		ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_LOCK);
+	}
+
+	if (!ret) {
+		vm->locked_region.start = start;
+		vm->locked_region.size = size;
+	}
+	mutex_unlock(&ptdev->mmu->as.slots_lock);
+
+	return ret;
+}
+
+static void panthor_vm_unlock_region(struct panthor_vm *vm)
+{
+	struct panthor_device *ptdev = vm->ptdev;
+
+	mutex_lock(&ptdev->mmu->as.slots_lock);
+	if (vm->as.id >= 0) {
+		int ret;
+
+		/* flush+invalidate RW caches and invalidate RO ones.
+		 * TODO: See if we can use FLUSH_PA_RANGE when the physical
+		 * range is narrow enough and the HW supports it.
+		 */
+		ret = panthor_gpu_flush_caches(ptdev, CACHE_CLEAN | CACHE_INV,
+					       CACHE_CLEAN | CACHE_INV,
+					       CACHE_INV);
+
+		/* Unlock the region if the flush is effective. */
+		if (!ret)
+			ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_UNLOCK);
+
+		/* If we fail to flush or unlock the region, schedule a GPU reset
+		 * to unblock the situation.
+		 */
+		if (ret)
+			panthor_device_schedule_reset(ptdev);
+	}
+	vm->locked_region.start = 0;
+	vm->locked_region.size = 0;
+	mutex_unlock(&ptdev->mmu->as.slots_lock);
 }
 
 static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
@@ -1691,7 +1748,7 @@ static void panthor_mmu_irq_handler(struct panthor_device *ptdev, u32 status)
 			ptdev->mmu->as.slots[as].vm->unhandled_fault = true;
 
 		/* Disable the MMU to kill jobs on this AS. */
-		panthor_mmu_as_disable(ptdev, as);
+		panthor_mmu_as_disable(ptdev, as, false);
 		mutex_unlock(&ptdev->mmu->as.slots_lock);
 
 		status &= ~mask;
@@ -1720,7 +1777,8 @@ void panthor_mmu_suspend(struct panthor_device *ptdev)
 		struct panthor_vm *vm = ptdev->mmu->as.slots[i].vm;
 
 		if (vm) {
-			drm_WARN_ON(&ptdev->base, panthor_mmu_as_disable(ptdev, i));
+			drm_WARN_ON(&ptdev->base,
+				    panthor_mmu_as_disable(ptdev, i, false));
 			panthor_vm_release_as_locked(vm);
 		}
 	}
@@ -1835,12 +1893,13 @@ static void panthor_vm_free(struct drm_gpuvm *gpuvm)
 	drm_sched_entity_destroy(&vm->entity);
 	drm_sched_fini(&vm->sched);
 
+	mutex_lock(&vm->op_lock);
 	mutex_lock(&ptdev->mmu->as.slots_lock);
 	if (vm->as.id >= 0) {
 		int cookie;
 
 		if (drm_dev_enter(&ptdev->base, &cookie)) {
-			panthor_mmu_as_disable(ptdev, vm->as.id);
+			panthor_mmu_as_disable(ptdev, vm->as.id, false);
 			drm_dev_exit(cookie);
 		}
 
@@ -1849,6 +1908,7 @@ static void panthor_vm_free(struct drm_gpuvm *gpuvm)
 		list_del(&vm->as.lru_node);
 	}
 	mutex_unlock(&ptdev->mmu->as.slots_lock);
+	mutex_unlock(&vm->op_lock);
 
 	free_io_pgtable_ops(vm->pgtbl_ops);
 
@@ -2042,6 +2102,48 @@ static int panthor_gpuva_sm_step_map(struct drm_gpuva_op *op, void *priv)
 	return 0;
 }
 
+static bool
+iova_mapped_as_huge_page(struct drm_gpuva_op_map *op, u64 addr)
+{
+	const struct page *pg;
+	pgoff_t bo_offset;
+
+	bo_offset = addr - op->va.addr + op->gem.offset;
+	pg = to_panthor_bo(op->gem.obj)->base.pages[bo_offset >> PAGE_SHIFT];
+
+	return folio_size(page_folio(pg)) >= SZ_2M;
+}
+
+static void
+unmap_hugepage_align(const struct drm_gpuva_op_remap *op,
+		     u64 *unmap_start, u64 *unmap_range)
+{
+	u64 aligned_unmap_start, aligned_unmap_end, unmap_end;
+
+	unmap_end = *unmap_start + *unmap_range;
+	aligned_unmap_start = ALIGN_DOWN(*unmap_start, SZ_2M);
+	aligned_unmap_end = ALIGN(unmap_end, SZ_2M);
+
+	/* If we're dealing with a huge page, make sure the unmap region is
+	 * aligned on the start of the page.
+	 */
+	if (op->prev && aligned_unmap_start < *unmap_start &&
+	    op->prev->va.addr <= aligned_unmap_start &&
+	    iova_mapped_as_huge_page(op->prev, *unmap_start)) {
+		*unmap_range += *unmap_start - aligned_unmap_start;
+		*unmap_start = aligned_unmap_start;
+	}
+
+	/* If we're dealing with a huge page, make sure the unmap region is
+	 * aligned on the end of the page.
+	 */
+	if (op->next && aligned_unmap_end > unmap_end &&
+	    op->next->va.addr + op->next->va.range >= aligned_unmap_end &&
+	    iova_mapped_as_huge_page(op->next, unmap_end - 1)) {
+		*unmap_range += aligned_unmap_end - unmap_end;
+	}
+}
+
 static int panthor_gpuva_sm_step_remap(struct drm_gpuva_op *op,
 				       void *priv)
 {
@@ -2053,16 +2155,47 @@ static int panthor_gpuva_sm_step_remap(struct drm_gpuva_op *op,
 	int ret;
 
 	drm_gpuva_op_remap_to_unmap_range(&op->remap, &unmap_start, &unmap_range);
-	ret = panthor_vm_unmap_pages(vm, unmap_start, unmap_range);
-	if (ret)
-		return ret;
+
+	/*
+	 * ARM IOMMU page table management code disallows partial unmaps of huge pages,
+	 * so when a partial unmap is requested, we must first unmap the entire huge
+	 * page and then remap the difference between the huge page minus the requested
+	 * unmap region. Calculating the right start address and range for the expanded
+	 * unmap operation is the responsibility of the following function.
+	 */
+	unmap_hugepage_align(&op->remap, &unmap_start, &unmap_range);
+
+	/* If the range changed, we might have to lock a wider region to guarantee
+	 * atomicity. panthor_vm_lock_region() bails out early if the new region
+	 * is already part of the locked region, so no need to do this check here.
+	 */
+	panthor_vm_lock_region(vm, unmap_start, unmap_range);
+	panthor_vm_unmap_pages(vm, unmap_start, unmap_range);
 
 	if (op->remap.prev) {
+		struct panthor_gem_object *bo = to_panthor_bo(op->remap.prev->gem.obj);
+		u64 offset = op->remap.prev->gem.offset + unmap_start - op->remap.prev->va.addr;
+		u64 size = op->remap.prev->va.addr + op->remap.prev->va.range - unmap_start;
+
+		ret = panthor_vm_map_pages(vm, unmap_start, flags_to_prot(unmap_vma->flags),
+					   bo->base.sgt, offset, size);
+		if (ret)
+			return ret;
+
 		prev_vma = panthor_vm_op_ctx_get_vma(op_ctx);
 		panthor_vma_init(prev_vma, unmap_vma->flags);
 	}
 
 	if (op->remap.next) {
+		struct panthor_gem_object *bo = to_panthor_bo(op->remap.next->gem.obj);
+		u64 addr = op->remap.next->va.addr;
+		u64 size = unmap_start + unmap_range - op->remap.next->va.addr;
+
+		ret = panthor_vm_map_pages(vm, addr, flags_to_prot(unmap_vma->flags),
+					   bo->base.sgt, op->remap.next->gem.offset, size);
+		if (ret)
+			return ret;
+
 		next_vma = panthor_vm_op_ctx_get_vma(op_ctx);
 		panthor_vma_init(next_vma, unmap_vma->flags);
 	}
@@ -2093,13 +2226,9 @@ static int panthor_gpuva_sm_step_unmap(struct drm_gpuva_op *op,
 {
 	struct panthor_vma *unmap_vma = container_of(op->unmap.va, struct panthor_vma, base);
 	struct panthor_vm *vm = priv;
-	int ret;
 
-	ret = panthor_vm_unmap_pages(vm, unmap_vma->base.va.addr,
-				     unmap_vma->base.va.range);
-	if (drm_WARN_ON(&vm->ptdev->base, ret))
-		return ret;
-
+	panthor_vm_unmap_pages(vm, unmap_vma->base.va.addr,
+			       unmap_vma->base.va.range);
 	drm_gpuva_unmap(&op->unmap);
 	panthor_vma_unlink(unmap_vma);
 	return 0;
@@ -2144,6 +2273,11 @@ panthor_vm_exec_op(struct panthor_vm *vm, struct panthor_vm_op_ctx *op,
 
 	mutex_lock(&vm->op_lock);
 	vm->op_ctx = op;
+
+	ret = panthor_vm_lock_region(vm, op->va.addr, op->va.range);
+	if (ret)
+		goto out;
+
 	switch (op_type) {
 	case DRM_PANTHOR_VM_BIND_OP_TYPE_MAP: {
 		const struct drm_gpuvm_map_req map_req = {
@@ -2171,8 +2305,11 @@ panthor_vm_exec_op(struct panthor_vm *vm, struct panthor_vm_op_ctx *op,
 		break;
 	}
 
+	panthor_vm_unlock_region(vm);
+
+out:
 	if (ret && flag_vm_unusable_on_failure)
-		vm->unusable = true;
+		panthor_vm_declare_unusable(vm);
 
 	vm->op_ctx = NULL;
 	mutex_unlock(&vm->op_lock);
@@ -2287,7 +2424,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	struct panthor_vm *vm;
 	int ret;
 
-	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	vm = kzalloc_obj(*vm);
 	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
@@ -2470,7 +2607,7 @@ panthor_vm_bind_job_create(struct drm_file *file,
 	if (vm->destroyed || vm->unusable)
 		return ERR_PTR(-EINVAL);
 
-	job = kzalloc(sizeof(*job), GFP_KERNEL);
+	job = kzalloc_obj(*job);
 	if (!job)
 		return ERR_PTR(-ENOMEM);
 
@@ -2684,7 +2821,8 @@ void panthor_mmu_unplug(struct panthor_device *ptdev)
 		struct panthor_vm *vm = ptdev->mmu->as.slots[i].vm;
 
 		if (vm) {
-			drm_WARN_ON(&ptdev->base, panthor_mmu_as_disable(ptdev, i));
+			drm_WARN_ON(&ptdev->base,
+				    panthor_mmu_as_disable(ptdev, i, false));
 			panthor_vm_release_as_locked(vm);
 		}
 	}

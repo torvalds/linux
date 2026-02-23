@@ -189,7 +189,7 @@ struct snd_soc_usb *snd_soc_usb_allocate_port(struct snd_soc_component *componen
 {
 	struct snd_soc_usb *usb;
 
-	usb = kzalloc(sizeof(*usb), GFP_KERNEL);
+	usb = kzalloc_obj(*usb);
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 

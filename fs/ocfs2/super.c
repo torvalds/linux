@@ -1200,7 +1200,7 @@ static int ocfs2_init_fs_context(struct fs_context *fc)
 {
 	struct mount_options *mopt;
 
-	mopt = kzalloc(sizeof(struct mount_options), GFP_KERNEL);
+	mopt = kzalloc_obj(struct mount_options);
 	if (!mopt)
 		return -EINVAL;
 
@@ -1953,7 +1953,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	struct ocfs2_super *osb;
 	u64 total_blocks;
 
-	osb = kzalloc(sizeof(struct ocfs2_super), GFP_KERNEL);
+	osb = kzalloc_obj(struct ocfs2_super);
 	if (!osb) {
 		status = -ENOMEM;
 		mlog_errno(status);

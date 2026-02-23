@@ -131,8 +131,8 @@ int iwl_mld_low_latency_init(struct iwl_mld *mld)
 	struct iwl_mld_low_latency *ll = &mld->low_latency;
 	unsigned long ts = jiffies;
 
-	ll->pkts_counters = kcalloc(mld->trans->info.num_rxqs,
-				    sizeof(*ll->pkts_counters), GFP_KERNEL);
+	ll->pkts_counters = kzalloc_objs(*ll->pkts_counters,
+					 mld->trans->info.num_rxqs);
 	if (!ll->pkts_counters)
 		return -ENOMEM;
 

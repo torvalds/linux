@@ -2327,6 +2327,13 @@ ipv6_ping_novrf()
 		log_test_addr ${a} $? 2 "ping local, device bind"
 	done
 
+	for a in ${NSA_LO_IP6} ${NSA_LINKIP6}%${NSA_DEV} ${NSA_IP6}
+	do
+		log_start
+		run_cmd ${ping6} -c1 -w1 -I ::1 ${a}
+		log_test_addr ${a} $? 0 "ping local, from localhost"
+	done
+
 	#
 	# ip rule blocks address
 	#

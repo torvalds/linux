@@ -2272,7 +2272,7 @@ static int vpe_open(struct file *file)
 
 	vpe_dbg(dev, "vpe_open\n");
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

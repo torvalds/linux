@@ -36,6 +36,7 @@
 #include "net.h"
 #include "ruleset.h"
 #include "setup.h"
+#include "tsync.h"
 
 static bool is_initialized(void)
 {
@@ -157,11 +158,13 @@ static const struct file_operations ruleset_fops = {
 /*
  * The Landlock ABI version should be incremented for each new Landlock-related
  * user space visible change (e.g. Landlock syscalls).  This version should
- * only be incremented once per Linux release, and the date in
+ * only be incremented once per Linux release.  When incrementing, the date in
  * Documentation/userspace-api/landlock.rst should be updated to reflect the
  * UAPI change.
+ * If the change involves a fix that requires userspace awareness, also update
+ * the errata documentation in Documentation/userspace-api/landlock.rst .
  */
-const int landlock_abi_version = 7;
+const int landlock_abi_version = 8;
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -454,9 +457,10 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  *         - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
  *         - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
  *         - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
+ *         - %LANDLOCK_RESTRICT_SELF_TSYNC
  *
- * This system call enables to enforce a Landlock ruleset on the current
- * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
+ * This system call enforces a Landlock ruleset on the current thread.
+ * Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
  * namespace or is running with no_new_privs.  This avoids scenarios where
  * unprivileged tasks can affect the behavior of privileged children.
  *
@@ -478,8 +482,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
 SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		flags)
 {
-	struct landlock_ruleset *new_dom,
-		*ruleset __free(landlock_put_ruleset) = NULL;
+	struct landlock_ruleset *ruleset __free(landlock_put_ruleset) = NULL;
 	struct cred *new_cred;
 	struct landlock_cred_security *new_llcred;
 	bool __maybe_unused log_same_exec, log_new_exec, log_subdomains,
@@ -538,33 +541,43 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	 * We could optimize this case by not calling commit_creds() if this flag
 	 * was already set, but it is not worth the complexity.
 	 */
-	if (!ruleset)
-		return commit_creds(new_cred);
+	if (ruleset) {
+		/*
+		 * There is no possible race condition while copying and
+		 * manipulating the current credentials because they are
+		 * dedicated per thread.
+		 */
+		struct landlock_ruleset *const new_dom =
+			landlock_merge_ruleset(new_llcred->domain, ruleset);
+		if (IS_ERR(new_dom)) {
+			abort_creds(new_cred);
+			return PTR_ERR(new_dom);
+		}
 
-	/*
-	 * There is no possible race condition while copying and manipulating
-	 * the current credentials because they are dedicated per thread.
-	 */
-	new_dom = landlock_merge_ruleset(new_llcred->domain, ruleset);
-	if (IS_ERR(new_dom)) {
-		abort_creds(new_cred);
-		return PTR_ERR(new_dom);
+#ifdef CONFIG_AUDIT
+		new_dom->hierarchy->log_same_exec = log_same_exec;
+		new_dom->hierarchy->log_new_exec = log_new_exec;
+		if ((!log_same_exec && !log_new_exec) || !prev_log_subdomains)
+			new_dom->hierarchy->log_status = LANDLOCK_LOG_DISABLED;
+#endif /* CONFIG_AUDIT */
+
+		/* Replaces the old (prepared) domain. */
+		landlock_put_ruleset(new_llcred->domain);
+		new_llcred->domain = new_dom;
+
+#ifdef CONFIG_AUDIT
+		new_llcred->domain_exec |= BIT(new_dom->num_layers - 1);
+#endif /* CONFIG_AUDIT */
 	}
 
-#ifdef CONFIG_AUDIT
-	new_dom->hierarchy->log_same_exec = log_same_exec;
-	new_dom->hierarchy->log_new_exec = log_new_exec;
-	if ((!log_same_exec && !log_new_exec) || !prev_log_subdomains)
-		new_dom->hierarchy->log_status = LANDLOCK_LOG_DISABLED;
-#endif /* CONFIG_AUDIT */
-
-	/* Replaces the old (prepared) domain. */
-	landlock_put_ruleset(new_llcred->domain);
-	new_llcred->domain = new_dom;
-
-#ifdef CONFIG_AUDIT
-	new_llcred->domain_exec |= BIT(new_dom->num_layers - 1);
-#endif /* CONFIG_AUDIT */
+	if (flags & LANDLOCK_RESTRICT_SELF_TSYNC) {
+		const int err = landlock_restrict_sibling_threads(
+			current_cred(), new_cred);
+		if (err) {
+			abort_creds(new_cred);
+			return err;
+		}
+	}
 
 	return commit_creds(new_cred);
 }

@@ -1281,7 +1281,7 @@ struct atom_context *atom_parse(struct card_info *card, void *bios)
 {
 	int base;
 	struct atom_context *ctx =
-	    kzalloc(sizeof(struct atom_context), GFP_KERNEL);
+	    kzalloc_obj(struct atom_context);
 	char *str;
 	char name[512];
 	int i;

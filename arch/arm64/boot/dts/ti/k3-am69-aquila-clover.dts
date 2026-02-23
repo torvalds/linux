@@ -208,7 +208,8 @@
 	pinctrl-0 = <&pinctrl_main_spi2>,
 		    <&pinctrl_main_spi2_cs0>,
 		    <&pinctrl_gpio_05>;
-	cs-gpios = <0>, <&wkup_gpio0 29 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&main_gpio0 39 GPIO_ACTIVE_LOW>,
+		   <&wkup_gpio0 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	tpm@1 {
@@ -280,8 +281,8 @@
 			try-power-role = "sink";
 			self-powered;
 			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-			op-sink-microwatt = <1000000>;
+			sink-pdos = <PDO_FIXED(5000, 0, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <0>;
 
 			ports {
 				#address-cells = <1>;

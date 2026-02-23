@@ -316,7 +316,7 @@ repeat:
 	if (res_ins)
 		list_add(&res_ins->list, res_list);
 	else {
-		res_ins = kmalloc(sizeof(*res_ins), GFP_KERNEL);
+		res_ins = kmalloc_obj(*res_ins);
 		if (!res_ins)
 			return -ENOMEM;
 		res_ins->start = start;
@@ -345,7 +345,7 @@ static int apei_res_sub(struct list_head *res_list1,
 				break;
 			} else if (res1->end > res2->end &&
 				   res1->start < res2->start) {
-				res = kmalloc(sizeof(*res), GFP_KERNEL);
+				res = kmalloc_obj(*res);
 				if (!res)
 					return -ENOMEM;
 				res->start = res2->end;

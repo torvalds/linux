@@ -7,7 +7,7 @@
 #include "hyperv_evmcs.h"
 
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
-#define EVMCS1_FIELD(number, name, clean_field)[ROL16(number, 6)] = \
+#define EVMCS1_FIELD(number, name, clean_field)[ENC_TO_VMCS12_IDX(number)] = \
 		{EVMCS1_OFFSET(name), clean_field}
 
 const struct evmcs_field vmcs_field_to_evmcs_1[] = {

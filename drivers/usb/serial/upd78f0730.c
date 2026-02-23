@@ -161,7 +161,7 @@ static int upd78f0730_port_probe(struct usb_serial_port *port)
 {
 	struct upd78f0730_port_private *private;
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL);
+	private = kzalloc_obj(*private);
 	if (!private)
 		return -ENOMEM;
 

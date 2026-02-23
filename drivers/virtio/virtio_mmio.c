@@ -575,7 +575,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	unsigned long magic;
 	int rc;
 
-	vm_dev = kzalloc(sizeof(*vm_dev), GFP_KERNEL);
+	vm_dev = kzalloc_obj(*vm_dev);
 	if (!vm_dev)
 		return -ENOMEM;
 

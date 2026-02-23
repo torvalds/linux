@@ -41,6 +41,25 @@
 	};
 };
 
+&apbdma0 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nand@0 {
+		reg = <0>;
+		label = "ls2k0500-nand";
+		nand-use-soft-ecc-engine;
+		nand-ecc-algo = "bch";
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+	};
+};
+
 &apbdma3 {
 	status = "okay";
 };

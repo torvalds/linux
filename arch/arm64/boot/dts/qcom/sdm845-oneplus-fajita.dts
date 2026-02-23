@@ -35,6 +35,10 @@
 	compatible = "samsung,s6e3fc2x01-ams641rw", "samsung,s6e3fc2x01";
 };
 
+&framebuffer {
+	height = <2340>;
+};
+
 &i2c4 {
 	/* nxp,tfa9894 @ 0x34 */
 };

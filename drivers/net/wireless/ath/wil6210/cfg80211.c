@@ -691,7 +691,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 			return ERR_PTR(-EINVAL);
 		}
 
-		p2p_wdev = kzalloc(sizeof(*p2p_wdev), GFP_KERNEL);
+		p2p_wdev = kzalloc_obj(*p2p_wdev);
 		if (!p2p_wdev)
 			return ERR_PTR(-ENOMEM);
 
@@ -2394,7 +2394,7 @@ static int wil_cfg80211_probe_client(struct wiphy *wiphy,
 	if (cid < 0)
 		return -ENOLINK;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

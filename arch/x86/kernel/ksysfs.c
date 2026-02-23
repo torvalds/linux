@@ -344,7 +344,7 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 	if (ret)
 		goto out_setup_data_kobj;
 
-	kobjp = kmalloc_array(nr, sizeof(*kobjp), GFP_KERNEL);
+	kobjp = kmalloc_objs(*kobjp, nr);
 	if (!kobjp) {
 		ret = -ENOMEM;
 		goto out_setup_data_kobj;

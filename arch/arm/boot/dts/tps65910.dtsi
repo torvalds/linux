@@ -10,6 +10,10 @@
 
 &tps {
 	compatible = "ti,tps65910";
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	gpio-controller;
+	#gpio-cells = <2>;
 
 	regulators {
 		#address-cells = <1>;

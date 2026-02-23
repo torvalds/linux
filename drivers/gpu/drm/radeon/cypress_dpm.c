@@ -2028,7 +2028,7 @@ int cypress_dpm_init(struct radeon_device *rdev)
 	struct atom_clock_dividers dividers;
 	int ret;
 
-	eg_pi = kzalloc(sizeof(struct evergreen_power_info), GFP_KERNEL);
+	eg_pi = kzalloc_obj(struct evergreen_power_info);
 	if (eg_pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = eg_pi;

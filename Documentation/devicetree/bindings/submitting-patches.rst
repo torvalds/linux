@@ -15,8 +15,8 @@ I. For patch submitters
 
        "dt-bindings: <binding dir>: ..."
 
-     Few subsystems, like ASoC, media, regulators and SPI, expect reverse order
-     of the prefixes::
+     Few subsystems, like ASoC, media, regulators, SCSI, SPI and UFS, expect
+     reverse order of the prefixes, based on subsystem name::
 
        "<binding dir>: dt-bindings: ..."
 

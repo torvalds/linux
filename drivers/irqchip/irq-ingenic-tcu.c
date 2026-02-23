@@ -96,7 +96,7 @@ static int __init ingenic_tcu_irq_init(struct device_node *np,
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 
-	tcu = kzalloc(sizeof(*tcu), GFP_KERNEL);
+	tcu = kzalloc_obj(*tcu);
 	if (!tcu)
 		return -ENOMEM;
 

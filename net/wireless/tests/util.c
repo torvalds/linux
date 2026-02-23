@@ -17,7 +17,7 @@ int t_wiphy_init(struct kunit_resource *resource, void *ctx)
 	struct wiphy *wiphy;
 	struct t_wiphy_priv *priv;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	KUNIT_ASSERT_NOT_NULL(test, ops);
 
 	wiphy = wiphy_new_nm(ops, sizeof(*priv), "kunit");

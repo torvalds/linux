@@ -192,7 +192,7 @@ struct mlx5hws_context *mlx5hws_context_open(struct mlx5_core_dev *mdev,
 	struct mlx5hws_context *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -201,7 +201,7 @@ struct mlx5hws_context *mlx5hws_context_open(struct mlx5_core_dev *mdev,
 	mutex_init(&ctx->ctrl_lock);
 	xa_init(&ctx->peer_ctx_xa);
 
-	ctx->caps = kzalloc(sizeof(*ctx->caps), GFP_KERNEL);
+	ctx->caps = kzalloc_obj(*ctx->caps);
 	if (!ctx->caps)
 		goto free_ctx;
 

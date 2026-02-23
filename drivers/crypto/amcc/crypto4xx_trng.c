@@ -87,7 +87,7 @@ void ppc4xx_trng_probe(struct crypto4xx_core_device *core_dev)
 	if (!dev->trng_base)
 		goto err_out;
 
-	rng = kzalloc(sizeof(*rng), GFP_KERNEL);
+	rng = kzalloc_obj(*rng);
 	if (!rng)
 		goto err_out;
 

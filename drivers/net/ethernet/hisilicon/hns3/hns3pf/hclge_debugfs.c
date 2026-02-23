@@ -800,7 +800,7 @@ hclge_dbg_dump_reg_tqp(struct hclge_dev *hdev,
 	if (ret)
 		return ret;
 
-	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	desc_src = kzalloc_objs(struct hclge_desc, bd_num);
 	if (!desc_src)
 		return -ENOMEM;
 
@@ -852,7 +852,7 @@ hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	if (ret)
 		return ret;
 
-	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	desc_src = kzalloc_objs(struct hclge_desc, bd_num);
 	if (!desc_src)
 		return -ENOMEM;
 
@@ -2278,7 +2278,7 @@ static int hclge_dbg_get_imp_stats_info(struct seq_file *s, void *data)
 		return -EINVAL;
 	}
 
-	desc_src = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	desc_src = kzalloc_objs(struct hclge_desc, bd_num);
 	if (!desc_src)
 		return -ENOMEM;
 

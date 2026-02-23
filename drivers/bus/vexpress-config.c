@@ -284,7 +284,7 @@ static struct regmap *vexpress_syscfg_regmap_init(struct device *dev,
 		val = energy_quirk;
 	}
 
-	func = kzalloc(struct_size(func, template, num), GFP_KERNEL);
+	func = kzalloc_flex(*func, template, num);
 	if (!func)
 		return ERR_PTR(-ENOMEM);
 

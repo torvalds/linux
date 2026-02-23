@@ -243,7 +243,7 @@ kunit_alloc_and_get_resource(struct kunit *test,
 	struct kunit_resource *res;
 	int ret;
 
-	res = kzalloc(sizeof(*res), internal_gfp);
+	res = kzalloc_obj(*res, internal_gfp);
 	if (!res)
 		return NULL;
 
@@ -285,7 +285,7 @@ static inline void *kunit_alloc_resource(struct kunit *test,
 {
 	struct kunit_resource *res;
 
-	res = kzalloc(sizeof(*res), internal_gfp);
+	res = kzalloc_obj(*res, internal_gfp);
 	if (!res)
 		return NULL;
 

@@ -228,10 +228,10 @@ static int qcomtee_user_object_dispatch(struct qcomtee_object_invoke_ctx *oic,
 {
 	struct qcomtee_user_object *uo = to_qcomtee_user_object(object);
 	struct qcomtee_context_data *ctxdata = uo->ctx->data;
-	struct qcomtee_ureq *ureq __free(kfree) = NULL;
 	int errno;
 
-	ureq = kzalloc(sizeof(*ureq), GFP_KERNEL);
+	struct qcomtee_ureq *ureq __free(kfree) = kzalloc(sizeof(*ureq),
+							  GFP_KERNEL);
 	if (!ureq)
 		return -ENOMEM;
 
@@ -326,7 +326,7 @@ static void qcomtee_user_object_release(struct qcomtee_object *object)
 	if (!uo->notify)
 		goto out_no_notify;
 
-	ureq = kzalloc(sizeof(*ureq), GFP_KERNEL);
+	ureq = kzalloc_obj(*ureq);
 	if (!ureq)
 		goto out_no_notify;
 
@@ -367,10 +367,10 @@ int qcomtee_user_param_to_object(struct qcomtee_object **object,
 				 struct tee_param *param,
 				 struct tee_context *ctx)
 {
-	struct qcomtee_user_object *user_object __free(kfree) = NULL;
 	int err;
 
-	user_object = kzalloc(sizeof(*user_object), GFP_KERNEL);
+	struct qcomtee_user_object *user_object __free(kfree) =
+		kzalloc_obj(*user_object);
 	if (!user_object)
 		return -ENOMEM;
 

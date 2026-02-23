@@ -953,7 +953,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	int vbi_buf_size;
 	struct ivtv *itv;
 
-	itv = kzalloc(sizeof(struct ivtv), GFP_KERNEL);
+	itv = kzalloc_obj(struct ivtv);
 	if (itv == NULL)
 		return -ENOMEM;
 	itv->pdev = pdev;

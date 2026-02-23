@@ -214,7 +214,7 @@ static ssize_t options_show(struct device *dmdev, struct device_attribute *attr,
 	int ret, dep = 0, set = 0;
 	char *indent;
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -257,7 +257,7 @@ static ssize_t resources_show(struct device *dmdev,
 	if (!dev)
 		return -EINVAL;
 
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	buffer = kzalloc_obj(*buffer);
 	if (!buffer)
 		return -ENOMEM;
 

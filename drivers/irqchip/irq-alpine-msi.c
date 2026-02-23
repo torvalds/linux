@@ -192,7 +192,7 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device
 
 static int alpine_msix_init(struct device_node *node, struct device_node *parent)
 {
-	struct alpine_msix_data *priv __free(kfree) = kzalloc(sizeof(*priv), GFP_KERNEL);
+	struct alpine_msix_data *priv __free(kfree) = kzalloc_obj(*priv);
 	struct resource res;
 	int ret;
 

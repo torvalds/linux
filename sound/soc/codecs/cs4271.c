@@ -528,7 +528,7 @@ static int cs4271_soc_resume(struct snd_soc_component *component)
 	ret = clk_prepare_enable(cs4271->clk);
 	if (ret) {
 		dev_err(component->dev, "Failed to enable clk: %d\n", ret);
-		return ret;
+		goto err_disable_regulators;
 	}
 
 	/* Do a proper reset after power up */
@@ -537,15 +537,21 @@ static int cs4271_soc_resume(struct snd_soc_component *component)
 	/* Restore codec state */
 	ret = regcache_sync(cs4271->regmap);
 	if (ret < 0)
-		return ret;
+		goto err_disable_clk;
 
 	/* then disable the power-down bit */
 	ret = regmap_update_bits(cs4271->regmap, CS4271_MODE2,
 				 CS4271_MODE2_PDN, 0);
 	if (ret < 0)
-		return ret;
+		goto err_disable_clk;
 
 	return 0;
+
+err_disable_clk:
+	clk_disable_unprepare(cs4271->clk);
+err_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(cs4271->supplies), cs4271->supplies);
+	return ret;
 }
 #else
 #define cs4271_soc_suspend	NULL

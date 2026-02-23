@@ -46,7 +46,6 @@ struct addr_range {
 };
 
 static unsigned long long _text;
-static unsigned long long relative_base;
 static struct addr_range text_ranges[] = {
 	{ "_stext",     "_etext"     },
 	{ "_sinittext", "_einittext" },
@@ -57,6 +56,7 @@ static struct addr_range text_ranges[] = {
 static struct sym_entry **table;
 static unsigned int table_size, table_cnt;
 static int all_symbols;
+static int pc_relative;
 
 static int token_profit[0x10000];
 
@@ -280,7 +280,7 @@ static void read_map(const char *in)
 static void output_label(const char *label)
 {
 	printf(".globl %s\n", label);
-	printf("\tALGN\n");
+	printf("\t.balign 4\n");
 	printf("%s:\n", label);
 }
 
@@ -342,15 +342,6 @@ static void write_src(void)
 	unsigned int best_idx[256];
 	unsigned int *markers, markers_cnt;
 	char buf[KSYM_NAME_LEN];
-
-	printf("#include <asm/bitsperlong.h>\n");
-	printf("#if BITS_PER_LONG == 64\n");
-	printf("#define PTR .quad\n");
-	printf("#define ALGN .balign 8\n");
-	printf("#else\n");
-	printf("#define PTR .long\n");
-	printf("#define ALGN .balign 4\n");
-	printf("#endif\n");
 
 	printf("\t.section .rodata, \"a\"\n");
 
@@ -434,32 +425,22 @@ static void write_src(void)
 	output_label("kallsyms_offsets");
 
 	for (i = 0; i < table_cnt; i++) {
-		/*
-		 * Use the offset relative to the lowest value
-		 * encountered of all relative symbols, and emit
-		 * non-relocatable fixed offsets that will be fixed
-		 * up at runtime.
-		 */
+		if (pc_relative) {
+			long long offset = table[i]->addr - _text;
 
-		long long offset;
-
-		offset = table[i]->addr - relative_base;
-		if (offset < 0 || offset > UINT_MAX) {
-			fprintf(stderr, "kallsyms failure: "
-				"relative symbol value %#llx out of range\n",
-				table[i]->addr);
-			exit(EXIT_FAILURE);
+			if (offset < INT_MIN || offset > INT_MAX) {
+				fprintf(stderr, "kallsyms failure: "
+					"relative symbol value %#llx out of range\n",
+					table[i]->addr);
+				exit(EXIT_FAILURE);
+			}
+			printf("\t.long\t_text - . + (%d)\t/* %s */\n",
+			       (int)offset, table[i]->sym);
+		} else {
+			printf("\t.long\t%#x\t/* %s */\n",
+			       (unsigned int)table[i]->addr, table[i]->sym);
 		}
-		printf("\t.long\t%#x\t/* %s */\n", (int)offset, table[i]->sym);
 	}
-	printf("\n");
-
-	output_label("kallsyms_relative_base");
-	/* Provide proper symbols relocatability by their '_text' relativeness. */
-	if (_text <= relative_base)
-		printf("\tPTR\t_text + %#llx\n", relative_base - _text);
-	else
-		printf("\tPTR\t_text - %#llx\n", _text - relative_base);
 	printf("\n");
 
 	sort_symbols_by_name();
@@ -701,22 +682,12 @@ static void sort_symbols(void)
 	qsort(table, table_cnt, sizeof(table[0]), compare_symbols);
 }
 
-/* find the minimum non-absolute symbol address */
-static void record_relative_base(void)
-{
-	/*
-	 * The table is sorted by address.
-	 * Take the first symbol value.
-	 */
-	if (table_cnt)
-		relative_base = table[0]->addr;
-}
-
 int main(int argc, char **argv)
 {
 	while (1) {
 		static const struct option long_options[] = {
 			{"all-symbols",     no_argument, &all_symbols,     1},
+			{"pc-relative",     no_argument, &pc_relative,     1},
 			{},
 		};
 
@@ -734,7 +705,6 @@ int main(int argc, char **argv)
 	read_map(argv[optind]);
 	shrink_table();
 	sort_symbols();
-	record_relative_base();
 	optimize_token_table();
 	write_src();
 

@@ -468,13 +468,13 @@ static int fire_probe(struct platform_device *op)
 	portid = of_getintprop_default(dp, "portid", 0xff);
 
 	err = -ENOMEM;
-	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	pbm = kzalloc_obj(*pbm);
 	if (!pbm) {
 		printk(KERN_ERR PFX "Cannot allocate pci_pbminfo.\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+	iommu = kzalloc_obj(struct iommu);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
 		goto out_free_controller;

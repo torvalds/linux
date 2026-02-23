@@ -501,7 +501,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	struct amradio_device *radio;
 	int retval;
 
-	radio = kzalloc(sizeof(struct amradio_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct amradio_device);
 
 	if (!radio) {
 		dev_err(&intf->dev, "kmalloc for amradio_device failed\n");

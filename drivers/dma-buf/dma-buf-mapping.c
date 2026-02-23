@@ -33,8 +33,8 @@ static struct scatterlist *fill_sg_entry(struct scatterlist *sgl, size_t length,
 }
 
 static unsigned int calc_sg_nents(struct dma_iova_state *state,
-				  struct dma_buf_phys_vec *phys_vec,
-				  size_t nr_ranges, size_t size)
+				  struct phys_vec *phys_vec, size_t nr_ranges,
+				  size_t size)
 {
 	unsigned int nents = 0;
 	size_t i;
@@ -91,7 +91,7 @@ struct dma_buf_dma {
  */
 struct sg_table *dma_buf_phys_vec_to_sgt(struct dma_buf_attachment *attach,
 					 struct p2pdma_provider *provider,
-					 struct dma_buf_phys_vec *phys_vec,
+					 struct phys_vec *phys_vec,
 					 size_t nr_ranges, size_t size,
 					 enum dma_data_direction dir)
 {
@@ -108,7 +108,7 @@ struct sg_table *dma_buf_phys_vec_to_sgt(struct dma_buf_attachment *attach,
 		/* This function is supposed to work on MMIO memory only */
 		return ERR_PTR(-EINVAL);
 
-	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kzalloc_obj(*dma);
 	if (!dma)
 		return ERR_PTR(-ENOMEM);
 
@@ -119,7 +119,7 @@ struct sg_table *dma_buf_phys_vec_to_sgt(struct dma_buf_attachment *attach,
 		 */
 		break;
 	case PCI_P2PDMA_MAP_THRU_HOST_BRIDGE:
-		dma->state = kzalloc(sizeof(*dma->state), GFP_KERNEL);
+		dma->state = kzalloc_obj(*dma->state);
 		if (!dma->state) {
 			ret = -ENOMEM;
 			goto err_free_dma;

@@ -158,7 +158,7 @@ static int __init init_mtdram(void)
 		return -EINVAL;
 
 	/* Allocate some memory */
-	mtd_info = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
+	mtd_info = kmalloc_obj(struct mtd_info);
 	if (!mtd_info)
 		return -ENOMEM;
 

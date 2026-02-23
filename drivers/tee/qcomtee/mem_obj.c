@@ -88,11 +88,10 @@ int qcomtee_memobj_param_to_object(struct qcomtee_object **object,
 				   struct tee_param *param,
 				   struct tee_context *ctx)
 {
-	struct qcomtee_mem_object *mem_object __free(kfree) = NULL;
 	struct tee_shm *shm;
 	int err;
 
-	mem_object = kzalloc(sizeof(*mem_object), GFP_KERNEL);
+	struct qcomtee_mem_object *mem_object __free(kfree) = kzalloc_obj(*mem_object);
 	if (!mem_object)
 		return -ENOMEM;
 

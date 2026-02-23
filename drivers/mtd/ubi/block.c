@@ -368,7 +368,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 		goto out_unlock;
 	}
 
-	dev = kzalloc(sizeof(struct ubiblock), GFP_KERNEL);
+	dev = kzalloc_obj(struct ubiblock);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto out_unlock;

@@ -601,7 +601,7 @@ static int meson_gpio_irq_probe(struct platform_device *pdev, struct device_node
 		return -ENXIO;
 	}
 
-	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
+	ctl = kzalloc_obj(*ctl);
 	if (!ctl)
 		return -ENOMEM;
 

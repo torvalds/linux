@@ -73,12 +73,39 @@ struct rseq_ids {
 };
 
 /**
+ * union rseq_slice_state - Status information for rseq time slice extension
+ * @state:	Compound to access the overall state
+ * @enabled:	Time slice extension is enabled for the task
+ * @granted:	Time slice extension was granted to the task
+ */
+union rseq_slice_state {
+	u16			state;
+	struct {
+		u8		enabled;
+		u8		granted;
+	};
+};
+
+/**
+ * struct rseq_slice - Status information for rseq time slice extension
+ * @state:	Time slice extension state
+ * @expires:	The time when a grant expires
+ * @yielded:	Indicator for rseq_slice_yield()
+ */
+struct rseq_slice {
+	union rseq_slice_state	state;
+	u64			expires;
+	u8			yielded;
+};
+
+/**
  * struct rseq_data - Storage for all rseq related data
  * @usrptr:	Pointer to the registered user space RSEQ memory
  * @len:	Length of the RSEQ region
- * @sig:	Signature of critial section abort IPs
+ * @sig:	Signature of critical section abort IPs
  * @event:	Storage for event management
  * @ids:	Storage for cached CPU ID and MM CID
+ * @slice:	Storage for time slice extension data
  */
 struct rseq_data {
 	struct rseq __user		*usrptr;
@@ -86,6 +113,9 @@ struct rseq_data {
 	u32				sig;
 	struct rseq_event		event;
 	struct rseq_ids			ids;
+#ifdef CONFIG_RSEQ_SLICE_EXTENSION
+	struct rseq_slice		slice;
+#endif
 };
 
 #else /* CONFIG_RSEQ */
@@ -121,8 +151,7 @@ struct mm_cid_pcpu {
 /**
  * struct mm_mm_cid - Storage for per MM CID data
  * @pcpu:		Per CPU storage for CIDs associated to a CPU
- * @percpu:		Set, when CIDs are in per CPU mode
- * @transit:		Set to MM_CID_TRANSIT during a mode change transition phase
+ * @mode:		Indicates per CPU and transition mode
  * @max_cids:		The exclusive maximum CID value for allocation and convergence
  * @irq_work:		irq_work to handle the affinity mode change case
  * @work:		Regular work to handle the affinity mode change case
@@ -139,8 +168,7 @@ struct mm_cid_pcpu {
 struct mm_mm_cid {
 	/* Hotpath read mostly members */
 	struct mm_cid_pcpu	__percpu *pcpu;
-	unsigned int		percpu;
-	unsigned int		transit;
+	unsigned int		mode;
 	unsigned int		max_cids;
 
 	/* Rarely used. Moves @lock and @mutex into the second cacheline */

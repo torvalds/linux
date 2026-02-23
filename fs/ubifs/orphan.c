@@ -55,7 +55,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 	struct ubifs_orphan *orphan, *o;
 	struct rb_node **p, *parent = NULL;
 
-	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_NOFS);
+	orphan = kzalloc_obj(struct ubifs_orphan, GFP_NOFS);
 	if (!orphan)
 		return -ENOMEM;
 	orphan->inum = inum;
@@ -758,7 +758,7 @@ static int dbg_ins_check_orphan(struct rb_root *root, ino_t inum)
 	struct check_orphan *orphan, *o;
 	struct rb_node **p, *parent = NULL;
 
-	orphan = kzalloc(sizeof(struct check_orphan), GFP_NOFS);
+	orphan = kzalloc_obj(struct check_orphan, GFP_NOFS);
 	if (!orphan)
 		return -ENOMEM;
 	orphan->inum = inum;

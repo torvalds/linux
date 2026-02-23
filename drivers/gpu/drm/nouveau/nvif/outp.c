@@ -438,7 +438,7 @@ nvif_outp_edid_get(struct nvif_outp *outp, u8 **pedid)
 	struct nvif_outp_edid_get_v0 *args;
 	int ret;
 
-	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	args = kmalloc_obj(*args);
 	if (!args)
 		return -ENOMEM;
 

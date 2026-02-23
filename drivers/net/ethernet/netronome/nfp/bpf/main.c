@@ -76,7 +76,7 @@ nfp_bpf_vnic_alloc(struct nfp_app *app, struct nfp_net *nn, unsigned int id)
 		return -EINVAL;
 	}
 
-	bv = kzalloc(sizeof(*bv), GFP_KERNEL);
+	bv = kzalloc_obj(*bv);
 	if (!bv)
 		return -ENOMEM;
 	nn->app_priv = bv;
@@ -458,7 +458,7 @@ static int nfp_bpf_init(struct nfp_app *app)
 	struct nfp_app_bpf *bpf;
 	int err;
 
-	bpf = kzalloc(sizeof(*bpf), GFP_KERNEL);
+	bpf = kzalloc_obj(*bpf);
 	if (!bpf)
 		return -ENOMEM;
 	bpf->app = app;

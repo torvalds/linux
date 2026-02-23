@@ -525,7 +525,7 @@ efa_user_mmap_entry_insert(struct ib_ucontext *ucontext,
 			   u64 address, size_t length,
 			   u8 mmap_flag, u64 *offset)
 {
-	struct efa_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	struct efa_user_mmap_entry *entry = kzalloc_obj(*entry);
 	int err;
 
 	if (!entry)
@@ -1335,7 +1335,7 @@ static struct scatterlist *efa_vmalloc_buf_to_sg(u64 *buf, int page_cnt)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc_array(page_cnt, sizeof(*sglist), GFP_KERNEL);
+	sglist = kmalloc_objs(*sglist, page_cnt);
 	if (!sglist)
 		return NULL;
 	sg_init_table(sglist, page_cnt);
@@ -1374,9 +1374,7 @@ static int pbl_chunk_list_create(struct efa_dev *dev, struct pbl_context *pbl)
 	chunk_list_size = DIV_ROUND_UP(page_cnt, EFA_PTRS_PER_CHUNK);
 
 	chunk_list->size = chunk_list_size;
-	chunk_list->chunks = kcalloc(chunk_list_size,
-				     sizeof(*chunk_list->chunks),
-				     GFP_KERNEL);
+	chunk_list->chunks = kzalloc_objs(*chunk_list->chunks, chunk_list_size);
 	if (!chunk_list->chunks)
 		return -ENOMEM;
 
@@ -1682,7 +1680,7 @@ static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	mr = kzalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 

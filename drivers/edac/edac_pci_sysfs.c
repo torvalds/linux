@@ -361,7 +361,7 @@ static int edac_pci_main_kobj_setup(void)
 		goto decrement_count_fail;
 	}
 
-	edac_pci_top_main_kobj = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	edac_pci_top_main_kobj = kzalloc_obj(struct kobject);
 	if (!edac_pci_top_main_kobj) {
 		edac_dbg(1, "Failed to allocate\n");
 		err = -ENOMEM;

@@ -54,7 +54,7 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 	}
 
 create_st:
-	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	st = kmalloc_obj(*st);
 	if (!st)
 		return -ENOMEM;
 

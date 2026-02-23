@@ -39,6 +39,8 @@ static const struct rpc_authops authgss_ops;
 static const struct rpc_credops gss_credops;
 static const struct rpc_credops gss_nullops;
 
+static void gss_free_callback(struct kref *kref);
+
 #define GSS_RETRY_EXPIRED 5
 static unsigned int gss_expired_cred_retry_delay = GSS_RETRY_EXPIRED;
 
@@ -162,7 +164,7 @@ gss_alloc_context(void)
 {
 	struct gss_cl_ctx *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (ctx != NULL) {
 		ctx->gc_proc = RPC_GSS_PROC_DATA;
 		ctx->gc_seq = 1;	/* NetApp 6.4R1 doesn't accept seq. no. 0 */
@@ -527,7 +529,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	int vers;
 	int err = -ENOMEM;
 
-	gss_msg = kzalloc(sizeof(*gss_msg), GFP_KERNEL);
+	gss_msg = kzalloc_obj(*gss_msg);
 	if (gss_msg == NULL)
 		goto err;
 	vers = get_pipe_version(gss_auth->net);
@@ -551,6 +553,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 	}
 	return gss_msg;
 err_put_pipe_version:
+	kref_put(&gss_auth->kref, gss_free_callback);
 	put_pipe_version(gss_auth->net);
 err_free_msg:
 	kfree(gss_msg);
@@ -911,7 +914,7 @@ static struct gss_pipe *gss_pipe_alloc(struct rpc_clnt *clnt,
 	struct gss_pipe *p;
 	int err = -ENOMEM;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p);
 	if (p == NULL)
 		goto err;
 	p->pipe = rpc_mkpipe_data(upcall_ops, RPC_PIPE_WAIT_FOR_OPEN);
@@ -1026,7 +1029,7 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 
 	if (!try_module_get(THIS_MODULE))
 		return ERR_PTR(err);
-	if (!(gss_auth = kmalloc(sizeof(*gss_auth), GFP_KERNEL)))
+	if (!(gss_auth = kmalloc_obj(*gss_auth)))
 		goto out_dec;
 	INIT_HLIST_NODE(&gss_auth->hash);
 	gss_auth->target_name = NULL;
@@ -1243,7 +1246,7 @@ gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	struct gss_cred *new;
 
 	/* Make a copy of the cred so that we can reference count it */
-	new = kzalloc(sizeof(*gss_cred), GFP_KERNEL);
+	new = kzalloc_obj(*gss_cred);
 	if (new) {
 		struct auth_cred acred = {
 			.cred = gss_cred->gc_base.cr_cred,
@@ -1377,7 +1380,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	struct gss_cred	*cred = NULL;
 	int err = -ENOMEM;
 
-	if (!(cred = kzalloc(sizeof(*cred), gfp)))
+	if (!(cred = kzalloc_obj(*cred, gfp)))
 		goto out_err;
 
 	rpcauth_init_cred(&cred->gc_base, acred, auth, &gss_credops);
@@ -1814,9 +1817,7 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_SHIFT;
 	rqstp->rq_enc_pages_num = last - first + 1 + 1;
 	rqstp->rq_enc_pages
-		= kmalloc_array(rqstp->rq_enc_pages_num,
-				sizeof(struct page *),
-				GFP_KERNEL);
+		= kmalloc_objs(struct page *, rqstp->rq_enc_pages_num);
 	if (!rqstp->rq_enc_pages)
 		goto out;
 	for (i=0; i < rqstp->rq_enc_pages_num; i++) {

@@ -394,7 +394,7 @@ mlx5_esw_bridge_init_switchdev_fdb_work(struct net_device *dev, bool add,
 	struct mlx5_bridge_switchdev_fdb_work *work;
 	u8 *addr;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return ERR_PTR(-ENOMEM);
 

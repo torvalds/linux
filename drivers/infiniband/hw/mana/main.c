@@ -793,8 +793,8 @@ int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 	if (err)
 		return err;
 
-	mdev->eqs = kcalloc(mdev->ib_dev.num_comp_vectors, sizeof(struct gdma_queue *),
-			    GFP_KERNEL);
+	mdev->eqs = kzalloc_objs(struct gdma_queue *,
+				 mdev->ib_dev.num_comp_vectors);
 	if (!mdev->eqs) {
 		err = -ENOMEM;
 		goto destroy_fatal_eq;

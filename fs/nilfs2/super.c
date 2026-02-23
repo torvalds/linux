@@ -1292,7 +1292,7 @@ static int nilfs_init_fs_context(struct fs_context *fc)
 {
 	struct nilfs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

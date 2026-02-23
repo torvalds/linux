@@ -91,8 +91,8 @@ static void __init rz_cpg_clocks_init(struct device_node *np)
 	if (WARN(num_clks <= 0, "can't count CPG clocks\n"))
 		return;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
+	data = kzalloc_obj(*data);
+	clks = kzalloc_objs(*clks, num_clks);
 	BUG_ON(!data || !clks);
 
 	data->clks = clks;

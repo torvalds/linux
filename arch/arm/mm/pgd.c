@@ -17,7 +17,7 @@
 #include "mm.h"
 
 #ifdef CONFIG_ARM_LPAE
-#define _pgd_alloc(mm)		kmalloc_array(PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL | __GFP_ZERO)
+#define _pgd_alloc(mm)		kmalloc_objs(pgd_t, PTRS_PER_PGD, GFP_KERNEL | __GFP_ZERO)
 #define _pgd_free(mm, pgd)	kfree(pgd)
 #else
 #define _pgd_alloc(mm)		__pgd_alloc(mm, 2)

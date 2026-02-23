@@ -132,7 +132,7 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *),
 	struct vhost_task *vtsk;
 	struct task_struct *tsk;
 
-	vtsk = kzalloc(sizeof(*vtsk), GFP_KERNEL);
+	vtsk = kzalloc_obj(*vtsk);
 	if (!vtsk)
 		return ERR_PTR(-ENOMEM);
 	init_completion(&vtsk->exited);

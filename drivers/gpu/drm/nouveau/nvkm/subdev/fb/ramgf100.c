@@ -572,7 +572,7 @@ gf100_ram_new_(const struct nvkm_ram_func *func,
 	struct gf100_ram *ram;
 	int ret;
 
-	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 	*pram = &ram->base;
 

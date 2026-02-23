@@ -26,6 +26,10 @@ properties:
           - enum:
               - mediatek,mt7623-hdmi-phy
           - const: mediatek,mt2701-hdmi-phy
+      - items:
+          - enum:
+              - mediatek,mt8188-hdmi-phy
+          - const: mediatek,mt8195-hdmi-phy
       - const: mediatek,mt2701-hdmi-phy
       - const: mediatek,mt8173-hdmi-phy
       - const: mediatek,mt8195-hdmi-phy
@@ -34,16 +38,23 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 1
     items:
       - description: PLL reference clock
+      - description: HDMI 26MHz clock
+      - description: HDMI PLL1 clock
+      - description: HDMI PLL2 clock
 
   clock-names:
+    minItems: 1
     items:
       - const: pll_ref
+      - const: 26m
+      - const: pll1
+      - const: pll2
 
   clock-output-names:
-    items:
-      - const: hdmitx_dig_cts
+    maxItems: 1
 
   "#phy-cells":
     const: 0
@@ -75,6 +86,20 @@ required:
   - clock-output-names
   - "#phy-cells"
   - "#clock-cells"
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: mediatek,mt8195-hdmi-phy
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          maxItems: 1
 
 additionalProperties: false
 

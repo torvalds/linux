@@ -92,7 +92,7 @@ int smsg_register_callback(const char *prefix,
 {
 	struct smsg_callback *cb;
 
-	cb = kmalloc(sizeof(struct smsg_callback), GFP_KERNEL);
+	cb = kmalloc_obj(struct smsg_callback);
 	if (!cb)
 		return -ENOMEM;
 	cb->prefix = prefix;

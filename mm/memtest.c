@@ -50,6 +50,8 @@ static void __init memtest(u64 pattern, phys_addr_t start_phys, phys_addr_t size
 	start_bad = 0;
 	last_bad = 0;
 
+	VM_WARN_ON_ONCE(size < start_phys_aligned - start_phys);
+
 	for (p = start; p < end; p++)
 		WRITE_ONCE(*p, pattern);
 

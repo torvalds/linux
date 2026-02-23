@@ -352,7 +352,7 @@
 		216 = /dev/fujitsu/apanel	Fujitsu/Siemens application panel
 		217 = /dev/ni/natmotn		National Instruments Motion
 		218 = /dev/kchuid	Inter-process chuid control
-		219 = /dev/modems/mwave	MWave modem firmware upload
+		219 =
 		220 = /dev/mptctl	Message passing technology (MPT) control
 		221 = /dev/mvista/hssdsi	Montavista PICMG hot swap system driver
 		222 = /dev/mvista/hasi		Montavista PICMG high availability
@@ -389,11 +389,11 @@
 		    ...
 
   11 block	SCSI CD-ROM devices
-		  0 = /dev/scd0		First SCSI CD-ROM
-		  1 = /dev/scd1		Second SCSI CD-ROM
+		  0 = /dev/sr0		First SCSI CD-ROM
+		  1 = /dev/sr1		Second SCSI CD-ROM
 		    ...
 
-		The prefix /dev/sr (instead of /dev/scd) has been deprecated.
+		In the past the prefix /dev/scd (instead of /dev/sr) was used and even recommended.
 
   12 char	QIC-02 tape
 		  2 = /dev/ntpqic11	QIC-11, no rewind-on-close

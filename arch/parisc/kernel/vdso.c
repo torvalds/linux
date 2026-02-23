@@ -102,7 +102,7 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 	struct page **pagelist;
 	int i;
 
-	pagelist = kcalloc(pages + 1, sizeof(struct page *), GFP_KERNEL);
+	pagelist = kzalloc_objs(struct page *, pages + 1);
 	if (!pagelist)
 		panic("%s: Cannot allocate page list for VDSO", __func__);
 	for (i = 0; i < pages; i++)

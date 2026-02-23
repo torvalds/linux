@@ -3414,8 +3414,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_CCSIDR_EL1), access_ccsidr },
 	{ SYS_DESC(SYS_CLIDR_EL1), access_clidr, reset_clidr, CLIDR_EL1,
 	  .set_user = set_clidr, .val = ~CLIDR_EL1_RES0 },
-	{ SYS_DESC(SYS_CCSIDR2_EL1), undef_access },
-	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
 	IMPLEMENTATION_ID(AIDR_EL1, GENMASK_ULL(63, 0)),
 	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
 	ID_FILTERED(CTR_EL0, ctr_el0,
@@ -4668,7 +4666,10 @@ static void perform_access(struct kvm_vcpu *vcpu,
 	 * that we don't know how to handle. This certainly qualifies
 	 * as a gross bug that should be fixed right away.
 	 */
-	BUG_ON(!r->access);
+	if (!r->access) {
+		bad_trap(vcpu, params, r, "register access");
+		return;
+	}
 
 	/* Skip instruction if instructed so */
 	if (likely(r->access(vcpu, params, r)))
@@ -4992,7 +4993,7 @@ static bool emulate_sys_reg(struct kvm_vcpu *vcpu,
 	return false;
 }
 
-static const struct sys_reg_desc *idregs_debug_find(struct kvm *kvm, u8 pos)
+static const struct sys_reg_desc *idregs_debug_find(struct kvm *kvm, loff_t pos)
 {
 	unsigned long i, idreg_idx = 0;
 
@@ -5002,10 +5003,8 @@ static const struct sys_reg_desc *idregs_debug_find(struct kvm *kvm, u8 pos)
 		if (!is_vm_ftr_id_reg(reg_to_encoding(r)))
 			continue;
 
-		if (idreg_idx == pos)
+		if (idreg_idx++ == pos)
 			return r;
-
-		idreg_idx++;
 	}
 
 	return NULL;
@@ -5014,23 +5013,11 @@ static const struct sys_reg_desc *idregs_debug_find(struct kvm *kvm, u8 pos)
 static void *idregs_debug_start(struct seq_file *s, loff_t *pos)
 {
 	struct kvm *kvm = s->private;
-	u8 *iter;
 
-	mutex_lock(&kvm->arch.config_lock);
+	if (!test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags))
+		return NULL;
 
-	iter = &kvm->arch.idreg_debugfs_iter;
-	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags) &&
-	    *iter == (u8)~0) {
-		*iter = *pos;
-		if (!idregs_debug_find(kvm, *iter))
-			iter = NULL;
-	} else {
-		iter = ERR_PTR(-EBUSY);
-	}
-
-	mutex_unlock(&kvm->arch.config_lock);
-
-	return iter;
+	return (void *)idregs_debug_find(kvm, *pos);
 }
 
 static void *idregs_debug_next(struct seq_file *s, void *v, loff_t *pos)
@@ -5039,37 +5026,19 @@ static void *idregs_debug_next(struct seq_file *s, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	if (idregs_debug_find(kvm, kvm->arch.idreg_debugfs_iter + 1)) {
-		kvm->arch.idreg_debugfs_iter++;
-
-		return &kvm->arch.idreg_debugfs_iter;
-	}
-
-	return NULL;
+	return (void *)idregs_debug_find(kvm, *pos);
 }
 
 static void idregs_debug_stop(struct seq_file *s, void *v)
 {
-	struct kvm *kvm = s->private;
-
-	if (IS_ERR(v))
-		return;
-
-	mutex_lock(&kvm->arch.config_lock);
-
-	kvm->arch.idreg_debugfs_iter = ~0;
-
-	mutex_unlock(&kvm->arch.config_lock);
 }
 
 static int idregs_debug_show(struct seq_file *s, void *v)
 {
-	const struct sys_reg_desc *desc;
+	const struct sys_reg_desc *desc = v;
 	struct kvm *kvm = s->private;
 
-	desc = idregs_debug_find(kvm, kvm->arch.idreg_debugfs_iter);
-
-	if (!desc->name)
+	if (!desc)
 		return 0;
 
 	seq_printf(s, "%20s:\t%016llx\n",
@@ -5087,12 +5056,78 @@ static const struct seq_operations idregs_debug_sops = {
 
 DEFINE_SEQ_ATTRIBUTE(idregs_debug);
 
+static const struct sys_reg_desc *sr_resx_find(struct kvm *kvm, loff_t pos)
+{
+	unsigned long i, sr_idx = 0;
+
+	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++) {
+		const struct sys_reg_desc *r = &sys_reg_descs[i];
+
+		if (r->reg < __SANITISED_REG_START__)
+			continue;
+
+		if (sr_idx++ == pos)
+			return r;
+	}
+
+	return NULL;
+}
+
+static void *sr_resx_start(struct seq_file *s, loff_t *pos)
+{
+	struct kvm *kvm = s->private;
+
+	if (!kvm->arch.sysreg_masks)
+		return NULL;
+
+	return (void *)sr_resx_find(kvm, *pos);
+}
+
+static void *sr_resx_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct kvm *kvm = s->private;
+
+	(*pos)++;
+
+	return (void *)sr_resx_find(kvm, *pos);
+}
+
+static void sr_resx_stop(struct seq_file *s, void *v)
+{
+}
+
+static int sr_resx_show(struct seq_file *s, void *v)
+{
+	const struct sys_reg_desc *desc = v;
+	struct kvm *kvm = s->private;
+	struct resx resx;
+
+	if (!desc)
+		return 0;
+
+	resx = kvm_get_sysreg_resx(kvm, desc->reg);
+
+	seq_printf(s, "%20s:\tRES0:%016llx\tRES1:%016llx\n",
+		   desc->name, resx.res0, resx.res1);
+
+	return 0;
+}
+
+static const struct seq_operations sr_resx_sops = {
+	.start	= sr_resx_start,
+	.next	= sr_resx_next,
+	.stop	= sr_resx_stop,
+	.show	= sr_resx_show,
+};
+
+DEFINE_SEQ_ATTRIBUTE(sr_resx);
+
 void kvm_sys_regs_create_debugfs(struct kvm *kvm)
 {
-	kvm->arch.idreg_debugfs_iter = ~0;
-
 	debugfs_create_file("idregs", 0444, kvm->debugfs_dentry, kvm,
 			    &idregs_debug_fops);
+	debugfs_create_file("resx", 0444, kvm->debugfs_dentry, kvm,
+			    &sr_resx_fops);
 }
 
 static void reset_vm_ftr_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *reg)
@@ -5578,6 +5613,8 @@ static void vcpu_set_hcr(struct kvm_vcpu *vcpu)
 
 	if (kvm_has_mte(vcpu->kvm))
 		vcpu->arch.hcr_el2 |= HCR_ATA;
+	else
+		vcpu->arch.hcr_el2 |= HCR_TID5;
 
 	/*
 	 * In the absence of FGT, we cannot independently trap TLBI

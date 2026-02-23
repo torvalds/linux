@@ -279,7 +279,6 @@ static void hv_notify_prepare_hyp(void)
 static noinline __noclone void crash_nmi_callback(struct pt_regs *regs)
 {
 	struct hv_input_disable_hyp_ex *input;
-	u64 status;
 	int msecs = 1000, ccpu = smp_processor_id();
 
 	if (ccpu == 0) {
@@ -313,7 +312,7 @@ static noinline __noclone void crash_nmi_callback(struct pt_regs *regs)
 	input->rip = trampoline_pa;
 	input->arg = devirt_arg;
 
-	status = hv_do_hypercall(HVCALL_DISABLE_HYP_EX, input, NULL);
+	(void)hv_do_hypercall(HVCALL_DISABLE_HYP_EX, input, NULL);
 
 	hv_panic_timeout_reboot();
 }
@@ -628,7 +627,9 @@ void hv_root_crash_init(void)
 	if (rc)
 		goto err_out;
 
+#ifdef CONFIG_SMP
 	smp_ops.crash_stop_other_cpus = hv_crash_stop_other_cpus;
+#endif
 
 	crash_kexec_post_notifiers = true;
 	hv_crash_enabled = true;

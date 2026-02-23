@@ -297,7 +297,7 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int proc_bus_pci_open(struct inode *inode, struct file *file)
 {
-	struct pci_filp_private *fpriv = kmalloc(sizeof(*fpriv), GFP_KERNEL);
+	struct pci_filp_private *fpriv = kmalloc_obj(*fpriv);
 
 	if (!fpriv)
 		return -ENOMEM;

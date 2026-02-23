@@ -231,7 +231,7 @@ static u32 *alloc_l2_pt(struct ipu7_mmu_info *mmu_info)
 
 	dev_dbg(mmu_info->dev, "alloc_l2: get_zeroed_page() = %p\n", pt);
 
-	for (i = 0; i < ISP_L1PT_PTES; i++)
+	for (i = 0; i < ISP_L2PT_PTES; i++)
 		pt[i] = mmu_info->dummy_page_pteval;
 
 	return pt;
@@ -584,7 +584,7 @@ static struct ipu7_mmu_info *ipu7_mmu_alloc(struct ipu7_device *isp)
 	struct ipu7_mmu_info *mmu_info;
 	int ret;
 
-	mmu_info = kzalloc(sizeof(*mmu_info), GFP_KERNEL);
+	mmu_info = kzalloc_obj(*mmu_info);
 	if (!mmu_info)
 		return NULL;
 
@@ -654,7 +654,7 @@ static struct ipu7_dma_mapping *alloc_dma_mapping(struct ipu7_device *isp)
 	struct ipu7_dma_mapping *dmap;
 	unsigned long base_pfn;
 
-	dmap = kzalloc(sizeof(*dmap), GFP_KERNEL);
+	dmap = kzalloc_obj(*dmap);
 	if (!dmap)
 		return NULL;
 

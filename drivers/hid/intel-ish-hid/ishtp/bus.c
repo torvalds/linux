@@ -435,7 +435,7 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 	}
 	spin_unlock_irqrestore(&dev->device_list_lock, flags);
 
-	device = kzalloc(sizeof(struct ishtp_cl_device), GFP_KERNEL);
+	device = kzalloc_obj(struct ishtp_cl_device);
 	if (!device)
 		return NULL;
 
@@ -730,7 +730,7 @@ void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 	spin_lock_irqsave(&ishtp_dev->cl_list_lock, flags);
 	list_for_each_entry(cl, &ishtp_dev->cl_list, link) {
 		cl->state = ISHTP_CL_DISCONNECTED;
-		if (warm_reset && cl->device->reference_count)
+		if (warm_reset && cl->device && cl->device->reference_count)
 			continue;
 
 		/*

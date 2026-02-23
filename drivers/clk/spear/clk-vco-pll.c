@@ -293,11 +293,11 @@ struct clk *clk_register_vco_pll(const char *vco_name, const char *pll_name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	vco = kzalloc(sizeof(*vco), GFP_KERNEL);
+	vco = kzalloc_obj(*vco);
 	if (!vco)
 		return ERR_PTR(-ENOMEM);
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		goto free_vco;
 

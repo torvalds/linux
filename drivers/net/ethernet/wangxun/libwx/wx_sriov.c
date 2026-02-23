@@ -32,8 +32,7 @@ static int wx_alloc_vf_macvlans(struct wx *wx, u8 num_vfs)
 	if (!num_vf_macvlans)
 		return -EINVAL;
 
-	mv_list = kcalloc(num_vf_macvlans, sizeof(struct vf_macvlans),
-			  GFP_KERNEL);
+	mv_list = kzalloc_objs(struct vf_macvlans, num_vf_macvlans);
 	if (!mv_list)
 		return -ENOMEM;
 
@@ -88,8 +87,7 @@ static int __wx_enable_sriov(struct wx *wx, u8 num_vfs)
 		wx->ring_feature[RING_F_VMDQ].limit = 1;
 	wx->ring_feature[RING_F_VMDQ].offset = num_vfs;
 
-	wx->vfinfo = kcalloc(num_vfs, sizeof(struct vf_data_storage),
-			     GFP_KERNEL);
+	wx->vfinfo = kzalloc_objs(struct vf_data_storage, num_vfs);
 	if (!wx->vfinfo)
 		return -ENOMEM;
 

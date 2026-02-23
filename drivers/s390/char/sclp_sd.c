@@ -518,7 +518,7 @@ static __init struct sclp_sd_file *sclp_sd_file_create(const char *name, u8 di)
 	struct sclp_sd_file *sd_file;
 	int rc;
 
-	sd_file = kzalloc(sizeof(*sd_file), GFP_KERNEL);
+	sd_file = kzalloc_obj(*sd_file);
 	if (!sd_file)
 		return NULL;
 	sd_file->di = di;

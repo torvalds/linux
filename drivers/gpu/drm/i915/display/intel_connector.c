@@ -31,8 +31,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
-#include "i915_utils.h" /* for i915_inject_probe_failure() */
 #include "intel_connector.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"
@@ -88,7 +86,7 @@ static int intel_connector_init(struct intel_connector *connector)
 	 * need it we'll free the state and allocate a smaller one on the first
 	 * successful commit anyway.
 	 */
-	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	conn_state = kzalloc_obj(*conn_state);
 	if (!conn_state)
 		return -ENOMEM;
 
@@ -107,7 +105,7 @@ struct intel_connector *intel_connector_alloc(void)
 {
 	struct intel_connector *connector;
 
-	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	connector = kzalloc_obj(*connector);
 	if (!connector)
 		return NULL;
 
@@ -156,27 +154,17 @@ void intel_connector_destroy(struct drm_connector *connector)
 int intel_connector_register(struct drm_connector *_connector)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct drm_i915_private *i915 = to_i915(_connector->dev);
 	int ret;
 
 	ret = intel_panel_register(connector);
 	if (ret)
-		goto err;
-
-	if (i915_inject_probe_failure(i915)) {
-		ret = -EFAULT;
-		goto err_panel;
-	}
+		return ret;
 
 	intel_connector_debugfs_add(connector);
 
 	return 0;
-
-err_panel:
-	intel_panel_unregister(connector);
-err:
-	return ret;
 }
+ALLOW_ERROR_INJECTION(intel_connector_register, ERRNO);
 
 void intel_connector_unregister(struct drm_connector *_connector)
 {

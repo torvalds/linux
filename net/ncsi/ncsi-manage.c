@@ -211,7 +211,7 @@ struct ncsi_channel *ncsi_add_channel(struct ncsi_package *np, unsigned char id)
 	int index;
 	unsigned long flags;
 
-	nc = kzalloc(sizeof(*nc), GFP_ATOMIC);
+	nc = kzalloc_obj(*nc, GFP_ATOMIC);
 	if (!nc)
 		return NULL;
 
@@ -285,7 +285,7 @@ struct ncsi_package *ncsi_add_package(struct ncsi_dev_priv *ndp,
 	struct ncsi_package *np, *tmp;
 	unsigned long flags;
 
-	np = kzalloc(sizeof(*np), GFP_ATOMIC);
+	np = kzalloc_obj(*np, GFP_ATOMIC);
 	if (!np)
 		return NULL;
 
@@ -1697,7 +1697,7 @@ int ncsi_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 		return -ENOSPC;
 	}
 
-	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
+	vlan = kzalloc_obj(*vlan);
 	if (!vlan)
 		return -ENOMEM;
 
@@ -1767,7 +1767,7 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 		return nd;
 
 	/* Create NCSI device */
-	ndp = kzalloc(sizeof(*ndp), GFP_ATOMIC);
+	ndp = kzalloc_obj(*ndp, GFP_ATOMIC);
 	if (!ndp)
 		return NULL;
 

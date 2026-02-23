@@ -2212,7 +2212,7 @@ struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 
 	dprintk(2, "\n");
 
-	state = kzalloc(sizeof(struct mt2063_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mt2063_state);
 	if (!state)
 		return NULL;
 

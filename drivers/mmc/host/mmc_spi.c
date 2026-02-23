@@ -1236,7 +1236,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	}
 
 	/* Preallocate buffers */
-	host->data = kmalloc(sizeof(*host->data), GFP_KERNEL);
+	host->data = kmalloc_obj(*host->data);
 	if (!host->data)
 		goto fail_nobuf1;
 

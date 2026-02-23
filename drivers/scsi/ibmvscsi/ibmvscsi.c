@@ -447,7 +447,7 @@ static int initialize_event_pool(struct event_pool *pool,
 
 	pool->size = size;
 	pool->next = 0;
-	pool->events = kcalloc(pool->size, sizeof(*pool->events), GFP_KERNEL);
+	pool->events = kzalloc_objs(*pool->events, pool->size);
 	if (!pool->events)
 		return -ENOMEM;
 
@@ -868,9 +868,10 @@ static void ibmvscsi_timeout(struct timer_list *t)
  * Returns the value returned from ibmvscsi_send_crq(). (Zero for success)
  * Note that this routine assumes that host_lock is held for synchronization
 */
-static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
-				   struct ibmvscsi_host_data *hostdata,
-				   unsigned long timeout)
+static enum scsi_qc_status
+ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
+			struct ibmvscsi_host_data *hostdata,
+			unsigned long timeout)
 {
 	__be64 *crq_as_u64 = (__be64 *)&evt_struct->crq;
 	int request_status = 0;
@@ -1040,7 +1041,7 @@ static inline u16 lun_from_dev(struct scsi_device *dev)
  * @cmnd:	struct scsi_cmnd to be executed
  * @done:	Callback function to be called when cmd is completed
 */
-static int ibmvscsi_queuecommand_lck(struct scsi_cmnd *cmnd)
+static enum scsi_qc_status ibmvscsi_queuecommand_lck(struct scsi_cmnd *cmnd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct srp_cmd *srp_cmd;

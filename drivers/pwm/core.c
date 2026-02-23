@@ -1333,7 +1333,7 @@ static int pwm_export_child(struct device *pwmchip_dev, struct pwm_device *pwm)
 	if (test_and_set_bit(PWMF_EXPORTED, &pwm->flags))
 		return -EBUSY;
 
-	export = kzalloc(sizeof(*export), GFP_KERNEL);
+	export = kzalloc_obj(*export);
 	if (!export) {
 		clear_bit(PWMF_EXPORTED, &pwm->flags);
 		return -ENOMEM;
@@ -1699,8 +1699,7 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
 
 	if (ops->write_waveform) {
 		if (!ops->round_waveform_tohw ||
-		    !ops->round_waveform_fromhw ||
-		    !ops->write_waveform)
+		    !ops->round_waveform_fromhw)
 			return false;
 
 		if (PWM_WFHWSIZE < ops->sizeof_wfhw) {
@@ -2139,7 +2138,7 @@ static int pwm_cdev_open(struct inode *inode, struct file *file)
 	if (!chip->operational)
 		return -ENXIO;
 
-	cdata = kzalloc(struct_size(cdata, pwm, chip->npwm), GFP_KERNEL);
+	cdata = kzalloc_flex(*cdata, pwm, chip->npwm);
 	if (!cdata)
 		return -ENOMEM;
 
@@ -2295,8 +2294,9 @@ static long pwm_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 				.duty_offset_ns = wf.duty_offset_ns,
 			};
 
-			return copy_to_user((struct pwmchip_waveform __user *)arg,
-					    &cwf, sizeof(cwf));
+			ret = copy_to_user((struct pwmchip_waveform __user *)arg,
+					   &cwf, sizeof(cwf));
+			return ret ? -EFAULT : 0;
 		}
 
 	case PWM_IOCTL_GETWF:
@@ -2329,8 +2329,9 @@ static long pwm_cdev_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 				.duty_offset_ns = wf.duty_offset_ns,
 			};
 
-			return copy_to_user((struct pwmchip_waveform __user *)arg,
-					    &cwf, sizeof(cwf));
+			ret = copy_to_user((struct pwmchip_waveform __user *)arg,
+					   &cwf, sizeof(cwf));
+			return ret ? -EFAULT : 0;
 		}
 
 	case PWM_IOCTL_SETROUNDEDWF:
@@ -2636,10 +2637,10 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 
 	for (i = 0; i < chip->npwm; i++) {
 		struct pwm_device *pwm = &chip->pwms[i];
-		struct pwm_state state, hwstate;
+		struct pwm_state state;
+		int err;
 
 		pwm_get_state(pwm, &state);
-		pwm_get_state_hw(pwm, &hwstate);
 
 		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
 
@@ -2655,9 +2656,26 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 			seq_puts(s, ", usage_power");
 		seq_puts(s, "\n");
 
-		seq_printf(s, "  actual configuration:    %3sabled, %llu/%llu ns, %s polarity",
-			   hwstate.enabled ? "en" : "dis", hwstate.duty_cycle, hwstate.period,
-			   hwstate.polarity ? "inverse" : "normal");
+		if (pwmchip_supports_waveform(chip)) {
+			struct pwm_waveform wf;
+
+			err = pwm_get_waveform_might_sleep(pwm, &wf);
+			if (!err)
+				seq_printf(s, "  actual configuration: %lld/%lld [+%lld]",
+					   wf.duty_length_ns, wf.period_length_ns, wf.duty_offset_ns);
+			else
+				seq_printf(s, "  actual configuration: read out error: %pe\n", ERR_PTR(err));
+		} else {
+			struct pwm_state hwstate;
+
+			err = pwm_get_state_hw(pwm, &hwstate);
+			if (!err)
+				seq_printf(s, "  actual configuration:    %3sabled, %llu/%llu ns, %s polarity",
+					   hwstate.enabled ? "en" : "dis", hwstate.duty_cycle, hwstate.period,
+					   hwstate.polarity ? "inverse" : "normal");
+			else
+				seq_printf(s, "  actual configuration: read out error: %pe", ERR_PTR(err));
+		}
 
 		seq_puts(s, "\n");
 	}

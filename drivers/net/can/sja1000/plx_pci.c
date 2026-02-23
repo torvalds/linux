@@ -629,7 +629,7 @@ static int plx_pci_add_card(struct pci_dev *pdev,
 		 ci->name, PCI_SLOT(pdev->devfn));
 
 	/* Allocate card structures to hold addresses, ... */
-	card = kzalloc(sizeof(*card), GFP_KERNEL);
+	card = kzalloc_obj(*card);
 	if (!card) {
 		pci_disable_device(pdev);
 		return -ENOMEM;

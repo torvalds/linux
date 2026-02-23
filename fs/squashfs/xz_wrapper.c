@@ -42,7 +42,7 @@ static void *squashfs_xz_comp_opts(struct squashfs_sb_info *msblk,
 	struct comp_opts *opts;
 	int err = 0, n;
 
-	opts = kmalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kmalloc_obj(*opts);
 	if (opts == NULL) {
 		err = -ENOMEM;
 		goto out2;
@@ -84,7 +84,7 @@ static void *squashfs_xz_init(struct squashfs_sb_info *msblk, void *buff)
 	struct squashfs_xz *stream;
 	int err;
 
-	stream = kmalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kmalloc_obj(*stream);
 	if (stream == NULL) {
 		err = -ENOMEM;
 		goto failed;

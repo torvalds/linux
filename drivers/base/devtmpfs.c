@@ -56,8 +56,7 @@ static struct req {
 
 static int __init mount_param(char *str)
 {
-	mount_dev = simple_strtoul(str, NULL, 0);
-	return 1;
+	return kstrtoint(str, 0, &mount_dev) == 0;
 }
 __setup("devtmpfs.mount=", mount_param);
 
@@ -85,7 +84,7 @@ static int devtmpfs_get_tree(struct fs_context *fc)
 }
 
 /* Ops are filled in during init depending on underlying shmem or ramfs type */
-struct fs_context_operations devtmpfs_context_ops = {};
+static struct fs_context_operations devtmpfs_context_ops = {};
 
 /* Call the underlying initialization and set to our ops */
 static int devtmpfs_init_fs_context(struct fs_context *fc)

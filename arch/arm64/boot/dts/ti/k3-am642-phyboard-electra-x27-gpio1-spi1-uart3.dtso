@@ -29,9 +29,9 @@
 	main_spi1_pins_default: main-spi1-default-pins {
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0224, PIN_INPUT, 0)	/* (C14) SPI1_CLK */
-			AM64X_IOPAD(0x021C, PIN_OUTPUT, 0)	/* (B14) SPI1_CS0 */
+			AM64X_IOPAD(0x021c, PIN_OUTPUT, 0)	/* (B14) SPI1_CS0 */
 			AM64X_IOPAD(0x0228, PIN_OUTPUT, 0)	/* (B15) SPI1_D0 */
-			AM64X_IOPAD(0x022C, PIN_INPUT, 0)	/* (A15) SPI1_D1 */
+			AM64X_IOPAD(0x022c, PIN_INPUT, 0)	/* (A15) SPI1_D1 */
 		>;
 	};
 

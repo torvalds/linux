@@ -1115,7 +1115,7 @@ nv50_msto_new(struct drm_device *dev, struct nv50_head *head, int id)
 	struct nv50_msto *msto;
 	int ret;
 
-	msto = kzalloc(sizeof(*msto), GFP_KERNEL);
+	msto = kzalloc_obj(*msto);
 	if (!msto)
 		return ERR_PTR(-ENOMEM);
 
@@ -1267,7 +1267,7 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	struct nv50_mstc *mstc;
 	int ret;
 
-	if (!(mstc = *pmstc = kzalloc(sizeof(*mstc), GFP_KERNEL)))
+	if (!(mstc = *pmstc = kzalloc_obj(*mstc)))
 		return -ENOMEM;
 	mstc->mstm = mstm;
 	mstc->port = port;
@@ -1520,7 +1520,7 @@ nv50_mstm_new(struct nouveau_encoder *outp, struct drm_dp_aux *aux, int aux_max,
 	struct nv50_mstm *mstm;
 	int ret;
 
-	if (!(mstm = *pmstm = kzalloc(sizeof(*mstm), GFP_KERNEL)))
+	if (!(mstm = *pmstm = kzalloc_obj(*mstm)))
 		return -ENOMEM;
 	mstm->outp = outp;
 	mstm->mgr.cbs = &nv50_mstm;
@@ -2496,7 +2496,7 @@ nv50_disp_outp_atomic_add(struct nv50_atom *atom, struct drm_encoder *encoder)
 			return outp;
 	}
 
-	outp = kzalloc(sizeof(*outp), GFP_KERNEL);
+	outp = kzalloc_obj(*outp);
 	if (!outp)
 		return ERR_PTR(-ENOMEM);
 
@@ -2643,7 +2643,7 @@ static struct drm_atomic_state *
 nv50_disp_atomic_state_alloc(struct drm_device *dev)
 {
 	struct nv50_atom *atom;
-	if (!(atom = kzalloc(sizeof(*atom), GFP_KERNEL)) ||
+	if (!(atom = kzalloc_obj(*atom)) ||
 	    drm_atomic_state_init(dev, &atom->state) < 0) {
 		kfree(atom);
 		return NULL;
@@ -2833,7 +2833,7 @@ nv50_display_create(struct drm_device *dev)
 	int ret, i;
 	bool has_mst = false;
 
-	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
+	disp = kzalloc_obj(*disp);
 	if (!disp)
 		return -ENOMEM;
 
@@ -2900,7 +2900,7 @@ nv50_display_create(struct drm_device *dev)
 	for_each_set_bit(i, &disp->disp->outp_mask, sizeof(disp->disp->outp_mask) * 8) {
 		struct nouveau_encoder *outp;
 
-		outp = kzalloc(sizeof(*outp), GFP_KERNEL);
+		outp = kzalloc_obj(*outp);
 		if (!outp)
 			break;
 
@@ -2921,7 +2921,7 @@ nv50_display_create(struct drm_device *dev)
 		outp->base.base.possible_clones = 0;
 		outp->conn = nouveau_connector(connector);
 
-		outp->dcb = kzalloc(sizeof(*outp->dcb), GFP_KERNEL);
+		outp->dcb = kzalloc_obj(*outp->dcb);
 		if (!outp->dcb)
 			break;
 

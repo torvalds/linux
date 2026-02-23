@@ -279,7 +279,7 @@ create_rmpp_recv(struct ib_mad_agent_private *agent,
 	struct mad_rmpp_recv *rmpp_recv;
 	struct ib_mad_hdr *mad_hdr;
 
-	rmpp_recv = kmalloc(sizeof *rmpp_recv, GFP_KERNEL);
+	rmpp_recv = kmalloc_obj(*rmpp_recv);
 	if (!rmpp_recv)
 		return NULL;
 

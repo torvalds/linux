@@ -213,7 +213,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 	if (!reg_base)
 		return ERR_PTR(-ENOMEM);
 
-	aic = kcalloc(nchips, sizeof(*aic), GFP_KERNEL);
+	aic = kzalloc_objs(*aic, nchips);
 	if (!aic) {
 		ret = -ENOMEM;
 		goto err_iounmap;

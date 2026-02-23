@@ -329,7 +329,7 @@ static int pch_pic_init(phys_addr_t addr, unsigned long size, int vec_base,
 	struct pch_pic *priv;
 	int i;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -343,7 +343,7 @@ static int pch_pic_init(phys_addr_t addr, unsigned long size, int vec_base,
 		priv->table[i] = PIC_UNDEF_VECTOR;
 
 	priv->ht_vec_base = vec_base;
-	priv->vec_count = ((readq(priv->base) >> 48) & 0xff) + 1;
+	priv->vec_count = ((readl(priv->base + 4) >> 16) & 0xff) + 1;
 	priv->gsi_base = gsi_base;
 
 	priv->pic_domain = irq_domain_create_hierarchy(parent_domain, 0,
@@ -446,23 +446,23 @@ static int __init acpi_cascade_irqdomain_init(void)
 	return 0;
 }
 
-int __init pch_pic_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_bio_pic *acpi_pchpic)
+int __init pch_pic_acpi_init(struct irq_domain *parent, struct acpi_madt_bio_pic *acpi_pchpic)
 {
-	int ret;
+	phys_addr_t addr = (phys_addr_t)acpi_pchpic->address;
 	struct fwnode_handle *domain_handle;
+	int ret;
 
 	if (find_pch_pic(acpi_pchpic->gsi_base) >= 0)
 		return 0;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_pchpic->address);
+	domain_handle = irq_domain_alloc_fwnode(&addr);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		return -ENOMEM;
 	}
 
-	ret = pch_pic_init(acpi_pchpic->address, acpi_pchpic->size,
-				0, parent, domain_handle, acpi_pchpic->gsi_base);
+	ret = pch_pic_init(addr, acpi_pchpic->size, 0, parent,
+			   domain_handle, acpi_pchpic->gsi_base);
 
 	if (ret < 0) {
 		irq_domain_free_fwnode(domain_handle);

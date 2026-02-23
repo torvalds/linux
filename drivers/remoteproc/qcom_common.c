@@ -370,7 +370,7 @@ static struct qcom_ssr_subsystem *qcom_ssr_get_subsys(const char *name)
 		if (!strcmp(info->name, name))
 			goto out;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info) {
 		info = ERR_PTR(-ENOMEM);
 		goto out;
@@ -534,7 +534,7 @@ static int pdm_notify_prepare(struct rproc_subdev *subdev)
 	struct auxiliary_device *adev;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 

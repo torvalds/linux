@@ -62,7 +62,7 @@ struct cpuset_remove_tasks_struct {
 #define FM_SCALE 1000		/* faux fixed point scale */
 
 /* Initialize a frequency meter */
-void fmeter_init(struct fmeter *fmp)
+static void fmeter_init(struct fmeter *fmp)
 {
 	fmp->cnt = 0;
 	fmp->val = 0;
@@ -316,7 +316,7 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 	    css_tryget_online(&cs->css)) {
 		struct cpuset_remove_tasks_struct *s;
 
-		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		s = kzalloc_obj(*s);
 		if (WARN_ON_ONCE(!s)) {
 			css_put(&cs->css);
 			return;
@@ -368,9 +368,42 @@ int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial)
 	if (par && !is_cpuset_subset(trial, par))
 		goto out;
 
+	/*
+	 * Cpusets with tasks - existing or newly being attached - can't
+	 * be changed to have empty cpus_allowed or mems_allowed.
+	 */
+	ret = -ENOSPC;
+	if (cpuset_is_populated(cur)) {
+		if (!cpumask_empty(cur->cpus_allowed) &&
+		    cpumask_empty(trial->cpus_allowed))
+			goto out;
+		if (!nodes_empty(cur->mems_allowed) &&
+		    nodes_empty(trial->mems_allowed))
+			goto out;
+	}
+
 	ret = 0;
 out:
 	return ret;
+}
+
+/*
+ * cpuset1_cpus_excl_conflict() - Check if two cpusets have exclusive CPU conflicts
+ *                                to legacy (v1)
+ * @cs1: first cpuset to check
+ * @cs2: second cpuset to check
+ *
+ * Returns: true if CPU exclusivity conflict exists, false otherwise
+ *
+ * If either cpuset is CPU exclusive, their allowed CPUs cannot intersect.
+ */
+bool cpuset1_cpus_excl_conflict(struct cpuset *cs1, struct cpuset *cs2)
+{
+	if (is_cpu_exclusive(cs1) || is_cpu_exclusive(cs2))
+		return cpumask_intersects(cs1->cpus_allowed,
+					  cs2->cpus_allowed);
+
+	return false;
 }
 
 #ifdef CONFIG_PROC_PID_CPUSET
@@ -497,6 +530,241 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 out_unlock:
 	cpuset_full_unlock();
 	return retval;
+}
+
+void cpuset1_init(struct cpuset *cs)
+{
+	fmeter_init(&cs->fmeter);
+	cs->relax_domain_level = -1;
+}
+
+void cpuset1_online_css(struct cgroup_subsys_state *css)
+{
+	struct cpuset *tmp_cs;
+	struct cgroup_subsys_state *pos_css;
+	struct cpuset *cs = css_cs(css);
+	struct cpuset *parent = parent_cs(cs);
+
+	lockdep_assert_cpus_held();
+	lockdep_assert_cpuset_lock_held();
+
+	if (is_spread_page(parent))
+		set_bit(CS_SPREAD_PAGE, &cs->flags);
+	if (is_spread_slab(parent))
+		set_bit(CS_SPREAD_SLAB, &cs->flags);
+
+	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags))
+		return;
+
+	/*
+	 * Clone @parent's configuration if CGRP_CPUSET_CLONE_CHILDREN is
+	 * set.  This flag handling is implemented in cgroup core for
+	 * historical reasons - the flag may be specified during mount.
+	 *
+	 * Currently, if any sibling cpusets have exclusive cpus or mem, we
+	 * refuse to clone the configuration - thereby refusing the task to
+	 * be entered, and as a result refusing the sys_unshare() or
+	 * clone() which initiated it.  If this becomes a problem for some
+	 * users who wish to allow that scenario, then this could be
+	 * changed to grant parent->cpus_allowed-sibling_cpus_exclusive
+	 * (and likewise for mems) to the new cgroup.
+	 */
+	rcu_read_lock();
+	cpuset_for_each_child(tmp_cs, pos_css, parent) {
+		if (is_mem_exclusive(tmp_cs) || is_cpu_exclusive(tmp_cs)) {
+			rcu_read_unlock();
+			return;
+		}
+	}
+	rcu_read_unlock();
+
+	cpuset_callback_lock_irq();
+	cs->mems_allowed = parent->mems_allowed;
+	cs->effective_mems = parent->mems_allowed;
+	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
+	cpumask_copy(cs->effective_cpus, parent->cpus_allowed);
+	cpuset_callback_unlock_irq();
+}
+
+static void
+update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
+{
+	if (dattr->relax_domain_level < c->relax_domain_level)
+		dattr->relax_domain_level = c->relax_domain_level;
+}
+
+static void update_domain_attr_tree(struct sched_domain_attr *dattr,
+				    struct cpuset *root_cs)
+{
+	struct cpuset *cp;
+	struct cgroup_subsys_state *pos_css;
+
+	rcu_read_lock();
+	cpuset_for_each_descendant_pre(cp, pos_css, root_cs) {
+		/* skip the whole subtree if @cp doesn't have any CPU */
+		if (cpumask_empty(cp->cpus_allowed)) {
+			pos_css = css_rightmost_descendant(pos_css);
+			continue;
+		}
+
+		if (is_sched_load_balance(cp))
+			update_domain_attr(dattr, cp);
+	}
+	rcu_read_unlock();
+}
+
+/*
+ * cpuset1_generate_sched_domains()
+ *
+ * Finding the best partition (set of domains):
+ *	The double nested loops below over i, j scan over the load
+ *	balanced cpusets (using the array of cpuset pointers in csa[])
+ *	looking for pairs of cpusets that have overlapping cpus_allowed
+ *	and merging them using a union-find algorithm.
+ *
+ *	The union of the cpus_allowed masks from the set of all cpusets
+ *	having the same root then form the one element of the partition
+ *	(one sched domain) to be passed to partition_sched_domains().
+ */
+int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes)
+{
+	struct cpuset *cp;	/* top-down scan of cpusets */
+	struct cpuset **csa;	/* array of all cpuset ptrs */
+	int csn;		/* how many cpuset ptrs in csa so far */
+	int i, j;		/* indices for partition finding loops */
+	cpumask_var_t *doms;	/* resulting partition; i.e. sched domains */
+	struct sched_domain_attr *dattr;  /* attributes for custom domains */
+	int ndoms = 0;		/* number of sched domains in result */
+	int nslot;		/* next empty doms[] struct cpumask slot */
+	struct cgroup_subsys_state *pos_css;
+	int nslot_update;
+
+	lockdep_assert_cpuset_lock_held();
+
+	doms = NULL;
+	dattr = NULL;
+	csa = NULL;
+
+	/* Special case for the 99% of systems with one, full, sched domain */
+	if (is_sched_load_balance(&top_cpuset)) {
+		ndoms = 1;
+		doms = alloc_sched_domains(ndoms);
+		if (!doms)
+			goto done;
+
+		dattr = kmalloc_obj(struct sched_domain_attr);
+		if (dattr) {
+			*dattr = SD_ATTR_INIT;
+			update_domain_attr_tree(dattr, &top_cpuset);
+		}
+		cpumask_and(doms[0], top_cpuset.effective_cpus,
+			    housekeeping_cpumask(HK_TYPE_DOMAIN));
+
+		goto done;
+	}
+
+	csa = kmalloc_objs(cp, nr_cpusets());
+	if (!csa)
+		goto done;
+	csn = 0;
+
+	rcu_read_lock();
+	cpuset_for_each_descendant_pre(cp, pos_css, &top_cpuset) {
+		if (cp == &top_cpuset)
+			continue;
+
+		/*
+		 * Continue traversing beyond @cp iff @cp has some CPUs and
+		 * isn't load balancing.  The former is obvious.  The
+		 * latter: All child cpusets contain a subset of the
+		 * parent's cpus, so just skip them, and then we call
+		 * update_domain_attr_tree() to calc relax_domain_level of
+		 * the corresponding sched domain.
+		 */
+		if (!cpumask_empty(cp->cpus_allowed) &&
+		    !(is_sched_load_balance(cp) &&
+		      cpumask_intersects(cp->cpus_allowed,
+					 housekeeping_cpumask(HK_TYPE_DOMAIN))))
+			continue;
+
+		if (is_sched_load_balance(cp) &&
+		    !cpumask_empty(cp->effective_cpus))
+			csa[csn++] = cp;
+
+		/* skip @cp's subtree */
+		pos_css = css_rightmost_descendant(pos_css);
+		continue;
+	}
+	rcu_read_unlock();
+
+	for (i = 0; i < csn; i++)
+		uf_node_init(&csa[i]->node);
+
+	/* Merge overlapping cpusets */
+	for (i = 0; i < csn; i++) {
+		for (j = i + 1; j < csn; j++) {
+			if (cpusets_overlap(csa[i], csa[j]))
+				uf_union(&csa[i]->node, &csa[j]->node);
+		}
+	}
+
+	/* Count the total number of domains */
+	for (i = 0; i < csn; i++) {
+		if (uf_find(&csa[i]->node) == &csa[i]->node)
+			ndoms++;
+	}
+
+	/*
+	 * Now we know how many domains to create.
+	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
+	 */
+	doms = alloc_sched_domains(ndoms);
+	if (!doms)
+		goto done;
+
+	/*
+	 * The rest of the code, including the scheduler, can deal with
+	 * dattr==NULL case. No need to abort if alloc fails.
+	 */
+	dattr = kmalloc_objs(struct sched_domain_attr, ndoms);
+
+	for (nslot = 0, i = 0; i < csn; i++) {
+		nslot_update = 0;
+		for (j = i; j < csn; j++) {
+			if (uf_find(&csa[j]->node) == &csa[i]->node) {
+				struct cpumask *dp = doms[nslot];
+
+				if (i == j) {
+					nslot_update = 1;
+					cpumask_clear(dp);
+					if (dattr)
+						*(dattr + nslot) = SD_ATTR_INIT;
+				}
+				cpumask_or(dp, dp, csa[j]->effective_cpus);
+				cpumask_and(dp, dp, housekeeping_cpumask(HK_TYPE_DOMAIN));
+				if (dattr)
+					update_domain_attr_tree(dattr + nslot, csa[j]);
+			}
+		}
+		if (nslot_update)
+			nslot++;
+	}
+	BUG_ON(nslot != ndoms);
+
+done:
+	kfree(csa);
+
+	/*
+	 * Fallback to the default domain if kmalloc() failed.
+	 * See comments in partition_sched_domains().
+	 */
+	if (doms == NULL)
+		ndoms = 1;
+
+	*domains    = doms;
+	*attributes = dattr;
+	return ndoms;
 }
 
 /*

@@ -294,7 +294,7 @@ static int mlx5_devlink_trap_init(struct devlink *devlink, const struct devlink_
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_devlink_trap *dl_trap;
 
-	dl_trap = kzalloc(sizeof(*dl_trap), GFP_KERNEL);
+	dl_trap = kzalloc_obj(*dl_trap);
 	if (!dl_trap)
 		return -ENOMEM;
 

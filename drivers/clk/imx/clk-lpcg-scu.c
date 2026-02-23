@@ -119,7 +119,7 @@ struct clk_hw *__imx_clk_lpcg_scu(struct device *dev, const char *name,
 	struct clk_hw *hw;
 	int ret;
 
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+	clk = kzalloc_obj(*clk);
 	if (!clk)
 		return ERR_PTR(-ENOMEM);
 

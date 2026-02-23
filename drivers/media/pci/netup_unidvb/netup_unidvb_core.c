@@ -799,7 +799,7 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* allocate device context */
-	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+	ndev = kzalloc_obj(*ndev);
 	if (!ndev)
 		goto dev_alloc_err;
 

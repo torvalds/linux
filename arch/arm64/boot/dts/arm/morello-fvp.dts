@@ -25,25 +25,25 @@
 		clock-output-names = "bp:clock24mhz";
 	};
 
-	block_0: virtio_block@1c170000 {
+	block_0: virtio-block@1c170000 {
 		compatible = "virtio,mmio";
 		reg = <0x0 0x1c170000 0x0 0x200>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	net_0: virtio_net@1c180000 {
+	net_0: virtio-net@1c180000 {
 		compatible = "virtio,mmio";
 		reg = <0x0 0x1c180000 0x0 0x200>;
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	rng_0: virtio_rng@1c190000 {
+	rng_0: virtio-rng@1c190000 {
 		compatible = "virtio,mmio";
 		reg = <0x0 0x1c190000 0x0 0x200>;
 		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	p9_0: virtio_p9@1c1a0000 {
+	p9_0: virtio-p9@1c1a0000 {
 		compatible = "virtio,mmio";
 		reg = <0x0 0x1c1a0000 0x0 0x200>;
 		interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;

@@ -169,7 +169,7 @@ void ufs_hwmon_probe(struct ufs_hba *hba, u8 mask)
 	struct ufs_hwmon_data *data;
 	struct device *hwmon;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return;
 

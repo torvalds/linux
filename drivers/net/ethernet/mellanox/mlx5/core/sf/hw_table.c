@@ -233,7 +233,7 @@ static int mlx5_sf_hw_table_hwc_init(struct mlx5_sf_hwc_table *hwc, u16 max_fn, 
 	if (!max_fn)
 		return 0;
 
-	sfs = kcalloc(max_fn, sizeof(*sfs), GFP_KERNEL);
+	sfs = kzalloc_objs(*sfs, max_fn);
 	if (!sfs)
 		return -ENOMEM;
 
@@ -298,7 +298,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	if (!max_fn && !max_ext_fn)
 		return 0;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table) {
 		err = -ENOMEM;
 		goto alloc_err;

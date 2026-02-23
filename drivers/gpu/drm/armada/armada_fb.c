@@ -57,7 +57,7 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	dfb = kzalloc(sizeof(*dfb), GFP_KERNEL);
+	dfb = kzalloc_obj(*dfb);
 	if (!dfb) {
 		DRM_ERROR("failed to allocate Armada fb object\n");
 		return ERR_PTR(-ENOMEM);

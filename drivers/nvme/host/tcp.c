@@ -1467,11 +1467,11 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 	u32 maxh2cdata;
 	int ret;
 
-	icreq = kzalloc(sizeof(*icreq), GFP_KERNEL);
+	icreq = kzalloc_obj(*icreq);
 	if (!icreq)
 		return -ENOMEM;
 
-	icresp = kzalloc(sizeof(*icresp), GFP_KERNEL);
+	icresp = kzalloc_obj(*icresp);
 	if (!icresp) {
 		ret = -ENOMEM;
 		goto free_icreq;
@@ -2891,7 +2891,7 @@ static struct nvme_tcp_ctrl *nvme_tcp_alloc_ctrl(struct device *dev,
 	struct nvme_tcp_ctrl *ctrl;
 	int ret;
 
-	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
+	ctrl = kzalloc_obj(*ctrl);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 
@@ -2949,8 +2949,7 @@ static struct nvme_tcp_ctrl *nvme_tcp_alloc_ctrl(struct device *dev,
 		goto out_free_ctrl;
 	}
 
-	ctrl->queues = kcalloc(ctrl->ctrl.queue_count, sizeof(*ctrl->queues),
-				GFP_KERNEL);
+	ctrl->queues = kzalloc_objs(*ctrl->queues, ctrl->ctrl.queue_count);
 	if (!ctrl->queues) {
 		ret = -ENOMEM;
 		goto out_free_ctrl;

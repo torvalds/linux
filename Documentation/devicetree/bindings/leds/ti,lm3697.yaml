@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/ti,lm3697.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI LM3697 Highly Efficient White LED Driver
+
+maintainers:
+  - Dan Murphy <dmurphy@ti.com>
+
+description: >
+  The LM3697 11-bit LED driver provides high-performance backlight dimming for
+  1, 2, or 3 series LED strings while delivering up to 90% efficiency.
+
+  This device is suitable for display and keypad lighting.
+
+properties:
+  compatible:
+    const: ti,lm3697
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  enable-gpios:
+    description: GPIO pin to enable or disable the device.
+    maxItems: 1
+
+  vled-supply:
+    description: LED supply for the device.
+
+patternProperties:
+  '^led@[01]$':
+    description: LED control bank nodes.
+    $ref: common.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description: Control bank selection (0 = bank A, 1 = bank B).
+        maximum: 1
+
+      led-sources:
+        description: >
+          HVLED strings associated with this control bank:
+
+            0 - HVLED1
+            1 - HVLED2
+            2 - HVLED3
+        minItems: 1
+        maxItems: 3
+        items:
+          maximum: 2
+
+      ti,brightness-resolution:
+        description: Brightness resolution for the LED string.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        maximum: 2047
+
+      ramp-up-us:
+        description: Ramp-up time in microseconds.
+        minimum: 117
+        maximum: 2048
+
+      ramp-down-us:
+        description: Ramp-down time in microseconds.
+        minimum: 117
+        maximum: 2048
+
+    required:
+      - reg
+      - led-sources
+
+required:
+  - compatible
+  - reg
+  - '#address-cells'
+  - '#size-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led-controller@36 {
+            compatible = "ti,lm3697";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0x36>;
+
+            enable-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+            vled-supply = <&vbatt>;
+
+            led@0 {
+                reg = <0>;
+                led-sources = <0 2>;
+                ti,brightness-resolution = <2047>;
+                ramp-up-us = <500>;
+                ramp-down-us = <1000>;
+                label = "white:first_backlight_cluster";
+                linux,default-trigger = "backlight";
+            };
+
+            led@1 {
+                reg = <1>;
+                led-sources = <1>;
+                ti,brightness-resolution = <255>;
+                ramp-up-us = <500>;
+                ramp-down-us = <1000>;
+                label = "white:second_backlight_cluster";
+                linux,default-trigger = "backlight";
+            };
+        };
+    };

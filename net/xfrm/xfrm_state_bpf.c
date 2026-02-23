@@ -68,7 +68,7 @@ bpf_xdp_get_xfrm_state(struct xdp_md *ctx, struct bpf_xfrm_state_opts *opts, u32
 	struct net *net = dev_net(xdp->rxq->dev);
 	struct xfrm_state *x;
 
-	if (!opts || opts__sz < sizeof(opts->error))
+	if (opts__sz < sizeof(opts->error))
 		return NULL;
 
 	if (opts__sz != BPF_XFRM_STATE_OPTS_SZ) {

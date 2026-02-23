@@ -69,17 +69,15 @@ nouveau_job_init(struct nouveau_job *job,
 			goto err_free_in_sync;
 		}
 
-		job->out_sync.objs = kcalloc(job->out_sync.count,
-					     sizeof(*job->out_sync.objs),
-					     GFP_KERNEL);
+		job->out_sync.objs = kzalloc_objs(*job->out_sync.objs,
+						  job->out_sync.count);
 		if (!job->out_sync.objs) {
 			ret = -ENOMEM;
 			goto err_free_out_sync;
 		}
 
-		job->out_sync.chains = kcalloc(job->out_sync.count,
-					       sizeof(*job->out_sync.chains),
-					       GFP_KERNEL);
+		job->out_sync.chains = kzalloc_objs(*job->out_sync.chains,
+						    job->out_sync.count);
 		if (!job->out_sync.chains) {
 			ret = -ENOMEM;
 			goto err_free_objs;
@@ -467,7 +465,7 @@ nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
 	struct nouveau_sched *sched;
 	int ret;
 
-	sched = kzalloc(sizeof(*sched), GFP_KERNEL);
+	sched = kzalloc_obj(*sched);
 	if (!sched)
 		return -ENOMEM;
 

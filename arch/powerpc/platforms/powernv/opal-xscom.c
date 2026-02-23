@@ -158,7 +158,7 @@ static int scom_debug_init_one(struct dentry *root, struct device_node *dn,
 	struct scom_debug_entry *ent;
 	struct dentry *dir;
 
-	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kzalloc_obj(*ent);
 	if (!ent)
 		return -ENOMEM;
 

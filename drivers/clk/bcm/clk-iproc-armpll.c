@@ -238,7 +238,7 @@ void __init iproc_armpll_setup(struct device_node *node)
 	struct clk_init_data init;
 	const char *parent_name;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (WARN_ON(!pll))
 		return;
 

@@ -178,7 +178,7 @@ static int tua9001_probe(struct i2c_client *client)
 		.val_bits = 16,
 	};
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

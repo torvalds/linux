@@ -50,7 +50,7 @@ static int qseecom_client_register(struct platform_device *qseecom_dev,
 	dev_info(&qseecom_dev->dev, "setting up client for %s\n", desc->app_name);
 
 	/* Allocate and set-up the client device */
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
 

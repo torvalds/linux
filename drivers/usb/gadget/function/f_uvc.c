@@ -362,6 +362,10 @@ uvc_function_set_alt(struct usb_function *f, unsigned interface, unsigned alt)
 			return ret;
 		usb_ep_enable(uvc->video.ep);
 
+		uvc->video.max_req_size = uvc->video.ep->maxpacket
+			* max_t(unsigned int, uvc->video.ep->maxburst, 1)
+			* (uvc->video.ep->mult);
+
 		memset(&v4l2_event, 0, sizeof(v4l2_event));
 		v4l2_event.type = UVC_EVENT_STREAMON;
 		v4l2_event_queue(&uvc->vdev, &v4l2_event);
@@ -883,7 +887,7 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 	struct uvc_descriptor_header **ctl_cls;
 	int ret;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	opts->func_inst.free_func_inst = uvc_free_inst;
@@ -1038,7 +1042,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 	struct uvc_descriptor_header **strm_cls;
 	struct config_item *streaming, *header, *h;
 
-	uvc = kzalloc(sizeof(*uvc), GFP_KERNEL);
+	uvc = kzalloc_obj(*uvc);
 	if (uvc == NULL)
 		return ERR_PTR(-ENOMEM);
 

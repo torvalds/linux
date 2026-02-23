@@ -145,7 +145,7 @@ struct clk_hw *__clk_hw_register_gate(struct device *dev,
 	}
 
 	/* allocate the gate */
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

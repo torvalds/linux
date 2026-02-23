@@ -510,7 +510,7 @@ static struct htc_packet *build_htc_txctrl_packet(void)
 	struct htc_packet *packet = NULL;
 	struct sk_buff *skb;
 
-	packet = kzalloc(sizeof(struct htc_packet), GFP_KERNEL);
+	packet = kzalloc_obj(struct htc_packet);
 	if (packet == NULL)
 		return NULL;
 
@@ -1409,7 +1409,7 @@ static void *ath6kl_htc_pipe_create(struct ath6kl *ar)
 	struct htc_packet *packet;
 	int i;
 
-	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
+	target = kzalloc_obj(struct htc_target);
 	if (target == NULL) {
 		ath6kl_err("htc create unable to allocate memory\n");
 		status = -ENOMEM;
@@ -1423,13 +1423,13 @@ static void *ath6kl_htc_pipe_create(struct ath6kl *ar)
 	reset_endpoint_states(target);
 
 	for (i = 0; i < HTC_PACKET_CONTAINER_ALLOCATION; i++) {
-		packet = kzalloc(sizeof(struct htc_packet), GFP_KERNEL);
+		packet = kzalloc_obj(struct htc_packet);
 
 		if (packet != NULL)
 			free_htc_packet_container(target, packet);
 	}
 
-	target->dev = kzalloc(sizeof(*target->dev), GFP_KERNEL);
+	target->dev = kzalloc_obj(*target->dev);
 	if (!target->dev) {
 		ath6kl_err("unable to allocate memory\n");
 		status = -ENOMEM;

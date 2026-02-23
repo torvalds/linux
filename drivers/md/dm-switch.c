@@ -62,7 +62,7 @@ static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned int nr
 {
 	struct switch_ctx *sctx;
 
-	sctx = kzalloc(struct_size(sctx, path_list, nr_paths), GFP_KERNEL);
+	sctx = kzalloc_flex(*sctx, path_list, nr_paths);
 	if (!sctx)
 		return NULL;
 

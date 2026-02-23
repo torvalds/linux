@@ -61,8 +61,8 @@ static int mthca_query_device(struct ib_device *ibdev, struct ib_device_attr *pr
 	if (uhw->inlen || uhw->outlen)
 		return -EINVAL;
 
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 
@@ -125,8 +125,8 @@ static int mthca_query_port(struct ib_device *ibdev,
 	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 
@@ -221,8 +221,8 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 
@@ -250,8 +250,8 @@ static int mthca_query_gid(struct ib_device *ibdev, u32 port,
 	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 
@@ -516,7 +516,7 @@ static int mthca_create_qp(struct ib_qp *ibqp,
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	{
-		qp->sqp = kzalloc(sizeof(struct mthca_sqp), GFP_KERNEL);
+		qp->sqp = kzalloc_obj(struct mthca_sqp);
 		if (!qp->sqp)
 			return -ENOMEM;
 
@@ -660,7 +660,7 @@ static int mthca_alloc_resize_buf(struct mthca_dev *dev, struct mthca_cq *cq,
 		goto unlock;
 	}
 
-	cq->resize_buf = kmalloc(sizeof *cq->resize_buf, GFP_ATOMIC);
+	cq->resize_buf = kmalloc_obj(*cq->resize_buf, GFP_ATOMIC);
 	if (!cq->resize_buf) {
 		ret = -ENOMEM;
 		goto unlock;
@@ -806,7 +806,7 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 	struct mthca_mr *mr;
 	int err;
 
-	mr = kmalloc(sizeof *mr, GFP_KERNEL);
+	mr = kmalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -853,7 +853,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	} else if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 		return ERR_PTR(-EFAULT);
 
-	mr = kmalloc(sizeof *mr, GFP_KERNEL);
+	mr = kmalloc_obj(*mr);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
@@ -998,8 +998,8 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 	struct ib_smp *out_mad;
 	int err = -ENOMEM;
 
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	in_mad = kzalloc_obj(*in_mad);
+	out_mad = kmalloc_obj(*out_mad);
 	if (!in_mad || !out_mad)
 		goto out;
 

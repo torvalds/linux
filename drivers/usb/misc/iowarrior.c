@@ -777,7 +777,7 @@ static int iowarrior_probe(struct usb_interface *interface,
 	int res;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(struct iowarrior), GFP_KERNEL);
+	dev = kzalloc_obj(struct iowarrior);
 	if (!dev)
 		return retval;
 

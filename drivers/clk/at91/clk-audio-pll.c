@@ -460,7 +460,7 @@ at91_clk_register_audio_pll_frac(struct regmap *regmap, const char *name,
 	struct clk_init_data init = {};
 	int ret;
 
-	frac_ck = kzalloc(sizeof(*frac_ck), GFP_KERNEL);
+	frac_ck = kzalloc_obj(*frac_ck);
 	if (!frac_ck)
 		return ERR_PTR(-ENOMEM);
 
@@ -490,7 +490,7 @@ at91_clk_register_audio_pll_pad(struct regmap *regmap, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	apad_ck = kzalloc(sizeof(*apad_ck), GFP_KERNEL);
+	apad_ck = kzalloc_obj(*apad_ck);
 	if (!apad_ck)
 		return ERR_PTR(-ENOMEM);
 
@@ -521,7 +521,7 @@ at91_clk_register_audio_pll_pmc(struct regmap *regmap, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	apmc_ck = kzalloc(sizeof(*apmc_ck), GFP_KERNEL);
+	apmc_ck = kzalloc_obj(*apmc_ck);
 	if (!apmc_ck)
 		return ERR_PTR(-ENOMEM);
 

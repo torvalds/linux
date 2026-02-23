@@ -2041,7 +2041,7 @@ lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
 	struct sff_trasnceiver_codes_byte7 *trasn_code_byte7;
 
 	/* Get transceiver information */
-	rdp_context = kmalloc(sizeof(*rdp_context), GFP_KERNEL);
+	rdp_context = kmalloc_obj(*rdp_context);
 	if (!rdp_context) {
 		len = scnprintf(buf, PAGE_SIZE - len,
 				"SPF info NA: alloc failure\n");
@@ -6979,6 +6979,42 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	return;
 }
 
+/**
+ * lpfc_get_enc_info - Return encryption information about the session for
+ *                     a given remote port.
+ * @rport: ptr to fc_rport from scsi transport fc
+ *
+ * Given an rport object, iterate through the fc_nodes list to find node
+ * corresponding with rport. Pass the encryption information from the node to
+ * rport's encryption attribute for reporting to upper layers. Information is
+ * passed through nlp_enc_info struct which contains encryption status.
+ *
+ * Returns:
+ * - Address of rport's fc_encryption_info struct
+ * - NULL when not found
+ **/
+static struct fc_encryption_info *
+lpfc_get_enc_info(struct fc_rport *rport)
+{
+	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct fc_encryption_info *ef = NULL;
+	struct lpfc_nodelist *ndlp, *next_ndlp;
+	unsigned long iflags;
+
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (ndlp->rport && ndlp->rport == rport) {
+			ef = &rport->enc_info;
+			ef->status = ndlp->nlp_enc_info.status;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
+	return ef;
+}
+
+
 /*
  * The LPFC driver treats linkdown handling as target loss events so there
  * are no sysfs handlers for link_down_tmo.
@@ -7196,6 +7232,8 @@ struct fc_function_template lpfc_transport_functions = {
 	.get_fc_host_stats = lpfc_get_stats,
 	.reset_fc_host_stats = lpfc_reset_stats,
 
+	.get_fc_rport_enc_info = lpfc_get_enc_info,
+
 	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
 	.show_rport_maxframe_size = 1,
 	.show_rport_supported_classes = 1,
@@ -7264,6 +7302,8 @@ struct fc_function_template lpfc_vport_transport_functions = {
 
 	.get_fc_host_stats = lpfc_get_stats,
 	.reset_fc_host_stats = lpfc_reset_stats,
+
+	.get_fc_rport_enc_info = lpfc_get_enc_info,
 
 	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
 	.show_rport_maxframe_size = 1,

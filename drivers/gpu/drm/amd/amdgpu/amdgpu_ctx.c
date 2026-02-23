@@ -212,8 +212,7 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	int32_t ctx_prio;
 	int r;
 
-	entity = kzalloc(struct_size(entity, fences, amdgpu_sched_jobs),
-			 GFP_KERNEL);
+	entity = kzalloc_flex(*entity, fences, amdgpu_sched_jobs);
 	if (!entity)
 		return  -ENOMEM;
 
@@ -438,18 +437,21 @@ int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 	struct drm_sched_entity *ctx_entity;
 
 	if (hw_ip >= AMDGPU_HW_IP_NUM) {
-		DRM_ERROR("unknown HW IP type: %d\n", hw_ip);
+		drm_err(adev_to_drm(ctx->mgr->adev),
+			"unknown HW IP type: %d\n", hw_ip);
 		return -EINVAL;
 	}
 
 	/* Right now all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
-		DRM_DEBUG("invalid ip instance: %d\n", instance);
+		drm_dbg(adev_to_drm(ctx->mgr->adev),
+			"invalid ip instance: %d\n", instance);
 		return -EINVAL;
 	}
 
 	if (ring >= amdgpu_ctx_num_entities[hw_ip]) {
-		DRM_DEBUG("invalid ring: %d %d\n", hw_ip, ring);
+		drm_dbg(adev_to_drm(ctx->mgr->adev),
+			"invalid ring: %d %d\n", hw_ip, ring);
 		return -EINVAL;
 	}
 
@@ -480,7 +482,7 @@ static int amdgpu_ctx_alloc(struct amdgpu_device *adev,
 	struct amdgpu_ctx *ctx;
 	int r;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -874,7 +876,8 @@ int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
 
 	r = dma_fence_wait(other, true);
 	if (r < 0 && r != -ERESTARTSYS)
-		DRM_ERROR("Error (%ld) waiting for fence!\n", r);
+		drm_err(adev_to_drm(ctx->mgr->adev),
+			"AMDGPU: Error waiting for fence in ctx %p\n", ctx);
 
 	dma_fence_put(other);
 	return r;
@@ -929,7 +932,7 @@ static void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr)
 
 	idr_for_each_entry(idp, ctx, id) {
 		if (kref_read(&ctx->refcount) != 1) {
-			DRM_ERROR("ctx %p is still alive\n", ctx);
+			drm_err(adev_to_drm(mgr->adev), "ctx %p is still alive\n", ctx);
 			continue;
 		}
 

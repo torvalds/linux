@@ -92,7 +92,7 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	int cnt;
 	int i;
 
-	conf = kzalloc(struct_size(conf, disks, raid_disks), GFP_KERNEL);
+	conf = kzalloc_flex(*conf, disks, raid_disks);
 	if (!conf)
 		return ERR_PTR(-ENOMEM);
 

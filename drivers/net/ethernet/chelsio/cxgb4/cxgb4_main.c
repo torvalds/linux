@@ -388,7 +388,7 @@ static int cxgb4_mac_sync(struct net_device *netdev, const u8 *mac_addr)
 	 * list and program it
 	 */
 	if (uhash || mhash) {
-		new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
+		new_entry = kzalloc_obj(*new_entry, GFP_ATOMIC);
 		if (!new_entry)
 			return -ENOMEM;
 		ether_addr_copy(new_entry->addr, mac_addr);
@@ -478,7 +478,7 @@ int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
 				goto set_hash;
 			}
 		}
-		new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
+		new_entry = kzalloc_obj(*new_entry);
 		if (!new_entry)
 			return -ENOMEM;
 		ether_addr_copy(new_entry->addr, addr);
@@ -1330,7 +1330,7 @@ static int cxgb4_port_mirror_alloc_queues(struct net_device *dev)
 	if (s->mirror_rxq[pi->port_id])
 		return 0;
 
-	mirror_rxq = kcalloc(pi->nmirrorqsets, sizeof(*mirror_rxq), GFP_KERNEL);
+	mirror_rxq = kzalloc_objs(*mirror_rxq, pi->nmirrorqsets);
 	if (!mirror_rxq)
 		return -ENOMEM;
 
@@ -4057,7 +4057,7 @@ static int adap_config_hma(struct adapter *adapter)
 
 	page_size = HMA_PAGE_SIZE;
 	page_order = HMA_PAGE_ORDER;
-	adapter->hma.sgt = kzalloc(sizeof(*adapter->hma.sgt), GFP_KERNEL);
+	adapter->hma.sgt = kzalloc_obj(*adapter->hma.sgt);
 	if (unlikely(!adapter->hma.sgt)) {
 		dev_err(adapter->pdev_dev, "HMA SG table allocation failed\n");
 		return -ENOMEM;
@@ -4097,8 +4097,7 @@ static int adap_config_hma(struct adapter *adapter)
 	}
 	adapter->hma.flags |= HMA_DMA_MAPPED_FLAG;
 
-	adapter->hma.phy_addr = kcalloc(sgt->nents, sizeof(dma_addr_t),
-					GFP_KERNEL);
+	adapter->hma.phy_addr = kzalloc_objs(dma_addr_t, sgt->nents);
 	if (unlikely(!adapter->hma.phy_addr))
 		goto free_hma;
 
@@ -4812,7 +4811,7 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 		/* allocate memory to read the header of the firmware on the
 		 * card
 		 */
-		card_fw = kvzalloc(sizeof(*card_fw), GFP_KERNEL);
+		card_fw = kvzalloc_obj(*card_fw);
 		if (!card_fw) {
 			ret = -ENOMEM;
 			goto bye;
@@ -5022,15 +5021,14 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	adap->sge.egr_sz = val[0] - adap->sge.egr_start + 1;
 	adap->sge.ingr_sz = val[1] - adap->sge.ingr_start + 1;
 
-	adap->sge.egr_map = kcalloc(adap->sge.egr_sz,
-				    sizeof(*adap->sge.egr_map), GFP_KERNEL);
+	adap->sge.egr_map = kzalloc_objs(*adap->sge.egr_map, adap->sge.egr_sz);
 	if (!adap->sge.egr_map) {
 		ret = -ENOMEM;
 		goto bye;
 	}
 
-	adap->sge.ingr_map = kcalloc(adap->sge.ingr_sz,
-				     sizeof(*adap->sge.ingr_map), GFP_KERNEL);
+	adap->sge.ingr_map = kzalloc_objs(*adap->sge.ingr_map,
+					  adap->sge.ingr_sz);
 	if (!adap->sge.ingr_map) {
 		ret = -ENOMEM;
 		goto bye;
@@ -5836,7 +5834,7 @@ static int alloc_msix_info(struct adapter *adap, u32 num_vec)
 {
 	struct msix_info *msix_info;
 
-	msix_info = kcalloc(num_vec, sizeof(*msix_info), GFP_KERNEL);
+	msix_info = kzalloc_objs(*msix_info, num_vec);
 	if (!msix_info)
 		return -ENOMEM;
 
@@ -5935,7 +5933,7 @@ static int enable_msix(struct adapter *adap)
 	want += EXTRA_VECS;
 	need += EXTRA_VECS;
 
-	entries = kmalloc_array(want, sizeof(*entries), GFP_KERNEL);
+	entries = kmalloc_objs(*entries, want);
 	if (!entries)
 		return -ENOMEM;
 
@@ -6350,8 +6348,8 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 			return err;
 		}
 		/* Allocate and set up VF Information. */
-		adap->vfinfo = kcalloc(pci_sriov_get_totalvfs(pdev),
-				       sizeof(struct vf_info), GFP_KERNEL);
+		adap->vfinfo = kzalloc_objs(struct vf_info,
+					    pci_sriov_get_totalvfs(pdev));
 		if (!adap->vfinfo) {
 			unregister_netdev(adap->port[0]);
 			free_netdev(adap->port[0]);
@@ -6604,7 +6602,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter) {
 		err = -ENOMEM;
 		goto out_unmap_bar0;

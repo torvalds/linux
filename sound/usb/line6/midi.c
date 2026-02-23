@@ -264,7 +264,7 @@ int line6_init_midi(struct usb_line6 *line6)
 	if (err < 0)
 		return err;
 
-	line6midi = kzalloc(sizeof(struct snd_line6_midi), GFP_KERNEL);
+	line6midi = kzalloc_obj(struct snd_line6_midi);
 	if (!line6midi)
 		return -ENOMEM;
 

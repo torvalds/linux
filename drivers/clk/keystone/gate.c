@@ -168,7 +168,7 @@ static struct clk *clk_register_psc(struct device *dev,
 	struct clk_psc *psc;
 	struct clk *clk;
 
-	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
+	psc = kzalloc_obj(*psc);
 	if (!psc)
 		return ERR_PTR(-ENOMEM);
 
@@ -202,7 +202,7 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 	struct clk *clk;
 	int i;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data) {
 		pr_err("%s: Out of memory\n", __func__);
 		return;

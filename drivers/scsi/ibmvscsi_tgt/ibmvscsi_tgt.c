@@ -2214,7 +2214,7 @@ static int ibmvscsis_make_nexus(struct ibmvscsis_tport *tport)
 		return 0;
 	}
 
-	nexus = kzalloc(sizeof(*nexus), GFP_KERNEL);
+	nexus = kzalloc_obj(*nexus);
 	if (!nexus) {
 		dev_err(&vscsi->dev, "Unable to allocate struct ibmvscsis_nexus\n");
 		return -ENOMEM;
@@ -3424,7 +3424,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	int rc = 0;
 	long hrc = 0;
 
-	vscsi = kzalloc(sizeof(*vscsi), GFP_KERNEL);
+	vscsi = kzalloc_obj(*vscsi);
 	if (!vscsi) {
 		rc = -ENOMEM;
 		dev_err(&vdev->dev, "probe: allocation of adapter failed\n");

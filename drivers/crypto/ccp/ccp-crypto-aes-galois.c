@@ -212,7 +212,7 @@ static int ccp_register_aes_aead(struct list_head *head,
 	struct aead_alg *alg;
 	int ret;
 
-	ccp_aead = kzalloc(sizeof(*ccp_aead), GFP_KERNEL);
+	ccp_aead = kzalloc_obj(*ccp_aead);
 	if (!ccp_aead)
 		return -ENOMEM;
 

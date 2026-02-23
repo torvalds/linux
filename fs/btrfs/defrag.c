@@ -609,7 +609,7 @@ static struct extent_map *defrag_get_extent(struct btrfs_inode *inode,
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_file_extent_item *fi;
-	struct btrfs_path path = { 0 };
+	BTRFS_PATH_AUTO_RELEASE(path);
 	struct extent_map *em;
 	struct btrfs_key key;
 	u64 ino = btrfs_ino(inode);
@@ -720,16 +720,13 @@ next:
 		if (ret > 0)
 			goto not_found;
 	}
-	btrfs_release_path(&path);
 	return em;
 
 not_found:
-	btrfs_release_path(&path);
 	btrfs_free_extent_map(em);
 	return NULL;
 
 err:
-	btrfs_release_path(&path);
 	btrfs_free_extent_map(em);
 	return ERR_PTR(ret);
 }
@@ -795,10 +792,11 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct extent_map *next;
+	const u64 em_end = btrfs_extent_map_end(em);
 	bool ret = false;
 
 	/* This is the last extent */
-	if (em->start + em->len >= i_size_read(inode))
+	if (em_end >= i_size_read(inode))
 		return false;
 
 	/*
@@ -807,7 +805,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 	 * one will not be a target.
 	 * This will just cause extra IO without really reducing the fragments.
 	 */
-	next = defrag_lookup_extent(inode, em->start + em->len, newer_than, locked);
+	next = defrag_lookup_extent(inode, em_end, newer_than, locked);
 	/* No more em or hole */
 	if (!next || next->disk_bytenr >= EXTENT_MAP_LAST_BYTE)
 		goto out;
@@ -1093,7 +1091,7 @@ add:
 		}
 
 		/* Allocate new defrag_target_range */
-		new = kmalloc(sizeof(*new), GFP_NOFS);
+		new = kmalloc_obj(*new, GFP_NOFS);
 		if (!new) {
 			btrfs_free_extent_map(em);
 			ret = -ENOMEM;
@@ -1208,7 +1206,7 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 	ASSERT(nr_pages <= CLUSTER_SIZE / PAGE_SIZE);
 	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(len, sectorsize));
 
-	folios = kcalloc(nr_pages, sizeof(struct folio *), GFP_NOFS);
+	folios = kzalloc_objs(struct folio *, nr_pages, GFP_NOFS);
 	if (!folios)
 		return -ENOMEM;
 

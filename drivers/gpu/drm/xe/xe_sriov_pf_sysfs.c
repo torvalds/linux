@@ -349,18 +349,33 @@ static const struct attribute_group *xe_sriov_vf_attr_groups[] = {
 
 /* no user serviceable parts below */
 
-static struct kobject *create_xe_sriov_kobj(struct xe_device *xe, unsigned int vfid)
+static void action_put_kobject(void *arg)
+{
+	struct kobject *kobj = arg;
+
+	kobject_put(kobj);
+}
+
+static struct kobject *create_xe_sriov_kobj(struct xe_device *xe, unsigned int vfid,
+					    const struct kobj_type *ktype)
 {
 	struct xe_sriov_kobj *vkobj;
+	int err;
 
 	xe_sriov_pf_assert_vfid(xe, vfid);
 
-	vkobj = kzalloc(sizeof(*vkobj), GFP_KERNEL);
+	vkobj = kzalloc_obj(*vkobj);
 	if (!vkobj)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	vkobj->xe = xe;
 	vkobj->vfid = vfid;
+	kobject_init(&vkobj->base, ktype);
+
+	err = devm_add_action_or_reset(xe->drm.dev, action_put_kobject, &vkobj->base);
+	if (err)
+		return ERR_PTR(err);
+
 	return &vkobj->base;
 }
 
@@ -389,16 +404,12 @@ static ssize_t xe_sriov_dev_attr_store(struct kobject *kobj, struct attribute *a
 	struct xe_sriov_dev_attr *vattr = to_xe_sriov_dev_attr(attr);
 	struct xe_sriov_kobj *vkobj = to_xe_sriov_kobj(kobj);
 	struct xe_device *xe = vkobj->xe;
-	ssize_t ret;
 
 	if (!vattr->store)
 		return -EPERM;
 
-	xe_pm_runtime_get(xe);
-	ret = xe_sriov_pf_wait_ready(xe) ?: vattr->store(xe, buf, count);
-	xe_pm_runtime_put(xe);
-
-	return ret;
+	guard(xe_pm_runtime)(xe);
+	return xe_sriov_pf_wait_ready(xe) ?: vattr->store(xe, buf, count);
 }
 
 static ssize_t xe_sriov_vf_attr_show(struct kobject *kobj, struct attribute *attr, char *buf)
@@ -423,18 +434,14 @@ static ssize_t xe_sriov_vf_attr_store(struct kobject *kobj, struct attribute *at
 	struct xe_sriov_kobj *vkobj = to_xe_sriov_kobj(kobj);
 	struct xe_device *xe = vkobj->xe;
 	unsigned int vfid = vkobj->vfid;
-	ssize_t ret;
 
 	xe_sriov_pf_assert_vfid(xe, vfid);
 
 	if (!vattr->store)
 		return -EPERM;
 
-	xe_pm_runtime_get(xe);
-	ret = xe_sriov_pf_wait_ready(xe) ?: vattr->store(xe, vfid, buf, count);
-	xe_pm_runtime_get(xe);
-
-	return ret;
+	guard(xe_pm_runtime)(xe);
+	return xe_sriov_pf_wait_ready(xe) ?: vattr->store(xe, vfid, buf, count);
 }
 
 static const struct sysfs_ops xe_sriov_dev_sysfs_ops = {
@@ -471,28 +478,17 @@ static void pf_sysfs_note(struct xe_device *xe, int err, const char *what)
 	xe_sriov_dbg(xe, "Failed to setup sysfs %s (%pe)\n", what, ERR_PTR(err));
 }
 
-static void action_put_kobject(void *arg)
-{
-	struct kobject *kobj = arg;
-
-	kobject_put(kobj);
-}
-
 static int pf_setup_root(struct xe_device *xe)
 {
 	struct kobject *parent = &xe->drm.dev->kobj;
 	struct kobject *root;
 	int err;
 
-	root = create_xe_sriov_kobj(xe, PFID);
-	if (!root)
-		return pf_sysfs_error(xe, -ENOMEM, "root obj");
+	root = create_xe_sriov_kobj(xe, PFID, &xe_sriov_dev_ktype);
+	if (IS_ERR(root))
+		return pf_sysfs_error(xe, PTR_ERR(root), "root obj");
 
-	err = devm_add_action_or_reset(xe->drm.dev, action_put_kobject, root);
-	if (err)
-		return pf_sysfs_error(xe, err, "root action");
-
-	err = kobject_init_and_add(root, &xe_sriov_dev_ktype, parent, "sriov_admin");
+	err = kobject_add(root, parent, "sriov_admin");
 	if (err)
 		return pf_sysfs_error(xe, err, "root init");
 
@@ -513,20 +509,14 @@ static int pf_setup_tree(struct xe_device *xe)
 	root = xe->sriov.pf.sysfs.root;
 
 	for (n = 0; n <= totalvfs; n++) {
-		kobj = create_xe_sriov_kobj(xe, VFID(n));
-		if (!kobj)
-			return pf_sysfs_error(xe, -ENOMEM, "tree obj");
-
-		err = devm_add_action_or_reset(xe->drm.dev, action_put_kobject, root);
-		if (err)
-			return pf_sysfs_error(xe, err, "tree action");
+		kobj = create_xe_sriov_kobj(xe, VFID(n), &xe_sriov_vf_ktype);
+		if (IS_ERR(kobj))
+			return pf_sysfs_error(xe, PTR_ERR(kobj), "tree obj");
 
 		if (n)
-			err = kobject_init_and_add(kobj, &xe_sriov_vf_ktype,
-						   root, "vf%u", n);
+			err = kobject_add(kobj, root, "vf%u", n);
 		else
-			err = kobject_init_and_add(kobj, &xe_sriov_vf_ktype,
-						   root, "pf");
+			err = kobject_add(kobj, root, "pf");
 		if (err)
 			return pf_sysfs_error(xe, err, "tree init");
 

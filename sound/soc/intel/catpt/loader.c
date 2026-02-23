@@ -580,10 +580,6 @@ release_fw:
 
 static int catpt_load_images(struct catpt_dev *cdev, bool restore)
 {
-	static const char *const names[] = {
-		"intel/IntcSST1.bin",
-		"intel/IntcSST2.bin",
-	};
 	struct dma_chan *chan;
 	int ret;
 
@@ -591,7 +587,7 @@ static int catpt_load_images(struct catpt_dev *cdev, bool restore)
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	ret = catpt_load_image(cdev, chan, names[cdev->spec->core_id - 1],
+	ret = catpt_load_image(cdev, chan, cdev->spec->fw_name,
 			       FW_SIGNATURE, restore);
 	if (ret)
 		goto release_dma_chan;
@@ -656,7 +652,7 @@ int catpt_first_boot_firmware(struct catpt_dev *cdev)
 
 	ret = catpt_ipc_get_mixer_stream_info(cdev, &cdev->mixer);
 	if (ret)
-		return CATPT_IPC_ERROR(ret);
+		return CATPT_IPC_RET(ret);
 
 	ret = catpt_arm_stream_templates(cdev);
 	if (ret) {

@@ -65,7 +65,7 @@ static int report_partial_fault(struct iommu_fault_param *fault_param,
 {
 	struct iopf_fault *iopf;
 
-	iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
+	iopf = kzalloc_obj(*iopf);
 	if (!iopf)
 		return -ENOMEM;
 
@@ -85,7 +85,7 @@ static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
 	struct iopf_fault *iopf, *next;
 	struct iopf_group *group;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = kzalloc_obj(*group);
 	if (!group) {
 		/*
 		 * We always need to construct the group as we need it to abort
@@ -400,7 +400,7 @@ int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
 		goto done_unlock;
 	}
 
-	fault_param = kzalloc(sizeof(*fault_param), GFP_KERNEL);
+	fault_param = kzalloc_obj(*fault_param);
 	if (!fault_param) {
 		ret = -ENOMEM;
 		goto done_unlock;
@@ -503,7 +503,7 @@ struct iopf_queue *iopf_queue_alloc(const char *name)
 {
 	struct iopf_queue *queue;
 
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+	queue = kzalloc_obj(*queue);
 	if (!queue)
 		return NULL;
 

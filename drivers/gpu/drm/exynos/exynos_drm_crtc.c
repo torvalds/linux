@@ -180,7 +180,7 @@ struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
 	struct drm_crtc *crtc;
 	int ret;
 
-	exynos_crtc = kzalloc(sizeof(*exynos_crtc), GFP_KERNEL);
+	exynos_crtc = kzalloc_obj(*exynos_crtc);
 	if (!exynos_crtc)
 		return ERR_PTR(-ENOMEM);
 

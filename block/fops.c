@@ -65,8 +65,7 @@ static ssize_t __blkdev_direct_IO_simple(struct kiocb *iocb,
 	if (nr_pages <= DIO_INLINE_BIO_VECS)
 		vecs = inline_vecs;
 	else {
-		vecs = kmalloc_array(nr_pages, sizeof(struct bio_vec),
-				     GFP_KERNEL);
+		vecs = kmalloc_objs(struct bio_vec, nr_pages);
 		if (!vecs)
 			return -ENOMEM;
 	}

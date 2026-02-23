@@ -90,7 +90,7 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		/* No point to allocate a bitmap just to clear permissions */
 		if (!turn_on)
 			return 0;
-		iobm = kmalloc(sizeof(*iobm), GFP_KERNEL);
+		iobm = kmalloc_obj(*iobm);
 		if (!iobm)
 			return -ENOMEM;
 

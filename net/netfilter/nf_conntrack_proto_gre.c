@@ -33,12 +33,14 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <net/dst.h>
+#include <net/gre.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
+#include <net/pptp.h>
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 
@@ -106,7 +108,7 @@ int nf_ct_gre_keymap_add(struct nf_conn *ct, enum ip_conntrack_dir dir,
 		return -EEXIST;
 	}
 
-	km = kmalloc(sizeof(*km), GFP_ATOMIC);
+	km = kmalloc_obj(*km, GFP_ATOMIC);
 	if (!km)
 		return -ENOMEM;
 	memcpy(&km->tuple, t, sizeof(*t));

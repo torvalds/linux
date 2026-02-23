@@ -51,6 +51,22 @@ static DEFINE_SPINLOCK(xencons_lock);
 
 /* ------------------------------------------------------------------ */
 
+static bool xen_console_io = false;
+static int __initdata opt_console_io = -1;
+
+static int __init parse_xen_console_io(char *arg)
+{
+	bool val;
+	int ret;
+
+	ret = kstrtobool(arg, &val);
+	if (ret == 0)
+		opt_console_io = (int)val;
+
+	return ret;
+}
+early_param("xen_console_io", parse_xen_console_io);
+
 static struct xencons_info *vtermno_to_xencons(int vtermno)
 {
 	struct xencons_info *entry, *ret = NULL;
@@ -248,7 +264,7 @@ static int xen_hvm_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 		spin_lock_init(&info->ring_lock);
@@ -312,7 +328,7 @@ static int xen_pv_console_init(void)
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 	} else if (info->intf != NULL) {
@@ -331,12 +347,12 @@ static int xen_initial_domain_console_init(void)
 	struct xencons_info *info;
 	unsigned long flags;
 
-	if (!xen_initial_domain())
+	if (!xen_console_io)
 		return -ENODEV;
 
 	info = vtermno_to_xencons(HVC_COOKIE);
 	if (!info) {
-		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+		info = kzalloc_obj(struct xencons_info);
 		if (!info)
 			return -ENOMEM;
 		spin_lock_init(&info->ring_lock);
@@ -369,7 +385,7 @@ void xen_console_resume(void)
 {
 	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
 	if (info != NULL && info->irq) {
-		if (!xen_initial_domain())
+		if (!xen_console_io)
 			xen_console_update_evtchn(info);
 		rebind_evtchn_irq(info->evtchn, info->irq);
 	}
@@ -497,7 +513,7 @@ static int xencons_probe(struct xenbus_device *dev,
 	if (devid == 0)
 		return -ENODEV;
 
-	info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
+	info = kzalloc_obj(struct xencons_info);
 	if (!info)
 		return -ENOMEM;
 	spin_lock_init(&info->ring_lock);
@@ -601,7 +617,7 @@ static int __init xen_hvc_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (xen_initial_domain()) {
+	if (xen_console_io) {
 		ops = &dom0_hvc_ops;
 		r = xen_initial_domain_console_init();
 		if (r < 0)
@@ -647,14 +663,17 @@ static int __init xen_hvc_init(void)
 }
 device_initcall(xen_hvc_init);
 
-static int xen_cons_init(void)
+static int __init xen_cons_init(void)
 {
 	const struct hv_ops *ops;
+
+	xen_console_io = opt_console_io >= 0 ? opt_console_io :
+					       xen_initial_domain();
 
 	if (!xen_domain())
 		return 0;
 
-	if (xen_initial_domain())
+	if (xen_console_io)
 		ops = &dom0_hvc_ops;
 	else {
 		int r;

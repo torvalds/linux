@@ -5,7 +5,6 @@
 
 #include "pvr_device.h"
 #include "pvr_fw_trace.h"
-#include "pvr_params.h"
 
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
@@ -18,7 +17,6 @@
 #include <drm/drm_print.h>
 
 static const struct pvr_debugfs_entry pvr_debugfs_entries[] = {
-	{"pvr_params", pvr_params_debugfs_init},
 	{"pvr_fw", pvr_fw_trace_debugfs_init},
 };
 

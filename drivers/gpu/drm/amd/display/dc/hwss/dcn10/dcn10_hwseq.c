@@ -50,6 +50,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dsc.h"
+#include "dio/dcn10/dcn10_dio.h"
 #include "dce/dmub_psr.h"
 #include "dc_dmub_srv.h"
 #include "dce/dmub_hw_lock_mgr.h"
@@ -1881,13 +1882,13 @@ void dcn10_init_hw(struct dc *dc)
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	if (!is_optimized_init_done)
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+		if (dc->res_pool->dio && dc->res_pool->dio->funcs->mem_pwr_ctrl)
+			dc->res_pool->dio->funcs->mem_pwr_ctrl(dc->res_pool->dio, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+		if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->allow_clock_gating)
+			dc->res_pool->dccg->funcs->allow_clock_gating(dc->res_pool->dccg, true);
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
@@ -2398,7 +2399,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 
 	DC_LOGGER_INIT(dc_ctx->logger);
 
-	hw_crtc_timing = kcalloc(MAX_PIPES, sizeof(*hw_crtc_timing), GFP_KERNEL);
+	hw_crtc_timing = kzalloc_objs(*hw_crtc_timing, MAX_PIPES);
 	if (!hw_crtc_timing)
 		return master;
 
@@ -2678,8 +2679,7 @@ static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 	uint32_t fb_base_value;
 	uint32_t fb_offset_value;
 
-	REG_GET(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, &fb_base_value);
-	REG_GET(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, &fb_offset_value);
+	dcn10_hubbub_read_fb_aperture(hws->ctx->dc->res_pool->hubbub, &fb_base_value, &fb_offset_value);
 
 	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
 			PAGE_DIRECTORY_ENTRY_HI32, &vm0->pte_base.high_part);
@@ -3474,7 +3474,7 @@ void dcn10_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 					triggers, params->num_frames);
 }
 
-static void dcn10_config_stereo_parameters(
+void dcn10_config_stereo_parameters(
 		struct dc_stream_state *stream, struct crtc_stereo_flags *flags)
 {
 	enum view_3d_format view_format = stream->view_format;
@@ -3666,7 +3666,11 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
-	int clip_x = pipe_ctx->plane_state->clip_rect.x;
+	bool is_primary_plane = (pipe_ctx->plane_state->layer_index == 0);
+
+	int clip_x = (pos_cpy.use_viewport_for_clip && is_primary_plane &&
+		!odm_combine_on && !pipe_split_on && param.viewport.x != 0)
+		? param.viewport.x : pipe_ctx->plane_state->clip_rect.x;
 	int clip_width = pipe_ctx->plane_state->clip_rect.width;
 
 	if ((pipe_ctx->top_pipe != NULL) || (pipe_ctx->bottom_pipe != NULL)) {

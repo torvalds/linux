@@ -1208,7 +1208,7 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	struct v4l2_ctrl_handler *hdl;
 	int ret;
 
-	solo_enc = kzalloc(sizeof(*solo_enc), GFP_KERNEL);
+	solo_enc = kzalloc_obj(*solo_enc);
 	if (!solo_enc)
 		return ERR_PTR(-ENOMEM);
 

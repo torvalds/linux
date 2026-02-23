@@ -60,7 +60,7 @@ wilc_alloc_work(struct wilc_vif *vif, void (*work_fun)(struct work_struct *),
 	if (!work_fun)
 		return ERR_PTR(-EINVAL);
 
-	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc_obj(*msg, GFP_ATOMIC);
 	if (!msg)
 		return ERR_PTR(-ENOMEM);
 	msg->fn = work_fun;
@@ -387,7 +387,7 @@ wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 	u64 ies_tsf;
 	int ret;
 
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		return NULL;
 
@@ -1039,7 +1039,7 @@ int wilc_set_external_auth_param(struct wilc_vif *vif,
 	wid.id = WID_EXTERNAL_AUTH_PARAM;
 	wid.type = WID_BIN_DATA;
 	wid.size = sizeof(*param);
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		return -EINVAL;
 
@@ -1516,7 +1516,7 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif = netdev_priv(dev);
 
-	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
+	hif_drv = kzalloc_obj(*hif_drv);
 	if (!hif_drv)
 		return -ENOMEM;
 

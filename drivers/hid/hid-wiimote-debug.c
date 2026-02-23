@@ -174,7 +174,7 @@ int wiidebug_init(struct wiimote_data *wdata)
 	struct wiimote_debug *dbg;
 	unsigned long flags;
 
-	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
+	dbg = kzalloc_obj(*dbg);
 	if (!dbg)
 		return -ENOMEM;
 

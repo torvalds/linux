@@ -957,7 +957,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	int r;
 	struct dm_pool_metadata *pmd;
 
-	pmd = kmalloc(sizeof(*pmd), GFP_KERNEL);
+	pmd = kmalloc_obj(*pmd);
 	if (!pmd) {
 		DMERR("could not allocate metadata struct");
 		return ERR_PTR(-ENOMEM);
@@ -1077,7 +1077,7 @@ static int __open_device(struct dm_pool_metadata *pmd,
 		details_le.snapshotted_time = cpu_to_le32(pmd->time);
 	}
 
-	*td = kmalloc(sizeof(**td), GFP_NOIO);
+	*td = kmalloc_obj(**td, GFP_NOIO);
 	if (!*td)
 		return -ENOMEM;
 

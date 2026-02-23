@@ -4341,8 +4341,7 @@ static int niu_alloc_rx_ring_info(struct niu *np,
 {
 	BUILD_BUG_ON(sizeof(struct rxdma_mailbox) != 64);
 
-	rp->rxhash = kcalloc(MAX_RBR_RING_SIZE, sizeof(struct page *),
-			     GFP_KERNEL);
+	rp->rxhash = kzalloc_objs(struct page *, MAX_RBR_RING_SIZE);
 	if (!rp->rxhash)
 		return -ENOMEM;
 
@@ -4485,8 +4484,7 @@ static int niu_alloc_channels(struct niu *np)
 	num_rx_rings = parent->rxchan_per_port[port];
 	num_tx_rings = parent->txchan_per_port[port];
 
-	rx_rings = kcalloc(num_rx_rings, sizeof(struct rx_ring_info),
-			   GFP_KERNEL);
+	rx_rings = kzalloc_objs(struct rx_ring_info, num_rx_rings);
 	err = -ENOMEM;
 	if (!rx_rings)
 		goto out_err;
@@ -4525,8 +4523,7 @@ static int niu_alloc_channels(struct niu *np)
 			goto out_err;
 	}
 
-	tx_rings = kcalloc(num_tx_rings, sizeof(struct tx_ring_info),
-			   GFP_KERNEL);
+	tx_rings = kzalloc_objs(struct tx_ring_info, num_tx_rings);
 	err = -ENOMEM;
 	if (!tx_rings)
 		goto out_err;
@@ -7302,6 +7299,13 @@ static int niu_get_ethtool_tcam_all(struct niu *np,
 	return ret;
 }
 
+static u32 niu_get_rx_ring_count(struct net_device *dev)
+{
+	struct niu *np = netdev_priv(dev);
+
+	return np->num_rx_rings;
+}
+
 static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		       u32 *rule_locs)
 {
@@ -7309,9 +7313,6 @@ static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int ret = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = np->num_rx_rings;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = tcam_get_valid_entry_cnt(np);
 		break;
@@ -7928,6 +7929,7 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.set_phys_id		= niu_set_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
+	.get_rx_ring_count	= niu_get_rx_ring_count,
 	.get_rxfh_fields	= niu_get_rxfh_fields,
 	.set_rxfh_fields	= niu_set_rxfh_fields,
 	.get_link_ksettings	= niu_get_link_ksettings,
@@ -9509,7 +9511,7 @@ static struct niu_parent *niu_new_parent(struct niu *np,
 			goto fail_unregister;
 	}
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		goto fail_unregister;
 

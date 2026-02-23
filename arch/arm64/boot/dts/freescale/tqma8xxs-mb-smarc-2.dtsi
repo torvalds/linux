@@ -126,11 +126,17 @@
 	status = "okay";
 };
 
+&hsio_phy {
+	fsl,hsio-cfg = "pciea-x2-pcieb";
+	fsl,refclk-pad-mode = "input";
+	status = "okay";
+};
+
 &i2c0 {
 	tlv320aic3x04: audio-codec@18 {
 		compatible = "ti,tlv320aic32x4";
 		reg = <0x18>;
-		clocks = <&mclkout0_lpcg 0>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "mclk";
 		iov-supply = <&reg_1v8>;
 		ldoin-supply = <&reg_3v3>;
@@ -153,6 +159,10 @@
 };
 
 &lpuart3 {
+	status = "okay";
+};
+
+&pcieb {
 	status = "okay";
 };
 

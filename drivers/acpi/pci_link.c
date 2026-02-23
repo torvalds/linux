@@ -720,7 +720,7 @@ static int acpi_pci_link_add(struct acpi_device *device,
 	int result;
 	int i;
 
-	link = kzalloc(sizeof(struct acpi_pci_link), GFP_KERNEL);
+	link = kzalloc_obj(struct acpi_pci_link);
 	if (!link)
 		return -ENOMEM;
 

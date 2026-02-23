@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: MediaTek System Control Processor System
 
 maintainers:
-  - MandyJH Liu <mandyjh.liu@mediatek.com>
+  - AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+  - Matthias Brugger <matthias.bgg@gmail.com>
 
 description:
   MediaTek System Control Processor System (SCPSYS) has several
@@ -18,6 +19,7 @@ properties:
   compatible:
     items:
       - enum:
+          - mediatek,mt6795-scpsys
           - mediatek,mt6893-scpsys
           - mediatek,mt8167-scpsys
           - mediatek,mt8173-scpsys

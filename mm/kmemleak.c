@@ -510,7 +510,7 @@ static void mem_pool_free(struct kmemleak_object *object)
 {
 	unsigned long flags;
 
-	if (object < mem_pool || object >= mem_pool + ARRAY_SIZE(mem_pool)) {
+	if (object < mem_pool || object >= ARRAY_END(mem_pool)) {
 		kmem_cache_free(object_cache, object);
 		return;
 	}
@@ -837,13 +837,12 @@ static void delete_object_full(unsigned long ptr, unsigned int objflags)
 	struct kmemleak_object *object;
 
 	object = find_and_remove_object(ptr, 0, objflags);
-	if (!object) {
-#ifdef DEBUG
-		kmemleak_warn("Freeing unknown object at 0x%08lx\n",
-			      ptr);
-#endif
+	if (!object)
+		/*
+		 * kmalloc_nolock() -> kfree() calls kmemleak_free()
+		 * without kmemleak_alloc().
+		 */
 		return;
-	}
 	__delete_object(object);
 }
 
@@ -926,13 +925,12 @@ static void paint_ptr(unsigned long ptr, int color, unsigned int objflags)
 	struct kmemleak_object *object;
 
 	object = __find_and_get_object(ptr, 0, objflags);
-	if (!object) {
-		kmemleak_warn("Trying to color unknown object at 0x%08lx as %s\n",
-			      ptr,
-			      (color == KMEMLEAK_GREY) ? "Grey" :
-			      (color == KMEMLEAK_BLACK) ? "Black" : "Unknown");
+	if (!object)
+		/*
+		 * kmalloc_nolock() -> kfree_rcu() calls kmemleak_ignore()
+		 * without kmemleak_alloc().
+		 */
 		return;
-	}
 	paint_it(object, color);
 	put_object(object);
 }

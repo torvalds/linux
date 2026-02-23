@@ -125,7 +125,7 @@ static int phase22_init(struct snd_ice1712 *ice)
 	}
 
 	/* Initialize analog chips */
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	ak = ice->akm;
 	if (!ak)
 		return -ENOMEM;
@@ -411,13 +411,13 @@ static int phase28_init(struct snd_ice1712 *ice)
 	ice->num_total_dacs = 8;
 	ice->num_total_adcs = 2;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
 
 	/* Initialize analog chips */
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ice->akm = kzalloc_obj(struct snd_akm4xxx);
 	ak = ice->akm;
 	if (!ak)
 		return -ENOMEM;

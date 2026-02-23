@@ -253,7 +253,7 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 	unsigned long rate;
 	int ret;
 
-	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
+	if (!(tdev = kzalloc_obj(*tdev)))
 		return -ENOMEM;
 
 	tdev->func = func;

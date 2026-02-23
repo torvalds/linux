@@ -83,7 +83,7 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	u32 limit = start + priv->bo->bo.base.size - 1;
 	int ret = 0;
 
-	fctx = chan->fence = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	fctx = chan->fence = kzalloc_obj(*fctx);
 	if (!fctx)
 		return -ENOMEM;
 
@@ -120,7 +120,7 @@ nv17_fence_create(struct nouveau_drm *drm)
 	struct nv10_fence_priv *priv;
 	int ret = 0;
 
-	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

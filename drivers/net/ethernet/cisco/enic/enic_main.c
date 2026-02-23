@@ -2456,35 +2456,32 @@ static void enic_free_enic_resources(struct enic *enic)
 
 static int enic_alloc_enic_resources(struct enic *enic)
 {
-	enic->wq = kcalloc(enic->wq_avail, sizeof(struct enic_wq), GFP_KERNEL);
+	enic->wq = kzalloc_objs(struct enic_wq, enic->wq_avail);
 	if (!enic->wq)
 		goto free_queues;
 
-	enic->rq = kcalloc(enic->rq_avail, sizeof(struct enic_rq), GFP_KERNEL);
+	enic->rq = kzalloc_objs(struct enic_rq, enic->rq_avail);
 	if (!enic->rq)
 		goto free_queues;
 
-	enic->cq = kcalloc(enic->cq_avail, sizeof(struct vnic_cq), GFP_KERNEL);
+	enic->cq = kzalloc_objs(struct vnic_cq, enic->cq_avail);
 	if (!enic->cq)
 		goto free_queues;
 
-	enic->napi = kcalloc(enic->wq_avail + enic->rq_avail,
-			     sizeof(struct napi_struct), GFP_KERNEL);
+	enic->napi = kzalloc_objs(struct napi_struct,
+				  enic->wq_avail + enic->rq_avail);
 	if (!enic->napi)
 		goto free_queues;
 
-	enic->msix_entry = kcalloc(enic->intr_avail, sizeof(struct msix_entry),
-				   GFP_KERNEL);
+	enic->msix_entry = kzalloc_objs(struct msix_entry, enic->intr_avail);
 	if (!enic->msix_entry)
 		goto free_queues;
 
-	enic->msix = kcalloc(enic->intr_avail, sizeof(struct enic_msix_entry),
-			     GFP_KERNEL);
+	enic->msix = kzalloc_objs(struct enic_msix_entry, enic->intr_avail);
 	if (!enic->msix)
 		goto free_queues;
 
-	enic->intr = kcalloc(enic->intr_avail, sizeof(struct vnic_intr),
-			     GFP_KERNEL);
+	enic->intr = kzalloc_objs(struct vnic_intr, enic->intr_avail);
 	if (!enic->intr)
 		goto free_queues;
 
@@ -2737,7 +2734,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	/* Allocate structure for port profiles */
-	enic->pp = kcalloc(num_pps, sizeof(*enic->pp), GFP_KERNEL);
+	enic->pp = kzalloc_objs(*enic->pp, num_pps);
 	if (!enic->pp) {
 		err = -ENOMEM;
 		goto err_out_disable_sriov_pp;

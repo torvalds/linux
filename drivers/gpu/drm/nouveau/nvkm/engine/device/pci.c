@@ -1688,7 +1688,7 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 		pcid++;
 	}
 
-	if (!(pdev = kzalloc(sizeof(*pdev), GFP_KERNEL))) {
+	if (!(pdev = kzalloc_obj(*pdev))) {
 		pci_disable_device(pci_dev);
 		return -ENOMEM;
 	}

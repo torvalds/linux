@@ -696,7 +696,7 @@ int bus_add_driver(struct device_driver *drv)
 	 */
 	pr_debug("bus: '%s': add driver %s\n", sp->bus->name, drv->name);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		error = -ENOMEM;
 		goto out_put_bus;
@@ -897,7 +897,7 @@ int bus_register(const struct bus_type *bus)
 	struct kobject *bus_kobj;
 	struct lock_class_key *key;
 
-	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
+	priv = kzalloc_obj(struct subsys_private);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1263,7 +1263,7 @@ static int subsys_register(const struct bus_type *subsys,
 		goto err_sp;
 	}
 
-	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	dev = kzalloc_obj(struct device);
 	if (!dev) {
 		err = -ENOMEM;
 		goto err_dev;

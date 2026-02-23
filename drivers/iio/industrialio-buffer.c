@@ -1024,7 +1024,7 @@ static int iio_buffer_add_demux(struct iio_buffer *buffer,
 	    (*p)->to + (*p)->length == out_loc) {
 		(*p)->length += length;
 	} else {
-		*p = kmalloc(sizeof(**p), GFP_KERNEL);
+		*p = kmalloc_obj(**p);
 		if (!(*p))
 			return -ENOMEM;
 		(*p)->from = in_loc;
@@ -1478,7 +1478,7 @@ static struct attribute *iio_buffer_wrap_attr(struct iio_buffer *buffer,
 	struct device_attribute *dattr = to_dev_attr(attr);
 	struct iio_dev_attr *iio_attr;
 
-	iio_attr = kzalloc(sizeof(*iio_attr), GFP_KERNEL);
+	iio_attr = kzalloc_obj(*iio_attr);
 	if (!iio_attr)
 		return NULL;
 
@@ -1507,7 +1507,7 @@ static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
 	struct attribute **attrs;
 	int ret;
 
-	attrs = kcalloc(buffer_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, buffer_attrcount + 1);
 	if (!attrs)
 		return -ENOMEM;
 
@@ -1521,7 +1521,7 @@ static int iio_buffer_register_legacy_sysfs_groups(struct iio_dev *indio_dev,
 	if (ret)
 		goto error_free_buffer_attrs;
 
-	attrs = kcalloc(scan_el_attrcount + 1, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, scan_el_attrcount + 1);
 	if (!attrs) {
 		ret = -ENOMEM;
 		goto error_free_buffer_attrs;
@@ -1674,7 +1674,7 @@ static int iio_buffer_attach_dmabuf(struct iio_dev_buffer_pair *ib,
 	if (copy_from_user(&fd, user_fd, sizeof(fd)))
 		return -EFAULT;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1862,7 +1862,7 @@ static int iio_buffer_enqueue_dmabuf(struct iio_dev_buffer_pair *ib,
 
 	priv = attach->importer_priv;
 
-	fence = kmalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kmalloc_obj(*fence);
 	if (!fence) {
 		ret = -ENOMEM;
 		goto err_attachment_put;
@@ -2035,7 +2035,7 @@ static long iio_device_buffer_getfd(struct iio_dev *indio_dev, unsigned long arg
 		goto error_iio_dev_put;
 	}
 
-	ib = kzalloc(sizeof(*ib), GFP_KERNEL);
+	ib = kzalloc_obj(*ib);
 	if (!ib) {
 		ret = -ENOMEM;
 		goto error_clear_busy_bit;
@@ -2182,7 +2182,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 	}
 
 	attrn = buffer_attrcount + scan_el_attrcount;
-	attr = kcalloc(attrn + 1, sizeof(*attr), GFP_KERNEL);
+	attr = kzalloc_objs(*attr, attrn + 1);
 	if (!attr) {
 		ret = -ENOMEM;
 		goto error_free_scan_mask;

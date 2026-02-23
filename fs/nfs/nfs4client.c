@@ -44,7 +44,6 @@ static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 	return ret < 0 ? ret : 0;
 }
 
-#ifdef CONFIG_NFS_V4_1
 /*
  * Per auth flavor data server rpc clients
  */
@@ -100,7 +99,7 @@ nfs4_alloc_ds_server(struct nfs_client *ds_clp, rpc_authflavor_t flavor)
 {
 	struct nfs4_ds_server *dss;
 
-	dss = kmalloc(sizeof(*dss), GFP_NOFS);
+	dss = kmalloc_obj(*dss, GFP_NOFS);
 	if (dss == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -187,15 +186,6 @@ void nfs41_shutdown_client(struct nfs_client *clp)
 	}
 
 }
-#endif	/* CONFIG_NFS_V4_1 */
-
-void nfs40_shutdown_client(struct nfs_client *clp)
-{
-	if (clp->cl_slot_tbl) {
-		nfs4_shutdown_slot_table(clp->cl_slot_tbl);
-		kfree(clp->cl_slot_tbl);
-	}
-}
 
 struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 {
@@ -211,7 +201,8 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	if (err)
 		goto error;
 
-	if (cl_init->minorversion > NFS4_MAX_MINOR_VERSION) {
+	if (cl_init->minorversion < NFS4_MIN_MINOR_VERSION ||
+	    cl_init->minorversion > NFS4_MAX_MINOR_VERSION) {
 		err = -EINVAL;
 		goto error;
 	}
@@ -224,9 +215,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 	clp->cl_mig_gen = 1;
 	clp->cl_last_renewal = jiffies;
-#if IS_ENABLED(CONFIG_NFS_V4_1)
 	init_waitqueue_head(&clp->cl_lock_waitq);
-#endif
 	INIT_LIST_HEAD(&clp->pending_cb_stateids);
 
 	if (cl_init->minorversion != 0)
@@ -340,35 +329,6 @@ static int nfs4_init_callback(struct nfs_client *clp)
 }
 
 /**
- * nfs40_init_client - nfs_client initialization tasks for NFSv4.0
- * @clp: nfs_client to initialize
- *
- * Returns zero on success, or a negative errno if some error occurred.
- */
-int nfs40_init_client(struct nfs_client *clp)
-{
-	struct nfs4_slot_table *tbl;
-	int ret;
-
-	tbl = kzalloc(sizeof(*tbl), GFP_NOFS);
-	if (tbl == NULL)
-		return -ENOMEM;
-
-	ret = nfs4_setup_slot_table(tbl, NFS4_MAX_SLOT_TABLE,
-					"NFSv4.0 transport Slot table");
-	if (ret) {
-		nfs4_shutdown_slot_table(tbl);
-		kfree(tbl);
-		return ret;
-	}
-
-	clp->cl_slot_tbl = tbl;
-	return 0;
-}
-
-#if defined(CONFIG_NFS_V4_1)
-
-/**
  * nfs41_init_client - nfs_client initialization tasks for NFSv4.1+
  * @clp: nfs_client to initialize
  *
@@ -398,8 +358,6 @@ int nfs41_init_client(struct nfs_client *clp)
 	nfs_mark_client_ready(clp, NFS_CS_SESSION_INITING);
 	return 0;
 }
-
-#endif	/* CONFIG_NFS_V4_1 */
 
 /*
  * Initialize the minor version specific parts of an NFS4 client record
@@ -490,37 +448,6 @@ error:
 	return ERR_PTR(error);
 }
 
-/*
- * SETCLIENTID just did a callback update with the callback ident in
- * "drop," but server trunking discovery claims "drop" and "keep" are
- * actually the same server.  Swap the callback IDs so that "keep"
- * will continue to use the callback ident the server now knows about,
- * and so that "keep"'s original callback ident is destroyed when
- * "drop" is freed.
- */
-static void nfs4_swap_callback_idents(struct nfs_client *keep,
-				      struct nfs_client *drop)
-{
-	struct nfs_net *nn = net_generic(keep->cl_net, nfs_net_id);
-	unsigned int save = keep->cl_cb_ident;
-
-	if (keep->cl_cb_ident == drop->cl_cb_ident)
-		return;
-
-	dprintk("%s: keeping callback ident %u and dropping ident %u\n",
-		__func__, keep->cl_cb_ident, drop->cl_cb_ident);
-
-	spin_lock(&nn->nfs_client_lock);
-
-	idr_replace(&nn->cb_ident_idr, keep, drop->cl_cb_ident);
-	keep->cl_cb_ident = drop->cl_cb_ident;
-
-	idr_replace(&nn->cb_ident_idr, drop, save);
-	drop->cl_cb_ident = save;
-
-	spin_unlock(&nn->nfs_client_lock);
-}
-
 static bool nfs4_match_client_owner_id(const struct nfs_client *clp1,
 		const struct nfs_client *clp2)
 {
@@ -529,13 +456,8 @@ static bool nfs4_match_client_owner_id(const struct nfs_client *clp1,
 	return strcmp(clp1->cl_owner_id, clp2->cl_owner_id) == 0;
 }
 
-static bool nfs4_same_verifier(nfs4_verifier *v1, nfs4_verifier *v2)
-{
-	return memcmp(v1->data, v2->data, sizeof(v1->data)) == 0;
-}
-
-static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
-			     struct nfs_client **prev, struct nfs_net *nn)
+int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
+		      struct nfs_client **prev, struct nfs_net *nn)
 {
 	int status;
 
@@ -578,99 +500,6 @@ static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
 	return 0;
 }
 
-/**
- * nfs40_walk_client_list - Find server that recognizes a client ID
- *
- * @new: nfs_client with client ID to test
- * @result: OUT: found nfs_client, or new
- * @cred: credential to use for trunking test
- *
- * Returns zero, a negative errno, or a negative NFS4ERR status.
- * If zero is returned, an nfs_client pointer is planted in "result."
- *
- * NB: nfs40_walk_client_list() relies on the new nfs_client being
- *     the last nfs_client on the list.
- */
-int nfs40_walk_client_list(struct nfs_client *new,
-			   struct nfs_client **result,
-			   const struct cred *cred)
-{
-	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
-	struct nfs_client *pos, *prev = NULL;
-	struct nfs4_setclientid_res clid = {
-		.clientid	= new->cl_clientid,
-		.confirm	= new->cl_confirm,
-	};
-	int status = -NFS4ERR_STALE_CLIENTID;
-
-	spin_lock(&nn->nfs_client_lock);
-	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
-
-		if (pos == new)
-			goto found;
-
-		status = nfs4_match_client(pos, new, &prev, nn);
-		if (status < 0)
-			goto out_unlock;
-		if (status != 0)
-			continue;
-		/*
-		 * We just sent a new SETCLIENTID, which should have
-		 * caused the server to return a new cl_confirm.  So if
-		 * cl_confirm is the same, then this is a different
-		 * server that just returned the same cl_confirm by
-		 * coincidence:
-		 */
-		if ((new != pos) && nfs4_same_verifier(&pos->cl_confirm,
-						       &new->cl_confirm))
-			continue;
-		/*
-		 * But if the cl_confirm's are different, then the only
-		 * way that a SETCLIENTID_CONFIRM to pos can succeed is
-		 * if new and pos point to the same server:
-		 */
-found:
-		refcount_inc(&pos->cl_count);
-		spin_unlock(&nn->nfs_client_lock);
-
-		nfs_put_client(prev);
-		prev = pos;
-
-		status = nfs4_proc_setclientid_confirm(pos, &clid, cred);
-		switch (status) {
-		case -NFS4ERR_STALE_CLIENTID:
-			break;
-		case 0:
-			nfs4_swap_callback_idents(pos, new);
-			pos->cl_confirm = new->cl_confirm;
-			nfs_mark_client_ready(pos, NFS_CS_READY);
-
-			prev = NULL;
-			*result = pos;
-			goto out;
-		case -ERESTARTSYS:
-		case -ETIMEDOUT:
-			/* The callback path may have been inadvertently
-			 * changed. Schedule recovery!
-			 */
-			nfs4_schedule_path_down_recovery(pos);
-			goto out;
-		default:
-			goto out;
-		}
-
-		spin_lock(&nn->nfs_client_lock);
-	}
-out_unlock:
-	spin_unlock(&nn->nfs_client_lock);
-
-	/* No match found. The server lost our clientid */
-out:
-	nfs_put_client(prev);
-	return status;
-}
-
-#ifdef CONFIG_NFS_V4_1
 /*
  * Returns true if the server major ids match
  */
@@ -799,7 +628,6 @@ out:
 	nfs_put_client(prev);
 	return status;
 }
-#endif	/* CONFIG_NFS_V4_1 */
 
 static void nfs4_destroy_server(struct nfs_server *server)
 {
@@ -831,7 +659,6 @@ nfs4_find_client_ident(struct net *net, int cb_ident)
 	return clp;
 }
 
-#if defined(CONFIG_NFS_V4_1)
 /* Common match routine for v4.0 and v4.1 callback services */
 static bool nfs4_cb_match_client(const struct sockaddr *addr,
 		struct nfs_client *clp, u32 minorversion)
@@ -888,16 +715,6 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 	spin_unlock(&nn->nfs_client_lock);
 	return NULL;
 }
-
-#else /* CONFIG_NFS_V4_1 */
-
-struct nfs_client *
-nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, u32 minorversion)
-{
-	return NULL;
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * Set up an NFS4 client
@@ -1040,7 +857,6 @@ EXPORT_SYMBOL_GPL(nfs4_set_ds_client);
  */
 static void nfs4_session_limit_rwsize(struct nfs_server *server)
 {
-#ifdef CONFIG_NFS_V4_1
 	struct nfs4_session *sess;
 	u32 server_resp_sz;
 	u32 server_rqst_sz;
@@ -1057,7 +873,6 @@ static void nfs4_session_limit_rwsize(struct nfs_server *server)
 		server->rsize = server_resp_sz;
 	if (server->wsize > server_rqst_sz)
 		server->wsize = server_rqst_sz;
-#endif /* CONFIG_NFS_V4_1 */
 }
 
 /*

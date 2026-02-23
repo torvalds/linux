@@ -570,7 +570,7 @@ static ssize_t ns_revision_read(struct file *file, char __user *buf,
 
 static int ns_revision_open(struct inode *inode, struct file *file)
 {
-	struct aa_revision *rev = kzalloc(sizeof(*rev), GFP_KERNEL);
+	struct aa_revision *rev = kzalloc_obj(*rev);
 
 	if (!rev)
 		return -ENOMEM;
@@ -801,7 +801,7 @@ static ssize_t query_label(char *buf, size_t buf_len,
 
 	perms = allperms;
 	if (view_only) {
-		label_for_each_in_ns(i, labels_ns(label), label, profile) {
+		label_for_each_in_scope(i, labels_ns(label), label, profile) {
 			profile_query_cb(profile, &perms, match_str, match_len);
 		}
 	} else {
@@ -1607,16 +1607,20 @@ static char *gen_symlink_name(int depth, const char *dirname, const char *fname)
 {
 	char *buffer, *s;
 	int error;
-	int size = depth * 6 + strlen(dirname) + strlen(fname) + 11;
+	const char *path = "../../";
+	size_t path_len = strlen(path);
+	int size;
 
+	/* Extra 11 bytes: "raw_data" (9) + two slashes "//" (2) */
+	size = depth * path_len + strlen(dirname) + strlen(fname) + 11;
 	s = buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 
 	for (; depth > 0; depth--) {
-		strcpy(s, "../../");
-		s += 6;
-		size -= 6;
+		memcpy(s, path, path_len);
+		s += path_len;
+		size -= path_len;
 	}
 
 	error = snprintf(s, size, "raw_data/%s/%s", dirname, fname);
@@ -1644,6 +1648,15 @@ static const char *rawdata_get_link_base(struct dentry *dentry,
 
 	label = aa_get_label_rcu(&proxy->label);
 	profile = labels_profile(label);
+
+	/* rawdata can be null when aa_g_export_binary is unset during
+	 * runtime and a profile is replaced
+	 */
+	if (!profile->rawdata) {
+		aa_put_label(label);
+		return ERR_PTR(-ENOENT);
+	}
+
 	depth = profile_depth(profile);
 	target = gen_symlink_name(depth, profile->rawdata->name, name);
 	aa_put_label(label);

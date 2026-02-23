@@ -281,7 +281,7 @@ int adf_heartbeat_init(struct adf_accel_dev *accel_dev)
 {
 	struct adf_heartbeat *hb;
 
-	hb = kzalloc(sizeof(*hb), GFP_KERNEL);
+	hb = kzalloc_obj(*hb);
 	if (!hb)
 		goto err_ret;
 

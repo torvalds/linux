@@ -3,6 +3,7 @@
 #include <linux/net.h>
 #include <linux/uio.h>
 #include <linux/io_uring_types.h>
+#include <uapi/linux/io_uring/bpf_filter.h>
 
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
@@ -44,6 +45,7 @@ int io_accept(struct io_kiocb *req, unsigned int issue_flags);
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_socket(struct io_kiocb *req, unsigned int issue_flags);
+void io_socket_bpf_populate(struct io_uring_bpf_ctx *bctx, struct io_kiocb *req);
 
 int io_connect_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_connect(struct io_kiocb *req, unsigned int issue_flags);
@@ -62,6 +64,10 @@ int io_listen(struct io_kiocb *req, unsigned int issue_flags);
 void io_netmsg_cache_free(const void *entry);
 #else
 static inline void io_netmsg_cache_free(const void *entry)
+{
+}
+static inline void io_socket_bpf_populate(struct io_uring_bpf_ctx *bctx,
+					  struct io_kiocb *req)
 {
 }
 #endif

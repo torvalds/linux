@@ -230,7 +230,7 @@ struct pps_gen_device *pps_gen_register_source(const struct pps_gen_source_info 
 	struct pps_gen_device *pps_gen;
 	int err;
 
-	pps_gen = kzalloc(sizeof(struct pps_gen_device), GFP_KERNEL);
+	pps_gen = kzalloc_obj(struct pps_gen_device);
 	if (pps_gen == NULL) {
 		err = -ENOMEM;
 		goto pps_gen_register_source_exit;

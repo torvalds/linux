@@ -459,11 +459,11 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory");
 	fiu->memory = devm_ioremap_resource(dev, res);
-	fiu->memory_size = min_t(size_t, resource_size(res), MAX_MEMORY_SIZE_TOTAL);
 	if (IS_ERR(fiu->memory))
 		return dev_err_probe(dev, PTR_ERR(fiu->memory),
 			       "Failed to map flash memory window\n");
 
+	fiu->memory_size = min_t(size_t, resource_size(res), MAX_MEMORY_SIZE_TOTAL);
 	fiu->shm_regmap = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "nuvoton,shm");
 
 	wpcm_fiu_hw_init(fiu);
@@ -471,7 +471,6 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &wpcm_fiu_mem_ops;
 	ctrl->num_chipselect = 4;
-	ctrl->dev.of_node = dev->of_node;
 
 	/*
 	 * The FIU doesn't include a clock divider, the clock is entirely

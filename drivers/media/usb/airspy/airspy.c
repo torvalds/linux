@@ -968,7 +968,7 @@ static int airspy_probe(struct usb_interface *intf,
 	buf = NULL;
 	ret = -ENOMEM;
 
-	s = kzalloc(sizeof(struct airspy), GFP_KERNEL);
+	s = kzalloc_obj(struct airspy);
 	if (s == NULL) {
 		dev_err(&intf->dev, "Could not allocate memory for state\n");
 		return -ENOMEM;

@@ -1256,7 +1256,7 @@ static int debugfs_radix_open(struct inode *inode, struct file *file)
 	struct kvm *kvm = inode->i_private;
 	struct debugfs_radix_state *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 

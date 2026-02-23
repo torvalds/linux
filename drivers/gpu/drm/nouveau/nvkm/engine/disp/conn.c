@@ -78,7 +78,7 @@ int
 nvkm_conn_new(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
 	      struct nvkm_conn **pconn)
 {
-	if (!(*pconn = kzalloc(sizeof(**pconn), GFP_KERNEL)))
+	if (!(*pconn = kzalloc_obj(**pconn)))
 		return -ENOMEM;
 	nvkm_conn_ctor(disp, index, info, *pconn);
 	return 0;

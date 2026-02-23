@@ -170,7 +170,7 @@ int ath12k_reg_update_chan_list(struct ath12k *ar, bool wait)
 		return -EINVAL;
 	}
 
-	arg = kzalloc(struct_size(arg, channel, num_channels), GFP_KERNEL);
+	arg = kzalloc_flex(*arg, channel, num_channels);
 
 	if (!arg)
 		return -ENOMEM;

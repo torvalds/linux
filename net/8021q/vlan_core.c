@@ -150,7 +150,7 @@ static struct vlan_info *vlan_info_alloc(struct net_device *dev)
 {
 	struct vlan_info *vlan_info;
 
-	vlan_info = kzalloc(sizeof(struct vlan_info), GFP_KERNEL);
+	vlan_info = kzalloc_obj(struct vlan_info);
 	if (!vlan_info)
 		return NULL;
 
@@ -193,7 +193,7 @@ static struct vlan_vid_info *vlan_vid_info_alloc(__be16 proto, u16 vid)
 {
 	struct vlan_vid_info *vid_info;
 
-	vid_info = kzalloc(sizeof(struct vlan_vid_info), GFP_KERNEL);
+	vid_info = kzalloc_obj(struct vlan_vid_info);
 	if (!vid_info)
 		return NULL;
 	vid_info->proto = proto;

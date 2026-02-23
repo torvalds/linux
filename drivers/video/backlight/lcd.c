@@ -197,7 +197,7 @@ struct lcd_device *lcd_device_register(const char *name, struct device *parent,
 
 	pr_debug("lcd_device_register: name=%s\n", name);
 
-	new_ld = kzalloc(sizeof(struct lcd_device), GFP_KERNEL);
+	new_ld = kzalloc_obj(struct lcd_device);
 	if (!new_ld)
 		return ERR_PTR(-ENOMEM);
 

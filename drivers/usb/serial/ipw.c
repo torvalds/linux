@@ -198,7 +198,7 @@ static int ipw_attach(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *data;
 
-	data = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
+	data = kzalloc_obj(struct usb_wwan_intf_private);
 	if (!data)
 		return -ENOMEM;
 

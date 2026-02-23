@@ -396,7 +396,7 @@ EXPORT_SYMBOL_GPL(qcom_smem_bust_hwspin_lock_by_host);
  */
 bool qcom_smem_is_available(void)
 {
-	return !!__smem;
+	return !IS_ERR(__smem);
 }
 EXPORT_SYMBOL_GPL(qcom_smem_is_available);
 
@@ -1219,7 +1219,9 @@ static int qcom_smem_probe(struct platform_device *pdev)
 		smem->item_count = qcom_smem_get_item_count(smem);
 		break;
 	case SMEM_GLOBAL_HEAP_VERSION:
-		qcom_smem_map_global(smem, size);
+		ret = qcom_smem_map_global(smem, size);
+		if (ret < 0)
+			return ret;
 		smem->item_count = SMEM_ITEM_COUNT;
 		break;
 	default:
@@ -1247,7 +1249,8 @@ static void qcom_smem_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(__smem->socinfo);
 
-	__smem = NULL;
+	/* Set to -EPROBE_DEFER to signal unprobed state */
+	__smem = ERR_PTR(-EPROBE_DEFER);
 }
 
 static const struct of_device_id qcom_smem_of_match[] = {

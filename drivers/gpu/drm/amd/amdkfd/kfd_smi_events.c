@@ -370,7 +370,7 @@ int kfd_smi_event_open(struct kfd_node *dev, uint32_t *fd)
 	struct kfd_smi_client *client;
 	int ret;
 
-	client = kzalloc(sizeof(struct kfd_smi_client), GFP_KERNEL);
+	client = kzalloc_obj(struct kfd_smi_client);
 	if (!client)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&client->list);

@@ -573,7 +573,7 @@ __intel_scu_ipc_register(struct device *parent,
 	if (ipcdev)
 		return ERR_PTR(-EBUSY);
 
-	scu = kzalloc(sizeof(*scu), GFP_KERNEL);
+	scu = kzalloc_obj(*scu);
 	if (!scu)
 		return ERR_PTR(-ENOMEM);
 

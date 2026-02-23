@@ -650,7 +650,7 @@ static struct snd_midi_channel *snd_midi_channel_init_set(int n)
 	struct snd_midi_channel *chan;
 	int  i;
 
-	chan = kmalloc_array(n, sizeof(struct snd_midi_channel), GFP_KERNEL);
+	chan = kmalloc_objs(struct snd_midi_channel, n);
 	if (chan) {
 		for (i = 0; i < n; i++)
 			snd_midi_channel_init(chan+i, i);
@@ -688,7 +688,7 @@ struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n)
 {
 	struct snd_midi_channel_set *chset;
 
-	chset = kmalloc(sizeof(*chset), GFP_KERNEL);
+	chset = kmalloc_obj(*chset);
 	if (chset) {
 		chset->channels = snd_midi_channel_init_set(n);
 		chset->private_data = NULL;

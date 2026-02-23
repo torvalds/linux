@@ -1096,7 +1096,7 @@ void
 spi_schedule_dv_device(struct scsi_device *sdev)
 {
 	struct work_queue_wrapper *wqw =
-		kmalloc(sizeof(struct work_queue_wrapper), GFP_ATOMIC);
+		kmalloc_obj(struct work_queue_wrapper, GFP_ATOMIC);
 
 	if (unlikely(!wqw))
 		return;
@@ -1570,8 +1570,7 @@ static int spi_target_configure(struct transport_container *tc,
 struct scsi_transport_template *
 spi_attach_transport(struct spi_function_template *ft)
 {
-	struct spi_internal *i = kzalloc(sizeof(struct spi_internal),
-					 GFP_KERNEL);
+	struct spi_internal *i = kzalloc_obj(struct spi_internal);
 
 	if (unlikely(!i))
 		return NULL;
@@ -1622,7 +1621,7 @@ static __init int spi_transport_init(void)
 	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
-	error = anon_transport_class_register(&spi_device_class);
+	anon_transport_class_register(&spi_device_class);
 	return transport_class_register(&spi_host_class);
 }
 

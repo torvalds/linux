@@ -420,7 +420,7 @@ struct auxiliary_device *auxiliary_device_create(struct device *dev,
 	struct auxiliary_device *auxdev;
 	int ret;
 
-	auxdev = kzalloc(sizeof(*auxdev), GFP_KERNEL);
+	auxdev = kzalloc_obj(*auxdev);
 	if (!auxdev)
 		return NULL;
 

@@ -140,7 +140,7 @@ int rsi_coex_attach(struct rsi_common *common)
 	struct rsi_coex_ctrl_block *coex_cb;
 	int cnt;
 
-	coex_cb = kzalloc(sizeof(*coex_cb), GFP_KERNEL);
+	coex_cb = kzalloc_obj(*coex_cb);
 	if (!coex_cb)
 		return -ENOMEM;
 

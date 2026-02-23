@@ -675,7 +675,7 @@ static int mtk_snand_ecc_init_ctx(struct nand_device *nand)
 	if (ret)
 		return ret;
 
-	ecc_cfg = kzalloc(sizeof(*ecc_cfg), GFP_KERNEL);
+	ecc_cfg = kzalloc_obj(*ecc_cfg);
 	if (!ecc_cfg)
 		return -ENOMEM;
 
@@ -1448,7 +1448,6 @@ static int mtk_snand_probe(struct platform_device *pdev)
 	ctlr->mem_caps = &mtk_snand_mem_caps;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD | SPI_TX_DUAL | SPI_TX_QUAD;
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ret = spi_register_controller(ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi_register_controller failed.\n");

@@ -447,7 +447,7 @@ static void ccu_div_var_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	num += !!(div->flags & CLK_SET_RATE_GATE) +
 		!!(div->features & CCU_DIV_RESET_DOMAIN);
 
-	bits = kcalloc(num, sizeof(*bits), GFP_KERNEL);
+	bits = kzalloc_objs(*bits, num);
 	if (!bits)
 		return;
 
@@ -489,7 +489,7 @@ static void ccu_div_gate_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	struct ccu_div *div = to_ccu_div(hw);
 	struct ccu_div_dbgfs_bit *bit;
 
-	bit = kmalloc(sizeof(*bit), GFP_KERNEL);
+	bit = kmalloc_obj(*bit);
 	if (!bit)
 		return;
 
@@ -507,7 +507,7 @@ static void ccu_div_buf_debug_init(struct clk_hw *hw, struct dentry *dentry)
 	struct ccu_div *div = to_ccu_div(hw);
 	struct ccu_div_dbgfs_bit *bit;
 
-	bit = kmalloc(sizeof(*bit), GFP_KERNEL);
+	bit = kmalloc_obj(*bit);
 	if (!bit)
 		return;
 
@@ -585,7 +585,7 @@ struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *div_init)
 	if (!div_init)
 		return ERR_PTR(-EINVAL);
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 

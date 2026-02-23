@@ -8,11 +8,45 @@
 
 #include <linux/types.h>
 
+/**
+ * DOC: GuC Log buffer Layout
+ *
+ * The in-memory log buffer layout is as follows::
+ *
+ *  +===============================+	      0000h
+ *  |    Crash dump state header    |		^
+ *  +-------------------------------+ 32B	|
+ *  |      Debug state header       |		|
+ *  +-------------------------------+ 64B	4KB
+ *  |     Capture state header      |		|
+ *  +-------------------------------+ 96B	|
+ *  |                               |		v
+ *  +===============================+ <--- EVENT_DATA_OFFSET
+ *  |  Event logs(raw data)         |		^
+ *  |                               |		|
+ *  |                               | EVENT_DATA_BUFFER_SIZE
+ *  |                               |		|
+ *  |                               |		v
+ *  +===============================+ <--- CRASH_DUMP_OFFSET
+ *  | Crash Dump(raw data)          |		^
+ *  |                               |		|
+ *  |                               | CRASH_DUMP_BUFFER_SIZE
+ *  |                               |		|
+ *  |                               |		v
+ *  +===============================+ <--- STATE_CAPTURE_OFFSET
+ *  | Error state capture(raw data) |		^
+ *  |                               |		|
+ *  |                               | STATE_CAPTURE_BUFFER_SIZE
+ *  |                               |		|
+ *  |                               |		v
+ *  +===============================+ Total: GUC_LOG_SIZE
+ */
+
 /* GuC logging buffer types */
-enum guc_log_buffer_type {
-	GUC_LOG_BUFFER_CRASH_DUMP,
-	GUC_LOG_BUFFER_DEBUG,
-	GUC_LOG_BUFFER_CAPTURE,
+enum guc_log_type {
+	GUC_LOG_TYPE_EVENT_DATA,
+	GUC_LOG_TYPE_CRASH_DUMP,
+	GUC_LOG_TYPE_STATE_CAPTURE,
 };
 
 #define GUC_LOG_BUFFER_TYPE_MAX		3

@@ -409,7 +409,7 @@ static int mei_hbm_me_cl_add(struct mei_device *dev,
 
 	mei_me_cl_rm_by_uuid(dev, uuid);
 
-	me_cl = kzalloc(sizeof(*me_cl), GFP_KERNEL);
+	me_cl = kzalloc_obj(*me_cl);
 	if (!me_cl)
 		return -ENOMEM;
 

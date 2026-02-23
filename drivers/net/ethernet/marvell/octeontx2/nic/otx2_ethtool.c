@@ -66,6 +66,8 @@ static const struct otx2_stat otx2_queue_stats[] = {
 	{ "frames", 1 },
 };
 
+#define OTX2_FEC_MAX_INDEX 4
+
 static const unsigned int otx2_n_dev_stats = ARRAY_SIZE(otx2_dev_stats);
 static const unsigned int otx2_n_drv_stats = ARRAY_SIZE(otx2_drv_stats);
 static const unsigned int otx2_n_queue_stats = ARRAY_SIZE(otx2_queue_stats);
@@ -568,6 +570,13 @@ static int otx2_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static u32 otx2_get_rx_ring_count(struct net_device *dev)
+{
+	struct otx2_nic *pfvf = netdev_priv(dev);
+
+	return pfvf->hw.rx_queues;
+}
+
 static int otx2_get_rss_hash_opts(struct net_device *dev,
 				  struct ethtool_rxfh_fields *nfc)
 {
@@ -742,10 +751,6 @@ static int otx2_get_rxnfc(struct net_device *dev,
 	int ret = -EOPNOTSUPP;
 
 	switch (nfc->cmd) {
-	case ETHTOOL_GRXRINGS:
-		nfc->data = pfvf->hw.rx_queues;
-		ret = 0;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		if (netif_running(dev) && ntuple) {
 			nfc->rule_cnt = pfvf->flow_cfg->nr_flows;
@@ -1028,15 +1033,14 @@ static int otx2_get_fecparam(struct net_device *netdev,
 		ETHTOOL_FEC_BASER,
 		ETHTOOL_FEC_RS,
 		ETHTOOL_FEC_BASER | ETHTOOL_FEC_RS};
-#define FEC_MAX_INDEX 4
-	if (pfvf->linfo.fec < FEC_MAX_INDEX)
-		fecparam->active_fec = fec[pfvf->linfo.fec];
+
+	fecparam->active_fec = fec[pfvf->linfo.fec];
 
 	rsp = otx2_get_fwdata(pfvf);
 	if (IS_ERR(rsp))
 		return PTR_ERR(rsp);
 
-	if (rsp->fwdata.supported_fec < FEC_MAX_INDEX) {
+	if (rsp->fwdata.supported_fec < OTX2_FEC_MAX_INDEX) {
 		if (!rsp->fwdata.supported_fec)
 			fecparam->fec = ETHTOOL_FEC_NONE;
 		else
@@ -1344,6 +1348,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.set_coalesce		= otx2_set_coalesce,
 	.get_rxnfc		= otx2_get_rxnfc,
 	.set_rxnfc              = otx2_set_rxnfc,
+	.get_rx_ring_count	= otx2_get_rx_ring_count,
 	.get_rxfh_key_size	= otx2_get_rxfh_key_size,
 	.get_rxfh_indir_size	= otx2_get_rxfh_indir_size,
 	.get_rxfh		= otx2_get_rxfh,
@@ -1462,6 +1467,7 @@ static const struct ethtool_ops otx2vf_ethtool_ops = {
 	.get_channels		= otx2_get_channels,
 	.get_rxnfc		= otx2_get_rxnfc,
 	.set_rxnfc              = otx2_set_rxnfc,
+	.get_rx_ring_count	= otx2_get_rx_ring_count,
 	.get_rxfh_key_size	= otx2_get_rxfh_key_size,
 	.get_rxfh_indir_size	= otx2_get_rxfh_indir_size,
 	.get_rxfh		= otx2_get_rxfh,

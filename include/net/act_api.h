@@ -159,7 +159,7 @@ int tc_action_net_init(struct net *net, struct tc_action_net *tn,
 {
 	int err = 0;
 
-	tn->idrinfo = kmalloc(sizeof(*tn->idrinfo), GFP_KERNEL);
+	tn->idrinfo = kmalloc_obj(*tn->idrinfo);
 	if (!tn->idrinfo)
 		return -ENOMEM;
 	tn->ops = ops;

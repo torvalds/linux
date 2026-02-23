@@ -40,7 +40,7 @@ struct srq_data *t4_init_srq(int srq_size)
 {
 	struct srq_data *s;
 
-	s = kvzalloc(sizeof(*s), GFP_KERNEL);
+	s = kvzalloc_obj(*s);
 	if (!s)
 		return NULL;
 

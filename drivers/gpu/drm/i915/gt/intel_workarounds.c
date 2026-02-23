@@ -157,8 +157,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 	if (IS_ALIGNED(wal->count, grow)) { /* Either uninitialized or full. */
 		struct i915_wa *list;
 
-		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*list),
-				     GFP_KERNEL);
+		list = kmalloc_objs(*list, ALIGN(wal->count + 1, grow));
 		if (!list) {
 			drm_err(&i915->drm, "No space for workaround init!\n");
 			return;

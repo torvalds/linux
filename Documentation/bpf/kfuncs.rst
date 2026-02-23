@@ -50,216 +50,21 @@ A wrapper kfunc is often needed when we need to annotate parameters of the
 kfunc. Otherwise one may directly make the kfunc visible to the BPF program by
 registering it with the BPF subsystem. See :ref:`BPF_kfunc_nodef`.
 
-2.2 Annotating kfunc parameters
--------------------------------
-
-Similar to BPF helpers, there is sometime need for additional context required
-by the verifier to make the usage of kernel functions safer and more useful.
-Hence, we can annotate a parameter by suffixing the name of the argument of the
-kfunc with a __tag, where tag may be one of the supported annotations.
-
-2.2.1 __sz Annotation
----------------------
-
-This annotation is used to indicate a memory and size pair in the argument list.
-An example is given below::
-
-        __bpf_kfunc void bpf_memzero(void *mem, int mem__sz)
-        {
-        ...
-        }
-
-Here, the verifier will treat first argument as a PTR_TO_MEM, and second
-argument as its size. By default, without __sz annotation, the size of the type
-of the pointer is used. Without __sz annotation, a kfunc cannot accept a void
-pointer.
-
-2.2.2 __k Annotation
+2.2 kfunc Parameters
 --------------------
 
-This annotation is only understood for scalar arguments, where it indicates that
-the verifier must check the scalar argument to be a known constant, which does
-not indicate a size parameter, and the value of the constant is relevant to the
-safety of the program.
+All kfuncs now require trusted arguments by default. This means that all
+pointer arguments must be valid, and all pointers to BTF objects must be
+passed in their unmodified form (at a zero offset, and without having been
+obtained from walking another pointer, with exceptions described below).
 
-An example is given below::
-
-        __bpf_kfunc void *bpf_obj_new(u32 local_type_id__k, ...)
-        {
-        ...
-        }
-
-Here, bpf_obj_new uses local_type_id argument to find out the size of that type
-ID in program's BTF and return a sized pointer to it. Each type ID will have a
-distinct size, hence it is crucial to treat each such call as distinct when
-values don't match during verifier state pruning checks.
-
-Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
-size parameter, and the value of the constant matters for program safety, __k
-suffix should be used.
-
-2.2.3 __uninit Annotation
--------------------------
-
-This annotation is used to indicate that the argument will be treated as
-uninitialized.
-
-An example is given below::
-
-        __bpf_kfunc int bpf_dynptr_from_skb(..., struct bpf_dynptr_kern *ptr__uninit)
-        {
-        ...
-        }
-
-Here, the dynptr will be treated as an uninitialized dynptr. Without this
-annotation, the verifier will reject the program if the dynptr passed in is
-not initialized.
-
-2.2.4 __opt Annotation
--------------------------
-
-This annotation is used to indicate that the buffer associated with an __sz or __szk
-argument may be null. If the function is passed a nullptr in place of the buffer,
-the verifier will not check that length is appropriate for the buffer. The kfunc is
-responsible for checking if this buffer is null before using it.
-
-An example is given below::
-
-        __bpf_kfunc void *bpf_dynptr_slice(..., void *buffer__opt, u32 buffer__szk)
-        {
-        ...
-        }
-
-Here, the buffer may be null. If buffer is not null, it at least of size buffer_szk.
-Either way, the returned buffer is either NULL, or of size buffer_szk. Without this
-annotation, the verifier will reject the program if a null pointer is passed in with
-a nonzero size.
-
-2.2.5 __str Annotation
-----------------------------
-This annotation is used to indicate that the argument is a constant string.
-
-An example is given below::
-
-        __bpf_kfunc bpf_get_file_xattr(..., const char *name__str, ...)
-        {
-        ...
-        }
-
-In this case, ``bpf_get_file_xattr()`` can be called as::
-
-        bpf_get_file_xattr(..., "xattr_name", ...);
-
-Or::
-
-        const char name[] = "xattr_name";  /* This need to be global */
-        int BPF_PROG(...)
-        {
-                ...
-                bpf_get_file_xattr(..., name, ...);
-                ...
-        }
-
-2.2.6 __prog Annotation
----------------------------
-This annotation is used to indicate that the argument needs to be fixed up to
-the bpf_prog_aux of the caller BPF program. Any value passed into this argument
-is ignored, and rewritten by the verifier.
-
-An example is given below::
-
-        __bpf_kfunc int bpf_wq_set_callback_impl(struct bpf_wq *wq,
-                                                 int (callback_fn)(void *map, int *key, void *value),
-                                                 unsigned int flags,
-                                                 void *aux__prog)
-         {
-                struct bpf_prog_aux *aux = aux__prog;
-                ...
-         }
-
-.. _BPF_kfunc_nodef:
-
-2.3 Using an existing kernel function
--------------------------------------
-
-When an existing function in the kernel is fit for consumption by BPF programs,
-it can be directly registered with the BPF subsystem. However, care must still
-be taken to review the context in which it will be invoked by the BPF program
-and whether it is safe to do so.
-
-2.4 Annotating kfuncs
----------------------
-
-In addition to kfuncs' arguments, verifier may need more information about the
-type of kfunc(s) being registered with the BPF subsystem. To do so, we define
-flags on a set of kfuncs as follows::
-
-        BTF_KFUNCS_START(bpf_task_set)
-        BTF_ID_FLAGS(func, bpf_get_task_pid, KF_ACQUIRE | KF_RET_NULL)
-        BTF_ID_FLAGS(func, bpf_put_pid, KF_RELEASE)
-        BTF_KFUNCS_END(bpf_task_set)
-
-This set encodes the BTF ID of each kfunc listed above, and encodes the flags
-along with it. Ofcourse, it is also allowed to specify no flags.
-
-kfunc definitions should also always be annotated with the ``__bpf_kfunc``
-macro. This prevents issues such as the compiler inlining the kfunc if it's a
-static kernel function, or the function being elided in an LTO build as it's
-not used in the rest of the kernel. Developers should not manually add
-annotations to their kfunc to prevent these issues. If an annotation is
-required to prevent such an issue with your kfunc, it is a bug and should be
-added to the definition of the macro so that other kfuncs are similarly
-protected. An example is given below::
-
-        __bpf_kfunc struct task_struct *bpf_get_task_pid(s32 pid)
-        {
-        ...
-        }
-
-2.4.1 KF_ACQUIRE flag
----------------------
-
-The KF_ACQUIRE flag is used to indicate that the kfunc returns a pointer to a
-refcounted object. The verifier will then ensure that the pointer to the object
-is eventually released using a release kfunc, or transferred to a map using a
-referenced kptr (by invoking bpf_kptr_xchg). If not, the verifier fails the
-loading of the BPF program until no lingering references remain in all possible
-explored states of the program.
-
-2.4.2 KF_RET_NULL flag
-----------------------
-
-The KF_RET_NULL flag is used to indicate that the pointer returned by the kfunc
-may be NULL. Hence, it forces the user to do a NULL check on the pointer
-returned from the kfunc before making use of it (dereferencing or passing to
-another helper). This flag is often used in pairing with KF_ACQUIRE flag, but
-both are orthogonal to each other.
-
-2.4.3 KF_RELEASE flag
----------------------
-
-The KF_RELEASE flag is used to indicate that the kfunc releases the pointer
-passed in to it. There can be only one referenced pointer that can be passed
-in. All copies of the pointer being released are invalidated as a result of
-invoking kfunc with this flag. KF_RELEASE kfuncs automatically receive the
-protection afforded by the KF_TRUSTED_ARGS flag described below.
-
-2.4.4 KF_TRUSTED_ARGS flag
---------------------------
-
-The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
-indicates that the all pointer arguments are valid, and that all pointers to
-BTF objects have been passed in their unmodified form (that is, at a zero
-offset, and without having been obtained from walking another pointer, with one
-exception described below).
-
-There are two types of pointers to kernel objects which are considered "valid":
+There are two types of pointers to kernel objects which are considered "trusted":
 
 1. Pointers which are passed as tracepoint or struct_ops callback arguments.
 2. Pointers which were returned from a KF_ACQUIRE kfunc.
 
 Pointers to non-BTF objects (e.g. scalar pointers) may also be passed to
-KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
+kfuncs, and may have a non-zero offset.
 
 The definition of "valid" pointers is subject to change at any time, and has
 absolutely no ABI stability guarantees.
@@ -308,14 +113,198 @@ is emitted in the ``type_is_trusted()`` function as follows:
 
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct socket));
 
+2.3 Annotating kfunc parameters
+-------------------------------
 
-2.4.5 KF_SLEEPABLE flag
+Similar to BPF helpers, there is sometime need for additional context required
+by the verifier to make the usage of kernel functions safer and more useful.
+Hence, we can annotate a parameter by suffixing the name of the argument of the
+kfunc with a __tag, where tag may be one of the supported annotations.
+
+2.3.1 __sz Annotation
+---------------------
+
+This annotation is used to indicate a memory and size pair in the argument list.
+An example is given below::
+
+        __bpf_kfunc void bpf_memzero(void *mem, int mem__sz)
+        {
+        ...
+        }
+
+Here, the verifier will treat first argument as a PTR_TO_MEM, and second
+argument as its size. By default, without __sz annotation, the size of the type
+of the pointer is used. Without __sz annotation, a kfunc cannot accept a void
+pointer.
+
+2.3.2 __k Annotation
+--------------------
+
+This annotation is only understood for scalar arguments, where it indicates that
+the verifier must check the scalar argument to be a known constant, which does
+not indicate a size parameter, and the value of the constant is relevant to the
+safety of the program.
+
+An example is given below::
+
+        __bpf_kfunc void *bpf_obj_new(u32 local_type_id__k, ...)
+        {
+        ...
+        }
+
+Here, bpf_obj_new uses local_type_id argument to find out the size of that type
+ID in program's BTF and return a sized pointer to it. Each type ID will have a
+distinct size, hence it is crucial to treat each such call as distinct when
+values don't match during verifier state pruning checks.
+
+Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
+size parameter, and the value of the constant matters for program safety, __k
+suffix should be used.
+
+2.3.3 __uninit Annotation
+-------------------------
+
+This annotation is used to indicate that the argument will be treated as
+uninitialized.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_dynptr_from_skb(..., struct bpf_dynptr_kern *ptr__uninit)
+        {
+        ...
+        }
+
+Here, the dynptr will be treated as an uninitialized dynptr. Without this
+annotation, the verifier will reject the program if the dynptr passed in is
+not initialized.
+
+2.3.4 __nullable Annotation
+---------------------------
+
+This annotation is used to indicate that the pointer argument may be NULL.
+The verifier will allow passing NULL for such arguments.
+
+An example is given below::
+
+        __bpf_kfunc void bpf_task_release(struct task_struct *task__nullable)
+        {
+        ...
+        }
+
+Here, the task pointer may be NULL. The kfunc is responsible for checking if
+the pointer is NULL before dereferencing it.
+
+The __nullable annotation can be combined with other annotations. For example,
+when used with __sz or __szk annotations for memory and size pairs, the
+verifier will skip size validation when a NULL pointer is passed, but will
+still process the size argument to extract constant size information when
+needed::
+
+        __bpf_kfunc void *bpf_dynptr_slice(..., void *buffer__nullable,
+                                           u32 buffer__szk)
+
+Here, the buffer may be NULL. If the buffer is not NULL, it must be at least
+buffer__szk bytes in size. The kfunc is responsible for checking if the buffer
+is NULL before using it.
+
+2.3.5 __str Annotation
+----------------------------
+This annotation is used to indicate that the argument is a constant string.
+
+An example is given below::
+
+        __bpf_kfunc bpf_get_file_xattr(..., const char *name__str, ...)
+        {
+        ...
+        }
+
+In this case, ``bpf_get_file_xattr()`` can be called as::
+
+        bpf_get_file_xattr(..., "xattr_name", ...);
+
+Or::
+
+        const char name[] = "xattr_name";  /* This need to be global */
+        int BPF_PROG(...)
+        {
+                ...
+                bpf_get_file_xattr(..., name, ...);
+                ...
+        }
+
+.. _BPF_kfunc_nodef:
+
+2.4 Using an existing kernel function
+-------------------------------------
+
+When an existing function in the kernel is fit for consumption by BPF programs,
+it can be directly registered with the BPF subsystem. However, care must still
+be taken to review the context in which it will be invoked by the BPF program
+and whether it is safe to do so.
+
+2.5 Annotating kfuncs
+---------------------
+
+In addition to kfuncs' arguments, verifier may need more information about the
+type of kfunc(s) being registered with the BPF subsystem. To do so, we define
+flags on a set of kfuncs as follows::
+
+        BTF_KFUNCS_START(bpf_task_set)
+        BTF_ID_FLAGS(func, bpf_get_task_pid, KF_ACQUIRE | KF_RET_NULL)
+        BTF_ID_FLAGS(func, bpf_put_pid, KF_RELEASE)
+        BTF_KFUNCS_END(bpf_task_set)
+
+This set encodes the BTF ID of each kfunc listed above, and encodes the flags
+along with it. Ofcourse, it is also allowed to specify no flags.
+
+kfunc definitions should also always be annotated with the ``__bpf_kfunc``
+macro. This prevents issues such as the compiler inlining the kfunc if it's a
+static kernel function, or the function being elided in an LTO build as it's
+not used in the rest of the kernel. Developers should not manually add
+annotations to their kfunc to prevent these issues. If an annotation is
+required to prevent such an issue with your kfunc, it is a bug and should be
+added to the definition of the macro so that other kfuncs are similarly
+protected. An example is given below::
+
+        __bpf_kfunc struct task_struct *bpf_get_task_pid(s32 pid)
+        {
+        ...
+        }
+
+2.5.1 KF_ACQUIRE flag
+---------------------
+
+The KF_ACQUIRE flag is used to indicate that the kfunc returns a pointer to a
+refcounted object. The verifier will then ensure that the pointer to the object
+is eventually released using a release kfunc, or transferred to a map using a
+referenced kptr (by invoking bpf_kptr_xchg). If not, the verifier fails the
+loading of the BPF program until no lingering references remain in all possible
+explored states of the program.
+
+2.5.2 KF_RET_NULL flag
+----------------------
+
+The KF_RET_NULL flag is used to indicate that the pointer returned by the kfunc
+may be NULL. Hence, it forces the user to do a NULL check on the pointer
+returned from the kfunc before making use of it (dereferencing or passing to
+another helper). This flag is often used in pairing with KF_ACQUIRE flag, but
+both are orthogonal to each other.
+
+2.5.3 KF_RELEASE flag
+---------------------
+
+The KF_RELEASE flag is used to indicate that the kfunc releases the pointer
+passed in to it. There can be only one referenced pointer that can be passed
+in. All copies of the pointer being released are invalidated as a result of
+invoking kfunc with this flag.
+
+2.5.4 KF_SLEEPABLE flag
 -----------------------
 
 The KF_SLEEPABLE flag is used for kfuncs that may sleep. Such kfuncs can only
 be called by sleepable BPF programs (BPF_F_SLEEPABLE).
 
-2.4.6 KF_DESTRUCTIVE flag
+2.5.5 KF_DESTRUCTIVE flag
 --------------------------
 
 The KF_DESTRUCTIVE flag is used to indicate functions calling which is
@@ -324,18 +313,19 @@ rebooting or panicking. Due to this additional restrictions apply to these
 calls. At the moment they only require CAP_SYS_BOOT capability, but more can be
 added later.
 
-2.4.7 KF_RCU flag
+2.5.6 KF_RCU flag
 -----------------
 
-The KF_RCU flag is a weaker version of KF_TRUSTED_ARGS. The kfuncs marked with
-KF_RCU expect either PTR_TRUSTED or MEM_RCU arguments. The verifier guarantees
-that the objects are valid and there is no use-after-free. The pointers are not
-NULL, but the object's refcount could have reached zero. The kfuncs need to
-consider doing refcnt != 0 check, especially when returning a KF_ACQUIRE
-pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should very likely
-also be KF_RET_NULL.
+The KF_RCU flag allows kfuncs to opt out of the default trusted args
+requirement and accept RCU pointers with weaker guarantees. The kfuncs marked
+with KF_RCU expect either PTR_TRUSTED or MEM_RCU arguments. The verifier
+guarantees that the objects are valid and there is no use-after-free. The
+pointers are not NULL, but the object's refcount could have reached zero. The
+kfuncs need to consider doing refcnt != 0 check, especially when returning a
+KF_ACQUIRE pointer. Note as well that a KF_ACQUIRE kfunc that is KF_RCU should
+very likely also be KF_RET_NULL.
 
-2.4.8 KF_RCU_PROTECTED flag
+2.5.7 KF_RCU_PROTECTED flag
 ---------------------------
 
 The KF_RCU_PROTECTED flag is used to indicate that the kfunc must be invoked in
@@ -354,7 +344,7 @@ RCU protection but do not take RCU protected arguments.
 
 .. _KF_deprecated_flag:
 
-2.4.9 KF_DEPRECATED flag
+2.5.8 KF_DEPRECATED flag
 ------------------------
 
 The KF_DEPRECATED flag is used for kfuncs which are scheduled to be
@@ -374,7 +364,39 @@ encouraged to make their use-cases known as early as possible, and participate
 in upstream discussions regarding whether to keep, change, deprecate, or remove
 those kfuncs if and when such discussions occur.
 
-2.5 Registering the kfuncs
+2.5.9 KF_IMPLICIT_ARGS flag
+------------------------------------
+
+The KF_IMPLICIT_ARGS flag is used to indicate that the BPF signature
+of the kfunc is different from it's kernel signature, and the values
+for implicit arguments are provided at load time by the verifier.
+
+Only arguments of specific types are implicit.
+Currently only ``struct bpf_prog_aux *`` type is supported.
+
+A kfunc with KF_IMPLICIT_ARGS flag therefore has two types in BTF: one
+function matching the kernel declaration (with _impl suffix in the
+name by convention), and another matching the intended BPF API.
+
+Verifier only allows calls to the non-_impl version of a kfunc, that
+uses a signature without the implicit arguments.
+
+Example declaration:
+
+.. code-block:: c
+
+	__bpf_kfunc int bpf_task_work_schedule_signal(struct task_struct *task, struct bpf_task_work *tw,
+						      void *map__map, bpf_task_work_callback_t callback,
+						      struct bpf_prog_aux *aux) { ... }
+
+Example usage in BPF program:
+
+.. code-block:: c
+
+	/* note that the last argument is omitted */
+        bpf_task_work_schedule_signal(task, &work->tw, &arrmap, task_work_callback);
+
+2.6 Registering the kfuncs
 --------------------------
 
 Once the kfunc is prepared for use, the final step to making it visible is
@@ -397,7 +419,7 @@ type. An example is shown below::
         }
         late_initcall(init_subsystem);
 
-2.6  Specifying no-cast aliases with ___init
+2.7  Specifying no-cast aliases with ___init
 --------------------------------------------
 
 The verifier will always enforce that the BTF type of a pointer passed to a

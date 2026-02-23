@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/ti,tps65185.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TPS65185 Power Management Integrated Circuit
+
+maintainers:
+  - Andreas Kemnade <andreas@kemnade.info>
+
+description:
+  TPS65185 is a Power Management IC to provide Power for EPDs with one 3.3V
+  switch, 2 symmetric LDOs behind 2 DC/DC converters, and one unsymmetric
+  regulator for a compensation voltage.
+
+properties:
+  compatible:
+    const: ti,tps65185
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description:
+      PWRUP pin
+    maxItems: 1
+
+  pwr-good-gpios:
+    maxItems: 1
+
+  vcom-ctrl-gpios:
+    maxItems: 1
+
+  wakeup-gpios:
+    maxItems: 1
+
+  vin-supply: true
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^(vcom|vposneg|v3p3)$":
+        unevaluatedProperties: false
+        type: object
+        $ref: /schemas/regulator/regulator.yaml
+
+required:
+  - compatible
+  - reg
+  - pwr-good-gpios
+  - vin-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@18 {
+            compatible = "ti,tps65185";
+            reg = <0x18>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_tps65185_gpio>;
+            pwr-good-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+            vcom-ctrl-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+            enable-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+            wakeup-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+            vin-supply = <&epdc_pmic_supply>;
+            interrupts-extended = <&gpio2 0 IRQ_TYPE_LEVEL_LOW>;
+
+            regulators {
+                vcom {
+                    regulator-name = "vcom";
+                };
+
+                vposneg {
+                    regulator-name = "vposneg";
+                    regulator-min-microvolt = <15000000>;
+                    regulator-max-microvolt = <15000000>;
+                };
+
+                v3p3 {
+                    regulator-name = "v3p3";
+                };
+            };
+        };
+    };

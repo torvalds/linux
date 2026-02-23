@@ -140,9 +140,8 @@ static int xlgmac_init_ring(struct xlgmac_pdata *pdata,
 		return -ENOMEM;
 
 	/* Array of descriptor data */
-	ring->desc_data_head = kcalloc(dma_desc_count,
-					sizeof(struct xlgmac_desc_data),
-					GFP_KERNEL);
+	ring->desc_data_head = kzalloc_objs(struct xlgmac_desc_data,
+					    dma_desc_count);
 	if (!ring->desc_data_head)
 		return -ENOMEM;
 
@@ -234,21 +233,18 @@ static int xlgmac_alloc_channels(struct xlgmac_pdata *pdata)
 	int ret = -ENOMEM;
 	unsigned int i;
 
-	channel_head = kcalloc(pdata->channel_count,
-			       sizeof(struct xlgmac_channel), GFP_KERNEL);
+	channel_head = kzalloc_objs(struct xlgmac_channel, pdata->channel_count);
 	if (!channel_head)
 		return ret;
 
 	netif_dbg(pdata, drv, pdata->netdev,
 		  "channel_head=%p\n", channel_head);
 
-	tx_ring = kcalloc(pdata->tx_ring_count, sizeof(struct xlgmac_ring),
-			  GFP_KERNEL);
+	tx_ring = kzalloc_objs(struct xlgmac_ring, pdata->tx_ring_count);
 	if (!tx_ring)
 		goto err_tx_ring;
 
-	rx_ring = kcalloc(pdata->rx_ring_count, sizeof(struct xlgmac_ring),
-			  GFP_KERNEL);
+	rx_ring = kzalloc_objs(struct xlgmac_ring, pdata->rx_ring_count);
 	if (!rx_ring)
 		goto err_rx_ring;
 

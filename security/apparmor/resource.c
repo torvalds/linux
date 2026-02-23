@@ -196,6 +196,11 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 					     rules->rlimits.limits[j].rlim_max);
 			/* soft limit should not exceed hard limit */
 			rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
+			if (j == RLIMIT_CPU &&
+			    rlim->rlim_cur != RLIM_INFINITY &&
+			    IS_ENABLED(CONFIG_POSIX_TIMERS))
+				(void) update_rlimit_cpu(current->group_leader,
+							 rlim->rlim_cur);
 		}
 	}
 }

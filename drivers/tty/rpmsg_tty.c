@@ -134,7 +134,7 @@ static struct rpmsg_tty_port *rpmsg_tty_alloc_cport(void)
 	struct rpmsg_tty_port *cport;
 	int ret;
 
-	cport = kzalloc(sizeof(*cport), GFP_KERNEL);
+	cport = kzalloc_obj(*cport);
 	if (!cport)
 		return ERR_PTR(-ENOMEM);
 

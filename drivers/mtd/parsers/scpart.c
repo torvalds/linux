@@ -80,7 +80,7 @@ static int scpart_scan_partmap(struct mtd_info *master, loff_t partmap_offs,
 	if (cnt > 0) {
 		int bytes = cnt * sizeof(*pdesc);
 
-		pdesc = kcalloc(cnt, sizeof(*pdesc), GFP_KERNEL);
+		pdesc = kzalloc_objs(*pdesc, cnt);
 		if (!pdesc) {
 			res = -ENOMEM;
 			goto free;
@@ -171,8 +171,7 @@ static int scpart_parse(struct mtd_info *master,
 		goto free;
 	}
 
-	parts = kcalloc(of_get_child_count(ofpart_node), sizeof(*parts),
-		GFP_KERNEL);
+	parts = kzalloc_objs(*parts, of_get_child_count(ofpart_node));
 	if (!parts) {
 		res = -ENOMEM;
 		goto free;

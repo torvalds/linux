@@ -36,7 +36,7 @@ nfsd4_ff_proc_layoutget(struct svc_rqst *rqstp, struct inode *inode,
 	 * Zero it out for the stateid - don't want junk in there!
 	 */
 	error = -ENOMEM;
-	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
+	fl = kzalloc_obj(*fl);
 	if (!fl)
 		goto out_error;
 	args->lg_content = fl;
@@ -86,7 +86,7 @@ nfsd4_ff_proc_getdeviceinfo(struct super_block *sb, struct svc_rqst *rqstp,
 	u16 port;
 	char addr[INET6_ADDRSTRLEN];
 
-	da = kzalloc(sizeof(struct pnfs_ff_device_addr), GFP_KERNEL);
+	da = kzalloc_obj(struct pnfs_ff_device_addr);
 	if (!da)
 		return nfserrno(-ENOMEM);
 

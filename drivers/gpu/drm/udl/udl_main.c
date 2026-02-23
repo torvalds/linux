@@ -218,7 +218,7 @@ retry:
 	udl->urbs.size = size;
 
 	while (udl->urbs.count * size < wanted_size) {
-		unode = kzalloc(sizeof(struct urb_node), GFP_KERNEL);
+		unode = kzalloc_obj(struct urb_node);
 		if (!unode)
 			break;
 		unode->dev = udl;

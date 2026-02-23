@@ -864,7 +864,7 @@ iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 {
 	struct iwl_link_quality_cmd *link_cmd;
 
-	link_cmd = kzalloc(sizeof(struct iwl_link_quality_cmd), GFP_KERNEL);
+	link_cmd = kzalloc_obj(struct iwl_link_quality_cmd);
 	if (!link_cmd) {
 		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
 		return NULL;

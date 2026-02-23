@@ -3700,7 +3700,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	struct cx88_core *core;
 	int i;
 
-	core = kzalloc(sizeof(*core), GFP_KERNEL);
+	core = kzalloc_obj(*core);
 	if (!core)
 		return NULL;
 

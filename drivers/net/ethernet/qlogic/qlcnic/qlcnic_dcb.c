@@ -259,7 +259,7 @@ int qlcnic_register_dcb(struct qlcnic_adapter *adapter)
 	if (qlcnic_sriov_vf_check(adapter))
 		return 0;
 
-	dcb = kzalloc(sizeof(struct qlcnic_dcb), GFP_ATOMIC);
+	dcb = kzalloc_obj(struct qlcnic_dcb, GFP_ATOMIC);
 	if (!dcb)
 		return -ENOMEM;
 
@@ -317,13 +317,13 @@ static int __qlcnic_dcb_attach(struct qlcnic_dcb *dcb)
 		return -1;
 	}
 
-	dcb->cfg = kzalloc(sizeof(struct qlcnic_dcb_cfg), GFP_ATOMIC);
+	dcb->cfg = kzalloc_obj(struct qlcnic_dcb_cfg, GFP_ATOMIC);
 	if (!dcb->cfg) {
 		err = -ENOMEM;
 		goto out_free_wq;
 	}
 
-	dcb->param = kzalloc(sizeof(struct qlcnic_dcb_mbx_params), GFP_ATOMIC);
+	dcb->param = kzalloc_obj(struct qlcnic_dcb_mbx_params, GFP_ATOMIC);
 	if (!dcb->param) {
 		err = -ENOMEM;
 		goto out_free_cfg;

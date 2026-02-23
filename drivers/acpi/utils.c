@@ -365,7 +365,7 @@ bool acpi_evaluate_reference(acpi_handle handle, acpi_string pathname,
 		goto err;
 
 	list->count = package->package.count;
-	list->handles = kcalloc(list->count, sizeof(*list->handles), GFP_KERNEL);
+	list->handles = kzalloc_objs(*list->handles, list->count);
 	if (!list->handles)
 		goto err_clear;
 

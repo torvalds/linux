@@ -161,7 +161,7 @@ int dbMount(struct inode *ipbmap)
 	 * allocate/initialize the in-memory bmap descriptor
 	 */
 	/* allocate memory for the in-memory bmap descriptor */
-	bmp = kmalloc(sizeof(struct bmap), GFP_KERNEL);
+	bmp = kmalloc_obj(struct bmap);
 	if (bmp == NULL)
 		return -ENOMEM;
 
@@ -1593,7 +1593,7 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
 	max_ranges = nblocks;
 	do_div(max_ranges, minlen);
 	range_cnt = min_t(u64, max_ranges + 1, 32 * 1024);
-	totrim = kmalloc_array(range_cnt, sizeof(struct range2trim), GFP_NOFS);
+	totrim = kmalloc_objs(struct range2trim, range_cnt, GFP_NOFS);
 	if (totrim == NULL) {
 		jfs_error(bmp->db_ipbmap->i_sb, "no memory for trim array\n");
 		IWRITE_UNLOCK(ipbmap);

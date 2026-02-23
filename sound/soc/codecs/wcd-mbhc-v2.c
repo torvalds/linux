@@ -1515,7 +1515,7 @@ struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 		return ERR_PTR(-EINVAL);
 	}
 
-	mbhc = kzalloc(sizeof(*mbhc), GFP_KERNEL);
+	mbhc = kzalloc_obj(*mbhc);
 	if (!mbhc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1630,18 +1630,6 @@ void wcd_mbhc_deinit(struct wcd_mbhc *mbhc)
 	kfree(mbhc);
 }
 EXPORT_SYMBOL(wcd_mbhc_deinit);
-
-static int __init mbhc_init(void)
-{
-	return 0;
-}
-
-static void __exit mbhc_exit(void)
-{
-}
-
-module_init(mbhc_init);
-module_exit(mbhc_exit);
 
 MODULE_DESCRIPTION("wcd MBHC v2 module");
 MODULE_LICENSE("GPL");

@@ -624,11 +624,11 @@ static u8 bus_structure_fixup(u8 busno)
 	if (pci_find_bus(0, busno) || !(ibmphp_find_same_bus_num(busno)))
 		return 1;
 
-	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
+	bus = kmalloc_obj(*bus);
 	if (!bus)
 		return 1;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kmalloc_obj(*dev);
 	if (!dev) {
 		kfree(bus);
 		return 1;
@@ -986,7 +986,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 
-	slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
+	slot_cur->func = kzalloc_obj(struct pci_func);
 	if (!slot_cur->func) {
 		/* do update_slot_info here? */
 		rc = -ENOMEM;
@@ -1093,7 +1093,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	if (slot_cur->func == NULL) {
 		/* We need this for functions that were there on bootup */
-		slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
+		slot_cur->func = kzalloc_obj(struct pci_func);
 		if (!slot_cur->func) {
 			rc = -ENOMEM;
 			goto error;
@@ -1187,7 +1187,7 @@ static int __init ibmphp_init(void)
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	ibmphp_pci_bus = kmalloc(sizeof(*ibmphp_pci_bus), GFP_KERNEL);
+	ibmphp_pci_bus = kmalloc_obj(*ibmphp_pci_bus);
 	if (!ibmphp_pci_bus) {
 		rc = -ENOMEM;
 		goto exit;

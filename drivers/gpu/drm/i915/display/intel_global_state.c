@@ -52,7 +52,7 @@ static struct intel_global_commit *commit_new(void)
 {
 	struct intel_global_commit *commit;
 
-	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	commit = kzalloc_obj(*commit);
 	if (!commit)
 		return NULL;
 

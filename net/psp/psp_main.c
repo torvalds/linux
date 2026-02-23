@@ -64,7 +64,7 @@ psp_dev_create(struct net_device *netdev,
 		    !psd_ops->get_stats))
 		return ERR_PTR(-EINVAL);
 
-	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
+	psd = kzalloc_obj(*psd);
 	if (!psd)
 		return ERR_PTR(-ENOMEM);
 

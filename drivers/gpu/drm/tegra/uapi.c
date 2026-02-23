@@ -86,7 +86,7 @@ int tegra_drm_ioctl_channel_open(struct drm_device *drm, void *data, struct drm_
 	if (args->flags)
 		return -EINVAL;
 
-	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return -ENOMEM;
 
@@ -206,7 +206,7 @@ int tegra_drm_ioctl_channel_map(struct drm_device *drm, void *data, struct drm_f
 		return -EINVAL;
 	}
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(*mapping);
 	if (!mapping) {
 		err = -ENOMEM;
 		goto unlock;

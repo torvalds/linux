@@ -375,7 +375,7 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 	struct atmtcp_dev_data *dev_data;
 	struct atm_dev *dev;
 
-	dev_data = kmalloc(sizeof(*dev_data),GFP_KERNEL);
+	dev_data = kmalloc_obj(*dev_data);
 	if (!dev_data)
 		return -ENOMEM;
 

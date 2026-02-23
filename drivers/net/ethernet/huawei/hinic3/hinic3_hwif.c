@@ -31,6 +31,7 @@
 #define HINIC3_AF0_GET(val, member) \
 	FIELD_GET(HINIC3_AF0_##member##_MASK, val)
 
+#define HINIC3_AF1_PPF_IDX_MASK           GENMASK(5, 0)
 #define HINIC3_AF1_AEQS_PER_FUNC_MASK     GENMASK(9, 8)
 #define HINIC3_AF1_MGMT_INIT_STATUS_MASK  BIT(30)
 #define HINIC3_AF1_GET(val, member) \
@@ -40,6 +41,10 @@
 #define HINIC3_AF2_IRQS_PER_FUNC_MASK      GENMASK(26, 16)
 #define HINIC3_AF2_GET(val, member) \
 	FIELD_GET(HINIC3_AF2_##member##_MASK, val)
+
+#define HINIC3_AF3_GLOBAL_VF_ID_OF_PF_MASK  GENMASK(27, 16)
+#define HINIC3_AF3_GET(val, member) \
+	FIELD_GET(HINIC3_AF3_##member##_MASK, val)
 
 #define HINIC3_AF4_DOORBELL_CTRL_MASK  BIT(0)
 #define HINIC3_AF4_GET(val, member) \
@@ -54,8 +59,16 @@
 #define HINIC3_AF6_PF_STATUS_MASK     GENMASK(15, 0)
 #define HINIC3_AF6_FUNC_MAX_SQ_MASK   GENMASK(31, 23)
 #define HINIC3_AF6_MSIX_FLEX_EN_MASK  BIT(22)
+#define HINIC3_AF6_SET(val, member) \
+	FIELD_PREP(HINIC3_AF6_##member##_MASK, val)
 #define HINIC3_AF6_GET(val, member) \
 	FIELD_GET(HINIC3_AF6_##member##_MASK, val)
+
+#define HINIC3_PPF_ELECTION_IDX_MASK  GENMASK(5, 0)
+#define HINIC3_PPF_ELECTION_SET(val, member) \
+	FIELD_PREP(HINIC3_PPF_ELECTION_##member##_MASK, val)
+#define HINIC3_PPF_ELECTION_GET(val, member) \
+	FIELD_GET(HINIC3_PPF_ELECTION_##member##_MASK, val)
 
 #define HINIC3_GET_REG_ADDR(reg)  ((reg) & (HINIC3_REGS_FLAG_MASK))
 
@@ -105,11 +118,14 @@ static void set_hwif_attr(struct hinic3_func_attr *attr, u32 attr0, u32 attr1,
 	attr->pci_intf_idx = HINIC3_AF0_GET(attr0, PCI_INTF_IDX);
 	attr->func_type = HINIC3_AF0_GET(attr0, FUNC_TYPE);
 
+	attr->ppf_idx = HINIC3_AF1_GET(attr1, PPF_IDX);
 	attr->num_aeqs = BIT(HINIC3_AF1_GET(attr1, AEQS_PER_FUNC));
 	attr->num_ceqs = HINIC3_AF2_GET(attr2, CEQS_PER_FUNC);
 	attr->num_irqs = HINIC3_AF2_GET(attr2, IRQS_PER_FUNC);
 	if (attr->num_irqs > HINIC3_MAX_MSIX_ENTRY)
 		attr->num_irqs = HINIC3_MAX_MSIX_ENTRY;
+
+	attr->global_vf_id_of_pf = HINIC3_AF3_GET(attr3, GLOBAL_VF_ID_OF_PF);
 
 	attr->num_sq = HINIC3_AF6_GET(attr6, FUNC_MAX_SQ);
 	attr->msix_flex_en = HINIC3_AF6_GET(attr6, MSIX_FLEX_EN);
@@ -185,6 +201,28 @@ void hinic3_toggle_doorbell(struct hinic3_hwif *hwif,
 	attr4 |= HINIC3_AF4_SET(flag, DOORBELL_CTRL);
 
 	hinic3_hwif_write_reg(hwif, addr, attr4);
+}
+
+static void hinic3_set_ppf(struct hinic3_hwdev *hwdev)
+{
+	struct hinic3_hwif *hwif = hwdev->hwif;
+	struct hinic3_func_attr *attr;
+	u32 addr, val;
+
+	if (HINIC3_IS_VF(hwdev))
+		return;
+
+	/* Read Modify Write */
+	attr = &hwif->attr;
+	addr = HINIC3_CSR_PPF_ELECTION_ADDR;
+	val = hinic3_hwif_read_reg(hwif, addr);
+	val &= ~HINIC3_PPF_ELECTION_IDX_MASK;
+	val |= HINIC3_PPF_ELECTION_SET(attr->func_global_idx, IDX);
+	hinic3_hwif_write_reg(hwif, addr, val);
+
+	/* Check PPF index */
+	val = hinic3_hwif_read_reg(hwif, addr);
+	attr->ppf_idx = HINIC3_PPF_ELECTION_GET(val, IDX);
 }
 
 static int db_area_idx_init(struct hinic3_hwif *hwif, u64 db_base_phy,
@@ -366,6 +404,27 @@ static int wait_until_doorbell_and_outbound_enabled(struct hinic3_hwif *hwif)
 				       USEC_PER_MSEC);
 }
 
+void hinic3_set_pf_status(struct hinic3_hwif *hwif,
+			  enum hinic3_pf_status status)
+{
+	u32 attr6 = hinic3_hwif_read_reg(hwif, HINIC3_CSR_FUNC_ATTR6_ADDR);
+
+	attr6 &= ~HINIC3_AF6_PF_STATUS_MASK;
+	attr6 |= HINIC3_AF6_SET(status, PF_STATUS);
+
+	if (hwif->attr.func_type == HINIC3_FUNC_TYPE_VF)
+		return;
+
+	hinic3_hwif_write_reg(hwif, HINIC3_CSR_FUNC_ATTR6_ADDR, attr6);
+}
+
+enum hinic3_pf_status hinic3_get_pf_status(struct hinic3_hwif *hwif)
+{
+	u32 attr6 = hinic3_hwif_read_reg(hwif, HINIC3_CSR_FUNC_ATTR6_ADDR);
+
+	return HINIC3_AF6_GET(attr6, PF_STATUS);
+}
+
 int hinic3_init_hwif(struct hinic3_hwdev *hwdev)
 {
 	struct hinic3_pcidev *pci_adapter = hwdev->adapter;
@@ -373,13 +432,19 @@ int hinic3_init_hwif(struct hinic3_hwdev *hwdev)
 	u32 attr1, attr4, attr5;
 	int err;
 
-	hwif = kzalloc(sizeof(*hwif), GFP_KERNEL);
+	hwif = kzalloc_obj(*hwif);
 	if (!hwif)
 		return -ENOMEM;
 
 	hwdev->hwif = hwif;
-	hwif->cfg_regs_base = (u8 __iomem *)pci_adapter->cfg_reg_base +
+	/* if function is VF, mgmt_regs_base will be NULL */
+	hwif->cfg_regs_base = pci_adapter->mgmt_reg_base ?
+			      pci_adapter->cfg_reg_base :
+			      (u8 __iomem *)pci_adapter->cfg_reg_base +
 			      HINIC3_VF_CFG_REG_OFFSET;
+
+	hwif->intr_regs_base = pci_adapter->intr_reg_base;
+	hwif->mgmt_regs_base = pci_adapter->mgmt_reg_base;
 
 	err = db_area_idx_init(hwif, pci_adapter->db_base_phy,
 			       pci_adapter->db_base,
@@ -412,7 +477,15 @@ int hinic3_init_hwif(struct hinic3_hwdev *hwdev)
 		goto err_free_db_area_idx;
 	}
 
+	hinic3_set_ppf(hwdev);
+
 	disable_all_msix(hwdev);
+	/* disable mgmt cpu from reporting any event */
+	hinic3_set_pf_status(hwdev->hwif, HINIC3_PF_STATUS_INIT);
+
+	dev_dbg(hwdev->dev, "global_func_idx: %u, func_type: %d, host_id: %u, ppf: %u\n",
+		hwif->attr.func_global_idx, hwif->attr.func_type,
+		hwif->attr.pci_intf_idx, hwif->attr.ppf_idx);
 
 	return 0;
 
@@ -433,4 +506,19 @@ void hinic3_free_hwif(struct hinic3_hwdev *hwdev)
 u16 hinic3_global_func_id(struct hinic3_hwdev *hwdev)
 {
 	return hwdev->hwif->attr.func_global_idx;
+}
+
+u8 hinic3_pf_id_of_vf(struct hinic3_hwdev *hwdev)
+{
+	return hwdev->hwif->attr.port_to_port_idx;
+}
+
+u16 hinic3_glb_pf_vf_offset(struct hinic3_hwdev *hwdev)
+{
+	return hwdev->hwif->attr.global_vf_id_of_pf;
+}
+
+u8 hinic3_ppf_idx(struct hinic3_hwdev *hwdev)
+{
+	return hwdev->hwif->attr.ppf_idx;
 }

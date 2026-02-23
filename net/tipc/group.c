@@ -169,7 +169,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	struct tipc_group *grp;
 	u32 type = mreq->type;
 
-	grp = kzalloc(sizeof(*grp), GFP_ATOMIC);
+	grp = kzalloc_obj(*grp, GFP_ATOMIC);
 	if (!grp)
 		return NULL;
 	tipc_nlist_init(&grp->dests, tipc_own_addr(net));
@@ -306,7 +306,7 @@ static struct tipc_member *tipc_group_create_member(struct tipc_group *grp,
 	struct tipc_member *m;
 	int ret;
 
-	m = kzalloc(sizeof(*m), GFP_ATOMIC);
+	m = kzalloc_obj(*m, GFP_ATOMIC);
 	if (!m)
 		return NULL;
 	INIT_LIST_HEAD(&m->list);

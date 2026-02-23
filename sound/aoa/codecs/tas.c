@@ -845,7 +845,7 @@ static int tas_i2c_probe(struct i2c_client *client)
 	struct device_node *node = client->dev.of_node;
 	struct tas *tas;
 
-	tas = kzalloc(sizeof(struct tas), GFP_KERNEL);
+	tas = kzalloc_obj(struct tas);
 
 	if (!tas)
 		return -ENOMEM;

@@ -536,7 +536,7 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 		if (tmpl != p)
 			tmpl->proto.tmpl_padto = (char *)tmpl - (char *)p;
 	} else {
-		tmpl = kzalloc(sizeof(*tmpl), flags);
+		tmpl = kzalloc_obj(*tmpl, flags);
 		if (!tmpl)
 			return NULL;
 	}
@@ -2535,7 +2535,7 @@ void *nf_ct_alloc_hashtable(unsigned int *sizep, int nulls)
 	if (nr_slots > (INT_MAX / sizeof(struct hlist_nulls_head)))
 		return NULL;
 
-	hash = kvcalloc(nr_slots, sizeof(struct hlist_nulls_head), GFP_KERNEL);
+	hash = kvzalloc_objs(struct hlist_nulls_head, nr_slots);
 
 	if (hash && nulls)
 		for (i = 0; i < nr_slots; i++)

@@ -1241,7 +1241,7 @@ static int ddebug_add_module(struct _ddebug_info *di, const char *modname)
 		return 0;
 	}
 
-	dt = kzalloc(sizeof(*dt), GFP_KERNEL);
+	dt = kzalloc_obj(*dt);
 	if (dt == NULL) {
 		pr_err("error adding module: %s\n", modname);
 		return -ENOMEM;

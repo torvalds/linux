@@ -1677,8 +1677,7 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 	if (reg->hr_tmp_block == NULL)
 		return -ENOMEM;
 
-	reg->hr_slots = kcalloc(reg->hr_blocks,
-				sizeof(struct o2hb_disk_slot), GFP_KERNEL);
+	reg->hr_slots = kzalloc_objs(struct o2hb_disk_slot, reg->hr_blocks);
 	if (reg->hr_slots == NULL)
 		return -ENOMEM;
 
@@ -1694,8 +1693,7 @@ static int o2hb_map_slot_data(struct o2hb_region *reg)
 			   "at %u blocks per page\n",
 	     reg->hr_num_pages, reg->hr_blocks, spp);
 
-	reg->hr_slot_data = kcalloc(reg->hr_num_pages, sizeof(struct page *),
-				    GFP_KERNEL);
+	reg->hr_slot_data = kzalloc_objs(struct page *, reg->hr_num_pages);
 	if (!reg->hr_slot_data)
 		return -ENOMEM;
 
@@ -1942,7 +1940,7 @@ static struct configfs_attribute *o2hb_region_attrs[] = {
 	NULL,
 };
 
-static struct configfs_item_operations o2hb_region_item_ops = {
+static const struct configfs_item_operations o2hb_region_item_ops = {
 	.release		= o2hb_region_release,
 };
 
@@ -2001,7 +1999,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	struct o2hb_region *reg = NULL;
 	int ret;
 
-	reg = kzalloc(sizeof(struct o2hb_region), GFP_KERNEL);
+	reg = kzalloc_obj(struct o2hb_region);
 	if (reg == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -2193,7 +2191,7 @@ static struct configfs_attribute *o2hb_heartbeat_group_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
+static const struct configfs_group_operations o2hb_heartbeat_group_group_ops = {
 	.make_item	= o2hb_heartbeat_group_make_item,
 	.drop_item	= o2hb_heartbeat_group_drop_item,
 };
@@ -2211,7 +2209,7 @@ struct config_group *o2hb_alloc_hb_set(void)
 	struct o2hb_heartbeat_group *hs = NULL;
 	struct config_group *ret = NULL;
 
-	hs = kzalloc(sizeof(struct o2hb_heartbeat_group), GFP_KERNEL);
+	hs = kzalloc_obj(struct o2hb_heartbeat_group);
 	if (hs == NULL)
 		goto out;
 

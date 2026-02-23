@@ -205,7 +205,7 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 {
 	struct orangefs_bufmap *bufmap;
 
-	bufmap = kzalloc(sizeof(*bufmap), GFP_KERNEL);
+	bufmap = kzalloc_obj(*bufmap);
 	if (!bufmap)
 		goto out;
 
@@ -219,8 +219,7 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 		goto out_free_bufmap;
 
 	bufmap->desc_array =
-		kcalloc(bufmap->desc_count, sizeof(struct orangefs_bufmap_desc),
-			GFP_KERNEL);
+		kzalloc_objs(struct orangefs_bufmap_desc, bufmap->desc_count);
 	if (!bufmap->desc_array)
 		goto out_free_index_array;
 
@@ -228,7 +227,7 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 
 	/* allocate storage to track our page mappings */
 	bufmap->page_array =
-		kcalloc(bufmap->page_count, sizeof(struct page *), GFP_KERNEL);
+		kzalloc_objs(struct page *, bufmap->page_count);
 	if (!bufmap->page_array)
 		goto out_free_desc_array;
 

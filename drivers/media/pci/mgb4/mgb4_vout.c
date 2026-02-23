@@ -25,7 +25,8 @@
 #include "mgb4_vout.h"
 
 ATTRIBUTE_GROUPS(mgb4_fpdl3_out);
-ATTRIBUTE_GROUPS(mgb4_gmsl_out);
+ATTRIBUTE_GROUPS(mgb4_gmsl3_out);
+ATTRIBUTE_GROUPS(mgb4_gmsl1_out);
 
 static const struct mgb4_vout_config vout_cfg[] = {
 	{0, 0, 8, {0x78, 0x60, 0x64, 0x68, 0x74, 0x6C, 0x70, 0x7C, 0xE0}},
@@ -37,8 +38,16 @@ static const struct i2c_board_info fpdl3_ser_info[] = {
 	{I2C_BOARD_INFO("serializer2", 0x16)},
 };
 
+static const struct i2c_board_info gmsl1_ser_info[] = {
+	{I2C_BOARD_INFO("serializer1", 0x24)},
+	{I2C_BOARD_INFO("serializer2", 0x22)},
+};
+
 static const struct mgb4_i2c_kv fpdl3_i2c[] = {
 	{0x05, 0xFF, 0x04}, {0x06, 0xFF, 0x01}, {0xC2, 0xFF, 0x80}
+};
+
+static const struct mgb4_i2c_kv gmsl1_i2c[] = {
 };
 
 static const struct v4l2_dv_timings_cap video_timings_cap = {
@@ -634,12 +643,24 @@ static irqreturn_t handler(int irq, void *ctx)
 
 static int ser_init(struct mgb4_vout_dev *voutdev, int id)
 {
-	int rv;
-	const struct i2c_board_info *info = &fpdl3_ser_info[id];
 	struct mgb4_i2c_client *ser = &voutdev->ser;
 	struct device *dev = &voutdev->mgbdev->pdev->dev;
+	const struct i2c_board_info *info = NULL;
+	const struct mgb4_i2c_kv *values = NULL;
+	size_t count = 0;
+	int rv;
 
-	if (MGB4_IS_GMSL(voutdev->mgbdev))
+	if (MGB4_IS_FPDL3(voutdev->mgbdev)) {
+		info = &fpdl3_ser_info[id];
+		values = fpdl3_i2c;
+		count = ARRAY_SIZE(fpdl3_i2c);
+	} else if (MGB4_IS_GMSL1(voutdev->mgbdev)) {
+		info = &gmsl1_ser_info[id];
+		values = gmsl1_i2c;
+		count = ARRAY_SIZE(gmsl1_i2c);
+	}
+
+	if (!info)
 		return 0;
 
 	rv = mgb4_i2c_init(ser, voutdev->mgbdev->i2c_adap, info, 8);
@@ -647,7 +668,7 @@ static int ser_init(struct mgb4_vout_dev *voutdev, int id)
 		dev_err(dev, "failed to create serializer\n");
 		return rv;
 	}
-	rv = mgb4_i2c_configure(ser, fpdl3_i2c, ARRAY_SIZE(fpdl3_i2c));
+	rv = mgb4_i2c_configure(ser, values, count);
 	if (rv < 0) {
 		dev_err(dev, "failed to configure serializer\n");
 		goto err_i2c_dev;
@@ -665,18 +686,19 @@ static void fpga_init(struct mgb4_vout_dev *voutdev)
 {
 	struct mgb4_regs *video = &voutdev->mgbdev->video;
 	const struct mgb4_vout_regs *regs = &voutdev->config->regs;
+	int dp = MGB4_IS_GMSL1(voutdev->mgbdev) ? 0 : 1;
+	u32 source = (voutdev->config->id + MGB4_VIN_DEVICES) << 2;
 
-	mgb4_write_reg(video, regs->config, 0x00000011);
+	mgb4_write_reg(video, regs->config, 0x00000001);
 	mgb4_write_reg(video, regs->resolution, (1280 << 16) | 640);
 	mgb4_write_reg(video, regs->hsync, 0x00283232);
 	mgb4_write_reg(video, regs->vsync, 0x40141F1E);
 	mgb4_write_reg(video, regs->frame_limit, MGB4_HW_FREQ / 60);
 	mgb4_write_reg(video, regs->padding, 0x00000000);
 
-	voutdev->freq = mgb4_cmt_set_vout_freq(voutdev, 61150 >> 1) << 1;
+	voutdev->freq = mgb4_cmt_set_vout_freq(voutdev, 61150 >> dp) << dp;
 
-	mgb4_write_reg(video, regs->config,
-		       (voutdev->config->id + MGB4_VIN_DEVICES) << 2 | 1 << 4);
+	mgb4_write_reg(video, regs->config, source | dp << 4);
 }
 
 static void create_debugfs(struct mgb4_vout_dev *voutdev)
@@ -720,15 +742,26 @@ static void create_debugfs(struct mgb4_vout_dev *voutdev)
 #endif
 }
 
+static const struct attribute_group **module_groups(struct mgb4_dev *mgbdev)
+{
+	if (MGB4_IS_FPDL3(mgbdev))
+		return mgb4_fpdl3_out_groups;
+	else if (MGB4_IS_GMSL3(mgbdev))
+		return mgb4_gmsl3_out_groups;
+	else if (MGB4_IS_GMSL1(mgbdev))
+		return mgb4_gmsl1_out_groups;
+	else
+		return NULL;
+}
+
 struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 {
 	int rv, irq;
-	const struct attribute_group **groups;
 	struct mgb4_vout_dev *voutdev;
 	struct pci_dev *pdev = mgbdev->pdev;
 	struct device *dev = &pdev->dev;
 
-	voutdev = kzalloc(sizeof(*voutdev), GFP_KERNEL);
+	voutdev = kzalloc_obj(*voutdev);
 	if (!voutdev)
 		return NULL;
 
@@ -804,9 +837,7 @@ struct mgb4_vout_dev *mgb4_vout_create(struct mgb4_dev *mgbdev, int id)
 	}
 
 	/* Module sysfs attributes */
-	groups = MGB4_IS_GMSL(mgbdev)
-	  ? mgb4_gmsl_out_groups : mgb4_fpdl3_out_groups;
-	rv = device_add_groups(&voutdev->vdev.dev, groups);
+	rv = device_add_groups(&voutdev->vdev.dev, module_groups(mgbdev));
 	if (rv) {
 		dev_err(dev, "failed to create sysfs attributes\n");
 		goto err_video_dev;
@@ -830,15 +861,10 @@ err_alloc:
 
 void mgb4_vout_free(struct mgb4_vout_dev *voutdev)
 {
-	const struct attribute_group **groups;
 	int irq = xdma_get_user_irq(voutdev->mgbdev->xdev, voutdev->config->irq);
 
 	free_irq(irq, voutdev);
-
-	groups = MGB4_IS_GMSL(voutdev->mgbdev)
-	  ? mgb4_gmsl_out_groups : mgb4_fpdl3_out_groups;
-	device_remove_groups(&voutdev->vdev.dev, groups);
-
+	device_remove_groups(&voutdev->vdev.dev, module_groups(voutdev->mgbdev));
 	mgb4_i2c_free(&voutdev->ser);
 	video_unregister_device(&voutdev->vdev);
 	v4l2_device_unregister(&voutdev->v4l2dev);

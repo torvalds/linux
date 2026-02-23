@@ -94,7 +94,7 @@ dr_ptrn_alloc_pattern(struct mlx5dr_ptrn_mgr *mgr,
 		 mgr->dmn->info.caps.hdr_modify_pattern_icm_addr) /
 		DR_ACTION_CACHE_LINE_SIZE;
 
-	pattern = kzalloc(sizeof(*pattern), GFP_KERNEL);
+	pattern = kzalloc_obj(*pattern);
 	if (!pattern)
 		goto free_chunk;
 
@@ -201,7 +201,7 @@ struct mlx5dr_ptrn_mgr *mlx5dr_ptrn_mgr_create(struct mlx5dr_domain *dmn)
 	if (!mlx5dr_domain_is_support_ptrn_arg(dmn))
 		return NULL;
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (!mgr)
 		return NULL;
 

@@ -59,8 +59,7 @@ struct iwl_phy_db_chg_txp {
 
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 {
-	struct iwl_phy_db *phy_db = kzalloc(sizeof(struct iwl_phy_db),
-					    GFP_KERNEL);
+	struct iwl_phy_db *phy_db = kzalloc_obj(struct iwl_phy_db);
 
 	if (!phy_db)
 		return phy_db;
@@ -172,9 +171,9 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 			 * Firmware sends the largest index first, so we can use
 			 * it to know how much we should allocate.
 			 */
-			phy_db->calib_ch_group_papd = kcalloc(chg_id + 1,
-							      sizeof(struct iwl_phy_db_entry),
-							      GFP_ATOMIC);
+			phy_db->calib_ch_group_papd = kzalloc_objs(struct iwl_phy_db_entry,
+								   chg_id + 1,
+								   GFP_ATOMIC);
 			if (!phy_db->calib_ch_group_papd)
 				return -ENOMEM;
 			phy_db->n_group_papd = chg_id + 1;
@@ -186,9 +185,9 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db,
 			 * Firmware sends the largest index first, so we can use
 			 * it to know how much we should allocate.
 			 */
-			phy_db->calib_ch_group_txp = kcalloc(chg_id + 1,
-							     sizeof(struct iwl_phy_db_entry),
-							     GFP_ATOMIC);
+			phy_db->calib_ch_group_txp = kzalloc_objs(struct iwl_phy_db_entry,
+								  chg_id + 1,
+								  GFP_ATOMIC);
 			if (!phy_db->calib_ch_group_txp)
 				return -ENOMEM;
 			phy_db->n_group_txp = chg_id + 1;

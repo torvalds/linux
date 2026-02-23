@@ -648,7 +648,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	bool hotadd = system_state == SYSTEM_RUNNING;
 	const char *acpi_hid;
 
-	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
+	root = kzalloc_obj(struct acpi_pci_root);
 	if (!root)
 		return -ENOMEM;
 
@@ -738,7 +738,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	if (no_aspm)
 		pcie_no_aspm();
 
-	pci_acpi_add_bus_pm_notifier(device);
+	pci_acpi_add_root_pm_notifier(device, root);
 	device_set_wakeup_capable(root->bus->bridge, device->wakeup.flags.valid);
 
 	if (hotadd) {

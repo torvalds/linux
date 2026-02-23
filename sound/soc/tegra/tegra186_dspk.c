@@ -467,6 +467,7 @@ static const struct regmap_config tegra186_dspk_regmap = {
 	.volatile_reg		= tegra186_dspk_volatile_reg,
 	.reg_defaults		= tegra186_dspk_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tegra186_dspk_reg_defaults),
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 

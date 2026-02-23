@@ -617,7 +617,7 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
  *
  *	Queue a command to the ATP queue. Called with the host lock held.
  */
-static int atp870u_queuecommand_lck(struct scsi_cmnd *req_p)
+static enum scsi_qc_status atp870u_queuecommand_lck(struct scsi_cmnd *req_p)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	unsigned char c;

@@ -212,7 +212,7 @@ static struct iso_conn *iso_conn_add(struct hci_conn *hcon)
 		return conn;
 	}
 
-	conn = kzalloc(sizeof(*conn), GFP_KERNEL);
+	conn = kzalloc_obj(*conn);
 	if (!conn)
 		return NULL;
 
@@ -361,7 +361,7 @@ static int iso_connect_bis(struct sock *sk)
 	}
 
 	/* Fail if out PHYs are marked as disabled */
-	if (!iso_pi(sk)->qos.bcast.out.phy) {
+	if (!iso_pi(sk)->qos.bcast.out.phys) {
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -458,7 +458,7 @@ static int iso_connect_cis(struct sock *sk)
 	}
 
 	/* Fail if either PHYs are marked as disabled */
-	if (!iso_pi(sk)->qos.ucast.in.phy && !iso_pi(sk)->qos.ucast.out.phy) {
+	if (!iso_pi(sk)->qos.ucast.in.phys && !iso_pi(sk)->qos.ucast.out.phys) {
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -894,7 +894,7 @@ static struct proto iso_proto = {
 	.interval	= 10000u, \
 	.latency	= 10u, \
 	.sdu		= 40u, \
-	.phy		= BT_ISO_PHY_2M, \
+	.phys		= BT_ISO_PHY_2M, \
 	.rtn		= 2u, \
 }
 
@@ -1661,7 +1661,7 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 static bool check_io_qos(struct bt_iso_io_qos *qos)
 {
 	/* If no PHY is enable SDU must be 0 */
-	if (!qos->phy && qos->sdu)
+	if (!qos->phys && qos->sdu)
 		return false;
 
 	if (qos->interval && (qos->interval < 0xff || qos->interval > 0xfffff))
@@ -1670,7 +1670,7 @@ static bool check_io_qos(struct bt_iso_io_qos *qos)
 	if (qos->latency && (qos->latency < 0x05 || qos->latency > 0xfa0))
 		return false;
 
-	if (qos->phy > BT_ISO_PHY_ANY)
+	if (qos->phys > BT_ISO_PHY_ANY)
 		return false;
 
 	return true;

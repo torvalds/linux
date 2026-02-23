@@ -3,7 +3,7 @@
  * Copyright (c) 2023-2024 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -102,7 +102,7 @@ xchk_setup_metapath_scan(
 		return error;
 	}
 
-	mpath = kzalloc(sizeof(struct xchk_metapath), XCHK_GFP_FLAGS);
+	mpath = kzalloc_obj(struct xchk_metapath, XCHK_GFP_FLAGS);
 	if (!mpath) {
 		kfree_const(path);
 		return -ENOMEM;

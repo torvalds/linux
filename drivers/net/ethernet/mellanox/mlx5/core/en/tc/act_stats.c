@@ -36,7 +36,7 @@ mlx5e_tc_act_stats_create(void)
 	struct mlx5e_tc_act_stats_handle *handle;
 	int err;
 
-	handle = kvzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kvzalloc_obj(*handle);
 	if (!handle)
 		return ERR_PTR(-ENOMEM);
 
@@ -67,7 +67,7 @@ mlx5e_tc_act_stats_add(struct mlx5e_tc_act_stats_handle *handle,
 	u64 lastused;
 	int err = 0;
 
-	act_stats = kvzalloc(sizeof(*act_stats), GFP_KERNEL);
+	act_stats = kvzalloc_obj(*act_stats);
 	if (!act_stats)
 		return -ENOMEM;
 

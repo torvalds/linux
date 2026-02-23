@@ -397,7 +397,7 @@ static struct vimc_ent_device *vimc_capture_add(struct vimc_device *vimc,
 	int ret;
 
 	/* Allocate the vimc_capture_device struct */
-	vcapture = kzalloc(sizeof(*vcapture), GFP_KERNEL);
+	vcapture = kzalloc_obj(*vcapture);
 	if (!vcapture)
 		return ERR_PTR(-ENOMEM);
 

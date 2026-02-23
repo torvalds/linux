@@ -693,7 +693,7 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 		return ERR_PTR(-EACCES);
 
 	/* Allocate a new seccomp_filter */
-	sfilter = kzalloc(sizeof(*sfilter), GFP_KERNEL | __GFP_NOWARN);
+	sfilter = kzalloc_obj(*sfilter, GFP_KERNEL | __GFP_NOWARN);
 	if (!sfilter)
 		return ERR_PTR(-ENOMEM);
 
@@ -1893,7 +1893,7 @@ static struct file *init_listener(struct seccomp_filter *filter)
 	struct file *ret;
 
 	ret = ERR_PTR(-ENOMEM);
-	filter->notif = kzalloc(sizeof(*(filter->notif)), GFP_KERNEL);
+	filter->notif = kzalloc_obj(*(filter->notif));
 	if (!filter->notif)
 		goto out;
 

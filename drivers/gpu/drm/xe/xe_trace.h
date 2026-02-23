@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 #include "xe_exec_queue_types.h"
+#include "xe_exec_queue.h"
 #include "xe_gpu_scheduler_types.h"
 #include "xe_gt_types.h"
 #include "xe_guc_exec_queue_types.h"
@@ -97,7 +98,47 @@ DECLARE_EVENT_CLASS(xe_exec_queue,
 			      __entry->guc_state, __entry->flags)
 );
 
+DECLARE_EVENT_CLASS(xe_exec_queue_multi_queue,
+		    TP_PROTO(struct xe_exec_queue *q),
+		    TP_ARGS(q),
+
+		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_eq(q))
+			     __field(enum xe_engine_class, class)
+			     __field(u32, logical_mask)
+			     __field(u8, gt_id)
+			     __field(u16, width)
+			     __field(u32, guc_id)
+			     __field(u32, guc_state)
+			     __field(u32, flags)
+			     __field(u32, primary)
+			     ),
+
+		    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->class = q->class;
+			   __entry->logical_mask = q->logical_mask;
+			   __entry->gt_id = q->gt->info.id;
+			   __entry->width = q->width;
+			   __entry->guc_id = q->guc->id;
+			   __entry->guc_state = atomic_read(&q->guc->state);
+			   __entry->flags = q->flags;
+			   __entry->primary = xe_exec_queue_multi_queue_primary(q)->guc->id;
+			   ),
+
+		    TP_printk("dev=%s, %d:0x%x, gt=%d, width=%d guc_id=%d, guc_state=0x%x, flags=0x%x, primary=%d",
+			      __get_str(dev), __entry->class, __entry->logical_mask,
+			      __entry->gt_id, __entry->width, __entry->guc_id,
+			      __entry->guc_state, __entry->flags,
+			      __entry->primary)
+);
+
 DEFINE_EVENT(xe_exec_queue, xe_exec_queue_create,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
+);
+
+DEFINE_EVENT(xe_exec_queue_multi_queue, xe_exec_queue_create_multi_queue,
 	     TP_PROTO(struct xe_exec_queue *q),
 	     TP_ARGS(q)
 );
@@ -172,17 +213,17 @@ DEFINE_EVENT(xe_exec_queue, xe_exec_queue_memory_cat_error,
 	     TP_ARGS(q)
 );
 
+DEFINE_EVENT(xe_exec_queue, xe_exec_queue_cgp_context_error,
+	     TP_PROTO(struct xe_exec_queue *q),
+	     TP_ARGS(q)
+);
+
 DEFINE_EVENT(xe_exec_queue, xe_exec_queue_stop,
 	     TP_PROTO(struct xe_exec_queue *q),
 	     TP_ARGS(q)
 );
 
 DEFINE_EVENT(xe_exec_queue, xe_exec_queue_resubmit,
-	     TP_PROTO(struct xe_exec_queue *q),
-	     TP_ARGS(q)
-);
-
-DEFINE_EVENT(xe_exec_queue, xe_exec_queue_lr_cleanup,
 	     TP_PROTO(struct xe_exec_queue *q),
 	     TP_ARGS(q)
 );

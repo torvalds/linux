@@ -386,8 +386,7 @@ static int fill_object_idr(struct drm_device *dev,
 	int ret;
 	bool universal_planes = READ_ONCE(lessor_priv->universal_planes);
 
-	objects = kcalloc(object_count, sizeof(struct drm_mode_object *),
-			  GFP_KERNEL);
+	objects = kzalloc_objs(struct drm_mode_object *, object_count);
 	if (!objects)
 		return -ENOMEM;
 

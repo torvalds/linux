@@ -17,8 +17,8 @@
 #include "abi/guc_actions_abi.h"
 #include "abi/guc_actions_slpc_abi.h"
 #include "abi/guc_klvs_abi.h"
-#include "regs/xe_lrc_layout.h"
 #include "xe_assert.h"
+#include "xe_bo.h"
 #include "xe_devcoredump.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
@@ -35,7 +35,6 @@
 #include "xe_guc_klv_helpers.h"
 #include "xe_guc_submit_types.h"
 #include "xe_hw_engine.h"
-#include "xe_hw_fence.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_map.h"
@@ -46,6 +45,8 @@
 #include "xe_trace.h"
 #include "xe_uc_fw.h"
 #include "xe_vm.h"
+
+#define XE_GUC_EXEC_QUEUE_CGP_CONTEXT_ERROR_LEN		6
 
 static struct xe_guc *
 exec_queue_to_guc(struct xe_exec_queue *q)
@@ -68,10 +69,8 @@ exec_queue_to_guc(struct xe_exec_queue *q)
 #define EXEC_QUEUE_STATE_KILLED			(1 << 7)
 #define EXEC_QUEUE_STATE_WEDGED			(1 << 8)
 #define EXEC_QUEUE_STATE_BANNED			(1 << 9)
-#define EXEC_QUEUE_STATE_CHECK_TIMEOUT		(1 << 10)
-#define EXEC_QUEUE_STATE_EXTRA_REF		(1 << 11)
-#define EXEC_QUEUE_STATE_PENDING_RESUME		(1 << 12)
-#define EXEC_QUEUE_STATE_PENDING_TDR_EXIT	(1 << 13)
+#define EXEC_QUEUE_STATE_PENDING_RESUME		(1 << 10)
+#define EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND	(1 << 11)
 
 static bool exec_queue_registered(struct xe_exec_queue *q)
 {
@@ -203,36 +202,6 @@ static void set_exec_queue_wedged(struct xe_exec_queue *q)
 	atomic_or(EXEC_QUEUE_STATE_WEDGED, &q->guc->state);
 }
 
-static bool exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_CHECK_TIMEOUT;
-}
-
-static void set_exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	atomic_or(EXEC_QUEUE_STATE_CHECK_TIMEOUT, &q->guc->state);
-}
-
-static void clear_exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	atomic_and(~EXEC_QUEUE_STATE_CHECK_TIMEOUT, &q->guc->state);
-}
-
-static bool exec_queue_extra_ref(struct xe_exec_queue *q)
-{
-	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_EXTRA_REF;
-}
-
-static void set_exec_queue_extra_ref(struct xe_exec_queue *q)
-{
-	atomic_or(EXEC_QUEUE_STATE_EXTRA_REF, &q->guc->state);
-}
-
-static void clear_exec_queue_extra_ref(struct xe_exec_queue *q)
-{
-	atomic_and(~EXEC_QUEUE_STATE_EXTRA_REF, &q->guc->state);
-}
-
 static bool exec_queue_pending_resume(struct xe_exec_queue *q)
 {
 	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_RESUME;
@@ -248,19 +217,19 @@ static void clear_exec_queue_pending_resume(struct xe_exec_queue *q)
 	atomic_and(~EXEC_QUEUE_STATE_PENDING_RESUME, &q->guc->state);
 }
 
-static bool exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
+static bool exec_queue_idle_skip_suspend(struct xe_exec_queue *q)
 {
-	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_TDR_EXIT;
+	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND;
 }
 
-static void set_exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
+static void set_exec_queue_idle_skip_suspend(struct xe_exec_queue *q)
 {
-	atomic_or(EXEC_QUEUE_STATE_PENDING_TDR_EXIT, &q->guc->state);
+	atomic_or(EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND, &q->guc->state);
 }
 
-static void clear_exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
+static void clear_exec_queue_idle_skip_suspend(struct xe_exec_queue *q)
 {
-	atomic_and(~EXEC_QUEUE_STATE_PENDING_TDR_EXIT, &q->guc->state);
+	atomic_and(~EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND, &q->guc->state);
 }
 
 static bool exec_queue_killed_or_banned_or_wedged(struct xe_exec_queue *q)
@@ -388,7 +357,7 @@ static int guc_init_global_schedule_policy(struct xe_guc *guc)
 
 	*emit++ = XE_GUC_ACTION_UPDATE_SCHEDULING_POLICIES_KLV;
 
-	if (CCS_MASK(guc_to_gt(guc)))
+	if (CCS_INSTANCES(guc_to_gt(guc)))
 		emit = emit_render_compute_yield_klv(emit);
 
 	count = emit - data;
@@ -541,7 +510,8 @@ static void init_policies(struct xe_guc *guc, struct xe_exec_queue *q)
 	u32 slpc_exec_queue_freq_req = 0;
 	u32 preempt_timeout_us = q->sched_props.preempt_timeout_us;
 
-	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q));
+	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q) &&
+		     !xe_exec_queue_is_multi_queue_secondary(q));
 
 	if (q->flags & EXEC_QUEUE_FLAG_LOW_LATENCY)
 		slpc_exec_queue_freq_req |= SLPC_CTX_FREQ_REQ_IS_COMPUTE;
@@ -561,6 +531,8 @@ static void set_min_preemption_timeout(struct xe_guc *guc, struct xe_exec_queue 
 {
 	struct exec_queue_policy policy;
 
+	xe_assert(guc_to_xe(guc), !xe_exec_queue_is_multi_queue_secondary(q));
+
 	__guc_exec_queue_policy_start_klv(&policy, q->guc->id);
 	__guc_exec_queue_policy_add_preemption_timeout(&policy, 1);
 
@@ -568,12 +540,284 @@ static void set_min_preemption_timeout(struct xe_guc *guc, struct xe_exec_queue 
 		       __guc_exec_queue_policy_action_size(&policy), 0, 0);
 }
 
+static bool vf_recovery(struct xe_guc *guc)
+{
+	return xe_gt_recovery_pending(guc_to_gt(guc));
+}
+
+static void xe_guc_exec_queue_trigger_cleanup(struct xe_exec_queue *q)
+{
+	struct xe_guc *guc = exec_queue_to_guc(q);
+	struct xe_device *xe = guc_to_xe(guc);
+
+	/** to wakeup xe_wait_user_fence ioctl if exec queue is reset */
+	wake_up_all(&xe->ufence_wq);
+
+	xe_sched_tdr_queue_imm(&q->guc->sched);
+}
+
+static void xe_guc_exec_queue_group_trigger_cleanup(struct xe_exec_queue *q)
+{
+	struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	struct xe_exec_queue *eq;
+
+	xe_gt_assert(guc_to_gt(exec_queue_to_guc(q)),
+		     xe_exec_queue_is_multi_queue(q));
+
+	/* Group banned, skip timeout check in TDR */
+	WRITE_ONCE(group->banned, true);
+	xe_guc_exec_queue_trigger_cleanup(primary);
+
+	mutex_lock(&group->list_lock);
+	list_for_each_entry(eq, &group->list, multi_queue.link)
+		xe_guc_exec_queue_trigger_cleanup(eq);
+	mutex_unlock(&group->list_lock);
+}
+
+static void xe_guc_exec_queue_reset_trigger_cleanup(struct xe_exec_queue *q)
+{
+	if (xe_exec_queue_is_multi_queue(q)) {
+		struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
+		struct xe_exec_queue_group *group = q->multi_queue.group;
+		struct xe_exec_queue *eq;
+
+		/* Group banned, skip timeout check in TDR */
+		WRITE_ONCE(group->banned, true);
+
+		set_exec_queue_reset(primary);
+		if (!exec_queue_banned(primary))
+			xe_guc_exec_queue_trigger_cleanup(primary);
+
+		mutex_lock(&group->list_lock);
+		list_for_each_entry(eq, &group->list, multi_queue.link) {
+			set_exec_queue_reset(eq);
+			if (!exec_queue_banned(eq))
+				xe_guc_exec_queue_trigger_cleanup(eq);
+		}
+		mutex_unlock(&group->list_lock);
+	} else {
+		set_exec_queue_reset(q);
+		if (!exec_queue_banned(q))
+			xe_guc_exec_queue_trigger_cleanup(q);
+	}
+}
+
+static void set_exec_queue_group_banned(struct xe_exec_queue *q)
+{
+	struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	struct xe_exec_queue *eq;
+
+	/* Ban all queues of the multi-queue group */
+	xe_gt_assert(guc_to_gt(exec_queue_to_guc(q)),
+		     xe_exec_queue_is_multi_queue(q));
+	set_exec_queue_banned(primary);
+
+	mutex_lock(&group->list_lock);
+	list_for_each_entry(eq, &group->list, multi_queue.link)
+		set_exec_queue_banned(eq);
+	mutex_unlock(&group->list_lock);
+}
+
+/* Helper for context registration H2G */
+struct guc_ctxt_registration_info {
+	u32 flags;
+	u32 context_idx;
+	u32 engine_class;
+	u32 engine_submit_mask;
+	u32 wq_desc_lo;
+	u32 wq_desc_hi;
+	u32 wq_base_lo;
+	u32 wq_base_hi;
+	u32 wq_size;
+	u32 cgp_lo;
+	u32 cgp_hi;
+	u32 hwlrca_lo;
+	u32 hwlrca_hi;
+};
+
 #define parallel_read(xe_, map_, field_) \
 	xe_map_rd_field(xe_, &map_, 0, struct guc_submit_parallel_scratch, \
 			field_)
 #define parallel_write(xe_, map_, field_, val_) \
 	xe_map_wr_field(xe_, &map_, 0, struct guc_submit_parallel_scratch, \
 			field_, val_)
+
+/**
+ * DOC: Multi Queue Group GuC interface
+ *
+ * The multi queue group coordination between KMD and GuC is through a software
+ * construct called Context Group Page (CGP). The CGP is a KMD managed 4KB page
+ * allocated in the global GTT.
+ *
+ * CGP format:
+ *
+ * +-----------+---------------------------+---------------------------------------------+
+ * | DWORD     | Name                      | Description                                 |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 0         | Version                   | Bits [15:8]=Major ver, [7:0]=Minor ver      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 1..15     | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 16        | KMD_QUEUE_UPDATE_MASK_DW0 | KMD queue mask for queues 31..0             |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 17        | KMD_QUEUE_UPDATE_MASK_DW1 | KMD queue mask for queues 63..32            |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 18..31    | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 32        | Q0CD_DW0                  | Queue 0 context LRC descriptor lower DWORD  |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 33        | Q0ContextIndex            | Context ID for Queue 0                      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 34        | Q1CD_DW0                  | Queue 1 context LRC descriptor lower DWORD  |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 35        | Q1ContextIndex            | Context ID for Queue 1                      |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | ...       |...                        | ...                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 158       | Q63CD_DW0                 | Queue 63 context LRC descriptor lower DWORD |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 159       | Q63ContextIndex           | Context ID for Queue 63                     |
+ * +-----------+---------------------------+---------------------------------------------+
+ * | 160..1024 | RESERVED                  | MBZ                                         |
+ * +-----------+---------------------------+---------------------------------------------+
+ *
+ * While registering Q0 with GuC, CGP is updated with Q0 entry and GuC is notified
+ * through XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_QUEUE H2G message which specifies
+ * the CGP address. When the secondary queues are added to the group, the CGP is
+ * updated with entry for that queue and GuC is notified through the H2G interface
+ * XE_GUC_ACTION_MULTI_QUEUE_CONTEXT_CGP_SYNC. GuC responds to these H2G messages
+ * with a XE_GUC_ACTION_NOTIFY_MULTIQ_CONTEXT_CGP_SYNC_DONE G2H message. GuC also
+ * sends a XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CGP_CONTEXT_ERROR notification for any
+ * error in the CGP. Only one of these CGP update messages can be outstanding
+ * (waiting for GuC response) at any time. The bits in KMD_QUEUE_UPDATE_MASK_DW*
+ * fields indicate which queue entry is being updated in the CGP.
+ *
+ * The primary queue (Q0) represents the multi queue group context in GuC and
+ * submission on any queue of the group must be through Q0 GuC interface only.
+ *
+ * As it is not required to register secondary queues with GuC, the secondary queue
+ * context ids in the CGP are populated with Q0 context id.
+ */
+
+#define CGP_VERSION_MAJOR_SHIFT	8
+
+static void xe_guc_exec_queue_group_cgp_update(struct xe_device *xe,
+					       struct xe_exec_queue *q)
+{
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	u32 guc_id = group->primary->guc->id;
+
+	/* Currently implementing CGP version 1.0 */
+	xe_map_wr(xe, &group->cgp_bo->vmap, 0, u32,
+		  1 << CGP_VERSION_MAJOR_SHIFT);
+
+	xe_map_wr(xe, &group->cgp_bo->vmap,
+		  (32 + q->multi_queue.pos * 2) * sizeof(u32),
+		  u32, lower_32_bits(xe_lrc_descriptor(q->lrc[0])));
+
+	xe_map_wr(xe, &group->cgp_bo->vmap,
+		  (33 + q->multi_queue.pos * 2) * sizeof(u32),
+		  u32, guc_id);
+
+	if (q->multi_queue.pos / 32) {
+		xe_map_wr(xe, &group->cgp_bo->vmap, 17 * sizeof(u32),
+			  u32, BIT(q->multi_queue.pos % 32));
+		xe_map_wr(xe, &group->cgp_bo->vmap, 16 * sizeof(u32), u32, 0);
+	} else {
+		xe_map_wr(xe, &group->cgp_bo->vmap, 16 * sizeof(u32),
+			  u32, BIT(q->multi_queue.pos));
+		xe_map_wr(xe, &group->cgp_bo->vmap, 17 * sizeof(u32), u32, 0);
+	}
+}
+
+static void xe_guc_exec_queue_group_cgp_sync(struct xe_guc *guc,
+					     struct xe_exec_queue *q,
+					     const u32 *action, u32 len)
+{
+	struct xe_exec_queue_group *group = q->multi_queue.group;
+	struct xe_device *xe = guc_to_xe(guc);
+	long ret;
+
+	/*
+	 * As all queues of a multi queue group use single drm scheduler
+	 * submit workqueue, CGP synchronization with GuC are serialized.
+	 * Hence, no locking is required here.
+	 * Wait for any pending CGP_SYNC_DONE response before updating the
+	 * CGP page and sending CGP_SYNC message.
+	 *
+	 * FIXME: Support VF migration
+	 */
+	ret = wait_event_timeout(guc->ct.wq,
+				 !READ_ONCE(group->sync_pending) ||
+				 xe_guc_read_stopped(guc), HZ);
+	if (!ret || xe_guc_read_stopped(guc)) {
+		/* CGP_SYNC failed. Reset gt, cleanup the group */
+		xe_gt_warn(guc_to_gt(guc), "Wait for CGP_SYNC_DONE response failed!\n");
+		set_exec_queue_group_banned(q);
+		xe_gt_reset_async(q->gt);
+		xe_guc_exec_queue_group_trigger_cleanup(q);
+		return;
+	}
+
+	xe_lrc_set_multi_queue_priority(q->lrc[0], q->multi_queue.priority);
+	xe_guc_exec_queue_group_cgp_update(xe, q);
+
+	WRITE_ONCE(group->sync_pending, true);
+	xe_guc_ct_send(&guc->ct, action, len, G2H_LEN_DW_MULTI_QUEUE_CONTEXT, 1);
+}
+
+static void __register_exec_queue_group(struct xe_guc *guc,
+					struct xe_exec_queue *q,
+					struct guc_ctxt_registration_info *info)
+{
+#define MAX_MULTI_QUEUE_REG_SIZE	(8)
+	u32 action[MAX_MULTI_QUEUE_REG_SIZE];
+	int len = 0;
+
+	action[len++] = XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_QUEUE;
+	action[len++] = info->flags;
+	action[len++] = info->context_idx;
+	action[len++] = info->engine_class;
+	action[len++] = info->engine_submit_mask;
+	action[len++] = 0; /* Reserved */
+	action[len++] = info->cgp_lo;
+	action[len++] = info->cgp_hi;
+
+	xe_gt_assert(guc_to_gt(guc), len <= MAX_MULTI_QUEUE_REG_SIZE);
+#undef MAX_MULTI_QUEUE_REG_SIZE
+
+	/*
+	 * The above XE_GUC_ACTION_REGISTER_CONTEXT_MULTI_QUEUE do expect a
+	 * XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE response
+	 * from guc.
+	 */
+	xe_guc_exec_queue_group_cgp_sync(guc, q, action, len);
+}
+
+static void xe_guc_exec_queue_group_add(struct xe_guc *guc,
+					struct xe_exec_queue *q)
+{
+#define MAX_MULTI_QUEUE_CGP_SYNC_SIZE  (2)
+	u32 action[MAX_MULTI_QUEUE_CGP_SYNC_SIZE];
+	int len = 0;
+
+	xe_gt_assert(guc_to_gt(guc), xe_exec_queue_is_multi_queue_secondary(q));
+
+	action[len++] = XE_GUC_ACTION_MULTI_QUEUE_CONTEXT_CGP_SYNC;
+	action[len++] = q->multi_queue.group->primary->guc->id;
+
+	xe_gt_assert(guc_to_gt(guc), len <= MAX_MULTI_QUEUE_CGP_SYNC_SIZE);
+#undef MAX_MULTI_QUEUE_CGP_SYNC_SIZE
+
+	/*
+	 * The above XE_GUC_ACTION_MULTI_QUEUE_CONTEXT_CGP_SYNC do expect a
+	 * XE_GUC_ACTION_NOTIFY_MULTI_QUEUE_CONTEXT_CGP_SYNC_DONE response
+	 * from guc.
+	 */
+	xe_guc_exec_queue_group_cgp_sync(guc, q, action, len);
+}
 
 static void __register_mlrc_exec_queue(struct xe_guc *guc,
 				       struct xe_exec_queue *q,
@@ -670,6 +914,13 @@ static void register_exec_queue(struct xe_exec_queue *q, int ctx_type)
 	info.flags = CONTEXT_REGISTRATION_FLAG_KMD |
 		FIELD_PREP(CONTEXT_REGISTRATION_FLAG_TYPE, ctx_type);
 
+	if (xe_exec_queue_is_multi_queue(q)) {
+		struct xe_exec_queue_group *group = q->multi_queue.group;
+
+		info.cgp_lo = xe_bo_ggtt_addr(group->cgp_bo);
+		info.cgp_hi = 0;
+	}
+
 	if (xe_exec_queue_is_parallel(q)) {
 		u64 ggtt_addr = xe_lrc_parallel_ggtt_addr(lrc);
 		struct iosys_map map = xe_lrc_parallel_map(lrc);
@@ -690,31 +941,25 @@ static void register_exec_queue(struct xe_exec_queue *q, int ctx_type)
 		parallel_write(xe, map, wq_desc.wq_status, WQ_STATUS_ACTIVE);
 	}
 
-	/*
-	 * We must keep a reference for LR engines if engine is registered with
-	 * the GuC as jobs signal immediately and can't destroy an engine if the
-	 * GuC has a reference to it.
-	 */
-	if (xe_exec_queue_is_lr(q))
-		xe_exec_queue_get(q);
-
 	set_exec_queue_registered(q);
 	trace_xe_exec_queue_register(q);
-	if (xe_exec_queue_is_parallel(q))
+	if (xe_exec_queue_is_multi_queue_primary(q))
+		__register_exec_queue_group(guc, q, &info);
+	else if (xe_exec_queue_is_parallel(q))
 		__register_mlrc_exec_queue(guc, q, &info);
-	else
+	else if (!xe_exec_queue_is_multi_queue_secondary(q))
 		__register_exec_queue(guc, &info);
-	init_policies(guc, q);
+
+	if (!xe_exec_queue_is_multi_queue_secondary(q))
+		init_policies(guc, q);
+
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		xe_guc_exec_queue_group_add(guc, q);
 }
 
 static u32 wq_space_until_wrap(struct xe_exec_queue *q)
 {
 	return (WQ_SIZE - q->guc->wqi_tail);
-}
-
-static bool vf_recovery(struct xe_guc *guc)
-{
-	return xe_gt_recovery_pending(guc_to_gt(guc));
 }
 
 static inline void relaxed_ms_sleep(unsigned int delay_ms)
@@ -845,13 +1090,19 @@ static void submit_exec_queue(struct xe_exec_queue *q, struct xe_sched_job *job)
 	if (!job->restore_replay || job->last_replay) {
 		if (xe_exec_queue_is_parallel(q))
 			wq_item_append(q);
-		else
+		else if (!exec_queue_idle_skip_suspend(q))
 			xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
 		job->last_replay = false;
 	}
 
 	if (exec_queue_suspended(q) && !xe_exec_queue_is_parallel(q))
 		return;
+
+	/*
+	 * All queues in a multi-queue group will use the primary queue
+	 * of the group to interface with GuC.
+	 */
+	q = xe_exec_queue_multi_queue_primary(q);
 
 	if (!exec_queue_enabled(q) && !exec_queue_suspended(q)) {
 		action[len++] = XE_GUC_ACTION_SCHED_CONTEXT_MODE_SET;
@@ -890,7 +1141,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 	struct xe_exec_queue *q = job->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
-	bool lr = xe_exec_queue_is_lr(q), killed_or_banned_or_wedged =
+	bool killed_or_banned_or_wedged =
 		exec_queue_killed_or_banned_or_wedged(q);
 
 	xe_gt_assert(guc_to_gt(guc), !(exec_queue_destroyed(q) || exec_queue_pending_disable(q)) ||
@@ -899,6 +1150,18 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	trace_xe_sched_job_run(job);
 
 	if (!killed_or_banned_or_wedged && !xe_sched_job_is_error(job)) {
+		if (xe_exec_queue_is_multi_queue_secondary(q)) {
+			struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
+
+			if (exec_queue_killed_or_banned_or_wedged(primary)) {
+				killed_or_banned_or_wedged = true;
+				goto run_job_out;
+			}
+
+			if (!exec_queue_registered(primary))
+				register_exec_queue(primary, GUC_CONTEXT_NORMAL);
+		}
+
 		if (!exec_queue_registered(q))
 			register_exec_queue(q, GUC_CONTEXT_NORMAL);
 		if (!job->restore_replay)
@@ -907,14 +1170,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 		job->restore_replay = false;
 	}
 
-	/*
-	 * We don't care about job-fence ordering in LR VMs because these fences
-	 * are never exported; they are used solely to keep jobs on the pending
-	 * list. Once a queue enters an error state, there's no need to track
-	 * them.
-	 */
-	if (killed_or_banned_or_wedged && lr)
-		xe_sched_job_set_error(job, -ECANCELED);
+run_job_out:
 
 	return job->fence;
 }
@@ -932,6 +1188,11 @@ int xe_guc_read_stopped(struct xe_guc *guc)
 	return atomic_read(&guc->submission_state.stopped);
 }
 
+static void handle_multi_queue_secondary_sched_done(struct xe_guc *guc,
+						    struct xe_exec_queue *q,
+						    u32 runnable_state);
+static void handle_deregister_done(struct xe_guc *guc, struct xe_exec_queue *q);
+
 #define MAKE_SCHED_CONTEXT_ACTION(q, enable_disable)			\
 	u32 action[] = {						\
 		XE_GUC_ACTION_SCHED_CONTEXT_MODE_SET,			\
@@ -945,7 +1206,9 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 	MAKE_SCHED_CONTEXT_ACTION(q, DISABLE);
 	int ret;
 
-	set_min_preemption_timeout(guc, q);
+	if (!xe_exec_queue_is_multi_queue_secondary(q))
+		set_min_preemption_timeout(guc, q);
+
 	smp_rmb();
 	ret = wait_event_timeout(guc->ct.wq,
 				 (!exec_queue_pending_enable(q) &&
@@ -959,8 +1222,7 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 		xe_gt_warn(q->gt, "Pending enable/disable failed to respond\n");
 		xe_sched_submission_start(sched);
 		xe_gt_reset_async(q->gt);
-		if (!xe_exec_queue_is_lr(q))
-			xe_sched_tdr_queue_imm(sched);
+		xe_sched_tdr_queue_imm(sched);
 		return;
 	}
 
@@ -973,23 +1235,12 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 	 * Reserve space for both G2H here as the 2nd G2H is sent from a G2H
 	 * handler and we are not allowed to reserved G2H space in handlers.
 	 */
-	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
-		       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET +
-		       G2H_LEN_DW_DEREGISTER_CONTEXT, 2);
-}
-
-static void xe_guc_exec_queue_trigger_cleanup(struct xe_exec_queue *q)
-{
-	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct xe_device *xe = guc_to_xe(guc);
-
-	/** to wakeup xe_wait_user_fence ioctl if exec queue is reset */
-	wake_up_all(&xe->ufence_wq);
-
-	if (xe_exec_queue_is_lr(q))
-		queue_work(guc_to_gt(guc)->ordered_wq, &q->guc->lr_tdr);
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		handle_multi_queue_secondary_sched_done(guc, q, 0);
 	else
-		xe_sched_tdr_queue_imm(&q->guc->sched);
+		xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
+			       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET +
+			       G2H_LEN_DW_DEREGISTER_CONTEXT, 2);
 }
 
 /**
@@ -1018,8 +1269,9 @@ void xe_guc_submit_wedge(struct xe_guc *guc)
 	err = devm_add_action_or_reset(guc_to_xe(guc)->drm.dev,
 				       guc_submit_wedged_fini, guc);
 	if (err) {
-		xe_gt_err(gt, "Failed to register clean-up on wedged.mode=2; "
-			  "Although device is wedged.\n");
+		xe_gt_err(gt, "Failed to register clean-up in wedged.mode=%s; "
+			  "Although device is wedged.\n",
+			  xe_wedged_mode_to_string(XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET));
 		return;
 	}
 
@@ -1034,7 +1286,7 @@ static bool guc_submit_hint_wedged(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 
-	if (xe->wedged.mode != 2)
+	if (xe->wedged.mode != XE_WEDGED_MODE_UPON_ANY_HANG_NO_RESET)
 		return false;
 
 	if (xe_device_wedged(xe))
@@ -1043,84 +1295,6 @@ static bool guc_submit_hint_wedged(struct xe_guc *guc)
 	xe_device_declare_wedged(xe);
 
 	return true;
-}
-
-static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
-{
-	struct xe_guc_exec_queue *ge =
-		container_of(w, struct xe_guc_exec_queue, lr_tdr);
-	struct xe_exec_queue *q = ge->q;
-	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct xe_gpu_scheduler *sched = &ge->sched;
-	struct xe_sched_job *job;
-	bool wedged = false;
-
-	xe_gt_assert(guc_to_gt(guc), xe_exec_queue_is_lr(q));
-
-	if (vf_recovery(guc))
-		return;
-
-	trace_xe_exec_queue_lr_cleanup(q);
-
-	if (!exec_queue_killed(q))
-		wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
-
-	/* Kill the run_job / process_msg entry points */
-	xe_sched_submission_stop(sched);
-
-	/*
-	 * Engine state now mostly stable, disable scheduling / deregister if
-	 * needed. This cleanup routine might be called multiple times, where
-	 * the actual async engine deregister drops the final engine ref.
-	 * Calling disable_scheduling_deregister will mark the engine as
-	 * destroyed and fire off the CT requests to disable scheduling /
-	 * deregister, which we only want to do once. We also don't want to mark
-	 * the engine as pending_disable again as this may race with the
-	 * xe_guc_deregister_done_handler() which treats it as an unexpected
-	 * state.
-	 */
-	if (!wedged && exec_queue_registered(q) && !exec_queue_destroyed(q)) {
-		struct xe_guc *guc = exec_queue_to_guc(q);
-		int ret;
-
-		set_exec_queue_banned(q);
-		disable_scheduling_deregister(guc, q);
-
-		/*
-		 * Must wait for scheduling to be disabled before signalling
-		 * any fences, if GT broken the GT reset code should signal us.
-		 */
-		ret = wait_event_timeout(guc->ct.wq,
-					 !exec_queue_pending_disable(q) ||
-					 xe_guc_read_stopped(guc) ||
-					 vf_recovery(guc), HZ * 5);
-		if (vf_recovery(guc))
-			return;
-
-		if (!ret) {
-			xe_gt_warn(q->gt, "Schedule disable failed to respond, guc_id=%d\n",
-				   q->guc->id);
-			xe_devcoredump(q, NULL, "Schedule disable failed to respond, guc_id=%d\n",
-				       q->guc->id);
-			xe_sched_submission_start(sched);
-			xe_gt_reset_async(q->gt);
-			return;
-		}
-	}
-
-	if (!exec_queue_killed(q) && !xe_lrc_ring_is_idle(q->lrc[0]))
-		xe_devcoredump(q, NULL, "LR job cleanup, guc_id=%d", q->guc->id);
-
-	xe_hw_fence_irq_stop(q->fence_irq);
-
-	xe_sched_submission_start(sched);
-
-	spin_lock(&sched->base.job_list_lock);
-	list_for_each_entry(job, &sched->base.pending_list, drm.list)
-		xe_sched_job_set_error(job, -ECANCELED);
-	spin_unlock(&sched->base.job_list_lock);
-
-	xe_hw_fence_irq_start(q->fence_irq);
 }
 
 #define ADJUST_FIVE_PERCENT(__t)	mul_u64_u32_div(__t, 105, 100)
@@ -1141,7 +1315,21 @@ static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 		return xe_sched_invalidate_job(job, 2);
 	}
 
-	ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(q->lrc[0]));
+	ctx_timestamp = lower_32_bits(xe_lrc_timestamp(q->lrc[0]));
+	if (ctx_timestamp == job->sample_timestamp) {
+		if (IS_SRIOV_VF(gt_to_xe(gt)))
+			xe_gt_notice(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
+				     xe_sched_job_seqno(job),
+				     xe_sched_job_lrc_seqno(job), q->guc->id);
+		else
+			xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
+				   xe_sched_job_seqno(job),
+				   xe_sched_job_lrc_seqno(job), q->guc->id);
+
+		return xe_sched_invalidate_job(job, 0);
+	}
+
+	job->sample_timestamp = ctx_timestamp;
 	ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
 
 	/*
@@ -1181,8 +1369,11 @@ static void enable_scheduling(struct xe_exec_queue *q)
 	set_exec_queue_enabled(q);
 	trace_xe_exec_queue_scheduling_enable(q);
 
-	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
-		       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET, 1);
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		handle_multi_queue_secondary_sched_done(guc, q, 1);
+	else
+		xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
+			       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET, 1);
 
 	ret = wait_event_timeout(guc->ct.wq,
 				 !exec_queue_pending_enable(q) ||
@@ -1192,8 +1383,7 @@ static void enable_scheduling(struct xe_exec_queue *q)
 		xe_gt_warn(guc_to_gt(guc), "Schedule enable failed to respond");
 		set_exec_queue_banned(q);
 		xe_gt_reset_async(q->gt);
-		if (!xe_exec_queue_is_lr(q))
-			xe_sched_tdr_queue_imm(&q->guc->sched);
+		xe_sched_tdr_queue_imm(&q->guc->sched);
 	}
 }
 
@@ -1206,52 +1396,34 @@ static void disable_scheduling(struct xe_exec_queue *q, bool immediate)
 	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q));
 	xe_gt_assert(guc_to_gt(guc), !exec_queue_pending_disable(q));
 
-	if (immediate)
+	if (immediate && !xe_exec_queue_is_multi_queue_secondary(q))
 		set_min_preemption_timeout(guc, q);
 	clear_exec_queue_enabled(q);
 	set_exec_queue_pending_disable(q);
 	trace_xe_exec_queue_scheduling_disable(q);
 
-	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
-		       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET, 1);
-}
-
-static void __deregister_exec_queue(struct xe_guc *guc, struct xe_exec_queue *q)
-{
-	u32 action[] = {
-		XE_GUC_ACTION_DEREGISTER_CONTEXT,
-		q->guc->id,
-	};
-
-	xe_gt_assert(guc_to_gt(guc), !exec_queue_destroyed(q));
-	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q));
-	xe_gt_assert(guc_to_gt(guc), !exec_queue_pending_enable(q));
-	xe_gt_assert(guc_to_gt(guc), !exec_queue_pending_disable(q));
-
-	set_exec_queue_destroyed(q);
-	trace_xe_exec_queue_deregister(q);
-
-	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
-		       G2H_LEN_DW_DEREGISTER_CONTEXT, 1);
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		handle_multi_queue_secondary_sched_done(guc, q, 0);
+	else
+		xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
+			       G2H_LEN_DW_SCHED_CONTEXT_MODE_SET, 1);
 }
 
 static enum drm_gpu_sched_stat
 guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
-	struct xe_sched_job *tmp_job;
+	struct drm_sched_job *tmp_job;
 	struct xe_exec_queue *q = job->q;
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	const char *process_name = "no process";
 	struct xe_device *xe = guc_to_xe(guc);
-	unsigned int fw_ref;
 	int err = -ETIME;
 	pid_t pid = -1;
-	int i = 0;
 	bool wedged = false, skip_timeout_check;
 
-	xe_gt_assert(guc_to_gt(guc), !xe_exec_queue_is_lr(q));
+	xe_gt_assert(guc_to_gt(guc), !exec_queue_destroyed(q));
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue
@@ -1268,8 +1440,24 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 
 	/* Must check all state after stopping scheduler */
 	skip_timeout_check = exec_queue_reset(q) ||
-		exec_queue_killed_or_banned_or_wedged(q) ||
-		exec_queue_destroyed(q);
+		exec_queue_killed_or_banned_or_wedged(q);
+
+	/* Skip timeout check if multi-queue group is banned */
+	if (xe_exec_queue_is_multi_queue(q) &&
+	    READ_ONCE(q->multi_queue.group->banned))
+		skip_timeout_check = true;
+
+	/* LR jobs can only get here if queue has been killed or hit an error */
+	if (xe_exec_queue_is_lr(q))
+		xe_gt_assert(guc_to_gt(guc), skip_timeout_check);
+
+	/*
+	 * FIXME: In multi-queue scenario, the TDR must ensure that the whole
+	 * multi-queue group is off the HW before signaling the fences to avoid
+	 * possible memory corruptions. This means disabling scheduling on the
+	 * primary queue before or during the secondary queue's TDR. Need to
+	 * implement this in least obtrusive way.
+	 */
 
 	/*
 	 * If devcoredump not captured and GuC capture for the job is not ready
@@ -1278,33 +1466,32 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	if (!exec_queue_killed(q) && !xe->devcoredump.captured &&
 	    !xe_guc_capture_get_matching_and_lock(q)) {
 		/* take force wake before engine register manual capture */
-		fw_ref = xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
-		if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
+		CLASS(xe_force_wake, fw_ref)(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
+		if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL))
 			xe_gt_info(q->gt, "failed to get forcewake for coredump capture\n");
 
 		xe_engine_snapshot_capture_for_queue(q);
-
-		xe_force_wake_put(gt_to_fw(q->gt), fw_ref);
 	}
 
 	/*
-	 * XXX: Sampling timeout doesn't work in wedged mode as we have to
-	 * modify scheduling state to read timestamp. We could read the
-	 * timestamp from a register to accumulate current running time but this
-	 * doesn't work for SRIOV. For now assuming timeouts in wedged mode are
-	 * genuine timeouts.
+	 * Check if job is actually timed out, if so restart job execution and TDR
 	 */
+	if (!skip_timeout_check && !check_timeout(q, job))
+		goto rearm;
+
 	if (!exec_queue_killed(q))
 		wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
-	/* Engine state now stable, disable scheduling to check timestamp */
-	if (!wedged && exec_queue_registered(q)) {
+	set_exec_queue_banned(q);
+
+	/* Kick job / queue off hardware */
+	if (!wedged && (exec_queue_enabled(q) || exec_queue_pending_disable(q))) {
 		int ret;
 
 		if (exec_queue_reset(q))
 			err = -EIO;
 
-		if (!exec_queue_destroyed(q)) {
+		if (xe_uc_fw_is_running(&guc->fw)) {
 			/*
 			 * Wait for any pending G2H to flush out before
 			 * modifying state
@@ -1319,13 +1506,6 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 			if (!ret || xe_guc_read_stopped(guc))
 				goto trigger_reset;
 
-			/*
-			 * Flag communicates to G2H handler that schedule
-			 * disable originated from a timeout check. The G2H then
-			 * avoid triggering cleanup or deregistering the exec
-			 * queue.
-			 */
-			set_exec_queue_check_timeout(q);
 			disable_scheduling(q, skip_timeout_check);
 		}
 
@@ -1339,6 +1519,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 		 */
 		smp_rmb();
 		ret = wait_event_timeout(guc->ct.wq,
+					 !xe_uc_fw_is_running(&guc->fw) ||
 					 !exec_queue_pending_disable(q) ||
 					 xe_guc_read_stopped(guc) ||
 					 vf_recovery(guc), HZ * 5);
@@ -1353,22 +1534,10 @@ trigger_reset:
 			xe_devcoredump(q, job,
 				       "Schedule disable failed to respond, guc_id=%d, ret=%d, guc_read=%d",
 				       q->guc->id, ret, xe_guc_read_stopped(guc));
-			set_exec_queue_extra_ref(q);
-			xe_exec_queue_get(q);	/* GT reset owns this */
-			set_exec_queue_banned(q);
 			xe_gt_reset_async(q->gt);
 			xe_sched_tdr_queue_imm(sched);
 			goto rearm;
 		}
-	}
-
-	/*
-	 * Check if job is actually timed out, if so restart job execution and TDR
-	 */
-	if (!wedged && !skip_timeout_check && !check_timeout(q, job) &&
-	    !exec_queue_reset(q) && exec_queue_registered(q)) {
-		clear_exec_queue_check_timeout(q);
-		goto sched_enable;
 	}
 
 	if (q->vm && q->vm->xef) {
@@ -1401,46 +1570,29 @@ trigger_reset:
 	if (!wedged && (q->flags & EXEC_QUEUE_FLAG_KERNEL ||
 			(q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q)))) {
 		if (!xe_sched_invalidate_job(job, 2)) {
-			clear_exec_queue_check_timeout(q);
 			xe_gt_reset_async(q->gt);
 			goto rearm;
 		}
 	}
 
-	/* Finish cleaning up exec queue via deregister */
-	set_exec_queue_banned(q);
-	if (!wedged && exec_queue_registered(q) && !exec_queue_destroyed(q)) {
-		set_exec_queue_extra_ref(q);
-		xe_exec_queue_get(q);
-		__deregister_exec_queue(guc, q);
-	}
+	/* Mark all outstanding jobs as bad, thus completing them */
+	xe_sched_job_set_error(job, err);
+	drm_sched_for_each_pending_job(tmp_job, &sched->base, NULL)
+		xe_sched_job_set_error(to_xe_sched_job(tmp_job), -ECANCELED);
 
-	/* Stop fence signaling */
-	xe_hw_fence_irq_stop(q->fence_irq);
-
-	/*
-	 * Fence state now stable, stop / start scheduler which cleans up any
-	 * fences that are complete
-	 */
-	xe_sched_add_pending_job(sched, job);
 	xe_sched_submission_start(sched);
 
-	xe_guc_exec_queue_trigger_cleanup(q);
+	if (xe_exec_queue_is_multi_queue(q))
+		xe_guc_exec_queue_group_trigger_cleanup(q);
+	else
+		xe_guc_exec_queue_trigger_cleanup(q);
 
-	/* Mark all outstanding jobs as bad, thus completing them */
-	spin_lock(&sched->base.job_list_lock);
-	list_for_each_entry(tmp_job, &sched->base.pending_list, drm.list)
-		xe_sched_job_set_error(tmp_job, !i++ ? err : -ECANCELED);
-	spin_unlock(&sched->base.job_list_lock);
+	/*
+	 * We want the job added back to the pending list so it gets freed; this
+	 * is what DRM_GPU_SCHED_STAT_NO_HANG does.
+	 */
+	return DRM_GPU_SCHED_STAT_NO_HANG;
 
-	/* Start fence signaling */
-	xe_hw_fence_irq_start(q->fence_irq);
-
-	return DRM_GPU_SCHED_STAT_RESET;
-
-sched_enable:
-	set_exec_queue_pending_tdr_exit(q);
-	enable_scheduling(q);
 rearm:
 	/*
 	 * XXX: Ideally want to adjust timeout based on current execution time
@@ -1475,17 +1627,21 @@ static void __guc_exec_queue_destroy_async(struct work_struct *w)
 	struct xe_exec_queue *q = ge->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 
-	xe_pm_runtime_get(guc_to_xe(guc));
+	guard(xe_pm_runtime)(guc_to_xe(guc));
 	trace_xe_exec_queue_destroy(q);
 
-	if (xe_exec_queue_is_lr(q))
-		cancel_work_sync(&ge->lr_tdr);
+	if (xe_exec_queue_is_multi_queue_secondary(q)) {
+		struct xe_exec_queue_group *group = q->multi_queue.group;
+
+		mutex_lock(&group->list_lock);
+		list_del(&q->multi_queue.link);
+		mutex_unlock(&group->list_lock);
+	}
+
 	/* Confirm no work left behind accessing device structures */
 	cancel_delayed_work_sync(&ge->sched.base.work_tdr);
 
 	xe_exec_queue_fini(q);
-
-	xe_pm_runtime_put(guc_to_xe(guc));
 }
 
 static void guc_exec_queue_destroy_async(struct xe_exec_queue *q)
@@ -1590,9 +1746,10 @@ static void __guc_exec_queue_process_msg_suspend(struct xe_sched_msg *msg)
 {
 	struct xe_exec_queue *q = msg->private_data;
 	struct xe_guc *guc = exec_queue_to_guc(q);
+	bool idle_skip_suspend = xe_exec_queue_idle_skip_suspend(q);
 
-	if (guc_exec_queue_allowed_to_change_state(q) && !exec_queue_suspended(q) &&
-	    exec_queue_enabled(q)) {
+	if (!idle_skip_suspend && guc_exec_queue_allowed_to_change_state(q) &&
+	    !exec_queue_suspended(q) && exec_queue_enabled(q)) {
 		wait_event(guc->ct.wq, vf_recovery(guc) ||
 			   ((q->guc->resume_time != RESUME_PENDING ||
 			   xe_guc_read_stopped(guc)) && !exec_queue_pending_disable(q)));
@@ -1611,9 +1768,31 @@ static void __guc_exec_queue_process_msg_suspend(struct xe_sched_msg *msg)
 			disable_scheduling(q, false);
 		}
 	} else if (q->guc->suspend_pending) {
+		if (idle_skip_suspend)
+			set_exec_queue_idle_skip_suspend(q);
 		set_exec_queue_suspended(q);
 		suspend_fence_signal(q);
 	}
+}
+
+static void sched_context(struct xe_exec_queue *q)
+{
+	struct xe_guc *guc = exec_queue_to_guc(q);
+	struct xe_lrc *lrc = q->lrc[0];
+	u32 action[] = {
+		XE_GUC_ACTION_SCHED_CONTEXT,
+		q->guc->id,
+	};
+
+	xe_gt_assert(guc_to_gt(guc), !xe_exec_queue_is_parallel(q));
+	xe_gt_assert(guc_to_gt(guc), !exec_queue_destroyed(q));
+	xe_gt_assert(guc_to_gt(guc), exec_queue_registered(q));
+	xe_gt_assert(guc_to_gt(guc), !exec_queue_pending_disable(q));
+
+	trace_xe_exec_queue_submit(q);
+
+	xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
+	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action), 0, 0);
 }
 
 static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
@@ -1623,19 +1802,53 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 	if (guc_exec_queue_allowed_to_change_state(q)) {
 		clear_exec_queue_suspended(q);
 		if (!exec_queue_enabled(q)) {
+			if (exec_queue_idle_skip_suspend(q)) {
+				struct xe_lrc *lrc = q->lrc[0];
+
+				clear_exec_queue_idle_skip_suspend(q);
+				xe_lrc_set_ring_tail(lrc, lrc->ring.tail);
+			}
 			q->guc->resume_time = RESUME_PENDING;
 			set_exec_queue_pending_resume(q);
 			enable_scheduling(q);
+		} else if (exec_queue_idle_skip_suspend(q)) {
+			clear_exec_queue_idle_skip_suspend(q);
+			sched_context(q);
 		}
 	} else {
 		clear_exec_queue_suspended(q);
+		clear_exec_queue_idle_skip_suspend(q);
 	}
 }
 
-#define CLEANUP		1	/* Non-zero values to catch uninitialized msg */
-#define SET_SCHED_PROPS	2
-#define SUSPEND		3
-#define RESUME		4
+static void __guc_exec_queue_process_msg_set_multi_queue_priority(struct xe_sched_msg *msg)
+{
+	struct xe_exec_queue *q = msg->private_data;
+
+	if (guc_exec_queue_allowed_to_change_state(q)) {
+#define MAX_MULTI_QUEUE_CGP_SYNC_SIZE        (2)
+		struct xe_guc *guc = exec_queue_to_guc(q);
+		struct xe_exec_queue_group *group = q->multi_queue.group;
+		u32 action[MAX_MULTI_QUEUE_CGP_SYNC_SIZE];
+		int len = 0;
+
+		action[len++] = XE_GUC_ACTION_MULTI_QUEUE_CONTEXT_CGP_SYNC;
+		action[len++] = group->primary->guc->id;
+
+		xe_gt_assert(guc_to_gt(guc), len <= MAX_MULTI_QUEUE_CGP_SYNC_SIZE);
+#undef MAX_MULTI_QUEUE_CGP_SYNC_SIZE
+
+		xe_guc_exec_queue_group_cgp_sync(guc, q, action, len);
+	}
+
+	kfree(msg);
+}
+
+#define CLEANUP				1	/* Non-zero values to catch uninitialized msg */
+#define SET_SCHED_PROPS			2
+#define SUSPEND				3
+#define RESUME				4
+#define SET_MULTI_QUEUE_PRIORITY	5
 #define OPCODE_MASK	0xf
 #define MSG_LOCKED	BIT(8)
 #define MSG_HEAD	BIT(9)
@@ -1659,6 +1872,9 @@ static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 	case RESUME:
 		__guc_exec_queue_process_msg_resume(msg);
 		break;
+	case SET_MULTI_QUEUE_PRIORITY:
+		__guc_exec_queue_process_msg_set_multi_queue_priority(msg);
+		break;
 	default:
 		XE_WARN_ON("Unknown message type");
 	}
@@ -1680,13 +1896,14 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 {
 	struct xe_gpu_scheduler *sched;
 	struct xe_guc *guc = exec_queue_to_guc(q);
+	struct workqueue_struct *submit_wq = NULL;
 	struct xe_guc_exec_queue *ge;
 	long timeout;
 	int err, i;
 
 	xe_gt_assert(guc_to_gt(guc), xe_device_uc_enabled(guc_to_xe(guc)));
 
-	ge = kzalloc(sizeof(*ge), GFP_KERNEL);
+	ge = kzalloc_obj(*ge);
 	if (!ge)
 		return -ENOMEM;
 
@@ -1700,8 +1917,20 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	timeout = (q->vm && xe_vm_in_lr_mode(q->vm)) ? MAX_SCHEDULE_TIMEOUT :
 		  msecs_to_jiffies(q->sched_props.job_timeout_ms);
+
+	/*
+	 * Use primary queue's submit_wq for all secondary queues of a
+	 * multi queue group. This serialization avoids any locking around
+	 * CGP synchronization with GuC.
+	 */
+	if (xe_exec_queue_is_multi_queue_secondary(q)) {
+		struct xe_exec_queue *primary = xe_exec_queue_multi_queue_primary(q);
+
+		submit_wq = primary->guc->sched.base.submit_wq;
+	}
+
 	err = xe_sched_init(&ge->sched, &drm_sched_ops, &xe_sched_ops,
-			    NULL, xe_lrc_ring_size() / MAX_JOB_SIZE_BYTES, 64,
+			    submit_wq, xe_lrc_ring_size() / MAX_JOB_SIZE_BYTES, 64,
 			    timeout, guc_to_gt(guc)->ordered_wq, NULL,
 			    q->name, gt_to_xe(q->gt)->drm.dev);
 	if (err)
@@ -1711,9 +1940,6 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 	err = xe_sched_entity_init(&ge->entity, sched);
 	if (err)
 		goto err_sched;
-
-	if (xe_exec_queue_is_lr(q))
-		INIT_WORK(&q->guc->lr_tdr, xe_guc_exec_queue_lr_cleanup);
 
 	mutex_lock(&guc->submission_state.lock);
 
@@ -1730,7 +1956,23 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 
 	xe_exec_queue_assign_name(q, q->guc->id);
 
-	trace_xe_exec_queue_create(q);
+	/*
+	 * Maintain secondary queues of the multi queue group in a list
+	 * for handling dependencies across the queues in the group.
+	 */
+	if (xe_exec_queue_is_multi_queue_secondary(q)) {
+		struct xe_exec_queue_group *group = q->multi_queue.group;
+
+		INIT_LIST_HEAD(&q->multi_queue.link);
+		mutex_lock(&group->list_lock);
+		list_add_tail(&q->multi_queue.link, &group->list);
+		mutex_unlock(&group->list_lock);
+	}
+
+	if (xe_exec_queue_is_multi_queue(q))
+		trace_xe_exec_queue_create_multi_queue(q);
+	else
+		trace_xe_exec_queue_create(q);
 
 	return 0;
 
@@ -1815,7 +2057,7 @@ static int guc_exec_queue_set_priority(struct xe_exec_queue *q,
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1833,7 +2075,7 @@ static int guc_exec_queue_set_timeslice(struct xe_exec_queue *q, u32 timeslice_u
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1852,12 +2094,33 @@ static int guc_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 	    exec_queue_killed_or_banned_or_wedged(q))
 		return 0;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
 	q->sched_props.preempt_timeout_us = preempt_timeout_us;
 	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
+
+	return 0;
+}
+
+static int guc_exec_queue_set_multi_queue_priority(struct xe_exec_queue *q,
+						   enum xe_multi_queue_priority priority)
+{
+	struct xe_sched_msg *msg;
+
+	xe_gt_assert(guc_to_gt(exec_queue_to_guc(q)), xe_exec_queue_is_multi_queue(q));
+
+	if (q->multi_queue.priority == priority ||
+	    exec_queue_killed_or_banned_or_wedged(q))
+		return 0;
+
+	msg = kmalloc_obj(*msg);
+	if (!msg)
+		return -ENOMEM;
+
+	q->multi_queue.priority = priority;
+	guc_exec_queue_add_msg(q, msg, SET_MULTI_QUEUE_PRIORITY);
 
 	return 0;
 }
@@ -1936,6 +2199,10 @@ static void guc_exec_queue_resume(struct xe_exec_queue *q)
 
 static bool guc_exec_queue_reset_status(struct xe_exec_queue *q)
 {
+	if (xe_exec_queue_is_multi_queue_secondary(q) &&
+	    guc_exec_queue_reset_status(xe_exec_queue_multi_queue_primary(q)))
+		return true;
+
 	return exec_queue_reset(q) || exec_queue_killed_or_banned_or_wedged(q);
 }
 
@@ -1953,6 +2220,7 @@ static const struct xe_exec_queue_ops guc_exec_queue_ops = {
 	.set_priority = guc_exec_queue_set_priority,
 	.set_timeslice = guc_exec_queue_set_timeslice,
 	.set_preempt_timeout = guc_exec_queue_set_preempt_timeout,
+	.set_multi_queue_priority = guc_exec_queue_set_multi_queue_priority,
 	.suspend = guc_exec_queue_suspend,
 	.suspend_wait = guc_exec_queue_suspend_wait,
 	.resume = guc_exec_queue_resume,
@@ -1968,9 +2236,7 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 
 	/* Clean up lost G2H + reset engine state */
 	if (exec_queue_registered(q)) {
-		if (exec_queue_extra_ref(q) || xe_exec_queue_is_lr(q))
-			xe_exec_queue_put(q);
-		else if (exec_queue_destroyed(q))
+		if (exec_queue_destroyed(q))
 			__guc_exec_queue_destroy(guc, q);
 	}
 	if (q->guc->suspend_pending) {
@@ -2000,9 +2266,6 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 				trace_xe_sched_job_ban(job);
 				ban = true;
 			}
-		} else if (xe_exec_queue_is_lr(q) &&
-			   !xe_lrc_ring_is_idle(q->lrc[0])) {
-			ban = true;
 		}
 
 		if (ban) {
@@ -2082,11 +2345,8 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 			  q->guc->id);
 	}
 
-	if (pending_enable && !pending_resume &&
-	    !exec_queue_pending_tdr_exit(q)) {
+	if (pending_enable && !pending_resume) {
 		clear_exec_queue_registered(q);
-		if (xe_exec_queue_is_lr(q))
-			xe_exec_queue_put(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay REGISTER - guc_id=%d",
 			  q->guc->id);
 	}
@@ -2094,7 +2354,6 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 	if (pending_enable) {
 		clear_exec_queue_enabled(q);
 		clear_exec_queue_pending_resume(q);
-		clear_exec_queue_pending_tdr_exit(q);
 		clear_exec_queue_pending_enable(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay ENABLE - guc_id=%d",
 			  q->guc->id);
@@ -2102,11 +2361,7 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 
 	if (exec_queue_destroyed(q) && exec_queue_registered(q)) {
 		clear_exec_queue_destroyed(q);
-		if (exec_queue_extra_ref(q))
-			xe_exec_queue_put(q);
-		else
-			q->guc->needs_cleanup = true;
-		clear_exec_queue_extra_ref(q);
+		q->guc->needs_cleanup = true;
 		xe_gt_dbg(guc_to_gt(guc), "Replay CLEANUP - guc_id=%d",
 			  q->guc->id);
 	}
@@ -2124,7 +2379,6 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 		if (!pending_enable)
 			set_exec_queue_enabled(q);
 		clear_exec_queue_pending_disable(q);
-		clear_exec_queue_check_timeout(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay DISABLE - guc_id=%d",
 			  q->guc->id);
 	}
@@ -2159,10 +2413,7 @@ static void guc_exec_queue_pause(struct xe_guc *guc, struct xe_exec_queue *q)
 
 	/* Stop scheduling + flush any DRM scheduler operations */
 	xe_sched_submission_stop(sched);
-	if (xe_exec_queue_is_lr(q))
-		cancel_work_sync(&q->guc->lr_tdr);
-	else
-		cancel_delayed_work_sync(&sched->base.work_tdr);
+	cancel_delayed_work_sync(&sched->base.work_tdr);
 
 	guc_exec_queue_revert_pending_state_change(guc, q);
 
@@ -2202,6 +2453,22 @@ void xe_guc_submit_pause(struct xe_guc *guc)
 	struct xe_exec_queue *q;
 	unsigned long index;
 
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		xe_sched_submission_stop(&q->guc->sched);
+	mutex_unlock(&guc->submission_state.lock);
+}
+
+/**
+ * xe_guc_submit_pause_vf - Stop further runs of submission tasks for VF.
+ * @guc: the &xe_guc struct instance whose scheduler is to be disabled
+ */
+void xe_guc_submit_pause_vf(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
 	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
 
 	mutex_lock(&guc->submission_state.lock);
@@ -2273,11 +2540,12 @@ static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
 					   struct xe_exec_queue *q)
 {
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
-	struct xe_sched_job *job = NULL, *__job;
+	struct xe_sched_job *job = NULL;
+	struct drm_sched_job *s_job;
 	bool restore_replay = false;
 
-	list_for_each_entry(__job, &sched->base.pending_list, drm.list) {
-		job = __job;
+	drm_sched_for_each_pending_job(s_job, &sched->base, NULL) {
+		job = to_xe_sched_job(s_job);
 		restore_replay |= job->restore_replay;
 		if (restore_replay) {
 			xe_gt_dbg(guc_to_gt(guc), "Replay JOB - guc_id=%d, seqno=%d",
@@ -2293,14 +2561,15 @@ static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
 }
 
 /**
- * xe_guc_submit_unpause_prepare - Prepare unpause submission tasks on given GuC.
+ * xe_guc_submit_unpause_prepare_vf - Prepare unpause submission tasks for VF.
  * @guc: the &xe_guc struct instance whose scheduler is to be prepared for unpause
  */
-void xe_guc_submit_unpause_prepare(struct xe_guc *guc)
+void xe_guc_submit_unpause_prepare_vf(struct xe_guc *guc)
 {
 	struct xe_exec_queue *q;
 	unsigned long index;
 
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
 	xe_gt_assert(guc_to_gt(guc), vf_recovery(guc));
 
 	mutex_lock(&guc->submission_state.lock);
@@ -2377,13 +2646,30 @@ void xe_guc_submit_unpause(struct xe_guc *guc)
 	unsigned long index;
 
 	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		xe_sched_submission_start(&q->guc->sched);
+	mutex_unlock(&guc->submission_state.lock);
+}
+
+/**
+ * xe_guc_submit_unpause_vf - Allow further runs of submission tasks for VF.
+ * @guc: the &xe_guc struct instance whose scheduler is to be enabled
+ */
+void xe_guc_submit_unpause_vf(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	xe_gt_assert(guc_to_gt(guc), IS_SRIOV_VF(guc_to_xe(guc)));
+
+	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
 		/*
 		 * Prevent redundant attempts to stop parallel queues, or queues
 		 * created after resfix done.
 		 */
 		if (q->guc->id != index ||
-		    !READ_ONCE(q->guc->sched.base.pause_submit))
+		    !drm_sched_is_stopped(&q->guc->sched.base))
 			continue;
 
 		guc_exec_queue_unpause(guc, q);
@@ -2452,7 +2738,11 @@ static void deregister_exec_queue(struct xe_guc *guc, struct xe_exec_queue *q)
 
 	trace_xe_exec_queue_deregister(q);
 
-	xe_guc_ct_send_g2h_handler(&guc->ct, action, ARRAY_SIZE(action));
+	if (xe_exec_queue_is_multi_queue_secondary(q))
+		handle_deregister_done(guc, q);
+	else
+		xe_guc_ct_send_g2h_handler(&guc->ct, action,
+					   ARRAY_SIZE(action));
 }
 
 static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
@@ -2465,13 +2755,10 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 
 		q->guc->resume_time = ktime_get();
 		clear_exec_queue_pending_resume(q);
-		clear_exec_queue_pending_tdr_exit(q);
 		clear_exec_queue_pending_enable(q);
 		smp_wmb();
 		wake_up_all(&guc->ct.wq);
 	} else {
-		bool check_timeout = exec_queue_check_timeout(q);
-
 		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
 		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_disable(q));
 
@@ -2479,11 +2766,11 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 			suspend_fence_signal(q);
 			clear_exec_queue_pending_disable(q);
 		} else {
-			if (exec_queue_banned(q) || check_timeout) {
+			if (exec_queue_banned(q)) {
 				smp_wmb();
 				wake_up_all(&guc->ct.wq);
 			}
-			if (!check_timeout && exec_queue_destroyed(q)) {
+			if (exec_queue_destroyed(q)) {
 				/*
 				 * Make sure to clear the pending_disable only
 				 * after sampling the destroyed state. We want
@@ -2500,6 +2787,16 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 			}
 		}
 	}
+}
+
+static void handle_multi_queue_secondary_sched_done(struct xe_guc *guc,
+						    struct xe_exec_queue *q,
+						    u32 runnable_state)
+{
+	/* Take CT lock here as handle_sched_done() do send a h2g message */
+	mutex_lock(&guc->ct.lock);
+	handle_sched_done(guc, q, runnable_state);
+	mutex_unlock(&guc->ct.lock);
 }
 
 int xe_guc_sched_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
@@ -2536,11 +2833,7 @@ static void handle_deregister_done(struct xe_guc *guc, struct xe_exec_queue *q)
 	trace_xe_exec_queue_deregister_done(q);
 
 	clear_exec_queue_registered(q);
-
-	if (exec_queue_extra_ref(q) || xe_exec_queue_is_lr(q))
-		xe_exec_queue_put(q);
-	else
-		__guc_exec_queue_destroy(guc, q);
+	__guc_exec_queue_destroy(guc, q);
 }
 
 int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
@@ -2585,8 +2878,9 @@ int xe_guc_exec_queue_reset_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	if (unlikely(!q))
 		return -EPROTO;
 
-	xe_gt_info(gt, "Engine reset: engine_class=%s, logical_mask: 0x%x, guc_id=%d",
-		   xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+	xe_gt_info(gt, "Engine reset: engine_class=%s, logical_mask: 0x%x, guc_id=%d, state=0x%0x",
+		   xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id,
+		   atomic_read(&q->guc->state));
 
 	trace_xe_exec_queue_reset(q);
 
@@ -2596,9 +2890,7 @@ int xe_guc_exec_queue_reset_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 * jobs by setting timeout of the job to the minimum value kicking
 	 * guc_exec_queue_timedout_job.
 	 */
-	set_exec_queue_reset(q);
-	if (!exec_queue_banned(q) && !exec_queue_check_timeout(q))
-		xe_guc_exec_queue_trigger_cleanup(q);
+	xe_guc_exec_queue_reset_trigger_cleanup(q);
 
 	return 0;
 }
@@ -2666,20 +2958,18 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	 * See bspec 54047 and 72187 for details.
 	 */
 	if (type != XE_GUC_CAT_ERR_TYPE_INVALID)
-		xe_gt_dbg(gt,
-			  "Engine memory CAT error [%u]: class=%s, logical_mask: 0x%x, guc_id=%d",
-			  type, xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+		xe_gt_info(gt,
+			   "Engine memory CAT error [%u]: class=%s, logical_mask: 0x%x, guc_id=%d",
+			   type, xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
 	else
-		xe_gt_dbg(gt,
-			  "Engine memory CAT error: class=%s, logical_mask: 0x%x, guc_id=%d",
-			  xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+		xe_gt_info(gt,
+			   "Engine memory CAT error: class=%s, logical_mask: 0x%x, guc_id=%d",
+			   xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
 
 	trace_xe_exec_queue_memory_cat_error(q);
 
 	/* Treat the same as engine reset */
-	set_exec_queue_reset(q);
-	if (!exec_queue_banned(q) && !exec_queue_check_timeout(q))
-		xe_guc_exec_queue_trigger_cleanup(q);
+	xe_guc_exec_queue_reset_trigger_cleanup(q);
 
 	return 0;
 }
@@ -2702,6 +2992,73 @@ int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 le
 		  guc_class, instance, reason);
 
 	xe_gt_reset_async(gt);
+
+	return 0;
+}
+
+int xe_guc_exec_queue_cgp_context_error_handler(struct xe_guc *guc, u32 *msg,
+						u32 len)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_exec_queue *q;
+	u32 guc_id = msg[2];
+
+	if (unlikely(len != XE_GUC_EXEC_QUEUE_CGP_CONTEXT_ERROR_LEN)) {
+		drm_err(&xe->drm, "Invalid length %u", len);
+		return -EPROTO;
+	}
+
+	q = g2h_exec_queue_lookup(guc, guc_id);
+	if (unlikely(!q))
+		return -EPROTO;
+
+	xe_gt_dbg(gt,
+		  "CGP context error: [%s] err=0x%x, q0_id=0x%x LRCA=0x%x guc_id=0x%x",
+		  msg[0] & 1 ? "uc" : "kmd", msg[1], msg[2], msg[3], msg[4]);
+
+	trace_xe_exec_queue_cgp_context_error(q);
+
+	/* Treat the same as engine reset */
+	xe_guc_exec_queue_reset_trigger_cleanup(q);
+
+	return 0;
+}
+
+/**
+ * xe_guc_exec_queue_cgp_sync_done_handler - CGP synchronization done handler
+ * @guc: guc
+ * @msg: message indicating CGP sync done
+ * @len: length of message
+ *
+ * Set multi queue group's sync_pending flag to false and wakeup anyone waiting
+ * for CGP synchronization to complete.
+ *
+ * Return: 0 on success, -EPROTO for malformed messages.
+ */
+int xe_guc_exec_queue_cgp_sync_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
+{
+	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_exec_queue *q;
+	u32 guc_id = msg[0];
+
+	if (unlikely(len < 1)) {
+		drm_err(&xe->drm, "Invalid CGP_SYNC_DONE length %u", len);
+		return -EPROTO;
+	}
+
+	q = g2h_exec_queue_lookup(guc, guc_id);
+	if (unlikely(!q))
+		return -EPROTO;
+
+	if (!xe_exec_queue_is_multi_queue_primary(q)) {
+		drm_err(&xe->drm, "Unexpected CGP_SYNC_DONE response");
+		return -EPROTO;
+	}
+
+	/* Wakeup the serialized cgp update wait */
+	WRITE_ONCE(q->multi_queue.group->sync_pending, false);
+	xe_guc_ct_wake_waiters(&guc->ct);
 
 	return 0;
 }
@@ -2771,7 +3128,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	struct xe_guc_submit_exec_queue_snapshot *snapshot;
 	int i;
 
-	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
+	snapshot = kzalloc_obj(*snapshot, GFP_ATOMIC);
 
 	if (!snapshot)
 		return NULL;
@@ -2787,8 +3144,8 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	snapshot->sched_props.preempt_timeout_us =
 		q->sched_props.preempt_timeout_us;
 
-	snapshot->lrc = kmalloc_array(q->width, sizeof(struct xe_lrc_snapshot *),
-				      GFP_ATOMIC);
+	snapshot->lrc = kmalloc_objs(struct xe_lrc_snapshot *, q->width,
+				     GFP_ATOMIC);
 
 	if (snapshot->lrc) {
 		for (i = 0; i < q->width; ++i) {
@@ -2805,29 +3162,11 @@ xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q)
 	if (snapshot->parallel_execution)
 		guc_exec_queue_wq_snapshot_capture(q, snapshot);
 
-	spin_lock(&sched->base.job_list_lock);
-	snapshot->pending_list_size = list_count_nodes(&sched->base.pending_list);
-	snapshot->pending_list = kmalloc_array(snapshot->pending_list_size,
-					       sizeof(struct pending_list_snapshot),
-					       GFP_ATOMIC);
-
-	if (snapshot->pending_list) {
-		struct xe_sched_job *job_iter;
-
-		i = 0;
-		list_for_each_entry(job_iter, &sched->base.pending_list, drm.list) {
-			snapshot->pending_list[i].seqno =
-				xe_sched_job_seqno(job_iter);
-			snapshot->pending_list[i].fence =
-				dma_fence_is_signaled(job_iter->fence) ? 1 : 0;
-			snapshot->pending_list[i].finished =
-				dma_fence_is_signaled(&job_iter->drm.s_fence->finished)
-				? 1 : 0;
-			i++;
-		}
+	if (xe_exec_queue_is_multi_queue(q)) {
+		snapshot->multi_queue.valid = true;
+		snapshot->multi_queue.primary = xe_exec_queue_multi_queue_primary(q)->guc->id;
+		snapshot->multi_queue.pos = q->multi_queue.pos;
 	}
-
-	spin_unlock(&sched->base.job_list_lock);
 
 	return snapshot;
 }
@@ -2887,12 +3226,10 @@ xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snaps
 	if (snapshot->parallel_execution)
 		guc_exec_queue_wq_snapshot_print(snapshot, p);
 
-	for (i = 0; snapshot->pending_list && i < snapshot->pending_list_size;
-	     i++)
-		drm_printf(p, "\tJob: seqno=%d, fence=%d, finished=%d\n",
-			   snapshot->pending_list[i].seqno,
-			   snapshot->pending_list[i].fence,
-			   snapshot->pending_list[i].finished);
+	if (snapshot->multi_queue.valid) {
+		drm_printf(p, "\tMulti queue primary GuC ID: %d\n", snapshot->multi_queue.primary);
+		drm_printf(p, "\tMulti queue position: %d\n", snapshot->multi_queue.pos);
+	}
 }
 
 /**
@@ -2915,7 +3252,6 @@ void xe_guc_exec_queue_snapshot_free(struct xe_guc_submit_exec_queue_snapshot *s
 			xe_lrc_snapshot_free(snapshot->lrc[i]);
 		kfree(snapshot->lrc);
 	}
-	kfree(snapshot->pending_list);
 	kfree(snapshot);
 }
 
@@ -2975,6 +3311,27 @@ void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
 		guc_exec_queue_print(q, p);
 	mutex_unlock(&guc->submission_state.lock);
+}
+
+/**
+ * xe_guc_has_registered_mlrc_queues - check whether there are any MLRC queues
+ * registered with the GuC
+ * @guc: GuC.
+ *
+ * Return: true if any MLRC queue is registered with the GuC, false otherwise.
+ */
+bool xe_guc_has_registered_mlrc_queues(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	guard(mutex)(&guc->submission_state.lock);
+
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		if (q->width > 1)
+			return true;
+
+	return false;
 }
 
 /**

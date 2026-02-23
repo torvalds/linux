@@ -96,7 +96,9 @@ static int xgpu_nv_poll_ack(struct amdgpu_device *adev)
 		timeout -= 5;
 	} while (timeout > 1);
 
-	dev_err(adev->dev, "Doesn't get TRN_MSG_ACK from pf in %d msec \n", NV_MAILBOX_POLL_ACK_TIMEDOUT);
+	dev_err(adev->dev,
+		"Doesn't get TRN_MSG_ACK from pf in %d msec\n",
+		NV_MAILBOX_POLL_ACK_TIMEDOUT);
 
 	return -ETIME;
 }
@@ -208,6 +210,9 @@ send_request:
 		break;
 	case IDH_REQ_RAS_CHK_CRITI:
 		event = IDH_REQ_RAS_CHK_CRITI_READY;
+		break;
+	case IDH_REQ_RAS_REMOTE_CMD:
+		event = IDH_REQ_RAS_REMOTE_CMD_READY;
 		break;
 	default:
 		break;
@@ -585,6 +590,13 @@ static int xgpu_nv_check_vf_critical_region(struct amdgpu_device *adev, u64 addr
 		adev, IDH_REQ_RAS_CHK_CRITI, addr_hi, addr_lo, 0);
 }
 
+static int xgpu_nv_req_remote_ras_cmd(struct amdgpu_device *adev,
+		u32 param1, u32 param2, u32 param3)
+{
+	return xgpu_nv_send_access_requests_with_param(
+		adev, IDH_REQ_RAS_REMOTE_CMD, param1, param2, param3);
+}
+
 const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_full_gpu	= xgpu_nv_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_nv_release_full_gpu_access,
@@ -598,5 +610,6 @@ const struct amdgpu_virt_ops xgpu_nv_virt_ops = {
 	.req_ras_err_count = xgpu_nv_req_ras_err_count,
 	.req_ras_cper_dump = xgpu_nv_req_ras_cper_dump,
 	.req_bad_pages = xgpu_nv_req_ras_bad_pages,
-	.req_ras_chk_criti = xgpu_nv_check_vf_critical_region
+	.req_ras_chk_criti = xgpu_nv_check_vf_critical_region,
+	.req_remote_ras_cmd = xgpu_nv_req_remote_ras_cmd,
 };

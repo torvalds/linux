@@ -261,7 +261,7 @@ static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 		ccp_crypto_ahash_alg(crypto_ahash_tfm(tfm));
 	u64 k0_hi, k0_lo, k1_hi, k1_lo, k2_hi, k2_lo;
 	u64 rb_hi = 0x00, rb_lo = 0x87;
-	struct crypto_aes_ctx aes;
+	struct aes_enckey aes;
 	__be64 *gk;
 	int ret;
 
@@ -284,7 +284,7 @@ static int ccp_aes_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	ctx->u.aes.key_len = 0;
 
 	/* Set the key for the AES cipher used to generate the keys */
-	ret = aes_expandkey(&aes, key, key_len);
+	ret = aes_prepareenckey(&aes, key, key_len);
 	if (ret)
 		return ret;
 
@@ -354,7 +354,7 @@ int ccp_register_aes_cmac_algs(struct list_head *head)
 	struct crypto_alg *base;
 	int ret;
 
-	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
+	ccp_alg = kzalloc_obj(*ccp_alg);
 	if (!ccp_alg)
 		return -ENOMEM;
 

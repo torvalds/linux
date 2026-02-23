@@ -799,7 +799,7 @@ static int ath10k_usb_alloc_pipe_resources(struct ath10k *ar,
 	init_usb_anchor(&pipe->urb_submitted);
 
 	for (i = 0; i < urb_cnt; i++) {
-		urb_context = kzalloc(sizeof(*urb_context), GFP_KERNEL);
+		urb_context = kzalloc_obj(*urb_context);
 		if (!urb_context)
 			return -ENOMEM;
 

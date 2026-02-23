@@ -323,7 +323,7 @@ static int ipip6_tunnel_get_prl(struct net_device *dev, struct ip_tunnel_prl __u
 	 * we try harder to allocate.
 	 */
 	kp = (cmax <= 1 || capable(CAP_NET_ADMIN)) ?
-		kcalloc(cmax, sizeof(*kp), GFP_KERNEL_ACCOUNT | __GFP_NOWARN) :
+		kzalloc_objs(*kp, cmax, GFP_KERNEL_ACCOUNT | __GFP_NOWARN) :
 		NULL;
 
 	ca = min(t->prl_count, cmax);
@@ -334,8 +334,8 @@ static int ipip6_tunnel_get_prl(struct net_device *dev, struct ip_tunnel_prl __u
 		 * For root users, retry allocating enough memory for
 		 * the answer.
 		 */
-		kp = kcalloc(ca, sizeof(*kp), GFP_ATOMIC | __GFP_ACCOUNT |
-					      __GFP_NOWARN);
+		kp = kzalloc_objs(*kp, ca,
+				  GFP_ATOMIC | __GFP_ACCOUNT | __GFP_NOWARN);
 		if (!kp) {
 			ret = -ENOMEM;
 			goto out;
@@ -394,7 +394,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 		goto out;
 	}
 
-	p = kzalloc(sizeof(struct ip_tunnel_prl_entry), GFP_KERNEL);
+	p = kzalloc_obj(struct ip_tunnel_prl_entry);
 	if (!p) {
 		err = -ENOBUFS;
 		goto out;
@@ -962,7 +962,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	}
 
 	if (df) {
-		mtu = dst_mtu(&rt->dst) - t_hlen;
+		mtu = dst4_mtu(&rt->dst) - t_hlen;
 
 		if (mtu < IPV4_MIN_MTU) {
 			DEV_STATS_INC(dev, collisions);

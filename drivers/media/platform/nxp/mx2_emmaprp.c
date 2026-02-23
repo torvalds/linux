@@ -718,7 +718,7 @@ static int emmaprp_open(struct file *file)
 	struct emmaprp_dev *pcdev = video_drvdata(file);
 	struct emmaprp_ctx *ctx;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

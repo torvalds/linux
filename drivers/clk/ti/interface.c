@@ -34,7 +34,7 @@ static struct clk *_register_interface(struct device_node *node,
 	struct clk_hw_omap *clk_hw;
 	struct clk *clk;
 
-	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
+	clk_hw = kzalloc_obj(*clk_hw);
 	if (!clk_hw)
 		return ERR_PTR(-ENOMEM);
 

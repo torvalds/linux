@@ -1293,7 +1293,7 @@ tcmu_tmr_notify(struct se_device *se_dev, enum tcm_tmreq_table tmf,
 	pr_debug("TMR event %d on dev %s, aborted cmds %d, afflicted cmd_ids %d\n",
 		 tcmu_tmr_type(tmf), udev->name, i, cmd_cnt);
 
-	tmr = kmalloc(struct_size(tmr, tmr_cmd_ids, cmd_cnt), GFP_NOIO);
+	tmr = kmalloc_flex(*tmr, tmr_cmd_ids, cmd_cnt, GFP_NOIO);
 	if (!tmr)
 		goto unlock;
 
@@ -1582,7 +1582,7 @@ static int tcmu_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct tcmu_hba *tcmu_hba;
 
-	tcmu_hba = kzalloc(sizeof(struct tcmu_hba), GFP_KERNEL);
+	tcmu_hba = kzalloc_obj(struct tcmu_hba);
 	if (!tcmu_hba)
 		return -ENOMEM;
 
@@ -1602,7 +1602,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 {
 	struct tcmu_dev *udev;
 
-	udev = kzalloc(sizeof(struct tcmu_dev), GFP_KERNEL);
+	udev = kzalloc_obj(struct tcmu_dev);
 	if (!udev)
 		return NULL;
 	kref_init(&udev->kref);

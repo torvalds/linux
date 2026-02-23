@@ -179,10 +179,19 @@ void device_release_driver_internal(struct device *dev, const struct device_driv
 void driver_detach(const struct device_driver *drv);
 void driver_deferred_probe_del(struct device *dev);
 void device_set_deferred_probe_reason(const struct device *dev, struct va_format *vaf);
+static inline int driver_match_device_locked(const struct device_driver *drv,
+					     struct device *dev)
+{
+	device_lock_assert(dev);
+
+	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
+}
+
 static inline int driver_match_device(const struct device_driver *drv,
 				      struct device *dev)
 {
-	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
+	guard(device)(dev);
+	return driver_match_device_locked(drv, dev);
 }
 
 static inline void dev_sync_state(struct device *dev)
@@ -213,6 +222,10 @@ static inline void device_set_driver(struct device *dev, const struct device_dri
 	WRITE_ONCE(dev->driver, (struct device_driver *)drv);
 }
 
+void devres_for_each_res(struct device *dev, dr_release_t release,
+			 dr_match_t match, void *match_data,
+			 void (*fn)(struct device *, void *, void *),
+			 void *data);
 int devres_release_all(struct device *dev);
 void device_block_probing(void);
 void device_unblock_probing(void);
@@ -289,3 +302,12 @@ static inline int devtmpfs_delete_node(struct device *dev) { return 0; }
 
 void software_node_notify(struct device *dev);
 void software_node_notify_remove(struct device *dev);
+
+#ifdef CONFIG_PINCTRL
+int pinctrl_bind_pins(struct device *dev);
+#else
+static inline int pinctrl_bind_pins(struct device *dev)
+{
+	return 0;
+}
+#endif /* CONFIG_PINCTRL */

@@ -84,7 +84,7 @@ tcf_exts_miss_cookie_base_alloc(struct tcf_exts *exts, struct tcf_proto *tp,
 	if (WARN_ON(!handle || !tp->ops->get_exts))
 		return -EINVAL;
 
-	n = kzalloc(sizeof(*n), GFP_KERNEL);
+	n = kzalloc_obj(*n);
 	if (!n)
 		return -ENOMEM;
 
@@ -377,7 +377,7 @@ static struct tcf_proto *tcf_proto_create(const char *kind, u32 protocol,
 	struct tcf_proto *tp;
 	int err;
 
-	tp = kzalloc(sizeof(*tp), GFP_KERNEL);
+	tp = kzalloc_obj(*tp);
 	if (!tp)
 		return ERR_PTR(-ENOBUFS);
 
@@ -502,7 +502,7 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 
 	ASSERT_BLOCK_LOCKED(block);
 
-	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
+	chain = kzalloc_obj(*chain);
 	if (!chain)
 		return NULL;
 	list_add_tail_rcu(&chain->list, &block->chain_list);
@@ -918,7 +918,7 @@ tcf_chain0_head_change_cb_add(struct tcf_block *block,
 	struct tcf_filter_chain_list_item *item;
 	struct tcf_chain *chain0;
 
-	item = kmalloc(sizeof(*item), GFP_KERNEL);
+	item = kmalloc_obj(*item);
 	if (!item) {
 		NL_SET_ERR_MSG(extack, "Memory allocation for head change callback item failed");
 		return -ENOMEM;
@@ -1016,7 +1016,7 @@ static struct tcf_block *tcf_block_create(struct net *net, struct Qdisc *q,
 {
 	struct tcf_block *block;
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block) {
 		NL_SET_ERR_MSG(extack, "Memory allocation for block failed");
 		return ERR_PTR(-ENOMEM);
@@ -1428,7 +1428,7 @@ static int tcf_block_owner_add(struct tcf_block *block,
 {
 	struct tcf_block_owner_item *item;
 
-	item = kmalloc(sizeof(*item), GFP_KERNEL);
+	item = kmalloc_obj(*item);
 	if (!item)
 		return -ENOMEM;
 	item->q = q;
@@ -3341,8 +3341,7 @@ int tcf_exts_init_ex(struct tcf_exts *exts, struct net *net, int action,
 	 * This reference might be taken later from tcf_exts_get_net().
 	 */
 	exts->net = net;
-	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
-				GFP_KERNEL);
+	exts->actions = kzalloc_objs(struct tc_action *, TCA_ACT_MAX_PRIO);
 	if (!exts->actions)
 		return -ENOMEM;
 #endif

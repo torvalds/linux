@@ -112,7 +112,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 	struct rxrpc_local *local;
 	u32 tmp;
 
-	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
+	local = kzalloc_obj(struct rxrpc_local);
 	if (local) {
 		refcount_set(&local->ref, 1);
 		atomic_set(&local->active_users, 1);

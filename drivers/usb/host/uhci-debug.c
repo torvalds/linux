@@ -561,7 +561,7 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 	struct uhci_debug *up;
 	unsigned long flags;
 
-	up = kmalloc(sizeof(*up), GFP_KERNEL);
+	up = kmalloc_obj(*up);
 	if (!up)
 		return -ENOMEM;
 

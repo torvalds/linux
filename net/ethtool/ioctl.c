@@ -3040,7 +3040,7 @@ ethtool_set_per_queue_coalesce(struct net_device *dev,
 
 	bitmap_from_arr32(queue_mask, per_queue_opt->queue_mask, MAX_NUM_QUEUE);
 	n_queue = bitmap_weight(queue_mask, MAX_NUM_QUEUE);
-	tmp = backup = kmalloc_array(n_queue, sizeof(*backup), GFP_KERNEL);
+	tmp = backup = kmalloc_objs(*backup, n_queue);
 	if (!backup)
 		return -ENOMEM;
 
@@ -3554,7 +3554,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
 		return -EFAULT;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 

@@ -192,7 +192,7 @@ static struct pvc_device *add_pvc(struct net_device *dev, u16 dlci)
 		pvc_p = &(*pvc_p)->next;
 	}
 
-	pvc = kzalloc(sizeof(*pvc), GFP_ATOMIC);
+	pvc = kzalloc_obj(*pvc, GFP_ATOMIC);
 #ifdef DEBUG_PVC
 	printk(KERN_DEBUG "add_pvc: allocated pvc %p, frad %p\n", pvc, dev);
 #endif

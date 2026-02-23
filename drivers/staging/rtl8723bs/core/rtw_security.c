@@ -5,6 +5,7 @@
  *
  ******************************************************************************/
 #include <linux/crc32.h>
+#include <linux/unaligned.h>
 #include <drv_types.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -128,29 +129,6 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 
 /* 3		=====TKIP related ===== */
 
-static u32 secmicgetuint32(u8 *p)
-/*  Convert from Byte[] to Us3232 in a portable way */
-{
-	s32 i;
-	u32 res = 0;
-
-	for (i = 0; i < 4; i++)
-		res |= ((u32)(*p++)) << (8 * i);
-
-	return res;
-}
-
-static void secmicputuint32(u8 *p, u32 val)
-/*  Convert from Us3232 to Byte[] in a portable way */
-{
-	long i;
-
-	for (i = 0; i < 4; i++) {
-		*p++ = (u8) (val & 0xff);
-		val >>= 8;
-	}
-}
-
 static void secmicclear(struct mic_data *pmicdata)
 {
 /*  Reset the state to the empty message. */
@@ -163,8 +141,8 @@ static void secmicclear(struct mic_data *pmicdata)
 void rtw_secmicsetkey(struct mic_data *pmicdata, u8 *key)
 {
 	/*  Set the key */
-	pmicdata->K0 = secmicgetuint32(key);
-	pmicdata->K1 = secmicgetuint32(key + 4);
+	pmicdata->K0 = get_unaligned_le32(key);
+	pmicdata->K1 = get_unaligned_le32(key + 4);
 	/*  and reset the message */
 	secmicclear(pmicdata);
 }
@@ -212,8 +190,8 @@ void rtw_secgetmic(struct mic_data *pmicdata, u8 *dst)
 	while (pmicdata->nBytesInM != 0)
 		rtw_secmicappendbyte(pmicdata, 0);
 	/*  The appendByte function has already computed the result. */
-	secmicputuint32(dst, pmicdata->L);
-	secmicputuint32(dst + 4, pmicdata->R);
+	put_unaligned_le32(pmicdata->L, dst);
+	put_unaligned_le32(pmicdata->R, dst + 4);
 	/*  Reset to the empty message. */
 	secmicclear(pmicdata);
 }
@@ -637,11 +615,11 @@ exit:
 /****************************************/
 static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 {
-	struct crypto_aes_ctx ctx;
+	struct aes_enckey aes;
 
-	aes_expandkey(&ctx, key, 16);
-	aes_encrypt(&ctx, ciphertext, data);
-	memzero_explicit(&ctx, sizeof(ctx));
+	aes_prepareenckey(&aes, key, 16);
+	aes_encrypt(&aes, ciphertext, data);
+	memzero_explicit(&aes, sizeof(aes));
 }
 
 /************************************************/
@@ -1316,8 +1294,7 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 	__le64 le_tmp64;
 
 	ori_len = pattrib->pkt_len - WLAN_HDR_A3_LEN + BIP_AAD_SIZE;
-	BIP_AAD = rtw_zmalloc(ori_len);
-
+	BIP_AAD = kzalloc(ori_len, GFP_KERNEL);
 	if (!BIP_AAD)
 		return _FAIL;
 
@@ -1406,13 +1383,13 @@ static void gf_mulx(u8 *pad)
 static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 				u8 *addr[], size_t *len, u8 *mac)
 {
-	struct crypto_aes_ctx ctx;
+	struct aes_enckey aes;
 	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	u8 *pos, *end;
 	size_t i, e, left, total_len;
 	int ret;
 
-	ret = aes_expandkey(&ctx, key, 16);
+	ret = aes_prepareenckey(&aes, key, 16);
 	if (ret)
 		return -1;
 	memset(cbc, 0, AES_BLOCK_SIZE);
@@ -1436,12 +1413,12 @@ static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 			}
 		}
 		if (left > AES_BLOCK_SIZE)
-			aes_encrypt(&ctx, cbc, cbc);
+			aes_encrypt(&aes, cbc, cbc);
 		left -= AES_BLOCK_SIZE;
 	}
 
 	memset(pad, 0, AES_BLOCK_SIZE);
-	aes_encrypt(&ctx, pad, pad);
+	aes_encrypt(&aes, pad, pad);
 	gf_mulx(pad);
 
 	if (left || total_len == 0) {
@@ -1459,8 +1436,8 @@ static int omac1_aes_128_vector(u8 *key, size_t num_elem,
 
 	for (i = 0; i < AES_BLOCK_SIZE; i++)
 		pad[i] ^= cbc[i];
-	aes_encrypt(&ctx, pad, mac);
-	memzero_explicit(&ctx, sizeof(ctx));
+	aes_encrypt(&aes, pad, mac);
+	memzero_explicit(&aes, sizeof(aes));
 	return 0;
 }
 
@@ -1488,7 +1465,7 @@ void rtw_sec_restore_wep_key(struct adapter *adapter)
 	struct security_priv *securitypriv = &(adapter->securitypriv);
 	signed int keyid;
 
-	if ((_WEP40_ == securitypriv->dot11PrivacyAlgrthm) || (_WEP104_ == securitypriv->dot11PrivacyAlgrthm)) {
+	if ((securitypriv->dot11PrivacyAlgrthm == _WEP40_) || (securitypriv->dot11PrivacyAlgrthm == _WEP104_)) {
 		for (keyid = 0; keyid < 4; keyid++) {
 			if (securitypriv->key_mask & BIT(keyid)) {
 				if (keyid == securitypriv->dot11PrivacyKeyIndex)

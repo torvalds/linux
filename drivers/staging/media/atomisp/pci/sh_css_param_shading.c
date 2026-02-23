@@ -328,7 +328,7 @@ ia_css_shading_table_alloc(
 
 	IA_CSS_ENTER("");
 
-	me = kmalloc(sizeof(*me), GFP_KERNEL);
+	me = kmalloc_obj(*me);
 	if (!me)
 		return me;
 

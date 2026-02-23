@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/faraday,ftssp010.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Faraday FTSSP010 SPI Controller
+
+maintainers:
+  - Linus Walleij <linusw@kernel.org>
+
+properties:
+  compatible:
+    const: faraday,ftssp010
+
+  interrupts:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  cs-gpios: true
+
+required:
+  - compatible
+  - interrupts
+  - reg
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    spi@4a000000 {
+        compatible = "faraday,ftssp010";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0x4a000000 0x1000>;
+        interrupts = <0>;
+    };

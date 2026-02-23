@@ -697,7 +697,7 @@ int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va,
 {
 	struct hl_prefetch_work *handle_prefetch_work;
 
-	handle_prefetch_work = kmalloc(sizeof(*handle_prefetch_work), GFP_KERNEL);
+	handle_prefetch_work = kmalloc_obj(*handle_prefetch_work);
 	if (!handle_prefetch_work)
 		return -ENOMEM;
 
@@ -843,7 +843,7 @@ int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 h
 		return -ENOMEM;
 	}
 
-	hr_priv->mmu_asid_hop0 = kvcalloc(prop->max_asid, sizeof(struct pgt_info), GFP_KERNEL);
+	hr_priv->mmu_asid_hop0 = kvzalloc_objs(struct pgt_info, prop->max_asid);
 	if (ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0)) {
 		dev_err(hdev->dev, "Failed to allocate hr-mmu hop0 table\n");
 		rc = -ENOMEM;
@@ -1071,7 +1071,7 @@ struct pgt_info *hl_mmu_hr_alloc_hop(struct hl_ctx *ctx, struct hl_mmu_hr_priv *
 	void *virt_addr;
 	int i, retry = 1;
 
-	pgt_info = kmalloc(sizeof(*pgt_info), GFP_KERNEL);
+	pgt_info = kmalloc_obj(*pgt_info);
 	if (!pgt_info)
 		return NULL;
 
@@ -1325,7 +1325,7 @@ u64 hl_mmu_dr_alloc_hop(struct hl_ctx *ctx)
 	struct pgt_info *pgt_info;
 	u64 phys_addr, shadow_addr;
 
-	pgt_info = kmalloc(sizeof(*pgt_info), GFP_KERNEL);
+	pgt_info = kmalloc_obj(*pgt_info);
 	if (!pgt_info)
 		return ULLONG_MAX;
 

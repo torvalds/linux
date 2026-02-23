@@ -384,7 +384,7 @@ static int w1_f1C_add_slave(struct w1_slave *sl)
 	struct w1_f1C_data *data = NULL;
 
 	if (w1_enable_crccheck) {
-		data = kzalloc(sizeof(struct w1_f1C_data), GFP_KERNEL);
+		data = kzalloc_obj(struct w1_f1C_data);
 		if (!data)
 			return -ENOMEM;
 		sl->family_data = data;

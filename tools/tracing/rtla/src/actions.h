@@ -42,6 +42,11 @@ struct actions {
 	struct tracefs_instance *trace_output_inst;
 };
 
+#define for_each_action(actions, action)			\
+	for ((action) = (actions)->list;			\
+	     (action) < (actions)->list + (actions)->len;	\
+	     (action)++)
+
 void actions_init(struct actions *self);
 void actions_destroy(struct actions *self);
 int actions_add_trace_output(struct actions *self, const char *trace_output);

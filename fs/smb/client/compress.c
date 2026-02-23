@@ -229,7 +229,7 @@ static bool is_compressible(const struct iov_iter *data)
 	if (has_repeated_data(sample, len))
 		goto out;
 
-	bkt = kcalloc(bkt_size, sizeof(*bkt), GFP_KERNEL);
+	bkt = kzalloc_objs(*bkt, bkt_size);
 	if (!bkt) {
 		WARN_ON_ONCE(1);
 		ret = false;

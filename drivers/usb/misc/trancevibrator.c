@@ -86,7 +86,7 @@ static int tv_probe(struct usb_interface *interface,
 	struct trancevibrator *dev;
 	int retval;
 
-	dev = kzalloc(sizeof(struct trancevibrator), GFP_KERNEL);
+	dev = kzalloc_obj(struct trancevibrator);
 	if (!dev) {
 		retval = -ENOMEM;
 		goto error;

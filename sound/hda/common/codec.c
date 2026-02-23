@@ -117,7 +117,7 @@ static int add_conn_list(struct hda_codec *codec, hda_nid_t nid, int len,
 {
 	struct hda_conn_list *p;
 
-	p = kmalloc(struct_size(p, conns, len), GFP_KERNEL);
+	p = kmalloc_flex(*p, conns, len);
 	if (!p)
 		return -ENOMEM;
 	p->len = len;
@@ -147,7 +147,7 @@ static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 	len = snd_hda_get_raw_connections(codec, nid, list, ARRAY_SIZE(list));
 	if (len == -ENOSPC) {
 		len = snd_hda_get_num_raw_conns(codec, nid);
-		result = kmalloc_array(len, sizeof(hda_nid_t), GFP_KERNEL);
+		result = kmalloc_objs(hda_nid_t, len);
 		if (!result)
 			return -ENOMEM;
 		len = snd_hda_get_raw_connections(codec, nid, result, len);
@@ -703,7 +703,7 @@ struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
 	struct hda_pcm *pcm;
 	va_list args;
 
-	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
+	pcm = kzalloc_obj(*pcm);
 	if (!pcm)
 		return NULL;
 
@@ -895,7 +895,7 @@ snd_hda_codec_device_init(struct hda_bus *bus, unsigned int codec_addr,
 	if (snd_BUG_ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
 		return ERR_PTR(-EINVAL);
 
-	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
+	codec = kzalloc_obj(*codec);
 	if (!codec)
 		return ERR_PTR(-ENOMEM);
 
@@ -1854,9 +1854,9 @@ static int check_follower_present(struct hda_codec *codec,
 /* call kctl->put with the given value(s) */
 static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 {
-	struct snd_ctl_elem_value *ucontrol __free(kfree) = NULL;
+	struct snd_ctl_elem_value *ucontrol __free(kfree) =
+		kzalloc_obj(*ucontrol);
 
-	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
 	if (!ucontrol)
 		return -ENOMEM;
 	ucontrol->value.integer.value[0] = val;

@@ -6,6 +6,7 @@
 #include <errno.h>
 #include "debug.h"
 #include "dso.h"
+#include <dwarf-regs.h>
 #include "unwind.h"
 #include "unwind-libdw.h"
 #include "machine.h"
@@ -18,6 +19,17 @@
 #include "perf_regs.h"
 #include "callchain.h"
 #include "util/env.h"
+
+/*
+ * The dwfl thread argument passed to functions like memory_read. Memory has to
+ * be allocated to persist of multiple uses of the dwfl.
+ */
+struct dwfl_ui_thread_info {
+	/* Back link to the dwfl. */
+	Dwfl *dwfl;
+	/* The current unwind info, only 1 is supported. */
+	struct unwind_info *ui;
+};
 
 static char *debuginfo_path;
 
@@ -32,6 +44,19 @@ static int __find_debuginfo(Dwfl_Module *mod __maybe_unused, void **userdata,
 	if (dso__symsrc_filename(dso) && strcmp(file_name, dso__symsrc_filename(dso)))
 		*debuginfo_file_name = strdup(dso__symsrc_filename(dso));
 	return -1;
+}
+
+void libdw__invalidate_dwfl(struct maps *maps, void *arg)
+{
+	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
+
+	if (!dwfl_ui_ti)
+		return;
+
+	assert(dwfl_ui_ti->ui == NULL);
+	maps__set_libdw_addr_space_dwfl(maps, NULL);
+	dwfl_end(dwfl_ui_ti->dwfl);
+	free(dwfl_ui_ti);
 }
 
 static const Dwfl_Callbacks offline_callbacks = {
@@ -136,8 +161,8 @@ static int entry(u64 ip, struct unwind_info *ui)
 	}
 
 	e->ip	  = ip;
-	e->ms.maps = al.maps;
-	e->ms.map = al.map;
+	e->ms.thread = thread__get(al.thread);
+	e->ms.map = map__get(al.map);
 	e->ms.sym = al.sym;
 
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
@@ -186,8 +211,8 @@ out_fail:
 static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *result,
 			void *arg)
 {
-	struct unwind_info *ui = arg;
-	const char *arch = perf_env__arch(ui->machine->env);
+	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
+	struct unwind_info *ui = dwfl_ui_ti->ui;
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
@@ -197,7 +222,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 		return false;
 
 	ret = perf_reg_value(&start, ui->sample->user_regs,
-			     perf_arch_reg_sp(arch));
+			     perf_arch_reg_sp(ui->e_machine));
 	if (ret)
 		return false;
 
@@ -225,10 +250,64 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	return true;
 }
 
+static bool libdw_set_initial_registers(Dwfl_Thread *thread, void *arg)
+{
+	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
+	struct unwind_info *ui = dwfl_ui_ti->ui;
+	struct regs_dump *user_regs = perf_sample__user_regs(ui->sample);
+	Dwarf_Word *dwarf_regs;
+	int max_dwarf_reg = 0;
+	bool ret;
+	uint16_t e_machine = ui->e_machine;
+	int e_flags = ui->e_flags;
+	uint64_t ip_perf_reg = perf_arch_reg_ip(e_machine);
+	Dwarf_Word val = 0;
+
+
+	/*
+	 * For every possible perf register in the bitmap determine the dwarf
+	 * register and use to compute the max.
+	 */
+	for (int perf_reg = 0; perf_reg < 64; perf_reg++) {
+		if (user_regs->mask & (1ULL << perf_reg)) {
+			int dwarf_reg =
+				get_dwarf_regnum_for_perf_regnum(perf_reg, e_machine,
+								 e_flags,
+								 /*only_libdw_supported=*/true);
+			if (dwarf_reg > max_dwarf_reg)
+				max_dwarf_reg = dwarf_reg;
+		}
+	}
+
+	dwarf_regs = calloc(max_dwarf_reg + 1, sizeof(*dwarf_regs));
+	if (!dwarf_regs)
+		return false;
+
+	for (int perf_reg = 0; perf_reg < 64; perf_reg++) {
+		if (user_regs->mask & (1ULL << perf_reg)) {
+			int dwarf_reg =
+				get_dwarf_regnum_for_perf_regnum(perf_reg, e_machine,
+								 e_flags,
+								 /*only_libdw_supported=*/true);
+			if (dwarf_reg >= 0) {
+				val = 0;
+				if (perf_reg_value(&val, user_regs, perf_reg) == 0)
+					dwarf_regs[dwarf_reg] = val;
+			}
+		}
+	}
+	if (perf_reg_value(&val, user_regs, ip_perf_reg) == 0)
+		dwfl_thread_state_register_pc(thread, val);
+
+	ret = dwfl_thread_state_registers(thread, 0, max_dwarf_reg + 1, dwarf_regs);
+	free(dwarf_regs);
+	return ret;
+}
+
 static const Dwfl_Thread_Callbacks callbacks = {
-	.next_thread		= next_thread,
-	.memory_read		= memory_read,
-	.set_initial_registers	= libdw__arch_set_initial_registers,
+	.next_thread           = next_thread,
+	.memory_read           = memory_read,
+	.set_initial_registers = libdw_set_initial_registers,
 };
 
 static int
@@ -266,33 +345,54 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			int max_stack,
 			bool best_effort)
 {
-	struct unwind_info *ui, ui_buf = {
-		.sample		= data,
-		.thread		= thread,
-		.machine	= maps__machine((thread__maps(thread))),
-		.cb		= cb,
-		.arg		= arg,
-		.max_stack	= max_stack,
-		.best_effort    = best_effort
-	};
-	const char *arch = perf_env__arch(ui_buf.machine->env);
+	struct maps *maps = thread__maps(thread);
+	struct machine *machine = maps__machine(maps);
+	uint32_t e_flags = 0;
+	uint16_t e_machine = thread__e_machine(thread, machine, &e_flags);
+	struct dwfl_ui_thread_info *dwfl_ui_ti;
+	static struct unwind_info *ui;
+	Dwfl *dwfl;
 	Dwarf_Word ip;
 	int err = -EINVAL, i;
 
 	if (!data->user_regs || !data->user_regs->regs)
 		return -EINVAL;
 
-	ui = zalloc(sizeof(ui_buf) + sizeof(ui_buf.entries[0]) * max_stack);
+	ui = zalloc(sizeof(*ui) + sizeof(ui->entries[0]) * max_stack);
 	if (!ui)
 		return -ENOMEM;
 
-	*ui = ui_buf;
+	*ui = (struct unwind_info){
+		.sample		= data,
+		.thread		= thread,
+		.machine	= machine,
+		.cb		= cb,
+		.arg		= arg,
+		.max_stack	= max_stack,
+		.e_machine	= e_machine,
+		.e_flags	= e_flags,
+		.best_effort    = best_effort
+	};
 
-	ui->dwfl = dwfl_begin(&offline_callbacks);
-	if (!ui->dwfl)
-		goto out;
+	dwfl_ui_ti = maps__libdw_addr_space_dwfl(maps);
+	if (dwfl_ui_ti) {
+		dwfl = dwfl_ui_ti->dwfl;
+	} else {
+		dwfl_ui_ti = zalloc(sizeof(*dwfl_ui_ti));
+		dwfl = dwfl_begin(&offline_callbacks);
+		if (!dwfl)
+			goto out;
 
-	err = perf_reg_value(&ip, data->user_regs, perf_arch_reg_ip(arch));
+		dwfl_ui_ti->dwfl = dwfl;
+		maps__set_libdw_addr_space_dwfl(maps, dwfl_ui_ti);
+	}
+	assert(dwfl_ui_ti->ui == NULL);
+	assert(dwfl_ui_ti->dwfl == dwfl);
+	assert(dwfl_ui_ti == maps__libdw_addr_space_dwfl(maps));
+	dwfl_ui_ti->ui = ui;
+	ui->dwfl = dwfl;
+
+	err = perf_reg_value(&ip, data->user_regs, perf_arch_reg_ip(e_machine));
 	if (err)
 		goto out;
 
@@ -300,11 +400,12 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread__tid(thread), &callbacks, ui);
-	if (err)
-		goto out;
+	dwfl_attach_state(dwfl, /*elf=*/NULL, thread__tid(thread), &callbacks,
+			  /* Dwfl thread function argument*/dwfl_ui_ti);
+	// Ignore thread already attached error.
 
-	err = dwfl_getthread_frames(ui->dwfl, thread__tid(thread), frame_callback, ui);
+	err = dwfl_getthread_frames(dwfl, thread__tid(thread), frame_callback,
+				    /* Dwfl frame function argument*/ui);
 
 	if (err && ui->max_stack != max_stack)
 		err = 0;
@@ -325,7 +426,10 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		pr_debug("unwind: failed with '%s'\n", dwfl_errmsg(-1));
 
-	dwfl_end(ui->dwfl);
+	for (i = 0; i < ui->idx; i++)
+		map_symbol__exit(&ui->entries[i].ms);
+
+	dwfl_ui_ti->ui = NULL;
 	free(ui);
 	return 0;
 }

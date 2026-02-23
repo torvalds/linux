@@ -449,7 +449,7 @@ static int jfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	jfs_info("In jfs_read_super: s_flags=0x%lx", sb->s_flags);
 
-	sbi = kzalloc(sizeof(struct jfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct jfs_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -912,7 +912,7 @@ static int jfs_init_fs_context(struct fs_context *fc)
 {
 	struct jfs_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

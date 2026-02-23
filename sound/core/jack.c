@@ -440,7 +440,7 @@ static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const cha
 	if (err < 0)
 		return NULL;
 
-	jack_kctl = kzalloc(sizeof(*jack_kctl), GFP_KERNEL);
+	jack_kctl = kzalloc_obj(*jack_kctl);
 
 	if (!jack_kctl)
 		goto error;
@@ -516,7 +516,7 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 			return -ENOMEM;
 	}
 
-	jack = kzalloc(sizeof(struct snd_jack), GFP_KERNEL);
+	jack = kzalloc_obj(struct snd_jack);
 	if (jack == NULL)
 		return -ENOMEM;
 

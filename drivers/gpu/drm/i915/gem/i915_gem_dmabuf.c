@@ -36,7 +36,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	 * Make a copy of the object's sgt, so that we can make an independent
 	 * mapping
 	 */
-	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kmalloc_obj(*sgt);
 	if (!sgt) {
 		ret = -ENOMEM;
 		goto err;

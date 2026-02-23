@@ -833,7 +833,7 @@ static struct ocelot_vcap_filter
 {
 	struct ocelot_vcap_filter *filter;
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return NULL;
 

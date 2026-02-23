@@ -1149,7 +1149,7 @@ static int ace_init(struct net_device *dev)
 	/*
 	 * Get the memory for the skb rings.
 	 */
-	if (!(ap->skb = kzalloc(sizeof(struct ace_skb), GFP_KERNEL))) {
+	if (!(ap->skb = kzalloc_obj(struct ace_skb))) {
 		ecode = -EAGAIN;
 		goto init_error;
 	}

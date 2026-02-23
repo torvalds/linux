@@ -25,7 +25,7 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
+	wq = kzalloc_obj(*wq);
 	if (!wq)
 		return ERR_PTR(-ENOMEM);
 

@@ -119,7 +119,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	int readonly, rc;
 
 	if (!private) {
-		private = kzalloc(sizeof(*private), GFP_KERNEL | GFP_DMA);
+		private = kzalloc_obj(*private, GFP_KERNEL | GFP_DMA);
 		if (!private) {
 			dev_warn(&device->cdev->dev,
 				 "Allocating memory for private DASD "

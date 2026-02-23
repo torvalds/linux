@@ -45,7 +45,7 @@ nvkm_hwsq_init(struct nvkm_subdev *subdev, struct nvkm_hwsq **phwsq)
 {
 	struct nvkm_hwsq *hwsq;
 
-	hwsq = *phwsq = kmalloc(sizeof(*hwsq), GFP_KERNEL);
+	hwsq = *phwsq = kmalloc_obj(*hwsq);
 	if (hwsq) {
 		hwsq->subdev = subdev;
 		hwsq->addr = ~0;

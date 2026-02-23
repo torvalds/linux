@@ -315,7 +315,7 @@ struct pnp_id *pnp_add_id(struct pnp_dev *dev, const char *id)
 {
 	struct pnp_id *dev_id, *ptr;
 
-	dev_id = kzalloc(sizeof(struct pnp_id), GFP_KERNEL);
+	dev_id = kzalloc_obj(struct pnp_id);
 	if (!dev_id)
 		return NULL;
 

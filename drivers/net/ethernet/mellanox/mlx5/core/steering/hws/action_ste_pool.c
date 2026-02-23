@@ -141,7 +141,7 @@ hws_action_ste_table_alloc(struct mlx5hws_action_ste_pool_element *parent_elem)
 				   MLX5HWS_ACTION_STE_TABLE_INIT_LOG_SZ,
 		     MLX5HWS_ACTION_STE_TABLE_MAX_LOG_SZ);
 
-	action_tbl = kzalloc(sizeof(*action_tbl), GFP_KERNEL);
+	action_tbl = kzalloc_obj(*action_tbl);
 	if (!action_tbl)
 		return ERR_PTR(-ENOMEM);
 
@@ -329,7 +329,7 @@ int mlx5hws_action_ste_pool_init(struct mlx5hws_context *ctx)
 	size_t queues = ctx->queues;
 	int i, err;
 
-	pool = kcalloc(queues, sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_objs(*pool, queues);
 	if (!pool)
 		return -ENOMEM;
 

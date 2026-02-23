@@ -85,14 +85,13 @@ static struct stv0900_inode *append_internal(struct stv0900_internal *internal)
 	struct stv0900_inode *new_node = stv0900_first_inode;
 
 	if (new_node == NULL) {
-		new_node = kmalloc(sizeof(struct stv0900_inode), GFP_KERNEL);
+		new_node = kmalloc_obj(struct stv0900_inode);
 		stv0900_first_inode = new_node;
 	} else {
 		while (new_node->next_inode != NULL)
 			new_node = new_node->next_inode;
 
-		new_node->next_inode = kmalloc(sizeof(struct stv0900_inode),
-								GFP_KERNEL);
+		new_node->next_inode = kmalloc_obj(struct stv0900_inode);
 		if (new_node->next_inode != NULL)
 			new_node = new_node->next_inode;
 		else
@@ -1348,8 +1347,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		dprintk("%s: Find Internal Structure!\n", __func__);
 		return STV0900_NO_ERROR;
 	} else {
-		state->internal = kmalloc(sizeof(struct stv0900_internal),
-								GFP_KERNEL);
+		state->internal = kmalloc_obj(struct stv0900_internal);
 		if (state->internal == NULL)
 			return STV0900_INVALID_HANDLE;
 		temp_int = append_internal(state->internal);
@@ -1903,7 +1901,7 @@ struct dvb_frontend *stv0900_attach(const struct stv0900_config *config,
 	struct stv0900_init_params init_params;
 	enum fe_stv0900_error err_stv0900;
 
-	state = kzalloc(sizeof(struct stv0900_state), GFP_KERNEL);
+	state = kzalloc_obj(struct stv0900_state);
 	if (state == NULL)
 		goto error;
 

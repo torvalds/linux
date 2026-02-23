@@ -67,17 +67,18 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 
 	edac_dbg(4, "instances=%d blocks=%d\n", nr_instances, nr_blocks);
 
-	dev_ctl = kzalloc(sizeof(struct edac_device_ctl_info), GFP_KERNEL);
+	dev_ctl = kzalloc_obj(struct edac_device_ctl_info);
 	if (!dev_ctl)
 		return NULL;
 
-	dev_inst = kcalloc(nr_instances, sizeof(struct edac_device_instance), GFP_KERNEL);
+	dev_inst = kzalloc_objs(struct edac_device_instance, nr_instances);
 	if (!dev_inst)
 		goto free;
 
 	dev_ctl->instances = dev_inst;
 
-	dev_blk = kcalloc(nr_instances * nr_blocks, sizeof(struct edac_device_block), GFP_KERNEL);
+	dev_blk = kzalloc_objs(struct edac_device_block,
+			       nr_instances * nr_blocks);
 	if (!dev_blk)
 		goto free;
 
@@ -642,22 +643,22 @@ int edac_dev_register(struct device *parent, char *name,
 		}
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 
-	ras_attr_groups = kcalloc(attr_gcnt + 1, sizeof(*ras_attr_groups), GFP_KERNEL);
+	ras_attr_groups = kzalloc_objs(*ras_attr_groups, attr_gcnt + 1);
 	if (!ras_attr_groups)
 		goto ctx_free;
 
 	if (scrub_cnt) {
-		ctx->scrub = kcalloc(scrub_cnt, sizeof(*ctx->scrub), GFP_KERNEL);
+		ctx->scrub = kzalloc_objs(*ctx->scrub, scrub_cnt);
 		if (!ctx->scrub)
 			goto groups_free;
 	}
 
 	if (mem_repair_cnt) {
-		ctx->mem_repair = kcalloc(mem_repair_cnt, sizeof(*ctx->mem_repair), GFP_KERNEL);
+		ctx->mem_repair = kzalloc_objs(*ctx->mem_repair, mem_repair_cnt);
 		if (!ctx->mem_repair)
 			goto data_mem_free;
 	}

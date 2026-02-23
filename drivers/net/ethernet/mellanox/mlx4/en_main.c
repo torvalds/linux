@@ -271,7 +271,7 @@ static int mlx4_en_probe(struct auxiliary_device *adev,
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev) {
 		err = -ENOMEM;
 		goto err_free_res;

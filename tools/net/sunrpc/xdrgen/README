@@ -250,8 +250,6 @@ Add more pragma directives:
 Enable something like a #include to dynamically insert the content
 of other specification files
 
-Properly support line-by-line pass-through via the "%" decorator
-
 Build a unit test suite for verifying translation of XDR language
 into compilable code
 

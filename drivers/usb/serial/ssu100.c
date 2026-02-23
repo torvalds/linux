@@ -326,7 +326,7 @@ static int ssu100_port_probe(struct usb_serial_port *port)
 {
 	struct ssu100_port_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

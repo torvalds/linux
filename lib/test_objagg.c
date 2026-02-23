@@ -107,7 +107,7 @@ static void *delta_create(void *priv, void *parent_obj, void *obj)
 	if (!delta_check(priv, parent_obj, obj))
 		return ERR_PTR(-EINVAL);
 
-	delta = kzalloc(sizeof(*delta), GFP_KERNEL);
+	delta = kzalloc_obj(*delta);
 	if (!delta)
 		return ERR_PTR(-ENOMEM);
 	delta->key_id_diff = diff;
@@ -130,7 +130,7 @@ static void *root_create(void *priv, void *obj, unsigned int id)
 	struct tokey *key = obj;
 	struct root *root;
 
-	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 	memcpy(&root->key, key, sizeof(root->key));

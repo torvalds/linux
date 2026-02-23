@@ -138,28 +138,28 @@
 	d2_uart0_ctsn: d2-uart0-ctsn-pins {
 		pinctrl-single,pins = <
 			/* (P1) MCU_UART0_CTSn */
-			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 4)
+			AM65X_WKUP_IOPAD(0x004c, PIN_INPUT, 4)
 		>;
 	};
 
 	d2_gpio: d2-gpio-pins {
 		pinctrl-single,pins = <
 			/* (P5) WKUP_GPIO0_31 */
-			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x004c, PIN_INPUT, 7)
 		>;
 	};
 
 	d2_gpio_pullup: d2-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (P5) WKUP_GPIO0_31 */
-			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x004c, PIN_INPUT, 7)
 		>;
 	};
 
 	d2_gpio_pulldown: d2-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (P5) WKUP_GPIO0_31 */
-			AM65X_WKUP_IOPAD(0x004C, PIN_INPUT_PULLDOWN, 7)
+			AM65X_WKUP_IOPAD(0x004c, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
@@ -348,42 +348,42 @@
 	a2_gpio: a2-gpio-pins {
 		pinctrl-single,pins = <
 			/* (L5) WKUP_GPIO0_43 */
-			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x007c, PIN_INPUT, 7)
 		>;
 	};
 
 	a2_gpio_pullup: a2-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (L5) WKUP_GPIO0_43 */
-			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x007c, PIN_INPUT, 7)
 		>;
 	};
 
 	a2_gpio_pulldown: a2-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (L5) WKUP_GPIO0_43 */
-			AM65X_WKUP_IOPAD(0x007C, PIN_INPUT_PULLDOWN, 7)
+			AM65X_WKUP_IOPAD(0x007c, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
 	a3_gpio: a3-gpio-pins {
 		pinctrl-single,pins = <
 			/* (M5) WKUP_GPIO0_39 */
-			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x006c, PIN_INPUT, 7)
 		>;
 	};
 
 	a3_gpio_pullup: a3-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (M5) WKUP_GPIO0_39 */
-			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x006c, PIN_INPUT, 7)
 		>;
 	};
 
 	a3_gpio_pulldown: a3-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (M5) WKUP_GPIO0_39 */
-			AM65X_WKUP_IOPAD(0x006C, PIN_INPUT_PULLDOWN, 7)
+			AM65X_WKUP_IOPAD(0x006c, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
@@ -411,21 +411,21 @@
 	a5_gpio: a5-gpio-pins {
 		pinctrl-single,pins = <
 			/* (N5) WKUP_GPIO0_35 */
-			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT, 7)
+			AM65X_WKUP_IOPAD(0x005c, PIN_INPUT, 7)
 		>;
 	};
 
 	a5_gpio_pullup: a5-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (N5) WKUP_GPIO0_35 */
-			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT_PULLUP, 7)
+			AM65X_WKUP_IOPAD(0x005c, PIN_INPUT_PULLUP, 7)
 		>;
 	};
 
 	a5_gpio_pulldown: a5-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (N5) WKUP_GPIO0_35 */
-			AM65X_WKUP_IOPAD(0x005C, PIN_INPUT_PULLDOWN, 7)
+			AM65X_WKUP_IOPAD(0x005c, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
@@ -533,28 +533,28 @@
 	d5_ehrpwm1_a: d5-ehrpwm1-a-pins {
 		pinctrl-single,pins = <
 			/* (AF17) EHRPWM1_A */
-			AM65X_IOPAD(0x008C, PIN_OUTPUT, 5)
+			AM65X_IOPAD(0x008c, PIN_OUTPUT, 5)
 		>;
 	};
 
 	d5_gpio: d5-gpio-pins {
 		pinctrl-single,pins = <
 			/* (AF17) GPIO0_35 */
-			AM65X_IOPAD(0x008C, PIN_INPUT, 7)
+			AM65X_IOPAD(0x008c, PIN_INPUT, 7)
 		>;
 	};
 
 	d5_gpio_pullup: d5-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (AF17) GPIO0_35 */
-			AM65X_IOPAD(0x008C, PIN_INPUT_PULLUP, 7)
+			AM65X_IOPAD(0x008c, PIN_INPUT_PULLUP, 7)
 		>;
 	};
 
 	d5_gpio_pulldown: d5-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (AF17) GPIO0_35 */
-			AM65X_IOPAD(0x008C, PIN_INPUT_PULLDOWN, 7)
+			AM65X_IOPAD(0x008c, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
@@ -589,84 +589,84 @@
 	d7_ehrpwm3_a: d7-ehrpwm3-a-pins {
 		pinctrl-single,pins = <
 			/* (AH15) EHRPWM3_A */
-			AM65X_IOPAD(0x00AC, PIN_OUTPUT, 5)
+			AM65X_IOPAD(0x00ac, PIN_OUTPUT, 5)
 		>;
 	};
 
 	d7_gpio: d7-gpio-pins {
 		pinctrl-single,pins = <
 			/* (AH15) GPIO0_43 */
-			AM65X_IOPAD(0x00AC, PIN_INPUT, 7)
+			AM65X_IOPAD(0x00ac, PIN_INPUT, 7)
 		>;
 	};
 
 	d7_gpio_pullup: d7-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (AH15) GPIO0_43 */
-			AM65X_IOPAD(0x00AC, PIN_INPUT_PULLUP, 7)
+			AM65X_IOPAD(0x00ac, PIN_INPUT_PULLUP, 7)
 		>;
 	};
 
 	d7_gpio_pulldown: d7-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (AH15) GPIO0_43 */
-			AM65X_IOPAD(0x00AC, PIN_INPUT_PULLDOWN, 7)
+			AM65X_IOPAD(0x00ac, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
 	d8_ehrpwm4_a: d8-ehrpwm4-a-pins {
 		pinctrl-single,pins = <
 			/* (AG15) EHRPWM4_A */
-			AM65X_IOPAD(0x00C0, PIN_OUTPUT, 5)
+			AM65X_IOPAD(0x00c0, PIN_OUTPUT, 5)
 		>;
 	};
 
 	d8_gpio: d8-gpio-pins {
 		pinctrl-single,pins = <
 			/* (AG15) GPIO0_48 */
-			AM65X_IOPAD(0x00C0, PIN_INPUT, 7)
+			AM65X_IOPAD(0x00c0, PIN_INPUT, 7)
 		>;
 	};
 
 	d8_gpio_pullup: d8-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (AG15) GPIO0_48 */
-			AM65X_IOPAD(0x00C0, PIN_INPUT_PULLUP, 7)
+			AM65X_IOPAD(0x00c0, PIN_INPUT_PULLUP, 7)
 		>;
 	};
 
 	d8_gpio_pulldown: d8-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (AG15) GPIO0_48 */
-			AM65X_IOPAD(0x00C0, PIN_INPUT_PULLDOWN, 7)
+			AM65X_IOPAD(0x00c0, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 
 	d9_ehrpwm5_a: d9-ehrpwm5-a-pins {
 		pinctrl-single,pins = <
 			/* (AD15) EHRPWM5_A */
-			AM65X_IOPAD(0x00CC, PIN_OUTPUT, 5)
+			AM65X_IOPAD(0x00cc, PIN_OUTPUT, 5)
 		>;
 	};
 
 	d9_gpio: d9-gpio-pins {
 		pinctrl-single,pins = <
 			/* (AD15) GPIO0_51 */
-			AM65X_IOPAD(0x00CC, PIN_INPUT, 7)
+			AM65X_IOPAD(0x00cc, PIN_INPUT, 7)
 		>;
 	};
 
 	d9_gpio_pullup: d9-gpio-pullup-pins {
 		pinctrl-single,pins = <
 			/* (AD15) GPIO0_51 */
-			AM65X_IOPAD(0x00CC, PIN_INPUT_PULLUP, 7)
+			AM65X_IOPAD(0x00cc, PIN_INPUT_PULLUP, 7)
 		>;
 	};
 
 	d9_gpio_pulldown: d9-gpio-pulldown-pins {
 		pinctrl-single,pins = <
 			/* (AD15) GPIO0_51 */
-			AM65X_IOPAD(0x00CC, PIN_INPUT_PULLDOWN, 7)
+			AM65X_IOPAD(0x00cc, PIN_INPUT_PULLDOWN, 7)
 		>;
 	};
 };

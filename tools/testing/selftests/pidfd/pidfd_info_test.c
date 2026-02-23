@@ -229,7 +229,7 @@ static void *pidfd_info_pause_thread(void *arg)
 
 	close(ipc_socket);
 
-	/* Sleep untill we're killed. */
+	/* Sleep until we're killed. */
 	pause();
 	return NULL;
 }

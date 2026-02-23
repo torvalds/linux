@@ -562,7 +562,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	} else {
 		struct pci_root_info *info;
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc_obj(*info);
 		if (!info)
 			dev_err(&root->device->dev,
 				"pci_bus %04x:%02x: ignored (out of memory)\n",

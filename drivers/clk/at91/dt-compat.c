@@ -369,7 +369,7 @@ of_at91_clk_master_get_characteristics(struct device_node *np)
 {
 	struct clk_master_characteristics *characteristics;
 
-	characteristics = kzalloc(sizeof(*characteristics), GFP_KERNEL);
+	characteristics = kzalloc_obj(*characteristics);
 	if (!characteristics)
 		return NULL;
 
@@ -568,11 +568,11 @@ of_at91_clk_pll_get_characteristics(struct device_node *np)
 		return NULL;
 	num_output /= num_cells;
 
-	characteristics = kzalloc(sizeof(*characteristics), GFP_KERNEL);
+	characteristics = kzalloc_obj(*characteristics);
 	if (!characteristics)
 		return NULL;
 
-	output = kcalloc(num_output, sizeof(*output), GFP_KERNEL);
+	output = kzalloc_objs(*output, num_output);
 	if (!output)
 		goto out_free_characteristics;
 

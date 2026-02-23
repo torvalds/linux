@@ -502,7 +502,6 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 	host->handle_err = bcm2835aux_spi_handle_err;
 	host->prepare_message = bcm2835aux_spi_prepare_message;
 	host->unprepare_message = bcm2835aux_spi_unprepare_message;
-	host->dev.of_node = pdev->dev.of_node;
 	host->use_gpio_descriptors = true;
 
 	bs = spi_controller_get_devdata(host);

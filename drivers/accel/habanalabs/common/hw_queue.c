@@ -837,7 +837,7 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 
 	q->kernel_address = p;
 
-	q->shadow_queue = kmalloc_array(HL_QUEUE_LENGTH, sizeof(struct hl_cs_job *), GFP_KERNEL);
+	q->shadow_queue = kmalloc_objs(struct hl_cs_job *, HL_QUEUE_LENGTH);
 	if (!q->shadow_queue) {
 		dev_err(hdev->dev,
 			"Failed to allocate shadow queue for H/W queue %d\n",
@@ -1082,8 +1082,8 @@ int hl_hw_queues_create(struct hl_device *hdev)
 	struct hl_hw_queue *q;
 	int i, rc, q_ready_cnt;
 
-	hdev->kernel_queues = kcalloc(asic->max_queues,
-				sizeof(*hdev->kernel_queues), GFP_KERNEL);
+	hdev->kernel_queues = kzalloc_objs(*hdev->kernel_queues,
+					   asic->max_queues);
 
 	if (!hdev->kernel_queues) {
 		dev_err(hdev->dev, "Not enough memory for H/W queues\n");

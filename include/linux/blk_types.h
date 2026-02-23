@@ -232,6 +232,8 @@ struct bio {
 
 	atomic_t		__bi_remaining;
 
+	/* The actual vec list, preserved by bio_reset() */
+	struct bio_vec		*bi_io_vec;
 	struct bvec_iter	bi_iter;
 
 	union {
@@ -271,17 +273,22 @@ struct bio {
 	 * Everything starting with bi_max_vecs will be preserved by bio_reset()
 	 */
 
-	unsigned short		bi_max_vecs;	/* max bvl_vecs we can hold */
+	/*
+	 * Number of elements in `bi_io_vec` that were allocated for this bio.
+	 * Only used by the bio submitter to make `bio_add_page` fail once full
+	 * and to free the `bi_io_vec` allocation. Must not be used in drivers
+	 * and does not hold a useful value for cloned bios.
+	 */
+	unsigned short		bi_max_vecs;
 
 	atomic_t		__bi_cnt;	/* pin count */
-
-	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
 	struct bio_set		*bi_pool;
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
-#define BIO_MAX_SECTORS		(UINT_MAX >> SECTOR_SHIFT)
+#define BIO_MAX_SIZE		UINT_MAX /* max value of bi_iter.bi_size */
+#define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> SECTOR_SHIFT)
 
 static inline struct bio_vec *bio_inline_vecs(struct bio *bio)
 {
@@ -338,32 +345,33 @@ typedef __u32 __bitwise blk_mq_req_flags_t;
  * meaning.
  */
 enum req_op {
-	/* read sectors from the device */
+	/** @REQ_OP_READ: read sectors from the device */
 	REQ_OP_READ		= (__force blk_opf_t)0,
-	/* write sectors to the device */
+	/** @REQ_OP_WRITE: write sectors to the device */
 	REQ_OP_WRITE		= (__force blk_opf_t)1,
-	/* flush the volatile write cache */
+	/** @REQ_OP_FLUSH: flush the volatile write cache */
 	REQ_OP_FLUSH		= (__force blk_opf_t)2,
-	/* discard sectors */
+	/** @REQ_OP_DISCARD: discard sectors */
 	REQ_OP_DISCARD		= (__force blk_opf_t)3,
-	/* securely erase sectors */
+	/** @REQ_OP_SECURE_ERASE: securely erase sectors */
 	REQ_OP_SECURE_ERASE	= (__force blk_opf_t)5,
-	/* write data at the current zone write pointer */
+	/** @REQ_OP_ZONE_APPEND: write data at the current zone write pointer */
 	REQ_OP_ZONE_APPEND	= (__force blk_opf_t)7,
-	/* write the zero filled sector many times */
+	/** @REQ_OP_WRITE_ZEROES: write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= (__force blk_opf_t)9,
-	/* Open a zone */
+	/** @REQ_OP_ZONE_OPEN: Open a zone */
 	REQ_OP_ZONE_OPEN	= (__force blk_opf_t)11,
-	/* Close a zone */
+	/** @REQ_OP_ZONE_CLOSE: Close a zone */
 	REQ_OP_ZONE_CLOSE	= (__force blk_opf_t)13,
-	/* Transition a zone to full */
+	/** @REQ_OP_ZONE_FINISH: Transition a zone to full */
 	REQ_OP_ZONE_FINISH	= (__force blk_opf_t)15,
-	/* reset a zone write pointer */
+	/** @REQ_OP_ZONE_RESET: reset a zone write pointer */
 	REQ_OP_ZONE_RESET	= (__force blk_opf_t)17,
-	/* reset all the zone present on the device */
+	/** @REQ_OP_ZONE_RESET_ALL: reset all the zone present on the device */
 	REQ_OP_ZONE_RESET_ALL	= (__force blk_opf_t)19,
 
 	/* Driver private requests */
+	/* private: */
 	REQ_OP_DRV_IN		= (__force blk_opf_t)34,
 	REQ_OP_DRV_OUT		= (__force blk_opf_t)35,
 

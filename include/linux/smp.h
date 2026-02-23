@@ -62,6 +62,7 @@ int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 void __noreturn panic_smp_self_stop(void);
 void __noreturn nmi_panic_self_stop(struct pt_regs *regs);
 void crash_smp_send_stop(void);
+int panic_smp_redirect_cpu(int target_cpu, void *msg);
 
 /*
  * Call a function on all processors

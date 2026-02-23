@@ -2006,7 +2006,7 @@ static int eb_capture_stage(struct i915_execbuffer *eb)
 		for_each_batch_create_order(eb, j) {
 			struct i915_capture_list *capture;
 
-			capture = kmalloc(sizeof(*capture), GFP_KERNEL);
+			capture = kmalloc_obj(*capture);
 			if (!capture)
 				continue;
 
@@ -3190,7 +3190,7 @@ eb_composite_fence_create(struct i915_execbuffer *eb, int out_fence_fd)
 
 	GEM_BUG_ON(!intel_context_is_parent(eb->context));
 
-	fences = kmalloc_array(eb->num_batches, sizeof(*fences), GFP_KERNEL);
+	fences = kmalloc_objs(*fences, eb->num_batches);
 	if (!fences)
 		return ERR_PTR(-ENOMEM);
 

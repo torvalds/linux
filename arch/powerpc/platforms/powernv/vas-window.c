@@ -543,7 +543,7 @@ static struct pnv_vas_window *vas_window_alloc(struct vas_instance *vinst)
 	if (winid < 0)
 		return ERR_PTR(winid);
 
-	window = kzalloc(sizeof(*window), GFP_KERNEL);
+	window = kzalloc_obj(*window);
 	if (!window)
 		goto out_free;
 

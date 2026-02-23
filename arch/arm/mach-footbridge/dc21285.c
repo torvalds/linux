@@ -262,7 +262,7 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res;
 
-	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc_objs(struct resource, 2);
 	if (!res) {
 		printk("out of memory for root bus resources");
 		return 0;

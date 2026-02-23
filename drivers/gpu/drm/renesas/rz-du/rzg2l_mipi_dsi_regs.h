@@ -40,6 +40,39 @@
 #define DSIDPHYTIM3_THS_TRAIL(x)	((x) << 8)
 #define DSIDPHYTIM3_THS_ZERO(x)		((x) << 0)
 
+/* RZ/V2H DPHY Registers */
+#define PLLENR				0x000
+#define PLLENR_PLLEN			BIT(0)
+
+#define PHYRSTR				0x004
+#define PHYRSTR_PHYMRSTN		BIT(0)
+
+#define PLLCLKSET0R			0x010
+#define PLLCLKSET0R_PLL_S		GENMASK(2, 0)
+#define PLLCLKSET0R_PLL_P		GENMASK(13, 8)
+#define PLLCLKSET0R_PLL_M		GENMASK(25, 16)
+
+#define PLLCLKSET1R			0x014
+#define PLLCLKSET1R_PLL_K		GENMASK(15, 0)
+
+#define PHYTCLKSETR			0x020
+#define PHYTCLKSETR_TCLKTRAILCTL        GENMASK(7, 0)
+#define PHYTCLKSETR_TCLKPOSTCTL         GENMASK(15, 8)
+#define PHYTCLKSETR_TCLKZEROCTL         GENMASK(23, 16)
+#define PHYTCLKSETR_TCLKPRPRCTL         GENMASK(31, 24)
+
+#define PHYTHSSETR			0x024
+#define PHYTHSSETR_THSEXITCTL           GENMASK(7, 0)
+#define PHYTHSSETR_THSTRAILCTL          GENMASK(15, 8)
+#define PHYTHSSETR_THSZEROCTL           GENMASK(23, 16)
+#define PHYTHSSETR_THSPRPRCTL           GENMASK(31, 24)
+
+#define PHYTLPXSETR			0x028
+#define PHYTLPXSETR_TLPXCTL             GENMASK(7, 0)
+
+#define PHYCR				0x030
+#define PHYCR_ULPSEXIT                  GENMASK(9, 0)
+
 /* --------------------------------------------------------*/
 
 /* Link Status Register */
@@ -130,6 +163,7 @@
 
 /* Video-Input Channel 1 Pixel Packet Set Register */
 #define VICH1PPSETR			0x420
+#define VICH1PPSETR_DT_RGB16		(0x0e << 16)
 #define VICH1PPSETR_DT_RGB18		(0x1e << 16)
 #define VICH1PPSETR_DT_RGB18_LS		(0x2e << 16)
 #define VICH1PPSETR_DT_RGB24		(0x3e << 16)

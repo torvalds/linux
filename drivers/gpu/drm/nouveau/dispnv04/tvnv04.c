@@ -215,7 +215,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 		return type;
 
 	/* Allocate the necessary memory */
-	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	nv_encoder = kzalloc_obj(*nv_encoder);
 	if (!nv_encoder)
 		return -ENOMEM;
 

@@ -230,7 +230,7 @@ static struct publication *tipc_publ_create(struct tipc_uaddr *ua,
 					    struct tipc_socket_addr *sk,
 					    u32 key)
 {
-	struct publication *p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	struct publication *p = kzalloc_obj(*p, GFP_ATOMIC);
 
 	if (!p)
 		return NULL;
@@ -261,7 +261,7 @@ static struct tipc_service *tipc_service_create(struct net *net,
 	struct tipc_service *service;
 	struct hlist_head *hd;
 
-	service = kzalloc(sizeof(*service), GFP_ATOMIC);
+	service = kzalloc_obj(*service, GFP_ATOMIC);
 	if (!service) {
 		pr_warn("Service creation failed, no memory\n");
 		return NULL;
@@ -314,7 +314,7 @@ static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 		else
 			n = &parent->rb_right;
 	}
-	sr = kzalloc(sizeof(*sr), GFP_ATOMIC);
+	sr = kzalloc_obj(*sr, GFP_ATOMIC);
 	if (!sr)
 		return NULL;
 	sr->lower = lower;
@@ -888,7 +888,7 @@ int tipc_nametbl_init(struct net *net)
 	struct name_table *nt;
 	int i;
 
-	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
+	nt = kzalloc_obj(*nt);
 	if (!nt)
 		return -ENOMEM;
 
@@ -1156,7 +1156,7 @@ bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
 	if (tipc_dest_find(l, node, port))
 		return false;
 
-	dst = kmalloc(sizeof(*dst), GFP_ATOMIC);
+	dst = kmalloc_obj(*dst, GFP_ATOMIC);
 	if (unlikely(!dst))
 		return false;
 	dst->node = node;

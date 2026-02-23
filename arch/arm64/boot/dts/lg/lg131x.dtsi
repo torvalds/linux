@@ -102,7 +102,7 @@
 		clock-output-names = "BUSCLK";
 	};
 
-	amba {
+	amba-bus {
 		#address-cells = <2>;
 		#size-cells = <1>;
 

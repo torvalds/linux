@@ -145,7 +145,7 @@ struct simd_skcipher_alg *simd_skcipher_create_compat(struct skcipher_alg *ialg,
 	struct skcipher_alg *alg;
 	int err;
 
-	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
+	salg = kzalloc_obj(*salg);
 	if (!salg) {
 		salg = ERR_PTR(-ENOMEM);
 		goto out;
@@ -352,8 +352,8 @@ static int simd_aead_init(struct crypto_aead *tfm)
 
 	ctx->cryptd_tfm = cryptd_tfm;
 
-	reqsize = crypto_aead_reqsize(cryptd_aead_child(cryptd_tfm));
-	reqsize = max(reqsize, crypto_aead_reqsize(&cryptd_tfm->base));
+	reqsize = max(crypto_aead_reqsize(cryptd_aead_child(cryptd_tfm)),
+		      crypto_aead_reqsize(&cryptd_tfm->base));
 	reqsize += sizeof(struct aead_request);
 
 	crypto_aead_set_reqsize(tfm, reqsize);
@@ -370,7 +370,7 @@ static struct simd_aead_alg *simd_aead_create_compat(struct aead_alg *ialg,
 	struct aead_alg *alg;
 	int err;
 
-	salg = kzalloc(sizeof(*salg), GFP_KERNEL);
+	salg = kzalloc_obj(*salg);
 	if (!salg) {
 		salg = ERR_PTR(-ENOMEM);
 		goto out;

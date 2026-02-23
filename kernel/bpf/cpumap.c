@@ -430,7 +430,7 @@ static struct bpf_cpu_map_entry *
 __cpu_map_entry_alloc(struct bpf_map *map, struct bpf_cpumap_val *value,
 		      u32 cpu)
 {
-	int numa, err, i, fd = value->bpf_prog.fd;
+	int numa, err = -ENOMEM, i, fd = value->bpf_prog.fd;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	struct bpf_cpu_map_entry *rcpu;
 	struct xdp_bulk_queue *bq;
@@ -440,7 +440,7 @@ __cpu_map_entry_alloc(struct bpf_map *map, struct bpf_cpumap_val *value,
 
 	rcpu = bpf_map_kmalloc_node(map, sizeof(*rcpu), gfp | __GFP_ZERO, numa);
 	if (!rcpu)
-		return NULL;
+		return ERR_PTR(err);
 
 	/* Alloc percpu bulkq */
 	rcpu->bulkq = bpf_map_alloc_percpu(map, sizeof(*rcpu->bulkq),
@@ -468,16 +468,21 @@ __cpu_map_entry_alloc(struct bpf_map *map, struct bpf_cpumap_val *value,
 	rcpu->value.qsize  = value->qsize;
 	gro_init(&rcpu->gro);
 
-	if (fd > 0 && __cpu_map_load_bpf_program(rcpu, map, fd))
-		goto free_ptr_ring;
+	if (fd > 0) {
+		err = __cpu_map_load_bpf_program(rcpu, map, fd);
+		if (err)
+			goto free_ptr_ring;
+	}
 
 	/* Setup kthread */
 	init_completion(&rcpu->kthread_running);
 	rcpu->kthread = kthread_create_on_node(cpu_map_kthread_run, rcpu, numa,
 					       "cpumap/%d/map:%d", cpu,
 					       map->id);
-	if (IS_ERR(rcpu->kthread))
+	if (IS_ERR(rcpu->kthread)) {
+		err = PTR_ERR(rcpu->kthread);
 		goto free_prog;
+	}
 
 	/* Make sure kthread runs on a single CPU */
 	kthread_bind(rcpu->kthread, cpu);
@@ -503,7 +508,7 @@ free_bulkq:
 	free_percpu(rcpu->bulkq);
 free_rcu:
 	kfree(rcpu);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void __cpu_map_entry_free(struct work_struct *work)
@@ -596,8 +601,8 @@ static long cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
 	} else {
 		/* Updating qsize cause re-allocation of bpf_cpu_map_entry */
 		rcpu = __cpu_map_entry_alloc(map, &cpumap_value, key_cpu);
-		if (!rcpu)
-			return -ENOMEM;
+		if (IS_ERR(rcpu))
+			return PTR_ERR(rcpu);
 	}
 	rcu_read_lock();
 	__cpu_map_entry_replace(cmap, key_cpu, rcpu);

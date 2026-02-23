@@ -332,7 +332,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	else
 		new_size = 2 * u->ring_size;
 
-	new_ring = kvmalloc_array(new_size, sizeof(*new_ring), GFP_KERNEL);
+	new_ring = kvmalloc_objs(*new_ring, new_size);
 	if (!new_ring)
 		return -ENOMEM;
 
@@ -386,7 +386,7 @@ static int evtchn_bind_to_user(struct per_user_data *u, evtchn_port_t port,
 	 * serialized bind operations.)
 	 */
 
-	evtchn = kzalloc(sizeof(*evtchn), GFP_KERNEL);
+	evtchn = kzalloc_obj(*evtchn);
 	if (!evtchn)
 		return -ENOMEM;
 
@@ -642,7 +642,7 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 {
 	struct per_user_data *u;
 
-	u = kzalloc(sizeof(*u), GFP_KERNEL);
+	u = kzalloc_obj(*u);
 	if (u == NULL)
 		return -ENOMEM;
 

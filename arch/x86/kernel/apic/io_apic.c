@@ -2876,7 +2876,7 @@ int mp_irqdomain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (irq_resolve_mapping(domain, (irq_hw_number_t)pin))
 		return -EEXIST;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

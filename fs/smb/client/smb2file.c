@@ -13,7 +13,6 @@
 #include <linux/pagemap.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -22,6 +21,7 @@
 #include "fscache.h"
 #include "smb2proto.h"
 #include "../common/smb2status.h"
+#include "../common/smbfsctl.h"
 
 static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 {
@@ -178,6 +178,9 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL, &err_iov,
 		       &err_buftype);
 	if (rc == -EACCES && retry_without_read_attributes) {
+		free_rsp_buf(err_buftype, err_iov.iov_base);
+		memset(&err_iov, 0, sizeof(err_iov));
+		err_buftype = CIFS_NO_BUFFER;
 		oparms->desired_access &= ~FILE_READ_ATTRIBUTES;
 		rc = SMB2_open(xid, oparms, smb2_path, &smb2_oplock, smb2_data, NULL, &err_iov,
 			       &err_buftype);
@@ -278,7 +281,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kzalloc_objs(struct smb2_lock_element, max_num);
 	if (!buf)
 		return -ENOMEM;
 
@@ -421,7 +424,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	BUILD_BUG_ON(sizeof(struct smb2_lock_element) > PAGE_SIZE);
 	max_buf = min_t(unsigned int, max_buf, PAGE_SIZE);
 	max_num = max_buf / sizeof(struct smb2_lock_element);
-	buf = kcalloc(max_num, sizeof(struct smb2_lock_element), GFP_KERNEL);
+	buf = kzalloc_objs(struct smb2_lock_element, max_num);
 	if (!buf) {
 		free_xid(xid);
 		return -ENOMEM;

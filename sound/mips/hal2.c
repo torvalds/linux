@@ -773,7 +773,7 @@ static int hal2_create(struct snd_card *card, struct snd_hal2 **rchip)
 	struct hpc3_regs *hpc3 = hpc3c0;
 	int err;
 
-	hal2 = kzalloc(sizeof(*hal2), GFP_KERNEL);
+	hal2 = kzalloc_obj(*hal2);
 	if (!hal2)
 		return -ENOMEM;
 

@@ -470,7 +470,7 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 {
 	struct nv50_head_atom *armh = nv50_head_atom(crtc->state);
 	struct nv50_head_atom *asyh;
-	if (!(asyh = kmalloc(sizeof(*asyh), GFP_KERNEL)))
+	if (!(asyh = kmalloc_obj(*asyh)))
 		return NULL;
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &asyh->state);
 	asyh->wndw = armh->wndw;
@@ -496,7 +496,7 @@ nv50_head_reset(struct drm_crtc *crtc)
 {
 	struct nv50_head_atom *asyh;
 
-	if (WARN_ON(!(asyh = kzalloc(sizeof(*asyh), GFP_KERNEL))))
+	if (WARN_ON(!(asyh = kzalloc_obj(*asyh))))
 		return;
 
 	if (crtc->state)
@@ -577,7 +577,7 @@ nv50_head_create(struct drm_device *dev, int index)
 	const struct drm_crtc_funcs *funcs;
 	int ret;
 
-	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	head = kzalloc_obj(*head);
 	if (!head)
 		return ERR_PTR(-ENOMEM);
 

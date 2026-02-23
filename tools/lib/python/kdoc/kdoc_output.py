@@ -5,14 +5,16 @@
 # pylint: disable=C0301,R0902,R0911,R0912,R0913,R0914,R0915,R0917
 
 """
-Implement output filters to print kernel-doc documentation.
+Classes to implement output filters to print kernel-doc documentation.
 
-The implementation uses a virtual base class (OutputFormat) which
+The implementation uses a virtual base class ``OutputFormat``. It
 contains dispatches to virtual methods, and some code to filter
 out output messages.
 
 The actual implementation is done on one separate class per each type
-of output. Currently, there are output classes for ReST and man/troff.
+of output, e.g. ``RestFormat`` and ``ManFormat`` classes.
+
+Currently, there are output classes for ReST and man/troff.
 """
 
 import os
@@ -54,16 +56,19 @@ class OutputFormat:
     """
 
     # output mode.
-    OUTPUT_ALL          = 0 # output all symbols and doc sections
-    OUTPUT_INCLUDE      = 1 # output only specified symbols
-    OUTPUT_EXPORTED     = 2 # output exported symbols
-    OUTPUT_INTERNAL     = 3 # output non-exported symbols
+    OUTPUT_ALL          = 0 #: Output all symbols and doc sections.
+    OUTPUT_INCLUDE      = 1 #: Output only specified symbols.
+    OUTPUT_EXPORTED     = 2 #: Output exported symbols.
+    OUTPUT_INTERNAL     = 3 #: Output non-exported symbols.
 
-    # Virtual member to be overridden at the inherited classes
+    #: Highlights to be used in ReST format.
     highlights = []
 
+    #: Blank line character.
+    blankline = ""
+
     def __init__(self):
-        """Declare internal vars and set mode to OUTPUT_ALL"""
+        """Declare internal vars and set mode to ``OUTPUT_ALL``."""
 
         self.out_mode = self.OUTPUT_ALL
         self.enable_lineno = None
@@ -128,7 +133,7 @@ class OutputFormat:
             self.config.warning(log_msg)
 
     def check_doc(self, name, args):
-        """Check if DOC should be output"""
+        """Check if DOC should be output."""
 
         if self.no_doc_sections:
             return False
@@ -177,7 +182,7 @@ class OutputFormat:
 
     def msg(self, fname, name, args):
         """
-        Handles a single entry from kernel-doc parser
+        Handles a single entry from kernel-doc parser.
         """
 
         self.data = ""
@@ -199,6 +204,10 @@ class OutputFormat:
             self.out_enum(fname, name, args)
             return self.data
 
+        if dtype == "var":
+            self.out_var(fname, name, args)
+            return self.data
+
         if dtype == "typedef":
             self.out_typedef(fname, name, args)
             return self.data
@@ -216,27 +225,31 @@ class OutputFormat:
     # Virtual methods to be overridden by inherited classes
     # At the base class, those do nothing.
     def set_symbols(self, symbols):
-        """Get a list of all symbols from kernel_doc"""
+        """Get a list of all symbols from kernel_doc."""
 
     def out_doc(self, fname, name, args):
-        """Outputs a DOC block"""
+        """Outputs a DOC block."""
 
     def out_function(self, fname, name, args):
-        """Outputs a function"""
+        """Outputs a function."""
 
     def out_enum(self, fname, name, args):
-        """Outputs an enum"""
+        """Outputs an enum."""
+
+    def out_var(self, fname, name, args):
+        """Outputs a variable."""
 
     def out_typedef(self, fname, name, args):
-        """Outputs a typedef"""
+        """Outputs a typedef."""
 
     def out_struct(self, fname, name, args):
-        """Outputs a struct"""
+        """Outputs a struct."""
 
 
 class RestFormat(OutputFormat):
-    """Consts and functions used by ReST output"""
+    """Consts and functions used by ReST output."""
 
+    #: Highlights to be used in ReST format
     highlights = [
         (type_constant, r"``\1``"),
         (type_constant2, r"``\1``"),
@@ -256,9 +269,13 @@ class RestFormat(OutputFormat):
         (type_fallback, r":c:type:`\1`"),
         (type_param_ref, r"**\1\2**")
     ]
+
     blankline = "\n"
 
+    #: Sphinx literal block regex.
     sphinx_literal = KernRe(r'^[^.].*::$', cache=False)
+
+    #: Sphinx code block regex.
     sphinx_cblock = KernRe(r'^\.\.\ +code-block::', cache=False)
 
     def __init__(self):
@@ -273,7 +290,7 @@ class RestFormat(OutputFormat):
         self.lineprefix = ""
 
     def print_lineno(self, ln):
-        """Outputs a line number"""
+        """Outputs a line number."""
 
         if self.enable_lineno and ln is not None:
             ln += 1
@@ -282,7 +299,7 @@ class RestFormat(OutputFormat):
     def output_highlight(self, args):
         """
         Outputs a C symbol that may require being converted to ReST using
-        the self.highlights variable
+        the self.highlights variable.
         """
 
         input_text = args
@@ -472,6 +489,25 @@ class RestFormat(OutputFormat):
         self.lineprefix = oldprefix
         self.out_section(args)
 
+    def out_var(self, fname, name, args):
+        oldprefix = self.lineprefix
+        ln = args.declaration_start_line
+        full_proto = args.other_stuff["full_proto"]
+
+        self.lineprefix = "  "
+
+        self.data += f"\n\n.. c:macro:: {name}\n\n{self.lineprefix}``{full_proto}``\n\n"
+
+        self.print_lineno(ln)
+        self.output_highlight(args.get('purpose', ''))
+        self.data += "\n"
+
+        if args.other_stuff["default_val"]:
+            self.data += f'{self.lineprefix}**Initialization**\n\n'
+            self.output_highlight(f'default: ``{args.other_stuff["default_val"]}``')
+
+        self.out_section(args)
+
     def out_typedef(self, fname, name, args):
 
         oldprefix = self.lineprefix
@@ -544,7 +580,7 @@ class RestFormat(OutputFormat):
 
 
 class ManFormat(OutputFormat):
-    """Consts and functions used by man pages output"""
+    """Consts and functions used by man pages output."""
 
     highlights = (
         (type_constant, r"\1"),
@@ -561,6 +597,7 @@ class ManFormat(OutputFormat):
     )
     blankline = ""
 
+    #: Allowed timestamp formats.
     date_formats = [
         "%a %b %d %H:%M:%S %Z %Y",
         "%a %b %d %H:%M:%S %Y",
@@ -627,7 +664,7 @@ class ManFormat(OutputFormat):
         self.symbols = symbols
 
     def out_tail(self, fname, name, args):
-        """Adds a tail for all man pages"""
+        """Adds a tail for all man pages."""
 
         # SEE ALSO section
         self.data += f'.SH "SEE ALSO"' + "\n.PP\n"
@@ -663,7 +700,7 @@ class ManFormat(OutputFormat):
     def output_highlight(self, block):
         """
         Outputs a C symbol that may require being highlighted with
-        self.highlights variable using troff syntax
+        self.highlights variable using troff syntax.
         """
 
         contents = self.highlight_block(block)
@@ -694,7 +731,6 @@ class ManFormat(OutputFormat):
             self.output_highlight(text)
 
     def out_function(self, fname, name, args):
-        """output function in man"""
 
         out_name = self.arg_name(args, name)
 
@@ -768,6 +804,26 @@ class ManFormat(OutputFormat):
             parameter_name = KernRe(r'\[.*').sub('', parameter)
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(args.parameterdescs.get(parameter_name, ""))
+
+        for section, text in args.sections.items():
+            self.data += f'.SH "{section}"' + "\n"
+            self.output_highlight(text)
+
+    def out_var(self, fname, name, args):
+        out_name = self.arg_name(args, name)
+        full_proto = args.other_stuff["full_proto"]
+
+        self.data += f'.TH "{self.modulename}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+
+        self.data += ".SH NAME\n"
+        self.data += f"{name} \\- {args['purpose']}\n"
+
+        self.data += ".SH SYNOPSIS\n"
+        self.data += f"{full_proto}\n"
+
+        if args.other_stuff["default_val"]:
+            self.data += f'.SH "Initialization"' + "\n"
+            self.output_highlight(f'default: {args.other_stuff["default_val"]}')
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"

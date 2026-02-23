@@ -2949,7 +2949,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		return ERR_CAST(pmd);
 	}
 
-	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	pool = kzalloc_obj(*pool);
 	if (!pool) {
 		*error = "Error allocating memory for pool";
 		err_p = ERR_PTR(-ENOMEM);
@@ -3354,7 +3354,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto out;
 	}
 
-	pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+	pt = kzalloc_obj(*pt);
 	if (!pt) {
 		r = -ENOMEM;
 		goto out;
@@ -4193,7 +4193,7 @@ static int thin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto out_unlock;
 	}
 
-	tc = ti->private = kzalloc(sizeof(*tc), GFP_KERNEL);
+	tc = ti->private = kzalloc_obj(*tc);
 	if (!tc) {
 		ti->error = "Out of memory";
 		r = -ENOMEM;

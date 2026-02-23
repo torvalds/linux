@@ -294,7 +294,7 @@ static void rtw89_usb_ops_tx_kick_off(struct rtw89_dev *rtwdev, u8 txch)
 		if (!skb)
 			break;
 
-		txcb = kmalloc(sizeof(*txcb), GFP_ATOMIC);
+		txcb = kmalloc_obj(*txcb, GFP_ATOMIC);
 		if (!txcb) {
 			rtw89_usb_tx_free_skb(rtwdev, txch, skb);
 			continue;
@@ -620,7 +620,7 @@ static int rtw89_usb_init_rx(struct rtw89_dev *rtwdev)
 	struct sk_buff *rx_skb;
 	int i;
 
-	rtwusb->rxwq = alloc_workqueue("rtw89_usb: rx wq", WQ_BH, 0);
+	rtwusb->rxwq = alloc_workqueue("rtw89_usb: rx wq", WQ_BH | WQ_PERCPU, 0);
 	if (!rtwusb->rxwq) {
 		rtw89_err(rtwdev, "failed to create RX work queue\n");
 		return -ENOMEM;
@@ -931,8 +931,7 @@ static int rtw89_usb_intf_init(struct rtw89_dev *rtwdev,
 	if (ret)
 		return ret;
 
-	rtwusb->vendor_req_buf = kmalloc(sizeof(*rtwusb->vendor_req_buf),
-					 GFP_KERNEL);
+	rtwusb->vendor_req_buf = kmalloc_obj(*rtwusb->vendor_req_buf);
 	if (!rtwusb->vendor_req_buf)
 		return -ENOMEM;
 

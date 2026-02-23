@@ -13,10 +13,3 @@ Contents:
    can327
    ctu/ctucanfd-driver
    freescale/flexcan
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

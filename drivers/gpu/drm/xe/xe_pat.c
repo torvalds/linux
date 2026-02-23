@@ -9,6 +9,7 @@
 
 #include <generated/xe_wa_oob.h>
 
+#include "regs/xe_gt_regs.h"
 #include "regs/xe_reg_defs.h"
 #include "xe_assert.h"
 #include "xe_device.h"
@@ -50,7 +51,36 @@
 #define XELP_PAT_WC				REG_FIELD_PREP(XELP_MEM_TYPE_MASK, 1)
 #define XELP_PAT_UC				REG_FIELD_PREP(XELP_MEM_TYPE_MASK, 0)
 
+#define PAT_LABEL_LEN 20
+
 static const char *XELP_MEM_TYPE_STR_MAP[] = { "UC", "WC", "WT", "WB" };
+
+static void xe_pat_index_label(char *label, size_t len, int index)
+{
+	snprintf(label, len, "PAT[%2d] ", index);
+}
+
+static void xelp_pat_entry_dump(struct drm_printer *p, int index, u32 pat)
+{
+	u8 mem_type = REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat);
+
+	drm_printf(p, "PAT[%2d] = %s (%#8x)\n", index,
+		   XELP_MEM_TYPE_STR_MAP[mem_type], pat);
+}
+
+static void xehpc_pat_entry_dump(struct drm_printer *p, int index, u32 pat)
+{
+	drm_printf(p, "PAT[%2d] = [ %u, %u ] (%#8x)\n", index,
+		   REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat),
+		   REG_FIELD_GET(XEHPC_CLOS_LEVEL_MASK, pat), pat);
+}
+
+static void xelpg_pat_entry_dump(struct drm_printer *p, int index, u32 pat)
+{
+	drm_printf(p, "PAT[%2d] = [ %u, %u ] (%#8x)\n", index,
+		   REG_FIELD_GET(XELPG_L4_POLICY_MASK, pat),
+		   REG_FIELD_GET(XELPG_INDEX_COH_MODE_MASK, pat), pat);
+}
 
 struct xe_pat_ops {
 	void (*program_graphics)(struct xe_gt *gt, const struct xe_pat_table_entry table[],
@@ -102,9 +132,10 @@ static const struct xe_pat_table_entry xelpg_pat_table[] = {
  * in the table.
  *
  * Note: There is an implicit assumption in the driver that compression and
- * coh_1way+ are mutually exclusive. If this is ever not true then userptr
- * and imported dma-buf from external device will have uncleared ccs state. See
- * also xe_bo_needs_ccs_pages().
+ * coh_1way+ are mutually exclusive for platforms prior to Xe3. Starting
+ * with Xe3, compression can be combined with coherency. If using compression
+ * with coherency, userptr and imported dma-buf from external device will
+ * have uncleared ccs state. See also xe_bo_needs_ccs_pages().
  */
 #define XE2_PAT(no_promote, comp_en, l3clos, l3_policy, l4_policy, __coh_mode) \
 	{ \
@@ -114,8 +145,7 @@ static const struct xe_pat_table_entry xelpg_pat_table[] = {
 			REG_FIELD_PREP(XE2_L3_POLICY, l3_policy) | \
 			REG_FIELD_PREP(XE2_L4_POLICY, l4_policy) | \
 			REG_FIELD_PREP(XE2_COH_MODE, __coh_mode), \
-		.coh_mode = (BUILD_BUG_ON_ZERO(__coh_mode && comp_en) || __coh_mode) ? \
-			XE_COH_AT_LEAST_1WAY : XE_COH_NONE, \
+		.coh_mode = __coh_mode ? XE_COH_AT_LEAST_1WAY : XE_COH_NONE, \
 		.valid = 1 \
 	}
 
@@ -151,6 +181,38 @@ static const struct xe_pat_table_entry xe2_pat_table[] = {
 	[31] = XE2_PAT( 0, 0, 3, 0, 3, 3 ),
 };
 
+static const struct xe_pat_table_entry xe3_lpg_pat_table[] = {
+	[ 0] = XE2_PAT( 0, 0, 0, 0, 3, 0 ),
+	[ 1] = XE2_PAT( 0, 0, 0, 0, 3, 2 ),
+	[ 2] = XE2_PAT( 0, 0, 0, 0, 3, 3 ),
+	[ 3] = XE2_PAT( 0, 0, 0, 3, 3, 0 ),
+	[ 4] = XE2_PAT( 0, 0, 0, 3, 0, 2 ),
+	[ 5] = XE2_PAT( 0, 0, 0, 3, 3, 2 ),
+	[ 6] = XE2_PAT( 1, 0, 0, 1, 3, 0 ),
+	[ 7] = XE2_PAT( 0, 0, 0, 3, 0, 3 ),
+	[ 8] = XE2_PAT( 0, 0, 0, 3, 0, 0 ),
+	[ 9] = XE2_PAT( 0, 1, 0, 0, 3, 0 ),
+	[10] = XE2_PAT( 0, 1, 0, 3, 0, 0 ),
+	[11] = XE2_PAT( 1, 1, 0, 1, 3, 0 ),
+	[12] = XE2_PAT( 0, 1, 0, 3, 3, 0 ),
+	[13] = XE2_PAT( 0, 0, 0, 0, 0, 0 ),
+	[14] = XE2_PAT( 0, 1, 0, 0, 0, 0 ),
+	[15] = XE2_PAT( 1, 1, 0, 1, 1, 0 ),
+	[16] = XE2_PAT( 0, 1, 0, 0, 3, 2 ),
+	/* 17..19 are reserved; leave set to all 0's */
+	[20] = XE2_PAT( 0, 0, 1, 0, 3, 0 ),
+	[21] = XE2_PAT( 0, 1, 1, 0, 3, 0 ),
+	[22] = XE2_PAT( 0, 0, 1, 0, 3, 2 ),
+	[23] = XE2_PAT( 0, 0, 1, 0, 3, 3 ),
+	[24] = XE2_PAT( 0, 0, 2, 0, 3, 0 ),
+	[25] = XE2_PAT( 0, 1, 2, 0, 3, 0 ),
+	[26] = XE2_PAT( 0, 0, 2, 0, 3, 2 ),
+	[27] = XE2_PAT( 0, 0, 2, 0, 3, 3 ),
+	[28] = XE2_PAT( 0, 0, 3, 0, 3, 0 ),
+	[29] = XE2_PAT( 0, 1, 3, 0, 3, 0 ),
+	[30] = XE2_PAT( 0, 0, 3, 0, 3, 2 ),
+	[31] = XE2_PAT( 0, 0, 3, 0, 3, 3 ),
+};
 /* Special PAT values programmed outside the main table */
 static const struct xe_pat_table_entry xe2_pat_ats = XE2_PAT( 0, 0, 0, 0, 3, 3 );
 static const struct xe_pat_table_entry xe2_pat_pta = XE2_PAT( 0, 0, 0, 0, 3, 0 );
@@ -196,6 +258,19 @@ u16 xe_pat_index_get_coh_mode(struct xe_device *xe, u16 pat_index)
 	return xe->pat.table[pat_index].coh_mode;
 }
 
+bool xe_pat_index_get_comp_en(struct xe_device *xe, u16 pat_index)
+{
+	WARN_ON(pat_index >= xe->pat.n_entries);
+	return !!(xe->pat.table[pat_index].value & XE2_COMP_EN);
+}
+
+u16 xe_pat_index_get_l3_policy(struct xe_device *xe, u16 pat_index)
+{
+	WARN_ON(pat_index >= xe->pat.n_entries);
+
+	return REG_FIELD_GET(XE2_L3_POLICY, xe->pat.table[pat_index].value);
+}
+
 static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			int n_entries)
 {
@@ -233,24 +308,20 @@ static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry ta
 static int xelp_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	int i;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
 	for (i = 0; i < xe->pat.n_entries; i++) {
 		u32 pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_INDEX(i)));
-		u8 mem_type = REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat);
 
-		drm_printf(p, "PAT[%2d] = %s (%#8x)\n", i,
-			   XELP_MEM_TYPE_STR_MAP[mem_type], pat);
+		xelp_pat_entry_dump(p, i, pat);
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -262,26 +333,20 @@ static const struct xe_pat_ops xelp_pat_ops = {
 static int xehp_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	int i;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
 
 	for (i = 0; i < xe->pat.n_entries; i++) {
 		u32 pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
-		u8 mem_type;
 
-		mem_type = REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat);
-
-		drm_printf(p, "PAT[%2d] = %s (%#8x)\n", i,
-			   XELP_MEM_TYPE_STR_MAP[mem_type], pat);
+		xelp_pat_entry_dump(p, i, pat);
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -293,11 +358,10 @@ static const struct xe_pat_ops xehp_pat_ops = {
 static int xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	int i;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
@@ -305,12 +369,9 @@ static int xehpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	for (i = 0; i < xe->pat.n_entries; i++) {
 		u32 pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
-		drm_printf(p, "PAT[%2d] = [ %u, %u ] (%#8x)\n", i,
-			   REG_FIELD_GET(XELP_MEM_TYPE_MASK, pat),
-			   REG_FIELD_GET(XEHPC_CLOS_LEVEL_MASK, pat), pat);
+		xehpc_pat_entry_dump(p, i, pat);
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -322,11 +383,10 @@ static const struct xe_pat_ops xehpc_pat_ops = {
 static int xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	int i;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table:\n");
@@ -339,12 +399,9 @@ static int xelpg_dump(struct xe_gt *gt, struct drm_printer *p)
 		else
 			pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
-		drm_printf(p, "PAT[%2d] = [ %u, %u ] (%#8x)\n", i,
-			   REG_FIELD_GET(XELPG_L4_POLICY_MASK, pat),
-			   REG_FIELD_GET(XELPG_INDEX_COH_MODE_MASK, pat), pat);
+		xelpg_pat_entry_dump(p, i, pat);
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -358,15 +415,38 @@ static const struct xe_pat_ops xelpg_pat_ops = {
 	.dump = xelpg_dump,
 };
 
+static void xe2_pat_entry_dump(struct drm_printer *p, const char *label, u32 pat, bool rsvd)
+{
+	drm_printf(p, "%s= [ %u, %u, %u, %u, %u, %u ]  (%#8x)%s\n", label,
+		   !!(pat & XE2_NO_PROMOTE),
+		   !!(pat & XE2_COMP_EN),
+		   REG_FIELD_GET(XE2_L3_CLOS, pat),
+		   REG_FIELD_GET(XE2_L3_POLICY, pat),
+		   REG_FIELD_GET(XE2_L4_POLICY, pat),
+		   REG_FIELD_GET(XE2_COH_MODE, pat),
+		   pat, rsvd ? " *" : "");
+}
+
+static void xe3p_xpc_pat_entry_dump(struct drm_printer *p, const char *label, u32 pat, bool rsvd)
+{
+	drm_printf(p, "%s= [ %u, %u, %u, %u, %u ]  (%#8x)%s\n", label,
+		   !!(pat & XE2_NO_PROMOTE),
+		   REG_FIELD_GET(XE2_L3_CLOS, pat),
+		   REG_FIELD_GET(XE2_L3_POLICY, pat),
+		   REG_FIELD_GET(XE2_L4_POLICY, pat),
+		   REG_FIELD_GET(XE2_COH_MODE, pat),
+		   pat, rsvd ? " *" : "");
+}
+
 static int xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	u32 pat;
 	int i;
+	char label[PAT_LABEL_LEN];
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table: (* = reserved entry)\n");
@@ -377,14 +457,8 @@ static int xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 		else
 			pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
-		drm_printf(p, "PAT[%2d] = [ %u, %u, %u, %u, %u, %u ]  (%#8x)%s\n", i,
-			   !!(pat & XE2_NO_PROMOTE),
-			   !!(pat & XE2_COMP_EN),
-			   REG_FIELD_GET(XE2_L3_CLOS, pat),
-			   REG_FIELD_GET(XE2_L3_POLICY, pat),
-			   REG_FIELD_GET(XE2_L4_POLICY, pat),
-			   REG_FIELD_GET(XE2_COH_MODE, pat),
-			   pat, xe->pat.table[i].valid ? "" : " *");
+		xe_pat_index_label(label, sizeof(label), i);
+		xe2_pat_entry_dump(p, label, pat, !xe->pat.table[i].valid);
 	}
 
 	/*
@@ -397,16 +471,8 @@ static int xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 		pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_PTA));
 
 	drm_printf(p, "Page Table Access:\n");
-	drm_printf(p, "PTA_MODE= [ %u, %u, %u, %u, %u, %u ]  (%#8x)\n",
-		   !!(pat & XE2_NO_PROMOTE),
-		   !!(pat & XE2_COMP_EN),
-		   REG_FIELD_GET(XE2_L3_CLOS, pat),
-		   REG_FIELD_GET(XE2_L3_POLICY, pat),
-		   REG_FIELD_GET(XE2_L4_POLICY, pat),
-		   REG_FIELD_GET(XE2_COH_MODE, pat),
-		   pat);
+	xe2_pat_entry_dump(p, "PTA_MODE", pat, false);
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -419,12 +485,12 @@ static const struct xe_pat_ops xe2_pat_ops = {
 static int xe3p_xpc_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	u32 pat;
 	int i;
+	char label[PAT_LABEL_LEN];
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	drm_printf(p, "PAT table: (* = reserved entry)\n");
@@ -432,13 +498,8 @@ static int xe3p_xpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	for (i = 0; i < xe->pat.n_entries; i++) {
 		pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_INDEX(i)));
 
-		drm_printf(p, "PAT[%2d] = [ %u, %u, %u, %u, %u ]  (%#8x)%s\n", i,
-			   !!(pat & XE2_NO_PROMOTE),
-			   REG_FIELD_GET(XE2_L3_CLOS, pat),
-			   REG_FIELD_GET(XE2_L3_POLICY, pat),
-			   REG_FIELD_GET(XE2_L4_POLICY, pat),
-			   REG_FIELD_GET(XE2_COH_MODE, pat),
-			   pat, xe->pat.table[i].valid ? "" : " *");
+		xe_pat_index_label(label, sizeof(label), i);
+		xe3p_xpc_pat_entry_dump(p, label, pat, !xe->pat.table[i].valid);
 	}
 
 	/*
@@ -448,15 +509,8 @@ static int xe3p_xpc_dump(struct xe_gt *gt, struct drm_printer *p)
 	pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_PTA));
 
 	drm_printf(p, "Page Table Access:\n");
-	drm_printf(p, "PTA_MODE= [ %u, %u, %u, %u, %u ]  (%#8x)\n",
-		   !!(pat & XE2_NO_PROMOTE),
-		   REG_FIELD_GET(XE2_L3_CLOS, pat),
-		   REG_FIELD_GET(XE2_L3_POLICY, pat),
-		   REG_FIELD_GET(XE2_L4_POLICY, pat),
-		   REG_FIELD_GET(XE2_COH_MODE, pat),
-		   pat);
+	xe3p_xpc_pat_entry_dump(p, "PTA_MODE", pat, false);
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -468,6 +522,7 @@ static const struct xe_pat_ops xe3p_xpc_pat_ops = {
 
 void xe_pat_init_early(struct xe_device *xe)
 {
+	xe->pat.idx[XE_CACHE_WB_COMPRESSION] = XE_PAT_INVALID_IDX;
 	if (GRAPHICS_VERx100(xe) == 3511) {
 		xe->pat.ops = &xe3p_xpc_pat_ops;
 		xe->pat.table = xe3p_xpc_pat_table;
@@ -479,7 +534,12 @@ void xe_pat_init_early(struct xe_device *xe)
 		xe->pat.idx[XE_CACHE_WB] = 2;
 	} else if (GRAPHICS_VER(xe) == 30 || GRAPHICS_VER(xe) == 20) {
 		xe->pat.ops = &xe2_pat_ops;
-		xe->pat.table = xe2_pat_table;
+		if (GRAPHICS_VER(xe) == 30) {
+			xe->pat.table = xe3_lpg_pat_table;
+			xe->pat.idx[XE_CACHE_WB_COMPRESSION] = 16;
+		} else {
+			xe->pat.table = xe2_pat_table;
+		}
 		xe->pat.pat_ats = &xe2_pat_ats;
 		if (IS_DGFX(xe))
 			xe->pat.pat_pta = &xe2_pat_pta;
@@ -577,4 +637,68 @@ int xe_pat_dump(struct xe_gt *gt, struct drm_printer *p)
 		return -EOPNOTSUPP;
 
 	return xe->pat.ops->dump(gt, p);
+}
+
+/**
+ * xe_pat_dump_sw_config() - Dump the software-configured GT PAT table into a drm printer.
+ * @gt: the &xe_gt
+ * @p: the &drm_printer
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_pat_dump_sw_config(struct xe_gt *gt, struct drm_printer *p)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	char label[PAT_LABEL_LEN];
+
+	if (!xe->pat.table || !xe->pat.n_entries)
+		return -EOPNOTSUPP;
+
+	drm_printf(p, "PAT table:%s\n", GRAPHICS_VER(xe) >= 20 ? " (* = reserved entry)" : "");
+	for (u32 i = 0; i < xe->pat.n_entries; i++) {
+		u32 pat = xe->pat.table[i].value;
+
+		if (GRAPHICS_VERx100(xe) == 3511) {
+			xe_pat_index_label(label, sizeof(label), i);
+			xe3p_xpc_pat_entry_dump(p, label, pat, !xe->pat.table[i].valid);
+		} else if (GRAPHICS_VER(xe) == 30 || GRAPHICS_VER(xe) == 20) {
+			xe_pat_index_label(label, sizeof(label), i);
+			xe2_pat_entry_dump(p, label, pat, !xe->pat.table[i].valid);
+		} else if (xe->info.platform == XE_METEORLAKE) {
+			xelpg_pat_entry_dump(p, i, pat);
+		} else if (xe->info.platform == XE_PVC) {
+			xehpc_pat_entry_dump(p, i, pat);
+		} else if (xe->info.platform == XE_DG2 || GRAPHICS_VERx100(xe) <= 1210) {
+			xelp_pat_entry_dump(p, i, pat);
+		} else {
+			return -EOPNOTSUPP;
+		}
+	}
+
+	if (xe->pat.pat_pta) {
+		u32 pat = xe->pat.pat_pta->value;
+
+		drm_printf(p, "Page Table Access:\n");
+		xe2_pat_entry_dump(p, "PTA_MODE", pat, false);
+	}
+
+	if (xe->pat.pat_ats) {
+		u32 pat = xe->pat.pat_ats->value;
+
+		drm_printf(p, "PCIe ATS/PASID:\n");
+		xe2_pat_entry_dump(p, "PAT_ATS ", pat, false);
+	}
+
+	drm_printf(p, "Cache Level:\n");
+	drm_printf(p, "IDX[XE_CACHE_NONE] = %d\n", xe->pat.idx[XE_CACHE_NONE]);
+	drm_printf(p, "IDX[XE_CACHE_WT] = %d\n", xe->pat.idx[XE_CACHE_WT]);
+	drm_printf(p, "IDX[XE_CACHE_WB] = %d\n", xe->pat.idx[XE_CACHE_WB]);
+	if (GRAPHICS_VER(xe) >= 20) {
+		drm_printf(p, "IDX[XE_CACHE_NONE_COMPRESSION] = %d\n",
+			   xe->pat.idx[XE_CACHE_NONE_COMPRESSION]);
+		drm_printf(p, "IDX[XE_CACHE_WB_COMPRESSION] = %d\n",
+			   xe->pat.idx[XE_CACHE_WB_COMPRESSION]);
+	}
+
+	return 0;
 }

@@ -151,7 +151,7 @@ static void rxperf_charge_preallocation(struct work_struct *work)
 	struct rxperf_call *call;
 
 	for (;;) {
-		call = kzalloc(sizeof(*call), GFP_KERNEL);
+		call = kzalloc_obj(*call);
 		if (!call)
 			break;
 

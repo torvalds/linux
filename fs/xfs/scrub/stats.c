@@ -3,7 +3,7 @@
  * Copyright (C) 2023 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -389,7 +389,7 @@ xchk_mount_stats_alloc(
 	struct xchk_stats	*cs;
 	int			error;
 
-	cs = kvzalloc(sizeof(struct xchk_stats), GFP_KERNEL);
+	cs = kvzalloc_obj(struct xchk_stats);
 	if (!cs)
 		return -ENOMEM;
 

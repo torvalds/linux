@@ -268,7 +268,7 @@ struct dvb_frontend *cx24120_attach(const struct cx24120_config *config,
 	int demod_rev;
 
 	info("Conexant cx24120/cx24118 - DVBS/S2 Satellite demod/tuner\n");
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state) {
 		err("Unable to allocate memory for cx24120_state\n");
 		goto error;

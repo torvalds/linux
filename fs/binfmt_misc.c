@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/sched/mm.h>
 #include <linux/magic.h>
@@ -960,7 +961,7 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 		 * create their own separate binfmt_misc mounts we should
 		 * consider turning this into a kmem cache.
 		 */
-		misc = kzalloc(sizeof(struct binfmt_misc), GFP_KERNEL);
+		misc = kzalloc_obj(struct binfmt_misc);
 		if (!misc)
 			return -ENOMEM;
 

@@ -63,7 +63,7 @@ static int i2c_of_probe_enable_node(struct device *dev, struct device_node *node
 
 	dev_dbg(dev, "Enabling %pOF\n", node);
 
-	struct of_changeset *ocs __free(kfree) = kzalloc(sizeof(*ocs), GFP_KERNEL);
+	struct of_changeset *ocs __free(kfree) = kzalloc_obj(*ocs);
 	if (!ocs)
 		return -ENOMEM;
 

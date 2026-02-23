@@ -332,7 +332,7 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	if (gateway->bandwidth_down == 0)
 		return;
 
-	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
+	gw_node = kzalloc_obj(*gw_node, GFP_ATOMIC);
 	if (!gw_node)
 		return;
 

@@ -204,7 +204,7 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	if (priv->perf)
 		return 0;
 
-	perf = kzalloc(sizeof(*perf), GFP_KERNEL);
+	perf = kzalloc_obj(*perf);
 	if (!perf)
 		return -ENOMEM;
 

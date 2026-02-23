@@ -162,7 +162,7 @@ static int of_load_pse_pis(struct pse_controller_dev *pcdev)
 	if (!np)
 		return -ENODEV;
 
-	pcdev->pi = kcalloc(pcdev->nr_lines, sizeof(*pcdev->pi), GFP_KERNEL);
+	pcdev->pi = kzalloc_objs(*pcdev->pi, pcdev->nr_lines);
 	if (!pcdev->pi)
 		return -ENOMEM;
 
@@ -1408,7 +1408,7 @@ pse_control_get_internal(struct pse_controller_dev *pcdev, unsigned int index,
 		}
 	}
 
-	psec = kzalloc(sizeof(*psec), GFP_KERNEL);
+	psec = kzalloc_obj(*psec);
 	if (!psec)
 		return ERR_PTR(-ENOMEM);
 

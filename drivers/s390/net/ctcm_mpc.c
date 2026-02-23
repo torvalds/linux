@@ -1163,7 +1163,7 @@ static void ctcmpc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			skb_pull(pskb, new_len); /* point to next PDU */
 		}
 	} else {
-		mpcginfo = kmalloc(sizeof(struct mpcg_info), GFP_ATOMIC);
+		mpcginfo = kmalloc_obj(struct mpcg_info, GFP_ATOMIC);
 		if (mpcginfo == NULL)
 					goto done;
 
@@ -1259,7 +1259,7 @@ struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv)
 	CTCM_DBF_TEXT_(MPC_SETUP, CTC_DBF_INFO,
 			"Enter %s(%p)", CTCM_FUNTAIL, priv);
 
-	grp = kzalloc(sizeof(struct mpc_group), GFP_KERNEL);
+	grp = kzalloc_obj(struct mpc_group);
 	if (grp == NULL)
 		return NULL;
 

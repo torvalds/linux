@@ -111,7 +111,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 	}
 
 	err = -ENOMEM;
-	ledinternal = kzalloc(sizeof(struct xt_led_info_internal), GFP_KERNEL);
+	ledinternal = kzalloc_obj(struct xt_led_info_internal);
 	if (!ledinternal)
 		goto exit_mutex_only;
 

@@ -627,10 +627,9 @@ ioctl(SIOCSHWTSTAMP). However, this has not been implemented in all drivers.
 --------------------------------------------------------
 
 A driver which supports hardware time stamping must support the
-ndo_hwtstamp_set NDO or the legacy SIOCSHWTSTAMP ioctl and update the
-supplied struct hwtstamp_config with the actual values as described in
-the section on SIOCSHWTSTAMP. It should also support ndo_hwtstamp_get or
-the legacy SIOCGHWTSTAMP.
+ndo_hwtstamp_set NDO and update the supplied struct hwtstamp_config with
+the actual values as described in the section on SIOCSHWTSTAMP. It
+should also support ndo_hwtstamp_get NDO to retrieve configuration.
 
 Time stamps for received packets must be stored in the skb. To get a pointer
 to the shared time stamp structure of the skb call skb_hwtstamps(). Then

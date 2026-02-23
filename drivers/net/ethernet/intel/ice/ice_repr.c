@@ -369,7 +369,7 @@ static struct ice_repr *ice_repr_create(struct ice_vsi *src_vsi)
 	struct ice_repr *repr;
 	int err;
 
-	repr = kzalloc(sizeof(*repr), GFP_KERNEL);
+	repr = kzalloc_obj(*repr);
 	if (!repr)
 		return ERR_PTR(-ENOMEM);
 

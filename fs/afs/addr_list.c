@@ -66,7 +66,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr)
 	if (nr > AFS_MAX_ADDRESSES)
 		nr = AFS_MAX_ADDRESSES;
 
-	alist = kzalloc(struct_size(alist, addrs, nr), GFP_KERNEL);
+	alist = kzalloc_flex(*alist, addrs, nr);
 	if (!alist)
 		return NULL;
 

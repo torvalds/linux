@@ -135,7 +135,7 @@ static int idletimer_tg_create(struct idletimer_tg_info *info)
 {
 	int ret;
 
-	info->timer = kzalloc(sizeof(*info->timer), GFP_KERNEL);
+	info->timer = kzalloc_obj(*info->timer);
 	if (!info->timer) {
 		ret = -ENOMEM;
 		goto out;
@@ -184,7 +184,7 @@ static int idletimer_tg_create_v1(struct idletimer_tg_info_v1 *info)
 {
 	int ret;
 
-	info->timer = kmalloc(sizeof(*info->timer), GFP_KERNEL);
+	info->timer = kmalloc_obj(*info->timer);
 	if (!info->timer) {
 		ret = -ENOMEM;
 		goto out;

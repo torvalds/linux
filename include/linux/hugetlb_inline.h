@@ -11,9 +11,19 @@ static inline bool is_vm_hugetlb_flags(vm_flags_t vm_flags)
 	return !!(vm_flags & VM_HUGETLB);
 }
 
+static inline bool is_vma_hugetlb_flags(const vma_flags_t *flags)
+{
+	return vma_flags_test(flags, VMA_HUGETLB_BIT);
+}
+
 #else
 
 static inline bool is_vm_hugetlb_flags(vm_flags_t vm_flags)
+{
+	return false;
+}
+
+static inline bool is_vma_hugetlb_flags(const vma_flags_t *flags)
 {
 	return false;
 }

@@ -31,7 +31,6 @@ struct stmmac_resources {
 	void __iomem *addr;
 	u8 mac[ETH_ALEN];
 	int wol_irq;
-	int lpi_irq;
 	int irq;
 	int sfty_irq;
 	int sfty_ce_irq;
@@ -297,12 +296,12 @@ struct stmmac_priv {
 	int wol_irq;
 	u32 gmii_address_bus_config;
 	struct timer_list eee_ctrl_timer;
-	int lpi_irq;
 	u32 tx_lpi_timer;
 	bool tx_lpi_clk_stop;
 	bool eee_enabled;
 	bool eee_active;
 	bool eee_sw_timer_en;
+	bool legacy_serdes_is_powered;
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;

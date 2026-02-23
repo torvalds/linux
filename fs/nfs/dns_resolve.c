@@ -120,7 +120,7 @@ static void nfs_dns_ent_put(struct kref *ref)
 
 static struct cache_head *nfs_dns_ent_alloc(void)
 {
-	struct nfs_dns_ent *item = kmalloc(sizeof(*item), GFP_KERNEL);
+	struct nfs_dns_ent *item = kmalloc_obj(*item);
 
 	if (item != NULL) {
 		item->hostname = NULL;

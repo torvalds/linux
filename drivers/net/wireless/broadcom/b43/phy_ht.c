@@ -842,7 +842,7 @@ static int b43_phy_ht_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_ht *phy_ht;
 
-	phy_ht = kzalloc(sizeof(*phy_ht), GFP_KERNEL);
+	phy_ht = kzalloc_obj(*phy_ht);
 	if (!phy_ht)
 		return -ENOMEM;
 	dev->phy.ht = phy_ht;

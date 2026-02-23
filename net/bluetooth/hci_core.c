@@ -117,6 +117,7 @@ bool hci_discovery_active(struct hci_dev *hdev)
 		return false;
 	}
 }
+EXPORT_SYMBOL(hci_discovery_active);
 
 void hci_discovery_set_state(struct hci_dev *hdev, int state)
 {
@@ -261,7 +262,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	}
 
 	/* Entry not in the cache. Add new one. */
-	ie = kzalloc(sizeof(*ie), GFP_KERNEL);
+	ie = kzalloc_obj(*ie);
 	if (!ie) {
 		flags |= MGMT_DEV_FOUND_CONFIRM_NAME;
 		goto done;
@@ -796,7 +797,7 @@ int hci_get_dev_list(void __user *arg)
 	if (!dev_num || dev_num > (PAGE_SIZE * 2) / sizeof(*dr))
 		return -EINVAL;
 
-	dl = kzalloc(struct_size(dl, dev_req, dev_num), GFP_KERNEL);
+	dl = kzalloc_flex(*dl, dev_req, dev_num);
 	if (!dl)
 		return -ENOMEM;
 
@@ -1285,7 +1286,7 @@ struct link_key *hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn,
 		key = old_key;
 	} else {
 		old_key_type = conn ? conn->key_type : 0xff;
-		key = kzalloc(sizeof(*key), GFP_KERNEL);
+		key = kzalloc_obj(*key);
 		if (!key)
 			return NULL;
 		list_add_rcu(&key->list, &hdev->link_keys);
@@ -1330,7 +1331,7 @@ struct smp_ltk *hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (old_key)
 		key = old_key;
 	else {
-		key = kzalloc(sizeof(*key), GFP_KERNEL);
+		key = kzalloc_obj(*key);
 		if (!key)
 			return NULL;
 		list_add_rcu(&key->list, &hdev->long_term_keys);
@@ -1355,7 +1356,7 @@ struct smp_irk *hci_add_irk(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	irk = hci_find_irk_by_addr(hdev, bdaddr, addr_type);
 	if (!irk) {
-		irk = kzalloc(sizeof(*irk), GFP_KERNEL);
+		irk = kzalloc_obj(*irk);
 		if (!irk)
 			return NULL;
 
@@ -1549,7 +1550,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 
 	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_KERNEL);
+		data = kmalloc_obj(*data);
 		if (!data)
 			return -ENOMEM;
 
@@ -1717,7 +1718,7 @@ struct adv_info *hci_add_adv_instance(struct hci_dev *hdev, u8 instance,
 		    instance < 1 || instance > hdev->le_num_of_adv_sets + 1)
 			return ERR_PTR(-EOVERFLOW);
 
-		adv = kzalloc(sizeof(*adv), GFP_KERNEL);
+		adv = kzalloc_obj(*adv);
 		if (!adv)
 			return ERR_PTR(-ENOMEM);
 
@@ -2106,7 +2107,7 @@ int hci_bdaddr_list_add(struct list_head *list, bdaddr_t *bdaddr, u8 type)
 	if (hci_bdaddr_list_lookup(list, bdaddr, type))
 		return -EEXIST;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -2129,7 +2130,7 @@ int hci_bdaddr_list_add_with_irk(struct list_head *list, bdaddr_t *bdaddr,
 	if (hci_bdaddr_list_lookup(list, bdaddr, type))
 		return -EEXIST;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -2158,7 +2159,7 @@ int hci_bdaddr_list_add_with_flags(struct list_head *list, bdaddr_t *bdaddr,
 	if (hci_bdaddr_list_lookup(list, bdaddr, type))
 		return -EEXIST;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 
@@ -2275,7 +2276,7 @@ struct hci_conn_params *hci_conn_params_add(struct hci_dev *hdev,
 	if (params)
 		return params;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params) {
 		bt_dev_err(hdev, "out of memory");
 		return NULL;

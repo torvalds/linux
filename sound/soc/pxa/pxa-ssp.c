@@ -85,7 +85,7 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 
 	clk_prepare_enable(priv->extclk);
 
-	dma = kzalloc(sizeof(struct snd_dmaengine_dai_dma_data), GFP_KERNEL);
+	dma = kzalloc_obj(struct snd_dmaengine_dai_dma_data);
 	if (!dma)
 		return -ENOMEM;
 	dma->chan_name = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
@@ -749,7 +749,7 @@ static int pxa_ssp_probe(struct snd_soc_dai *dai)
 	struct ssp_priv *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(struct ssp_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct ssp_priv);
 	if (!priv)
 		return -ENOMEM;
 

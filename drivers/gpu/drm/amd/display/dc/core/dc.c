@@ -53,7 +53,7 @@
 #include "dpp.h"
 #include "timing_generator.h"
 #include "abm.h"
-#include "virtual/virtual_link_encoder.h"
+#include "dio/virtual/virtual_link_encoder.h"
 #include "hubp.h"
 
 #include "link_hwss.h"
@@ -284,7 +284,7 @@ static bool create_links(
 	}
 
 	for (i = 0; i < num_virtual_links; i++) {
-		struct dc_link *link = kzalloc(sizeof(*link), GFP_KERNEL);
+		struct dc_link *link = kzalloc_obj(*link);
 		struct encoder_init_data enc_init = {0};
 
 		if (link == NULL) {
@@ -304,7 +304,7 @@ static bool create_links(
 		link->link_id.enum_id = ENUM_ID_1;
 		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 		link->replay_settings.config.replay_version = DC_REPLAY_VERSION_UNSUPPORTED;
-		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
+		link->link_enc = kzalloc_obj(*link->link_enc);
 
 		if (!link->link_enc) {
 			BREAK_TO_DEBUGGER();
@@ -409,7 +409,7 @@ static void destroy_link_encoders(struct dc *dc)
 
 static struct dc_perf_trace *dc_perf_trace_create(void)
 {
-	return kzalloc(sizeof(struct dc_perf_trace), GFP_KERNEL);
+	return kzalloc_obj(struct dc_perf_trace);
 }
 
 static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
@@ -701,6 +701,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  *              once.
  * @idx: Capture CRC on which CRC engine instance
  * @reset: Reset CRC engine before the configuration
+ * @crc_poly_mode: CRC polynomial mode
  *
  * By default, the entire frame is used to calculate the CRC.
  *
@@ -709,7 +710,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 			     struct crc_params *crc_window, bool enable, bool continuous,
-			     uint8_t idx, bool reset)
+			     uint8_t idx, bool reset, enum crc_poly_mode crc_poly_mode)
 {
 	struct pipe_ctx *pipe;
 	struct crc_params param;
@@ -733,6 +734,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+	param.crc_poly_mode = crc_poly_mode;
 
 	if (crc_window) {
 		param.windowa_x_start = crc_window->windowa_x_start;
@@ -784,7 +786,7 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream, uint8_t id
 		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	int i;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = NULL;
 	struct timing_generator *tg;
 
 	dc_exit_ips_for_hw_access(dc);
@@ -1003,7 +1005,7 @@ static bool dc_construct_ctx(struct dc *dc,
 {
 	struct dc_context *dc_ctx;
 
-	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
+	dc_ctx = kzalloc_obj(*dc_ctx);
 	if (!dc_ctx)
 		return false;
 
@@ -1021,7 +1023,7 @@ static bool dc_construct_ctx(struct dc *dc,
 	dc_ctx->clk_reg_offsets = init_params->clk_reg_offsets;
 
 	/* Create logger */
-	dc_ctx->logger = kmalloc(sizeof(*dc_ctx->logger), GFP_KERNEL);
+	dc_ctx->logger = kmalloc_obj(*dc_ctx->logger);
 
 	if (!dc_ctx->logger) {
 		kfree(dc_ctx);
@@ -1061,7 +1063,7 @@ static bool dc_construct(struct dc *dc,
 	dc->config = init_params->flags;
 
 	// Allocate memory for the vm_helper
-	dc->vm_helper = kzalloc(sizeof(struct vm_helper), GFP_KERNEL);
+	dc->vm_helper = kzalloc_obj(struct vm_helper);
 	if (!dc->vm_helper) {
 		dm_error("%s: failed to create dc->vm_helper\n", __func__);
 		goto fail;
@@ -1069,7 +1071,7 @@ static bool dc_construct(struct dc *dc,
 
 	memcpy(&dc->bb_overrides, &init_params->bb_overrides, sizeof(dc->bb_overrides));
 
-	dc_dceip = kzalloc(sizeof(*dc_dceip), GFP_KERNEL);
+	dc_dceip = kzalloc_obj(*dc_dceip);
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
 		goto fail;
@@ -1077,14 +1079,14 @@ static bool dc_construct(struct dc *dc,
 
 	dc->bw_dceip = dc_dceip;
 
-	dc_vbios = kzalloc(sizeof(*dc_vbios), GFP_KERNEL);
+	dc_vbios = kzalloc_obj(*dc_vbios);
 	if (!dc_vbios) {
 		dm_error("%s: failed to create vbios\n", __func__);
 		goto fail;
 	}
 
 	dc->bw_vbios = dc_vbios;
-	dcn_soc = kzalloc(sizeof(*dcn_soc), GFP_KERNEL);
+	dcn_soc = kzalloc_obj(*dcn_soc);
 	if (!dcn_soc) {
 		dm_error("%s: failed to create dcn_soc\n", __func__);
 		goto fail;
@@ -1092,7 +1094,7 @@ static bool dc_construct(struct dc *dc,
 
 	dc->dcn_soc = dcn_soc;
 
-	dcn_ip = kzalloc(sizeof(*dcn_ip), GFP_KERNEL);
+	dcn_ip = kzalloc_obj(*dcn_ip);
 	if (!dcn_ip) {
 		dm_error("%s: failed to create dcn_ip\n", __func__);
 		goto fail;
@@ -1494,7 +1496,7 @@ static void disable_vbios_mode_if_required(
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
-	struct dc *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
+	struct dc *dc = kzalloc_obj(*dc);
 	unsigned int full_pipe_count;
 
 	if (!dc)
@@ -2611,8 +2613,7 @@ bool dc_set_generic_gpio_for_stereo(bool enable,
 	enum gpio_result gpio_result = GPIO_RESULT_NON_SPECIFIC_ERROR;
 	struct gpio_pin_info pin_info;
 	struct gpio *generic;
-	struct gpio_generic_mux_config *config = kzalloc(sizeof(struct gpio_generic_mux_config),
-			   GFP_KERNEL);
+	struct gpio_generic_mux_config *config = kzalloc_obj(struct gpio_generic_mux_config);
 
 	if (!config)
 		return false;
@@ -2962,6 +2963,11 @@ static struct surface_update_descriptor check_update_surfaces_for_stream(
 		struct dc_stream_update *stream_update)
 {
 	struct surface_update_descriptor overall_type = { UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_NONE };
+
+	/* When countdown finishes, promote this flip to full to trigger deferred final transition */
+	if (check_config->deferred_transition_state && !check_config->transition_countdown_to_steady_state) {
+		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
+	}
 
 	if (stream_update && stream_update->pending_test_pattern) {
 		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
@@ -3361,6 +3367,10 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 	if (update->sharpening_required)
 		stream->sharpening_required = *update->sharpening_required;
+
+	if (update->drr_trigger_mode) {
+		stream->drr_trigger_mode = *update->drr_trigger_mode;
+	}
 }
 
 static void backup_planes_and_stream_state(
@@ -3440,6 +3450,49 @@ static bool full_update_required_weak(
 		int surface_count,
 		const struct dc_stream_update *stream_update,
 		const struct dc_stream_state *stream);
+
+struct pipe_split_policy_backup {
+	bool dynamic_odm_policy;
+	bool subvp_policy;
+	enum pipe_split_policy mpc_policy;
+	char force_odm[MAX_PIPES];
+};
+
+static void backup_and_set_minimal_pipe_split_policy(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_split_policy_backup *policy)
+{
+	int i;
+
+	if (!dc->config.is_vmin_only_asic) {
+		policy->mpc_policy = dc->debug.pipe_split_policy;
+		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
+	}
+	policy->dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
+	dc->debug.enable_single_display_2to1_odm_policy = false;
+	policy->subvp_policy = dc->debug.force_disable_subvp;
+	dc->debug.force_disable_subvp = true;
+	for (i = 0; i < context->stream_count; i++) {
+		policy->force_odm[i] = context->streams[i]->debug.force_odm_combine_segments;
+		if (context->streams[i]->debug.allow_transition_for_forced_odm)
+			context->streams[i]->debug.force_odm_combine_segments = 0;
+	}
+}
+
+static void restore_minimal_pipe_split_policy(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_split_policy_backup *policy)
+{
+	uint8_t i;
+
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = policy->mpc_policy;
+	dc->debug.enable_single_display_2to1_odm_policy =
+			policy->dynamic_odm_policy;
+	dc->debug.force_disable_subvp = policy->subvp_policy;
+	for (i = 0; i < context->stream_count; i++)
+		context->streams[i]->debug.force_odm_combine_segments = policy->force_odm[i];
+}
 
 /**
  * update_planes_and_stream_state() - The function takes planes and stream
@@ -3591,10 +3644,30 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	}
 
 	if (update_type == UPDATE_TYPE_FULL) {
+		struct pipe_split_policy_backup policy;
+		bool minimize = false;
+
+		if (dc->check_config.deferred_transition_state) {
+			if (dc->check_config.transition_countdown_to_steady_state) {
+				/* During countdown, all new contexts created as minimal transition states */
+				minimize = true;
+			} else {
+				dc->check_config.deferred_transition_state = false;
+			}
+		}
+
+		if (minimize)
+			backup_and_set_minimal_pipe_split_policy(dc, context, &policy);
+
 		if (dc->res_pool->funcs->validate_bandwidth(dc, context, DC_VALIDATE_MODE_AND_PROGRAMMING) != DC_OK) {
+			if (minimize)
+				restore_minimal_pipe_split_policy(dc, context, &policy);
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}
+
+		if (minimize)
+			restore_minimal_pipe_split_policy(dc, context, &policy);
 	}
 	update_seamless_boot_flags(dc, context, surface_count, stream);
 
@@ -3781,7 +3854,7 @@ static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_s
 void dc_dmub_update_dirty_rect(struct dc *dc,
 			       int surface_count,
 			       struct dc_stream_state *stream,
-			       struct dc_surface_update *srf_updates,
+			       const struct dc_surface_update *srf_updates,
 			       struct dc_state *context)
 {
 	union dmub_rb_cmd cmd;
@@ -3792,7 +3865,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3812,7 +3885,11 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
 
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3826,6 +3903,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 		}
 	}
@@ -3848,7 +3926,7 @@ static void build_dmub_update_dirty_rect(
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3867,7 +3945,12 @@ static void build_dmub_update_dirty_rect(
 		/* Do not send in immediate flip mode */
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3880,6 +3963,7 @@ static void build_dmub_update_dirty_rect(
 				continue;
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_dmub_cmd[*dmub_cmd_count].dmub_cmd = cmd;
 			dc_dmub_cmd[*dmub_cmd_count].wait_type = DM_DMUB_WAIT_TYPE_NO_WAIT;
 			(*dmub_cmd_count)++;
@@ -4086,7 +4170,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 }
 
 static void commit_planes_for_stream(struct dc *dc,
-		struct dc_surface_update *srf_updates,
+		const struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update,
@@ -4622,48 +4706,6 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 	return force_minimal_pipe_splitting;
 }
 
-struct pipe_split_policy_backup {
-	bool dynamic_odm_policy;
-	bool subvp_policy;
-	enum pipe_split_policy mpc_policy;
-	char force_odm[MAX_PIPES];
-};
-
-static void backup_and_set_minimal_pipe_split_policy(struct dc *dc,
-		struct dc_state *context,
-		struct pipe_split_policy_backup *policy)
-{
-	int i;
-
-	if (!dc->config.is_vmin_only_asic) {
-		policy->mpc_policy = dc->debug.pipe_split_policy;
-		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
-	}
-	policy->dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
-	dc->debug.enable_single_display_2to1_odm_policy = false;
-	policy->subvp_policy = dc->debug.force_disable_subvp;
-	dc->debug.force_disable_subvp = true;
-	for (i = 0; i < context->stream_count; i++) {
-		policy->force_odm[i] = context->streams[i]->debug.force_odm_combine_segments;
-		if (context->streams[i]->debug.allow_transition_for_forced_odm)
-			context->streams[i]->debug.force_odm_combine_segments = 0;
-	}
-}
-
-static void restore_minimal_pipe_split_policy(struct dc *dc,
-		struct dc_state *context,
-		struct pipe_split_policy_backup *policy)
-{
-	uint8_t i;
-
-	if (!dc->config.is_vmin_only_asic)
-		dc->debug.pipe_split_policy = policy->mpc_policy;
-	dc->debug.enable_single_display_2to1_odm_policy =
-			policy->dynamic_odm_policy;
-	dc->debug.force_disable_subvp = policy->subvp_policy;
-	for (i = 0; i < context->stream_count; i++)
-		context->streams[i]->debug.force_odm_combine_segments = policy->force_odm[i];
-}
 
 static void release_minimal_transition_state(struct dc *dc,
 		struct dc_state *minimal_transition_context,
@@ -4773,6 +4815,7 @@ static int initialize_empty_surface_updates(
 static bool commit_minimal_transition_based_on_new_context(struct dc *dc,
 		struct dc_state *new_context,
 		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update,
 		struct dc_surface_update *srf_updates,
 		int surface_count)
 {
@@ -4790,7 +4833,7 @@ static bool commit_minimal_transition_based_on_new_context(struct dc *dc,
 				new_context)) {
 			DC_LOG_DC("commit minimal transition state: base = new state\n");
 			commit_planes_for_stream(dc, srf_updates,
-					surface_count, stream, NULL,
+					surface_count, stream, stream_update,
 					UPDATE_TYPE_FULL, intermediate_context);
 			swap_and_release_current_context(
 					dc, intermediate_context, stream);
@@ -4884,8 +4927,8 @@ static bool commit_minimal_transition_state_in_dc_update(struct dc *dc,
 		int surface_count)
 {
 	bool success = commit_minimal_transition_based_on_new_context(
-				dc, new_context, stream, srf_updates,
-				surface_count);
+				dc, new_context, stream, NULL,
+				srf_updates, surface_count);
 	if (!success)
 		success = commit_minimal_transition_based_on_current_context(dc,
 				new_context, stream);
@@ -5294,32 +5337,63 @@ static void commit_planes_and_stream_update_with_new_context(struct dc *dc,
 		enum surface_update_type update_type,
 		struct dc_state *new_context)
 {
+	bool skip_new_context = false;
 	ASSERT(update_type >= UPDATE_TYPE_FULL);
-	if (!dc->hwss.is_pipe_topology_transition_seamless(dc,
-			dc->current_state, new_context))
-		/*
-		 * It is required by the feature design that all pipe topologies
-		 * using extra free pipes for power saving purposes such as
-		 * dynamic ODM or SubVp shall only be enabled when it can be
-		 * transitioned seamlessly to AND from its minimal transition
-		 * state. A minimal transition state is defined as the same dc
-		 * state but with all power saving features disabled. So it uses
-		 * the minimum pipe topology. When we can't seamlessly
-		 * transition from state A to state B, we will insert the
-		 * minimal transition state A' or B' in between so seamless
-		 * transition between A and B can be made possible.
-		 */
-		commit_minimal_transition_state_in_dc_update(dc, new_context,
-				stream, srf_updates, surface_count);
+	/*
+	 * It is required by the feature design that all pipe topologies
+	 * using extra free pipes for power saving purposes such as
+	 * dynamic ODM or SubVp shall only be enabled when it can be
+	 * transitioned seamlessly to AND from its minimal transition
+	 * state. A minimal transition state is defined as the same dc
+	 * state but with all power saving features disabled. So it uses
+	 * the minimum pipe topology. When we can't seamlessly
+	 * transition from state A to state B, we will insert the
+	 * minimal transition state A' or B' in between so seamless
+	 * transition between A and B can be made possible.
+	 *
+	 * To optimize for the time it takes to execute flips,
+	 * the transition from the minimal state to the final state is
+	 * deferred until a steady state (no more transitions) is reached.
+	 */
+	if (!dc->hwss.is_pipe_topology_transition_seamless(dc, dc->current_state, new_context)) {
+		if (!dc->debug.disable_deferred_minimal_transitions) {
+			dc->check_config.deferred_transition_state = true;
+			dc->check_config.transition_countdown_to_steady_state =
+					dc->debug.num_fast_flips_to_steady_state_override ?
+					dc->debug.num_fast_flips_to_steady_state_override :
+					NUM_FAST_FLIPS_TO_STEADY_STATE;
 
-	commit_planes_for_stream(
-			dc,
-			srf_updates,
-			surface_count,
-			stream,
-			stream_update,
-			update_type,
-			new_context);
+			if (commit_minimal_transition_based_on_new_context(dc, new_context, stream, stream_update,
+					srf_updates, surface_count)) {
+				skip_new_context = true;
+				dc_state_release(new_context);
+				new_context = dc->current_state;
+			} else {
+				/*
+				 * In this case a new mpo plane is being enabled on pipes that were
+				 * previously in use, and the surface update to the existing plane
+				 * includes an alpha box where the new plane will be, so the update
+				 * from minimal to final cannot be deferred as the alpha box would
+				 * be visible to the user
+				 */
+				commit_minimal_transition_based_on_current_context(dc, new_context, stream);
+			}
+		} else {
+			commit_minimal_transition_state_in_dc_update(dc, new_context, stream,
+					srf_updates, surface_count);
+		}
+	} else if (dc->check_config.deferred_transition_state) {
+		/* reset countdown as steady state not reached */
+		dc->check_config.transition_countdown_to_steady_state =
+				dc->debug.num_fast_flips_to_steady_state_override ?
+				dc->debug.num_fast_flips_to_steady_state_override :
+				NUM_FAST_FLIPS_TO_STEADY_STATE;
+	}
+
+	if (!skip_new_context) {
+		commit_planes_for_stream(dc, srf_updates, surface_count, stream, stream_update, update_type, new_context);
+		swap_and_release_current_context(dc, new_context, stream);
+	}
 }
 
 static bool update_planes_and_stream_v3(struct dc *dc,
@@ -5349,11 +5423,13 @@ static bool update_planes_and_stream_v3(struct dc *dc,
 		commit_planes_and_stream_update_on_current_context(dc,
 				srf_updates, surface_count, stream,
 				stream_update, update_type);
+
+		if (dc->check_config.transition_countdown_to_steady_state)
+			dc->check_config.transition_countdown_to_steady_state--;
 	} else {
 		commit_planes_and_stream_update_with_new_context(dc,
 				srf_updates, surface_count, stream,
 				stream_update, update_type, new_context);
-		swap_and_release_current_context(dc, new_context, stream);
 	}
 
 	return true;
@@ -5377,35 +5453,23 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
 {
-	bool ret = false;
+	struct dc_update_scratch_space *scratch = dc_update_planes_and_stream_init(
+			dc,
+			srf_updates,
+			surface_count,
+			stream,
+			stream_update
+	);
+	bool more = true;
 
-	dc_exit_ips_for_hw_access(dc);
-	/*
-	 * update planes and stream version 3 separates FULL and FAST updates
-	 * to their own sequences. It aims to clean up frequent checks for
-	 * update type resulting unnecessary branching in logic flow. It also
-	 * adds a new commit minimal transition sequence, which detects the need
-	 * for minimal transition based on the actual comparison of current and
-	 * new states instead of "predicting" it based on per feature software
-	 * policy.i.e could_mpcc_tree_change_for_active_pipes. The new commit
-	 * minimal transition sequence is made universal to any power saving
-	 * features that would use extra free pipes such as Dynamic ODM/MPC
-	 * Combine, MPO or SubVp. Therefore there is no longer a need to
-	 * specially handle compatibility problems with transitions among those
-	 * features as they are now transparent to the new sequence.
-	 */
-	if (dc->ctx->dce_version >= DCN_VERSION_4_01 || dc->ctx->dce_version == DCN_VERSION_3_2 ||
-			dc->ctx->dce_version == DCN_VERSION_3_21)
-		ret = update_planes_and_stream_v3(dc, srf_updates,
-				surface_count, stream, stream_update);
-	else
-		ret = update_planes_and_stream_v2(dc, srf_updates,
-			surface_count, stream, stream_update);
-	if (ret && (dc->ctx->dce_version >= DCN_VERSION_3_2 ||
-		dc->ctx->dce_version == DCN_VERSION_3_01))
-		clear_update_flags(srf_updates, surface_count, stream);
+	while (more) {
+		if (!dc_update_planes_and_stream_prepare(scratch))
+			return false;
 
-	return ret;
+		dc_update_planes_and_stream_execute(scratch);
+		more = dc_update_planes_and_stream_cleanup(scratch);
+	}
+	return true;
 }
 
 void dc_commit_updates_for_stream(struct dc *dc,
@@ -7091,3 +7155,403 @@ void dc_log_preos_dmcub_info(const struct dc *dc)
 {
 	dc_dmub_srv_log_preos_dmcub_info(dc->ctx->dmub_srv);
 }
+
+bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
+{
+	const struct dc_clocks *clk = &dc->current_state->bw_ctx.bw.dcn.clk;
+	struct memory_qos qos;
+
+	memset(info, 0, sizeof(*info));
+
+	// Check if measurement function is available
+	if (!dc->hwss.measure_memory_qos) {
+		return false;
+	}
+
+	// Call unified measurement function
+	dc->hwss.measure_memory_qos(dc, &qos);
+
+	// Populate info from measured qos
+	info->actual_peak_bw_in_mbps = qos.peak_bw_mbps;
+	info->actual_avg_bw_in_mbps = qos.avg_bw_mbps;
+	info->actual_min_latency_in_ns = qos.min_latency_ns;
+	info->actual_max_latency_in_ns = qos.max_latency_ns;
+	info->actual_avg_latency_in_ns = qos.avg_latency_ns;
+	info->dcn_bandwidth_ub_in_mbps = (uint32_t)(clk->fclk_khz / 1000 * 64);
+
+	return true;
+}
+
+enum update_v3_flow {
+	UPDATE_V3_FLOW_INVALID,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST,
+	UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL,
+	UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW,
+	UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT,
+};
+
+struct dc_update_scratch_space {
+	struct dc *dc;
+	struct dc_surface_update *surface_updates;
+	int surface_count;
+	struct dc_stream_state *stream;
+	struct dc_stream_update *stream_update;
+	bool update_v3;
+	bool do_clear_update_flags;
+	enum surface_update_type update_type;
+	struct dc_state *new_context;
+	enum update_v3_flow flow;
+	struct dc_state *backup_context;
+	struct dc_state *intermediate_context;
+	struct pipe_split_policy_backup intermediate_policy;
+	struct dc_surface_update intermediate_updates[MAX_SURFACES];
+	int intermediate_count;
+};
+
+size_t dc_update_scratch_space_size(void)
+{
+	return sizeof(struct dc_update_scratch_space);
+}
+
+static bool update_planes_and_stream_prepare_v2(
+		struct dc_update_scratch_space *scratch
+)
+{
+	// v2 is too tangled to break into stages, so just execute everything under lock
+	dc_exit_ips_for_hw_access(scratch->dc);
+	return update_planes_and_stream_v2(
+		scratch->dc,
+		scratch->surface_updates,
+		scratch->surface_count,
+		scratch->stream,
+		scratch->stream_update
+	);
+}
+
+static void update_planes_and_stream_execute_v2(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	// Nothing to do, see `update_planes_and_stream_prepare_v2`
+	(void) scratch;
+}
+
+static bool update_planes_and_stream_cleanup_v2(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	if (scratch->do_clear_update_flags)
+		clear_update_flags(scratch->surface_updates, scratch->surface_count, scratch->stream);
+
+	return false;
+}
+
+static void update_planes_and_stream_cleanup_v3_release_minimal(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+);
+
+static bool update_planes_and_stream_prepare_v3_intermediate_seamless(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return is_pipe_topology_transition_seamless_with_intermediate_step(
+			scratch->dc,
+			scratch->dc->current_state,
+			scratch->intermediate_context,
+			scratch->new_context
+	);
+}
+
+static void transition_countdown_init(struct dc *dc)
+{
+	dc->check_config.transition_countdown_to_steady_state =
+			dc->debug.num_fast_flips_to_steady_state_override ?
+			dc->debug.num_fast_flips_to_steady_state_override :
+			NUM_FAST_FLIPS_TO_STEADY_STATE;
+}
+
+static bool update_planes_and_stream_prepare_v3(
+		struct dc_update_scratch_space *scratch
+)
+{
+	if (scratch->flow == UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS) {
+		return true;
+	}
+	ASSERT(scratch->flow == UPDATE_V3_FLOW_INVALID);
+	dc_exit_ips_for_hw_access(scratch->dc);
+
+	if (!update_planes_and_stream_state(
+			scratch->dc,
+			scratch->surface_updates,
+			scratch->surface_count,
+			scratch->stream,
+			scratch->stream_update,
+			&scratch->update_type,
+			&scratch->new_context
+	)) {
+		return false;
+	}
+
+	if (scratch->new_context == scratch->dc->current_state) {
+		ASSERT(scratch->update_type < UPDATE_TYPE_FULL);
+
+		// TODO: Do we need this to be alive in execute?
+		struct dc_fast_update fast_update[MAX_SURFACES] = { 0 };
+
+		populate_fast_updates(
+				fast_update,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream_update
+		);
+		const bool fast = fast_update_only(
+				scratch->dc,
+				fast_update,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream_update,
+				scratch->stream
+		)
+		// TODO: Can this be used to skip `populate_fast_updates`?
+				&& !scratch->dc->check_config.enable_legacy_fast_update;
+		scratch->flow = fast
+				? UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST
+				: UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL;
+		return true;
+	}
+
+	ASSERT(scratch->update_type >= UPDATE_TYPE_FULL);
+
+	const bool seamless = scratch->dc->hwss.is_pipe_topology_transition_seamless(
+			scratch->dc,
+			scratch->dc->current_state,
+			scratch->new_context
+	);
+	if (seamless) {
+		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		if (scratch->dc->check_config.deferred_transition_state)
+			/* reset countdown as steady state not reached */
+			transition_countdown_init(scratch->dc);
+		return true;
+	}
+
+	if (!scratch->dc->debug.disable_deferred_minimal_transitions) {
+		scratch->dc->check_config.deferred_transition_state = true;
+		transition_countdown_init(scratch->dc);
+	}
+
+	scratch->intermediate_context = create_minimal_transition_state(
+		scratch->dc,
+		scratch->new_context,
+		&scratch->intermediate_policy
+	);
+	if (scratch->intermediate_context) {
+		if (update_planes_and_stream_prepare_v3_intermediate_seamless(scratch)) {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW;
+			return true;
+		}
+
+		update_planes_and_stream_cleanup_v3_release_minimal(scratch, false);
+	}
+
+	scratch->backup_context = scratch->dc->current_state;
+	restore_planes_and_stream_state(&scratch->dc->scratch.current_state, scratch->stream);
+	dc_state_retain(scratch->backup_context);
+	scratch->intermediate_context = create_minimal_transition_state(
+			scratch->dc,
+			scratch->backup_context,
+			&scratch->intermediate_policy
+	);
+	if (scratch->intermediate_context) {
+		if (update_planes_and_stream_prepare_v3_intermediate_seamless(scratch)) {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT;
+			scratch->intermediate_count = initialize_empty_surface_updates(
+					scratch->stream, scratch->intermediate_updates
+			);
+			return true;
+		}
+
+		update_planes_and_stream_cleanup_v3_release_minimal(scratch, true);
+	}
+
+	scratch->flow = UPDATE_V3_FLOW_INVALID;
+	dc_state_release(scratch->backup_context);
+	restore_planes_and_stream_state(&scratch->dc->scratch.new_state, scratch->stream);
+	return false;
+}
+
+static void update_planes_and_stream_execute_v3_commit(
+		const struct dc_update_scratch_space *scratch,
+		bool intermediate_update,
+		bool intermediate_context,
+		bool use_stream_update
+)
+{
+	commit_planes_for_stream(
+			scratch->dc,
+			intermediate_update ? scratch->intermediate_updates : scratch->surface_updates,
+			intermediate_update ? scratch->intermediate_count : scratch->surface_count,
+			scratch->stream,
+			use_stream_update ? scratch->stream_update : NULL,
+			intermediate_context ? UPDATE_TYPE_FULL : scratch->update_type,
+			// `dc->current_state` only used in `NO_NEW_CONTEXT`, where it is equal to `new_context`
+			intermediate_context ? scratch->intermediate_context : scratch->new_context
+	);
+}
+
+static void update_planes_and_stream_execute_v3(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	switch (scratch->flow) {
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
+		commit_planes_for_stream_fast(
+				scratch->dc,
+				scratch->surface_updates,
+				scratch->surface_count,
+				scratch->stream,
+				scratch->stream_update,
+				scratch->update_type,
+				scratch->new_context
+		);
+		break;
+
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
+	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
+		update_planes_and_stream_execute_v3_commit(scratch, false, false, true);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
+		update_planes_and_stream_execute_v3_commit(scratch, false, true,
+				scratch->dc->check_config.deferred_transition_state);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
+		update_planes_and_stream_execute_v3_commit(scratch, true, true, false);
+		break;
+
+	case UPDATE_V3_FLOW_INVALID:
+	default:
+		ASSERT(false);
+	}
+}
+
+static void update_planes_and_stream_cleanup_v3_release_minimal(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+)
+{
+	release_minimal_transition_state(
+			scratch->dc,
+			scratch->intermediate_context,
+			backup ? scratch->backup_context : scratch->new_context,
+			&scratch->intermediate_policy
+	);
+}
+
+static void update_planes_and_stream_cleanup_v3_intermediate(
+		struct dc_update_scratch_space *scratch,
+		bool backup
+)
+{
+	swap_and_release_current_context(scratch->dc, scratch->intermediate_context, scratch->stream);
+	dc_state_retain(scratch->dc->current_state);
+	update_planes_and_stream_cleanup_v3_release_minimal(scratch, backup);
+}
+
+static bool update_planes_and_stream_cleanup_v3(
+		struct dc_update_scratch_space *scratch
+)
+{
+	switch (scratch->flow) {
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
+	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
+		if (scratch->dc->check_config.transition_countdown_to_steady_state)
+			scratch->dc->check_config.transition_countdown_to_steady_state--;
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
+		swap_and_release_current_context(scratch->dc, scratch->new_context, scratch->stream);
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
+		if (scratch->dc->check_config.deferred_transition_state) {
+			dc_state_release(scratch->new_context);
+		} else {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+			return true;
+		}
+		break;
+
+	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
+		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);
+		dc_state_release(scratch->backup_context);
+		restore_planes_and_stream_state(&scratch->dc->scratch.new_state, scratch->stream);
+		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		return true;
+
+	case UPDATE_V3_FLOW_INVALID:
+	default:
+		ASSERT(false);
+	}
+
+	if (scratch->do_clear_update_flags)
+		clear_update_flags(scratch->surface_updates, scratch->surface_count, scratch->stream);
+
+	return false;
+}
+
+struct dc_update_scratch_space *dc_update_planes_and_stream_init(
+		struct dc *dc,
+		struct dc_surface_update *surface_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update
+)
+{
+	const enum dce_version version = dc->ctx->dce_version;
+	struct dc_update_scratch_space *scratch = stream->update_scratch;
+
+	*scratch = (struct dc_update_scratch_space){
+		.dc = dc,
+		.surface_updates = surface_updates,
+		.surface_count = surface_count,
+		.stream = stream,
+		.stream_update = stream_update,
+		.update_v3 = version >= DCN_VERSION_4_01 || version == DCN_VERSION_3_2 || version == DCN_VERSION_3_21,
+		.do_clear_update_flags = version >= DCN_VERSION_1_0,
+	};
+
+	return scratch;
+}
+
+bool dc_update_planes_and_stream_prepare(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return scratch->update_v3
+			? update_planes_and_stream_prepare_v3(scratch)
+			: update_planes_and_stream_prepare_v2(scratch);
+}
+
+void dc_update_planes_and_stream_execute(
+		const struct dc_update_scratch_space *scratch
+)
+{
+	scratch->update_v3
+			? update_planes_and_stream_execute_v3(scratch)
+			: update_planes_and_stream_execute_v2(scratch);
+}
+
+bool dc_update_planes_and_stream_cleanup(
+		struct dc_update_scratch_space *scratch
+)
+{
+	return scratch->update_v3
+			? update_planes_and_stream_cleanup_v3(scratch)
+			: update_planes_and_stream_cleanup_v2(scratch);
+}
+

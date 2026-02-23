@@ -306,8 +306,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 		return -EIO;
 	}
 
-	ranges = kmalloc_array(priv->num_phases / 2 + 1,
-			       sizeof(*ranges), GFP_KERNEL);
+	ranges = kmalloc_objs(*ranges, priv->num_phases / 2 + 1);
 	if (!ranges)
 		return -ENOMEM;
 

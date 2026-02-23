@@ -722,7 +722,7 @@ static int device_init_cdev(struct hl_device *hdev, const struct class *class,
 	cdev_init(cdev, fops);
 	cdev->owner = THIS_MODULE;
 
-	*dev = kzalloc(sizeof(**dev), GFP_KERNEL);
+	*dev = kzalloc_obj(**dev);
 	if (!*dev)
 		return -ENOMEM;
 
@@ -892,9 +892,8 @@ static int device_early_init(struct hl_device *hdev)
 		goto early_fini;
 
 	if (hdev->asic_prop.completion_queues_count) {
-		hdev->cq_wq = kcalloc(hdev->asic_prop.completion_queues_count,
-				sizeof(struct workqueue_struct *),
-				GFP_KERNEL);
+		hdev->cq_wq = kzalloc_objs(struct workqueue_struct *,
+					   hdev->asic_prop.completion_queues_count);
 		if (!hdev->cq_wq) {
 			rc = -ENOMEM;
 			goto asid_fini;
@@ -945,7 +944,7 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_ts_free_wq;
 	}
 
-	hdev->hl_chip_info = kzalloc(sizeof(struct hwmon_chip_info), GFP_KERNEL);
+	hdev->hl_chip_info = kzalloc_obj(struct hwmon_chip_info);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
 		goto free_prefetch_wq;
@@ -1851,8 +1850,7 @@ kill_processes:
 		}
 
 		/* Allocate the kernel context */
-		hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx),
-						GFP_KERNEL);
+		hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx);
 		if (!hdev->kernel_ctx) {
 			rc = -ENOMEM;
 			hl_mmu_fini(hdev);
@@ -2159,8 +2157,8 @@ int hl_device_init(struct hl_device *hdev)
 				hdev->asic_prop.user_interrupt_count;
 
 	if (user_interrupt_cnt) {
-		hdev->user_interrupt = kcalloc(user_interrupt_cnt, sizeof(*hdev->user_interrupt),
-						GFP_KERNEL);
+		hdev->user_interrupt = kzalloc_objs(*hdev->user_interrupt,
+						    user_interrupt_cnt);
 		if (!hdev->user_interrupt) {
 			rc = -ENOMEM;
 			goto early_fini;
@@ -2226,9 +2224,8 @@ int hl_device_init(struct hl_device *hdev)
 	 * passed as arguments to request_irq
 	 */
 	if (cq_cnt) {
-		hdev->completion_queue = kcalloc(cq_cnt,
-				sizeof(*hdev->completion_queue),
-				GFP_KERNEL);
+		hdev->completion_queue = kzalloc_objs(*hdev->completion_queue,
+						      cq_cnt);
 
 		if (!hdev->completion_queue) {
 			dev_err(hdev->dev,
@@ -2249,8 +2246,8 @@ int hl_device_init(struct hl_device *hdev)
 		hdev->completion_queue[i].cq_idx = i;
 	}
 
-	hdev->shadow_cs_queue = kcalloc(hdev->asic_prop.max_pending_cs,
-					sizeof(struct hl_cs *), GFP_KERNEL);
+	hdev->shadow_cs_queue = kzalloc_objs(struct hl_cs *,
+					     hdev->asic_prop.max_pending_cs);
 	if (!hdev->shadow_cs_queue) {
 		rc = -ENOMEM;
 		goto cq_fini;
@@ -2275,7 +2272,7 @@ int hl_device_init(struct hl_device *hdev)
 	}
 
 	/* Allocate the kernel context */
-	hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx), GFP_KERNEL);
+	hdev->kernel_ctx = kzalloc_obj(*hdev->kernel_ctx);
 	if (!hdev->kernel_ctx) {
 		rc = -ENOMEM;
 		goto mmu_fini;

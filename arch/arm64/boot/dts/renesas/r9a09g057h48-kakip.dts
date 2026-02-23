@@ -27,7 +27,16 @@
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
-		reg = <0x0 0x48000000 0x1 0xF8000000>;
+		reg = <0x0 0x48000000 0x1 0xf8000000>;
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	reg_3p3v: regulator-3v3 {
@@ -112,6 +121,18 @@
 			pinmux = <RZV2H_PORT_PINMUX(A, 5, 15)>; /* SD0_CD */
 		};
 	};
+
+	xspi_pins: xspi0 {
+		ctrl {
+			pins = "XSPI0_RESET0N", "XSPI0_CS0N", "XSPI0_CKP";
+			output-enable;
+		};
+
+		io {
+			pins = "XSPI0_IO0", "XSPI0_IO1", "XSPI0_IO2", "XSPI0_IO3";
+			renesas,output-impedance = <3>;
+		};
+	};
 };
 
 &qextal_clk {
@@ -133,4 +154,22 @@
 	bus-width = <4>;
 
 	status = "okay";
+};
+
+&xspi {
+	pinctrl-0 = <&xspi_pins>;
+	pinctrl-names = "default";
+	assigned-clocks = <&cpg CPG_CORE R9A09G057_SPI_CLK_SPI>;
+	assigned-clock-rates = <133333334>;
+	status = "okay";
+
+	flash@0 {
+		/* W25Q256JWPIM */
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		vcc-supply = <&reg_1p8v>;
+		m25p,fast-read;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
 };

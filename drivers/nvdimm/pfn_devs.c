@@ -311,7 +311,7 @@ static struct nd_pfn *nd_pfn_alloc(struct nd_region *nd_region)
 	struct nd_pfn *nd_pfn;
 	struct device *dev;
 
-	nd_pfn = kzalloc(sizeof(*nd_pfn), GFP_KERNEL);
+	nd_pfn = kzalloc_obj(*nd_pfn);
 	if (!nd_pfn)
 		return NULL;
 

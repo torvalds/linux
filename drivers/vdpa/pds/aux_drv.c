@@ -39,7 +39,7 @@ static int pds_vdpa_probe(struct auxiliary_device *aux_dev,
 	struct pds_vdpa_aux *vdpa_aux;
 	int err;
 
-	vdpa_aux = kzalloc(sizeof(*vdpa_aux), GFP_KERNEL);
+	vdpa_aux = kzalloc_obj(*vdpa_aux);
 	if (!vdpa_aux)
 		return -ENOMEM;
 

@@ -86,7 +86,7 @@ int afs_cache_wb_key(struct afs_vnode *vnode, struct afs_file *af)
 {
 	struct afs_wb_key *wbk, *p;
 
-	wbk = kzalloc(sizeof(struct afs_wb_key), GFP_KERNEL);
+	wbk = kzalloc_obj(struct afs_wb_key);
 	if (!wbk)
 		return -ENOMEM;
 	refcount_set(&wbk->usage, 2);
@@ -130,7 +130,7 @@ int afs_open(struct inode *inode, struct file *file)
 		goto error;
 	}
 
-	af = kzalloc(sizeof(*af), GFP_KERNEL);
+	af = kzalloc_obj(*af);
 	if (!af) {
 		ret = -ENOMEM;
 		goto error_key;

@@ -32,6 +32,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/string.h>
+#include <linux/sysfs.h>
 #include <linux/workqueue.h>
 
 #include "omap-crypto.h"
@@ -1042,7 +1043,7 @@ static ssize_t queue_len_show(struct device *dev, struct device_attribute *attr,
 {
 	struct omap_aes_dev *dd = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", dd->engine->queue.max_qlen);
+	return sysfs_emit(buf, "%d\n", dd->engine->queue.max_qlen);
 }
 
 static ssize_t queue_len_store(struct device *dev,

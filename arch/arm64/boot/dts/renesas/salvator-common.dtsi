@@ -501,7 +501,7 @@
 		};
 	};
 
-	cs2000: clk_multiplier@4f {
+	cs2000: clk-multiplier@4f {
 		#clock-cells = <0>;
 		compatible = "cirrus,cs2000-cp";
 		reg = <0x4f>;
@@ -890,7 +890,7 @@
 				reg = <0x00040000 0x140000>;
 				read-only;
 			};
-			cert_header_sa6@180000 {
+			cert-header-sa6@180000 {
 				reg = <0x00180000 0x040000>;
 				read-only;
 			};

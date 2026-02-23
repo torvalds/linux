@@ -109,7 +109,7 @@ static int ip_vs_wrr_init_svc(struct ip_vs_service *svc)
 	/*
 	 *    Allocate the mark variable for WRR scheduling
 	 */
-	mark = kmalloc(sizeof(struct ip_vs_wrr_mark), GFP_KERNEL);
+	mark = kmalloc_obj(struct ip_vs_wrr_mark);
 	if (mark == NULL)
 		return -ENOMEM;
 

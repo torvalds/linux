@@ -52,7 +52,7 @@ struct cgroup_fs_context {
 	bool		cpuset_clone_children;
 	bool		none;			/* User explicitly requested empty subsystem */
 	bool		all_ss;			/* Seen 'all' option */
-	u16		subsys_mask;		/* Selected subsystems */
+	u32		subsys_mask;		/* Selected subsystems */
 	char		*name;			/* Hierarchy name */
 	char		*release_agent;		/* Path for release notifications */
 };
@@ -146,7 +146,7 @@ struct cgroup_mgctx {
 	struct cgroup_taskset	tset;
 
 	/* subsystems affected by migration */
-	u16			ss_mask;
+	u32			ss_mask;
 };
 
 #define CGROUP_TASKSET_INIT(tset)						\
@@ -235,8 +235,8 @@ int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 void cgroup_favor_dynmods(struct cgroup_root *root, bool favor);
 void cgroup_free_root(struct cgroup_root *root);
 void init_cgroup_root(struct cgroup_fs_context *ctx);
-int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask);
-int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
+int cgroup_setup_root(struct cgroup_root *root, u32 ss_mask);
+int rebind_subsystems(struct cgroup_root *dst_root, u32 ss_mask);
 int cgroup_do_get_tree(struct fs_context *fc);
 
 int cgroup_migrate_vet_dst(struct cgroup *dst_cgrp);

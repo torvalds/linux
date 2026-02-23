@@ -274,7 +274,7 @@ void zpodd_init(struct ata_device *dev)
 	if (mech_type == ODD_MECH_TYPE_UNSUPPORTED)
 		return;
 
-	zpodd = kzalloc(sizeof(struct zpodd), GFP_KERNEL);
+	zpodd = kzalloc_obj(struct zpodd);
 	if (!zpodd)
 		return;
 

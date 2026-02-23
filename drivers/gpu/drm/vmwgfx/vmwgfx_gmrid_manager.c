@@ -57,7 +57,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	struct vmwgfx_gmrid_man *gman = to_gmrid_manager(man);
 	int id;
 
-	*res = kmalloc(sizeof(**res), GFP_KERNEL);
+	*res = kmalloc_obj(**res);
 	if (!*res)
 		return -ENOMEM;
 
@@ -154,8 +154,7 @@ static const struct ttm_resource_manager_func vmw_gmrid_manager_func;
 int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 {
 	struct ttm_resource_manager *man;
-	struct vmwgfx_gmrid_man *gman =
-		kzalloc(sizeof(*gman), GFP_KERNEL);
+	struct vmwgfx_gmrid_man *gman = kzalloc_obj(*gman);
 
 	if (unlikely(!gman))
 		return -ENOMEM;

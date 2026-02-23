@@ -503,7 +503,7 @@ static int pl2303_startup(struct usb_serial *serial)
 	type = ret;
 	dev_dbg(&serial->interface->dev, "device type: %s\n", pl2303_type_data[type].name);
 
-	spriv = kzalloc(sizeof(*spriv), GFP_KERNEL);
+	spriv = kzalloc_obj(*spriv);
 	if (!spriv)
 		return -ENOMEM;
 
@@ -555,7 +555,7 @@ static int pl2303_port_probe(struct usb_serial_port *port)
 {
 	struct pl2303_private *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

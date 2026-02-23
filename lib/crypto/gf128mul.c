@@ -245,12 +245,12 @@ struct gf128mul_64k *gf128mul_init_64k_bbe(const be128 *g)
 	struct gf128mul_64k *t;
 	int i, j, k;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 	if (!t)
 		goto out;
 
 	for (i = 0; i < 16; i++) {
-		t->t[i] = kzalloc(sizeof(*t->t[i]), GFP_KERNEL);
+		t->t[i] = kzalloc_obj(*t->t[i]);
 		if (!t->t[i]) {
 			gf128mul_free_64k(t);
 			t = NULL;
@@ -326,7 +326,7 @@ struct gf128mul_4k *gf128mul_init_4k_lle(const be128 *g)
 	struct gf128mul_4k *t;
 	int j, k;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 	if (!t)
 		goto out;
 

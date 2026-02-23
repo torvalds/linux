@@ -6671,7 +6671,7 @@ static int snd_hdspm_create(struct snd_card *card,
 		if (hdspm_read(hdspm, HDSPM_statusRegister2) &
 				HDSPM_s2_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			hdspm->tco = kzalloc_obj(*hdspm->tco);
 			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
 
@@ -6685,7 +6685,7 @@ static int snd_hdspm_create(struct snd_card *card,
 	case AES32:
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			hdspm->tco = kzalloc_obj(*hdspm->tco);
 			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
 

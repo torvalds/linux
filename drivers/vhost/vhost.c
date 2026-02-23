@@ -514,13 +514,9 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		vq = dev->vqs[i];
-		vq->indirect = kmalloc_array(UIO_MAXIOV,
-					     sizeof(*vq->indirect),
-					     GFP_KERNEL);
-		vq->log = kmalloc_array(dev->iov_limit, sizeof(*vq->log),
-					GFP_KERNEL);
-		vq->heads = kmalloc_array(dev->iov_limit, sizeof(*vq->heads),
-					  GFP_KERNEL);
+		vq->indirect = kmalloc_objs(*vq->indirect, UIO_MAXIOV);
+		vq->log = kmalloc_objs(*vq->log, dev->iov_limit);
+		vq->heads = kmalloc_objs(*vq->heads, dev->iov_limit);
 		vq->nheads = kmalloc_array(dev->iov_limit, sizeof(*vq->nheads),
 					   GFP_KERNEL);
 		if (!vq->indirect || !vq->log || !vq->heads || !vq->nheads)
@@ -836,7 +832,7 @@ static struct vhost_worker *vhost_worker_create(struct vhost_dev *dev)
 	const struct vhost_worker_ops *ops = dev->fork_owner ? &vhost_task_ops :
 							       &kthread_ops;
 
-	worker = kzalloc(sizeof(*worker), GFP_KERNEL_ACCOUNT);
+	worker = kzalloc_obj(*worker, GFP_KERNEL_ACCOUNT);
 	if (!worker)
 		return NULL;
 
@@ -1444,13 +1440,13 @@ static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,
 ({ \
 	int ret; \
 	if (!vq->iotlb) { \
-		ret = __put_user(x, ptr); \
+		ret = put_user(x, ptr); \
 	} else { \
 		__typeof__(ptr) to = \
 			(__typeof__(ptr)) __vhost_get_user(vq, ptr,	\
 					  sizeof(*ptr), VHOST_ADDR_USED); \
 		if (to != NULL) \
-			ret = __put_user(x, to); \
+			ret = put_user(x, to); \
 		else \
 			ret = -EFAULT;	\
 	} \
@@ -1489,14 +1485,14 @@ static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
 ({ \
 	int ret; \
 	if (!vq->iotlb) { \
-		ret = __get_user(x, ptr); \
+		ret = get_user(x, ptr); \
 	} else { \
 		__typeof__(ptr) from = \
 			(__typeof__(ptr)) __vhost_get_user(vq, ptr, \
 							   sizeof(*ptr), \
 							   type); \
 		if (from != NULL) \
-			ret = __get_user(x, from); \
+			ret = get_user(x, from); \
 		else \
 			ret = -EFAULT; \
 	} \
@@ -1982,8 +1978,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 		return -EOPNOTSUPP;
 	if (mem.nregions > max_mem_regions)
 		return -E2BIG;
-	newmem = kvzalloc(struct_size(newmem, regions, mem.nregions),
-			GFP_KERNEL);
+	newmem = kvzalloc_flex(*newmem, regions, mem.nregions);
 	if (!newmem)
 		return -ENOMEM;
 
@@ -3272,7 +3267,7 @@ EXPORT_SYMBOL_GPL(vhost_disable_notify);
 struct vhost_msg_node *vhost_new_msg(struct vhost_virtqueue *vq, int type)
 {
 	/* Make sure all padding within the structure is initialized. */
-	struct vhost_msg_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct vhost_msg_node *node = kzalloc_obj(*node);
 	if (!node)
 		return NULL;
 

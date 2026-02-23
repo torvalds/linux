@@ -121,7 +121,7 @@ static void gptu_disable(struct clk *clk)
 static inline void clkdev_add_gptu(struct device *dev, const char *con,
 							unsigned int timer)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = kzalloc_obj(struct clk);
 
 	if (!clk)
 		return;

@@ -1798,8 +1798,7 @@ int iwl_mvm_sta_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		int q;
 
-		dup_data = kcalloc(mvm->trans->info.num_rxqs,
-				   sizeof(*dup_data), GFP_KERNEL);
+		dup_data = kzalloc_objs(*dup_data, mvm->trans->info.num_rxqs);
 		if (!dup_data)
 			return -ENOMEM;
 		/*

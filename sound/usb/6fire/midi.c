@@ -140,8 +140,7 @@ static const struct snd_rawmidi_ops in_ops = {
 int usb6fire_midi_init(struct sfire_chip *chip)
 {
 	int ret;
-	struct midi_runtime *rt = kzalloc(sizeof(struct midi_runtime),
-			GFP_KERNEL);
+	struct midi_runtime *rt = kzalloc_obj(struct midi_runtime);
 	struct comm_runtime *comm_rt = chip->comm;
 
 	if (!rt)

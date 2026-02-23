@@ -1017,7 +1017,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		return -ENODEV;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit;

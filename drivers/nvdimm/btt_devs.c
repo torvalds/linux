@@ -180,7 +180,7 @@ static struct device *__nd_btt_create(struct nd_region *nd_region,
 	struct nd_btt *nd_btt;
 	struct device *dev;
 
-	nd_btt = kzalloc(sizeof(*nd_btt), GFP_KERNEL);
+	nd_btt = kzalloc_obj(*nd_btt);
 	if (!nd_btt)
 		return NULL;
 

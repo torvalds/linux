@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024 Fedor Ross <fedor.ross@ifm.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "imx8mn-pinfunc.h"
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			reg = <0>;
+
+			adi,rx-internal-delay-ps = <1800>;
+			adi,tx-internal-delay-ps = <2200>;
+			interrupts-extended = <&gpio4 31 IRQ_TYPE_LEVEL_LOW>;
+			reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <10000>;
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl_fec1: fec1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_ENET_MDC_ENET1_MDC			0x16
+			MX8MN_IOMUXC_ENET_MDIO_ENET1_MDIO		0x96
+			MX8MN_IOMUXC_ENET_TD3_ENET1_RGMII_TD3		0x16
+			MX8MN_IOMUXC_ENET_TD2_ENET1_RGMII_TD2		0x16
+			MX8MN_IOMUXC_ENET_TD1_ENET1_RGMII_TD1		0x16
+			MX8MN_IOMUXC_ENET_TD0_ENET1_RGMII_TD0		0x16
+			MX8MN_IOMUXC_ENET_RD3_ENET1_RGMII_RD3		0x96
+			MX8MN_IOMUXC_ENET_RD2_ENET1_RGMII_RD2		0x96
+			MX8MN_IOMUXC_ENET_RD1_ENET1_RGMII_RD1		0x96
+			MX8MN_IOMUXC_ENET_RD0_ENET1_RGMII_RD0		0x96
+			MX8MN_IOMUXC_ENET_TXC_ENET1_RGMII_TXC		0x16
+			MX8MN_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x96
+			MX8MN_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x96
+			MX8MN_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x16
+			/* nRST */
+			MX8MN_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x156
+			/* nIRQ */
+			MX8MN_IOMUXC_SAI3_TXFS_GPIO4_IO31		0x1d6
+		>;
+	};
+};

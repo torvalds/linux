@@ -114,13 +114,11 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
 	const struct acpi_device_id *match;
-	struct resource_entry *rentry;
-	struct list_head resource_list;
 	struct resource *resources = NULL;
-	int count;
+	int count = 0;
 
 	/* If the ACPI node already has a physical device attached, skip it. */
-	if (adev->physical_node_count)
+	if (adev->physical_node_count && !adev->pnp.type.backlight)
 		return NULL;
 
 	match = acpi_match_acpi_device(forbidden_id_list, adev);
@@ -137,22 +135,28 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		}
 	}
 
-	INIT_LIST_HEAD(&resource_list);
-	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count < 0)
-		return NULL;
-	if (count > 0) {
-		resources = kcalloc(count, sizeof(*resources), GFP_KERNEL);
-		if (!resources) {
-			acpi_dev_free_resource_list(&resource_list);
-			return ERR_PTR(-ENOMEM);
-		}
-		count = 0;
-		list_for_each_entry(rentry, &resource_list, node)
-			acpi_platform_fill_resource(adev, rentry->res,
-						    &resources[count++]);
+	if (adev->device_type == ACPI_BUS_TYPE_DEVICE && !adev->pnp.type.backlight) {
+		LIST_HEAD(resource_list);
 
-		acpi_dev_free_resource_list(&resource_list);
+		count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+		if (count < 0)
+			return ERR_PTR(-ENODATA);
+
+		if (count > 0) {
+			struct resource_entry *rentry;
+
+			resources = kzalloc_objs(*resources, count);
+			if (!resources) {
+				acpi_dev_free_resource_list(&resource_list);
+				return ERR_PTR(-ENOMEM);
+			}
+			count = 0;
+			list_for_each_entry(rentry, &resource_list, node)
+				acpi_platform_fill_resource(adev, rentry->res,
+							    &resources[count++]);
+
+			acpi_dev_free_resource_list(&resource_list);
+		}
 	}
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));

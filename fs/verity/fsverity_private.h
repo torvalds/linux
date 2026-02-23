@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) "fs-verity: " fmt
 
 #include <linux/fsverity.h>
+#include <linux/rhashtable.h>
 
 /*
  * Implementation limit: maximum depth of the Merkle tree.  For now 8 is plenty;
@@ -63,17 +64,18 @@ struct merkle_tree_params {
  * fsverity_info - cached verity metadata for an inode
  *
  * When a verity file is first opened, an instance of this struct is allocated
- * and a pointer to it is stored in the file's in-memory inode.  It remains
- * until the inode is evicted.  It caches information about the Merkle tree
- * that's needed to efficiently verify data read from the file.  It also caches
- * the file digest.  The Merkle tree pages themselves are not cached here, but
- * the filesystem may cache them.
+ * and a pointer to it is stored in the global hash table, indexed by the inode
+ * pointer value.  It remains alive until the inode is evicted.  It caches
+ * information about the Merkle tree that's needed to efficiently verify data
+ * read from the file.  It also caches the file digest.  The Merkle tree pages
+ * themselves are not cached here, but the filesystem may cache them.
  */
 struct fsverity_info {
+	struct rhash_head rhash_head;
 	struct merkle_tree_params tree_params;
 	u8 root_hash[FS_VERITY_MAX_DIGEST_SIZE];
 	u8 file_digest[FS_VERITY_MAX_DIGEST_SIZE];
-	const struct inode *inode;
+	struct inode *inode;
 	unsigned long *hash_block_verified;
 };
 
@@ -124,12 +126,12 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 				     unsigned int log_blocksize,
 				     const u8 *salt, size_t salt_size);
 
-struct fsverity_info *fsverity_create_info(const struct inode *inode,
+struct fsverity_info *fsverity_create_info(struct inode *inode,
 					   struct fsverity_descriptor *desc);
 
-void fsverity_set_info(struct inode *inode, struct fsverity_info *vi);
-
+int fsverity_set_info(struct fsverity_info *vi);
 void fsverity_free_info(struct fsverity_info *vi);
+void fsverity_remove_info(struct fsverity_info *vi);
 
 int fsverity_get_descriptor(struct inode *inode,
 			    struct fsverity_descriptor **desc_ret);
@@ -160,5 +162,7 @@ static inline void fsverity_init_signature(void)
 /* verify.c */
 
 void __init fsverity_init_workqueue(void);
+
+#include <trace/events/fsverity.h>
 
 #endif /* _FSVERITY_PRIVATE_H */

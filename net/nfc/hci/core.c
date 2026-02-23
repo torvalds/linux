@@ -291,7 +291,7 @@ int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 
 	pr_debug("from gate %d\n", gate);
 
-	targets = kzalloc(sizeof(struct nfc_target), GFP_KERNEL);
+	targets = kzalloc_obj(struct nfc_target);
 	if (targets == NULL)
 		return -ENOMEM;
 
@@ -964,7 +964,7 @@ struct nfc_hci_dev *nfc_hci_allocate_device(const struct nfc_hci_ops *ops,
 	if (protocols == 0)
 		return NULL;
 
-	hdev = kzalloc(sizeof(struct nfc_hci_dev), GFP_KERNEL);
+	hdev = kzalloc_obj(struct nfc_hci_dev);
 	if (hdev == NULL)
 		return NULL;
 

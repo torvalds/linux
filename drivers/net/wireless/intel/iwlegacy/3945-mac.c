@@ -269,7 +269,7 @@ il3945_get_free_frame(struct il_priv *il)
 	struct il3945_frame *frame;
 	struct list_head *element;
 	if (list_empty(&il->free_frames)) {
-		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+		frame = kzalloc_obj(*frame);
 		if (!frame) {
 			IL_ERR("Could not allocate frame!\n");
 			return NULL;
@@ -3224,7 +3224,9 @@ il3945_store_measurement(struct device *d, struct device_attribute *attr,
 
 	D_INFO("Invoking measurement of type %d on " "channel %d (for '%s')\n",
 	       type, params.channel, buf);
+	mutex_lock(&il->mutex);
 	il3945_get_measurement(il, &params, type);
+	mutex_unlock(&il->mutex);
 
 	return count;
 }

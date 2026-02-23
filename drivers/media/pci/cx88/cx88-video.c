@@ -1261,7 +1261,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	int err;
 	int i;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

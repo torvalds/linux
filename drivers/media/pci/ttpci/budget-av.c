@@ -1437,7 +1437,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dprintk(2, "dev: %p\n", dev);
 
-	budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL);
+	budget_av = kzalloc_obj(struct budget_av);
 	if (!budget_av)
 		return -ENOMEM;
 

@@ -746,7 +746,7 @@ static int sun8i_dwmac_reset(struct stmmac_priv *priv)
 	v = readl(priv->ioaddr + EMAC_BASIC_CTL1);
 	writel(v | 0x01, priv->ioaddr + EMAC_BASIC_CTL1);
 
-	/* The timeout was previoulsy set to 10ms, but some board (OrangePI0)
+	/* The timeout was previously set to 10ms, but some board (OrangePI0)
 	 * need more if no cable plugged. 100ms seems OK
 	 */
 	err = readl_poll_timeout(priv->ioaddr + EMAC_BASIC_CTL1, v,
@@ -821,7 +821,7 @@ static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	/* Make sure the EPHY is properly reseted, as U-Boot may leave
+	/* Make sure the EPHY is properly reset, as U-Boot may leave
 	 * it at deasserted state, and thus it may fail to reset EMAC.
 	 *
 	 * This assumes the driver has exclusive access to the EPHY reset.

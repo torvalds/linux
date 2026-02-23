@@ -318,7 +318,7 @@ int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
+	prtd = kzalloc_obj(*prtd);
 	if (!prtd)
 		return -ENOMEM;
 

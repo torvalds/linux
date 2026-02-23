@@ -233,7 +233,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 		return NULL;
 
 	/* Allocate memory for block, and initialize arguments */
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (block == NULL)
 		goto failed;
 	kref_init(&block->b_count);
@@ -380,7 +380,7 @@ static struct nlm_lockowner *nlmsvc_find_lockowner(struct nlm_host *host, pid_t 
 
 	if (res == NULL) {
 		spin_unlock(&host->h_lock);
-		new = kmalloc(sizeof(*res), GFP_KERNEL);
+		new = kmalloc_obj(*res);
 		spin_lock(&host->h_lock);
 		res = __nlmsvc_find_lockowner(host, pid);
 		if (res == NULL && new != NULL) {
@@ -641,10 +641,6 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 	conflock->fl.c.flc_owner = lock->fl.c.flc_owner;
 	error = vfs_test_lock(file->f_file[mode], &conflock->fl);
 	if (error) {
-		/* We can't currently deal with deferred test requests */
-		if (error == FILE_LOCK_DEFERRED)
-			WARN_ON_ONCE(1);
-
 		ret = nlm_lck_denied_nolocks;
 		goto out;
 	}

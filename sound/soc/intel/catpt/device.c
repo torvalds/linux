@@ -41,7 +41,7 @@ static int catpt_do_suspend(struct device *dev)
 	memset(&cdev->dx_ctx, 0, sizeof(cdev->dx_ctx));
 	ret = catpt_ipc_enter_dxstate(cdev, CATPT_DX_STATE_D3, &cdev->dx_ctx);
 	if (ret) {
-		ret = CATPT_IPC_ERROR(ret);
+		ret = CATPT_IPC_RET(ret);
 		goto release_dma_chan;
 	}
 
@@ -107,7 +107,7 @@ static int catpt_resume(struct device *dev)
 
 		ret = catpt_ipc_set_device_format(cdev, &cdev->devfmt[i]);
 		if (ret)
-			return CATPT_IPC_ERROR(ret);
+			return CATPT_IPC_RET(ret);
 	}
 
 	return 0;
@@ -348,6 +348,7 @@ static struct snd_soc_acpi_mach wpt_machines[] = {
 static struct catpt_spec lpt_desc = {
 	.machines = lpt_machines,
 	.core_id = 0x01,
+	.fw_name = "intel/IntcSST1.bin",
 	.host_dram_offset = 0x000000,
 	.host_iram_offset = 0x080000,
 	.host_shim_offset = 0x0E7000,
@@ -363,6 +364,7 @@ static struct catpt_spec lpt_desc = {
 static struct catpt_spec wpt_desc = {
 	.machines = wpt_machines,
 	.core_id = 0x02,
+	.fw_name = "intel/IntcSST2.bin",
 	.host_dram_offset = 0x000000,
 	.host_iram_offset = 0x0A0000,
 	.host_shim_offset = 0x0FB000,

@@ -379,7 +379,7 @@ static int prestera_sdma_rx_init(struct prestera_sdma *sdma)
 		struct prestera_sdma_buf *head, *tail, *next, *prev;
 		struct prestera_rx_ring *ring = &sdma->rx_ring[q];
 
-		ring->bufs = kmalloc_array(bnum, sizeof(*head), GFP_KERNEL);
+		ring->bufs = kmalloc_objs(*head, bnum);
 		if (!ring->bufs)
 			return -ENOMEM;
 
@@ -529,7 +529,7 @@ static int prestera_sdma_tx_init(struct prestera_sdma *sdma)
 	INIT_WORK(&sdma->tx_work, prestera_sdma_tx_recycle_work_fn);
 	spin_lock_init(&sdma->tx_lock);
 
-	tx_ring->bufs = kmalloc_array(bnum, sizeof(*head), GFP_KERNEL);
+	tx_ring->bufs = kmalloc_objs(*head, bnum);
 	if (!tx_ring->bufs)
 		return -ENOMEM;
 
@@ -784,7 +784,7 @@ int prestera_rxtx_switch_init(struct prestera_switch *sw)
 	struct prestera_rxtx *rxtx;
 	int err;
 
-	rxtx = kzalloc(sizeof(*rxtx), GFP_KERNEL);
+	rxtx = kzalloc_obj(*rxtx);
 	if (!rxtx)
 		return -ENOMEM;
 

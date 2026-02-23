@@ -152,7 +152,7 @@ static int vc4_open(struct drm_device *dev, struct drm_file *file)
 	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
-	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
+	vc4file = kzalloc_obj(*vc4file);
 	if (!vc4file)
 		return -ENOMEM;
 	vc4file->dev = vc4;

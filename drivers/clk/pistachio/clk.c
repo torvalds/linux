@@ -17,11 +17,11 @@ pistachio_clk_alloc_provider(struct device_node *node, unsigned int num_clks)
 {
 	struct pistachio_clk_provider *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return p;
 
-	p->clk_data.clks = kcalloc(num_clks, sizeof(struct clk *), GFP_KERNEL);
+	p->clk_data.clks = kzalloc_objs(struct clk *, num_clks);
 	if (!p->clk_data.clks)
 		goto free_provider;
 	p->clk_data.clk_num = num_clks;

@@ -324,7 +324,7 @@ static int __init rcar_gen4_sysc_pd_init(void)
 
 	rcar_gen4_sysc_base = base;
 
-	domains = kzalloc(sizeof(*domains), GFP_KERNEL);
+	domains = kzalloc_obj(*domains);
 	if (!domains) {
 		error = -ENOMEM;
 		goto out_put;

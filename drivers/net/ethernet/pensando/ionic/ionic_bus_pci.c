@@ -151,7 +151,7 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 
 	down_write(&ionic->vf_op_lock);
 
-	ionic->vfs = kcalloc(num_vfs, sizeof(struct ionic_vf), GFP_KERNEL);
+	ionic->vfs = kzalloc_objs(struct ionic_vf, num_vfs);
 	if (!ionic->vfs) {
 		err = -ENOMEM;
 		goto out;
@@ -331,7 +331,7 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_PPC64
 	/* Ensure MSI/MSI-X interrupts lie within addressable physical memory */
-	pdev->no_64bit_msi = 1;
+	pdev->msi_addr_mask = DMA_BIT_MASK(32);
 #endif
 
 	err = ionic_setup_one(ionic);

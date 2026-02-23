@@ -2099,7 +2099,6 @@ static int parse_cache_dev(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 			    char **error)
 {
-	sector_t origin_sectors;
 	int r;
 
 	if (!at_least_one_arg(as, error))
@@ -2110,12 +2109,6 @@ static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 	if (r) {
 		*error = "Error opening origin device";
 		return r;
-	}
-
-	origin_sectors = get_dev_size(ca->origin_dev);
-	if (ca->ti->len > origin_sectors) {
-		*error = "Device size larger than cached device";
-		return -EINVAL;
 	}
 
 	return 0;
@@ -2394,7 +2387,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	struct dm_cache_metadata *cmd;
 	bool may_format = ca->features.mode == CM_WRITE;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (!cache)
 		return -ENOMEM;
 
@@ -2533,7 +2526,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		goto bad;
 	}
 
-	cache->wq = alloc_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM, 0);
+	cache->wq = alloc_workqueue("dm-" DM_MSG_PREFIX,
+				    WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!cache->wq) {
 		*error = "could not create workqueue for metadata object";
 		goto bad;
@@ -2618,7 +2612,7 @@ static int cache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	struct cache_args *ca;
 	struct cache *cache = NULL;
 
-	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
+	ca = kzalloc_obj(*ca);
 	if (!ca) {
 		ti->error = "Error allocating memory for cache";
 		return -ENOMEM;

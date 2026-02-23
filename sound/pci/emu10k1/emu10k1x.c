@@ -367,7 +367,7 @@ static int snd_emu10k1x_playback_open(struct snd_pcm_substream *substream)
 	if (err < 0)
                 return err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc_obj(*epcm);
 	if (epcm == NULL)
 		return -ENOMEM;
 	epcm->emu = chip;
@@ -547,7 +547,7 @@ static int snd_emu10k1x_pcm_open_capture(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
+	epcm = kzalloc_obj(*epcm);
 	if (epcm == NULL)
 		return -ENOMEM;
 

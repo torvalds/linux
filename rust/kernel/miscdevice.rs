@@ -20,7 +20,7 @@ use crate::{
     seq_file::SeqFile,
     types::{ForeignOwnable, Opaque},
 };
-use core::{marker::PhantomData, mem::MaybeUninit, pin::Pin};
+use core::{marker::PhantomData, pin::Pin};
 
 /// Options for creating a misc device.
 #[derive(Copy, Clone)]
@@ -32,8 +32,7 @@ pub struct MiscDeviceOptions {
 impl MiscDeviceOptions {
     /// Create a raw `struct miscdev` ready for registration.
     pub const fn into_raw<T: MiscDevice>(self) -> bindings::miscdevice {
-        // SAFETY: All zeros is valid for this C type.
-        let mut result: bindings::miscdevice = unsafe { MaybeUninit::zeroed().assume_init() };
+        let mut result: bindings::miscdevice = pin_init::zeroed();
         result.minor = bindings::MISC_DYNAMIC_MINOR as ffi::c_int;
         result.name = crate::str::as_char_ptr_in_const_context(self.name);
         result.fops = MiscdeviceVTable::<T>::build();
@@ -411,7 +410,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
         compat_ioctl: if T::HAS_COMPAT_IOCTL {
             Some(Self::compat_ioctl)
         } else if T::HAS_IOCTL {
-            Some(bindings::compat_ptr_ioctl)
+            bindings::compat_ptr_ioctl
         } else {
             None
         },
@@ -420,8 +419,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
         } else {
             None
         },
-        // SAFETY: All zeros is a valid value for `bindings::file_operations`.
-        ..unsafe { MaybeUninit::zeroed().assume_init() }
+        ..pin_init::zeroed()
     };
 
     const fn build() -> &'static bindings::file_operations {

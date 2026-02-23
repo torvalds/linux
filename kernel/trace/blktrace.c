@@ -559,9 +559,9 @@ int blk_trace_remove(struct request_queue *q)
 {
 	int ret;
 
-	mutex_lock(&q->debugfs_mutex);
+	blk_debugfs_lock_nomemsave(q);
 	ret = __blk_trace_remove(q);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock_nomemrestore(q);
 
 	return ret;
 }
@@ -671,7 +671,7 @@ static struct blk_trace *blk_trace_setup_prepare(struct request_queue *q,
 		return ERR_PTR(-EBUSY);
 	}
 
-	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
+	bt = kzalloc_obj(*bt);
 	if (!bt)
 		return ERR_PTR(-ENOMEM);
 
@@ -767,6 +767,7 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	struct blk_user_trace_setup2 buts2;
 	struct blk_user_trace_setup buts;
 	struct blk_trace *bt;
+	unsigned int memflags;
 	int ret;
 
 	ret = copy_from_user(&buts, arg, sizeof(buts));
@@ -785,16 +786,16 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		.pid = buts.pid,
 	};
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 	bt = blk_trace_setup_prepare(q, name, dev, buts.buf_size, buts.buf_nr,
 				     bdev);
 	if (IS_ERR(bt)) {
-		mutex_unlock(&q->debugfs_mutex);
+		blk_debugfs_unlock(q, memflags);
 		return PTR_ERR(bt);
 	}
 	blk_trace_setup_finalize(q, name, 1, bt, &buts2);
-	strcpy(buts.name, buts2.name);
-	mutex_unlock(&q->debugfs_mutex);
+	strscpy(buts.name, buts2.name, BLKTRACE_BDEV_SIZE);
+	blk_debugfs_unlock(q, memflags);
 
 	if (copy_to_user(arg, &buts, sizeof(buts))) {
 		blk_trace_remove(q);
@@ -809,6 +810,7 @@ static int blk_trace_setup2(struct request_queue *q, char *name, dev_t dev,
 {
 	struct blk_user_trace_setup2 buts2;
 	struct blk_trace *bt;
+	unsigned int memflags;
 
 	if (copy_from_user(&buts2, arg, sizeof(buts2)))
 		return -EFAULT;
@@ -819,15 +821,15 @@ static int blk_trace_setup2(struct request_queue *q, char *name, dev_t dev,
 	if (buts2.flags != 0)
 		return -EINVAL;
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 	bt = blk_trace_setup_prepare(q, name, dev, buts2.buf_size, buts2.buf_nr,
 				     bdev);
 	if (IS_ERR(bt)) {
-		mutex_unlock(&q->debugfs_mutex);
+		blk_debugfs_unlock(q, memflags);
 		return PTR_ERR(bt);
 	}
 	blk_trace_setup_finalize(q, name, 2, bt, &buts2);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock(q, memflags);
 
 	if (copy_to_user(arg, &buts2, sizeof(buts2))) {
 		blk_trace_remove(q);
@@ -844,6 +846,7 @@ static int compat_blk_trace_setup(struct request_queue *q, char *name,
 	struct blk_user_trace_setup2 buts2;
 	struct compat_blk_user_trace_setup cbuts;
 	struct blk_trace *bt;
+	unsigned int memflags;
 
 	if (copy_from_user(&cbuts, arg, sizeof(cbuts)))
 		return -EFAULT;
@@ -860,15 +863,15 @@ static int compat_blk_trace_setup(struct request_queue *q, char *name,
 		.pid = cbuts.pid,
 	};
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 	bt = blk_trace_setup_prepare(q, name, dev, buts2.buf_size, buts2.buf_nr,
 				     bdev);
 	if (IS_ERR(bt)) {
-		mutex_unlock(&q->debugfs_mutex);
+		blk_debugfs_unlock(q, memflags);
 		return PTR_ERR(bt);
 	}
 	blk_trace_setup_finalize(q, name, 1, bt, &buts2);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock(q, memflags);
 
 	if (copy_to_user(arg, &buts2.name, ARRAY_SIZE(buts2.name))) {
 		blk_trace_remove(q);
@@ -898,9 +901,9 @@ int blk_trace_startstop(struct request_queue *q, int start)
 {
 	int ret;
 
-	mutex_lock(&q->debugfs_mutex);
+	blk_debugfs_lock_nomemsave(q);
 	ret = __blk_trace_startstop(q, start);
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock_nomemrestore(q);
 
 	return ret;
 }
@@ -1832,7 +1835,9 @@ static struct trace_event trace_blk_event = {
 	.funcs		= &trace_blk_event_funcs,
 };
 
-static int __init init_blk_tracer(void)
+static struct work_struct blktrace_works __initdata;
+
+static int __init __init_blk_tracer(void)
 {
 	if (!register_trace_event(&trace_blk_event)) {
 		pr_warn("Warning: could not register block events\n");
@@ -1850,6 +1855,25 @@ static int __init init_blk_tracer(void)
 	BUILD_BUG_ON(__alignof__(struct blk_io_trace2) % __alignof__(long));
 
 	return 0;
+}
+
+static void __init blktrace_works_func(struct work_struct *work)
+{
+	__init_blk_tracer();
+}
+
+static int __init init_blk_tracer(void)
+{
+	int ret = 0;
+
+	if (trace_init_wq) {
+		INIT_WORK(&blktrace_works, blktrace_works_func);
+		queue_work(trace_init_wq, &blktrace_works);
+	} else {
+		ret = __init_blk_tracer();
+	}
+
+	return ret;
 }
 
 device_initcall(init_blk_tracer);
@@ -1880,7 +1904,7 @@ static int blk_trace_setup_queue(struct request_queue *q,
 	struct blk_trace *bt = NULL;
 	int ret = -ENOMEM;
 
-	bt = kzalloc(sizeof(*bt), GFP_KERNEL);
+	bt = kzalloc_obj(*bt);
 	if (!bt)
 		return -ENOMEM;
 
@@ -2020,7 +2044,7 @@ static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 	struct blk_trace *bt;
 	ssize_t ret = -ENXIO;
 
-	mutex_lock(&q->debugfs_mutex);
+	blk_debugfs_lock_nomemsave(q);
 
 	bt = rcu_dereference_protected(q->blk_trace,
 				       lockdep_is_held(&q->debugfs_mutex));
@@ -2041,7 +2065,7 @@ static ssize_t sysfs_blk_trace_attr_show(struct device *dev,
 		ret = sprintf(buf, "%llu\n", bt->end_lba);
 
 out_unlock_bdev:
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock_nomemrestore(q);
 	return ret;
 }
 
@@ -2052,6 +2076,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 	struct block_device *bdev = dev_to_bdev(dev);
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct blk_trace *bt;
+	unsigned int memflags;
 	u64 value;
 	ssize_t ret = -EINVAL;
 
@@ -2071,7 +2096,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 			goto out;
 	}
 
-	mutex_lock(&q->debugfs_mutex);
+	memflags = blk_debugfs_lock(q);
 
 	bt = rcu_dereference_protected(q->blk_trace,
 				       lockdep_is_held(&q->debugfs_mutex));
@@ -2106,7 +2131,7 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 	}
 
 out_unlock_bdev:
-	mutex_unlock(&q->debugfs_mutex);
+	blk_debugfs_unlock(q, memflags);
 out:
 	return ret ? ret : count;
 }

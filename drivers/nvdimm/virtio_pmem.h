@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <uapi/linux/virtio_pmem.h>
 #include <linux/libnvdimm.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 
 struct virtio_pmem_request {
@@ -34,6 +35,9 @@ struct virtio_pmem {
 
 	/* Virtio pmem request queue */
 	struct virtqueue *req_vq;
+
+	/* Serialize flush requests to the device. */
+	struct mutex flush_lock;
 
 	/* nvdimm bus registers virtio pmem device */
 	struct nvdimm_bus *nvdimm_bus;

@@ -8,6 +8,7 @@ struct perf_data_convert_opts {
 	bool force;
 	bool all;
 	bool tod;
+	const char *time_str;
 };
 
 #ifdef HAVE_LIBBABELTRACE_SUPPORT

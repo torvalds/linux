@@ -430,7 +430,7 @@ static int vxlan_mdb_config_src_entry_init(struct vxlan_mdb_config *cfg,
 				       extack))
 		return -EINVAL;
 
-	src = kzalloc(sizeof(*src), GFP_KERNEL);
+	src = kzalloc_obj(*src);
 	if (!src)
 		return -ENOMEM;
 
@@ -697,7 +697,7 @@ static int vxlan_mdb_remote_rdst_init(const struct vxlan_mdb_config *cfg,
 	struct vxlan_rdst *rd;
 	int err;
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return -ENOMEM;
 
@@ -767,7 +767,7 @@ vxlan_mdb_remote_src_entry_add(struct vxlan_mdb_remote *remote,
 {
 	struct vxlan_mdb_src_entry *ent;
 
-	ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kzalloc_obj(*ent);
 	if (!ent)
 		return NULL;
 
@@ -1139,7 +1139,7 @@ static int vxlan_mdb_remote_add(const struct vxlan_mdb_config *cfg,
 		return -ENOENT;
 	}
 
-	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
+	remote = kzalloc_obj(*remote);
 	if (!remote)
 		return -ENOMEM;
 
@@ -1187,7 +1187,7 @@ vxlan_mdb_entry_get(struct vxlan_dev *vxlan,
 	if (mdb_entry)
 		return mdb_entry;
 
-	mdb_entry = kzalloc(sizeof(*mdb_entry), GFP_KERNEL);
+	mdb_entry = kzalloc_obj(*mdb_entry);
 	if (!mdb_entry)
 		return ERR_PTR(-ENOMEM);
 

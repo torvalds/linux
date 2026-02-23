@@ -169,7 +169,7 @@ static void ipoib_schedule_ifupdown_task(struct net_device *dev, bool up)
 	    (!up && !(dev->flags & IFF_UP)))
 		return;
 
-	work = kmalloc(sizeof(*work), GFP_KERNEL);
+	work = kmalloc_obj(*work);
 	if (!work)
 		return;
 	work->dev = dev;
@@ -673,7 +673,7 @@ struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
 {
 	struct ipoib_path_iter *iter;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return NULL;
 
@@ -924,7 +924,7 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	if (!priv->broadcast)
 		return NULL;
 
-	path = kzalloc(sizeof(*path), GFP_ATOMIC);
+	path = kzalloc_obj(*path, GFP_ATOMIC);
 	if (!path)
 		return NULL;
 
@@ -1443,7 +1443,7 @@ static struct ipoib_neigh *ipoib_neigh_ctor(u8 *daddr,
 {
 	struct ipoib_neigh *neigh;
 
-	neigh = kzalloc(sizeof(*neigh), GFP_ATOMIC);
+	neigh = kzalloc_obj(*neigh, GFP_ATOMIC);
 	if (!neigh)
 		return NULL;
 
@@ -1593,11 +1593,11 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 	ntbl->htbl = NULL;
-	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
+	htbl = kzalloc_obj(*htbl);
 	if (!htbl)
 		return -ENOMEM;
 	size = roundup_pow_of_two(arp_tbl.gc_thresh3);
-	buckets = kvcalloc(size, sizeof(*buckets), GFP_KERNEL);
+	buckets = kvzalloc_objs(*buckets, size);
 	if (!buckets) {
 		kfree(htbl);
 		return -ENOMEM;
@@ -1773,9 +1773,7 @@ static int ipoib_dev_init_default(struct net_device *dev)
 	ipoib_napi_add(dev);
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
-	priv->rx_ring =	kcalloc(ipoib_recvq_size,
-				       sizeof(*priv->rx_ring),
-				       GFP_KERNEL);
+	priv->rx_ring =	kzalloc_objs(*priv->rx_ring, ipoib_recvq_size);
 	if (!priv->rx_ring)
 		goto out;
 
@@ -1831,8 +1829,7 @@ static int ipoib_hwtstamp_get(struct net_device *dev,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!priv->rn_ops->ndo_hwtstamp_get)
-		/* legacy */
-		return dev_eth_ioctl(dev, config->ifr, SIOCGHWTSTAMP);
+		return -EOPNOTSUPP;
 
 	return priv->rn_ops->ndo_hwtstamp_get(dev, config);
 }
@@ -1844,8 +1841,7 @@ static int ipoib_hwtstamp_set(struct net_device *dev,
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	if (!priv->rn_ops->ndo_hwtstamp_set)
-		/* legacy */
-		return dev_eth_ioctl(dev, config->ifr, SIOCSHWTSTAMP);
+		return -EOPNOTSUPP;
 
 	return priv->rn_ops->ndo_hwtstamp_set(dev, config, extack);
 }
@@ -2280,7 +2276,7 @@ int ipoib_intf_init(struct ib_device *hca, u32 port, const char *name,
 	struct ipoib_dev_priv *priv;
 	int rc;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -2666,7 +2662,7 @@ static int ipoib_add_one(struct ib_device *device)
 	unsigned int p;
 	int count = 0;
 
-	dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL);
+	dev_list = kmalloc_obj(*dev_list);
 	if (!dev_list)
 		return -ENOMEM;
 

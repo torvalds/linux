@@ -408,7 +408,7 @@ static int uvd_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->uvd.inst->irq.num_types = 1;
 		adev->uvd.num_enc_rings = 0;
 
-		DRM_INFO("UVD ENC is disabled\n");
+		drm_info(adev_to_drm(adev), "UVD ENC is disabled\n");
 	}
 
 	ring = &adev->uvd.inst->ring;
@@ -478,7 +478,7 @@ static int uvd_v6_0_hw_init(struct amdgpu_ip_block *ip_block)
 
 	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
-		DRM_ERROR("amdgpu: ring failed to lock UVD ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "ring alloc failed (%d).\n", r);
 		goto done;
 	}
 
@@ -515,9 +515,9 @@ static int uvd_v6_0_hw_init(struct amdgpu_ip_block *ip_block)
 done:
 	if (!r) {
 		if (uvd_v6_0_enc_support(adev))
-			DRM_INFO("UVD and UVD ENC initialized successfully.\n");
+			drm_info(adev_to_drm(adev), "UVD and UVD ENC initialized successfully.\n");
 		else
-			DRM_INFO("UVD initialized successfully.\n");
+			drm_info(adev_to_drm(adev), "UVD initialized successfully.\n");
 	}
 
 	return r;
@@ -1513,7 +1513,7 @@ static void uvd_v6_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64
 		data = RREG32_SMC(ixCURRENT_PG_STATUS);
 
 	if (data & CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
-		DRM_INFO("Cannot get clockgating state when UVD is powergated.\n");
+		drm_info(adev_to_drm(adev), "Cannot get clockgating state when UVD is powergated.\n");
 		goto out;
 	}
 
@@ -1633,10 +1633,10 @@ static void uvd_v6_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	if (adev->asic_type >= CHIP_POLARIS10) {
 		adev->uvd.inst->ring.funcs = &uvd_v6_0_ring_vm_funcs;
-		DRM_INFO("UVD is enabled in VM mode\n");
+		drm_info(adev_to_drm(adev), "UVD is enabled in VM mode\n");
 	} else {
 		adev->uvd.inst->ring.funcs = &uvd_v6_0_ring_phys_funcs;
-		DRM_INFO("UVD is enabled in physical mode\n");
+		drm_info(adev_to_drm(adev), "UVD is enabled in physical mode\n");
 	}
 }
 
@@ -1647,7 +1647,7 @@ static void uvd_v6_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i)
 		adev->uvd.inst->ring_enc[i].funcs = &uvd_v6_0_enc_ring_vm_funcs;
 
-	DRM_INFO("UVD ENC is enabled in VM mode\n");
+	drm_info(adev_to_drm(adev), "UVD ENC is enabled in VM mode\n");
 }
 
 static const struct amdgpu_irq_src_funcs uvd_v6_0_irq_funcs = {

@@ -752,7 +752,7 @@ static int __zd_usb_enable_rx(struct zd_usb *usb)
 	dev_dbg_f(zd_usb_dev(usb), "\n");
 
 	r = -ENOMEM;
-	urbs = kcalloc(RX_URBS_COUNT, sizeof(struct urb *), GFP_KERNEL);
+	urbs = kzalloc_objs(struct urb *, RX_URBS_COUNT);
 	if (!urbs)
 		goto error;
 	for (i = 0; i < RX_URBS_COUNT; i++) {

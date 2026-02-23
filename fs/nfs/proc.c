@@ -217,7 +217,7 @@ static struct nfs_createdata *nfs_alloc_createdata(struct inode *dir,
 {
 	struct nfs_createdata *data;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 
 	if (data != NULL) {
 		data->arg.fh = NFS_FH(dir);
@@ -697,11 +697,10 @@ static int nfs_have_delegation(struct inode *inode, fmode_t type, int flags)
 	return 0;
 }
 
-static int nfs_return_delegation(struct inode *inode)
+static void nfs_return_delegation(struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	return 0;
 }
 
 static const struct inode_operations nfs_dir_inode_operations = {

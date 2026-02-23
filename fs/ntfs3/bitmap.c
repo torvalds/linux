@@ -508,6 +508,8 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 	size_t wpos, wbit, iw, vbo;
 	struct buffer_head *bh = NULL;
 	CLST lcn, clen;
+	struct file_ra_state *ra;
+	struct address_space *mapping = sb->s_bdev->bd_mapping;
 
 	wnd->uptodated = 0;
 	wnd->extent_max = 0;
@@ -515,6 +517,13 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 	wnd->total_zeroes = 0;
 
 	vbo = 0;
+
+	/* Allocate in memory instead of stack. Not critical if failed. */
+	ra = kzalloc_obj(*ra, GFP_NOFS);
+	if (ra) {
+		file_ra_state_init(ra, mapping);
+		ra->ra_pages = (wnd->nbits / 8 + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	}
 
 	for (iw = 0; iw < wnd->nwnd; iw++) {
 		if (iw + 1 == wnd->nwnd)
@@ -550,6 +559,13 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 
 			lbo = ((u64)lcn << cluster_bits) + off;
 			len = ((u64)clen << cluster_bits) - off;
+		}
+
+		if (ra) {
+			pgoff_t idx = lbo >> PAGE_SHIFT;
+			if (!ra_has_index(ra, idx))
+				page_cache_sync_readahead(mapping, ra, NULL,
+							  idx, 1);
 		}
 
 		bh = ntfs_bread(sb, lbo >> sb->s_blocksize_bits);
@@ -638,6 +654,7 @@ next_wnd:
 	}
 
 out:
+	kfree(ra);
 	return err;
 }
 

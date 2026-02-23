@@ -542,7 +542,7 @@ static int prestera_ldr_wait_reg32(struct prestera_fw *fw,
 				  10 * USEC_PER_MSEC, waitms * USEC_PER_MSEC);
 }
 
-static u32 prestera_ldr_wait_buf(struct prestera_fw *fw, size_t len)
+static int prestera_ldr_wait_buf(struct prestera_fw *fw, size_t len)
 {
 	u8 __iomem *addr = PRESTERA_LDR_REG_ADDR(fw, PRESTERA_LDR_BUF_RD_REG);
 	u32 buf_len = fw->ldr_buf_len;

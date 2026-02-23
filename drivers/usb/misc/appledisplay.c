@@ -226,7 +226,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 	int_in_endpointAddr = endpoint->bEndpointAddress;
 
 	/* allocate memory for our device state and initialize it */
-	pdata = kzalloc(sizeof(struct appledisplay), GFP_KERNEL);
+	pdata = kzalloc_obj(struct appledisplay);
 	if (!pdata) {
 		retval = -ENOMEM;
 		goto error;

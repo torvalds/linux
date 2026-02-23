@@ -71,7 +71,6 @@ DEFINE_NFS4_CLIENTID_EVENT(nfs4_setclientid);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_setclientid_confirm);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_renew);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_renew_async);
-#ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_exchange_id);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_create_session);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_destroy_session);
@@ -301,8 +300,6 @@ TRACE_EVENT(pnfs_ds_connect,
 			__entry->status
                 )
 );
-
-#endif /* CONFIG_NFS_V4_1 */
 
 TRACE_EVENT(nfs4_setup_sequence,
 		TP_PROTO(
@@ -990,14 +987,11 @@ DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_detach_delegation);
 #define show_delegation_flags(flags) \
 	__print_flags(flags, "|", \
 		{ BIT(NFS_DELEGATION_NEED_RECLAIM), "NEED_RECLAIM" }, \
-		{ BIT(NFS_DELEGATION_RETURN), "RETURN" }, \
 		{ BIT(NFS_DELEGATION_RETURN_IF_CLOSED), "RETURN_IF_CLOSED" }, \
 		{ BIT(NFS_DELEGATION_REFERENCED), "REFERENCED" }, \
 		{ BIT(NFS_DELEGATION_RETURNING), "RETURNING" }, \
 		{ BIT(NFS_DELEGATION_REVOKED), "REVOKED" }, \
-		{ BIT(NFS_DELEGATION_TEST_EXPIRED), "TEST_EXPIRED" }, \
-		{ BIT(NFS_DELEGATION_INODE_FREEING), "INODE_FREEING" }, \
-		{ BIT(NFS_DELEGATION_RETURN_DELAYED), "RETURN_DELAYED" })
+		{ BIT(NFS_DELEGATION_TEST_EXPIRED), "TEST_EXPIRED" })
 
 DECLARE_EVENT_CLASS(nfs4_delegation_event,
 		TP_PROTO(
@@ -1070,7 +1064,6 @@ TRACE_EVENT(nfs4_delegreturn_exit,
 		)
 );
 
-#ifdef CONFIG_NFS_V4_1
 DECLARE_EVENT_CLASS(nfs4_test_stateid_event,
 		TP_PROTO(
 			const struct nfs4_state *state,
@@ -1125,7 +1118,6 @@ DECLARE_EVENT_CLASS(nfs4_test_stateid_event,
 DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_delegation_stateid);
 DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_open_stateid);
 DEFINE_NFS4_TEST_STATEID_EVENT(nfs4_test_lock_stateid);
-#endif /* CONFIG_NFS_V4_1 */
 
 DECLARE_EVENT_CLASS(nfs4_lookup_event,
 		TP_PROTO(
@@ -1628,12 +1620,8 @@ DEFINE_NFS4_IDMAP_EVENT(nfs4_map_group_to_gid);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_uid_to_name);
 DEFINE_NFS4_IDMAP_EVENT(nfs4_map_gid_to_group);
 
-#ifdef CONFIG_NFS_V4_1
 #define NFS4_LSEG_LAYOUT_STATEID_HASH(lseg) \
 	(lseg ? nfs_stateid_hash(&lseg->pls_layout->plh_stateid) : 0)
-#else
-#define NFS4_LSEG_LAYOUT_STATEID_HASH(lseg) (0)
-#endif
 
 DECLARE_EVENT_CLASS(nfs4_read_event,
 		TP_PROTO(
@@ -1705,9 +1693,7 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 			), \
 			TP_ARGS(hdr, error))
 DEFINE_NFS4_READ_EVENT(nfs4_read);
-#ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_READ_EVENT(nfs4_pnfs_read);
-#endif /* CONFIG_NFS_V4_1 */
 
 DECLARE_EVENT_CLASS(nfs4_write_event,
 		TP_PROTO(
@@ -1780,9 +1766,7 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 			), \
 			TP_ARGS(hdr, error))
 DEFINE_NFS4_WRITE_EVENT(nfs4_write);
-#ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_WRITE_EVENT(nfs4_pnfs_write);
-#endif /* CONFIG_NFS_V4_1 */
 
 DECLARE_EVENT_CLASS(nfs4_commit_event,
 		TP_PROTO(
@@ -1842,7 +1826,6 @@ DECLARE_EVENT_CLASS(nfs4_commit_event,
 			), \
 			TP_ARGS(data, error))
 DEFINE_NFS4_COMMIT_EVENT(nfs4_commit);
-#ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_COMMIT_EVENT(nfs4_pnfs_commit_ds);
 
 TRACE_EVENT(nfs4_layoutget,
@@ -2875,8 +2858,6 @@ DEFINE_NFS4_XATTR_EVENT(nfs4_removexattr);
 
 DEFINE_NFS4_INODE_EVENT(nfs4_listxattr);
 #endif /* CONFIG_NFS_V4_2 */
-
-#endif /* CONFIG_NFS_V4_1 */
 
 #endif /* _TRACE_NFS4_H */
 

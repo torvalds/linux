@@ -851,7 +851,7 @@ int devl_dpipe_table_register(struct devlink *devlink,
 				     devlink))
 		return -EEXIST;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return -ENOMEM;
 

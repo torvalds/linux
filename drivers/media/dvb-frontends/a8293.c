@@ -218,7 +218,7 @@ static int a8293_probe(struct i2c_client *client)
 	int ret;
 	u8 buf[2];
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

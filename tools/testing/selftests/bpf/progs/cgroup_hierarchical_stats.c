@@ -62,9 +62,9 @@ static int create_attach_counter(__u64 cg_id, __u64 state, __u64 pending)
 				   &init, BPF_NOEXIST);
 }
 
-SEC("fentry/cgroup_attach_task")
-int BPF_PROG(counter, struct cgroup *dst_cgrp, struct task_struct *leader,
-	     bool threadgroup)
+SEC("tp_btf/cgroup_attach_task")
+int BPF_PROG(counter, struct cgroup *dst_cgrp, const char *path,
+	     struct task_struct *task, bool threadgroup)
 {
 	__u64 cg_id = cgroup_id(dst_cgrp);
 	struct percpu_attach_counter *pcpu_counter = bpf_map_lookup_elem(

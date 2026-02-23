@@ -202,7 +202,7 @@ static struct vnet *vsw_get_vnet(struct mdesc_handle *hp,
 	}
 
 	if (!vp) {
-		vp = kzalloc(sizeof(*vp), GFP_KERNEL);
+		vp = kzalloc_obj(*vp);
 		if (unlikely(!vp)) {
 			mutex_unlock(&vnet_list_mutex);
 			return ERR_PTR(-ENOMEM);

@@ -133,6 +133,18 @@ struct ib_uverbs_completion_event_file {
 	struct ib_uverbs_event_queue		ev_queue;
 };
 
+struct ib_uverbs_dmabuf_file {
+	struct ib_uobject uobj;
+	struct dma_buf *dmabuf;
+	struct list_head dmabufs_elm;
+	struct rdma_user_mmap_entry *mmap_entry;
+	struct phys_vec phys_vec;
+	struct p2pdma_provider *provider;
+	struct kref kref;
+	struct completion comp;
+	u8 revoked :1;
+};
+
 struct ib_uverbs_event {
 	union {
 		struct ib_uverbs_async_event_desc	async;
@@ -290,4 +302,13 @@ ib_uverbs_get_async_event(struct uverbs_attr_bundle *attrs,
 void copy_port_attr_to_resp(struct ib_port_attr *attr,
 			    struct ib_uverbs_query_port_resp *resp,
 			    struct ib_device *ib_dev, u8 port_num);
+
+static inline void ib_uverbs_dmabuf_done(struct kref *kref)
+{
+	struct ib_uverbs_dmabuf_file *priv =
+		container_of(kref, struct ib_uverbs_dmabuf_file, kref);
+
+	complete(&priv->comp);
+}
+
 #endif /* UVERBS_H */

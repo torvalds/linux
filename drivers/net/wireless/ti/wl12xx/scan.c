@@ -91,8 +91,8 @@ static int wl1271_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (!passive && wl->scan.req->n_ssids == 0)
 		return WL1271_NOTHING_TO_SCAN;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	trigger = kzalloc(sizeof(*trigger), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
+	trigger = kzalloc_obj(*trigger);
 	if (!cmd || !trigger) {
 		ret = -ENOMEM;
 		goto out;
@@ -184,7 +184,7 @@ int wl12xx_scan_stop(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	wl1271_debug(DEBUG_CMD, "cmd scan stop");
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		ret = -ENOMEM;
 		goto out;
@@ -317,7 +317,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 
 	wl1271_debug(DEBUG_CMD, "cmd sched_scan scan config");
 
-	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	cfg = kzalloc_obj(*cfg);
 	if (!cfg)
 		return -ENOMEM;
 
@@ -348,7 +348,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 
 	wl1271_debug(DEBUG_SCAN, "filter_type = %d", cfg->filter_type);
 
-	cfg_channels = kzalloc(sizeof(*cfg_channels), GFP_KERNEL);
+	cfg_channels = kzalloc_obj(*cfg_channels);
 	if (!cfg_channels) {
 		ret = -ENOMEM;
 		goto out;
@@ -425,7 +425,7 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 		return -EBUSY;
 
-	start = kzalloc(sizeof(*start), GFP_KERNEL);
+	start = kzalloc_obj(*start);
 	if (!start)
 		return -ENOMEM;
 
@@ -465,7 +465,7 @@ void wl12xx_scan_sched_scan_stop(struct wl1271 *wl,  struct wl12xx_vif *wlvif)
 	wl1271_debug(DEBUG_CMD, "cmd periodic scan stop");
 
 	/* FIXME: what to do if alloc'ing to stop fails? */
-	stop = kzalloc(sizeof(*stop), GFP_KERNEL);
+	stop = kzalloc_obj(*stop);
 	if (!stop) {
 		wl1271_error("failed to alloc memory to send sched scan stop");
 		return;

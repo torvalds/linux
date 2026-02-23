@@ -377,14 +377,6 @@ static inline void arch_dma_prep_coherent(struct page *page, size_t size)
 }
 #endif /* CONFIG_ARCH_HAS_DMA_PREP_COHERENT */
 
-#ifdef CONFIG_ARCH_HAS_DMA_MARK_CLEAN
-void arch_dma_mark_clean(phys_addr_t paddr, size_t size);
-#else
-static inline void arch_dma_mark_clean(phys_addr_t paddr, size_t size)
-{
-}
-#endif /* ARCH_HAS_DMA_MARK_CLEAN */
-
 void *arch_dma_set_uncached(void *addr, size_t size);
 void arch_dma_clear_uncached(void *addr, size_t size);
 
@@ -395,11 +387,15 @@ bool arch_dma_map_sg_direct(struct device *dev, struct scatterlist *sg,
 		int nents);
 bool arch_dma_unmap_sg_direct(struct device *dev, struct scatterlist *sg,
 		int nents);
+bool arch_dma_alloc_direct(struct device *dev);
+bool arch_dma_free_direct(struct device *dev, dma_addr_t dma_handle);
 #else
 #define arch_dma_map_phys_direct(d, a)		(false)
 #define arch_dma_unmap_phys_direct(d, a)	(false)
 #define arch_dma_map_sg_direct(d, s, n)		(false)
 #define arch_dma_unmap_sg_direct(d, s, n)	(false)
+#define arch_dma_alloc_direct(d)            (false)
+#define arch_dma_free_direct(d, a)          (false)
 #endif
 
 #ifdef CONFIG_ARCH_HAS_SETUP_DMA_OPS

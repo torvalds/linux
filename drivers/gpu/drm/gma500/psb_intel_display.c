@@ -404,7 +404,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 		vsync = p->vsync;
 	}
 
-	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
+	mode = kzalloc_obj(*mode);
 	if (!mode)
 		return NULL;
 
@@ -487,7 +487,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		return;
 
 	gma_crtc->crtc_state =
-		kzalloc(sizeof(struct psb_intel_crtc_state), GFP_KERNEL);
+		kzalloc_obj(struct psb_intel_crtc_state);
 	if (!gma_crtc->crtc_state) {
 		dev_err(dev->dev, "Crtc state error: No memory\n");
 		kfree(gma_crtc);

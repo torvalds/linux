@@ -888,6 +888,10 @@ struct lpfc_sli4_hba {
 #define LPFC_FP_EQ_MAX_INTR_SEC         10000
 
 	uint32_t intr_enable;
+
+	 /* Indicates whether SLI Port supports FEDIF */
+	bool encryption_support;
+
 	struct lpfc_bmbx bmbx;
 	struct lpfc_max_cfg_param max_cfg_param;
 	uint16_t extents_in_use; /* must allocate resource extents. */

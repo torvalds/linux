@@ -24,7 +24,7 @@ pds_vfio_get_lm_file(const struct file_operations *fops, int flags, u64 size)
 		return NULL;
 
 	/* Alloc file structure */
-	lm_file = kzalloc(sizeof(*lm_file), GFP_KERNEL);
+	lm_file = kzalloc_obj(*lm_file);
 	if (!lm_file)
 		return NULL;
 
@@ -42,7 +42,7 @@ pds_vfio_get_lm_file(const struct file_operations *fops, int flags, u64 size)
 
 	/* Allocate memory for file pages */
 	npages = DIV_ROUND_UP_ULL(size, PAGE_SIZE);
-	pages = kmalloc_array(npages, sizeof(*pages), GFP_KERNEL);
+	pages = kmalloc_objs(*pages, npages);
 	if (!pages)
 		goto out_put_file;
 

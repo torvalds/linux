@@ -150,3 +150,17 @@ Contact:	Sergey Senozhatsky <senozhatsky@chromium.org>
 Description:
 		The algorithm_params file is write-only and is used to setup
 		compression algorithm parameters.
+
+What:		/sys/block/zram<id>/writeback_compressed
+Date:		Decemeber 2025
+Contact:	Richard Chang <richardycc@google.com>
+Description:
+		The writeback_compressed device atrribute toggles compressed
+		writeback feature.
+
+What:		/sys/block/zram<id>/writeback_batch_size
+Date:		November 2025
+Contact:	Sergey Senozhatsky <senozhatsky@chromium.org>
+Description:
+		The writeback_batch_size device atrribute sets the maximum
+		number of in-flight writeback operations.

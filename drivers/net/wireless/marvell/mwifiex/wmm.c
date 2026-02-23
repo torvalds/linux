@@ -99,7 +99,7 @@ mwifiex_wmm_allocate_ralist_node(struct mwifiex_adapter *adapter, const u8 *ra)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 
-	ra_list = kzalloc(sizeof(struct mwifiex_ra_list_tbl), GFP_ATOMIC);
+	ra_list = kzalloc_obj(struct mwifiex_ra_list_tbl, GFP_ATOMIC);
 	if (!ra_list)
 		return NULL;
 

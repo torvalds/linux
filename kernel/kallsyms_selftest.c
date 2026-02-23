@@ -264,7 +264,7 @@ static int test_kallsyms_basic_function(void)
 	char namebuf[KSYM_NAME_LEN];
 	struct test_stat *stat, *stat2;
 
-	stat = kmalloc_array(2, sizeof(*stat), GFP_KERNEL);
+	stat = kmalloc_objs(*stat, 2);
 	if (!stat)
 		return -ENOMEM;
 	stat2 = stat + 1;

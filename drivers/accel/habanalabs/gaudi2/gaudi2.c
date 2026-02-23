@@ -2762,8 +2762,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	int i, rc;
 
 	prop->max_queues = GAUDI2_QUEUE_ID_SIZE;
-	prop->hw_queues_props = kcalloc(prop->max_queues, sizeof(struct hw_queue_properties),
-					GFP_KERNEL);
+	prop->hw_queues_props = kzalloc_objs(struct hw_queue_properties,
+					     prop->max_queues);
 
 	if (!prop->hw_queues_props)
 		return -ENOMEM;
@@ -3943,8 +3943,8 @@ static int gaudi2_special_blocks_config(struct hl_device *hdev)
 	/* Configure Special blocks */
 	prop->glbl_err_max_cause_num = GAUDI2_GLBL_ERR_MAX_CAUSE_NUM;
 	prop->num_of_special_blocks = ARRAY_SIZE(gaudi2_special_blocks);
-	prop->special_blocks = kmalloc_array(prop->num_of_special_blocks,
-			sizeof(*prop->special_blocks), GFP_KERNEL);
+	prop->special_blocks = kmalloc_objs(*prop->special_blocks,
+					    prop->num_of_special_blocks);
 	if (!prop->special_blocks)
 		return -ENOMEM;
 
@@ -3958,8 +3958,8 @@ static int gaudi2_special_blocks_config(struct hl_device *hdev)
 
 	if (ARRAY_SIZE(gaudi2_iterator_skip_block_types)) {
 		prop->skip_special_blocks_cfg.block_types =
-				kmalloc_array(ARRAY_SIZE(gaudi2_iterator_skip_block_types),
-					sizeof(gaudi2_iterator_skip_block_types[0]), GFP_KERNEL);
+				kmalloc_objs(gaudi2_iterator_skip_block_types[0],
+					     ARRAY_SIZE(gaudi2_iterator_skip_block_types));
 		if (!prop->skip_special_blocks_cfg.block_types) {
 			rc = -ENOMEM;
 			goto free_special_blocks;
@@ -3974,8 +3974,8 @@ static int gaudi2_special_blocks_config(struct hl_device *hdev)
 
 	if (ARRAY_SIZE(gaudi2_iterator_skip_block_ranges)) {
 		prop->skip_special_blocks_cfg.block_ranges =
-				kmalloc_array(ARRAY_SIZE(gaudi2_iterator_skip_block_ranges),
-					sizeof(gaudi2_iterator_skip_block_ranges[0]), GFP_KERNEL);
+				kmalloc_objs(gaudi2_iterator_skip_block_ranges[0],
+					     ARRAY_SIZE(gaudi2_iterator_skip_block_ranges));
 		if (!prop->skip_special_blocks_cfg.block_ranges) {
 			rc = -ENOMEM;
 			goto free_skip_special_blocks_types;
@@ -4054,7 +4054,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	int i, rc;
 
 	/* Allocate device structure */
-	gaudi2 = kzalloc(sizeof(*gaudi2), GFP_KERNEL);
+	gaudi2 = kzalloc_obj(*gaudi2);
 	if (!gaudi2)
 		return -ENOMEM;
 

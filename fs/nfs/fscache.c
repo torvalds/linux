@@ -288,7 +288,7 @@ static struct nfs_netfs_io_data *nfs_netfs_alloc(struct netfs_io_subrequest *sre
 {
 	struct nfs_netfs_io_data *netfs;
 
-	netfs = kzalloc(sizeof(*netfs), GFP_KERNEL_ACCOUNT);
+	netfs = kzalloc_obj(*netfs, GFP_KERNEL_ACCOUNT);
 	if (!netfs)
 		return NULL;
 	netfs->sreq = sreq;

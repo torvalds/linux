@@ -503,7 +503,8 @@ static bool enable_assr(void *handle, struct dc_link *link)
 	struct ta_dtm_shared_memory *dtm_cmd;
 
 	if (!psp->dtm_context.context.initialized) {
-		DRM_INFO("Failed to enable ASSR, DTM TA is not initialized.");
+		drm_info(adev_to_drm(psp->adev),
+			 "Failed to enable ASSR, DTM TA is not initialized.");
 		return false;
 	}
 
@@ -520,7 +521,8 @@ static bool enable_assr(void *handle, struct dc_link *link)
 	psp_dtm_invoke(psp, dtm_cmd->cmd_id);
 
 	if (dtm_cmd->dtm_status != TA_DTM_STATUS__SUCCESS) {
-		DRM_INFO("Failed to enable ASSR");
+		drm_info(adev_to_drm(psp->adev),
+			 "Failed to enable ASSR");
 		return false;
 	}
 
@@ -744,7 +746,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 	struct hdcp_workqueue *hdcp_work;
 	int i = 0;
 
-	hdcp_work = kcalloc(max_caps, sizeof(*hdcp_work), GFP_KERNEL);
+	hdcp_work = kzalloc_objs(*hdcp_work, max_caps);
 	if (ZERO_OR_NULL_PTR(hdcp_work))
 		return NULL;
 
@@ -813,7 +815,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 	sysfs_bin_attr_init(&hdcp_work[0].attr);
 
 	if (sysfs_create_bin_file(&adev->dev->kobj, &hdcp_work[0].attr))
-		DRM_WARN("Failed to create device file hdcp_srm");
+		drm_warn(adev_to_drm(adev), "Failed to create device file hdcp_srm\n");
 
 	return hdcp_work;
 

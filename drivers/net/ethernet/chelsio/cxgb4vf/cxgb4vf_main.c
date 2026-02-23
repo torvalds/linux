@@ -288,7 +288,7 @@ static int cxgb4vf_change_mac(struct port_info *pi, unsigned int viid,
 				goto set_hash;
 			}
 		}
-		new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
+		new_entry = kzalloc_obj(*new_entry);
 		if (!new_entry)
 			return -ENOMEM;
 		ether_addr_copy(new_entry->addr, addr);
@@ -953,7 +953,7 @@ static int cxgb4vf_mac_sync(struct net_device *netdev, const u8 *mac_addr)
 	 * list and program it
 	 */
 	if (uhash || mhash) {
-		new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
+		new_entry = kzalloc_obj(*new_entry, GFP_ATOMIC);
 		if (!new_entry)
 			return -ENOMEM;
 		ether_addr_copy(new_entry->addr, mac_addr);
@@ -2935,7 +2935,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	/*
 	 * Allocate our adapter data structure and attach it to the device.
 	 */
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
+	adapter = kzalloc_obj(*adapter);
 	if (!adapter) {
 		err = -ENOMEM;
 		goto err_release_regions;

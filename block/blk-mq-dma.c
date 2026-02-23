@@ -6,11 +6,6 @@
 #include <linux/blk-mq-dma.h>
 #include "blk.h"
 
-struct phys_vec {
-	phys_addr_t	paddr;
-	u32		len;
-};
-
 static bool __blk_map_iter_next(struct blk_map_iter *iter)
 {
 	if (iter->iter.bi_size)
@@ -112,8 +107,8 @@ static bool blk_rq_dma_map_iova(struct request *req, struct device *dma_dev,
 		struct phys_vec *vec)
 {
 	enum dma_data_direction dir = rq_dma_dir(req);
-	unsigned int mapped = 0;
 	unsigned int attrs = 0;
+	size_t mapped = 0;
 	int error;
 
 	iter->addr = state->addr;
@@ -126,17 +121,20 @@ static bool blk_rq_dma_map_iova(struct request *req, struct device *dma_dev,
 		error = dma_iova_link(dma_dev, state, vec->paddr, mapped,
 				vec->len, dir, attrs);
 		if (error)
-			break;
+			goto out_unlink;
 		mapped += vec->len;
 	} while (blk_map_iter_next(req, &iter->iter, vec));
 
 	error = dma_iova_sync(dma_dev, state, 0, mapped);
-	if (error) {
-		iter->status = errno_to_blk_status(error);
-		return false;
-	}
+	if (error)
+		goto out_unlink;
 
 	return true;
+
+out_unlink:
+	dma_iova_destroy(dma_dev, state, mapped, dir, attrs);
+	iter->status = errno_to_blk_status(error);
+	return false;
 }
 
 static inline void blk_rq_map_iter_init(struct request *rq,
@@ -238,7 +236,6 @@ EXPORT_SYMBOL_GPL(blk_rq_dma_map_iter_start);
  * blk_rq_dma_map_iter_next - map the next DMA segment for a request
  * @req:	request to map
  * @dma_dev:	device to map to
- * @state:	DMA IOVA state
  * @iter:	block layer DMA iterator
  *
  * Iterate to the next mapping after a previous call to
@@ -253,7 +250,7 @@ EXPORT_SYMBOL_GPL(blk_rq_dma_map_iter_start);
  * returned in @iter.status.
  */
 bool blk_rq_dma_map_iter_next(struct request *req, struct device *dma_dev,
-		struct dma_iova_state *state, struct blk_dma_iter *iter)
+		struct blk_dma_iter *iter)
 {
 	struct phys_vec vec;
 
@@ -297,6 +294,8 @@ int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
 	blk_rq_map_iter_init(rq, &iter);
 	while (blk_map_iter_next(rq, &iter, &vec)) {
 		*last_sg = blk_next_sg(last_sg, sglist);
+
+		WARN_ON_ONCE(overflows_type(vec.len, unsigned int));
 		sg_set_page(*last_sg, phys_to_page(vec.paddr), vec.len,
 				offset_in_page(vec.paddr));
 		nsegs++;
@@ -417,6 +416,8 @@ int blk_rq_map_integrity_sg(struct request *rq, struct scatterlist *sglist)
 
 	while (blk_map_iter_next(rq, &iter, &vec)) {
 		sg = blk_next_sg(&sg, sglist);
+
+		WARN_ON_ONCE(overflows_type(vec.len, unsigned int));
 		sg_set_page(sg, phys_to_page(vec.paddr), vec.len,
 				offset_in_page(vec.paddr));
 		segments++;

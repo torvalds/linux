@@ -16,7 +16,7 @@ struct spu_gang *alloc_spu_gang(void)
 {
 	struct spu_gang *gang;
 
-	gang = kzalloc(sizeof *gang, GFP_KERNEL);
+	gang = kzalloc_obj(*gang);
 	if (!gang)
 		goto out;
 

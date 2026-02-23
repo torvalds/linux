@@ -81,7 +81,7 @@ tb_property_alloc(const char *key, enum tb_property_type type)
 {
 	struct tb_property *property;
 
-	property = kzalloc(sizeof(*property), GFP_KERNEL);
+	property = kzalloc_obj(*property);
 	if (!property)
 		return NULL;
 
@@ -166,7 +166,7 @@ static struct tb_property_dir *__tb_property_parse_dir(const u32 *block,
 	unsigned int content_offset;
 	struct tb_property_dir *dir;
 
-	dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+	dir = kzalloc_obj(*dir);
 	if (!dir)
 		return NULL;
 
@@ -247,7 +247,7 @@ struct tb_property_dir *tb_property_create_dir(const uuid_t *uuid)
 {
 	struct tb_property_dir *dir;
 
-	dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+	dir = kzalloc_obj(*dir);
 	if (!dir)
 		return NULL;
 

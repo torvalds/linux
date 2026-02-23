@@ -511,7 +511,7 @@ struct dvb_frontend *tda10023_attach(const struct tda10023_config *config,
 	struct tda10023_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct tda10023_state), GFP_KERNEL);
+	state = kzalloc_obj(struct tda10023_state);
 	if (state == NULL) goto error;
 
 	/* setup the state */

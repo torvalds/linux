@@ -355,7 +355,7 @@ void efx_siena_ethtool_self_test(struct net_device *net_dev,
 	bool already_up;
 	int rc = -ENOMEM;
 
-	efx_tests = kzalloc(sizeof(*efx_tests), GFP_KERNEL);
+	efx_tests = kzalloc_obj(*efx_tests);
 	if (!efx_tests)
 		goto fail;
 
@@ -841,6 +841,13 @@ out_setdata:
 	return 0;
 }
 
+u32 efx_siena_ethtool_get_rx_ring_count(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	return efx->n_rx_channels;
+}
+
 int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
 				struct ethtool_rxnfc *info, u32 *rule_locs)
 {
@@ -849,10 +856,6 @@ int efx_siena_ethtool_get_rxnfc(struct net_device *net_dev,
 	s32 rc = 0;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = efx->n_rx_channels;
-		return 0;
-
 	case ETHTOOL_GRXCLSRLCNT:
 		info->data = efx_filter_get_rx_id_limit(efx);
 		if (info->data == 0)

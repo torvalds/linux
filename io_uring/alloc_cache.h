@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef IOU_ALLOC_CACHE_H
 #define IOU_ALLOC_CACHE_H
 
 #include <linux/io_uring_types.h>
+#include <linux/kasan.h>
 
 /*
  * Don't allow the cache to grow beyond this size.

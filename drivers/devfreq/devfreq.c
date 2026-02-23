@@ -821,7 +821,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		goto err_out;
 	}
 
-	devfreq = kzalloc(sizeof(struct devfreq), GFP_KERNEL);
+	devfreq = kzalloc_obj(struct devfreq);
 	if (!devfreq) {
 		err = -ENOMEM;
 		goto err_out;

@@ -211,8 +211,7 @@ int phm_trim_voltage_table(struct pp_atomctrl_voltage_table *vol_table)
 	PP_ASSERT_WITH_CODE((NULL != vol_table),
 			"Voltage Table empty.", return -EINVAL);
 
-	table = kzalloc(sizeof(struct pp_atomctrl_voltage_table),
-			GFP_KERNEL);
+	table = kzalloc_obj(struct pp_atomctrl_voltage_table);
 
 	if (NULL == table)
 		return -EINVAL;
@@ -496,8 +495,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	/* initialize vddc_dep_on_dal_pwrl table */
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 4),
-				GFP_KERNEL);
+	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, 4);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
@@ -646,7 +644,7 @@ static const struct amdgpu_irq_src_funcs smu9_irq_funcs = {
 int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_irq_src *source =
-		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+		kzalloc_obj(struct amdgpu_irq_src);
 
 	if (!source)
 		return -ENOMEM;

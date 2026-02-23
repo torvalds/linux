@@ -27,6 +27,13 @@ struct pid_namespace {
 	struct idr idr;
 	struct rcu_head rcu;
 	unsigned int pid_allocated;
+#ifdef CONFIG_SYSCTL
+#if defined(CONFIG_MEMFD_CREATE)
+	int memfd_noexec_scope;
+#endif
+	struct ctl_table_set	set;
+	struct ctl_table_header *sysctls;
+#endif
 	struct task_struct *child_reaper;
 	struct kmem_cache *pid_cachep;
 	unsigned int level;
@@ -40,13 +47,6 @@ struct pid_namespace {
 	int reboot;	/* group exit code if this pidns was rebooted */
 	struct ns_common ns;
 	struct work_struct	work;
-#ifdef CONFIG_SYSCTL
-	struct ctl_table_set	set;
-	struct ctl_table_header *sysctls;
-#if defined(CONFIG_MEMFD_CREATE)
-	int memfd_noexec_scope;
-#endif
-#endif
 } __randomize_layout;
 
 extern struct pid_namespace init_pid_ns;

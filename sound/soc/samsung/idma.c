@@ -290,7 +290,7 @@ static int idma_open(struct snd_soc_component *component,
 
 	snd_soc_set_runtime_hwparams(substream, &idma_hardware);
 
-	prtd = kzalloc(sizeof(struct idma_ctrl), GFP_KERNEL);
+	prtd = kzalloc_obj(struct idma_ctrl);
 	if (prtd == NULL)
 		return -ENOMEM;
 

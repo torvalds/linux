@@ -960,11 +960,9 @@ static int rt712_sdca_dmic_sdw_probe(struct sdw_slave *slave,
 	return rt712_sdca_dmic_init(&slave->dev, regmap, mbq_regmap, slave);
 }
 
-static int rt712_sdca_dmic_sdw_remove(struct sdw_slave *slave)
+static void rt712_sdca_dmic_sdw_remove(struct sdw_slave *slave)
 {
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 static struct sdw_driver rt712_sdca_dmic_sdw_driver = {

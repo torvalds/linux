@@ -270,7 +270,7 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 		return -ENODEV;
 	}
 
-	lbtp = kzalloc(sizeof(*lbtp), GFP_KERNEL);
+	lbtp = kzalloc_obj(*lbtp);
 	if (!lbtp)
 		return -ENOMEM;
 	lbtp->loopback_ok = false;

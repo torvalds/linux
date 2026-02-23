@@ -240,7 +240,7 @@ static int __init hp300_8250_init(void)
 #endif
 
 		/* Create new serial device */
-		port = kmalloc(sizeof(struct hp300_port), GFP_KERNEL);
+		port = kmalloc_obj(struct hp300_port);
 		if (!port)
 			return -ENOMEM;
 

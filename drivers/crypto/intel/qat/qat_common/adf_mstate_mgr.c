@@ -37,7 +37,7 @@ struct adf_mstate_mgr *adf_mstate_mgr_new(u8 *buf, u32 size)
 {
 	struct adf_mstate_mgr *mgr;
 
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (!mgr)
 		return NULL;
 

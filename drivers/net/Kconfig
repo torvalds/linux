@@ -333,6 +333,7 @@ config MACSEC
 
 config NETCONSOLE
 	tristate "Network console logging support"
+	depends on PRINTK
 	help
 	  If you want to log kernel messages over the network, enable this.
 	  See <file:Documentation/networking/netconsole.rst> for details.
@@ -341,6 +342,7 @@ config NETCONSOLE_DYNAMIC
 	bool "Dynamic reconfiguration of logging targets"
 	depends on NETCONSOLE && SYSFS && CONFIGFS_FS && \
 			!(NETCONSOLE=y && CONFIGFS_FS=m)
+	select PRINTK_EXECUTION_CTX
 	help
 	  This option enables the ability to dynamically reconfigure target
 	  parameters (interface, IP addresses, port numbers, MAC addresses)
@@ -515,8 +517,6 @@ source "drivers/net/dsa/Kconfig"
 source "drivers/net/ethernet/Kconfig"
 
 source "drivers/net/fddi/Kconfig"
-
-source "drivers/net/hippi/Kconfig"
 
 source "drivers/net/ipa/Kconfig"
 

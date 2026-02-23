@@ -410,7 +410,7 @@ struct kunit_suite *kunit_filter_attr_tests(const struct kunit_suite *const suit
 
 	kunit_suite_for_each_test_case(suite, test_case) { n++; }
 
-	filtered = kcalloc(n + 1, sizeof(*filtered), GFP_KERNEL);
+	filtered = kzalloc_objs(*filtered, n + 1);
 	if (!filtered) {
 		kfree(copy);
 		return ERR_PTR(-ENOMEM);

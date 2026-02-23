@@ -97,8 +97,8 @@ struct netfront_cb {
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
 struct netfront_stats {
-	u64			packets;
-	u64			bytes;
+	u64_stats_t		packets;
+	u64_stats_t		bytes;
 	struct u64_stats_sync	syncp;
 };
 
@@ -634,8 +634,8 @@ static int xennet_xdp_xmit_one(struct net_device *dev,
 		notify_remote_via_irq(queue->tx_irq);
 
 	u64_stats_update_begin(&tx_stats->syncp);
-	tx_stats->bytes += xdpf->len;
-	tx_stats->packets++;
+	u64_stats_add(&tx_stats->bytes, xdpf->len);
+	u64_stats_inc(&tx_stats->packets);
 	u64_stats_update_end(&tx_stats->syncp);
 
 	return 0;
@@ -843,8 +843,8 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 		notify_remote_via_irq(queue->tx_irq);
 
 	u64_stats_update_begin(&tx_stats->syncp);
-	tx_stats->bytes += skb->len;
-	tx_stats->packets++;
+	u64_stats_add(&tx_stats->bytes, skb->len);
+	u64_stats_inc(&tx_stats->packets);
 	u64_stats_update_end(&tx_stats->syncp);
 
 	if (!netfront_tx_slot_available(queue))
@@ -1249,8 +1249,8 @@ static int handle_incoming_queue(struct netfront_queue *queue,
 		}
 
 		u64_stats_update_begin(&rx_stats->syncp);
-		rx_stats->packets++;
-		rx_stats->bytes += skb->len;
+		u64_stats_inc(&rx_stats->packets);
+		u64_stats_add(&rx_stats->bytes, skb->len);
 		u64_stats_update_end(&rx_stats->syncp);
 
 		/* Pass it up. */
@@ -1400,14 +1400,14 @@ static void xennet_get_stats64(struct net_device *dev,
 
 		do {
 			start = u64_stats_fetch_begin(&tx_stats->syncp);
-			tx_packets = tx_stats->packets;
-			tx_bytes = tx_stats->bytes;
+			tx_packets = u64_stats_read(&tx_stats->packets);
+			tx_bytes = u64_stats_read(&tx_stats->bytes);
 		} while (u64_stats_fetch_retry(&tx_stats->syncp, start));
 
 		do {
 			start = u64_stats_fetch_begin(&rx_stats->syncp);
-			rx_packets = rx_stats->packets;
-			rx_bytes = rx_stats->bytes;
+			rx_packets = u64_stats_read(&rx_stats->packets);
+			rx_bytes = u64_stats_read(&rx_stats->bytes);
 		} while (u64_stats_fetch_retry(&rx_stats->syncp, start));
 
 		tot->rx_packets += rx_packets;
@@ -2212,8 +2212,7 @@ static int xennet_create_queues(struct netfront_info *info,
 	unsigned int i;
 	int ret;
 
-	info->queues = kcalloc(*num_queues, sizeof(struct netfront_queue),
-			       GFP_KERNEL);
+	info->queues = kzalloc_objs(struct netfront_queue, *num_queues);
 	if (!info->queues)
 		return -ENOMEM;
 

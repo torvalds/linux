@@ -29,6 +29,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  '#address-cells':
+    const: 0
+
   interrupt-controller: true
 
   '#interrupt-cells':

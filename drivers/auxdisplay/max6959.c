@@ -11,13 +11,13 @@
 #include <linux/bitrev.h>
 #include <linux/bits.h>
 #include <linux/container_of.h>
+#include <linux/device/devres.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 

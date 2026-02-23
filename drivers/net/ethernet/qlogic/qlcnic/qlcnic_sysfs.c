@@ -909,7 +909,7 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 	int i, ret;
 	u32 count;
 
-	pci_info = kcalloc(size, sizeof(*pci_info), GFP_KERNEL);
+	pci_info = kzalloc_objs(*pci_info, size);
 	if (!pci_info)
 		return -ENOMEM;
 

@@ -109,8 +109,7 @@ static int felix_tag_8021q_vlan_add_rx(struct dsa_switch *ds, int port,
 
 	key_length = ocelot->vcap[VCAP_ES0].keys[VCAP_ES0_IGR_PORT].length;
 
-	outer_tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter),
-				     GFP_KERNEL);
+	outer_tagging_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!outer_tagging_rule)
 		return -ENOMEM;
 
@@ -178,11 +177,11 @@ static int felix_tag_8021q_vlan_add_tx(struct dsa_switch *ds, int port,
 	unsigned long cookie;
 	int err;
 
-	untagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
+	untagging_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!untagging_rule)
 		return -ENOMEM;
 
-	redirect_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
+	redirect_rule = kzalloc_obj(struct ocelot_vcap_filter);
 	if (!redirect_rule) {
 		kfree(untagging_rule);
 		return -ENOMEM;
@@ -1540,8 +1539,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->npi_xtr_prefix	= OCELOT_TAG_PREFIX_SHORT;
 	ocelot->devlink		= felix->ds->devlink;
 
-	port_phy_modes = kcalloc(num_phys_ports, sizeof(phy_interface_t),
-				 GFP_KERNEL);
+	port_phy_modes = kzalloc_objs(phy_interface_t, num_phys_ports);
 	if (!port_phy_modes)
 		return -ENOMEM;
 
@@ -2003,11 +2001,11 @@ static int felix_cls_flower_stats(struct dsa_switch *ds, int port,
 }
 
 static int felix_port_policer_add(struct dsa_switch *ds, int port,
-				  struct dsa_mall_policer_tc_entry *policer)
+				  const struct flow_action_police *policer)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct ocelot_policer pol = {
-		.rate = div_u64(policer->rate_bytes_per_sec, 1000) * 8,
+		.rate = div_u64(policer->rate_bytes_ps, 1000) * 8,
 		.burst = policer->burst,
 	};
 

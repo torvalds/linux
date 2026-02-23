@@ -344,6 +344,15 @@ config CRYPTO_ECRDSA
 	  One of the Russian cryptographic standard algorithms (called GOST
 	  algorithms). Only signature verification is implemented.
 
+config CRYPTO_MLDSA
+	tristate "ML-DSA (Module-Lattice-Based Digital Signature Algorithm)"
+	select CRYPTO_SIG
+	select CRYPTO_LIB_MLDSA
+	help
+	  ML-DSA (Module-Lattice-Based Digital Signature Algorithm) (FIPS-204).
+
+	  Only signature verification is implemented.
+
 endmenu
 
 menu "Block ciphers"
@@ -365,27 +374,6 @@ config CRYPTO_AES
 	  among the easiest to defend against power and timing attacks.
 
 	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-config CRYPTO_AES_TI
-	tristate "AES (Advanced Encryption Standard) (fixed time)"
-	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_AES
-	help
-	  AES cipher algorithms (Rijndael)(FIPS-197, ISO/IEC 18033-3)
-
-	  This is a generic implementation of AES that attempts to eliminate
-	  data dependent latencies as much as possible without affecting
-	  performance too much. It is intended for use by the generic CCM
-	  and GCM drivers, and other CTR or CMAC/XCBC based modes that rely
-	  solely on encryption (although decryption is supported as well, but
-	  with a more dramatic performance hit)
-
-	  Instead of using 16 lookup tables of 1 KB each, (8 for encryption and
-	  8 for decryption), this implementation only uses just two S-boxes of
-	  256 bytes each, and attempts to eliminate data dependent latencies by
-	  prefetching the entire table into the cache at the start of each
-	  block. Interrupts are also disabled to avoid races where cachelines
-	  are evicted when the CPU is interrupted to do something else.
 
 config CRYPTO_ANUBIS
 	tristate "Anubis"
@@ -601,9 +589,9 @@ menu "Length-preserving ciphers and modes"
 config CRYPTO_ADIANTUM
 	tristate "Adiantum"
 	select CRYPTO_CHACHA20
+	select CRYPTO_LIB_NH
 	select CRYPTO_LIB_POLY1305
 	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_NHPOLY1305
 	select CRYPTO_MANAGER
 	help
 	  Adiantum tweakable, length-preserving encryption mode
@@ -759,12 +747,6 @@ config CRYPTO_XTS
 	  implementation currently can't handle a sectorsize which is not a
 	  multiple of 16 bytes.
 
-config CRYPTO_NHPOLY1305
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305
-	select CRYPTO_LIB_POLY1305_GENERIC
-
 endmenu
 
 menu "AEAD (authenticated encryption with associated data) ciphers"
@@ -772,7 +754,7 @@ menu "AEAD (authenticated encryption with associated data) ciphers"
 config CRYPTO_AEGIS128
 	tristate "AEGIS-128"
 	select CRYPTO_AEAD
-	select CRYPTO_AES  # for AES S-box tables
+	select CRYPTO_LIB_AES  # for AES S-box tables
 	help
 	  AEGIS-128 AEAD algorithm
 

@@ -20,7 +20,7 @@ extern void * const sys_call_table[];
 extern void * const compat_sys_call_table[];
 
 /*
- * Only the low 32 bits of orig_r0 are meaningful, so we return int.
+ * Only the low 32 bits of orig_a0 are meaningful, so we return int.
  * This importantly ignores the high bits on 64-bit, so comparisons
  * sign-extend the low 32 bits.
  */

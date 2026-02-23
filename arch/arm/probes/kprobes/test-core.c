@@ -763,9 +763,8 @@ static int coverage_start_fn(const struct decode_header *h, void *args)
 
 static int coverage_start(const union decode_item *table)
 {
-	coverage.base = kmalloc_array(MAX_COVERAGE_ENTRIES,
-				      sizeof(struct coverage_entry),
-				      GFP_KERNEL);
+	coverage.base = kmalloc_objs(struct coverage_entry,
+				     MAX_COVERAGE_ENTRIES);
 	coverage.num_entries = 0;
 	coverage.nesting = 0;
 	return table_iter(table, coverage_start_fn, &coverage);

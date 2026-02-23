@@ -27,7 +27,7 @@ static int sunxi_reset_init(struct device_node *np)
 	resource_size_t size;
 	int ret;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

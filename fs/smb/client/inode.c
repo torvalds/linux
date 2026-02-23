@@ -16,7 +16,6 @@
 #include <linux/fiemap.h>
 #include <asm/div64.h>
 #include "cifsfs.h"
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
@@ -1842,7 +1841,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 
 	/* set ATTR_HIDDEN and clear ATTR_READONLY, but only if needed */
 	if (dosattr != origattr) {
-		info_buf = kzalloc(sizeof(*info_buf), GFP_KERNEL);
+		info_buf = kzalloc_obj(*info_buf);
 		if (info_buf == NULL) {
 			rc = -ENOMEM;
 			goto out_close;
@@ -2042,7 +2041,7 @@ psx_del_no_retry:
 			}
 		}
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
-		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+		attrs = kzalloc_obj(*attrs);
 		if (attrs == NULL) {
 			rc = -ENOMEM;
 			goto out_reval;
@@ -2198,7 +2197,7 @@ cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
 	struct inode *newinode = NULL;
 	struct cifs_fattr fattr;
 
-	info = kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
+	info = kzalloc_obj(FILE_UNIX_BASIC_INFO);
 	if (info == NULL) {
 		rc = -ENOMEM;
 		goto posix_mkdir_out;
@@ -2586,8 +2585,7 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 		 * with unix extensions enabled.
 		 */
 		info_buf_source =
-			kmalloc_array(2, sizeof(FILE_UNIX_BASIC_INFO),
-					GFP_KERNEL);
+			kmalloc_objs(FILE_UNIX_BASIC_INFO, 2);
 		if (info_buf_source == NULL) {
 			rc = -ENOMEM;
 			goto cifs_rename_exit;
@@ -3168,7 +3166,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (attrs->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
 		attrs->ia_valid &= ~ATTR_MODE;
 
-	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	args = kmalloc_obj(*args);
 	if (args == NULL) {
 		rc = -ENOMEM;
 		goto out;

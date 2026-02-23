@@ -330,7 +330,7 @@ struct tb_nvm *tb_nvm_alloc(struct device *dev)
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+	nvm = kzalloc_obj(*nvm);
 	if (!nvm)
 		return ERR_PTR(-ENOMEM);
 

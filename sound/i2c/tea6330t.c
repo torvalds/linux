@@ -285,7 +285,7 @@ int snd_tea6330t_update_mixer(struct snd_card *card,
 	u8 default_treble, default_bass;
 	unsigned char bytes[7];
 
-	tea = kzalloc(sizeof(*tea), GFP_KERNEL);
+	tea = kzalloc_obj(*tea);
 	if (tea == NULL)
 		return -ENOMEM;
 	err = snd_i2c_device_create(bus, "TEA6330T", TEA6330T_ADDR, &device);

@@ -102,7 +102,7 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	/* allocate a cache record */
-	cache = kzalloc(sizeof(struct cachefiles_cache), GFP_KERNEL);
+	cache = kzalloc_obj(struct cachefiles_cache);
 	if (!cache) {
 		cachefiles_open = 0;
 		return -ENOMEM;

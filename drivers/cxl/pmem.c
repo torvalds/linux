@@ -234,7 +234,7 @@ static int cxl_pmem_set_config_data(struct cxl_memdev_state *mds,
 		return -EINVAL;
 
 	set_lsa =
-		kvzalloc(struct_size(set_lsa, data, cmd->in_length), GFP_KERNEL);
+		kvzalloc_flex(*set_lsa, data, cmd->in_length);
 	if (!set_lsa)
 		return -ENOMEM;
 
@@ -426,7 +426,7 @@ static int cxl_pmem_region_probe(struct device *dev)
 	set_bit(ND_REGION_CXL, &ndr_desc.flags);
 	set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc.flags);
 
-	info = kmalloc_array(cxlr_pmem->nr_mappings, sizeof(*info), GFP_KERNEL);
+	info = kmalloc_objs(*info, cxlr_pmem->nr_mappings);
 	if (!info)
 		return -ENOMEM;
 

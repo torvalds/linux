@@ -523,7 +523,7 @@ static void *vpa_dtl_setup_aux(struct perf_event *event, void **pages,
 	if (!buf)
 		return NULL;
 
-	pglist = kcalloc(nr_pages, sizeof(*pglist), GFP_KERNEL);
+	pglist = kzalloc_objs(*pglist, nr_pages);
 	if (!pglist)
 		return NULL;
 

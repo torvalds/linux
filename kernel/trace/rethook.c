@@ -108,7 +108,7 @@ struct rethook *rethook_alloc(void *data, rethook_handler_t handler,
 	if (!handler || num <= 0 || size < sizeof(struct rethook_node))
 		return ERR_PTR(-EINVAL);
 
-	rh = kzalloc(sizeof(struct rethook), GFP_KERNEL);
+	rh = kzalloc_obj(struct rethook);
 	if (!rh)
 		return ERR_PTR(-ENOMEM);
 

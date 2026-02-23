@@ -88,7 +88,7 @@ static int mf_init(struct hid_device *hid)
 		input_ptr = input_ptr->next;
 		input = list_entry(input_ptr, struct hid_input, list);
 
-		mf = kzalloc(sizeof(struct mf_device), GFP_KERNEL);
+		mf = kzalloc_obj(struct mf_device);
 		if (!mf)
 			return -ENOMEM;
 

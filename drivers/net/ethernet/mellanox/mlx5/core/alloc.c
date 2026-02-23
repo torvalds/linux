@@ -79,8 +79,7 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 	buf->size = size;
 	buf->npages = DIV_ROUND_UP(size, PAGE_SIZE);
 	buf->page_shift = PAGE_SHIFT;
-	buf->frags = kcalloc(buf->npages, sizeof(struct mlx5_buf_list),
-			     GFP_KERNEL);
+	buf->frags = kzalloc_objs(struct mlx5_buf_list, buf->npages);
 	if (!buf->frags)
 		goto err_out;
 

@@ -67,7 +67,6 @@ struct power_dom_info {
 };
 
 struct scmi_power_info {
-	u32 version;
 	bool notify_state_change_cmd;
 	int num_domains;
 	u64 stats_addr;
@@ -109,7 +108,7 @@ static int scmi_power_attributes_get(const struct scmi_protocol_handle *ph,
 static int
 scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 				 u32 domain, struct power_dom_info *dom_info,
-				 u32 version, bool notify_state_change_cmd)
+				 bool notify_state_change_cmd)
 {
 	int ret;
 	u32 flags;
@@ -141,7 +140,7 @@ scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	 * If supported overwrite short name with the extended one;
 	 * on error just carry on and use already provided short name.
 	 */
-	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	if (!ret && PROTOCOL_REV_MAJOR(ph->version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(flags)) {
 		ph->hops->extended_name_get(ph, POWER_DOMAIN_NAME_GET,
 					    domain, NULL, dom_info->name,
@@ -323,15 +322,10 @@ static const struct scmi_protocol_events power_protocol_events = {
 static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int domain, ret;
-	u32 version;
 	struct scmi_power_info *pinfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_dbg(ph->dev, "Power Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
@@ -349,13 +343,11 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct power_dom_info *dom = pinfo->dom_info + domain;
 
-		scmi_power_domain_attributes_get(ph, domain, dom, version,
+		scmi_power_domain_attributes_get(ph, domain, dom,
 						 pinfo->notify_state_change_cmd);
 	}
 
-	pinfo->version = version;
-
-	return ph->set_priv(ph, pinfo, version);
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_power = {

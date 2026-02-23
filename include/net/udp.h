@@ -294,8 +294,7 @@ static inline int udp_lib_init_sock(struct sock *sk)
 	up->forward_threshold = sk->sk_rcvbuf >> 2;
 	set_bit(SOCK_CUSTOM_SOCKOPT, &sk->sk_socket->flags);
 
-	up->udp_prod_queue = kcalloc(nr_node_ids, sizeof(*up->udp_prod_queue),
-				     GFP_KERNEL);
+	up->udp_prod_queue = kzalloc_objs(*up->udp_prod_queue, nr_node_ids);
 	if (!up->udp_prod_queue)
 		return -ENOMEM;
 	for (int i = 0; i < nr_node_ids; i++)
@@ -527,18 +526,18 @@ static inline int copy_linear_skb(struct sk_buff *skb, int len, int off,
  * 	SNMP statistics for UDP and UDP-Lite
  */
 #define UDP_INC_STATS(net, field, is_udplite)		      do { \
-	if (is_udplite) SNMP_INC_STATS((net)->mib.udplite_statistics, field);       \
+	if (unlikely(is_udplite)) SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
 	else		SNMP_INC_STATS((net)->mib.udp_statistics, field);  }  while(0)
 #define __UDP_INC_STATS(net, field, is_udplite) 	      do { \
-	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);         \
+	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_statistics, field);	\
 	else		__SNMP_INC_STATS((net)->mib.udp_statistics, field);    }  while(0)
 
 #define __UDP6_INC_STATS(net, field, is_udplite)	    do { \
-	if (is_udplite) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);\
+	if (unlikely(is_udplite)) __SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
 	else		__SNMP_INC_STATS((net)->mib.udp_stats_in6, field);  \
 } while(0)
 #define UDP6_INC_STATS(net, field, __lite)		    do { \
-	if (__lite) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);  \
+	if (unlikely(__lite)) SNMP_INC_STATS((net)->mib.udplite_stats_in6, field);	\
 	else	    SNMP_INC_STATS((net)->mib.udp_stats_in6, field);      \
 } while(0)
 

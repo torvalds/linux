@@ -71,7 +71,7 @@ static int zpff_init(struct hid_device *hid)
 			return -ENODEV;
 	}
 
-	zpff = kzalloc(sizeof(struct zpff_device), GFP_KERNEL);
+	zpff = kzalloc_obj(struct zpff_device);
 	if (!zpff)
 		return -ENOMEM;
 

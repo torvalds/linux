@@ -638,7 +638,7 @@ alloc_scq(struct idt77252_dev *card, int class)
 {
 	struct scq_info *scq;
 
-	scq = kzalloc(sizeof(struct scq_info), GFP_KERNEL);
+	scq = kzalloc_obj(struct scq_info);
 	if (!scq)
 		return NULL;
 	scq->base = dma_alloc_coherent(&card->pcidev->dev, SCQ_SIZE,
@@ -1844,7 +1844,6 @@ add_rx_skb(struct idt77252_dev *card, int queue,
 {
 	struct sk_buff *skb;
 	dma_addr_t paddr;
-	u32 handle;
 
 	while (count--) {
 		skb = dev_alloc_skb(size);
@@ -1876,8 +1875,7 @@ outunmap:
 			 skb_end_pointer(skb) - skb->data, DMA_FROM_DEVICE);
 
 outpoolrm:
-	handle = IDT77252_PRV_POOL(skb);
-	card->sbpool[POOL_QUEUE(handle)].skb[POOL_INDEX(handle)] = NULL;
+	sb_pool_remove(card, skb);
 
 outfree:
 	dev_kfree_skb(skb);
@@ -2118,7 +2116,7 @@ idt77252_init_est(struct vc_map *vc, int pcr)
 {
 	struct rate_estimator *est;
 
-	est = kzalloc(sizeof(struct rate_estimator), GFP_KERNEL);
+	est = kzalloc_obj(struct rate_estimator);
 	if (!est)
 		return NULL;
 	est->maxcps = pcr < 0 ? -pcr : pcr;
@@ -2426,7 +2424,7 @@ idt77252_open(struct atm_vcc *vcc)
 
 	index = VPCI2VC(card, vpi, vci);
 	if (!card->vcs[index]) {
-		card->vcs[index] = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
+		card->vcs[index] = kzalloc_obj(struct vc_map);
 		if (!card->vcs[index]) {
 			printk("%s: can't alloc vc in open()\n", card->name);
 			mutex_unlock(&card->mutex);
@@ -2857,7 +2855,7 @@ open_card_oam(struct idt77252_dev *card)
 		for (vci = 3; vci < 5; vci++) {
 			index = VPCI2VC(card, vpi, vci);
 
-			vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
+			vc = kzalloc_obj(struct vc_map);
 			if (!vc) {
 				printk("%s: can't alloc vc\n", card->name);
 				return -ENOMEM;
@@ -2925,7 +2923,7 @@ open_card_ubr0(struct idt77252_dev *card)
 {
 	struct vc_map *vc;
 
-	vc = kzalloc(sizeof(struct vc_map), GFP_KERNEL);
+	vc = kzalloc_obj(struct vc_map);
 	if (!vc) {
 		printk("%s: can't alloc vc\n", card->name);
 		return -ENOMEM;
@@ -3623,7 +3621,7 @@ static int idt77252_init_one(struct pci_dev *pcidev,
 		goto err_out_disable_pdev;
 	}
 
-	card = kzalloc(sizeof(struct idt77252_dev), GFP_KERNEL);
+	card = kzalloc_obj(struct idt77252_dev);
 	if (!card) {
 		printk("idt77252-%d: can't allocate private data\n", index);
 		err = -ENOMEM;

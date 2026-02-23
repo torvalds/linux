@@ -123,6 +123,8 @@ void ni_clear(struct ntfs_inode *ni)
 		indx_clear(&ni->dir);
 	else {
 		run_close(&ni->file.run);
+		ntfs_sub_da(ni->mi.sbi, run_len(&ni->file.run_da));
+		run_close(&ni->file.run_da);
 #ifdef CONFIG_NTFS3_LZX_XPRESS
 		if (ni->file.offs_folio) {
 			/* On-demand allocated page for offsets. */
@@ -314,7 +316,7 @@ bool ni_add_subrecord(struct ntfs_inode *ni, CLST rno, struct mft_inode **mi)
 {
 	struct mft_inode *m;
 
-	m = kzalloc(sizeof(struct mft_inode), GFP_NOFS);
+	m = kzalloc_obj(struct mft_inode, GFP_NOFS);
 	if (!m)
 		return false;
 
@@ -1850,183 +1852,11 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 	return REPARSE_LINK;
 }
 
-/*
- * ni_fiemap - Helper for file_fiemap().
- *
- * Assumed ni_lock.
- * TODO: Less aggressive locks.
- */
-int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
-	      __u64 vbo, __u64 len)
-{
-	int err = 0;
-	struct ntfs_sb_info *sbi = ni->mi.sbi;
-	u8 cluster_bits = sbi->cluster_bits;
-	struct runs_tree run;
-	struct ATTRIB *attr;
-	CLST vcn = vbo >> cluster_bits;
-	CLST lcn, clen;
-	u64 valid = ni->i_valid;
-	u64 lbo, bytes;
-	u64 end, alloc_size;
-	size_t idx = -1;
-	u32 flags;
-	bool ok;
-
-	run_init(&run);
-	if (S_ISDIR(ni->vfs_inode.i_mode)) {
-		attr = ni_find_attr(ni, NULL, NULL, ATTR_ALLOC, I30_NAME,
-				    ARRAY_SIZE(I30_NAME), NULL, NULL);
-	} else {
-		attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL,
-				    NULL);
-		if (!attr) {
-			err = -EINVAL;
-			goto out;
-		}
-		if (is_attr_compressed(attr)) {
-			/* Unfortunately cp -r incorrectly treats compressed clusters. */
-			err = -EOPNOTSUPP;
-			ntfs_inode_warn(
-				&ni->vfs_inode,
-				"fiemap is not supported for compressed file (cp -r)");
-			goto out;
-		}
-	}
-
-	if (!attr || !attr->non_res) {
-		err = fiemap_fill_next_extent(
-			fieinfo, 0, 0,
-			attr ? le32_to_cpu(attr->res.data_size) : 0,
-			FIEMAP_EXTENT_DATA_INLINE | FIEMAP_EXTENT_LAST |
-				FIEMAP_EXTENT_MERGED);
-		goto out;
-	}
-
-	end = vbo + len;
-	alloc_size = le64_to_cpu(attr->nres.alloc_size);
-	if (end > alloc_size)
-		end = alloc_size;
-
-	while (vbo < end) {
-		if (idx == -1) {
-			ok = run_lookup_entry(&run, vcn, &lcn, &clen, &idx);
-		} else {
-			CLST vcn_next = vcn;
-
-			ok = run_get_entry(&run, ++idx, &vcn, &lcn, &clen) &&
-			     vcn == vcn_next;
-			if (!ok)
-				vcn = vcn_next;
-		}
-
-		if (!ok) {
-			err = attr_load_runs_vcn(ni, attr->type,
-						 attr_name(attr),
-						 attr->name_len, &run, vcn);
-
-			if (err)
-				break;
-
-			ok = run_lookup_entry(&run, vcn, &lcn, &clen, &idx);
-
-			if (!ok) {
-				err = -EINVAL;
-				break;
-			}
-		}
-
-		if (!clen) {
-			err = -EINVAL; // ?
-			break;
-		}
-
-		if (lcn == SPARSE_LCN) {
-			vcn += clen;
-			vbo = (u64)vcn << cluster_bits;
-			continue;
-		}
-
-		flags = FIEMAP_EXTENT_MERGED;
-		if (S_ISDIR(ni->vfs_inode.i_mode)) {
-			;
-		} else if (is_attr_compressed(attr)) {
-			CLST clst_data;
-
-			err = attr_is_frame_compressed(ni, attr,
-						       vcn >> attr->nres.c_unit,
-						       &clst_data, &run);
-			if (err)
-				break;
-			if (clst_data < NTFS_LZNT_CLUSTERS)
-				flags |= FIEMAP_EXTENT_ENCODED;
-		} else if (is_attr_encrypted(attr)) {
-			flags |= FIEMAP_EXTENT_DATA_ENCRYPTED;
-		}
-
-		vbo = (u64)vcn << cluster_bits;
-		bytes = (u64)clen << cluster_bits;
-		lbo = (u64)lcn << cluster_bits;
-
-		vcn += clen;
-
-		if (vbo + bytes >= end)
-			bytes = end - vbo;
-
-		if (vbo + bytes <= valid) {
-			;
-		} else if (vbo >= valid) {
-			flags |= FIEMAP_EXTENT_UNWRITTEN;
-		} else {
-			/* vbo < valid && valid < vbo + bytes */
-			u64 dlen = valid - vbo;
-
-			if (vbo + dlen >= end)
-				flags |= FIEMAP_EXTENT_LAST;
-
-			err = fiemap_fill_next_extent(fieinfo, vbo, lbo, dlen,
-						      flags);
-
-			if (err < 0)
-				break;
-			if (err == 1) {
-				err = 0;
-				break;
-			}
-
-			vbo = valid;
-			bytes -= dlen;
-			if (!bytes)
-				continue;
-
-			lbo += dlen;
-			flags |= FIEMAP_EXTENT_UNWRITTEN;
-		}
-
-		if (vbo + bytes >= end)
-			flags |= FIEMAP_EXTENT_LAST;
-
-		err = fiemap_fill_next_extent(fieinfo, vbo, lbo, bytes, flags);
-		if (err < 0)
-			break;
-		if (err == 1) {
-			err = 0;
-			break;
-		}
-
-		vbo += bytes;
-	}
-
-out:
-	run_close(&run);
-	return err;
-}
-
 static struct page *ntfs_lock_new_page(struct address_space *mapping,
-		pgoff_t index, gfp_t gfp)
+				       pgoff_t index, gfp_t gfp)
 {
-	struct folio *folio = __filemap_get_folio(mapping, index,
-			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
+	struct folio *folio = __filemap_get_folio(
+		mapping, index, FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
 	struct page *page;
 
 	if (IS_ERR(folio))
@@ -2046,18 +1876,18 @@ static struct page *ntfs_lock_new_page(struct address_space *mapping,
 }
 
 /*
- * ni_readpage_cmpr
+ * ni_read_folio_cmpr
  *
  * When decompressing, we typically obtain more than one page per reference.
  * We inject the additional pages into the page cache.
  */
-int ni_readpage_cmpr(struct ntfs_inode *ni, struct folio *folio)
+int ni_read_folio_cmpr(struct ntfs_inode *ni, struct folio *folio)
 {
 	int err;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct address_space *mapping = folio->mapping;
-	pgoff_t index = folio->index;
-	u64 frame_vbo, vbo = (u64)index << PAGE_SHIFT;
+	pgoff_t index;
+	u64 frame_vbo, vbo = folio_pos(folio);
 	struct page **pages = NULL; /* Array of at most 16 pages. stack? */
 	u8 frame_bits;
 	CLST frame;
@@ -2085,7 +1915,7 @@ int ni_readpage_cmpr(struct ntfs_inode *ni, struct folio *folio)
 	idx = (vbo - frame_vbo) >> PAGE_SHIFT;
 
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = kcalloc(pages_per_frame, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, pages_per_frame, GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;
@@ -2107,7 +1937,9 @@ int ni_readpage_cmpr(struct ntfs_inode *ni, struct folio *folio)
 		pages[i] = pg;
 	}
 
+	ni_lock(ni);
 	err = ni_read_frame(ni, frame_vbo, pages, pages_per_frame, 0);
+	ni_unlock(ni);
 
 out1:
 	for (i = 0; i < pages_per_frame; i++) {
@@ -2166,7 +1998,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 	frame_bits = ni_ext_compress_bits(ni);
 	frame_size = 1u << frame_bits;
 	pages_per_frame = frame_size >> PAGE_SHIFT;
-	pages = kcalloc(pages_per_frame, sizeof(struct page *), GFP_NOFS);
+	pages = kzalloc_objs(struct page *, pages_per_frame, GFP_NOFS);
 	if (!pages) {
 		err = -ENOMEM;
 		goto out;
@@ -2184,7 +2016,8 @@ int ni_decompress_file(struct ntfs_inode *ni)
 
 		for (vcn = vbo >> sbi->cluster_bits; vcn < end; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
-						  &clen, &new, false);
+						  &clen, &new, false, NULL,
+						  false);
 			if (err)
 				goto out;
 		}
@@ -2405,7 +2238,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 	struct runs_tree *run = &ni->file.run;
 	u64 valid_size = ni->i_valid;
 	u64 vbo_disk;
-	size_t unc_size;
+	size_t unc_size = 0;
 	u32 frame_size, i, ondisk_size;
 	struct page *pg;
 	struct ATTRIB *attr;
@@ -3002,6 +2835,134 @@ bool ni_is_dirty(struct inode *inode)
 }
 
 /*
+ * ni_seek_data_or_hole
+ *
+ * Helper function for ntfs_llseek( SEEK_DATA/SEEK_HOLE )
+ */
+loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
+{
+	int err;
+	u8 cluster_bits = ni->mi.sbi->cluster_bits;
+	CLST vcn, lcn, clen;
+	loff_t vbo;
+
+	/* Enumerate all fragments. */
+	for (vcn = offset >> cluster_bits;; vcn += clen) {
+		err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL, false,
+					  NULL, false);
+		if (err) {
+			return err;
+		}
+
+		if (lcn == RESIDENT_LCN) {
+			/* clen - resident size in bytes. clen == ni->vfs_inode.i_size */
+			if (offset >= clen) {
+				/* check eof. */
+				return -ENXIO;
+			}
+
+			if (data) {
+				return offset;
+			}
+
+			return clen;
+		}
+
+		if (lcn == EOF_LCN) {
+			if (data) {
+				return -ENXIO;
+			}
+
+			/* implicit hole at the end of file. */
+			return ni->vfs_inode.i_size;
+		}
+
+		if (data) {
+			/*
+			 * Adjust the file offset to the next location in the file greater than
+			 * or equal to offset containing data. If offset points to data, then
+			 * the file offset is set to offset.
+			 */
+			if (lcn != SPARSE_LCN) {
+				vbo = (u64)vcn << cluster_bits;
+				return max(vbo, offset);
+			}
+		} else {
+			/*
+			 * Adjust the file offset to the next hole in the file greater than or
+			 * equal to offset. If offset points into the middle of a hole, then the
+			 * file offset is set to offset. If there is no hole past offset, then the
+			 * file offset is adjusted to the end of the file
+			 * (i.e., there is an implicit hole at the end of any file).
+			 */
+			if (lcn == SPARSE_LCN &&
+			    /* native compression hole begins at aligned vcn. */
+			    (!(ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) ||
+			     !(vcn & (NTFS_LZNT_CLUSTERS - 1)))) {
+				vbo = (u64)vcn << cluster_bits;
+				return max(vbo, offset);
+			}
+		}
+
+		if (!clen) {
+			/* Corrupted file. */
+			return -EINVAL;
+		}
+	}
+}
+
+/*
+ * ni_write_parents
+ *
+ * Helper function for ntfs_file_fsync.
+ */
+int ni_write_parents(struct ntfs_inode *ni, int sync)
+{
+	int err = 0;
+	struct ATTRIB *attr = NULL;
+	struct ATTR_LIST_ENTRY *le = NULL;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
+	struct super_block *sb = sbi->sb;
+
+	while ((attr = ni_find_attr(ni, attr, &le, ATTR_NAME, NULL, 0, NULL,
+				    NULL))) {
+		struct inode *dir;
+		struct ATTR_FILE_NAME *fname;
+
+		fname = resident_data_ex(attr, SIZEOF_ATTRIBUTE_FILENAME);
+		if (!fname)
+			continue;
+
+		/* Check simple case when parent inode equals current inode. */
+		if (ino_get(&fname->home) == ni->vfs_inode.i_ino) {
+			if (MFT_REC_ROOT != ni->vfs_inode.i_ino) {
+				ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+				err = -EINVAL;
+			}
+			continue;
+		}
+
+		dir = ntfs_iget5(sb, &fname->home, NULL);
+		if (IS_ERR(dir)) {
+			ntfs_inode_warn(
+				&ni->vfs_inode,
+				"failed to open parent directory r=%lx to write",
+				(long)ino_get(&fname->home));
+			continue;
+		}
+
+		if (!is_bad_inode(dir)) {
+			int err2 = write_inode_now(dir, sync);
+			if (!err)
+				err = err2;
+		}
+		iput(dir);
+	}
+
+	return err;
+}
+
+/*
  * ni_update_parent
  *
  * Update duplicate info of ATTR_FILE_NAME in MFT and in parent directories.
@@ -3276,4 +3237,63 @@ out:
 		mark_inode_dirty_sync(inode);
 
 	return 0;
+}
+
+/*
+ * Force to allocate all delay allocated clusters.
+ */
+int ni_allocate_da_blocks(struct ntfs_inode *ni)
+{
+	int err;
+
+	ni_lock(ni);
+	down_write(&ni->file.run_lock);
+
+	err = ni_allocate_da_blocks_locked(ni);
+
+	up_write(&ni->file.run_lock);
+	ni_unlock(ni);
+
+	return err;
+}
+
+/*
+ * Force to allocate all delay allocated clusters.
+ */
+int ni_allocate_da_blocks_locked(struct ntfs_inode *ni)
+{
+	int err;
+
+	if (!ni->file.run_da.count)
+		return 0;
+
+	if (is_sparsed(ni)) {
+		CLST vcn, lcn, clen, alen;
+		bool new;
+
+		/*
+		 * Sparse file allocates clusters in 'attr_data_get_block_locked'
+		 */
+		while (run_get_entry(&ni->file.run_da, 0, &vcn, &lcn, &clen)) {
+			/* TODO: zero=true? */
+			err = attr_data_get_block_locked(ni, vcn, clen, &lcn,
+							 &alen, &new, true,
+							 NULL, true);
+			if (err)
+				break;
+			if (!new) {
+				err = -EINVAL;
+				break;
+			}
+		}
+	} else {
+		/*
+		 * Normal file allocates clusters in 'attr_set_size'
+		 */
+		err = attr_set_size_ex(ni, ATTR_DATA, NULL, 0, &ni->file.run,
+				       ni->vfs_inode.i_size, &ni->i_valid,
+				       false, NULL, true);
+	}
+
+	return err;
 }

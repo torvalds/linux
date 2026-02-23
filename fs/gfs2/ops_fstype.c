@@ -76,7 +76,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp;
 
-	sdp = kzalloc(sizeof(struct gfs2_sbd), GFP_KERNEL);
+	sdp = kzalloc_obj(struct gfs2_sbd);
 	if (!sdp)
 		return NULL;
 
@@ -562,7 +562,7 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 
 		error = -ENOMEM;
-		jd = kzalloc(sizeof(struct gfs2_jdesc), GFP_KERNEL);
+		jd = kzalloc_obj(struct gfs2_jdesc);
 		if (!jd)
 			break;
 
@@ -631,7 +631,7 @@ static int init_statfs(struct gfs2_sbd *sdp)
 	 * per_node metafs directory and save it in the sdp->sd_sc_inodes_list. */
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		struct local_statfs_inode *lsi =
-			kmalloc(sizeof(struct local_statfs_inode), GFP_NOFS);
+			kmalloc_obj(struct local_statfs_inode, GFP_NOFS);
 		if (!lsi) {
 			error = -ENOMEM;
 			goto free_local;
@@ -1276,7 +1276,6 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	if (error) {
 		gfs2_freeze_unlock(sdp);
-		gfs2_destroy_threads(sdp);
 		fs_err(sdp, "can't make FS RW: %d\n", error);
 		goto fail_per_node;
 	}
@@ -1286,6 +1285,7 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 fail_per_node:
 	init_per_node(sdp, UNDO);
+	gfs2_destroy_threads(sdp);
 fail_inodes:
 	init_inodes(sdp, UNDO);
 fail_sb:
@@ -1637,7 +1637,7 @@ static int gfs2_init_fs_context(struct fs_context *fc)
 {
 	struct gfs2_args *args;
 
-	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	args = kmalloc_obj(*args);
 	if (args == NULL)
 		return -ENOMEM;
 

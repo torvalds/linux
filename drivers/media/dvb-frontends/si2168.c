@@ -681,7 +681,7 @@ static int si2168_probe(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;

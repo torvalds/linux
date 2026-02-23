@@ -2074,7 +2074,7 @@ static int elantech_setup_ps2(struct psmouse *psmouse,
 	int error = -EINVAL;
 	struct input_dev *tp_dev;
 
-	psmouse->private = etd = kzalloc(sizeof(*etd), GFP_KERNEL);
+	psmouse->private = etd = kzalloc_obj(*etd);
 	if (!etd)
 		return -ENOMEM;
 

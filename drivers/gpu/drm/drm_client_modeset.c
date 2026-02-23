@@ -44,7 +44,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 	int i = 0;
 
 	/* Add terminating zero entry to enable index less iteration */
-	client->modesets = kcalloc(num_crtc + 1, sizeof(*client->modesets), GFP_KERNEL);
+	client->modesets = kzalloc_objs(*client->modesets, num_crtc + 1);
 	if (!client->modesets)
 		return -ENOMEM;
 
@@ -58,8 +58,8 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 		max_connector_count = DRM_CLIENT_MAX_CLONED_CONNECTORS;
 
 	for (modeset = client->modesets; modeset->crtc; modeset++) {
-		modeset->connectors = kcalloc(max_connector_count,
-					      sizeof(*modeset->connectors), GFP_KERNEL);
+		modeset->connectors = kzalloc_objs(*modeset->connectors,
+						   max_connector_count);
 		if (!modeset->connectors)
 			goto err_free;
 	}
@@ -565,7 +565,7 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 	if (modes[n] == NULL)
 		return best_score;
 
-	crtcs = kcalloc(connector_count, sizeof(*crtcs), GFP_KERNEL);
+	crtcs = kzalloc_objs(*crtcs, connector_count);
 	if (!crtcs)
 		return best_score;
 
@@ -641,7 +641,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	if (drm_WARN_ON(dev, count <= 0))
 		return false;
 
-	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
+	save_enabled = kzalloc_objs(bool, count);
 	if (!save_enabled)
 		return false;
 
@@ -853,10 +853,10 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 	if (!connector_count)
 		return 0;
 
-	crtcs = kcalloc(connector_count, sizeof(*crtcs), GFP_KERNEL);
-	modes = kcalloc(connector_count, sizeof(*modes), GFP_KERNEL);
-	offsets = kcalloc(connector_count, sizeof(*offsets), GFP_KERNEL);
-	enabled = kcalloc(connector_count, sizeof(bool), GFP_KERNEL);
+	crtcs = kzalloc_objs(*crtcs, connector_count);
+	modes = kzalloc_objs(*modes, connector_count);
+	offsets = kzalloc_objs(*offsets, connector_count);
+	enabled = kzalloc_objs(bool, connector_count);
 	if (!crtcs || !modes || !enabled || !offsets) {
 		ret = -ENOMEM;
 		goto out;

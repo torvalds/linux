@@ -30,7 +30,7 @@ source "drivers/nvmem/layouts/Kconfig"
 
 config NVMEM_AN8855_EFUSE
 	tristate "Airoha AN8855 eFuse support"
-	depends on MFD_AIROHA_AN8855 || COMPILE_TEST
+	depends on COMPILE_TEST
 	help
 	  Say y here to enable support for reading eFuses on Airoha AN8855
 	  Switch. These are e.g. used to store factory programmed

@@ -147,7 +147,7 @@ static int revo51_i2c_init(struct snd_ice1712 *ice,
 	struct revo51_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -470,7 +470,7 @@ static int ap192_ak4114_init(struct snd_ice1712 *ice)
 	int err;
 
 	struct revo51_spec *spec;
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -515,7 +515,7 @@ static int revo_init(struct snd_ice1712 *ice)
 	}
 
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ak = ice->akm = kzalloc_objs(struct snd_akm4xxx, 2);
 	if (! ak)
 		return -ENOMEM;
 	switch (ice->eeprom.subvendor) {

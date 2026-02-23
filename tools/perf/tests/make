@@ -70,6 +70,7 @@ make_python_perf_so := $(python_perf_so)
 make_debug          := DEBUG=1
 make_nondistro      := BUILD_NONDISTRO=1
 make_extra_tests    := EXTRA_TESTS=1
+make_no_jevents     := NO_JEVENTS=1
 make_jevents_all    := JEVENTS_ARCH=all
 make_no_bpf_skel    := BUILD_BPF_SKEL=0
 make_gen_vmlinux_h  := GEN_VMLINUX_H=1
@@ -83,9 +84,9 @@ make_no_demangle    := NO_DEMANGLE=1
 make_no_libelf      := NO_LIBELF=1
 make_no_libdw       := NO_LIBDW=1
 make_libunwind      := LIBUNWIND=1
-make_no_libdw_dwarf_unwind := NO_LIBDW_DWARF_UNWIND=1
 make_no_backtrace   := NO_BACKTRACE=1
 make_no_libcapstone := NO_CAPSTONE=1
+make_libcapstone_dlopen := LIBCAPSTONE_DLOPEN=1
 make_no_libnuma     := NO_LIBNUMA=1
 make_no_libbionic   := NO_LIBBIONIC=1
 make_no_libbpf	    := NO_LIBBPF=1
@@ -120,9 +121,12 @@ make_static         := LDFLAGS=-static NO_PERF_READ_VDSO32=1 NO_PERF_READ_VDSOX3
 make_minimal        := NO_LIBPYTHON=1 NO_GTK2=1
 make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_BACKTRACE=1
 make_minimal        += NO_LIBNUMA=1 NO_LIBBIONIC=1 NO_LIBDW=1
-make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_LIBBPF=1
+make_minimal        += NO_LIBBPF=1
 make_minimal        += NO_SDT=1 NO_JVMTI=1 NO_LIBZSTD=1
-make_minimal        += NO_LIBCAP=1 NO_CAPSTONE=1
+make_minimal        += NO_CAPSTONE=1
+
+# binutils 2_42 and newer have bfd_thread_init()
+new_libbfd := $(shell echo '#include <bfd.h>' | $(CC) -E -x c - | grep bfd_thread_init)
 
 # $(run) contains all available tests
 run := make_pure
@@ -137,8 +141,11 @@ MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
+ifneq ($(new_libbfd),)
 run += make_nondistro
+endif
 run += make_extra_tests
+run += make_no_jevents
 run += make_jevents_all
 run += make_no_bpf_skel
 run += make_gen_vmlinux_h
@@ -155,6 +162,7 @@ run += make_libunwind
 run += make_no_libdw_dwarf_unwind
 run += make_no_backtrace
 run += make_no_libcapstone
+run += make_libcapstone_dlopen
 run += make_no_libnuma
 run += make_no_libbionic
 run += make_no_libbpf

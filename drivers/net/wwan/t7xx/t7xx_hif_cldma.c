@@ -391,7 +391,7 @@ static struct cldma_request *t7xx_alloc_rx_request(struct cldma_ctrl *md_ctrl, s
 	struct cldma_request *req;
 	int val;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 
@@ -451,7 +451,7 @@ static struct cldma_request *t7xx_alloc_tx_request(struct cldma_ctrl *md_ctrl)
 {
 	struct cldma_request *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return NULL;
 
@@ -1206,7 +1206,7 @@ static int t7xx_cldma_suspend(struct t7xx_pci_dev *t7xx_dev, void *entity_param)
 
 static int t7xx_cldma_pm_init(struct cldma_ctrl *md_ctrl)
 {
-	md_ctrl->pm_entity = kzalloc(sizeof(*md_ctrl->pm_entity), GFP_KERNEL);
+	md_ctrl->pm_entity = kzalloc_obj(*md_ctrl->pm_entity);
 	if (!md_ctrl->pm_entity)
 		return -ENOMEM;
 

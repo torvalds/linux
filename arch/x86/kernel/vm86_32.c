@@ -232,7 +232,7 @@ static long do_sys_vm86(struct vm86plus_struct __user *user_vm86, bool plus)
 	}
 
 	if (!vm86) {
-		if (!(vm86 = kzalloc(sizeof(*vm86), GFP_KERNEL)))
+		if (!(vm86 = kzalloc_obj(*vm86)))
 			return -ENOMEM;
 		tsk->thread.vm86 = vm86;
 	}

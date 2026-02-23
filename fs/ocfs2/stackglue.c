@@ -328,8 +328,7 @@ int ocfs2_cluster_connect(const char *stack_name,
 		goto out;
 	}
 
-	new_conn = kzalloc(sizeof(struct ocfs2_cluster_connection),
-			   GFP_KERNEL);
+	new_conn = kzalloc_obj(struct ocfs2_cluster_connection);
 	if (!new_conn) {
 		rc = -ENOMEM;
 		goto out;

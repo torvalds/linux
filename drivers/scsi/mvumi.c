@@ -106,7 +106,7 @@ static int mvumi_map_pci_addr(struct pci_dev *dev, void **addr_array)
 static struct mvumi_res *mvumi_alloc_mem_resource(struct mvumi_hba *mhba,
 				enum resource_type type, unsigned int size)
 {
-	struct mvumi_res *res = kzalloc(sizeof(*res), GFP_ATOMIC);
+	struct mvumi_res *res = kzalloc_obj(*res, GFP_ATOMIC);
 
 	if (!res) {
 		dev_err(&mhba->pdev->dev,
@@ -252,7 +252,7 @@ static struct mvumi_cmd *mvumi_create_internal_cmd(struct mvumi_hba *mhba,
 {
 	struct mvumi_cmd *cmd;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		dev_err(&mhba->pdev->dev, "failed to create a internal cmd\n");
 		return NULL;
@@ -368,7 +368,7 @@ static int mvumi_alloc_cmds(struct mvumi_hba *mhba)
 	struct mvumi_cmd *cmd;
 
 	for (i = 0; i < mhba->max_io; i++) {
-		cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+		cmd = kzalloc_obj(*cmd);
 		if (!cmd)
 			goto err_exit;
 
@@ -1572,8 +1572,7 @@ static int mvumi_probe_devices(struct mvumi_hba *mhba)
 			found = mvumi_match_devices(mhba, id, wwid);
 			if (!found) {
 				mvumi_remove_devices(mhba, id);
-				mv_dev = kzalloc(sizeof(struct mvumi_device),
-								GFP_KERNEL);
+				mv_dev = kzalloc_obj(struct mvumi_device);
 				if (!mv_dev) {
 					dev_err(&mhba->pdev->dev,
 						"%s alloc mv_dev failed\n",
@@ -1749,7 +1748,7 @@ static void mvumi_launch_events(struct mvumi_hba *mhba, u32 isr_status)
 			continue;
 		}
 
-		mu_ev = kzalloc(sizeof(*mu_ev), GFP_ATOMIC);
+		mu_ev = kzalloc_obj(*mu_ev, GFP_ATOMIC);
 		if (mu_ev) {
 			INIT_WORK(&mu_ev->work_q, mvumi_scan_events);
 			mu_ev->mhba = mhba;
@@ -2077,8 +2076,8 @@ error:
  * @shost:			Scsi host to queue command on
  * @scmd:			SCSI command to be queued
  */
-static int mvumi_queue_command(struct Scsi_Host *shost,
-					struct scsi_cmnd *scmd)
+static enum scsi_qc_status mvumi_queue_command(struct Scsi_Host *shost,
+					       struct scsi_cmnd *scmd)
 {
 	struct mvumi_cmd *cmd;
 	struct mvumi_hba *mhba;
@@ -2193,7 +2192,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		mhba->mmio = mhba->base_addr[0];
 		base = mhba->mmio;
 		if (!mhba->regs) {
-			mhba->regs = kzalloc(sizeof(*regs), GFP_KERNEL);
+			mhba->regs = kzalloc_obj(*regs);
 			if (mhba->regs == NULL)
 				return -ENOMEM;
 		}
@@ -2245,7 +2244,7 @@ static int mvumi_cfg_hw_reg(struct mvumi_hba *mhba)
 		mhba->mmio = mhba->base_addr[2];
 		base = mhba->mmio;
 		if (!mhba->regs) {
-			mhba->regs = kzalloc(sizeof(*regs), GFP_KERNEL);
+			mhba->regs = kzalloc_obj(*regs);
 			if (mhba->regs == NULL)
 				return -ENOMEM;
 		}

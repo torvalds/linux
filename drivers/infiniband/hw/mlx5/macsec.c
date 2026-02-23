@@ -52,7 +52,7 @@ static struct mlx5_macsec_device *get_macsec_device(void *macdev,
 	if (macsec_device)
 		return macsec_device;
 
-	macsec_device = kzalloc(sizeof(*macsec_device), GFP_KERNEL);
+	macsec_device = kzalloc_obj(*macsec_device);
 	if (!macsec_device)
 		return NULL;
 
@@ -82,7 +82,7 @@ static void mlx5_macsec_save_roce_gid(struct mlx5_macsec_device *macsec_device,
 {
 	struct mlx5_roce_gids *roce_gids;
 
-	roce_gids = kzalloc(sizeof(*roce_gids), GFP_KERNEL);
+	roce_gids = kzalloc_obj(*roce_gids);
 	if (!roce_gids)
 		return;
 
@@ -180,9 +180,8 @@ int mlx5r_macsec_init_gids_and_devlist(struct mlx5_ib_dev *dev)
 
 	max_gids = MLX5_CAP_ROCE(dev->mdev, roce_address_table_size);
 	for (i = 0; i < dev->num_ports; i++) {
-		dev->port[i].reserved_gids = kcalloc(max_gids,
-						     sizeof(*dev->port[i].reserved_gids),
-						     GFP_KERNEL);
+		dev->port[i].reserved_gids = kzalloc_objs(*dev->port[i].reserved_gids,
+							  max_gids);
 		if (!dev->port[i].reserved_gids)
 			goto err;
 

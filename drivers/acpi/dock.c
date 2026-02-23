@@ -73,7 +73,7 @@ static int add_dock_dependent_device(struct dock_station *ds,
 {
 	struct dock_dependent_device *dd;
 
-	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	dd = kzalloc_obj(*dd);
 	if (!dd)
 		return -ENOMEM;
 

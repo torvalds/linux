@@ -52,7 +52,7 @@ struct drr_params;
 struct dc_underflow_debug_data;
 struct dsc_optc_config;
 struct vm_system_aperture_param;
-
+struct memory_qos;
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
 	bool lock;
@@ -1184,6 +1184,8 @@ struct hw_sequencer_funcs {
 			const struct link_resource *link_res,
 			enum clock_source_id clock_source,
 			uint32_t pixel_clock);
+	void (*enable_analog_link_output)(struct dc_link *link,
+			uint32_t pixel_clock);
 	void (*disable_link_output)(struct dc_link *link,
 			const struct link_resource *link_res,
 			enum signal_type signal);
@@ -1287,6 +1289,17 @@ struct hw_sequencer_funcs {
 	void (*get_underflow_debug_data)(const struct dc *dc,
 			struct timing_generator *tg,
 			struct dc_underflow_debug_data *out_data);
+
+	/**
+	 * measure_memory_qos - Measure memory QoS metrics
+	 * @dc: DC structure
+	 * @qos: Pointer to memory_qos struct to populate with measured values
+	 *
+	 * Populates the provided memory_qos struct with peak bandwidth, average bandwidth,
+	 * max latency, min latency, and average latency from hardware performance counters.
+	 */
+	void (*measure_memory_qos)(struct dc *dc, struct memory_qos *qos);
+
 };
 
 void color_space_to_black_color(

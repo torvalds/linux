@@ -351,7 +351,7 @@ int ef100_phy_probe(struct efx_nic *efx)
 	int rc;
 
 	/* Probe for the PHY */
-	efx->phy_data = kzalloc(sizeof(struct efx_mcdi_phy_data), GFP_KERNEL);
+	efx->phy_data = kzalloc_obj(struct efx_mcdi_phy_data);
 	if (!efx->phy_data)
 		return -ENOMEM;
 
@@ -1020,7 +1020,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 	if (WARN_ON(bar_size == 0))
 		return -EIO;
 
-	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
+	nic_data = kzalloc_obj(*nic_data);
 	if (!nic_data)
 		return -ENOMEM;
 	efx->nic_data = nic_data;

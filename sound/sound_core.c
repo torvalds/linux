@@ -238,7 +238,7 @@ static DEFINE_SPINLOCK(sound_loader_lock);
 
 static int sound_insert_unit(struct sound_unit **list, const struct file_operations *fops, int index, int low, int top, const char *name, umode_t mode, struct device *dev)
 {
-	struct sound_unit *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct sound_unit *s = kmalloc_obj(*s);
 	int r;
 
 	if (!s)

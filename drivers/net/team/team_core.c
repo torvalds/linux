@@ -157,7 +157,7 @@ static int __team_option_inst_add(struct team *team, struct team_option *option,
 		array_size = 1; /* No array but still need one instance */
 
 	for (i = 0; i < array_size; i++) {
-		opt_inst = kmalloc(sizeof(*opt_inst), GFP_KERNEL);
+		opt_inst = kmalloc_obj(*opt_inst);
 		if (!opt_inst)
 			return -ENOMEM;
 		opt_inst->option = option;
@@ -256,8 +256,7 @@ static int __team_options_register(struct team *team,
 	struct team_option **dst_opts;
 	int err;
 
-	dst_opts = kcalloc(option_count, sizeof(struct team_option *),
-			   GFP_KERNEL);
+	dst_opts = kzalloc_objs(struct team_option *, option_count);
 	if (!dst_opts)
 		return -ENOMEM;
 	for (i = 0; i < option_count; i++, option++) {
@@ -434,7 +433,7 @@ int team_mode_register(const struct team_mode *mode)
 	    mode->priv_size > TEAM_MODE_PRIV_SIZE)
 		return -EINVAL;
 
-	mitem = kmalloc(sizeof(*mitem), GFP_KERNEL);
+	mitem = kmalloc_obj(*mitem);
 	if (!mitem)
 		return -ENOMEM;
 
@@ -780,8 +779,7 @@ static int team_queue_override_init(struct team *team)
 
 	if (!queue_cnt)
 		return 0;
-	listarr = kmalloc_array(queue_cnt, sizeof(struct list_head),
-				GFP_KERNEL);
+	listarr = kmalloc_objs(struct list_head, queue_cnt);
 	if (!listarr)
 		return -ENOMEM;
 	team->qom_lists = listarr;
@@ -1017,7 +1015,7 @@ static int __team_port_enable_netpoll(struct team_port *port)
 	struct netpoll *np;
 	int err;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc_obj(*np);
 	if (!np)
 		return -ENOMEM;
 

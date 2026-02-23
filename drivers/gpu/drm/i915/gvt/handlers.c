@@ -36,20 +36,16 @@
 
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/display/drm_dp.h>
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_reg.h"
-#include "display/intel_display_regs.h"
-#include "gvt.h"
-#include "i915_pvinfo.h"
-#include "intel_mchbar_regs.h"
 #include "display/bxt_dpio_phy_regs.h"
 #include "display/i9xx_plane_regs.h"
 #include "display/intel_crt_regs.h"
 #include "display/intel_cursor_regs.h"
-#include "display/intel_display_core.h"
+#include "display/intel_display_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
@@ -64,8 +60,17 @@
 #include "display/skl_universal_plane_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
+
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
-#include <linux/vmalloc.h>
+
+#include "display_helpers.h"
+#include "gvt.h"
+#include "i915_drv.h"
+#include "i915_pvinfo.h"
+#include "i915_reg.h"
+#include "intel_mchbar_regs.h"
+#include "sched_policy.h"
 
 /* XXX FIXME i915 has changed PP_XXX definition */
 #define PCH_PP_STATUS  _MMIO(0xc7200)
@@ -2887,7 +2892,7 @@ static int handle_mmio(struct intel_gvt_mmio_table_iter *iter, u32 offset,
 			return -EEXIST;
 		}
 
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		info = kzalloc_obj(*info);
 		if (!info)
 			return -ENOMEM;
 

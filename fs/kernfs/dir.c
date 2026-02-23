@@ -989,7 +989,7 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	struct kernfs_root *root;
 	struct kernfs_node *kn;
 
-	root = kzalloc(sizeof(*root), GFP_KERNEL);
+	root = kzalloc_obj(*root);
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 

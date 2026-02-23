@@ -38,7 +38,7 @@ static int amdtee_open(struct tee_context *ctx)
 {
 	struct amdtee_context_data *ctxdata;
 
-	ctxdata = kzalloc(sizeof(*ctxdata), GFP_KERNEL);
+	ctxdata = kzalloc_obj(*ctxdata);
 	if (!ctxdata)
 		return -ENOMEM;
 
@@ -122,7 +122,7 @@ static struct amdtee_session *alloc_session(struct amdtee_context_data *ctxdata,
 		}
 
 	/* Allocate a new session and add to list */
-	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	sess = kzalloc_obj(*sess);
 	if (sess) {
 		sess->ta_handle = ta_handle;
 		kref_init(&sess->refcount);
@@ -351,7 +351,7 @@ int amdtee_map_shmem(struct tee_shm *shm)
 	if (!shm)
 		return -EINVAL;
 
-	shmnode = kmalloc(sizeof(*shmnode), GFP_KERNEL);
+	shmnode = kmalloc_obj(*shmnode);
 	if (!shmnode)
 		return -ENOMEM;
 
@@ -465,11 +465,11 @@ static int __init amdtee_driver_init(void)
 		return rc;
 	}
 
-	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
+	drv_data = kzalloc_obj(*drv_data);
 	if (!drv_data)
 		return -ENOMEM;
 
-	amdtee = kzalloc(sizeof(*amdtee), GFP_KERNEL);
+	amdtee = kzalloc_obj(*amdtee);
 	if (!amdtee) {
 		rc = -ENOMEM;
 		goto err_kfree_drv_data;

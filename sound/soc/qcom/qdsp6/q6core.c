@@ -67,11 +67,11 @@ struct q6core {
 
 static struct q6core *g_core;
 
-static int q6core_callback(struct apr_device *adev, struct apr_resp_pkt *data)
+static int q6core_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
 	struct q6core *core = dev_get_drvdata(&adev->dev);
-	struct aprv2_ibasic_rsp_result_t *result;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct aprv2_ibasic_rsp_result_t *result;
+	const struct apr_hdr *hdr = &data->hdr;
 
 	result = data->payload;
 	switch (hdr->opcode) {
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(q6core_is_adsp_ready);
 
 static int q6core_probe(struct apr_device *adev)
 {
-	g_core = kzalloc(sizeof(*g_core), GFP_KERNEL);
+	g_core = kzalloc_obj(*g_core);
 	if (!g_core)
 		return -ENOMEM;
 

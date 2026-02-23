@@ -101,6 +101,7 @@
 #include "sys/mman.h"
 #include "sys/mount.h"
 #include "sys/prctl.h"
+#include "sys/ptrace.h"
 #include "sys/random.h"
 #include "sys/reboot.h"
 #include "sys/resource.h"

@@ -129,7 +129,7 @@ int snd_seq_create_port(struct snd_seq_client *client, int port,
 	}
 
 	/* create a new port */
-	new_port = kzalloc(sizeof(*new_port), GFP_KERNEL);
+	new_port = kzalloc_obj(*new_port);
 	if (!new_port)
 		return -ENOMEM;	/* failure, out of memory */
 	/* init port data */
@@ -211,14 +211,13 @@ static void clear_subscriber_list(struct snd_seq_client *client,
 
 	list_for_each_safe(p, n, &grp->list_head) {
 		struct snd_seq_subscribers *subs;
-		struct snd_seq_client *c __free(snd_seq_client) = NULL;
-		struct snd_seq_client_port *aport __free(snd_seq_port) = NULL;
 
 		subs = get_subscriber(p, is_src);
-		if (is_src)
-			aport = get_client_port(&subs->info.dest, &c);
-		else
-			aport = get_client_port(&subs->info.sender, &c);
+		struct snd_seq_client *c __free(snd_seq_client) = NULL;
+		struct snd_seq_client_port *aport __free(snd_seq_port) =
+			is_src ?
+			get_client_port(&subs->info.dest, &c) :
+			get_client_port(&subs->info.sender, &c);
 		delete_and_unsubscribe_port(client, port, subs, is_src, false);
 
 		if (!aport) {
@@ -573,7 +572,7 @@ int snd_seq_port_connect(struct snd_seq_client *connector,
 	bool exclusive;
 	int err;
 
-	subs = kzalloc(sizeof(*subs), GFP_KERNEL);
+	subs = kzalloc_obj(*subs);
 	if (!subs)
 		return -ENOMEM;
 

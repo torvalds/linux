@@ -180,7 +180,7 @@ prestera_bridge_vlan_create(struct prestera_bridge_port *br_port, u16 vid)
 {
 	struct prestera_bridge_vlan *br_vlan;
 
-	br_vlan = kzalloc(sizeof(*br_vlan), GFP_KERNEL);
+	br_vlan = kzalloc_obj(*br_vlan);
 	if (!br_vlan)
 		return NULL;
 
@@ -263,7 +263,7 @@ prestera_port_vlan_create(struct prestera_port *port, u16 vid, bool untagged)
 	if (err)
 		return ERR_PTR(err);
 
-	port_vlan = kzalloc(sizeof(*port_vlan), GFP_KERNEL);
+	port_vlan = kzalloc_obj(*port_vlan);
 	if (!port_vlan) {
 		err = -ENOMEM;
 		goto err_port_vlan_alloc;
@@ -443,7 +443,7 @@ prestera_bridge_create(struct prestera_switchdev *swdev, struct net_device *dev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
+	bridge = kzalloc_obj(*bridge);
 	if (!bridge)
 		return ERR_PTR(-ENOMEM);
 
@@ -562,7 +562,7 @@ prestera_bridge_port_create(struct prestera_bridge *bridge,
 {
 	struct prestera_bridge_port *br_port;
 
-	br_port = kzalloc(sizeof(*br_port), GFP_KERNEL);
+	br_port = kzalloc_obj(*br_port);
 	if (!br_port)
 		return NULL;
 
@@ -1313,7 +1313,7 @@ static int prestera_switchdev_event(struct notifier_block *unused,
 	if (!netif_is_bridge_master(upper))
 		return NOTIFY_DONE;
 
-	swdev_work = kzalloc(sizeof(*swdev_work), GFP_ATOMIC);
+	swdev_work = kzalloc_obj(*swdev_work, GFP_ATOMIC);
 	if (!swdev_work)
 		return NOTIFY_BAD;
 
@@ -1498,7 +1498,7 @@ prestera_br_mdb_entry_create(struct prestera_switch *sw,
 	struct prestera_br_mdb_entry *br_mdb_entry;
 	struct prestera_mdb_entry *mdb_entry;
 
-	br_mdb_entry = kzalloc(sizeof(*br_mdb_entry), GFP_KERNEL);
+	br_mdb_entry = kzalloc_obj(*br_mdb_entry);
 	if (!br_mdb_entry)
 		return NULL;
 
@@ -1530,7 +1530,7 @@ static int prestera_br_mdb_port_add(struct prestera_br_mdb_entry *br_mdb,
 		if (br_mdb_port->br_port == br_port)
 			return 0;
 
-	br_mdb_port = kzalloc(sizeof(*br_mdb_port), GFP_KERNEL);
+	br_mdb_port = kzalloc_obj(*br_mdb_port);
 	if (!br_mdb_port)
 		return -ENOMEM;
 
@@ -1873,7 +1873,7 @@ int prestera_switchdev_init(struct prestera_switch *sw)
 	struct prestera_switchdev *swdev;
 	int err;
 
-	swdev = kzalloc(sizeof(*swdev), GFP_KERNEL);
+	swdev = kzalloc_obj(*swdev);
 	if (!swdev)
 		return -ENOMEM;
 

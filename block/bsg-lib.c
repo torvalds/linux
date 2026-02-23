@@ -368,7 +368,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	struct request_queue *q;
 	int ret = -ENOMEM;
 
-	bset = kzalloc(sizeof(*bset), GFP_KERNEL);
+	bset = kzalloc_obj(*bset);
 	if (!bset)
 		return ERR_PTR(-ENOMEM);
 

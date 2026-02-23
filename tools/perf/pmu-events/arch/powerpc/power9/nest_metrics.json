@@ -29,25 +29,25 @@
 	"MetricExpr" : "nest_mcs01_imc@PM_MCS01_128B_RD_DISP_PORT01@ + nest_mcs01_imc@PM_MCS01_128B_RD_DISP_PORT23@",
 	"MetricName" : "mcs01-read",
 	"MetricGroup" : "memory-bandwidth",
-	"ScaleUnit": "6.1e-5MB"
+	"ScaleUnit": "6.1e-5MiB"
     },
     {
 	"MetricExpr" : "nest_mcs23_imc@PM_MCS23_128B_RD_DISP_PORT01@ + nest_mcs23_imc@PM_MCS23_128B_RD_DISP_PORT23@",
 	"MetricName" : "mcs23-read",
 	"MetricGroup" : "memory-bandwidth",
-	"ScaleUnit": "6.1e-5MB"
+	"ScaleUnit": "6.1e-5MiB"
     },
     {
 	"MetricExpr" : "nest_mcs01_imc@PM_MCS01_128B_WR_DISP_PORT01@ + nest_mcs01_imc@PM_MCS01_128B_WR_DISP_PORT23@",
 	"MetricName" : "mcs01-write",
 	"MetricGroup" : "memory-bandwidth",
-	"ScaleUnit": "6.1e-5MB"
+	"ScaleUnit": "6.1e-5MiB"
     },
     {
 	"MetricExpr" : "nest_mcs23_imc@PM_MCS23_128B_WR_DISP_PORT01@ + nest_mcs23_imc@PM_MCS23_128B_WR_DISP_PORT23@",
 	"MetricName" : "mcs23-write",
 	"MetricGroup" : "memory-bandwidth",
-	"ScaleUnit": "6.1e-5MB"
+	"ScaleUnit": "6.1e-5MiB"
     },
     {
 	"MetricExpr" : "nest_powerbus0_imc@PM_PB_CYC@",

@@ -182,7 +182,7 @@ nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev)
 	if (entry)
 		goto inc_ref;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return NULL;
 
@@ -406,7 +406,7 @@ nfp_flower_spawn_vnic_reprs(struct nfp_app *app,
 			goto err_reprs_clean;
 		}
 
-		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
+		repr_priv = kzalloc_obj(*repr_priv);
 		if (!repr_priv) {
 			err = -ENOMEM;
 			nfp_repr_free(repr);
@@ -524,7 +524,7 @@ nfp_flower_spawn_phy_reprs(struct nfp_app *app, struct nfp_flower_priv *priv)
 			goto err_reprs_clean;
 		}
 
-		repr_priv = kzalloc(sizeof(*repr_priv), GFP_KERNEL);
+		repr_priv = kzalloc_obj(*repr_priv);
 		if (!repr_priv) {
 			err = -ENOMEM;
 			nfp_repr_free(repr);

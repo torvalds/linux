@@ -299,7 +299,7 @@ struct vb2_dvb_frontend *vb2_dvb_alloc_frontend(
 {
 	struct vb2_dvb_frontend *fe;
 
-	fe = kzalloc(sizeof(struct vb2_dvb_frontend), GFP_KERNEL);
+	fe = kzalloc_obj(struct vb2_dvb_frontend);
 	if (fe == NULL)
 		return NULL;
 

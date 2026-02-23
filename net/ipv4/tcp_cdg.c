@@ -378,8 +378,8 @@ static void tcp_cdg_init(struct sock *sk)
 	ca->gradients = NULL;
 	/* We silently fall back to window = 1 if allocation fails. */
 	if (window > 1)
-		ca->gradients = kcalloc(window, sizeof(ca->gradients[0]),
-					GFP_NOWAIT);
+		ca->gradients = kzalloc_objs(ca->gradients[0], window,
+					     GFP_NOWAIT);
 	ca->rtt_seq = tp->snd_nxt;
 	ca->shadow_wnd = tcp_snd_cwnd(tp);
 }

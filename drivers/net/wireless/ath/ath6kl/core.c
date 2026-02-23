@@ -311,7 +311,7 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 		ar->sta_list[ctr].mgmt_psq_len = 0;
 		INIT_LIST_HEAD(&ar->sta_list[ctr].mgmt_psq);
 		ar->sta_list[ctr].aggr_conn =
-			kzalloc(sizeof(struct aggr_info_conn), GFP_KERNEL);
+			kzalloc_obj(struct aggr_info_conn);
 		if (!ar->sta_list[ctr].aggr_conn) {
 			ath6kl_err("Failed to allocate memory for sta aggregation information\n");
 			ath6kl_core_destroy(ar);

@@ -28,6 +28,8 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 
 void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 
+unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx);
+
 /* Following are definitions for run time init of reg offsets */
 
 /* HUBP */
@@ -394,6 +396,7 @@ void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 	SRI_ARR(DSCL_SC_MATRIX_C0C1, DSCL, id),                                  \
 	SRI_ARR(DSCL_SC_MATRIX_C2C3, DSCL, id),                                  \
 	SRI_ARR(ISHARP_MODE, DSCL, id),                                          \
+	SRI_ARR(ISHARP_DELTA_LUT_MEM_PWR_CTRL, DSCL, id),                                          \
 	SRI_ARR(ISHARP_NOISEDET_THRESHOLD, DSCL, id),                            \
 	SRI_ARR(ISHARP_NOISE_GAIN_PWL, DSCL, id),                                \
 	SRI_ARR(ISHARP_LBA_PWL_SEG0, DSCL, id),                                  \

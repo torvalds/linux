@@ -178,7 +178,7 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 		return ERR_PTR(-ENOSPC);
 
 	/* Not found, we have to add a new one. */
-	wl = kzalloc(sizeof(*wl), GFP_KERNEL);
+	wl = kzalloc_obj(*wl);
 	if (!wl)
 		return ERR_PTR(-ENOMEM);
 

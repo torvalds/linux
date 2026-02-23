@@ -198,7 +198,7 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	if (port)
 		return -EBUSY;	/* This port already exists */
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return -ENOMEM;
 

@@ -59,7 +59,7 @@ static int adf_gen4_vfmig_open_device(struct qat_mig_dev *mdev)
 
 	vf_info = &accel_dev->pf.vf_info[mdev->vf_id];
 
-	vfmig = kzalloc(sizeof(*vfmig), GFP_KERNEL);
+	vfmig = kzalloc_obj(*vfmig);
 	if (!vfmig)
 		return -ENOMEM;
 

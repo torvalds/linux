@@ -1384,12 +1384,7 @@ static int wcd9390_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 	}
 
 	if (wcd->is_tx) {
-		/*
-		 * Do not use devres here since devres_release_group() could
-		 * be called by component_unbind() id the aggregate device
-		 * fails to bind.
-		 */
-		wcd->regmap = regmap_init_sdw(pdev, &wcd939x_regmap_config);
+		wcd->regmap = devm_regmap_init_sdw(pdev, &wcd939x_regmap_config);
 		if (IS_ERR(wcd->regmap))
 			return dev_err_probe(dev, PTR_ERR(wcd->regmap),
 					     "Regmap init failed\n");
@@ -1400,31 +1395,19 @@ static int wcd9390_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 
 	ret = component_add(dev, &wcd_sdw_component_ops);
 	if (ret)
-		goto err_free_regmap;
+		return ret;
 
 	/* Set suspended until aggregate device is bind */
 	pm_runtime_set_suspended(dev);
 
 	return 0;
-
-err_free_regmap:
-	if (wcd->regmap)
-		regmap_exit(wcd->regmap);
-
-	return ret;
 }
 
-static int wcd9390_remove(struct sdw_slave *pdev)
+static void wcd9390_remove(struct sdw_slave *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct wcd939x_sdw_priv *wcd = dev_get_drvdata(dev);
 
 	component_del(dev, &wcd_sdw_component_ops);
-
-	if (wcd->regmap)
-		regmap_exit(wcd->regmap);
-
-	return 0;
 }
 
 static const struct sdw_device_id wcd9390_slave_id[] = {

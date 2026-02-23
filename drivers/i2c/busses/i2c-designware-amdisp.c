@@ -18,9 +18,6 @@
 static void amd_isp_dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *i2c_dev)
 {
 	pm_runtime_disable(i2c_dev->dev);
-
-	if (i2c_dev->shared_with_punit)
-		pm_runtime_put_noidle(i2c_dev->dev);
 }
 
 static inline u32 amd_isp_dw_i2c_get_clk_rate(struct dw_i2c_dev *i2c_dev)
@@ -79,9 +76,6 @@ static int amd_isp_dw_i2c_plat_probe(struct platform_device *pdev)
 
 	device_enable_async_suspend(&pdev->dev);
 
-	if (isp_i2c_dev->shared_with_punit)
-		pm_runtime_get_noresume(&pdev->dev);
-
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -130,9 +124,6 @@ static int amd_isp_dw_i2c_plat_runtime_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
 
-	if (i_dev->shared_with_punit)
-		return 0;
-
 	i2c_dw_disable(i_dev);
 	i2c_dw_prepare_clk(i_dev, false);
 
@@ -161,10 +152,8 @@ static int amd_isp_dw_i2c_plat_runtime_resume(struct device *dev)
 	if (!i_dev)
 		return -ENODEV;
 
-	if (!i_dev->shared_with_punit)
-		i2c_dw_prepare_clk(i_dev, true);
-	if (i_dev->init)
-		i_dev->init(i_dev);
+	i2c_dw_prepare_clk(i_dev, true);
+	i2c_dw_init(i_dev);
 
 	return 0;
 }

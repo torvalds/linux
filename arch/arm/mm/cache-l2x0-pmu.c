@@ -507,7 +507,7 @@ static __init int l2x0_pmu_init(void)
 	if (!l2x0_base)
 		return 0;
 
-	l2x0_pmu = kzalloc(sizeof(*l2x0_pmu), GFP_KERNEL);
+	l2x0_pmu = kzalloc_obj(*l2x0_pmu);
 	if (!l2x0_pmu) {
 		pr_warn("Unable to allocate L2x0 PMU\n");
 		return -ENOMEM;

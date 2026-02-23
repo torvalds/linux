@@ -794,7 +794,7 @@ static int gc2235_probe(struct i2c_client *client)
 	int ret;
 	unsigned int i;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

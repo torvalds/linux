@@ -648,7 +648,7 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 
 	if (!deftriggers)
 		deftriggers = default_triggers;
-	iocled = kzalloc(sizeof(*iocled), GFP_KERNEL);
+	iocled = kzalloc_obj(*iocled);
 	if (!iocled)
 		return;
 	iocled->mmioaddr = ioremap(baseaddr, 1);
@@ -822,7 +822,7 @@ void __init txx9_sramc_init(struct resource *r)
 	err = subsys_system_register(&txx9_sramc_subsys, NULL);
 	if (err)
 		return;
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return;
 	size = resource_size(r);

@@ -190,7 +190,7 @@ static int usbport_trig_add_port(struct usbport_trig_data *usbport_data,
 	size_t len;
 	int err;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port) {
 		err = -ENOMEM;
 		goto err_out;
@@ -305,7 +305,7 @@ static int usbport_trig_activate(struct led_classdev *led_cdev)
 	struct usbport_trig_data *usbport_data;
 	int err;
 
-	usbport_data = kzalloc(sizeof(*usbport_data), GFP_KERNEL);
+	usbport_data = kzalloc_obj(*usbport_data);
 	if (!usbport_data)
 		return -ENOMEM;
 	usbport_data->led_cdev = led_cdev;

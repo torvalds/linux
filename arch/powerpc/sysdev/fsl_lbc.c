@@ -283,7 +283,7 @@ static int fsl_lbc_ctrl_probe(struct platform_device *dev)
 		return -EFAULT;
 	}
 
-	fsl_lbc_ctrl_dev = kzalloc(sizeof(*fsl_lbc_ctrl_dev), GFP_KERNEL);
+	fsl_lbc_ctrl_dev = kzalloc_obj(*fsl_lbc_ctrl_dev);
 	if (!fsl_lbc_ctrl_dev)
 		return -ENOMEM;
 
@@ -363,7 +363,7 @@ static int fsl_lbc_syscore_suspend(void *data)
 	if (!lbc)
 		goto out;
 
-	ctrl->saved_regs = kmalloc(sizeof(struct fsl_lbc_regs), GFP_KERNEL);
+	ctrl->saved_regs = kmalloc_obj(struct fsl_lbc_regs);
 	if (!ctrl->saved_regs)
 		return -ENOMEM;
 

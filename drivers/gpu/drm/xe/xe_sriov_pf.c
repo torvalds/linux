@@ -111,6 +111,8 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 
 	xe_sriov_pf_service_init(xe);
 
+	xe_mert_init_early(xe);
+
 	return 0;
 }
 

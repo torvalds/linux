@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 
+#include <net/netns/generic.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
 #include <linux/netfilter/nf_conntrack_sctp.h>

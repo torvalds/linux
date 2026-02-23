@@ -6,7 +6,6 @@
 #include <linux/cleanup.h>
 #include <drm/drm_managed.h>
 
-#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"
@@ -30,7 +29,7 @@ static int guc_buf_cache_init(struct xe_guc_buf_cache *cache, u32 size)
 	struct xe_gt *gt = cache_to_gt(cache);
 	struct xe_sa_manager *sam;
 
-	sam = __xe_sa_bo_manager_init(gt_to_tile(gt), size, 0, sizeof(u32));
+	sam = __xe_sa_bo_manager_init(gt_to_tile(gt), size, 0, sizeof(u32), 0);
 	if (IS_ERR(sam))
 		return PTR_ERR(sam);
 	cache->sam = sam;

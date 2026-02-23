@@ -533,7 +533,7 @@ struct dvb_frontend* mt352_attach(const struct mt352_config* config,
 	struct mt352_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct mt352_state), GFP_KERNEL);
+	state = kzalloc_obj(struct mt352_state);
 	if (state == NULL) goto error;
 
 	/* setup the state */

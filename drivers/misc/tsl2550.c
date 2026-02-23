@@ -343,7 +343,7 @@ static int tsl2550_probe(struct i2c_client *client)
 		goto exit;
 	}
 
-	data = kzalloc(sizeof(struct tsl2550_data), GFP_KERNEL);
+	data = kzalloc_obj(struct tsl2550_data);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit;

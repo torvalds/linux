@@ -1914,7 +1914,7 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 		}
 	}
 
-	new_smi = kzalloc(sizeof(*new_smi), GFP_KERNEL);
+	new_smi = kzalloc_obj(*new_smi);
 	if (!new_smi)
 		return -ENOMEM;
 	spin_lock_init(&new_smi->si_lock);

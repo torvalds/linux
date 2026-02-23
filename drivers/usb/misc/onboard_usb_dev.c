@@ -202,7 +202,7 @@ static int onboard_dev_add_usbdev(struct onboard_dev *onboard_dev,
 		goto error;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node) {
 		err = -ENOMEM;
 		goto error;

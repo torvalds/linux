@@ -405,7 +405,7 @@ void fun_free_queue(struct fun_queue *funq)
 struct fun_queue *fun_alloc_queue(struct fun_dev *fdev, int qid,
 				  const struct fun_queue_alloc_req *req)
 {
-	struct fun_queue *funq = kzalloc(sizeof(*funq), GFP_KERNEL);
+	struct fun_queue *funq = kzalloc_obj(*funq);
 
 	if (!funq)
 		return NULL;

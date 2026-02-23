@@ -424,7 +424,7 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 	if (cport_desc->protocol_id != GREYBUS_PROTOCOL_BOOTROM)
 		return -ENODEV;
 
-	bootrom = kzalloc(sizeof(*bootrom), GFP_KERNEL);
+	bootrom = kzalloc_obj(*bootrom);
 	if (!bootrom)
 		return -ENOMEM;
 

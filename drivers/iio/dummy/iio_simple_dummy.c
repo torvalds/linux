@@ -588,7 +588,7 @@ static struct iio_sw_device *iio_dummy_probe(const char *name)
 	 * parent = &client->dev;
 	 */
 
-	swd = kzalloc(sizeof(*swd), GFP_KERNEL);
+	swd = kzalloc_obj(*swd);
 	if (!swd)
 		return ERR_PTR(-ENOMEM);
 

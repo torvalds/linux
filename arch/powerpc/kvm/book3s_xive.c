@@ -1924,7 +1924,7 @@ int kvmppc_xive_connect_vcpu(struct kvm_device *dev,
 	if (r)
 		goto bail;
 
-	xc = kzalloc(sizeof(*xc), GFP_KERNEL);
+	xc = kzalloc_obj(*xc);
 	if (!xc) {
 		r = -ENOMEM;
 		goto bail;
@@ -2276,7 +2276,7 @@ struct kvmppc_xive_src_block *kvmppc_xive_create_src_block(
 		goto out;
 
 	/* Create the ICS */
-	sb = kzalloc(sizeof(*sb), GFP_KERNEL);
+	sb = kzalloc_obj(*sb);
 	if (!sb)
 		goto out;
 
@@ -2719,7 +2719,7 @@ struct kvmppc_xive *kvmppc_xive_get_device(struct kvm *kvm, u32 type)
 	struct kvmppc_xive *xive = *kvm_xive_device;
 
 	if (!xive) {
-		xive = kzalloc(sizeof(*xive), GFP_KERNEL);
+		xive = kzalloc_obj(*xive);
 		*kvm_xive_device = xive;
 	} else {
 		memset(xive, 0, sizeof(*xive));

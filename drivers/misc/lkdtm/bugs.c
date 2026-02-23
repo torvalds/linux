@@ -465,32 +465,32 @@ static void lkdtm_ARRAY_BOUNDS(void)
 		pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
-struct lkdtm_annotated {
+struct lkdtm_cb_fam {
 	unsigned long flags;
 	int count;
 	int array[] __counted_by(count);
 };
 
-static volatile int fam_count = 4;
+static volatile int element_count = 4;
 
 static void lkdtm_FAM_BOUNDS(void)
 {
-	struct lkdtm_annotated *inst;
+	struct lkdtm_cb_fam *inst;
 
-	inst = kzalloc(struct_size(inst, array, fam_count + 1), GFP_KERNEL);
+	inst = kzalloc_flex(*inst, array, element_count + 1);
 	if (!inst) {
 		pr_err("FAIL: could not allocate test struct!\n");
 		return;
 	}
 
-	inst->count = fam_count;
+	inst->count = element_count;
 	pr_info("Array access within bounds ...\n");
-	inst->array[1] = fam_count;
+	inst->array[1] = element_count;
 	ignored = inst->array[1];
 
 	pr_info("Array access beyond bounds ...\n");
-	inst->array[fam_count] = fam_count;
-	ignored = inst->array[fam_count];
+	inst->array[element_count] = element_count;
+	ignored = inst->array[element_count];
 
 	kfree(inst);
 
@@ -498,6 +498,79 @@ static void lkdtm_FAM_BOUNDS(void)
 
 	if (!IS_ENABLED(CONFIG_CC_HAS_COUNTED_BY))
 		pr_warn("This is expected since this %s was built with a compiler that does not support __counted_by\n",
+			lkdtm_kernel_info);
+	else if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
+		pr_expected_config(CONFIG_UBSAN_TRAP);
+	else
+		pr_expected_config(CONFIG_UBSAN_BOUNDS);
+}
+
+struct lkdtm_extra {
+	short a, b;
+	u16 sixteen;
+	u32 bigger;
+	u64 biggest;
+};
+
+struct lkdtm_cb_ptr {
+	int a, b, c;
+	int nr_extra;
+	char *buf __counted_by_ptr(len);
+	size_t len;
+	struct lkdtm_extra *extra __counted_by_ptr(nr_extra);
+};
+
+static noinline void check_ptr_len(struct lkdtm_cb_ptr *p, size_t len)
+{
+	if (__member_size(p->buf) != len)
+		pr_err("FAIL: could not determine size of inst->buf: %zu\n",
+			__member_size(p->buf));
+	else
+		pr_info("good: inst->buf length is %zu\n", len);
+}
+
+static void lkdtm_PTR_BOUNDS(void)
+{
+	struct lkdtm_cb_ptr *inst;
+
+	inst = kzalloc_obj(*inst);
+	if (!inst) {
+		pr_err("FAIL: could not allocate struct lkdtm_cb_ptr!\n");
+		return;
+	}
+
+	inst->buf = kzalloc(element_count, GFP_KERNEL);
+	if (!inst->buf) {
+		pr_err("FAIL: could not allocate inst->buf!\n");
+		return;
+	}
+	inst->len = element_count;
+
+	/* Double element_count */
+	inst->extra = kzalloc_objs(*inst->extra, element_count * 2);
+	inst->nr_extra = element_count * 2;
+
+	pr_info("Pointer access within bounds ...\n");
+	check_ptr_len(inst, 4);
+	/* All 4 bytes */
+	inst->buf[0] = 'A';
+	inst->buf[1] = 'B';
+	inst->buf[2] = 'C';
+	inst->buf[3] = 'D';
+	/* Halfway into the array */
+	inst->extra[element_count].biggest = 0x1000;
+
+	pr_info("Pointer access beyond bounds ...\n");
+	ignored = inst->extra[inst->nr_extra].b;
+
+	kfree(inst->extra);
+	kfree(inst->buf);
+	kfree(inst);
+
+	pr_err("FAIL: survived access of invalid pointer member offset!\n");
+
+	if (!IS_ENABLED(CONFIG_CC_HAS_COUNTED_BY_PTR))
+		pr_warn("This is expected since this %s was built with a compiler that does not support __counted_by_ptr\n",
 			lkdtm_kernel_info);
 	else if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
 		pr_expected_config(CONFIG_UBSAN_TRAP);
@@ -769,6 +842,7 @@ static struct crashtype crashtypes[] = {
 	CRASHTYPE(OVERFLOW_UNSIGNED),
 	CRASHTYPE(ARRAY_BOUNDS),
 	CRASHTYPE(FAM_BOUNDS),
+	CRASHTYPE(PTR_BOUNDS),
 	CRASHTYPE(CORRUPT_LIST_ADD),
 	CRASHTYPE(CORRUPT_LIST_DEL),
 	CRASHTYPE(STACK_GUARD_PAGE_LEADING),

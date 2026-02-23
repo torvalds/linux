@@ -1104,6 +1104,16 @@ struct dentry *d_find_alias_rcu(struct inode *inode)
 	return de;
 }
 
+/**
+ * d_dispose_if_unused - move unreferenced dentries to shrink list
+ * @dentry: dentry in question
+ * @dispose: head of shrink list
+ *
+ * If dentry has no external references, move it to shrink list.
+ *
+ * NOTE!!! The caller is responsible for preventing eviction of the dentry by
+ * holding dentry->d_inode->i_lock or equivalent.
+ */
 void d_dispose_if_unused(struct dentry *dentry, struct list_head *dispose)
 {
 	spin_lock(&dentry->d_lock);
@@ -1288,8 +1298,8 @@ void shrink_dcache_sb(struct super_block *sb)
 EXPORT_SYMBOL(shrink_dcache_sb);
 
 /**
- * enum d_walk_ret - action to talke during tree walk
- * @D_WALK_CONTINUE:	contrinue walk
+ * enum d_walk_ret - action to take during tree walk
+ * @D_WALK_CONTINUE:	continue walk
  * @D_WALK_QUIT:	quit walk
  * @D_WALK_NORETRY:	quit when retry is needed
  * @D_WALK_SKIP:	skip this dentry and its children
@@ -1712,7 +1722,7 @@ void d_invalidate(struct dentry *dentry)
 EXPORT_SYMBOL(d_invalidate);
 
 /**
- * __d_alloc	-	allocate a dcache entry
+ * __d_alloc - allocate a dcache entry
  * @sb: filesystem it will belong to
  * @name: qstr of the name
  *
@@ -1796,7 +1806,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 }
 
 /**
- * d_alloc	-	allocate a dcache entry
+ * d_alloc - allocate a dcache entry
  * @parent: parent of entry to allocate
  * @name: qstr of the name
  *
@@ -2536,7 +2546,7 @@ static void __d_rehash(struct dentry *entry)
 }
 
 /**
- * d_rehash	- add an entry back to the hash
+ * d_rehash - add an entry back to the hash
  * @entry: dentry to add to the hash
  *
  * Adds a dentry to the hash according to its name.
@@ -3227,10 +3237,7 @@ EXPORT_SYMBOL(d_parent_ino);
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	dhash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &dhash_entries) == 0;
 }
 __setup("dhash_entries=", set_dhash_entries);
 
@@ -3290,10 +3297,6 @@ static void __init dcache_init(void)
 	runtime_const_init(ptr, dentry_hashtable);
 }
 
-/* SLAB cache for __getname() consumers */
-struct kmem_cache *names_cachep __ro_after_init;
-EXPORT_SYMBOL(names_cachep);
-
 void __init vfs_caches_init_early(void)
 {
 	int i;
@@ -3307,9 +3310,7 @@ void __init vfs_caches_init_early(void)
 
 void __init vfs_caches_init(void)
 {
-	names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
-
+	filename_init();
 	dcache_init();
 	inode_init();
 	files_init();

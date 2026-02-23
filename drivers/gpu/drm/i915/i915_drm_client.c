@@ -21,7 +21,7 @@ struct i915_drm_client *i915_drm_client_alloc(void)
 {
 	struct i915_drm_client *client;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	client = kzalloc_obj(*client);
 	if (!client)
 		return NULL;
 

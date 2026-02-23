@@ -412,7 +412,7 @@ static struct port_buffer *alloc_buf(struct virtio_device *vdev, size_t buf_size
 	 * Allocate buffer and the sg list. The sg list array is allocated
 	 * directly after the port_buffer struct.
 	 */
-	buf = kmalloc(struct_size(buf, sg, pages), GFP_KERNEL);
+	buf = kmalloc_flex(*buf, sg, pages);
 	if (!buf)
 		goto fail;
 
@@ -1325,7 +1325,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	dev_t devt;
 	int err;
 
-	port = kmalloc(sizeof(*port), GFP_KERNEL);
+	port = kmalloc_obj(*port);
 	if (!port) {
 		err = -ENOMEM;
 		goto fail;
@@ -1809,12 +1809,10 @@ static int init_vqs(struct ports_device *portdev)
 	nr_ports = portdev->max_nr_ports;
 	nr_queues = use_multiport(portdev) ? (nr_ports + 1) * 2 : 2;
 
-	vqs = kmalloc_array(nr_queues, sizeof(struct virtqueue *), GFP_KERNEL);
-	vqs_info = kcalloc(nr_queues, sizeof(*vqs_info), GFP_KERNEL);
-	portdev->in_vqs = kmalloc_array(nr_ports, sizeof(struct virtqueue *),
-					GFP_KERNEL);
-	portdev->out_vqs = kmalloc_array(nr_ports, sizeof(struct virtqueue *),
-					 GFP_KERNEL);
+	vqs = kmalloc_objs(struct virtqueue *, nr_queues);
+	vqs_info = kzalloc_objs(*vqs_info, nr_queues);
+	portdev->in_vqs = kmalloc_objs(struct virtqueue *, nr_ports);
+	portdev->out_vqs = kmalloc_objs(struct virtqueue *, nr_ports);
 	if (!vqs || !vqs_info || !portdev->in_vqs || !portdev->out_vqs) {
 		err = -ENOMEM;
 		goto free;
@@ -1965,7 +1963,7 @@ static int virtcons_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	portdev = kmalloc(sizeof(*portdev), GFP_KERNEL);
+	portdev = kmalloc_obj(*portdev);
 	if (!portdev) {
 		err = -ENOMEM;
 		goto fail;

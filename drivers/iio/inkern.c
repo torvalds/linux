@@ -55,7 +55,7 @@ int iio_map_array_register(struct iio_dev *indio_dev, const struct iio_map *maps
 
 	guard(mutex)(&iio_map_list_lock);
 	while (maps[i].consumer_dev_name) {
-		mapi = kzalloc(sizeof(*mapi), GFP_KERNEL);
+		mapi = kzalloc_obj(*mapi);
 		if (!mapi) {
 			ret = -ENOMEM;
 			goto error_ret;
@@ -188,7 +188,7 @@ static struct iio_channel *fwnode_iio_channel_get(struct fwnode_handle *fwnode,
 		return ERR_PTR(-EINVAL);
 
 	struct iio_channel *channel __free(kfree) =
-		kzalloc(sizeof(*channel), GFP_KERNEL);
+		kzalloc_obj(*channel);
 	if (!channel)
 		return ERR_PTR(-ENOMEM);
 
@@ -302,7 +302,7 @@ static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
 
 	/* NULL terminated array to save passing size */
 	struct iio_channel *chans __free(kfree) =
-		kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
+		kzalloc_objs(*chans, nummaps + 1);
 	if (!chans)
 		return ERR_PTR(-ENOMEM);
 
@@ -474,7 +474,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 
 	/* NULL terminated array to save passing size */
 	struct iio_channel *chans __free(kfree) =
-		kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
+		kzalloc_objs(*chans, nummaps + 1);
 	if (!chans)
 		return ERR_PTR(-ENOMEM);
 

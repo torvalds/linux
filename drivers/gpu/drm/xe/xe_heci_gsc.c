@@ -11,7 +11,6 @@
 #include <drm/drm_print.h>
 
 #include "xe_device_types.h"
-#include "xe_drv.h"
 #include "xe_heci_gsc.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_platform_types.h"
@@ -132,7 +131,7 @@ static int heci_gsc_add_device(struct xe_device *xe, const struct heci_gsc_def *
 	struct mei_aux_device *adev;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 	adev->irq = heci_gsc->irq;

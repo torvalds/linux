@@ -735,10 +735,11 @@ static void connect(struct backend_info *be)
 	 */
 	requested_num_queues = xenbus_read_unsigned(dev->otherend,
 					"multi-queue-num-queues", 1);
-	if (requested_num_queues > xenvif_max_queues) {
+	if (requested_num_queues > xenvif_max_queues ||
+	    requested_num_queues == 0) {
 		/* buggy or malicious guest */
 		xenbus_dev_fatal(dev, -EINVAL,
-				 "guest requested %u queues, exceeding the maximum of %u.",
+				 "guest requested %u queues, but valid range is 1 - %u.",
 				 requested_num_queues, xenvif_max_queues);
 		return;
 	}
@@ -1006,7 +1007,7 @@ static int netback_probe(struct xenbus_device *dev,
 	int err;
 	int sg;
 	const char *script;
-	struct backend_info *be = kzalloc(sizeof(*be), GFP_KERNEL);
+	struct backend_info *be = kzalloc_obj(*be);
 
 	if (!be) {
 		xenbus_dev_fatal(dev, -ENOMEM,

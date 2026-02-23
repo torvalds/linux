@@ -41,7 +41,7 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	int numchips;
 	int i, j;
 
-	mtd = kzalloc(sizeof(*mtd), GFP_KERNEL);
+	mtd = kzalloc_obj(*mtd);
 	if (!mtd)
 		return NULL;
 	mtd->priv = map;
@@ -65,8 +65,7 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	mtd->erasesize = 1 << lpddr->qinfo->UniformBlockSizeShift;
 	mtd->writesize = 1 << lpddr->qinfo->BufSizeShift;
 
-	shared = kmalloc_array(lpddr->numchips, sizeof(struct flchip_shared),
-						GFP_KERNEL);
+	shared = kmalloc_objs(struct flchip_shared, lpddr->numchips);
 	if (!shared) {
 		kfree(mtd);
 		return NULL;

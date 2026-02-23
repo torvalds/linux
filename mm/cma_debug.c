@@ -131,7 +131,7 @@ static int cma_alloc_mem(struct cma *cma, int count)
 	struct cma_mem *mem;
 	struct page *p;
 
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	mem = kzalloc_obj(*mem);
 	if (!mem)
 		return -ENOMEM;
 

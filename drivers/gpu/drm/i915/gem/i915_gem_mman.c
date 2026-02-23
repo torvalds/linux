@@ -730,7 +730,7 @@ mmap_offset_attach(struct drm_i915_gem_object *obj,
 	if (mmo)
 		goto out;
 
-	mmo = kmalloc(sizeof(*mmo), GFP_KERNEL);
+	mmo = kmalloc_obj(*mmo);
 	if (!mmo)
 		return ERR_PTR(-ENOMEM);
 

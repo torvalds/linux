@@ -48,7 +48,7 @@ int logic_iomem_add_region(struct resource *resource,
 	if (WARN_ON((resource->flags & IORESOURCE_TYPE_BITS) != IORESOURCE_MEM))
 		return -EINVAL;
 
-	rreg = kzalloc(sizeof(*rreg), GFP_KERNEL);
+	rreg = kzalloc_obj(*rreg);
 	if (!rreg)
 		return -ENOMEM;
 

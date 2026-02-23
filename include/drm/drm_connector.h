@@ -1222,6 +1222,45 @@ struct drm_connector_cec_funcs {
 };
 
 /**
+ * struct drm_connector_infoframe_funcs - InfoFrame-related functions
+ */
+struct drm_connector_infoframe_funcs {
+	/**
+	 * @clear_infoframe:
+	 *
+	 * This callback is invoked through
+	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
+	 * commit to clear the infoframes into the hardware. It will be
+	 * called once for each frame type to be disabled.
+	 *
+	 * The @clear_infoframe callback is mandatory for AVI and HDMI-VS
+	 * InfoFrame types.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*clear_infoframe)(struct drm_connector *connector);
+
+	/**
+	 * @write_infoframe:
+	 *
+	 * This callback is invoked through
+	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
+	 * commit to program the infoframes into the hardware. It will
+	 * be called for every updated infoframe type.
+	 *
+	 * The @write_infoframe callback is mandatory for AVI and HDMI-VS
+	 * InfoFrame types.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*write_infoframe)(struct drm_connector *connector,
+			       const u8 *buffer, size_t len);
+
+};
+
+/**
  * struct drm_connector_hdmi_funcs - drm_hdmi_connector control functions
  */
 struct drm_connector_hdmi_funcs {
@@ -1245,41 +1284,6 @@ struct drm_connector_hdmi_funcs {
 				unsigned long long tmds_rate);
 
 	/**
-	 * @clear_infoframe:
-	 *
-	 * This callback is invoked through
-	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
-	 * commit to clear the infoframes into the hardware. It will be
-	 * called multiple times, once for every disabled infoframe
-	 * type.
-	 *
-	 * The @clear_infoframe callback is optional.
-	 *
-	 * Returns:
-	 * 0 on success, a negative error code otherwise
-	 */
-	int (*clear_infoframe)(struct drm_connector *connector,
-			       enum hdmi_infoframe_type type);
-
-	/**
-	 * @write_infoframe:
-	 *
-	 * This callback is invoked through
-	 * @drm_atomic_helper_connector_hdmi_update_infoframes during a
-	 * commit to program the infoframes into the hardware. It will
-	 * be called multiple times, once for every updated infoframe
-	 * type.
-	 *
-	 * The @write_infoframe callback is mandatory.
-	 *
-	 * Returns:
-	 * 0 on success, a negative error code otherwise
-	 */
-	int (*write_infoframe)(struct drm_connector *connector,
-			       enum hdmi_infoframe_type type,
-			       const u8 *buffer, size_t len);
-
-	/**
 	 * @read_edid:
 	 *
 	 * This callback is used by the framework as a replacement for reading
@@ -1293,6 +1297,47 @@ struct drm_connector_hdmi_funcs {
 	 * Valid EDID on success, NULL in case of failure.
 	 */
 	const struct drm_edid *(*read_edid)(struct drm_connector *connector);
+
+	/**
+	 * @avi:
+	 *
+	 * Set of callbacks for handling the AVI InfoFrame. These callbacks are
+	 * mandatory.
+	 */
+	struct drm_connector_infoframe_funcs avi;
+
+	/**
+	 * @hdmi:
+	 *
+	 * Set of callbacks for handling the HDMI Vendor-Specific InfoFrame.
+	 * These callbacks are mandatory.
+	 */
+	struct drm_connector_infoframe_funcs hdmi;
+
+	/**
+	 * @audio:
+	 *
+	 * Set of callbacks for handling the Audio InfoFrame. These callbacks
+	 * are optional, but they are required for drivers which use
+	 * drm_atomic_helper_connector_hdmi_update_audio_infoframe().
+	 */
+	struct drm_connector_infoframe_funcs audio;
+
+	/**
+	 * @hdr_drm:
+	 *
+	 * Set of callbacks for handling the HDR DRM InfoFrame. These callbacks
+	 * are mandatory if HDR output is to be supported.
+	 */
+	struct drm_connector_infoframe_funcs hdr_drm;
+
+	/**
+	 * @spd:
+	 *
+	 * Set of callbacks for handling the SPD InfoFrame. These callbacks are
+	 * optional.
+	 */
+	struct drm_connector_infoframe_funcs spd;
 };
 
 /**

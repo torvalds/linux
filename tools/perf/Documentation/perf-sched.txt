@@ -8,7 +8,7 @@ perf-sched - Tool to trace/measure scheduler properties (latencies)
 SYNOPSIS
 --------
 [verse]
-'perf sched' {record|latency|map|replay|script|timehist}
+'perf sched' {record|latency|map|replay|script|timehist|stats}
 
 DESCRIPTION
 -----------
@@ -80,8 +80,267 @@ There are several variants of 'perf sched':
     
    Times are in msec.usec.
 
+   'perf sched stats {record | report | diff} <command>' to capture, report the diff
+   in schedstat counters and show the difference between perf sched stats report
+   respectively. schedstat counters which are present in the linux kernel and are
+   exposed through the file ``/proc/schedstat``. These counters are enabled or disabled
+   via the sysctl governed by the file ``/proc/sys/kernel/sched_schedstats``. These
+   counters accounts for many scheduler events such as ``schedule()`` calls, load-balancing
+   events, ``try_to_wakeup()`` call among others. This is useful in understanding the
+   scheduler behavior for the workload.
+
+   Note: The tool will not give correct results if there is topological reordering or
+         online/offline of cpus in between capturing snapshots of `/proc/schedstat`.
+
+    Example usage:
+        perf sched stats record -- sleep 1
+        perf sched stats report
+        perf sched stats diff
+
+   A detailed description of the schedstats can be found in the Kernel Documentation:
+   https://www.kernel.org/doc/html/latest/scheduler/sched-stats.html
+
+   The result can be interpreted as follows:
+
+   The `perf sched stats report` starts with description of the columns present in
+   the report. These column names are given before cpu and domain stats to improve
+   the readability of the report.
+
+   ----------------------------------------------------------------------------------------------------
+   DESC                    -> Description of the field
+   COUNT                   -> Value of the field
+   PCT_CHANGE              -> Percent change with corresponding base value
+   AVG_JIFFIES             -> Avg time in jiffies between two consecutive occurrence of event
+   ----------------------------------------------------------------------------------------------------
+
+   Next is the total profiling time in terms of jiffies:
+
+   ----------------------------------------------------------------------------------------------------
+   Time elapsed (in jiffies)                                   :        2323
+   ----------------------------------------------------------------------------------------------------
+
+   Next is CPU scheduling statistics. These are simple diffs of /proc/schedstat CPU lines
+   along with description. The report also prints % relative to base stat.
+
+   In the example below, schedule() left the CPU0 idle 36.58% of the time. 0.45% of total
+   try_to_wake_up() was to wakeup local CPU. And, the total waittime by tasks on CPU0 is
+   48.70% of the total runtime by tasks on the same CPU.
+
+   ----------------------------------------------------------------------------------------------------
+   CPU 0
+   ----------------------------------------------------------------------------------------------------
+   DESC                                                                     COUNT   PCT_CHANGE
+   ----------------------------------------------------------------------------------------------------
+   yld_count                                                        :           0
+   array_exp                                                        :           0
+   sched_count                                                      :      402267
+   sched_goidle                                                     :      147161  (    36.58% )
+   ttwu_count                                                       :      236309
+   ttwu_local                                                       :        1062  (     0.45% )
+   rq_cpu_time                                                      :  7083791148
+   run_delay                                                        :  3449973971  (    48.70% )
+   pcount                                                           :      255035
+   ----------------------------------------------------------------------------------------------------
+
+   Next is load balancing statistics. For each of the sched domains
+   (eg: `SMT`, `MC`, `DIE`...), the scheduler computes statistics under
+   the following three categories:
+
+   1) Idle Load Balance: Load balancing performed on behalf of a long
+                         idling CPU by some other CPU.
+   2) Busy Load Balance: Load balancing performed when the CPU was busy.
+   3) New Idle Balance : Load balancing performed when a CPU just became
+                        idle.
+
+   Under each of these three categories, sched stats report provides
+   different load balancing statistics. Along with direct stats, the
+   report also contains derived metrics prefixed with *. Example:
+
+   ----------------------------------------------------------------------------------------------------
+   CPU 0, DOMAIN SMT CPUS 0,64
+   ----------------------------------------------------------------------------------------------------
+   DESC                                                                     COUNT    AVG_JIFFIES
+   ----------------------------------------- <Category busy> ------------------------------------------
+   busy_lb_count                                                    :         136  $       17.08 $
+   busy_lb_balanced                                                 :         131  $       17.73 $
+   busy_lb_failed                                                   :           0  $        0.00 $
+   busy_lb_imbalance_load                                           :          58
+   busy_lb_imbalance_util                                           :           0
+   busy_lb_imbalance_task                                           :           0
+   busy_lb_imbalance_misfit                                         :           0
+   busy_lb_gained                                                   :           7
+   busy_lb_hot_gained                                               :           0
+   busy_lb_nobusyq                                                  :           2  $     1161.50 $
+   busy_lb_nobusyg                                                  :         129  $       18.01 $
+   *busy_lb_success_count                                           :           5
+   *busy_lb_avg_pulled                                              :        1.40
+   ----------------------------------------- <Category idle> ------------------------------------------
+   idle_lb_count                                                    :         449  $        5.17 $
+   idle_lb_balanced                                                 :         382  $        6.08 $
+   idle_lb_failed                                                   :           3  $      774.33 $
+   idle_lb_imbalance_load                                           :           0
+   idle_lb_imbalance_util                                           :           0
+   idle_lb_imbalance_task                                           :          71
+   idle_lb_imbalance_misfit                                         :           0
+   idle_lb_gained                                                   :          67
+   idle_lb_hot_gained                                               :           0
+   idle_lb_nobusyq                                                  :           0  $        0.00 $
+   idle_lb_nobusyg                                                  :         382  $        6.08 $
+   *idle_lb_success_count                                           :          64
+   *idle_lb_avg_pulled                                              :        1.05
+   ---------------------------------------- <Category newidle> ----------------------------------------
+   newidle_lb_count                                                 :       30471  $        0.08 $
+   newidle_lb_balanced                                              :       28490  $        0.08 $
+   newidle_lb_failed                                                :         633  $        3.67 $
+   newidle_lb_imbalance_load                                        :           0
+   newidle_lb_imbalance_util                                        :           0
+   newidle_lb_imbalance_task                                        :        2040
+   newidle_lb_imbalance_misfit                                      :           0
+   newidle_lb_gained                                                :        1348
+   newidle_lb_hot_gained                                            :           0
+   newidle_lb_nobusyq                                               :           6  $      387.17 $
+   newidle_lb_nobusyg                                               :       26634  $        0.09 $
+   *newidle_lb_success_count                                        :        1348
+   *newidle_lb_avg_pulled                                           :        1.00
+   ----------------------------------------------------------------------------------------------------
+
+   Consider following line:
+
+   newidle_lb_balanced                                              :       28490  $        0.08 $
+
+   While profiling was active, the load-balancer found 28490 times the load
+   needs to be balanced on a newly idle CPU 0. Following value encapsulated
+   inside $ is average jiffies between two events (2323 / 28490 = 0.08).
+
+   Next are active_load_balance() stats. alb did not trigger while the
+   profiling was active, hence it's all 0s.
+
+   --------------------------------- <Category active_load_balance()> ---------------------------------
+   alb_count                                                        :           0
+   alb_failed                                                       :           0
+   alb_pushed                                                       :           0
+   ----------------------------------------------------------------------------------------------------
+
+   Next are sched_balance_exec() and sched_balance_fork() stats. They are
+   not used but we kept it in RFC just for legacy purpose. Unless opposed,
+   we plan to remove them in next revision.
+
+   Next are wakeup statistics. For every domain, the report also shows
+   task-wakeup statistics. Example:
+
+   ------------------------------------------ <Wakeup Info> -------------------------------------------
+   ttwu_wake_remote                                                 :        1590
+   ttwu_move_affine                                                 :          84
+   ttwu_move_balance                                                :           0
+   ----------------------------------------------------------------------------------------------------
+
+   Same set of stats are reported for each CPU and each domain level.
+
+   How to interpret the diff
+   ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   The `perf sched stats diff` will also start with explaining the columns
+   present in the diff. Then it will show the diff in time in terms of
+   jiffies. The order of the values depends on the order of input data
+   files. It will take `perf.data.old` and `perf.data` respectively as the
+   defaults for comparison. Example:
+
+   ----------------------------------------------------------------------------------------------------
+   Time elapsed (in jiffies)                                        :        2009,       2001
+   ----------------------------------------------------------------------------------------------------
+
+   Below is the sample representing the difference in cpu and domain stats of
+   two runs. Here third column or the values enclosed in `|...|` shows the
+   percent change between the two. Second and fourth columns shows the
+   side-by-side representions of the corresponding fields from `perf sched
+   stats report`.
+
+   ----------------------------------------------------------------------------------------------------
+   CPU <ALL CPUS SUMMARY>
+   ----------------------------------------------------------------------------------------------------
+   DESC                                                                    COUNT1      COUNT2   PCT_CHANG>
+   ----------------------------------------------------------------------------------------------------
+   yld_count                                                        :           0,          0  |     0.00>
+   array_exp                                                        :           0,          0  |     0.00>
+   sched_count                                                      :      528533,     412573  |   -21.94>
+   sched_goidle                                                     :      193426,     146082  |   -24.48>
+   ttwu_count                                                       :      313134,     385975  |    23.26>
+   ttwu_local                                                       :        1126,       1282  |    13.85>
+   rq_cpu_time                                                      :  8257200244, 8301250047  |     0.53>
+   run_delay                                                        :  4728347053, 3997100703  |   -15.47>
+   pcount                                                           :      335031,     266396  |   -20.49>
+   ----------------------------------------------------------------------------------------------------
+
+   Below is the sample of domain stats diff:
+
+   ----------------------------------------------------------------------------------------------------
+   CPU <ALL CPUS SUMMARY>, DOMAIN SMT
+   ----------------------------------------------------------------------------------------------------
+   DESC                                                                    COUNT1      COUNT2   PCT_CHANG>
+   ----------------------------------------- <Category busy> ------------------------------------------
+   busy_lb_count                                                    :         122,         80  |   -34.43>
+   busy_lb_balanced                                                 :         115,         76  |   -33.91>
+   busy_lb_failed                                                   :           1,          3  |   200.00>
+   busy_lb_imbalance_load                                           :          35,         49  |    40.00>
+   busy_lb_imbalance_util                                           :           0,          0  |     0.00>
+   busy_lb_imbalance_task                                           :           0,          0  |     0.00>
+   busy_lb_imbalance_misfit                                         :           0,          0  |     0.00>
+   busy_lb_gained                                                   :           7,          2  |   -71.43>
+   busy_lb_hot_gained                                               :           0,          0  |     0.00>
+   busy_lb_nobusyq                                                  :           0,          0  |     0.00>
+   busy_lb_nobusyg                                                  :         115,         76  |   -33.91>
+   *busy_lb_success_count                                           :           6,          1  |   -83.33>
+   *busy_lb_avg_pulled                                              :        1.17,       2.00  |    71.43>
+   ----------------------------------------- <Category idle> ------------------------------------------
+   idle_lb_count                                                    :         568,        620  |     9.15>
+   idle_lb_balanced                                                 :         462,        449  |    -2.81>
+   idle_lb_failed                                                   :          11,         21  |    90.91>
+   idle_lb_imbalance_load                                           :           0,          0  |     0.00>
+   idle_lb_imbalance_util                                           :           0,          0  |     0.00>
+   idle_lb_imbalance_task                                           :         115,        189  |    64.35>
+   idle_lb_imbalance_misfit                                         :           0,          0  |     0.00>
+   idle_lb_gained                                                   :         103,        169  |    64.08>
+   idle_lb_hot_gained                                               :           0,          0  |     0.00>
+   idle_lb_nobusyq                                                  :           0,          0  |     0.00>
+   idle_lb_nobusyg                                                  :         462,        449  |    -2.81>
+   *idle_lb_success_count                                           :          95,        150  |    57.89>
+   *idle_lb_avg_pulled                                              :        1.08,       1.13  |     3.92>
+   ---------------------------------------- <Category newidle> ----------------------------------------
+   newidle_lb_count                                                 :       16961,       3155  |   -81.40>
+   newidle_lb_balanced                                              :       15646,       2556  |   -83.66>
+   newidle_lb_failed                                                :         397,        142  |   -64.23>
+   newidle_lb_imbalance_load                                        :           0,          0  |     0.00>
+   newidle_lb_imbalance_util                                        :           0,          0  |     0.00>
+   newidle_lb_imbalance_task                                        :        1376,        655  |   -52.40>
+   newidle_lb_imbalance_misfit                                      :           0,          0  |     0.00>
+   newidle_lb_gained                                                :         917,        457  |   -50.16>
+   newidle_lb_hot_gained                                            :           0,          0  |     0.00>
+   newidle_lb_nobusyq                                               :           3,          1  |   -66.67>
+   newidle_lb_nobusyg                                               :       14480,       2103  |   -85.48>
+   *newidle_lb_success_count                                        :         918,        457  |   -50.22>
+   *newidle_lb_avg_pulled                                           :        1.00,       1.00  |     0.11>
+   --------------------------------- <Category active_load_balance()> ---------------------------------
+   alb_count                                                        :           0,          1  |     0.00>
+   alb_failed                                                       :           0,          0  |     0.00>
+   alb_pushed                                                       :           0,          1  |     0.00>
+   --------------------------------- <Category sched_balance_exec()> ----------------------------------
+   sbe_count                                                        :           0,          0  |     0.00>
+   sbe_balanced                                                     :           0,          0  |     0.00>
+   sbe_pushed                                                       :           0,          0  |     0.00>
+   --------------------------------- <Category sched_balance_fork()> ----------------------------------
+   sbf_count                                                        :           0,          0  |     0.00>
+   sbf_balanced                                                     :           0,          0  |     0.00>
+   sbf_pushed                                                       :           0,          0  |     0.00>
+   ------------------------------------------ <Wakeup Info> -------------------------------------------
+   ttwu_wake_remote                                                 :        2031,       2914  |    43.48>
+   ttwu_move_affine                                                 :          73,        124  |    69.86>
+   ttwu_move_balance                                                :           0,          0  |     0.00>
+   ----------------------------------------------------------------------------------------------------
+
 OPTIONS
 -------
+Applicable to {record|latency|map|replay|script}
+
 -i::
 --input=<file>::
         Input file name. (default: perf.data unless stdin is a fifo)

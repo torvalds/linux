@@ -78,8 +78,12 @@ static int alloc_masks(struct irq_desc *desc, int node)
 	return 0;
 }
 
-static void desc_smp_init(struct irq_desc *desc, int node,
-			  const struct cpumask *affinity)
+static void irq_redirect_work(struct irq_work *work)
+{
+	handle_irq_desc(container_of(work, struct irq_desc, redirect.work));
+}
+
+static void desc_smp_init(struct irq_desc *desc, int node, const struct cpumask *affinity)
 {
 	if (!affinity)
 		affinity = irq_default_affinity;
@@ -91,6 +95,7 @@ static void desc_smp_init(struct irq_desc *desc, int node,
 #ifdef CONFIG_NUMA
 	desc->irq_common_data.node = node;
 #endif
+	desc->redirect.work = IRQ_WORK_INIT_HARD(irq_redirect_work);
 }
 
 static void free_masks(struct irq_desc *desc)
@@ -115,8 +120,6 @@ static inline void free_masks(struct irq_desc *desc) { }
 static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 			      const struct cpumask *affinity, struct module *owner)
 {
-	int cpu;
-
 	desc->irq_common_data.handler_data = NULL;
 	desc->irq_common_data.msi_desc = NULL;
 
@@ -134,8 +137,6 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc->tot_count = 0;
 	desc->name = NULL;
 	desc->owner = owner;
-	for_each_possible_cpu(cpu)
-		*per_cpu_ptr(desc->kstat_irqs, cpu) = (struct irqstat) { };
 	desc_smp_init(desc, node, affinity);
 }
 
@@ -621,9 +622,14 @@ EXPORT_SYMBOL(irq_to_desc);
 static void free_desc(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
+	int cpu;
 
 	scoped_guard(raw_spinlock_irqsave, &desc->lock)
 		desc_set_defaults(irq, desc, irq_desc_get_node(desc), NULL, NULL);
+
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(desc->kstat_irqs, cpu) = (struct irqstat) { };
+
 	delete_irq_desc(irq);
 }
 
@@ -766,6 +772,83 @@ int generic_handle_domain_nmi(struct irq_domain *domain, irq_hw_number_t hwirq)
 	WARN_ON_ONCE(!in_nmi());
 	return handle_irq_desc(irq_resolve_mapping(domain, hwirq));
 }
+
+#ifdef CONFIG_SMP
+static bool demux_redirect_remote(struct irq_desc *desc)
+{
+	guard(raw_spinlock)(&desc->lock);
+	const struct cpumask *m = irq_data_get_effective_affinity_mask(&desc->irq_data);
+	unsigned int target_cpu = READ_ONCE(desc->redirect.target_cpu);
+
+	if (desc->irq_data.chip->irq_pre_redirect)
+		desc->irq_data.chip->irq_pre_redirect(&desc->irq_data);
+
+	/*
+	 * If the interrupt handler is already running on a CPU that's included
+	 * in the interrupt's affinity mask, redirection is not necessary.
+	 */
+	if (cpumask_test_cpu(smp_processor_id(), m))
+		return false;
+
+	/*
+	 * The desc->action check protects against IRQ shutdown: __free_irq() sets
+	 * desc->action to NULL while holding desc->lock, which we also hold.
+	 *
+	 * Calling irq_work_queue_on() here is safe w.r.t. CPU unplugging:
+	 *   - takedown_cpu() schedules multi_cpu_stop() on all active CPUs,
+	 *     including the one that's taken down.
+	 *   - multi_cpu_stop() acts like a barrier, which means all active
+	 *     CPUs go through MULTI_STOP_DISABLE_IRQ and disable hard IRQs
+	 *     *before* the dying CPU runs take_cpu_down() in MULTI_STOP_RUN.
+	 *   - Hard IRQs are re-enabled at the end of multi_cpu_stop(), *after*
+	 *     the dying CPU has run take_cpu_down() in MULTI_STOP_RUN.
+	 *   - Since we run in hard IRQ context, we run either before or after
+	 *     take_cpu_down() but never concurrently.
+	 *   - If we run before take_cpu_down(), the dying CPU hasn't been marked
+	 *     offline yet (it's marked via take_cpu_down() -> __cpu_disable()),
+	 *     so the WARN in irq_work_queue_on() can't occur.
+	 *   - Furthermore, the work item we queue will be flushed later via
+	 *     take_cpu_down() -> cpuhp_invoke_callback_range_nofail() ->
+	 *     smpcfd_dying_cpu() -> irq_work_run().
+	 *   - If we run after take_cpu_down(), target_cpu has been already
+	 *     updated via take_cpu_down() -> __cpu_disable(), which eventually
+	 *     calls irq_do_set_affinity() during IRQ migration. So, target_cpu
+	 *     no longer points to the dying CPU in this case.
+	 */
+	if (desc->action)
+		irq_work_queue_on(&desc->redirect.work, target_cpu);
+
+	return true;
+}
+#else /* CONFIG_SMP */
+static bool demux_redirect_remote(struct irq_desc *desc)
+{
+	return false;
+}
+#endif
+
+/**
+ * generic_handle_demux_domain_irq - Invoke the handler for a hardware interrupt
+ *				     of a demultiplexing domain.
+ * @domain:	The domain where to perform the lookup
+ * @hwirq:	The hardware interrupt number to convert to a logical one
+ *
+ * Returns:	True on success, or false if lookup has failed
+ */
+bool generic_handle_demux_domain_irq(struct irq_domain *domain, irq_hw_number_t hwirq)
+{
+	struct irq_desc *desc = irq_resolve_mapping(domain, hwirq);
+
+	if (unlikely(!desc))
+		return false;
+
+	if (demux_redirect_remote(desc))
+		return true;
+
+	return !handle_irq_desc(desc);
+}
+EXPORT_SYMBOL_GPL(generic_handle_demux_domain_irq);
+
 #endif
 
 /* Dynamic interrupt handling */
@@ -886,7 +969,7 @@ int irq_set_percpu_devid(unsigned int irq)
 	if (!desc || desc->percpu_enabled)
 		return -EINVAL;
 
-	desc->percpu_enabled = kzalloc(sizeof(*desc->percpu_enabled), GFP_KERNEL);
+	desc->percpu_enabled = kzalloc_obj(*desc->percpu_enabled);
 
 	if (!desc->percpu_enabled)
 		return -ENOMEM;

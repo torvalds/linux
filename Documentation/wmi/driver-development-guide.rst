@@ -70,7 +70,7 @@ to matching WMI devices using a struct wmi_device_id table:
         .probe = foo_probe,
         .remove = foo_remove,         /* optional, devres is preferred */
         .shutdown = foo_shutdown,     /* optional, called during shutdown */
-        .notify = foo_notify,         /* optional, for event handling */
+        .notify_new = foo_notify,     /* optional, for event handling */
         .no_notify_data = true,       /* optional, enables events containing no additional data */
         .no_singleton = true,         /* required for new WMI drivers */
   };
@@ -90,9 +90,9 @@ the WMI device and put it in a well-known state for the WMI driver to pick up la
 or kexec. Most WMI drivers need no special shutdown handling and can thus omit this callback.
 
 Please note that new WMI drivers are required to be able to be instantiated multiple times,
-and are forbidden from using any deprecated GUID-based WMI functions. This means that the
-WMI driver should be prepared for the scenario that multiple matching WMI devices are present
-on a given machine.
+and are forbidden from using any deprecated GUID-based or ACPI-based WMI functions. This means
+that the WMI driver should be prepared for the scenario that multiple matching WMI devices are
+present on a given machine.
 
 Because of this, WMI drivers should use the state container design pattern as described in
 Documentation/driver-api/driver-model/design-patterns.rst.
@@ -104,38 +104,37 @@ Documentation/driver-api/driver-model/design-patterns.rst.
 WMI method drivers
 ------------------
 
-WMI drivers can call WMI device methods using wmidev_evaluate_method(), the
-structure of the ACPI buffer passed to this function is device-specific and usually
-needs some tinkering to get right. Looking at the ACPI tables containing the WMI
-device usually helps here. The method id and instance number passed to this function
-are also device-specific, looking at the decoded Binary MOF is usually enough to
-find the right values.
+WMI drivers can call WMI device methods using wmidev_invoke_method(). For each WMI method
+invocation the WMI driver needs to provide the instance number and the method ID, as well as
+a buffer with the method arguments and optionally a buffer for the results.
 
-The maximum instance number can be retrieved during runtime using wmidev_instance_count().
+The layout of said buffers is device-specific and described by the Binary MOF data associated
+with a given WMI device. Said Binary MOF data also describes the method ID of a given WMI method
+with the ``WmiMethodId`` qualifier. WMI devices exposing WMI methods usually expose only a single
+instance (instance number 0), but in theory can expose multiple instances as well. In such a case
+the number of instances can be retrieved using wmidev_instance_count().
 
-Take a look at drivers/platform/x86/inspur_platform_profile.c for an example WMI method driver.
+Take a look at drivers/platform/x86/intel/wmi/thunderbolt.c for an example WMI method driver.
 
 WMI data block drivers
 ----------------------
 
-WMI drivers can query WMI device data blocks using wmidev_block_query(), the
-structure of the returned ACPI object is again device-specific. Some WMI devices
-also allow for setting data blocks using wmidev_block_set().
+WMI drivers can query WMI data blocks using wmidev_query_block(), the layout of the returned
+buffer is again device-specific and described by the Binary MOF data. Some WMI data blocks are
+also writeable and can be set using wmidev_set_block(). The number of data block instances can
+again be retrieved using wmidev_instance_count().
 
-The maximum instance number can also be retrieved using wmidev_instance_count().
-
-Take a look at drivers/platform/x86/intel/wmi/sbl-fw-update.c for an example
-WMI data block driver.
+Take a look at drivers/platform/x86/intel/wmi/sbl-fw-update.c for an example WMI data block driver.
 
 WMI event drivers
 -----------------
 
-WMI drivers can receive WMI events via the notify() callback inside the struct wmi_driver.
+WMI drivers can receive WMI events via the notify_new() callback inside the struct wmi_driver.
 The WMI subsystem will then take care of setting up the WMI event accordingly. Please note that
-the structure of the ACPI object passed to this callback is device-specific, and freeing the
-ACPI object is being done by the WMI subsystem, not the driver.
+the layout of the buffer passed to this callback is device-specific, and freeing of the buffer
+is done by the WMI subsystem itself, not the driver.
 
-The WMI driver core will take care that the notify() callback will only be called after
+The WMI driver core will take care that the notify_new() callback will only be called after
 the probe() callback has been called, and that no events are being received by the driver
 right before and after calling its remove() or shutdown() callback.
 
@@ -146,6 +145,36 @@ In order to be able to receive WMI events containing no additional event data,
 the ``no_notify_data`` flag inside struct wmi_driver should be set to ``true``.
 
 Take a look at drivers/platform/x86/xiaomi-wmi.c for an example WMI event driver.
+
+Exchanging data with the WMI driver core
+----------------------------------------
+
+WMI drivers can exchange data with the WMI driver core using struct wmi_buffer. The internal
+structure of those buffers is device-specific and only known by the WMI driver. Because of this
+the WMI driver itself is responsible for parsing and validating the data received from its
+WMI device.
+
+The structure of said buffers is described by the MOF data associated with the WMI device in
+question. When such a buffer contains multiple data items it usually makes sense to define a
+C structure and use it during parsing. Since the WMI driver core guarantees that all buffers
+received from a WMI device are aligned on an 8-byte boundary, WMI drivers can simply perform
+a cast between the WMI buffer data and this C structure.
+
+This however should only be done after the size of the buffer was verified to be large enough
+to hold the whole C structure. WMI drivers should reject undersized buffers as they are usually
+sent by the WMI device to signal an internal error. Oversized buffers however should be accepted
+to emulate the behavior of the Windows WMI implementation.
+
+When defining a C structure for parsing WMI buffers the alignment of the data items should be
+respected. This is especially important for 64-bit integers as those have different alignments
+on 64-bit (8-byte alignment) and 32-bit (4-byte alignment) architectures. It is thus a good idea
+to manually specify the alignment of such data items or mark the whole structure as packed when
+appropriate. Integer data items in general are little-endian integers and should be marked as
+such using ``__le64`` and friends. When parsing WMI string data items the struct wmi_string should
+be used as WMI strings have a different layout than C strings.
+
+See Documentation/wmi/acpi-interface.rst for more information regarding the binary format
+of WMI data items.
 
 Handling multiple WMI devices at once
 -------------------------------------
@@ -171,6 +200,7 @@ Things to avoid
 When developing WMI drivers, there are a couple of things which should be avoided:
 
 - usage of the deprecated GUID-based WMI interface which uses GUIDs instead of WMI device structs
+- usage of the deprecated ACPI-based WMI interface which uses ACPI objects instead of plain buffers
 - bypassing of the WMI subsystem when talking to WMI devices
 - WMI drivers which cannot be instantiated multiple times.
 

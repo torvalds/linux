@@ -11,7 +11,7 @@
 
 #define BUILD_VDSO32
 
-#include "../vdso-layout.lds.S"
+#include "common/vdso-layout.lds.S"
 
 /* The ELF entry point can be used to set the AT_SYSINFO value.  */
 ENTRY(__kernel_vsyscall);
@@ -28,6 +28,7 @@ VERSION
 		__vdso_time;
 		__vdso_clock_getres;
 		__vdso_clock_gettime64;
+		__vdso_clock_getres_time64;
 		__vdso_getcpu;
 	};
 

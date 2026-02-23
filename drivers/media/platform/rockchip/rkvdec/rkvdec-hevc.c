@@ -16,7 +16,8 @@
 
 #include "rkvdec.h"
 #include "rkvdec-regs.h"
-#include "rkvdec-hevc-data.c"
+#include "rkvdec-cabac.h"
+#include "rkvdec-hevc-common.h"
 
 /* Size in u8/u32 units. */
 #define RKV_SCALING_LIST_SIZE		1360
@@ -110,32 +111,16 @@ struct rkvdec_ps_field {
 
 /* Data structure describing auxiliary buffer format. */
 struct rkvdec_hevc_priv_tbl {
-	u8 cabac_table[RKV_CABAC_TABLE_SIZE];
-	u8 scaling_list[RKV_SCALING_LIST_SIZE];
+	u8 cabac_table[RKV_HEVC_CABAC_TABLE_SIZE];
+	struct scaling_factor scaling_list;
 	struct rkvdec_sps_pps_packet param_set[RKV_PPS_LEN];
 	struct rkvdec_rps_packet rps[RKV_RPS_LEN];
-};
-
-struct rkvdec_hevc_run {
-	struct rkvdec_run base;
-	const struct v4l2_ctrl_hevc_slice_params *slices_params;
-	const struct v4l2_ctrl_hevc_decode_params *decode_params;
-	const struct v4l2_ctrl_hevc_sps *sps;
-	const struct v4l2_ctrl_hevc_pps *pps;
-	const struct v4l2_ctrl_hevc_scaling_matrix *scaling_matrix;
-	int num_slices;
 };
 
 struct rkvdec_hevc_ctx {
 	struct rkvdec_aux_buf priv_tbl;
 	struct v4l2_ctrl_hevc_scaling_matrix scaling_matrix_cache;
-};
-
-struct scaling_factor {
-	u8 scalingfactor0[1248];
-	u8 scalingfactor1[96];		/*4X4 TU Rotate, total 16X4*/
-	u8 scalingdc[12];		/*N1005 Vienna Meeting*/
-	u8 reserved[4];		/*16Bytes align*/
+	struct rkvdec_regs regs;
 };
 
 static void set_ps_field(u32 *buf, struct rkvdec_ps_field field, u32 value)
@@ -414,131 +399,6 @@ static void assemble_sw_rps(struct rkvdec_ctx *ctx,
 	}
 }
 
-/*
- * Flip one or more matrices along their main diagonal and flatten them
- * before writing it to the memory.
- * Convert:
- * ABCD         AEIM
- * EFGH     =>  BFJN     =>     AEIMBFJNCGKODHLP
- * IJKL         CGKO
- * MNOP         DHLP
- */
-static void transpose_and_flatten_matrices(u8 *output, const u8 *input,
-					   int matrices, int row_length)
-{
-	int i, j, row, x_offset, matrix_offset, rot_index, y_offset, matrix_size, new_value;
-
-	matrix_size = row_length * row_length;
-	for (i = 0; i < matrices; i++) {
-		row = 0;
-		x_offset = 0;
-		matrix_offset = i * matrix_size;
-		for (j = 0; j < matrix_size; j++) {
-			y_offset = j - (row * row_length);
-			rot_index = y_offset * row_length + x_offset;
-			new_value = *(input + i * matrix_size + j);
-			output[matrix_offset + rot_index] = new_value;
-			if ((j + 1) % row_length == 0) {
-				row += 1;
-				x_offset += 1;
-			}
-		}
-	}
-}
-
-static void assemble_scalingfactor0(u8 *output, const struct v4l2_ctrl_hevc_scaling_matrix *input)
-{
-	int offset = 0;
-
-	transpose_and_flatten_matrices(output, (const u8 *)input->scaling_list_4x4, 6, 4);
-	offset = 6 * 16 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset, (const u8 *)input->scaling_list_8x8, 6, 8);
-	offset += 6 * 64 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset,
-				       (const u8 *)input->scaling_list_16x16, 6, 8);
-	offset += 6 * 64 * sizeof(u8);
-	/* Add a 128 byte padding with 0s between the two 32x32 matrices */
-	transpose_and_flatten_matrices(output + offset,
-				       (const u8 *)input->scaling_list_32x32, 1, 8);
-	offset += 64 * sizeof(u8);
-	memset(output + offset, 0, 128);
-	offset += 128 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset,
-				       (const u8 *)input->scaling_list_32x32 + (64 * sizeof(u8)),
-				       1, 8);
-	offset += 64 * sizeof(u8);
-	memset(output + offset, 0, 128);
-}
-
-/*
- * Required layout:
- * A = scaling_list_dc_coef_16x16
- * B = scaling_list_dc_coef_32x32
- * 0 = Padding
- *
- * A, A, A, A, A, A, B, 0, 0, B, 0, 0
- */
-static void assemble_scalingdc(u8 *output, const struct v4l2_ctrl_hevc_scaling_matrix *input)
-{
-	u8 list_32x32[6] = {0};
-
-	memcpy(output, input->scaling_list_dc_coef_16x16, 6 * sizeof(u8));
-	list_32x32[0] = input->scaling_list_dc_coef_32x32[0];
-	list_32x32[3] = input->scaling_list_dc_coef_32x32[1];
-	memcpy(output + 6 * sizeof(u8), list_32x32, 6 * sizeof(u8));
-}
-
-static void translate_scaling_list(struct scaling_factor *output,
-				   const struct v4l2_ctrl_hevc_scaling_matrix *input)
-{
-	assemble_scalingfactor0(output->scalingfactor0, input);
-	memcpy(output->scalingfactor1, (const u8 *)input->scaling_list_4x4, 96);
-	assemble_scalingdc(output->scalingdc, input);
-	memset(output->reserved, 0, 4 * sizeof(u8));
-}
-
-static void assemble_hw_scaling_list(struct rkvdec_ctx *ctx,
-				     struct rkvdec_hevc_run *run)
-{
-	const struct v4l2_ctrl_hevc_scaling_matrix *scaling = run->scaling_matrix;
-	struct rkvdec_hevc_ctx *hevc_ctx = ctx->priv;
-	struct rkvdec_hevc_priv_tbl *tbl = hevc_ctx->priv_tbl.cpu;
-	u8 *dst;
-
-	if (!memcmp((void *)&hevc_ctx->scaling_matrix_cache, scaling,
-		    sizeof(struct v4l2_ctrl_hevc_scaling_matrix)))
-		return;
-
-	dst = tbl->scaling_list;
-	translate_scaling_list((struct scaling_factor *)dst, scaling);
-
-	memcpy((void *)&hevc_ctx->scaling_matrix_cache, scaling,
-	       sizeof(struct v4l2_ctrl_hevc_scaling_matrix));
-}
-
-static struct vb2_buffer *
-get_ref_buf(struct rkvdec_ctx *ctx, struct rkvdec_hevc_run *run,
-	    unsigned int dpb_idx)
-{
-	struct v4l2_m2m_ctx *m2m_ctx = ctx->fh.m2m_ctx;
-	const struct v4l2_ctrl_hevc_decode_params *decode_params = run->decode_params;
-	const struct v4l2_hevc_dpb_entry *dpb = decode_params->dpb;
-	struct vb2_queue *cap_q = &m2m_ctx->cap_q_ctx.q;
-	struct vb2_buffer *buf = NULL;
-
-	if (dpb_idx < decode_params->num_active_dpb_entries)
-		buf = vb2_find_buffer(cap_q, dpb[dpb_idx].timestamp);
-
-	/*
-	 * If a DPB entry is unused or invalid, the address of current destination
-	 * buffer is returned.
-	 */
-	if (!buf)
-		return &run->base.bufs.dst->vb2_buf;
-
-	return buf;
-}
-
 static void config_registers(struct rkvdec_ctx *ctx,
 			     struct rkvdec_hevc_run *run)
 {
@@ -548,6 +408,7 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	const struct v4l2_ctrl_hevc_slice_params *sl_params = &run->slices_params[0];
 	const struct v4l2_hevc_dpb_entry *dpb = decode_params->dpb;
 	struct rkvdec_hevc_ctx *hevc_ctx = ctx->priv;
+	struct rkvdec_regs *regs = &hevc_ctx->regs;
 	dma_addr_t priv_start_addr = hevc_ctx->priv_tbl.dma;
 	const struct v4l2_pix_format_mplane *dst_fmt;
 	struct vb2_v4l2_buffer *src_buf = run->base.bufs.src;
@@ -564,8 +425,9 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	dma_addr_t dst_addr;
 	u32 reg, i;
 
-	reg = RKVDEC_MODE(RKVDEC_MODE_HEVC);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_SYSCTRL);
+	memset(regs, 0, sizeof(*regs));
+
+	regs->common.reg02.dec_mode = RKVDEC_MODE_HEVC;
 
 	f = &ctx->decoded_fmt;
 	dst_fmt = &f->fmt.pix_mp;
@@ -580,33 +442,27 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	else if (sps->chroma_format_idc == 2)
 		yuv_virstride = 2 * y_virstride;
 
-	reg = RKVDEC_Y_HOR_VIRSTRIDE(hor_virstride / 16) |
-	      RKVDEC_UV_HOR_VIRSTRIDE(hor_virstride / 16) |
-	      RKVDEC_SLICE_NUM_LOWBITS(run->num_slices);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_PICPAR);
+	regs->common.reg03.slice_num_lowbits = run->num_slices;
+	regs->common.reg03.uv_hor_virstride = hor_virstride / 16;
+	regs->common.reg03.y_hor_virstride = hor_virstride / 16;
 
 	/* config rlc base address */
 	rlc_addr = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
-	writel_relaxed(rlc_addr, rkvdec->regs + RKVDEC_REG_STRM_RLC_BASE);
+	regs->common.strm_rlc_base = rlc_addr;
 
 	rlc_len = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
-	reg = RKVDEC_STRM_LEN(round_up(rlc_len, 16) + 64);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_STRM_LEN);
+	regs->common.stream_len = round_up(rlc_len, 16) + 64;
 
 	/* config cabac table */
 	offset = offsetof(struct rkvdec_hevc_priv_tbl, cabac_table);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_CABACTBL_PROB_BASE);
+	regs->common.cabactbl_base = priv_start_addr + offset;
 
 	/* config output base address */
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
-	writel_relaxed(dst_addr, rkvdec->regs + RKVDEC_REG_DECOUT_BASE);
+	regs->common.decout_base = dst_addr;
 
-	reg = RKVDEC_Y_VIRSTRIDE(y_virstride / 16);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_Y_VIRSTRIDE);
-
-	reg = RKVDEC_YUV_VIRSTRIDE(yuv_virstride / 16);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_YUV_VIRSTRIDE);
+	regs->common.reg08.y_virstride = y_virstride / 16;
+	regs->common.reg09.yuv_virstride = yuv_virstride / 16;
 
 	/* config ref pic address */
 	for (i = 0; i < 15; i++) {
@@ -620,70 +476,30 @@ static void config_registers(struct rkvdec_ctx *ctx,
 		}
 
 		refer_addr = vb2_dma_contig_plane_dma_addr(vb_buf, 0);
-		writel_relaxed(refer_addr | reg,
-			       rkvdec->regs + RKVDEC_REG_H264_BASE_REFER(i));
 
-		reg = RKVDEC_POC_REFER(i < decode_params->num_active_dpb_entries ?
-			dpb[i].pic_order_cnt_val : 0);
-		writel_relaxed(reg,
-			       rkvdec->regs + RKVDEC_REG_H264_POC_REFER0(i));
+		regs->h26x.ref0_14_base[i].base_addr = refer_addr >> 4;
+		regs->h26x.ref0_14_base[i].field_ref = !!(reg & 1);
+		regs->h26x.ref0_14_base[i].topfield_used_ref = !!(reg & 2);
+		regs->h26x.ref0_14_base[i].botfield_used_ref = !!(reg & 4);
+		regs->h26x.ref0_14_base[i].colmv_use_flag_ref = !!(reg & 8);
+
+		regs->h26x.ref0_14_poc[i] = i < decode_params->num_active_dpb_entries
+					    ? dpb[i].pic_order_cnt_val
+					    : 0;
 	}
 
-	reg = RKVDEC_CUR_POC(sl_params->slice_pic_order_cnt);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_CUR_POC0);
+	regs->h26x.cur_poc = sl_params->slice_pic_order_cnt;
 
 	/* config hw pps address */
 	offset = offsetof(struct rkvdec_hevc_priv_tbl, param_set);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_PPS_BASE);
+	regs->h26x.pps_base = priv_start_addr + offset;
 
 	/* config hw rps address */
 	offset = offsetof(struct rkvdec_hevc_priv_tbl, rps);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_RPS_BASE);
+	regs->h26x.rps_base = priv_start_addr + offset;
 
-	reg = RKVDEC_AXI_DDR_RDATA(0);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_AXI_DDR_RDATA);
-
-	reg = RKVDEC_AXI_DDR_WDATA(0);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_AXI_DDR_WDATA);
-}
-
-#define RKVDEC_HEVC_MAX_DEPTH_IN_BYTES		2
-
-static int rkvdec_hevc_adjust_fmt(struct rkvdec_ctx *ctx,
-				  struct v4l2_format *f)
-{
-	struct v4l2_pix_format_mplane *fmt = &f->fmt.pix_mp;
-
-	fmt->num_planes = 1;
-	if (!fmt->plane_fmt[0].sizeimage)
-		fmt->plane_fmt[0].sizeimage = fmt->width * fmt->height *
-					      RKVDEC_HEVC_MAX_DEPTH_IN_BYTES;
-	return 0;
-}
-
-static enum rkvdec_image_fmt rkvdec_hevc_get_image_fmt(struct rkvdec_ctx *ctx,
-						       struct v4l2_ctrl *ctrl)
-{
-	const struct v4l2_ctrl_hevc_sps *sps = ctrl->p_new.p_hevc_sps;
-
-	if (ctrl->id != V4L2_CID_STATELESS_HEVC_SPS)
-		return RKVDEC_IMG_FMT_ANY;
-
-	if (sps->bit_depth_luma_minus8 == 0) {
-		if (sps->chroma_format_idc == 2)
-			return RKVDEC_IMG_FMT_422_8BIT;
-		else
-			return RKVDEC_IMG_FMT_420_8BIT;
-	} else if (sps->bit_depth_luma_minus8 == 2) {
-		if (sps->chroma_format_idc == 2)
-			return RKVDEC_IMG_FMT_422_10BIT;
-		else
-			return RKVDEC_IMG_FMT_420_10BIT;
-	}
-
-	return RKVDEC_IMG_FMT_ANY;
+	rkvdec_memcpy_toio(rkvdec->regs, regs,
+			   MIN(sizeof(*regs), sizeof(u32) * rkvdec->variant->num_regs));
 }
 
 static int rkvdec_hevc_validate_sps(struct rkvdec_ctx *ctx,
@@ -696,7 +512,7 @@ static int rkvdec_hevc_validate_sps(struct rkvdec_ctx *ctx,
 		/* Luma and chroma bit depth mismatch */
 		return -EINVAL;
 	if (sps->bit_depth_luma_minus8 != 0 && sps->bit_depth_luma_minus8 != 2)
-		/* Only 8-bit and 10-bit is supported */
+		/* Only 8-bit and 10-bit are supported */
 		return -EINVAL;
 
 	if (sps->pic_width_in_luma_samples > ctx->coded_fmt.fmt.pix_mp.width ||
@@ -712,7 +528,7 @@ static int rkvdec_hevc_start(struct rkvdec_ctx *ctx)
 	struct rkvdec_hevc_priv_tbl *priv_tbl;
 	struct rkvdec_hevc_ctx *hevc_ctx;
 
-	hevc_ctx = kzalloc(sizeof(*hevc_ctx), GFP_KERNEL);
+	hevc_ctx = kzalloc_obj(*hevc_ctx);
 	if (!hevc_ctx)
 		return -ENOMEM;
 
@@ -742,40 +558,18 @@ static void rkvdec_hevc_stop(struct rkvdec_ctx *ctx)
 	kfree(hevc_ctx);
 }
 
-static void rkvdec_hevc_run_preamble(struct rkvdec_ctx *ctx,
-				     struct rkvdec_hevc_run *run)
-{
-	struct v4l2_ctrl *ctrl;
-
-	ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
-			      V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
-	run->decode_params = ctrl ? ctrl->p_cur.p : NULL;
-	ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
-			      V4L2_CID_STATELESS_HEVC_SLICE_PARAMS);
-	run->slices_params = ctrl ? ctrl->p_cur.p : NULL;
-	run->num_slices = ctrl ? ctrl->new_elems : 0;
-	ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
-			      V4L2_CID_STATELESS_HEVC_SPS);
-	run->sps = ctrl ? ctrl->p_cur.p : NULL;
-	ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
-			      V4L2_CID_STATELESS_HEVC_PPS);
-	run->pps = ctrl ? ctrl->p_cur.p : NULL;
-	ctrl = v4l2_ctrl_find(&ctx->ctrl_hdl,
-			      V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
-	run->scaling_matrix = ctrl ? ctrl->p_cur.p : NULL;
-
-	rkvdec_run_preamble(ctx, &run->base);
-}
-
 static int rkvdec_hevc_run(struct rkvdec_ctx *ctx)
 {
 	struct rkvdec_dev *rkvdec = ctx->dev;
 	struct rkvdec_hevc_run run;
+	struct rkvdec_hevc_ctx *hevc_ctx = ctx->priv;
+	struct rkvdec_hevc_priv_tbl *tbl = hevc_ctx->priv_tbl.cpu;
 	u32 reg;
 
 	rkvdec_hevc_run_preamble(ctx, &run);
 
-	assemble_hw_scaling_list(ctx, &run);
+	rkvdec_hevc_assemble_hw_scaling_list(ctx, &run, &tbl->scaling_list,
+					     &hevc_ctx->scaling_matrix_cache);
 	assemble_hw_pps(ctx, &run);
 	assemble_sw_rps(ctx, &run);
 	config_registers(ctx, &run);
@@ -784,8 +578,6 @@ static int rkvdec_hevc_run(struct rkvdec_ctx *ctx)
 
 	schedule_delayed_work(&rkvdec->watchdog_work, msecs_to_jiffies(2000));
 
-	writel(0, rkvdec->regs + RKVDEC_REG_STRMD_ERR_EN);
-	writel(0, rkvdec->regs + RKVDEC_REG_H264_ERR_E);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_LUMA_CACHE_COMMAND);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_CHR_CACHE_COMMAND);
 

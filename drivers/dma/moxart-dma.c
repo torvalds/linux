@@ -301,7 +301,7 @@ static struct dma_async_tx_descriptor *moxart_prep_slave_sg(
 		return NULL;
 	}
 
-	d = kzalloc(struct_size(d, sg, sg_len), GFP_ATOMIC);
+	d = kzalloc_flex(*d, sg, sg_len, GFP_ATOMIC);
 	if (!d)
 		return NULL;
 	d->sglen = sg_len;

@@ -218,7 +218,7 @@ nouveau_uvma_unmap(struct nouveau_uvma *uvma)
 static int
 nouveau_uvma_alloc(struct nouveau_uvma **puvma)
 {
-	*puvma = kzalloc(sizeof(**puvma), GFP_KERNEL);
+	*puvma = kzalloc_obj(**puvma);
 	if (!*puvma)
 		return -ENOMEM;
 
@@ -246,7 +246,7 @@ nouveau_uvma_gem_put(struct nouveau_uvma *uvma)
 static int
 nouveau_uvma_region_alloc(struct nouveau_uvma_region **preg)
 {
-	*preg = kzalloc(sizeof(**preg), GFP_KERNEL);
+	*preg = kzalloc_obj(**preg);
 	if (!*preg)
 		return -ENOMEM;
 
@@ -1020,7 +1020,7 @@ nouveau_uvmm_validate_range(struct nouveau_uvmm *uvmm, u64 addr, u64 range)
 static int
 nouveau_uvmm_bind_job_alloc(struct nouveau_uvmm_bind_job **pjob)
 {
-	*pjob = kzalloc(sizeof(**pjob), GFP_KERNEL);
+	*pjob = kzalloc_obj(**pjob);
 	if (!*pjob)
 		return -ENOMEM;
 
@@ -1275,7 +1275,7 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 				return -ENOENT;
 
 			dma_resv_lock(obj->resv, NULL);
-			op->vm_bo = drm_gpuvm_bo_obtain(&uvmm->base, obj);
+			op->vm_bo = drm_gpuvm_bo_obtain_locked(&uvmm->base, obj);
 			dma_resv_unlock(obj->resv);
 			if (IS_ERR(op->vm_bo))
 				return PTR_ERR(op->vm_bo);
@@ -1618,7 +1618,7 @@ bind_job_op_from_uop(struct bind_job_op **pop,
 {
 	struct bind_job_op *op;
 
-	op = *pop = kzalloc(sizeof(*op), GFP_KERNEL);
+	op = *pop = kzalloc_obj(*op);
 	if (!op)
 		return -ENOMEM;
 
@@ -1911,7 +1911,7 @@ nouveau_uvmm_ioctl_vm_init(struct drm_device *dev,
 		goto out_unlock;
 	}
 
-	uvmm = kzalloc(sizeof(*uvmm), GFP_KERNEL);
+	uvmm = kzalloc_obj(*uvmm);
 	if (!uvmm) {
 		ret = -ENOMEM;
 		goto out_unlock;

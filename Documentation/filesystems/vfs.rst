@@ -94,11 +94,9 @@ functions:
 
 The passed struct file_system_type describes your filesystem.  When a
 request is made to mount a filesystem onto a directory in your
-namespace, the VFS will call the appropriate mount() method for the
-specific filesystem.  New vfsmount referring to the tree returned by
-->mount() will be attached to the mountpoint, so that when pathname
-resolution reaches the mountpoint it will jump into the root of that
-vfsmount.
+namespace, the VFS will call the appropriate get_tree() method for the
+specific filesystem.  See Documentation/filesystems/mount_api.rst
+for more details.
 
 You can see all filesystems that are registered to the kernel in the
 file /proc/filesystems.
@@ -117,8 +115,6 @@ members are defined:
 		int fs_flags;
 		int (*init_fs_context)(struct fs_context *);
 		const struct fs_parameter_spec *parameters;
-		struct dentry *(*mount) (struct file_system_type *, int,
-			const char *, void *);
 		void (*kill_sb) (struct super_block *);
 		struct module *owner;
 		struct file_system_type * next;
@@ -151,10 +147,6 @@ members are defined:
 	'struct fs_parameter_spec'.
 	More info in Documentation/filesystems/mount_api.rst.
 
-``mount``
-	the method to call when a new instance of this filesystem should
-	be mounted
-
 ``kill_sb``
 	the method to call when an instance of this filesystem should be
 	shut down
@@ -172,45 +164,6 @@ members are defined:
 
   s_lock_key, s_umount_key, s_vfs_rename_key, s_writers_key,
   i_lock_key, i_mutex_key, invalidate_lock_key, i_mutex_dir_key: lockdep-specific
-
-The mount() method has the following arguments:
-
-``struct file_system_type *fs_type``
-	describes the filesystem, partly initialized by the specific
-	filesystem code
-
-``int flags``
-	mount flags
-
-``const char *dev_name``
-	the device name we are mounting.
-
-``void *data``
-	arbitrary mount options, usually comes as an ASCII string (see
-	"Mount Options" section)
-
-The mount() method must return the root dentry of the tree requested by
-caller.  An active reference to its superblock must be grabbed and the
-superblock must be locked.  On failure it should return ERR_PTR(error).
-
-The arguments match those of mount(2) and their interpretation depends
-on filesystem type.  E.g. for block filesystems, dev_name is interpreted
-as block device name, that device is opened and if it contains a
-suitable filesystem image the method creates and initializes struct
-super_block accordingly, returning its root dentry to caller.
-
-->mount() may choose to return a subtree of existing filesystem - it
-doesn't have to create a new one.  The main result from the caller's
-point of view is a reference to dentry at the root of (sub)tree to be
-attached; creation of new superblock is a common side effect.
-
-The most interesting member of the superblock structure that the mount()
-method fills in is the "s_op" field.  This is a pointer to a "struct
-super_operations" which describes the next level of the filesystem
-implementation.
-
-For more information on mounting (and the new mount API), see
-Documentation/filesystems/mount_api.rst.
 
 The Superblock Object
 =====================
@@ -244,7 +197,6 @@ filesystem.  The following members are defined:
 					enum freeze_wholder who);
 		int (*unfreeze_fs) (struct super_block *);
 		int (*statfs) (struct dentry *, struct kstatfs *);
-		int (*remount_fs) (struct super_block *, int *, char *);
 		void (*umount_begin) (struct super_block *);
 
 		int (*show_options)(struct seq_file *, struct dentry *);
@@ -350,10 +302,6 @@ or bottom half).
 
 ``statfs``
 	called when the VFS needs to get filesystem statistics.
-
-``remount_fs``
-	called when the filesystem is remounted.  This is called with
-	the kernel lock held
 
 ``umount_begin``
 	called when the VFS is unmounting a filesystem.
@@ -485,7 +433,9 @@ As of kernel 2.6.22, the following members are defined:
 		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
 		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
-		void (*update_time)(struct inode *, struct timespec *, int);
+		void (*update_time)(struct inode *inode, enum fs_update_time type,
+				    int flags);
+		void (*sync_lazytime)(struct inode *inode);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
 		int (*tmpfile) (struct mnt_idmap *, struct inode *, struct file *, umode_t);
@@ -641,6 +591,11 @@ otherwise noted.
 	called by the VFS to update a specific time or the i_version of
 	an inode.  If this is not defined the VFS will update the inode
 	itself and call mark_inode_dirty_sync.
+
+``sync_lazytime``:
+	called by the writeback code to update the lazy time stamps to
+	regular time stamp updates that get syncing into the on-disk
+	inode.
 
 ``atomic_open``
 	called on the last component of an open.  Using this optional
@@ -1180,9 +1135,12 @@ otherwise noted.
 	method is used by the splice(2) system call
 
 ``setlease``
-	called by the VFS to set or release a file lock lease.  setlease
-	implementations should call generic_setlease to record or remove
-	the lease in the inode after setting it.
+	called by the VFS to set or release a file lock lease.  Local
+	filesystems that wish to use the kernel-internal lease implementation
+	should set this to generic_setlease(). Other setlease implementations
+	should call generic_setlease() to record or remove the lease in the inode
+	after setting it. When set to NULL, attempts to set or remove a lease will
+	return -EINVAL.
 
 ``fallocate``
 	called by the VFS to preallocate blocks or punch a hole.

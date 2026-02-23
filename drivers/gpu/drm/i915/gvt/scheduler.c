@@ -38,19 +38,25 @@
 #include <drm/drm_print.h>
 
 #include "gem/i915_gem_pm.h"
+
 #include "gt/intel_context.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_execlists_submission.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
+#include "gvt.h"
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
 #include "i915_perf_oa_regs.h"
-#include "gvt.h"
+#include "sched_policy.h"
 
 #define RING_CTX_OFF(x) \
 	offsetof(struct execlist_ring_context, x)
+
+#define IS_RESTORE_INHIBIT(a) \
+	IS_MASKED_BITS_ENABLED(a, CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT)
 
 static void set_context_pdp_root_pointer(
 		struct execlist_ring_context *ring_context,

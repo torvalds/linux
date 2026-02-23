@@ -1316,7 +1316,7 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 		   func->num, func->vendor, func->device,
 		   func->max_blksize, func->cur_blksize);
 
-	ar_sdio = kzalloc(sizeof(struct ath6kl_sdio), GFP_KERNEL);
+	ar_sdio = kzalloc_obj(struct ath6kl_sdio);
 	if (!ar_sdio)
 		return -ENOMEM;
 

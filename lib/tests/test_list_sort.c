@@ -26,7 +26,7 @@ struct debug_el {
 	unsigned int serial;
 };
 
-static void check(struct kunit *test, struct debug_el *ela, struct debug_el *elb)
+static void check(struct kunit *test, const struct debug_el *ela, const struct debug_el *elb)
 {
 	struct debug_el **elts = test->priv;
 
@@ -46,7 +46,7 @@ static void check(struct kunit *test, struct debug_el *ela, struct debug_el *elb
 /* `priv` is the test pointer so check() can fail the test if the list is invalid. */
 static int cmp(void *priv, const struct list_head *a, const struct list_head *b)
 {
-	struct debug_el *ela, *elb;
+	const struct debug_el *ela, *elb;
 
 	ela = container_of(a, struct debug_el, list);
 	elb = container_of(b, struct debug_el, list);

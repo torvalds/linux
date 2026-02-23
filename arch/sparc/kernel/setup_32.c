@@ -388,7 +388,7 @@ static int __init topology_init(void)
 
 	err = 0;
 	for_each_online_cpu(i) {
-		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		struct cpu *p = kzalloc_obj(*p);
 		if (!p)
 			err = -ENOMEM;
 		else

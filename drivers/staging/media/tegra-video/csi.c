@@ -463,7 +463,7 @@ static int tegra_csi_channel_alloc(struct tegra_csi *csi,
 	struct tegra_csi_channel *chan;
 	int ret = 0, i;
 
-	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
+	chan = kzalloc_obj(*chan);
 	if (!chan)
 		return -ENOMEM;
 
@@ -834,10 +834,6 @@ static void tegra_csi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 }
-
-#if defined(CONFIG_ARCH_TEGRA_210_SOC)
-extern const struct tegra_csi_soc tegra210_csi_soc;
-#endif
 
 static const struct of_device_id tegra_csi_of_id_table[] = {
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)

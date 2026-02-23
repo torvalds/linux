@@ -37,6 +37,7 @@
 #include "super.h"
 #include "tree-checker.h"
 #include "raid-stripe-tree.h"
+#include "free-space-tree.h"
 
 /*
  * Relocation overview
@@ -482,7 +483,7 @@ static int __add_reloc_root(struct btrfs_root *root)
 	struct mapping_node *node;
 	struct reloc_control *rc = fs_info->reloc_ctl;
 
-	node = kmalloc(sizeof(*node), GFP_NOFS);
+	node = kmalloc_obj(*node, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
 
@@ -3114,7 +3115,7 @@ static int add_tree_block(struct reloc_control *rc,
 
 	BUG_ON(level == -1);
 
-	block = kmalloc(sizeof(*block), GFP_NOFS);
+	block = kmalloc_obj(*block, GFP_NOFS);
 	if (!block)
 		return -ENOMEM;
 
@@ -3254,7 +3255,6 @@ static int delete_v1_space_cache(struct extent_buffer *leaf,
 	struct btrfs_key key;
 	bool found = false;
 	int i;
-	int ret;
 
 	if (btrfs_header_owner(leaf) != BTRFS_ROOT_TREE_OBJECTID)
 		return 0;
@@ -3278,8 +3278,8 @@ static int delete_v1_space_cache(struct extent_buffer *leaf,
 	}
 	if (!found)
 		return -ENOENT;
-	ret = delete_block_group_cache(block_group, NULL, space_cache_ino);
-	return ret;
+
+	return delete_block_group_cache(block_group, NULL, space_cache_ino);
 }
 
 /*
@@ -3616,7 +3616,7 @@ restart:
 		btrfs_btree_balance_dirty(fs_info);
 	}
 
-	if (!err) {
+	if (!err && !btrfs_fs_incompat(fs_info, REMAP_TREE)) {
 		ret = relocate_file_extent_cluster(rc);
 		if (ret < 0)
 			err = ret;
@@ -3813,7 +3813,7 @@ static struct reloc_control *alloc_reloc_control(struct btrfs_fs_info *fs_info)
 {
 	struct reloc_control *rc;
 
-	rc = kzalloc(sizeof(*rc), GFP_NOFS);
+	rc = kzalloc_obj(*rc, GFP_NOFS);
 	if (!rc)
 		return NULL;
 
@@ -3860,6 +3860,1433 @@ static const char *stage_to_string(enum reloc_stage stage)
 	return "unknown";
 }
 
+static int add_remap_tree_entries(struct btrfs_trans_handle *trans, struct btrfs_path *path,
+				  struct btrfs_key *entries, unsigned int num_entries)
+{
+	int ret;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_item_batch batch;
+	u32 *data_sizes;
+	u32 max_items;
+
+	max_items = BTRFS_LEAF_DATA_SIZE(trans->fs_info) / sizeof(struct btrfs_item);
+
+	data_sizes = kzalloc(sizeof(u32) * min_t(u32, num_entries, max_items), GFP_NOFS);
+	if (!data_sizes)
+		return -ENOMEM;
+
+	while (true) {
+		batch.keys = entries;
+		batch.data_sizes = data_sizes;
+		batch.total_data_size = 0;
+		batch.nr = min_t(u32, num_entries, max_items);
+
+		ret = btrfs_insert_empty_items(trans, fs_info->remap_root, path, &batch);
+		btrfs_release_path(path);
+
+		if (num_entries <= max_items)
+			break;
+
+		num_entries -= max_items;
+		entries += max_items;
+	}
+
+	kfree(data_sizes);
+
+	return ret;
+}
+
+struct space_run {
+	u64 start;
+	u64 end;
+};
+
+static void parse_bitmap(u64 block_size, const unsigned long *bitmap,
+			 unsigned long size, u64 address, struct space_run *space_runs,
+			 unsigned int *num_space_runs)
+{
+	unsigned long pos, end;
+	u64 run_start, run_length;
+
+	pos = find_first_bit(bitmap, size);
+	if (pos == size)
+		return;
+
+	while (true) {
+		end = find_next_zero_bit(bitmap, size, pos);
+
+		run_start = address + (pos * block_size);
+		run_length = (end - pos) * block_size;
+
+		if (*num_space_runs != 0 &&
+		    space_runs[*num_space_runs - 1].end == run_start) {
+			space_runs[*num_space_runs - 1].end += run_length;
+		} else {
+			space_runs[*num_space_runs].start = run_start;
+			space_runs[*num_space_runs].end = run_start + run_length;
+
+			(*num_space_runs)++;
+		}
+
+		if (end == size)
+			break;
+
+		pos = find_next_bit(bitmap, size, end + 1);
+		if (pos == size)
+			break;
+	}
+}
+
+static void adjust_block_group_remap_bytes(struct btrfs_trans_handle *trans,
+					   struct btrfs_block_group *bg, s64 diff)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	bool bg_already_dirty = true;
+	bool mark_unused = false;
+
+	spin_lock(&bg->lock);
+	bg->remap_bytes += diff;
+	if (bg->used == 0 && bg->remap_bytes == 0)
+		mark_unused = true;
+	spin_unlock(&bg->lock);
+
+	if (mark_unused)
+		btrfs_mark_bg_unused(bg);
+
+	spin_lock(&trans->transaction->dirty_bgs_lock);
+	if (list_empty(&bg->dirty_list)) {
+		list_add_tail(&bg->dirty_list, &trans->transaction->dirty_bgs);
+		bg_already_dirty = false;
+		btrfs_get_block_group(bg);
+	}
+	spin_unlock(&trans->transaction->dirty_bgs_lock);
+
+	/* Modified block groups are accounted for in the delayed_refs_rsv. */
+	if (!bg_already_dirty)
+		btrfs_inc_delayed_refs_rsv_bg_updates(fs_info);
+}
+
+/* Private structure for I/O from copy_remapped_data().  */
+struct reloc_io_private {
+	struct completion done;
+	refcount_t pending_refs;
+	blk_status_t status;
+};
+
+static void reloc_endio(struct btrfs_bio *bbio)
+{
+	struct reloc_io_private *priv = bbio->private;
+
+	if (bbio->bio.bi_status)
+		WRITE_ONCE(priv->status, bbio->bio.bi_status);
+
+	if (refcount_dec_and_test(&priv->pending_refs))
+		complete(&priv->done);
+
+	bio_put(&bbio->bio);
+}
+
+static int copy_remapped_data_io(struct btrfs_fs_info *fs_info,
+				 struct reloc_io_private *priv,
+				 struct page **pages, u64 addr, u64 length,
+				 blk_opf_t op)
+{
+	struct btrfs_bio *bbio;
+	int i;
+
+	init_completion(&priv->done);
+	refcount_set(&priv->pending_refs, 1);
+	priv->status = 0;
+
+	bbio = btrfs_bio_alloc(BIO_MAX_VECS, op, BTRFS_I(fs_info->btree_inode),
+			       addr, reloc_endio, priv);
+	bbio->bio.bi_iter.bi_sector = (addr >> SECTOR_SHIFT);
+	bbio->is_remap = true;
+
+	i = 0;
+	do {
+		size_t bytes = min_t(u64, length, PAGE_SIZE);
+
+		if (bio_add_page(&bbio->bio, pages[i], bytes, 0) < bytes) {
+			refcount_inc(&priv->pending_refs);
+			btrfs_submit_bbio(bbio, 0);
+
+			bbio = btrfs_bio_alloc(BIO_MAX_VECS, op,
+					       BTRFS_I(fs_info->btree_inode),
+					       addr, reloc_endio, priv);
+			bbio->bio.bi_iter.bi_sector = (addr >> SECTOR_SHIFT);
+			bbio->is_remap = true;
+			continue;
+		}
+
+		i++;
+		addr += bytes;
+		length -= bytes;
+	} while (length);
+
+	refcount_inc(&priv->pending_refs);
+	btrfs_submit_bbio(bbio, 0);
+
+	if (!refcount_dec_and_test(&priv->pending_refs))
+		wait_for_completion_io(&priv->done);
+
+	return blk_status_to_errno(READ_ONCE(priv->status));
+}
+
+static int copy_remapped_data(struct btrfs_fs_info *fs_info, u64 old_addr,
+			      u64 new_addr, u64 length)
+{
+	int ret;
+	u64 copy_len = min_t(u64, length, SZ_1M);
+	struct page **pages;
+	struct reloc_io_private priv;
+	unsigned int nr_pages = DIV_ROUND_UP(length, PAGE_SIZE);
+
+	pages = kzalloc_objs(struct page *, nr_pages, GFP_NOFS);
+	if (!pages)
+		return -ENOMEM;
+
+	ret = btrfs_alloc_page_array(nr_pages, pages, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	/* Copy 1MB at a time, to avoid using too much memory. */
+	do {
+		u64 to_copy = min_t(u64, length, copy_len);
+
+		/* Limit to one bio. */
+		to_copy = min_t(u64, to_copy, BIO_MAX_VECS << PAGE_SHIFT);
+
+		ret = copy_remapped_data_io(fs_info, &priv, pages, old_addr,
+					    to_copy, REQ_OP_READ);
+		if (ret)
+			goto end;
+
+		ret = copy_remapped_data_io(fs_info, &priv, pages, new_addr,
+					    to_copy, REQ_OP_WRITE);
+		if (ret)
+			goto end;
+
+		if (to_copy == length)
+			break;
+
+		old_addr += to_copy;
+		new_addr += to_copy;
+		length -= to_copy;
+	} while (true);
+
+	ret = 0;
+end:
+	for (int i = 0; i < nr_pages; i++) {
+		if (pages[i])
+			__free_page(pages[i]);
+	}
+	kfree(pages);
+
+	return ret;
+}
+
+static int add_remap_item(struct btrfs_trans_handle *trans,
+			  struct btrfs_path *path, u64 new_addr, u64 length,
+			  u64 old_addr)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_remap_item remap = { 0 };
+	struct btrfs_key key;
+	struct extent_buffer *leaf;
+	int ret;
+
+	key.objectid = old_addr;
+	key.type = BTRFS_REMAP_KEY;
+	key.offset = length;
+
+	ret = btrfs_insert_empty_item(trans, fs_info->remap_root, path,
+				      &key, sizeof(struct btrfs_remap_item));
+	if (ret)
+		return ret;
+
+	leaf = path->nodes[0];
+	btrfs_set_stack_remap_address(&remap, new_addr);
+	write_extent_buffer(leaf, &remap, btrfs_item_ptr_offset(leaf, path->slots[0]),
+			    sizeof(struct btrfs_remap_item));
+
+	btrfs_release_path(path);
+
+	return 0;
+}
+
+static int add_remap_backref_item(struct btrfs_trans_handle *trans,
+				  struct btrfs_path *path, u64 new_addr,
+				  u64 length, u64 old_addr)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_remap_item remap = { 0 };
+	struct btrfs_key key;
+	struct extent_buffer *leaf;
+	int ret;
+
+	key.objectid = new_addr;
+	key.type = BTRFS_REMAP_BACKREF_KEY;
+	key.offset = length;
+
+	ret = btrfs_insert_empty_item(trans, fs_info->remap_root, path, &key,
+				      sizeof(struct btrfs_remap_item));
+	if (ret)
+		return ret;
+
+	leaf = path->nodes[0];
+	btrfs_set_stack_remap_address(&remap, old_addr);
+	write_extent_buffer(leaf, &remap, btrfs_item_ptr_offset(leaf, path->slots[0]),
+			    sizeof(struct btrfs_remap_item));
+
+	btrfs_release_path(path);
+
+	return 0;
+}
+
+static int move_existing_remap(struct btrfs_fs_info *fs_info,
+			       struct btrfs_path *path,
+			       struct btrfs_block_group *bg, u64 new_addr,
+			       u64 length, u64 old_addr)
+{
+	struct btrfs_trans_handle *trans;
+	struct extent_buffer *leaf;
+	struct btrfs_remap_item *remap_ptr;
+	struct btrfs_remap_item remap = { 0 };
+	struct btrfs_key key, ins;
+	u64 dest_addr, dest_length, min_size;
+	struct btrfs_block_group *dest_bg;
+	int ret;
+	const bool is_data = (bg->flags & BTRFS_BLOCK_GROUP_DATA);
+	struct btrfs_space_info *sinfo = bg->space_info;
+	bool mutex_taken = false;
+	bool bg_needs_free_space;
+
+	spin_lock(&sinfo->lock);
+	btrfs_space_info_update_bytes_may_use(sinfo, length);
+	spin_unlock(&sinfo->lock);
+
+	if (is_data)
+		min_size = fs_info->sectorsize;
+	else
+		min_size = fs_info->nodesize;
+
+	ret = btrfs_reserve_extent(fs_info->fs_root, length, length, min_size,
+				   0, 0, &ins, is_data, false);
+	if (unlikely(ret)) {
+		spin_lock(&sinfo->lock);
+		btrfs_space_info_update_bytes_may_use(sinfo, -length);
+		spin_unlock(&sinfo->lock);
+		return ret;
+	}
+
+	dest_addr = ins.objectid;
+	dest_length = ins.offset;
+
+	if (!is_data && !IS_ALIGNED(dest_length, fs_info->nodesize)) {
+		u64 new_length = ALIGN_DOWN(dest_length, fs_info->nodesize);
+
+		btrfs_free_reserved_extent(fs_info, dest_addr + new_length,
+					   dest_length - new_length, 0);
+
+		dest_length = new_length;
+	}
+
+	trans = btrfs_join_transaction(fs_info->remap_root);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		trans = NULL;
+		goto end;
+	}
+
+	mutex_lock(&fs_info->remap_mutex);
+	mutex_taken = true;
+
+	/* Find old remap entry. */
+	key.objectid = old_addr;
+	key.type = BTRFS_REMAP_KEY;
+	key.offset = length;
+
+	ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, 0, 1);
+	if (ret == 1) {
+		/*
+		 * Not a problem if the remap entry wasn't found: that means
+		 * that another transaction has deallocated the data.
+		 * move_existing_remaps() loops until the BG contains no
+		 * remaps, so we can just return 0 in this case.
+		 */
+		btrfs_release_path(path);
+		ret = 0;
+		goto end;
+	} else if (unlikely(ret)) {
+		goto end;
+	}
+
+	ret = copy_remapped_data(fs_info, new_addr, dest_addr, dest_length);
+	if (unlikely(ret))
+		goto end;
+
+	/* Change data of old remap entry. */
+	leaf = path->nodes[0];
+	remap_ptr = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
+	btrfs_set_remap_address(leaf, remap_ptr, dest_addr);
+	btrfs_mark_buffer_dirty(trans, leaf);
+
+	if (dest_length != length) {
+		key.offset = dest_length;
+		btrfs_set_item_key_safe(trans, path, &key);
+	}
+
+	btrfs_release_path(path);
+
+	if (dest_length != length) {
+		/* Add remap item for remainder. */
+		ret = add_remap_item(trans, path, new_addr + dest_length,
+				     length - dest_length, old_addr + dest_length);
+		if (unlikely(ret))
+			goto end;
+	}
+
+	/* Change or remove old backref. */
+	key.objectid = new_addr;
+	key.type = BTRFS_REMAP_BACKREF_KEY;
+	key.offset = length;
+
+	ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, -1, 1);
+	if (unlikely(ret)) {
+		if (ret == 1) {
+			btrfs_release_path(path);
+			ret = -ENOENT;
+		}
+		goto end;
+	}
+
+	leaf = path->nodes[0];
+
+	if (dest_length == length) {
+		ret = btrfs_del_item(trans, fs_info->remap_root, path);
+		if (unlikely(ret)) {
+			btrfs_release_path(path);
+			goto end;
+		}
+	} else {
+		key.objectid += dest_length;
+		key.offset -= dest_length;
+		btrfs_set_item_key_safe(trans, path, &key);
+		btrfs_set_stack_remap_address(&remap, old_addr + dest_length);
+
+		write_extent_buffer(leaf, &remap,
+				    btrfs_item_ptr_offset(leaf, path->slots[0]),
+				    sizeof(struct btrfs_remap_item));
+	}
+
+	btrfs_release_path(path);
+
+	/* Add new backref. */
+	ret = add_remap_backref_item(trans, path, dest_addr, dest_length, old_addr);
+	if (unlikely(ret))
+		goto end;
+
+	adjust_block_group_remap_bytes(trans, bg, -dest_length);
+
+	ret = btrfs_add_to_free_space_tree(trans, new_addr, dest_length);
+	if (unlikely(ret))
+		goto end;
+
+	dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
+
+	adjust_block_group_remap_bytes(trans, dest_bg, dest_length);
+
+	mutex_lock(&dest_bg->free_space_lock);
+	bg_needs_free_space = test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
+				       &dest_bg->runtime_flags);
+	mutex_unlock(&dest_bg->free_space_lock);
+	btrfs_put_block_group(dest_bg);
+
+	if (bg_needs_free_space) {
+		ret = btrfs_add_block_group_free_space(trans, dest_bg);
+		if (unlikely(ret))
+			goto end;
+	}
+
+	ret = btrfs_remove_from_free_space_tree(trans, dest_addr, dest_length);
+	if (unlikely(ret)) {
+		btrfs_remove_from_free_space_tree(trans, new_addr, dest_length);
+		goto end;
+	}
+
+	ret = 0;
+
+end:
+	if (mutex_taken)
+		mutex_unlock(&fs_info->remap_mutex);
+
+	btrfs_dec_block_group_reservations(fs_info, dest_addr);
+
+	if (unlikely(ret)) {
+		btrfs_free_reserved_extent(fs_info, dest_addr, dest_length, 0);
+
+		if (trans) {
+			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
+		}
+	} else {
+		dest_bg = btrfs_lookup_block_group(fs_info, dest_addr);
+		btrfs_free_reserved_bytes(dest_bg, dest_length, 0);
+		btrfs_put_block_group(dest_bg);
+
+		ret = btrfs_commit_transaction(trans);
+	}
+
+	return ret;
+}
+
+static int move_existing_remaps(struct btrfs_fs_info *fs_info,
+				struct btrfs_block_group *bg,
+				struct btrfs_path *path)
+{
+	int ret;
+	struct btrfs_key key;
+	struct extent_buffer *leaf;
+	struct btrfs_remap_item *remap;
+	u64 old_addr;
+
+	/* Look for backrefs in remap tree. */
+	while (bg->remap_bytes > 0) {
+		key.objectid = bg->start;
+		key.type = BTRFS_REMAP_BACKREF_KEY;
+		key.offset = 0;
+
+		ret = btrfs_search_slot(NULL, fs_info->remap_root, &key, path, 0, 0);
+		if (ret < 0)
+			return ret;
+
+		leaf = path->nodes[0];
+
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(fs_info->remap_root, path);
+			if (ret < 0) {
+				btrfs_release_path(path);
+				return ret;
+			}
+
+			if (ret) {
+				btrfs_release_path(path);
+				break;
+			}
+
+			leaf = path->nodes[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+
+		if (key.type != BTRFS_REMAP_BACKREF_KEY) {
+			path->slots[0]++;
+
+			if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+				ret = btrfs_next_leaf(fs_info->remap_root, path);
+				if (ret < 0) {
+					btrfs_release_path(path);
+					return ret;
+				}
+
+				if (ret) {
+					btrfs_release_path(path);
+					break;
+				}
+
+				leaf = path->nodes[0];
+			}
+		}
+
+		remap = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
+		old_addr = btrfs_remap_address(leaf, remap);
+
+		btrfs_release_path(path);
+
+		ret = move_existing_remap(fs_info, path, bg, key.objectid,
+					  key.offset, old_addr);
+		if (ret)
+			return ret;
+	}
+
+	ASSERT(bg->remap_bytes == 0);
+
+	return 0;
+}
+
+static int create_remap_tree_entries(struct btrfs_trans_handle *trans,
+				     struct btrfs_path *path,
+				     struct btrfs_block_group *bg)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_free_space_info *fsi;
+	struct btrfs_key key, found_key;
+	struct extent_buffer *leaf;
+	struct btrfs_root *space_root;
+	u32 extent_count;
+	struct space_run *space_runs = NULL;
+	unsigned int num_space_runs = 0;
+	struct btrfs_key *entries = NULL;
+	unsigned int max_entries, num_entries;
+	int ret;
+
+	mutex_lock(&bg->free_space_lock);
+
+	if (test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE, &bg->runtime_flags)) {
+		mutex_unlock(&bg->free_space_lock);
+
+		ret = btrfs_add_block_group_free_space(trans, bg);
+		if (ret)
+			return ret;
+
+		mutex_lock(&bg->free_space_lock);
+	}
+
+	fsi = btrfs_search_free_space_info(trans, bg, path, 0);
+	if (IS_ERR(fsi)) {
+		mutex_unlock(&bg->free_space_lock);
+		return PTR_ERR(fsi);
+	}
+
+	extent_count = btrfs_free_space_extent_count(path->nodes[0], fsi);
+
+	btrfs_release_path(path);
+
+	space_runs = kmalloc(sizeof(*space_runs) * extent_count, GFP_NOFS);
+	if (!space_runs) {
+		mutex_unlock(&bg->free_space_lock);
+		return -ENOMEM;
+	}
+
+	key.objectid = bg->start;
+	key.type = 0;
+	key.offset = 0;
+
+	space_root = btrfs_free_space_root(bg);
+
+	ret = btrfs_search_slot(trans, space_root, &key, path, 0, 0);
+	if (ret < 0) {
+		mutex_unlock(&bg->free_space_lock);
+		goto out;
+	}
+
+	ret = 0;
+
+	while (true) {
+		leaf = path->nodes[0];
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (found_key.objectid >= bg->start + bg->length)
+			break;
+
+		if (found_key.type == BTRFS_FREE_SPACE_EXTENT_KEY) {
+			if (num_space_runs != 0 &&
+			    space_runs[num_space_runs - 1].end == found_key.objectid) {
+				space_runs[num_space_runs - 1].end =
+					found_key.objectid + found_key.offset;
+			} else {
+				ASSERT(num_space_runs < extent_count);
+
+				space_runs[num_space_runs].start = found_key.objectid;
+				space_runs[num_space_runs].end =
+					found_key.objectid + found_key.offset;
+
+				num_space_runs++;
+			}
+		} else if (found_key.type == BTRFS_FREE_SPACE_BITMAP_KEY) {
+			void *bitmap;
+			unsigned long offset;
+			u32 data_size;
+
+			offset = btrfs_item_ptr_offset(leaf, path->slots[0]);
+			data_size = btrfs_item_size(leaf, path->slots[0]);
+
+			if (data_size != 0) {
+				bitmap = kmalloc(data_size, GFP_NOFS);
+				if (!bitmap) {
+					mutex_unlock(&bg->free_space_lock);
+					ret = -ENOMEM;
+					goto out;
+				}
+
+				read_extent_buffer(leaf, bitmap, offset, data_size);
+
+				parse_bitmap(fs_info->sectorsize, bitmap,
+					     data_size * BITS_PER_BYTE,
+					     found_key.objectid, space_runs,
+					     &num_space_runs);
+
+				ASSERT(num_space_runs <= extent_count);
+
+				kfree(bitmap);
+			}
+		}
+
+		path->slots[0]++;
+
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(space_root, path);
+			if (ret != 0) {
+				if (ret == 1)
+					ret = 0;
+				break;
+			}
+			leaf = path->nodes[0];
+		}
+	}
+
+	btrfs_release_path(path);
+
+	mutex_unlock(&bg->free_space_lock);
+
+	max_entries = extent_count + 2;
+	entries = kmalloc(sizeof(*entries) * max_entries, GFP_NOFS);
+	if (!entries) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	num_entries = 0;
+
+	if (num_space_runs == 0) {
+		entries[num_entries].objectid = bg->start;
+		entries[num_entries].type = BTRFS_IDENTITY_REMAP_KEY;
+		entries[num_entries].offset = bg->length;
+		num_entries++;
+	} else {
+		if (space_runs[0].start > bg->start) {
+			entries[num_entries].objectid = bg->start;
+			entries[num_entries].type = BTRFS_IDENTITY_REMAP_KEY;
+			entries[num_entries].offset = space_runs[0].start - bg->start;
+			num_entries++;
+		}
+
+		for (unsigned int i = 1; i < num_space_runs; i++) {
+			entries[num_entries].objectid = space_runs[i - 1].end;
+			entries[num_entries].type = BTRFS_IDENTITY_REMAP_KEY;
+			entries[num_entries].offset =
+				space_runs[i].start - space_runs[i - 1].end;
+			num_entries++;
+		}
+
+		if (space_runs[num_space_runs - 1].end < bg->start + bg->length) {
+			entries[num_entries].objectid =
+				space_runs[num_space_runs - 1].end;
+			entries[num_entries].type = BTRFS_IDENTITY_REMAP_KEY;
+			entries[num_entries].offset =
+				bg->start + bg->length - space_runs[num_space_runs - 1].end;
+			num_entries++;
+		}
+
+		if (num_entries == 0)
+			goto out;
+	}
+
+	bg->identity_remap_count = num_entries;
+
+	ret = add_remap_tree_entries(trans, path, entries, num_entries);
+
+out:
+	kfree(entries);
+	kfree(space_runs);
+
+	return ret;
+}
+
+static int find_next_identity_remap(struct btrfs_trans_handle *trans,
+				    struct btrfs_path *path, u64 bg_end,
+				    u64 last_start, u64 *start, u64 *length)
+{
+	int ret;
+	struct btrfs_key key, found_key;
+	struct btrfs_root *remap_root = trans->fs_info->remap_root;
+	struct extent_buffer *leaf;
+
+	key.objectid = last_start;
+	key.type = BTRFS_IDENTITY_REMAP_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(trans, remap_root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	leaf = path->nodes[0];
+	while (true) {
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(remap_root, path);
+
+			if (ret != 0) {
+				if (ret == 1)
+					ret = -ENOENT;
+				goto out;
+			}
+
+			leaf = path->nodes[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (found_key.objectid >= bg_end) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (found_key.type == BTRFS_IDENTITY_REMAP_KEY) {
+			*start = found_key.objectid;
+			*length = found_key.offset;
+			ret = 0;
+			goto out;
+		}
+
+		path->slots[0]++;
+	}
+
+out:
+	btrfs_release_path(path);
+
+	return ret;
+}
+
+static int remove_chunk_stripes(struct btrfs_trans_handle *trans,
+				struct btrfs_chunk_map *chunk_map,
+				struct btrfs_path *path)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_key key;
+	struct extent_buffer *leaf;
+	struct btrfs_chunk *chunk;
+	int ret;
+
+	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+	key.type = BTRFS_CHUNK_ITEM_KEY;
+	key.offset = chunk_map->start;
+
+	btrfs_reserve_chunk_metadata(trans, false);
+
+	ret = btrfs_search_slot(trans, fs_info->chunk_root, &key, path, 0, 1);
+	if (ret) {
+		if (ret == 1) {
+			btrfs_release_path(path);
+			ret = -ENOENT;
+		}
+		btrfs_trans_release_chunk_metadata(trans);
+		return ret;
+	}
+
+	leaf = path->nodes[0];
+
+	chunk = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_chunk);
+	btrfs_set_chunk_num_stripes(leaf, chunk, 0);
+	btrfs_set_chunk_sub_stripes(leaf, chunk, 0);
+
+	btrfs_truncate_item(trans, path, offsetof(struct btrfs_chunk, stripe), 1);
+
+	btrfs_mark_buffer_dirty(trans, leaf);
+
+	btrfs_release_path(path);
+	btrfs_trans_release_chunk_metadata(trans);
+
+	return 0;
+}
+
+int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
+				   struct btrfs_block_group *bg)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	struct btrfs_trans_handle *trans;
+	int ret;
+	unsigned int num_items;
+	BTRFS_PATH_AUTO_FREE(path);
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	/*
+	 * One item for each entry we're removing in the dev extents tree, and
+	 * another for each device. DUP chunks are all on one device,
+	 * everything else has one device per stripe.
+	 */
+	if (bg->flags & BTRFS_BLOCK_GROUP_DUP)
+		num_items = chunk_map->num_stripes + 1;
+	else
+		num_items = 2 * chunk_map->num_stripes;
+
+	trans = btrfs_start_transaction_fallback_global_rsv(fs_info->tree_root, num_items);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	ret = btrfs_remove_dev_extents(trans, chunk_map);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
+
+	mutex_lock(&trans->fs_info->chunk_mutex);
+	for (unsigned int i = 0; i < chunk_map->num_stripes; i++) {
+		ret = btrfs_update_device(trans, chunk_map->stripes[i].dev);
+		if (unlikely(ret)) {
+			mutex_unlock(&trans->fs_info->chunk_mutex);
+			btrfs_abort_transaction(trans, ret);
+			return ret;
+		}
+	}
+	mutex_unlock(&trans->fs_info->chunk_mutex);
+
+	write_lock(&trans->fs_info->mapping_tree_lock);
+	btrfs_chunk_map_device_clear_bits(chunk_map, CHUNK_ALLOCATED);
+	write_unlock(&trans->fs_info->mapping_tree_lock);
+
+	btrfs_remove_bg_from_sinfo(bg);
+
+	spin_lock(&bg->lock);
+	clear_bit(BLOCK_GROUP_FLAG_STRIPE_REMOVAL_PENDING, &bg->runtime_flags);
+	spin_unlock(&bg->lock);
+
+	ret = remove_chunk_stripes(trans, chunk_map, path);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		return ret;
+	}
+
+	ret = btrfs_commit_transaction(trans);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void adjust_identity_remap_count(struct btrfs_trans_handle *trans,
+				        struct btrfs_block_group *bg, int delta)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	bool bg_already_dirty = true;
+	bool mark_fully_remapped = false;
+
+	WARN_ON(delta < 0 && -delta > bg->identity_remap_count);
+
+	spin_lock(&bg->lock);
+
+	bg->identity_remap_count += delta;
+
+	if (bg->identity_remap_count == 0 &&
+	    !test_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &bg->runtime_flags)) {
+		set_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &bg->runtime_flags);
+		mark_fully_remapped = true;
+	}
+
+	spin_unlock(&bg->lock);
+
+	spin_lock(&trans->transaction->dirty_bgs_lock);
+	if (list_empty(&bg->dirty_list)) {
+		list_add_tail(&bg->dirty_list, &trans->transaction->dirty_bgs);
+		bg_already_dirty = false;
+		btrfs_get_block_group(bg);
+	}
+	spin_unlock(&trans->transaction->dirty_bgs_lock);
+
+	/* Modified block groups are accounted for in the delayed_refs_rsv. */
+	if (!bg_already_dirty)
+		btrfs_inc_delayed_refs_rsv_bg_updates(fs_info);
+
+	if (mark_fully_remapped)
+		btrfs_mark_bg_fully_remapped(bg, trans);
+}
+
+static int add_remap_entry(struct btrfs_trans_handle *trans,
+			   struct btrfs_path *path,
+			   struct btrfs_block_group *src_bg, u64 old_addr,
+			   u64 new_addr, u64 length)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_key key, new_key;
+	int ret;
+	int identity_count_delta = 0;
+
+	key.objectid = old_addr;
+	key.type = (u8)-1;
+	key.offset = (u64)-1;
+
+	ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, -1, 1);
+	if (ret < 0)
+		goto end;
+
+	if (path->slots[0] == 0) {
+		ret = -ENOENT;
+		goto end;
+	}
+
+	path->slots[0]--;
+
+	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+
+	if (key.type != BTRFS_IDENTITY_REMAP_KEY ||
+	    key.objectid > old_addr ||
+	    key.objectid + key.offset <= old_addr) {
+		ret = -ENOENT;
+		goto end;
+	}
+
+	/* Shorten or delete identity mapping entry. */
+	if (key.objectid == old_addr) {
+		ret = btrfs_del_item(trans, fs_info->remap_root, path);
+		if (ret)
+			goto end;
+
+		identity_count_delta--;
+	} else {
+		new_key.objectid = key.objectid;
+		new_key.type = BTRFS_IDENTITY_REMAP_KEY;
+		new_key.offset = old_addr - key.objectid;
+
+		btrfs_set_item_key_safe(trans, path, &new_key);
+	}
+
+	btrfs_release_path(path);
+
+	/* Create new remap entry. */
+	ret = add_remap_item(trans, path, new_addr, length, old_addr);
+	if (ret)
+		goto end;
+
+	/* Add entry for remainder of identity mapping, if necessary. */
+	if (key.objectid + key.offset != old_addr + length) {
+		new_key.objectid = old_addr + length;
+		new_key.type = BTRFS_IDENTITY_REMAP_KEY;
+		new_key.offset = key.objectid + key.offset - old_addr - length;
+
+		ret = btrfs_insert_empty_item(trans, fs_info->remap_root,
+					      path, &new_key, 0);
+		if (ret)
+			goto end;
+
+		btrfs_release_path(path);
+
+		identity_count_delta++;
+	}
+
+	/* Add backref. */
+	ret = add_remap_backref_item(trans, path, new_addr, length, old_addr);
+	if (ret)
+		goto end;
+
+	if (identity_count_delta != 0)
+		adjust_identity_remap_count(trans, src_bg, identity_count_delta);
+
+end:
+	btrfs_release_path(path);
+
+	return ret;
+}
+
+static int mark_chunk_remapped(struct btrfs_trans_handle *trans,
+			       struct btrfs_path *path, u64 start)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_chunk_map *chunk_map;
+	struct btrfs_key key;
+	u64 type;
+	int ret;
+	struct extent_buffer *leaf;
+	struct btrfs_chunk *chunk;
+
+	read_lock(&fs_info->mapping_tree_lock);
+
+	chunk_map = btrfs_find_chunk_map_nolock(fs_info, start, 1);
+	if (!chunk_map) {
+		read_unlock(&fs_info->mapping_tree_lock);
+		return -ENOENT;
+	}
+
+	chunk_map->type |= BTRFS_BLOCK_GROUP_REMAPPED;
+	type = chunk_map->type;
+
+	read_unlock(&fs_info->mapping_tree_lock);
+
+	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
+	key.type = BTRFS_CHUNK_ITEM_KEY;
+	key.offset = start;
+
+	ret = btrfs_search_slot(trans, fs_info->chunk_root, &key, path, 0, 1);
+	if (ret == 1) {
+		ret = -ENOENT;
+		goto end;
+	} else if (ret < 0)
+		goto end;
+
+	leaf = path->nodes[0];
+
+	chunk = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_chunk);
+	btrfs_set_chunk_type(leaf, chunk, type);
+	btrfs_mark_buffer_dirty(trans, leaf);
+
+	ret = 0;
+end:
+	btrfs_free_chunk_map(chunk_map);
+	btrfs_release_path(path);
+
+	return ret;
+}
+
+static int do_remap_reloc_trans(struct btrfs_fs_info *fs_info,
+				struct btrfs_block_group *src_bg,
+				struct btrfs_path *path, u64 *last_start)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *extent_root;
+	struct btrfs_key ins;
+	struct btrfs_block_group *dest_bg = NULL;
+	u64 start = 0, remap_length = 0;
+	u64 length, new_addr, min_size;
+	int ret;
+	const bool is_data = (src_bg->flags & BTRFS_BLOCK_GROUP_DATA);
+	bool no_more = false;
+	bool made_reservation = false, bg_needs_free_space;
+	struct btrfs_space_info *sinfo = src_bg->space_info;
+
+	extent_root = btrfs_extent_root(fs_info, src_bg->start);
+
+	trans = btrfs_start_transaction(extent_root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	mutex_lock(&fs_info->remap_mutex);
+
+	ret = find_next_identity_remap(trans, path, src_bg->start + src_bg->length,
+				       *last_start, &start, &remap_length);
+	if (ret == -ENOENT) {
+		no_more = true;
+		goto next;
+	} else if (ret) {
+		mutex_unlock(&fs_info->remap_mutex);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
+
+	/* Try to reserve enough space for block. */
+	spin_lock(&sinfo->lock);
+	btrfs_space_info_update_bytes_may_use(sinfo, remap_length);
+	spin_unlock(&sinfo->lock);
+
+	if (is_data)
+		min_size = fs_info->sectorsize;
+	else
+		min_size = fs_info->nodesize;
+
+	/*
+	 * We're using btrfs_reserve_extent() to allocate a contiguous
+	 * logical address range, but this will become a remap item rather than
+	 * an extent in the extent tree.
+	 *
+	 * Short allocations are fine: it means that we chop off the beginning
+	 * of the identity remap that we're processing, and will tackle the
+	 * rest of it the next time round.
+	 */
+	ret = btrfs_reserve_extent(fs_info->fs_root, remap_length, remap_length,
+				   min_size, 0, 0, &ins, is_data, false);
+	if (ret) {
+		spin_lock(&sinfo->lock);
+		btrfs_space_info_update_bytes_may_use(sinfo, -remap_length);
+		spin_unlock(&sinfo->lock);
+
+		mutex_unlock(&fs_info->remap_mutex);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
+
+	made_reservation = true;
+
+	new_addr = ins.objectid;
+	length = ins.offset;
+
+	if (!is_data && !IS_ALIGNED(length, fs_info->nodesize)) {
+		u64 new_length = ALIGN_DOWN(length, fs_info->nodesize);
+
+		btrfs_free_reserved_extent(fs_info, new_addr + new_length,
+					   length - new_length, 0);
+
+		length = new_length;
+	}
+
+	dest_bg = btrfs_lookup_block_group(fs_info, new_addr);
+
+	mutex_lock(&dest_bg->free_space_lock);
+	bg_needs_free_space = test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
+				       &dest_bg->runtime_flags);
+	mutex_unlock(&dest_bg->free_space_lock);
+
+	if (bg_needs_free_space) {
+		ret = btrfs_add_block_group_free_space(trans, dest_bg);
+		if (ret)
+			goto fail;
+	}
+
+	ret = copy_remapped_data(fs_info, start, new_addr, length);
+	if (ret)
+		goto fail;
+
+	ret = btrfs_remove_from_free_space_tree(trans, new_addr, length);
+	if (ret)
+		goto fail;
+
+	ret = add_remap_entry(trans, path, src_bg, start, new_addr, length);
+	if (ret) {
+		btrfs_add_to_free_space_tree(trans, new_addr, length);
+		goto fail;
+	}
+
+	adjust_block_group_remap_bytes(trans, dest_bg, length);
+	btrfs_free_reserved_bytes(dest_bg, length, 0);
+
+	spin_lock(&sinfo->lock);
+	sinfo->bytes_readonly += length;
+	spin_unlock(&sinfo->lock);
+
+next:
+	if (dest_bg)
+		btrfs_put_block_group(dest_bg);
+
+	if (made_reservation)
+		btrfs_dec_block_group_reservations(fs_info, new_addr);
+
+	mutex_unlock(&fs_info->remap_mutex);
+
+	if (src_bg->identity_remap_count == 0) {
+		bool mark_fully_remapped = false;
+
+		spin_lock(&src_bg->lock);
+		if (!test_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &src_bg->runtime_flags)) {
+			mark_fully_remapped = true;
+			set_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &src_bg->runtime_flags);
+		}
+		spin_unlock(&src_bg->lock);
+
+		if (mark_fully_remapped)
+			btrfs_mark_bg_fully_remapped(src_bg, trans);
+	}
+
+	ret = btrfs_end_transaction(trans);
+	if (ret)
+		return ret;
+
+	if (no_more)
+		return 1;
+
+	*last_start = start;
+
+	return 0;
+
+fail:
+	if (dest_bg)
+		btrfs_put_block_group(dest_bg);
+
+	btrfs_free_reserved_extent(fs_info, new_addr, length, 0);
+
+	mutex_unlock(&fs_info->remap_mutex);
+	btrfs_end_transaction(trans);
+
+	return ret;
+}
+
+static int do_remap_reloc(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
+			  struct btrfs_block_group *bg)
+{
+	u64 last_start = bg->start;
+	int ret;
+
+	while (true) {
+		ret = do_remap_reloc_trans(fs_info, bg, path, &last_start);
+		if (ret) {
+			if (ret == 1)
+				ret = 0;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+int btrfs_translate_remap(struct btrfs_fs_info *fs_info, u64 *logical, u64 *length)
+{
+	int ret;
+	struct btrfs_key key, found_key;
+	struct extent_buffer *leaf;
+	struct btrfs_remap_item *remap;
+	BTRFS_PATH_AUTO_FREE(path);
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = *logical;
+	key.type = (u8)-1;
+	key.offset = (u64)-1;
+
+	ret = btrfs_search_slot(NULL, fs_info->remap_root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	leaf = path->nodes[0];
+	if (path->slots[0] == 0)
+		return -ENOENT;
+
+	path->slots[0]--;
+
+	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+	if (found_key.type != BTRFS_REMAP_KEY &&
+	    found_key.type != BTRFS_IDENTITY_REMAP_KEY) {
+		return -ENOENT;
+	}
+
+	if (found_key.objectid > *logical ||
+	    found_key.objectid + found_key.offset <= *logical) {
+		return -ENOENT;
+	}
+
+	if (*logical + *length > found_key.objectid + found_key.offset)
+		*length = found_key.objectid + found_key.offset - *logical;
+
+	if (found_key.type == BTRFS_IDENTITY_REMAP_KEY)
+		return 0;
+
+	remap = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
+	*logical += btrfs_remap_address(leaf, remap) - found_key.objectid;
+
+	return 0;
+}
+
+static int start_block_group_remapping(struct btrfs_fs_info *fs_info,
+				       struct btrfs_path *path,
+				       struct btrfs_block_group *bg)
+{
+	struct btrfs_trans_handle *trans;
+	bool bg_already_dirty = true;
+	int ret, ret2;
+
+	ret = btrfs_cache_block_group(bg, true);
+	if (ret)
+		return ret;
+
+	trans = btrfs_start_transaction(fs_info->remap_root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	/* We need to run delayed refs, to make sure FST is up to date. */
+	ret = btrfs_run_delayed_refs(trans, U64_MAX);
+	if (ret) {
+		btrfs_end_transaction(trans);
+		return ret;
+	}
+
+	mutex_lock(&fs_info->remap_mutex);
+
+	if (bg->flags & BTRFS_BLOCK_GROUP_REMAPPED) {
+		ret = 0;
+		goto end;
+	}
+
+	ret = create_remap_tree_entries(trans, path, bg);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		goto end;
+	}
+
+	spin_lock(&bg->lock);
+	bg->flags |= BTRFS_BLOCK_GROUP_REMAPPED;
+	spin_unlock(&bg->lock);
+
+	spin_lock(&trans->transaction->dirty_bgs_lock);
+	if (list_empty(&bg->dirty_list)) {
+		list_add_tail(&bg->dirty_list, &trans->transaction->dirty_bgs);
+		bg_already_dirty = false;
+		btrfs_get_block_group(bg);
+	}
+	spin_unlock(&trans->transaction->dirty_bgs_lock);
+
+	/* Modified block groups are accounted for in the delayed_refs_rsv. */
+	if (!bg_already_dirty)
+		btrfs_inc_delayed_refs_rsv_bg_updates(fs_info);
+
+	ret = mark_chunk_remapped(trans, path, bg->start);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		goto end;
+	}
+
+	ret = btrfs_remove_block_group_free_space(trans, bg);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		goto end;
+	}
+
+	btrfs_remove_free_space_cache(bg);
+
+end:
+	mutex_unlock(&fs_info->remap_mutex);
+
+	ret2 = btrfs_end_transaction(trans);
+	if (!ret)
+		ret = ret2;
+
+	return ret;
+}
+
+static int do_nonremap_reloc(struct btrfs_fs_info *fs_info, bool verbose,
+			     struct reloc_control *rc)
+{
+	int ret;
+
+	while (1) {
+		enum reloc_stage finishes_stage;
+
+		mutex_lock(&fs_info->cleaner_mutex);
+		ret = relocate_block_group(rc);
+		mutex_unlock(&fs_info->cleaner_mutex);
+
+		finishes_stage = rc->stage;
+		/*
+		 * We may have gotten ENOSPC after we already dirtied some
+		 * extents.  If writeout happens while we're relocating a
+		 * different block group we could end up hitting the
+		 * BUG_ON(rc->stage == UPDATE_DATA_PTRS) in
+		 * btrfs_reloc_cow_block.  Make sure we write everything out
+		 * properly so we don't trip over this problem, and then break
+		 * out of the loop if we hit an error.
+		 */
+		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
+			int wb_ret;
+
+			wb_ret = btrfs_wait_ordered_range(BTRFS_I(rc->data_inode),
+							  0, (u64)-1);
+			if (wb_ret && ret == 0)
+				ret = wb_ret;
+			invalidate_mapping_pages(rc->data_inode->i_mapping, 0, -1);
+			rc->stage = UPDATE_DATA_PTRS;
+		}
+
+		if (ret < 0)
+			return ret;
+
+		if (rc->extents_found == 0)
+			break;
+
+		if (verbose)
+			btrfs_info(fs_info, "found %llu extents, stage: %s",
+				   rc->extents_found, stage_to_string(finishes_stage));
+	}
+
+	WARN_ON(rc->block_group->pinned > 0);
+	WARN_ON(rc->block_group->reserved > 0);
+	WARN_ON(rc->block_group->used > 0);
+
+	return 0;
+}
+
 /*
  * function to relocate all extents in a block group.
  */
@@ -3870,7 +5297,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, group_start);
 	struct reloc_control *rc;
 	struct inode *inode;
-	struct btrfs_path *path;
+	struct btrfs_path *path = NULL;
 	int ret;
 	bool bg_is_ro = false;
 
@@ -3932,7 +5359,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	}
 
 	inode = lookup_free_space_inode(rc->block_group, path);
-	btrfs_free_path(path);
+	btrfs_release_path(path);
 
 	if (!IS_ERR(inode))
 		ret = delete_block_group_cache(rc->block_group, inode, 0);
@@ -3942,11 +5369,13 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	if (ret && ret != -ENOENT)
 		goto out;
 
-	rc->data_inode = create_reloc_inode(rc->block_group);
-	if (IS_ERR(rc->data_inode)) {
-		ret = PTR_ERR(rc->data_inode);
-		rc->data_inode = NULL;
-		goto out;
+	if (!btrfs_fs_incompat(fs_info, REMAP_TREE)) {
+		rc->data_inode = create_reloc_inode(rc->block_group);
+		if (IS_ERR(rc->data_inode)) {
+			ret = PTR_ERR(rc->data_inode);
+			rc->data_inode = NULL;
+			goto out;
+		}
 	}
 
 	if (verbose)
@@ -3959,54 +5388,31 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	ret = btrfs_zone_finish(rc->block_group);
 	WARN_ON(ret && ret != -EAGAIN);
 
-	while (1) {
-		enum reloc_stage finishes_stage;
-
-		mutex_lock(&fs_info->cleaner_mutex);
-		ret = relocate_block_group(rc);
-		mutex_unlock(&fs_info->cleaner_mutex);
-
-		finishes_stage = rc->stage;
-		/*
-		 * We may have gotten ENOSPC after we already dirtied some
-		 * extents.  If writeout happens while we're relocating a
-		 * different block group we could end up hitting the
-		 * BUG_ON(rc->stage == UPDATE_DATA_PTRS) in
-		 * btrfs_reloc_cow_block.  Make sure we write everything out
-		 * properly so we don't trip over this problem, and then break
-		 * out of the loop if we hit an error.
-		 */
-		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
-			int wb_ret;
-
-			wb_ret = btrfs_wait_ordered_range(BTRFS_I(rc->data_inode), 0,
-							  (u64)-1);
-			if (wb_ret && ret == 0)
-				ret = wb_ret;
-			invalidate_mapping_pages(rc->data_inode->i_mapping,
-						 0, -1);
-			rc->stage = UPDATE_DATA_PTRS;
+	if (should_relocate_using_remap_tree(bg)) {
+		if (bg->remap_bytes != 0) {
+			ret = move_existing_remaps(fs_info, bg, path);
+			if (ret)
+				goto out;
 		}
-
-		if (ret < 0)
+		ret = start_block_group_remapping(fs_info, path, bg);
+		if (ret)
 			goto out;
 
-		if (rc->extents_found == 0)
-			break;
+		ret = do_remap_reloc(fs_info, path, rc->block_group);
+		if (ret)
+			goto out;
 
-		if (verbose)
-			btrfs_info(fs_info, "found %llu extents, stage: %s",
-				   rc->extents_found,
-				   stage_to_string(finishes_stage));
+		btrfs_delete_unused_bgs(fs_info);
+	} else {
+		ret = do_nonremap_reloc(fs_info, verbose, rc);
 	}
 
-	WARN_ON(rc->block_group->pinned > 0);
-	WARN_ON(rc->block_group->reserved > 0);
-	WARN_ON(rc->block_group->used > 0);
 out:
 	if (ret && bg_is_ro)
 		btrfs_dec_block_group_ro(rc->block_group);
-	iput(rc->data_inode);
+	if (!btrfs_fs_incompat(fs_info, REMAP_TREE))
+		iput(rc->data_inode);
+	btrfs_free_path(path);
 	reloc_chunk_end(fs_info);
 out_put_bg:
 	btrfs_put_block_group(bg);
@@ -4200,7 +5606,7 @@ out:
 
 	btrfs_free_path(path);
 
-	if (ret == 0) {
+	if (ret == 0 && !btrfs_fs_incompat(fs_info, REMAP_TREE)) {
 		/* cleanup orphan inode in data relocation tree */
 		fs_root = btrfs_grab_root(fs_info->data_reloc_root);
 		ASSERT(fs_root);
@@ -4413,4 +5819,261 @@ u64 btrfs_get_reloc_bg_bytenr(const struct btrfs_fs_info *fs_info)
 	if (fs_info->reloc_ctl && fs_info->reloc_ctl->block_group)
 		logical = fs_info->reloc_ctl->block_group->start;
 	return logical;
+}
+
+static int insert_remap_item(struct btrfs_trans_handle *trans, struct btrfs_path *path,
+			     u64 old_addr, u64 length, u64 new_addr)
+{
+	int ret;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_key key;
+	struct btrfs_remap_item remap = { 0 };
+
+	if (old_addr == new_addr) {
+		/* Add new identity remap item. */
+		key.objectid = old_addr;
+		key.type = BTRFS_IDENTITY_REMAP_KEY;
+		key.offset = length;
+
+		ret = btrfs_insert_empty_item(trans, fs_info->remap_root, path,
+					      &key, 0);
+		if (ret)
+			return ret;
+	} else {
+		/* Add new remap item. */
+		key.objectid = old_addr;
+		key.type = BTRFS_REMAP_KEY;
+		key.offset = length;
+
+		ret = btrfs_insert_empty_item(trans, fs_info->remap_root,
+					      path, &key, sizeof(struct btrfs_remap_item));
+		if (ret)
+			return ret;
+
+		btrfs_set_stack_remap_address(&remap, new_addr);
+
+		write_extent_buffer(path->nodes[0], &remap,
+			btrfs_item_ptr_offset(path->nodes[0], path->slots[0]),
+			sizeof(struct btrfs_remap_item));
+
+		btrfs_release_path(path);
+
+		/* Add new backref item. */
+		key.objectid = new_addr;
+		key.type = BTRFS_REMAP_BACKREF_KEY;
+		key.offset = length;
+
+		ret = btrfs_insert_empty_item(trans, fs_info->remap_root,
+					      path, &key,
+					      sizeof(struct btrfs_remap_item));
+		if (ret)
+			return ret;
+
+		btrfs_set_stack_remap_address(&remap, old_addr);
+
+		write_extent_buffer(path->nodes[0], &remap,
+			btrfs_item_ptr_offset(path->nodes[0], path->slots[0]),
+			sizeof(struct btrfs_remap_item));
+	}
+
+	btrfs_release_path(path);
+
+	return 0;
+}
+
+/*
+ * Punch a hole in the remap item or identity remap item pointed to by path,
+ * for the range [hole_start, hole_start + hole_length).
+ */
+static int remove_range_from_remap_tree(struct btrfs_trans_handle *trans,
+					struct btrfs_path *path,
+					struct btrfs_block_group *bg,
+					u64 hole_start, u64 hole_length)
+{
+	int ret;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct extent_buffer *leaf = path->nodes[0];
+	struct btrfs_key key;
+	u64 hole_end, new_addr, remap_start, remap_length, remap_end;
+	u64 overlap_length;
+	bool is_identity_remap;
+	int identity_count_delta = 0;
+
+	hole_end = hole_start + hole_length;
+
+	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+
+	is_identity_remap = (key.type == BTRFS_IDENTITY_REMAP_KEY);
+
+	remap_start = key.objectid;
+	remap_length = key.offset;
+	remap_end = remap_start + remap_length;
+
+	if (is_identity_remap) {
+		new_addr = remap_start;
+	} else {
+		struct btrfs_remap_item *remap_ptr;
+
+		remap_ptr = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_remap_item);
+		new_addr = btrfs_remap_address(leaf, remap_ptr);
+	}
+
+	/* Delete old item. */
+	ret = btrfs_del_item(trans, fs_info->remap_root, path);
+	btrfs_release_path(path);
+	if (ret)
+		return ret;
+
+	if (is_identity_remap) {
+		identity_count_delta = -1;
+	} else {
+		/* Remove backref. */
+		key.objectid = new_addr;
+		key.type = BTRFS_REMAP_BACKREF_KEY;
+		key.offset = remap_length;
+
+		ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, -1, 1);
+		if (ret) {
+			if (ret == 1) {
+				btrfs_release_path(path);
+				ret = -ENOENT;
+			}
+			return ret;
+		}
+
+		ret = btrfs_del_item(trans, fs_info->remap_root, path);
+
+		btrfs_release_path(path);
+
+		if (ret)
+			return ret;
+	}
+
+	/* If hole_start > remap_start, re-add the start of the remap item. */
+	if (hole_start > remap_start) {
+		ret = insert_remap_item(trans, path, remap_start,
+					hole_start - remap_start, new_addr);
+		if (ret)
+			return ret;
+
+		if (is_identity_remap)
+			identity_count_delta++;
+	}
+
+	/* If hole_end < remap_end, re-add the end of the remap item. */
+	if (hole_end < remap_end) {
+		ret = insert_remap_item(trans, path, hole_end,
+					remap_end - hole_end,
+					hole_end - remap_start + new_addr);
+		if (ret)
+			return ret;
+
+		if (is_identity_remap)
+			identity_count_delta++;
+	}
+
+	if (identity_count_delta != 0)
+		adjust_identity_remap_count(trans, bg, identity_count_delta);
+
+	overlap_length = min_t(u64, hole_end, remap_end) -
+			 max_t(u64, hole_start, remap_start);
+
+	if (!is_identity_remap) {
+		struct btrfs_block_group *dest_bg;
+
+		dest_bg = btrfs_lookup_block_group(fs_info, new_addr);
+		adjust_block_group_remap_bytes(trans, dest_bg, -overlap_length);
+		btrfs_put_block_group(dest_bg);
+		ret = btrfs_add_to_free_space_tree(trans,
+						   hole_start - remap_start + new_addr,
+						   overlap_length);
+		if (ret)
+			return ret;
+	}
+
+	ret = overlap_length;
+
+	return ret;
+}
+
+/*
+ * Return 1 if remove_range_from_remap_tree() has been called successfully,
+ * 0 if block group wasn't remapped, and a negative number on error.
+ */
+int btrfs_remove_extent_from_remap_tree(struct btrfs_trans_handle *trans,
+					struct btrfs_path *path,
+					u64 bytenr, u64 num_bytes)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_key key, found_key;
+	struct extent_buffer *leaf;
+	struct btrfs_block_group *bg;
+	int ret, length;
+
+	if (!(btrfs_super_incompat_flags(fs_info->super_copy) &
+	      BTRFS_FEATURE_INCOMPAT_REMAP_TREE))
+		return 0;
+
+	bg = btrfs_lookup_block_group(fs_info, bytenr);
+	if (!bg)
+		return 0;
+
+	mutex_lock(&fs_info->remap_mutex);
+
+	if (!(bg->flags & BTRFS_BLOCK_GROUP_REMAPPED)) {
+		mutex_unlock(&fs_info->remap_mutex);
+		btrfs_put_block_group(bg);
+		return 0;
+	}
+
+	do {
+		key.objectid = bytenr;
+		key.type = (u8)-1;
+		key.offset = (u64)-1;
+
+		ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, -1, 1);
+		if (ret < 0)
+			goto end;
+
+		leaf = path->nodes[0];
+		if (path->slots[0] == 0) {
+			ret = -ENOENT;
+			goto end;
+		}
+
+		path->slots[0]--;
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (found_key.type != BTRFS_IDENTITY_REMAP_KEY &&
+		    found_key.type != BTRFS_REMAP_KEY) {
+			ret = -ENOENT;
+			goto end;
+		}
+
+		if (bytenr < found_key.objectid ||
+		    bytenr >= found_key.objectid + found_key.offset) {
+			ret = -ENOENT;
+			goto end;
+		}
+
+		length = remove_range_from_remap_tree(trans, path, bg, bytenr, num_bytes);
+		if (length < 0) {
+			ret = length;
+			goto end;
+		}
+
+		bytenr += length;
+		num_bytes -= length;
+	} while (num_bytes > 0);
+
+	ret = 1;
+
+end:
+	mutex_unlock(&fs_info->remap_mutex);
+
+	btrfs_put_block_group(bg);
+	btrfs_release_path(path);
+
+	return ret;
 }

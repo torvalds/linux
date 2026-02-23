@@ -28,7 +28,6 @@ void ecryptfs_dump_auth_tok(struct ecryptfs_auth_tok *auth_tok)
 		ecryptfs_printk(KERN_DEBUG, " * passphrase type\n");
 		ecryptfs_to_hex(salt, auth_tok->token.password.salt,
 				ECRYPTFS_SALT_SIZE);
-		salt[ECRYPTFS_SALT_SIZE * 2] = '\0';
 		ecryptfs_printk(KERN_DEBUG, " * salt = [%s]\n", salt);
 		if (auth_tok->token.password.flags &
 		    ECRYPTFS_PERSISTENT_PASSWORD) {

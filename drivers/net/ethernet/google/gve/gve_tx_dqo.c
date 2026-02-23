@@ -266,9 +266,8 @@ static int gve_tx_qpl_buf_init(struct gve_tx_ring *tx)
 		tx->dqo.qpl->num_entries;
 	int i;
 
-	tx->dqo.tx_qpl_buf_next = kvcalloc(num_tx_qpl_bufs,
-					   sizeof(tx->dqo.tx_qpl_buf_next[0]),
-					   GFP_KERNEL);
+	tx->dqo.tx_qpl_buf_next = kvzalloc_objs(tx->dqo.tx_qpl_buf_next[0],
+						num_tx_qpl_bufs);
 	if (!tx->dqo.tx_qpl_buf_next)
 		return -ENOMEM;
 
@@ -337,9 +336,8 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 	num_pending_packets /= 2;
 
 	tx->dqo.num_pending_packets = min_t(int, num_pending_packets, S16_MAX);
-	tx->dqo.pending_packets = kvcalloc(tx->dqo.num_pending_packets,
-					   sizeof(tx->dqo.pending_packets[0]),
-					   GFP_KERNEL);
+	tx->dqo.pending_packets = kvzalloc_objs(tx->dqo.pending_packets[0],
+						tx->dqo.num_pending_packets);
 	if (!tx->dqo.pending_packets)
 		goto err;
 
@@ -417,8 +415,7 @@ int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
 		return -EINVAL;
 	}
 
-	tx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_tx_ring),
-		      GFP_KERNEL);
+	tx = kvzalloc_objs(struct gve_tx_ring, cfg->qcfg->max_queues);
 	if (!tx)
 		return -ENOMEM;
 
@@ -962,9 +959,6 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 {
 	int num_buffer_descs;
 	int total_num_descs;
-
-	if (skb_is_gso(skb) && unlikely(ipv6_hopopt_jumbo_remove(skb)))
-		goto drop;
 
 	if (tx->dqo.qpl) {
 		/* We do not need to verify the number of buffers used per

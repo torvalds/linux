@@ -338,7 +338,7 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 		pr_devel("->non-boot console, using termno %d\n", termno);
 		if (termno < 0)
 			return -ENODEV;
-		pv = kzalloc(sizeof(struct hvterm_priv), GFP_KERNEL);
+		pv = kzalloc_obj(struct hvterm_priv);
 		if (!pv)
 			return -ENOMEM;
 		pv->termno = vdev->unit_address;

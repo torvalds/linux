@@ -68,29 +68,36 @@ struct btrfs_bio {
 		struct btrfs_tree_parent_check parent_check;
 	};
 
+	/* For internal use in read end I/O handling */
+	struct work_struct end_io_work;
+
 	/* End I/O information supplied to btrfs_bio_alloc */
 	btrfs_bio_end_io_t end_io;
 	void *private;
 
-	/* For internal use in read end I/O handling */
-	unsigned int mirror_num;
 	atomic_t pending_ios;
-	struct work_struct end_io_work;
+	u16 mirror_num;
 
 	/* Save the first error status of split bio. */
 	blk_status_t status;
 
 	/* Use the commit root to look up csums (data read bio only). */
-	bool csum_search_commit_root;
+	bool csum_search_commit_root:1;
 
 	/*
 	 * Since scrub will reuse btree inode, we need this flag to distinguish
 	 * scrub bios.
 	 */
-	bool is_scrub;
+	bool is_scrub:1;
+
+	/* Whether the bio is coming from copy_remapped_data_io(). */
+	bool is_remap:1;
 
 	/* Whether the csum generation for data write is async. */
-	bool async_csum;
+	bool async_csum:1;
+
+	/* Whether the bio is written using zone append. */
+	bool can_use_append:1;
 
 	/*
 	 * This member must come last, bio_alloc_bioset will allocate enough

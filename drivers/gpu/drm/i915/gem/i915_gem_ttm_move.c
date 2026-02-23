@@ -498,7 +498,7 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 		struct dma_fence *dep = fence;
 
 		if (!I915_SELFTEST_ONLY(fail_work_allocation))
-			copy_work = kzalloc(sizeof(*copy_work), GFP_KERNEL);
+			copy_work = kzalloc_obj(*copy_work);
 
 		if (copy_work) {
 			copy_work->i915 = i915;

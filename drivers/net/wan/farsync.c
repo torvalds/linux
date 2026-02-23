@@ -2359,7 +2359,7 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate driver private data */
-	card = kzalloc(sizeof(struct fst_card_info), GFP_KERNEL);
+	card = kzalloc_obj(struct fst_card_info);
 	if (!card)
 		return -ENOMEM;
 

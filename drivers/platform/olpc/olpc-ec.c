@@ -408,7 +408,7 @@ static int olpc_ec_probe(struct platform_device *pdev)
 	if (!ec_driver)
 		return -ENODEV;
 
-	ec = kzalloc(sizeof(*ec), GFP_KERNEL);
+	ec = kzalloc_obj(*ec);
 	if (!ec)
 		return -ENOMEM;
 

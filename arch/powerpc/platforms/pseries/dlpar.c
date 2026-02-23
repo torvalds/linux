@@ -53,7 +53,7 @@ static struct property *dlpar_parse_cc_property(struct cc_workarea *ccwa)
 	char *name;
 	char *value;
 
-	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+	prop = kzalloc_obj(*prop);
 	if (!prop)
 		return NULL;
 
@@ -80,7 +80,7 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 	struct device_node *dn;
 	const char *name;
 
-	dn = kzalloc(sizeof(*dn), GFP_KERNEL);
+	dn = kzalloc_obj(*dn);
 	if (!dn)
 		return NULL;
 
@@ -633,7 +633,7 @@ void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog)
 	if (!hp_errlog_copy)
 		return;
 
-	work = kmalloc(sizeof(struct pseries_hp_work), GFP_ATOMIC);
+	work = kmalloc_obj(struct pseries_hp_work, GFP_ATOMIC);
 	if (work) {
 		INIT_WORK((struct work_struct *)work, pseries_hp_work_fn);
 		work->errlog = hp_errlog_copy;

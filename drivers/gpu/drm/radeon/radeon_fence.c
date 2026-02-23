@@ -137,7 +137,7 @@ int radeon_fence_emit(struct radeon_device *rdev,
 	u64 seq;
 
 	/* we are protected by the ring emission mutex */
-	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
+	*fence = kmalloc_obj(struct radeon_fence);
 	if ((*fence) == NULL)
 		return -ENOMEM;
 

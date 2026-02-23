@@ -771,7 +771,7 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	return 0;
 }
 
-static int pvscsi_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status pvscsi_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct pvscsi_adapter *adapter = shost_priv(host);
@@ -1478,8 +1478,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	pvscsi_setup_all_rings(adapter);
 
-	adapter->cmd_map = kcalloc(adapter->req_depth,
-				   sizeof(struct pvscsi_ctx), GFP_KERNEL);
+	adapter->cmd_map = kzalloc_objs(struct pvscsi_ctx, adapter->req_depth);
 	if (!adapter->cmd_map) {
 		printk(KERN_ERR "vmw_pvscsi: failed to allocate memory.\n");
 		error = -ENOMEM;

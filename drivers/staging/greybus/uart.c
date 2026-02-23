@@ -823,7 +823,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 		goto exit_connection_destroy;
 	}
 
-	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
+	gb_tty = kzalloc_obj(*gb_tty);
 	if (!gb_tty) {
 		retval = -ENOMEM;
 		goto exit_connection_destroy;

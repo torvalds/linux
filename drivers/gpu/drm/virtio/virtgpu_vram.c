@@ -79,7 +79,7 @@ struct sg_table *virtio_gpu_vram_map_dma_buf(struct virtio_gpu_object *bo,
 	dma_addr_t addr;
 	int ret;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -193,7 +193,7 @@ int virtio_gpu_vram_create(struct virtio_gpu_device *vgdev,
 	struct virtio_gpu_object_vram *vram;
 	int ret;
 
-	vram = kzalloc(sizeof(*vram), GFP_KERNEL);
+	vram = kzalloc_obj(*vram);
 	if (!vram)
 		return -ENOMEM;
 

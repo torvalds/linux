@@ -277,8 +277,8 @@ int mlx5_adev_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 
-	priv->adev = kcalloc(ARRAY_SIZE(mlx5_adev_devices),
-			     sizeof(struct mlx5_adev *), GFP_KERNEL);
+	priv->adev = kzalloc_objs(struct mlx5_adev *,
+				  ARRAY_SIZE(mlx5_adev_devices));
 	if (!priv->adev)
 		return -ENOMEM;
 
@@ -310,7 +310,7 @@ static struct mlx5_adev *add_adev(struct mlx5_core_dev *dev, int idx)
 	struct mlx5_adev *madev;
 	int ret;
 
-	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	madev = kzalloc_obj(*madev);
 	if (!madev)
 		return ERR_PTR(-ENOMEM);
 
@@ -574,4 +574,18 @@ bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev
 
 	return plen && flen && flen == plen &&
 		!memcmp(fsystem_guid, psystem_guid, flen);
+}
+
+void mlx5_core_reps_aux_devs_remove(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_ETH])
+		device_lock_assert(&priv->adev[MLX5_INTERFACE_PROTOCOL_ETH]->adev.dev);
+	else
+		mlx5_core_err(dev, "ETH driver already removed\n");
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_IB_REP])
+		del_adev(&priv->adev[MLX5_INTERFACE_PROTOCOL_IB_REP]->adev);
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_ETH_REP])
+		del_adev(&priv->adev[MLX5_INTERFACE_PROTOCOL_ETH_REP]->adev);
 }

@@ -58,7 +58,7 @@ int siw_mr_add_mem(struct siw_mr *mr, struct ib_pd *pd, void *mem_obj,
 		   u64 start, u64 len, int rights)
 {
 	struct siw_device *sdev = to_siw_dev(pd->device);
-	struct siw_mem *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+	struct siw_mem *mem = kzalloc_obj(*mem);
 	struct xa_limit limit = XA_LIMIT(1, SIW_STAG_MAX_INDEX);
 	u32 id, next;
 
@@ -321,7 +321,7 @@ struct siw_pbl *siw_pbl_alloc(u32 num_buf)
 	if (num_buf == 0)
 		return ERR_PTR(-EINVAL);
 
-	pbl = kzalloc(struct_size(pbl, pbe, num_buf), GFP_KERNEL);
+	pbl = kzalloc_flex(*pbl, pbe, num_buf);
 	if (!pbl)
 		return ERR_PTR(-ENOMEM);
 
@@ -347,12 +347,12 @@ struct siw_umem *siw_umem_get(struct ib_device *base_dev, u64 start,
 	num_pages = PAGE_ALIGN(start + len - first_page_va) >> PAGE_SHIFT;
 	num_chunks = (num_pages >> CHUNK_SHIFT) + 1;
 
-	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	umem = kzalloc_obj(*umem);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
 	umem->page_chunk =
-		kcalloc(num_chunks, sizeof(struct siw_page_chunk), GFP_KERNEL);
+		kzalloc_objs(struct siw_page_chunk, num_chunks);
 	if (!umem->page_chunk) {
 		rv = -ENOMEM;
 		goto err_out;
@@ -376,7 +376,7 @@ struct siw_umem *siw_umem_get(struct ib_device *base_dev, u64 start,
 	for (i = 0; num_pages > 0; i++) {
 		int nents = min_t(int, num_pages, PAGES_PER_CHUNK);
 		struct page **plist =
-			kcalloc(nents, sizeof(struct page *), GFP_KERNEL);
+			kzalloc_objs(struct page *, nents);
 
 		if (!plist) {
 			rv = -ENOMEM;

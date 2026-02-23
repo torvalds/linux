@@ -639,7 +639,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	struct dentry *queue_folder;
 	struct dentry *register_folder;
 
-	intf = kzalloc(sizeof(struct rt2x00debug_intf), GFP_KERNEL);
+	intf = kzalloc_obj(struct rt2x00debug_intf);
 	if (!intf) {
 		rt2x00_err(rt2x00dev, "Failed to allocate debug handler\n");
 		return;

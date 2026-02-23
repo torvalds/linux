@@ -30,7 +30,6 @@
 #include "symbol.h"
 #include "synthetic-events.h"
 #include "util.h"
-#include "archinsn.h"
 #include "dlfilter.h"
 #include "tests.h"
 #include "util/sample.h"

@@ -99,7 +99,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 	}
 
 	if (mux_present) {
-		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
+		mux = kzalloc_obj(*mux);
 		if (!mux)
 			return ERR_PTR(-ENOMEM);
 		mux_hw = &mux->hw;
@@ -111,7 +111,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 	}
 
 	if (rate_present) {
-		fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+		fd = kzalloc_obj(*fd);
 		if (!fd) {
 			kfree(mux);
 			return ERR_PTR(-ENOMEM);
@@ -128,7 +128,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 	}
 
 	if (gate_present) {
-		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+		gate = kzalloc_obj(*gate);
 		if (!gate) {
 			kfree(mux);
 			kfree(fd);

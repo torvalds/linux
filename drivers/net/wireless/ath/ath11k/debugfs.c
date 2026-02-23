@@ -707,7 +707,7 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
 	len += scnprintf(buf + len, size - len, "\nSOC TX STATS:\n");
 	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
 
-	for (i = 0; i < ab->hw_params.max_tx_ring; i++)
+	for (i = 0; i < ab->hw_params.hal_params->num_tx_rings; i++)
 		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
 				 i, soc_stats->tx_err.desc_na[i]);
 
@@ -1193,8 +1193,7 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	if (ar->debug.dbr_debug[dbr_id])
 		return 0;
 
-	ar->debug.dbr_debug[dbr_id] = kzalloc(sizeof(*dbr_debug),
-					      GFP_KERNEL);
+	ar->debug.dbr_debug[dbr_id] = kzalloc_obj(*dbr_debug);
 
 	if (!ar->debug.dbr_debug[dbr_id])
 		return -ENOMEM;
@@ -1216,9 +1215,8 @@ static int ath11k_debugfs_dbr_dbg_init(struct ath11k *ar, int dbr_id)
 	dbr_debug->dbr_debug_enabled = true;
 	dbr_dbg_data->num_ring_debug_entries = ATH11K_DEBUG_DBR_ENTRIES_MAX;
 	dbr_dbg_data->dbr_debug_idx = 0;
-	dbr_dbg_data->entries = kcalloc(ATH11K_DEBUG_DBR_ENTRIES_MAX,
-					sizeof(struct ath11k_dbg_dbr_entry),
-					GFP_KERNEL);
+	dbr_dbg_data->entries = kzalloc_objs(struct ath11k_dbg_dbr_entry,
+					     ATH11K_DEBUG_DBR_ENTRIES_MAX);
 	if (!dbr_dbg_data->entries)
 		return -ENOMEM;
 

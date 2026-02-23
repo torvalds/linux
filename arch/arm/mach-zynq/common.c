@@ -108,7 +108,7 @@ static void __init zynq_init_machine(void)
 	struct soc_device *soc_dev;
 	struct device *parent = NULL;
 
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		goto out;
 

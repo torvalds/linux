@@ -480,7 +480,7 @@ static void a3xx_dump(struct msm_gpu *gpu)
 
 static struct msm_gpu_state *a3xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct msm_gpu_state *state = kzalloc_obj(*state);
 
 	if (!state)
 		return ERR_PTR(-ENOMEM);
@@ -533,7 +533,7 @@ static struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	a3xx_gpu = kzalloc(sizeof(*a3xx_gpu), GFP_KERNEL);
+	a3xx_gpu = kzalloc_obj(*a3xx_gpu);
 	if (!a3xx_gpu) {
 		ret = -ENOMEM;
 		goto fail;

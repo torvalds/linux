@@ -8,6 +8,7 @@
 #include "dc_spl_types.h"
 
 /* public API */
-const uint16_t *spl_dscl_get_filter_coeffs_64p(int taps, struct spl_fixed31_32 ratio);
+const uint16_t *SPL_NAMESPACE(spl_dscl_get_filter_coeffs_64p(
+	int taps, struct spl_fixed31_32 ratio));
 
 #endif /* __DC_SPL_SCL_FILTERS_H__ */

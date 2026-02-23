@@ -309,7 +309,7 @@ EXPORT_SYMBOL(irq_cpu_rmap_remove);
  */
 int irq_cpu_rmap_add(struct cpu_rmap *rmap, int irq)
 {
-	struct irq_glue *glue = kzalloc(sizeof(*glue), GFP_KERNEL);
+	struct irq_glue *glue = kzalloc_obj(*glue);
 	int rc;
 
 	if (!glue)

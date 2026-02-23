@@ -78,7 +78,7 @@ int mlx5hws_pat_init_pattern_cache(struct mlx5hws_pattern_cache **cache)
 {
 	struct mlx5hws_pattern_cache *new_cache;
 
-	new_cache = kzalloc(sizeof(*new_cache), GFP_KERNEL);
+	new_cache = kzalloc_obj(*new_cache);
 	if (!new_cache)
 		return -ENOMEM;
 
@@ -168,7 +168,7 @@ mlx5hws_pat_add_pattern_to_cache(struct mlx5hws_pattern_cache *cache,
 {
 	struct mlx5hws_pattern_cache_item *cached_pattern;
 
-	cached_pattern = kzalloc(sizeof(*cached_pattern), GFP_KERNEL);
+	cached_pattern = kzalloc_obj(*cached_pattern);
 	if (!cached_pattern)
 		return NULL;
 

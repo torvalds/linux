@@ -156,7 +156,7 @@ mlx5e_post_meter_rate_rules_create(struct mlx5e_priv *priv,
 	struct mlx5_flow_spec *spec;
 	int err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -402,7 +402,7 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 	struct mlx5e_post_meter_priv *post_meter;
 	int err;
 
-	post_meter = kzalloc(sizeof(*post_meter), GFP_KERNEL);
+	post_meter = kzalloc_obj(*post_meter);
 	if (!post_meter)
 		return ERR_PTR(-ENOMEM);
 

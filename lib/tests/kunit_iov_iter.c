@@ -387,7 +387,7 @@ static void __init iov_kunit_load_folioq(struct kunit *test,
 
 	for (i = 0; i < npages; i++) {
 		if (folioq_full(p)) {
-			p->next = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
+			p->next = kzalloc_obj(struct folio_queue);
 			KUNIT_ASSERT_NOT_ERR_OR_NULL(test, p->next);
 			folioq_init(p->next, 0);
 			p->next->prev = p;
@@ -403,7 +403,7 @@ static struct folio_queue *iov_kunit_create_folioq(struct kunit *test)
 {
 	struct folio_queue *folioq;
 
-	folioq = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
+	folioq = kzalloc_obj(struct folio_queue);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, folioq);
 	kunit_add_action_or_reset(test, iov_kunit_destroy_folioq, folioq);
 	folioq_init(folioq, 0);
@@ -565,7 +565,7 @@ static struct xarray *iov_kunit_create_xarray(struct kunit *test)
 {
 	struct xarray *xarray;
 
-	xarray = kzalloc(sizeof(struct xarray), GFP_KERNEL);
+	xarray = kzalloc_obj(struct xarray);
 	xa_init(xarray);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xarray);
 	kunit_add_action_or_reset(test, iov_kunit_destroy_xarray, xarray);

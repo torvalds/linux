@@ -178,7 +178,7 @@ long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
 	}
 	rcu_read_unlock();
 
-	stit = kzalloc(sizeof(*stit), GFP_KERNEL);
+	stit = kzalloc_obj(*stit);
 	if (!stit) {
 		iommu_tce_table_put(tbl);
 		return -ENOMEM;
@@ -305,7 +305,7 @@ int kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 		return ret;
 
 	ret = -ENOMEM;
-	stt = kzalloc(struct_size(stt, pages, npages), GFP_KERNEL | __GFP_NOWARN);
+	stt = kzalloc_flex(*stt, pages, npages, GFP_KERNEL | __GFP_NOWARN);
 	if (!stt)
 		goto fail_acct;
 

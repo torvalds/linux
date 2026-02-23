@@ -2,6 +2,7 @@
 // Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 #include <linux/debugfs.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
@@ -59,7 +60,7 @@ mlx5dr_dbg_dump_data_init_new_buff(struct mlx5dr_dbg_dump_data *dump_data)
 {
 	struct mlx5dr_dbg_dump_buff *new_buff;
 
-	new_buff = kzalloc(sizeof(*new_buff), GFP_KERNEL);
+	new_buff = kzalloc_obj(*new_buff);
 	if (!new_buff)
 		return NULL;
 
@@ -80,7 +81,7 @@ mlx5dr_dbg_create_dump_data(void)
 {
 	struct mlx5dr_dbg_dump_data *dump_data;
 
-	dump_data = kzalloc(sizeof(*dump_data), GFP_KERNEL);
+	dump_data = kzalloc_obj(*dump_data);
 	if (!dump_data)
 		return NULL;
 

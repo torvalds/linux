@@ -410,7 +410,7 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status,
 	}
 
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return -ENOMEM;
 

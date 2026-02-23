@@ -96,7 +96,7 @@ static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 	int total_read_bytes = 0, errno = 0;
 	unsigned char addr_has_changed = 0;
 
-	fw_pkt = kmalloc(sizeof(*fw_pkt), GFP_KERNEL);
+	fw_pkt = kmalloc_obj(*fw_pkt);
 	if (!fw_pkt)
 		return -ENOMEM;
 

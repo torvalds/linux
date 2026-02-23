@@ -249,6 +249,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int level;
 	struct btrfs_disk_key disk_key;
+	const bool is_reloc_root = (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID);
 	u64 reloc_src_root = 0;
 
 	WARN_ON(test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
@@ -262,7 +263,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	else
 		btrfs_node_key(buf, &disk_key, 0);
 
-	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID)
+	if (is_reloc_root)
 		reloc_src_root = btrfs_header_owner(buf);
 	cow = btrfs_alloc_tree_block(trans, root, 0, new_root_objectid,
 				     &disk_key, level, buf->start, 0,
@@ -276,7 +277,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	btrfs_set_header_backref_rev(cow, BTRFS_MIXED_BACKREF_REV);
 	btrfs_clear_header_flag(cow, BTRFS_HEADER_FLAG_WRITTEN |
 				     BTRFS_HEADER_FLAG_RELOC);
-	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID)
+	if (is_reloc_root)
 		btrfs_set_header_flag(cow, BTRFS_HEADER_FLAG_RELOC);
 	else
 		btrfs_set_header_owner(cow, new_root_objectid);
@@ -291,16 +292,9 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	if (new_root_objectid == BTRFS_TREE_RELOC_OBJECTID) {
-		ret = btrfs_inc_ref(trans, root, cow, 1);
-		if (unlikely(ret))
-			btrfs_abort_transaction(trans, ret);
-	} else {
-		ret = btrfs_inc_ref(trans, root, cow, 0);
-		if (unlikely(ret))
-			btrfs_abort_transaction(trans, ret);
-	}
-	if (ret) {
+	ret = btrfs_inc_ref(trans, root, cow, is_reloc_root);
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
 		btrfs_tree_unlock(cow);
 		free_extent_buffer(cow);
 		return ret;
@@ -362,6 +356,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 	u64 owner;
 	u64 flags;
 	int ret;
+	const bool is_reloc_root = (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID);
 
 	/*
 	 * Backrefs update rules:
@@ -397,8 +392,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 		}
 	} else {
 		refs = 1;
-		if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID ||
-		    btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
+		if (is_reloc_root || btrfs_header_backref_rev(buf) < BTRFS_MIXED_BACKREF_REV)
 			flags = BTRFS_BLOCK_FLAG_FULL_BACKREF;
 		else
 			flags = 0;
@@ -417,18 +411,17 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 	}
 
 	if (refs > 1) {
-		if ((owner == btrfs_root_id(root) ||
-		     btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) &&
+		if ((owner == btrfs_root_id(root) || is_reloc_root) &&
 		    !(flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)) {
-			ret = btrfs_inc_ref(trans, root, buf, 1);
+			ret = btrfs_inc_ref(trans, root, buf, true);
 			if (ret)
 				return ret;
 
-			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
-				ret = btrfs_dec_ref(trans, root, buf, 0);
+			if (is_reloc_root) {
+				ret = btrfs_dec_ref(trans, root, buf, false);
 				if (ret)
 					return ret;
-				ret = btrfs_inc_ref(trans, root, cow, 1);
+				ret = btrfs_inc_ref(trans, root, cow, true);
 				if (ret)
 					return ret;
 			}
@@ -437,23 +430,16 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			if (ret)
 				return ret;
 		} else {
-
-			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
-				ret = btrfs_inc_ref(trans, root, cow, 1);
-			else
-				ret = btrfs_inc_ref(trans, root, cow, 0);
+			ret = btrfs_inc_ref(trans, root, cow, is_reloc_root);
 			if (ret)
 				return ret;
 		}
 	} else {
 		if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF) {
-			if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
-				ret = btrfs_inc_ref(trans, root, cow, 1);
-			else
-				ret = btrfs_inc_ref(trans, root, cow, 0);
+			ret = btrfs_inc_ref(trans, root, cow, is_reloc_root);
 			if (ret)
 				return ret;
-			ret = btrfs_dec_ref(trans, root, buf, 1);
+			ret = btrfs_dec_ref(trans, root, buf, true);
 			if (ret)
 				return ret;
 		}
@@ -4016,8 +4002,7 @@ int btrfs_split_item(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = split_item(trans, path, new_key, split_offset);
-	return ret;
+	return split_item(trans, path, new_key, split_offset);
 }
 
 /*

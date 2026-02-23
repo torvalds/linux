@@ -338,7 +338,7 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	struct trace_uprobe *tu;
 	int ret;
 
-	tu = kzalloc(struct_size(tu, tp.args, nargs), GFP_KERNEL);
+	tu = kzalloc_flex(*tu, tp.args, nargs);
 	if (!tu)
 		return ERR_PTR(-ENOMEM);
 
@@ -699,7 +699,7 @@ static int __trace_uprobe_create(int argc, const char **argv)
 	memset(&path, 0, sizeof(path));
 	tu->filename = no_free_ptr(filename);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->flags = (is_return ? TPARG_FL_RETURN : 0) | TPARG_FL_USER;

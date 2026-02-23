@@ -28,10 +28,7 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "hsw_ips.h"
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -42,11 +39,14 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_display_wa.h"
+#include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
 #include "intel_pcode.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
+#include "intel_step.h"
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
@@ -668,7 +668,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {
@@ -758,7 +758,7 @@ static void chv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {
@@ -1859,6 +1859,20 @@ static void bxt_de_pll_enable(struct intel_display *display, int vco)
 
 static void icl_cdclk_pll_disable(struct intel_display *display)
 {
+	/*
+	 * Wa_13012396614:
+	 * Fixes: A sporadic race condition between MDCLK selection and PLL
+	 *        enabling.
+	 * Workaround:
+	 *   Change programming of MDCLK source selection in CDCLK_CTL:
+	 *    - When disabling the CDCLK PLL, first set MDCLK source to be CD2XCLK.
+	 *    - When enabling the CDCLK PLL, update MDCLK source selection only
+	 *      after the PLL is enabled (which is already done as part of the
+	 *      normal flow of _bxt_set_cdclk()).
+	 */
+	if (intel_display_wa(display, 13012396614))
+		intel_de_rmw(display, CDCLK_CTL, MDCLK_SOURCE_SEL_MASK, MDCLK_SOURCE_SEL_CD2XCLK);
+
 	intel_de_rmw(display, BXT_DE_PLL_ENABLE,
 		     BXT_DE_PLL_PLL_ENABLE, 0);
 
@@ -1934,6 +1948,8 @@ static u32 bxt_cdclk_cd2x_pipe(struct intel_display *display, enum pipe pipe)
 static u32 bxt_cdclk_cd2x_div_sel(struct intel_display *display,
 				  int cdclk, int vco, u16 waveform)
 {
+	u32 ret;
+
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
 	switch (cdclk_divider(cdclk, vco, waveform)) {
 	default:
@@ -1942,14 +1958,27 @@ static u32 bxt_cdclk_cd2x_div_sel(struct intel_display *display,
 		drm_WARN_ON(display->drm, vco != 0);
 		fallthrough;
 	case 2:
-		return BXT_CDCLK_CD2X_DIV_SEL_1;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
 	case 3:
-		return BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		break;
 	case 4:
-		return BXT_CDCLK_CD2X_DIV_SEL_2;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_2;
+		break;
 	case 8:
-		return BXT_CDCLK_CD2X_DIV_SEL_4;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_4;
+		break;
 	}
+
+	/*
+	 * On Xe3_LPD onward, the expectation is to always have
+	 * BXT_CDCLK_CD2X_DIV_SEL_1 as the default.
+	 */
+	if (DISPLAY_VER(display) >= 30)
+		drm_WARN_ON(display->drm, ret != BXT_CDCLK_CD2X_DIV_SEL_1);
+
+	return ret;
 }
 
 static u16 cdclk_squash_waveform(struct intel_display *display,
@@ -2137,8 +2166,10 @@ static u32 bxt_cdclk_ctl(struct intel_display *display,
 
 	waveform = cdclk_squash_waveform(display, cdclk);
 
-	val = bxt_cdclk_cd2x_div_sel(display, cdclk, vco, waveform) |
-		bxt_cdclk_cd2x_pipe(display, pipe);
+	val = bxt_cdclk_cd2x_div_sel(display, cdclk, vco, waveform);
+
+	if (DISPLAY_VER(display) < 30)
+		val |= bxt_cdclk_cd2x_pipe(display, pipe);
 
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
@@ -2148,10 +2179,20 @@ static u32 bxt_cdclk_ctl(struct intel_display *display,
 	    cdclk >= 500000)
 		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
-	if (DISPLAY_VER(display) >= 20)
-		val |= xe2lpd_mdclk_source_sel(display);
-	else
+	if (DISPLAY_VER(display) >= 20) {
+		/*
+		 * Wa_13012396614 requires selecting CD2XCLK as MDCLK source
+		 * prior to disabling the PLL, which is already handled by
+		 * icl_cdclk_pll_disable().  Here we are just making sure
+		 * we keep the expected value.
+		 */
+		if (intel_display_wa(display, 13012396614) && vco == 0)
+			val |= MDCLK_SOURCE_SEL_CD2XCLK;
+		else
+			val |= xe2lpd_mdclk_source_sel(display);
+	} else {
 		val |= skl_cdclk_decimal(cdclk);
+	}
 
 	return val;
 }
@@ -3368,7 +3409,7 @@ int intel_cdclk_init(struct intel_display *display)
 {
 	struct intel_cdclk_state *cdclk_state;
 
-	cdclk_state = kzalloc(sizeof(*cdclk_state), GFP_KERNEL);
+	cdclk_state = kzalloc_obj(*cdclk_state);
 	if (!cdclk_state)
 		return -ENOMEM;
 
@@ -3738,10 +3779,8 @@ static int pch_rawclk(struct intel_display *display)
 
 static int i9xx_hrawclk(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	/* hrawclock is 1/4 the FSB frequency */
-	return DIV_ROUND_CLOSEST(intel_fsb_freq(i915), 4);
+	return DIV_ROUND_CLOSEST(intel_fsb_freq(display), 4);
 }
 
 /**

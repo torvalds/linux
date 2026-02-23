@@ -896,7 +896,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	chip->revision = (in_le32(&chip->awacs->codec_stat) >> 12) & 0xf;
 #ifdef PMAC_AMP_AVAIL
 	if (chip->revision == 3 && chip->has_iic && CHECK_CUDA_AMP()) {
-		struct awacs_amp *amp = kzalloc(sizeof(*amp), GFP_KERNEL);
+		struct awacs_amp *amp = kzalloc_obj(*amp);
 		if (! amp)
 			return -ENOMEM;
 		chip->mixer_data = amp;

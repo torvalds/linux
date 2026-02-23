@@ -449,7 +449,7 @@ int usb_wwan_port_probe(struct usb_serial_port *port)
 	if (!port->bulk_in_size || !port->bulk_out_size)
 		return -ENODEV;
 
-	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
+	portdata = kzalloc_obj(*portdata);
 	if (!portdata)
 		return -ENOMEM;
 

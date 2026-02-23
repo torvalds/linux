@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,tas2552.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TAS2552 Codec
+
+maintainers:
+  - Shenghao Ding <shenghao-ding@ti.com>
+  - Kevin Lu <kevin-lu@ti.com>
+  - Baojun Xu <baojun.xu@ti.com>
+
+description: >
+  The TAS2552 can receive its reference clock via MCLK, BCLK, IVCLKIN pin or 
+  use the internal 1.8MHz. This CLKIN is used by the PLL. In addition to PLL, 
+  the PDM reference clock is also selectable: PLL, IVCLKIN, BCLK or MCLK.
+
+  For system integration the dt-bindings/sound/tas2552.h header file provides
+  defined values to select and configure the PLL and PDM reference clocks.
+
+properties:
+  compatible:
+    const: ti,tas2552
+
+  reg:
+    maxItems: 1
+
+  vbat-supply: true
+  iovdd-supply: true
+  avdd-supply: true
+
+  enable-gpio:
+    maxItems: 1
+    description: gpio pin to enable/disable the device
+
+required:
+  - compatible
+  - reg
+  - vbat-supply
+  - iovdd-supply
+  - avdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@41 {
+            compatible = "ti,tas2552";
+            reg = <0x41>;
+            vbat-supply = <&reg_vbat>;
+            iovdd-supply = <&reg_iovdd>;
+            avdd-supply = <&reg_avdd>;
+            enable-gpio = <&gpio4 2 GPIO_ACTIVE_HIGH>;
+        };
+    };

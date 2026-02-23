@@ -208,7 +208,7 @@ static void lpc18xx_ccu_register_branch_gate_div(struct lpc18xx_clk_branch *bran
 	struct clk_hw *div_hw = NULL;
 
 	if (branch->flags & CCU_BRANCH_HAVE_DIV2) {
-		div = kzalloc(sizeof(*div), GFP_KERNEL);
+		div = kzalloc_obj(*div);
 		if (!div)
 			return;
 
@@ -274,7 +274,7 @@ static void __init lpc18xx_ccu_init(struct device_node *np)
 		return;
 	}
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data) {
 		iounmap(reg_base);
 		return;

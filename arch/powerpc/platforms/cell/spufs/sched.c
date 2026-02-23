@@ -1082,7 +1082,7 @@ int __init spu_sched_init(void)
 	struct proc_dir_entry *entry;
 	int err = -ENOMEM, i;
 
-	spu_prio = kzalloc(sizeof(struct spu_prio_array), GFP_KERNEL);
+	spu_prio = kzalloc_obj(struct spu_prio_array);
 	if (!spu_prio)
 		goto out;
 

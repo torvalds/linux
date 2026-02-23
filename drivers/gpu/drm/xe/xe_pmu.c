@@ -142,7 +142,7 @@ static bool event_gt_forcewake(struct perf_event *event)
 
 	gt = xe_device_get_gt(xe, config_to_gt_id(config));
 
-	fw_ref = kzalloc(sizeof(*fw_ref), GFP_KERNEL);
+	fw_ref = kzalloc_obj(*fw_ref);
 	if (!fw_ref)
 		return false;
 
@@ -425,7 +425,7 @@ static ssize_t event_attr_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr =
 		container_of(attr, struct perf_pmu_events_attr, attr);
 
-	return sprintf(buf, "event=%#04llx\n", pmu_attr->id);
+	return sysfs_emit(buf, "event=%#04llx\n", pmu_attr->id);
 }
 
 #define XE_EVENT_ATTR(name_, v_, id_)					\

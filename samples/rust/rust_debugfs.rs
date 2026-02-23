@@ -32,14 +32,28 @@
 //! ```
 
 use core::str::FromStr;
-use kernel::c_str;
-use kernel::debugfs::{Dir, File};
-use kernel::new_mutex;
-use kernel::prelude::*;
-use kernel::sizes::*;
-use kernel::sync::atomic::{Atomic, Relaxed};
-use kernel::sync::Mutex;
-use kernel::{acpi, device::Core, of, platform, str::CString, types::ARef};
+use kernel::{
+    acpi,
+    debugfs::{
+        Dir,
+        File, //
+    },
+    device::Core,
+    new_mutex,
+    of,
+    platform,
+    prelude::*,
+    sizes::*,
+    str::CString,
+    sync::{
+        aref::ARef,
+        atomic::{
+            Atomic,
+            Relaxed, //
+        },
+        Mutex,
+    }, //
+};
 
 kernel::module_platform_driver! {
     type: RustDebugFs,
@@ -98,7 +112,7 @@ kernel::acpi_device_table!(
     ACPI_TABLE,
     MODULE_ACPI_TABLE,
     <RustDebugFs as platform::Driver>::IdInfo,
-    [(acpi::DeviceId::new(c_str!("LNUXBEEF")), ())]
+    [(acpi::DeviceId::new(c"LNUXBEEF"), ())]
 );
 
 impl platform::Driver for RustDebugFs {
@@ -125,34 +139,34 @@ impl platform::Driver for RustDebugFs {
 
 impl RustDebugFs {
     fn build_counter(dir: &Dir) -> impl PinInit<File<Atomic<usize>>> + '_ {
-        dir.read_write_file(c_str!("counter"), Atomic::<usize>::new(0))
+        dir.read_write_file(c"counter", Atomic::<usize>::new(0))
     }
 
     fn build_inner(dir: &Dir) -> impl PinInit<File<Mutex<Inner>>> + '_ {
-        dir.read_write_file(c_str!("pair"), new_mutex!(Inner { x: 3, y: 10 }))
+        dir.read_write_file(c"pair", new_mutex!(Inner { x: 3, y: 10 }))
     }
 
     fn new(pdev: &platform::Device<Core>) -> impl PinInit<Self, Error> + '_ {
-        let debugfs = Dir::new(c_str!("sample_debugfs"));
+        let debugfs = Dir::new(c"sample_debugfs");
         let dev = pdev.as_ref();
 
         try_pin_init! {
             Self {
                 _compatible <- debugfs.read_only_file(
-                    c_str!("compatible"),
+                    c"compatible",
                     dev.fwnode()
                         .ok_or(ENOENT)?
-                        .property_read::<CString>(c_str!("compatible"))
+                        .property_read::<CString>(c"compatible")
                         .required_by(dev)?,
                 ),
                 counter <- Self::build_counter(&debugfs),
                 inner <- Self::build_inner(&debugfs),
                 array_blob <- debugfs.read_write_binary_file(
-                    c_str!("array_blob"),
+                    c"array_blob",
                     new_mutex!([0x62, 0x6c, 0x6f, 0x62]),
                 ),
                 vector_blob <- debugfs.read_write_binary_file(
-                    c_str!("vector_blob"),
+                    c"vector_blob",
                     new_mutex!(kernel::kvec!(0x42; SZ_4K)?),
                 ),
                 _debugfs: debugfs,

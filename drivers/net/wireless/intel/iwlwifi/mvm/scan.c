@@ -547,7 +547,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	else
 		blocklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
 
-	blocklist = kcalloc(blocklist_len, sizeof(*blocklist), GFP_KERNEL);
+	blocklist = kzalloc_objs(*blocklist, blocklist_len);
 	if (!blocklist)
 		return -ENOMEM;
 
@@ -2568,16 +2568,16 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 					       bitmap_ssid,
 					       version);
 		return 0;
-	} else {
-		pb->preq = params->preq;
 	}
 
-	cp->flags = iwl_mvm_scan_umac_chan_flags_v2(mvm, params, vif);
-	cp->n_aps_override[0] = IWL_SCAN_ADWELL_N_APS_GO_FRIENDLY;
-	cp->n_aps_override[1] = IWL_SCAN_ADWELL_N_APS_SOCIAL_CHS;
+	pb->preq = params->preq;
 
 	iwl_mvm_umac_scan_fill_6g_chan_list(mvm, params, pb);
 
+	/* Explicitly clear the flags since most of them are not
+	 * relevant for 6 GHz scan.
+	 */
+	cp->flags = 0;
 	cp->count = iwl_mvm_umac_scan_cfg_channels_v7_6g(mvm, params,
 							 params->n_channels,
 							 pb, cp, vif->type,
@@ -3023,12 +3023,8 @@ static int _iwl_mvm_single_scan_start(struct iwl_mvm *mvm,
 		params.iter_notif = true;
 
 	params.tsf_report_link_id = req->tsf_report_link_id;
-	if (params.tsf_report_link_id < 0) {
-		if (vif->active_links)
-			params.tsf_report_link_id = __ffs(vif->active_links);
-		else
-			params.tsf_report_link_id = 0;
-	}
+	if (params.tsf_report_link_id < 0)
+		params.tsf_report_link_id = 0;
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
@@ -3607,9 +3603,8 @@ void iwl_mvm_rx_channel_survey_notif(struct iwl_mvm *mvm,
 			n_channels += mvm->hw->wiphy->bands[band]->n_channels;
 		}
 
-		mvm->acs_survey = kzalloc(struct_size(mvm->acs_survey,
-						      channels, n_channels),
-					  GFP_KERNEL);
+		mvm->acs_survey = kzalloc_flex(*mvm->acs_survey, channels,
+					       n_channels);
 
 		if (!mvm->acs_survey)
 			return;

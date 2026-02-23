@@ -222,7 +222,7 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 		return ERR_PTR(-EINVAL);
 	}
 
-	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
+	nvbo = kzalloc_obj(struct nouveau_bo);
 	if (!nvbo)
 		return ERR_PTR(-ENOMEM);
 

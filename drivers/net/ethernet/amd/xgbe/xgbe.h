@@ -659,6 +659,7 @@ struct xgbe_mmc_stats {
 	u64 rxfifooverflow;
 	u64 rxvlanframes_gb;
 	u64 rxwatchdogerror;
+	u64 rxalignmenterror;
 };
 
 struct xgbe_ext_stats {

@@ -601,6 +601,11 @@ Commit message
 
     See: https://www.kernel.org/doc/html/latest/process/submitting-patches.html#describe-your-changes
 
+  **BAD_COMMIT_SEPARATOR**
+    The commit separator is a single line with 3 dashes.
+    The regex match is '^---$'
+    Lines that start with 3 dashes and have more content on the same line
+    may confuse tools that apply patches.
 
 Comparison style
 ----------------
@@ -753,7 +758,7 @@ Macros, Attributes and Symbols
     sizeof(foo)/sizeof(foo[0]) for finding number of elements in an
     array.
 
-    The macro is defined in include/linux/kernel.h::
+    The macro is defined in include/linux/array_size.h::
 
       #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 

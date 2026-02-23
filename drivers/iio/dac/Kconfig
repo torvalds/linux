@@ -482,6 +482,19 @@ config MAX517
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
 
+config MAX22007
+	tristate "Analog Devices MAX22007 DAC Driver"
+	depends on SPI
+	select REGMAP_SPI
+	select CRC8
+	help
+	  Say Y here if you want to build a driver for Analog Devices MAX22007.
+
+	  MAX22007 is a quad-channel, 12-bit, voltage-output digital to
+	  analog converter (DAC) with SPI interface.
+
+	  If compiled as a module, it will be called max22007.
+
 config MAX5522
 	tristate "Maxim MAX5522 DAC driver"
 	depends on SPI_MASTER
@@ -523,6 +536,26 @@ config MCP4728
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4728.
+
+config MCP47FEB02
+	tristate "MCP47F(E/V)B01/02/04/08/11/12/14/18/21/22/24/28 DAC driver"
+	depends on I2C
+	help
+	  Say yes here if you want to build the driver for the Microchip:
+	  - 8-bit DAC:
+	    MCP47FEB01, MCP47FEB02, MCP47FEB04, MCP47FEB08,
+	    MCP47FVB01, MCP47FVB02, MCP47FVB04, MCP47FVB08
+	  - 10-bit DAC:
+	    MCP47FEB11, MCP47FEB12, MCP47FEB14, MCP47FEB18,
+	    MCP47FVB11, MCP47FVB12, MCP47FVB14, MCP47FVB18
+	  - 12-bit DAC:
+	    MCP47FEB21, MCP47FEB22, MCP47FEB24, MCP47FEB28,
+	    MCP47FVB21, MCP47FVB22, MCP47FVB24, MCP47FVB28
+	  having 1 to 8 channels, 8/10/12-bit digital-to-analog converter
+	  (DAC) with I2C interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called mcp47feb02.
 
 config MCP4821
 	tristate "MCP4801/02/11/12/21/22 DAC driver"

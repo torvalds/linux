@@ -409,7 +409,6 @@ static int xlp_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	host->setup = xlp_spi_setup;
 	host->transfer_one = xlp_spi_transfer_one;
-	host->dev.of_node = pdev->dev.of_node;
 
 	init_completion(&xspi->done);
 	spi_controller_set_devdata(host, xspi);

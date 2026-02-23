@@ -471,7 +471,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id,
 	if (GEM_DEBUG_WARN_ON(gt->engine_class[info->class][info->instance]))
 		return -EINVAL;
 
-	engine = kzalloc(sizeof(*engine), GFP_KERNEL);
+	engine = kzalloc_obj(*engine);
 	if (!engine)
 		return -ENOMEM;
 
@@ -963,9 +963,6 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	drm_WARN_ON(&i915->drm, engine_mask &
 		    GENMASK(BITS_PER_TYPE(mask) - 1, I915_NUM_ENGINES));
 
-	if (i915_inject_probe_failure(i915))
-		return -ENODEV;
-
 	for (class = 0; class < MAX_ENGINE_CLASS + 1; ++class) {
 		setup_logical_ids(gt, logical_ids, class);
 
@@ -1007,6 +1004,7 @@ cleanup:
 	intel_engines_free(gt);
 	return err;
 }
+ALLOW_ERROR_INJECTION(intel_engines_init_mmio, ERRNO);
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine)
 {
@@ -1313,7 +1311,7 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 
 	GEM_BUG_ON(!engine->gt->scratch);
 
-	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	frame = kzalloc_obj(*frame);
 	if (!frame)
 		return -ENOMEM;
 

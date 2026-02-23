@@ -193,7 +193,7 @@ static struct thermal_debugfs *thermal_debugfs_add_id(struct dentry *d, int id)
 	struct thermal_debugfs *thermal_dbg;
 	char ids[IDSLENGTH];
 
-	thermal_dbg = kzalloc(sizeof(*thermal_dbg), GFP_KERNEL);
+	thermal_dbg = kzalloc_obj(*thermal_dbg);
 	if (!thermal_dbg)
 		return NULL;
 
@@ -226,7 +226,7 @@ thermal_debugfs_cdev_record_alloc(struct thermal_debugfs *thermal_dbg,
 {
 	struct cdev_record *cdev_record;
 
-	cdev_record = kzalloc(sizeof(*cdev_record), GFP_KERNEL);
+	cdev_record = kzalloc_obj(*cdev_record);
 	if (!cdev_record)
 		return NULL;
 
@@ -559,7 +559,7 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 	struct tz_episode *tze;
 	int i;
 
-	tze = kzalloc(struct_size(tze, trip_stats, tz->num_trips), GFP_KERNEL);
+	tze = kzalloc_flex(*tze, trip_stats, tz->num_trips);
 	if (!tze)
 		return NULL;
 
@@ -807,7 +807,7 @@ static int tze_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, ",-Mitigation at %llums, duration%c%llums, max. temp=%dm°C\n",
 		   ktime_to_ms(tze->timestamp), c, duration_ms, tze->max_temp);
 
-	seq_printf(s, "| trip |     type | temp(m°C) | hyst(m°C) | duration(ms) |  avg(m°C) |  min(m°C) |\n");
+	seq_puts(s, "| trip |     type | temp(m°C) | hyst(m°C) | duration(ms) |  avg(m°C) |  min(m°C) |\n");
 
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
@@ -876,7 +876,7 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 
 	tz_dbg->tz = tz;
 
-	tz_dbg->trips_crossed = kcalloc(tz->num_trips, sizeof(int), GFP_KERNEL);
+	tz_dbg->trips_crossed = kzalloc_objs(int, tz->num_trips);
 	if (!tz_dbg->trips_crossed) {
 		thermal_debugfs_remove_id(thermal_dbg);
 		return;

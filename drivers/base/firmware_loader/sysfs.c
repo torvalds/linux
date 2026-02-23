@@ -405,7 +405,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	struct fw_sysfs *fw_sysfs;
 	struct device *f_dev;
 
-	fw_sysfs = kzalloc(sizeof(*fw_sysfs), GFP_KERNEL);
+	fw_sysfs = kzalloc_obj(*fw_sysfs);
 	if (!fw_sysfs) {
 		fw_sysfs = ERR_PTR(-ENOMEM);
 		goto exit;

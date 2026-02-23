@@ -257,7 +257,7 @@ static void do_go_online(struct work_struct *work_go_online)
 		struct ppp_channel *channel;
 
 		spin_unlock_irqrestore(&network->lock, flags);
-		channel = kzalloc(sizeof(struct ppp_channel), GFP_KERNEL);
+		channel = kzalloc_obj(struct ppp_channel);
 		if (!channel) {
 			printk(KERN_ERR IPWIRELESS_PCCARD_NAME
 					": unable to allocate PPP channel\n");
@@ -416,7 +416,7 @@ void ipwireless_network_packet_received(struct ipw_network *network,
 struct ipw_network *ipwireless_network_create(struct ipw_hardware *hw)
 {
 	struct ipw_network *network =
-		kzalloc(sizeof(struct ipw_network), GFP_KERNEL);
+		kzalloc_obj(struct ipw_network);
 
 	if (!network)
 		return NULL;

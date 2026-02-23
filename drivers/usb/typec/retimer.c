@@ -110,7 +110,7 @@ typec_retimer_register(struct device *parent, const struct typec_retimer_desc *d
 	if (!desc || !desc->set)
 		return ERR_PTR(-EINVAL);
 
-	retimer = kzalloc(sizeof(*retimer), GFP_KERNEL);
+	retimer = kzalloc_obj(*retimer);
 	if (!retimer)
 		return ERR_PTR(-ENOMEM);
 

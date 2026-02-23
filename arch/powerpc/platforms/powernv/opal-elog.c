@@ -190,7 +190,7 @@ static void create_elog_obj(uint64_t id, size_t size, uint64_t type)
 	struct elog_obj *elog;
 	int rc;
 
-	elog = kzalloc(sizeof(*elog), GFP_KERNEL);
+	elog = kzalloc_obj(*elog);
 	if (!elog)
 		return;
 

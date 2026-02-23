@@ -100,5 +100,7 @@
 #define XGMI_HWID                                        200
 #define XGBE_HWID                                        216
 #define MP0_HWID                                         255
+#define ATU_HWID                                         294
+#define AIGC_HWID                                        295
 
 #endif

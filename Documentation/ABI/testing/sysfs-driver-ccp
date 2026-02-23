@@ -8,6 +8,21 @@ Description:
 		0: Not fused
 		1: Fused
 
+What:		/sys/bus/pci/devices/<BDF>/boot_integrity
+Date:		April 2026
+KernelVersion:	6.20
+Contact:	mario.limonciello@amd.com
+Description:
+		The /sys/bus/pci/devices/<BDF>/boot_integrity reports
+		whether the AMD CPU or APU is used for a hardware root of trust
+		during the boot process.
+		Possible values:
+		0: Not hardware root of trust.
+		1: Hardware root of trust
+
+		NOTE: Vendors may provide design specific alternative hardware
+		root of trust implementations.
+
 What:		/sys/bus/pci/devices/<BDF>/debug_lock_on
 Date:		June 2022
 KernelVersion:	5.19

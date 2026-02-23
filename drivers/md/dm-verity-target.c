@@ -17,6 +17,7 @@
 #include "dm-verity-fec.h"
 #include "dm-verity-verify-sig.h"
 #include "dm-audit.h"
+#include <linux/hex.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
@@ -254,9 +255,9 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		data = dm_bufio_get(v->bufio, hash_block, &buf);
 		if (IS_ERR_OR_NULL(data)) {
 			/*
-			 * In tasklet and the hash was not in the bufio cache.
-			 * Return early and resume execution from a work-queue
-			 * to read the hash from disk.
+			 * In softirq and the hash was not in the bufio cache.
+			 * Return early and resume execution from a kworker to
+			 * read the hash from disk.
 			 */
 			return -EAGAIN;
 		}
@@ -303,7 +304,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		else if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 			/*
 			 * Error handling code (FEC included) cannot be run in a
-			 * tasklet since it may sleep, so fallback to work-queue.
+			 * softirq since it may sleep, so fallback to a kworker.
 			 */
 			r = -EAGAIN;
 			goto release_ret_r;
@@ -425,8 +426,8 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		/*
-		 * Error handling code (FEC included) cannot be run in the
-		 * BH workqueue, so fallback to a standard workqueue.
+		 * Error handling code (FEC included) cannot be run in a
+		 * softirq since it may sleep, so fallback to a kworker.
 		 */
 		return -EAGAIN;
 	}
@@ -435,11 +436,9 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 			set_bit(blkno, v->validated_blocks);
 		return 0;
 	}
-#if defined(CONFIG_DM_VERITY_FEC)
 	if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA, want_digest,
 			      blkno, data) == 0)
 		return 0;
-#endif
 	if (bio->bi_status)
 		return -EIO; /* Error correction failed; Just return error */
 
@@ -521,8 +520,8 @@ static int verity_verify_io(struct dm_verity_io *io)
 
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		/*
-		 * Copy the iterator in case we need to restart
-		 * verification in a work-queue.
+		 * Copy the iterator in case we need to restart verification in
+		 * a kworker.
 		 */
 		iter_copy = io->iter;
 		iter = &iter_copy;
@@ -530,7 +529,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 		iter = &io->iter;
 
 	for (b = 0; b < io->n_blocks;
-	     b++, bio_advance_iter(bio, iter, block_size)) {
+	     b++, bio_advance_iter_single(bio, iter, block_size)) {
 		sector_t blkno = io->block + b;
 		struct pending_block *block;
 		bool is_zero;
@@ -619,8 +618,7 @@ static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_status = status;
 
-	if (!static_branch_unlikely(&use_bh_wq_enabled) || !io->in_bh)
-		verity_fec_finish_io(io);
+	verity_fec_finish_io(io);
 
 	if (unlikely(status != BLK_STS_OK) &&
 	    unlikely(!(bio->bi_opf & REQ_RAHEAD)) &&
@@ -654,13 +652,13 @@ static void verity_work(struct work_struct *w)
 
 static void verity_bh_work(struct work_struct *w)
 {
-	struct dm_verity_io *io = container_of(w, struct dm_verity_io, bh_work);
+	struct dm_verity_io *io = container_of(w, struct dm_verity_io, work);
 	int err;
 
 	io->in_bh = true;
 	err = verity_verify_io(io);
 	if (err == -EAGAIN || err == -ENOMEM) {
-		/* fallback to retrying with work-queue */
+		/* fallback to retrying in a kworker */
 		INIT_WORK(&io->work, verity_work);
 		queue_work(io->v->verify_wq, &io->work);
 		return;
@@ -693,10 +691,10 @@ static void verity_end_io(struct bio *bio)
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->v->use_bh_wq &&
 		verity_use_bh(bytes, ioprio)) {
 		if (in_hardirq() || irqs_disabled()) {
-			INIT_WORK(&io->bh_work, verity_bh_work);
-			queue_work(system_bh_wq, &io->bh_work);
+			INIT_WORK(&io->work, verity_bh_work);
+			queue_work(system_bh_wq, &io->work);
 		} else {
-			verity_bh_work(&io->bh_work);
+			verity_bh_work(&io->work);
 		}
 	} else {
 		INIT_WORK(&io->work, verity_work);
@@ -766,8 +764,8 @@ static void verity_submit_prefetch(struct dm_verity *v, struct dm_verity_io *io,
 			return;
 	}
 
-	pw = kmalloc(sizeof(struct dm_verity_prefetch_work),
-		GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
+	pw = kmalloc_obj(struct dm_verity_prefetch_work,
+			 GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
 
 	if (!pw)
 		return;
@@ -1371,7 +1369,7 @@ static int verity_setup_salt_and_hashstate(struct dm_verity *v, const char *arg)
 	if (likely(v->use_sha256_lib)) {
 		/* Implies version 1: salt at beginning */
 		v->initial_hashstate.sha256 =
-			kmalloc(sizeof(struct sha256_ctx), GFP_KERNEL);
+			kmalloc_obj(struct sha256_ctx);
 		if (!v->initial_hashstate.sha256) {
 			ti->error = "Cannot allocate initial hash state";
 			return -ENOMEM;
@@ -1432,7 +1430,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	char dummy;
 	char *root_hash_digest_to_validate;
 
-	v = kzalloc(sizeof(struct dm_verity), GFP_KERNEL);
+	v = kzalloc_obj(struct dm_verity);
 	if (!v) {
 		ti->error = "Cannot allocate verity structure";
 		return -ENOMEM;
@@ -1647,11 +1645,13 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * reducing wait times when reading from a dm-verity device.
 	 *
 	 * Also as required for the "try_verify_in_tasklet" feature: WQ_HIGHPRI
-	 * allows verify_wq to preempt softirq since verification in BH workqueue
+	 * allows verify_wq to preempt softirq since verification in softirq
 	 * will fall-back to using it for error handling (or if the bufio cache
 	 * doesn't have required hashes).
 	 */
-	v->verify_wq = alloc_workqueue("kverityd", WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	v->verify_wq = alloc_workqueue("kverityd",
+				       WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
+				       0);
 	if (!v->verify_wq) {
 		ti->error = "Cannot allocate workqueue";
 		r = -ENOMEM;
@@ -1803,7 +1803,31 @@ static struct target_type verity_target = {
 	.preresume	= verity_preresume,
 #endif /* CONFIG_SECURITY */
 };
-module_dm(verity);
+
+static int __init dm_verity_init(void)
+{
+	int r;
+
+	r = dm_verity_verify_sig_init();
+	if (r)
+		return r;
+
+	r = dm_register_target(&verity_target);
+	if (r) {
+		dm_verity_verify_sig_exit();
+		return r;
+	}
+
+	return 0;
+}
+module_init(dm_verity_init);
+
+static void __exit dm_verity_exit(void)
+{
+	dm_unregister_target(&verity_target);
+	dm_verity_verify_sig_exit();
+}
+module_exit(dm_verity_exit);
 
 /*
  * Check whether a DM target is a verity target.

@@ -194,8 +194,7 @@ int wl1251_hw_init_mem_config(struct wl1251 *wl)
 	if (ret < 0)
 		return ret;
 
-	wl->target_mem_map = kzalloc(sizeof(struct wl1251_acx_mem_map),
-					  GFP_KERNEL);
+	wl->target_mem_map = kzalloc_obj(struct wl1251_acx_mem_map);
 	if (!wl->target_mem_map) {
 		wl1251_error("couldn't allocate target memory map");
 		return -ENOMEM;
@@ -261,7 +260,7 @@ static int wl1251_hw_init_tx_queue_config(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx tx queue config");
 
-	config = kzalloc(sizeof(*config), GFP_KERNEL);
+	config = kzalloc_obj(*config);
 	if (!config) {
 		ret = -ENOMEM;
 		goto out;
@@ -294,8 +293,7 @@ static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 	int ret;
 
 	/* asking for the data path parameters */
-	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
-				GFP_KERNEL);
+	wl->data_path = kzalloc_obj(struct acx_data_path_params_resp);
 	if (!wl->data_path)
 		return -ENOMEM;
 

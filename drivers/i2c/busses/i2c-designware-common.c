@@ -12,6 +12,7 @@
 #define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW_COMMON"
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -33,6 +34,10 @@
 #include <linux/units.h>
 
 #include "i2c-designware-core.h"
+
+#define DW_IC_DEFAULT_BUS_CAPACITANCE_pF	100
+#define DW_IC_ABORT_TIMEOUT_US			10
+#define DW_IC_BUSY_POLL_TIMEOUT_US		(1 * USEC_PER_MSEC)
 
 static const char *const abort_sources[] = {
 	[ABRT_7B_ADDR_NOACK] =
@@ -106,7 +111,7 @@ static int dw_reg_read_word(void *context, unsigned int reg, unsigned int *val)
 	struct dw_i2c_dev *dev = context;
 
 	*val = readw(dev->base + reg) |
-		(readw(dev->base + reg + 2) << 16);
+		(readw(dev->base + reg + DW_IC_REG_STEP_BYTES) << DW_IC_REG_WORD_SHIFT);
 
 	return 0;
 }
@@ -116,7 +121,7 @@ static int dw_reg_write_word(void *context, unsigned int reg, unsigned int val)
 	struct dw_i2c_dev *dev = context;
 
 	writew(val, dev->base + reg);
-	writew(val >> 16, dev->base + reg + 2);
+	writew(val >> DW_IC_REG_WORD_SHIFT, dev->base + reg + DW_IC_REG_STEP_BYTES);
 
 	return 0;
 }
@@ -131,7 +136,7 @@ static int dw_reg_write_word(void *context, unsigned int reg, unsigned int val)
  *
  * Return: 0 on success, or negative errno otherwise.
  */
-int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
+static int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 {
 	struct regmap_config map_cfg = {
 		.reg_bits = 32,
@@ -165,7 +170,7 @@ int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 	if (reg == swab32(DW_IC_COMP_TYPE_VALUE)) {
 		map_cfg.reg_read = dw_reg_read_swab;
 		map_cfg.reg_write = dw_reg_write_swab;
-	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
+	} else if (reg == lower_16_bits(DW_IC_COMP_TYPE_VALUE)) {
 		map_cfg.reg_read = dw_reg_read_word;
 		map_cfg.reg_write = dw_reg_write_word;
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
@@ -238,14 +243,10 @@ static void i2c_dw_of_configure(struct device *device)
 	struct platform_device *pdev = to_platform_device(device);
 	struct dw_i2c_dev *dev = dev_get_drvdata(device);
 
-	switch (dev->flags & MODEL_MASK) {
-	case MODEL_MSCC_OCELOT:
+	if (device_is_compatible(dev->dev, "mscc,ocelot-i2c")) {
 		dev->ext = devm_platform_ioremap_resource(pdev, 1);
 		if (!IS_ERR(dev->ext))
 			dev->set_sda_hold_time = mscc_twi_set_sda_hold_time;
-		break;
-	default:
-		break;
 	}
 }
 
@@ -358,6 +359,109 @@ static inline u32 i2c_dw_acpi_round_bus_speed(struct device *device) { return 0;
 
 #endif	/* CONFIG_ACPI */
 
+static void i2c_dw_configure_mode(struct dw_i2c_dev *dev, int mode)
+{
+	switch (mode) {
+	case DW_IC_MASTER:
+		regmap_write(dev->map, DW_IC_TX_TL, dev->tx_fifo_depth / 2);
+		regmap_write(dev->map, DW_IC_RX_TL, 0);
+		regmap_write(dev->map, DW_IC_CON, dev->master_cfg);
+		break;
+	case DW_IC_SLAVE:
+		dev->status = 0;
+		regmap_write(dev->map, DW_IC_TX_TL, 0);
+		regmap_write(dev->map, DW_IC_RX_TL, 0);
+		regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
+		regmap_write(dev->map, DW_IC_SAR, dev->slave->addr);
+		regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
+		__i2c_dw_enable(dev);
+		break;
+	default:
+		WARN(1, "Invalid mode %d\n", mode);
+		return;
+	}
+}
+
+static void i2c_dw_write_timings(struct dw_i2c_dev *dev)
+{
+	/* Write standard speed timing parameters */
+	regmap_write(dev->map, DW_IC_SS_SCL_HCNT, dev->ss_hcnt);
+	regmap_write(dev->map, DW_IC_SS_SCL_LCNT, dev->ss_lcnt);
+
+	/* Write fast mode/fast mode plus timing parameters */
+	regmap_write(dev->map, DW_IC_FS_SCL_HCNT, dev->fs_hcnt);
+	regmap_write(dev->map, DW_IC_FS_SCL_LCNT, dev->fs_lcnt);
+
+	/* Write high speed timing parameters */
+	regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
+	regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
+}
+
+/**
+ * i2c_dw_set_mode() - Select the controller mode of operation - master or slave
+ * @dev: device private data
+ * @mode: I2C mode of operation
+ *
+ * Configures the controller to operate in @mode. This function needs to be
+ * called when ever a mode swap is required.
+ *
+ * Setting the slave mode does not have an effect before a slave device is
+ * registered. So before the slave device is registered, the controller is kept
+ * in master mode regardless of @mode.
+ *
+ * The controller must be disabled before this function is called.
+ */
+void i2c_dw_set_mode(struct dw_i2c_dev *dev, int mode)
+{
+	if (mode == DW_IC_SLAVE && !dev->slave)
+		mode = DW_IC_MASTER;
+	if (dev->mode == mode)
+		return;
+
+	i2c_dw_configure_mode(dev, mode);
+	dev->mode = mode;
+}
+
+/**
+ * i2c_dw_init() - Initialize the DesignWare I2C hardware
+ * @dev: device private data
+ *
+ * This functions configures and enables the DesigWare I2C hardware.
+ *
+ * Return: 0 on success, or negative errno otherwise.
+ */
+int i2c_dw_init(struct dw_i2c_dev *dev)
+{
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/* Disable the adapter */
+	__i2c_dw_disable(dev);
+
+	/*
+	 * Mask SMBus interrupts to block storms from broken
+	 * firmware that leaves IC_SMBUS=1; the handler never
+	 * services them.
+	 */
+	regmap_write(dev->map, DW_IC_SMBUS_INTR_MASK, 0);
+
+	i2c_dw_write_timings(dev);
+
+	/* Write SDA hold time if supported */
+	if (dev->sda_hold_time)
+		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
+
+	i2c_dw_configure_mode(dev, dev->mode);
+
+	i2c_dw_release_lock(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_init);
+
 static void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev)
 {
 	u32 acpi_speed = i2c_dw_acpi_round_bus_speed(dev->dev);
@@ -384,9 +488,15 @@ int i2c_dw_fw_parse_and_configure(struct dw_i2c_dev *dev)
 	i2c_parse_fw_timings(device, t, false);
 
 	if (device_property_read_u32(device, "snps,bus-capacitance-pf", &dev->bus_capacitance_pF))
-		dev->bus_capacitance_pF = 100;
+		dev->bus_capacitance_pF = DW_IC_DEFAULT_BUS_CAPACITANCE_pF;
 
 	dev->clk_freq_optimized = device_property_read_bool(device, "snps,clk-freq-optimized");
+
+	/* Mobileye controllers do not hold the clock on empty FIFO */
+	if (device_is_compatible(device, "mobileye,eyeq6lplus-i2c"))
+		dev->emptyfifo_hold_master = false;
+	else
+		dev->emptyfifo_hold_master = true;
 
 	i2c_dw_adjust_bus_speed(dev);
 
@@ -457,7 +567,7 @@ u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
 	return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tLOW + tf), MICRO) - 1 + offset;
 }
 
-int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
+static int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 {
 	unsigned int reg;
 	int ret;
@@ -539,8 +649,9 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 
 		regmap_write(dev->map, DW_IC_ENABLE, enable | DW_IC_ENABLE_ABORT);
 		ret = regmap_read_poll_timeout(dev->map, DW_IC_ENABLE, enable,
-					       !(enable & DW_IC_ENABLE_ABORT), 10,
-					       100);
+					       !(enable & DW_IC_ENABLE_ABORT),
+					       DW_IC_ABORT_TIMEOUT_US,
+					       10 * DW_IC_ABORT_TIMEOUT_US);
 		if (ret)
 			dev_err(dev->dev, "timeout while trying to abort current transfer\n");
 	}
@@ -552,7 +663,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 		 * in that case this test reads zero and exits the loop.
 		 */
 		regmap_read(dev->map, DW_IC_ENABLE_STATUS, &status);
-		if ((status & 1) == 0)
+		if (!(status & 1))
 			return;
 
 		/*
@@ -635,7 +746,8 @@ int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
 
 	ret = regmap_read_poll_timeout(dev->map, DW_IC_STATUS, status,
 				       !(status & DW_IC_STATUS_ACTIVITY),
-				       1100, 20000);
+				       DW_IC_BUSY_POLL_TIMEOUT_US,
+				       20 * DW_IC_BUSY_POLL_TIMEOUT_US);
 	if (ret) {
 		dev_warn(dev->dev, "timeout waiting for bus ready\n");
 
@@ -672,7 +784,7 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 	return -EIO;
 }
 
-int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
+static int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 {
 	u32 tx_fifo_depth, rx_fifo_depth;
 	unsigned int param;
@@ -699,12 +811,12 @@ int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
-	tx_fifo_depth = ((param >> 16) & 0xff) + 1;
-	rx_fifo_depth = ((param >> 8)  & 0xff) + 1;
+	tx_fifo_depth = FIELD_GET(DW_IC_FIFO_TX_FIELD, param) + 1;
+	rx_fifo_depth = FIELD_GET(DW_IC_FIFO_RX_FIELD, param) + 1;
 	if (!dev->tx_fifo_depth) {
 		dev->tx_fifo_depth = tx_fifo_depth;
 		dev->rx_fifo_depth = rx_fifo_depth;
-	} else if (tx_fifo_depth >= 2) {
+	} else if (tx_fifo_depth >= DW_IC_FIFO_MIN_DEPTH) {
 		dev->tx_fifo_depth = min_t(u32, dev->tx_fifo_depth,
 				tx_fifo_depth);
 		dev->rx_fifo_depth = min_t(u32, dev->rx_fifo_depth,
@@ -741,19 +853,117 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_disable);
 
+static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+{
+	struct dw_i2c_dev *dev = dev_id;
+
+	if (dev->mode == DW_IC_SLAVE)
+		return i2c_dw_isr_slave(dev);
+
+	return i2c_dw_isr_master(dev);
+}
+
+static const struct i2c_algorithm i2c_dw_algo = {
+	.xfer = i2c_dw_xfer,
+	.functionality = i2c_dw_func,
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	.reg_slave = i2c_dw_reg_slave,
+	.unreg_slave = i2c_dw_unreg_slave,
+#endif
+};
+
+static const struct i2c_adapter_quirks i2c_dw_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
+
 int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
+	struct i2c_adapter *adap = &dev->adapter;
+	unsigned long irq_flags;
+	int ret;
+
 	device_set_node(&dev->adapter.dev, dev_fwnode(dev->dev));
 
-	switch (dev->mode) {
-	case DW_IC_SLAVE:
-		return i2c_dw_probe_slave(dev);
-	case DW_IC_MASTER:
-		return i2c_dw_probe_master(dev);
-	default:
-		dev_err(dev->dev, "Wrong operation mode: %d\n", dev->mode);
-		return -EINVAL;
+	ret = i2c_dw_init_regmap(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_fifo_size(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_probe_master(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_init(dev);
+	if (ret)
+		return ret;
+
+	if (!adap->name[0])
+		strscpy(adap->name, "Synopsys DesignWare I2C adapter");
+
+	adap->retries = 3;
+	adap->algo = &i2c_dw_algo;
+	adap->quirks = &i2c_dw_quirks;
+	adap->dev.parent = dev->dev;
+	i2c_set_adapdata(adap, dev);
+
+	/*
+	 * REVISIT: The mode check may not be necessary.
+	 * For now keeping the flags as they were originally.
+	 */
+	if (dev->mode == DW_IC_SLAVE)
+		irq_flags = IRQF_SHARED;
+	else if (dev->flags & ACCESS_NO_IRQ_SUSPEND)
+		irq_flags = IRQF_NO_SUSPEND;
+	else
+		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
+
+	/*
+	 * The first writing to TX FIFO buffer causes transmission start.
+	 * If IC_EMPTYFIFO_HOLD_MASTER_EN is not set, when TX FIFO gets
+	 * empty, I2C controller finishes the transaction. If writing to
+	 * FIFO is interrupted, FIFO can get empty and the transaction will
+	 * be finished prematurely. FIFO buffer is filled in IRQ handler,
+	 * but in PREEMPT_RT kernel IRQ handler by default is executed
+	 * in thread that can be preempted with another higher priority
+	 * thread or an interrupt. So, IRQF_NO_THREAD flag is required in
+	 * order to prevent any preemption when filling the FIFO.
+	 */
+	if (!dev->emptyfifo_hold_master)
+		irq_flags |= IRQF_NO_THREAD;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	__i2c_dw_write_intr_mask(dev, 0);
+	i2c_dw_release_lock(dev);
+
+	if (!(dev->flags & ACCESS_POLLING)) {
+		ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
+				       irq_flags, dev_name(dev->dev), dev);
+		if (ret)
+			return ret;
 	}
+
+	/*
+	 * Increment PM usage count during adapter registration in order to
+	 * avoid possible spurious runtime suspend when adapter device is
+	 * registered to the device core and immediate resume in case bus has
+	 * registered I2C slaves that do I2C transfers in their probe.
+	 */
+	ACQUIRE(pm_runtime_noresume, pm)(dev->dev);
+	ret = ACQUIRE_ERR(pm_runtime_noresume, &pm);
+	if (ret)
+		return ret;
+
+	return i2c_add_numbered_adapter(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_dw_probe);
 
@@ -797,7 +1007,7 @@ static int i2c_dw_runtime_resume(struct device *device)
 	if (!dev->shared_with_punit)
 		i2c_dw_prepare_clk(dev, true);
 
-	dev->init(dev);
+	i2c_dw_init(dev);
 
 	return 0;
 }

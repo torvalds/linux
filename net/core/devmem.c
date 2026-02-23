@@ -30,11 +30,6 @@ static DEFINE_XARRAY_FLAGS(net_devmem_dmabuf_bindings, XA_FLAGS_ALLOC1);
 
 static const struct memory_provider_ops dmabuf_devmem_ops;
 
-bool net_is_devmem_iov(struct net_iov *niov)
-{
-	return niov->type == NET_IOV_DMABUF;
-}
-
 static void net_devmem_dmabuf_free_chunk_owner(struct gen_pool *genpool,
 					       struct gen_pool_chunk *chunk,
 					       void *not_used)
@@ -52,6 +47,15 @@ static dma_addr_t net_devmem_get_dma_addr(const struct net_iov *niov)
 	owner = net_devmem_iov_to_chunk_owner(niov);
 	return owner->base_dma_addr +
 	       ((dma_addr_t)net_iov_idx(niov) << PAGE_SHIFT);
+}
+
+static void net_devmem_dmabuf_binding_release(struct percpu_ref *ref)
+{
+	struct net_devmem_dmabuf_binding *binding =
+		container_of(ref, struct net_devmem_dmabuf_binding, ref);
+
+	INIT_WORK(&binding->unbind_w, __net_devmem_dmabuf_binding_free);
+	schedule_work(&binding->unbind_w);
 }
 
 void __net_devmem_dmabuf_binding_free(struct work_struct *wq)
@@ -75,6 +79,7 @@ void __net_devmem_dmabuf_binding_free(struct work_struct *wq)
 	dma_buf_detach(binding->dmabuf, binding->attachment);
 	dma_buf_put(binding->dmabuf);
 	xa_destroy(&binding->bound_rxqs);
+	percpu_ref_exit(&binding->ref);
 	kvfree(binding->tx_vec);
 	kfree(binding);
 }
@@ -143,7 +148,7 @@ void net_devmem_unbind_dmabuf(struct net_devmem_dmabuf_binding *binding)
 		__net_mp_close_rxq(binding->dev, rxq_idx, &mp_params);
 	}
 
-	net_devmem_dmabuf_binding_put(binding);
+	percpu_ref_kill(&binding->ref);
 }
 
 int net_devmem_bind_dmabuf_to_queue(struct net_device *dev, u32 rxq_idx,
@@ -209,7 +214,11 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	binding->dev = dev;
 	xa_init_flags(&binding->bound_rxqs, XA_FLAGS_ALLOC);
 
-	refcount_set(&binding->ref, 1);
+	err = percpu_ref_init(&binding->ref,
+			      net_devmem_dmabuf_binding_release,
+			      0, GFP_KERNEL);
+	if (err < 0)
+		goto err_free_binding;
 
 	mutex_init(&binding->lock);
 
@@ -220,7 +229,7 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	if (IS_ERR(binding->attachment)) {
 		err = PTR_ERR(binding->attachment);
 		NL_SET_ERR_MSG(extack, "Failed to bind dmabuf to device");
-		goto err_free_binding;
+		goto err_exit_ref;
 	}
 
 	binding->sgt = dma_buf_map_attachment_unlocked(binding->attachment,
@@ -232,9 +241,8 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 	}
 
 	if (direction == DMA_TO_DEVICE) {
-		binding->tx_vec = kvmalloc_array(dmabuf->size / PAGE_SIZE,
-						 sizeof(struct net_iov *),
-						 GFP_KERNEL);
+		binding->tx_vec = kvmalloc_objs(struct net_iov *,
+						dmabuf->size / PAGE_SIZE);
 		if (!binding->tx_vec) {
 			err = -ENOMEM;
 			goto err_unmap;
@@ -280,9 +288,8 @@ net_devmem_bind_dmabuf(struct net_device *dev,
 			goto err_free_chunks;
 		}
 
-		owner->area.niovs = kvmalloc_array(owner->area.num_niovs,
-						   sizeof(*owner->area.niovs),
-						   GFP_KERNEL);
+		owner->area.niovs = kvmalloc_objs(*owner->area.niovs,
+						  owner->area.num_niovs);
 		if (!owner->area.niovs) {
 			err = -ENOMEM;
 			goto err_free_chunks;
@@ -322,6 +329,8 @@ err_unmap:
 					  direction);
 err_detach:
 	dma_buf_detach(dmabuf, binding->attachment);
+err_exit_ref:
+	percpu_ref_exit(&binding->ref);
 err_free_binding:
 	kfree(binding);
 err_put_dmabuf:

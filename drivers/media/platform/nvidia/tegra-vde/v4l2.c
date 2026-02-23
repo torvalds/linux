@@ -811,8 +811,7 @@ static int tegra_open(struct file *file)
 	struct tegra_ctx *ctx;
 	int err;
 
-	ctx = kzalloc(struct_size(ctx, ctrls, ARRAY_SIZE(ctrl_cfgs)),
-		      GFP_KERNEL);
+	ctx = kzalloc_flex(*ctx, ctrls, ARRAY_SIZE(ctrl_cfgs));
 	if (!ctx)
 		return -ENOMEM;
 

@@ -570,9 +570,8 @@ static void crypto_skcipher_free_instance(struct crypto_instance *inst)
 	skcipher->free(skcipher);
 }
 
-static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_skcipher_show(struct seq_file *m,
+						struct crypto_alg *alg)
 {
 	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
 
@@ -741,17 +740,13 @@ int crypto_register_skciphers(struct skcipher_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_skcipher(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_skciphers(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_skcipher(&algs[i]);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_skciphers);
 

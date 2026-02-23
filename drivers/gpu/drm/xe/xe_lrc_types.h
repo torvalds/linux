@@ -25,6 +25,9 @@ struct xe_lrc {
 	/** @size: size of the lrc and optional indirect ring state */
 	u32 size;
 
+	/** @replay_size: Size LRC needed for replaying a hang */
+	u32 replay_size;
+
 	/** @gt: gt which this LRC belongs to */
 	struct xe_gt *gt;
 

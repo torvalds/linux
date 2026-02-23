@@ -36,6 +36,7 @@
 
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
@@ -872,7 +873,7 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
 
 	BUG_ON(!ibm->acpi);
 
-	ibm->acpi->driver = kzalloc(sizeof(struct acpi_driver), GFP_KERNEL);
+	ibm->acpi->driver = kzalloc_obj(struct acpi_driver);
 	if (!ibm->acpi->driver) {
 		pr_err("failed to allocate memory for ibm->acpi->driver\n");
 		return -ENOMEM;
@@ -1196,7 +1197,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
 
-	atp_rfk = kzalloc(sizeof(struct tpacpi_rfk), GFP_KERNEL);
+	atp_rfk = kzalloc_obj(struct tpacpi_rfk);
 	if (atp_rfk)
 		atp_rfk->rfkill = rfkill_alloc(name,
 						&tpacpi_pdev->dev,
@@ -5816,8 +5817,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	if (led_supported == TPACPI_LED_NONE)
 		return -ENODEV;
 
-	tpacpi_leds = kcalloc(TPACPI_LED_NUMLEDS, sizeof(*tpacpi_leds),
-			      GFP_KERNEL);
+	tpacpi_leds = kzalloc_objs(*tpacpi_leds, TPACPI_LED_NUMLEDS);
 	if (!tpacpi_leds) {
 		pr_err("Out of memory for LED data\n");
 		return -ENOMEM;
@@ -11080,6 +11080,206 @@ static const struct attribute_group auxmac_attr_group = {
 	.attrs = auxmac_attributes,
 };
 
+/*************************************************************************
+ * HWDD subdriver, for the Lenovo Hardware Damage Detection feature.
+ */
+
+#define HWDD_GET_DMG_USBC	0x80000001
+#define HWDD_GET_CAP		0
+#define HWDD_NOT_SUPPORTED	BIT(31)
+#define HWDD_SUPPORT_USBC	BIT(0)
+
+#define PORT_STATUS     GENMASK(7, 4)
+#define LID_STATUS      GENMASK(11, 8)
+#define BASE_STATUS     GENMASK(15, 12)
+#define POS_STATUS      GENMASK(3, 2)
+#define PANEL_STATUS    GENMASK(1, 0)
+
+#define PORT_DETAIL_OFFSET	16
+
+#define PANEL_TOP	0
+#define PANEL_BASE	1
+#define PANEL_LEFT	2
+#define PANEL_RIGHT	3
+
+#define POS_LEFT	0
+#define POS_CENTER	1
+#define POS_RIGHT	2
+
+#define NUM_PORTS	4
+
+static bool hwdd_support_available;
+static bool ucdd_supported;
+
+static int hwdd_command(int command, int *output)
+{
+	acpi_handle hwdd_handle;
+
+	if (ACPI_FAILURE(acpi_get_handle(hkey_handle, "HWDD", &hwdd_handle)))
+		return -ENODEV;
+
+	if (!acpi_evalf(hwdd_handle, output, NULL, "dd", command))
+		return -EIO;
+
+	return 0;
+}
+
+static bool display_damage(char *buf, int *count, char *type, unsigned int dmg_status)
+{
+	unsigned char lid_status, base_status, port_status;
+	unsigned char loc_status, pos_status, panel_status;
+	bool damage_detected = false;
+	int i;
+
+	port_status = FIELD_GET(PORT_STATUS, dmg_status);
+	lid_status = FIELD_GET(LID_STATUS, dmg_status);
+	base_status = FIELD_GET(BASE_STATUS, dmg_status);
+	for (i = 0; i < NUM_PORTS; i++) {
+		if (!(dmg_status & BIT(i)) || !(port_status & BIT(i)))
+			continue;
+
+		*count += sysfs_emit_at(buf, *count, "%s: ", type);
+		loc_status = (dmg_status >> (PORT_DETAIL_OFFSET + (4 * i))) & 0xF;
+		pos_status = FIELD_GET(POS_STATUS, loc_status);
+		panel_status = FIELD_GET(PANEL_STATUS, loc_status);
+
+		if (lid_status & BIT(i))
+			*count += sysfs_emit_at(buf, *count, "Lid, ");
+		if (base_status & BIT(i))
+			*count += sysfs_emit_at(buf, *count, "Base, ");
+
+		switch (pos_status) {
+		case PANEL_TOP:
+			*count += sysfs_emit_at(buf, *count, "Top, ");
+			break;
+		case PANEL_BASE:
+			*count += sysfs_emit_at(buf, *count, "Bottom, ");
+			break;
+		case PANEL_LEFT:
+			*count += sysfs_emit_at(buf, *count, "Left, ");
+			break;
+		case PANEL_RIGHT:
+			*count += sysfs_emit_at(buf, *count, "Right, ");
+			break;
+		default:
+			pr_err("Unexpected value %d in switch statement\n", pos_status);
+		}
+
+		switch (panel_status) {
+		case POS_LEFT:
+			*count += sysfs_emit_at(buf, *count, "Left port\n");
+			break;
+		case POS_CENTER:
+			*count += sysfs_emit_at(buf, *count, "Center port\n");
+			break;
+		case POS_RIGHT:
+			*count += sysfs_emit_at(buf, *count, "Right port\n");
+			break;
+		default:
+			*count += sysfs_emit_at(buf, *count, "Undefined\n");
+			break;
+		}
+		damage_detected = true;
+	}
+	return damage_detected;
+}
+
+/* sysfs type-c damage detection detail */
+static ssize_t hwdd_detail_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned int damage_status;
+	int err, count = 0;
+
+	if (!ucdd_supported)
+		return -ENODEV;
+
+	/* Get USB TYPE-C damage status */
+	err = hwdd_command(HWDD_GET_DMG_USBC, &damage_status);
+	if (err)
+		return err;
+
+	if (!display_damage(buf, &count, "Type-C", damage_status))
+		count += sysfs_emit_at(buf, count, "No damage detected\n");
+
+	return count;
+}
+
+/* sysfs type-c damage detection capability */
+static ssize_t hwdd_status_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned int damage_status, port_status;
+	int err, i;
+
+	if (!ucdd_supported)
+		return -ENODEV;
+
+	/* Get USB TYPE-C damage status */
+	err = hwdd_command(HWDD_GET_DMG_USBC, &damage_status);
+	if (err)
+		return err;
+
+	port_status = FIELD_GET(PORT_STATUS, damage_status);
+	for (i = 0; i < NUM_PORTS; i++) {
+		if (!(damage_status & BIT(i)))
+			continue;
+		if (port_status & BIT(i))
+			return sysfs_emit(buf, "1\n");
+	}
+
+	return sysfs_emit(buf, "0\n");
+}
+static DEVICE_ATTR_RO(hwdd_status);
+static DEVICE_ATTR_RO(hwdd_detail);
+
+static struct attribute *hwdd_attributes[] = {
+	&dev_attr_hwdd_status.attr,
+	&dev_attr_hwdd_detail.attr,
+	NULL
+};
+
+static umode_t hwdd_attr_is_visible(struct kobject *kobj,
+				struct attribute *attr, int n)
+{
+	return hwdd_support_available ? attr->mode : 0;
+}
+
+static const struct attribute_group hwdd_attr_group = {
+	.is_visible = hwdd_attr_is_visible,
+	.attrs = hwdd_attributes,
+};
+
+static int tpacpi_hwdd_init(struct ibm_init_struct *iibm)
+{
+	int err, output;
+
+	/* Below command checks the HWDD damage capability */
+	err = hwdd_command(HWDD_GET_CAP, &output);
+	if (err)
+		return err;
+
+	if (!(output & HWDD_NOT_SUPPORTED))
+		return -ENODEV;
+
+	hwdd_support_available = true;
+
+	/*
+	 * BIT(0) is assigned to check capability of damage detection is
+	 * supported for USB Type-C port or not.
+	 */
+	if (output & HWDD_SUPPORT_USBC)
+		ucdd_supported = true;
+
+	return err;
+}
+
+static struct ibm_struct hwdd_driver_data = {
+	.name = "hwdd",
+};
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *tpacpi_driver_attributes[] = {
@@ -11139,6 +11339,7 @@ static const struct attribute_group *tpacpi_groups[] = {
 	&kbdlang_attr_group,
 	&dprc_attr_group,
 	&auxmac_attr_group,
+	&hwdd_attr_group,
 	NULL,
 };
 
@@ -11751,6 +11952,10 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 	{
 		.init = auxmac_init,
 		.data = &auxmac_data,
+	},
+	{
+		.init = tpacpi_hwdd_init,
+		.data = &hwdd_driver_data,
 	},
 };
 

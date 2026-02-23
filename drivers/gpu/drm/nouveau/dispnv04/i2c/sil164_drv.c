@@ -399,7 +399,7 @@ sil164_encoder_init(struct i2c_client *client,
 	struct sil164_priv *priv;
 	struct i2c_client *slave_client;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

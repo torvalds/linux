@@ -672,7 +672,7 @@ struct be_adapter {
 	struct be_error_recovery error_recovery;
 };
 
-/* Used for defered FW config cmds. Add fields to this struct as reqd */
+/* Used for deferred FW config cmds. Add fields to this struct as reqd */
 struct be_cmd_work {
 	struct work_struct work;
 	struct be_adapter *adapter;
@@ -700,19 +700,19 @@ struct be_cmd_work {
 #define be_max_rxqs(adapter)		(adapter->res.max_rx_qs)
 /* Max number of EQs available for the function (NIC + RoCE (if enabled)) */
 #define be_max_func_eqs(adapter)	(adapter->res.max_evt_qs)
-/* Max number of EQs available avaialble only for NIC */
+/* Max number of EQs available only for NIC */
 #define be_max_nic_eqs(adapter)		(adapter->res.max_nic_evt_qs)
 #define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
 #define be_max_pf_pool_rss_tables(adapter)	\
 				(adapter->pool_res.max_rss_tables)
-/* Max irqs avaialble for NIC */
+/* Max irqs available for NIC */
 #define be_max_irqs(adapter)		\
 			(min_t(u16, be_max_nic_eqs(adapter), num_online_cpus()))
 
 /* Max irqs *needed* for RX queues */
 static inline u16 be_max_rx_irqs(struct be_adapter *adapter)
 {
-	/* If no RSS, need atleast one irq for def-RXQ */
+	/* If no RSS, need at least one irq for def-RXQ */
 	u16 num = max_t(u16, be_max_rss(adapter), 1);
 
 	return min_t(u16, num, be_max_irqs(adapter));

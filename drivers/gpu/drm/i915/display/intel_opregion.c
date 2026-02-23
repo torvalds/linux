@@ -898,7 +898,7 @@ int intel_opregion_setup(struct intel_display *display)
 		return -ENOTSUPP;
 	}
 
-	opregion = kzalloc(sizeof(*opregion), GFP_KERNEL);
+	opregion = kzalloc_obj(*opregion);
 	if (!opregion)
 		return -ENOMEM;
 

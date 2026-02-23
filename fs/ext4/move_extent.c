@@ -321,6 +321,8 @@ static int mext_move_extent(struct mext_data *mext, u64 *m_len)
 		ret = PTR_ERR(handle);
 		goto out;
 	}
+	ext4_fc_mark_ineligible(orig_inode->i_sb, EXT4_FC_REASON_MOVE_EXT,
+				handle);
 
 	ret = mext_move_begin(mext, folio, &move_type);
 	if (ret)
@@ -393,9 +395,11 @@ out:
 
 repair_branches:
 	ret2 = 0;
+	ext4_double_down_write_data_sem(orig_inode, donor_inode);
 	r_len = ext4_swap_extents(handle, donor_inode, orig_inode,
 				  mext->donor_lblk, orig_map->m_lblk,
 				  *m_len, 0, &ret2);
+	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	if (ret2 || r_len != *m_len) {
 		ext4_error_inode_block(orig_inode, (sector_t)(orig_map->m_lblk),
 				       EIO, "Unable to copy data block, data will be lost!");

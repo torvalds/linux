@@ -451,7 +451,7 @@ static int dmi_system_event_log(struct dmi_sysfs_entry *entry)
 {
 	int ret;
 
-	entry->child = kzalloc(sizeof(*entry->child), GFP_KERNEL);
+	entry->child = kzalloc_obj(*entry->child);
 	if (!entry->child)
 		return -ENOMEM;
 	ret = kobject_init_and_add(entry->child,
@@ -586,7 +586,7 @@ static void __init dmi_sysfs_register_handle(const struct dmi_header *dh,
 		return;
 
 	/* Allocate and register a new entry into the entries set */
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry) {
 		*ret = -ENOMEM;
 		return;

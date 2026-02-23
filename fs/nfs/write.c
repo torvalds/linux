@@ -113,7 +113,7 @@ static void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 
 static struct nfs_io_completion *nfs_io_completion_alloc(gfp_t gfp_flags)
 {
-	return kmalloc(sizeof(struct nfs_io_completion), gfp_flags);
+	return kmalloc_obj(struct nfs_io_completion, gfp_flags);
 }
 
 static void nfs_io_completion_init(struct nfs_io_completion *ioc,
@@ -1402,7 +1402,7 @@ void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 	struct nfs_server *server = NFS_SERVER(inode);
 	const struct nfs_pageio_ops *pg_ops = &nfs_pgio_rw_ops;
 
-#ifdef CONFIG_NFS_V4_1
+#if IS_ENABLED(CONFIG_NFS_V4)
 	if (server->pnfs_curr_ld && !force_mds)
 		pg_ops = server->pnfs_curr_ld->pg_write_ops;
 #endif
@@ -2022,6 +2022,39 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
 	}
 
 	return ret;
+}
+
+/**
+ * nfs_wb_folio_reclaim - Write back all requests on one page
+ * @inode: pointer to page
+ * @folio: pointer to folio
+ *
+ * Assumes that the folio has been locked by the caller
+ */
+int nfs_wb_folio_reclaim(struct inode *inode, struct folio *folio)
+{
+	loff_t range_start = folio_pos(folio);
+	size_t len = folio_size(folio);
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0,
+		.range_start = range_start,
+		.range_end = range_start + len - 1,
+		.for_sync = 1,
+	};
+	int ret;
+
+	if (folio_test_writeback(folio))
+		return -EBUSY;
+	if (folio_clear_dirty_for_io(folio)) {
+		trace_nfs_writeback_folio_reclaim(inode, range_start, len);
+		ret = nfs_writepage_locked(folio, &wbc);
+		trace_nfs_writeback_folio_reclaim_done(inode, range_start, len,
+						       ret);
+		return ret;
+	}
+	nfs_commit_inode(inode, 0);
+	return 0;
 }
 
 /**

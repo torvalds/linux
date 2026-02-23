@@ -415,7 +415,7 @@
 	 * The firmware will find whether the emmc2bus alias is defined, and if
 	 * so, it'll edit the dma-ranges property below accordingly.
 	 */
-	emmc2bus: emmc2bus {
+	emmc2bus: emmc2-bus@fe000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -542,7 +542,7 @@
 		};
 	};
 
-	scb {
+	scb-bus@fc000000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;

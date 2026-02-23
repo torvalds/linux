@@ -718,7 +718,7 @@ static struct thpsize *thpsize_create(int order, struct kobject *parent)
 	struct thpsize *thpsize;
 	int ret = -ENOMEM;
 
-	thpsize = kzalloc(sizeof(*thpsize), GFP_KERNEL);
+	thpsize = kzalloc_obj(*thpsize);
 	if (!thpsize)
 		goto err;
 
@@ -3431,7 +3431,7 @@ static void remap_page(struct folio *folio, unsigned long nr, int flags)
 	if (!folio_test_anon(folio))
 		return;
 	for (;;) {
-		remove_migration_ptes(folio, folio, RMP_LOCKED | flags);
+		remove_migration_ptes(folio, folio, TTU_RMAP_LOCKED | flags);
 		i += folio_nr_pages(folio);
 		if (i >= nr)
 			break;
@@ -3944,7 +3944,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 	int old_order = folio_order(folio);
 	struct folio *new_folio, *next;
 	int nr_shmem_dropped = 0;
-	int remap_flags = 0;
+	enum ttu_flags ttu_flags = 0;
 	int ret;
 	pgoff_t end = 0;
 
@@ -4064,9 +4064,9 @@ fail:
 		shmem_uncharge(mapping->host, nr_shmem_dropped);
 
 	if (!ret && is_anon && !folio_is_device_private(folio))
-		remap_flags = RMP_USE_SHARED_ZEROPAGE;
+		ttu_flags = TTU_USE_SHARED_ZEROPAGE;
 
-	remap_page(folio, 1 << old_order, remap_flags);
+	remap_page(folio, 1 << old_order, ttu_flags);
 
 	/*
 	 * Unlock all after-split folios except the one containing
@@ -4692,23 +4692,18 @@ static int split_huge_pages_in_file(const char *file_path, pgoff_t off_start,
 				pgoff_t off_end, unsigned int new_order,
 				long in_folio_offset)
 {
-	struct filename *file;
 	struct file *candidate;
 	struct address_space *mapping;
-	int ret = -EINVAL;
 	pgoff_t index;
 	int nr_pages = 1;
 	unsigned long total = 0, split = 0;
 	unsigned int min_order;
 	unsigned int target_order;
 
-	file = getname_kernel(file_path);
-	if (IS_ERR(file))
-		return ret;
-
+	CLASS(filename_kernel, file)(file_path);
 	candidate = file_open_name(file, O_RDONLY, 0);
 	if (IS_ERR(candidate))
-		goto out;
+		return -EINVAL;
 
 	pr_debug("split file-backed THPs in file: %s, page offset: [0x%lx - 0x%lx], new_order: %u, in_folio_offset: %ld\n",
 		 file_path, off_start, off_end, new_order, in_folio_offset);
@@ -4757,12 +4752,8 @@ next:
 	}
 
 	filp_close(candidate, NULL);
-	ret = 0;
-
 	pr_debug("%lu of %lu file-backed THP split\n", split, total);
-out:
-	putname(file);
-	return ret;
+	return 0;
 }
 
 #define MAX_INPUT_BUF_SZ 255

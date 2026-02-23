@@ -239,7 +239,7 @@ davinci_lpsc_clk_register(struct device *dev, const char *name,
 	int ret;
 	bool is_on;
 
-	lpsc = kzalloc(sizeof(*lpsc), GFP_KERNEL);
+	lpsc = kzalloc_obj(*lpsc);
 	if (!lpsc)
 		return ERR_PTR(-ENOMEM);
 
@@ -372,11 +372,11 @@ __davinci_psc_register_clocks(struct device *dev,
 	struct regmap *regmap;
 	int i, ret;
 
-	psc = kzalloc(sizeof(*psc), GFP_KERNEL);
+	psc = kzalloc_obj(*psc);
 	if (!psc)
 		return ERR_PTR(-ENOMEM);
 
-	clks = kmalloc_array(num_clks, sizeof(*clks), GFP_KERNEL);
+	clks = kmalloc_objs(*clks, num_clks);
 	if (!clks) {
 		ret = -ENOMEM;
 		goto err_free_psc;
@@ -392,7 +392,7 @@ __davinci_psc_register_clocks(struct device *dev,
 	for (i = 0; i < num_clks; i++)
 		clks[i] = ERR_PTR(-ENOENT);
 
-	pm_domains = kcalloc(num_clks, sizeof(*pm_domains), GFP_KERNEL);
+	pm_domains = kzalloc_objs(*pm_domains, num_clks);
 	if (!pm_domains) {
 		ret = -ENOMEM;
 		goto err_free_clks;

@@ -1464,7 +1464,7 @@ static inline void vcc_table_deallocate(const struct lanai_dev *lanai)
 static inline struct lanai_vcc *new_lanai_vcc(void)
 {
 	struct lanai_vcc *lvcc;
-	lvcc =  kzalloc(sizeof(*lvcc), GFP_KERNEL);
+	lvcc = kzalloc_obj(*lvcc);
 	if (likely(lvcc != NULL)) {
 		skb_queue_head_init(&lvcc->tx.backlog);
 #ifdef DEBUG
@@ -2555,7 +2555,7 @@ static int lanai_init_one(struct pci_dev *pci,
 	struct atm_dev *atmdev;
 	int result;
 
-	lanai = kzalloc(sizeof(*lanai), GFP_KERNEL);
+	lanai = kzalloc_obj(*lanai);
 	if (lanai == NULL) {
 		printk(KERN_ERR DEV_LABEL
 		       ": couldn't allocate dev_data structure!\n");

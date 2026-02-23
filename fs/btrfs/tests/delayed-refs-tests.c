@@ -985,7 +985,7 @@ int btrfs_test_delayed_refs(u32 sectorsize, u32 nodesize)
 		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;
 	}
-	transaction = kmalloc(sizeof(*transaction), GFP_KERNEL);
+	transaction = kmalloc_obj(*transaction);
 	if (!transaction) {
 		test_std_err(TEST_ALLOC_TRANSACTION);
 		ret = -ENOMEM;

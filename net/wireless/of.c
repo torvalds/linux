@@ -98,7 +98,7 @@ void wiphy_read_of_freq_limits(struct wiphy *wiphy)
 	}
 	n_freq_limits = len / sizeof(u32) / 2;
 
-	freq_limits = kcalloc(n_freq_limits, sizeof(*freq_limits), GFP_KERNEL);
+	freq_limits = kzalloc_objs(*freq_limits, n_freq_limits);
 	if (!freq_limits) {
 		err = -ENOMEM;
 		goto out_kfree;

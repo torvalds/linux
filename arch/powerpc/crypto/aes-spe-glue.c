@@ -51,30 +51,6 @@ struct ppc_xts_ctx {
 	u32 rounds;
 };
 
-extern void ppc_encrypt_aes(u8 *out, const u8 *in, u32 *key_enc, u32 rounds);
-extern void ppc_decrypt_aes(u8 *out, const u8 *in, u32 *key_dec, u32 rounds);
-extern void ppc_encrypt_ecb(u8 *out, const u8 *in, u32 *key_enc, u32 rounds,
-			    u32 bytes);
-extern void ppc_decrypt_ecb(u8 *out, const u8 *in, u32 *key_dec, u32 rounds,
-			    u32 bytes);
-extern void ppc_encrypt_cbc(u8 *out, const u8 *in, u32 *key_enc, u32 rounds,
-			    u32 bytes, u8 *iv);
-extern void ppc_decrypt_cbc(u8 *out, const u8 *in, u32 *key_dec, u32 rounds,
-			    u32 bytes, u8 *iv);
-extern void ppc_crypt_ctr  (u8 *out, const u8 *in, u32 *key_enc, u32 rounds,
-			    u32 bytes, u8 *iv);
-extern void ppc_encrypt_xts(u8 *out, const u8 *in, u32 *key_enc, u32 rounds,
-			    u32 bytes, u8 *iv, u32 *key_twk);
-extern void ppc_decrypt_xts(u8 *out, const u8 *in, u32 *key_dec, u32 rounds,
-			    u32 bytes, u8 *iv, u32 *key_twk);
-
-extern void ppc_expand_key_128(u32 *key_enc, const u8 *key);
-extern void ppc_expand_key_192(u32 *key_enc, const u8 *key);
-extern void ppc_expand_key_256(u32 *key_enc, const u8 *key);
-
-extern void ppc_generate_decrypt_key(u32 *key_dec,u32 *key_enc,
-				     unsigned int key_len);
-
 static void spe_begin(void)
 {
 	/* disable preemption and save users SPE registers if required */
@@ -89,10 +65,10 @@ static void spe_end(void)
 	preempt_enable();
 }
 
-static int ppc_aes_setkey(struct crypto_tfm *tfm, const u8 *in_key,
-		unsigned int key_len)
+static int ppc_aes_setkey_skcipher(struct crypto_skcipher *tfm,
+				   const u8 *in_key, unsigned int key_len)
 {
-	struct ppc_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct ppc_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	switch (key_len) {
 	case AES_KEYSIZE_128:
@@ -114,12 +90,6 @@ static int ppc_aes_setkey(struct crypto_tfm *tfm, const u8 *in_key,
 	ppc_generate_decrypt_key(ctx->key_dec, ctx->key_enc, key_len);
 
 	return 0;
-}
-
-static int ppc_aes_setkey_skcipher(struct crypto_skcipher *tfm,
-				   const u8 *in_key, unsigned int key_len)
-{
-	return ppc_aes_setkey(crypto_skcipher_tfm(tfm), in_key, key_len);
 }
 
 static int ppc_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
@@ -157,24 +127,6 @@ static int ppc_xts_setkey(struct crypto_skcipher *tfm, const u8 *in_key,
 	ppc_generate_decrypt_key(ctx->key_dec, ctx->key_enc, key_len);
 
 	return 0;
-}
-
-static void ppc_aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
-{
-	struct ppc_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	spe_begin();
-	ppc_encrypt_aes(out, in, ctx->key_enc, ctx->rounds);
-	spe_end();
-}
-
-static void ppc_aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
-{
-	struct ppc_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	spe_begin();
-	ppc_decrypt_aes(out, in, ctx->key_dec, ctx->rounds);
-	spe_end();
 }
 
 static int ppc_ecb_crypt(struct skcipher_request *req, bool enc)
@@ -410,26 +362,6 @@ static int ppc_xts_decrypt(struct skcipher_request *req)
  * with kmalloc() in the crypto infrastructure
  */
 
-static struct crypto_alg aes_cipher_alg = {
-	.cra_name		=	"aes",
-	.cra_driver_name	=	"aes-ppc-spe",
-	.cra_priority		=	300,
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct ppc_aes_ctx),
-	.cra_alignmask		=	0,
-	.cra_module		=	THIS_MODULE,
-	.cra_u			=	{
-		.cipher = {
-			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
-			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
-			.cia_setkey		=	ppc_aes_setkey,
-			.cia_encrypt		=	ppc_aes_encrypt,
-			.cia_decrypt		=	ppc_aes_decrypt
-		}
-	}
-};
-
 static struct skcipher_alg aes_skcipher_algs[] = {
 	{
 		.base.cra_name		=	"ecb(aes)",
@@ -488,22 +420,12 @@ static struct skcipher_alg aes_skcipher_algs[] = {
 
 static int __init ppc_aes_mod_init(void)
 {
-	int err;
-
-	err = crypto_register_alg(&aes_cipher_alg);
-	if (err)
-		return err;
-
-	err = crypto_register_skciphers(aes_skcipher_algs,
-					ARRAY_SIZE(aes_skcipher_algs));
-	if (err)
-		crypto_unregister_alg(&aes_cipher_alg);
-	return err;
+	return crypto_register_skciphers(aes_skcipher_algs,
+					 ARRAY_SIZE(aes_skcipher_algs));
 }
 
 static void __exit ppc_aes_mod_fini(void)
 {
-	crypto_unregister_alg(&aes_cipher_alg);
 	crypto_unregister_skciphers(aes_skcipher_algs,
 				    ARRAY_SIZE(aes_skcipher_algs));
 }

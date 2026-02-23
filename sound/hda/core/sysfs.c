@@ -339,7 +339,7 @@ static int add_widget_node(struct kobject *parent, hda_nid_t nid,
 			   const struct attribute_group *group,
 			   struct kobject **res)
 {
-	struct kobject *kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	struct kobject *kobj = kzalloc_obj(*kobj);
 	int err;
 
 	if (!kobj)
@@ -366,7 +366,7 @@ static int widget_tree_create(struct hdac_device *codec)
 	int i, err;
 	hda_nid_t nid;
 
-	tree = codec->widgets = kzalloc(sizeof(*tree), GFP_KERNEL);
+	tree = codec->widgets = kzalloc_obj(*tree);
 	if (!tree)
 		return -ENOMEM;
 
@@ -374,8 +374,7 @@ static int widget_tree_create(struct hdac_device *codec)
 	if (!tree->root)
 		return -ENOMEM;
 
-	tree->nodes = kcalloc(codec->num_nodes + 1, sizeof(*tree->nodes),
-			      GFP_KERNEL);
+	tree->nodes = kzalloc_objs(*tree->nodes, codec->num_nodes + 1);
 	if (!tree->nodes)
 		return -ENOMEM;
 
@@ -436,7 +435,7 @@ int hda_widget_sysfs_reinit(struct hdac_device *codec,
 	if (!tree)
 		return -ENOMEM;
 
-	tree->nodes = kcalloc(num_nodes + 1, sizeof(*tree->nodes), GFP_KERNEL);
+	tree->nodes = kzalloc_objs(*tree->nodes, num_nodes + 1);
 	if (!tree->nodes) {
 		kfree(tree);
 		return -ENOMEM;

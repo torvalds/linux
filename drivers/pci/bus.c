@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 
@@ -64,7 +65,7 @@ void pci_bus_add_resource(struct pci_bus *bus, struct resource *res)
 {
 	struct pci_bus_resource *bus_res;
 
-	bus_res = kzalloc(sizeof(struct pci_bus_resource), GFP_KERNEL);
+	bus_res = kzalloc_obj(struct pci_bus_resource);
 	if (!bus_res) {
 		dev_err(&bus->dev, "can't add %pR resource\n", res);
 		return;
@@ -344,7 +345,6 @@ void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 void pci_bus_add_device(struct pci_dev *dev)
 {
 	struct device_node *dn = dev->dev.of_node;
-	struct platform_device *pdev;
 
 	/*
 	 * Can not put in pci_device_add yet because resources
@@ -362,22 +362,11 @@ void pci_bus_add_device(struct pci_dev *dev)
 	pci_save_state(dev);
 
 	/*
-	 * If the PCI device is associated with a pwrctrl device with a
-	 * power supply, create a device link between the PCI device and
-	 * pwrctrl device.  This ensures that pwrctrl drivers are probed
-	 * before PCI client drivers.
+	 * Enable runtime PM, which potentially allows the device to
+	 * suspend immediately, only after the PCI state has been
+	 * configured completely.
 	 */
-	pdev = of_find_device_by_node(dn);
-	if (pdev) {
-		if (of_pci_supply_present(dn)) {
-			if (!device_link_add(&dev->dev, &pdev->dev,
-					     DL_FLAG_AUTOREMOVE_CONSUMER)) {
-				pci_err(dev, "failed to add device link to power control device %s\n",
-					pdev->name);
-			}
-		}
-		put_device(&pdev->dev);
-	}
+	pm_runtime_enable(&dev->dev);
 
 	if (!dn || of_device_is_available(dn))
 		pci_dev_allow_binding(dev);

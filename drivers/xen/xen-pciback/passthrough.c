@@ -51,7 +51,7 @@ static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 	unsigned int domain, bus, devfn;
 	int err;
 
-	dev_entry = kmalloc(sizeof(*dev_entry), GFP_KERNEL);
+	dev_entry = kmalloc_obj(*dev_entry);
 	if (!dev_entry)
 		return -ENOMEM;
 	dev_entry->dev = dev;
@@ -101,7 +101,7 @@ static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 {
 	struct passthrough_dev_data *dev_data;
 
-	dev_data = kmalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = kmalloc_obj(*dev_data);
 	if (!dev_data)
 		return -ENOMEM;
 

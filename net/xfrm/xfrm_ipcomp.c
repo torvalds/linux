@@ -336,7 +336,7 @@ int ipcomp_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 	}
 
 	err = -ENOMEM;
-	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc_obj(*ipcd);
 	if (!ipcd)
 		goto out;
 

@@ -55,8 +55,7 @@ static void dwxgmac2_dma_init_rx_chan(struct stmmac_priv *priv,
 	u32 value;
 
 	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
-	value &= ~XGMAC_RxPBL;
-	value |= (rxpbl << XGMAC_RxPBL_SHIFT) & XGMAC_RxPBL;
+	value = u32_replace_bits(value, rxpbl, XGMAC_RxPBL);
 	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 
 	writel(upper_32_bits(phy), ioaddr + XGMAC_DMA_CH_RxDESC_HADDR(chan));
@@ -72,9 +71,7 @@ static void dwxgmac2_dma_init_tx_chan(struct stmmac_priv *priv,
 	u32 value;
 
 	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
-	value &= ~XGMAC_TxPBL;
-	value |= (txpbl << XGMAC_TxPBL_SHIFT) & XGMAC_TxPBL;
-	value |= XGMAC_OSP;
+	value = u32_replace_bits(value, txpbl, XGMAC_TxPBL);
 	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 
 	writel(upper_32_bits(phy), ioaddr + XGMAC_DMA_CH_TxDESC_HADDR(chan));
@@ -90,13 +87,8 @@ static void dwxgmac2_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	if (axi->axi_xit_frm)
 		value |= XGMAC_LPI_XIT_PKT;
 
-	value &= ~XGMAC_WR_OSR_LMT;
-	value |= (axi->axi_wr_osr_lmt << XGMAC_WR_OSR_LMT_SHIFT) &
-		XGMAC_WR_OSR_LMT;
-
-	value &= ~XGMAC_RD_OSR_LMT;
-	value |= (axi->axi_rd_osr_lmt << XGMAC_RD_OSR_LMT_SHIFT) &
-		XGMAC_RD_OSR_LMT;
+	value = u32_replace_bits(value, axi->axi_wr_osr_lmt, XGMAC_WR_OSR_LMT);
+	value = u32_replace_bits(value, axi->axi_rd_osr_lmt, XGMAC_RD_OSR_LMT);
 
 	if (!axi->axi_fb)
 		value |= XGMAC_UNDEF;
@@ -127,23 +119,24 @@ static void dwxgmac2_dma_rx_mode(struct stmmac_priv *priv, void __iomem *ioaddr,
 {
 	u32 value = readl(ioaddr + XGMAC_MTL_RXQ_OPMODE(channel));
 	unsigned int rqs = fifosz / 256 - 1;
+	unsigned int rtc;
 
 	if (mode == SF_DMA_MODE) {
 		value |= XGMAC_RSF;
 	} else {
 		value &= ~XGMAC_RSF;
-		value &= ~XGMAC_RTC;
 
 		if (mode <= 64)
-			value |= 0x0 << XGMAC_RTC_SHIFT;
+			rtc = 0x0;
 		else if (mode <= 96)
-			value |= 0x2 << XGMAC_RTC_SHIFT;
+			rtc = 0x2;
 		else
-			value |= 0x3 << XGMAC_RTC_SHIFT;
+			rtc = 0x3;
+
+		value = u32_replace_bits(value, rtc, XGMAC_RTC);
 	}
 
-	value &= ~XGMAC_RQS;
-	value |= (rqs << XGMAC_RQS_SHIFT) & XGMAC_RQS;
+	value = u32_replace_bits(value, rqs, XGMAC_RQS);
 
 	if ((fifosz >= 4096) && (qmode != MTL_QUEUE_AVB)) {
 		u32 flow = readl(ioaddr + XGMAC_MTL_RXQ_FLOW_CONTROL(channel));
@@ -172,11 +165,8 @@ static void dwxgmac2_dma_rx_mode(struct stmmac_priv *priv, void __iomem *ioaddr,
 			break;
 		}
 
-		flow &= ~XGMAC_RFD;
-		flow |= rfd << XGMAC_RFD_SHIFT;
-
-		flow &= ~XGMAC_RFA;
-		flow |= rfa << XGMAC_RFA_SHIFT;
+		flow = u32_replace_bits(flow, rfd, XGMAC_RFD);
+		flow = u32_replace_bits(flow, rfa, XGMAC_RFA);
 
 		writel(flow, ioaddr + XGMAC_MTL_RXQ_FLOW_CONTROL(channel));
 	}
@@ -189,40 +179,41 @@ static void dwxgmac2_dma_tx_mode(struct stmmac_priv *priv, void __iomem *ioaddr,
 {
 	u32 value = readl(ioaddr + XGMAC_MTL_TXQ_OPMODE(channel));
 	unsigned int tqs = fifosz / 256 - 1;
+	unsigned int ttc, txqen;
 
 	if (mode == SF_DMA_MODE) {
 		value |= XGMAC_TSF;
 	} else {
 		value &= ~XGMAC_TSF;
-		value &= ~XGMAC_TTC;
 
 		if (mode <= 64)
-			value |= 0x0 << XGMAC_TTC_SHIFT;
+			ttc = 0x0;
 		else if (mode <= 96)
-			value |= 0x2 << XGMAC_TTC_SHIFT;
+			ttc = 0x2;
 		else if (mode <= 128)
-			value |= 0x3 << XGMAC_TTC_SHIFT;
+			ttc = 0x3;
 		else if (mode <= 192)
-			value |= 0x4 << XGMAC_TTC_SHIFT;
+			ttc = 0x4;
 		else if (mode <= 256)
-			value |= 0x5 << XGMAC_TTC_SHIFT;
+			ttc = 0x5;
 		else if (mode <= 384)
-			value |= 0x6 << XGMAC_TTC_SHIFT;
+			ttc = 0x6;
 		else
-			value |= 0x7 << XGMAC_TTC_SHIFT;
+			ttc = 0x7;
+
+		value = u32_replace_bits(value, ttc, XGMAC_TTC);
 	}
 
 	/* Use static TC to Queue mapping */
-	value |= (channel << XGMAC_Q2TCMAP_SHIFT) & XGMAC_Q2TCMAP;
+	value |= FIELD_PREP(XGMAC_Q2TCMAP, channel);
 
-	value &= ~XGMAC_TXQEN;
 	if (qmode != MTL_QUEUE_AVB)
-		value |= 0x2 << XGMAC_TXQEN_SHIFT;
+		txqen = 0x2;
 	else
-		value |= 0x1 << XGMAC_TXQEN_SHIFT;
+		txqen = 0x1;
 
-	value &= ~XGMAC_TQS;
-	value |= (tqs << XGMAC_TQS_SHIFT) & XGMAC_TQS;
+	value = u32_replace_bits(value, txqen, XGMAC_TXQEN);
+	value = u32_replace_bits(value, tqs, XGMAC_TQS);
 
 	writel(value, ioaddr +  XGMAC_MTL_TXQ_OPMODE(channel));
 }
@@ -373,6 +364,7 @@ static int dwxgmac2_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->vxn = (hw_cap & XGMAC_HWFEAT_VXN) >> 29;
 	dma_cap->vlins = (hw_cap & XGMAC_HWFEAT_SAVLANINS) >> 27;
 	dma_cap->tssrc = (hw_cap & XGMAC_HWFEAT_TSSTSSEL) >> 25;
+	dma_cap->actphyif = FIELD_GET(XGMAC_HWFEAT_PHYSEL, hw_cap);
 	dma_cap->multi_addr = (hw_cap & XGMAC_HWFEAT_ADDMACADRSEL) >> 18;
 	dma_cap->rx_coe = (hw_cap & XGMAC_HWFEAT_RXCOESEL) >> 16;
 	dma_cap->tx_coe = (hw_cap & XGMAC_HWFEAT_TXCOESEL) >> 14;
@@ -526,16 +518,17 @@ static void dwxgmac2_qmode(struct stmmac_priv *priv, void __iomem *ioaddr,
 {
 	u32 value = readl(ioaddr + XGMAC_MTL_TXQ_OPMODE(channel));
 	u32 flow = readl(ioaddr + XGMAC_RX_FLOW_CTRL);
+	unsigned int txqen;
 
-	value &= ~XGMAC_TXQEN;
 	if (qmode != MTL_QUEUE_AVB) {
-		value |= 0x2 << XGMAC_TXQEN_SHIFT;
+		txqen = 0x2;
 		writel(0, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(channel));
 	} else {
-		value |= 0x1 << XGMAC_TXQEN_SHIFT;
+		txqen = 0x1;
 		writel(flow & (~XGMAC_RFE), ioaddr + XGMAC_RX_FLOW_CTRL);
 	}
 
+	value = u32_replace_bits(value, txqen, XGMAC_TXQEN);
 	writel(value, ioaddr +  XGMAC_MTL_TXQ_OPMODE(channel));
 }
 
@@ -545,8 +538,7 @@ static void dwxgmac2_set_bfsize(struct stmmac_priv *priv, void __iomem *ioaddr,
 	u32 value;
 
 	value = readl(ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
-	value &= ~XGMAC_RBSZ;
-	value |= bfsize << XGMAC_RBSZ_SHIFT;
+	value = u32_replace_bits(value, bfsize, XGMAC_RBSZ);
 	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 }
 

@@ -967,7 +967,7 @@ static int allegro_mbox_notify(struct allegro_mbox *mbox)
 	u32 *tmp;
 	int err;
 
-	msg = kmalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kmalloc_obj(*msg);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1551,7 +1551,7 @@ static int allocate_buffers_internal(struct allegro_channel *channel,
 	struct allegro_buffer *buffer, *tmp;
 
 	for (i = 0; i < n; i++) {
-		buffer = kmalloc(sizeof(*buffer), GFP_KERNEL);
+		buffer = kmalloc_obj(*buffer);
 		if (!buffer) {
 			err = -ENOMEM;
 			goto err;
@@ -1632,7 +1632,7 @@ static ssize_t allegro_h264_write_sps(struct allegro_channel *channel,
 	unsigned int cpb_size;
 	unsigned int cpb_size_scale;
 
-	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
+	sps = kzalloc_obj(*sps);
 	if (!sps)
 		return -ENOMEM;
 
@@ -1729,7 +1729,7 @@ static ssize_t allegro_h264_write_pps(struct allegro_channel *channel,
 	struct nal_h264_pps *pps;
 	ssize_t size;
 
-	pps = kzalloc(sizeof(*pps), GFP_KERNEL);
+	pps = kzalloc_obj(*pps);
 	if (!pps)
 		return -ENOMEM;
 
@@ -1780,7 +1780,7 @@ static ssize_t allegro_hevc_write_vps(struct allegro_channel *channel,
 	s32 level = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_level);
 	s32 tier = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_tier);
 
-	vps = kzalloc(sizeof(*vps), GFP_KERNEL);
+	vps = kzalloc_obj(*vps);
 	if (!vps)
 		return -ENOMEM;
 
@@ -1822,7 +1822,7 @@ static ssize_t allegro_hevc_write_sps(struct allegro_channel *channel,
 	s32 level = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_level);
 	s32 tier = v4l2_ctrl_g_ctrl(channel->mpeg_video_hevc_tier);
 
-	sps = kzalloc(sizeof(*sps), GFP_KERNEL);
+	sps = kzalloc_obj(*sps);
 	if (!sps)
 		return -ENOMEM;
 
@@ -1929,7 +1929,7 @@ static ssize_t allegro_hevc_write_pps(struct allegro_channel *channel,
 	ssize_t size;
 	int i;
 
-	pps = kzalloc(sizeof(*pps), GFP_KERNEL);
+	pps = kzalloc_obj(*pps);
 	if (!pps)
 		return -ENOMEM;
 

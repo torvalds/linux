@@ -357,7 +357,7 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 
 	num_dividers = i;
 
-	tmp = kcalloc(valid_div + 1, sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_objs(*tmp, valid_div + 1);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -413,7 +413,7 @@ static int __init ti_clk_get_div_table(struct device_node *node,
 		return -EINVAL;
 	}
 
-	table = kcalloc(valid_div + 1, sizeof(*table), GFP_KERNEL);
+	table = kzalloc_objs(*table, valid_div + 1);
 	if (!table)
 		return -ENOMEM;
 
@@ -517,7 +517,7 @@ static void __init of_ti_divider_clk_setup(struct device_node *node)
 	u32 flags = 0;
 	struct clk_omap_divider *div;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return;
 
@@ -542,7 +542,7 @@ static void __init of_ti_composite_divider_clk_setup(struct device_node *node)
 	struct clk_omap_divider *div;
 	u32 tmp;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		return;
 

@@ -238,7 +238,7 @@ drm_gem_fb_create_with_funcs(struct drm_device *dev, struct drm_file *file,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 

@@ -291,7 +291,7 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 
 static int wfx_send_hif_msg_open(struct inode *inode, struct file *file)
 {
-	struct dbgfs_hif_msg *context = kzalloc(sizeof(*context), GFP_KERNEL);
+	struct dbgfs_hif_msg *context = kzalloc_obj(*context);
 
 	if (!context)
 		return -ENOMEM;

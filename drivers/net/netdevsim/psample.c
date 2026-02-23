@@ -200,7 +200,7 @@ int nsim_dev_psample_init(struct nsim_dev *nsim_dev)
 	struct nsim_dev_psample *psample;
 	int err;
 
-	psample = kzalloc(sizeof(*psample), GFP_KERNEL);
+	psample = kzalloc_obj(*psample);
 	if (!psample)
 		return -ENOMEM;
 	nsim_dev->psample = psample;

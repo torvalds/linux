@@ -330,7 +330,7 @@ static int snd_aicapcm_pcm_open(struct snd_pcm_substream
 	if (!enable)
 		return -ENOENT;
 	dreamcastcard = substream->pcm->private_data;
-	channel = kmalloc(sizeof(struct aica_channel), GFP_KERNEL);
+	channel = kmalloc_obj(struct aica_channel);
 	if (!channel)
 		return -ENOMEM;
 	/* set defaults for channel */
@@ -559,7 +559,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card_aica *dreamcastcard;
-	dreamcastcard = kzalloc(sizeof(struct snd_card_aica), GFP_KERNEL);
+	dreamcastcard = kzalloc_obj(struct snd_card_aica);
 	if (unlikely(!dreamcastcard))
 		return -ENOMEM;
 	err = snd_card_new(&devptr->dev, index, SND_AICA_DRIVER,

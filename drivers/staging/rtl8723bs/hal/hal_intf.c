@@ -207,7 +207,7 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 	pmlmepriv = &(padapter->mlmepriv);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
-		add_RATid(padapter, psta, rssi_level);
+		add_ratid(padapter, psta, rssi_level);
 	else {
 		UpdateHalRAMask8723B(padapter, psta->mac_id, rssi_level);
 	}
@@ -216,17 +216,6 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 void rtw_hal_add_ra_tid(struct adapter *padapter, u32 bitmap, u8 *arg, u8 rssi_level)
 {
 	rtl8723b_Add_RateATid(padapter, bitmap, arg, rssi_level);
-}
-
-/*Start specifical interface thread		*/
-void rtw_hal_start_thread(struct adapter *padapter)
-{
-	rtl8723b_start_thread(padapter);
-}
-/*Start specifical interface thread		*/
-void rtw_hal_stop_thread(struct adapter *padapter)
-{
-	rtl8723b_stop_thread(padapter);
 }
 
 u32 rtw_hal_read_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask)

@@ -129,7 +129,7 @@ static void *recursed_function_seq_start(struct seq_file *m, loff_t *pos)
 		ret = &recursed_functions[*pos];
 	}
 
-	tseq = kzalloc(sizeof(*tseq), GFP_KERNEL);
+	tseq = kzalloc_obj(*tseq);
 	if (!tseq)
 		return ERR_PTR(-ENOMEM);
 

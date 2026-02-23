@@ -3,6 +3,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include "wl1251.h"
 #include "reg.h"
@@ -17,7 +18,7 @@ int wl1251_acx_frame_rates(struct wl1251 *wl, u8 ctrl_rate, u8 ctrl_mod,
 
 	wl1251_debug(DEBUG_ACX, "acx frame rates");
 
-	rates = kzalloc(sizeof(*rates), GFP_KERNEL);
+	rates = kzalloc_obj(*rates);
 	if (!rates)
 		return -ENOMEM;
 
@@ -46,7 +47,7 @@ int wl1251_acx_station_id(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx dot11_station_id");
 
-	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
+	mac = kzalloc_obj(*mac);
 	if (!mac)
 		return -ENOMEM;
 
@@ -66,7 +67,7 @@ int wl1251_acx_default_key(struct wl1251 *wl, u8 key_id)
 
 	wl1251_debug(DEBUG_ACX, "acx dot11_default_key (%d)", key_id);
 
-	default_key = kzalloc(sizeof(*default_key), GFP_KERNEL);
+	default_key = kzalloc_obj(*default_key);
 	if (!default_key)
 		return -ENOMEM;
 
@@ -94,7 +95,7 @@ int wl1251_acx_wake_up_conditions(struct wl1251 *wl, u8 wake_up_event,
 
 	wl1251_debug(DEBUG_ACX, "acx wake up conditions");
 
-	wake_up = kzalloc(sizeof(*wake_up), GFP_KERNEL);
+	wake_up = kzalloc_obj(*wake_up);
 	if (!wake_up)
 		return -ENOMEM;
 
@@ -120,7 +121,7 @@ int wl1251_acx_sleep_auth(struct wl1251 *wl, u8 sleep_auth)
 
 	wl1251_debug(DEBUG_ACX, "acx sleep auth");
 
-	auth = kzalloc(sizeof(*auth), GFP_KERNEL);
+	auth = kzalloc_obj(*auth);
 	if (!auth)
 		return -ENOMEM;
 
@@ -139,7 +140,7 @@ int wl1251_acx_fw_version(struct wl1251 *wl, char *buf, size_t len)
 
 	wl1251_debug(DEBUG_ACX, "acx fw rev");
 
-	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
+	rev = kzalloc_obj(*rev);
 	if (!rev)
 		return -ENOMEM;
 
@@ -149,15 +150,7 @@ int wl1251_acx_fw_version(struct wl1251 *wl, char *buf, size_t len)
 		goto out;
 	}
 
-	/* be careful with the buffer sizes */
-	strncpy(buf, rev->fw_version, min(len, sizeof(rev->fw_version)));
-
-	/*
-	 * if the firmware version string is exactly
-	 * sizeof(rev->fw_version) long or fw_len is less than
-	 * sizeof(rev->fw_version) it won't be null terminated
-	 */
-	buf[min(len, sizeof(rev->fw_version)) - 1] = '\0';
+	strscpy(buf, rev->fw_version, len);
 
 out:
 	kfree(rev);
@@ -174,7 +167,7 @@ int wl1251_acx_tx_power(struct wl1251 *wl, int power)
 	if (power < 0 || power > 25)
 		return -EINVAL;
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -198,7 +191,7 @@ int wl1251_acx_feature_cfg(struct wl1251 *wl, u32 data_flow_options)
 
 	wl1251_debug(DEBUG_ACX, "acx feature cfg");
 
-	feature = kzalloc(sizeof(*feature), GFP_KERNEL);
+	feature = kzalloc_obj(*feature);
 	if (!feature)
 		return -ENOMEM;
 
@@ -240,7 +233,7 @@ int wl1251_acx_data_path_params(struct wl1251 *wl,
 
 	wl1251_debug(DEBUG_ACX, "acx data path params");
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
@@ -286,7 +279,7 @@ int wl1251_acx_rx_msdu_life_time(struct wl1251 *wl, u32 life_time)
 
 	wl1251_debug(DEBUG_ACX, "acx rx msdu life time");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -310,7 +303,7 @@ int wl1251_acx_rx_config(struct wl1251 *wl, u32 config, u32 filter)
 
 	wl1251_debug(DEBUG_ACX, "acx rx config");
 
-	rx_config = kzalloc(sizeof(*rx_config), GFP_KERNEL);
+	rx_config = kzalloc_obj(*rx_config);
 	if (!rx_config)
 		return -ENOMEM;
 
@@ -336,7 +329,7 @@ int wl1251_acx_pd_threshold(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx data pd threshold");
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return -ENOMEM;
 
@@ -360,7 +353,7 @@ int wl1251_acx_slot(struct wl1251 *wl, enum acx_slot_type slot_time)
 
 	wl1251_debug(DEBUG_ACX, "acx slot");
 
-	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+	slot = kzalloc_obj(*slot);
 	if (!slot)
 		return -ENOMEM;
 
@@ -386,7 +379,7 @@ int wl1251_acx_group_address_tbl(struct wl1251 *wl, bool enable,
 
 	wl1251_debug(DEBUG_ACX, "acx group address tbl");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -412,7 +405,7 @@ int wl1251_acx_service_period_timeout(struct wl1251 *wl)
 	struct acx_rx_timeout *rx_timeout;
 	int ret;
 
-	rx_timeout = kzalloc(sizeof(*rx_timeout), GFP_KERNEL);
+	rx_timeout = kzalloc_obj(*rx_timeout);
 	if (!rx_timeout)
 		return -ENOMEM;
 
@@ -441,7 +434,7 @@ int wl1251_acx_rts_threshold(struct wl1251 *wl, u16 rts_threshold)
 
 	wl1251_debug(DEBUG_ACX, "acx rts threshold");
 
-	rts = kzalloc(sizeof(*rts), GFP_KERNEL);
+	rts = kzalloc_obj(*rts);
 	if (!rts)
 		return -ENOMEM;
 
@@ -465,7 +458,7 @@ int wl1251_acx_beacon_filter_opt(struct wl1251 *wl, bool enable_filter)
 
 	wl1251_debug(DEBUG_ACX, "acx beacon filter opt");
 
-	beacon_filter = kzalloc(sizeof(*beacon_filter), GFP_KERNEL);
+	beacon_filter = kzalloc_obj(*beacon_filter);
 	if (!beacon_filter)
 		return -ENOMEM;
 
@@ -492,7 +485,7 @@ int wl1251_acx_beacon_filter_table(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx beacon filter table");
 
-	ie_table = kzalloc(sizeof(*ie_table), GFP_KERNEL);
+	ie_table = kzalloc_obj(*ie_table);
 	if (!ie_table)
 		return -ENOMEM;
 
@@ -520,7 +513,7 @@ int wl1251_acx_conn_monit_params(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx connection monitor parameters");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -547,7 +540,7 @@ int wl1251_acx_sg_enable(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx sg enable");
 
-	pta = kzalloc(sizeof(*pta), GFP_KERNEL);
+	pta = kzalloc_obj(*pta);
 	if (!pta)
 		return -ENOMEM;
 
@@ -571,7 +564,7 @@ int wl1251_acx_sg_cfg(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx sg cfg");
 
-	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	param = kzalloc_obj(*param);
 	if (!param)
 		return -ENOMEM;
 
@@ -623,7 +616,7 @@ int wl1251_acx_cca_threshold(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx cca threshold");
 
-	detection = kzalloc(sizeof(*detection), GFP_KERNEL);
+	detection = kzalloc_obj(*detection);
 	if (!detection)
 		return -ENOMEM;
 
@@ -646,7 +639,7 @@ int wl1251_acx_bcn_dtim_options(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx bcn dtim options");
 
-	bb = kzalloc(sizeof(*bb), GFP_KERNEL);
+	bb = kzalloc_obj(*bb);
 	if (!bb)
 		return -ENOMEM;
 
@@ -673,7 +666,7 @@ int wl1251_acx_aid(struct wl1251 *wl, u16 aid)
 
 	wl1251_debug(DEBUG_ACX, "acx aid");
 
-	acx_aid = kzalloc(sizeof(*acx_aid), GFP_KERNEL);
+	acx_aid = kzalloc_obj(*acx_aid);
 	if (!acx_aid)
 		return -ENOMEM;
 
@@ -697,7 +690,7 @@ int wl1251_acx_event_mbox_mask(struct wl1251 *wl, u32 event_mask)
 
 	wl1251_debug(DEBUG_ACX, "acx event mbox mask");
 
-	mask = kzalloc(sizeof(*mask), GFP_KERNEL);
+	mask = kzalloc_obj(*mask);
 	if (!mask)
 		return -ENOMEM;
 
@@ -726,7 +719,7 @@ int wl1251_acx_low_rssi(struct wl1251 *wl, s8 threshold, u8 weight,
 
 	wl1251_debug(DEBUG_ACX, "acx low rssi");
 
-	rssi = kzalloc(sizeof(*rssi), GFP_KERNEL);
+	rssi = kzalloc_obj(*rssi);
 	if (!rssi)
 		return -ENOMEM;
 
@@ -750,7 +743,7 @@ int wl1251_acx_set_preamble(struct wl1251 *wl, enum acx_preamble_type preamble)
 
 	wl1251_debug(DEBUG_ACX, "acx_set_preamble");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -775,7 +768,7 @@ int wl1251_acx_cts_protect(struct wl1251 *wl,
 
 	wl1251_debug(DEBUG_ACX, "acx_set_ctsprotect");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -797,7 +790,7 @@ int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime)
 	struct acx_tsf_info *tsf_info;
 	int ret;
 
-	tsf_info = kzalloc(sizeof(*tsf_info), GFP_KERNEL);
+	tsf_info = kzalloc_obj(*tsf_info);
 	if (!tsf_info)
 		return -ENOMEM;
 
@@ -839,7 +832,7 @@ int wl1251_acx_mem_cfg(struct wl1251 *wl)
 
 	wl1251_debug(DEBUG_ACX, "acx mem cfg");
 
-	mem_conf = kzalloc(sizeof(*mem_conf), GFP_KERNEL);
+	mem_conf = kzalloc_obj(*mem_conf);
 	if (!mem_conf)
 		return -ENOMEM;
 
@@ -884,7 +877,7 @@ int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim)
 
 	wl1251_debug(DEBUG_ACX, "acx tbtt and dtim");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -911,7 +904,7 @@ int wl1251_acx_bet_enable(struct wl1251 *wl, enum wl1251_acx_bet_mode mode,
 
 	wl1251_debug(DEBUG_ACX, "acx bet enable");
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -936,7 +929,7 @@ int wl1251_acx_arp_ip_filter(struct wl1251 *wl, bool enable, __be32 address)
 
 	wl1251_debug(DEBUG_ACX, "acx arp ip filter, enable: %d", enable);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -964,7 +957,7 @@ int wl1251_acx_ac_cfg(struct wl1251 *wl, u8 ac, u8 cw_min, u16 cw_max,
 	wl1251_debug(DEBUG_ACX, "acx ac cfg %d cw_ming %d cw_max %d "
 		     "aifs %d txop %d", ac, cw_min, cw_max, aifs, txop);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 
@@ -997,7 +990,7 @@ int wl1251_acx_tid_cfg(struct wl1251 *wl, u8 queue,
 		     "ps_scheme %d ack_policy %d", queue, type, tsid,
 		     ps_scheme, ack_policy);
 
-	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	acx = kzalloc_obj(*acx);
 	if (!acx)
 		return -ENOMEM;
 

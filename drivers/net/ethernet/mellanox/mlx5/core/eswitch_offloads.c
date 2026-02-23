@@ -680,7 +680,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (!esw_flow_dests_fwd_ipsec_check(esw, esw_attr))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	dest = kcalloc(MLX5_MAX_FLOW_FWD_VPORTS + 1, sizeof(*dest), GFP_KERNEL);
+	dest = kzalloc_objs(*dest, MLX5_MAX_FLOW_FWD_VPORTS + 1);
 	if (!dest)
 		return ERR_PTR(-ENOMEM);
 
@@ -808,7 +808,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	struct mlx5_flow_handle *rule;
 	int i, err = 0;
 
-	dest = kcalloc(MLX5_MAX_FLOW_FWD_VPORTS + 1, sizeof(*dest), GFP_KERNEL);
+	dest = kzalloc_objs(*dest, MLX5_MAX_FLOW_FWD_VPORTS + 1);
 	if (!dest)
 		return ERR_PTR(-ENOMEM);
 
@@ -947,7 +947,7 @@ mlx5_eswitch_add_send_to_vport_rule(struct mlx5_eswitch *on_esw,
 	void *misc;
 	u16 vport;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
@@ -1044,7 +1044,7 @@ mlx5_eswitch_add_send_to_vport_meta_rule(struct mlx5_eswitch *esw, u16 vport_num
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -1198,13 +1198,13 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 	    !mlx5_core_is_ecpf_esw_manager(peer_dev))
 		return 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
 	peer_miss_rules_setup(esw, peer_dev, spec, &dest);
 
-	flows = kvcalloc(peer_esw->total_vports, sizeof(*flows), GFP_KERNEL);
+	flows = kvzalloc_objs(*flows, peer_esw->total_vports);
 	if (!flows) {
 		err = -ENOMEM;
 		goto alloc_flows_err;
@@ -1368,7 +1368,7 @@ static int esw_add_fdb_miss_rule(struct mlx5_eswitch *esw)
 	u8 *dmac_c;
 	u8 *dmac_v;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto out;
@@ -1430,7 +1430,7 @@ esw_add_restore_rule(struct mlx5_eswitch *esw, u32 tag)
 	if (!mlx5_eswitch_reg_c1_loopback_supported(esw))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
@@ -2148,7 +2148,7 @@ mlx5_eswitch_create_vport_rx_rule(struct mlx5_eswitch *esw, u16 vport,
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_spec *spec;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		flow_rule = ERR_PTR(-ENOMEM);
 		goto out;
@@ -2525,7 +2525,7 @@ int mlx5_esw_offloads_rep_add(struct mlx5_eswitch *esw,
 	int rep_type;
 	int err;
 
-	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kzalloc_obj(*rep);
 	if (!rep)
 		return -ENOMEM;
 
@@ -2861,7 +2861,7 @@ static int __esw_set_master_egress_rule(struct mlx5_core_dev *master,
 	int err = 0;
 	void *misc;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -3640,7 +3640,7 @@ int mlx5_esw_funcs_changed_handler(struct notifier_block *nb, unsigned long type
 	struct mlx5_host_work *host_work;
 	struct mlx5_eswitch *esw;
 
-	host_work = kzalloc(sizeof(*host_work), GFP_ATOMIC);
+	host_work = kzalloc_obj(*host_work, GFP_ATOMIC);
 	if (!host_work)
 		return NOTIFY_DONE;
 
@@ -3979,6 +3979,32 @@ static bool mlx5_devlink_switchdev_active_mode_change(struct mlx5_eswitch *esw,
 	esw->eswitch_operation_in_progress = false;
 	up_write(&esw->mode_lock);
 	return true;
+}
+
+#define MLX5_ESW_HOLD_TIMEOUT_MS 7000
+#define MLX5_ESW_HOLD_RETRY_DELAY_MS 500
+
+void mlx5_eswitch_safe_aux_devs_remove(struct mlx5_core_dev *dev)
+{
+	unsigned long timeout;
+	bool hold_esw = true;
+
+	/* Wait for any concurrent eswitch mode transition to complete. */
+	if (!mlx5_esw_hold(dev)) {
+		timeout = jiffies + msecs_to_jiffies(MLX5_ESW_HOLD_TIMEOUT_MS);
+		while (!mlx5_esw_hold(dev)) {
+			if (!time_before(jiffies, timeout)) {
+				hold_esw = false;
+				break;
+			}
+			msleep(MLX5_ESW_HOLD_RETRY_DELAY_MS);
+		}
+	}
+	if (hold_esw) {
+		if (mlx5_eswitch_mode(dev) == MLX5_ESWITCH_OFFLOADS)
+			mlx5_core_reps_aux_devs_remove(dev);
+		mlx5_esw_release(dev);
+	}
 }
 
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
@@ -4444,7 +4470,7 @@ int mlx5_esw_vport_vhca_id_map(struct mlx5_eswitch *esw,
 	}
 
 	vhca_id = vport->vhca_id;
-	vhca_map_entry = kmalloc(sizeof(*vhca_map_entry), GFP_KERNEL);
+	vhca_map_entry = kmalloc_obj(*vhca_map_entry);
 	if (!vhca_map_entry)
 		return -ENOMEM;
 
@@ -4668,6 +4694,61 @@ out_free:
 out:
 	mutex_unlock(&esw->state_lock);
 	return err;
+}
+
+int mlx5_devlink_pf_port_fn_state_get(struct devlink_port *port,
+				      enum devlink_port_fn_state *state,
+				      enum devlink_port_fn_opstate *opstate,
+				      struct netlink_ext_ack *extack)
+{
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
+	const u32 *query_out;
+	bool pf_disabled;
+
+	if (vport->vport != MLX5_VPORT_PF) {
+		NL_SET_ERR_MSG_MOD(extack, "State get is not supported for VF");
+		return -EOPNOTSUPP;
+	}
+
+	*state = vport->pf_activated ?
+		 DEVLINK_PORT_FN_STATE_ACTIVE : DEVLINK_PORT_FN_STATE_INACTIVE;
+
+	query_out = mlx5_esw_query_functions(vport->dev);
+	if (IS_ERR(query_out))
+		return PTR_ERR(query_out);
+
+	pf_disabled = MLX5_GET(query_esw_functions_out, query_out,
+			       host_params_context.host_pf_disabled);
+
+	*opstate = pf_disabled ? DEVLINK_PORT_FN_OPSTATE_DETACHED :
+				 DEVLINK_PORT_FN_OPSTATE_ATTACHED;
+
+	kvfree(query_out);
+	return 0;
+}
+
+int mlx5_devlink_pf_port_fn_state_set(struct devlink_port *port,
+				      enum devlink_port_fn_state state,
+				      struct netlink_ext_ack *extack)
+{
+	struct mlx5_vport *vport = mlx5_devlink_port_vport_get(port);
+	struct mlx5_core_dev *dev;
+
+	if (vport->vport != MLX5_VPORT_PF) {
+		NL_SET_ERR_MSG_MOD(extack, "State set is not supported for VF");
+		return -EOPNOTSUPP;
+	}
+
+	dev = vport->dev;
+
+	switch (state) {
+	case DEVLINK_PORT_FN_STATE_ACTIVE:
+		return mlx5_esw_host_pf_enable_hca(dev);
+	case DEVLINK_PORT_FN_STATE_INACTIVE:
+		return mlx5_esw_host_pf_disable_hca(dev);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 int

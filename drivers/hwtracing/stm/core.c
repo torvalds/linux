@@ -160,9 +160,9 @@ static int stp_master_alloc(struct stm_device *stm, unsigned int idx)
 {
 	struct stp_master *master;
 
-	master = kzalloc(struct_size(master, chan_map,
-				     BITS_TO_LONGS(stm->data->sw_nchannels)),
-			 GFP_ATOMIC);
+	master = kzalloc_flex(*master, chan_map,
+			      BITS_TO_LONGS(stm->data->sw_nchannels),
+			      GFP_ATOMIC);
 	if (!master)
 		return -ENOMEM;
 
@@ -406,7 +406,7 @@ int stm_register_protocol(const struct stm_protocol_driver *pdrv)
 		goto unlock;
 	}
 
-	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	pe = kzalloc_obj(*pe);
 	if (!pe)
 		goto unlock;
 
@@ -493,7 +493,7 @@ static int stm_char_open(struct inode *inode, struct file *file)
 	if (!dev)
 		return -ENODEV;
 
-	stmf = kzalloc(sizeof(*stmf), GFP_KERNEL);
+	stmf = kzalloc_obj(*stmf);
 	if (!stmf)
 		goto err_put_device;
 
@@ -1229,7 +1229,7 @@ int stm_source_register_device(struct device *parent,
 	if (!stm_core_up)
 		return -EPROBE_DEFER;
 
-	src = kzalloc(sizeof(*src), GFP_KERNEL);
+	src = kzalloc_obj(*src);
 	if (!src)
 		return -ENOMEM;
 

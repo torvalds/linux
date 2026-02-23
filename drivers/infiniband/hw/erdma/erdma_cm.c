@@ -91,7 +91,7 @@ static void erdma_disassoc_listen_cep(struct erdma_cep *cep)
 
 static struct erdma_cep *erdma_cep_alloc(struct erdma_dev *dev)
 {
-	struct erdma_cep *cep = kzalloc(sizeof(*cep), GFP_KERNEL);
+	struct erdma_cep *cep = kzalloc_obj(*cep);
 	unsigned long flags;
 
 	if (!cep)
@@ -217,7 +217,7 @@ static int erdma_cm_alloc_work(struct erdma_cep *cep, int num)
 	struct erdma_cm_work *work;
 
 	while (num--) {
-		work = kmalloc(sizeof(*work), GFP_KERNEL);
+		work = kmalloc_obj(*work);
 		if (!work) {
 			if (!(list_empty(&cep->work_freelist)))
 				erdma_cm_free_work(cep);
@@ -1340,7 +1340,7 @@ int erdma_create_listen(struct iw_cm_id *id, int backlog)
 
 	if (!id->provider_data) {
 		id->provider_data =
-			kmalloc(sizeof(struct list_head), GFP_KERNEL);
+			kmalloc_obj(struct list_head);
 		if (!id->provider_data) {
 			ret = -ENOMEM;
 			goto error;

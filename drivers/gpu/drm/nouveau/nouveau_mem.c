@@ -176,7 +176,7 @@ nouveau_mem_new(struct nouveau_drm *drm, u8 kind, u8 comp,
 {
 	struct nouveau_mem *mem;
 
-	if (!(mem = kzalloc(sizeof(*mem), GFP_KERNEL)))
+	if (!(mem = kzalloc_obj(*mem)))
 		return -ENOMEM;
 
 	mem->drm = drm;

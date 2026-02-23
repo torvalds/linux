@@ -36,7 +36,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 	kfree(plane->state);
 	plane->state = NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state) {
 		plane->state = &state->base;
 		plane->state->plane = plane;
@@ -55,7 +55,7 @@ tegra_plane_atomic_duplicate_state(struct drm_plane *plane)
 	struct tegra_plane_state *copy;
 	unsigned int i;
 
-	copy = kmalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kmalloc_obj(*copy);
 	if (!copy)
 		return NULL;
 

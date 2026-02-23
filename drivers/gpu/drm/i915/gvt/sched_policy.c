@@ -31,8 +31,9 @@
  *
  */
 
-#include "i915_drv.h"
 #include "gvt.h"
+#include "i915_drv.h"
+#include "sched_policy.h"
 
 static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 {
@@ -281,7 +282,7 @@ static int tbs_sched_init(struct intel_gvt *gvt)
 
 	struct gvt_sched_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -311,7 +312,7 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 {
 	struct vgpu_sched_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

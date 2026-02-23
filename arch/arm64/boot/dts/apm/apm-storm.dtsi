@@ -134,7 +134,7 @@
 		interrupts = <1 12 0xff04>;
 	};
 
-	i2cslimpro {
+	i2c {
 		compatible = "apm,xgene-slimpro-i2c";
 		mboxes = <&mailbox 0>;
 	};
@@ -462,6 +462,7 @@
 
 		reboot: reboot@17000014 {
 			compatible = "syscon-reboot";
+			reg = <0x0 0x17000014 0x0 0x4>;
 			regmap = <&scu>;
 			offset = <0x14>;
 			mask = <0x1>;
@@ -1082,7 +1083,6 @@
 
 		dma: dma@1f270000 {
 			compatible = "apm,xgene-storm-dma";
-			device_type = "dma";
 			reg = <0x0 0x1f270000 0x0 0x10000>,
 			      <0x0 0x1f200000 0x0 0x10000>,
 			      <0x0 0x1b000000 0x0 0x400000>,

@@ -100,6 +100,61 @@ static int fsi_master_write(struct fsi_master *master, int link,
 		uint8_t slave_id, uint32_t addr, const void *val, size_t size);
 static int fsi_master_break(struct fsi_master *master, int link);
 
+/* FSI core & Linux bus type definitions */
+
+static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
+{
+	struct fsi_device *fsi_dev = to_fsi_dev(dev);
+	const struct fsi_driver *fsi_drv = to_fsi_drv(drv);
+	const struct fsi_device_id *id;
+
+	if (!fsi_drv->id_table)
+		return 0;
+
+	for (id = fsi_drv->id_table; id->engine_type; id++) {
+		if (id->engine_type != fsi_dev->engine_type)
+			continue;
+		if (id->version == FSI_VERSION_ANY ||
+		    id->version == fsi_dev->version) {
+			if (drv->of_match_table) {
+				if (of_driver_match_device(dev, drv))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int fsi_probe(struct device *dev)
+{
+	struct fsi_device *fsidev = to_fsi_dev(dev);
+	struct fsi_driver *fsidrv = to_fsi_drv(dev->driver);
+
+	if (fsidrv->probe)
+		return fsidrv->probe(fsidev);
+	else
+		return 0;
+}
+
+static void fsi_remove(struct device *dev)
+{
+	struct fsi_device *fsidev = to_fsi_dev(dev);
+	struct fsi_driver *fsidrv = to_fsi_drv(dev->driver);
+
+	if (fsidrv->remove)
+		fsidrv->remove(fsidev);
+}
+
+static const struct bus_type fsi_bus_type = {
+	.name = "fsi",
+	.match = fsi_bus_match,
+	.probe = fsi_probe,
+	.remove = fsi_remove,
+};
+
 /*
  * fsi_device_read() / fsi_device_write() / fsi_device_peek()
  *
@@ -156,7 +211,7 @@ static struct fsi_device *fsi_create_device(struct fsi_slave *slave)
 {
 	struct fsi_device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -1028,7 +1083,7 @@ static int fsi_slave_init(struct fsi_master *master, int link, uint8_t id)
 	/* We can communicate with a slave; create the slave device and
 	 * register.
 	 */
-	slave = kzalloc(sizeof(*slave), GFP_KERNEL);
+	slave = kzalloc_obj(*slave);
 	if (!slave)
 		return -ENOMEM;
 
@@ -1359,32 +1414,23 @@ void fsi_master_unregister(struct fsi_master *master)
 }
 EXPORT_SYMBOL_GPL(fsi_master_unregister);
 
-/* FSI core & Linux bus type definitions */
-
-static int fsi_bus_match(struct device *dev, const struct device_driver *drv)
+static int fsi_legacy_probe(struct fsi_device *fsidev)
 {
-	struct fsi_device *fsi_dev = to_fsi_dev(dev);
-	const struct fsi_driver *fsi_drv = to_fsi_drv(drv);
-	const struct fsi_device_id *id;
+	struct device *dev = &fsidev->dev;
+	struct device_driver *driver = dev->driver;
 
-	if (!fsi_drv->id_table)
-		return 0;
+	return driver->probe(dev);
+}
 
-	for (id = fsi_drv->id_table; id->engine_type; id++) {
-		if (id->engine_type != fsi_dev->engine_type)
-			continue;
-		if (id->version == FSI_VERSION_ANY ||
-		    id->version == fsi_dev->version) {
-			if (drv->of_match_table) {
-				if (of_driver_match_device(dev, drv))
-					return 1;
-			} else {
-				return 1;
-			}
-		}
-	}
+static void fsi_legacy_remove(struct fsi_device *fsidev)
+{
+	struct device *dev = &fsidev->dev;
+	struct device_driver *driver = dev->driver;
+	int ret;
 
-	return 0;
+	ret = driver->remove(dev);
+	if (unlikely(ret))
+		dev_warn(dev, "Ignoring return value of remove callback (%pe)\n", ERR_PTR(ret));
 }
 
 int fsi_driver_register(struct fsi_driver *fsi_drv)
@@ -1393,6 +1439,17 @@ int fsi_driver_register(struct fsi_driver *fsi_drv)
 		return -EINVAL;
 	if (!fsi_drv->id_table)
 		return -EINVAL;
+
+	fsi_drv->drv.bus = &fsi_bus_type;
+
+	/*
+	 * This driver needs updating. Note that driver_register() warns about
+	 * this, so we're not adding another warning here.
+	 */
+	if (!fsi_drv->probe && fsi_drv->drv.probe)
+		fsi_drv->probe = fsi_legacy_probe;
+	if (!fsi_drv->remove && fsi_drv->drv.remove)
+		fsi_drv->remove = fsi_legacy_remove;
 
 	return driver_register(&fsi_drv->drv);
 }
@@ -1403,12 +1460,6 @@ void fsi_driver_unregister(struct fsi_driver *fsi_drv)
 	driver_unregister(&fsi_drv->drv);
 }
 EXPORT_SYMBOL_GPL(fsi_driver_unregister);
-
-const struct bus_type fsi_bus_type = {
-	.name		= "fsi",
-	.match		= fsi_bus_match,
-};
-EXPORT_SYMBOL_GPL(fsi_bus_type);
 
 static int __init fsi_init(void)
 {

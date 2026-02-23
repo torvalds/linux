@@ -1833,7 +1833,7 @@ struct dvb_frontend *mb86a16_attach(const struct mb86a16_config *config,
 	u8 dev_id = 0;
 	struct mb86a16_state *state = NULL;
 
-	state = kmalloc(sizeof(struct mb86a16_state), GFP_KERNEL);
+	state = kmalloc_obj(struct mb86a16_state);
 	if (state == NULL)
 		goto error;
 

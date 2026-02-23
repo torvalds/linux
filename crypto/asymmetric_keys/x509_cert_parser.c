@@ -65,16 +65,16 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	struct asymmetric_key_id *kid;
 	long ret;
 
-	cert = kzalloc(sizeof(struct x509_certificate), GFP_KERNEL);
+	cert = kzalloc_obj(struct x509_certificate);
 	if (!cert)
 		return ERR_PTR(-ENOMEM);
-	cert->pub = kzalloc(sizeof(struct public_key), GFP_KERNEL);
+	cert->pub = kzalloc_obj(struct public_key);
 	if (!cert->pub)
 		return ERR_PTR(-ENOMEM);
-	cert->sig = kzalloc(sizeof(struct public_key_signature), GFP_KERNEL);
+	cert->sig = kzalloc_obj(struct public_key_signature);
 	if (!cert->sig)
 		return ERR_PTR(-ENOMEM);
-	ctx = kzalloc(sizeof(struct x509_parse_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct x509_parse_context);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -257,6 +257,15 @@ int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
 	case OID_gost2012Signature512:
 		ctx->cert->sig->hash_algo = "streebog512";
 		goto ecrdsa;
+	case OID_id_ml_dsa_44:
+		ctx->cert->sig->pkey_algo = "mldsa44";
+		goto ml_dsa;
+	case OID_id_ml_dsa_65:
+		ctx->cert->sig->pkey_algo = "mldsa65";
+		goto ml_dsa;
+	case OID_id_ml_dsa_87:
+		ctx->cert->sig->pkey_algo = "mldsa87";
+		goto ml_dsa;
 	}
 
 rsa_pkcs1:
@@ -272,6 +281,12 @@ ecrdsa:
 ecdsa:
 	ctx->cert->sig->pkey_algo = "ecdsa";
 	ctx->cert->sig->encoding = "x962";
+	ctx->sig_algo = ctx->last_oid;
+	return 0;
+ml_dsa:
+	ctx->cert->sig->algo_takes_data = true;
+	ctx->cert->sig->hash_algo = "none";
+	ctx->cert->sig->encoding = "raw";
 	ctx->sig_algo = ctx->last_oid;
 	return 0;
 }
@@ -300,7 +315,8 @@ int x509_note_signature(void *context, size_t hdrlen,
 
 	if (strcmp(ctx->cert->sig->pkey_algo, "rsa") == 0 ||
 	    strcmp(ctx->cert->sig->pkey_algo, "ecrdsa") == 0 ||
-	    strcmp(ctx->cert->sig->pkey_algo, "ecdsa") == 0) {
+	    strcmp(ctx->cert->sig->pkey_algo, "ecdsa") == 0 ||
+	    strncmp(ctx->cert->sig->pkey_algo, "mldsa", 5) == 0) {
 		/* Discard the BIT STRING metadata */
 		if (vlen < 1 || *(const u8 *)value != 0)
 			return -EBADMSG;
@@ -523,6 +539,15 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 		default:
 			return -ENOPKG;
 		}
+		break;
+	case OID_id_ml_dsa_44:
+		ctx->cert->pub->pkey_algo = "mldsa44";
+		break;
+	case OID_id_ml_dsa_65:
+		ctx->cert->pub->pkey_algo = "mldsa65";
+		break;
+	case OID_id_ml_dsa_87:
+		ctx->cert->pub->pkey_algo = "mldsa87";
 		break;
 	default:
 		return -ENOPKG;

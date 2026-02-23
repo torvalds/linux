@@ -162,10 +162,10 @@ For example, from the wip sample model::
 
 The probes then need to be detached at the disable phase.
 
-[1] The wip model is presented in::
+[1] The wip model is presented in:
 
   Documentation/trace/rv/deterministic_automata.rst
 
-The wip monitor is presented in::
+The wip monitor is presented in:
 
-  Documentation/trace/rv/da_monitor_synthesis.rst
+  Documentation/trace/rv/monitor_synthesis.rst

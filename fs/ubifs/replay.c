@@ -393,7 +393,7 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
 	if (key_inum(c, key) >= c->highest_inum)
 		c->highest_inum = key_inum(c, key);
 
-	r = kzalloc(sizeof(struct replay_entry), GFP_KERNEL);
+	r = kzalloc_obj(struct replay_entry);
 	if (!r)
 		return -ENOMEM;
 
@@ -443,7 +443,7 @@ static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
 	if (key_inum(c, key) >= c->highest_inum)
 		c->highest_inum = key_inum(c, key);
 
-	r = kzalloc(sizeof(struct replay_entry), GFP_KERNEL);
+	r = kzalloc_obj(struct replay_entry);
 	if (!r)
 		return -ENOMEM;
 
@@ -897,11 +897,11 @@ static int add_replay_bud(struct ubifs_info *c, int lnum, int offs, int jhead,
 
 	dbg_mnt("add replay bud LEB %d:%d, head %d", lnum, offs, jhead);
 
-	bud = kmalloc(sizeof(struct ubifs_bud), GFP_KERNEL);
+	bud = kmalloc_obj(struct ubifs_bud);
 	if (!bud)
 		return -ENOMEM;
 
-	b = kmalloc(sizeof(struct bud_entry), GFP_KERNEL);
+	b = kmalloc_obj(struct bud_entry);
 	if (!b) {
 		err = -ENOMEM;
 		goto out;

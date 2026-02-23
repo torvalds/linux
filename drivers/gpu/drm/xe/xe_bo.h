@@ -9,6 +9,7 @@
 #include <drm/ttm/ttm_tt.h>
 
 #include "xe_bo_types.h"
+#include "xe_ggtt.h"
 #include "xe_macros.h"
 #include "xe_validation.h"
 #include "xe_vm_types.h"
@@ -50,6 +51,7 @@
 #define XE_BO_FLAG_GGTT3		BIT(23)
 #define XE_BO_FLAG_CPU_ADDR_MIRROR	BIT(24)
 #define XE_BO_FLAG_FORCE_USER_VRAM	BIT(25)
+#define XE_BO_FLAG_NO_COMPRESSION	BIT(26)
 
 /* this one is trigger internally only */
 #define XE_BO_FLAG_INTERNAL_TEST	BIT(30)
@@ -251,13 +253,14 @@ static inline u32
 __xe_bo_ggtt_addr(struct xe_bo *bo, u8 tile_id)
 {
 	struct xe_ggtt_node *ggtt_node = bo->ggtt_node[tile_id];
+	u64 offset;
 
 	if (XE_WARN_ON(!ggtt_node))
 		return 0;
 
-	XE_WARN_ON(ggtt_node->base.size > xe_bo_size(bo));
-	XE_WARN_ON(ggtt_node->base.start + ggtt_node->base.size > (1ull << 32));
-	return ggtt_node->base.start;
+	offset = xe_ggtt_node_addr(ggtt_node);
+	XE_WARN_ON(offset + xe_bo_size(bo) > (1ull << 32));
+	return offset;
 }
 
 static inline u32

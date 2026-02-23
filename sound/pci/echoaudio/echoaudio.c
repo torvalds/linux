@@ -265,7 +265,7 @@ static int pcm_open(struct snd_pcm_substream *substream,
 	chip = snd_pcm_substream_chip(substream);
 	runtime = substream->runtime;
 
-	pipe = kzalloc(sizeof(struct audiopipe), GFP_KERNEL);
+	pipe = kzalloc_obj(struct audiopipe);
 	if (!pipe)
 		return -ENOMEM;
 	pipe->index = -1;		/* Not configured yet */
@@ -2159,7 +2159,7 @@ static int snd_echo_resume(struct device *dev)
 	 */
 	pipe_alloc_mask = chip->pipe_alloc_mask;
 	chip->pipe_alloc_mask = 0;
-	err = restore_dsp_rettings(chip);
+	err = restore_dsp_settings(chip);
 	chip->pipe_alloc_mask = pipe_alloc_mask;
 	if (err < 0) {
 		kfree(commpage_bak);

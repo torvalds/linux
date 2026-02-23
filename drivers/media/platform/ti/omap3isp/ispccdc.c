@@ -419,7 +419,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 		return -EINVAL;
 	}
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (req == NULL)
 		return -ENOMEM;
 
@@ -2675,6 +2675,7 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	pads[CCDC_PAD_SOURCE_OF].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ccdc_media_ops;
+	me->function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV;
 	ret = media_entity_pads_init(me, CCDC_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;

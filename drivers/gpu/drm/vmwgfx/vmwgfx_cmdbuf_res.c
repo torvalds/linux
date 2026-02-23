@@ -200,7 +200,7 @@ int vmw_cmdbuf_res_add(struct vmw_cmdbuf_res_manager *man,
 {
 	struct vmw_cmdbuf_res *cres;
 
-	cres = kzalloc(sizeof(*cres), GFP_KERNEL);
+	cres = kzalloc_obj(*cres);
 	if (unlikely(!cres))
 		return -ENOMEM;
 
@@ -284,7 +284,7 @@ vmw_cmdbuf_res_man_create(struct vmw_private *dev_priv)
 {
 	struct vmw_cmdbuf_res_manager *man;
 
-	man = kzalloc(sizeof(*man), GFP_KERNEL);
+	man = kzalloc_obj(*man);
 	if (!man)
 		return ERR_PTR(-ENOMEM);
 

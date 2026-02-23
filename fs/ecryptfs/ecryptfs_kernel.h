@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
+#include <linux/hex.h>
 #include <linux/namei.h>
 #include <linux/scatterlist.h>
 #include <linux/hash.h>
@@ -359,7 +360,7 @@ struct ecryptfs_message {
 	/* Inherits from msg_ctx->index */
 	u32 index;
 	u32 data_len;
-	u8 data[];
+	u8 data[] __counted_by(data_len);
 };
 
 struct ecryptfs_msg_ctx {
@@ -542,7 +543,6 @@ int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
 					 size_t *decrypted_name_size,
 					 struct super_block *sb,
 					 const char *name, size_t name_size);
-int ecryptfs_fill_zeros(struct file *file, loff_t new_length);
 int ecryptfs_encrypt_and_encode_filename(
 	char **encoded_name,
 	size_t *encoded_name_size,
@@ -572,7 +572,7 @@ int ecryptfs_read_and_validate_header_region(struct inode *inode);
 int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
 					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
-int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
+int ecryptfs_cipher_code_to_string(char *str, size_t size, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
 int ecryptfs_generate_key_packet_set(char *dest_base,
 				     struct ecryptfs_crypt_stat *crypt_stat,

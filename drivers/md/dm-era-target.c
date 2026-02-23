@@ -808,7 +808,7 @@ static struct era_metadata *metadata_open(struct block_device *bdev,
 					  bool may_format)
 {
 	int r;
-	struct era_metadata *md = kzalloc(sizeof(*md), GFP_KERNEL);
+	struct era_metadata *md = kzalloc_obj(*md);
 
 	if (!md)
 		return NULL;
@@ -1473,7 +1473,7 @@ static int era_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	era = kzalloc(sizeof(*era), GFP_KERNEL);
+	era = kzalloc_obj(*era);
 	if (!era) {
 		ti->error = "Error allocating era structure";
 		return -ENOMEM;

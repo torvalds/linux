@@ -1063,7 +1063,7 @@ do_work:
 	/*
 	 * We need to schedule work to process this error; schedule it.
 	 */
-	wrk = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
+	wrk = kmalloc_obj(struct storvsc_scan_work, GFP_ATOMIC);
 	if (!wrk) {
 		set_host_byte(scmnd, DID_BAD_TARGET);
 		return;
@@ -1144,7 +1144,7 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 	 * The current SCSI handling on the host side does
 	 * not correctly handle:
 	 * INQUIRY command with page code parameter set to 0x80
-	 * MODE_SENSE command with cmd[2] == 0x1c
+	 * MODE_SENSE and MODE_SENSE_10 command with cmd[2] == 0x1c
 	 * MAINTENANCE_IN is not supported by HyperV FC passthrough
 	 *
 	 * Setup srb and scsi status so this won't be fatal.
@@ -1154,6 +1154,7 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 
 	if ((stor_pkt->vm_srb.cdb[0] == INQUIRY) ||
 	   (stor_pkt->vm_srb.cdb[0] == MODE_SENSE) ||
+	   (stor_pkt->vm_srb.cdb[0] == MODE_SENSE_10) ||
 	   (stor_pkt->vm_srb.cdb[0] == MAINTENANCE_IN &&
 	   hv_dev_is_fc(device))) {
 		vstor_packet->vm_srb.scsi_status = 0;
@@ -1714,7 +1715,8 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	return allowed;
 }
 
-static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
+static enum scsi_qc_status storvsc_queuecommand(struct Scsi_Host *host,
+						struct scsi_cmnd *scmnd)
 {
 	int ret;
 	struct hv_host_device *host_dev = shost_priv(host);
@@ -1968,7 +1970,7 @@ static int storvsc_probe(struct hv_device *device,
 	host_dev->host = host;
 
 
-	stor_device = kzalloc(sizeof(struct storvsc_device), GFP_KERNEL);
+	stor_device = kzalloc_obj(struct storvsc_device);
 	if (!stor_device) {
 		ret = -ENOMEM;
 		goto err_out0;

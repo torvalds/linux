@@ -210,8 +210,7 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 	if (IS_VF(p_hwfn->cdev))
 		return 0;
 
-	rt_data->b_valid = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(bool),
-				   GFP_KERNEL);
+	rt_data->b_valid = kzalloc_objs(bool, RUNTIME_ARRAY_SIZE);
 	if (!rt_data->b_valid)
 		return -ENOMEM;
 

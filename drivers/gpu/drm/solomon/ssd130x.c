@@ -1396,7 +1396,7 @@ static void ssd130x_primary_plane_reset(struct drm_plane *plane)
 
 	drm_WARN_ON_ONCE(plane->dev, plane->state);
 
-	ssd130x_state = kzalloc(sizeof(*ssd130x_state), GFP_KERNEL);
+	ssd130x_state = kzalloc_obj(*ssd130x_state);
 	if (!ssd130x_state)
 		return;
 
@@ -1553,7 +1553,7 @@ static void ssd130x_crtc_reset(struct drm_crtc *crtc)
 
 	drm_WARN_ON_ONCE(crtc->dev, crtc->state);
 
-	ssd130x_state = kzalloc(sizeof(*ssd130x_state), GFP_KERNEL);
+	ssd130x_state = kzalloc_obj(*ssd130x_state);
 	if (!ssd130x_state)
 		return;
 

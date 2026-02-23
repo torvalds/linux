@@ -235,7 +235,7 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
-	ent = kmalloc(sizeof (struct id_map_entry), GFP_KERNEL);
+	ent = kmalloc_obj(struct id_map_entry);
 	if (!ent)
 		return ERR_PTR(-ENOMEM);
 
@@ -376,7 +376,7 @@ static int alloc_rej_tmout(struct mlx4_ib_sriov *sriov, u32 rem_pv_cm_id, int sl
 	}
 	xa_unlock(&sriov->xa_rej_tmout);
 
-	item = kmalloc(sizeof(*item), GFP_KERNEL);
+	item = kmalloc_obj(*item);
 	if (!item)
 		return -ENOMEM;
 

@@ -14,27 +14,17 @@
 #include <crypto/df_sp80090a.h>
 #include <crypto/internal/drbg.h>
 
-static void drbg_kcapi_symsetkey(struct crypto_aes_ctx *aesctx,
-				 const unsigned char *key,
-				 u8 keylen);
-static void drbg_kcapi_symsetkey(struct crypto_aes_ctx *aesctx,
-				 const unsigned char *key, u8 keylen)
-{
-	aes_expandkey(aesctx, key, keylen);
-}
-
-static void drbg_kcapi_sym(struct crypto_aes_ctx *aesctx,
-			   unsigned char *outval,
+static void drbg_kcapi_sym(struct aes_enckey *aeskey, unsigned char *outval,
 			   const struct drbg_string *in, u8 blocklen_bytes)
 {
 	/* there is only component in *in */
 	BUG_ON(in->len < blocklen_bytes);
-	aes_encrypt(aesctx, outval, in->buf);
+	aes_encrypt(aeskey, outval, in->buf);
 }
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 
-static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
+static void drbg_ctr_bcc(struct aes_enckey *aeskey,
 			 unsigned char *out, const unsigned char *key,
 			 struct list_head *in,
 			 u8 blocklen_bytes,
@@ -47,7 +37,7 @@ static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
 	drbg_string_fill(&data, out, blocklen_bytes);
 
 	/* 10.4.3 step 2 / 4 */
-	drbg_kcapi_symsetkey(aesctx, key, keylen);
+	aes_prepareenckey(aeskey, key, keylen);
 	list_for_each_entry(curr, in, list) {
 		const unsigned char *pos = curr->buf;
 		size_t len = curr->len;
@@ -56,7 +46,7 @@ static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
 			/* 10.4.3 step 4.2 */
 			if (blocklen_bytes == cnt) {
 				cnt = 0;
-				drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
+				drbg_kcapi_sym(aeskey, out, &data, blocklen_bytes);
 			}
 			out[cnt] ^= *pos;
 			pos++;
@@ -66,7 +56,7 @@ static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
 	}
 	/* 10.4.3 step 4.2 for last block */
 	if (cnt)
-		drbg_kcapi_sym(aesctx, out, &data, blocklen_bytes);
+		drbg_kcapi_sym(aeskey, out, &data, blocklen_bytes);
 }
 
 /*
@@ -110,7 +100,7 @@ static void drbg_ctr_bcc(struct crypto_aes_ctx *aesctx,
  */
 
 /* Derivation Function for CTR DRBG as defined in 10.4.2 */
-int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
+int crypto_drbg_ctr_df(struct aes_enckey *aeskey,
 		       unsigned char *df_data, size_t bytes_to_return,
 		       struct list_head *seedlist,
 		       u8 blocklen_bytes,
@@ -187,7 +177,7 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		 */
 		drbg_cpu_to_be32(i, iv);
 		/* 10.4.2 step 9.2 -- BCC and concatenation with temp */
-		drbg_ctr_bcc(aesctx, temp + templen, K, &bcc_list,
+		drbg_ctr_bcc(aeskey, temp + templen, K, &bcc_list,
 			     blocklen_bytes, keylen);
 		/* 10.4.2 step 9.3 */
 		i++;
@@ -201,7 +191,7 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 	/* 10.4.2 step 12: overwriting of outval is implemented in next step */
 
 	/* 10.4.2 step 13 */
-	drbg_kcapi_symsetkey(aesctx, temp, keylen);
+	aes_prepareenckey(aeskey, temp, keylen);
 	while (generated_len < bytes_to_return) {
 		short blocklen = 0;
 		/*
@@ -209,7 +199,7 @@ int crypto_drbg_ctr_df(struct crypto_aes_ctx *aesctx,
 		 * implicit as the key is only drbg_blocklen in size based on
 		 * the implementation of the cipher function callback
 		 */
-		drbg_kcapi_sym(aesctx, X, &cipherin, blocklen_bytes);
+		drbg_kcapi_sym(aeskey, X, &cipherin, blocklen_bytes);
 		blocklen = (blocklen_bytes <
 				(bytes_to_return - generated_len)) ?
 			    blocklen_bytes :

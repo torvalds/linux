@@ -1462,7 +1462,7 @@ int aq_macsec_init(struct aq_nic_s *nic)
 	if (!(caps_lo & BIT(CAPS_LO_MACSEC)))
 		return 0;
 
-	nic->macsec_cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	nic->macsec_cfg = kzalloc_obj(*cfg);
 	if (!nic->macsec_cfg)
 		return -ENOMEM;
 

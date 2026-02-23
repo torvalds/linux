@@ -540,7 +540,7 @@ tiled_blits_create(struct intel_engine_cs *engine, struct rnd_state *prng)
 	u64 hole_size;
 	int err;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	t = kzalloc_obj(*t);
 	if (!t)
 		return ERR_PTR(-ENOMEM);
 

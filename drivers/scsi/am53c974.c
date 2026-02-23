@@ -396,7 +396,7 @@ static int pci_esp_probe_one(struct pci_dev *pdev,
 		goto fail_disable_device;
 	}
 
-	pep = kzalloc(sizeof(struct pci_esp_priv), GFP_KERNEL);
+	pep = kzalloc_obj(struct pci_esp_priv);
 	if (!pep) {
 		dev_printk(KERN_INFO, &pdev->dev,
 			   "failed to allocate esp_priv\n");

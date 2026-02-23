@@ -49,12 +49,12 @@ typedef struct arch_msi_msg_data {
 #endif
 
 /**
- * msi_msg - Representation of a MSI message
+ * struct msi_msg - Representation of a MSI message
  * @address_lo:		Low 32 bits of msi message address
- * @arch_addrlo:	Architecture specific shadow of @address_lo
+ * @arch_addr_lo:	Architecture specific shadow of @address_lo
  * @address_hi:		High 32 bits of msi message address
  *			(only used when device supports it)
- * @arch_addrhi:	Architecture specific shadow of @address_hi
+ * @arch_addr_hi:	Architecture specific shadow of @address_hi
  * @data:		MSI message data (usually 16 bits)
  * @arch_data:		Architecture specific shadow of @data
  */
@@ -91,7 +91,7 @@ typedef void (*irq_write_msi_msg_t)(struct msi_desc *desc,
 				    struct msi_msg *msg);
 
 /**
- * pci_msi_desc - PCI/MSI specific MSI descriptor data
+ * struct pci_msi_desc - PCI/MSI specific MSI descriptor data
  *
  * @msi_mask:	[PCI MSI]   MSI cached mask bits
  * @msix_ctrl:	[PCI MSI-X] MSI-X cached per vector control bits
@@ -101,6 +101,7 @@ typedef void (*irq_write_msi_msg_t)(struct msi_desc *desc,
  * @can_mask:	[PCI MSI/X] Masking supported?
  * @is_64:	[PCI MSI/X] Address size: 0=32bit 1=64bit
  * @default_irq:[PCI MSI/X] The default pre-assigned non-MSI irq
+ * @msi_attrib:	[PCI MSI/X] Compound struct of MSI/X attributes
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
  */
@@ -169,7 +170,7 @@ struct msi_desc_data {
  *                  Only used if iommu_msi_shift != 0
  * @iommu_msi_shift: Indicates how many bits of the original address should be
  *                   preserved when using iommu_msi_iova.
- * @sysfs_attr:	Pointer to sysfs device attribute
+ * @sysfs_attrs:	Pointer to sysfs device attribute
  *
  * @write_msi_msg:	Callback that may be called when the MSI message
  *			address or data changes
@@ -220,7 +221,7 @@ enum msi_desc_filter {
 /**
  * struct msi_dev_domain - The internals of MSI domain info per device
  * @store:		Xarray for storing MSI descriptor pointers
- * @irqdomain:		Pointer to a per device interrupt domain
+ * @domain:		Pointer to a per device interrupt domain
  */
 struct msi_dev_domain {
 	struct xarray		store;
@@ -702,7 +703,8 @@ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void pci_msi_mask_irq(struct irq_data *data);
 void pci_msi_unmask_irq(struct irq_data *data);
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev);
-u32 pci_msi_map_rid_ctlr_node(struct pci_dev *pdev, struct device_node **node);
+u32 pci_msi_map_rid_ctlr_node(struct irq_domain *domain, struct pci_dev *pdev,
+			      struct fwnode_handle **node);
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev);
 void pci_msix_prepare_desc(struct irq_domain *domain, msi_alloc_info_t *arg,
 			   struct msi_desc *desc);

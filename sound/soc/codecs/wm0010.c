@@ -326,7 +326,7 @@ static void byte_swap_64(u64 *data_in, u64 *data_out, u32 len)
 	int i;
 
 	for (i = 0; i < len / 8; i++)
-		data_out[i] = cpu_to_be64(le64_to_cpu(data_in[i]));
+		data_out[i] = swab64(data_in[i]);
 }
 
 static int wm0010_firmware_load(const char *name, struct snd_soc_component *component)
@@ -396,7 +396,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 			rec->command, rec->length);
 		len = rec->length + 8;
 
-		xfer = kzalloc(sizeof(*xfer), GFP_KERNEL);
+		xfer = kzalloc_obj(*xfer);
 		if (!xfer) {
 			ret = -ENOMEM;
 			goto abort;

@@ -59,7 +59,6 @@ extern const int sysctl_vals[];
 #define SYSCTL_LONG_ONE		((void *)&sysctl_long_vals[1])
 #define SYSCTL_LONG_MAX		((void *)&sysctl_long_vals[2])
 
-#define SYSCTL_CONV_IDENTITY(val) (val)
 /**
  *
  * "dir" originates from read_iter (dir = 0) or write_iter (dir = 1)
@@ -73,107 +72,6 @@ extern const int sysctl_vals[];
 #define SYSCTL_USER_TO_KERN(dir) (!!(dir))
 #define SYSCTL_KERN_TO_USER(dir) (!dir)
 
-#define SYSCTL_USER_TO_KERN_INT_CONV(name, u_ptr_op)		\
-int sysctl_user_to_kern_int_conv##name(const bool *negp,	\
-				       const unsigned long *u_ptr,\
-				       int *k_ptr)		\
-{								\
-	unsigned long u = u_ptr_op(*u_ptr);			\
-	if (*negp) {						\
-		if (u > (unsigned long) INT_MAX + 1)		\
-			return -EINVAL;				\
-		WRITE_ONCE(*k_ptr, -u);				\
-	} else {						\
-		if (u > (unsigned long) INT_MAX)		\
-			return -EINVAL;				\
-		WRITE_ONCE(*k_ptr, u);				\
-	}							\
-	return 0;						\
-}
-
-#define SYSCTL_KERN_TO_USER_INT_CONV(name, k_ptr_op)		\
-int sysctl_kern_to_user_int_conv##name(bool *negp,		\
-				       unsigned long *u_ptr,	\
-				       const int *k_ptr)	\
-{								\
-	int val = READ_ONCE(*k_ptr);				\
-	if (val < 0) {						\
-		*negp = true;					\
-		*u_ptr = -k_ptr_op((unsigned long)val);		\
-	} else {						\
-		*negp = false;					\
-		*u_ptr = k_ptr_op((unsigned long)val);		\
-	}							\
-	return 0;						\
-}
-
-/**
- * To range check on a converted value, use a temp k_ptr
- * When checking range, value should be within (tbl->extra1, tbl->extra2)
- */
-#define SYSCTL_INT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
-			       k_ptr_range_check)			\
-int do_proc_int_conv##name(bool *negp, unsigned long *u_ptr, int *k_ptr,\
-			   int dir, const struct ctl_table *tbl)	\
-{									\
-	if (SYSCTL_KERN_TO_USER(dir))					\
-		return kern_to_user(negp, u_ptr, k_ptr);		\
-									\
-	if (k_ptr_range_check) {					\
-		int tmp_k, ret;						\
-		if (!tbl)						\
-			return -EINVAL;					\
-		ret = user_to_kern(negp, u_ptr, &tmp_k);		\
-		if (ret)						\
-			return ret;					\
-		if ((tbl->extra1 && *(int *)tbl->extra1 > tmp_k) ||	\
-		    (tbl->extra2 && *(int *)tbl->extra2 < tmp_k))	\
-			return -EINVAL;					\
-		WRITE_ONCE(*k_ptr, tmp_k);				\
-	} else								\
-		return user_to_kern(negp, u_ptr, k_ptr);		\
-	return 0;							\
-}
-
-#define SYSCTL_USER_TO_KERN_UINT_CONV(name, u_ptr_op)		\
-int sysctl_user_to_kern_uint_conv##name(const unsigned long *u_ptr,\
-					unsigned int *k_ptr)	\
-{								\
-	unsigned long u = u_ptr_op(*u_ptr);			\
-	if (u > UINT_MAX)					\
-		return -EINVAL;					\
-	WRITE_ONCE(*k_ptr, u);					\
-	return 0;						\
-}
-
-#define SYSCTL_UINT_CONV_CUSTOM(name, user_to_kern, kern_to_user,	\
-				k_ptr_range_check)			\
-int do_proc_uint_conv##name(unsigned long *u_ptr, unsigned int *k_ptr,	\
-			   int dir, const struct ctl_table *tbl)	\
-{									\
-	if (SYSCTL_KERN_TO_USER(dir))					\
-		return kern_to_user(u_ptr, k_ptr);			\
-									\
-	if (k_ptr_range_check) {					\
-		unsigned int tmp_k;					\
-		int ret;						\
-		if (!tbl)						\
-			return -EINVAL;					\
-		ret = user_to_kern(u_ptr, &tmp_k);			\
-		if (ret)						\
-			return ret;					\
-		if ((tbl->extra1 &&					\
-		     *(unsigned int *)tbl->extra1 > tmp_k) ||		\
-		    (tbl->extra2 &&					\
-		     *(unsigned int *)tbl->extra2 < tmp_k))		\
-			return -ERANGE;					\
-		WRITE_ONCE(*k_ptr, tmp_k);				\
-	} else								\
-		return user_to_kern(u_ptr, k_ptr);			\
-	return 0;							\
-}
-
-
 extern const unsigned long sysctl_long_vals[];
 
 typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
@@ -182,6 +80,7 @@ typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
 int proc_dostring(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dobool(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+
 int proc_dointvec(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dointvec_minmax(const struct ctl_table *table, int dir, void *buffer,
 			 size_t *lenp, loff_t *ppos);
@@ -189,6 +88,15 @@ int proc_dointvec_conv(const struct ctl_table *table, int dir, void *buffer,
 		       size_t *lenp, loff_t *ppos,
 		       int (*conv)(bool *negp, unsigned long *u_ptr, int *k_ptr,
 				   int dir, const struct ctl_table *table));
+int proc_int_k2u_conv_kop(ulong *u_ptr, const int *k_ptr, bool *negp,
+			  ulong (*k_ptr_op)(const ulong));
+int proc_int_u2k_conv_uop(const ulong *u_ptr, int *k_ptr, const bool *negp,
+			  ulong (*u_ptr_op)(const ulong));
+int proc_int_conv(bool *negp, ulong *u_ptr, int *k_ptr, int dir,
+		  const struct ctl_table *tbl, bool k_ptr_range_check,
+		  int (*user_to_kern)(const bool *negp, const ulong *u_ptr, int *k_ptr),
+		  int (*kern_to_user)(bool *negp, ulong *u_ptr, const int *k_ptr));
+
 int proc_douintvec(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_douintvec_minmax(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
@@ -196,6 +104,13 @@ int proc_douintvec_conv(const struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos,
 			int (*conv)(unsigned long *lvalp, unsigned int *valp,
 				    int write, const struct ctl_table *table));
+int proc_uint_k2u_conv(ulong *u_ptr, const uint *k_ptr);
+int proc_uint_u2k_conv_uop(const ulong *u_ptr, uint *k_ptr,
+			   ulong (*u_ptr_op)(const ulong));
+int proc_uint_conv(ulong *u_ptr, uint *k_ptr, int dir,
+		   const struct ctl_table *tbl, bool k_ptr_range_check,
+		   int (*user_to_kern)(const ulong *u_ptr, uint *k_ptr),
+		   int (*kern_to_user)(ulong *u_ptr, const uint *k_ptr));
 
 int proc_dou8vec_minmax(const struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
@@ -206,7 +121,6 @@ int proc_doulongvec_minmax_conv(const struct ctl_table *table, int dir,
 int proc_do_large_bitmap(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
-int sysctl_kern_to_user_uint_conv(unsigned long *u_ptr, const unsigned int *k_ptr);
 
 /*
  * Register a set of sysctl names by calling register_sysctl

@@ -251,7 +251,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 
 		nvkm_falcon_put(lsfw->falcon, subdev);
 
-		if (!(lsf = kmalloc(sizeof(*lsf), GFP_KERNEL)))
+		if (!(lsf = kmalloc_obj(*lsf)))
 			return -ENOMEM;
 		lsf->func = lsfw->func;
 		lsf->falcon = lsfw->falcon;
@@ -422,7 +422,7 @@ nvkm_acr_new_(const struct nvkm_acr_fwif *fwif, struct nvkm_device *device,
 	struct nvkm_acr *acr;
 	long wprfw;
 
-	if (!(acr = *pacr = kzalloc(sizeof(*acr), GFP_KERNEL)))
+	if (!(acr = *pacr = kzalloc_obj(*acr)))
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_acr, device, type, inst, &acr->subdev);
 	INIT_LIST_HEAD(&acr->hsfw);

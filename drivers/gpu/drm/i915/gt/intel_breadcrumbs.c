@@ -279,7 +279,7 @@ intel_breadcrumbs_create(struct intel_engine_cs *irq_engine)
 {
 	struct intel_breadcrumbs *b;
 
-	b = kzalloc(sizeof(*b), GFP_KERNEL);
+	b = kzalloc_obj(*b);
 	if (!b)
 		return NULL;
 

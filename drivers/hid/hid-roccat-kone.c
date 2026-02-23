@@ -704,7 +704,7 @@ static int kone_init_specials(struct hid_device *hdev)
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 
-		kone = kzalloc(sizeof(*kone), GFP_KERNEL);
+		kone = kzalloc_obj(*kone);
 		if (!kone)
 			return -ENOMEM;
 		hid_set_drvdata(hdev, kone);

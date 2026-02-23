@@ -423,9 +423,7 @@ static int build_via_table(struct viadev *dev, struct snd_pcm_substream *substre
 			return -ENOMEM;
 	}
 	if (! dev->idx_table) {
-		dev->idx_table = kmalloc_array(VIA_TABLE_SIZE,
-					       sizeof(*dev->idx_table),
-					       GFP_KERNEL);
+		dev->idx_table = kmalloc_objs(*dev->idx_table, VIA_TABLE_SIZE);
 		if (! dev->idx_table)
 			return -ENOMEM;
 	}

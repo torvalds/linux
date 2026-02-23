@@ -31,6 +31,7 @@
 #define INTEL_LT_PHY_BOTH_LANES		(INTEL_LT_PHY_LANE1 |\
 					 INTEL_LT_PHY_LANE0)
 #define MODE_DP				3
+#define MODE_HDMI_20			4
 #define Q32_TO_INT(x)	((x) >> 32)
 #define Q32_TO_FRAC(x)	((x) & 0xFFFFFFFF)
 #define DCO_MIN_FREQ_MHZ	11850
@@ -1324,11 +1325,11 @@ intel_lt_phy_config_changed(struct intel_encoder *encoder,
 	return true;
 }
 
-static intel_wakeref_t intel_lt_phy_transaction_begin(struct intel_encoder *encoder)
+static struct ref_tracker *intel_lt_phy_transaction_begin(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	intel_psr_pause(intel_dp);
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DC_OFF);
@@ -1336,7 +1337,7 @@ static intel_wakeref_t intel_lt_phy_transaction_begin(struct intel_encoder *enco
 	return wakeref;
 }
 
-static void intel_lt_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
+static void intel_lt_phy_transaction_end(struct intel_encoder *encoder, struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1751,6 +1752,7 @@ int
 intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	int clk;
 	const struct intel_lt_phy_pll_state *lt_state =
 		&crtc_state->dpll_hw_state.ltpll;
@@ -1768,8 +1770,11 @@ intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 		rate = REG_FIELD_GET8(LT_PHY_VDR_RATE_ENCODING_MASK,
 				      lt_state->config[0]);
 		clk = intel_lt_phy_get_dp_clock(rate);
-	} else {
+	} else if (mode == MODE_HDMI_20) {
 		clk = intel_lt_phy_calc_hdmi_port_clock(crtc_state);
+	} else {
+		drm_WARN_ON(display->drm, "Unsupported LT PHY Mode!\n");
+		clk = xe3plpd_lt_hdmi_252.clock;
 	}
 
 	return clk;
@@ -1932,7 +1937,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	enum port port = encoder->port;
-	intel_wakeref_t wakeref = 0;
+	struct ref_tracker *wakeref = 0;
 	u32 lane_phy_pulse_status = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
 					? (XE3PLPDP_LANE_PHY_PULSE_STATUS(0) |
 					   XE3PLPDP_LANE_PHY_PULSE_STATUS(1))
@@ -2060,7 +2065,7 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	enum port port = encoder->port;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	u32 lane_pipe_reset = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
 				? (XELPDP_LANE_PIPE_RESET(0) |
@@ -2137,7 +2142,7 @@ void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_ddi_buf_trans *trans;
 	u8 owned_lane_mask;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int n_entries, ln;
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
@@ -2207,13 +2212,18 @@ bool
 intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 				  const struct intel_lt_phy_pll_state *b)
 {
-	if (memcmp(&a->config, &b->config, sizeof(a->config)) != 0)
-		return false;
+	/*
+	 * With LT PHY values other than VDR0_CONFIG and VDR2_CONFIG are
+	 * unreliable. They cannot always be read back since internally
+	 * after power gating values are not restored back to the
+	 * shadow VDR registers. Thus we do not compare the whole state
+	 * just the two VDR registers.
+	 */
+	if (a->config[0] == b->config[0] &&
+	    a->config[2] == b->config[2])
+		return true;
 
-	if (memcmp(&a->data, &b->data, sizeof(a->data)) != 0)
-		return false;
-
-	return true;
+	return false;
 }
 
 void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
@@ -2222,7 +2232,7 @@ void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
 {
 	u8 owned_lane_mask;
 	u8 lane;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i, j, k;
 
 	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
@@ -2259,8 +2269,6 @@ void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
 	struct intel_encoder *encoder;
 	struct intel_lt_phy_pll_state pll_hw_state = {};
 	const struct intel_lt_phy_pll_state *pll_sw_state = &new_crtc_state->dpll_hw_state.ltpll;
-	int clock;
-	int i, j;
 
 	if (DISPLAY_VER(display) < 35)
 		return;
@@ -2275,33 +2283,19 @@ void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	intel_lt_phy_pll_readout_hw_state(encoder, new_crtc_state, &pll_hw_state);
-	clock = intel_lt_phy_calc_port_clock(encoder, new_crtc_state);
 
 	dig_port = enc_to_dig_port(encoder);
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
 		return;
 
-	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.clock != clock,
-				 "[CRTC:%d:%s] mismatch in LT PHY: Register CLOCK (expected %d, found %d)",
+	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[0] != pll_sw_state->config[0],
+				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 0: (expected 0x%04x, found 0x%04x)",
 				 crtc->base.base.id, crtc->base.name,
-				 pll_sw_state->clock, pll_hw_state.clock);
-
-	for (i = 0; i < 3; i++) {
-		INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[i] != pll_sw_state->config[i],
-					 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG%d: (expected 0x%04x, found 0x%04x)",
-					 crtc->base.base.id, crtc->base.name, i,
-					 pll_sw_state->config[i], pll_hw_state.config[i]);
-	}
-
-	for (i = 0; i <= 12; i++) {
-		for (j = 3; j >= 0; j--)
-			INTEL_DISPLAY_STATE_WARN(display,
-						 pll_hw_state.data[i][j] !=
-						 pll_sw_state->data[i][j],
-						 "[CRTC:%d:%s] mismatch in LT PHY PLL DATA[%d][%d]: (expected 0x%04x, found 0x%04x)",
-						 crtc->base.base.id, crtc->base.name, i, j,
-						 pll_sw_state->data[i][j], pll_hw_state.data[i][j]);
-	}
+				 pll_sw_state->config[0], pll_hw_state.config[0]);
+	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[2] != pll_sw_state->config[2],
+				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 2: (expected 0x%04x, found 0x%04x)",
+				 crtc->base.base.id, crtc->base.name,
+				 pll_sw_state->config[2], pll_hw_state.config[2]);
 }
 
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
@@ -2310,7 +2304,7 @@ void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable(encoder, crtc_state);
+		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
 	else
 		intel_lt_phy_pll_enable(encoder, crtc_state);
 }
@@ -2320,7 +2314,7 @@ void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_disable(encoder);
+		intel_mtl_tbt_pll_disable_clock(encoder);
 	else
 		intel_lt_phy_pll_disable(encoder);
 

@@ -504,7 +504,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 			return 2;
 
 		while (nummem--) {
-			mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			mem_node = kmalloc_obj(struct pci_resource);
 
 			if (!mem_node)
 				break;
@@ -532,7 +532,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		}
 
 		while (numpmem--) {
-			p_mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			p_mem_node = kmalloc_obj(struct pci_resource);
 
 			if (!p_mem_node)
 				break;
@@ -560,7 +560,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		}
 
 		while (numio--) {
-			io_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			io_node = kmalloc_obj(struct pci_resource);
 
 			if (!io_node)
 				break;
@@ -588,7 +588,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		}
 
 		while (numbus--) {
-			bus_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			bus_node = kmalloc_obj(struct pci_resource);
 
 			if (!bus_node)
 				break;

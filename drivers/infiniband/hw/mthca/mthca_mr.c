@@ -146,8 +146,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 
 	buddy->bits = kcalloc(buddy->max_order + 1, sizeof(*buddy->bits),
 			      GFP_KERNEL);
-	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
-				  GFP_KERNEL);
+	buddy->num_free = kzalloc_objs(*buddy->num_free, (buddy->max_order + 1));
 	if (!buddy->bits || !buddy->num_free)
 		goto err_out;
 
@@ -212,7 +211,7 @@ static struct mthca_mtt *__mthca_alloc_mtt(struct mthca_dev *dev, int size,
 	if (size <= 0)
 		return ERR_PTR(-EINVAL);
 
-	mtt = kmalloc(sizeof *mtt, GFP_KERNEL);
+	mtt = kmalloc_obj(*mtt);
 	if (!mtt)
 		return ERR_PTR(-ENOMEM);
 

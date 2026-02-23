@@ -22,7 +22,7 @@ use crate::{
 /// fn probe_device(pdev: &pci::Device<Core>) -> Result {
 ///     let pci_class = pdev.pci_class();
 ///     dev_info!(
-///         pdev.as_ref(),
+///         pdev,
 ///         "Detected PCI class: {}\n",
 ///         pci_class
 ///     );
@@ -416,7 +416,6 @@ define_all_pci_vendors! {
     MICROSEMI                = bindings::PCI_VENDOR_ID_MICROSEMI,                // 0x11f8
     RP                       = bindings::PCI_VENDOR_ID_RP,                       // 0x11fe
     CYCLADES                 = bindings::PCI_VENDOR_ID_CYCLADES,                 // 0x120e
-    ESSENTIAL                = bindings::PCI_VENDOR_ID_ESSENTIAL,                // 0x120f
     O2                       = bindings::PCI_VENDOR_ID_O2,                       // 0x1217
     THREEDX                  = bindings::PCI_VENDOR_ID_3DFX,                     // 0x121a
     AVM                      = bindings::PCI_VENDOR_ID_AVM,                      // 0x1244

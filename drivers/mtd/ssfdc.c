@@ -295,7 +295,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (cis_sector == -1)
 		return;
 
-	ssfdc = kzalloc(sizeof(*ssfdc), GFP_KERNEL);
+	ssfdc = kzalloc_obj(*ssfdc);
 	if (!ssfdc)
 		return;
 

@@ -76,7 +76,7 @@ static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
 	unsigned char ghash_h[TLS_CIPHER_AES_GCM_256_TAG_SIZE];
 	struct tls12_crypto_info_aes_gcm_128 *info_128_gcm;
 	struct ktls_key_ctx *kctx = &tx_info->key_ctx;
-	struct crypto_aes_ctx aes_ctx;
+	struct aes_enckey aes;
 	unsigned char *key, *salt;
 
 	switch (crypto_info->cipher_type) {
@@ -138,13 +138,13 @@ static int chcr_ktls_save_keys(struct chcr_ktls_info *tx_info,
 	 * It will go in key context
 	 */
 
-	ret = aes_expandkey(&aes_ctx, key, keylen);
+	ret = aes_prepareenckey(&aes, key, keylen);
 	if (ret)
 		goto out;
 
 	memset(ghash_h, 0, ghash_size);
-	aes_encrypt(&aes_ctx, ghash_h, ghash_h);
-	memzero_explicit(&aes_ctx, sizeof(aes_ctx));
+	aes_encrypt(&aes, ghash_h, ghash_h);
+	memzero_explicit(&aes, sizeof(aes));
 
 	/* fill the Key context */
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
@@ -442,7 +442,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	if (u_ctx && u_ctx->detach)
 		goto out;
 
-	tx_info = kvzalloc(sizeof(*tx_info), GFP_KERNEL);
+	tx_info = kvzalloc_obj(*tx_info);
 	if (!tx_info)
 		goto out;
 
@@ -2117,7 +2117,7 @@ static void *chcr_ktls_uld_add(const struct cxgb4_lld_info *lldi)
 
 	pr_info_once("%s - version %s\n", CHCR_KTLS_DRV_DESC,
 		     CHCR_KTLS_DRV_VERSION);
-	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	u_ctx = kzalloc_obj(*u_ctx);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;

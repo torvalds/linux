@@ -108,7 +108,7 @@ nvkm_dma_new_(const struct nvkm_dma_func *func, struct nvkm_device *device,
 {
 	struct nvkm_dma *dma;
 
-	if (!(dma = *pdma = kzalloc(sizeof(*dma), GFP_KERNEL)))
+	if (!(dma = *pdma = kzalloc_obj(*dma)))
 		return -ENOMEM;
 	dma->func = func;
 

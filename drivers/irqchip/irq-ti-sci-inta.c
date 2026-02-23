@@ -222,7 +222,7 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 		goto free_vint;
 	}
 
-	vint_desc = kzalloc(sizeof(*vint_desc), GFP_KERNEL);
+	vint_desc = kzalloc_obj(*vint_desc);
 	if (!vint_desc) {
 		ret = -ENOMEM;
 		goto free_vint;

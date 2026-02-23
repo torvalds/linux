@@ -114,8 +114,8 @@ static int amba_kmi_probe(struct amba_device *dev,
 	if (ret)
 		return ret;
 
-	kmi = kzalloc(sizeof(*kmi), GFP_KERNEL);
-	io = kzalloc(sizeof(*io), GFP_KERNEL);
+	kmi = kzalloc_obj(*kmi);
+	io = kzalloc_obj(*io);
 	if (!kmi || !io) {
 		ret = -ENOMEM;
 		goto out;

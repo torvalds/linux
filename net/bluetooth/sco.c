@@ -204,7 +204,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 		return conn;
 	}
 
-	conn = kzalloc(sizeof(struct sco_conn), GFP_KERNEL);
+	conn = kzalloc_obj(struct sco_conn);
 	if (!conn)
 		return NULL;
 

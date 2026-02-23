@@ -321,7 +321,7 @@ static int device_sanity_check(struct i2c_client *client)
 	struct atmel_i2c_cmd *cmd;
 	int ret;
 
-	cmd = kmalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kmalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

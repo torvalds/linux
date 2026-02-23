@@ -344,6 +344,9 @@ int hfsplus_create_attr(struct inode *inode, const char *name,
 			const void *value, size_t size);
 int hfsplus_delete_attr(struct inode *inode, const char *name);
 int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid);
+int hfsplus_replace_attr(struct inode *inode,
+			 const char *name,
+			 const void *value, size_t size);
 
 /* bitmap.c */
 int hfsplus_block_allocate(struct super_block *sb, u32 size, u32 offset,

@@ -21,7 +21,7 @@ struct soc_and_ip_translator *dc_create_soc_and_ip_translator(enum dce_version d
 {
 	struct soc_and_ip_translator *soc_and_ip_translator;
 
-	soc_and_ip_translator = kzalloc(sizeof(*soc_and_ip_translator), GFP_KERNEL);
+	soc_and_ip_translator = kzalloc_obj(*soc_and_ip_translator);
 	if (!soc_and_ip_translator)
 		return NULL;
 

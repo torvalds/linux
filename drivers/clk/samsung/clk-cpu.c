@@ -660,7 +660,7 @@ static int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 		return -EINVAL;
 	}
 
-	cpuclk = kzalloc(sizeof(*cpuclk), GFP_KERNEL);
+	cpuclk = kzalloc_obj(*cpuclk);
 	if (!cpuclk)
 		return -ENOMEM;
 

@@ -650,7 +650,7 @@ static int __await_barrier(struct i915_active *ref, struct i915_sw_fence *fence)
 {
 	struct wait_barrier *wb;
 
-	wb = kmalloc(sizeof(*wb), GFP_KERNEL);
+	wb = kmalloc_obj(*wb);
 	if (unlikely(!wb))
 		return -ENOMEM;
 
@@ -1160,7 +1160,7 @@ struct i915_active *i915_active_create(void)
 {
 	struct auto_active *aa;
 
-	aa = kmalloc(sizeof(*aa), GFP_KERNEL);
+	aa = kmalloc_obj(*aa);
 	if (!aa)
 		return NULL;
 

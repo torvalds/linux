@@ -832,7 +832,7 @@ static int mrp_init_port(struct net_device *dev)
 {
 	struct mrp_port *port;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return -ENOMEM;
 	rcu_assign_pointer(dev->mrp_port, port);
@@ -866,7 +866,7 @@ int mrp_init_applicant(struct net_device *dev, struct mrp_application *appl)
 	}
 
 	err = -ENOMEM;
-	app = kzalloc(sizeof(*app), GFP_KERNEL);
+	app = kzalloc_obj(*app);
 	if (!app)
 		goto err2;
 

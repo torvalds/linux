@@ -330,7 +330,7 @@ static struct sla_buffer_hdr *sla_buffer_map(struct sla_addr_t sla)
 		if (WARN_ON_ONCE(!npages))
 			return NULL;
 
-		struct page **pp = kmalloc_array(npages, sizeof(pp[0]), GFP_KERNEL);
+		struct page **pp = kmalloc_objs(pp[0], npages);
 
 		if (!pp)
 			return NULL;

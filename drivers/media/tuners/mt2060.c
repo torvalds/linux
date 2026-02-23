@@ -407,7 +407,7 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	struct mt2060_priv *priv = NULL;
 	u8 id = 0;
 
-	priv = kzalloc(sizeof(struct mt2060_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct mt2060_priv);
 	if (priv == NULL)
 		return NULL;
 

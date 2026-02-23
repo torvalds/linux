@@ -130,7 +130,7 @@ static int hinic_flash_fw(struct hinic_devlink_priv *priv, const u8 *data,
 	int total_len_flag = 0;
 	int err;
 
-	fw_update_msg = kzalloc(sizeof(*fw_update_msg), GFP_KERNEL);
+	fw_update_msg = kzalloc_obj(*fw_update_msg);
 	if (!fw_update_msg)
 		return -ENOMEM;
 

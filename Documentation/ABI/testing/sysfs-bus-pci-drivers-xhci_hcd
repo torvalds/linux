@@ -85,3 +85,45 @@ Description:
 		up to 5000. The default value is 64 ms.
 		This polling interval is used while DbC is enabled but has no
 		active data transfers.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_serial
+Date:		January 2026
+Contact:	Łukasz Bartosik <ukaszb@chromium.org>
+Description:
+		The dbc_serial attribute allows to change the serial number
+		string descriptor presented by the debug device when a host
+		requests a string descriptor with iSerialNumber index.
+		Index is found in the iSerialNumber field in the device
+		descriptor.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is "0001".
+		The field length can be from 1 to 126 characters.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_product
+Date:		January 2026
+Contact:	Łukasz Bartosik <ukaszb@chromium.org>
+Description:
+		The dbc_product attribute allows to change the product string
+		descriptor presented by the debug device when a host requests
+		a string descriptor with iProduct index.
+		Index is found in the iProduct field in the device descriptor.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is "Linux USB Debug Target".
+		The field length can be from 1 to 126 characters.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_manufacturer
+Date:		January 2026
+Contact:	Łukasz Bartosik <ukaszb@chromium.org>
+Description:
+		The dbc_manufacturer attribute allows to change the manufacturer
+		string descriptor presented by the debug device when a host
+		requests a string descriptor with iManufacturer index.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is "Linux Foundation".
+		The field length can be from 1 to 126 characters.

@@ -121,7 +121,7 @@ static struct toonie *toonie;
 
 static int __init toonie_init(void)
 {
-	toonie = kzalloc(sizeof(struct toonie), GFP_KERNEL);
+	toonie = kzalloc_obj(struct toonie);
 
 	if (!toonie)
 		return -ENOMEM;

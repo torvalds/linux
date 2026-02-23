@@ -1516,7 +1516,7 @@ int mwifiex_send_rgpower_table(struct mwifiex_private *priv, const u8 *data,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_ds_misc_cmd *hostcmd __free(kfree) = NULL;
 
-	hostcmd = kzalloc(sizeof(*hostcmd), GFP_KERNEL);
+	hostcmd = kzalloc_obj(*hostcmd);
 	if (!hostcmd)
 		return -ENOMEM;
 

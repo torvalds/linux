@@ -76,7 +76,7 @@ nv04_fence_context_del(struct nouveau_channel *chan)
 static int
 nv04_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nv04_fence_chan *fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	struct nv04_fence_chan *fctx = kzalloc_obj(*fctx);
 	if (fctx) {
 		nouveau_fence_context_new(chan, &fctx->base);
 		fctx->base.emit = nv04_fence_emit;
@@ -101,7 +101,7 @@ nv04_fence_create(struct nouveau_drm *drm)
 {
 	struct nv04_fence_priv *priv;
 
-	priv = drm->fence = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = drm->fence = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

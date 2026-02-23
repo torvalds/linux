@@ -537,7 +537,7 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 	usb_set_intfdata(intf, us);
 
 	/* Allocate the control/setup and DMA-mapped buffers */
-	us->cr = kmalloc(sizeof(*us->cr), GFP_KERNEL);
+	us->cr = kmalloc_obj(*us->cr);
 	if (!us->cr)
 		return -ENOMEM;
 

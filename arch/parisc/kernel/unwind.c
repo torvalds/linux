@@ -157,7 +157,7 @@ unwind_table_add(const char *name, unsigned long base_addr,
 
 	unwind_table_sort(s, e);
 
-	table = kmalloc(sizeof(struct unwind_table), GFP_USER);
+	table = kmalloc_obj(struct unwind_table, GFP_USER);
 	if (table == NULL)
 		return NULL;
 	unwind_table_init(table, name, base_addr, gp, start, end);
@@ -408,7 +408,7 @@ void unwind_frame_init_from_blocked_task(struct unwind_frame_info *info, struct 
 	struct pt_regs *r = &t->thread.regs;
 	struct pt_regs *r2;
 
-	r2 = kmalloc(sizeof(struct pt_regs), GFP_ATOMIC);
+	r2 = kmalloc_obj(struct pt_regs, GFP_ATOMIC);
 	if (!r2)
 		return;
 	*r2 = *r;

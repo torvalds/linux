@@ -618,8 +618,7 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		 * know that mm->notifier_subscriptions can't change while we
 		 * hold the write side of the mmap_lock.
 		 */
-		subscriptions = kzalloc(
-			sizeof(struct mmu_notifier_subscriptions), GFP_KERNEL);
+		subscriptions = kzalloc_obj(struct mmu_notifier_subscriptions);
 		if (!subscriptions)
 			return -ENOMEM;
 

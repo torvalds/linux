@@ -97,7 +97,7 @@ void gameport_set_phys(struct gameport *gameport, const char *fmt, ...)
 
 static inline struct gameport *gameport_allocate_port(void)
 {
-	struct gameport *gameport = kzalloc(sizeof(struct gameport), GFP_KERNEL);
+	struct gameport *gameport = kzalloc_obj(struct gameport);
 
 	return gameport;
 }

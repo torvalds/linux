@@ -733,7 +733,7 @@ static struct dj_receiver_dev *dj_get_receiver_dev(struct hid_device *hdev,
 
 	djrcv_dev = dj_find_receiver_dev(hdev, type);
 	if (!djrcv_dev) {
-		djrcv_dev = kzalloc(sizeof(*djrcv_dev), GFP_KERNEL);
+		djrcv_dev = kzalloc_obj(*djrcv_dev);
 		if (!djrcv_dev)
 			goto out;
 
@@ -851,7 +851,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	snprintf(tmpstr, sizeof(tmpstr), ":%d", device_index);
 	strlcat(dj_hiddev->phys, tmpstr, sizeof(dj_hiddev->phys));
 
-	dj_dev = kzalloc(sizeof(struct dj_device), GFP_KERNEL);
+	dj_dev = kzalloc_obj(struct dj_device);
 
 	if (!dj_dev) {
 		hid_err(djrcv_hdev, "%s: failed allocating dj_dev\n", __func__);
@@ -1332,7 +1332,7 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 		goto out;
 	}
 
-	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
+	dj_report = kzalloc_obj(struct dj_report);
 	if (!dj_report)
 		return -ENOMEM;
 	dj_report->report_id = REPORT_ID_DJ_SHORT;
@@ -1356,7 +1356,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	u8 *buf;
 	int retval = 0;
 
-	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
+	dj_report = kzalloc_obj(struct dj_report);
 	if (!dj_report)
 		return -ENOMEM;
 
@@ -1664,7 +1664,7 @@ static int logi_dj_dj_event(struct hid_device *hdev,
 		 * so ignore those reports too.
 		 */
 		if (dj_report->device_index != DJ_RECEIVER_INDEX)
-			hid_err(hdev, "%s: invalid device index:%d\n",
+			hid_err(hdev, "%s: invalid receiver index:%d\n",
 				__func__, dj_report->device_index);
 		return false;
 	}
@@ -1983,7 +1983,6 @@ hid_hw_start_fail:
 	return retval;
 }
 
-#ifdef CONFIG_PM
 static int logi_dj_reset_resume(struct hid_device *hdev)
 {
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
@@ -1994,7 +1993,6 @@ static int logi_dj_reset_resume(struct hid_device *hdev)
 	logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
 	return 0;
 }
-#endif
 
 static void logi_dj_remove(struct hid_device *hdev)
 {
@@ -2150,9 +2148,7 @@ static struct hid_driver logi_djreceiver_driver = {
 	.probe = logi_dj_probe,
 	.remove = logi_dj_remove,
 	.raw_event = logi_dj_raw_event,
-#ifdef CONFIG_PM
-	.reset_resume = logi_dj_reset_resume,
-#endif
+	.reset_resume = pm_ptr(logi_dj_reset_resume),
 };
 
 module_hid_driver(logi_djreceiver_driver);

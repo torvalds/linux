@@ -718,7 +718,7 @@ static int devlink_param_register(struct devlink *devlink,
 	else
 		WARN_ON(!param->get || !param->set);
 
-	param_item = kzalloc(sizeof(*param_item), GFP_KERNEL);
+	param_item = kzalloc_obj(*param_item);
 	if (!param_item)
 		return -ENOMEM;
 

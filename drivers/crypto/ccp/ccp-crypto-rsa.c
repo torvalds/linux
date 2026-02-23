@@ -249,7 +249,7 @@ static int ccp_register_rsa_alg(struct list_head *head,
 	struct akcipher_alg *alg;
 	int ret;
 
-	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
+	ccp_alg = kzalloc_obj(*ccp_alg);
 	if (!ccp_alg)
 		return -ENOMEM;
 

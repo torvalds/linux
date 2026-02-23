@@ -376,7 +376,7 @@ int autofs_wait(struct autofs_sb_info *sbi,
 
 	if (!wq) {
 		/* Create a new wait queue */
-		wq = kmalloc(sizeof(struct autofs_wait_queue), GFP_KERNEL);
+		wq = kmalloc_obj(struct autofs_wait_queue);
 		if (!wq) {
 			kfree(name);
 			mutex_unlock(&sbi->wq_mutex);

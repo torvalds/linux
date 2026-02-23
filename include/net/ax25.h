@@ -116,10 +116,6 @@ enum {
 	AX25_PROTO_STD_DUPLEX,
 #ifdef CONFIG_AX25_DAMA_SLAVE
 	AX25_PROTO_DAMA_SLAVE,
-#ifdef CONFIG_AX25_DAMA_MASTER
-	AX25_PROTO_DAMA_MASTER,
-#define AX25_PROTO_MAX AX25_PROTO_DAMA_MASTER
-#endif
 #endif
 	__AX25_PROTO_MAX,
 	AX25_PROTO_MAX = __AX25_PROTO_MAX -1
@@ -138,7 +134,7 @@ enum {
 	AX25_VALUES_IDLE,	/* Connected mode idle timer */
 	AX25_VALUES_N2,		/* Default N2 value */
 	AX25_VALUES_PACLEN,	/* AX.25 MTU */
-	AX25_VALUES_PROTOCOL,	/* Std AX.25, DAMA Slave, DAMA Master */
+	AX25_VALUES_PROTOCOL,	/* Std AX.25, DAMA Slave */
 #ifdef CONFIG_AX25_DAMA_SLAVE
 	AX25_VALUES_DS_TIMEOUT,	/* DAMA Slave timeout */
 #endif
@@ -215,8 +211,6 @@ typedef struct {
 	unsigned short		slave_timeout;		/* when? */
 } ax25_dama_info;
 
-struct ctl_table;
-
 typedef struct ax25_dev {
 	struct list_head	list;
 
@@ -226,7 +220,7 @@ typedef struct ax25_dev {
 	struct net_device	*forward;
 	struct ctl_table_header *sysheader;
 	int			values[AX25_MAX_VALUES];
-#if defined(CONFIG_AX25_DAMA_SLAVE) || defined(CONFIG_AX25_DAMA_MASTER)
+#ifdef CONFIG_AX25_DAMA_SLAVE
 	ax25_dama_info		dama;
 #endif
 	refcount_t		refcount;

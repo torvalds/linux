@@ -101,7 +101,7 @@ static struct sync_timeline *sync_timeline_create(const char *name)
 {
 	struct sync_timeline *obj;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = kzalloc_obj(*obj);
 	if (!obj)
 		return NULL;
 
@@ -252,7 +252,7 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 {
 	struct sync_pt *pt;
 
-	pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+	pt = kzalloc_obj(*pt);
 	if (!pt)
 		return NULL;
 

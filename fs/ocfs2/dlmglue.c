@@ -3030,7 +3030,7 @@ struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void)
 {
 	struct ocfs2_dlm_debug *dlm_debug;
 
-	dlm_debug = kmalloc(sizeof(struct ocfs2_dlm_debug), GFP_KERNEL);
+	dlm_debug = kmalloc_obj(struct ocfs2_dlm_debug);
 	if (!dlm_debug) {
 		mlog_errno(-ENOMEM);
 		goto out;

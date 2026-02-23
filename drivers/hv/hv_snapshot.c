@@ -184,7 +184,7 @@ static void vss_send_op(void)
 		return;
 	}
 
-	vss_msg = kzalloc(sizeof(*vss_msg), GFP_KERNEL);
+	vss_msg = kzalloc_obj(*vss_msg);
 	if (!vss_msg)
 		return;
 
@@ -424,7 +424,7 @@ int hv_vss_pre_suspend(void)
 	 * write() will fail with EINVAL (see vss_on_msg()), and the daemon
 	 * will reset the device by closing and re-opening it.
 	 */
-	vss_msg = kzalloc(sizeof(*vss_msg), GFP_KERNEL);
+	vss_msg = kzalloc_obj(*vss_msg);
 	if (!vss_msg)
 		return -ENOMEM;
 

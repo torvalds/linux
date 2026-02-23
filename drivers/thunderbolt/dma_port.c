@@ -209,7 +209,7 @@ struct tb_dma_port *dma_port_alloc(struct tb_switch *sw)
 	if (port < 0)
 		return NULL;
 
-	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
+	dma = kzalloc_obj(*dma);
 	if (!dma)
 		return NULL;
 

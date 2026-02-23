@@ -57,7 +57,7 @@ static int rcar_du_wb_prepare_job(struct drm_writeback_connector *connector,
 	if (!job->fb)
 		return 0;
 
-	rjob = kzalloc(sizeof(*rjob), GFP_KERNEL);
+	rjob = kzalloc_obj(*rjob);
 	if (!rjob)
 		return -ENOMEM;
 
@@ -99,7 +99,7 @@ rcar_du_wb_conn_duplicate_state(struct drm_connector *connector)
 	if (WARN_ON(!connector->state))
 		return NULL;
 
-	copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+	copy = kzalloc_obj(*copy);
 	if (!copy)
 		return NULL;
 
@@ -124,7 +124,7 @@ static void rcar_du_wb_conn_reset(struct drm_connector *connector)
 		connector->state = NULL;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return;
 

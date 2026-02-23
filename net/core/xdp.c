@@ -214,7 +214,7 @@ static int __mem_id_init_hash_table(void)
 	if (unlikely(mem_id_init))
 		return 0;
 
-	rht = kzalloc(sizeof(*rht), GFP_KERNEL);
+	rht = kzalloc_obj(*rht);
 	if (!rht)
 		return -ENOMEM;
 
@@ -297,7 +297,7 @@ static struct xdp_mem_allocator *__xdp_reg_mem_model(struct xdp_mem_info *mem,
 			return ERR_PTR(ret);
 	}
 
-	xdp_alloc = kzalloc(sizeof(*xdp_alloc), gfp);
+	xdp_alloc = kzalloc_obj(*xdp_alloc, gfp);
 	if (!xdp_alloc)
 		return ERR_PTR(-ENOMEM);
 
@@ -964,7 +964,7 @@ __bpf_kfunc int bpf_xdp_metadata_rx_vlan_tag(const struct xdp_md *ctx,
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(xdp_metadata_kfunc_ids)
-#define XDP_METADATA_KFUNC(_, __, name, ___) BTF_ID_FLAGS(func, name, KF_TRUSTED_ARGS)
+#define XDP_METADATA_KFUNC(_, __, name, ___) BTF_ID_FLAGS(func, name)
 XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC
 BTF_KFUNCS_END(xdp_metadata_kfunc_ids)

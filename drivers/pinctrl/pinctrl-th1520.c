@@ -287,7 +287,7 @@ static const struct pinctrl_pin_desc th1520_group3_pins[] = {
 	TH1520_PAD(5,  QSPI0_D0_MOSI, QSPI, PWM,  I2S,  GPIO, ____, ____, 0),
 	TH1520_PAD(6,  QSPI0_D1_MISO, QSPI, PWM,  I2S,  GPIO, ____, ____, 0),
 	TH1520_PAD(7,  QSPI0_D2_WP,   QSPI, PWM,  I2S,  GPIO, ____, ____, 0),
-	TH1520_PAD(8,  QSPI1_D3_HOLD, QSPI, ____, I2S,  GPIO, ____, ____, 0),
+	TH1520_PAD(8,  QSPI0_D3_HOLD, QSPI, ____, I2S,  GPIO, ____, ____, 0),
 	TH1520_PAD(9,  I2C2_SCL,      I2C,  UART, ____, GPIO, ____, ____, 0),
 	TH1520_PAD(10, I2C2_SDA,      I2C,  UART, ____, GPIO, ____, ____, 0),
 	TH1520_PAD(11, I2C3_SCL,      I2C,  ____, ____, GPIO, ____, ____, 0),
@@ -447,7 +447,7 @@ static int th1520_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 			nmaps += npins;
 	}
 
-	map = kcalloc(nmaps, sizeof(*map), GFP_KERNEL);
+	map = kzalloc_objs(*map, nmaps);
 	if (!map)
 		return -ENOMEM;
 

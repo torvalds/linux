@@ -1428,7 +1428,7 @@ static struct logical_input *panel_bind_key(const char *name, const char *press,
 {
 	struct logical_input *key;
 
-	key = kzalloc(sizeof(*key), GFP_KERNEL);
+	key = kzalloc_obj(*key);
 	if (!key)
 		return NULL;
 

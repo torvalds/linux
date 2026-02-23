@@ -257,14 +257,12 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	mutex_init(&dev->port_mutex);
 	spin_lock_init(&dev->desc_lock);
 
-	dev->cq_tbl = kcalloc(dev->dsr->caps.max_cq, sizeof(struct pvrdma_cq *),
-			      GFP_KERNEL);
+	dev->cq_tbl = kzalloc_objs(struct pvrdma_cq *, dev->dsr->caps.max_cq);
 	if (!dev->cq_tbl)
 		return ret;
 	spin_lock_init(&dev->cq_tbl_lock);
 
-	dev->qp_tbl = kcalloc(dev->dsr->caps.max_qp, sizeof(struct pvrdma_qp *),
-			      GFP_KERNEL);
+	dev->qp_tbl = kzalloc_objs(struct pvrdma_qp *, dev->dsr->caps.max_qp);
 	if (!dev->qp_tbl)
 		goto err_cq_free;
 	spin_lock_init(&dev->qp_tbl_lock);
@@ -273,9 +271,8 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	if (dev->dsr->caps.max_srq) {
 		ib_set_device_ops(&dev->ib_dev, &pvrdma_dev_srq_ops);
 
-		dev->srq_tbl = kcalloc(dev->dsr->caps.max_srq,
-				       sizeof(struct pvrdma_srq *),
-				       GFP_KERNEL);
+		dev->srq_tbl = kzalloc_objs(struct pvrdma_srq *,
+					    dev->dsr->caps.max_srq);
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}
@@ -752,7 +749,7 @@ static int pvrdma_netdevice_event(struct notifier_block *this,
 	struct net_device *event_netdev = netdev_notifier_info_to_dev(ptr);
 	struct pvrdma_netdevice_work *netdev_work;
 
-	netdev_work = kmalloc(sizeof(*netdev_work), GFP_ATOMIC);
+	netdev_work = kmalloc_obj(*netdev_work, GFP_ATOMIC);
 	if (!netdev_work)
 		return NOTIFY_BAD;
 
@@ -985,8 +982,7 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Allocate GID table */
-	dev->sgid_tbl = kcalloc(dev->dsr->caps.gid_tbl_len,
-				sizeof(union ib_gid), GFP_KERNEL);
+	dev->sgid_tbl = kzalloc_objs(union ib_gid, dev->dsr->caps.gid_tbl_len);
 	if (!dev->sgid_tbl) {
 		ret = -ENOMEM;
 		goto err_free_uar_table;

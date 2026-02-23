@@ -23,7 +23,7 @@
 
 static void *zlib_init(struct squashfs_sb_info *dummy, void *buff)
 {
-	z_stream *stream = kmalloc(sizeof(z_stream), GFP_KERNEL);
+	z_stream *stream = kmalloc_obj(z_stream);
 	if (stream == NULL)
 		goto failed;
 	stream->workspace = vmalloc(zlib_inflate_workspacesize());

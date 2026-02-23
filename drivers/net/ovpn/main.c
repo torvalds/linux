@@ -57,7 +57,7 @@ static int ovpn_mp_alloc(struct ovpn_priv *ovpn)
 	/* the peer container is fairly large, therefore we allocate it only in
 	 * MP mode
 	 */
-	ovpn->peers = kzalloc(sizeof(*ovpn->peers), GFP_KERNEL);
+	ovpn->peers = kzalloc_obj(*ovpn->peers);
 	if (!ovpn->peers)
 		return -ENOMEM;
 

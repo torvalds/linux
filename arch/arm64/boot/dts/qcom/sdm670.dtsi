@@ -634,7 +634,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			gpu_speed_bin: gpu_speed_bin@1a2 {
+			gpu_speed_bin: gpu-speed-bin@1a2 {
 				reg = <0x1a2 0x2>;
 				bits = <5 8>;
 			};

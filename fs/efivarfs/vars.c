@@ -9,6 +9,7 @@
 #include <linux/capability.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -552,7 +553,7 @@ int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
 	err = __efivar_entry_get(entry, attributes, size, data);
 	efivar_unlock();
 
-	return 0;
+	return err;
 }
 
 /**

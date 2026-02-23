@@ -779,11 +779,11 @@ static int fsl_otg_conf(struct platform_device *pdev)
 		return 0;
 
 	/* allocate space to fsl otg device */
-	fsl_otg_tc = kzalloc(sizeof(struct fsl_otg), GFP_KERNEL);
+	fsl_otg_tc = kzalloc_obj(struct fsl_otg);
 	if (!fsl_otg_tc)
 		return -ENOMEM;
 
-	fsl_otg_tc->phy.otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
+	fsl_otg_tc->phy.otg = kzalloc_obj(struct usb_otg);
 	if (!fsl_otg_tc->phy.otg) {
 		kfree(fsl_otg_tc);
 		return -ENOMEM;

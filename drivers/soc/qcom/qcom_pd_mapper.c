@@ -77,7 +77,7 @@ static int qcom_pdm_add_service_domain(struct qcom_pdm_data *data,
 				return -EBUSY;
 		}
 	} else {
-		service = kzalloc(sizeof(*service), GFP_KERNEL);
+		service = kzalloc_obj(*service);
 		if (!service)
 			return -ENOMEM;
 
@@ -87,7 +87,7 @@ static int qcom_pdm_add_service_domain(struct qcom_pdm_data *data,
 		list_add_tail(&service->list, &data->services);
 	}
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain) {
 		if (list_empty(&service->domains)) {
 			list_del(&service->list);
@@ -158,7 +158,7 @@ static void qcom_pdm_get_domain_list(struct qmi_handle *qmi,
 	u32 offset;
 	int ret;
 
-	rsp = kzalloc(sizeof(*rsp), GFP_KERNEL);
+	rsp = kzalloc_obj(*rsp);
 	if (!rsp)
 		return;
 
@@ -635,7 +635,7 @@ static struct qcom_pdm_data *qcom_pdm_start(void)
 		return ERR_PTR(-ENODEV);
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 

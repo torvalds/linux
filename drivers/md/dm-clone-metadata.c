@@ -553,7 +553,7 @@ struct dm_clone_metadata *dm_clone_metadata_open(struct block_device *bdev,
 	int r;
 	struct dm_clone_metadata *cmd;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd) {
 		DMERR("Failed to allocate memory for dm-clone metadata");
 		return ERR_PTR(-ENOMEM);

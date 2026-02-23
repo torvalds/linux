@@ -195,15 +195,6 @@ struct mali_c55_stats_buffer {
 } __attribute__((packed));
 
 /**
- * enum mali_c55_param_buffer_version - Mali-C55 parameters block versioning
- *
- * @MALI_C55_PARAM_BUFFER_V1: First version of Mali-C55 parameters block
- */
-enum mali_c55_param_buffer_version {
-	MALI_C55_PARAM_BUFFER_V1,
-};
-
-/**
  * enum mali_c55_param_block_type - Enumeration of Mali-C55 parameter blocks
  *
  * This enumeration defines the types of Mali-C55 parameters block. Each block

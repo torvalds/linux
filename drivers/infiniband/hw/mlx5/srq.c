@@ -358,7 +358,7 @@ int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	int ret;
 	struct mlx5_srq_attr *out;
 
-	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	out = kzalloc_obj(*out);
 	if (!out)
 		return -ENOMEM;
 

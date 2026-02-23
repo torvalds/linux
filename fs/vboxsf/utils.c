@@ -478,7 +478,7 @@ static struct vboxsf_dir_buf *vboxsf_dir_buf_alloc(struct list_head *list)
 {
 	struct vboxsf_dir_buf *b;
 
-	b = kmalloc(sizeof(*b), GFP_KERNEL);
+	b = kmalloc_obj(*b);
 	if (!b)
 		return NULL;
 
@@ -507,7 +507,7 @@ struct vboxsf_dir_info *vboxsf_dir_info_alloc(void)
 {
 	struct vboxsf_dir_info *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kmalloc_obj(*p);
 	if (!p)
 		return NULL;
 

@@ -21,6 +21,7 @@
 #include <linux/can/vxcan.h>
 #include <linux/can/can-ml.h>
 #include <linux/slab.h>
+#include <net/can.h>
 #include <net/rtnetlink.h>
 
 #define DRV_NAME "vxcan"
@@ -39,6 +40,7 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 	struct vxcan_priv *priv = netdev_priv(dev);
 	struct net_device *peer;
 	struct net_device_stats *peerstats, *srcstats = &dev->stats;
+	struct can_skb_ext *csx;
 	struct sk_buff *skb;
 	unsigned int len;
 
@@ -63,8 +65,19 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 		goto out_unlock;
 	}
 
+	/* the cloned skb points to the skb extension of the already cloned
+	 * oskb with an increased refcount. skb_ext_add() creates a copy to
+	 * separate the skb extension data which is needed to start with a
+	 * fresh can_gw_hops counter in the other namespace.
+	 */
+	csx = skb_ext_add(skb, SKB_EXT_CAN);
+	if (!csx) {
+		kfree_skb(skb);
+		goto out_unlock;
+	}
+
 	/* reset CAN GW hop counter */
-	skb->csum_start = 0;
+	csx->can_gw_hops = 0;
 	skb->pkt_type   = PACKET_BROADCAST;
 	skb->dev        = peer;
 	skb->ip_summed  = CHECKSUM_UNNECESSARY;
@@ -125,6 +138,19 @@ static int vxcan_get_iflink(const struct net_device *dev)
 	return iflink;
 }
 
+static void vxcan_set_cap_info(struct net_device *dev)
+{
+	u32 can_cap = CAN_CAP_CC;
+
+	if (dev->mtu > CAN_MTU)
+		can_cap |= CAN_CAP_FD;
+
+	if (dev->mtu >= CANXL_MIN_MTU)
+		can_cap |= CAN_CAP_XL;
+
+	can_set_cap(dev, can_cap);
+}
+
 static int vxcan_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* Do not allow changing the MTU while running */
@@ -136,6 +162,7 @@ static int vxcan_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 
 	WRITE_ONCE(dev->mtu, new_mtu);
+	vxcan_set_cap_info(dev);
 	return 0;
 }
 
@@ -167,6 +194,7 @@ static void vxcan_setup(struct net_device *dev)
 
 	can_ml = netdev_priv(dev) + ALIGN(sizeof(struct vxcan_priv), NETDEV_ALIGN);
 	can_set_ml_priv(dev, can_ml);
+	vxcan_set_cap_info(dev);
 }
 
 /* forward declaration for rtnl_create_link() */

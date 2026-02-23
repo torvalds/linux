@@ -1086,8 +1086,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 
 	/* actual number of filters available to exact LMAC */
 	lmac->dmacs_count = (RX_DMAC_COUNT / bgx->lmac_count);
-	lmac->dmacs = kcalloc(lmac->dmacs_count, sizeof(*lmac->dmacs),
-			      GFP_KERNEL);
+	lmac->dmacs = kzalloc_objs(*lmac->dmacs, lmac->dmacs_count);
 	if (!lmac->dmacs)
 		return -ENOMEM;
 

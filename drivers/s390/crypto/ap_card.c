@@ -43,7 +43,7 @@ static ssize_t depth_show(struct device *dev, struct device_attribute *attr,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return sysfs_emit(buf, "%d\n", ac->hwinfo.qd);
+	return sysfs_emit(buf, "%d\n", ac->hwinfo.qd + 1);
 }
 
 static DEVICE_ATTR_RO(depth);
@@ -233,7 +233,7 @@ struct ap_card *ap_card_create(int id, struct ap_tapq_hwinfo hwinfo,
 {
 	struct ap_card *ac;
 
-	ac = kzalloc(sizeof(*ac), GFP_KERNEL);
+	ac = kzalloc_obj(*ac);
 	if (!ac)
 		return NULL;
 	ac->ap_dev.device.release = ap_card_device_release;

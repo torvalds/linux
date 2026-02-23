@@ -1874,8 +1874,7 @@ static void dac_encoder_control_prepare_params(
 	uint8_t dac_standard)
 {
 	params->ucDacStandard = dac_standard;
-	if (action == ENCODER_CONTROL_SETUP ||
-	    action == ENCODER_CONTROL_INIT)
+	if (action == ENCODER_CONTROL_INIT)
 		params->ucAction = ATOM_ENCODER_INIT;
 	else if (action == ENCODER_CONTROL_ENABLE)
 		params->ucAction = ATOM_ENABLE;

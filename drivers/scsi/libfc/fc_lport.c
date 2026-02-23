@@ -2049,7 +2049,7 @@ static int fc_lport_els_request(struct bsg_job *job,
 	fh->fh_df_ctl = 0;
 	fh->fh_parm_offset = 0;
 
-	info = kzalloc(sizeof(struct fc_bsg_info), GFP_KERNEL);
+	info = kzalloc_obj(struct fc_bsg_info);
 	if (!info) {
 		fc_frame_free(fp);
 		return -ENOMEM;
@@ -2109,7 +2109,7 @@ static int fc_lport_ct_request(struct bsg_job *job,
 	fh->fh_df_ctl = 0;
 	fh->fh_parm_offset = 0;
 
-	info = kzalloc(sizeof(struct fc_bsg_info), GFP_KERNEL);
+	info = kzalloc_obj(struct fc_bsg_info);
 	if (!info) {
 		fc_frame_free(fp);
 		return -ENOMEM;

@@ -41,6 +41,7 @@ properties:
               - starfive,visionfive-2-lite
               - starfive,visionfive-2-lite-emmc
           - const: starfive,jh7110s
+          - const: starfive,jh7110
 
 additionalProperties: true
 

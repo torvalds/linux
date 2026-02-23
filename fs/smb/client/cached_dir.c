@@ -154,7 +154,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct cached_fid *cfid;
 	struct cached_fids *cfids;
 	const char *npath;
-	int retries = 0, cur_sleep = 1;
+	int retries = 0, cur_sleep = 0;
 	__le32 lease_flags = 0;
 
 	if (cifs_sb->root == NULL)
@@ -304,6 +304,10 @@ replay_again:
 	smb2_set_related(&rqst[1]);
 
 	if (retries) {
+		/* Back-off before retry */
+		if (cur_sleep)
+			msleep(cur_sleep);
+
 		smb2_set_replay(server, &rqst[0]);
 		smb2_set_replay(server, &rqst[1]);
 	}
@@ -552,7 +556,7 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 			continue;
 		spin_lock(&cfids->cfid_list_lock);
 		list_for_each_entry(cfid, &cfids->entries, entry) {
-			tmp_list = kmalloc(sizeof(*tmp_list), GFP_ATOMIC);
+			tmp_list = kmalloc_obj(*tmp_list, GFP_ATOMIC);
 			if (tmp_list == NULL) {
 				/*
 				 * If the malloc() fails, we won't drop all
@@ -694,7 +698,7 @@ static struct cached_fid *init_cached_dir(const char *path)
 {
 	struct cached_fid *cfid;
 
-	cfid = kzalloc(sizeof(*cfid), GFP_ATOMIC);
+	cfid = kzalloc_obj(*cfid, GFP_ATOMIC);
 	if (!cfid)
 		return NULL;
 	cfid->path = kstrdup(path, GFP_ATOMIC);
@@ -788,11 +792,11 @@ static void cfids_laundromat_worker(struct work_struct *work)
 		cfid->dentry = NULL;
 
 		if (cfid->is_open) {
-			spin_lock(&cifs_tcp_ses_lock);
+			spin_lock(&cfid->tcon->tc_lock);
 			++cfid->tcon->tc_count;
 			trace_smb3_tcon_ref(cfid->tcon->debug_id, cfid->tcon->tc_count,
 					    netfs_trace_tcon_ref_get_cached_laundromat);
-			spin_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&cfid->tcon->tc_lock);
 			queue_work(serverclose_wq, &cfid->close_work);
 		} else
 			/*
@@ -809,7 +813,7 @@ struct cached_fids *init_cached_dirs(void)
 {
 	struct cached_fids *cfids;
 
-	cfids = kzalloc(sizeof(*cfids), GFP_KERNEL);
+	cfids = kzalloc_obj(*cfids);
 	if (!cfids)
 		return NULL;
 	spin_lock_init(&cfids->cfid_list_lock);

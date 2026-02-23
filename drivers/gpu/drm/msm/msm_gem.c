@@ -375,34 +375,6 @@ out:
 	return ret;
 }
 
-/** get mmap offset */
-static uint64_t mmap_offset(struct drm_gem_object *obj)
-{
-	struct drm_device *dev = obj->dev;
-	int ret;
-
-	msm_gem_assert_locked(obj);
-
-	/* Make it mmapable */
-	ret = drm_gem_create_mmap_offset(obj);
-
-	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not allocate mmap offset\n");
-		return 0;
-	}
-
-	return drm_vma_node_offset_addr(&obj->vma_node);
-}
-
-uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
-{
-	uint64_t offset;
-
-	msm_gem_lock(obj);
-	offset = mmap_offset(obj);
-	msm_gem_unlock(obj);
-	return offset;
-}
 
 static struct drm_gpuva *lookup_vma(struct drm_gem_object *obj,
 				    struct drm_gpuvm *vm)
@@ -728,27 +700,6 @@ int msm_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 	return msm_gem_new_handle(dev, file, args->size,
 			MSM_BO_SCANOUT | MSM_BO_WC, &args->handle, "dumb");
-}
-
-int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-		uint32_t handle, uint64_t *offset)
-{
-	struct drm_gem_object *obj;
-	int ret = 0;
-
-	/* GEM does all our handle to object mapping */
-	obj = drm_gem_object_lookup(file, handle);
-	if (obj == NULL) {
-		ret = -ENOENT;
-		goto fail;
-	}
-
-	*offset = msm_gem_mmap_offset(obj);
-
-	drm_gem_object_put(obj);
-
-fail:
-	return ret;
 }
 
 static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
@@ -1264,7 +1215,7 @@ static int msm_gem_new_impl(struct drm_device *dev, uint32_t flags,
 		return -EINVAL;
 	}
 
-	msm_obj = kzalloc(sizeof(*msm_obj), GFP_KERNEL);
+	msm_obj = kzalloc_obj(*msm_obj);
 	if (!msm_obj)
 		return -ENOMEM;
 
@@ -1350,7 +1301,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	msm_obj = to_msm_bo(obj);
 	msm_gem_lock(obj);
 	msm_obj->sgt = sgt;
-	msm_obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	msm_obj->pages = kvmalloc_objs(struct page *, npages);
 	if (!msm_obj->pages) {
 		msm_gem_unlock(obj);
 		ret = -ENOMEM;

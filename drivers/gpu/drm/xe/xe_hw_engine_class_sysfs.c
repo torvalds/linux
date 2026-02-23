@@ -7,7 +7,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_pm.h"
@@ -43,16 +43,14 @@ static ssize_t xe_hw_engine_class_sysfs_attr_show(struct kobject *kobj,
 {
 	struct xe_device *xe = kobj_to_xe(kobj);
 	struct kobj_attribute *kattr;
-	ssize_t ret = -EIO;
 
 	kattr = container_of(attr, struct kobj_attribute, attr);
 	if (kattr->show) {
-		xe_pm_runtime_get(xe);
-		ret = kattr->show(kobj, kattr, buf);
-		xe_pm_runtime_put(xe);
+		guard(xe_pm_runtime)(xe);
+		return kattr->show(kobj, kattr, buf);
 	}
 
-	return ret;
+	return -EIO;
 }
 
 static ssize_t xe_hw_engine_class_sysfs_attr_store(struct kobject *kobj,
@@ -62,16 +60,14 @@ static ssize_t xe_hw_engine_class_sysfs_attr_store(struct kobject *kobj,
 {
 	struct xe_device *xe = kobj_to_xe(kobj);
 	struct kobj_attribute *kattr;
-	ssize_t ret = -EIO;
 
 	kattr = container_of(attr, struct kobj_attribute, attr);
 	if (kattr->store) {
-		xe_pm_runtime_get(xe);
-		ret = kattr->store(kobj, kattr, buf, count);
-		xe_pm_runtime_put(xe);
+		guard(xe_pm_runtime)(xe);
+		return kattr->store(kobj, kattr, buf, count);
 	}
 
-	return ret;
+	return -EIO;
 }
 
 static const struct sysfs_ops xe_hw_engine_class_sysfs_ops = {
@@ -553,7 +549,7 @@ kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char
 	struct kobj_eclass *keclass;
 	int err = 0;
 
-	keclass = kzalloc(sizeof(*keclass), GFP_KERNEL);
+	keclass = kzalloc_obj(*keclass);
 	if (!keclass)
 		return NULL;
 
@@ -586,7 +582,7 @@ static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
 	struct kobject *kobj;
 	int err = 0;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return -ENOMEM;
 
@@ -633,7 +629,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 	u16 class_mask = 0;
 	int err = 0;
 
-	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	kobj = kzalloc_obj(*kobj);
 	if (!kobj)
 		return -ENOMEM;
 

@@ -19,6 +19,7 @@
 #include <linux/completion.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -1493,7 +1494,7 @@ static int extron_setup(struct extron *extron)
 
 		if (vendor_id)
 			caps &= ~CEC_CAP_LOG_ADDRS;
-		port = kzalloc(sizeof(*port), GFP_KERNEL);
+		port = kzalloc_obj(*port);
 		if (!port)
 			return -ENOMEM;
 
@@ -1768,7 +1769,7 @@ static int extron_connect(struct serio *serio, struct serio_driver *drv)
 		manufacturer_name[0] = 0;
 	}
 
-	extron = kzalloc(sizeof(*extron), GFP_KERNEL);
+	extron = kzalloc_obj(*extron);
 
 	if (!extron)
 		return -ENOMEM;

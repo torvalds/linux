@@ -323,7 +323,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 struct drm_atomic_state *
 intel_atomic_state_alloc(struct drm_device *dev)
 {
-	struct intel_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct intel_atomic_state *state = kzalloc_obj(*state);
 
 	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
 		kfree(state);

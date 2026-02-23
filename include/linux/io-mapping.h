@@ -206,7 +206,7 @@ io_mapping_create_wc(resource_size_t base,
 {
 	struct io_mapping *iomap;
 
-	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
+	iomap = kmalloc_obj(*iomap);
 	if (!iomap)
 		return NULL;
 

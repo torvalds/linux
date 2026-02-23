@@ -188,7 +188,7 @@ static int __init gfs_init(void)
 	/*
 	 * Allocate in one chunk for easier maintenance
 	 */
-	f_ffs[0] = kcalloc(func_num * N_CONF, sizeof(*f_ffs[0]), GFP_KERNEL);
+	f_ffs[0] = kzalloc_objs(*f_ffs[0], func_num * N_CONF);
 	if (!f_ffs[0]) {
 		ret = -ENOMEM;
 		goto no_func;
@@ -196,7 +196,7 @@ static int __init gfs_init(void)
 	for (i = 1; i < N_CONF; ++i)
 		f_ffs[i] = f_ffs[0] + i * func_num;
 
-	fi_ffs = kcalloc(func_num, sizeof(*fi_ffs), GFP_KERNEL);
+	fi_ffs = kzalloc_objs(*fi_ffs, func_num);
 	if (!fi_ffs) {
 		ret = -ENOMEM;
 		goto no_func;

@@ -33,26 +33,26 @@
  *    Zhi Wang <zhi.a.wang@intel.com>
  */
 
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/kthread.h>
-#include <linux/sched/mm.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/rbtree.h>
-#include <linux/spinlock.h>
-#include <linux/eventfd.h>
-#include <linux/mdev.h>
 #include <linux/debugfs.h>
-
+#include <linux/eventfd.h>
+#include <linux/init.h>
+#include <linux/kthread.h>
+#include <linux/list.h>
+#include <linux/mdev.h>
+#include <linux/mm.h>
 #include <linux/nospec.h>
+#include <linux/rbtree.h>
+#include <linux/sched/mm.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 
+#include "gvt.h"
 #include "i915_drv.h"
 #include "intel_gvt.h"
-#include "gvt.h"
+#include "sched_policy.h"
 
 MODULE_IMPORT_NS("DMA_BUF");
 MODULE_IMPORT_NS("I915_GVT");
@@ -250,7 +250,7 @@ static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	struct gvt_dma *new, *itr;
 	struct rb_node **link, *parent = NULL;
 
-	new = kzalloc(sizeof(struct gvt_dma), GFP_KERNEL);
+	new = kzalloc_obj(struct gvt_dma);
 	if (!new)
 		return -ENOMEM;
 
@@ -378,7 +378,7 @@ static void kvmgt_protect_table_add(struct intel_vgpu *info, gfn_t gfn)
 	if (kvmgt_gfn_is_write_protected(info, gfn))
 		return;
 
-	p = kzalloc(sizeof(struct kvmgt_pgfn), GFP_ATOMIC);
+	p = kzalloc_obj(struct kvmgt_pgfn, GFP_ATOMIC);
 	if (WARN(!p, "gfn: 0x%llx\n", gfn))
 		return;
 
@@ -595,7 +595,7 @@ int intel_gvt_set_edid(struct intel_vgpu *vgpu, int port_num)
 	struct vfio_edid_region *base;
 	int ret;
 
-	base = kzalloc(sizeof(*base), GFP_KERNEL);
+	base = kzalloc_obj(*base);
 	if (!base)
 		return -ENOMEM;
 
@@ -1183,8 +1183,7 @@ static int intel_vgpu_ioctl_get_region_info(struct vfio_device *vfio_dev,
 			      VFIO_REGION_INFO_FLAG_WRITE;
 		info->size = gvt_aperture_sz(vgpu->gvt);
 
-		sparse = kzalloc(struct_size(sparse, areas, nr_areas),
-				 GFP_KERNEL);
+		sparse = kzalloc_flex(*sparse, areas, nr_areas);
 		if (!sparse)
 			return -ENOMEM;
 
@@ -1830,7 +1829,7 @@ static int intel_gvt_init_device(struct drm_i915_private *i915)
 	if (drm_WARN_ON(&i915->drm, i915->gvt))
 		return -EEXIST;
 
-	gvt = kzalloc(sizeof(struct intel_gvt), GFP_KERNEL);
+	gvt = kzalloc_obj(struct intel_gvt);
 	if (!gvt)
 		return -ENOMEM;
 

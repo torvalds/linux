@@ -61,7 +61,7 @@ static const struct pci_device_id be_dev_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
 
-/* Workqueue used by all functions for defering cmd calls to the adapter */
+/* Workqueue used by all functions for deferring cmd calls to the adapter */
 static struct workqueue_struct *be_wq;
 
 /* UE Status Low CSR */
@@ -1129,7 +1129,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	struct iphdr *ip;
 
 	/* For padded packets, BE HW modifies tot_len field in IP header
-	 * incorrecly when VLAN tag is inserted by HW.
+	 * incorrectly when VLAN tag is inserted by HW.
 	 * For padded packets, Lancer computes incorrect checksum.
 	 */
 	eth_hdr_len = ntohs(skb->protocol) == ETH_P_8021Q ?
@@ -2141,7 +2141,7 @@ static int be_get_new_eqd(struct be_eq_obj *eqo)
 	struct be_aic_obj *aic;
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
-	u64 rx_pkts = 0, tx_pkts = 0;
+	u64 rx_pkts = 0, tx_pkts = 0, pkts;
 	ulong now;
 	u32 pps, delta;
 	int i;
@@ -2157,15 +2157,17 @@ static int be_get_new_eqd(struct be_eq_obj *eqo)
 	for_all_rx_queues_on_eq(adapter, eqo, rxo, i) {
 		do {
 			start = u64_stats_fetch_begin(&rxo->stats.sync);
-			rx_pkts += rxo->stats.rx_pkts;
+			pkts = rxo->stats.rx_pkts;
 		} while (u64_stats_fetch_retry(&rxo->stats.sync, start));
+		rx_pkts += pkts;
 	}
 
 	for_all_tx_queues_on_eq(adapter, eqo, txo, i) {
 		do {
 			start = u64_stats_fetch_begin(&txo->stats.sync);
-			tx_pkts += txo->stats.tx_reqs;
+			pkts = txo->stats.tx_reqs;
 		} while (u64_stats_fetch_retry(&txo->stats.sync, start));
+		tx_pkts += pkts;
 	}
 
 	/* Skip, if wrapped around or first calculation */
@@ -2568,7 +2570,7 @@ static struct be_rx_compl_info *be_rx_compl_get(struct be_rx_obj *rxo)
 			rxcp->vlanf = 0;
 	}
 
-	/* As the compl has been parsed, reset it; we wont touch it again */
+	/* As the compl has been parsed, reset it; we won't touch it again */
 	compl->dw[offsetof(struct amap_eth_rx_compl_v1, valid) / 32] = 0;
 
 	queue_tail_inc(&rxo->cq);
@@ -2727,7 +2729,7 @@ static struct be_tx_compl_info *be_tx_compl_get(struct be_adapter *adapter,
 	if (txcp->status) {
 		if (lancer_chip(adapter)) {
 			lancer_update_tx_err(txo, txcp->status);
-			/* Reset the adapter incase of TSO,
+			/* Reset the adapter in case of TSO,
 			 * SGE or Parity error
 			 */
 			if (txcp->status == LANCER_TX_COMP_LSO_ERR ||
@@ -3125,7 +3127,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 	adapter->num_rss_qs =
 			min(adapter->num_evt_qs, adapter->cfg_num_rx_irqs);
 
-	/* We'll use RSS only if atleast 2 RSS rings are supported. */
+	/* We'll use RSS only if at least 2 RSS rings are supported. */
 	if (adapter->num_rss_qs < 2)
 		adapter->num_rss_qs = 0;
 
@@ -3167,7 +3169,7 @@ static irqreturn_t be_intx(int irq, void *dev)
 	/* IRQ is not expected when NAPI is scheduled as the EQ
 	 * will not be armed.
 	 * But, this can happen on Lancer INTx where it takes
-	 * a while to de-assert INTx or in BE2 where occasionaly
+	 * a while to de-assert INTx or in BE2 where occasionally
 	 * an interrupt may be raised even when EQ is unarmed.
 	 * If NAPI is already scheduled, then counting & notifying
 	 * events will orphan them.
@@ -4205,8 +4207,7 @@ static int be_vf_setup_init(struct be_adapter *adapter)
 	struct be_vf_cfg *vf_cfg;
 	int vf;
 
-	adapter->vf_cfg = kcalloc(adapter->num_vfs, sizeof(*vf_cfg),
-				  GFP_KERNEL);
+	adapter->vf_cfg = kzalloc_objs(*vf_cfg, adapter->num_vfs);
 	if (!adapter->vf_cfg)
 		return -ENOMEM;
 
@@ -4415,7 +4416,7 @@ static void be_setup_init(struct be_adapter *adapter)
 /* HW supports only MAX_PORT_RSS_TABLES RSS Policy Tables per port.
  * However, this HW limitation is not exposed to the host via any SLI cmd.
  * As a result, in the case of SRIOV and in particular multi-partition configs
- * the driver needs to calcuate a proportional share of RSS Tables per PF-pool
+ * the driver needs to calculate a proportional share of RSS Tables per PF-pool
  * for distribution between the VFs. This self-imposed limit will determine the
  * no: of VFs for which RSS can be enabled.
  */
@@ -4519,7 +4520,7 @@ static int be_get_resources(struct be_adapter *adapter)
 		if (status)
 			return status;
 
-		/* If a deafault RXQ must be created, we'll use up one RSSQ*/
+		/* If a default RXQ must be created, we'll use up one RSSQ*/
 		if (res.max_rss_qs && res.max_rss_qs == res.max_rx_qs &&
 		    !(res.if_cap_flags & BE_IF_FLAGS_DEFQ_RSS))
 			res.max_rss_qs -= 1;
@@ -4684,13 +4685,11 @@ static int be_if_create(struct be_adapter *adapter)
 	if (!adapter->pmac_id)
 		return -ENOMEM;
 
-	adapter->mc_list = kcalloc(be_max_mc(adapter),
-				   sizeof(*adapter->mc_list), GFP_KERNEL);
+	adapter->mc_list = kzalloc_objs(*adapter->mc_list, be_max_mc(adapter));
 	if (!adapter->mc_list)
 		return -ENOMEM;
 
-	adapter->uc_list = kcalloc(be_max_uc(adapter),
-				   sizeof(*adapter->uc_list), GFP_KERNEL);
+	adapter->uc_list = kzalloc_objs(*adapter->uc_list, be_max_uc(adapter));
 	if (!adapter->uc_list)
 		return -ENOMEM;
 
@@ -5046,7 +5045,7 @@ static struct be_cmd_work *be_alloc_work(struct be_adapter *adapter,
 {
 	struct be_cmd_work *work;
 
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
+	work = kzalloc_obj(*work, GFP_ATOMIC);
 	if (!work) {
 		dev_err(&adapter->pdev->dev,
 			"be_work memory allocation failed\n");

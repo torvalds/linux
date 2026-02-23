@@ -3,7 +3,7 @@
  * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -816,8 +816,8 @@ xchk_agfl(
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 		goto out;
 	}
-	sai.entries = kvcalloc(sai.agflcount, sizeof(xfs_agblock_t),
-			       XCHK_GFP_FLAGS);
+	sai.entries = kvzalloc_objs(xfs_agblock_t, sai.agflcount,
+				    XCHK_GFP_FLAGS);
 	if (!sai.entries) {
 		error = -ENOMEM;
 		goto out;

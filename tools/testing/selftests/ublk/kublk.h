@@ -78,6 +78,13 @@ struct dev_ctx {
 	unsigned int	auto_zc_fallback:1;
 	unsigned int	per_io_tasks:1;
 	unsigned int	no_ublk_fixed_fd:1;
+	unsigned int	safe_stop:1;
+	unsigned int	no_auto_part_scan:1;
+	__u32 integrity_flags;
+	__u8 metadata_size;
+	__u8 pi_offset;
+	__u8 csum_type;
+	__u8 tag_size;
 
 	int _evtfd;
 	int _shmid;
@@ -107,6 +114,7 @@ struct ublk_ctrl_cmd_data {
 
 struct ublk_io {
 	char *buf_addr;
+	void *integrity_buf;
 
 #define UBLKS_IO_NEED_FETCH_RQ		(1UL << 0)
 #define UBLKS_IO_NEED_COMMIT_RQ_COMP	(1UL << 1)
@@ -143,7 +151,8 @@ struct ublk_tgt_ops {
 	void (*usage)(const struct ublk_tgt_ops *ops);
 
 	/* return buffer index for UBLK_F_AUTO_BUF_REG */
-	unsigned short (*buf_index)(const struct ublk_queue *, int tag);
+	unsigned short (*buf_index)(const struct ublk_thread *t,
+			const struct ublk_queue *, int tag);
 };
 
 struct ublk_tgt {
@@ -165,23 +174,76 @@ struct ublk_queue {
 	const struct ublk_tgt_ops *tgt_ops;
 	struct ublksrv_io_desc *io_cmd_buf;
 
-/* borrow one bit of ublk uapi flags, which may never be used */
+/* borrow three bit of ublk uapi flags, which may never be used */
 #define UBLKS_Q_AUTO_BUF_REG_FALLBACK	(1ULL << 63)
 #define UBLKS_Q_NO_UBLK_FIXED_FD	(1ULL << 62)
+#define UBLKS_Q_PREPARED	(1ULL << 61)
 	__u64 flags;
 	int ublk_fd;	/* cached ublk char device fd */
+	__u8 metadata_size;
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
+
+	/* used for prep io commands */
+	pthread_spinlock_t lock;
+};
+
+/* align with `ublk_elem_header` */
+struct ublk_batch_elem {
+	__u16 tag;
+	__u16 buf_index;
+	__s32 result;
+	__u64 buf_addr;
+};
+
+struct batch_commit_buf {
+	unsigned short q_id;
+	unsigned short buf_idx;
+	void *elem;
+	unsigned short done;
+	unsigned short count;
+};
+
+struct batch_fetch_buf {
+	struct io_uring_buf_ring *br;
+	void *fetch_buf;
+	unsigned int fetch_buf_size;
+	unsigned int fetch_buf_off;
 };
 
 struct ublk_thread {
+	/* Thread-local copy of queue-to-thread mapping for this thread */
+	unsigned char q_map[UBLK_MAX_QUEUES];
+
 	struct ublk_dev *dev;
-	unsigned idx;
+	unsigned short idx;
+	unsigned short nr_queues;
 
 #define UBLKS_T_STOPPING	(1U << 0)
 #define UBLKS_T_IDLE	(1U << 1)
+#define UBLKS_T_BATCH_IO	(1U << 31) 	/* readonly */
 	unsigned state;
 	unsigned int cmd_inflight;
 	unsigned int io_inflight;
+
+	unsigned short nr_bufs;
+
+       /* followings are for BATCH_IO */
+	unsigned short commit_buf_start;
+	unsigned char  commit_buf_elem_size;
+       /*
+        * We just support single device, so pre-calculate commit/prep flags
+        */
+	unsigned short cmd_flags;
+	unsigned int   nr_commit_buf;
+	unsigned int   commit_buf_size;
+	void *commit_buf;
+#define UBLKS_T_COMMIT_BUF_INV_IDX  ((unsigned short)-1)
+	struct allocator commit_buf_alloc;
+	struct batch_commit_buf *commit;
+	/* FETCH_IO_CMDS buffer */
+	unsigned short nr_fetch_bufs;
+	struct batch_fetch_buf *fetch;
+
 	struct io_uring ring;
 };
 
@@ -202,6 +264,55 @@ struct ublk_dev {
 
 extern int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io);
 
+static inline int __ublk_use_batch_io(__u64 flags)
+{
+	return flags & UBLK_F_BATCH_IO;
+}
+
+static inline int ublk_queue_batch_io(const struct ublk_queue *q)
+{
+	return __ublk_use_batch_io(q->flags);
+}
+
+static inline int ublk_dev_batch_io(const struct ublk_dev *dev)
+{
+	return __ublk_use_batch_io(dev->dev_info.flags);
+}
+
+/* only work for handle single device in this pthread context */
+static inline int ublk_thread_batch_io(const struct ublk_thread *t)
+{
+	return t->state & UBLKS_T_BATCH_IO;
+}
+
+static inline void ublk_set_integrity_params(const struct dev_ctx *ctx,
+					     struct ublk_params *params)
+{
+	if (!ctx->metadata_size)
+		return;
+
+	params->types |= UBLK_PARAM_TYPE_INTEGRITY;
+	params->integrity = (struct ublk_param_integrity) {
+		.flags = ctx->integrity_flags,
+		.interval_exp = params->basic.logical_bs_shift,
+		.metadata_size = ctx->metadata_size,
+		.pi_offset = ctx->pi_offset,
+		.csum_type = ctx->csum_type,
+		.tag_size = ctx->tag_size,
+	};
+}
+
+static inline size_t ublk_integrity_len(const struct ublk_queue *q, size_t len)
+{
+	/* All targets currently use interval_exp = logical_bs_shift = 9 */
+	return (len >> 9) * q->metadata_size;
+}
+
+static inline size_t
+ublk_integrity_data_len(const struct ublk_queue *q, size_t integrity_len)
+{
+	return (integrity_len / q->metadata_size) << 9;
+}
 
 static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
 {
@@ -223,10 +334,10 @@ static inline __u64 build_user_data(unsigned tag, unsigned op,
 		unsigned tgt_data, unsigned q_id, unsigned is_target_io)
 {
 	/* we only have 7 bits to encode q_id */
-	_Static_assert(UBLK_MAX_QUEUES_SHIFT <= 7);
-	assert(!(tag >> 16) && !(op >> 8) && !(tgt_data >> 16) && !(q_id >> 7));
+	_Static_assert(UBLK_MAX_QUEUES_SHIFT <= 7, "UBLK_MAX_QUEUES_SHIFT must be <= 7");
+	ublk_assert(!(tag >> 16) && !(op >> 8) && !(tgt_data >> 16) && !(q_id >> 7));
 
-	return tag | (op << 16) | (tgt_data << 24) |
+	return tag | ((__u64)op << 16) | ((__u64)tgt_data << 24) |
 		(__u64)q_id << 56 | (__u64)is_target_io << 63;
 }
 
@@ -357,33 +468,22 @@ static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)
 	addr[1] = 0;
 }
 
+static inline unsigned short ublk_batch_io_buf_idx(
+		const struct ublk_thread *t, const struct ublk_queue *q,
+		unsigned tag);
+
+static inline unsigned short ublk_io_buf_idx(const struct ublk_thread *t,
+					     const struct ublk_queue *q,
+					     unsigned tag)
+{
+	if (ublk_queue_batch_io(q))
+		return ublk_batch_io_buf_idx(t, q, tag);
+	return q->ios[tag].buf_index;
+}
+
 static inline struct ublk_io *ublk_get_io(struct ublk_queue *q, unsigned tag)
 {
 	return &q->ios[tag];
-}
-
-static inline int ublk_complete_io(struct ublk_thread *t, struct ublk_queue *q,
-				   unsigned tag, int res)
-{
-	struct ublk_io *io = &q->ios[tag];
-
-	ublk_mark_io_done(io, res);
-
-	return ublk_queue_io_cmd(t, io);
-}
-
-static inline void ublk_queued_tgt_io(struct ublk_thread *t, struct ublk_queue *q,
-				      unsigned tag, int queued)
-{
-	if (queued < 0)
-		ublk_complete_io(t, q, tag, queued);
-	else {
-		struct ublk_io *io = ublk_get_io(q, tag);
-
-		t->io_inflight += queued;
-		io->tgt_ios = queued;
-		io->result = 0;
-	}
 }
 
 static inline int ublk_completed_tgt_io(struct ublk_thread *t,
@@ -421,12 +521,90 @@ static inline int ublk_queue_no_buf(const struct ublk_queue *q)
 	return ublk_queue_use_zc(q) || ublk_queue_use_auto_zc(q);
 }
 
+static inline int ublk_batch_commit_prepared(struct batch_commit_buf *cb)
+{
+	return cb->buf_idx != UBLKS_T_COMMIT_BUF_INV_IDX;
+}
+
+static inline unsigned ublk_queue_idx_in_thread(const struct ublk_thread *t,
+						const struct ublk_queue *q)
+{
+	unsigned char idx;
+
+	idx = t->q_map[q->q_id];
+	ublk_assert(idx != 0);
+	return idx - 1;
+}
+
+/*
+ * Each IO's buffer index has to be calculated by this helper for
+ * UBLKS_T_BATCH_IO
+ */
+static inline unsigned short ublk_batch_io_buf_idx(
+		const struct ublk_thread *t, const struct ublk_queue *q,
+		unsigned tag)
+{
+	return ublk_queue_idx_in_thread(t, q) * q->q_depth + tag;
+}
+
+/* Queue UBLK_U_IO_PREP_IO_CMDS for a specific queue with batch elements */
+int ublk_batch_queue_prep_io_cmds(struct ublk_thread *t, struct ublk_queue *q);
+/* Start fetching I/O commands using multishot UBLK_U_IO_FETCH_IO_CMDS */
+void ublk_batch_start_fetch(struct ublk_thread *t);
+/* Handle completion of batch I/O commands (prep/commit) */
+void ublk_batch_compl_cmd(struct ublk_thread *t,
+			  const struct io_uring_cqe *cqe);
+/* Initialize batch I/O state and calculate buffer parameters */
+void ublk_batch_prepare(struct ublk_thread *t);
+/* Allocate and register commit buffers for batch operations */
+int ublk_batch_alloc_buf(struct ublk_thread *t);
+/* Free commit buffers and cleanup batch allocator */
+void ublk_batch_free_buf(struct ublk_thread *t);
+
+/* Prepare a new commit buffer for batching completed I/O operations */
+void ublk_batch_prep_commit(struct ublk_thread *t);
+/* Submit UBLK_U_IO_COMMIT_IO_CMDS with batched completed I/O operations */
+void ublk_batch_commit_io_cmds(struct ublk_thread *t);
+/* Add a completed I/O operation to the current batch commit buffer */
+void ublk_batch_complete_io(struct ublk_thread *t, struct ublk_queue *q,
+			    unsigned tag, int res);
+void ublk_batch_setup_map(unsigned char (*q_thread_map)[UBLK_MAX_QUEUES],
+			   int nthreads, int queues);
+
+static inline int ublk_complete_io(struct ublk_thread *t, struct ublk_queue *q,
+				   unsigned tag, int res)
+{
+	if (ublk_queue_batch_io(q)) {
+		ublk_batch_complete_io(t, q, tag, res);
+		return 0;
+	} else {
+		struct ublk_io *io = &q->ios[tag];
+
+		ublk_mark_io_done(io, res);
+		return ublk_queue_io_cmd(t, io);
+	}
+}
+
+static inline void ublk_queued_tgt_io(struct ublk_thread *t, struct ublk_queue *q,
+				      unsigned tag, int queued)
+{
+	if (queued < 0)
+		ublk_complete_io(t, q, tag, queued);
+	else {
+		struct ublk_io *io = ublk_get_io(q, tag);
+
+		t->io_inflight += queued;
+		io->tgt_ios = queued;
+		io->result = 0;
+	}
+}
+
 extern const struct ublk_tgt_ops null_tgt_ops;
 extern const struct ublk_tgt_ops loop_tgt_ops;
 extern const struct ublk_tgt_ops stripe_tgt_ops;
 extern const struct ublk_tgt_ops fault_inject_tgt_ops;
 
 void backing_file_tgt_deinit(struct ublk_dev *dev);
-int backing_file_tgt_init(struct ublk_dev *dev);
+int backing_file_tgt_init(struct ublk_dev *dev, unsigned int nr_direct);
 
 #endif

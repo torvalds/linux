@@ -331,7 +331,7 @@ static int clkout_enable(struct clk *clk)
 static void clkdev_add_pmu(const char *dev, const char *con, bool deactivate,
 			   unsigned int module, unsigned int bits)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = kzalloc_obj(struct clk);
 
 	if (!clk)
 		return;
@@ -356,7 +356,7 @@ static void clkdev_add_pmu(const char *dev, const char *con, bool deactivate,
 static void clkdev_add_cgu(const char *dev, const char *con,
 					unsigned int bits)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = kzalloc_obj(struct clk);
 
 	if (!clk)
 		return;
@@ -374,8 +374,8 @@ static unsigned long valid_pci_rates[] = {CLOCK_33M, CLOCK_62_5M, 0};
 
 static void clkdev_add_pci(void)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
-	struct clk *clk_ext = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = kzalloc_obj(struct clk);
+	struct clk *clk_ext = kzalloc_obj(struct clk);
 
 	/* main pci clock */
 	if (clk) {
@@ -423,7 +423,7 @@ static void clkdev_add_clkout(void)
 			continue;
 		sprintf(name, "clkout%d", i);
 
-		clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+		clk = kzalloc_obj(struct clk);
 		if (!clk) {
 			kfree(name);
 			continue;

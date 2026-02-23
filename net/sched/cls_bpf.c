@@ -242,7 +242,7 @@ static int cls_bpf_init(struct tcf_proto *tp)
 {
 	struct cls_bpf_head *head;
 
-	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	head = kzalloc_obj(*head);
 	if (head == NULL)
 		return -ENOBUFS;
 
@@ -427,7 +427,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	if (ret < 0)
 		return ret;
 
-	prog = kzalloc(sizeof(*prog), GFP_KERNEL);
+	prog = kzalloc_obj(*prog);
 	if (!prog)
 		return -ENOBUFS;
 

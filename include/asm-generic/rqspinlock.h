@@ -28,7 +28,7 @@ struct rqspinlock {
  */
 struct bpf_res_spin_lock {
 	u32 val;
-};
+} __aligned(__alignof__(struct rqspinlock));
 
 struct qspinlock;
 #ifdef CONFIG_QUEUED_SPINLOCKS
@@ -191,7 +191,7 @@ static __always_inline int res_spin_lock(rqspinlock_t *lock)
 
 #else
 
-#define res_spin_lock(lock) resilient_tas_spin_lock(lock)
+#define res_spin_lock(lock) ({ grab_held_lock_entry(lock); resilient_tas_spin_lock(lock); })
 
 #endif /* CONFIG_QUEUED_SPINLOCKS */
 

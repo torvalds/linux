@@ -70,7 +70,7 @@ static void *pstore_ftrace_seq_start(struct seq_file *s, loff_t *pos)
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data __free(kfree) = NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 
@@ -365,7 +365,7 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 			record->psi->name, record->id,
 			record->compressed ? ".enc.z" : "");
 
-	private = kzalloc(sizeof(*private), GFP_KERNEL);
+	private = kzalloc_obj(*private);
 	if (!private)
 		return -ENOMEM;
 
@@ -477,7 +477,7 @@ static int pstore_init_fs_context(struct fs_context *fc)
 {
 	struct pstore_context *ctx;
 
-	ctx = kzalloc(sizeof(struct pstore_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct pstore_context);
 	if (!ctx)
 		return -ENOMEM;
 

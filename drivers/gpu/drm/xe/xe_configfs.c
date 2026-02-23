@@ -347,11 +347,10 @@ static bool is_bound(struct xe_config_group_device *dev)
 		return false;
 
 	ret = pci_get_drvdata(pdev);
-	pci_dev_put(pdev);
-
 	if (ret)
 		pci_dbg(pdev, "Already bound to driver\n");
 
+	pci_dev_put(pdev);
 	return ret;
 }
 
@@ -999,7 +998,7 @@ static struct config_group *xe_config_make_device_group(struct config_group *gro
 	if (!match)
 		return ERR_PTR(-ENOENT);
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 

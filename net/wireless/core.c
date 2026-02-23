@@ -265,6 +265,8 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 	rdev_stop_nan(rdev, wdev);
 	wdev->is_running = false;
 
+	eth_zero_addr(wdev->u.nan.cluster_id);
+
 	rdev->opencount--;
 }
 
@@ -347,7 +349,7 @@ void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 
 			guard(wiphy)(&rdev->wiphy);
 
-			cfg80211_leave(rdev, wdev);
+			cfg80211_leave(rdev, wdev, -1);
 			cfg80211_remove_virtual_intf(rdev, wdev);
 		}
 	}
@@ -661,12 +663,8 @@ int wiphy_verify_iface_combinations(struct wiphy *wiphy,
 				    c->limits[j].max > 1))
 				return -EINVAL;
 
-			/* Only a single NAN can be allowed, avoid this
-			 * check for multi-radio global combination, since it
-			 * hold the capabilities of all radio combinations.
-			 */
-			if (!combined_radio &&
-			    WARN_ON(types & BIT(NL80211_IFTYPE_NAN) &&
+			/* Only a single NAN can be allowed */
+			if (WARN_ON(types & BIT(NL80211_IFTYPE_NAN) &&
 				    c->limits[j].max > 1))
 				return -EINVAL;
 
@@ -1002,9 +1000,8 @@ int wiphy_register(struct wiphy *wiphy)
 	if (wiphy->n_radio > 0) {
 		int idx;
 
-		wiphy->radio_cfg = kcalloc(wiphy->n_radio,
-					   sizeof(*wiphy->radio_cfg),
-					   GFP_KERNEL);
+		wiphy->radio_cfg = kzalloc_objs(*wiphy->radio_cfg,
+						wiphy->n_radio);
 		if (!wiphy->radio_cfg)
 			return -ENOMEM;
 		/*
@@ -1371,7 +1368,8 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 }
 
 void cfg80211_leave(struct cfg80211_registered_device *rdev,
-		    struct wireless_dev *wdev)
+		    struct wireless_dev *wdev,
+		    int link_id)
 {
 	struct net_device *dev = wdev->netdev;
 	struct cfg80211_sched_scan_request *pos, *tmp;
@@ -1409,14 +1407,16 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		cfg80211_stop_ap(rdev, dev, -1, true);
+		cfg80211_stop_ap(rdev, dev, link_id, true);
 		break;
 	case NL80211_IFTYPE_OCB:
 		cfg80211_leave_ocb(rdev, dev);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
+		cfg80211_stop_p2p_device(rdev, wdev);
+		break;
 	case NL80211_IFTYPE_NAN:
-		/* cannot happen, has no netdev */
+		cfg80211_stop_nan(rdev, wdev);
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_MONITOR:
@@ -1430,27 +1430,34 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 	}
 }
 
-void cfg80211_stop_iface(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 gfp_t gfp)
+void cfg80211_stop_link(struct wiphy *wiphy, struct wireless_dev *wdev,
+			int link_id, gfp_t gfp)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
-	trace_cfg80211_stop_iface(wiphy, wdev);
+	/* Only AP/GO interfaces may have a specific link_id */
+	if (WARN_ON_ONCE(link_id != -1 &&
+			 wdev->iftype != NL80211_IFTYPE_AP &&
+			 wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		link_id = -1;
 
-	ev = kzalloc(sizeof(*ev), gfp);
+	trace_cfg80211_stop_link(wiphy, wdev, link_id);
+
+	ev = kzalloc_obj(*ev, gfp);
 	if (!ev)
 		return;
 
 	ev->type = EVENT_STOPPED;
+	ev->link_id = link_id;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
-EXPORT_SYMBOL(cfg80211_stop_iface);
+EXPORT_SYMBOL(cfg80211_stop_link);
 
 void cfg80211_init_wdev(struct wireless_dev *wdev)
 {
@@ -1589,7 +1596,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		break;
 	case NETDEV_GOING_DOWN:
 		scoped_guard(wiphy, &rdev->wiphy) {
-			cfg80211_leave(rdev, wdev);
+			cfg80211_leave(rdev, wdev, -1);
 			cfg80211_remove_links(wdev);
 		}
 		/* since we just did cfg80211_leave() nothing to do there */

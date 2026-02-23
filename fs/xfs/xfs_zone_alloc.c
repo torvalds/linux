@@ -3,7 +3,7 @@
  * Copyright (c) 2023-2025 Christoph Hellwig.
  * Copyright (c) 2024-2025, Western Digital Corporation or its affiliates.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -408,31 +408,6 @@ xfs_zone_free_blocks(
 	return 0;
 }
 
-static struct xfs_group *
-xfs_find_free_zone(
-	struct xfs_mount	*mp,
-	unsigned long		start,
-	unsigned long		end)
-{
-	struct xfs_zone_info	*zi = mp->m_zone_info;
-	XA_STATE		(xas, &mp->m_groups[XG_TYPE_RTG].xa, start);
-	struct xfs_group	*xg;
-
-	xas_lock(&xas);
-	xas_for_each_marked(&xas, xg, end, XFS_RTG_FREE)
-		if (atomic_inc_not_zero(&xg->xg_active_ref))
-			goto found;
-	xas_unlock(&xas);
-	return NULL;
-
-found:
-	xas_clear_mark(&xas, XFS_RTG_FREE);
-	atomic_dec(&zi->zi_nr_free_zones);
-	zi->zi_free_zone_cursor = xg->xg_gno;
-	xas_unlock(&xas);
-	return xg;
-}
-
 static struct xfs_open_zone *
 xfs_init_open_zone(
 	struct xfs_rtgroup	*rtg,
@@ -442,7 +417,7 @@ xfs_init_open_zone(
 {
 	struct xfs_open_zone	*oz;
 
-	oz = kzalloc(sizeof(*oz), GFP_NOFS | __GFP_NOFAIL);
+	oz = kzalloc_obj(*oz, GFP_NOFS | __GFP_NOFAIL);
 	spin_lock_init(&oz->oz_alloc_lock);
 	atomic_set(&oz->oz_ref, 1);
 	oz->oz_rtg = rtg;
@@ -472,13 +447,25 @@ xfs_open_zone(
 	bool			is_gc)
 {
 	struct xfs_zone_info	*zi = mp->m_zone_info;
+	XA_STATE		(xas, &mp->m_groups[XG_TYPE_RTG].xa, 0);
 	struct xfs_group	*xg;
 
-	xg = xfs_find_free_zone(mp, zi->zi_free_zone_cursor, ULONG_MAX);
-	if (!xg)
-		xg = xfs_find_free_zone(mp, 0, zi->zi_free_zone_cursor);
-	if (!xg)
-		return NULL;
+	/*
+	 * Pick the free zone with lowest index. Zones in the beginning of the
+	 * address space typically provides higher bandwidth than those at the
+	 * end of the address space on HDDs.
+	 */
+	xas_lock(&xas);
+	xas_for_each_marked(&xas, xg, ULONG_MAX, XFS_RTG_FREE)
+		if (atomic_inc_not_zero(&xg->xg_active_ref))
+			goto found;
+	xas_unlock(&xas);
+	return NULL;
+
+found:
+	xas_clear_mark(&xas, XFS_RTG_FREE);
+	atomic_dec(&zi->zi_nr_free_zones);
+	xas_unlock(&xas);
 
 	set_current_state(TASK_RUNNING);
 	return xfs_init_open_zone(to_rtg(xg), 0, write_hint, is_gc);
@@ -976,46 +963,106 @@ xfs_free_open_zones(
 }
 
 struct xfs_init_zones {
-	struct xfs_mount	*mp;
+	uint32_t		zone_size;
+	uint32_t		zone_capacity;
 	uint64_t		available;
 	uint64_t		reclaimable;
 };
+
+/*
+ * For sequential write required zones, we restart writing at the hardware write
+ * pointer returned by xfs_validate_blk_zone().
+ *
+ * For conventional zones or conventional devices we have to query the rmap to
+ * find the highest recorded block and set the write pointer to the block after
+ * that.  In case of a power loss this misses blocks where the data I/O has
+ * completed but not recorded in the rmap yet, and it also rewrites blocks if
+ * the most recently written ones got deleted again before unmount, but this is
+ * the best we can do without hardware support.
+ */
+static int
+xfs_query_write_pointer(
+	struct xfs_init_zones	*iz,
+	struct xfs_rtgroup	*rtg,
+	xfs_rgblock_t		*write_pointer)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	struct block_device	*bdev = mp->m_rtdev_targp->bt_bdev;
+	sector_t		start = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
+	xfs_rgblock_t		highest_rgbno;
+	struct blk_zone		zone = {};
+	int			error;
+
+	if (bdev_is_zoned(bdev)) {
+		error = blkdev_get_zone_info(bdev, start, &zone);
+		if (error)
+			return error;
+		if (zone.start != start) {
+			xfs_warn(mp, "mismatched zone start: 0x%llx/0x%llx.",
+				zone.start, start);
+			return -EFSCORRUPTED;
+		}
+
+		if (!xfs_validate_blk_zone(mp, &zone, rtg_rgno(rtg),
+				iz->zone_size, iz->zone_capacity,
+				write_pointer))
+			return -EFSCORRUPTED;
+
+		/*
+		 * Use the hardware write pointer returned by
+		 * xfs_validate_blk_zone for sequential write required zones,
+		 * else fall through to the rmap-based estimation below.
+		 */
+		if (zone.cond != BLK_ZONE_COND_NOT_WP)
+			return 0;
+	}
+
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	highest_rgbno = xfs_rtrmap_highest_rgbno(rtg);
+	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
+
+	if (highest_rgbno == NULLRGBLOCK)
+		*write_pointer = 0;
+	else
+		*write_pointer = highest_rgbno + 1;
+	return 0;
+}
 
 static int
 xfs_init_zone(
 	struct xfs_init_zones	*iz,
 	struct xfs_rtgroup	*rtg,
-	struct blk_zone		*zone)
+	xfs_rgblock_t		write_pointer)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
-	xfs_rgblock_t		write_pointer, highest_rgbno;
 	int			error;
 
-	if (zone && !xfs_zone_validate(zone, rtg, &write_pointer))
+	if (write_pointer > rtg->rtg_extents) {
+		xfs_warn(mp, "zone %u has invalid write pointer (0x%x).",
+			 rtg_rgno(rtg), write_pointer);
 		return -EFSCORRUPTED;
+	}
 
-	/*
-	 * For sequential write required zones we retrieved the hardware write
-	 * pointer above.
-	 *
-	 * For conventional zones or conventional devices we don't have that
-	 * luxury.  Instead query the rmap to find the highest recorded block
-	 * and set the write pointer to the block after that.  In case of a
-	 * power loss this misses blocks where the data I/O has completed but
-	 * not recorded in the rmap yet, and it also rewrites blocks if the most
-	 * recently written ones got deleted again before unmount, but this is
-	 * the best we can do without hardware support.
-	 */
-	if (!zone || zone->cond == BLK_ZONE_COND_NOT_WP) {
-		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
-		highest_rgbno = xfs_rtrmap_highest_rgbno(rtg);
-		if (highest_rgbno == NULLRGBLOCK)
-			write_pointer = 0;
-		else
-			write_pointer = highest_rgbno + 1;
-		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
+	if (used > rtg->rtg_extents) {
+		xfs_warn(mp,
+"zone %u has used counter (0x%x) larger than zone capacity (0x%llx).",
+			 rtg_rgno(rtg), used, rtg->rtg_extents);
+		return -EFSCORRUPTED;
+	}
+
+	if (used > write_pointer) {
+		xfs_warn(mp,
+"zone %u has used counter (0x%x) larger than write pointer (0x%x).",
+			 rtg_rgno(rtg), used, write_pointer);
+		return -EFSCORRUPTED;
+	}
+
+	if (write_pointer == 0 && used != 0) {
+		xfs_warn(mp, "empty zone %u has non-zero used counter (0x%x).",
+			rtg_rgno(rtg), used);
+		return -EFSCORRUPTED;
 	}
 
 	/*
@@ -1054,35 +1101,6 @@ xfs_init_zone(
 	}
 
 	return 0;
-}
-
-static int
-xfs_get_zone_info_cb(
-	struct blk_zone		*zone,
-	unsigned int		idx,
-	void			*data)
-{
-	struct xfs_init_zones	*iz = data;
-	struct xfs_mount	*mp = iz->mp;
-	xfs_fsblock_t		zsbno = xfs_daddr_to_rtb(mp, zone->start);
-	xfs_rgnumber_t		rgno;
-	struct xfs_rtgroup	*rtg;
-	int			error;
-
-	if (xfs_rtb_to_rgbno(mp, zsbno) != 0) {
-		xfs_warn(mp, "mismatched zone start 0x%llx.", zsbno);
-		return -EFSCORRUPTED;
-	}
-
-	rgno = xfs_rtb_to_rgno(mp, zsbno);
-	rtg = xfs_rtgroup_grab(mp, rgno);
-	if (!rtg) {
-		xfs_warn(mp, "realtime group not found for zone %u.", rgno);
-		return -EFSCORRUPTED;
-	}
-	error = xfs_init_zone(iz, rtg, zone);
-	xfs_rtgroup_rele(rtg);
-	return error;
 }
 
 /*
@@ -1178,7 +1196,7 @@ xfs_alloc_zone_info(
 	struct xfs_zone_info	*zi;
 	int			i;
 
-	zi = kzalloc(sizeof(*zi), GFP_KERNEL);
+	zi = kzalloc_obj(*zi);
 	if (!zi)
 		return NULL;
 	INIT_LIST_HEAD(&zi->zi_open_zones);
@@ -1219,13 +1237,13 @@ xfs_mount_zones(
 	struct xfs_mount	*mp)
 {
 	struct xfs_init_zones	iz = {
-		.mp		= mp,
+		.zone_capacity	= mp->m_groups[XG_TYPE_RTG].blocks,
+		.zone_size	= xfs_rtgroup_raw_size(mp),
 	};
-	struct xfs_buftarg	*bt = mp->m_rtdev_targp;
-	xfs_extlen_t		zone_blocks = mp->m_groups[XG_TYPE_RTG].blocks;
+	struct xfs_rtgroup	*rtg = NULL;
 	int			error;
 
-	if (!bt) {
+	if (!mp->m_rtdev_targp) {
 		xfs_notice(mp, "RT device missing.");
 		return -EINVAL;
 	}
@@ -1253,7 +1271,7 @@ xfs_mount_zones(
 		return -ENOMEM;
 
 	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
-		 mp->m_sb.sb_rgcount, zone_blocks, mp->m_max_open_zones);
+		 mp->m_sb.sb_rgcount, iz.zone_capacity, mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
 
 	/*
@@ -1277,24 +1295,18 @@ xfs_mount_zones(
 	 * or beneficial.
 	 */
 	mp->m_super->s_min_writeback_pages =
-		XFS_FSB_TO_B(mp, min(zone_blocks, XFS_MAX_BMBT_EXTLEN)) >>
+		XFS_FSB_TO_B(mp, min(iz.zone_capacity, XFS_MAX_BMBT_EXTLEN)) >>
 			PAGE_SHIFT;
 
-	if (bdev_is_zoned(bt->bt_bdev)) {
-		error = blkdev_report_zones_cached(bt->bt_bdev,
-				XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart),
-				mp->m_sb.sb_rgcount, xfs_get_zone_info_cb, &iz);
-		if (error < 0)
-			goto out_free_zone_info;
-	} else {
-		struct xfs_rtgroup	*rtg = NULL;
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		xfs_rgblock_t		write_pointer;
 
-		while ((rtg = xfs_rtgroup_next(mp, rtg))) {
-			error = xfs_init_zone(&iz, rtg, NULL);
-			if (error) {
-				xfs_rtgroup_rele(rtg);
-				goto out_free_zone_info;
-			}
+		error = xfs_query_write_pointer(&iz, rtg, &write_pointer);
+		if (!error)
+			error = xfs_init_zone(&iz, rtg, write_pointer);
+		if (error) {
+			xfs_rtgroup_rele(rtg);
+			goto out_free_zone_info;
 		}
 	}
 

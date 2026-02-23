@@ -217,7 +217,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 	ext4_group_t i;
 	int ret;
 
-	system_blks = kzalloc(sizeof(*system_blks), GFP_KERNEL);
+	system_blks = kzalloc_obj(*system_blks);
 	if (!system_blks)
 		return -ENOMEM;
 

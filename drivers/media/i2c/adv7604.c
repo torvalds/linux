@@ -3453,7 +3453,13 @@ static int configure_regmaps(struct adv76xx_state *state)
 static void adv76xx_reset(struct adv76xx_state *state)
 {
 	if (state->reset_gpio) {
-		/* ADV76XX can be reset by a low reset pulse of minimum 5 ms. */
+		/*
+		 * Note: Misinterpretation of reset assertion - do not re-use
+		 * this code.  The reset pin is using incorrect (for a reset
+		 * signal) logical level.
+		 *
+		 * ADV76XX can be reset by a low reset pulse of minimum 5 ms.
+		 */
 		gpiod_set_value_cansleep(state->reset_gpio, 0);
 		usleep_range(5000, 10000);
 		gpiod_set_value_cansleep(state->reset_gpio, 1);

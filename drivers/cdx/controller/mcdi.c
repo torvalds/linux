@@ -118,7 +118,7 @@ int cdx_mcdi_init(struct cdx_mcdi *cdx)
 	struct cdx_mcdi_iface *mcdi;
 	int rc = -ENOMEM;
 
-	cdx->mcdi = kzalloc(sizeof(*cdx->mcdi), GFP_KERNEL);
+	cdx->mcdi = kzalloc_obj(*cdx->mcdi);
 	if (!cdx->mcdi)
 		goto fail;
 
@@ -456,11 +456,11 @@ static int cdx_mcdi_rpc_sync(struct cdx_mcdi *cdx, unsigned int cmd,
 	if (outlen_actual)
 		*outlen_actual = 0;
 
-	wait_data = kmalloc(sizeof(*wait_data), GFP_KERNEL);
+	wait_data = kmalloc_obj(*wait_data);
 	if (!wait_data)
 		return -ENOMEM;
 
-	cmd_item = kmalloc(sizeof(*cmd_item), GFP_KERNEL);
+	cmd_item = kmalloc_obj(*cmd_item);
 	if (!cmd_item) {
 		kfree(wait_data);
 		return -ENOMEM;

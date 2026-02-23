@@ -61,8 +61,7 @@ static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 	unsigned int i, ok;
 	int ret = 0;
 
-	dst_cx_states = kcalloc(_pr->power.count,
-				sizeof(struct xen_processor_cx), GFP_KERNEL);
+	dst_cx_states = kzalloc_objs(struct xen_processor_cx, _pr->power.count);
 	if (!dst_cx_states)
 		return -ENOMEM;
 
@@ -142,8 +141,8 @@ xen_copy_pss_data(struct acpi_processor *_pr,
 	BUILD_BUG_ON(sizeof(struct xen_processor_px) !=
 		     sizeof(struct acpi_processor_px));
 
-	dst_states = kcalloc(_pr->performance->state_count,
-			     sizeof(struct xen_processor_px), GFP_KERNEL);
+	dst_states = kzalloc_objs(struct xen_processor_px,
+				  _pr->performance->state_count);
 	if (!dst_states)
 		return ERR_PTR(-ENOMEM);
 
@@ -412,8 +411,7 @@ static int check_acpi_ids(struct acpi_processor *pr_backup)
 		return -ENOMEM;
 	}
 
-	acpi_psd = kcalloc(nr_acpi_bits, sizeof(struct acpi_psd_package),
-			   GFP_KERNEL);
+	acpi_psd = kzalloc_objs(struct acpi_psd_package, nr_acpi_bits);
 	if (!acpi_psd) {
 		bitmap_free(acpi_id_present);
 		bitmap_free(acpi_id_cst_present);

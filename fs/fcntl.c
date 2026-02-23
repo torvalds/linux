@@ -100,7 +100,7 @@ int file_f_owner_allocate(struct file *file)
 	if (f_owner)
 		return 0;
 
-	f_owner = kzalloc(sizeof(struct fown_struct), GFP_KERNEL);
+	f_owner = kzalloc_obj(struct fown_struct);
 	if (!f_owner)
 		return -ENOMEM;
 

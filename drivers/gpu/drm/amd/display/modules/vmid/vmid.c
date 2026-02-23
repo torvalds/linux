@@ -144,7 +144,7 @@ struct mod_vmid *mod_vmid_create(
 	if (dc == NULL)
 		goto fail_dc_null;
 
-	core_vmid = kzalloc(sizeof(struct core_vmid), GFP_KERNEL);
+	core_vmid = kzalloc_obj(struct core_vmid);
 
 	if (core_vmid == NULL)
 		goto fail_alloc_context;

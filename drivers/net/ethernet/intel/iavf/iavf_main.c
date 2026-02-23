@@ -771,7 +771,7 @@ iavf_vlan_filter *iavf_add_vlan(struct iavf_adapter *adapter,
 
 	f = iavf_find_vlan(adapter, vlan);
 	if (!f) {
-		f = kzalloc(sizeof(*f), GFP_ATOMIC);
+		f = kzalloc_obj(*f, GFP_ATOMIC);
 		if (!f)
 			goto clearout;
 
@@ -978,7 +978,7 @@ struct iavf_mac_filter *iavf_add_filter(struct iavf_adapter *adapter,
 
 	f = iavf_find_filter(adapter, macaddr);
 	if (!f) {
-		f = kzalloc(sizeof(*f), GFP_ATOMIC);
+		f = kzalloc_obj(*f, GFP_ATOMIC);
 		if (!f)
 			return f;
 
@@ -1585,12 +1585,10 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 					  (int)(num_online_cpus()));
 
 
-	adapter->tx_rings = kcalloc(num_active_queues,
-				    sizeof(struct iavf_ring), GFP_KERNEL);
+	adapter->tx_rings = kzalloc_objs(struct iavf_ring, num_active_queues);
 	if (!adapter->tx_rings)
 		goto err_out;
-	adapter->rx_rings = kcalloc(num_active_queues,
-				    sizeof(struct iavf_ring), GFP_KERNEL);
+	adapter->rx_rings = kzalloc_objs(struct iavf_ring, num_active_queues);
 	if (!adapter->rx_rings)
 		goto err_out;
 
@@ -1653,8 +1651,7 @@ static int iavf_set_interrupt_capability(struct iavf_adapter *adapter)
 	v_budget = min_t(int, pairs + NONQ_VECS,
 			 (int)adapter->vf_res->max_vectors);
 
-	adapter->msix_entries = kcalloc(v_budget,
-					sizeof(struct msix_entry), GFP_KERNEL);
+	adapter->msix_entries = kzalloc_objs(struct msix_entry, v_budget);
 	if (!adapter->msix_entries) {
 		err = -ENOMEM;
 		goto out;
@@ -1812,8 +1809,7 @@ static int iavf_alloc_q_vectors(struct iavf_adapter *adapter)
 	struct iavf_q_vector *q_vector;
 
 	num_q_vectors = adapter->num_msix_vectors - NONQ_VECS;
-	adapter->q_vectors = kcalloc(num_q_vectors, sizeof(*q_vector),
-				     GFP_KERNEL);
+	adapter->q_vectors = kzalloc_objs(*q_vector, num_q_vectors);
 	if (!adapter->q_vectors)
 		return -ENOMEM;
 
@@ -4119,7 +4115,7 @@ static int iavf_configure_clsflower(struct iavf_adapter *adapter,
 		return -EINVAL;
 	}
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 	filter->cookie = cls_flower->cookie;
@@ -4234,7 +4230,7 @@ static int iavf_add_cls_u32(struct iavf_adapter *adapter,
 		return -EOPNOTSUPP;
 	}
 
-	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr)
 		return -ENOMEM;
 

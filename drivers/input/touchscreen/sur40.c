@@ -672,7 +672,7 @@ static int sur40_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* Allocate memory for our device state and initialize it. */
-	sur40 = kzalloc(sizeof(*sur40), GFP_KERNEL);
+	sur40 = kzalloc_obj(*sur40);
 	if (!sur40)
 		return -ENOMEM;
 

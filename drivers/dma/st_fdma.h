@@ -120,7 +120,7 @@ struct st_fdma_chan {
 	struct dma_slave_config scfg;
 	struct st_fdma_cfg cfg;
 
-	int dreq_line;
+	long dreq_line;
 
 	struct virt_dma_chan vchan;
 	struct st_fdma_desc *fdesc;

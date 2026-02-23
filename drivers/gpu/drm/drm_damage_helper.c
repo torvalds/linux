@@ -140,7 +140,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 			num_clips /= 2;
 		}
 
-		rects = kcalloc(num_clips, sizeof(*rects), GFP_KERNEL);
+		rects = kzalloc_objs(*rects, num_clips);
 		if (!rects) {
 			ret = -ENOMEM;
 			goto out;

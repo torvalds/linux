@@ -5,7 +5,7 @@
  * All rights reserved.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -224,7 +224,7 @@ xfs_perag_alloc(
 	struct xfs_perag	*pag;
 	int			error;
 
-	pag = kzalloc(sizeof(*pag), GFP_KERNEL);
+	pag = kzalloc_obj(*pag);
 	if (!pag)
 		return -ENOMEM;
 

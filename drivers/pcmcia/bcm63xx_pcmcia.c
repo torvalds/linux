@@ -333,7 +333,7 @@ static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	skt = kzalloc(sizeof(*skt), GFP_KERNEL);
+	skt = kzalloc_obj(*skt);
 	if (!skt)
 		return -ENOMEM;
 	spin_lock_init(&skt->lock);

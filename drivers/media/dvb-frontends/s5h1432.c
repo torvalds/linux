@@ -337,7 +337,7 @@ struct dvb_frontend *s5h1432_attach(const struct s5h1432_config *config,
 
 	printk(KERN_INFO " Enter s5h1432_attach(). attach success!\n");
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct s5h1432_state), GFP_KERNEL);
+	state = kmalloc_obj(struct s5h1432_state);
 	if (!state)
 		return NULL;
 

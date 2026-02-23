@@ -431,7 +431,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * xpc_send_notifies are relying on this skb.  When none
 	 * remain, release the skb.
 	 */
-	queued_msg = kmalloc(sizeof(struct xpnet_pending_msg), GFP_ATOMIC);
+	queued_msg = kmalloc_obj(struct xpnet_pending_msg, GFP_ATOMIC);
 	if (queued_msg == NULL) {
 		dev_warn(xpnet, "failed to kmalloc %ld bytes; dropping "
 			 "packet\n", sizeof(struct xpnet_pending_msg));

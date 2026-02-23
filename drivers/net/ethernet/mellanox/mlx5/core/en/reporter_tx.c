@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2019 Mellanox Technologies. */
 
+#include <net/netdev_lock.h>
+
 #include "health.h"
 #include "en/ptp.h"
 #include "en/devlink.h"
@@ -15,6 +17,7 @@ static const char * const sq_sw_state_type_name[] = {
 	[MLX5E_SQ_STATE_DIM] = "dim",
 	[MLX5E_SQ_STATE_PENDING_XSK_TX] = "pending_xsk_tx",
 	[MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC] = "pending_tls_rx_resync",
+	[MLX5E_SQ_STATE_LOCK_NEEDED] = "lock_needed",
 };
 
 static int mlx5e_wait_for_sq_flush(struct mlx5e_txqsq *sq)
@@ -78,6 +81,18 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
 		return 0;
 
+	/* Recovering queues means re-enabling NAPI, which requires the netdev
+	 * instance lock. However, SQ closing flows have to wait for work tasks
+	 * to finish while also holding the netdev instance lock. So either get
+	 * the lock or find that the SQ is no longer enabled and thus this work
+	 * is not relevant anymore.
+	 */
+	while (!netdev_trylock(dev)) {
+		if (!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state))
+			return 0;
+		msleep(20);
+	}
+
 	err = mlx5_core_query_sq_state(mdev, sq->sqn, &state);
 	if (err) {
 		netdev_err(dev, "Failed to query SQ 0x%x state. err = %d\n",
@@ -113,9 +128,11 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	else
 		mlx5e_trigger_napi_sched(sq->cq.napi);
 
+	netdev_unlock(dev);
 	return 0;
 out:
 	clear_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state);
+	netdev_unlock(dev);
 	return err;
 }
 
@@ -136,10 +153,24 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	sq = to_ctx->sq;
 	eq = sq->cq.mcq.eq;
 	priv = sq->priv;
+
+	/* Recovering the TX queues implies re-enabling NAPI, which requires
+	 * the netdev instance lock.
+	 * However, channel closing flows have to wait for this work to finish
+	 * while holding the same lock. So either get the lock or find that
+	 * channels are being closed for other reason and this work is not
+	 * relevant anymore.
+	 */
+	while (!netdev_trylock(sq->netdev)) {
+		if (!test_bit(MLX5E_STATE_CHANNELS_ACTIVE, &priv->state))
+			return 0;
+		msleep(20);
+	}
+
 	err = mlx5e_health_channel_eq_recover(sq->netdev, eq, sq->cq.ch_stats);
 	if (!err) {
 		to_ctx->status = 0; /* this sq recovered */
-		return err;
+		goto out;
 	}
 
 	mutex_lock(&priv->state_lock);
@@ -147,7 +178,7 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	mutex_unlock(&priv->state_lock);
 	if (!err) {
 		to_ctx->status = 1; /* all channels recovered */
-		return err;
+		goto out;
 	}
 
 	to_ctx->status = err;
@@ -155,7 +186,8 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	netdev_err(priv->netdev,
 		   "mlx5e_safe_reopen_channels failed recovering from a tx_timeout, err(%d).\n",
 		   err);
-
+out:
+	netdev_unlock(sq->netdev);
 	return err;
 }
 
@@ -172,10 +204,22 @@ static int mlx5e_tx_reporter_ptpsq_unhealthy_recover(void *ctx)
 		return 0;
 
 	priv = ptpsq->txqsq.priv;
+	netdev = priv->netdev;
+
+	/* Recovering the PTP SQ means re-enabling NAPI, which requires the
+	 * netdev instance lock. However, SQ closing has to wait for this work
+	 * task to finish while also holding the same lock. So either get the
+	 * lock or find that the SQ is no longer enabled and thus this work is
+	 * not relevant anymore.
+	 */
+	while (!netdev_trylock(netdev)) {
+		if (!test_bit(MLX5E_SQ_STATE_ENABLED, &ptpsq->txqsq.state))
+			return 0;
+		msleep(20);
+	}
 
 	mutex_lock(&priv->state_lock);
 	chs = &priv->channels;
-	netdev = priv->netdev;
 
 	carrier_ok = netif_carrier_ok(netdev);
 	netif_carrier_off(netdev);
@@ -192,6 +236,7 @@ static int mlx5e_tx_reporter_ptpsq_unhealthy_recover(void *ctx)
 		netif_carrier_on(netdev);
 
 	mutex_unlock(&priv->state_lock);
+	netdev_unlock(netdev);
 
 	return err;
 }

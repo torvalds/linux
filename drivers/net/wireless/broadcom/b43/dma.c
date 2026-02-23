@@ -838,7 +838,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 	int i, err;
 	dma_addr_t dma_test;
 
-	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		goto out;
 
@@ -846,8 +846,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 	if (for_tx)
 		ring->nr_slots = B43_TXRING_SLOTS;
 
-	ring->meta = kcalloc(ring->nr_slots, sizeof(struct b43_dmadesc_meta),
-			     GFP_KERNEL);
+	ring->meta = kzalloc_objs(struct b43_dmadesc_meta, ring->nr_slots);
 	if (!ring->meta)
 		goto err_kfree_ring;
 	for (i = 0; i < ring->nr_slots; i++)

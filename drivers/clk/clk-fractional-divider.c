@@ -275,7 +275,7 @@ struct clk_hw *clk_hw_register_fractional_divider(struct device *dev,
 	struct clk_hw *hw;
 	int ret;
 
-	fd = kzalloc(sizeof(*fd), GFP_KERNEL);
+	fd = kzalloc_obj(*fd);
 	if (!fd)
 		return ERR_PTR(-ENOMEM);
 

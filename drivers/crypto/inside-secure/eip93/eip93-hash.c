@@ -332,7 +332,7 @@ static int __eip93_hash_update(struct ahash_request *req, bool complete_req)
 	 * and then reset to SHA256_BLOCK_SIZE.
 	 */
 	while (to_consume > max_read) {
-		block = kzalloc(sizeof(*block), GFP_ATOMIC);
+		block = kzalloc_obj(*block, GFP_ATOMIC);
 		if (!block) {
 			ret = -ENOMEM;
 			goto free_blocks;

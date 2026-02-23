@@ -1143,7 +1143,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 
 	*chip_return = NULL;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->card = card;

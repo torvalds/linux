@@ -559,7 +559,7 @@ static int setup_mcdi(struct mc_priv *mc_priv)
 	struct cdx_mcdi *amd_mcdi;
 	int ret, i;
 
-	amd_mcdi = kzalloc(sizeof(*amd_mcdi), GFP_KERNEL);
+	amd_mcdi = kzalloc_obj(*amd_mcdi);
 	if (!amd_mcdi)
 		return -ENOMEM;
 
@@ -812,7 +812,7 @@ static int init_versalnet(struct mc_priv *priv, struct platform_device *pdev)
 		priv->mci[i] = mci;
 		priv->dwidth = dt;
 
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		dev = kzalloc_obj(*dev);
 		dev->release = versal_edac_release;
 		name = kmalloc(32, GFP_KERNEL);
 		sprintf(name, "versal-net-ddrmc5-edac-%d", i);

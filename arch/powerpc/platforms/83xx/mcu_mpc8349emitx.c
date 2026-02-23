@@ -146,7 +146,7 @@ static int mcu_probe(struct i2c_client *client)
 	struct mcu *mcu;
 	int ret;
 
-	mcu = kzalloc(sizeof(*mcu), GFP_KERNEL);
+	mcu = kzalloc_obj(*mcu);
 	if (!mcu)
 		return -ENOMEM;
 

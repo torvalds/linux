@@ -732,7 +732,7 @@ static int psnet_read_cfg(struct pci_dev *pdev, struct psnet *psnet)
 
 	/* Load device configuration from BAR */
 	for (i = 0; i < cfg->devices_num; i++) {
-		cfg->devs[i] = kzalloc(sizeof(*cfg->devs[i]), GFP_KERNEL);
+		cfg->devs[i] = kzalloc_obj(*cfg->devs[i]);
 		if (!cfg->devs[i]) {
 			snet_free_cfg(cfg);
 			return -ENOMEM;
@@ -827,7 +827,7 @@ static int snet_build_vqs(struct snet *snet)
 
 	/* Allocate the VQs */
 	for (i = 0; i < snet->cfg->vq_num; i++) {
-		snet->vqs[i] = kzalloc(sizeof(*snet->vqs[i]), GFP_KERNEL);
+		snet->vqs[i] = kzalloc_obj(*snet->vqs[i]);
 		if (!snet->vqs[i]) {
 			snet_free_vqs(snet);
 			return -ENOMEM;
@@ -902,7 +902,7 @@ static int snet_vdpa_probe_pf(struct pci_dev *pdev)
 	}
 
 	/* Allocate a PCI physical function device */
-	psnet = kzalloc(sizeof(*psnet), GFP_KERNEL);
+	psnet = kzalloc_obj(*psnet);
 	if (!psnet)
 		return -ENOMEM;
 

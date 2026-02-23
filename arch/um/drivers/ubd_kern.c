@@ -1069,20 +1069,16 @@ static int __init ubd_init(void)
 	if (register_blkdev(UBD_MAJOR, "ubd"))
 		return -1;
 
-	irq_req_buffer = kmalloc_array(UBD_REQ_BUFFER_SIZE,
-				       sizeof(struct io_thread_req *),
-				       GFP_KERNEL
-		);
+	irq_req_buffer = kmalloc_objs(struct io_thread_req *,
+				      UBD_REQ_BUFFER_SIZE);
 	irq_remainder = 0;
 
 	if (irq_req_buffer == NULL) {
 		printk(KERN_ERR "Failed to initialize ubd buffering\n");
 		return -ENOMEM;
 	}
-	io_req_buffer = kmalloc_array(UBD_REQ_BUFFER_SIZE,
-				      sizeof(struct io_thread_req *),
-				      GFP_KERNEL
-		);
+	io_req_buffer = kmalloc_objs(struct io_thread_req *,
+				     UBD_REQ_BUFFER_SIZE);
 
 	io_remainder = 0;
 

@@ -13,7 +13,6 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/ethtool.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -35,21 +34,6 @@ cifs_dump_mem(char *label, void *data, int length)
 	pr_debug("%s: dump of %d bytes of data at 0x%p\n", label, length, data);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 4,
 		       data, length, true);
-}
-
-void cifs_dump_detail(void *buf, size_t buf_len, struct TCP_Server_Info *server)
-{
-#ifdef CONFIG_CIFS_DEBUG2
-	struct smb_hdr *smb = buf;
-
-	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d Wct: %d\n",
-		 smb->Command, smb->Status.CifsError, smb->Flags,
-		 smb->Flags2, smb->Mid, smb->Pid, smb->WordCount);
-	if (!server->ops->check_message(buf, buf_len, server->total_read, server)) {
-		cifs_dbg(VFS, "smb buf %p len %u\n", smb,
-			 server->ops->calc_smb_size(smb));
-	}
-#endif /* CONFIG_CIFS_DEBUG2 */
 }
 
 void cifs_dump_mids(struct TCP_Server_Info *server)
@@ -79,7 +63,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
 			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
-			cifs_dump_detail(mid_entry->resp_buf,
+			server->ops->dump_detail(mid_entry->resp_buf,
 					 mid_entry->response_pdu_len, server);
 			cifs_dump_mem("existing buf: ", mid_entry->resp_buf, 62);
 		}

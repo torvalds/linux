@@ -87,7 +87,7 @@ struct clk_hw *imx_clk_gpr_mux(const char *name, const char *compatible,
 		return ERR_CAST(regmap);
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 

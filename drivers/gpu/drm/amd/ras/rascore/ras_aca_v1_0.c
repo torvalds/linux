@@ -299,7 +299,7 @@ static int aca_parse_xgmi_bank(struct ras_core_context *ras_core,
 
 	count = ACA_REG_MISC0_ERRCNT(bank->regs[ACA_REG_IDX__MISC0]);
 	if (bank->ecc_type == RAS_ERR_TYPE__UE) {
-		if (ext_error_code != 0 && ext_error_code != 9)
+		if (ext_error_code != 0 && ext_error_code != 1 && ext_error_code != 9)
 			count = 0ULL;
 		ecc->ue_count = count;
 	} else if (bank->ecc_type == RAS_ERR_TYPE__CE) {

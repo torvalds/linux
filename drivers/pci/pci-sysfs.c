@@ -181,7 +181,7 @@ static ssize_t resource_show(struct device *dev, struct device_attribute *attr,
 		struct resource zerores = {};
 
 		/* For backwards compatibility */
-		if (i >= PCI_BRIDGE_RESOURCES && i <= PCI_BRIDGE_RESOURCE_END &&
+		if (pci_resource_is_bridge_win(i) &&
 		    res->flags & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
 			res = &zerores;
 
@@ -1037,8 +1037,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 	if (!sysfs_initialized)
 		return;
 
-	b->legacy_io = kcalloc(2, sizeof(struct bin_attribute),
-			       GFP_ATOMIC);
+	b->legacy_io = kzalloc_objs(struct bin_attribute, 2, GFP_ATOMIC);
 	if (!b->legacy_io)
 		goto kzalloc_err;
 

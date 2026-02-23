@@ -68,17 +68,17 @@ test_dlfilter() {
 	fi
 
 	# Build the dlfilter
-	if ! cc -c -I tools/perf/include -fpic -x c "${dlfilter_c}" -o "${dlfilter_so}.o"
+	if ! cc -c -I ${shelldir}/../../include -fpic -x c "${dlfilter_c}" -o "${dlfilter_so}.o"
 	then
-		echo "Basic --dlfilter test [Failed to build dlfilter object]"
-		err=1
+		echo "Basic --dlfilter test [Skip - failed to build dlfilter object]"
+		err=2
 		return
 	fi
 
 	if ! cc -shared -o "${dlfilter_so}" "${dlfilter_so}.o"
 	then
-		echo "Basic --dlfilter test [Failed to link dlfilter shared object]"
-		err=1
+		echo "Basic --dlfilter test [Skip - failed to link dlfilter shared object]"
+		err=2
 		return
 	fi
 

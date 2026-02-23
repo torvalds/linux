@@ -602,7 +602,7 @@ static int rzv2h_cpg_pll_set_rate(struct pll_clk *pll_clk,
 					val, !(val & CPG_PLL_MON_LOCK),
 					100, 2000);
 	if (ret) {
-		dev_err(priv->dev, "Failed to put PLLDSI into standby mode");
+		dev_err(priv->dev, "Failed to put PLLDSI into standby mode\n");
 		return ret;
 	}
 
@@ -630,7 +630,7 @@ static int rzv2h_cpg_pll_set_rate(struct pll_clk *pll_clk,
 					val, (val & CPG_PLL_MON_LOCK),
 					100, 2000);
 	if (ret) {
-		dev_err(priv->dev, "Failed to put PLLDSI into normal mode");
+		dev_err(priv->dev, "Failed to put PLLDSI into normal mode\n");
 		return ret;
 	}
 
@@ -1013,7 +1013,7 @@ static struct clk
 	}
 
 	if (IS_ERR(clk))
-		dev_err(dev, "Cannot get %s clock %u: %ld", type, clkidx,
+		dev_err(dev, "Cannot get %s clock %u: %ld\n", type, clkidx,
 			PTR_ERR(clk));
 	else
 		dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
@@ -1352,6 +1352,7 @@ static int __rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
 	u32 mask = BIT(priv->resets[id].reset_bit);
 	u8 monbit = priv->resets[id].mon_bit;
 	u32 value = mask << 16;
+	u32 mon;
 	int ret;
 
 	dev_dbg(rcdev->dev, "%s id:%ld offset:0x%x\n",
@@ -1364,10 +1365,10 @@ static int __rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
 	reg = GET_RST_MON_OFFSET(priv->resets[id].mon_index);
 	mask = BIT(monbit);
 
-	ret = readl_poll_timeout_atomic(priv->base + reg, value,
-					assert == !!(value & mask), 10, 200);
-	if (ret && !assert) {
-		value = mask << 16;
+	ret = readl_poll_timeout_atomic(priv->base + reg, mon,
+					assert == !!(mon & mask), 10, 200);
+	if (ret) {
+		value ^= mask;
 		writel(value, priv->base + GET_RST_OFFSET(priv->resets[id].reset_index));
 	}
 

@@ -187,7 +187,7 @@ bool list_lru_add_obj(struct list_lru *lru, struct list_head *item)
 
 	if (list_lru_memcg_aware(lru)) {
 		rcu_read_lock();
-		ret = list_lru_add(lru, item, nid, mem_cgroup_from_slab_obj(item));
+		ret = list_lru_add(lru, item, nid, mem_cgroup_from_virt(item));
 		rcu_read_unlock();
 	} else {
 		ret = list_lru_add(lru, item, nid, NULL);
@@ -224,7 +224,7 @@ bool list_lru_del_obj(struct list_lru *lru, struct list_head *item)
 
 	if (list_lru_memcg_aware(lru)) {
 		rcu_read_lock();
-		ret = list_lru_del(lru, item, nid, mem_cgroup_from_slab_obj(item));
+		ret = list_lru_del(lru, item, nid, mem_cgroup_from_virt(item));
 		rcu_read_unlock();
 	} else {
 		ret = list_lru_del(lru, item, nid, NULL);
@@ -369,7 +369,7 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 
 		xa_for_each(&lru->xa, index, mlru) {
 			rcu_read_lock();
-			memcg = mem_cgroup_from_id(index);
+			memcg = mem_cgroup_from_private_id(index);
 			if (!mem_cgroup_tryget(memcg)) {
 				rcu_read_unlock();
 				continue;
@@ -407,7 +407,7 @@ static struct list_lru_memcg *memcg_init_list_lru_one(struct list_lru *lru, gfp_
 	int nid;
 	struct list_lru_memcg *mlru;
 
-	mlru = kmalloc(struct_size(mlru, node, nr_node_ids), gfp);
+	mlru = kmalloc_flex(*mlru, node, nr_node_ids, gfp);
 	if (!mlru)
 		return NULL;
 
@@ -585,7 +585,7 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware, struct shrinker *shr
 		memcg_aware = false;
 #endif
 
-	lru->node = kcalloc(nr_node_ids, sizeof(*lru->node), GFP_KERNEL);
+	lru->node = kzalloc_objs(*lru->node, nr_node_ids);
 	if (!lru->node)
 		return -ENOMEM;
 

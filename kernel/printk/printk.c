@@ -245,6 +245,7 @@ int devkmsg_sysctl_set_loglvl(const struct ctl_table *table, int write,
  * For console list or console->flags updates
  */
 void console_list_lock(void)
+	__acquires(&console_mutex)
 {
 	/*
 	 * In unregister_console() and console_force_preferred_locked(),
@@ -269,6 +270,7 @@ EXPORT_SYMBOL(console_list_lock);
  * Counterpart to console_list_lock()
  */
 void console_list_unlock(void)
+	__releases(&console_mutex)
 {
 	mutex_unlock(&console_mutex);
 }
@@ -931,7 +933,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 			return err;
 	}
 
-	user = kvmalloc(sizeof(struct devkmsg_user), GFP_KERNEL);
+	user = kvmalloc_obj(struct devkmsg_user);
 	if (!user)
 		return -ENOMEM;
 
@@ -2131,11 +2133,39 @@ static inline void printk_delay(int level)
 	}
 }
 
+#define CALLER_ID_MASK 0x80000000
+
 static inline u32 printk_caller_id(void)
 {
 	return in_task() ? task_pid_nr(current) :
-		0x80000000 + smp_processor_id();
+		CALLER_ID_MASK + smp_processor_id();
 }
+
+#ifdef CONFIG_PRINTK_EXECUTION_CTX
+/* Store the opposite info than caller_id. */
+static u32 printk_caller_id2(void)
+{
+	return !in_task() ? task_pid_nr(current) :
+		CALLER_ID_MASK + smp_processor_id();
+}
+
+static pid_t printk_info_get_pid(const struct printk_info *info)
+{
+	u32 caller_id = info->caller_id;
+	u32 caller_id2 = info->caller_id2;
+
+	return caller_id & CALLER_ID_MASK ? caller_id2 : caller_id;
+}
+
+static int printk_info_get_cpu(const struct printk_info *info)
+{
+	u32 caller_id = info->caller_id;
+	u32 caller_id2 = info->caller_id2;
+
+	return ((caller_id & CALLER_ID_MASK ?
+		 caller_id : caller_id2) & ~CALLER_ID_MASK);
+}
+#endif
 
 /**
  * printk_parse_prefix - Parse level and control flags.
@@ -2212,6 +2242,28 @@ static u16 printk_sprint(char *text, u16 size, int facility,
 
 	return text_len;
 }
+
+#ifdef CONFIG_PRINTK_EXECUTION_CTX
+static void printk_store_execution_ctx(struct printk_info *info)
+{
+	info->caller_id2 = printk_caller_id2();
+	get_task_comm(info->comm, current);
+}
+
+static void pmsg_load_execution_ctx(struct printk_message *pmsg,
+				    const struct printk_info *info)
+{
+	pmsg->cpu = printk_info_get_cpu(info);
+	pmsg->pid = printk_info_get_pid(info);
+	memcpy(pmsg->comm, info->comm, sizeof(pmsg->comm));
+	static_assert(sizeof(pmsg->comm) == sizeof(info->comm));
+}
+#else
+static void printk_store_execution_ctx(struct printk_info *info) {}
+
+static void pmsg_load_execution_ctx(struct printk_message *pmsg,
+				    const struct printk_info *info) {}
+#endif
 
 __printf(4, 0)
 int vprintk_store(int facility, int level,
@@ -2320,6 +2372,7 @@ int vprintk_store(int facility, int level,
 	r.info->caller_id = caller_id;
 	if (dev_info)
 		memcpy(&r.info->dev_info, dev_info, sizeof(r.info->dev_info));
+	printk_store_execution_ctx(r.info);
 
 	/* A message without a trailing newline can be continued. */
 	if (!(flags & LOG_NEWLINE))
@@ -3002,6 +3055,7 @@ bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 	pmsg->seq = r.info->seq;
 	pmsg->dropped = r.info->seq - seq;
 	force_con = r.info->flags & LOG_FORCE_CON;
+	pmsg_load_execution_ctx(pmsg, r.info);
 
 	/*
 	 * Skip records that are not forced to be printed on consoles and that
@@ -3361,22 +3415,6 @@ void console_unlock(void)
 		__console_unlock();
 }
 EXPORT_SYMBOL(console_unlock);
-
-/**
- * console_conditional_schedule - yield the CPU if required
- *
- * If the console code is currently allowed to sleep, and
- * if this CPU should yield the CPU to another task, do
- * so here.
- *
- * Must be called within console_lock();.
- */
-void __sched console_conditional_schedule(void)
-{
-	if (console_may_schedule)
-		cond_resched();
-}
-EXPORT_SYMBOL(console_conditional_schedule);
 
 void console_unblank(void)
 {

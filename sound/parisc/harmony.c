@@ -852,7 +852,7 @@ snd_harmony_create(struct snd_card *card,
 
 	*rchip = NULL;
 
-	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (h == NULL)
 		return -ENOMEM;
 

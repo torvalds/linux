@@ -142,7 +142,7 @@ static int accel_psp_fs_rx_err_add_rule(struct mlx5e_psp_fs *fs,
 	struct mlx5_flow_spec *spec;
 	int err = 0;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 
@@ -344,7 +344,7 @@ static int accel_psp_fs_rx_create_ft(struct mlx5e_psp_fs *fs,
 	int err = 0;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!flow_group_in || !spec) {
 		err = -ENOMEM;
 		goto out;
@@ -560,7 +560,7 @@ static int accel_psp_fs_init_rx(struct mlx5e_psp_fs *fs)
 	enum accel_fs_psp_type i;
 	int err;
 
-	accel_psp = kzalloc(sizeof(*accel_psp), GFP_KERNEL);
+	accel_psp = kzalloc_obj(*accel_psp);
 	if (!accel_psp)
 		return -ENOMEM;
 
@@ -686,7 +686,7 @@ static int accel_psp_fs_tx_create_ft_table(struct mlx5e_psp_fs *fs)
 	struct mlx5_flow_group *fg;
 	int err = 0;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!spec || !in) {
 		err = -ENOMEM;
@@ -815,7 +815,7 @@ static int accel_psp_fs_init_tx(struct mlx5e_psp_fs *fs)
 	if (!ns)
 		return -EOPNOTSUPP;
 
-	tx_fs = kzalloc(sizeof(*tx_fs), GFP_KERNEL);
+	tx_fs = kzalloc_obj(*tx_fs);
 	if (!tx_fs)
 		return -ENOMEM;
 
@@ -896,7 +896,7 @@ static struct mlx5e_psp_fs *mlx5e_accel_psp_fs_init(struct mlx5e_priv *priv)
 	struct mlx5e_psp_fs *fs;
 	int err = 0;
 
-	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
+	fs = kzalloc_obj(*fs);
 	if (!fs)
 		return ERR_PTR(-ENOMEM);
 
@@ -1127,7 +1127,7 @@ int mlx5e_psp_init(struct mlx5e_priv *priv)
 		return 0;
 	}
 
-	psp = kzalloc(sizeof(*psp), GFP_KERNEL);
+	psp = kzalloc_obj(*psp);
 	if (!psp)
 		return -ENOMEM;
 

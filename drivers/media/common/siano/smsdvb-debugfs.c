@@ -358,7 +358,7 @@ int smsdvb_debugfs_create(struct smsdvb_client_t *client)
 	if (!smsdvb_debugfs_usb_root || !coredev->is_usb_device)
 		return -ENODEV;
 
-	debug_data = kzalloc(sizeof(*client->debug_data), GFP_KERNEL);
+	debug_data = kzalloc_obj(*client->debug_data);
 	if (!debug_data)
 		return -ENOMEM;
 

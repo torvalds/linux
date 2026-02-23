@@ -121,7 +121,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 			ret = -EIO;
 		goto out;
 	}
-	info->dqi_priv = kmalloc(sizeof(struct qtree_mem_dqinfo), GFP_KERNEL);
+	info->dqi_priv = kmalloc_obj(struct qtree_mem_dqinfo);
 	if (!info->dqi_priv) {
 		ret = -ENOMEM;
 		goto out;

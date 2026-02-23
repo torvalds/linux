@@ -5,6 +5,28 @@
 
 menu "PHY Subsystem"
 
+config PHY_COMMON_PROPS
+	bool
+	help
+	  This parses properties common between generic PHYs and Ethernet PHYs.
+
+	  Select this from consumer drivers to gain access to helpers for
+	  parsing properties from the
+	  Documentation/devicetree/bindings/phy/phy-common-props.yaml schema.
+
+config PHY_COMMON_PROPS_TEST
+	tristate "KUnit tests for PHY common props" if !KUNIT_ALL_TESTS
+	select PHY_COMMON_PROPS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the PHY common property API.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  When in doubt, say N.
+
 config GENERIC_PHY
 	bool "PHY Core"
 	help
@@ -24,6 +46,17 @@ config GENERIC_PHY_MIPI_DPHY
 
 	  Provides a number of helpers a core functions for MIPI D-PHY
 	  drivers to us.
+
+config PHY_GOOGLE_USB
+	tristate "Google Tensor SoC USB PHY driver"
+	select GENERIC_PHY
+	depends on TYPEC
+	help
+	  Enable support for the USB PHY on Google Tensor SoCs, starting with
+	  the G5 generation (Laguna). This driver provides the PHY interfaces
+	  to interact with the SNPS eUSB2 and USB 3.2/DisplayPort Combo PHY,
+	  both of which are integrated with the DWC3 USB DRD controller.
+	  This driver currently supports USB high-speed.
 
 config PHY_LPC18XX_USB_OTG
 	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
@@ -101,8 +134,21 @@ config PHY_NXP_PTN3222
 	  schemes. It supports all three USB 2.0 data rates: Low Speed, Full
 	  Speed and High Speed.
 
+config PHY_SPACEMIT_K1_PCIE
+	tristate "PCIe and combo PHY driver for the SpacemiT K1 SoC"
+	depends on ARCH_SPACEMIT || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on HAS_IOMEM
+	depends on OF
+	select GENERIC_PHY
+	default ARCH_SPACEMIT
+	help
+	  Enable support for the PCIe and USB 3 combo PHY and two
+	  PCIe-only PHYs used in the SpacemiT K1 SoC.
+
 source "drivers/phy/allwinner/Kconfig"
 source "drivers/phy/amlogic/Kconfig"
+source "drivers/phy/apple/Kconfig"
 source "drivers/phy/broadcom/Kconfig"
 source "drivers/phy/cadence/Kconfig"
 source "drivers/phy/freescale/Kconfig"
@@ -123,6 +169,7 @@ source "drivers/phy/rockchip/Kconfig"
 source "drivers/phy/samsung/Kconfig"
 source "drivers/phy/socionext/Kconfig"
 source "drivers/phy/sophgo/Kconfig"
+source "drivers/phy/spacemit/Kconfig"
 source "drivers/phy/st/Kconfig"
 source "drivers/phy/starfive/Kconfig"
 source "drivers/phy/sunplus/Kconfig"

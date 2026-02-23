@@ -46,7 +46,7 @@ msm_fence_context_alloc(struct drm_device *dev, volatile uint32_t *fenceptr,
 	struct msm_fence_context *fctx;
 	static int index = 0;
 
-	fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
+	fctx = kzalloc_obj(*fctx);
 	if (!fctx)
 		return ERR_PTR(-ENOMEM);
 
@@ -176,7 +176,7 @@ msm_fence_alloc(void)
 {
 	struct msm_fence *f;
 
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	f = kzalloc_obj(*f);
 	if (!f)
 		return ERR_PTR(-ENOMEM);
 

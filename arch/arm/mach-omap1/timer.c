@@ -125,7 +125,7 @@ static int __init omap1_dm_timer_init(void)
 			goto err_free_pdev;
 		}
 
-		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = kzalloc_obj(*pdata);
 		if (!pdata) {
 			ret = -ENOMEM;
 			goto err_free_pdata;

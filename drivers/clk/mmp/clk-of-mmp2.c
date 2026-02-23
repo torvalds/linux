@@ -462,7 +462,7 @@ static void mmp2_clk_reset_init(struct device_node *np,
 	int i, nr_resets;
 
 	nr_resets = ARRAY_SIZE(apbc_gate_clks);
-	cells = kcalloc(nr_resets, sizeof(*cells), GFP_KERNEL);
+	cells = kzalloc_objs(*cells, nr_resets);
 	if (!cells)
 		return;
 
@@ -516,7 +516,7 @@ static void __init mmp2_clk_init(struct device_node *np)
 {
 	struct mmp2_clk_unit *pxa_unit;
 
-	pxa_unit = kzalloc(sizeof(*pxa_unit), GFP_KERNEL);
+	pxa_unit = kzalloc_obj(*pxa_unit);
 	if (!pxa_unit)
 		return;
 

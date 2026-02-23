@@ -451,7 +451,7 @@ int netup_ci_init(struct cx23885_tsport *port)
 	int ret;
 
 	ci_dbg_print("%s\n", __func__);
-	state = kzalloc(sizeof(struct netup_ci_state), GFP_KERNEL);
+	state = kzalloc_obj(struct netup_ci_state);
 	if (!state) {
 		ci_dbg_print("%s: Unable create CI structure!\n", __func__);
 		ret = -ENOMEM;

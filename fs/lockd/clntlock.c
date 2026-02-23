@@ -233,7 +233,7 @@ reclaimer(void *ptr)
 	u32 nsmstate;
 	struct net *net = host->net;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	req = kmalloc_obj(*req);
 	if (!req)
 		return 0;
 

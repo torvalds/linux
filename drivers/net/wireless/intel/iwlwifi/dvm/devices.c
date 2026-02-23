@@ -567,7 +567,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	};
 	int err;
 
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	cmd = kzalloc_obj(*cmd);
 	if (!cmd)
 		return -ENOMEM;
 

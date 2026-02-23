@@ -293,7 +293,7 @@ static const uint16_t filter_isharp_bs_3tap_64p_s1_12[99] = {
 };
 
 /* Pre-generated 1DLUT for given setup and sharpness level */
-struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = {
+static struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = {
 	{
 		0, 0,
 		{
@@ -332,7 +332,7 @@ struct isharp_1D_lut_pregen filter_isharp_1D_lut_pregen[NUM_SHARPNESS_SETUPS] = 
 	},
 };
 
-struct scale_ratio_to_sharpness_level_adj sharpness_level_adj[NUM_SHARPNESS_ADJ_LEVELS] = {
+static struct scale_ratio_to_sharpness_level_adj sharpness_level_adj[NUM_SHARPNESS_ADJ_LEVELS] = {
 	{1125, 1000, 0},
 	{11, 10, 1},
 	{1075, 1000, 2},
@@ -367,8 +367,8 @@ static unsigned int spl_calculate_sharpness_level_adj(struct spl_fixed31_32 rati
 	sharpness_level_down_adj = 0;
 	lookup_ptr = sharpness_level_adj;
 	while (j < NUM_SHARPNESS_ADJ_LEVELS) {
-		ratio_level = spl_fixpt_from_fraction(lookup_ptr->ratio_numer,
-			lookup_ptr->ratio_denom);
+		ratio_level = SPL_NAMESPACE(spl_fixpt_from_fraction(lookup_ptr->ratio_numer,
+			lookup_ptr->ratio_denom));
 		if (ratio.value >= ratio_level.value) {
 			sharpness_level_down_adj = lookup_ptr->level_down_adj;
 			break;
@@ -447,8 +447,9 @@ static unsigned int spl_calculate_sharpness_level(struct spl_fixed31_32 ratio,
 	return sharpness_level;
 }
 
-void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup,
-	struct adaptive_sharpness sharpness, enum scale_to_sharpness_policy scale_to_sharpness_policy)
+void SPL_NAMESPACE(spl_build_isharp_1dlut_from_reference_curve(
+	struct spl_fixed31_32 ratio, enum system_setup setup,
+	struct adaptive_sharpness sharpness, enum scale_to_sharpness_policy scale_to_sharpness_policy))
 {
 	uint8_t *byte_ptr_1dlut_src, *byte_ptr_1dlut_dst;
 	struct spl_fixed31_32 sharp_base, sharp_calc, sharp_level;
@@ -461,7 +462,7 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 	unsigned int sharpnessX1000 = spl_calculate_sharpness_level(ratio,
 			sharpness.sharpness_level, setup,
 			sharpness.sharpness_range, scale_to_sharpness_policy);
-	sharp_level = spl_fixpt_from_fraction(sharpnessX1000, 1000);
+	sharp_level = SPL_NAMESPACE(spl_fixpt_from_fraction(sharpnessX1000, 1000));
 
 	/*
 	 * Check if pregen 1dlut table is already precalculated
@@ -486,10 +487,11 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 	memset(byte_ptr_1dlut_dst, 0, size_1dlut);
 	for (j = 0; j < size_1dlut; j++) {
 		sharp_base = spl_fixpt_from_int((int)*byte_ptr_1dlut_src);
-		sharp_calc = spl_fixpt_mul(sharp_base, sharp_level);
+		sharp_calc = SPL_NAMESPACE(spl_fixpt_mul(sharp_base, sharp_level));
 		sharp_calc = spl_fixpt_div(sharp_calc, spl_fixpt_from_int(3));
 		sharp_calc = spl_fixpt_min(spl_fixpt_from_int(255), sharp_calc);
-		sharp_calc = spl_fixpt_add(sharp_calc, spl_fixpt_from_fraction(1, 2));
+		sharp_calc = spl_fixpt_add(sharp_calc,
+			SPL_NAMESPACE(spl_fixpt_from_fraction(1, 2)));
 		sharp_calc_int = spl_fixpt_floor(sharp_calc);
 		/* Clamp it at 0x7F so it doesn't wrap */
 		if (sharp_calc_int > 127)
@@ -506,12 +508,12 @@ void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, en
 	filter_isharp_1D_lut_pregen[setup].sharpness_denom = 1000;
 }
 
-uint32_t *spl_get_pregen_filter_isharp_1D_lut(enum system_setup setup)
+uint32_t *SPL_NAMESPACE(spl_get_pregen_filter_isharp_1D_lut(enum system_setup setup))
 {
 	return filter_isharp_1D_lut_pregen[setup].value;
 }
 
-const uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
+const uint16_t *SPL_NAMESPACE(spl_dscl_get_blur_scale_coeffs_64p(int taps))
 {
 	if (taps == 3)
 		return filter_isharp_bs_3tap_64p_s1_12;
@@ -526,7 +528,7 @@ const uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
 	}
 }
 
-const uint16_t *spl_dscl_get_blur_scale_coeffs_64p_s1_10(int taps)
+const uint16_t *SPL_NAMESPACE(spl_dscl_get_blur_scale_coeffs_64p_s1_10(int taps))
 {
 	if (taps == 3)
 		return filter_isharp_bs_3tap_64p;
@@ -541,13 +543,12 @@ const uint16_t *spl_dscl_get_blur_scale_coeffs_64p_s1_10(int taps)
 	}
 }
 
-void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
-		const struct spl_scaler_data *data)
+void SPL_NAMESPACE(spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
+		const struct spl_scaler_data *data))
 {
 	dscl_prog_data->filter_blur_scale_h =
-		spl_dscl_get_blur_scale_coeffs_64p(data->taps.h_taps);
+		SPL_NAMESPACE(spl_dscl_get_blur_scale_coeffs_64p(data->taps.h_taps));
 
 	dscl_prog_data->filter_blur_scale_v =
-		spl_dscl_get_blur_scale_coeffs_64p(data->taps.v_taps);
+		SPL_NAMESPACE(spl_dscl_get_blur_scale_coeffs_64p(data->taps.v_taps));
 }
-

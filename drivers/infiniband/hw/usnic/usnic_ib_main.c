@@ -556,7 +556,7 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 		return -EPERM;
 	}
 
-	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
+	vf = kzalloc_obj(*vf);
 	if (!vf)
 		return -ENOMEM;
 

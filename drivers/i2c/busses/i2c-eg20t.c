@@ -720,7 +720,7 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 
 	pch_pci_dbg(pdev, "Entered.\n");
 
-	adap_info = kzalloc((sizeof(struct adapter_info)), GFP_KERNEL);
+	adap_info = kzalloc_obj(struct adapter_info);
 	if (adap_info == NULL)
 		return -ENOMEM;
 

@@ -610,9 +610,8 @@ static void torture_ww_mutex_init(void)
 	ww_mutex_init(&torture_ww_mutex_1, &torture_ww_class);
 	ww_mutex_init(&torture_ww_mutex_2, &torture_ww_class);
 
-	ww_acquire_ctxs = kmalloc_array(cxt.nrealwriters_stress,
-					sizeof(*ww_acquire_ctxs),
-					GFP_KERNEL);
+	ww_acquire_ctxs = kmalloc_objs(*ww_acquire_ctxs,
+				       cxt.nrealwriters_stress);
 	if (!ww_acquire_ctxs)
 		VERBOSE_TOROUT_STRING("ww_acquire_ctx: Out of memory");
 }
@@ -1129,7 +1128,8 @@ static int call_rcu_chain_init(void)
 
 	if (call_rcu_chains <= 0)
 		return 0;
-	call_rcu_chain_list = kcalloc(call_rcu_chains, sizeof(*call_rcu_chain_list), GFP_KERNEL);
+	call_rcu_chain_list = kzalloc_objs(*call_rcu_chain_list,
+					   call_rcu_chains);
 	if (!call_rcu_chain_list)
 		return -ENOMEM;
 	for (i = 0; i < call_rcu_chains; i++) {
@@ -1293,9 +1293,7 @@ static int __init lock_torture_init(void)
 	/* Initialize the statistics so that each run gets its own numbers. */
 	if (nwriters_stress) {
 		lock_is_write_held = false;
-		cxt.lwsa = kmalloc_array(cxt.nrealwriters_stress,
-					 sizeof(*cxt.lwsa),
-					 GFP_KERNEL);
+		cxt.lwsa = kmalloc_objs(*cxt.lwsa, cxt.nrealwriters_stress);
 		if (cxt.lwsa == NULL) {
 			VERBOSE_TOROUT_STRING("cxt.lwsa: Out of memory");
 			firsterr = -ENOMEM;
@@ -1323,9 +1321,8 @@ static int __init lock_torture_init(void)
 		}
 
 		if (nreaders_stress) {
-			cxt.lrsa = kmalloc_array(cxt.nrealreaders_stress,
-						 sizeof(*cxt.lrsa),
-						 GFP_KERNEL);
+			cxt.lrsa = kmalloc_objs(*cxt.lrsa,
+						cxt.nrealreaders_stress);
 			if (cxt.lrsa == NULL) {
 				VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
 				firsterr = -ENOMEM;
@@ -1372,9 +1369,8 @@ static int __init lock_torture_init(void)
 	}
 
 	if (nwriters_stress) {
-		writer_tasks = kcalloc(cxt.nrealwriters_stress,
-				       sizeof(writer_tasks[0]),
-				       GFP_KERNEL);
+		writer_tasks = kzalloc_objs(writer_tasks[0],
+					    cxt.nrealwriters_stress);
 		if (writer_tasks == NULL) {
 			TOROUT_ERRSTRING("writer_tasks: Out of memory");
 			firsterr = -ENOMEM;
@@ -1387,9 +1383,8 @@ static int __init lock_torture_init(void)
 		nested_locks = MAX_NESTED_LOCKS;
 
 	if (cxt.cur_ops->readlock) {
-		reader_tasks = kcalloc(cxt.nrealreaders_stress,
-				       sizeof(reader_tasks[0]),
-				       GFP_KERNEL);
+		reader_tasks = kzalloc_objs(reader_tasks[0],
+					    cxt.nrealreaders_stress);
 		if (reader_tasks == NULL) {
 			TOROUT_ERRSTRING("reader_tasks: Out of memory");
 			kfree(writer_tasks);

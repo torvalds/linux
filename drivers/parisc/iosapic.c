@@ -221,7 +221,7 @@ static size_t irt_num_entry;
 
 static struct irt_entry *iosapic_alloc_irt(int num_entries)
 {
-	return kcalloc(num_entries, sizeof(struct irt_entry), GFP_KERNEL);
+	return kzalloc_objs(struct irt_entry, num_entries);
 }
 
 /**
@@ -262,9 +262,9 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 
 	if (is_pdc_pat()) {
 		/* Use pat pdc routine to get interrupt routing table size */
-		DBG("calling get_irt_size (cell %ld)\n", cell_num);
 		status = pdc_pat_get_irt_size(&num_entries, cell_num);
-		DBG("get_irt_size: %ld\n", status);
+		DBG("calling get_irt_size (cell %ld) ", cell_num);
+		DBG("returned %ld, entries: %lu\n", status, num_entries);
 
 		BUG_ON(status != PDC_OK);
 		BUG_ON(num_entries == 0);
@@ -327,7 +327,7 @@ iosapic_load_irt(unsigned long cell_num, struct irt_entry **irt)
 	int i;
 
 	printk(MODULE_NAME " Interrupt Routing Table (cell %ld)\n", cell_num);
-	printk(MODULE_NAME " start = 0x%p num_entries %ld entry_size %d\n",
+	printk(MODULE_NAME " start = 0x%px num_entries %ld entry_size %d\n",
 		table,
 		num_entries,
 		(int) sizeof(struct irt_entry));
@@ -455,7 +455,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 	pci_read_config_byte(pcidev, PCI_INTERRUPT_PIN, &intr_pin);
 
 	DBG_IRT("iosapic_xlate_pin(%s) SLOT %d pin %d\n",
-		pcidev->slot_name, PCI_SLOT(pcidev->devfn), intr_pin);
+		pci_name(pcidev), PCI_SLOT(pcidev->devfn), intr_pin);
 
 	if (intr_pin == 0) {
 		/* The device does NOT support/use IRQ lines.  */
@@ -508,7 +508,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 	} else {
 		intr_slot = PCI_SLOT(pcidev->devfn);
 	}
-	DBG_IRT("iosapic_xlate_pin:  bus %d slot %d pin %d\n",
+	DBG_IRT("iosapic_xlate_pin:  bus %lld slot %d pin %d\n",
 			pcidev->bus->busn_res.start, intr_slot, intr_pin);
 
 	return irt_find_irqline(isi, intr_slot, intr_pin);
@@ -733,7 +733,7 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 				pci_name(pcidev));
 		return -1;
 	}
-	DBG_IRT("iosapic_fixup_irq(): irte %p %x %x %x %x %x %x %x %x\n",
+	DBG_IRT("iosapic_fixup_irq(): irte %px %02x %02x %02x %02x %02x %02x %02x %04llx\n",
 		irte,
 		irte->entry_type,
 		irte->entry_length,
@@ -742,12 +742,12 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 		irte->src_bus_id,
 		irte->src_seg_id,
 		irte->dest_iosapic_intin,
-		(u32) irte->dest_iosapic_addr);
+		irte->dest_iosapic_addr);
 	isi_line = irte->dest_iosapic_intin;
 
 	/* get vector info for this input line */
 	vi = isi->isi_vector + isi_line;
-	DBG_IRT("iosapic_fixup_irq:  line %d vi 0x%p\n", isi_line, vi);
+	DBG_IRT("iosapic_fixup_irq:  line %d vi 0x%px\n", isi_line, vi);
 
 	/* If this IRQ line has already been setup, skip it */
 	if (vi->irte)
@@ -772,6 +772,8 @@ int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)
 	/* enable_irq() will use txn_* to program IRdT */
 	vi->txn_addr = txn_alloc_addr(vi->txn_irq);
 	vi->txn_data = txn_alloc_data(vi->txn_irq);
+	DBG_IRT("iosapic_fixup_irq() TXN: 0x%lx 0x%x\n",
+		vi->txn_addr, vi->txn_data);
 
 	vi->eoi_addr = isi->addr + IOSAPIC_REG_EOI;
 	vi->eoi_data = cpu_to_le32(vi->txn_data);
@@ -831,7 +833,7 @@ int iosapic_serial_irq(struct parisc_device *dev)
 
 	/* get vector info for this input line */
 	vi = isi->isi_vector + intin;
-	DBG_IRT("iosapic_serial_irq:  line %d vi 0x%p\n", iosapic_intin, vi);
+	DBG_IRT("iosapic_serial_irq:  line %d vi 0x%p\n", intin, vi);
 
 	/* If this IRQ line has already been setup, skip it */
 	if (vi->irte)
@@ -913,7 +915,7 @@ void *iosapic_register(unsigned long hpa, void __iomem *vaddr)
 		return NULL;
 	}
 
-	isi = kzalloc(sizeof(struct iosapic_info), GFP_KERNEL);
+	isi = kzalloc_obj(struct iosapic_info);
 	if (!isi) {
 		BUG();
 		return NULL;
@@ -923,9 +925,10 @@ void *iosapic_register(unsigned long hpa, void __iomem *vaddr)
 	isi->isi_hpa = hpa;
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;
+	DBG_IRT("iosapic_register: num vectors = %d\n", isi->isi_num_vectors);
 
-	vip = isi->isi_vector = kcalloc(isi->isi_num_vectors,
-					sizeof(struct vector_info), GFP_KERNEL);
+	vip = isi->isi_vector = kzalloc_objs(struct vector_info,
+					     isi->isi_num_vectors);
 	if (vip == NULL) {
 		kfree(isi);
 		return NULL;

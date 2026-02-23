@@ -368,7 +368,7 @@ static int smc_pnet_add_eth(struct smc_pnettable *pnettable, struct net *net,
 
 	/* add a new netdev entry to the pnet table if there isn't one */
 	rc = -ENOMEM;
-	new_pe = kzalloc(sizeof(*new_pe), GFP_KERNEL);
+	new_pe = kzalloc_obj(*new_pe);
 	if (!new_pe)
 		goto out_put;
 	new_pe->type = SMC_PNET_ETH;
@@ -445,7 +445,7 @@ static int smc_pnet_add_ib(struct smc_pnettable *pnettable, char *ib_name,
 		return -EEXIST;
 
 	/* add a new ib entry to the pnet table if there isn't one */
-	new_pe = kzalloc(sizeof(*new_pe), GFP_KERNEL);
+	new_pe = kzalloc_obj(*new_pe);
 	if (!new_pe)
 		return -ENOMEM;
 	new_pe->type = SMC_PNET_IB;
@@ -747,7 +747,7 @@ static int smc_pnet_add_pnetid(struct net *net, u8 *pnetid)
 	struct smc_net *sn = net_generic(net, smc_net_id);
 	struct smc_pnetids_ndev_entry *pe, *pi;
 
-	pe = kzalloc(sizeof(*pe), GFP_KERNEL);
+	pe = kzalloc_obj(*pe);
 	if (!pe)
 		return -ENOMEM;
 

@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/err.h>
@@ -276,7 +277,7 @@ static struct airq_info *new_airq_info(int index)
 	struct airq_info *info;
 	int rc;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return NULL;
 	rwlock_init(&info->lock);
@@ -565,7 +566,7 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 		notify = virtio_ccw_kvm_notify;
 
 	/* Allocate queue. */
-	info = kzalloc(sizeof(struct virtio_ccw_vq_info), GFP_KERNEL);
+	info = kzalloc_obj(struct virtio_ccw_vq_info);
 	if (!info) {
 		dev_warn(&vcdev->cdev->dev, "no info\n");
 		err = -ENOMEM;
@@ -1369,7 +1370,7 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	struct virtio_ccw_device *vcdev;
 	unsigned long flags;
 
-	vcdev = kzalloc(sizeof(*vcdev), GFP_KERNEL);
+	vcdev = kzalloc_obj(*vcdev);
 	if (!vcdev) {
 		dev_warn(&cdev->dev, "Could not get memory for virtio\n");
 		ret = -ENOMEM;

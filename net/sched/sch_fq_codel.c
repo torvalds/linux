@@ -496,9 +496,7 @@ static int fq_codel_init(struct Qdisc *sch, struct nlattr *opt,
 		goto init_failure;
 
 	if (!q->flows) {
-		q->flows = kvcalloc(q->flows_cnt,
-				    sizeof(struct fq_codel_flow),
-				    GFP_KERNEL);
+		q->flows = kvzalloc_objs(struct fq_codel_flow, q->flows_cnt);
 		if (!q->flows) {
 			err = -ENOMEM;
 			goto init_failure;

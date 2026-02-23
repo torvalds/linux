@@ -2545,12 +2545,6 @@ static const struct seq_operations tegra_pcie_ports_sops = {
 
 DEFINE_SEQ_ATTRIBUTE(tegra_pcie_ports);
 
-static void tegra_pcie_debugfs_exit(struct tegra_pcie *pcie)
-{
-	debugfs_remove_recursive(pcie->debugfs);
-	pcie->debugfs = NULL;
-}
-
 static void tegra_pcie_debugfs_init(struct tegra_pcie *pcie)
 {
 	pcie->debugfs = debugfs_create_dir("pcie", NULL);
@@ -2622,29 +2616,6 @@ pm_runtime_put:
 put_resources:
 	tegra_pcie_put_resources(pcie);
 	return err;
-}
-
-static void tegra_pcie_remove(struct platform_device *pdev)
-{
-	struct tegra_pcie *pcie = platform_get_drvdata(pdev);
-	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
-	struct tegra_pcie_port *port, *tmp;
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_pcie_debugfs_exit(pcie);
-
-	pci_stop_root_bus(host->bus);
-	pci_remove_root_bus(host->bus);
-	pm_runtime_put_sync(pcie->dev);
-	pm_runtime_disable(pcie->dev);
-
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		tegra_pcie_msi_teardown(pcie);
-
-	tegra_pcie_put_resources(pcie);
-
-	list_for_each_entry_safe(port, tmp, &pcie->ports, list)
-		tegra_pcie_port_free(port);
 }
 
 static int tegra_pcie_pm_suspend(struct device *dev)
@@ -2750,6 +2721,8 @@ static struct platform_driver tegra_pcie_driver = {
 		.pm = &tegra_pcie_pm_ops,
 	},
 	.probe = tegra_pcie_probe,
-	.remove = tegra_pcie_remove,
 };
-module_platform_driver(tegra_pcie_driver);
+builtin_platform_driver(tegra_pcie_driver);
+MODULE_AUTHOR("Thierry Reding <treding@nvidia.com>");
+MODULE_DESCRIPTION("NVIDIA PCI host controller driver");
+MODULE_LICENSE("GPL");

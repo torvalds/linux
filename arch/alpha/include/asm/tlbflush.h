@@ -58,7 +58,9 @@ flush_tlb_other(struct mm_struct *mm)
 	unsigned long *mmc = &mm->context[smp_processor_id()];
 	/* Check it's not zero first to avoid cacheline ping pong
 	   when possible.  */
-	if (*mmc) *mmc = 0;
+
+	if (READ_ONCE(*mmc))
+		WRITE_ONCE(*mmc, 0);
 }
 
 #ifndef CONFIG_SMP

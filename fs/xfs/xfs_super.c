@@ -4,7 +4,7 @@
  * All Rights Reserved.
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -40,6 +40,8 @@
 #include "xfs_defer.h"
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
+#include "xfs_error.h"
+#include "xfs_errortag.h"
 #include "xfs_iunlink_item.h"
 #include "xfs_dahash_test.h"
 #include "xfs_rtbitmap.h"
@@ -47,12 +49,14 @@
 #include "xfs_parent.h"
 #include "xfs_rtalloc.h"
 #include "xfs_zone_alloc.h"
+#include "xfs_healthmon.h"
 #include "scrub/stats.h"
 #include "scrub/rcbag_btree.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
+#include <linux/fserror.h>
 
 static const struct super_operations xfs_super_operations;
 
@@ -111,7 +115,7 @@ enum {
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
 	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum, Opt_max_open_zones,
-	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write,
+	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write, Opt_errortag,
 };
 
 #define fsparam_dead(NAME) \
@@ -170,6 +174,7 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_flag("lifetime",	Opt_lifetime),
 	fsparam_flag("nolifetime",	Opt_nolifetime),
 	fsparam_string("max_atomic_write",	Opt_max_atomic_write),
+	fsparam_string("errortag",	Opt_errortag),
 	{}
 };
 
@@ -712,34 +717,6 @@ xfs_fs_destroy_inode(
 	xfs_inode_mark_reclaimable(ip);
 }
 
-static void
-xfs_fs_dirty_inode(
-	struct inode			*inode,
-	int				flags)
-{
-	struct xfs_inode		*ip = XFS_I(inode);
-	struct xfs_mount		*mp = ip->i_mount;
-	struct xfs_trans		*tp;
-
-	if (!(inode->i_sb->s_flags & SB_LAZYTIME))
-		return;
-
-	/*
-	 * Only do the timestamp update if the inode is dirty (I_DIRTY_SYNC)
-	 * and has dirty timestamp (I_DIRTY_TIME). I_DIRTY_TIME can be passed
-	 * in flags possibly together with I_DIRTY_SYNC.
-	 */
-	if ((flags & ~I_DIRTY_TIME) != I_DIRTY_SYNC || !(flags & I_DIRTY_TIME))
-		return;
-
-	if (xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp))
-		return;
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
-	xfs_trans_commit(tp);
-}
-
 /*
  * Slab object creation initialisation for the XFS inode.
  * This covers only the idempotent fields in the XFS inode;
@@ -822,6 +799,9 @@ xfs_mount_free(
 	debugfs_remove(mp->m_debugfs);
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
+#ifdef DEBUG
+	kfree(mp->m_errortag);
+#endif
 	kfree(mp);
 }
 
@@ -844,15 +824,6 @@ xfs_fs_sync_fs(
 	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
 		return error;
-
-	if (laptop_mode) {
-		/*
-		 * The disk must be active because we're syncing.
-		 * We schedule log work now (now that the disk is
-		 * active) instead of later (when it might not be).
-		 */
-		flush_delayed_work(&mp->m_log->l_work);
-	}
 
 	/*
 	 * If we are called with page faults frozen out, it means we are about
@@ -1301,10 +1272,18 @@ xfs_fs_show_stats(
 	return 0;
 }
 
+static void
+xfs_fs_report_error(
+	const struct fserror_event	*event)
+{
+	/* healthmon already knows about non-inode and metadata errors */
+	if (event->inode && event->type != FSERR_METADATA)
+		xfs_healthmon_report_file_ioerror(XFS_I(event->inode), event);
+}
+
 static const struct super_operations xfs_super_operations = {
 	.alloc_inode		= xfs_fs_alloc_inode,
 	.destroy_inode		= xfs_fs_destroy_inode,
-	.dirty_inode		= xfs_fs_dirty_inode,
 	.drop_inode		= xfs_fs_drop_inode,
 	.evict_inode		= xfs_fs_evict_inode,
 	.put_super		= xfs_fs_put_super,
@@ -1317,6 +1296,7 @@ static const struct super_operations xfs_super_operations = {
 	.free_cached_objects	= xfs_fs_free_cached_objects,
 	.shutdown		= xfs_fs_shutdown,
 	.show_stats		= xfs_fs_show_stats,
+	.report_error		= xfs_fs_report_error,
 };
 
 static int
@@ -1577,6 +1557,8 @@ xfs_fs_parse_param(
 			return -EINVAL;
 		}
 		return 0;
+	case Opt_errortag:
+		return xfs_errortag_add_name(parsing_mp, param->string);
 	default:
 		xfs_warn(parsing_mp, "unknown mount option [%s].", param->key);
 		return -EINVAL;
@@ -1835,8 +1817,6 @@ xfs_fs_fill_super(
 			error = -ENOSYS;
 			goto out_free_sb;
 		}
-
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_LBS);
 	}
 
 	/* Ensure this filesystem fits in the page cache limits */
@@ -1922,8 +1902,6 @@ xfs_fs_fill_super(
 			goto out_filestream_unmount;
 		}
 		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_ZONED);
-	} else if (xfs_has_metadir(mp)) {
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_METADIR);
 	}
 
 	if (xfs_has_reflink(mp)) {
@@ -2172,6 +2150,8 @@ xfs_fs_reconfigure(
 	if (error)
 		return error;
 
+	xfs_errortag_copy(mp, new_mp);
+
 	/* Validate new max_atomic_write option before making other changes */
 	if (mp->m_awu_max_bytes != new_mp->m_awu_max_bytes) {
 		error = xfs_set_max_atomic_write_opt(mp,
@@ -2255,9 +2235,16 @@ xfs_init_fs_context(
 	struct xfs_mount	*mp;
 	int			i;
 
-	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
+	mp = kzalloc_obj(struct xfs_mount);
 	if (!mp)
 		return -ENOMEM;
+#ifdef DEBUG
+	mp->m_errortag = kzalloc_objs(*mp->m_errortag, XFS_ERRTAG_MAX);
+	if (!mp->m_errortag) {
+		kfree(mp);
+		return -ENOMEM;
+	}
+#endif
 
 	spin_lock_init(&mp->m_sb_lock);
 	for (i = 0; i < XG_TYPE_MAX; i++)

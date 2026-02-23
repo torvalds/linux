@@ -1295,8 +1295,7 @@ struct usb_driver {
  *	resume and suspend functions will be called in addition to the driver's
  *	own, so this part of the setup does not need to be replicated.
  *
- * USB drivers must provide all the fields listed above except driver,
- * match, and id_table.
+ * USB device drivers must provide a name, other driver fields are optional.
  */
 struct usb_device_driver {
 	const char *name;

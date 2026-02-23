@@ -1420,6 +1420,10 @@ static const struct platform_desc ptl_desc = {
 	}
 };
 
+static const struct platform_desc nvl_desc = {
+	PLATFORM(novalake),
+};
+
 __diag_pop();
 
 /*
@@ -1495,6 +1499,7 @@ static const struct {
 	INTEL_BMG_IDS(INTEL_DISPLAY_DEVICE, &bmg_desc),
 	INTEL_PTL_IDS(INTEL_DISPLAY_DEVICE, &ptl_desc),
 	INTEL_WCL_IDS(INTEL_DISPLAY_DEVICE, &ptl_desc),
+	INTEL_NVLS_IDS(INTEL_DISPLAY_DEVICE, &nvl_desc),
 };
 
 static const struct {
@@ -1658,7 +1663,7 @@ struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
 	const struct subplatform_desc *subdesc;
 	enum intel_step step;
 
-	display = kzalloc(sizeof(*display), GFP_KERNEL);
+	display = kzalloc_obj(*display);
 	if (!display)
 		return ERR_PTR(-ENOMEM);
 

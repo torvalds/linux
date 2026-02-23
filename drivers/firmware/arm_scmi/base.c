@@ -375,18 +375,13 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int id, ret;
 	u8 *prot_imp;
-	u32 version;
 	char name[SCMI_SHORT_NAME_MAX_SIZE];
 	struct device *dev = ph->dev;
 	struct scmi_revision_info *rev = scmi_revision_area_get(ph);
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
-	rev->major_ver = PROTOCOL_REV_MAJOR(version);
-	rev->minor_ver = PROTOCOL_REV_MINOR(version);
-	ph->set_priv(ph, rev, version);
+	rev->major_ver = PROTOCOL_REV_MAJOR(ph->version);
+	rev->minor_ver = PROTOCOL_REV_MINOR(ph->version);
+	ph->set_priv(ph, rev);
 
 	ret = scmi_base_attributes_get(ph);
 	if (ret)

@@ -376,7 +376,7 @@ struct dvb_frontend* cx22700_attach(const struct cx22700_config* config,
 	struct cx22700_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct cx22700_state), GFP_KERNEL);
+	state = kzalloc_obj(struct cx22700_state);
 	if (state == NULL) goto error;
 
 	/* setup the state */

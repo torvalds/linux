@@ -903,7 +903,7 @@ static int cdns3_prepare_aligned_request_buf(struct cdns3_request *priv_req)
 	buf = priv_req->aligned_buf;
 
 	if (!buf || priv_req->request.length > buf->size) {
-		buf = kzalloc(sizeof(*buf), GFP_ATOMIC);
+		buf = kzalloc_obj(*buf, GFP_ATOMIC);
 		if (!buf)
 			return -ENOMEM;
 
@@ -2315,7 +2315,7 @@ struct usb_request *cdns3_gadget_ep_alloc_request(struct usb_ep *ep,
 	struct cdns3_endpoint *priv_ep = ep_to_cdns3_ep(ep);
 	struct cdns3_request *priv_req;
 
-	priv_req = kzalloc(sizeof(*priv_req), gfp_flags);
+	priv_req = kzalloc_obj(*priv_req, gfp_flags);
 	if (!priv_req)
 		return NULL;
 
@@ -3287,7 +3287,7 @@ static int cdns3_gadget_start(struct cdns *cdns)
 	u32 max_speed;
 	int ret;
 
-	priv_dev = kzalloc(sizeof(*priv_dev), GFP_KERNEL);
+	priv_dev = kzalloc_obj(*priv_dev);
 	if (!priv_dev)
 		return -ENOMEM;
 

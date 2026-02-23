@@ -2606,7 +2606,7 @@ static int coda_open(struct file *file)
 	int ret;
 	int idx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

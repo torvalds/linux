@@ -1,5 +1,3 @@
-perf-util-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
-perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
 perf-util-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
 perf-util-y += ../../arm/util/auxtrace.o
 perf-util-y += ../../arm/util/cs-etm.o
@@ -9,6 +7,5 @@ perf-util-y += header.o
 perf-util-y += hisi-ptt.o
 perf-util-y += machine.o
 perf-util-y += mem-events.o
-perf-util-y += perf_regs.o
 perf-util-y += pmu.o
 perf-util-y += tsc.o

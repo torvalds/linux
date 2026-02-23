@@ -775,7 +775,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	host->setup = ti_qspi_setup;
 	host->auto_runtime_pm = true;
 	host->transfer_one_message = ti_qspi_start_transfer_one;
-	host->dev.of_node = pdev->dev.of_node;
 	host->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(16) |
 				   SPI_BPW_MASK(8);
 	host->mem_ops = &ti_qspi_mem_ops;

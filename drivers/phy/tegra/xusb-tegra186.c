@@ -84,6 +84,7 @@
 #define XUSB_PADCTL_USB2_BIAS_PAD_CTL0		0x284
 #define  BIAS_PAD_PD				BIT(11)
 #define  HS_SQUELCH_LEVEL(x)			(((x) & 0x7) << 0)
+#define  HS_DISCON_LEVEL(x)			(((x) & 0x7) << 3)
 
 #define XUSB_PADCTL_USB2_BIAS_PAD_CTL1		0x288
 #define  USB2_TRK_START_TIMER(x)		(((x) & 0x7f) << 12)
@@ -301,7 +302,7 @@ tegra186_usb2_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_usb2_lane *usb2;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -623,6 +624,8 @@ static void tegra186_utmi_bias_pad_power_on(struct tegra_xusb_padctl *padctl)
 	value &= ~BIAS_PAD_PD;
 	value &= ~HS_SQUELCH_LEVEL(~0);
 	value |= HS_SQUELCH_LEVEL(priv->calib.hs_squelch);
+	value &= ~HS_DISCON_LEVEL(~0);
+	value |= HS_DISCON_LEVEL(0x7);
 	padctl_writel(padctl, value, XUSB_PADCTL_USB2_BIAS_PAD_CTL0);
 
 	udelay(1);
@@ -1028,7 +1031,7 @@ tegra186_usb2_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	usb2 = kzalloc(sizeof(*usb2), GFP_KERNEL);
+	usb2 = kzalloc_obj(*usb2);
 	if (!usb2)
 		return ERR_PTR(-ENOMEM);
 
@@ -1110,7 +1113,7 @@ tegra186_usb3_lane_probe(struct tegra_xusb_pad *pad, struct device_node *np,
 	struct tegra_xusb_usb3_lane *usb3;
 	int err;
 
-	usb3 = kzalloc(sizeof(*usb3), GFP_KERNEL);
+	usb3 = kzalloc_obj(*usb3);
 	if (!usb3)
 		return ERR_PTR(-ENOMEM);
 
@@ -1414,7 +1417,7 @@ tegra186_usb3_pad_probe(struct tegra_xusb_padctl *padctl,
 	struct tegra_xusb_pad *pad;
 	int err;
 
-	usb3 = kzalloc(sizeof(*usb3), GFP_KERNEL);
+	usb3 = kzalloc_obj(*usb3);
 	if (!usb3)
 		return ERR_PTR(-ENOMEM);
 

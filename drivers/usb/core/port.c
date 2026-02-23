@@ -739,11 +739,11 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	struct usb_device *hdev = hub->hdev;
 	int retval;
 
-	port_dev = kzalloc(sizeof(*port_dev), GFP_KERNEL);
+	port_dev = kzalloc_obj(*port_dev);
 	if (!port_dev)
 		return -ENOMEM;
 
-	port_dev->req = kzalloc(sizeof(*(port_dev->req)), GFP_KERNEL);
+	port_dev->req = kzalloc_obj(*(port_dev->req));
 	if (!port_dev->req) {
 		kfree(port_dev);
 		return -ENOMEM;

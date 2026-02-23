@@ -203,7 +203,7 @@ ffa_device_register(const struct ffa_partition_info *part_info,
 	if (id < 0)
 		return NULL;
 
-	ffa_dev = kzalloc(sizeof(*ffa_dev), GFP_KERNEL);
+	ffa_dev = kzalloc_obj(*ffa_dev);
 	if (!ffa_dev) {
 		ida_free(&ffa_bus_id, id);
 		return NULL;

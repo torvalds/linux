@@ -327,7 +327,7 @@ static int affs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_time_min = sys_tz.tz_minuteswest * 60 + AFFS_EPOCH_DELTA;
 	sb->s_time_max = 86400LL * U32_MAX + 86400 + sb->s_time_min;
 
-	sbi = kzalloc(sizeof(struct affs_sb_info), GFP_KERNEL);
+	sbi = kzalloc_obj(struct affs_sb_info);
 	if (!sbi)
 		return -ENOMEM;
 
@@ -615,7 +615,7 @@ static int affs_init_fs_context(struct fs_context *fc)
 {
 	struct affs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct affs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct affs_context);
 	if (!ctx)
 		return -ENOMEM;
 

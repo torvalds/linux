@@ -321,7 +321,7 @@ int
 nvkm_volt_new_(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_volt **pvolt)
 {
-	if (!(*pvolt = kzalloc(sizeof(**pvolt), GFP_KERNEL)))
+	if (!(*pvolt = kzalloc_obj(**pvolt)))
 		return -ENOMEM;
 	nvkm_volt_ctor(func, device, type, inst, *pvolt);
 	return 0;

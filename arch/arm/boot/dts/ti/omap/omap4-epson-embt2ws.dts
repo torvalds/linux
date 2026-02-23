@@ -229,6 +229,11 @@
 			interrupts = <11>;
 		};
 
+		pwrbutton {
+			compatible = "ti,twl6030-pwrbutton";
+			interrupts = <0>;
+		};
+
 		ldo2: regulator-ldo2 {
 			compatible = "ti,twl6032-ldo2";
 			regulator-min-microvolt = <1000000>;

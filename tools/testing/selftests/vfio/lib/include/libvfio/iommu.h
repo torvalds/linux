@@ -61,6 +61,12 @@ iova_t iommu_hva2iova(struct iommu *iommu, void *vaddr);
 
 struct iommu_iova_range *iommu_iova_ranges(struct iommu *iommu, u32 *nranges);
 
+#define MODE_VFIO_TYPE1_IOMMU "vfio_type1_iommu"
+#define MODE_VFIO_TYPE1V2_IOMMU "vfio_type1v2_iommu"
+#define MODE_IOMMUFD_COMPAT_TYPE1 "iommufd_compat_type1"
+#define MODE_IOMMUFD_COMPAT_TYPE1V2 "iommufd_compat_type1v2"
+#define MODE_IOMMUFD "iommufd"
+
 /*
  * Generator for VFIO selftests fixture variants that replicate across all
  * possible IOMMU modes. Tests must define FIXTURE_VARIANT_ADD_IOMMU_MODE()

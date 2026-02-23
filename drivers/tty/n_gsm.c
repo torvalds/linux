@@ -2065,8 +2065,7 @@ static void gsm_control_retransmit(struct timer_list *t)
 static struct gsm_control *gsm_control_send(struct gsm_mux *gsm,
 		unsigned int command, u8 *data, int clen)
 {
-	struct gsm_control *ctrl = kzalloc(sizeof(struct gsm_control),
-						GFP_ATOMIC);
+	struct gsm_control *ctrl = kzalloc_obj(struct gsm_control, GFP_ATOMIC);
 	unsigned long flags;
 	if (ctrl == NULL)
 		return NULL;
@@ -2646,7 +2645,7 @@ static int gsm_dlci_config(struct gsm_dlci *dlci, struct gsm_dlci_config *dc, in
 
 static struct gsm_dlci *gsm_dlci_alloc(struct gsm_mux *gsm, int addr)
 {
-	struct gsm_dlci *dlci = kzalloc(sizeof(struct gsm_dlci), GFP_ATOMIC);
+	struct gsm_dlci *dlci = kzalloc_obj(struct gsm_dlci, GFP_ATOMIC);
 	if (dlci == NULL)
 		return NULL;
 	spin_lock_init(&dlci->lock);
@@ -3276,7 +3275,7 @@ static inline unsigned int mux_line_to_num(unsigned int line)
 static struct gsm_mux *gsm_alloc_mux(void)
 {
 	int i;
-	struct gsm_mux *gsm = kzalloc(sizeof(struct gsm_mux), GFP_KERNEL);
+	struct gsm_mux *gsm = kzalloc_obj(struct gsm_mux);
 	if (gsm == NULL)
 		return NULL;
 	gsm->buf = kmalloc(MAX_MRU + 1, GFP_KERNEL);

@@ -60,6 +60,12 @@ properties:
               - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
+      - description: Anbernic RK3568 Handheld Gaming Console
+        items:
+          - enum:
+              - anbernic,rg-ds
+          - const: rockchip,rk3568
+
       - description: Ariaboard Photonicat
         items:
           - const: ariaboard,photonicat
@@ -894,11 +900,15 @@ properties:
           - const: rockchip,rk3568
 
       - description: QNAP TS-x33 NAS devices
-        items:
-          - enum:
-              - qnap,ts233
-              - qnap,ts433
-          - const: rockchip,rk3568
+        oneOf:
+          - items:
+              - const: qnap,ts133
+              - const: rockchip,rk3566
+          - items:
+              - enum:
+                  - qnap,ts233
+                  - qnap,ts433
+              - const: rockchip,rk3568
 
       - description: Radxa Compute Module 3 (CM3)
         items:
@@ -907,12 +917,26 @@ properties:
           - const: radxa,cm3
           - const: rockchip,rk3566
 
-      - description: Radxa CM3 Industrial
+      - description: Radxa CM3I
         items:
           - enum:
               - radxa,e25
           - const: radxa,cm3i
           - const: rockchip,rk3568
+
+      - description: Radxa CM3J
+        items:
+          - enum:
+              - radxa,cm3j-rpi-cm4
+          - const: radxa,cm3j
+          - const: rockchip,rk3568
+
+      - description: Radxa CM5
+        items:
+          - enum:
+              - radxa,cm5-io
+          - const: radxa,cm5
+          - const: rockchip,rk3588s
 
       - description: Radxa E20C
         items:
@@ -1297,6 +1321,12 @@ properties:
           - enum:
               - xunlong,orangepi-5
               - xunlong,orangepi-5b
+          - const: rockchip,rk3588s
+
+      - description: Xunlong Orange Pi CM5
+        items:
+          - const: xunlong,orangepi-cm5-base
+          - const: xunlong,orangepi-cm5
           - const: rockchip,rk3588s
 
       - description: Zkmagic A95X Z2

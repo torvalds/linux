@@ -89,7 +89,7 @@ static struct snd_seq_queue *queue_new(int owner, int locked)
 {
 	struct snd_seq_queue *q;
 
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
+	q = kzalloc_obj(*q);
 	if (!q)
 		return NULL;
 
@@ -211,8 +211,9 @@ struct snd_seq_queue *snd_seq_queue_find_name(char *name)
 	int i;
 
 	for (i = 0; i < SNDRV_SEQ_MAX_QUEUES; i++) {
-		struct snd_seq_queue *q __free(snd_seq_queue) = NULL;
-		q = queueptr(i);
+		struct snd_seq_queue *q __free(snd_seq_queue) =
+			queueptr(i);
+
 		if (q) {
 			if (strncmp(q->name, name, sizeof(q->name)) == 0)
 				return no_free_ptr(q);
@@ -285,12 +286,13 @@ void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 int snd_seq_enqueue_event(struct snd_seq_event_cell *cell, int atomic, int hop)
 {
 	int dest, err;
-	struct snd_seq_queue *q __free(snd_seq_queue) = NULL;
 
 	if (snd_BUG_ON(!cell))
 		return -EINVAL;
 	dest = cell->event.queue;	/* destination queue */
-	q = queueptr(dest);
+
+	struct snd_seq_queue *q __free(snd_seq_queue) =
+		queueptr(dest);
 	if (q == NULL)
 		return -EINVAL;
 	/* handle relative time stamps, convert them into absolute */
@@ -403,10 +405,10 @@ int snd_seq_queue_set_owner(int queueid, int client, int locked)
 int snd_seq_queue_timer_open(int queueid)
 {
 	int result = 0;
-	struct snd_seq_queue *queue __free(snd_seq_queue) = NULL;
 	struct snd_seq_timer *tmr;
+	struct snd_seq_queue *queue __free(snd_seq_queue) =
+		queueptr(queueid);
 
-	queue = queueptr(queueid);
 	if (queue == NULL)
 		return -EINVAL;
 	tmr = queue->timer;
@@ -423,10 +425,10 @@ int snd_seq_queue_timer_open(int queueid)
  */
 int snd_seq_queue_timer_close(int queueid)
 {
-	struct snd_seq_queue *queue __free(snd_seq_queue) = NULL;
 	int result = 0;
+	struct snd_seq_queue *queue __free(snd_seq_queue) =
+		queueptr(queueid);
 
-	queue = queueptr(queueid);
 	if (queue == NULL)
 		return -EINVAL;
 	snd_seq_timer_close(queue);
@@ -479,9 +481,9 @@ static void queue_use(struct snd_seq_queue *queue, int client, int use)
  */
 int snd_seq_queue_use(int queueid, int client, int use)
 {
-	struct snd_seq_queue *queue __free(snd_seq_queue) = NULL;
+	struct snd_seq_queue *queue __free(snd_seq_queue) =
+		queueptr(queueid);
 
-	queue = queueptr(queueid);
 	if (queue == NULL)
 		return -EINVAL;
 	guard(mutex)(&queue->timer_mutex);
@@ -496,9 +498,9 @@ int snd_seq_queue_use(int queueid, int client, int use)
  */
 int snd_seq_queue_is_used(int queueid, int client)
 {
-	struct snd_seq_queue *q __free(snd_seq_queue) = NULL;
+	struct snd_seq_queue *q __free(snd_seq_queue) =
+		queueptr(queueid);
 
-	q = queueptr(queueid);
 	if (q == NULL)
 		return -EINVAL; /* invalid queue */
 	return test_bit(client, q->clients_bitmap) ? 1 : 0;
@@ -642,11 +644,11 @@ static void snd_seq_queue_process_event(struct snd_seq_queue *q,
  */
 int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop)
 {
-	struct snd_seq_queue *q __free(snd_seq_queue) = NULL;
-
 	if (snd_BUG_ON(!ev))
 		return -EINVAL;
-	q = queueptr(ev->data.queue.queue);
+
+	struct snd_seq_queue *q __free(snd_seq_queue) =
+		queueptr(ev->data.queue.queue);
 
 	if (q == NULL)
 		return -EINVAL;

@@ -140,7 +140,7 @@ static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_por
 		if (i->irq == up->port.irq)
 			return i;
 
-	i = kzalloc(sizeof(*i), GFP_KERNEL);
+	i = kzalloc_obj(*i);
 	if (i == NULL)
 		return ERR_PTR(-ENOMEM);
 

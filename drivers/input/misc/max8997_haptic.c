@@ -247,7 +247,7 @@ static int max8997_haptic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	input_dev = input_allocate_device();
 	if (!chip || !input_dev) {
 		dev_err(&pdev->dev, "unable to allocate memory\n");

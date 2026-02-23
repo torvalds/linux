@@ -305,7 +305,7 @@ TRACE_EVENT(tcp_retransmit_synack,
 	),
 
 	TP_fast_assign(
-		struct inet_request_sock *ireq = inet_rsk(req);
+		const struct inet_request_sock *ireq = inet_rsk(req);
 		__be32 *p32;
 
 		__entry->skaddr = sk;

@@ -550,7 +550,7 @@ static const unsigned int a405_registers[] = {
 
 static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct msm_gpu_state *state = kzalloc_obj(*state);
 
 	if (!state)
 		return ERR_PTR(-ENOMEM);
@@ -645,7 +645,7 @@ static struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	a4xx_gpu = kzalloc(sizeof(*a4xx_gpu), GFP_KERNEL);
+	a4xx_gpu = kzalloc_obj(*a4xx_gpu);
 	if (!a4xx_gpu) {
 		ret = -ENOMEM;
 		goto fail;

@@ -1621,7 +1621,7 @@ static int qlt_sched_sess_work(struct qla_tgt *tgt, int type,
 	struct qla_tgt_sess_work_param *prm;
 	unsigned long flags;
 
-	prm = kzalloc(sizeof(*prm), GFP_ATOMIC);
+	prm = kzalloc_obj(*prm, GFP_ATOMIC);
 	if (!prm) {
 		ql_dbg(ql_dbg_tgt_mgt, tgt->vha, 0xf050,
 		    "qla_target(%d): Unable to create session "
@@ -3988,7 +3988,7 @@ static int qlt_prepare_srr_ctio(struct qla_qpair *qpair,
 		return 0;
 	}
 
-	srr = kzalloc(sizeof(*srr), GFP_ATOMIC);
+	srr = kzalloc_obj(*srr, GFP_ATOMIC);
 	if (!srr)
 		return -ENOMEM;
 
@@ -5561,7 +5561,7 @@ static void qlt_prepare_srr_imm(struct scsi_qla_host *vha,
 	 * safely.
 	 */
 
-	srr = kzalloc(sizeof(*srr), GFP_ATOMIC);
+	srr = kzalloc_obj(*srr, GFP_ATOMIC);
 	if (!srr)
 		goto out_reject;
 
@@ -5707,7 +5707,7 @@ static int qlt_set_data_offset(struct qla_tgt_cmd *cmd, uint32_t offset)
 		 */
 		int n_alloc_sg = min(sg_srr_cnt, 2);
 		struct scatterlist *sg_srr =
-			kmalloc_array(n_alloc_sg, sizeof(*sg_srr), GFP_ATOMIC);
+			kmalloc_objs(*sg_srr, n_alloc_sg, GFP_ATOMIC);
 		if (!sg_srr) {
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0x11027,
 			    "qla_target(%d): tag %lld: Unable to allocate SRR scatterlist\n",
@@ -7458,16 +7458,14 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 
 	BUG_ON(base_vha->vha_tgt.qla_tgt != NULL);
 
-	tgt = kzalloc(sizeof(struct qla_tgt), GFP_KERNEL);
+	tgt = kzalloc_obj(struct qla_tgt);
 	if (!tgt) {
 		ql_dbg(ql_dbg_tgt, base_vha, 0xe066,
 		    "Unable to allocate struct qla_tgt\n");
 		return -ENOMEM;
 	}
 
-	tgt->qphints = kcalloc(ha->max_qpairs + 1,
-			       sizeof(struct qla_qpair_hint),
-			       GFP_KERNEL);
+	tgt->qphints = kzalloc_objs(struct qla_qpair_hint, ha->max_qpairs + 1);
 	if (!tgt->qphints) {
 		kfree(tgt);
 		ql_log(ql_log_warn, base_vha, 0x0197,
@@ -8280,7 +8278,7 @@ qlt_handle_abts_recv(struct scsi_qla_host *vha, struct rsp_que *rsp,
 {
 	struct qla_tgt_sess_op *op;
 
-	op = kzalloc(sizeof(*op), GFP_ATOMIC);
+	op = kzalloc_obj(*op, GFP_ATOMIC);
 
 	if (!op) {
 		/* do not reach for ATIO queue here.  This is best effort err
@@ -8390,7 +8388,7 @@ int __init qlt_init(void)
 		goto out_plogi_cachep;
 	}
 
-	qla_tgt_wq = alloc_workqueue("qla_tgt_wq", 0, 0);
+	qla_tgt_wq = alloc_workqueue("qla_tgt_wq", WQ_PERCPU, 0);
 	if (!qla_tgt_wq) {
 		ql_log(ql_log_fatal, NULL, 0xe06f,
 		    "alloc_workqueue for qla_tgt_wq failed\n");

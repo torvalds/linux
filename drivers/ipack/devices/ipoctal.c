@@ -688,7 +688,7 @@ static int ipoctal_probe(struct ipack_device *dev)
 	int res;
 	struct ipoctal *ipoctal;
 
-	ipoctal = kzalloc(sizeof(struct ipoctal), GFP_KERNEL);
+	ipoctal = kzalloc_obj(struct ipoctal);
 	if (ipoctal == NULL)
 		return -ENOMEM;
 

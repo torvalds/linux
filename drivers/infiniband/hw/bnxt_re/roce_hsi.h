@@ -690,10 +690,11 @@ struct cmdq_modify_qp {
 	__le32	ext_modify_mask;
 	#define CMDQ_MODIFY_QP_EXT_MODIFY_MASK_EXT_STATS_CTX     0x1UL
 	#define CMDQ_MODIFY_QP_EXT_MODIFY_MASK_SCHQ_ID_VALID     0x2UL
+	#define CMDQ_MODIFY_QP_EXT_MODIFY_MASK_RATE_LIMIT_VALID  0x8UL
 	__le32	ext_stats_ctx_id;
 	__le16	schq_id;
 	__le16	unused_0;
-	__le32	reserved32;
+	__le32	rate_limit;
 };
 
 /* creq_modify_qp_resp (size:128b/16B) */
@@ -716,7 +717,8 @@ struct creq_modify_qp_resp {
 	#define CREQ_MODIFY_QP_RESP_PINGPONG_PUSH_INDEX_MASK  0xeUL
 	#define CREQ_MODIFY_QP_RESP_PINGPONG_PUSH_INDEX_SFT   1
 	#define CREQ_MODIFY_QP_RESP_PINGPONG_PUSH_STATE       0x10UL
-	u8	reserved8;
+	u8	shaper_allocation_status;
+	#define CREQ_MODIFY_QP_RESP_SHAPER_ALLOCATED          0x1UL
 	__le32	lag_src_mac;
 };
 
@@ -2179,7 +2181,7 @@ struct creq_query_func_resp {
 	u8	reserved48[6];
 };
 
-/* creq_query_func_resp_sb (size:1088b/136B) */
+/* creq_query_func_resp_sb (size:1280b/160B) */
 struct creq_query_func_resp_sb {
 	u8	opcode;
 	#define CREQ_QUERY_FUNC_RESP_SB_OPCODE_QUERY_FUNC 0x83UL
@@ -2256,12 +2258,15 @@ struct creq_query_func_resp_sb {
 	#define CREQ_QUERY_FUNC_RESP_SB_REQ_RETRANSMISSION_SUPPORT_LAST	\
 			CREQ_QUERY_FUNC_RESP_SB_REQ_RETRANSMISSION_SUPPORT_IQM_MSN_TABLE
 	#define CREQ_QUERY_FUNC_RESP_SB_MAX_SRQ_EXTENDED                         0x40UL
+	#define CREQ_QUERY_FUNC_RESP_SB_MODIFY_QP_RATE_LIMIT_SUPPORTED           0x400UL
 	#define CREQ_QUERY_FUNC_RESP_SB_MIN_RNR_RTR_RTS_OPT_SUPPORTED            0x1000UL
 	__le16	max_xp_qp_size;
 	__le16	create_qp_batch_size;
 	__le16	destroy_qp_batch_size;
 	__le16  max_srq_ext;
-	__le64	reserved64;
+	__le16	reserved16;
+	__le16  rate_limit_min;
+	__le32  rate_limit_max;
 };
 
 /* cmdq_set_func_resources (size:448b/56B) */

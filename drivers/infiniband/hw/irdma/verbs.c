@@ -157,7 +157,7 @@ static struct rdma_user_mmap_entry*
 irdma_user_mmap_entry_insert(struct irdma_ucontext *ucontext, u64 bar_offset,
 			     enum irdma_mmap_flag mmap_flag, u64 *mmap_offset)
 {
-	struct irdma_user_mmap_entry *entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	struct irdma_user_mmap_entry *entry = kzalloc_obj(*entry);
 	int ret;
 
 	if (!entry)
@@ -709,12 +709,12 @@ static int irdma_setup_kmode_qp(struct irdma_device *iwdev,
 		return status;
 
 	iwqp->kqp.sq_wrid_mem =
-		kcalloc(ukinfo->sq_depth, sizeof(*iwqp->kqp.sq_wrid_mem), GFP_KERNEL);
+		kzalloc_objs(*iwqp->kqp.sq_wrid_mem, ukinfo->sq_depth);
 	if (!iwqp->kqp.sq_wrid_mem)
 		return -ENOMEM;
 
 	iwqp->kqp.rq_wrid_mem =
-		kcalloc(ukinfo->rq_depth, sizeof(*iwqp->kqp.rq_wrid_mem), GFP_KERNEL);
+		kzalloc_objs(*iwqp->kqp.rq_wrid_mem, ukinfo->rq_depth);
 
 	if (!iwqp->kqp.rq_wrid_mem) {
 		kfree(iwqp->kqp.sq_wrid_mem);
@@ -2109,7 +2109,7 @@ static int irdma_resize_cq(struct ib_cq *ibcq, int entries,
 
 		info.cq_base = kmem_buf.va;
 		info.cq_pa = kmem_buf.pa;
-		cq_buf = kzalloc(sizeof(*cq_buf), GFP_KERNEL);
+		cq_buf = kzalloc_obj(*cq_buf);
 		if (!cq_buf) {
 			ret = -ENOMEM;
 			goto error;
@@ -2669,8 +2669,11 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 			goto cq_destroy;
 		}
 	}
-	rf->cq_table[cq_num] = iwcq;
+
 	init_completion(&iwcq->free_cq);
+
+	/* Populate table entry after CQ is fully created. */
+	smp_store_release(&rf->cq_table[cq_num], iwcq);
 
 	return 0;
 cq_destroy:
@@ -3148,7 +3151,7 @@ static struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	u32 stag;
 	int err_code;
 
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
+	iwmr = kzalloc_obj(*iwmr);
 	if (!iwmr)
 		return ERR_PTR(-ENOMEM);
 
@@ -3365,7 +3368,7 @@ static struct irdma_mr *irdma_alloc_iwmr(struct ib_umem *region,
 	struct irdma_mr *iwmr;
 	unsigned long pgsz_bitmap;
 
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
+	iwmr = kzalloc_obj(*iwmr);
 	if (!iwmr)
 		return ERR_PTR(-ENOMEM);
 
@@ -3804,7 +3807,7 @@ struct ib_mr *irdma_reg_phys_mr(struct ib_pd *pd, u64 addr, u64 size, int access
 	u32 stag;
 	int ret;
 
-	iwmr = kzalloc(sizeof(*iwmr), GFP_KERNEL);
+	iwmr = kzalloc_obj(*iwmr);
 	if (!iwmr)
 		return ERR_PTR(-ENOMEM);
 
@@ -4846,7 +4849,7 @@ static int irdma_attach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
 		struct irdma_dma_mem *dma_mem_mc;
 
 		spin_unlock_irqrestore(&rf->qh_list_lock, flags);
-		mc_qht_elem = kzalloc(sizeof(*mc_qht_elem), GFP_KERNEL);
+		mc_qht_elem = kzalloc_obj(*mc_qht_elem);
 		if (!mc_qht_elem)
 			return -ENOMEM;
 
@@ -5027,15 +5030,15 @@ static int irdma_create_hw_ah(struct irdma_device *iwdev, struct irdma_ah *ah, b
 	}
 
 	if (!sleep) {
-		int cnt = CQP_COMPL_WAIT_TIME_MS * CQP_TIMEOUT_THRESHOLD;
+		const u64 tmout_ms = irdma_get_timeout_threshold(&rf->sc_dev) *
+			CQP_COMPL_WAIT_TIME_MS;
 
-		do {
-			irdma_cqp_ce_handler(rf, &rf->ccq.sc_cq);
-			mdelay(1);
-		} while (!ah->sc_ah.ah_info.ah_valid && --cnt);
-
-		if (!cnt) {
-			ibdev_dbg(&iwdev->ibdev, "VERBS: CQP create AH timed out");
+		if (poll_timeout_us_atomic(irdma_cqp_ce_handler(rf,
+								&rf->ccq.sc_cq),
+					   ah->sc_ah.ah_info.ah_valid, 1,
+					   tmout_ms * USEC_PER_MSEC, false)) {
+			ibdev_dbg(&iwdev->ibdev,
+				  "VERBS: CQP create AH timed out");
 			err = -ETIMEDOUT;
 			goto err_ah_create;
 		}

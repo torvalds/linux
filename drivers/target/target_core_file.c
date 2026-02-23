@@ -38,7 +38,7 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct fd_host *fd_host;
 
-	fd_host = kzalloc(sizeof(struct fd_host), GFP_KERNEL);
+	fd_host = kzalloc_obj(struct fd_host);
 	if (!fd_host) {
 		pr_err("Unable to allocate memory for struct fd_host\n");
 		return -ENOMEM;
@@ -73,7 +73,7 @@ static struct se_device *fd_alloc_device(struct se_hba *hba, const char *name)
 	struct fd_dev *fd_dev;
 	struct fd_host *fd_host = hba->hba_ptr;
 
-	fd_dev = kzalloc(sizeof(struct fd_dev), GFP_KERNEL);
+	fd_dev = kzalloc_obj(struct fd_dev);
 	if (!fd_dev) {
 		pr_err("Unable to allocate memory for struct fd_dev\n");
 		return NULL;
@@ -276,7 +276,7 @@ fd_execute_rw_aio(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	ssize_t len = 0;
 	int ret = 0, i;
 
-	aio_cmd = kmalloc(struct_size(aio_cmd, bvecs, sgl_nents), GFP_KERNEL);
+	aio_cmd = kmalloc_flex(*aio_cmd, bvecs, sgl_nents);
 	if (!aio_cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
@@ -320,7 +320,7 @@ static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
 	loff_t pos = (cmd->t_task_lba * block_size);
 	int ret = 0, i;
 
-	bvec = kcalloc(sgl_nents, sizeof(struct bio_vec), GFP_KERNEL);
+	bvec = kzalloc_objs(struct bio_vec, sgl_nents);
 	if (!bvec) {
 		pr_err("Unable to allocate fd_do_readv iov[]\n");
 		return -ENOMEM;
@@ -455,7 +455,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 		return TCM_INVALID_CDB_FIELD;
 	}
 
-	bvec = kcalloc(nolb, sizeof(struct bio_vec), GFP_KERNEL);
+	bvec = kzalloc_objs(struct bio_vec, nolb);
 	if (!bvec)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 

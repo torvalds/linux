@@ -31,6 +31,12 @@
 #define CEPH_INO_CEPH   2            /* hidden .ceph dir */
 #define CEPH_INO_GLOBAL_SNAPREALM  3 /* global dummy snaprealm */
 
+/*
+ * name for "old" CephFS file systems,
+ * see ceph.git e2b151d009640114b2565c901d6f41f6cd5ec652
+ */
+#define CEPH_OLD_FS_NAME	"cephfs"
+
 /* arbitrary limit on max # of monitors (cluster of 3 is typical) */
 #define CEPH_MAX_MON   31
 
@@ -83,8 +89,9 @@ struct ceph_dir_layout {
 } __attribute__ ((packed));
 
 /* crypto algorithms */
-#define CEPH_CRYPTO_NONE 0x0
-#define CEPH_CRYPTO_AES  0x1
+#define CEPH_CRYPTO_NONE       0x0
+#define CEPH_CRYPTO_AES        0x1
+#define CEPH_CRYPTO_AES256KRB5 0x2 /* AES256-CTS-HMAC384-192 */
 
 #define CEPH_AES_IV "cephsageyudagreg"
 

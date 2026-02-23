@@ -44,7 +44,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 	unsigned long bus_addr;
 	unsigned int i;
 
-	info = kzalloc(sizeof(struct serial_card_info), GFP_KERNEL);
+	info = kzalloc_obj(struct serial_card_info);
 	if (!info)
 		return -ENOMEM;
 

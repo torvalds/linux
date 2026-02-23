@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2025 Dale Whinham <daleyo@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "hamoa.dtsi"
+#include "x1-microsoft-denali.dtsi"
+
+/ {
+	model = "Microsoft Surface Pro 11th Edition (OLED)";
+	compatible = "microsoft,denali-oled", "microsoft,denali",
+		     "qcom,x1e80100";
+};
+
+&panel {
+	compatible = "samsung,atna30dw01", "samsung,atna33xc20";
+};

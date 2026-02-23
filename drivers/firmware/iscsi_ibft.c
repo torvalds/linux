@@ -634,7 +634,7 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 	struct pci_dev *pci_dev;
 	int rc = 0;
 
-	ibft_kobj = kzalloc(sizeof(*ibft_kobj), GFP_KERNEL);
+	ibft_kobj = kzalloc_obj(*ibft_kobj);
 	if (!ibft_kobj)
 		return -ENOMEM;
 
@@ -773,7 +773,7 @@ static int __init ibft_register_kobjects(struct acpi_table_ibft *header)
 	if (rc)
 		return rc;
 
-	ibft_kobj = kzalloc(sizeof(*ibft_kobj), GFP_KERNEL);
+	ibft_kobj = kzalloc_obj(*ibft_kobj);
 	if (!ibft_kobj)
 		return -ENOMEM;
 

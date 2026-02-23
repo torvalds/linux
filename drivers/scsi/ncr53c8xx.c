@@ -7852,7 +7852,7 @@ static int ncr53c8xx_sdev_configure(struct scsi_device *device,
 	return 0;
 }
 
-static int ncr53c8xx_queue_command_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status ncr53c8xx_queue_command_lck(struct scsi_cmnd *cmd)
 {
      struct ncr_cmd_priv *cmd_priv = scsi_cmd_priv(cmd);
      void (*done)(struct scsi_cmnd *) = scsi_done;

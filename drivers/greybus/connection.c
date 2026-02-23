@@ -165,7 +165,7 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	}
 	hd_cport_id = ret;
 
-	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
+	connection = kzalloc_obj(*connection);
 	if (!connection) {
 		ret = -ENOMEM;
 		goto err_hd_cport_release;

@@ -716,7 +716,7 @@ static int bcsp_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	bcsp = kzalloc(sizeof(*bcsp), GFP_KERNEL);
+	bcsp = kzalloc_obj(*bcsp);
 	if (!bcsp)
 		return -ENOMEM;
 

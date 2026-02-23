@@ -2422,14 +2422,14 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 	struct b43_txpower_lo_control *lo;
 	int err;
 
-	gphy = kzalloc(sizeof(*gphy), GFP_KERNEL);
+	gphy = kzalloc_obj(*gphy);
 	if (!gphy) {
 		err = -ENOMEM;
 		goto error;
 	}
 	dev->phy.g = gphy;
 
-	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
+	lo = kzalloc_obj(*lo);
 	if (!lo) {
 		err = -ENOMEM;
 		goto err_free_gphy;

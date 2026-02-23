@@ -189,7 +189,7 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	/* Create the device and add it in the device list */
-	u_ctx = kzalloc(sizeof(*u_ctx), GFP_KERNEL);
+	u_ctx = kzalloc_obj(*u_ctx);
 	if (!u_ctx) {
 		u_ctx = ERR_PTR(-ENOMEM);
 		goto out;

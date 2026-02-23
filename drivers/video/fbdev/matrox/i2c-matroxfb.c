@@ -144,7 +144,7 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 	unsigned long flags;
 	struct matroxfb_dh_maven_info* m2info;
 
-	m2info = kzalloc(sizeof(*m2info), GFP_KERNEL);
+	m2info = kzalloc_obj(*m2info);
 	if (!m2info)
 		return NULL;
 

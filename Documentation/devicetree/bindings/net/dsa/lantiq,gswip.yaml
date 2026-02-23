@@ -19,6 +19,8 @@ maintainers:
 properties:
   compatible:
     enum:
+      - intel,gsw150
+      - lantiq,peb7084
       - lantiq,xrx200-gswip
       - lantiq,xrx300-gswip
       - lantiq,xrx330-gswip
@@ -103,9 +105,33 @@ patternProperties:
     patternProperties:
       "^(ethernet-)?port@[0-6]$":
         $ref: dsa-port.yaml#
+        allOf:
+          - $ref: /schemas/phy/phy-common-props.yaml#
         unevaluatedProperties: false
 
         properties:
+          maxlinear,slew-rate-txc:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1]
+            description: |
+              RMII/RGMII TX Clock Slew Rate:
+
+                0: Normal
+                1: Slow
+
+              If not present, the configuration made by the switch bootloader is
+              preserved.
+          maxlinear,slew-rate-txd:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1]
+            description: |
+              RMII/RGMII TX Non-Clock PAD Slew Rate:
+
+                0: Normal
+                1: Slow
+
+              If not present, the configuration made by the switch bootloader is
+              preserved.
           maxlinear,rmii-refclk-out:
             type: boolean
             description:
@@ -264,6 +290,7 @@ examples:
 
   - |
     #include <dt-bindings/leds/common.h>
+    #include <dt-bindings/phy/phy.h>
 
     mdio {
         #address-cells = <1>;
@@ -296,6 +323,7 @@ examples:
                     label = "wan";
                     phy-mode = "1000base-x";
                     managed = "in-band-status";
+                    tx-polarity = <PHY_POL_INVERT>;
                 };
 
                 port@5 {
@@ -316,7 +344,7 @@ examples:
                 #address-cells = <1>;
                 #size-cells = <0>;
 
-                switchphy0: switchphy@0 {
+                switchphy0: ethernet-phy@0 {
                     reg = <0>;
 
                     leds {
@@ -331,7 +359,7 @@ examples:
                     };
                 };
 
-                switchphy1: switchphy@1 {
+                switchphy1: ethernet-phy@1 {
                     reg = <1>;
 
                     leds {

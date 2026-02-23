@@ -519,7 +519,7 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	lc = kzalloc(sizeof(struct log_writes_c), GFP_KERNEL);
+	lc = kzalloc_obj(struct log_writes_c);
 	if (!lc) {
 		ti->error = "Cannot allocate context";
 		return -ENOMEM;
@@ -587,7 +587,7 @@ static int log_mark(struct log_writes_c *lc, char *data)
 	struct pending_block *block;
 	size_t maxsize = lc->sectorsize - sizeof(struct log_write_entry);
 
-	block = kzalloc(sizeof(struct pending_block), GFP_KERNEL);
+	block = kzalloc_obj(struct pending_block);
 	if (!block) {
 		DMERR("Error allocating pending block");
 		return -ENOMEM;

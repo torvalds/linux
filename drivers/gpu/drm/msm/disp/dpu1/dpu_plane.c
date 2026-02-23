@@ -1684,7 +1684,7 @@ static void dpu_plane_reset(struct drm_plane *plane)
 		plane->state = NULL;
 	}
 
-	pstate = kzalloc(sizeof(*pstate), GFP_KERNEL);
+	pstate = kzalloc_obj(*pstate);
 	if (!pstate) {
 		DPU_ERROR_PLANE(pdpu, "failed to allocate state\n");
 		return;

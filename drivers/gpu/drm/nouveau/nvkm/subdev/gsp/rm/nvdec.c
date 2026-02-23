@@ -17,7 +17,7 @@ nvkm_rm_nvdec_new(struct nvkm_rm *rm, int inst)
 	struct nvkm_nvdec *nvdec;
 	int ret;
 
-	nvdec = kzalloc(sizeof(*nvdec), GFP_KERNEL);
+	nvdec = kzalloc_obj(*nvdec);
 	if (!nvdec)
 		return -ENOMEM;
 

@@ -17,7 +17,7 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_ac *phy_ac;
 
-	phy_ac = kzalloc(sizeof(*phy_ac), GFP_KERNEL);
+	phy_ac = kzalloc_obj(*phy_ac);
 	if (!phy_ac)
 		return -ENOMEM;
 	dev->phy.ac = phy_ac;

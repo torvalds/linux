@@ -80,7 +80,7 @@ acpi_memory_get_resource(struct acpi_resource *resource, void *context)
 		}
 	}
 
-	new = kzalloc(sizeof(struct acpi_memory_info), GFP_KERNEL);
+	new = kzalloc_obj(struct acpi_memory_info);
 	if (!new)
 		return AE_ERROR;
 
@@ -290,7 +290,7 @@ static int acpi_memory_device_add(struct acpi_device *device,
 	if (!device)
 		return -EINVAL;
 
-	mem_device = kzalloc(sizeof(struct acpi_memory_device), GFP_KERNEL);
+	mem_device = kzalloc_obj(struct acpi_memory_device);
 	if (!mem_device)
 		return -ENOMEM;
 

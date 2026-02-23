@@ -236,7 +236,7 @@ struct vmmdev_hgcm_function_parameter32 {
 			/** Relative to the request header. */
 			__u32 offset;
 		} page_list;
-	} u;
+	} __packed u;
 } __packed;
 VMMDEV_ASSERT_SIZE(vmmdev_hgcm_function_parameter32, 4 + 8);
 
@@ -251,7 +251,7 @@ struct vmmdev_hgcm_function_parameter64 {
 			union {
 				__u64 phys_addr;
 				__u64 linear_addr;
-			} u;
+			} __packed u;
 		} __packed pointer;
 		struct {
 			/** Size of the buffer described by the page list. */

@@ -85,7 +85,7 @@ static int rcar_gen2_phy_init(struct phy *p)
 	 * Try to acquire exclusive access to PHY.  The first driver calling
 	 * phy_init()  on a given channel wins, and all attempts  to use another
 	 * PHY on this channel will fail until phy_exit() is called by the first
-	 * driver.   Achieving this with cmpxcgh() should be SMP-safe.
+	 * driver.   Achieving this with cmpxchg() should be SMP-safe.
 	 */
 	if (cmpxchg(&channel->selected_phy, -1, phy->number) != -1)
 		return -EBUSY;
@@ -337,7 +337,6 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_gen2_phy_driver *drv;
 	struct phy_provider *provider;
-	struct device_node *np;
 	void __iomem *base;
 	struct clk *clk;
 	const struct rcar_gen2_phy_data *data;
@@ -379,7 +378,7 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	if (!drv->channels)
 		return -ENOMEM;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_node_scoped(dev->of_node, np) {
 		struct rcar_gen2_channel *channel = drv->channels + i;
 		u32 channel_num;
 		int error, n;
@@ -391,7 +390,6 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 		error = of_property_read_u32(np, "reg", &channel_num);
 		if (error || channel_num >= data->num_channels) {
 			dev_err(dev, "Invalid \"reg\" property\n");
-			of_node_put(np);
 			return error;
 		}
 		channel->select_mask = select_mask[channel_num];

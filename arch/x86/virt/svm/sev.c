@@ -313,7 +313,7 @@ static bool __init alloc_rmp_segment_desc(u64 segment_pa, u64 segment_size, u64 
 		return false;
 	}
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc) {
 		memunmap(rmp_segment);
 		return false;

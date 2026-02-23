@@ -50,7 +50,7 @@ static struct nd_dax *nd_dax_alloc(struct nd_region *nd_region)
 	struct nd_dax *nd_dax;
 	struct device *dev;
 
-	nd_dax = kzalloc(sizeof(*nd_dax), GFP_KERNEL);
+	nd_dax = kzalloc_obj(*nd_dax);
 	if (!nd_dax)
 		return NULL;
 

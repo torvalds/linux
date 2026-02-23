@@ -70,7 +70,7 @@ int mlx5_esw_offloads_pf_vf_devlink_port_init(struct mlx5_eswitch *esw,
 	if (!mlx5_esw_devlink_port_supported(esw, vport_num))
 		return 0;
 
-	dl_port = kzalloc(sizeof(*dl_port), GFP_KERNEL);
+	dl_port = kzalloc_obj(*dl_port);
 	if (!dl_port)
 		return -ENOMEM;
 
@@ -99,6 +99,8 @@ static const struct devlink_port_ops mlx5_esw_pf_vf_dl_port_ops = {
 	.port_fn_roce_set = mlx5_devlink_port_fn_roce_set,
 	.port_fn_migratable_get = mlx5_devlink_port_fn_migratable_get,
 	.port_fn_migratable_set = mlx5_devlink_port_fn_migratable_set,
+	.port_fn_state_get = mlx5_devlink_pf_port_fn_state_get,
+	.port_fn_state_set = mlx5_devlink_pf_port_fn_state_set,
 #ifdef CONFIG_XFRM_OFFLOAD
 	.port_fn_ipsec_crypto_get = mlx5_devlink_port_fn_ipsec_crypto_get,
 	.port_fn_ipsec_crypto_set = mlx5_devlink_port_fn_ipsec_crypto_set,

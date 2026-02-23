@@ -22,7 +22,7 @@ static struct test_mock_string_env *setup_mock_str_env(u32 buf_size)
 {
 	struct test_mock_string_env *env;
 
-	env = kzalloc(sizeof(struct test_mock_string_env), GFP_KERNEL);
+	env = kzalloc_obj(struct test_mock_string_env);
 	if (!env)
 		return NULL;
 
@@ -393,7 +393,7 @@ static struct test_mock_sb *setup_mock_sb(void)
 {
 	struct test_mock_sb *ptr;
 
-	ptr = kzalloc(sizeof(struct test_mock_sb), GFP_KERNEL);
+	ptr = kzalloc_obj(struct test_mock_sb);
 	if (!ptr)
 		return NULL;
 

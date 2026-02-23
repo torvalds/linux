@@ -107,7 +107,6 @@ static int spi_clps711x_probe(struct platform_device *pdev)
 	host->bus_num = -1;
 	host->mode_bits = SPI_CPHA | SPI_CS_HIGH;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 8);
-	host->dev.of_node = pdev->dev.of_node;
 	host->prepare_message = spi_clps711x_prepare_message;
 	host->transfer_one = spi_clps711x_transfer_one;
 

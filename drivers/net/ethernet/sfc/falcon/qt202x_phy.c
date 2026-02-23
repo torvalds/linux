@@ -340,7 +340,7 @@ static int qt202x_phy_probe(struct ef4_nic *efx)
 {
 	struct qt202x_phy_data *phy_data;
 
-	phy_data = kzalloc(sizeof(struct qt202x_phy_data), GFP_KERNEL);
+	phy_data = kzalloc_obj(struct qt202x_phy_data);
 	if (!phy_data)
 		return -ENOMEM;
 	efx->phy_data = phy_data;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+#include <linux/iopoll.h>
 #include <linux/math64.h>
 #include "lib/aso.h"
 #include "en/tc/post_act.h"
@@ -115,7 +116,6 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 	struct mlx5e_flow_meters *flow_meters;
 	u8 cir_man, cir_exp, cbs_man, cbs_exp;
 	struct mlx5_aso_wqe *aso_wqe;
-	unsigned long expires;
 	struct mlx5_aso *aso;
 	u64 rate, burst;
 	u8 ds_cnt;
@@ -187,12 +187,8 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 	mlx5_aso_post_wqe(aso, true, &aso_wqe->ctrl);
 
 	/* With newer FW, the wait for the first ASO WQE is more than 2us, put the wait 10ms. */
-	expires = jiffies + msecs_to_jiffies(10);
-	do {
-		err = mlx5_aso_poll_cq(aso, true);
-		if (err)
-			usleep_range(2, 10);
-	} while (err && time_is_after_jiffies(expires));
+	read_poll_timeout(mlx5_aso_poll_cq, err, !err, 10, 10 * USEC_PER_MSEC,
+			  false, aso, true);
 	mutex_unlock(&flow_meters->aso_lock);
 
 	return err;
@@ -251,7 +247,7 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 	int err, pos, total;
 	u32 id;
 
-	meter = kzalloc(sizeof(*meter), GFP_KERNEL);
+	meter = kzalloc_obj(*meter);
 	if (!meter)
 		return ERR_PTR(-ENOMEM);
 
@@ -530,7 +526,7 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	flow_meters = kzalloc(sizeof(*flow_meters), GFP_KERNEL);
+	flow_meters = kzalloc_obj(*flow_meters);
 	if (!flow_meters)
 		return ERR_PTR(-ENOMEM);
 

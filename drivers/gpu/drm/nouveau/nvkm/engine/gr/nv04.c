@@ -1188,7 +1188,7 @@ nv04_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 	struct nv04_gr_chan *chan;
 	unsigned long flags;
 
-	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 	nvkm_object_ctor(&nv04_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
@@ -1417,7 +1417,7 @@ nv04_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, st
 {
 	struct nv04_gr *gr;
 
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+	if (!(gr = kzalloc_obj(*gr)))
 		return -ENOMEM;
 	spin_lock_init(&gr->lock);
 	*pgr = &gr->base;

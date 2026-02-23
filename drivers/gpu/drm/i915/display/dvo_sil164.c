@@ -143,7 +143,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 	struct sil164_priv *sil;
 	unsigned char ch;
 
-	sil = kzalloc(sizeof(*sil), GFP_KERNEL);
+	sil = kzalloc_obj(*sil);
 	if (sil == NULL)
 		return false;
 

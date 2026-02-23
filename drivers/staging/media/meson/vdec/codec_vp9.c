@@ -762,7 +762,7 @@ static int codec_vp9_start(struct amvdec_session *sess)
 	int i;
 	int ret;
 
-	vp9 = kzalloc(sizeof(*vp9), GFP_KERNEL);
+	vp9 = kzalloc_obj(*vp9);
 	if (!vp9)
 		return -ENOMEM;
 
@@ -1192,7 +1192,7 @@ static struct vp9_frame *codec_vp9_get_new_frame(struct amvdec_session *sess)
 	struct vb2_v4l2_buffer *vbuf;
 	struct vp9_frame *new_frame;
 
-	new_frame = kzalloc(sizeof(*new_frame), GFP_KERNEL);
+	new_frame = kzalloc_obj(*new_frame);
 	if (!new_frame)
 		return NULL;
 

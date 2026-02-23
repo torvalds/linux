@@ -33,15 +33,16 @@
  *
  */
 
+#include <linux/vmalloc.h>
+
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
+#include "gt/intel_gt_regs.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "trace.h"
-
-#include "gt/intel_gt_regs.h"
-#include <linux/vmalloc.h>
 
 #if defined(VERBOSE_DEBUG)
 #define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)
@@ -653,7 +654,7 @@ static void *alloc_spt(gfp_t gfp_mask)
 {
 	struct intel_vgpu_ppgtt_spt *spt;
 
-	spt = kzalloc(sizeof(*spt), gfp_mask);
+	spt = kzalloc_obj(*spt, gfp_mask);
 	if (!spt)
 		return NULL;
 
@@ -1769,7 +1770,7 @@ static struct intel_vgpu_mm *vgpu_alloc_mm(struct intel_vgpu *vgpu)
 {
 	struct intel_vgpu_mm *mm;
 
-	mm = kzalloc(sizeof(*mm), GFP_KERNEL);
+	mm = kzalloc_obj(*mm);
 	if (!mm)
 		return NULL;
 
@@ -2205,7 +2206,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 		if (!found) {
 			/* the first partial part */
-			partial_pte = kzalloc(sizeof(*partial_pte), GFP_KERNEL);
+			partial_pte = kzalloc_obj(*partial_pte);
 			if (!partial_pte)
 				return -ENOMEM;
 			partial_pte->offset = off;
@@ -2501,7 +2502,7 @@ static int setup_spt_oos(struct intel_gvt *gvt)
 	INIT_LIST_HEAD(&gtt->oos_page_use_list_head);
 
 	for (i = 0; i < preallocated_oos_pages; i++) {
-		oos_page = kzalloc(sizeof(*oos_page), GFP_KERNEL);
+		oos_page = kzalloc_obj(*oos_page);
 		if (!oos_page) {
 			ret = -ENOMEM;
 			goto fail;

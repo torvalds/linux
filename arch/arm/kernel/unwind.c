@@ -574,7 +574,7 @@ struct unwind_table *unwind_table_add(unsigned long start, unsigned long size,
 				      unsigned long text_size)
 {
 	unsigned long flags;
-	struct unwind_table *tab = kmalloc(sizeof(*tab), GFP_KERNEL);
+	struct unwind_table *tab = kmalloc_obj(*tab);
 
 	pr_debug("%s(%08lx, %08lx, %08lx, %08lx)\n", __func__, start, size,
 		 text_addr, text_size);

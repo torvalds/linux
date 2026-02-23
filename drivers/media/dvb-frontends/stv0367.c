@@ -1698,10 +1698,10 @@ struct dvb_frontend *stv0367ter_attach(const struct stv0367_config *config,
 	struct stv0367ter_state *ter_state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
+	state = kzalloc_obj(struct stv0367_state);
 	if (state == NULL)
 		goto error;
-	ter_state = kzalloc(sizeof(struct stv0367ter_state), GFP_KERNEL);
+	ter_state = kzalloc_obj(struct stv0367ter_state);
 	if (ter_state == NULL)
 		goto error;
 
@@ -2865,10 +2865,10 @@ struct dvb_frontend *stv0367cab_attach(const struct stv0367_config *config,
 	struct stv0367cab_state *cab_state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
+	state = kzalloc_obj(struct stv0367_state);
 	if (state == NULL)
 		goto error;
-	cab_state = kzalloc(sizeof(struct stv0367cab_state), GFP_KERNEL);
+	cab_state = kzalloc_obj(struct stv0367cab_state);
 	if (cab_state == NULL)
 		goto error;
 
@@ -3274,13 +3274,13 @@ struct dvb_frontend *stv0367ddb_attach(const struct stv0367_config *config,
 	struct stv0367cab_state *cab_state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct stv0367_state), GFP_KERNEL);
+	state = kzalloc_obj(struct stv0367_state);
 	if (state == NULL)
 		goto error;
-	ter_state = kzalloc(sizeof(struct stv0367ter_state), GFP_KERNEL);
+	ter_state = kzalloc_obj(struct stv0367ter_state);
 	if (ter_state == NULL)
 		goto error;
-	cab_state = kzalloc(sizeof(struct stv0367cab_state), GFP_KERNEL);
+	cab_state = kzalloc_obj(struct stv0367cab_state);
 	if (cab_state == NULL)
 		goto error;
 

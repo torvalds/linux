@@ -205,7 +205,7 @@ int __v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev,
 		if (sd->devnode)
 			continue;
 
-		vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+		vdev = kzalloc_obj(*vdev);
 		if (!vdev) {
 			err = -ENOMEM;
 			goto clean_up;

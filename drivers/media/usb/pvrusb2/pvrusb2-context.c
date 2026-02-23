@@ -204,7 +204,7 @@ struct pvr2_context *pvr2_context_create(
 	void (*setup_func)(struct pvr2_context *))
 {
 	struct pvr2_context *mp = NULL;
-	mp = kzalloc(sizeof(*mp),GFP_KERNEL);
+	mp = kzalloc_obj(*mp);
 	if (!mp) goto done;
 	pvr2_trace(PVR2_TRACE_CTXT,"pvr2_context %p (create)",mp);
 	mp->setup_func = setup_func;

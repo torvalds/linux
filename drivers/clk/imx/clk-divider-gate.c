@@ -185,7 +185,7 @@ struct clk_hw *imx_clk_hw_divider_gate(const char *name, const char *parent_name
 	u32 val;
 	int ret;
 
-	div_gate  = kzalloc(sizeof(*div_gate), GFP_KERNEL);
+	div_gate = kzalloc_obj(*div_gate);
 	if (!div_gate)
 		return ERR_PTR(-ENOMEM);
 

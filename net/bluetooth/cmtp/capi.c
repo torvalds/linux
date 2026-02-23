@@ -72,7 +72,7 @@
 
 static struct cmtp_application *cmtp_application_add(struct cmtp_session *session, __u16 appl)
 {
-	struct cmtp_application *app = kzalloc(sizeof(*app), GFP_KERNEL);
+	struct cmtp_application *app = kzalloc_obj(*app);
 
 	BT_DBG("session %p application %p appl %u", session, app, appl);
 

@@ -875,7 +875,7 @@ ice_vc_fdir_parse_raw(struct ice_vf *vf,
 	if (hw->debug_mask & ICE_DBG_PARSER)
 		ice_parser_result_dump(hw, &rslt);
 
-	conf->prof = kzalloc(sizeof(*conf->prof), GFP_KERNEL);
+	conf->prof = kzalloc_obj(*conf->prof);
 	if (!conf->prof) {
 		status = -ENOMEM;
 		goto err_parser_destroy;
@@ -2128,7 +2128,7 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_exit;
 	}
 
-	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
+	stat = kzalloc_obj(*stat);
 	if (!stat) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		dev_dbg(dev, "Alloc stat for VF %d failed\n", vf->vf_id);
@@ -2332,7 +2332,7 @@ int ice_vc_del_fdir_fltr(struct ice_vf *vf, u8 *msg)
 		goto err_exit;
 	}
 
-	stat = kzalloc(sizeof(*stat), GFP_KERNEL);
+	stat = kzalloc_obj(*stat);
 	if (!stat) {
 		v_ret = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		dev_dbg(dev, "Alloc stat for VF %d failed\n", vf->vf_id);

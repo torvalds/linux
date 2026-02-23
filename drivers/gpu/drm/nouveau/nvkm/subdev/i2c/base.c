@@ -266,7 +266,7 @@ nvkm_i2c_new_(const struct nvkm_i2c_func *func, struct nvkm_device *device,
 	u8 ver, hdr;
 	int ret, i, ids;
 
-	if (!(i2c = *pi2c = kzalloc(sizeof(*i2c), GFP_KERNEL)))
+	if (!(i2c = *pi2c = kzalloc_obj(*i2c)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_i2c, device, type, inst, &i2c->subdev);

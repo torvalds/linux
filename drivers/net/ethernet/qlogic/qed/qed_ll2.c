@@ -1195,8 +1195,7 @@ qed_ll2_acquire_connection_rx(struct qed_hwfn *p_hwfn,
 	}
 
 	capacity = qed_chain_get_capacity(&p_ll2_info->rx_queue.rxq_chain);
-	p_descq = kcalloc(capacity, sizeof(struct qed_ll2_rx_packet),
-			  GFP_KERNEL);
+	p_descq = kzalloc_objs(struct qed_ll2_rx_packet, capacity);
 	if (!p_descq) {
 		rc = -ENOMEM;
 		DP_NOTICE(p_hwfn, "Failed to allocate ll2 Rx desc\n");
@@ -1291,7 +1290,7 @@ qed_ll2_acquire_connection_ooo(struct qed_hwfn *p_hwfn,
 
 	for (buf_idx = 0; buf_idx < p_ll2_info->input.rx_num_ooo_buffers;
 	     buf_idx++) {
-		p_buf = kzalloc(sizeof(*p_buf), GFP_KERNEL);
+		p_buf = kzalloc_obj(*p_buf);
 		if (!p_buf) {
 			rc = -ENOMEM;
 			goto out;
@@ -2200,8 +2199,8 @@ int qed_ll2_alloc(struct qed_hwfn *p_hwfn)
 	u8 i;
 
 	/* Allocate LL2's set struct */
-	p_ll2_connections = kcalloc(QED_MAX_NUM_OF_LL2_CONNECTIONS,
-				    sizeof(struct qed_ll2_info), GFP_KERNEL);
+	p_ll2_connections = kzalloc_objs(struct qed_ll2_info,
+					 QED_MAX_NUM_OF_LL2_CONNECTIONS);
 	if (!p_ll2_connections) {
 		DP_NOTICE(p_hwfn, "Failed to allocate `struct qed_ll2'\n");
 		return -ENOMEM;
@@ -2603,7 +2602,7 @@ static int qed_ll2_start(struct qed_dev *cdev, struct qed_ll2_params *params)
 	DP_INFO(cdev, "Allocating %d LL2 buffers of size %08x bytes\n",
 		rx_num_desc, cdev->ll2->rx_size);
 	for (i = 0; i < rx_num_desc; i++) {
-		buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+		buffer = kzalloc_obj(*buffer);
 		if (!buffer) {
 			DP_INFO(cdev, "Failed to allocate LL2 buffers\n");
 			rc = -ENOMEM;
@@ -2811,7 +2810,7 @@ const struct qed_ll2_ops qed_ll2_ops_pass = {
 
 int qed_ll2_alloc_if(struct qed_dev *cdev)
 {
-	cdev->ll2 = kzalloc(sizeof(*cdev->ll2), GFP_KERNEL);
+	cdev->ll2 = kzalloc_obj(*cdev->ll2);
 	return cdev->ll2 ? 0 : -ENOMEM;
 }
 

@@ -43,7 +43,7 @@ nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *device,
 	struct nvkm_nvdec *nvdec;
 	int ret;
 
-	if (!(nvdec = *pnvdec = kzalloc(sizeof(*nvdec), GFP_KERNEL)))
+	if (!(nvdec = *pnvdec = kzalloc_obj(*nvdec)))
 		return -ENOMEM;
 
 	ret = nvkm_engine_ctor(&nvkm_nvdec, device, type, inst, true,

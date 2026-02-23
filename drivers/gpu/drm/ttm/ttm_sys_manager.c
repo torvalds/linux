@@ -12,7 +12,7 @@ static int ttm_sys_man_alloc(struct ttm_resource_manager *man,
 			     const struct ttm_place *place,
 			     struct ttm_resource **res)
 {
-	*res = kzalloc(sizeof(**res), GFP_KERNEL);
+	*res = kzalloc_obj(**res);
 	if (!*res)
 		return -ENOMEM;
 

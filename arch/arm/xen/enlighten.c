@@ -339,7 +339,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 		return -EINVAL;
 	}
 
-	regs = kcalloc(nr_reg, sizeof(*regs), GFP_KERNEL);
+	regs = kzalloc_objs(*regs, nr_reg);
 	if (!regs) {
 		of_node_put(np);
 		return -ENOMEM;
@@ -383,7 +383,7 @@ int __init arch_xen_unpopulated_init(struct resource **res)
 		start = regs[i - 1].end + 1;
 		end = regs[i].start - 1;
 
-		tmp_res = kzalloc(sizeof(*tmp_res), GFP_KERNEL);
+		tmp_res = kzalloc_obj(*tmp_res);
 		if (!tmp_res) {
 			rc = -ENOMEM;
 			goto err;

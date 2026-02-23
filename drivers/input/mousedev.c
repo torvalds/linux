@@ -543,7 +543,7 @@ static int mousedev_open(struct inode *inode, struct file *file)
 #endif
 		mousedev = container_of(inode->i_cdev, struct mousedev, cdev);
 
-	client = kzalloc(sizeof(struct mousedev_client), GFP_KERNEL);
+	client = kzalloc_obj(struct mousedev_client);
 	if (!client)
 		return -ENOMEM;
 
@@ -853,7 +853,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 		goto err_out;
 	}
 
-	mousedev = kzalloc(sizeof(struct mousedev), GFP_KERNEL);
+	mousedev = kzalloc_obj(struct mousedev);
 	if (!mousedev) {
 		error = -ENOMEM;
 		goto err_free_minor;

@@ -180,7 +180,7 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	u32 width, height;
 	dma_addr_t fbpaddr;
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (fb == NULL) {
 		ret = -ENOMEM;
 		goto err_fb_alloc_failed;

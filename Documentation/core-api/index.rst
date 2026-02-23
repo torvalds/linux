@@ -25,6 +25,7 @@ it.
    symbol-namespaces
    asm-annotations
    real-time/index
+   housekeeping.rst
 
 Data structures and low-level utilities
 =======================================
@@ -140,10 +141,3 @@ Documents that don't fit elsewhere or which have yet to be categorized.
    librs
    liveupdate
    netlink
-
-.. only:: subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

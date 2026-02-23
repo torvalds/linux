@@ -797,7 +797,7 @@ nv17_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	struct drm_encoder *encoder;
 	struct nv17_tv_encoder *tv_enc = NULL;
 
-	tv_enc = kzalloc(sizeof(*tv_enc), GFP_KERNEL);
+	tv_enc = kzalloc_obj(*tv_enc);
 	if (!tv_enc)
 		return -ENOMEM;
 

@@ -38,7 +38,10 @@ const char *trace_print_symbols_seq_u64(struct trace_seq *p,
 								 *symbol_array);
 #endif
 
-const char *trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+struct trace_iterator;
+struct trace_event;
+
+const char *trace_print_bitmask_seq(struct trace_iterator *iter, void *bitmask_ptr,
 				    unsigned int bitmask_size);
 
 const char *trace_print_hex_seq(struct trace_seq *p,
@@ -53,9 +56,6 @@ const char *
 trace_print_hex_dump_seq(struct trace_seq *p, const char *prefix_str,
 			 int prefix_type, int rowsize, int groupsize,
 			 const void *buf, size_t len, bool ascii);
-
-struct trace_iterator;
-struct trace_event;
 
 int trace_raw_output_prep(struct trace_iterator *iter,
 			  struct trace_event *event);
@@ -683,6 +683,11 @@ static inline void hist_poll_wakeup(void)
 
 #define hist_poll_wait(file, wait)	\
 	poll_wait(file, &hist_poll_wq, wait)
+
+#else
+static inline void hist_poll_wakeup(void)
+{
+}
 #endif
 
 #define __TRACE_EVENT_FLAGS(name, value)				\

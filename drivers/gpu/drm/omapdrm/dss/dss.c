@@ -928,7 +928,7 @@ dss_debugfs_create_file(struct dss_device *dss, const char *name,
 {
 	struct dss_debugfs_entry *entry;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -1419,7 +1419,7 @@ static int dss_probe(struct platform_device *pdev)
 	struct dss_device *dss;
 	int r;
 
-	dss = kzalloc(sizeof(*dss), GFP_KERNEL);
+	dss = kzalloc_obj(*dss);
 	if (!dss)
 		return -ENOMEM;
 

@@ -170,7 +170,7 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	int             ret;
 	struct pit_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

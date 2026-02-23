@@ -558,7 +558,7 @@ static int sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	if (function == SBP2_LOGOUT_REQUEST && fw_device_is_shutdown(device))
 		return 0;
 
-	orb = kzalloc(sizeof(*orb), GFP_NOIO);
+	orb = kzalloc_obj(*orb, GFP_NOIO);
 	if (orb == NULL)
 		return -ENOMEM;
 
@@ -667,7 +667,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	struct fw_transaction *t;
 	static __be32 d;
 
-	t = kmalloc(sizeof(*t), GFP_ATOMIC);
+	t = kmalloc_obj(*t, GFP_ATOMIC);
 	if (t == NULL)
 		return;
 
@@ -966,7 +966,7 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 {
 	struct sbp2_logical_unit *lu;
 
-	lu = kmalloc(sizeof(*lu), GFP_KERNEL);
+	lu = kmalloc_obj(*lu);
 	if (!lu)
 		return -ENOMEM;
 
@@ -1440,15 +1440,16 @@ static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
 
 /* SCSI stack integration */
 
-static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
-				  struct scsi_cmnd *cmd)
+static enum scsi_qc_status sbp2_scsi_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *cmd)
 {
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = target_parent_device(lu->tgt);
+	enum scsi_qc_status retval = SCSI_MLQUEUE_HOST_BUSY;
 	struct sbp2_command_orb *orb;
-	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
+	int generation;
 
-	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
+	orb = kzalloc_obj(*orb, GFP_ATOMIC);
 	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
 

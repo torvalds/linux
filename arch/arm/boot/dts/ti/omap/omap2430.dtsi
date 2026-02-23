@@ -332,7 +332,7 @@
 			interrupts = <93>;
 		};
 
-		wd_timer2: wdt@49016000 {
+		wd_timer2: watchdog@49016000 {
 			compatible = "ti,omap2-wdt";
 			ti,hwmods = "wd_timer2";
 			reg = <0x49016000 0x80>;

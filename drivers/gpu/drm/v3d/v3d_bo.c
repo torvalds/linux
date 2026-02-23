@@ -86,7 +86,7 @@ struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size)
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
 	obj = &bo->base.base;
@@ -114,7 +114,7 @@ v3d_bo_create_finish(struct drm_gem_object *obj)
 	if (IS_ERR(sgt))
 		return PTR_ERR(sgt);
 
-	if (!v3d->gemfs)
+	if (!drm_gem_get_huge_mnt(obj->dev))
 		align = SZ_4K;
 	else if (obj->size >= SZ_1M)
 		align = SZ_1M;
@@ -150,12 +150,10 @@ struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 			     size_t unaligned_size)
 {
 	struct drm_gem_shmem_object *shmem_obj;
-	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct v3d_bo *bo;
 	int ret;
 
-	shmem_obj = drm_gem_shmem_create_with_mnt(dev, unaligned_size,
-						  v3d->gemfs);
+	shmem_obj = drm_gem_shmem_create(dev, unaligned_size);
 	if (IS_ERR(shmem_obj))
 		return ERR_CAST(shmem_obj);
 	bo = to_v3d_bo(&shmem_obj->base);
@@ -215,7 +213,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		drm_dbg(dev, "unknown create_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -238,13 +236,13 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		drm_dbg(dev, "unknown mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		drm_dbg(dev, "Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 
@@ -263,7 +261,7 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		drm_dbg(dev, "Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_v3d_bo(gem_obj);

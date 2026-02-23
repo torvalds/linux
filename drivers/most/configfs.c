@@ -426,7 +426,7 @@ static struct config_item *most_common_make_item(struct config_group *group,
 	struct mdev_link *mdev_link;
 	struct most_common *mc = to_most_common(group->cg_subsys);
 
-	mdev_link = kzalloc(sizeof(*mdev_link), GFP_KERNEL);
+	mdev_link = kzalloc_obj(*mdev_link);
 	if (!mdev_link)
 		return ERR_PTR(-ENOMEM);
 
@@ -526,7 +526,7 @@ static struct config_item *most_snd_grp_make_item(struct config_group *group,
 {
 	struct mdev_link *mdev_link;
 
-	mdev_link = kzalloc(sizeof(*mdev_link), GFP_KERNEL);
+	mdev_link = kzalloc_obj(*mdev_link);
 	if (!mdev_link)
 		return ERR_PTR(-ENOMEM);
 
@@ -607,7 +607,7 @@ static struct config_group *most_sound_make_group(struct config_group *group,
 	}
 	if (!try_module_get(ms->mod))
 		return ERR_PTR(-ENOLCK);
-	most = kzalloc(sizeof(*most), GFP_KERNEL);
+	most = kzalloc_obj(*most);
 	if (!most) {
 		module_put(ms->mod);
 		return ERR_PTR(-ENOMEM);

@@ -838,7 +838,7 @@ static struct dfx_diff_registers *dfx_regs_init(struct hisi_qm *qm,
 	u32 j, base_offset;
 	int i;
 
-	diff_regs = kcalloc(reg_len, sizeof(*diff_regs), GFP_KERNEL);
+	diff_regs = kzalloc_objs(*diff_regs, reg_len);
 	if (!diff_regs)
 		return ERR_PTR(-ENOMEM);
 

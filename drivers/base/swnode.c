@@ -332,7 +332,7 @@ property_entries_dup(const struct property_entry *properties)
 	while (properties[n].name)
 		n++;
 
-	p = kcalloc(n + 1, sizeof(*p), GFP_KERNEL);
+	p = kzalloc_objs(*p, n + 1);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -758,7 +758,7 @@ static struct software_node *software_node_alloc(const struct property_entry *pr
 	if (IS_ERR(props))
 		return ERR_CAST(props);
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node) {
 		property_entries_free(props);
 		return ERR_PTR(-ENOMEM);
@@ -805,7 +805,7 @@ swnode_register(const struct software_node *node, struct swnode *parent,
 	struct swnode *swnode;
 	int ret;
 
-	swnode = kzalloc(sizeof(*swnode), GFP_KERNEL);
+	swnode = kzalloc_obj(*swnode);
 	if (!swnode)
 		return ERR_PTR(-ENOMEM);
 

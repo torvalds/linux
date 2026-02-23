@@ -9,6 +9,7 @@
 #include <linux/cpuset.h>
 #include <linux/spinlock.h>
 #include <linux/union_find.h>
+#include <linux/sched/isolation.h>
 
 /* See "Frequency meter" comments, below. */
 
@@ -144,16 +145,11 @@ struct cpuset {
 	 */
 	nodemask_t old_mems_allowed;
 
-	struct fmeter fmeter;		/* memory_pressure filter */
-
 	/*
 	 * Tasks are being attached to this cpuset.  Used to prevent
 	 * zeroing cpus/mems_allowed between ->can_attach() and ->attach().
 	 */
 	int attach_in_progress;
-
-	/* for custom sched domain */
-	int relax_domain_level;
 
 	/* partition root state */
 	int partition_root_state;
@@ -179,9 +175,18 @@ struct cpuset {
 	/* Handle for cpuset.cpus.partition */
 	struct cgroup_file partition_file;
 
+#ifdef CONFIG_CPUSETS_V1
+	struct fmeter fmeter;		/* memory_pressure filter */
+
+	/* for custom sched domain */
+	int relax_domain_level;
+
 	/* Used to merge intersecting subsets for generate_sched_domains */
 	struct uf_node node;
+#endif
 };
+
+extern struct cpuset top_cpuset;
 
 static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
 {
@@ -240,6 +245,30 @@ static inline int is_spread_slab(const struct cpuset *cs)
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
+/*
+ * Helper routine for generate_sched_domains().
+ * Do cpusets a, b have overlapping effective cpus_allowed masks?
+ */
+static inline int cpusets_overlap(struct cpuset *a, struct cpuset *b)
+{
+	return cpumask_intersects(a->effective_cpus, b->effective_cpus);
+}
+
+static inline int nr_cpusets(void)
+{
+	/* jump label reference count + the top-level cpuset */
+	return static_key_count(&cpusets_enabled_key.key) + 1;
+}
+
+static inline bool cpuset_is_populated(struct cpuset *cs)
+{
+	lockdep_assert_cpuset_lock_held();
+
+	/* Cpusets in the process of attaching should be considered as populated */
+	return cgroup_is_populated(cs->css.cgroup) ||
+		cs->attach_in_progress;
+}
+
 /**
  * cpuset_for_each_child - traverse online children of a cpuset
  * @child_cs: loop cursor pointing to the current child
@@ -285,7 +314,6 @@ void cpuset_full_unlock(void);
  */
 #ifdef CONFIG_CPUSETS_V1
 extern struct cftype cpuset1_files[];
-void fmeter_init(struct fmeter *fmp);
 void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
 void cpuset1_update_tasks_flags(struct cpuset *cs);
@@ -293,8 +321,13 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated);
 int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
+bool cpuset1_cpus_excl_conflict(struct cpuset *cs1, struct cpuset *cs2);
+void cpuset1_init(struct cpuset *cs);
+void cpuset1_online_css(struct cgroup_subsys_state *css);
+int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes);
+
 #else
-static inline void fmeter_init(struct fmeter *fmp) {}
 static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk) {}
 static inline void cpuset1_update_tasks_flags(struct cpuset *cs) {}
@@ -303,6 +336,13 @@ static inline void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    bool cpus_updated, bool mems_updated) {}
 static inline int cpuset1_validate_change(struct cpuset *cur,
 				struct cpuset *trial) { return 0; }
+static inline bool cpuset1_cpus_excl_conflict(struct cpuset *cs1,
+					struct cpuset *cs2) { return false; }
+static inline void cpuset1_init(struct cpuset *cs) {}
+static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
+static inline int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes) { return 0; };
+
 #endif /* CONFIG_CPUSETS_V1 */
 
 #endif /* __CPUSET_INTERNAL_H */

@@ -212,7 +212,7 @@ static struct clk_hw *mtk_clk_register_gate(struct device *dev,
 	int ret;
 	struct clk_init_data init = {};
 
-	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
+	cg = kzalloc_obj(*cg);
 	if (!cg)
 		return ERR_PTR(-ENOMEM);
 

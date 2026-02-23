@@ -682,7 +682,7 @@ struct shrinker *shrinker_alloc(unsigned int flags, const char *fmt, ...)
 	va_list ap;
 	int err;
 
-	shrinker = kzalloc(sizeof(struct shrinker), GFP_KERNEL);
+	shrinker = kzalloc_obj(struct shrinker);
 	if (!shrinker)
 		return NULL;
 

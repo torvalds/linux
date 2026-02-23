@@ -67,7 +67,7 @@ static irqreturn_t apbps2_isr(int irq, void *dev_id)
 		rxflags = (status & APBPS2_STATUS_PE) ? SERIO_PARITY : 0;
 		rxflags |= (status & APBPS2_STATUS_FE) ? SERIO_FRAME : 0;
 
-		/* clear error bits? */
+		/* Clear error bits */
 		if (rxflags)
 			iowrite32be(0, &priv->regs->status);
 
@@ -82,9 +82,9 @@ static irqreturn_t apbps2_isr(int irq, void *dev_id)
 static int apbps2_write(struct serio *io, unsigned char val)
 {
 	struct apbps2_priv *priv = io->port_data;
-	unsigned int tleft = 10000; /* timeout in 100ms */
+	unsigned int tleft = 10000; /* Timeout in 100ms */
 
-	/* delay until PS/2 controller has room for more chars */
+	/* Delay until PS/2 controller has room for more chars */
 	while ((ioread32be(&priv->regs->status) & APBPS2_STATUS_TF) && tleft--)
 		udelay(10);
 
@@ -104,7 +104,7 @@ static int apbps2_open(struct serio *io)
 	struct apbps2_priv *priv = io->port_data;
 	int limit;
 
-	/* clear error flags */
+	/* Clear error flags */
 	iowrite32be(0, &priv->regs->status);
 
 	/* Clear old data if available (unlikely) */
@@ -112,7 +112,7 @@ static int apbps2_open(struct serio *io)
 	while ((ioread32be(&priv->regs->status) & APBPS2_STATUS_DR) && --limit)
 		ioread32be(&priv->regs->data);
 
-	/* Enable reciever and it's interrupt */
+	/* Enable receiver and its interrupt */
 	iowrite32be(APBPS2_CTRL_RE | APBPS2_CTRL_RI, &priv->regs->ctrl);
 
 	return 0;
@@ -122,7 +122,7 @@ static void apbps2_close(struct serio *io)
 {
 	struct apbps2_priv *priv = io->port_data;
 
-	/* stop interrupts at PS/2 HW level */
+	/* Stop interrupts at PS/2 HW level */
 	iowrite32be(0, &priv->regs->ctrl);
 }
 
@@ -139,7 +139,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 	}
 
-	/* Find Device Address */
+	/* Find device address */
 	priv->regs = devm_platform_get_and_ioremap_resource(ofdev, 0, NULL);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
@@ -165,7 +165,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	/* Set reload register to core freq in kHz/10 */
 	iowrite32be(freq_hz / 10000, &priv->regs->reload);
 
-	priv->io = kzalloc(sizeof(*priv->io), GFP_KERNEL);
+	priv->io = kzalloc_obj(*priv->io);
 	if (!priv->io)
 		return -ENOMEM;
 

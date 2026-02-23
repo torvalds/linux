@@ -19,6 +19,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/fs.h>
+#include <linux/hex.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
 

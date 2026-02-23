@@ -287,7 +287,7 @@ int ipe_bdev_setintegrity(struct block_device *bdev, enum lsm_integrity_type typ
 	}
 	digest = value;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 

@@ -1353,8 +1353,8 @@ static int speakup_allocate(struct vc_data *vc, gfp_t gfp_flags)
 
 	vc_num = vc->vc_num;
 	if (!speakup_console[vc_num]) {
-		speakup_console[vc_num] = kzalloc(sizeof(*speakup_console[0]),
-						  gfp_flags);
+		speakup_console[vc_num] = kzalloc_obj(*speakup_console[0],
+						      gfp_flags);
 		if (!speakup_console[vc_num])
 			return -ENOMEM;
 		speakup_date(vc);

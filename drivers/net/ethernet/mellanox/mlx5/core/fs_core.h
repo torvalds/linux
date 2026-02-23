@@ -308,7 +308,8 @@ struct mlx5_flow_root_namespace {
 };
 
 enum mlx5_fc_type {
-	MLX5_FC_TYPE_ACQUIRED = 0,
+	MLX5_FC_TYPE_POOL_ACQUIRED = 0,
+	MLX5_FC_TYPE_SINGLE,
 	MLX5_FC_TYPE_LOCAL,
 };
 

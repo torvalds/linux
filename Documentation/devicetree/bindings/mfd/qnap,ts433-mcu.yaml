@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - qnap,ts133-mcu
       - qnap,ts233-mcu
       - qnap,ts433-mcu
 

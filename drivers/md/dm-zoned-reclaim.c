@@ -556,7 +556,7 @@ int dmz_ctr_reclaim(struct dmz_metadata *zmd,
 	struct dmz_reclaim *zrc;
 	int ret;
 
-	zrc = kzalloc(sizeof(struct dmz_reclaim), GFP_KERNEL);
+	zrc = kzalloc_obj(struct dmz_reclaim);
 	if (!zrc)
 		return -ENOMEM;
 

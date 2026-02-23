@@ -451,10 +451,10 @@ err:
 	return ret;
 }
 
-static int debug_disable_func(void)
+static void debug_disable_func(void)
 {
 	struct debug_drvdata *drvdata;
-	int cpu, ret, err = 0;
+	int cpu;
 
 	/*
 	 * Disable debug power domains, records the error and keep
@@ -466,12 +466,8 @@ static int debug_disable_func(void)
 		if (!drvdata)
 			continue;
 
-		ret = pm_runtime_put(drvdata->dev);
-		if (ret < 0)
-			err = ret;
+		pm_runtime_put(drvdata->dev);
 	}
-
-	return err;
 }
 
 static ssize_t debug_func_knob_write(struct file *f,
@@ -492,7 +488,7 @@ static ssize_t debug_func_knob_write(struct file *f,
 	if (val)
 		ret = debug_enable_func();
 	else
-		ret = debug_disable_func();
+		debug_disable_func();
 
 	if (ret) {
 		pr_err("%s: unable to %s debug function: %d\n",

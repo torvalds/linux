@@ -73,7 +73,7 @@ static int ttm_range_man_alloc(struct ttm_resource_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	node = kzalloc(struct_size(node, mm_nodes, 1), GFP_KERNEL);
+	node = kzalloc_flex(*node, mm_nodes, 1);
 	if (!node)
 		return -ENOMEM;
 
@@ -184,7 +184,7 @@ int ttm_range_man_init_nocheck(struct ttm_device *bdev,
 	struct ttm_resource_manager *man;
 	struct ttm_range_manager *rman;
 
-	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
+	rman = kzalloc_obj(*rman);
 	if (!rman)
 		return -ENOMEM;
 

@@ -439,19 +439,19 @@ int rtrs_clt_create_path_files(struct rtrs_clt_path *clt_path)
 				   clt->kobj_paths,
 				   "%s", str);
 	if (err) {
-		pr_err("kobject_init_and_add: %d\n", err);
+		pr_err("kobject_init_and_add: %pe\n", ERR_PTR(err));
 		kobject_put(&clt_path->kobj);
 		return err;
 	}
 	err = sysfs_create_group(&clt_path->kobj, &rtrs_clt_path_attr_group);
 	if (err) {
-		pr_err("sysfs_create_group(): %d\n", err);
+		pr_err("sysfs_create_group(): %pe\n", ERR_PTR(err));
 		goto put_kobj;
 	}
 	err = kobject_init_and_add(&clt_path->stats->kobj_stats, &ktype_stats,
 				   &clt_path->kobj, "stats");
 	if (err) {
-		pr_err("kobject_init_and_add: %d\n", err);
+		pr_err("kobject_init_and_add: %pe\n", ERR_PTR(err));
 		kobject_put(&clt_path->stats->kobj_stats);
 		goto remove_group;
 	}
@@ -459,7 +459,7 @@ int rtrs_clt_create_path_files(struct rtrs_clt_path *clt_path)
 	err = sysfs_create_group(&clt_path->stats->kobj_stats,
 				 &rtrs_clt_stats_attr_group);
 	if (err) {
-		pr_err("failed to create stats sysfs group, err: %d\n", err);
+		pr_err("failed to create stats sysfs group, err: %pe\n", ERR_PTR(err));
 		goto put_kobj_stats;
 	}
 

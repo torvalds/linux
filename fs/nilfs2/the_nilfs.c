@@ -56,7 +56,7 @@ struct the_nilfs *alloc_nilfs(struct super_block *sb)
 {
 	struct the_nilfs *nilfs;
 
-	nilfs = kzalloc(sizeof(*nilfs), GFP_KERNEL);
+	nilfs = kzalloc_obj(*nilfs);
 	if (!nilfs)
 		return NULL;
 
@@ -877,7 +877,7 @@ nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cno)
 	if (root)
 		return root;
 
-	new = kzalloc(sizeof(*root), GFP_KERNEL);
+	new = kzalloc_obj(*root);
 	if (!new)
 		return NULL;
 

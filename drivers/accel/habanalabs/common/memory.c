@@ -125,7 +125,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 		}
 	}
 
-	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
+	phys_pg_pack = kzalloc_obj(*phys_pg_pack);
 	if (!phys_pg_pack) {
 		rc = -ENOMEM;
 		goto pages_pack_err;
@@ -228,7 +228,7 @@ static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 	struct hl_userptr *userptr;
 	int rc;
 
-	userptr = kzalloc(sizeof(*userptr), GFP_KERNEL);
+	userptr = kzalloc_obj(*userptr);
 	if (!userptr) {
 		rc = -ENOMEM;
 		goto userptr_err;
@@ -501,7 +501,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 			res = va_block;
 	}
 
-	va_block = kmalloc(sizeof(*va_block), GFP_KERNEL);
+	va_block = kmalloc_obj(*va_block);
 	if (!va_block)
 		return -ENOMEM;
 
@@ -850,7 +850,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	dma_addr_t dma_addr;
 	int rc, i, j;
 
-	phys_pg_pack = kzalloc(sizeof(*phys_pg_pack), GFP_KERNEL);
+	phys_pg_pack = kzalloc_obj(*phys_pg_pack);
 	if (!phys_pg_pack)
 		return -ENOMEM;
 
@@ -1152,7 +1152,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 		goto shared_err;
 	}
 
-	hnode = kzalloc(sizeof(*hnode), GFP_KERNEL);
+	hnode = kzalloc_obj(*hnode);
 	if (!hnode) {
 		rc = -ENOMEM;
 		goto hnode_err;
@@ -1482,7 +1482,7 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	lnode = kzalloc(sizeof(*lnode), GFP_KERNEL);
+	lnode = kzalloc_obj(*lnode);
 	if (!lnode)
 		return -ENOMEM;
 
@@ -1553,7 +1553,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 		return ERR_PTR(-EINVAL);
 	}
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
+	sgt = kzalloc_obj(*sgt);
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
@@ -2046,7 +2046,7 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 		return -EINVAL;
 	}
 
-	hl_dmabuf = kzalloc(sizeof(*hl_dmabuf), GFP_KERNEL);
+	hl_dmabuf = kzalloc_obj(*hl_dmabuf);
 	if (!hl_dmabuf)
 		return -ENOMEM;
 
@@ -2116,7 +2116,7 @@ static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 
 	num_elements = *(u32 *)args;
 
-	ts_buff = kzalloc(sizeof(*ts_buff), gfp);
+	ts_buff = kzalloc_obj(*ts_buff, gfp);
 	if (!ts_buff)
 		return -ENOMEM;
 
@@ -2323,7 +2323,7 @@ static int get_user_memory(struct hl_device *hdev, u64 addr, u64 size,
 		return -EFAULT;
 	}
 
-	userptr->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	userptr->pages = kvmalloc_objs(struct page *, npages);
 	if (!userptr->pages)
 		return -ENOMEM;
 
@@ -2395,7 +2395,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 	}
 
 	userptr->pid = current->pid;
-	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_KERNEL);
+	userptr->sgt = kzalloc_obj(*userptr->sgt);
 	if (!userptr->sgt)
 		return -ENOMEM;
 
@@ -2611,7 +2611,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 
 	for (i = 0 ; i < HL_VA_RANGE_TYPE_MAX ; i++) {
 		ctx->va_range[i] =
-			kzalloc(sizeof(struct hl_va_range), GFP_KERNEL);
+			kzalloc_obj(struct hl_va_range);
 		if (!ctx->va_range[i]) {
 			rc = -ENOMEM;
 			goto free_va_range;

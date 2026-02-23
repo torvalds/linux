@@ -711,7 +711,7 @@ dw_mipi_dsi2_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 						 output_fmt, num_input_fmts);
 
 	/* Fall back to MEDIA_BUS_FMT_FIXED as the only input format. */
-	input_fmts = kmalloc(sizeof(*input_fmts), GFP_KERNEL);
+	input_fmts = kmalloc_obj(*input_fmts);
 	if (!input_fmts)
 		return NULL;
 	input_fmts[0] = MEDIA_BUS_FMT_FIXED;

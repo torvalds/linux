@@ -32,6 +32,7 @@
 #include <linux/debugfs.h>
 #include <linux/sysctl.h>
 #include <linux/kdebug.h>
+#include <linux/kthread.h>
 #include <linux/memory.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
@@ -40,6 +41,7 @@
 #include <linux/perf_event.h>
 #include <linux/execmem.h>
 #include <linux/cleanup.h>
+#include <linux/wait.h>
 
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -170,7 +172,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 	} while (c->nr_garbage && collect_garbage_slots(c) == 0);
 
 	/* All out of space.  Need to allocate a new page. */
-	kip = kmalloc(struct_size(kip, slot_used, slots_per_page(c)), GFP_KERNEL);
+	kip = kmalloc_flex(*kip, slot_used, slots_per_page(c));
 	if (!kip)
 		return NULL;
 
@@ -514,8 +516,18 @@ static LIST_HEAD(optimizing_list);
 static LIST_HEAD(unoptimizing_list);
 static LIST_HEAD(freeing_list);
 
-static void kprobe_optimizer(struct work_struct *work);
-static DECLARE_DELAYED_WORK(optimizing_work, kprobe_optimizer);
+static void optimize_kprobe(struct kprobe *p);
+static struct task_struct *kprobe_optimizer_task;
+static wait_queue_head_t kprobe_optimizer_wait;
+static atomic_t optimizer_state;
+enum {
+	OPTIMIZER_ST_IDLE = 0,
+	OPTIMIZER_ST_KICKED = 1,
+	OPTIMIZER_ST_FLUSHING = 2,
+};
+
+static DECLARE_COMPLETION(optimizer_completion);
+
 #define OPTIMIZE_DELAY 5
 
 /*
@@ -593,18 +605,25 @@ static void do_free_cleaned_kprobes(void)
 			 */
 			continue;
 		}
+
+		/*
+		 * The aggregator was holding back another probe while it sat on the
+		 * unoptimizing/freeing lists.  Now that the aggregator has been fully
+		 * reverted we can safely retry the optimization of that sibling.
+		 */
+
+		struct kprobe *_p = get_optimized_kprobe(op->kp.addr);
+		if (unlikely(_p))
+			optimize_kprobe(_p);
+
 		free_aggr_kprobe(&op->kp);
 	}
 }
 
-/* Start optimizer after OPTIMIZE_DELAY passed */
-static void kick_kprobe_optimizer(void)
-{
-	schedule_delayed_work(&optimizing_work, OPTIMIZE_DELAY);
-}
+static void kick_kprobe_optimizer(void);
 
 /* Kprobe jump optimizer */
-static void kprobe_optimizer(struct work_struct *work)
+static void kprobe_optimizer(void)
 {
 	guard(mutex)(&kprobe_mutex);
 
@@ -635,9 +654,53 @@ static void kprobe_optimizer(struct work_struct *work)
 		do_free_cleaned_kprobes();
 	}
 
-	/* Step 5: Kick optimizer again if needed */
+	/* Step 5: Kick optimizer again if needed. But if there is a flush requested, */
+	if (completion_done(&optimizer_completion))
+		complete(&optimizer_completion);
+
 	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
-		kick_kprobe_optimizer();
+		kick_kprobe_optimizer();	/*normal kick*/
+}
+
+static int kprobe_optimizer_thread(void *data)
+{
+	while (!kthread_should_stop()) {
+		/* To avoid hung_task, wait in interruptible state. */
+		wait_event_interruptible(kprobe_optimizer_wait,
+			   atomic_read(&optimizer_state) != OPTIMIZER_ST_IDLE ||
+			   kthread_should_stop());
+
+		if (kthread_should_stop())
+			break;
+
+		/*
+		 * If it was a normal kick, wait for OPTIMIZE_DELAY.
+		 * This wait can be interrupted by a flush request.
+		 */
+		if (atomic_read(&optimizer_state) == 1)
+			wait_event_interruptible_timeout(
+				kprobe_optimizer_wait,
+				atomic_read(&optimizer_state) == OPTIMIZER_ST_FLUSHING ||
+				kthread_should_stop(),
+				OPTIMIZE_DELAY);
+
+		if (kthread_should_stop())
+			break;
+
+		atomic_set(&optimizer_state, OPTIMIZER_ST_IDLE);
+
+		kprobe_optimizer();
+	}
+	return 0;
+}
+
+/* Start optimizer after OPTIMIZE_DELAY passed */
+static void kick_kprobe_optimizer(void)
+{
+	lockdep_assert_held(&kprobe_mutex);
+	if (atomic_cmpxchg(&optimizer_state,
+		OPTIMIZER_ST_IDLE, OPTIMIZER_ST_KICKED) == OPTIMIZER_ST_IDLE)
+		wake_up(&kprobe_optimizer_wait);
 }
 
 static void wait_for_kprobe_optimizer_locked(void)
@@ -645,13 +708,17 @@ static void wait_for_kprobe_optimizer_locked(void)
 	lockdep_assert_held(&kprobe_mutex);
 
 	while (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list)) {
+		init_completion(&optimizer_completion);
+		/*
+		 * Set state to OPTIMIZER_ST_FLUSHING and wake up the thread if it's
+		 * idle. If it's already kicked, it will see the state change.
+		 */
+		if (atomic_xchg_acquire(&optimizer_state,
+			OPTIMIZER_ST_FLUSHING) != OPTIMIZER_ST_FLUSHING)
+			wake_up(&kprobe_optimizer_wait);
+
 		mutex_unlock(&kprobe_mutex);
-
-		/* This will also make 'optimizing_work' execute immmediately */
-		flush_delayed_work(&optimizing_work);
-		/* 'optimizing_work' might not have been queued yet, relax */
-		cpu_relax();
-
+		wait_for_completion(&optimizer_completion);
 		mutex_lock(&kprobe_mutex);
 	}
 }
@@ -833,7 +900,7 @@ static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 {
 	struct optimized_kprobe *op;
 
-	op = kzalloc(sizeof(struct optimized_kprobe), GFP_KERNEL);
+	op = kzalloc_obj(struct optimized_kprobe);
 	if (!op)
 		return NULL;
 
@@ -1002,16 +1069,23 @@ static void __disarm_kprobe(struct kprobe *p, bool reopt)
 		if (unlikely(_p) && reopt)
 			optimize_kprobe(_p);
 	}
-	/*
-	 * TODO: Since unoptimization and real disarming will be done by
-	 * the worker thread, we can not check whether another probe are
-	 * unoptimized because of this probe here. It should be re-optimized
-	 * by the worker thread.
-	 */
 }
 
+static void __init init_optprobe(void)
+{
+#ifdef __ARCH_WANT_KPROBES_INSN_SLOT
+	/* Init 'kprobe_optinsn_slots' for allocation */
+	kprobe_optinsn_slots.insn_size = MAX_OPTINSN_SIZE;
+#endif
+
+	init_waitqueue_head(&kprobe_optimizer_wait);
+	atomic_set(&optimizer_state, OPTIMIZER_ST_IDLE);
+	kprobe_optimizer_task = kthread_run(kprobe_optimizer_thread, NULL,
+					    "kprobe-optimizer");
+}
 #else /* !CONFIG_OPTPROBES */
 
+#define init_optprobe()				do {} while (0)
 #define optimize_kprobe(p)			do {} while (0)
 #define unoptimize_kprobe(p, f)			do {} while (0)
 #define kill_optimized_kprobe(p)		do {} while (0)
@@ -1043,7 +1117,7 @@ static void free_aggr_kprobe(struct kprobe *p)
 
 static struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 {
-	return kzalloc(sizeof(struct kprobe), GFP_KERNEL);
+	return kzalloc_obj(struct kprobe);
 }
 #endif /* CONFIG_OPTPROBES */
 
@@ -2221,7 +2295,7 @@ int register_kretprobe(struct kretprobe *rp)
 		rp->rh = NULL;
 	}
 #else	/* !CONFIG_KRETPROBE_ON_RETHOOK */
-	rp->rph = kzalloc(sizeof(struct kretprobe_holder), GFP_KERNEL);
+	rp->rph = kzalloc_obj(struct kretprobe_holder);
 	if (!rp->rph)
 		return -ENOMEM;
 
@@ -2425,7 +2499,7 @@ int kprobe_add_ksym_blacklist(unsigned long entry)
 	    !kallsyms_lookup_size_offset(entry, &size, &offset))
 		return -EINVAL;
 
-	ent = kmalloc(sizeof(*ent), GFP_KERNEL);
+	ent = kmalloc_obj(*ent);
 	if (!ent)
 		return -ENOMEM;
 	ent->start_addr = entry;
@@ -2694,10 +2768,8 @@ static int __init init_kprobes(void)
 	/* By default, kprobes are armed */
 	kprobes_all_disarmed = false;
 
-#if defined(CONFIG_OPTPROBES) && defined(__ARCH_WANT_KPROBES_INSN_SLOT)
-	/* Init 'kprobe_optinsn_slots' for allocation */
-	kprobe_optinsn_slots.insn_size = MAX_OPTINSN_SIZE;
-#endif
+	/* Initialize the optimization infrastructure */
+	init_optprobe();
 
 	err = arch_init_kprobes();
 	if (!err)

@@ -61,8 +61,7 @@ struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev,
 {
 	uint64_t fence_context = base_fence_ctx + ring_idx;
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
-	struct virtio_gpu_fence *fence = kzalloc(sizeof(struct virtio_gpu_fence),
-							GFP_KERNEL);
+	struct virtio_gpu_fence *fence = kzalloc_obj(struct virtio_gpu_fence);
 
 	if (!fence)
 		return fence;

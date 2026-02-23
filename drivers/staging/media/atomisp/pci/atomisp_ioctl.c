@@ -696,7 +696,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 			ATOMISP_S3A_BUF_QUEUE_DEPTH_FOR_HAL;
 		dev_dbg(isp->dev, "allocating %d 3a buffers\n", count);
 		while (count--) {
-			s3a_buf = kzalloc(sizeof(struct atomisp_s3a_buf), GFP_KERNEL);
+			s3a_buf = kzalloc_obj(struct atomisp_s3a_buf);
 			if (!s3a_buf)
 				goto error;
 
@@ -715,7 +715,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 		count = ATOMISP_CSS_Q_DEPTH + 1;
 		dev_dbg(isp->dev, "allocating %d dis buffers\n", count);
 		while (count--) {
-			dis_buf = kzalloc(sizeof(struct atomisp_dis_buf), GFP_KERNEL);
+			dis_buf = kzalloc_obj(struct atomisp_dis_buf);
 			if (!dis_buf)
 				goto error;
 			if (atomisp_css_allocate_stat_buffers(
@@ -737,8 +737,7 @@ int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 			dev_dbg(isp->dev, "allocating %d metadata buffers for type %d\n",
 				count, i);
 			while (count--) {
-				md_buf = kzalloc(sizeof(struct atomisp_metadata_buf),
-						 GFP_KERNEL);
+				md_buf = kzalloc_obj(struct atomisp_metadata_buf);
 				if (!md_buf)
 					goto error;
 

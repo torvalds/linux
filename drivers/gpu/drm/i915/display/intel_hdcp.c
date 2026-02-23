@@ -29,10 +29,10 @@
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_hdcp.h"
-#include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
 #include "intel_hdcp_regs.h"
 #include "intel_hdcp_shim.h"
+#include "intel_parent.h"
 #include "intel_pcode.h"
 #include "intel_step.h"
 
@@ -258,7 +258,7 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 
 	/* If MTL+ make sure gsc is loaded and proxy is setup */
 	if (USE_HDCP_GSC(display)) {
-		if (!intel_hdcp_gsc_check_status(display->drm))
+		if (!intel_parent_hdcp_gsc_check_status(display))
 			return false;
 	}
 
@@ -2327,9 +2327,8 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 	data->protocol = (u8)shim->protocol;
 
 	if (!data->streams)
-		data->streams = kcalloc(INTEL_NUM_PIPES(display),
-					sizeof(struct hdcp2_streamid_type),
-					GFP_KERNEL);
+		data->streams = kzalloc_objs(struct hdcp2_streamid_type,
+					     INTEL_NUM_PIPES(display));
 	if (!data->streams) {
 		drm_err(display->drm, "Out of Memory\n");
 		return -ENOMEM;

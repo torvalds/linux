@@ -43,7 +43,7 @@ struct snd_seq_timer *snd_seq_timer_new(void)
 {
 	struct snd_seq_timer *tmr;
 	
-	tmr = kzalloc(sizeof(*tmr), GFP_KERNEL);
+	tmr = kzalloc_obj(*tmr);
 	if (!tmr)
 		return NULL;
 	spin_lock_init(&tmr->lock);

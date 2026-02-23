@@ -13,10 +13,3 @@ How to write kernel documentation
    contributing
    maintainer-profile
    checktransupdate
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

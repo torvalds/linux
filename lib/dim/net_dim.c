@@ -105,7 +105,7 @@ int net_dim_init_irq_moder(struct net_device *dev, u8 profile_flags,
 	struct dim_irq_moder *moder;
 	int len;
 
-	dev->irq_moder = kzalloc(sizeof(*dev->irq_moder), GFP_KERNEL);
+	dev->irq_moder = kzalloc_obj(*dev->irq_moder);
 	if (!dev->irq_moder)
 		return -ENOMEM;
 

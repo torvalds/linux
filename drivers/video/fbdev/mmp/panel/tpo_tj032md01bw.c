@@ -144,7 +144,7 @@ static int tpohvga_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	plat_data = kzalloc(sizeof(*plat_data), GFP_KERNEL);
+	plat_data = kzalloc_obj(*plat_data);
 	if (plat_data == NULL)
 		return -ENOMEM;
 

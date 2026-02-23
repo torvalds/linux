@@ -25,14 +25,14 @@
 #include <net/sock_reuseport.h>
 
 struct dst_entry *inet6_csk_route_req(const struct sock *sk,
+				      struct dst_entry *dst,
 				      struct flowi6 *fl6,
 				      const struct request_sock *req,
 				      u8 proto)
 {
-	struct inet_request_sock *ireq = inet_rsk(req);
+	const struct inet_request_sock *ireq = inet_rsk(req);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
-	struct dst_entry *dst;
 
 	memset(fl6, 0, sizeof(*fl6));
 	fl6->flowi6_proto = proto;
@@ -48,17 +48,12 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	fl6->flowi6_uid = sk_uid(sk);
 	security_req_classify_flow(req, flowi6_to_flowi_common(fl6));
 
-	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
-	if (IS_ERR(dst))
-		return NULL;
-
+	if (!dst) {
+		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
+		if (IS_ERR(dst))
+			return NULL;
+	}
 	return dst;
-}
-
-static inline
-struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
-{
-	return __sk_dst_check(sk, cookie);
 }
 
 static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
@@ -66,7 +61,7 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct in6_addr *final_p, final;
+	struct in6_addr *final_p;
 	struct dst_entry *dst;
 
 	memset(fl6, 0, sizeof(*fl6));
@@ -83,41 +78,41 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(fl6));
 
 	rcu_read_lock();
-	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
+	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &np->final);
 	rcu_read_unlock();
 
-	dst = __inet6_csk_dst_check(sk, np->dst_cookie);
-	if (!dst) {
-		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
+	dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
 
-		if (!IS_ERR(dst))
-			ip6_dst_store(sk, dst, false, false);
-	}
+	if (!IS_ERR(dst))
+		ip6_dst_store(sk, dst, false, false);
+
 	return dst;
 }
 
 int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused)
 {
+	struct flowi6 *fl6 = &inet_sk(sk)->cork.fl.u.ip6;
 	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct flowi6 fl6;
 	struct dst_entry *dst;
 	int res;
 
-	dst = inet6_csk_route_socket(sk, &fl6);
-	if (IS_ERR(dst)) {
-		WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
-		sk->sk_route_caps = 0;
-		kfree_skb(skb);
-		return PTR_ERR(dst);
+	dst = __sk_dst_check(sk, np->dst_cookie);
+	if (unlikely(!dst)) {
+		dst = inet6_csk_route_socket(sk, fl6);
+		if (IS_ERR(dst)) {
+			WRITE_ONCE(sk->sk_err_soft, -PTR_ERR(dst));
+			sk->sk_route_caps = 0;
+			kfree_skb(skb);
+			return PTR_ERR(dst);
+		}
+		/* Restore final destination back after routing done */
+		fl6->daddr = sk->sk_v6_daddr;
 	}
 
 	rcu_read_lock();
 	skb_dst_set_noref(skb, dst);
 
-	/* Restore final destination back after routing done */
-	fl6.daddr = sk->sk_v6_daddr;
-
-	res = ip6_xmit(sk, skb, &fl6, sk->sk_mark, rcu_dereference(np->opt),
+	res = ip6_xmit(sk, skb, fl6, sk->sk_mark, rcu_dereference(np->opt),
 		       np->tclass, READ_ONCE(sk->sk_priority));
 	rcu_read_unlock();
 	return res;
@@ -126,13 +121,15 @@ EXPORT_SYMBOL_GPL(inet6_csk_xmit);
 
 struct dst_entry *inet6_csk_update_pmtu(struct sock *sk, u32 mtu)
 {
-	struct flowi6 fl6;
-	struct dst_entry *dst = inet6_csk_route_socket(sk, &fl6);
+	struct flowi6 *fl6 = &inet_sk(sk)->cork.fl.u.ip6;
+	struct dst_entry *dst;
+
+	dst = inet6_csk_route_socket(sk, fl6);
 
 	if (IS_ERR(dst))
 		return NULL;
 	dst->ops->update_pmtu(dst, sk, NULL, mtu, true);
 
-	dst = inet6_csk_route_socket(sk, &fl6);
+	dst = inet6_csk_route_socket(sk, fl6);
 	return IS_ERR(dst) ? NULL : dst;
 }

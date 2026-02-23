@@ -96,7 +96,7 @@ static int aha152x_probe(struct pcmcia_device *link)
     dev_dbg(&link->dev, "aha152x_attach()\n");
 
     /* Create new SCSI device */
-    info = kzalloc(sizeof(*info), GFP_KERNEL);
+    info = kzalloc_obj(*info);
     if (!info) return -ENOMEM;
     info->p_dev = link;
     link->priv = info;

@@ -540,7 +540,7 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 
 	if (!on) {
 		/* not there, initialize a new one */
-		on = kzalloc(sizeof(*on), GFP_KERNEL);
+		on = kzalloc_obj(*on);
 		if (!on) {
 			mutex_unlock(mutex);
 			return -ENOMEM;
@@ -638,7 +638,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 
 	/* allocate a kernfs_open_file for the file */
 	error = -ENOMEM;
-	of = kzalloc(sizeof(struct kernfs_open_file), GFP_KERNEL);
+	of = kzalloc_obj(struct kernfs_open_file);
 	if (!of)
 		goto err_out;
 

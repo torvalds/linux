@@ -1044,6 +1044,7 @@
 			clock-names = "iface",
 				      "bus",
 				      "vsync";
+			resets = <&gcc GCC_MDSS_BCR>;
 			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 
 			interrupt-controller;
@@ -1121,7 +1122,7 @@
 				phys = <&mdss_dsi0_phy>;
 
 				operating-points-v2 = <&mdss_dsi0_opp_table>;
-				power-domains = <&rpmpd MSM8937_VDDCX>;
+				power-domains = <&rpmpd RPMPD_VDDCX>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1209,7 +1210,7 @@
 				phys = <&mdss_dsi1_phy>;
 
 				operating-points-v2 = <&mdss_dsi1_opp_table>;
-				power-domains = <&rpmpd MSM8937_VDDCX>;
+				power-domains = <&rpmpd RPMPD_VDDCX>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1456,7 +1457,7 @@
 			pinctrl-1 = <&sdc1_sleep>;
 			pinctrl-names = "default",
 					"sleep";
-			power-domains = <&rpmpd MSM8937_VDDCX>;
+			power-domains = <&rpmpd RPMPD_VDDCX>;
 			mmc-hs200-1_8v;
 			mmc-hs400-1_8v;
 			mmc-ddr-1_8v;
@@ -1486,7 +1487,7 @@
 			pinctrl-1 = <&sdc2_sleep>;
 			pinctrl-names = "default",
 					"sleep";
-			power-domains = <&rpmpd MSM8937_VDDCX>;
+			power-domains = <&rpmpd RPMPD_VDDCX>;
 			bus-width = <4>;
 			status = "disabled";
 		};
@@ -1709,8 +1710,8 @@
 					  "handover",
 					  "stop-ack";
 
-			power-domains = <&rpmpd MSM8937_VDDCX>,
-					<&rpmpd MSM8937_VDDMX>;
+			power-domains = <&rpmpd RPMPD_VDDCX>,
+					<&rpmpd RPMPD_VDDMX>;
 			power-domain-names = "cx",
 					     "mx";
 

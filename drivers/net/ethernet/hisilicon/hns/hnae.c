@@ -208,8 +208,7 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 	assert(ring->next_to_use == 0);
 	assert(ring->next_to_clean == 0);
 
-	ring->desc_cb = kcalloc(ring->desc_num, sizeof(ring->desc_cb[0]),
-			GFP_KERNEL);
+	ring->desc_cb = kzalloc_objs(ring->desc_cb[0], ring->desc_num);
 	if (!ring->desc_cb) {
 		ret = -ENOMEM;
 		goto out;

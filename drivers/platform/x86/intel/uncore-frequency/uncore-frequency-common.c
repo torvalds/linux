@@ -26,21 +26,21 @@ static ssize_t show_domain_id(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct uncore_data *data = container_of(attr, struct uncore_data, domain_id_kobj_attr);
 
-	return sprintf(buf, "%u\n", data->domain_id);
+	return sysfs_emit(buf, "%u\n", data->domain_id);
 }
 
 static ssize_t show_fabric_cluster_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct uncore_data *data = container_of(attr, struct uncore_data, fabric_cluster_id_kobj_attr);
 
-	return sprintf(buf, "%u\n", data->cluster_id);
+	return sysfs_emit(buf, "%u\n", data->cluster_id);
 }
 
 static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	struct uncore_data *data = container_of(attr, struct uncore_data, package_id_kobj_attr);
 
-	return sprintf(buf, "%u\n", data->package_id);
+	return sysfs_emit(buf, "%u\n", data->package_id);
 }
 
 #define MAX_UNCORE_AGENT_TYPES	4
@@ -77,7 +77,7 @@ static ssize_t show_attr(struct uncore_data *data, char *buf, enum uncore_index 
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u\n", value);
+	return sysfs_emit(buf, "%u\n", value);
 }
 
 static ssize_t store_attr(struct uncore_data *data, const char *buf, ssize_t count,
@@ -269,9 +269,10 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 			goto uncore_unlock;
 
 		data->instance_id = ret;
-		sprintf(data->name, "uncore%02d", ret);
+		scnprintf(data->name, sizeof(data->name), "uncore%02d", ret);
 	} else {
-		sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
+		scnprintf(data->name, sizeof(data->name), "package_%02d_die_%02d",
+			  data->package_id, data->die_id);
 	}
 
 	uncore_read(data, &data->initial_min_freq_khz, UNCORE_INDEX_MIN_FREQ);

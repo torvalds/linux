@@ -104,6 +104,7 @@
 #include <linux/io.h>
 #include <linux/kexec_handover.h>
 #include <linux/kho/abi/luo.h>
+#include <linux/list_private.h>
 #include <linux/liveupdate.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
@@ -273,7 +274,7 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 		goto  err_fput;
 
 	err = -ENOENT;
-	luo_list_for_each_private(fh, &luo_file_handler_list, list) {
+	list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 		if (fh->ops->can_preserve(fh, file)) {
 			err = 0;
 			break;
@@ -284,10 +285,14 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 	if (err)
 		goto err_free_files_mem;
 
-	luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+	err = luo_flb_file_preserve(fh);
+	if (err)
+		goto err_free_files_mem;
+
+	luo_file = kzalloc_obj(*luo_file);
 	if (!luo_file) {
 		err = -ENOMEM;
-		goto err_free_files_mem;
+		goto err_flb_unpreserve;
 	}
 
 	luo_file->file = file;
@@ -311,6 +316,8 @@ int luo_preserve_file(struct luo_file_set *file_set, u64 token, int fd)
 
 err_kfree:
 	kfree(luo_file);
+err_flb_unpreserve:
+	luo_flb_file_unpreserve(fh);
 err_free_files_mem:
 	luo_free_files_mem(file_set);
 err_fput:
@@ -352,6 +359,7 @@ void luo_file_unpreserve_files(struct luo_file_set *file_set)
 		args.serialized_data = luo_file->serialized_data;
 		args.private_data = luo_file->private_data;
 		luo_file->fh->ops->unpreserve(&args);
+		luo_flb_file_unpreserve(luo_file->fh);
 
 		list_del(&luo_file->list);
 		file_set->count--;
@@ -402,8 +410,6 @@ static void luo_file_unfreeze_one(struct luo_file_set *file_set,
 
 		luo_file->fh->ops->unfreeze(&args);
 	}
-
-	luo_file->serialized_data = 0;
 }
 
 static void __luo_file_unfreeze(struct luo_file_set *file_set,
@@ -629,6 +635,7 @@ static void luo_file_finish_one(struct luo_file_set *file_set,
 	args.retrieved = luo_file->retrieved;
 
 	luo_file->fh->ops->finish(&args);
+	luo_flb_file_finish(luo_file->fh);
 }
 
 /**
@@ -760,7 +767,7 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 		bool handler_found = false;
 		struct luo_file *luo_file;
 
-		luo_list_for_each_private(fh, &luo_file_handler_list, list) {
+		list_private_for_each_entry(fh, &luo_file_handler_list, list) {
 			if (!strcmp(fh->compatible, file_ser[i].compatible)) {
 				handler_found = true;
 				break;
@@ -773,7 +780,7 @@ int luo_file_deserialize(struct luo_file_set *file_set,
 			return -ENOENT;
 		}
 
-		luo_file = kzalloc(sizeof(*luo_file), GFP_KERNEL);
+		luo_file = kzalloc_obj(*luo_file);
 		if (!luo_file)
 			return -ENOMEM;
 
@@ -835,7 +842,7 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		return -EBUSY;
 
 	/* Check for duplicate compatible strings */
-	luo_list_for_each_private(fh_iter, &luo_file_handler_list, list) {
+	list_private_for_each_entry(fh_iter, &luo_file_handler_list, list) {
 		if (!strcmp(fh_iter->compatible, fh->compatible)) {
 			pr_err("File handler registration failed: Compatible string '%s' already registered.\n",
 			       fh->compatible);
@@ -850,9 +857,12 @@ int liveupdate_register_file_handler(struct liveupdate_file_handler *fh)
 		goto err_resume;
 	}
 
+	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, flb_list));
 	INIT_LIST_HEAD(&ACCESS_PRIVATE(fh, list));
 	list_add_tail(&ACCESS_PRIVATE(fh, list), &luo_file_handler_list);
 	luo_session_resume();
+
+	liveupdate_test_register(fh);
 
 	return 0;
 
@@ -870,23 +880,38 @@ err_resume:
  *
  * It ensures safe removal by checking that:
  * No live update session is currently in progress.
+ * No FLB registered with this file handler.
  *
  * If the unregistration fails, the internal test state is reverted.
  *
  * Return: 0 Success. -EOPNOTSUPP when live update is not enabled. -EBUSY A live
- * update is in progress, can't quiesce live update.
+ * update is in progress, can't quiesce live update or FLB is registred with
+ * this file handler.
  */
 int liveupdate_unregister_file_handler(struct liveupdate_file_handler *fh)
 {
+	int err = -EBUSY;
+
 	if (!liveupdate_enabled())
 		return -EOPNOTSUPP;
 
+	liveupdate_test_unregister(fh);
+
 	if (!luo_session_quiesce())
-		return -EBUSY;
+		goto err_register;
+
+	if (!list_empty(&ACCESS_PRIVATE(fh, flb_list)))
+		goto err_resume;
 
 	list_del(&ACCESS_PRIVATE(fh, list));
 	module_put(fh->ops->owner);
 	luo_session_resume();
 
 	return 0;
+
+err_resume:
+	luo_session_resume();
+err_register:
+	liveupdate_test_register(fh);
+	return err;
 }

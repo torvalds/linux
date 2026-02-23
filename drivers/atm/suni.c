@@ -367,7 +367,7 @@ int suni_init(struct atm_dev *dev)
 {
 	unsigned char mri;
 
-	if (!(dev->phy_data = kmalloc(sizeof(struct suni_priv),GFP_KERNEL)))
+	if (!(dev->phy_data = kmalloc_obj(struct suni_priv)))
 		return -ENOMEM;
 	PRIV(dev)->dev = dev;
 

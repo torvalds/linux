@@ -24,7 +24,8 @@ DEFINE_IDR(bfad_im_port_index);
 struct scsi_transport_template *bfad_im_scsi_transport_template;
 struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 static void bfad_im_itnim_work_handler(struct work_struct *work);
-static int bfad_im_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmnd);
+static enum scsi_qc_status bfad_im_queuecommand(struct Scsi_Host *h,
+						struct scsi_cmnd *cmnd);
 static int bfad_im_sdev_init(struct scsi_device *sdev);
 static void bfad_im_fc_rport_add(struct bfad_im_port_s  *im_port,
 				struct bfad_itnim_s *itnim);
@@ -425,7 +426,7 @@ int
 bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 		    struct bfad_itnim_s **itnim_drv)
 {
-	*itnim_drv = kzalloc(sizeof(struct bfad_itnim_s), GFP_ATOMIC);
+	*itnim_drv = kzalloc_obj(struct bfad_itnim_s, GFP_ATOMIC);
 	if (*itnim_drv == NULL)
 		return -ENOMEM;
 
@@ -621,7 +622,7 @@ bfad_im_port_new(struct bfad_s *bfad, struct bfad_port_s *port)
 	int             rc = BFA_STATUS_OK;
 	struct bfad_im_port_s *im_port;
 
-	im_port = kzalloc(sizeof(struct bfad_im_port_s), GFP_ATOMIC);
+	im_port = kzalloc_obj(struct bfad_im_port_s, GFP_ATOMIC);
 	if (im_port == NULL) {
 		rc = BFA_STATUS_ENOMEM;
 		goto ext;
@@ -697,7 +698,7 @@ bfad_im_probe(struct bfad_s *bfad)
 {
 	struct bfad_im_s      *im;
 
-	im = kzalloc(sizeof(struct bfad_im_s), GFP_KERNEL);
+	im = kzalloc_obj(struct bfad_im_s);
 	if (im == NULL)
 		return BFA_STATUS_ENOMEM;
 
@@ -993,7 +994,7 @@ bfad_im_supported_speeds(struct bfa_s *bfa)
 	struct bfa_ioc_attr_s *ioc_attr;
 	u32 supported_speed = 0;
 
-	ioc_attr = kzalloc(sizeof(struct bfa_ioc_attr_s), GFP_KERNEL);
+	ioc_attr = kzalloc_obj(struct bfa_ioc_attr_s);
 	if (!ioc_attr)
 		return 0;
 
@@ -1199,7 +1200,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 /*
  * Scsi_Host template entry, queue a SCSI command to the BFAD.
  */
-static int bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
+static enum scsi_qc_status bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct bfad_im_port_s *im_port =

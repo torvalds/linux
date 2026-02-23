@@ -1389,7 +1389,7 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 	if (iq < 0)
 		return iq;
 
-	f = kzalloc(sizeof(*f), GFP_KERNEL);
+	f = kzalloc_obj(*f);
 	if (!f)
 		return -ENOMEM;
 

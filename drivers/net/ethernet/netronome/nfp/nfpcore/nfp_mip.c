@@ -101,7 +101,7 @@ const struct nfp_mip *nfp_mip_open(struct nfp_cpp *cpp)
 	struct nfp_mip *mip;
 	int err;
 
-	mip = kmalloc(sizeof(*mip), GFP_KERNEL);
+	mip = kmalloc_obj(*mip);
 	if (!mip)
 		return NULL;
 

@@ -62,6 +62,7 @@ config ARCH_RZN1
 	select PM
 	select PM_GENERIC_DOMAINS
 	select ARM_AMBA
+	select RZN1_IRQMUX if GPIO_DWAPB
 
 if ARM && ARCH_RENESAS
 
@@ -423,12 +424,14 @@ config ARCH_R9A09G057
 config ARCH_R9A09G077
 	bool "ARM64 Platform support for R9A09G077 (RZ/T2H)"
 	default y if ARCH_RENESAS
+	select RENESAS_RZT2H_ICU
 	help
 	  This enables support for the Renesas RZ/T2H SoC variants.
 
 config ARCH_R9A09G087
 	bool "ARM64 Platform support for R9A09G087 (RZ/N2H)"
 	default y if ARCH_RENESAS
+	select RENESAS_RZT2H_ICU
 	help
 	  This enables support for the Renesas RZ/N2H SoC variants.
 
@@ -445,6 +448,7 @@ config ARCH_R9A07G043
 	depends on RISCV_SBI
 	select ARCH_RZG2L
 	select AX45MP_L2_CACHE
+	select CACHEMAINT_FOR_DMA
 	select DMA_GLOBAL_POOL
 	select ERRATA_ANDES
 	select ERRATA_ANDES_CMO
@@ -458,6 +462,9 @@ config PWC_RZV2M
 
 config RST_RCAR
 	bool "Reset Controller support for R-Car" if COMPILE_TEST
+
+config RZN1_IRQMUX
+	bool "Renesas RZ/N1 GPIO IRQ multiplexer support" if COMPILE_TEST
 
 config SYSC_RZ
 	bool "System controller for RZ SoCs" if COMPILE_TEST

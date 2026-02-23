@@ -395,7 +395,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 
 	/* prepare A-MPDU MLME for Rx aggregation */
-	tid_agg_rx = kzalloc(sizeof(*tid_agg_rx), GFP_KERNEL);
+	tid_agg_rx = kzalloc_obj(*tid_agg_rx);
 	if (!tid_agg_rx)
 		goto end;
 
@@ -411,7 +411,7 @@ void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
-		kcalloc(buf_size, sizeof(struct sk_buff_head), GFP_KERNEL);
+		kzalloc_objs(struct sk_buff_head, buf_size);
 	tid_agg_rx->reorder_time =
 		kcalloc(buf_size, sizeof(unsigned long), GFP_KERNEL);
 	if (!tid_agg_rx->reorder_buf || !tid_agg_rx->reorder_time) {

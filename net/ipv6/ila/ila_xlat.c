@@ -220,7 +220,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 			return err;
 	}
 
-	ila = kzalloc(sizeof(*ila), GFP_KERNEL);
+	ila = kzalloc_obj(*ila);
 	if (!ila)
 		return -ENOMEM;
 
@@ -509,7 +509,7 @@ int ila_xlat_nl_dump_start(struct netlink_callback *cb)
 	struct ila_net *ilan = net_generic(net, ila_net_id);
 	struct ila_dump_iter *iter;
 
-	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+	iter = kmalloc_obj(*iter);
 	if (!iter)
 		return -ENOMEM;
 

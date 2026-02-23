@@ -776,16 +776,26 @@ static inline u64 adjust_lpm_residency(struct pmc *pmc, u32 offset,
 static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
-	const int lpm_adj_x2 = pmc->map->lpm_res_counter_step_x2;
-	u32 offset = pmc->map->lpm_residency_offset;
-	int mode;
+	unsigned int pmc_idx;
 
-	seq_printf(s, "%-10s %-15s\n", "Substate", "Residency");
+	for (pmc_idx = 0; pmc_idx < ARRAY_SIZE(pmcdev->pmcs); ++pmc_idx) {
+		int lpm_adj_x2;
+		struct pmc *pmc;
+		u32 offset;
+		u8 mode;
 
-	pmc_for_each_mode(mode, pmcdev) {
-		seq_printf(s, "%-10s %-15llu\n", pmc_lpm_modes[mode],
-			   adjust_lpm_residency(pmc, offset + (4 * mode), lpm_adj_x2));
+		pmc = pmcdev->pmcs[pmc_idx];
+		if (!pmc)
+			continue;
+
+		lpm_adj_x2 = pmc->map->lpm_res_counter_step_x2;
+		offset = pmc->map->lpm_residency_offset;
+
+		seq_printf(s, "pmc%u %10s %15s\n", pmc_idx, "Substate", "Residency");
+		pmc_for_each_mode(mode, pmc) {
+			seq_printf(s, "%15s %15llu\n", pmc_lpm_modes[mode],
+				   adjust_lpm_residency(pmc, offset + (4 * mode), lpm_adj_x2));
+		}
 	}
 
 	return 0;
@@ -838,10 +848,11 @@ static void pmc_core_substate_req_header_show(struct seq_file *s, int pmc_index,
 					      enum header_type type)
 {
 	struct pmc_dev *pmcdev = s->private;
-	int mode;
+	struct pmc *pmc = pmcdev->pmcs[pmc_index];
+	u8 mode;
 
 	seq_printf(s, "%40s |", "Element");
-	pmc_for_each_mode(mode, pmcdev)
+	pmc_for_each_mode(mode, pmc)
 		seq_printf(s, " %9s |", pmc_lpm_modes[mode]);
 
 	if (type == HEADER_STATUS) {
@@ -880,14 +891,14 @@ static int pmc_core_substate_blk_req_show(struct seq_file *s, void *unused)
 			const struct pmc_bit_map *map;
 
 			for (map = maps[r_idx]; map->name; map++) {
-				int mode;
+				u8 mode;
 
 				if (!map->blk)
 					continue;
 
 				counter = pmc_core_reg_read(pmc, offset);
 				seq_printf(s, "pmc%u: %34s |", pmc_idx, map->name);
-				pmc_for_each_mode(mode, pmcdev) {
+				pmc_for_each_mode(mode, pmc) {
 					bool required = *lpm_req_regs & BIT(mode);
 
 					seq_printf(s, " %9s |", required ? "Required" : " ");
@@ -953,14 +964,15 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 			u32 lpm_status;
 			u32 lpm_status_live;
 			const struct pmc_bit_map *map;
-			int mode, i, len = 32;
+			int i, len = 32;
+			u8 mode;
 
 			/*
 			 * Capture the requirements and create a mask so that we only
 			 * show an element if it's required for at least one of the
 			 * enabled low power modes
 			 */
-			pmc_for_each_mode(mode, pmcdev)
+			pmc_for_each_mode(mode, pmc)
 				req_mask |= lpm_req_regs[mp + (mode * num_maps)];
 
 			/* Get the last latched status for this map */
@@ -986,7 +998,7 @@ static int pmc_core_substate_req_regs_show(struct seq_file *s, void *unused)
 				seq_printf(s, "pmc%d: %34s |", pmc_idx, map[i].name);
 
 				/* Loop over the enabled states and display if required */
-				pmc_for_each_mode(mode, pmcdev) {
+				pmc_for_each_mode(mode, pmc) {
 					bool required = lpm_req_regs[mp + (mode * num_maps)] &
 							bit_mask;
 					seq_printf(s, " %9s |", required ? "Required" : " ");
@@ -1065,7 +1077,7 @@ static int pmc_core_lpm_latch_mode_show(struct seq_file *s, void *unused)
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	bool c10;
 	u32 reg;
-	int mode;
+	u8 mode;
 
 	reg = pmc_core_reg_read(pmc, pmc->map->lpm_sts_latch_en_offset);
 	if (reg & LPM_STS_LATCH_MODE) {
@@ -1076,7 +1088,7 @@ static int pmc_core_lpm_latch_mode_show(struct seq_file *s, void *unused)
 		c10 = true;
 	}
 
-	pmc_for_each_mode(mode, pmcdev) {
+	pmc_for_each_mode(mode, pmc) {
 		if ((BIT(mode) & reg) && !c10)
 			seq_printf(s, " [%s]", pmc_lpm_modes[mode]);
 		else
@@ -1097,8 +1109,9 @@ static ssize_t pmc_core_lpm_latch_mode_write(struct file *file,
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	bool clear = false, c10 = false;
 	unsigned char buf[8];
-	int m, mode;
+	int mode;
 	u32 reg;
+	u8 m;
 
 	if (count > sizeof(buf) - 1)
 		return -EINVAL;
@@ -1115,7 +1128,7 @@ static ssize_t pmc_core_lpm_latch_mode_write(struct file *file,
 	mode = sysfs_match_string(pmc_lpm_modes, buf);
 
 	/* Check string matches enabled mode */
-	pmc_for_each_mode(m, pmcdev)
+	pmc_for_each_mode(m, pmc)
 		if (mode == m)
 			break;
 
@@ -1211,15 +1224,15 @@ static bool pmc_core_pri_verify(u32 lpm_pri, u8 *mode_order)
 	return true;
 }
 
-void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+static void pmc_core_pmc_get_low_power_modes(struct pmc_dev *pmcdev, struct pmc *pmc)
 {
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	u8 pri_order[LPM_MAX_NUM_MODES] = LPM_DEFAULT_PRI;
 	u8 mode_order[LPM_MAX_NUM_MODES];
 	u32 lpm_pri;
 	u32 lpm_en;
+	u8 mode;
 	unsigned int i;
-	int mode, p;
+	int p;
 
 	/* Use LPM Maps to indicate support for substates */
 	if (!pmc->map->lpm_num_maps)
@@ -1230,11 +1243,10 @@ void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 	 * Lower byte is enough to cover the number of lpm modes for all
 	 * platforms and hence mask the upper 3 bytes.
 	 */
-	pmcdev->num_lpm_modes = hweight32(lpm_en & 0xFF);
+	pmc->num_lpm_modes = hweight32(lpm_en & 0xFF);
 
 	/* Read 32 bit LPM_PRI register */
 	lpm_pri = pmc_core_reg_read(pmc, pmc->map->lpm_priority_offset);
-
 
 	/*
 	 * If lpm_pri value passes verification, then override the default
@@ -1254,12 +1266,27 @@ void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
 	 */
 	i = 0;
 	for (p = LPM_MAX_NUM_MODES - 1; p >= 0; p--) {
-		int mode = pri_order[p];
+		u8 mode = pri_order[p];
 
 		if (!(BIT(mode) & lpm_en))
 			continue;
 
-		pmcdev->lpm_en_modes[i++] = mode;
+		pmc->lpm_en_modes[i++] = mode;
+	}
+}
+
+static void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev)
+{
+	unsigned int pmc_idx;
+
+	for (pmc_idx = 0; pmc_idx < ARRAY_SIZE(pmcdev->pmcs); pmc_idx++) {
+		struct pmc *pmc;
+
+		pmc = pmcdev->pmcs[pmc_idx];
+		if (!pmc)
+			continue;
+
+		pmc_core_pmc_get_low_power_modes(pmcdev, pmc);
 	}
 }
 
@@ -1490,8 +1517,8 @@ int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct tel
 {
 	const u8 *lpm_indices;
 	int num_maps, mode_offset = 0;
-	int ret, mode;
-	int lpm_size;
+	int ret, lpm_size;
+	u8 mode;
 
 	lpm_indices = pmc->map->lpm_reg_index;
 	num_maps = pmc->map->lpm_num_maps;
@@ -1504,7 +1531,7 @@ int pmc_core_pmt_get_lpm_req(struct pmc_dev *pmcdev, struct pmc *pmc, struct tel
 		return -ENOMEM;
 
 	mode_offset = LPM_HEADER_OFFSET + LPM_MODE_OFFSET;
-	pmc_for_each_mode(mode, pmcdev) {
+	pmc_for_each_mode(mode, pmc) {
 		u32 *req_offset = pmc->lpm_req_regs + (mode * num_maps);
 		int m;
 

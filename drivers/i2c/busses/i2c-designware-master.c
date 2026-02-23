@@ -31,16 +31,6 @@
 #define AMD_TIMEOUT_MAX_US	250
 #define AMD_MASTERCFG_MASK	GENMASK(15, 0)
 
-static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
-{
-	/* Configure Tx/Rx FIFO threshold levels */
-	regmap_write(dev->map, DW_IC_TX_TL, dev->tx_fifo_depth / 2);
-	regmap_write(dev->map, DW_IC_RX_TL, 0);
-
-	/* Configure the I2C master */
-	regmap_write(dev->map, DW_IC_CON, dev->master_cfg);
-}
-
 static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 {
 	unsigned int comp_param1;
@@ -191,63 +181,7 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 			dev->hs_hcnt, dev->hs_lcnt);
 	}
 
-	ret = i2c_dw_set_sda_hold(dev);
-	if (ret)
-		return ret;
-
 	dev_dbg(dev->dev, "Bus speed: %s\n", i2c_freq_mode_string(t->bus_freq_hz));
-	return 0;
-}
-
-/**
- * i2c_dw_init_master() - Initialize the DesignWare I2C master hardware
- * @dev: device private data
- *
- * This functions configures and enables the I2C master.
- * This function is called during I2C init function, and in case of timeout at
- * run time.
- *
- * Return: 0 on success, or negative errno otherwise.
- */
-static int i2c_dw_init_master(struct dw_i2c_dev *dev)
-{
-	int ret;
-
-	ret = i2c_dw_acquire_lock(dev);
-	if (ret)
-		return ret;
-
-	/* Disable the adapter */
-	__i2c_dw_disable(dev);
-
-	/*
-	 * Mask SMBus interrupts to block storms from broken
-	 * firmware that leaves IC_SMBUS=1; the handler never
-	 * services them.
-	 */
-	regmap_write(dev->map, DW_IC_SMBUS_INTR_MASK, 0);
-
-	/* Write standard speed timing parameters */
-	regmap_write(dev->map, DW_IC_SS_SCL_HCNT, dev->ss_hcnt);
-	regmap_write(dev->map, DW_IC_SS_SCL_LCNT, dev->ss_lcnt);
-
-	/* Write fast mode/fast mode plus timing parameters */
-	regmap_write(dev->map, DW_IC_FS_SCL_HCNT, dev->fs_hcnt);
-	regmap_write(dev->map, DW_IC_FS_SCL_LCNT, dev->fs_lcnt);
-
-	/* Write high speed timing parameters if supported */
-	if (dev->hs_hcnt && dev->hs_lcnt) {
-		regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
-		regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
-	}
-
-	/* Write SDA hold time if supported */
-	if (dev->sda_hold_time)
-		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
-
-	i2c_dw_configure_fifo_master(dev);
-	i2c_dw_release_lock(dev);
-
 	return 0;
 }
 
@@ -259,6 +193,8 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 
 	/* Disable the adapter */
 	__i2c_dw_disable(dev);
+
+	i2c_dw_set_mode(dev, DW_IC_MASTER);
 
 	/* If the slave address is ten bit address, enable 10BITADDR */
 	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN) {
@@ -353,13 +289,16 @@ static int i2c_dw_status(struct dw_i2c_dev *dev)
  * Initiate and continue master read/write transaction with polling
  * based transfer routine afterward write messages into the Tx buffer.
  */
-static int amd_i2c_dw_xfer_quirk(struct i2c_adapter *adap, struct i2c_msg *msgs, int num_msgs)
+static int amd_i2c_dw_xfer_quirk(struct dw_i2c_dev *dev, struct i2c_msg *msgs, int num_msgs)
 {
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
 	int msg_wrt_idx, msg_itr_lmt, buf_len, data_idx;
 	int cmd = 0, status;
 	u8 *tx_buf;
 	unsigned int val;
+
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev->dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	/*
 	 * In order to enable the interrupt for UCSI i.e. AMD NAVI GPU card,
@@ -438,7 +377,6 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	struct i2c_msg *msgs = dev->msgs;
 	u32 intr_mask;
 	int tx_limit, rx_limit;
-	u32 addr = msgs[dev->msg_write_idx].addr;
 	u32 buf_len = dev->tx_buf_len;
 	u8 *buf = dev->tx_buf;
 	bool need_restart = false;
@@ -448,18 +386,6 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 
 	for (; dev->msg_write_idx < dev->msgs_num; dev->msg_write_idx++) {
 		u32 flags = msgs[dev->msg_write_idx].flags;
-
-		/*
-		 * If target address has changed, we need to
-		 * reprogram the target address in the I2C
-		 * adapter when we are done with this transfer.
-		 */
-		if (msgs[dev->msg_write_idx].addr != addr) {
-			dev_err(dev->dev,
-				"%s: invalid target address\n", __func__);
-			dev->msg_err = -EINVAL;
-			break;
-		}
 
 		if (!(dev->status & STATUS_WRITE_IN_PROGRESS)) {
 			/* new i2c_msg */
@@ -571,7 +497,7 @@ i2c_dw_recv_len(struct dw_i2c_dev *dev, u8 len)
 	 * after receiving the first byte.
 	 */
 	len += (flags & I2C_CLIENT_PEC) ? 2 : 1;
-	dev->tx_buf_len = len - min_t(u8, len, dev->rx_outstanding);
+	dev->tx_buf_len = len - min(len, dev->rx_outstanding);
 	msgs[dev->msg_read_idx].len = len;
 	msgs[dev->msg_read_idx].flags &= ~I2C_M_RECV_LEN;
 
@@ -593,11 +519,12 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 	unsigned int rx_valid;
 
 	for (; dev->msg_read_idx < dev->msgs_num; dev->msg_read_idx++) {
+		u32 flags = msgs[dev->msg_read_idx].flags;
 		unsigned int tmp;
 		u32 len;
 		u8 *buf;
 
-		if (!(msgs[dev->msg_read_idx].flags & I2C_M_RD))
+		if (!(flags & I2C_M_RD))
 			continue;
 
 		if (!(dev->status & STATUS_READ_IN_PROGRESS)) {
@@ -611,8 +538,6 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 		regmap_read(dev->map, DW_IC_RXFLR, &rx_valid);
 
 		for (; len > 0 && rx_valid > 0; len--, rx_valid--) {
-			u32 flags = msgs[dev->msg_read_idx].flags;
-
 			regmap_read(dev->map, DW_IC_DATA_CMD, &tmp);
 			tmp &= DW_IC_DATA_CMD_DAT;
 			/* Ensure length byte is a valid value */
@@ -727,6 +652,14 @@ static void i2c_dw_process_transfer(struct dw_i2c_dev *dev, unsigned int stat)
 	if (stat & DW_IC_INTR_TX_EMPTY)
 		i2c_dw_xfer_msg(dev);
 
+	/* Abort if we detect a STOP in the middle of a read or a write */
+	if ((stat & DW_IC_INTR_STOP_DET) &&
+	    (dev->status & (STATUS_READ_IN_PROGRESS | STATUS_WRITE_IN_PROGRESS))) {
+		dev_err(dev->dev, "spurious STOP detected\n");
+		dev->rx_outstanding = 0;
+		dev->msg_err = -EIO;
+	}
+
 	/*
 	 * No need to modify or disable the interrupt mask here.
 	 * i2c_dw_xfer_msg() will take care of it according to
@@ -749,9 +682,8 @@ tx_aborted:
  * Interrupt service routine. This gets called whenever an I2C master interrupt
  * occurs.
  */
-static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+irqreturn_t i2c_dw_isr_master(struct dw_i2c_dev *dev)
 {
-	struct dw_i2c_dev *dev = dev_id;
 	unsigned int stat, enabled;
 
 	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
@@ -809,25 +741,14 @@ static int i2c_dw_wait_transfer(struct dw_i2c_dev *dev)
 }
 
 /*
- * Prepare controller for a transaction and call i2c_dw_xfer_msg.
+ * Prepare controller for a transaction, start the transfer of the @msgs
+ * and wait for completion, either a STOP or a error.
+ * Return: 0 or a negative error code.
  */
 static int
-i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
+__i2c_dw_xfer_one_part(struct dw_i2c_dev *dev, struct i2c_msg *msgs, size_t num)
 {
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
 	int ret;
-
-	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
-
-	pm_runtime_get_sync(dev->dev);
-
-	switch (dev->flags & MODEL_MASK) {
-	case MODEL_AMD_NAVI_GPU:
-		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
-	default:
-		break;
-	}
 
 	reinit_completion(&dev->cmd_complete);
 	dev->msgs = msgs;
@@ -840,13 +761,9 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	dev->abort_source = 0;
 	dev->rx_outstanding = 0;
 
-	ret = i2c_dw_acquire_lock(dev);
-	if (ret)
-		goto done_nolock;
-
 	ret = i2c_dw_wait_bus_not_busy(dev);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	/* Start the transfers */
 	i2c_dw_xfer_init(dev);
@@ -855,10 +772,10 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	ret = i2c_dw_wait_transfer(dev);
 	if (ret) {
 		dev_err(dev->dev, "controller timed out\n");
-		/* i2c_dw_init_master() implicitly disables the adapter */
+		/* i2c_dw_init() implicitly disables the adapter */
 		i2c_recover_bus(&dev->adapter);
-		i2c_dw_init_master(dev);
-		goto done;
+		i2c_dw_init(dev);
+		return ret;
 	}
 
 	/*
@@ -881,52 +798,138 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	 */
 	__i2c_dw_disable_nowait(dev);
 
-	if (dev->msg_err) {
-		ret = dev->msg_err;
-		goto done;
-	}
+	if (dev->msg_err)
+		return dev->msg_err;
 
 	/* No error */
-	if (likely(!dev->cmd_err && !dev->status)) {
-		ret = num;
-		goto done;
-	}
+	if (likely(!dev->cmd_err && !dev->status))
+		return 0;
 
 	/* We have an error */
-	if (dev->cmd_err == DW_IC_ERR_TX_ABRT) {
-		ret = i2c_dw_handle_tx_abort(dev);
-		goto done;
-	}
+	if (dev->cmd_err == DW_IC_ERR_TX_ABRT)
+		return i2c_dw_handle_tx_abort(dev);
 
 	if (dev->status)
 		dev_err(dev->dev,
 			"transfer terminated early - interrupt latency too high?\n");
 
-	ret = -EIO;
-
-done:
-	i2c_dw_release_lock(dev);
-
-done_nolock:
-	pm_runtime_put_autosuspend(dev->dev);
-
-	return ret;
+	return -EIO;
 }
 
-static const struct i2c_algorithm i2c_dw_algo = {
-	.xfer = i2c_dw_xfer,
-	.functionality = i2c_dw_func,
-};
+/*
+ * Verify that the message at index @idx can be processed as part
+ * of a single transaction. The @msgs array contains the messages
+ * of the transaction. The message is checked against its predecessor
+ * to ensure that it respects the limitation of the controller.
+ * Return: true if the message can be processed, false otherwise.
+ */
+static bool
+i2c_dw_msg_is_valid(struct dw_i2c_dev *dev, const struct i2c_msg *msgs, size_t idx)
+{
+	/*
+	 * The first message of a transaction is valid,
+	 * no constraints from a previous message.
+	 */
+	if (!idx)
+		return true;
 
-static const struct i2c_adapter_quirks i2c_dw_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
-};
+	/*
+	 * We cannot change the target address during a transaction, so make
+	 * sure the address is identical to the one of the previous message.
+	 */
+	if (msgs[idx - 1].addr != msgs[idx].addr) {
+		dev_err(dev->dev, "invalid target address\n");
+		return false;
+	}
+
+	/*
+	 * Make sure we don't need explicit RESTART between two messages
+	 * in the same direction for controllers that cannot emit them.
+	 */
+	if (!dev->emptyfifo_hold_master &&
+	    (msgs[idx - 1].flags & I2C_M_RD) == (msgs[idx].flags & I2C_M_RD)) {
+		dev_err(dev->dev, "cannot emit RESTART\n");
+		return false;
+	}
+
+	return true;
+}
+
+static int
+i2c_dw_xfer_common(struct dw_i2c_dev *dev, struct i2c_msg msgs[], int num)
+{
+	struct i2c_msg *msgs_part;
+	size_t cnt;
+	int ret;
+
+	dev_dbg(dev->dev, "msgs: %d\n", num);
+
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev->dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/*
+	 * If the I2C_M_STOP is present in some the messages,
+	 * we do one transaction for each part up to the STOP.
+	 */
+	for (msgs_part = msgs; msgs_part < msgs + num; msgs_part += cnt) {
+		/*
+		 * Count the messages in a transaction, up to a STOP or
+		 * the end of the msgs. The last if below guarantees that
+		 * we check all messages and that msg_parts and cnt are
+		 * in-bounds of msgs and num.
+		 */
+		for (cnt = 1; ; cnt++) {
+			if (!i2c_dw_msg_is_valid(dev, msgs_part, cnt - 1)) {
+				ret = -EINVAL;
+				break;
+			}
+
+			if ((msgs_part[cnt - 1].flags & I2C_M_STOP) ||
+			    (msgs_part + cnt == msgs + num))
+				break;
+		}
+		if (ret < 0)
+			break;
+
+		/* transfer one part up to a STOP */
+		ret = __i2c_dw_xfer_one_part(dev, msgs_part, cnt);
+		if (ret < 0)
+			break;
+	}
+
+	i2c_dw_set_mode(dev, DW_IC_SLAVE);
+
+	i2c_dw_release_lock(dev);
+
+	if (ret < 0)
+		return ret;
+	return num;
+}
+
+int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
+
+	if ((dev->flags & MODEL_MASK) == MODEL_AMD_NAVI_GPU)
+		return amd_i2c_dw_xfer_quirk(dev, msgs, num);
+
+	return i2c_dw_xfer_common(dev, msgs, num);
+}
 
 void i2c_dw_configure_master(struct dw_i2c_dev *dev)
 {
 	struct i2c_timings *t = &dev->timings;
 
-	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
+	dev->functionality |= I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
+
+	/* amd_i2c_dw_xfer_quirk() does not implement protocol mangling */
+	if ((dev->flags & MODEL_MASK) != MODEL_AMD_NAVI_GPU)
+		dev->functionality |= I2C_FUNC_PROTOCOL_MANGLING;
 
 	dev->master_cfg = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
 			  DW_IC_CON_RESTART_EN;
@@ -961,7 +964,7 @@ static void i2c_dw_unprepare_recovery(struct i2c_adapter *adap)
 
 	i2c_dw_prepare_clk(dev, true);
 	reset_control_deassert(dev->rst);
-	i2c_dw_init_master(dev);
+	i2c_dw_init(dev);
 }
 
 static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
@@ -1005,24 +1008,12 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 
 int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 {
-	struct i2c_adapter *adap = &dev->adapter;
-	unsigned long irq_flags;
 	unsigned int ic_con;
 	int ret;
 
 	init_completion(&dev->cmd_complete);
 
-	dev->init = i2c_dw_init_master;
-
-	ret = i2c_dw_init_regmap(dev);
-	if (ret)
-		return ret;
-
 	ret = i2c_dw_set_timings_master(dev);
-	if (ret)
-		return ret;
-
-	ret = i2c_dw_set_fifo_size(dev);
 	if (ret)
 		return ret;
 
@@ -1045,60 +1036,8 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	if (ic_con & DW_IC_CON_BUS_CLEAR_CTRL)
 		dev->master_cfg |= DW_IC_CON_BUS_CLEAR_CTRL;
 
-	ret = dev->init(dev);
-	if (ret)
-		return ret;
-
-	if (!adap->name[0])
-		scnprintf(adap->name, sizeof(adap->name),
-			  "Synopsys DesignWare I2C adapter");
-	adap->retries = 3;
-	adap->algo = &i2c_dw_algo;
-	adap->quirks = &i2c_dw_quirks;
-	adap->dev.parent = dev->dev;
-	i2c_set_adapdata(adap, dev);
-
-	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
-		irq_flags = IRQF_NO_SUSPEND;
-	} else {
-		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
-	}
-
-	ret = i2c_dw_acquire_lock(dev);
-	if (ret)
-		return ret;
-
-	__i2c_dw_write_intr_mask(dev, 0);
-	i2c_dw_release_lock(dev);
-
-	if (!(dev->flags & ACCESS_POLLING)) {
-		ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
-				       irq_flags, dev_name(dev->dev), dev);
-		if (ret)
-			return dev_err_probe(dev->dev, ret,
-					     "failure requesting irq %i: %d\n",
-					     dev->irq, ret);
-	}
-
-	ret = i2c_dw_init_recovery_info(dev);
-	if (ret)
-		return ret;
-
-	/*
-	 * Increment PM usage count during adapter registration in order to
-	 * avoid possible spurious runtime suspend when adapter device is
-	 * registered to the device core and immediate resume in case bus has
-	 * registered I2C slaves that do I2C transfers in their probe.
-	 */
-	pm_runtime_get_noresume(dev->dev);
-	ret = i2c_add_numbered_adapter(adap);
-	if (ret)
-		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-	pm_runtime_put_noidle(dev->dev);
-
-	return ret;
+	return i2c_dw_init_recovery_info(dev);
 }
-EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");

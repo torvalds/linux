@@ -5,6 +5,7 @@
 
 #include <linux/cred.h>
 #include <linux/file.h>
+#include <linux/filelock.h>
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/uio.h>
@@ -95,7 +96,7 @@ struct ovl_file {
 
 struct ovl_file *ovl_file_alloc(struct file *realfile)
 {
-	struct ovl_file *of = kzalloc(sizeof(struct ovl_file), GFP_KERNEL);
+	struct ovl_file *of = kzalloc_obj(struct ovl_file);
 
 	if (unlikely(!of))
 		return NULL;
@@ -647,4 +648,5 @@ const struct file_operations ovl_file_operations = {
 
 	.copy_file_range	= ovl_copy_file_range,
 	.remap_file_range	= ovl_remap_file_range,
+	.setlease		= generic_setlease,
 };

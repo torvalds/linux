@@ -133,7 +133,7 @@ static struct iavf_ptp_aq_cmd *iavf_allocate_ptp_cmd(enum virtchnl_ops v_opcode,
 {
 	struct iavf_ptp_aq_cmd *cmd;
 
-	cmd = kzalloc(struct_size(cmd, msg, msglen), GFP_KERNEL);
+	cmd = kzalloc_flex(*cmd, msg, msglen);
 	if (!cmd)
 		return NULL;
 

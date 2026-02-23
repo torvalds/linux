@@ -371,7 +371,7 @@ static int sp2_probe(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s) {
 		ret = -ENOMEM;
 		goto err;

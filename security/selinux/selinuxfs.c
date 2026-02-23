@@ -18,6 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
+#include <linux/hex.h>
 #include <linux/mount.h>
 #include <linux/mutex.h>
 #include <linux/namei.h>
@@ -84,7 +85,7 @@ static int selinux_fs_info_create(struct super_block *sb)
 {
 	struct selinux_fs_info *fsi;
 
-	fsi = kzalloc(sizeof(*fsi), GFP_KERNEL);
+	fsi = kzalloc_obj(*fsi);
 	if (!fsi)
 		return -ENOMEM;
 
@@ -379,7 +380,7 @@ static int sel_open_policy(struct inode *inode, struct file *filp)
 		goto err;
 
 	rc = -ENOMEM;
-	plm = kzalloc(sizeof(*plm), GFP_KERNEL);
+	plm = kzalloc_obj(*plm);
 	if (!plm)
 		goto err;
 

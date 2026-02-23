@@ -69,7 +69,7 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 		return 0;
 	}
 
-	if (!(tags = kmalloc(sizeof(*tags), GFP_KERNEL))) {
+	if (!(tags = kmalloc_obj(*tags))) {
 		mutex_unlock(&fb->tags.mutex);
 		return -ENOMEM;
 	}

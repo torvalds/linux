@@ -605,7 +605,7 @@ mshv_register_doorbell(u64 partition_id, doorbell_cb_t doorbell_cb, void *data,
 	union hv_port_id port_id = { 0 };
 	int ret;
 
-	port_table_info = kmalloc(sizeof(*port_table_info), GFP_KERNEL);
+	port_table_info = kmalloc_obj(*port_table_info);
 	if (!port_table_info)
 		return -ENOMEM;
 

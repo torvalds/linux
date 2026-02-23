@@ -943,7 +943,7 @@ int devl_sb_register(struct devlink *devlink, unsigned int sb_index,
 	if (devlink_sb_index_exists(devlink, sb_index))
 		return -EEXIST;
 
-	devlink_sb = kzalloc(sizeof(*devlink_sb), GFP_KERNEL);
+	devlink_sb = kzalloc_obj(*devlink_sb);
 	if (!devlink_sb)
 		return -ENOMEM;
 	devlink_sb->index = sb_index;

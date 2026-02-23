@@ -131,7 +131,7 @@ static struct ubi_ainf_volume *find_or_add_av(struct ubi_attach_info *ai,
 		return NULL;
 
 	/* The volume is absent - add it */
-	av = kzalloc(sizeof(*av), GFP_KERNEL);
+	av = kzalloc_obj(*av);
 	if (!av)
 		return ERR_PTR(-ENOMEM);
 
@@ -1451,7 +1451,7 @@ static struct ubi_attach_info *alloc_ai(const char *slab_name)
 {
 	struct ubi_attach_info *ai;
 
-	ai = kzalloc(sizeof(struct ubi_attach_info), GFP_KERNEL);
+	ai = kzalloc_obj(struct ubi_attach_info);
 	if (!ai)
 		return ai;
 

@@ -359,7 +359,7 @@ struct subprocess_info *call_usermodehelper_setup(const char *path, char **argv,
 		void *data)
 {
 	struct subprocess_info *sub_info;
-	sub_info = kzalloc(sizeof(struct subprocess_info), gfp_mask);
+	sub_info = kzalloc_obj(struct subprocess_info, gfp_mask);
 	if (!sub_info)
 		goto out;
 

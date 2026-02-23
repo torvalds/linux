@@ -147,8 +147,10 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	}
 
 	error = gfs2_quota_init(sdp);
-	if (!error && gfs2_withdrawn(sdp))
+	if (!error && gfs2_withdrawn(sdp)) {
+		gfs2_quota_cleanup(sdp);
 		error = -EIO;
+	}
 	if (!error)
 		set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	return error;
@@ -334,7 +336,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	 */
 
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
-		lfcc = kmalloc(sizeof(struct lfcc), GFP_KERNEL);
+		lfcc = kmalloc_obj(struct lfcc);
 		if (!lfcc) {
 			error = -ENOMEM;
 			goto out;
@@ -858,7 +860,7 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 	int error = 0, err;
 
 	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
-	gha = kmalloc_array(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
+	gha = kmalloc_objs(struct gfs2_holder, slots);
 	if (!gha)
 		return -ENOMEM;
 	for (x = 0; x < slots; x++)

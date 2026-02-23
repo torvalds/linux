@@ -1939,7 +1939,7 @@ static int __init sba_driver_callback(struct parisc_device *dev)
 	printk(KERN_INFO "%s found %s at 0x%llx\n",
 		MODULE_NAME, version, (unsigned long long)dev->hpa.start);
 
-	sba_dev = kzalloc(sizeof(struct sba_device), GFP_KERNEL);
+	sba_dev = kzalloc_obj(struct sba_device);
 	if (!sba_dev) {
 		printk(KERN_ERR MODULE_NAME " - couldn't alloc sba_device\n");
 		return -ENOMEM;

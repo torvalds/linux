@@ -19,16 +19,18 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#define RKVDEC_CAPABILITY_HEVC		BIT(0)
-#define RKVDEC_CAPABILITY_H264		BIT(1)
-#define RKVDEC_CAPABILITY_VP9		BIT(2)
-
 #define RKVDEC_QUIRK_DISABLE_QOS	BIT(0)
 
+#define RKVDEC_1080P_PIXELS		(1920 * 1088)
+#define RKVDEC_4K_PIXELS		(4096 * 2304)
+#define RKVDEC_8K_PIXELS		(7680 * 4320)
+
 struct rkvdec_ctx;
+struct rkvdec_rcb_config;
 
 struct rkvdec_ctrl_desc {
 	struct v4l2_ctrl_config cfg;
@@ -69,9 +71,20 @@ vb2_to_rkvdec_decoded_buf(struct vb2_buffer *buf)
 			    base.vb.vb2_buf);
 }
 
+struct rkvdec_variant_ops {
+	irqreturn_t (*irq_handler)(struct rkvdec_ctx *ctx);
+	u32 (*colmv_size)(u16 width, u16 height);
+	void (*flatten_matrices)(u8 *output, const u8 *input, int matrices, int row_length);
+};
+
 struct rkvdec_variant {
 	unsigned int num_regs;
-	unsigned int capabilities;
+	const struct rkvdec_coded_fmt_desc *coded_fmts;
+	size_t num_coded_fmts;
+	const struct rcb_size_info *rcb_sizes;
+	size_t num_rcb_sizes;
+	const struct rkvdec_variant_ops *ops;
+	bool has_single_reg_region;
 	unsigned int quirks;
 };
 
@@ -110,7 +123,6 @@ struct rkvdec_coded_fmt_desc {
 	unsigned int num_decoded_fmts;
 	const struct rkvdec_decoded_fmt_desc *decoded_fmts;
 	u32 subsystem_flags;
-	unsigned int capability;
 };
 
 struct rkvdec_dev {
@@ -120,9 +132,14 @@ struct rkvdec_dev {
 	struct v4l2_m2m_dev *m2m_dev;
 	struct device *dev;
 	struct clk_bulk_data *clocks;
+	unsigned int num_clocks;
+	struct clk *axi_clk;
 	void __iomem *regs;
+	void __iomem *link;
 	struct mutex vdev_lock; /* serializes ioctls */
 	struct delayed_work watchdog_work;
+	struct gen_pool *sram_pool;
+	struct iommu_domain *iommu_domain;
 	struct iommu_domain *empty_domain;
 	const struct rkvdec_variant *variant;
 };
@@ -135,7 +152,11 @@ struct rkvdec_ctx {
 	struct v4l2_ctrl_handler ctrl_hdl;
 	struct rkvdec_dev *dev;
 	enum rkvdec_image_fmt image_fmt;
+	struct rkvdec_rcb_config *rcb_config;
+	u32 colmv_offset;
 	void *priv;
+	u8 has_sps_st_rps: 1;
+	u8 has_sps_lt_rps: 1;
 };
 
 static inline struct rkvdec_ctx *file_to_rkvdec_ctx(struct file *filp)
@@ -143,19 +164,36 @@ static inline struct rkvdec_ctx *file_to_rkvdec_ctx(struct file *filp)
 	return container_of(file_to_v4l2_fh(filp), struct rkvdec_ctx, fh);
 }
 
+enum rkvdec_alloc_type {
+	RKVDEC_ALLOC_DMA  = 0,
+	RKVDEC_ALLOC_SRAM = 1,
+};
+
 struct rkvdec_aux_buf {
 	void *cpu;
 	dma_addr_t dma;
 	size_t size;
+	enum rkvdec_alloc_type type;
 };
 
 void rkvdec_run_preamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
 void rkvdec_run_postamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
+void rkvdec_memcpy_toio(void __iomem *dst, void *src, size_t len);
+void rkvdec_schedule_watchdog(struct rkvdec_dev *rkvdec, u32 timeout_threshold);
 
 void rkvdec_quirks_disable_qos(struct rkvdec_ctx *ctx);
 
+/* RKVDEC ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_h264_fmt_ops;
 extern const struct rkvdec_coded_fmt_ops rkvdec_hevc_fmt_ops;
 extern const struct rkvdec_coded_fmt_ops rkvdec_vp9_fmt_ops;
+
+/* VDPU381 ops */
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_h264_fmt_ops;
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_hevc_fmt_ops;
+
+/* VDPU383 ops */
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_h264_fmt_ops;
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_hevc_fmt_ops;
 
 #endif /* RKVDEC_H_ */

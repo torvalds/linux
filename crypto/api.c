@@ -57,6 +57,7 @@ EXPORT_SYMBOL_GPL(crypto_mod_put);
 
 static struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type,
 					      u32 mask)
+	__must_hold_shared(&crypto_alg_sem)
 {
 	struct crypto_alg *q, *alg = NULL;
 	int best = -2;
@@ -104,7 +105,7 @@ struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask)
 {
 	struct crypto_larval *larval;
 
-	larval = kzalloc(sizeof(*larval), GFP_KERNEL);
+	larval = kzalloc_obj(*larval);
 	if (!larval)
 		return ERR_PTR(-ENOMEM);
 

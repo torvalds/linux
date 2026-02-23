@@ -1737,7 +1737,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 {
 	struct wiimote_data *wdata;
 
-	wdata = kzalloc(sizeof(*wdata), GFP_KERNEL);
+	wdata = kzalloc_obj(*wdata);
 	if (!wdata)
 		return NULL;
 

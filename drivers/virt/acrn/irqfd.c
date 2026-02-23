@@ -112,7 +112,7 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	__poll_t events;
 	int ret = 0;
 
-	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
+	irqfd = kzalloc_obj(*irqfd);
 	if (!irqfd)
 		return -ENOMEM;
 

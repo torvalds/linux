@@ -254,7 +254,7 @@ struct clk_hw *imx_clk_hw_pllv2(const char *name, const char *parent,
 	struct clk_init_data init;
 	int ret;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 

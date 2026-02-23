@@ -1142,7 +1142,7 @@ int cx23888_ir_probe(struct cx23885_dev *dev)
 	struct v4l2_subdev_ir_parameters default_params;
 	int ret;
 
-	state = kzalloc(sizeof(struct cx23888_ir_state), GFP_KERNEL);
+	state = kzalloc_obj(struct cx23888_ir_state);
 	if (state == NULL)
 		return -ENOMEM;
 

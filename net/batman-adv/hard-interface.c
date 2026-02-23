@@ -871,7 +871,7 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	if (!batadv_is_valid_iface(net_dev))
 		return NULL;
 
-	hard_iface = kzalloc(sizeof(*hard_iface), GFP_ATOMIC);
+	hard_iface = kzalloc_obj(*hard_iface, GFP_ATOMIC);
 	if (!hard_iface)
 		return NULL;
 

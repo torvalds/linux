@@ -86,7 +86,7 @@ struct dasd_device *dasd_alloc_device(void)
 {
 	struct dasd_device *device;
 
-	device = kzalloc(sizeof(struct dasd_device), GFP_ATOMIC);
+	device = kzalloc_obj(struct dasd_device, GFP_ATOMIC);
 	if (!device)
 		return ERR_PTR(-ENOMEM);
 
@@ -150,7 +150,7 @@ struct dasd_block *dasd_alloc_block(void)
 {
 	struct dasd_block *block;
 
-	block = kzalloc(sizeof(*block), GFP_ATOMIC);
+	block = kzalloc_obj(*block, GFP_ATOMIC);
 	if (!block)
 		return ERR_PTR(-ENOMEM);
 	/* open_count = 0 means device online but not in use */
@@ -868,7 +868,7 @@ int dasd_profile_on(struct dasd_profile *profile)
 {
 	struct dasd_profile_info *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 	spin_lock_bh(&profile->lock);
@@ -3180,7 +3180,7 @@ enum blk_eh_timer_return dasd_times_out(struct request *req)
 static int dasd_init_hctx(struct blk_mq_hw_ctx *hctx, void *data,
 			  unsigned int idx)
 {
-	struct dasd_queue *dq = kzalloc(sizeof(*dq), GFP_KERNEL);
+	struct dasd_queue *dq = kzalloc_obj(*dq);
 
 	if (!dq)
 		return -ENOMEM;

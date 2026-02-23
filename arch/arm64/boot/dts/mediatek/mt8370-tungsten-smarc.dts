@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2025 Ezurio LLC
+ * Author: Gary Bisson <bisson.gary@gmail.com>
+ */
+/dts-v1/;
+#include "mt8370.dtsi"
+#include "mt8390-tungsten-smarc.dtsi"
+
+/ {
+	model = "Ezurio Tungsten510 SMARC (MT8370)";
+	compatible = "ezurio,mt8370-tungsten-smarc", "mediatek,mt8370",
+		     "mediatek,mt8188";
+};

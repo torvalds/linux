@@ -18,9 +18,6 @@
 #include <linux/uaccess.h>
 #include "pegasus.h"
 
-/*
- * Version Information
- */
 #define DRIVER_AUTHOR "Petko Manolov <petkan@nucleusys.com>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
@@ -143,7 +140,7 @@ static int update_eth_regs_async(pegasus_t *pegasus)
 	struct urb *async_urb;
 	struct usb_ctrlrequest *req;
 
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
+	req = kmalloc_obj(struct usb_ctrlrequest, GFP_ATOMIC);
 	if (req == NULL)
 		return ret;
 

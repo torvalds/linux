@@ -14,6 +14,7 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_migration.h"
+#include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_submit.h"
@@ -122,6 +123,8 @@ int xe_gt_sriov_pf_init(struct xe_gt *gt)
 	err = xe_gt_sriov_pf_config_init(gt);
 	if (err)
 		return err;
+
+	xe_gt_sriov_pf_policy_init(gt);
 
 	err = xe_gt_sriov_pf_migration_init(gt);
 	if (err)
@@ -281,3 +284,20 @@ int xe_gt_sriov_pf_wait_ready(struct xe_gt *gt)
 	pf_flush_restart(gt);
 	return 0;
 }
+
+/**
+ * xe_gt_sriov_pf_sched_groups_enabled - Check if multiple scheduler groups are
+ * enabled
+ * @gt: the &xe_gt
+ *
+ * This function is for PF use only.
+ *
+ * Return: true if shed groups were enabled, false otherwise.
+ */
+bool xe_gt_sriov_pf_sched_groups_enabled(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+
+	return xe_gt_sriov_pf_policy_sched_groups_enabled(gt);
+}
+

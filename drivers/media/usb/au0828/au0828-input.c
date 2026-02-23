@@ -283,7 +283,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 	if (!i2c_rc_dev_addr)
 		return -ENODEV;
 
-	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	ir = kzalloc_obj(*ir);
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !rc)
 		goto error;

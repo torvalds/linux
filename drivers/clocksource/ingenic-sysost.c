@@ -279,7 +279,7 @@ static int __init ingenic_ost_register_clock(struct ingenic_ost *ost,
 	struct ingenic_ost_clk *ost_clk;
 	int val, err;
 
-	ost_clk = kzalloc(sizeof(*ost_clk), GFP_KERNEL);
+	ost_clk = kzalloc_obj(*ost_clk);
 	if (!ost_clk)
 		return -ENOMEM;
 
@@ -432,7 +432,7 @@ static int __init ingenic_ost_probe(struct device_node *np)
 	unsigned int i;
 	int ret;
 
-	ost = kzalloc(sizeof(*ost), GFP_KERNEL);
+	ost = kzalloc_obj(*ost);
 	if (!ost)
 		return -ENOMEM;
 
@@ -458,8 +458,8 @@ static int __init ingenic_ost_probe(struct device_node *np)
 
 	ost->soc_info = id->data;
 
-	ost->clocks = kzalloc(struct_size(ost->clocks, hws, ost->soc_info->num_channels),
-			      GFP_KERNEL);
+	ost->clocks = kzalloc_flex(*ost->clocks, hws,
+				   ost->soc_info->num_channels);
 	if (!ost->clocks) {
 		ret = -ENOMEM;
 		goto err_clk_disable;

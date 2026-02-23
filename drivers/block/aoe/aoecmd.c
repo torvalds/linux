@@ -211,7 +211,7 @@ newtframe(struct aoedev *d, struct aoetgt *t)
 	if (list_empty(&t->ffree)) {
 		if (t->falloc >= NSKBPOOLMAX*2)
 			return NULL;
-		f = kcalloc(1, sizeof(*f), GFP_ATOMIC);
+		f = kzalloc_objs(*f, 1, GFP_ATOMIC);
 		if (f == NULL)
 			return NULL;
 		t->falloc++;
@@ -1431,7 +1431,7 @@ grow_targets(struct aoedev *d)
 
 	oldn = d->ntargets;
 	newn = oldn * 2;
-	tt = kcalloc(newn, sizeof(*d->targets), GFP_ATOMIC);
+	tt = kzalloc_objs(*d->targets, newn, GFP_ATOMIC);
 	if (!tt)
 		return NULL;
 	memmove(tt, d->targets, sizeof(*d->targets) * oldn);
@@ -1458,7 +1458,7 @@ addtgt(struct aoedev *d, char *addr, ulong nframes)
 		if (!tt)
 			goto nomem;
 	}
-	t = kzalloc(sizeof(*t), GFP_ATOMIC);
+	t = kzalloc_obj(*t, GFP_ATOMIC);
 	if (!t)
 		goto nomem;
 	t->nframes = nframes;
@@ -1699,17 +1699,17 @@ aoecmd_init(void)
 
 	ncpus = num_online_cpus();
 
-	iocq = kcalloc(ncpus, sizeof(struct iocq_ktio), GFP_KERNEL);
+	iocq = kzalloc_objs(struct iocq_ktio, ncpus);
 	if (!iocq)
 		return -ENOMEM;
 
-	kts = kcalloc(ncpus, sizeof(struct ktstate), GFP_KERNEL);
+	kts = kzalloc_objs(struct ktstate, ncpus);
 	if (!kts) {
 		ret = -ENOMEM;
 		goto kts_fail;
 	}
 
-	ktiowq = kcalloc(ncpus, sizeof(wait_queue_head_t), GFP_KERNEL);
+	ktiowq = kzalloc_objs(wait_queue_head_t, ncpus);
 	if (!ktiowq) {
 		ret = -ENOMEM;
 		goto ktiowq_fail;

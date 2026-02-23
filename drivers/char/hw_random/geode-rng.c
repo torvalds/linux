@@ -107,7 +107,7 @@ static int __init geode_rng_init(void)
 	return err;
 
 found:
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		err = -ENOMEM;
 		goto put_dev;

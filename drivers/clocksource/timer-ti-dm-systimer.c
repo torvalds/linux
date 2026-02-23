@@ -600,7 +600,7 @@ static int __init dmtimer_clockevent_init(struct device_node *np)
 	struct dmtimer_clockevent *clkevt;
 	int error;
 
-	clkevt = kzalloc(sizeof(*clkevt), GFP_KERNEL);
+	clkevt = kzalloc_obj(*clkevt);
 	if (!clkevt)
 		return -ENOMEM;
 
@@ -757,7 +757,7 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 	struct clocksource *dev;
 	int error;
 
-	clksrc = kzalloc(sizeof(*clksrc), GFP_KERNEL);
+	clksrc = kzalloc_obj(*clksrc);
 	if (!clksrc)
 		return -ENOMEM;
 

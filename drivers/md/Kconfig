@@ -549,6 +549,8 @@ config DM_VERITY
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SHA256
 	select DM_BUFIO
+	select REED_SOLOMON if DM_VERITY_FEC
+	select REED_SOLOMON_DEC8 if DM_VERITY_FEC
 	help
 	  This device-mapper target creates a read-only device that
 	  transparently validates the data on one underlying device against
@@ -598,8 +600,6 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG_PLATFORM_KEYRING
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY
-	select REED_SOLOMON
-	select REED_SOLOMON_DEC8
 	help
 	  Add forward error correction support to dm-verity. This option
 	  makes it possible to use pre-generated error correction data to

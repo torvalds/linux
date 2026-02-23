@@ -186,11 +186,11 @@ static void q6adm_free_copp(struct kref *ref)
 	kfree(c);
 }
 
-static int q6adm_callback(struct apr_device *adev, struct apr_resp_pkt *data)
+static int q6adm_callback(struct apr_device *adev, const struct apr_resp_pkt *data)
 {
-	struct aprv2_ibasic_rsp_result_t *result = data->payload;
+	const struct aprv2_ibasic_rsp_result_t *result = data->payload;
 	int port_idx, copp_idx;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct apr_hdr *hdr = &data->hdr;
 	struct q6copp *copp;
 	struct q6adm *adm = dev_get_drvdata(&adev->dev);
 
@@ -284,7 +284,7 @@ static struct q6copp *q6adm_alloc_copp(struct q6adm *adm, int port_idx)
 	if (idx >= MAX_COPPS_PER_PORT)
 		return ERR_PTR(-EBUSY);
 
-	c = kzalloc(sizeof(*c), GFP_ATOMIC);
+	c = kzalloc_obj(*c, GFP_ATOMIC);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
@@ -331,6 +331,7 @@ static int q6adm_device_open(struct q6adm *adm, struct q6copp *copp,
 	int afe_port = q6afe_get_port_id(port_id);
 	struct apr_pkt *pkt;
 	int ret, pkt_size = APR_HDR_SIZE + sizeof(*open);
+
 	void *p __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -466,6 +467,7 @@ int q6adm_matrix_map(struct device *dev, int path,
 	struct q6copp *copp;
 	int pkt_size = (APR_HDR_SIZE + sizeof(*route) +  sizeof(*node) +
 		    (sizeof(uint32_t) * payload_map.num_copps));
+
 	void *matrix_map __free(kfree) = kzalloc(pkt_size, GFP_KERNEL);
 	if (!matrix_map)
 		return -ENOMEM;

@@ -23,69 +23,74 @@ void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 
 #ifdef CONFIG_PRINTK
 
-#define btrfs_printk(fs_info, fmt, args...)				\
-	_btrfs_printk(fs_info, fmt, ##args)
-
-__printf(2, 3)
-__cold
-void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
+__printf(3, 4) __cold
+void _btrfs_printk(const struct btrfs_fs_info *fs_info, unsigned int level, const char *fmt, ...);
 
 #else
 
-#define btrfs_printk(fs_info, fmt, args...) \
+#define btrfs_printk_in_rcu(fs_info, level, fmt, args...)		\
 	btrfs_no_printk(fs_info, fmt, ##args)
+
+#define btrfs_printk_in_rcu(fs_info, level, fmt, args...)		\
+	btrfs_no_printk(fs_info, fmt, ##args)
+
+#define btrfs_printk_rl_in_rcu(fs_info, level, fmt, args...)		\
+	btrfs_no_printk(fs_info, fmt, ##args)
+
 #endif
 
 /*
  * Print a message with filesystem info, enclosed in RCU protection.
  */
 #define btrfs_crit(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_CRIT fmt, ##args)
+	btrfs_printk_in_rcu(fs_info, LOGLEVEL_CRIT, fmt, ##args)
 #define btrfs_err(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_ERR fmt, ##args)
+	btrfs_printk_in_rcu(fs_info, LOGLEVEL_ERR, fmt, ##args)
 #define btrfs_warn(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_WARNING fmt, ##args)
+	btrfs_printk_in_rcu(fs_info, LOGLEVEL_WARNING, fmt, ##args)
 #define btrfs_info(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_INFO fmt, ##args)
+	btrfs_printk_in_rcu(fs_info, LOGLEVEL_INFO, fmt, ##args)
 
 /*
  * Wrappers that use a ratelimited printk
  */
 #define btrfs_crit_rl(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_CRIT fmt, ##args)
+	btrfs_printk_rl_in_rcu(fs_info, LOGLEVEL_CRIT, fmt, ##args)
 #define btrfs_err_rl(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_ERR fmt, ##args)
+	btrfs_printk_rl_in_rcu(fs_info, LOGLEVEL_ERR, fmt, ##args)
 #define btrfs_warn_rl(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_WARNING fmt, ##args)
+	btrfs_printk_rl_in_rcu(fs_info, LOGLEVEL_WARNING, fmt, ##args)
 #define btrfs_info_rl(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_INFO fmt, ##args)
+	btrfs_printk_rl_in_rcu(fs_info, LOGLEVEL_INFO, fmt, ##args)
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define btrfs_debug(fs_info, fmt, args...)				\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk_in_rcu,		\
-				   fs_info, KERN_DEBUG fmt, ##args)
+				   fs_info, LOGLEVEL_DEBUG, fmt, ##args)
 #define btrfs_debug_rl(fs_info, fmt, args...)				\
 	_dynamic_func_call_no_desc(fmt, btrfs_printk_rl_in_rcu,		\
-				   fs_info, KERN_DEBUG fmt, ##args)
+				   fs_info, LOGLEVEL_DEBUG, fmt, ##args)
 #elif defined(DEBUG)
 #define btrfs_debug(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_printk_in_rcu(fs_info, LOGLEVEL_DEBUG, fmt, ##args)
 #define btrfs_debug_rl(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
+	btrfs_printk_rl_in_rcu(fs_info, LOGLEVEl_DEBUG, fmt, ##args)
 #else
 /* When printk() is no_printk(), expand to no-op. */
 #define btrfs_debug(fs_info, fmt, args...)	do { (void)(fs_info); } while(0)
 #define btrfs_debug_rl(fs_info, fmt, args...)	do { (void)(fs_info); } while(0)
 #endif
 
-#define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
-do {							\
-	rcu_read_lock();				\
-	btrfs_printk(fs_info, fmt, ##args);		\
-	rcu_read_unlock();				\
+#ifdef CONFIG_PRINTK
+
+#define btrfs_printk_in_rcu(fs_info, level, fmt, args...)	\
+do {								\
+	rcu_read_lock();					\
+	_btrfs_printk(fs_info, level, fmt, ##args);		\
+	rcu_read_unlock();					\
 } while (0)
 
-#define btrfs_printk_rl_in_rcu(fs_info, fmt, args...)		\
+#define btrfs_printk_rl_in_rcu(fs_info, level, fmt, args...)	\
 do {								\
 	static DEFINE_RATELIMIT_STATE(_rs,			\
 		DEFAULT_RATELIMIT_INTERVAL,			\
@@ -93,9 +98,11 @@ do {								\
 								\
 	rcu_read_lock();					\
 	if (__ratelimit(&_rs))					\
-		btrfs_printk(fs_info, fmt, ##args);		\
+		_btrfs_printk(fs_info, level, fmt, ##args);	\
 	rcu_read_unlock();					\
 } while (0)
+
+#endif
 
 #ifdef CONFIG_BTRFS_ASSERT
 
@@ -113,7 +120,6 @@ static inline void verify_assert_printk_format(const char *fmt, ...) {
  */
 #define __REST_ARGS(_, ... ) __VA_OPT__(,) __VA_ARGS__
 
-#if defined(CONFIG_CC_IS_CLANG) || GCC_VERSION >= 80000
 /*
  * Assertion with optional printk() format.
  *
@@ -150,22 +156,6 @@ do {										\
 		BUG();								\
 	}									\
 } while(0)
-
-#else
-
-/* For GCC < 8.x only the simple output. */
-
-#define ASSERT(cond, args...)							\
-do {										\
-	verify_assert_printk_format("check the format string" args);		\
-	if (!likely(cond)) {							\
-		pr_err("assertion failed: %s :: %ld, in %s:%d\n",		\
-			#cond, (long)(cond), __FILE__, __LINE__);		\
-		BUG();								\
-	}									\
-} while(0)
-
-#endif
 
 #else
 /* Compile check the @cond expression but don't generate any code. */

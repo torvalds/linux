@@ -1288,7 +1288,7 @@ int lg4ff_init(struct hid_device *hid)
 		hid_err(hid, "Cannot add device, private driver data not allocated\n");
 		return -1;
 	}
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kzalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 	spin_lock_init(&entry->report_lock);

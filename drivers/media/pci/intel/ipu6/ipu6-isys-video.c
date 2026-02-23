@@ -455,6 +455,7 @@ static int ipu6_isys_fw_pin_cfg(struct ipu6_isys_video *av,
 {
 	struct media_pad *src_pad = media_pad_remote_pad_first(&av->pad);
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(src_pad->entity);
+	struct v4l2_subdev_state *state = v4l2_subdev_get_locked_active_state(sd);
 	struct ipu6_fw_isys_input_pin_info_abi *input_pin;
 	struct ipu6_fw_isys_output_pin_info_abi *output_pin;
 	struct ipu6_isys_stream *stream = av->stream;
@@ -464,26 +465,13 @@ static int ipu6_isys_fw_pin_cfg(struct ipu6_isys_video *av,
 		ipu6_isys_get_isys_format(ipu6_isys_get_format(av), 0);
 	struct v4l2_rect v4l2_crop;
 	struct ipu6_isys *isys = av->isys;
-	struct device *dev = &isys->adev->auxdev.dev;
 	int input_pins = cfg->nof_input_pins++;
 	int output_pins;
 	u32 src_stream;
-	int ret;
 
 	src_stream = ipu6_isys_get_src_stream_by_src_pad(sd, src_pad->index);
-	ret = ipu6_isys_get_stream_pad_fmt(sd, src_pad->index, src_stream,
-					   &fmt);
-	if (ret < 0) {
-		dev_err(dev, "can't get stream format (%d)\n", ret);
-		return ret;
-	}
-
-	ret = ipu6_isys_get_stream_pad_crop(sd, src_pad->index, src_stream,
-					    &v4l2_crop);
-	if (ret < 0) {
-		dev_err(dev, "can't get stream crop (%d)\n", ret);
-		return ret;
-	}
+	fmt = *v4l2_subdev_state_get_format(state, src_pad->index, src_stream);
+	v4l2_crop = *v4l2_subdev_state_get_crop(state, src_pad->index, src_stream);
 
 	input_pin = &cfg->input_pins[input_pins];
 	input_pin->input_res.width = fmt.width;
@@ -745,17 +733,16 @@ int ipu6_isys_video_prepare_stream(struct ipu6_isys_video *av,
 	stream->stream_source = stream->asd->source;
 	csi2 = ipu6_isys_subdev_to_csi2(stream->asd);
 	csi2->receiver_errors = 0;
-	stream->source_entity = source_entity;
 
 	dev_dbg(&av->isys->adev->auxdev.dev,
 		"prepare stream: external entity %s\n",
-		stream->source_entity->name);
+		source_entity->name);
 
 	return 0;
 }
 
 void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
-					  bool state)
+					  struct media_entity *source)
 {
 	struct ipu6_isys *isys = av->isys;
 	struct ipu6_isys_csi2 *csi2 = NULL;
@@ -769,10 +756,7 @@ void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 	u64 pixel_rate = 0;
 	int ret;
 
-	if (!state)
-		return;
-
-	esd = media_entity_to_v4l2_subdev(av->stream->source_entity);
+	esd = media_entity_to_v4l2_subdev(source);
 
 	av->watermark.width = ipu6_isys_get_frame_width(av);
 	av->watermark.height = ipu6_isys_get_frame_height(av);
@@ -788,13 +772,16 @@ void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 	csi2 = ipu6_isys_subdev_to_csi2(av->stream->asd);
 	link_freq = ipu6_isys_csi2_get_link_freq(csi2);
 	if (link_freq > 0) {
+		struct v4l2_subdev_state *state =
+			v4l2_subdev_lock_and_get_active_state(&csi2->asd.sd);
+
 		lanes = csi2->nlanes;
-		ret = ipu6_isys_get_stream_pad_fmt(&csi2->asd.sd, 0,
-						   av->source_stream, &format);
-		if (!ret) {
-			bpp = ipu6_isys_mbus_code_to_bpp(format.code);
-			pixel_rate = mul_u64_u32_div(link_freq, lanes * 2, bpp);
-		}
+		format = *v4l2_subdev_state_get_format(state, 0,
+						       av->source_stream);
+		bpp = ipu6_isys_mbus_code_to_bpp(format.code);
+		pixel_rate = mul_u64_u32_div(link_freq, lanes * 2, bpp);
+
+		v4l2_subdev_unlock_state(state);
 	}
 
 	av->watermark.pixel_rate = pixel_rate;
@@ -804,7 +791,7 @@ void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 		iwake_watermark->force_iwake_disable = true;
 		mutex_unlock(&iwake_watermark->mutex);
 		dev_warn(dev, "unexpected pixel_rate from %s, disable iwake.\n",
-			 av->stream->source_entity->name);
+			 source->name);
 	}
 }
 
@@ -1011,9 +998,6 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 
 	dev_dbg(dev, "set stream: %d\n", state);
 
-	if (WARN(!stream->source_entity, "No source entity for stream\n"))
-		return -ENODEV;
-
 	sd = &stream->asd->sd;
 	r_pad = media_pad_remote_pad_first(&av->pad);
 	r_stream = ipu6_isys_get_src_stream_by_src_pad(sd, r_pad->index);
@@ -1036,11 +1020,10 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 			sd->name, r_pad->index, stream_mask);
 		ret = v4l2_subdev_disable_streams(sd, r_pad->index,
 						  stream_mask);
-		if (ret) {
+		if (ret)
 			dev_err(dev, "stream off %s failed with %d\n", sd->name,
 				ret);
-			return ret;
-		}
+
 		close_streaming_firmware(av);
 	} else {
 		ret = start_stream_firmware(av, bl);
@@ -1066,6 +1049,7 @@ int ipu6_isys_video_set_streaming(struct ipu6_isys_video *av, int state,
 
 out_media_entity_stop_streaming_firmware:
 	stop_streaming_firmware(av);
+	close_streaming_firmware(av);
 
 	return ret;
 }
@@ -1179,7 +1163,8 @@ void ipu6_isys_fw_close(struct ipu6_isys *isys)
 }
 
 int ipu6_isys_setup_video(struct ipu6_isys_video *av,
-			  struct media_entity **source_entity, int *nr_queues)
+			  struct media_pad *remote_pad,
+			  struct media_pad *source_pad, int *nr_queues)
 {
 	const struct ipu6_isys_pixelformat *pfmt =
 		ipu6_isys_get_isys_format(ipu6_isys_get_format(av), 0);
@@ -1188,29 +1173,12 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 	struct v4l2_subdev_route *route = NULL;
 	struct v4l2_subdev_route *r;
 	struct v4l2_subdev_state *state;
-	struct ipu6_isys_subdev *asd;
-	struct v4l2_subdev *remote_sd;
-	struct media_pipeline *pipeline;
-	struct media_pad *source_pad, *remote_pad;
+	struct v4l2_subdev *remote_sd =
+		media_entity_to_v4l2_subdev(remote_pad->entity);
+	struct ipu6_isys_subdev *asd = to_ipu6_isys_subdev(remote_sd);
 	int ret = -EINVAL;
 
 	*nr_queues = 0;
-
-	remote_pad = media_pad_remote_pad_unique(&av->pad);
-	if (IS_ERR(remote_pad)) {
-		dev_dbg(dev, "failed to get remote pad\n");
-		return PTR_ERR(remote_pad);
-	}
-
-	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
-	asd = to_ipu6_isys_subdev(remote_sd);
-	source_pad = media_pad_remote_pad_first(&remote_pad->entity->pads[0]);
-	if (!source_pad) {
-		dev_dbg(dev, "No external source entity\n");
-		return -ENODEV;
-	}
-
-	*source_entity = source_pad->entity;
 
 	/* Find the root */
 	state = v4l2_subdev_lock_and_get_active_state(remote_sd);
@@ -1231,7 +1199,7 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 
 	ret = ipu6_isys_csi2_get_remote_desc(av->source_stream,
 					     to_ipu6_isys_csi2(asd),
-					     *source_entity, &entry);
+					     source_pad->entity, &entry);
 	if (ret == -ENOIOCTLCMD) {
 		av->vc = 0;
 		av->dt = ipu6_isys_mbus_code_to_mipi(pfmt->code);
@@ -1247,11 +1215,7 @@ int ipu6_isys_setup_video(struct ipu6_isys_video *av,
 		return ret;
 	}
 
-	pipeline = media_entity_pipeline(&av->vdev.entity);
-	if (!pipeline)
-		ret = video_device_pipeline_alloc_start(&av->vdev);
-	else
-		ret = video_device_pipeline_start(&av->vdev, pipeline);
+	ret = video_device_pipeline_alloc_start(&av->vdev);
 	if (ret < 0) {
 		dev_dbg(dev, "media pipeline start failed\n");
 		return ret;

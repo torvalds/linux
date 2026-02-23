@@ -719,12 +719,12 @@ static void *snd_dma_sg_fallback_alloc(struct snd_dma_buffer *dmab, size_t size)
 	unsigned int idx, npages;
 	void *p;
 
-	sgbuf = kzalloc(sizeof(*sgbuf), GFP_KERNEL);
+	sgbuf = kzalloc_obj(*sgbuf);
 	if (!sgbuf)
 		return NULL;
 	size = PAGE_ALIGN(size);
 	sgbuf->count = size >> PAGE_SHIFT;
-	sgbuf->pages = kvcalloc(sgbuf->count, sizeof(*sgbuf->pages), GFP_KERNEL);
+	sgbuf->pages = kvzalloc_objs(*sgbuf->pages, sgbuf->count);
 	sgbuf->npages = kvcalloc(sgbuf->count, sizeof(*sgbuf->npages), GFP_KERNEL);
 	if (!sgbuf->pages || !sgbuf->npages)
 		goto error;

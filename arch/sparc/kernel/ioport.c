@@ -238,7 +238,7 @@ unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 {
 	struct resource *res;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res)
 		return 0;
 	res->name = dev->of_node->full_name;

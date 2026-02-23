@@ -212,6 +212,7 @@ static int airoha_trng_probe(struct platform_device *pdev)
 	trng->rng.init = airoha_trng_init;
 	trng->rng.cleanup = airoha_trng_cleanup;
 	trng->rng.read = airoha_trng_read;
+	trng->rng.quality = 900;
 
 	ret = devm_hwrng_register(dev, &trng->rng);
 	if (ret) {

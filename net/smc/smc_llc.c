@@ -1040,7 +1040,7 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	if (!llc->qp_mtu)
 		goto out_reject;
 
-	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini) {
 		rc = -ENOMEM;
 		goto out_reject;
@@ -1180,7 +1180,7 @@ static void smc_llc_cli_add_link_invite(struct smc_link *link,
 	if (lgr->type == SMC_LGR_SINGLE && lgr->max_links <= 1)
 		goto out;
 
-	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini)
 		goto out;
 
@@ -1419,7 +1419,7 @@ int smc_llc_srv_add_link(struct smc_link *link,
 	    req_qentry->msg.raw.hdr.common.llc_type == SMC_LLC_REQ_ADD_LINK)
 		send_req_add_link_resp = true;
 
-	ini = kzalloc(sizeof(*ini), GFP_KERNEL);
+	ini = kzalloc_obj(*ini);
 	if (!ini) {
 		rc = -ENOMEM;
 		goto out;
@@ -2069,7 +2069,7 @@ static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
 	struct smc_llc_qentry *qentry;
 	unsigned long flags;
 
-	qentry = kmalloc(sizeof(*qentry), GFP_ATOMIC);
+	qentry = kmalloc_obj(*qentry, GFP_ATOMIC);
 	if (!qentry)
 		return;
 	qentry->link = link;

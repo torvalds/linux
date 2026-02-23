@@ -154,6 +154,8 @@ properties:
       - hannstar,hsd070pww1
         # HannStar Display Corp. HSD100PXN1 10.1" XGA LVDS panel
       - hannstar,hsd100pxn1
+        # HannStar Display Corp. HSD156JUW2 15.6" FHD (1920x1080) TFT LCD panel
+      - hannstar,hsd156juw2
         # Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
       - hit,tx23d38vm0caa
         # Innolux AT043TN24 4.3" WQVGA TFT LCD panel
@@ -176,6 +178,8 @@ properties:
       - innolux,g121x1-l03
         # Innolux Corporation 12.1" G121XCE-L01 XGA (1024x768) TFT LCD panel
       - innolux,g121xce-l01
+        # InnoLux 15.0" G150XGE-L05 XGA (1024x768) TFT LCD panel
+      - innolux,g150xge-l05
         # InnoLux 15.6" FHD (1920x1080) TFT LCD panel
       - innolux,g156hce-l01
         # InnoLux 13.3" FHD (1920x1080) TFT LCD panel
@@ -347,7 +351,9 @@ if:
     properties:
       compatible:
         contains:
-          const: innolux,g101ice-l01
+          enum:
+            - innolux,g101ice-l01
+            - yes-optoelectronics,ytc700tlag-05-201c
 then:
   properties:
     data-mapping: false

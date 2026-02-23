@@ -74,14 +74,14 @@ static struct file_system_type fuseblk_fs_type;
 
 struct fuse_forget_link *fuse_alloc_forget(void)
 {
-	return kzalloc(sizeof(struct fuse_forget_link), GFP_KERNEL_ACCOUNT);
+	return kzalloc_obj(struct fuse_forget_link, GFP_KERNEL_ACCOUNT);
 }
 
 static struct fuse_submount_lookup *fuse_alloc_submount_lookup(void)
 {
 	struct fuse_submount_lookup *sl;
 
-	sl = kzalloc(sizeof(struct fuse_submount_lookup), GFP_KERNEL_ACCOUNT);
+	sl = kzalloc_obj(struct fuse_submount_lookup, GFP_KERNEL_ACCOUNT);
 	if (!sl)
 		return NULL;
 	sl->forget = fuse_alloc_forget();
@@ -684,7 +684,7 @@ static struct fuse_sync_bucket *fuse_sync_bucket_alloc(void)
 {
 	struct fuse_sync_bucket *bucket;
 
-	bucket = kzalloc(sizeof(*bucket), GFP_KERNEL | __GFP_NOFAIL);
+	bucket = kzalloc_obj(*bucket, GFP_KERNEL | __GFP_NOFAIL);
 	if (bucket) {
 		init_waitqueue_head(&bucket->waitq);
 		/* Initial active count */
@@ -1487,7 +1487,7 @@ static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 	struct fuse_init_args *ia;
 	u64 flags;
 
-	ia = kzalloc(sizeof(*ia), GFP_KERNEL | __GFP_NOFAIL);
+	ia = kzalloc_obj(*ia, GFP_KERNEL | __GFP_NOFAIL);
 
 	ia->in.major = FUSE_KERNEL_VERSION;
 	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
@@ -1618,11 +1618,11 @@ struct fuse_dev *fuse_dev_alloc(void)
 	struct fuse_dev *fud;
 	struct list_head *pq;
 
-	fud = kzalloc(sizeof(struct fuse_dev), GFP_KERNEL);
+	fud = kzalloc_obj(struct fuse_dev);
 	if (!fud)
 		return NULL;
 
-	pq = kcalloc(FUSE_PQ_HASH_SIZE, sizeof(struct list_head), GFP_KERNEL);
+	pq = kzalloc_objs(struct list_head, FUSE_PQ_HASH_SIZE);
 	if (!pq) {
 		kfree(fud);
 		return NULL;
@@ -1780,7 +1780,7 @@ static int fuse_get_tree_submount(struct fs_context *fsc)
 	struct super_block *sb;
 	int err;
 
-	fm = kzalloc(sizeof(struct fuse_mount), GFP_KERNEL);
+	fm = kzalloc_obj(struct fuse_mount);
 	if (!fm)
 		return -ENOMEM;
 
@@ -1981,11 +1981,11 @@ static int fuse_get_tree(struct fs_context *fsc)
 	struct super_block *sb;
 	int err;
 
-	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	fc = kmalloc_obj(*fc);
 	if (!fc)
 		return -ENOMEM;
 
-	fm = kzalloc(sizeof(*fm), GFP_KERNEL);
+	fm = kzalloc_obj(*fm);
 	if (!fm) {
 		kfree(fc);
 		return -ENOMEM;
@@ -2047,7 +2047,7 @@ static int fuse_init_fs_context(struct fs_context *fsc)
 {
 	struct fuse_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct fuse_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct fuse_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

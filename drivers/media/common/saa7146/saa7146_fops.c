@@ -266,7 +266,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	}
 	dev->v4l2_dev.ctrl_handler = hdl;
 
-	vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
+	vv = kzalloc_obj(struct saa7146_vv);
 	if (vv == NULL) {
 		ERR("out of memory. aborting.\n");
 		v4l2_ctrl_handler_free(hdl);

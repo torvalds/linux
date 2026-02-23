@@ -96,6 +96,7 @@ Contents:
    packet_mmap
    phonet
    phy-link-topology
+   phy-port
    pktgen
    plip
    ppp_generic
@@ -134,10 +135,3 @@ Contents:
    xfrm/index
    xdp-rx-metadata
    xsk-tx-metadata
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

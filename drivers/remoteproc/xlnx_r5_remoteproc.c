@@ -265,7 +265,7 @@ static struct mbox_info *zynqmp_r5_setup_mbox(struct device *cdev)
 	struct mbox_client *mbox_cl;
 	struct mbox_info *ipi;
 
-	ipi = kzalloc(sizeof(*ipi), GFP_KERNEL);
+	ipi = kzalloc_obj(*ipi);
 	if (!ipi)
 		return NULL;
 
@@ -1271,7 +1271,6 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 	struct zynqmp_r5_core **r5_cores;
 	enum rpu_oper_mode fw_reg_val;
 	struct device **child_devs;
-	struct device_node *child;
 	enum rpu_tcm_comb tcm_mode;
 	int core_count, ret, i;
 	struct mbox_info *ipi;
@@ -1338,22 +1337,20 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		core_count = 1;
 	}
 
-	child_devs = kcalloc(core_count, sizeof(struct device *), GFP_KERNEL);
+	child_devs = kzalloc_objs(struct device *, core_count);
 	if (!child_devs)
 		return -ENOMEM;
 
-	r5_cores = kcalloc(core_count,
-			   sizeof(struct zynqmp_r5_core *), GFP_KERNEL);
+	r5_cores = kzalloc_objs(struct zynqmp_r5_core *, core_count);
 	if (!r5_cores) {
 		kfree(child_devs);
 		return -ENOMEM;
 	}
 
 	i = 0;
-	for_each_available_child_of_node(dev_node, child) {
+	for_each_available_child_of_node_scoped(dev_node, child) {
 		child_pdev = of_find_device_by_node(child);
 		if (!child_pdev) {
-			of_node_put(child);
 			ret = -ENODEV;
 			goto release_r5_cores;
 		}
@@ -1363,7 +1360,6 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		/* create and add remoteproc instance of type struct rproc */
 		r5_cores[i] = zynqmp_r5_add_rproc_core(&child_pdev->dev);
 		if (IS_ERR(r5_cores[i])) {
-			of_node_put(child);
 			ret = PTR_ERR(r5_cores[i]);
 			r5_cores[i] = NULL;
 			goto release_r5_cores;
@@ -1383,10 +1379,8 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		 * If two child nodes are available in dts in lockstep mode,
 		 * then ignore second child node.
 		 */
-		if (cluster_mode == LOCKSTEP_MODE) {
-			of_node_put(child);
+		if (cluster_mode == LOCKSTEP_MODE)
 			break;
-		}
 
 		i++;
 	}
@@ -1508,7 +1502,7 @@ static int zynqmp_r5_remoteproc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	cluster = kzalloc(sizeof(*cluster), GFP_KERNEL);
+	cluster = kzalloc_obj(*cluster);
 	if (!cluster)
 		return -ENOMEM;
 

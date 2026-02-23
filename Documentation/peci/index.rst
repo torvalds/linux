@@ -7,10 +7,3 @@ PECI Subsystem
 .. toctree::
 
    peci
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

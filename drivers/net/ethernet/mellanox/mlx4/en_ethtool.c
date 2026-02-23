@@ -1158,7 +1158,7 @@ static int mlx4_en_set_ringparam(struct net_device *dev,
 	    tx_size == priv->tx_ring[TX][0]->size)
 		return 0;
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 
@@ -1452,8 +1452,8 @@ static int add_ip_rule(struct mlx4_en_priv *priv,
 	struct mlx4_spec_list *spec_l3;
 	struct ethtool_usrip4_spec *l3_mask = &cmd->fs.m_u.usr_ip4_spec;
 
-	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
-	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
+	spec_l3 = kzalloc_obj(*spec_l3);
+	spec_l2 = kzalloc_obj(*spec_l2);
 	if (!spec_l2 || !spec_l3) {
 		err = -ENOMEM;
 		goto free_spec;
@@ -1491,9 +1491,9 @@ static int add_tcp_udp_rule(struct mlx4_en_priv *priv,
 	struct mlx4_spec_list *spec_l4;
 	struct ethtool_tcpip4_spec *l4_mask = &cmd->fs.m_u.tcp_ip4_spec;
 
-	spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
-	spec_l3 = kzalloc(sizeof(*spec_l3), GFP_KERNEL);
-	spec_l4 = kzalloc(sizeof(*spec_l4), GFP_KERNEL);
+	spec_l2 = kzalloc_obj(*spec_l2);
+	spec_l3 = kzalloc_obj(*spec_l3);
+	spec_l4 = kzalloc_obj(*spec_l4);
 	if (!spec_l2 || !spec_l3 || !spec_l4) {
 		err = -ENOMEM;
 		goto free_spec;
@@ -1564,7 +1564,7 @@ static int mlx4_en_ethtool_to_net_trans_rule(struct net_device *dev,
 
 	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
 	case ETHER_FLOW:
-		spec_l2 = kzalloc(sizeof(*spec_l2), GFP_KERNEL);
+		spec_l2 = kzalloc_obj(*spec_l2);
 		if (!spec_l2)
 			return -ENOMEM;
 
@@ -1833,7 +1833,7 @@ static int mlx4_en_set_channels(struct net_device *dev,
 	if (!channel->tx_count || !channel->rx_count)
 		return -EINVAL;
 
-	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	tmp = kzalloc_obj(*tmp);
 	if (!tmp)
 		return -ENOMEM;
 

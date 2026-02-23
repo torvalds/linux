@@ -150,7 +150,7 @@ static struct clk * __init cpg_mstp_clock_register(const char *name,
 	struct mstp_clock *clock;
 	struct clk *clk;
 
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock)
 		return ERR_PTR(-ENOMEM);
 
@@ -184,7 +184,7 @@ static void __init cpg_mstp_clocks_init(struct device_node *np)
 	struct clk **clks;
 	unsigned int i;
 
-	group = kzalloc(struct_size(group, clks, MSTP_MAX_CLOCKS), GFP_KERNEL);
+	group = kzalloc_flex(*group, clks, MSTP_MAX_CLOCKS);
 	if (!group)
 		return;
 
@@ -316,7 +316,7 @@ void __init cpg_mstp_add_clk_domain(struct device_node *np)
 		return;
 	}
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return;
 

@@ -195,7 +195,7 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 {
 	struct ucma_context *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 
@@ -262,7 +262,7 @@ static struct ucma_event *ucma_create_uevent(struct ucma_context *ctx,
 {
 	struct ucma_event *uevent;
 
-	uevent = kzalloc(sizeof(*uevent), GFP_KERNEL);
+	uevent = kzalloc_obj(*uevent);
 	if (!uevent)
 		return NULL;
 
@@ -1529,7 +1529,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
+	mc = kzalloc_obj(*mc);
 	if (!mc) {
 		ret = -ENOMEM;
 		goto err_put_ctx;
@@ -1770,7 +1770,7 @@ static ssize_t ucma_write_cm_event(struct ucma_file *file,
 	event.status = cmd.status;
 	event.param.arg = cmd.param.arg;
 
-	uevent = kzalloc(sizeof(*uevent), GFP_KERNEL);
+	uevent = kzalloc_obj(*uevent);
 	if (!uevent) {
 		ret = -ENOMEM;
 		goto out;
@@ -1885,7 +1885,7 @@ static int ucma_open(struct inode *inode, struct file *filp)
 {
 	struct ucma_file *file;
 
-	file = kmalloc(sizeof *file, GFP_KERNEL);
+	file = kmalloc_obj(*file);
 	if (!file)
 		return -ENOMEM;
 

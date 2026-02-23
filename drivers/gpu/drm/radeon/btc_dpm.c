@@ -1992,7 +1992,7 @@ static int btc_initialize_mc_reg_table(struct radeon_device *rdev)
 	struct evergreen_mc_reg_table *eg_table = &eg_pi->mc_reg_table;
 	u8 module_index = rv770_get_memory_module_index(rdev);
 
-	table = kzalloc(sizeof(struct atom_mc_reg_table), GFP_KERNEL);
+	table = kzalloc_obj(struct atom_mc_reg_table);
 	if (!table)
 		return -ENOMEM;
 
@@ -2526,7 +2526,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 	struct atom_clock_dividers dividers;
 	int ret;
 
-	eg_pi = kzalloc(sizeof(struct evergreen_power_info), GFP_KERNEL);
+	eg_pi = kzalloc_obj(struct evergreen_power_info);
 	if (eg_pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = eg_pi;
@@ -2552,9 +2552,7 @@ int btc_dpm_init(struct radeon_device *rdev)
 		return ret;
 
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kcalloc(4,
-			sizeof(struct radeon_clock_voltage_dependency_entry),
-			GFP_KERNEL);
+		kzalloc_objs(struct radeon_clock_voltage_dependency_entry, 4);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		r600_free_extended_power_table(rdev);
 		return -ENOMEM;

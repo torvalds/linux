@@ -5,7 +5,6 @@
 #include "pvr_device_info.h"
 
 #include "pvr_fw.h"
-#include "pvr_params.h"
 #include "pvr_power.h"
 #include "pvr_queue.h"
 #include "pvr_rogue_cr_defs.h"
@@ -31,6 +30,8 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+
+#include <kunit/visibility.h>
 
 /* Major number for the supported version of the firmware. */
 #define PVR_FW_VERSION_MAJOR 1
@@ -422,23 +423,21 @@ err_free_filename:
 }
 
 /**
- * pvr_load_gpu_id() - Load a PowerVR device's GPU ID (BVNC) from control registers.
+ * pvr_gpuid_decode_reg() - Decode the GPU ID from GPU register
  *
- * Sets struct pvr_dev.gpu_id.
+ * Sets the b, v, n, c fields of struct pvr_dev.gpu_id.
  *
  * @pvr_dev: Target PowerVR device.
+ * @gpu_id: Output to be updated with the GPU ID.
  */
 static void
-pvr_load_gpu_id(struct pvr_device *pvr_dev)
+pvr_gpuid_decode_reg(const struct pvr_device *pvr_dev, struct pvr_gpu_id *gpu_id)
 {
-	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
-	u64 bvnc;
-
 	/*
 	 * Try reading the BVNC using the newer (cleaner) method first. If the
 	 * B value is zero, fall back to the older method.
 	 */
-	bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
+	u64 bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
 
 	gpu_id->b = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__BRANCH_ID);
 	if (gpu_id->b != 0) {
@@ -455,6 +454,179 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 		gpu_id->n = FIELD_GET(0xFF00, core_id_config);
 		gpu_id->c = FIELD_GET(0x00FF, core_id_config);
 	}
+}
+
+/**
+ * pvr_gpuid_decode_string() - Decode the GPU ID from a module input string
+ *
+ * Sets the b, v, n, c fields of struct pvr_dev.gpu_id.
+ *
+ * @pvr_dev: Target PowerVR device.
+ * @param_bvnc: GPU ID (BVNC) module parameter.
+ * @gpu_id: Output to be updated with the GPU ID.
+ */
+VISIBLE_IF_KUNIT int
+pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
+			const char *param_bvnc, struct pvr_gpu_id *gpu_id)
+{
+	const struct drm_device *drm_dev = &pvr_dev->base;
+	char str_cpy[PVR_GPUID_STRING_MAX_LENGTH];
+	char *pos, *tkn;
+	int ret, idx = 0;
+	u16 user_bvnc_u16[4];
+	u8 dot_cnt = 0;
+
+	ret = strscpy(str_cpy, param_bvnc);
+
+	/*
+	 * strscpy() should return at least a size 7 for the input to be valid.
+	 * Returns -E2BIG for the case when the string is empty or too long.
+	 */
+	if (ret < PVR_GPUID_STRING_MIN_LENGTH) {
+		drm_info(drm_dev,
+			 "Invalid size of the input GPU ID (BVNC): %s",
+			 str_cpy);
+		return -EINVAL;
+	}
+
+	while (*param_bvnc) {
+		if (*param_bvnc == '.')
+			dot_cnt++;
+		param_bvnc++;
+	}
+
+	if (dot_cnt != 3) {
+		drm_info(drm_dev,
+			 "Invalid format of the input GPU ID (BVNC): %s",
+			 str_cpy);
+		return -EINVAL;
+	}
+
+	pos = str_cpy;
+
+	while ((tkn = strsep(&pos, ".")) != NULL && idx < 4) {
+		/* kstrtou16() will also handle the case of consecutive dots */
+		ret = kstrtou16(tkn, 10, &user_bvnc_u16[idx]);
+		if (ret) {
+			drm_info(drm_dev,
+				 "Invalid format of the input GPU ID (BVNC): %s",
+				 str_cpy);
+			return -EINVAL;
+		}
+		idx++;
+	}
+
+	gpu_id->b = user_bvnc_u16[0];
+	gpu_id->v = user_bvnc_u16[1];
+	gpu_id->n = user_bvnc_u16[2];
+	gpu_id->c = user_bvnc_u16[3];
+
+	return 0;
+}
+EXPORT_SYMBOL_IF_KUNIT(pvr_gpuid_decode_string);
+
+static bool pvr_exp_hw_support;
+module_param_named(exp_hw_support, pvr_exp_hw_support, bool, 0600);
+MODULE_PARM_DESC(exp_hw_support, "Bypass runtime checks for fully supported GPU cores. WARNING: enabling this option may result in a buggy, insecure, or otherwise unusable driver.");
+
+/**
+ * enum pvr_gpu_support_level - The level of support for a gpu_id in the current
+ * version of the driver.
+ *
+ * @PVR_GPU_UNKNOWN: Cores that are unknown to the driver. These may not even exist.
+ * @PVR_GPU_EXPERIMENTAL: Cores that have experimental support.
+ * @PVR_GPU_SUPPORTED: Cores that are supported and maintained.
+ */
+enum pvr_gpu_support_level {
+	PVR_GPU_UNKNOWN,
+	PVR_GPU_EXPERIMENTAL,
+	PVR_GPU_SUPPORTED,
+};
+
+static enum pvr_gpu_support_level
+pvr_gpu_support_level(const struct pvr_gpu_id *gpu_id)
+{
+	switch (pvr_gpu_id_to_packed_bvnc(gpu_id)) {
+	case PVR_PACKED_BVNC(33, 15, 11, 3):
+	case PVR_PACKED_BVNC(36, 53, 104, 796):
+		return PVR_GPU_SUPPORTED;
+
+	case PVR_PACKED_BVNC(36, 52, 104, 182):
+		return PVR_GPU_EXPERIMENTAL;
+
+	default:
+		return PVR_GPU_UNKNOWN;
+	}
+}
+
+static int
+pvr_check_gpu_supported(struct pvr_device *pvr_dev,
+			const struct pvr_gpu_id *gpu_id)
+{
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+
+	switch (pvr_gpu_support_level(gpu_id)) {
+	case PVR_GPU_SUPPORTED:
+		if (pvr_exp_hw_support)
+			drm_info(drm_dev, "Module parameter 'exp_hw_support' was set, but this hardware is fully supported by the current driver.");
+
+		break;
+
+	case PVR_GPU_EXPERIMENTAL:
+		if (!pvr_exp_hw_support) {
+			drm_err(drm_dev, "Unsupported GPU! Set 'exp_hw_support' to bypass this check.");
+			return -ENODEV;
+		}
+
+		drm_warn(drm_dev, "Running on unsupported hardware; you may encounter bugs!");
+		break;
+
+	/* NOTE: This code path may indicate misbehaving hardware. */
+	case PVR_GPU_UNKNOWN:
+	default:
+		if (!pvr_exp_hw_support) {
+			drm_err(drm_dev, "Unknown GPU! Set 'exp_hw_support' to bypass this check.");
+			return -ENODEV;
+		}
+
+		drm_warn(drm_dev, "Running on unknown hardware; expect issues.");
+		break;
+	}
+
+	return 0;
+}
+
+static char *pvr_gpuid_override;
+module_param_named(gpuid, pvr_gpuid_override, charp, 0400);
+MODULE_PARM_DESC(gpuid, "GPU ID (BVNC) to be used instead of the value read from hardware.");
+
+/**
+ * pvr_load_gpu_id() - Load a PowerVR device's GPU ID (BVNC) from control
+ * registers or input parameter. The input parameter is processed instead
+ * of the GPU register if provided.
+ *
+ * Sets the arch field of struct pvr_dev.gpu_id.
+ *
+ * @pvr_dev: Target PowerVR device.
+ */
+static int
+pvr_load_gpu_id(struct pvr_device *pvr_dev)
+{
+	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
+
+	if (!pvr_gpuid_override || !pvr_gpuid_override[0]) {
+		pvr_gpuid_decode_reg(pvr_dev, gpu_id);
+	} else {
+		drm_warn(from_pvr_device(pvr_dev),
+			 "Using custom GPU ID (BVNC) provided by the user!");
+
+		int err = pvr_gpuid_decode_string(pvr_dev, pvr_gpuid_override,
+						  gpu_id);
+		if (err)
+			return err;
+	}
+
+	return pvr_check_gpu_supported(pvr_dev, gpu_id);
 }
 
 /**
@@ -517,7 +689,9 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 {
 	int err;
 
-	pvr_load_gpu_id(pvr_dev);
+	err = pvr_load_gpu_id(pvr_dev);
+	if (err)
+		return err;
 
 	err = pvr_request_firmware(pvr_dev);
 	if (err)
@@ -606,14 +780,6 @@ pvr_device_init(struct pvr_device *pvr_dev)
 
 	/* Get the platform-specific data based on the compatible string. */
 	pvr_dev->device_data = of_device_get_match_data(dev);
-
-	/*
-	 * Setup device parameters. We do this first in case other steps
-	 * depend on them.
-	 */
-	err = pvr_device_params_init(&pvr_dev->params);
-	if (err)
-		return err;
 
 	/* Enable and initialize clocks required for the device to operate. */
 	err = pvr_device_clk_init(pvr_dev);

@@ -152,7 +152,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	GEM_BUG_ON(!is_power_of_2(size));
 	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
 
-	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kzalloc_obj(*ring);
 	if (!ring)
 		return ERR_PTR(-ENOMEM);
 

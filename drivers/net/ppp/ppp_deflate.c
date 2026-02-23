@@ -97,8 +97,7 @@ static void *z_comp_alloc(unsigned char *options, int opt_len)
 	if (w_size < DEFLATE_MIN_SIZE || w_size > DEFLATE_MAX_SIZE)
 		return NULL;
 
-	state = kzalloc(sizeof(*state),
-						     GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return NULL;
 
@@ -313,7 +312,7 @@ static void *z_decomp_alloc(unsigned char *options, int opt_len)
 	if (w_size < DEFLATE_MIN_SIZE || w_size > DEFLATE_MAX_SIZE)
 		return NULL;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return NULL;
 

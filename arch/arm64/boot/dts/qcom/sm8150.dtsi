@@ -1693,6 +1693,15 @@
 				status = "disabled";
 			};
 
+			uart13: serial@c8c000 {
+				compatible = "qcom,geni-uart";
+				reg = <0 0x00c8c000 0 0x4000>;
+				clocks = <&gcc GCC_QUPV3_WRAP2_S3_CLK>;
+				clock-names = "se";
+				interrupts = <GIC_SPI 585 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
 			i2c14: i2c@c90000 {
 				compatible = "qcom,geni-i2c";
 				reg = <0 0x00c90000 0 0x4000>;
@@ -2381,7 +2390,7 @@
 			reg = <0x0 0x03100000 0x0 0x300000>,
 			      <0x0 0x03500000 0x0 0x300000>,
 			      <0x0 0x03900000 0x0 0x300000>,
-			      <0x0 0x03D00000 0x0 0x300000>;
+			      <0x0 0x03d00000 0x0 0x300000>;
 			reg-names = "west", "east", "north", "south";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&tlmm 0 0 176>;

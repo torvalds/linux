@@ -97,11 +97,11 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 	if (IS_ERR(reg))
 		return;
 
-	div = kzalloc(sizeof(*div), GFP_KERNEL);
+	div = kzalloc_obj(*div);
 	if (!div)
 		goto err_unmap;
 
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		goto err_free_div;
 
@@ -129,7 +129,7 @@ static void __init sun4i_ve_clk_setup(struct device_node *node)
 	if (err)
 		goto err_unregister_clk;
 
-	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
+	reset_data = kzalloc_obj(*reset_data);
 	if (!reset_data)
 		goto err_del_provider;
 

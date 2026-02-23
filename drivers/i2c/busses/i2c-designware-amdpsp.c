@@ -93,7 +93,7 @@ static int psp_send_i2c_req(enum psp_i2c_req_type i2c_req_type)
 	int status, ret;
 
 	/* Allocate command-response buffer */
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 

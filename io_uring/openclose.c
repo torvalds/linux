@@ -23,7 +23,7 @@ struct io_open {
 	struct file			*file;
 	int				dfd;
 	u32				file_slot;
-	struct filename			*filename;
+	struct delayed_filename		filename;
 	struct open_how			how;
 	unsigned long			nofile;
 };
@@ -67,12 +67,9 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 
 	open->dfd = READ_ONCE(sqe->fd);
 	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	open->filename = getname(fname);
-	if (IS_ERR(open->filename)) {
-		ret = PTR_ERR(open->filename);
-		open->filename = NULL;
+	ret = delayed_getname(&open->filename, fname);
+	if (unlikely(ret))
 		return ret;
-	}
 	req->flags |= REQ_F_NEED_CLEANUP;
 
 	open->file_slot = READ_ONCE(sqe->file_index);
@@ -83,6 +80,15 @@ static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	if (io_openat_force_async(open))
 		req->flags |= REQ_F_FORCE_ASYNC;
 	return 0;
+}
+
+void io_openat_bpf_populate(struct io_uring_bpf_ctx *bctx, struct io_kiocb *req)
+{
+	struct io_open *open = io_kiocb_to_cmd(req, struct io_open);
+
+	bctx->open.flags = open->how.flags;
+	bctx->open.mode = open->how.mode;
+	bctx->open.resolve = open->how.resolve;
 }
 
 int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -121,6 +127,7 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 	struct file *file;
 	bool resolve_nonblock, nonblock_set;
 	bool fixed = !!open->file_slot;
+	CLASS(filename_complete_delayed, name)(&open->filename);
 	int ret;
 
 	ret = build_open_flags(&open->how, &op);
@@ -140,7 +147,7 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 			goto err;
 	}
 
-	file = do_filp_open(open->dfd, open->filename, &op);
+	file = do_file_open(open->dfd, name, &op);
 	if (IS_ERR(file)) {
 		/*
 		 * We could hang on to this 'fd' on retrying, but seems like
@@ -152,9 +159,13 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret = PTR_ERR(file);
 		/* only retry if RESOLVE_CACHED wasn't already set by application */
-		if (ret == -EAGAIN &&
-		    (!resolve_nonblock && (issue_flags & IO_URING_F_NONBLOCK)))
-			return -EAGAIN;
+		if (ret == -EAGAIN && !resolve_nonblock &&
+		    (issue_flags & IO_URING_F_NONBLOCK)) {
+			ret = putname_to_delayed(&open->filename,
+						 no_free_ptr(name));
+			if (likely(!ret))
+				return -EAGAIN;
+		}
 		goto err;
 	}
 
@@ -167,7 +178,6 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_fixed_fd_install(req, issue_flags, file,
 						open->file_slot);
 err:
-	putname(open->filename);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail(req);
@@ -184,8 +194,7 @@ void io_open_cleanup(struct io_kiocb *req)
 {
 	struct io_open *open = io_kiocb_to_cmd(req, struct io_open);
 
-	if (open->filename)
-		putname(open->filename);
+	dismiss_delayed_filename(&open->filename);
 }
 
 int __io_close_fixed(struct io_ring_ctx *ctx, unsigned int issue_flags,
@@ -336,31 +345,34 @@ static int io_pipe_fixed(struct io_kiocb *req, struct file **files,
 {
 	struct io_pipe *p = io_kiocb_to_cmd(req, struct io_pipe);
 	struct io_ring_ctx *ctx = req->ctx;
+	bool alloc_slot;
 	int ret, fds[2] = { -1, -1 };
 	int slot = p->file_slot;
 
 	if (p->flags & O_CLOEXEC)
 		return -EINVAL;
 
+	alloc_slot = slot == IORING_FILE_INDEX_ALLOC;
+
 	io_ring_submit_lock(ctx, issue_flags);
 
 	ret = __io_fixed_fd_install(ctx, files[0], slot);
 	if (ret < 0)
 		goto err;
-	fds[0] = ret;
+	fds[0] = alloc_slot ? ret : slot - 1;
 	files[0] = NULL;
 
 	/*
 	 * If a specific slot is given, next one will be used for
 	 * the write side.
 	 */
-	if (slot != IORING_FILE_INDEX_ALLOC)
+	if (!alloc_slot)
 		slot++;
 
 	ret = __io_fixed_fd_install(ctx, files[1], slot);
 	if (ret < 0)
 		goto err;
-	fds[1] = ret;
+	fds[1] = alloc_slot ? ret : slot - 1;
 	files[1] = NULL;
 
 	io_ring_submit_unlock(ctx, issue_flags);

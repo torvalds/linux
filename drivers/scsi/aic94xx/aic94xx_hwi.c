@@ -272,8 +272,7 @@ static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, gfp_t gfp_flags)
 	struct asd_seq_data *seq = &asd_ha->seq;
 	int i;
 
-	seq->edb_arr = kmalloc_array(seq->num_edbs, sizeof(*seq->edb_arr),
-				     gfp_flags);
+	seq->edb_arr = kmalloc_objs(*seq->edb_arr, seq->num_edbs, gfp_flags);
 	if (!seq->edb_arr)
 		return -ENOMEM;
 
@@ -305,8 +304,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 	struct asd_ascb *escb;
 	int i, escbs;
 
-	seq->escb_arr = kmalloc_array(seq->num_escbs, sizeof(*seq->escb_arr),
-				      gfp_flags);
+	seq->escb_arr = kmalloc_objs(*seq->escb_arr, seq->num_escbs, gfp_flags);
 	if (!seq->escb_arr)
 		return -ENOMEM;
 

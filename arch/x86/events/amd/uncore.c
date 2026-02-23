@@ -726,7 +726,7 @@ int amd_uncore_df_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 		goto done;
 
 	/* No grouping, single instance for a system */
-	uncore->pmus = kzalloc(sizeof(*uncore->pmus), GFP_KERNEL);
+	uncore->pmus = kzalloc_obj(*uncore->pmus);
 	if (!uncore->pmus)
 		goto done;
 
@@ -860,7 +860,7 @@ int amd_uncore_l3_ctx_init(struct amd_uncore *uncore, unsigned int cpu)
 		goto done;
 
 	/* No grouping, single instance for a system */
-	uncore->pmus = kzalloc(sizeof(*uncore->pmus), GFP_KERNEL);
+	uncore->pmus = kzalloc_obj(*uncore->pmus);
 	if (!uncore->pmus)
 		goto done;
 

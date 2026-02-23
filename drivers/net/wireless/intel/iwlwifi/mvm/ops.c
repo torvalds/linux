@@ -1097,7 +1097,7 @@ static void iwl_mvm_me_conn_status(void *priv, const struct iwl_mei_conn_info *c
 	 */
 	prev_conn_info = rcu_dereference_protected(mvm->csme_conn_info, true);
 
-	curr_conn_info = kzalloc(sizeof(*curr_conn_info), GFP_KERNEL);
+	curr_conn_info = kzalloc_obj(*curr_conn_info);
 	if (!curr_conn_info)
 		return;
 
@@ -1747,7 +1747,7 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 			return;
 		}
 
-		entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		entry = kzalloc_obj(*entry, GFP_ATOMIC);
 		/* we can't do much... */
 		if (!entry)
 			return;

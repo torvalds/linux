@@ -113,8 +113,8 @@ Files
 
 Conforming to
 =============
-       This call is Linux specific and only implemented by the ppc64 architec-
-       ture. Programs using this system call are not portable.
+       This call is Linux specific and only implemented by the ppc64
+       architecture. Programs using this system call are not portable.
 
 
 Bugs

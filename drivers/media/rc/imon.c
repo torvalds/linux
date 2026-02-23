@@ -614,7 +614,7 @@ static int send_packet(struct imon_context *ictx)
 		ictx->tx_urb->actual_length = 0;
 	} else {
 		/* fill request into kmalloc'ed space: */
-		control_req = kmalloc(sizeof(*control_req), GFP_KERNEL);
+		control_req = kmalloc_obj(*control_req);
 		if (control_req == NULL)
 			return -ENOMEM;
 
@@ -2233,7 +2233,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf,
 	struct usb_host_interface *iface_desc;
 	int ret = -ENOMEM;
 
-	ictx = kzalloc(sizeof(*ictx), GFP_KERNEL);
+	ictx = kzalloc_obj(*ictx);
 	if (!ictx)
 		goto exit;
 

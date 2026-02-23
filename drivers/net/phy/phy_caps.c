@@ -21,6 +21,7 @@ static struct link_capabilities link_caps[__LINK_CAPA_MAX] __ro_after_init = {
 	{ SPEED_40000, DUPLEX_FULL, {0} }, /* LINK_CAPA_40000FD */
 	{ SPEED_50000, DUPLEX_FULL, {0} }, /* LINK_CAPA_50000FD */
 	{ SPEED_56000, DUPLEX_FULL, {0} }, /* LINK_CAPA_56000FD */
+	{ SPEED_80000, DUPLEX_FULL, {0} }, /* LINK_CAPA_80000FD */
 	{ SPEED_100000, DUPLEX_FULL, {0} }, /* LINK_CAPA_100000FD */
 	{ SPEED_200000, DUPLEX_FULL, {0} }, /* LINK_CAPA_200000FD */
 	{ SPEED_400000, DUPLEX_FULL, {0} }, /* LINK_CAPA_400000FD */
@@ -49,6 +50,7 @@ static int speed_duplex_to_capa(int speed, unsigned int duplex)
 	case SPEED_40000: return LINK_CAPA_40000FD;
 	case SPEED_50000: return LINK_CAPA_50000FD;
 	case SPEED_56000: return LINK_CAPA_56000FD;
+	case SPEED_80000: return LINK_CAPA_80000FD;
 	case SPEED_100000: return LINK_CAPA_100000FD;
 	case SPEED_200000: return LINK_CAPA_200000FD;
 	case SPEED_400000: return LINK_CAPA_400000FD;
@@ -80,6 +82,14 @@ int __init phy_caps_init(void)
 	/* Fill the caps array from net/ethtool/common.c */
 	for (i = 0; i < __ETHTOOL_LINK_MODE_MASK_NBITS; i++) {
 		linkmode = &link_mode_params[i];
+
+		/* Sanity check the linkmodes array for number of pairs */
+		if (linkmode->pairs < linkmode->min_pairs) {
+			pr_err("Pairs count must not be under min_pairs for linkmode %d\n",
+			       i);
+			return -EINVAL;
+		}
+
 		capa = speed_duplex_to_capa(linkmode->speed, linkmode->duplex);
 
 		if (capa < 0) {
@@ -378,3 +388,60 @@ unsigned long phy_caps_from_interface(phy_interface_t interface)
 	return link_caps;
 }
 EXPORT_SYMBOL_GPL(phy_caps_from_interface);
+
+/**
+ * phy_caps_medium_get_supported() - Returns linkmodes supported on a given medium
+ * @supported: After this call, contains all possible linkmodes on a given medium,
+ *	       and with the given number of pairs, or less.
+ * @medium: The medium to get the support from
+ * @pairs: The number of pairs used on the given medium. Only relevant for modes
+ *	   that support this notion, such as BaseT. Pass 0 if not applicable.
+ *
+ * If no match exists, the supported field is left untouched.
+ */
+void phy_caps_medium_get_supported(unsigned long *supported,
+				   enum ethtool_link_medium medium,
+				   int pairs)
+{
+	int i;
+
+	for (i = 0; i < __ETHTOOL_LINK_MODE_MASK_NBITS; i++) {
+		/* Special bits such as Autoneg, Pause, Asym_pause, etc. are
+		 * set and will be masked away by the port parent.
+		 */
+		if (link_mode_params[i].mediums == BIT(ETHTOOL_LINK_MEDIUM_NONE)) {
+			linkmode_set_bit(i, supported);
+			continue;
+		}
+
+		/* If this medium matches, and had a non-zero min-pairs */
+		if (link_mode_params[i].mediums & BIT(medium) &&
+		    (!link_mode_params[i].min_pairs ||
+		      (link_mode_params[i].min_pairs <= pairs &&
+		      link_mode_params[i].pairs >= pairs)))
+			linkmode_set_bit(i, supported);
+	}
+}
+EXPORT_SYMBOL_GPL(phy_caps_medium_get_supported);
+
+/**
+ * phy_caps_mediums_from_linkmodes() - Get all mediums from a linkmodes list
+ * @linkmodes: A bitset of linkmodes to get the mediums from
+ *
+ * Returns: A bitset of ETHTOOL_MEDIUM_XXX values corresponding to all medium
+ *	    types in the linkmodes list
+ */
+u32 phy_caps_mediums_from_linkmodes(unsigned long *linkmodes)
+{
+	const struct link_mode_info *linkmode;
+	u32 mediums = 0;
+	int i;
+
+	for_each_set_bit(i, linkmodes, __ETHTOOL_LINK_MODE_MASK_NBITS) {
+		linkmode = &link_mode_params[i];
+		mediums |= linkmode->mediums;
+	}
+
+	return mediums;
+}
+EXPORT_SYMBOL_GPL(phy_caps_mediums_from_linkmodes);

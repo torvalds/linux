@@ -332,7 +332,7 @@ struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 		return NULL;
 	}
 
-	st = kzalloc(sizeof(struct gp8psk_fe_state), GFP_KERNEL);
+	st = kzalloc_obj(struct gp8psk_fe_state);
 	if (!st)
 		return NULL;
 

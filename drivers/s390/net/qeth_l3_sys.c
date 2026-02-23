@@ -431,7 +431,7 @@ static ssize_t qeth_l3_dev_ipato_add_store(const char *buf, size_t count,
 	if (rc)
 		return rc;
 
-	ipatoe = kzalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL);
+	ipatoe = kzalloc_obj(struct qeth_ipato_entry);
 	if (!ipatoe)
 		return -ENOMEM;
 

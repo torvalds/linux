@@ -388,7 +388,7 @@ static int do_eventfd(unsigned int count, int flags)
 	if (flags & ~EFD_FLAGS_SET)
 		return -EINVAL;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kmalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -49,7 +49,7 @@ static void of_artpec6_clkctrl_setup(struct device_node *np)
 
 	sys_refclk_name = of_clk_get_parent_name(np, i);
 
-	clkdata = kzalloc(sizeof(*clkdata), GFP_KERNEL);
+	clkdata = kzalloc_obj(*clkdata);
 	if (!clkdata)
 		return;
 

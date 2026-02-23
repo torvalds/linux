@@ -238,14 +238,16 @@ void orangefs_debugfs_init(int debug_mask)
 static void orangefs_kernel_debug_init(void)
 {
 	static char k_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
+	size_t len = strlen(kernel_debug_string);
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
-	if (strlen(kernel_debug_string) + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		strcpy(k_buffer, kernel_debug_string);
-		strcat(k_buffer, "\n");
+	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
+		memcpy(k_buffer, kernel_debug_string, len);
+		k_buffer[len] = '\n';
+		k_buffer[len + 1] = '\0';
 	} else {
-		strcpy(k_buffer, "none\n");
+		strscpy(k_buffer, "none\n");
 		pr_info("%s: overflow 1!\n", __func__);
 	}
 
@@ -336,16 +338,17 @@ static int help_show(struct seq_file *m, void *v)
  */
 static void orangefs_client_debug_init(void)
 {
-
 	static char c_buffer[ORANGEFS_MAX_DEBUG_STRING_LEN] = { };
+	size_t len = strlen(client_debug_string);
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
 
-	if (strlen(client_debug_string) + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
-		strcpy(c_buffer, client_debug_string);
-		strcat(c_buffer, "\n");
+	if (len + 1 < ORANGEFS_MAX_DEBUG_STRING_LEN) {
+		memcpy(c_buffer, client_debug_string, len);
+		c_buffer[len] = '\n';
+		c_buffer[len + 1] = '\0';
 	} else {
-		strcpy(c_buffer, "none\n");
+		strscpy(c_buffer, "none\n");
 		pr_info("%s: overflow! 2\n", __func__);
 	}
 
@@ -557,7 +560,7 @@ static int orangefs_prepare_cdm_array(char *debug_array_string)
 		goto out;
 	}
 
-	cdm_array = kcalloc(cdm_element_count, sizeof(*cdm_array), GFP_KERNEL);
+	cdm_array = kzalloc_objs(*cdm_array, cdm_element_count);
 	if (!cdm_array) {
 		rc = -ENOMEM;
 		goto out;
@@ -748,15 +751,14 @@ static void debug_mask_to_string(void *mask, int type)
 	else if (len)
 		kernel_debug_string[len - 1] = '\0';
 	else if (type)
-		strcpy(client_debug_string, "none");
+		strscpy(client_debug_string, "none");
 	else
-		strcpy(kernel_debug_string, "none");
+		strscpy(kernel_debug_string, "none");
 
 out:
 gossip_debug(GOSSIP_UTILS_DEBUG, "%s: string:%s:\n", __func__, debug_string);
 
 	return;
-
 }
 
 static void do_k_string(void *k_mask, int index)
@@ -775,7 +777,7 @@ static void do_k_string(void *k_mask, int index)
 				strcat(kernel_debug_string, ",");
 			} else {
 				gossip_err("%s: overflow!\n", __func__);
-				strcpy(kernel_debug_string, ORANGEFS_ALL);
+				strscpy(kernel_debug_string, ORANGEFS_ALL);
 				goto out;
 			}
 	}
@@ -802,7 +804,7 @@ static void do_c_string(void *c_mask, int index)
 				strcat(client_debug_string, ",");
 			} else {
 				gossip_err("%s: overflow!\n", __func__);
-				strcpy(client_debug_string, ORANGEFS_ALL);
+				strscpy(client_debug_string, ORANGEFS_ALL);
 				goto out;
 			}
 	}
@@ -838,14 +840,14 @@ static int check_amalgam_keyword(void *mask, int type)
 
 		if ((c_mask->mask1 == cdm_array[client_all_index].mask1) &&
 		    (c_mask->mask2 == cdm_array[client_all_index].mask2)) {
-			strcpy(client_debug_string, ORANGEFS_ALL);
+			strscpy(client_debug_string, ORANGEFS_ALL);
 			rc = 1;
 			goto out;
 		}
 
 		if ((c_mask->mask1 == cdm_array[client_verbose_index].mask1) &&
 		    (c_mask->mask2 == cdm_array[client_verbose_index].mask2)) {
-			strcpy(client_debug_string, ORANGEFS_VERBOSE);
+			strscpy(client_debug_string, ORANGEFS_VERBOSE);
 			rc = 1;
 			goto out;
 		}
@@ -854,7 +856,7 @@ static int check_amalgam_keyword(void *mask, int type)
 		k_mask = (__u64 *) mask;
 
 		if (*k_mask >= s_kmod_keyword_mask_map[k_all_index].mask_val) {
-			strcpy(kernel_debug_string, ORANGEFS_ALL);
+			strscpy(kernel_debug_string, ORANGEFS_ALL);
 			rc = 1;
 			goto out;
 		}

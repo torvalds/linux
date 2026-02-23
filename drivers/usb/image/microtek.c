@@ -355,8 +355,8 @@ static int mts_scsi_host_reset(struct scsi_cmnd *srb)
 	return result ? FAILED : SUCCESS;
 }
 
-static int
-mts_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *srb);
+static enum scsi_qc_status mts_scsi_queuecommand(struct Scsi_Host *shost,
+						 struct scsi_cmnd *srb);
 
 static void mts_transfer_cleanup( struct urb *transfer );
 static void mts_do_sg(struct urb * transfer);
@@ -559,7 +559,7 @@ mts_build_transfer_context(struct scsi_cmnd *srb, struct mts_desc* desc)
 	desc->context.data_pipe = pipe;
 }
 
-static int mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
+static enum scsi_qc_status mts_scsi_queuecommand_lck(struct scsi_cmnd *srb)
 {
 	mts_scsi_cmnd_callback callback = scsi_done;
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
@@ -723,7 +723,7 @@ static int mts_usb_probe(struct usb_interface *intf,
 	}
 
 
-	new_desc = kzalloc(sizeof(struct mts_desc), GFP_KERNEL);
+	new_desc = kzalloc_obj(struct mts_desc);
 	if (!new_desc)
 		goto out;
 

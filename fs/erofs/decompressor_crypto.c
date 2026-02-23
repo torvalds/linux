@@ -62,7 +62,7 @@ struct z_erofs_crypto_engine {
 	struct crypto_acomp *tfm;
 };
 
-struct z_erofs_crypto_engine *z_erofs_crypto[Z_EROFS_COMPRESSION_MAX] = {
+static struct z_erofs_crypto_engine *z_erofs_crypto[Z_EROFS_COMPRESSION_MAX] = {
 	[Z_EROFS_COMPRESSION_LZ4] = (struct z_erofs_crypto_engine[]) {
 		{},
 	},

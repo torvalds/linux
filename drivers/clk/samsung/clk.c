@@ -12,8 +12,10 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
+#include <linux/regmap.h>
 #include <linux/syscore_ops.h>
 
 #include "clk.h"
@@ -21,19 +23,29 @@
 static LIST_HEAD(clock_reg_cache_list);
 
 void samsung_clk_save(void __iomem *base,
+				    struct regmap *regmap,
 				    struct samsung_clk_reg_dump *rd,
 				    unsigned int num_regs)
 {
-	for (; num_regs > 0; --num_regs, ++rd)
-		rd->value = readl(base + rd->offset);
+	for (; num_regs > 0; --num_regs, ++rd) {
+		if (base)
+			rd->value = readl(base + rd->offset);
+		else if (regmap)
+			regmap_read(regmap, rd->offset, &rd->value);
+	}
 }
 
 void samsung_clk_restore(void __iomem *base,
+				      struct regmap *regmap,
 				      const struct samsung_clk_reg_dump *rd,
 				      unsigned int num_regs)
 {
-	for (; num_regs > 0; --num_regs, ++rd)
-		writel(rd->value, base + rd->offset);
+	for (; num_regs > 0; --num_regs, ++rd) {
+		if (base)
+			writel(rd->value, base + rd->offset);
+		else if (regmap)
+			regmap_write(regmap, rd->offset, rd->value);
+	}
 }
 
 struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
@@ -43,7 +55,7 @@ struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 	struct samsung_clk_reg_dump *rd;
 	unsigned int i;
 
-	rd = kcalloc(nr_rdump, sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_objs(*rd, nr_rdump);
 	if (!rd)
 		return NULL;
 
@@ -70,7 +82,7 @@ struct samsung_clk_provider * __init samsung_clk_init(struct device *dev,
 	struct samsung_clk_provider *ctx;
 	int i;
 
-	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
+	ctx = kzalloc_flex(*ctx, clk_data.hws, nr_clks);
 	if (!ctx)
 		panic("could not allocate clock provider context.\n");
 
@@ -227,6 +239,103 @@ void __init samsung_clk_register_div(struct samsung_clk_provider *ctx,
 	}
 }
 
+/*
+ * Some older DT's have an incorrect CMU resource size which is incompatible
+ * with the auto clock mode feature. In such cases we switch back to manual
+ * clock gating mode.
+ */
+bool samsung_is_auto_capable(struct device_node *np)
+{
+	struct resource res;
+	resource_size_t size;
+
+	if (of_address_to_resource(np, 0, &res))
+		return false;
+
+	size = resource_size(&res);
+	if (size != 0x10000) {
+		pr_warn("%pOF: incorrect res size for automatic clocks\n", np);
+		return false;
+	}
+	return true;
+}
+
+#define ACG_MSK GENMASK(6, 4)
+#define CLK_IDLE GENMASK(5, 4)
+static int samsung_auto_clk_gate_is_en(struct clk_hw *hw)
+{
+	u32 reg;
+	struct clk_gate *gate = to_clk_gate(hw);
+
+	reg = readl(gate->reg);
+	return ((reg & ACG_MSK) == CLK_IDLE) ? 0 : 1;
+}
+
+/* enable and disable are nops in automatic clock mode */
+static int samsung_auto_clk_gate_en(struct clk_hw *hw)
+{
+	return 0;
+}
+
+static void samsung_auto_clk_gate_dis(struct clk_hw *hw)
+{
+}
+
+static const struct clk_ops samsung_auto_clk_gate_ops = {
+	.enable = samsung_auto_clk_gate_en,
+	.disable = samsung_auto_clk_gate_dis,
+	.is_enabled = samsung_auto_clk_gate_is_en,
+};
+
+struct clk_hw *samsung_register_auto_gate(struct device *dev,
+		struct device_node *np, const char *name,
+		const char *parent_name, const struct clk_hw *parent_hw,
+		const struct clk_parent_data *parent_data,
+		unsigned long flags,
+		void __iomem *reg, u8 bit_idx,
+		u8 clk_gate_flags, spinlock_t *lock)
+{
+	struct clk_gate *gate;
+	struct clk_hw *hw;
+	struct clk_init_data init = {};
+	int ret = -EINVAL;
+
+	/* allocate the gate */
+	gate = kzalloc_obj(*gate);
+	if (!gate)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = &samsung_auto_clk_gate_ops;
+	init.flags = flags;
+	init.parent_names = parent_name ? &parent_name : NULL;
+	init.parent_hws = parent_hw ? &parent_hw : NULL;
+	init.parent_data = parent_data;
+	if (parent_name || parent_hw || parent_data)
+		init.num_parents = 1;
+	else
+		init.num_parents = 0;
+
+	/* struct clk_gate assignments */
+	gate->reg = reg;
+	gate->bit_idx = bit_idx;
+	gate->flags = clk_gate_flags;
+	gate->lock = lock;
+	gate->hw.init = &init;
+
+	hw = &gate->hw;
+	if (dev || !np)
+		ret = clk_hw_register(dev, hw);
+	else if (np)
+		ret = of_clk_hw_register(np, hw);
+	if (ret) {
+		kfree(gate);
+		hw = ERR_PTR(ret);
+	}
+
+	return hw;
+}
+
 /* register a list of gate clocks */
 void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 				const struct samsung_gate_clock *list,
@@ -234,14 +343,24 @@ void __init samsung_clk_register_gate(struct samsung_clk_provider *ctx,
 {
 	struct clk_hw *clk_hw;
 	unsigned int idx;
+	void __iomem *reg_offs;
 
 	for (idx = 0; idx < nr_clk; idx++, list++) {
-		clk_hw = clk_hw_register_gate(ctx->dev, list->name, list->parent_name,
-				list->flags, ctx->reg_base + list->offset,
+		reg_offs = ctx->reg_base + list->offset;
+
+		if (ctx->auto_clock_gate && ctx->gate_dbg_offset)
+			clk_hw = samsung_register_auto_gate(ctx->dev, NULL,
+				list->name, list->parent_name, NULL, NULL,
+				list->flags, reg_offs + ctx->gate_dbg_offset,
 				list->bit_idx, list->gate_flags, &ctx->lock);
+		else
+			clk_hw = clk_hw_register_gate(ctx->dev, list->name,
+				list->parent_name, list->flags,
+				ctx->reg_base + list->offset, list->bit_idx,
+				list->gate_flags, &ctx->lock);
 		if (IS_ERR(clk_hw)) {
-			pr_err("%s: failed to register clock %s\n", __func__,
-				list->name);
+			pr_err("%s: failed to register clock %s: %ld\n", __func__,
+				list->name, PTR_ERR(clk_hw));
 			continue;
 		}
 
@@ -276,10 +395,11 @@ static int samsung_clk_suspend(void *data)
 	struct samsung_clock_reg_cache *reg_cache;
 
 	list_for_each_entry(reg_cache, &clock_reg_cache_list, node) {
-		samsung_clk_save(reg_cache->reg_base, reg_cache->rdump,
-				reg_cache->rd_num);
-		samsung_clk_restore(reg_cache->reg_base, reg_cache->rsuspend,
-				reg_cache->rsuspend_num);
+		samsung_clk_save(reg_cache->reg_base, reg_cache->sysreg,
+				 reg_cache->rdump, reg_cache->rd_num);
+		samsung_clk_restore(reg_cache->reg_base, reg_cache->sysreg,
+				    reg_cache->rsuspend,
+				    reg_cache->rsuspend_num);
 	}
 	return 0;
 }
@@ -289,8 +409,8 @@ static void samsung_clk_resume(void *data)
 	struct samsung_clock_reg_cache *reg_cache;
 
 	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
-		samsung_clk_restore(reg_cache->reg_base, reg_cache->rdump,
-				reg_cache->rd_num);
+		samsung_clk_restore(reg_cache->reg_base, reg_cache->sysreg,
+				    reg_cache->rdump, reg_cache->rd_num);
 }
 
 static const struct syscore_ops samsung_clk_syscore_ops = {
@@ -303,6 +423,7 @@ static struct syscore samsung_clk_syscore = {
 };
 
 void samsung_clk_extended_sleep_init(void __iomem *reg_base,
+			struct regmap *sysreg,
 			const unsigned long *rdump,
 			unsigned long nr_rdump,
 			const struct samsung_clk_reg_dump *rsuspend,
@@ -310,8 +431,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	reg_cache = kzalloc(sizeof(struct samsung_clock_reg_cache),
-			GFP_KERNEL);
+	reg_cache = kzalloc_obj(struct samsung_clock_reg_cache);
 	if (!reg_cache)
 		panic("could not allocate register reg_cache.\n");
 	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);
@@ -323,6 +443,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 		register_syscore(&samsung_clk_syscore);
 
 	reg_cache->reg_base = reg_base;
+	reg_cache->sysreg = sysreg;
 	reg_cache->rd_num = nr_rdump;
 	reg_cache->rsuspend = rsuspend;
 	reg_cache->rsuspend_num = nr_rsuspend;
@@ -334,10 +455,20 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
  * samsung_cmu_register_clocks() - Register all clocks provided in CMU object
  * @ctx: Clock provider object
  * @cmu: CMU object with clocks to register
+ * @np:  CMU device tree node
  */
 void __init samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
-					const struct samsung_cmu_info *cmu)
+					const struct samsung_cmu_info *cmu,
+					struct device_node *np)
 {
+	if (cmu->auto_clock_gate && samsung_is_auto_capable(np))
+		ctx->auto_clock_gate = cmu->auto_clock_gate;
+
+	ctx->gate_dbg_offset = cmu->gate_dbg_offset;
+	ctx->option_offset = cmu->option_offset;
+	ctx->drcg_offset = cmu->drcg_offset;
+	ctx->memclk_offset = cmu->memclk_offset;
+
 	if (cmu->pll_clks)
 		samsung_clk_register_pll(ctx, cmu->pll_clks, cmu->nr_pll_clks);
 	if (cmu->mux_clks)
@@ -355,6 +486,44 @@ void __init samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
 						  cmu->nr_fixed_factor_clks);
 	if (cmu->cpu_clks)
 		samsung_clk_register_cpu(ctx, cmu->cpu_clks, cmu->nr_cpu_clks);
+}
+
+/* Each bit enable/disables DRCG of a bus component */
+#define DRCG_EN_MSK	GENMASK(31, 0)
+#define MEMCLK_EN	BIT(0)
+
+/* Enable Dynamic Root Clock Gating (DRCG) of bus components */
+void samsung_en_dyn_root_clk_gating(struct device_node *np,
+				    struct samsung_clk_provider *ctx,
+				    const struct samsung_cmu_info *cmu,
+				    bool cmu_has_pm)
+{
+	if (!ctx->auto_clock_gate)
+		return;
+
+	ctx->sysreg = syscon_regmap_lookup_by_phandle(np, "samsung,sysreg");
+	if (IS_ERR(ctx->sysreg)) {
+		pr_warn("%pOF: Unable to get CMU sysreg\n", np);
+		ctx->sysreg = NULL;
+	} else {
+		/* Enable DRCG for all bus components */
+		regmap_write(ctx->sysreg, ctx->drcg_offset, DRCG_EN_MSK);
+		/* Enable memclk gate (not present on all sysreg) */
+		if (ctx->memclk_offset)
+			regmap_write_bits(ctx->sysreg, ctx->memclk_offset,
+					  MEMCLK_EN, 0x0);
+
+		if (!cmu_has_pm)
+			/*
+			 * When a CMU has PM support, clocks are saved/restored
+			 * via its PM handlers, so only register them with the
+			 * syscore suspend / resume paths if PM is not in use.
+			 */
+			samsung_clk_extended_sleep_init(NULL, ctx->sysreg,
+							cmu->sysreg_clk_regs,
+							cmu->nr_sysreg_clk_regs,
+							NULL, 0);
+	}
 }
 
 /*
@@ -375,14 +544,17 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 	}
 
 	ctx = samsung_clk_init(NULL, reg_base, cmu->nr_clk_ids);
-	samsung_cmu_register_clocks(ctx, cmu);
+	samsung_cmu_register_clocks(ctx, cmu, np);
 
 	if (cmu->clk_regs)
-		samsung_clk_extended_sleep_init(reg_base,
+		samsung_clk_extended_sleep_init(reg_base, NULL,
 			cmu->clk_regs, cmu->nr_clk_regs,
 			cmu->suspend_regs, cmu->nr_suspend_regs);
 
 	samsung_clk_of_add_provider(np, ctx);
+
+	/* sysreg DT nodes reference a clock in this CMU */
+	samsung_en_dyn_root_clk_gating(np, ctx, cmu, false);
 
 	return ctx;
 }

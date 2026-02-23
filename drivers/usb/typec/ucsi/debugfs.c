@@ -8,6 +8,7 @@
  *	    Gopal Saranya <saranya.gopal@intel.com>
  */
 #include <linux/debugfs.h>
+#include <linux/hex.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -111,7 +112,7 @@ DEFINE_SHOW_ATTRIBUTE(ucsi_vbus_volt);
 
 void ucsi_debugfs_register(struct ucsi *ucsi)
 {
-	ucsi->debugfs = kzalloc(sizeof(*ucsi->debugfs), GFP_KERNEL);
+	ucsi->debugfs = kzalloc_obj(*ucsi->debugfs);
 	if (!ucsi->debugfs)
 		return;
 

@@ -1602,8 +1602,10 @@ static void ugeth_mac_config(struct phylink_config *config, unsigned int mode,
 			pr_warn("TBI mode requires that the device tree specify a tbi-handle\n");
 
 		tbiphy = of_phy_find_device(ug_info->tbi_node);
-		if (!tbiphy)
+		if (!tbiphy) {
 			pr_warn("Could not get TBI device\n");
+			return;
+		}
 
 		value = phy_read(tbiphy, ENET_TBI_MII_CR);
 		value &= ~0x1000;	/* Turn off autonegotiation */
@@ -2069,8 +2071,8 @@ static int ucc_geth_alloc_tx(struct ucc_geth_private *ugeth)
 	for (j = 0; j < ucc_geth_tx_queues(ug_info); j++) {
 		/* Setup the skbuff rings */
 		ugeth->tx_skbuff[j] =
-			kcalloc(ugeth->ug_info->bdRingLenTx[j],
-				sizeof(struct sk_buff *), GFP_KERNEL);
+			kzalloc_objs(struct sk_buff *,
+				     ugeth->ug_info->bdRingLenTx[j]);
 
 		if (ugeth->tx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
@@ -2127,8 +2129,8 @@ static int ucc_geth_alloc_rx(struct ucc_geth_private *ugeth)
 	for (j = 0; j < ucc_geth_rx_queues(ug_info); j++) {
 		/* Setup the skbuff rings */
 		ugeth->rx_skbuff[j] =
-			kcalloc(ugeth->ug_info->bdRingLenRx[j],
-				sizeof(struct sk_buff *), GFP_KERNEL);
+			kzalloc_objs(struct sk_buff *,
+				     ugeth->ug_info->bdRingLenRx[j]);
 
 		if (ugeth->rx_skbuff[j] == NULL) {
 			if (netif_msg_ifup(ugeth))
@@ -2675,7 +2677,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	 * allocated resources can be released when the channel is freed.
 	 */
 	if (!(ugeth->p_init_enet_param_shadow =
-	      kzalloc(sizeof(struct ucc_geth_init_pram), GFP_KERNEL))) {
+	      kzalloc_obj(struct ucc_geth_init_pram))) {
 		if (netif_msg_ifup(ugeth))
 			pr_err("Can not allocate memory for p_UccInitEnetParamShadows\n");
 		return -ENOMEM;

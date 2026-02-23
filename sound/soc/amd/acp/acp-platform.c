@@ -196,7 +196,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	struct acp_stream *stream;
 	int ret;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return -ENOMEM;
 

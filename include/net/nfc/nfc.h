@@ -219,6 +219,8 @@ static inline void nfc_free_device(struct nfc_dev *dev)
 
 int nfc_register_device(struct nfc_dev *dev);
 
+void nfc_unregister_rfkill(struct nfc_dev *dev);
+void nfc_remove_device(struct nfc_dev *dev);
 void nfc_unregister_device(struct nfc_dev *dev);
 
 /**

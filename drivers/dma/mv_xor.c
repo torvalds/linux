@@ -443,7 +443,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 	/* Allocate descriptor slots */
 	idx = mv_chan->slots_allocated;
 	while (idx < num_descs_in_pool) {
-		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc_obj(*slot);
 		if (!slot) {
 			dev_info(mv_chan_to_devp(mv_chan),
 				 "channel only initialized %d descriptor slots",

@@ -454,7 +454,7 @@ static bool assoc_array_insert_in_empty_tree(struct assoc_array_edit *edit)
 
 	pr_devel("-->%s()\n", __func__);
 
-	new_n0 = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+	new_n0 = kzalloc_obj(struct assoc_array_node);
 	if (!new_n0)
 		return false;
 
@@ -536,11 +536,11 @@ static bool assoc_array_insert_into_terminal_node(struct assoc_array_edit *edit,
 	 * those now.  We may also need a new shortcut, but we deal with that
 	 * when we need it.
 	 */
-	new_n0 = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+	new_n0 = kzalloc_obj(struct assoc_array_node);
 	if (!new_n0)
 		return false;
 	edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
-	new_n1 = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+	new_n1 = kzalloc_obj(struct assoc_array_node);
 	if (!new_n1)
 		return false;
 	edit->new_meta[1] = assoc_array_node_to_ptr(new_n1);
@@ -741,7 +741,7 @@ all_leaves_cluster_together:
 	keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
 	keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
 
-	new_s0 = kzalloc(struct_size(new_s0, index_key, keylen), GFP_KERNEL);
+	new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
 	if (!new_s0)
 		return false;
 	edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s0);
@@ -832,7 +832,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 	edit->excised_meta[0] = assoc_array_shortcut_to_ptr(shortcut);
 
 	/* Create a new node now since we're going to need it anyway */
-	new_n0 = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+	new_n0 = kzalloc_obj(struct assoc_array_node);
 	if (!new_n0)
 		return false;
 	edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
@@ -848,8 +848,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 		keylen = round_up(diff, ASSOC_ARRAY_KEY_CHUNK_SIZE);
 		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
 
-		new_s0 = kzalloc(struct_size(new_s0, index_key, keylen),
-				 GFP_KERNEL);
+		new_s0 = kzalloc_flex(*new_s0, index_key, keylen);
 		if (!new_s0)
 			return false;
 		edit->new_meta[1] = assoc_array_shortcut_to_ptr(new_s0);
@@ -898,8 +897,7 @@ static bool assoc_array_insert_mid_shortcut(struct assoc_array_edit *edit,
 		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
 		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
 
-		new_s1 = kzalloc(struct_size(new_s1, index_key, keylen),
-				 GFP_KERNEL);
+		new_s1 = kzalloc_flex(*new_s1, index_key, keylen);
 		if (!new_s1)
 			return false;
 		edit->new_meta[2] = assoc_array_shortcut_to_ptr(new_s1);
@@ -977,7 +975,7 @@ struct assoc_array_edit *assoc_array_insert(struct assoc_array *array,
 	 */
 	BUG_ON(assoc_array_ptr_is_meta(object));
 
-	edit = kzalloc(sizeof(struct assoc_array_edit), GFP_KERNEL);
+	edit = kzalloc_obj(struct assoc_array_edit);
 	if (!edit)
 		return ERR_PTR(-ENOMEM);
 	edit->array = array;
@@ -1089,7 +1087,7 @@ struct assoc_array_edit *assoc_array_delete(struct assoc_array *array,
 
 	pr_devel("-->%s()\n", __func__);
 
-	edit = kzalloc(sizeof(struct assoc_array_edit), GFP_KERNEL);
+	edit = kzalloc_obj(struct assoc_array_edit);
 	if (!edit)
 		return ERR_PTR(-ENOMEM);
 	edit->array = array;
@@ -1206,7 +1204,7 @@ found_leaf:
 			node = parent;
 
 			/* Create a new node to collapse into */
-			new_n0 = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+			new_n0 = kzalloc_obj(struct assoc_array_node);
 			if (!new_n0)
 				goto enomem;
 			edit->new_meta[0] = assoc_array_node_to_ptr(new_n0);
@@ -1281,7 +1279,7 @@ struct assoc_array_edit *assoc_array_clear(struct assoc_array *array,
 	if (!array->root)
 		return NULL;
 
-	edit = kzalloc(sizeof(struct assoc_array_edit), GFP_KERNEL);
+	edit = kzalloc_obj(struct assoc_array_edit);
 	if (!edit)
 		return ERR_PTR(-ENOMEM);
 	edit->array = array;
@@ -1469,7 +1467,7 @@ int assoc_array_gc(struct assoc_array *array,
 	if (!array->root)
 		return 0;
 
-	edit = kzalloc(sizeof(struct assoc_array_edit), GFP_KERNEL);
+	edit = kzalloc_obj(struct assoc_array_edit);
 	if (!edit)
 		return -ENOMEM;
 	edit->array = array;
@@ -1490,8 +1488,7 @@ descend:
 		shortcut = assoc_array_ptr_to_shortcut(cursor);
 		keylen = round_up(shortcut->skip_to_level, ASSOC_ARRAY_KEY_CHUNK_SIZE);
 		keylen >>= ASSOC_ARRAY_KEY_CHUNK_SHIFT;
-		new_s = kmalloc(struct_size(new_s, index_key, keylen),
-				GFP_KERNEL);
+		new_s = kmalloc_flex(*new_s, index_key, keylen);
 		if (!new_s)
 			goto enomem;
 		pr_devel("dup shortcut %p -> %p\n", shortcut, new_s);
@@ -1505,7 +1502,7 @@ descend:
 
 	/* Duplicate the node at this position */
 	node = assoc_array_ptr_to_node(cursor);
-	new_n = kzalloc(sizeof(struct assoc_array_node), GFP_KERNEL);
+	new_n = kzalloc_obj(struct assoc_array_node);
 	if (!new_n)
 		goto enomem;
 	pr_devel("dup node %p -> %p\n", node, new_n);

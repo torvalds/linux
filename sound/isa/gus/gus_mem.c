@@ -21,7 +21,7 @@ snd_gf1_mem_xalloc(struct snd_gf1_mem *alloc, struct snd_gf1_mem_block *block,
 {
 	struct snd_gf1_mem_block *pblock, *nblock;
 
-	nblock = kmalloc(sizeof(struct snd_gf1_mem_block), GFP_KERNEL);
+	nblock = kmalloc_obj(struct snd_gf1_mem_block);
 	if (nblock == NULL)
 		return NULL;
 	*nblock = *block;

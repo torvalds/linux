@@ -30,6 +30,36 @@ TRACE_EVENT(rust_binder_ioctl,
 	TP_printk("cmd=0x%x arg=0x%lx", __entry->cmd, __entry->arg)
 );
 
+TRACE_EVENT(rust_binder_transaction,
+	TP_PROTO(bool reply, rust_binder_transaction t, struct task_struct *thread),
+	TP_ARGS(reply, t, thread),
+	TP_STRUCT__entry(
+		__field(int, debug_id)
+		__field(int, target_node)
+		__field(int, to_proc)
+		__field(int, to_thread)
+		__field(int, reply)
+		__field(unsigned int, code)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		rust_binder_process to = rust_binder_transaction_to_proc(t);
+		rust_binder_node target_node = rust_binder_transaction_target_node(t);
+
+		__entry->debug_id = rust_binder_transaction_debug_id(t);
+		__entry->target_node = target_node ? rust_binder_node_debug_id(target_node) : 0;
+		__entry->to_proc = rust_binder_process_task(to)->pid;
+		__entry->to_thread = thread ? thread->pid : 0;
+		__entry->reply = reply;
+		__entry->code = rust_binder_transaction_code(t);
+		__entry->flags = rust_binder_transaction_flags(t);
+	),
+	TP_printk("transaction=%d dest_node=%d dest_proc=%d dest_thread=%d reply=%d flags=0x%x code=0x%x",
+		  __entry->debug_id, __entry->target_node,
+		  __entry->to_proc, __entry->to_thread,
+		  __entry->reply, __entry->flags, __entry->code)
+);
+
 #endif /* _RUST_BINDER_TRACE_H */
 
 /* This part must be outside protection */

@@ -51,7 +51,7 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
 			       const struct va_format *message,
 			       struct string_stream *stream)
 {
-	struct kunit_unary_assert *unary_assert;
+	const struct kunit_unary_assert *unary_assert;
 
 	unary_assert = container_of(assert, struct kunit_unary_assert, assert);
 
@@ -71,7 +71,7 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
 				     const struct va_format *message,
 				     struct string_stream *stream)
 {
-	struct kunit_ptr_not_err_assert *ptr_assert;
+	const struct kunit_ptr_not_err_assert *ptr_assert;
 
 	ptr_assert = container_of(assert, struct kunit_ptr_not_err_assert,
 				  assert);
@@ -117,7 +117,7 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
 				const struct va_format *message,
 				struct string_stream *stream)
 {
-	struct kunit_binary_assert *binary_assert;
+	const struct kunit_binary_assert *binary_assert;
 
 	binary_assert = container_of(assert, struct kunit_binary_assert,
 				     assert);
@@ -145,7 +145,7 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
 				    const struct va_format *message,
 				    struct string_stream *stream)
 {
-	struct kunit_binary_ptr_assert *binary_assert;
+	const struct kunit_binary_ptr_assert *binary_assert;
 
 	binary_assert = container_of(assert, struct kunit_binary_ptr_assert,
 				     assert);
@@ -185,7 +185,7 @@ void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 				    const struct va_format *message,
 				    struct string_stream *stream)
 {
-	struct kunit_binary_str_assert *binary_assert;
+	const struct kunit_binary_str_assert *binary_assert;
 
 	binary_assert = container_of(assert, struct kunit_binary_str_assert,
 				     assert);
@@ -237,7 +237,7 @@ void kunit_mem_assert_format(const struct kunit_assert *assert,
 			     const struct va_format *message,
 			     struct string_stream *stream)
 {
-	struct kunit_mem_assert *mem_assert;
+	const struct kunit_mem_assert *mem_assert;
 
 	mem_assert = container_of(assert, struct kunit_mem_assert,
 				  assert);

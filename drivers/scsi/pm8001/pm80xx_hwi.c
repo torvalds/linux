@@ -1563,7 +1563,7 @@ void pm80xx_fatal_error_uevent_emit(struct pm8001_hba_info *pm8001_ha,
 
 	pm8001_dbg(pm8001_ha, FAIL, "emitting fatal error uevent");
 
-	env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
+	env = kzalloc_obj(struct kobj_uevent_env);
 	if (!env)
 		return;
 

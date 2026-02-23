@@ -8,7 +8,7 @@
 #include <linux/device.h>
 
 #define TSM_REPORT_INBLOB_MAX 64
-#define TSM_REPORT_OUTBLOB_MAX SZ_32K
+#define TSM_REPORT_OUTBLOB_MAX SZ_16M
 
 /*
  * Privilege level is a nested permission concept to allow confidential
@@ -123,7 +123,4 @@ int tsm_report_unregister(const struct tsm_report_ops *ops);
 struct tsm_dev *tsm_register(struct device *parent, struct pci_tsm_ops *ops);
 void tsm_unregister(struct tsm_dev *tsm_dev);
 struct tsm_dev *find_tsm_dev(int id);
-struct pci_ide;
-int tsm_ide_stream_register(struct pci_ide *ide);
-void tsm_ide_stream_unregister(struct pci_ide *ide);
 #endif /* __TSM_H */

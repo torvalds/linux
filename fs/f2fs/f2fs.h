@@ -54,7 +54,7 @@ enum {
 	FAULT_TRUNCATE,
 	FAULT_READ_IO,
 	FAULT_CHECKPOINT,
-	FAULT_DISCARD,
+	FAULT_DISCARD,		/* it's obsolete due to __blkdev_issue_discard() will never fail */
 	FAULT_WRITE_IO,
 	FAULT_SLAB_ALLOC,
 	FAULT_DQUOT_INIT,
@@ -63,8 +63,10 @@ enum {
 	FAULT_BLKADDR_CONSISTENCE,
 	FAULT_NO_SEGMENT,
 	FAULT_INCONSISTENT_FOOTER,
-	FAULT_TIMEOUT,
+	FAULT_ATOMIC_TIMEOUT,
 	FAULT_VMALLOC,
+	FAULT_LOCK_TIMEOUT,
+	FAULT_SKIP_WRITE,
 	FAULT_MAX,
 };
 
@@ -72,7 +74,8 @@ enum {
 enum fault_option {
 	FAULT_RATE	= 1,	/* only update fault rate */
 	FAULT_TYPE	= 2,	/* only update fault type */
-	FAULT_ALL	= 4,	/* reset all fault injection options/stats */
+	FAULT_TIMEOUT	= 4,	/* only update fault timeout type */
+	FAULT_ALL	= 8,	/* reset all fault injection options/stats */
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -82,6 +85,7 @@ struct f2fs_fault_info {
 	unsigned int inject_type;
 	/* Used to account total count of injection for each type */
 	unsigned int inject_count[FAULT_MAX];
+	unsigned int inject_lock_timeout;	/* inject lock timeout */
 };
 
 extern const char *f2fs_fault_name[FAULT_MAX];
@@ -173,6 +177,26 @@ enum device_allocation_policy {
 	ALLOCATE_FORWARD_FROM_HINT,
 };
 
+enum f2fs_lock_name {
+	LOCK_NAME_NONE,
+	LOCK_NAME_CP_RWSEM,
+	LOCK_NAME_NODE_CHANGE,
+	LOCK_NAME_NODE_WRITE,
+	LOCK_NAME_GC_LOCK,
+	LOCK_NAME_CP_GLOBAL,
+	LOCK_NAME_IO_RWSEM,
+	LOCK_NAME_MAX,
+};
+
+enum f2fs_timeout_type {
+	TIMEOUT_TYPE_NONE,
+	TIMEOUT_TYPE_RUNNING,
+	TIMEOUT_TYPE_IO_SLEEP,
+	TIMEOUT_TYPE_NONIO_SLEEP,
+	TIMEOUT_TYPE_RUNNABLE,
+	TIMEOUT_TYPE_MAX,
+};
+
 /*
  * An implementation of an rwsem that is explicitly unfair to readers. This
  * prevents priority inversion when a low-priority reader acquires the read lock
@@ -181,6 +205,8 @@ enum device_allocation_policy {
  */
 
 struct f2fs_rwsem {
+	struct f2fs_sb_info *sbi;
+	enum f2fs_lock_name name;
         struct rw_semaphore internal_rwsem;
 #ifdef CONFIG_F2FS_UNFAIR_RWSEM
         wait_queue_head_t read_waiters;
@@ -287,7 +313,6 @@ enum {
 #define DEF_CP_INTERVAL			60	/* 60 secs */
 #define DEF_IDLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_INTERVAL		5	/* 5 secs */
-#define DEF_ENABLE_INTERVAL		5	/* 5 secs */
 #define DEF_DISABLE_QUICK_INTERVAL	1	/* 1 secs */
 #define DEF_UMOUNT_DISCARD_TIMEOUT	5	/* 5 secs */
 
@@ -295,7 +320,9 @@ enum cp_time {
 	CP_TIME_START,		/* begin */
 	CP_TIME_LOCK,		/* after cp_global_sem */
 	CP_TIME_OP_LOCK,	/* after block_operation */
-	CP_TIME_FLUSH_META,	/* after flush sit/nat */
+	CP_TIME_MERGE_WRITE,	/* after flush DATA/NODE/META */
+	CP_TIME_FLUSH_NAT,	/* after flush nat */
+	CP_TIME_FLUSH_SIT,	/* after flush sit */
 	CP_TIME_SYNC_META,	/* after sync_meta_pages */
 	CP_TIME_SYNC_CP_META,	/* after sync cp meta pages */
 	CP_TIME_WAIT_DIRTY_META,/* after wait on dirty meta */
@@ -521,13 +548,25 @@ struct fsync_inode_entry {
 #define nats_in_cursum(jnl)		(le16_to_cpu((jnl)->n_nats))
 #define sits_in_cursum(jnl)		(le16_to_cpu((jnl)->n_sits))
 
-#define nat_in_journal(jnl, i)		((jnl)->nat_j.entries[i].ne)
-#define nid_in_journal(jnl, i)		((jnl)->nat_j.entries[i].nid)
-#define sit_in_journal(jnl, i)		((jnl)->sit_j.entries[i].se)
-#define segno_in_journal(jnl, i)	((jnl)->sit_j.entries[i].segno)
+#define nat_in_journal(jnl, i) \
+	(((struct nat_journal_entry *)(jnl)->nat_j.entries)[i].ne)
+#define nid_in_journal(jnl, i) \
+	(((struct nat_journal_entry *)(jnl)->nat_j.entries)[i].nid)
+#define sit_in_journal(jnl, i) \
+	(((struct sit_journal_entry *)(jnl)->sit_j.entries)[i].se)
+#define segno_in_journal(jnl, i) \
+	(((struct sit_journal_entry *)(jnl)->sit_j.entries)[i].segno)
 
-#define MAX_NAT_JENTRIES(jnl)	(NAT_JOURNAL_ENTRIES - nats_in_cursum(jnl))
-#define MAX_SIT_JENTRIES(jnl)	(SIT_JOURNAL_ENTRIES - sits_in_cursum(jnl))
+#define sum_entries(sum)	((struct f2fs_summary *)(sum))
+#define sum_journal(sbi, sum) \
+	((struct f2fs_journal *)((char *)(sum) + \
+	((sbi)->entries_in_sum * sizeof(struct f2fs_summary))))
+#define sum_footer(sbi, sum) \
+	((struct summary_footer *)((char *)(sum) + (sbi)->sum_blocksize - \
+	sizeof(struct summary_footer)))
+
+#define MAX_NAT_JENTRIES(sbi, jnl)	((sbi)->nat_journal_entries - nats_in_cursum(jnl))
+#define MAX_SIT_JENTRIES(sbi, jnl)	((sbi)->sit_journal_entries - sits_in_cursum(jnl))
 
 static inline int update_nats_in_cursum(struct f2fs_journal *journal, int i)
 {
@@ -543,14 +582,6 @@ static inline int update_sits_in_cursum(struct f2fs_journal *journal, int i)
 
 	journal->n_sits = cpu_to_le16(before + i);
 	return before;
-}
-
-static inline bool __has_cursum_space(struct f2fs_journal *journal,
-							int size, int type)
-{
-	if (type == NAT_JOURNAL)
-		return size <= MAX_NAT_JENTRIES(journal);
-	return size <= MAX_SIT_JENTRIES(journal);
 }
 
 /* for inline stuff */
@@ -669,8 +700,10 @@ enum {
 
 #define DEFAULT_RETRY_IO_COUNT	8	/* maximum retry read IO or flush count */
 
-/* IO/non-IO congestion wait timeout value, default: 1ms */
-#define	DEFAULT_SCHEDULE_TIMEOUT	(msecs_to_jiffies(1))
+#define MAX_FLUSH_RETRY_COUNT	3	/* maximum flush retry count in f2fs_enable_checkpoint() */
+
+/* IO/non-IO congestion wait timeout value, default: 1 jiffies */
+#define	DEFAULT_SCHEDULE_TIMEOUT	1
 
 /* timeout value injected, default: 1000ms */
 #define DEFAULT_FAULT_TIMEOUT	(msecs_to_jiffies(1000))
@@ -974,9 +1007,6 @@ struct f2fs_inode_info {
 #ifdef CONFIG_FS_ENCRYPTION
 	struct fscrypt_inode_info *i_crypt_info; /* filesystem encryption info */
 #endif
-#ifdef CONFIG_FS_VERITY
-	struct fsverity_info *i_verity_info; /* filesystem verity info */
-#endif
 };
 
 static inline void get_read_extent_info(struct extent_info *ext,
@@ -1211,6 +1241,7 @@ enum count_type {
 	F2FS_RD_META,
 	F2FS_DIO_WRITE,
 	F2FS_DIO_READ,
+	F2FS_SKIPPED_WRITE,	/* skip or fail during f2fs_enable_checkpoint() */
 	NR_COUNT_TYPE,
 };
 
@@ -1399,6 +1430,27 @@ struct atgc_management {
 	unsigned long long age_threshold;	/* age threshold */
 };
 
+struct f2fs_time_stat {
+	unsigned long long total_time;		/* total wall clock time */
+#ifdef CONFIG_64BIT
+	unsigned long long running_time;	/* running time */
+#endif
+#if defined(CONFIG_SCHED_INFO) && defined(CONFIG_SCHEDSTATS)
+	unsigned long long runnable_time;	/* runnable(including preempted) time */
+#endif
+#ifdef CONFIG_TASK_DELAY_ACCT
+	unsigned long long io_sleep_time;	/* IO sleep time */
+#endif
+};
+
+struct f2fs_lock_context {
+	struct f2fs_time_stat ts;
+	int orig_nice;
+	int new_nice;
+	bool lock_trace;
+	bool need_restore;
+};
+
 struct f2fs_gc_control {
 	unsigned int victim_segno;	/* target victim segment number */
 	int init_gc_type;		/* FG_GC or BG_GC */
@@ -1407,6 +1459,7 @@ struct f2fs_gc_control {
 	bool err_gc_skipped;		/* return EAGAIN if GC skipped */
 	bool one_time;			/* require one time GC in one migration unit */
 	unsigned int nr_free_secs;	/* # of free sections to do GC */
+	struct f2fs_lock_context lc;	/* lock context for gc_lock */
 };
 
 /*
@@ -1430,6 +1483,7 @@ enum {
 	SBI_IS_RESIZEFS,			/* resizefs is in process */
 	SBI_IS_FREEZING,			/* freezefs is in process */
 	SBI_IS_WRITABLE,			/* remove ro mountoption transiently */
+	SBI_ENABLE_CHECKPOINT,			/* indicate it's during f2fs_enable_checkpoint() */
 	MAX_SBI_FLAG,
 };
 
@@ -1439,7 +1493,6 @@ enum {
 	DISCARD_TIME,
 	GC_TIME,
 	DISABLE_TIME,
-	ENABLE_TIME,
 	UMOUNT_DISCARD_TIMEOUT,
 	MAX_TIME,
 };
@@ -1525,6 +1578,20 @@ enum f2fs_lookup_mode {
 	LOOKUP_AUTO,
 };
 
+/* For node type in __get_node_folio() */
+enum node_type {
+	NODE_TYPE_REGULAR,
+	NODE_TYPE_INODE,
+	NODE_TYPE_XATTR,
+	NODE_TYPE_NON_INODE,
+};
+
+/* a threshold of maximum elapsed time in critical region to print tracepoint */
+#define MAX_LOCK_ELAPSED_TIME		500
+
+#define F2FS_DEFAULT_TASK_PRIORITY		(DEFAULT_PRIO)
+#define F2FS_CRITICAL_TASK_PRIORITY		NICE_TO_PRIO(0)
+
 static inline int f2fs_test_bit(unsigned int nr, char *addr);
 static inline void f2fs_set_bit(unsigned int nr, char *addr);
 static inline void f2fs_clear_bit(unsigned int nr, char *addr);
@@ -1603,6 +1670,7 @@ struct compress_ctx {
 	size_t clen;			/* valid data length in cbuf */
 	void *private;			/* payload buffer for specified compression algorithm */
 	void *private2;			/* extra payload buffer */
+	struct fsverity_info *vi;	/* verity info if needed */
 };
 
 /* compress context for write IO path */
@@ -1658,7 +1726,7 @@ struct decompress_io_ctx {
 	refcount_t refcnt;
 
 	bool failed;			/* IO error occurred before decompression? */
-	bool need_verity;		/* need fs-verity verification after decompression? */
+	struct fsverity_info *vi;	/* fs-verity context if needed */
 	unsigned char compress_algorithm;	/* backup algorithm type */
 	void *private;			/* payload buffer for specified decompression algorithm */
 	void *private2;			/* extra payload buffer */
@@ -1716,7 +1784,6 @@ struct f2fs_sb_info {
 	long interval_time[MAX_TIME];		/* to store thresholds */
 	struct ckpt_req_control cprc_info;	/* for checkpoint request control */
 	struct cp_stats cp_stats;		/* for time stat of checkpoint */
-	struct f2fs_rwsem cp_enable_rwsem;	/* block cache/dio write */
 
 	struct inode_management im[MAX_INO_ENTRY];	/* manage inode cache */
 
@@ -1762,7 +1829,16 @@ struct f2fs_sb_info {
 	unsigned int total_valid_node_count;	/* valid node block count */
 	int dir_level;				/* directory level */
 	bool readdir_ra;			/* readahead inode in readdir */
-	u64 max_io_bytes;			/* max io bytes to merge IOs */
+	unsigned int max_io_bytes;		/* max io bytes to merge IOs */
+
+	/* variable summary block units */
+	unsigned int sum_blocksize;		/* sum block size */
+	unsigned int sums_per_block;		/* sum block count per block */
+	unsigned int entries_in_sum;		/* entry count in sum block */
+	unsigned int sum_entry_size;		/* total entry size in sum block */
+	unsigned int sum_journal_size;		/* journal size in sum block */
+	unsigned int nat_journal_entries;	/* nat journal entry count in the journal */
+	unsigned int sit_journal_entries;	/* sit journal entry count in the journal */
 
 	block_t user_block_count;		/* # of user blocks */
 	block_t total_valid_block_count;	/* # of valid blocks */
@@ -1910,7 +1986,7 @@ struct f2fs_sb_info {
 	unsigned int gc_segment_mode;		/* GC state for reclaimed segments */
 	unsigned int gc_reclaimed_segs[MAX_GC_MODE];	/* Reclaimed segs for each mode */
 
-	unsigned long seq_file_ra_mul;		/* multiplier for ra_pages of seq. files in fadvise */
+	unsigned int seq_file_ra_mul;		/* multiplier for ra_pages of seq. files in fadvise */
 
 	int max_fragment_chunk;			/* max chunk size for block fragmentation mode */
 	int max_fragment_hole;			/* max hole size for block fragmentation mode */
@@ -1923,6 +1999,18 @@ struct f2fs_sb_info {
 
 	/* carve out reserved_blocks from total blocks */
 	bool carve_out;
+
+	/* max elapsed time threshold in critical region that lock covered */
+	unsigned long long max_lock_elapsed_time;
+
+	/* enable/disable to adjust task priority in critical region covered by lock */
+	unsigned int adjust_lock_priority;
+
+	/* adjust priority for task which is in critical region covered by lock */
+	unsigned int lock_duration_priority;
+
+	/* priority for critical task, e.g. f2fs_ckpt, f2fs_gc threads */
+	long critical_task_priority;
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	struct kmem_cache *page_array_slab;	/* page array entry */
@@ -2263,16 +2351,22 @@ static inline void clear_ckpt_flags(struct f2fs_sb_info *sbi, unsigned int f)
 	spin_unlock_irqrestore(&sbi->cp_lock, flags);
 }
 
-#define init_f2fs_rwsem(sem)					\
+#define init_f2fs_rwsem(sem)	__init_f2fs_rwsem(sem, NULL, LOCK_NAME_NONE)
+#define init_f2fs_rwsem_trace	__init_f2fs_rwsem
+
+#define __init_f2fs_rwsem(sem, sbi, name)			\
 do {								\
 	static struct lock_class_key __key;			\
 								\
-	__init_f2fs_rwsem((sem), #sem, &__key);			\
+	do_init_f2fs_rwsem((sem), #sem, &__key, sbi, name);	\
 } while (0)
 
-static inline void __init_f2fs_rwsem(struct f2fs_rwsem *sem,
-		const char *sem_name, struct lock_class_key *key)
+static inline void do_init_f2fs_rwsem(struct f2fs_rwsem *sem,
+		const char *sem_name, struct lock_class_key *key,
+		struct f2fs_sb_info *sbi, enum f2fs_lock_name name)
 {
+	sem->sbi = sbi;
+	sem->name = name;
 	__init_rwsem(&sem->internal_rwsem, sem_name, key);
 #ifdef CONFIG_F2FS_UNFAIR_RWSEM
 	init_waitqueue_head(&sem->read_waiters);
@@ -2341,6 +2435,16 @@ static inline void f2fs_up_write(struct f2fs_rwsem *sem)
 #endif
 }
 
+void f2fs_down_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
+int f2fs_down_read_trylock_trace(struct f2fs_rwsem *sem,
+						struct f2fs_lock_context *lc);
+void f2fs_up_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
+void f2fs_down_write_trace(struct f2fs_rwsem *sem,
+						struct f2fs_lock_context *lc);
+int f2fs_down_write_trylock_trace(struct f2fs_rwsem *sem,
+						struct f2fs_lock_context *lc);
+void f2fs_up_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
+
 static inline void disable_nat_bits(struct f2fs_sb_info *sbi, bool lock)
 {
 	unsigned long flags;
@@ -2369,33 +2473,6 @@ static inline bool enabled_nat_bits(struct f2fs_sb_info *sbi,
 	bool set = is_set_ckpt_flags(sbi, CP_NAT_BITS_FLAG);
 
 	return (cpc) ? (cpc->reason & CP_UMOUNT) && set : set;
-}
-
-static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
-{
-	f2fs_down_read(&sbi->cp_rwsem);
-}
-
-static inline int f2fs_trylock_op(struct f2fs_sb_info *sbi)
-{
-	if (time_to_inject(sbi, FAULT_LOCK_OP))
-		return 0;
-	return f2fs_down_read_trylock(&sbi->cp_rwsem);
-}
-
-static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
-{
-	f2fs_up_read(&sbi->cp_rwsem);
-}
-
-static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
-{
-	f2fs_down_write(&sbi->cp_rwsem);
-}
-
-static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
-{
-	f2fs_up_write(&sbi->cp_rwsem);
 }
 
 static inline int __get_cp_reason(struct f2fs_sb_info *sbi)
@@ -2811,6 +2888,14 @@ static inline void __set_cp_next_pack(struct f2fs_sb_info *sbi)
 static inline block_t __start_sum_addr(struct f2fs_sb_info *sbi)
 {
 	return le32_to_cpu(F2FS_CKPT(sbi)->cp_pack_start_sum);
+}
+
+static inline bool __has_cursum_space(struct f2fs_sb_info *sbi,
+		struct f2fs_journal *journal, unsigned int size, int type)
+{
+	if (type == NAT_JOURNAL)
+		return size <= MAX_NAT_JENTRIES(sbi, journal);
+	return size <= MAX_SIT_JENTRIES(sbi, journal);
 }
 
 extern void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync);
@@ -3724,7 +3809,7 @@ void f2fs_update_inode_page(struct inode *inode);
 int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc);
 void f2fs_remove_donate_inode(struct inode *inode);
 void f2fs_evict_inode(struct inode *inode);
-void f2fs_handle_failed_inode(struct inode *inode);
+void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc);
 
 /*
  * namei.c
@@ -3857,6 +3942,9 @@ struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs);
 void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid);
 struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid,
 						enum node_type node_type);
+int f2fs_sanity_check_node_footer(struct f2fs_sb_info *sbi,
+					struct folio *folio, pgoff_t nid,
+					enum node_type ntype, bool in_irq);
 struct folio *f2fs_get_inode_folio(struct f2fs_sb_info *sbi, pgoff_t ino);
 struct folio *f2fs_get_xnode_folio(struct f2fs_sb_info *sbi, pgoff_t xnid);
 int f2fs_move_node_folio(struct folio *node_folio, int gc_type);
@@ -3956,7 +4044,8 @@ void f2fs_wait_on_block_writeback_range(struct inode *inode, block_t blkaddr,
 								block_t len);
 void f2fs_write_data_summaries(struct f2fs_sb_info *sbi, block_t start_blk);
 void f2fs_write_node_summaries(struct f2fs_sb_info *sbi, block_t start_blk);
-int f2fs_lookup_journal_in_cursum(struct f2fs_journal *journal, int type,
+int f2fs_lookup_journal_in_cursum(struct f2fs_sb_info *sbi,
+			struct f2fs_journal *journal, int type,
 			unsigned int val, int alloc);
 void f2fs_flush_sit_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc);
 int f2fs_check_and_fix_write_pointer(struct f2fs_sb_info *sbi);
@@ -3991,6 +4080,9 @@ static inline bool f2fs_need_rand_seg(struct f2fs_sb_info *sbi)
 /*
  * checkpoint.c
  */
+void f2fs_lock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
+int f2fs_trylock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
+void f2fs_unlock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
 void f2fs_stop_checkpoint(struct f2fs_sb_info *sbi, bool end_io,
 							unsigned char reason);
 void f2fs_flush_ckpt_thread(struct f2fs_sb_info *sbi);
@@ -4006,8 +4098,8 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			int type, bool sync);
 void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 							unsigned int ra_blocks);
-long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
-			long nr_to_write, enum iostat_type io_type);
+long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, long nr_to_write,
+			enum iostat_type io_type);
 void f2fs_add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void f2fs_remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void f2fs_release_ino_entry(struct f2fs_sb_info *sbi, bool all);
@@ -4052,6 +4144,8 @@ void f2fs_submit_merged_write(struct f2fs_sb_info *sbi, enum page_type type);
 void f2fs_submit_merged_write_cond(struct f2fs_sb_info *sbi,
 				struct inode *inode, struct folio *folio,
 				nid_t ino, enum page_type type);
+void f2fs_submit_merged_write_folio(struct f2fs_sb_info *sbi,
+				struct folio *folio, enum page_type type);
 void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 					struct bio **bio, struct folio *folio);
 void f2fs_flush_merged_writes(struct f2fs_sb_info *sbi);
@@ -4886,21 +4980,20 @@ static inline bool f2fs_allow_multi_device_dio(struct f2fs_sb_info *sbi,
 	return sbi->aligned_blksize;
 }
 
-static inline bool f2fs_need_verity(const struct inode *inode, pgoff_t idx)
-{
-	return fsverity_active(inode) &&
-	       idx < DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
-}
-
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 extern int f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned long rate,
 					unsigned long type, enum fault_option fo);
+extern void f2fs_simulate_lock_timeout(struct f2fs_sb_info *sbi);
 #else
 static inline int f2fs_build_fault_attr(struct f2fs_sb_info *sbi,
 					unsigned long rate, unsigned long type,
 					enum fault_option fo)
 {
 	return 0;
+}
+static inline void f2fs_simulate_lock_timeout(struct f2fs_sb_info *sbi)
+{
+	return;
 }
 #endif
 
@@ -4913,6 +5006,22 @@ static inline bool is_journalled_quota(struct f2fs_sb_info *sbi)
 		F2FS_OPTION(sbi).s_qf_names[GRPQUOTA] ||
 		F2FS_OPTION(sbi).s_qf_names[PRJQUOTA])
 		return true;
+#endif
+	return false;
+}
+
+static inline bool f2fs_quota_file(struct f2fs_sb_info *sbi, nid_t ino)
+{
+#ifdef CONFIG_QUOTA
+	int i;
+
+	if (!f2fs_sb_has_quota_ino(sbi))
+		return false;
+
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (f2fs_qf_ino(sbi->sb, i) == ino)
+			return true;
+	}
 #endif
 	return false;
 }
@@ -4936,16 +5045,14 @@ static inline void __f2fs_schedule_timeout(long timeout, bool io)
 #define f2fs_schedule_timeout(timeout)			\
 			__f2fs_schedule_timeout(timeout, false)
 
-static inline void f2fs_io_schedule_timeout_killable(long timeout)
+static inline void f2fs_schedule_timeout_killable(long timeout, bool io)
 {
-	while (timeout) {
+	unsigned long last_time = jiffies + timeout;
+
+	while (jiffies < last_time) {
 		if (fatal_signal_pending(current))
 			return;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		io_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT);
-		if (timeout <= DEFAULT_SCHEDULE_TIMEOUT)
-			return;
-		timeout -= DEFAULT_SCHEDULE_TIMEOUT;
+		__f2fs_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT, io);
 	}
 }
 
@@ -5003,8 +5110,5 @@ static inline void f2fs_invalidate_internal_cache(struct f2fs_sb_info *sbi,
 	f2fs_truncate_meta_inode_pages(sbi, blkaddr, len);
 	f2fs_invalidate_compress_pages_range(sbi, blkaddr, len);
 }
-
-#define EFSBADCRC	EBADMSG		/* Bad CRC detected */
-#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 
 #endif /* _LINUX_F2FS_H */

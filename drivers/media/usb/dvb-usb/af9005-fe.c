@@ -1423,7 +1423,7 @@ struct dvb_frontend *af9005_fe_attach(struct dvb_usb_device *d)
 	struct af9005_fe_state *state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct af9005_fe_state), GFP_KERNEL);
+	state = kzalloc_obj(struct af9005_fe_state);
 	if (state == NULL)
 		goto error;
 

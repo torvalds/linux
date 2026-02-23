@@ -1581,6 +1581,9 @@ int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
  * not overwritten. Callers should register the controls they want to handle
  * themselves before calling this function.
  *
+ * This function will set the control handler's error field on failure, just as
+ * other functions adding controls to the handler.
+ *
  * Return: 0 on success, a negative error code on failure.
  */
 int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,

@@ -16,7 +16,7 @@ static struct hypfs_dbfs_data *hypfs_dbfs_data_alloc(struct hypfs_dbfs_file *f)
 {
 	struct hypfs_dbfs_data *data;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (!data)
 		return NULL;
 	data->dbfs_file = f;

@@ -421,7 +421,7 @@ static int dpaa_set_coalesce(struct net_device *dev,
 	bool *needs_revert;
 	int cpu, res;
 
-	needs_revert = kcalloc(num_possible_cpus(), sizeof(bool), GFP_KERNEL);
+	needs_revert = kzalloc_objs(bool, num_possible_cpus());
 	if (!needs_revert)
 		return -ENOMEM;
 

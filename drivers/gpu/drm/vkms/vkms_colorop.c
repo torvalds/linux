@@ -24,7 +24,7 @@ static int vkms_initialize_color_pipeline(struct drm_plane *plane, struct drm_pr
 	memset(ops, 0, sizeof(ops));
 
 	/* 1st op: 1d curve */
-	ops[i] = kzalloc(sizeof(*ops[i]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[i]);
 	if (!ops[i]) {
 		drm_err(dev, "KMS: Failed to allocate colorop\n");
 		ret = -ENOMEM;
@@ -41,7 +41,7 @@ static int vkms_initialize_color_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* 2nd op: 3x4 matrix */
-	ops[i] = kzalloc(sizeof(*ops[i]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[i]);
 	if (!ops[i]) {
 		drm_err(dev, "KMS: Failed to allocate colorop\n");
 		ret = -ENOMEM;
@@ -57,7 +57,7 @@ static int vkms_initialize_color_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* 3rd op: 3x4 matrix */
-	ops[i] = kzalloc(sizeof(*ops[i]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[i]);
 	if (!ops[i]) {
 		drm_err(dev, "KMS: Failed to allocate colorop\n");
 		ret = -ENOMEM;
@@ -73,7 +73,7 @@ static int vkms_initialize_color_pipeline(struct drm_plane *plane, struct drm_pr
 	i++;
 
 	/* 4th op: 1d curve */
-	ops[i] = kzalloc(sizeof(*ops[i]), GFP_KERNEL);
+	ops[i] = kzalloc_obj(*ops[i]);
 	if (!ops[i]) {
 		drm_err(dev, "KMS: Failed to allocate colorop\n");
 		ret = -ENOMEM;

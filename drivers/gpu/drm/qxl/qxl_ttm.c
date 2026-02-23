@@ -109,7 +109,7 @@ static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 {
 	struct ttm_tt *ttm;
 
-	ttm = kzalloc(sizeof(struct ttm_tt), GFP_KERNEL);
+	ttm = kzalloc_obj(struct ttm_tt);
 	if (ttm == NULL)
 		return NULL;
 	if (ttm_tt_init(ttm, bo, page_flags, ttm_cached, 0)) {

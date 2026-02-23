@@ -412,10 +412,7 @@ __tapechar_ioctl(struct tape_device *device,
 
 		return put_user_mtget(data, &get);
 	}
-	/* Try the discipline ioctl function. */
-	if (device->discipline->ioctl_fn == NULL)
-		return -EINVAL;
-	return device->discipline->ioctl_fn(device, no, (unsigned long)data);
+	return -EINVAL;
 }
 
 static long

@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2017     Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -1123,7 +1123,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result, i;
 	enum nl80211_band band;
 	int channels, max_bitrates;
-	bool supp_ht, supp_vht, supp_he, supp_eht, supp_s1g;
+	bool supp_ht, supp_vht, supp_he, supp_eht, supp_s1g, supp_uhr;
 	struct cfg80211_chan_def dflt_chandef = {};
 
 	if (ieee80211_hw_check(hw, QUEUE_CONTROL) &&
@@ -1237,6 +1237,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	supp_he = false;
 	supp_eht = false;
 	supp_s1g = false;
+	supp_uhr = false;
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		const struct ieee80211_sband_iftype_data *iftd;
 		struct ieee80211_supported_band *sband;
@@ -1293,6 +1294,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 			supp_he = supp_he || iftd->he_cap.has_he;
 			supp_eht = supp_eht || iftd->eht_cap.has_eht;
+			supp_uhr = supp_uhr || iftd->uhr_cap.has_uhr;
 
 			if (band == NL80211_BAND_2GHZ)
 				he_40_mhz_cap =
@@ -1325,6 +1327,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		if (WARN_ON(supp_eht && !supp_he))
 			return -EINVAL;
 
+		/* UHR requires EHT support */
+		if (WARN_ON(supp_uhr && !supp_eht))
+			return -EINVAL;
+
 		if (!sband->ht_cap.ht_supported)
 			continue;
 
@@ -1353,9 +1359,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
 
-	local->int_scan_req = kzalloc(struct_size(local->int_scan_req,
-						  channels, channels),
-				      GFP_KERNEL);
+	local->int_scan_req = kzalloc_flex(*local->int_scan_req, channels,
+					   channels);
 	if (!local->int_scan_req)
 		return -ENOMEM;
 
@@ -1436,6 +1441,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				sizeof(struct ieee80211_eht_mcs_nss_supp) +
 				IEEE80211_EHT_PPE_THRES_MAX_LEN;
 	}
+
+	if (supp_uhr)
+		local->scan_ies_len +=
+			3 + sizeof(struct ieee80211_uhr_cap) +
+			sizeof(struct ieee80211_uhr_cap_phy);
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */

@@ -338,7 +338,7 @@ static int tpmfront_probe(struct xenbus_device *dev,
 	struct tpm_private *priv;
 	int rv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv) {
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating priv structure");
 		return -ENOMEM;

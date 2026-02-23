@@ -31,6 +31,11 @@
 	};
 
 	host1x@50000000 {
+		dpaux1: dpaux@54040000 {
+			vdd-supply = <&pp3300>;
+			status = "okay";
+		};
+
 		dsia: dsi@54300000 {
 			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
 			status = "okay";
@@ -56,6 +61,13 @@
 				link2 = <&link2>;
 				backlight = <&backlight>;
 			};
+		};
+
+		sor1: sor@54580000 {
+			avdd-io-hdmi-dp-supply = <&pp1800>;
+			vdd-hdmi-dp-pll-supply = <&avddio_1v05>;
+			nvidia,dpaux = <&dpaux1>;
+			status = "okay";
 		};
 
 		dpaux: dpaux@545c0000 {
@@ -1809,6 +1821,8 @@
 				status = "okay";
 				vbus-supply = <&usbc_vbus>;
 				mode = "otg";
+				usb-role-switch;
+				role-switch-default-mode = "host";
 			};
 
 			usb3-0 {
@@ -1840,6 +1854,17 @@
 	mmc@700b0600 {
 		bus-width = <8>;
 		non-removable;
+		status = "okay";
+	};
+
+	usb@700d0000 {
+		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
+		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-6}>;
+		phy-names = "usb2-0", "usb3-0";
+
+		avddio-usb-supply = <&avddio_1v05>;
+		hvdd-usb-supply = <&pp3300>;
+
 		status = "okay";
 	};
 

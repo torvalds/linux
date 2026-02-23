@@ -129,7 +129,7 @@ int snd_device_alloc(struct device **dev_p, struct snd_card *card)
 	struct device *dev;
 
 	*dev_p = NULL;
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 	device_initialize(dev);
@@ -1060,7 +1060,7 @@ int snd_card_file_add(struct snd_card *card, struct file *file)
 {
 	struct snd_monitor_file *mfile;
 
-	mfile = kmalloc(sizeof(*mfile), GFP_KERNEL);
+	mfile = kmalloc_obj(*mfile);
 	if (mfile == NULL)
 		return -ENOMEM;
 	mfile->file = file;

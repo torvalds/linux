@@ -6,10 +6,10 @@
 #include <linux/intel_dg_nvm_aux.h>
 #include <linux/pci.h>
 
-#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_mmio.h"
 #include "xe_nvm.h"
+#include "xe_pcode_api.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_sriov.h"
 
@@ -45,42 +45,74 @@ static bool xe_nvm_non_posted_erase(struct xe_device *xe)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
-	if (xe->info.platform != XE_BATTLEMAGE)
+	switch (xe->info.platform) {
+	case XE_CRESCENTISLAND:
+	case XE_BATTLEMAGE:
+		return !(xe_mmio_read32(mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
+			 NVM_NON_POSTED_ERASE_CHICKEN_BIT);
+	default:
 		return false;
-	return !(xe_mmio_read32(mmio, XE_REG(GEN12_CNTL_PROTECTED_NVM_REG)) &
-		 NVM_NON_POSTED_ERASE_CHICKEN_BIT);
+	}
 }
 
 static bool xe_nvm_writable_override(struct xe_device *xe)
 {
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	bool writable_override;
-	resource_size_t base;
+	struct xe_reg reg;
+	u32 test_bit;
 
 	switch (xe->info.platform) {
+	case XE_CRESCENTISLAND:
+		reg = PCODE_SCRATCH(0);
+		test_bit = FDO_MODE;
+		break;
 	case XE_BATTLEMAGE:
-		base = DG2_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG2_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_PVC:
-		base = PVC_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(PVC_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_DG2:
-		base = DG2_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG2_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	case XE_DG1:
-		base = DG1_GSC_HECI2_BASE;
+		reg = HECI_FWSTS2(DG1_GSC_HECI2_BASE);
+		test_bit = HECI_FW_STATUS_2_NVM_ACCESS_MODE;
 		break;
 	default:
 		drm_err(&xe->drm, "Unknown platform\n");
 		return true;
 	}
 
-	writable_override =
-		!(xe_mmio_read32(mmio, HECI_FWSTS2(base)) &
-		  HECI_FW_STATUS_2_NVM_ACCESS_MODE);
+	writable_override = !(xe_mmio_read32(mmio, reg) & test_bit);
 	if (writable_override)
 		drm_info(&xe->drm, "NVM access overridden by jumper\n");
 	return writable_override;
+}
+
+static void xe_nvm_fini(void *arg)
+{
+	struct xe_device *xe = arg;
+	struct intel_dg_nvm_dev *nvm = xe->nvm;
+
+	if (!xe->info.has_gsc_nvm)
+		return;
+
+	/* No access to internal NVM from VFs */
+	if (IS_SRIOV_VF(xe))
+		return;
+
+	/* Nvm pointer should not be NULL here */
+	if (WARN_ON(!nvm))
+		return;
+
+	auxiliary_device_delete(&nvm->aux_dev);
+	auxiliary_device_uninit(&nvm->aux_dev);
+	xe->nvm = NULL;
 }
 
 int xe_nvm_init(struct xe_device *xe)
@@ -101,7 +133,7 @@ int xe_nvm_init(struct xe_device *xe)
 	if (WARN_ON(xe->nvm))
 		return -EFAULT;
 
-	xe->nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+	xe->nvm = kzalloc_obj(*nvm);
 	if (!xe->nvm)
 		return -ENOMEM;
 
@@ -132,39 +164,17 @@ int xe_nvm_init(struct xe_device *xe)
 	ret = auxiliary_device_init(aux_dev);
 	if (ret) {
 		drm_err(&xe->drm, "xe-nvm aux init failed %d\n", ret);
-		goto err;
+		kfree(nvm);
+		xe->nvm = NULL;
+		return ret;
 	}
 
 	ret = auxiliary_device_add(aux_dev);
 	if (ret) {
 		drm_err(&xe->drm, "xe-nvm aux add failed %d\n", ret);
 		auxiliary_device_uninit(aux_dev);
-		goto err;
+		xe->nvm = NULL;
+		return ret;
 	}
-	return 0;
-
-err:
-	kfree(nvm);
-	xe->nvm = NULL;
-	return ret;
-}
-
-void xe_nvm_fini(struct xe_device *xe)
-{
-	struct intel_dg_nvm_dev *nvm = xe->nvm;
-
-	if (!xe->info.has_gsc_nvm)
-		return;
-
-	/* No access to internal NVM from VFs */
-	if (IS_SRIOV_VF(xe))
-		return;
-
-	/* Nvm pointer should not be NULL here */
-	if (WARN_ON(!nvm))
-		return;
-
-	auxiliary_device_delete(&nvm->aux_dev);
-	auxiliary_device_uninit(&nvm->aux_dev);
-	xe->nvm = NULL;
+	return devm_add_action_or_reset(xe->drm.dev, xe_nvm_fini, xe);
 }

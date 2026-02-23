@@ -67,7 +67,7 @@ static int guc_buf_test_init(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, 0,
 			xe_ggtt_init_kunit(ggtt, DUT_GGTT_START,
-					   DUT_GGTT_START + DUT_GGTT_SIZE));
+					   DUT_GGTT_SIZE));
 
 	kunit_activate_static_stub(test, xe_managed_bo_create_pin_map,
 				   replacement_xe_managed_bo_create_pin_map);

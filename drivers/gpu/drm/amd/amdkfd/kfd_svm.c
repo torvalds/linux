@@ -33,6 +33,7 @@
 #include "amdgpu_hmm.h"
 #include "amdgpu.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_reset.h"
 #include "kfd_priv.h"
 #include "kfd_svm.h"
 #include "kfd_migrate.h"
@@ -167,7 +168,7 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 	int i, r;
 
 	if (!addr) {
-		addr = kvcalloc(prange->npages, sizeof(*addr), GFP_KERNEL);
+		addr = kvzalloc_objs(*addr, prange->npages);
 		if (!addr)
 			return -ENOMEM;
 		prange->dma_addr[gpuidx] = addr;
@@ -328,7 +329,7 @@ svm_range *svm_range_new(struct svm_range_list *svms, uint64_t start,
 	struct svm_range *prange;
 	struct kfd_process *p;
 
-	prange = kzalloc(sizeof(*prange), GFP_KERNEL);
+	prange = kzalloc_obj(*prange);
 	if (!prange)
 		return NULL;
 
@@ -538,7 +539,7 @@ static struct svm_range_bo *svm_range_bo_new(void)
 {
 	struct svm_range_bo *svm_bo;
 
-	svm_bo = kzalloc(sizeof(*svm_bo), GFP_KERNEL);
+	svm_bo = kzalloc_obj(*svm_bo);
 	if (!svm_bo)
 		return NULL;
 
@@ -585,7 +586,7 @@ svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 	svm_bo->eviction_fence =
 		amdgpu_amdkfd_fence_create(dma_fence_context_alloc(1),
 					   mm,
-					   svm_bo);
+					   svm_bo, p->context_id);
 	mmput(mm);
 	INIT_WORK(&svm_bo->eviction_work, svm_range_evict_svm_bo_worker);
 	svm_bo->evicting = 0;
@@ -1305,6 +1306,23 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 	case IP_VERSION(12, 0, 1):
 		mapping_flags |= AMDGPU_VM_MTYPE_NC;
 		break;
+	case IP_VERSION(12, 1, 0):
+		snoop = true;
+		if (domain == SVM_RANGE_VRAM_DOMAIN) {
+			mtype_local = amdgpu_mtype_local == 1 ? AMDGPU_VM_MTYPE_NC :
+								AMDGPU_VM_MTYPE_RW;
+			/* local HBM  */
+			if (bo_node->adev == node->adev)
+				mapping_flags |= mtype_local;
+			/* Remote GPU memory */
+			else
+				mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC :
+								AMDGPU_VM_MTYPE_NC;
+		/* system memory accessed by the dGPU */
+		} else {
+			mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
+		}
+		break;
 	default:
 		mapping_flags |= coherent ?
 			AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
@@ -1323,6 +1341,11 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 	pte_flags |= AMDGPU_PTE_READABLE;
 	if (!(flags & KFD_IOCTL_SVM_FLAG_GPU_RO))
 		pte_flags |= AMDGPU_PTE_WRITEABLE;
+
+	if ((gc_ip_version == IP_VERSION(12, 1, 0)) &&
+	    node->adev->have_atomics_support)
+		pte_flags |= AMDGPU_PTE_BUS_ATOMICS;
+
 	return pte_flags;
 }
 
@@ -1331,12 +1354,17 @@ svm_range_unmap_from_gpu(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			 uint64_t start, uint64_t last,
 			 struct dma_fence **fence)
 {
-	uint64_t init_pte_value = 0;
+	uint64_t init_pte_value = adev->gmc.init_pte_flags;
+	uint64_t gpu_start, gpu_end;
 
-	pr_debug("[0x%llx 0x%llx]\n", start, last);
+	/* Convert CPU page range to GPU page range */
+	gpu_start = start * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
+	gpu_end = (last + 1) * AMDGPU_GPU_PAGES_IN_CPU_PAGE - 1;
 
-	return amdgpu_vm_update_range(adev, vm, false, true, true, false, NULL, start,
-				      last, init_pte_value, 0, 0, NULL, NULL,
+	pr_debug("CPU[0x%llx 0x%llx] -> GPU[0x%llx 0x%llx]\n", start, last,
+		gpu_start, gpu_end);
+	return amdgpu_vm_update_range(adev, vm, false, true, true, false, NULL, gpu_start,
+				      gpu_end, init_pte_value, 0, 0, NULL, NULL,
 				      fence);
 }
 
@@ -1344,7 +1372,6 @@ static int
 svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			  unsigned long last, uint32_t trigger)
 {
-	DECLARE_BITMAP(bitmap, MAX_GPU_INSTANCE);
 	struct kfd_process_device *pdd;
 	struct dma_fence *fence = NULL;
 	struct kfd_process *p;
@@ -1362,11 +1389,9 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 		prange->mapped_to_gpu = false;
 	}
 
-	bitmap_or(bitmap, prange->bitmap_access, prange->bitmap_aip,
-		  MAX_GPU_INSTANCE);
 	p = container_of(prange->svms, struct kfd_process, svms);
 
-	for_each_set_bit(gpuidx, bitmap, MAX_GPU_INSTANCE) {
+	for_each_or_bit(gpuidx, prange->bitmap_access, prange->bitmap_aip, MAX_GPU_INSTANCE) {
 		pr_debug("unmap from gpu idx 0x%x\n", gpuidx);
 		pdd = kfd_process_device_from_gpuidx(p, gpuidx);
 		if (!pdd) {
@@ -1416,6 +1441,9 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 		 last_start, last_start + npages - 1, readonly);
 
 	for (i = offset; i < offset + npages; i++) {
+		uint64_t gpu_start;
+		uint64_t gpu_end;
+
 		last_domain = dma_addr[i] & SVM_RANGE_VRAM_DOMAIN;
 		dma_addr[i] &= ~SVM_RANGE_VRAM_DOMAIN;
 
@@ -1433,17 +1461,22 @@ svm_range_map_to_gpu(struct kfd_process_device *pdd, struct svm_range *prange,
 		if (readonly)
 			pte_flags &= ~AMDGPU_PTE_WRITEABLE;
 
-		pr_debug("svms 0x%p map [0x%lx 0x%llx] vram %d PTE 0x%llx\n",
-			 prange->svms, last_start, prange->start + i,
-			 (last_domain == SVM_RANGE_VRAM_DOMAIN) ? 1 : 0,
-			 pte_flags);
 
 		/* For dGPU mode, we use same vm_manager to allocate VRAM for
 		 * different memory partition based on fpfn/lpfn, we should use
 		 * same vm_manager.vram_base_offset regardless memory partition.
 		 */
+		gpu_start = last_start * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
+		gpu_end = (prange->start + i + 1) * AMDGPU_GPU_PAGES_IN_CPU_PAGE - 1;
+
+		pr_debug("svms 0x%p map CPU[0x%lx 0x%llx] GPU[0x%llx 0x%llx] vram %d PTE 0x%llx\n",
+			 prange->svms, last_start, prange->start + i,
+			 gpu_start, gpu_end,
+			 (last_domain == SVM_RANGE_VRAM_DOMAIN) ? 1 : 0,
+			 pte_flags);
+
 		r = amdgpu_vm_update_range(adev, vm, false, false, flush_tlb, true,
-					   NULL, last_start, prange->start + i,
+					   NULL, gpu_start, gpu_end,
 					   pte_flags,
 					   (last_start - prange->start) << PAGE_SHIFT,
 					   bo_adev ? bo_adev->vm_manager.vram_base_offset : 0,
@@ -1641,7 +1674,7 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	int32_t idx;
 	int r = 0;
 
-	ctx = kzalloc(sizeof(struct svm_validate_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct svm_validate_context);
 	if (!ctx)
 		return -ENOMEM;
 	ctx->process = container_of(prange->svms, struct kfd_process, svms);
@@ -2349,6 +2382,9 @@ static void svm_range_drain_retry_fault(struct svm_range_list *svms)
 
 		pr_debug("drain retry fault gpu %d svms %p\n", i, svms);
 
+		if (!down_read_trylock(&pdd->dev->adev->reset_domain->sem))
+			continue;
+
 		amdgpu_ih_wait_on_checkpoint_process_ts(pdd->dev->adev,
 				pdd->dev->adev->irq.retry_cam_enabled ?
 				&pdd->dev->adev->irq.ih :
@@ -2358,6 +2394,7 @@ static void svm_range_drain_retry_fault(struct svm_range_list *svms)
 			amdgpu_ih_wait_on_checkpoint_process_ts(pdd->dev->adev,
 				&pdd->dev->adev->irq.ih_soft);
 
+		up_read(&pdd->dev->adev->reset_domain->sem);
 
 		pr_debug("drain retry fault gpu %d svms 0x%p done\n", i, svms);
 	}
@@ -2541,7 +2578,7 @@ svm_range_unmap_from_cpu(struct mm_struct *mm, struct svm_range *prange,
 		adev = pdd->dev->adev;
 
 		/* Check and drain ih1 ring if cam not available */
-		if (adev->irq.ih1.ring_size) {
+		if (!adev->irq.retry_cam_enabled && adev->irq.ih1.ring_size) {
 			ih = &adev->irq.ih1;
 			checkpoint_wptr = amdgpu_ih_get_wptr(adev, ih);
 			if (ih->rptr != checkpoint_wptr) {

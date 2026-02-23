@@ -214,7 +214,7 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 	if (IS_ERR(hid))
 		return PTR_ERR(hid);
 
-	hid_data = kzalloc(sizeof(*hid_data), GFP_KERNEL);
+	hid_data = kzalloc_obj(*hid_data);
 	if (!hid_data) {
 		rv = -ENOMEM;
 		goto err_hid_data;

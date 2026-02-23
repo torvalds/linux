@@ -437,7 +437,7 @@ static int add_tty(int j,
 		    struct ipw_network *network, int channel_idx,
 		    int secondary_channel_idx, int tty_type)
 {
-	ttys[j] = kzalloc(sizeof(struct ipw_tty), GFP_KERNEL);
+	ttys[j] = kzalloc_obj(struct ipw_tty);
 	if (!ttys[j])
 		return -ENOMEM;
 	ttys[j]->index = j;

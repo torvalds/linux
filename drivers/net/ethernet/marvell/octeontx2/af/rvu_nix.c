@@ -2455,7 +2455,7 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 	}
 
 	/* XOFF all TL2s whose parent TL1 matches SMQ tree TL1 */
-	smq_flush_ctx = kzalloc(sizeof(*smq_flush_ctx), GFP_KERNEL);
+	smq_flush_ctx = kzalloc_obj(*smq_flush_ctx);
 	if (!smq_flush_ctx)
 		return -ENOMEM;
 	nix_smq_flush_fill_ctx(rvu, blkaddr, smq, smq_flush_ctx);
@@ -3373,7 +3373,7 @@ static int nix_add_mce_list_entry(struct rvu *rvu,
 
 	mce_list = &elem->mcast_mce_list;
 	for (i = 0; i < num_entry; i++) {
-		mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+		mce = kzalloc_obj(*mce);
 		if (!mce)
 			goto free_mce;
 
@@ -3435,7 +3435,7 @@ static int nix_update_mce_list_entry(struct nix_mce_list *mce_list,
 		return 0;
 
 	/* Add a new one to the list, at the tail */
-	mce = kzalloc(sizeof(*mce), GFP_KERNEL);
+	mce = kzalloc_obj(*mce);
 	if (!mce)
 		return -ENOMEM;
 	mce->pcifunc = pcifunc;
@@ -4938,12 +4938,18 @@ static int rvu_nix_block_init(struct rvu *rvu, struct nix_hw *nix_hw)
 	/* Set chan/link to backpressure TL3 instead of TL2 */
 	rvu_write64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL, 0x01);
 
-	/* Disable SQ manager's sticky mode operation (set TM6 = 0)
+	/* Disable SQ manager's sticky mode operation (set TM6 = 0, TM11 = 0)
 	 * This sticky mode is known to cause SQ stalls when multiple
-	 * SQs are mapped to same SMQ and transmitting pkts at a time.
+	 * SQs are mapped to same SMQ and transmitting pkts simultaneously.
+	 * NIX PSE may deadlock when there are any sticky to non-sticky
+	 * transmission. Hence disable it (TM5 = 0).
 	 */
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SQM_DBG_CTL_STATUS);
-	cfg &= ~BIT_ULL(15);
+	cfg &= ~(BIT_ULL(15) | BIT_ULL(14) | BIT_ULL(23));
+	/* NIX may drop credits when condition clocks are turned off.
+	 * Hence enable control flow clk (set TM9 = 1).
+	 */
+	cfg |= BIT_ULL(21);
 	rvu_write64(rvu, blkaddr, NIX_AF_SQM_DBG_CTL_STATUS, cfg);
 
 	ltdefs = rvu->kpu.lt_def;
@@ -6414,7 +6420,7 @@ int rvu_mbox_handler_nix_mcast_grp_create(struct rvu *rvu,
 		return err;
 
 	mcast_grp = &nix_hw->mcast_grp;
-	elem = kzalloc(sizeof(*elem), GFP_KERNEL);
+	elem = kzalloc_obj(*elem);
 	if (!elem)
 		return -ENOMEM;
 

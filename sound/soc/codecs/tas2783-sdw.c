@@ -27,16 +27,21 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw_type.h>
+#if IS_ENABLED(CONFIG_PCI)
+#include <linux/pci.h>
+#endif
 #include <sound/sdw.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/tas2781-tlv.h>
+#include <sound/sdca_function.h>
+#include <sound/sdca_regmap.h>
 
 #include "tas2783.h"
 
 #define TIMEOUT_FW_DL_MS (3000)
-#define FW_DL_OFFSET	36
-#define FW_FL_HDR	12
+#define FW_DL_OFFSET	84 /* binary file information */
+#define FW_FL_HDR	20 /* minimum number of bytes in one chunk */
 #define TAS2783_PROBE_TIMEOUT 5000
 #define TAS2783_CALI_GUID EFI_GUID(0x1f52d2a1, 0xbb3a, 0x457d, 0xbc, \
 				   0x09, 0x43, 0xa3, 0xf4, 0x31, 0x0a, 0x92)
@@ -49,11 +54,22 @@ static const u32 tas2783_cali_reg[] = {
 	TAS2783_CAL_TLIM,
 };
 
-struct bin_header_t {
-	u16 vendor_id;
-	u16 version;
+struct tas_fw_hdr {
+	u32 size;
+	u32 version_offset;
+	u32 plt_id;
+	u32 ppc3_ver;
+	u32 timestamp;
+	u8 ddc_name[64];
+};
+
+struct tas_fw_file {
+	u32 vendor_id;
 	u32 file_id;
+	u32 version;
 	u32 length;
+	u32 dest_addr;
+	u8 *fw_data;
 };
 
 struct calibration_data {
@@ -66,6 +82,7 @@ struct tas2783_prv {
 	struct snd_soc_component *component;
 	struct calibration_data cali_data;
 	struct sdw_slave *sdw_peripheral;
+	struct sdca_function_data *sa_func_data;
 	enum sdw_slave_status status;
 	/* calibration */
 	struct mutex calib_lock;
@@ -286,7 +303,7 @@ static const struct reg_default tas2783_reg_default[] = {
 };
 
 static const struct reg_sequence tas2783_init_seq[] = {
-	REG_SEQ0(SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x10, 0x00), 0x04),
+	REG_SEQ0(SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_PPU21, 0x10, 0x00), 0x01),
 	REG_SEQ0(0x00800418, 0x00),
 	REG_SEQ0(0x00800419, 0x00),
 	REG_SEQ0(0x0080041a, 0x00),
@@ -296,60 +313,19 @@ static const struct reg_sequence tas2783_init_seq[] = {
 	REG_SEQ0(0x0080042a, 0x00),
 	REG_SEQ0(0x0080042b, 0x00),
 	REG_SEQ0(SDW_SDCA_CTL(1, TAS2783_SDCA_ENT_FU23, 0x1, 0x00), 0x00),
-	REG_SEQ0(0x0080005c, 0xD9),
-	REG_SEQ0(0x00800082, 0x20),
-	REG_SEQ0(0x008000a1, 0x00),
-	REG_SEQ0(0x00800097, 0xc8),
-	REG_SEQ0(0x00800099, 0x20),
-	REG_SEQ0(0x008000c7, 0xaa),
-	REG_SEQ0(0x008000b5, 0x74),
-	REG_SEQ0(0x00800082, 0x20),
-	REG_SEQ0(0x00807e8d, 0x0d),
-	REG_SEQ0(0x00807eb9, 0x53),
-	REG_SEQ0(0x00807ebe, 0x42),
-	REG_SEQ0(0x00807ec5, 0x37),
-	REG_SEQ0(0x00800066, 0x92),
-	REG_SEQ0(0x00800003, 0x28),
 	REG_SEQ0(0x00800004, 0x21),
 	REG_SEQ0(0x00800005, 0x41),
 	REG_SEQ0(0x00800006, 0x00),
 	REG_SEQ0(0x00800007, 0x20),
-	REG_SEQ0(0x0080000c, 0x10),
-	REG_SEQ0(0x00800013, 0x08),
 	REG_SEQ0(0x00800015, 0x00),
-	REG_SEQ0(0x00800017, 0x80),
-	REG_SEQ0(0x0080001a, 0x00),
-	REG_SEQ0(0x0080001b, 0x22),
-	REG_SEQ0(0x0080001c, 0x36),
-	REG_SEQ0(0x0080001d, 0x01),
-	REG_SEQ0(0x0080001f, 0x00),
-	REG_SEQ0(0x00800020, 0x2e),
-	REG_SEQ0(0x00800034, 0x06),
-	REG_SEQ0(0x00800035, 0xb9),
 	REG_SEQ0(0x00800036, 0xad),
 	REG_SEQ0(0x00800037, 0xa8),
-	REG_SEQ0(0x00800038, 0x00),
-	REG_SEQ0(0x0080003b, 0xfc),
-	REG_SEQ0(0x0080003d, 0xdd),
-	REG_SEQ0(0x00800040, 0xf6),
-	REG_SEQ0(0x00800041, 0x14),
-	REG_SEQ0(0x0080005c, 0x19),
-	REG_SEQ0(0x0080005d, 0x80),
-	REG_SEQ0(0x00800063, 0x48),
-	REG_SEQ0(0x00800065, 0x08),
-	REG_SEQ0(0x00800067, 0x00),
-	REG_SEQ0(0x0080006a, 0x12),
 	REG_SEQ0(0x0080006b, 0x7b),
 	REG_SEQ0(0x0080006c, 0x00),
 	REG_SEQ0(0x0080006d, 0x00),
 	REG_SEQ0(0x0080006e, 0x1a),
 	REG_SEQ0(0x0080006f, 0x00),
-	REG_SEQ0(0x00800070, 0x96),
 	REG_SEQ0(0x00800071, 0x02),
-	REG_SEQ0(0x00800073, 0x08),
-	REG_SEQ0(0x00800075, 0xe0),
-	REG_SEQ0(0x0080007a, 0x60),
-	REG_SEQ0(0x008000bd, 0x00),
 	REG_SEQ0(0x008000be, 0x00),
 	REG_SEQ0(0x008000bf, 0x00),
 	REG_SEQ0(0x008000c0, 0x00),
@@ -357,17 +333,6 @@ static const struct reg_sequence tas2783_init_seq[] = {
 	REG_SEQ0(0x008000c2, 0x00),
 	REG_SEQ0(0x008000c3, 0x00),
 	REG_SEQ0(0x008000c4, 0x00),
-	REG_SEQ0(0x008000c5, 0x00),
-	REG_SEQ0(0x00800008, 0x49),
-	REG_SEQ0(0x00800009, 0x02),
-	REG_SEQ0(0x0080000a, 0x1a),
-	REG_SEQ0(0x0080000d, 0x93),
-	REG_SEQ0(0x0080000e, 0x82),
-	REG_SEQ0(0x0080000f, 0x42),
-	REG_SEQ0(0x00800010, 0x84),
-	REG_SEQ0(0x00800014, 0x0a),
-	REG_SEQ0(0x00800016, 0x00),
-	REG_SEQ0(0x00800060, 0x21),
 };
 
 static int tas2783_sdca_mbq_size(struct device *dev, u32 reg)
@@ -676,7 +641,8 @@ static void tas2783_set_calib_params_to_device(struct tas2783_prv *tas_dev, u32 
 	}
 
 	if (device_num == dev_count)
-		dev_err(tas_dev->dev, "device not found\n");
+		dev_err(tas_dev->dev,
+			"unique id not found in the calib data\n");
 	else
 		dev_dbg(tas_dev->dev, "calib data update done\n");
 }
@@ -735,13 +701,28 @@ static s32 tas2783_update_calibdata(struct tas2783_prv *tas_dev)
 	return ret;
 }
 
-static s32 read_header(const u8 *data, struct bin_header_t *hdr)
+static s32 tas_fw_read_hdr(const u8 *data, struct tas_fw_hdr *hdr)
 {
-	hdr->vendor_id = get_unaligned_le16(&data[0]);
-	hdr->file_id = get_unaligned_le32(&data[2]);
-	hdr->version = get_unaligned_le16(&data[6]);
-	hdr->length = get_unaligned_le32(&data[8]);
-	return 12;
+	hdr->size = get_unaligned_le32(data);
+	hdr->version_offset = get_unaligned_le32(&data[4]);
+	hdr->plt_id = get_unaligned_le32(&data[8]);
+	hdr->ppc3_ver = get_unaligned_le32(&data[12]);
+	memcpy(hdr->ddc_name, &data[16], 64);
+	hdr->timestamp = get_unaligned_le32(&data[80]);
+
+	return 84;
+}
+
+static s32 tas_fw_get_next_file(const u8 *data, struct tas_fw_file *file)
+{
+	file->vendor_id = get_unaligned_le32(&data[0]);
+	file->file_id = get_unaligned_le32(&data[4]);
+	file->version = get_unaligned_le32(&data[8]);
+	file->length = get_unaligned_le32(&data[12]);
+	file->dest_addr = get_unaligned_le32(&data[16]);
+	file->fw_data = (u8 *)&data[20];
+
+	return file->length + sizeof(u32) * 5;
 }
 
 static void tas2783_fw_ready(const struct firmware *fmw, void *context)
@@ -749,13 +730,20 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 	struct tas2783_prv *tas_dev =
 		(struct tas2783_prv *)context;
 	const u8 *buf = NULL;
-	s32 offset = 0, img_sz, file_blk_size, ret;
-	struct bin_header_t hdr;
+	s32  img_sz, ret = 0, cur_file = 0;
+	s32 offset = 0;
+
+	struct tas_fw_hdr *hdr __free(kfree) = kzalloc_obj(*hdr);
+	struct tas_fw_file *file __free(kfree) = kzalloc_obj(*file);
+	if (!file || !hdr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	if (!fmw || !fmw->data) {
-		/* No firmware binary, devices will work in ROM mode. */
+		/* firmware binary not found*/
 		dev_err(tas_dev->dev,
-			"Failed to read %s, no side-effect on driver running\n",
+			"Failed to read fw binary %s\n",
 			tas_dev->rca_binaryname);
 		ret = -EINVAL;
 		goto out;
@@ -763,67 +751,47 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 
 	img_sz = fmw->size;
 	buf = fmw->data;
-	offset += FW_DL_OFFSET;
-	if (offset >= (img_sz - FW_FL_HDR)) {
-		dev_err(tas_dev->dev,
-			"firmware is too small");
+	offset += tas_fw_read_hdr(buf, hdr);
+	if (hdr->size != img_sz) {
 		ret = -EINVAL;
+		dev_err(tas_dev->dev, "firmware size mismatch with header");
+		goto out;
+	}
+
+	if (img_sz < FW_DL_OFFSET) {
+		ret = -EINVAL;
+		dev_err(tas_dev->dev, "unexpected size, size is too small");
 		goto out;
 	}
 
 	mutex_lock(&tas_dev->pde_lock);
 	while (offset < (img_sz - FW_FL_HDR)) {
-		memset(&hdr, 0, sizeof(hdr));
-		offset += read_header(&buf[offset], &hdr);
+		offset += tas_fw_get_next_file(&buf[offset], file);
 		dev_dbg(tas_dev->dev,
-			"vndr=%d, file=%d, version=%d, len=%d, off=%d\n",
-			hdr.vendor_id, hdr.file_id, hdr.version,
-			hdr.length, offset);
-		/* size also includes the header */
-		file_blk_size = hdr.length - FW_FL_HDR;
+			"v=%d, fid=%d, ver=%d, len=%d, daddr=0x%x, fw=%p",
+			file->vendor_id, file->file_id,
+			file->version, file->length,
+			file->dest_addr, file->fw_data);
 
-		/* make sure that enough data is there */
-		if (offset + file_blk_size > img_sz) {
-			ret = -EINVAL;
+		ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
+				       file->dest_addr,
+				       file->length,
+				       file->fw_data);
+		if (ret < 0) {
 			dev_err(tas_dev->dev,
-				"corrupt firmware file");
+				"FW download failed: %d", ret);
 			break;
 		}
-
-		switch (hdr.file_id) {
-		case 0:
-			ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
-					       PRAM_ADDR_START, file_blk_size,
-					       &buf[offset]);
-			if (ret < 0)
-				dev_err(tas_dev->dev,
-					"PRAM update failed: %d", ret);
-			break;
-
-		case 1:
-			ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
-					       YRAM_ADDR_START, file_blk_size,
-					       &buf[offset]);
-			if (ret < 0)
-				dev_err(tas_dev->dev,
-					"YRAM update failed: %d", ret);
-
-			break;
-
-		default:
-			ret = -EINVAL;
-			dev_err(tas_dev->dev, "Unsupported file");
-			break;
-		}
-
-		if (ret == 0)
-			offset += file_blk_size;
-		else
-			break;
+		cur_file++;
 	}
 	mutex_unlock(&tas_dev->pde_lock);
-	if (!ret)
+
+	if (cur_file == 0) {
+		dev_err(tas_dev->dev, "fw with no files");
+		ret = -EINVAL;
+	} else {
 		tas2783_update_calibdata(tas_dev);
+	}
 
 out:
 	if (!ret)
@@ -1094,66 +1062,6 @@ static s32 tas_init(struct tas2783_prv *tas_dev)
 	return ret;
 }
 
-static s32 tas_read_prop(struct sdw_slave *slave)
-{
-	struct sdw_slave_prop *prop = &slave->prop;
-	s32 nval;
-	s32 i, j;
-	u32 bit;
-	unsigned long addr;
-	struct sdw_dpn_prop *dpn;
-
-	prop->scp_int1_mask =
-		SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
-	prop->quirks = SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY;
-
-	prop->paging_support = true;
-
-	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x04; /* BITMAP: 00000100 */
-	prop->sink_ports = 0x2; /* BITMAP:  00000010 */
-
-	nval = hweight32(prop->source_ports);
-	prop->src_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					  sizeof(*prop->src_dpn_prop), GFP_KERNEL);
-	if (!prop->src_dpn_prop)
-		return -ENOMEM;
-
-	i = 0;
-	dpn = prop->src_dpn_prop;
-	addr = prop->source_ports;
-	for_each_set_bit(bit, &addr, 32) {
-		dpn[i].num = bit;
-		dpn[i].type = SDW_DPN_FULL;
-		dpn[i].simple_ch_prep_sm = false;
-		dpn[i].ch_prep_timeout = 10;
-		i++;
-	}
-
-	/* do this again for sink now */
-	nval = hweight32(prop->sink_ports);
-	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop), GFP_KERNEL);
-	if (!prop->sink_dpn_prop)
-		return -ENOMEM;
-
-	j = 0;
-	dpn = prop->sink_dpn_prop;
-	addr = prop->sink_ports;
-	for_each_set_bit(bit, &addr, 32) {
-		dpn[j].num = bit;
-		dpn[j].type = SDW_DPN_FULL;
-		dpn[j].simple_ch_prep_sm = false;
-		dpn[j].ch_prep_timeout = 10;
-		j++;
-	}
-
-	/* set the timeout values */
-	prop->clk_stop_timeout = 200;
-
-	return 0;
-}
-
 static s32 tas2783_sdca_dev_suspend(struct device *dev)
 {
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
@@ -1200,6 +1108,31 @@ static const struct dev_pm_ops tas2783_sdca_pm = {
 	RUNTIME_PM_OPS(tas2783_sdca_dev_suspend, tas2783_sdca_dev_resume, NULL)
 };
 
+static void tas_generate_fw_name(struct sdw_slave *slave, char *name, size_t size)
+{
+	struct sdw_bus *bus = slave->bus;
+	u8 unique_id = slave->id.unique_id;
+	bool pci_found = false;
+#if IS_ENABLED(CONFIG_PCI)
+	struct device *dev = &slave->dev;
+	struct pci_dev *pci = NULL;
+
+	for (; dev; dev = dev->parent) {
+		if (dev->bus == &pci_bus_type) {
+			pci = to_pci_dev(dev);
+			scnprintf(name, size, "%04X-%1X-%1X.bin",
+				  pci->subsystem_device, bus->link_id, unique_id);
+			pci_found = true;
+			break;
+		}
+	}
+#endif
+
+	if (!pci_found)
+		scnprintf(name, size, "tas2783-%1X-%1X.bin",
+			  bus->link_id, unique_id);
+}
+
 static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
@@ -1211,8 +1144,16 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 
 	tas_dev->fw_dl_task_done = false;
 	tas_dev->fw_dl_success = false;
-	scnprintf(tas_dev->rca_binaryname, sizeof(tas_dev->rca_binaryname),
-		  "tas2783-%01x.bin", unique_id);
+
+	ret = regmap_write(tas_dev->regmap, TAS2783_SW_RESET, 0x1);
+	if (ret) {
+		dev_err(dev, "sw reset failed, err=%d", ret);
+		return ret;
+	}
+	usleep_range(2000, 2200);
+
+	tas_generate_fw_name(slave, tas_dev->rca_binaryname,
+			     sizeof(tas_dev->rca_binaryname));
 
 	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      tas_dev->rca_binaryname, tas_dev->dev,
@@ -1230,9 +1171,18 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 		dev_err(tas_dev->dev, "fw request, wait_event timeout\n");
 		ret = -EAGAIN;
 	} else {
-		ret = regmap_multi_reg_write(tas_dev->regmap, tas2783_init_seq,
-					     ARRAY_SIZE(tas2783_init_seq));
-		tas_dev->hw_init = true;
+		if (tas_dev->sa_func_data)
+			ret = sdca_regmap_write_init(dev, tas_dev->regmap,
+						     tas_dev->sa_func_data);
+		else
+			ret = regmap_multi_reg_write(tas_dev->regmap, tas2783_init_seq,
+						     ARRAY_SIZE(tas2783_init_seq));
+
+		if (ret)
+			dev_err(tas_dev->dev,
+				"init writes failed, err=%d", ret);
+		else
+			tas_dev->hw_init = true;
 	}
 
 	return ret;
@@ -1266,9 +1216,51 @@ static s32 tas_update_status(struct sdw_slave *slave,
 	return tas_io_init(&slave->dev, slave);
 }
 
+/*
+ * TAS2783 requires explicit port prepare during playback stream
+ * setup even when simple_ch_prep_sm is enabled. Without this,
+ * the port fails to enter the prepared state resulting in no audio output.
+ */
+static int tas_port_prep(struct sdw_slave *slave, struct sdw_prepare_ch *prep_ch,
+			 enum sdw_port_prep_ops pre_ops)
+{
+	struct device *dev = &slave->dev;
+	struct sdw_dpn_prop *dpn_prop;
+	u32 addr;
+	int ret;
+
+	dpn_prop = slave->prop.sink_dpn_prop;
+	if (!dpn_prop || !dpn_prop->simple_ch_prep_sm)
+		return 0;
+
+	addr = SDW_DPN_PREPARECTRL(prep_ch->num);
+	switch (pre_ops) {
+	case SDW_OPS_PORT_PRE_PREP:
+		ret = sdw_write_no_pm(slave, addr, prep_ch->ch_mask);
+		if (ret)
+			dev_err(dev, "prep failed for port %d, err=%d\n",
+					prep_ch->num, ret);
+		return ret;
+
+	case SDW_OPS_PORT_PRE_DEPREP:
+		ret = sdw_write_no_pm(slave, addr, 0x00);
+		if (ret)
+			dev_err(dev, "de-prep failed for port %d, err=%d\n",
+					prep_ch->num, ret);
+		return ret;
+
+	case SDW_OPS_PORT_POST_PREP:
+	case SDW_OPS_PORT_POST_DEPREP:
+		/* No POST handling required for TAS2783 */
+		return 0;
+	}
+
+	return 0;
+}
+
 static const struct sdw_slave_ops tas_sdw_ops = {
-	.read_prop	= tas_read_prop,
 	.update_status	= tas_update_status,
+	.port_prep = tas_port_prep,
 };
 
 static void tas_remove(struct tas2783_prv *tas_dev)
@@ -1282,11 +1274,51 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	struct regmap *regmap;
 	struct device *dev = &peripheral->dev;
 	struct tas2783_prv *tas_dev;
+	struct sdca_function_data *function_data = NULL;
+	int ret, i;
+
+	ret = sdw_slave_read_prop(peripheral);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "slave property read failed");
 
 	tas_dev = devm_kzalloc(dev, sizeof(*tas_dev), GFP_KERNEL);
 	if (!tas_dev)
 		return dev_err_probe(dev, -ENOMEM,
 				     "Failed devm_kzalloc");
+
+	i = -1;
+	/* check if we have any SDCA function data available */
+	if (peripheral->sdca_data.num_functions > 0) {
+		dev_dbg(dev, "SDCA functions found: %d", peripheral->sdca_data.num_functions);
+
+		/* Look for Smart Amp function type */
+		for (i = 0; i < peripheral->sdca_data.num_functions; i++) {
+			if (peripheral->sdca_data.function[i].type ==
+			    SDCA_FUNCTION_TYPE_SMART_AMP) {
+				dev_info(dev, "Found Smart Amp function at index %d", i);
+				break;
+			}
+		}
+	}
+
+	if (i >= 0 && i < peripheral->sdca_data.num_functions) {
+		/* Allocate memory for function data */
+		function_data = devm_kzalloc(dev, sizeof(*function_data),
+					     GFP_KERNEL);
+		if (!function_data)
+			return dev_err_probe(dev, -ENOMEM,
+					     "failed to parse sdca functions");
+
+		/* Parse the function */
+		ret = sdca_parse_function(dev, peripheral,
+					  &peripheral->sdca_data.function[i],
+					  function_data);
+		if (!ret)
+			tas_dev->sa_func_data = function_data;
+		else
+			dev_warn(dev, "smartamp function parse failed:err%d, using defaults", ret);
+	}
 
 	tas_dev->dev = dev;
 	tas_dev->sdw_peripheral = peripheral;
@@ -1310,7 +1342,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	return tas_init(tas_dev);
 }
 
-static s32 tas_sdw_remove(struct sdw_slave *peripheral)
+static void tas_sdw_remove(struct sdw_slave *peripheral)
 {
 	struct tas2783_prv *tas_dev = dev_get_drvdata(&peripheral->dev);
 
@@ -1319,8 +1351,6 @@ static s32 tas_sdw_remove(struct sdw_slave *peripheral)
 	mutex_destroy(&tas_dev->calib_lock);
 	mutex_destroy(&tas_dev->pde_lock);
 	dev_set_drvdata(&peripheral->dev, NULL);
-
-	return 0;
 }
 
 static const struct sdw_device_id tas_sdw_id[] = {
@@ -1342,6 +1372,7 @@ static struct sdw_driver tas_sdw_driver = {
 };
 module_sdw_driver(tas_sdw_driver);
 
+MODULE_IMPORT_NS("SND_SOC_SDCA");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("ASoC TAS2783 SoundWire Driver");
 MODULE_LICENSE("GPL");

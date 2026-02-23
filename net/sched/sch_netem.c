@@ -814,7 +814,7 @@ static int get_dist_table(struct disttable **tbl, const struct nlattr *attr)
 	if (!n || n > NETEM_DIST_MAX)
 		return -EINVAL;
 
-	d = kvmalloc(struct_size(d, table, n), GFP_KERNEL);
+	d = kvmalloc_flex(*d, table, n);
 	if (!d)
 		return -ENOMEM;
 

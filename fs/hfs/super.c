@@ -34,6 +34,7 @@ MODULE_LICENSE("GPL");
 
 static int hfs_sync_fs(struct super_block *sb, int wait)
 {
+	is_hfs_cnid_counts_valid(sb);
 	hfs_mdb_commit(sb);
 	return 0;
 }
@@ -64,6 +65,8 @@ static void flush_mdb(struct work_struct *work)
 	spin_lock(&sbi->work_lock);
 	sbi->work_queued = 0;
 	spin_unlock(&sbi->work_lock);
+
+	is_hfs_cnid_counts_valid(sb);
 
 	hfs_mdb_commit(sb);
 }
@@ -408,7 +411,7 @@ static int hfs_init_fs_context(struct fs_context *fc)
 {
 	struct hfs_sb_info *hsb;
 
-	hsb = kzalloc(sizeof(struct hfs_sb_info), GFP_KERNEL);
+	hsb = kzalloc_obj(struct hfs_sb_info);
 	if (!hsb)
 		return -ENOMEM;
 
@@ -431,10 +434,18 @@ static int hfs_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
+static void hfs_kill_super(struct super_block *sb)
+{
+	struct hfs_sb_info *hsb = HFS_SB(sb);
+
+	kill_block_super(sb);
+	kfree(hsb);
+}
+
 static struct file_system_type hfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "hfs",
-	.kill_sb	= kill_block_super,
+	.kill_sb	= hfs_kill_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 	.init_fs_context = hfs_init_fs_context,
 };

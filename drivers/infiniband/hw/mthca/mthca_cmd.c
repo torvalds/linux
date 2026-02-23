@@ -559,9 +559,8 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 {
 	int i;
 
-	dev->cmd.context = kmalloc_array(dev->cmd.max_cmds,
-					 sizeof(struct mthca_cmd_context),
-					 GFP_KERNEL);
+	dev->cmd.context = kmalloc_objs(struct mthca_cmd_context,
+					dev->cmd.max_cmds);
 	if (!dev->cmd.context)
 		return -ENOMEM;
 
@@ -611,7 +610,7 @@ struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
 {
 	struct mthca_mailbox *mailbox;
 
-	mailbox = kmalloc(sizeof *mailbox, gfp_mask);
+	mailbox = kmalloc_obj(*mailbox, gfp_mask);
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 

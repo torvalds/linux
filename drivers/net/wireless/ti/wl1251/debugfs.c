@@ -444,7 +444,7 @@ void wl1251_debugfs_reset(struct wl1251 *wl)
 
 int wl1251_debugfs_init(struct wl1251 *wl)
 {
-	wl->stats.fw_stats = kzalloc(sizeof(*wl->stats.fw_stats), GFP_KERNEL);
+	wl->stats.fw_stats = kzalloc_obj(*wl->stats.fw_stats);
 	if (!wl->stats.fw_stats)
 		return -ENOMEM;
 

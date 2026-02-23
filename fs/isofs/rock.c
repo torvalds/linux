@@ -271,7 +271,7 @@ repeat:
 				break;
 			}
 			len = rr->len - 5;
-			if (retnamlen + len >= 254) {
+			if (retnamlen + len > NAME_MAX) {
 				truncate = 1;
 				break;
 			}

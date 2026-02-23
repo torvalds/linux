@@ -333,7 +333,7 @@ SYSCALL_DEFINE5(futex_waitv, struct futex_waitv __user *, waiters,
 	if (timeout && (ret = futex2_setup_timeout(timeout, clockid, &to)))
 		return ret;
 
-	futexv = kcalloc(nr_futexes, sizeof(*futexv), GFP_KERNEL);
+	futexv = kzalloc_objs(*futexv, nr_futexes);
 	if (!futexv) {
 		ret = -ENOMEM;
 		goto destroy_timer;

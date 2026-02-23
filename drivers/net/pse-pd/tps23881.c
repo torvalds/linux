@@ -523,8 +523,7 @@ tps23881_pi_get_pw_limit_ranges(struct pse_controller_dev *pcdev, int id,
 {
 	struct ethtool_c33_pse_pw_limit_range *c33_pw_limit_ranges;
 
-	c33_pw_limit_ranges = kzalloc(sizeof(*c33_pw_limit_ranges),
-				      GFP_KERNEL);
+	c33_pw_limit_ranges = kzalloc_obj(*c33_pw_limit_ranges);
 	if (!c33_pw_limit_ranges)
 		return -ENOMEM;
 

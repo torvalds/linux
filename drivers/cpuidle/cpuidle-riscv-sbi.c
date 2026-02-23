@@ -380,7 +380,7 @@ static int sbi_pd_init(struct device_node *np)
 	if (!pd)
 		goto out;
 
-	pd_provider = kzalloc(sizeof(*pd_provider), GFP_KERNEL);
+	pd_provider = kzalloc_obj(*pd_provider);
 	if (!pd_provider)
 		goto free_pd;
 

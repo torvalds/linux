@@ -154,7 +154,7 @@ static struct mctp_i2c_client *mctp_i2c_new_client(struct i2c_client *client)
 		goto err;
 	}
 
-	mcli = kzalloc(sizeof(*mcli), GFP_KERNEL);
+	mcli = kzalloc_obj(*mcli);
 	if (!mcli) {
 		rc = -ENOMEM;
 		goto err;
@@ -242,6 +242,12 @@ static int mctp_i2c_slave_cb(struct i2c_client *client,
 		return 0;
 
 	switch (event) {
+	case I2C_SLAVE_READ_REQUESTED:
+	case I2C_SLAVE_READ_PROCESSED:
+		/* MCTP I2C transport only uses writes */
+		midev->rx_pos = 0;
+		*val = 0xff;
+		break;
 	case I2C_SLAVE_WRITE_RECEIVED:
 		if (midev->rx_pos < MCTP_I2C_BUFSZ) {
 			midev->rx_buffer[midev->rx_pos] = *val;
@@ -278,6 +284,9 @@ static int mctp_i2c_recv(struct mctp_i2c_dev *midev)
 	u8 pec, calc_pec;
 	size_t recvlen;
 	int status;
+
+	if (midev->rx_pos == 0)
+		return 0;
 
 	/* + 1 for the PEC */
 	if (midev->rx_pos < MCTP_I2C_MINLEN + 1) {

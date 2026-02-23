@@ -27,22 +27,28 @@ static struct sg_table *amdxdna_ubuf_map(struct dma_buf_attachment *attach,
 	struct sg_table *sg;
 	int ret;
 
-	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
 	ret = sg_alloc_table_from_pages(sg, ubuf->pages, ubuf->nr_pages, 0,
 					ubuf->nr_pages << PAGE_SHIFT, GFP_KERNEL);
 	if (ret)
-		return ERR_PTR(ret);
+		goto err_free_sg;
 
 	if (ubuf->flags & AMDXDNA_UBUF_FLAG_MAP_DMA) {
 		ret = dma_map_sgtable(attach->dev, sg, direction, 0);
 		if (ret)
-			return ERR_PTR(ret);
+			goto err_free_table;
 	}
 
 	return sg;
+
+err_free_table:
+	sg_free_table(sg);
+err_free_sg:
+	kfree(sg);
+	return ERR_PTR(ret);
 }
 
 static void amdxdna_ubuf_unmap(struct dma_buf_attachment *attach,
@@ -141,7 +147,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	if (!can_do_mlock())
 		return ERR_PTR(-EPERM);
 
-	ubuf = kzalloc(sizeof(*ubuf), GFP_KERNEL);
+	ubuf = kzalloc_obj(*ubuf);
 	if (!ubuf)
 		return ERR_PTR(-ENOMEM);
 
@@ -149,7 +155,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 	ubuf->mm = current->mm;
 	mmgrab(ubuf->mm);
 
-	va_ent = kvcalloc(num_entries, sizeof(*va_ent), GFP_KERNEL);
+	va_ent = kvzalloc_objs(*va_ent, num_entries);
 	if (!va_ent) {
 		ret = -ENOMEM;
 		goto free_ubuf;
@@ -183,7 +189,7 @@ struct dma_buf *amdxdna_get_ubuf(struct drm_device *dev,
 		goto sub_pin_cnt;
 	}
 
-	ubuf->pages = kvmalloc_array(ubuf->nr_pages, sizeof(*ubuf->pages), GFP_KERNEL);
+	ubuf->pages = kvmalloc_objs(*ubuf->pages, ubuf->nr_pages);
 	if (!ubuf->pages) {
 		ret = -ENOMEM;
 		goto sub_pin_cnt;

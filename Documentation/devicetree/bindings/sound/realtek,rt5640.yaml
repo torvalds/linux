@@ -47,6 +47,12 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: mclk
+
   interrupts:
     maxItems: 1
     description: The CODEC's interrupt output.
@@ -98,6 +104,7 @@ properties:
       - 4 # Use GPIO2 for jack-detect
       - 5 # Use GPIO3 for jack-detect
       - 6 # Use GPIO4 for jack-detect
+      - 7 # Use HDA header for jack-detect
 
   realtek,jack-detect-not-inverted:
     description:
@@ -120,6 +127,10 @@ properties:
       - 1 # Scale current by 0.75
       - 2 # Scale current by 1.0
       - 3 # Scale current by 1.5
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible

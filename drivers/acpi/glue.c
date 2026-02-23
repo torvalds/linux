@@ -246,7 +246,7 @@ int acpi_bind_one(struct device *dev, struct acpi_device *acpi_dev)
 
 	acpi_dev_get(acpi_dev);
 	get_device(dev);
-	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
+	physical_node = kzalloc_obj(*physical_node);
 	if (!physical_node) {
 		retval = -ENOMEM;
 		goto err;

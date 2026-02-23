@@ -84,7 +84,7 @@ static struct gpio_shared_ref *gpio_shared_make_ref(struct fwnode_handle *fwnode
 {
 	char *con_id_cpy __free(kfree) = NULL;
 
-	struct gpio_shared_ref *ref __free(kfree) = kzalloc(sizeof(*ref), GFP_KERNEL);
+	struct gpio_shared_ref *ref __free(kfree) = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 
@@ -227,7 +227,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 			entry = gpio_shared_find_entry(fwnode, offset);
 			if (!entry) {
-				entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+				entry = kzalloc_obj(*entry);
 				if (!entry)
 					return -ENOMEM;
 
@@ -455,12 +455,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 		list_for_each_entry(ref, &entry->refs, list) {
 			guard(mutex)(&ref->lock);
 
-			/*
-			 * FIXME: use device_is_compatible() once the reset-gpio
-			 * drivers gains a compatible string which it currently
-			 * does not have.
-			 */
-			if (!ref->fwnode && strstarts(dev_name(consumer), "reset.gpio.")) {
+			if (!ref->fwnode && device_is_compatible(consumer, "reset-gpio")) {
 				if (!gpio_shared_dev_is_reset_gpio(consumer, entry, ref))
 					continue;
 			} else if (!device_match_fwnode(consumer, ref->fwnode)) {
@@ -482,7 +477,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 			if (!key)
 				return -ENOMEM;
 
-			lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+			lookup = kzalloc_flex(*lookup, table, 2);
 			if (!lookup)
 				return -ENOMEM;
 
@@ -515,7 +510,7 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 {
 	struct gpio_shared_entry *entry;
 	struct gpio_shared_ref *ref;
-	unsigned long *flags;
+	struct gpio_desc *desc;
 	int ret;
 
 	list_for_each_entry(entry, &gpio_shared_list, list) {
@@ -543,15 +538,17 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 		if (list_count_nodes(&entry->refs) <= 1)
 			continue;
 
-		flags = &gdev->descs[entry->offset].flags;
+		desc = &gdev->descs[entry->offset];
 
-		__set_bit(GPIOD_FLAG_SHARED, flags);
+		__set_bit(GPIOD_FLAG_SHARED, &desc->flags);
 		/*
 		 * Shared GPIOs are not requested via the normal path. Make
 		 * them inaccessible to anyone even before we register the
 		 * chip.
 		 */
-		__set_bit(GPIOD_FLAG_REQUESTED, flags);
+		ret = gpiod_request_commit(desc, "shared");
+		if (ret)
+			return ret;
 
 		pr_debug("GPIO %u owned by %s is shared by multiple consumers\n",
 			 entry->offset, gpio_device_get_label(gdev));
@@ -562,8 +559,10 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 				 ref->con_id ?: "(none)");
 
 			ret = gpio_shared_make_adev(gdev, entry, ref);
-			if (ret)
+			if (ret) {
+				gpiod_free_commit(desc);
 				return ret;
+			}
 		}
 	}
 
@@ -578,6 +577,8 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		if (!device_match_fwnode(&gdev->dev, entry->fwnode))
 			continue;
+
+		gpiod_free_commit(&gdev->descs[entry->offset]);
 
 		list_for_each_entry(ref, &entry->refs, list) {
 			guard(mutex)(&ref->lock);
@@ -625,7 +626,7 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 
 	lockdep_assert_held(&entry->lock);
 
-	shared_desc = kzalloc(sizeof(*shared_desc), GFP_KERNEL);
+	shared_desc = kzalloc_obj(*shared_desc);
 	if (!shared_desc)
 		return ERR_PTR(-ENOMEM);
 

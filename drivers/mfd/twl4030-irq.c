@@ -631,7 +631,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 		return status;
 	}
 
-	agent = kzalloc(sizeof(*agent), GFP_KERNEL);
+	agent = kzalloc_obj(*agent);
 	if (!agent)
 		return -ENOMEM;
 

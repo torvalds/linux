@@ -429,7 +429,7 @@ static int netfs_read_gaps(struct file *file, struct folio *folio)
 	 * end get copied to, but the middle is discarded.
 	 */
 	ret = -ENOMEM;
-	bvec = kmalloc_array(nr_bvec, sizeof(*bvec), GFP_KERNEL);
+	bvec = kmalloc_objs(*bvec, nr_bvec);
 	if (!bvec)
 		goto discard;
 

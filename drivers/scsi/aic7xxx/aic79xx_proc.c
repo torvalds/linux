@@ -242,8 +242,8 @@ ahd_proc_write_seeprom(struct Scsi_Host *shost, char *buffer, int length)
 		u_int start_addr;
 
 		if (ahd->seep_config == NULL) {
-			ahd->seep_config = kmalloc(sizeof(*ahd->seep_config),
-						   GFP_ATOMIC);
+			ahd->seep_config = kmalloc_obj(*ahd->seep_config,
+						       GFP_ATOMIC);
 			if (ahd->seep_config == NULL) {
 				printk("aic79xx: Unable to allocate serial "
 				       "eeprom buffer.  Write failing\n");

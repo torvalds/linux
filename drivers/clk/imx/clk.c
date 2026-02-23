@@ -189,7 +189,7 @@ void imx_register_uart_clocks(void)
 		if (!of_stdout)
 			return;
 
-		imx_uart_clocks = kcalloc(num, sizeof(struct clk *), GFP_KERNEL);
+		imx_uart_clocks = kzalloc_objs(struct clk *, num);
 		if (!imx_uart_clocks)
 			return;
 

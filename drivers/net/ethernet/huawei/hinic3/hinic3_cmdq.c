@@ -123,7 +123,7 @@ struct hinic3_cmd_buf *hinic3_alloc_cmd_buf(struct hinic3_hwdev *hwdev)
 
 	cmdqs = hwdev->cmdqs;
 
-	cmd_buf = kmalloc(sizeof(*cmd_buf), GFP_ATOMIC);
+	cmd_buf = kmalloc_obj(*cmd_buf, GFP_ATOMIC);
 	if (!cmd_buf)
 		return NULL;
 
@@ -614,8 +614,7 @@ static int init_cmdq(struct hinic3_cmdq *cmdq, struct hinic3_hwdev *hwdev,
 
 	spin_lock_init(&cmdq->cmdq_lock);
 
-	cmdq->cmd_infos = kcalloc(cmdq->wq.q_depth, sizeof(*cmdq->cmd_infos),
-				  GFP_KERNEL);
+	cmdq->cmd_infos = kzalloc_objs(*cmdq->cmd_infos, cmdq->wq.q_depth);
 	if (!cmdq->cmd_infos) {
 		err = -ENOMEM;
 		return err;
@@ -738,7 +737,7 @@ static int init_cmdqs(struct hinic3_hwdev *hwdev)
 {
 	struct hinic3_cmdqs *cmdqs;
 
-	cmdqs = kzalloc(sizeof(*cmdqs), GFP_KERNEL);
+	cmdqs = kzalloc_obj(*cmdqs);
 	if (!cmdqs)
 		return -ENOMEM;
 
@@ -878,14 +877,11 @@ err_free_cmd_infos:
 	}
 
 	hinic3_free_db_addr(hwdev, cmdqs->cmdqs_db_base);
-
 err_destroy_cmdq_wq:
 	destroy_cmdq_wq(hwdev, cmdqs);
-
 err_free_cmdqs:
 	dma_pool_destroy(cmdqs->cmd_buf_pool);
 	kfree(cmdqs);
-
 err_out:
 	return err;
 }

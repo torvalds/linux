@@ -205,7 +205,7 @@ async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
 	async_cookie_t newcookie;
 
 	/* allow irq-off callers */
-	entry = kzalloc(sizeof(struct async_entry), GFP_ATOMIC);
+	entry = kzalloc_obj(struct async_entry, GFP_ATOMIC);
 
 	/*
 	 * If we're out of memory or if there's too much work
@@ -261,7 +261,7 @@ bool async_schedule_dev_nocall(async_func_t func, struct device *dev)
 {
 	struct async_entry *entry;
 
-	entry = kzalloc(sizeof(struct async_entry), GFP_KERNEL);
+	entry = kzalloc_obj(struct async_entry);
 
 	/* Give up if there is no memory or too much work. */
 	if (!entry || atomic_read(&entry_count) > MAX_WORK) {

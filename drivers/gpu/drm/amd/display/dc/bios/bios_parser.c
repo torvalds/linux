@@ -98,7 +98,7 @@ struct dc_bios *bios_parser_create(
 {
 	struct bios_parser *bp;
 
-	bp = kzalloc(sizeof(struct bios_parser), GFP_KERNEL);
+	bp = kzalloc_obj(struct bios_parser);
 	if (!bp)
 		return NULL;
 
@@ -2667,7 +2667,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct integrated_info *info;
 
-	info = kzalloc(sizeof(struct integrated_info), GFP_KERNEL);
+	info = kzalloc_obj(struct integrated_info);
 
 	if (info == NULL) {
 		ASSERT_CRITICAL(0);

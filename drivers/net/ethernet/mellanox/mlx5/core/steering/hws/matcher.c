@@ -912,7 +912,7 @@ hws_matcher_create_col_matcher(struct mlx5hws_matcher *matcher)
 	    !hws_matcher_requires_col_tbl(size_tx->rule.num_log))
 		return 0;
 
-	col_matcher = kzalloc(sizeof(*matcher), GFP_KERNEL);
+	col_matcher = kzalloc_obj(*matcher);
 	if (!col_matcher)
 		return -ENOMEM;
 
@@ -1084,14 +1084,13 @@ hws_matcher_set_templates(struct mlx5hws_matcher *matcher,
 		return -EOPNOTSUPP;
 	}
 
-	matcher->mt = kcalloc(num_of_mt, sizeof(*matcher->mt), GFP_KERNEL);
+	matcher->mt = kzalloc_objs(*matcher->mt, num_of_mt);
 	if (!matcher->mt)
 		return -ENOMEM;
 
 	matcher->size_of_at_array =
 		num_of_at + matcher->attr.max_num_of_at_attach;
-	matcher->at = kvcalloc(matcher->size_of_at_array, sizeof(*matcher->at),
-			       GFP_KERNEL);
+	matcher->at = kvzalloc_objs(*matcher->at, matcher->size_of_at_array);
 	if (!matcher->at) {
 		mlx5hws_err(ctx, "Failed to allocate action template array\n");
 		ret = -ENOMEM;
@@ -1133,7 +1132,7 @@ mlx5hws_matcher_create(struct mlx5hws_table *tbl,
 	struct mlx5hws_matcher *matcher;
 	int ret;
 
-	matcher = kzalloc(sizeof(*matcher), GFP_KERNEL);
+	matcher = kzalloc_obj(*matcher);
 	if (!matcher)
 		return NULL;
 
@@ -1179,7 +1178,7 @@ mlx5hws_match_template_create(struct mlx5hws_context *ctx,
 {
 	struct mlx5hws_match_template *mt;
 
-	mt = kzalloc(sizeof(*mt), GFP_KERNEL);
+	mt = kzalloc_obj(*mt);
 	if (!mt)
 		return NULL;
 

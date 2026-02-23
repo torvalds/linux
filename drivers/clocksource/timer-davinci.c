@@ -271,7 +271,7 @@ int __init davinci_timer_register(struct clk *clk,
 	davinci_timer_init(base);
 	tick_rate = clk_get_rate(clk);
 
-	clockevent = kzalloc(sizeof(*clockevent), GFP_KERNEL);
+	clockevent = kzalloc_obj(*clockevent);
 	if (!clockevent) {
 		rv = -ENOMEM;
 		goto exit_iounmap_base;

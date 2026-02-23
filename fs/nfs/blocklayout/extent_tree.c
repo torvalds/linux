@@ -201,7 +201,7 @@ __ext_tree_remove(struct rb_root *root,
 		if (len1 > 0) {
 			struct pnfs_block_extent *new;
 
-			new = kzalloc(sizeof(*new), GFP_ATOMIC);
+			new = kzalloc_obj(*new, GFP_ATOMIC);
 			if (!new)
 				return -ENOMEM;
 
@@ -384,7 +384,7 @@ ext_tree_split(struct rb_root *root, struct pnfs_block_extent *be,
 	struct pnfs_block_extent *new;
 	sector_t orig_len = be->be_length;
 
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	new = kzalloc_obj(*new, GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -653,8 +653,9 @@ ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 		count = 0;
 
 		arg->layoutupdate_pages =
-			kcalloc(DIV_ROUND_UP(buffer_size, PAGE_SIZE),
-				sizeof(struct page *), GFP_NOFS);
+			kzalloc_objs(struct page *,
+				     DIV_ROUND_UP(buffer_size, PAGE_SIZE),
+				     GFP_NOFS);
 		if (!arg->layoutupdate_pages)
 			return -ENOMEM;
 

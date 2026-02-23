@@ -139,7 +139,7 @@ int ibmasm_event_buffer_init(struct service_processor *sp)
 	struct ibmasm_event *event;
 	int i;
 
-	buffer = kmalloc(sizeof(struct event_buffer), GFP_KERNEL);
+	buffer = kmalloc_obj(struct event_buffer);
 	if (!buffer)
 		return -ENOMEM;
 

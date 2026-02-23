@@ -1,0 +1,44 @@
+What:           /sys/bus/event_source/devices/cpu.../rdpmc
+Date:           November 2011
+KernelVersion:  3.10
+Contact:        Linux kernel mailing list linux-kernel@vger.kernel.org
+Description:    The /sys/bus/event_source/devices/cpu.../rdpmc attribute
+                is used to show/manage if rdpmc instruction can be
+                executed in user space. This attribute supports 3 numbers.
+                - rdpmc = 0
+                user space rdpmc is globally disabled for all PMU
+                counters.
+                - rdpmc = 1
+                user space rdpmc is globally enabled only in event mmap
+                ioctl called time window. If the mmap region is unmapped,
+                user space rdpmc is disabled again.
+                - rdpmc = 2
+                user space rdpmc is globally enabled for all PMU
+                counters.
+
+                In the Intel platforms supporting counter level's user
+                space rdpmc disable feature (CPUID.23H.EBX[2] = 1), the
+                meaning of 3 numbers is extended to
+                - rdpmc = 0
+                global user space rdpmc and counter level's user space
+                rdpmc of all counters are both disabled.
+                - rdpmc = 1
+                No changes on behavior of global user space rdpmc.
+                counter level's rdpmc of system-wide events is disabled
+                but counter level's rdpmc of non-system-wide events is
+                enabled.
+                - rdpmc = 2
+                global user space rdpmc and counter level's user space
+                rdpmc of all counters are both enabled unconditionally.
+
+                The default value of rdpmc is 1.
+
+                Please notice:
+                - global user space rdpmc's behavior would change
+                immediately along with the rdpmc value's change,
+                but the behavior of counter level's user space rdpmc
+                won't take effect immediately until the event is
+                reactivated or recreated.
+                - The rdpmc attribute is global, even for x86 hybrid
+                platforms. For example, changing cpu_core/rdpmc will
+                also change cpu_atom/rdpmc.

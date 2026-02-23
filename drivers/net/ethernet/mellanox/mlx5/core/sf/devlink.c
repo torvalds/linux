@@ -70,7 +70,7 @@ mlx5_sf_alloc(struct mlx5_sf_table *table, struct mlx5_eswitch *esw,
 		goto id_err;
 	}
 
-	sf = kzalloc(sizeof(*sf), GFP_KERNEL);
+	sf = kzalloc_obj(*sf);
 	if (!sf) {
 		err = -ENOMEM;
 		goto alloc_err;
@@ -509,7 +509,7 @@ int mlx5_sf_table_init(struct mlx5_core_dev *dev)
 	if (!mlx5_sf_table_supported(dev) || !mlx5_vhca_event_supported(dev))
 		return 0;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table)
 		return -ENOMEM;
 

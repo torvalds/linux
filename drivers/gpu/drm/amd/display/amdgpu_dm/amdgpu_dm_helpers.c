@@ -617,7 +617,7 @@ bool dm_helpers_submit_i2c(
 		return false;
 	}
 
-	msgs = kcalloc(num, sizeof(struct i2c_msg), GFP_KERNEL);
+	msgs = kzalloc_objs(struct i2c_msg, num);
 
 	if (!msgs)
 		return false;
@@ -1121,6 +1121,12 @@ void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
 	/* TODO: something */
 }
 
+void dm_helpers_dmu_timeout(struct dc_context *ctx)
+{
+	// TODO:
+	//amdgpu_device_gpu_recover(dc_context->driver-context, NULL);
+}
+
 void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigned int param, unsigned int timeout_us)
 {
 	// TODO:
@@ -1147,11 +1153,19 @@ void dm_helpers_init_panel_settings(
 
 void dm_helpers_override_panel_settings(
 	struct dc_context *ctx,
-	struct dc_panel_config *panel_config)
+	struct dc_link *link)
 {
+	unsigned int panel_inst = 0;
+
 	// Feature DSC
 	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC)
-		panel_config->dsc.disable_dsc_edp = true;
+		link->panel_config.dsc.disable_dsc_edp = true;
+
+	if (dc_get_edp_link_panel_inst(ctx->dc, link, &panel_inst) && panel_inst == 1) {
+			link->panel_config.psr.disable_psr = true;
+			link->panel_config.psr.disallow_psrsu = true;;
+			link->panel_config.psr.disallow_replay = true;
+	}
 }
 
 void *dm_helpers_allocate_gpu_mem(

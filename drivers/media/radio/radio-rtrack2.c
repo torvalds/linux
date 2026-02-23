@@ -47,7 +47,7 @@ MODULE_PARM_DESC(radio_nr, "Radio device numbers");
 
 static struct radio_isa_card *rtrack2_alloc(void)
 {
-	return kzalloc(sizeof(struct radio_isa_card), GFP_KERNEL);
+	return kzalloc_obj(struct radio_isa_card);
 }
 
 static void zero(struct radio_isa_card *isa)

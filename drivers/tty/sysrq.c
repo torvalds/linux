@@ -971,7 +971,7 @@ static int sysrq_connect(struct input_handler *handler,
 	struct sysrq_state *sysrq;
 	int error;
 
-	sysrq = kzalloc(sizeof(struct sysrq_state), GFP_KERNEL);
+	sysrq = kzalloc_obj(struct sysrq_state);
 	if (!sysrq)
 		return -ENOMEM;
 

@@ -103,7 +103,7 @@ static int vc4_ctm_obj_init(struct vc4_dev *vc4)
 
 	drm_modeset_lock_init(&vc4->ctm_state_lock);
 
-	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
+	ctm_state = kzalloc_obj(*ctm_state);
 	if (!ctm_state)
 		return -ENOMEM;
 
@@ -734,7 +734,7 @@ static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
 {
 	struct vc4_load_tracker_state *load_state;
 
-	load_state = kzalloc(sizeof(*load_state), GFP_KERNEL);
+	load_state = kzalloc_obj(*load_state);
 	if (!load_state)
 		return -ENOMEM;
 
@@ -752,7 +752,7 @@ vc4_hvs_channels_duplicate_state(struct drm_private_obj *obj)
 	struct vc4_hvs_state *state;
 	unsigned int i;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return NULL;
 
@@ -817,7 +817,7 @@ static int vc4_hvs_channels_obj_init(struct vc4_dev *vc4)
 {
 	struct vc4_hvs_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 
@@ -911,7 +911,7 @@ static int vc4_pv_muxing_atomic_check(struct drm_device *dev,
 	 * If the layout changes and doesn't give us that in the future,
 	 * we will need to have something smarter, but it works so far.
 	 */
-	sorted_crtcs = kmalloc_array(dev->num_crtcs, sizeof(*sorted_crtcs), GFP_KERNEL);
+	sorted_crtcs = kmalloc_objs(*sorted_crtcs, dev->num_crtcs);
 	if (!sorted_crtcs)
 		return -ENOMEM;
 

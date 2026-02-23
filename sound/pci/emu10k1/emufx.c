@@ -776,7 +776,7 @@ static int snd_emu10k1_verify_controls(struct snd_emu10k1 *emu,
 		if (snd_emu10k1_look_for_ctl(emu, &id) == NULL)
 			return -ENOENT;
 	}
-	gctl = kmalloc(sizeof(*gctl), GFP_KERNEL);
+	gctl = kmalloc_obj(*gctl);
 	if (! gctl)
 		return -ENOMEM;
 	err = 0;
@@ -864,9 +864,9 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 	struct snd_ctl_elem_value *val;
 	int err = 0;
 
-	val = kmalloc(sizeof(*val), GFP_KERNEL);
-	gctl = kmalloc(sizeof(*gctl), GFP_KERNEL);
-	nctl = kmalloc(sizeof(*nctl), GFP_KERNEL);
+	val = kmalloc_obj(*val);
+	gctl = kmalloc_obj(*gctl);
+	nctl = kmalloc_obj(*nctl);
 	if (!val || !gctl || !nctl) {
 		err = -ENOMEM;
 		goto __error;
@@ -914,7 +914,7 @@ static int snd_emu10k1_add_controls(struct snd_emu10k1 *emu,
 		nctl->max = gctl->max;
 		nctl->translation = gctl->translation;
 		if (ctl == NULL) {
-			ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);
+			ctl = kmalloc_obj(*ctl);
 			if (ctl == NULL) {
 				err = -ENOMEM;
 				kfree(knew.tlv.p);
@@ -980,7 +980,7 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_ctl_elem_id *id;
 
-	gctl = kmalloc(sizeof(*gctl), GFP_KERNEL);
+	gctl = kmalloc_obj(*gctl);
 	if (! gctl)
 		return -ENOMEM;
 
@@ -1282,16 +1282,14 @@ static int _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 
 	err = -ENOMEM;
-	icode = kzalloc(sizeof(*icode), GFP_KERNEL);
+	icode = kzalloc_obj(*icode);
 	if (!icode)
 		return err;
 
-	icode->gpr_map = kcalloc(512 + 256 + 256 + 2 * 1024,
-				 sizeof(u_int32_t), GFP_KERNEL);
+	icode->gpr_map = kzalloc_objs(u_int32_t, 512 + 256 + 256 + 2 * 1024);
 	if (!icode->gpr_map)
 		goto __err_gpr;
-	controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
-			   sizeof(*controls), GFP_KERNEL);
+	controls = kzalloc_objs(*controls, SND_EMU10K1_GPR_CONTROLS);
 	if (!controls)
 		goto __err_ctrls;
 
@@ -1800,22 +1798,20 @@ static int _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 
 	err = -ENOMEM;
-	icode = kzalloc(sizeof(*icode), GFP_KERNEL);
+	icode = kzalloc_obj(*icode);
 	if (!icode)
 		return err;
 
-	icode->gpr_map = kcalloc(256 + 160 + 160 + 2 * 512,
-				 sizeof(u_int32_t), GFP_KERNEL);
+	icode->gpr_map = kzalloc_objs(u_int32_t, 256 + 160 + 160 + 2 * 512);
 	if (!icode->gpr_map)
 		goto __err_gpr;
 
-	controls = kcalloc(SND_EMU10K1_GPR_CONTROLS,
-			   sizeof(struct snd_emu10k1_fx8010_control_gpr),
-			   GFP_KERNEL);
+	controls = kzalloc_objs(struct snd_emu10k1_fx8010_control_gpr,
+				SND_EMU10K1_GPR_CONTROLS);
 	if (!controls)
 		goto __err_ctrls;
 
-	ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL);
+	ipcm = kzalloc_obj(*ipcm);
 	if (!ipcm)
 		goto __err_ipcm;
 

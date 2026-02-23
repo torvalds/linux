@@ -76,7 +76,7 @@ static int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev
 static struct msi_desc *msi_alloc_desc(struct device *dev, int nvec,
 				       const struct irq_affinity_desc *affinity)
 {
-	struct msi_desc *desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	struct msi_desc *desc = kzalloc_obj(*desc);
 
 	if (!desc)
 		return NULL;
@@ -530,7 +530,7 @@ static int msi_sysfs_populate_desc(struct device *dev, struct msi_desc *desc)
 	struct device_attribute *attrs;
 	int ret, i;
 
-	attrs = kcalloc(desc->nvec_used, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, desc->nvec_used);
 	if (!attrs)
 		return -ENOMEM;
 

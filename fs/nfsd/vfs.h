@@ -53,7 +53,8 @@ struct nfsd_attrs {
 	struct posix_acl	*na_dpacl;	/* input */
 
 	int			na_labelerr;	/* output */
-	int			na_aclerr;	/* output */
+	int			na_dpaclerr;	/* output */
+	int			na_paclerr;	/* output */
 };
 
 static inline void nfsd_attrs_free(struct nfsd_attrs *attrs)

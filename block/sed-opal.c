@@ -2512,7 +2512,7 @@ struct opal_dev *init_opal_dev(void *data, sec_send_recv *send_recv)
 {
 	struct opal_dev *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kmalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -2719,7 +2719,7 @@ static int opal_save(struct opal_dev *dev, struct opal_lock_unlock *lk_unlk)
 {
 	struct opal_suspend_data *suspend;
 
-	suspend = kzalloc(sizeof(*suspend), GFP_KERNEL);
+	suspend = kzalloc_obj(*suspend);
 	if (!suspend)
 		return -ENOMEM;
 
@@ -2940,7 +2940,8 @@ static int opal_activate_lsp(struct opal_dev *dev,
 	};
 	int ret;
 
-	if (!opal_lr_act->num_lrs || opal_lr_act->num_lrs > OPAL_MAX_LRS)
+	if (opal_lr_act->sum &&
+	    (!opal_lr_act->num_lrs || opal_lr_act->num_lrs > OPAL_MAX_LRS))
 		return -EINVAL;
 
 	ret = opal_get_key(dev, &opal_lr_act->key);

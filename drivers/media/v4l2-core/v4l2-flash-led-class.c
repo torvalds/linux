@@ -443,8 +443,7 @@ static int v4l2_flash_init_controls(struct v4l2_flash *v4l2_flash,
 		return -ENOMEM;
 
 	/* allocate memory dynamically so as not to exceed stack frame size */
-	ctrl_init_data = kcalloc(NUM_FLASH_CTRLS, sizeof(*ctrl_init_data),
-					GFP_KERNEL);
+	ctrl_init_data = kzalloc_objs(*ctrl_init_data, NUM_FLASH_CTRLS);
 	if (!ctrl_init_data)
 		return -ENOMEM;
 

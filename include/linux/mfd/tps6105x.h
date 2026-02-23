@@ -53,7 +53,7 @@
 /**
  * enum tps6105x_mode - desired mode for the TPS6105x
  * @TPS6105X_MODE_SHUTDOWN: this instance is inactive, not used for anything
- * @TPS61905X_MODE_TORCH: this instance is used as a LED, usually a while
+ * @TPS6105X_MODE_TORCH: this instance is used as a LED, usually a while
  *	LED, for example as backlight or flashlight. If this is set, the
  *	TPS6105X will register to the LED framework
  * @TPS6105X_MODE_TORCH_FLASH: this instance is used as a flashgun, usually
@@ -82,7 +82,8 @@ struct tps6105x_platform_data {
 
 /**
  * struct tps6105x - state holder for the TPS6105x drivers
- * @i2c_client: corresponding I2C client
+ * @pdata: associated platform data
+ * @client: corresponding I2C client
  * @regulator: regulator device if used in voltage mode
  * @regmap: used for i2c communcation on accessing registers
  */

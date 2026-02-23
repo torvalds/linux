@@ -646,7 +646,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 
 	spin_lock_init(&ppd->cc_state_lock);
 	spin_lock_init(&ppd->cc_log_lock);
-	cc_state = kzalloc(sizeof(*cc_state), GFP_KERNEL);
+	cc_state = kzalloc_obj(*cc_state);
 	RCU_INIT_POINTER(ppd->cc_state, cc_state);
 	if (!cc_state)
 		goto bail;
@@ -1282,7 +1282,7 @@ static struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev,
 		goto bail;
 	}
 
-	dd->comp_vect = kzalloc(sizeof(*dd->comp_vect), GFP_KERNEL);
+	dd->comp_vect = kzalloc_obj(*dd->comp_vect);
 	if (!dd->comp_vect) {
 		ret = -ENOMEM;
 		goto bail;

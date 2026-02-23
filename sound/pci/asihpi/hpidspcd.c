@@ -69,7 +69,7 @@ short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	}
 
 	HPI_DEBUG_LOG(DEBUG, "dsp code %s opened\n", fw_name);
-	dsp_code->pvt = kmalloc(sizeof(*dsp_code->pvt), GFP_KERNEL);
+	dsp_code->pvt = kmalloc_obj(*dsp_code->pvt);
 	if (!dsp_code->pvt) {
 		err_ret = HPI_ERROR_MEMORY_ALLOC;
 		goto error2;

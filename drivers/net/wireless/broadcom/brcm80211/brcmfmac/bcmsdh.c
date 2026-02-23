@@ -794,7 +794,7 @@ static int brcmf_sdiod_freezer_attach(struct brcmf_sdio_dev *sdiodev)
 	if (!IS_ENABLED(CONFIG_PM_SLEEP))
 		return 0;
 
-	sdiodev->freezer = kzalloc(sizeof(*sdiodev->freezer), GFP_KERNEL);
+	sdiodev->freezer = kzalloc_obj(*sdiodev->freezer);
 	if (!sdiodev->freezer)
 		return -ENOMEM;
 	atomic_set(&sdiodev->freezer->thread_count, 0);
@@ -1067,10 +1067,10 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	if (func->num != 2)
 		return -ENODEV;
 
-	bus_if = kzalloc(sizeof(*bus_if), GFP_KERNEL);
+	bus_if = kzalloc_obj(*bus_if);
 	if (!bus_if)
 		return -ENOMEM;
-	sdiodev = kzalloc(sizeof(*sdiodev), GFP_KERNEL);
+	sdiodev = kzalloc_obj(*sdiodev);
 	if (!sdiodev) {
 		kfree(bus_if);
 		return -ENOMEM;

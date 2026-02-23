@@ -33,7 +33,7 @@ struct {
 } hashmap1 SEC(".maps");
 
 
-static __noinline int foo(int x __tag1 __tag2) __tag1 __tag2
+static __noinline __tag1 __tag2 int foo(int x __tag1 __tag2)
 {
 	struct key_t key;
 	value_t val = {};

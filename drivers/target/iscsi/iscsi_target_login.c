@@ -38,7 +38,7 @@ static struct iscsi_login *iscsi_login_init_conn(struct iscsit_conn *conn)
 {
 	struct iscsi_login *login;
 
-	login = kzalloc(sizeof(struct iscsi_login), GFP_KERNEL);
+	login = kzalloc_obj(struct iscsi_login);
 	if (!login) {
 		pr_err("Unable to allocate memory for struct iscsi_login.\n");
 		return NULL;
@@ -219,7 +219,7 @@ static int iscsi_login_zero_tsih_s1(
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
 	int ret;
 
-	sess = kzalloc(sizeof(struct iscsit_session), GFP_KERNEL);
+	sess = kzalloc_obj(struct iscsit_session);
 	if (!sess) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -267,7 +267,7 @@ static int iscsi_login_zero_tsih_s1(
 	 */
 	atomic_set(&sess->max_cmd_sn, be32_to_cpu(pdu->cmdsn));
 
-	sess->sess_ops = kzalloc(sizeof(struct iscsi_sess_ops), GFP_KERNEL);
+	sess->sess_ops = kzalloc_obj(struct iscsi_sess_ops);
 	if (!sess->sess_ops) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -1002,7 +1002,7 @@ static struct iscsit_conn *iscsit_alloc_conn(struct iscsi_np *np)
 {
 	struct iscsit_conn *conn;
 
-	conn = kzalloc(sizeof(struct iscsit_conn), GFP_KERNEL);
+	conn = kzalloc_obj(struct iscsit_conn);
 	if (!conn) {
 		pr_err("Could not allocate memory for new connection\n");
 		return NULL;
@@ -1040,7 +1040,7 @@ static struct iscsit_conn *iscsit_alloc_conn(struct iscsi_np *np)
 	if (iscsit_conn_set_transport(conn, np->np_transport) < 0)
 		goto free_conn;
 
-	conn->conn_ops = kzalloc(sizeof(struct iscsi_conn_ops), GFP_KERNEL);
+	conn->conn_ops = kzalloc_obj(struct iscsi_conn_ops);
 	if (!conn->conn_ops) {
 		pr_err("Unable to allocate memory for struct iscsi_conn_ops.\n");
 		goto put_transport;

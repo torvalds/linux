@@ -69,7 +69,6 @@
 
 use kernel::{
     acpi,
-    c_str,
     device,
     devres::Devres,
     i2c,
@@ -90,20 +89,20 @@ kernel::of_device_table!(
     OF_TABLE,
     MODULE_OF_TABLE,
     <SampleDriver as platform::Driver>::IdInfo,
-    [(of::DeviceId::new(c_str!("test,rust-device")), ())]
+    [(of::DeviceId::new(c"test,rust-device"), ())]
 );
 
 kernel::acpi_device_table!(
     ACPI_TABLE,
     MODULE_ACPI_TABLE,
     <SampleDriver as platform::Driver>::IdInfo,
-    [(acpi::DeviceId::new(c_str!("LNUXBEEF")), ())]
+    [(acpi::DeviceId::new(c"LNUXBEEF"), ())]
 );
 
 const SAMPLE_I2C_CLIENT_ADDR: u16 = 0x30;
 const SAMPLE_I2C_ADAPTER_INDEX: i32 = 0;
 const BOARD_INFO: i2c::I2cBoardInfo =
-    i2c::I2cBoardInfo::new(c_str!("rust_driver_i2c"), SAMPLE_I2C_CLIENT_ADDR);
+    i2c::I2cBoardInfo::new(c"rust_driver_i2c", SAMPLE_I2C_CLIENT_ADDR);
 
 impl platform::Driver for SampleDriver {
     type IdInfo = ();

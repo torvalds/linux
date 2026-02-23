@@ -420,7 +420,7 @@ static int tea5764_i2c_probe(struct i2c_client *client)
 	int ret;
 
 	PDEBUG("probe");
-	radio = kzalloc(sizeof(struct tea5764_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct tea5764_device);
 	if (!radio)
 		return -ENOMEM;
 

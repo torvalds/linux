@@ -61,7 +61,7 @@ void ovpn_peer_keepalive_set(struct ovpn_peer *peer, u32 interval, u32 timeout)
 	/* now that interval and timeout have been changed, kick
 	 * off the worker so that the next delay can be recomputed
 	 */
-	mod_delayed_work(system_wq, &peer->ovpn->keepalive_work, 0);
+	mod_delayed_work(system_percpu_wq, &peer->ovpn->keepalive_work, 0);
 }
 
 /**
@@ -95,7 +95,7 @@ struct ovpn_peer *ovpn_peer_new(struct ovpn_priv *ovpn, u32 id)
 	int ret;
 
 	/* alloc and init peer object */
-	peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+	peer = kzalloc_obj(*peer);
 	if (!peer)
 		return ERR_PTR(-ENOMEM);
 

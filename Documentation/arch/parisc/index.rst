@@ -11,10 +11,3 @@ PA-RISC Architecture
    registers
 
    features
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

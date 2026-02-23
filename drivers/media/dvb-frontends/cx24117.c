@@ -1184,7 +1184,7 @@ struct dvb_frontend *cx24117_attach(const struct cx24117_config *config,
 	}
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct cx24117_state), GFP_KERNEL);
+	state = kzalloc_obj(struct cx24117_state);
 	if (state == NULL)
 		goto error2;
 

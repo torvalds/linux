@@ -545,7 +545,7 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 	if (max == 0)
 		return NULL;
 
-	sg = kmalloc_array(nents, sizeof(*sg), GFP_KERNEL);
+	sg = kmalloc_objs(*sg, nents);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -1221,7 +1221,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param)
 	 * as with bulk/intr sglists, sglen is the queue depth; it also
 	 * controls which subtests run (more tests than sglen) or rerun.
 	 */
-	urb = kcalloc(param->sglen, sizeof(struct urb *), GFP_KERNEL);
+	urb = kzalloc_objs(struct urb *, param->sglen);
 	if (!urb)
 		return -ENOMEM;
 	for (i = 0; i < param->sglen; i++) {
@@ -1370,7 +1370,7 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = kmalloc(sizeof(*reqp), GFP_KERNEL);
+		reqp = kmalloc_obj(*reqp);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
@@ -1572,7 +1572,7 @@ static int unlink_queued(struct usbtest_dev *dev, int pipe, unsigned num,
 	memset(buf, 0, size);
 
 	/* Allocate and init the urbs we'll queue */
-	ctx.urbs = kcalloc(num, sizeof(struct urb *), GFP_KERNEL);
+	ctx.urbs = kzalloc_objs(struct urb *, num);
 	if (!ctx.urbs)
 		goto free_buf;
 	for (i = 0; i < num; i++) {
@@ -2052,7 +2052,7 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
 
-	urbs = kcalloc(param->sglen, sizeof(*urbs), GFP_KERNEL);
+	urbs = kzalloc_objs(*urbs, param->sglen);
 	if (!urbs)
 		return -ENOMEM;
 
@@ -2786,7 +2786,7 @@ usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 #endif
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 	info = (struct usbtest_info *) id->driver_info;

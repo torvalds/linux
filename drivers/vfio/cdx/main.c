@@ -16,8 +16,8 @@ static int vfio_cdx_open_device(struct vfio_device *core_vdev)
 	int count = cdx_dev->res_count;
 	int i, ret;
 
-	vdev->regions = kcalloc(count, sizeof(struct vfio_cdx_region),
-				GFP_KERNEL_ACCOUNT);
+	vdev->regions = kzalloc_objs(struct vfio_cdx_region, count,
+				     GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
 		return -ENOMEM;
 

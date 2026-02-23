@@ -389,7 +389,7 @@ int bnge_alloc_irqs(struct bnge_dev *bd)
 	num_entries = irqs_demand;
 	if (pci_msix_can_alloc_dyn(bd->pdev))
 		num_entries = max;
-	bd->irq_tbl = kcalloc(num_entries, sizeof(*bd->irq_tbl), GFP_KERNEL);
+	bd->irq_tbl = kzalloc_objs(*bd->irq_tbl, num_entries);
 	if (!bd->irq_tbl) {
 		rc = -ENOMEM;
 		goto err_free_irqs;

@@ -34,6 +34,7 @@
 
 #define SOC_WT				GENMASK_ULL(47, 40)
 
+#define SOC_WT_SLOW_PREDICTION_INT_ENABLE_BIT	22
 #define SOC_WT_PREDICTION_INT_ENABLE_BIT	23
 
 #define SOC_WT_PREDICTION_INT_ACTIVE	BIT(2)
@@ -47,6 +48,7 @@ static u16 notify_delay_ms = 1024;
 
 static DEFINE_MUTEX(wt_lock);
 static u8 wt_enable;
+static u8 wt_slow_enable;
 
 /* Show current predicted workload type index */
 static ssize_t workload_type_index_show(struct device *dev,
@@ -59,7 +61,7 @@ static ssize_t workload_type_index_show(struct device *dev,
 	int wt;
 
 	mutex_lock(&wt_lock);
-	if (!wt_enable) {
+	if (!wt_enable && !wt_slow_enable) {
 		mutex_unlock(&wt_lock);
 		return -ENODATA;
 	}
@@ -84,9 +86,9 @@ static ssize_t workload_hint_enable_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n", wt_enable);
 }
 
-static ssize_t workload_hint_enable_store(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t size)
+static ssize_t workload_hint_enable(struct device *dev, u8 enable_bit, u8 *status,
+				    struct device_attribute *attr,
+				    const char *buf, size_t size)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	u8 mode;
@@ -99,17 +101,17 @@ static ssize_t workload_hint_enable_store(struct device *dev,
 
 	if (mode)
 		ret = processor_thermal_mbox_interrupt_config(pdev, true,
-							      SOC_WT_PREDICTION_INT_ENABLE_BIT,
+							      enable_bit,
 							      notify_delay);
 	else
 		ret = processor_thermal_mbox_interrupt_config(pdev, false,
-							      SOC_WT_PREDICTION_INT_ENABLE_BIT, 0);
+							      enable_bit, 0);
 
 	if (ret)
 		goto ret_enable_store;
 
 	ret = size;
-	wt_enable = mode;
+	*status = mode;
 
 ret_enable_store:
 	mutex_unlock(&wt_lock);
@@ -117,7 +119,27 @@ ret_enable_store:
 	return ret;
 }
 
+static ssize_t workload_hint_enable_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t size)
+{
+	return workload_hint_enable(dev, SOC_WT_PREDICTION_INT_ENABLE_BIT, &wt_enable,
+				    attr, buf, size);
+}
 static DEVICE_ATTR_RW(workload_hint_enable);
+
+static ssize_t workload_slow_hint_enable_show(struct device *dev, struct device_attribute *attr,
+					       char *buf)
+{
+	return sysfs_emit(buf, "%d\n", wt_slow_enable);
+}
+
+static ssize_t workload_slow_hint_enable_store(struct device *dev, struct device_attribute *attr,
+					       const char *buf, size_t size)
+{
+	return workload_hint_enable(dev, SOC_WT_SLOW_PREDICTION_INT_ENABLE_BIT, &wt_slow_enable,
+				    attr, buf, size);
+}
+static DEVICE_ATTR_RW(workload_slow_hint_enable);
 
 static ssize_t notification_delay_ms_show(struct device *dev,
 					  struct device_attribute *attr,
@@ -178,16 +200,35 @@ static ssize_t notification_delay_ms_store(struct device *dev,
 
 static DEVICE_ATTR_RW(notification_delay_ms);
 
+static umode_t workload_hint_attr_visible(struct kobject *kobj, struct attribute *attr, int unused)
+{
+	if (attr != &dev_attr_workload_slow_hint_enable.attr)
+		return attr->mode;
+
+	switch (to_pci_dev(kobj_to_dev(kobj))->device) {
+	case PCI_DEVICE_ID_INTEL_LNLM_THERMAL:
+	case PCI_DEVICE_ID_INTEL_MTLP_THERMAL:
+	case PCI_DEVICE_ID_INTEL_ARL_S_THERMAL:
+		return 0;
+	default:
+		break;
+	}
+
+	return attr->mode;
+}
+
 static struct attribute *workload_hint_attrs[] = {
 	&dev_attr_workload_type_index.attr,
 	&dev_attr_workload_hint_enable.attr,
+	&dev_attr_workload_slow_hint_enable.attr,
 	&dev_attr_notification_delay_ms.attr,
 	NULL
 };
 
 static const struct attribute_group workload_hint_attribute_group = {
 	.attrs = workload_hint_attrs,
-	.name = "workload_hint"
+	.name = "workload_hint",
+	.is_visible = workload_hint_attr_visible
 };
 
 /*

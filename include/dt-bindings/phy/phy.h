@@ -23,5 +23,10 @@
 #define PHY_TYPE_DPHY		10
 #define PHY_TYPE_CPHY		11
 #define PHY_TYPE_USXGMII	12
+#define PHY_TYPE_XAUI		13
+
+#define PHY_POL_NORMAL		0
+#define PHY_POL_INVERT		1
+#define PHY_POL_AUTO		2
 
 #endif /* _DT_BINDINGS_PHY */

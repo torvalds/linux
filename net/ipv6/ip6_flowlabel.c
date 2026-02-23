@@ -386,7 +386,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		goto done;
 
 	err = -ENOMEM;
-	fl = kzalloc(sizeof(*fl), GFP_KERNEL);
+	fl = kzalloc_obj(*fl);
 	if (!fl)
 		goto done;
 
@@ -638,7 +638,7 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 	if (!fl)
 		return err;
 
-	sfl1 = kmalloc(sizeof(*sfl1), GFP_KERNEL);
+	sfl1 = kmalloc_obj(*sfl1);
 
 	if (freq->flr_label) {
 		err = -EEXIST;

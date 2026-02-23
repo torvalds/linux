@@ -1413,11 +1413,11 @@ static void mtdswap_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		"%u spare, %u bad blocks\n",
 		MTDSWAP_PREFIX, part, swap_size / 1024, spare_cnt, bad_blocks);
 
-	d = kzalloc(sizeof(struct mtdswap_dev), GFP_KERNEL);
+	d = kzalloc_obj(struct mtdswap_dev);
 	if (!d)
 		return;
 
-	mbd_dev = kzalloc(sizeof(struct mtd_blktrans_dev), GFP_KERNEL);
+	mbd_dev = kzalloc_obj(struct mtd_blktrans_dev);
 	if (!mbd_dev) {
 		kfree(d);
 		return;

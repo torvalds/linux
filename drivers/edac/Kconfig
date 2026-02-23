@@ -150,14 +150,6 @@ config EDAC_E752X
 	  Support for error detection and correction on the Intel
 	  E7520, E7525, E7320 server chipsets.
 
-config EDAC_I82443BXGX
-	tristate "Intel 82443BX/GX (440BX/GX)"
-	depends on PCI && X86_32
-	depends on BROKEN
-	help
-	  Support for error detection and correction on the Intel
-	  82443BX/GX memory controllers (440BX/GX chipsets).
-
 config EDAC_I82875P
 	tristate "Intel 82875p (D82875P, E7210)"
 	depends on PCI && X86_32
@@ -222,13 +214,6 @@ config EDAC_I82860
 	help
 	  Support for error detection and correction on the Intel
 	  82860 chipset.
-
-config EDAC_R82600
-	tristate "Radisys 82600 embedded chipset"
-	depends on PCI && X86_32
-	help
-	  Support for error detection and correction on the Radisys
-	  82600 embedded chipset.
 
 config EDAC_I5000
 	tristate "Intel Greencreek/Blackford chipset"

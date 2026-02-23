@@ -4,7 +4,7 @@
  * Copyright (c) 2016-2025 Christoph Hellwig.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
@@ -103,7 +103,7 @@ xfs_ioend_put_open_zones(
  * IO write completion.
  */
 STATIC void
-xfs_end_ioend(
+xfs_end_ioend_write(
 	struct iomap_ioend	*ioend)
 {
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
@@ -202,7 +202,11 @@ xfs_end_io(
 			io_list))) {
 		list_del_init(&ioend->io_list);
 		iomap_ioend_try_merge(ioend, &tmp);
-		xfs_end_ioend(ioend);
+		if (bio_op(&ioend->io_bio) == REQ_OP_READ)
+			iomap_finish_ioends(ioend,
+				blk_status_to_errno(ioend->io_bio.bi_status));
+		else
+			xfs_end_ioend_write(ioend);
 		cond_resched();
 	}
 }

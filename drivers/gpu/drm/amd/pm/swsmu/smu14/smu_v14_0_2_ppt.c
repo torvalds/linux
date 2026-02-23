@@ -56,13 +56,13 @@
 
 #define to_amdgpu_device(x) (container_of(x, struct amdgpu_device, pm.smu_i2c))
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
-	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_FCLK_BIT))
+static const struct smu_feature_bits smu_v14_0_2_dpm_features = {
+	.bits = { SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_LINK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		  SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT) }
+};
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
 #define DEBUGSMC_MSG_Mode1Reset        2
@@ -264,53 +264,9 @@ static const uint8_t smu_v14_0_2_throttler_map[] = {
 	[THROTTLER_FIT_BIT]		= (SMU_THROTTLER_FIT_BIT),
 };
 
-static int
-smu_v14_0_2_get_allowed_feature_mask(struct smu_context *smu,
-				  uint32_t *feature_mask, uint32_t num)
+static int smu_v14_0_2_init_allowed_features(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
-	/*u32 smu_version;*/
-
-	if (num > 2)
-		return -EINVAL;
-
-	memset(feature_mask, 0xff, sizeof(uint32_t) * num);
-
-	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_IMU_BIT);
-	}
-#if 0
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_ATHUB) ||
-	    !(adev->pg_flags & AMD_PG_SUPPORT_MMHUB))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_ATHUB_MMHUB_PG_BIT);
-
-	if (!(adev->pm.pp_feature & PP_SOCCLK_DPM_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
-
-	/* PMFW 78.58 contains a critical fix for gfxoff feature */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if ((smu_version < 0x004e3a00) ||
-	     !(adev->pm.pp_feature & PP_GFXOFF_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFXOFF_BIT);
-
-	if (!(adev->pm.pp_feature & PP_MCLK_DPM_MASK)) {
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VMEMP_SCALING_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VDDIO_MEM_SCALING_BIT);
-	}
-
-	if (!(adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
-
-	if (!(adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_LINK_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_LCLK_BIT);
-	}
-
-	if (!(adev->pm.pp_feature & PP_ULV_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFX_ULV_BIT);
-#endif
+	smu_feature_list_set_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
 	return 0;
 }
@@ -415,6 +371,7 @@ static int smu_v14_0_2_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -436,17 +393,18 @@ static int smu_v14_0_2_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ECCINFO, sizeof(EccInfoTable_t),
 			PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v1_3),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -459,7 +417,7 @@ static int smu_v14_0_2_tables_init(struct smu_context *smu)
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
-	kfree(smu_table->gpu_metrics_table);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
@@ -470,8 +428,7 @@ static int smu_v14_0_2_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_14_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_14_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -501,11 +458,12 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 	SkuTable_t *skutable = &pptable->SkuTable;
-	struct smu_14_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 	int ret = 0;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_SOCCLK,
@@ -516,12 +474,11 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_GFXCLK,
@@ -543,18 +500,16 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		    skutable->DriverReportedClocks.GameClockAc)) {
 			dpm_table->dpm_levels[dpm_table->count - 1].value =
 				skutable->DriverReportedClocks.GameClockAc;
-			dpm_table->max = skutable->DriverReportedClocks.GameClockAc;
 		}
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* uclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
@@ -565,12 +520,11 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
@@ -581,12 +535,11 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* vclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.vclk_table;
+	dpm_table->clk_type = SMU_VCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_VCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_VCLK,
@@ -597,12 +550,11 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* dclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.dclk_table;
+	dpm_table->clk_type = SMU_DCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCLK_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_DCLK,
@@ -613,12 +565,11 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* dcefclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.dcef_table;
+	dpm_table->clk_type = SMU_DCEFCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCN_BIT)) {
 		ret = smu_v14_0_set_single_dpm_table(smu,
 						     SMU_DCEFCLK,
@@ -629,8 +580,6 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	return 0;
@@ -639,13 +588,14 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v14_0_2_dpm_features.bits);
 }
 
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)
@@ -794,7 +744,7 @@ static int smu_v14_0_2_get_dpm_ultimate_freq(struct smu_context *smu,
 {
 	struct smu_14_0_dpm_context *dpm_context =
 		smu->smu_dpm.dpm_context;
-	struct smu_14_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 
 	switch (clk_type) {
 	case SMU_MCLK:
@@ -831,9 +781,9 @@ static int smu_v14_0_2_get_dpm_ultimate_freq(struct smu_context *smu,
 	}
 
 	if (min)
-		*min = dpm_table->min;
+		*min = SMU_DPM_TABLE_MIN(dpm_table);
 	if (max)
-		*max = dpm_table->max;
+		*max = SMU_DPM_TABLE_MAX(dpm_table);
 
 	return 0;
 }
@@ -1045,27 +995,24 @@ static void smu_v14_0_2_get_od_setting_limits(struct smu_context *smu,
 		*max = od_max_setting;
 }
 
-static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
-					enum smu_clk_type clk_type,
-					char *buf)
+static int smu_v14_0_2_emit_clk_levels(struct smu_context *smu,
+				       enum smu_clk_type clk_type, char *buf,
+				       int *offset)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_14_0_dpm_context *dpm_context = smu_dpm->dpm_context;
 	OverDriveTableExternal_t *od_table =
 		(OverDriveTableExternal_t *)smu->smu_table.overdrive_table;
-	struct smu_14_0_dpm_table *single_dpm_table;
-	struct smu_14_0_pcie_table *pcie_table;
+	struct smu_dpm_table *single_dpm_table = NULL;
+	struct smu_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
-	int i, curr_freq, size = 0, start_offset = 0;
+	int i, curr_freq, size = *offset, start_offset = *offset;
 	int32_t min_value, max_value;
 	int ret = 0;
 
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
-
 	if (amdgpu_ras_intr_triggered()) {
-		size += sysfs_emit_at(buf, size, "unavailable\n");
-		return size - start_offset;
+		sysfs_emit_at(buf, size, "unavailable\n");
+		return -EBUSY;
 	}
 
 	switch (clk_type) {
@@ -1092,61 +1039,6 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 	case SMU_DCEFCLK:
 		single_dpm_table = &(dpm_context->dpm_tables.dcef_table);
 		break;
-	default:
-		break;
-	}
-
-	switch (clk_type) {
-	case SMU_SCLK:
-	case SMU_MCLK:
-	case SMU_SOCCLK:
-	case SMU_FCLK:
-	case SMU_VCLK:
-	case SMU_VCLK1:
-	case SMU_DCLK:
-	case SMU_DCLK1:
-	case SMU_DCEFCLK:
-		ret = smu_v14_0_2_get_current_clk_freq_by_table(smu, clk_type, &curr_freq);
-		if (ret) {
-			dev_err(smu->adev->dev, "Failed to get current clock freq!");
-			return ret;
-		}
-
-		if (single_dpm_table->is_fine_grained) {
-			/*
-			 * For fine grained dpms, there are only two dpm levels:
-			 *   - level 0 -> min clock freq
-			 *   - level 1 -> max clock freq
-			 * And the current clock frequency can be any value between them.
-			 * So, if the current clock frequency is not at level 0 or level 1,
-			 * we will fake it as three dpm levels:
-			 *   - level 0 -> min clock freq
-			 *   - level 1 -> current actual clock freq
-			 *   - level 2 -> max clock freq
-			 */
-			if ((single_dpm_table->dpm_levels[0].value != curr_freq) &&
-			     (single_dpm_table->dpm_levels[1].value != curr_freq)) {
-				size += sysfs_emit_at(buf, size, "0: %uMhz\n",
-						single_dpm_table->dpm_levels[0].value);
-				size += sysfs_emit_at(buf, size, "1: %uMhz *\n",
-						curr_freq);
-				size += sysfs_emit_at(buf, size, "2: %uMhz\n",
-						single_dpm_table->dpm_levels[1].value);
-			} else {
-				size += sysfs_emit_at(buf, size, "0: %uMhz %s\n",
-						single_dpm_table->dpm_levels[0].value,
-						single_dpm_table->dpm_levels[0].value == curr_freq ? "*" : "");
-				size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
-						single_dpm_table->dpm_levels[1].value,
-						single_dpm_table->dpm_levels[1].value == curr_freq ? "*" : "");
-			}
-		} else {
-			for (i = 0; i < single_dpm_table->count; i++)
-				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
-						i, single_dpm_table->dpm_levels[i].value,
-						single_dpm_table->dpm_levels[i].value == curr_freq ? "*" : "");
-		}
-		break;
 	case SMU_PCIE:
 		ret = smu_v14_0_2_get_smu_metrics_data(smu,
 						       METRICS_PCIE_RATE,
@@ -1161,25 +1053,10 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 			return ret;
 
 		pcie_table = &(dpm_context->dpm_tables.pcie_table);
-		for (i = 0; i < pcie_table->num_of_link_levels; i++)
-			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
-					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
-					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
-					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
-					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
-					(pcie_table->pcie_gen[i] == 4) ? "32.0GT/s," : "",
-					(pcie_table->pcie_lane[i] == 1) ? "x1" :
-					(pcie_table->pcie_lane[i] == 2) ? "x2" :
-					(pcie_table->pcie_lane[i] == 3) ? "x4" :
-					(pcie_table->pcie_lane[i] == 4) ? "x8" :
-					(pcie_table->pcie_lane[i] == 5) ? "x12" :
-					(pcie_table->pcie_lane[i] == 6) ? "x16" :
-					(pcie_table->pcie_lane[i] == 7) ? "x32" : "",
-					pcie_table->clk_freq[i],
-					(gen_speed == DECODE_GEN_SPEED(pcie_table->pcie_gen[i])) &&
-					(lane_width == DECODE_LANE_WIDTH(pcie_table->pcie_lane[i])) ?
-					"*" : "");
-		break;
+		return smu_cmn_print_pcie_levels(smu, pcie_table,
+						 SMU_DPM_PCIE_GEN_IDX(gen_speed),
+						 SMU_DPM_PCIE_WIDTH_IDX(lane_width),
+						 buf, offset);
 
 	case SMU_OD_SCLK:
 		if (!smu_v14_0_2_is_od_feature_supported(smu,
@@ -1375,7 +1252,21 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size - start_offset;
+	if (single_dpm_table) {
+		ret = smu_v14_0_2_get_current_clk_freq_by_table(smu, clk_type,
+								&curr_freq);
+		if (ret) {
+			dev_err(smu->adev->dev,
+				"Failed to get current clock freq!");
+			return ret;
+		}
+		return smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						    curr_freq, buf, offset);
+	}
+
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
@@ -1384,7 +1275,7 @@ static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_14_0_dpm_context *dpm_context = smu_dpm->dpm_context;
-	struct smu_14_0_dpm_table *single_dpm_table;
+	struct smu_dpm_table *single_dpm_table;
 	uint32_t soft_min_level, soft_max_level;
 	uint32_t min_freq, max_freq;
 	int ret = 0;
@@ -1430,7 +1321,7 @@ static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
 	case SMU_VCLK1:
 	case SMU_DCLK:
 	case SMU_DCLK1:
-		if (single_dpm_table->is_fine_grained) {
+		if (single_dpm_table->flags & SMU_DPM_TABLE_FINE_GRAINED) {
 			/* There is only 2 levels for fine grained DPM */
 			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
 			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
@@ -1463,9 +1354,9 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 					      uint8_t pcie_width_cap)
 {
 	struct smu_14_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_14_0_pcie_table *pcie_table =
+	struct smu_pcie_table *pcie_table =
 				&dpm_context->dpm_tables.pcie_table;
-	int num_of_levels;
+	int lclk_levels;
 	uint32_t smu_pcie_arg;
 	uint32_t link_level;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -1474,34 +1365,34 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 	int ret = 0;
 	int i;
 
-	pcie_table->num_of_link_levels = 0;
+	pcie_table->lclk_levels = 0;
 	for (link_level = 0; link_level < NUM_LINK_LEVELS; link_level++) {
 		if (!skutable->PcieGenSpeed[link_level] &&
 		    !skutable->PcieLaneCount[link_level] &&
 		    !skutable->LclkFreq[link_level])
 			continue;
 
-		pcie_table->pcie_gen[pcie_table->num_of_link_levels] =
+		pcie_table->pcie_gen[pcie_table->lclk_levels] =
 					skutable->PcieGenSpeed[link_level];
-		pcie_table->pcie_lane[pcie_table->num_of_link_levels] =
+		pcie_table->pcie_lane[pcie_table->lclk_levels] =
 					skutable->PcieLaneCount[link_level];
-		pcie_table->clk_freq[pcie_table->num_of_link_levels] =
+		pcie_table->lclk_freq[pcie_table->lclk_levels] =
 					skutable->LclkFreq[link_level];
-		pcie_table->num_of_link_levels++;
+		pcie_table->lclk_levels++;
 	}
-	num_of_levels = pcie_table->num_of_link_levels;
-	if (!num_of_levels)
+	lclk_levels = pcie_table->lclk_levels;
+	if (!lclk_levels)
 		return 0;
 
 	if (!(smu->adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
-		if (pcie_table->pcie_gen[num_of_levels - 1] < pcie_gen_cap)
-			pcie_gen_cap = pcie_table->pcie_gen[num_of_levels - 1];
+		if (pcie_table->pcie_gen[lclk_levels - 1] < pcie_gen_cap)
+			pcie_gen_cap = pcie_table->pcie_gen[lclk_levels - 1];
 
-		if (pcie_table->pcie_lane[num_of_levels - 1] < pcie_width_cap)
-			pcie_width_cap = pcie_table->pcie_lane[num_of_levels - 1];
+		if (pcie_table->pcie_lane[lclk_levels - 1] < pcie_width_cap)
+			pcie_width_cap = pcie_table->pcie_lane[lclk_levels - 1];
 
 		/* Force all levels to use the same settings */
-		for (i = 0; i < num_of_levels; i++) {
+		for (i = 0; i < lclk_levels; i++) {
 			pcie_table->pcie_gen[i] = pcie_gen_cap;
 			pcie_table->pcie_lane[i] = pcie_width_cap;
 			smu_pcie_arg = i << 16;
@@ -1516,7 +1407,7 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 				break;
 		}
 	} else {
-		for (i = 0; i < num_of_levels; i++) {
+		for (i = 0; i < lclk_levels; i++) {
 			if (pcie_table->pcie_gen[i] > pcie_gen_cap ||
 				pcie_table->pcie_lane[i] > pcie_width_cap) {
 				pcie_table->pcie_gen[i] = pcie_table->pcie_gen[i] > pcie_gen_cap ?
@@ -1583,18 +1474,12 @@ static int smu_v14_0_2_populate_umd_state_clk(struct smu_context *smu)
 {
 	struct smu_14_0_dpm_context *dpm_context =
 		smu->smu_dpm.dpm_context;
-	struct smu_14_0_dpm_table *gfx_table =
-		&dpm_context->dpm_tables.gfx_table;
-	struct smu_14_0_dpm_table *mem_table =
-		&dpm_context->dpm_tables.uclk_table;
-	struct smu_14_0_dpm_table *soc_table =
-		&dpm_context->dpm_tables.soc_table;
-	struct smu_14_0_dpm_table *vclk_table =
-		&dpm_context->dpm_tables.vclk_table;
-	struct smu_14_0_dpm_table *dclk_table =
-		&dpm_context->dpm_tables.dclk_table;
-	struct smu_14_0_dpm_table *fclk_table =
-		&dpm_context->dpm_tables.fclk_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *vclk_table = &dpm_context->dpm_tables.vclk_table;
+	struct smu_dpm_table *dclk_table = &dpm_context->dpm_tables.dclk_table;
+	struct smu_dpm_table *fclk_table = &dpm_context->dpm_tables.fclk_table;
 	struct smu_umd_pstate_table *pstate_table =
 		&smu->pstate_table;
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -1602,38 +1487,39 @@ static int smu_v14_0_2_populate_umd_state_clk(struct smu_context *smu)
 	DriverReportedClocks_t driver_clocks =
 			pptable->SkuTable.DriverReportedClocks;
 
-	pstate_table->gfxclk_pstate.min = gfx_table->min;
+	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
 	if (driver_clocks.GameClockAc &&
-	    (driver_clocks.GameClockAc < gfx_table->max))
+	    (driver_clocks.GameClockAc < SMU_DPM_TABLE_MAX(gfx_table)))
 		pstate_table->gfxclk_pstate.peak = driver_clocks.GameClockAc;
 	else
-		pstate_table->gfxclk_pstate.peak = gfx_table->max;
+		pstate_table->gfxclk_pstate.peak = SMU_DPM_TABLE_MAX(gfx_table);
 
-	pstate_table->uclk_pstate.min = mem_table->min;
-	pstate_table->uclk_pstate.peak = mem_table->max;
+	pstate_table->uclk_pstate.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.peak = SMU_DPM_TABLE_MAX(mem_table);
 
-	pstate_table->socclk_pstate.min = soc_table->min;
-	pstate_table->socclk_pstate.peak = soc_table->max;
+	pstate_table->socclk_pstate.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
 
-	pstate_table->vclk_pstate.min = vclk_table->min;
-	pstate_table->vclk_pstate.peak = vclk_table->max;
+	pstate_table->vclk_pstate.min = SMU_DPM_TABLE_MIN(vclk_table);
+	pstate_table->vclk_pstate.peak = SMU_DPM_TABLE_MAX(vclk_table);
 
-	pstate_table->dclk_pstate.min = dclk_table->min;
-	pstate_table->dclk_pstate.peak = dclk_table->max;
+	pstate_table->dclk_pstate.min = SMU_DPM_TABLE_MIN(dclk_table);
+	pstate_table->dclk_pstate.peak = SMU_DPM_TABLE_MAX(dclk_table);
 
-	pstate_table->fclk_pstate.min = fclk_table->min;
-	pstate_table->fclk_pstate.peak = fclk_table->max;
+	pstate_table->fclk_pstate.min = SMU_DPM_TABLE_MIN(fclk_table);
+	pstate_table->fclk_pstate.peak = SMU_DPM_TABLE_MAX(fclk_table);
 
 	if (driver_clocks.BaseClockAc &&
-	    driver_clocks.BaseClockAc < gfx_table->max)
+	    driver_clocks.BaseClockAc < SMU_DPM_TABLE_MAX(gfx_table))
 		pstate_table->gfxclk_pstate.standard = driver_clocks.BaseClockAc;
 	else
-		pstate_table->gfxclk_pstate.standard = gfx_table->max;
-	pstate_table->uclk_pstate.standard = mem_table->max;
-	pstate_table->socclk_pstate.standard = soc_table->min;
-	pstate_table->vclk_pstate.standard = vclk_table->min;
-	pstate_table->dclk_pstate.standard = dclk_table->min;
-	pstate_table->fclk_pstate.standard = fclk_table->min;
+		pstate_table->gfxclk_pstate.standard =
+			SMU_DPM_TABLE_MAX(gfx_table);
+	pstate_table->uclk_pstate.standard = SMU_DPM_TABLE_MAX(mem_table);
+	pstate_table->socclk_pstate.standard = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->vclk_pstate.standard = SMU_DPM_TABLE_MIN(vclk_table);
+	pstate_table->dclk_pstate.standard = SMU_DPM_TABLE_MIN(dclk_table);
+	pstate_table->fclk_pstate.standard = SMU_DPM_TABLE_MIN(fclk_table);
 
 	return 0;
 }
@@ -1989,7 +1875,7 @@ static int smu_v14_0_2_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -2178,25 +2064,35 @@ static int smu_v14_0_2_enable_gfx_features(struct smu_context *smu)
 		return -EOPNOTSUPP;
 }
 
-static void smu_v14_0_2_set_smu_mailbox_registers(struct smu_context *smu)
+static void smu_v14_0_2_init_msg_ctl(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_82);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_66);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_90);
+	ctl->smu = smu;
+	mutex_init(&ctl->lock);
+	ctl->config.msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_66);
+	ctl->config.resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_90);
+	ctl->config.arg_regs[0] = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_82);
+	ctl->config.num_arg_regs = 1;
+	ctl->ops = &smu_msg_v1_ops;
+	ctl->default_timeout = adev->usec_timeout * 20;
+	ctl->message_map = smu_v14_0_2_message_map;
+	ctl->flags = 0;
 
-	smu->debug_param_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_53);
-	smu->debug_msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_75);
-	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_54);
+	/* Set up debug mailbox registers */
+	ctl->config.debug_param_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_53);
+	ctl->config.debug_msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_75);
+	ctl->config.debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_54);
+	ctl->flags |= SMU_MSG_CTL_DEBUG_MAILBOX;
 }
 
 static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
 					   void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetricsExternal_t metrics_ext;
 	SmuMetrics_t *metrics = &metrics_ext.SmuMetrics;
 	int ret = 0;
@@ -2269,6 +2165,8 @@ static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->voltage_mem = metrics->AvgVoltage[SVI_PLANE_VDDIO_MEM];
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v1_3);
 }
@@ -2854,7 +2752,7 @@ static int smu_v14_0_2_set_power_limit(struct smu_context *smu,
 }
 
 static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
-	.get_allowed_feature_mask = smu_v14_0_2_get_allowed_feature_mask,
+	.init_allowed_features = smu_v14_0_2_init_allowed_features,
 	.set_default_dpm_table = smu_v14_0_2_set_default_dpm_table,
 	.i2c_init = smu_v14_0_2_i2c_control_init,
 	.i2c_fini = smu_v14_0_2_i2c_control_fini,
@@ -2879,7 +2777,7 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_vbios_bootup_values = smu_v14_0_get_vbios_bootup_values,
 	.read_sensor = smu_v14_0_2_read_sensor,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
-	.print_clk_levels = smu_v14_0_2_print_clk_levels,
+	.emit_clk_levels = smu_v14_0_2_emit_clk_levels,
 	.force_clk_levels = smu_v14_0_2_force_clk_levels,
 	.update_pcie_parameters = smu_v14_0_2_update_pcie_parameters,
 	.get_thermal_temperature_range = smu_v14_0_2_get_thermal_temperature_range,
@@ -2928,11 +2826,10 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 void smu_v14_0_2_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &smu_v14_0_2_ppt_funcs;
-	smu->message_map = smu_v14_0_2_message_map;
 	smu->clock_map = smu_v14_0_2_clk_map;
 	smu->feature_map = smu_v14_0_2_feature_mask_map;
 	smu->table_map = smu_v14_0_2_table_map;
 	smu->pwr_src_map = smu_v14_0_2_pwr_src_map;
 	smu->workload_map = smu_v14_0_2_workload_map;
-	smu_v14_0_2_set_smu_mailbox_registers(smu);
+	smu_v14_0_2_init_msg_ctl(smu);
 }

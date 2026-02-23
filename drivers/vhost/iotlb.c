@@ -79,7 +79,7 @@ int vhost_iotlb_add_range_ctx(struct vhost_iotlb *iotlb,
 		vhost_iotlb_map_free(iotlb, map);
 	}
 
-	map = kmalloc(sizeof(*map), GFP_ATOMIC);
+	map = kmalloc_obj(*map, GFP_ATOMIC);
 	if (!map)
 		return -ENOMEM;
 
@@ -151,7 +151,7 @@ EXPORT_SYMBOL_GPL(vhost_iotlb_init);
  */
 struct vhost_iotlb *vhost_iotlb_alloc(unsigned int limit, unsigned int flags)
 {
-	struct vhost_iotlb *iotlb = kzalloc(sizeof(*iotlb), GFP_KERNEL);
+	struct vhost_iotlb *iotlb = kzalloc_obj(*iotlb);
 
 	if (!iotlb)
 		return NULL;

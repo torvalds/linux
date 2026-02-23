@@ -8,28 +8,52 @@
 // When DebugFS is disabled, many parameters are dead. Linting for this isn't helpful.
 #![cfg_attr(not(CONFIG_DEBUG_FS), allow(unused_variables))]
 
-use crate::fmt;
-use crate::prelude::*;
-use crate::str::CStr;
 #[cfg(CONFIG_DEBUG_FS)]
 use crate::sync::Arc;
-use crate::uaccess::UserSliceReader;
-use core::marker::PhantomData;
-use core::marker::PhantomPinned;
+use crate::{
+    fmt,
+    prelude::*,
+    str::CStr,
+    uaccess::UserSliceReader, //
+};
+
 #[cfg(CONFIG_DEBUG_FS)]
 use core::mem::ManuallyDrop;
-use core::ops::Deref;
+use core::{
+    marker::{
+        PhantomData,
+        PhantomPinned, //
+    },
+    ops::Deref,
+};
 
 mod traits;
-pub use traits::{BinaryReader, BinaryReaderMut, BinaryWriter, Reader, Writer};
+pub use traits::{
+    BinaryReader,
+    BinaryReaderMut,
+    BinaryWriter,
+    Reader,
+    Writer, //
+};
 
 mod callback_adapters;
-use callback_adapters::{FormatAdapter, NoWriter, WritableAdapter};
+use callback_adapters::{
+    FormatAdapter,
+    NoWriter,
+    WritableAdapter, //
+};
+
 mod file_ops;
 use file_ops::{
-    BinaryReadFile, BinaryReadWriteFile, BinaryWriteFile, FileOps, ReadFile, ReadWriteFile,
-    WriteFile,
+    BinaryReadFile,
+    BinaryReadWriteFile,
+    BinaryWriteFile,
+    FileOps,
+    ReadFile,
+    ReadWriteFile,
+    WriteFile, //
 };
+
 #[cfg(CONFIG_DEBUG_FS)]
 mod entry;
 #[cfg(CONFIG_DEBUG_FS)]
@@ -102,9 +126,8 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
-    /// let debugfs = Dir::new(c_str!("parent"));
+    /// let debugfs = Dir::new(c"parent");
     /// ```
     pub fn new(name: &CStr) -> Self {
         Dir::create(name, None)
@@ -115,10 +138,9 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
-    /// let parent = Dir::new(c_str!("parent"));
-    /// let child = parent.subdir(c_str!("child"));
+    /// let parent = Dir::new(c"parent");
+    /// let child = parent.subdir(c"child");
     /// ```
     pub fn subdir(&self, name: &CStr) -> Self {
         Dir::create(name, Some(self))
@@ -132,11 +154,10 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
     /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("my_debugfs_dir"));
-    /// let file = KBox::pin_init(dir.read_only_file(c_str!("foo"), 200), GFP_KERNEL)?;
+    /// # let dir = Dir::new(c"my_debugfs_dir");
+    /// let file = KBox::pin_init(dir.read_only_file(c"foo", 200), GFP_KERNEL)?;
     /// // "my_debugfs_dir/foo" now contains the number 200.
     /// // The file is removed when `file` is dropped.
     /// # Ok::<(), Error>(())
@@ -161,11 +182,10 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
     /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("my_debugfs_dir"));
-    /// let file = KBox::pin_init(dir.read_binary_file(c_str!("foo"), [0x1, 0x2]), GFP_KERNEL)?;
+    /// # let dir = Dir::new(c"my_debugfs_dir");
+    /// let file = KBox::pin_init(dir.read_binary_file(c"foo", [0x1, 0x2]), GFP_KERNEL)?;
     /// # Ok::<(), Error>(())
     /// ```
     pub fn read_binary_file<'a, T, E: 'a>(
@@ -187,21 +207,25 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use core::sync::atomic::{AtomicU32, Ordering};
-    /// # use kernel::c_str;
-    /// # use kernel::debugfs::Dir;
-    /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("foo"));
+    /// # use kernel::{
+    /// #     debugfs::Dir,
+    /// #     prelude::*,
+    /// #     sync::atomic::{
+    /// #         Atomic,
+    /// #         Relaxed,
+    /// #     },
+    /// # };
+    /// # let dir = Dir::new(c"foo");
     /// let file = KBox::pin_init(
-    ///     dir.read_callback_file(c_str!("bar"),
-    ///     AtomicU32::new(3),
+    ///     dir.read_callback_file(c"bar",
+    ///     Atomic::<u32>::new(3),
     ///     &|val, f| {
-    ///       let out = val.load(Ordering::Relaxed);
+    ///       let out = val.load(Relaxed);
     ///       writeln!(f, "{out:#010x}")
     ///     }),
     ///     GFP_KERNEL)?;
     /// // Reading "foo/bar" will show "0x00000003".
-    /// file.store(10, Ordering::Relaxed);
+    /// file.store(10, Relaxed);
     /// // Reading "foo/bar" will now show "0x0000000a".
     /// # Ok::<(), Error>(())
     /// ```

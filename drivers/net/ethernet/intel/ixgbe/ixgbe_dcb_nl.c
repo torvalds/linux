@@ -516,8 +516,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 		return -EINVAL;
 
 	if (!adapter->ixgbe_ieee_ets) {
-		adapter->ixgbe_ieee_ets = kmalloc(sizeof(struct ieee_ets),
-						  GFP_KERNEL);
+		adapter->ixgbe_ieee_ets = kmalloc_obj(struct ieee_ets);
 		if (!adapter->ixgbe_ieee_ets)
 			return -ENOMEM;
 
@@ -593,8 +592,7 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 		return -EINVAL;
 
 	if (!adapter->ixgbe_ieee_pfc) {
-		adapter->ixgbe_ieee_pfc = kmalloc(sizeof(struct ieee_pfc),
-						  GFP_KERNEL);
+		adapter->ixgbe_ieee_pfc = kmalloc_obj(struct ieee_pfc);
 		if (!adapter->ixgbe_ieee_pfc)
 			return -ENOMEM;
 	}

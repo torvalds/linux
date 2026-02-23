@@ -391,7 +391,7 @@ void siw_send_terminate(struct siw_qp *qp)
 		return;
 	}
 
-	term = kzalloc(sizeof(*term), GFP_KERNEL);
+	term = kzalloc_obj(*term);
 	if (!term)
 		return;
 
@@ -405,7 +405,7 @@ void siw_send_terminate(struct siw_qp *qp)
 	if ((qp->term_info.layer == TERM_ERROR_LAYER_DDP) ||
 	    ((qp->term_info.layer == TERM_ERROR_LAYER_RDMAP) &&
 	     (qp->term_info.etype != RDMAP_ETYPE_CATASTROPHIC))) {
-		err_hdr = kzalloc(sizeof(*err_hdr), GFP_KERNEL);
+		err_hdr = kzalloc_obj(*err_hdr);
 		if (!err_hdr) {
 			kfree(term);
 			return;

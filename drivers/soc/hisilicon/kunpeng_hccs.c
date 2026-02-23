@@ -616,8 +616,7 @@ static int hccs_get_all_port_info_on_die(struct hccs_dev *hdev,
 	int ret;
 	u8 i;
 
-	attrs = kcalloc(die->port_num, sizeof(struct hccs_port_attr),
-			GFP_KERNEL);
+	attrs = kzalloc_objs(struct hccs_port_attr, die->port_num);
 	if (!attrs)
 		return -ENOMEM;
 

@@ -95,7 +95,7 @@ int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines)
 	struct kvm_irq_routing_entry *ents;
 	int i, rc;
 
-	ents = kcalloc(lines, sizeof(*ents), GFP_KERNEL);
+	ents = kzalloc_objs(*ents, lines);
 	if (!ents)
 		return -ENOMEM;
 

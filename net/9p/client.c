@@ -590,8 +590,8 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 	}
 again:
 	/* Wait for the response */
-	err = wait_event_killable(req->wq,
-				  READ_ONCE(req->status) >= REQ_STATUS_RCVD);
+	err = io_wait_event_killable(req->wq,
+				     READ_ONCE(req->status) >= REQ_STATUS_RCVD);
 
 	/* Make sure our req is coherent with regard to updates in other
 	 * threads - echoes to wmb() in the callback
@@ -730,7 +730,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 	struct p9_fid *fid;
 
 	p9_debug(P9_DEBUG_FID, "clnt %p\n", clnt);
-	fid = kzalloc(sizeof(*fid), GFP_KERNEL);
+	fid = kzalloc_obj(*fid);
 	if (!fid)
 		return NULL;
 
@@ -859,7 +859,7 @@ struct p9_client *p9_client_create(struct fs_context *fc)
 	char *client_id;
 	char *cache_name;
 
-	clnt = kmalloc(sizeof(*clnt), GFP_KERNEL);
+	clnt = kmalloc_obj(*clnt);
 	if (!clnt)
 		return ERR_PTR(-ENOMEM);
 
@@ -1615,7 +1615,7 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 
 	p9_debug(P9_DEBUG_9P, ">>> TSTAT fid %d\n", fid->fid);
 
-	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kmalloc_obj(*ret);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 
@@ -1667,7 +1667,7 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 	p9_debug(P9_DEBUG_9P, ">>> TGETATTR fid %d, request_mask %lld\n",
 		 fid->fid, request_mask);
 
-	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kmalloc_obj(*ret);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 

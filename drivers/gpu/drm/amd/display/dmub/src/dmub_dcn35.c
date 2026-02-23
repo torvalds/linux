@@ -63,9 +63,9 @@ static void dmub_dcn35_get_fb_base_offset(struct dmub_srv *dmub,
 	uint32_t tmp;
 
 	/*
-	if (dmub->fb_base || dmub->fb_offset) {
-		*fb_base = dmub->fb_base;
-		*fb_offset = dmub->fb_offset;
+	if (dmub->soc_fb_info.fb_base || dmub->soc_fb_info.fb_offset) {
+		*fb_base = dmub->soc_fb_info.fb_base;
+		*fb_offset = dmub->soc_fb_info.fb_offset;
 		return;
 	}
 	*/
@@ -419,6 +419,9 @@ void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.enable_non_transparent_setconfig = params->enable_non_transparent_setconfig;
 	boot_options.bits.lower_hbr3_phy_ssc = params->lower_hbr3_phy_ssc;
 	boot_options.bits.disable_dpia_bw_allocation = params->disable_dpia_bw_allocation;
+	boot_options.bits.bootcrc_en_at_preos = dmub_dcn35_get_fw_boot_option(dmub).bits.bootcrc_en_at_preos;
+	boot_options.bits.bootcrc_en_at_S0i3 = dmub_dcn35_get_fw_boot_option(dmub).bits.bootcrc_en_at_S0i3;
+	boot_options.bits.bootcrc_boot_mode = dmub_dcn35_get_fw_boot_option(dmub).bits.bootcrc_boot_mode;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }

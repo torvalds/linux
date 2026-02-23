@@ -221,7 +221,7 @@ int __init opal_event_init(void)
 		 opal_irq_count, old_style ? "old" : "new");
 
 	/* Allocate an IRQ resources array */
-	opal_irqs = kcalloc(opal_irq_count, sizeof(struct resource), GFP_KERNEL);
+	opal_irqs = kzalloc_objs(struct resource, opal_irq_count);
 	if (WARN_ON(!opal_irqs)) {
 		rc = -ENOMEM;
 		goto out;

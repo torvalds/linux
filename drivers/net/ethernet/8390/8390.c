@@ -86,19 +86,5 @@ void NS8390_init(struct net_device *dev, int startp)
 }
 EXPORT_SYMBOL(NS8390_init);
 
-#if defined(MODULE)
-
-static int __init ns8390_module_init(void)
-{
-	return 0;
-}
-
-static void __exit ns8390_module_exit(void)
-{
-}
-
-module_init(ns8390_module_init);
-module_exit(ns8390_module_exit);
-#endif /* MODULE */
 MODULE_DESCRIPTION("National Semiconductor 8390 core driver");
 MODULE_LICENSE("GPL");

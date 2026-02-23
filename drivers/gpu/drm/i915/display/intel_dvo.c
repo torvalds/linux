@@ -494,7 +494,7 @@ void intel_dvo_init(struct intel_display *display)
 	struct intel_encoder *encoder;
 	struct intel_dvo *intel_dvo;
 
-	intel_dvo = kzalloc(sizeof(*intel_dvo), GFP_KERNEL);
+	intel_dvo = kzalloc_obj(*intel_dvo);
 	if (!intel_dvo)
 		return;
 

@@ -152,7 +152,7 @@ static int alloc_rd_atomic_resources(struct rxe_qp *qp, unsigned int n)
 {
 	qp->resp.res_head = 0;
 	qp->resp.res_tail = 0;
-	qp->resp.resources = kcalloc(n, sizeof(struct resp_res), GFP_KERNEL);
+	qp->resp.resources = kzalloc_objs(struct resp_res, n);
 
 	if (!qp->resp.resources)
 		return -ENOMEM;

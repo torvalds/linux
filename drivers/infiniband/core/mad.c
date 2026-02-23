@@ -386,7 +386,7 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	/* Allocate structures */
-	mad_agent_priv = kzalloc(sizeof *mad_agent_priv, GFP_KERNEL);
+	mad_agent_priv = kzalloc_obj(*mad_agent_priv);
 	if (!mad_agent_priv) {
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
@@ -698,7 +698,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 			goto out;
 	}
 
-	local = kmalloc(sizeof *local, GFP_ATOMIC);
+	local = kmalloc_obj(*local, GFP_ATOMIC);
 	if (!local) {
 		ret = -ENOMEM;
 		goto out;
@@ -1400,7 +1400,7 @@ static int method_in_use(struct ib_mad_mgmt_method_table **method,
 static int allocate_method_table(struct ib_mad_mgmt_method_table **method)
 {
 	/* Allocate management method table */
-	*method = kzalloc(sizeof **method, GFP_ATOMIC);
+	*method = kzalloc_obj(**method, GFP_ATOMIC);
 	return (*method) ? 0 : (-ENOMEM);
 }
 
@@ -1488,7 +1488,7 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	class = &port_priv->version[mad_reg_req->mgmt_class_version].class;
 	if (!*class) {
 		/* Allocate management class table for "new" class version */
-		*class = kzalloc(sizeof **class, GFP_ATOMIC);
+		*class = kzalloc_obj(**class, GFP_ATOMIC);
 		if (!*class) {
 			ret = -ENOMEM;
 			goto error1;
@@ -1553,7 +1553,7 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 				mad_reg_req->mgmt_class_version].vendor;
 	if (!*vendor_table) {
 		/* Allocate mgmt vendor class table for "new" class version */
-		vendor = kzalloc(sizeof *vendor, GFP_ATOMIC);
+		vendor = kzalloc_obj(*vendor, GFP_ATOMIC);
 		if (!vendor)
 			goto error1;
 
@@ -1561,7 +1561,7 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	}
 	if (!(*vendor_table)->vendor_class[vclass]) {
 		/* Allocate table for this management vendor class */
-		vendor_class = kzalloc(sizeof *vendor_class, GFP_ATOMIC);
+		vendor_class = kzalloc_obj(*vendor_class, GFP_ATOMIC);
 		if (!vendor_class)
 			goto error2;
 
@@ -2612,7 +2612,7 @@ static bool ib_mad_send_error(struct ib_mad_port_private *port_priv,
 		struct ib_qp_attr *attr;
 
 		/* Transition QP to RTS and fail offending send */
-		attr = kmalloc(sizeof *attr, GFP_KERNEL);
+		attr = kmalloc_obj(*attr);
 		if (attr) {
 			attr->qp_state = IB_QPS_RTS;
 			attr->cur_qp_state = IB_QPS_SQE;
@@ -3042,7 +3042,7 @@ static int ib_mad_port_start(struct ib_mad_port_private *port_priv)
 	struct ib_qp *qp;
 	u16 pkey_index;
 
-	attr = kmalloc(sizeof *attr, GFP_KERNEL);
+	attr = kmalloc_obj(*attr);
 	if (!attr)
 		return -ENOMEM;
 
@@ -3207,7 +3207,7 @@ static int ib_mad_port_open(struct ib_device *device,
 		return -EFAULT;
 
 	/* Create new device info */
-	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
+	port_priv = kzalloc_obj(*port_priv);
 	if (!port_priv)
 		return -ENOMEM;
 

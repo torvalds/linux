@@ -491,7 +491,7 @@ static struct proxy_dev *vtpm_proxy_create_proxy_dev(void)
 	struct tpm_chip *chip;
 	int err;
 
-	proxy_dev = kzalloc(sizeof(*proxy_dev), GFP_KERNEL);
+	proxy_dev = kzalloc_obj(*proxy_dev);
 	if (proxy_dev == NULL)
 		return ERR_PTR(-ENOMEM);
 

@@ -876,6 +876,170 @@ out:
 	return ret;
 }
 
+static int hns_roce_push_drain_wr(struct hns_roce_wq *wq, struct ib_cq *cq,
+				  u64 wr_id)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&wq->lock, flags);
+	if (hns_roce_wq_overflow(wq, 1, cq)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wq->wrid[wq->head & (wq->wqe_cnt - 1)] = wr_id;
+	wq->head++;
+
+out:
+	spin_unlock_irqrestore(&wq->lock, flags);
+	return ret;
+}
+
+struct hns_roce_drain_cqe {
+	struct ib_cqe cqe;
+	struct completion done;
+};
+
+static void hns_roce_drain_qp_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct hns_roce_drain_cqe *cqe = container_of(wc->wr_cqe,
+						      struct hns_roce_drain_cqe,
+						      cqe);
+	complete(&cqe->done);
+}
+
+static void handle_drain_completion(struct ib_cq *ibcq,
+				    struct hns_roce_drain_cqe *drain,
+				    struct hns_roce_dev *hr_dev)
+{
+#define TIMEOUT (HZ / 10)
+	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
+	unsigned long flags;
+	bool triggered;
+
+	if (ibcq->poll_ctx == IB_POLL_DIRECT) {
+		while (wait_for_completion_timeout(&drain->done, TIMEOUT) <= 0)
+			ib_process_cq_direct(ibcq, -1);
+		return;
+	}
+
+	if (hr_dev->state < HNS_ROCE_DEVICE_STATE_RST_DOWN)
+		goto waiting_done;
+
+	spin_lock_irqsave(&hr_cq->lock, flags);
+	triggered = hr_cq->is_armed;
+	hr_cq->is_armed = 1;
+	spin_unlock_irqrestore(&hr_cq->lock, flags);
+
+	/* Triggered means this cq is processing or has been processed
+	 * by hns_roce_handle_device_err() or this function. We need to
+	 * cancel the already invoked comp_handler() to avoid concurrency.
+	 * If it has not been triggered, we can directly invoke
+	 * comp_handler().
+	 */
+	if (triggered) {
+		switch (ibcq->poll_ctx) {
+		case IB_POLL_SOFTIRQ:
+			irq_poll_disable(&ibcq->iop);
+			irq_poll_enable(&ibcq->iop);
+			break;
+		case IB_POLL_WORKQUEUE:
+		case IB_POLL_UNBOUND_WORKQUEUE:
+			cancel_work_sync(&ibcq->work);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+		}
+	}
+
+	if (ibcq->comp_handler)
+		ibcq->comp_handler(ibcq, ibcq->cq_context);
+
+waiting_done:
+	if (ibcq->comp_handler)
+		wait_for_completion(&drain->done);
+}
+
+static void hns_roce_v2_drain_rq(struct ib_qp *ibqp)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct hns_roce_drain_cqe rdrain = {};
+	const struct ib_recv_wr *bad_rwr;
+	struct ib_cq *cq = ibqp->recv_cq;
+	struct ib_recv_wr rwr = {};
+	int ret;
+
+	ret = ib_modify_qp(ibqp, &attr, IB_QP_STATE);
+	if (ret && hr_dev->state < HNS_ROCE_DEVICE_STATE_RST_DOWN) {
+		ibdev_err_ratelimited(&hr_dev->ib_dev,
+				      "failed to modify qp during drain rq, ret = %d.\n",
+				      ret);
+		return;
+	}
+
+	rwr.wr_cqe = &rdrain.cqe;
+	rdrain.cqe.done = hns_roce_drain_qp_done;
+	init_completion(&rdrain.done);
+
+	if (hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN)
+		ret = hns_roce_push_drain_wr(&hr_qp->rq, cq, rwr.wr_id);
+	else
+		ret = hns_roce_v2_post_recv(ibqp, &rwr, &bad_rwr);
+	if (ret) {
+		ibdev_err_ratelimited(&hr_dev->ib_dev,
+				      "failed to post recv for drain rq, ret = %d.\n",
+				      ret);
+		return;
+	}
+
+	handle_drain_completion(cq, &rdrain, hr_dev);
+}
+
+static void hns_roce_v2_drain_sq(struct ib_qp *ibqp)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
+	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
+	struct hns_roce_drain_cqe sdrain = {};
+	const struct ib_send_wr *bad_swr;
+	struct ib_cq *cq = ibqp->send_cq;
+	struct ib_rdma_wr swr = {
+		.wr = {
+			.next = NULL,
+			{ .wr_cqe	= &sdrain.cqe, },
+			.opcode	= IB_WR_RDMA_WRITE,
+		},
+	};
+	int ret;
+
+	ret = ib_modify_qp(ibqp, &attr, IB_QP_STATE);
+	if (ret && hr_dev->state < HNS_ROCE_DEVICE_STATE_RST_DOWN) {
+		ibdev_err_ratelimited(&hr_dev->ib_dev,
+				      "failed to modify qp during drain sq, ret = %d.\n",
+				      ret);
+		return;
+	}
+
+	sdrain.cqe.done = hns_roce_drain_qp_done;
+	init_completion(&sdrain.done);
+
+	if (hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN)
+		ret = hns_roce_push_drain_wr(&hr_qp->sq, cq, swr.wr.wr_id);
+	else
+		ret = hns_roce_v2_post_send(ibqp, &swr.wr, &bad_swr);
+	if (ret) {
+		ibdev_err_ratelimited(&hr_dev->ib_dev,
+				      "failed to post send for drain sq, ret = %d.\n",
+				      ret);
+		return;
+	}
+
+	handle_drain_completion(cq, &sdrain, hr_dev);
+}
+
 static void *get_srq_wqe_buf(struct hns_roce_srq *srq, u32 n)
 {
 	return hns_roce_buf_offset(srq->buf_mtr.kmem, n << srq->wqe_shift);
@@ -1784,7 +1948,7 @@ static int hns_roce_hw_v2_query_counter(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 
 	desc_num = DIV_ROUND_UP(HNS_ROCE_HW_CNT_TOTAL, CNT_PER_DESC);
-	desc = kcalloc(desc_num, sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_objs(*desc, desc_num);
 	if (!desc)
 		return -ENOMEM;
 
@@ -2717,7 +2881,7 @@ static struct ib_pd *free_mr_init_pd(struct hns_roce_dev *hr_dev)
 	struct hns_roce_pd *hr_pd;
 	struct ib_pd *pd;
 
-	hr_pd = kzalloc(sizeof(*hr_pd), GFP_KERNEL);
+	hr_pd = kzalloc_obj(*hr_pd);
 	if (!hr_pd)
 		return NULL;
 	pd = &hr_pd->ibpd;
@@ -2748,7 +2912,7 @@ static struct ib_cq *free_mr_init_cq(struct hns_roce_dev *hr_dev)
 
 	cq_init_attr.cqe = HNS_ROCE_FREE_MR_USED_CQE_NUM;
 
-	hr_cq = kzalloc(sizeof(*hr_cq), GFP_KERNEL);
+	hr_cq = kzalloc_obj(*hr_cq);
 	if (!hr_cq)
 		return NULL;
 
@@ -2781,7 +2945,7 @@ static int free_mr_init_qp(struct hns_roce_dev *hr_dev, struct ib_cq *cq,
 	struct ib_qp *qp;
 	int ret;
 
-	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
+	hr_qp = kzalloc_obj(*hr_qp);
 	if (!hr_qp)
 		return -ENOMEM;
 
@@ -3739,6 +3903,23 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 		     HNS_ROCE_V2_CQ_DEFAULT_INTERVAL);
 }
 
+static bool left_sw_wc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
+{
+	struct hns_roce_qp *hr_qp;
+
+	list_for_each_entry(hr_qp, &hr_cq->sq_list, sq_node) {
+		if (hr_qp->sq.head != hr_qp->sq.tail)
+			return true;
+	}
+
+	list_for_each_entry(hr_qp, &hr_cq->rq_list, rq_node) {
+		if (hr_qp->rq.head != hr_qp->rq.tail)
+			return true;
+	}
+
+	return false;
+}
+
 static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 				     enum ib_cq_notify_flags flags)
 {
@@ -3747,6 +3928,12 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 	struct hns_roce_v2_db cq_db = {};
 	u32 notify_flag;
 
+	if (hr_dev->state >= HNS_ROCE_DEVICE_STATE_RST_DOWN) {
+		if ((flags & IB_CQ_REPORT_MISSED_EVENTS) &&
+		    left_sw_wc(hr_dev, hr_cq))
+			return 1;
+		return 0;
+	}
 	/*
 	 * flags = 0, then notify_flag : next
 	 * flags = 1, then notify flag : solocited
@@ -4834,7 +5021,7 @@ static int alloc_dip_entry(struct xarray *dip_xa, u32 qpn)
 	if (hr_dip)
 		return 0;
 
-	hr_dip = kzalloc(sizeof(*hr_dip), GFP_KERNEL);
+	hr_dip = kzalloc_obj(*hr_dip);
 	if (!hr_dip)
 		return -ENOMEM;
 
@@ -5053,20 +5240,22 @@ static int hns_roce_set_sl(struct ib_qp *ibqp,
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
 
-	ret = hns_roce_hw_v2_get_dscp(hr_dev, get_tclass(&attr->ah_attr.grh),
-				      &hr_qp->tc_mode, &hr_qp->priority);
-	if (ret && ret != -EOPNOTSUPP &&
-	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
-		ibdev_err_ratelimited(ibdev,
-				      "failed to get dscp, ret = %d.\n", ret);
-		return ret;
-	}
+	hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
 
-	if (hr_qp->tc_mode == HNAE3_TC_MAP_MODE_DSCP &&
-	    grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
-		hr_qp->sl = hr_qp->priority;
-	else
-		hr_qp->sl = rdma_ah_get_sl(&attr->ah_attr);
+	if (grh->sgid_attr->gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP) {
+		ret = hns_roce_hw_v2_get_dscp(hr_dev,
+					      get_tclass(&attr->ah_attr.grh),
+					      &hr_qp->tc_mode, &hr_qp->priority);
+		if (ret && ret != -EOPNOTSUPP) {
+			ibdev_err_ratelimited(ibdev,
+					      "failed to get dscp, ret = %d.\n",
+					      ret);
+			return ret;
+		}
+
+		if (hr_qp->tc_mode == HNAE3_TC_MAP_MODE_DSCP)
+			hr_qp->sl = hr_qp->priority;
+	}
 
 	if (!check_sl_valid(hr_dev, hr_qp->sl))
 		return -EINVAL;
@@ -5446,8 +5635,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 	 * we should set all bits of the relevant fields in context mask to
 	 * 0 at the same time, else set them to 0x1.
 	 */
-	context = kvzalloc(sizeof(*context), GFP_KERNEL);
-	qpc_mask = kvzalloc(sizeof(*qpc_mask), GFP_KERNEL);
+	context = kvzalloc_obj(*context);
+	qpc_mask = kvzalloc_obj(*qpc_mask);
 	if (!context || !qpc_mask)
 		goto out;
 
@@ -6261,7 +6450,7 @@ static void hns_roce_v2_init_irq_work(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_work *irq_work;
 
-	irq_work = kzalloc(sizeof(struct hns_roce_work), GFP_ATOMIC);
+	irq_work = kzalloc_obj(struct hns_roce_work, GFP_ATOMIC);
 	if (!irq_work)
 		return;
 
@@ -6918,7 +7107,7 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 	eq_num = comp_num + aeq_num;
 	irq_num = eq_num + other_num;
 
-	eq_table->eq = kcalloc(eq_num, sizeof(*eq_table->eq), GFP_KERNEL);
+	eq_table->eq = kzalloc_objs(*eq_table->eq, eq_num);
 	if (!eq_table->eq)
 		return -ENOMEM;
 
@@ -6956,7 +7145,8 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 
 	INIT_WORK(&hr_dev->ecc_work, fmea_ram_ecc_work);
 
-	hr_dev->irq_workq = alloc_ordered_workqueue("hns_roce_irq_workq", 0);
+	hr_dev->irq_workq = alloc_ordered_workqueue("hns_roce_irq_workq",
+						    WQ_MEM_RECLAIM);
 	if (!hr_dev->irq_workq) {
 		dev_err(dev, "failed to create irq workqueue.\n");
 		ret = -ENOMEM;
@@ -7014,6 +7204,8 @@ static const struct ib_device_ops hns_roce_v2_dev_ops = {
 	.post_send = hns_roce_v2_post_send,
 	.query_qp = hns_roce_v2_query_qp,
 	.req_notify_cq = hns_roce_v2_req_notify_cq,
+	.drain_rq = hns_roce_v2_drain_rq,
+	.drain_sq = hns_roce_v2_drain_sq,
 };
 
 static const struct ib_device_ops hns_roce_v2_dev_srq_ops = {
@@ -7117,7 +7309,7 @@ static int __hns_roce_hw_v2_init_instance(struct hnae3_handle *handle)
 	if (!hr_dev)
 		return -ENOMEM;
 
-	hr_dev->priv = kzalloc(sizeof(struct hns_roce_v2_priv), GFP_KERNEL);
+	hr_dev->priv = kzalloc_obj(struct hns_roce_v2_priv);
 	if (!hr_dev->priv) {
 		ret = -ENOMEM;
 		goto error_failed_kzalloc;

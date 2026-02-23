@@ -287,8 +287,7 @@ static int vimc_register_devices(struct vimc_device *vimc)
 		return ret;
 	}
 	/* allocate ent_devs */
-	vimc->ent_devs = kcalloc(vimc->pipe_cfg->num_ents,
-				 sizeof(*vimc->ent_devs), GFP_KERNEL);
+	vimc->ent_devs = kzalloc_objs(*vimc->ent_devs, vimc->pipe_cfg->num_ents);
 	if (!vimc->ent_devs) {
 		ret = -ENOMEM;
 		goto err_v4l2_unregister;
@@ -354,7 +353,7 @@ static int vimc_probe(struct platform_device *pdev)
 	if (vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG)
 		dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
-	vimc = kzalloc(sizeof(*vimc), GFP_KERNEL);
+	vimc = kzalloc_obj(*vimc);
 	if (!vimc)
 		return -ENOMEM;
 

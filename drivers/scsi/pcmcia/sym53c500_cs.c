@@ -544,7 +544,7 @@ SYM53C500_info(struct Scsi_Host *SChost)
 	return (info_msg);
 }
 
-static int SYM53C500_queue_lck(struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status SYM53C500_queue_lck(struct scsi_cmnd *SCpnt)
 {
 	struct sym53c500_cmd_priv *scp = scsi_cmd_priv(SCpnt);
 	int i;
@@ -849,7 +849,7 @@ SYM53C500_probe(struct pcmcia_device *link)
 	dev_dbg(&link->dev, "SYM53C500_attach()\n");
 
 	/* Create new SCSI device */
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	info->p_dev = link;

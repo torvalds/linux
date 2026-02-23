@@ -459,7 +459,7 @@ Linux-USB host side driver stack, or as a peripheral, using this
 ``gadget`` framework. To do that, the system software relies on small
 additions to those programming interfaces, and on a new internal
 component (here called an "OTG Controller") affecting which driver stack
-connects to the OTG port. In each role, the system can re-use the
+connects to the OTG port. In each role, the system can reuse the
 existing pool of hardware-neutral drivers, layered on top of the
 controller driver interfaces (:c:type:`usb_bus` or :c:type:`usb_gadget`).
 Such drivers need at most minor changes, and most of the calls added to

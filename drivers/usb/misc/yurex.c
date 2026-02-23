@@ -197,7 +197,7 @@ static int yurex_probe(struct usb_interface *interface, const struct usb_device_
 	int res;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		goto error;
 	kref_init(&dev->kref);

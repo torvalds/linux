@@ -349,7 +349,7 @@ asmlinkage long sys_oabi_semtimedop(int semid,
 		return -E2BIG;
 	if (nsops < 1 || nsops > SEMOPM)
 		return -EINVAL;
-	sops = kvmalloc_array(nsops, sizeof(*sops), GFP_KERNEL);
+	sops = kvmalloc_objs(*sops, nsops);
 	if (!sops)
 		return -ENOMEM;
 	err = 0;

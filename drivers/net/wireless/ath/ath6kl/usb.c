@@ -190,8 +190,7 @@ static int ath6kl_usb_alloc_pipe_resources(struct ath6kl_usb_pipe *pipe,
 	init_usb_anchor(&pipe->urb_submitted);
 
 	for (i = 0; i < urb_cnt; i++) {
-		urb_context = kzalloc(sizeof(struct ath6kl_urb_context),
-				      GFP_KERNEL);
+		urb_context = kzalloc_obj(struct ath6kl_urb_context);
 		if (urb_context == NULL) {
 			status = -ENOMEM;
 			goto fail_alloc_pipe_resources;
@@ -634,7 +633,7 @@ static struct ath6kl_usb *ath6kl_usb_create(struct usb_interface *interface)
 	int i;
 
 	/* ath6kl_usb_destroy() needs ar_usb != NULL && ar_usb->wq != NULL. */
-	ar_usb = kzalloc(sizeof(struct ath6kl_usb), GFP_KERNEL);
+	ar_usb = kzalloc_obj(struct ath6kl_usb);
 	if (ar_usb == NULL)
 		return NULL;
 	ar_usb->wq = alloc_workqueue("ath6kl_wq", 0, 0);

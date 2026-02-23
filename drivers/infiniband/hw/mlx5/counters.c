@@ -858,13 +858,11 @@ static int __mlx5_ib_alloc_counters(struct mlx5_ib_dev *dev,
 skip_non_qcounters:
 	cnts->num_op_counters = num_op_counters;
 	num_counters += num_op_counters;
-	cnts->descs = kcalloc(num_counters,
-			      sizeof(struct rdma_stat_desc), GFP_KERNEL);
+	cnts->descs = kzalloc_objs(struct rdma_stat_desc, num_counters);
 	if (!cnts->descs)
 		return -ENOMEM;
 
-	cnts->offsets = kcalloc(num_counters,
-				sizeof(*cnts->offsets), GFP_KERNEL);
+	cnts->offsets = kzalloc_objs(*cnts->offsets, num_counters);
 	if (!cnts->offsets)
 		goto err;
 
@@ -1074,9 +1072,7 @@ int mlx5_ib_flow_counters_set_data(struct ib_counters *ibcounters,
 		if (cntrs_data->ncounters > MAX_COUNTERS_NUM)
 			return -EINVAL;
 
-		desc_data = kcalloc(cntrs_data->ncounters,
-				    sizeof(*desc_data),
-				    GFP_KERNEL);
+		desc_data = kzalloc_objs(*desc_data, cntrs_data->ncounters);
 		if (!desc_data)
 			return  -ENOMEM;
 

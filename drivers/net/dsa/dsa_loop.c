@@ -395,6 +395,12 @@ static struct mdio_driver dsa_loop_drv = {
 	.shutdown = dsa_loop_drv_shutdown,
 };
 
+static int dsa_loop_bus_match(struct device *dev,
+			      const struct device_driver *drv)
+{
+	return drv == &dsa_loop_drv.mdiodrv.driver;
+}
+
 static void dsa_loop_phydevs_unregister(void)
 {
 	for (int i = 0; i < NUM_FIXED_PHYS; i++) {
@@ -428,7 +434,7 @@ static int __init dsa_loop_create_switch_mdiodev(void)
 	if (IS_ERR(switch_mdiodev))
 		goto out;
 
-	strscpy(switch_mdiodev->modalias, "dsa-loop");
+	switch_mdiodev->bus_match = dsa_loop_bus_match;
 	switch_mdiodev->dev.platform_data = &dsa_loop_pdata;
 
 	ret = mdio_device_register(switch_mdiodev);

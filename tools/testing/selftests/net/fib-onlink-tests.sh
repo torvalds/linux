@@ -72,7 +72,8 @@ declare -A TEST_NET4IN6IN6
 TEST_NET4IN6[1]=10.1.1.254
 TEST_NET4IN6[2]=10.2.1.254
 
-# mcast address
+# mcast addresses
+MCAST4=233.252.0.1
 MCAST6=ff02::1
 
 VRF=lisa
@@ -120,7 +121,7 @@ log_subsection()
 
 run_cmd()
 {
-	local cmd="$*"
+	local cmd="$1"
 	local out
 	local rc
 
@@ -145,7 +146,7 @@ get_linklocal()
 	local pfx
 	local addr
 
-	addr=$(${pfx} ip -6 -br addr show dev ${dev} | \
+	addr=$(${pfx} ${IP} -6 -br addr show dev ${dev} | \
 	awk '{
 		for (i = 3; i <= NF; ++i) {
 			if ($i ~ /^fe80/)
@@ -173,56 +174,46 @@ setup()
 
 	set -e
 
-	# create namespace
-	setup_ns PEER_NS
+	# create namespaces
+	setup_ns ns1
+	IP="ip -netns $ns1"
+	setup_ns ns2
 
 	# add vrf table
-	ip li add ${VRF} type vrf table ${VRF_TABLE}
-	ip li set ${VRF} up
-	ip ro add table ${VRF_TABLE} unreachable default metric 8192
-	ip -6 ro add table ${VRF_TABLE} unreachable default metric 8192
+	${IP} li add ${VRF} type vrf table ${VRF_TABLE}
+	${IP} li set ${VRF} up
+	${IP} ro add table ${VRF_TABLE} unreachable default metric 8192
+	${IP} -6 ro add table ${VRF_TABLE} unreachable default metric 8192
 
 	# create test interfaces
-	ip li add ${NETIFS[p1]} type veth peer name ${NETIFS[p2]}
-	ip li add ${NETIFS[p3]} type veth peer name ${NETIFS[p4]}
-	ip li add ${NETIFS[p5]} type veth peer name ${NETIFS[p6]}
-	ip li add ${NETIFS[p7]} type veth peer name ${NETIFS[p8]}
+	${IP} li add ${NETIFS[p1]} type veth peer name ${NETIFS[p2]}
+	${IP} li add ${NETIFS[p3]} type veth peer name ${NETIFS[p4]}
+	${IP} li add ${NETIFS[p5]} type veth peer name ${NETIFS[p6]}
+	${IP} li add ${NETIFS[p7]} type veth peer name ${NETIFS[p8]}
 
 	# enslave vrf interfaces
 	for n in 5 7; do
-		ip li set ${NETIFS[p${n}]} vrf ${VRF}
+		${IP} li set ${NETIFS[p${n}]} vrf ${VRF}
 	done
 
 	# add addresses
 	for n in 1 3 5 7; do
-		ip li set ${NETIFS[p${n}]} up
-		ip addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		${IP} li set ${NETIFS[p${n}]} up
+		${IP} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
+		${IP} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
 	# move peer interfaces to namespace and add addresses
 	for n in 2 4 6 8; do
-		ip li set ${NETIFS[p${n}]} netns ${PEER_NS} up
-		ip -netns ${PEER_NS} addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
-		ip -netns ${PEER_NS} addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
+		${IP} li set ${NETIFS[p${n}]} netns ${ns2} up
+		ip -netns $ns2 addr add ${V4ADDRS[p${n}]}/24 dev ${NETIFS[p${n}]}
+		ip -netns $ns2 addr add ${V6ADDRS[p${n}]}/64 dev ${NETIFS[p${n}]} nodad
 	done
 
-	ip -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
-	ip -6 ro add table ${VRF_TABLE} default via ${V6ADDRS[p7]/::[0-9]/::64}
+	${IP} -6 ro add default via ${V6ADDRS[p3]/::[0-9]/::64}
+	${IP} -6 ro add table ${VRF_TABLE} default via ${V6ADDRS[p7]/::[0-9]/::64}
 
 	set +e
-}
-
-cleanup()
-{
-	# make sure we start from a clean slate
-	cleanup_ns ${PEER_NS} 2>/dev/null
-	for n in 1 3 5 7; do
-		ip link del ${NETIFS[p${n}]} 2>/dev/null
-	done
-	ip link del ${VRF} 2>/dev/null
-	ip ro flush table ${VRF_TABLE}
-	ip -6 ro flush table ${VRF_TABLE}
 }
 
 ################################################################################
@@ -241,7 +232,7 @@ run_ip()
 	# dev arg may be empty
 	[ -n "${dev}" ] && dev="dev ${dev}"
 
-	run_cmd ip ro add table "${table}" "${prefix}"/32 via "${gw}" "${dev}" onlink
+	run_cmd "${IP} ro add table ${table} ${prefix}/32 via ${gw} ${dev} onlink"
 	log_test $? ${exp_rc} "${desc}"
 }
 
@@ -257,8 +248,8 @@ run_ip_mpath()
 	# dev arg may be empty
 	[ -n "${dev}" ] && dev="dev ${dev}"
 
-	run_cmd ip ro add table "${table}" "${prefix}"/32 \
-		nexthop via ${nh1} nexthop via ${nh2}
+	run_cmd "${IP} ro add table ${table} ${prefix}/32 \
+		nexthop via ${nh1} nexthop via ${nh2}"
 	log_test $? ${exp_rc} "${desc}"
 }
 
@@ -270,11 +261,15 @@ valid_onlink_ipv4()
 
 	run_ip 254 ${TEST_NET4[1]}.1 ${CONGW[1]} ${NETIFS[p1]} 0 "unicast connected"
 	run_ip 254 ${TEST_NET4[1]}.2 ${RECGW4[1]} ${NETIFS[p1]} 0 "unicast recursive"
+	run_ip 254 ${TEST_NET4[1]}.9 ${CONGW[1]} ${NETIFS[p3]} 0 \
+		"nexthop device mismatch"
 
 	log_subsection "VRF ${VRF}"
 
 	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.1 ${CONGW[3]} ${NETIFS[p5]} 0 "unicast connected"
 	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.2 ${RECGW4[2]} ${NETIFS[p5]} 0 "unicast recursive"
+	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.10 ${CONGW[3]} ${NETIFS[p7]} 0 \
+		"nexthop device mismatch"
 
 	log_subsection "VRF device, PBR table"
 
@@ -310,17 +305,15 @@ invalid_onlink_ipv4()
 {
 	run_ip 254 ${TEST_NET4[1]}.11 ${V4ADDRS[p1]} ${NETIFS[p1]} 2 \
 		"Invalid gw - local unicast address"
+	run_ip 254 ${TEST_NET4[1]}.12 ${MCAST4} ${NETIFS[p1]} 2 \
+		"Invalid gw - multicast address"
 
 	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.11 ${V4ADDRS[p5]} ${NETIFS[p5]} 2 \
 		"Invalid gw - local unicast address, VRF"
+	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.12 ${MCAST4} ${NETIFS[p5]} 2 \
+		"Invalid gw - multicast address, VRF"
 
 	run_ip 254 ${TEST_NET4[1]}.101 ${V4ADDRS[p1]} "" 2 "No nexthop device given"
-
-	run_ip 254 ${TEST_NET4[1]}.102 ${V4ADDRS[p3]} ${NETIFS[p1]} 2 \
-		"Gateway resolves to wrong nexthop device"
-
-	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.103 ${V4ADDRS[p7]} ${NETIFS[p5]} 2 \
-		"Gateway resolves to wrong nexthop device - VRF"
 }
 
 ################################################################################
@@ -339,7 +332,7 @@ run_ip6()
 	# dev arg may be empty
 	[ -n "${dev}" ] && dev="dev ${dev}"
 
-	run_cmd ip -6 ro add table "${table}" "${prefix}"/128 via "${gw}" "${dev}" onlink
+	run_cmd "${IP} -6 ro add table ${table} ${prefix}/128 via ${gw} ${dev} onlink"
 	log_test $? ${exp_rc} "${desc}"
 }
 
@@ -353,8 +346,8 @@ run_ip6_mpath()
 	local exp_rc="$6"
 	local desc="$7"
 
-	run_cmd ip -6 ro add table "${table}" "${prefix}"/128 "${opts}" \
-		nexthop via ${nh1} nexthop via ${nh2}
+	run_cmd "${IP} -6 ro add table ${table} ${prefix}/128 ${opts} \
+		nexthop via ${nh1} nexthop via ${nh2}"
 	log_test $? ${exp_rc} "${desc}"
 }
 
@@ -367,12 +360,16 @@ valid_onlink_ipv6()
 	run_ip6 254 ${TEST_NET6[1]}::1 ${V6ADDRS[p1]/::*}::64 ${NETIFS[p1]} 0 "unicast connected"
 	run_ip6 254 ${TEST_NET6[1]}::2 ${RECGW6[1]} ${NETIFS[p1]} 0 "unicast recursive"
 	run_ip6 254 ${TEST_NET6[1]}::3 ::ffff:${TEST_NET4IN6[1]} ${NETIFS[p1]} 0 "v4-mapped"
+	run_ip6 254 ${TEST_NET6[1]}::a ${V6ADDRS[p1]/::*}::64 ${NETIFS[p3]} 0 \
+		"nexthop device mismatch"
 
 	log_subsection "VRF ${VRF}"
 
 	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::1 ${V6ADDRS[p5]/::*}::64 ${NETIFS[p5]} 0 "unicast connected"
 	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::2 ${RECGW6[2]} ${NETIFS[p5]} 0 "unicast recursive"
 	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::3 ::ffff:${TEST_NET4IN6[2]} ${NETIFS[p5]} 0 "v4-mapped"
+	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::b ${V6ADDRS[p5]/::*}::64 \
+		${NETIFS[p7]} 0 "nexthop device mismatch"
 
 	log_subsection "VRF device, PBR table"
 
@@ -438,13 +435,6 @@ invalid_onlink_ipv6()
 
 	run_ip6 254 ${TEST_NET6[1]}::101 ${V6ADDRS[p1]} "" 2 \
 		"No nexthop device given"
-
-	# default VRF validation is done against LOCAL table
-	# run_ip6 254 ${TEST_NET6[1]}::102 ${V6ADDRS[p3]/::[0-9]/::64} ${NETIFS[p1]} 2 \
-	#	"Gateway resolves to wrong nexthop device"
-
-	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::103 ${V6ADDRS[p7]/::[0-9]/::64} ${NETIFS[p5]} 2 \
-		"Gateway resolves to wrong nexthop device - VRF"
 }
 
 run_onlink_tests()
@@ -491,10 +481,9 @@ do
 	esac
 done
 
-cleanup
 setup
 run_onlink_tests
-cleanup
+cleanup_ns ${ns1} ${ns2}
 
 if [ "$TESTS" != "none" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}

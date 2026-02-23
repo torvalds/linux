@@ -74,7 +74,7 @@ static int wcn36xx_dxe_allocate_ctl_block(struct wcn36xx_dxe_ch *ch)
 
 	spin_lock_init(&ch->lock);
 	for (i = 0; i < ch->desc_num; i++) {
-		cur_ctl = kzalloc(sizeof(*cur_ctl), GFP_KERNEL);
+		cur_ctl = kzalloc_obj(*cur_ctl);
 		if (!cur_ctl)
 			goto out_fail;
 

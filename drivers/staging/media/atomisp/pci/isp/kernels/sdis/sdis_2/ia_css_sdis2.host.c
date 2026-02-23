@@ -274,7 +274,7 @@ ia_css_isp_dvs2_statistics_allocate(
 	if (!grid->enable)
 		return NULL;
 
-	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
+	me = kvzalloc_objs(*me, 1);
 	if (!me)
 		goto err;
 

@@ -1130,7 +1130,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 	int ret;
 
 	/* instance init */
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 	if (!instance)
 		return -ENOMEM;
 

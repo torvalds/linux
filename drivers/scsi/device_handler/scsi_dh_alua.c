@@ -219,7 +219,7 @@ static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 {
 	struct alua_port_group *pg, *tmp_pg;
 
-	pg = kzalloc(sizeof(struct alua_port_group), GFP_KERNEL);
+	pg = kzalloc_obj(struct alua_port_group);
 	if (!pg)
 		return ERR_PTR(-ENOMEM);
 
@@ -1137,7 +1137,7 @@ static int alua_activate(struct scsi_device *sdev,
 	struct alua_queue_data *qdata;
 	struct alua_port_group *pg;
 
-	qdata = kzalloc(sizeof(*qdata), GFP_KERNEL);
+	qdata = kzalloc_obj(*qdata);
 	if (!qdata) {
 		err = SCSI_DH_RES_TEMP_UNAVAIL;
 		goto out;
@@ -1239,7 +1239,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	struct alua_dh_data *h;
 	int err;
 
-	h = kzalloc(sizeof(*h) , GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return SCSI_DH_NOMEM;
 	spin_lock_init(&h->pg_lock);

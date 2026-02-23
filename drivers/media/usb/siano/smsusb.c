@@ -367,7 +367,7 @@ static void *siano_media_device_register(struct smsusb_device_t *dev,
 	struct sms_board *board = sms_get_board(board_id);
 	int ret;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return NULL;
 
@@ -397,7 +397,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	int align = 0;
 
 	/* create device object */
-	dev = kzalloc(sizeof(struct smsusb_device_t), GFP_KERNEL);
+	dev = kzalloc_obj(struct smsusb_device_t);
 	if (!dev)
 		return -ENOMEM;
 

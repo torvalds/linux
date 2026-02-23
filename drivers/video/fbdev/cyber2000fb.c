@@ -1363,7 +1363,7 @@ static struct cfb_info *cyberpro_alloc_fb_info(unsigned int id, char *name)
 {
 	struct cfb_info *cfb;
 
-	cfb = kzalloc(sizeof(struct cfb_info), GFP_KERNEL);
+	cfb = kzalloc_obj(struct cfb_info);
 	if (!cfb)
 		return NULL;
 

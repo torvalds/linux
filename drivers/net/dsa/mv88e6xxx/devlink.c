@@ -378,9 +378,8 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int fid = -1, err = 0, count = 0;
 
-	table = kcalloc(mv88e6xxx_num_databases(chip),
-			sizeof(struct mv88e6xxx_devlink_atu_entry),
-			GFP_KERNEL);
+	table = kzalloc_objs(struct mv88e6xxx_devlink_atu_entry,
+			     mv88e6xxx_num_databases(chip));
 	if (!table)
 		return -ENOMEM;
 
@@ -440,9 +439,8 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 	struct mv88e6xxx_vtu_entry vlan;
 	int err;
 
-	table = kcalloc(mv88e6xxx_max_vid(chip) + 1,
-			sizeof(struct mv88e6xxx_devlink_vtu_entry),
-			GFP_KERNEL);
+	table = kzalloc_objs(struct mv88e6xxx_devlink_vtu_entry,
+			     mv88e6xxx_max_vid(chip) + 1);
 	if (!table)
 		return -ENOMEM;
 
@@ -523,9 +521,8 @@ static int mv88e6xxx_region_stu_snapshot(struct devlink *dl,
 	struct mv88e6xxx_stu_entry stu;
 	int err;
 
-	table = kcalloc(mv88e6xxx_max_sid(chip) + 1,
-			sizeof(struct mv88e6xxx_devlink_stu_entry),
-			GFP_KERNEL);
+	table = kzalloc_objs(struct mv88e6xxx_devlink_stu_entry,
+			     mv88e6xxx_max_sid(chip) + 1);
 	if (!table)
 		return -ENOMEM;
 

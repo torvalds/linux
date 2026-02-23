@@ -108,7 +108,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	if (!new_bus)
 		goto out;
 
-	fec = kzalloc(sizeof(struct fec_info), GFP_KERNEL);
+	fec = kzalloc_obj(struct fec_info);
 	if (!fec)
 		goto out_mii;
 

@@ -230,7 +230,7 @@ struct qcom_glink_smem *qcom_glink_smem_register(struct device *parent,
 	size_t size;
 	int ret;
 
-	smem = kzalloc(sizeof(*smem), GFP_KERNEL);
+	smem = kzalloc_obj(*smem);
 	if (!smem)
 		return ERR_PTR(-ENOMEM);
 

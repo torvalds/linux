@@ -1020,11 +1020,11 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	if (spec->supported_rates & SUPPORT_RATE_OFDM)
 		num_rates += 8;
 
-	channels = kcalloc(spec->num_channels, sizeof(*channels), GFP_KERNEL);
+	channels = kzalloc_objs(*channels, spec->num_channels);
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kcalloc(num_rates, sizeof(*rates), GFP_KERNEL);
+	rates = kzalloc_objs(*rates, num_rates);
 	if (!rates)
 		goto exit_free_channels;
 

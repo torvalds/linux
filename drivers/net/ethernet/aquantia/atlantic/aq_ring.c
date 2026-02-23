@@ -138,7 +138,7 @@ static int aq_ring_alloc(struct aq_ring_s *self,
 	int err = 0;
 
 	self->buff_ring =
-		kcalloc(self->size, sizeof(struct aq_ring_buff_s), GFP_KERNEL);
+		kzalloc_objs(struct aq_ring_buff_s, self->size);
 
 	if (!self->buff_ring) {
 		err = -ENOMEM;

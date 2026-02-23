@@ -181,7 +181,7 @@ static int bcm4908_dma_alloc_buf_descs(struct bcm4908_enet *enet,
 		goto err_free_buf_descs;
 	}
 
-	ring->slots = kcalloc(ring->length, sizeof(*ring->slots), GFP_KERNEL);
+	ring->slots = kzalloc_objs(*ring->slots, ring->length);
 	if (!ring->slots)
 		goto err_free_buf_descs;
 

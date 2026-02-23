@@ -192,7 +192,7 @@ static int htvec_init(phys_addr_t addr, unsigned long size,
 	int i;
 	struct htvec *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -295,19 +295,19 @@ static int __init acpi_cascade_irqdomain_init(void)
 	return 0;
 }
 
-int __init htvec_acpi_init(struct irq_domain *parent,
-				   struct acpi_madt_ht_pic *acpi_htvec)
+int __init htvec_acpi_init(struct irq_domain *parent, struct acpi_madt_ht_pic *acpi_htvec)
 {
-	int i, ret;
-	int num_parents, parent_irq[8];
+	int i, ret, num_parents, parent_irq[8];
 	struct fwnode_handle *domain_handle;
+	phys_addr_t addr;
 
 	if (!acpi_htvec)
 		return -EINVAL;
 
 	num_parents = HTVEC_MAX_PARENT_IRQ;
+	addr = (phys_addr_t)acpi_htvec->address;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_htvec->address);
+	domain_handle = irq_domain_alloc_fwnode(&addr);
 	if (!domain_handle) {
 		pr_err("Unable to allocate domain handle\n");
 		return -ENOMEM;
@@ -317,9 +317,7 @@ int __init htvec_acpi_init(struct irq_domain *parent,
 	for (i = 0; i < HTVEC_MAX_PARENT_IRQ; i++)
 		parent_irq[i] = irq_create_mapping(parent, acpi_htvec->cascade[i]);
 
-	ret = htvec_init(acpi_htvec->address, acpi_htvec->size,
-			num_parents, parent_irq, domain_handle);
-
+	ret = htvec_init(addr, acpi_htvec->size, num_parents, parent_irq, domain_handle);
 	if (ret == 0)
 		ret = acpi_cascade_irqdomain_init();
 	else

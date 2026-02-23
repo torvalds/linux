@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/screen_info.h>
+#include <linux/sysfb.h>
 #include <linux/vgaarb.h>
 
 #include <asm/video.h>
@@ -29,7 +29,7 @@ EXPORT_SYMBOL(pgprot_framebuffer);
 bool video_is_primary_device(struct device *dev)
 {
 #ifdef CONFIG_SCREEN_INFO
-	struct screen_info *si = &screen_info;
+	struct screen_info *si = &sysfb_primary_display.screen;
 	struct resource res[SCREEN_INFO_MAX_RESOURCES];
 	ssize_t i, numres;
 #endif

@@ -105,7 +105,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return 0;
 	}
 
-	cl = kzalloc(sizeof(struct drr_class), GFP_KERNEL);
+	cl = kzalloc_obj(struct drr_class);
 	if (cl == NULL)
 		return -ENOBUFS;
 

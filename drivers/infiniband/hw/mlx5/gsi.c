@@ -104,13 +104,12 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 	}
 
 	gsi = &mqp->gsi;
-	gsi->tx_qps = kcalloc(num_qps, sizeof(*gsi->tx_qps), GFP_KERNEL);
+	gsi->tx_qps = kzalloc_objs(*gsi->tx_qps, num_qps);
 	if (!gsi->tx_qps)
 		return -ENOMEM;
 
 	gsi->outstanding_wrs =
-		kcalloc(attr->cap.max_send_wr, sizeof(*gsi->outstanding_wrs),
-			GFP_KERNEL);
+		kzalloc_objs(*gsi->outstanding_wrs, attr->cap.max_send_wr);
 	if (!gsi->outstanding_wrs) {
 		ret = -ENOMEM;
 		goto err_free_tx;

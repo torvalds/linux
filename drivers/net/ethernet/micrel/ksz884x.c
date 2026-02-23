@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
@@ -1166,7 +1167,7 @@ struct ksz_port_info {
  * @tx_cfg:		Cached transmit control settings.
  * @rx_cfg:		Cached receive control settings.
  * @intr_mask:		Current interrupt mask.
- * @intr_set:		Current interrup set.
+ * @intr_set:		Current interrupt set.
  * @intr_blocked:	Interrupt blocked.
  * @rx_desc_info:	Receive descriptor information.
  * @tx_desc_info:	Transmit descriptor information.
@@ -2096,7 +2097,7 @@ static void sw_dis_prio_rate(struct ksz_hw *hw, int port)
 }
 
 /**
- * sw_init_prio_rate - initialize switch prioirty rate
+ * sw_init_prio_rate - initialize switch priority rate
  * @hw: 	The hardware instance.
  *
  * This routine initializes the priority rate function of the switch.
@@ -3990,8 +3991,7 @@ static void ksz_update_timer(struct ksz_timer_info *info)
  */
 static int ksz_alloc_soft_desc(struct ksz_desc_info *desc_info, int transmit)
 {
-	desc_info->ring = kcalloc(desc_info->alloc, sizeof(struct ksz_desc),
-				  GFP_KERNEL);
+	desc_info->ring = kzalloc_objs(struct ksz_desc, desc_info->alloc);
 	if (!desc_info->ring)
 		return 1;
 	hw_init_desc(desc_info, transmit);
@@ -6576,7 +6576,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	result = -ENOMEM;
 
-	info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);
+	info = kzalloc_obj(struct platform_info);
 	if (!info)
 		goto pcidev_init_dev_err;
 
@@ -6629,7 +6629,7 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 			mib_port_count = SWITCH_PORT_NUM;
 		}
 		hw->mib_port_cnt = TOTAL_PORT_NUM;
-		hw->ksz_switch = kzalloc(sizeof(struct ksz_switch), GFP_KERNEL);
+		hw->ksz_switch = kzalloc_obj(struct ksz_switch);
 		if (!hw->ksz_switch)
 			goto pcidev_init_alloc_err;
 

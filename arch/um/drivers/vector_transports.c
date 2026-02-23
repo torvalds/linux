@@ -245,7 +245,7 @@ static int build_gre_transport_data(struct vector_private *vp)
 	int temp_rx;
 	int temp_tx;
 
-	vp->transport_data = kmalloc(sizeof(struct uml_gre_data), GFP_KERNEL);
+	vp->transport_data = kmalloc_obj(struct uml_gre_data);
 	if (vp->transport_data == NULL)
 		return -ENOMEM;
 	td = vp->transport_data;
@@ -307,8 +307,7 @@ static int build_l2tpv3_transport_data(struct vector_private *vp)
 	unsigned long temp_rx;
 	unsigned long temp_tx;
 
-	vp->transport_data = kmalloc(
-		sizeof(struct uml_l2tpv3_data), GFP_KERNEL);
+	vp->transport_data = kmalloc_obj(struct uml_l2tpv3_data);
 
 	if (vp->transport_data == NULL)
 		return -ENOMEM;

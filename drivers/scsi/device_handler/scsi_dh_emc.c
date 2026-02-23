@@ -478,7 +478,7 @@ static int clariion_bus_attach(struct scsi_device *sdev)
 	struct clariion_dh_data *h;
 	int err;
 
-	h = kzalloc(sizeof(*h) , GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return SCSI_DH_NOMEM;
 	h->lun_state = CLARIION_LUN_UNINITIALIZED;

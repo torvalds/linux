@@ -195,12 +195,6 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 	char *buf = c->x86_model_id;
 	const char *p = NULL;
 
-	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
-	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
-	 */
-	clear_cpu_cap(c, 0*32+31);
-
 	/* Cyrix used bit 24 in extended (AMD) CPUID for Cyrix MMX extensions */
 	if (test_cpu_cap(c, 1*32+24)) {
 		clear_cpu_cap(c, 1*32+24);

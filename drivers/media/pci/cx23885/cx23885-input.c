@@ -327,7 +327,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	}
 
 	/* cx23885 board instance kernel IR state */
-	kernel_ir = kzalloc(sizeof(struct cx23885_kernel_ir), GFP_KERNEL);
+	kernel_ir = kzalloc_obj(struct cx23885_kernel_ir);
 	if (kernel_ir == NULL)
 		return -ENOMEM;
 

@@ -116,7 +116,7 @@ mlxsw_sp_pgt_entry_create(struct mlxsw_sp_pgt *pgt, u16 mid, u16 smpe)
 	void *ret;
 	int err;
 
-	pgt_entry = kzalloc(sizeof(*pgt_entry), GFP_KERNEL);
+	pgt_entry = kzalloc_obj(*pgt_entry);
 	if (!pgt_entry)
 		return ERR_PTR(-ENOMEM);
 
@@ -211,7 +211,7 @@ mlxsw_sp_pgt_entry_port_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_pgt_entry_port *pgt_entry_port;
 	int err;
 
-	pgt_entry_port = kzalloc(sizeof(*pgt_entry_port), GFP_KERNEL);
+	pgt_entry_port = kzalloc_obj(*pgt_entry_port);
 	if (!pgt_entry_port)
 		return ERR_PTR(-ENOMEM);
 
@@ -315,7 +315,7 @@ int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, PGT_SIZE))
 		return -EIO;
 
-	pgt = kzalloc(sizeof(*mlxsw_sp->pgt), GFP_KERNEL);
+	pgt = kzalloc_obj(*mlxsw_sp->pgt);
 	if (!pgt)
 		return -ENOMEM;
 

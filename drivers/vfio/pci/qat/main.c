@@ -261,7 +261,7 @@ qat_vf_save_device_data(struct qat_vf_core_device *qat_vdev, bool pre_copy)
 	struct qat_vf_migration_file *migf;
 	int ret;
 
-	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
+	migf = kzalloc_obj(*migf);
 	if (!migf)
 		return ERR_PTR(-ENOMEM);
 
@@ -352,7 +352,7 @@ qat_vf_resume_device_data(struct qat_vf_core_device *qat_vdev)
 	struct qat_vf_migration_file *migf;
 	int ret;
 
-	migf = kzalloc(sizeof(*migf), GFP_KERNEL);
+	migf = kzalloc_obj(*migf);
 	if (!migf)
 		return ERR_PTR(-ENOMEM);
 

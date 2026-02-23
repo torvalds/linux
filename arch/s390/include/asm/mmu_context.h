@@ -29,12 +29,8 @@ static inline int init_new_context(struct task_struct *tsk,
 	atomic_set(&mm->context.protected_count, 0);
 	mm->context.gmap_asce = 0;
 	mm->context.flush_mm = 0;
-#ifdef CONFIG_PGSTE
-	mm->context.has_pgste = 0;
-	mm->context.uses_skeys = 0;
-	mm->context.uses_cmm = 0;
+#if IS_ENABLED(CONFIG_KVM)
 	mm->context.allow_cow_sharing = 1;
-	mm->context.allow_gmap_hpage_1m = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	default:

@@ -301,7 +301,7 @@ static int usb_raremono_probe(struct usb_interface *intf,
 	struct raremono_device *radio;
 	int retval = 0;
 
-	radio = kzalloc(sizeof(*radio), GFP_KERNEL);
+	radio = kzalloc_obj(*radio);
 	if (!radio)
 		return -ENOMEM;
 	radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);

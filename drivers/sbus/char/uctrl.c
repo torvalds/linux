@@ -348,7 +348,7 @@ static int uctrl_probe(struct platform_device *op)
 	struct uctrl_driver *p;
 	int err = -ENOMEM;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		printk(KERN_ERR "uctrl: Unable to allocate device struct.\n");
 		goto out;

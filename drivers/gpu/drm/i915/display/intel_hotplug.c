@@ -27,8 +27,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
-#include "i915_irq.h"
 #include "intel_connector.h"
 #include "intel_display_core.h"
 #include "intel_display_power.h"
@@ -39,6 +37,7 @@
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_hotplug_irq.h"
+#include "intel_parent.h"
 
 /**
  * DOC: Hotplug
@@ -786,7 +785,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 		container_of(work, typeof(*display), hotplug.poll_init_work);
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool enabled;
 
 	mutex_lock(&display->drm->mode_config.mutex);
@@ -1177,13 +1176,12 @@ bool intel_hpd_schedule_detection(struct intel_display *display)
 static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 {
 	struct intel_display *display = m->private;
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hotplug *hotplug = &display->hotplug;
 
 	/* Synchronize with everything first in case there's been an HPD
 	 * storm, but we haven't finished handling it in the kernel yet
 	 */
-	intel_synchronize_irq(dev_priv);
+	intel_parent_irq_synchronize(display);
 	flush_work(&display->hotplug.dig_port_work);
 	flush_delayed_work(&display->hotplug.hotplug_work);
 

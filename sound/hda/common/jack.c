@@ -329,7 +329,7 @@ snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
 	callback = find_callback_from_list(jack, func);
 
 	if (func && !callback) {
-		callback = kzalloc(sizeof(*callback), GFP_KERNEL);
+		callback = kzalloc_obj(*callback);
 		if (!callback)
 			return ERR_PTR(-ENOMEM);
 		callback->func = func;

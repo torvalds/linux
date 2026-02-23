@@ -942,7 +942,7 @@ gt215_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
 	struct gt215_ram *ram;
 	int ret, i;
 
-	if (!(ram = kzalloc(sizeof(*ram), GFP_KERNEL)))
+	if (!(ram = kzalloc_obj(*ram)))
 		return -ENOMEM;
 	*pram = &ram->base;
 

@@ -1887,7 +1887,7 @@ struct dvb_frontend *cxd2880_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	priv = kzalloc(sizeof(struct cxd2880_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct cxd2880_priv);
 	if (!priv)
 		return NULL;
 

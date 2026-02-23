@@ -169,7 +169,7 @@ r535_bar_new_(const struct nvkm_bar_func *hw, struct nvkm_device *device,
 	struct nvkm_bar *bar;
 	int ret;
 
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
+	if (!(rm = kzalloc_obj(*rm)))
 		return -ENOMEM;
 
 	rm->dtor = r535_bar_dtor;

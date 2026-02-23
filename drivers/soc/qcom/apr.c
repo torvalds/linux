@@ -95,7 +95,7 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
 	struct pkt_router_svc *svc;
 	int id;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return ERR_PTR(-ENOMEM);
 
@@ -171,7 +171,7 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 		return -EINVAL;
 	}
 
-	abuf = kzalloc(struct_size(abuf, buf, len), GFP_ATOMIC);
+	abuf = kzalloc_flex(*abuf, buf, len, GFP_ATOMIC);
 	if (!abuf)
 		return -ENOMEM;
 
@@ -416,7 +416,7 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 	struct pkt_router_svc *svc;
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return -ENOMEM;
 

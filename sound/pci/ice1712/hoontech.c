@@ -156,7 +156,7 @@ static int hoontech_init(struct snd_ice1712 *ice, bool staudio)
 	ice->num_total_dacs = 8;
 	ice->num_total_adcs = 8;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;
@@ -301,7 +301,7 @@ static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 	ice->num_total_adcs = 2;
 	
 	/* analog section */
-	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	ak = ice->akm = kmalloc_obj(struct snd_akm4xxx);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;

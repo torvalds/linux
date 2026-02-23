@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 
+use core::ops::Deref;
+use core::ops::DerefMut;
 use kernel::bits::genmask_u32;
 use kernel::device::Bound;
 use kernel::device::Device;
 use kernel::devres::Devres;
+use kernel::io::poll;
 use kernel::platform;
 use kernel::prelude::*;
-use kernel::time;
+use kernel::time::Delta;
 use kernel::transmute::AsBytes;
+use kernel::uapi;
 
 use crate::driver::IoMem;
 use crate::regs;
@@ -18,29 +22,9 @@ use crate::regs;
 /// # Invariants
 ///
 /// - The layout of this struct identical to the C `struct drm_panthor_gpu_info`.
-#[repr(C)]
-pub(crate) struct GpuInfo {
-    pub(crate) gpu_id: u32,
-    pub(crate) gpu_rev: u32,
-    pub(crate) csf_id: u32,
-    pub(crate) l2_features: u32,
-    pub(crate) tiler_features: u32,
-    pub(crate) mem_features: u32,
-    pub(crate) mmu_features: u32,
-    pub(crate) thread_features: u32,
-    pub(crate) max_threads: u32,
-    pub(crate) thread_max_workgroup_size: u32,
-    pub(crate) thread_max_barrier_size: u32,
-    pub(crate) coherency_features: u32,
-    pub(crate) texture_features: [u32; 4],
-    pub(crate) as_present: u32,
-    pub(crate) pad0: u32,
-    pub(crate) shader_present: u64,
-    pub(crate) l2_present: u64,
-    pub(crate) tiler_present: u64,
-    pub(crate) core_features: u32,
-    pub(crate) pad: u32,
-}
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub(crate) struct GpuInfo(pub(crate) uapi::drm_panthor_gpu_info);
 
 impl GpuInfo {
     pub(crate) fn new(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result<Self> {
@@ -73,7 +57,7 @@ impl GpuInfo {
         let l2_present = u64::from(regs::GPU_L2_PRESENT_LO.read(dev, iomem)?);
         let l2_present = l2_present | u64::from(regs::GPU_L2_PRESENT_HI.read(dev, iomem)?) << 32;
 
-        Ok(Self {
+        Ok(Self(uapi::drm_panthor_gpu_info {
             gpu_id,
             gpu_rev,
             csf_id,
@@ -89,13 +73,14 @@ impl GpuInfo {
             // TODO: Add texture_features_{1,2,3}.
             texture_features: [texture_features, 0, 0, 0],
             as_present,
-            pad0: 0,
+            selected_coherency: uapi::drm_panthor_gpu_coherency_DRM_PANTHOR_GPU_COHERENCY_NONE,
             shader_present,
             l2_present,
             tiler_present,
             core_features,
             pad: 0,
-        })
+            gpu_features: 0,
+        }))
     }
 
     pub(crate) fn log(&self, pdev: &platform::Device) {
@@ -113,7 +98,7 @@ impl GpuInfo {
         };
 
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "mali-{} id 0x{:x} major 0x{:x} minor 0x{:x} status 0x{:x}",
             model_name,
             self.gpu_id >> 16,
@@ -123,7 +108,7 @@ impl GpuInfo {
         );
 
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "Features: L2:{:#x} Tiler:{:#x} Mem:{:#x} MMU:{:#x} AS:{:#x}",
             self.l2_features,
             self.tiler_features,
@@ -133,7 +118,7 @@ impl GpuInfo {
         );
 
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "shader_present=0x{:016x} l2_present=0x{:016x} tiler_present=0x{:016x}",
             self.shader_present,
             self.l2_present,
@@ -151,6 +136,20 @@ impl GpuInfo {
     #[expect(dead_code)]
     pub(crate) fn pa_bits(&self) -> u32 {
         (self.mmu_features >> 8) & genmask_u32(0..=7)
+    }
+}
+
+impl Deref for GpuInfo {
+    type Target = uapi::drm_panthor_gpu_info;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for GpuInfo {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -206,14 +205,13 @@ impl From<u32> for GpuId {
 pub(crate) fn l2_power_on(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
     regs::L2_PWRON_LO.write(dev, iomem, 1)?;
 
-    // TODO: We cannot poll, as there is no support in Rust currently, so we
-    // sleep. Change this when read_poll_timeout() is implemented in Rust.
-    kernel::time::delay::fsleep(time::Delta::from_millis(100));
-
-    if regs::L2_READY_LO.read(dev, iomem)? != 1 {
-        dev_err!(dev, "Failed to power on the GPU\n");
-        return Err(EIO);
-    }
+    poll::read_poll_timeout(
+        || regs::L2_READY_LO.read(dev, iomem),
+        |status| *status == 1,
+        Delta::from_millis(1),
+        Delta::from_millis(100),
+    )
+    .inspect_err(|_| dev_err!(dev, "Failed to power on the GPU."))?;
 
     Ok(())
 }

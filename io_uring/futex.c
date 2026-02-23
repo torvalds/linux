@@ -185,8 +185,8 @@ int io_futexv_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!iof->futex_nr || iof->futex_nr > FUTEX_WAITV_MAX)
 		return -EINVAL;
 
-	ifd = kzalloc(struct_size_t(struct io_futexv_data, futexv, iof->futex_nr),
-			GFP_KERNEL);
+	ifd = kzalloc_flex(struct io_futexv_data, futexv, iof->futex_nr,
+			   GFP_KERNEL_ACCOUNT);
 	if (!ifd)
 		return -ENOMEM;
 

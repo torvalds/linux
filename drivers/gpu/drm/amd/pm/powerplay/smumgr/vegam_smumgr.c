@@ -83,7 +83,7 @@ static int vegam_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct vegam_smumgr *smu_data;
 
-	smu_data = kzalloc(sizeof(struct vegam_smumgr), GFP_KERNEL);
+	smu_data = kzalloc_obj(struct vegam_smumgr);
 	if (smu_data == NULL)
 		return -ENOMEM;
 

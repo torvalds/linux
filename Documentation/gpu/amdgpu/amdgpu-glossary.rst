@@ -30,6 +30,15 @@ we have a dedicated glossary for Display Core at
     CP
       Command Processor
 
+    CPC
+      Command Processor Compute
+
+    CPF
+      Command Processor Fetch
+
+    CPG
+      Command Processor Graphics
+
     CPLIB
       Content Protection Library
 
@@ -78,6 +87,9 @@ we have a dedicated glossary for Display Core at
     GMC
       Graphic Memory Controller
 
+    GPR
+      General Purpose Register
+
     GPUVM
       GPU Virtual Memory.  This is the GPU's MMU.  The GPU supports multiple
       virtual address spaces that can be in flight at any given time.  These
@@ -92,8 +104,14 @@ we have a dedicated glossary for Display Core at
       table for use by the kernel driver or into per process GPUVM page tables
       for application usage.
 
+    GWS
+      Global Wave Sync
+
     IH
       Interrupt Handler
+
+    IV
+      Interrupt Vector
 
     HQD
       Hardware Queue Descriptor
@@ -143,14 +161,23 @@ we have a dedicated glossary for Display Core at
     PA
       Primitive Assembler / Physical Address
 
+    PDE
+      Page Directory Entry
+
     PFP
       Pre-Fetch Parser (Graphics)
 
     PPLib
       PowerPlay Library - PowerPlay is the power management component.
 
+    PRT
+      Partially Resident Texture (also known as sparse residency)
+
     PSP
         Platform Security Processor
+
+    PTE
+      Page Table Entry
 
     RB
       Render Backends. Some people called it ROPs.
@@ -206,11 +233,32 @@ we have a dedicated glossary for Display Core at
     TC
       Texture Cache
 
+    TCP (AMDGPU)
+      Texture Cache per Pipe. Even though the name "Texture" is part of this
+      acronym, the TCP represents the path to memory shaders; i.e., it is not
+      related to texture. The name is a leftover from older designs where shader
+      stages had different cache designs; it refers to the L1 cache in older
+      architectures.
+
+    TMR
+      Trusted Memory Region
+
+    TMZ
+      Trusted Memory Zone
+
     TOC
       Table of Contents
 
+    UMC
+      Unified Memory Controller
+
     UMSCH
       User Mode Scheduler
+
+    UTC (AMDGPU)
+      Unified Translation Cache. UTC is equivalent to TLB. You might see a
+      variation of this acronym with L at the end, i.e., UTCL followed by a
+      number; L means the cache level (e.g., UTCL1 and UTCL2).
 
     UVD
       Unified Video Decoder

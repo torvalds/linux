@@ -103,7 +103,7 @@ struct slim_stream_runtime *slim_stream_allocate(struct slim_device *dev,
 {
 	struct slim_stream_runtime *rt;
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return ERR_PTR(-ENOMEM);
 
@@ -214,7 +214,7 @@ int slim_stream_prepare(struct slim_stream_runtime *rt,
 	}
 
 	num_ports = hweight32(cfg->port_mask);
-	rt->ports = kcalloc(num_ports, sizeof(*port), GFP_KERNEL);
+	rt->ports = kzalloc_objs(*port, num_ports);
 	if (!rt->ports)
 		return -ENOMEM;
 

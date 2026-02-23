@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * POSIX message queues filesystem for Linux.
  *
@@ -9,8 +10,6 @@
  *			    Manfred Spraul	    (manfred@colorfullife.com)
  *
  * Audit:                   George Wilson           (ltcgcw@us.ibm.com)
- *
- * This file is released under the GPL.
  */
 
 #include <linux/capability.h>
@@ -211,7 +210,7 @@ static int msg_insert(struct msg_msg *msg, struct mqueue_inode_info *info)
 		leaf = info->node_cache;
 		info->node_cache = NULL;
 	} else {
-		leaf = kmalloc(sizeof(*leaf), GFP_ATOMIC);
+		leaf = kmalloc_obj(*leaf, GFP_ATOMIC);
 		if (!leaf)
 			return -ENOMEM;
 		INIT_LIST_HEAD(&leaf->msg_list);
@@ -450,7 +449,7 @@ static int mqueue_init_fs_context(struct fs_context *fc)
 {
 	struct mqueue_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct mqueue_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct mqueue_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -912,13 +911,12 @@ static struct file *mqueue_file_open(struct filename *name,
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
-	struct filename *name __free(putname) = NULL;;
 	struct vfsmount *mnt = current->nsproxy->ipc_ns->mq_mnt;
 	int fd, ro;
 
 	audit_mq_open(oflag, mode, attr);
 
-	name = getname(u_name);
+	CLASS(filename, name)(u_name);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
@@ -942,20 +940,19 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 {
 	int err;
-	struct filename *name;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 	struct vfsmount *mnt = ipc_ns->mq_mnt;
+	CLASS(filename, name)(u_name);
 
-	name = getname(u_name);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
 	audit_inode_parent_hidden(name, mnt->mnt_root);
 	err = mnt_want_write(mnt);
 	if (err)
-		goto out_name;
+		return err;
 	dentry = start_removing_noperm(mnt->mnt_root, &QSTR(name->name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -971,9 +968,6 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 out_drop_write:
 	mnt_drop_write(mnt);
-out_name:
-	putname(name);
-
 	return err;
 }
 
@@ -1094,7 +1088,7 @@ static int do_mq_timedsend(mqd_t mqdes, const char __user *u_msg_ptr,
 	 * fall back to that if necessary.
 	 */
 	if (!info->node_cache)
-		new_leaf = kmalloc(sizeof(*new_leaf), GFP_KERNEL);
+		new_leaf = kmalloc_obj(*new_leaf);
 
 	spin_lock(&info->lock);
 
@@ -1187,7 +1181,7 @@ static int do_mq_timedreceive(mqd_t mqdes, char __user *u_msg_ptr,
 	 * fall back to that if necessary.
 	 */
 	if (!info->node_cache)
-		new_leaf = kmalloc(sizeof(*new_leaf), GFP_KERNEL);
+		new_leaf = kmalloc_obj(*new_leaf);
 
 	spin_lock(&info->lock);
 

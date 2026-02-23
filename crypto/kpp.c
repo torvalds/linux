@@ -29,10 +29,8 @@ static int __maybe_unused crypto_kpp_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_KPP, sizeof(rkpp), &rkpp);
 }
 
-static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-
-static void crypto_kpp_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_kpp_show(struct seq_file *m,
+					   struct crypto_alg *alg)
 {
 	seq_puts(m, "type         : kpp\n");
 }

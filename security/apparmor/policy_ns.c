@@ -106,7 +106,7 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 {
 	struct aa_ns *ns;
 
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+	ns = kzalloc_obj(*ns);
 	AA_DEBUG(DEBUG_POLICY, "%s(%p)\n", __func__, ns);
 	if (!ns)
 		return NULL;

@@ -574,7 +574,7 @@ static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 	dev_dbg(dev, "%s: xfercap = %d\n", __func__, 1 << xfercap_log);
 
 	for (i = 0; i < chancnt; i++) {
-		ioat_chan = kzalloc(sizeof(*ioat_chan), GFP_KERNEL);
+		ioat_chan = kzalloc_obj(*ioat_chan);
 		if (!ioat_chan)
 			break;
 
@@ -1332,7 +1332,7 @@ static void release_ioatdma(struct dma_device *device)
 static struct ioatdma_device *
 alloc_ioatdma(struct pci_dev *pdev, void __iomem *iobase)
 {
-	struct ioatdma_device *d = kzalloc(sizeof(*d), GFP_KERNEL);
+	struct ioatdma_device *d = kzalloc_obj(*d);
 
 	if (!d)
 		return NULL;

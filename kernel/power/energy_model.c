@@ -439,7 +439,7 @@ static int em_create_pd(struct device *dev, int nr_states,
 
 		cpumask_copy(em_span_cpus(pd), cpus);
 	} else {
-		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+		pd = kzalloc_obj(*pd);
 		if (!pd)
 			return -ENOMEM;
 	}
@@ -449,8 +449,10 @@ static int em_create_pd(struct device *dev, int nr_states,
 	INIT_LIST_HEAD(&pd->node);
 
 	id = ida_alloc(&em_pd_ida, GFP_KERNEL);
-	if (id < 0)
-		return -ENOMEM;
+	if (id < 0) {
+		kfree(pd);
+		return id;
+	}
 	pd->id = id;
 
 	em_table = em_table_alloc(pd);

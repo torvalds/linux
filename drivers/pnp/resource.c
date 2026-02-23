@@ -38,7 +38,7 @@ static struct pnp_option *pnp_build_option(struct pnp_dev *dev, unsigned long ty
 {
 	struct pnp_option *option;
 
-	option = kzalloc(sizeof(struct pnp_option), GFP_KERNEL);
+	option = kzalloc_obj(struct pnp_option);
 	if (!option)
 		return NULL;
 
@@ -499,7 +499,7 @@ static struct pnp_resource *pnp_new_resource(struct pnp_dev *dev)
 {
 	struct pnp_resource *pnp_res;
 
-	pnp_res = kzalloc(sizeof(struct pnp_resource), GFP_KERNEL);
+	pnp_res = kzalloc_obj(struct pnp_resource);
 	if (!pnp_res)
 		return NULL;
 

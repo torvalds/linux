@@ -535,11 +535,11 @@ static int svc_normal_to_secure_thread(void *data)
 	unsigned long a0, a1, a2, a3, a4, a5, a6, a7;
 	int ret_fifo = 0;
 
-	pdata =  kmalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kmalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 
-	cbdata = kmalloc(sizeof(*cbdata), GFP_KERNEL);
+	cbdata = kmalloc_obj(*cbdata);
 	if (!cbdata) {
 		kfree(pdata);
 		return -ENOMEM;
@@ -1119,7 +1119,7 @@ int stratix10_svc_add_async_client(struct stratix10_svc_chan *chan,
 		return 0;
 	}
 
-	achan = kzalloc(sizeof(*achan), GFP_KERNEL);
+	achan = kzalloc_obj(*achan);
 	if (!achan)
 		return -ENOMEM;
 
@@ -1317,7 +1317,7 @@ int stratix10_svc_async_send(struct stratix10_svc_chan *chan, void *msg,
 		dev_dbg(ctrl->dev,
 			"Async message sent with transaction_id 0x%02x\n",
 			handle->transaction_id);
-			*handler = handle;
+		*handler = handle;
 		return 0;
 	case INTEL_SIP_SMC_STATUS_BUSY:
 		dev_warn(ctrl->dev, "Mailbox is busy, try after some time\n");
@@ -1692,7 +1692,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 	int ret = 0;
 	unsigned int cpu = 0;
 
-	p_data = kzalloc(sizeof(*p_data), GFP_KERNEL);
+	p_data = kzalloc_obj(*p_data);
 	if (!p_data)
 		return -ENOMEM;
 
@@ -1702,12 +1702,12 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 			kthread_run_on_cpu(svc_normal_to_secure_thread,
 					   (void *)chan->ctrl,
 					   cpu, "svc_smc_hvc_thread");
-			if (IS_ERR(chan->ctrl->task)) {
-				dev_err(chan->ctrl->dev,
-					"failed to create svc_smc_hvc_thread\n");
-				kfree(p_data);
-				return -EINVAL;
-			}
+		if (IS_ERR(chan->ctrl->task)) {
+			dev_err(chan->ctrl->dev,
+				"failed to create svc_smc_hvc_thread\n");
+			kfree(p_data);
+			return -EINVAL;
+		}
 	}
 
 	pr_debug("%s: sent P-va=%p, P-com=%x, P-size=%u\n", __func__,

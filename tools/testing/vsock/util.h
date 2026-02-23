@@ -25,7 +25,7 @@ enum transport {
 };
 
 static const char * const transport_ksyms[] = {
-	#define x(name, symbol) "d " symbol "_transport",
+	#define x(name, symbol) " " symbol "_transport",
 	KNOWN_TRANSPORTS(x)
 	#undef x
 };

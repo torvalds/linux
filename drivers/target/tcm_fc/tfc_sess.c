@@ -59,7 +59,7 @@ static struct ft_tport *ft_tport_get(struct fc_lport *lport)
 		return tport;
 	}
 
-	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
+	tport = kzalloc_obj(*tport);
 	if (!tport)
 		return NULL;
 
@@ -219,7 +219,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 		if (sess->port_id == port_id)
 			return sess;
 
-	sess = kzalloc(sizeof(*sess), GFP_KERNEL);
+	sess = kzalloc_obj(*sess);
 	if (!sess)
 		return ERR_PTR(-ENOMEM);
 

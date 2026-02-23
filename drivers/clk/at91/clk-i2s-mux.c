@@ -57,7 +57,7 @@ at91_clk_i2s_mux_register(struct regmap *regmap, const char *name,
 	struct clk_i2s_mux *i2s_ck;
 	int ret;
 
-	i2s_ck = kzalloc(sizeof(*i2s_ck), GFP_KERNEL);
+	i2s_ck = kzalloc_obj(*i2s_ck);
 	if (!i2s_ck)
 		return ERR_PTR(-ENOMEM);
 

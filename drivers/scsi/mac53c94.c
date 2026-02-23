@@ -66,7 +66,7 @@ static irqreturn_t do_mac53c94_interrupt(int, void *);
 static void cmd_done(struct fsc_state *, int result);
 static void set_dma_cmds(struct fsc_state *, struct scsi_cmnd *);
 
-static int mac53c94_queue_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status mac53c94_queue_lck(struct scsi_cmnd *cmd)
 {
 	struct fsc_state *state;
 
@@ -462,9 +462,8 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
        	 * +1 to allow for aligning.
 	 * XXX FIXME: Use DMA consistent routines
 	 */
-       	dma_cmd_space = kmalloc_array(host->sg_tablesize + 2,
-					     sizeof(struct dbdma_cmd),
-					     GFP_KERNEL);
+       	dma_cmd_space = kmalloc_objs(struct dbdma_cmd,
+					    host->sg_tablesize + 2);
 	if (!dma_cmd_space) {
 		printk(KERN_ERR "mac53c94: couldn't allocate dma "
 		       "command space for %pOF\n", node);

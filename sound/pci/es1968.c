@@ -1307,7 +1307,7 @@ static struct esm_memory *snd_es1968_new_memory(struct es1968 *chip, int size)
 
 __found:
 	if (buf->buf.bytes > size) {
-		struct esm_memory *chunk = kmalloc(sizeof(*chunk), GFP_KERNEL);
+		struct esm_memory *chunk = kmalloc_obj(*chunk);
 		if (chunk == NULL)
 			return NULL;
 		chunk->buf = buf->buf;
@@ -1385,7 +1385,7 @@ snd_es1968_init_dmabuf(struct es1968 *chip)
 
 	INIT_LIST_HEAD(&chip->buf_list);
 	/* allocate an empty chunk */
-	chunk = kmalloc(sizeof(*chunk), GFP_KERNEL);
+	chunk = kmalloc_obj(*chunk);
 	if (chunk == NULL) {
 		snd_es1968_free_dmabuf(chip);
 		return -ENOMEM;
@@ -1488,7 +1488,7 @@ static int snd_es1968_playback_open(struct snd_pcm_substream *substream)
 	if (apu1 < 0)
 		return apu1;
 
-	es = kzalloc(sizeof(*es), GFP_KERNEL);
+	es = kzalloc_obj(*es);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		return -ENOMEM;
@@ -1529,7 +1529,7 @@ static int snd_es1968_capture_open(struct snd_pcm_substream *substream)
 		return apu2;
 	}
 	
-	es = kzalloc(sizeof(*es), GFP_KERNEL);
+	es = kzalloc_obj(*es);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		snd_es1968_free_apu_pair(chip, apu2);

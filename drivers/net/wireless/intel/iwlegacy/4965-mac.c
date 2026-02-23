@@ -3027,7 +3027,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
 	u32 rate_flags = 0;
 	__le32 rate_n_flags;
 
-	link_cmd = kzalloc(sizeof(struct il_link_quality_cmd), GFP_KERNEL);
+	link_cmd = kzalloc_obj(struct il_link_quality_cmd);
 	if (!link_cmd) {
 		IL_ERR("Unable to allocate memory for LQ cmd.\n");
 		return NULL;
@@ -3709,7 +3709,7 @@ il4965_get_free_frame(struct il_priv *il)
 	struct il_frame *frame;
 	struct list_head *element;
 	if (list_empty(&il->free_frames)) {
-		frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+		frame = kzalloc_obj(*frame);
 		if (!frame) {
 			IL_ERR("Could not allocate frame!\n");
 			return NULL;
@@ -4606,7 +4606,9 @@ il4965_store_tx_power(struct device *d, struct device_attribute *attr,
 	if (ret)
 		IL_INFO("%s is not in decimal form.\n", buf);
 	else {
+		mutex_lock(&il->mutex);
 		ret = il_set_tx_power(il, val, false);
+		mutex_unlock(&il->mutex);
 		if (ret)
 			IL_ERR("failed setting tx power (0x%08x).\n", ret);
 		else

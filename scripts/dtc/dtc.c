@@ -338,8 +338,13 @@ int main(int argc, char *argv[])
 	if (auto_label_aliases)
 		generate_label_tree(dti, "aliases", false);
 
+	generate_labels_from_tree(dti, "__symbols__");
+
 	if (generate_symbols)
 		generate_label_tree(dti, "__symbols__", true);
+
+	fixup_phandles(dti, "__fixups__");
+	local_fixup_phandles(dti, "__local_fixups__");
 
 	if (generate_fixups) {
 		generate_fixups_tree(dti, "__fixups__");

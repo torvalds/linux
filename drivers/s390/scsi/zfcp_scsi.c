@@ -63,8 +63,8 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 	scsi_done(scpnt);
 }
 
-static
-int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
+static enum scsi_qc_status zfcp_scsi_queuecommand(struct Scsi_Host *shost,
+						  struct scsi_cmnd *scpnt)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scpnt->device);
 	struct fc_rport *rport = starget_to_rport(scsi_target(scpnt->device));
@@ -542,7 +542,7 @@ zfcp_scsi_init_fc_host_stats(struct zfcp_adapter *adapter)
 	struct fc_host_statistics *fc_stats;
 
 	if (!adapter->fc_stats) {
-		fc_stats = kmalloc(sizeof(*fc_stats), GFP_KERNEL);
+		fc_stats = kmalloc_obj(*fc_stats);
 		if (!fc_stats)
 			return NULL;
 		adapter->fc_stats = fc_stats; /* freed in adapter_release */
@@ -622,7 +622,7 @@ zfcp_scsi_get_fc_host_stats(struct Scsi_Host *host)
 	if (!fc_stats)
 		return NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 
@@ -651,7 +651,7 @@ static void zfcp_scsi_reset_fc_host_stats(struct Scsi_Host *shost)
 	int ret;
 
 	adapter = (struct zfcp_adapter *)shost->hostdata[0];
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return;
 

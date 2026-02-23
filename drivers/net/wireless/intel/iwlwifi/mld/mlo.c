@@ -12,7 +12,8 @@
 	HOW(ROC)			\
 	HOW(NON_BSS)			\
 	HOW(TMP_NON_BSS)		\
-	HOW(TPT)
+	HOW(TPT)			\
+	HOW(NAN)
 
 static const char *
 iwl_mld_get_emlsr_blocked_string(enum iwl_mld_emlsr_blocked blocked)
@@ -451,27 +452,47 @@ static void iwl_mld_count_non_bss_links(void *_data, u8 *mac,
 
 struct iwl_mld_update_emlsr_block_data {
 	bool block;
+	enum iwl_mld_emlsr_blocked reason;
 	int result;
 };
 
 static void
-iwl_mld_vif_iter_update_emlsr_non_bss_block(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
+iwl_mld_vif_iter_update_emlsr_block(void *_data, u8 *mac,
+				    struct ieee80211_vif *vif)
 {
 	struct iwl_mld_update_emlsr_block_data *data = _data;
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 	int ret;
 
+	if (!iwl_mld_vif_has_emlsr_cap(vif))
+		return;
+
 	if (data->block) {
 		ret = iwl_mld_block_emlsr_sync(mld_vif->mld, vif,
-					       IWL_MLD_EMLSR_BLOCKED_NON_BSS,
+					       data->reason,
 					       iwl_mld_get_primary_link(vif));
 		if (ret)
 			data->result = ret;
 	} else {
 		iwl_mld_unblock_emlsr(mld_vif->mld, vif,
-				      IWL_MLD_EMLSR_BLOCKED_NON_BSS);
+				      data->reason);
 	}
+}
+
+int iwl_mld_update_emlsr_block(struct iwl_mld *mld, bool block,
+			       enum iwl_mld_emlsr_blocked reason)
+{
+	struct iwl_mld_update_emlsr_block_data block_data = {
+		.block = block,
+		.reason = reason,
+	};
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_vif_iter_update_emlsr_block,
+						&block_data);
+
+	return block_data.result;
 }
 
 int iwl_mld_emlsr_check_non_bss_block(struct iwl_mld *mld,
@@ -481,7 +502,6 @@ int iwl_mld_emlsr_check_non_bss_block(struct iwl_mld *mld,
 	 * block EMLSR on the bss vif. Upon deactivation, check if this link
 	 * was the last non-station link active, and if so unblock the bss vif
 	 */
-	struct iwl_mld_update_emlsr_block_data block_data = {};
 	int count = pending_link_changes;
 
 	/* No need to count if we are activating a non-BSS link */
@@ -495,14 +515,8 @@ int iwl_mld_emlsr_check_non_bss_block(struct iwl_mld *mld,
 	 * We could skip updating it if the block change did not change (and
 	 * pending_link_changes is non-zero).
 	 */
-	block_data.block = !!count;
-
-	ieee80211_iterate_active_interfaces_mtx(mld->hw,
-						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mld_vif_iter_update_emlsr_non_bss_block,
-						&block_data);
-
-	return block_data.result;
+	return iwl_mld_update_emlsr_block(mld, !!count,
+					  IWL_MLD_EMLSR_BLOCKED_NON_BSS);
 }
 
 #define EMLSR_SEC_LINK_MIN_PERC 10
@@ -844,9 +858,9 @@ iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
 		if (c_low->chan->center_freq > c_high->chan->center_freq)
 			swap(c_low, c_high);
 
-		c_low_upper_edge = c_low->chan->center_freq +
+		c_low_upper_edge = c_low->center_freq1 +
 				   cfg80211_chandef_get_width(c_low) / 2;
-		c_high_lower_edge = c_high->chan->center_freq -
+		c_high_lower_edge = c_high->center_freq1 -
 				    cfg80211_chandef_get_width(c_high) / 2;
 
 		if (a->chandef->chan->band == NL80211_BAND_5GHZ &&
@@ -1196,4 +1210,17 @@ void iwl_mld_stop_ignoring_tpt_updates(struct iwl_mld *mld)
 						IEEE80211_IFACE_ITER_NORMAL,
 						iwl_mld_ignore_tpt_iter,
 						&start);
+}
+
+int iwl_mld_emlsr_check_nan_block(struct iwl_mld *mld, struct ieee80211_vif *vif)
+{
+	if (mld->nan_device_vif &&
+	    ieee80211_vif_nan_started(mld->nan_device_vif))
+		return iwl_mld_block_emlsr_sync(mld, vif,
+						IWL_MLD_EMLSR_BLOCKED_NAN,
+						iwl_mld_get_primary_link(vif));
+
+	iwl_mld_unblock_emlsr(mld, vif, IWL_MLD_EMLSR_BLOCKED_NAN);
+
+	return 0;
 }

@@ -626,8 +626,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 	 */
 	ps->exceptions_per_area = (ps->store->chunk_size << SECTOR_SHIFT) /
 				  sizeof(struct disk_exception);
-	ps->callbacks = kvcalloc(ps->exceptions_per_area,
-				 sizeof(*ps->callbacks), GFP_KERNEL);
+	ps->callbacks = kvzalloc_objs(*ps->callbacks, ps->exceptions_per_area);
 	if (!ps->callbacks)
 		return -ENOMEM;
 
@@ -854,7 +853,7 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 	int r;
 
 	/* allocate the pstore */
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	ps = kzalloc_obj(*ps);
 	if (!ps)
 		return -ENOMEM;
 
@@ -871,7 +870,8 @@ static int persistent_ctr(struct dm_exception_store *store, char *options)
 	atomic_set(&ps->pending_count, 0);
 	ps->callbacks = NULL;
 
-	ps->metadata_wq = alloc_workqueue("ksnaphd", WQ_MEM_RECLAIM, 0);
+	ps->metadata_wq = alloc_workqueue("ksnaphd",
+					  WQ_MEM_RECLAIM | WQ_PERCPU, 0);
 	if (!ps->metadata_wq) {
 		DMERR("couldn't start header metadata update thread");
 		r = -ENOMEM;

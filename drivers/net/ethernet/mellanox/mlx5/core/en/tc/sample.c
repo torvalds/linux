@@ -183,7 +183,7 @@ sampler_get(struct mlx5e_tc_psample *tc_psample, u32 sample_ratio, u32 default_t
 				 sample_ratio, default_table_id))
 			goto add_ref;
 
-	sampler = kzalloc(sizeof(*sampler), GFP_KERNEL);
+	sampler = kzalloc_obj(*sampler);
 	if (!sampler) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -273,7 +273,7 @@ sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id,
 		if (restore->obj_id == obj_id)
 			goto add_ref;
 
-	restore = kzalloc(sizeof(*restore), GFP_KERNEL);
+	restore = kzalloc_obj(*restore);
 	if (!restore) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -485,7 +485,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (IS_ERR_OR_NULL(tc_psample))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
+	sample_flow = kzalloc_obj(*sample_flow);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
 	sample_attr = &attr->sample_attr;
@@ -619,7 +619,7 @@ mlx5e_tc_sample_init(struct mlx5_eswitch *esw, struct mlx5e_post_act *post_act)
 	struct mlx5e_tc_psample *tc_psample;
 	int err;
 
-	tc_psample = kzalloc(sizeof(*tc_psample), GFP_KERNEL);
+	tc_psample = kzalloc_obj(*tc_psample);
 	if (!tc_psample)
 		return ERR_PTR(-ENOMEM);
 	if (IS_ERR_OR_NULL(post_act)) {

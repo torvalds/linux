@@ -4,6 +4,7 @@
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  */
 
+#include <linux/hex.h>
 #include <linux/string.h>
 #include "pvrusb2-debugifc.h"
 #include "pvrusb2-hdw.h"

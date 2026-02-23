@@ -90,7 +90,7 @@ region_head(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 	if (a->length == size)
 		return a;
 
-	b = kmalloc(sizeof(*b), GFP_KERNEL);
+	b = kmalloc_obj(*b);
 	if (unlikely(b == NULL))
 		return NULL;
 
@@ -165,7 +165,7 @@ region_tail(struct nvkm_mm *mm, struct nvkm_mm_node *a, u32 size)
 	if (a->length == size)
 		return a;
 
-	b = kmalloc(sizeof(*b), GFP_KERNEL);
+	b = kmalloc_obj(*b);
 	if (unlikely(b == NULL))
 		return NULL;
 
@@ -247,7 +247,7 @@ nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 		next = prev->offset + prev->length;
 		if (next != offset) {
 			BUG_ON(next > offset);
-			if (!(node = kzalloc(sizeof(*node), GFP_KERNEL)))
+			if (!(node = kzalloc_obj(*node)))
 				return -ENOMEM;
 			node->type   = NVKM_MM_TYPE_HOLE;
 			node->offset = next;
@@ -262,7 +262,7 @@ nvkm_mm_init(struct nvkm_mm *mm, u8 heap, u32 offset, u32 length, u32 block)
 		mm->heap_nodes = 0;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return -ENOMEM;
 

@@ -17,7 +17,7 @@ mock_context(struct drm_i915_private *i915,
 	struct i915_gem_engines *e;
 	struct intel_sseu null_sseu = {};
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 

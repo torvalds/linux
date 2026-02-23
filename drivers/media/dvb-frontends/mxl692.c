@@ -1314,7 +1314,7 @@ static int mxl692_probe(struct i2c_client *client)
 	struct mxl692_dev *dev;
 	int ret = 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev) {
 		ret = -ENOMEM;
 		dev_dbg(&client->dev, "kzalloc() failed\n");

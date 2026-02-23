@@ -13,12 +13,12 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-struct pci_pwrctrl_pwrseq_data {
-	struct pci_pwrctrl ctx;
+struct pwrseq_pwrctrl {
+	struct pci_pwrctrl pwrctrl;
 	struct pwrseq_desc *pwrseq;
 };
 
-struct pci_pwrctrl_pwrseq_pdata {
+struct pwrseq_pwrctrl_pdata {
 	const char *target;
 	/*
 	 * Called before doing anything else to perform device-specific
@@ -27,7 +27,7 @@ struct pci_pwrctrl_pwrseq_pdata {
 	int (*validate_device)(struct device *dev);
 };
 
-static int pci_pwrctrl_pwrseq_qcm_wcn_validate_device(struct device *dev)
+static int pwrseq_pwrctrl_qcm_wcn_validate_device(struct device *dev)
 {
 	/*
 	 * Old device trees for some platforms already define wifi nodes for
@@ -47,22 +47,38 @@ static int pci_pwrctrl_pwrseq_qcm_wcn_validate_device(struct device *dev)
 	return 0;
 }
 
-static const struct pci_pwrctrl_pwrseq_pdata pci_pwrctrl_pwrseq_qcom_wcn_pdata = {
+static const struct pwrseq_pwrctrl_pdata pwrseq_pwrctrl_qcom_wcn_pdata = {
 	.target = "wlan",
-	.validate_device = pci_pwrctrl_pwrseq_qcm_wcn_validate_device,
+	.validate_device = pwrseq_pwrctrl_qcm_wcn_validate_device,
 };
 
-static void devm_pci_pwrctrl_pwrseq_power_off(void *data)
+static int pwrseq_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 {
-	struct pwrseq_desc *pwrseq = data;
+	struct pwrseq_pwrctrl *pwrseq = container_of(pwrctrl,
+					   struct pwrseq_pwrctrl, pwrctrl);
 
-	pwrseq_power_off(pwrseq);
+	return pwrseq_power_on(pwrseq->pwrseq);
 }
 
-static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
+static int pwrseq_pwrctrl_power_off(struct pci_pwrctrl *pwrctrl)
 {
-	const struct pci_pwrctrl_pwrseq_pdata *pdata;
-	struct pci_pwrctrl_pwrseq_data *data;
+	struct pwrseq_pwrctrl *pwrseq = container_of(pwrctrl,
+					   struct pwrseq_pwrctrl, pwrctrl);
+
+	return pwrseq_power_off(pwrseq->pwrseq);
+}
+
+static void devm_pwrseq_pwrctrl_power_off(void *data)
+{
+	struct pwrseq_pwrctrl *pwrseq = data;
+
+	pwrseq_pwrctrl_power_off(&pwrseq->pwrctrl);
+}
+
+static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
+{
+	const struct pwrseq_pwrctrl_pdata *pdata;
+	struct pwrseq_pwrctrl *pwrseq;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -76,28 +92,26 @@ static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
+	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+	if (!pwrseq)
 		return -ENOMEM;
 
-	data->pwrseq = devm_pwrseq_get(dev, pdata->target);
-	if (IS_ERR(data->pwrseq))
-		return dev_err_probe(dev, PTR_ERR(data->pwrseq),
+	pwrseq->pwrseq = devm_pwrseq_get(dev, pdata->target);
+	if (IS_ERR(pwrseq->pwrseq))
+		return dev_err_probe(dev, PTR_ERR(pwrseq->pwrseq),
 				     "Failed to get the power sequencer\n");
 
-	ret = pwrseq_power_on(data->pwrseq);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to power-on the device\n");
-
-	ret = devm_add_action_or_reset(dev, devm_pci_pwrctrl_pwrseq_power_off,
-				       data->pwrseq);
+	ret = devm_add_action_or_reset(dev, devm_pwrseq_pwrctrl_power_off,
+				       pwrseq);
 	if (ret)
 		return ret;
 
-	pci_pwrctrl_init(&data->ctx, dev);
+	pwrseq->pwrctrl.power_on = pwrseq_pwrctrl_power_on;
+	pwrseq->pwrctrl.power_off = pwrseq_pwrctrl_power_off;
 
-	ret = devm_pci_pwrctrl_device_set_ready(dev, &data->ctx);
+	pci_pwrctrl_init(&pwrseq->pwrctrl, dev);
+
+	ret = devm_pci_pwrctrl_device_set_ready(dev, &pwrseq->pwrctrl);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to register the pwrctrl wrapper\n");
@@ -105,34 +119,34 @@ static int pci_pwrctrl_pwrseq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id pci_pwrctrl_pwrseq_of_match[] = {
+static const struct of_device_id pwrseq_pwrctrl_of_match[] = {
 	{
 		/* ATH11K in QCA6390 package. */
 		.compatible = "pci17cb,1101",
-		.data = &pci_pwrctrl_pwrseq_qcom_wcn_pdata,
+		.data = &pwrseq_pwrctrl_qcom_wcn_pdata,
 	},
 	{
 		/* ATH11K in WCN6855 package. */
 		.compatible = "pci17cb,1103",
-		.data = &pci_pwrctrl_pwrseq_qcom_wcn_pdata,
+		.data = &pwrseq_pwrctrl_qcom_wcn_pdata,
 	},
 	{
 		/* ATH12K in WCN7850 package. */
 		.compatible = "pci17cb,1107",
-		.data = &pci_pwrctrl_pwrseq_qcom_wcn_pdata,
+		.data = &pwrseq_pwrctrl_qcom_wcn_pdata,
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, pci_pwrctrl_pwrseq_of_match);
+MODULE_DEVICE_TABLE(of, pwrseq_pwrctrl_of_match);
 
-static struct platform_driver pci_pwrctrl_pwrseq_driver = {
+static struct platform_driver pwrseq_pwrctrl_driver = {
 	.driver = {
 		.name = "pci-pwrctrl-pwrseq",
-		.of_match_table = pci_pwrctrl_pwrseq_of_match,
+		.of_match_table = pwrseq_pwrctrl_of_match,
 	},
-	.probe = pci_pwrctrl_pwrseq_probe,
+	.probe = pwrseq_pwrctrl_probe,
 };
-module_platform_driver(pci_pwrctrl_pwrseq_driver);
+module_platform_driver(pwrseq_pwrctrl_driver);
 
 MODULE_AUTHOR("Bartosz Golaszewski <bartosz.golaszewski@linaro.org>");
 MODULE_DESCRIPTION("Generic PCI Power Control module for power sequenced devices");

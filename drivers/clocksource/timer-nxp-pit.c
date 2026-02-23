@@ -276,7 +276,7 @@ static int pit_timer_init(struct device_node *np)
 	unsigned long clk_rate;
 	int irq, ret;
 
-	pit = kzalloc(sizeof(*pit), GFP_KERNEL);
+	pit = kzalloc_obj(*pit);
 	if (!pit)
 		return -ENOMEM;
 

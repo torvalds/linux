@@ -36,13 +36,12 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		  tx_queue->queue, efx->txq_entries, tx_queue->ptr_mask);
 
 	/* Allocate software ring */
-	tx_queue->buffer = kcalloc(entries, sizeof(*tx_queue->buffer),
-				   GFP_KERNEL);
+	tx_queue->buffer = kzalloc_objs(*tx_queue->buffer, entries);
 	if (!tx_queue->buffer)
 		return -ENOMEM;
 
-	tx_queue->cb_page = kcalloc(efx_tx_cb_page_count(tx_queue),
-				    sizeof(tx_queue->cb_page[0]), GFP_KERNEL);
+	tx_queue->cb_page = kzalloc_objs(tx_queue->cb_page[0],
+					 efx_tx_cb_page_count(tx_queue));
 	if (!tx_queue->cb_page) {
 		rc = -ENOMEM;
 		goto fail1;

@@ -539,7 +539,7 @@ int vmw_overlay_init(struct vmw_private *dev_priv)
 	if (dev_priv->overlay_priv)
 		return -EINVAL;
 
-	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
+	overlay = kzalloc_obj(*overlay);
 	if (!overlay)
 		return -ENOMEM;
 

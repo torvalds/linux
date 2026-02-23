@@ -143,7 +143,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 				}
 
 				schan->pm_state = SHDMA_PM_ESTABLISHED;
-				ret = pm_runtime_put(schan->dev);
+				pm_runtime_put(schan->dev);
 
 				spin_unlock_irq(&schan->chan_lock);
 				return ret;
@@ -577,12 +577,11 @@ static struct dma_async_tx_descriptor *shdma_prep_sg(struct shdma_chan *schan,
 	struct scatterlist *sg;
 	struct shdma_desc *first = NULL, *new = NULL /* compiler... */;
 	LIST_HEAD(tx_list);
-	int chunks = 0;
+	int chunks;
 	unsigned long irq_flags;
 	int i;
 
-	for_each_sg(sgl, sg, sg_len, i)
-		chunks += DIV_ROUND_UP(sg_dma_len(sg), schan->max_xfer_len);
+	chunks = sg_nents_for_dma(sgl, sg_len, schan->max_xfer_len);
 
 	/* Have to lock the whole loop to protect against concurrent release */
 	spin_lock_irqsave(&schan->chan_lock, irq_flags);
@@ -741,7 +740,7 @@ static struct dma_async_tx_descriptor *shdma_prep_dma_cyclic(
 	 * Allocate the sg list dynamically as it would consume too much stack
 	 * space.
 	 */
-	sgl = kmalloc_array(sg_len, sizeof(*sgl), GFP_KERNEL);
+	sgl = kmalloc_objs(*sgl, sg_len);
 	if (!sgl)
 		return NULL;
 
@@ -1013,7 +1012,7 @@ int shdma_init(struct device *dev, struct shdma_dev *sdev,
 	    !sdev->ops->desc_completed)
 		return -EINVAL;
 
-	sdev->schan = kcalloc(chan_num, sizeof(*sdev->schan), GFP_KERNEL);
+	sdev->schan = kzalloc_objs(*sdev->schan, chan_num);
 	if (!sdev->schan)
 		return -ENOMEM;
 

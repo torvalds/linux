@@ -38,6 +38,26 @@ MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
 #define GENEVE_IPV4_HLEN (ETH_HLEN + sizeof(struct iphdr) + GENEVE_BASE_HLEN)
 #define GENEVE_IPV6_HLEN (ETH_HLEN + sizeof(struct ipv6hdr) + GENEVE_BASE_HLEN)
 
+#define GENEVE_OPT_NETDEV_CLASS		0x100
+#define GENEVE_OPT_GRO_HINT_SIZE	8
+#define GENEVE_OPT_GRO_HINT_TYPE	1
+#define GENEVE_OPT_GRO_HINT_LEN		1
+
+struct geneve_opt_gro_hint {
+	u8	inner_proto_id:2,
+		nested_is_v6:1;
+	u8	nested_nh_offset;
+	u8	nested_tp_offset;
+	u8	nested_hdr_len;
+};
+
+struct geneve_skb_cb {
+	unsigned int	gro_hint_len;
+	struct geneve_opt_gro_hint gro_hint;
+};
+
+#define GENEVE_SKB_CB(__skb)	((struct geneve_skb_cb *)&((__skb)->cb[0]))
+
 /* per-network namespace private data for this module */
 struct geneve_net {
 	struct list_head	geneve_list;
@@ -56,6 +76,7 @@ struct geneve_config {
 	bool			collect_md;
 	bool			use_udp6_rx_checksums;
 	bool			ttl_inherit;
+	bool			gro_hint;
 	enum ifla_geneve_df	df;
 	bool			inner_proto_inherit;
 	u16			port_min;
@@ -84,12 +105,28 @@ struct geneve_dev {
 
 struct geneve_sock {
 	bool			collect_md;
+	bool			gro_hint;
 	struct list_head	list;
 	struct socket		*sock;
 	struct rcu_head		rcu;
 	int			refcnt;
 	struct hlist_head	vni_list[VNI_HASH_SIZE];
 };
+
+static const __be16 proto_id_map[] = { htons(ETH_P_TEB),
+				       htons(ETH_P_IPV6),
+				       htons(ETH_P_IP) };
+
+static int proto_to_id(__be16 proto)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(proto_id_map); i++)
+		if (proto_id_map[i] == proto)
+			return i;
+
+	return -1;
+}
 
 static inline __u32 geneve_net_vni_hash(u8 vni[3])
 {
@@ -222,9 +259,8 @@ static struct geneve_dev *geneve_lookup_skb(struct geneve_sock *gs,
 
 /* geneve receive/decap routine */
 static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
-		      struct sk_buff *skb)
+		      struct sk_buff *skb, const struct genevehdr *gnvh)
 {
-	struct genevehdr *gnvh = geneve_hdr(skb);
 	struct metadata_dst *tun_dst = NULL;
 	unsigned int len;
 	int nh, err = 0;
@@ -325,8 +361,12 @@ static void geneve_rx(struct geneve_dev *geneve, struct geneve_sock *gs,
 		}
 	}
 
+	/* Skip the additional GRO stage when hints are in use. */
 	len = skb->len;
-	err = gro_cells_receive(&geneve->gro_cells, skb);
+	if (skb->encapsulation)
+		err = netif_rx(skb);
+	else
+		err = gro_cells_receive(&geneve->gro_cells, skb);
 	if (likely(err == NET_RX_SUCCESS))
 		dev_dstats_rx_add(geneve->dev, len);
 
@@ -361,6 +401,250 @@ static void geneve_uninit(struct net_device *dev)
 
 	dst_cache_destroy(&geneve->cfg.info.dst_cache);
 	gro_cells_destroy(&geneve->gro_cells);
+}
+
+static int geneve_hlen(const struct genevehdr *gh)
+{
+	return sizeof(*gh) + gh->opt_len * 4;
+}
+
+/*
+ * Look for GRO hint in the genenve options; if not found or does not pass basic
+ * sanitization return 0, otherwise the offset WRT the geneve hdr start.
+ */
+static unsigned int
+geneve_opt_gro_hint_off(const struct genevehdr *gh, __be16 *type,
+			unsigned int *gh_len)
+{
+	struct geneve_opt *opt = (void *)(gh + 1);
+	unsigned int id, opt_len = gh->opt_len;
+	struct geneve_opt_gro_hint *gro_hint;
+
+	while (opt_len >= (GENEVE_OPT_GRO_HINT_SIZE >> 2)) {
+		if (opt->opt_class == htons(GENEVE_OPT_NETDEV_CLASS) &&
+		    opt->type == GENEVE_OPT_GRO_HINT_TYPE &&
+		    opt->length == GENEVE_OPT_GRO_HINT_LEN)
+			goto found;
+
+		/* check for bad opt len */
+		if (opt->length + 1 >= opt_len)
+			return 0;
+
+		/* next opt */
+		opt_len -= opt->length + 1;
+		opt = ((void *)opt) + ((opt->length + 1) << 2);
+	}
+	return 0;
+
+found:
+	gro_hint = (struct geneve_opt_gro_hint *)opt->opt_data;
+
+	/*
+	 * Sanitize the hinted hdrs: the nested transport is UDP and must fit
+	 * the overall hinted hdr size.
+	 */
+	if (gro_hint->nested_tp_offset + sizeof(struct udphdr) >
+	    gro_hint->nested_hdr_len)
+		return 0;
+
+	if (gro_hint->nested_nh_offset +
+	    (gro_hint->nested_is_v6 ? sizeof(struct ipv6hdr) :
+				      sizeof(struct iphdr)) >
+	    gro_hint->nested_tp_offset)
+		return 0;
+
+	/* Allow only supported L2. */
+	id = gro_hint->inner_proto_id;
+	if (id >= ARRAY_SIZE(proto_id_map))
+		return 0;
+
+	*type = proto_id_map[id];
+	*gh_len += gro_hint->nested_hdr_len;
+
+	return (void *)gro_hint - (void *)gh;
+}
+
+static const struct geneve_opt_gro_hint *
+geneve_opt_gro_hint(const struct genevehdr *gh, unsigned int hint_off)
+{
+	return (const struct geneve_opt_gro_hint *)((void *)gh + hint_off);
+}
+
+static unsigned int
+geneve_sk_gro_hint_off(const struct sock *sk, const struct genevehdr *gh,
+		       __be16 *type, unsigned int *gh_len)
+{
+	const struct geneve_sock *gs = rcu_dereference_sk_user_data(sk);
+
+	if (!gs || !gs->gro_hint)
+		return 0;
+	return geneve_opt_gro_hint_off(gh, type, gh_len);
+}
+
+/* Validate the packet headers pointed by data WRT the provided hint */
+static bool
+geneve_opt_gro_hint_validate(void *data,
+			     const struct geneve_opt_gro_hint *gro_hint)
+{
+	void *nested_nh = data + gro_hint->nested_nh_offset;
+	struct iphdr *iph;
+
+	if (gro_hint->nested_is_v6) {
+		struct ipv6hdr *ipv6h = nested_nh;
+		struct ipv6_opt_hdr *opth;
+		int offset, len;
+
+		if (ipv6h->nexthdr == IPPROTO_UDP)
+			return true;
+
+		offset = sizeof(*ipv6h) + gro_hint->nested_nh_offset;
+		while (offset + sizeof(*opth) <= gro_hint->nested_tp_offset) {
+			opth = data + offset;
+
+			len = ipv6_optlen(opth);
+			if (len + offset > gro_hint->nested_tp_offset)
+				return false;
+			if (opth->nexthdr == IPPROTO_UDP)
+				return true;
+
+			offset += len;
+		}
+		return false;
+	}
+
+	iph = nested_nh;
+	if (*(u8 *)iph != 0x45 || ip_is_fragment(iph) ||
+	    iph->protocol != IPPROTO_UDP || ip_fast_csum((u8 *)iph, 5))
+		return false;
+
+	return true;
+}
+
+/*
+ * Validate the skb headers following the specified geneve hdr vs the
+ * provided hint, including nested L4 checksum.
+ * The caller already ensured that the relevant amount of data is available
+ * in the linear part.
+ */
+static bool
+geneve_opt_gro_hint_validate_csum(const struct sk_buff *skb,
+				  const struct genevehdr *gh,
+				  const struct geneve_opt_gro_hint *gro_hint)
+{
+	unsigned int plen, gh_len = geneve_hlen(gh);
+	void *nested = (void *)gh + gh_len;
+	struct udphdr *nested_uh;
+	unsigned int nested_len;
+	struct ipv6hdr *ipv6h;
+	struct iphdr *iph;
+	__wsum csum, psum;
+
+	if (!geneve_opt_gro_hint_validate(nested, gro_hint))
+		return false;
+
+	/* Use GRO hints with nested csum only if the outer header has csum. */
+	nested_uh = nested + gro_hint->nested_tp_offset;
+	if (!nested_uh->check || skb->ip_summed == CHECKSUM_PARTIAL)
+		return true;
+
+	if (!NAPI_GRO_CB(skb)->csum_valid)
+		return false;
+
+	/* Compute the complete checksum up to the nested transport. */
+	plen = gh_len + gro_hint->nested_tp_offset;
+	csum = csum_sub(NAPI_GRO_CB(skb)->csum, csum_partial(gh, plen, 0));
+	nested_len = skb_gro_len(skb) - plen;
+
+	/* Compute the nested pseudo header csum. */
+	ipv6h = nested + gro_hint->nested_nh_offset;
+	iph = (struct iphdr *)ipv6h;
+	psum = gro_hint->nested_is_v6 ?
+	       ~csum_unfold(csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+					    nested_len, IPPROTO_UDP, 0)) :
+	       csum_tcpudp_nofold(iph->saddr, iph->daddr,
+				  nested_len, IPPROTO_UDP, 0);
+
+	return !csum_fold(csum_add(psum, csum));
+}
+
+static int geneve_post_decap_hint(const struct sock *sk, struct sk_buff *skb,
+				  unsigned int gh_len,
+				  struct genevehdr **geneveh)
+{
+	const struct geneve_opt_gro_hint *gro_hint;
+	unsigned int len, total_len, hint_off;
+	struct ipv6hdr *ipv6h;
+	struct iphdr *iph;
+	struct udphdr *uh;
+	__be16 p;
+
+	hint_off = geneve_sk_gro_hint_off(sk, *geneveh, &p, &len);
+	if (!hint_off)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
+
+	gro_hint = geneve_opt_gro_hint(*geneveh, hint_off);
+	if (unlikely(!pskb_may_pull(skb, gro_hint->nested_hdr_len)))
+		return -ENOMEM;
+
+	*geneveh = geneve_hdr(skb);
+	gro_hint = geneve_opt_gro_hint(*geneveh, hint_off);
+
+	/*
+	 * Validate hints from untrusted source before accessing
+	 * the headers; csum will be checked later by the nested
+	 * protocol rx path.
+	 */
+	if (unlikely(skb_shinfo(skb)->gso_type & SKB_GSO_DODGY &&
+		     !geneve_opt_gro_hint_validate(skb->data, gro_hint)))
+		return -EINVAL;
+
+	ipv6h = (void *)skb->data + gro_hint->nested_nh_offset;
+	iph = (struct iphdr *)ipv6h;
+	total_len = skb->len - gro_hint->nested_nh_offset;
+	if (total_len > GRO_LEGACY_MAX_SIZE)
+		return -E2BIG;
+
+	/*
+	 * After stripping the outer encap, the packet still carries a
+	 * tunnel encapsulation: the nested one.
+	 */
+	skb->encapsulation = 1;
+
+	/* GSO expect a valid transpor header, move it to the current one. */
+	skb_set_transport_header(skb, gro_hint->nested_tp_offset);
+
+	/* Adjust the nested IP{6} hdr to actual GSO len. */
+	if (gro_hint->nested_is_v6) {
+		ipv6h->payload_len = htons(total_len - sizeof(*ipv6h));
+	} else {
+		__be16 old_len = iph->tot_len;
+
+		iph->tot_len = htons(total_len);
+
+		/* For IPv4 additionally adjust the nested csum. */
+		csum_replace2(&iph->check, old_len, iph->tot_len);
+		ip_send_check(iph);
+	}
+
+	/* Adjust the nested UDP header len and checksum. */
+	uh = udp_hdr(skb);
+	uh->len = htons(skb->len - gro_hint->nested_tp_offset);
+	if (uh->check) {
+		len = skb->len - gro_hint->nested_nh_offset;
+		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+		if (gro_hint->nested_is_v6)
+			uh->check = ~udp_v6_check(len, &ipv6h->saddr,
+						  &ipv6h->daddr, 0);
+		else
+			uh->check = ~udp_v4_check(len, iph->saddr,
+						  iph->daddr, 0);
+	} else {
+		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
+	}
+	return 0;
 }
 
 /* Callback from net/ipv4/udp.c to receive packets */
@@ -404,7 +688,18 @@ static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	geneve_rx(geneve, gs, skb);
+	/*
+	 * After hint processing, the transport header points to the inner one
+	 * and we can't use anymore on geneve_hdr().
+	 */
+	geneveh = geneve_hdr(skb);
+	if (geneve_post_decap_hint(sk, skb, sizeof(struct genevehdr) +
+				   opts_len, &geneveh)) {
+		DEV_STATS_INC(geneve->dev, rx_errors);
+		goto drop;
+	}
+
+	geneve_rx(geneve, gs, skb, geneveh);
 	return 0;
 
 drop:
@@ -495,22 +790,93 @@ static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 	return sock;
 }
 
-static int geneve_hlen(struct genevehdr *gh)
+static bool geneve_hdr_match(struct sk_buff *skb,
+			     const struct genevehdr *gh,
+			     const struct genevehdr *gh2,
+			     unsigned int hint_off)
 {
-	return sizeof(*gh) + gh->opt_len * 4;
+	const struct geneve_opt_gro_hint *gro_hint;
+	void *nested, *nested2, *nh, *nh2;
+	struct udphdr *udp, *udp2;
+	unsigned int gh_len;
+
+	/* Match the geneve hdr and options */
+	if (gh->opt_len != gh2->opt_len)
+		return false;
+
+	gh_len = geneve_hlen(gh);
+	if (memcmp(gh, gh2, gh_len))
+		return false;
+
+	if (!hint_off)
+		return true;
+
+	/*
+	 * When gro is present consider the nested headers as part
+	 * of the geneve options
+	 */
+	nested = (void *)gh + gh_len;
+	nested2 = (void *)gh2 + gh_len;
+	gro_hint = geneve_opt_gro_hint(gh, hint_off);
+	if (!memcmp(nested, nested2, gro_hint->nested_hdr_len))
+		return true;
+
+	/*
+	 * The nested headers differ; the packets can still belong to
+	 * the same flow when IPs/proto/ports match; if so flushing is
+	 * required.
+	 */
+	nh = nested + gro_hint->nested_nh_offset;
+	nh2 = nested2 + gro_hint->nested_nh_offset;
+	if (gro_hint->nested_is_v6) {
+		struct ipv6hdr *iph = nh, *iph2 = nh2;
+		unsigned int nested_nlen;
+		__be32 first_word;
+
+		first_word = *(__be32 *)iph ^ *(__be32 *)iph2;
+		if ((first_word & htonl(0xF00FFFFF)) ||
+		    !ipv6_addr_equal(&iph->saddr, &iph2->saddr) ||
+		    !ipv6_addr_equal(&iph->daddr, &iph2->daddr) ||
+		    iph->nexthdr != iph2->nexthdr)
+			return false;
+
+		nested_nlen = gro_hint->nested_tp_offset -
+			      gro_hint->nested_nh_offset;
+		if (nested_nlen > sizeof(struct ipv6hdr) &&
+		    (memcmp(iph + 1, iph2 + 1,
+			    nested_nlen - sizeof(struct ipv6hdr))))
+			return false;
+	} else {
+		struct iphdr *iph = nh, *iph2 = nh2;
+
+		if ((iph->protocol ^ iph2->protocol) |
+		    ((__force u32)iph->saddr ^ (__force u32)iph2->saddr) |
+		    ((__force u32)iph->daddr ^ (__force u32)iph2->daddr))
+			return false;
+	}
+
+	udp = nested + gro_hint->nested_tp_offset;
+	udp2 = nested2 + gro_hint->nested_tp_offset;
+	if (udp->source != udp2->source || udp->dest != udp2->dest ||
+	    udp->check != udp2->check)
+		return false;
+
+	NAPI_GRO_CB(skb)->flush = 1;
+	return true;
 }
 
 static struct sk_buff *geneve_gro_receive(struct sock *sk,
 					  struct list_head *head,
 					  struct sk_buff *skb)
 {
+	unsigned int hlen, gh_len, off_gnv, hint_off;
+	const struct geneve_opt_gro_hint *gro_hint;
+	const struct packet_offload *ptype;
+	struct genevehdr *gh, *gh2;
 	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
-	struct genevehdr *gh, *gh2;
-	unsigned int hlen, gh_len, off_gnv;
-	const struct packet_offload *ptype;
-	__be16 type;
 	int flush = 1;
+	__be16 type;
 
 	off_gnv = skb_gro_offset(skb);
 	hlen = off_gnv + sizeof(*gh);
@@ -521,6 +887,7 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 	if (gh->ver != GENEVE_VER || gh->oam)
 		goto out;
 	gh_len = geneve_hlen(gh);
+	type = gh->proto_type;
 
 	hlen = off_gnv + gh_len;
 	if (!skb_gro_may_pull(skb, hlen)) {
@@ -529,13 +896,30 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 			goto out;
 	}
 
+	/* The GRO hint/nested hdr could use a different ethernet type. */
+	hint_off = geneve_sk_gro_hint_off(sk, gh, &type, &gh_len);
+	if (hint_off) {
+
+		/*
+		 * If the hint is present, and nested hdr validation fails, do
+		 * not attempt plain GRO: it will ignore inner hdrs and cause
+		 * OoO.
+		 */
+		gh = skb_gro_header(skb, off_gnv + gh_len, off_gnv);
+		if (unlikely(!gh))
+			goto out;
+
+		gro_hint = geneve_opt_gro_hint(gh, hint_off);
+		if (!geneve_opt_gro_hint_validate_csum(skb, gh, gro_hint))
+			goto out;
+	}
+
 	list_for_each_entry(p, head, list) {
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
 		gh2 = (struct genevehdr *)(p->data + off_gnv);
-		if (gh->opt_len != gh2->opt_len ||
-		    memcmp(gh, gh2, gh_len)) {
+		if (!geneve_hdr_match(skb, gh, gh2, hint_off)) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
@@ -543,7 +927,6 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 
 	skb_gro_pull(skb, gh_len);
 	skb_gro_postpull_rcsum(skb, gh, gh_len);
-	type = gh->proto_type;
 	if (likely(type == htons(ETH_P_TEB)))
 		return call_gro_receive(eth_gro_receive, head, skb);
 
@@ -572,6 +955,7 @@ static int geneve_gro_complete(struct sock *sk, struct sk_buff *skb,
 	gh = (struct genevehdr *)(skb->data + nhoff);
 	gh_len = geneve_hlen(gh);
 	type = gh->proto_type;
+	geneve_opt_gro_hint_off(gh, &type, &gh_len);
 
 	/* since skb->encapsulation is set, eth_gro_complete() sets the inner mac header */
 	if (likely(type == htons(ETH_P_TEB)))
@@ -596,7 +980,7 @@ static struct geneve_sock *geneve_socket_create(struct net *net, __be16 port,
 	struct udp_tunnel_sock_cfg tunnel_cfg;
 	int h;
 
-	gs = kzalloc(sizeof(*gs), GFP_KERNEL);
+	gs = kzalloc_obj(*gs);
 	if (!gs)
 		return ERR_PTR(-ENOMEM);
 
@@ -659,13 +1043,15 @@ static void geneve_sock_release(struct geneve_dev *geneve)
 
 static struct geneve_sock *geneve_find_sock(struct geneve_net *gn,
 					    sa_family_t family,
-					    __be16 dst_port)
+					    __be16 dst_port,
+					    bool gro_hint)
 {
 	struct geneve_sock *gs;
 
 	list_for_each_entry(gs, &gn->sock_list, list) {
 		if (inet_sk(gs->sock->sk)->inet_sport == dst_port &&
-		    geneve_get_sk_family(gs) == family) {
+		    geneve_get_sk_family(gs) == family &&
+		    gs->gro_hint == gro_hint) {
 			return gs;
 		}
 	}
@@ -676,12 +1062,14 @@ static int geneve_sock_add(struct geneve_dev *geneve, bool ipv6)
 {
 	struct net *net = geneve->net;
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
+	bool gro_hint = geneve->cfg.gro_hint;
 	struct geneve_dev_node *node;
 	struct geneve_sock *gs;
 	__u8 vni[3];
 	__u32 hash;
 
-	gs = geneve_find_sock(gn, ipv6 ? AF_INET6 : AF_INET, geneve->cfg.info.key.tp_dst);
+	gs = geneve_find_sock(gn, ipv6 ? AF_INET6 : AF_INET,
+			      geneve->cfg.info.key.tp_dst, gro_hint);
 	if (gs) {
 		gs->refcnt++;
 		goto out;
@@ -694,6 +1082,7 @@ static int geneve_sock_add(struct geneve_dev *geneve, bool ipv6)
 
 out:
 	gs->collect_md = geneve->cfg.collect_md;
+	gs->gro_hint = gro_hint;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
 		rcu_assign_pointer(geneve->sock6, gs);
@@ -766,34 +1155,116 @@ static void geneve_build_header(struct genevehdr *geneveh,
 		ip_tunnel_info_opts_get(geneveh->options, info);
 }
 
+static int geneve_build_gro_hint_opt(const struct geneve_dev *geneve,
+				     struct sk_buff *skb)
+{
+	struct geneve_skb_cb *cb = GENEVE_SKB_CB(skb);
+	struct geneve_opt_gro_hint *hint;
+	unsigned int nhlen;
+	bool nested_is_v6;
+	int id;
+
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct geneve_skb_cb));
+	cb->gro_hint_len = 0;
+
+	/* Try to add the GRO hint only in case of double encap. */
+	if (!geneve->cfg.gro_hint || !skb->encapsulation)
+		return 0;
+
+	/*
+	 * The nested headers must fit the geneve opt len fields and the
+	 * nested encap must carry a nested transport (UDP) header.
+	 */
+	nhlen = skb_inner_mac_header(skb) - skb->data;
+	if (nhlen > 255 || !skb_transport_header_was_set(skb) ||
+	    skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+	    (skb_transport_offset(skb) + sizeof(struct udphdr) > nhlen))
+		return 0;
+
+	id = proto_to_id(skb->inner_protocol);
+	if (id < 0)
+		return 0;
+
+	nested_is_v6 = skb->protocol == htons(ETH_P_IPV6);
+	if (nested_is_v6) {
+		int start = skb_network_offset(skb) + sizeof(struct ipv6hdr);
+		u8 proto = ipv6_hdr(skb)->nexthdr;
+		__be16 foff;
+
+		if (ipv6_skip_exthdr(skb, start, &proto, &foff) < 0 ||
+		    proto != IPPROTO_UDP)
+			return 0;
+	} else {
+		if (ip_hdr(skb)->protocol != IPPROTO_UDP)
+			return 0;
+	}
+
+	hint = &cb->gro_hint;
+	memset(hint, 0, sizeof(*hint));
+	hint->inner_proto_id = id;
+	hint->nested_is_v6 = skb->protocol == htons(ETH_P_IPV6);
+	hint->nested_nh_offset = skb_network_offset(skb);
+	hint->nested_tp_offset = skb_transport_offset(skb);
+	hint->nested_hdr_len = nhlen;
+	cb->gro_hint_len = GENEVE_OPT_GRO_HINT_SIZE;
+	return GENEVE_OPT_GRO_HINT_SIZE;
+}
+
+static void geneve_put_gro_hint_opt(struct genevehdr *gnvh, int opt_size,
+				    const struct geneve_opt_gro_hint *hint)
+{
+	struct geneve_opt *gro_opt;
+
+	/* geneve_build_header() did not took in account the GRO hint. */
+	gnvh->opt_len = (opt_size + GENEVE_OPT_GRO_HINT_SIZE) >> 2;
+
+	gro_opt = (void *)(gnvh + 1) + opt_size;
+	memset(gro_opt, 0, sizeof(*gro_opt));
+
+	gro_opt->opt_class = htons(GENEVE_OPT_NETDEV_CLASS);
+	gro_opt->type = GENEVE_OPT_GRO_HINT_TYPE;
+	gro_opt->length = GENEVE_OPT_GRO_HINT_LEN;
+	memcpy(gro_opt + 1, hint, sizeof(*hint));
+}
+
 static int geneve_build_skb(struct dst_entry *dst, struct sk_buff *skb,
 			    const struct ip_tunnel_info *info,
-			    bool xnet, int ip_hdr_len,
-			    bool inner_proto_inherit)
+			    const struct geneve_dev *geneve, int ip_hdr_len)
 {
 	bool udp_sum = test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
+	bool inner_proto_inherit = geneve->cfg.inner_proto_inherit;
+	bool xnet = !net_eq(geneve->net, dev_net(geneve->dev));
+	struct geneve_skb_cb *cb = GENEVE_SKB_CB(skb);
 	struct genevehdr *gnvh;
 	__be16 inner_proto;
+	bool double_encap;
 	int min_headroom;
+	int opt_size;
 	int err;
 
 	skb_reset_mac_header(skb);
 	skb_scrub_packet(skb, xnet);
 
+	opt_size =  info->options_len + cb->gro_hint_len;
 	min_headroom = LL_RESERVED_SPACE(dst->dev) + dst->header_len +
-		       GENEVE_BASE_HLEN + info->options_len + ip_hdr_len;
+		       GENEVE_BASE_HLEN + opt_size + ip_hdr_len;
 	err = skb_cow_head(skb, min_headroom);
 	if (unlikely(err))
 		goto free_dst;
 
+	double_encap = udp_tunnel_handle_partial(skb);
 	err = udp_tunnel_handle_offloads(skb, udp_sum);
 	if (err)
 		goto free_dst;
 
-	gnvh = __skb_push(skb, sizeof(*gnvh) + info->options_len);
+	gnvh = __skb_push(skb, sizeof(*gnvh) + opt_size);
 	inner_proto = inner_proto_inherit ? skb->protocol : htons(ETH_P_TEB);
 	geneve_build_header(gnvh, info, inner_proto);
-	skb_set_inner_protocol(skb, inner_proto);
+
+	if (cb->gro_hint_len)
+		geneve_put_gro_hint_opt(gnvh, info->options_len, &cb->gro_hint);
+
+	udp_tunnel_set_inner_protocol(skb, double_encap, inner_proto);
 	return 0;
 
 free_dst:
@@ -821,8 +1292,6 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			   struct geneve_dev *geneve,
 			   const struct ip_tunnel_info *info)
 {
-	bool inner_proto_inherit = geneve->cfg.inner_proto_inherit;
-	bool xnet = !net_eq(geneve->net, dev_net(geneve->dev));
 	struct geneve_sock *gs4 = rcu_dereference(geneve->sock4);
 	const struct ip_tunnel_key *key = &info->key;
 	struct rtable *rt;
@@ -833,7 +1302,7 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__be16 sport;
 	int err;
 
-	if (skb_vlan_inet_prepare(skb, inner_proto_inherit))
+	if (skb_vlan_inet_prepare(skb, geneve->cfg.inner_proto_inherit))
 		return -EINVAL;
 
 	if (!gs4)
@@ -854,7 +1323,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		return PTR_ERR(rt);
 
 	err = skb_tunnel_check_pmtu(skb, &rt->dst,
-				    GENEVE_IPV4_HLEN + info->options_len,
+				    GENEVE_IPV4_HLEN + info->options_len +
+				    geneve_build_gro_hint_opt(geneve, skb),
 				    netif_is_any_bridge_port(dev));
 	if (err < 0) {
 		dst_release(&rt->dst);
@@ -916,8 +1386,8 @@ static int geneve_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	err = geneve_build_skb(&rt->dst, skb, info, xnet, sizeof(struct iphdr),
-			       inner_proto_inherit);
+	err = geneve_build_skb(&rt->dst, skb, info, geneve,
+			       sizeof(struct iphdr));
 	if (unlikely(err))
 		return err;
 
@@ -934,8 +1404,6 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			    struct geneve_dev *geneve,
 			    const struct ip_tunnel_info *info)
 {
-	bool inner_proto_inherit = geneve->cfg.inner_proto_inherit;
-	bool xnet = !net_eq(geneve->net, dev_net(geneve->dev));
 	struct geneve_sock *gs6 = rcu_dereference(geneve->sock6);
 	const struct ip_tunnel_key *key = &info->key;
 	struct dst_entry *dst = NULL;
@@ -945,7 +1413,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__be16 sport;
 	int err;
 
-	if (skb_vlan_inet_prepare(skb, inner_proto_inherit))
+	if (skb_vlan_inet_prepare(skb, geneve->cfg.inner_proto_inherit))
 		return -EINVAL;
 
 	if (!gs6)
@@ -966,7 +1434,8 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 		return PTR_ERR(dst);
 
 	err = skb_tunnel_check_pmtu(skb, dst,
-				    GENEVE_IPV6_HLEN + info->options_len,
+				    GENEVE_IPV6_HLEN + info->options_len +
+				    geneve_build_gro_hint_opt(geneve, skb),
 				    netif_is_any_bridge_port(dev));
 	if (err < 0) {
 		dst_release(dst);
@@ -1008,8 +1477,7 @@ static int geneve6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			ttl = key->ttl;
 		ttl = ttl ? : ip6_dst_hoplimit(dst);
 	}
-	err = geneve_build_skb(dst, skb, info, xnet, sizeof(struct ipv6hdr),
-			       inner_proto_inherit);
+	err = geneve_build_skb(dst, skb, info, geneve, sizeof(struct ipv6hdr));
 	if (unlikely(err))
 		return err;
 
@@ -1211,9 +1679,16 @@ static void geneve_setup(struct net_device *dev)
 	dev->features    |= NETIF_F_RXCSUM;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
 
+	/* Partial features are disabled by default. */
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->hw_features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+	dev->hw_features |= UDP_TUNNEL_PARTIAL_FEATURES;
+	dev->hw_features |= NETIF_F_GSO_PARTIAL;
+
+	dev->hw_enc_features = dev->hw_features;
+	dev->gso_partial_features = UDP_TUNNEL_PARTIAL_FEATURES;
+	dev->mangleid_features = NETIF_F_GSO_PARTIAL;
 
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 	/* MTU range: 68 - (something less than 65535) */
@@ -1248,6 +1723,7 @@ static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
 	[IFLA_GENEVE_DF]		= { .type = NLA_U8 },
 	[IFLA_GENEVE_INNER_PROTO_INHERIT]	= { .type = NLA_FLAG },
 	[IFLA_GENEVE_PORT_RANGE]	= NLA_POLICY_EXACT_LEN(sizeof(struct ifla_geneve_port_range)),
+	[IFLA_GENEVE_GRO_HINT]		= { .type = NLA_FLAG },
 };
 
 static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -1598,10 +2074,18 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		cfg->inner_proto_inherit = true;
 	}
 
+	if (data[IFLA_GENEVE_GRO_HINT]) {
+		if (changelink) {
+			attrtype = IFLA_GENEVE_GRO_HINT;
+			goto change_notsup;
+		}
+		cfg->gro_hint = true;
+	}
+
 	return 0;
 change_notsup:
 	NL_SET_ERR_MSG_ATTR(extack, data[attrtype],
-			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, and UDP checksum attributes are not supported");
+			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, gro_hint and UDP checksum attributes are not supported");
 	return -EOPNOTSUPP;
 }
 
@@ -1784,6 +2268,7 @@ static size_t geneve_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) + /* IFLA_GENEVE_TTL_INHERIT */
 		nla_total_size(0) +	 /* IFLA_GENEVE_INNER_PROTO_INHERIT */
 		nla_total_size(sizeof(struct ifla_geneve_port_range)) + /* IFLA_GENEVE_PORT_RANGE */
+		nla_total_size(0) +	 /* IFLA_GENEVE_GRO_HINT */
 		0;
 }
 
@@ -1854,6 +2339,10 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 
 	if (nla_put(skb, IFLA_GENEVE_PORT_RANGE, sizeof(ports), &ports))
+		goto nla_put_failure;
+
+	if (geneve->cfg.gro_hint &&
+	    nla_put_flag(skb, IFLA_GENEVE_GRO_HINT))
 		goto nla_put_failure;
 
 	return 0;

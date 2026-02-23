@@ -403,8 +403,7 @@ int wx_read_mbx_vf(struct wx *wx, u32 *msg, u16 size)
 
 int wx_init_mbx_params_vf(struct wx *wx)
 {
-	wx->vfinfo = kzalloc(sizeof(struct vf_data_storage),
-			     GFP_KERNEL);
+	wx->vfinfo = kzalloc_obj(struct vf_data_storage);
 	if (!wx->vfinfo)
 		return -ENOMEM;
 

@@ -285,7 +285,7 @@ struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(struct vidtv_psi_desc
 	u32 service_name_len = service_name ? strlen(service_name) : 0;
 	u32 provider_name_len = provider_name ? strlen(provider_name) : 0;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 
@@ -360,7 +360,7 @@ struct vidtv_psi_desc_network_name
 	u32 network_name_len = network_name ? strlen(network_name) : 0;
 	struct vidtv_psi_desc_network_name *desc;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 
@@ -390,14 +390,14 @@ struct vidtv_psi_desc_service_list
 	struct vidtv_psi_desc_service_list *desc;
 	u16 length = 0;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 
 	desc->type = SERVICE_LIST_DESCRIPTOR;
 
 	while (entry) {
-		curr_e = kzalloc(sizeof(*curr_e), GFP_KERNEL);
+		curr_e = kzalloc_obj(*curr_e);
 		if (!curr_e) {
 			while (head_e) {
 				curr_e = head_e;
@@ -441,7 +441,7 @@ struct vidtv_psi_desc_short_event
 	struct vidtv_psi_desc_short_event *desc;
 	u32 text_len =  text ? strlen(text) : 0;
 
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	desc = kzalloc_obj(*desc);
 	if (!desc)
 		return NULL;
 
@@ -895,7 +895,7 @@ vidtv_psi_pat_program_init(struct vidtv_psi_table_pat_program *head,
 	struct vidtv_psi_table_pat_program *program;
 	const u16 RESERVED = 0x07;
 
-	program = kzalloc(sizeof(*program), GFP_KERNEL);
+	program = kzalloc_obj(*program);
 	if (!program)
 		return NULL;
 
@@ -967,7 +967,7 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 	const u16 ZERO = 0x0;
 	const u16 ONES = 0x03;
 
-	pat = kzalloc(sizeof(*pat), GFP_KERNEL);
+	pat = kzalloc_obj(*pat);
 	if (!pat)
 		return NULL;
 
@@ -1067,7 +1067,7 @@ vidtv_psi_pmt_stream_init(struct vidtv_psi_table_pmt_stream *head,
 	const u16 ZERO = 0x0;
 	u16 desc_loop_len;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	stream = kzalloc_obj(*stream);
 	if (!stream)
 		return NULL;
 
@@ -1153,7 +1153,7 @@ struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 	const u16 ZERO = 0x0;
 	u16 desc_loop_len;
 
-	pmt = kzalloc(sizeof(*pmt), GFP_KERNEL);
+	pmt = kzalloc_obj(*pmt);
 	if (!pmt)
 		return NULL;
 
@@ -1298,7 +1298,7 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
 	const u16 ONES = 0x03;
 	const u16 ONE = 0x1;
 
-	sdt  = kzalloc(sizeof(*sdt), GFP_KERNEL);
+	sdt = kzalloc_obj(*sdt);
 	if (!sdt)
 		return NULL;
 
@@ -1438,7 +1438,7 @@ struct vidtv_psi_table_sdt_service
 {
 	struct vidtv_psi_table_sdt_service *service;
 
-	service = kzalloc(sizeof(*service), GFP_KERNEL);
+	service = kzalloc_obj(*service);
 	if (!service)
 		return NULL;
 
@@ -1523,9 +1523,7 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat,
 		program = program->next;
 	}
 
-	pmt_secs = kcalloc(num_pmt,
-			   sizeof(struct vidtv_psi_table_pmt *),
-			   GFP_KERNEL);
+	pmt_secs = kzalloc_objs(struct vidtv_psi_table_pmt *, num_pmt);
 	if (!pmt_secs)
 		return NULL;
 
@@ -1622,11 +1620,11 @@ struct vidtv_psi_table_nit
 	const u16 ONES = 0x03;
 	const u16 ONE = 0x1;
 
-	nit = kzalloc(sizeof(*nit), GFP_KERNEL);
+	nit = kzalloc_obj(*nit);
 	if (!nit)
 		return NULL;
 
-	transport = kzalloc(sizeof(*transport), GFP_KERNEL);
+	transport = kzalloc_obj(*transport);
 	if (!transport)
 		goto free_nit;
 
@@ -1857,7 +1855,7 @@ struct vidtv_psi_table_eit
 	const u16 ONE = 0x1;
 	const u16 ONES = 0x03;
 
-	eit = kzalloc(sizeof(*eit), GFP_KERNEL);
+	eit = kzalloc_obj(*eit);
 	if (!eit)
 		return NULL;
 
@@ -1982,7 +1980,7 @@ struct vidtv_psi_table_eit_event
 	int mjd, l;
 	__be16 mjd_be;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return NULL;
 

@@ -144,7 +144,7 @@ void btmrvl_debugfs_init(struct hci_dev *hdev)
 	if (!hdev->debugfs)
 		return;
 
-	dbg = kzalloc(sizeof(*dbg), GFP_KERNEL);
+	dbg = kzalloc_obj(*dbg);
 	priv->debugfs_data = dbg;
 
 	if (!dbg) {

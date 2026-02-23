@@ -2,24 +2,21 @@
 
 //! GSP Sequencer implementation for Pre-hopper GSP boot sequence.
 
-use core::{
-    array,
-    mem::{
-        size_of,
-        size_of_val, //
-    },
-};
+use core::array;
 
 use kernel::{
     device,
-    io::poll::read_poll_timeout,
+    io::{
+        poll::read_poll_timeout,
+        Io, //
+    },
     prelude::*,
+    sync::aref::ARef,
     time::{
         delay::fsleep,
         Delta, //
     },
-    transmute::FromBytes,
-    types::ARef, //
+    transmute::FromBytes, //
 };
 
 use crate::{
@@ -121,7 +118,7 @@ impl GspSeqCmd {
         };
 
         if data.len() < size {
-            dev_err!(dev, "Data is not enough for command");
+            dev_err!(dev, "Data is not enough for command\n");
             return Err(EINVAL);
         }
 
@@ -320,7 +317,7 @@ impl<'a> Iterator for GspSeqIter<'a> {
 
         cmd_result.map_or_else(
             |_err| {
-                dev_err!(self.dev, "Error parsing command at offset {}", offset);
+                dev_err!(self.dev, "Error parsing command at offset {}\n", offset);
                 None
             },
             |(cmd, size)| {
@@ -382,7 +379,7 @@ impl<'a> GspSequencer<'a> {
             dev: params.dev,
         };
 
-        dev_dbg!(sequencer.dev, "Running CPU Sequencer commands");
+        dev_dbg!(sequencer.dev, "Running CPU Sequencer commands\n");
 
         for cmd_result in sequencer.iter() {
             match cmd_result {
@@ -390,7 +387,7 @@ impl<'a> GspSequencer<'a> {
                 Err(e) => {
                     dev_err!(
                         sequencer.dev,
-                        "Error running command at index {}",
+                        "Error running command at index {}\n",
                         sequencer.seq_info.cmd_index
                     );
                     return Err(e);
@@ -400,7 +397,7 @@ impl<'a> GspSequencer<'a> {
 
         dev_dbg!(
             sequencer.dev,
-            "CPU Sequencer commands completed successfully"
+            "CPU Sequencer commands completed successfully\n"
         );
         Ok(())
     }

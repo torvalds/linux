@@ -17,6 +17,11 @@
 	compatible = "purism,librem5", "fsl,imx8mq";
 	chassis-type = "handset";
 
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	backlight_dsi: backlight-dsi {
 		compatible = "led-backlight";
 		leds = <&led_backlight>;
@@ -287,7 +292,7 @@
 
 	vibrator {
 		compatible = "pwm-vibrator";
-		pwms = <&pwm1 0 1000000000 0>;
+		pwms = <&pwm1 0 50000 0>;
 		pwm-names = "enable";
 		vcc-supply = <&reg_vdd_3v3>;
 	};
@@ -512,10 +517,24 @@
 		>;
 	};
 
+	pinctrl_i2c1_gpio: i2c1-gpiogrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C1_SCL_GPIO5_IO14	0x26
+			MX8MQ_IOMUXC_I2C1_SDA_GPIO5_IO15	0x26
+		>;
+	};
+
 	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_I2C2_SCL_I2C2_SCL		0x40000026
 			MX8MQ_IOMUXC_I2C2_SDA_I2C2_SDA		0x40000026
+		>;
+	};
+
+	pinctrl_i2c2_gpio: i2c2-gpiogrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C2_SCL_GPIO5_IO16	0x26
+			MX8MQ_IOMUXC_I2C2_SDA_GPIO5_IO17	0x26
 		>;
 	};
 
@@ -526,6 +545,13 @@
 		>;
 	};
 
+	pinctrl_i2c3_gpio: i2c3-gpiogrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C3_SCL_GPIO5_IO18	0x26
+			MX8MQ_IOMUXC_I2C3_SDA_GPIO5_IO19	0x26
+		>;
+	};
+
 	pinctrl_i2c4: i2c4grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_I2C4_SCL_I2C4_SCL		0x40000026
@@ -533,12 +559,19 @@
 		>;
 	};
 
+	pinctrl_i2c4_gpio: i2c4-gpiogrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_I2C4_SCL_GPIO5_IO20	0x26
+			MX8MQ_IOMUXC_I2C4_SDA_GPIO5_IO21	0x26
+		>;
+	};
+
 	pinctrl_keys: keysgrp {
 		fsl,pins = <
 			/* VOL- */
-			MX8MQ_IOMUXC_ENET_MDIO_GPIO1_IO17	0x01C0
+			MX8MQ_IOMUXC_ENET_MDIO_GPIO1_IO17	0x01c0
 			/* VOL+ */
-			MX8MQ_IOMUXC_ENET_MDC_GPIO1_IO16	0x01C0
+			MX8MQ_IOMUXC_ENET_MDC_GPIO1_IO16	0x01c0
 		>;
 	};
 
@@ -620,7 +653,7 @@
 	pinctrl_tcpc: tcpcgrp {
 		fsl,pins = <
 			/* TCPC_INT */
-			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x01C0
+			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x01c0
 		>;
 	};
 
@@ -782,8 +815,11 @@
 
 &i2c1 {
 	clock-frequency = <384000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 14 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	typec_pd: usb-pd@3f {
@@ -970,7 +1006,7 @@
 		};
 	};
 
-	rtc@68 {
+	rtc: rtc@68 {
 		compatible = "microcrystal,rv4162";
 		reg = <0x68>;
 		pinctrl-names = "default";
@@ -982,8 +1018,11 @@
 
 &i2c2 {
 	clock-frequency = <384000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_gpio>;
+	scl-gpios = <&gpio5 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 17 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	magnetometer: magnetometer@1e	{
@@ -1031,8 +1070,11 @@
 
 &i2c3 {
 	clock-frequency = <384000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_gpio>;
+	scl-gpios = <&gpio5 18 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	codec: audio-codec@1a {
@@ -1043,7 +1085,6 @@
 		assigned-clock-parents = <&clk IMX8MQ_AUDIO_PLL1_OUT>;
 		assigned-clock-rates = <24576000>;
 		#sound-dai-cells = <0>;
-		mic-cfg = <0x200>;
 		DCVDD-supply = <&reg_aud_1v8>;
 		DBVDD-supply = <&reg_aud_1v8>;
 		AVDD-supply = <&reg_aud_1v8>;
@@ -1121,8 +1162,11 @@
 
 &i2c4 {
 	clock-frequency = <384000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	scl-gpios = <&gpio5 20 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 21 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	vcm@c {
@@ -1276,10 +1320,6 @@
 	status = "okay";
 };
 
-&snvs_rtc {
-	status = "disabled";
-};
-
 &uart1 { /* console */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
@@ -1383,7 +1423,7 @@
 
 &usdhc2 {
 	assigned-clocks = <&clk IMX8MQ_CLK_USDHC2>;
-	assigned-clock-rates = <200000000>;
+	assigned-clock-rates = <50000000>;
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
@@ -1393,9 +1433,10 @@
 	mmc-pwrseq = <&usdhc2_pwrseq>;
 	post-power-on-delay-ms = <20>;
 	cd-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 	disable-wp;
 	cap-sdio-irq;
+	cap-power-off-card;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";

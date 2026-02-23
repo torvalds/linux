@@ -1392,7 +1392,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
 	struct jffs2_raw_inode n;
-	struct jffs2_inode_info *f = kzalloc(sizeof(*f), GFP_KERNEL);
+	struct jffs2_inode_info *f = kzalloc_obj(*f);
 	int ret;
 
 	if (!f)

@@ -226,7 +226,7 @@ static int hp_sw_bus_attach(struct scsi_device *sdev)
 	struct hp_sw_dh_data *h;
 	int ret;
 
-	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	h = kzalloc_obj(*h);
 	if (!h)
 		return SCSI_DH_NOMEM;
 	h->path_state = HP_SW_PATH_UNINITIALIZED;

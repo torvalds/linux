@@ -199,7 +199,7 @@ int push_status_byte(struct gpib_board *board, struct gpib_status_queue *device,
 			return retval;
 	}
 
-	status = kmalloc(sizeof(*status), GFP_KERNEL);
+	status = kmalloc_obj(*status);
 	if (!status)
 		return -ENOMEM;
 
@@ -513,7 +513,7 @@ static int init_gpib_file_private(struct gpib_file_private *priv)
 {
 	memset(priv, 0, sizeof(*priv));
 	atomic_set(&priv->holding_mutex, 0);
-	priv->descriptors[0] = kmalloc(sizeof(struct gpib_descriptor), GFP_KERNEL);
+	priv->descriptors[0] = kmalloc_obj(struct gpib_descriptor);
 	if (!priv->descriptors[0]) {
 		pr_err("gpib: failed to allocate default board descriptor\n");
 		return -ENOMEM;
@@ -537,7 +537,7 @@ int ibopen(struct inode *inode, struct file *filep)
 
 	board = &board_array[minor];
 
-	filep->private_data = kmalloc(sizeof(struct gpib_file_private), GFP_KERNEL);
+	filep->private_data = kmalloc_obj(struct gpib_file_private);
 	if (!filep->private_data)
 		return -ENOMEM;
 
@@ -1146,7 +1146,7 @@ static int increment_open_device_count(struct gpib_board *board, struct list_hea
 	}
 
 	/* otherwise we need to allocate a new struct gpib_status_queue */
-	device = kmalloc(sizeof(struct gpib_status_queue), GFP_ATOMIC);
+	device = kmalloc_obj(struct gpib_status_queue, GFP_ATOMIC);
 	if (!device)
 		return -ENOMEM;
 	init_gpib_status_queue(device);
@@ -1241,7 +1241,7 @@ static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ERANGE;
 	}
-	file_priv->descriptors[i] = kmalloc(sizeof(struct gpib_descriptor), GFP_KERNEL);
+	file_priv->descriptors[i] = kmalloc_obj(struct gpib_descriptor);
 	if (!file_priv->descriptors[i]) {
 		mutex_unlock(&file_priv->descriptors_mutex);
 		return -ENOMEM;
@@ -1876,7 +1876,7 @@ static int push_gpib_event_nolock(struct gpib_board *board, short event_type)
 			return retval;
 	}
 
-	event = kmalloc(sizeof(struct gpib_event), GFP_ATOMIC);
+	event = kmalloc_obj(struct gpib_event, GFP_ATOMIC);
 	if (!event) {
 		queue->dropped_event = 1;
 		dev_err(board->gpib_dev, "failed to allocate memory for event\n");
@@ -2041,7 +2041,7 @@ int gpib_register_driver(struct gpib_interface *interface, struct module *provid
 {
 	struct gpib_interface_list *entry;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry)
 		return -ENOMEM;
 

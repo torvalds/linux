@@ -18,11 +18,10 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/property.h>
 
 #include "gpiolib.h"
 #include "gpiolib-swnode.h"
-
-#define GPIOLIB_SWNODE_UNDEFINED_NAME "swnode-gpio-undefined"
 
 static struct gpio_device *swnode_get_gpio_device(struct fwnode_handle *fwnode)
 {
@@ -30,7 +29,7 @@ static struct gpio_device *swnode_get_gpio_device(struct fwnode_handle *fwnode)
 	struct gpio_device *gdev;
 
 	gdev_node = to_software_node(fwnode);
-	if (!gdev_node || !gdev_node->name)
+	if (!gdev_node)
 		goto fwnode_lookup;
 
 	/*
@@ -38,11 +37,30 @@ static struct gpio_device *swnode_get_gpio_device(struct fwnode_handle *fwnode)
 	 * primarily used as a key for internal chip selects in SPI bindings.
 	 */
 	if (IS_ENABLED(CONFIG_GPIO_SWNODE_UNDEFINED) &&
-	    !strcmp(gdev_node->name, GPIOLIB_SWNODE_UNDEFINED_NAME))
+	    gdev_node == &swnode_gpio_undefined)
 		return ERR_PTR(-ENOENT);
 
 fwnode_lookup:
 	gdev = gpio_device_find_by_fwnode(fwnode);
+	if (!gdev && gdev_node && gdev_node->name)
+		/*
+		 * FIXME: We shouldn't need to compare the GPIO controller's
+		 * label against the software node that is supposedly attached
+		 * to it. However there are currently GPIO users that - knowing
+		 * the expected label of the GPIO chip whose pins they want to
+		 * control - set up dummy software nodes named after those GPIO
+		 * controllers, which aren't actually attached to them. In this
+		 * case gpio_device_find_by_fwnode() will fail as no device on
+		 * the GPIO bus is actually associated with the fwnode we're
+		 * looking for.
+		 *
+		 * As a fallback: continue checking the label if we have no
+		 * match. However, the situation described above is an abuse
+		 * of the software node API and should be phased out and the
+		 * following line - eventually removed.
+		 */
+		gdev = gpio_device_find_by_label(gdev_node->name);
+
 	return gdev ?: ERR_PTR(-EPROBE_DEFER);
 }
 
@@ -140,7 +158,7 @@ int swnode_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
  * a key for internal chip selects in SPI bindings.
  */
 const struct software_node swnode_gpio_undefined = {
-	.name = GPIOLIB_SWNODE_UNDEFINED_NAME,
+	.name = "swnode-gpio-undefined",
 };
 EXPORT_SYMBOL_NS_GPL(swnode_gpio_undefined, "GPIO_SWNODE");
 

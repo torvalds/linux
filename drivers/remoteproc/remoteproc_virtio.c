@@ -430,7 +430,7 @@ static int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id)
 	}
 
 	/* Allocate virtio device */
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = kzalloc_obj(*vdev);
 	if (!vdev) {
 		ret = -ENOMEM;
 		goto out;

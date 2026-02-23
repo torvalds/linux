@@ -2927,7 +2927,7 @@ static int __init netlink_proto_init(void)
 
 	BUILD_BUG_ON(sizeof(struct netlink_skb_parms) > sizeof_field(struct sk_buff, cb));
 
-	nl_table = kcalloc(MAX_LINKS, sizeof(*nl_table), GFP_KERNEL);
+	nl_table = kzalloc_objs(*nl_table, MAX_LINKS);
 	if (!nl_table)
 		goto panic;
 

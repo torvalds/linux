@@ -3410,7 +3410,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 		goto out;
 	}
 
-	drv_fcxp = kzalloc(sizeof(struct bfad_fcxp), GFP_KERNEL);
+	drv_fcxp = kzalloc_obj(struct bfad_fcxp);
 	if (drv_fcxp == NULL) {
 		kfree(bsg_fcpt);
 		rc = -ENOMEM;

@@ -110,6 +110,8 @@ static int enable_mpesw(struct mlx5_lag *ldev)
 			goto err_rescan_drivers;
 	}
 
+	mlx5_lag_set_vports_agg_speed(ldev);
+
 	return 0;
 
 err_rescan_drivers:
@@ -169,7 +171,7 @@ static int mlx5_lag_mpesw_queue_work(struct mlx5_core_dev *dev,
 	if (!ldev)
 		return 0;
 
-	work = kzalloc(sizeof(*work), GFP_KERNEL);
+	work = kzalloc_obj(*work);
 	if (!work)
 		return -ENOMEM;
 
@@ -223,3 +225,40 @@ bool mlx5_lag_is_mpesw(struct mlx5_core_dev *dev)
 	return ldev && ldev->mode == MLX5_LAG_MODE_MPESW;
 }
 EXPORT_SYMBOL(mlx5_lag_is_mpesw);
+
+void mlx5_mpesw_speed_update_work(struct work_struct *work)
+{
+	struct mlx5_lag *ldev = container_of(work, struct mlx5_lag,
+					     speed_update_work);
+
+	mutex_lock(&ldev->lock);
+	if (ldev->mode == MLX5_LAG_MODE_MPESW) {
+		if (ldev->mode_changes_in_progress)
+			queue_work(ldev->wq, &ldev->speed_update_work);
+		else
+			mlx5_lag_set_vports_agg_speed(ldev);
+	}
+
+	mutex_unlock(&ldev->lock);
+}
+
+int mlx5_lag_mpesw_port_change_event(struct notifier_block *nb,
+				     unsigned long event, void *data)
+{
+	struct mlx5_nb *mlx5_nb = container_of(nb, struct mlx5_nb, nb);
+	struct lag_func *lag_func = container_of(mlx5_nb,
+						 struct lag_func,
+						 port_change_nb);
+	struct mlx5_core_dev *dev = lag_func->dev;
+	struct mlx5_lag *ldev = dev->priv.lag;
+	struct mlx5_eqe *eqe = data;
+
+	if (!ldev)
+		return NOTIFY_DONE;
+
+	if (eqe->sub_type == MLX5_PORT_CHANGE_SUBTYPE_DOWN ||
+	    eqe->sub_type == MLX5_PORT_CHANGE_SUBTYPE_ACTIVE)
+		queue_work(ldev->wq, &ldev->speed_update_work);
+
+	return NOTIFY_OK;
+}

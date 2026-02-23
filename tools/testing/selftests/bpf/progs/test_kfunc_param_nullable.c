@@ -29,7 +29,7 @@ int kfunc_dynptr_nullable_test2(struct __sk_buff *skb)
 }
 
 SEC("tc")
-__failure __msg("expected pointer to stack or const struct bpf_dynptr")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
 int kfunc_dynptr_nullable_test3(struct __sk_buff *skb)
 {
 	struct bpf_dynptr data;

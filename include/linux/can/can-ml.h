@@ -46,6 +46,12 @@
 #include <linux/list.h>
 #include <linux/netdevice.h>
 
+/* exposed CAN device capabilities for network layer */
+#define CAN_CAP_CC BIT(0) /* CAN CC aka Classical CAN */
+#define CAN_CAP_FD BIT(1) /* CAN FD */
+#define CAN_CAP_XL BIT(2) /* CAN XL */
+#define CAN_CAP_RO BIT(3) /* read-only mode (LISTEN/RESTRICTED) */
+
 #define CAN_SFF_RCV_ARRAY_SZ (1 << CAN_SFF_ID_BITS)
 #define CAN_EFF_RCV_HASH_BITS 10
 #define CAN_EFF_RCV_ARRAY_SZ (1 << CAN_EFF_RCV_HASH_BITS)
@@ -64,6 +70,7 @@ struct can_ml_priv {
 #ifdef CAN_J1939
 	struct j1939_priv *j1939_priv;
 #endif
+	u32 can_cap;
 };
 
 static inline struct can_ml_priv *can_get_ml_priv(struct net_device *dev)
@@ -75,6 +82,23 @@ static inline void can_set_ml_priv(struct net_device *dev,
 				   struct can_ml_priv *ml_priv)
 {
 	netdev_set_ml_priv(dev, ml_priv, ML_PRIV_CAN);
+}
+
+static inline bool can_cap_enabled(struct net_device *dev, u32 cap)
+{
+	struct can_ml_priv *can_ml = can_get_ml_priv(dev);
+
+	if (!can_ml)
+		return false;
+
+	return (can_ml->can_cap & cap);
+}
+
+static inline void can_set_cap(struct net_device *dev, u32 cap)
+{
+	struct can_ml_priv *can_ml = can_get_ml_priv(dev);
+
+	can_ml->can_cap = cap;
 }
 
 #endif /* CAN_ML_H */

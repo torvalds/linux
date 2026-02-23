@@ -428,7 +428,7 @@ static int __init mxc_timer_init_dt(struct device_node *np,  enum imx_gpt_type t
 	if (initialized)
 		return 0;
 
-	imxtm = kzalloc(sizeof(*imxtm), GFP_KERNEL);
+	imxtm = kzalloc_obj(*imxtm);
 	if (!imxtm)
 		return -ENOMEM;
 

@@ -143,7 +143,7 @@ etnaviv_iommuv1_context_alloc(struct etnaviv_iommu_global *global)
 		return context;
 	}
 
-	v1_context = kzalloc(sizeof(*v1_context), GFP_KERNEL);
+	v1_context = kzalloc_obj(*v1_context);
 	if (!v1_context) {
 		mutex_unlock(&global->lock);
 		return NULL;

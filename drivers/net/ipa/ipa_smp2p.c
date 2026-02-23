@@ -242,7 +242,7 @@ ipa_smp2p_init(struct ipa *ipa, struct platform_device *pdev, bool modem_init)
 	if (enabled_bit >= 32)		/* BITS_PER_U32 */
 		return -EINVAL;
 
-	smp2p = kzalloc(sizeof(*smp2p), GFP_KERNEL);
+	smp2p = kzalloc_obj(*smp2p);
 	if (!smp2p)
 		return -ENOMEM;
 

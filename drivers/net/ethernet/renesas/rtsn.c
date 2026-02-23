@@ -104,13 +104,6 @@ static void rtsn_ctrl_data_irq(struct rtsn_private *priv, bool enable)
 	}
 }
 
-static void rtsn_get_timestamp(struct rtsn_private *priv, struct timespec64 *ts)
-{
-	struct rcar_gen4_ptp_private *ptp_priv = priv->ptp_priv;
-
-	ptp_priv->info.gettime64(&ptp_priv->info, ts);
-}
-
 static int rtsn_tx_free(struct net_device *ndev, bool free_txed_only)
 {
 	struct rtsn_private *priv = netdev_priv(ndev);
@@ -133,7 +126,7 @@ static int rtsn_tx_free(struct net_device *ndev, bool free_txed_only)
 				struct skb_shared_hwtstamps shhwtstamps;
 				struct timespec64 ts;
 
-				rtsn_get_timestamp(priv, &ts);
+				rcar_gen4_ptp_gettime64(priv->ptp_priv, &ts);
 				memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 				shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
 				skb_tstamp_tx(skb, &shhwtstamps);
@@ -356,8 +349,8 @@ static int rtsn_chain_init(struct rtsn_private *priv, int tx_size, int rx_size)
 	priv->num_tx_ring = tx_size;
 	priv->num_rx_ring = rx_size;
 
-	priv->tx_skb = kcalloc(tx_size, sizeof(*priv->tx_skb), GFP_KERNEL);
-	priv->rx_skb = kcalloc(rx_size, sizeof(*priv->rx_skb), GFP_KERNEL);
+	priv->tx_skb = kzalloc_objs(*priv->tx_skb, tx_size);
+	priv->rx_skb = kzalloc_objs(*priv->rx_skb, rx_size);
 
 	if (!priv->rx_skb || !priv->tx_skb)
 		goto error;
@@ -1197,7 +1190,7 @@ static int rtsn_get_ts_info(struct net_device *ndev,
 {
 	struct rtsn_private *priv = netdev_priv(ndev);
 
-	info->phc_index = ptp_clock_index(priv->ptp_priv->clock);
+	info->phc_index = rcar_gen4_ptp_clock_index(priv->ptp_priv);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
@@ -1227,6 +1220,7 @@ static int rtsn_probe(struct platform_device *pdev)
 {
 	struct rtsn_private *priv;
 	struct net_device *ndev;
+	void __iomem *ptpaddr;
 	struct resource *res;
 	int ret;
 
@@ -1238,12 +1232,6 @@ static int rtsn_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->pdev = pdev;
 	priv->ndev = ndev;
-
-	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev);
-	if (!priv->ptp_priv) {
-		ret = -ENOMEM;
-		goto error_free;
-	}
 
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
@@ -1288,9 +1276,15 @@ static int rtsn_probe(struct platform_device *pdev)
 		goto error_free;
 	}
 
-	priv->ptp_priv->addr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->ptp_priv->addr)) {
-		ret = PTR_ERR(priv->ptp_priv->addr);
+	ptpaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ptpaddr)) {
+		ret = PTR_ERR(ptpaddr);
+		goto error_free;
+	}
+
+	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev, ptpaddr);
+	if (!priv->ptp_priv) {
+		ret = -ENOMEM;
 		goto error_free;
 	}
 

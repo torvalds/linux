@@ -568,7 +568,7 @@ struct dvb_frontend* sp887x_attach(const struct sp887x_config* config,
 	struct sp887x_state* state = NULL;
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct sp887x_state), GFP_KERNEL);
+	state = kzalloc_obj(struct sp887x_state);
 	if (state == NULL) goto error;
 
 	/* setup the state */

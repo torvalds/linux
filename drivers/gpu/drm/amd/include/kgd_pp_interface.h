@@ -29,6 +29,7 @@ extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v12_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v13_0_ip_block;
 extern const struct amdgpu_ip_block_version smu_v14_0_ip_block;
+extern const struct amdgpu_ip_block_version smu_v15_0_ip_block;
 
 enum smu_temp_metric_type {
 	SMU_TEMP_METRIC_BASEBOARD,
@@ -136,7 +137,6 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_CPU_CLK,
 	AMDGPU_PP_SENSOR_VDDNB,
 	AMDGPU_PP_SENSOR_VDDGFX,
-	AMDGPU_PP_SENSOR_VDDBOARD,
 	AMDGPU_PP_SENSOR_UVD_VCLK,
 	AMDGPU_PP_SENSOR_UVD_DCLK,
 	AMDGPU_PP_SENSOR_VCE_ECCLK,
@@ -162,10 +162,13 @@ enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_SCLK,
 	AMDGPU_PP_SENSOR_PEAK_PSTATE_MCLK,
 	AMDGPU_PP_SENSOR_VCN_LOAD,
+	AMDGPU_PP_SENSOR_VDDBOARD,
 	AMDGPU_PP_SENSOR_NODEPOWERLIMIT,
 	AMDGPU_PP_SENSOR_NODEPOWER,
 	AMDGPU_PP_SENSOR_GPPTRESIDENCY,
 	AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT,
+	AMDGPU_PP_SENSOR_UBB_POWER,
+	AMDGPU_PP_SENSOR_UBB_POWER_LIMIT,
 };
 
 enum amd_pp_task {
@@ -1824,6 +1827,11 @@ struct amdgpu_partition_metrics_v1_1 {
 	struct metrics_table_header common_header;
 	int attr_count;
 	struct gpu_metrics_attr metrics_attrs[];
+};
+
+enum amdgpu_xgmi_link_status {
+	AMDGPU_XGMI_LINK_INACTIVE = 0,
+	AMDGPU_XGMI_LINK_ACTIVE = 1,
 };
 
 #endif

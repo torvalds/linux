@@ -182,7 +182,7 @@ enum v4l2_fwnode_bus_type {
 
 /**
  * v4l2_fwnode_endpoint_parse() - parse all fwnode node properties
- * @fwnode: pointer to the endpoint's fwnode handle
+ * @fwnode: pointer to the endpoint's fwnode handle (may be NULL)
  * @vep: pointer to the V4L2 fwnode data structure
  *
  * This function parses the V4L2 fwnode endpoint specific parameters from the
@@ -218,7 +218,7 @@ enum v4l2_fwnode_bus_type {
  *
  * Return: %0 on success or a negative error code on failure:
  *	   %-ENOMEM on memory allocation failure
- *	   %-EINVAL on parsing failure
+ *	   %-EINVAL on parsing failure, including @fwnode == NULL
  *	   %-ENXIO on mismatching bus types
  */
 int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
@@ -236,7 +236,7 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
 
 /**
  * v4l2_fwnode_endpoint_alloc_parse() - parse all fwnode node properties
- * @fwnode: pointer to the endpoint's fwnode handle
+ * @fwnode: pointer to the endpoint's fwnode handle (may be NULL)
  * @vep: pointer to the V4L2 fwnode data structure
  *
  * This function parses the V4L2 fwnode endpoint specific parameters from the
@@ -276,7 +276,7 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  *
  * Return: %0 on success or a negative error code on failure:
  *	   %-ENOMEM on memory allocation failure
- *	   %-EINVAL on parsing failure
+ *	   %-EINVAL on parsing failure, including @fwnode == NULL
  *	   %-ENXIO on mismatching bus types
  */
 int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,

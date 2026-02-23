@@ -41,7 +41,7 @@ static int lz4hc_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 {
 	struct lz4hc_ctx *zctx;
 
-	zctx = kzalloc(sizeof(*zctx), GFP_KERNEL);
+	zctx = kzalloc_obj(*zctx);
 	if (!zctx)
 		return -ENOMEM;
 
@@ -51,11 +51,11 @@ static int lz4hc_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 		if (!zctx->mem)
 			goto error;
 	} else {
-		zctx->dstrm = kzalloc(sizeof(*zctx->dstrm), GFP_KERNEL);
+		zctx->dstrm = kzalloc_obj(*zctx->dstrm);
 		if (!zctx->dstrm)
 			goto error;
 
-		zctx->cstrm = kzalloc(sizeof(*zctx->cstrm), GFP_KERNEL);
+		zctx->cstrm = kzalloc_obj(*zctx->cstrm);
 		if (!zctx->cstrm)
 			goto error;
 	}

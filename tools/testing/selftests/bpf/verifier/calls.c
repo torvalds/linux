@@ -220,7 +220,7 @@
 	},
 	.result_unpriv = REJECT,
 	.result = REJECT,
-	.errstr = "variable ptr_ access var_off=(0x0; 0x7) disallowed",
+	.errstr = "variable trusted_ptr_ access var_off=(0x0; 0x7) disallowed",
 },
 {
 	"calls: invalid kfunc call: referenced arg needs refcounted PTR_TO_BTF_ID",

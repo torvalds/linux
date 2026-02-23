@@ -65,11 +65,11 @@ static int page_array_alloc(struct page_array *pa, unsigned int len)
 
 	pa->pa_nr = len;
 
-	pa->pa_iova = kcalloc(len, sizeof(*pa->pa_iova), GFP_KERNEL);
+	pa->pa_iova = kzalloc_objs(*pa->pa_iova, len);
 	if (!pa->pa_iova)
 		return -ENOMEM;
 
-	pa->pa_page = kcalloc(len, sizeof(*pa->pa_page), GFP_KERNEL);
+	pa->pa_page = kzalloc_objs(*pa->pa_page, len);
 	if (!pa->pa_page) {
 		kfree(pa->pa_iova);
 		return -ENOMEM;
@@ -319,15 +319,15 @@ static struct ccwchain *ccwchain_alloc(struct channel_program *cp, int len)
 {
 	struct ccwchain *chain;
 
-	chain = kzalloc(sizeof(*chain), GFP_KERNEL);
+	chain = kzalloc_obj(*chain);
 	if (!chain)
 		return NULL;
 
-	chain->ch_ccw = kcalloc(len, sizeof(*chain->ch_ccw), GFP_DMA | GFP_KERNEL);
+	chain->ch_ccw = kzalloc_objs(*chain->ch_ccw, len, GFP_DMA | GFP_KERNEL);
 	if (!chain->ch_ccw)
 		goto out_err;
 
-	chain->ch_pa = kcalloc(len, sizeof(*chain->ch_pa), GFP_KERNEL);
+	chain->ch_pa = kzalloc_objs(*chain->ch_pa, len);
 	if (!chain->ch_pa)
 		goto out_err;
 
@@ -516,7 +516,7 @@ static dma64_t *get_guest_idal(struct ccw1 *ccw, struct channel_program *cp, int
 	int idaw_mask = ~(idaw_size - 1);
 	int i, ret;
 
-	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
+	idaws = kzalloc_objs(*idaws, idaw_nr, GFP_DMA | GFP_KERNEL);
 	if (!idaws)
 		return ERR_PTR(-ENOMEM);
 

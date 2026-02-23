@@ -24,20 +24,6 @@
 #include "mount.h"
 #include "internal.h"
 
-enum legacy_fs_param {
-	LEGACY_FS_UNSET_PARAMS,
-	LEGACY_FS_MONOLITHIC_PARAMS,
-	LEGACY_FS_INDIVIDUAL_PARAMS,
-};
-
-struct legacy_fs_context {
-	char			*legacy_data;	/* Data page for legacy filesystems */
-	size_t			data_size;
-	enum legacy_fs_param	param_type;
-};
-
-static int legacy_init_fs_context(struct fs_context *fc);
-
 static const struct constant_table common_set_sb_flag[] = {
 	{ "dirsync",	SB_DIRSYNC },
 	{ "lazytime",	SB_LAZYTIME },
@@ -275,11 +261,10 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 				      unsigned int sb_flags_mask,
 				      enum fs_context_purpose purpose)
 {
-	int (*init_fs_context)(struct fs_context *);
 	struct fs_context *fc;
 	int ret = -ENOMEM;
 
-	fc = kzalloc(sizeof(struct fs_context), GFP_KERNEL_ACCOUNT);
+	fc = kzalloc_obj(struct fs_context, GFP_KERNEL_ACCOUNT);
 	if (!fc)
 		return ERR_PTR(-ENOMEM);
 
@@ -307,12 +292,7 @@ static struct fs_context *alloc_fs_context(struct file_system_type *fs_type,
 		break;
 	}
 
-	/* TODO: Make all filesystems support this unconditionally */
-	init_fs_context = fc->fs_type->init_fs_context;
-	if (!init_fs_context)
-		init_fs_context = legacy_init_fs_context;
-
-	ret = init_fs_context(fc);
+	ret = fc->fs_type->init_fs_context(fc);
 	if (ret < 0)
 		goto err_fc;
 	fc->need_free = true;
@@ -375,8 +355,6 @@ void fc_drop_locked(struct fs_context *fc)
 	fc->root = NULL;
 	deactivate_locked_super(sb);
 }
-
-static void legacy_fs_context_free(struct fs_context *fc);
 
 /**
  * vfs_dup_fs_context - Duplicate a filesystem context.
@@ -531,184 +509,6 @@ void put_fs_context(struct fs_context *fc)
 }
 EXPORT_SYMBOL(put_fs_context);
 
-/*
- * Free the config for a filesystem that doesn't support fs_context.
- */
-static void legacy_fs_context_free(struct fs_context *fc)
-{
-	struct legacy_fs_context *ctx = fc->fs_private;
-
-	if (ctx) {
-		if (ctx->param_type == LEGACY_FS_INDIVIDUAL_PARAMS)
-			kfree(ctx->legacy_data);
-		kfree(ctx);
-	}
-}
-
-/*
- * Duplicate a legacy config.
- */
-static int legacy_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc)
-{
-	struct legacy_fs_context *ctx;
-	struct legacy_fs_context *src_ctx = src_fc->fs_private;
-
-	ctx = kmemdup(src_ctx, sizeof(*src_ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	if (ctx->param_type == LEGACY_FS_INDIVIDUAL_PARAMS) {
-		ctx->legacy_data = kmemdup(src_ctx->legacy_data,
-					   src_ctx->data_size, GFP_KERNEL);
-		if (!ctx->legacy_data) {
-			kfree(ctx);
-			return -ENOMEM;
-		}
-	}
-
-	fc->fs_private = ctx;
-	return 0;
-}
-
-/*
- * Add a parameter to a legacy config.  We build up a comma-separated list of
- * options.
- */
-static int legacy_parse_param(struct fs_context *fc, struct fs_parameter *param)
-{
-	struct legacy_fs_context *ctx = fc->fs_private;
-	unsigned int size = ctx->data_size;
-	size_t len = 0;
-	int ret;
-
-	ret = vfs_parse_fs_param_source(fc, param);
-	if (ret != -ENOPARAM)
-		return ret;
-
-	if (ctx->param_type == LEGACY_FS_MONOLITHIC_PARAMS)
-		return invalf(fc, "VFS: Legacy: Can't mix monolithic and individual options");
-
-	switch (param->type) {
-	case fs_value_is_string:
-		len = 1 + param->size;
-		fallthrough;
-	case fs_value_is_flag:
-		len += strlen(param->key);
-		break;
-	default:
-		return invalf(fc, "VFS: Legacy: Parameter type for '%s' not supported",
-			      param->key);
-	}
-
-	if (size + len + 2 > PAGE_SIZE)
-		return invalf(fc, "VFS: Legacy: Cumulative options too large");
-	if (strchr(param->key, ',') ||
-	    (param->type == fs_value_is_string &&
-	     memchr(param->string, ',', param->size)))
-		return invalf(fc, "VFS: Legacy: Option '%s' contained comma",
-			      param->key);
-	if (!ctx->legacy_data) {
-		ctx->legacy_data = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (!ctx->legacy_data)
-			return -ENOMEM;
-	}
-
-	if (size)
-		ctx->legacy_data[size++] = ',';
-	len = strlen(param->key);
-	memcpy(ctx->legacy_data + size, param->key, len);
-	size += len;
-	if (param->type == fs_value_is_string) {
-		ctx->legacy_data[size++] = '=';
-		memcpy(ctx->legacy_data + size, param->string, param->size);
-		size += param->size;
-	}
-	ctx->legacy_data[size] = '\0';
-	ctx->data_size = size;
-	ctx->param_type = LEGACY_FS_INDIVIDUAL_PARAMS;
-	return 0;
-}
-
-/*
- * Add monolithic mount data.
- */
-static int legacy_parse_monolithic(struct fs_context *fc, void *data)
-{
-	struct legacy_fs_context *ctx = fc->fs_private;
-
-	if (ctx->param_type != LEGACY_FS_UNSET_PARAMS) {
-		pr_warn("VFS: Can't mix monolithic and individual options\n");
-		return -EINVAL;
-	}
-
-	ctx->legacy_data = data;
-	ctx->param_type = LEGACY_FS_MONOLITHIC_PARAMS;
-	if (!ctx->legacy_data)
-		return 0;
-
-	if (fc->fs_type->fs_flags & FS_BINARY_MOUNTDATA)
-		return 0;
-	return security_sb_eat_lsm_opts(ctx->legacy_data, &fc->security);
-}
-
-/*
- * Get a mountable root with the legacy mount command.
- */
-static int legacy_get_tree(struct fs_context *fc)
-{
-	struct legacy_fs_context *ctx = fc->fs_private;
-	struct super_block *sb;
-	struct dentry *root;
-
-	root = fc->fs_type->mount(fc->fs_type, fc->sb_flags,
-				      fc->source, ctx->legacy_data);
-	if (IS_ERR(root))
-		return PTR_ERR(root);
-
-	sb = root->d_sb;
-	BUG_ON(!sb);
-
-	fc->root = root;
-	return 0;
-}
-
-/*
- * Handle remount.
- */
-static int legacy_reconfigure(struct fs_context *fc)
-{
-	struct legacy_fs_context *ctx = fc->fs_private;
-	struct super_block *sb = fc->root->d_sb;
-
-	if (!sb->s_op->remount_fs)
-		return 0;
-
-	return sb->s_op->remount_fs(sb, &fc->sb_flags,
-				    ctx ? ctx->legacy_data : NULL);
-}
-
-const struct fs_context_operations legacy_fs_context_ops = {
-	.free			= legacy_fs_context_free,
-	.dup			= legacy_fs_context_dup,
-	.parse_param		= legacy_parse_param,
-	.parse_monolithic	= legacy_parse_monolithic,
-	.get_tree		= legacy_get_tree,
-	.reconfigure		= legacy_reconfigure,
-};
-
-/*
- * Initialise a legacy context for a filesystem that doesn't support
- * fs_context.
- */
-static int legacy_init_fs_context(struct fs_context *fc)
-{
-	fc->fs_private = kzalloc(sizeof(struct legacy_fs_context), GFP_KERNEL_ACCOUNT);
-	if (!fc->fs_private)
-		return -ENOMEM;
-	fc->ops = &legacy_fs_context_ops;
-	return 0;
-}
-
 int parse_monolithic_mount_data(struct fs_context *fc, void *data)
 {
 	int (*monolithic_mount_data)(struct fs_context *, void *);
@@ -757,10 +557,8 @@ int finish_clean_context(struct fs_context *fc)
 	if (fc->phase != FS_CONTEXT_AWAITING_RECONF)
 		return 0;
 
-	if (fc->fs_type->init_fs_context)
-		error = fc->fs_type->init_fs_context(fc);
-	else
-		error = legacy_init_fs_context(fc);
+	error = fc->fs_type->init_fs_context(fc);
+
 	if (unlikely(error)) {
 		fc->phase = FS_CONTEXT_FAILED;
 		return error;

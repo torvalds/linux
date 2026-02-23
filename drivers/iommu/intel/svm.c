@@ -210,7 +210,7 @@ struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc_obj(*domain);
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 

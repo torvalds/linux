@@ -873,7 +873,7 @@ struct dvb_frontend *tda827x_attach(struct dvb_frontend *fe, int addr,
 	struct tda827x_priv *priv = NULL;
 
 	dprintk("%s:\n", __func__);
-	priv = kzalloc(sizeof(struct tda827x_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct tda827x_priv);
 	if (priv == NULL)
 		return NULL;
 

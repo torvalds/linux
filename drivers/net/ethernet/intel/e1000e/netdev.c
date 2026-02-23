@@ -2050,10 +2050,8 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 	case E1000E_INT_MODE_MSIX:
 		if (adapter->flags & FLAG_HAS_MSIX) {
 			adapter->num_vectors = 3; /* RxQ0, TxQ0 and other */
-			adapter->msix_entries = kcalloc(adapter->num_vectors,
-							sizeof(struct
-							       msix_entry),
-							GFP_KERNEL);
+			adapter->msix_entries = kzalloc_objs(struct msix_entry,
+							     adapter->num_vectors);
 			if (adapter->msix_entries) {
 				struct e1000_adapter *a = adapter;
 
@@ -2370,9 +2368,8 @@ int e1000e_setup_rx_resources(struct e1000_ring *rx_ring)
 
 	for (i = 0; i < rx_ring->count; i++) {
 		buffer_info = &rx_ring->buffer_info[i];
-		buffer_info->ps_pages = kcalloc(PS_PAGE_BUFFERS,
-						sizeof(struct e1000_ps_page),
-						GFP_KERNEL);
+		buffer_info->ps_pages = kzalloc_objs(struct e1000_ps_page,
+						     PS_PAGE_BUFFERS);
 		if (!buffer_info->ps_pages)
 			goto err_pages;
 	}

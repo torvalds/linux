@@ -294,7 +294,7 @@ struct tee_protmem_pool *optee_protmem_alloc_dyn_pool(struct optee *optee,
 	u_int pa_width;
 	int rc;
 
-	rp = kzalloc(sizeof(*rp), GFP_KERNEL);
+	rp = kzalloc_obj(*rp);
 	if (!rp)
 		return ERR_PTR(-ENOMEM);
 	rp->use_case = id;

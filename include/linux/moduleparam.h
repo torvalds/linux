@@ -2,9 +2,14 @@
 #ifndef _LINUX_MODULE_PARAMS_H
 #define _LINUX_MODULE_PARAMS_H
 /* (C) Copyright 2001, 2002 Rusty Russell IBM Corporation */
+
+#include <linux/array_size.h>
+#include <linux/build_bug.h>
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/stringify.h>
-#include <linux/kernel.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
 
 /*
  * The maximum module name length, including the NUL byte.
@@ -355,8 +360,8 @@ static inline void kernel_param_unlock(struct module *mod)
 /**
  * __core_param_cb - similar like core_param, with a set/get ops instead of type.
  * @name: the name of the cmdline and sysfs parameter (often the same as var)
- * @var: the variable
  * @ops: the set & get operations for this parameter.
+ * @arg: the variable
  * @perm: visibility in sysfs
  *
  * Ideally this should be called 'core_param_cb', but the name has been
@@ -390,7 +395,7 @@ static inline void kernel_param_unlock(struct module *mod)
  * @name1: parameter name 1
  * @name2: parameter name 2
  *
- * Returns true if the two parameter names are equal.
+ * Returns: true if the two parameter names are equal.
  * Dashes (-) are considered equal to underscores (_).
  */
 extern bool parameq(const char *name1, const char *name2);
@@ -402,6 +407,10 @@ extern bool parameq(const char *name1, const char *name2);
  * @n: the length to compare
  *
  * Similar to parameq(), except it compares @n characters.
+ *
+ * Returns: true if the first @n characters of the two parameter names
+ * are equal.
+ * Dashes (-) are considered equal to underscores (_).
  */
 extern bool parameqn(const char *name1, const char *name2, size_t n);
 

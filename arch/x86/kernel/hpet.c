@@ -544,7 +544,7 @@ static struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	if (x86_vector_domain == NULL)
 		return NULL;
 
-	domain_info = kzalloc(sizeof(*domain_info), GFP_KERNEL);
+	domain_info = kzalloc_obj(*domain_info);
 	if (!domain_info)
 		return NULL;
 
@@ -1038,7 +1038,7 @@ int __init hpet_enable(void)
 	if (IS_ENABLED(CONFIG_HPET_EMULATE_RTC) && channels < 2)
 		goto out_nohpet;
 
-	hc = kcalloc(channels, sizeof(*hc), GFP_KERNEL);
+	hc = kzalloc_objs(*hc, channels);
 	if (!hc) {
 		pr_warn("Disabling HPET.\n");
 		goto out_nohpet;

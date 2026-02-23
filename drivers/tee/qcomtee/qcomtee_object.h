@@ -176,7 +176,7 @@ qcomtee_object_invoke_ctx_alloc(struct tee_context *ctx)
 {
 	struct qcomtee_object_invoke_ctx *oic;
 
-	oic = kzalloc(sizeof(*oic), GFP_KERNEL);
+	oic = kzalloc_obj(*oic);
 	if (oic)
 		oic->ctx = ctx;
 	return oic;

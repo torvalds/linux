@@ -642,7 +642,7 @@ static void nullb_device_release(struct config_item *item)
 	null_free_dev(dev);
 }
 
-static struct configfs_item_operations nullb_device_ops = {
+static const struct configfs_item_operations nullb_device_ops = {
 	.release	= nullb_device_release,
 };
 
@@ -665,12 +665,22 @@ static void nullb_add_fault_config(struct nullb_device *dev)
 	configfs_add_default_group(&dev->init_hctx_fault_config.group, &dev->group);
 }
 
+static void nullb_del_fault_config(struct nullb_device *dev)
+{
+	config_item_put(&dev->init_hctx_fault_config.group.cg_item);
+	config_item_put(&dev->requeue_config.group.cg_item);
+	config_item_put(&dev->timeout_config.group.cg_item);
+}
+
 #else
 
 static void nullb_add_fault_config(struct nullb_device *dev)
 {
 }
 
+static void nullb_del_fault_config(struct nullb_device *dev)
+{
+}
 #endif
 
 static struct
@@ -702,7 +712,7 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 		null_del_dev(dev->nullb);
 		mutex_unlock(&lock);
 	}
-
+	nullb_del_fault_config(dev);
 	config_item_put(item);
 }
 
@@ -739,7 +749,7 @@ static struct configfs_attribute *nullb_group_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations nullb_group_ops = {
+static const struct configfs_group_operations nullb_group_ops = {
 	.make_group	= nullb_group_make_group,
 	.drop_item	= nullb_group_drop_item,
 };
@@ -768,7 +778,7 @@ static struct nullb_device *null_alloc_dev(void)
 {
 	struct nullb_device *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 
@@ -857,7 +867,7 @@ static struct nullb_page *null_alloc_page(void)
 {
 	struct nullb_page *t_page;
 
-	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
+	t_page = kmalloc_obj(struct nullb_page, GFP_NOIO);
 	if (!t_page)
 		return NULL;
 
@@ -1808,8 +1818,7 @@ static int setup_queues(struct nullb *nullb)
 	if (g_poll_queues)
 		nqueues += g_poll_queues;
 
-	nullb->queues = kcalloc(nqueues, sizeof(struct nullb_queue),
-				GFP_KERNEL);
+	nullb->queues = kzalloc_objs(struct nullb_queue, nqueues);
 	if (!nullb->queues)
 		return -ENOMEM;
 

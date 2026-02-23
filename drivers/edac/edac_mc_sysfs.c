@@ -648,7 +648,7 @@ int __init edac_mc_sysfs_init(void)
 {
 	int err;
 
-	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
+	mci_pdev = kzalloc_obj(*mci_pdev);
 	if (!mci_pdev)
 		return -ENOMEM;
 

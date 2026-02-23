@@ -502,7 +502,7 @@ static struct afs_super_info *afs_alloc_sbi(struct fs_context *fc)
 	struct afs_fs_context *ctx = fc->fs_private;
 	struct afs_super_info *as;
 
-	as = kzalloc(sizeof(struct afs_super_info), GFP_KERNEL);
+	as = kzalloc_obj(struct afs_super_info);
 	if (as) {
 		as->net_ns = get_net(fc->net_ns);
 		as->flock_mode = ctx->flock_mode;
@@ -623,7 +623,7 @@ static int afs_init_fs_context(struct fs_context *fc)
 	struct afs_fs_context *ctx;
 	struct afs_cell *cell;
 
-	ctx = kzalloc(sizeof(struct afs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct afs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

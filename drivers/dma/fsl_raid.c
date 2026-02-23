@@ -290,7 +290,7 @@ static struct fsl_re_desc *fsl_re_chan_alloc_desc(struct fsl_re_chan *re_chan,
 	spin_unlock_irqrestore(&re_chan->desc_lock, lock_flag);
 
 	if (!desc) {
-		desc = kzalloc(sizeof(*desc), GFP_NOWAIT);
+		desc = kzalloc_obj(*desc, GFP_NOWAIT);
 		if (!desc)
 			return NULL;
 
@@ -579,7 +579,7 @@ static int fsl_re_alloc_chan_resources(struct dma_chan *chan)
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	for (i = 0; i < FSL_RE_MIN_DESCS; i++) {
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			break;
 
@@ -746,7 +746,6 @@ err_free:
 static int fsl_re_probe(struct platform_device *ofdev)
 {
 	struct fsl_re_drv_private *re_priv;
-	struct device_node *np;
 	struct device_node *child;
 	u32 off;
 	u8 ridx = 0;
@@ -823,11 +822,10 @@ static int fsl_re_probe(struct platform_device *ofdev)
 	dev_set_drvdata(dev, re_priv);
 
 	/* Parse Device tree to find out the total number of JQs present */
-	for_each_compatible_node(np, NULL, "fsl,raideng-v1.0-job-queue") {
+	for_each_compatible_node_scoped(np, NULL, "fsl,raideng-v1.0-job-queue") {
 		rc = of_property_read_u32(np, "reg", &off);
 		if (rc) {
 			dev_err(dev, "Reg property not found in JQ node\n");
-			of_node_put(np);
 			return -ENODEV;
 		}
 		/* Find out the Job Rings present under each JQ */

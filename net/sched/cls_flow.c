@@ -433,7 +433,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			return -EOPNOTSUPP;
 	}
 
-	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
+	fnew = kzalloc_obj(*fnew);
 	if (!fnew)
 		return -ENOBUFS;
 
@@ -583,7 +583,7 @@ static int flow_init(struct tcf_proto *tp)
 {
 	struct flow_head *head;
 
-	head = kzalloc(sizeof(*head), GFP_KERNEL);
+	head = kzalloc_obj(*head);
 	if (head == NULL)
 		return -ENOBUFS;
 	INIT_LIST_HEAD(&head->filters);

@@ -449,7 +449,7 @@ void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u32 port_num)
 	    !MLX5_CAP_GEN(mdev, cc_modify_allowed))
 		goto put_mdev;
 
-	dbg_cc_params = kzalloc(sizeof(*dbg_cc_params), GFP_KERNEL);
+	dbg_cc_params = kzalloc_obj(*dbg_cc_params);
 	if (!dbg_cc_params)
 		goto err;
 

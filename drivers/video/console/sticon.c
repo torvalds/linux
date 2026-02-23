@@ -186,7 +186,7 @@ static int sticon_set_font(struct vc_data *vc, const struct console_font *op,
 	new_font->underline_height = 0;
 	new_font->underline_pos = 0;
 
-	cooked_font = kzalloc(sizeof(*cooked_font), GFP_KERNEL);
+	cooked_font = kzalloc_obj(*cooked_font);
 	if (!cooked_font) {
 		kfree(new_font);
 		return -ENOMEM;

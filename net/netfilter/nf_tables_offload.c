@@ -11,7 +11,7 @@ static struct nft_flow_rule *nft_flow_rule_alloc(int num_actions)
 {
 	struct nft_flow_rule *flow;
 
-	flow = kzalloc(sizeof(struct nft_flow_rule), GFP_KERNEL);
+	flow = kzalloc_obj(struct nft_flow_rule);
 	if (!flow)
 		return NULL;
 
@@ -111,7 +111,7 @@ struct nft_flow_rule *nft_flow_rule_create(struct net *net,
 
 	expr = nft_expr_first(rule);
 
-	ctx = kzalloc(sizeof(struct nft_offload_ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(struct nft_offload_ctx);
 	if (!ctx) {
 		err = -ENOMEM;
 		goto err_out;

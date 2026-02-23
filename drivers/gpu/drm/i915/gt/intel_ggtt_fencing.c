@@ -865,9 +865,7 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 	if (intel_vgpu_active(i915))
 		num_fences = intel_uncore_read(uncore,
 					       vgtif_reg(avail_rs.fence_num));
-	ggtt->fence_regs = kcalloc(num_fences,
-				   sizeof(*ggtt->fence_regs),
-				   GFP_KERNEL);
+	ggtt->fence_regs = kzalloc_objs(*ggtt->fence_regs, num_fences);
 	if (!ggtt->fence_regs)
 		num_fences = 0;
 

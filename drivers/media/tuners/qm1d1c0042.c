@@ -407,7 +407,7 @@ static int qm1d1c0042_probe(struct i2c_client *client)
 	struct qm1d1c0042_config *cfg;
 	struct dvb_frontend *fe;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		return -ENOMEM;
 	state->i2c = client;

@@ -481,7 +481,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 			continue;
 		}
 
-		devwrap = kzalloc(sizeof(*devwrap), GFP_KERNEL);
+		devwrap = kzalloc_obj(*devwrap);
 		if (!devwrap) {
 			err = -ENOMEM;
 			goto error;

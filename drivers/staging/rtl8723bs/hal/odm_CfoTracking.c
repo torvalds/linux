@@ -100,9 +100,8 @@ void ODM_CfoTracking(void *pDM_VOID)
 	u8 Adjust_Xtal = 1;
 
 	/* 4 Support ability */
-	if (!(pDM_Odm->SupportAbility & ODM_BB_CFO_TRACKING)) {
+	if (!(pDM_Odm->SupportAbility & ODM_BB_CFO_TRACKING))
 		return;
-	}
 
 	if (!pDM_Odm->bLinked || !pDM_Odm->bOneEntryOnly) {
 		/* 4 No link or more than one entry */
@@ -110,9 +109,9 @@ void ODM_CfoTracking(void *pDM_VOID)
 	} else {
 		/* 3 1. CFO Tracking */
 		/* 4 1.1 No new packet */
-		if (pCfoTrack->packetCount == pCfoTrack->packetCount_pre) {
+		if (pCfoTrack->packetCount == pCfoTrack->packetCount_pre)
 			return;
-		}
+
 		pCfoTrack->packetCount_pre = pCfoTrack->packetCount;
 
 		/* 4 1.2 Calculate CFO */
@@ -133,8 +132,9 @@ void ODM_CfoTracking(void *pDM_VOID)
 		) {
 			pCfoTrack->largeCFOHit = 1;
 			return;
-		} else
-			pCfoTrack->largeCFOHit = 0;
+		}
+
+		pCfoTrack->largeCFOHit = 0;
 		pCfoTrack->CFO_ave_pre = CFO_ave;
 
 		/* 4 1.4 Dynamic Xtal threshold */
@@ -176,11 +176,10 @@ void ODM_CfoTracking(void *pDM_VOID)
 		}
 
 		/* 3 2. Dynamic ATC switch */
-		if (CFO_ave < CFO_TH_ATC && CFO_ave > -CFO_TH_ATC) {
+		if (CFO_ave < CFO_TH_ATC && CFO_ave > -CFO_TH_ATC)
 			odm_SetATCStatus(pDM_Odm, false);
-		} else {
+		else
 			odm_SetATCStatus(pDM_Odm, true);
-		}
 	}
 }
 

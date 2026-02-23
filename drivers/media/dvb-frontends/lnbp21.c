@@ -113,7 +113,7 @@ static struct dvb_frontend *lnbx2x_attach(struct dvb_frontend *fe,
 				struct i2c_adapter *i2c, u8 override_set,
 				u8 override_clear, u8 i2c_addr, u8 config)
 {
-	struct lnbp21 *lnbp21 = kmalloc(sizeof(struct lnbp21), GFP_KERNEL);
+	struct lnbp21 *lnbp21 = kmalloc_obj(struct lnbp21);
 	if (!lnbp21)
 		return NULL;
 

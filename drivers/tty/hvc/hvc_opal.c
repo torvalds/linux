@@ -181,7 +181,7 @@ static int hvc_opal_probe(struct platform_device *dev)
 		pv = hvc_opal_privs[termno];
 		boot = 1;
 	} else if (hvc_opal_privs[termno] == NULL) {
-		pv = kzalloc(sizeof(struct hvc_opal_priv), GFP_KERNEL);
+		pv = kzalloc_obj(struct hvc_opal_priv);
 		if (!pv)
 			return -ENOMEM;
 		pv->proto = proto;

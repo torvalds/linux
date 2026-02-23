@@ -71,7 +71,7 @@ static int z_erofs_load_deflate_config(struct super_block *sb,
 		     ++z_erofs_deflate_avail_strms) {
 			struct z_erofs_deflate *strm;
 
-			strm = kzalloc(sizeof(*strm), GFP_KERNEL);
+			strm = kzalloc_obj(*strm);
 			if (!strm)
 				goto failed;
 			/* XXX: in-kernel zlib cannot customize windowbits */
@@ -89,7 +89,6 @@ static int z_erofs_load_deflate_config(struct super_block *sb,
 		inited = true;
 	}
 	mutex_unlock(&deflate_resize_mutex);
-	erofs_info(sb, "EXPERIMENTAL DEFLATE feature in use. Use at your own risk!");
 	return 0;
 failed:
 	mutex_unlock(&deflate_resize_mutex);

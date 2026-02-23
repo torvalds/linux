@@ -14221,7 +14221,7 @@ static struct rsm_map_table *alloc_rsm_map_table(struct hfi1_devdata *dd)
 	struct rsm_map_table *rmt;
 	u8 rxcontext = is_ax(dd) ? 0 : 0xff;  /* 0 is default if a0 ver. */
 
-	rmt = kmalloc(sizeof(*rmt), GFP_KERNEL);
+	rmt = kmalloc_obj(*rmt);
 	if (rmt) {
 		memset(rmt->map, rxcontext, sizeof(rmt->map));
 		rmt->used = 0;
@@ -14872,7 +14872,7 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	int ret = 0;
 
 	/* pre-allocate the asic structure in case we are the first device */
-	asic_data = kzalloc(sizeof(*dd->asic_data), GFP_KERNEL);
+	asic_data = kzalloc_obj(*dd->asic_data);
 	if (!asic_data)
 		return -ENOMEM;
 

@@ -63,7 +63,7 @@ temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", temperature);
+	return sysfs_emit(buf, "%d\n", temperature);
 }
 
 static ssize_t
@@ -84,7 +84,7 @@ temp_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", temperature);
+	return sysfs_emit(buf, "%d\n", temperature);
 }
 
 
@@ -145,7 +145,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 		goto register_sys_interface;
 	}
 
-	hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
+	hwmon = kzalloc_obj(*hwmon);
 	if (!hwmon)
 		return -ENOMEM;
 
@@ -160,7 +160,7 @@ int thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	}
 
  register_sys_interface:
-	temp = kzalloc(sizeof(*temp), GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp) {
 		result = -ENOMEM;
 		goto unregister_name;

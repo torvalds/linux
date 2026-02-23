@@ -197,7 +197,7 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
 void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 	struct gfs2_trans *tr = current->journal_info;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct gfs2_sbd *sdp = glock_sbd(gl);
 	struct gfs2_bufdata *bd;
 
 	lock_buffer(bh);
@@ -255,7 +255,7 @@ void gfs2_trans_add_databufs(struct gfs2_glock *gl, struct folio *folio,
 void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct gfs2_sbd *sdp = glock_sbd(gl);
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_bufdata *bd;
 	struct gfs2_meta_header *mh;

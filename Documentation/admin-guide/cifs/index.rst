@@ -12,10 +12,3 @@ CIFS
    todo
    changes
    authors
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -80,7 +80,7 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 			return ctxdma;
 	}
 
-	if (!(ctxdma = kzalloc(sizeof(*ctxdma), GFP_KERNEL)))
+	if (!(ctxdma = kzalloc_obj(*ctxdma)))
 		return ERR_PTR(-ENOMEM);
 	list_add(&ctxdma->head, &wndw->ctxdma.list);
 
@@ -730,7 +730,7 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 {
 	struct nv50_wndw_atom *armw = nv50_wndw_atom(plane->state);
 	struct nv50_wndw_atom *asyw;
-	if (!(asyw = kmalloc(sizeof(*asyw), GFP_KERNEL)))
+	if (!(asyw = kmalloc_obj(*asyw)))
 		return NULL;
 	__drm_atomic_helper_plane_duplicate_state(plane, &asyw->state);
 	asyw->sema = armw->sema;
@@ -757,7 +757,7 @@ nv50_wndw_reset(struct drm_plane *plane)
 {
 	struct nv50_wndw_atom *asyw;
 
-	if (WARN_ON(!(asyw = kzalloc(sizeof(*asyw), GFP_KERNEL))))
+	if (WARN_ON(!(asyw = kzalloc_obj(*asyw))))
 		return;
 
 	if (plane->state)
@@ -863,7 +863,7 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	int nformat;
 	int ret;
 
-	if (!(wndw = *pwndw = kzalloc(sizeof(*wndw), GFP_KERNEL)))
+	if (!(wndw = *pwndw = kzalloc_obj(*wndw)))
 		return -ENOMEM;
 	wndw->func = func;
 	wndw->id = index;

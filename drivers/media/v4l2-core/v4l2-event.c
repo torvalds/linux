@@ -235,7 +235,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	if (elems < 1)
 		elems = 1;
 
-	sev = kvzalloc(struct_size(sev, events, elems), GFP_KERNEL);
+	sev = kvzalloc_flex(*sev, events, elems);
 	if (!sev)
 		return -ENOMEM;
 	sev->elems = elems;

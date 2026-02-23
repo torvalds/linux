@@ -1379,7 +1379,7 @@ static int ub960_parse_dt_txport(struct ub960_data *priv,
 	struct ub960_txport *txport;
 	int ret;
 
-	txport = kzalloc(sizeof(*txport), GFP_KERNEL);
+	txport = kzalloc_obj(*txport);
 	if (!txport)
 		return -ENOMEM;
 
@@ -4573,7 +4573,7 @@ static int ub960_parse_dt_rxport(struct ub960_data *priv, unsigned int nport,
 	struct ub960_rxport *rxport;
 	int ret;
 
-	rxport = kzalloc(sizeof(*rxport), GFP_KERNEL);
+	rxport = kzalloc_obj(*rxport);
 	if (!rxport)
 		return -ENOMEM;
 

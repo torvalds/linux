@@ -220,7 +220,7 @@ static int bcm7120_l2_intc_probe(struct platform_device *pdev, struct device_nod
 	unsigned int idx, irq, flags;
 	u32 valid_mask[MAX_WORDS] = { };
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -231,8 +231,7 @@ static int bcm7120_l2_intc_probe(struct platform_device *pdev, struct device_nod
 		goto out_unmap;
 	}
 
-	data->l1_data = kcalloc(data->num_parent_irqs, sizeof(*data->l1_data),
-				GFP_KERNEL);
+	data->l1_data = kzalloc_objs(*data->l1_data, data->num_parent_irqs);
 	if (!data->l1_data) {
 		ret = -ENOMEM;
 		goto out_free_l1_data;

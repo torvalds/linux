@@ -280,7 +280,7 @@ bool dwb3_ogam_set_input_transfer_func(
 	if (in_transfer_func_dwb_ogam == NULL)
 		return result;
 
-	dwb_ogam_lut = kzalloc(sizeof(*dwb_ogam_lut), GFP_KERNEL);
+	dwb_ogam_lut = kzalloc_obj(*dwb_ogam_lut);
 
 	if (dwb_ogam_lut) {
 		cm_helper_translate_curve_to_hw_format(dwbc->ctx,

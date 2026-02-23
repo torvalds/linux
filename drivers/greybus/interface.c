@@ -789,7 +789,7 @@ struct gb_interface *gb_interface_create(struct gb_module *module,
 	struct gb_host_device *hd = module->hd;
 	struct gb_interface *intf;
 
-	intf = kzalloc(sizeof(*intf), GFP_KERNEL);
+	intf = kzalloc_obj(*intf);
 	if (!intf)
 		return NULL;
 

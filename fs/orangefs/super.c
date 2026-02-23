@@ -578,7 +578,7 @@ int orangefs_init_fs_context(struct fs_context *fc)
 {
 	struct orangefs_sb_info_s *osi;
 
-	osi = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
+	osi = kzalloc_obj(struct orangefs_sb_info_s);
 	if (!osi)
 		return -ENOMEM;
 

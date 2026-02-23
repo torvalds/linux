@@ -178,7 +178,7 @@ int loongson_gfxpll_create(struct drm_device *ddev,
 	struct loongson_gfxpll *this;
 	int ret;
 
-	this = kzalloc(sizeof(*this), GFP_KERNEL);
+	this = kzalloc_obj(*this);
 	if (IS_ERR_OR_NULL(this))
 		return -ENOMEM;
 

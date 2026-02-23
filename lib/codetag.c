@@ -193,7 +193,7 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 
 	BUG_ON(range.start > range.stop);
 
-	cmod = kmalloc(sizeof(*cmod), GFP_KERNEL);
+	cmod = kmalloc_obj(*cmod);
 	if (unlikely(!cmod))
 		return -ENOMEM;
 
@@ -383,7 +383,7 @@ codetag_register_type(const struct codetag_type_desc *desc)
 
 	BUG_ON(desc->tag_size <= 0);
 
-	cttype = kzalloc(sizeof(*cttype), GFP_KERNEL);
+	cttype = kzalloc_obj(*cttype);
 	if (unlikely(!cttype))
 		return ERR_PTR(-ENOMEM);
 

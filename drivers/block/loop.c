@@ -355,8 +355,7 @@ static int lo_rw_aio(struct loop_device *lo, struct loop_cmd *cmd,
 
 	if (rq->bio != rq->biotail) {
 
-		bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
-				     GFP_NOIO);
+		bvec = kmalloc_objs(struct bio_vec, nr_bvec, GFP_NOIO);
 		if (!bvec)
 			return -EIO;
 		cmd->bvec = bvec;
@@ -823,7 +822,7 @@ static void loop_queue_work(struct loop_device *lo, struct loop_cmd *cmd)
 	if (worker)
 		goto queue_work;
 
-	worker = kzalloc(sizeof(struct loop_worker), GFP_NOWAIT);
+	worker = kzalloc_obj(struct loop_worker, GFP_NOWAIT);
 	/*
 	 * In the event we cannot allocate a worker, just queue on the
 	 * rootcg worker and issue the I/O as the rootcg
@@ -969,7 +968,7 @@ static void loop_update_limits(struct loop_device *lo, struct queue_limits *lim,
 	lim->features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_ROTATIONAL);
 	if (file->f_op->fsync && !(lo->lo_flags & LO_FLAGS_READ_ONLY))
 		lim->features |= BLK_FEAT_WRITE_CACHE;
-	if (backing_bdev && !bdev_nonrot(backing_bdev))
+	if (backing_bdev && bdev_rot(backing_bdev))
 		lim->features |= BLK_FEAT_ROTATIONAL;
 	lim->max_hw_discard_sectors = max_discard_sectors;
 	lim->max_write_zeroes_sectors = max_discard_sectors;
@@ -1225,28 +1224,16 @@ static int loop_clr_fd(struct loop_device *lo)
 }
 
 static int
-loop_set_status(struct loop_device *lo, blk_mode_t mode,
-		struct block_device *bdev, const struct loop_info64 *info)
+loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 {
 	int err;
 	bool partscan = false;
 	bool size_changed = false;
 	unsigned int memflags;
 
-	/*
-	 * If we don't hold exclusive handle for the device, upgrade to it
-	 * here to avoid changing device under exclusive owner.
-	 */
-	if (!(mode & BLK_OPEN_EXCL)) {
-		err = bd_prepare_to_claim(bdev, loop_set_status, NULL);
-		if (err)
-			goto out_reread_partitions;
-	}
-
 	err = mutex_lock_killable(&lo->lo_mutex);
 	if (err)
-		goto out_abort_claiming;
-
+		return err;
 	if (lo->lo_state != Lo_bound) {
 		err = -ENXIO;
 		goto out_unlock;
@@ -1285,10 +1272,6 @@ out_unfreeze:
 	}
 out_unlock:
 	mutex_unlock(&lo->lo_mutex);
-out_abort_claiming:
-	if (!(mode & BLK_OPEN_EXCL))
-		bd_abort_claiming(bdev, loop_set_status);
-out_reread_partitions:
 	if (partscan)
 		loop_reread_partitions(lo);
 
@@ -1368,9 +1351,7 @@ loop_info64_to_old(const struct loop_info64 *info64, struct loop_info *info)
 }
 
 static int
-loop_set_status_old(struct loop_device *lo, blk_mode_t mode,
-		    struct block_device *bdev,
-		    const struct loop_info __user *arg)
+loop_set_status_old(struct loop_device *lo, const struct loop_info __user *arg)
 {
 	struct loop_info info;
 	struct loop_info64 info64;
@@ -1378,19 +1359,17 @@ loop_set_status_old(struct loop_device *lo, blk_mode_t mode,
 	if (copy_from_user(&info, arg, sizeof (struct loop_info)))
 		return -EFAULT;
 	loop_info64_from_old(&info, &info64);
-	return loop_set_status(lo, mode, bdev, &info64);
+	return loop_set_status(lo, &info64);
 }
 
 static int
-loop_set_status64(struct loop_device *lo, blk_mode_t mode,
-		  struct block_device *bdev,
-		  const struct loop_info64 __user *arg)
+loop_set_status64(struct loop_device *lo, const struct loop_info64 __user *arg)
 {
 	struct loop_info64 info64;
 
 	if (copy_from_user(&info64, arg, sizeof (struct loop_info64)))
 		return -EFAULT;
-	return loop_set_status(lo, mode, bdev, &info64);
+	return loop_set_status(lo, &info64);
 }
 
 static int
@@ -1569,14 +1548,14 @@ static int lo_ioctl(struct block_device *bdev, blk_mode_t mode,
 	case LOOP_SET_STATUS:
 		err = -EPERM;
 		if ((mode & BLK_OPEN_WRITE) || capable(CAP_SYS_ADMIN))
-			err = loop_set_status_old(lo, mode, bdev, argp);
+			err = loop_set_status_old(lo, argp);
 		break;
 	case LOOP_GET_STATUS:
 		return loop_get_status_old(lo, argp);
 	case LOOP_SET_STATUS64:
 		err = -EPERM;
 		if ((mode & BLK_OPEN_WRITE) || capable(CAP_SYS_ADMIN))
-			err = loop_set_status64(lo, mode, bdev, argp);
+			err = loop_set_status64(lo, argp);
 		break;
 	case LOOP_GET_STATUS64:
 		return loop_get_status64(lo, argp);
@@ -1670,9 +1649,8 @@ loop_info64_to_compat(const struct loop_info64 *info64,
 }
 
 static int
-loop_set_status_compat(struct loop_device *lo, blk_mode_t mode,
-		    struct block_device *bdev,
-		    const struct compat_loop_info __user *arg)
+loop_set_status_compat(struct loop_device *lo,
+		       const struct compat_loop_info __user *arg)
 {
 	struct loop_info64 info64;
 	int ret;
@@ -1680,7 +1658,7 @@ loop_set_status_compat(struct loop_device *lo, blk_mode_t mode,
 	ret = loop_info64_from_compat(arg, &info64);
 	if (ret < 0)
 		return ret;
-	return loop_set_status(lo, mode, bdev, &info64);
+	return loop_set_status(lo, &info64);
 }
 
 static int
@@ -1706,7 +1684,7 @@ static int lo_compat_ioctl(struct block_device *bdev, blk_mode_t mode,
 
 	switch(cmd) {
 	case LOOP_SET_STATUS:
-		err = loop_set_status_compat(lo, mode, bdev,
+		err = loop_set_status_compat(lo,
 			     (const struct compat_loop_info __user *)arg);
 		break;
 	case LOOP_GET_STATUS:
@@ -2031,7 +2009,7 @@ static int loop_add(int i)
 	int err;
 
 	err = -ENOMEM;
-	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
+	lo = kzalloc_obj(*lo);
 	if (!lo)
 		goto out;
 	lo->worker_tree = RB_ROOT;

@@ -268,7 +268,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsit_conn *conn)
 	 * (struct iscsit_cmd->cr) so we need to allocate this before preparing the
 	 * connection's command list for connection recovery.
 	 */
-	cr = kzalloc(sizeof(struct iscsi_conn_recovery), GFP_KERNEL);
+	cr = kzalloc_obj(struct iscsi_conn_recovery);
 	if (!cr) {
 		pr_err("Unable to allocate memory for"
 			" struct iscsi_conn_recovery.\n");

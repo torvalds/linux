@@ -28,7 +28,7 @@ struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev)
 	if (!(MLX5_CAP_GEN_64(dev, general_obj_types) & MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM))
 		return NULL;
 
-	dm = kzalloc(sizeof(*dm), GFP_KERNEL);
+	dm = kzalloc_obj(*dm);
 	if (!dm)
 		return NULL;
 

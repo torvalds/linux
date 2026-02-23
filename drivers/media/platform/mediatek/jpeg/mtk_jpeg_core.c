@@ -1151,7 +1151,7 @@ static int mtk_jpeg_open(struct file *file)
 	struct mtk_jpeg_ctx *ctx;
 	int ret = 0;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

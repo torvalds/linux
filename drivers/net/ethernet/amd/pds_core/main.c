@@ -146,8 +146,7 @@ static int pdsc_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	int ret = 0;
 
 	if (num_vfs > 0) {
-		pdsc->vfs = kcalloc(num_vfs, sizeof(struct pdsc_vf),
-				    GFP_KERNEL);
+		pdsc->vfs = kzalloc_objs(struct pdsc_vf, num_vfs);
 		if (!pdsc->vfs)
 			return -ENOMEM;
 		pdsc->num_vfs = num_vfs;

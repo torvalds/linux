@@ -1331,7 +1331,7 @@ struct audio *dce_audio_create(
 		const struct dce_audio_mask *masks
 		)
 {
-	struct dce_audio *audio = kzalloc(sizeof(*audio), GFP_KERNEL);
+	struct dce_audio *audio = kzalloc_obj(*audio);
 
 	if (audio == NULL) {
 		ASSERT_CRITICAL(audio);
@@ -1357,7 +1357,7 @@ struct audio *dce60_audio_create(
 		const struct dce_audio_mask *masks
 		)
 {
-	struct dce_audio *audio = kzalloc(sizeof(*audio), GFP_KERNEL);
+	struct dce_audio *audio = kzalloc_obj(*audio);
 
 	if (audio == NULL) {
 		ASSERT_CRITICAL(audio);

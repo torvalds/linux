@@ -3,7 +3,7 @@
  * Copyright (c) 2008-2010, 2013 Dave Chinner
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
@@ -49,13 +49,11 @@ xfs_icreate_item_size(
 STATIC void
 xfs_icreate_item_format(
 	struct xfs_log_item	*lip,
-	struct xfs_log_vec	*lv)
+	struct xlog_format_buf	*lfb)
 {
 	struct xfs_icreate_item	*icp = ICR_ITEM(lip);
-	struct xfs_log_iovec	*vecp = NULL;
 
-	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_ICREATE,
-			&icp->ic_format,
+	xlog_format_copy(lfb, XLOG_REG_TYPE_ICREATE, &icp->ic_format,
 			sizeof(struct xfs_icreate_log));
 }
 

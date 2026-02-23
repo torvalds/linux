@@ -501,7 +501,6 @@ struct hv_pcibus_device {
 	struct resource *low_mmio_res;
 	struct resource *high_mmio_res;
 	struct completion *survey_event;
-	struct pci_bus *pci_bus;
 	spinlock_t config_lock;	/* Avoid two threads writing index page */
 	spinlock_t device_list_lock;	/* Protect lists below */
 	void __iomem *cfg_addr;
@@ -946,7 +945,7 @@ static int hv_pci_irqchip_init(void)
 	struct irq_domain *irq_domain_parent = NULL;
 	int ret = -ENOMEM;
 
-	chip_data = kzalloc(sizeof(*chip_data), GFP_KERNEL);
+	chip_data = kzalloc_obj(*chip_data);
 	if (!chip_data)
 		return ret;
 
@@ -1933,7 +1932,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		hv_int_desc_free(hpdev, int_desc);
 	}
 
-	int_desc = kzalloc(sizeof(*int_desc), GFP_ATOMIC);
+	int_desc = kzalloc_obj(*int_desc, GFP_ATOMIC);
 	if (!int_desc)
 		goto drop_reference;
 
@@ -2593,7 +2592,7 @@ static struct hv_pci_dev *new_pcichild_device(struct hv_pcibus_device *hbus,
 	unsigned long flags;
 	int ret;
 
-	hpdev = kzalloc(sizeof(*hpdev), GFP_KERNEL);
+	hpdev = kzalloc_obj(*hpdev);
 	if (!hpdev)
 		return NULL;
 
@@ -2832,7 +2831,7 @@ static int hv_pci_start_relations_work(struct hv_pcibus_device *hbus,
 		return -ENOENT;
 	}
 
-	dr_wrk = kzalloc(sizeof(*dr_wrk), GFP_NOWAIT);
+	dr_wrk = kzalloc_obj(*dr_wrk, GFP_NOWAIT);
 	if (!dr_wrk)
 		return -ENOMEM;
 
@@ -2872,8 +2871,7 @@ static void hv_pci_devices_present(struct hv_pcibus_device *hbus,
 	struct hv_dr_state *dr;
 	int i;
 
-	dr = kzalloc(struct_size(dr, func, relations->device_count),
-		     GFP_NOWAIT);
+	dr = kzalloc_flex(*dr, func, relations->device_count, GFP_NOWAIT);
 	if (!dr)
 		return;
 
@@ -2907,8 +2905,7 @@ static void hv_pci_devices_present2(struct hv_pcibus_device *hbus,
 	struct hv_dr_state *dr;
 	int i;
 
-	dr = kzalloc(struct_size(dr, func, relations->device_count),
-		     GFP_NOWAIT);
+	dr = kzalloc_flex(*dr, func, relations->device_count, GFP_NOWAIT);
 	if (!dr)
 		return;
 
@@ -3716,7 +3713,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 	if (!bridge)
 		return -ENOMEM;
 
-	hbus = kzalloc(sizeof(*hbus), GFP_KERNEL);
+	hbus = kzalloc_obj(*hbus);
 	if (!hbus)
 		return -ENOMEM;
 

@@ -15,8 +15,9 @@
 };
 
 &ap0_reg_sd_vccq {
+	compatible = "regulator-fixed";
 	regulator-max-microvolt = <1800000>;
-	states = <1800000 0x1 1800000 0x0>;
+	/delete-property/ states;
 	/delete-property/ gpios;
 };
 

@@ -302,7 +302,7 @@ static int __init tegra_ictlr_init(struct device_node *node,
 
 	soc = match->data;
 
-	lic = kzalloc(sizeof(*lic), GFP_KERNEL);
+	lic = kzalloc_obj(*lic);
 	if (!lic)
 		return -ENOMEM;
 

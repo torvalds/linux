@@ -189,7 +189,7 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 	if (access & IB_ACCESS_ON_DEMAND)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	umem = kzalloc_obj(*umem);
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 	umem->ibdev      = device;

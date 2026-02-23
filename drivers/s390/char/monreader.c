@@ -181,12 +181,11 @@ static struct mon_private *mon_alloc_mem(void)
 	int i;
 	struct mon_private *monpriv;
 
-	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
+	monpriv = kzalloc_obj(struct mon_private);
 	if (!monpriv)
 		return NULL;
 	for (i = 0; i < MON_MSGLIM; i++) {
-		monpriv->msg_array[i] = kzalloc(sizeof(struct mon_msg),
-						    GFP_KERNEL);
+		monpriv->msg_array[i] = kzalloc_obj(struct mon_msg);
 		if (!monpriv->msg_array[i]) {
 			mon_free_mem(monpriv);
 			return NULL;

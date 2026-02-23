@@ -228,8 +228,7 @@ static void nvmet_file_execute_rw(struct nvmet_req *req)
 	}
 
 	if (nr_bvec > NVMET_MAX_INLINE_BIOVEC)
-		req->f.bvec = kmalloc_array(nr_bvec, sizeof(struct bio_vec),
-				GFP_KERNEL);
+		req->f.bvec = kmalloc_objs(struct bio_vec, nr_bvec);
 	else
 		req->f.bvec = req->inline_bvec;
 

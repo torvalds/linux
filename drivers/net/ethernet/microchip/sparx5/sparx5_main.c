@@ -889,8 +889,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	}
 	sparx5->port_count = of_get_child_count(ports);
 
-	configs = kcalloc(sparx5->port_count,
-			  sizeof(struct initial_port_config), GFP_KERNEL);
+	configs = kzalloc_objs(struct initial_port_config, sparx5->port_count);
 	if (!configs) {
 		err = -ENOMEM;
 		goto cleanup_pnode;

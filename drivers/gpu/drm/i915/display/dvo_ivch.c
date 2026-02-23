@@ -269,7 +269,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	u16 temp;
 	int i;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (priv == NULL)
 		return false;
 

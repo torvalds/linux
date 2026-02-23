@@ -119,7 +119,7 @@ bool adf_gen4_handle_pm_interrupt(struct adf_accel_dev *accel_dev)
 
 	val = ADF_CSR_RD(pmisc, ADF_GEN4_PM_INTERRUPT);
 
-	pm_data = kzalloc(sizeof(*pm_data), GFP_ATOMIC);
+	pm_data = kzalloc_obj(*pm_data, GFP_ATOMIC);
 	if (!pm_data)
 		return false;
 

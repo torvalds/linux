@@ -19,6 +19,7 @@
 #include <net/rtnetlink.h>
 #include <net/lwtunnel.h>
 #include <net/dst_cache.h>
+#include <net/netdev_lock.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ipv6.h>
@@ -372,7 +373,17 @@ static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
 	fl4->flowi4_flags = flow_flags;
 }
 
-int ip_tunnel_init(struct net_device *dev);
+int __ip_tunnel_init(struct net_device *dev);
+#define ip_tunnel_init(DEV)			\
+({						\
+	struct net_device *__dev = (DEV);	\
+	int __res = __ip_tunnel_init(__dev);	\
+						\
+	if (!__res)				\
+		netdev_lockdep_set_classes(__dev);\
+	__res;					\
+})
+
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
 struct net *ip_tunnel_get_link_net(const struct net_device *dev);

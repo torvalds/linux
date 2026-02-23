@@ -141,7 +141,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc_array(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
+	sglist = kmalloc_objs(struct scatterlist, nr_pages);
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);
@@ -334,7 +334,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	int err = -ENOMEM;
 
 	/* clear out mem for sure */
-	dev = kzalloc(sizeof(struct saa7146_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct saa7146_dev);
 	if (!dev) {
 		ERR("out of memory\n");
 		goto out;

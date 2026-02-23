@@ -645,7 +645,7 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 {
 	struct lowpan_peer *peer;
 
-	peer = kzalloc(sizeof(*peer), GFP_ATOMIC);
+	peer = kzalloc_obj(*peer, GFP_ATOMIC);
 	if (!peer)
 		return NULL;
 
@@ -1107,7 +1107,7 @@ static int lowpan_enable_set(void *data, u64 val)
 {
 	struct set_enable *set_enable;
 
-	set_enable = kzalloc(sizeof(*set_enable), GFP_KERNEL);
+	set_enable = kzalloc_obj(*set_enable);
 	if (!set_enable)
 		return -ENOMEM;
 
@@ -1245,7 +1245,7 @@ static void disconnect_devices(void)
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(entry, &bt_6lowpan_devices, list) {
-		new_dev = kmalloc(sizeof(*new_dev), GFP_ATOMIC);
+		new_dev = kmalloc_obj(*new_dev, GFP_ATOMIC);
 		if (!new_dev)
 			break;
 

@@ -84,7 +84,7 @@
 			clock-names = "ref_100m";
 		};
 
-		dma-controller@1fe10c00 {
+		apbdma0: dma-controller@1fe10c00 {
 			compatible = "loongson,ls2k0500-apbdma", "loongson,ls2k1000-apbdma";
 			reg = <0 0x1fe10c00 0 0x8>;
 			interrupt-parent = <&eiointc>;
@@ -131,6 +131,7 @@
 			reg-names = "main", "isr0";
 
 			interrupt-controller;
+			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&cpuintc>;
 			interrupts = <2>;
@@ -149,6 +150,7 @@
 			reg-names = "main", "isr0";
 
 			interrupt-controller;
+			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&cpuintc>;
 			interrupts = <4>;
@@ -164,9 +166,20 @@
 			compatible = "loongson,ls2k0500-eiointc";
 			reg = <0x0 0x1fe11600 0x0 0xea00>;
 			interrupt-controller;
+			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			interrupt-parent = <&cpuintc>;
 			interrupts = <3>;
+		};
+
+		nand: nand-controller@1ff58000 {
+			compatible = "loongson,ls2k0500-nand-controller";
+			reg = <0 0x1ff58000 0 0x24>,
+			      <0 0x1ff58040 0 0x4>;
+			reg-names = "nand", "nand-dma";
+			dmas = <&apbdma0 0>;
+			dma-names = "rxtx";
+			status = "disabled";
 		};
 
 		pwm@1ff5c000 {

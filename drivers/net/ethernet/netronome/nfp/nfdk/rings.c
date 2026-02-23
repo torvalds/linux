@@ -105,8 +105,7 @@ nfp_nfdk_tx_ring_alloc(struct nfp_net_dp *dp, struct nfp_net_tx_ring *tx_ring)
 		goto err_alloc;
 	}
 
-	tx_ring->ktxbufs = kvcalloc(tx_ring->cnt, sizeof(*tx_ring->ktxbufs),
-				    GFP_KERNEL);
+	tx_ring->ktxbufs = kvzalloc_objs(*tx_ring->ktxbufs, tx_ring->cnt);
 	if (!tx_ring->ktxbufs)
 		goto err_alloc;
 

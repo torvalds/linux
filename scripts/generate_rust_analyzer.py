@@ -61,7 +61,6 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         display_name,
         deps,
         cfg=[],
-        edition="2021",
     ):
         append_crate(
             display_name,
@@ -69,13 +68,37 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
             deps,
             cfg,
             is_workspace_member=False,
-            edition=edition,
+            # Miguel Ojeda writes:
+            #
+            # > ... in principle even the sysroot crates may have different
+            # > editions.
+            # >
+            # > For instance, in the move to 2024, it seems all happened at once
+            # > in 1.87.0 in these upstream commits:
+            # >
+            # >     0e071c2c6a58 ("Migrate core to Rust 2024")
+            # >     f505d4e8e380 ("Migrate alloc to Rust 2024")
+            # >     0b2489c226c3 ("Migrate proc_macro to Rust 2024")
+            # >     993359e70112 ("Migrate std to Rust 2024")
+            # >
+            # > But in the previous move to 2021, `std` moved in 1.59.0, while
+            # > the others in 1.60.0:
+            # >
+            # >     b656384d8398 ("Update stdlib to the 2021 edition")
+            # >     06a1c14d52a8 ("Switch all libraries to the 2021 edition")
+            #
+            # Link: https://lore.kernel.org/all/CANiq72kd9bHdKaAm=8xCUhSHMy2csyVed69bOc4dXyFAW4sfuw@mail.gmail.com/
+            #
+            # At the time of writing all rust versions we support build the
+            # sysroot crates with the same edition. We may need to relax this
+            # assumption if future edition moves span multiple rust versions.
+            edition=core_edition,
         )
 
     # NB: sysroot crates reexport items from one another so setting up our transitive dependencies
     # here is important for ensuring that rust-analyzer can resolve symbols. The sources of truth
     # for this dependency graph are `(sysroot_src / crate / "Cargo.toml" for crate in crates)`.
-    append_sysroot_crate("core", [], cfg=crates_cfgs.get("core", []), edition=core_edition)
+    append_sysroot_crate("core", [], cfg=crates_cfgs.get("core", []))
     append_sysroot_crate("alloc", ["core"])
     append_sysroot_crate("std", ["alloc", "core"])
     append_sysroot_crate("proc_macro", ["core", "std"])
@@ -83,7 +106,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     append_crate(
         "compiler_builtins",
         srctree / "rust" / "compiler_builtins.rs",
-        [],
+        ["core"],
     )
 
     append_crate(
@@ -96,14 +119,15 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     append_crate(
         "quote",
         srctree / "rust" / "quote" / "lib.rs",
-        ["alloc", "proc_macro", "proc_macro2"],
+        ["core", "alloc", "std", "proc_macro", "proc_macro2"],
         cfg=crates_cfgs["quote"],
+        edition="2018",
     )
 
     append_crate(
         "syn",
         srctree / "rust" / "syn" / "lib.rs",
-        ["proc_macro", "proc_macro2", "quote"],
+        ["std", "proc_macro", "proc_macro2", "quote"],
         cfg=crates_cfgs["syn"],
     )
 
@@ -123,7 +147,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     append_crate(
         "pin_init_internal",
         srctree / "rust" / "pin-init" / "internal" / "src" / "lib.rs",
-        [],
+        ["std", "proc_macro", "proc_macro2", "quote", "syn"],
         cfg=["kernel"],
         is_proc_macro=True,
     )
@@ -131,7 +155,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     append_crate(
         "pin_init",
         srctree / "rust" / "pin-init" / "src" / "lib.rs",
-        ["core", "pin_init_internal", "macros"],
+        ["core", "compiler_builtins", "pin_init_internal", "macros"],
         cfg=["kernel"],
     )
 
@@ -190,7 +214,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
             append_crate(
                 name,
                 path,
-                ["core", "kernel"],
+                ["core", "kernel", "pin_init"],
                 cfg=cfg,
             )
 
@@ -212,9 +236,6 @@ def main():
         format="[%(asctime)s] [%(levelname)s] %(message)s",
         level=logging.INFO if args.verbose else logging.WARNING
     )
-
-    # Making sure that the `sysroot` and `sysroot_src` belong to the same toolchain.
-    assert args.sysroot in args.sysroot_src.parents
 
     rust_project = {
         "crates": generate_crates(args.srctree, args.objtree, args.sysroot_src, args.exttree, args.cfgs, args.core_edition),

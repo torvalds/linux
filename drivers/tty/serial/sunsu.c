@@ -1398,7 +1398,7 @@ static int su_probe(struct platform_device *op)
 			return -EINVAL;
 		up = &sunsu_ports[nr_inst];
 	} else {
-		up = kzalloc(sizeof(*up), GFP_KERNEL);
+		up = kzalloc_obj(*up);
 		if (!up)
 			return -ENOMEM;
 	}

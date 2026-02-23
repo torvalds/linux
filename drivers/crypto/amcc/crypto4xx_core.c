@@ -173,8 +173,7 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 	if (!dev->pdr)
 		return -ENOMEM;
 
-	dev->pdr_uinfo = kcalloc(PPC4XX_NUM_PD, sizeof(struct pd_uinfo),
-				 GFP_KERNEL);
+	dev->pdr_uinfo = kzalloc_objs(struct pd_uinfo, PPC4XX_NUM_PD);
 	if (!dev->pdr_uinfo) {
 		dma_free_coherent(dev->core_dev->device,
 				  sizeof(struct ce_pd) * PPC4XX_NUM_PD,
@@ -974,7 +973,7 @@ static int crypto4xx_register_alg(struct crypto4xx_device *sec_dev,
 	int rc = 0;
 
 	for (i = 0; i < array_size; i++) {
-		alg = kzalloc(sizeof(struct crypto4xx_alg), GFP_KERNEL);
+		alg = kzalloc_obj(struct crypto4xx_alg);
 		if (!alg)
 			return -ENOMEM;
 

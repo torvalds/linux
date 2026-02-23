@@ -25,10 +25,3 @@ Scheduler
     sched-debug
 
     text_files
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

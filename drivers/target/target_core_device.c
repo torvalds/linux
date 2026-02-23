@@ -324,7 +324,7 @@ int core_enable_device_list_for_node(
 	struct se_dev_entry *orig, *new;
 	int ret = 0;
 
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc_obj(*new);
 	if (!new) {
 		pr_err("Unable to allocate se_dev_entry memory\n");
 		return -ENOMEM;
@@ -591,7 +591,7 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 		*ret = -EOVERFLOW;
 		return NULL;
 	}
-	lacl = kzalloc(sizeof(struct se_lun_acl), GFP_KERNEL);
+	lacl = kzalloc_obj(struct se_lun_acl);
 	if (!lacl) {
 		pr_err("Unable to allocate memory for struct se_lun_acl.\n");
 		*ret = -ENOMEM;
@@ -726,7 +726,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	if (!dev->stats)
 		goto free_device;
 
-	dev->queues = kcalloc(nr_cpu_ids, sizeof(*dev->queues), GFP_KERNEL);
+	dev->queues = kzalloc_objs(*dev->queues, nr_cpu_ids);
 	if (!dev->queues)
 		goto free_stats;
 

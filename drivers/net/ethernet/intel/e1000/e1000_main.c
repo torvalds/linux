@@ -1322,13 +1322,13 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
  **/
 static int e1000_alloc_queues(struct e1000_adapter *adapter)
 {
-	adapter->tx_ring = kcalloc(adapter->num_tx_queues,
-				   sizeof(struct e1000_tx_ring), GFP_KERNEL);
+	adapter->tx_ring = kzalloc_objs(struct e1000_tx_ring,
+					adapter->num_tx_queues);
 	if (!adapter->tx_ring)
 		return -ENOMEM;
 
-	adapter->rx_ring = kcalloc(adapter->num_rx_queues,
-				   sizeof(struct e1000_rx_ring), GFP_KERNEL);
+	adapter->rx_ring = kzalloc_objs(struct e1000_rx_ring,
+					adapter->num_rx_queues);
 	if (!adapter->rx_ring) {
 		kfree(adapter->tx_ring);
 		return -ENOMEM;

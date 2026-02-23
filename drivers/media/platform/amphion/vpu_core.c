@@ -17,7 +17,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/firmware.h>
-#include <linux/vmalloc.h>
 #include "vpu.h"
 #include "vpu_defs.h"
 #include "vpu_core.h"
@@ -265,7 +264,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	INIT_WORK(&core->msg_work, vpu_msg_run_work);
 	INIT_DELAYED_WORK(&core->msg_delayed_work, vpu_msg_delayed_work);
 	buffer_size = roundup_pow_of_two(VPU_MSG_BUFFER_SIZE);
-	core->msg_buffer = vzalloc(buffer_size);
+	core->msg_buffer = kzalloc(buffer_size, GFP_KERNEL);
 	if (!core->msg_buffer) {
 		dev_err(core->dev, "failed allocate buffer for fifo\n");
 		ret = -ENOMEM;
@@ -282,10 +281,8 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 
 	return 0;
 error:
-	if (core->msg_buffer) {
-		vfree(core->msg_buffer);
-		core->msg_buffer = NULL;
-	}
+	kfree(core->msg_buffer);
+	core->msg_buffer = NULL;
 	if (core->workqueue) {
 		destroy_workqueue(core->workqueue);
 		core->workqueue = NULL;
@@ -308,7 +305,7 @@ static int vpu_core_unregister(struct device *dev, struct vpu_core *core)
 
 	vpu_core_put_vpu(core);
 	core->vpu = NULL;
-	vfree(core->msg_buffer);
+	kfree(core->msg_buffer);
 	core->msg_buffer = NULL;
 
 	if (core->workqueue) {

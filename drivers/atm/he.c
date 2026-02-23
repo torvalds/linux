@@ -372,8 +372,7 @@ static int he_init_one(struct pci_dev *pci_dev,
 	}
 	pci_set_drvdata(pci_dev, atm_dev);
 
-	he_dev = kzalloc(sizeof(struct he_dev),
-							GFP_KERNEL);
+	he_dev = kzalloc_obj(struct he_dev);
 	if (!he_dev) {
 		err = -ENOMEM;
 		goto init_one_failure;
@@ -787,9 +786,7 @@ static int he_init_group(struct he_dev *he_dev, int group)
 	}
 
 	/* rbpl_virt 64-bit pointers */
-	he_dev->rbpl_virt = kmalloc_array(RBPL_TABLE_SIZE,
-					  sizeof(*he_dev->rbpl_virt),
-					  GFP_KERNEL);
+	he_dev->rbpl_virt = kmalloc_objs(*he_dev->rbpl_virt, RBPL_TABLE_SIZE);
 	if (!he_dev->rbpl_virt) {
 		hprintk("unable to allocate rbpl virt table\n");
 		goto out_free_rbpl_table;
@@ -2132,7 +2129,7 @@ he_open(struct atm_vcc *vcc)
 
 	cid = he_mkcid(he_dev, vpi, vci);
 
-	he_vcc = kmalloc(sizeof(struct he_vcc), GFP_ATOMIC);
+	he_vcc = kmalloc_obj(struct he_vcc, GFP_ATOMIC);
 	if (he_vcc == NULL) {
 		hprintk("unable to allocate he_vcc during open\n");
 		return -ENOMEM;

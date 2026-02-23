@@ -682,8 +682,7 @@ static int uvc_video_clock_init(struct uvc_clock *clock)
 	spin_lock_init(&clock->lock);
 	clock->size = 32;
 
-	clock->samples = kmalloc_array(clock->size, sizeof(*clock->samples),
-				       GFP_KERNEL);
+	clock->samples = kmalloc_objs(*clock->samples, clock->size);
 	if (clock->samples == NULL)
 		return -ENOMEM;
 
@@ -1771,12 +1770,13 @@ static void uvc_free_urb_buffers(struct uvc_streaming *stream)
 }
 
 static bool uvc_alloc_urb_buffer(struct uvc_streaming *stream,
-				 struct uvc_urb *uvc_urb, gfp_t gfp_flags)
+				 struct uvc_urb *uvc_urb, unsigned int size,
+				 gfp_t gfp_flags)
 {
 	struct usb_device *udev = stream->dev->udev;
 
-	uvc_urb->buffer = usb_alloc_noncoherent(udev, stream->urb_size,
-						gfp_flags, &uvc_urb->dma,
+	uvc_urb->buffer = usb_alloc_noncoherent(udev, size, gfp_flags,
+						&uvc_urb->dma,
 						uvc_stream_dir(stream),
 						&uvc_urb->sgt);
 	return !!uvc_urb->buffer;
@@ -1812,13 +1812,14 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 		npackets = UVC_MAX_PACKETS;
 
 	/* Retry allocations until one succeed. */
-	for (; npackets > 1; npackets /= 2) {
-		stream->urb_size = psize * npackets;
+	for (; npackets > 0; npackets /= 2) {
+		unsigned int urb_size = psize * npackets;
 
 		for (i = 0; i < UVC_URBS; ++i) {
 			struct uvc_urb *uvc_urb = &stream->uvc_urb[i];
 
-			if (!uvc_alloc_urb_buffer(stream, uvc_urb, gfp_flags)) {
+			if (!uvc_alloc_urb_buffer(stream, uvc_urb, urb_size,
+						  gfp_flags)) {
 				uvc_free_urb_buffers(stream);
 				break;
 			}
@@ -1830,6 +1831,7 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 			uvc_dbg(stream->dev, VIDEO,
 				"Allocated %u URB buffers of %ux%u bytes each\n",
 				UVC_URBS, npackets, psize);
+			stream->urb_size = urb_size;
 			return npackets;
 		}
 	}

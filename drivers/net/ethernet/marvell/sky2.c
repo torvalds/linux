@@ -1601,8 +1601,7 @@ static int sky2_alloc_buffers(struct sky2_port *sky2)
 	if (!sky2->tx_le)
 		goto nomem;
 
-	sky2->tx_ring = kcalloc(sky2->tx_ring_size, sizeof(struct tx_ring_info),
-				GFP_KERNEL);
+	sky2->tx_ring = kzalloc_objs(struct tx_ring_info, sky2->tx_ring_size);
 	if (!sky2->tx_ring)
 		goto nomem;
 
@@ -1611,8 +1610,7 @@ static int sky2_alloc_buffers(struct sky2_port *sky2)
 	if (!sky2->rx_le)
 		goto nomem;
 
-	sky2->rx_ring = kcalloc(sky2->rx_pending, sizeof(struct rx_ring_info),
-				GFP_KERNEL);
+	sky2->rx_ring = kzalloc_objs(struct rx_ring_info, sky2->rx_pending);
 	if (!sky2->rx_ring)
 		goto nomem;
 

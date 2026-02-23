@@ -98,8 +98,8 @@ properties:
     description: |
       Over-voltage protection limit. This property is for WLED4 only.
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [ 18100, 19600, 29600, 31100 ]
-    default: 29600
+    minimum: 17800
+    maximum: 31100
 
   qcom,num-strings:
     description: |
@@ -238,6 +238,26 @@ allOf:
         max-brightness:
           minimum: 0
           maximum: 4095
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pmi8950-wled
+              - qcom,pmi8994-wled
+
+    then:
+      properties:
+        qcom,ovp-millivolt:
+          enum: [ 17800, 19400, 29500, 31000 ]
+          default: 29500
+
+    else:
+      properties:
+        qcom,ovp-millivolt:
+          enum: [ 18100, 19600, 29600, 31100 ]
+          default: 29600
 
 required:
   - compatible

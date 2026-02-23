@@ -37,6 +37,11 @@
 #define UUID_DEVICE_LABELING            "e5c937d0-3553-4d7a-9117-ea4d19c3434d"
 #define UUID_PHYSICAL_PRESENCE          "3dddfaa6-361b-4eb4-a424-8d10089d1653"
 
+/* TPM */
+#define UUID_HARDWARE_INFORMATION       "cf8e16a5-c1e8-4e25-b712-4f54a96702c8"
+#define UUID_START_METHOD               "6bbf6cab-5463-4714-b7cd-f0203c0368d4"
+#define UUID_MEMORY_CLEAR               "376054ed-cc13-4675-901c-4756d7f2d45d"
+
 /* NVDIMM - NFIT table */
 
 #define UUID_NFIT_DIMM                  "4309ac30-0d11-11e4-9191-0800200c9a66"
@@ -71,4 +76,5 @@
 #define UUID_USB4_CAPABILITIES          "23a0d13a-26ab-486c-9c5f-0ffa525a575a"
 #define UUID_1ST_FUNCTION_ID            "893f00a6-660c-494e-bcfd-3043f4fb67c0"
 #define UUID_2ND_FUNCTION_ID            "107ededd-d381-4fd7-8da9-08e9a6c79644"
+#define UUID_FAN_TRIP_POINTS            "a7611840-99fe-41ae-a488-35c75926c8eb"
 #endif				/* __ACUUID_H__ */

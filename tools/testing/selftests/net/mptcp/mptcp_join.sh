@@ -603,8 +603,7 @@ wait_rm_addr()
 	local old_cnt="${2}"
 	local cnt
 
-	local i
-	for i in $(seq 10); do
+	for _ in $(seq 10); do
 		cnt=$(rm_addr_count ${ns})
 		[ "$cnt" = "${old_cnt}" ] || break
 		sleep 0.1
@@ -623,25 +622,22 @@ wait_rm_sf()
 	local old_cnt="${2}"
 	local cnt
 
-	local i
-	for i in $(seq 10); do
+	for _ in $(seq 10); do
 		cnt=$(rm_sf_count ${ns})
 		[ "$cnt" = "${old_cnt}" ] || break
 		sleep 0.1
 	done
 }
 
+# $1: expected MPJ ACK Rx counter in $ns1
 wait_mpj()
 {
-	local ns="${1}"
-	local cnt old_cnt
+	local exp_cnt="${1}"
+	local cnt
 
-	old_cnt=$(mptcp_lib_get_counter ${ns} "MPTcpExtMPJoinAckRx")
-
-	local i
-	for i in $(seq 10); do
-		cnt=$(mptcp_lib_get_counter ${ns} "MPTcpExtMPJoinAckRx")
-		[ "$cnt" = "${old_cnt}" ] || break
+	for _ in $(seq 10); do
+		cnt=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
+		[ "${cnt}" = "${exp_cnt}" ] && break
 		sleep 0.1
 	done
 }
@@ -650,8 +646,7 @@ wait_ll_ready()
 {
 	local ns="${1}"
 
-	local i
-	for i in $(seq 50); do
+	for _ in $(seq 50); do
 		ip -n "${ns}" -6 addr show scope link | grep "inet6 fe80" |
 			grep -qw "tentative" || break
 		sleep 0.1
@@ -1407,7 +1402,7 @@ chk_join_tx_nr()
 
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynTxCreatSkErr")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$create" ]; then
 		rc=${KSFT_FAIL}
 		print_check "syn tx create socket error"
@@ -1416,7 +1411,7 @@ chk_join_tx_nr()
 
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynTxBindErr")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$bind" ]; then
 		rc=${KSFT_FAIL}
 		print_check "syn tx bind error"
@@ -1425,7 +1420,7 @@ chk_join_tx_nr()
 
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynTxConnectErr")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$connect" ]; then
 		rc=${KSFT_FAIL}
 		print_check "syn tx connect error"
@@ -1451,7 +1446,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtInfiniteMapTx")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$infinite_map_tx" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns infinite map tx fallback"
@@ -1460,7 +1455,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtDSSCorruptionFallback")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$dss_corruption" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns dss corruption fallback"
@@ -1469,7 +1464,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtSimultConnectFallback")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$simult_conn" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns simult conn fallback"
@@ -1478,7 +1473,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableFallbackACK")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$mpc_passive" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns mpc passive fallback"
@@ -1487,7 +1482,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableFallbackSYNACK")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$mpc_active" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns mpc active fallback"
@@ -1496,7 +1491,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMPCapableDataFallback")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$mpc_data" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns mpc data fallback"
@@ -1505,7 +1500,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtMD5SigFallback")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$md5_sig" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns MD5 Sig fallback"
@@ -1514,7 +1509,7 @@ chk_fallback_nr()
 
 	count=$(mptcp_lib_get_counter ${!ns} "MPTcpExtDssFallback")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$dss" ]; then
 		rc=${KSFT_FAIL}
 		print_check "$ns dss fallback"
@@ -1590,7 +1585,7 @@ chk_join_nr()
 
 	count=$(mptcp_lib_get_counter ${ns2} "MPTcpExtMPJoinSynAckHMacFailure")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "0" ]; then
 		rc=${KSFT_FAIL}
 		print_check "synack HMAC"
@@ -1599,7 +1594,7 @@ chk_join_nr()
 
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$ack_nr" ]; then
 		rc=${KSFT_FAIL}
 		print_check "ack rx"
@@ -1608,7 +1603,7 @@ chk_join_nr()
 
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckHMacFailure")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "0" ]; then
 		rc=${KSFT_FAIL}
 		print_check "ack HMAC"
@@ -1617,7 +1612,7 @@ chk_join_nr()
 
 	count=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinRejected")
 	if [ -z "$count" ]; then
-		rc=${KSFT_SKIP}
+		: # ignore skip
 	elif [ "$count" != "$syn_rej" ]; then
 		rc=${KSFT_FAIL}
 		print_check "syn rejected"
@@ -1650,7 +1645,6 @@ chk_stale_nr()
 	local stale_min=$2
 	local stale_max=$3
 	local stale_delta=$4
-	local dump_stats
 	local stale_nr
 	local recover_nr
 
@@ -1666,15 +1660,10 @@ chk_stale_nr()
 		fail_test "got $stale_nr stale[s] $recover_nr recover[s], " \
 		     " expected stale in range [$stale_min..$stale_max]," \
 		     " stale-recover delta $stale_delta"
-		dump_stats=1
+		echo $ns stats
+		ip -n $ns -s link show
 	else
 		print_ok
-	fi
-
-	if [ "${dump_stats}" = 1 ]; then
-		echo $ns stats
-		ip netns exec $ns ip -s link show
-		ip netns exec $ns nstat -as | grep MPTcp
 	fi
 }
 
@@ -2329,17 +2318,16 @@ signal_address_tests()
 		ip netns exec $ns1 sysctl -q net.mptcp.add_addr_timeout=1
 		speed=slow \
 			run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 3 3 3
 
 		# It is not directly linked to the commit introducing this
 		# symbol but for the parent one which is linked anyway.
-		if ! mptcp_lib_kallsyms_has "mptcp_pm_subflow_check_next$"; then
-			chk_join_nr 3 3 2
-			chk_add_nr 4 4
-		else
-			chk_join_nr 3 3 3
+		if mptcp_lib_kallsyms_has "mptcp_pm_subflow_check_next$"; then
 			# the server will not signal the address terminating
 			# the MPC subflow
 			chk_add_nr 3 3
+		else
+			chk_add_nr 4 4
 		fi
 	fi
 }
@@ -3719,7 +3707,6 @@ userspace_pm_add_addr()
 	tk=$(mptcp_lib_evts_get_info token "$evts")
 
 	ip netns exec $1 ./pm_nl_ctl ann $2 token $tk id $3
-	sleep 1
 }
 
 # $1: ns ; $2: id
@@ -3750,7 +3737,6 @@ userspace_pm_add_sf()
 
 	ip netns exec $1 ./pm_nl_ctl csf lip $2 lid $3 \
 				rip $da rport $dp token $tk
-	sleep 1
 }
 
 # $1: ns ; $2: addr $3: event type
@@ -3847,21 +3833,28 @@ userspace_pm_chk_get_addr()
 	fi
 }
 
-# $1: ns ; $2: event type ; $3: count
+# $1: ns ; $2: event type ; $3: count ; [ $4: attr ; $5: attr count ]
 chk_evt_nr()
 {
 	local ns=${1}
 	local evt_name="${2}"
 	local exp="${3}"
+	local attr="${4}"
+	local attr_exp="${5}"
 
 	local evts="${evts_ns1}"
 	local evt="${!evt_name}"
+	local attr_name
 	local count
+
+	if [ -n "${attr}" ]; then
+		attr_name=", ${attr}: ${attr_exp}"
+	fi
 
 	evt_name="${evt_name:16}" # without MPTCP_LIB_EVENT_
 	[ "${ns}" == "ns2" ] && evts="${evts_ns2}"
 
-	print_check "event ${ns} ${evt_name} (${exp})"
+	print_check "event ${ns} ${evt_name} (${exp}${attr_name})"
 
 	if [[ "${evt_name}" = "LISTENER_"* ]] &&
 	   ! mptcp_lib_kallsyms_has "mptcp_event_pm_listener$"; then
@@ -3872,9 +3865,40 @@ chk_evt_nr()
 	count=$(grep -cw "type:${evt}" "${evts}")
 	if [ "${count}" != "${exp}" ]; then
 		fail_test "got ${count} events, expected ${exp}"
+		cat "${evts}"
+		return
+	elif [ -z "${attr}" ]; then
+		print_ok
+		return
+	fi
+
+	count=$(grep -w "type:${evt}" "${evts}" | grep -c ",${attr}:")
+	if [ "${count}" != "${attr_exp}" ]; then
+		fail_test "got ${count} event attributes, expected ${attr_exp}"
+		grep -w "type:${evt}" "${evts}"
 	else
 		print_ok
 	fi
+}
+
+# $1: ns ; $2: event type ; $3: expected count
+wait_event()
+{
+	local ns="${1}"
+	local evt_name="${2}"
+	local exp="${3}"
+
+	local evt="${!evt_name}"
+	local evts="${evts_ns1}"
+	local count
+
+	[ "${ns}" == "ns2" ] && evts="${evts_ns2}"
+
+	for _ in $(seq 100); do
+		count=$(grep -cw "type:${evt}" "${evts}")
+		[ "${count}" -ge "${exp}" ] && break
+		sleep 0.1
+	done
 }
 
 userspace_tests()
@@ -3962,9 +3986,11 @@ userspace_tests()
 		{ timeout_test=120 test_linkfail=128 speed=5 \
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
-		wait_mpj $ns1
+		wait_event ns1 MPTCP_LIB_EVENT_ESTABLISHED 1
 		userspace_pm_add_addr $ns1 10.0.2.1 10
+		wait_event ns2 MPTCP_LIB_EVENT_ANNOUNCED 1
 		userspace_pm_add_addr $ns1 10.0.3.1 20
+		wait_event ns2 MPTCP_LIB_EVENT_ANNOUNCED 2
 		chk_join_nr 2 2 2
 		chk_add_nr 2 2
 		chk_mptcp_info subflows 2 subflows 2
@@ -3995,8 +4021,9 @@ userspace_tests()
 		{ timeout_test=120 test_linkfail=128 speed=5 \
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
-		wait_mpj $ns2
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		userspace_pm_add_sf $ns2 10.0.3.2 20
+		wait_event ns2 MPTCP_LIB_EVENT_SUB_ESTABLISHED 1
 		chk_join_nr 1 1 1
 		chk_mptcp_info subflows 1 subflows 1
 		chk_subflows_total 2 2
@@ -4023,10 +4050,11 @@ userspace_tests()
 		{ timeout_test=120 test_linkfail=128 speed=5 \
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
-		wait_mpj $ns2
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		chk_mptcp_info subflows 0 subflows 0
 		chk_subflows_total 1 1
 		userspace_pm_add_sf $ns2 10.0.3.2 0
+		wait_event ns2 MPTCP_LIB_EVENT_SUB_ESTABLISHED 1
 		userspace_pm_chk_dump_addr "${ns2}" \
 			"id 0 flags subflow 10.0.3.2" "id 0 subflow"
 		chk_join_nr 1 1 1
@@ -4044,8 +4072,9 @@ userspace_tests()
 		{ timeout_test=120 test_linkfail=128 speed=5 \
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
-		wait_mpj $ns2
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		userspace_pm_add_sf $ns2 10.0.3.2 20
+		wait_event ns2 MPTCP_LIB_EVENT_SUB_ESTABLISHED 1
 		chk_join_nr 1 1 1
 		chk_mptcp_info subflows 1 subflows 1
 		chk_subflows_total 2 2
@@ -4068,8 +4097,9 @@ userspace_tests()
 		{ timeout_test=120 test_linkfail=128 speed=5 \
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
-		wait_mpj $ns1
+		wait_event ns1 MPTCP_LIB_EVENT_ESTABLISHED 1
 		userspace_pm_add_addr $ns1 10.0.2.1 10
+		wait_event ns2 MPTCP_LIB_EVENT_ANNOUNCED 1
 		chk_join_nr 1 1 1
 		chk_add_nr 1 1
 		chk_mptcp_info subflows 1 subflows 1
@@ -4085,13 +4115,44 @@ userspace_tests()
 		kill_events_pids
 		mptcp_lib_kill_group_wait $tests_pid
 	fi
+
+	# userspace pm no duplicated spurious close events after an error
+	if reset_with_events "userspace pm no dup close events after error" &&
+	   continue_if mptcp_lib_has_file '/proc/sys/net/mptcp/pm_type'; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 2
+		{ timeout_test=120 test_linkfail=128 speed=slow \
+			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
+		local tests_pid=$!
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
+		userspace_pm_add_sf $ns2 10.0.3.2 20
+		wait_event ns2 MPTCP_LIB_EVENT_SUB_ESTABLISHED 1
+		chk_mptcp_info subflows 1 subflows 1
+		chk_subflows_total 2 2
+
+		# force quick loss
+		ip netns exec $ns2 sysctl -q net.ipv4.tcp_syn_retries=1
+		if ip netns exec "${ns1}" ${iptables} -A INPUT -s "10.0.1.2" \
+		      -p tcp --tcp-option 30 -j REJECT --reject-with tcp-reset &&
+		   ip netns exec "${ns2}" ${iptables} -A INPUT -d "10.0.1.2" \
+		      -p tcp --tcp-option 30 -j REJECT --reject-with tcp-reset; then
+			wait_event ns2 MPTCP_LIB_EVENT_SUB_CLOSED 1
+			wait_event ns1 MPTCP_LIB_EVENT_SUB_CLOSED 1
+			chk_subflows_total 1 1
+			userspace_pm_add_sf $ns2 10.0.1.2 0
+			wait_event ns2 MPTCP_LIB_EVENT_SUB_CLOSED 2
+			chk_evt_nr ns2 MPTCP_LIB_EVENT_SUB_CLOSED 2 error 2
+		fi
+		kill_events_pids
+		mptcp_lib_kill_group_wait $tests_pid
+	fi
 }
 
 endpoint_tests()
 {
 	# subflow_rebuild_header is needed to support the implicit flag
 	# userspace pm type prevents add_addr
-	if reset "implicit EP" &&
+	if reset_with_events "implicit EP" &&
 	   continue_if mptcp_lib_kallsyms_has "subflow_rebuild_header$"; then
 		pm_nl_set_limits $ns1 2 2
 		pm_nl_set_limits $ns2 2 2
@@ -4100,7 +4161,7 @@ endpoint_tests()
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
 
-		wait_mpj $ns1
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		pm_nl_check_endpoint "creation" \
 			$ns2 10.0.2.2 id 1 flags implicit
 		chk_mptcp_info subflows 1 subflows 1
@@ -4114,6 +4175,7 @@ endpoint_tests()
 		pm_nl_check_endpoint "modif is allowed" \
 			$ns2 10.0.2.2 id 1 flags signal
 		mptcp_lib_kill_group_wait $tests_pid
+		kill_events_pids
 	fi
 
 	if reset_with_tcp_filter "delete and re-add" ns2 10.0.3.2 REJECT OUTPUT &&
@@ -4127,7 +4189,7 @@ endpoint_tests()
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
 
-		wait_mpj $ns2
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		pm_nl_check_endpoint "creation" \
 			$ns2 10.0.2.2 id 2 flags subflow dev ns2eth2
 		chk_subflow_nr "before delete id 2" 2
@@ -4139,7 +4201,7 @@ endpoint_tests()
 		chk_mptcp_info subflows 0 subflows 0
 
 		pm_nl_add_endpoint $ns2 10.0.2.2 id 2 dev ns2eth2 flags subflow
-		wait_mpj $ns2
+		wait_mpj 2
 		chk_subflow_nr "after re-add id 2" 2
 		chk_mptcp_info subflows 1 subflows 1
 
@@ -4151,7 +4213,7 @@ endpoint_tests()
 		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
 		pm_nl_del_endpoint $ns2 3 10.0.3.2
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
-		wait_mpj $ns2
+		wait_mpj 3
 		chk_subflow_nr "after no reject" 3
 		chk_mptcp_info subflows 2 subflows 2
 
@@ -4163,7 +4225,7 @@ endpoint_tests()
 			chk_mptcp_info subflows 2 subflows 2 # only decr for additional sf
 
 			pm_nl_add_endpoint $ns2 10.0.1.2 id 1 dev ns2eth1 flags subflow
-			wait_mpj $ns2
+			wait_mpj $((3 + i))
 			chk_subflow_nr "after re-add id 0 ($i)" 3
 			chk_mptcp_info subflows 3 subflows 3
 		done
@@ -4205,7 +4267,7 @@ endpoint_tests()
 			run_tests $ns1 $ns2 10.0.1.1 & } 2>/dev/null
 		local tests_pid=$!
 
-		wait_mpj $ns2
+		wait_event ns2 MPTCP_LIB_EVENT_ESTABLISHED 1
 		pm_nl_check_endpoint "creation" \
 			$ns1 10.0.2.1 id 1 flags signal
 		chk_subflow_nr "before delete" 2
@@ -4221,7 +4283,7 @@ endpoint_tests()
 
 		pm_nl_add_endpoint $ns1 10.0.2.1 id 1 flags signal
 		pm_nl_add_endpoint $ns1 10.0.3.1 id 2 flags signal
-		wait_mpj $ns2
+		wait_mpj 3
 		chk_subflow_nr "after re-add" 3
 		chk_mptcp_info subflows 2 subflows 2
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
@@ -4233,7 +4295,7 @@ endpoint_tests()
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 
 		pm_nl_add_endpoint $ns1 10.0.1.1 id 99 flags signal
-		wait_mpj $ns2
+		wait_mpj 4
 		chk_subflow_nr "after re-add ID 0" 3
 		chk_mptcp_info subflows 3 subflows 3
 		chk_mptcp_info add_addr_signal 3 add_addr_accepted 2
@@ -4245,7 +4307,7 @@ endpoint_tests()
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 
 		pm_nl_add_endpoint $ns1 10.0.1.1 id 88 flags signal
-		wait_mpj $ns2
+		wait_mpj 5
 		chk_subflow_nr "after re-re-add ID 0" 3
 		chk_mptcp_info subflows 3 subflows 3
 		chk_mptcp_info add_addr_signal 3 add_addr_accepted 2
@@ -4294,9 +4356,9 @@ endpoint_tests()
 		wait_rm_addr $ns2 0
 		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
-		wait_mpj $ns2
+		wait_mpj 1
 		pm_nl_add_endpoint $ns1 10.0.3.1 id 2 flags signal
-		wait_mpj $ns2
+		wait_mpj 2
 		mptcp_lib_kill_group_wait $tests_pid
 
 		join_syn_tx=3 join_connect_err=1 \

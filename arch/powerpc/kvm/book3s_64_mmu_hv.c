@@ -1494,7 +1494,7 @@ int kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
 
 	/* start new resize */
 
-	resize = kzalloc(sizeof(*resize), GFP_KERNEL);
+	resize = kzalloc_obj(*resize);
 	if (!resize) {
 		ret = -ENOMEM;
 		goto out;
@@ -1943,7 +1943,7 @@ int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *ghf)
 	/* reject flags we don't recognize */
 	if (ghf->flags & ~(KVM_GET_HTAB_BOLTED_ONLY | KVM_GET_HTAB_WRITE))
 		return -EINVAL;
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 	kvm_get_kvm(kvm);
@@ -1985,7 +1985,7 @@ static int debugfs_htab_open(struct inode *inode, struct file *file)
 	struct kvm *kvm = inode->i_private;
 	struct debugfs_htab_state *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 

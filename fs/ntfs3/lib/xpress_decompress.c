@@ -39,7 +39,7 @@ struct xpress_decompressor {
  */
 struct xpress_decompressor *xpress_allocate_decompressor(void)
 {
-	return kmalloc(sizeof(struct xpress_decompressor), GFP_NOFS);
+	return kmalloc_obj(struct xpress_decompressor, GFP_NOFS);
 }
 
 /*

@@ -1,0 +1,7 @@
+# If FOO is not selected, then TEST_BASIC should fail the conditional
+# dependency since BAR is set.
+# TEST_COMPLEX will fail dependency as it depends on both FOO and BAR
+# if either of those is selected.
+CONFIG_FOO=n
+CONFIG_BAR=y
+CONFIG_BAZ=y

@@ -75,7 +75,7 @@ static int ubi_nvmem_add(struct ubi_volume_info *vi)
 	    WARN_ON_ONCE(vi->size <= 0))
 		return -EINVAL;
 
-	unv = kzalloc(sizeof(struct ubi_nvmem), GFP_KERNEL);
+	unv = kzalloc_obj(struct ubi_nvmem);
 	if (!unv)
 		return -ENOMEM;
 

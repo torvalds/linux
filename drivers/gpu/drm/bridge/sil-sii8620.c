@@ -384,7 +384,7 @@ static void sii8620_mt_msc_cmd_send(struct sii8620 *ctx,
 
 static struct sii8620_mt_msg *sii8620_mt_msg_new(struct sii8620 *ctx)
 {
-	struct sii8620_mt_msg *msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	struct sii8620_mt_msg *msg = kzalloc_obj(*msg);
 
 	if (!msg)
 		ctx->error = -ENOMEM;

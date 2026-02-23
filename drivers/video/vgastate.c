@@ -351,7 +351,7 @@ int save_vga(struct vgastate *state)
 {
 	struct regstate *saved;
 
-	saved = kzalloc(sizeof(struct regstate), GFP_KERNEL);
+	saved = kzalloc_obj(struct regstate);
 
 	if (saved == NULL)
 		return 1;

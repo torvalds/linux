@@ -405,7 +405,7 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 		return -ENODEV;
 
 	ioc = hd->ioc;
-	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
+	vtarget = kzalloc_obj(VirtTarget);
 	if (!vtarget)
 		return -ENOMEM;
 
@@ -725,7 +725,7 @@ static int mptspi_sdev_init(struct scsi_device *sdev)
 		mptscsih_is_phys_disk(ioc, 0, sdev->id) == 0)
 			return -ENXIO;
 
-	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	vdevice = kzalloc_obj(VirtDevice);
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "sdev_init kmalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));
@@ -774,8 +774,8 @@ static int mptspi_sdev_configure(struct scsi_device *sdev,
 	return 0;
 }
 
-static int
-mptspi_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status mptspi_qcmd(struct Scsi_Host *shost,
+				       struct scsi_cmnd *SCpnt)
 {
 	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
@@ -1152,7 +1152,7 @@ static void mpt_work_wrapper(struct work_struct *work)
 
 static void mpt_dv_raid(struct _MPT_SCSI_HOST *hd, int disk)
 {
-	struct work_queue_wrapper *wqw = kmalloc(sizeof(*wqw), GFP_ATOMIC);
+	struct work_queue_wrapper *wqw = kmalloc_obj(*wqw, GFP_ATOMIC);
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	if (!wqw) {
@@ -1288,7 +1288,7 @@ mptspi_dv_renegotiate_work(struct work_struct *work)
 static void
 mptspi_dv_renegotiate(struct _MPT_SCSI_HOST *hd)
 {
-	struct work_queue_wrapper *wqw = kmalloc(sizeof(*wqw), GFP_ATOMIC);
+	struct work_queue_wrapper *wqw = kmalloc_obj(*wqw, GFP_ATOMIC);
 
 	if (!wqw)
 		return;

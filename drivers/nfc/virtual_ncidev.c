@@ -125,10 +125,6 @@ static ssize_t virtual_ncidev_write(struct file *file,
 		kfree_skb(skb);
 		return -EFAULT;
 	}
-	if (strnlen(skb->data, count) != count) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
 
 	nci_recv_frame(vdev->ndev, skb);
 	return count;
@@ -139,7 +135,7 @@ static int virtual_ncidev_open(struct inode *inode, struct file *file)
 	int ret = 0;
 	struct virtual_nci_dev *vdev;
 
-	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
+	vdev = kzalloc_obj(*vdev);
 	if (!vdev)
 		return -ENOMEM;
 	vdev->ndev = nci_allocate_device(&virtual_nci_ops,

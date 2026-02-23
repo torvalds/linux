@@ -225,7 +225,7 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 	if (p->queue < 0 || p->queue >= pi->nqsets)
 		return -ERANGE;
 
-	qe = kvzalloc(sizeof(struct sched_queue_entry), GFP_KERNEL);
+	qe = kvzalloc_obj(struct sched_queue_entry);
 	if (!qe)
 		return -ENOMEM;
 
@@ -294,7 +294,7 @@ static int t4_sched_flowc_bind(struct port_info *pi, struct ch_sched_flowc *p)
 	if (p->tid < 0 || p->tid >= adap->tids.neotids)
 		return -ERANGE;
 
-	fe = kvzalloc(sizeof(*fe), GFP_KERNEL);
+	fe = kvzalloc_obj(*fe);
 	if (!fe)
 		return -ENOMEM;
 
@@ -653,7 +653,7 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 	struct sched_table *s;
 	unsigned int i;
 
-	s = kvzalloc(struct_size(s, tab, sched_size), GFP_KERNEL);
+	s = kvzalloc_flex(*s, tab, sched_size);
 	if (!s)
 		return NULL;
 

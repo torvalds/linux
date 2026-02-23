@@ -973,7 +973,7 @@ static int set_rate_constraints(struct snd_ice1712 *ice,
 					  ice->hw_rates);
 }
 
-/* if the card has the internal rate locked (is_pro_locked), limit runtime
+/* if the card has the internal rate locked (is_pro_rate_locked), limit runtime
    hw rates to the current internal rate only.
 */
 static void constrain_rate_if_locked(struct snd_pcm_substream *substream)

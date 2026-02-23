@@ -342,8 +342,7 @@ static int snd_als300_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_als300 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_als300_substream_data *data = kzalloc(sizeof(*data),
-								GFP_KERNEL);
+	struct snd_als300_substream_data *data = kzalloc_obj(*data);
 
 	if (!data)
 		return -ENOMEM;
@@ -370,8 +369,7 @@ static int snd_als300_capture_open(struct snd_pcm_substream *substream)
 {
 	struct snd_als300 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_als300_substream_data *data = kzalloc(sizeof(*data),
-								GFP_KERNEL);
+	struct snd_als300_substream_data *data = kzalloc_obj(*data);
 
 	if (!data)
 		return -ENOMEM;

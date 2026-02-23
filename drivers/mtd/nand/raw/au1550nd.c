@@ -266,7 +266,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

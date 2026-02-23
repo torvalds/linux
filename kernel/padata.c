@@ -540,7 +540,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 	struct padata_instance *pinst = ps->pinst;
 	struct parallel_data *pd;
 
-	pd = kzalloc(sizeof(struct parallel_data), GFP_KERNEL);
+	pd = kzalloc_obj(struct parallel_data);
 	if (!pd)
 		goto err;
 
@@ -819,7 +819,7 @@ static void __padata_free(struct padata_instance *pinst)
 #define kobj2pinst(_kobj)					\
 	container_of(_kobj, struct padata_instance, kobj)
 #define attr2pentry(_attr)					\
-	container_of(_attr, struct padata_sysfs_entry, attr)
+	container_of_const(_attr, struct padata_sysfs_entry, attr)
 
 static void padata_sysfs_release(struct kobject *kobj)
 {
@@ -829,13 +829,13 @@ static void padata_sysfs_release(struct kobject *kobj)
 
 struct padata_sysfs_entry {
 	struct attribute attr;
-	ssize_t (*show)(struct padata_instance *, struct attribute *, char *);
-	ssize_t (*store)(struct padata_instance *, struct attribute *,
+	ssize_t (*show)(struct padata_instance *, const struct attribute *, char *);
+	ssize_t (*store)(struct padata_instance *, const struct attribute *,
 			 const char *, size_t);
 };
 
 static ssize_t show_cpumask(struct padata_instance *pinst,
-			    struct attribute *attr,  char *buf)
+			    const struct attribute *attr,  char *buf)
 {
 	struct cpumask *cpumask;
 	ssize_t len;
@@ -853,7 +853,7 @@ static ssize_t show_cpumask(struct padata_instance *pinst,
 }
 
 static ssize_t store_cpumask(struct padata_instance *pinst,
-			     struct attribute *attr,
+			     const struct attribute *attr,
 			     const char *buf, size_t count)
 {
 	cpumask_var_t new_cpumask;
@@ -880,10 +880,10 @@ out:
 }
 
 #define PADATA_ATTR_RW(_name, _show_name, _store_name)		\
-	static struct padata_sysfs_entry _name##_attr =		\
+	static const struct padata_sysfs_entry _name##_attr =	\
 		__ATTR(_name, 0644, _show_name, _store_name)
-#define PADATA_ATTR_RO(_name, _show_name)		\
-	static struct padata_sysfs_entry _name##_attr = \
+#define PADATA_ATTR_RO(_name, _show_name)			\
+	static const struct padata_sysfs_entry _name##_attr =	\
 		__ATTR(_name, 0400, _show_name, NULL)
 
 PADATA_ATTR_RW(serial_cpumask, show_cpumask, store_cpumask);
@@ -894,7 +894,7 @@ PADATA_ATTR_RW(parallel_cpumask, show_cpumask, store_cpumask);
  * serial_cpumask   [RW] - cpumask for serial workers
  * parallel_cpumask [RW] - cpumask for parallel workers
  */
-static struct attribute *padata_default_attrs[] = {
+static const struct attribute *const padata_default_attrs[] = {
 	&serial_cpumask_attr.attr,
 	&parallel_cpumask_attr.attr,
 	NULL,
@@ -904,8 +904,8 @@ ATTRIBUTE_GROUPS(padata_default);
 static ssize_t padata_sysfs_show(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
+	const struct padata_sysfs_entry *pentry;
 	struct padata_instance *pinst;
-	struct padata_sysfs_entry *pentry;
 	ssize_t ret = -EIO;
 
 	pinst = kobj2pinst(kobj);
@@ -919,8 +919,8 @@ static ssize_t padata_sysfs_show(struct kobject *kobj,
 static ssize_t padata_sysfs_store(struct kobject *kobj, struct attribute *attr,
 				  const char *buf, size_t count)
 {
+	const struct padata_sysfs_entry *pentry;
 	struct padata_instance *pinst;
-	struct padata_sysfs_entry *pentry;
 	ssize_t ret = -EIO;
 
 	pinst = kobj2pinst(kobj);
@@ -952,7 +952,7 @@ struct padata_instance *padata_alloc(const char *name)
 {
 	struct padata_instance *pinst;
 
-	pinst = kzalloc(sizeof(struct padata_instance), GFP_KERNEL);
+	pinst = kzalloc_obj(struct padata_instance);
 	if (!pinst)
 		goto err;
 
@@ -1038,7 +1038,7 @@ struct padata_shell *padata_alloc_shell(struct padata_instance *pinst)
 	struct parallel_data *pd;
 	struct padata_shell *ps;
 
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	ps = kzalloc_obj(*ps);
 	if (!ps)
 		goto out;
 
@@ -1106,8 +1106,7 @@ void __init padata_init(void)
 #endif
 
 	possible_cpus = num_possible_cpus();
-	padata_works = kmalloc_array(possible_cpus, sizeof(struct padata_work),
-				     GFP_KERNEL);
+	padata_works = kmalloc_objs(struct padata_work, possible_cpus);
 	if (!padata_works)
 		goto remove_dead_state;
 

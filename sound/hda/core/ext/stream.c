@@ -101,8 +101,7 @@ int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 		setup_op = snd_hdac_stream_setup;
 
 	for (i = 0; i < num_stream; i++) {
-		struct hdac_ext_stream *hext_stream =
-				kzalloc(sizeof(*hext_stream), GFP_KERNEL);
+		struct hdac_ext_stream *hext_stream = kzalloc_obj(*hext_stream);
 		if (!hext_stream)
 			return -ENOMEM;
 		tag = ++stream_tag;

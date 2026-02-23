@@ -526,14 +526,13 @@ struct fw_iso_packet {
 struct fw_iso_buffer {
 	enum dma_data_direction direction;
 	struct page **pages;
+	dma_addr_t *dma_addrs;
 	int page_count;
-	int page_count_mapped;
 };
 
 int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 		       int page_count, enum dma_data_direction direction);
 void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer, struct fw_card *card);
-size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed);
 
 struct fw_iso_context;
 typedef void (*fw_iso_callback_t)(struct fw_iso_context *context,
@@ -547,21 +546,26 @@ union fw_iso_callback {
 	fw_iso_mc_callback_t mc;
 };
 
+enum fw_iso_context_flag {
+	FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS = BIT(0),
+};
+
 struct fw_iso_context {
 	struct fw_card *card;
 	struct work_struct work;
 	int type;
 	int channel;
 	int speed;
-	bool drop_overflow_headers;
+	int flags;
 	size_t header_size;
+	size_t header_storage_size;
 	union fw_iso_callback callback;
 	void *callback_data;
 };
 
-struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
-		int type, int channel, int speed, size_t header_size,
-		fw_iso_callback_t callback, void *callback_data);
+struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, int channel,
+		int speed, size_t header_size, size_t header_storage_size,
+		union fw_iso_callback callback, void *callback_data);
 int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels);
 int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
@@ -569,6 +573,26 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 unsigned long payload);
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
+
+static inline struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
+		int channel, int speed, size_t header_size, fw_iso_callback_t callback,
+		void *callback_data)
+{
+	union fw_iso_callback cb = { .sc = callback };
+
+	return __fw_iso_context_create(card, type, channel, speed, header_size, PAGE_SIZE, cb,
+				       callback_data);
+}
+
+static inline struct fw_iso_context *fw_iso_context_create_with_header_storage_size(
+		struct fw_card *card, int type, int channel, int speed, size_t header_size,
+		size_t header_storage_size, fw_iso_callback_t callback, void *callback_data)
+{
+	union fw_iso_callback cb = { .sc = callback };
+
+	return __fw_iso_context_create(card, type, channel, speed, header_size, header_storage_size,
+				       cb, callback_data);
+}
 
 /**
  * fw_iso_context_schedule_flush_completions() - schedule work item to process isochronous context.

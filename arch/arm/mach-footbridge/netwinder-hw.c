@@ -727,7 +727,7 @@ static int __init netwinder_leds_init(void)
 	for (i = 0; i < ARRAY_SIZE(netwinder_leds); i++) {
 		struct netwinder_led *led;
 
-		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		led = kzalloc_obj(*led);
 		if (!led)
 			break;
 

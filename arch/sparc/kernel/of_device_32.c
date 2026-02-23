@@ -340,7 +340,7 @@ static void __init build_device_resources(struct platform_device *op,
 static struct platform_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
-	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	struct platform_device *op = kzalloc_obj(*op);
 	const struct linux_prom_irqs *intr;
 	struct dev_archdata *sd;
 	int len, i;

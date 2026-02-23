@@ -952,7 +952,7 @@ int lis3lv02d_init_dt(struct lis3lv02d *lis3)
 	if (!lis3->of_node)
 		return 0;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kzalloc_obj(*pdata);
 	if (!pdata)
 		return -ENOMEM;
 

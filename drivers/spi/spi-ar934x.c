@@ -195,7 +195,6 @@ static int ar934x_spi_probe(struct platform_device *pdev)
 	ctlr->transfer_one_message = ar934x_spi_transfer_one_message;
 	ctlr->bits_per_word_mask = SPI_BPW_MASK(32) | SPI_BPW_MASK(24) |
 				   SPI_BPW_MASK(16) | SPI_BPW_MASK(8);
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->num_chipselect = 3;
 
 	dev_set_drvdata(&pdev->dev, ctlr);

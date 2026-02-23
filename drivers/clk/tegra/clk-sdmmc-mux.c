@@ -250,7 +250,7 @@ struct clk *tegra_clk_register_sdmmc_mux_div(const char *name,
 	if (!bank)
 		return ERR_PTR(-EINVAL);
 
-	sdmmc_mux = kzalloc(sizeof(*sdmmc_mux), GFP_KERNEL);
+	sdmmc_mux = kzalloc_obj(*sdmmc_mux);
 	if (!sdmmc_mux)
 		return ERR_PTR(-ENOMEM);
 

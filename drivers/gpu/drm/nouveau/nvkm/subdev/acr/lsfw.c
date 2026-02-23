@@ -71,7 +71,7 @@ nvkm_acr_lsfw_add(const struct nvkm_acr_lsf_func *func, struct nvkm_acr *acr,
 	}
 
 	if (!lsfw) {
-		if (!(lsfw = kzalloc(sizeof(*lsfw), GFP_KERNEL)))
+		if (!(lsfw = kzalloc_obj(*lsfw)))
 			return ERR_PTR(-ENOMEM);
 
 		lsfw->id = id;

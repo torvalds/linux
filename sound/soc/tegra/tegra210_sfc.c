@@ -3569,6 +3569,7 @@ static const struct regmap_config tegra210_sfc_regmap_config = {
 	.precious_reg		= tegra210_sfc_precious_reg,
 	.reg_defaults		= tegra210_sfc_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tegra210_sfc_reg_defaults),
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 

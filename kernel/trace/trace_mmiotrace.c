@@ -101,7 +101,7 @@ static void mmio_pipe_open(struct trace_iterator *iter)
 
 	trace_seq_puts(s, "VERSION 20070824\n");
 
-	hiter = kzalloc(sizeof(*hiter), GFP_KERNEL);
+	hiter = kzalloc_obj(*hiter);
 	if (!hiter)
 		return;
 

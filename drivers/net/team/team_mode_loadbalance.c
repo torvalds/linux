@@ -259,7 +259,7 @@ static int __fprog_create(struct sock_fprog_kern **pfprog, u32 data_len,
 
 	if (data_len % sizeof(struct sock_filter))
 		return -EINVAL;
-	fprog = kmalloc(sizeof(*fprog), GFP_KERNEL);
+	fprog = kmalloc_obj(*fprog);
 	if (!fprog)
 		return -ENOMEM;
 	fprog->filter = kmemdup(filter, data_len, GFP_KERNEL);
@@ -594,7 +594,7 @@ static int lb_init(struct team *team)
 	BUG_ON(!func);
 	rcu_assign_pointer(lb_priv->select_tx_port_func, func);
 
-	lb_priv->ex = kzalloc(sizeof(*lb_priv->ex), GFP_KERNEL);
+	lb_priv->ex = kzalloc_obj(*lb_priv->ex);
 	if (!lb_priv->ex)
 		return -ENOMEM;
 	lb_priv->ex->team = team;

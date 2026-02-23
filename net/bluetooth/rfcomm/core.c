@@ -302,7 +302,7 @@ static void rfcomm_dlc_clear_state(struct rfcomm_dlc *d)
 
 struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 {
-	struct rfcomm_dlc *d = kzalloc(sizeof(*d), prio);
+	struct rfcomm_dlc *d = kzalloc_obj(*d, prio);
 
 	if (!d)
 		return NULL;
@@ -680,7 +680,7 @@ int rfcomm_dlc_get_modem_status(struct rfcomm_dlc *d, u8 *v24_sig)
 /* ---- RFCOMM sessions ---- */
 static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 {
-	struct rfcomm_session *s = kzalloc(sizeof(*s), GFP_KERNEL);
+	struct rfcomm_session *s = kzalloc_obj(*s);
 
 	if (!s)
 		return NULL;

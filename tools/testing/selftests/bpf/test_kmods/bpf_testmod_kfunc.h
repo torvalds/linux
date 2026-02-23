@@ -118,6 +118,7 @@ void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
 
 void bpf_kfunc_call_test_destructive(void) __ksym;
 void bpf_kfunc_call_test_sleepable(void) __ksym;
+int bpf_kfunc_call_test_call_rcu_tasks_trace(int *done) __ksym;
 
 void bpf_kfunc_call_test_offset(struct prog_test_ref_kfunc *p);
 struct prog_test_member *bpf_kfunc_call_memb_acquire(void);
@@ -161,6 +162,16 @@ void bpf_kfunc_rcu_task_test(struct task_struct *ptr) __ksym;
 struct task_struct *bpf_kfunc_ret_rcu_test(void) __ksym;
 int *bpf_kfunc_ret_rcu_test_nostruct(int rdonly_buf_size) __ksym;
 
-int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id) __ksym;
+#ifndef __KERNEL__
+extern int bpf_kfunc_multi_st_ops_test_1(struct st_ops_args *args, u32 id) __weak __ksym;
+extern int bpf_kfunc_multi_st_ops_test_1_assoc(struct st_ops_args *args) __weak __ksym;
+#endif
+
+struct prog_test_member *bpf_kfunc_get_default_trusted_ptr_test(void) __ksym;
+void bpf_kfunc_put_default_trusted_ptr_test(struct prog_test_member *trusted_ptr) __ksym;
+
+void bpf_testmod_test_hardirq_fn(void);
+void bpf_testmod_test_softirq_fn(void);
+void bpf_kfunc_trigger_ctx_check(void) __ksym;
 
 #endif /* _BPF_TESTMOD_KFUNC_H */

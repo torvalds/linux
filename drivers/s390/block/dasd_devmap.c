@@ -412,7 +412,7 @@ dasd_add_busid(const char *bus_id, int features)
 	struct dasd_devmap *devmap, *new, *tmp;
 	int hash;
 
-	new = kzalloc(sizeof(struct dasd_devmap), GFP_KERNEL);
+	new = kzalloc_obj(struct dasd_devmap);
 	if (!new)
 		return ERR_PTR(-ENOMEM);
 	spin_lock(&dasd_devmap_lock);
@@ -605,7 +605,7 @@ static int dasd_devmap_get_pprc_status(struct dasd_device *device,
 		dev_warn(&device->cdev->dev, "Unable to query copy relation status\n");
 		return -EOPNOTSUPP;
 	}
-	temp = kzalloc(sizeof(*temp), GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp)
 		return -ENOMEM;
 
@@ -2274,7 +2274,7 @@ static ssize_t dasd_copy_pair_store(struct device *dev,
 	} else if (sec_devmap->copy) {
 		copy = sec_devmap->copy;
 	} else {
-		copy = kzalloc(sizeof(*copy), GFP_KERNEL);
+		copy = kzalloc_obj(*copy);
 		if (!copy)
 			return -ENOMEM;
 	}

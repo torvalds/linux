@@ -702,7 +702,7 @@ static void iwl_mei_handle_csme_filters(struct mei_cl_device *cldev,
 		rcu_dereference_protected(mei->filters,
 					  lockdep_is_held(&iwl_mei_mutex));
 
-	new_filters = kzalloc(sizeof(*new_filters), GFP_KERNEL);
+	new_filters = kzalloc_obj(*new_filters);
 	if (!new_filters)
 		return;
 
@@ -886,7 +886,7 @@ static void iwl_mei_handle_nvm(struct mei_cl_device *cldev,
 	int i;
 
 	kfree(mei->nvm);
-	mei->nvm = kzalloc(sizeof(*mei_nvm), GFP_KERNEL);
+	mei->nvm = kzalloc_obj(*mei_nvm);
 	if (!mei->nvm)
 		return;
 

@@ -330,7 +330,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	mutex_lock(&mon_lock);
 	mbus = inode->i_private;
 
-	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
+	rp = kzalloc_obj(struct mon_reader_text);
 	if (rp == NULL) {
 		rc = -ENOMEM;
 		goto err_alloc;

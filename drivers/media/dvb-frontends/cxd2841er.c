@@ -3844,7 +3844,7 @@ static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
 	struct cxd2841er_priv *priv = NULL;
 
 	/* allocate memory for the internal state */
-	priv = kzalloc(sizeof(struct cxd2841er_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct cxd2841er_priv);
 	if (!priv)
 		return NULL;
 	priv->i2c = i2c;

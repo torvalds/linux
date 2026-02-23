@@ -16,7 +16,7 @@ KBUILD_CFLAGS += -Werror=return-type
 KBUILD_CFLAGS += -Werror=strict-prototypes
 KBUILD_CFLAGS += -Wno-format-security
 KBUILD_CFLAGS += -Wno-trigraphs
-KBUILD_CFLAGS += $(call cc-option, -Wno-frame-address)
+KBUILD_CFLAGS += -Wno-frame-address
 KBUILD_CFLAGS += $(call cc-option, -Wno-address-of-packed-member)
 KBUILD_CFLAGS += -Wmissing-declarations
 KBUILD_CFLAGS += -Wmissing-prototypes
@@ -55,6 +55,9 @@ else
 KBUILD_CFLAGS += -Wno-main
 endif
 
+# Too noisy on range checks and in macros handling both signed and unsigned.
+KBUILD_CFLAGS += -Wno-type-limits
+
 # These result in bogus false positives
 KBUILD_CFLAGS += $(call cc-option, -Wno-dangling-pointer)
 
@@ -72,7 +75,7 @@ KBUILD_CFLAGS += -Wno-pointer-sign
 # In order to make sure new function cast mismatches are not introduced
 # in the kernel (to avoid tripping CFI checking), the kernel should be
 # globally built with -Wcast-function-type.
-KBUILD_CFLAGS += $(call cc-option, -Wcast-function-type)
+KBUILD_CFLAGS += -Wcast-function-type
 
 # Currently, disable -Wstringop-overflow for GCC 11, globally.
 KBUILD_CFLAGS-$(CONFIG_CC_NO_STRINGOP_OVERFLOW) += $(call cc-option, -Wno-stringop-overflow)
@@ -99,7 +102,7 @@ KBUILD_CFLAGS += $(KBUILD_CFLAGS-y) $(CONFIG_CC_IMPLICIT_FALLTHROUGH)
 KBUILD_CFLAGS += -Werror=date-time
 
 # enforce correct pointer usage
-KBUILD_CFLAGS += $(call cc-option,-Werror=incompatible-pointer-types)
+KBUILD_CFLAGS += -Werror=incompatible-pointer-types
 
 # Require designated initializers for all marked structures
 KBUILD_CFLAGS += $(call cc-option,-Werror=designated-init)
@@ -116,7 +119,7 @@ ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
 
 KBUILD_CFLAGS += -Wmissing-format-attribute
 KBUILD_CFLAGS += -Wmissing-include-dirs
-KBUILD_CFLAGS += $(call cc-option, -Wunused-const-variable)
+KBUILD_CFLAGS += -Wunused-const-variable
 
 KBUILD_CPPFLAGS += -Wundef
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
@@ -125,12 +128,12 @@ else
 
 # Some diagnostics enabled by default are noisy.
 # Suppress them by using -Wno... except for W=1.
-KBUILD_CFLAGS += $(call cc-option, -Wno-unused-but-set-variable)
-KBUILD_CFLAGS += $(call cc-option, -Wno-unused-const-variable)
+KBUILD_CFLAGS += -Wno-unused-but-set-variable
+KBUILD_CFLAGS += -Wno-unused-const-variable
 KBUILD_CFLAGS += $(call cc-option, -Wno-packed-not-aligned)
 KBUILD_CFLAGS += $(call cc-option, -Wno-format-overflow)
 ifdef CONFIG_CC_IS_GCC
-KBUILD_CFLAGS += $(call cc-option, -Wno-format-truncation)
+KBUILD_CFLAGS += -Wno-format-truncation
 endif
 KBUILD_CFLAGS += $(call cc-option, -Wno-stringop-truncation)
 
@@ -145,14 +148,11 @@ KBUILD_CFLAGS += -Wno-format
 # problematic.
 KBUILD_CFLAGS += -Wformat-extra-args -Wformat-invalid-specifier
 KBUILD_CFLAGS += -Wformat-zero-length -Wnonnull
-# Requires clang-12+.
-ifeq ($(call clang-min-version, 120000),y)
 KBUILD_CFLAGS += -Wformat-insufficient-args
 endif
-endif
-KBUILD_CFLAGS += $(call cc-option, -Wno-pointer-to-enum-cast)
+KBUILD_CFLAGS += -Wno-pointer-to-enum-cast
 KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare
-KBUILD_CFLAGS += $(call cc-option, -Wno-unaligned-access)
+KBUILD_CFLAGS += -Wno-unaligned-access
 KBUILD_CFLAGS += -Wno-enum-compare-conditional
 endif
 
@@ -166,7 +166,7 @@ ifneq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
 KBUILD_CFLAGS += -Wdisabled-optimization
 KBUILD_CFLAGS += -Wshadow
 KBUILD_CFLAGS += $(call cc-option, -Wlogical-op)
-KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
+KBUILD_CFLAGS += -Wunused-macros
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
 
@@ -174,7 +174,6 @@ else
 
 # The following turn off the warnings enabled by -Wextra
 KBUILD_CFLAGS += -Wno-missing-field-initializers
-KBUILD_CFLAGS += -Wno-type-limits
 KBUILD_CFLAGS += -Wno-shift-negative-value
 
 ifdef CONFIG_CC_IS_CLANG

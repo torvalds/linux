@@ -54,7 +54,7 @@ static int __init hppb_probe(struct parisc_device *dev)
 	}
 
 	if(card->hpa) {
-		card->next = kzalloc(sizeof(struct hppb_card), GFP_KERNEL);
+		card->next = kzalloc_obj(struct hppb_card);
 		if(!card->next) {
 			printk(KERN_ERR "HP-PB: Unable to allocate memory.\n");
 			return 1;

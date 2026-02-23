@@ -103,7 +103,7 @@ find_quotarealm_inode(struct ceph_mds_client *mdsc, u64 ino)
 	}
 	if (!qri || (qri->ino != ino)) {
 		/* Not found, create a new one and insert it */
-		qri = kmalloc(sizeof(*qri), GFP_KERNEL);
+		qri = kmalloc_obj(*qri);
 		if (qri) {
 			qri->ino = ino;
 			qri->inode = NULL;

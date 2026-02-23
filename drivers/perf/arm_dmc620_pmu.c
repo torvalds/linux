@@ -432,7 +432,7 @@ static struct dmc620_pmu_irq *__dmc620_pmu_get_irq(int irq_num)
 		if (irq->irq_num == irq_num && refcount_inc_not_zero(&irq->refcount))
 			return irq;
 
-	irq = kzalloc(sizeof(*irq), GFP_KERNEL);
+	irq = kzalloc_obj(*irq);
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 

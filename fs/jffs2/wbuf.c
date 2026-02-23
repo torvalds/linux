@@ -92,7 +92,7 @@ static void jffs2_wbuf_dirties_inode(struct jffs2_sb_info *c, uint32_t ino)
 	if (jffs2_wbuf_pending_for_ino(c, ino))
 		return;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc_obj(*new);
 	if (!new) {
 		jffs2_dbg(1, "No memory to allocate inodirty. Fallback to all considered dirty\n");
 		jffs2_clear_wbuf_ino_list(c);

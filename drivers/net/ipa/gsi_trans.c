@@ -730,8 +730,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * modulo that number to determine the next one that's free.
 	 * Transactions are allocated one at a time.
 	 */
-	trans_info->trans = kcalloc(tre_count, sizeof(*trans_info->trans),
-				    GFP_KERNEL);
+	trans_info->trans = kzalloc_objs(*trans_info->trans, tre_count);
 	if (!trans_info->trans)
 		return -ENOMEM;
 	trans_info->free_id = 0;	/* all modulo channel->tre_count */
@@ -746,8 +745,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * Each entry in this map records the transaction associated
 	 * with a corresponding completed TRE.
 	 */
-	trans_info->map = kcalloc(tre_count, sizeof(*trans_info->map),
-				  GFP_KERNEL);
+	trans_info->map = kzalloc_objs(*trans_info->map, tre_count);
 	if (!trans_info->map) {
 		ret = -ENOMEM;
 		goto err_trans_free;

@@ -82,7 +82,7 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 	}
 
 	if (rose_neigh == NULL) {
-		rose_neigh = kmalloc(sizeof(*rose_neigh), GFP_ATOMIC);
+		rose_neigh = kmalloc_obj(*rose_neigh, GFP_ATOMIC);
 		if (rose_neigh == NULL) {
 			res = -ENOMEM;
 			goto out;
@@ -106,7 +106,7 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 
 		if (rose_route->ndigis != 0) {
 			rose_neigh->digipeat =
-				kmalloc(sizeof(ax25_digi), GFP_ATOMIC);
+				kmalloc_obj(ax25_digi, GFP_ATOMIC);
 			if (rose_neigh->digipeat == NULL) {
 				kfree(rose_neigh);
 				res = -ENOMEM;
@@ -148,7 +148,7 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 		}
 
 		/* create new node */
-		rose_node = kmalloc(sizeof(*rose_node), GFP_ATOMIC);
+		rose_node = kmalloc_obj(*rose_node, GFP_ATOMIC);
 		if (rose_node == NULL) {
 			res = -ENOMEM;
 			goto out;
@@ -368,7 +368,7 @@ void rose_add_loopback_neigh(void)
 {
 	struct rose_neigh *sn;
 
-	rose_loopback_neigh = kmalloc(sizeof(struct rose_neigh), GFP_KERNEL);
+	rose_loopback_neigh = kmalloc_obj(struct rose_neigh);
 	if (!rose_loopback_neigh)
 		return;
 	sn = rose_loopback_neigh;
@@ -417,7 +417,7 @@ int rose_add_loopback_node(const rose_address *address)
 	if (rose_node != NULL)
 		goto out;
 
-	if ((rose_node = kmalloc(sizeof(*rose_node), GFP_ATOMIC)) == NULL) {
+	if ((rose_node = kmalloc_obj(*rose_node, GFP_ATOMIC)) == NULL) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -1055,7 +1055,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 		goto put_neigh;
 	}
 
-	if ((rose_route = kmalloc(sizeof(*rose_route), GFP_ATOMIC)) == NULL) {
+	if ((rose_route = kmalloc_obj(*rose_route, GFP_ATOMIC)) == NULL) {
 		rose_transmit_clear_request(rose_neigh, lci, ROSE_NETWORK_CONGESTION, 120);
 		goto put_neigh;
 	}

@@ -1261,7 +1261,7 @@ static void i40e_get_vlan_list_sync(struct i40e_vsi *vsi, u16 *num_vlans,
 
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
 	*num_vlans = __i40e_getnum_vf_vsi_vlan_filters(vsi);
-	*vlan_list = kcalloc(*num_vlans, sizeof(**vlan_list), GFP_ATOMIC);
+	*vlan_list = kzalloc_objs(**vlan_list, *num_vlans, GFP_ATOMIC);
 	if (!(*vlan_list))
 		goto err;
 
@@ -1844,7 +1844,7 @@ int i40e_alloc_vfs(struct i40e_pf *pf, u16 num_alloc_vfs)
 		}
 	}
 	/* allocate memory */
-	vfs = kcalloc(num_alloc_vfs, sizeof(struct i40e_vf), GFP_KERNEL);
+	vfs = kzalloc_objs(struct i40e_vf, num_alloc_vfs);
 	if (!vfs) {
 		ret = -ENOMEM;
 		goto err_alloc;
@@ -3956,7 +3956,7 @@ static int i40e_vc_add_cloud_filter(struct i40e_vf *vf, u8 *msg)
 		goto err_out;
 	}
 
-	cfilter = kzalloc(sizeof(*cfilter), GFP_KERNEL);
+	cfilter = kzalloc_obj(*cfilter);
 	if (!cfilter) {
 		aq_ret = -ENOMEM;
 		goto err_out;

@@ -459,7 +459,7 @@ static int bnxt_alloc_vf_resources(struct bnxt *bp, int num_vfs)
 	struct pci_dev *pdev = bp->pdev;
 	u32 nr_pages, size, i, j, k = 0;
 
-	bp->pf.vf = kcalloc(num_vfs, sizeof(struct bnxt_vf_info), GFP_KERNEL);
+	bp->pf.vf = kzalloc_objs(struct bnxt_vf_info, num_vfs);
 	if (!bp->pf.vf)
 		return -ENOMEM;
 

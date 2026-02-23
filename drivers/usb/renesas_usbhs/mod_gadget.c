@@ -325,7 +325,7 @@ static void __usbhsg_recip_send_status(struct usbhsg_gpriv *gpriv,
 	}
 
 	/* alloc recip data buffer */
-	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
+	buf = kmalloc_obj(*buf, GFP_ATOMIC);
 	if (!buf) {
 		usb_ep_free_request(&dcp->ep, req);
 		return;
@@ -661,7 +661,7 @@ static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
 {
 	struct usbhsg_request *ureq;
 
-	ureq = kzalloc(sizeof *ureq, gfp_flags);
+	ureq = kzalloc_obj(*ureq, gfp_flags);
 	if (!ureq)
 		return NULL;
 
@@ -1084,11 +1084,11 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	int i;
 	int ret;
 
-	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
+	gpriv = kzalloc_obj(struct usbhsg_gpriv);
 	if (!gpriv)
 		return -ENOMEM;
 
-	uep = kcalloc(pipe_size, sizeof(struct usbhsg_uep), GFP_KERNEL);
+	uep = kzalloc_objs(struct usbhsg_uep, pipe_size);
 	if (!uep) {
 		ret = -ENOMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;

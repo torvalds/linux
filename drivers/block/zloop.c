@@ -492,7 +492,7 @@ static void zloop_rw(struct zloop_cmd *cmd)
 	if (rq->bio != rq->biotail) {
 		struct bio_vec *bvec;
 
-		cmd->bvec = kmalloc_array(nr_bvec, sizeof(*cmd->bvec), GFP_NOIO);
+		cmd->bvec = kmalloc_objs(*cmd->bvec, nr_bvec, GFP_NOIO);
 		if (!cmd->bvec) {
 			ret = -EIO;
 			goto unlock;
@@ -997,7 +997,7 @@ static int zloop_ctl_add(struct zloop_options *opts)
 		goto out;
 	}
 
-	zlo = kvzalloc(struct_size(zlo, zones, nr_zones), GFP_KERNEL);
+	zlo = kvzalloc_flex(*zlo, zones, nr_zones);
 	if (!zlo) {
 		ret = -ENOMEM;
 		goto out;

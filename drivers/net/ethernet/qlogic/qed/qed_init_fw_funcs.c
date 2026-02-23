@@ -1692,8 +1692,7 @@ struct phys_mem_desc *qed_fw_overlay_mem_alloc(struct qed_hwfn *p_hwfn,
 	if (!buf_size)
 		return NULL;
 
-	allocated_mem = kcalloc(NUM_STORMS, sizeof(struct phys_mem_desc),
-				GFP_KERNEL);
+	allocated_mem = kzalloc_objs(struct phys_mem_desc, NUM_STORMS);
 	if (!allocated_mem)
 		return NULL;
 

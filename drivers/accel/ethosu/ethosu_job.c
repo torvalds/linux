@@ -375,7 +375,7 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	if (edev->npu_info.sram_size < job->sram_size)
 		return -EINVAL;
 
-	ejob = kzalloc(sizeof(*ejob), GFP_KERNEL);
+	ejob = kzalloc_obj(*ejob);
 	if (!ejob)
 		return -ENOMEM;
 
@@ -384,7 +384,7 @@ static int ethosu_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	ejob->dev = edev;
 	ejob->sram_size = job->sram_size;
 
-	ejob->done_fence = kzalloc(sizeof(*ejob->done_fence), GFP_KERNEL);
+	ejob->done_fence = kzalloc_obj(*ejob->done_fence);
 	if (!ejob->done_fence) {
 		ret = -ENOMEM;
 		goto out_cleanup_job;
@@ -476,7 +476,7 @@ int ethosu_ioctl_submit(struct drm_device *dev, void *data, struct drm_file *fil
 	}
 
 	struct drm_ethosu_job __free(kvfree) *jobs =
-		kvmalloc_array(args->job_count, sizeof(*jobs), GFP_KERNEL);
+		kvmalloc_objs(*jobs, args->job_count);
 	if (!jobs)
 		return -ENOMEM;
 

@@ -59,7 +59,7 @@ static int __init z_erofs_zstd_init(void)
 	     ++z_erofs_zstd_avail_strms) {
 		struct z_erofs_zstd *strm;
 
-		strm = kzalloc(sizeof(*strm), GFP_KERNEL);
+		strm = kzalloc_obj(*strm);
 		if (!strm) {
 			z_erofs_zstd_exit();
 			return -ENOMEM;

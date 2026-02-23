@@ -551,7 +551,7 @@ shmob_drm_connector_init(struct shmob_drm_device *sdev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	scon = kzalloc(sizeof(*scon), GFP_KERNEL);
+	scon = kzalloc_obj(*scon);
 	if (!scon)
 		return ERR_PTR(-ENOMEM);
 

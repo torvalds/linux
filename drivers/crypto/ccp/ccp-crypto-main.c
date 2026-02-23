@@ -275,7 +275,7 @@ int ccp_crypto_enqueue_request(struct crypto_async_request *req,
 
 	gfp = req->flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
 
-	crypto_cmd = kzalloc(sizeof(*crypto_cmd), gfp);
+	crypto_cmd = kzalloc_obj(*crypto_cmd, gfp);
 	if (!crypto_cmd)
 		return -ENOMEM;
 

@@ -9,23 +9,29 @@
 #include <linux/limits.h>
 #include <linux/types.h>
 
+enum scratch_reg {
+	CAPABILITY_INFO,
+	POSTCODE_TRACE,
+	POSTCODE_TRACE_OVERFLOW,
+	AUX_INFO0,
+	AUX_INFO1,
+	AUX_INFO2,
+	AUX_INFO3,
+	AUX_INFO4,
+	MAX_SCRATCH_REG,
+};
+
 enum xe_survivability_type {
 	XE_SURVIVABILITY_TYPE_BOOT,
 	XE_SURVIVABILITY_TYPE_RUNTIME,
-};
-
-struct xe_survivability_info {
-	char name[NAME_MAX];
-	u32 reg;
-	u32 value;
 };
 
 /**
  * struct xe_survivability: Contains survivability mode information
  */
 struct xe_survivability {
-	/** @info: struct that holds survivability info from scratch registers */
-	struct xe_survivability_info *info;
+	/** @info: survivability debug info */
+	u32 info[MAX_SCRATCH_REG];
 
 	/** @size: number of scratch registers */
 	u32 size;
@@ -38,6 +44,12 @@ struct xe_survivability {
 
 	/** @type: survivability type */
 	enum xe_survivability_type type;
+
+	/** @fdo_mode: indicates if FDO mode is enabled */
+	bool fdo_mode;
+
+	/** @version: breadcrumb version of survivability mode  */
+	u8 version;
 };
 
 #endif /* _XE_SURVIVABILITY_MODE_TYPES_H_ */

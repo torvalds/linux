@@ -8,12 +8,13 @@
 
 #include "../cgroup/cgroup-internal.h"  /* cgroup_mutex and cgroup_is_dead */
 
-/* cgroup_iter provides four modes of traversal to the cgroup hierarchy.
+/* cgroup_iter provides five modes of traversal to the cgroup hierarchy.
  *
  *  1. Walk the descendants of a cgroup in pre-order.
  *  2. Walk the descendants of a cgroup in post-order.
  *  3. Walk the ancestors of a cgroup.
  *  4. Show the given cgroup only.
+ *  5. Walk the children of a given parent cgroup.
  *
  * For walking descendants, cgroup_iter can walk in either pre-order or
  * post-order. For walking ancestors, the iter walks up from a cgroup to
@@ -78,6 +79,8 @@ static void *cgroup_iter_seq_start(struct seq_file *seq, loff_t *pos)
 		return css_next_descendant_pre(NULL, p->start_css);
 	else if (p->order == BPF_CGROUP_ITER_DESCENDANTS_POST)
 		return css_next_descendant_post(NULL, p->start_css);
+	else if (p->order == BPF_CGROUP_ITER_CHILDREN)
+		return css_next_child(NULL, p->start_css);
 	else /* BPF_CGROUP_ITER_SELF_ONLY and BPF_CGROUP_ITER_ANCESTORS_UP */
 		return p->start_css;
 }
@@ -113,6 +116,8 @@ static void *cgroup_iter_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		return css_next_descendant_post(curr, p->start_css);
 	else if (p->order == BPF_CGROUP_ITER_ANCESTORS_UP)
 		return curr->parent;
+	else if (p->order == BPF_CGROUP_ITER_CHILDREN)
+		return css_next_child(curr, p->start_css);
 	else  /* BPF_CGROUP_ITER_SELF_ONLY */
 		return NULL;
 }
@@ -200,11 +205,16 @@ static int bpf_iter_attach_cgroup(struct bpf_prog *prog,
 	int order = linfo->cgroup.order;
 	struct cgroup *cgrp;
 
-	if (order != BPF_CGROUP_ITER_DESCENDANTS_PRE &&
-	    order != BPF_CGROUP_ITER_DESCENDANTS_POST &&
-	    order != BPF_CGROUP_ITER_ANCESTORS_UP &&
-	    order != BPF_CGROUP_ITER_SELF_ONLY)
+	switch (order) {
+	case BPF_CGROUP_ITER_DESCENDANTS_PRE:
+	case BPF_CGROUP_ITER_DESCENDANTS_POST:
+	case BPF_CGROUP_ITER_ANCESTORS_UP:
+	case BPF_CGROUP_ITER_SELF_ONLY:
+	case BPF_CGROUP_ITER_CHILDREN:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	if (fd && id)
 		return -EINVAL;
@@ -257,6 +267,8 @@ show_order:
 		seq_puts(seq, "order: descendants_post\n");
 	else if (aux->cgroup.order == BPF_CGROUP_ITER_ANCESTORS_UP)
 		seq_puts(seq, "order: ancestors_up\n");
+	else if (aux->cgroup.order == BPF_CGROUP_ITER_CHILDREN)
+		seq_puts(seq, "order: children\n");
 	else /* BPF_CGROUP_ITER_SELF_ONLY */
 		seq_puts(seq, "order: self_only\n");
 }
@@ -320,6 +332,7 @@ __bpf_kfunc int bpf_iter_css_new(struct bpf_iter_css *it,
 	case BPF_CGROUP_ITER_DESCENDANTS_PRE:
 	case BPF_CGROUP_ITER_DESCENDANTS_POST:
 	case BPF_CGROUP_ITER_ANCESTORS_UP:
+	case BPF_CGROUP_ITER_CHILDREN:
 		break;
 	default:
 		return -EINVAL;
@@ -344,6 +357,9 @@ __bpf_kfunc struct cgroup_subsys_state *bpf_iter_css_next(struct bpf_iter_css *i
 		break;
 	case BPF_CGROUP_ITER_DESCENDANTS_POST:
 		kit->pos = css_next_descendant_post(kit->pos, kit->start);
+		break;
+	case BPF_CGROUP_ITER_CHILDREN:
+		kit->pos = css_next_child(kit->pos, kit->start);
 		break;
 	case BPF_CGROUP_ITER_ANCESTORS_UP:
 		kit->pos = kit->pos ? kit->pos->parent : kit->start;

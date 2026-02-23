@@ -29,7 +29,6 @@
 #include <net/selftests.h>
 #include <linux/phylink.h>
 
-#define DRIVER_VERSION "22-Dec-2011"
 #define DRIVER_NAME "asix"
 
 /* ASIX AX8817X based USB 2.0 Ethernet Devices */
@@ -247,8 +246,6 @@ int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 		    u8 *data);
 int asix_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 		    u8 *data);
-
-void asix_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info);
 
 int asix_set_mac_address(struct net_device *net, void *p);
 

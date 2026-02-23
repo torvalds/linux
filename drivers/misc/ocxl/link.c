@@ -345,7 +345,7 @@ static int alloc_spa(struct pci_dev *dev, struct ocxl_link *link)
 {
 	struct spa *spa;
 
-	spa = kzalloc(sizeof(struct spa), GFP_KERNEL);
+	spa = kzalloc_obj(struct spa);
 	if (!spa)
 		return -ENOMEM;
 
@@ -387,7 +387,7 @@ static int alloc_link(struct pci_dev *dev, int PE_mask, struct ocxl_link **out_l
 	struct ocxl_link *link;
 	int rc;
 
-	link = kzalloc(sizeof(struct ocxl_link), GFP_KERNEL);
+	link = kzalloc_obj(struct ocxl_link);
 	if (!link)
 		return -ENOMEM;
 
@@ -559,7 +559,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 		goto unlock;
 	}
 
-	pe_data = kmalloc(sizeof(*pe_data), GFP_KERNEL);
+	pe_data = kmalloc_obj(*pe_data);
 	if (!pe_data) {
 		rc = -ENOMEM;
 		goto unlock;

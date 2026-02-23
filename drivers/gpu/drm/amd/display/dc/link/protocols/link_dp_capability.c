@@ -1593,6 +1593,41 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 	return true;
 }
 
+static void retrieve_vesa_replay_su_info(struct dc_link *link)
+{
+	uint8_t dpcd_data = 0;
+
+	core_link_read_dpcd(link,
+		DP_PR_SU_X_GRANULARITY_LOW,
+		&dpcd_data,
+		sizeof(dpcd_data));
+	link->dpcd_caps.vesa_replay_su_info.pr_su_x_granularity = dpcd_data;
+
+	core_link_read_dpcd(link,
+		DP_PR_SU_X_GRANULARITY_HIGH,
+		&dpcd_data,
+		sizeof(dpcd_data));
+	link->dpcd_caps.vesa_replay_su_info.pr_su_x_granularity |= (dpcd_data << 8);
+
+	core_link_read_dpcd(link,
+		DP_PR_SU_Y_GRANULARITY,
+		&dpcd_data,
+		sizeof(dpcd_data));
+	link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity = dpcd_data;
+
+	core_link_read_dpcd(link,
+		DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_LOW,
+		&dpcd_data,
+		sizeof(dpcd_data));
+	link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity_extended_caps = dpcd_data;
+
+	core_link_read_dpcd(link,
+		DP_PR_SU_Y_GRANULARITY_EXTENDED_CAP_HIGH,
+		&dpcd_data,
+		sizeof(dpcd_data));
+	link->dpcd_caps.vesa_replay_su_info.pr_su_y_granularity_extended_caps |= (dpcd_data << 8);
+}
+
 enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 {
 	uint8_t lttpr_dpcd_data[10] = {0};
@@ -2094,8 +2129,16 @@ static bool retrieve_link_cap(struct dc_link *link)
 
 	core_link_read_dpcd(link,
 			DP_PANEL_REPLAY_CAPABILITY_SUPPORT,
-			&link->dpcd_caps.pr_caps_supported.raw,
-			sizeof(link->dpcd_caps.pr_caps_supported.raw));
+			&link->dpcd_caps.vesa_replay_caps_supported.raw,
+			sizeof(link->dpcd_caps.vesa_replay_caps_supported.raw));
+
+	core_link_read_dpcd(link,
+			DP_PANEL_REPLAY_CAPABILITY,
+			&link->dpcd_caps.vesa_replay_caps.raw,
+			sizeof(link->dpcd_caps.vesa_replay_caps.raw));
+
+	/* Read VESA Panel Replay Selective Update caps */
+	retrieve_vesa_replay_su_info(link);
 
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
@@ -2218,6 +2261,13 @@ void detect_edp_sink_caps(struct dc_link *link)
 		core_link_read_dpcd(link, DP_SINK_EMISSION_RATE,
 				(uint8_t *)&link->dpcd_caps.edp_oled_emission_rate,
 				sizeof(link->dpcd_caps.edp_oled_emission_rate));
+
+	/*
+	 * Read DRR granularity
+	 */
+	core_link_read_dpcd(link, DP_SINK_DRR_GRANULARITY,
+			(uint8_t *)&link->dpcd_caps.drr_granularity,
+			sizeof(link->dpcd_caps.drr_granularity));
 
 	/*
 	 * Read Multi-SST (Single Stream Transport) capability

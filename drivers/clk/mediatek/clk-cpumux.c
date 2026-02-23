@@ -66,7 +66,7 @@ mtk_clk_register_cpumux(struct device *dev, const struct mtk_composite *mux,
 	int ret;
 	struct clk_init_data init;
 
-	cpumux = kzalloc(sizeof(*cpumux), GFP_KERNEL);
+	cpumux = kzalloc_obj(*cpumux);
 	if (!cpumux)
 		return ERR_PTR(-ENOMEM);
 

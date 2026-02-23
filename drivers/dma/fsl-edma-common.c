@@ -565,7 +565,7 @@ static struct fsl_edma_desc *fsl_edma_alloc_desc(struct fsl_edma_chan *fsl_chan,
 	struct fsl_edma_desc *fsl_desc;
 	int i;
 
-	fsl_desc = kzalloc(struct_size(fsl_desc, tcd, sg_len), GFP_NOWAIT);
+	fsl_desc = kzalloc_flex(*fsl_desc, tcd, sg_len, GFP_NOWAIT);
 	if (!fsl_desc)
 		return NULL;
 
@@ -873,6 +873,7 @@ err_errirq:
 		free_irq(fsl_chan->txirq, fsl_chan);
 err_txirq:
 	dma_pool_destroy(fsl_chan->tcd_pool);
+	clk_disable_unprepare(fsl_chan->clk);
 
 	return ret;
 }

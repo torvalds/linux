@@ -336,7 +336,7 @@ static int vega20_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	const ATOM_Vega20_POWERPLAYTABLE *powerplay_table;
 
-	hwmgr->pptable = kzalloc(sizeof(struct phm_ppt_v3_information), GFP_KERNEL);
+	hwmgr->pptable = kzalloc_obj(struct phm_ppt_v3_information);
 	PP_ASSERT_WITH_CODE((hwmgr->pptable != NULL),
 		"Failed to allocate hwmgr->pptable!", return -ENOMEM);
 

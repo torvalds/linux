@@ -273,7 +273,7 @@ static void mon_bus_init(struct usb_bus *ubus)
 {
 	struct mon_bus *mbus;
 
-	mbus = kzalloc(sizeof(struct mon_bus), GFP_KERNEL);
+	mbus = kzalloc_obj(struct mon_bus);
 	if (mbus == NULL)
 		goto err_alloc;
 	kref_init(&mbus->ref);

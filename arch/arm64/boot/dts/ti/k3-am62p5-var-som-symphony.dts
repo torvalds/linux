@@ -224,7 +224,7 @@
 	status = "okay";
 };
 
-&main_i2c0{
+&main_i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c0>;
 	clock-frequency = <400000>;
@@ -466,7 +466,7 @@
 	pinctrl-0 = <&pinctrl_mmc1>;
 	disable-wp;
 	bootph-all;
-	status="okay";
+	status = "okay";
 };
 
 &ti_csi2rx0 {

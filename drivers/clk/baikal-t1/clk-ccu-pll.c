@@ -100,7 +100,7 @@ static struct ccu_pll_data *ccu_pll_create_data(struct device_node *np)
 {
 	struct ccu_pll_data *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 

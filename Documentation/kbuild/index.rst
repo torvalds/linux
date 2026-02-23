@@ -24,10 +24,3 @@ Kernel Build System
     gendwarfksyms
 
     bash-completion
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

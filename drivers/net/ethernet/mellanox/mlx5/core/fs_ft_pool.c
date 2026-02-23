@@ -26,7 +26,7 @@ int mlx5_ft_pool_init(struct mlx5_core_dev *dev)
 	struct mlx5_ft_pool *ft_pool;
 	int i;
 
-	ft_pool = kzalloc(sizeof(*ft_pool), GFP_KERNEL);
+	ft_pool = kzalloc_obj(*ft_pool);
 	if (!ft_pool)
 		return -ENOMEM;
 

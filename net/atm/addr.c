@@ -87,7 +87,7 @@ int atm_add_addr(struct atm_dev *dev, const struct sockaddr_atmsvc *addr,
 			return -EEXIST;
 		}
 	}
-	this = kmalloc(sizeof(struct atm_dev_addr), GFP_ATOMIC);
+	this = kmalloc_obj(struct atm_dev_addr, GFP_ATOMIC);
 	if (!this) {
 		spin_unlock_irqrestore(&dev->lock, flags);
 		return -ENOMEM;

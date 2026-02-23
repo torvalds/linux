@@ -4133,8 +4133,6 @@
 		usb_1: usb@a600000 {
 			compatible = "qcom,sm8550-dwc3", "qcom,snps-dwc3";
 			reg = <0x0 0x0a600000 0x0 0xfc100>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,

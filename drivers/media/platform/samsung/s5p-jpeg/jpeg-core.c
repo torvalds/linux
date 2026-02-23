@@ -953,7 +953,7 @@ static int s5p_jpeg_open(struct file *file)
 	struct s5p_jpeg_fmt *out_fmt, *cap_fmt;
 	int ret = 0;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

@@ -558,8 +558,8 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 	}
 #endif
 
-	buf = kzalloc(sizeof(*buf),
-		      gfp & ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM));
+	buf = kzalloc_obj(*buf,
+			  gfp & ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM));
 	if (!buf)
 		return NULL;
 
@@ -1504,7 +1504,7 @@ arm_iommu_create_mapping(struct device *dev, dma_addr_t base, u64 size)
 		bitmap_size = PAGE_SIZE;
 	}
 
-	mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(struct dma_iommu_mapping);
 	if (!mapping)
 		goto err;
 

@@ -732,7 +732,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 	CX18_DEBUG_FILE("open %s\n", s->name);
 
 	/* Allocate memory */
-	item = kzalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
+	item = kzalloc_obj(struct cx18_open_id);
 	if (NULL == item) {
 		CX18_DEBUG_WARN("nomem on v4l2 open\n");
 		return -ENOMEM;

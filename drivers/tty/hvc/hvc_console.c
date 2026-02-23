@@ -922,7 +922,7 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 			return ERR_PTR(err);
 	}
 
-	hp = kzalloc(struct_size(hp, outbuf, outbuf_size), GFP_KERNEL);
+	hp = kzalloc_flex(*hp, outbuf, outbuf_size);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
 

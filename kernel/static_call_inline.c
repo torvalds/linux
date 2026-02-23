@@ -255,7 +255,7 @@ static int __static_call_init(struct module *mod,
 				goto do_transform;
 			}
 
-			site_mod = kzalloc(sizeof(*site_mod), GFP_KERNEL);
+			site_mod = kzalloc_obj(*site_mod);
 			if (!site_mod)
 				return -ENOMEM;
 
@@ -271,7 +271,7 @@ static int __static_call_init(struct module *mod,
 
 				key->mods = site_mod;
 
-				site_mod = kzalloc(sizeof(*site_mod), GFP_KERNEL);
+				site_mod = kzalloc_obj(*site_mod);
 				if (!site_mod)
 					return -ENOMEM;
 			}

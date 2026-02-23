@@ -142,11 +142,12 @@ struct ath_interrupt_stats {
 /**
  * struct ath_tx_stats - Statistics about TX
  * @tx_pkts_all:  No. of total frames transmitted, including ones that
-	may have had errors.
+ *	may have had errors.
  * @tx_bytes_all:  No. of total bytes transmitted, including ones that
-	may have had errors.
+ *	may have had errors.
  * @queued: Total MPDUs (non-aggr) queued
  * @completed: Total MPDUs (non-aggr) completed
+ * @xretries: Total MPDUs with xretries
  * @a_aggr: Total no. of aggregates queued
  * @a_queued_hw: Total AMPDUs queued to hardware
  * @a_completed: Total AMPDUs completed
@@ -154,14 +155,14 @@ struct ath_interrupt_stats {
  * @a_xretries: No. of AMPDUs dropped due to xretries
  * @txerr_filtered: No. of frames with TXERR_FILT flag set.
  * @fifo_underrun: FIFO underrun occurrences
-	Valid only for:
-		- non-aggregate condition.
-		- first packet of aggregate.
+ *	Valid only for:
+ *		- non-aggregate condition.
+ *		- first packet of aggregate.
  * @xtxop: No. of frames filtered because of TXOP limit
  * @timer_exp: Transmit timer expiry
  * @desc_cfg_err: Descriptor configuration errors
- * @data_urn: TX data underrun errors
- * @delim_urn: TX delimiter underrun errors
+ * @data_underrun: TX data underrun errors
+ * @delim_underrun: TX delimiter underrun errors
  * @puttxbuf: Number of times hardware was given txbuf to write.
  * @txstart:  Number of times hardware was told to start tx.
  * @txprocdesc:  Number of times tx descriptor was processed

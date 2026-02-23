@@ -1465,7 +1465,7 @@ static struct macsec_rx_sc *create_rx_sc(struct net_device *dev, sci_t sci,
 			return ERR_PTR(-EEXIST);
 	}
 
-	rx_sc = kzalloc(sizeof(*rx_sc), GFP_KERNEL);
+	rx_sc = kzalloc_obj(*rx_sc);
 	if (!rx_sc)
 		return ERR_PTR(-ENOMEM);
 
@@ -1797,7 +1797,7 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 	}
 
-	rx_sa = kmalloc(sizeof(*rx_sa), GFP_KERNEL);
+	rx_sa = kmalloc_obj(*rx_sa);
 	if (!rx_sa) {
 		rtnl_unlock();
 		return -ENOMEM;
@@ -2005,7 +2005,7 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 	}
 
-	tx_sa = kmalloc(sizeof(*tx_sa), GFP_KERNEL);
+	tx_sa = kmalloc_obj(*tx_sa);
 	if (!tx_sa) {
 		rtnl_unlock();
 		return -ENOMEM;
@@ -2806,7 +2806,7 @@ static void get_rx_sc_stats(struct net_device *dev,
 		stats = per_cpu_ptr(rx_sc->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin(&stats->syncp);
-			memcpy(&tmp, &stats->stats, sizeof(tmp));
+			u64_stats_copy(&tmp, &stats->stats, sizeof(tmp));
 		} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 		sum->InOctetsValidated += tmp.InOctetsValidated;
@@ -2887,7 +2887,7 @@ static void get_tx_sc_stats(struct net_device *dev,
 		stats = per_cpu_ptr(macsec_priv(dev)->secy.tx_sc.stats, cpu);
 		do {
 			start = u64_stats_fetch_begin(&stats->syncp);
-			memcpy(&tmp, &stats->stats, sizeof(tmp));
+			u64_stats_copy(&tmp, &stats->stats, sizeof(tmp));
 		} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 		sum->OutPktsProtected   += tmp.OutPktsProtected;
@@ -2943,7 +2943,7 @@ static void get_secy_stats(struct net_device *dev, struct macsec_dev_stats *sum)
 		stats = per_cpu_ptr(macsec_priv(dev)->stats, cpu);
 		do {
 			start = u64_stats_fetch_begin(&stats->syncp);
-			memcpy(&tmp, &stats->stats, sizeof(tmp));
+			u64_stats_copy(&tmp, &stats->stats, sizeof(tmp));
 		} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 		sum->OutPktsUntagged  += tmp.OutPktsUntagged;
@@ -4013,7 +4013,7 @@ static int register_macsec_dev(struct net_device *real_dev,
 	if (!rxd) {
 		int err;
 
-		rxd = kmalloc(sizeof(*rxd), GFP_KERNEL);
+		rxd = kmalloc_obj(*rxd);
 		if (!rxd)
 			return -ENOMEM;
 

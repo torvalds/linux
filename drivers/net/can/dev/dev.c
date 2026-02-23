@@ -332,6 +332,7 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 
 	can_ml = (void *)priv + ALIGN(sizeof_priv, NETDEV_ALIGN);
 	can_set_ml_priv(dev, can_ml);
+	can_set_cap(dev, CAN_CAP_CC);
 
 	if (echo_skb_max) {
 		priv->echo_skb_max = echo_skb_max;
@@ -375,6 +376,32 @@ void can_set_default_mtu(struct net_device *dev)
 	}
 }
 
+void can_set_cap_info(struct net_device *dev)
+{
+	struct can_priv *priv = netdev_priv(dev);
+	u32 can_cap;
+
+	if (can_dev_in_xl_only_mode(priv)) {
+		/* XL only mode => no CC/FD capability */
+		can_cap = CAN_CAP_XL;
+	} else {
+		/* mixed mode => CC + FD/XL capability */
+		can_cap = CAN_CAP_CC;
+
+		if (priv->ctrlmode & CAN_CTRLMODE_FD)
+			can_cap |= CAN_CAP_FD;
+
+		if (priv->ctrlmode & CAN_CTRLMODE_XL)
+			can_cap |= CAN_CAP_XL;
+	}
+
+	if (priv->ctrlmode & (CAN_CTRLMODE_LISTENONLY |
+			      CAN_CTRLMODE_RESTRICTED))
+		can_cap |= CAN_CAP_RO;
+
+	can_set_cap(dev, can_cap);
+}
+
 /* helper to define static CAN controller features at device creation time */
 int can_set_static_ctrlmode(struct net_device *dev, u32 static_mode)
 {
@@ -390,6 +417,7 @@ int can_set_static_ctrlmode(struct net_device *dev, u32 static_mode)
 
 	/* override MTU which was set by default in can_setup()? */
 	can_set_default_mtu(dev);
+	can_set_cap_info(dev);
 
 	return 0;
 }

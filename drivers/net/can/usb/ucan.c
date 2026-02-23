@@ -330,9 +330,8 @@ static int ucan_alloc_context_array(struct ucan_priv *up)
 	/* release contexts if any */
 	ucan_release_context_array(up);
 
-	up->context_array = kcalloc(up->device_info.tx_fifo,
-				    sizeof(*up->context_array),
-				    GFP_KERNEL);
+	up->context_array = kzalloc_objs(*up->context_array,
+					 up->device_info.tx_fifo);
 	if (!up->context_array) {
 		netdev_err(up->netdev,
 			   "Not enough memory to allocate tx contexts\n");

@@ -596,7 +596,7 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	char basename[64] = "Wacom Serial";
 	int err, err_pen, err_touch;
 
-	w8001 = kzalloc(sizeof(*w8001), GFP_KERNEL);
+	w8001 = kzalloc_obj(*w8001);
 	input_dev_pen = input_allocate_device();
 	input_dev_touch = input_allocate_device();
 	if (!w8001 || !input_dev_pen || !input_dev_touch) {

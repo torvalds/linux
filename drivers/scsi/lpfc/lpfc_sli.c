@@ -2135,8 +2135,7 @@ lpfc_sli_next_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 					   - LPFC_IOCBQ_LOOKUP_INCREMENT)) {
 		new_len = psli->iocbq_lookup_len + LPFC_IOCBQ_LOOKUP_INCREMENT;
 		spin_unlock_irq(&phba->hbalock);
-		new_arr = kcalloc(new_len, sizeof(struct lpfc_iocbq *),
-				  GFP_KERNEL);
+		new_arr = kzalloc_objs(struct lpfc_iocbq *, new_len);
 		if (new_arr) {
 			spin_lock_irq(&phba->hbalock);
 			old_arr = psli->iocbq_lookup;
@@ -3240,7 +3239,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			(FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT))) {
 		failwhy = "Bad NVME LS F_CTL";
 	} else {
-		axchg = kzalloc(sizeof(*axchg), GFP_ATOMIC);
+		axchg = kzalloc_obj(*axchg, GFP_ATOMIC);
 		if (!axchg)
 			failwhy = "No CTX memory";
 	}
@@ -5894,7 +5893,7 @@ lpfc_sli4_read_rev(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	struct lpfc_dmabuf *dmabuf;
 	struct lpfc_mqe *mqe;
 
-	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 	if (!dmabuf)
 		return -ENOMEM;
 
@@ -6944,8 +6943,7 @@ lpfc_sli4_ras_dma_alloc(struct lpfc_hba *phba,
 
 	ras_fwlog->fw_buffcount = fwlog_buff_count;
 	for (i = 0; i < ras_fwlog->fw_buffcount; i++) {
-		dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
-				 GFP_KERNEL);
+		dmabuf = kzalloc_obj(struct lpfc_dmabuf);
 		if (!dmabuf) {
 			rc = -ENOMEM;
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
@@ -8048,8 +8046,7 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
 				u32 entries)
 {
-	rx_monitor->ring = kmalloc_array(entries, sizeof(struct rx_info_entry),
-					 GFP_KERNEL);
+	rx_monitor->ring = kmalloc_objs(struct rx_info_entry, entries);
 	if (!rx_monitor->ring)
 		return -ENOMEM;
 
@@ -8296,7 +8293,7 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 
 		/* Allocate Congestion Information Buffer */
 		if (!phba->cgn_i) {
-			mp = kmalloc(sizeof(*mp), GFP_KERNEL);
+			mp = kmalloc_obj(*mp);
 			if (mp)
 				mp->virt = dma_alloc_coherent
 						(&phba->pcidev->dev,
@@ -8378,8 +8375,7 @@ no_cmf:
 
 	/* Allocate RX Monitor Buffer */
 	if (!phba->rx_monitor) {
-		phba->rx_monitor = kzalloc(sizeof(*phba->rx_monitor),
-					   GFP_KERNEL);
+		phba->rx_monitor = kzalloc_obj(*phba->rx_monitor);
 
 		if (!phba->rx_monitor) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -17147,7 +17143,7 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		} else
 			wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	}
-	wq->pring = kzalloc(sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+	wq->pring = kzalloc_obj(struct lpfc_sli_ring);
 	if (wq->pring == NULL) {
 		status = -ENOMEM;
 		goto out;
@@ -19466,7 +19462,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	}
 
 	/* Allocate buffer for command payload */
-	pcmd = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	pcmd = kmalloc_obj(struct lpfc_dmabuf);
 	if (pcmd)
 		pcmd->virt = dma_pool_alloc(phba->lpfc_drb_pool, GFP_KERNEL,
 					    &pcmd->phys);
@@ -20432,62 +20428,36 @@ lpfc_check_next_fcf_pri_level(struct lpfc_hba *phba)
 uint16_t
 lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 {
-	uint16_t next_fcf_index;
+	uint16_t next;
 
-initial_priority:
-	/* Search start from next bit of currently registered FCF index */
-	next_fcf_index = phba->fcf.current_rec.fcf_indx;
+	do {
+		for_each_set_bit_wrap(next, phba->fcf.fcf_rr_bmask,
+				LPFC_SLI4_FCF_TBL_INDX_MAX, phba->fcf.current_rec.fcf_indx) {
+			if (next == phba->fcf.current_rec.fcf_indx)
+				continue;
 
-next_priority:
-	/* Determine the next fcf index to check */
-	next_fcf_index = (next_fcf_index + 1) % LPFC_SLI4_FCF_TBL_INDX_MAX;
-	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
-				       LPFC_SLI4_FCF_TBL_INDX_MAX,
-				       next_fcf_index);
+			if (!(phba->fcf.fcf_pri[next].fcf_rec.flag & LPFC_FCF_FLOGI_FAILED)) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+					"2845 Get next roundrobin failover FCF (x%x)\n", next);
+				return next;
+			}
 
-	/* Wrap around condition on phba->fcf.fcf_rr_bmask */
-	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
-		/*
-		 * If we have wrapped then we need to clear the bits that
-		 * have been tested so that we can detect when we should
-		 * change the priority level.
-		 */
-		next_fcf_index = find_first_bit(phba->fcf.fcf_rr_bmask,
-					       LPFC_SLI4_FCF_TBL_INDX_MAX);
-	}
+			if (list_is_singular(&phba->fcf.fcf_pri_list))
+				return LPFC_FCOE_FCF_NEXT_NONE;
+		}
 
-
-	/* Check roundrobin failover list empty condition */
-	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX ||
-		next_fcf_index == phba->fcf.current_rec.fcf_indx) {
 		/*
 		 * If next fcf index is not found check if there are lower
 		 * Priority level fcf's in the fcf_priority list.
 		 * Set up the rr_bmask with all of the avaiable fcf bits
 		 * at that level and continue the selection process.
 		 */
-		if (lpfc_check_next_fcf_pri_level(phba))
-			goto initial_priority;
-		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
-				"2844 No roundrobin failover FCF available\n");
+	} while (lpfc_check_next_fcf_pri_level(phba));
 
-		return LPFC_FCOE_FCF_NEXT_NONE;
-	}
+	lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+			"2844 No roundrobin failover FCF available\n");
 
-	if (next_fcf_index < LPFC_SLI4_FCF_TBL_INDX_MAX &&
-		phba->fcf.fcf_pri[next_fcf_index].fcf_rec.flag &
-		LPFC_FCF_FLOGI_FAILED) {
-		if (list_is_singular(&phba->fcf.fcf_pri_list))
-			return LPFC_FCOE_FCF_NEXT_NONE;
-
-		goto next_priority;
-	}
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
-			"2845 Get next roundrobin failover FCF (x%x)\n",
-			next_fcf_index);
-
-	return next_fcf_index;
+	return LPFC_FCOE_FCF_NEXT_NONE;
 }
 
 /**
@@ -22323,7 +22293,7 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 		read_object->u.request.rd_object_name[j] =
 			cpu_to_le32(rd_object_name[j]);
 
-	pcmd = kmalloc(sizeof(*pcmd), GFP_KERNEL);
+	pcmd = kmalloc_obj(*pcmd);
 	if (pcmd)
 		pcmd->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &pcmd->phys);
 	if (!pcmd || !pcmd->virt) {

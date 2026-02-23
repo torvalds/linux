@@ -44,7 +44,7 @@ static void *zstd_alloc_stream(void)
 	if (!wksp_size)
 		return ERR_PTR(-EINVAL);
 
-	ctx = kvmalloc(struct_size(ctx, wksp, wksp_size), GFP_KERNEL);
+	ctx = kvmalloc_flex(*ctx, wksp, wksp_size);
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 

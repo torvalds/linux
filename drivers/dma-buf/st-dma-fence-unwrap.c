@@ -32,7 +32,7 @@ static struct dma_fence *__mock_fence(u64 context, u64 seqno)
 {
 	struct mock_fence *f;
 
-	f = kmalloc(sizeof(*f), GFP_KERNEL);
+	f = kmalloc_obj(*f);
 	if (!f)
 		return NULL;
 
@@ -54,7 +54,7 @@ static struct dma_fence *mock_array(unsigned int num_fences, ...)
 	va_list valist;
 	int i;
 
-	fences = kcalloc(num_fences, sizeof(*fences), GFP_KERNEL);
+	fences = kzalloc_objs(*fences, num_fences);
 	if (!fences)
 		goto error_put;
 

@@ -32,16 +32,22 @@ struct nfp_crypto_req_reset {
 #define NFP_NET_TLS_VLAN_UNUSED			4095
 
 struct nfp_crypto_req_add_front {
-	struct nfp_ccm_hdr hdr;
-	__be32 ep_id;
-	u8 resv[3];
-	u8 opcode;
-	u8 key_len;
-	__be16 ipver_vlan __packed;
-	u8 l4_proto;
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(nfp_crypto_req_add_front_hdr, __hdr,
+		struct nfp_ccm_hdr hdr;
+		__be32 ep_id;
+		u8 resv[3];
+		u8 opcode;
+		u8 key_len;
+		__be16 ipver_vlan __packed;
+		u8 l4_proto;
+	);
 #define NFP_NET_TLS_NON_ADDR_KEY_LEN	8
 	u8 l3_addrs[];
 };
+static_assert(offsetof(struct nfp_crypto_req_add_front, l3_addrs) ==
+	      sizeof(struct nfp_crypto_req_add_front_hdr),
+	      "struct member likely outside of struct_group_tagged()");
 
 struct nfp_crypto_req_add_back {
 	__be16 src_port;
@@ -55,14 +61,14 @@ struct nfp_crypto_req_add_back {
 };
 
 struct nfp_crypto_req_add_v4 {
-	struct nfp_crypto_req_add_front front;
+	struct nfp_crypto_req_add_front_hdr front;
 	__be32 src_ip;
 	__be32 dst_ip;
 	struct nfp_crypto_req_add_back back;
 };
 
 struct nfp_crypto_req_add_v6 {
-	struct nfp_crypto_req_add_front front;
+	struct nfp_crypto_req_add_front_hdr front;
 	__be32 src_ip[4];
 	__be32 dst_ip[4];
 	struct nfp_crypto_req_add_back back;

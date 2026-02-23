@@ -181,7 +181,7 @@ struct snd_ac97 *snd_soc_alloc_ac97_component(struct snd_soc_component *componen
 {
 	struct snd_ac97 *ac97;
 
-	ac97 = kzalloc(sizeof(struct snd_ac97), GFP_KERNEL);
+	ac97 = kzalloc_obj(struct snd_ac97);
 	if (ac97 == NULL)
 		return ERR_PTR(-ENOMEM);
 

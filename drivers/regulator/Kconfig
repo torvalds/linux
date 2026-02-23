@@ -241,13 +241,13 @@ config REGULATOR_BD71815
 	  will be called bd71815-regulator.
 
 config REGULATOR_BD71828
-	tristate "ROHM BD71828 Power Regulator"
+	tristate "ROHM BD71828, BD72720 and BD73900 Power Regulators"
 	depends on MFD_ROHM_BD71828
 	select REGULATOR_ROHM
 	help
-	  This driver supports voltage regulators on ROHM BD71828 PMIC.
-	  This will enable support for the software controllable buck
-	  and LDO regulators.
+	  This driver supports voltage regulators on ROHM BD71828,
+	  BD71879, BD72720 and BD73900 PMICs. This will enable
+	  support for the software controllable buck and LDO regulators.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called bd71828-regulator.
@@ -658,6 +658,15 @@ config REGULATOR_MAX77650
 	  Regulator driver for MAX77650/77651 PMIC from Maxim
 	  Semiconductor. This device has a SIMO with three independent
 	  power rails and an LDO.
+
+config REGULATOR_MAX77675
+	tristate "Maxim MAX77675 regulator driver"
+	depends on I2C && OF
+	select REGMAP_I2C
+	help
+	  This driver controls the Maxim MAX77675 power regulator via I2C.
+	  It supports four programmable buck-boost outputs.
+	  Say Y here to enable the regulator driver
 
 config REGULATOR_MAX77857
 	tristate "ADI MAX77857/MAX77831 regulator support"
@@ -1394,6 +1403,15 @@ config REGULATOR_RT6245
 	  It can support up to 14A output current and adjustable output voltage
 	  from 0.4375V to 1.3875V, per step 12.5mV.
 
+config REGULATOR_RT8092
+	tristate "Richtek RT8092 voltage regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  The RT8092 is a peak-current mode PWM step-down DC/DC converter with
+	  I2C control interface. It is capable of delivering 4A continuing
+	  current over a wide input range from 2.5V to 5.5V.
+
 config REGULATOR_RTQ2134
 	tristate "Richtek RTQ2134 SubPMIC Regulator"
 	depends on I2C
@@ -1689,6 +1707,17 @@ config REGULATOR_TPS65132
 	help
 	  This driver supports TPS65132 single inductor - dual output
 	  power supply specifically designed for display panels.
+
+config REGULATOR_TPS65185
+	tristate "TI TPS65185 EPD regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports the TPS65185 voltage regulator chip
+	  which is used to provide power to Electronic Paper Displays
+	  so it is found in E-Book readers.
+	  If HWWON is enabled, it also provides temperature measurement.
+
 
 config REGULATOR_TPS65217
 	tristate "TI TPS65217 Power regulators"

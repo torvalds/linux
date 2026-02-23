@@ -113,7 +113,7 @@ static int nci_uart_set_driver(struct tty_struct *tty, unsigned int driver)
 	if (!nci_uart_drivers[driver])
 		return -ENOENT;
 
-	nu = kzalloc(sizeof(*nu), GFP_KERNEL);
+	nu = kzalloc_obj(*nu);
 	if (!nu)
 		return -ENOMEM;
 

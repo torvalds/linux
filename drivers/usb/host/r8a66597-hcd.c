@@ -337,7 +337,7 @@ static int make_r8a66597_device(struct r8a66597 *r8a66597,
 	struct r8a66597_device *dev;
 	int usb_address = urb->setup_packet[2];	/* urb->pipe is address 0 */
 
-	dev = kzalloc(sizeof(struct r8a66597_device), GFP_ATOMIC);
+	dev = kzalloc_obj(struct r8a66597_device, GFP_ATOMIC);
 	if (dev == NULL)
 		return -ENOMEM;
 
@@ -1859,7 +1859,7 @@ static struct r8a66597_td *r8a66597_make_td(struct r8a66597 *r8a66597,
 	struct r8a66597_td *td;
 	u16 pipenum;
 
-	td = kzalloc(sizeof(struct r8a66597_td), GFP_ATOMIC);
+	td = kzalloc_obj(struct r8a66597_td, GFP_ATOMIC);
 	if (td == NULL)
 		return NULL;
 
@@ -1901,8 +1901,7 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 		goto error_not_linked;
 
 	if (!hep->hcpriv) {
-		hep->hcpriv = kzalloc(sizeof(struct r8a66597_pipe),
-				GFP_ATOMIC);
+		hep->hcpriv = kzalloc_obj(struct r8a66597_pipe, GFP_ATOMIC);
 		if (!hep->hcpriv) {
 			ret = -ENOMEM;
 			goto error;

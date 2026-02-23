@@ -1236,7 +1236,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c)
 	}
 
 	if (rt286->i2c->irq) {
-		ret = request_threaded_irq(rt286->i2c->irq, NULL, rt286_irq,
+		ret = devm_request_threaded_irq(&rt286->i2c->dev, rt286->i2c->irq, NULL, rt286_irq,
 			IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "rt286", rt286);
 		if (ret != 0) {
 			dev_err(&i2c->dev,
@@ -1252,22 +1252,12 @@ static int rt286_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static void rt286_i2c_remove(struct i2c_client *i2c)
-{
-	struct rt286_priv *rt286 = i2c_get_clientdata(i2c);
-
-	if (i2c->irq)
-		free_irq(i2c->irq, rt286);
-}
-
-
 static struct i2c_driver rt286_i2c_driver = {
 	.driver = {
 		   .name = "rt286",
 		   .acpi_match_table = ACPI_PTR(rt286_acpi_match),
 		   },
 	.probe = rt286_i2c_probe,
-	.remove = rt286_i2c_remove,
 	.id_table = rt286_i2c_id,
 };
 

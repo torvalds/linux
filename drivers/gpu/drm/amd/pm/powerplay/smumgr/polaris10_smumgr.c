@@ -336,7 +336,7 @@ static int polaris10_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data;
 
-	smu_data = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
+	smu_data = kzalloc_obj(struct polaris10_smumgr);
 	if (smu_data == NULL)
 		return -ENOMEM;
 

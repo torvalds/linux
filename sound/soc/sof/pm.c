@@ -8,9 +8,14 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
+#include <linux/module.h>
 #include "ops.h"
 #include "sof-priv.h"
 #include "sof-audio.h"
+
+static int override_on_demand_boot = -1;
+module_param_named(on_demand_boot, override_on_demand_boot, int, 0444);
+MODULE_PARM_DESC(on_demand_boot, "Force on-demand DSP boot: 0 - disabled, 1 - enabled");
 
 /*
  * Helper function to determine the target DSP state during
@@ -70,12 +75,96 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 }
 #endif
 
+int snd_sof_boot_dsp_firmware(struct snd_sof_dev *sdev)
+{
+	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
+	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
+	int ret;
+
+	guard(mutex)(&sdev->dsp_fw_boot_mutex);
+
+	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
+		/* Firmware already booted, just return */
+		return 0;
+	}
+
+	dev_dbg(sdev->dev, "Booting DSP firmware\n");
+
+	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
+
+	/* load the firmware */
+	ret = snd_sof_load_firmware(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: failed to load DSP firmware: %d\n",
+			__func__, ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
+		return ret;
+	}
+
+	sof_set_fw_state(sdev, SOF_FW_BOOT_IN_PROGRESS);
+
+	/*
+	 * Boot the firmware. The FW boot status will be modified
+	 * in snd_sof_run_firmware() depending on the outcome.
+	 */
+	ret = snd_sof_run_firmware(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: failed to boot DSP firmware: %d\n",
+			__func__, ret);
+		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
+		return ret;
+	}
+
+	/* resume DMA trace */
+	ret = sof_fw_trace_resume(sdev);
+	if (ret < 0) {
+		/* non fatal */
+		dev_warn(sdev->dev, "%s: failed to resume trace: %d\n",
+			 __func__, ret);
+	}
+
+	/* restore pipelines */
+	if (tplg_ops && tplg_ops->set_up_all_pipelines) {
+		ret = tplg_ops->set_up_all_pipelines(sdev, false);
+		if (ret < 0) {
+			dev_err(sdev->dev, "%s: failed to restore pipeline: %d\n",
+				__func__, ret);
+			goto setup_fail;
+		}
+	}
+
+	/* Notify clients not managed by pm framework about core resume */
+	sof_resume_clients(sdev);
+
+	/* notify DSP of system resume */
+	if (pm_ops && pm_ops->ctx_restore) {
+		ret = pm_ops->ctx_restore(sdev);
+		if (ret < 0)
+			dev_err(sdev->dev, "%s: ctx_restore IPC failed: %d\n",
+				__func__, ret);
+	}
+
+setup_fail:
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
+	if (ret < 0) {
+		/*
+		 * Debugfs cannot be read in runtime suspend, so cache
+		 * the contents upon failure. This allows to capture
+		 * possible DSP coredump information.
+		 */
+		sof_cache_debugfs(sdev);
+	}
+#endif
+
+	return ret;
+}
+EXPORT_SYMBOL(snd_sof_boot_dsp_firmware);
+
 static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
-	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	u32 old_state = sdev->dsp_power_state.state;
+	bool on_demand_boot;
 	int ret;
 
 	/* do nothing if dsp resume callbacks are not set */
@@ -123,74 +212,18 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return 0;
 	}
 
-	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
+	if (override_on_demand_boot > -1)
+		on_demand_boot = override_on_demand_boot ? true : false;
+	else
+		on_demand_boot = sdev->pdata->desc->on_demand_dsp_boot;
 
-	/* load the firmware */
-	ret = snd_sof_load_firmware(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to load DSP firmware after resume %d\n",
-			ret);
-		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
-		return ret;
+	if (on_demand_boot) {
+		/* Only change the fw_state to PREPARE but skip booting */
+		sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
+		return 0;
 	}
 
-	sof_set_fw_state(sdev, SOF_FW_BOOT_IN_PROGRESS);
-
-	/*
-	 * Boot the firmware. The FW boot status will be modified
-	 * in snd_sof_run_firmware() depending on the outcome.
-	 */
-	ret = snd_sof_run_firmware(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to boot DSP firmware after resume %d\n",
-			ret);
-		sof_set_fw_state(sdev, SOF_FW_BOOT_FAILED);
-		return ret;
-	}
-
-	/* resume DMA trace */
-	ret = sof_fw_trace_resume(sdev);
-	if (ret < 0) {
-		/* non fatal */
-		dev_warn(sdev->dev,
-			 "warning: failed to init trace after resume %d\n",
-			 ret);
-	}
-
-	/* restore pipelines */
-	if (tplg_ops && tplg_ops->set_up_all_pipelines) {
-		ret = tplg_ops->set_up_all_pipelines(sdev, false);
-		if (ret < 0) {
-			dev_err(sdev->dev, "Failed to restore pipeline after resume %d\n", ret);
-			goto setup_fail;
-		}
-	}
-
-	/* Notify clients not managed by pm framework about core resume */
-	sof_resume_clients(sdev);
-
-	/* notify DSP of system resume */
-	if (pm_ops && pm_ops->ctx_restore) {
-		ret = pm_ops->ctx_restore(sdev);
-		if (ret < 0)
-			dev_err(sdev->dev, "ctx_restore IPC error during resume: %d\n", ret);
-	}
-
-setup_fail:
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE)
-	if (ret < 0) {
-		/*
-		 * Debugfs cannot be read in runtime suspend, so cache
-		 * the contents upon failure. This allows to capture
-		 * possible DSP coredump information.
-		 */
-		sof_cache_debugfs(sdev);
-	}
-#endif
-
-	return ret;
+	return snd_sof_boot_dsp_firmware(sdev);
 }
 
 static int sof_suspend(struct device *dev, bool runtime_suspend)
@@ -297,8 +330,12 @@ int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sof_ipc_get_ops(sdev, pm);
 
-	/* Notify DSP of upcoming power down */
-	if (sof_ops(sdev)->remove && pm_ops && pm_ops->ctx_save)
+	/*
+	 * Notify DSP of upcoming power down only if the firmware has been
+	 * booted up
+	 */
+	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE && sof_ops(sdev)->remove &&
+	    pm_ops && pm_ops->ctx_save)
 		return pm_ops->ctx_save(sdev);
 
 	return 0;

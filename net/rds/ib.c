@@ -172,9 +172,7 @@ static int rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
 
-	rds_ibdev->vector_load = kcalloc(device->num_comp_vectors,
-					 sizeof(int),
-					 GFP_KERNEL);
+	rds_ibdev->vector_load = kzalloc_objs(int, device->num_comp_vectors);
 	if (!rds_ibdev->vector_load) {
 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
 			__func__);

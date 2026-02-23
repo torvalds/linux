@@ -57,7 +57,7 @@ static void *cxgbit_uld_add(const struct cxgb4_lld_info *lldi)
 	if (is_t4(lldi->adapter_type))
 		return ERR_PTR(-ENODEV);
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -646,7 +646,7 @@ cxgbit_dcbevent_notify(struct notifier_block *nb, unsigned long action,
 	struct cxgbit_dcb_work *dcb_work;
 	struct dcb_app_type *dcb_app = data;
 
-	dcb_work = kzalloc(sizeof(*dcb_work), GFP_ATOMIC);
+	dcb_work = kzalloc_obj(*dcb_work, GFP_ATOMIC);
 	if (!dcb_work)
 		return NOTIFY_DONE;
 

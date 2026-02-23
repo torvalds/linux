@@ -202,7 +202,7 @@ struct ras_log_batch_tag *ras_log_ring_create_batch_tag(struct ras_core_context 
 	struct ras_log_batch_tag *batch_tag;
 	unsigned long flags = 0;
 
-	batch_tag = kzalloc(sizeof(*batch_tag), GFP_KERNEL);
+	batch_tag = kzalloc_obj(*batch_tag);
 	if (!batch_tag)
 		return NULL;
 

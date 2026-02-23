@@ -518,7 +518,7 @@ int snd_mpu401_uart_new(struct snd_card *card, int device,
 			      out_enable, in_enable, &rmidi);
 	if (err < 0)
 		return err;
-	mpu = kzalloc(sizeof(*mpu), GFP_KERNEL);
+	mpu = kzalloc_obj(*mpu);
 	if (!mpu) {
 		err = -ENOMEM;
 		goto free_device;

@@ -393,7 +393,7 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 	}
 
 	/* Get a clean struct */
-	bcom_eng = kzalloc(sizeof(struct bcom_engine), GFP_KERNEL);
+	bcom_eng = kzalloc_obj(struct bcom_engine);
 	if (!bcom_eng) {
 		rv = -ENOMEM;
 		goto error_sramclean;

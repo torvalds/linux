@@ -1161,7 +1161,7 @@ static void hybrid_init_cpu_capacity_scaling(bool refresh)
 	 * the capacity of SMT threads is not deterministic even approximately,
 	 * do not do that when SMT is in use.
 	 */
-	if (hwp_is_hybrid && !sched_smt_active() && arch_enable_hybrid_capacity_scale()) {
+	if (hwp_is_hybrid && !cpu_smt_possible() && arch_enable_hybrid_capacity_scale()) {
 		hybrid_refresh_cpu_capacity_scaling();
 		/*
 		 * Disabling ITMT causes sched domains to be rebuilt to disable asym
@@ -2745,7 +2745,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	cpu = all_cpu_data[cpunum];
 
 	if (!cpu) {
-		cpu = kzalloc(sizeof(*cpu), GFP_KERNEL);
+		cpu = kzalloc_obj(*cpu);
 		if (!cpu)
 			return -ENOMEM;
 
@@ -3301,7 +3301,7 @@ static int intel_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* This reflects the intel_pstate_get_cpu_pstates() setting. */
 	policy->cur = policy->cpuinfo.min_freq;
 
-	req = kcalloc(2, sizeof(*req), GFP_KERNEL);
+	req = kzalloc_objs(*req, 2);
 	if (!req) {
 		ret = -ENOMEM;
 		goto pstate_exit;

@@ -628,7 +628,6 @@ static int f_ospi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	ctlr->num_chipselect = num_cs;
-	ctlr->dev.of_node = dev->of_node;
 
 	ospi = spi_controller_get_devdata(ctlr);
 	ospi->dev = dev;

@@ -453,7 +453,7 @@ int siu_init_port(int port, struct siu_port **port_info, struct snd_card *card)
 	struct snd_kcontrol *kctrl;
 	int ret;
 
-	*port_info = kzalloc(sizeof(**port_info), GFP_KERNEL);
+	*port_info = kzalloc_obj(**port_info);
 	if (!*port_info)
 		return -ENOMEM;
 

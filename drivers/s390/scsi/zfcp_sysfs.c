@@ -708,7 +708,7 @@ static ssize_t zfcp_sysfs_adapter_util_show(struct device *dev,
 	if (!(adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA))
 		return -EOPNOTSUPP;
 
-	qtcb_port = kzalloc(sizeof(struct fsf_qtcb_bottom_port), GFP_KERNEL);
+	qtcb_port = kzalloc_obj(struct fsf_qtcb_bottom_port);
 	if (!qtcb_port)
 		return -ENOMEM;
 
@@ -733,8 +733,7 @@ static int zfcp_sysfs_adapter_ex_config(struct device *dev,
 	if (!(adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA))
 		return -EOPNOTSUPP;
 
-	qtcb_config = kzalloc(sizeof(struct fsf_qtcb_bottom_config),
-			      GFP_KERNEL);
+	qtcb_config = kzalloc_obj(struct fsf_qtcb_bottom_config);
 	if (!qtcb_config)
 		return -ENOMEM;
 

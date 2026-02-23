@@ -378,13 +378,12 @@ static int plx_dma_alloc_desc(struct plx_dma_dev *plxdev)
 	struct plx_dma_desc *desc;
 	int i;
 
-	plxdev->desc_ring = kcalloc(PLX_DMA_RING_COUNT,
-				    sizeof(*plxdev->desc_ring), GFP_KERNEL);
+	plxdev->desc_ring = kzalloc_objs(*plxdev->desc_ring, PLX_DMA_RING_COUNT);
 	if (!plxdev->desc_ring)
 		return -ENOMEM;
 
 	for (i = 0; i < PLX_DMA_RING_COUNT; i++) {
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc)
 			goto free_and_exit;
 
@@ -501,7 +500,7 @@ static int plx_dma_create(struct pci_dev *pdev)
 	struct dma_chan *chan;
 	int rc;
 
-	plxdev = kzalloc(sizeof(*plxdev), GFP_KERNEL);
+	plxdev = kzalloc_obj(*plxdev);
 	if (!plxdev)
 		return -ENOMEM;
 

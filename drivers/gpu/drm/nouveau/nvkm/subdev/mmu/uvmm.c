@@ -551,7 +551,7 @@ nvkm_uvmm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	} else
 		return ret;
 
-	if (!(uvmm = kzalloc(sizeof(*uvmm), GFP_KERNEL)))
+	if (!(uvmm = kzalloc_obj(*uvmm)))
 		return -ENOMEM;
 
 	nvkm_object_ctor(&nvkm_uvmm, oclass, &uvmm->object);

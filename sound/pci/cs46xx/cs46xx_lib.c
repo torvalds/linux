@@ -401,7 +401,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 	}
 
 	err = -ENOMEM;
-	module = kzalloc(sizeof(*module), GFP_KERNEL);
+	module = kzalloc_obj(*module);
 	if (!module)
 		goto error;
 	module->module_name = kstrdup(fw_name, GFP_KERNEL);
@@ -414,7 +414,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 	if (nums >= 40)
 		goto error_inval;
 	module->symbol_table.symbols =
-		kcalloc(nums, sizeof(struct dsp_symbol_entry), GFP_KERNEL);
+		kzalloc_objs(struct dsp_symbol_entry, nums);
 	if (!module->symbol_table.symbols)
 		goto error;
 	for (i = 0; i < nums; i++) {
@@ -434,7 +434,7 @@ static int load_firmware(struct snd_cs46xx *chip,
 	if (nums > 10)
 		goto error_inval;
 	module->segments =
-		kcalloc(nums, sizeof(struct dsp_segment_desc), GFP_KERNEL);
+		kzalloc_objs(struct dsp_segment_desc, nums);
 	if (!module->segments)
 		goto error;
 	for (i = 0; i < nums; i++) {

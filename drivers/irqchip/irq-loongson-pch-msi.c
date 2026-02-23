@@ -177,7 +177,7 @@ static int pch_msi_init(phys_addr_t msg_address, int irq_base, int irq_count,
 	int ret;
 	struct pch_msi_data *priv;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -263,12 +263,13 @@ struct fwnode_handle *get_pch_msi_handle(int pci_segment)
 
 int __init pch_msi_acpi_init(struct irq_domain *parent, struct acpi_madt_msi_pic *acpi_pchmsi)
 {
-	int ret;
+	phys_addr_t msg_address = (phys_addr_t)acpi_pchmsi->msg_address;
 	struct fwnode_handle *domain_handle;
+	int ret;
 
-	domain_handle = irq_domain_alloc_fwnode(&acpi_pchmsi->msg_address);
-	ret = pch_msi_init(acpi_pchmsi->msg_address, acpi_pchmsi->start,
-				acpi_pchmsi->count, parent, domain_handle);
+	domain_handle = irq_domain_alloc_fwnode(&msg_address);
+	ret = pch_msi_init(msg_address, acpi_pchmsi->start, acpi_pchmsi->count,
+			   parent, domain_handle);
 	if (ret < 0)
 		irq_domain_free_fwnode(domain_handle);
 

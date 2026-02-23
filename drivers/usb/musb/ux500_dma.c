@@ -362,7 +362,7 @@ ux500_dma_controller_create(struct musb *musb, void __iomem *base)
 	struct resource	*iomem;
 	int ret;
 
-	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
+	controller = kzalloc_obj(*controller);
 	if (!controller)
 		goto kzalloc_fail;
 

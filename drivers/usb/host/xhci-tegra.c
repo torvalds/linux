@@ -1563,14 +1563,13 @@ static int tegra_xusb_setup_wakeup(struct platform_device *pdev, struct tegra_xu
 	for (i = 0; i < tegra->soc->max_num_wakes; i++) {
 		struct irq_data *data;
 
-		tegra->wake_irqs[i] = platform_get_irq(pdev, i + WAKE_IRQ_START_INDEX);
+		tegra->wake_irqs[i] = platform_get_irq_optional(pdev, i + WAKE_IRQ_START_INDEX);
 		if (tegra->wake_irqs[i] < 0)
 			break;
 
 		data = irq_get_irq_data(tegra->wake_irqs[i]);
 		if (!data) {
 			dev_warn(tegra->dev, "get wake event %d irq data fail\n", i);
-			irq_dispose_mapping(tegra->wake_irqs[i]);
 			break;
 		}
 
@@ -1581,16 +1580,6 @@ static int tegra_xusb_setup_wakeup(struct platform_device *pdev, struct tegra_xu
 	dev_dbg(tegra->dev, "setup %d wake events\n", tegra->num_wakes);
 
 	return 0;
-}
-
-static void tegra_xusb_dispose_wake(struct tegra_xusb *tegra)
-{
-	unsigned int i;
-
-	for (i = 0; i < tegra->num_wakes; i++)
-		irq_dispose_mapping(tegra->wake_irqs[i]);
-
-	tegra->num_wakes = 0;
 }
 
 static int tegra_xusb_probe(struct platform_device *pdev)
@@ -1648,10 +1637,8 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		return err;
 
 	tegra->padctl = tegra_xusb_padctl_get(&pdev->dev);
-	if (IS_ERR(tegra->padctl)) {
-		err = PTR_ERR(tegra->padctl);
-		goto dispose_wake;
-	}
+	if (IS_ERR(tegra->padctl))
+		return PTR_ERR(tegra->padctl);
 
 	np = of_parse_phandle(pdev->dev.of_node, "nvidia,xusb-padctl", 0);
 	if (!np) {
@@ -1975,8 +1962,6 @@ put_powerdomains:
 put_padctl:
 	of_node_put(np);
 	tegra_xusb_padctl_put(tegra->padctl);
-dispose_wake:
-	tegra_xusb_dispose_wake(tegra);
 	return err;
 }
 
@@ -2008,8 +1993,6 @@ static void tegra_xusb_remove(struct platform_device *pdev)
 
 	if (tegra->padctl_irq)
 		pm_runtime_disable(&pdev->dev);
-
-	tegra_xusb_dispose_wake(tegra);
 
 	pm_runtime_put(&pdev->dev);
 

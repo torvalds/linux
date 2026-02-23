@@ -270,7 +270,7 @@ static int vmd_msi_alloc(struct irq_domain *domain, unsigned int virq,
 	struct vmd_irq *vmdirq;
 
 	for (int i = 0; i < nr_irqs; ++i) {
-		vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
+		vmdirq = kzalloc_obj(*vmdirq);
 		if (!vmdirq) {
 			vmd_msi_free(domain, virq, i);
 			return -ENOMEM;

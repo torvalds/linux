@@ -229,8 +229,7 @@ static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
 	wanted_irqs = 0;
 	list_for_each_entry(nn, &pf->vnics, vnic_list)
 		wanted_irqs += NFP_NET_NON_Q_VECTORS + nn->dp.num_r_vecs;
-	pf->irq_entries = kcalloc(wanted_irqs, sizeof(*pf->irq_entries),
-				  GFP_KERNEL);
+	pf->irq_entries = kzalloc_objs(*pf->irq_entries, wanted_irqs);
 	if (!pf->irq_entries)
 		return -ENOMEM;
 

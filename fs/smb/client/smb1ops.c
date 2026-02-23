@@ -12,12 +12,118 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
-#include "cifspdu.h"
 #include "cifs_unicode.h"
 #include "fs_context.h"
 #include "nterr.h"
 #include "smberr.h"
 #include "reparse.h"
+
+void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
+{
+	/*
+	 * If we are reconnecting then should we check to see if
+	 * any requested capabilities changed locally e.g. via
+	 * remount but we can not do much about it here
+	 * if they have (even if we could detect it by the following)
+	 * Perhaps we could add a backpointer to array of sb from tcon
+	 * or if we change to make all sb to same share the same
+	 * sb as NFS - then we only have one backpointer to sb.
+	 * What if we wanted to mount the server share twice once with
+	 * and once without posixacls or posix paths?
+	 */
+	__u64 saved_cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+
+	if (ctx && ctx->no_linux_ext) {
+		tcon->fsUnixInfo.Capability = 0;
+		tcon->unix_ext = 0; /* Unix Extensions disabled */
+		cifs_dbg(FYI, "Linux protocol extensions disabled\n");
+		return;
+	} else if (ctx)
+		tcon->unix_ext = 1; /* Unix Extensions supported */
+
+	if (!tcon->unix_ext) {
+		cifs_dbg(FYI, "Unix extensions disabled so not set on reconnect\n");
+		return;
+	}
+
+	if (!CIFSSMBQFSUnixInfo(xid, tcon)) {
+		__u64 cap = le64_to_cpu(tcon->fsUnixInfo.Capability);
+
+		cifs_dbg(FYI, "unix caps which server supports %lld\n", cap);
+		/*
+		 * check for reconnect case in which we do not
+		 * want to change the mount behavior if we can avoid it
+		 */
+		if (ctx == NULL) {
+			/*
+			 * turn off POSIX ACL and PATHNAMES if not set
+			 * originally at mount time
+			 */
+			if ((saved_cap & CIFS_UNIX_POSIX_ACL_CAP) == 0)
+				cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+			if ((saved_cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0) {
+				if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+					cifs_dbg(VFS, "POSIXPATH support change\n");
+				cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+			} else if ((cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) == 0) {
+				cifs_dbg(VFS, "possible reconnect error\n");
+				cifs_dbg(VFS, "server disabled POSIX path support\n");
+			}
+		}
+
+		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)
+			cifs_dbg(VFS, "per-share encryption not supported yet\n");
+
+		cap &= CIFS_UNIX_CAP_MASK;
+		if (ctx && ctx->no_psx_acl)
+			cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+		else if (CIFS_UNIX_POSIX_ACL_CAP & cap) {
+			cifs_dbg(FYI, "negotiated posix acl support\n");
+			if (cifs_sb)
+				cifs_sb->mnt_cifs_flags |=
+					CIFS_MOUNT_POSIXACL;
+		}
+
+		if (ctx && ctx->posix_paths == 0)
+			cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+		else if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
+			cifs_dbg(FYI, "negotiate posix pathnames\n");
+			if (cifs_sb)
+				cifs_sb->mnt_cifs_flags |=
+					CIFS_MOUNT_POSIX_PATHS;
+		}
+
+		cifs_dbg(FYI, "Negotiate caps 0x%x\n", (int)cap);
+#ifdef CONFIG_CIFS_DEBUG2
+		if (cap & CIFS_UNIX_FCNTL_CAP)
+			cifs_dbg(FYI, "FCNTL cap\n");
+		if (cap & CIFS_UNIX_EXTATTR_CAP)
+			cifs_dbg(FYI, "EXTATTR cap\n");
+		if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP)
+			cifs_dbg(FYI, "POSIX path cap\n");
+		if (cap & CIFS_UNIX_XATTR_CAP)
+			cifs_dbg(FYI, "XATTR cap\n");
+		if (cap & CIFS_UNIX_POSIX_ACL_CAP)
+			cifs_dbg(FYI, "POSIX ACL cap\n");
+		if (cap & CIFS_UNIX_LARGE_READ_CAP)
+			cifs_dbg(FYI, "very large read cap\n");
+		if (cap & CIFS_UNIX_LARGE_WRITE_CAP)
+			cifs_dbg(FYI, "very large write cap\n");
+		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_CAP)
+			cifs_dbg(FYI, "transport encryption cap\n");
+		if (cap & CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)
+			cifs_dbg(FYI, "mandatory transport encryption cap\n");
+#endif /* CIFS_DEBUG2 */
+		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
+			if (ctx == NULL)
+				cifs_dbg(FYI, "resetting capabilities failed\n");
+			else
+				cifs_dbg(VFS, "Negotiating Unix capabilities with the server failed. Consider mounting with the Unix Extensions disabled if problems are found by specifying the nounix mount option.\n");
+
+		}
+	}
+}
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -284,183 +390,13 @@ cifs_get_next_mid(struct TCP_Server_Info *server)
 	return mid;
 }
 
-/*
-	return codes:
-		0	not a transact2, or all data present
-		>0	transact2 with that much data missing
-		-EINVAL	invalid transact2
- */
-static int
-check2ndT2(char *buf)
-{
-	struct smb_hdr *pSMB = (struct smb_hdr *)buf;
-	struct smb_t2_rsp *pSMBt;
-	int remaining;
-	__u16 total_data_size, data_in_this_rsp;
-
-	if (pSMB->Command != SMB_COM_TRANSACTION2)
-		return 0;
-
-	/* check for plausible wct, bcc and t2 data and parm sizes */
-	/* check for parm and data offset going beyond end of smb */
-	if (pSMB->WordCount != 10) { /* coalesce_t2 depends on this */
-		cifs_dbg(FYI, "Invalid transact2 word count\n");
-		return -EINVAL;
-	}
-
-	pSMBt = (struct smb_t2_rsp *)pSMB;
-
-	total_data_size = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
-	data_in_this_rsp = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
-
-	if (total_data_size == data_in_this_rsp)
-		return 0;
-	else if (total_data_size < data_in_this_rsp) {
-		cifs_dbg(FYI, "total data %d smaller than data in frame %d\n",
-			 total_data_size, data_in_this_rsp);
-		return -EINVAL;
-	}
-
-	remaining = total_data_size - data_in_this_rsp;
-
-	cifs_dbg(FYI, "missing %d bytes from transact2, check next response\n",
-		 remaining);
-	if (total_data_size > CIFSMaxBufSize) {
-		cifs_dbg(VFS, "TotalDataSize %d is over maximum buffer %d\n",
-			 total_data_size, CIFSMaxBufSize);
-		return -EINVAL;
-	}
-	return remaining;
-}
-
-static int
-coalesce_t2(char *second_buf, struct smb_hdr *target_hdr, unsigned int *pdu_len)
-{
-	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)second_buf;
-	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)target_hdr;
-	char *data_area_of_tgt;
-	char *data_area_of_src;
-	int remaining;
-	unsigned int byte_count, total_in_tgt;
-	__u16 tgt_total_cnt, src_total_cnt, total_in_src;
-
-	src_total_cnt = get_unaligned_le16(&pSMBs->t2_rsp.TotalDataCount);
-	tgt_total_cnt = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
-
-	if (tgt_total_cnt != src_total_cnt)
-		cifs_dbg(FYI, "total data count of primary and secondary t2 differ source=%hu target=%hu\n",
-			 src_total_cnt, tgt_total_cnt);
-
-	total_in_tgt = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
-
-	remaining = tgt_total_cnt - total_in_tgt;
-
-	if (remaining < 0) {
-		cifs_dbg(FYI, "Server sent too much data. tgt_total_cnt=%hu total_in_tgt=%u\n",
-			 tgt_total_cnt, total_in_tgt);
-		return -EPROTO;
-	}
-
-	if (remaining == 0) {
-		/* nothing to do, ignore */
-		cifs_dbg(FYI, "no more data remains\n");
-		return 0;
-	}
-
-	total_in_src = get_unaligned_le16(&pSMBs->t2_rsp.DataCount);
-	if (remaining < total_in_src)
-		cifs_dbg(FYI, "transact2 2nd response contains too much data\n");
-
-	/* find end of first SMB data area */
-	data_area_of_tgt = (char *)&pSMBt->hdr.Protocol +
-				get_unaligned_le16(&pSMBt->t2_rsp.DataOffset);
-
-	/* validate target area */
-	data_area_of_src = (char *)&pSMBs->hdr.Protocol +
-				get_unaligned_le16(&pSMBs->t2_rsp.DataOffset);
-
-	data_area_of_tgt += total_in_tgt;
-
-	total_in_tgt += total_in_src;
-	/* is the result too big for the field? */
-	if (total_in_tgt > USHRT_MAX) {
-		cifs_dbg(FYI, "coalesced DataCount too large (%u)\n",
-			 total_in_tgt);
-		return -EPROTO;
-	}
-	put_unaligned_le16(total_in_tgt, &pSMBt->t2_rsp.DataCount);
-
-	/* fix up the BCC */
-	byte_count = get_bcc(target_hdr);
-	byte_count += total_in_src;
-	/* is the result too big for the field? */
-	if (byte_count > USHRT_MAX) {
-		cifs_dbg(FYI, "coalesced BCC too large (%u)\n", byte_count);
-		return -EPROTO;
-	}
-	put_bcc(byte_count, target_hdr);
-
-	byte_count = *pdu_len;
-	byte_count += total_in_src;
-	/* don't allow buffer to overflow */
-	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cifs_dbg(FYI, "coalesced BCC exceeds buffer size (%u)\n",
-			 byte_count);
-		return -ENOBUFS;
-	}
-	*pdu_len = byte_count;
-
-	/* copy second buffer into end of first buffer */
-	memcpy(data_area_of_tgt, data_area_of_src, total_in_src);
-
-	if (remaining != total_in_src) {
-		/* more responses to go */
-		cifs_dbg(FYI, "waiting for more secondary responses\n");
-		return 1;
-	}
-
-	/* we are done */
-	cifs_dbg(FYI, "found the last secondary response\n");
-	return 0;
-}
-
 static void
 cifs_downgrade_oplock(struct TCP_Server_Info *server,
 		      struct cifsInodeInfo *cinode, __u32 oplock,
 		      __u16 epoch, bool *purge_cache)
 {
+	lockdep_assert_held(&cinode->open_file_lock);
 	cifs_set_oplock_level(cinode, oplock);
-}
-
-static bool
-cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
-		  char *buf, int malformed)
-{
-	if (malformed)
-		return false;
-	if (check2ndT2(buf) <= 0)
-		return false;
-	mid->multiRsp = true;
-	if (mid->resp_buf) {
-		/* merge response - fix up 1st*/
-		malformed = coalesce_t2(buf, mid->resp_buf, &mid->response_pdu_len);
-		if (malformed > 0)
-			return true;
-		/* All parts received or packet is malformed. */
-		mid->multiEnd = true;
-		dequeue_mid(server, mid, malformed);
-		return true;
-	}
-	if (!server->large_buf) {
-		/*FIXME: switch to already allocated largebuf?*/
-		cifs_dbg(VFS, "1st trans2 resp needs bigbuf\n");
-	} else {
-		/* Have first buffer */
-		mid->resp_buf = buf;
-		mid->large_buf = true;
-		server->bigbuf = NULL;
-	}
-	return true;
 }
 
 static bool
@@ -570,7 +506,7 @@ cifs_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	FILE_ALL_INFO *file_info;
 
-	file_info = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
+	file_info = kmalloc_obj(FILE_ALL_INFO);
 	if (file_info == NULL)
 		return -ENOMEM;
 
@@ -959,6 +895,9 @@ static void
 cifs_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
 	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+
+	lockdep_assert_held(&cinode->open_file_lock);
+
 	cfile->fid.netfid = fid->netfid;
 	cifs_set_oplock_level(cinode, oplock);
 	cinode->can_cache_brlcks = CIFS_CACHE_WRITE(cinode);
@@ -1204,12 +1143,16 @@ cifs_close_dir(const unsigned int xid, struct cifs_tcon *tcon,
 	return CIFSFindClose(xid, tcon, fid->netfid);
 }
 
-static int
-cifs_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
-		__u64 volatile_fid, __u16 net_fid, struct cifsInodeInfo *cinode)
+static int cifs_oplock_response(struct cifs_tcon *tcon, __u64 persistent_fid,
+				__u64 volatile_fid, __u16 net_fid,
+				struct cifsInodeInfo *cinode, unsigned int oplock)
 {
+	unsigned int sbflags = CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags;
+	__u8 op;
+
+	op = !!((oplock & CIFS_CACHE_READ_FLG) || (sbflags & CIFS_MOUNT_RO_CACHE));
 	return CIFSSMBLock(0, tcon, net_fid, current->tgid, 0, 0, 0, 0,
-			   LOCKING_ANDX_OPLOCK_RELEASE, false, CIFS_CACHE_READ(cinode) ? 1 : 0);
+			   LOCKING_ANDX_OPLOCK_RELEASE, false, op);
 }
 
 static int

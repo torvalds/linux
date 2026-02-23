@@ -146,7 +146,7 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 		new_prop->value = new_data;
 		new_prop->length += vd;
 	} else {
-		new_prop = kzalloc(sizeof(*new_prop), GFP_KERNEL);
+		new_prop = kzalloc_obj(*new_prop);
 		if (!new_prop)
 			return -ENOMEM;
 

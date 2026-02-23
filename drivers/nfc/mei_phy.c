@@ -373,7 +373,7 @@ struct nfc_mei_phy *nfc_mei_phy_alloc(struct mei_cl_device *cldev)
 {
 	struct nfc_mei_phy *phy;
 
-	phy = kzalloc(sizeof(struct nfc_mei_phy), GFP_KERNEL);
+	phy = kzalloc_obj(struct nfc_mei_phy);
 	if (!phy)
 		return NULL;
 

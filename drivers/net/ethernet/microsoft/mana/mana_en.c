@@ -299,6 +299,39 @@ static int mana_get_gso_hs(struct sk_buff *skb)
 	return gso_hs;
 }
 
+static void mana_per_port_queue_reset_work_handler(struct work_struct *work)
+{
+	struct mana_port_context *apc = container_of(work,
+						     struct mana_port_context,
+						     queue_reset_work);
+	struct net_device *ndev = apc->ndev;
+	int err;
+
+	rtnl_lock();
+
+	/* Pre-allocate buffers to prevent failure in mana_attach later */
+	err = mana_pre_alloc_rxbufs(apc, ndev->mtu, apc->num_queues);
+	if (err) {
+		netdev_err(ndev, "Insufficient memory for reset post tx stall detection\n");
+		goto out;
+	}
+
+	err = mana_detach(ndev, false);
+	if (err) {
+		netdev_err(ndev, "mana_detach failed: %d\n", err);
+		goto dealloc_pre_rxbufs;
+	}
+
+	err = mana_attach(ndev);
+	if (err)
+		netdev_err(ndev, "mana_attach failed: %d\n", err);
+
+dealloc_pre_rxbufs:
+	mana_pre_dealloc_rxbufs(apc);
+out:
+	rtnl_unlock();
+}
+
 netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	enum mana_tx_pkt_format pkt_fmt = MANA_SHORT_PKT_FMT;
@@ -320,9 +353,6 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto tx_drop;
 
 	if (skb_cow_head(skb, MANA_HEADROOM))
-		goto tx_drop_count;
-
-	if (unlikely(ipv6_hopopt_jumbo_remove(skb)))
 		goto tx_drop_count;
 
 	txq = &apc->tx_qp[txq_idx].txq;
@@ -461,9 +491,8 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (pkg.wqe_req.num_sge <= ARRAY_SIZE(pkg.sgl_array)) {
 		pkg.wqe_req.sgl = pkg.sgl_array;
 	} else {
-		pkg.sgl_ptr = kmalloc_array(pkg.wqe_req.num_sge,
-					    sizeof(struct gdma_sge),
-					    GFP_ATOMIC);
+		pkg.sgl_ptr = kmalloc_objs(struct gdma_sge, pkg.wqe_req.num_sge,
+					   GFP_ATOMIC);
 		if (!pkg.sgl_ptr)
 			goto tx_drop_count;
 
@@ -774,7 +803,7 @@ int mana_pre_alloc_rxbufs(struct mana_port_context *mpc, int new_mtu, int num_qu
 	if (!mpc->rxbufs_pre)
 		goto error;
 
-	mpc->das_pre = kmalloc_array(num_rxb, sizeof(dma_addr_t), GFP_KERNEL);
+	mpc->das_pre = kmalloc_objs(dma_addr_t, num_rxb);
 	if (!mpc->das_pre)
 		goto error;
 
@@ -837,6 +866,23 @@ static int mana_change_mtu(struct net_device *ndev, int new_mtu)
 out:
 	mana_pre_dealloc_rxbufs(mpc);
 	return err;
+}
+
+static void mana_tx_timeout(struct net_device *netdev, unsigned int txqueue)
+{
+	struct mana_port_context *apc = netdev_priv(netdev);
+	struct mana_context *ac = apc->ac;
+	struct gdma_context *gc = ac->gdma_dev->gdma_context;
+
+	/* Already in service, hence tx queue reset is not required.*/
+	if (gc->in_service)
+		return;
+
+	/* Note: If there are pending queue reset work for this port(apc),
+	 * subsequent request queued up from here are ignored. This is because
+	 * we are using the same work instance per port(apc).
+	 */
+	queue_work(ac->per_port_queue_reset_wq, &apc->queue_reset_work);
 }
 
 static int mana_shaper_set(struct net_shaper_binding *binding,
@@ -924,6 +970,7 @@ static const struct net_device_ops mana_devops = {
 	.ndo_bpf		= mana_bpf,
 	.ndo_xdp_xmit		= mana_xdp_xmit,
 	.ndo_change_mtu		= mana_change_mtu,
+	.ndo_tx_timeout		= mana_tx_timeout,
 	.net_shaper_ops         = &mana_shaper_ops,
 };
 
@@ -948,8 +995,7 @@ static void mana_cleanup_indir_table(struct mana_port_context *apc)
 
 static int mana_init_port_context(struct mana_port_context *apc)
 {
-	apc->rxqs = kcalloc(apc->num_queues, sizeof(struct mana_rxq *),
-			    GFP_KERNEL);
+	apc->rxqs = kzalloc_objs(struct mana_rxq *, apc->num_queues);
 
 	return !apc->rxqs ? -ENOMEM : 0;
 }
@@ -1586,8 +1632,7 @@ static int mana_create_eq(struct mana_context *ac)
 	int err;
 	int i;
 
-	ac->eqs = kcalloc(gc->max_num_queues, sizeof(struct mana_eq),
-			  GFP_KERNEL);
+	ac->eqs = kzalloc_objs(struct mana_eq, gc->max_num_queues);
 	if (!ac->eqs)
 		return -ENOMEM;
 
@@ -2281,8 +2326,7 @@ static int mana_create_txq(struct mana_port_context *apc,
 	int err;
 	int i;
 
-	apc->tx_qp = kcalloc(apc->num_queues, sizeof(struct mana_tx_qp),
-			     GFP_KERNEL);
+	apc->tx_qp = kzalloc_objs(struct mana_tx_qp, apc->num_queues);
 	if (!apc->tx_qp)
 		return -ENOMEM;
 
@@ -2592,8 +2636,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	gc = gd->gdma_context;
 
-	rxq = kzalloc(struct_size(rxq, rx_oobs, apc->rx_queue_size),
-		      GFP_KERNEL);
+	rxq = kzalloc_flex(*rxq, rx_oobs, apc->rx_queue_size);
 	if (!rxq)
 		return NULL;
 
@@ -2808,7 +2851,7 @@ static int mana_rss_table_alloc(struct mana_port_context *apc)
 	if (!apc->indir_table)
 		return -ENOMEM;
 
-	apc->rxobj_table = kcalloc(apc->indir_table_sz, sizeof(mana_handle_t), GFP_KERNEL);
+	apc->rxobj_table = kzalloc_objs(mana_handle_t, apc->indir_table_sz);
 	if (!apc->rxobj_table) {
 		kfree(apc->indir_table);
 		return -ENOMEM;
@@ -3287,6 +3330,8 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	ndev->min_mtu = ETH_MIN_MTU;
 	ndev->needed_headroom = MANA_HEADROOM;
 	ndev->dev_port = port_idx;
+	/* Recommended timeout based on HW FPGA re-config scenario. */
+	ndev->watchdog_timeo = 15 * HZ;
 	SET_NETDEV_DEV(ndev, gc->dev);
 
 	netif_set_tso_max_size(ndev, GSO_MAX_SIZE);
@@ -3302,6 +3347,10 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	err = mana_rss_table_alloc(apc);
 	if (err)
 		goto reset_apc;
+
+	/* Initialize the per port queue reset work.*/
+	INIT_WORK(&apc->queue_reset_work,
+		  mana_per_port_queue_reset_work_handler);
 
 	netdev_lockdep_set_classes(ndev);
 
@@ -3364,7 +3413,7 @@ static int add_adev(struct gdma_dev *gd, const char *name)
 	struct mana_adev *madev;
 	int ret;
 
-	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	madev = kzalloc_obj(*madev);
 	if (!madev)
 		return -ENOMEM;
 
@@ -3457,7 +3506,7 @@ int mana_rdma_service_event(struct gdma_context *gc, enum gdma_service_type even
 		return 0;
 	}
 
-	serv_work = kzalloc(sizeof(*serv_work), GFP_ATOMIC);
+	serv_work = kzalloc_obj(*serv_work, GFP_ATOMIC);
 	if (!serv_work)
 		return -ENOMEM;
 
@@ -3492,6 +3541,7 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 {
 	struct gdma_context *gc = gd->gdma_context;
 	struct mana_context *ac = gd->driver_data;
+	struct mana_port_context *apc = NULL;
 	struct device *dev = gc->dev;
 	u8 bm_hostmode = 0;
 	u16 num_ports = 0;
@@ -3507,7 +3557,7 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 		return err;
 
 	if (!resuming) {
-		ac = kzalloc(sizeof(*ac), GFP_KERNEL);
+		ac = kzalloc_obj(*ac);
 		if (!ac)
 			return -ENOMEM;
 
@@ -3549,6 +3599,14 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 	if (ac->num_ports > MAX_PORTS_IN_MANA_DEV)
 		ac->num_ports = MAX_PORTS_IN_MANA_DEV;
 
+	ac->per_port_queue_reset_wq =
+		create_singlethread_workqueue("mana_per_port_queue_reset_wq");
+	if (!ac->per_port_queue_reset_wq) {
+		dev_err(dev, "Failed to allocate per port queue reset workqueue\n");
+		err = -ENOMEM;
+		goto out;
+	}
+
 	if (!resuming) {
 		for (i = 0; i < ac->num_ports; i++) {
 			err = mana_probe_port(ac, i, &ac->ports[i]);
@@ -3565,6 +3623,8 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 	} else {
 		for (i = 0; i < ac->num_ports; i++) {
 			rtnl_lock();
+			apc = netdev_priv(ac->ports[i]);
+			enable_work(&apc->queue_reset_work);
 			err = mana_attach(ac->ports[i]);
 			rtnl_unlock();
 			/* we log the port for which the attach failed and stop
@@ -3616,12 +3676,14 @@ void mana_remove(struct gdma_dev *gd, bool suspending)
 
 	for (i = 0; i < ac->num_ports; i++) {
 		ndev = ac->ports[i];
-		apc = netdev_priv(ndev);
 		if (!ndev) {
 			if (i == 0)
 				dev_err(dev, "No net device to remove\n");
 			goto out;
 		}
+
+		apc = netdev_priv(ndev);
+		disable_work_sync(&apc->queue_reset_work);
 
 		/* All cleanup actions should stay after rtnl_lock(), otherwise
 		 * other functions may access partially cleaned up data.
@@ -3649,6 +3711,11 @@ void mana_remove(struct gdma_dev *gd, bool suspending)
 
 	mana_destroy_eq(ac);
 out:
+	if (ac->per_port_queue_reset_wq) {
+		destroy_workqueue(ac->per_port_queue_reset_wq);
+		ac->per_port_queue_reset_wq = NULL;
+	}
+
 	mana_gd_deregister_device(gd);
 
 	if (suspending)

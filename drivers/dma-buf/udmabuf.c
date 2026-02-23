@@ -115,7 +115,7 @@ static int vmap_udmabuf(struct dma_buf *buf, struct iosys_map *map)
 
 	dma_resv_assert_held(buf->resv);
 
-	pages = kvmalloc_array(ubuf->pagecount, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, ubuf->pagecount);
 	if (!pages)
 		return -ENOMEM;
 
@@ -150,7 +150,7 @@ static struct sg_table *get_sg_table(struct device *dev, struct dma_buf *buf,
 	unsigned int i = 0;
 	int ret;
 
-	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -207,17 +207,15 @@ static void unpin_all_folios(struct udmabuf *ubuf)
 
 static __always_inline int init_udmabuf(struct udmabuf *ubuf, pgoff_t pgcnt)
 {
-	ubuf->folios = kvmalloc_array(pgcnt, sizeof(*ubuf->folios), GFP_KERNEL);
+	ubuf->folios = kvmalloc_objs(*ubuf->folios, pgcnt);
 	if (!ubuf->folios)
 		return -ENOMEM;
 
-	ubuf->offsets = kvcalloc(pgcnt, sizeof(*ubuf->offsets), GFP_KERNEL);
+	ubuf->offsets = kvzalloc_objs(*ubuf->offsets, pgcnt);
 	if (!ubuf->offsets)
 		return -ENOMEM;
 
-	ubuf->pinned_folios = kvmalloc_array(pgcnt,
-					     sizeof(*ubuf->pinned_folios),
-					     GFP_KERNEL);
+	ubuf->pinned_folios = kvmalloc_objs(*ubuf->pinned_folios, pgcnt);
 	if (!ubuf->pinned_folios)
 		return -ENOMEM;
 

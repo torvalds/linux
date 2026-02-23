@@ -21,7 +21,9 @@
 #include <linux/utsname.h>
 #include <net/net_namespace.h>
 #include <linux/coredump.h>
+#include <linux/rhashtable.h>
 #include <linux/xattr.h>
+#include <linux/cookie.h>
 
 #include "internal.h"
 #include "mount.h"
@@ -55,9 +57,48 @@ struct pidfs_attr {
 	__u32 coredump_signal;
 };
 
-static struct rb_root pidfs_ino_tree = RB_ROOT;
+static struct rhashtable pidfs_ino_ht;
+
+static const struct rhashtable_params pidfs_ino_ht_params = {
+	.key_offset		= offsetof(struct pid, ino),
+	.key_len		= sizeof(u64),
+	.head_offset		= offsetof(struct pid, pidfs_hash),
+	.automatic_shrinking	= true,
+};
+
+/*
+ * inode number handling
+ *
+ * On 64 bit nothing special happens. The 64bit number assigned
+ * to struct pid is the inode number.
+ *
+ * On 32 bit the 64 bit number assigned to struct pid is split
+ * into two 32 bit numbers. The lower 32 bits are used as the
+ * inode number and the upper 32 bits are used as the inode
+ * generation number.
+ *
+ * On 32 bit pidfs_ino() will return the lower 32 bit. When
+ * pidfs_ino() returns zero a wrap around happened. When a
+ * wraparound happens the 64 bit number will be incremented by 1
+ * so inode numbering starts at 1 again.
+ *
+ * On 64 bit comparing two pidfds is as simple as comparing
+ * inode numbers.
+ *
+ * When a wraparound happens on 32 bit multiple pidfds with the
+ * same inode number are likely to exist (This isn't a problem
+ * since before pidfs pidfds used the anonymous inode meaning
+ * all pidfds had the same inode number.). Userspace can
+ * reconstruct the 64 bit identifier by retrieving both the
+ * inode number and the inode generation number to compare or
+ * use file handles.
+ */
 
 #if BITS_PER_LONG == 32
+
+DEFINE_SPINLOCK(pidfs_ino_lock);
+static u64 pidfs_ino_nr = 1;
+
 static inline unsigned long pidfs_ino(u64 ino)
 {
 	return lower_32_bits(ino);
@@ -67,6 +108,18 @@ static inline unsigned long pidfs_ino(u64 ino)
 static inline u32 pidfs_gen(u64 ino)
 {
 	return upper_32_bits(ino);
+}
+
+static inline u64 pidfs_alloc_ino(void)
+{
+	u64 ino;
+
+	spin_lock(&pidfs_ino_lock);
+	if (pidfs_ino(pidfs_ino_nr) == 0)
+		pidfs_ino_nr++;
+	ino = pidfs_ino_nr++;
+	spin_unlock(&pidfs_ino_lock);
+	return ino;
 }
 
 #else
@@ -82,69 +135,47 @@ static inline u32 pidfs_gen(u64 ino)
 {
 	return 0;
 }
-#endif
 
-static int pidfs_ino_cmp(struct rb_node *a, const struct rb_node *b)
+DEFINE_COOKIE(pidfs_ino_cookie);
+
+static u64 pidfs_alloc_ino(void)
 {
-	struct pid *pid_a = rb_entry(a, struct pid, pidfs_node);
-	struct pid *pid_b = rb_entry(b, struct pid, pidfs_node);
-	u64 pid_ino_a = pid_a->ino;
-	u64 pid_ino_b = pid_b->ino;
+	u64 ino;
 
-	if (pid_ino_a < pid_ino_b)
-		return -1;
-	if (pid_ino_a > pid_ino_b)
-		return 1;
-	return 0;
+	preempt_disable();
+	ino = gen_cookie_next(&pidfs_ino_cookie);
+	preempt_enable();
+
+	VFS_WARN_ON_ONCE(ino < 1);
+	return ino;
 }
 
-void pidfs_add_pid(struct pid *pid)
+#endif
+
+void pidfs_prepare_pid(struct pid *pid)
 {
-	static u64 pidfs_ino_nr = 2;
-
-	/*
-	 * On 64 bit nothing special happens. The 64bit number assigned
-	 * to struct pid is the inode number.
-	 *
-	 * On 32 bit the 64 bit number assigned to struct pid is split
-	 * into two 32 bit numbers. The lower 32 bits are used as the
-	 * inode number and the upper 32 bits are used as the inode
-	 * generation number.
-	 *
-	 * On 32 bit pidfs_ino() will return the lower 32 bit. When
-	 * pidfs_ino() returns zero a wrap around happened. When a
-	 * wraparound happens the 64 bit number will be incremented by 2
-	 * so inode numbering starts at 2 again.
-	 *
-	 * On 64 bit comparing two pidfds is as simple as comparing
-	 * inode numbers.
-	 *
-	 * When a wraparound happens on 32 bit multiple pidfds with the
-	 * same inode number are likely to exist (This isn't a problem
-	 * since before pidfs pidfds used the anonymous inode meaning
-	 * all pidfds had the same inode number.). Userspace can
-	 * reconstruct the 64 bit identifier by retrieving both the
-	 * inode number and the inode generation number to compare or
-	 * use file handles.
-	 */
-	if (pidfs_ino(pidfs_ino_nr) == 0)
-		pidfs_ino_nr += 2;
-
-	pid->ino = pidfs_ino_nr;
 	pid->stashed = NULL;
 	pid->attr = NULL;
-	pidfs_ino_nr++;
+	pid->ino = 0;
+}
 
-	write_seqcount_begin(&pidmap_lock_seq);
-	rb_find_add_rcu(&pid->pidfs_node, &pidfs_ino_tree, pidfs_ino_cmp);
-	write_seqcount_end(&pidmap_lock_seq);
+int pidfs_add_pid(struct pid *pid)
+{
+	int ret;
+
+	pid->ino = pidfs_alloc_ino();
+	ret = rhashtable_insert_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+				     pidfs_ino_ht_params);
+	if (unlikely(ret))
+		pid->ino = 0;
+	return ret;
 }
 
 void pidfs_remove_pid(struct pid *pid)
 {
-	write_seqcount_begin(&pidmap_lock_seq);
-	rb_erase(&pid->pidfs_node, &pidfs_ino_tree);
-	write_seqcount_end(&pidmap_lock_seq);
+	if (likely(pid->ino))
+		rhashtable_remove_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+				       pidfs_ino_ht_params);
 }
 
 void pidfs_free_pid(struct pid *pid)
@@ -329,7 +360,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	 * namespace hierarchy.
 	 */
 	if (!pid_in_current_pidns(pid))
-		return -ESRCH;
+		return -EREMOTE;
 
 	attr = READ_ONCE(pid->attr);
 	if (mask & PIDFD_INFO_EXIT) {
@@ -415,7 +446,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	 * the fields are set correctly, or return ESRCH to avoid providing
 	 * incomplete information. */
 
-	kinfo.ppid = task_ppid_nr_ns(task, NULL);
+	kinfo.ppid = task_ppid_vnr(task);
 	kinfo.tgid = task_tgid_vnr(task);
 	kinfo.pid = task_pid_vnr(task);
 	kinfo.mask |= PIDFD_INFO_PID;
@@ -791,42 +822,24 @@ static int pidfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return FILEID_KERNFS;
 }
 
-static int pidfs_ino_find(const void *key, const struct rb_node *node)
-{
-	const u64 pid_ino = *(u64 *)key;
-	const struct pid *pid = rb_entry(node, struct pid, pidfs_node);
-
-	if (pid_ino < pid->ino)
-		return -1;
-	if (pid_ino > pid->ino)
-		return 1;
-	return 0;
-}
-
 /* Find a struct pid based on the inode number. */
 static struct pid *pidfs_ino_get_pid(u64 ino)
 {
 	struct pid *pid;
-	struct rb_node *node;
-	unsigned int seq;
+	struct pidfs_attr *attr;
 
 	guard(rcu)();
-	do {
-		seq = read_seqcount_begin(&pidmap_lock_seq);
-		node = rb_find_rcu(&ino, &pidfs_ino_tree, pidfs_ino_find);
-		if (node)
-			break;
-	} while (read_seqcount_retry(&pidmap_lock_seq, seq));
-
-	if (!node)
+	pid = rhashtable_lookup(&pidfs_ino_ht, &ino, pidfs_ino_ht_params);
+	if (!pid)
 		return NULL;
-
-	pid = rb_entry(node, struct pid, pidfs_node);
-
+	attr = READ_ONCE(pid->attr);
+	if (IS_ERR_OR_NULL(attr))
+		return NULL;
+	if (test_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask))
+		return NULL;
 	/* Within our pid namespace hierarchy? */
 	if (pid_vnr(pid) == 0)
 		return NULL;
-
 	return get_pid(pid);
 }
 
@@ -1104,6 +1117,9 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 
 void __init pidfs_init(void)
 {
+	if (rhashtable_init(&pidfs_ino_ht, &pidfs_ino_ht_params))
+		panic("Failed to initialize pidfs hashtable");
+
 	pidfs_attr_cachep = kmem_cache_create("pidfs_attr_cache", sizeof(struct pidfs_attr), 0,
 					 (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
 					  SLAB_ACCOUNT | SLAB_PANIC), NULL);

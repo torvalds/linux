@@ -63,9 +63,9 @@ Here are the main features of EROFS:
  - Support POSIX.1e ACLs by using extended attributes;
 
  - Support transparent data compression as an option:
-   LZ4, MicroLZMA and DEFLATE algorithms can be used on a per-file basis; In
-   addition, inplace decompression is also supported to avoid bounce compressed
-   buffers and unnecessary page cache thrashing.
+   LZ4, MicroLZMA, DEFLATE and Zstandard algorithms can be used on a per-file
+   basis; In addition, inplace decompression is also supported to avoid bounce
+   compressed buffers and unnecessary page cache thrashing.
 
  - Support chunk-based data deduplication and rolling-hash compressed data
    deduplication;
@@ -125,10 +125,18 @@ dax={always,never}     Use direct access (no page cache).  See
                        Documentation/filesystems/dax.rst.
 dax                    A legacy option which is an alias for ``dax=always``.
 device=%s              Specify a path to an extra device to be used together.
+directio               (For file-backed mounts) Use direct I/O to access backing
+                       files, and asynchronous I/O will be enabled if supported.
 fsid=%s                Specify a filesystem image ID for Fscache back-end.
-domain_id=%s           Specify a domain ID in fscache mode so that different images
-                       with the same blobs under a given domain ID can share storage.
+domain_id=%s           Specify a trusted domain ID for fscache mode so that
+                       different images with the same blobs, identified by blob IDs,
+                       can share storage within the same trusted domain.
+                       Also used for different filesystems with inode page sharing
+                       enabled to share page cache within the trusted domain.
 fsoffset=%llu          Specify block-aligned filesystem offset for the primary device.
+inode_share            Enable inode page sharing for this filesystem.  Inodes with
+                       identical content within the same domain ID can share the
+                       page cache.
 ===================    =========================================================
 
 Sysfs Entries
@@ -154,7 +162,7 @@ to be as simple as possible::
   0 +1K
 
 All data areas should be aligned with the block size, but metadata areas
-may not. All metadatas can be now observed in two different spaces (views):
+may not. All metadata can be now observed in two different spaces (views):
 
  1. Inode metadata space
 

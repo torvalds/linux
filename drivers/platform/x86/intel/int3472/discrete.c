@@ -107,7 +107,7 @@ skl_int3472_gpiod_get_from_temp_lookup(struct int3472_discrete_device *int3472,
 	int ret;
 
 	struct gpiod_lookup_table *lookup __free(kfree) =
-			kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+			kzalloc_flex(*lookup, table, 2);
 	if (!lookup)
 		return ERR_PTR(-ENOMEM);
 

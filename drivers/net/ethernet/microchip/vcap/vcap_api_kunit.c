@@ -2037,7 +2037,7 @@ static void vcap_api_filter_unsupported_keys_test(struct kunit *test)
 	/* Add all keys to the rule */
 	INIT_LIST_HEAD(&ri.data.keyfields);
 	for (idx = 0; idx < ARRAY_SIZE(keylist); idx++) {
-		ckf = kzalloc(sizeof(*ckf), GFP_KERNEL);
+		ckf = kzalloc_obj(*ckf);
 		if (ckf) {
 			ckf->ctrl.key = keylist[idx];
 			list_add_tail(&ckf->ctrl.list, &ri.data.keyfields);
@@ -2161,7 +2161,7 @@ static void vcap_api_filter_keylist_test(struct kunit *test)
 	/* Add all keys to the rule */
 	INIT_LIST_HEAD(&ri.data.keyfields);
 	for (idx = 0; idx < ARRAY_SIZE(keylist); idx++) {
-		ckf = kzalloc(sizeof(*ckf), GFP_KERNEL);
+		ckf = kzalloc_obj(*ckf);
 		if (ckf) {
 			ckf->ctrl.key = keylist[idx];
 			list_add_tail(&ckf->ctrl.list, &ri.data.keyfields);

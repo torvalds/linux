@@ -49,7 +49,7 @@ int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
 {
 	struct rproc_dump_segment *segment;
 
-	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
+	segment = kzalloc_obj(*segment);
 	if (!segment)
 		return -ENOMEM;
 
@@ -86,7 +86,7 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 {
 	struct rproc_dump_segment *segment;
 
-	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
+	segment = kzalloc_obj(*segment);
 	if (!segment)
 		return -ENOMEM;
 

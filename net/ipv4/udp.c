@@ -1193,7 +1193,7 @@ csum_partial:
 
 send:
 	err = ip_send_skb(sock_net(sk), skb);
-	if (err) {
+	if (unlikely(err)) {
 		if (err == -ENOBUFS &&
 		    !inet_test_bit(RECVERR, sk)) {
 			UDP_INC_STATS(sock_net(sk),
@@ -1269,6 +1269,8 @@ EXPORT_IPV6_MOD_GPL(udp_cmsg_send);
 
 int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
+	DEFINE_RAW_FLEX(struct ip_options_rcu, opt_copy, opt.__data,
+			IP_OPTIONS_DATA_FIXED_SIZE);
 	struct inet_sock *inet = inet_sk(sk);
 	struct udp_sock *up = udp_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
@@ -1286,7 +1288,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int corkreq = udp_test_bit(CORK, sk) || msg->msg_flags & MSG_MORE;
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sk_buff *skb;
-	struct ip_options_data opt_copy;
 	int uc_index;
 
 	if (len > 0xFFFF)
@@ -1368,9 +1369,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rcu_read_lock();
 		inet_opt = rcu_dereference(inet->inet_opt);
 		if (inet_opt) {
-			memcpy(&opt_copy, inet_opt,
+			memcpy(opt_copy, inet_opt,
 			       sizeof(*inet_opt) + inet_opt->opt.optlen);
-			ipc.opt = &opt_copy.opt;
+			ipc.opt = opt_copy;
 		}
 		rcu_read_unlock();
 	}
@@ -1793,14 +1794,32 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (unlikely(to_drop)) {
+		int err_ipv4 = 0;
+		int err_ipv6 = 0;
+
 		for (nb = 0; to_drop != NULL; nb++) {
 			skb = to_drop;
+			if (skb->protocol == htons(ETH_P_IP))
+				err_ipv4++;
+			else
+				err_ipv6++;
 			to_drop = skb->next;
 			skb_mark_not_on_list(skb);
-			/* TODO: update SNMP values. */
 			sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_PROTO_MEM);
 		}
 		numa_drop_add(&udp_sk(sk)->drop_counters, nb);
+		if (err_ipv4 > 0) {
+			SNMP_ADD_STATS(__UDPX_MIB(sk, true), UDP_MIB_MEMERRORS,
+				       err_ipv4);
+			SNMP_ADD_STATS(__UDPX_MIB(sk, true), UDP_MIB_INERRORS,
+				       err_ipv4);
+		}
+		if (err_ipv6 > 0) {
+			SNMP_ADD_STATS(__UDPX_MIB(sk, false), UDP_MIB_MEMERRORS,
+				       err_ipv6);
+			SNMP_ADD_STATS(__UDPX_MIB(sk, false), UDP_MIB_INERRORS,
+				       err_ipv6);
+		}
 	}
 
 	atomic_sub(total_size, &udp_prod_queue->rmem_alloc);
@@ -2429,7 +2448,8 @@ static int udp_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * 	UDP-Lite specific tests, ignored on UDP sockets
 	 */
-	if (udp_test_bit(UDPLITE_RECV_CC, sk) && UDP_SKB_CB(skb)->partial_cov) {
+	if (unlikely(udp_test_bit(UDPLITE_RECV_CC, sk) &&
+		     UDP_SKB_CB(skb)->partial_cov)) {
 		u16 pcrlen = READ_ONCE(up->pcrlen);
 
 		/*
@@ -3839,7 +3859,7 @@ static struct udp_table __net_init *udp_pernet_table_alloc(unsigned int hash_ent
 	unsigned int slot_size;
 	int i;
 
-	udptable = kmalloc(sizeof(*udptable), GFP_KERNEL);
+	udptable = kmalloc_obj(*udptable);
 	if (!udptable)
 		goto out;
 
@@ -3952,8 +3972,8 @@ static int bpf_iter_udp_realloc_batch(struct bpf_udp_iter_state *iter,
 {
 	union bpf_udp_iter_batch_item *new_batch;
 
-	new_batch = kvmalloc_array(new_batch_sz, sizeof(*new_batch),
-				   flags | __GFP_NOWARN);
+	new_batch = kvmalloc_objs(*new_batch, new_batch_sz,
+				  flags | __GFP_NOWARN);
 	if (!new_batch)
 		return -ENOMEM;
 

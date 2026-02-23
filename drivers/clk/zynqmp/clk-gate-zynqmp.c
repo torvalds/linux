@@ -115,7 +115,7 @@ struct clk_hw *zynqmp_clk_register_gate(const char *name, u32 clk_id,
 	struct clk_init_data init;
 
 	/* allocate the gate */
-	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
+	gate = kzalloc_obj(*gate);
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 

@@ -2698,7 +2698,7 @@ static struct tls_sw_context_tx *init_ctx_tx(struct tls_context *ctx, struct soc
 	struct tls_sw_context_tx *sw_ctx_tx;
 
 	if (!ctx->priv_ctx_tx) {
-		sw_ctx_tx = kzalloc(sizeof(*sw_ctx_tx), GFP_KERNEL);
+		sw_ctx_tx = kzalloc_obj(*sw_ctx_tx);
 		if (!sw_ctx_tx)
 			return NULL;
 	} else {
@@ -2719,7 +2719,7 @@ static struct tls_sw_context_rx *init_ctx_rx(struct tls_context *ctx)
 	struct tls_sw_context_rx *sw_ctx_rx;
 
 	if (!ctx->priv_ctx_rx) {
-		sw_ctx_rx = kzalloc(sizeof(*sw_ctx_rx), GFP_KERNEL);
+		sw_ctx_rx = kzalloc_obj(*sw_ctx_rx);
 		if (!sw_ctx_rx)
 			return NULL;
 	} else {

@@ -1095,7 +1095,7 @@ static void submit_one_flush(struct drbd_device *device, struct issue_flush_cont
 {
 	struct bio *bio = bio_alloc(device->ldev->backing_bdev, 0,
 				    REQ_OP_WRITE | REQ_PREFLUSH, GFP_NOIO);
-	struct one_flush_context *octx = kmalloc(sizeof(*octx), GFP_NOIO);
+	struct one_flush_context *octx = kmalloc_obj(*octx, GFP_NOIO);
 
 	if (!octx) {
 		drbd_warn(device, "Could not allocate a octx, CANNOT ISSUE FLUSH\n");
@@ -1592,7 +1592,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 
 		/* receiver context, in the writeout path of the other node.
 		 * avoid potential distributed deadlock */
-		epoch = kmalloc(sizeof(struct drbd_epoch), GFP_NOIO);
+		epoch = kmalloc_obj(struct drbd_epoch, GFP_NOIO);
 		if (epoch)
 			break;
 		else
@@ -1605,7 +1605,7 @@ static int receive_Barrier(struct drbd_connection *connection, struct packet_inf
 		drbd_flush(connection);
 
 		if (atomic_read(&connection->current_epoch->epoch_size)) {
-			epoch = kmalloc(sizeof(struct drbd_epoch), GFP_NOIO);
+			epoch = kmalloc_obj(struct drbd_epoch, GFP_NOIO);
 			if (epoch)
 				break;
 		}
@@ -3547,7 +3547,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 		}
 	}
 
-	new_net_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
+	new_net_conf = kmalloc_obj(struct net_conf);
 	if (!new_net_conf)
 		goto disconnect;
 
@@ -3708,7 +3708,7 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 	mutex_lock(&connection->resource->conf_update);
 	old_net_conf = peer_device->connection->net_conf;
 	if (get_ldev(device)) {
-		new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
+		new_disk_conf = kzalloc_obj(struct disk_conf);
 		if (!new_disk_conf) {
 			put_ldev(device);
 			mutex_unlock(&connection->resource->conf_update);
@@ -3794,7 +3794,7 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 		}
 
 		if (verify_tfm || csums_tfm) {
-			new_net_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
+			new_net_conf = kzalloc_obj(struct net_conf);
 			if (!new_net_conf)
 				goto disconnect;
 
@@ -3932,7 +3932,7 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 		if (my_usize != p_usize) {
 			struct disk_conf *old_disk_conf, *new_disk_conf = NULL;
 
-			new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
+			new_disk_conf = kzalloc_obj(struct disk_conf);
 			if (!new_disk_conf) {
 				put_ldev(device);
 				return -ENOMEM;
@@ -5692,7 +5692,7 @@ static int got_OVResult(struct drbd_connection *connection, struct packet_info *
 		drbd_advance_rs_marks(peer_device, device->ov_left);
 
 	if (device->ov_left == 0) {
-		dw = kmalloc(sizeof(*dw), GFP_NOIO);
+		dw = kmalloc_obj(*dw, GFP_NOIO);
 		if (dw) {
 			dw->w.cb = w_ov_finished;
 			dw->device = device;

@@ -754,7 +754,7 @@ static int pci_sun4v_atu_alloc_iotsb(struct pci_pbm_info *pbm)
 	unsigned long order;
 	unsigned long err;
 
-	iotsb = kzalloc(sizeof(*iotsb), GFP_KERNEL);
+	iotsb = kzalloc_obj(*iotsb);
 	if (!iotsb) {
 		err = -ENOMEM;
 		goto out_err;
@@ -1292,13 +1292,13 @@ static int pci_sun4v_probe(struct platform_device *op)
 		iommu_batch_initialized = 1;
 	}
 
-	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	pbm = kzalloc_obj(*pbm);
 	if (!pbm) {
 		printk(KERN_ERR PFX "Could not allocate pci_pbm_info\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+	iommu = kzalloc_obj(struct iommu);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Could not allocate pbm iommu\n");
 		goto out_free_controller;
@@ -1307,7 +1307,7 @@ static int pci_sun4v_probe(struct platform_device *op)
 	pbm->iommu = iommu;
 	iommu->atu = NULL;
 	if (hv_atu) {
-		atu = kzalloc(sizeof(*atu), GFP_KERNEL);
+		atu = kzalloc_obj(*atu);
 		if (!atu)
 			pr_err(PFX "Could not allocate atu\n");
 		else

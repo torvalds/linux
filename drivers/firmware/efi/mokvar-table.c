@@ -329,7 +329,7 @@ static int __init efi_mokvar_sysfs_init(void)
 	}
 
 	while (efi_mokvar_entry_next(&mokvar_entry)) {
-		mokvar_sysfs = kzalloc(sizeof(*mokvar_sysfs), GFP_KERNEL);
+		mokvar_sysfs = kzalloc_obj(*mokvar_sysfs);
 		if (!mokvar_sysfs) {
 			err = -ENOMEM;
 			break;

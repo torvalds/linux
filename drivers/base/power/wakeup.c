@@ -83,7 +83,7 @@ static struct wakeup_source *wakeup_source_create(const char *name)
 	const char *ws_name;
 	int id;
 
-	ws = kzalloc(sizeof(*ws), GFP_KERNEL);
+	ws = kzalloc_obj(*ws);
 	if (!ws)
 		goto err_ws;
 
@@ -275,9 +275,7 @@ EXPORT_SYMBOL_GPL(wakeup_sources_read_unlock);
  */
 struct wakeup_source *wakeup_sources_walk_start(void)
 {
-	struct list_head *ws_head = &wakeup_sources;
-
-	return list_entry_rcu(ws_head->next, struct wakeup_source, entry);
+	return list_first_or_null_rcu(&wakeup_sources, struct wakeup_source, entry);
 }
 EXPORT_SYMBOL_GPL(wakeup_sources_walk_start);
 

@@ -1514,26 +1514,22 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 	const struct ngd_reg_offset_data *data;
 	struct qcom_slim_ngd *ngd;
 	const struct of_device_id *match;
-	struct device_node *node;
 	u32 id;
 	int ret;
 
 	match = of_match_node(qcom_slim_ngd_dt_match, parent->of_node);
 	data = match->data;
-	for_each_available_child_of_node(parent->of_node, node) {
+	for_each_available_child_of_node_scoped(parent->of_node, node) {
 		if (of_property_read_u32(node, "reg", &id))
 			continue;
 
-		ngd = kzalloc(sizeof(*ngd), GFP_KERNEL);
-		if (!ngd) {
-			of_node_put(node);
+		ngd = kzalloc_obj(*ngd);
+		if (!ngd)
 			return -ENOMEM;
-		}
 
 		ngd->pdev = platform_device_alloc(QCOM_SLIM_NGD_DRV_NAME, id);
 		if (!ngd->pdev) {
 			kfree(ngd);
-			of_node_put(node);
 			return -ENOMEM;
 		}
 		ngd->id = id;
@@ -1546,7 +1542,6 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 		if (ret) {
 			platform_device_put(ngd->pdev);
 			kfree(ngd);
-			of_node_put(node);
 			return ret;
 		}
 		ngd->pdev->dev.of_node = node;
@@ -1556,7 +1551,6 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 		if (ret) {
 			platform_device_put(ngd->pdev);
 			kfree(ngd);
-			of_node_put(node);
 			return ret;
 		}
 		ngd->base = ctrl->base + ngd->id * data->offset +

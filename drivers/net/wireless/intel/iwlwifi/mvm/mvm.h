@@ -11,6 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/cleanup.h>
 #include <linux/leds.h>
+#include <linux/hex.h>
 #include <linux/in6.h>
 
 #ifdef CONFIG_THERMAL
@@ -120,7 +121,6 @@ struct iwl_mvm_time_event_data {
 	 * if the te is in the time event list or not (when id == TE_MAX)
 	 */
 	u32 id;
-	s8 link_id;
 };
 
  /* Power management */
@@ -380,14 +380,7 @@ struct iwl_mvm_vif_link_info {
  * @bcn_prot: beacon protection data (keys; FIXME: needs to be per link)
  * @deflink: default link data for use in non-MLO
  * @link: link data for each link in MLO
- * @esr_active: indicates eSR mode is active
  * @pm_enabled: indicates powersave is enabled
- * @link_selection_res: bitmap of active links as it was decided in the last
- *	link selection. Valid only for a MLO vif after assoc. 0 if there wasn't
- *	any link selection yet.
- * @link_selection_primary: primary link selected by link selection
- * @primary_link: primary link in eSR. Valid only for an associated MLD vif,
- *	and in eSR mode. Valid only for a STA.
  * @roc_activity: currently running ROC activity for this vif (or
  *	ROC_NUM_ACTIVITIES if no activity is running).
  * @session_prot_connection_loss: the connection was lost due to session
@@ -434,7 +427,6 @@ struct iwl_mvm_vif {
 	bool ap_ibss_active;
 	bool pm_enabled;
 	bool monitor_active;
-	bool esr_active;
 	bool session_prot_connection_loss;
 
 	u8 low_latency: 6;
@@ -514,10 +506,6 @@ struct iwl_mvm_vif {
 	} bcn_prot;
 
 	u16 max_tx_op;
-
-	u16 link_selection_res;
-	u8 link_selection_primary;
-	u8 primary_link;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -1619,40 +1607,6 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CTDP_SUPPORT);
 }
 
-static inline bool iwl_mvm_is_esr_supported(struct iwl_trans *trans)
-{
-	if (CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id))
-		return false;
-
-	switch (CSR_HW_RFID_TYPE(trans->info.hw_rf_id)) {
-	case IWL_CFG_RF_TYPE_FM:
-		/* Step A doesn't support eSR */
-		return CSR_HW_RFID_STEP(trans->info.hw_rf_id);
-	case IWL_CFG_RF_TYPE_WH:
-	case IWL_CFG_RF_TYPE_PE:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
-					   struct ieee80211_vif *vif)
-{
-	struct iwl_trans *trans = mvm->fwrt.trans;
-
-	if (vif->type == NL80211_IFTYPE_AP)
-		return mvm->fw->ucode_capa.num_beacons;
-
-	/* Check if HW supports eSR or STR */
-	if (iwl_mvm_is_esr_supported(trans) ||
-	    (CSR_HW_RFID_TYPE(trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
-	     CSR_HW_RFID_IS_CDB(trans->info.hw_rf_id)))
-		return IWL_FW_MAX_ACTIVE_LINKS_NUM;
-
-	return 1;
-}
-
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 extern const u8 iwl_mvm_ac_to_gen2_tx_fifo[];
 extern const u8 iwl_mvm_ac_to_bz_tx_fifo[];
@@ -2008,15 +1962,6 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *link_conf);
 
-u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif);
-
-struct iwl_mvm_link_sel_data {
-	u8 link_id;
-	const struct cfg80211_chan_def *chandef;
-	s32 signal;
-	u16 grade;
-};
-
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
 extern const struct iwl_hcmd_arr iwl_mvm_groups[];
 extern const unsigned int iwl_mvm_groups_size;
@@ -2064,7 +2009,7 @@ int iwl_mvm_cancel_roc(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif);
 /*Session Protection */
 void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			   u32 duration_override, unsigned int link_id);
+			   u32 duration_override);
 
 /* Quota management */
 static inline size_t iwl_mvm_quota_cmd_size(struct iwl_mvm *mvm)
@@ -2884,8 +2829,6 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 			struct ieee80211_vif *vif,
 			int duration, enum iwl_roc_activity activity);
 
-/* EMLSR */
-bool iwl_mvm_vif_has_esr_cap(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void
 iwl_mvm_send_ap_tx_power_constraint_cmd(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif,

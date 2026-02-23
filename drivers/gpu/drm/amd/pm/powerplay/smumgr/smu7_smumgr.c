@@ -333,7 +333,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	if (!smu_data->toc) {
 		struct SMU_DRAMData_TOC *toc;
 
-		smu_data->toc = kzalloc(sizeof(struct SMU_DRAMData_TOC), GFP_KERNEL);
+		smu_data->toc = kzalloc_obj(struct SMU_DRAMData_TOC);
 		if (!smu_data->toc)
 			return -ENOMEM;
 		toc = smu_data->toc;

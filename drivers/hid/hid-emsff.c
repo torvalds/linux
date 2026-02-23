@@ -76,7 +76,7 @@ static int emsff_init(struct hid_device *hid)
 		return -ENODEV;
 	}
 
-	emsff = kzalloc(sizeof(struct emsff_device), GFP_KERNEL);
+	emsff = kzalloc_obj(struct emsff_device);
 	if (!emsff)
 		return -ENOMEM;
 

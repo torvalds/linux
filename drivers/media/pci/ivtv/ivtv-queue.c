@@ -207,8 +207,8 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 	}
 	s->sg_processing_size = 0;
 
-	s->sg_dma = kzalloc(sizeof(struct ivtv_sg_element),
-					GFP_KERNEL|__GFP_NOWARN);
+	s->sg_dma = kzalloc_obj(struct ivtv_sg_element,
+				GFP_KERNEL | __GFP_NOWARN);
 	if (s->sg_dma == NULL) {
 		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
 		kfree(s->sg_pending);
@@ -226,8 +226,8 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 
 	/* allocate stream buffers. Initially all buffers are in q_free. */
 	for (i = 0; i < s->buffers; i++) {
-		struct ivtv_buffer *buf = kzalloc(sizeof(struct ivtv_buffer),
-						GFP_KERNEL|__GFP_NOWARN);
+		struct ivtv_buffer *buf = kzalloc_obj(struct ivtv_buffer,
+						      GFP_KERNEL | __GFP_NOWARN);
 
 		if (buf == NULL)
 			break;

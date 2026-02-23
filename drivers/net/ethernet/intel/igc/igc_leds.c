@@ -268,7 +268,7 @@ int igc_led_setup(struct igc_adapter *adapter)
 
 	mutex_init(&adapter->led_mutex);
 
-	leds = kcalloc(IGC_NUM_LEDS, sizeof(*leds), GFP_KERNEL);
+	leds = kzalloc_objs(*leds, IGC_NUM_LEDS);
 	if (!leds)
 		return -ENOMEM;
 

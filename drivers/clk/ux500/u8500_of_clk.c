@@ -137,7 +137,7 @@ static void u8500_clk_init(struct device_node *np)
 	 * base addresses properly and pass to the reset controller init
 	 * function later on.
 	 */
-	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
+	rstc = kzalloc_obj(*rstc);
 	if (!rstc)
 		return;
 

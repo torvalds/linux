@@ -26,10 +26,10 @@ static void __init sun4i_osc_clk_setup(struct device_node *node)
 		return;
 
 	/* allocate fixed-rate and gate clock structs */
-	fixed = kzalloc(sizeof(struct clk_fixed_rate), GFP_KERNEL);
+	fixed = kzalloc_obj(struct clk_fixed_rate);
 	if (!fixed)
 		return;
-	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
+	gate = kzalloc_obj(struct clk_gate);
 	if (!gate)
 		goto err_free_fixed;
 

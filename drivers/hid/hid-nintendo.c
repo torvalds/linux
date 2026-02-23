@@ -2748,8 +2748,6 @@ static void nintendo_hid_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-#ifdef CONFIG_PM
-
 static int nintendo_hid_resume(struct hid_device *hdev)
 {
 	struct joycon_ctlr *ctlr = hid_get_drvdata(hdev);
@@ -2792,8 +2790,6 @@ static int nintendo_hid_suspend(struct hid_device *hdev, pm_message_t message)
 	return 0;
 }
 
-#endif
-
 static const struct hid_device_id nintendo_hid_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_NINTENDO,
 			 USB_DEVICE_ID_NINTENDO_PROCON) },
@@ -2827,11 +2823,8 @@ static struct hid_driver nintendo_hid_driver = {
 	.probe		= nintendo_hid_probe,
 	.remove		= nintendo_hid_remove,
 	.raw_event	= nintendo_hid_event,
-
-#ifdef CONFIG_PM
-	.resume		= nintendo_hid_resume,
-	.suspend	= nintendo_hid_suspend,
-#endif
+	.resume		= pm_ptr(nintendo_hid_resume),
+	.suspend	= pm_ptr(nintendo_hid_suspend),
 };
 static int __init nintendo_init(void)
 {

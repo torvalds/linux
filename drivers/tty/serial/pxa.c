@@ -811,7 +811,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	if (irq < 0)
 		return irq;
 
-	sport = kzalloc(sizeof(struct uart_pxa_port), GFP_KERNEL);
+	sport = kzalloc_obj(struct uart_pxa_port);
 	if (!sport)
 		return -ENOMEM;
 

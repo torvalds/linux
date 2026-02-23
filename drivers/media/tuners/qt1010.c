@@ -411,7 +411,7 @@ struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,
 	struct qt1010_priv *priv = NULL;
 	u8 id;
 
-	priv = kzalloc(sizeof(struct qt1010_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct qt1010_priv);
 	if (priv == NULL)
 		return NULL;
 

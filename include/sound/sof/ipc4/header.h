@@ -352,6 +352,10 @@ struct sof_ipc4_base_module_cfg {
 #define SOF_IPC4_MOD_EXT_DOMAIN_MASK		BIT(28)
 #define SOF_IPC4_MOD_EXT_DOMAIN(x)		((x) << SOF_IPC4_MOD_EXT_DOMAIN_SHIFT)
 
+#define SOF_IPC4_MOD_EXT_EXTENDED_INIT_SHIFT	29
+#define SOF_IPC4_MOD_EXT_EXTENDED_INIT_MASK	BIT(29)
+#define SOF_IPC4_MOD_EXT_EXTENDED_INIT(x)	((x) << SOF_IPC4_MOD_EXT_EXTENDED_SHIFT)
+
 /*  bind/unbind module ipc msg */
 #define SOF_IPC4_MOD_EXT_DST_MOD_ID_SHIFT	0
 #define SOF_IPC4_MOD_EXT_DST_MOD_ID_MASK	GENMASK(15, 0)
@@ -585,6 +589,77 @@ struct sof_ipc4_notify_module_data {
 #define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK		GENMASK(31, 16)
 #define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL		0xA15A0000
 #define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK	GENMASK(15, 0)
+
+/*
+ * Macros for creating struct sof_ipc4_module_init_ext_init payload
+ * with its associated data. ext_init payload should be the first
+ * piece of payload following SOF_IPC4_MOD_INIT_INSTANCE msg, and its
+ * existence is indicated with SOF_IPC4_MOD_EXT_EXTENDED-bit.
+ *
+ * The macros below apply to sof_ipc4_module_init_ext_init.word0
+ */
+#define SOF_IPC4_MOD_INIT_EXT_RTOS_DOMAIN_SHIFT	0
+#define SOF_IPC4_MOD_INIT_EXT_RTOS_DOMAIN_MASK	BIT(0)
+#define SOF_IPC4_MOD_INIT_EXT_RTOS_DOMAIN(x)	((x) << SOF_IPC4_MOD_INIT_EXT_RTOS_DOMAIN_SHIFT)
+
+#define SOF_IPC4_MOD_INIT_EXT_GNA_USED_SHIFT	1
+#define SOF_IPC4_MOD_INIT_EXT_GNA_USED_MASK	BIT(1)
+#define SOF_IPC4_MOD_INIT_EXT_GNA_USED(x)	((x) << SOF_IPC4_MOD_INIT_EXT_GNA_USED_SHIFT)
+
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_SHIFT	2
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_MASK	BIT(2)
+#define SOF_IPC4_MOD_INIT_EXT_DATA_ARRAY(x)	((x) << SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_SHIFT)
+
+struct sof_ipc4_module_init_ext_init {
+	u32 word0;
+	u32 rsvd1;
+	u32 rsvd2;
+} __packed __aligned(4);
+
+/*
+ * SOF_IPC4_MOD_EXT_EXTENDED payload may be followed by arbitrary
+ * number of object array objects. SOF_IPC4_MOD_INIT_EXT_DATA_ARRAY
+ * -bit indicates that an array object follows struct
+ * sof_ipc4_module_init_ext_init.
+ *
+ * The object header's SOF_IPC4_MOD_INIT_EXT_OBJ_LAST-bit in struct
+ * sof_ipc4_module_init_ext_object indicates if the array is continued
+ * with another object. The header has also fields to identify the
+ * object, SOF_IPC4_MOD_INIT_EXT_OBJ_ID, and to indicate the object's
+ * size in 32-bit words, SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS, not
+ * including the header itself.
+ *
+ * The macros below apply to sof_ipc4_module_init_ext_object.header
+ */
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_SHIFT	0
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_MASK	BIT(0)
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_LAST(x)	((x) << SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_SHIFT)
+
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_ID_SHIFT	1
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_ID_MASK	GENMASK(15, 1)
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_ID(x)		((x) << SOF_IPC4_MOD_INIT_EXT_OBJ_ID_SHIFT)
+
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS_SHIFT	16
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS_MASK	GENMASK(31, 16)
+#define SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS(x)	((x) << SOF_IPC4_MOD_INIT_EXT_OBJ_WORDS_SHIFT)
+
+struct sof_ipc4_module_init_ext_object {
+	u32 header;
+	u32 data[];
+} __packed __aligned(4);
+
+enum sof_ipc4_mod_init_ext_obj_id {
+	SOF_IPC4_MOD_INIT_DATA_ID_INVALID = 0,
+	SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA,
+	SOF_IPC4_MOD_INIT_DATA_ID_MAX = SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA,
+};
+
+/* DP module memory configuration data object for ext_init object array */
+struct sof_ipc4_mod_init_ext_dp_memory_data {
+	u32 domain_id;		/* userspace domain ID */
+	u32 stack_bytes;	/* stack size in bytes, 0 means default size */
+	u32 heap_bytes;		/* stack size in bytes, 0 means default size */
+} __packed __aligned(4);
 
 /** @}*/
 

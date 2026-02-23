@@ -1055,7 +1055,7 @@ static int apds990x_probe(struct i2c_client *client)
 	struct apds990x_chip *chip;
 	int err;
 
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (!chip)
 		return -ENOMEM;
 

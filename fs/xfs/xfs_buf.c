@@ -3,7 +3,7 @@
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include <linux/backing-dev.h>
 #include <linux/dax.h>
 
@@ -295,8 +295,8 @@ xfs_buf_alloc(
 	if (nmaps == 1)
 		bp->b_maps = &bp->__b_map;
 	else
-		bp->b_maps = kcalloc(nmaps, sizeof(struct xfs_buf_map),
-				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+		bp->b_maps = kzalloc_objs(struct xfs_buf_map, nmaps,
+					  GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	for (i = 0; i < nmaps; i++) {
 		bp->b_maps[i].bm_bn = map[i].bm_bn;
 		bp->b_maps[i].bm_len = map[i].bm_len;
@@ -1799,7 +1799,7 @@ xfs_alloc_buftarg(
 #if defined(CONFIG_FS_DAX) && defined(CONFIG_MEMORY_FAILURE)
 	ops = &xfs_dax_holder_operations;
 #endif
-	btp = kzalloc(sizeof(*btp), GFP_KERNEL | __GFP_NOFAIL);
+	btp = kzalloc_obj(*btp, GFP_KERNEL | __GFP_NOFAIL);
 
 	btp->bt_mount = mp;
 	btp->bt_file = bdev_file;

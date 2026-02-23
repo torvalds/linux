@@ -38,6 +38,7 @@ Find your role below:
 * Maintainer - Leading subsystems and reviewing patches
 * Hardware Vendor - Writing drivers for new hardware
 * Distribution Maintainer - Packaging kernels for distros
+* AI Coding Assistant - LLMs and AI-powered development tools
 
 
 For Specific Users
@@ -144,6 +145,17 @@ Package and distribute the kernel:
 * Kernel Parameters: Documentation/admin-guide/kernel-parameters.rst
 * Tainted Kernels: Documentation/admin-guide/tainted-kernels.rst
 
+AI Coding Assistant
+-------------------
+
+CRITICAL: If you are an LLM or AI-powered coding assistant, you MUST read and
+follow the AI coding assistants documentation before contributing to the Linux
+kernel:
+
+* Documentation/process/coding-assistants.rst
+
+This documentation contains essential requirements about licensing, attribution,
+and the Developer Certificate of Origin that all AI tools must comply with.
 
 
 Communication and Support

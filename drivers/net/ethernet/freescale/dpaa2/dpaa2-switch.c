@@ -1456,7 +1456,7 @@ static int dpaa2_switch_port_connect_mac(struct ethsw_port_priv *port_priv)
 		goto out_put_device;
 	}
 
-	mac = kzalloc(sizeof(*mac), GFP_KERNEL);
+	mac = kzalloc_obj(*mac);
 	if (!mac) {
 		err = -ENOMEM;
 		goto out_put_device;
@@ -1531,6 +1531,10 @@ static irqreturn_t dpaa2_switch_irq0_handler_thread(int irq_num, void *arg)
 	}
 
 	if_id = (status & 0xFFFF0000) >> 16;
+	if (if_id >= ethsw->sw_attr.num_ifs) {
+		dev_err(dev, "Invalid if_id %d in IRQ status\n", if_id);
+		goto out;
+	}
 	port_priv = ethsw->ports[if_id];
 
 	if (status & DPSW_IRQ_EVENT_LINK_CHANGED)
@@ -2330,7 +2334,7 @@ static int dpaa2_switch_port_event(struct notifier_block *nb,
 	if (!dpaa2_switch_port_dev_check(dev))
 		return NOTIFY_DONE;
 
-	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	switchdev_work = kzalloc_obj(*switchdev_work, GFP_ATOMIC);
 	if (!switchdev_work)
 		return NOTIFY_BAD;
 
@@ -3024,6 +3028,12 @@ static int dpaa2_switch_init(struct fsl_mc_device *sw_dev)
 		goto err_close;
 	}
 
+	if (!ethsw->sw_attr.num_ifs) {
+		dev_err(dev, "DPSW device has no interfaces\n");
+		err = -ENODEV;
+		goto err_close;
+	}
+
 	err = dpsw_get_api_version(ethsw->mc_io, 0,
 				   &ethsw->major,
 				   &ethsw->minor);
@@ -3375,7 +3385,7 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	int i, err;
 
 	/* Allocate switch core*/
-	ethsw = kzalloc(sizeof(*ethsw), GFP_KERNEL);
+	ethsw = kzalloc_obj(*ethsw);
 
 	if (!ethsw)
 		return -ENOMEM;
@@ -3398,23 +3408,20 @@ static int dpaa2_switch_probe(struct fsl_mc_device *sw_dev)
 	if (err)
 		goto err_free_cmdport;
 
-	ethsw->ports = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->ports),
-			       GFP_KERNEL);
+	ethsw->ports = kzalloc_objs(*ethsw->ports, ethsw->sw_attr.num_ifs);
 	if (!(ethsw->ports)) {
 		err = -ENOMEM;
 		goto err_teardown;
 	}
 
-	ethsw->fdbs = kcalloc(ethsw->sw_attr.num_ifs, sizeof(*ethsw->fdbs),
-			      GFP_KERNEL);
+	ethsw->fdbs = kzalloc_objs(*ethsw->fdbs, ethsw->sw_attr.num_ifs);
 	if (!ethsw->fdbs) {
 		err = -ENOMEM;
 		goto err_free_ports;
 	}
 
-	ethsw->filter_blocks = kcalloc(ethsw->sw_attr.num_ifs,
-				       sizeof(*ethsw->filter_blocks),
-				       GFP_KERNEL);
+	ethsw->filter_blocks = kzalloc_objs(*ethsw->filter_blocks,
+					    ethsw->sw_attr.num_ifs);
 	if (!ethsw->filter_blocks) {
 		err = -ENOMEM;
 		goto err_free_fdbs;

@@ -99,7 +99,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, 
 		goto add_err;
 	}
 
-	sf_dev = kzalloc(sizeof(*sf_dev), GFP_KERNEL);
+	sf_dev = kzalloc_obj(*sf_dev);
 	if (!sf_dev) {
 		mlx5_adev_idx_free(id);
 		err = -ENOMEM;
@@ -280,7 +280,7 @@ static void mlx5_sf_dev_queue_active_works(struct work_struct *_work)
 			continue;
 
 		sw_func_id = MLX5_GET(query_vhca_state_out, out, vhca_state_context.sw_function_id);
-		work_ctx = kzalloc(sizeof(*work_ctx), GFP_KERNEL);
+		work_ctx = kzalloc_obj(*work_ctx);
 		if (!work_ctx)
 			return;
 
@@ -336,7 +336,7 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 	if (!mlx5_sf_dev_supported(dev))
 		return;
 
-	table = kzalloc(sizeof(*table), GFP_KERNEL);
+	table = kzalloc_obj(*table);
 	if (!table) {
 		err = -ENOMEM;
 		goto table_err;

@@ -244,7 +244,7 @@ snic_tgt_create(struct snic *snic, struct snic_tgt_id *tgtid)
 		return tgt;
 	}
 
-	tgt = kzalloc(sizeof(*tgt), GFP_KERNEL);
+	tgt = kzalloc_obj(*tgt);
 	if (!tgt) {
 		SNIC_HOST_ERR(snic->shost, "Failure to allocate snic_tgt.\n");
 		ret = -ENOMEM;

@@ -336,7 +336,7 @@ int xen_register_device_domain_owner(struct pci_dev *dev, uint16_t domain)
 {
 	struct xen_device_domain_owner *owner;
 
-	owner = kzalloc(sizeof(struct xen_device_domain_owner), GFP_KERNEL);
+	owner = kzalloc_obj(struct xen_device_domain_owner);
 	if (!owner)
 		return -ENODEV;
 

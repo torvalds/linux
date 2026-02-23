@@ -164,8 +164,7 @@ retry:
 		 */
 		if (sync)
 			return -EOPNOTSUPP;
-		cn_resp = kzalloc(sizeof(struct nfs42_copy_notify_res),
-				  GFP_KERNEL);
+		cn_resp = kzalloc_obj(struct nfs42_copy_notify_res);
 		if (unlikely(cn_resp == NULL))
 			return -ENOMEM;
 
@@ -431,8 +430,6 @@ void nfs42_ssc_unregister_ops(void)
 static int nfs4_setlease(struct file *file, int arg, struct file_lease **lease,
 			 void **priv)
 {
-	if (!S_ISREG(file_inode(file)->i_mode))
-		return -EINVAL;
 	return nfs4_proc_setlease(file, arg, lease, priv);
 }
 

@@ -69,7 +69,7 @@ static int afs_do_silly_rename(struct afs_vnode *dvnode, struct afs_vnode *vnode
 	if (IS_ERR(op))
 		return PTR_ERR(op);
 
-	op->more_files = kvcalloc(2, sizeof(struct afs_vnode_param), GFP_KERNEL);
+	op->more_files = kvzalloc_objs(struct afs_vnode_param, 2);
 	if (!op->more_files) {
 		afs_put_operation(op);
 		return -ENOMEM;

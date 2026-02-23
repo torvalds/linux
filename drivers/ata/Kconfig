@@ -1127,13 +1127,6 @@ config PATA_OF_PLATFORM
 
 	  If unsure, say N.
 
-config PATA_QDI
-	tristate "QDI VLB PATA support"
-	depends on ISA
-	select PATA_LEGACY
-	help
-	  Support for QDI 6500 and 6580 PATA controllers on VESA local bus.
-
 config PATA_RB532
 	tristate "RouterBoard 532 PATA CompactFlash support"
 	depends on MIKROTIK_RB532
@@ -1151,14 +1144,6 @@ config PATA_RZ1000
 	  PATA controllers via the new ATA layer
 
 	  If unsure, say N.
-
-config PATA_WINBOND_VLB
-	tristate "Winbond W83759A VLB PATA support (Experimental)"
-	depends on ISA
-	select PATA_LEGACY
-	help
-	  Support for the Winbond W83759A controller on Vesa Local Bus
-	  systems.
 
 config PATA_PARPORT
 	tristate "Parallel port IDE device support"
@@ -1201,7 +1186,7 @@ config PATA_LEGACY
 	depends on (ISA || PCI) && HAS_IOPORT
 	select PATA_TIMINGS
 	help
-	  This option enables support for ISA/VLB/PCI bus legacy PATA
+	  This option enables support for ISA/PCI bus legacy PATA
 	  ports and allows them to be accessed via the new ATA layer.
 
 	  If unsure, say N.

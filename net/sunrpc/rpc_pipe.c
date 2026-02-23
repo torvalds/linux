@@ -511,7 +511,7 @@ struct rpc_pipe *rpc_mkpipe_data(const struct rpc_pipe_ops *ops, int flags)
 {
 	struct rpc_pipe *pipe;
 
-	pipe = kzalloc(sizeof(struct rpc_pipe), GFP_KERNEL);
+	pipe = kzalloc_obj(struct rpc_pipe);
 	if (!pipe)
 		return ERR_PTR(-ENOMEM);
 	init_pipe(pipe);

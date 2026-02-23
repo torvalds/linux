@@ -264,7 +264,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	bfa_status_t    rc;
 	unsigned long   flags;
 
-	fcstats = kzalloc(sizeof(union bfa_port_stats_u), GFP_KERNEL);
+	fcstats = kzalloc_obj(union bfa_port_stats_u);
 	if (fcstats == NULL)
 		return NULL;
 
@@ -907,8 +907,7 @@ bfad_im_num_of_discovered_ports_show(struct device *dev,
 	struct bfa_rport_qualifier_s *rports = NULL;
 	unsigned long   flags;
 
-	rports = kcalloc(nrports, sizeof(struct bfa_rport_qualifier_s),
-			 GFP_ATOMIC);
+	rports = kzalloc_objs(struct bfa_rport_qualifier_s, nrports, GFP_ATOMIC);
 	if (rports == NULL)
 		return sysfs_emit(buf, "Failed\n");
 

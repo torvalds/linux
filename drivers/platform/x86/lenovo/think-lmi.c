@@ -1593,7 +1593,7 @@ static struct tlmi_pwd_setting *tlmi_create_auth(const char *pwd_type,
 {
 	struct tlmi_pwd_setting *new_pwd;
 
-	new_pwd = kzalloc(sizeof(struct tlmi_pwd_setting), GFP_KERNEL);
+	new_pwd = kzalloc_obj(struct tlmi_pwd_setting);
 	if (!new_pwd)
 		return NULL;
 
@@ -1668,7 +1668,7 @@ static int tlmi_analyze(struct wmi_device *wdev)
 		strreplace(item, ',', '\0');
 
 		/* Create a setting entry */
-		setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+		setting = kzalloc_obj(*setting);
 		if (!setting) {
 			ret = -ENOMEM;
 			kfree(item);

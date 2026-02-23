@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/filelock.h>
 #include "qnx6.h"
 
 static unsigned qnx6_lfile_checksum(char *name, unsigned size)
@@ -275,6 +276,7 @@ const struct file_operations qnx6_dir_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= qnx6_readdir,
 	.fsync		= generic_file_fsync,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations qnx6_dir_inode_operations = {

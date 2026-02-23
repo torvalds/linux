@@ -446,7 +446,7 @@ struct gb_control *gb_control_create(struct gb_interface *intf)
 	struct gb_connection *connection;
 	struct gb_control *control;
 
-	control = kzalloc(sizeof(*control), GFP_KERNEL);
+	control = kzalloc_obj(*control);
 	if (!control)
 		return ERR_PTR(-ENOMEM);
 

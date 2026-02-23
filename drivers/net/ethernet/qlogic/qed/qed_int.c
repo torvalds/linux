@@ -1412,7 +1412,7 @@ static int qed_int_sb_attn_alloc(struct qed_hwfn *p_hwfn,
 	void *p_virt;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
+	p_sb = kmalloc_obj(*p_sb);
 	if (!p_sb)
 		return -ENOMEM;
 
@@ -1765,7 +1765,7 @@ static int qed_int_sp_sb_alloc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	void *p_virt;
 
 	/* SB struct */
-	p_sb = kmalloc(sizeof(*p_sb), GFP_KERNEL);
+	p_sb = kmalloc_obj(*p_sb);
 	if (!p_sb)
 		return -ENOMEM;
 
@@ -2188,7 +2188,7 @@ int qed_int_igu_read_cam(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u32 min_vf = 0, max_vf = 0;
 	u16 igu_sb_id;
 
-	p_hwfn->hw_info.p_igu_info = kzalloc(sizeof(*p_igu_info), GFP_KERNEL);
+	p_hwfn->hw_info.p_igu_info = kzalloc_obj(*p_igu_info);
 	if (!p_hwfn->hw_info.p_igu_info)
 		return -ENOMEM;
 

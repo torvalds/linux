@@ -52,7 +52,7 @@ static struct peci_controller *peci_controller_alloc(struct device *dev,
 	if (!ops->xfer)
 		return ERR_PTR(-EINVAL);
 
-	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
+	controller = kzalloc_obj(*controller);
 	if (!controller)
 		return ERR_PTR(-ENOMEM);
 

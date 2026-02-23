@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/delay.h>
@@ -135,6 +135,9 @@ static int ath12k_wow_cleanup(struct ath12k *ar)
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif != &arvif->ahvif->deflink)
+			continue;
+
 		ret = ath12k_wow_vif_cleanup(arvif);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to clean wow wakeups on vdev %i: %d\n",
@@ -392,7 +395,7 @@ static int ath12k_wow_vif_set_wakeups(struct ath12k_link_vif *arvif,
 			struct wmi_pno_scan_req_arg *pno;
 			int ret;
 
-			pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+			pno = kzalloc_obj(*pno);
 			if (!pno)
 				return -ENOMEM;
 
@@ -479,8 +482,12 @@ static int ath12k_wow_set_wakeups(struct ath12k *ar,
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif != &arvif->ahvif->deflink)
+			continue;
+
 		if (ath12k_wow_is_p2p_vdev(arvif->ahvif))
 			continue;
+
 		ret = ath12k_wow_vif_set_wakeups(arvif, wowlan);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to set wow wakeups on vdev %i: %d\n",
@@ -500,7 +507,7 @@ static int ath12k_wow_vdev_clean_nlo(struct ath12k *ar, u32 vdev_id)
 	if (!ar->nlo_enabled)
 		return 0;
 
-	pno = kzalloc(sizeof(*pno), GFP_KERNEL);
+	pno = kzalloc_obj(*pno);
 	if (!pno)
 		return -ENOMEM;
 
@@ -538,6 +545,9 @@ static int ath12k_wow_nlo_cleanup(struct ath12k *ar)
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif != &arvif->ahvif->deflink)
+			continue;
+
 		if (ath12k_wow_is_p2p_vdev(arvif->ahvif))
 			continue;
 
@@ -738,12 +748,15 @@ static int ath12k_wow_arp_ns_offload(struct ath12k *ar, bool enable)
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	offload = kmalloc(sizeof(*offload), GFP_KERNEL);
+	offload = kmalloc_obj(*offload);
 	if (!offload)
 		return -ENOMEM;
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
 		ahvif = arvif->ahvif;
+
+		if (arvif != &ahvif->deflink)
+			continue;
 
 		if (ahvif->vdev_type != WMI_VDEV_TYPE_STA)
 			continue;
@@ -776,6 +789,9 @@ static int ath12k_gtk_rekey_offload(struct ath12k *ar, bool enable)
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif != &arvif->ahvif->deflink)
+			continue;
+
 		if (arvif->ahvif->vdev_type != WMI_VDEV_TYPE_STA ||
 		    !arvif->is_up ||
 		    !arvif->rekey_data.enable_offload)
@@ -919,6 +935,7 @@ cleanup:
 exit:
 	return ret ? 1 : 0;
 }
+EXPORT_SYMBOL(ath12k_wow_op_suspend);
 
 void ath12k_wow_op_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 {
@@ -929,6 +946,7 @@ void ath12k_wow_op_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 
 	device_set_wakeup_enable(ar->ab->dev, enabled);
 }
+EXPORT_SYMBOL(ath12k_wow_op_set_wakeup);
 
 int ath12k_wow_op_resume(struct ieee80211_hw *hw)
 {
@@ -1001,6 +1019,7 @@ exit:
 
 	return ret;
 }
+EXPORT_SYMBOL(ath12k_wow_op_resume);
 
 int ath12k_wow_init(struct ath12k *ar)
 {

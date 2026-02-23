@@ -913,7 +913,7 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	if (lld_adp->drvr_type != DRVRTYPE_MBOX)
 		return (-EINVAL);
 
-	adapter = kzalloc(sizeof(mraid_mmadp_t), GFP_KERNEL);
+	adapter = kzalloc_obj(mraid_mmadp_t);
 
 	if (!adapter)
 		return -ENOMEM;
@@ -932,12 +932,8 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	 * Allocate single blocks of memory for all required kiocs,
 	 * mailboxes and passthru structures.
 	 */
-	adapter->kioc_list	= kmalloc_array(lld_adp->max_kioc,
-						  sizeof(uioc_t),
-						  GFP_KERNEL);
-	adapter->mbox_list	= kmalloc_array(lld_adp->max_kioc,
-						  sizeof(mbox64_t),
-						  GFP_KERNEL);
+	adapter->kioc_list	= kmalloc_objs(uioc_t, lld_adp->max_kioc);
+	adapter->mbox_list	= kmalloc_objs(mbox64_t, lld_adp->max_kioc);
 	adapter->pthru_dma_pool = dma_pool_create("megaraid mm pthru pool",
 						&adapter->pdev->dev,
 						sizeof(mraid_passthru_t),

@@ -20,7 +20,6 @@ struct iommu_group;
 struct iommu_option;
 struct iommufd_device;
 struct dma_buf_attachment;
-struct dma_buf_phys_vec;
 
 struct iommufd_sw_msi_map {
 	struct list_head sw_msi_item;
@@ -718,7 +717,7 @@ int __init iommufd_test_init(void);
 void iommufd_test_exit(void);
 bool iommufd_selftest_is_mock_dev(struct device *dev);
 int iommufd_test_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				     struct dma_buf_phys_vec *phys);
+				     struct phys_vec *phys);
 #else
 static inline void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 						 unsigned int ioas_id,
@@ -742,7 +741,7 @@ static inline bool iommufd_selftest_is_mock_dev(struct device *dev)
 }
 static inline int
 iommufd_test_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				 struct dma_buf_phys_vec *phys)
+				 struct phys_vec *phys)
 {
 	return -EOPNOTSUPP;
 }

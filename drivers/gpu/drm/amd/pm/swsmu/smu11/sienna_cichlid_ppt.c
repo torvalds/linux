@@ -60,16 +60,18 @@
 #undef pr_info
 #undef pr_debug
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT) | \
-	FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_UCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_LINK_BIT)       | \
-	FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT)     | \
-	FEATURE_MASK(FEATURE_DPM_FCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)	 | \
-	FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT))
+static const struct smu_feature_bits sienna_cichlid_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_PREFETCHER_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_GFXCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_UCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_LINK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_SOCCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_FCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_DCEFCLK_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_DPM_MP0CLK_BIT)
+	}
+};
 
 #define SMU_11_0_7_GFX_BUSY_THRESHOLD 15
 
@@ -276,85 +278,82 @@ static const uint8_t sienna_cichlid_throttler_map[] = {
 };
 
 static int
-sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
-				  uint32_t *feature_mask, uint32_t num)
+sienna_cichlid_init_allowed_features(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (num > 2)
-		return -EINVAL;
+	smu_feature_list_clear_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
-	memset(feature_mask, 0, sizeof(uint32_t) * num);
-
-	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_PREFETCHER_BIT)
-				| FEATURE_MASK(FEATURE_DPM_FCLK_BIT)
-				| FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_SOCCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_FCLK_BIT)
-				| FEATURE_MASK(FEATURE_DS_UCLK_BIT)
-				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
-				| FEATURE_MASK(FEATURE_DF_CSTATE_BIT)
-				| FEATURE_MASK(FEATURE_RSMU_SMN_CG_BIT)
-				| FEATURE_MASK(FEATURE_GFX_SS_BIT)
-				| FEATURE_MASK(FEATURE_VR0HOT_BIT)
-				| FEATURE_MASK(FEATURE_PPT_BIT)
-				| FEATURE_MASK(FEATURE_TDC_BIT)
-				| FEATURE_MASK(FEATURE_BACO_BIT)
-				| FEATURE_MASK(FEATURE_APCC_DFLL_BIT)
-				| FEATURE_MASK(FEATURE_FW_CTF_BIT)
-				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
-				| FEATURE_MASK(FEATURE_THERMAL_BIT)
-				| FEATURE_MASK(FEATURE_OUT_OF_BAND_MONITOR_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_PREFETCHER_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_FCLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_MP0CLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_SOCCLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_DCEFCLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_FCLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_UCLK_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_FW_DSTATE_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DF_CSTATE_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_RSMU_SMN_CG_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_GFX_SS_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_VR0HOT_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_PPT_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_TDC_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_BACO_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_APCC_DFLL_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_FW_CTF_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_FAN_CONTROL_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_THERMAL_BIT);
+	smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_OUT_OF_BAND_MONITOR_BIT);
 
 	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFX_GPO_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_GFXCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_GFX_GPO_BIT);
 	}
 
 	if ((adev->pm.pp_feature & PP_GFX_DCS_MASK) &&
 	    (amdgpu_ip_version(adev, MP1_HWIP, 0) > IP_VERSION(11, 0, 7)) &&
 	    !(adev->flags & AMD_IS_APU))
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_DCS_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_GFX_DCS_BIT);
 
-	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT)
-					| FEATURE_MASK(FEATURE_MEM_VDDCI_SCALING_BIT)
-					| FEATURE_MASK(FEATURE_MEM_MVDD_SCALING_BIT);
+	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK) {
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_UCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_MEM_VDDCI_SCALING_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_MEM_MVDD_SCALING_BIT);
+	}
 
 	if (adev->pm.pp_feature & PP_PCIE_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_LINK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_LINK_BIT);
 
 	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_DCEFCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_SOCCLK_DPM_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DPM_SOCCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_ULV_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_GFX_ULV_BIT);
 
 	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_GFXCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_GFXOFF_BIT);
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_ATHUB)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ATHUB_PG_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_ATHUB_PG_BIT);
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_MMHUB)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MMHUB_PG_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_MMHUB_PG_BIT);
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN ||
 	    smu->adev->pg_flags & AMD_PG_SUPPORT_JPEG)
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MM_DPM_PG_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_MM_DPM_PG_BIT);
 
 	if (smu->dc_controlled_by_gpio)
-       *(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_ACDC_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_ACDC_BIT);
 
 	if (amdgpu_device_should_use_aspm(adev))
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_LCLK_BIT);
+		smu_feature_list_set_bit(smu, SMU_FEATURE_LIST_ALLOWED, FEATURE_DS_LCLK_BIT);
 
 	return 0;
 }
@@ -533,6 +532,7 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
 	int table_size;
+	int ret;
 
 	table_size = get_table_size(smu);
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, table_size,
@@ -555,17 +555,18 @@ static int sienna_cichlid_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_DRIVER_SMU_CONFIG, sizeof(DriverSmuConfigExternal_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	smu_table->metrics_table = kzalloc(sizeof(SmuMetricsExternal_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc_obj(SmuMetricsExternal_t);
 	if (!smu_table->metrics_table)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table)
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v1_3),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret)
 		goto err1_out;
 
-	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	smu_table->watermarks_table = kzalloc_obj(Watermarks_t);
 	if (!smu_table->watermarks_table)
 		goto err2_out;
 
@@ -585,7 +586,7 @@ err4_out:
 err3_out:
 	kfree(smu_table->watermarks_table);
 err2_out:
-	kfree(smu_table->gpu_metrics_table);
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 err1_out:
 	kfree(smu_table->metrics_table);
 err0_out:
@@ -920,8 +921,7 @@ static int sienna_cichlid_allocate_dpm_context(struct smu_context *smu)
 {
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 
-	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
-				       GFP_KERNEL);
+	smu_dpm->dpm_context = kzalloc_obj(struct smu_11_0_dpm_context);
 	if (!smu_dpm->dpm_context)
 		return -ENOMEM;
 
@@ -954,13 +954,15 @@ static int sienna_cichlid_init_smc_tables(struct smu_context *smu)
 static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 {
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_11_0_dpm_table *dpm_table;
+	struct smu_dpm_table *dpm_table;
 	struct amdgpu_device *adev = smu->adev;
 	int i, ret = 0;
 	DpmDescriptor_t *table_member;
+	uint16_t *lclk_freq;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
 	GET_PPTABLE_MEMBER(DpmDescriptor, &table_member);
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
@@ -968,68 +970,63 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_SOCCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_SOCCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_GFXCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_GFXCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_GFXCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* uclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_UCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_UCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_FCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_FCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* vclk0/1 dpm table setup */
@@ -1038,20 +1035,20 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 			continue;
 
 		dpm_table = &dpm_context->dpm_tables.vclk_table;
+		dpm_table->clk_type = i ? SMU_VCLK1 : SMU_VCLK;
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
 			ret = smu_v11_0_set_single_dpm_table(smu,
 							     i ? SMU_VCLK1 : SMU_VCLK,
 							     dpm_table);
 			if (ret)
 				return ret;
-			dpm_table->is_fine_grained =
-				!table_member[i ? PPCLK_VCLK_1 : PPCLK_VCLK_0].SnapToDiscrete;
+			if (!table_member[i ? PPCLK_VCLK_1 : PPCLK_VCLK_0]
+				     .SnapToDiscrete)
+				dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 		} else {
 			dpm_table->count = 1;
 			dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.vclk / 100;
 			dpm_table->dpm_levels[0].enabled = true;
-			dpm_table->min = dpm_table->dpm_levels[0].value;
-			dpm_table->max = dpm_table->dpm_levels[0].value;
 		}
 	}
 
@@ -1060,94 +1057,95 @@ static int sienna_cichlid_set_default_dpm_table(struct smu_context *smu)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 		dpm_table = &dpm_context->dpm_tables.dclk_table;
+		dpm_table->clk_type = i ? SMU_DCLK1 : SMU_DCLK;
 		if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_MM_DPM_PG_BIT)) {
 			ret = smu_v11_0_set_single_dpm_table(smu,
 							     i ? SMU_DCLK1 : SMU_DCLK,
 							     dpm_table);
 			if (ret)
 				return ret;
-			dpm_table->is_fine_grained =
-				!table_member[i ? PPCLK_DCLK_1 : PPCLK_DCLK_0].SnapToDiscrete;
+			if (!table_member[i ? PPCLK_DCLK_1 : PPCLK_DCLK_0]
+				     .SnapToDiscrete)
+				dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 		} else {
 			dpm_table->count = 1;
 			dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dclk / 100;
 			dpm_table->dpm_levels[0].enabled = true;
-			dpm_table->min = dpm_table->dpm_levels[0].value;
-			dpm_table->max = dpm_table->dpm_levels[0].value;
 		}
 	}
 
 	/* dcefclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.dcef_table;
+	dpm_table->clk_type = SMU_DCEFCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_DCEFCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_DCEFCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_DCEFCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* pixelclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.pixel_table;
+	dpm_table->clk_type = SMU_PIXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_PIXCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_PIXCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_PIXCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* displayclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.display_table;
+	dpm_table->clk_type = SMU_DISPCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_DISPCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_DISPCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_DISPCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* phyclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.phy_table;
+	dpm_table->clk_type = SMU_PHYCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_PHYCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!table_member[PPCLK_PHYCLK].SnapToDiscrete;
+		if (!table_member[PPCLK_PHYCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.dcefclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
+
+	GET_PPTABLE_MEMBER(LclkFreq, &lclk_freq);
+	for (i = 0; i < NUM_LINK_LEVELS; i++)
+		dpm_context->dpm_tables.pcie_table.lclk_freq[i] = lclk_freq[i];
+	dpm_context->dpm_tables.pcie_table.lclk_levels = NUM_LINK_LEVELS;
 
 	return 0;
 }
@@ -1269,103 +1267,56 @@ static void sienna_cichlid_get_od_setting_range(struct smu_11_0_7_overdrive_tabl
 		*max = od_table->max[setting];
 }
 
-static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
-			enum smu_clk_type clk_type, char *buf)
+static int sienna_cichlid_emit_clk_levels(struct smu_context *smu,
+					  enum smu_clk_type clk_type, char *buf,
+					  int *offset)
 {
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = smu_dpm->dpm_context;
-	uint16_t *table_member;
-
 	struct smu_11_0_7_overdrive_table *od_settings = smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)table_context->overdrive_table;
-	int i, size = 0, ret = 0, start_offset = 0;
-	uint32_t cur_value = 0, value = 0, count = 0;
-	uint32_t freq_values[3] = {0};
-	uint32_t mark_index = 0;
+	int size = *offset, ret = 0, start_offset = *offset;
+	uint32_t cur_value = 0;
+	struct smu_dpm_table *single_dpm_table = NULL;
+	struct smu_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
 	uint32_t min_value, max_value;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
-	start_offset = size;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		break;
 	case SMU_SOCCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
+		break;
 	case SMU_MCLK:
 	case SMU_UCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
+		break;
 	case SMU_FCLK:
+		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
+		break;
 	case SMU_VCLK:
 	case SMU_VCLK1:
+		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
+		break;
 	case SMU_DCLK:
 	case SMU_DCLK1:
+		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
+		break;
 	case SMU_DCEFCLK:
-		ret = sienna_cichlid_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
-		if (ret)
-			goto print_clk_out;
-
-		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
-		if (ret)
-			goto print_clk_out;
-
-		if (!sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
-			for (i = 0; i < count; i++) {
-				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
-				if (ret)
-					goto print_clk_out;
-
-				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
-						cur_value == value ? "*" : "");
-			}
-		} else {
-			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
-			if (ret)
-				goto print_clk_out;
-			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
-			if (ret)
-				goto print_clk_out;
-
-			freq_values[1] = cur_value;
-			mark_index = cur_value == freq_values[0] ? 0 :
-				     cur_value == freq_values[2] ? 2 : 1;
-
-			count = 3;
-			if (mark_index != 1) {
-				count = 2;
-				freq_values[1] = freq_values[2];
-			}
-
-			for (i = 0; i < count; i++) {
-				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, freq_values[i],
-						cur_value  == freq_values[i] ? "*" : "");
-			}
-
-		}
+		single_dpm_table = &(dpm_context->dpm_tables.dcef_table);
 		break;
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		GET_PPTABLE_MEMBER(LclkFreq, &table_member);
-		for (i = 0; i < NUM_LINK_LEVELS; i++)
-			size += sysfs_emit_at(buf, size, "%d: %s %s %dMhz %s\n", i,
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 0) ? "2.5GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 1) ? "5.0GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 2) ? "8.0GT/s," :
-					(dpm_context->dpm_tables.pcie_table.pcie_gen[i] == 3) ? "16.0GT/s," : "",
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 1) ? "x1" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 2) ? "x2" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 3) ? "x4" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 4) ? "x8" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 5) ? "x12" :
-					(dpm_context->dpm_tables.pcie_table.pcie_lane[i] == 6) ? "x16" : "",
-					table_member[i],
-					(gen_speed == dpm_context->dpm_tables.pcie_table.pcie_gen[i]) &&
-					(lane_width == dpm_context->dpm_tables.pcie_table.pcie_lane[i]) ?
-					"*" : "");
-		break;
+		pcie_table = &dpm_context->dpm_tables.pcie_table;
+		return smu_cmn_print_pcie_levels(smu, pcie_table, gen_speed,
+						 lane_width, buf, offset);
 	case SMU_OD_SCLK:
 		if (!smu->od_enabled || !od_table || !od_settings)
 			break;
@@ -1434,8 +1385,18 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-print_clk_out:
-	return size - start_offset;
+	if (single_dpm_table) {
+		ret = sienna_cichlid_get_current_clk_freq_by_table(
+			smu, clk_type, &cur_value);
+		if (ret)
+			return ret;
+		return smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						    cur_value, buf, offset);
+	}
+
+	*offset += size - start_offset;
+
+	return 0;
 }
 
 static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
@@ -1487,24 +1448,21 @@ static int sienna_cichlid_populate_umd_state_clk(struct smu_context *smu)
 {
 	struct smu_11_0_dpm_context *dpm_context =
 				smu->smu_dpm.dpm_context;
-	struct smu_11_0_dpm_table *gfx_table =
-				&dpm_context->dpm_tables.gfx_table;
-	struct smu_11_0_dpm_table *mem_table =
-				&dpm_context->dpm_tables.uclk_table;
-	struct smu_11_0_dpm_table *soc_table =
-				&dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
 	struct smu_umd_pstate_table *pstate_table =
 				&smu->pstate_table;
 	struct amdgpu_device *adev = smu->adev;
 
-	pstate_table->gfxclk_pstate.min = gfx_table->min;
-	pstate_table->gfxclk_pstate.peak = gfx_table->max;
+	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
+	pstate_table->gfxclk_pstate.peak = SMU_DPM_TABLE_MAX(gfx_table);
 
-	pstate_table->uclk_pstate.min = mem_table->min;
-	pstate_table->uclk_pstate.peak = mem_table->max;
+	pstate_table->uclk_pstate.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.peak = SMU_DPM_TABLE_MAX(mem_table);
 
-	pstate_table->socclk_pstate.min = soc_table->min;
-	pstate_table->socclk_pstate.peak = soc_table->max;
+	pstate_table->socclk_pstate.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(11, 0, 7):
@@ -1577,13 +1535,14 @@ static int sienna_cichlid_display_config_changed(struct smu_context *smu)
 static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  sienna_cichlid_dpm_features.bits);
 }
 
 static int sienna_cichlid_get_fan_speed_rpm(struct smu_context *smu,
@@ -2141,7 +2100,7 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 						 uint8_t pcie_width_cap)
 {
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_11_0_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
+	struct smu_pcie_table *pcie_table = &dpm_context->dpm_tables.pcie_table;
 	uint8_t *table_member1, *table_member2;
 	uint8_t min_gen_speed, max_gen_speed;
 	uint8_t min_lane_width, max_lane_width;
@@ -2547,7 +2506,7 @@ static int sienna_cichlid_i2c_xfer(struct i2c_adapter *i2c_adap,
 	if (!adev->pm.dpm_enabled)
 		return -EBUSY;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc_obj(*req);
 	if (!req)
 		return -ENOMEM;
 
@@ -2674,9 +2633,9 @@ static void sienna_cichlid_i2c_control_fini(struct smu_context *smu)
 static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 					      void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetricsExternal_t metrics_external;
 	SmuMetrics_t *metrics =
 		&(metrics_external.SmuMetrics);
@@ -2824,6 +2783,8 @@ static ssize_t sienna_cichlid_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v1_3);
 }
@@ -3081,21 +3042,21 @@ static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 
 static int sienna_cichlid_mode2_reset(struct smu_context *smu)
 {
-	int ret = 0, index;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
 	int timeout = 100;
 
-	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
-						SMU_MSG_DriverMode2Reset);
+	mutex_lock(&ctl->lock);
 
-	mutex_lock(&smu->message_lock);
+	ret = smu_msg_send_async_locked(ctl, SMU_MSG_DriverMode2Reset,
+					SMU_RESET_MODE_2);
+	if (ret)
+		goto out;
 
-	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
-					       SMU_RESET_MODE_2);
-
-	ret = smu_cmn_wait_for_response(smu);
+	ret = smu_msg_wait_response(ctl, 0);
 	while (ret != 0 && timeout) {
-		ret = smu_cmn_wait_for_response(smu);
+		ret = smu_msg_wait_response(ctl, 0);
 		/* Wait a bit more time for getting ACK */
 		if (ret != 0) {
 			--timeout;
@@ -3113,23 +3074,23 @@ static int sienna_cichlid_mode2_reset(struct smu_context *smu)
 		goto out;
 	}
 
-	dev_info(smu->adev->dev, "restore config space...\n");
+	dev_info(adev->dev, "restore config space...\n");
 	/* Restore the config space saved during init */
 	amdgpu_device_load_pci_state(adev->pdev);
 out:
-	mutex_unlock(&smu->message_lock);
+	mutex_unlock(&ctl->lock);
 
 	return ret;
 }
 
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
-	.get_allowed_feature_mask = sienna_cichlid_get_allowed_feature_mask,
+	.init_allowed_features = sienna_cichlid_init_allowed_features,
 	.set_default_dpm_table = sienna_cichlid_set_default_dpm_table,
 	.dpm_set_vcn_enable = sienna_cichlid_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = sienna_cichlid_dpm_set_jpeg_enable,
 	.i2c_init = sienna_cichlid_i2c_control_init,
 	.i2c_fini = sienna_cichlid_i2c_control_fini,
-	.print_clk_levels = sienna_cichlid_print_clk_levels,
+	.emit_clk_levels = sienna_cichlid_emit_clk_levels,
 	.force_clk_levels = sienna_cichlid_force_clk_levels,
 	.populate_umd_state_clk = sienna_cichlid_populate_umd_state_clk,
 	.pre_display_config_changed = sienna_cichlid_pre_display_config_changed,
@@ -3164,8 +3125,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = sienna_cichlid_system_features_control,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.init_display_count = NULL,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
@@ -3220,11 +3179,10 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &sienna_cichlid_ppt_funcs;
-	smu->message_map = sienna_cichlid_message_map;
 	smu->clock_map = sienna_cichlid_clk_map;
 	smu->feature_map = sienna_cichlid_feature_mask_map;
 	smu->table_map = sienna_cichlid_table_map;
 	smu->pwr_src_map = sienna_cichlid_pwr_src_map;
 	smu->workload_map = sienna_cichlid_workload_map;
-	smu_v11_0_set_smu_mailbox_registers(smu);
+	smu_v11_0_init_msg_ctl(smu, sienna_cichlid_message_map);
 }

@@ -82,7 +82,7 @@ prestera_flow_block_create(struct prestera_switch *sw,
 {
 	struct prestera_flow_block *block;
 
-	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	block = kzalloc_obj(*block);
 	if (!block)
 		return NULL;
 
@@ -130,7 +130,7 @@ static int prestera_flow_block_bind(struct prestera_flow_block *block,
 	struct prestera_flow_block_binding *binding;
 	int err;
 
-	binding = kzalloc(sizeof(*binding), GFP_KERNEL);
+	binding = kzalloc_obj(*binding);
 	if (!binding)
 		return -ENOMEM;
 

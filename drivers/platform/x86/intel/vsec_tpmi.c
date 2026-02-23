@@ -622,11 +622,11 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	if (!name)
 		return -EOPNOTSUPP;
 
-	res = kcalloc(pfs->pfs_header.num_entries, sizeof(*res), GFP_KERNEL);
+	res = kzalloc_objs(*res, pfs->pfs_header.num_entries);
 	if (!res)
 		return -ENOMEM;
 
-	feature_vsec_dev = kzalloc(sizeof(*feature_vsec_dev), GFP_KERNEL);
+	feature_vsec_dev = kzalloc_obj(*feature_vsec_dev);
 	if (!feature_vsec_dev) {
 		kfree(res);
 		return -ENOMEM;

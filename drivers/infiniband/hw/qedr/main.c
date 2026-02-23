@@ -333,8 +333,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	__le16 *cons_pi;
 	int i, rc;
 
-	dev->sgid_tbl = kcalloc(QEDR_MAX_SGID, sizeof(union ib_gid),
-				GFP_KERNEL);
+	dev->sgid_tbl = kzalloc_objs(union ib_gid, QEDR_MAX_SGID);
 	if (!dev->sgid_tbl)
 		return -ENOMEM;
 
@@ -351,15 +350,13 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	}
 
 	/* Allocate Status blocks for CNQ */
-	dev->sb_array = kcalloc(dev->num_cnq, sizeof(*dev->sb_array),
-				GFP_KERNEL);
+	dev->sb_array = kzalloc_objs(*dev->sb_array, dev->num_cnq);
 	if (!dev->sb_array) {
 		rc = -ENOMEM;
 		goto err_destroy_wq;
 	}
 
-	dev->cnq_array = kcalloc(dev->num_cnq,
-				 sizeof(*dev->cnq_array), GFP_KERNEL);
+	dev->cnq_array = kzalloc_objs(*dev->cnq_array, dev->num_cnq);
 	if (!dev->cnq_array) {
 		rc = -ENOMEM;
 		goto err2;
@@ -789,7 +786,7 @@ static int qedr_init_hw(struct qedr_dev *dev)
 	int rc = 0;
 	int i;
 
-	in_params =  kzalloc(sizeof(*in_params), GFP_KERNEL);
+	in_params = kzalloc_obj(*in_params);
 	if (!in_params) {
 		rc = -ENOMEM;
 		goto out;

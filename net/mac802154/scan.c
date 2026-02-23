@@ -798,7 +798,7 @@ int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 		goto unlock;
 	}
 
-	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	child = kzalloc_obj(*child);
 	if (!child) {
 		ret = -ENOMEM;
 		goto unlock;

@@ -27,7 +27,7 @@ static int vfio_cdx_msi_enable(struct vfio_cdx_device *vdev, int nvec)
 	struct device *dev = vdev->vdev.dev;
 	int msi_idx, ret;
 
-	vdev->cdx_irqs = kcalloc(nvec, sizeof(struct vfio_cdx_irq), GFP_KERNEL);
+	vdev->cdx_irqs = kzalloc_objs(struct vfio_cdx_irq, nvec);
 	if (!vdev->cdx_irqs)
 		return -ENOMEM;
 

@@ -207,7 +207,7 @@ int go7007_snd_init(struct go7007 *go)
 		dev++;
 		return -ENOENT;
 	}
-	gosnd = kmalloc(sizeof(struct go7007_snd), GFP_KERNEL);
+	gosnd = kmalloc_obj(struct go7007_snd);
 	if (gosnd == NULL)
 		return -ENOMEM;
 	spin_lock_init(&gosnd->lock);

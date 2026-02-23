@@ -123,7 +123,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (!mlx5e_validate_xsk_param(params, xsk, priv->mdev))
 		return -EINVAL;
 
-	cparam = kvzalloc(sizeof(*cparam), GFP_KERNEL);
+	cparam = kvzalloc_obj(*cparam);
 	if (!cparam)
 		return -ENOMEM;
 

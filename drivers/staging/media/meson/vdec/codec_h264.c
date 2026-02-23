@@ -233,7 +233,7 @@ static int codec_h264_load_extended_firmware(struct amvdec_session *sess,
 	if (len < SIZE_EXT_FW)
 		return -EINVAL;
 
-	h264 = kzalloc(sizeof(*h264), GFP_KERNEL);
+	h264 = kzalloc_obj(*h264);
 	if (!h264)
 		return -ENOMEM;
 

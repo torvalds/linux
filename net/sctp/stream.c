@@ -166,7 +166,7 @@ int sctp_stream_init_ext(struct sctp_stream *stream, __u16 sid)
 	struct sctp_stream_out_ext *soute;
 	int ret;
 
-	soute = kzalloc(sizeof(*soute), GFP_KERNEL);
+	soute = kzalloc_obj(*soute);
 	if (!soute)
 		return -ENOMEM;
 	SCTP_SO(stream, sid)->ext = soute;

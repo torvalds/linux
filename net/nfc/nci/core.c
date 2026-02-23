@@ -1171,7 +1171,7 @@ struct nci_dev *nci_allocate_device(const struct nci_ops *ops,
 	if (!supported_protocols)
 		return NULL;
 
-	ndev = kzalloc(sizeof(struct nci_dev), GFP_KERNEL);
+	ndev = kzalloc_obj(struct nci_dev);
 	if (!ndev)
 		return NULL;
 
@@ -1303,6 +1303,8 @@ void nci_unregister_device(struct nci_dev *ndev)
 {
 	struct nci_conn_info *conn_info, *n;
 
+	nfc_unregister_rfkill(ndev->nfc_dev);
+
 	/* This set_bit is not protected with specialized barrier,
 	 * However, it is fine because the mutex_lock(&ndev->req_lock);
 	 * in nci_close_device() will help to emit one.
@@ -1320,7 +1322,7 @@ void nci_unregister_device(struct nci_dev *ndev)
 		/* conn_info is allocated with devm_kzalloc */
 	}
 
-	nfc_unregister_device(ndev->nfc_dev);
+	nfc_remove_device(ndev->nfc_dev);
 }
 EXPORT_SYMBOL(nci_unregister_device);
 

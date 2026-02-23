@@ -252,7 +252,7 @@ static void dwmac_mmc_intr_all_mask(void __iomem *mmcaddr)
 	writel(MMC_DEFAULT_MASK, mmcaddr + MMC_RX_IPC_INTR_MASK);
 }
 
-/* This reads the MAC core counters (if actaully supported).
+/* This reads the MAC core counters (if actually supported).
  * by default the MMC core is programmed to reset each
  * counter after a read. So all the field of the mmc struct
  * have to be incremented.
@@ -420,7 +420,7 @@ static void dwxgmac_read_mmc_reg(void __iomem *addr, u32 reg, u32 *dest)
 		*dest = *dest + tmp;
 }
 
-/* This reads the MAC core counters (if actaully supported).
+/* This reads the MAC core counters (if actually supported).
  * by default the MMC core is programmed to reset each
  * counter after a read. So all the field of the mmc struct
  * have to be incremented.

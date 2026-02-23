@@ -132,7 +132,7 @@ void dal_hw_hpd_init(
 		*hw_hpd = NULL;
 	}
 
-	*hw_hpd = kzalloc(sizeof(struct hw_hpd), GFP_KERNEL);
+	*hw_hpd = kzalloc_obj(struct hw_hpd);
 	if (!*hw_hpd) {
 		ASSERT_CRITICAL(false);
 		return;

@@ -106,34 +106,6 @@ vmlinux_link()
 		${kallsymso} ${btf_vmlinux_bin_o} ${arch_vmlinux_o} ${ldlibs}
 }
 
-# generate .BTF typeinfo from DWARF debuginfo
-# ${1} - vmlinux image
-gen_btf()
-{
-	local btf_data=${1}.btf.o
-
-	info BTF "${btf_data}"
-	LLVM_OBJCOPY="${OBJCOPY}" ${PAHOLE} -J ${PAHOLE_FLAGS} ${1}
-
-	# Create ${btf_data} which contains just .BTF section but no symbols. Add
-	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
-	# deletes all symbols including __start_BTF and __stop_BTF, which will
-	# be redefined in the linker script. Add 2>/dev/null to suppress GNU
-	# objcopy warnings: "empty loadable segment detected at ..."
-	${OBJCOPY} --only-section=.BTF --set-section-flags .BTF=alloc,readonly \
-		--strip-all ${1} "${btf_data}" 2>/dev/null
-	# Change e_type to ET_REL so that it can be used to link final vmlinux.
-	# GNU ld 2.35+ and lld do not allow an ET_EXEC input.
-	if is_enabled CONFIG_CPU_BIG_ENDIAN; then
-		et_rel='\0\1'
-	else
-		et_rel='\1\0'
-	fi
-	printf "${et_rel}" | dd of="${btf_data}" conv=notrunc bs=1 seek=16 status=none
-
-	btf_vmlinux_bin_o=${btf_data}
-}
-
 # Create ${2}.o file with all symbols from the ${1} object file
 kallsyms()
 {
@@ -141,6 +113,10 @@ kallsyms()
 
 	if is_enabled CONFIG_KALLSYMS_ALL; then
 		kallsymopt="${kallsymopt} --all-symbols"
+	fi
+
+	if is_enabled CONFIG_64BIT || is_enabled CONFIG_RELOCATABLE; then
+		kallsymopt="${kallsymopt} --pc-relative"
 	fi
 
 	info KSYMS "${2}.S"
@@ -205,6 +181,7 @@ if is_enabled CONFIG_ARCH_WANTS_PRE_LINK_VMLINUX; then
 fi
 
 btf_vmlinux_bin_o=
+btfids_vmlinux=
 kallsymso=
 strip_debug=
 generate_map=
@@ -232,11 +209,14 @@ if is_enabled CONFIG_KALLSYMS || is_enabled CONFIG_DEBUG_INFO_BTF; then
 fi
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
-	if ! gen_btf .tmp_vmlinux1; then
+	info BTF .tmp_vmlinux1
+	if ! ${CONFIG_SHELL} ${srctree}/scripts/gen-btf.sh .tmp_vmlinux1; then
 		echo >&2 "Failed to generate BTF for vmlinux"
 		echo >&2 "Try to disable CONFIG_DEBUG_INFO_BTF"
 		exit 1
 	fi
+	btf_vmlinux_bin_o=.tmp_vmlinux1.btf.o
+	btfids_vmlinux=.tmp_vmlinux1.BTF_ids
 fi
 
 if is_enabled CONFIG_KALLSYMS; then
@@ -289,14 +269,9 @@ fi
 
 vmlinux_link "${VMLINUX}"
 
-# fill in BTF IDs
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
-	info BTFIDS "${VMLINUX}"
-	RESOLVE_BTFIDS_ARGS=""
-	if is_enabled CONFIG_WERROR; then
-		RESOLVE_BTFIDS_ARGS=" --fatal_warnings "
-	fi
-	${RESOLVE_BTFIDS} ${RESOLVE_BTFIDS_ARGS} "${VMLINUX}"
+	info BTFIDS ${VMLINUX}
+	${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} ${VMLINUX}
 fi
 
 mksysmap "${VMLINUX}" System.map

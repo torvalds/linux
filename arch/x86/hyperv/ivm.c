@@ -25,6 +25,7 @@
 #include <asm/e820/api.h>
 #include <asm/desc.h>
 #include <asm/msr.h>
+#include <asm/segment.h>
 #include <uapi/asm/vmx.h>
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
@@ -315,16 +316,16 @@ int hv_snp_boot_ap(u32 apic_id, unsigned long start_ip, unsigned int cpu)
 	vmsa->gdtr.base = gdtr.address;
 	vmsa->gdtr.limit = gdtr.size;
 
-	asm volatile("movl %%es, %%eax;" : "=a" (vmsa->es.selector));
+	savesegment(es, vmsa->es.selector);
 	hv_populate_vmcb_seg(vmsa->es, vmsa->gdtr.base);
 
-	asm volatile("movl %%cs, %%eax;" : "=a" (vmsa->cs.selector));
+	savesegment(cs, vmsa->cs.selector);
 	hv_populate_vmcb_seg(vmsa->cs, vmsa->gdtr.base);
 
-	asm volatile("movl %%ss, %%eax;" : "=a" (vmsa->ss.selector));
+	savesegment(ss, vmsa->ss.selector);
 	hv_populate_vmcb_seg(vmsa->ss, vmsa->gdtr.base);
 
-	asm volatile("movl %%ds, %%eax;" : "=a" (vmsa->ds.selector));
+	savesegment(ds, vmsa->ds.selector);
 	hv_populate_vmcb_seg(vmsa->ds, vmsa->gdtr.base);
 
 	vmsa->efer = native_read_msr(MSR_EFER);
@@ -391,7 +392,7 @@ u64 hv_snp_hypercall(u64 control, u64 param1, u64 param2)
 
 	register u64 __r8 asm("r8") = param2;
 	asm volatile("vmmcall"
-		     : "=a" (hv_status), ASM_CALL_CONSTRAINT,
+		     : "=a" (hv_status),
 		       "+c" (control), "+d" (param1), "+r" (__r8)
 		     : : "cc", "memory", "r9", "r10", "r11");
 
@@ -530,7 +531,7 @@ static int hv_list_enc_add(const u64 *pfn_list, int count)
 		raw_spin_unlock_irqrestore(&hv_list_enc_lock, flags);
 
 		/* No adjacent region found -- create a new one */
-		ent = kzalloc(sizeof(struct hv_enc_pfn_region), GFP_KERNEL);
+		ent = kzalloc_obj(struct hv_enc_pfn_region);
 		if (!ent)
 			return -ENOMEM;
 
@@ -597,7 +598,7 @@ unlock_done:
 unlock_split:
 		raw_spin_unlock_irqrestore(&hv_list_enc_lock, flags);
 
-		ent = kzalloc(sizeof(struct hv_enc_pfn_region), GFP_KERNEL);
+		ent = kzalloc_obj(struct hv_enc_pfn_region);
 		if (!ent)
 			return -ENOMEM;
 

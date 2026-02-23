@@ -267,7 +267,7 @@ static void mlx4_ib_qp_event(struct mlx4_qp *qp, enum mlx4_event type)
 	if (!ibqp->event_handler)
 		goto out_no_handler;
 
-	qpe_work = kzalloc(sizeof(*qpe_work), GFP_ATOMIC);
+	qpe_work = kzalloc_obj(*qpe_work, GFP_ATOMIC);
 	if (!qpe_work)
 		goto out_no_handler;
 
@@ -472,14 +472,12 @@ static int alloc_proxy_bufs(struct ib_device *dev, struct mlx4_ib_qp *qp)
 	int i;
 
 	qp->sqp_proxy_rcv =
-		kmalloc_array(qp->rq.wqe_cnt, sizeof(struct mlx4_ib_buf),
-			      GFP_KERNEL);
+		kmalloc_objs(struct mlx4_ib_buf, qp->rq.wqe_cnt);
 	if (!qp->sqp_proxy_rcv)
 		return -ENOMEM;
 	for (i = 0; i < qp->rq.wqe_cnt; i++) {
 		qp->sqp_proxy_rcv[i].addr =
-			kmalloc(sizeof (struct mlx4_ib_proxy_sqp_hdr),
-				GFP_KERNEL);
+			kmalloc_obj(struct mlx4_ib_proxy_sqp_hdr);
 		if (!qp->sqp_proxy_rcv[i].addr)
 			goto err;
 		qp->sqp_proxy_rcv[i].map =
@@ -683,7 +681,7 @@ static int create_qp_rss(struct mlx4_ib_dev *dev,
 	qp->mtt = (to_mqp(
 		   (struct ib_qp *)init_attr->rwq_ind_tbl->ind_tbl[0]))->mtt;
 
-	qp->rss_ctx = kzalloc(sizeof(*qp->rss_ctx), GFP_KERNEL);
+	qp->rss_ctx = kzalloc_obj(*qp->rss_ctx);
 	if (!qp->rss_ctx) {
 		err = -ENOMEM;
 		goto err_qp_alloc;
@@ -793,7 +791,7 @@ static int mlx4_ib_alloc_wqn(struct mlx4_ib_ucontext *context,
 					 struct mlx4_wqn_range, list);
 
 	if (!range || (range->refcount == range->size) || range->dirty) {
-		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		range = kzalloc_obj(*range);
 		if (!range) {
 			err = -ENOMEM;
 			goto out;
@@ -1051,7 +1049,7 @@ static int create_qp_common(struct ib_pd *pd, struct ib_qp_init_attr *init_attr,
 	    qp_type == MLX4_IB_QPT_GSI ||
 	    (qp_type & (MLX4_IB_QPT_PROXY_SMI | MLX4_IB_QPT_PROXY_SMI_OWNER |
 			MLX4_IB_QPT_PROXY_GSI | MLX4_IB_QPT_TUN_SMI_OWNER))) {
-		qp->sqp = kzalloc(sizeof(struct mlx4_ib_sqp), GFP_KERNEL);
+		qp->sqp = kzalloc_obj(struct mlx4_ib_sqp);
 		if (!qp->sqp)
 			return -ENOMEM;
 	}
@@ -1972,7 +1970,7 @@ static int create_qp_lb_counter(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 	if (err)
 		return err;
 
-	new_counter_index = kmalloc(sizeof(*new_counter_index), GFP_KERNEL);
+	new_counter_index = kmalloc_obj(*new_counter_index);
 	if (!new_counter_index) {
 		mlx4_counter_free(dev->dev, tmp_idx);
 		return -ENOMEM;
@@ -2165,7 +2163,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	    IB_LINK_LAYER_ETHERNET)
 		return -ENOTSUPP;
 
-	context = kzalloc(sizeof *context, GFP_KERNEL);
+	context = kzalloc_obj(*context);
 	if (!context)
 		return -ENOMEM;
 
@@ -4167,7 +4165,7 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
+	qp = kzalloc_obj(*qp);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
 

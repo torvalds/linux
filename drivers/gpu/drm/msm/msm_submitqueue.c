@@ -151,7 +151,7 @@ get_sched_entity(struct msm_context *ctx, struct msm_ringbuffer *ring,
 		struct drm_gpu_scheduler *sched = &ring->sched;
 		int ret;
 
-		entity = kzalloc(sizeof(*ctx->entities[idx]), GFP_KERNEL);
+		entity = kzalloc_obj(*ctx->entities[idx]);
 
 		ret = drm_sched_entity_init(entity, sched_prio, &sched, 1, NULL);
 		if (ret) {
@@ -207,7 +207,7 @@ int msm_submitqueue_create(struct drm_device *drm, struct msm_context *ctx,
 		if (ret)
 			return ret;
 
-		queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+		queue = kzalloc_obj(*queue);
 	}
 
 	if (!queue)

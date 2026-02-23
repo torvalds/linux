@@ -358,7 +358,7 @@ int vchiq_initialise(struct vchiq_state *state, struct vchiq_instance **instance
 			 __func__, i);
 	}
 
-	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
+	instance = kzalloc_obj(*instance);
 	if (!instance) {
 		ret = -ENOMEM;
 		goto failed;
@@ -618,7 +618,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 			}
 		}
 	} else {
-		waiter = kzalloc(sizeof(*waiter), GFP_KERNEL);
+		waiter = kzalloc_obj(*waiter);
 		if (!waiter)
 			return -ENOMEM;
 	}
@@ -1249,8 +1249,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	if (!arm_state)
 		return;
 
-	service_data = kmalloc_array(MAX_SERVICES, sizeof(*service_data),
-				     GFP_KERNEL);
+	service_data = kmalloc_objs(*service_data, MAX_SERVICES);
 	if (!service_data)
 		return;
 

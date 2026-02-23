@@ -285,7 +285,7 @@ static void __init berlin2q_clock_setup(struct device_node *np)
 	struct clk_hw **hws;
 	int n, ret;
 
-	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
+	clk_data = kzalloc_flex(*clk_data, hws, MAX_CLKS);
 	if (!clk_data) {
 		of_node_put(parent_np);
 		return;

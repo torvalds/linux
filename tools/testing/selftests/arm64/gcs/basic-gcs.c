@@ -22,7 +22,7 @@ static size_t page_size = 65536;
 static  __attribute__((noinline)) void valid_gcs_function(void)
 {
 	/* Do something the compiler can't optimise out */
-	my_syscall1(__NR_prctl, PR_SVE_GET_VL);
+	syscall(__NR_prctl, PR_SVE_GET_VL);
 }
 
 static inline int gcs_set_status(unsigned long mode)
@@ -36,12 +36,10 @@ static inline int gcs_set_status(unsigned long mode)
 	 * other 3 values passed in registers to the syscall are zero
 	 * since the kernel validates them.
 	 */
-	ret = my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, mode,
-			  0, 0, 0);
+	ret = syscall(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, mode, 0, 0, 0);
 
 	if (ret == 0) {
-		ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
-				  &new_mode, 0, 0, 0);
+		ret = syscall(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &new_mode, 0, 0, 0);
 		if (ret == 0) {
 			if (new_mode != mode) {
 				ksft_print_msg("Mode set to %lx not %lx\n",
@@ -49,7 +47,7 @@ static inline int gcs_set_status(unsigned long mode)
 				ret = -EINVAL;
 			}
 		} else {
-			ksft_print_msg("Failed to validate mode: %d\n", ret);
+			ksft_print_msg("Failed to validate mode: %d\n", errno);
 		}
 
 		if (enabling != chkfeat_gcs()) {
@@ -69,10 +67,9 @@ static bool read_status(void)
 	unsigned long state;
 	int ret;
 
-	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
-			  &state, 0, 0, 0);
+	ret = syscall(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &state, 0, 0, 0);
 	if (ret != 0) {
-		ksft_print_msg("Failed to read state: %d\n", ret);
+		ksft_print_msg("Failed to read state: %d\n", errno);
 		return false;
 	}
 
@@ -188,9 +185,8 @@ static bool map_guarded_stack(void)
 	int elem;
 	bool pass = true;
 
-	buf = (void *)my_syscall3(__NR_map_shadow_stack, 0, page_size,
-				  SHADOW_STACK_SET_MARKER |
-				  SHADOW_STACK_SET_TOKEN);
+	buf = (void *)syscall(__NR_map_shadow_stack, 0, page_size,
+			      SHADOW_STACK_SET_MARKER | SHADOW_STACK_SET_TOKEN);
 	if (buf == MAP_FAILED) {
 		ksft_print_msg("Failed to map %lu byte GCS: %d\n",
 			       page_size, errno);
@@ -257,8 +253,7 @@ static bool test_fork(void)
 		valid_gcs_function();
 		get_gcspr();
 
-		ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
-				  &child_mode, 0, 0, 0);
+		ret = syscall(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &child_mode, 0, 0, 0);
 		if (ret == 0 && !(child_mode & PR_SHADOW_STACK_ENABLE)) {
 			ksft_print_msg("GCS not enabled in child\n");
 			ret = -EINVAL;
@@ -321,8 +316,7 @@ static bool test_vfork(void)
 		valid_gcs_function();
 		get_gcspr();
 
-		ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
-				  &child_mode, 0, 0, 0);
+		ret = syscall(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &child_mode, 0, 0, 0);
 		if (ret == 0 && !(child_mode & PR_SHADOW_STACK_ENABLE)) {
 			ksft_print_msg("GCS not enabled in child\n");
 			ret = EXIT_FAILURE;
@@ -390,17 +384,15 @@ int main(void)
 	if (!(getauxval(AT_HWCAP) & HWCAP_GCS))
 		ksft_exit_skip("SKIP GCS not supported\n");
 
-	ret = my_syscall5(__NR_prctl, PR_GET_SHADOW_STACK_STATUS,
-			  &gcs_mode, 0, 0, 0);
+	ret = syscall(__NR_prctl, PR_GET_SHADOW_STACK_STATUS, &gcs_mode, 0, 0, 0);
 	if (ret != 0)
-		ksft_exit_fail_msg("Failed to read GCS state: %d\n", ret);
+		ksft_exit_fail_msg("Failed to read GCS state: %d\n", errno);
 
 	if (!(gcs_mode & PR_SHADOW_STACK_ENABLE)) {
 		gcs_mode = PR_SHADOW_STACK_ENABLE;
-		ret = my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS,
-				  gcs_mode, 0, 0, 0);
+		ret = syscall(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, gcs_mode, 0, 0, 0);
 		if (ret != 0)
-			ksft_exit_fail_msg("Failed to enable GCS: %d\n", ret);
+			ksft_exit_fail_msg("Failed to enable GCS: %d\n", errno);
 	}
 
 	ksft_set_plan(ARRAY_SIZE(tests));
@@ -410,9 +402,9 @@ int main(void)
 	}
 
 	/* One last test: disable GCS, we can do this one time */
-	ret = my_syscall5(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
+	ret = syscall(__NR_prctl, PR_SET_SHADOW_STACK_STATUS, 0, 0, 0, 0);
 	if (ret != 0)
-		ksft_print_msg("Failed to disable GCS: %d\n", ret);
+		ksft_print_msg("Failed to disable GCS: %d\n", errno);
 
 	ksft_finished();
 

@@ -151,7 +151,7 @@ static int brcmstb_l2_intc_probe(struct platform_device *pdev, struct device_nod
 	int parent_irq;
 	void __iomem *base;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

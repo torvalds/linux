@@ -48,6 +48,7 @@
 #include <errno.h>
 #define __iovec_defined
 #include <fcntl.h>
+#include <limits.h>
 #include <malloc.h>
 #include <error.h>
 #include <poll.h>
@@ -97,6 +98,7 @@ static unsigned int ifindex;
 static unsigned int dmabuf_id;
 static uint32_t tx_dmabuf_id;
 static int waittime_ms = 500;
+static bool fail_on_linear;
 
 /* System state loaded by current_config_load() */
 #define MAX_FLOWS	8
@@ -974,6 +976,11 @@ static int do_server(struct memory_buffer *mem)
 					"SCM_DEVMEM_LINEAR. dmabuf_cmsg->frag_size=%u\n",
 					dmabuf_cmsg->frag_size);
 
+				if (fail_on_linear) {
+					pr_err("received SCM_DEVMEM_LINEAR but --fail-on-linear (-L) set");
+					goto err_close_client;
+				}
+
 				continue;
 			}
 
@@ -1397,8 +1404,11 @@ int main(int argc, char *argv[])
 	int is_server = 0, opt;
 	int ret, err = 1;
 
-	while ((opt = getopt(argc, argv, "ls:c:p:v:q:t:f:z:")) != -1) {
+	while ((opt = getopt(argc, argv, "Lls:c:p:v:q:t:f:z:")) != -1) {
 		switch (opt) {
+		case 'L':
+			fail_on_linear = true;
+			break;
 		case 'l':
 			is_server = 1;
 			break;

@@ -1436,12 +1436,12 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		return ERR_PTR(sendpages);
 
 	pages = svc_serv_maxpages(serv);
-	svsk = kzalloc(struct_size(svsk, sk_pages, pages), GFP_KERNEL);
+	svsk = kzalloc_flex(*svsk, sk_pages, pages);
 	if (!svsk)
 		return ERR_PTR(-ENOMEM);
 
 	if (sendpages) {
-		svsk->sk_bvec = kcalloc(sendpages, sizeof(*svsk->sk_bvec), GFP_KERNEL);
+		svsk->sk_bvec = kzalloc_objs(*svsk->sk_bvec, sendpages);
 		if (!svsk->sk_bvec) {
 			kfree(svsk);
 			return ERR_PTR(-ENOMEM);

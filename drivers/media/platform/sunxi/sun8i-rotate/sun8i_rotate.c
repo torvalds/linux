@@ -642,7 +642,7 @@ static int rotate_open(struct file *file)
 	if (mutex_lock_interruptible(&dev->dev_mutex))
 		return -ERESTARTSYS;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		mutex_unlock(&dev->dev_mutex);
 		return -ENOMEM;

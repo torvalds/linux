@@ -322,7 +322,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		goto rejected;
 	}
 
-	b = kzalloc(sizeof(*b), GFP_ATOMIC);
+	b = kzalloc_obj(*b, GFP_ATOMIC);
 	if (!b)
 		return -ENOMEM;
 

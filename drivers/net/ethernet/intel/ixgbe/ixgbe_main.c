@@ -6895,8 +6895,7 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 #endif /* IXGBE_FCOE */
 
 	/* initialize static ixgbe jump table entries */
-	adapter->jump_tables[0] = kzalloc(sizeof(*adapter->jump_tables[0]),
-					  GFP_KERNEL);
+	adapter->jump_tables[0] = kzalloc_obj(*adapter->jump_tables[0]);
 	if (!adapter->jump_tables[0])
 		return -ENOMEM;
 	adapter->jump_tables[0]->mat = ixgbe_ipv4_fields;
@@ -6904,9 +6903,8 @@ static int ixgbe_sw_init(struct ixgbe_adapter *adapter,
 	for (i = 1; i < IXGBE_MAX_LINK_HANDLE; i++)
 		adapter->jump_tables[i] = NULL;
 
-	adapter->mac_table = kcalloc(hw->mac.num_rar_entries,
-				     sizeof(struct ixgbe_mac_addr),
-				     GFP_KERNEL);
+	adapter->mac_table = kzalloc_objs(struct ixgbe_mac_addr,
+					  hw->mac.num_rar_entries);
 	if (!adapter->mac_table)
 		return -ENOMEM;
 
@@ -10273,15 +10271,15 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 			    (__force u32)cls->knode.sel->offmask)
 				return err;
 
-			jump = kzalloc(sizeof(*jump), GFP_KERNEL);
+			jump = kzalloc_obj(*jump);
 			if (!jump)
 				return -ENOMEM;
-			input = kzalloc(sizeof(*input), GFP_KERNEL);
+			input = kzalloc_obj(*input);
 			if (!input) {
 				err = -ENOMEM;
 				goto free_jump;
 			}
-			mask = kzalloc(sizeof(*mask), GFP_KERNEL);
+			mask = kzalloc_obj(*mask);
 			if (!mask) {
 				err = -ENOMEM;
 				goto free_input;
@@ -10305,10 +10303,10 @@ static int ixgbe_configure_clsu32(struct ixgbe_adapter *adapter,
 		return 0;
 	}
 
-	input = kzalloc(sizeof(*input), GFP_KERNEL);
+	input = kzalloc_obj(*input);
 	if (!input)
 		return -ENOMEM;
-	mask = kzalloc(sizeof(*mask), GFP_KERNEL);
+	mask = kzalloc_obj(*mask);
 	if (!mask) {
 		err = -ENOMEM;
 		goto free_input;
@@ -10786,7 +10784,7 @@ static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
 			return ERR_PTR(-ENOMEM);
 	}
 
-	accel = kzalloc(sizeof(*accel), GFP_KERNEL);
+	accel = kzalloc_obj(*accel);
 	if (!accel)
 		return ERR_PTR(-ENOMEM);
 
@@ -11468,20 +11466,17 @@ static void ixgbe_set_fw_version(struct ixgbe_adapter *adapter)
  */
 static int ixgbe_recovery_probe(struct ixgbe_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	bool disable_dev;
 	int err = -EIO;
 
 	if (hw->mac.type != ixgbe_mac_e610)
-		goto clean_up_probe;
+		return err;
 
 	ixgbe_get_hw_control(adapter);
-	mutex_init(&hw->aci.lock);
 	err = ixgbe_get_flash_data(&adapter->hw);
 	if (err)
-		goto shutdown_aci;
+		goto err_release_hw_control;
 
 	timer_setup(&adapter->service_timer, ixgbe_service_timer, 0);
 	INIT_WORK(&adapter->service_task, ixgbe_recovery_service_task);
@@ -11504,16 +11499,8 @@ static int ixgbe_recovery_probe(struct ixgbe_adapter *adapter)
 	devl_unlock(adapter->devlink);
 
 	return 0;
-shutdown_aci:
-	mutex_destroy(&adapter->hw.aci.lock);
+err_release_hw_control:
 	ixgbe_release_hw_control(adapter);
-clean_up_probe:
-	disable_dev = !test_and_set_bit(__IXGBE_DISABLED, &adapter->state);
-	free_netdev(netdev);
-	devlink_free(adapter->devlink);
-	pci_release_mem_regions(pdev);
-	if (disable_dev)
-		pci_disable_device(pdev);
 	return err;
 }
 
@@ -11655,8 +11642,13 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
-	if (ixgbe_check_fw_error(adapter))
-		return ixgbe_recovery_probe(adapter);
+	if (ixgbe_check_fw_error(adapter)) {
+		err = ixgbe_recovery_probe(adapter);
+		if (err)
+			goto err_sw_init;
+
+		return 0;
+	}
 
 	if (adapter->hw.mac.type == ixgbe_mac_e610) {
 		err = ixgbe_get_caps(&adapter->hw);

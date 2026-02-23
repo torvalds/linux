@@ -388,7 +388,7 @@ dart_alloc_pgtable(struct io_pgtable_cfg *cfg)
 	if (tbl_bits > max_tbl_bits)
 		return NULL;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return NULL;
 

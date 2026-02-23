@@ -117,7 +117,7 @@ nvkm_chan_cctx_get(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_c
 
 	/* Now, create the channel context - to track engine binding. */
 	CHAN_TRACE(chan, "ctor cctx %d[%s]", engn->id, engn->engine->subdev.name);
-	if (!(cctx = *pcctx = kzalloc(sizeof(*cctx), GFP_KERNEL))) {
+	if (!(cctx = *pcctx = kzalloc_obj(*cctx))) {
 		nvkm_cgrp_vctx_put(cgrp, &vctx);
 		ret = -ENOMEM;
 		goto done;
@@ -367,7 +367,7 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
 		return -EINVAL;
 	}
 
-	if (!(chan = *pchan = kzalloc(sizeof(*chan), GFP_KERNEL)))
+	if (!(chan = *pchan = kzalloc_obj(*chan)))
 		return -ENOMEM;
 
 	chan->func = func;

@@ -152,7 +152,7 @@ static int eip93_make_sg_copy(struct scatterlist *src, struct scatterlist **dst,
 {
 	void *pages;
 
-	*dst = kmalloc(sizeof(**dst), GFP_KERNEL);
+	*dst = kmalloc_obj(**dst);
 	if (!*dst)
 		return -ENOMEM;
 

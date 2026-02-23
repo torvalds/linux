@@ -268,7 +268,7 @@ int __init ti_clk_retry_init(struct device_node *node, void *user,
 	struct clk_init_item *retry;
 
 	pr_debug("%pOFn: adding to retry list...\n", node);
-	retry = kzalloc(sizeof(*retry), GFP_KERNEL);
+	retry = kzalloc_obj(*retry);
 	if (!retry)
 		return -ENOMEM;
 
@@ -411,7 +411,7 @@ int __init omap2_clk_provider_init(struct device_node *parent, int index,
 	/* add clocks node info */
 	clocks_node_ptr[index] = clocks;
 
-	io = kzalloc(sizeof(*io), GFP_KERNEL);
+	io = kzalloc_obj(*io);
 	if (!io)
 		return -ENOMEM;
 
@@ -576,7 +576,7 @@ int ti_clk_add_alias(struct clk *clk, const char *con)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+	cl = kzalloc_obj(*cl);
 	if (!cl)
 		return -ENOMEM;
 

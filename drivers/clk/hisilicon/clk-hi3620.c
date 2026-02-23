@@ -414,7 +414,7 @@ static struct clk *hisi_register_clk_mmc(struct hisi_mmc_clock *mmc_clk,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
+	mclk = kzalloc_obj(*mclk);
 	if (!mclk)
 		return ERR_PTR(-ENOMEM);
 
@@ -461,11 +461,11 @@ static void __init hi3620_mmc_clk_init(struct device_node *node)
 		return;
 	}
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (WARN_ON(!clk_data))
 		return;
 
-	clk_data->clks = kcalloc(num, sizeof(*clk_data->clks), GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(*clk_data->clks, num);
 	if (!clk_data->clks) {
 		kfree(clk_data);
 		return;

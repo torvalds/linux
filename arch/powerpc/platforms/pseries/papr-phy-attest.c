@@ -225,7 +225,7 @@ static long papr_phy_attest_create_handle(struct papr_phy_attest_io_block __user
 	/*
 	 * Freed in phy_attest_sequence_end().
 	 */
-	params =  kzalloc(sizeof(*params), GFP_KERNEL_ACCOUNT);
+	params = kzalloc_obj(*params, GFP_KERNEL_ACCOUNT);
 	if (!params)
 		return -ENOMEM;
 

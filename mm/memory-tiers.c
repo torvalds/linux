@@ -227,7 +227,7 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 		}
 	}
 
-	new_memtier = kzalloc(sizeof(struct memory_tier), GFP_KERNEL);
+	new_memtier = kzalloc_obj(struct memory_tier);
 	if (!new_memtier)
 		return ERR_PTR(-ENOMEM);
 
@@ -320,16 +320,17 @@ void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets)
 /**
  * next_demotion_node() - Get the next node in the demotion path
  * @node: The starting node to lookup the next node
+ * @allowed_mask: The pointer to allowed node mask
  *
  * Return: node id for next memory node in the demotion path hierarchy
  * from @node; NUMA_NO_NODE if @node is terminal.  This does not keep
  * @node online or guarantee that it *continues* to be the next demotion
  * target.
  */
-int next_demotion_node(int node)
+int next_demotion_node(int node, const nodemask_t *allowed_mask)
 {
 	struct demotion_nodes *nd;
-	int target;
+	nodemask_t mask;
 
 	if (!node_demotion)
 		return NUMA_NO_NODE;
@@ -344,6 +345,10 @@ int next_demotion_node(int node)
 	 * node_demotion[] reads need to be consistent.
 	 */
 	rcu_read_lock();
+	/* Filter out nodes that are not in allowed_mask. */
+	nodes_and(mask, nd->preferred, *allowed_mask);
+	rcu_read_unlock();
+
 	/*
 	 * If there are multiple target nodes, just select one
 	 * target node randomly.
@@ -356,10 +361,16 @@ int next_demotion_node(int node)
 	 * caching issue, which seems more complicated. So selecting
 	 * target node randomly seems better until now.
 	 */
-	target = node_random(&nd->preferred);
-	rcu_read_unlock();
+	if (!nodes_empty(mask))
+		return node_random(&mask);
 
-	return target;
+	/*
+	 * Preferred nodes are not in allowed_mask. Flip bits in
+	 * allowed_mask as used node mask. Then, use it to get the
+	 * closest demotion target.
+	 */
+	nodes_complement(mask, *allowed_mask);
+	return find_next_best_node(node, &mask);
 }
 
 static void disable_all_demotion_targets(void)
@@ -475,8 +486,7 @@ static void establish_demotion_targets(void)
 	 */
 	list_for_each_entry_reverse(memtier, &memory_tiers, list) {
 		tier_nodes = get_memtier_nodemask(memtier);
-		nodes_and(tier_nodes, node_states[N_CPU], tier_nodes);
-		if (!nodes_empty(tier_nodes)) {
+		if (nodes_and(tier_nodes, node_states[N_CPU], tier_nodes)) {
 			/*
 			 * abstract distance below the max value of this memtier
 			 * is considered toptier.
@@ -615,7 +625,7 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 {
 	struct memory_dev_type *memtype;
 
-	memtype = kmalloc(sizeof(*memtype), GFP_KERNEL);
+	memtype = kmalloc_obj(*memtype);
 	if (!memtype)
 		return ERR_PTR(-ENOMEM);
 
@@ -648,7 +658,7 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 	if (node_memory_types[node].memtype == memtype || !memtype)
 		node_memory_types[node].map_count--;
 	/*
-	 * If we umapped all the attached devices to this node,
+	 * If we unmapped all the attached devices to this node,
 	 * clear the node memory type.
 	 */
 	if (!node_memory_types[node].map_count) {
@@ -902,8 +912,7 @@ static int __init memory_tier_init(void)
 		panic("%s() failed to register memory tier subsystem\n", __func__);
 
 #ifdef CONFIG_MIGRATION
-	node_demotion = kcalloc(nr_node_ids, sizeof(struct demotion_nodes),
-				GFP_KERNEL);
+	node_demotion = kzalloc_objs(struct demotion_nodes, nr_node_ids);
 	WARN_ON(!node_demotion);
 #endif
 
@@ -956,7 +965,7 @@ static ssize_t demotion_enabled_store(struct kobject *kobj,
 		struct pglist_data *pgdat;
 
 		for_each_online_pgdat(pgdat)
-			atomic_set(&pgdat->kswapd_failures, 0);
+			kswapd_clear_hopeless(pgdat, KSWAPD_CLEAR_HOPELESS_OTHER);
 	}
 
 	return count;

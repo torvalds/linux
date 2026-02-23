@@ -720,8 +720,7 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 				&priv->spi->dev,
 				"Resetting MAC...\n");
 
-			mlme_reset_wpc = kmalloc(sizeof(*mlme_reset_wpc),
-						 GFP_KERNEL);
+			mlme_reset_wpc = kmalloc_obj(*mlme_reset_wpc);
 			if (!mlme_reset_wpc)
 				goto finish;
 			INIT_WORK(
@@ -884,7 +883,7 @@ static int ca8210_spi_transfer(
 
 	dev_dbg(&spi->dev, "%s called\n", __func__);
 
-	cas_ctl = kzalloc(sizeof(*cas_ctl), GFP_ATOMIC);
+	cas_ctl = kzalloc_obj(*cas_ctl, GFP_ATOMIC);
 	if (!cas_ctl)
 		return -ENOMEM;
 
@@ -3067,7 +3066,7 @@ static int ca8210_probe(struct spi_device *spi_device)
 	ca8210_hw_setup(hw);
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
-	pdata = kmalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = kmalloc_obj(*pdata);
 	if (!pdata) {
 		ret = -ENOMEM;
 		goto error;

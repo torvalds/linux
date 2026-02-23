@@ -191,8 +191,6 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime)
 {
 	struct snd_pcm_hardware *hw = &runtime->hw;
-	unsigned int ctx_header_size;
-	unsigned int maximum_usec_per_period;
 	int err;
 
 	hw->info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -212,21 +210,6 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	hw->period_bytes_max = hw->period_bytes_min * 2048;
 	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 
-	// Linux driver for 1394 OHCI controller voluntarily flushes isoc
-	// context when total size of accumulated context header reaches
-	// PAGE_SIZE. This kicks work for the isoc context and brings
-	// callback in the middle of scheduled interrupts.
-	// Although AMDTP streams in the same domain use the same events per
-	// IRQ, use the largest size of context header between IT/IR contexts.
-	// Here, use the value of context header in IR context is for both
-	// contexts.
-	if (!(s->flags & CIP_NO_HEADER))
-		ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
-	else
-		ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
-	maximum_usec_per_period = USEC_PER_SEC * PAGE_SIZE /
-				  CYCLES_PER_SECOND / ctx_header_size;
-
 	// In IEC 61883-6, one isoc packet can transfer events up to the value
 	// of syt interval. This comes from the interval of isoc cycle. As 1394
 	// OHCI controller can generate hardware IRQ per isoc packet, the
@@ -239,9 +222,10 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	// Due to the above protocol design, the minimum PCM frames per
 	// interrupt should be double of the value of syt interval, thus it is
 	// 250 usec.
+	// There is no reason, but up to 250 msec to avoid consuming resources so much.
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   250, maximum_usec_per_period);
+					   250, USEC_PER_SEC / 4);
 	if (err < 0)
 		goto end;
 
@@ -261,6 +245,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
 	if (err < 0)
 		goto end;
+
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 				  apply_constraint_to_size, NULL,
 				  SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
@@ -1715,7 +1700,9 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	} else {
 		dir = DMA_TO_DEVICE;
 		type = FW_ISO_CONTEXT_TRANSMIT;
-		ctx_header_size = 0;	// No effect for IT context.
+		// Although no effect for IT context, this value is required to compute the size
+		// of header storage correctly.
+		ctx_header_size = sizeof(__be32);
 	}
 	max_ctx_payload_size = amdtp_stream_get_max_ctx_payload_size(s);
 
@@ -1724,9 +1711,9 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		return err;
 	s->queue_size = queue_size;
 
-	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
-					  type, channel, speed, ctx_header_size,
-					  amdtp_stream_first_callback, s);
+	s->context = fw_iso_context_create_with_header_storage_size(
+			fw_parent_device(s->unit)->card, type, channel, speed, ctx_header_size,
+			ctx_header_size * queue_size, amdtp_stream_first_callback, s);
 	if (IS_ERR(s->context)) {
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
@@ -1748,8 +1735,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			s->ctx_data.tx.cache.size = max_t(unsigned int, s->syt_interval * 2,
 							  queue_size * 3 / 2);
 			s->ctx_data.tx.cache.pos = 0;
-			s->ctx_data.tx.cache.descs = kcalloc(s->ctx_data.tx.cache.size,
-						sizeof(*s->ctx_data.tx.cache.descs), GFP_KERNEL);
+			s->ctx_data.tx.cache.descs = kzalloc_objs(*s->ctx_data.tx.cache.descs,
+								  s->ctx_data.tx.cache.size);
 			if (!s->ctx_data.tx.cache.descs) {
 				err = -ENOMEM;
 				goto err_context;
@@ -1769,7 +1756,8 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 			[CIP_SFC_176400] = {  0,   67 },
 		};
 
-		s->ctx_data.rx.seq.descs = kcalloc(queue_size, sizeof(*s->ctx_data.rx.seq.descs), GFP_KERNEL);
+		s->ctx_data.rx.seq.descs = kzalloc_objs(*s->ctx_data.rx.seq.descs,
+							queue_size);
 		if (!s->ctx_data.rx.seq.descs) {
 			err = -ENOMEM;
 			goto err_context;
@@ -1794,7 +1782,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	// for runtime of PCM substream in the interval equivalent to the size of PCM buffer. It
 	// could take a round over queue of AMDTP packet descriptors and small loss of history. For
 	// safe, keep more 8 elements for the queue, equivalent to 1 ms.
-	descs = kcalloc(s->queue_size + 8, sizeof(*descs), GFP_KERNEL);
+	descs = kzalloc_objs(*descs, s->queue_size + 8);
 	if (!descs) {
 		err = -ENOMEM;
 		goto err_context;

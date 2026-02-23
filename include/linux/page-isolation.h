@@ -67,4 +67,6 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn);
 
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			enum pb_isolate_mode mode);
+bool page_is_unmovable(struct zone *zone, struct page *page,
+			enum pb_isolate_mode mode, unsigned long *step);
 #endif

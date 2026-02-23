@@ -383,7 +383,7 @@ static struct sk_buff *tls_sw_fallback(struct sock *sk, struct sk_buff *skb)
 	if (!payload_len)
 		return skb;
 
-	sg_in = kmalloc_array(sg_in_max_elements, sizeof(*sg_in), GFP_ATOMIC);
+	sg_in = kmalloc_objs(*sg_in, sg_in_max_elements, GFP_ATOMIC);
 	if (!sg_in)
 		goto free_orig;
 

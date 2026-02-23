@@ -785,7 +785,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 
 	_enter("{%lu},%p{%pd},", dir->i_ino, dentry, dentry);
 
-	cookie = kzalloc(sizeof(struct afs_lookup_cookie), GFP_KERNEL);
+	cookie = kzalloc_obj(struct afs_lookup_cookie);
 	if (!cookie)
 		return ERR_PTR(-ENOMEM);
 
@@ -834,9 +834,8 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 
 	/* Need space for examining all the selected files */
 	if (op->nr_files > 2) {
-		op->more_files = kvcalloc(op->nr_files - 2,
-					  sizeof(struct afs_vnode_param),
-					  GFP_KERNEL);
+		op->more_files = kvzalloc_objs(struct afs_vnode_param,
+					       op->nr_files - 2);
 		if (!op->more_files) {
 			afs_op_nomem(op);
 			goto out_op;
@@ -2095,7 +2094,7 @@ static int afs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		goto error;
 
 	ret = -ENOMEM;
-	op->more_files = kvcalloc(2, sizeof(struct afs_vnode_param), GFP_KERNEL);
+	op->more_files = kvzalloc_objs(struct afs_vnode_param, 2);
 	if (!op->more_files)
 		goto error;
 

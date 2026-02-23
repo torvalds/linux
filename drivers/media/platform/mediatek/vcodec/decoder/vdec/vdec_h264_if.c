@@ -270,7 +270,7 @@ static int vdec_h264_init(struct mtk_vcodec_dec_ctx *ctx)
 	struct vdec_h264_inst *inst = NULL;
 	int err;
 
-	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
+	inst = kzalloc_obj(*inst);
 	if (!inst)
 		return -ENOMEM;
 

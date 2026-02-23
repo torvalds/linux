@@ -79,7 +79,8 @@
 #define FSNOTIFY_REAPER_DELAY	(1)	/* 1 jiffy */
 
 struct srcu_struct fsnotify_mark_srcu;
-struct kmem_cache *fsnotify_mark_connector_cachep;
+static struct kmem_cache *fsnotify_mark_connector_cachep;
+static struct kmem_cache *fsnotify_inode_mark_connector_cachep;
 
 static DEFINE_SPINLOCK(destroy_lock);
 static LIST_HEAD(destroy_list);
@@ -323,9 +324,11 @@ static void fsnotify_connector_destroy_workfn(struct work_struct *work)
 	while (conn) {
 		free = conn;
 		conn = conn->destroy_next;
-		kmem_cache_free(fsnotify_mark_connector_cachep, free);
+		kfree(free);
 	}
 }
+
+static void fsnotify_untrack_connector(struct fsnotify_mark_connector *conn);
 
 static void *fsnotify_detach_connector_from_object(
 					struct fsnotify_mark_connector *conn,
@@ -342,6 +345,7 @@ static void *fsnotify_detach_connector_from_object(
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE) {
 		inode = fsnotify_conn_inode(conn);
 		inode->i_fsnotify_mask = 0;
+		fsnotify_untrack_connector(conn);
 
 		/* Unpin inode when detaching from connector */
 		if (!(conn->flags & FSNOTIFY_CONN_FLAG_HAS_IREF))
@@ -640,10 +644,12 @@ static int fsnotify_attach_info_to_sb(struct super_block *sb)
 	struct fsnotify_sb_info *sbinfo;
 
 	/* sb info is freed on fsnotify_sb_delete() */
-	sbinfo = kzalloc(sizeof(*sbinfo), GFP_KERNEL);
+	sbinfo = kzalloc_obj(*sbinfo);
 	if (!sbinfo)
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&sbinfo->inode_conn_list);
+	spin_lock_init(&sbinfo->list_lock);
 	/*
 	 * cmpxchg() provides the barrier so that callers of fsnotify_sb_info()
 	 * will observe an initialized structure
@@ -655,20 +661,123 @@ static int fsnotify_attach_info_to_sb(struct super_block *sb)
 	return 0;
 }
 
-static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
-					       void *obj, unsigned int obj_type)
-{
-	struct fsnotify_mark_connector *conn;
+struct fsnotify_inode_mark_connector {
+	struct fsnotify_mark_connector common;
+	struct list_head conns_list;
+};
 
-	conn = kmem_cache_alloc(fsnotify_mark_connector_cachep, GFP_KERNEL);
-	if (!conn)
-		return -ENOMEM;
+static struct inode *fsnotify_get_living_inode(struct fsnotify_sb_info *sbinfo)
+{
+	struct fsnotify_inode_mark_connector *iconn;
+	struct inode *inode;
+
+	spin_lock(&sbinfo->list_lock);
+	/* Find the first non-evicting inode */
+	list_for_each_entry(iconn, &sbinfo->inode_conn_list, conns_list) {
+		/* All connectors on the list are still attached to an inode */
+		inode = iconn->common.obj;
+		/*
+		 * For connectors without FSNOTIFY_CONN_FLAG_HAS_IREF
+		 * (evictable marks) corresponding inode may well have 0
+		 * refcount and can be undergoing eviction. OTOH list_lock
+		 * protects us from the connector getting detached and inode
+		 * freed. So we can poke around the inode safely.
+		 */
+		spin_lock(&inode->i_lock);
+		if (likely(
+		    !(inode_state_read(inode) & (I_FREEING | I_WILL_FREE)))) {
+			__iget(inode);
+			spin_unlock(&inode->i_lock);
+			spin_unlock(&sbinfo->list_lock);
+			return inode;
+		}
+		spin_unlock(&inode->i_lock);
+	}
+	spin_unlock(&sbinfo->list_lock);
+
+	return NULL;
+}
+
+/**
+ * fsnotify_unmount_inodes - an sb is unmounting. Handle any watched inodes.
+ * @sbinfo: fsnotify info for superblock being unmounted.
+ *
+ * Walk all inode connectors for the superblock and free all associated marks.
+ */
+void fsnotify_unmount_inodes(struct fsnotify_sb_info *sbinfo)
+{
+	struct inode *inode;
+
+	while ((inode = fsnotify_get_living_inode(sbinfo))) {
+		fsnotify_inode(inode, FS_UNMOUNT);
+		fsnotify_clear_marks_by_inode(inode);
+		iput(inode);
+		cond_resched();
+	}
+}
+
+static void fsnotify_init_connector(struct fsnotify_mark_connector *conn,
+				    void *obj, unsigned int obj_type)
+{
 	spin_lock_init(&conn->lock);
 	INIT_HLIST_HEAD(&conn->list);
 	conn->flags = 0;
 	conn->prio = 0;
 	conn->type = obj_type;
 	conn->obj = obj;
+}
+
+static struct fsnotify_mark_connector *
+fsnotify_alloc_inode_connector(struct inode *inode)
+{
+	struct fsnotify_inode_mark_connector *iconn;
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(inode->i_sb);
+
+	iconn = kmem_cache_alloc(fsnotify_inode_mark_connector_cachep,
+				 GFP_KERNEL);
+	if (!iconn)
+		return NULL;
+
+	fsnotify_init_connector(&iconn->common, inode, FSNOTIFY_OBJ_TYPE_INODE);
+	spin_lock(&sbinfo->list_lock);
+	list_add(&iconn->conns_list, &sbinfo->inode_conn_list);
+	spin_unlock(&sbinfo->list_lock);
+
+	return &iconn->common;
+}
+
+static void fsnotify_untrack_connector(struct fsnotify_mark_connector *conn)
+{
+	struct fsnotify_inode_mark_connector *iconn;
+	struct fsnotify_sb_info *sbinfo;
+
+	if (conn->type != FSNOTIFY_OBJ_TYPE_INODE)
+		return;
+
+	iconn = container_of(conn, struct fsnotify_inode_mark_connector, common);
+	sbinfo = fsnotify_sb_info(fsnotify_conn_inode(conn)->i_sb);
+	spin_lock(&sbinfo->list_lock);
+	list_del(&iconn->conns_list);
+	spin_unlock(&sbinfo->list_lock);
+}
+
+static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
+					       void *obj, unsigned int obj_type)
+{
+	struct fsnotify_mark_connector *conn;
+
+	if (obj_type == FSNOTIFY_OBJ_TYPE_INODE) {
+		struct inode *inode = obj;
+
+		conn = fsnotify_alloc_inode_connector(inode);
+	} else {
+		conn = kmem_cache_alloc(fsnotify_mark_connector_cachep,
+					GFP_KERNEL);
+		if (conn)
+			fsnotify_init_connector(conn, obj, obj_type);
+	}
+	if (!conn)
+		return -ENOMEM;
 
 	/*
 	 * cmpxchg() provides the barrier so that readers of *connp can see
@@ -676,7 +785,8 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	 */
 	if (cmpxchg(connp, NULL, conn)) {
 		/* Someone else created list structure for us */
-		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
+		fsnotify_untrack_connector(conn);
+		kfree(conn);
 	}
 	return 0;
 }
@@ -1007,3 +1117,12 @@ void fsnotify_wait_marks_destroyed(void)
 	flush_delayed_work(&reaper_work);
 }
 EXPORT_SYMBOL_GPL(fsnotify_wait_marks_destroyed);
+
+__init void fsnotify_init_connector_caches(void)
+{
+	fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
+						    SLAB_PANIC);
+	fsnotify_inode_mark_connector_cachep = KMEM_CACHE(
+					fsnotify_inode_mark_connector,
+					SLAB_PANIC);
+}

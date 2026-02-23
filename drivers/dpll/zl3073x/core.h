@@ -302,6 +302,36 @@ u8 zl3073x_dev_out_dpll_get(struct zl3073x_dev *zldev, u8 index)
 }
 
 /**
+ * zl3073x_dev_output_pin_freq_get - get output pin frequency
+ * @zldev: pointer to zl3073x device
+ * @id: output pin id
+ *
+ * Computes the output pin frequency based on the synth frequency, output
+ * divisor, and signal format. For N-div formats, N-pin frequency is
+ * additionally divided by esync_n_period.
+ *
+ * Return: frequency of the given output pin in Hz
+ */
+static inline u32
+zl3073x_dev_output_pin_freq_get(struct zl3073x_dev *zldev, u8 id)
+{
+	const struct zl3073x_synth *synth;
+	const struct zl3073x_out *out;
+	u8 out_id;
+	u32 freq;
+
+	out_id = zl3073x_output_pin_out_get(id);
+	out = zl3073x_out_state_get(zldev, out_id);
+	synth = zl3073x_synth_state_get(zldev, zl3073x_out_synth_get(out));
+	freq = zl3073x_synth_freq_get(synth) / out->div;
+
+	if (zl3073x_out_is_ndiv(out) && zl3073x_is_n_pin(id))
+		freq /= out->esync_n_period;
+
+	return freq;
+}
+
+/**
  * zl3073x_dev_out_is_diff - check if the given output is differential
  * @zldev: pointer to zl3073x device
  * @index: output index

@@ -617,7 +617,7 @@ static int syscall_fault_buffer_enable(void)
 		return 0;
 	}
 
-	sbuf = kmalloc(sizeof(*sbuf), GFP_KERNEL);
+	sbuf = kmalloc_obj(*sbuf);
 	if (!sbuf)
 		return -ENOMEM;
 
@@ -1337,9 +1337,8 @@ void __init init_ftrace_syscalls(void)
 	void *ret;
 
 	if (!IS_ENABLED(CONFIG_HAVE_SPARSE_SYSCALL_NR)) {
-		syscalls_metadata = kcalloc(NR_syscalls,
-					sizeof(*syscalls_metadata),
-					GFP_KERNEL);
+		syscalls_metadata = kzalloc_objs(*syscalls_metadata,
+						 NR_syscalls);
 		if (!syscalls_metadata) {
 			WARN_ON(1);
 			return;

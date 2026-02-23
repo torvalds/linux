@@ -82,7 +82,7 @@ static int i915_deps_grow(struct i915_deps *deps, struct dma_fence *fence,
 		struct dma_fence **new_fences;
 
 		new_size = max(new_size, I915_DEPS_MIN_ALLOC_CHUNK);
-		new_fences = kmalloc_array(new_size, sizeof(*new_fences), deps->gfp);
+		new_fences = kmalloc_objs(*new_fences, new_size, deps->gfp);
 		if (!new_fences)
 			goto sync;
 

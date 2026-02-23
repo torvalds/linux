@@ -347,13 +347,13 @@ int ibm_partition(struct parsed_partitions *state)
 	nr_sectors = bdev_nr_sectors(bdev);
 	if (nr_sectors == 0)
 		goto out_symbol;
-	info = kmalloc(sizeof(dasd_information2_t), GFP_KERNEL);
+	info = kmalloc_obj(dasd_information2_t);
 	if (info == NULL)
 		goto out_symbol;
-	geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL);
+	geo = kmalloc_obj(struct hd_geometry);
 	if (geo == NULL)
 		goto out_nogeo;
-	label = kmalloc(sizeof(union label_t), GFP_KERNEL);
+	label = kmalloc_obj(union label_t);
 	if (label == NULL)
 		goto out_nolab;
 	/* set start if not filled by getgeo function e.g. virtblk */

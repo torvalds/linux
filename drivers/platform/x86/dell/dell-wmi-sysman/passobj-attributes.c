@@ -143,7 +143,8 @@ int alloc_po_data(void)
 	int ret = 0;
 
 	wmi_priv.po_instances_count = get_instance_count(DELL_WMI_BIOS_PASSOBJ_ATTRIBUTE_GUID);
-	wmi_priv.po_data = kcalloc(wmi_priv.po_instances_count, sizeof(struct po_data), GFP_KERNEL);
+	wmi_priv.po_data = kzalloc_objs(struct po_data,
+					wmi_priv.po_instances_count);
 	if (!wmi_priv.po_data) {
 		wmi_priv.po_instances_count = 0;
 		ret = -ENOMEM;

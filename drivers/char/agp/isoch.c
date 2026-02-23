@@ -92,7 +92,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	 * We'll work with an array of isoch_data's (one for each
 	 * device in dev_list) throughout this function.
 	 */
-	master = kmalloc_array(ndevs, sizeof(*master), GFP_KERNEL);
+	master = kmalloc_objs(*master, ndevs);
 	if (master == NULL) {
 		ret = -ENOMEM;
 		goto get_out;
@@ -333,7 +333,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 	 * Allocate a head for our AGP 3.5 device list
 	 * (multiple AGP v3 devices are allowed behind a single bridge).
 	 */
-	if ((dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL)) == NULL) {
+	if ((dev_list = kmalloc_obj(*dev_list)) == NULL) {
 		ret = -ENOMEM;
 		goto get_out;
 	}
@@ -362,7 +362,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 
 			case 0x0300:    /* Display controller */
 			case 0x0400:    /* Multimedia controller */
-				if ((cur = kmalloc(sizeof(*cur), GFP_KERNEL)) == NULL) {
+				if ((cur = kmalloc_obj(*cur)) == NULL) {
 					ret = -ENOMEM;
 					goto free_and_exit;
 				}

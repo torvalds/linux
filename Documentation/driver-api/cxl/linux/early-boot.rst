@@ -125,7 +125,7 @@ The contiguous memory allocator (CMA) enables reservation of contiguous memory
 regions on NUMA nodes during early boot.  However, CMA cannot reserve memory
 on NUMA nodes that are not online during early boot. ::
 
-  void __init hugetlb_cma_reserve(int order) {
+  void __init hugetlb_cma_reserve(void) {
     if (!node_online(nid))
       /* do not allow reservations */
   }

@@ -168,7 +168,7 @@ struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
 {
 	struct tda8261_state *state = NULL;
 
-	if ((state = kzalloc(sizeof (struct tda8261_state), GFP_KERNEL)) == NULL)
+	if ((state = kzalloc_obj(struct tda8261_state)) == NULL)
 		goto exit;
 
 	state->config		= config;

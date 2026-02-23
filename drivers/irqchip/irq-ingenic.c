@@ -67,7 +67,7 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 	int parent_irq, err = 0;
 	unsigned i;
 
-	intc = kzalloc(sizeof(*intc), GFP_KERNEL);
+	intc = kzalloc_obj(*intc);
 	if (!intc) {
 		err = -ENOMEM;
 		goto out_err;

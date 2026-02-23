@@ -307,7 +307,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	struct input_dev *input_dev;
 	int err;
 
-	elo = kzalloc(sizeof(*elo), GFP_KERNEL);
+	elo = kzalloc_obj(*elo);
 	input_dev = input_allocate_device();
 	if (!elo || !input_dev) {
 		err = -ENOMEM;
@@ -320,7 +320,7 @@ static int elo_connect(struct serio *serio, struct serio_driver *drv)
 	elo->expected_packet = ELO10_TOUCH_PACKET;
 	mutex_init(&elo->cmd_mutex);
 	init_completion(&elo->cmd_done);
-	snprintf(elo->phys, sizeof(elo->phys), "%s/input0", serio->phys);
+	scnprintf(elo->phys, sizeof(elo->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "Elo Serial TouchScreen";
 	input_dev->phys = elo->phys;

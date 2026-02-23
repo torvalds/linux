@@ -570,7 +570,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	unsigned char version_warning = 0;
 
 	/* private data allocation and initialization */
-	radio = kzalloc(sizeof(struct si470x_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct si470x_device);
 	if (!radio) {
 		retval = -ENOMEM;
 		goto err_initial;

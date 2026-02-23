@@ -1062,7 +1062,7 @@ static int alloc_stream_urbs(struct ua101 *ua, struct ua101_stream *stream,
 		while (size >= max_packet_size) {
 			if (u >= stream->queue_length)
 				goto bufsize_error;
-			urb = kmalloc(sizeof(*urb), GFP_KERNEL);
+			urb = kmalloc_obj(*urb);
 			if (!urb)
 				return -ENOMEM;
 			usb_init_urb(&urb->urb);

@@ -664,7 +664,7 @@ static int clk_mt8196_vlp_probe(struct platform_device *pdev)
 	if (r)
 		goto unregister_factors;
 
-	r = mtk_clk_register_plls(node, vlp_plls, ARRAY_SIZE(vlp_plls),
+	r = mtk_clk_register_plls(dev, vlp_plls, ARRAY_SIZE(vlp_plls),
 				  clk_data);
 	if (r)
 		goto unregister_muxes;

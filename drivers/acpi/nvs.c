@@ -39,7 +39,7 @@ int acpi_nvs_register(__u64 start, __u64 size)
 {
 	struct nvs_region *region;
 
-	region = kmalloc(sizeof(*region), GFP_KERNEL);
+	region = kmalloc_obj(*region);
 	if (!region)
 		return -ENOMEM;
 	region->phys_start = start;
@@ -102,7 +102,7 @@ static int suspend_nvs_register(unsigned long start, unsigned long size)
 	while (size > 0) {
 		unsigned int nr_bytes;
 
-		entry = kzalloc(sizeof(struct nvs_page), GFP_KERNEL);
+		entry = kzalloc_obj(struct nvs_page);
 		if (!entry)
 			goto Error;
 

@@ -1263,7 +1263,7 @@ static int efx_ptp_insert_filter(struct efx_nic *efx,
 		return 0;
 	}
 
-	rxfilter = kzalloc(sizeof(*rxfilter), GFP_KERNEL);
+	rxfilter = kzalloc_obj(*rxfilter);
 	if (!rxfilter)
 		return -ENOMEM;
 
@@ -1565,7 +1565,7 @@ int efx_ptp_probe(struct efx_nic *efx, struct efx_channel *channel)
 		return 0;
 	}
 
-	ptp = kzalloc(sizeof(struct efx_ptp_data), GFP_KERNEL);
+	ptp = kzalloc_obj(struct efx_ptp_data);
 	efx->ptp_data = ptp;
 	if (!efx->ptp_data)
 		return -ENOMEM;

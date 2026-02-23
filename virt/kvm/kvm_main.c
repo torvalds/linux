@@ -1043,15 +1043,15 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 		return 0;
 
 	kvm->debugfs_dentry = dent;
-	kvm->debugfs_stat_data = kcalloc(kvm_debugfs_num_entries,
-					 sizeof(*kvm->debugfs_stat_data),
-					 GFP_KERNEL_ACCOUNT);
+	kvm->debugfs_stat_data = kzalloc_objs(*kvm->debugfs_stat_data,
+					      kvm_debugfs_num_entries,
+					      GFP_KERNEL_ACCOUNT);
 	if (!kvm->debugfs_stat_data)
 		goto out_err;
 
 	for (i = 0; i < kvm_vm_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vm_stats_desc[i];
-		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
+		stat_data = kzalloc_obj(*stat_data, GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
 			goto out_err;
 
@@ -1066,7 +1066,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 
 	for (i = 0; i < kvm_vcpu_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vcpu_stats_desc[i];
-		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
+		stat_data = kzalloc_obj(*stat_data, GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
 			goto out_err;
 
@@ -1185,7 +1185,7 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	r = -ENOMEM;
 	for (i = 0; i < KVM_NR_BUSES; i++) {
 		rcu_assign_pointer(kvm->buses[i],
-			kzalloc(sizeof(struct kvm_io_bus), GFP_KERNEL_ACCOUNT));
+			kzalloc_obj(struct kvm_io_bus, GFP_KERNEL_ACCOUNT));
 		if (!kvm->buses[i])
 			goto out_err_no_arch_destroy_vm;
 	}
@@ -1944,7 +1944,7 @@ static int kvm_set_memslot(struct kvm *kvm,
 	 * invalidation needs to be reverted.
 	 */
 	if (change == KVM_MR_DELETE || change == KVM_MR_MOVE) {
-		invalid_slot = kzalloc(sizeof(*invalid_slot), GFP_KERNEL_ACCOUNT);
+		invalid_slot = kzalloc_obj(*invalid_slot, GFP_KERNEL_ACCOUNT);
 		if (!invalid_slot) {
 			mutex_unlock(&kvm->slots_arch_lock);
 			return -ENOMEM;
@@ -2117,7 +2117,7 @@ static int kvm_set_memory_region(struct kvm *kvm,
 		return -EEXIST;
 
 	/* Allocate a slot that will persist in the memslot. */
-	new = kzalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+	new = kzalloc_obj(*new, GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 
@@ -3134,7 +3134,7 @@ int __kvm_vcpu_map(struct kvm_vcpu *vcpu, gfn_t gfn, struct kvm_host_map *map,
 		   bool writable)
 {
 	struct kvm_follow_pfn kfp = {
-		.slot = gfn_to_memslot(vcpu->kvm, gfn),
+		.slot = kvm_vcpu_gfn_to_memslot(vcpu, gfn),
 		.gfn = gfn,
 		.flags = writable ? FOLL_WRITE : 0,
 		.refcounted_page = &map->pinned_page,
@@ -4505,7 +4505,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		struct kvm_regs *kvm_regs;
 
 		r = -ENOMEM;
-		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
+		kvm_regs = kzalloc_obj(struct kvm_regs);
 		if (!kvm_regs)
 			goto out;
 		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, kvm_regs);
@@ -4532,7 +4532,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_SREGS: {
-		kvm_sregs = kzalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
+		kvm_sregs = kzalloc_obj(struct kvm_sregs);
 		r = -ENOMEM;
 		if (!kvm_sregs)
 			goto out;
@@ -4624,7 +4624,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_FPU: {
-		fpu = kzalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
+		fpu = kzalloc_obj(struct kvm_fpu);
 		r = -ENOMEM;
 		if (!fpu)
 			goto out;
@@ -4844,7 +4844,7 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 	if (test)
 		return 0;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL_ACCOUNT);
+	dev = kzalloc_obj(*dev, GFP_KERNEL_ACCOUNT);
 	if (!dev)
 		return -ENOMEM;
 
@@ -6006,8 +6006,8 @@ int kvm_io_bus_register_dev(struct kvm *kvm, enum kvm_bus bus_idx, gpa_t addr,
 	if (bus->dev_count - bus->ioeventfd_count > NR_IOBUS_DEVS - 1)
 		return -ENOSPC;
 
-	new_bus = kmalloc(struct_size(bus, range, bus->dev_count + 1),
-			  GFP_KERNEL_ACCOUNT);
+	new_bus = kmalloc_flex(*bus, range, bus->dev_count + 1,
+			       GFP_KERNEL_ACCOUNT);
 	if (!new_bus)
 		return -ENOMEM;
 
@@ -6053,8 +6053,8 @@ int kvm_io_bus_unregister_dev(struct kvm *kvm, enum kvm_bus bus_idx,
 	if (i == bus->dev_count)
 		return 0;
 
-	new_bus = kmalloc(struct_size(bus, range, bus->dev_count - 1),
-			  GFP_KERNEL_ACCOUNT);
+	new_bus = kmalloc_flex(*bus, range, bus->dev_count - 1,
+			       GFP_KERNEL_ACCOUNT);
 	if (new_bus) {
 		memcpy(new_bus, bus, struct_size(bus, range, i));
 		new_bus->dev_count--;
@@ -6326,7 +6326,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	active = kvm_active_vms;
 	mutex_unlock(&kvm_lock);
 
-	env = kzalloc(sizeof(*env), GFP_KERNEL);
+	env = kzalloc_obj(*env);
 	if (!env)
 		return;
 
@@ -6482,11 +6482,15 @@ static struct perf_guest_info_callbacks kvm_guest_cbs = {
 	.state			= kvm_guest_state,
 	.get_ip			= kvm_guest_get_ip,
 	.handle_intel_pt_intr	= NULL,
+	.handle_mediated_pmi	= NULL,
 };
 
-void kvm_register_perf_callbacks(unsigned int (*pt_intr_handler)(void))
+void __kvm_register_perf_callbacks(unsigned int (*pt_intr_handler)(void),
+				   void (*mediated_pmi_handler)(void))
 {
 	kvm_guest_cbs.handle_intel_pt_intr = pt_intr_handler;
+	kvm_guest_cbs.handle_mediated_pmi = mediated_pmi_handler;
+
 	perf_register_guest_info_callbacks(&kvm_guest_cbs);
 }
 void kvm_unregister_perf_callbacks(void)

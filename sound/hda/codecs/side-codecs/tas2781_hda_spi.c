@@ -2,7 +2,7 @@
 //
 // TAS2781 HDA SPI driver
 //
-// Copyright 2024 - 2025 Texas Instruments, Inc.
+// Copyright 2024 - 2026 Texas Instruments, Inc.
 //
 // Author: Baojun Xu <baojun.xu@ti.com>
 
@@ -41,9 +41,6 @@
 #define TASDEVICE_RANGE_MAX_SIZE	(256 * 128)
 #define TASDEVICE_WIN_LEN		128
 #define TAS2781_SPI_MAX_FREQ		(4 * HZ_PER_MHZ)
-/* Flag of calibration registers address. */
-#define TASDEVICE_CALIBRATION_REG_ADDRESS	BIT(7)
-#define TASDEV_UEFI_CALI_REG_ADDR_FLG	BIT(7)
 
 /* System Reset Check Register */
 #define TAS2781_REG_CLK_CONFIG		TASDEVICE_REG(0x0, 0x0, 0x5c)
@@ -634,9 +631,9 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	struct tasdevice_priv *tas_priv = context;
 	struct tas2781_hda *tas_hda = dev_get_drvdata(tas_priv->dev);
 	struct hda_codec *codec = tas_priv->codec;
-	int ret, val;
+	int ret;
 
-	pm_runtime_get_sync(tas_priv->dev);
+	guard(pm_runtime_active_auto)(tas_priv->dev);
 	guard(mutex)(&tas_priv->codec_lock);
 
 	ret = tasdevice_rca_parser(tas_priv, fmw);
@@ -673,20 +670,14 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	tas_priv->rcabin.profile_cfg_id = 0;
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
-	ret = tasdevice_spi_dev_read(tas_priv, tas_priv->index,
-		TAS2781_REG_CLK_CONFIG, &val);
-	if (ret < 0)
-		goto out;
 
-	if (val == TAS2781_REG_CLK_CONFIG_RESET) {
-		ret = tasdevice_prmg_load(tas_priv, 0);
-		if (ret < 0) {
-			dev_err(tas_priv->dev, "FW download failed = %d\n",
-				ret);
-			goto out;
-		}
-		tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
+	ret = tasdevice_prmg_load(tas_priv, 0);
+	if (ret < 0) {
+		dev_err(tas_priv->dev, "FW download failed = %d\n", ret);
+		goto out;
 	}
+	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
+
 	if (tas_priv->fmw->nr_programs > 0)
 		tas_priv->tasdevice[tas_priv->index].cur_prog = 0;
 	if (tas_priv->fmw->nr_configurations > 0)
@@ -699,7 +690,6 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	tas2781_save_calibration(tas_hda);
 out:
 	release_firmware(fmw);
-	pm_runtime_put_autosuspend(tas_hda->priv->dev);
 }
 
 static int tas2781_hda_bind(struct device *dev, struct device *master,
@@ -720,7 +710,7 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 
 	codec = parent->codec;
 
-	pm_runtime_get_sync(dev);
+	guard(pm_runtime_active_auto)(dev);
 
 	comp->dev = dev;
 
@@ -731,7 +721,8 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	if (!ret)
 		comp->playback_hook = tas2781_hda_playback_hook;
 
-	pm_runtime_put_autosuspend(dev);
+	/* Only HP Laptop support SPI-based TAS2781 */
+	tas_hda->catlog_id = HP;
 
 	return ret;
 }

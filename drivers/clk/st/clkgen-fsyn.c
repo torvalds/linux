@@ -454,7 +454,7 @@ static struct clk * __init st_clk_register_quadfs_pll(
 	if (WARN_ON(!name || !parent_name))
 		return ERR_PTR(-EINVAL);
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -894,7 +894,7 @@ static struct clk * __init st_clk_register_quadfs_fsynth(
 	if (WARN_ON(!name || !parent_name))
 		return ERR_PTR(-EINVAL);
 
-	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
+	fs = kzalloc_obj(*fs);
 	if (!fs)
 		return ERR_PTR(-ENOMEM);
 
@@ -926,13 +926,12 @@ static void __init st_of_create_quadfs_fsynths(
 	struct clk_onecell_data *clk_data;
 	int fschan;
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = kzalloc_obj(*clk_data);
 	if (!clk_data)
 		return;
 
 	clk_data->clk_num = QUADFS_MAX_CHAN;
-	clk_data->clks = kcalloc(QUADFS_MAX_CHAN, sizeof(struct clk *),
-				 GFP_KERNEL);
+	clk_data->clks = kzalloc_objs(struct clk *, QUADFS_MAX_CHAN);
 
 	if (!clk_data->clks) {
 		kfree(clk_data);
@@ -1013,7 +1012,7 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	if (!pll_name)
 		return;
 
-	lock = kzalloc(sizeof(*lock), GFP_KERNEL);
+	lock = kzalloc_obj(*lock);
 	if (!lock)
 		goto err_exit;
 

@@ -365,8 +365,7 @@ static struct hlist_head *fib_info_laddrhash_bucket(const struct net *net,
 static struct hlist_head *fib_info_hash_alloc(unsigned int hash_bits)
 {
 	/* The second half is used for prefsrc */
-	return kvcalloc((1 << hash_bits) * 2, sizeof(struct hlist_head),
-			GFP_KERNEL);
+	return kvzalloc_objs(struct hlist_head, (1 << hash_bits) * 2);
 }
 
 static void fib_info_hash_free(struct hlist_head *head)
@@ -1399,7 +1398,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 	fib_info_hash_grow(net);
 
-	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
+	fi = kzalloc_flex(*fi, fib_nh, nhs);
 	if (!fi) {
 		err = -ENOBUFS;
 		goto failure;

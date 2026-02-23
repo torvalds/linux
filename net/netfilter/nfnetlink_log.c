@@ -179,7 +179,7 @@ instance_create(struct net *net, u_int16_t group_num,
 		goto out_unlock;
 	}
 
-	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
+	inst = kzalloc_obj(*inst, GFP_ATOMIC);
 	if (!inst) {
 		err = -ENOMEM;
 		goto out_unlock;

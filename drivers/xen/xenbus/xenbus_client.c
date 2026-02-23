@@ -535,11 +535,11 @@ int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
 		return -EINVAL;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 
-	info->node = kzalloc(sizeof(*info->node), GFP_KERNEL);
+	info->node = kzalloc_obj(*info->node);
 	if (!info->node)
 		err = -ENOMEM;
 	else

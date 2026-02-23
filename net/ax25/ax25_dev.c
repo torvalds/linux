@@ -54,7 +54,7 @@ void ax25_dev_device_up(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 
-	ax25_dev = kzalloc(sizeof(*ax25_dev), GFP_KERNEL);
+	ax25_dev = kzalloc_obj(*ax25_dev);
 	if (!ax25_dev) {
 		printk(KERN_ERR "AX.25: ax25_dev_device_up - out of memory\n");
 		return;
@@ -82,9 +82,7 @@ void ax25_dev_device_up(struct net_device *dev)
 
 #ifdef CONFIG_AX25_DAMA_SLAVE
 	ax25_dev->values[AX25_VALUES_DS_TIMEOUT]= AX25_DEF_DS_TIMEOUT;
-#endif
 
-#if defined(CONFIG_AX25_DAMA_SLAVE) || defined(CONFIG_AX25_DAMA_MASTER)
 	ax25_ds_setup_timer(ax25_dev);
 #endif
 

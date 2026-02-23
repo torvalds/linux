@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# No special ABIs on loongarch so far
-syscall_abis_32 +=
-syscall_abis_64 +=
+syscall_abis_32 += memfd_secret
+syscall_abis_64 += memfd_secret

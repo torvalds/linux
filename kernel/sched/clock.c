@@ -173,6 +173,7 @@ notrace static void __sched_clock_work(struct work_struct *work)
 			scd->tick_gtod, __gtod_offset,
 			scd->tick_raw,  __sched_clock_offset);
 
+	disable_sched_clock_irqtime();
 	static_branch_disable(&__sched_clock_stable);
 }
 
@@ -238,6 +239,8 @@ static int __init sched_clock_init_late(void)
 
 	if (__sched_clock_stable_early)
 		__set_sched_clock_stable();
+	else
+		disable_sched_clock_irqtime();  /* disable if clock unstable. */
 
 	return 0;
 }

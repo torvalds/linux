@@ -863,7 +863,7 @@ static int lgdt330x_probe(struct i2c_client *client)
 	u8 buf[1];
 
 	/* Allocate memory for the internal state */
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state)
 		goto error;
 

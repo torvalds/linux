@@ -556,8 +556,8 @@ static void __init sbus_iommu_init(struct platform_device *op)
 	}
 	regs = pr->phys_addr;
 
-	iommu = kzalloc(sizeof(*iommu), GFP_ATOMIC);
-	strbuf = kzalloc(sizeof(*strbuf), GFP_ATOMIC);
+	iommu = kzalloc_obj(*iommu, GFP_ATOMIC);
+	strbuf = kzalloc_obj(*strbuf, GFP_ATOMIC);
 	if (!iommu || !strbuf)
 		goto fatal_memory_error;
 

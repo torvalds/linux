@@ -741,7 +741,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
+	user_srf = kzalloc_obj(*user_srf);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
 		goto out_unlock;
@@ -767,8 +767,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		ret = PTR_ERR(metadata->sizes);
 		goto out_no_sizes;
 	}
-	srf->offsets = kmalloc_array(metadata->num_sizes, sizeof(*srf->offsets),
-				     GFP_KERNEL);
+	srf->offsets = kmalloc_objs(*srf->offsets, metadata->num_sizes);
 	if (unlikely(!srf->offsets)) {
 		ret = -ENOMEM;
 		goto out_no_offsets;
@@ -2144,7 +2143,7 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	if (req->sizes != NULL)
 		return -EINVAL;
 
-	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
+	user_srf = kzalloc_obj(*user_srf);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
 		goto out_unlock;

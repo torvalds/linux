@@ -23,7 +23,7 @@ init_fsm(char *name, const char **state_names, const char **event_names, int nr_
 	fsm_function_t *m;
 	fsm *f;
 
-	this = kzalloc(sizeof(fsm_instance), order);
+	this = kzalloc_obj(fsm_instance, order);
 	if (this == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc instance\n", name);
@@ -32,7 +32,7 @@ init_fsm(char *name, const char **state_names, const char **event_names, int nr_
 	strscpy(this->name, name, sizeof(this->name));
 	init_waitqueue_head(&this->wait_q);
 
-	f = kzalloc(sizeof(fsm), order);
+	f = kzalloc_obj(fsm, order);
 	if (f == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc fsm\n", name);
@@ -45,7 +45,7 @@ init_fsm(char *name, const char **state_names, const char **event_names, int nr_
 	f->state_names = state_names;
 	this->f = f;
 
-	m = kcalloc(nr_states*nr_events, sizeof(fsm_function_t), order);
+	m = kzalloc_objs(fsm_function_t, nr_states * nr_events, order);
 	if (m == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc jumptable\n", name);

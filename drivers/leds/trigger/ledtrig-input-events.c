@@ -75,7 +75,7 @@ static int input_events_connect(struct input_handler *handler, struct input_dev 
 	struct input_handle *handle;
 	int ret;
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	handle = kzalloc_obj(*handle);
 	if (!handle)
 		return -ENOMEM;
 

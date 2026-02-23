@@ -108,7 +108,7 @@ static int __init ls1x_intc_of_init(struct device_node *node,
 	struct ls1x_intc_priv *priv;
 	int parent_irq, err = 0;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

@@ -837,7 +837,7 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 static int
 nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			   struct drm_framebuffer *passed_fb,
-			   int x, int y, bool atomic)
+			   int x, int y)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -850,19 +850,12 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
 	/* no fb bound */
-	if (!atomic && !crtc->primary->fb) {
+	if (!crtc->primary->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
 
-	/* If atomic, we want to switch to the fb we were passed, so
-	 * now we update pointers to do that.
-	 */
-	if (atomic) {
-		drm_fb = passed_fb;
-	} else {
-		drm_fb = crtc->primary->fb;
-	}
+	drm_fb = crtc->primary->fb;
 
 	nvbo = nouveau_gem_object(drm_fb->obj[0]);
 	nv_crtc->fb.offset = nvbo->offset;
@@ -920,15 +913,7 @@ nv04_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	int ret = nv_crtc_swap_fbs(crtc, old_fb);
 	if (ret)
 		return ret;
-	return nv04_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
-}
-
-static int
-nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       int x, int y, enum mode_set_atomic state)
-{
-	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
+	return nv04_crtc_do_mode_set_base(crtc, old_fb, x, y);
 }
 
 static void nv04_cursor_upload(struct drm_device *dev, struct nouveau_bo *src,
@@ -1173,7 +1158,7 @@ nv04_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	cli = chan->cli;
 	push = &chan->chan.push;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc_obj(*s);
 	if (!s)
 		return -ENOMEM;
 
@@ -1274,7 +1259,6 @@ static const struct drm_crtc_helper_funcs nv04_crtc_helper_funcs = {
 	.commit = nv_crtc_commit,
 	.mode_set = nv_crtc_mode_set,
 	.mode_set_base = nv04_crtc_mode_set_base,
-	.mode_set_base_atomic = nv04_crtc_mode_set_base_atomic,
 	.disable = nv_crtc_disable,
 	.get_scanout_position = nouveau_display_scanoutpos,
 };
@@ -1307,7 +1291,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	struct drm_plane *primary;
 	int ret;
 
-	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
+	nv_crtc = kzalloc_obj(*nv_crtc);
 	if (!nv_crtc)
 		return -ENOMEM;
 

@@ -467,7 +467,7 @@ static int ring_desc_ring_alloc(struct pic32_sqi *sqi)
 	}
 
 	/* allocate software ring descriptors */
-	sqi->ring = kcalloc(PESQI_BD_COUNT, sizeof(*rdesc), GFP_KERNEL);
+	sqi->ring = kzalloc_objs(*rdesc, PESQI_BD_COUNT);
 	if (!sqi->ring) {
 		dma_free_coherent(&sqi->host->dev,
 				  sizeof(*bd) * PESQI_BD_COUNT,

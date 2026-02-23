@@ -1572,7 +1572,7 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	rx_ring->xdp_prog = rx_ring->vsi->xdp_prog;
 
 	rx_ring->rx_bi =
-		kcalloc(rx_ring->count, sizeof(*rx_ring->rx_bi), GFP_KERNEL);
+		kzalloc_objs(*rx_ring->rx_bi, rx_ring->count);
 	if (!rx_ring->rx_bi)
 		return -ENOMEM;
 

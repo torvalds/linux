@@ -95,7 +95,7 @@ static int chtls_start_listen(struct chtls_dev *cdev, struct sock *sk)
 		return -EADDRNOTAVAIL;
 
 	sk->sk_backlog_rcv = listen_backlog_rcv;
-	clisten = kmalloc(sizeof(*clisten), GFP_KERNEL);
+	clisten = kmalloc_obj(*clisten);
 	if (!clisten)
 		return -ENOMEM;
 	clisten->cdev = cdev;
@@ -114,7 +114,7 @@ static void chtls_stop_listen(struct chtls_dev *cdev, struct sock *sk)
 	if (sk->sk_protocol != IPPROTO_TCP)
 		return;
 
-	clisten = kmalloc(sizeof(*clisten), GFP_KERNEL);
+	clisten = kmalloc_obj(*clisten);
 	if (!clisten)
 		return;
 	clisten->cdev = cdev;
@@ -238,11 +238,11 @@ static void *chtls_uld_add(const struct cxgb4_lld_info *info)
 	struct chtls_dev *cdev;
 	int i, j;
 
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	cdev = kzalloc_obj(*cdev);
 	if (!cdev)
 		goto out;
 
-	lldi = kzalloc(sizeof(*lldi), GFP_KERNEL);
+	lldi = kzalloc_obj(*lldi);
 	if (!lldi)
 		goto out_lldi;
 

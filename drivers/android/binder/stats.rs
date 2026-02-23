@@ -5,7 +5,7 @@
 //! Keep track of statistics for binder_logs.
 
 use crate::defs::*;
-use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use kernel::sync::atomic::{ordering::Relaxed, Atomic};
 use kernel::{ioctl::_IOC_NR, seq_file::SeqFile, seq_print};
 
 const BC_COUNT: usize = _IOC_NR(BC_REPLY_SG) as usize + 1;
@@ -14,14 +14,14 @@ const BR_COUNT: usize = _IOC_NR(BR_TRANSACTION_PENDING_FROZEN) as usize + 1;
 pub(crate) static GLOBAL_STATS: BinderStats = BinderStats::new();
 
 pub(crate) struct BinderStats {
-    bc: [AtomicU32; BC_COUNT],
-    br: [AtomicU32; BR_COUNT],
+    bc: [Atomic<u32>; BC_COUNT],
+    br: [Atomic<u32>; BR_COUNT],
 }
 
 impl BinderStats {
     pub(crate) const fn new() -> Self {
         #[expect(clippy::declare_interior_mutable_const)]
-        const ZERO: AtomicU32 = AtomicU32::new(0);
+        const ZERO: Atomic<u32> = Atomic::new(0);
 
         Self {
             bc: [ZERO; BC_COUNT],

@@ -760,7 +760,7 @@ static int ines_ptp_ctrl_probe(struct platform_device *pld)
 		err = PTR_ERR(addr);
 		goto out;
 	}
-	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	clock = kzalloc_obj(*clock);
 	if (!clock) {
 		err = -ENOMEM;
 		goto out;

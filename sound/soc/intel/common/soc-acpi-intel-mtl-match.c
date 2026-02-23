@@ -1013,7 +1013,7 @@ static const struct snd_soc_acpi_adr_device cs42l42_0_adr[] = {
 
 static const struct snd_soc_acpi_adr_device tas2783_0_adr[] = {
 	{
-		.adr = 0x0000380102000001ull,
+		.adr = 0x00003c0102000001ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
 		.name_prefix = "tas2783-1"
@@ -1023,6 +1023,18 @@ static const struct snd_soc_acpi_adr_device tas2783_0_adr[] = {
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "tas2783-2"
+	},
+	{
+		.adr = 0x00003d0102000001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "tas2783-3"
+	},
+	{
+		.adr = 0x00003a0102000001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "tas2783-4"
 	}
 };
 

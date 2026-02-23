@@ -81,7 +81,8 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 	struct dc *dc = (struct dc *)link->dc;
 
 	needs_divider_update = (link->dc->link_srv->dp_get_encoding_format(link_setting) !=
-	link->dc->link_srv->dp_get_encoding_format((const struct dc_link_settings *) &link->cur_link_settings));
+		link->dc->link_srv->dp_get_encoding_format((const struct dc_link_settings *) &link->cur_link_settings))
+		|| link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA;
 
 	udelay(100);
 

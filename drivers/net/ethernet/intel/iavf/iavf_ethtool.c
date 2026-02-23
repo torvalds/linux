@@ -1276,7 +1276,7 @@ static int iavf_add_fdir_ethtool(struct iavf_adapter *adapter, struct ethtool_rx
 	}
 	spin_unlock_bh(&adapter->fdir_fltr_lock);
 
-	fltr = kzalloc(sizeof(*fltr), GFP_KERNEL);
+	fltr = kzalloc_obj(*fltr);
 	if (!fltr)
 		return -ENOMEM;
 
@@ -1519,7 +1519,7 @@ iavf_set_rxfh_fields(struct net_device *netdev,
 	if (hash_flds == IAVF_ADV_RSS_HASH_INVALID)
 		return -EINVAL;
 
-	rss_new = kzalloc(sizeof(*rss_new), GFP_KERNEL);
+	rss_new = kzalloc_obj(*rss_new);
 	if (!rss_new)
 		return -ENOMEM;
 

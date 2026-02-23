@@ -17,7 +17,7 @@ int wl1271_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap)
 	struct wl1271_acx_host_config_bitmap *bitmap_conf;
 	int ret;
 
-	bitmap_conf = kzalloc(sizeof(*bitmap_conf), GFP_KERNEL);
+	bitmap_conf = kzalloc_obj(*bitmap_conf);
 	if (!bitmap_conf) {
 		ret = -ENOMEM;
 		goto out;

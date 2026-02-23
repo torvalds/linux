@@ -601,7 +601,7 @@ static int dw100_open(struct file *file)
 	struct v4l2_pix_format_mplane *pix_fmt;
 	int ret, i;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return -ENOMEM;
 

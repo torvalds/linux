@@ -93,7 +93,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	atomic_set(&net->servers_outstanding, 1);
 
 	ret = -ENOMEM;
-	sysnames = kzalloc(sizeof(*sysnames), GFP_KERNEL);
+	sysnames = kzalloc_obj(*sysnames);
 	if (!sysnames)
 		goto error_sysnames;
 	sysnames->subs[0] = (char *)&afs_init_sysname;

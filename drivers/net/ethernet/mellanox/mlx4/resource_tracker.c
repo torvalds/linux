@@ -505,8 +505,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	int t;
 
 	priv->mfunc.master.res_tracker.slave_list =
-		kcalloc(dev->num_slaves, sizeof(struct slave_list),
-			GFP_KERNEL);
+		kzalloc_objs(struct slave_list, dev->num_slaves);
 	if (!priv->mfunc.master.res_tracker.slave_list)
 		return -ENOMEM;
 
@@ -525,21 +524,16 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	for (i = 0; i < MLX4_NUM_OF_RESOURCE_TYPE; i++) {
 		struct resource_allocator *res_alloc =
 			&priv->mfunc.master.res_tracker.res_alloc[i];
-		res_alloc->quota = kmalloc_array(dev->persist->num_vfs + 1,
-						 sizeof(int),
-						 GFP_KERNEL);
-		res_alloc->guaranteed = kmalloc_array(dev->persist->num_vfs + 1,
-						      sizeof(int),
-						      GFP_KERNEL);
+		res_alloc->quota = kmalloc_objs(int, dev->persist->num_vfs + 1);
+		res_alloc->guaranteed = kmalloc_objs(int,
+						     dev->persist->num_vfs + 1);
 		if (i == RES_MAC || i == RES_VLAN)
 			res_alloc->allocated =
-				kcalloc(MLX4_MAX_PORTS *
-						(dev->persist->num_vfs + 1),
-					sizeof(int), GFP_KERNEL);
+				kzalloc_objs(int,
+					     MLX4_MAX_PORTS * (dev->persist->num_vfs + 1));
 		else
 			res_alloc->allocated =
-				kcalloc(dev->persist->num_vfs + 1,
-					sizeof(int), GFP_KERNEL);
+				kzalloc_objs(int, dev->persist->num_vfs + 1);
 		/* Reduce the sink counter */
 		if (i == RES_COUNTER)
 			res_alloc->res_free = dev->caps.max_counters - 1;
@@ -1051,7 +1045,7 @@ static struct res_common *alloc_qp_tr(int id)
 {
 	struct res_qp *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1069,7 +1063,7 @@ static struct res_common *alloc_mtt_tr(int id, int order)
 {
 	struct res_mtt *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1085,7 +1079,7 @@ static struct res_common *alloc_mpt_tr(int id, int key)
 {
 	struct res_mpt *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1100,7 +1094,7 @@ static struct res_common *alloc_eq_tr(int id)
 {
 	struct res_eq *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1114,7 +1108,7 @@ static struct res_common *alloc_cq_tr(int id)
 {
 	struct res_cq *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1129,7 +1123,7 @@ static struct res_common *alloc_srq_tr(int id)
 {
 	struct res_srq *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1144,7 +1138,7 @@ static struct res_common *alloc_counter_tr(int id, int port)
 {
 	struct res_counter *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1159,7 +1153,7 @@ static struct res_common *alloc_xrcdn_tr(int id)
 {
 	struct res_xrcdn *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1173,7 +1167,7 @@ static struct res_common *alloc_fs_rule_tr(u64 id, int qpn)
 {
 	struct res_fs_rule *ret;
 
-	ret = kzalloc(sizeof(*ret), GFP_KERNEL);
+	ret = kzalloc_obj(*ret);
 	if (!ret)
 		return NULL;
 
@@ -1240,8 +1234,7 @@ int mlx4_calc_vf_counters(struct mlx4_dev *dev, int slave, int port,
 
 	memset(data, 0, sizeof(*data));
 
-	counters_arr = kmalloc_array(dev->caps.max_counters,
-				     sizeof(*counters_arr), GFP_KERNEL);
+	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters);
 	if (!counters_arr)
 		return -ENOMEM;
 
@@ -1285,7 +1278,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
 	struct rb_root *root = &tracker->res_tree[type];
 
-	res_arr = kcalloc(count, sizeof(*res_arr), GFP_KERNEL);
+	res_arr = kzalloc_objs(*res_arr, count);
 	if (!res_arr)
 		return -ENOMEM;
 
@@ -2038,7 +2031,7 @@ static int mac_add_to_slave(struct mlx4_dev *dev, int slave, u64 mac, int port, 
 
 	if (mlx4_grant_resource(dev, slave, RES_MAC, 1, port))
 		return -EINVAL;
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res) {
 		mlx4_release_resource(dev, slave, RES_MAC, 1, port);
 		return -ENOMEM;
@@ -2145,7 +2138,7 @@ static int vlan_add_to_slave(struct mlx4_dev *dev, int slave, u16 vlan,
 
 	if (mlx4_grant_resource(dev, slave, RES_VLAN, 1, port))
 		return -EINVAL;
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res) {
 		mlx4_release_resource(dev, slave, RES_VLAN, 1, port);
 		return -ENOMEM;
@@ -4032,7 +4025,7 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 	struct res_gid *res;
 	int err;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	if (!res)
 		return -ENOMEM;
 
@@ -5187,8 +5180,7 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 		mlx4_warn(dev, "rem_slave_counters: Could not move all counters - too busy for slave %d\n",
 			  slave);
 
-	counters_arr = kmalloc_array(dev->caps.max_counters,
-				     sizeof(*counters_arr), GFP_KERNEL);
+	counters_arr = kmalloc_objs(*counters_arr, dev->caps.max_counters);
 	if (!counters_arr)
 		return;
 

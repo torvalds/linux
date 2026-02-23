@@ -131,7 +131,7 @@ ecryptfs_spawn_daemon(struct ecryptfs_daemon **daemon, struct file *file)
 {
 	int rc = 0;
 
-	(*daemon) = kzalloc(sizeof(**daemon), GFP_KERNEL);
+	(*daemon) = kzalloc_obj(**daemon);
 	if (!(*daemon)) {
 		rc = -ENOMEM;
 		goto out;

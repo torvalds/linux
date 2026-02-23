@@ -233,7 +233,7 @@ void dal_hw_ddc_init(
 		*hw_ddc = NULL;
 	}
 
-	*hw_ddc = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
+	*hw_ddc = kzalloc_obj(struct hw_ddc);
 	if (!*hw_ddc) {
 		ASSERT_CRITICAL(false);
 		return;

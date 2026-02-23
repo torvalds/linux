@@ -280,7 +280,7 @@ static int vce_v2_0_stop(struct amdgpu_device *adev)
 
 
 	if (vce_v2_0_lmi_clean(adev)) {
-		DRM_INFO("VCE is not idle \n");
+		drm_info(adev_to_drm(adev), "VCE is not idle\n");
 		return 0;
 	}
 
@@ -289,7 +289,7 @@ static int vce_v2_0_stop(struct amdgpu_device *adev)
 		return -EINVAL;
 
 	if (vce_v2_0_wait_for_idle(ip_block)) {
-		DRM_INFO("VCE is busy, Can't set clock gating");
+		drm_info(adev_to_drm(adev), "VCE is busy, Can't set clock gating");
 		return 0;
 	}
 
@@ -481,7 +481,7 @@ static int vce_v2_0_hw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	DRM_INFO("VCE initialized successfully.\n");
+	drm_info(adev_to_drm(adev), "VCE initialized successfully.\n");
 
 	return 0;
 }

@@ -407,7 +407,7 @@ static int mana_hwc_create_cq(struct hw_channel_context *hwc, u16 q_depth,
 	if (cq_size < MANA_MIN_QSIZE)
 		cq_size = MANA_MIN_QSIZE;
 
-	hwc_cq = kzalloc(sizeof(*hwc_cq), GFP_KERNEL);
+	hwc_cq = kzalloc_obj(*hwc_cq);
 	if (!hwc_cq)
 		return -ENOMEM;
 
@@ -426,7 +426,7 @@ static int mana_hwc_create_cq(struct hw_channel_context *hwc, u16 q_depth,
 	}
 	hwc_cq->gdma_cq = cq;
 
-	comp_buf = kcalloc(q_depth, sizeof(*comp_buf), GFP_KERNEL);
+	comp_buf = kzalloc_objs(*comp_buf, q_depth);
 	if (!comp_buf) {
 		err = -ENOMEM;
 		goto out;
@@ -461,7 +461,7 @@ static int mana_hwc_alloc_dma_buf(struct hw_channel_context *hwc, u16 q_depth,
 	int err;
 	u16 i;
 
-	dma_buf = kzalloc(struct_size(dma_buf, reqs, q_depth), GFP_KERNEL);
+	dma_buf = kzalloc_flex(*dma_buf, reqs, q_depth);
 	if (!dma_buf)
 		return -ENOMEM;
 
@@ -539,7 +539,7 @@ static int mana_hwc_create_wq(struct hw_channel_context *hwc,
 	if (queue_size < MANA_MIN_QSIZE)
 		queue_size = MANA_MIN_QSIZE;
 
-	hwc_wq = kzalloc(sizeof(*hwc_wq), GFP_KERNEL);
+	hwc_wq = kzalloc_obj(*hwc_wq);
 	if (!hwc_wq)
 		return -ENOMEM;
 
@@ -644,7 +644,7 @@ static int mana_hwc_test_channel(struct hw_channel_context *hwc, u16 q_depth,
 			return err;
 	}
 
-	ctx = kcalloc(q_depth, sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_objs(*ctx, q_depth);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -750,7 +750,7 @@ int mana_hwc_create_channel(struct gdma_context *gc)
 	u16 q_depth_max;
 	int err;
 
-	hwc = kzalloc(sizeof(*hwc), GFP_KERNEL);
+	hwc = kzalloc_obj(*hwc);
 	if (!hwc)
 		return -ENOMEM;
 

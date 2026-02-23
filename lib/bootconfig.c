@@ -557,17 +557,13 @@ static int __init __xbc_close_brace(char *p)
 /*
  * Return delimiter or error, no node added. As same as lib/cmdline.c,
  * you can use " around spaces, but can't escape " for value.
+ * *@__v must point real value string. (not including spaces before value.)
  */
 static int __init __xbc_parse_value(char **__v, char **__n)
 {
 	char *p, *v = *__v;
 	int c, quotes = 0;
 
-	v = skip_spaces(v);
-	while (*v == '#') {
-		v = skip_comment(v);
-		v = skip_spaces(v);
-	}
 	if (*v == '"' || *v == '\'') {
 		quotes = *v;
 		v++;
@@ -617,6 +613,13 @@ static int __init xbc_parse_array(char **__v)
 		last_parent = xbc_node_get_child(last_parent);
 
 	do {
+		/* Search the next array value beyond comments and empty lines */
+		next = skip_spaces(*__v);
+		while (*next == '#') {
+			next = skip_comment(next);
+			next = skip_spaces(next);
+		}
+		*__v = next;
 		c = __xbc_parse_value(__v, &next);
 		if (c < 0)
 			return c;
@@ -701,9 +704,17 @@ static int __init xbc_parse_kv(char **k, char *v, int op)
 	if (ret)
 		return ret;
 
-	c = __xbc_parse_value(&v, &next);
-	if (c < 0)
-		return c;
+	v = skip_spaces_until_newline(v);
+	/* If there is a comment, this has an empty value. */
+	if (*v == '#') {
+		next = skip_comment(v);
+		*v = '\0';
+		c = '\n';
+	} else {
+		c = __xbc_parse_value(&v, &next);
+		if (c < 0)
+			return c;
+	}
 
 	child = xbc_node_get_child(last_parent);
 	if (child && xbc_node_is_value(child)) {

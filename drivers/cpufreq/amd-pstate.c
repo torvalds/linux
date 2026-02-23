@@ -636,6 +636,19 @@ static void amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	WRITE_ONCE(cpudata->max_limit_freq, policy->max);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		/*
+		 * For performance policy, set MinPerf to nominal_perf rather than
+		 * highest_perf or lowest_nonlinear_perf.
+		 *
+		 * Per commit 0c411b39e4f4c, using highest_perf was observed
+		 * to cause frequency throttling on power-limited platforms, leading to
+		 * performance regressions. Using lowest_nonlinear_perf would limit
+		 * performance too much for HPC workloads requiring high frequency
+		 * operation and minimal wakeup latency from idle states.
+		 *
+		 * nominal_perf therefore provides a balance by avoiding throttling
+		 * while still maintaining enough performance for HPC workloads.
+		 */
 		perf.min_limit_perf = min(perf.nominal_perf, perf.max_limit_perf);
 		WRITE_ONCE(cpudata->min_limit_freq, min(cpudata->nominal_freq, cpudata->max_limit_freq));
 	} else {
@@ -980,7 +993,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	if (!dev)
 		return -ENODEV;
 
-	cpudata = kzalloc(sizeof(*cpudata), GFP_KERNEL);
+	cpudata = kzalloc_obj(*cpudata);
 	if (!cpudata)
 		return -ENOMEM;
 
@@ -1465,7 +1478,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	if (!dev)
 		return -ENODEV;
 
-	cpudata = kzalloc(sizeof(*cpudata), GFP_KERNEL);
+	cpudata = kzalloc_obj(*cpudata);
 	if (!cpudata)
 		return -ENOMEM;
 

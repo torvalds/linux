@@ -186,7 +186,7 @@ static int hostaudio_open(struct inode *inode, struct file *file)
 	kernel_param_unlock(THIS_MODULE);
 #endif
 
-	state = kmalloc(sizeof(struct hostaudio_state), GFP_KERNEL);
+	state = kmalloc_obj(struct hostaudio_state);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -247,7 +247,7 @@ static int hostmixer_open_mixdev(struct inode *inode, struct file *file)
 	printk(KERN_DEBUG "hostmixer: open called (host: %s)\n", mixer);
 #endif
 
-	state = kmalloc(sizeof(struct hostmixer_state), GFP_KERNEL);
+	state = kmalloc_obj(struct hostmixer_state);
 	if (state == NULL)
 		return -ENOMEM;
 

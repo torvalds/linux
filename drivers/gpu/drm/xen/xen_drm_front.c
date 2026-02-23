@@ -171,7 +171,7 @@ int xen_drm_front_dbuf_create(struct xen_drm_front_info *front_info,
 	if (unlikely(!evtchnl))
 		return -EIO;
 
-	dbuf = kzalloc(sizeof(*dbuf), GFP_KERNEL);
+	dbuf = kzalloc_obj(*dbuf);
 	if (!dbuf)
 		return -ENOMEM;
 
@@ -496,7 +496,7 @@ static int xen_drm_drv_init(struct xen_drm_front_info *front_info)
 
 	DRM_INFO("Creating %s\n", xen_drm_driver.desc);
 
-	drm_info = kzalloc(sizeof(*drm_info), GFP_KERNEL);
+	drm_info = kzalloc_obj(*drm_info);
 	if (!drm_info) {
 		ret = -ENOMEM;
 		goto fail;

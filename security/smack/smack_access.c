@@ -392,7 +392,7 @@ void smack_log(char *subject_label, char *object_label, int request,
 }
 #else /* #ifdef CONFIG_AUDIT */
 void smack_log(char *subject_label, char *object_label, int request,
-               int result, struct smk_audit_info *ad)
+	       int result, struct smk_audit_info *ad)
 {
 }
 #endif
@@ -592,7 +592,7 @@ smk_import_allocated_label(char *smack, gfp_t gfp)
 	if (skp != NULL)
 		goto freeout;
 
-	skp = kzalloc(sizeof(*skp), gfp);
+	skp = kzalloc_obj(*skp, gfp);
 	if (skp == NULL) {
 		skp = ERR_PTR(-ENOMEM);
 		goto freeout;

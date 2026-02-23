@@ -208,7 +208,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		dev_t rdev;
 		union ubifs_dev_desc *dev;
 
-		ui->data = kmalloc(sizeof(union ubifs_dev_desc), GFP_NOFS);
+		ui->data = kmalloc_obj(union ubifs_dev_desc, GFP_NOFS);
 		if (!ui->data) {
 			err = -ENOMEM;
 			goto out_ino;
@@ -819,8 +819,7 @@ static int alloc_wbufs(struct ubifs_info *c)
 {
 	int i, err;
 
-	c->jheads = kcalloc(c->jhead_cnt, sizeof(struct ubifs_jhead),
-			    GFP_KERNEL);
+	c->jheads = kzalloc_objs(struct ubifs_jhead, c->jhead_cnt);
 	if (!c->jheads)
 		return -ENOMEM;
 
@@ -1246,8 +1245,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	 * never exceed 64.
 	 */
 	err = -ENOMEM;
-	c->bottom_up_buf = kmalloc_array(BOTTOM_UP_HEIGHT, sizeof(int),
-					 GFP_KERNEL);
+	c->bottom_up_buf = kmalloc_objs(int, BOTTOM_UP_HEIGHT);
 	if (!c->bottom_up_buf)
 		goto out_free;
 
@@ -2083,7 +2081,7 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 {
 	struct ubifs_info *c;
 
-	c = kzalloc(sizeof(struct ubifs_info), GFP_KERNEL);
+	c = kzalloc_obj(struct ubifs_info);
 	if (c) {
 		spin_lock_init(&c->cnt_lock);
 		spin_lock_init(&c->cs_lock);
@@ -2336,7 +2334,7 @@ static int ubifs_init_fs_context(struct fs_context *fc)
 {
 	struct ubifs_fs_context *ctx;
 
-	ctx = kzalloc(sizeof(struct ubifs_fs_context), GFP_KERNEL);
+	ctx = kzalloc_obj(struct ubifs_fs_context);
 	if (!ctx)
 		return -ENOMEM;
 

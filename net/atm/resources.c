@@ -36,7 +36,7 @@ static struct atm_dev *__alloc_atm_dev(const char *type)
 {
 	struct atm_dev *dev;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return NULL;
 	dev->type = type;

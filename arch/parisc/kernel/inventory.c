@@ -193,7 +193,7 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 	long status;		/* PDC return value status */
 	struct parisc_device *dev;
 
-	pa_pdc_cell = kmalloc(sizeof (*pa_pdc_cell), GFP_KERNEL);
+	pa_pdc_cell = kmalloc_obj(*pa_pdc_cell);
 	if (!pa_pdc_cell)
 		panic("couldn't allocate memory for PDC_PAT_CELL!");
 
@@ -206,6 +206,19 @@ pat_query_module(ulong pcell_loc, ulong mod_index)
 		kfree(pa_pdc_cell);
 		return status;
 	}
+
+#ifdef DEBUG_PAT
+	pr_debug("PAT INDEX: %lu: cba 0x%lx, "
+		"mod_info 0x%lx, mod_location 0x%lx, "
+		"mod: 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx "
+		"0x%lx 0x%lx 0x%lx 0x%lx 0x%lx 0x%lx\n",
+		mod_index + 1, pa_pdc_cell->cba,
+		pa_pdc_cell->mod_info, pa_pdc_cell->mod_location,
+		pa_pdc_cell->mod[0], pa_pdc_cell->mod[1], pa_pdc_cell->mod[2],
+		pa_pdc_cell->mod[3], pa_pdc_cell->mod[4], pa_pdc_cell->mod[5],
+		pa_pdc_cell->mod[6], pa_pdc_cell->mod[7], pa_pdc_cell->mod[8],
+		pa_pdc_cell->mod[9], pa_pdc_cell->mod[10], pa_pdc_cell->mod[11]);
+#endif
 
 	temp = pa_pdc_cell->cba;
 	dev = alloc_pa_dev(PAT_GET_CBA(temp), &(pa_pdc_cell->mod_path));
@@ -523,7 +536,7 @@ add_system_map_addresses(struct parisc_device *dev, int num_addrs,
 	long status;
 	struct pdc_system_map_addr_info addr_result;
 
-	dev->addr = kmalloc_array(num_addrs, sizeof(*dev->addr), GFP_KERNEL);
+	dev->addr = kmalloc_objs(*dev->addr, num_addrs);
 	if(!dev->addr) {
 		printk(KERN_ERR "%s %s(): memory allocation failure\n",
 		       __FILE__, __func__);

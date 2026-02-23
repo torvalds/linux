@@ -82,10 +82,10 @@ snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
 					int dev_id, hda_jack_callback_fn func);
 
 /**
- * snd_hda_jack_detect_enable - enable the jack-detection
+ * snd_hda_jack_detect_enable_callback - enable the jack-detection
  * @codec: the HDA codec
  * @nid: pin NID to enable
- * @func: callback function to register
+ * @cb: callback function to register
  *
  * In the case of error, the return value will be a pointer embedded with
  * errno.  Check and handle the return value appropriately with standard

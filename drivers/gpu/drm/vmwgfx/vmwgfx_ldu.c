@@ -416,7 +416,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_crtc *crtc;
 	int ret;
 
-	ldu = kzalloc(sizeof(*ldu), GFP_KERNEL);
+	ldu = kzalloc_obj(*ldu);
 	if (!ldu)
 		return -ENOMEM;
 
@@ -547,7 +547,7 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 		return -EINVAL;
 	}
 
-	dev_priv->ldu_priv = kmalloc(sizeof(*dev_priv->ldu_priv), GFP_KERNEL);
+	dev_priv->ldu_priv = kmalloc_obj(*dev_priv->ldu_priv);
 	if (!dev_priv->ldu_priv)
 		return -ENOMEM;
 

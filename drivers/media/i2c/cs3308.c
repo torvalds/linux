@@ -79,7 +79,7 @@ static int cs3308_probe(struct i2c_client *client)
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 		 client->addr << 1, client->adapter->name);
 
-	sd = kzalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
+	sd = kzalloc_obj(struct v4l2_subdev);
 	if (sd == NULL)
 		return -ENOMEM;
 

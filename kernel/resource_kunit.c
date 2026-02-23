@@ -204,7 +204,7 @@ static void resource_test_insert_resource(struct kunit *test, struct resource *p
 {
 	struct resource *res;
 
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	res = kzalloc_obj(*res);
 	KUNIT_ASSERT_NOT_NULL(test, res);
 
 	res->name = name;

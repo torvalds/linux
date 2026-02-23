@@ -57,7 +57,7 @@
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dml/display_mode_vba.h"
 #include "dcn20/dcn20_dccg.h"
 #include "dcn21/dcn21_dccg.h"
@@ -484,7 +484,7 @@ static struct input_pixel_processor *dcn21_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn10_ipp *ipp =
-		kzalloc(sizeof(struct dcn10_ipp), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_ipp);
 
 	if (!ipp) {
 		BREAK_TO_DEBUGGER();
@@ -501,7 +501,7 @@ static struct dpp *dcn21_dpp_create(
 	uint32_t inst)
 {
 	struct dcn20_dpp *dpp =
-		kzalloc(sizeof(struct dcn20_dpp), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_dpp);
 
 	if (!dpp)
 		return NULL;
@@ -520,7 +520,7 @@ static struct dce_aux *dcn21_aux_engine_create(
 	uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
-		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+		kzalloc_obj(struct aux_engine_dce110);
 
 	if (!aux_engine)
 		return NULL;
@@ -557,7 +557,7 @@ static struct dce_i2c_hw *dcn21_i2c_hw_create(struct dc_context *ctx,
 					      uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
-		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
+		kzalloc_obj(struct dce_i2c_hw);
 
 	if (!dce_i2c_hw)
 		return NULL;
@@ -785,9 +785,7 @@ bool dcn21_fast_validate_bw(struct dc *dc,
 
 	dcn20_merge_pipes_for_validate(dc, context);
 
-	DC_FP_START();
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, validate_mode);
-	DC_FP_END();
 
 	*pipe_cnt_out = pipe_cnt;
 
@@ -932,7 +930,8 @@ static enum dc_status dcn21_validate_bandwidth(struct dc *dc, struct dc_state *c
 	bool voltage_supported;
 	display_e2e_pipe_params_st *pipes;
 
-	pipes = kcalloc(dc->res_pool->pipe_count, sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	pipes = kzalloc_objs(display_e2e_pipe_params_st,
+			     dc->res_pool->pipe_count);
 	if (!pipes)
 		return DC_FAIL_BANDWIDTH_VALIDATE;
 
@@ -961,7 +960,7 @@ static struct clock_source *dcn21_clock_source_create(
 		bool dp_clk_src)
 {
 	struct dce110_clk_src *clk_src =
-		kzalloc(sizeof(struct dce110_clk_src), GFP_KERNEL);
+		kzalloc_obj(struct dce110_clk_src);
 
 	if (!clk_src)
 		return NULL;
@@ -982,7 +981,7 @@ static struct hubp *dcn21_hubp_create(
 	uint32_t inst)
 {
 	struct dcn21_hubp *hubp21 =
-		kzalloc(sizeof(struct dcn21_hubp), GFP_KERNEL);
+		kzalloc_obj(struct dcn21_hubp);
 
 	if (!hubp21)
 		return NULL;
@@ -1000,8 +999,7 @@ static struct hubbub *dcn21_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
-	struct dcn20_hubbub *hubbub = kzalloc(sizeof(struct dcn20_hubbub),
-					  GFP_KERNEL);
+	struct dcn20_hubbub *hubbub = kzalloc_obj(struct dcn20_hubbub);
 
 	if (!hubbub)
 		return NULL;
@@ -1029,7 +1027,7 @@ static struct output_pixel_processor *dcn21_opp_create(struct dc_context *ctx,
 						       uint32_t inst)
 {
 	struct dcn20_opp *opp =
-		kzalloc(sizeof(struct dcn20_opp), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_opp);
 
 	if (!opp) {
 		BREAK_TO_DEBUGGER();
@@ -1045,7 +1043,7 @@ static struct timing_generator *dcn21_timing_generator_create(struct dc_context 
 							      uint32_t instance)
 {
 	struct optc *tgn10 =
-		kzalloc(sizeof(struct optc), GFP_KERNEL);
+		kzalloc_obj(struct optc);
 
 	if (!tgn10)
 		return NULL;
@@ -1064,8 +1062,7 @@ static struct timing_generator *dcn21_timing_generator_create(struct dc_context 
 
 static struct mpc *dcn21_mpc_create(struct dc_context *ctx)
 {
-	struct dcn20_mpc *mpc20 = kzalloc(sizeof(struct dcn20_mpc),
-					  GFP_KERNEL);
+	struct dcn20_mpc *mpc20 = kzalloc_obj(struct dcn20_mpc);
 
 	if (!mpc20)
 		return NULL;
@@ -1093,7 +1090,7 @@ static struct display_stream_compressor *dcn21_dsc_create(struct dc_context *ctx
 							  uint32_t inst)
 {
 	struct dcn20_dsc *dsc =
-		kzalloc(sizeof(struct dcn20_dsc), GFP_KERNEL);
+		kzalloc_obj(struct dcn20_dsc);
 
 	if (!dsc) {
 		BREAK_TO_DEBUGGER();
@@ -1106,7 +1103,7 @@ static struct display_stream_compressor *dcn21_dsc_create(struct dc_context *ctx
 
 static struct pp_smu_funcs *dcn21_pp_smu_create(struct dc_context *ctx)
 {
-	struct pp_smu_funcs *pp_smu = kzalloc(sizeof(*pp_smu), GFP_KERNEL);
+	struct pp_smu_funcs *pp_smu = kzalloc_obj(*pp_smu);
 
 	if (!pp_smu)
 		return pp_smu;
@@ -1143,7 +1140,7 @@ static struct stream_encoder *dcn21_stream_encoder_create(enum engine_id eng_id,
 							  struct dc_context *ctx)
 {
 	struct dcn10_stream_encoder *enc1 =
-		kzalloc(sizeof(struct dcn10_stream_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dcn10_stream_encoder);
 
 	if (!enc1)
 		return NULL;
@@ -1170,7 +1167,7 @@ static const struct dce_hwseq_mask hwseq_mask = {
 static struct dce_hwseq *dcn21_hwseq_create(
 	struct dc_context *ctx)
 {
-	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
+	struct dce_hwseq *hws = kzalloc_obj(struct dce_hwseq);
 
 	if (hws) {
 		hws->ctx = ctx;
@@ -1297,7 +1294,7 @@ static struct link_encoder *dcn21_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn21_link_encoder *enc21 =
-		kzalloc(sizeof(struct dcn21_link_encoder), GFP_KERNEL);
+		kzalloc_obj(struct dcn21_link_encoder);
 	int link_regs_id;
 
 	if (!enc21 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
@@ -1321,7 +1318,7 @@ static struct link_encoder *dcn21_link_encoder_create(
 static struct panel_cntl *dcn21_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dce_panel_cntl *panel_cntl =
-		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+		kzalloc_obj(struct dce_panel_cntl);
 
 	if (!panel_cntl)
 		return NULL;
@@ -1706,7 +1703,7 @@ struct resource_pool *dcn21_create_resource_pool(
 		struct dc *dc)
 {
 	struct dcn21_resource_pool *pool =
-		kzalloc(sizeof(struct dcn21_resource_pool), GFP_KERNEL);
+		kzalloc_obj(struct dcn21_resource_pool);
 
 	if (!pool)
 		return NULL;

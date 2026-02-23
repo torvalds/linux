@@ -74,11 +74,20 @@ static void test_stacktrace_ips_kprobe_multi(bool retprobe)
 
 	load_kallsyms();
 
-	check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 4,
-			     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
-			     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
-			     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
-			     ksym_get_addr("bpf_testmod_test_read"));
+	if (retprobe) {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 4,
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	} else {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 5,
+				     ksym_get_addr("bpf_testmod_stacktrace_test"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	}
 
 cleanup:
 	stacktrace_ips__destroy(skel);
@@ -128,6 +137,99 @@ cleanup:
 	stacktrace_ips__destroy(skel);
 }
 
+static void test_stacktrace_ips_kprobe(bool retprobe)
+{
+	LIBBPF_OPTS(bpf_kprobe_opts, opts,
+		.retprobe = retprobe
+	);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct stacktrace_ips *skel;
+
+	skel = stacktrace_ips__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "stacktrace_ips__open_and_load"))
+		return;
+
+	if (!skel->kconfig->CONFIG_UNWINDER_ORC) {
+		test__skip();
+		goto cleanup;
+	}
+
+	skel->links.kprobe_test = bpf_program__attach_kprobe_opts(
+						skel->progs.kprobe_test,
+						"bpf_testmod_stacktrace_test", &opts);
+	if (!ASSERT_OK_PTR(skel->links.kprobe_test, "bpf_program__attach_kprobe_opts"))
+		goto cleanup;
+
+	trigger_module_test_read(1);
+
+	load_kallsyms();
+
+	if (retprobe) {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 4,
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	} else {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 5,
+				     ksym_get_addr("bpf_testmod_stacktrace_test"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	}
+
+cleanup:
+	stacktrace_ips__destroy(skel);
+}
+
+static void test_stacktrace_ips_trampoline(bool retprobe)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct stacktrace_ips *skel;
+
+	skel = stacktrace_ips__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "stacktrace_ips__open_and_load"))
+		return;
+
+	if (!skel->kconfig->CONFIG_UNWINDER_ORC) {
+		test__skip();
+		goto cleanup;
+	}
+
+	if (retprobe) {
+		skel->links.fexit_test = bpf_program__attach_trace(skel->progs.fexit_test);
+		if (!ASSERT_OK_PTR(skel->links.fexit_test, "bpf_program__attach_trace"))
+			goto cleanup;
+	} else {
+		skel->links.fentry_test = bpf_program__attach_trace(skel->progs.fentry_test);
+		if (!ASSERT_OK_PTR(skel->links.fentry_test, "bpf_program__attach_trace"))
+			goto cleanup;
+	}
+
+	trigger_module_test_read(1);
+
+	load_kallsyms();
+
+	if (retprobe) {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 4,
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	} else {
+		check_stacktrace_ips(bpf_map__fd(skel->maps.stackmap), skel->bss->stack_key, 5,
+				     ksym_get_addr("bpf_testmod_stacktrace_test"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_3"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_2"),
+				     ksym_get_addr("bpf_testmod_stacktrace_test_1"),
+				     ksym_get_addr("bpf_testmod_test_read"));
+	}
+
+cleanup:
+	stacktrace_ips__destroy(skel);
+}
+
 static void __test_stacktrace_ips(void)
 {
 	if (test__start_subtest("kprobe_multi"))
@@ -136,6 +238,14 @@ static void __test_stacktrace_ips(void)
 		test_stacktrace_ips_kprobe_multi(true);
 	if (test__start_subtest("raw_tp"))
 		test_stacktrace_ips_raw_tp();
+	if (test__start_subtest("kprobe"))
+		test_stacktrace_ips_kprobe(false);
+	if (test__start_subtest("kretprobe"))
+		test_stacktrace_ips_kprobe(true);
+	if (test__start_subtest("fentry"))
+		test_stacktrace_ips_trampoline(false);
+	if (test__start_subtest("fexit"))
+		test_stacktrace_ips_trampoline(true);
 }
 #else
 static void __test_stacktrace_ips(void)

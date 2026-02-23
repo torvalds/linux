@@ -1335,8 +1335,7 @@ static int initialize_vpif(void)
 
 	/* Allocate memory for six channel objects */
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
-		vpif_obj.dev[i] =
-		    kzalloc(sizeof(*vpif_obj.dev[i]), GFP_KERNEL);
+		vpif_obj.dev[i] = kzalloc_obj(*vpif_obj.dev[i]);
 		/* If memory allocation fails, return error */
 		if (!vpif_obj.dev[i]) {
 			free_channel_objects_index = i;
@@ -1651,7 +1650,7 @@ static int vpif_probe(struct platform_device *pdev)
 	vpif_obj.config = pdev->dev.platform_data;
 
 	subdev_count = vpif_obj.config->subdev_count;
-	vpif_obj.sd = kcalloc(subdev_count, sizeof(*vpif_obj.sd), GFP_KERNEL);
+	vpif_obj.sd = kzalloc_objs(*vpif_obj.sd, subdev_count);
 	if (!vpif_obj.sd) {
 		err = -ENOMEM;
 		goto probe_subdev_out;

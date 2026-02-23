@@ -21,9 +21,9 @@ struct spl_custom_float_value {
 	bool negative;
 };
 
-bool spl_convert_to_custom_float_format(
+bool SPL_NAMESPACE(spl_convert_to_custom_float_format(
 	struct spl_fixed31_32 value,
 	const struct spl_custom_float_format *format,
-	uint32_t *result);
+	uint32_t *result));
 
 #endif //SPL_CUSTOM_FLOAT_H_

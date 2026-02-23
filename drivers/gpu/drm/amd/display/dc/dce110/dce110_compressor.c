@@ -394,7 +394,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 struct compressor *dce110_compressor_create(struct dc_context *ctx)
 {
 	struct dce110_compressor *cp110 =
-		kzalloc(sizeof(struct dce110_compressor), GFP_KERNEL);
+		kzalloc_obj(struct dce110_compressor);
 
 	if (!cp110)
 		return NULL;

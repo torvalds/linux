@@ -638,7 +638,7 @@ static int pef2256_add_audio_devices(struct pef2256 *pef2256)
 	if (!count)
 		return 0;
 
-	audio_devs = kcalloc(count, sizeof(*audio_devs), GFP_KERNEL);
+	audio_devs = kzalloc_objs(*audio_devs, count);
 	if (!audio_devs)
 		return -ENOMEM;
 

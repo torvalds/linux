@@ -168,7 +168,7 @@ static int fcoe_sysfs_fcf_add(struct fcoe_fcf *new)
 	LIBFCOE_FIP_DBG(fip, "New FCF fab %16.16llx mac %pM\n",
 			new->fabric_name, new->fcf_mac);
 
-	temp = kzalloc(sizeof(*temp), GFP_KERNEL);
+	temp = kzalloc_obj(*temp);
 	if (!temp)
 		goto out;
 
@@ -1043,7 +1043,7 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		if (fip->fcf_count >= FCOE_CTLR_FCF_LIMIT)
 			goto out;
 
-		fcf = kmalloc(sizeof(*fcf), GFP_ATOMIC);
+		fcf = kmalloc_obj(*fcf, GFP_ATOMIC);
 		if (!fcf)
 			goto out;
 
@@ -1378,8 +1378,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	 */
 	num_vlink_desc = rlen / sizeof(*vp);
 	if (num_vlink_desc)
-		vlink_desc_arr = kmalloc_array(num_vlink_desc, sizeof(vp),
-					       GFP_ATOMIC);
+		vlink_desc_arr = kmalloc_objs(vp, num_vlink_desc, GFP_ATOMIC);
 	if (!vlink_desc_arr)
 		return;
 	num_vlink_desc = 0;

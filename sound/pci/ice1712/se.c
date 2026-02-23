@@ -660,7 +660,7 @@ static int se_init(struct snd_ice1712 *ice)
 {
 	struct se_spec *spec;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc_obj(*spec);
 	if (!spec)
 		return -ENOMEM;
 	ice->spec = spec;

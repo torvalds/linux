@@ -67,6 +67,7 @@
 	FN(TC_EGRESS)			\
 	FN(SECURITY_HOOK)		\
 	FN(QDISC_DROP)			\
+	FN(QDISC_BURST_DROP)		\
 	FN(QDISC_OVERLIMIT)		\
 	FN(QDISC_CONGESTED)		\
 	FN(CAKE_FLOOD)			\
@@ -374,6 +375,11 @@ enum skb_drop_reason {
 	 * failed to enqueue to current qdisc)
 	 */
 	SKB_DROP_REASON_QDISC_DROP,
+	/**
+	 * @SKB_DROP_REASON_QDISC_BURST_DROP: dropped when net.core.qdisc_max_burst
+	 * limit is hit.
+	 */
+	SKB_DROP_REASON_QDISC_BURST_DROP,
 	/**
 	 * @SKB_DROP_REASON_QDISC_OVERLIMIT: dropped by qdisc when a qdisc
 	 * instance exceeds its total buffer size limit.

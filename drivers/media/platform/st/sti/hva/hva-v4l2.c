@@ -1165,7 +1165,7 @@ static int hva_open(struct file *file)
 	struct hva_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto out;

@@ -30,17 +30,23 @@
 	};
 };
 
-&display_panel {
-	status = "okay";
-
-	compatible = "samsung,sofef00";
-};
-
 &bq27441_fg {
 	monitored-battery = <&battery>;
 };
 
+&display_panel {
+	compatible = "samsung,sofef00-ams628nw01", "samsung,sofef00";
+
+	status = "okay";
+};
+
+&framebuffer {
+	height = <2280>;
+};
+
 &i2c4 {
+	clock-frequency = <100000>;
+
 	status = "okay";
 
 	max98927_codec: max98927@3a {

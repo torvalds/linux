@@ -1295,7 +1295,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 				u8 eeprom[256];
 				struct i2c_client client;
 			};
-			struct eeprom *e = kzalloc(sizeof(*e), GFP_KERNEL);
+			struct eeprom *e = kzalloc_obj(*e);
 
 			if (e == NULL) {
 				dev_err(dev->dev,
@@ -1381,7 +1381,7 @@ static int cx231xx_media_device_init(struct cx231xx *dev,
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_device *mdev;
 
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	mdev = kzalloc_obj(*mdev);
 	if (!mdev)
 		return -ENOMEM;
 

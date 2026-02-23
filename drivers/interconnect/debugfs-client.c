@@ -86,7 +86,7 @@ static int icc_get_set(void *data, u64 val)
 		goto err_free;
 	}
 
-	debugfs_path = kzalloc(sizeof(*debugfs_path), GFP_KERNEL);
+	debugfs_path = kzalloc_obj(*debugfs_path);
 	if (!debugfs_path) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -149,6 +149,11 @@ int icc_debugfs_client_init(struct dentry *icc_dir)
 		platform_device_put(pdev);
 		return ret;
 	}
+
+	src_node = devm_kstrdup(&pdev->dev, "", GFP_KERNEL);
+	dst_node = devm_kstrdup(&pdev->dev, "", GFP_KERNEL);
+	if (!src_node || !dst_node)
+		return -ENOMEM;
 
 	client_dir = debugfs_create_dir("test_client", icc_dir);
 

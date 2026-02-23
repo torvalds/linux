@@ -499,7 +499,7 @@ static int live_slpc_tile_interaction(void *arg)
 	struct slpc_thread *threads;
 	int i = 0, ret = 0;
 
-	threads = kcalloc(I915_MAX_GT, sizeof(*threads), GFP_KERNEL);
+	threads = kzalloc_objs(*threads, I915_MAX_GT);
 	if (!threads)
 		return -ENOMEM;
 

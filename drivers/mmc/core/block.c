@@ -422,7 +422,7 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
 	struct mmc_blk_ioc_data *idata;
 	int err;
 
-	idata = kzalloc(sizeof(*idata), GFP_KERNEL);
+	idata = kzalloc_obj(*idata);
 	if (!idata) {
 		err = -ENOMEM;
 		goto out;
@@ -737,7 +737,7 @@ static int mmc_blk_ioctl_multi_cmd(struct mmc_blk_data *md,
 		return -EINVAL;
 
 	n = num_of_cmds;
-	idata = kcalloc(n, sizeof(*idata), GFP_KERNEL);
+	idata = kzalloc_objs(*idata, n);
 	if (!idata)
 		return -ENOMEM;
 
@@ -2562,7 +2562,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 		return ERR_PTR(devidx);
 	}
 
-	md = kzalloc(sizeof(*md), GFP_KERNEL);
+	md = kzalloc_obj(*md);
 	if (!md) {
 		ret = -ENOMEM;
 		goto out;
@@ -2794,12 +2794,12 @@ static struct mmc_blk_ioc_data **alloc_idata(struct mmc_rpmb_data *rpmb,
 	struct mmc_blk_ioc_data **idata;
 	unsigned int n;
 
-	idata = kcalloc(cmd_count, sizeof(*idata), GFP_KERNEL);
+	idata = kzalloc_objs(*idata, cmd_count);
 	if (!idata)
 		return NULL;
 
 	for (n = 0; n < cmd_count; n++) {
-		idata[n] = kcalloc(1, sizeof(**idata), GFP_KERNEL);
+		idata[n] = kzalloc_objs(**idata, 1);
 		if (!idata[n]) {
 			free_idata(idata, n);
 			return NULL;
@@ -2942,7 +2942,7 @@ static int mmc_blk_alloc_rpmb_part(struct mmc_card *card,
 	if (devidx < 0)
 		return devidx;
 
-	rpmb = kzalloc(sizeof(*rpmb), GFP_KERNEL);
+	rpmb = kzalloc_obj(*rpmb);
 	if (!rpmb) {
 		ida_free(&mmc_rpmb_ida, devidx);
 		return -ENOMEM;

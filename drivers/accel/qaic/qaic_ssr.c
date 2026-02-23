@@ -260,7 +260,7 @@ static int send_xfer_done(struct qaic_device *qdev, void *resp, u32 dbc_id)
 	struct ssr_debug_transfer_done *xfer_done;
 	int ret;
 
-	xfer_done = kmalloc(sizeof(*xfer_done), GFP_KERNEL);
+	xfer_done = kmalloc_obj(*xfer_done);
 	if (!xfer_done) {
 		ret = -ENOMEM;
 		goto out;
@@ -450,14 +450,14 @@ static struct ssr_dump_info *alloc_dump_info(struct qaic_device *qdev,
 	}
 
 	/* Allocate SSR crashdump book keeping structure */
-	dump_info = kzalloc(sizeof(*dump_info), GFP_KERNEL);
+	dump_info = kzalloc_obj(*dump_info);
 	if (!dump_info) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	/* Buffer used to send MEMORY READ request to device via MHI */
-	dump_info->read_buf_req = kzalloc(sizeof(*dump_info->read_buf_req), GFP_KERNEL);
+	dump_info->read_buf_req = kzalloc_obj(*dump_info->read_buf_req);
 	if (!dump_info->read_buf_req) {
 		ret = -ENOMEM;
 		goto free_dump_info;
@@ -490,7 +490,7 @@ static int dbg_xfer_info_rsp(struct qaic_device *qdev, struct dma_bridge_chan *d
 	struct ssr_crashdump *ssr_crash = NULL;
 	int ret = 0, ret2;
 
-	debug_rsp = kmalloc(sizeof(*debug_rsp), GFP_KERNEL);
+	debug_rsp = kmalloc_obj(*debug_rsp);
 	if (!debug_rsp)
 		return -ENOMEM;
 
@@ -640,7 +640,7 @@ static void ssr_worker(struct work_struct *work)
 			break;
 		}
 
-		event_rsp = kmalloc(sizeof(*event_rsp), GFP_KERNEL);
+		event_rsp = kmalloc_obj(*event_rsp);
 		if (!event_rsp)
 			break;
 

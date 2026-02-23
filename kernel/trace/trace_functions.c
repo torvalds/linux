@@ -61,7 +61,7 @@ int ftrace_allocate_ftrace_ops(struct trace_array *tr)
 	if (tr->flags & TRACE_ARRAY_FL_GLOBAL)
 		return 0;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	ops = kzalloc_obj(*ops);
 	if (!ops)
 		return -ENOMEM;
 

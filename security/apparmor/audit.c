@@ -230,7 +230,7 @@ int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule, gfp_t gfp
 		return -EINVAL;
 	}
 
-	rule = kzalloc(sizeof(struct aa_audit_rule), gfp);
+	rule = kzalloc_obj(struct aa_audit_rule, gfp);
 
 	if (!rule)
 		return -ENOMEM;

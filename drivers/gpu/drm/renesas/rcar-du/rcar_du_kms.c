@@ -381,7 +381,7 @@ struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
 		return drm_gem_dma_prime_import_sg_table(dev, attach, sgt);
 
 	/* Create a DMA GEM buffer. */
-	dma_obj = kzalloc(sizeof(*dma_obj), GFP_KERNEL);
+	dma_obj = kzalloc_obj(*dma_obj);
 	if (!dma_obj)
 		return ERR_PTR(-ENOMEM);
 

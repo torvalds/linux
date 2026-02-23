@@ -2,6 +2,7 @@
 /* Copyright (C) 2020 Marvell. */
 
 #include <linux/firmware.h>
+#include <linux/sysfs.h>
 #include "otx2_cpt_hw_types.h"
 #include "otx2_cpt_common.h"
 #include "otx2_cpt_devlink.h"
@@ -339,8 +340,7 @@ static int cptpf_flr_wq_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 	if (!cptpf->flr_wq)
 		return -ENOMEM;
 
-	cptpf->flr_work = kcalloc(num_vfs, sizeof(struct cptpf_flr_work),
-				  GFP_KERNEL);
+	cptpf->flr_work = kzalloc_objs(struct cptpf_flr_work, num_vfs);
 	if (!cptpf->flr_work)
 		goto destroy_wq;
 
@@ -507,7 +507,7 @@ static ssize_t sso_pf_func_ovrd_show(struct device *dev,
 {
 	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", cptpf->sso_pf_func_ovrd);
+	return sysfs_emit(buf, "%d\n", cptpf->sso_pf_func_ovrd);
 }
 
 static ssize_t sso_pf_func_ovrd_store(struct device *dev,
@@ -533,7 +533,7 @@ static ssize_t kvf_limits_show(struct device *dev,
 {
 	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", cptpf->kvf_limits);
+	return sysfs_emit(buf, "%d\n", cptpf->kvf_limits);
 }
 
 static ssize_t kvf_limits_store(struct device *dev,

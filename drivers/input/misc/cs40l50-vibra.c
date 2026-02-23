@@ -276,7 +276,7 @@ static void cs40l50_add_worker(struct work_struct *work)
 	/* Update effect if already uploaded, otherwise create new effect */
 	effect = cs40l50_find_effect(work_data->effect->id, &vib->effect_head);
 	if (!effect) {
-		effect = kzalloc(sizeof(*effect), GFP_KERNEL);
+		effect = kzalloc_obj(*effect);
 		if (!effect) {
 			error = -ENOMEM;
 			goto err_pm;
@@ -308,7 +308,6 @@ err_free:
 			list_add(&effect->list, &vib->effect_head);
 	}
 err_pm:
-	pm_runtime_mark_last_busy(vib->dev);
 	pm_runtime_put_autosuspend(vib->dev);
 err_exit:
 	work_data->error = error;
@@ -368,7 +367,6 @@ static void cs40l50_start_worker(struct work_struct *work)
 		dev_err(vib->dev, "Effect to play not found\n");
 	}
 
-	pm_runtime_mark_last_busy(vib->dev);
 	pm_runtime_put_autosuspend(vib->dev);
 err_free:
 	kfree(work_data);
@@ -384,7 +382,6 @@ static void cs40l50_stop_worker(struct work_struct *work)
 
 	vib->dsp.write(vib->dev, vib->regmap, vib->dsp.stop_cmd);
 
-	pm_runtime_mark_last_busy(vib->dev);
 	pm_runtime_put_autosuspend(vib->dev);
 
 	kfree(work_data);
@@ -395,7 +392,7 @@ static int cs40l50_playback(struct input_dev *dev, int effect_id, int val)
 	struct cs40l50_vibra *vib = input_get_drvdata(dev);
 	struct cs40l50_work *work_data;
 
-	work_data = kzalloc(sizeof(*work_data), GFP_ATOMIC);
+	work_data = kzalloc_obj(*work_data, GFP_ATOMIC);
 	if (!work_data)
 		return -ENOMEM;
 
@@ -456,7 +453,6 @@ static void cs40l50_erase_worker(struct work_struct *work)
 	list_del(&erase_effect->list);
 	kfree(erase_effect);
 err_pm:
-	pm_runtime_mark_last_busy(vib->dev);
 	pm_runtime_put_autosuspend(vib->dev);
 err_exit:
 	work_data->error = error;

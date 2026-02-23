@@ -27,7 +27,7 @@
 /* Updated only after ALL the mandatory features for that version are merged */
 #define SCMI_PROTOCOL_SUPPORTED_VERSION		0x40000
 
-#define MAX_OPPS		32
+#define MAX_OPPS		64
 
 enum scmi_performance_protocol_cmd {
 	PERF_DOMAIN_ATTRIBUTES = 0x3,
@@ -178,7 +178,6 @@ struct perf_dom_info {
 })
 
 struct scmi_perf_info {
-	u32 version;
 	u16 num_domains;
 	enum scmi_power_scale power_scale;
 	u64 stats_addr;
@@ -215,7 +214,7 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 
 		if (POWER_SCALE_IN_MILLIWATT(flags))
 			pi->power_scale = SCMI_POWER_MILLIWATTS;
-		if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3)
+		if (PROTOCOL_REV_MAJOR(ph->version) >= 0x3)
 			if (POWER_SCALE_IN_MICROWATT(flags))
 				pi->power_scale = SCMI_POWER_MICROWATTS;
 
@@ -251,8 +250,7 @@ static void scmi_perf_xa_destroy(void *data)
 static int
 scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 				struct perf_dom_info *dom_info,
-				bool notify_lim_cmd, bool notify_lvl_cmd,
-				u32 version)
+				bool notify_lim_cmd, bool notify_lvl_cmd)
 {
 	int ret;
 	u32 flags;
@@ -280,7 +278,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 			dom_info->perf_level_notify =
 				SUPPORTS_PERF_LEVEL_NOTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
-		if (PROTOCOL_REV_MAJOR(version) >= 0x4)
+		if (PROTOCOL_REV_MAJOR(ph->version) >= 0x4)
 			dom_info->level_indexing_mode =
 				SUPPORTS_LEVEL_INDEXING(flags);
 		dom_info->rate_limit_us = le32_to_cpu(attr->rate_limit_us) &
@@ -323,7 +321,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	 * If supported overwrite short name with the extended one;
 	 * on error just carry on and use already provided short name.
 	 */
-	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	if (!ret && PROTOCOL_REV_MAJOR(ph->version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(flags))
 		ph->hops->extended_name_get(ph, PERF_DOMAIN_NAME_GET,
 					    dom_info->id, NULL, dom_info->info.name,
@@ -345,19 +343,14 @@ static int opp_cmp_func(const void *opp1, const void *opp2)
 	return t1->perf - t2->perf;
 }
 
-struct scmi_perf_ipriv {
-	u32 version;
-	struct perf_dom_info *perf_dom;
-};
-
 static void iter_perf_levels_prepare_message(void *message,
 					     unsigned int desc_index,
 					     const void *priv)
 {
 	struct scmi_msg_perf_describe_levels *msg = message;
-	const struct scmi_perf_ipriv *p = priv;
+	const struct perf_dom_info *perf_dom = priv;
 
-	msg->domain = cpu_to_le32(p->perf_dom->id);
+	msg->domain = cpu_to_le32(perf_dom->id);
 	/* Set the number of OPPs to be skipped/already read */
 	msg->level_index = cpu_to_le32(desc_index);
 }
@@ -445,21 +438,21 @@ iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
 {
 	int ret;
 	struct scmi_opp *opp;
-	struct scmi_perf_ipriv *p = priv;
+	struct perf_dom_info *perf_dom = priv;
 
-	opp = &p->perf_dom->opp[p->perf_dom->opp_count];
-	if (PROTOCOL_REV_MAJOR(p->version) <= 0x3)
-		ret = process_response_opp(ph->dev, p->perf_dom, opp,
+	opp = &perf_dom->opp[perf_dom->opp_count];
+	if (PROTOCOL_REV_MAJOR(ph->version) <= 0x3)
+		ret = process_response_opp(ph->dev, perf_dom, opp,
 					   st->loop_idx, response);
 	else
-		ret = process_response_opp_v4(ph->dev, p->perf_dom, opp,
+		ret = process_response_opp_v4(ph->dev, perf_dom, opp,
 					      st->loop_idx, response);
 
 	/* Skip BAD duplicates received from firmware */
 	if (ret)
 		return ret == -EBUSY ? 0 : ret;
 
-	p->perf_dom->opp_count++;
+	perf_dom->opp_count++;
 
 	dev_dbg(ph->dev, "Level %d Power %d Latency %dus Ifreq %d Index %d\n",
 		opp->perf, opp->power, opp->trans_latency_us,
@@ -470,7 +463,7 @@ iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
 
 static int
 scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph,
-			      struct perf_dom_info *perf_dom, u32 version)
+			      struct perf_dom_info *perf_dom)
 {
 	int ret;
 	void *iter;
@@ -479,15 +472,11 @@ scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph,
 		.update_state = iter_perf_levels_update_state,
 		.process_response = iter_perf_levels_process_response,
 	};
-	struct scmi_perf_ipriv ppriv = {
-		.version = version,
-		.perf_dom = perf_dom,
-	};
 
 	iter = ph->hops->iter_response_init(ph, &ops, MAX_OPPS,
 					    PERF_DESCRIBE_LEVELS,
 					    sizeof(struct scmi_msg_perf_describe_levels),
-					    &ppriv);
+					    perf_dom);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
@@ -576,7 +565,6 @@ static int __scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 				u32 domain, u32 max_perf, u32 min_perf)
 {
-	struct scmi_perf_info *pi = ph->get_priv(ph);
 	struct perf_dom_info *dom;
 
 	dom = scmi_perf_domain_lookup(ph, domain);
@@ -586,7 +574,7 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 	if (!dom->set_limits)
 		return -EOPNOTSUPP;
 
-	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3 && !max_perf && !min_perf)
+	if (PROTOCOL_REV_MAJOR(ph->version) >= 0x3 && !max_perf && !min_perf)
 		return -EINVAL;
 
 	if (dom->level_indexing_mode) {
@@ -1281,21 +1269,14 @@ static const struct scmi_protocol_events perf_protocol_events = {
 static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int domain, ret;
-	u32 version;
 	struct scmi_perf_info *pinfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_dbg(ph->dev, "Performance Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
 		return -ENOMEM;
-
-	pinfo->version = version;
 
 	ret = scmi_perf_attributes_get(ph, pinfo);
 	if (ret)
@@ -1311,8 +1292,8 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 
 		dom->id = domain;
 		scmi_perf_domain_attributes_get(ph, dom, pinfo->notify_lim_cmd,
-						pinfo->notify_lvl_cmd, version);
-		scmi_perf_describe_levels_get(ph, dom, version);
+						pinfo->notify_lvl_cmd);
+		scmi_perf_describe_levels_get(ph, dom);
 
 		if (dom->perf_fastchannels)
 			scmi_perf_domain_init_fc(ph, dom);
@@ -1322,7 +1303,7 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, pinfo, version);
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_perf = {

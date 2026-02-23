@@ -896,7 +896,7 @@ static int swim_probe(struct platform_device *dev)
 
 	/* set platform driver data */
 
-	swd = kzalloc(sizeof(struct swim_priv), GFP_KERNEL);
+	swd = kzalloc_obj(struct swim_priv);
 	if (!swd) {
 		ret = -ENOMEM;
 		goto out_release_io;

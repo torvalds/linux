@@ -38,8 +38,7 @@ int msix_initialize(struct hfi1_devdata *dd)
 		return ret;
 	}
 
-	entries = kcalloc(total, sizeof(*dd->msix_info.msix_entries),
-			  GFP_KERNEL);
+	entries = kzalloc_objs(*dd->msix_info.msix_entries, total);
 	if (!entries) {
 		pci_free_irq_vectors(dd->pcidev);
 		return -ENOMEM;

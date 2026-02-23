@@ -8,5 +8,3 @@ Confidential Computing
    :maxdepth: 1
 
    measurement-registers
-
-.. only::  subproject and html

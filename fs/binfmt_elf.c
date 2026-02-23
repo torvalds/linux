@@ -916,7 +916,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		 */
 		would_dump(bprm, interpreter);
 
-		interp_elf_ex = kmalloc(sizeof(*interp_elf_ex), GFP_KERNEL);
+		interp_elf_ex = kmalloc_obj(*interp_elf_ex);
 		if (!interp_elf_ex) {
 			retval = -ENOMEM;
 			goto out_free_file;
@@ -1798,7 +1798,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	fill_note(&t->notes[0], PRSTATUS, sizeof(t->prstatus), &t->prstatus);
 	info->size += notesize(&t->notes[0]);
 
-	fpu = kzalloc(sizeof(elf_fpregset_t), GFP_KERNEL);
+	fpu = kzalloc_obj(elf_fpregset_t);
 	if (!fpu || !elf_core_copy_task_fpregs(p, fpu)) {
 		kfree(fpu);
 		return 1;
@@ -1824,7 +1824,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	u16 machine;
 	u32 flags;
 
-	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
+	psinfo = kmalloc_obj(*psinfo);
 	if (!psinfo)
 		return 0;
 	fill_note(&info->psinfo, PRPSINFO, sizeof(*psinfo), psinfo);
@@ -1873,15 +1873,13 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	info->thread = kzalloc(struct_size(info->thread, notes, info->thread_notes),
-			       GFP_KERNEL);
+	info->thread = kzalloc_flex(*info->thread, notes, info->thread_notes);
 	if (unlikely(!info->thread))
 		return 0;
 
 	info->thread->task = dump_task;
 	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
-		t = kzalloc(struct_size(t, notes, info->thread_notes),
-			    GFP_KERNEL);
+		t = kzalloc_flex(*t, notes, info->thread_notes);
 		if (unlikely(!t))
 			return 0;
 
@@ -2037,7 +2035,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 		/* For cell spufs and x86 xstate */
 		sz += elf_coredump_extra_notes_size();
 
-		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
+		phdr4note = kmalloc_obj(*phdr4note);
 		if (!phdr4note)
 			goto end_coredump;
 
@@ -2052,7 +2050,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	e_shoff = offset;
 
 	if (e_phnum == PN_XNUM) {
-		shdr4extnum = kmalloc(sizeof(*shdr4extnum), GFP_KERNEL);
+		shdr4extnum = kmalloc_obj(*shdr4extnum);
 		if (!shdr4extnum)
 			goto end_coredump;
 		fill_extnum_info(&elf, shdr4extnum, e_shoff, segs);

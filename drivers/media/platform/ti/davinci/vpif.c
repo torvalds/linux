@@ -450,7 +450,7 @@ static int vpif_probe(struct platform_device *pdev)
 	if (IS_ERR(vpif_base))
 		return PTR_ERR(vpif_base);
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 
@@ -482,7 +482,7 @@ static int vpif_probe(struct platform_device *pdev)
 	res_irq = DEFINE_RES_IRQ_NAMED(irq, of_node_full_name(pdev->dev.of_node));
 	res_irq.flags |= irq_get_trigger_type(irq);
 
-	pdev_capture = kzalloc(sizeof(*pdev_capture), GFP_KERNEL);
+	pdev_capture = kzalloc_obj(*pdev_capture);
 	if (!pdev_capture) {
 		ret = -ENOMEM;
 		goto err_put_rpm;
@@ -501,7 +501,7 @@ static int vpif_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_pdev_capture;
 
-	pdev_display = kzalloc(sizeof(*pdev_display), GFP_KERNEL);
+	pdev_display = kzalloc_obj(*pdev_display);
 	if (!pdev_display) {
 		ret = -ENOMEM;
 		goto err_del_pdev_capture;

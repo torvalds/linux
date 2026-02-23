@@ -175,7 +175,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	if (ret)
 		return ret;
 
-	cvm_ops = kmalloc(sizeof(struct coda_vm_ops), GFP_KERNEL);
+	cvm_ops = kmalloc_obj(struct coda_vm_ops);
 	if (!cvm_ops)
 		return -ENOMEM;
 
@@ -231,7 +231,7 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	unsigned short coda_flags = coda_flags_to_cflags(flags);
 	struct coda_file_info *cfi;
 
-	cfi = kmalloc(sizeof(struct coda_file_info), GFP_KERNEL);
+	cfi = kmalloc_obj(struct coda_file_info);
 	if (!cfi)
 		return -ENOMEM;
 

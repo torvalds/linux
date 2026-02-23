@@ -1612,7 +1612,7 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	vif_chsw = kcalloc(n_vifs, sizeof(vif_chsw[0]), GFP_KERNEL);
+	vif_chsw = kzalloc_objs(vif_chsw[0], n_vifs);
 	if (!vif_chsw)
 		return -ENOMEM;
 

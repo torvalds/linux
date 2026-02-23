@@ -412,7 +412,7 @@ static struct tracer_string_format *mlx5_tracer_message_insert(struct mlx5_fw_tr
 		&tracer->hash[mlx5_tracer_message_hash(tracer_event->string_event.tmsn)];
 	struct tracer_string_format *cur_string;
 
-	cur_string = kzalloc(sizeof(*cur_string), GFP_KERNEL);
+	cur_string = kzalloc_obj(*cur_string);
 	if (!cur_string)
 		return NULL;
 
@@ -1023,7 +1023,7 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev)
 		return NULL;
 	}
 
-	tracer = kvzalloc(sizeof(*tracer), GFP_KERNEL);
+	tracer = kvzalloc_obj(*tracer);
 	if (!tracer)
 		return ERR_PTR(-ENOMEM);
 

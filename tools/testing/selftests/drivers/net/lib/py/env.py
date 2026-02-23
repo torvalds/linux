@@ -170,6 +170,7 @@ class NetDrvEpEnv(NetDrvEnvBase):
         self.remote_ifname = self.resolve_remote_ifc()
         self.remote_dev = ip("-d link show dev " + self.remote_ifname,
                              host=self.remote, json=True)[0]
+        self.remote_ifindex = self.remote_dev['ifindex']
 
         self._required_cmd = {}
 
@@ -247,9 +248,12 @@ class NetDrvEpEnv(NetDrvEnvBase):
         if not self.addr_v[ipver] or not self.remote_addr_v[ipver]:
             raise KsftSkipEx(f"Test requires IPv{ipver} connectivity")
 
-    def require_nsim(self):
-        if self._ns is None:
+    def require_nsim(self, nsim_test=True):
+        """Require or exclude netdevsim for this test"""
+        if nsim_test and self._ns is None:
             raise KsftXfailEx("Test only works on netdevsim")
+        if nsim_test is False and self._ns is not None:
+            raise KsftXfailEx("Test does not work on netdevsim")
 
     def _require_cmd(self, comm, key, host=None):
         cached = self._required_cmd.get(comm, {})

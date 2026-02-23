@@ -38,15 +38,15 @@ MODULE_PARM_DESC(no_mailboxes,
 
 /* Flag indicating that the remote is up and running */
 #define REMOTE_IS_READY				BIT(0)
-/* Flag indicating that the host should wait for a firmware-ready response */
-#define WAIT_FW_READY				BIT(1)
+/* Flag indicating that the host should wait for a firmware-confirmation response */
+#define WAIT_FW_CONFIRMATION				BIT(1)
 #define REMOTE_READY_WAIT_MAX_RETRIES		500
 
 /*
  * This flag is set in the DSP resource table's features field to indicate
- * that the firmware requires the host NOT to wait for a FW_READY response.
+ * that the firmware requires the host NOT to wait for a FW_CONFIRMATION response.
  */
-#define FEATURE_DONT_WAIT_FW_READY		BIT(0)
+#define FEATURE_SKIP_FW_CONFIRMATION		BIT(0)
 
 /* att flags */
 /* DSP own area */
@@ -287,7 +287,7 @@ static int imx_dsp_rproc_ready(struct rproc *rproc)
  * @avail: available space in the resource table
  *
  * Parse the DSP-specific resource entry and update flags accordingly.
- * If the WAIT_FW_READY feature is set, the host must wait for the firmware
+ * If the WAIT_FW_CONFIRMATION feature is set, the host must wait for the firmware
  * to signal readiness before proceeding with execution.
  *
  * Return: RSC_HANDLED if processed successfully, RSC_IGNORED otherwise.
@@ -322,7 +322,7 @@ static int imx_dsp_rproc_handle_rsc(struct rproc *rproc, u32 rsc_type,
 
 	/*
 	 * For now, in struct fw_rsc_imx_dsp, version 0,
-	 * only FEATURE_DONT_WAIT_FW_READY is valid.
+	 * only FEATURE_SKIP_FW_CONFIRMATION is valid.
 	 *
 	 * When adding new features, please upgrade version.
 	 */
@@ -332,8 +332,8 @@ static int imx_dsp_rproc_handle_rsc(struct rproc *rproc, u32 rsc_type,
 		return RSC_IGNORED;
 	}
 
-	if (imx_dsp_rsc->features & FEATURE_DONT_WAIT_FW_READY)
-		priv->flags &= ~WAIT_FW_READY;
+	if (imx_dsp_rsc->features & FEATURE_SKIP_FW_CONFIRMATION)
+		priv->flags &= ~WAIT_FW_CONFIRMATION;
 
 	return RSC_HANDLED;
 }
@@ -385,7 +385,7 @@ static int imx_dsp_rproc_start(struct rproc *rproc)
 		return ret;
 	}
 
-	if (priv->flags & WAIT_FW_READY)
+	if (priv->flags & WAIT_FW_CONFIRMATION)
 		return imx_dsp_rproc_ready(rproc);
 
 	return 0;
@@ -644,6 +644,32 @@ static void imx_dsp_rproc_free_mbox(struct imx_dsp_rproc *priv)
 	mbox_free_channel(priv->rxdb_ch);
 }
 
+static int imx_dsp_rproc_mem_alloc(struct rproc *rproc,
+				   struct rproc_mem_entry *mem)
+{
+	struct device *dev = rproc->dev.parent;
+	void *va;
+
+	va = ioremap_wc(mem->dma, mem->len);
+	if (!va) {
+		dev_err(dev, "Unable to map memory region: %pa+%zx\n",
+			&mem->dma, mem->len);
+		return -ENOMEM;
+	}
+
+	mem->va = va;
+
+	return 0;
+}
+
+static int imx_dsp_rproc_mem_release(struct rproc *rproc,
+				     struct rproc_mem_entry *mem)
+{
+	iounmap(mem->va);
+
+	return 0;
+}
+
 /**
  * imx_dsp_rproc_add_carveout() - request mailbox channels
  * @priv: private data pointer
@@ -659,7 +685,6 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 	struct device *dev = rproc->dev.parent;
 	struct device_node *np = dev->of_node;
 	struct rproc_mem_entry *mem;
-	void __iomem *cpu_addr;
 	int a, i = 0;
 	u64 da;
 
@@ -673,15 +698,10 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		if (imx_dsp_rproc_sys_to_da(priv, att->sa, att->size, &da))
 			return -EINVAL;
 
-		cpu_addr = devm_ioremap_wc(dev, att->sa, att->size);
-		if (!cpu_addr) {
-			dev_err(dev, "failed to map memory %p\n", &att->sa);
-			return -ENOMEM;
-		}
-
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)att->sa,
-					   att->size, da, NULL, NULL, "dsp_mem");
+		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)att->sa,
+					   att->size, da, imx_dsp_rproc_mem_alloc,
+					   imx_dsp_rproc_mem_release, "dsp_mem");
 
 		if (mem)
 			rproc_coredump_add_segment(rproc, da, att->size);
@@ -709,15 +729,11 @@ static int imx_dsp_rproc_add_carveout(struct imx_dsp_rproc *priv)
 		if (imx_dsp_rproc_sys_to_da(priv, res.start, resource_size(&res), &da))
 			return -EINVAL;
 
-		cpu_addr = devm_ioremap_resource_wc(dev, &res);
-		if (IS_ERR(cpu_addr)) {
-			dev_err(dev, "failed to map memory %pR\n", &res);
-			return PTR_ERR(cpu_addr);
-		}
-
 		/* Register memory region */
-		mem = rproc_mem_entry_init(dev, (void __force *)cpu_addr, (dma_addr_t)res.start,
-					   resource_size(&res), da, NULL, NULL,
+		mem = rproc_mem_entry_init(dev, NULL, (dma_addr_t)res.start,
+					   resource_size(&res), da,
+					    imx_dsp_rproc_mem_alloc,
+					    imx_dsp_rproc_mem_release,
 					   "%.*s", strchrnul(res.name, '@') - res.name, res.name);
 		if (!mem)
 			return -ENOMEM;
@@ -984,9 +1000,11 @@ static int imx_dsp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 	 * Clear buffers after pm rumtime for internal ocram is not
 	 * accessible if power and clock are not enabled.
 	 */
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
-		if (carveout->va)
-			memset(carveout->va, 0, carveout->len);
+	if (rproc->state == RPROC_OFFLINE) {
+		list_for_each_entry(carveout, &rproc->carveouts, node) {
+			if (carveout->va)
+				memset(carveout->va, 0, carveout->len);
+		}
 	}
 
 	ret = imx_dsp_rproc_elf_load_segments(rproc, fw);
@@ -1131,8 +1149,8 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 	priv = rproc->priv;
 	priv->rproc = rproc;
 	priv->dsp_dcfg = dsp_dcfg;
-	/* By default, host waits for fw_ready reply */
-	priv->flags |= WAIT_FW_READY;
+	/* By default, host waits for fw_confirmation reply */
+	priv->flags |= WAIT_FW_CONFIRMATION;
 
 	if (no_mailboxes)
 		imx_dsp_rproc_mbox_init = imx_dsp_rproc_mbox_no_alloc;
@@ -1241,6 +1259,21 @@ static int imx_dsp_suspend(struct device *dev)
 
 	if (rproc->state != RPROC_RUNNING)
 		goto out;
+
+	/*
+	 * No channel available for sending messages;
+	 * indicates no mailboxes present, so trigger PM runtime suspend
+	 */
+	if (!priv->tx_ch) {
+		dev_dbg(dev, "No initialized mbox tx channel, suspend directly.\n");
+		goto out;
+	}
+
+	/* No fw confirmation expected, so trigger PM runtime suspend */
+	if (!(priv->flags & WAIT_FW_CONFIRMATION)) {
+		dev_dbg(dev, "No FW_CONFIRMATION needed, suspend directly.\n");
+		goto out;
+	}
 
 	reinit_completion(&priv->pm_comp);
 

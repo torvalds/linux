@@ -414,14 +414,17 @@ where
             // SAFETY: By the type invariant of `Self`, all non-null `rb_node` pointers stored in `self`
             // point to the links field of `Node<K, V>` objects.
             let this = unsafe { container_of!(node, Node<K, V>, links) };
+
             // SAFETY: `this` is a non-null node so it is valid by the type invariants.
-            node = match key.cmp(unsafe { &(*this).key }) {
-                // SAFETY: `node` is a non-null node so it is valid by the type invariants.
-                Ordering::Less => unsafe { (*node).rb_left },
-                // SAFETY: `node` is a non-null node so it is valid by the type invariants.
-                Ordering::Greater => unsafe { (*node).rb_right },
-                // SAFETY: `node` is a non-null node so it is valid by the type invariants.
-                Ordering::Equal => return Some(unsafe { &(*this).value }),
+            let this_ref = unsafe { &*this };
+
+            // SAFETY: `node` is a non-null node so it is valid by the type invariants.
+            let node_ref = unsafe { &*node };
+
+            node = match key.cmp(&this_ref.key) {
+                Ordering::Less => node_ref.rb_left,
+                Ordering::Greater => node_ref.rb_right,
+                Ordering::Equal => return Some(&this_ref.value),
             }
         }
         None
@@ -498,10 +501,10 @@ where
             let this = unsafe { container_of!(node, Node<K, V>, links) };
             // SAFETY: `this` is a non-null node so it is valid by the type invariants.
             let this_key = unsafe { &(*this).key };
+
             // SAFETY: `node` is a non-null node so it is valid by the type invariants.
-            let left_child = unsafe { (*node).rb_left };
-            // SAFETY: `node` is a non-null node so it is valid by the type invariants.
-            let right_child = unsafe { (*node).rb_right };
+            let node_ref = unsafe { &*node };
+
             match key.cmp(this_key) {
                 Ordering::Equal => {
                     // SAFETY: `this` is a non-null node so it is valid by the type invariants.
@@ -509,7 +512,7 @@ where
                     break;
                 }
                 Ordering::Greater => {
-                    node = right_child;
+                    node = node_ref.rb_right;
                 }
                 Ordering::Less => {
                     let is_better_match = match best_key {
@@ -521,7 +524,7 @@ where
                         // SAFETY: `this` is a non-null node so it is valid by the type invariants.
                         best_links = Some(unsafe { NonNull::new_unchecked(&mut (*this).links) });
                     }
-                    node = left_child;
+                    node = node_ref.rb_left;
                 }
             };
         }
@@ -985,7 +988,7 @@ impl<'a, K, V> CursorMut<'a, K, V> {
         self.peek(Direction::Prev)
     }
 
-    /// Access the previous node without moving the cursor.
+    /// Access the next node without moving the cursor.
     pub fn peek_next(&self) -> Option<(&K, &V)> {
         self.peek(Direction::Next)
     }
@@ -1130,7 +1133,7 @@ pub struct IterMut<'a, K, V> {
 }
 
 // SAFETY: The [`IterMut`] has exclusive access to both `K` and `V`, so it is sufficient to require them to be `Send`.
-// The iterator only gives out immutable references to the keys, but since the iterator has excusive access to those same
+// The iterator only gives out immutable references to the keys, but since the iterator has exclusive access to those same
 // keys, `Send` is sufficient. `Sync` would be okay, but it is more restrictive to the user.
 unsafe impl<'a, K: Send, V: Send> Send for IterMut<'a, K, V> {}
 

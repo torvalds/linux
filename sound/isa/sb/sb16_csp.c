@@ -117,7 +117,7 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 	if (err < 0)
 		return err;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p) {
 		snd_device_free(chip->card, hw);
 		return -ENOMEM;

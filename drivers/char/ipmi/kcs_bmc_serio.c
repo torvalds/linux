@@ -77,7 +77,7 @@ static int kcs_bmc_serio_add_device(struct kcs_bmc_device *kcs_bmc)
 		return -ENOMEM;
 
 	/* Use kzalloc() as the allocation is cleaned up with kfree() via serio_unregister_port() */
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	port = kzalloc_obj(*port);
 	if (!port)
 		return -ENOMEM;
 

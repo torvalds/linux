@@ -40,6 +40,7 @@ properties:
       - const: reset
         description:
           Used during reset for strap configuration.
+    minItems: 1
 
   reset-gpios:
     description:
@@ -153,6 +154,8 @@ allOf:
             const: microchip,ksz8463
     then:
       properties:
+        pinctrl-names:
+          minItems: 2
         straps-rxd-gpios:
           description:
             RXD0 and RXD1 pins, used to select SPI as bus interface.

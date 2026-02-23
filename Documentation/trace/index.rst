@@ -54,6 +54,7 @@ applications.
    events-power
    events-nmi
    events-msr
+   events-pci
    boottime-trace
    histogram
    histogram-design
@@ -95,10 +96,3 @@ Additional Resources
 
 For more details, refer to the respective documentation of each
 tracing tool and framework.
-
-.. only:: subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

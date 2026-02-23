@@ -221,7 +221,7 @@ fscrypt_get_direct_key(const struct fscrypt_inode_info *ci, const u8 *raw_key)
 		return dk;
 
 	/* Nope, allocate one. */
-	dk = kzalloc(sizeof(*dk), GFP_KERNEL);
+	dk = kzalloc_obj(*dk);
 	if (!dk)
 		return ERR_PTR(-ENOMEM);
 	dk->dk_sb = ci->ci_inode->i_sb;

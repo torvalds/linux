@@ -180,7 +180,7 @@ static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 		break;
 	}
 
-	newp = kmalloc(sizeof(*newp), GFP_KERNEL);
+	newp = kmalloc_obj(*newp);
 	if (!newp)
 		return ERR_PTR(-ENOMEM);
 

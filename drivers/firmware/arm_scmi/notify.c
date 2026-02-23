@@ -897,7 +897,7 @@ scmi_allocate_event_handler(struct scmi_notify_instance *ni, u32 evt_key)
 {
 	struct scmi_event_handler *hndl;
 
-	hndl = kzalloc(sizeof(*hndl), GFP_KERNEL);
+	hndl = kzalloc_obj(*hndl);
 	if (!hndl)
 		return NULL;
 	hndl->key = evt_key;

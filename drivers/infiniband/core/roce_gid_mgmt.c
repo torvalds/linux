@@ -352,7 +352,7 @@ static void enum_netdev_ipv4_ips(struct ib_device *ib_dev,
 	}
 
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
-		struct sin_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		struct sin_list *entry = kzalloc_obj(*entry, GFP_ATOMIC);
 
 		if (!entry)
 			continue;
@@ -395,7 +395,7 @@ static void enum_netdev_ipv6_ips(struct ib_device *ib_dev,
 
 	read_lock_bh(&in6_dev->lock);
 	list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
-		struct sin6_list *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+		struct sin6_list *entry = kzalloc_obj(*entry, GFP_ATOMIC);
 
 		if (!entry)
 			continue;
@@ -556,7 +556,7 @@ struct upper_list {
 static int netdev_upper_walk(struct net_device *upper,
 			     struct netdev_nested_priv *priv)
 {
-	struct upper_list *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	struct upper_list *entry = kmalloc_obj(*entry, GFP_ATOMIC);
 	struct list_head *upper_list = (struct list_head *)priv->data;
 
 	if (!entry)
@@ -660,8 +660,7 @@ static int netdevice_queue_work(struct netdev_event_work_cmd *cmds,
 				struct net_device *ndev)
 {
 	unsigned int i;
-	struct netdev_event_work *ndev_work =
-		kmalloc(sizeof(*ndev_work), GFP_KERNEL);
+	struct netdev_event_work *ndev_work = kmalloc_obj(*ndev_work);
 
 	if (!ndev_work)
 		return NOTIFY_DONE;
@@ -858,7 +857,7 @@ static int addr_event(struct notifier_block *this, unsigned long event,
 		return NOTIFY_DONE;
 	}
 
-	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	work = kmalloc_obj(*work, GFP_ATOMIC);
 	if (!work)
 		return NOTIFY_DONE;
 

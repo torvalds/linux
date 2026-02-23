@@ -48,7 +48,6 @@ Contents:
    meta/fbnic
    microsoft/netvsc
    mucse/rnpgbe
-   neterion/s2io
    netronome/nfp
    pensando/ionic
    pensando/ionic_rdma
@@ -64,10 +63,3 @@ Contents:
    wangxun/txgbevf
    wangxun/ngbe
    wangxun/ngbevf
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

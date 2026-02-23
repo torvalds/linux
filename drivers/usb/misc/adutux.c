@@ -657,7 +657,7 @@ static int adu_probe(struct usb_interface *interface,
 	int res;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(struct adu_device), GFP_KERNEL);
+	dev = kzalloc_obj(struct adu_device);
 	if (!dev)
 		return -ENOMEM;
 

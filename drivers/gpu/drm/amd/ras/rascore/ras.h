@@ -367,4 +367,6 @@ int ras_core_event_notify(struct ras_core_context *ras_core,
 		enum ras_notify_event event_id, void *data);
 int ras_core_get_device_system_info(struct ras_core_context *ras_core,
 		struct device_system_info *dev_info);
+int ras_core_convert_soc_pa_to_cur_nps_pages(struct ras_core_context *ras_core,
+		uint64_t soc_pa, uint64_t *page_pfn, uint32_t max_pages);
 #endif

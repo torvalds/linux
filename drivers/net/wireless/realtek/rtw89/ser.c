@@ -210,7 +210,7 @@ static int ser_send_msg(struct rtw89_ser *ser, u8 event)
 	if (test_bit(RTW89_SER_DRV_STOP_RUN, ser->flags))
 		return -EIO;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kmalloc_obj(*msg, GFP_ATOMIC);
 	if (!msg)
 		return -ENOMEM;
 
@@ -431,6 +431,14 @@ static void hal_send_m4_event(struct rtw89_ser *ser)
 	rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RCVY_EN);
 }
 
+static void hal_enable_err_imr(struct rtw89_ser *ser)
+{
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	mac->err_imr_ctrl(rtwdev, true);
+}
+
 /* state handler */
 static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 {
@@ -552,6 +560,8 @@ static void ser_do_hci_st_hdl(struct rtw89_ser *ser, u8 evt)
 		break;
 
 	case SER_EV_MAC_RESET_DONE:
+		hal_enable_err_imr(ser);
+
 		ser_state_goto(ser, SER_IDLE_ST);
 		break;
 

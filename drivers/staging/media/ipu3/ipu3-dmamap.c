@@ -39,7 +39,7 @@ static struct page **imgu_dmamap_alloc_buffer(size_t size, gfp_t gfp)
 	const gfp_t high_order_gfp = __GFP_NOWARN | __GFP_NORETRY;
 
 	/* Allocate mem for array of page ptrs */
-	pages = kvmalloc_array(count, sizeof(*pages), GFP_KERNEL);
+	pages = kvmalloc_objs(*pages, count);
 
 	if (!pages)
 		return NULL;

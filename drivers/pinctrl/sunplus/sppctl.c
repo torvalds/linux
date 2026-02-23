@@ -865,7 +865,7 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 	if (nmG <= 0)
 		nmG = 0;
 
-	*map = kcalloc(*num_maps + nmG, sizeof(**map), GFP_KERNEL);
+	*map = kzalloc_objs(**map, *num_maps + nmG);
 	if (!(*map))
 		return -ENOMEM;
 
@@ -882,7 +882,7 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 			(*map)[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
 			(*map)[i].data.configs.num_configs = 1;
 			(*map)[i].data.configs.group_or_pin = pin_get_name(pctldev, pin_num);
-			configs = kmalloc(sizeof(*configs), GFP_KERNEL);
+			configs = kmalloc_obj(*configs);
 			if (!configs)
 				goto sppctl_map_err;
 			*configs = FIELD_GET(GENMASK(7, 0), dt_pin);
@@ -897,7 +897,7 @@ static int sppctl_dt_node_to_map(struct pinctrl_dev *pctldev, struct device_node
 			(*map)[i].type = PIN_MAP_TYPE_CONFIGS_PIN;
 			(*map)[i].data.configs.num_configs = 1;
 			(*map)[i].data.configs.group_or_pin = pin_get_name(pctldev, pin_num);
-			configs = kmalloc(sizeof(*configs), GFP_KERNEL);
+			configs = kmalloc_obj(*configs);
 			if (!configs)
 				goto sppctl_map_err;
 			*configs = SPPCTL_IOP_CONFIGS;

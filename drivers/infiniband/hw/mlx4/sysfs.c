@@ -244,8 +244,7 @@ static int add_port_entries(struct mlx4_ib_dev *device, int port_num)
 	 *	gids (operational)
 	 *	mcg_table
 	 */
-	port->dentr_ar = kzalloc(sizeof (struct mlx4_ib_iov_sysfs_attr_ar),
-				 GFP_KERNEL);
+	port->dentr_ar = kzalloc_obj(struct mlx4_ib_iov_sysfs_attr_ar);
 	if (!port->dentr_ar) {
 		ret = -ENOMEM;
 		goto err;
@@ -500,13 +499,12 @@ alloc_group_attrs(ssize_t (*show)(struct mlx4_port *,
 	struct port_table_attribute *element;
 	int i;
 
-	tab_attr = kcalloc(1 + len, sizeof (struct attribute *), GFP_KERNEL);
+	tab_attr = kzalloc_objs(struct attribute *, 1 + len);
 	if (!tab_attr)
 		return NULL;
 
 	for (i = 0; i < len; i++) {
-		element = kzalloc(sizeof (struct port_table_attribute),
-				  GFP_KERNEL);
+		element = kzalloc_obj(struct port_table_attribute);
 		if (!element)
 			goto err;
 		if (snprintf(element->name, sizeof (element->name),
@@ -630,7 +628,7 @@ static int add_port(struct mlx4_ib_dev *dev, int port_num, int slave)
 	int is_eth = rdma_port_get_link_layer(&dev->ib_dev, port_num) ==
 			IB_LINK_LAYER_ETHERNET;
 
-	p = kzalloc(sizeof *p, GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return -ENOMEM;
 

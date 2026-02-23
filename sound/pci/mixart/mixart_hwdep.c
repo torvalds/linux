@@ -135,9 +135,9 @@ static int mixart_enum_connectors(struct mixart_mgr *mgr)
 	struct mixart_audio_info_req  *audio_info_req;
 	struct mixart_audio_info_resp *audio_info;
 
-	connector = kmalloc(sizeof(*connector), GFP_KERNEL);
-	audio_info_req = kmalloc(sizeof(*audio_info_req), GFP_KERNEL);
-	audio_info = kmalloc(sizeof(*audio_info), GFP_KERNEL);
+	connector = kmalloc_obj(*connector);
+	audio_info_req = kmalloc_obj(*audio_info_req);
+	audio_info = kmalloc_obj(*audio_info);
 	if (! connector || ! audio_info_req || ! audio_info) {
 		err = -ENOMEM;
 		goto __error;

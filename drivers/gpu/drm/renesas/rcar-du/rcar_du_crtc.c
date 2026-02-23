@@ -1006,7 +1006,7 @@ static void rcar_du_crtc_reset(struct drm_crtc *crtc)
 		crtc->state = NULL;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (state == NULL)
 		return;
 

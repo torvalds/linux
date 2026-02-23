@@ -197,7 +197,7 @@ static int qnx4_fill_super(struct super_block *s, struct fs_context *fc)
 	struct qnx4_sb_info *qs;
 	int silent = fc->sb_flags & SB_SILENT;
 
-	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
+	qs = kzalloc_obj(struct qnx4_sb_info);
 	if (!qs)
 		return -ENOMEM;
 	s->s_fs_info = qs;

@@ -936,7 +936,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum port port;
 	bool active = false;
 
@@ -1919,7 +1919,7 @@ void vlv_dsi_init(struct intel_display *display)
 	else
 		display->dsi.mmio_base = VLV_MIPI_BASE;
 
-	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
+	intel_dsi = kzalloc_obj(*intel_dsi);
 	if (!intel_dsi)
 		return;
 

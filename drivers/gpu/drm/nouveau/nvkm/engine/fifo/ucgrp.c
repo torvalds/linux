@@ -104,7 +104,7 @@ nvkm_ucgrp_new(struct nvkm_fifo *fifo, const struct nvkm_oclass *oclass, void *a
 		return PTR_ERR(vmm);
 
 	/* Allocate channel group. */
-	if (!(ucgrp = kzalloc(sizeof(*ucgrp), GFP_KERNEL))) {
+	if (!(ucgrp = kzalloc_obj(*ucgrp))) {
 		ret = -ENOMEM;
 		goto done;
 	}

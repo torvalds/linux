@@ -133,8 +133,7 @@ static int memtrace_init_regions_runtime(u64 size)
 	u32 nid;
 	u64 m;
 
-	memtrace_array = kcalloc(num_online_nodes(),
-				sizeof(struct memtrace_entry), GFP_KERNEL);
+	memtrace_array = kzalloc_objs(struct memtrace_entry, num_online_nodes());
 	if (!memtrace_array) {
 		pr_err("Failed to allocate memtrace_array\n");
 		return -EINVAL;

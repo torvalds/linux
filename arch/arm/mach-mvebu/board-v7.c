@@ -127,7 +127,7 @@ static void __init i2c_quirk(void)
 	for_each_compatible_node(np, NULL, "marvell,mv78230-i2c") {
 		struct property *new_compat;
 
-		new_compat = kzalloc(sizeof(*new_compat), GFP_KERNEL);
+		new_compat = kzalloc_obj(*new_compat);
 
 		new_compat->name = kstrdup("compatible", GFP_KERNEL);
 		new_compat->length = sizeof("marvell,mv78230-a0-i2c");

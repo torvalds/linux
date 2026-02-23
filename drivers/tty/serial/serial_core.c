@@ -2716,7 +2716,7 @@ int uart_register_driver(struct uart_driver *drv)
 	 * Maybe we should be using a slab cache for this, especially if
 	 * we have a large number of ports to handle.
 	 */
-	drv->state = kcalloc(drv->nr, sizeof(struct uart_state), GFP_KERNEL);
+	drv->state = kzalloc_objs(struct uart_state, drv->nr);
 	if (!drv->state)
 		goto out;
 
@@ -3074,6 +3074,12 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
+	/*
+	 * TTY port has to be linked with the driver before register_console()
+	 * in uart_configure_port(), because user-space could open the console
+	 * immediately after.
+	 */
+	tty_port_link_device(port, drv->tty_driver, uport->line);
 	uart_configure_port(drv, state, uport);
 
 	port->console = uart_console(uport);
@@ -3082,8 +3088,7 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	if (uport->attr_group)
 		num_groups++;
 
-	uport->tty_groups = kcalloc(num_groups, sizeof(*uport->tty_groups),
-				    GFP_KERNEL);
+	uport->tty_groups = kzalloc_objs(*uport->tty_groups, num_groups);
 	if (!uport->tty_groups)
 		return -ENOMEM;
 

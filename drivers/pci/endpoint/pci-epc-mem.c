@@ -62,7 +62,7 @@ int pci_epc_multi_mem_init(struct pci_epc *epc,
 	if (!windows || !num_windows)
 		return -EINVAL;
 
-	epc->windows = kcalloc(num_windows, sizeof(*epc->windows), GFP_KERNEL);
+	epc->windows = kzalloc_objs(*epc->windows, num_windows);
 	if (!epc->windows)
 		return -ENOMEM;
 
@@ -74,7 +74,7 @@ int pci_epc_multi_mem_init(struct pci_epc *epc,
 		pages = windows[i].size >> page_shift;
 		bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
 
-		mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+		mem = kzalloc_obj(*mem);
 		if (!mem) {
 			ret = -ENOMEM;
 			i--;

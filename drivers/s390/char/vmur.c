@@ -107,7 +107,7 @@ static struct urdev *urdev_alloc(struct ccw_device *cdev)
 {
 	struct urdev *urd;
 
-	urd = kzalloc(sizeof(struct urdev), GFP_KERNEL);
+	urd = kzalloc_obj(struct urdev);
 	if (!urd)
 		return NULL;
 	urd->reclen = cdev->id.driver_info;
@@ -225,8 +225,7 @@ static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
 	 * That means we allocate room for CCWs to cover count/reclen
 	 * records plus a NOP.
 	 */
-	cpa = kcalloc(rec_count + 1, sizeof(struct ccw1),
-		      GFP_KERNEL | GFP_DMA);
+	cpa = kzalloc_objs(struct ccw1, rec_count + 1, GFP_KERNEL | GFP_DMA);
 	if (!cpa)
 		return ERR_PTR(-ENOMEM);
 
@@ -397,7 +396,7 @@ static struct urfile *urfile_alloc(struct urdev *urd)
 {
 	struct urfile *urf;
 
-	urf = kzalloc(sizeof(struct urfile), GFP_KERNEL);
+	urf = kzalloc_obj(struct urfile);
 	if (!urf)
 		return NULL;
 	urf->urd = urd;
@@ -606,7 +605,7 @@ static int verify_uri_device(struct urdev *urd)
 	char *buf;
 	int rc;
 
-	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
+	fcb = kmalloc_obj(*fcb, GFP_KERNEL | GFP_DMA);
 	if (!fcb)
 		return -ENOMEM;
 
@@ -665,7 +664,7 @@ static int get_uri_file_reclen(struct urdev *urd)
 	struct file_control_block *fcb;
 	int rc;
 
-	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
+	fcb = kmalloc_obj(*fcb, GFP_KERNEL | GFP_DMA);
 	if (!fcb)
 		return -ENOMEM;
 	rc = diag_read_next_file_info(fcb, 0);

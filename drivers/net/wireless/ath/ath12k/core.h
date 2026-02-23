@@ -18,6 +18,7 @@
 #include <linux/panic_notifier.h>
 #include <linux/average.h>
 #include <linux/of.h>
+#include <linux/rhashtable.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -26,7 +27,6 @@
 #include "ce.h"
 #include "mac.h"
 #include "hw.h"
-#include "hal_rx.h"
 #include "reg.h"
 #include "dbring.h"
 #include "fw.h"
@@ -34,6 +34,8 @@
 #include "wow.h"
 #include "debugfs_htt_stats.h"
 #include "coredump.h"
+#include "cmn_defs.h"
+#include "dp_cmn.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -64,8 +66,6 @@
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
 
-#define ATH12K_MAX_DEVICES 3
-#define ATH12K_GROUP_MAX_RADIO (ATH12K_MAX_DEVICES * MAX_RADIOS)
 #define ATH12K_INVALID_GROUP_ID  0xFF
 #define ATH12K_INVALID_DEVICE_ID 0xFF
 
@@ -155,6 +155,7 @@ enum ath12k_hw_rev {
 	ATH12K_HW_QCN9274_HW20,
 	ATH12K_HW_WCN7850_HW20,
 	ATH12K_HW_IPQ5332_HW10,
+	ATH12K_HW_QCC2072_HW10,
 };
 
 enum ath12k_firmware_mode {
@@ -310,16 +311,9 @@ struct ath12k_link_vif {
 	u32 vdev_id;
 	u32 beacon_interval;
 	u32 dtim_period;
-	u16 ast_hash;
-	u16 ast_idx;
-	u16 tcl_metadata;
-	u8 hal_addr_search_flags;
-	u8 search_type;
 
 	struct ath12k *ar;
 
-	int bank_id;
-	u8 vdev_id_check_en;
 	bool beacon_prot;
 
 	struct wmi_wmm_params_all_arg wmm_params;
@@ -360,6 +354,8 @@ struct ath12k_link_vif {
 };
 
 struct ath12k_vif {
+	struct ath12k_dp_vif dp_vif;
+
 	enum wmi_vdev_type vdev_type;
 	enum wmi_vdev_subtype vdev_subtype;
 	struct ieee80211_vif *vif;
@@ -383,10 +379,7 @@ struct ath12k_vif {
 	} u;
 
 	u32 aid;
-	u32 key_cipher;
-	u8 tx_encap_type;
 	bool ps;
-	atomic_t mcbc_gsn;
 
 	struct ath12k_link_vif deflink;
 	struct ath12k_link_vif __rcu *link[ATH12K_NUM_MAX_LINKS];
@@ -407,50 +400,7 @@ struct ath12k_vif_iter {
 	struct ath12k_link_vif *arvif;
 };
 
-#define HAL_AST_IDX_INVALID	0xFFFF
-#define HAL_RX_MAX_MCS		12
-#define HAL_RX_MAX_MCS_HT	31
-#define HAL_RX_MAX_MCS_VHT	9
-#define HAL_RX_MAX_MCS_HE	11
-#define HAL_RX_MAX_MCS_BE	15
-#define HAL_RX_MAX_NSS		8
-#define HAL_RX_MAX_NUM_LEGACY_RATES 12
-
 #define ATH12K_SCAN_TIMEOUT_HZ (20 * HZ)
-
-struct ath12k_rx_peer_rate_stats {
-	u64 ht_mcs_count[HAL_RX_MAX_MCS_HT + 1];
-	u64 vht_mcs_count[HAL_RX_MAX_MCS_VHT + 1];
-	u64 he_mcs_count[HAL_RX_MAX_MCS_HE + 1];
-	u64 be_mcs_count[HAL_RX_MAX_MCS_BE + 1];
-	u64 nss_count[HAL_RX_MAX_NSS];
-	u64 bw_count[HAL_RX_BW_MAX];
-	u64 gi_count[HAL_RX_GI_MAX];
-	u64 legacy_count[HAL_RX_MAX_NUM_LEGACY_RATES];
-	u64 rx_rate[HAL_RX_BW_MAX][HAL_RX_GI_MAX][HAL_RX_MAX_NSS][HAL_RX_MAX_MCS_HT + 1];
-};
-
-struct ath12k_rx_peer_stats {
-	u64 num_msdu;
-	u64 num_mpdu_fcs_ok;
-	u64 num_mpdu_fcs_err;
-	u64 tcp_msdu_count;
-	u64 udp_msdu_count;
-	u64 other_msdu_count;
-	u64 ampdu_msdu_count;
-	u64 non_ampdu_msdu_count;
-	u64 stbc_count;
-	u64 beamformed_count;
-	u64 coding_count[HAL_RX_SU_MU_CODING_MAX];
-	u64 tid_count[IEEE80211_NUM_TIDS + 1];
-	u64 pream_cnt[HAL_RX_PREAMBLE_MAX];
-	u64 reception_type[HAL_RX_RECEPTION_TYPE_MAX];
-	u64 rx_duration;
-	u64 dcm_count;
-	u64 ru_alloc_cnt[HAL_RX_RU_ALLOC_TYPE_MAX];
-	struct ath12k_rx_peer_rate_stats pkt_stats;
-	struct ath12k_rx_peer_rate_stats byte_stats;
-};
 
 #define ATH12K_HE_MCS_NUM       12
 #define ATH12K_VHT_MCS_NUM      10
@@ -533,12 +483,6 @@ struct ath12k_per_ppdu_tx_stats {
 	u32 retry_bytes;
 };
 
-struct ath12k_wbm_tx_stats {
-	u64 wbm_tx_comp_stats[HAL_WBM_REL_HTT_TX_COMP_STATUS_MAX];
-};
-
-DECLARE_EWMA(avg_rssi, 10, 8)
-
 struct ath12k_link_sta {
 	struct ath12k_link_vif *arvif;
 	struct ath12k_sta *ahsta;
@@ -553,15 +497,7 @@ struct ath12k_link_sta {
 	u32 smps;
 
 	struct wiphy_work update_wk;
-	struct rate_info txrate;
-	struct rate_info last_txrate;
-	u64 rx_duration;
-	u64 tx_duration;
-	u8 rssi_comb;
-	struct ewma_avg_rssi avg_rssi;
 	u8 link_id;
-	struct ath12k_rx_peer_stats *rx_stats;
-	struct ath12k_wbm_tx_stats *wbm_tx_stats;
 	u32 bw_prev;
 	u32 peer_nss;
 	s8 rssi_beacon;
@@ -572,14 +508,9 @@ struct ath12k_link_sta {
 
 	 /* for firmware use only */
 	u8 link_idx;
-	u32 tx_retry_failed;
-	u32 tx_retry_count;
-};
 
-struct ath12k_reoq_buf {
-	void *vaddr;
-	dma_addr_t paddr_aligned;
-	u32 size;
+	/* peer addr based rhashtable list pointer */
+	struct rhash_head rhash_addr;
 };
 
 struct ath12k_sta {
@@ -594,8 +525,6 @@ struct ath12k_sta {
 	u8 num_peer;
 
 	enum ieee80211_sta_state state;
-
-	struct ath12k_reoq_buf reoq_bufs[IEEE80211_NUM_TIDS + 1];
 };
 
 #define ATH12K_HALF_20MHZ_BW	10
@@ -665,23 +594,6 @@ struct ath12k_debug {
 	struct wmi_tpc_stats_arg *tpc_stats;
 	u32 rx_filter;
 	bool extd_rx_stats;
-};
-
-struct ath12k_per_peer_tx_stats {
-	u32 succ_bytes;
-	u32 retry_bytes;
-	u32 failed_bytes;
-	u32 duration;
-	u16 succ_pkts;
-	u16 retry_pkts;
-	u16 failed_pkts;
-	u16 ru_start;
-	u16 ru_tones;
-	u8 ba_fails;
-	u8 ppdu_type;
-	u32 mu_grpid;
-	u32 mu_pos;
-	bool is_ampdu;
 };
 
 struct ath12k_pdev_rssi_offsets {
@@ -809,9 +721,6 @@ struct ath12k {
 	struct ath12k_wow wow;
 	struct completion target_suspend;
 	bool target_suspend_ack;
-	struct ath12k_per_peer_tx_stats peer_tx_stats;
-	struct list_head ppdu_stats_info;
-	u32 ppdu_stat_list_depth;
 
 	struct ath12k_per_peer_tx_stats cached_stats;
 	u32 last_ppdu_id;
@@ -866,8 +775,7 @@ struct ath12k_hw {
 
 	DECLARE_BITMAP(free_ml_peer_id_map, ATH12K_MAX_MLO_PEERS);
 
-	/* protected by wiphy_lock() */
-	struct list_head ml_peers;
+	struct ath12k_dp_hw dp_hw;
 
 	/* Keep last */
 	struct ath12k radio[] __aligned(sizeof(void *));
@@ -941,32 +849,6 @@ struct ath12k_board_data {
 	size_t len;
 };
 
-struct ath12k_device_dp_tx_err_stats {
-	/* TCL Ring Descriptor unavailable */
-	u32 desc_na[DP_TCL_NUM_RING_MAX];
-	/* Other failures during dp_tx due to mem allocation failure
-	 * idr unavailable etc.
-	 */
-	atomic_t misc_fail;
-};
-
-struct ath12k_device_dp_stats {
-	u32 err_ring_pkts;
-	u32 invalid_rbm;
-	u32 rxdma_error[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX];
-	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
-	u32 hal_reo_error[DP_REO_DST_RING_MAX];
-	struct ath12k_device_dp_tx_err_stats tx_err;
-	u32 reo_rx[DP_REO_DST_RING_MAX][ATH12K_MAX_DEVICES];
-	u32 rx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX][ATH12K_MAX_DEVICES];
-	u32 tqm_rel_reason[MAX_TQM_RELEASE_REASON];
-	u32 fw_tx_status[MAX_FW_TX_STATUS];
-	u32 tx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX];
-	u32 tx_enqueued[DP_TCL_NUM_RING_MAX];
-	u32 tx_completed[DP_TCL_NUM_RING_MAX];
-	u32 reo_excep_msdu_buf_type;
-};
-
 struct ath12k_reg_freq {
 	u32 start_freq;
 	u32 end_freq;
@@ -987,6 +869,11 @@ struct ath12k_hw_link {
  * wiphy, protected with struct ath12k_hw_group::mutex.
  */
 struct ath12k_hw_group {
+	/* Keep dp_hw_grp as the first member to allow efficient
+	 * usage of cache lines for DP fields
+	 */
+	struct ath12k_dp_hw_group dp_hw_grp;
+	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 	struct list_head list;
 	u8 id;
 	u8 num_devices;
@@ -1009,7 +896,6 @@ struct ath12k_hw_group {
 	bool mlo_capable;
 	struct device_node *wsi_node[ATH12K_MAX_DEVICES];
 	struct ath12k_mlo_memory mlo_mem;
-	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 	bool hw_link_id_init_done;
 };
 
@@ -1035,6 +921,12 @@ struct ath12k_mem_profile_based_param {
 	struct ath12k_dp_profile_params dp_params;
 };
 
+enum ath12k_device_family {
+	ATH12K_DEVICE_FAMILY_START,
+	ATH12K_DEVICE_FAMILY_WIFI7 = ATH12K_DEVICE_FAMILY_START,
+	ATH12K_DEVICE_FAMILY_MAX,
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath12k_base {
 	enum ath12k_hw_rev hw_rev;
@@ -1054,13 +946,14 @@ struct ath12k_base {
 
 	struct ath12k_htc htc;
 
-	struct ath12k_dp dp;
+	struct ath12k_dp *dp;
 
 	void __iomem *mem;
 	unsigned long mem_len;
 
 	void __iomem *mem_ce;
 	u32 ce_remap_base_addr;
+	u32 cmem_offset;
 	bool ce_remap;
 
 	struct {
@@ -1105,7 +998,6 @@ struct ath12k_base {
 	struct ath12k_wmi_hal_reg_capabilities_ext_arg hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
 	unsigned long long free_vdev_stats_id_map;
-	struct list_head peers;
 	wait_queue_head_t peer_mapping_wq;
 	u8 mac_addr[ETH_ALEN];
 	bool wmi_ready;
@@ -1135,7 +1027,6 @@ struct ath12k_base {
 
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
-	struct ath12k_device_dp_stats device_stats;
 #ifdef CONFIG_ATH12K_DEBUGFS
 	struct dentry *debugfs_soc;
 #endif
@@ -1191,12 +1082,12 @@ struct ath12k_base {
 		size_t amss_dualmac_len;
 		const u8 *m3_data;
 		size_t m3_len;
+		const u8 *aux_uc_data;
+		size_t aux_uc_len;
 
 		DECLARE_BITMAP(fw_features, ATH12K_FW_FEATURE_COUNT);
 		bool fw_features_valid;
 	} fw;
-
-	const struct hal_rx_ops *hal_rx_ops;
 
 	struct completion restart_completed;
 
@@ -1240,6 +1131,14 @@ struct ath12k_base {
 	struct ath12k_reg_freq reg_freq_6ghz;
 	const struct ath12k_mem_profile_based_param *profile_param;
 	enum ath12k_qmi_mem_mode target_mem_mode;
+
+	/* FIXME: Define this field in a ag equivalent object available
+	 * during the initial phase of probe later.
+	 */
+	const struct ieee80211_ops *ath12k_ops;
+
+	struct rhashtable *rhead_sta_addr;
+	struct rhashtable_params rhash_sta_addr_param;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1516,4 +1415,18 @@ static inline s32 ath12k_pdev_get_noise_floor(struct ath12k *ar)
 	return ar->rssi_info.noise_floor;
 }
 
+/* The @ab->dp NULL check or assertion is intentionally omitted because
+ * @ab->dp is guaranteed to be non-NULL after a successful probe and
+ * remains valid until teardown. Invoking this before allocation or
+ * after teardown is considered invalid usage.
+ */
+static inline struct ath12k_dp *ath12k_ab_to_dp(struct ath12k_base *ab)
+{
+	return ab->dp;
+}
+
+static inline struct ath12k *ath12k_pdev_dp_to_ar(struct ath12k_pdev_dp *dp)
+{
+	return container_of(dp, struct ath12k, dp);
+}
 #endif /* _CORE_H_ */

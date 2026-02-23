@@ -390,7 +390,7 @@ static int ext4_xattr_inode_read(struct inode *ea_inode, void *buf, size_t size)
 	int i, ret;
 
 	if (bh_count > ARRAY_SIZE(bhs_inline)) {
-		bhs = kmalloc_array(bh_count, sizeof(*bhs), GFP_NOFS);
+		bhs = kmalloc_objs(*bhs, bh_count, GFP_NOFS);
 		if (!bhs)
 			return -ENOMEM;
 	}
@@ -1037,6 +1037,7 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 		ext4_error_inode(ea_inode, __func__, __LINE__, 0,
 			"EA inode %lu ref wraparound: ref_count=%lld ref_change=%d",
 			ea_inode->i_ino, ref_count, ref_change);
+		brelse(iloc.bh);
 		ret = -EFSCORRUPTED;
 		goto out;
 	}
@@ -2617,8 +2618,8 @@ static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
 	int needs_kvfree = 0;
 	int error;
 
-	is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
-	bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
+	is = kzalloc_obj(struct ext4_xattr_ibody_find, GFP_NOFS);
+	bs = kzalloc_obj(struct ext4_xattr_block_find, GFP_NOFS);
 	b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
 	if (!is || !bs || !b_entry_name) {
 		error = -ENOMEM;
@@ -2875,9 +2876,8 @@ ext4_expand_inode_array(struct ext4_xattr_inode_array **ea_inode_array,
 		/*
 		 * Start with 15 inodes, so it fits into a power-of-two size.
 		 */
-		(*ea_inode_array) = kmalloc(
-			struct_size(*ea_inode_array, inodes, EIA_MASK),
-			GFP_NOFS);
+		(*ea_inode_array) = kmalloc_flex(**ea_inode_array, inodes,
+						 EIA_MASK, GFP_NOFS);
 		if (*ea_inode_array == NULL)
 			return -ENOMEM;
 		(*ea_inode_array)->count = 0;
@@ -2885,10 +2885,9 @@ ext4_expand_inode_array(struct ext4_xattr_inode_array **ea_inode_array,
 		/* expand the array once all 15 + n * 16 slots are full */
 		struct ext4_xattr_inode_array *new_array = NULL;
 
-		new_array = kmalloc(
-			struct_size(*ea_inode_array, inodes,
-				    (*ea_inode_array)->count + EIA_INCR),
-			GFP_NOFS);
+		new_array = kmalloc_flex(**ea_inode_array, inodes,
+					 (*ea_inode_array)->count + EIA_INCR,
+					 GFP_NOFS);
 		if (new_array == NULL)
 			return -ENOMEM;
 		memcpy(new_array, *ea_inode_array,

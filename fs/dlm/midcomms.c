@@ -351,7 +351,7 @@ int dlm_midcomms_addr(int nodeid, struct sockaddr_storage *addr)
 	}
 	srcu_read_unlock(&nodes_srcu, idx);
 
-	node = kmalloc(sizeof(*node), GFP_NOFS);
+	node = kmalloc_obj(*node, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
 

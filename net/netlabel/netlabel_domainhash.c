@@ -367,13 +367,11 @@ int __init netlbl_domhsh_init(u32 size)
 	if (size == 0)
 		return -EINVAL;
 
-	hsh_tbl = kmalloc(sizeof(*hsh_tbl), GFP_KERNEL);
+	hsh_tbl = kmalloc_obj(*hsh_tbl);
 	if (hsh_tbl == NULL)
 		return -ENOMEM;
 	hsh_tbl->size = 1 << size;
-	hsh_tbl->tbl = kcalloc(hsh_tbl->size,
-			       sizeof(struct list_head),
-			       GFP_KERNEL);
+	hsh_tbl->tbl = kzalloc_objs(struct list_head, hsh_tbl->size);
 	if (hsh_tbl->tbl == NULL) {
 		kfree(hsh_tbl);
 		return -ENOMEM;
@@ -453,7 +451,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 					ret_val = -EINVAL;
 					goto add_return;
 				}
-				entry_b = kzalloc(sizeof(*entry_b), GFP_ATOMIC);
+				entry_b = kzalloc_obj(*entry_b, GFP_ATOMIC);
 				if (entry_b == NULL) {
 					ret_val = -ENOMEM;
 					goto add_return;

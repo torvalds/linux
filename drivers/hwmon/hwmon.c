@@ -73,7 +73,7 @@ struct hwmon_thermal_data {
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", to_hwmon_device(dev)->name);
+	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -446,7 +446,7 @@ static ssize_t hwmon_attr_show(struct device *dev,
 	trace_hwmon_attr_show(hattr->index + hwmon_attr_base(hattr->type),
 			      hattr->name, val64);
 
-	return sprintf(buf, "%lld\n", val64);
+	return sysfs_emit(buf, "%lld\n", val64);
 }
 
 static ssize_t hwmon_attr_show_string(struct device *dev,
@@ -469,7 +469,7 @@ static ssize_t hwmon_attr_show_string(struct device *dev,
 	trace_hwmon_attr_show_string(hattr->index + hwmon_attr_base(type),
 				     hattr->name, s);
 
-	return sprintf(buf, "%s\n", s);
+	return sysfs_emit(buf, "%s\n", s);
 }
 
 static ssize_t hwmon_attr_store(struct device *dev,
@@ -533,7 +533,7 @@ static struct attribute *hwmon_genattr(const void *drvdata,
 	if ((mode & 0222) && !ops->write)
 		return ERR_PTR(-EINVAL);
 
-	hattr = kzalloc(sizeof(*hattr), GFP_KERNEL);
+	hattr = kzalloc_obj(*hattr);
 	if (!hattr)
 		return ERR_PTR(-ENOMEM);
 
@@ -879,7 +879,7 @@ __hwmon_create_attrs(const void *drvdata, const struct hwmon_chip_info *chip)
 	if (nattrs == 0)
 		return ERR_PTR(-EINVAL);
 
-	attrs = kcalloc(nattrs + 1, sizeof(*attrs), GFP_KERNEL);
+	attrs = kzalloc_objs(*attrs, nattrs + 1);
 	if (!attrs)
 		return ERR_PTR(-ENOMEM);
 
@@ -917,7 +917,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	if (id < 0)
 		return ERR_PTR(id);
 
-	hwdev = kzalloc(sizeof(*hwdev), GFP_KERNEL);
+	hwdev = kzalloc_obj(*hwdev);
 	if (hwdev == NULL) {
 		err = -ENOMEM;
 		goto ida_remove;
@@ -933,7 +933,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 			for (i = 0; groups[i]; i++)
 				ngroups++;
 
-		hwdev->groups = kcalloc(ngroups, sizeof(*groups), GFP_KERNEL);
+		hwdev->groups = kzalloc_objs(*groups, ngroups);
 		if (!hwdev->groups) {
 			err = -ENOMEM;
 			goto free_hwmon;
@@ -1260,6 +1260,9 @@ static char *__hwmon_sanitize_name(struct device *dev, const char *old_name)
  */
 char *hwmon_sanitize_name(const char *name)
 {
+	if (!name)
+		return ERR_PTR(-EINVAL);
+
 	return __hwmon_sanitize_name(NULL, name);
 }
 EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
@@ -1276,7 +1279,7 @@ EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
  */
 char *devm_hwmon_sanitize_name(struct device *dev, const char *name)
 {
-	if (!dev)
+	if (!dev || !name)
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_sanitize_name(dev, name);

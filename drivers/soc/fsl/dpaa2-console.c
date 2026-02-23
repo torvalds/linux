@@ -111,7 +111,7 @@ static int dpaa2_generic_console_open(struct inode *node, struct file *fp,
 	u64 base_addr;
 	int err;
 
-	cd = kmalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kmalloc_obj(*cd);
 	if (!cd)
 		return -ENOMEM;
 

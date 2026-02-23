@@ -411,7 +411,7 @@ supported.
   - This structure can be initialized using the function
     ``dma_async_tx_descriptor_init``.
 
-  - You'll also need to set two fields in this structure:
+  - You'll also need to set following fields in this structure:
 
     - flags:
       TODO: Can it be modified by the driver itself, or
@@ -420,6 +420,9 @@ supported.
     - tx_submit: A pointer to a function you have to implement,
       that is supposed to push the current transaction descriptor to a
       pending queue, waiting for issue_pending to be called.
+
+    - phys: Physical address of the descriptor which is used later by
+      the dma engine to read the descriptor and initiate transfer.
 
   - In this structure the function pointer callback_result can be
     initialized in order for the submitter to be notified that a

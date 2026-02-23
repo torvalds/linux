@@ -238,7 +238,7 @@ struct mlx5hws_table *mlx5hws_table_create(struct mlx5hws_context *ctx,
 		return NULL;
 	}
 
-	tbl = kzalloc(sizeof(*tbl), GFP_KERNEL);
+	tbl = kzalloc_obj(*tbl);
 	if (!tbl)
 		return NULL;
 

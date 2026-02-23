@@ -2648,7 +2648,7 @@ static struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	bool is_a7xx;
 	int ret, nr_rings = 1;
 
-	a6xx_gpu = kzalloc(sizeof(*a6xx_gpu), GFP_KERNEL);
+	a6xx_gpu = kzalloc_obj(*a6xx_gpu);
 	if (!a6xx_gpu)
 		return ERR_PTR(-ENOMEM);
 

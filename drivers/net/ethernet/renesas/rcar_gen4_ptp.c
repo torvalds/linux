@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/slab.h>
 
 #include "rcar_gen4_ptp.h"
@@ -22,6 +23,15 @@
 #define PTPGPTPTM00_REG		0x0050
 #define PTPGPTPTM10_REG		0x0054
 #define PTPGPTPTM20_REG		0x0058
+
+struct rcar_gen4_ptp_private {
+	void __iomem *addr;
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	spinlock_t lock;	/* For multiple registers access */
+	s64 default_addend;
+	bool initialized;
+};
 
 #define ptp_to_priv(ptp)	container_of(ptp, struct rcar_gen4_ptp_private, info)
 
@@ -168,7 +178,8 @@ int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv)
 }
 EXPORT_SYMBOL_GPL(rcar_gen4_ptp_unregister);
 
-struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev)
+struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
+						  void __iomem *addr)
 {
 	struct rcar_gen4_ptp_private *ptp;
 
@@ -178,9 +189,30 @@ struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev)
 
 	ptp->info = rcar_gen4_ptp_info;
 
+	ptp->addr = addr;
+
 	return ptp;
 }
 EXPORT_SYMBOL_GPL(rcar_gen4_ptp_alloc);
+
+int rcar_gen4_ptp_clock_index(struct rcar_gen4_ptp_private *priv)
+{
+	if (!priv->initialized)
+		return -1;
+
+	return ptp_clock_index(priv->clock);
+}
+EXPORT_SYMBOL_GPL(rcar_gen4_ptp_clock_index);
+
+void rcar_gen4_ptp_gettime64(struct rcar_gen4_ptp_private *priv,
+			     struct timespec64 *ts)
+{
+	if (!priv->initialized)
+		return;
+
+	priv->info.gettime64(&priv->info, ts);
+}
+EXPORT_SYMBOL_GPL(rcar_gen4_ptp_gettime64);
 
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas R-Car Gen4 gPTP driver");

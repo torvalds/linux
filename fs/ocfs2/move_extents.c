@@ -662,6 +662,12 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 		goto out_commit;
 	}
 
+	gd = (struct ocfs2_group_desc *)gd_bh->b_data;
+	if (le16_to_cpu(gd->bg_free_bits_count) < len) {
+		ret = -ENOSPC;
+		goto out_commit;
+	}
+
 	/*
 	 * probe the victim cluster group to find a proper
 	 * region to fit wanted movement, it even will perform
@@ -682,7 +688,6 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 		goto out_commit;
 	}
 
-	gd = (struct ocfs2_group_desc *)gd_bh->b_data;
 	ret = ocfs2_alloc_dinode_update_counts(gb_inode, handle, gb_bh, len,
 					       le16_to_cpu(gd->bg_chain));
 	if (ret) {
@@ -1006,7 +1011,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 		goto out_drop;
 	}
 
-	context = kzalloc(sizeof(struct ocfs2_move_extents_context), GFP_NOFS);
+	context = kzalloc_obj(struct ocfs2_move_extents_context, GFP_NOFS);
 	if (!context) {
 		status = -ENOMEM;
 		mlog_errno(status);

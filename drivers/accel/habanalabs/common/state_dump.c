@@ -400,7 +400,7 @@ static int hl_state_dump_print_syncs(struct hl_device *hdev,
 	u32 index;
 	int rc = 0;
 
-	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	map = kzalloc_obj(*map);
 	if (!map)
 		return -ENOMEM;
 

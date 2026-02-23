@@ -290,7 +290,7 @@ struct iosm_wwan *ipc_wwan_init(struct iosm_imem *ipc_imem, struct device *dev)
 {
 	struct iosm_wwan *ipc_wwan;
 
-	ipc_wwan = kzalloc(sizeof(*ipc_wwan), GFP_KERNEL);
+	ipc_wwan = kzalloc_obj(*ipc_wwan);
 	if (!ipc_wwan)
 		return NULL;
 

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _KDB_H
 #define _KDB_H
 
 /*
  * Kernel Debugger Architecture Independent Global Headers
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * Copyright (c) 2000-2007 Silicon Graphics, Inc.  All Rights Reserved.
  * Copyright (C) 2000 Stephane Eranian <eranian@hpl.hp.com>

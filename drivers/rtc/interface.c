@@ -457,7 +457,7 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	 * are in, we can return -ETIME to signal that the timer has already
 	 * expired, which is true in both cases.
 	 */
-	if ((scheduled - now) <= 1) {
+	if (!err && (scheduled - now) <= 1) {
 		err = __rtc_read_time(rtc, &tm);
 		if (err)
 			return err;

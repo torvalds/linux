@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/device.h>
 #include <linux/dma-map-ops.h>
 #include <linux/dma-mapping.h>
@@ -66,7 +67,7 @@ static int dmapool_test_block(const struct dmapool_parms *parms)
 	struct dma_pool_pair *p;
 	int i, ret;
 
-	p = kcalloc(blocks, sizeof(*p), GFP_KERNEL);
+	p = kzalloc_objs(*p, blocks);
 	if (!p)
 		return -ENOMEM;
 

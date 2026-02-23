@@ -434,7 +434,7 @@ int allocate_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops)
 {
 	struct fgraph_ops *gops;
 
-	gops = kzalloc(sizeof(*gops), GFP_KERNEL);
+	gops = kzalloc_obj(*gops);
 	if (!gops)
 		return -ENOMEM;
 
@@ -901,7 +901,7 @@ static void print_graph_retval(struct trace_seq *s, struct ftrace_graph_ent_entr
 		trace_seq_printf(s, "%ps", func);
 
 		if (args_size >= FTRACE_REGS_MAX_ARGS * sizeof(long)) {
-			print_function_args(s, entry->args, (unsigned long)func);
+			print_function_args(s, FGRAPH_ENTRY_ARGS(entry), (unsigned long)func);
 			trace_seq_putc(s, ';');
 		} else
 			trace_seq_puts(s, "();");
@@ -1613,7 +1613,7 @@ void graph_trace_open(struct trace_iterator *iter)
 	/* We can be called in atomic context via ftrace_dump() */
 	gfpflags = (in_atomic() || irqs_disabled()) ? GFP_ATOMIC : GFP_KERNEL;
 
-	data = kzalloc(sizeof(*data), gfpflags);
+	data = kzalloc_obj(*data, gfpflags);
 	if (!data)
 		goto out_err;
 

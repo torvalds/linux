@@ -860,7 +860,7 @@ static int cctrl_tbl_show(struct seq_file *seq, void *v)
 	u16 (*incr)[NCCTRL_WIN];
 	struct adapter *adap = seq->private;
 
-	incr = kmalloc_array(NMTUS, sizeof(*incr), GFP_KERNEL);
+	incr = kmalloc_objs(*incr, NMTUS);
 	if (!incr)
 		return -ENOMEM;
 

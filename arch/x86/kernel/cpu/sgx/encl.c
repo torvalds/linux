@@ -854,7 +854,7 @@ int sgx_encl_mm_add(struct sgx_encl *encl, struct mm_struct *mm)
 	if (sgx_encl_find_mm(encl, mm))
 		return 0;
 
-	encl_mm = kzalloc(sizeof(*encl_mm), GFP_KERNEL);
+	encl_mm = kzalloc_obj(*encl_mm);
 	if (!encl_mm)
 		return -ENOMEM;
 
@@ -1163,7 +1163,7 @@ struct sgx_encl_page *sgx_encl_page_alloc(struct sgx_encl *encl,
 	struct sgx_encl_page *encl_page;
 	unsigned long prot;
 
-	encl_page = kzalloc(sizeof(*encl_page), GFP_KERNEL);
+	encl_page = kzalloc_obj(*encl_page);
 	if (!encl_page)
 		return ERR_PTR(-ENOMEM);
 

@@ -87,7 +87,7 @@ struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 	struct intel_dsi_host *host;
 	struct mipi_dsi_device *device;
 
-	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	host = kzalloc_obj(*host);
 	if (!host)
 		return NULL;
 
@@ -102,7 +102,7 @@ struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
 	 * devices by ourselves here too. Need to be careful though, because we
 	 * don't initialize any of the driver model devices here.
 	 */
-	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	device = kzalloc_obj(*device);
 	if (!device) {
 		kfree(host);
 		return NULL;

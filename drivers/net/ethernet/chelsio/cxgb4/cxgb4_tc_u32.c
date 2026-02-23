@@ -501,7 +501,7 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 	if (!max_tids)
 		return NULL;
 
-	t = kvzalloc(struct_size(t, table, max_tids), GFP_KERNEL);
+	t = kvzalloc_flex(*t, table, max_tids);
 	if (!t)
 		return NULL;
 

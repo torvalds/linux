@@ -542,7 +542,7 @@ struct pg_cntl *pg_cntl35_create(
 	const struct pg_cntl_shift *pg_cntl_shift,
 	const struct pg_cntl_mask *pg_cntl_mask)
 {
-	struct dcn_pg_cntl *pg_cntl_dcn = kzalloc(sizeof(*pg_cntl_dcn), GFP_KERNEL);
+	struct dcn_pg_cntl *pg_cntl_dcn = kzalloc_obj(*pg_cntl_dcn);
 	struct pg_cntl *base;
 
 	if (pg_cntl_dcn == NULL) {

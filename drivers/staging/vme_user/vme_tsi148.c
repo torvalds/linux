@@ -1611,7 +1611,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *s
 	tsi148_bridge = list->parent->parent;
 
 	/* Descriptor must be aligned on 64-bit boundaries */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (!entry) {
 		retval = -ENOMEM;
 		goto err_mem;
@@ -2260,14 +2260,14 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* If we want to support more than one of each bridge, we need to
 	 * dynamically generate this so we get one per device
 	 */
-	tsi148_bridge = kzalloc(sizeof(*tsi148_bridge), GFP_KERNEL);
+	tsi148_bridge = kzalloc_obj(*tsi148_bridge);
 	if (!tsi148_bridge) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
 	vme_init_bridge(tsi148_bridge);
 
-	tsi148_device = kzalloc(sizeof(*tsi148_device), GFP_KERNEL);
+	tsi148_device = kzalloc_obj(*tsi148_device);
 	if (!tsi148_device) {
 		retval = -ENOMEM;
 		goto err_driver;
@@ -2332,9 +2332,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err_chk) {
 		master_num--;
 
-		tsi148_device->flush_image =
-			kmalloc(sizeof(*tsi148_device->flush_image),
-				GFP_KERNEL);
+		tsi148_device->flush_image = kmalloc_obj(*tsi148_device->flush_image);
 		if (!tsi148_device->flush_image) {
 			retval = -ENOMEM;
 			goto err_master;
@@ -2350,7 +2348,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add master windows to list */
 	for (i = 0; i < master_num; i++) {
-		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
+		master_image = kmalloc_obj(*master_image);
 		if (!master_image) {
 			retval = -ENOMEM;
 			goto err_master;
@@ -2376,7 +2374,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add slave windows to list */
 	for (i = 0; i < TSI148_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
+		slave_image = kmalloc_obj(*slave_image);
 		if (!slave_image) {
 			retval = -ENOMEM;
 			goto err_slave;
@@ -2397,7 +2395,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add dma engines to list */
 	for (i = 0; i < TSI148_MAX_DMA; i++) {
-		dma_ctrlr = kmalloc(sizeof(*dma_ctrlr), GFP_KERNEL);
+		dma_ctrlr = kmalloc_obj(*dma_ctrlr);
 		if (!dma_ctrlr) {
 			retval = -ENOMEM;
 			goto err_dma;
@@ -2417,7 +2415,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
+	lm = kmalloc_obj(*lm);
 	if (!lm) {
 		retval = -ENOMEM;
 		goto err_lm;

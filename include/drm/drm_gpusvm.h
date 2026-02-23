@@ -328,6 +328,35 @@ void drm_gpusvm_free_pages(struct drm_gpusvm *gpusvm,
 			   struct drm_gpusvm_pages *svm_pages,
 			   unsigned long npages);
 
+/**
+ * enum drm_gpusvm_scan_result - Scan result from the drm_gpusvm_scan_mm() function.
+ * @DRM_GPUSVM_SCAN_UNPOPULATED: At least one page was not present or inaccessible.
+ * @DRM_GPUSVM_SCAN_EQUAL: All pages belong to the struct dev_pagemap indicated as
+ * the @pagemap argument to the drm_gpusvm_scan_mm() function.
+ * @DRM_GPUSVM_SCAN_OTHER: All pages belong to exactly one dev_pagemap, which is
+ * *NOT* the @pagemap argument to the drm_gpusvm_scan_mm(). All pages belong to
+ * the same device private owner.
+ * @DRM_GPUSVM_SCAN_SYSTEM: All pages are present and system pages.
+ * @DRM_GPUSVM_SCAN_MIXED_DEVICE: All pages are device pages and belong to at least
+ * two different struct dev_pagemaps. All pages belong to the same device private
+ * owner.
+ * @DRM_GPUSVM_SCAN_MIXED: Pages are present and are a mix of system pages
+ * and device-private pages. All device-private pages belong to the same device
+ * private owner.
+ */
+enum drm_gpusvm_scan_result {
+	DRM_GPUSVM_SCAN_UNPOPULATED,
+	DRM_GPUSVM_SCAN_EQUAL,
+	DRM_GPUSVM_SCAN_OTHER,
+	DRM_GPUSVM_SCAN_SYSTEM,
+	DRM_GPUSVM_SCAN_MIXED_DEVICE,
+	DRM_GPUSVM_SCAN_MIXED,
+};
+
+enum drm_gpusvm_scan_result drm_gpusvm_scan_mm(struct drm_gpusvm_range *range,
+					       void *dev_private_owner,
+					       const struct dev_pagemap *pagemap);
+
 #ifdef CONFIG_LOCKDEP
 /**
  * drm_gpusvm_driver_set_lock() - Set the lock protecting accesses to GPU SVM

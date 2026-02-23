@@ -20,6 +20,12 @@ properties:
   clocks:
     maxItems: 1
 
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    const: rx-tx
+
 allOf:
   - $ref: spi-controller.yaml#
 
@@ -38,6 +44,8 @@ examples:
         compatible = "nxp,lpc3220-spi";
         reg = <0x20088000 0x1000>;
         clocks = <&clk LPC32XX_CLK_SPI1>;
+        dmas = <&dmamux 11 1 0>;
+        dma-names = "rx-tx";
         #address-cells = <1>;
         #size-cells = <0>;
     };

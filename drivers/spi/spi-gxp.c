@@ -284,7 +284,6 @@ static int gxp_spifi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &gxp_spi_mem_ops;
 	ctlr->setup = gxp_spi_setup;
 	ctlr->num_chipselect = data->max_cs;
-	ctlr->dev.of_node = dev->of_node;
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret) {

@@ -122,7 +122,7 @@ int meson_codec_glue_input_dai_probe(struct snd_soc_dai *dai)
 {
 	struct meson_codec_glue_input *data;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return -ENOMEM;
 

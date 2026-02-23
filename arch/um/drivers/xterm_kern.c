@@ -45,7 +45,7 @@ int xterm_fd(int socket, int *pid_out)
 	struct xterm_wait *data;
 	int err, ret;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kmalloc_obj(*data);
 	if (data == NULL) {
 		printk(KERN_ERR "xterm_fd : failed to allocate xterm_wait\n");
 		return -ENOMEM;

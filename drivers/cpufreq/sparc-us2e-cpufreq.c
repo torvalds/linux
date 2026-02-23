@@ -323,8 +323,7 @@ static int __init us2e_freq_init(void)
 	impl  = ((ver >> 32) & 0xffff);
 
 	if (manuf == 0x17 && impl == 0x13) {
-		us2e_freq_table = kcalloc(NR_CPUS, sizeof(*us2e_freq_table),
-					  GFP_KERNEL);
+		us2e_freq_table = kzalloc_objs(*us2e_freq_table, NR_CPUS);
 		if (!us2e_freq_table)
 			return -ENOMEM;
 

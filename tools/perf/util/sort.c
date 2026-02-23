@@ -1016,7 +1016,7 @@ static int hist_entry__cgroup_snprintf(struct hist_entry *he,
 	const char *cgrp_name = "N/A";
 
 	if (he->cgroup) {
-		struct cgroup *cgrp = cgroup__find(maps__machine(he->ms.maps)->env,
+		struct cgroup *cgrp = cgroup__find(maps__machine(thread__maps(he->ms.thread))->env,
 						   he->cgroup);
 		if (cgrp != NULL)
 			cgrp_name = cgrp->name;
@@ -2474,8 +2474,7 @@ struct sort_entry sort_type_offset = {
 
 /* --sort typecln */
 
-/* TODO: use actual value in the system */
-#define TYPE_CACHELINE_SIZE  64
+#define DEFAULT_CACHELINE_SIZE 64
 
 static int64_t
 sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
@@ -2484,6 +2483,10 @@ sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
 	struct annotated_data_type *right_type = right->mem_type;
 	int64_t left_cln, right_cln;
 	int64_t ret;
+	int cln_size = cacheline_size();
+
+	if (cln_size == 0)
+		cln_size = DEFAULT_CACHELINE_SIZE;
 
 	if (!left_type) {
 		sort__type_init(left);
@@ -2499,8 +2502,8 @@ sort__typecln_sort(struct hist_entry *left, struct hist_entry *right)
 	if (ret)
 		return ret;
 
-	left_cln = left->mem_type_off / TYPE_CACHELINE_SIZE;
-	right_cln = right->mem_type_off / TYPE_CACHELINE_SIZE;
+	left_cln = left->mem_type_off / cln_size;
+	right_cln = right->mem_type_off / cln_size;
 	return left_cln - right_cln;
 }
 
@@ -2508,9 +2511,13 @@ static int hist_entry__typecln_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width __maybe_unused)
 {
 	struct annotated_data_type *he_type = he->mem_type;
+	int cln_size = cacheline_size();
+
+	if (cln_size == 0)
+		cln_size = DEFAULT_CACHELINE_SIZE;
 
 	return repsep_snprintf(bf, size, "%s: cache-line %d", he_type->self.type_name,
-			       he->mem_type_off / TYPE_CACHELINE_SIZE);
+			       he->mem_type_off / cln_size);
 }
 
 struct sort_entry sort_type_cacheline = {
@@ -3538,6 +3545,56 @@ out:
 	return ret;
 }
 
+static int __sort_dimension__update(struct sort_dimension *sd,
+				    struct perf_hpp_list *list)
+{
+	if (sd->entry == &sort_parent && parent_pattern) {
+		int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
+		if (ret) {
+			char err[BUFSIZ];
+
+			regerror(ret, &parent_regex, err, sizeof(err));
+			pr_err("Invalid regex: %s\n%s", parent_pattern, err);
+			return -EINVAL;
+		}
+		list->parent = 1;
+	} else if (sd->entry == &sort_sym) {
+		list->sym = 1;
+		/*
+		 * perf diff displays the performance difference amongst
+		 * two or more perf.data files. Those files could come
+		 * from different binaries. So we should not compare
+		 * their ips, but the name of symbol.
+		 */
+		if (sort__mode == SORT_MODE__DIFF)
+			sd->entry->se_collapse = sort__sym_sort;
+
+	} else if (sd->entry == &sort_sym_offset) {
+		list->sym = 1;
+	} else if (sd->entry == &sort_dso) {
+		list->dso = 1;
+	} else if (sd->entry == &sort_socket) {
+		list->socket = 1;
+	} else if (sd->entry == &sort_thread) {
+		list->thread = 1;
+	} else if (sd->entry == &sort_comm) {
+		list->comm = 1;
+	} else if (sd->entry == &sort_type_offset) {
+		symbol_conf.annotate_data_member = true;
+	} else if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to) {
+		list->sym = 1;
+	} else if (sd->entry == &sort_mem_dcacheline && cacheline_size() == 0) {
+		return -EINVAL;
+	} else if (sd->entry == &sort_mem_daddr_sym) {
+		list->sym = 1;
+	}
+
+	if (sd->entry->se_collapse)
+		list->need_collapse = 1;
+
+	return 0;
+}
+
 static int __sort_dimension__add(struct sort_dimension *sd,
 				 struct perf_hpp_list *list,
 				 int level)
@@ -3548,8 +3605,8 @@ static int __sort_dimension__add(struct sort_dimension *sd,
 	if (__sort_dimension__add_hpp_sort(sd, list, level) < 0)
 		return -1;
 
-	if (sd->entry->se_collapse)
-		list->need_collapse = 1;
+	if (__sort_dimension__update(sd, list) < 0)
+		return -1;
 
 	sd->taken = 1;
 
@@ -3583,6 +3640,9 @@ static int __sort_dimension__add_output(struct perf_hpp_list *list,
 		return 0;
 
 	if (__sort_dimension__add_hpp_output(sd, list, level) < 0)
+		return -1;
+
+	if (__sort_dimension__update(sd, list) < 0)
 		return -1;
 
 	sd->taken = 1;
@@ -3648,39 +3708,6 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				sort_dimension_add_dynamic_header(sd, env);
 		}
 
-		if (sd->entry == &sort_parent && parent_pattern) {
-			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
-			if (ret) {
-				char err[BUFSIZ];
-
-				regerror(ret, &parent_regex, err, sizeof(err));
-				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
-				return -EINVAL;
-			}
-			list->parent = 1;
-		} else if (sd->entry == &sort_sym) {
-			list->sym = 1;
-			/*
-			 * perf diff displays the performance difference amongst
-			 * two or more perf.data files. Those files could come
-			 * from different binaries. So we should not compare
-			 * their ips, but the name of symbol.
-			 */
-			if (sort__mode == SORT_MODE__DIFF)
-				sd->entry->se_collapse = sort__sym_sort;
-
-		} else if (sd->entry == &sort_dso) {
-			list->dso = 1;
-		} else if (sd->entry == &sort_socket) {
-			list->socket = 1;
-		} else if (sd->entry == &sort_thread) {
-			list->thread = 1;
-		} else if (sd->entry == &sort_comm) {
-			list->comm = 1;
-		} else if (sd->entry == &sort_type_offset) {
-			symbol_conf.annotate_data_member = true;
-		}
-
 		return __sort_dimension__add(sd, list, level);
 	}
 
@@ -3699,9 +3726,6 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				    strlen(tok)))
 			return -EINVAL;
 
-		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
-			list->sym = 1;
-
 		__sort_dimension__add(sd, list, level);
 		return 0;
 	}
@@ -3714,12 +3738,6 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
-
-		if (sd->entry == &sort_mem_dcacheline && cacheline_size() == 0)
-			return -EINVAL;
-
-		if (sd->entry == &sort_mem_daddr_sym)
-			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;

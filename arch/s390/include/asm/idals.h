@@ -94,7 +94,7 @@ static inline int set_normalized_cda(struct ccw1 *ccw, void *vaddr)
 		return -EINVAL;
 	nridaws = idal_nr_words(vaddr, ccw->count);
 	if (nridaws > 0) {
-		idal = kcalloc(nridaws, sizeof(*idal), GFP_ATOMIC | GFP_DMA);
+		idal = kzalloc_objs(*idal, nridaws, GFP_ATOMIC | GFP_DMA);
 		if (!idal)
 			return -ENOMEM;
 		idal_create_words(idal, vaddr, ccw->count);
@@ -137,7 +137,7 @@ static inline struct idal_buffer *idal_buffer_alloc(size_t size, int page_order)
 
 	nr_ptrs = (size + IDA_BLOCK_SIZE - 1) >> IDA_SIZE_SHIFT;
 	nr_chunks = (PAGE_SIZE << page_order) >> IDA_SIZE_SHIFT;
-	ib = kmalloc(struct_size(ib, data, nr_ptrs), GFP_DMA | GFP_KERNEL);
+	ib = kmalloc_flex(*ib, data, nr_ptrs, GFP_DMA | GFP_KERNEL);
 	if (!ib)
 		return ERR_PTR(-ENOMEM);
 	ib->size = size;
@@ -195,7 +195,7 @@ static inline struct idal_buffer **idal_buffer_array_alloc(size_t size, int page
 	int i;
 
 	count = (size + CCW_MAX_BYTE_COUNT - 1) / CCW_MAX_BYTE_COUNT;
-	ibs = kmalloc_array(count + 1, sizeof(*ibs), GFP_KERNEL);
+	ibs = kmalloc_objs(*ibs, count + 1);
 	for (i = 0; i < count; i++) {
 		/* Determine size for the current idal buffer */
 		ib_size = min(size, CCW_MAX_BYTE_COUNT);

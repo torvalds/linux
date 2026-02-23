@@ -79,7 +79,7 @@ struct zoltrix {
 
 static struct radio_isa_card *zoltrix_alloc(void)
 {
-	struct zoltrix *zol = kzalloc(sizeof(*zol), GFP_KERNEL);
+	struct zoltrix *zol = kzalloc_obj(*zol);
 
 	return zol ? &zol->isa : NULL;
 }

@@ -157,7 +157,7 @@ static struct cache *new_cache(int type, int level,
 {
 	struct cache *cache;
 
-	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
+	cache = kzalloc_obj(*cache);
 	if (cache)
 		cache_init(cache, type, level, ofnode, group_id);
 
@@ -540,7 +540,7 @@ static struct cache_dir *cacheinfo_create_cache_dir(unsigned int cpu_id)
 	if (!kobj)
 		goto err;
 
-	cache_dir = kzalloc(sizeof(*cache_dir), GFP_KERNEL);
+	cache_dir = kzalloc_obj(*cache_dir);
 	if (!cache_dir)
 		goto err;
 
@@ -788,7 +788,7 @@ static void cacheinfo_create_index_dir(struct cache *cache, int index,
 	struct cache_index_dir *index_dir;
 	int rc;
 
-	index_dir = kzalloc(sizeof(*index_dir), GFP_KERNEL);
+	index_dir = kzalloc_obj(*index_dir);
 	if (!index_dir)
 		return;
 

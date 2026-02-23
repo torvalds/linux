@@ -448,7 +448,7 @@ struct clk *mmp_clk_register_mix(struct device *dev,
 	struct clk *clk;
 	struct clk_init_data init;
 
-	mix = kzalloc(sizeof(*mix), GFP_KERNEL);
+	mix = kzalloc_obj(*mix);
 	if (!mix)
 		return ERR_PTR(-ENOMEM);
 

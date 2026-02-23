@@ -13,7 +13,6 @@
 #include "xe_gt_sysfs.h"
 #include "xe_guc_pc.h"
 #include "regs/xe_gt_regs.h"
-#include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
@@ -105,7 +104,6 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 	struct xe_gt_idle *gtidle = &gt->gtidle;
 	struct xe_mmio *mmio = &gt->mmio;
 	u32 vcs_mask, vecs_mask;
-	unsigned int fw_ref;
 	int i, j;
 
 	if (IS_SRIOV_VF(xe))
@@ -137,7 +135,7 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 		}
 	}
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
 	if (xe->info.skip_guc_pc) {
 		/*
 		 * GuC sets the hysteresis value when GuC PC is enabled
@@ -154,13 +152,11 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 					      VDN_MFXVDENC_POWERGATE_ENABLE(2));
 
 	xe_mmio_write32(mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 }
 
 void xe_gt_idle_disable_pg(struct xe_gt *gt)
 {
 	struct xe_gt_idle *gtidle = &gt->gtidle;
-	unsigned int fw_ref;
 
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return;
@@ -168,9 +164,8 @@ void xe_gt_idle_disable_pg(struct xe_gt *gt)
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	gtidle->powergate_enable = 0;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
 	xe_mmio_write32(&gt->mmio, POWERGATE_ENABLE, gtidle->powergate_enable);
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 }
 
 /**
@@ -189,7 +184,6 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 	enum xe_gt_idle_state state;
 	u32 pg_enabled, pg_status = 0;
 	u32 vcs_mask, vecs_mask;
-	unsigned int fw_ref;
 	int n;
 	/*
 	 * Media Slices
@@ -226,14 +220,12 @@ int xe_gt_idle_pg_print(struct xe_gt *gt, struct drm_printer *p)
 
 	/* Do not wake the GT to read powergating status */
 	if (state != GT_IDLE_C6) {
-		fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-		if (!fw_ref)
+		CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+		if (!fw_ref.domains)
 			return -ETIMEDOUT;
 
 		pg_enabled = xe_mmio_read32(&gt->mmio, POWERGATE_ENABLE);
 		pg_status = xe_mmio_read32(&gt->mmio, POWERGATE_DOMAIN_STATUS);
-
-		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
 
 	if (gt->info.engine_mask & XE_HW_ENGINE_RCS_MASK) {
@@ -271,13 +263,9 @@ static ssize_t name_show(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
-	ssize_t ret;
 
-	xe_pm_runtime_get(pc_to_xe(pc));
-	ret = sysfs_emit(buff, "%s\n", gtidle->name);
-	xe_pm_runtime_put(pc_to_xe(pc));
-
-	return ret;
+	guard(xe_pm_runtime)(pc_to_xe(pc));
+	return sysfs_emit(buff, "%s\n", gtidle->name);
 }
 static struct kobj_attribute name_attr = __ATTR_RO(name);
 
@@ -289,9 +277,8 @@ static ssize_t idle_status_show(struct kobject *kobj,
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	enum xe_gt_idle_state state;
 
-	xe_pm_runtime_get(pc_to_xe(pc));
-	state = gtidle->idle_status(pc);
-	xe_pm_runtime_put(pc_to_xe(pc));
+	scoped_guard(xe_pm_runtime, pc_to_xe(pc))
+		state = gtidle->idle_status(pc);
 
 	return sysfs_emit(buff, "%s\n", gt_idle_state_to_string(state));
 }
@@ -319,9 +306,8 @@ static ssize_t idle_residency_ms_show(struct kobject *kobj,
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	u64 residency;
 
-	xe_pm_runtime_get(pc_to_xe(pc));
-	residency = xe_gt_idle_residency_msec(gtidle);
-	xe_pm_runtime_put(pc_to_xe(pc));
+	scoped_guard(xe_pm_runtime, pc_to_xe(pc))
+		residency = xe_gt_idle_residency_msec(gtidle);
 
 	return sysfs_emit(buff, "%llu\n", residency);
 }
@@ -404,21 +390,17 @@ void xe_gt_idle_enable_c6(struct xe_gt *gt)
 
 int xe_gt_idle_disable_c6(struct xe_gt *gt)
 {
-	unsigned int fw_ref;
-
 	xe_device_assert_mem_access(gt_to_xe(gt));
 
 	if (IS_SRIOV_VF(gt_to_xe(gt)))
 		return 0;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	xe_mmio_write32(&gt->mmio, RC_CONTROL, 0);
 	xe_mmio_write32(&gt->mmio, RC_STATE, 0);
-
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return 0;
 }

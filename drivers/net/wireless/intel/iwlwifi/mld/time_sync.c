@@ -12,8 +12,7 @@
 static int iwl_mld_init_time_sync(struct iwl_mld *mld, u32 protocols,
 				  const u8 *addr)
 {
-	struct iwl_mld_time_sync_data *time_sync = kzalloc(sizeof(*time_sync),
-							   GFP_KERNEL);
+	struct iwl_mld_time_sync_data *time_sync = kzalloc_obj(*time_sync);
 
 	if (!time_sync)
 		return -ENOMEM;

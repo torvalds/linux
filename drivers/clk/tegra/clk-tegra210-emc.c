@@ -278,7 +278,7 @@ struct clk *tegra210_clk_register_emc(struct device_node *np,
 	struct clk_init_data init;
 	struct clk *clk;
 
-	emc = kzalloc(sizeof(*emc), GFP_KERNEL);
+	emc = kzalloc_obj(*emc);
 	if (!emc)
 		return ERR_PTR(-ENOMEM);
 

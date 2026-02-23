@@ -40,7 +40,7 @@ static int queue_dbg_open(struct inode *inode, struct file *file)
 	struct usba_request *req, *req_copy;
 	struct list_head *queue_data;
 
-	queue_data = kmalloc(sizeof(*queue_data), GFP_KERNEL);
+	queue_data = kmalloc_obj(*queue_data);
 	if (!queue_data)
 		return -ENOMEM;
 	INIT_LIST_HEAD(queue_data);
@@ -702,7 +702,7 @@ usba_ep_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 
 	DBG(DBG_GADGET, "ep_alloc_request: %p, 0x%x\n", _ep, gfp_flags);
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 

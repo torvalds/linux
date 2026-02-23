@@ -1163,7 +1163,7 @@ static int pcxhr_create(struct pcxhr_mgr *mgr,
 		.dev_free = pcxhr_chip_dev_free,
 	};
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc_obj(*chip);
 	if (!chip)
 		return -ENOMEM;
 
@@ -1488,7 +1488,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 	}
 
 	/* alloc card manager */
-	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc_obj(*mgr);
 	if (! mgr) {
 		pci_disable_device(pci);
 		return -ENOMEM;

@@ -254,7 +254,7 @@ mlxsw_sp_acl_erp_generic_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	struct mlxsw_sp_acl_erp *erp;
 	int err;
 
-	erp = kzalloc(sizeof(*erp), GFP_KERNEL);
+	erp = kzalloc_obj(*erp);
 	if (!erp)
 		return ERR_PTR(-ENOMEM);
 
@@ -798,7 +798,7 @@ mlxsw_sp_acl_erp_ctcam_mask_create(struct mlxsw_sp_acl_erp_table *erp_table,
 	struct mlxsw_sp_acl_erp *erp;
 	int err;
 
-	erp = kzalloc(sizeof(*erp), GFP_KERNEL);
+	erp = kzalloc_obj(*erp);
 	if (!erp)
 		return ERR_PTR(-ENOMEM);
 
@@ -1236,7 +1236,7 @@ static void *mlxsw_sp_acl_erp_delta_create(void *priv, void *parent_obj,
 	if (err)
 		return ERR_PTR(-EINVAL);
 
-	delta = kzalloc(sizeof(*delta), GFP_KERNEL);
+	delta = kzalloc_obj(*delta);
 	if (!delta)
 		return ERR_PTR(-ENOMEM);
 	delta->start = delta_start;
@@ -1309,7 +1309,7 @@ mlxsw_sp_acl_erp_table_create(struct mlxsw_sp_acl_atcam_region *aregion,
 	struct mlxsw_sp_acl_erp_table *erp_table;
 	int err;
 
-	erp_table = kzalloc(sizeof(*erp_table), GFP_KERNEL);
+	erp_table = kzalloc_obj(*erp_table);
 	if (!erp_table)
 		return ERR_PTR(-ENOMEM);
 
@@ -1563,7 +1563,7 @@ int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_erp_core *erp_core;
 	int err;
 
-	erp_core = kzalloc(sizeof(*erp_core), GFP_KERNEL);
+	erp_core = kzalloc_obj(*erp_core);
 	if (!erp_core)
 		return -ENOMEM;
 	erp_core->mlxsw_sp = mlxsw_sp;

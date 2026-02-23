@@ -25,6 +25,7 @@
 #include <linux/mount.h>
 #include <linux/path.h>
 #include <linux/dax.h>
+#include <linux/filelock.h>
 #include <linux/quotaops.h>
 #include <linux/pagevec.h>
 #include <linux/uio.h>
@@ -418,22 +419,20 @@ static const struct iomap_dio_ops ext4_dio_write_ops = {
  *   updating inode i_disksize and/or orphan handling with exclusive lock.
  *
  * - shared locking will only be true mostly with overwrites, including
- *   initialized blocks and unwritten blocks. For overwrite unwritten blocks
- *   we protect splitting extents by i_data_sem in ext4_inode_info, so we can
- *   also release exclusive i_rwsem lock.
+ *   initialized blocks and unwritten blocks.
  *
  * - Otherwise we will switch to exclusive i_rwsem lock.
  */
 static ssize_t ext4_dio_write_checks(struct kiocb *iocb, struct iov_iter *from,
 				     bool *ilock_shared, bool *extend,
-				     bool *unwritten, int *dio_flags)
+				     int *dio_flags)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	loff_t offset;
 	size_t count;
 	ssize_t ret;
-	bool overwrite, unaligned_io;
+	bool overwrite, unaligned_io, unwritten;
 
 restart:
 	ret = ext4_generic_write_checks(iocb, from);
@@ -445,7 +444,7 @@ restart:
 
 	unaligned_io = ext4_unaligned_io(inode, from, offset);
 	*extend = ext4_extending_io(inode, offset, count);
-	overwrite = ext4_overwrite_io(inode, offset, count, unwritten);
+	overwrite = ext4_overwrite_io(inode, offset, count, &unwritten);
 
 	/*
 	 * Determine whether we need to upgrade to an exclusive lock. This is
@@ -460,7 +459,7 @@ restart:
 	 */
 	if (*ilock_shared &&
 	    ((!IS_NOSEC(inode) || *extend || !overwrite ||
-	     (unaligned_io && *unwritten)))) {
+	     (unaligned_io && unwritten)))) {
 		if (iocb->ki_flags & IOCB_NOWAIT) {
 			ret = -EAGAIN;
 			goto out;
@@ -483,7 +482,7 @@ restart:
 			ret = -EAGAIN;
 			goto out;
 		}
-		if (unaligned_io && (!overwrite || *unwritten))
+		if (unaligned_io && (!overwrite || unwritten))
 			inode_dio_wait(inode);
 		*dio_flags = IOMAP_DIO_FORCE_WAIT;
 	}
@@ -508,8 +507,7 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	loff_t offset = iocb->ki_pos;
 	size_t count = iov_iter_count(from);
-	const struct iomap_ops *iomap_ops = &ext4_iomap_ops;
-	bool extend = false, unwritten = false;
+	bool extend = false;
 	bool ilock_shared = true;
 	int dio_flags = 0;
 
@@ -555,7 +553,7 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 
 	ret = ext4_dio_write_checks(iocb, from, &ilock_shared, &extend,
-				    &unwritten, &dio_flags);
+				    &dio_flags);
 	if (ret <= 0)
 		return ret;
 
@@ -575,9 +573,7 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 	}
 
-	if (ilock_shared && !unwritten)
-		iomap_ops = &ext4_iomap_overwrite_ops;
-	ret = iomap_dio_rw(iocb, from, iomap_ops, &ext4_dio_write_ops,
+	ret = iomap_dio_rw(iocb, from, &ext4_iomap_ops, &ext4_dio_write_ops,
 			   dio_flags, NULL, 0);
 	if (ret == -ENOTBLK)
 		ret = 0;
@@ -822,13 +818,13 @@ static int ext4_file_mmap_prepare(struct vm_area_desc *desc)
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(desc->vm_flags, file_inode(file), dax_dev))
+	if (!daxdev_mapping_supported(desc, file_inode(file), dax_dev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
 		desc->vm_ops = &ext4_dax_vm_ops;
-		desc->vm_flags |= VM_HUGEPAGE;
+		vma_desc_set_flags(desc, VMA_HUGEPAGE_BIT);
 	} else {
 		desc->vm_ops = &ext4_file_vm_ops;
 	}
@@ -858,7 +854,6 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	 * when trying to sort through large numbers of block
 	 * devices or filesystem images.
 	 */
-	memset(buf, 0, sizeof(buf));
 	path.mnt = mnt;
 	path.dentry = mnt->mnt_root;
 	cp = d_path(&path, buf, sizeof(buf));
@@ -980,6 +975,7 @@ const struct file_operations ext4_file_operations = {
 	.fop_flags	= FOP_MMAP_SYNC | FOP_BUFFER_RASYNC |
 			  FOP_DIO_PARALLEL_WRITE |
 			  FOP_DONTCACHE,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations ext4_file_inode_operations = {

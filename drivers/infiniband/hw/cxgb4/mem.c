@@ -282,7 +282,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 	if (c4iw_fatal_error(rdev))
 		return -EIO;
 
-	tpt = kmalloc(sizeof(*tpt), GFP_KERNEL);
+	tpt = kmalloc_obj(*tpt);
 	if (!tpt)
 		return -ENOMEM;
 
@@ -439,7 +439,7 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 
-	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
+	mhp = kzalloc_obj(*mhp);
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
@@ -517,7 +517,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (mr_exceeds_hw_limits(rhp, length))
 		return ERR_PTR(-EINVAL);
 
-	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
+	mhp = kzalloc_obj(*mhp);
 	if (!mhp)
 		return ERR_PTR(-ENOMEM);
 	mhp->wr_waitp = c4iw_alloc_wr_wait(GFP_KERNEL);
@@ -618,7 +618,7 @@ struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 					 use_dsgl))
 		return ERR_PTR(-EINVAL);
 
-	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
+	mhp = kzalloc_obj(*mhp);
 	if (!mhp) {
 		ret = -ENOMEM;
 		goto err;

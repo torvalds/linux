@@ -1468,7 +1468,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	if (prof_id >= ids->count)
 		return -ENOSPC;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
@@ -1661,7 +1661,7 @@ ice_flow_set_parser_prof(struct ice_hw *hw, u16 dest_vsi, u16 fdir_vsi,
 	int status;
 	int i, idx;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 
@@ -2552,7 +2552,7 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle,
 	segs_cnt = (cfg->hdr_type == ICE_RSS_OUTER_HEADERS) ?
 			ICE_FLOW_SEG_SINGLE : ICE_FLOW_SEG_MAX;
 
-	segs = kcalloc(segs_cnt, sizeof(*segs), GFP_KERNEL);
+	segs = kzalloc_objs(*segs, segs_cnt);
 	if (!segs)
 		return -ENOMEM;
 
@@ -2699,7 +2699,7 @@ ice_rem_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle,
 
 	segs_cnt = (cfg->hdr_type == ICE_RSS_OUTER_HEADERS) ?
 			ICE_FLOW_SEG_SINGLE : ICE_FLOW_SEG_MAX;
-	segs = kcalloc(segs_cnt, sizeof(*segs), GFP_KERNEL);
+	segs = kzalloc_objs(*segs, segs_cnt);
 	if (!segs)
 		return -ENOMEM;
 

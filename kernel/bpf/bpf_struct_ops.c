@@ -218,7 +218,7 @@ static int prepare_arg_info(struct btf *btf,
 	args = btf_params(func_proto);
 	stub_args = btf_params(stub_func_proto);
 
-	info_buf = kcalloc(nargs, sizeof(*info_buf), GFP_KERNEL);
+	info_buf = kzalloc_objs(*info_buf, nargs);
 	if (!info_buf)
 		return -ENOMEM;
 
@@ -378,8 +378,7 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 	if (!is_valid_value_type(btf, value_id, t, value_name))
 		return -EINVAL;
 
-	arg_info = kcalloc(btf_type_vlen(t), sizeof(*arg_info),
-			   GFP_KERNEL);
+	arg_info = kzalloc_objs(*arg_info, btf_type_vlen(t));
 	if (!arg_info)
 		return -ENOMEM;
 
@@ -530,6 +529,17 @@ static void bpf_struct_ops_map_put_progs(struct bpf_struct_ops_map *st_map)
 			break;
 		bpf_link_put(st_map->links[i]);
 		st_map->links[i] = NULL;
+	}
+}
+
+static void bpf_struct_ops_map_dissoc_progs(struct bpf_struct_ops_map *st_map)
+{
+	u32 i;
+
+	for (i = 0; i < st_map->funcs_cnt; i++) {
+		if (!st_map->links[i])
+			break;
+		bpf_prog_disassoc_struct_ops(st_map->links[i]->prog);
 	}
 }
 
@@ -710,7 +720,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	if (uvalue->common.state || refcount_read(&uvalue->common.refcnt))
 		return -EINVAL;
 
-	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	tlinks = kzalloc_objs(*tlinks, BPF_TRAMP_MAX);
 	if (!tlinks)
 		return -ENOMEM;
 
@@ -801,7 +811,10 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 
-		link = kzalloc(sizeof(*link), GFP_USER);
+		/* Poison pointer on error instead of return for backward compatibility */
+		bpf_prog_assoc_struct_ops(prog, &st_map->map);
+
+		link = kzalloc_obj(*link, GFP_USER);
 		if (!link) {
 			bpf_prog_put(prog);
 			err = -ENOMEM;
@@ -811,7 +824,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			      &bpf_struct_ops_link_lops, prog, prog->expected_attach_type);
 		*plink++ = &link->link;
 
-		ksym = kzalloc(sizeof(*ksym), GFP_USER);
+		ksym = kzalloc_obj(*ksym, GFP_USER);
 		if (!ksym) {
 			err = -ENOMEM;
 			goto reset_unlock;
@@ -979,6 +992,8 @@ static void bpf_struct_ops_map_free(struct bpf_map *map)
 	 */
 	if (btf_is_module(st_map->btf))
 		module_put(st_map->st_ops_desc->st_ops->owner);
+
+	bpf_struct_ops_map_dissoc_progs(st_map);
 
 	bpf_struct_ops_map_del_ksyms(st_map);
 
@@ -1360,7 +1375,7 @@ int bpf_struct_ops_link_create(union bpf_attr *attr)
 		goto err_out;
 	}
 
-	link = kzalloc(sizeof(*link), GFP_USER);
+	link = kzalloc_obj(*link, GFP_USER);
 	if (!link) {
 		err = -ENOMEM;
 		goto err_out;
@@ -1395,6 +1410,78 @@ err_out:
 	kfree(link);
 	return err;
 }
+
+int bpf_prog_assoc_struct_ops(struct bpf_prog *prog, struct bpf_map *map)
+{
+	struct bpf_map *st_ops_assoc;
+
+	guard(mutex)(&prog->aux->st_ops_assoc_mutex);
+
+	st_ops_assoc = rcu_dereference_protected(prog->aux->st_ops_assoc,
+						 lockdep_is_held(&prog->aux->st_ops_assoc_mutex));
+	if (st_ops_assoc && st_ops_assoc == map)
+		return 0;
+
+	if (st_ops_assoc) {
+		if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)
+			return -EBUSY;
+
+		rcu_assign_pointer(prog->aux->st_ops_assoc, BPF_PTR_POISON);
+	} else {
+		/*
+		 * struct_ops map does not track associated non-struct_ops programs.
+		 * Bump the refcount to make sure st_ops_assoc is always valid.
+		 */
+		if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)
+			bpf_map_inc(map);
+
+		rcu_assign_pointer(prog->aux->st_ops_assoc, map);
+	}
+
+	return 0;
+}
+
+void bpf_prog_disassoc_struct_ops(struct bpf_prog *prog)
+{
+	struct bpf_map *st_ops_assoc;
+
+	guard(mutex)(&prog->aux->st_ops_assoc_mutex);
+
+	st_ops_assoc = rcu_dereference_protected(prog->aux->st_ops_assoc,
+						 lockdep_is_held(&prog->aux->st_ops_assoc_mutex));
+	if (!st_ops_assoc || st_ops_assoc == BPF_PTR_POISON)
+		return;
+
+	if (prog->type != BPF_PROG_TYPE_STRUCT_OPS)
+		bpf_map_put(st_ops_assoc);
+
+	RCU_INIT_POINTER(prog->aux->st_ops_assoc, NULL);
+}
+
+/*
+ * Get a reference to the struct_ops struct (i.e., kdata) associated with a
+ * program. Should only be called in BPF program context (e.g., in a kfunc).
+ *
+ * If the returned pointer is not NULL, it must points to a valid struct_ops.
+ * The struct_ops map is not guaranteed to be initialized nor attached.
+ * Kernel struct_ops implementers are responsible for tracking and checking
+ * the state of the struct_ops if the use case requires an initialized or
+ * attached struct_ops.
+ */
+void *bpf_prog_get_assoc_struct_ops(const struct bpf_prog_aux *aux)
+{
+	struct bpf_struct_ops_map *st_map;
+	struct bpf_map *st_ops_assoc;
+
+	st_ops_assoc = rcu_dereference_check(aux->st_ops_assoc, bpf_rcu_lock_held());
+	if (!st_ops_assoc || st_ops_assoc == BPF_PTR_POISON)
+		return NULL;
+
+	st_map = (struct bpf_struct_ops_map *)st_ops_assoc;
+
+	return &st_map->kvalue.data;
+}
+EXPORT_SYMBOL_GPL(bpf_prog_get_assoc_struct_ops);
 
 void bpf_map_struct_ops_info_fill(struct bpf_map_info *info, struct bpf_map *map)
 {

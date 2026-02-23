@@ -78,7 +78,7 @@ static int gpio_trig_activate(struct led_classdev *led)
 	struct device *dev = led->dev;
 	int ret;
 
-	gpio_data = kzalloc(sizeof(*gpio_data), GFP_KERNEL);
+	gpio_data = kzalloc_obj(*gpio_data);
 	if (!gpio_data)
 		return -ENOMEM;
 

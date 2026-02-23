@@ -1854,7 +1854,8 @@ static inline int fc_fcp_lport_queue_ready(struct fc_lport *lport)
  *
  * This is the i/o strategy routine, called by the SCSI layer.
  */
-int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
+enum scsi_qc_status fc_queuecommand(struct Scsi_Host *shost,
+				    struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
@@ -2297,7 +2298,7 @@ int fc_fcp_init(struct fc_lport *lport)
 	if (!lport->tt.fcp_abort_io)
 		lport->tt.fcp_abort_io = fc_fcp_abort_io;
 
-	si = kzalloc(sizeof(struct fc_fcp_internal), GFP_KERNEL);
+	si = kzalloc_obj(struct fc_fcp_internal);
 	if (!si)
 		return -ENOMEM;
 	lport->scsi_priv = si;

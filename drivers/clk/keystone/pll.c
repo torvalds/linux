@@ -126,7 +126,7 @@ static struct clk *clk_register_pll(struct device *dev,
 	struct clk_pll *pll;
 	struct clk *clk;
 
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
+	pll = kzalloc_obj(*pll);
 	if (!pll)
 		return ERR_PTR(-ENOMEM);
 
@@ -162,7 +162,7 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 	struct clk *clk;
 	int i;
 
-	pll_data = kzalloc(sizeof(*pll_data), GFP_KERNEL);
+	pll_data = kzalloc_obj(*pll_data);
 	if (!pll_data) {
 		pr_err("%s: Out of memory\n", __func__);
 		return;

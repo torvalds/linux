@@ -262,7 +262,7 @@ iommufd_veventq_deliver_fetch(struct iommufd_veventq *veventq)
 		next = list_first_entry(list, struct iommufd_vevent, node);
 		/* Make a copy of the lost_events_header for copy_to_user */
 		if (next == &veventq->lost_events_header) {
-			vevent = kzalloc(sizeof(*vevent), GFP_ATOMIC);
+			vevent = kzalloc_obj(*vevent, GFP_ATOMIC);
 			if (!vevent)
 				goto out_unlock;
 		}

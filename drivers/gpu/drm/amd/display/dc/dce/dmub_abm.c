@@ -222,7 +222,7 @@ struct abm *dmub_abm_create(
 	const struct dce_abm_mask *abm_mask)
 {
 	if (ctx->dc->caps.dmcub_support) {
-		struct dce_abm *abm_dce = kzalloc(sizeof(*abm_dce), GFP_KERNEL);
+		struct dce_abm *abm_dce = kzalloc_obj(*abm_dce);
 
 		if (abm_dce == NULL) {
 			BREAK_TO_DEBUGGER();

@@ -392,6 +392,8 @@ enum kern_feature_id {
 	FEAT_ARG_CTX_TAG,
 	/* Kernel supports '?' at the front of datasec names */
 	FEAT_BTF_QMARK_DATASEC,
+	/* Kernel supports LDIMM64 imm offsets past 512 MiB. */
+	FEAT_LDIMM64_FULL_RANGE_OFF,
 	__FEAT_CNT,
 };
 

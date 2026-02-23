@@ -574,7 +574,7 @@ int memtype_reserve(u64 start, u64 end, enum page_cache_mode req_type,
 		return -EINVAL;
 	}
 
-	entry_new = kzalloc(sizeof(struct memtype), GFP_KERNEL);
+	entry_new = kzalloc_obj(struct memtype);
 	if (!entry_new)
 		return -ENOMEM;
 
@@ -966,7 +966,7 @@ static struct memtype *memtype_get_idx(loff_t pos)
 	struct memtype *entry_print;
 	int ret;
 
-	entry_print  = kzalloc(sizeof(struct memtype), GFP_KERNEL);
+	entry_print  = kzalloc_obj(struct memtype);
 	if (!entry_print)
 		return NULL;
 

@@ -106,7 +106,7 @@ static void isl6405_release(struct dvb_frontend *fe)
 struct dvb_frontend *isl6405_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c,
 				    u8 i2c_addr, u8 override_set, u8 override_clear)
 {
-	struct isl6405 *isl6405 = kmalloc(sizeof(struct isl6405), GFP_KERNEL);
+	struct isl6405 *isl6405 = kmalloc_obj(struct isl6405);
 	if (!isl6405)
 		return NULL;
 

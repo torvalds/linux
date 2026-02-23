@@ -20,8 +20,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "i915_drv.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 
 /**
  * intel_vgpu_find_page_track - find page track rcord of guest page
@@ -57,7 +58,7 @@ int intel_vgpu_register_page_track(struct intel_vgpu *vgpu, unsigned long gfn,
 	if (track)
 		return -EEXIST;
 
-	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	track = kzalloc_obj(*track);
 	if (!track)
 		return -ENOMEM;
 

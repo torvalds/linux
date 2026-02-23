@@ -110,7 +110,7 @@ static ssize_t do_id_store(struct device_driver *drv, const char *buf,
 	dax_id = __dax_match_id(dax_drv, buf);
 	if (!dax_id) {
 		if (action == ID_ADD) {
-			dax_id = kzalloc(sizeof(*dax_id), GFP_KERNEL);
+			dax_id = kzalloc_obj(*dax_id);
 			if (dax_id) {
 				strscpy(dax_id->dev_name, buf, DAX_NAME_LEN);
 				list_add(&dax_id->list, &dax_drv->ids);
@@ -650,7 +650,7 @@ struct dax_region *alloc_dax_region(struct device *parent, int region_id,
 			|| !IS_ALIGNED(range_len(range), align))
 		return NULL;
 
-	dax_region = kzalloc(sizeof(*dax_region), GFP_KERNEL);
+	dax_region = kzalloc_obj(*dax_region);
 	if (!dax_region)
 		return NULL;
 
@@ -807,7 +807,7 @@ static int devm_register_dax_mapping(struct dev_dax *dev_dax, int range_id)
 				"region disabled\n"))
 		return -ENXIO;
 
-	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
+	mapping = kzalloc_obj(*mapping);
 	if (!mapping)
 		return -ENOMEM;
 	mapping->range_id = range_id;
@@ -1427,7 +1427,7 @@ static struct dev_dax *__devm_create_dev_dax(struct dev_dax_data *data)
 	struct device *dev;
 	int rc;
 
-	dev_dax = kzalloc(sizeof(*dev_dax), GFP_KERNEL);
+	dev_dax = kzalloc_obj(*dev_dax);
 	if (!dev_dax)
 		return ERR_PTR(-ENOMEM);
 

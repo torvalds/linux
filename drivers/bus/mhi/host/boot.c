@@ -333,12 +333,12 @@ static int mhi_alloc_bhi_buffer(struct mhi_controller *mhi_cntrl,
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
 
-	img_info = kzalloc(sizeof(*img_info), GFP_KERNEL);
+	img_info = kzalloc_obj(*img_info);
 	if (!img_info)
 		return -ENOMEM;
 
 	/* Allocate memory for entry */
-	img_info->mhi_buf = kzalloc(sizeof(*img_info->mhi_buf), GFP_KERNEL);
+	img_info->mhi_buf = kzalloc_obj(*img_info->mhi_buf);
 	if (!img_info->mhi_buf)
 		goto error_alloc_mhi_buf;
 
@@ -375,13 +375,12 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
 
-	img_info = kzalloc(sizeof(*img_info), GFP_KERNEL);
+	img_info = kzalloc_obj(*img_info);
 	if (!img_info)
 		return -ENOMEM;
 
 	/* Allocate memory for entries */
-	img_info->mhi_buf = kcalloc(segments, sizeof(*img_info->mhi_buf),
-				    GFP_KERNEL);
+	img_info->mhi_buf = kzalloc_objs(*img_info->mhi_buf, segments);
 	if (!img_info->mhi_buf)
 		goto error_alloc_mhi_buf;
 
@@ -584,6 +583,16 @@ skip_req_fw:
 	 * device transitioning into MHI READY state
 	 */
 	if (fw_load_type == MHI_FW_LOAD_FBC) {
+		/*
+		 * Some FW combine two separate ELF images (SBL + WLAN FW) in a single
+		 * file. Hence, check for the existence of the second ELF header after
+		 * SBL. If present, load the second image separately.
+		 */
+		if (!memcmp(fw_data + mhi_cntrl->sbl_size, ELFMAG, SELFMAG)) {
+			fw_data += mhi_cntrl->sbl_size;
+			fw_sz -= mhi_cntrl->sbl_size;
+		}
+
 		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image, fw_sz);
 		if (ret) {
 			release_firmware(firmware);

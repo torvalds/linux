@@ -179,7 +179,7 @@ static unsigned long gemtek_convfreq(unsigned long freq)
 
 static struct radio_isa_card *gemtek_alloc(void)
 {
-	struct gemtek *gt = kzalloc(sizeof(*gt), GFP_KERNEL);
+	struct gemtek *gt = kzalloc_obj(*gt);
 
 	if (gt)
 		gt->muted = true;

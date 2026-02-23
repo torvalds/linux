@@ -633,7 +633,7 @@
 
 	pinctrl_hpdet: hpdetgrp {
 		fsl,pins = <
-			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0xC0   /* HP_DET */
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20	0xc0   /* HP_DET */
 		>;
 	};
 

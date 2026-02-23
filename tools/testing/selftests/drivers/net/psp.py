@@ -266,6 +266,7 @@ def assoc_sk_only_mismatch(cfg):
         the_exception = cm.exception
         ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
         ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+        _close_conn(cfg, s)
 
 
 def assoc_sk_only_mismatch_tx(cfg):
@@ -283,6 +284,7 @@ def assoc_sk_only_mismatch_tx(cfg):
         the_exception = cm.exception
         ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
         ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+        _close_conn(cfg, s)
 
 
 def assoc_sk_only_unconn(cfg):
@@ -601,8 +603,8 @@ def main() -> None:
         cfg.comm_port = rand_port()
         srv = None
         try:
-            with bkg(responder + f" -p {cfg.comm_port}", host=cfg.remote,
-                     exit_wait=True) as srv:
+            with bkg(responder + f" -p {cfg.comm_port} -i {cfg.remote_ifindex}",
+                     host=cfg.remote, exit_wait=True) as srv:
                 wait_port_listen(cfg.comm_port, host=cfg.remote)
 
                 cfg.comm_sock = socket.create_connection((cfg.remote_addr,

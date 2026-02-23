@@ -415,7 +415,7 @@ static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 	if (!page)
 		return -ENOMEM;
 
-	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	fs_locations = kmalloc_obj(struct nfs4_fs_locations);
 	if (!fs_locations)
 		goto out_free;
 	fs_locations->fattr = nfs_alloc_fattr();
@@ -490,7 +490,7 @@ static int nfs4_try_replacing_one_location(struct nfs_server *server,
 	size_t salen;
 	int error;
 
-	sap = kmalloc(sizeof(*sap), GFP_KERNEL);
+	sap = kmalloc_obj(*sap);
 	if (sap == NULL)
 		return -ENOMEM;
 

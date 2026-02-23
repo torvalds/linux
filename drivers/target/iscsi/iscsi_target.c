@@ -121,7 +121,7 @@ struct iscsi_tiqn *iscsit_add_tiqn(unsigned char *buf)
 		return ERR_PTR(-EINVAL);
 	}
 
-	tiqn = kzalloc(sizeof(*tiqn), GFP_KERNEL);
+	tiqn = kzalloc_obj(*tiqn);
 	if (!tiqn)
 		return ERR_PTR(-ENOMEM);
 
@@ -352,7 +352,7 @@ struct iscsi_np *iscsit_add_np(
 		return np;
 	}
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc_obj(*np);
 	if (!np) {
 		mutex_unlock(&np_lock);
 		return ERR_PTR(-ENOMEM);
@@ -674,7 +674,7 @@ static int __init iscsi_target_init_module(void)
 	int ret = 0, size;
 
 	pr_debug("iSCSI-Target "ISCSIT_VERSION"\n");
-	iscsit_global = kzalloc(sizeof(*iscsit_global), GFP_KERNEL);
+	iscsit_global = kzalloc_obj(*iscsit_global);
 	if (!iscsit_global)
 		return -1;
 
@@ -981,7 +981,7 @@ static int iscsit_allocate_iovecs(struct iscsit_cmd *cmd)
 	u32 iov_count = max(1UL, DIV_ROUND_UP(cmd->se_cmd.data_length, PAGE_SIZE));
 
 	iov_count += ISCSI_IOV_DATA_BUFFER;
-	cmd->iov_data = kcalloc(iov_count, sizeof(*cmd->iov_data), GFP_KERNEL);
+	cmd->iov_data = kzalloc_objs(*cmd->iov_data, iov_count);
 	if (!cmd->iov_data)
 		return -ENOMEM;
 
@@ -1992,7 +1992,7 @@ iscsit_handle_task_mgt_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 		hdr->refcmdsn = cpu_to_be32(ISCSI_RESERVED_TAG);
 
 	cmd->data_direction = DMA_NONE;
-	cmd->tmr_req = kzalloc(sizeof(*cmd->tmr_req), GFP_KERNEL);
+	cmd->tmr_req = kzalloc_obj(*cmd->tmr_req);
 	if (!cmd->tmr_req) {
 		return iscsit_add_reject_cmd(cmd,
 					     ISCSI_REASON_BOOKMARK_NO_RESOURCES,

@@ -146,7 +146,7 @@ static inline int devnode_find(struct video_device *vdev, int from, int to)
 
 struct video_device *video_device_alloc(void)
 {
-	return kzalloc(sizeof(struct video_device), GFP_KERNEL);
+	return kzalloc_obj(struct video_device);
 }
 EXPORT_SYMBOL(video_device_alloc);
 

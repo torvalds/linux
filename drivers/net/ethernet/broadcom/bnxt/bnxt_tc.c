@@ -977,7 +977,7 @@ bnxt_tc_get_l2_node(struct bnxt *bp, struct rhashtable *l2_table,
 
 	l2_node = rhashtable_lookup_fast(l2_table, l2_key, ht_params);
 	if (!l2_node) {
-		l2_node = kzalloc(sizeof(*l2_node), GFP_KERNEL);
+		l2_node = kzalloc_obj(*l2_node);
 		if (!l2_node) {
 			rc = -ENOMEM;
 			return NULL;
@@ -1128,7 +1128,7 @@ bnxt_tc_get_tunnel_node(struct bnxt *bp, struct rhashtable *tunnel_table,
 
 	tunnel_node = rhashtable_lookup_fast(tunnel_table, tun_key, *ht_params);
 	if (!tunnel_node) {
-		tunnel_node = kzalloc(sizeof(*tunnel_node), GFP_KERNEL);
+		tunnel_node = kzalloc_obj(*tunnel_node);
 		if (!tunnel_node) {
 			rc = -ENOMEM;
 			goto err;
@@ -1535,7 +1535,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 	int rc;
 
 	/* allocate memory for the new flow and it's node */
-	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+	new_node = kzalloc_obj(*new_node);
 	if (!new_node) {
 		rc = -ENOMEM;
 		goto done;
@@ -1915,7 +1915,7 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct Qdisc *sch
 
 	switch (f->command) {
 	case FLOW_BLOCK_BIND:
-		cb_priv = kmalloc(sizeof(*cb_priv), GFP_KERNEL);
+		cb_priv = kmalloc_obj(*cb_priv);
 		if (!cb_priv)
 			return -ENOMEM;
 
@@ -2018,7 +2018,7 @@ int bnxt_init_tc(struct bnxt *bp)
 	if (bp->hwrm_spec_code < 0x10803)
 		return 0;
 
-	tc_info = kzalloc(sizeof(*tc_info), GFP_KERNEL);
+	tc_info = kzalloc_obj(*tc_info);
 	if (!tc_info)
 		return -ENOMEM;
 	mutex_init(&tc_info->lock);

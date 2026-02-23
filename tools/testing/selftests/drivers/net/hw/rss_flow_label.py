@@ -145,9 +145,14 @@ def test_rss_flow_label_6only(cfg):
 
     # Try to enable Flow Labels and check again, in case it leaks thru
     initial = _ethtool_get_cfg(cfg, "udp6")
-    changed = initial.replace("l", "") if "l" in initial else initial + "l"
-
-    cmd(f"ethtool -N {cfg.ifname} rx-flow-hash udp6 {changed}")
+    no_lbl = initial.replace("l", "")
+    if "l" not in initial:
+        try:
+            cmd(f"ethtool -N {cfg.ifname} rx-flow-hash udp6 l{no_lbl}")
+        except CmdExitFailure as exc:
+            raise KsftSkipEx("Device doesn't support Flow Label for UDP6") from exc
+    else:
+        cmd(f"ethtool -N {cfg.ifname} rx-flow-hash udp6 {no_lbl}")
     restore = defer(cmd, f"ethtool -N {cfg.ifname} rx-flow-hash udp6 {initial}")
 
     _check_v4_flow_types(cfg)

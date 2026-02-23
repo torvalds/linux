@@ -38,7 +38,7 @@ proc_read_hw_info(struct snd_info_entry *entry,
 	struct snd_bebob *bebob = entry->private_data;
 	struct hw_info *info;
 
-	info = kzalloc(sizeof(struct hw_info), GFP_KERNEL);
+	info = kzalloc_obj(struct hw_info);
 	if (info == NULL)
 		return;
 

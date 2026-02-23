@@ -35,6 +35,7 @@
 #include "ptp.h"
 #include "time_sync.h"
 #include "ftm-initiator.h"
+#include "nan.h"
 
 /**
  * DOC: Introduction
@@ -199,6 +200,7 @@
  * @ptp_data: data of the PTP clock
  * @time_sync: time sync data.
  * @ftm_initiator: FTM initiator data
+ * @nan_device_vif: points to the NAN device vif if exists
  */
 struct iwl_mld {
 	/* Add here fields that need clean up on restart */
@@ -228,6 +230,7 @@ struct iwl_mld {
 #endif /* CONFIG_PM_SLEEP */
 		struct ieee80211_vif *p2p_device_vif;
 		bool bt_is_active;
+		struct ieee80211_vif *nan_device_vif;
 	);
 	struct ieee80211_link_sta __rcu *fw_id_to_link_sta[IWL_STATION_COUNT_MAX];
 	/* And here fields that survive a fw restart */

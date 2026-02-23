@@ -106,7 +106,7 @@ static int playback_default_hw_params(struct gaudio_snd_dev *snd)
 	snd->channels = 2;
 	snd->rate = 48000;
 
-	params = kzalloc(sizeof(*params), GFP_KERNEL);
+	params = kzalloc_obj(*params);
 	if (!params)
 		return -ENOMEM;
 

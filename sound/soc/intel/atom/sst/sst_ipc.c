@@ -31,7 +31,7 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 	struct sst_block *msg;
 
 	dev_dbg(ctx->dev, "Enter\n");
-	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	msg = kzalloc_obj(*msg);
 	if (!msg)
 		return NULL;
 	msg->condition = false;

@@ -418,7 +418,7 @@ static int ccp_register_hmac_alg(struct list_head *head,
 	struct crypto_alg *base;
 	int ret;
 
-	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
+	ccp_alg = kzalloc_obj(*ccp_alg);
 	if (!ccp_alg)
 		return -ENOMEM;
 
@@ -462,7 +462,7 @@ static int ccp_register_sha_alg(struct list_head *head,
 	struct crypto_alg *base;
 	int ret;
 
-	ccp_alg = kzalloc(sizeof(*ccp_alg), GFP_KERNEL);
+	ccp_alg = kzalloc_obj(*ccp_alg);
 	if (!ccp_alg)
 		return -ENOMEM;
 

@@ -7,105 +7,98 @@
 
 #include <linux/acpi.h>
 #include <linux/bitfield.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 
 #define OV01A10_LINK_FREQ_400MHZ	400000000ULL
-#define OV01A10_SCLK			40000000LL
+#define OV01A10_SCLK			80000000LL
 #define OV01A10_DATA_LANES		1
+#define OV01A10_MCLK			19200000
 
-#define OV01A10_REG_CHIP_ID		0x300a
+#define OV01A10_REG_CHIP_ID		CCI_REG24(0x300a)
 #define OV01A10_CHIP_ID			0x560141
 
-#define OV01A10_REG_MODE_SELECT		0x0100
+#define OV01A10_REG_MODE_SELECT		CCI_REG8(0x0100)
 #define OV01A10_MODE_STANDBY		0x00
 #define OV01A10_MODE_STREAMING		0x01
 
 /* pixel array */
-#define OV01A10_PIXEL_ARRAY_WIDTH	1296
-#define OV01A10_PIXEL_ARRAY_HEIGHT	816
-#define OV01A10_ACITVE_WIDTH		1280
-#define OV01A10_ACITVE_HEIGHT		800
+#define OV01A10_NATIVE_WIDTH		1296
+#define OV01A10_NATIVE_HEIGHT		816
+#define OV01A10_DEFAULT_WIDTH		1280
+#define OV01A10_DEFAULT_HEIGHT		800
 
 /* vertical and horizontal timings */
-#define OV01A10_REG_VTS			0x380e
-#define OV01A10_VTS_DEF			0x0380
+#define OV01A10_VTS_DEF			0x0700
 #define OV01A10_VTS_MIN			0x0380
 #define OV01A10_VTS_MAX			0xffff
 #define OV01A10_HTS_DEF			1488
 
 /* exposure controls */
-#define OV01A10_REG_EXPOSURE		0x3501
+#define OV01A10_REG_EXPOSURE		CCI_REG16(0x3501)
 #define OV01A10_EXPOSURE_MIN		4
 #define OV01A10_EXPOSURE_MAX_MARGIN	8
 #define OV01A10_EXPOSURE_STEP		1
 
 /* analog gain controls */
-#define OV01A10_REG_ANALOG_GAIN		0x3508
+#define OV01A10_REG_ANALOG_GAIN		CCI_REG16(0x3508)
 #define OV01A10_ANAL_GAIN_MIN		0x100
-#define OV01A10_ANAL_GAIN_MAX		0xffff
+#define OV01A10_ANAL_GAIN_MAX		0x3fff
 #define OV01A10_ANAL_GAIN_STEP		1
 
 /* digital gain controls */
-#define OV01A10_REG_DIGITAL_GAIN_B	0x350a
-#define OV01A10_REG_DIGITAL_GAIN_GB	0x3510
-#define OV01A10_REG_DIGITAL_GAIN_GR	0x3513
-#define OV01A10_REG_DIGITAL_GAIN_R	0x3516
+#define OV01A10_REG_DIGITAL_GAIN_B	CCI_REG24(0x350a)
+#define OV01A10_REG_DIGITAL_GAIN_GB	CCI_REG24(0x3510)
+#define OV01A10_REG_DIGITAL_GAIN_GR	CCI_REG24(0x3513)
+#define OV01A10_REG_DIGITAL_GAIN_R	CCI_REG24(0x3516)
 #define OV01A10_DGTL_GAIN_MIN		0
-#define OV01A10_DGTL_GAIN_MAX		0x3ffff
+#define OV01A10_DGTL_GAIN_MAX		0x3fff
 #define OV01A10_DGTL_GAIN_STEP		1
 #define OV01A10_DGTL_GAIN_DEFAULT	1024
 
-/* test pattern control */
-#define OV01A10_REG_TEST_PATTERN	0x4503
-#define OV01A10_TEST_PATTERN_ENABLE	BIT(7)
-#define OV01A10_LINK_FREQ_400MHZ_INDEX	0
+/* timing control */
+#define OV01A10_REG_X_ADDR_START	CCI_REG16(0x3800)
+#define OV01A10_REG_Y_ADDR_START	CCI_REG16(0x3802)
+#define OV01A10_REG_X_ADDR_END		CCI_REG16(0x3804)
+#define OV01A10_REG_Y_ADDR_END		CCI_REG16(0x3806)
+#define OV01A10_REG_X_OUTPUT_SIZE	CCI_REG16(0x3808)
+#define OV01A10_REG_Y_OUTPUT_SIZE	CCI_REG16(0x380a)
+#define OV01A10_REG_HTS			CCI_REG16(0x380c) /* in units of 2 pixels */
+#define OV01A10_REG_VTS			CCI_REG16(0x380e)
+#define OV01A10_REG_X_WIN		CCI_REG16(0x3810)
+#define OV01A10_REG_Y_WIN		CCI_REG16(0x3812)
 
 /* flip and mirror control */
-#define OV01A10_REG_FORMAT1		0x3820
+#define OV01A10_REG_FORMAT1		CCI_REG8(0x3820)
 #define OV01A10_VFLIP_MASK		BIT(4)
 #define OV01A10_HFLIP_MASK		BIT(3)
 
-/* window offset */
-#define OV01A10_REG_X_WIN		0x3811
-#define OV01A10_REG_Y_WIN		0x3813
-
-struct ov01a10_reg {
-	u16 address;
-	u8 val;
-};
-
-struct ov01a10_reg_list {
-	u32 num_of_regs;
-	const struct ov01a10_reg *regs;
-};
+/* test pattern control */
+#define OV01A10_REG_TEST_PATTERN	CCI_REG8(0x4503)
+#define OV01A10_TEST_PATTERN_ENABLE	BIT(7)
 
 struct ov01a10_link_freq_config {
-	const struct ov01a10_reg_list reg_list;
+	const struct reg_sequence *regs;
+	int regs_len;
 };
 
-struct ov01a10_mode {
-	u32 width;
-	u32 height;
-	u32 hts;
-	u32 vts_def;
-	u32 vts_min;
-	u32 link_freq_index;
-
-	const struct ov01a10_reg_list reg_list;
-};
-
-static const struct ov01a10_reg mipi_data_rate_720mbps[] = {
+static const struct reg_sequence mipi_data_rate_720mbps[] = {
 	{0x0103, 0x01},
 	{0x0302, 0x00},
 	{0x0303, 0x06},
 	{0x0304, 0x01},
-	{0x0305, 0xe0},
+	{0x0305, 0xf4},
 	{0x0306, 0x00},
 	{0x0308, 0x01},
 	{0x0309, 0x00},
@@ -116,15 +109,11 @@ static const struct ov01a10_reg mipi_data_rate_720mbps[] = {
 	{0x0325, 0x68},
 };
 
-static const struct ov01a10_reg sensor_1280x800_setting[] = {
+static const struct reg_sequence ov01a10_global_setting[] = {
 	{0x3002, 0xa1},
 	{0x301e, 0xf0},
 	{0x3022, 0x01},
-	{0x3501, 0x03},
-	{0x3502, 0x78},
 	{0x3504, 0x0c},
-	{0x3508, 0x01},
-	{0x3509, 0x00},
 	{0x3601, 0xc0},
 	{0x3603, 0x71},
 	{0x3610, 0x68},
@@ -168,31 +157,10 @@ static const struct ov01a10_reg sensor_1280x800_setting[] = {
 	{0x37e4, 0x04},
 	{0x37e5, 0x03},
 	{0x37e6, 0x04},
-	{0x3800, 0x00},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x05},
-	{0x3805, 0x0f},
-	{0x3806, 0x03},
-	{0x3807, 0x2f},
-	{0x3808, 0x05},
-	{0x3809, 0x00},
-	{0x380a, 0x03},
-	{0x380b, 0x20},
-	{0x380c, 0x02},
-	{0x380d, 0xe8},
-	{0x380e, 0x03},
-	{0x380f, 0x80},
-	{0x3810, 0x00},
-	{0x3811, 0x08},
-	{0x3812, 0x00},
-	{0x3813, 0x08},
 	{0x3814, 0x01},
 	{0x3815, 0x01},
 	{0x3816, 0x01},
 	{0x3817, 0x01},
-	{0x3820, 0xa0},
 	{0x3822, 0x13},
 	{0x3832, 0x28},
 	{0x3833, 0x10},
@@ -214,7 +182,6 @@ static const struct ov01a10_reg sensor_1280x800_setting[] = {
 	{0x4300, 0xff},
 	{0x4301, 0x00},
 	{0x4302, 0x0f},
-	{0x4503, 0x00},
 	{0x4601, 0x50},
 	{0x4800, 0x64},
 	{0x481f, 0x34},
@@ -233,16 +200,14 @@ static const struct ov01a10_reg sensor_1280x800_setting[] = {
 	{0x5200, 0x18},
 	{0x5004, 0x00},
 	{0x5080, 0x40},
-	{0x0305, 0xf4},
 	{0x0325, 0xc2},
 };
 
 static const char * const ov01a10_test_pattern_menu[] = {
 	"Disabled",
 	"Color Bar",
-	"Top-Bottom Darker Color Bar",
-	"Right-Left Darker Color Bar",
-	"Color Bar type 4",
+	"Left-Right Darker Color Bar",
+	"Bottom-Top Darker Color Bar",
 };
 
 static const s64 link_freq_menu_items[] = {
@@ -250,30 +215,39 @@ static const s64 link_freq_menu_items[] = {
 };
 
 static const struct ov01a10_link_freq_config link_freq_configs[] = {
-	[OV01A10_LINK_FREQ_400MHZ_INDEX] = {
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mipi_data_rate_720mbps),
-			.regs = mipi_data_rate_720mbps,
-		}
+	{
+		.regs = mipi_data_rate_720mbps,
+		.regs_len = ARRAY_SIZE(mipi_data_rate_720mbps),
 	},
 };
 
-static const struct ov01a10_mode supported_modes[] = {
-	{
-		.width = OV01A10_ACITVE_WIDTH,
-		.height = OV01A10_ACITVE_HEIGHT,
-		.hts = OV01A10_HTS_DEF,
-		.vts_def = OV01A10_VTS_DEF,
-		.vts_min = OV01A10_VTS_MIN,
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(sensor_1280x800_setting),
-			.regs = sensor_1280x800_setting,
-		},
-		.link_freq_index = OV01A10_LINK_FREQ_400MHZ_INDEX,
-	},
+static const struct v4l2_rect ov01a10_default_crop = {
+	.left = (OV01A10_NATIVE_WIDTH - OV01A10_DEFAULT_WIDTH) / 2,
+	.top = (OV01A10_NATIVE_HEIGHT - OV01A10_DEFAULT_HEIGHT) / 2,
+	.width = OV01A10_DEFAULT_WIDTH,
+	.height = OV01A10_DEFAULT_HEIGHT,
+};
+
+static const char * const ov01a10_supply_names[] = {
+	"dovdd",	/* Digital I/O power */
+	"avdd",		/* Analog power */
+	"dvdd",		/* Digital core power */
+};
+
+struct ov01a10_sensor_cfg {
+	const char *model;
+	u32 bus_fmt;
+	int pattern_size;
+	int border_size;
+	u8 format1_base_val;
+	bool invert_hflip_shift;
+	bool invert_vflip_shift;
 };
 
 struct ov01a10 {
+	struct device *dev;
+	struct regmap *regmap;
+	const struct ov01a10_sensor_cfg *cfg;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -284,8 +258,15 @@ struct ov01a10 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
 
-	const struct ov01a10_mode *cur_mode;
+	u32 link_freq_index;
+
+	struct clk *clk;
+	struct gpio_desc *reset;
+	struct gpio_desc *powerdown;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(ov01a10_supply_names)];
 };
 
 static inline struct ov01a10 *to_ov01a10(struct v4l2_subdev *subdev)
@@ -293,183 +274,115 @@ static inline struct ov01a10 *to_ov01a10(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct ov01a10, sd);
 }
 
-static int ov01a10_read_reg(struct ov01a10 *ov01a10, u16 reg, u16 len, u32 *val)
+static struct v4l2_mbus_framefmt *ov01a10_get_active_format(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	struct i2c_msg msgs[2];
-	u8 addr_buf[2];
-	u8 data_buf[4] = {0};
-	int ret = 0;
+	struct v4l2_subdev_state *active_state =
+		v4l2_subdev_get_locked_active_state(&ov01a10->sd);
 
-	if (len > sizeof(data_buf))
-		return -EINVAL;
-
-	put_unaligned_be16(reg, addr_buf);
-	msgs[0].addr = client->addr;
-	msgs[0].flags = 0;
-	msgs[0].len = sizeof(addr_buf);
-	msgs[0].buf = addr_buf;
-	msgs[1].addr = client->addr;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = &data_buf[sizeof(data_buf) - len];
-
-	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
-
-	if (ret != ARRAY_SIZE(msgs))
-		return ret < 0 ? ret : -EIO;
-
-	*val = get_unaligned_be32(data_buf);
-
-	return 0;
+	return v4l2_subdev_state_get_format(active_state, 0);
 }
 
-static int ov01a10_write_reg(struct ov01a10 *ov01a10, u16 reg, u16 len, u32 val)
+static struct v4l2_rect *ov01a10_get_active_crop(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	u8 buf[6];
-	int ret = 0;
+	struct v4l2_subdev_state *active_state =
+		v4l2_subdev_get_locked_active_state(&ov01a10->sd);
 
-	if (len > 4)
-		return -EINVAL;
-
-	put_unaligned_be16(reg, buf);
-	put_unaligned_be32(val << 8 * (4 - len), buf + 2);
-
-	ret = i2c_master_send(client, buf, len + 2);
-	if (ret != len + 2)
-		return ret < 0 ? ret : -EIO;
-
-	return 0;
-}
-
-static int ov01a10_write_reg_list(struct ov01a10 *ov01a10,
-				  const struct ov01a10_reg_list *r_list)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	unsigned int i;
-	int ret = 0;
-
-	for (i = 0; i < r_list->num_of_regs; i++) {
-		ret = ov01a10_write_reg(ov01a10, r_list->regs[i].address, 1,
-					r_list->regs[i].val);
-		if (ret) {
-			dev_err_ratelimited(&client->dev,
-					    "write reg 0x%4.4x err = %d\n",
-					    r_list->regs[i].address, ret);
-			return ret;
-		}
-	}
-
-	return 0;
+	return v4l2_subdev_state_get_crop(active_state, 0);
 }
 
 static int ov01a10_update_digital_gain(struct ov01a10 *ov01a10, u32 d_gain)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	u32 real = d_gain << 6;
 	int ret = 0;
 
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_DIGITAL_GAIN_B, 3, real);
-	if (ret) {
-		dev_err(&client->dev, "failed to set DIGITAL_GAIN_B\n");
-		return ret;
-	}
-
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_DIGITAL_GAIN_GB, 3, real);
-	if (ret) {
-		dev_err(&client->dev, "failed to set DIGITAL_GAIN_GB\n");
-		return ret;
-	}
-
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_DIGITAL_GAIN_GR, 3, real);
-	if (ret) {
-		dev_err(&client->dev, "failed to set DIGITAL_GAIN_GR\n");
-		return ret;
-	}
-
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_DIGITAL_GAIN_R, 3, real);
-	if (ret)
-		dev_err(&client->dev, "failed to set DIGITAL_GAIN_R\n");
+	cci_write(ov01a10->regmap, OV01A10_REG_DIGITAL_GAIN_B, real, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_DIGITAL_GAIN_GB, real, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_DIGITAL_GAIN_GR, real, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_DIGITAL_GAIN_R, real, &ret);
 
 	return ret;
 }
 
 static int ov01a10_test_pattern(struct ov01a10 *ov01a10, u32 pattern)
 {
-	if (!pattern)
-		return 0;
+	if (pattern)
+		pattern |= OV01A10_TEST_PATTERN_ENABLE;
 
-	pattern = (pattern - 1) | OV01A10_TEST_PATTERN_ENABLE;
-
-	return ov01a10_write_reg(ov01a10, OV01A10_REG_TEST_PATTERN, 1, pattern);
+	return cci_write(ov01a10->regmap, OV01A10_REG_TEST_PATTERN, pattern,
+			 NULL);
 }
 
-/* for vflip and hflip, use 0x9 as window offset to keep the bayer */
-static int ov01a10_set_hflip(struct ov01a10 *ov01a10, u32 hflip)
+static void ov01a10_set_format1(struct ov01a10 *ov01a10, int *ret)
 {
-	int ret;
-	u32 val, offset;
+	u8 val = ov01a10->cfg->format1_base_val;
 
-	offset = hflip ? 0x9 : 0x8;
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_X_WIN, 1, offset);
-	if (ret)
-		return ret;
+	/* hflip register bit is inverted */
+	if (!ov01a10->hflip->val)
+		val |= FIELD_PREP(OV01A10_HFLIP_MASK, 0x1);
 
-	ret = ov01a10_read_reg(ov01a10, OV01A10_REG_FORMAT1, 1, &val);
-	if (ret)
-		return ret;
+	if (ov01a10->vflip->val)
+		val |= FIELD_PREP(OV01A10_VFLIP_MASK, 0x1);
 
-	val = hflip ? val | FIELD_PREP(OV01A10_HFLIP_MASK, 0x1) :
-		val & ~OV01A10_HFLIP_MASK;
-
-	return ov01a10_write_reg(ov01a10, OV01A10_REG_FORMAT1, 1, val);
+	cci_write(ov01a10->regmap, OV01A10_REG_FORMAT1, val, ret);
 }
 
-static int ov01a10_set_vflip(struct ov01a10 *ov01a10, u32 vflip)
+static int ov01a10_set_hflip(struct ov01a10 *ov01a10, bool hflip)
 {
-	int ret;
-	u32 val, offset;
+	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
+	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
+	u32 offset;
+	int ret = 0;
 
-	offset = vflip ? 0x9 : 0x8;
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_Y_WIN, 1, offset);
-	if (ret)
-		return ret;
+	offset = crop->left;
+	if ((hflip ^ cfg->invert_hflip_shift) && cfg->border_size)
+		offset++;
 
-	ret = ov01a10_read_reg(ov01a10, OV01A10_REG_FORMAT1, 1, &val);
-	if (ret)
-		return ret;
+	cci_write(ov01a10->regmap, OV01A10_REG_X_WIN, offset, &ret);
+	ov01a10_set_format1(ov01a10, &ret);
 
-	val = vflip ? val | FIELD_PREP(OV01A10_VFLIP_MASK, 0x1) :
-		val & ~OV01A10_VFLIP_MASK;
+	return ret;
+}
 
-	return ov01a10_write_reg(ov01a10, OV01A10_REG_FORMAT1, 1, val);
+static int ov01a10_set_vflip(struct ov01a10 *ov01a10, bool vflip)
+{
+	struct v4l2_rect *crop = ov01a10_get_active_crop(ov01a10);
+	const struct ov01a10_sensor_cfg *cfg = ov01a10->cfg;
+	u32 offset;
+	int ret = 0;
+
+	offset = crop->top;
+	if ((vflip ^ cfg->invert_vflip_shift) && cfg->border_size)
+		offset++;
+
+	cci_write(ov01a10->regmap, OV01A10_REG_Y_WIN, offset, &ret);
+	ov01a10_set_format1(ov01a10, &ret);
+
+	return ret;
 }
 
 static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct ov01a10 *ov01a10 = container_of(ctrl->handler,
 					       struct ov01a10, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
+	struct v4l2_mbus_framefmt *fmt = ov01a10_get_active_format(ov01a10);
 	s64 exposure_max;
 	int ret = 0;
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
-		exposure_max = ov01a10->cur_mode->height + ctrl->val -
-			OV01A10_EXPOSURE_MAX_MARGIN;
+		exposure_max = fmt->height + ctrl->val -
+			       OV01A10_EXPOSURE_MAX_MARGIN;
 		__v4l2_ctrl_modify_range(ov01a10->exposure,
-					 ov01a10->exposure->minimum,
-					 exposure_max, ov01a10->exposure->step,
-					 exposure_max);
+					 OV01A10_EXPOSURE_MIN, exposure_max,
+					 OV01A10_EXPOSURE_STEP, exposure_max);
 	}
 
-	if (!pm_runtime_get_if_in_use(&client->dev))
+	if (!pm_runtime_get_if_in_use(ov01a10->dev))
 		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = ov01a10_write_reg(ov01a10, OV01A10_REG_ANALOG_GAIN, 2,
-					ctrl->val);
+		ret = cci_write(ov01a10->regmap, OV01A10_REG_ANALOG_GAIN,
+				ctrl->val, NULL);
 		break;
 
 	case V4L2_CID_DIGITAL_GAIN:
@@ -477,13 +390,13 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_EXPOSURE:
-		ret = ov01a10_write_reg(ov01a10, OV01A10_REG_EXPOSURE, 2,
-					ctrl->val);
+		ret = cci_write(ov01a10->regmap, OV01A10_REG_EXPOSURE,
+				ctrl->val, NULL);
 		break;
 
 	case V4L2_CID_VBLANK:
-		ret = ov01a10_write_reg(ov01a10, OV01A10_REG_VTS, 2,
-					ov01a10->cur_mode->height + ctrl->val);
+		ret = cci_write(ov01a10->regmap, OV01A10_REG_VTS,
+				fmt->height + ctrl->val, NULL);
 		break;
 
 	case V4L2_CID_TEST_PATTERN:
@@ -503,7 +416,7 @@ static int ov01a10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put(&client->dev);
+	pm_runtime_put(ov01a10->dev);
 
 	return ret;
 }
@@ -514,16 +427,13 @@ static const struct v4l2_ctrl_ops ov01a10_ctrl_ops = {
 
 static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	struct v4l2_fwnode_device_properties props;
 	u32 vblank_min, vblank_max, vblank_default;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
-	const struct ov01a10_mode *cur_mode;
 	s64 exposure_max, h_blank;
 	int ret = 0;
-	int size;
 
-	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	ret = v4l2_fwnode_device_parse(ov01a10->dev, &props);
 	if (ret)
 		return ret;
 
@@ -532,34 +442,27 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 	if (ret)
 		return ret;
 
-	cur_mode = ov01a10->cur_mode;
-	size = ARRAY_SIZE(link_freq_menu_items);
-
 	ov01a10->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 						    &ov01a10_ctrl_ops,
 						    V4L2_CID_LINK_FREQ,
-						    size - 1, 0,
+						    ov01a10->link_freq_index, 0,
 						    link_freq_menu_items);
-	if (ov01a10->link_freq)
-		ov01a10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ov01a10->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 						V4L2_CID_PIXEL_RATE, 0,
 						OV01A10_SCLK, 1, OV01A10_SCLK);
 
-	vblank_min = cur_mode->vts_min - cur_mode->height;
-	vblank_max = OV01A10_VTS_MAX - cur_mode->height;
-	vblank_default = cur_mode->vts_def - cur_mode->height;
+	vblank_min = OV01A10_VTS_MIN - OV01A10_DEFAULT_HEIGHT;
+	vblank_max = OV01A10_VTS_MAX - OV01A10_DEFAULT_HEIGHT;
+	vblank_default = OV01A10_VTS_DEF - OV01A10_DEFAULT_HEIGHT;
 	ov01a10->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 					    V4L2_CID_VBLANK, vblank_min,
 					    vblank_max, 1, vblank_default);
 
-	h_blank = cur_mode->hts - cur_mode->width;
+	h_blank = OV01A10_HTS_DEF - OV01A10_DEFAULT_WIDTH;
 	ov01a10->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 					    V4L2_CID_HBLANK, h_blank, h_blank,
 					    1, h_blank);
-	if (ov01a10->hblank)
-		ov01a10->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  OV01A10_ANAL_GAIN_MIN, OV01A10_ANAL_GAIN_MAX,
@@ -568,7 +471,7 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 			  OV01A10_DGTL_GAIN_MIN, OV01A10_DGTL_GAIN_MAX,
 			  OV01A10_DGTL_GAIN_STEP, OV01A10_DGTL_GAIN_DEFAULT);
 
-	exposure_max = cur_mode->vts_def - OV01A10_EXPOSURE_MAX_MARGIN;
+	exposure_max = OV01A10_VTS_DEF - OV01A10_EXPOSURE_MAX_MARGIN;
 	ov01a10->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
 					      V4L2_CID_EXPOSURE,
 					      OV01A10_EXPOSURE_MIN,
@@ -581,10 +484,10 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 				     ARRAY_SIZE(ov01a10_test_pattern_menu) - 1,
 				     0, 0, ov01a10_test_pattern_menu);
 
-	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_HFLIP,
-			  0, 1, 1, 0);
-	v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops, V4L2_CID_VFLIP,
-			  0, 1, 1, 0);
+	ov01a10->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+	ov01a10->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov01a10_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov01a10_ctrl_ops,
 					      &props);
@@ -596,6 +499,9 @@ static int ov01a10_init_controls(struct ov01a10 *ov01a10)
 		goto fail;
 	}
 
+	ov01a10->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	ov01a10->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
 	ov01a10->sd.ctrl_handler = ctrl_hdlr;
 
 	return 0;
@@ -605,35 +511,66 @@ fail:
 	return ret;
 }
 
-static void ov01a10_update_pad_format(const struct ov01a10_mode *mode,
-				      struct v4l2_mbus_framefmt *fmt)
+static void ov01a10_fill_format(struct ov01a10 *ov01a10,
+				struct v4l2_mbus_framefmt *fmt,
+				unsigned int width, unsigned int height)
 {
-	fmt->width = mode->width;
-	fmt->height = mode->height;
-	fmt->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	memset(fmt, 0, sizeof(*fmt));
+	fmt->width = width;
+	fmt->height = height;
+	fmt->code = ov01a10->cfg->bus_fmt;
 	fmt->field = V4L2_FIELD_NONE;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
 }
 
-static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
+static int ov01a10_set_mode(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	const struct ov01a10_reg_list *reg_list;
-	int link_freq_index;
+	struct v4l2_mbus_framefmt *fmt = ov01a10_get_active_format(ov01a10);
 	int ret = 0;
 
-	link_freq_index = ov01a10->cur_mode->link_freq_index;
-	reg_list = &link_freq_configs[link_freq_index].reg_list;
-	ret = ov01a10_write_reg_list(ov01a10, reg_list);
+	cci_write(ov01a10->regmap, OV01A10_REG_X_ADDR_START, 0, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_Y_ADDR_START, 0, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_X_ADDR_END,
+		  OV01A10_NATIVE_WIDTH - 1, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_Y_ADDR_END,
+		  OV01A10_NATIVE_HEIGHT - 1, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_X_OUTPUT_SIZE,
+		  fmt->width, &ret);
+	cci_write(ov01a10->regmap, OV01A10_REG_Y_OUTPUT_SIZE,
+		  fmt->height, &ret);
+	/* HTS register is in units of 2 pixels */
+	cci_write(ov01a10->regmap, OV01A10_REG_HTS,
+		  OV01A10_HTS_DEF / 2, &ret);
+	/* OV01A10_REG_VTS is set by vblank control */
+	/* OV01A10_REG_X_WIN is set by hlip control */
+	/* OV01A10_REG_Y_WIN is set by vflip control */
+
+	return ret;
+}
+
+static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
+{
+	const struct ov01a10_link_freq_config *freq_cfg;
+	int ret;
+
+	freq_cfg = &link_freq_configs[ov01a10->link_freq_index];
+	ret = regmap_multi_reg_write(ov01a10->regmap, freq_cfg->regs,
+				     freq_cfg->regs_len);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls\n");
+		dev_err(ov01a10->dev, "failed to set plls\n");
 		return ret;
 	}
 
-	reg_list = &ov01a10->cur_mode->reg_list;
-	ret = ov01a10_write_reg_list(ov01a10, reg_list);
+	ret = regmap_multi_reg_write(ov01a10->regmap, ov01a10_global_setting,
+				     ARRAY_SIZE(ov01a10_global_setting));
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode\n");
+		dev_err(ov01a10->dev, "failed to initialize sensor\n");
+		return ret;
+	}
+
+	ret = ov01a10_set_mode(ov01a10);
+	if (ret) {
+		dev_err(ov01a10->dev, "failed to set mode\n");
 		return ret;
 	}
 
@@ -641,47 +578,37 @@ static int ov01a10_start_streaming(struct ov01a10 *ov01a10)
 	if (ret)
 		return ret;
 
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_MODE_SELECT, 1,
-				OV01A10_MODE_STREAMING);
-	if (ret)
-		dev_err(&client->dev, "failed to start streaming\n");
-
-	return ret;
+	return cci_write(ov01a10->regmap, OV01A10_REG_MODE_SELECT,
+			 OV01A10_MODE_STREAMING, NULL);
 }
 
 static void ov01a10_stop_streaming(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
-	int ret = 0;
-
-	ret = ov01a10_write_reg(ov01a10, OV01A10_REG_MODE_SELECT, 1,
-				OV01A10_MODE_STANDBY);
-	if (ret)
-		dev_err(&client->dev, "failed to stop streaming\n");
+	cci_write(ov01a10->regmap, OV01A10_REG_MODE_SELECT,
+		  OV01A10_MODE_STANDBY, NULL);
 }
 
 static int ov01a10_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ov01a10 *ov01a10 = to_ov01a10(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_state *state;
 	int ret = 0;
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
-		ret = pm_runtime_resume_and_get(&client->dev);
+		ret = pm_runtime_resume_and_get(ov01a10->dev);
 		if (ret < 0)
 			goto unlock;
 
 		ret = ov01a10_start_streaming(ov01a10);
 		if (ret) {
-			pm_runtime_put(&client->dev);
+			pm_runtime_put(ov01a10->dev);
 			goto unlock;
 		}
 	} else {
 		ov01a10_stop_streaming(ov01a10);
-		pm_runtime_put(&client->dev);
+		pm_runtime_put(ov01a10->dev);
 	}
 
 unlock:
@@ -690,56 +617,66 @@ unlock:
 	return ret;
 }
 
+static void ov01a10_update_blank_ctrls(struct ov01a10 *ov01a10,
+				       unsigned int width, unsigned int height)
+{
+	s32 hblank, vblank_def;
+
+	vblank_def = OV01A10_VTS_DEF - height;
+	__v4l2_ctrl_modify_range(ov01a10->vblank,
+				 OV01A10_VTS_MIN - height,
+				 OV01A10_VTS_MAX - height, 1,
+				 vblank_def);
+	__v4l2_ctrl_s_ctrl(ov01a10->vblank, vblank_def);
+
+	hblank = OV01A10_HTS_DEF - width;
+	__v4l2_ctrl_modify_range(ov01a10->hblank, hblank, hblank, 1, hblank);
+}
+
 static int ov01a10_set_format(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state,
 			      struct v4l2_subdev_format *fmt)
 {
+	struct v4l2_rect *crop = v4l2_subdev_state_get_crop(sd_state, fmt->pad);
 	struct ov01a10 *ov01a10 = to_ov01a10(sd);
-	const struct ov01a10_mode *mode;
-	struct v4l2_mbus_framefmt *format;
-	s32 vblank_def, h_blank;
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
+	unsigned int width, height;
 
-	mode = v4l2_find_nearest_size(supported_modes,
-				      ARRAY_SIZE(supported_modes), width,
-				      height, fmt->format.width,
-				      fmt->format.height);
+	width = clamp_val(ALIGN(fmt->format.width, pattern_size),
+			  pattern_size,
+			  OV01A10_NATIVE_WIDTH - 2 * border_size);
+	height = clamp_val(ALIGN(fmt->format.height, pattern_size),
+			   pattern_size,
+			   OV01A10_NATIVE_HEIGHT - 2 * border_size);
 
-	ov01a10_update_pad_format(mode, &fmt->format);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		ov01a10->cur_mode = mode;
-		__v4l2_ctrl_s_ctrl(ov01a10->link_freq, mode->link_freq_index);
-		__v4l2_ctrl_s_ctrl_int64(ov01a10->pixel_rate, OV01A10_SCLK);
-
-		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(ov01a10->vblank,
-					 mode->vts_min - mode->height,
-					 OV01A10_VTS_MAX - mode->height, 1,
-					 vblank_def);
-		__v4l2_ctrl_s_ctrl(ov01a10->vblank, vblank_def);
-		h_blank = mode->hts - mode->width;
-		__v4l2_ctrl_modify_range(ov01a10->hblank, h_blank, h_blank, 1,
-					 h_blank);
+	/* Center image for userspace which does not set the crop first */
+	if (width != crop->width || height != crop->height) {
+		crop->left = ALIGN((OV01A10_NATIVE_WIDTH - width) / 2,
+				   pattern_size);
+		crop->top = ALIGN((OV01A10_NATIVE_HEIGHT - height) / 2,
+				  pattern_size);
+		crop->width = width;
+		crop->height = height;
 	}
 
-	format = v4l2_subdev_state_get_format(sd_state, fmt->stream);
-	*format = fmt->format;
+	ov01a10_fill_format(ov01a10, &fmt->format, width, height);
+	*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
+
+	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		ov01a10_update_blank_ctrls(ov01a10, width, height);
 
 	return 0;
 }
 
 static int ov01a10_init_state(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_state *state)
+			      struct v4l2_subdev_state *sd_state)
 {
-	struct v4l2_subdev_format fmt = {
-		.which = V4L2_SUBDEV_FORMAT_TRY,
-		.format = {
-			.width = OV01A10_ACITVE_WIDTH,
-			.height = OV01A10_ACITVE_HEIGHT,
-		},
-	};
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
 
-	ov01a10_set_format(sd, state, &fmt);
+	*v4l2_subdev_state_get_crop(sd_state, 0) = ov01a10_default_crop;
+	ov01a10_fill_format(ov01a10, v4l2_subdev_state_get_format(sd_state, 0),
+			    OV01A10_DEFAULT_WIDTH, OV01A10_DEFAULT_HEIGHT);
 
 	return 0;
 }
@@ -748,10 +685,12 @@ static int ov01a10_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+	code->code = ov01a10->cfg->bus_fmt;
 
 	return 0;
 }
@@ -760,14 +699,17 @@ static int ov01a10_enum_frame_size(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index >= ARRAY_SIZE(supported_modes) ||
-	    fse->code != MEDIA_BUS_FMT_SBGGR10_1X10)
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
+
+	if (fse->index)
 		return -EINVAL;
 
-	fse->min_width = supported_modes[fse->index].width;
-	fse->max_width = fse->min_width;
-	fse->min_height = supported_modes[fse->index].height;
-	fse->max_height = fse->min_height;
+	fse->min_width = pattern_size;
+	fse->max_width = OV01A10_NATIVE_WIDTH - 2 * border_size;
+	fse->min_height = pattern_size;
+	fse->max_height = OV01A10_NATIVE_HEIGHT - 2 * border_size;
 
 	return 0;
 }
@@ -776,29 +718,78 @@ static int ov01a10_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_selection *sel)
 {
-	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int border_size = ov01a10->cfg->border_size;
 
 	switch (sel->target) {
-	case V4L2_SEL_TGT_NATIVE_SIZE:
-	case V4L2_SEL_TGT_CROP_BOUNDS:
-		sel->r.top = 0;
-		sel->r.left = 0;
-		sel->r.width = OV01A10_PIXEL_ARRAY_WIDTH;
-		sel->r.height = OV01A10_PIXEL_ARRAY_HEIGHT;
-		return 0;
 	case V4L2_SEL_TGT_CROP:
+		sel->r = *v4l2_subdev_state_get_crop(state, sel->pad);
+		return 0;
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.top = (OV01A10_PIXEL_ARRAY_HEIGHT -
-			      OV01A10_ACITVE_HEIGHT) / 2;
-		sel->r.left = (OV01A10_PIXEL_ARRAY_WIDTH -
-			       OV01A10_ACITVE_WIDTH) / 2;
-		sel->r.width = OV01A10_ACITVE_WIDTH;
-		sel->r.height = OV01A10_ACITVE_HEIGHT;
+		sel->r = ov01a10_default_crop;
+		return 0;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		/* Keep a border for hvflip shift to preserve bayer-pattern */
+		sel->r.left = border_size;
+		sel->r.top = border_size;
+		sel->r.width = OV01A10_NATIVE_WIDTH - 2 * border_size;
+		sel->r.height = OV01A10_NATIVE_HEIGHT - 2 * border_size;
+		return 0;
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = OV01A10_NATIVE_WIDTH;
+		sel->r.height = OV01A10_NATIVE_HEIGHT;
 		return 0;
 	}
 
 	return -EINVAL;
+}
+
+static int ov01a10_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	const int pattern_size = ov01a10->cfg->pattern_size;
+	const int border_size = ov01a10->cfg->border_size;
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
+	struct v4l2_rect rect;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
+
+	/*
+	 * Clamp the boundaries of the crop rectangle to the size of the sensor
+	 * pixel array. Align to pattern-size to ensure pattern isn't disrupted.
+	 */
+	rect.left = clamp_val(ALIGN(sel->r.left, pattern_size), border_size,
+			      OV01A10_NATIVE_WIDTH - 2 * border_size);
+	rect.top = clamp_val(ALIGN(sel->r.top, pattern_size), border_size,
+			     OV01A10_NATIVE_HEIGHT - 2 * border_size);
+	rect.width = clamp_val(ALIGN(sel->r.width, pattern_size), pattern_size,
+			       OV01A10_NATIVE_WIDTH - rect.left - border_size);
+	rect.height = clamp_val(ALIGN(sel->r.height, pattern_size), pattern_size,
+				OV01A10_NATIVE_HEIGHT - rect.top - border_size);
+
+	crop = v4l2_subdev_state_get_crop(sd_state, sel->pad);
+
+	/* Reset the output size if the crop rectangle size has changed */
+	if (rect.width != crop->width || rect.height != crop->height) {
+		format = v4l2_subdev_state_get_format(sd_state, sel->pad);
+		format->width = rect.width;
+		format->height = rect.height;
+
+		if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+			ov01a10_update_blank_ctrls(ov01a10, rect.width,
+						   rect.height);
+	}
+
+	*crop = rect;
+	sel->r = rect;
+
+	return 0;
 }
 
 static const struct v4l2_subdev_core_ops ov01a10_core_ops = {
@@ -813,6 +804,7 @@ static const struct v4l2_subdev_pad_ops ov01a10_pad_ops = {
 	.set_fmt = ov01a10_set_format,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.get_selection = ov01a10_get_selection,
+	.set_selection = ov01a10_set_selection,
 	.enum_mbus_code = ov01a10_enum_mbus_code,
 	.enum_frame_size = ov01a10_enum_frame_size,
 };
@@ -831,18 +823,103 @@ static const struct media_entity_operations ov01a10_subdev_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+static int ov01a10_get_pm_resources(struct ov01a10 *ov01a10)
+{
+	unsigned long freq;
+	int i, ret;
+
+	ov01a10->clk = devm_v4l2_sensor_clk_get(ov01a10->dev, NULL);
+	if (IS_ERR(ov01a10->clk))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->clk),
+				     "getting clock\n");
+
+	freq = clk_get_rate(ov01a10->clk);
+	if (freq != OV01A10_MCLK)
+		return dev_err_probe(ov01a10->dev, -EINVAL,
+				     "external clock %lu is not supported",
+				     freq);
+
+	ov01a10->reset = devm_gpiod_get_optional(ov01a10->dev, "reset",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(ov01a10->reset))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->reset),
+				     "getting reset gpio\n");
+
+	ov01a10->powerdown = devm_gpiod_get_optional(ov01a10->dev, "powerdown",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(ov01a10->powerdown))
+		return dev_err_probe(ov01a10->dev, PTR_ERR(ov01a10->powerdown),
+				     "getting powerdown gpio\n");
+
+	for (i = 0; i < ARRAY_SIZE(ov01a10_supply_names); i++)
+		ov01a10->supplies[i].supply = ov01a10_supply_names[i];
+
+	ret = devm_regulator_bulk_get(ov01a10->dev,
+				      ARRAY_SIZE(ov01a10_supply_names),
+				      ov01a10->supplies);
+	if (ret)
+		return dev_err_probe(ov01a10->dev, ret, "getting regulators\n");
+
+	return 0;
+}
+
+static int ov01a10_power_on(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+	int ret;
+
+	ret = clk_prepare_enable(ov01a10->clk);
+	if (ret) {
+		dev_err(dev, "Error enabling clk: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ov01a10_supply_names),
+				    ov01a10->supplies);
+	if (ret) {
+		dev_err(dev, "Error enabling regulators: %d\n", ret);
+		clk_disable_unprepare(ov01a10->clk);
+		return ret;
+	}
+
+	if (ov01a10->reset || ov01a10->powerdown) {
+		/* Assert reset/powerdown for at least 2ms on back to back off-on */
+		fsleep(2000);
+		gpiod_set_value_cansleep(ov01a10->powerdown, 0);
+		gpiod_set_value_cansleep(ov01a10->reset, 0);
+		fsleep(20000);
+	}
+
+	return 0;
+}
+
+static int ov01a10_power_off(struct device *dev)
+{
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct ov01a10 *ov01a10 = to_ov01a10(sd);
+
+	gpiod_set_value_cansleep(ov01a10->reset, 1);
+	gpiod_set_value_cansleep(ov01a10->powerdown, 1);
+
+	regulator_bulk_disable(ARRAY_SIZE(ov01a10_supply_names),
+			       ov01a10->supplies);
+
+	clk_disable_unprepare(ov01a10->clk);
+	return 0;
+}
+
 static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov01a10->sd);
 	int ret;
-	u32 val;
+	u64 val;
 
-	ret = ov01a10_read_reg(ov01a10, OV01A10_REG_CHIP_ID, 3, &val);
+	ret = cci_read(ov01a10->regmap, OV01A10_REG_CHIP_ID, &val, NULL);
 	if (ret)
 		return ret;
 
 	if (val != OV01A10_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
+		dev_err(ov01a10->dev, "chip id mismatch: %x!=%llx\n",
 			OV01A10_CHIP_ID, val);
 		return -EIO;
 	}
@@ -850,43 +927,114 @@ static int ov01a10_identify_module(struct ov01a10 *ov01a10)
 	return 0;
 }
 
+static int ov01a10_check_hwcfg(struct ov01a10 *ov01a10)
+{
+	struct v4l2_fwnode_endpoint bus_cfg = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY
+	};
+	struct fwnode_handle *ep, *fwnode = dev_fwnode(ov01a10->dev);
+	unsigned long link_freq_bitmap;
+	int ret;
+
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver,
+	 * wait for this.
+	 */
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0, 0);
+	if (!ep)
+		return dev_err_probe(ov01a10->dev, -EPROBE_DEFER,
+				     "waiting for fwnode graph endpoint\n");
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	fwnode_handle_put(ep);
+	if (ret)
+		return dev_err_probe(ov01a10->dev, ret, "parsing endpoint\n");
+
+	ret = v4l2_link_freq_to_bitmap(ov01a10->dev,
+				       bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq_menu_items,
+				       ARRAY_SIZE(link_freq_menu_items),
+				       &link_freq_bitmap);
+	if (ret)
+		goto check_hwcfg_error;
+
+	/* v4l2_link_freq_to_bitmap() guarantees at least 1 bit is set */
+	ov01a10->link_freq_index = ffs(link_freq_bitmap) - 1;
+
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV01A10_DATA_LANES) {
+		ret = dev_err_probe(ov01a10->dev, -EINVAL,
+				    "number of CSI2 data lanes %u is not supported\n",
+				    bus_cfg.bus.mipi_csi2.num_data_lanes);
+		goto check_hwcfg_error;
+	}
+
+check_hwcfg_error:
+	v4l2_fwnode_endpoint_free(&bus_cfg);
+	return ret;
+}
+
 static void ov01a10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_async_unregister_subdev(sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
 	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev)) {
+		ov01a10_power_off(&client->dev);
+		pm_runtime_set_suspended(&client->dev);
+	}
 }
 
 static int ov01a10_probe(struct i2c_client *client)
 {
-	struct device *dev = &client->dev;
+	const struct ov01a10_sensor_cfg *cfg;
 	struct ov01a10 *ov01a10;
-	int ret = 0;
+	int ret;
 
-	ov01a10 = devm_kzalloc(dev, sizeof(*ov01a10), GFP_KERNEL);
+	cfg = device_get_match_data(&client->dev);
+	if (!cfg)
+		return -EINVAL;
+
+	ov01a10 = devm_kzalloc(&client->dev, sizeof(*ov01a10), GFP_KERNEL);
 	if (!ov01a10)
 		return -ENOMEM;
 
+	ov01a10->dev = &client->dev;
+	ov01a10->cfg = cfg;
+
+	ov01a10->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(ov01a10->regmap))
+		return PTR_ERR(ov01a10->regmap);
+
 	v4l2_i2c_subdev_init(&ov01a10->sd, client, &ov01a10_subdev_ops);
+	/* Override driver->name with actual sensor model */
+	v4l2_i2c_subdev_set_name(&ov01a10->sd, client, cfg->model, NULL);
 	ov01a10->sd.internal_ops = &ov01a10_internal_ops;
+
+	ret = ov01a10_check_hwcfg(ov01a10);
+	if (ret)
+		return ret;
+
+	ret = ov01a10_get_pm_resources(ov01a10);
+	if (ret)
+		return ret;
+
+	ret = ov01a10_power_on(&client->dev);
+	if (ret)
+		return ret;
 
 	ret = ov01a10_identify_module(ov01a10);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to find sensor\n");
-
-	ov01a10->cur_mode = &supported_modes[0];
+		goto err_power_off;
 
 	ret = ov01a10_init_controls(ov01a10);
-	if (ret) {
-		dev_err(dev, "failed to init controls: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto err_power_off;
 
 	ov01a10->sd.state_lock = ov01a10->ctrl_handler.lock;
 	ov01a10->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -895,36 +1043,31 @@ static int ov01a10_probe(struct i2c_client *client)
 	ov01a10->pad.flags = MEDIA_PAD_FL_SOURCE;
 
 	ret = media_entity_pads_init(&ov01a10->sd.entity, 1, &ov01a10->pad);
-	if (ret) {
-		dev_err(dev, "Failed to init entity pads: %d\n", ret);
+	if (ret)
 		goto err_handler_free;
-	}
 
 	ret = v4l2_subdev_init_finalize(&ov01a10->sd);
-	if (ret) {
-		dev_err(dev, "Failed to allocate subdev state: %d\n", ret);
+	if (ret)
 		goto err_media_entity_cleanup;
-	}
 
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
 	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_enable(&client->dev);
+	pm_runtime_idle(&client->dev);
 
 	ret = v4l2_async_register_subdev_sensor(&ov01a10->sd);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register subdev: %d\n", ret);
+	if (ret)
 		goto err_pm_disable;
-	}
 
 	return 0;
 
 err_pm_disable:
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
+	v4l2_subdev_cleanup(&ov01a10->sd);
 
 err_media_entity_cleanup:
 	media_entity_cleanup(&ov01a10->sd.entity);
@@ -932,12 +1075,44 @@ err_media_entity_cleanup:
 err_handler_free:
 	v4l2_ctrl_handler_free(ov01a10->sd.ctrl_handler);
 
+err_power_off:
+	ov01a10_power_off(&client->dev);
+
 	return ret;
 }
 
+static DEFINE_RUNTIME_DEV_PM_OPS(ov01a10_pm_ops, ov01a10_power_off,
+				 ov01a10_power_on, NULL);
+
 #ifdef CONFIG_ACPI
+/*
+ * The native ov01a10 bayer-pattern is GBRG, but there was a driver bug enabling
+ * hflip/mirroring by default resulting in BGGR. Because of this bug Intel's
+ * proprietary IPU6 userspace stack expects BGGR. So we report BGGR to not break
+ * userspace and fix things up by shifting the crop window-x coordinate by 1
+ * when hflip is *disabled*.
+ */
+static const struct ov01a10_sensor_cfg ov01a10_cfg = {
+	.model = "ov01a10",
+	.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+	.pattern_size = 2, /* 2x2 */
+	.border_size = 2,
+	.format1_base_val = 0xa0,
+	.invert_hflip_shift = true,
+	.invert_vflip_shift = false,
+};
+
+static const struct ov01a10_sensor_cfg ov01a1b_cfg = {
+	.model = "ov01a1b",
+	.bus_fmt = MEDIA_BUS_FMT_Y10_1X10,
+	.pattern_size = 2, /* Keep coordinates aligned to a multiple of 2 */
+	.border_size = 0,
+	.format1_base_val = 0xa0,
+};
+
 static const struct acpi_device_id ov01a10_acpi_ids[] = {
-	{ "OVTI01A0" },
+	{ "OVTI01A0", (uintptr_t)&ov01a10_cfg },
+	{ "OVTI01AB", (uintptr_t)&ov01a1b_cfg },
 	{ }
 };
 
@@ -947,6 +1122,7 @@ MODULE_DEVICE_TABLE(acpi, ov01a10_acpi_ids);
 static struct i2c_driver ov01a10_i2c_driver = {
 	.driver = {
 		.name = "ov01a10",
+		.pm = pm_sleep_ptr(&ov01a10_pm_ops),
 		.acpi_match_table = ACPI_PTR(ov01a10_acpi_ids),
 	},
 	.probe = ov01a10_probe,

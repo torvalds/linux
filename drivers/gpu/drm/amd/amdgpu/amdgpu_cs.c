@@ -192,8 +192,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		return PTR_ERR(chunk_array);
 
 	p->nchunks = cs->in.num_chunks;
-	p->chunks = kvmalloc_array(p->nchunks, sizeof(struct amdgpu_cs_chunk),
-			    GFP_KERNEL);
+	p->chunks = kvmalloc_objs(struct amdgpu_cs_chunk, p->nchunks);
 	if (!p->chunks) {
 		ret = -ENOMEM;
 		goto free_chunk;
@@ -523,8 +522,7 @@ static int amdgpu_cs_p2_syncobj_out(struct amdgpu_cs_parser *p,
 	if (p->post_deps)
 		return -EINVAL;
 
-	p->post_deps = kmalloc_array(num_deps, sizeof(*p->post_deps),
-				     GFP_KERNEL);
+	p->post_deps = kmalloc_objs(*p->post_deps, num_deps);
 	p->num_post_deps = 0;
 
 	if (!p->post_deps)
@@ -557,8 +555,7 @@ static int amdgpu_cs_p2_syncobj_timeline_signal(struct amdgpu_cs_parser *p,
 	if (p->post_deps)
 		return -EINVAL;
 
-	p->post_deps = kmalloc_array(num_deps, sizeof(*p->post_deps),
-				     GFP_KERNEL);
+	p->post_deps = kmalloc_objs(*p->post_deps, num_deps);
 	p->num_post_deps = 0;
 
 	if (!p->post_deps)
@@ -892,8 +889,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo *bo = e->bo;
 
 		e->range = amdgpu_hmm_range_alloc(NULL);
-		if (unlikely(!e->range))
-			return -ENOMEM;
+		if (unlikely(!e->range)) {
+			r = -ENOMEM;
+			goto out_free_user_pages;
+		}
 
 		r = amdgpu_ttm_tt_get_user_pages(bo, e->range);
 		if (r)
@@ -1021,6 +1020,7 @@ static int amdgpu_cs_patch_ibs(struct amdgpu_cs_parser *p,
 			       struct amdgpu_job *job)
 {
 	struct amdgpu_ring *ring = amdgpu_job_ring(job);
+	struct amdgpu_device *adev = ring->adev;
 	unsigned int i;
 	int r;
 
@@ -1688,7 +1688,7 @@ static int amdgpu_cs_wait_any_fence(struct amdgpu_device *adev,
 	long r;
 
 	/* Prepare the fence array */
-	array = kcalloc(fence_count, sizeof(struct dma_fence *), GFP_KERNEL);
+	array = kzalloc_objs(struct dma_fence *, fence_count);
 
 	if (array == NULL)
 		return -ENOMEM;

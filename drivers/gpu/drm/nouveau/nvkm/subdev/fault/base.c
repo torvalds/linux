@@ -76,7 +76,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 	struct nvkm_fault_buffer *buffer;
 	int ret;
 
-	if (!(buffer = kzalloc(sizeof(*buffer), GFP_KERNEL)))
+	if (!(buffer = kzalloc_obj(*buffer)))
 		return -ENOMEM;
 	buffer->fault = fault;
 	buffer->id = id;
@@ -156,7 +156,7 @@ nvkm_fault_new_(const struct nvkm_fault_func *func, struct nvkm_device *device,
 		enum nvkm_subdev_type type, int inst, struct nvkm_fault **pfault)
 {
 	struct nvkm_fault *fault;
-	if (!(fault = *pfault = kzalloc(sizeof(*fault), GFP_KERNEL)))
+	if (!(fault = *pfault = kzalloc_obj(*fault)))
 		return -ENOMEM;
 	nvkm_subdev_ctor(&nvkm_fault, device, type, inst, &fault->subdev);
 	fault->func = func;

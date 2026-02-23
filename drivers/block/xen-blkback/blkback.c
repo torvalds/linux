@@ -846,8 +846,7 @@ again:
 			 * We are using persistent grants, the grant is
 			 * not mapped but we might have room for it.
 			 */
-			persistent_gnt = kmalloc(sizeof(struct persistent_gnt),
-				                 GFP_KERNEL);
+			persistent_gnt = kmalloc_obj(struct persistent_gnt);
 			if (!persistent_gnt) {
 				/*
 				 * If we don't have enough memory to

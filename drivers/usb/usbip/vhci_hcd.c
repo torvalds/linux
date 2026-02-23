@@ -671,7 +671,7 @@ static void vhci_tx_urb(struct urb *urb, struct vhci_device *vdev)
 	struct vhci_hcd *vhci_hcd = vdev_to_vhci_hcd(vdev);
 	unsigned long flags;
 
-	priv = kzalloc(sizeof(struct vhci_priv), GFP_ATOMIC);
+	priv = kzalloc_obj(struct vhci_priv, GFP_ATOMIC);
 	if (!priv) {
 		usbip_event_add(&vdev->ud, VDEV_EVENT_ERROR_MALLOC);
 		return;
@@ -951,7 +951,7 @@ static int vhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		spin_lock(&vdev->priv_lock);
 
 		/* setup CMD_UNLINK pdu */
-		unlink = kzalloc(sizeof(struct vhci_unlink), GFP_ATOMIC);
+		unlink = kzalloc_obj(struct vhci_unlink, GFP_ATOMIC);
 		if (!unlink) {
 			spin_unlock(&vdev->priv_lock);
 			spin_unlock_irqrestore(&vhci->lock, flags);
@@ -1537,7 +1537,7 @@ static int __init vhci_hcd_init(void)
 	if (vhci_num_controllers < 1)
 		vhci_num_controllers = 1;
 
-	vhcis = kcalloc(vhci_num_controllers, sizeof(struct vhci), GFP_KERNEL);
+	vhcis = kzalloc_objs(struct vhci, vhci_num_controllers);
 	if (vhcis == NULL)
 		return -ENOMEM;
 

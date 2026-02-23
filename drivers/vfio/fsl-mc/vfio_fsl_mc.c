@@ -27,8 +27,8 @@ static int vfio_fsl_mc_open_device(struct vfio_device *core_vdev)
 	int count = mc_dev->obj_desc.region_count;
 	int i;
 
-	vdev->regions = kcalloc(count, sizeof(struct vfio_fsl_mc_region),
-				GFP_KERNEL_ACCOUNT);
+	vdev->regions = kzalloc_objs(struct vfio_fsl_mc_region, count,
+				     GFP_KERNEL_ACCOUNT);
 	if (!vdev->regions)
 		return -ENOMEM;
 
@@ -530,8 +530,6 @@ static int vfio_fsl_mc_probe(struct fsl_mc_device *mc_dev)
 	struct vfio_fsl_mc_device *vdev;
 	struct device *dev = &mc_dev->dev;
 	int ret;
-
-	dev_err_once(dev, "DEPRECATION: vfio-fsl-mc is deprecated and will be removed in a future kernel release\n");
 
 	vdev = vfio_alloc_device(vfio_fsl_mc_device, vdev, dev,
 				 &vfio_fsl_mc_ops);

@@ -109,7 +109,7 @@ void onboard_dev_create_pdevs(struct usb_device *parent_hub, struct list_head *p
 			goto node_put;
 		}
 
-		pdle = kzalloc(sizeof(*pdle), GFP_KERNEL);
+		pdle = kzalloc_obj(*pdle);
 		if (!pdle) {
 			of_platform_device_destroy(&pdev->dev, NULL);
 			goto node_put;

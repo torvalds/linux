@@ -6489,7 +6489,7 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 	if (info->attrs[HWSIM_ATTR_PMSR_SUPPORT]) {
 		struct cfg80211_pmsr_capabilities *pmsr_capa;
 
-		pmsr_capa = kmalloc(sizeof(*pmsr_capa), GFP_KERNEL);
+		pmsr_capa = kmalloc_obj(*pmsr_capa);
 		if (!pmsr_capa) {
 			ret = -ENOMEM;
 			goto out_free;
@@ -7163,14 +7163,12 @@ static int __init init_mac80211_hwsim(void)
 		}
 
 		param.p2p_device = support_p2p_device;
-		param.nan_device = true;
 		param.mlo = mlo;
 		param.multi_radio = multi_radio;
 		param.use_chanctx = channels > 1 || mlo || multi_radio;
 		param.iftypes = HWSIM_IFTYPE_SUPPORT_MASK;
 		if (param.p2p_device)
 			param.iftypes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
-		param.iftypes |= BIT(NL80211_IFTYPE_NAN);
 
 		err = mac80211_hwsim_new_radio(NULL, &param);
 		if (err < 0)

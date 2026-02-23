@@ -278,4 +278,4 @@ list is in include/uapi/linux/input-event-codes.h.
 EV_REL, absolute new value for EV_ABS (joysticks ...), or 0 for EV_KEY for
 release, 1 for keypress and 2 for autorepeat.
 
-See :ref:`input-event-codes` for more information about various even codes.
+See :ref:`input-event-codes` for more information about various event codes.

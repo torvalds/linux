@@ -560,7 +560,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	tmp = RREG32(mmCONFIG_MEMSIZE);
 	/* some boards may have garbage in the upper 16 bits */
 	if (tmp & 0xffff0000) {
-		DRM_INFO("Probable bad vram size: 0x%08x\n", tmp);
+		drm_info(adev_to_drm(adev), "Probably bad vram size: 0x%08x\n", tmp);
 		if (tmp & 0xffff)
 			tmp &= 0xffff;
 	}
@@ -939,7 +939,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 		gmc_v8_0_set_fault_enable_default(adev, true);
 
 	gmc_v8_0_flush_gpu_tlb(adev, 0, 0, 0);
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+	drm_info(adev_to_drm(adev), "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned int)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
 	return 0;
@@ -1179,8 +1179,7 @@ static int gmc_v8_0_sw_init(struct amdgpu_ip_block *ip_block)
 		adev->vm_manager.vram_base_offset = 0;
 	}
 
-	adev->gmc.vm_fault_info = kmalloc(sizeof(struct kfd_vm_fault_info),
-					GFP_KERNEL);
+	adev->gmc.vm_fault_info = kmalloc_obj(struct kfd_vm_fault_info);
 	if (!adev->gmc.vm_fault_info)
 		return -ENOMEM;
 	atomic_set_release(&adev->gmc.vm_fault_info_updated, 0);

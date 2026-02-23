@@ -8,6 +8,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/mm.h>
 #include <linux/writeback.h>
 #include "nilfs.h"
@@ -150,6 +151,7 @@ const struct file_operations nilfs_file_operations = {
 	.fsync		= nilfs_sync_file,
 	.splice_read	= filemap_splice_read,
 	.splice_write   = iter_file_splice_write,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations nilfs_file_inode_operations = {

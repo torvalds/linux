@@ -74,7 +74,7 @@ static int snd_ivtv_card_create(struct v4l2_device *v4l2_dev,
 				       struct snd_card *sc,
 				       struct snd_ivtv_card **itvsc)
 {
-	*itvsc = kzalloc(sizeof(struct snd_ivtv_card), GFP_KERNEL);
+	*itvsc = kzalloc_obj(struct snd_ivtv_card);
 	if (*itvsc == NULL)
 		return -ENOMEM;
 

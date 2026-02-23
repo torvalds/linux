@@ -350,7 +350,7 @@ static struct perf_domain *pd_init(int cpu)
 		return NULL;
 	}
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+	pd = kzalloc_obj(*pd);
 	if (!pd)
 		return NULL;
 	pd->em_pd = obj;
@@ -508,6 +508,11 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 	if (rq->fair_server.dl_server)
 		__dl_server_attach_root(&rq->fair_server, rq);
 
+#ifdef CONFIG_SCHED_CLASS_EXT
+	if (rq->ext_server.dl_server)
+		__dl_server_attach_root(&rq->ext_server, rq);
+#endif
+
 	rq_unlock_irqrestore(rq, &rf);
 
 	if (old_rd)
@@ -584,7 +589,7 @@ static struct root_domain *alloc_rootdomain(void)
 {
 	struct root_domain *rd;
 
-	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc_obj(*rd);
 	if (!rd)
 		return NULL;
 
@@ -1993,7 +1998,7 @@ static int sched_record_numa_dist(int offline_node, int (*n_dist)(int, int),
 	 */
 	nr_levels = bitmap_weight(distance_map, NR_DISTANCE_VALUES);
 
-	distances = kcalloc(nr_levels, sizeof(int), GFP_KERNEL);
+	distances = kzalloc_objs(int, nr_levels);
 	if (!distances)
 		return -ENOMEM;
 
@@ -2729,7 +2734,7 @@ cpumask_var_t *alloc_sched_domains(unsigned int ndoms)
 	int i;
 	cpumask_var_t *doms;
 
-	doms = kmalloc_array(ndoms, sizeof(*doms), GFP_KERNEL);
+	doms = kmalloc_objs(*doms, ndoms);
 	if (!doms)
 		return NULL;
 	for (i = 0; i < ndoms; i++) {

@@ -19,7 +19,7 @@
 
 struct papr_sysparm_buf *papr_sysparm_buf_alloc(void)
 {
-	struct papr_sysparm_buf *buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	struct papr_sysparm_buf *buf = kzalloc_obj(*buf);
 
 	return buf;
 }

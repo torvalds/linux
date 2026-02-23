@@ -403,6 +403,7 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		   struct s1_walk_result *wr, u64 va)
 {
 	u64 va_top, va_bottom, baddr, desc, new_desc, ipa;
+	struct kvm_s2_trans s2_trans = {};
 	int level, stride, ret;
 
 	level = wi->sl;
@@ -420,8 +421,6 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		ipa = baddr | index;
 
 		if (wi->s2) {
-			struct kvm_s2_trans s2_trans = {};
-
 			ret = kvm_walk_nested_s2(vcpu, ipa, &s2_trans);
 			if (ret) {
 				fail_s1_walk(wr,
@@ -515,6 +514,11 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		new_desc |= PTE_AF;
 
 	if (new_desc != desc) {
+		if (wi->s2 && !kvm_s2_trans_writable(&s2_trans)) {
+			fail_s1_walk(wr, ESR_ELx_FSC_PERM_L(level), true);
+			return -EPERM;
+		}
+
 		ret = kvm_swap_s1_desc(vcpu, ipa, desc, new_desc, wi);
 		if (ret)
 			return ret;
@@ -1700,7 +1704,6 @@ int __kvm_find_s1_desc_level(struct kvm_vcpu *vcpu, u64 va, u64 ipa, int *level)
 	}
 }
 
-#ifdef CONFIG_ARM64_LSE_ATOMICS
 static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
 {
 	u64 tmp = old;
@@ -1725,12 +1728,6 @@ static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
 
 	return ret;
 }
-#else
-static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
-{
-	return -EINVAL;
-}
-#endif
 
 static int __llsc_swap_desc(u64 __user *ptep, u64 old, u64 new)
 {

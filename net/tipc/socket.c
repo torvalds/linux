@@ -3595,7 +3595,7 @@ int __tipc_dump_start(struct netlink_callback *cb, struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	if (!iter) {
-		iter = kmalloc(sizeof(*iter), GFP_KERNEL);
+		iter = kmalloc_obj(*iter);
 		if (!iter)
 			return -ENOMEM;
 

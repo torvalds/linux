@@ -1463,7 +1463,7 @@ static void atom_get_vbios_pn(struct atom_context *ctx)
 		ctx->vbios_pn[count] = 0;
 	}
 
-	pr_info("ATOM BIOS: %s\n", ctx->vbios_pn);
+	drm_info(ctx->card->dev, "ATOM BIOS: %s\n", ctx->vbios_pn);
 }
 
 static void atom_get_vbios_version(struct atom_context *ctx)
@@ -1524,7 +1524,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 {
 	int base;
 	struct atom_context *ctx =
-	    kzalloc(sizeof(struct atom_context), GFP_KERNEL);
+	    kzalloc_obj(struct atom_context);
 	struct _ATOM_ROM_HEADER *atom_rom_header;
 	struct _ATOM_MASTER_DATA_TABLE *master_table;
 	struct _ATOM_FIRMWARE_INFO *atom_fw_info;

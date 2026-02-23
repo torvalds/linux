@@ -181,7 +181,7 @@ static __init int
 horrible_allowedips_insert_v4(struct horrible_allowedips *table,
 			      struct in_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc_obj(*node);
 
 	if (unlikely(!node))
 		return -ENOMEM;
@@ -198,7 +198,7 @@ static __init int
 horrible_allowedips_insert_v6(struct horrible_allowedips *table,
 			      struct in6_addr *ip, u8 cidr, void *value)
 {
-	struct horrible_allowedips_node *node = kzalloc(sizeof(*node), GFP_KERNEL);
+	struct horrible_allowedips_node *node = kzalloc_obj(*node);
 
 	if (unlikely(!node))
 		return -ENOMEM;
@@ -266,13 +266,13 @@ static __init bool randomized_test(void)
 	wg_allowedips_init(&t);
 	horrible_allowedips_init(&h);
 
-	peers = kcalloc(NUM_PEERS, sizeof(*peers), GFP_KERNEL);
+	peers = kzalloc_objs(*peers, NUM_PEERS);
 	if (unlikely(!peers)) {
 		pr_err("allowedips random self-test malloc: FAIL\n");
 		goto free;
 	}
 	for (i = 0; i < NUM_PEERS; ++i) {
-		peers[i] = kzalloc(sizeof(*peers[i]), GFP_KERNEL);
+		peers[i] = kzalloc_obj(*peers[i]);
 		if (unlikely(!peers[i])) {
 			pr_err("allowedips random self-test malloc: FAIL\n");
 			goto free;
@@ -447,7 +447,7 @@ static __init inline struct in6_addr *ip6(u32 a, u32 b, u32 c, u32 d)
 
 static __init struct wg_peer *init_peer(void)
 {
-	struct wg_peer *peer = kzalloc(sizeof(*peer), GFP_KERNEL);
+	struct wg_peer *peer = kzalloc_obj(*peer);
 
 	if (!peer)
 		return NULL;

@@ -586,10 +586,8 @@ static int ave_rxdesc_prepare(struct net_device *ndev, int entry)
 	skb = priv->rx.desc[entry].skbs;
 	if (!skb) {
 		skb = netdev_alloc_skb(ndev, AVE_MAX_ETHFRAME);
-		if (!skb) {
-			netdev_err(ndev, "can't allocate skb for Rx\n");
+		if (!skb)
 			return -ENOMEM;
-		}
 		skb->data += AVE_FRAME_HEADROOM;
 		skb->tail += AVE_FRAME_HEADROOM;
 	}
@@ -1275,15 +1273,13 @@ static int ave_open(struct net_device *ndev)
 	if (ret)
 		return ret;
 
-	priv->tx.desc = kcalloc(priv->tx.ndesc, sizeof(*priv->tx.desc),
-				GFP_KERNEL);
+	priv->tx.desc = kzalloc_objs(*priv->tx.desc, priv->tx.ndesc);
 	if (!priv->tx.desc) {
 		ret = -ENOMEM;
 		goto out_free_irq;
 	}
 
-	priv->rx.desc = kcalloc(priv->rx.ndesc, sizeof(*priv->rx.desc),
-				GFP_KERNEL);
+	priv->rx.desc = kzalloc_objs(*priv->rx.desc, priv->rx.ndesc);
 	if (!priv->rx.desc) {
 		kfree(priv->tx.desc);
 		ret = -ENOMEM;

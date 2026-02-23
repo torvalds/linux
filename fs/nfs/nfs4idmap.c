@@ -445,7 +445,7 @@ nfs_idmap_new(struct nfs_client *clp)
 	struct rpc_pipe *pipe;
 	int error;
 
-	idmap = kzalloc(sizeof(*idmap), GFP_KERNEL);
+	idmap = kzalloc_obj(*idmap);
 	if (idmap == NULL)
 		return -ENOMEM;
 
@@ -579,7 +579,7 @@ static int nfs_idmap_legacy_upcall(struct key *authkey, void *aux)
 
 	/* msg and im are freed in idmap_pipe_destroy_msg */
 	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		goto out1;
 

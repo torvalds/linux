@@ -666,7 +666,7 @@ static int openprom_open(struct inode * inode, struct file * file)
 {
 	DATA *data;
 
-	data = kmalloc(sizeof(DATA), GFP_KERNEL);
+	data = kmalloc_obj(DATA);
 	if (!data)
 		return -ENOMEM;
 

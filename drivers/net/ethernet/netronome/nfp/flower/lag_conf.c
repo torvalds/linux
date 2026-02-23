@@ -119,7 +119,7 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 		return ERR_PTR(id);
 	}
 
-	group = kmalloc(sizeof(*group), GFP_KERNEL);
+	group = kmalloc_obj(*group);
 	if (!group) {
 		ida_free(&lag->ida_handle, id);
 		return ERR_PTR(-ENOMEM);
@@ -335,8 +335,7 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 			continue;
 		}
 
-		acti_netdevs = kmalloc_array(entry->slave_cnt,
-					     sizeof(*acti_netdevs), GFP_KERNEL);
+		acti_netdevs = kmalloc_objs(*acti_netdevs, entry->slave_cnt);
 		if (!acti_netdevs) {
 			schedule_delayed_work(&lag->work,
 					      NFP_FL_LAG_DELAY);

@@ -1360,7 +1360,7 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 	struct zynqmp_disp *disp;
 	int ret;
 
-	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
+	disp = kzalloc_obj(*disp);
 	if (!disp)
 		return -ENOMEM;
 

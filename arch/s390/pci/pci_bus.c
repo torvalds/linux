@@ -315,7 +315,7 @@ static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
 {
 	struct zpci_bus *zbus;
 
-	zbus = kzalloc(sizeof(*zbus), GFP_KERNEL);
+	zbus = kzalloc_obj(*zbus);
 	if (!zbus)
 		return NULL;
 

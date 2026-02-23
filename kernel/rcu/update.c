@@ -614,7 +614,7 @@ static void early_boot_test_call_rcu(void)
 	call_rcu(&head, test_callback);
 	early_srcu_cookie = start_poll_synchronize_srcu(&early_srcu);
 	call_srcu(&early_srcu, &shead, test_callback);
-	rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
+	rhp = kmalloc_obj(*rhp);
 	if (!WARN_ON_ONCE(!rhp))
 		kfree_rcu(rhp, rh);
 }

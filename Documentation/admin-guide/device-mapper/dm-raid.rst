@@ -433,7 +433,7 @@ Table line examples:
   8192 1960886272 linear 8:0 0 2048 # previous data segment
 
 # Mapping table for e.g. raid5_rs reshape causing the size of the raid device to double-fold once the reshape finishes.
-# Check the status output (e.g. "dmsetup status $RaidDev") for progess.
+# Check the status output (e.g. "dmsetup status $RaidDev") for progress.
 
   0 $((2 * 1960886272)) raid raid5 7 0 region_size 2048 data_offset 8192 delta_disk 1 2 /dev/dm-0 /dev/dm-1 /dev/dm-2 /dev/dm-3
 

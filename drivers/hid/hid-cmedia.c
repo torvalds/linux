@@ -145,7 +145,7 @@ static int cmhid_probe(struct hid_device *hid, const struct hid_device_id *id)
 	int ret;
 	struct cmhid *cm;
 
-	cm = kzalloc(sizeof(struct cmhid), GFP_KERNEL);
+	cm = kzalloc_obj(struct cmhid);
 	if (!cm) {
 		ret = -ENOMEM;
 		goto allocfail;

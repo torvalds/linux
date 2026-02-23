@@ -843,11 +843,8 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	/* initialize fault polling */
 
 	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
-	snprintf(ioc->fault_reset_work_q_name,
-	    sizeof(ioc->fault_reset_work_q_name), "poll_%s%d_status",
-	    ioc->driver_name, ioc->id);
 	ioc->fault_reset_work_q = alloc_ordered_workqueue(
-		"%s", WQ_MEM_RECLAIM, ioc->fault_reset_work_q_name);
+		"poll_%s%d_status", WQ_MEM_RECLAIM, ioc->driver_name, ioc->id);
 	if (!ioc->fault_reset_work_q) {
 		ioc_err(ioc, "%s: failed (line=%d)\n", __func__, __LINE__);
 		return;
@@ -1500,8 +1497,7 @@ _base_async_event(struct MPT3SAS_ADAPTER *ioc, u8 msix_index, u32 reply)
 		goto out;
 	smid = mpt3sas_base_get_smid(ioc, ioc->base_cb_idx);
 	if (!smid) {
-		delayed_event_ack = kzalloc(sizeof(*delayed_event_ack),
-					GFP_ATOMIC);
+		delayed_event_ack = kzalloc_obj(*delayed_event_ack, GFP_ATOMIC);
 		if (!delayed_event_ack)
 			goto out;
 		INIT_LIST_HEAD(&delayed_event_ack->list);
@@ -1564,6 +1560,8 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 	int i;
 	u16 ctl_smid = ioc->scsiio_depth - INTERNAL_SCSIIO_CMDS_COUNT + 1;
 	u8 cb_idx = 0xFF;
+	u16 discovery_smid =
+	    ioc->shost->can_queue + INTERNAL_SCSIIO_FOR_DISCOVERY;
 
 	if (smid < ioc->hi_priority_smid) {
 		struct scsiio_tracker *st;
@@ -1572,8 +1570,10 @@ _base_get_cb_idx(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 			st = _get_st_from_smid(ioc, smid);
 			if (st)
 				cb_idx = st->cb_idx;
-		} else if (smid == ctl_smid)
+		} else if (smid < discovery_smid)
 			cb_idx = ioc->ctl_cb_idx;
+		else
+			cb_idx = ioc->scsih_cb_idx;
 	} else if (smid < ioc->internal_smid) {
 		i = smid - ioc->hi_priority_smid;
 		cb_idx = ioc->hpr_lookup[i].cb_idx;
@@ -3161,7 +3161,7 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index)
 	struct adapter_reply_queue *reply_q;
 	int r, qid;
 
-	reply_q =  kzalloc(sizeof(struct adapter_reply_queue), GFP_KERNEL);
+	reply_q =  kzalloc_obj(struct adapter_reply_queue);
 	if (!reply_q) {
 		ioc_err(ioc, "unable to allocate memory %zu!\n",
 			sizeof(struct adapter_reply_queue));
@@ -3174,7 +3174,7 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index)
 
 	if (index >= ioc->iopoll_q_start_index) {
 		qid = index - ioc->iopoll_q_start_index;
-		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-mq-poll%d",
+		scnprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-mq-poll%d",
 		    ioc->driver_name, ioc->id, qid);
 		reply_q->is_iouring_poll_q = 1;
 		ioc->io_uring_poll_queues[qid].reply_q = reply_q;
@@ -3183,10 +3183,10 @@ _base_request_irq(struct MPT3SAS_ADAPTER *ioc, u8 index)
 
 
 	if (ioc->msix_enable)
-		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
+		scnprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d-msix%d",
 		    ioc->driver_name, ioc->id, index);
 	else
-		snprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d",
+		scnprintf(reply_q->name, MPT_NAME_LENGTH, "%s%d",
 		    ioc->driver_name, ioc->id);
 	r = request_irq(pci_irq_vector(pdev, index), _base_interrupt,
 			IRQF_SHARED, reply_q->name, reply_q);
@@ -3461,8 +3461,8 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 		iopoll_q_count = poll_queues;
 
 	if (iopoll_q_count) {
-		ioc->io_uring_poll_queues = kcalloc(iopoll_q_count,
-		    sizeof(struct io_uring_poll_queue), GFP_KERNEL);
+		ioc->io_uring_poll_queues = kzalloc_objs(struct io_uring_poll_queue,
+							 iopoll_q_count);
 		if (!ioc->io_uring_poll_queues)
 			iopoll_q_count = 0;
 	}
@@ -3726,9 +3726,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		 * each register is at offset bytes of
 		 * MPT3_SUP_REPLY_POST_HOST_INDEX_REG_OFFSET from previous one.
 		 */
-		ioc->replyPostRegisterIndex = kcalloc(
-		     ioc->combined_reply_index_count,
-		     sizeof(resource_size_t *), GFP_KERNEL);
+		ioc->replyPostRegisterIndex = kzalloc_objs(resource_size_t *,
+							   ioc->combined_reply_index_count);
 		if (!ioc->replyPostRegisterIndex) {
 			ioc_err(ioc,
 			    "allocation for replyPostRegisterIndex failed!\n");
@@ -6217,8 +6216,7 @@ base_alloc_rdpq_dma_pool(struct MPT3SAS_ADAPTER *ioc, int sz)
 		sizeof(Mpi2DefaultReplyDescriptor_t);
 	int count = ioc->rdpq_array_enable ? ioc->reply_queue_count : 1;
 
-	ioc->reply_post = kcalloc(count, sizeof(struct reply_post_struct),
-			GFP_KERNEL);
+	ioc->reply_post = kzalloc_objs(struct reply_post_struct, count);
 	if (!ioc->reply_post)
 		return -ENOMEM;
 	/*
@@ -6561,8 +6559,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	/* initialize hi-priority queue smid's */
-	ioc->hpr_lookup = kcalloc(ioc->hi_priority_depth,
-	    sizeof(struct request_tracker), GFP_KERNEL);
+	ioc->hpr_lookup = kzalloc_objs(struct request_tracker,
+				       ioc->hi_priority_depth);
 	if (!ioc->hpr_lookup) {
 		ioc_err(ioc, "hpr_lookup: kcalloc failed\n");
 		goto out;
@@ -6574,8 +6572,8 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 			     ioc->hi_priority_depth, ioc->hi_priority_smid));
 
 	/* initialize internal queue smid's */
-	ioc->internal_lookup = kcalloc(ioc->internal_depth,
-	    sizeof(struct request_tracker), GFP_KERNEL);
+	ioc->internal_lookup = kzalloc_objs(struct request_tracker,
+					    ioc->internal_depth);
 	if (!ioc->internal_lookup) {
 		ioc_err(ioc, "internal_lookup: kcalloc failed\n");
 		goto out;
@@ -8429,8 +8427,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	if (ioc->is_warpdrive) {
-		ioc->reply_post_host_index = kcalloc(ioc->cpu_msix_table_sz,
-		    sizeof(resource_size_t *), GFP_KERNEL);
+		ioc->reply_post_host_index = kzalloc_objs(resource_size_t *,
+							  ioc->cpu_msix_table_sz);
 		if (!ioc->reply_post_host_index) {
 			ioc_info(ioc, "Allocation for reply_post_host_index failed!!!\n");
 			r = -ENOMEM;
@@ -8519,8 +8517,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	if (r)
 		goto out_free_resources;
 
-	ioc->pfacts = kcalloc(ioc->facts.NumberOfPorts,
-	    sizeof(struct mpt3sas_port_facts), GFP_KERNEL);
+	ioc->pfacts = kzalloc_objs(struct mpt3sas_port_facts,
+				   ioc->facts.NumberOfPorts);
 	if (!ioc->pfacts) {
 		r = -ENOMEM;
 		goto out_free_resources;

@@ -488,7 +488,7 @@ __svc_create(struct svc_program *prog, int nprogs, struct svc_stat *stats,
 	unsigned int xdrsize;
 	unsigned int i;
 
-	if (!(serv = kzalloc(sizeof(*serv), GFP_KERNEL)))
+	if (!(serv = kzalloc_obj(*serv)))
 		return NULL;
 	serv->sv_name      = prog->pg_name;
 	serv->sv_programs  = prog;
@@ -523,8 +523,7 @@ __svc_create(struct svc_program *prog, int nprogs, struct svc_stat *stats,
 
 	serv->sv_nrpools = npools;
 	serv->sv_pools =
-		kcalloc(serv->sv_nrpools, sizeof(struct svc_pool),
-			GFP_KERNEL);
+		kzalloc_objs(struct svc_pool, serv->sv_nrpools);
 	if (!serv->sv_pools) {
 		kfree(serv);
 		return NULL;
@@ -763,108 +762,88 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
-static struct svc_pool *
-svc_pool_next(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
+/**
+ * svc_new_thread - spawn a new thread in the given pool
+ * @serv: the serv to which the pool belongs
+ * @pool: pool in which thread should be spawned
+ *
+ * Create a new thread inside @pool, which is a part of @serv.
+ * Caller must hold the service mutex.
+ *
+ * Returns 0 on success, or -errno on failure.
+ */
+int svc_new_thread(struct svc_serv *serv, struct svc_pool *pool)
 {
-	return pool ? pool : &serv->sv_pools[(*state)++ % serv->sv_nrpools];
-}
+	struct svc_rqst	*rqstp;
+	struct task_struct *task;
+	int node;
+	int err = 0;
 
-static struct svc_pool *
-svc_pool_victim(struct svc_serv *serv, struct svc_pool *target_pool,
-		unsigned int *state)
-{
-	struct svc_pool *pool;
-	unsigned int i;
+	node = svc_pool_map_get_node(pool->sp_id);
 
-	pool = target_pool;
-
-	if (!pool) {
-		for (i = 0; i < serv->sv_nrpools; i++) {
-			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
-			if (pool->sp_nrthreads)
-				break;
-		}
+	rqstp = svc_prepare_thread(serv, pool, node);
+	if (!rqstp)
+		return -ENOMEM;
+	task = kthread_create_on_node(serv->sv_threadfn, rqstp,
+				      node, "%s", serv->sv_name);
+	if (IS_ERR(task)) {
+		err = PTR_ERR(task);
+		goto out;
 	}
 
-	if (pool && pool->sp_nrthreads) {
-		set_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
-		set_bit(SP_NEED_VICTIM, &pool->sp_flags);
-		return pool;
-	}
-	return NULL;
+	rqstp->rq_task = task;
+	if (serv->sv_nrpools > 1)
+		svc_pool_map_set_cpumask(task, pool->sp_id);
+
+	svc_sock_update_bufs(serv);
+	wake_up_process(task);
+
+	/* Wait for the thread to signal initialization status */
+	wait_var_event(&rqstp->rq_err, rqstp->rq_err != -EAGAIN);
+	err = rqstp->rq_err;
+out:
+	if (err)
+		svc_exit_thread(rqstp);
+	return err;
 }
+EXPORT_SYMBOL_GPL(svc_new_thread);
 
 static int
 svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	struct svc_rqst	*rqstp;
-	struct task_struct *task;
-	struct svc_pool *chosen_pool;
-	unsigned int state = serv->sv_nrthreads-1;
-	int node;
-	int err;
+	int err = 0;
 
-	do {
-		nrservs--;
-		chosen_pool = svc_pool_next(serv, pool, &state);
-		node = svc_pool_map_get_node(chosen_pool->sp_id);
+	while (!err && nrservs--)
+		err = svc_new_thread(serv, pool);
 
-		rqstp = svc_prepare_thread(serv, chosen_pool, node);
-		if (!rqstp)
-			return -ENOMEM;
-		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
-					      node, "%s", serv->sv_name);
-		if (IS_ERR(task)) {
-			svc_exit_thread(rqstp);
-			return PTR_ERR(task);
-		}
-
-		rqstp->rq_task = task;
-		if (serv->sv_nrpools > 1)
-			svc_pool_map_set_cpumask(task, chosen_pool->sp_id);
-
-		svc_sock_update_bufs(serv);
-		wake_up_process(task);
-
-		wait_var_event(&rqstp->rq_err, rqstp->rq_err != -EAGAIN);
-		err = rqstp->rq_err;
-		if (err) {
-			svc_exit_thread(rqstp);
-			return err;
-		}
-	} while (nrservs > 0);
-
-	return 0;
+	return err;
 }
 
 static int
 svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	unsigned int state = serv->sv_nrthreads-1;
-	struct svc_pool *victim;
-
 	do {
-		victim = svc_pool_victim(serv, pool, &state);
-		if (!victim)
-			break;
-		svc_pool_wake_idle_thread(victim);
-		wait_on_bit(&victim->sp_flags, SP_VICTIM_REMAINS,
-			    TASK_IDLE);
+		set_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
+		set_bit(SP_NEED_VICTIM, &pool->sp_flags);
+		svc_pool_wake_idle_thread(pool);
+		wait_on_bit(&pool->sp_flags, SP_VICTIM_REMAINS, TASK_IDLE);
 		nrservs++;
 	} while (nrservs < 0);
 	return 0;
 }
 
 /**
- * svc_set_num_threads - adjust number of threads per RPC service
+ * svc_set_pool_threads - adjust number of threads per pool
  * @serv: RPC service to adjust
- * @pool: Specific pool from which to choose threads, or NULL
- * @nrservs: New number of threads for @serv (0 or less means kill all threads)
+ * @pool: Specific pool from which to choose threads
+ * @min_threads: min number of threads to run in @pool
+ * @max_threads: max number of threads in @pool (0 means kill all threads)
  *
- * Create or destroy threads to make the number of threads for @serv the
- * given number. If @pool is non-NULL, change only threads in that pool;
- * otherwise, round-robin between all pools for @serv. @serv's
- * sv_nrthreads is adjusted for each thread created or destroyed.
+ * Create or destroy threads in @pool to bring it into an acceptable range
+ * between @min_threads and @max_threads.
+ *
+ * If @min_threads is 0 or larger than @max_threads, then it is ignored and
+ * the pool will be set to run a static @max_threads number of threads.
  *
  * Caller must ensure mutual exclusion between this and server startup or
  * shutdown.
@@ -873,18 +852,84 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
  * starting a thread.
  */
 int
-svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
+svc_set_pool_threads(struct svc_serv *serv, struct svc_pool *pool,
+		     unsigned int min_threads, unsigned int max_threads)
 {
-	if (!pool)
-		nrservs -= serv->sv_nrthreads;
-	else
-		nrservs -= pool->sp_nrthreads;
+	int delta;
 
-	if (nrservs > 0)
-		return svc_start_kthreads(serv, pool, nrservs);
-	if (nrservs < 0)
-		return svc_stop_kthreads(serv, pool, nrservs);
+	if (!pool)
+		return -EINVAL;
+
+	/* clamp min threads to the max */
+	if (min_threads > max_threads)
+		min_threads = max_threads;
+
+	pool->sp_nrthrmin = min_threads;
+	pool->sp_nrthrmax = max_threads;
+
+	/*
+	 * When min_threads is set, then only change the number of
+	 * threads to bring it within an acceptable range.
+	 */
+	if (min_threads) {
+		if (pool->sp_nrthreads > max_threads)
+			delta = max_threads;
+		else if (pool->sp_nrthreads < min_threads)
+			delta = min_threads;
+		else
+			return 0;
+	} else {
+		delta = max_threads;
+	}
+
+	delta -= pool->sp_nrthreads;
+	if (delta > 0)
+		return svc_start_kthreads(serv, pool, delta);
+	if (delta < 0)
+		return svc_stop_kthreads(serv, pool, delta);
 	return 0;
+}
+EXPORT_SYMBOL_GPL(svc_set_pool_threads);
+
+/**
+ * svc_set_num_threads - adjust number of threads in serv
+ * @serv: RPC service to adjust
+ * @min_threads: min number of threads to run per pool
+ * @nrservs: New number of threads for @serv (0 means kill all threads)
+ *
+ * Create or destroy threads in @serv to bring it to @nrservs. If there
+ * are multiple pools then the new threads or victims will be distributed
+ * evenly among them.
+ *
+ * Caller must ensure mutual exclusion between this and server startup or
+ * shutdown.
+ *
+ * Returns zero on success or a negative errno if an error occurred while
+ * starting a thread. On failure, some pools may have already been
+ * adjusted; the caller is responsible for recovery.
+ */
+int
+svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
+		    unsigned int nrservs)
+{
+	unsigned int base = nrservs / serv->sv_nrpools;
+	unsigned int remain = nrservs % serv->sv_nrpools;
+	int i, err = 0;
+
+	for (i = 0; i < serv->sv_nrpools; ++i) {
+		struct svc_pool *pool = &serv->sv_pools[i];
+		int threads = base;
+
+		if (remain) {
+			++threads;
+			--remain;
+		}
+
+		err = svc_set_pool_threads(serv, pool, min_threads, threads);
+		if (err)
+			break;
+	}
+	return err;
 }
 EXPORT_SYMBOL_GPL(svc_set_num_threads);
 

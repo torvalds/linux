@@ -259,7 +259,7 @@ static int _mlx5_eswitch_set_vepa_locked(struct mlx5_eswitch *esw,
 	if (err)
 		return err;
 
-	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = kvzalloc_obj(*spec);
 	if (!spec) {
 		err = -ENOMEM;
 		goto out;

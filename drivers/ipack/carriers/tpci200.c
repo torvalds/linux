@@ -209,7 +209,7 @@ static int tpci200_request_irq(struct ipack_device *dev,
 		goto out_unlock;
 	}
 
-	slot_irq = kzalloc(sizeof(struct slot_irq), GFP_KERNEL);
+	slot_irq = kzalloc_obj(struct slot_irq);
 	if (slot_irq == NULL) {
 		dev_err(&dev->dev,
 			"Slot [%d:%d] unable to allocate memory for IRQ !\n",
@@ -461,8 +461,7 @@ static int tpci200_install(struct tpci200_board *tpci200)
 {
 	int res;
 
-	tpci200->slots = kcalloc(TPCI200_NB_SLOT, sizeof(struct tpci200_slot),
-				 GFP_KERNEL);
+	tpci200->slots = kzalloc_objs(struct tpci200_slot, TPCI200_NB_SLOT);
 	if (tpci200->slots == NULL)
 		return -ENOMEM;
 
@@ -487,7 +486,7 @@ static int tpci200_create_device(struct tpci200_board *tpci200, int i)
 	int ret;
 	enum ipack_space space;
 	struct ipack_device *dev =
-		kzalloc(sizeof(struct ipack_device), GFP_KERNEL);
+		kzalloc_obj(struct ipack_device);
 	if (!dev)
 		return -ENOMEM;
 	dev->slot = i;
@@ -521,11 +520,11 @@ static int tpci200_pci_probe(struct pci_dev *pdev,
 	struct tpci200_board *tpci200;
 	u32 reg32;
 
-	tpci200 = kzalloc(sizeof(struct tpci200_board), GFP_KERNEL);
+	tpci200 = kzalloc_obj(struct tpci200_board);
 	if (!tpci200)
 		return -ENOMEM;
 
-	tpci200->info = kzalloc(sizeof(struct tpci200_infos), GFP_KERNEL);
+	tpci200->info = kzalloc_obj(struct tpci200_infos);
 	if (!tpci200->info) {
 		ret = -ENOMEM;
 		goto err_tpci200;

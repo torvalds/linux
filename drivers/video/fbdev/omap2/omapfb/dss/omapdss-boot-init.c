@@ -46,7 +46,7 @@ static void __init omapdss_update_prop(struct device_node *node, char *compat,
 {
 	struct property *prop;
 
-	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+	prop = kzalloc_obj(*prop);
 	if (!prop)
 		return;
 
@@ -110,8 +110,7 @@ static void __init omapdss_omapify_node(struct device_node *node)
 
 static void __init omapdss_add_to_list(struct device_node *node, bool root)
 {
-	struct dss_conv_node *n = kmalloc(sizeof(struct dss_conv_node),
-		GFP_KERNEL);
+	struct dss_conv_node *n = kmalloc_obj(struct dss_conv_node);
 	if (n) {
 		n->node = node;
 		n->root = root;

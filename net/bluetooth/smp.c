@@ -374,7 +374,7 @@ static int smp_h7(struct crypto_shash *tfm_cmac, const u8 w[16],
 
 static int smp_e(const u8 *k, u8 *r)
 {
-	struct crypto_aes_ctx ctx;
+	struct aes_enckey aes;
 	uint8_t tmp[16], data[16];
 	int err;
 
@@ -383,7 +383,7 @@ static int smp_e(const u8 *k, u8 *r)
 	/* The most significant octet of key corresponds to k[0] */
 	swap_buf(k, tmp, 16);
 
-	err = aes_expandkey(&ctx, tmp, 16);
+	err = aes_prepareenckey(&aes, tmp, 16);
 	if (err) {
 		BT_ERR("cipher setkey failed: %d", err);
 		return err;
@@ -392,14 +392,14 @@ static int smp_e(const u8 *k, u8 *r)
 	/* Most significant octet of plaintextData corresponds to data[0] */
 	swap_buf(r, data, 16);
 
-	aes_encrypt(&ctx, data, data);
+	aes_encrypt(&aes, data, data);
 
 	/* Most significant octet of encryptedData corresponds to data[0] */
 	swap_buf(data, r, 16);
 
 	SMP_DBG("r %16phN", r);
 
-	memzero_explicit(&ctx, sizeof(ctx));
+	memzero_explicit(&aes, sizeof(aes));
 	return err;
 }
 
@@ -1344,7 +1344,7 @@ static void smp_distribute_keys(struct smp_chan *smp)
 		/* Generate a new random key */
 		get_random_bytes(sign.csrk, sizeof(sign.csrk));
 
-		csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
+		csrk = kzalloc_obj(*csrk);
 		if (csrk) {
 			if (hcon->sec_level > BT_SECURITY_MEDIUM)
 				csrk->type = MGMT_CSRK_LOCAL_AUTHENTICATED;
@@ -1388,7 +1388,7 @@ static struct smp_chan *smp_chan_create(struct l2cap_conn *conn)
 	struct l2cap_chan *chan = conn->smp;
 	struct smp_chan *smp;
 
-	smp = kzalloc(sizeof(*smp), GFP_ATOMIC);
+	smp = kzalloc_obj(*smp, GFP_ATOMIC);
 	if (!smp)
 		return NULL;
 
@@ -2664,7 +2664,7 @@ static int smp_cmd_sign_info(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	csrk = kzalloc(sizeof(*csrk), GFP_KERNEL);
+	csrk = kzalloc_obj(*csrk);
 	if (csrk) {
 		if (conn->hcon->sec_level > BT_SECURITY_MEDIUM)
 			csrk->type = MGMT_CSRK_REMOTE_AUTHENTICATED;
@@ -3293,7 +3293,7 @@ static struct l2cap_chan *smp_add_cid(struct hci_dev *hdev, u16 cid)
 		goto create_chan;
 	}
 
-	smp = kzalloc(sizeof(*smp), GFP_KERNEL);
+	smp = kzalloc_obj(*smp);
 	if (!smp)
 		return ERR_PTR(-ENOMEM);
 

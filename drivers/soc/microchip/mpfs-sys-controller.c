@@ -132,7 +132,7 @@ static int mpfs_sys_controller_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int i, ret;
 
-	sys_controller = kzalloc(sizeof(*sys_controller), GFP_KERNEL);
+	sys_controller = kzalloc_obj(*sys_controller);
 	if (!sys_controller)
 		return -ENOMEM;
 

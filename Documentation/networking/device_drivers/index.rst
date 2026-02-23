@@ -16,10 +16,3 @@ Contents:
    hamradio/index
    wifi/index
    wwan/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -56,23 +56,6 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	if (iwlwifi_mod_params.disable_11ax)
 		return;
 
-	/* If we have MLO enabled, then the firmware needs to enable
-	 * address translation for the station(s) we add. That depends
-	 * on having EHT enabled in firmware, which in turn depends on
-	 * mac80211 in the code below.
-	 * However, mac80211 doesn't enable HE/EHT until it has parsed
-	 * the association response successfully, so just skip all that
-	 * and enable both when we have MLO.
-	 */
-	if (ieee80211_vif_is_mld(vif)) {
-		iwl_mvm_mld_set_he_support(mvm, vif, cmd, cmd_ver);
-		if (cmd_ver == 2)
-			cmd->wifi_gen_v2.eht_support = cpu_to_le32(1);
-		else
-			cmd->wifi_gen.eht_support = 1;
-		return;
-	}
-
 	rcu_read_lock();
 	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++) {
 		link_conf = rcu_dereference(vif->link_conf[link_id]);
@@ -116,7 +99,6 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 					u32 action, bool force_assoc_off)
 {
 	struct iwl_mac_config_cmd cmd = {};
-	u16 esr_transition_timeout;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_STATION);
 
@@ -154,17 +136,6 @@ static int iwl_mvm_mld_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	}
 
 	cmd.client.assoc_id = cpu_to_le16(vif->cfg.aid);
-	if (ieee80211_vif_is_mld(vif)) {
-		esr_transition_timeout =
-			u16_get_bits(vif->cfg.eml_cap,
-				     IEEE80211_EML_CAP_TRANSITION_TIMEOUT);
-
-		cmd.client.esr_transition_timeout =
-			min_t(u16, IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128TU,
-			      esr_transition_timeout);
-		cmd.client.medium_sync_delay =
-			cpu_to_le16(vif->cfg.eml_med_sync_delay);
-	}
 
 	if (vif->probe_req_reg && vif->cfg.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_CFG_FILTER_ACCEPT_PROBE_REQ);

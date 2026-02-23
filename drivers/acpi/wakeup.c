@@ -120,7 +120,7 @@ int acpi_register_wakeup_handler(int wake_irq, bool (*wakeup)(void *context),
 	if (!acpi_sci_irq_valid() || wake_irq != acpi_sci_irq)
 		return 0;
 
-	handler = kmalloc(sizeof(*handler), GFP_KERNEL);
+	handler = kmalloc_obj(*handler);
 	if (!handler)
 		return -ENOMEM;
 

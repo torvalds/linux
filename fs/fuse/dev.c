@@ -1598,8 +1598,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (IS_ERR(fud))
 		return PTR_ERR(fud);
 
-	bufs = kvmalloc_array(pipe->max_usage, sizeof(struct pipe_buffer),
-			      GFP_KERNEL);
+	bufs = kvmalloc_objs(struct pipe_buffer, pipe->max_usage);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1813,7 +1812,7 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 			goto out_iput;
 
 		folio_offset = ((index - folio->index) << PAGE_SHIFT) + offset;
-		nr_bytes = min_t(unsigned, num, folio_size(folio) - folio_offset);
+		nr_bytes = min(num, folio_size(folio) - folio_offset);
 		nr_pages = (offset + nr_bytes + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 		err = fuse_copy_folio(cs, &folio, folio_offset, nr_bytes, 0);
@@ -2311,7 +2310,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	tail = pipe->tail;
 	count = pipe_occupancy(head, tail);
 
-	bufs = kvmalloc_array(count, sizeof(struct pipe_buffer), GFP_KERNEL);
+	bufs = kvmalloc_objs(struct pipe_buffer, count);
 	if (!bufs) {
 		pipe_unlock(pipe);
 		return -ENOMEM;

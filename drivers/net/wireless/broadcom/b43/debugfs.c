@@ -670,15 +670,14 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	char devdir[16];
 
 	B43_WARN_ON(!dev);
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e) {
 		b43err(dev->wl, "debugfs: add device OOM\n");
 		return;
 	}
 	e->dev = dev;
 	log = &e->txstatlog;
-	log->log = kcalloc(B43_NR_LOGGED_TXSTATUS,
-			   sizeof(struct b43_txstatus), GFP_KERNEL);
+	log->log = kzalloc_objs(struct b43_txstatus, B43_NR_LOGGED_TXSTATUS);
 	if (!log->log) {
 		b43err(dev->wl, "debugfs: add device txstatus OOM\n");
 		kfree(e);

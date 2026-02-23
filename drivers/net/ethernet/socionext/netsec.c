@@ -1263,7 +1263,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 	if (!dring->vaddr)
 		goto err;
 
-	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
+	dring->desc = kzalloc_objs(*dring->desc, DESC_NUM);
 	if (!dring->desc)
 		goto err;
 

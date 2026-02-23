@@ -342,7 +342,7 @@ static int sq_dev_add(struct device *dev, struct subsys_interface *sif)
 	struct kobject *kobj;
 	int error;
 
-	sq_kobject[cpu] = kzalloc(sizeof(struct kobject), GFP_KERNEL);
+	sq_kobject[cpu] = kzalloc_obj(struct kobject);
 	if (unlikely(!sq_kobject[cpu]))
 		return -ENOMEM;
 

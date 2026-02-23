@@ -20,10 +20,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 #include <linux/debugfs.h>
 #include <linux/list_sort.h>
-#include "i915_drv.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 
 struct mmio_diff_param {
 	struct intel_vgpu *vgpu;
@@ -66,7 +68,7 @@ static inline int mmio_diff_handler(struct intel_gvt *gvt,
 	vreg = vgpu_vreg(param->vgpu, offset);
 
 	if (preg != vreg) {
-		node = kmalloc(sizeof(*node), GFP_ATOMIC);
+		node = kmalloc_obj(*node, GFP_ATOMIC);
 		if (!node)
 			return -ENOMEM;
 

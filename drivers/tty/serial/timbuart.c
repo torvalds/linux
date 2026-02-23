@@ -412,7 +412,7 @@ static int timbuart_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "%s\n", __func__);
 
-	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	uart = kzalloc_obj(*uart);
 	if (!uart) {
 		err = -EINVAL;
 		goto err_mem;

@@ -179,7 +179,7 @@ struct dma_fence_array *dma_fence_array_alloc(int num_fences)
 {
 	struct dma_fence_array *array;
 
-	return kzalloc(struct_size(array, callbacks, num_fences), GFP_KERNEL);
+	return kzalloc_flex(*array, callbacks, num_fences);
 }
 EXPORT_SYMBOL(dma_fence_array_alloc);
 

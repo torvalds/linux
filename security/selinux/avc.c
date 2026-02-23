@@ -794,7 +794,7 @@ int __init avc_add_callback(int (*callback)(u32 event), u32 events)
 	struct avc_callback_node *c;
 	int rc = 0;
 
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kmalloc_obj(*c);
 	if (!c) {
 		rc = -ENOMEM;
 		goto out;

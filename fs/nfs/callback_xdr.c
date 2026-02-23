@@ -30,7 +30,6 @@
 					 (2 + 2 + 3 + 3 + 3 + 3 + 3) * 4)
 #define CB_OP_RECALL_RES_MAXSZ		(CB_OP_HDR_RES_MAXSZ)
 
-#if defined(CONFIG_NFS_V4_1)
 #define CB_OP_LAYOUTRECALL_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_DEVICENOTIFY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_SEQUENCE_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ + \
@@ -39,7 +38,6 @@
 #define CB_OP_RECALLANY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_RECALLSLOT_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #define CB_OP_NOTIFY_LOCK_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 #define CB_OP_OFFLOAD_RES_MAXSZ		(CB_OP_HDR_RES_MAXSZ)
 #endif /* CONFIG_NFS_V4_2 */
@@ -205,7 +203,6 @@ static __be32 decode_recall_args(struct svc_rqst *rqstp,
 	return decode_fh(xdr, &args->fh);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static __be32 decode_layout_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 {
 	stateid->type = NFS4_LAYOUT_STATEID_TYPE;
@@ -275,7 +272,7 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 	if (n == 0)
 		goto out;
 
-	args->devs = kmalloc_array(n, sizeof(*args->devs), GFP_KERNEL);
+	args->devs = kmalloc_objs(*args->devs, n);
 	if (!args->devs) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out;
@@ -381,9 +378,8 @@ static __be32 decode_rc_list(struct xdr_stream *xdr,
 			     rc_list->rcl_nrefcalls * 2 * sizeof(uint32_t));
 		if (unlikely(p == NULL))
 			goto out;
-		rc_list->rcl_refcalls = kmalloc_array(rc_list->rcl_nrefcalls,
-						sizeof(*rc_list->rcl_refcalls),
-						GFP_KERNEL);
+		rc_list->rcl_refcalls = kmalloc_objs(*rc_list->rcl_refcalls,
+						     rc_list->rcl_nrefcalls);
 		if (unlikely(rc_list->rcl_refcalls == NULL))
 			goto out;
 		for (i = 0; i < rc_list->rcl_nrefcalls; i++) {
@@ -422,9 +418,8 @@ static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 	args->csa_nrclists = ntohl(*p++);
 	args->csa_rclists = NULL;
 	if (args->csa_nrclists) {
-		args->csa_rclists = kmalloc_array(args->csa_nrclists,
-						  sizeof(*args->csa_rclists),
-						  GFP_KERNEL);
+		args->csa_rclists = kmalloc_objs(*args->csa_rclists,
+						 args->csa_nrclists);
 		if (unlikely(args->csa_rclists == NULL))
 			return htonl(NFS4ERR_RESOURCE);
 
@@ -521,7 +516,6 @@ static __be32 decode_notify_lock_args(struct svc_rqst *rqstp,
 	return decode_lockowner(xdr, args);
 }
 
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 static __be32 decode_write_response(struct xdr_stream *xdr,
 					struct cb_offloadargs *args)
@@ -747,8 +741,6 @@ out:
 	return status;
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 static __be32 encode_sessionid(struct xdr_stream *xdr,
 				 const struct nfs4_sessionid *sid)
 {
@@ -845,19 +837,6 @@ static void nfs4_cb_free_slot(struct cb_process_state *cps)
 		cps->slot = NULL;
 	}
 }
-
-#else /* CONFIG_NFS_V4_1 */
-
-static __be32
-preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
-{
-	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
-}
-
-static void nfs4_cb_free_slot(struct cb_process_state *cps)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 #ifdef CONFIG_NFS_V4_2
 static __be32
@@ -1051,7 +1030,6 @@ static struct callback_op callback_ops[] = {
 		.decode_args = decode_recall_args,
 		.res_maxsize = CB_OP_RECALL_RES_MAXSZ,
 	},
-#if defined(CONFIG_NFS_V4_1)
 	[OP_CB_LAYOUTRECALL] = {
 		.process_op = nfs4_callback_layoutrecall,
 		.decode_args = decode_layoutrecall_args,
@@ -1083,7 +1061,6 @@ static struct callback_op callback_ops[] = {
 		.decode_args = decode_notify_lock_args,
 		.res_maxsize = CB_OP_NOTIFY_LOCK_RES_MAXSZ,
 	},
-#endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 	[OP_CB_OFFLOAD] = {
 		.process_op = nfs4_callback_offload,

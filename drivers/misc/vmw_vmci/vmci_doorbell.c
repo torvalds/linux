@@ -402,7 +402,7 @@ int vmci_doorbell_create(struct vmci_handle *handle,
 	    priv_flags & ~VMCI_PRIVILEGE_ALL_FLAGS)
 		return VMCI_ERROR_INVALID_ARGS;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc_obj(*entry);
 	if (entry == NULL) {
 		pr_warn("Failed allocating memory for datagram entry\n");
 		return VMCI_ERROR_NO_MEM;

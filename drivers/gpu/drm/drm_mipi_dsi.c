@@ -134,7 +134,7 @@ static struct mipi_dsi_device *mipi_dsi_device_alloc(struct mipi_dsi_host *host)
 {
 	struct mipi_dsi_device *dsi;
 
-	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
+	dsi = kzalloc_obj(*dsi);
 	if (!dsi)
 		return ERR_PTR(-ENOMEM);
 

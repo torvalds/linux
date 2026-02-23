@@ -72,7 +72,7 @@ mlx5e_htb_node_create_leaf(struct mlx5e_htb *htb, u16 classid, u16 qid,
 {
 	struct mlx5e_qos_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
@@ -93,7 +93,7 @@ static struct mlx5e_qos_node *mlx5e_htb_node_create_root(struct mlx5e_htb *htb)
 {
 	struct mlx5e_qos_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = kzalloc_obj(*node);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
@@ -694,7 +694,7 @@ mlx5e_htb_node_modify(struct mlx5e_htb *htb, u16 classid, u64 rate, u64 ceil,
 
 struct mlx5e_htb *mlx5e_htb_alloc(void)
 {
-	return kvzalloc(sizeof(struct mlx5e_htb), GFP_KERNEL);
+	return kvzalloc_obj(struct mlx5e_htb);
 }
 
 void mlx5e_htb_free(struct mlx5e_htb *htb)

@@ -213,7 +213,7 @@ static int __init fsl_guts_init(void)
 	of_node_put(np);
 
 	/* Register soc device */
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	soc_dev_attr = kzalloc_obj(*soc_dev_attr);
 	if (!soc_dev_attr)
 		return -ENOMEM;
 

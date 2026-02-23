@@ -163,7 +163,7 @@ at91_clk_register_main_osc(struct regmap *regmap,
 	if (!name || !(parent_name || parent_data))
 		return ERR_PTR(-EINVAL);
 
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
+	osc = kzalloc_obj(*osc);
 	if (!osc)
 		return ERR_PTR(-ENOMEM);
 
@@ -306,7 +306,7 @@ at91_clk_register_main_rc_osc(struct regmap *regmap,
 	if (!name || !frequency)
 		return ERR_PTR(-EINVAL);
 
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
+	osc = kzalloc_obj(*osc);
 	if (!osc)
 		return ERR_PTR(-ENOMEM);
 
@@ -415,7 +415,7 @@ at91_clk_register_rm9200_main(struct regmap *regmap,
 	if (!(parent_name || parent_hw))
 		return ERR_PTR(-EINVAL);
 
-	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
+	clkmain = kzalloc_obj(*clkmain);
 	if (!clkmain)
 		return ERR_PTR(-ENOMEM);
 
@@ -567,7 +567,7 @@ at91_clk_register_sam9x5_main(struct regmap *regmap,
 	if (!(parent_hws || parent_names) || !num_parents)
 		return ERR_PTR(-EINVAL);
 
-	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
+	clkmain = kzalloc_obj(*clkmain);
 	if (!clkmain)
 		return ERR_PTR(-ENOMEM);
 

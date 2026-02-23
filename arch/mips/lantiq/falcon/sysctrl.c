@@ -161,7 +161,7 @@ static void falcon_gpe_enable(void)
 static inline void clkdev_add_sys(const char *dev, unsigned int module,
 					unsigned int bits)
 {
-	struct clk *clk = kzalloc(sizeof(struct clk), GFP_KERNEL);
+	struct clk *clk = kzalloc_obj(struct clk);
 
 	if (!clk)
 		return;

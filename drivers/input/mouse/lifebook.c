@@ -273,7 +273,7 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 	struct lifebook_data *priv;
 	int error = -ENOMEM;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	dev2 = input_allocate_device();
 	if (!priv || !dev2)
 		goto err_out;

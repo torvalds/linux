@@ -358,7 +358,7 @@ static struct cphy *mv88e1xxx_phy_create(struct net_device *dev, int phy_addr,
 					 const struct mdio_ops *mdio_ops)
 {
 	struct adapter *adapter = netdev_priv(dev);
-	struct cphy *cphy = kzalloc(sizeof(*cphy), GFP_KERNEL);
+	struct cphy *cphy = kzalloc_obj(*cphy);
 
 	if (!cphy)
 		return NULL;

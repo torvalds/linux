@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/crc32.h>
+#include <linux/hex.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/ctype.h>
@@ -2515,7 +2516,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 			return ret;
 	}
 
-	sc = kzalloc(sizeof(struct uea_softc), GFP_KERNEL);
+	sc = kzalloc_obj(struct uea_softc);
 	if (!sc)
 		return -ENOMEM;
 

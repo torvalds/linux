@@ -3820,7 +3820,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 		rx->rxn_reg_stride = 0x80;
 		rx->rxn_reg_stride2 = 0xc;
 		def_count = ARRAY_SIZE(rx_defaults) + ARRAY_SIZE(rx_pre_2_5_defaults);
-		reg_defaults = kmalloc_array(def_count, sizeof(struct reg_default), GFP_KERNEL);
+		reg_defaults = kmalloc_objs(struct reg_default, def_count);
 		if (!reg_defaults)
 			return -ENOMEM;
 		memcpy(&reg_defaults[0], rx_defaults, sizeof(rx_defaults));
@@ -3834,7 +3834,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 		rx->rxn_reg_stride = 0xc0;
 		rx->rxn_reg_stride2 = 0x0;
 		def_count = ARRAY_SIZE(rx_defaults) + ARRAY_SIZE(rx_2_5_defaults);
-		reg_defaults = kmalloc_array(def_count, sizeof(struct reg_default), GFP_KERNEL);
+		reg_defaults = kmalloc_objs(struct reg_default, def_count);
 		if (!reg_defaults)
 			return -ENOMEM;
 		memcpy(&reg_defaults[0], rx_defaults, sizeof(rx_defaults));

@@ -818,7 +818,7 @@ snic_global_data_init(void)
 	struct kmem_cache *cachep;
 	ssize_t len = 0;
 
-	snic_glob = kzalloc(sizeof(*snic_glob), GFP_KERNEL);
+	snic_glob = kzalloc_obj(*snic_glob);
 
 	if (!snic_glob) {
 		SNIC_ERR("Failed to allocate Global Context.\n");

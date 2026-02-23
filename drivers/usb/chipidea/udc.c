@@ -360,8 +360,8 @@ static int add_td_to_list(struct ci_hw_ep *hwep, struct ci_hw_req *hwreq,
 {
 	int i;
 	u32 temp;
-	struct td_node *lastnode, *node = kzalloc(sizeof(struct td_node),
-						  GFP_ATOMIC);
+	struct td_node *lastnode, *node = kzalloc_obj(struct td_node,
+						      GFP_ATOMIC);
 
 	if (node == NULL)
 		return -ENOMEM;
@@ -930,6 +930,13 @@ __acquires(hwep->lock)
 
 		list_del_init(&hwreq->queue);
 		hwreq->req.status = -ESHUTDOWN;
+
+		/* Unmap DMA and clean up bounce buffers before giving back */
+		usb_gadget_unmap_request_by_dev(hwep->ci->dev->parent,
+					&hwreq->req, hwep->dir);
+
+		if (hwreq->sgt.sgl)
+			sglist_do_debounce(hwreq, false);
 
 		if (hwreq->req.complete != NULL) {
 			spin_unlock(hwep->lock);
@@ -1638,7 +1645,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	if (ep == NULL)
 		return NULL;
 
-	hwreq = kzalloc(sizeof(struct ci_hw_req), gfp_flags);
+	hwreq = kzalloc_obj(struct ci_hw_req, gfp_flags);
 	if (hwreq != NULL) {
 		INIT_LIST_HEAD(&hwreq->queue);
 		INIT_LIST_HEAD(&hwreq->tds);

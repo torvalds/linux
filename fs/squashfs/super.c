@@ -196,7 +196,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -EINVAL;
 	}
 
-	sb->s_fs_info = kzalloc(sizeof(*msblk), GFP_KERNEL);
+	sb->s_fs_info = kzalloc_obj(*msblk);
 	if (sb->s_fs_info == NULL) {
 		ERROR("Failed to allocate squashfs_sb_info\n");
 		return -ENOMEM;
@@ -549,7 +549,7 @@ static int squashfs_init_fs_context(struct fs_context *fc)
 {
 	struct squashfs_mount_opts *opts;
 
-	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	opts = kzalloc_obj(*opts);
 	if (!opts)
 		return -ENOMEM;
 

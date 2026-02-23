@@ -668,7 +668,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_changed);
 
-int xenbus_dev_suspend(struct device *dev)
+int xenbus_dev_freeze(struct device *dev)
 {
 	int err = 0;
 	struct xenbus_driver *drv;
@@ -683,12 +683,12 @@ int xenbus_dev_suspend(struct device *dev)
 	if (drv->suspend)
 		err = drv->suspend(xdev);
 	if (err)
-		dev_warn(dev, "suspend failed: %i\n", err);
+		dev_warn(dev, "freeze failed: %i\n", err);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_dev_suspend);
+EXPORT_SYMBOL_GPL(xenbus_dev_freeze);
 
-int xenbus_dev_resume(struct device *dev)
+int xenbus_dev_restore(struct device *dev)
 {
 	int err;
 	struct xenbus_driver *drv;
@@ -702,7 +702,7 @@ int xenbus_dev_resume(struct device *dev)
 	drv = to_xenbus_driver(dev->driver);
 	err = talk_to_otherend(xdev);
 	if (err) {
-		dev_warn(dev, "resume (talk_to_otherend) failed: %i\n", err);
+		dev_warn(dev, "restore (talk_to_otherend) failed: %i\n", err);
 		return err;
 	}
 
@@ -711,28 +711,28 @@ int xenbus_dev_resume(struct device *dev)
 	if (drv->resume) {
 		err = drv->resume(xdev);
 		if (err) {
-			dev_warn(dev, "resume failed: %i\n", err);
+			dev_warn(dev, "restore failed: %i\n", err);
 			return err;
 		}
 	}
 
 	err = watch_otherend(xdev);
 	if (err) {
-		dev_warn(dev, "resume (watch_otherend) failed: %d\n", err);
+		dev_warn(dev, "restore (watch_otherend) failed: %d\n", err);
 		return err;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_dev_resume);
+EXPORT_SYMBOL_GPL(xenbus_dev_restore);
 
-int xenbus_dev_cancel(struct device *dev)
+int xenbus_dev_thaw(struct device *dev)
 {
 	/* Do nothing */
-	DPRINTK("cancel");
+	DPRINTK("thaw");
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_dev_cancel);
+EXPORT_SYMBOL_GPL(xenbus_dev_thaw);
 
 /* A flag to determine if xenstored is 'ready' (i.e. has started) */
 int xenstored_ready;

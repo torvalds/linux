@@ -219,7 +219,7 @@ static struct page_list *alloc_pl(gfp_t gfp)
 {
 	struct page_list *pl;
 
-	pl = kmalloc(sizeof(*pl), gfp);
+	pl = kmalloc_obj(*pl, gfp);
 	if (!pl)
 		return NULL;
 
@@ -918,7 +918,7 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 	unsigned int reserve_pages;
 	struct dm_kcopyd_client *kc;
 
-	kc = kzalloc(sizeof(*kc), GFP_KERNEL);
+	kc = kzalloc_obj(*kc);
 	if (!kc)
 		return ERR_PTR(-ENOMEM);
 
@@ -934,7 +934,8 @@ struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *thro
 		goto bad_slab;
 
 	INIT_WORK(&kc->kcopyd_work, do_work);
-	kc->kcopyd_wq = alloc_workqueue("kcopyd", WQ_MEM_RECLAIM, 0);
+	kc->kcopyd_wq = alloc_workqueue("kcopyd", WQ_MEM_RECLAIM | WQ_PERCPU,
+					0);
 	if (!kc->kcopyd_wq) {
 		r = -ENOMEM;
 		goto bad_workqueue;

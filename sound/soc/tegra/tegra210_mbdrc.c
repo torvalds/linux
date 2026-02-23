@@ -763,6 +763,7 @@ static const struct regmap_config tegra210_mbdrc_regmap_cfg = {
 	.precious_reg		= tegra210_mbdrc_precious_reg,
 	.reg_defaults		= tegra210_mbdrc_reg_defaults,
 	.num_reg_defaults	= ARRAY_SIZE(tegra210_mbdrc_reg_defaults),
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 

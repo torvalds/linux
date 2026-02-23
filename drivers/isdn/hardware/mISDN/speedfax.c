@@ -443,7 +443,7 @@ static int
 sfaxpci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err = -ENOMEM;
-	struct sfax_hw *card = kzalloc(sizeof(struct sfax_hw), GFP_KERNEL);
+	struct sfax_hw *card = kzalloc_obj(struct sfax_hw);
 
 	if (!card) {
 		pr_info("No memory for Speedfax+ PCI\n");

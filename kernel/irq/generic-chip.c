@@ -240,7 +240,7 @@ irq_alloc_generic_chip(const char *name, int num_ct, unsigned int irq_base,
 {
 	struct irq_chip_generic *gc;
 
-	gc = kzalloc(struct_size(gc, chip_types, num_ct), GFP_KERNEL);
+	gc = kzalloc_flex(*gc, chip_types, num_ct);
 	if (gc) {
 		irq_init_generic_chip(gc, name, num_ct, irq_base, reg_base,
 				      handler);

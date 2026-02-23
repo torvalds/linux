@@ -517,7 +517,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	int i;
 	int res = -ENOMEM;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return res;
 	mutex_init(&data->lock);
@@ -657,7 +657,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	int i;
 	int res = -ENOMEM;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc_obj(*data);
 	if (!data)
 		return res;
 	mutex_init(&data->lock);

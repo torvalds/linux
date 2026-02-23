@@ -247,8 +247,7 @@ static int mlx5_rl_table_get(struct mlx5_rl_table *table)
 		return 0;
 	}
 
-	table->rl_entry = kcalloc(table->max_size, sizeof(struct mlx5_rl_entry),
-				  GFP_KERNEL);
+	table->rl_entry = kzalloc_objs(struct mlx5_rl_entry, table->max_size);
 	if (!table->rl_entry)
 		return -ENOMEM;
 

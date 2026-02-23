@@ -131,7 +131,7 @@ static int virtio_crypto_alg_skcipher_init_session(
 	if (!cipher_key)
 		return -ENOMEM;
 
-	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
+	vc_ctrl_req = kzalloc_obj(*vc_ctrl_req);
 	if (!vc_ctrl_req) {
 		err = -ENOMEM;
 		goto out;
@@ -200,7 +200,7 @@ static int virtio_crypto_alg_skcipher_close_session(
 	struct virtio_crypto_inhdr *ctrl_status;
 	struct virtio_crypto_ctrl_request *vc_ctrl_req;
 
-	vc_ctrl_req = kzalloc(sizeof(*vc_ctrl_req), GFP_KERNEL);
+	vc_ctrl_req = kzalloc_obj(*vc_ctrl_req);
 	if (!vc_ctrl_req)
 		return -ENOMEM;
 
@@ -540,8 +540,6 @@ int virtio_crypto_skcipher_crypt_req(
 	ret = __virtio_crypto_skcipher_do_req(vc_sym_req, req, data_vq);
 	if (ret < 0)
 		return ret;
-
-	virtqueue_kick(data_vq->vq);
 
 	return 0;
 }

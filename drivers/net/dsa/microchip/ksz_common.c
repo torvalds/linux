@@ -569,6 +569,12 @@ static const u16 ksz8463_regs[] = {
 	[S_START_CTRL]			= 0x01,
 	[S_BROADCAST_CTRL]		= 0x06,
 	[S_MULTICAST_CTRL]		= 0x04,
+	[PTP_CLK_CTRL]			= 0x0600,
+	[PTP_RTC_NANOSEC]		= 0x0604,
+	[PTP_RTC_SEC]			= 0x0608,
+	[PTP_RTC_SUB_NANOSEC]		= 0x060C,
+	[PTP_SUBNANOSEC_RATE]		= 0x0610,
+	[PTP_MSG_CONF1]			= 0x0620,
 };
 
 static const u32 ksz8463_masks[] = {
@@ -803,6 +809,12 @@ static const u16 ksz9477_regs[] = {
 	[REG_SW_PME_CTRL]		= 0x0006,
 	[REG_PORT_PME_STATUS]		= 0x0013,
 	[REG_PORT_PME_CTRL]		= 0x0017,
+	[PTP_CLK_CTRL]			= 0x0500,
+	[PTP_RTC_SUB_NANOSEC]		= 0x0502,
+	[PTP_RTC_NANOSEC]		= 0x0504,
+	[PTP_RTC_SEC]			= 0x0508,
+	[PTP_SUBNANOSEC_RATE]		= 0x050C,
+	[PTP_MSG_CONF1]			= 0x0514,
 };
 
 static const u32 ksz9477_masks[] = {
@@ -2905,7 +2917,6 @@ static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
 	int ret, n;
 
 	kirq->dev = dev;
-	kirq->masked = ~0;
 
 	kirq->domain = irq_domain_create_simple(dev_fwnode(dev->dev), kirq->nirqs, 0,
 						&ksz_irq_domain_ops, kirq);
@@ -2935,6 +2946,7 @@ static int ksz_girq_setup(struct ksz_device *dev)
 	girq->nirqs = dev->info->port_cnt;
 	girq->reg_mask = REG_SW_PORT_INT_MASK__1;
 	girq->reg_status = REG_SW_PORT_INT_STATUS__1;
+	girq->masked = ~0;
 	snprintf(girq->name, sizeof(girq->name), "global_port_irq");
 
 	girq->irq_num = dev->irq;
@@ -2949,6 +2961,7 @@ static int ksz_pirq_setup(struct ksz_device *dev, u8 p)
 	pirq->nirqs = dev->info->port_nirqs;
 	pirq->reg_mask = dev->dev_ops->get_port_addr(p, REG_PORT_INT_MASK);
 	pirq->reg_status = dev->dev_ops->get_port_addr(p, REG_PORT_INT_STATUS);
+	pirq->masked = ~0;
 	snprintf(pirq->name, sizeof(pirq->name), "port_irq-%d", p);
 
 	pirq->irq_num = irq_find_mapping(dev->girq.domain, p);
@@ -4822,7 +4835,7 @@ int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
 		return 0;
 	}
 
-	switch_macaddr = kzalloc(sizeof(*switch_macaddr), GFP_KERNEL);
+	switch_macaddr = kzalloc_obj(*switch_macaddr);
 	if (!switch_macaddr)
 		return -ENOMEM;
 

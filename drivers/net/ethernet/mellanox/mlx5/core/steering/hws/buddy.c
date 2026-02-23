@@ -54,7 +54,7 @@ struct mlx5hws_buddy_mem *mlx5hws_buddy_create(u32 max_order)
 {
 	struct mlx5hws_buddy_mem *buddy;
 
-	buddy = kzalloc(sizeof(*buddy), GFP_KERNEL);
+	buddy = kzalloc_obj(*buddy);
 	if (!buddy)
 		return NULL;
 

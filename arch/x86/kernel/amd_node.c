@@ -282,7 +282,7 @@ static int __init amd_smn_init(void)
 		return -ENODEV;
 
 	num_nodes = amd_num_nodes();
-	amd_roots = kcalloc(num_nodes, sizeof(*amd_roots), GFP_KERNEL);
+	amd_roots = kzalloc_objs(*amd_roots, num_nodes);
 	if (!amd_roots)
 		return -ENOMEM;
 

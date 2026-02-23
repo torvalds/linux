@@ -65,7 +65,7 @@ int efx_siena_mcdi_init(struct efx_nic *efx)
 	bool already_attached;
 	int rc = -ENOMEM;
 
-	efx->mcdi = kzalloc(sizeof(*efx->mcdi), GFP_KERNEL);
+	efx->mcdi = kzalloc_obj(*efx->mcdi);
 	if (!efx->mcdi)
 		goto fail;
 

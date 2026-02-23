@@ -15,8 +15,8 @@
 #include <sound/seq_device.h>
 
 void snd_seq_oss_synth_init(void);
-int snd_seq_oss_synth_probe(struct device *dev);
-int snd_seq_oss_synth_remove(struct device *dev);
+int snd_seq_oss_synth_probe(struct snd_seq_device *dev);
+void snd_seq_oss_synth_remove(struct snd_seq_device *dev);
 void snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp);
 void snd_seq_oss_synth_setup_midi(struct seq_oss_devinfo *dp);
 void snd_seq_oss_synth_cleanup(struct seq_oss_devinfo *dp);

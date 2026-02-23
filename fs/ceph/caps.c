@@ -2395,7 +2395,7 @@ static int flush_mdlog_and_wait_inode_unsafe_requests(struct inode *inode)
 		mutex_lock(&mdsc->mutex);
 		max_sessions = mdsc->max_sessions;
 
-		sessions = kcalloc(max_sessions, sizeof(s), GFP_KERNEL);
+		sessions = kzalloc_objs(s, max_sessions);
 		if (!sessions) {
 			mutex_unlock(&mdsc->mutex);
 			err = -ENOMEM;

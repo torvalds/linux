@@ -320,7 +320,7 @@ intel_soc_dts_iosf_init(enum intel_soc_dts_interrupt_type intr_type,
 	if (tj_max < 0)
 		return ERR_PTR(tj_max);
 
-	sensors = kzalloc(sizeof(*sensors), GFP_KERNEL);
+	sensors = kzalloc_obj(*sensors);
 	if (!sensors)
 		return ERR_PTR(-ENOMEM);
 

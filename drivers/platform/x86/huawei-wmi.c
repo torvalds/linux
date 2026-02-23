@@ -854,7 +854,7 @@ static __init int huawei_wmi_init(void)
 	struct platform_device *pdev;
 	int err;
 
-	huawei_wmi = kzalloc(sizeof(struct huawei_wmi), GFP_KERNEL);
+	huawei_wmi = kzalloc_obj(struct huawei_wmi);
 	if (!huawei_wmi)
 		return -ENOMEM;
 

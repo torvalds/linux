@@ -20,9 +20,6 @@ void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val)
 
 	rx_ring->next_to_use = val;
 
-	/* update next to alloc since we have filled the ring */
-	rx_ring->next_to_alloc = val;
-
 	/* QRX_TAIL will be updated with any tail value, but hardware ignores
 	 * the lower 3 bits. This makes it so we only bump tail on meaningful
 	 * boundaries. Also, this allows us to bump tail on intervals of 8 up to
@@ -480,7 +477,7 @@ dma_unmap:
 	return ICE_XDP_CONSUMED;
 
 busy:
-	xdp_ring->ring_stats->tx_stats.tx_busy++;
+	ice_stats_inc(xdp_ring->ring_stats, tx_busy);
 
 	return ICE_XDP_CONSUMED;
 }

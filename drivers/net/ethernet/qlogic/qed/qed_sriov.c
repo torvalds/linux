@@ -543,7 +543,7 @@ int qed_iov_alloc(struct qed_hwfn *p_hwfn)
 		return 0;
 	}
 
-	p_sriov = kzalloc(sizeof(*p_sriov), GFP_KERNEL);
+	p_sriov = kzalloc_obj(*p_sriov);
 	if (!p_sriov)
 		return -ENOMEM;
 
@@ -600,7 +600,7 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Allocate a new struct for IOV information */
-	cdev->p_iov_info = kzalloc(sizeof(*cdev->p_iov_info), GFP_KERNEL);
+	cdev->p_iov_info = kzalloc_obj(*cdev->p_iov_info);
 	if (!cdev->p_iov_info)
 		return -ENOMEM;
 

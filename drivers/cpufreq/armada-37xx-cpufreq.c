@@ -467,8 +467,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return -EINVAL;
 	}
 
-	armada37xx_cpufreq_state = kmalloc(sizeof(*armada37xx_cpufreq_state),
-					   GFP_KERNEL);
+	armada37xx_cpufreq_state = kmalloc_obj(*armada37xx_cpufreq_state);
 	if (!armada37xx_cpufreq_state) {
 		clk_put(clk);
 		return -ENOMEM;

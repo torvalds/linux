@@ -2457,9 +2457,8 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
-				  sizeof(struct radeon_ps),
-				  GFP_KERNEL);
+	rdev->pm.dpm.ps = kzalloc_objs(struct radeon_ps,
+				       state_array->ucNumEntries);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
@@ -2471,7 +2470,7 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 			&non_clock_info_array->nonClockInfo[non_clock_array_index];
 		if (!rdev->pm.power_state[i].clock_info)
 			return -EINVAL;
-		ps = kzalloc(sizeof(struct kv_ps), GFP_KERNEL);
+		ps = kzalloc_obj(struct kv_ps);
 		if (ps == NULL) {
 			kfree(rdev->pm.dpm.ps);
 			return -ENOMEM;
@@ -2520,7 +2519,7 @@ int kv_dpm_init(struct radeon_device *rdev)
 	struct kv_power_info *pi;
 	int ret, i;
 
-	pi = kzalloc(sizeof(struct kv_power_info), GFP_KERNEL);
+	pi = kzalloc_obj(struct kv_power_info);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;

@@ -740,7 +740,7 @@ static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	 * for deleted items allows change reports to use common code with
 	 * non-deleted or query-response MCA's.
 	 */
-	pmc = kzalloc(sizeof(*pmc), GFP_KERNEL);
+	pmc = kzalloc_obj(*pmc);
 	if (!pmc)
 		return;
 
@@ -868,7 +868,7 @@ static struct ifmcaddr6 *mca_alloc(struct inet6_dev *idev,
 
 	mc_assert_locked(idev);
 
-	mc = kzalloc(sizeof(*mc), GFP_KERNEL);
+	mc = kzalloc_obj(*mc);
 	if (!mc)
 		return NULL;
 
@@ -2415,7 +2415,7 @@ static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf) {
-		psf = kzalloc(sizeof(*psf), GFP_KERNEL);
+		psf = kzalloc_obj(*psf);
 		if (!psf)
 			return -ENOBUFS;
 
@@ -2500,7 +2500,7 @@ static int sf_setstate(struct ifmcaddr6 *pmc)
 				    &psf->sf_addr))
 					break;
 			if (!dpsf) {
-				dpsf = kmalloc(sizeof(*dpsf), GFP_KERNEL);
+				dpsf = kmalloc_obj(*dpsf);
 				if (!dpsf)
 					continue;
 				*dpsf = *psf;

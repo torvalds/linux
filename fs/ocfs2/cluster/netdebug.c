@@ -380,7 +380,7 @@ static int sc_common_open(struct file *file, int ctxt)
 	struct o2net_sock_debug *sd;
 	struct o2net_sock_container *dummy_sc;
 
-	dummy_sc = kzalloc(sizeof(*dummy_sc), GFP_KERNEL);
+	dummy_sc = kzalloc_obj(*dummy_sc);
 	if (!dummy_sc)
 		return -ENOMEM;
 

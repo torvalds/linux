@@ -491,11 +491,11 @@ static void pcnet32_realloc_tx_ring(struct net_device *dev,
 	if (!new_tx_ring)
 		return;
 
-	new_dma_addr_list = kcalloc(entries, sizeof(dma_addr_t), GFP_ATOMIC);
+	new_dma_addr_list = kzalloc_objs(dma_addr_t, entries, GFP_ATOMIC);
 	if (!new_dma_addr_list)
 		goto free_new_tx_ring;
 
-	new_skb_list = kcalloc(entries, sizeof(struct sk_buff *), GFP_ATOMIC);
+	new_skb_list = kzalloc_objs(struct sk_buff *, entries, GFP_ATOMIC);
 	if (!new_skb_list)
 		goto free_new_lists;
 
@@ -550,11 +550,11 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 	if (!new_rx_ring)
 		return;
 
-	new_dma_addr_list = kcalloc(entries, sizeof(dma_addr_t), GFP_ATOMIC);
+	new_dma_addr_list = kzalloc_objs(dma_addr_t, entries, GFP_ATOMIC);
 	if (!new_dma_addr_list)
 		goto free_new_rx_ring;
 
-	new_skb_list = kcalloc(entries, sizeof(struct sk_buff *), GFP_ATOMIC);
+	new_skb_list = kzalloc_objs(struct sk_buff *, entries, GFP_ATOMIC);
 	if (!new_skb_list)
 		goto free_new_lists;
 
@@ -2035,23 +2035,19 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 		return -ENOMEM;
 	}
 
-	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
-				  GFP_KERNEL);
+	lp->tx_dma_addr = kzalloc_objs(dma_addr_t, lp->tx_ring_size);
 	if (!lp->tx_dma_addr)
 		return -ENOMEM;
 
-	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
-				  GFP_KERNEL);
+	lp->rx_dma_addr = kzalloc_objs(dma_addr_t, lp->rx_ring_size);
 	if (!lp->rx_dma_addr)
 		return -ENOMEM;
 
-	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
-				GFP_KERNEL);
+	lp->tx_skbuff = kzalloc_objs(struct sk_buff *, lp->tx_ring_size);
 	if (!lp->tx_skbuff)
 		return -ENOMEM;
 
-	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
-				GFP_KERNEL);
+	lp->rx_skbuff = kzalloc_objs(struct sk_buff *, lp->rx_ring_size);
 	if (!lp->rx_skbuff)
 		return -ENOMEM;
 

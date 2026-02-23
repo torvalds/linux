@@ -153,7 +153,7 @@ static int ctucan_pci_probe(struct pci_dev *pdev,
 
 	ntxbufs = 4;
 
-	bdata = kzalloc(sizeof(*bdata), GFP_KERNEL);
+	bdata = kzalloc_obj(*bdata);
 	if (!bdata) {
 		ret = -ENOMEM;
 		goto err_pci_iounmap_bar0;

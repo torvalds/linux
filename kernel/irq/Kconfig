@@ -92,9 +92,6 @@ config GENERIC_MSI_IRQ
 config IRQ_MSI_IOMMU
 	bool
 
-config IRQ_TIMINGS
-	bool
-
 config GENERIC_IRQ_MATRIX_ALLOCATOR
 	bool
 

@@ -940,7 +940,7 @@ void intel_modeset_setup_hw_state(struct intel_display *display,
 {
 	struct intel_encoder *encoder;
 	struct intel_crtc *crtc;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);
 

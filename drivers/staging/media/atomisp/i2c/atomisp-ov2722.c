@@ -952,7 +952,7 @@ static int ov2722_probe(struct i2c_client *client)
 	void *ovpdev;
 	int ret;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

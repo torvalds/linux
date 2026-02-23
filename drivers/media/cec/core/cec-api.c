@@ -555,7 +555,7 @@ static int cec_open(struct inode *inode, struct file *filp)
 	struct cec_devnode *devnode =
 		container_of(inode->i_cdev, struct cec_devnode, cdev);
 	struct cec_adapter *adap = to_cec_adapter(devnode);
-	struct cec_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
+	struct cec_fh *fh = kzalloc_obj(*fh);
 	/*
 	 * Initial events that are automatically sent when the cec device is
 	 * opened.

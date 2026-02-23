@@ -39,7 +39,7 @@ nvkm_vfn_new_(const struct nvkm_vfn_func *func, struct nvkm_device *device,
 	struct nvkm_vfn *vfn;
 	int ret;
 
-	if (!(vfn = *pvfn = kzalloc(sizeof(*vfn), GFP_KERNEL)))
+	if (!(vfn = *pvfn = kzalloc_obj(*vfn)))
 		return -ENOMEM;
 
 	nvkm_subdev_ctor(&nvkm_vfn, device, type, inst, &vfn->subdev);

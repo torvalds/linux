@@ -556,7 +556,7 @@ static int qaic_ras_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_devic
 	if (ret)
 		return ret;
 
-	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	resp = kzalloc_obj(*resp);
 	if (!resp) {
 		mhi_unprepare_from_transfer(mhi_dev);
 		return -ENOMEM;

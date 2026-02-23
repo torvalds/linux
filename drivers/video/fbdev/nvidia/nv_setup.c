@@ -283,9 +283,9 @@ int NVCommonSetup(struct fb_info *info)
 	int Television = 0;
 	int err = 0;
 
-	var = kzalloc(sizeof(struct fb_var_screeninfo), GFP_KERNEL);
-	monitorA = kzalloc(sizeof(struct fb_monspecs), GFP_KERNEL);
-	monitorB = kzalloc(sizeof(struct fb_monspecs), GFP_KERNEL);
+	var = kzalloc_obj(struct fb_var_screeninfo);
+	monitorA = kzalloc_obj(struct fb_monspecs);
+	monitorB = kzalloc_obj(struct fb_monspecs);
 
 	if (!var || !monitorA || !monitorB) {
 		err = -ENOMEM;

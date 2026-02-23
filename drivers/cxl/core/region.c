@@ -489,9 +489,9 @@ static ssize_t interleave_ways_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t len)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
-	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region_params *p = &cxlr->params;
 	unsigned int val, save;
 	int rc;
@@ -552,9 +552,9 @@ static ssize_t interleave_granularity_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t len)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
-	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region_params *p = &cxlr->params;
 	int rc, val;
 	u16 ig;
@@ -628,7 +628,7 @@ static DEVICE_ATTR_RO(mode);
 
 static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_region_params *p = &cxlr->params;
 	struct resource *res;
 	u64 remainder = 0;
@@ -663,6 +663,8 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 			PTR_ERR(res), &size, cxlrd->res->name, cxlrd->res);
 		return PTR_ERR(res);
 	}
+
+	cxlr->hpa_range = DEFINE_RANGE(res->start, res->end);
 
 	p->res = res;
 	p->state = CXL_CONFIG_INTERLEAVE_ACTIVE;
@@ -699,6 +701,8 @@ static int free_hpa(struct cxl_region *cxlr)
 
 	if (p->state >= CXL_CONFIG_ACTIVE)
 		return -EBUSY;
+
+	cxlr->hpa_range = DEFINE_RANGE(0, -1);
 
 	cxl_region_iomem_release(cxlr);
 	p->state = CXL_CONFIG_IDLE;
@@ -759,7 +763,7 @@ static ssize_t extended_linear_cache_size_show(struct device *dev,
 	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
 	if ((rc = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
 		return rc;
-	return sysfs_emit(buf, "%#llx\n", p->cache_size);
+	return sysfs_emit(buf, "%pap\n", &p->cache_size);
 }
 static DEVICE_ATTR_RO(extended_linear_cache_size);
 
@@ -994,7 +998,7 @@ alloc_region_ref(struct cxl_port *port, struct cxl_region *cxlr,
 		return ERR_PTR(-EBUSY);
 	}
 
-	cxl_rr = kzalloc(sizeof(*cxl_rr), GFP_KERNEL);
+	cxl_rr = kzalloc_obj(*cxl_rr);
 	if (!cxl_rr)
 		return ERR_PTR(-ENOMEM);
 	cxl_rr->port = port;
@@ -1093,14 +1097,16 @@ static int cxl_rr_assign_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 	return 0;
 }
 
-static void cxl_region_set_lock(struct cxl_region *cxlr,
-				struct cxl_decoder *cxld)
+static void cxl_region_setup_flags(struct cxl_region *cxlr,
+				   struct cxl_decoder *cxld)
 {
-	if (!test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
-		return;
+	if (test_bit(CXL_DECODER_F_LOCK, &cxld->flags)) {
+		set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+		clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+	}
 
-	set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
-	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+	if (test_bit(CXL_DECODER_F_NORMALIZED_ADDRESSING, &cxld->flags))
+		set_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags);
 }
 
 /**
@@ -1214,7 +1220,7 @@ static int cxl_port_attach_region(struct cxl_port *port,
 		}
 	}
 
-	cxl_region_set_lock(cxlr, cxld);
+	cxl_region_setup_flags(cxlr, cxld);
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -1373,7 +1379,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 				  struct cxl_region *cxlr,
 				  struct cxl_endpoint_decoder *cxled)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	int parent_iw, parent_ig, ig, iw, rc, pos = cxled->pos;
 	struct cxl_port *parent_port = to_cxl_port(port->dev.parent);
 	struct cxl_region_ref *cxl_rr = cxl_rr_load(port, cxlr);
@@ -1731,10 +1737,10 @@ static int cxl_region_validate_position(struct cxl_region *cxlr,
 }
 
 static int cxl_region_attach_position(struct cxl_region *cxlr,
-				      struct cxl_root_decoder *cxlrd,
 				      struct cxl_endpoint_decoder *cxled,
 				      const struct cxl_dport *dport, int pos)
 {
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_switch_decoder *cxlsd = &cxlrd->cxlsd;
 	struct cxl_decoder *cxld = &cxlsd->cxld;
@@ -1874,6 +1880,7 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
 /**
  * cxl_calc_interleave_pos() - calculate an endpoint position in a region
  * @cxled: endpoint decoder member of given region
+ * @hpa_range: translated HPA range of the endpoint
  *
  * The endpoint position is calculated by traversing the topology from
  * the endpoint to the root decoder and iteratively applying this
@@ -1886,11 +1893,11 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
  * Return: position >= 0 on success
  *	   -ENXIO on failure
  */
-static int cxl_calc_interleave_pos(struct cxl_endpoint_decoder *cxled)
+static int cxl_calc_interleave_pos(struct cxl_endpoint_decoder *cxled,
+				   struct range *hpa_range)
 {
 	struct cxl_port *iter, *port = cxled_to_port(cxled);
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-	struct range *range = &cxled->cxld.hpa_range;
 	int parent_ways = 0, parent_pos = 0, pos = 0;
 	int rc;
 
@@ -1928,7 +1935,8 @@ static int cxl_calc_interleave_pos(struct cxl_endpoint_decoder *cxled)
 		if (is_cxl_root(iter))
 			break;
 
-		rc = find_pos_and_ways(iter, range, &parent_pos, &parent_ways);
+		rc = find_pos_and_ways(iter, hpa_range, &parent_pos,
+				       &parent_ways);
 		if (rc)
 			return rc;
 
@@ -1938,7 +1946,7 @@ static int cxl_calc_interleave_pos(struct cxl_endpoint_decoder *cxled)
 	dev_dbg(&cxlmd->dev,
 		"decoder:%s parent:%s port:%s range:%#llx-%#llx pos:%d\n",
 		dev_name(&cxled->cxld.dev), dev_name(cxlmd->dev.parent),
-		dev_name(&port->dev), range->start, range->end, pos);
+		dev_name(&port->dev), hpa_range->start, hpa_range->end, pos);
 
 	return pos;
 }
@@ -1951,7 +1959,7 @@ static int cxl_region_sort_targets(struct cxl_region *cxlr)
 	for (i = 0; i < p->nr_targets; i++) {
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
 
-		cxled->pos = cxl_calc_interleave_pos(cxled);
+		cxled->pos = cxl_calc_interleave_pos(cxled, &cxlr->hpa_range);
 		/*
 		 * Record that sorting failed, but still continue to calc
 		 * cxled->pos so that follow-on code paths can reliably
@@ -1971,7 +1979,7 @@ static int cxl_region_sort_targets(struct cxl_region *cxlr)
 static int cxl_region_attach(struct cxl_region *cxlr,
 			     struct cxl_endpoint_decoder *cxled, int pos)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_region_params *p = &cxlr->params;
@@ -2076,8 +2084,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 			ep_port = cxled_to_port(cxled);
 			dport = cxl_find_dport_by_dev(root_port,
 						      ep_port->host_bridge);
-			rc = cxl_region_attach_position(cxlr, cxlrd, cxled,
-							dport, i);
+			rc = cxl_region_attach_position(cxlr, cxled, dport, i);
 			if (rc)
 				return rc;
 		}
@@ -2100,7 +2107,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 	if (rc)
 		return rc;
 
-	rc = cxl_region_attach_position(cxlr, cxlrd, cxled, dport, pos);
+	rc = cxl_region_attach_position(cxlr, cxled, dport, pos);
 	if (rc)
 		return rc;
 
@@ -2136,7 +2143,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		struct cxl_endpoint_decoder *cxled = p->targets[i];
 		int test_pos;
 
-		test_pos = cxl_calc_interleave_pos(cxled);
+		test_pos = cxl_calc_interleave_pos(cxled, &cxlr->hpa_range);
 		dev_dbg(&cxled->cxld.dev,
 			"Test cxl_calc_interleave_pos(): %s test_pos:%d cxled->pos:%d\n",
 			(test_pos == cxled->pos) ? "success" : "fail",
@@ -2396,8 +2403,8 @@ static const struct attribute_group *region_groups[] = {
 
 static void cxl_region_release(struct device *dev)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	int id = atomic_read(&cxlrd->region_id);
 
 	/*
@@ -2454,6 +2461,8 @@ static void unregister_region(void *_cxlr)
 	for (i = 0; i < p->interleave_ways; i++)
 		detach_target(cxlr, i);
 
+	cxlr->hpa_range = DEFINE_RANGE(0, -1);
+
 	cxl_region_iomem_release(cxlr);
 	put_device(&cxlr->dev);
 }
@@ -2465,7 +2474,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	struct cxl_region *cxlr;
 	struct device *dev;
 
-	cxlr = kzalloc(sizeof(*cxlr), GFP_KERNEL);
+	cxlr = kzalloc_obj(*cxlr);
 	if (!cxlr) {
 		memregion_free(id);
 		return ERR_PTR(-ENOMEM);
@@ -2480,11 +2489,13 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	 * region id allocations
 	 */
 	get_device(dev->parent);
+	cxlr->cxlrd = cxlrd;
+	cxlr->id = id;
+
 	device_set_pm_not_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
-	cxlr->id = id;
-	cxl_region_set_lock(cxlr, &cxlrd->cxlsd.cxld);
+	cxl_region_setup_flags(cxlr, &cxlrd->cxlsd.cxld);
 
 	return cxlr;
 }
@@ -3112,16 +3123,156 @@ u64 cxl_calculate_hpa_offset(u64 dpa_offset, int pos, u8 eiw, u16 eig)
 }
 EXPORT_SYMBOL_FOR_MODULES(cxl_calculate_hpa_offset, "cxl_translate");
 
+static int decode_pos(int region_ways, int hb_ways, int pos, int *pos_port,
+		      int *pos_hb)
+{
+	int devices_per_hb;
+
+	/*
+	 * Decode for 3-6-12 way interleaves as defined in the CXL
+	 * Spec 4.0 9.13.1.1 Legal Interleaving Configurations.
+	 * Region creation should prevent invalid combinations but
+	 * sanity check here to avoid a silent bad decode.
+	 */
+	switch (hb_ways) {
+	case 3:
+		if (region_ways != 3 && region_ways != 6 && region_ways != 12)
+			return -EINVAL;
+		break;
+	case 6:
+		if (region_ways != 6 && region_ways != 12)
+			return -EINVAL;
+		break;
+	case 12:
+		if (region_ways != 12)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+	/*
+	 * Each host bridge contributes an equal number of endpoints
+	 * that are laid out contiguously per host bridge. Modulo
+	 * selects the port within a host bridge and division selects
+	 * the host bridge position.
+	 */
+	devices_per_hb = region_ways / hb_ways;
+	*pos_port = pos % devices_per_hb;
+	*pos_hb = pos / devices_per_hb;
+
+	return 0;
+}
+
+/*
+ * restore_parent() reconstruct the address in parent
+ *
+ * This math, specifically the bitmask creation 'mask = gran - 1' relies
+ * on the CXL Spec requirement that interleave granularity is always a
+ * power of two.
+ *
+ * [mask]		isolate the offset with the granularity
+ * [addr & ~mask]	remove the offset leaving the aligned portion
+ * [* ways]		distribute across all interleave ways
+ * [+ (pos * gran)]	add the positional offset
+ * [+ (addr & mask)]	restore the masked offset
+ */
+static u64 restore_parent(u64 addr, u64 pos, u64 gran, u64 ways)
+{
+	u64 mask = gran - 1;
+
+	return ((addr & ~mask) * ways) + (pos * gran) + (addr & mask);
+}
+
+/*
+ * unaligned_dpa_to_hpa() translates a DPA to HPA when the region resource
+ * start address is not aligned at Host Bridge Interleave Ways * 256MB.
+ *
+ * Unaligned start addresses only occur with MOD3 interleaves. All power-
+ * of-two interleaves are guaranteed aligned.
+ */
+static u64 unaligned_dpa_to_hpa(struct cxl_decoder *cxld,
+				struct cxl_region_params *p, int pos, u64 dpa)
+{
+	int ways_port = p->interleave_ways / cxld->interleave_ways;
+	int gran_port = p->interleave_granularity;
+	int gran_hb = cxld->interleave_granularity;
+	int ways_hb = cxld->interleave_ways;
+	int pos_port, pos_hb, gran_shift;
+	u64 hpa_port = 0;
+
+	/* Decode an endpoint 'pos' into port and host-bridge components */
+	if (decode_pos(p->interleave_ways, ways_hb, pos, &pos_port, &pos_hb)) {
+		dev_dbg(&cxld->dev, "not supported for region ways:%d\n",
+			p->interleave_ways);
+		return ULLONG_MAX;
+	}
+
+	/* Restore the port parent address if needed */
+	if (gran_hb != gran_port)
+		hpa_port = restore_parent(dpa, pos_port, gran_port, ways_port);
+	else
+		hpa_port = dpa;
+
+	/*
+	 * Complete the HPA reconstruction by restoring the address as if
+	 * each HB position is a candidate. Test against expected pos_hb
+	 * to confirm match.
+	 */
+	gran_shift = ilog2(gran_hb);
+	for (int position = 0; position < ways_hb; position++) {
+		u64 shifted, hpa;
+
+		hpa = restore_parent(hpa_port, position, gran_hb, ways_hb);
+		hpa += p->res->start;
+
+		shifted = hpa >> gran_shift;
+		if (do_div(shifted, ways_hb) == pos_hb)
+			return hpa;
+	}
+
+	dev_dbg(&cxld->dev, "fail dpa:%#llx region:%pr pos:%d\n", dpa, p->res,
+		pos);
+	dev_dbg(&cxld->dev, "     port-w/g/p:%d/%d/%d hb-w/g/p:%d/%d/%d\n",
+		ways_port, gran_port, pos_port, ways_hb, gran_hb, pos_hb);
+
+	return ULLONG_MAX;
+}
+
+static bool region_is_unaligned_mod3(struct cxl_region *cxlr)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region_params *p = &cxlr->params;
+	int hbiw = cxld->interleave_ways;
+	u64 rem;
+
+	if (is_power_of_2(hbiw))
+		return false;
+
+	div64_u64_rem(p->res->start, (u64)hbiw * SZ_256M, &rem);
+
+	return (rem != 0);
+}
+
 u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 		   u64 dpa)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_endpoint_decoder *cxled = NULL;
-	u64 dpa_offset, hpa_offset, hpa;
+	u64 base, dpa_offset, hpa_offset, hpa;
+	bool unaligned = false;
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
+
+	/*
+	 * Conversion between SPA and DPA is not supported in
+	 * Normalized Address mode.
+	 */
+	if (test_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags))
+		return ULLONG_MAX;
 
 	for (int i = 0; i < p->nr_targets; i++) {
 		if (cxlmd == cxled_to_memdev(p->targets[i])) {
@@ -3132,28 +3283,54 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	if (!cxled)
 		return ULLONG_MAX;
 
+	base = cxl_dpa_resource_start(cxled);
+	if (base == RESOURCE_SIZE_MAX)
+		return ULLONG_MAX;
+
+	dpa_offset = dpa - base;
+
+	/* Unaligned calc for MOD3 interleaves not hbiw * 256MB aligned */
+	unaligned = region_is_unaligned_mod3(cxlr);
+	if (unaligned) {
+		hpa = unaligned_dpa_to_hpa(cxld, p, cxled->pos, dpa_offset);
+		if (hpa == ULLONG_MAX)
+			return ULLONG_MAX;
+
+		goto skip_aligned;
+	}
+	/*
+	 * Aligned calc for all power-of-2 interleaves and for MOD3
+	 * interleaves that are aligned at hbiw * 256MB
+	 */
 	pos = cxled->pos;
 	ways_to_eiw(p->interleave_ways, &eiw);
 	granularity_to_eig(p->interleave_granularity, &eig);
 
-	dpa_offset = dpa - cxl_dpa_resource_start(cxled);
 	hpa_offset = cxl_calculate_hpa_offset(dpa_offset, pos, eiw, eig);
+	if (hpa_offset == ULLONG_MAX)
+		return ULLONG_MAX;
 
 	/* Apply the hpa_offset to the region base address */
-	hpa = hpa_offset + p->res->start + p->cache_size;
+	hpa = hpa_offset + p->res->start;
+
+skip_aligned:
+	hpa += p->cache_size;
 
 	/* Root decoder translation overrides typical modulo decode */
 	if (cxlrd->ops.hpa_to_spa)
 		hpa = cxlrd->ops.hpa_to_spa(cxlrd, hpa);
+
+	if (hpa == ULLONG_MAX)
+		return ULLONG_MAX;
 
 	if (!cxl_resource_contains_addr(p->res, hpa)) {
 		dev_dbg(&cxlr->dev,
 			"Addr trans fail: hpa 0x%llx not in region\n", hpa);
 		return ULLONG_MAX;
 	}
-
-	/* Simple chunk check, by pos & gran, only applies to modulo decodes */
-	if (!cxlrd->ops.hpa_to_spa && !cxl_is_hpa_in_chunk(hpa, cxlr, pos))
+	/* Chunk check applies to aligned modulo decodes only */
+	if (!unaligned && !cxlrd->ops.hpa_to_spa &&
+	    !cxl_is_hpa_in_chunk(hpa, cxlr, pos))
 		return ULLONG_MAX;
 
 	return hpa;
@@ -3164,13 +3341,57 @@ struct dpa_result {
 	u64 dpa;
 };
 
+static int unaligned_region_offset_to_dpa_result(struct cxl_region *cxlr,
+						 u64 offset,
+						 struct dpa_result *result)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region_params *p = &cxlr->params;
+	u64 interleave_width, interleave_index;
+	u64 gran, gran_offset, dpa_offset;
+	u64 hpa = p->res->start + offset;
+	u64 tmp = offset;
+
+	/*
+	 * Unaligned addresses are not algebraically invertible. Calculate
+	 * a dpa_offset independent of the target device and then enumerate
+	 * and test that dpa_offset against each candidate endpoint decoder.
+	 */
+	gran = cxld->interleave_granularity;
+	interleave_width = gran * cxld->interleave_ways;
+	interleave_index = div64_u64(offset, interleave_width);
+	gran_offset = do_div(tmp, gran);
+
+	dpa_offset = interleave_index * gran + gran_offset;
+
+	for (int i = 0; i < p->nr_targets; i++) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		int pos = cxled->pos;
+		u64 test_hpa;
+
+		test_hpa = unaligned_dpa_to_hpa(cxld, p, pos, dpa_offset);
+		if (test_hpa == hpa) {
+			result->cxlmd = cxled_to_memdev(cxled);
+			result->dpa =
+				cxl_dpa_resource_start(cxled) + dpa_offset;
+			return 0;
+		}
+	}
+	dev_err(&cxlr->dev,
+		"failed to resolve HPA %#llx in unaligned MOD3 region\n", hpa);
+
+	return -ENXIO;
+}
+
 static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 				       struct dpa_result *result)
 {
 	struct cxl_region_params *p = &cxlr->params;
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_endpoint_decoder *cxled;
-	u64 hpa, hpa_offset, dpa_offset;
+	u64 hpa_offset = offset;
+	u64 dpa, dpa_offset;
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
@@ -3187,11 +3408,18 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	 * CXL HPA is assumed to equal SPA.
 	 */
 	if (cxlrd->ops.spa_to_hpa) {
-		hpa = cxlrd->ops.spa_to_hpa(cxlrd, p->res->start + offset);
-		hpa_offset = hpa - p->res->start;
-	} else {
-		hpa_offset = offset;
+		hpa_offset = cxlrd->ops.spa_to_hpa(cxlrd, p->res->start + offset);
+		if (hpa_offset == ULLONG_MAX) {
+			dev_dbg(&cxlr->dev, "HPA not found for %pr offset %#llx\n",
+				p->res, offset);
+			return -ENXIO;
+		}
+		hpa_offset -= p->res->start;
 	}
+
+	if (region_is_unaligned_mod3(cxlr))
+		return unaligned_region_offset_to_dpa_result(cxlr, offset,
+							     result);
 
 	pos = cxl_calculate_position(hpa_offset, eiw, eig);
 	if (pos < 0 || pos >= p->nr_targets) {
@@ -3207,8 +3435,13 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 		cxled = p->targets[i];
 		if (cxled->pos != pos)
 			continue;
+
+		dpa = cxl_dpa_resource_start(cxled);
+		if (dpa != RESOURCE_SIZE_MAX)
+			dpa += dpa_offset;
+
 		result->cxlmd = cxled_to_memdev(cxled);
-		result->dpa = cxl_dpa_resource_start(cxled) + dpa_offset;
+		result->dpa = dpa;
 
 		return 0;
 	}
@@ -3231,7 +3464,7 @@ static int cxl_pmem_region_alloc(struct cxl_region *cxlr)
 		return -ENXIO;
 
 	struct cxl_pmem_region *cxlr_pmem __free(kfree) =
-		kzalloc(struct_size(cxlr_pmem, mapping, p->nr_targets), GFP_KERNEL);
+		kzalloc_flex(*cxlr_pmem, mapping, p->nr_targets);
 	if (!cxlr_pmem)
 		return -ENOMEM;
 
@@ -3319,7 +3552,7 @@ static struct cxl_dax_region *cxl_dax_region_alloc(struct cxl_region *cxlr)
 	if (p->state != CXL_CONFIG_COMMIT)
 		return ERR_PTR(-ENXIO);
 
-	cxlr_dax = kzalloc(sizeof(*cxlr_dax), GFP_KERNEL);
+	cxlr_dax = kzalloc_obj(*cxlr_dax);
 	if (!cxlr_dax)
 		return ERR_PTR(-ENOMEM);
 
@@ -3460,47 +3693,68 @@ err:
 	return rc;
 }
 
-static int match_decoder_by_range(struct device *dev, const void *data)
+static int match_root_decoder(struct device *dev, const void *data)
 {
 	const struct range *r1, *r2 = data;
-	struct cxl_decoder *cxld;
+	struct cxl_root_decoder *cxlrd;
 
-	if (!is_switch_decoder(dev))
+	if (!is_root_decoder(dev))
 		return 0;
 
-	cxld = to_cxl_decoder(dev);
-	r1 = &cxld->hpa_range;
+	cxlrd = to_cxl_root_decoder(dev);
+	r1 = &cxlrd->cxlsd.cxld.hpa_range;
+
 	return range_contains(r1, r2);
 }
 
-static struct cxl_decoder *
-cxl_port_find_switch_decoder(struct cxl_port *port, struct range *hpa)
+static int cxl_root_setup_translation(struct cxl_root *cxl_root,
+				      struct cxl_region_context *ctx)
 {
-	struct device *cxld_dev = device_find_child(&port->dev, hpa,
-						    match_decoder_by_range);
+	if (!cxl_root->ops.translation_setup_root)
+		return 0;
 
-	return cxld_dev ? to_cxl_decoder(cxld_dev) : NULL;
+	return cxl_root->ops.translation_setup_root(cxl_root, ctx);
 }
 
+/*
+ * Note, when finished with the device, drop the reference with
+ * put_device() or use the put_cxl_root_decoder helper.
+ */
 static struct cxl_root_decoder *
-cxl_find_root_decoder(struct cxl_endpoint_decoder *cxled)
+get_cxl_root_decoder(struct cxl_endpoint_decoder *cxled,
+		     struct cxl_region_context *ctx)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_port *port = cxled_to_port(cxled);
 	struct cxl_root *cxl_root __free(put_cxl_root) = find_cxl_root(port);
-	struct cxl_decoder *root, *cxld = &cxled->cxld;
-	struct range *hpa = &cxld->hpa_range;
+	struct device *cxlrd_dev;
+	int rc;
 
-	root = cxl_port_find_switch_decoder(&cxl_root->port, hpa);
-	if (!root) {
+	/*
+	 * Adjust the endpoint's HPA range and interleaving
+	 * configuration to the root decoder’s memory space before
+	 * setting up the root decoder.
+	 */
+	rc = cxl_root_setup_translation(cxl_root, ctx);
+	if (rc) {
 		dev_err(cxlmd->dev.parent,
-			"%s:%s no CXL window for range %#llx:%#llx\n",
-			dev_name(&cxlmd->dev), dev_name(&cxld->dev),
-			cxld->hpa_range.start, cxld->hpa_range.end);
-		return NULL;
+			"%s:%s Failed to setup translation for address range %#llx:%#llx\n",
+			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
+			ctx->hpa_range.start, ctx->hpa_range.end);
+		return ERR_PTR(rc);
 	}
 
-	return to_cxl_root_decoder(&root->dev);
+	cxlrd_dev = device_find_child(&cxl_root->port.dev, &ctx->hpa_range,
+				      match_root_decoder);
+	if (!cxlrd_dev) {
+		dev_err(cxlmd->dev.parent,
+			"%s:%s no CXL window for range %#llx:%#llx\n",
+			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
+			ctx->hpa_range.start, ctx->hpa_range.end);
+		return ERR_PTR(-ENXIO);
+	}
+
+	return to_cxl_root_decoder(cxlrd_dev);
 }
 
 static int match_region_by_range(struct device *dev, const void *data)
@@ -3522,7 +3776,7 @@ static int match_region_by_range(struct device *dev, const void *data)
 static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
 					    struct resource *res)
 {
-	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_region_params *p = &cxlr->params;
 	resource_size_t size = resource_size(res);
 	resource_size_t cache_size, start;
@@ -3558,11 +3812,12 @@ static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
 }
 
 static int __construct_region(struct cxl_region *cxlr,
-			      struct cxl_root_decoder *cxlrd,
-			      struct cxl_endpoint_decoder *cxled)
+			      struct cxl_region_context *ctx)
 {
+	struct cxl_endpoint_decoder *cxled = ctx->cxled;
+	struct cxl_root_decoder *cxlrd = cxlr->cxlrd;
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-	struct range *hpa = &cxled->cxld.hpa_range;
+	struct range *hpa_range = &ctx->hpa_range;
 	struct cxl_region_params *p;
 	struct resource *res;
 	int rc;
@@ -3578,12 +3833,13 @@ static int __construct_region(struct cxl_region *cxlr,
 	}
 
 	set_bit(CXL_REGION_F_AUTO, &cxlr->flags);
+	cxlr->hpa_range = *hpa_range;
 
-	res = kmalloc(sizeof(*res), GFP_KERNEL);
+	res = kmalloc_obj(*res);
 	if (!res)
 		return -ENOMEM;
 
-	*res = DEFINE_RES_MEM_NAMED(hpa->start, range_len(hpa),
+	*res = DEFINE_RES_MEM_NAMED(hpa_range->start, range_len(hpa_range),
 				    dev_name(&cxlr->dev));
 
 	rc = cxl_extended_linear_cache_resize(cxlr, res);
@@ -3614,8 +3870,8 @@ static int __construct_region(struct cxl_region *cxlr,
 	}
 
 	p->res = res;
-	p->interleave_ways = cxled->cxld.interleave_ways;
-	p->interleave_granularity = cxled->cxld.interleave_granularity;
+	p->interleave_ways = ctx->interleave_ways;
+	p->interleave_granularity = ctx->interleave_granularity;
 	p->state = CXL_CONFIG_INTERLEAVE_ACTIVE;
 
 	rc = sysfs_update_group(&cxlr->dev.kobj, get_cxl_region_target_group());
@@ -3635,8 +3891,9 @@ static int __construct_region(struct cxl_region *cxlr,
 
 /* Establish an empty region covering the given HPA range */
 static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
-					   struct cxl_endpoint_decoder *cxled)
+					   struct cxl_region_context *ctx)
 {
+	struct cxl_endpoint_decoder *cxled = ctx->cxled;
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_port *port = cxlrd_to_port(cxlrd);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
@@ -3656,7 +3913,7 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 		return cxlr;
 	}
 
-	rc = __construct_region(cxlr, cxlrd, cxled);
+	rc = __construct_region(cxlr, ctx);
 	if (rc) {
 		devm_release_action(port->uport_dev, unregister_region, cxlr);
 		return ERR_PTR(rc);
@@ -3666,11 +3923,12 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 }
 
 static struct cxl_region *
-cxl_find_region_by_range(struct cxl_root_decoder *cxlrd, struct range *hpa)
+cxl_find_region_by_range(struct cxl_root_decoder *cxlrd,
+			 struct range *hpa_range)
 {
 	struct device *region_dev;
 
-	region_dev = device_find_child(&cxlrd->cxlsd.cxld.dev, hpa,
+	region_dev = device_find_child(&cxlrd->cxlsd.cxld.dev, hpa_range,
 				       match_region_by_range);
 	if (!region_dev)
 		return NULL;
@@ -3680,25 +3938,34 @@ cxl_find_region_by_range(struct cxl_root_decoder *cxlrd, struct range *hpa)
 
 int cxl_add_to_region(struct cxl_endpoint_decoder *cxled)
 {
-	struct range *hpa = &cxled->cxld.hpa_range;
+	struct cxl_region_context ctx;
 	struct cxl_region_params *p;
 	bool attach = false;
 	int rc;
 
+	ctx = (struct cxl_region_context) {
+		.cxled = cxled,
+		.hpa_range = cxled->cxld.hpa_range,
+		.interleave_ways = cxled->cxld.interleave_ways,
+		.interleave_granularity = cxled->cxld.interleave_granularity,
+	};
+
 	struct cxl_root_decoder *cxlrd __free(put_cxl_root_decoder) =
-		cxl_find_root_decoder(cxled);
-	if (!cxlrd)
-		return -ENXIO;
+		get_cxl_root_decoder(cxled, &ctx);
+
+	if (IS_ERR(cxlrd))
+		return PTR_ERR(cxlrd);
 
 	/*
-	 * Ensure that if multiple threads race to construct_region() for @hpa
-	 * one does the construction and the others add to that.
+	 * Ensure that, if multiple threads race to construct_region()
+	 * for the HPA range, one does the construction and the others
+	 * add to that.
 	 */
 	mutex_lock(&cxlrd->range_lock);
 	struct cxl_region *cxlr __free(put_cxl_region) =
-		cxl_find_region_by_range(cxlrd, hpa);
+		cxl_find_region_by_range(cxlrd, &ctx.hpa_range);
 	if (!cxlr)
-		cxlr = construct_region(cxlrd, cxled);
+		cxlr = construct_region(cxlrd, &ctx);
 	mutex_unlock(&cxlrd->range_lock);
 
 	rc = PTR_ERR_OR_ZERO(cxlr);
@@ -3873,6 +4140,39 @@ static int cxl_region_debugfs_poison_clear(void *data, u64 offset)
 DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
 			 cxl_region_debugfs_poison_clear, "%llx\n");
 
+static int cxl_region_setup_poison(struct cxl_region *cxlr)
+{
+	struct device *dev = &cxlr->dev;
+	struct cxl_region_params *p = &cxlr->params;
+	struct dentry *dentry;
+
+	/*
+	 * Do not enable poison injection in Normalized Address mode.
+	 * Conversion between SPA and DPA is required for this, but it is
+	 * not supported in this mode.
+	 */
+	if (test_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags))
+		return 0;
+
+	/* Create poison attributes if all memdevs support the capabilities */
+	for (int i = 0; i < p->nr_targets; i++) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+
+		if (!cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_INJECT) ||
+		    !cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_CLEAR))
+			return 0;
+	}
+
+	dentry = cxl_debugfs_create_dir(dev_name(dev));
+	debugfs_create_file("inject_poison", 0200, dentry, cxlr,
+			    &cxl_poison_inject_fops);
+	debugfs_create_file("clear_poison", 0200, dentry, cxlr,
+			    &cxl_poison_clear_fops);
+
+	return devm_add_action_or_reset(dev, remove_debugfs, dentry);
+}
+
 static int cxl_region_can_probe(struct cxl_region *cxlr)
 {
 	struct cxl_region_params *p = &cxlr->params;
@@ -3902,7 +4202,6 @@ static int cxl_region_probe(struct device *dev)
 {
 	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
-	bool poison_supported = true;
 	int rc;
 
 	rc = cxl_region_can_probe(cxlr);
@@ -3926,30 +4225,9 @@ static int cxl_region_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	/* Create poison attributes if all memdevs support the capabilities */
-	for (int i = 0; i < p->nr_targets; i++) {
-		struct cxl_endpoint_decoder *cxled = p->targets[i];
-		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-
-		if (!cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_INJECT) ||
-		    !cxl_memdev_has_poison_cmd(cxlmd, CXL_POISON_ENABLED_CLEAR)) {
-			poison_supported = false;
-			break;
-		}
-	}
-
-	if (poison_supported) {
-		struct dentry *dentry;
-
-		dentry = cxl_debugfs_create_dir(dev_name(dev));
-		debugfs_create_file("inject_poison", 0200, dentry, cxlr,
-				    &cxl_poison_inject_fops);
-		debugfs_create_file("clear_poison", 0200, dentry, cxlr,
-				    &cxl_poison_clear_fops);
-		rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
-		if (rc)
-			return rc;
-	}
+	rc = cxl_region_setup_poison(cxlr);
+	if (rc)
+		return rc;
 
 	switch (cxlr->mode) {
 	case CXL_PARTMODE_PMEM:

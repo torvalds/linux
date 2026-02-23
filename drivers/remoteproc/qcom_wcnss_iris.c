@@ -125,7 +125,7 @@ struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo)
 		return ERR_PTR(-EINVAL);
 	}
 
-	iris = kzalloc(sizeof(*iris), GFP_KERNEL);
+	iris = kzalloc_obj(*iris);
 	if (!iris) {
 		of_node_put(of_node);
 		return ERR_PTR(-ENOMEM);

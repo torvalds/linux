@@ -205,7 +205,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 
 	lockdep_assert_held(&sdei_events_lock);
 
-	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	event = kzalloc_obj(*event);
 	if (!event) {
 		err = -ENOMEM;
 		goto fail;
@@ -227,7 +227,7 @@ static struct sdei_event *sdei_event_create(u32 event_num,
 	event->type = result;
 
 	if (event->type == SDEI_EVENT_TYPE_SHARED) {
-		reg = kzalloc(sizeof(*reg), GFP_KERNEL);
+		reg = kzalloc_obj(*reg);
 		if (!reg) {
 			err = -ENOMEM;
 			goto fail;

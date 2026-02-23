@@ -4,6 +4,7 @@ config MIPS
 	default y
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_CURRENT_STACK_POINTER
@@ -99,6 +100,7 @@ config MIPS
 	select IRQ_FORCED_THREADING
 	select ISA if EISA
 	select LOCK_MM_AND_FIND_VMA
+	select MMU_GATHER_RCU_TABLE_FREE
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select PERF_USE_VMALLOC
@@ -1408,7 +1410,6 @@ config CPU_LOONGSON32
 	select CPU_MIPS32
 	select CPU_MIPSR2
 	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_CPUFREQ
@@ -3125,6 +3126,33 @@ config CC_HAS_MNO_BRANCH_LIKELY
 # https://github.com/llvm/llvm-project/issues/61045
 config CC_HAS_BROKEN_INLINE_COMPAT_BRANCH
 	def_bool y if CC_IS_CLANG
+
+config ARCH_CC_CAN_LINK_N32
+	bool
+	default $(cc_can_link_user,-mabi=n32 -EL) if MIPS32_N32 && CPU_LITTLE_ENDIAN
+	default $(cc_can_link_user,-mabi=n32 -EB) if MIPS32_N32 && CPU_BIG_ENDIAN
+
+config ARCH_CC_CAN_LINK_N64
+	bool
+	default $(cc_can_link_user,-mabi=64 -EL) if 64BIT && CPU_LITTLE_ENDIAN
+	default $(cc_can_link_user,-mabi=64 -EB) if 64BIT && CPU_BIG_ENDIAN
+
+config ARCH_CC_CAN_LINK_O32
+	bool
+	default $(cc_can_link_user,-mabi=32 -EL) if (32BIT || MIPS32_O32) && CPU_LITTLE_ENDIAN
+	default $(cc_can_link_user,-mabi=32 -EB) if (32BIT || MIPS32_O32) && CPU_BIG_ENDIAN
+
+config ARCH_CC_CAN_LINK
+	def_bool ARCH_CC_CAN_LINK_N32 || ARCH_CC_CAN_LINK_N64 || ARCH_CC_CAN_LINK_O32
+
+config ARCH_USERFLAGS
+	string
+	default "-mabi=n32 -EL" if ARCH_CC_CAN_LINK_N32 && CPU_LITTLE_ENDIAN
+	default "-mabi=n32 -EB" if ARCH_CC_CAN_LINK_N32 && CPU_BIG_ENDIAN
+	default "-mabi=64 -EL" if ARCH_CC_CAN_LINK_N64 && CPU_LITTLE_ENDIAN
+	default "-mabi=64 -EB" if ARCH_CC_CAN_LINK_N64 && CPU_BIG_ENDIAN
+	default "-mabi=32 -EL" if ARCH_CC_CAN_LINK_O32 && CPU_LITTLE_ENDIAN
+	default "-mabi=32 -EB" if ARCH_CC_CAN_LINK_O32 && CPU_BIG_ENDIAN
 
 menu "Power management options"
 

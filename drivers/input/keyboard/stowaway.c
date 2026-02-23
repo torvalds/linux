@@ -72,7 +72,7 @@ static int skbd_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	skbd = kzalloc(sizeof(*skbd), GFP_KERNEL);
+	skbd = kzalloc_obj(*skbd);
 	input_dev = input_allocate_device();
 	if (!skbd || !input_dev)
 		goto fail1;

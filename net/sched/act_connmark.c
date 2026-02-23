@@ -121,7 +121,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	if (!tb[TCA_CONNMARK_PARMS])
 		return -EINVAL;
 
-	nparms = kzalloc(sizeof(*nparms), GFP_KERNEL);
+	nparms = kzalloc_obj(*nparms);
 	if (!nparms)
 		return -ENOMEM;
 

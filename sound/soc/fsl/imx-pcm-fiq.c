@@ -176,7 +176,7 @@ static int snd_imx_open(struct snd_soc_component *component,
 	struct imx_pcm_runtime_data *iprtd;
 	int ret;
 
-	iprtd = kzalloc(sizeof(*iprtd), GFP_KERNEL);
+	iprtd = kzalloc_obj(*iprtd);
 	if (iprtd == NULL)
 		return -ENOMEM;
 	runtime->private_data = iprtd;

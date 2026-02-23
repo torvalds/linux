@@ -315,8 +315,8 @@ issue_sc_end:
  * Routine to send a scsi cdb to LLD
  * Called with host_lock held and interrupts disabled
  */
-int
-snic_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc)
+enum scsi_qc_status snic_queuecommand(struct Scsi_Host *shost,
+				      struct scsi_cmnd *sc)
 {
 	struct snic_tgt *tgt = NULL;
 	struct snic *snic = shost_priv(shost);

@@ -275,8 +275,8 @@ static inline bool has_tx_length_quirk(struct snd_usb_audio *chip)
 	return chip->quirk_flags & QUIRK_FLAG_TX_LENGTH;
 }
 
-static void prepare_silent_urb(struct snd_usb_endpoint *ep,
-			       struct snd_urb_ctx *ctx)
+static int prepare_silent_urb(struct snd_usb_endpoint *ep,
+			      struct snd_urb_ctx *ctx)
 {
 	struct urb *urb = ctx->urb;
 	unsigned int offs = 0;
@@ -289,28 +289,34 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 		extra = sizeof(packet_length);
 
 	for (i = 0; i < ctx->packets; ++i) {
-		unsigned int offset;
-		unsigned int length;
-		int counts;
+		int length;
 
-		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i, 0);
-		length = counts * ep->stride; /* number of silent bytes */
-		offset = offs * ep->stride + extra * i;
-		urb->iso_frame_desc[i].offset = offset;
+		length = snd_usb_endpoint_next_packet_size(ep, ctx, i, 0);
+		if (length < 0)
+			return length;
+		length *= ep->stride; /* number of silent bytes */
+		if (offs + length + extra > ctx->buffer_size)
+			break;
+		urb->iso_frame_desc[i].offset = offs;
 		urb->iso_frame_desc[i].length = length + extra;
 		if (extra) {
 			packet_length = cpu_to_le32(length);
-			memcpy(urb->transfer_buffer + offset,
+			memcpy(urb->transfer_buffer + offs,
 			       &packet_length, sizeof(packet_length));
+			offs += extra;
 		}
-		memset(urb->transfer_buffer + offset + extra,
+		memset(urb->transfer_buffer + offs,
 		       ep->silence_value, length);
-		offs += counts;
+		offs += length;
 	}
 
-	urb->number_of_packets = ctx->packets;
-	urb->transfer_buffer_length = offs * ep->stride + ctx->packets * extra;
+	if (!offs)
+		return -EPIPE;
+
+	urb->number_of_packets = i;
+	urb->transfer_buffer_length = offs;
 	ctx->queued = 0;
+	return 0;
 }
 
 /*
@@ -332,8 +338,7 @@ static int prepare_outbound_urb(struct snd_usb_endpoint *ep,
 		if (data_subs && ep->prepare_data_urb)
 			return ep->prepare_data_urb(data_subs, urb, in_stream_lock);
 		/* no data provider, so send silence */
-		prepare_silent_urb(ep, ctx);
-		break;
+		return prepare_silent_urb(ep, ctx);
 
 	case SND_USB_ENDPOINT_TYPE_SYNC:
 		if (snd_usb_get_speed(ep->chip->dev) >= USB_SPEED_HIGH) {
@@ -397,18 +402,21 @@ static int prepare_inbound_urb(struct snd_usb_endpoint *ep,
 }
 
 /* notify an error as XRUN to the assigned PCM data substream */
-static void notify_xrun(struct snd_usb_endpoint *ep)
+static bool notify_xrun(struct snd_usb_endpoint *ep)
 {
 	struct snd_usb_substream *data_subs;
 	struct snd_pcm_substream *psubs;
 
 	data_subs = READ_ONCE(ep->data_subs);
 	if (!data_subs)
-		return;
+		return false;
 	psubs = data_subs->pcm_substream;
 	if (psubs && psubs->runtime &&
-	    psubs->runtime->state == SNDRV_PCM_STATE_RUNNING)
+	    psubs->runtime->state == SNDRV_PCM_STATE_RUNNING) {
 		snd_pcm_stop_xrun(psubs);
+		return true;
+	}
+	return false;
 }
 
 static struct snd_usb_packet_info *
@@ -462,7 +470,7 @@ int snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 	while (ep_state_running(ep)) {
 		struct snd_usb_packet_info *packet;
 		struct snd_urb_ctx *ctx = NULL;
-		int err, i;
+		int err;
 
 		scoped_guard(spinlock_irqsave, &ep->lock) {
 			if ((!implicit_fb || ep->next_packet_queued > 0) &&
@@ -481,8 +489,9 @@ int snd_usb_queue_pending_output_urbs(struct snd_usb_endpoint *ep,
 
 		/* copy over the length information */
 		if (implicit_fb) {
-			for (i = 0; i < packet->packets; i++)
-				ctx->packet_size[i] = packet->packet_size[i];
+			ctx->packets = packet->packets;
+			memcpy(ctx->packet_size, packet->packet_size,
+			       packet->packets * sizeof(packet->packet_size[0]));
 		}
 
 		/* call the data handler to fill in playback data */
@@ -588,8 +597,9 @@ static void snd_complete_urb(struct urb *urb)
 		return;
 
 	if (!atomic_read(&ep->chip->shutdown)) {
-		usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
-		notify_xrun(ep);
+		if (notify_xrun(ep))
+			usb_audio_err(ep->chip,
+				      "cannot submit urb (err = %d)\n", err);
 	}
 
 exit_clear:
@@ -611,7 +621,7 @@ iface_ref_find(struct snd_usb_audio *chip, int iface)
 		if (ip->iface == iface)
 			return ip;
 
-	ip = kzalloc(sizeof(*ip), GFP_KERNEL);
+	ip = kzalloc_obj(*ip);
 	if (!ip)
 		return NULL;
 	ip->iface = iface;
@@ -629,7 +639,7 @@ clock_ref_find(struct snd_usb_audio *chip, int clock)
 		if (ref->clock == clock)
 			return ref;
 
-	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+	ref = kzalloc_obj(*ref);
 	if (!ref)
 		return NULL;
 	ref->clock = clock;
@@ -688,7 +698,7 @@ int snd_usb_add_endpoint(struct snd_usb_audio *chip, int ep_num, int type)
 	usb_audio_dbg(chip, "Creating new %s endpoint #%x\n",
 		      ep_type_name(type),
 		      ep_num);
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (!ep)
 		return -ENOMEM;
 
@@ -1773,10 +1783,11 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 		spin_lock_irqsave(&ep->lock, flags);
 		if (ep->next_packet_queued >= ARRAY_SIZE(ep->next_packet)) {
 			spin_unlock_irqrestore(&ep->lock, flags);
-			usb_audio_err(ep->chip,
-				      "next package FIFO overflow EP 0x%x\n",
-				      ep->ep_num);
-			notify_xrun(ep);
+			if (notify_xrun(ep)) {
+				usb_audio_err(ep->chip,
+					      "next packet FIFO overflow EP 0x%x\n",
+					      ep->ep_num);
+			}
 			return;
 		}
 

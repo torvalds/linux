@@ -44,6 +44,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/string.h>

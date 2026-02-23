@@ -13,7 +13,7 @@ static int nvme_set_max_append(struct nvme_ctrl *ctrl)
 	struct nvme_id_ctrl_zns *id;
 	int status;
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 
@@ -64,7 +64,7 @@ int nvme_query_zone_info(struct nvme_ns *ns, unsigned lbaf,
 			return status;
 	}
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	id = kzalloc_obj(*id);
 	if (!id)
 		return -ENOMEM;
 

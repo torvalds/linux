@@ -451,6 +451,7 @@ bool intel_phy_is_combo(struct intel_display *display, enum phy phy);
 bool intel_phy_is_tc(struct intel_display *display, enum phy phy);
 bool intel_phy_is_snps(struct intel_display *display, enum phy phy);
 enum tc_port intel_port_to_tc(struct intel_display *display, enum port port);
+enum tc_port intel_tc_phy_port_to_tc(struct intel_display *display, enum port port);
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder);
 bool intel_encoder_is_combo(struct intel_encoder *encoder);

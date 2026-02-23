@@ -308,7 +308,7 @@ static int __br_netpoll_enable(struct net_bridge_port *p)
 	struct netpoll *np;
 	int err;
 
-	np = kzalloc(sizeof(*p->np), GFP_KERNEL);
+	np = kzalloc_obj(*p->np);
 	if (!np)
 		return -ENOMEM;
 

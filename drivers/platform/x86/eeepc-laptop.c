@@ -1366,7 +1366,7 @@ static int eeepc_acpi_add(struct acpi_device *device)
 	int result;
 
 	pr_notice(EEEPC_LAPTOP_NAME "\n");
-	eeepc = kzalloc(sizeof(struct eeepc_laptop), GFP_KERNEL);
+	eeepc = kzalloc_obj(struct eeepc_laptop);
 	if (!eeepc)
 		return -ENOMEM;
 	eeepc->handle = device->handle;

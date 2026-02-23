@@ -535,7 +535,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 
 	/* allocate urb array */
 	priv->num_urbs = num_urbs;
-	priv->urbs = kmalloc_array(num_urbs, sizeof(*priv->urbs), GFP_KERNEL);
+	priv->urbs = kmalloc_objs(*priv->urbs, num_urbs);
 	if (!priv->urbs)
 		goto err_urbs;
 

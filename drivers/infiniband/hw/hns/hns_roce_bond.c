@@ -253,7 +253,7 @@ static struct hns_roce_die_info *alloc_die_info(int bus_num)
 	struct hns_roce_die_info *die_info;
 	int ret;
 
-	die_info = kzalloc(sizeof(*die_info), GFP_KERNEL);
+	die_info = kzalloc_obj(*die_info);
 	if (!die_info)
 		return NULL;
 
@@ -855,7 +855,7 @@ int hns_roce_alloc_bond_grp(struct hns_roce_dev *hr_dev)
 		return 0;
 
 	for (i = 0; i < ROCE_BOND_NUM_MAX; i++) {
-		bond_grp = kvzalloc(sizeof(*bond_grp), GFP_KERNEL);
+		bond_grp = kvzalloc_obj(*bond_grp);
 		if (!bond_grp) {
 			ret = -ENOMEM;
 			goto mem_err;

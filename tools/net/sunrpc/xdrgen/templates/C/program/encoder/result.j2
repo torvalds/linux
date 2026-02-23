@@ -14,8 +14,14 @@ bool {{ program }}_svc_encode_{{ result }}(struct svc_rqst *rqstp, struct xdr_st
 {% if result == 'void' %}
 	return xdrgen_encode_void(xdr);
 {% else %}
+{% if result in structs %}
 	struct {{ result }} *resp = rqstp->rq_resp;
 
 	return xdrgen_encode_{{ result }}(xdr, resp);
+{% else %}
+	{{ result }} *resp = rqstp->rq_resp;
+
+	return xdrgen_encode_{{ result }}(xdr, *resp);
+{% endif %}
 {% endif %}
 }

@@ -201,7 +201,7 @@ struct vdoa_ctx *vdoa_context_create(struct vdoa_data *vdoa)
 	struct vdoa_ctx *ctx;
 	int err;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc_obj(*ctx);
 	if (!ctx)
 		return NULL;
 

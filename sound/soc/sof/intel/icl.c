@@ -122,7 +122,7 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_fw_data *ipc4_data;
 
-		sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
+		sdev->private = kzalloc_obj(*ipc4_data);
 		if (!sdev->private)
 			return -ENOMEM;
 

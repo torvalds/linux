@@ -764,7 +764,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 		return -EEXIST;
 	}
 
-	adbhid[id] = hid = kzalloc(sizeof(struct adbhid), GFP_KERNEL);
+	adbhid[id] = hid = kzalloc_obj(struct adbhid);
 	input_dev = input_allocate_device();
 	if (!hid || !input_dev) {
 		err = -ENOMEM;

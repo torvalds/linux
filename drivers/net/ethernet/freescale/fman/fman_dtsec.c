@@ -1055,7 +1055,7 @@ static int dtsec_add_hash_mac_address(struct fman_mac *dtsec,
 	set_bucket(dtsec->regs, bucket, true);
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
+	hash_entry = kmalloc_obj(*hash_entry, GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -1348,12 +1348,12 @@ static struct fman_mac *dtsec_config(struct mac_device *mac_dev,
 	struct dtsec_cfg *dtsec_drv_param;
 
 	/* allocate memory for the UCC GETH data structure. */
-	dtsec = kzalloc(sizeof(*dtsec), GFP_KERNEL);
+	dtsec = kzalloc_obj(*dtsec);
 	if (!dtsec)
 		return NULL;
 
 	/* allocate memory for the d_tsec driver parameters data structure. */
-	dtsec_drv_param = kzalloc(sizeof(*dtsec_drv_param), GFP_KERNEL);
+	dtsec_drv_param = kzalloc_obj(*dtsec_drv_param);
 	if (!dtsec_drv_param)
 		goto err_dtsec;
 

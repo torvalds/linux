@@ -87,12 +87,13 @@
 			};
 		};
 
-		base_fpga_region {
+		base_fpga_region: fpga-region {
 			compatible = "fpga-region";
 			fpga-mgr = <&fpgamgr0>;
 
 			#address-cells = <0x1>;
 			#size-cells = <0x1>;
+			ranges;
 		};
 
 		can0: can@ffc00000 {
@@ -785,6 +786,9 @@
 		ocram: sram@ffff0000 {
 			compatible = "mmio-sram";
 			reg = <0xffff0000 0x10000>;
+			#address-cells = <0x1>;
+			#size-cells = <0x1>;
+			ranges;
 		};
 
 		qspi: spi@ff705000 {

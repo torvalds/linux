@@ -232,7 +232,7 @@ static ssize_t lbs_threshold_read(uint16_t tlv_type, uint16_t event_mask,
 	if (!buf)
 		return -ENOMEM;
 
-	subscribed = kzalloc(sizeof(*subscribed), GFP_KERNEL);
+	subscribed = kzalloc_obj(*subscribed);
 	if (!subscribed) {
 		ret = -ENOMEM;
 		goto out_page;
@@ -288,7 +288,7 @@ static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
 		ret = -EINVAL;
 		goto out_page;
 	}
-	events = kzalloc(sizeof(*events), GFP_KERNEL);
+	events = kzalloc_obj(*events);
 	if (!events) {
 		ret = -ENOMEM;
 		goto out_page;

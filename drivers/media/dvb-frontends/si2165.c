@@ -1158,7 +1158,7 @@ static int si2165_probe(struct i2c_client *client)
 	};
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc_obj(*state);
 	if (!state) {
 		ret = -ENOMEM;
 		goto error;

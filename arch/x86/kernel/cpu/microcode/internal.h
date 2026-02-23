@@ -48,6 +48,7 @@ extern struct early_load_data early_data;
 extern struct ucode_cpu_info ucode_cpu_info[];
 extern u32 microcode_rev[NR_CPUS];
 extern u32 base_rev;
+extern bool hypervisor_present;
 
 struct cpio_data find_microcode_in_initrd(const char *path);
 

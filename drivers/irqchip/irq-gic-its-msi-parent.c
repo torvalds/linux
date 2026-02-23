@@ -19,18 +19,24 @@
 				 MSI_FLAG_PCI_MSIX      |	\
 				 MSI_FLAG_MULTI_PCI_MSI)
 
-static int its_translate_frame_address(struct device_node *msi_node, phys_addr_t *pa)
+static int its_translate_frame_address(struct fwnode_handle *msi_node, phys_addr_t *pa)
 {
 	struct resource res;
 	int ret;
 
-	ret = of_property_match_string(msi_node, "reg-names", "ns-translate");
-	if (ret < 0)
-		return ret;
+	if (is_of_node(msi_node)) {
+		struct device_node *msi_np = to_of_node(msi_node);
 
-	ret = of_address_to_resource(msi_node, ret, &res);
-	if (ret)
-		return ret;
+		ret = of_property_match_string(msi_np, "reg-names", "ns-translate");
+		if (ret < 0)
+			return ret;
+
+		ret = of_address_to_resource(msi_np, ret, &res);
+		if (ret)
+			return ret;
+	} else {
+		ret = iort_its_translate_pa(msi_node, &res.start);
+	}
 
 	*pa = res.start;
 	return 0;
@@ -104,7 +110,7 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 static int its_v5_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 				  int nvec, msi_alloc_info_t *info)
 {
-	struct device_node *msi_node = NULL;
+	struct fwnode_handle *msi_node = NULL;
 	struct msi_domain_info *msi_info;
 	struct pci_dev *pdev;
 	phys_addr_t pa;
@@ -116,7 +122,7 @@ static int its_v5_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 
 	pdev = to_pci_dev(dev);
 
-	rid = pci_msi_map_rid_ctlr_node(pdev, &msi_node);
+	rid = pci_msi_map_rid_ctlr_node(domain->parent, pdev, &msi_node);
 	if (!msi_node)
 		return -ENODEV;
 
@@ -124,7 +130,7 @@ static int its_v5_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 	if (ret)
 		return -ENODEV;
 
-	of_node_put(msi_node);
+	fwnode_handle_put(msi_node);
 
 	/* ITS specific DeviceID */
 	info->scratchpad[0].ul = rid;
@@ -161,7 +167,7 @@ static int of_pmsi_get_msi_info(struct irq_domain *domain, struct device *dev, u
 				ret = -EINVAL;
 
 			if (!ret && pa)
-				ret = its_translate_frame_address(it.node, pa);
+				ret = its_translate_frame_address(of_fwnode_handle(it.node), pa);
 
 			if (!ret)
 				*dev_id = args;
@@ -176,11 +182,6 @@ static int of_pmsi_get_msi_info(struct irq_domain *domain, struct device *dev, u
 	return of_map_id(dev->of_node, dev->id, "msi-map", "msi-map-mask", &msi_ctrl, dev_id);
 }
 
-int __weak iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
-{
-	return -1;
-}
-
 static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 			    int nvec, msi_alloc_info_t *info)
 {
@@ -191,7 +192,7 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 	if (dev->of_node)
 		ret = of_pmsi_get_msi_info(domain->parent, dev, &dev_id, NULL);
 	else
-		ret = iort_pmsi_get_dev_id(dev, &dev_id);
+		ret = iort_pmsi_get_msi_info(dev, &dev_id, NULL);
 	if (ret)
 		return ret;
 
@@ -214,10 +215,10 @@ static int its_v5_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 	u32 dev_id;
 	int ret;
 
-	if (!dev->of_node)
-		return -ENODEV;
-
-	ret = of_pmsi_get_msi_info(domain->parent, dev, &dev_id, &pa);
+	if (dev->of_node)
+		ret = of_pmsi_get_msi_info(domain->parent, dev, &dev_id, &pa);
+	else
+		ret = iort_pmsi_get_msi_info(dev, &dev_id, &pa);
 	if (ret)
 		return ret;
 

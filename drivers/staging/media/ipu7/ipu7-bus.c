@@ -89,7 +89,7 @@ ipu7_bus_initialize_device(struct pci_dev *pdev, struct device *parent,
 	struct ipu7_device *isp = pci_get_drvdata(pdev);
 	int ret;
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
+	adev = kzalloc_obj(*adev);
 	if (!adev)
 		return ERR_PTR(-ENOMEM);
 

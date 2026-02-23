@@ -160,7 +160,7 @@ void pci_rcec_init(struct pci_dev *dev)
 	if (!rcec)
 		return;
 
-	rcec_ea = kzalloc(sizeof(*rcec_ea), GFP_KERNEL);
+	rcec_ea = kzalloc_obj(*rcec_ea);
 	if (!rcec_ea)
 		return;
 

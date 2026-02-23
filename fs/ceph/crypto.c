@@ -50,7 +50,7 @@ static int ceph_crypt_set_context(struct inode *inode, const void *ctx,
 	if (len > FSCRYPT_SET_CONTEXT_MAX_SIZE)
 		return -EINVAL;
 
-	cfa = kzalloc(sizeof(*cfa), GFP_KERNEL);
+	cfa = kzalloc_obj(*cfa);
 	if (!cfa)
 		return -ENOMEM;
 
@@ -112,7 +112,7 @@ int ceph_fscrypt_prepare_context(struct inode *dir, struct inode *inode,
 	if (!encrypted)
 		return 0;
 
-	as->fscrypt_auth = kzalloc(sizeof(*as->fscrypt_auth), GFP_KERNEL);
+	as->fscrypt_auth = kzalloc_obj(*as->fscrypt_auth);
 	if (!as->fscrypt_auth)
 		return -ENOMEM;
 
@@ -166,12 +166,13 @@ static struct inode *parse_longname(const struct inode *parent,
 	struct ceph_vino vino = { .snap = CEPH_NOSNAP };
 	char *name_end, *inode_number;
 	int ret = -EIO;
-	/* NUL-terminate */
-	char *str __free(kfree) = kmemdup_nul(name, *name_len, GFP_KERNEL);
+	/* Snapshot name must start with an underscore */
+	if (*name_len <= 0 || name[0] != '_')
+		return ERR_PTR(-EIO);
+	/* Skip initial '_' and NUL-terminate */
+	char *str __free(kfree) = kmemdup_nul(name + 1, *name_len - 1, GFP_KERNEL);
 	if (!str)
 		return ERR_PTR(-ENOMEM);
-	/* Skip initial '_' */
-	str++;
 	name_end = strrchr(str, '_');
 	if (!name_end) {
 		doutc(cl, "failed to parse long snapshot name: %s\n", str);

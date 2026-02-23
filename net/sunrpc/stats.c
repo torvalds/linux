@@ -126,7 +126,7 @@ struct rpc_iostats *rpc_alloc_iostats(struct rpc_clnt *clnt)
 	struct rpc_iostats *stats;
 	int i;
 
-	stats = kcalloc(clnt->cl_maxproc, sizeof(*stats), GFP_KERNEL);
+	stats = kzalloc_objs(*stats, clnt->cl_maxproc);
 	if (stats) {
 		for (i = 0; i < clnt->cl_maxproc; i++)
 			spin_lock_init(&stats[i].om_lock);

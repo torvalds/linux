@@ -689,7 +689,7 @@ static void print_dpmst_connections(struct snd_info_buffer *buffer, struct hda_c
 	if (conn_len <= 0)
 		return;
 
-	conn = kmalloc_array(conn_len, sizeof(hda_nid_t), GFP_KERNEL);
+	conn = kmalloc_objs(hda_nid_t, conn_len);
 	if (!conn)
 		return;
 
@@ -845,9 +845,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			conn_len = snd_hda_get_num_raw_conns(codec, nid);
 			if (conn_len > 0) {
-				conn = kmalloc_array(conn_len,
-						     sizeof(hda_nid_t),
-						     GFP_KERNEL);
+				conn = kmalloc_objs(hda_nid_t, conn_len);
 				if (!conn)
 					return;
 				if (snd_hda_get_raw_connections(codec, nid, conn,

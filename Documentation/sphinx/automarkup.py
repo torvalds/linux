@@ -46,6 +46,12 @@ RE_namespace = re.compile(r'^\s*..\s*c:namespace::\s*(\S+)\s*$')
 #
 Skipnames = [ 'for', 'if', 'register', 'sizeof', 'struct', 'unsigned' ]
 
+#
+# Common English words that should not be recognized as C identifiers
+# when following struct/union/enum/typedef keywords.
+# Example: "a simple struct that" in workqueue.rst should not be marked as code.
+#
+Skipidentifiers = [ 'that', 'which', 'where', 'whose' ]
 
 #
 # Many places in the docs refer to common system calls.  It is
@@ -162,6 +168,10 @@ def markup_c_ref(docname, app, match):
     # cross-referencing inside it first.
     if c_namespace:
         possible_targets.insert(0, c_namespace + "." + base_target)
+
+    # Skip common English words that match identifier pattern but are not C code.
+    if base_target in Skipidentifiers:
+        return target_text
 
     if base_target not in Skipnames:
         for target in possible_targets:

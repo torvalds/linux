@@ -93,7 +93,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	dev_info = &nfp_dev_info[pci_id->driver_data];
 
-	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
+	vf = kzalloc_obj(*vf);
 	if (!vf)
 		return -ENOMEM;
 	pci_set_drvdata(pdev, vf);

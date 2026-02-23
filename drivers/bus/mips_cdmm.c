@@ -306,7 +306,7 @@ static struct mips_cdmm_bus *mips_cdmm_get_bus(void)
 	bus = *bus_p;
 	/* Attempt allocation if NULL */
 	if (unlikely(!bus)) {
-		bus = kzalloc(sizeof(*bus), GFP_ATOMIC);
+		bus = kzalloc_obj(*bus, GFP_ATOMIC);
 		if (unlikely(!bus))
 			bus = ERR_PTR(-ENOMEM);
 		else
@@ -541,7 +541,7 @@ static void mips_cdmm_bus_discover(struct mips_cdmm_bus *bus)
 			(drb + size + 1) * CDMM_DRB_SIZE - 1,
 			type, rev);
 
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		dev = kzalloc_obj(*dev);
 		if (!dev)
 			break;
 

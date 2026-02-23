@@ -966,7 +966,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 	for (i = 0; i < DMA_MAX_CHAN_DESCRIPTORS; i++) {
 		struct ep93xx_dma_desc *desc;
 
-		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+		desc = kzalloc_obj(*desc);
 		if (!desc) {
 			dev_warn(chan2dev(edmac), "not enough descriptors\n");
 			break;

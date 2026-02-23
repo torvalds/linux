@@ -28,7 +28,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	sector_t start_block;
 	loff_t offset;
 
-	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
+	tree = kzalloc_obj(*tree);
 	if (!tree)
 		return NULL;
 

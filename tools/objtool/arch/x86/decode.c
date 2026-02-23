@@ -711,10 +711,14 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			immr = find_reloc_by_dest(elf, (void *)sec, offset+3);
 			disp = find_reloc_by_dest(elf, (void *)sec, offset+7);
 
-			if (!immr || strcmp(immr->sym->name, "pv_ops"))
+			if (!immr || strncmp(immr->sym->name, "pv_ops", 6))
 				break;
 
-			idx = (reloc_addend(immr) + 8) / sizeof(void *);
+			idx = pv_ops_idx_off(immr->sym->name);
+			if (idx < 0)
+				break;
+
+			idx += (reloc_addend(immr) + 8) / sizeof(void *);
 
 			func = disp->sym;
 			if (disp->sym->type == STT_SECTION)

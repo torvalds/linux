@@ -864,7 +864,7 @@ static int snd_ymfpci_playback_open_1(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
+	ypcm = kzalloc_obj(*ypcm);
 	if (ypcm == NULL)
 		return -ENOMEM;
 	ypcm->chip = chip;
@@ -990,7 +990,7 @@ static int snd_ymfpci_capture_open(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
-	ypcm = kzalloc(sizeof(*ypcm), GFP_KERNEL);
+	ypcm = kzalloc_obj(*ypcm);
 	if (ypcm == NULL)
 		return -ENOMEM;
 	ypcm->chip = chip;

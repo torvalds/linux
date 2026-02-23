@@ -114,12 +114,12 @@ static const char *const blk_op_name[] = {
 #undef REQ_OP_NAME
 
 /**
- * blk_op_str - Return string XXX in the REQ_OP_XXX.
- * @op: REQ_OP_XXX.
+ * blk_op_str - Return the string "name" for an operation REQ_OP_name.
+ * @op: a request operation.
  *
- * Description: Centralize block layer function to convert REQ_OP_XXX into
- * string format. Useful in the debugging and tracing bio or request. For
- * invalid REQ_OP_XXX it returns string "UNKNOWN".
+ * Convert a request operation REQ_OP_name into the string "name". Useful for
+ * debugging and tracing BIOs and requests. For an invalid request operation
+ * code, the string "UNKNOWN" is returned.
  */
 inline const char *blk_op_str(enum req_op op)
 {
@@ -463,6 +463,7 @@ struct request_queue *blk_alloc_queue(struct queue_limits *lim, int node_id)
 	fs_reclaim_release(GFP_KERNEL);
 
 	q->nr_requests = BLKDEV_DEFAULT_RQ;
+	q->async_depth = BLKDEV_DEFAULT_RQ;
 
 	return q;
 
@@ -628,9 +629,6 @@ static void __submit_bio(struct bio *bio)
 	/* If plug is not used, add new plug here to cache nsecs time. */
 	struct blk_plug plug;
 
-	if (unlikely(!blk_crypto_bio_prep(&bio)))
-		return;
-
 	blk_start_plug(&plug);
 
 	if (!bdev_test_flag(bio->bi_bdev, BD_HAS_SUBMIT_BIO)) {
@@ -793,6 +791,13 @@ void submit_bio_noacct(struct bio *bio)
 	 */
 	if ((bio->bi_opf & REQ_NOWAIT) && !bdev_nowait(bdev))
 		goto not_supported;
+
+	if (bio_has_crypt_ctx(bio)) {
+		if (WARN_ON_ONCE(!bio_has_data(bio)))
+			goto end_io;
+		if (!blk_crypto_supported(bio))
+			goto not_supported;
+	}
 
 	if (should_fail_bio(bio))
 		goto end_io;

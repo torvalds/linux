@@ -520,7 +520,7 @@ static struct ionic_vcq *ionic_create_rdma_admincq(struct ionic_ibdev *dev,
 	struct ionic_cq *cq;
 	int rc;
 
-	vcq = kzalloc(sizeof(*vcq), GFP_KERNEL);
+	vcq = kzalloc_obj(*vcq);
 	if (!vcq)
 		return ERR_PTR(-ENOMEM);
 
@@ -558,7 +558,7 @@ static struct ionic_aq *__ionic_create_rdma_adminq(struct ionic_ibdev *dev,
 	struct ionic_aq *aq;
 	int rc;
 
-	aq = kzalloc(sizeof(*aq), GFP_KERNEL);
+	aq = kzalloc_obj(*aq);
 	if (!aq)
 		return ERR_PTR(-ENOMEM);
 
@@ -575,7 +575,7 @@ static struct ionic_aq *__ionic_create_rdma_adminq(struct ionic_ibdev *dev,
 
 	ionic_queue_dbell_init(&aq->q, aq->aqid);
 
-	aq->q_wr = kcalloc((u32)aq->q.mask + 1, sizeof(*aq->q_wr), GFP_KERNEL);
+	aq->q_wr = kzalloc_objs(*aq->q_wr, (u32)aq->q.mask + 1);
 	if (!aq->q_wr) {
 		rc = -ENOMEM;
 		goto err_wr;
@@ -983,7 +983,7 @@ static struct ionic_eq *ionic_create_eq(struct ionic_ibdev *dev, int eqid)
 	struct ionic_eq *eq;
 	int rc;
 
-	eq = kzalloc(sizeof(*eq), GFP_KERNEL);
+	eq = kzalloc_obj(*eq);
 	if (!eq)
 		return ERR_PTR(-ENOMEM);
 
@@ -1095,8 +1095,7 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 		goto out;
 	}
 
-	dev->eq_vec = kmalloc_array(dev->lif_cfg.eq_count, sizeof(*dev->eq_vec),
-				    GFP_KERNEL);
+	dev->eq_vec = kmalloc_objs(*dev->eq_vec, dev->lif_cfg.eq_count);
 	if (!dev->eq_vec) {
 		rc = -ENOMEM;
 		goto out;
@@ -1126,8 +1125,7 @@ int ionic_create_rdma_admin(struct ionic_ibdev *dev)
 
 	dev->lif_cfg.eq_count = eq_i;
 
-	dev->aq_vec = kmalloc_array(dev->lif_cfg.aq_count, sizeof(*dev->aq_vec),
-				    GFP_KERNEL);
+	dev->aq_vec = kmalloc_objs(*dev->aq_vec, dev->lif_cfg.aq_count);
 	if (!dev->aq_vec) {
 		rc = -ENOMEM;
 		goto out;

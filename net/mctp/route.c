@@ -227,7 +227,7 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 {
 	struct mctp_sk_key *key;
 
-	key = kzalloc(sizeof(*key), gfp);
+	key = kzalloc_obj(*key, gfp);
 	if (!key)
 		return NULL;
 
@@ -675,7 +675,7 @@ static struct mctp_route *mctp_route_alloc(void)
 {
 	struct mctp_route *rt;
 
-	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
+	rt = kzalloc_obj(*rt);
 	if (!rt)
 		return NULL;
 
@@ -1643,6 +1643,7 @@ static int mctp_fill_rtinfo(struct sk_buff *skb, struct mctp_route *rt,
 		return -EMSGSIZE;
 
 	hdr = nlmsg_data(nlh);
+	memset(hdr, 0, sizeof(*hdr));
 	hdr->rtm_family = AF_MCTP;
 
 	/* we use the _len fields as a number of EIDs, rather than

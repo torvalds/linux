@@ -212,7 +212,7 @@ static int qtnf_mac_init_single_band(struct wiphy *wiphy,
 {
 	int ret;
 
-	wiphy->bands[band] = kzalloc(sizeof(*wiphy->bands[band]), GFP_KERNEL);
+	wiphy->bands[band] = kzalloc_obj(*wiphy->bands[band]);
 	if (!wiphy->bands[band])
 		return -ENOMEM;
 

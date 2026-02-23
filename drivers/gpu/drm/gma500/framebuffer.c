@@ -75,7 +75,7 @@ struct drm_framebuffer *psb_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
+	fb = kzalloc_obj(*fb);
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 

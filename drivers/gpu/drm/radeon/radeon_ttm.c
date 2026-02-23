@@ -492,7 +492,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_buffer_object *bo,
 #endif
 	rbo = container_of(bo, struct radeon_bo, tbo);
 
-	gtt = kzalloc(sizeof(struct radeon_ttm_tt), GFP_KERNEL);
+	gtt = kzalloc_obj(struct radeon_ttm_tt);
 	if (gtt == NULL) {
 		return NULL;
 	}
@@ -533,7 +533,7 @@ static int radeon_ttm_tt_populate(struct ttm_device *bdev,
 	bool slave = !!(ttm->page_flags & TTM_TT_FLAG_EXTERNAL);
 
 	if (gtt && gtt->userptr) {
-		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+		ttm->sg = kzalloc_obj(struct sg_table);
 		if (!ttm->sg)
 			return -ENOMEM;
 

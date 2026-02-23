@@ -364,7 +364,7 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 		mr &= ~US_MR_LOOP;
 
 	if (!ausd) {
-		ausd = kzalloc(sizeof(*ausd), GFP_KERNEL);
+		ausd = kzalloc_obj(*ausd);
 		if (!ausd)
 			return -ENOMEM;
 

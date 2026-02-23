@@ -5,6 +5,7 @@
 
 from generators import SourceGenerator, create_jinja2_environment
 from xdr_ast import _XdrEnum, public_apis, big_endian, get_header_name
+from xdr_parse import get_xdr_enum_validation
 
 
 class XdrEnumGenerator(SourceGenerator):
@@ -42,7 +43,13 @@ class XdrEnumGenerator(SourceGenerator):
             template = self.environment.get_template("decoder/enum_be.j2")
         else:
             template = self.environment.get_template("decoder/enum.j2")
-        print(template.render(name=node.name))
+        print(
+            template.render(
+                name=node.name,
+                enumerators=node.enumerators,
+                validate=get_xdr_enum_validation(),
+            )
+        )
 
     def emit_encoder(self, node: _XdrEnum) -> None:
         """Emit one encoder function for an XDR enum type"""

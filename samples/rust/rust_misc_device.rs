@@ -95,10 +95,7 @@
 //! }
 //! ```
 
-use core::pin::Pin;
-
 use kernel::{
-    c_str,
     device::Device,
     fs::{File, Kiocb},
     ioctl::{_IO, _IOC_SIZE, _IOR, _IOW},
@@ -133,7 +130,7 @@ impl kernel::InPlaceModule for RustMiscDeviceModule {
         pr_info!("Initialising Rust Misc Device Sample\n");
 
         let options = MiscDeviceOptions {
-            name: c_str!("rust-misc-device"),
+            name: c"rust-misc-device",
         };
 
         try_pin_init!(Self {

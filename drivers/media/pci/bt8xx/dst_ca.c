@@ -454,7 +454,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	struct ca_msg *hw_buffer;
 	int result = 0;
 
-	hw_buffer = kmalloc(sizeof(*hw_buffer), GFP_KERNEL);
+	hw_buffer = kmalloc_obj(*hw_buffer);
 	if (!hw_buffer)
 		return -ENOMEM;
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
@@ -535,9 +535,9 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 	mutex_lock(&dst_ca_mutex);
 	dvbdev = file->private_data;
 	state = dvbdev->priv;
-	p_ca_message = kmalloc(sizeof (struct ca_msg), GFP_KERNEL);
-	p_ca_slot_info = kmalloc(sizeof (struct ca_slot_info), GFP_KERNEL);
-	p_ca_caps = kmalloc(sizeof (struct ca_caps), GFP_KERNEL);
+	p_ca_message = kmalloc_obj(struct ca_msg);
+	p_ca_slot_info = kmalloc_obj(struct ca_slot_info);
+	p_ca_caps = kmalloc_obj(struct ca_caps);
 	if (!p_ca_message || !p_ca_slot_info || !p_ca_caps) {
 		result = -ENOMEM;
 		goto free_mem_and_exit;

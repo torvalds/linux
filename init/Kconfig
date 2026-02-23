@@ -143,6 +143,18 @@ config CC_HAS_COUNTED_BY
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108896
 	default y if CC_IS_GCC && GCC_VERSION >= 150100
 
+config CC_HAS_COUNTED_BY_PTR
+	bool
+	# supported since clang 22
+	default y if CC_IS_CLANG && CLANG_VERSION >= 220000
+	# supported since gcc 16.0.0
+	default y if CC_IS_GCC && GCC_VERSION >= 160000
+
+config CC_HAS_BROKEN_COUNTED_BY_REF
+	bool
+	# https://github.com/llvm/llvm-project/issues/182575
+	default y if CC_IS_CLANG && CLANG_VERSION < 220000
+
 config CC_HAS_MULTIDIMENSIONAL_NONSTRING
 	def_bool $(success,echo 'char tag[][4] __attribute__((__nonstring__)) = { };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
 
@@ -171,7 +183,7 @@ config RUSTC_HAS_FILE_AS_C_STR
 
 config PAHOLE_VERSION
 	int
-	default $(shell,$(srctree)/scripts/pahole-version.sh $(PAHOLE))
+	default "$(PAHOLE_VERSION)"
 
 config CONSTRUCTORS
 	bool
@@ -247,7 +259,7 @@ config WERROR
 
 config UAPI_HEADER_TEST
 	bool "Compile test UAPI headers"
-	depends on HEADERS_INSTALL && CC_CAN_LINK
+	depends on HEADERS_INSTALL
 	help
 	  Compile test headers exported to user-space to ensure they are
 	  self-contained, i.e. compilable as standalone units.
@@ -624,8 +636,9 @@ config SCHED_HW_PRESSURE
 	  arch_update_hw_pressure() and arch_scale_thermal_pressure().
 
 config BSD_PROCESS_ACCT
-	bool "BSD Process Accounting"
+	bool "BSD Process Accounting (DEPRECATED)"
 	depends on MULTIUSER
+	default n
 	help
 	  If you say Y here, a user level program will be able to instruct the
 	  kernel (via a special system call) to write process accounting
@@ -635,7 +648,9 @@ config BSD_PROCESS_ACCT
 	  command name, memory usage, controlling terminal etc. (the complete
 	  list is in the struct acct in <file:include/linux/acct.h>).  It is
 	  up to the user level program to do useful things with this
-	  information.  This is generally a good idea, so say Y.
+	  information.  This mechanism is antiquated and has significant
+	  scalability issues.  You probably want to use eBPF instead.  Say
+	  N unless you really need this.
 
 config BSD_PROCESS_ACCT_V3
 	bool "BSD Process Accounting version 3 file format"
@@ -1254,6 +1269,7 @@ config CPUSETS
 	bool "Cpuset controller"
 	depends on SMP
 	select UNION_FIND
+	select CPU_ISOLATION
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -1938,6 +1954,18 @@ config RSEQ
 
 	  If unsure, say Y.
 
+config RSEQ_SLICE_EXTENSION
+	bool "Enable rseq-based time slice extension mechanism"
+	depends on RSEQ && HIGH_RES_TIMERS && GENERIC_ENTRY && HAVE_GENERIC_TIF_BITS
+	help
+	  Allows userspace to request a limited time slice extension when
+	  returning from an interrupt to user space via the RSEQ shared
+	  data ABI. If granted, that allows to complete a critical section,
+	  so that other threads are not stuck on a conflicted resource,
+	  while the task is scheduled out.
+
+	  If unsure, say N.
+
 config RSEQ_STATS
 	default n
 	bool "Enable lightweight statistics of restartable sequences" if EXPERT
@@ -2060,6 +2088,10 @@ config HAVE_PERF_EVENTS
 config GUEST_PERF_EVENTS
 	bool
 	depends on HAVE_PERF_EVENTS
+
+config PERF_GUEST_MEDIATED_PMU
+	bool
+	depends on GUEST_PERF_EVENTS
 
 config PERF_USE_VMALLOC
 	bool

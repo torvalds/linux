@@ -9,7 +9,9 @@
  */
 struct mlx5_dpll {
 	struct dpll_device *dpll;
+	dpll_tracker dpll_tracker;
 	struct dpll_pin *dpll_pin;
+	dpll_tracker pin_tracker;
 	struct mlx5_core_dev *mdev;
 	struct workqueue_struct *wq;
 	struct delayed_work work;
@@ -136,7 +138,7 @@ mlx5_dpll_pin_ffo_get(struct mlx5_dpll_synce_status *synce_status,
 {
 	if (!synce_status->oper_freq_measure)
 		return -ENODATA;
-	*ffo = synce_status->frequency_diff;
+	*ffo = 1000000LL * synce_status->frequency_diff;
 	return 0;
 }
 
@@ -431,14 +433,15 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 	if (err)
 		return err;
 
-	mdpll = kzalloc(sizeof(*mdpll), GFP_KERNEL);
+	mdpll = kzalloc_obj(*mdpll);
 	if (!mdpll)
 		return -ENOMEM;
 	mdpll->mdev = mdev;
 	auxiliary_set_drvdata(adev, mdpll);
 
 	/* Multiple mdev instances might share one DPLL device. */
-	mdpll->dpll = dpll_device_get(clock_id, 0, THIS_MODULE);
+	mdpll->dpll = dpll_device_get(clock_id, 0, THIS_MODULE,
+				      &mdpll->dpll_tracker);
 	if (IS_ERR(mdpll->dpll)) {
 		err = PTR_ERR(mdpll->dpll);
 		goto err_free_mdpll;
@@ -451,7 +454,8 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 
 	/* Multiple mdev instances might share one DPLL pin. */
 	mdpll->dpll_pin = dpll_pin_get(clock_id, mlx5_get_dev_index(mdev),
-				       THIS_MODULE, &mlx5_dpll_pin_properties);
+				       THIS_MODULE, &mlx5_dpll_pin_properties,
+				       &mdpll->pin_tracker);
 	if (IS_ERR(mdpll->dpll_pin)) {
 		err = PTR_ERR(mdpll->dpll_pin);
 		goto err_unregister_dpll_device;
@@ -479,11 +483,11 @@ err_unregister_dpll_pin:
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,
 			    &mlx5_dpll_pins_ops, mdpll);
 err_put_dpll_pin:
-	dpll_pin_put(mdpll->dpll_pin);
+	dpll_pin_put(mdpll->dpll_pin, &mdpll->pin_tracker);
 err_unregister_dpll_device:
 	dpll_device_unregister(mdpll->dpll, &mlx5_dpll_device_ops, mdpll);
 err_put_dpll_device:
-	dpll_device_put(mdpll->dpll);
+	dpll_device_put(mdpll->dpll, &mdpll->dpll_tracker);
 err_free_mdpll:
 	kfree(mdpll);
 	return err;
@@ -499,9 +503,9 @@ static void mlx5_dpll_remove(struct auxiliary_device *adev)
 	destroy_workqueue(mdpll->wq);
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,
 			    &mlx5_dpll_pins_ops, mdpll);
-	dpll_pin_put(mdpll->dpll_pin);
+	dpll_pin_put(mdpll->dpll_pin, &mdpll->pin_tracker);
 	dpll_device_unregister(mdpll->dpll, &mlx5_dpll_device_ops, mdpll);
-	dpll_device_put(mdpll->dpll);
+	dpll_device_put(mdpll->dpll, &mdpll->dpll_tracker);
 	kfree(mdpll);
 
 	mlx5_dpll_synce_status_set(mdev,

@@ -594,7 +594,7 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 	 * We cannot use devm_ here, since ahci_platform_put_resources() uses
 	 * target_pwrs after devm_ have freed memory
 	 */
-	hpriv->target_pwrs = kcalloc(hpriv->nports, sizeof(*hpriv->target_pwrs), GFP_KERNEL);
+	hpriv->target_pwrs = kzalloc_objs(*hpriv->target_pwrs, hpriv->nports);
 	if (!hpriv->target_pwrs) {
 		rc = -ENOMEM;
 		goto err_out;

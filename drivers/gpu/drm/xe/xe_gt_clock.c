@@ -8,12 +8,8 @@
 #include "xe_gt_clock.h"
 
 #include "regs/xe_gt_regs.h"
-#include "regs/xe_regs.h"
-#include "xe_assert.h"
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_gt_types.h"
 #include "xe_gt_printk.h"
-#include "xe_macros.h"
 #include "xe_mmio.h"
 
 #define f19_2_mhz	19200000

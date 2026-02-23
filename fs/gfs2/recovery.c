@@ -69,7 +69,7 @@ int gfs2_revoke_add(struct gfs2_jdesc *jd, u64 blkno, unsigned int where)
 		return 0;
 	}
 
-	rr = kmalloc(sizeof(struct gfs2_revoke_replay), GFP_NOFS);
+	rr = kmalloc_obj(struct gfs2_revoke_replay, GFP_NOFS);
 	if (!rr)
 		return -ENOMEM;
 

@@ -1452,7 +1452,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 
 	for (k = 0; k < pdev->num_resources; k++) {
 
-		vout = kzalloc(sizeof(struct omap_vout_device), GFP_KERNEL);
+		vout = kzalloc_obj(struct omap_vout_device);
 		if (!vout) {
 			dev_err(&pdev->dev, ": could not allocate memory\n");
 			return -ENOMEM;
@@ -1611,7 +1611,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 		goto err_dss_init;
 	}
 
-	vid_dev = kzalloc(sizeof(struct omap2video_device), GFP_KERNEL);
+	vid_dev = kzalloc_obj(struct omap2video_device);
 	if (vid_dev == NULL) {
 		ret = -ENOMEM;
 		goto err_dss_init;

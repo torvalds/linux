@@ -285,7 +285,7 @@ static int ni16550_probe(struct platform_device *pdev)
 	bool rs232_property;
 	int ret;
 
-	uart = kzalloc(sizeof(*uart), GFP_KERNEL);
+	uart = kzalloc_obj(*uart);
 	if (!uart)
 		return -ENOMEM;
 

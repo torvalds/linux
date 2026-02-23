@@ -1123,7 +1123,7 @@ static void efx_siena_sriov_peer_work(struct work_struct *data)
 		++peer_count;
 		if (--peer_space == 0) {
 			if (list_empty(&pages)) {
-				epp = kmalloc(sizeof(*epp), GFP_KERNEL);
+				epp = kmalloc_obj(*epp);
 				if (!epp)
 					break;
 				epp->ptr = dma_alloc_coherent(
@@ -1197,8 +1197,7 @@ static int efx_siena_sriov_vf_alloc(struct efx_nic *efx)
 	struct siena_vf *vf;
 	struct siena_nic_data *nic_data = efx->nic_data;
 
-	nic_data->vf = kcalloc(efx->vf_count, sizeof(*nic_data->vf),
-			       GFP_KERNEL);
+	nic_data->vf = kzalloc_objs(*nic_data->vf, efx->vf_count);
 	if (!nic_data->vf)
 		return -ENOMEM;
 

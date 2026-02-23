@@ -232,7 +232,7 @@ nvkm_i2c_bus_ctor(const struct nvkm_i2c_bus_func *func,
 
 	if ( bus->func->drive_scl &&
 	    !nvkm_boolopt(device->cfgopt, "NvI2C", internal)) {
-		if (!(bit = kzalloc(sizeof(*bit), GFP_KERNEL)))
+		if (!(bit = kzalloc_obj(*bit)))
 			return -ENOMEM;
 		bit->udelay = 10;
 		bit->timeout = usecs_to_jiffies(2200);
@@ -258,7 +258,7 @@ nvkm_i2c_bus_new_(const struct nvkm_i2c_bus_func *func,
 		  struct nvkm_i2c_pad *pad, int id,
 		  struct nvkm_i2c_bus **pbus)
 {
-	if (!(*pbus = kzalloc(sizeof(**pbus), GFP_KERNEL)))
+	if (!(*pbus = kzalloc_obj(**pbus)))
 		return -ENOMEM;
 	return nvkm_i2c_bus_ctor(func, pad, id, *pbus);
 }

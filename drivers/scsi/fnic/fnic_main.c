@@ -715,7 +715,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/*
 	 * Allocate fnic
 	 */
-	fnic = kzalloc(sizeof(struct fnic), GFP_KERNEL);
+	fnic = kzalloc_obj(struct fnic);
 	if (!fnic) {
 		err = -ENOMEM;
 		goto err_out_fnic_alloc;

@@ -373,7 +373,7 @@ static struct exynos_media_pipeline *fimc_md_pipeline_create(
 {
 	struct fimc_pipeline *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc_obj(*p);
 	if (!p)
 		return NULL;
 

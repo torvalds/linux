@@ -67,7 +67,7 @@ static int shmem_read_file_info(struct super_block *sb, int type)
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct mem_dqinfo *info = &dqopt->info[type];
 
-	info->dqi_priv = kzalloc(sizeof(struct rb_root), GFP_NOFS);
+	info->dqi_priv = kzalloc_obj(struct rb_root, GFP_NOFS);
 	if (!info->dqi_priv)
 		return -ENOMEM;
 
@@ -190,7 +190,7 @@ static int shmem_acquire_dquot(struct dquot *dquot)
 	}
 
 	/* We don't have entry for this id yet, create it */
-	new_entry = kzalloc(sizeof(struct quota_id), GFP_NOFS);
+	new_entry = kzalloc_obj(struct quota_id, GFP_NOFS);
 	if (!new_entry) {
 		ret = -ENOMEM;
 		goto out_unlock;

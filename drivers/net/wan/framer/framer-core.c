@@ -60,12 +60,12 @@ int framer_pm_runtime_get_sync(struct framer *framer)
 }
 EXPORT_SYMBOL_GPL(framer_pm_runtime_get_sync);
 
-int framer_pm_runtime_put(struct framer *framer)
+void framer_pm_runtime_put(struct framer *framer)
 {
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return;
 
-	return pm_runtime_put(&framer->dev);
+	pm_runtime_put(&framer->dev);
 }
 EXPORT_SYMBOL_GPL(framer_pm_runtime_put);
 
@@ -615,7 +615,7 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 	if (WARN_ON((ops->flags & FRAMER_FLAG_POLL_STATUS) && !ops->get_status))
 		return ERR_PTR(-EINVAL);
 
-	framer = kzalloc(sizeof(*framer), GFP_KERNEL);
+	framer = kzalloc_obj(*framer);
 	if (!framer)
 		return ERR_PTR(-ENOMEM);
 
@@ -771,7 +771,7 @@ __framer_provider_of_register(struct device *dev, struct module *owner,
 {
 	struct framer_provider *framer_provider;
 
-	framer_provider = kzalloc(sizeof(*framer_provider), GFP_KERNEL);
+	framer_provider = kzalloc_obj(*framer_provider);
 	if (!framer_provider)
 		return ERR_PTR(-ENOMEM);
 

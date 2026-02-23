@@ -246,7 +246,7 @@ static int ath10k_sdio_writesb32(struct ath10k *ar, u32 addr, u32 val)
 	__le32 *buf;
 	int ret;
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = kzalloc_obj(*buf);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1766,7 +1766,7 @@ static int ath10k_sdio_diag_read32(struct ath10k *ar, u32 address,
 	__le32 *val;
 	int ret;
 
-	val = kzalloc(sizeof(*val), GFP_KERNEL);
+	val = kzalloc_obj(*val);
 	if (!val)
 		return -ENOMEM;
 
@@ -2487,7 +2487,11 @@ void ath10k_sdio_fw_crashed_dump(struct ath10k *ar)
 	if (fast_dump)
 		ath10k_bmi_start(ar);
 
+	mutex_lock(&ar->dump_mutex);
+
+	spin_lock_bh(&ar->data_lock);
 	ar->stats.fw_crash_counter++;
+	spin_unlock_bh(&ar->data_lock);
 
 	ath10k_sdio_disable_intrs(ar);
 
@@ -2504,6 +2508,8 @@ void ath10k_sdio_fw_crashed_dump(struct ath10k *ar)
 	ath10k_sdio_dump_memory(ar, crash_data, fast_dump);
 
 	ath10k_sdio_enable_intrs(ar);
+
+	mutex_unlock(&ar->dump_mutex);
 
 	ath10k_core_start_recovery(ar);
 }

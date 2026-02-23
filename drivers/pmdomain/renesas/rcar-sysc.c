@@ -383,7 +383,7 @@ static int __init rcar_sysc_pd_init(void)
 	rcar_sysc_extmask_offs = info->extmask_offs;
 	rcar_sysc_extmask_val = info->extmask_val;
 
-	domains = kzalloc(sizeof(*domains), GFP_KERNEL);
+	domains = kzalloc_obj(*domains);
 	if (!domains) {
 		error = -ENOMEM;
 		goto out_put;

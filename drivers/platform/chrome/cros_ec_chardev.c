@@ -162,7 +162,7 @@ static int cros_ec_chardev_open(struct inode *inode, struct file *filp)
 	struct chardev_priv *priv;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 

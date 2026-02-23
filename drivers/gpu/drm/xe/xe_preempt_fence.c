@@ -101,7 +101,7 @@ struct xe_preempt_fence *xe_preempt_fence_alloc(void)
 {
 	struct xe_preempt_fence *pfence;
 
-	pfence = kmalloc(sizeof(*pfence), GFP_KERNEL);
+	pfence = kmalloc_obj(*pfence);
 	if (!pfence)
 		return ERR_PTR(-ENOMEM);
 

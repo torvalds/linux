@@ -377,7 +377,7 @@ static void vtcr_to_walk_info(u64 vtcr, struct s2_walk_info *wi)
 {
 	wi->t0sz = vtcr & TCR_EL2_T0SZ_MASK;
 
-	switch (vtcr & VTCR_EL2_TG0_MASK) {
+	switch (FIELD_GET(VTCR_EL2_TG0_MASK, vtcr)) {
 	case VTCR_EL2_TG0_4K:
 		wi->pgshift = 12;	 break;
 	case VTCR_EL2_TG0_16K:
@@ -513,7 +513,7 @@ static u8 get_guest_mapping_ttl(struct kvm_s2_mmu *mmu, u64 addr)
 
 	lockdep_assert_held_write(&kvm_s2_mmu_to_kvm(mmu)->mmu_lock);
 
-	switch (vtcr & VTCR_EL2_TG0_MASK) {
+	switch (FIELD_GET(VTCR_EL2_TG0_MASK, vtcr)) {
 	case VTCR_EL2_TG0_4K:
 		ttl = (TLBI_TTL_TG_4K << 2);
 		break;
@@ -530,7 +530,7 @@ static u8 get_guest_mapping_ttl(struct kvm_s2_mmu *mmu, u64 addr)
 
 again:
 	/* Iteratively compute the block sizes for a particular granule size */
-	switch (vtcr & VTCR_EL2_TG0_MASK) {
+	switch (FIELD_GET(VTCR_EL2_TG0_MASK, vtcr)) {
 	case VTCR_EL2_TG0_4K:
 		if	(sz < SZ_4K)	sz = SZ_4K;
 		else if (sz < SZ_2M)	sz = SZ_2M;
@@ -593,7 +593,7 @@ unsigned long compute_tlb_inval_range(struct kvm_s2_mmu *mmu, u64 val)
 
 	if (!max_size) {
 		/* Compute the maximum extent of the invalidation */
-		switch (mmu->tlb_vtcr & VTCR_EL2_TG0_MASK) {
+		switch (FIELD_GET(VTCR_EL2_TG0_MASK, mmu->tlb_vtcr)) {
 		case VTCR_EL2_TG0_4K:
 			max_size = SZ_1G;
 			break;
@@ -1101,6 +1101,9 @@ void kvm_nested_s2_wp(struct kvm *kvm)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
+	if (!kvm->arch.nested_mmus_size)
+		return;
+
 	for (i = 0; i < kvm->arch.nested_mmus_size; i++) {
 		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
 
@@ -1116,6 +1119,9 @@ void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block)
 	int i;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	if (!kvm->arch.nested_mmus_size)
+		return;
 
 	for (i = 0; i < kvm->arch.nested_mmus_size; i++) {
 		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
@@ -1133,6 +1139,9 @@ void kvm_nested_s2_flush(struct kvm *kvm)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
+	if (!kvm->arch.nested_mmus_size)
+		return;
+
 	for (i = 0; i < kvm->arch.nested_mmus_size; i++) {
 		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
 
@@ -1144,6 +1153,9 @@ void kvm_nested_s2_flush(struct kvm *kvm)
 void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
 	int i;
+
+	if (!kvm->arch.nested_mmus_size)
+		return;
 
 	for (i = 0; i < kvm->arch.nested_mmus_size; i++) {
 		struct kvm_s2_mmu *mmu = &kvm->arch.nested_mmus[i];
@@ -1203,8 +1215,8 @@ int kvm_vcpu_allocate_vncr_tlb(struct kvm_vcpu *vcpu)
 	if (!kvm_has_feat(vcpu->kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
 		return 0;
 
-	vcpu->arch.vncr_tlb = kzalloc(sizeof(*vcpu->arch.vncr_tlb),
-				      GFP_KERNEL_ACCOUNT);
+	vcpu->arch.vncr_tlb = kzalloc_obj(*vcpu->arch.vncr_tlb,
+					  GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.vncr_tlb)
 		return -ENOMEM;
 
@@ -1505,11 +1517,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 	u64 orig_val = val;
 
 	switch (reg) {
-	case SYS_ID_AA64ISAR0_EL1:
-		/* Support everything but TME */
-		val &= ~ID_AA64ISAR0_EL1_TME;
-		break;
-
 	case SYS_ID_AA64ISAR1_EL1:
 		/* Support everything but LS64 and Spec Invalidation */
 		val &= ~(ID_AA64ISAR1_EL1_LS64	|
@@ -1669,153 +1676,150 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *vcpu,
 			     enum vcpu_sysreg sr, u64 v)
 {
-	struct kvm_sysreg_masks *masks;
+	struct resx resx;
 
-	masks = vcpu->kvm->arch.sysreg_masks;
-
-	if (masks) {
-		sr -= __SANITISED_REG_START__;
-
-		v &= ~masks->mask[sr].res0;
-		v |= masks->mask[sr].res1;
-	}
+	resx = kvm_get_sysreg_resx(vcpu->kvm, sr);
+	v &= ~resx.res0;
+	v |= resx.res1;
 
 	return v;
 }
 
-static __always_inline void set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u64 res1)
+static __always_inline void set_sysreg_masks(struct kvm *kvm, int sr, struct resx resx)
 {
-	int i = sr - __SANITISED_REG_START__;
-
 	BUILD_BUG_ON(!__builtin_constant_p(sr));
 	BUILD_BUG_ON(sr < __SANITISED_REG_START__);
 	BUILD_BUG_ON(sr >= NR_SYS_REGS);
 
-	kvm->arch.sysreg_masks->mask[i].res0 = res0;
-	kvm->arch.sysreg_masks->mask[i].res1 = res1;
+	kvm_set_sysreg_resx(kvm, sr, resx);
 }
 
 int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
-	u64 res0, res1;
+	struct resx resx;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
 
 	if (kvm->arch.sysreg_masks)
 		goto out;
 
-	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
-					 GFP_KERNEL_ACCOUNT);
+	kvm->arch.sysreg_masks = kzalloc_obj(*(kvm->arch.sysreg_masks),
+					     GFP_KERNEL_ACCOUNT);
 	if (!kvm->arch.sysreg_masks)
 		return -ENOMEM;
 
 	/* VTTBR_EL2 */
-	res0 = res1 = 0;
+	resx = (typeof(resx)){};
 	if (!kvm_has_feat_enum(kvm, ID_AA64MMFR1_EL1, VMIDBits, 16))
-		res0 |= GENMASK(63, 56);
+		resx.res0 |= GENMASK(63, 56);
 	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, CnP, IMP))
-		res0 |= VTTBR_CNP_BIT;
-	set_sysreg_masks(kvm, VTTBR_EL2, res0, res1);
+		resx.res0 |= VTTBR_CNP_BIT;
+	set_sysreg_masks(kvm, VTTBR_EL2, resx);
 
 	/* VTCR_EL2 */
-	res0 = GENMASK(63, 32) | GENMASK(30, 20);
-	res1 = BIT(31);
-	set_sysreg_masks(kvm, VTCR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, VTCR_EL2);
+	set_sysreg_masks(kvm, VTCR_EL2, resx);
 
 	/* VMPIDR_EL2 */
-	res0 = GENMASK(63, 40) | GENMASK(30, 24);
-	res1 = BIT(31);
-	set_sysreg_masks(kvm, VMPIDR_EL2, res0, res1);
+	resx.res0 = GENMASK(63, 40) | GENMASK(30, 24);
+	resx.res1 = BIT(31);
+	set_sysreg_masks(kvm, VMPIDR_EL2, resx);
 
 	/* HCR_EL2 */
-	get_reg_fixed_bits(kvm, HCR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HCR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HCR_EL2);
+	set_sysreg_masks(kvm, HCR_EL2, resx);
 
 	/* HCRX_EL2 */
-	get_reg_fixed_bits(kvm, HCRX_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HCRX_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HCRX_EL2);
+	set_sysreg_masks(kvm, HCRX_EL2, resx);
 
 	/* HFG[RW]TR_EL2 */
-	get_reg_fixed_bits(kvm, HFGRTR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGRTR_EL2, res0, res1);
-	get_reg_fixed_bits(kvm, HFGWTR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGWTR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HFGRTR_EL2);
+	set_sysreg_masks(kvm, HFGRTR_EL2, resx);
+	resx = get_reg_fixed_bits(kvm, HFGWTR_EL2);
+	set_sysreg_masks(kvm, HFGWTR_EL2, resx);
 
 	/* HDFG[RW]TR_EL2 */
-	get_reg_fixed_bits(kvm, HDFGRTR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HDFGRTR_EL2, res0, res1);
-	get_reg_fixed_bits(kvm, HDFGWTR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HDFGWTR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HDFGRTR_EL2);
+	set_sysreg_masks(kvm, HDFGRTR_EL2, resx);
+	resx = get_reg_fixed_bits(kvm, HDFGWTR_EL2);
+	set_sysreg_masks(kvm, HDFGWTR_EL2, resx);
 
 	/* HFGITR_EL2 */
-	get_reg_fixed_bits(kvm, HFGITR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGITR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HFGITR_EL2);
+	set_sysreg_masks(kvm, HFGITR_EL2, resx);
 
 	/* HAFGRTR_EL2 - not a lot to see here */
-	get_reg_fixed_bits(kvm, HAFGRTR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HAFGRTR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HAFGRTR_EL2);
+	set_sysreg_masks(kvm, HAFGRTR_EL2, resx);
 
 	/* HFG[RW]TR2_EL2 */
-	get_reg_fixed_bits(kvm, HFGRTR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGRTR2_EL2, res0, res1);
-	get_reg_fixed_bits(kvm, HFGWTR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGWTR2_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HFGRTR2_EL2);
+	set_sysreg_masks(kvm, HFGRTR2_EL2, resx);
+	resx = get_reg_fixed_bits(kvm, HFGWTR2_EL2);
+	set_sysreg_masks(kvm, HFGWTR2_EL2, resx);
 
 	/* HDFG[RW]TR2_EL2 */
-	get_reg_fixed_bits(kvm, HDFGRTR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HDFGRTR2_EL2, res0, res1);
-	get_reg_fixed_bits(kvm, HDFGWTR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HDFGWTR2_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HDFGRTR2_EL2);
+	set_sysreg_masks(kvm, HDFGRTR2_EL2, resx);
+	resx = get_reg_fixed_bits(kvm, HDFGWTR2_EL2);
+	set_sysreg_masks(kvm, HDFGWTR2_EL2, resx);
 
 	/* HFGITR2_EL2 */
-	get_reg_fixed_bits(kvm, HFGITR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, HFGITR2_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, HFGITR2_EL2);
+	set_sysreg_masks(kvm, HFGITR2_EL2, resx);
 
 	/* TCR2_EL2 */
-	get_reg_fixed_bits(kvm, TCR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, TCR2_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, TCR2_EL2);
+	set_sysreg_masks(kvm, TCR2_EL2, resx);
 
 	/* SCTLR_EL1 */
-	get_reg_fixed_bits(kvm, SCTLR_EL1, &res0, &res1);
-	set_sysreg_masks(kvm, SCTLR_EL1, res0, res1);
+	resx = get_reg_fixed_bits(kvm, SCTLR_EL1);
+	set_sysreg_masks(kvm, SCTLR_EL1, resx);
+
+	/* SCTLR_EL2 */
+	resx = get_reg_fixed_bits(kvm, SCTLR_EL2);
+	set_sysreg_masks(kvm, SCTLR_EL2, resx);
 
 	/* SCTLR2_ELx */
-	get_reg_fixed_bits(kvm, SCTLR2_EL1, &res0, &res1);
-	set_sysreg_masks(kvm, SCTLR2_EL1, res0, res1);
-	get_reg_fixed_bits(kvm, SCTLR2_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, SCTLR2_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, SCTLR2_EL1);
+	set_sysreg_masks(kvm, SCTLR2_EL1, resx);
+	resx = get_reg_fixed_bits(kvm, SCTLR2_EL2);
+	set_sysreg_masks(kvm, SCTLR2_EL2, resx);
 
 	/* MDCR_EL2 */
-	get_reg_fixed_bits(kvm, MDCR_EL2, &res0, &res1);
-	set_sysreg_masks(kvm, MDCR_EL2, res0, res1);
+	resx = get_reg_fixed_bits(kvm, MDCR_EL2);
+	set_sysreg_masks(kvm, MDCR_EL2, resx);
 
 	/* CNTHCTL_EL2 */
-	res0 = GENMASK(63, 20);
-	res1 = 0;
+	resx.res0 = GENMASK(63, 20);
+	resx.res1 = 0;
 	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RME, IMP))
-		res0 |= CNTHCTL_CNTPMASK | CNTHCTL_CNTVMASK;
+		resx.res0 |= CNTHCTL_CNTPMASK | CNTHCTL_CNTVMASK;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, CNTPOFF)) {
-		res0 |= CNTHCTL_ECV;
+		resx.res0 |= CNTHCTL_ECV;
 		if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, IMP))
-			res0 |= (CNTHCTL_EL1TVT | CNTHCTL_EL1TVCT |
-				 CNTHCTL_EL1NVPCT | CNTHCTL_EL1NVVCT);
+			resx.res0 |= (CNTHCTL_EL1TVT | CNTHCTL_EL1TVCT |
+				      CNTHCTL_EL1NVPCT | CNTHCTL_EL1NVVCT);
 	}
 	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
-		res0 |= GENMASK(11, 8);
-	set_sysreg_masks(kvm, CNTHCTL_EL2, res0, res1);
+		resx.res0 |= GENMASK(11, 8);
+	set_sysreg_masks(kvm, CNTHCTL_EL2, resx);
 
 	/* ICH_HCR_EL2 */
-	res0 = ICH_HCR_EL2_RES0;
-	res1 = ICH_HCR_EL2_RES1;
+	resx.res0 = ICH_HCR_EL2_RES0;
+	resx.res1 = ICH_HCR_EL2_RES1;
 	if (!(kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_EL2_TDS))
-		res0 |= ICH_HCR_EL2_TDIR;
+		resx.res0 |= ICH_HCR_EL2_TDIR;
 	/* No GICv4 is presented to the guest */
-	res0 |= ICH_HCR_EL2_DVIM | ICH_HCR_EL2_vSGIEOICount;
-	set_sysreg_masks(kvm, ICH_HCR_EL2, res0, res1);
+	resx.res0 |= ICH_HCR_EL2_DVIM | ICH_HCR_EL2_vSGIEOICount;
+	set_sysreg_masks(kvm, ICH_HCR_EL2, resx);
 
 	/* VNCR_EL2 */
-	set_sysreg_masks(kvm, VNCR_EL2, VNCR_EL2_RES0, VNCR_EL2_RES1);
+	resx.res0 = VNCR_EL2_RES0;
+	resx.res1 = VNCR_EL2_RES1;
+	set_sysreg_masks(kvm, VNCR_EL2, resx);
 
 out:
 	for (enum vcpu_sysreg sr = __SANITISED_REG_START__; sr < NR_SYS_REGS; sr++)

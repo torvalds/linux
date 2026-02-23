@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
+#include <linux/sprintf.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/aer.h>
@@ -22,10 +23,8 @@
 #include <linux/irqdomain.h>
 #include <linux/pm_runtime.h>
 #include <linux/bitfield.h>
+#include <trace/events/pci.h>
 #include "pci.h"
-
-#define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
-#define CARDBUS_RESERVE_BUSNR	3
 
 static struct resource busn_resource = {
 	.name	= "PCI busn",
@@ -54,7 +53,7 @@ static struct resource *get_pci_domain_busn_res(int domain_nr)
 		if (r->domain_nr == domain_nr)
 			return &r->res;
 
-	r = kzalloc(sizeof(*r), GFP_KERNEL);
+	r = kzalloc_obj(*r);
 	if (!r)
 		return NULL;
 
@@ -287,8 +286,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		if ((sizeof(pci_bus_addr_t) < 8 || sizeof(resource_size_t) < 8)
 		    && sz64 > 0x100000000ULL) {
 			res->flags |= IORESOURCE_UNSET | IORESOURCE_DISABLED;
-			res->start = 0;
-			res->end = 0;
+			resource_set_range(res, 0, 0);
 			pci_err(dev, "%s: can't handle BAR larger than 4GB (size %#010llx)\n",
 				res_name, (unsigned long long)sz64);
 			goto out;
@@ -297,8 +295,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		if ((sizeof(pci_bus_addr_t) < 8) && l) {
 			/* Above 32-bit boundary; try to reallocate */
 			res->flags |= IORESOURCE_UNSET;
-			res->start = 0;
-			res->end = sz64 - 1;
+			resource_set_range(res, 0, sz64);
 			pci_info(dev, "%s: can't handle BAR above 4GB (bus address %#010llx)\n",
 				 res_name, (unsigned long long)l64);
 			goto out;
@@ -525,8 +522,8 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 
 	pci_read_config_dword(bridge, PCI_PRIMARY_BUS, &buses);
 	res.flags = IORESOURCE_BUS;
-	res.start = (buses >> 8) & 0xff;
-	res.end = (buses >> 16) & 0xff;
+	res.start = FIELD_GET(PCI_SECONDARY_BUS_MASK, buses);
+	res.end = FIELD_GET(PCI_SUBORDINATE_BUS_MASK, buses);
 	pci_info(bridge, "PCI bridge to %pR%s\n", &res,
 		 bridge->transparent ? " (subtractive decode)" : "");
 
@@ -623,7 +620,7 @@ static struct pci_bus *pci_alloc_bus(struct pci_bus *parent)
 {
 	struct pci_bus *b;
 
-	b = kzalloc(sizeof(*b), GFP_KERNEL);
+	b = kzalloc_obj(*b);
 	if (!b)
 		return NULL;
 
@@ -824,14 +821,16 @@ const char *pci_speed_string(enum pci_bus_speed speed)
 }
 EXPORT_SYMBOL_GPL(pci_speed_string);
 
-void pcie_update_link_speed(struct pci_bus *bus)
+void pcie_update_link_speed(struct pci_bus *bus,
+			    enum pcie_link_change_reason reason)
 {
 	struct pci_dev *bridge = bus->self;
 	u16 linksta, linksta2;
 
 	pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
 	pcie_capability_read_word(bridge, PCI_EXP_LNKSTA2, &linksta2);
-	__pcie_update_link_speed(bus, linksta, linksta2);
+
+	__pcie_update_link_speed(bus, reason, linksta, linksta2);
 }
 EXPORT_SYMBOL_GPL(pcie_update_link_speed);
 
@@ -918,7 +917,7 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
 		bus->max_bus_speed = pcie_link_speed[linkcap & PCI_EXP_LNKCAP_SLS];
 
-		pcie_update_link_speed(bus);
+		pcie_update_link_speed(bus, PCIE_ADD_BUS);
 	}
 }
 
@@ -1313,6 +1312,26 @@ static void pci_enable_rrs_sv(struct pci_dev *pdev)
 
 static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 					      unsigned int available_buses);
+
+void pbus_validate_busn(struct pci_bus *bus)
+{
+	struct pci_bus *upstream = bus->parent;
+	struct pci_dev *bridge = bus->self;
+
+	/* Check that all devices are accessible */
+	while (upstream->parent) {
+		if ((bus->busn_res.end > upstream->busn_res.end) ||
+		    (bus->number > upstream->busn_res.end) ||
+		    (bus->number < upstream->number) ||
+		    (bus->busn_res.end < upstream->number)) {
+			pci_info(bridge, "devices behind bridge are unusable because %pR cannot be assigned for them\n",
+				 &bus->busn_res);
+			break;
+		}
+		upstream = upstream->parent;
+	}
+}
+
 /**
  * pci_ea_fixed_busnrs() - Read fixed Secondary and Subordinate bus
  * numbers from EA capability.
@@ -1324,7 +1343,7 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
  * and subordinate bus numbers, return true with the bus numbers in @sec
  * and @sub.  Otherwise return false.
  */
-static bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub)
+bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub)
 {
 	int ea, offset;
 	u32 dw;
@@ -1378,8 +1397,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 				  int pass)
 {
 	struct pci_bus *child;
-	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
-	u32 buses, i, j = 0;
+	u32 buses;
 	u16 bctl;
 	u8 primary, secondary, subordinate;
 	int broken = 0;
@@ -1394,9 +1412,9 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	pm_runtime_get_sync(&dev->dev);
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
-	primary = buses & 0xFF;
-	secondary = (buses >> 8) & 0xFF;
-	subordinate = (buses >> 16) & 0xFF;
+	primary = FIELD_GET(PCI_PRIMARY_BUS_MASK, buses);
+	secondary = FIELD_GET(PCI_SECONDARY_BUS_MASK, buses);
+	subordinate = FIELD_GET(PCI_SUBORDINATE_BUS_MASK, buses);
 
 	pci_dbg(dev, "scanning [bus %02x-%02x] behind bridge, pass %d\n",
 		secondary, subordinate, pass);
@@ -1423,8 +1441,15 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
 
-	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
-	    !is_cardbus && !broken) {
+	if (pci_is_cardbus_bridge(dev)) {
+		max = pci_cardbus_scan_bridge_extend(bus, dev, buses, max,
+						     available_buses,
+						     pass);
+		goto out;
+	}
+
+	if ((secondary || subordinate) &&
+	    !pcibios_assign_all_busses() && !broken) {
 		unsigned int cmax, buses;
 
 		/*
@@ -1466,7 +1491,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		 * do in the second pass.
 		 */
 		if (!pass) {
-			if (pcibios_assign_all_busses() || broken || is_cardbus)
+			if (pcibios_assign_all_busses() || broken)
 
 				/*
 				 * Temporarily disable forwarding of the
@@ -1477,7 +1502,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 				 * ranges.
 				 */
 				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
-						       buses & ~0xffffff);
+						       buses & PCI_SEC_LATENCY_TIMER_MASK);
 			goto out;
 		}
 
@@ -1508,59 +1533,16 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		if (available_buses)
 			available_buses--;
 
-		buses = (buses & 0xff000000)
-		      | ((unsigned int)(child->primary)     <<  0)
-		      | ((unsigned int)(child->busn_res.start)   <<  8)
-		      | ((unsigned int)(child->busn_res.end) << 16);
-
-		/*
-		 * yenta.c forces a secondary latency timer of 176.
-		 * Copy that behaviour here.
-		 */
-		if (is_cardbus) {
-			buses &= ~0xff000000;
-			buses |= CARDBUS_LATENCY_TIMER << 24;
-		}
+		buses = (buses & PCI_SEC_LATENCY_TIMER_MASK) |
+			FIELD_PREP(PCI_PRIMARY_BUS_MASK, child->primary) |
+			FIELD_PREP(PCI_SECONDARY_BUS_MASK, child->busn_res.start) |
+			FIELD_PREP(PCI_SUBORDINATE_BUS_MASK, child->busn_res.end);
 
 		/* We need to blast all three values with a single write */
 		pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
 
-		if (!is_cardbus) {
-			child->bridge_ctl = bctl;
-			max = pci_scan_child_bus_extend(child, available_buses);
-		} else {
-
-			/*
-			 * For CardBus bridges, we leave 4 bus numbers as
-			 * cards with a PCI-to-PCI bridge can be inserted
-			 * later.
-			 */
-			for (i = 0; i < CARDBUS_RESERVE_BUSNR; i++) {
-				struct pci_bus *parent = bus;
-				if (pci_find_bus(pci_domain_nr(bus),
-							max+i+1))
-					break;
-				while (parent->parent) {
-					if ((!pcibios_assign_all_busses()) &&
-					    (parent->busn_res.end > max) &&
-					    (parent->busn_res.end <= max+i)) {
-						j = 1;
-					}
-					parent = parent->parent;
-				}
-				if (j) {
-
-					/*
-					 * Often, there are two CardBus
-					 * bridges -- try to leave one
-					 * valid bus number for each one.
-					 */
-					i /= 2;
-					break;
-				}
-			}
-			max += i;
-		}
+		child->bridge_ctl = bctl;
+		max = pci_scan_child_bus_extend(child, available_buses);
 
 		/*
 		 * Set subordinate bus number to its real value.
@@ -1572,23 +1554,10 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		pci_bus_update_busn_res_end(child, max);
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
+	scnprintf(child->name, sizeof(child->name), "PCI Bus %04x:%02x",
+		  pci_domain_nr(bus), child->number);
 
-	sprintf(child->name,
-		(is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
-		pci_domain_nr(bus), child->number);
-
-	/* Check that all devices are accessible */
-	while (bus->parent) {
-		if ((child->busn_res.end > bus->busn_res.end) ||
-		    (child->number > bus->busn_res.end) ||
-		    (child->number < bus->number) ||
-		    (child->busn_res.end < bus->number)) {
-			dev_info(&dev->dev, "devices behind bridge are unusable because %pR cannot be assigned for them\n",
-				 &child->busn_res);
-			break;
-		}
-		bus = bus->parent;
-	}
+	pbus_validate_busn(child);
 
 out:
 	/* Clear errors in the Secondary Status Register */
@@ -1733,6 +1702,35 @@ static void set_pcie_thunderbolt(struct pci_dev *dev)
 	vsec = pci_find_vsec_capability(dev, PCI_VENDOR_ID_INTEL, PCI_VSEC_ID_INTEL_TBT);
 	if (vsec)
 		dev->is_thunderbolt = 1;
+}
+
+static void set_pcie_cxl(struct pci_dev *dev)
+{
+	struct pci_dev *bridge;
+	u16 dvsec, cap;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	/*
+	 * Update parent's CXL state because alternate protocol training
+	 * may have changed
+	 */
+	bridge = pci_upstream_bridge(dev);
+	if (bridge)
+		set_pcie_cxl(bridge);
+
+	dvsec = pci_find_dvsec_capability(dev, PCI_VENDOR_ID_CXL,
+					  PCI_DVSEC_CXL_FLEXBUS_PORT);
+	if (!dvsec)
+		return;
+
+	pci_read_config_word(dev, dvsec + PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS,
+			     &cap);
+
+	dev->is_cxl = FIELD_GET(PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS_CACHE, cap) ||
+		FIELD_GET(PCI_DVSEC_CXL_FLEXBUS_PORT_STATUS_MEM, cap);
+
 }
 
 static void set_pcie_untrusted(struct pci_dev *dev)
@@ -2047,6 +2045,13 @@ int pci_setup_device(struct pci_dev *dev)
 	 */
 	dev->dma_mask = 0xffffffff;
 
+	/*
+	 * Assume 64-bit addresses for MSI initially. Will be changed to 32-bit
+	 * if MSI (rather than MSI-X) capability does not have
+	 * PCI_MSI_FLAGS_64BIT. Can also be overridden by driver.
+	 */
+	dev->msi_addr_mask = DMA_BIT_MASK(64);
+
 	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(dev->bus),
 		     dev->bus->number, PCI_SLOT(dev->devfn),
 		     PCI_FUNC(dev->devfn));
@@ -2064,6 +2069,8 @@ int pci_setup_device(struct pci_dev *dev)
 
 	/* Need to have dev->cfg_size ready */
 	set_pcie_thunderbolt(dev);
+
+	set_pcie_cxl(dev);
 
 	set_pcie_untrusted(dev);
 
@@ -2270,7 +2277,8 @@ int pci_configure_extended_tags(struct pci_dev *dev, void *ign)
 	u16 ctl;
 	int ret;
 
-	if (!pci_is_pcie(dev))
+	/* PCI_EXP_DEVCTL_EXT_TAG is RsvdP in VFs */
+	if (!pci_is_pcie(dev) || dev->is_virtfn)
 		return 0;
 
 	ret = pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &cap);
@@ -2410,6 +2418,37 @@ static void pci_configure_serr(struct pci_dev *dev)
 	}
 }
 
+static void pci_configure_rcb(struct pci_dev *dev)
+{
+	struct pci_dev *rp;
+	u16 rp_lnkctl;
+
+	/*
+	 * Per PCIe r7.0, sec 7.5.3.7, RCB is only meaningful in Root Ports
+	 * (where it is read-only), Endpoints, and Bridges.  It may only be
+	 * set for Endpoints and Bridges if it is set in the Root Port. For
+	 * Endpoints, it is 'RsvdP' for Virtual Functions.
+	 */
+	if (!pci_is_pcie(dev) ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_RC_EC ||
+	    dev->is_virtfn)
+		return;
+
+	/* Root Port often not visible to virtualized guests */
+	rp = pcie_find_root_port(dev);
+	if (!rp)
+		return;
+
+	pcie_capability_read_word(rp, PCI_EXP_LNKCTL, &rp_lnkctl);
+	pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_RCB,
+					   (rp_lnkctl & PCI_EXP_LNKCTL_RCB) ?
+					   PCI_EXP_LNKCTL_RCB : 0);
+}
+
 static void pci_configure_device(struct pci_dev *dev)
 {
 	pci_configure_mps(dev);
@@ -2419,6 +2458,7 @@ static void pci_configure_device(struct pci_dev *dev)
 	pci_configure_aspm_l1ss(dev);
 	pci_configure_eetlp_prefix(dev);
 	pci_configure_serr(dev);
+	pci_configure_rcb(dev);
 
 	pci_acpi_program_hp_params(dev);
 }
@@ -2462,7 +2502,7 @@ struct pci_dev *pci_alloc_dev(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
-	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = kzalloc_obj(struct pci_dev);
 	if (!dev)
 		return NULL;
 
@@ -2547,71 +2587,9 @@ bool pci_bus_generic_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 				int timeout)
 {
-#ifdef CONFIG_PCI_QUIRKS
-	struct pci_dev *bridge = bus->self;
-
-	/*
-	 * Certain IDT switches have an issue where they improperly trigger
-	 * ACS Source Validation errors on completions for config reads.
-	 */
-	if (bridge && bridge->vendor == PCI_VENDOR_ID_IDT &&
-	    bridge->device == 0x80b5)
-		return pci_idt_bus_quirk(bus, devfn, l, timeout);
-#endif
-
 	return pci_bus_generic_read_dev_vendor_id(bus, devfn, l, timeout);
 }
 EXPORT_SYMBOL(pci_bus_read_dev_vendor_id);
-
-#if IS_ENABLED(CONFIG_PCI_PWRCTRL)
-static struct platform_device *pci_pwrctrl_create_device(struct pci_bus *bus, int devfn)
-{
-	struct pci_host_bridge *host = pci_find_host_bridge(bus);
-	struct platform_device *pdev;
-	struct device_node *np;
-
-	np = of_pci_find_child_device(dev_of_node(&bus->dev), devfn);
-	if (!np)
-		return NULL;
-
-	pdev = of_find_device_by_node(np);
-	if (pdev) {
-		put_device(&pdev->dev);
-		goto err_put_of_node;
-	}
-
-	/*
-	 * First check whether the pwrctrl device really needs to be created or
-	 * not. This is decided based on at least one of the power supplies
-	 * being defined in the devicetree node of the device.
-	 */
-	if (!of_pci_supply_present(np)) {
-		pr_debug("PCI/pwrctrl: Skipping OF node: %s\n", np->name);
-		goto err_put_of_node;
-	}
-
-	/* Now create the pwrctrl device */
-	pdev = of_platform_device_create(np, NULL, &host->dev);
-	if (!pdev) {
-		pr_err("PCI/pwrctrl: Failed to create pwrctrl device for node: %s\n", np->name);
-		goto err_put_of_node;
-	}
-
-	of_node_put(np);
-
-	return pdev;
-
-err_put_of_node:
-	of_node_put(np);
-
-	return NULL;
-}
-#else
-static struct platform_device *pci_pwrctrl_create_device(struct pci_bus *bus, int devfn)
-{
-	return NULL;
-}
-#endif
 
 /*
  * Read the config data for a PCI device, sanity-check it,
@@ -2621,15 +2599,6 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 	u32 l;
-
-	/*
-	 * Create pwrctrl device (if required) for the PCI device to handle the
-	 * power state. If the pwrctrl device is created, then skip scanning
-	 * further as the pwrctrl core will rescan the bus after powering on
-	 * the device.
-	 */
-	if (pci_pwrctrl_create_device(bus, devfn))
-		return NULL;
 
 	if (!pci_bus_read_dev_vendor_id(bus, devfn, &l, 60*1000))
 		return NULL;

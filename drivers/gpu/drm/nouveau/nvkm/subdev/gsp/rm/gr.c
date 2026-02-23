@@ -56,7 +56,7 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 	struct nvkm_gr_func *func;
 	struct r535_gr *gr;
 
-	func = kzalloc(struct_size(func, sclass, ARRAY_SIZE(classes) + 1), GFP_KERNEL);
+	func = kzalloc_flex(*func, sclass, ARRAY_SIZE(classes) + 1);
 	if (!func)
 		return -ENOMEM;
 
@@ -74,7 +74,7 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 		func->sclass[i].ctor = nvkm_rm_gr_obj_ctor;
 	}
 
-	gr = kzalloc(sizeof(*gr), GFP_KERNEL);
+	gr = kzalloc_obj(*gr);
 	if (!gr) {
 		kfree(func);
 		return -ENOMEM;

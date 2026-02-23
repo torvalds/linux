@@ -98,7 +98,7 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv)
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_cmdq *cmdq;
 
-	cmdq = kzalloc(sizeof(*cmdq), GFP_KERNEL);
+	cmdq = kzalloc_obj(*cmdq);
 	if (!cmdq)
 		return NULL;
 
@@ -491,7 +491,7 @@ static struct dma_fence *ivpu_fence_create(struct ivpu_device *vdev)
 {
 	struct ivpu_fence *fence;
 
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	fence = kzalloc_obj(*fence);
 	if (!fence)
 		return NULL;
 
@@ -525,7 +525,7 @@ ivpu_job_create(struct ivpu_file_priv *file_priv, u32 engine_idx, u32 bo_count)
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct ivpu_job *job;
 
-	job = kzalloc(struct_size(job, bos, bo_count), GFP_KERNEL);
+	job = kzalloc_flex(*job, bos, bo_count);
 	if (!job)
 		return NULL;
 

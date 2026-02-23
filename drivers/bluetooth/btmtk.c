@@ -537,7 +537,7 @@ static int btmtk_usb_submit_wmt_recv_urb(struct hci_dev *hdev)
 	if (!urb)
 		return -ENOMEM;
 
-	dr = kmalloc(sizeof(*dr), GFP_KERNEL);
+	dr = kmalloc_obj(*dr);
 	if (!dr) {
 		usb_free_urb(urb);
 		return -ENOMEM;

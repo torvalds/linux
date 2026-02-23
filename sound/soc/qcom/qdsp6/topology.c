@@ -42,7 +42,7 @@ static struct audioreach_graph_info *audioreach_tplg_alloc_graph_info(struct q6a
 	}
 
 	*found = false;
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
 
@@ -92,7 +92,7 @@ static struct audioreach_sub_graph *audioreach_tplg_alloc_sub_graph(struct q6apm
 	}
 
 	*found = false;
-	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
+	sg = kzalloc_obj(*sg);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
 
@@ -134,7 +134,7 @@ static struct audioreach_container *audioreach_tplg_alloc_container(struct q6apm
 	}
 	*found = false;
 
-	cont = kzalloc(sizeof(*cont), GFP_KERNEL);
+	cont = kzalloc_obj(*cont);
 	if (!cont)
 		return ERR_PTR(-ENOMEM);
 
@@ -176,7 +176,7 @@ static struct audioreach_module *audioreach_tplg_alloc_module(struct q6apm *apm,
 		return mod;
 	}
 	*found = false;
-	mod = kzalloc(sizeof(*mod), GFP_KERNEL);
+	mod = kzalloc_obj(*mod);
 	if (!mod)
 		return ERR_PTR(-ENOMEM);
 
@@ -206,15 +206,15 @@ static struct audioreach_module *audioreach_tplg_alloc_module(struct q6apm *apm,
 	return mod;
 }
 
-static struct snd_soc_tplg_vendor_array *audioreach_get_sg_array(
-							struct snd_soc_tplg_private *private)
+static const struct snd_soc_tplg_vendor_array *
+audioreach_get_sg_array(const struct snd_soc_tplg_private *private)
 {
-	struct snd_soc_tplg_vendor_array *sg_array = NULL;
+	const struct snd_soc_tplg_vendor_array *sg_array = NULL;
 	bool found = false;
 	int sz;
 
 	for (sz = 0; !found && (sz < le32_to_cpu(private->size)); ) {
-		struct snd_soc_tplg_vendor_value_elem *sg_elem;
+		const struct snd_soc_tplg_vendor_value_elem *sg_elem;
 		int tkn_count = 0;
 
 		sg_array = (struct snd_soc_tplg_vendor_array *)((u8 *)private->array + sz);
@@ -239,15 +239,15 @@ static struct snd_soc_tplg_vendor_array *audioreach_get_sg_array(
 	return NULL;
 }
 
-static struct snd_soc_tplg_vendor_array *audioreach_get_cont_array(
-							struct snd_soc_tplg_private *private)
+static const struct snd_soc_tplg_vendor_array *
+audioreach_get_cont_array(const struct snd_soc_tplg_private *private)
 {
-	struct snd_soc_tplg_vendor_array *cont_array = NULL;
+	const struct snd_soc_tplg_vendor_array *cont_array = NULL;
 	bool found = false;
 	int sz;
 
 	for (sz = 0; !found && (sz < le32_to_cpu(private->size)); ) {
-		struct snd_soc_tplg_vendor_value_elem *cont_elem;
+		const struct snd_soc_tplg_vendor_value_elem *cont_elem;
 		int tkn_count = 0;
 
 		cont_array = (struct snd_soc_tplg_vendor_array *)((u8 *)private->array + sz);
@@ -272,15 +272,15 @@ static struct snd_soc_tplg_vendor_array *audioreach_get_cont_array(
 	return NULL;
 }
 
-static struct snd_soc_tplg_vendor_array *audioreach_get_module_array(
-							     struct snd_soc_tplg_private *private)
+static const struct snd_soc_tplg_vendor_array *
+audioreach_get_module_array(const struct snd_soc_tplg_private *private)
 {
-	struct snd_soc_tplg_vendor_array *mod_array = NULL;
+	const struct snd_soc_tplg_vendor_array *mod_array = NULL;
 	bool found = false;
 	int sz = 0;
 
 	for (sz = 0; !found && (sz < le32_to_cpu(private->size)); ) {
-		struct snd_soc_tplg_vendor_value_elem *mod_elem;
+		const struct snd_soc_tplg_vendor_value_elem *mod_elem;
 		int tkn_count = 0;
 
 		mod_array = (struct snd_soc_tplg_vendor_array *)((u8 *)private->array + sz);
@@ -305,20 +305,20 @@ static struct snd_soc_tplg_vendor_array *audioreach_get_module_array(
 	return NULL;
 }
 
-static struct audioreach_module_priv_data *audioreach_get_module_priv_data(
-		struct snd_soc_tplg_private *private)
+static struct audioreach_module_priv_data *
+audioreach_get_module_priv_data(const struct snd_soc_tplg_private *private)
 {
 	int sz;
 
 	for (sz = 0; sz < le32_to_cpu(private->size); ) {
-		struct snd_soc_tplg_vendor_array *mod_array;
+		const struct snd_soc_tplg_vendor_array *mod_array;
 
 		mod_array = (struct snd_soc_tplg_vendor_array *)((u8 *)private->array + sz);
 		if (le32_to_cpu(mod_array->type) == SND_SOC_AR_TPLG_MODULE_CFG_TYPE) {
 			struct audioreach_module_priv_data *pdata;
 
-			pdata = kzalloc(struct_size(pdata, data, le32_to_cpu(mod_array->size)),
-				       GFP_KERNEL);
+			pdata = kzalloc_flex(*pdata, data,
+					     le32_to_cpu(mod_array->size));
 			if (!pdata)
 				return ERR_PTR(-ENOMEM);
 
@@ -334,10 +334,10 @@ static struct audioreach_module_priv_data *audioreach_get_module_priv_data(
 }
 
 static struct audioreach_sub_graph *audioreach_parse_sg_tokens(struct q6apm *apm,
-						       struct snd_soc_tplg_private *private)
+							       const struct snd_soc_tplg_private *private)
 {
-	struct snd_soc_tplg_vendor_value_elem *sg_elem;
-	struct snd_soc_tplg_vendor_array *sg_array;
+	const struct snd_soc_tplg_vendor_value_elem *sg_elem;
+	const struct snd_soc_tplg_vendor_array *sg_array;
 	struct audioreach_graph_info *info = NULL;
 	int graph_id, sub_graph_id, tkn_count = 0;
 	struct audioreach_sub_graph *sg;
@@ -392,10 +392,10 @@ static struct audioreach_sub_graph *audioreach_parse_sg_tokens(struct q6apm *apm
 
 static struct audioreach_container *audioreach_parse_cont_tokens(struct q6apm *apm,
 							 struct audioreach_sub_graph *sg,
-							 struct snd_soc_tplg_private *private)
+							 const struct snd_soc_tplg_private *private)
 {
-	struct snd_soc_tplg_vendor_value_elem *cont_elem;
-	struct snd_soc_tplg_vendor_array *cont_array;
+	const struct snd_soc_tplg_vendor_value_elem *cont_elem;
+	const struct snd_soc_tplg_vendor_array *cont_array;
 	struct audioreach_container *cont;
 	int container_id, tkn_count = 0;
 	bool found = false;
@@ -437,7 +437,7 @@ static struct audioreach_container *audioreach_parse_cont_tokens(struct q6apm *a
 
 static struct audioreach_module *audioreach_parse_common_tokens(struct q6apm *apm,
 							struct audioreach_container *cont,
-							struct snd_soc_tplg_private *private,
+							const struct snd_soc_tplg_private *private,
 							struct snd_soc_dapm_widget *w)
 {
 	uint32_t max_ip_port = 0, max_op_port = 0;
@@ -447,8 +447,8 @@ static struct audioreach_module *audioreach_parse_common_tokens(struct q6apm *ap
 	uint32_t src_mod_inst_id = 0;
 
 	int module_id = 0, instance_id = 0, tkn_count = 0;
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
-	struct snd_soc_tplg_vendor_array *mod_array;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_array *mod_array;
 	struct audioreach_module *mod = NULL;
 	uint32_t token;
 	bool found;
@@ -590,7 +590,7 @@ static struct audioreach_module *audioreach_parse_common_tokens(struct q6apm *ap
 
 static int audioreach_widget_load_module_common(struct snd_soc_component *component,
 						int index, struct snd_soc_dapm_widget *w,
-						struct snd_soc_tplg_dapm_widget *tplg_w)
+						const struct snd_soc_tplg_dapm_widget *tplg_w)
 {
 	struct q6apm *apm = dev_get_drvdata(component->dev);
 	struct audioreach_container *cont;
@@ -620,10 +620,10 @@ static int audioreach_widget_load_module_common(struct snd_soc_component *compon
 
 static int audioreach_widget_load_enc_dec_cnv(struct snd_soc_component *component,
 					      int index, struct snd_soc_dapm_widget *w,
-					      struct snd_soc_tplg_dapm_widget *tplg_w)
+					      const struct snd_soc_tplg_dapm_widget *tplg_w)
 {
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
-	struct snd_soc_tplg_vendor_array *mod_array;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_array *mod_array;
 	struct audioreach_module *mod;
 	struct snd_soc_dobj *dobj;
 	int tkn_count = 0;
@@ -660,9 +660,9 @@ static int audioreach_widget_load_enc_dec_cnv(struct snd_soc_component *componen
 }
 
 static int audioreach_widget_log_module_load(struct audioreach_module *mod,
-					     struct snd_soc_tplg_vendor_array *mod_array)
+					     const struct snd_soc_tplg_vendor_array *mod_array)
 {
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
 	int tkn_count = 0;
 
 	mod_elem = mod_array->value;
@@ -690,9 +690,9 @@ static int audioreach_widget_log_module_load(struct audioreach_module *mod,
 }
 
 static int audioreach_widget_dma_module_load(struct audioreach_module *mod,
-					     struct snd_soc_tplg_vendor_array *mod_array)
+					     const struct snd_soc_tplg_vendor_array *mod_array)
 {
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
 	int tkn_count = 0;
 
 	mod_elem = mod_array->value;
@@ -719,9 +719,9 @@ static int audioreach_widget_dma_module_load(struct audioreach_module *mod,
 }
 
 static int audioreach_widget_i2s_module_load(struct audioreach_module *mod,
-					     struct snd_soc_tplg_vendor_array *mod_array)
+					     const struct snd_soc_tplg_vendor_array *mod_array)
 {
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
 	int tkn_count = 0;
 
 	mod_elem = mod_array->value;
@@ -754,9 +754,9 @@ static int audioreach_widget_i2s_module_load(struct audioreach_module *mod,
 }
 
 static int audioreach_widget_dp_module_load(struct audioreach_module *mod,
-					struct snd_soc_tplg_vendor_array *mod_array)
+					    const struct snd_soc_tplg_vendor_array *mod_array)
 {
-	struct snd_soc_tplg_vendor_value_elem *mod_elem;
+	const struct snd_soc_tplg_vendor_value_elem *mod_elem;
 	int tkn_count = 0;
 
 	mod_elem = mod_array->value;
@@ -778,9 +778,9 @@ static int audioreach_widget_dp_module_load(struct audioreach_module *mod,
 
 static int audioreach_widget_load_buffer(struct snd_soc_component *component,
 					 int index, struct snd_soc_dapm_widget *w,
-					 struct snd_soc_tplg_dapm_widget *tplg_w)
+					 const struct snd_soc_tplg_dapm_widget *tplg_w)
 {
-	struct snd_soc_tplg_vendor_array *mod_array;
+	const struct snd_soc_tplg_vendor_array *mod_array;
 	struct audioreach_module *mod;
 	struct snd_soc_dobj *dobj;
 	int ret;
@@ -818,10 +818,10 @@ static int audioreach_widget_load_buffer(struct snd_soc_component *component,
 
 static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 					int index, struct snd_soc_dapm_widget *w,
-					struct snd_soc_tplg_dapm_widget *tplg_w)
+					const struct snd_soc_tplg_dapm_widget *tplg_w)
 {
-	struct snd_soc_tplg_vendor_value_elem *w_elem;
-	struct snd_soc_tplg_vendor_array *w_array;
+	const struct snd_soc_tplg_vendor_value_elem *w_elem;
+	const struct snd_soc_tplg_vendor_array *w_array;
 	struct snd_ar_control *scontrol;
 	struct q6apm *data = dev_get_drvdata(component->dev);
 	struct snd_soc_dobj *dobj;
@@ -829,7 +829,7 @@ static int audioreach_widget_load_mixer(struct snd_soc_component *component,
 
 	w_array = &tplg_w->priv.array[0];
 
-	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
+	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
 		return -ENOMEM;
 
@@ -886,7 +886,7 @@ static const struct snd_soc_tplg_widget_events audioreach_widget_ops[] = {
 
 static int audioreach_widget_load_pga(struct snd_soc_component *component,
 				      int index, struct snd_soc_dapm_widget *w,
-				      struct snd_soc_tplg_dapm_widget *tplg_w)
+				      const struct snd_soc_tplg_dapm_widget *tplg_w)
 {
 	struct audioreach_module *mod;
 	struct snd_soc_dobj *dobj;
@@ -947,7 +947,7 @@ static int audioreach_widget_ready(struct snd_soc_component *component,
 static int audioreach_widget_unload(struct snd_soc_component *scomp,
 				    struct snd_soc_dobj *dobj)
 {
-	struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
+	const struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
 	struct q6apm *apm = dev_get_drvdata(scomp->dev);
 	struct audioreach_container *cont;
 	struct audioreach_module *mod;
@@ -1032,7 +1032,7 @@ static struct audioreach_module *audioreach_find_module(struct snd_soc_component
 static int audioreach_route_load(struct snd_soc_component *scomp, int index,
 				 struct snd_soc_dapm_route *route)
 {
-	struct audioreach_module *src_module, *sink_module;
+	const struct audioreach_module *src_module, *sink_module;
 	struct snd_ar_control *control;
 	struct snd_soc_dapm_widget *w;
 	int i;
@@ -1098,8 +1098,8 @@ static int audioreach_link_load(struct snd_soc_component *component, int index,
 }
 
 static void audioreach_connect_sub_graphs(struct q6apm *apm,
-					  struct snd_ar_control *m1,
-					  struct snd_ar_control *m2,
+					  const struct snd_ar_control *m1,
+					  const struct snd_ar_control *m2,
 					  bool connect)
 {
 	struct audioreach_graph_info *info;
@@ -1123,10 +1123,10 @@ static void audioreach_connect_sub_graphs(struct q6apm *apm,
 }
 
 static bool audioreach_is_vmixer_connected(struct q6apm *apm,
-					   struct snd_ar_control *m1,
-					   struct snd_ar_control *m2)
+					   const struct snd_ar_control *m1,
+					   const struct snd_ar_control *m2)
 {
-	struct audioreach_graph_info *info;
+	const struct audioreach_graph_info *info;
 
 	mutex_lock(&apm->lock);
 	info = idr_find(&apm->graph_info_idr, m2->graph_id);
@@ -1144,10 +1144,10 @@ static int audioreach_get_audio_mixer(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
+	const struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
-	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
-	struct snd_ar_control *scontrol = mc->dobj.private;
+	const struct snd_ar_control *dapm_scontrol = dw->dobj.private;
+	const struct snd_ar_control *scontrol = mc->dobj.private;
 	struct q6apm *data = dev_get_drvdata(c->dev);
 	bool connected;
 
@@ -1167,8 +1167,8 @@ static int audioreach_put_audio_mixer(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
-	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
-	struct snd_ar_control *scontrol = mc->dobj.private;
+	const struct snd_ar_control *dapm_scontrol = dw->dobj.private;
+	const struct snd_ar_control *scontrol = mc->dobj.private;
 	struct q6apm *data = dev_get_drvdata(c->dev);
 
 	if (ucontrol->value.integer.value[0]) {
@@ -1206,14 +1206,14 @@ static int audioreach_put_vol_ctrl_audio_mixer(struct snd_kcontrol *kcontrol,
 static int audioreach_control_load_mix(struct snd_soc_component *scomp,
 				       struct snd_ar_control *scontrol,
 				       struct snd_kcontrol_new *kc,
-				       struct snd_soc_tplg_ctl_hdr *hdr)
+				       const struct snd_soc_tplg_ctl_hdr *hdr)
 {
-	struct snd_soc_tplg_vendor_value_elem *c_elem;
-	struct snd_soc_tplg_vendor_array *c_array;
-	struct snd_soc_tplg_mixer_control *mc;
+	const struct snd_soc_tplg_vendor_value_elem *c_elem;
+	const struct snd_soc_tplg_vendor_array *c_array;
+	const struct snd_soc_tplg_mixer_control *mc;
 	int tkn_count = 0;
 
-	mc = container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
+	mc = container_of_const(hdr, struct snd_soc_tplg_mixer_control, hdr);
 	c_array = (struct snd_soc_tplg_vendor_array *)mc->priv.data;
 
 	c_elem = c_array->value;
@@ -1246,7 +1246,7 @@ static int audioreach_control_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_dobj *dobj;
 	int ret = 0;
 
-	scontrol = kzalloc(sizeof(*scontrol), GFP_KERNEL);
+	scontrol = kzalloc_obj(*scontrol);
 	if (!scontrol)
 		return -ENOMEM;
 

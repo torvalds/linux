@@ -24,6 +24,7 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
+#include <linux/filelock.h>
 #include <linux/slab.h>
 #include <linux/iversion.h>
 #include <linux/unicode.h>
@@ -479,8 +480,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	p = &info->root.rb_node;
 
 	/* Create and allocate the fname structure */
-	new_fn = kzalloc(struct_size(new_fn, name, ent_name->len + 1),
-			 GFP_KERNEL);
+	new_fn = kzalloc_flex(*new_fn, name, ent_name->len + 1);
 	if (!new_fn)
 		return -ENOMEM;
 	new_fn->hash = hash;
@@ -672,7 +672,7 @@ static int ext4_dir_open(struct inode *inode, struct file *file)
 {
 	struct dir_private_info *info;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc_obj(*info);
 	if (!info)
 		return -ENOMEM;
 	file->private_data = info;
@@ -690,4 +690,5 @@ const struct file_operations ext4_dir_operations = {
 #endif
 	.fsync		= ext4_sync_file,
 	.release	= ext4_release_dir,
+	.setlease	= generic_setlease,
 };

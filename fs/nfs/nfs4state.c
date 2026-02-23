@@ -54,6 +54,7 @@
 #include <linux/sunrpc/clnt.h>
 
 #include "nfs4_fs.h"
+#include "nfs40.h"
 #include "callback.h"
 #include "delegation.h"
 #include "internal.h"
@@ -103,7 +104,7 @@ static int nfs4_setup_state_renewal(struct nfs_client *clp)
 
 	status = nfs4_proc_get_lease_time(clp, &fsinfo);
 	if (status == 0) {
-		nfs4_set_lease_period(clp, fsinfo.lease_time * HZ);
+		nfs4_set_lease_period(clp, fsinfo.lease_time);
 		nfs4_schedule_state_renewal(clp);
 	}
 
@@ -138,55 +139,6 @@ do_confirm:
 		goto out;
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 	nfs4_setup_state_renewal(clp);
-out:
-	return status;
-}
-
-/**
- * nfs40_discover_server_trunking - Detect server IP address trunking (mv0)
- *
- * @clp: nfs_client under test
- * @result: OUT: found nfs_client, or clp
- * @cred: credential to use for trunking test
- *
- * Returns zero, a negative errno, or a negative NFS4ERR status.
- * If zero is returned, an nfs_client pointer is planted in
- * "result".
- *
- * Note: The returned client may not yet be marked ready.
- */
-int nfs40_discover_server_trunking(struct nfs_client *clp,
-				   struct nfs_client **result,
-				   const struct cred *cred)
-{
-	struct nfs4_setclientid_res clid = {
-		.clientid = clp->cl_clientid,
-		.confirm = clp->cl_confirm,
-	};
-	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
-	unsigned short port;
-	int status;
-
-	port = nn->nfs_callback_tcpport;
-	if (clp->cl_addr.ss_family == AF_INET6)
-		port = nn->nfs_callback_tcpport6;
-
-	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred, &clid);
-	if (status != 0)
-		goto out;
-	clp->cl_clientid = clid.clientid;
-	clp->cl_confirm = clid.confirm;
-
-	status = nfs40_walk_client_list(clp, result, cred);
-	if (status == 0) {
-		/* Sustain the lease, even if it's empty.  If the clientid4
-		 * goes stale it's of no use for trunking discovery. */
-		nfs4_schedule_state_renewal(*result);
-
-		/* If the client state need to recover, do it. */
-		if (clp->cl_state)
-			nfs4_schedule_state_manager(clp);
-	}
 out:
 	return status;
 }
@@ -307,8 +259,6 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	return nfs4_drain_slot_tbl(&ses->fc_slot_table);
 }
 
-#if defined(CONFIG_NFS_V4_1)
-
 static void nfs41_finish_session_reset(struct nfs_client *clp)
 {
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
@@ -386,8 +336,6 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 		nfs_put_client(clp);
 	return status;
 }
-
-#endif /* CONFIG_NFS_V4_1 */
 
 /**
  * nfs4_get_clid_cred - Acquire credential for a setclientid operation
@@ -498,7 +446,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 {
 	struct nfs4_state_owner *sp;
 
-	sp = kzalloc(sizeof(*sp), gfp_flags);
+	sp = kzalloc_obj(*sp, gfp_flags);
 	if (!sp)
 		return NULL;
 	sp->so_seqid.owner_id = atomic64_inc_return(&server->owner_ctr);
@@ -664,7 +612,7 @@ nfs4_alloc_open_state(void)
 {
 	struct nfs4_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL_ACCOUNT);
+	state = kzalloc_obj(*state, GFP_KERNEL_ACCOUNT);
 	if (!state)
 		return NULL;
 	refcount_set(&state->count, 1);
@@ -867,7 +815,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = state->owner->so_server;
 
-	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL_ACCOUNT);
+	lsp = kzalloc_obj(*lsp, GFP_KERNEL_ACCOUNT);
 	if (lsp == NULL)
 		return NULL;
 	nfs4_init_seqid_counter(&lsp->ls_seqid);
@@ -1066,7 +1014,7 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_m
 {
 	struct nfs_seqid *new;
 
-	new = kmalloc(sizeof(*new), gfp_mask);
+	new = kmalloc_obj(*new, gfp_mask);
 	if (new == NULL)
 		return ERR_PTR(-ENOMEM);
 	new->sequence = counter;
@@ -1343,28 +1291,6 @@ int nfs4_client_recover_expired_lease(struct nfs_client *clp)
 	return ret;
 }
 
-/*
- * nfs40_handle_cb_pathdown - return all delegations after NFS4ERR_CB_PATH_DOWN
- * @clp: client to process
- *
- * Set the NFS4CLNT_LEASE_EXPIRED state in order to force a
- * resend of the SETCLIENTID and hence re-establish the
- * callback channel. Then return all existing delegations.
- */
-static void nfs40_handle_cb_pathdown(struct nfs_client *clp)
-{
-	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-	nfs_expire_all_delegations(clp);
-	dprintk("%s: handling CB_PATHDOWN recovery for server %s\n", __func__,
-			clp->cl_hostname);
-}
-
-void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
-{
-	nfs40_handle_cb_pathdown(clp);
-	nfs4_schedule_state_manager(clp);
-}
-
 static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
 {
 
@@ -1445,6 +1371,8 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 	struct nfs4_state *state;
 	bool found = false;
 
+	if (!S_ISREG(inode->i_mode))
+		goto out;
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
@@ -1466,7 +1394,7 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 			found = true;
 	}
 	rcu_read_unlock();
-
+out:
 	nfs_inode_find_delegation_state_and_recover(inode, stateid);
 	if (found)
 		nfs4_schedule_state_manager(clp);
@@ -1478,6 +1406,8 @@ static void nfs4_state_mark_open_context_bad(struct nfs4_state *state, int err)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *ctx;
 
+	if (!S_ISREG(inode->i_mode))
+		return;
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		if (ctx->state != state)
@@ -1870,9 +1800,11 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 	switch (error) {
 	case 0:
 		break;
+#if IS_ENABLED(CONFIG_NFS_V4_0)
 	case -NFS4ERR_CB_PATH_DOWN:
 		nfs40_handle_cb_pathdown(clp);
 		break;
+#endif /* CONFIG_NFS_V4_0 */
 	case -NFS4ERR_NO_GRACE:
 		nfs4_state_end_reclaim_reboot(clp);
 		break;
@@ -2122,7 +2054,7 @@ static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred
 			clp->cl_hostname);
 
 	page = alloc_page(GFP_KERNEL);
-	locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
+	locations = kmalloc_obj(struct nfs4_fs_locations);
 	fattr = nfs_alloc_fattr();
 	if (page == NULL || locations == NULL || fattr == NULL) {
 		dprintk("<-- %s: no memory\n", __func__);
@@ -2374,7 +2306,6 @@ out_unlock:
 	return status;
 }
 
-#ifdef CONFIG_NFS_V4_1
 void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
 	struct nfs_client *clp = session->clp;
@@ -2581,18 +2512,6 @@ static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
 		set_bit(NFS4CLNT_RUN_MANAGER, &clp->cl_state);
 	}
 }
-#else /* CONFIG_NFS_V4_1 */
-static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
-
-static int nfs4_bind_conn_to_session(struct nfs_client *clp)
-{
-	return 0;
-}
-
-static void nfs4_layoutreturn_any_run(struct nfs_client *clp)
-{
-}
-#endif /* CONFIG_NFS_V4_1 */
 
 static void nfs4_state_manager(struct nfs_client *clp)
 {

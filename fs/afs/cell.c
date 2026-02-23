@@ -134,7 +134,7 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 
 	_enter("%*.*s,%s", namelen, namelen, name, addresses);
 
-	cell = kzalloc(sizeof(struct afs_cell), GFP_KERNEL);
+	cell = kzalloc_obj(struct afs_cell);
 	if (!cell) {
 		_leave(" = -ENOMEM");
 		return ERR_PTR(-ENOMEM);

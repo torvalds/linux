@@ -15,10 +15,10 @@ use kernel::{
     security,
     seq_file::SeqFile,
     seq_print,
+    sync::atomic::{ordering::Relaxed, Atomic},
     sync::poll::{PollCondVar, PollTable},
-    sync::{Arc, SpinLock},
+    sync::{aref::ARef, Arc, SpinLock},
     task::Task,
-    types::ARef,
     uaccess::UserSlice,
     uapi,
 };
@@ -34,10 +34,11 @@ use crate::{
     BinderReturnWriter, DArc, DLArc, DTRWrap, DeliverCode, DeliverToRead,
 };
 
-use core::{
-    mem::size_of,
-    sync::atomic::{AtomicU32, Ordering},
-};
+use core::mem::size_of;
+
+fn is_aligned(value: usize, to: usize) -> bool {
+    value % to == 0
+}
 
 /// Stores the layout of the scatter-gather entries. This is used during the `translate_objects`
 /// call and is discarded when it returns.
@@ -69,17 +70,24 @@ struct ScatterGatherEntry {
 }
 
 /// This entry specifies that a fixup should happen at `target_offset` of the
-/// buffer. If `skip` is nonzero, then the fixup is a `binder_fd_array_object`
-/// and is applied later. Otherwise if `skip` is zero, then the size of the
-/// fixup is `sizeof::<u64>()` and `pointer_value` is written to the buffer.
-struct PointerFixupEntry {
-    /// The number of bytes to skip, or zero for a `binder_buffer_object` fixup.
-    skip: usize,
-    /// The translated pointer to write when `skip` is zero.
-    pointer_value: u64,
-    /// The offset at which the value should be written. The offset is relative
-    /// to the original buffer.
-    target_offset: usize,
+/// buffer.
+enum PointerFixupEntry {
+    /// A fixup for a `binder_buffer_object`.
+    Fixup {
+        /// The translated pointer to write.
+        pointer_value: u64,
+        /// The offset at which the value should be written. The offset is relative
+        /// to the original buffer.
+        target_offset: usize,
+    },
+    /// A skip for a `binder_fd_array_object`.
+    Skip {
+        /// The number of bytes to skip.
+        skip: usize,
+        /// The offset at which the skip should happen. The offset is relative
+        /// to the original buffer.
+        target_offset: usize,
+    },
 }
 
 /// Return type of `apply_and_validate_fixup_in_parent`.
@@ -273,8 +281,8 @@ const LOOPER_POLL: u32 = 0x40;
 impl InnerThread {
     fn new() -> Result<Self> {
         fn next_err_id() -> u32 {
-            static EE_ID: AtomicU32 = AtomicU32::new(0);
-            EE_ID.fetch_add(1, Ordering::Relaxed)
+            static EE_ID: Atomic<u32> = Atomic::new(0);
+            EE_ID.fetch_add(1, Relaxed)
         }
 
         Ok(Self {
@@ -762,8 +770,7 @@ impl Thread {
 
                     parent_entry.fixup_min_offset = info.new_min_offset;
                     parent_entry.pointer_fixups.push(
-                        PointerFixupEntry {
-                            skip: 0,
+                        PointerFixupEntry::Fixup {
                             pointer_value: buffer_ptr_in_user_space,
                             target_offset: info.target_offset,
                         },
@@ -789,6 +796,10 @@ impl Thread {
                 let num_fds = usize::try_from(obj.num_fds).map_err(|_| EINVAL)?;
                 let fds_len = num_fds.checked_mul(size_of::<u32>()).ok_or(EINVAL)?;
 
+                if !is_aligned(parent_offset, size_of::<u32>()) {
+                    return Err(EINVAL.into());
+                }
+
                 let info = sg_state.validate_parent_fixup(parent_index, parent_offset, fds_len)?;
                 view.alloc.info_add_fd_reserve(num_fds)?;
 
@@ -803,13 +814,16 @@ impl Thread {
                     }
                 };
 
+                if !is_aligned(parent_entry.sender_uaddr, size_of::<u32>()) {
+                    return Err(EINVAL.into());
+                }
+
                 parent_entry.fixup_min_offset = info.new_min_offset;
                 parent_entry
                     .pointer_fixups
                     .push(
-                        PointerFixupEntry {
+                        PointerFixupEntry::Skip {
                             skip: fds_len,
-                            pointer_value: 0,
                             target_offset: info.target_offset,
                         },
                         GFP_KERNEL,
@@ -820,6 +834,7 @@ impl Thread {
                     .sender_uaddr
                     .checked_add(parent_offset)
                     .ok_or(EINVAL)?;
+
                 let mut fda_bytes = KVec::new();
                 UserSlice::new(UserPtr::from_addr(fda_uaddr as _), fds_len)
                     .read_all(&mut fda_bytes, GFP_KERNEL)?;
@@ -871,17 +886,21 @@ impl Thread {
             let mut reader =
                 UserSlice::new(UserPtr::from_addr(sg_entry.sender_uaddr), sg_entry.length).reader();
             for fixup in &mut sg_entry.pointer_fixups {
-                let fixup_len = if fixup.skip == 0 {
-                    size_of::<u64>()
-                } else {
-                    fixup.skip
+                let (fixup_len, fixup_offset) = match fixup {
+                    PointerFixupEntry::Fixup { target_offset, .. } => {
+                        (size_of::<u64>(), *target_offset)
+                    }
+                    PointerFixupEntry::Skip {
+                        skip,
+                        target_offset,
+                    } => (*skip, *target_offset),
                 };
 
-                let target_offset_end = fixup.target_offset.checked_add(fixup_len).ok_or(EINVAL)?;
-                if fixup.target_offset < end_of_previous_fixup || offset_end < target_offset_end {
+                let target_offset_end = fixup_offset.checked_add(fixup_len).ok_or(EINVAL)?;
+                if fixup_offset < end_of_previous_fixup || offset_end < target_offset_end {
                     pr_warn!(
                         "Fixups oob {} {} {} {}",
-                        fixup.target_offset,
+                        fixup_offset,
                         end_of_previous_fixup,
                         offset_end,
                         target_offset_end
@@ -890,13 +909,13 @@ impl Thread {
                 }
 
                 let copy_off = end_of_previous_fixup;
-                let copy_len = fixup.target_offset - end_of_previous_fixup;
+                let copy_len = fixup_offset - end_of_previous_fixup;
                 if let Err(err) = alloc.copy_into(&mut reader, copy_off, copy_len) {
                     pr_warn!("Failed copying into alloc: {:?}", err);
                     return Err(err.into());
                 }
-                if fixup.skip == 0 {
-                    let res = alloc.write::<u64>(fixup.target_offset, &fixup.pointer_value);
+                if let PointerFixupEntry::Fixup { pointer_value, .. } = fixup {
+                    let res = alloc.write::<u64>(fixup_offset, pointer_value);
                     if let Err(err) = res {
                         pr_warn!("Failed copying ptr into alloc: {:?}", err);
                         return Err(err.into());
@@ -949,25 +968,30 @@ impl Thread {
 
         let data_size = trd.data_size.try_into().map_err(|_| EINVAL)?;
         let aligned_data_size = ptr_align(data_size).ok_or(EINVAL)?;
-        let offsets_size = trd.offsets_size.try_into().map_err(|_| EINVAL)?;
-        let aligned_offsets_size = ptr_align(offsets_size).ok_or(EINVAL)?;
-        let buffers_size = tr.buffers_size.try_into().map_err(|_| EINVAL)?;
-        let aligned_buffers_size = ptr_align(buffers_size).ok_or(EINVAL)?;
+        let offsets_size: usize = trd.offsets_size.try_into().map_err(|_| EINVAL)?;
+        let buffers_size: usize = tr.buffers_size.try_into().map_err(|_| EINVAL)?;
         let aligned_secctx_size = match secctx.as_ref() {
             Some((_offset, ctx)) => ptr_align(ctx.len()).ok_or(EINVAL)?,
             None => 0,
         };
 
+        if !is_aligned(offsets_size, size_of::<u64>()) {
+            return Err(EINVAL.into());
+        }
+        if !is_aligned(buffers_size, size_of::<u64>()) {
+            return Err(EINVAL.into());
+        }
+
         // This guarantees that at least `sizeof(usize)` bytes will be allocated.
         let len = usize::max(
             aligned_data_size
-                .checked_add(aligned_offsets_size)
-                .and_then(|sum| sum.checked_add(aligned_buffers_size))
+                .checked_add(offsets_size)
+                .and_then(|sum| sum.checked_add(buffers_size))
                 .and_then(|sum| sum.checked_add(aligned_secctx_size))
                 .ok_or(ENOMEM)?,
-            size_of::<usize>(),
+            size_of::<u64>(),
         );
-        let secctx_off = aligned_data_size + aligned_offsets_size + aligned_buffers_size;
+        let secctx_off = aligned_data_size + offsets_size + buffers_size;
         let mut alloc =
             match to_process.buffer_alloc(debug_id, len, is_oneway, self.process.task.pid()) {
                 Ok(alloc) => alloc,
@@ -999,13 +1023,13 @@ impl Thread {
             }
 
             let offsets_start = aligned_data_size;
-            let offsets_end = aligned_data_size + aligned_offsets_size;
+            let offsets_end = aligned_data_size + offsets_size;
 
             // This state is used for BINDER_TYPE_PTR objects.
             let sg_state = sg_state.insert(ScatterGatherState {
                 unused_buffer_space: UnusedBufferSpace {
                     offset: offsets_end,
-                    limit: len,
+                    limit: offsets_end + buffers_size,
                 },
                 sg_entries: KVec::new(),
                 ancestors: KVec::new(),
@@ -1014,12 +1038,16 @@ impl Thread {
             // Traverse the objects specified.
             let mut view = AllocationView::new(&mut alloc, data_size);
             for (index, index_offset) in (offsets_start..offsets_end)
-                .step_by(size_of::<usize>())
+                .step_by(size_of::<u64>())
                 .enumerate()
             {
-                let offset = view.alloc.read(index_offset)?;
+                let offset: usize = view
+                    .alloc
+                    .read::<u64>(index_offset)?
+                    .try_into()
+                    .map_err(|_| EINVAL)?;
 
-                if offset < end_of_previous_object {
+                if offset < end_of_previous_object || !is_aligned(offset, size_of::<u32>()) {
                     pr_warn!("Got transaction with invalid offset.");
                     return Err(EINVAL.into());
                 }
@@ -1051,7 +1079,7 @@ impl Thread {
                 }
 
                 // Update the indexes containing objects to clean up.
-                let offset_after_object = index_offset + size_of::<usize>();
+                let offset_after_object = index_offset + size_of::<u64>();
                 view.alloc
                     .set_info_offsets(offsets_start..offset_after_object);
             }
@@ -1117,6 +1145,7 @@ impl Thread {
         transaction: &DArc<Transaction>,
     ) -> bool {
         if let Ok(transaction) = &reply {
+            crate::trace::trace_transaction(true, transaction, Some(&self.task));
             transaction.set_outstanding(&mut self.process.inner.lock());
         }
 
@@ -1537,7 +1566,7 @@ impl Thread {
 
 #[pin_data]
 struct ThreadError {
-    error_code: AtomicU32,
+    error_code: Atomic<u32>,
     #[pin]
     links_track: AtomicTracker,
 }
@@ -1545,18 +1574,18 @@ struct ThreadError {
 impl ThreadError {
     fn try_new() -> Result<DArc<Self>> {
         DTRWrap::arc_pin_init(pin_init!(Self {
-            error_code: AtomicU32::new(BR_OK),
+            error_code: Atomic::new(BR_OK),
             links_track <- AtomicTracker::new(),
         }))
         .map(ListArc::into_arc)
     }
 
     fn set_error_code(&self, code: u32) {
-        self.error_code.store(code, Ordering::Relaxed);
+        self.error_code.store(code, Relaxed);
     }
 
     fn is_unused(&self) -> bool {
-        self.error_code.load(Ordering::Relaxed) == BR_OK
+        self.error_code.load(Relaxed) == BR_OK
     }
 }
 
@@ -1566,8 +1595,8 @@ impl DeliverToRead for ThreadError {
         _thread: &Thread,
         writer: &mut BinderReturnWriter<'_>,
     ) -> Result<bool> {
-        let code = self.error_code.load(Ordering::Relaxed);
-        self.error_code.store(BR_OK, Ordering::Relaxed);
+        let code = self.error_code.load(Relaxed);
+        self.error_code.store(BR_OK, Relaxed);
         writer.write_code(code)?;
         Ok(true)
     }
@@ -1583,7 +1612,7 @@ impl DeliverToRead for ThreadError {
             m,
             "{}transaction error: {}\n",
             prefix,
-            self.error_code.load(Ordering::Relaxed)
+            self.error_code.load(Relaxed)
         );
         Ok(())
     }

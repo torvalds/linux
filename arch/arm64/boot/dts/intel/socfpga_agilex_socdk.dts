@@ -131,7 +131,7 @@
 
 			root: partition@4200000 {
 				label = "Root Filesystem - UBIFS";
-				reg = <0x04200000 0x0BE00000>;
+				reg = <0x04200000 0x0be00000>;
 			};
 		};
 	};

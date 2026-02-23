@@ -73,12 +73,13 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 static void set_priority(struct vi_mqd *m, struct queue_properties *q)
 {
 	m->cp_hqd_pipe_priority = pipe_priority_map[q->priority];
-	m->cp_hqd_queue_priority = q->priority;
+	/* m->cp_hqd_queue_priority = q->priority; */
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 					struct queue_properties *q)
 {
+	struct kfd_node *kfd = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj;
 
 	if (kfd_gtt_sa_allocate(kfd, sizeof(struct vi_mqd),
@@ -445,7 +446,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
 		return NULL;
 
-	mqd = kzalloc(sizeof(*mqd), GFP_KERNEL);
+	mqd = kzalloc_obj(*mqd);
 	if (!mqd)
 		return NULL;
 

@@ -82,7 +82,7 @@ impl super::Gsp {
         if frts_status != 0 {
             dev_err!(
                 dev,
-                "FWSEC-FRTS returned with error code {:#x}",
+                "FWSEC-FRTS returned with error code {:#x}\n",
                 frts_status
             );
 
@@ -139,10 +139,7 @@ impl super::Gsp {
 
         let bios = Vbios::new(dev, bar)?;
 
-        let gsp_fw = KBox::pin_init(
-            GspFirmware::new(dev, chipset, FIRMWARE_VERSION)?,
-            GFP_KERNEL,
-        )?;
+        let gsp_fw = KBox::pin_init(GspFirmware::new(dev, chipset, FIRMWARE_VERSION), GFP_KERNEL)?;
 
         let fb_layout = FbLayout::new(chipset, bar, &gsp_fw)?;
         dev_dbg!(dev, "{:#x?}\n", fb_layout);
@@ -186,7 +183,7 @@ impl super::Gsp {
         );
 
         sec2_falcon.reset(bar)?;
-        sec2_falcon.dma_load(bar, &booter_loader)?;
+        sec2_falcon.load(bar, &booter_loader)?;
         let wpr_handle = wpr_meta.dma_handle();
         let (mbox0, mbox1) = sec2_falcon.boot(
             bar,
@@ -241,11 +238,10 @@ impl super::Gsp {
 
         // Obtain and display basic GPU information.
         let info = commands::get_gsp_info(&mut self.cmdq, bar)?;
-        dev_info!(
-            pdev.as_ref(),
-            "GPU name: {}\n",
-            info.gpu_name().unwrap_or("invalid GPU name")
-        );
+        match info.gpu_name() {
+            Ok(name) => dev_info!(pdev.as_ref(), "GPU name: {}\n", name),
+            Err(e) => dev_warn!(pdev.as_ref(), "GPU name unavailable: {:?}\n", e),
+        }
 
         Ok(())
     }

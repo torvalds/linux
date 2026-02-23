@@ -554,7 +554,7 @@ static struct usb_request
 	}
 	ep = container_of(_ep, struct net2280_ep, ep);
 
-	req = kzalloc(sizeof(*req), gfp_flags);
+	req = kzalloc_obj(*req, gfp_flags);
 	if (!req)
 		return NULL;
 
@@ -3625,7 +3625,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int			retval, i;
 
 	/* alloc, and start init */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (dev == NULL) {
 		retval = -ENOMEM;
 		goto done;

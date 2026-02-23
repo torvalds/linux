@@ -113,10 +113,12 @@ static inline struct dim2_hdm *iface_to_hdm(struct most_interface *iface)
 	return container_of(iface, struct dim2_hdm, most_iface);
 }
 
-/* Macro to identify a network status message */
-#define PACKET_IS_NET_INFO(p)  \
-	(((p)[1] == 0x18) && ((p)[2] == 0x05) && ((p)[3] == 0x0C) && \
-	 ((p)[13] == 0x3C) && ((p)[14] == 0x00) && ((p)[15] == 0x0A))
+/* Identify a network status message */
+static bool packet_is_net_info(const u8 *p)
+{
+	return p[1] == 0x18 && p[2] == 0x05 && p[3] == 0x0C &&
+	       p[13] == 0x3C && p[14] == 0x00 && p[15] == 0x0A;
+}
 
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
@@ -304,7 +306,7 @@ static void service_done_flag(struct dim2_hdm *dev, int ch_idx)
 
 		if (hdm_ch->data_type == MOST_CH_ASYNC &&
 		    hdm_ch->direction == MOST_CH_RX &&
-		    PACKET_IS_NET_INFO(data)) {
+		    packet_is_net_info(data)) {
 			retrieve_netinfo(dev, mbo);
 
 			spin_lock_irqsave(&dim_lock, flags);
@@ -757,7 +759,7 @@ static int dim2_probe(struct platform_device *pdev)
 
 	enum { MLB_INT_IDX, AHB0_INT_IDX };
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc_obj(*dev);
 	if (!dev)
 		return -ENOMEM;
 

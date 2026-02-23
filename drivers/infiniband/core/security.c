@@ -258,7 +258,7 @@ static int port_pkey_list_insert(struct ib_port_pkey *pp)
 	if (!pkey) {
 		bool found = false;
 
-		pkey = kzalloc(sizeof(*pkey), GFP_KERNEL);
+		pkey = kzalloc_obj(*pkey);
 		if (!pkey)
 			return -ENOMEM;
 
@@ -335,7 +335,7 @@ static struct ib_ports_pkeys *get_new_pps(const struct ib_qp *qp,
 	struct ib_ports_pkeys *new_pps;
 	struct ib_ports_pkeys *qp_pps = qp->qp_sec->ports_pkeys;
 
-	new_pps = kzalloc(sizeof(*new_pps), GFP_KERNEL);
+	new_pps = kzalloc_obj(*new_pps);
 	if (!new_pps)
 		return NULL;
 
@@ -428,7 +428,7 @@ int ib_create_qp_security(struct ib_qp *qp, struct ib_device *dev)
 	if (!is_ib)
 		return 0;
 
-	qp->qp_sec = kzalloc(sizeof(*qp->qp_sec), GFP_KERNEL);
+	qp->qp_sec = kzalloc_obj(*qp->qp_sec);
 	if (!qp->qp_sec)
 		return -ENOMEM;
 

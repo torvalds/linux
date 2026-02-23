@@ -15,12 +15,6 @@ TEST_PROGS := \
 	hds.py \
 	napi_id.py \
 	napi_threaded.py \
-	netcons_basic.sh \
-	netcons_cmdline.sh \
-	netcons_fragmented_msg.sh \
-	netcons_overflow.sh \
-	netcons_sysdata.sh \
-	netcons_torture.sh \
 	netpoll_basic.py \
 	ping.py \
 	psp.py \

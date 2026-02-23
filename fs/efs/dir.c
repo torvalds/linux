@@ -6,6 +6,7 @@
  */
 
 #include <linux/buffer_head.h>
+#include <linux/filelock.h>
 #include "efs.h"
 
 static int efs_readdir(struct file *, struct dir_context *);
@@ -14,6 +15,7 @@ const struct file_operations efs_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.iterate_shared	= efs_readdir,
+	.setlease	= generic_setlease,
 };
 
 const struct inode_operations efs_dir_inode_operations = {

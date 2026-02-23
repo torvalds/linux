@@ -197,7 +197,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 		return NULL;
 	}
 
-	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
+	bundle = kzalloc_obj(*bundle);
 	if (!bundle)
 		return NULL;
 

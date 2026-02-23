@@ -382,7 +382,7 @@
 
 		pinctrl0: pinctrl@ffd13000 {
 			compatible = "pinctrl-single";
-			reg = <0xffd13000 0xA0>;
+			reg = <0xffd13000 0xa0>;
 			#pinctrl-cells = <1>;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0x0000000f>;

@@ -48,6 +48,28 @@
 	};
 };
 
+&apbdma0 {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+
+	pinctrl-0 = <&nand_pins_default>;
+	pinctrl-names = "default";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nand@0 {
+		reg = <0>;
+		label = "ls2k1000-nand";
+		nand-use-soft-ecc-engine;
+		nand-ecc-algo = "bch";
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+	};
+};
+
 &apbdma1 {
 	status = "okay";
 };

@@ -1147,7 +1147,7 @@ static int ep_alloc(struct eventpoll **pep)
 {
 	struct eventpoll *ep;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc_obj(*ep);
 	if (unlikely(!ep))
 		return -ENOMEM;
 

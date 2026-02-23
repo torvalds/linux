@@ -929,7 +929,7 @@ int of_dma_get_range(struct device_node *np, const struct bus_dma_region **map)
 	if (!num_ranges)
 		return -EINVAL;
 
-	r = kcalloc(num_ranges + 1, sizeof(*r), GFP_KERNEL);
+	r = kzalloc_objs(*r, num_ranges + 1);
 	if (!r)
 		return -ENOMEM;
 

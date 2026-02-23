@@ -26,10 +26,3 @@ GPU Driver Documentation
    panthor
    zynqmp
    nova/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

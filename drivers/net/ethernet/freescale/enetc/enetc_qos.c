@@ -1153,7 +1153,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 	if (!entryg)
 		return -EINVAL;
 
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	filter = kzalloc_obj(*filter);
 	if (!filter)
 		return -ENOMEM;
 
@@ -1266,7 +1266,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 
 	filter->sgi_index = sgi->index;
 
-	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
+	sfi = kzalloc_obj(*sfi);
 	if (!sfi) {
 		err = -ENOMEM;
 		goto free_gate;
@@ -1283,7 +1283,7 @@ static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
 			goto free_sfi;
 
 		if (entryp->police.burst) {
-			fmi = kzalloc(sizeof(*fmi), GFP_KERNEL);
+			fmi = kzalloc_obj(*fmi);
 			if (!fmi) {
 				err = -ENOMEM;
 				goto free_sfi;

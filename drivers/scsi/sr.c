@@ -82,8 +82,8 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_WORM);
 	 CDC_CD_R|CDC_CD_RW|CDC_DVD|CDC_DVD_R|CDC_DVD_RAM|CDC_GENERIC_PACKET| \
 	 CDC_MRW|CDC_MRW_W|CDC_RAM)
 
-static int sr_probe(struct device *);
-static int sr_remove(struct device *);
+static int sr_probe(struct scsi_device *);
+static void sr_remove(struct scsi_device *);
 static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt);
 static int sr_done(struct scsi_cmnd *);
 static int sr_runtime_suspend(struct device *dev);
@@ -93,10 +93,10 @@ static const struct dev_pm_ops sr_pm_ops = {
 };
 
 static struct scsi_driver sr_template = {
+	.probe = sr_probe,
+	.remove = sr_remove,
 	.gendrv = {
 		.name   	= "sr",
-		.probe		= sr_probe,
-		.remove		= sr_remove,
 		.pm		= &sr_pm_ops,
 	},
 	.init_command		= sr_init_command,
@@ -616,9 +616,9 @@ static void sr_release(struct cdrom_device_info *cdi)
 {
 }
 
-static int sr_probe(struct device *dev)
+static int sr_probe(struct scsi_device *sdev)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	struct device *dev = &sdev->sdev_gendev;
 	struct gendisk *disk;
 	struct scsi_cd *cd;
 	int minor, error;
@@ -629,7 +629,7 @@ static int sr_probe(struct device *dev)
 		goto fail;
 
 	error = -ENOMEM;
-	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kzalloc_obj(*cd);
 	if (!cd)
 		goto fail;
 
@@ -982,16 +982,15 @@ out_put_request:
 	return ret;
 }
 
-static int sr_remove(struct device *dev)
+static void sr_remove(struct scsi_device *sdev)
 {
+	struct device *dev = &sdev->sdev_gendev;
 	struct scsi_cd *cd = dev_get_drvdata(dev);
 
 	scsi_autopm_get_device(cd->device);
 
 	del_gendisk(cd->disk);
 	put_disk(cd->disk);
-
-	return 0;
 }
 
 static int __init init_sr(void)
@@ -1001,7 +1000,7 @@ static int __init init_sr(void)
 	rc = register_blkdev(SCSI_CDROM_MAJOR, "sr");
 	if (rc)
 		return rc;
-	rc = scsi_register_driver(&sr_template.gendrv);
+	rc = scsi_register_driver(&sr_template);
 	if (rc)
 		unregister_blkdev(SCSI_CDROM_MAJOR, "sr");
 
@@ -1010,7 +1009,7 @@ static int __init init_sr(void)
 
 static void __exit exit_sr(void)
 {
-	scsi_unregister_driver(&sr_template.gendrv);
+	scsi_unregister_driver(&sr_template);
 	unregister_blkdev(SCSI_CDROM_MAJOR, "sr");
 }
 

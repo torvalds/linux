@@ -867,7 +867,7 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 {
 #ifdef CONFIG_BLOCK
 	struct super_block *sb;
-	struct filename *tmp = getname(special);
+	CLASS(filename, tmp)(special);
 	bool excl = false, thawed = false;
 	int error;
 	dev_t dev;
@@ -875,7 +875,6 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 	if (IS_ERR(tmp))
 		return ERR_CAST(tmp);
 	error = lookup_bdev(tmp->name, &dev);
-	putname(tmp);
 	if (error)
 		return ERR_PTR(error);
 
@@ -899,6 +898,7 @@ retry:
 		sb_start_write(sb);
 		sb_end_write(sb);
 		put_super(sb);
+		cond_resched();
 		goto retry;
 	}
 	return sb;

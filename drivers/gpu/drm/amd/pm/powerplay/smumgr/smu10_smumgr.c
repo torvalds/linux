@@ -244,7 +244,7 @@ static int smu10_smu_init(struct pp_hwmgr *hwmgr)
 	struct smu10_smumgr *priv;
 	int r;
 
-	priv = kzalloc(sizeof(struct smu10_smumgr), GFP_KERNEL);
+	priv = kzalloc_obj(struct smu10_smumgr);
 
 	if (!priv)
 		return -ENOMEM;

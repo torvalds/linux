@@ -63,7 +63,7 @@ qxl_ring_create(struct qxl_ring_header *header,
 {
 	struct qxl_ring *ring;
 
-	ring = kmalloc(sizeof(*ring), GFP_KERNEL);
+	ring = kmalloc_obj(*ring);
 	if (!ring)
 		return NULL;
 

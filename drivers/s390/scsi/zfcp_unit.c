@@ -137,7 +137,7 @@ int zfcp_unit_add(struct zfcp_port *port, u64 fcp_lun)
 		goto out;
 	}
 
-	unit = kzalloc(sizeof(struct zfcp_unit), GFP_KERNEL);
+	unit = kzalloc_obj(struct zfcp_unit);
 	if (!unit) {
 		retval = -ENOMEM;
 		goto out;

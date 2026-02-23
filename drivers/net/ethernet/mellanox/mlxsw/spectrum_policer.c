@@ -243,7 +243,7 @@ int mlxsw_sp_policer_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	policer = kmalloc(sizeof(*policer), GFP_KERNEL);
+	policer = kmalloc_obj(*policer);
 	if (!policer)
 		return -ENOMEM;
 	policer->params = *params;
@@ -357,7 +357,7 @@ int mlxsw_sp_policers_init(struct mlxsw_sp *mlxsw_sp)
 	struct mlxsw_sp_policer_core *policer_core;
 	int i, err;
 
-	policer_core = kzalloc(sizeof(*policer_core), GFP_KERNEL);
+	policer_core = kzalloc_obj(*policer_core);
 	if (!policer_core)
 		return -ENOMEM;
 	mlxsw_sp->policer_core = policer_core;

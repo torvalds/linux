@@ -234,7 +234,7 @@ static struct clk * __init cpg_pll_clk_register(const char *name,
 	struct cpg_pll_clk *pll_clk;
 	struct clk *clk;
 
-	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
+	pll_clk = kzalloc_obj(*pll_clk);
 	if (!pll_clk)
 		return ERR_PTR(-ENOMEM);
 
@@ -374,7 +374,7 @@ static struct clk * __init cpg_z_clk_register(const char *name,
 	struct cpg_z_clk *zclk;
 	struct clk *clk;
 
-	zclk = kzalloc(sizeof(*zclk), GFP_KERNEL);
+	zclk = kzalloc_obj(*zclk);
 	if (!zclk)
 		return ERR_PTR(-ENOMEM);
 

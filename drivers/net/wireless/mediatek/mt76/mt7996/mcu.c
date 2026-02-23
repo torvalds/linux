@@ -726,7 +726,7 @@ mt7996_mcu_wed_rro_event(struct mt7996_dev *dev, struct sk_buff *skb)
 			struct mt7996_wed_rro_session_id *session;
 
 			e = (void *)skb->data;
-			session = kzalloc(sizeof(*session), GFP_ATOMIC);
+			session = kzalloc_obj(*session, GFP_ATOMIC);
 			if (!session)
 				break;
 

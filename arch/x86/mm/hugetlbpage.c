@@ -42,3 +42,11 @@ static __init int gigantic_pages_init(void)
 arch_initcall(gigantic_pages_init);
 #endif
 #endif
+
+unsigned int __init arch_hugetlb_cma_order(void)
+{
+	if (boot_cpu_has(X86_FEATURE_GBPAGES))
+		return PUD_SHIFT - PAGE_SHIFT;
+
+	return 0;
+}

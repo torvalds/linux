@@ -778,7 +778,7 @@ airoha_ppe_foe_commit_subflow_entry(struct airoha_ppe *ppe,
 	if (!hwe_p)
 		return -EINVAL;
 
-	f = kzalloc(sizeof(*f), GFP_ATOMIC);
+	f = kzalloc_obj(*f, GFP_ATOMIC);
 	if (!f)
 		return -ENOMEM;
 
@@ -1173,7 +1173,7 @@ static int airoha_ppe_flow_offload_replace(struct airoha_eth *eth,
 			return err;
 	}
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc_obj(*e);
 	if (!e)
 		return -ENOMEM;
 

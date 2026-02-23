@@ -480,7 +480,7 @@ struct mana_context {
 	struct mana_ethtool_hc_stats hc_stats;
 	struct mana_eq *eqs;
 	struct dentry *mana_eqs_debugfs;
-
+	struct workqueue_struct *per_port_queue_reset_wq;
 	/* Workqueue for querying hardware stats */
 	struct delayed_work gf_stats_work;
 	bool hwc_timeout_occurred;
@@ -495,6 +495,7 @@ struct mana_context {
 struct mana_port_context {
 	struct mana_context *ac;
 	struct net_device *ndev;
+	struct work_struct queue_reset_work;
 
 	u8 mac_addr[ETH_ALEN];
 

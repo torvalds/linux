@@ -1926,4 +1926,144 @@ static int loop1_wrapper(void)
 	);
 }
 
+/*
+ * This is similar to a test case absent_mark_in_the_middle_state(),
+ * but adapted for use with bpf_loop().
+ */
+SEC("raw_tp")
+__flag(BPF_F_TEST_STATE_FREQ)
+__failure __msg("math between fp pointer and register with unbounded min value is not allowed")
+__naked void absent_mark_in_the_middle_state4(void)
+{
+	/*
+	 * Equivalent to a C program below:
+	 *
+	 * int main(void) {
+	 *   fp[-8] = bpf_get_prandom_u32();
+	 *   fp[-16] = -32;                    // used in a memory access below
+	 *   bpf_loop(7, loop_cb4, fp, 0);
+	 *   return 0;
+	 * }
+	 *
+	 * int loop_cb4(int i, void *ctx) {
+	 *   if (unlikely(ctx[-8] > bpf_get_prandom_u32()))
+	 *     *(u64 *)(fp + ctx[-16]) = 42;   // aligned access expected
+	 *   if (unlikely(fp[-8] > bpf_get_prandom_u32()))
+	 *     ctx[-16] = -31;                 // makes said access unaligned
+	 *   return 0;
+	 * }
+	 */
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"r8 = r0;"
+		"*(u64 *)(r10 - 8) = r0;"
+		"*(u64 *)(r10 - 16) = -32;"
+		"r1 = 7;"
+		"r2 = loop_cb4 ll;"
+		"r3 = r10;"
+		"r4 = 0;"
+		"call %[bpf_loop];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_loop),
+		  __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
+__used __naked
+static void loop_cb4(void)
+{
+	asm volatile (
+		"r9 = r2;"
+		"r8 = *(u64 *)(r9 - 8);"
+		"r6 = *(u64 *)(r9 - 16);"
+		"call %[bpf_get_prandom_u32];"
+		"if r0 > r8 goto use_fp16_%=;"
+	"1:"
+		"call %[bpf_get_prandom_u32];"
+		"if r0 > r8 goto update_fp16_%=;"
+	"2:"
+		"r0 = 0;"
+		"exit;"
+	"use_fp16_%=:"
+		"r1 = r10;"
+		"r1 += r6;"
+		"*(u64 *)(r1 + 0) = 42;"
+		"goto 1b;"
+	"update_fp16_%=:"
+		"*(u64 *)(r9 - 16) = -31;"
+		"goto 2b;"
+		:
+		: __imm(bpf_get_prandom_u32)
+	);
+}
+
+SEC("raw_tp")
+__success
+__naked int stack_misc_vs_scalar_in_a_loop(void)
+{
+	asm volatile(
+		"*(u8 *)(r10 - 15) = 1;" /* This marks stack slot fp[-16] as STACK_MISC. */
+		"*(u8 *)(r10 - 23) = 1;"
+		"*(u8 *)(r10 - 31) = 1;"
+		"*(u8 *)(r10 - 39) = 1;"
+		"*(u8 *)(r10 - 47) = 1;"
+		"*(u8 *)(r10 - 55) = 1;"
+		"*(u8 *)(r10 - 63) = 1;"
+		"*(u8 *)(r10 - 71) = 1;"
+		"*(u8 *)(r10 - 79) = 1;"
+		"r1 = r10;"
+		"r1 += -8;"
+		"r2 = 0;"
+		"r3 = 10;"
+		"call %[bpf_iter_num_new];"
+	"loop_%=:"
+		"r1 = r10;"
+		"r1 += -8;"
+		"call %[bpf_iter_num_next];"
+		"if r0 == 0 goto loop_end_%=;"
+
+#define maybe_change_stack_slot(off) \
+		"call %[bpf_get_prandom_u32];"	\
+		"if r0 == 42 goto +1;"		\
+		"goto +1;"			\
+		"*(u64 *)(r10 " #off ") = r0;"
+
+		/*
+		 * When comparing verifier states fp[-16] will be
+		 * either STACK_MISC or SCALAR. Pruning logic should
+		 * consider old STACK_MISC equivalent to current SCALAR
+		 * to avoid states explosion.
+		 */
+		maybe_change_stack_slot(-16)
+		maybe_change_stack_slot(-24)
+		maybe_change_stack_slot(-32)
+		maybe_change_stack_slot(-40)
+		maybe_change_stack_slot(-48)
+		maybe_change_stack_slot(-56)
+		maybe_change_stack_slot(-64)
+		maybe_change_stack_slot(-72)
+		maybe_change_stack_slot(-80)
+
+#undef maybe_change_stack_slot
+
+		"goto loop_%=;"
+	"loop_end_%=:"
+		"r1 = r10;"
+		"r1 += -8;"
+		"call %[bpf_iter_num_destroy];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_get_prandom_u32),
+		  __imm(bpf_iter_num_new),
+		  __imm(bpf_iter_num_next),
+		  __imm(bpf_iter_num_destroy),
+		  __imm_addr(amap)
+		: __clobber_all
+	);
+}
+
 char _license[] SEC("license") = "GPL";

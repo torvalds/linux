@@ -109,3 +109,7 @@ Virtual memory layout
 		     |	 KASAN shadow	| KASAN untracked
 		     |			|
 		     +------------------+ ASCE limit
+		     |			|
+		     | CONFIG_ILLEGAL_POINTER_VALUE causes memory access fault
+		     |			|
+		     +------------------+

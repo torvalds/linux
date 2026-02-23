@@ -585,7 +585,7 @@ static void db9_attach(struct parport *pp)
 		return;
 	}
 
-	db9 = kzalloc(sizeof(*db9), GFP_KERNEL);
+	db9 = kzalloc_obj(*db9);
 	if (!db9)
 		goto err_unreg_pardev;
 

@@ -477,7 +477,7 @@ struct dvb_frontend *ascot2e_attach(struct dvb_frontend *fe,
 	u8 data[4];
 	struct ascot2e_priv *priv = NULL;
 
-	priv = kzalloc(sizeof(struct ascot2e_priv), GFP_KERNEL);
+	priv = kzalloc_obj(struct ascot2e_priv);
 	if (priv == NULL)
 		return NULL;
 	priv->i2c_address = (config->i2c_address >> 1);

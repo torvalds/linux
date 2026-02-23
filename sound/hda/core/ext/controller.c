@@ -89,7 +89,7 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 	dev_dbg(bus->dev, "In %s Link count: %d\n", __func__, link_count);
 
 	for (idx = 0; idx < link_count; idx++) {
-		hlink  = kzalloc(sizeof(*hlink), GFP_KERNEL);
+		hlink = kzalloc_obj(*hlink);
 		if (!hlink)
 			return -ENOMEM;
 		hlink->index = idx;

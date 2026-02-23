@@ -311,7 +311,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 	if (dev->product && strcmp(dev->product, "B-LINK USB Audio  "))
 		return -ENODEV;
 
-	radio = kzalloc(sizeof(struct keene_device), GFP_KERNEL);
+	radio = kzalloc_obj(struct keene_device);
 	if (radio)
 		radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 
@@ -338,7 +338,6 @@ static int usb_keene_probe(struct usb_interface *intf,
 	if (hdl->error) {
 		retval = hdl->error;
 
-		v4l2_ctrl_handler_free(hdl);
 		goto err_v4l2;
 	}
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
@@ -384,6 +383,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 err_vdev:
 	v4l2_device_unregister(&radio->v4l2_dev);
 err_v4l2:
+	v4l2_ctrl_handler_free(&radio->hdl);
 	kfree(radio->buffer);
 	kfree(radio);
 err:

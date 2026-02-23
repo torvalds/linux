@@ -1157,7 +1157,7 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	/* increase miniumum slice count to meet sink slice width limitations */
+	/* increase minimum slice count to meet sink slice width limitations */
 	min_slices_h = dc_fixpt_ceil(dc_fixpt_max(
 			dc_fixpt_div_int(dc_fixpt_from_int(pic_width), dsc_common_caps.max_slice_width), // sink min
 			dc_fixpt_from_int(min_slices_h))); // source min

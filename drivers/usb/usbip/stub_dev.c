@@ -263,7 +263,7 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev)
 	dev_dbg(&udev->dev, "allocating stub device");
 
 	/* yes, it's a new device */
-	sdev = kzalloc(sizeof(struct stub_device), GFP_KERNEL);
+	sdev = kzalloc_obj(struct stub_device);
 	if (!sdev)
 		return NULL;
 

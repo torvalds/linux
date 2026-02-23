@@ -5,8 +5,12 @@
  * Copyright 2019 Marvell. All rights reserved.
  */
 #include <linux/xarray.h>
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include "uverbs.h"
 #include "core_priv.h"
+
+MODULE_IMPORT_NS("DMA_BUF");
 
 /**
  * rdma_umap_priv_init() - Initialize the private data of a vma
@@ -83,7 +87,7 @@ int rdma_user_mmap_io(struct ib_ucontext *ucontext, struct vm_area_struct *vma,
 		return -EINVAL;
 	lockdep_assert_held(&ufile->device->disassociate_srcu);
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc_obj(*priv);
 	if (!priv)
 		return -ENOMEM;
 
@@ -229,12 +233,29 @@ EXPORT_SYMBOL(rdma_user_mmap_entry_put);
  */
 void rdma_user_mmap_entry_remove(struct rdma_user_mmap_entry *entry)
 {
+	struct ib_uverbs_dmabuf_file *uverbs_dmabuf, *tmp;
+
 	if (!entry)
 		return;
 
+	mutex_lock(&entry->dmabufs_lock);
 	xa_lock(&entry->ucontext->mmap_xa);
 	entry->driver_removed = true;
 	xa_unlock(&entry->ucontext->mmap_xa);
+	list_for_each_entry_safe(uverbs_dmabuf, tmp, &entry->dmabufs, dmabufs_elm) {
+		dma_resv_lock(uverbs_dmabuf->dmabuf->resv, NULL);
+		list_del(&uverbs_dmabuf->dmabufs_elm);
+		uverbs_dmabuf->revoked = true;
+		dma_buf_move_notify(uverbs_dmabuf->dmabuf);
+		dma_resv_wait_timeout(uverbs_dmabuf->dmabuf->resv,
+				      DMA_RESV_USAGE_BOOKKEEP, false,
+				      MAX_SCHEDULE_TIMEOUT);
+		dma_resv_unlock(uverbs_dmabuf->dmabuf->resv);
+		kref_put(&uverbs_dmabuf->kref, ib_uverbs_dmabuf_done);
+		wait_for_completion(&uverbs_dmabuf->comp);
+	}
+	mutex_unlock(&entry->dmabufs_lock);
+
 	kref_put(&entry->ref, rdma_user_mmap_entry_free);
 }
 EXPORT_SYMBOL(rdma_user_mmap_entry_remove);
@@ -274,6 +295,9 @@ int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
 		return -EINVAL;
 
 	kref_init(&entry->ref);
+	INIT_LIST_HEAD(&entry->dmabufs);
+	mutex_init(&entry->dmabufs_lock);
+
 	entry->ucontext = ucontext;
 
 	/*

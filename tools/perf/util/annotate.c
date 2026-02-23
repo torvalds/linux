@@ -761,7 +761,7 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 }
 
 static struct annotated_data_type *
-__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+__hist_entry__get_data_type(struct hist_entry *he, const struct arch *arch,
 			    struct debuginfo *dbg, struct disasm_line *dl,
 			    int *type_offset);
 
@@ -980,47 +980,43 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
-int evsel__get_arch(struct evsel *evsel, struct arch **parch)
+int thread__get_arch(struct thread *thread, const struct arch **parch)
 {
-	struct perf_env *env = evsel__env(evsel);
-	const char *arch_name = perf_env__arch(env);
-	struct arch *arch;
-	int err;
+	const struct arch *arch;
+	struct machine *machine;
+	uint32_t e_flags;
+	uint16_t e_machine;
 
-	if (!arch_name) {
+	if (!thread) {
 		*parch = NULL;
+		return -1;
+	}
+
+	machine = maps__machine(thread__maps(thread));
+	e_machine = thread__e_machine(thread, machine, &e_flags);
+	arch = arch__find(e_machine, e_flags, machine->env ? machine->env->cpuid : NULL);
+	if (arch == NULL) {
+		pr_err("%s: unsupported arch %d\n", __func__, e_machine);
 		return errno;
 	}
+	if (parch)
+		*parch = arch;
 
-	*parch = arch = arch__find(arch_name);
-	if (arch == NULL) {
-		pr_err("%s: unsupported arch %s\n", __func__, arch_name);
-		return ENOTSUP;
-	}
-
-	if (arch->init) {
-		err = arch->init(arch, env ? env->cpuid : NULL);
-		if (err) {
-			pr_err("%s: failed to initialize %s arch priv area\n",
-			       __func__, arch->name);
-			return err;
-		}
-	}
 	return 0;
 }
 
 int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
-		     struct arch **parch)
+		     const struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
 		.options	= &annotate_opts,
 	};
-	struct arch *arch = NULL;
+	const struct arch *arch = NULL;
 	int err, nr;
 
-	err = evsel__get_arch(evsel, &arch);
+	err = thread__get_arch(ms->thread, &arch);
 	if (err)
 		return err;
 
@@ -1031,7 +1027,7 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 		return 0;
 
 	args.arch = arch;
-	args.ms = *ms;
+	args.ms = ms;
 
 	if (notes->src == NULL) {
 		notes->src = annotated_source__new();
@@ -1268,7 +1264,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 
 	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
 							      notes->src->start);
-	evsel__get_arch(evsel, &apd.arch);
+	thread__get_arch(ms->thread, &apd.arch);
 	apd.dbg = dso__debuginfo(dso);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
@@ -1373,7 +1369,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 	struct annotation_line *al;
 
 	if (annotate_opts.code_with_type) {
-		evsel__get_arch(apd->evsel, &apd->arch);
+		thread__get_arch(apd->he->ms.thread, &apd->arch);
 		apd->dbg = dso__debuginfo(map__dso(apd->he->ms.map));
 	}
 
@@ -2204,7 +2200,7 @@ print_addr:
 }
 
 int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
-		      struct arch **parch)
+		      const struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
@@ -2451,17 +2447,39 @@ int annotate_check_args(void)
 	return 0;
 }
 
+static int arch__dwarf_regnum(const struct arch *arch, const char *str)
+{
+	const char *p;
+	char *regname, *q;
+	int reg;
+
+	p = strchr(str, arch->objdump.register_char);
+	if (p == NULL)
+		return -1;
+
+	regname = strdup(p);
+	if (regname == NULL)
+		return -1;
+
+	q = strpbrk(regname, ",) ");
+	if (q)
+		*q = '\0';
+
+	reg = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
+	free(regname);
+	return reg;
+}
+
 /*
  * Get register number and access offset from the given instruction.
  * It assumes AT&T x86 asm format like OFFSET(REG).  Maybe it needs
  * to revisit the format when it handles different architecture.
  * Fills @reg and @offset when return 0.
  */
-static int extract_reg_offset(struct arch *arch, const char *str,
+static int extract_reg_offset(const struct arch *arch, const char *str,
 			      struct annotated_op_loc *op_loc)
 {
 	char *p;
-	char *regname;
 
 	if (arch->objdump.register_char == 0)
 		return -1;
@@ -2474,7 +2492,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 	 * %gs:0x18(%rbx).  In that case it should skip the part.
 	 */
 	if (*str == arch->objdump.register_char) {
-		if (arch__is(arch, "x86")) {
+		if (arch__is_x86(arch)) {
 			/* FIXME: Handle other segment registers */
 			if (!strncmp(str, "%gs:", 4))
 				op_loc->segment = INSN_SEG_X86_GS;
@@ -2486,31 +2504,14 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 	}
 
 	op_loc->offset = strtol(str, &p, 0);
-
-	p = strchr(p, arch->objdump.register_char);
-	if (p == NULL)
+	op_loc->reg1 = arch__dwarf_regnum(arch, p);
+	if (op_loc->reg1 == -1)
 		return -1;
-
-	regname = strdup(p);
-	if (regname == NULL)
-		return -1;
-
-	op_loc->reg1 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
-	free(regname);
 
 	/* Get the second register */
-	if (op_loc->multi_regs) {
-		p = strchr(p + 1, arch->objdump.register_char);
-		if (p == NULL)
-			return -1;
+	if (op_loc->multi_regs)
+		op_loc->reg2 = arch__dwarf_regnum(arch, p + 1);
 
-		regname = strdup(p);
-		if (regname == NULL)
-			return -1;
-
-		op_loc->reg2 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
-		free(regname);
-	}
 	return 0;
 }
 
@@ -2538,7 +2539,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  *                              # dst_reg1 = rbx, dst_reg2 = rcx, dst_mem = 1
  *                              # dst_multi_regs = 1, dst_offset = 8
  */
-int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
+int annotate_get_insn_location(const struct arch *arch, struct disasm_line *dl,
 			       struct annotated_insn_loc *loc)
 {
 	struct ins_operands *ops;
@@ -2571,7 +2572,7 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 		op_loc->reg2 = -1;
 
 		if (insn_str == NULL) {
-			if (!arch__is(arch, "powerpc"))
+			if (!arch__is_powerpc(arch))
 				continue;
 		}
 
@@ -2580,7 +2581,7 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 		 * required fields for op_loc, ie reg1, reg2, offset from the
 		 * raw instruction.
 		 */
-		if (arch__is(arch, "powerpc")) {
+		if (arch__is_powerpc(arch)) {
 			op_loc->mem_ref = mem_ref;
 			op_loc->multi_regs = multi_regs;
 			get_powerpc_regs(dl->raw.raw_insn, !i, op_loc);
@@ -2589,9 +2590,10 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 			op_loc->multi_regs = multi_regs;
 			extract_reg_offset(arch, insn_str, op_loc);
 		} else {
-			char *s, *p = NULL;
+			const char *s = insn_str;
+			char *p = NULL;
 
-			if (arch__is(arch, "x86")) {
+			if (arch__is_x86(arch)) {
 				/* FIXME: Handle other segment registers */
 				if (!strncmp(insn_str, "%gs:", 4)) {
 					op_loc->segment = INSN_SEG_X86_GS;
@@ -2603,18 +2605,14 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 				}
 			}
 
-			s = strdup(insn_str);
-			if (s == NULL)
-				return -1;
-
-			if (*s == arch->objdump.register_char)
-				op_loc->reg1 = get_dwarf_regnum(s, arch->e_machine, arch->e_flags);
+			if (*s == arch->objdump.register_char) {
+				op_loc->reg1 = arch__dwarf_regnum(arch, s);
+			}
 			else if (*s == arch->objdump.imm_char) {
 				op_loc->offset = strtol(s + 1, &p, 0);
 				if (p && p != s + 1)
 					op_loc->imm = true;
 			}
-			free(s);
 		}
 	}
 
@@ -2673,9 +2671,9 @@ static struct annotated_item_stat *annotate_data_stat(struct list_head *head,
 	return istat;
 }
 
-static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
+static bool is_stack_operation(const struct arch *arch, struct disasm_line *dl)
 {
-	if (arch__is(arch, "x86")) {
+	if (arch__is_x86(arch)) {
 		if (!strncmp(dl->ins.name, "push", 4) ||
 		    !strncmp(dl->ins.name, "pop", 3) ||
 		    !strncmp(dl->ins.name, "call", 4) ||
@@ -2686,10 +2684,10 @@ static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
 	return false;
 }
 
-static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
+static bool is_stack_canary(const struct arch *arch, struct annotated_op_loc *loc)
 {
 	/* On x86_64, %gs:40 is used for stack canary */
-	if (arch__is(arch, "x86")) {
+	if (arch__is_x86(arch)) {
 		if (loc->segment == INSN_SEG_X86_GS && loc->imm &&
 		    loc->offset == 40)
 			return true;
@@ -2702,9 +2700,9 @@ static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
  * Returns true if the instruction has a memory operand without
  * performing a load/store
  */
-static bool is_address_gen_insn(struct arch *arch, struct disasm_line *dl)
+static bool is_address_gen_insn(const struct arch *arch, struct disasm_line *dl)
 {
-	if (arch__is(arch, "x86")) {
+	if (arch__is_x86(arch)) {
 		if (!strncmp(dl->ins.name, "lea", 3))
 			return true;
 	}
@@ -2791,7 +2789,7 @@ void debuginfo_cache__delete(void)
 }
 
 static struct annotated_data_type *
-__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+__hist_entry__get_data_type(struct hist_entry *he, const struct arch *arch,
 			    struct debuginfo *dbg, struct disasm_line *dl,
 			    int *type_offset)
 {
@@ -2847,7 +2845,7 @@ __hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
 		}
 
 		/* This CPU access in kernel - pretend PC-relative addressing */
-		if (dso__kernel(map__dso(ms->map)) && arch__is(arch, "x86") &&
+		if (dso__kernel(map__dso(ms->map)) && arch__is_x86(arch) &&
 		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
 			dloc.var_addr = op_loc->offset;
 			op_loc->reg1 = DWARF_REG_PC;
@@ -2895,7 +2893,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 {
 	struct map_symbol *ms = &he->ms;
 	struct evsel *evsel = hists_to_evsel(he->hists);
-	struct arch *arch;
+	const struct arch *arch;
 	struct disasm_line *dl;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;

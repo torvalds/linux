@@ -314,7 +314,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 
 	if (n_pages > ARRAY_SIZE(stack)) {
 		/* Too big for stack -- allocate temporary array instead */
-		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
+		pages = kvmalloc_objs(*pages, n_pages);
 		if (!pages)
 			return ERR_PTR(-ENOMEM);
 	}
@@ -382,7 +382,7 @@ static struct page **i915_gem_object_panic_pages(struct drm_i915_gem_object *obj
 	struct sgt_iter iter;
 
 	/* For a 3840x2160 32 bits Framebuffer, this should require ~64K */
-	pages = kmalloc_array(n_pages, sizeof(*pages), GFP_ATOMIC);
+	pages = kmalloc_objs(*pages, n_pages, GFP_ATOMIC);
 	if (!pages)
 		return NULL;
 
@@ -437,7 +437,7 @@ struct intel_panic *i915_gem_object_alloc_panic(void)
 {
 	struct intel_panic *panic;
 
-	panic = kzalloc(sizeof(*panic), GFP_KERNEL);
+	panic = kzalloc_obj(*panic);
 
 	return panic;
 }
