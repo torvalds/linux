@@ -865,8 +865,8 @@ static void print_tainted_seq(struct seq_buf *s, bool verbose)
  */
 #define INIT_TAINT_BUF_MAX 350
 
-static char init_taint_buf[INIT_TAINT_BUF_MAX];
-static char *taint_buf = init_taint_buf;
+static char init_taint_buf[INIT_TAINT_BUF_MAX] __initdata;
+static char *taint_buf __refdata = init_taint_buf;
 static size_t taint_buf_size = INIT_TAINT_BUF_MAX;
 
 static __init int alloc_taint_buf(void)
@@ -887,11 +887,7 @@ static __init int alloc_taint_buf(void)
 	buf = kmalloc(size, GFP_KERNEL);
 
 	if (!buf) {
-		/* Allocation may fail; this warning explains possibly
-		 * truncated taint strings
-		 */
-		pr_warn_once("taint string buffer allocation failed, using fallback buffer\n");
-		return 0;
+		panic("Failed to allocate taint string buffer");
 	}
 
 	taint_buf = buf;
