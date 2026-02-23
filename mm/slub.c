@@ -2822,7 +2822,7 @@ static struct slab_sheaf *alloc_full_sheaf(struct kmem_cache *s, gfp_t gfp)
 	if (!sheaf)
 		return NULL;
 
-	if (refill_sheaf(s, sheaf, gfp | __GFP_NOMEMALLOC)) {
+	if (refill_sheaf(s, sheaf, gfp | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
 		free_empty_sheaf(s, sheaf);
 		return NULL;
 	}
@@ -4575,7 +4575,7 @@ __pcs_replace_empty_main(struct kmem_cache *s, struct slub_percpu_sheaves *pcs, 
 		return NULL;
 
 	if (empty) {
-		if (!refill_sheaf(s, empty, gfp | __GFP_NOMEMALLOC)) {
+		if (!refill_sheaf(s, empty, gfp | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
 			full = empty;
 		} else {
 			/*
@@ -4890,9 +4890,14 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_noprof);
 static int __prefill_sheaf_pfmemalloc(struct kmem_cache *s,
 				      struct slab_sheaf *sheaf, gfp_t gfp)
 {
-	int ret = 0;
+	gfp_t gfp_nomemalloc;
+	int ret;
 
-	ret = refill_sheaf(s, sheaf, gfp | __GFP_NOMEMALLOC);
+	gfp_nomemalloc = gfp | __GFP_NOMEMALLOC;
+	if (gfp_pfmemalloc_allowed(gfp))
+		gfp_nomemalloc |= __GFP_NOWARN;
+
+	ret = refill_sheaf(s, sheaf, gfp_nomemalloc);
 
 	if (likely(!ret || !gfp_pfmemalloc_allowed(gfp)))
 		return ret;
