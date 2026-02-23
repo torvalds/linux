@@ -711,6 +711,15 @@ config SENSORS_XDPE152
 	  This driver can also be built as a module. If so, the module will
 	  be called xdpe152c4.
 
+config SENSORS_XDPE1A2G7B
+	tristate "Infineon XDPE1A2G7B"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE1A2G5B and XDPE1A2G7B.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe1a2g7b.
+
 config SENSORS_XDPE122
 	tristate "Infineon XDPE122 family"
 	help
