@@ -167,14 +167,14 @@ class da2k(dot2k):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.is_hybrid_automata():
-            raise AutomataError("Detected hybrid automata, use the 'ha' class")
+            raise AutomataError("Detected hybrid automaton, use the 'ha' class")
 
 class ha2k(dot2k):
     """Hybrid automata only"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.is_hybrid_automata():
-            raise AutomataError("Detected deterministic automata, use the 'da' class")
+            raise AutomataError("Detected deterministic automaton, use the 'da' class")
         self.trace_h = self._read_template_file("trace_hybrid.h")
         self.__parse_constraints()
 

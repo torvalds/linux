@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
-# Automata object: parse an automata in dot file digraph format into a python object
+# Automata class: parse an automaton in dot file digraph format into a python object
 #
 # For further information, see:
 #   Documentation/trace/rv/deterministic_automata.rst
@@ -33,7 +33,7 @@ class AutomataError(Exception):
     """
 
 class Automata:
-    """Automata class: Reads a dot file and part it as an automata.
+    """Automata class: Reads a dot file and parses it as an automaton.
 
     It supports both deterministic and hybrid automata.
 
@@ -153,7 +153,7 @@ class Automata:
         states = sorted(set(states))
         states.remove(initial_state)
 
-        # Insert the initial state at the bein og the states
+        # Insert the initial state at the beginning of the states
         states.insert(0, initial_state)
 
         if not has_final_states:
@@ -175,7 +175,7 @@ class Automata:
                 line = self.__dot_lines[cursor].split()
                 event = "".join(line[line.index("label") + 2:-1]).replace('"', '')
 
-                # when a transition has more than one lables, they are like this
+                # when a transition has more than one label, they are like this
                 # "local_irq_enable\nhw_local_irq_enable_n"
                 # so split them.
 

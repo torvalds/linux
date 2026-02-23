@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
-# Abtract class for generating kernel runtime verification monitors from specification file
+# Abstract class for generating kernel runtime verification monitors from specification file
 
 import platform
 import os

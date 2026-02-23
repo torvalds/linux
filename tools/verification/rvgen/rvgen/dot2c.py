@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
-# dot2c: parse an automata in dot file digraph format into a C
+# dot2c: parse an automaton in dot file digraph format into a C
 #
 # This program was written in the development of this paper:
 #  de Oliveira, D. B. and Cucinotta, T. and de Oliveira, R. S.
