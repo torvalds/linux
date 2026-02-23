@@ -16,6 +16,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - nvidia,tegra210-usb-phy
               - nvidia,tegra124-usb-phy
               - nvidia,tegra114-usb-phy
           - enum:
