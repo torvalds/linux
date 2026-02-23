@@ -700,7 +700,8 @@ Deadline Task Scheduling
 5.2 Using cgroup v2 cpuset controller
 -------------------------------------
 
- Assuming the cgroup v2 root is mounted at ``/sys/fs/cgroup``.
+ Assuming the cgroup v2 root is mounted at ``/sys/fs/cgroup``, an example of a
+ simple configuration (pin a -deadline task to CPU0) follows::
 
    cd /sys/fs/cgroup
    echo '+cpuset' > cgroup.subtree_control
