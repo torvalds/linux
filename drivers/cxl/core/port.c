@@ -615,22 +615,8 @@ struct cxl_port *parent_port_of(struct cxl_port *port)
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
-	struct cxl_port *parent = parent_port_of(port);
-	struct device *lock_dev;
 
-	/*
-	 * CXL root port's and the first level of ports are unregistered
-	 * under the platform firmware device lock, all other ports are
-	 * unregistered while holding their parent port lock.
-	 */
-	if (!parent)
-		lock_dev = port->uport_dev;
-	else if (is_cxl_root(parent))
-		lock_dev = parent->uport_dev;
-	else
-		lock_dev = &parent->dev;
-
-	device_lock_assert(lock_dev);
+	device_lock_assert(port_to_host(port));
 	port->dead = true;
 	device_unregister(&port->dev);
 }
@@ -1427,20 +1413,11 @@ static struct device *grandparent(struct device *dev)
 	return NULL;
 }
 
-static struct device *endpoint_host(struct cxl_port *endpoint)
-{
-	struct cxl_port *port = to_cxl_port(endpoint->dev.parent);
-
-	if (is_cxl_root(port))
-		return port->uport_dev;
-	return &port->dev;
-}
-
 static void delete_endpoint(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
 	struct cxl_port *endpoint = cxlmd->endpoint;
-	struct device *host = endpoint_host(endpoint);
+	struct device *host = port_to_host(endpoint);
 
 	scoped_guard(device, host) {
 		if (host->driver && !endpoint->dead) {
@@ -1456,7 +1433,7 @@ static void delete_endpoint(void *data)
 
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint)
 {
-	struct device *host = endpoint_host(endpoint);
+	struct device *host = port_to_host(endpoint);
 	struct device *dev = &cxlmd->dev;
 
 	get_device(host);
