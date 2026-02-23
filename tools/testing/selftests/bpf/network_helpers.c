@@ -432,7 +432,7 @@ int make_sockaddr(int family, const char *addr_str, __u16 port,
 		memset(addr, 0, sizeof(*sun));
 		sun->sun_family = family;
 		sun->sun_path[0] = 0;
-		strcpy(sun->sun_path + 1, addr_str);
+		strscpy(sun->sun_path + 1, addr_str, sizeof(sun->sun_path) - 1);
 		if (len)
 			*len = offsetof(struct sockaddr_un, sun_path) + 1 + strlen(addr_str);
 		return 0;
