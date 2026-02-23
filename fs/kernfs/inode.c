@@ -45,9 +45,7 @@ static struct kernfs_iattrs *__kernfs_iattrs(struct kernfs_node *kn, bool alloc)
 	ret->ia_mtime = ret->ia_atime;
 	ret->ia_ctime = ret->ia_atime;
 
-	simple_xattrs_init(&ret->xattrs);
-	atomic_set(&ret->nr_user_xattrs, 0);
-	atomic_set(&ret->user_xattr_size, 0);
+	simple_xattr_limits_init(&ret->xattr_limits);
 
 	/* If someone raced us, recognize it. */
 	if (!try_cmpxchg(&kn->iattr, &attr, ret))
@@ -146,7 +144,8 @@ ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size)
 	if (!attrs)
 		return -ENOMEM;
 
-	return simple_xattr_list(d_inode(dentry), &attrs->xattrs, buf, size);
+	return simple_xattr_list(d_inode(dentry), READ_ONCE(attrs->xattrs),
+				 buf, size);
 }
 
 static inline void set_default_inode_attr(struct inode *inode, umode_t mode)
@@ -298,27 +297,38 @@ int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
 		     void *value, size_t size)
 {
 	struct kernfs_iattrs *attrs = kernfs_iattrs_noalloc(kn);
+	struct simple_xattrs *xattrs;
+
 	if (!attrs)
 		return -ENODATA;
 
-	return simple_xattr_get(&attrs->xattrs, name, value, size);
+	xattrs = READ_ONCE(attrs->xattrs);
+	if (!xattrs)
+		return -ENODATA;
+
+	return simple_xattr_get(xattrs, name, value, size);
 }
 
 int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
 		     const void *value, size_t size, int flags)
 {
 	struct simple_xattr *old_xattr;
+	struct simple_xattrs *xattrs;
 	struct kernfs_iattrs *attrs;
 
 	attrs = kernfs_iattrs(kn);
 	if (!attrs)
 		return -ENOMEM;
 
-	old_xattr = simple_xattr_set(&attrs->xattrs, name, value, size, flags);
+	xattrs = simple_xattrs_lazy_alloc(&attrs->xattrs, value, flags);
+	if (IS_ERR_OR_NULL(xattrs))
+		return PTR_ERR(xattrs);
+
+	old_xattr = simple_xattr_set(xattrs, name, value, size, flags);
 	if (IS_ERR(old_xattr))
 		return PTR_ERR(old_xattr);
 
-	simple_xattr_free(old_xattr);
+	simple_xattr_free_rcu(old_xattr);
 	return 0;
 }
 
@@ -344,69 +354,6 @@ static int kernfs_vfs_xattr_set(const struct xattr_handler *handler,
 	return kernfs_xattr_set(kn, name, value, size, flags);
 }
 
-static int kernfs_vfs_user_xattr_add(struct kernfs_node *kn,
-				     const char *full_name,
-				     struct simple_xattrs *xattrs,
-				     const void *value, size_t size, int flags)
-{
-	struct kernfs_iattrs *attr = kernfs_iattrs_noalloc(kn);
-	atomic_t *sz = &attr->user_xattr_size;
-	atomic_t *nr = &attr->nr_user_xattrs;
-	struct simple_xattr *old_xattr;
-	int ret;
-
-	if (atomic_inc_return(nr) > KERNFS_MAX_USER_XATTRS) {
-		ret = -ENOSPC;
-		goto dec_count_out;
-	}
-
-	if (atomic_add_return(size, sz) > KERNFS_USER_XATTR_SIZE_LIMIT) {
-		ret = -ENOSPC;
-		goto dec_size_out;
-	}
-
-	old_xattr = simple_xattr_set(xattrs, full_name, value, size, flags);
-	if (!old_xattr)
-		return 0;
-
-	if (IS_ERR(old_xattr)) {
-		ret = PTR_ERR(old_xattr);
-		goto dec_size_out;
-	}
-
-	ret = 0;
-	size = old_xattr->size;
-	simple_xattr_free(old_xattr);
-dec_size_out:
-	atomic_sub(size, sz);
-dec_count_out:
-	atomic_dec(nr);
-	return ret;
-}
-
-static int kernfs_vfs_user_xattr_rm(struct kernfs_node *kn,
-				    const char *full_name,
-				    struct simple_xattrs *xattrs,
-				    const void *value, size_t size, int flags)
-{
-	struct kernfs_iattrs *attr = kernfs_iattrs_noalloc(kn);
-	atomic_t *sz = &attr->user_xattr_size;
-	atomic_t *nr = &attr->nr_user_xattrs;
-	struct simple_xattr *old_xattr;
-
-	old_xattr = simple_xattr_set(xattrs, full_name, value, size, flags);
-	if (!old_xattr)
-		return 0;
-
-	if (IS_ERR(old_xattr))
-		return PTR_ERR(old_xattr);
-
-	atomic_sub(old_xattr->size, sz);
-	atomic_dec(nr);
-	simple_xattr_free(old_xattr);
-	return 0;
-}
-
 static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
 				     struct mnt_idmap *idmap,
 				     struct dentry *unused, struct inode *inode,
@@ -415,6 +362,7 @@ static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
 {
 	const char *full_name = xattr_full_name(handler, suffix);
 	struct kernfs_node *kn = inode->i_private;
+	struct simple_xattrs *xattrs;
 	struct kernfs_iattrs *attrs;
 
 	if (!(kernfs_root(kn)->flags & KERNFS_ROOT_SUPPORT_USER_XATTR))
@@ -424,13 +372,12 @@ static int kernfs_vfs_user_xattr_set(const struct xattr_handler *handler,
 	if (!attrs)
 		return -ENOMEM;
 
-	if (value)
-		return kernfs_vfs_user_xattr_add(kn, full_name, &attrs->xattrs,
-						 value, size, flags);
-	else
-		return kernfs_vfs_user_xattr_rm(kn, full_name, &attrs->xattrs,
-						value, size, flags);
+	xattrs = simple_xattrs_lazy_alloc(&attrs->xattrs, value, flags);
+	if (IS_ERR_OR_NULL(xattrs))
+		return PTR_ERR(xattrs);
 
+	return simple_xattr_set_limited(xattrs, &attrs->xattr_limits,
+					full_name, value, size, flags);
 }
 
 static const struct xattr_handler kernfs_trusted_xattr_handler = {

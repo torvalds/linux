@@ -22,6 +22,7 @@
 #include <linux/audit.h>
 #include <linux/vmalloc.h>
 #include <linux/posix_acl_xattr.h>
+#include <linux/rhashtable.h>
 
 #include <linux/uaccess.h>
 
@@ -105,6 +106,13 @@ int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode)
 	return 0;
 }
 
+static inline int xattr_permission_error(int mask)
+{
+	if (mask & MAY_WRITE)
+		return -EPERM;
+	return -ENODATA;
+}
+
 /*
  * Check permissions for extended attribute access.  This is a bit complicated
  * because different namespaces have very different rules.
@@ -134,7 +142,7 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 */
 	if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN)) {
 		if (!capable(CAP_SYS_ADMIN))
-			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
+			return xattr_permission_error(mask);
 		return 0;
 	}
 
@@ -144,12 +152,22 @@ xattr_permission(struct mnt_idmap *idmap, struct inode *inode,
 	 * privileged users can write attributes.
 	 */
 	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
-		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
-			return (mask & MAY_WRITE) ? -EPERM : -ENODATA;
-		if (S_ISDIR(inode->i_mode) && (inode->i_mode & S_ISVTX) &&
-		    (mask & MAY_WRITE) &&
-		    !inode_owner_or_capable(idmap, inode))
+		switch (inode->i_mode & S_IFMT) {
+		case S_IFREG:
+			break;
+		case S_IFDIR:
+			if (!(inode->i_mode & S_ISVTX))
+				break;
+			if (!(mask & MAY_WRITE))
+				break;
+			if (inode_owner_or_capable(idmap, inode))
+				break;
 			return -EPERM;
+		case S_IFSOCK:
+			break;
+		default:
+			return xattr_permission_error(mask);
+		}
 	}
 
 	return inode_permission(idmap, inode, mask);
@@ -1197,6 +1215,27 @@ void simple_xattr_free(struct simple_xattr *xattr)
 	kvfree(xattr);
 }
 
+static void simple_xattr_rcu_free(struct rcu_head *head)
+{
+	struct simple_xattr *xattr = container_of(head, struct simple_xattr, rcu);
+
+	simple_xattr_free(xattr);
+}
+
+/**
+ * simple_xattr_free_rcu - free an xattr object with RCU delay
+ * @xattr: the xattr object
+ *
+ * Free the xattr object after an RCU grace period. This must be used when
+ * the xattr was removed from a data structure that concurrent RCU readers
+ * may still be traversing. Can handle @xattr being NULL.
+ */
+void simple_xattr_free_rcu(struct simple_xattr *xattr)
+{
+	if (xattr)
+		call_rcu(&xattr->rcu, simple_xattr_rcu_free);
+}
+
 /**
  * simple_xattr_alloc - allocate new xattr object
  * @value: value of the xattr object
@@ -1205,64 +1244,57 @@ void simple_xattr_free(struct simple_xattr *xattr)
  * Allocate a new xattr object and initialize respective members. The caller is
  * responsible for handling the name of the xattr.
  *
- * Return: On success a new xattr object is returned. On failure NULL is
- * returned.
+ * Return: New xattr object on success, NULL if @value is NULL, ERR_PTR on
+ * failure.
  */
 struct simple_xattr *simple_xattr_alloc(const void *value, size_t size)
 {
 	struct simple_xattr *new_xattr;
 	size_t len;
 
+	if (!value)
+		return NULL;
+
 	/* wrap around? */
 	len = sizeof(*new_xattr) + size;
 	if (len < sizeof(*new_xattr))
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	new_xattr = kvmalloc(len, GFP_KERNEL_ACCOUNT);
 	if (!new_xattr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	new_xattr->size = size;
 	memcpy(new_xattr->value, value, size);
 	return new_xattr;
 }
 
-/**
- * rbtree_simple_xattr_cmp - compare xattr name with current rbtree xattr entry
- * @key: xattr name
- * @node: current node
- *
- * Compare the xattr name with the xattr name attached to @node in the rbtree.
- *
- * Return: Negative value if continuing left, positive if continuing right, 0
- * if the xattr attached to @node matches @key.
- */
-static int rbtree_simple_xattr_cmp(const void *key, const struct rb_node *node)
+static u32 simple_xattr_hashfn(const void *data, u32 len, u32 seed)
 {
-	const char *xattr_name = key;
-	const struct simple_xattr *xattr;
-
-	xattr = rb_entry(node, struct simple_xattr, rb_node);
-	return strcmp(xattr->name, xattr_name);
+	const char *name = data;
+	return jhash(name, strlen(name), seed);
 }
 
-/**
- * rbtree_simple_xattr_node_cmp - compare two xattr rbtree nodes
- * @new_node: new node
- * @node: current node
- *
- * Compare the xattr attached to @new_node with the xattr attached to @node.
- *
- * Return: Negative value if continuing left, positive if continuing right, 0
- * if the xattr attached to @new_node matches the xattr attached to @node.
- */
-static int rbtree_simple_xattr_node_cmp(struct rb_node *new_node,
-					const struct rb_node *node)
+static u32 simple_xattr_obj_hashfn(const void *obj, u32 len, u32 seed)
 {
-	struct simple_xattr *xattr;
-	xattr = rb_entry(new_node, struct simple_xattr, rb_node);
-	return rbtree_simple_xattr_cmp(xattr->name, node);
+	const struct simple_xattr *xattr = obj;
+	return jhash(xattr->name, strlen(xattr->name), seed);
 }
+
+static int simple_xattr_obj_cmpfn(struct rhashtable_compare_arg *arg,
+				   const void *obj)
+{
+	const struct simple_xattr *xattr = obj;
+	return strcmp(xattr->name, arg->key);
+}
+
+static const struct rhashtable_params simple_xattr_params = {
+	.head_offset    = offsetof(struct simple_xattr, hash_node),
+	.hashfn         = simple_xattr_hashfn,
+	.obj_hashfn     = simple_xattr_obj_hashfn,
+	.obj_cmpfn      = simple_xattr_obj_cmpfn,
+	.automatic_shrinking = true,
+};
 
 /**
  * simple_xattr_get - get an xattr object
@@ -1282,14 +1314,12 @@ static int rbtree_simple_xattr_node_cmp(struct rb_node *new_node,
 int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size)
 {
-	struct simple_xattr *xattr = NULL;
-	struct rb_node *rbp;
+	struct simple_xattr *xattr;
 	int ret = -ENODATA;
 
-	read_lock(&xattrs->lock);
-	rbp = rb_find(name, &xattrs->rb_root, rbtree_simple_xattr_cmp);
-	if (rbp) {
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
+	guard(rcu)();
+	xattr = rhashtable_lookup(&xattrs->ht, name, simple_xattr_params);
+	if (xattr) {
 		ret = xattr->size;
 		if (buffer) {
 			if (size < xattr->size)
@@ -1298,7 +1328,6 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 				memcpy(buffer, xattr->value, xattr->size);
 		}
 	}
-	read_unlock(&xattrs->lock);
 	return ret;
 }
 
@@ -1325,6 +1354,11 @@ int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
  * nothing if XATTR_CREATE is specified in @flags or @flags is zero. For
  * XATTR_REPLACE we fail as mentioned above.
  *
+ * Note: Callers must externally serialize writes. All current callers hold
+ * the inode lock for write operations. The lookup->replace/remove sequence
+ * is not atomic with respect to the rhashtable's per-bucket locking, but
+ * is safe because writes are serialized by the caller.
+ *
  * Return: On success, the removed or replaced xattr is returned, to be freed
  * by the caller; or NULL if none. On failure a negative error code is returned.
  */
@@ -1332,64 +1366,57 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 				      const char *name, const void *value,
 				      size_t size, int flags)
 {
-	struct simple_xattr *old_xattr = NULL, *new_xattr = NULL;
-	struct rb_node *parent = NULL, **rbp;
-	int err = 0, ret;
+	struct simple_xattr *old_xattr = NULL;
+	int err;
 
-	/* value == NULL means remove */
-	if (value) {
-		new_xattr = simple_xattr_alloc(value, size);
-		if (!new_xattr)
-			return ERR_PTR(-ENOMEM);
+	CLASS(simple_xattr, new_xattr)(value, size);
+	if (IS_ERR(new_xattr))
+		return new_xattr;
 
+	if (new_xattr) {
 		new_xattr->name = kstrdup(name, GFP_KERNEL_ACCOUNT);
-		if (!new_xattr->name) {
-			simple_xattr_free(new_xattr);
+		if (!new_xattr->name)
 			return ERR_PTR(-ENOMEM);
-		}
 	}
 
-	write_lock(&xattrs->lock);
-	rbp = &xattrs->rb_root.rb_node;
-	while (*rbp) {
-		parent = *rbp;
-		ret = rbtree_simple_xattr_cmp(name, *rbp);
-		if (ret < 0)
-			rbp = &(*rbp)->rb_left;
-		else if (ret > 0)
-			rbp = &(*rbp)->rb_right;
-		else
-			old_xattr = rb_entry(*rbp, struct simple_xattr, rb_node);
-		if (old_xattr)
-			break;
-	}
+	/* Lookup is safe without RCU here since writes are serialized. */
+	old_xattr = rhashtable_lookup_fast(&xattrs->ht, name,
+					   simple_xattr_params);
 
 	if (old_xattr) {
 		/* Fail if XATTR_CREATE is requested and the xattr exists. */
-		if (flags & XATTR_CREATE) {
-			err = -EEXIST;
-			goto out_unlock;
-		}
+		if (flags & XATTR_CREATE)
+			return ERR_PTR(-EEXIST);
 
-		if (new_xattr)
-			rb_replace_node(&old_xattr->rb_node,
-					&new_xattr->rb_node, &xattrs->rb_root);
-		else
-			rb_erase(&old_xattr->rb_node, &xattrs->rb_root);
+		if (new_xattr) {
+			err = rhashtable_replace_fast(&xattrs->ht,
+						      &old_xattr->hash_node,
+						      &new_xattr->hash_node,
+						      simple_xattr_params);
+			if (err)
+				return ERR_PTR(err);
+		} else {
+			err = rhashtable_remove_fast(&xattrs->ht,
+						     &old_xattr->hash_node,
+						     simple_xattr_params);
+			if (err)
+				return ERR_PTR(err);
+		}
 	} else {
 		/* Fail if XATTR_REPLACE is requested but no xattr is found. */
-		if (flags & XATTR_REPLACE) {
-			err = -ENODATA;
-			goto out_unlock;
-		}
+		if (flags & XATTR_REPLACE)
+			return ERR_PTR(-ENODATA);
 
 		/*
 		 * If XATTR_CREATE or no flags are specified together with a
 		 * new value simply insert it.
 		 */
 		if (new_xattr) {
-			rb_link_node(&new_xattr->rb_node, parent, rbp);
-			rb_insert_color(&new_xattr->rb_node, &xattrs->rb_root);
+			err = rhashtable_insert_fast(&xattrs->ht,
+						     &new_xattr->hash_node,
+						     simple_xattr_params);
+			if (err)
+				return ERR_PTR(err);
 		}
 
 		/*
@@ -1398,12 +1425,73 @@ struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
 		 */
 	}
 
-out_unlock:
-	write_unlock(&xattrs->lock);
-	if (!err)
-		return old_xattr;
-	simple_xattr_free(new_xattr);
-	return ERR_PTR(err);
+	retain_and_null_ptr(new_xattr);
+	return old_xattr;
+}
+
+static inline void simple_xattr_limits_dec(struct simple_xattr_limits *limits,
+					   size_t size)
+{
+	atomic_sub(size, &limits->xattr_size);
+	atomic_dec(&limits->nr_xattrs);
+}
+
+static inline int simple_xattr_limits_inc(struct simple_xattr_limits *limits,
+					  size_t size)
+{
+	if (atomic_inc_return(&limits->nr_xattrs) > SIMPLE_XATTR_MAX_NR) {
+		atomic_dec(&limits->nr_xattrs);
+		return -ENOSPC;
+	}
+
+	if (atomic_add_return(size, &limits->xattr_size) <= SIMPLE_XATTR_MAX_SIZE)
+		return 0;
+
+	simple_xattr_limits_dec(limits, size);
+	return -ENOSPC;
+}
+
+/**
+ * simple_xattr_set_limited - set an xattr with per-inode user.* limits
+ * @xattrs: the header of the xattr object
+ * @limits: per-inode limit counters for user.* xattrs
+ * @name: the name of the xattr to set or remove
+ * @value: the value to store (NULL to remove)
+ * @size: the size of @value
+ * @flags: XATTR_CREATE, XATTR_REPLACE, or 0
+ *
+ * Like simple_xattr_set(), but enforces per-inode count and total value size
+ * limits for user.* xattrs. Uses speculative pre-increment of the atomic
+ * counters to avoid races without requiring external locks.
+ *
+ * Return: On success zero is returned. On failure a negative error code is
+ * returned.
+ */
+int simple_xattr_set_limited(struct simple_xattrs *xattrs,
+			     struct simple_xattr_limits *limits,
+			     const char *name, const void *value,
+			     size_t size, int flags)
+{
+	struct simple_xattr *old_xattr;
+	int ret;
+
+	if (value) {
+		ret = simple_xattr_limits_inc(limits, size);
+		if (ret)
+			return ret;
+	}
+
+	old_xattr = simple_xattr_set(xattrs, name, value, size, flags);
+	if (IS_ERR(old_xattr)) {
+		if (value)
+			simple_xattr_limits_dec(limits, size);
+		return PTR_ERR(old_xattr);
+	}
+	if (old_xattr) {
+		simple_xattr_limits_dec(limits, old_xattr->size);
+		simple_xattr_free_rcu(old_xattr);
+	}
+	return 0;
 }
 
 static bool xattr_is_trusted(const char *name)
@@ -1443,8 +1531,8 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size)
 {
 	bool trusted = ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN);
+	struct rhashtable_iter iter;
 	struct simple_xattr *xattr;
-	struct rb_node *rbp;
 	ssize_t remaining_size = size;
 	int err = 0;
 
@@ -1464,9 +1552,19 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 	remaining_size -= err;
 	err = 0;
 
-	read_lock(&xattrs->lock);
-	for (rbp = rb_first(&xattrs->rb_root); rbp; rbp = rb_next(rbp)) {
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
+	if (!xattrs)
+		return size - remaining_size;
+
+	rhashtable_walk_enter(&xattrs->ht, &iter);
+	rhashtable_walk_start(&iter);
+
+	while ((xattr = rhashtable_walk_next(&iter)) != NULL) {
+		if (IS_ERR(xattr)) {
+			if (PTR_ERR(xattr) == -EAGAIN)
+				continue;
+			err = PTR_ERR(xattr);
+			break;
+		}
 
 		/* skip "trusted." attributes for unprivileged callers */
 		if (!trusted && xattr_is_trusted(xattr->name))
@@ -1480,25 +1578,11 @@ ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 		if (err)
 			break;
 	}
-	read_unlock(&xattrs->lock);
+
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
 
 	return err ? err : size - remaining_size;
-}
-
-/**
- * rbtree_simple_xattr_less - compare two xattr rbtree nodes
- * @new_node: new node
- * @node: current node
- *
- * Compare the xattr attached to @new_node with the xattr attached to @node.
- * Note that this function technically tolerates duplicate entries.
- *
- * Return: True if insertion point in the rbtree is found.
- */
-static bool rbtree_simple_xattr_less(struct rb_node *new_node,
-				     const struct rb_node *node)
-{
-	return rbtree_simple_xattr_node_cmp(new_node, node) < 0;
 }
 
 /**
@@ -1509,25 +1593,100 @@ static bool rbtree_simple_xattr_less(struct rb_node *new_node,
  * Add an xattr object to @xattrs. This assumes no replacement or removal
  * of matching xattrs is wanted. Should only be called during inode
  * initialization when a few distinct initial xattrs are supposed to be set.
+ *
+ * Return: On success zero is returned. On failure a negative error code is
+ * returned.
  */
-void simple_xattr_add(struct simple_xattrs *xattrs,
-		      struct simple_xattr *new_xattr)
+int simple_xattr_add(struct simple_xattrs *xattrs,
+		     struct simple_xattr *new_xattr)
 {
-	write_lock(&xattrs->lock);
-	rb_add(&new_xattr->rb_node, &xattrs->rb_root, rbtree_simple_xattr_less);
-	write_unlock(&xattrs->lock);
+	return rhashtable_insert_fast(&xattrs->ht, &new_xattr->hash_node,
+				      simple_xattr_params);
 }
 
 /**
  * simple_xattrs_init - initialize new xattr header
  * @xattrs: header to initialize
  *
- * Initialize relevant fields of a an xattr header.
+ * Initialize the rhashtable used to store xattr objects.
+ *
+ * Return: On success zero is returned. On failure a negative error code is
+ * returned.
  */
-void simple_xattrs_init(struct simple_xattrs *xattrs)
+int simple_xattrs_init(struct simple_xattrs *xattrs)
 {
-	xattrs->rb_root = RB_ROOT;
-	rwlock_init(&xattrs->lock);
+	return rhashtable_init(&xattrs->ht, &simple_xattr_params);
+}
+
+/**
+ * simple_xattrs_alloc - allocate and initialize a new xattr header
+ *
+ * Dynamically allocate a simple_xattrs header and initialize the
+ * underlying rhashtable. This is intended for consumers that want
+ * to lazily allocate xattr storage only when the first xattr is set,
+ * avoiding the per-inode rhashtable overhead when no xattrs are used.
+ *
+ * Return: On success a new simple_xattrs is returned. On failure an
+ * ERR_PTR is returned.
+ */
+struct simple_xattrs *simple_xattrs_alloc(void)
+{
+	struct simple_xattrs *xattrs __free(kfree) = NULL;
+	int ret;
+
+	xattrs = kzalloc(sizeof(*xattrs), GFP_KERNEL);
+	if (!xattrs)
+		return ERR_PTR(-ENOMEM);
+
+	ret = simple_xattrs_init(xattrs);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return no_free_ptr(xattrs);
+}
+
+/**
+ * simple_xattrs_lazy_alloc - get or allocate xattrs for a set operation
+ * @xattrsp: pointer to the xattrs pointer (may point to NULL)
+ * @value: value being set (NULL means remove)
+ * @flags: xattr set flags
+ *
+ * For lazily-allocated xattrs on the write path. If no xattrs exist yet
+ * and this is a remove operation, returns the appropriate result without
+ * allocating. Otherwise ensures xattrs is allocated and published with
+ * store-release semantics.
+ *
+ * Return: On success a valid pointer to the xattrs is returned. On
+ * failure or early-exit an ERR_PTR or NULL is returned. Callers should
+ * check with IS_ERR_OR_NULL() and propagate with PTR_ERR() which
+ * correctly returns 0 for the NULL no-op case.
+ */
+struct simple_xattrs *simple_xattrs_lazy_alloc(struct simple_xattrs **xattrsp,
+					       const void *value, int flags)
+{
+	struct simple_xattrs *xattrs;
+
+	xattrs = READ_ONCE(*xattrsp);
+	if (xattrs)
+		return xattrs;
+
+	if (!value)
+		return (flags & XATTR_REPLACE) ? ERR_PTR(-ENODATA) : NULL;
+
+	xattrs = simple_xattrs_alloc();
+	if (!IS_ERR(xattrs))
+		smp_store_release(xattrsp, xattrs);
+	return xattrs;
+}
+
+static void simple_xattr_ht_free(void *ptr, void *arg)
+{
+	struct simple_xattr *xattr = ptr;
+	size_t *freed_space = arg;
+
+	if (freed_space)
+		*freed_space += simple_xattr_space(xattr->name, xattr->size);
+	simple_xattr_free(xattr);
 }
 
 /**
@@ -1540,22 +1699,10 @@ void simple_xattrs_init(struct simple_xattrs *xattrs)
  */
 void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space)
 {
-	struct rb_node *rbp;
+	might_sleep();
 
 	if (freed_space)
 		*freed_space = 0;
-	rbp = rb_first(&xattrs->rb_root);
-	while (rbp) {
-		struct simple_xattr *xattr;
-		struct rb_node *rbp_next;
-
-		rbp_next = rb_next(rbp);
-		xattr = rb_entry(rbp, struct simple_xattr, rb_node);
-		rb_erase(&xattr->rb_node, &xattrs->rb_root);
-		if (freed_space)
-			*freed_space += simple_xattr_space(xattr->name,
-							   xattr->size);
-		simple_xattr_free(xattr);
-		rbp = rbp_next;
-	}
+	rhashtable_free_and_destroy(&xattrs->ht, simple_xattr_ht_free,
+				    freed_space);
 }
