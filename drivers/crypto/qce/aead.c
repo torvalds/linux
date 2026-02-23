@@ -5,6 +5,7 @@
  */
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/string.h>
 #include <crypto/gcm.h>
 #include <crypto/authenc.h>
 #include <crypto/internal/aead.h>
@@ -768,9 +769,8 @@ static int qce_aead_register_one(const struct qce_aead_def *def, struct qce_devi
 
 	alg = &tmpl->alg.aead;
 
-	snprintf(alg->base.cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
-	snprintf(alg->base.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-		 def->drv_name);
+	strscpy(alg->base.cra_name, def->name);
+	strscpy(alg->base.cra_driver_name, def->drv_name);
 
 	alg->base.cra_blocksize		= def->blocksize;
 	alg->chunksize			= def->chunksize;
