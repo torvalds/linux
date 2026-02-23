@@ -370,7 +370,7 @@ int atmel_i2c_probe(struct i2c_client *client)
 		}
 	}
 
-	if (bus_clk_rate > 1000000L) {
+	if (bus_clk_rate > I2C_MAX_FAST_MODE_PLUS_FREQ) {
 		dev_err(dev, "%u exceeds maximum supported clock frequency (1MHz)\n",
 			bus_clk_rate);
 		return -EINVAL;
