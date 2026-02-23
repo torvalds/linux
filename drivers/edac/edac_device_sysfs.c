@@ -21,8 +21,6 @@
 #define EDAC_DEVICE_SYMLINK	"device"
 
 #define to_edacdev(k) container_of(k, struct edac_device_ctl_info, kobj)
-#define to_edacdev_attr(a) container_of(a, struct edacdev_attribute, attr)
-
 
 /*
  * Set of edac_device_ctl_info attribute store/show functions
