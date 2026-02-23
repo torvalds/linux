@@ -427,6 +427,7 @@ static inline bool of_machine_is_compatible(const char *compat)
 }
 
 int of_machine_read_compatible(const char **compatible, unsigned int index);
+int of_machine_read_model(const char **model);
 
 extern int of_add_property(struct device_node *np, struct property *prop);
 extern int of_remove_property(struct device_node *np, struct property *prop);
@@ -855,6 +856,11 @@ static inline int of_machine_is_compatible(const char *compat)
 
 static inline int of_machine_read_compatible(const char **compatible,
 					     unsigned int index)
+{
+	return -ENOSYS;
+}
+
+static inline int of_machine_read_model(const char **model)
 {
 	return -ENOSYS;
 }
