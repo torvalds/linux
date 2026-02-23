@@ -67,8 +67,8 @@ This documentation is about:
 =============== ===============================================================
 abi/		execution domains & personalities
 <$ARCH>		tuning controls for various CPU architecture (e.g. csky, s390)
-crypto/		<undocumented>
-debug/		<undocumented>
+crypto/		cryptographic subsystem
+debug/		debugging features
 dev/		device specific information (e.g. dev/cdrom/info)
 fs/		specific filesystems
 		filehandle, inode, dentry and quota tuning
@@ -96,6 +96,8 @@ it :-)
    :maxdepth: 1
 
    abi
+   crypto
+   debug
    fs
    kernel
    net
