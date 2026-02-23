@@ -13,7 +13,7 @@
 # For further information, see:
 #   Documentation/trace/rv/deterministic_automata.rst
 
-from .automata import Automata
+from .automata import Automata, AutomataError
 
 class Dot2c(Automata):
     enum_suffix = ""
@@ -103,7 +103,7 @@ class Dot2c(Automata):
             min_type = "unsigned int"
 
         if self.states.__len__() > 1000000:
-            raise Exception("Too many states: %d" % self.states.__len__())
+            raise AutomataError("Too many states: %d" % self.states.__len__())
 
         return min_type
 

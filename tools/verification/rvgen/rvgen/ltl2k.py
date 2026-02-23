@@ -4,6 +4,7 @@
 from pathlib import Path
 from . import generator
 from . import ltl2ba
+from .automata import AutomataError
 
 COLUMN_LIMIT = 100
 
@@ -60,8 +61,11 @@ class ltl2k(generator.Monitor):
         if MonitorType != "per_task":
             raise NotImplementedError("Only per_task monitor is supported for LTL")
         super().__init__(extra_params)
-        with open(file_path) as f:
-            self.atoms, self.ba, self.ltl = ltl2ba.create_graph(f.read())
+        try:
+            with open(file_path) as f:
+                self.atoms, self.ba, self.ltl = ltl2ba.create_graph(f.read())
+        except OSError as exc:
+            raise AutomataError(exc.strerror) from exc
         self.atoms_abbr = abbreviate_atoms(self.atoms)
         self.name = extra_params.get("model_name")
         if not self.name:

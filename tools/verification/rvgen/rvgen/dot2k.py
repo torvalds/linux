@@ -11,7 +11,7 @@
 from collections import deque
 from .dot2c import Dot2c
 from .generator import Monitor
-from .automata import _EventConstraintKey, _StateConstraintKey
+from .automata import _EventConstraintKey, _StateConstraintKey, AutomataError
 
 
 class dot2k(Monitor, Dot2c):
@@ -166,14 +166,14 @@ class da2k(dot2k):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.is_hybrid_automata():
-            raise ValueError("Detected hybrid automata, use the 'ha' class")
+            raise AutomataError("Detected hybrid automata, use the 'ha' class")
 
 class ha2k(dot2k):
     """Hybrid automata only"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.is_hybrid_automata():
-            raise ValueError("Detected deterministic automata, use the 'da' class")
+            raise AutomataError("Detected deterministic automata, use the 'da' class")
         self.trace_h = self._read_template_file("trace_hybrid.h")
         self.__parse_constraints()
 
@@ -266,22 +266,22 @@ class ha2k(dot2k):
         # state constraints are only used for expirations (e.g. clk<N)
         if self.is_event_constraint(key):
             if not rule and not reset:
-                raise ValueError("Unrecognised event constraint "
-                                 f"({self.states[key[0]]}/{self.events[key[1]]}: {constr})")
+                raise AutomataError("Unrecognised event constraint "
+                                    f"({self.states[key[0]]}/{self.events[key[1]]}: {constr})")
             if rule and (rule["env"] in self.env_types and
                          rule["env"] not in self.env_stored):
-                raise ValueError("Clocks in hybrid automata always require a storage"
-                                 f" ({rule["env"]})")
+                raise AutomataError("Clocks in hybrid automata always require a storage"
+                                    f" ({rule["env"]})")
         else:
             if not rule:
-                raise ValueError("Unrecognised state constraint "
-                                 f"({self.states[key]}: {constr})")
+                raise AutomataError("Unrecognised state constraint "
+                                    f"({self.states[key]}: {constr})")
             if rule["env"] not in self.env_stored:
-                raise ValueError("State constraints always require a storage "
-                                 f"({rule["env"]})")
+                raise AutomataError("State constraints always require a storage "
+                                    f"({rule["env"]})")
             if rule["op"] not in ["<", "<="]:
-                raise ValueError("State constraints must be clock expirations like"
-                                 f" clk<N ({rule.string})")
+                raise AutomataError("State constraints must be clock expirations like"
+                                    f" clk<N ({rule.string})")
 
     def __parse_constraints(self) -> None:
         self.guards: dict[_EventConstraintKey, str] = {}

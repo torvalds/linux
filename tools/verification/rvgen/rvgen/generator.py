@@ -51,10 +51,7 @@ class RVGenerator:
         raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
 
     def _read_file(self, path):
-        try:
-            fd = open(path, 'r')
-        except OSError:
-            raise Exception("Cannot open the file: %s" % path)
+        fd = open(path, 'r')
 
         content = fd.read()
 
@@ -65,7 +62,7 @@ class RVGenerator:
         try:
             path = os.path.join(self.abs_template_dir, file)
             return self._read_file(path)
-        except Exception:
+        except OSError:
             # Specific template file not found. Try the generic template file in the template/
             # directory, which is one level up
             path = os.path.join(self.abs_template_dir, "..", file)
