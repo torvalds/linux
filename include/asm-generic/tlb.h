@@ -251,6 +251,8 @@ static inline void tlb_remove_table(struct mmu_gather *tlb, void *table)
 
 void tlb_remove_table_sync_one(void);
 
+void tlb_remove_table_sync_rcu(void);
+
 #else
 
 #ifdef tlb_needs_table_invalidate
@@ -258,6 +260,8 @@ void tlb_remove_table_sync_one(void);
 #endif
 
 static inline void tlb_remove_table_sync_one(void) { }
+
+static inline void tlb_remove_table_sync_rcu(void) { }
 
 #endif /* CONFIG_MMU_GATHER_RCU_TABLE_FREE */
 
