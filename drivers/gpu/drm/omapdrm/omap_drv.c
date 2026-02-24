@@ -299,7 +299,7 @@ static int omap_global_obj_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 
-	drm_atomic_private_obj_init(dev, &priv->glob_obj, NULL,
+	drm_atomic_private_obj_init(dev, &priv->glob_obj,
 				    &omap_global_state_funcs);
 	return 0;
 }

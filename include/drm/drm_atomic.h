@@ -738,7 +738,6 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 
 int drm_atomic_private_obj_init(struct drm_device *dev,
 				struct drm_private_obj *obj,
-				struct drm_private_state *state,
 				const struct drm_private_state_funcs *funcs);
 void drm_atomic_private_obj_fini(struct drm_private_obj *obj);
 

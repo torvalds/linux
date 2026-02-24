@@ -1401,7 +1401,7 @@ static int ingenic_drm_bind(struct device *dev, bool has_components)
 		goto err_devclk_disable;
 	}
 
-	drm_atomic_private_obj_init(drm, &priv->private_obj, NULL,
+	drm_atomic_private_obj_init(drm, &priv->private_obj,
 				    &ingenic_drm_private_state_funcs);
 
 	ret = drmm_add_action_or_reset(drm, ingenic_drm_atomic_private_obj_fini,

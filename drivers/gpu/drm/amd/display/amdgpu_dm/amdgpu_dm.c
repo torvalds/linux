@@ -4896,7 +4896,6 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 
 	drm_atomic_private_obj_init(adev_to_drm(adev),
 				    &adev->dm.atomic_obj,
-				    NULL,
 				    &dm_atomic_state_funcs);
 
 	r = amdgpu_display_modeset_create_props(adev);

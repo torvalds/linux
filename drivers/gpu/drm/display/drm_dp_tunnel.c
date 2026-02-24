@@ -1600,7 +1600,7 @@ static bool init_group(struct drm_dp_tunnel_mgr *mgr, struct drm_dp_tunnel_group
 	group->available_bw = -1;
 	INIT_LIST_HEAD(&group->tunnels);
 
-	drm_atomic_private_obj_init(mgr->dev, &group->base, NULL,
+	drm_atomic_private_obj_init(mgr->dev, &group->base,
 				    &tunnel_group_funcs);
 
 	return true;
