@@ -568,6 +568,27 @@ static int probe_ldimm64_full_range_off(int token_fd)
 	return 1;
 }
 
+#ifdef __x86_64__
+
+#ifndef __NR_uprobe
+#define __NR_uprobe 336
+#endif
+
+static int probe_uprobe_syscall(int token_fd)
+{
+	/*
+	 * If kernel supports uprobe() syscall, it will return -ENXIO when called
+	 * from the outside of a kernel-generated uprobe trampoline.
+	 */
+	return syscall(__NR_uprobe) < 0 && errno == ENXIO;
+}
+#else
+static int probe_uprobe_syscall(int token_fd)
+{
+	return 0;
+}
+#endif
+
 typedef int (*feature_probe_fn)(int /* token_fd */);
 
 static struct kern_feature_cache feature_cache;
@@ -645,6 +666,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_LDIMM64_FULL_RANGE_OFF] = {
 		"full range LDIMM64 support", probe_ldimm64_full_range_off,
+	},
+	[FEAT_UPROBE_SYSCALL] = {
+		"kernel supports uprobe syscall", probe_uprobe_syscall,
 	},
 };
 
