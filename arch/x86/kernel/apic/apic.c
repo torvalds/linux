@@ -591,14 +591,14 @@ static void setup_APIC_timer(void)
 
 	if (this_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
 		levt->name = "lapic-deadline";
-		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC |
-				    CLOCK_EVT_FEAT_DUMMY);
+		levt->features &= ~(CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_DUMMY);
+		levt->features |= CLOCK_EVT_FEAT_CLOCKSOURCE_COUPLED;
+		levt->cs_id = CSID_X86_TSC;
 		levt->set_next_event = lapic_next_deadline;
-		clockevents_config_and_register(levt,
-						tsc_khz * (1000 / TSC_DIVISOR),
-						0xF, ~0UL);
-	} else
+		clockevents_config_and_register(levt, tsc_khz * (1000 / TSC_DIVISOR), 0xF, ~0UL);
+	} else {
 		clockevents_register_device(levt);
+	}
 
 	apic_update_vector(smp_processor_id(), LOCAL_TIMER_VECTOR, true);
 }
