@@ -133,6 +133,9 @@ struct snd_card {
 #ifdef CONFIG_SND_DEBUG
 	struct dentry *debugfs_root;    /* debugfs root for card */
 #endif
+#ifdef CONFIG_SND_CTL_DEBUG
+	struct snd_ctl_elem_value *value_buf; /* buffer for kctl->put() verification */
+#endif
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
