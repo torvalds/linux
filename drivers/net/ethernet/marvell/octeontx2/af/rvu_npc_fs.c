@@ -1761,14 +1761,19 @@ static int npc_update_dmac_value(struct rvu *rvu, int npcblkaddr,
 	struct npc_mcam_write_entry_req write_req = { 0 };
 	struct mcam_entry *entry = &write_req.entry_data;
 	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u8 intf, enable, hw_prio;
 	struct msg_rsp rsp;
-	u8 intf, enable;
 	int err;
 
 	ether_addr_copy(rule->packet.dmac, pfvf->mac_addr);
 
-	npc_read_mcam_entry(rvu, mcam, npcblkaddr, rule->entry,
-			    entry, &intf,  &enable);
+	if (is_cn20k(rvu->pdev))
+		npc_cn20k_read_mcam_entry(rvu, npcblkaddr, rule->entry,
+					  entry, &intf,
+					  &enable, &hw_prio);
+	else
+		npc_read_mcam_entry(rvu, mcam, npcblkaddr, rule->entry,
+				    entry, &intf, &enable);
 
 	npc_update_entry(rvu, NPC_DMAC, entry,
 			 ether_addr_to_u64(pfvf->mac_addr), 0,

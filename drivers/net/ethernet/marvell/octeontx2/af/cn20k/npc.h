@@ -294,4 +294,19 @@ void npc_cn20k_dft_rules_free(struct rvu *rvu, u16 pcifunc);
 
 int npc_cn20k_dft_rules_idx_get(struct rvu *rvu, u16 pcifunc, u16 *bcast,
 				u16 *mcast, u16 *promisc, u16 *ucast);
+
+void npc_cn20k_config_mcam_entry(struct rvu *rvu, int blkaddr, int index,
+				 u8 intf, struct mcam_entry *entry,
+				 bool enable, u8 hw_prio);
+void npc_cn20k_enable_mcam_entry(struct rvu *rvu, int blkaddr,
+				 int index, bool enable);
+void npc_cn20k_copy_mcam_entry(struct rvu *rvu, int blkaddr,
+			       u16 src, u16 dest);
+void npc_cn20k_read_mcam_entry(struct rvu *rvu, int blkaddr, u16 index,
+			       struct mcam_entry *entry, u8 *intf, u8 *ena,
+			       u8 *hw_prio);
+void npc_cn20k_clear_mcam_entry(struct rvu *rvu, int blkaddr,
+				int bank, int index);
+int npc_mcam_idx_2_key_type(struct rvu *rvu, u16 mcam_idx, u8 *key_type);
+
 #endif /* NPC_CN20K_H */

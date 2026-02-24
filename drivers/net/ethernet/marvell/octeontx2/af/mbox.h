@@ -1577,6 +1577,8 @@ struct npc_mcam_write_entry_req {
 	u8  intf;	 /* Rx or Tx interface */
 	u8  enable_entry;/* Enable this MCAM entry ? */
 	u8  set_cntr;    /* Set counter for this entry ? */
+	u8  hw_prio;	 /* hardware priority, valid for cn20k */
+	u64 reserved;	 /* reserved for future use */
 };
 
 /* Enable/Disable a given entry */
@@ -1824,6 +1826,7 @@ struct npc_mcam_read_entry_rsp {
 	struct mcam_entry entry_data;
 	u8 intf;
 	u8 enable;
+	u8 hw_prio; /* valid for cn20k */
 };
 
 /* Available entries to use */
