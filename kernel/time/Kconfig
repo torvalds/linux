@@ -60,7 +60,9 @@ config GENERIC_CMOS_UPDATE
 
 # Deferred rearming of the hrtimer interrupt
 config HRTIMER_REARM_DEFERRED
-       def_bool n
+       def_bool y
+       depends on GENERIC_ENTRY && HAVE_GENERIC_TIF_BITS
+       depends on HIGH_RES_TIMERS && SCHED_HRTICK
 
 # Select to handle posix CPU timers from task_work
 # and not from the timer interrupt context

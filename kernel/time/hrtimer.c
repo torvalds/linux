@@ -1939,10 +1939,9 @@ static __latent_entropy void hrtimer_run_softirq(void)
  * Very similar to hrtimer_force_reprogram(), except it deals with
  * deferred_rearm and hang_detected.
  */
-static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now)
+static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now,
+			  ktime_t expires_next, bool deferred)
 {
-	ktime_t expires_next = hrtimer_update_next_event(cpu_base);
-
 	cpu_base->expires_next = expires_next;
 	cpu_base->deferred_rearm = false;
 
@@ -1954,8 +1953,36 @@ static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now)
 		expires_next = ktime_add_ns(now, 100 * NSEC_PER_MSEC);
 		cpu_base->hang_detected = false;
 	}
-	hrtimer_rearm_event(expires_next, false);
+	hrtimer_rearm_event(expires_next, deferred);
 }
+
+#ifdef CONFIG_HRTIMER_REARM_DEFERRED
+void __hrtimer_rearm_deferred(void)
+{
+	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
+	ktime_t now, expires_next;
+
+	if (!cpu_base->deferred_rearm)
+		return;
+
+	guard(raw_spinlock)(&cpu_base->lock);
+	now = hrtimer_update_base(cpu_base);
+	expires_next = hrtimer_update_next_event(cpu_base);
+	hrtimer_rearm(cpu_base, now, expires_next, true);
+}
+
+static __always_inline void
+hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now, ktime_t expires_next)
+{
+	set_thread_flag(TIF_HRTIMER_REARM);
+}
+#else  /* CONFIG_HRTIMER_REARM_DEFERRED */
+static __always_inline void
+hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now, ktime_t expires_next)
+{
+	hrtimer_rearm(cpu_base, now, expires_next, false);
+}
+#endif  /* !CONFIG_HRTIMER_REARM_DEFERRED */
 
 /*
  * High resolution timer interrupt
@@ -2014,9 +2041,10 @@ retry:
 		cpu_base->hang_detected = true;
 	}
 
-	hrtimer_rearm(cpu_base, now);
+	hrtimer_interrupt_rearm(cpu_base, now, expires_next);
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 }
+
 #endif /* !CONFIG_HIGH_RES_TIMERS */
 
 /*
