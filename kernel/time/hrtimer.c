@@ -810,10 +810,11 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	struct hrtimer_clock_base *base = timer->base;
-	ktime_t expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
+	ktime_t expires = hrtimer_get_expires(timer);
 
-	WARN_ON_ONCE(hrtimer_get_expires(timer) < 0);
+	WARN_ON_ONCE(expires < 0);
 
+	expires = ktime_sub(expires, base->offset);
 	/*
 	 * CLOCK_REALTIME timer might be requested with an absolute
 	 * expiry time which is less than base->offset. Set it to 0.
