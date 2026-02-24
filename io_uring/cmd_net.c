@@ -146,7 +146,7 @@ static int io_uring_cmd_getsockname(struct socket *sock,
 		return -EINVAL;
 
 	uaddr = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	ulen = u64_to_user_ptr(sqe->addr3);
+	ulen = u64_to_user_ptr(READ_ONCE(sqe->addr3));
 	peer = READ_ONCE(sqe->optlen);
 	if (peer > 1)
 		return -EINVAL;
