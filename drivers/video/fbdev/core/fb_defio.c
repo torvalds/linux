@@ -14,6 +14,7 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -83,6 +84,7 @@ static void fb_deferred_io_vm_open(struct vm_area_struct *vma)
 {
 	struct fb_deferred_io_state *fbdefio_state = vma->vm_private_data;
 
+	WARN_ON_ONCE(!try_module_get(THIS_MODULE));
 	fb_deferred_io_state_get(fbdefio_state);
 }
 
@@ -91,6 +93,7 @@ static void fb_deferred_io_vm_close(struct vm_area_struct *vma)
 	struct fb_deferred_io_state *fbdefio_state = vma->vm_private_data;
 
 	fb_deferred_io_state_put(fbdefio_state);
+	module_put(THIS_MODULE);
 }
 
 static struct page *fb_deferred_io_get_page(struct fb_info *info, unsigned long offs)
@@ -334,6 +337,9 @@ static const struct address_space_operations fb_deferred_io_aops = {
 int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
+	if (!try_module_get(THIS_MODULE))
+		return -EINVAL;
 
 	vma->vm_ops = &fb_deferred_io_vm_ops;
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
