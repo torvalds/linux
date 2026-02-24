@@ -1918,7 +1918,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		 */
 		if (ret == -EOVERFLOW)
 			ret = 0;
-		if (unlikely(ret && ret != -EEXIST)) {
+		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
 			goto fail;
 		}

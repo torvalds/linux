@@ -3928,7 +3928,7 @@ static long _btrfs_ioctl_set_received_subvol(struct file *file,
 		ret = btrfs_uuid_tree_add(trans, sa->uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  btrfs_root_id(root));
-		if (unlikely(ret < 0 && ret != -EEXIST)) {
+		if (unlikely(ret < 0)) {
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			goto out;
