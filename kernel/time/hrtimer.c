@@ -690,6 +690,12 @@ static inline int hrtimer_hres_active(struct hrtimer_cpu_base *cpu_base)
 		cpu_base->hres_active : 0;
 }
 
+static inline void hrtimer_rearm_event(ktime_t expires_next, bool deferred)
+{
+	trace_hrtimer_rearm(expires_next, deferred);
+	tick_program_event(expires_next, 1);
+}
+
 static void __hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base, struct hrtimer *next_timer,
 				ktime_t expires_next)
 {
@@ -715,7 +721,7 @@ static void __hrtimer_reprogram(struct hrtimer_cpu_base *cpu_base, struct hrtime
 	if (!hrtimer_hres_active(cpu_base) || cpu_base->hang_detected)
 		return;
 
-	tick_program_event(expires_next, 1);
+	hrtimer_rearm_event(expires_next, false);
 }
 
 /*
@@ -1940,6 +1946,28 @@ static __latent_entropy void hrtimer_run_softirq(void)
 #ifdef CONFIG_HIGH_RES_TIMERS
 
 /*
+ * Very similar to hrtimer_force_reprogram(), except it deals with
+ * in_hrtirq and hang_detected.
+ */
+static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now)
+{
+	ktime_t expires_next = hrtimer_update_next_event(cpu_base);
+
+	cpu_base->expires_next = expires_next;
+	cpu_base->in_hrtirq = false;
+
+	if (unlikely(cpu_base->hang_detected)) {
+		/*
+		 * Give the system a chance to do something else than looping
+		 * on hrtimer interrupts.
+		 */
+		expires_next = ktime_add_ns(now, 100 * NSEC_PER_MSEC);
+		cpu_base->hang_detected = false;
+	}
+	hrtimer_rearm_event(expires_next, false);
+}
+
+/*
  * High resolution timer interrupt
  * Called with interrupts disabled
  */
@@ -1974,63 +2002,30 @@ retry:
 
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
 
-	/* Reevaluate the clock bases for the [soft] next expiry */
-	expires_next = hrtimer_update_next_event(cpu_base);
-	/*
-	 * Store the new expiry value so the migration code can verify
-	 * against it.
-	 */
-	cpu_base->expires_next = expires_next;
-	cpu_base->in_hrtirq = false;
-	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
-
-	/* Reprogramming necessary ? */
-	if (!tick_program_event(expires_next, 0)) {
-		cpu_base->hang_detected = false;
-		return;
-	}
-
 	/*
 	 * The next timer was already expired due to:
 	 * - tracing
 	 * - long lasting callbacks
 	 * - being scheduled away when running in a VM
 	 *
-	 * We need to prevent that we loop forever in the hrtimer
-	 * interrupt routine. We give it 3 attempts to avoid
-	 * overreacting on some spurious event.
-	 *
-	 * Acquire base lock for updating the offsets and retrieving
-	 * the current time.
+	 * We need to prevent that we loop forever in the hrtiner interrupt
+	 * routine. We give it 3 attempts to avoid overreacting on some
+	 * spurious event.
 	 */
-	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 	now = hrtimer_update_base(cpu_base);
-	cpu_base->nr_retries++;
-	if (++retries < 3)
-		goto retry;
-	/*
-	 * Give the system a chance to do something else than looping
-	 * here. We stored the entry time, so we know exactly how long
-	 * we spent here. We schedule the next event this amount of
-	 * time away.
-	 */
-	cpu_base->nr_hangs++;
-	cpu_base->hang_detected = true;
-	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
+	expires_next = hrtimer_update_next_event(cpu_base);
+	if (expires_next < now) {
+		if (++retries < 3)
+			goto retry;
 
-	delta = ktime_sub(now, entry_time);
-	if ((unsigned int)delta > cpu_base->max_hang_time)
-		cpu_base->max_hang_time = (unsigned int) delta;
-	/*
-	 * Limit it to a sensible value as we enforce a longer
-	 * delay. Give the CPU at least 100ms to catch up.
-	 */
-	if (delta > 100 * NSEC_PER_MSEC)
-		expires_next = ktime_add_ns(now, 100 * NSEC_PER_MSEC);
-	else
-		expires_next = ktime_add(now, delta);
-	tick_program_event(expires_next, 1);
-	pr_warn_once("hrtimer: interrupt took %llu ns\n", ktime_to_ns(delta));
+		delta = ktime_sub(now, entry_time);
+		cpu_base->max_hang_time = max_t(unsigned int, cpu_base->max_hang_time, delta);
+		cpu_base->nr_hangs++;
+		cpu_base->hang_detected = true;
+	}
+
+	hrtimer_rearm(cpu_base, now);
+	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 }
 #endif /* !CONFIG_HIGH_RES_TIMERS */
 
