@@ -518,7 +518,7 @@ struct pci_dev {
 	unsigned int	ptm_root:1;
 	unsigned int	ptm_responder:1;
 	unsigned int	ptm_requester:1;
-	unsigned int	ptm_enabled:1;
+	atomic_t	ptm_enable_cnt;
 	u8		ptm_granularity;
 #endif
 #ifdef CONFIG_PCI_MSI
