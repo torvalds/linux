@@ -6280,7 +6280,7 @@ S:	Maintained
 F:	include/linux/clk.h
 
 CLOCKSOURCE, CLOCKEVENT DRIVERS
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -6669,7 +6669,7 @@ F:	rust/kernel/cpu.rs
 
 CPU IDLE TIME MANAGEMENT FRAMEWORK
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 R:	Christian Loehle <christian.loehle@arm.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -6699,7 +6699,7 @@ F:	arch/x86/kernel/msr.c
 
 CPUIDLE DRIVER - ARM BIG LITTLE
 M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 L:	linux-pm@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -6707,7 +6707,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	drivers/cpuidle/cpuidle-big_little.c
 
 CPUIDLE DRIVER - ARM EXYNOS
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Kukjin Kim <kgene@kernel.org>
 R:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-pm@vger.kernel.org
@@ -26217,7 +26217,7 @@ F:	drivers/media/radio/radio-raremono.c
 
 THERMAL
 M:	Rafael J. Wysocki <rafael@kernel.org>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 R:	Zhang Rui <rui.zhang@intel.com>
 R:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
@@ -26247,7 +26247,7 @@ F:	drivers/thermal/amlogic_thermal.c
 
 THERMAL/CPU_COOLING
 M:	Amit Daniel Kachhap <amit.kachhap@gmail.com>
-M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+M:	Daniel Lezcano <daniel.lezcano@kernel.org>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 R:	Lukasz Luba <lukasz.luba@arm.com>
 L:	linux-pm@vger.kernel.org
