@@ -1203,6 +1203,31 @@ static inline bool remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_ba
 	return false;
 }
 
+/*
+ * Update in place has to retrieve the expiry times of the neighbour nodes
+ * if they exist. That is cache line neutral because the dequeue/enqueue
+ * operation is going to need the same cache lines. But there is a big win
+ * when the dequeue/enqueue can be avoided because the RB tree does not
+ * have to be rebalanced twice.
+ */
+static inline bool
+hrtimer_can_update_in_place(struct hrtimer *timer, struct hrtimer_clock_base *base, ktime_t expires)
+{
+	struct timerqueue_linked_node *next = timerqueue_linked_next(&timer->node);
+	struct timerqueue_linked_node *prev = timerqueue_linked_prev(&timer->node);
+
+	/* If the new expiry goes behind the next timer, requeue is required */
+	if (next && expires > next->expires)
+		return false;
+
+	/* If this is the first timer, update in place */
+	if (!prev)
+		return true;
+
+	/* Update in place when it does not go ahead of the previous one */
+	return expires >= prev->expires;
+}
+
 static inline bool
 remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 			     const enum hrtimer_mode mode, ktime_t expires, u64 delta_ns)
@@ -1211,8 +1236,18 @@ remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *b
 
 	/* Remove it from the timer queue if active */
 	if (timer->is_queued) {
-		debug_hrtimer_deactivate(timer);
 		was_first = !timerqueue_linked_prev(&timer->node);
+
+		/* Try to update in place to avoid the de/enqueue dance */
+		if (hrtimer_can_update_in_place(timer, base, expires)) {
+			hrtimer_set_expires_range_ns(timer, expires, delta_ns);
+			trace_hrtimer_start(timer, mode, true);
+			if (was_first)
+				base->expires_next = expires;
+			return was_first;
+		}
+
+		debug_hrtimer_deactivate(timer);
 		timerqueue_linked_del(&base->active, &timer->node);
 	}
 
