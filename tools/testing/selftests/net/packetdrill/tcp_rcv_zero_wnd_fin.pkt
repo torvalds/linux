@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0
+
+// Some TCP stacks send FINs even though the window is closed. We break
+// a possible FIN/ACK loop by accepting the FIN.
+
+--mss=1000
+
+`./defaults.sh`
+
+// Establish a connection.
+   +0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_RCVBUF, [20000], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 0>
+   +0 < . 1:1(0) ack 1 win 257
+
+   +0 accept(3, ..., ...) = 4
+
+   +0 < P. 1:60001(60000) ack 1 win 257
+    * > .  1:1(0) ack 60001 win 0
+
+   +0 < F. 60001:60001(0) ack 1 win 257
+   +0 > . 1:1(0) ack 60002 win 0
