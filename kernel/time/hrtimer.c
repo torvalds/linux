@@ -1147,7 +1147,7 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 }
 
 static inline bool remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base,
-				 bool restart, bool keep_local)
+				 bool restart, bool keep_base)
 {
 	bool queued_state = timer->is_queued;
 
@@ -1177,7 +1177,7 @@ static inline bool remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_ba
 		if (!restart)
 			queued_state = HRTIMER_STATE_INACTIVE;
 		else
-			reprogram &= !keep_local;
+			reprogram &= !keep_base;
 
 		__remove_hrtimer(timer, base, queued_state, reprogram);
 		return true;
@@ -1220,29 +1220,57 @@ static void hrtimer_update_softirq_timer(struct hrtimer_cpu_base *cpu_base, bool
 	hrtimer_reprogram(cpu_base->softirq_next_timer, reprogram);
 }
 
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+static __always_inline bool hrtimer_prefer_local(bool is_local, bool is_first, bool is_pinned)
+{
+	if (static_branch_likely(&timers_migration_enabled)) {
+		/*
+		 * If it is local and the first expiring timer keep it on the local
+		 * CPU to optimize reprogramming of the clockevent device. Also
+		 * avoid switch_hrtimer_base() overhead when local and pinned.
+		 */
+		if (!is_local)
+			return false;
+		return is_first || is_pinned;
+	}
+	return is_local;
+}
+#else
+static __always_inline bool hrtimer_prefer_local(bool is_local, bool is_first, bool is_pinned)
+{
+	return is_local;
+}
+#endif
+
+static inline bool hrtimer_keep_base(struct hrtimer *timer, bool is_local, bool is_first,
+				     bool is_pinned)
+{
+	/* If the timer is running the callback it has to stay on its CPU base. */
+	if (unlikely(timer->base->running == timer))
+		return true;
+
+	return hrtimer_prefer_local(is_local, is_first, is_pinned);
+}
+
 static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 delta_ns,
 				     const enum hrtimer_mode mode, struct hrtimer_clock_base *base)
 {
 	struct hrtimer_cpu_base *this_cpu_base = this_cpu_ptr(&hrtimer_bases);
-	struct hrtimer_clock_base *new_base;
-	bool force_local, first, was_armed;
+	bool is_pinned, first, was_first, was_armed, keep_base = false;
+	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
+
+	was_first = cpu_base->next_timer == timer;
+	is_pinned = !!(mode & HRTIMER_MODE_PINNED);
 
 	/*
-	 * If the timer is on the local cpu base and is the first expiring
-	 * timer then this might end up reprogramming the hardware twice
-	 * (on removal and on enqueue). To avoid that prevent the reprogram
-	 * on removal, keep the timer local to the current CPU and enforce
-	 * reprogramming after it is queued no matter whether it is the new
-	 * first expiring timer again or not.
+	 * Don't keep it local if this enqueue happens on a unplugged CPU
+	 * after hrtimer_cpu_dying() has been invoked.
 	 */
-	force_local = base->cpu_base == this_cpu_base;
-	force_local &= base->cpu_base->next_timer == timer;
+	if (likely(this_cpu_base->online)) {
+		bool is_local = cpu_base == this_cpu_base;
 
-	/*
-	 * Don't force local queuing if this enqueue happens on a unplugged
-	 * CPU after hrtimer_cpu_dying() has been invoked.
-	 */
-	force_local &= this_cpu_base->online;
+		keep_base = hrtimer_keep_base(timer, is_local, was_first, is_pinned);
+	}
 
 	/*
 	 * Remove an active timer from the queue. In case it is not queued
@@ -1254,8 +1282,11 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	 * reprogramming later if it was the first expiring timer.  This
 	 * avoids programming the underlying clock event twice (once at
 	 * removal and once after enqueue).
+	 *
+	 * @keep_base is also true if the timer callback is running on a
+	 * remote CPU and for local pinned timers.
 	 */
-	was_armed = remove_hrtimer(timer, base, true, force_local);
+	was_armed = remove_hrtimer(timer, base, true, keep_base);
 
 	if (mode & HRTIMER_MODE_REL)
 		tim = ktime_add_safe(tim, __hrtimer_cb_get_time(base->clockid));
@@ -1265,21 +1296,21 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	hrtimer_set_expires_range_ns(timer, tim, delta_ns);
 
 	/* Switch the timer base, if necessary: */
-	if (!force_local)
-		new_base = switch_hrtimer_base(timer, base, mode & HRTIMER_MODE_PINNED);
-	else
-		new_base = base;
+	if (!keep_base) {
+		base = switch_hrtimer_base(timer, base, is_pinned);
+		cpu_base = base->cpu_base;
+	}
 
-	first = enqueue_hrtimer(timer, new_base, mode, was_armed);
+	first = enqueue_hrtimer(timer, base, mode, was_armed);
 
 	/*
 	 * If the hrtimer interrupt is running, then it will reevaluate the
 	 * clock bases and reprogram the clock event device.
 	 */
-	if (new_base->cpu_base->in_hrtirq)
+	if (cpu_base->in_hrtirq)
 		return false;
 
-	if (!force_local) {
+	if (!was_first || cpu_base != this_cpu_base) {
 		/*
 		 * If the current CPU base is online, then the timer is never
 		 * queued on a remote CPU if it would be the first expiring
@@ -1288,7 +1319,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		 * re-evaluate the first expiring timer after completing the
 		 * callbacks.
 		 */
-		if (hrtimer_base_is_online(this_cpu_base))
+		if (likely(hrtimer_base_is_online(this_cpu_base)))
 			return first;
 
 		/*
@@ -1296,11 +1327,8 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		 * already offline. If the timer is the first to expire,
 		 * kick the remote CPU to reprogram the clock event.
 		 */
-		if (first) {
-			struct hrtimer_cpu_base *new_cpu_base = new_base->cpu_base;
-
-			smp_call_function_single_async(new_cpu_base->cpu, &new_cpu_base->csd);
-		}
+		if (first)
+			smp_call_function_single_async(cpu_base->cpu, &cpu_base->csd);
 		return false;
 	}
 
@@ -1314,16 +1342,17 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	 * required.
 	 */
 	if (timer->is_lazy) {
-		if (new_base->cpu_base->expires_next <= hrtimer_get_expires(timer))
+		if (cpu_base->expires_next <= hrtimer_get_expires(timer))
 			return false;
 	}
 
 	/*
-	 * Timer was forced to stay on the current CPU to avoid
-	 * reprogramming on removal and enqueue. Force reprogram the
-	 * hardware by evaluating the new first expiring timer.
+	 * Timer was the first expiring timer and forced to stay on the
+	 * current CPU to avoid reprogramming on removal and enqueue. Force
+	 * reprogram the hardware by evaluating the new first expiring
+	 * timer.
 	 */
-	hrtimer_force_reprogram(new_base->cpu_base, /* skip_equal */ true);
+	hrtimer_force_reprogram(cpu_base, /* skip_equal */ true);
 	return false;
 }
 
