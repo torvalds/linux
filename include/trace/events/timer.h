@@ -325,6 +325,30 @@ DEFINE_EVENT(hrtimer_class, hrtimer_cancel,
 );
 
 /**
+ * hrtimer_rearm - Invoked when the clockevent device is rearmed
+ * @next_event:	The next expiry time (CLOCK_MONOTONIC)
+ */
+TRACE_EVENT(hrtimer_rearm,
+
+	TP_PROTO(ktime_t next_event, bool deferred),
+
+	TP_ARGS(next_event, deferred),
+
+	TP_STRUCT__entry(
+		__field( s64,		next_event	)
+		__field( bool,		deferred	)
+	),
+
+	TP_fast_assign(
+		__entry->next_event	= next_event;
+		__entry->deferred	= deferred;
+	),
+
+	TP_printk("next_event=%llu deferred=%d",
+		  (unsigned long long) __entry->next_event, __entry->deferred)
+);
+
+/**
  * itimer_state - called when itimer is started or canceled
  * @which:	name of the interval timer
  * @value:	the itimers value, itimer is canceled if value->it_value is
