@@ -96,6 +96,27 @@ enum npc_subbank_flag {
 };
 
 /**
+ * enum npc_dft_rule_id - Default rule type
+ *
+ * Mcam default rule type.
+ *
+ * @NPC_DFT_RULE_START_ID:	Not used
+ * @NPC_DFT_RULE_PROMISC_ID:	promiscuous rule
+ * @NPC_DFT_RULE_MCAST_ID:	multicast rule
+ * @NPC_DFT_RULE_BCAST_ID:	broadcast rule
+ * @NPC_DFT_RULE_UCAST_ID:	unicast rule
+ * @NPC_DFT_RULE_MAX_ID:	Maximum index.
+ */
+enum npc_dft_rule_id {
+	NPC_DFT_RULE_START_ID = 1,
+	NPC_DFT_RULE_PROMISC_ID = NPC_DFT_RULE_START_ID,
+	NPC_DFT_RULE_MCAST_ID,
+	NPC_DFT_RULE_BCAST_ID,
+	NPC_DFT_RULE_UCAST_ID,
+	NPC_DFT_RULE_MAX_ID,
+};
+
+/**
  * struct npc_subbank - Subbank fields.
  * @b0b:	Subbanks bottom index for bank0
  * @b1b:	Subbanks bottom index for bank1
@@ -141,6 +162,7 @@ struct npc_subbank {
  * @xa_pf_map:		Pcifunc to index map.
  * @pf_cnt:		Number of PFs.
  * @init_done:		Indicates MCAM initialization is done.
+ * @xa_pf2dfl_rmap:	PF to default rule index map.
  *
  * This structure is populated during probing time by reading
  * HW csr registers.
@@ -157,6 +179,7 @@ struct npc_priv_t {
 	struct xarray *xa_pf2idx_map;
 	struct xarray xa_idx2pf_map;
 	struct xarray xa_pf_map;
+	struct xarray xa_pf2dfl_rmap;
 	int pf_cnt;
 	bool init_done;
 };
@@ -265,4 +288,10 @@ int npc_cn20k_apply_custom_kpu(struct rvu *rvu,
 void
 npc_cn20k_update_action_entries_n_flags(struct rvu *rvu,
 					struct npc_kpu_profile_adapter *pfl);
+
+int npc_cn20k_dft_rules_alloc(struct rvu *rvu, u16 pcifunc);
+void npc_cn20k_dft_rules_free(struct rvu *rvu, u16 pcifunc);
+
+int npc_cn20k_dft_rules_idx_get(struct rvu *rvu, u16 pcifunc, u16 *bcast,
+				u16 *mcast, u16 *promisc, u16 *ucast);
 #endif /* NPC_CN20K_H */

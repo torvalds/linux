@@ -22,6 +22,7 @@
 #include "rvu_npc_hash.h"
 #include "cn20k/reg.h"
 #include "cn20k/api.h"
+#include "cn20k/npc.h"
 
 #define DRV_NAME	"rvu_af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
@@ -1467,6 +1468,13 @@ static int rvu_detach_rsrcs(struct rvu *rvu, struct rsrc_detach *detach,
 			else if ((blkid == BLKADDR_CPT1) && !detach->cptlfs)
 				continue;
 		}
+
+		if (detach_all ||
+		    (detach && (blkid == BLKADDR_NIX0 ||
+				blkid == BLKADDR_NIX1) &&
+		     detach->nixlf))
+			npc_cn20k_dft_rules_free(rvu, pcifunc);
+
 		rvu_detach_block(rvu, pcifunc, block->type);
 	}
 
@@ -1750,6 +1758,12 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		err = rvu_attach_block(rvu, pcifunc, BLKTYPE_NIX, 1, attach);
 		if (err)
 			goto fail2;
+
+		if (is_cn20k(rvu->pdev)) {
+			err = npc_cn20k_dft_rules_alloc(rvu, pcifunc);
+			if (err)
+				goto fail3;
+		}
 	}
 
 	if (attach->sso) {
@@ -1763,7 +1777,7 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		err = rvu_attach_block(rvu, pcifunc, BLKTYPE_SSO,
 				       attach->sso, attach);
 		if (err)
-			goto fail3;
+			goto fail4;
 	}
 
 	if (attach->ssow) {
@@ -1772,7 +1786,7 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		err = rvu_attach_block(rvu, pcifunc, BLKTYPE_SSOW,
 				       attach->ssow, attach);
 		if (err)
-			goto fail4;
+			goto fail5;
 	}
 
 	if (attach->timlfs) {
@@ -1781,7 +1795,7 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		err = rvu_attach_block(rvu, pcifunc, BLKTYPE_TIM,
 				       attach->timlfs, attach);
 		if (err)
-			goto fail5;
+			goto fail6;
 	}
 
 	if (attach->cptlfs) {
@@ -1791,23 +1805,27 @@ int rvu_mbox_handler_attach_resources(struct rvu *rvu,
 		err = rvu_attach_block(rvu, pcifunc, BLKTYPE_CPT,
 				       attach->cptlfs, attach);
 		if (err)
-			goto fail6;
+			goto fail7;
 	}
 
 	mutex_unlock(&rvu->rsrc_lock);
 	return 0;
 
-fail6:
+fail7:
 	if (attach->timlfs)
 		rvu_detach_block(rvu, pcifunc, BLKTYPE_TIM);
 
-fail5:
+fail6:
 	if (attach->ssow)
 		rvu_detach_block(rvu, pcifunc, BLKTYPE_SSOW);
 
-fail4:
+fail5:
 	if (attach->sso)
 		rvu_detach_block(rvu, pcifunc, BLKTYPE_SSO);
+
+fail4:
+	if (is_cn20k(rvu->pdev))
+		npc_cn20k_dft_rules_free(rvu, pcifunc);
 
 fail3:
 	if (attach->nixlf)
