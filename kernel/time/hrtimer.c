@@ -741,7 +741,7 @@ static void hrtimer_switch_to_hres(void)
 		pr_warn("Could not switch to high resolution mode on CPU %u\n",	base->cpu);
 		return;
 	}
-	base->hres_active = 1;
+	base->hres_active = true;
 	hrtimer_resolution = HIGH_RES_NSEC;
 
 	tick_setup_sched_timer(true);
@@ -1854,7 +1854,7 @@ static __latent_entropy void hrtimer_run_softirq(void)
 	now = hrtimer_update_base(cpu_base);
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_SOFT);
 
-	cpu_base->softirq_activated = 0;
+	cpu_base->softirq_activated = false;
 	hrtimer_update_softirq_timer(cpu_base, true);
 
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
@@ -1881,7 +1881,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 	entry_time = now = hrtimer_update_base(cpu_base);
 retry:
-	cpu_base->in_hrtirq = 1;
+	cpu_base->in_hrtirq = true;
 	/*
 	 * Set expires_next to KTIME_MAX, which prevents that remote CPUs queue
 	 * timers while __hrtimer_run_queues() is expiring the clock bases.
@@ -1892,7 +1892,7 @@ retry:
 
 	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
 		cpu_base->softirq_expires_next = KTIME_MAX;
-		cpu_base->softirq_activated = 1;
+		cpu_base->softirq_activated = true;
 		raise_timer_softirq(HRTIMER_SOFTIRQ);
 	}
 
@@ -1905,12 +1905,12 @@ retry:
 	 * against it.
 	 */
 	cpu_base->expires_next = expires_next;
-	cpu_base->in_hrtirq = 0;
+	cpu_base->in_hrtirq = false;
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 
 	/* Reprogramming necessary ? */
 	if (!tick_program_event(expires_next, 0)) {
-		cpu_base->hang_detected = 0;
+		cpu_base->hang_detected = false;
 		return;
 	}
 
@@ -1939,7 +1939,7 @@ retry:
 	 * time away.
 	 */
 	cpu_base->nr_hangs++;
-	cpu_base->hang_detected = 1;
+	cpu_base->hang_detected = true;
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 
 	delta = ktime_sub(now, entry_time);
@@ -1987,7 +1987,7 @@ void hrtimer_run_queues(void)
 
 	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
 		cpu_base->softirq_expires_next = KTIME_MAX;
-		cpu_base->softirq_activated = 1;
+		cpu_base->softirq_activated = true;
 		raise_timer_softirq(HRTIMER_SOFTIRQ);
 	}
 
@@ -2239,13 +2239,14 @@ int hrtimers_cpu_starting(unsigned int cpu)
 
 	/* Clear out any left over state from a CPU down operation */
 	cpu_base->active_bases = 0;
-	cpu_base->hres_active = 0;
-	cpu_base->hang_detected = 0;
+	cpu_base->hres_active = false;
+	cpu_base->hang_detected = false;
 	cpu_base->next_timer = NULL;
 	cpu_base->softirq_next_timer = NULL;
 	cpu_base->expires_next = KTIME_MAX;
 	cpu_base->softirq_expires_next = KTIME_MAX;
-	cpu_base->online = 1;
+	cpu_base->softirq_activated = false;
+	cpu_base->online = true;
 	return 0;
 }
 
@@ -2303,7 +2304,7 @@ int hrtimers_cpu_dying(unsigned int dying_cpu)
 	smp_call_function_single(ncpu, retrigger_next_event, NULL, 0);
 
 	raw_spin_unlock(&new_base->lock);
-	old_base->online = 0;
+	old_base->online = false;
 	raw_spin_unlock(&old_base->lock);
 
 	return 0;
