@@ -354,7 +354,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupt-names = "event";
-				interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&exti1 21 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc CK_KER_I2C1>;
 				resets = <&rcc I2C1_R>;
 				dmas = <&hpdma 27 0x20 0x3012>,
@@ -363,6 +363,7 @@
 				access-controllers = <&rifsc 41>;
 				power-domains = <&cluster_pd>;
 				i2c-analog-filter;
+				wakeup-source;
 				status = "disabled";
 			};
 
@@ -372,7 +373,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupt-names = "event";
-				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&exti1 22 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc CK_KER_I2C2>;
 				resets = <&rcc I2C2_R>;
 				dmas = <&hpdma 30 0x20 0x3012>,
@@ -381,6 +382,7 @@
 				access-controllers = <&rifsc 42>;
 				power-domains = <&cluster_pd>;
 				i2c-analog-filter;
+				wakeup-source;
 				status = "disabled";
 			};
 
@@ -390,7 +392,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupt-names = "event";
-				interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&exti1 50 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc CK_KER_I2C7>;
 				resets = <&rcc I2C7_R>;
 				dmas = <&hpdma 45 0x20 0x3012>,
@@ -399,6 +401,7 @@
 				access-controllers = <&rifsc 47>;
 				power-domains = <&cluster_pd>;
 				i2c-analog-filter;
+				wakeup-source;
 				status = "disabled";
 			};
 
@@ -668,7 +671,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupt-names = "event";
-				interrupts = <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts-extended = <&exti2 25 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&rcc CK_KER_I2C8>;
 				resets = <&rcc I2C8_R>;
 				dmas = <&hpdma 168 0x20 0x3012>,
@@ -677,6 +680,7 @@
 				access-controllers = <&rifsc 48>;
 				power-domains = <&cluster_pd>;
 				i2c-analog-filter;
+				wakeup-source;
 				status = "disabled";
 			};
 
