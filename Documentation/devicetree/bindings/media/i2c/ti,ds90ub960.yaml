@@ -13,12 +13,10 @@ description:
   The TI DS90UB9XX devices are FPD-Link video deserializers with I2C and GPIO
   forwarding.
 
-allOf:
-  - $ref: /schemas/i2c/i2c-atr.yaml#
-
 properties:
   compatible:
     enum:
+      - ti,ds90ub954-q1
       - ti,ds90ub960-q1
       - ti,ds90ub9702-q1
 
@@ -129,39 +127,6 @@ properties:
       Ports represent FPD-Link inputs to the deserializer and CSI TX outputs
       from the deserializer. The number of ports is model-dependent.
 
-    properties:
-      port@0:
-        $ref: '#/$defs/FPDLink-input-port'
-        description: FPD-Link input 0
-
-      port@1:
-        $ref: '#/$defs/FPDLink-input-port'
-        description: FPD-Link input 1
-
-      port@2:
-        $ref: '#/$defs/FPDLink-input-port'
-        description: FPD-Link input 2
-
-      port@3:
-        $ref: '#/$defs/FPDLink-input-port'
-        description: FPD-Link input 3
-
-      port@4:
-        $ref: '#/$defs/CSI2-output-port'
-        description: CSI-2 Output 0
-
-      port@5:
-        $ref: '#/$defs/CSI2-output-port'
-        description: CSI-2 Output 1
-
-    required:
-      - port@0
-      - port@1
-      - port@2
-      - port@3
-      - port@4
-      - port@5
-
 required:
   - compatible
   - reg
@@ -203,6 +168,82 @@ $defs:
         required:
           - data-lanes
           - link-frequencies
+
+allOf:
+  - $ref: /schemas/i2c/i2c-atr.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,ds90ub960-q1
+              - ti,ds90ub9702-q1
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 0
+
+            port@1:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 1
+
+            port@2:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 2
+
+            port@3:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 3
+
+            port@4:
+              $ref: '#/$defs/CSI2-output-port'
+              description: CSI-2 Output 0
+
+            port@5:
+              $ref: '#/$defs/CSI2-output-port'
+              description: CSI-2 Output 1
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+            - port@3
+            - port@4
+            - port@5
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,ds90ub954-q1
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 0
+
+            port@1:
+              $ref: '#/$defs/FPDLink-input-port'
+              description: FPD-Link input 1
+
+            port@2:
+              $ref: '#/$defs/CSI2-output-port'
+              description: CSI-2 Output 0
+
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+        links:
+          properties:
+            link@2: false
+            link@3: false
 
 unevaluatedProperties: false
 
