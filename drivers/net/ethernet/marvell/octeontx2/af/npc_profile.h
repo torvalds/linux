@@ -321,6 +321,18 @@ enum npc_kpu_lb_lflag {
 	NPC_F_LB_L_FDSA,
 };
 
+enum npc_cn20k_kpu_lc_uflag {
+	NPC_CN20K_F_LC_U_MPLS_IN_IP = 0x20,
+	NPC_CN20K_F_LC_U_IP6_TUN_IP6 = 0x40,
+	NPC_CN20K_F_LC_U_IP6_MPLS_IN_IP = 0x80,
+};
+
+enum npc_cn20k_kpu_lc_lflag {
+	NPC_CN20K_F_LC_L_IP_FRAG = 2,
+	NPC_CN20K_F_LC_L_IP6_FRAG,
+	NPC_CN20K_F_LC_L_6TO4,
+};
+
 enum npc_kpu_lc_uflag {
 	NPC_F_LC_U_UNK_PROTO = 0x10,
 	NPC_F_LC_U_IP_FRAG = 0x20,

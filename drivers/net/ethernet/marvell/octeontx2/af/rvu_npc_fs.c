@@ -12,6 +12,8 @@
 #include "npc.h"
 #include "rvu_npc_fs.h"
 #include "rvu_npc_hash.h"
+#include "cn20k/reg.h"
+#include "cn20k/npc.h"
 
 static const char * const npc_flow_names[] = {
 	[NPC_DMAC]	= "dmac",
@@ -81,19 +83,26 @@ const char *npc_get_field_name(u8 hdr)
 /* Compute keyword masks and figure out the number of keywords a field
  * spans in the key.
  */
-static void npc_set_kw_masks(struct npc_mcam *mcam, u8 type,
+static void npc_set_kw_masks(struct rvu *rvu, struct npc_mcam *mcam, u8 type,
 			     u8 nr_bits, int start_kwi, int offset, u8 intf)
 {
 	struct npc_key_field *field = &mcam->rx_key_fields[type];
 	u8 bits_in_kw;
 	int max_kwi;
 
-	if (mcam->banks_per_entry == 1)
-		max_kwi = 1; /* NPC_MCAM_KEY_X1 */
-	else if (mcam->banks_per_entry == 2)
-		max_kwi = 3; /* NPC_MCAM_KEY_X2 */
-	else
-		max_kwi = 6; /* NPC_MCAM_KEY_X4 */
+	if (is_cn20k(rvu->pdev)) {
+		if (mcam->banks_per_entry == 1)
+			max_kwi = 3; /* NPC_MCAM_KEY_X2 */
+		else
+			max_kwi = 7; /* NPC_MCAM_KEY_X4 */
+	} else {
+		if (mcam->banks_per_entry == 1)
+			max_kwi = 1; /* NPC_MCAM_KEY_X1 */
+		else if (mcam->banks_per_entry == 2)
+			max_kwi = 3; /* NPC_MCAM_KEY_X2 */
+		else
+			max_kwi = 6; /* NPC_MCAM_KEY_X4 */
+	}
 
 	if (is_npc_intf_tx(intf))
 		field = &mcam->tx_key_fields[type];
@@ -155,7 +164,8 @@ static bool npc_is_same(struct npc_key_field *input,
 		     sizeof(struct npc_layer_mdata)) == 0;
 }
 
-static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
+static void npc_set_layer_mdata(struct rvu *rvu,
+				struct npc_mcam *mcam, enum key_fields type,
 				u64 cfg, u8 lid, u8 lt, u8 intf)
 {
 	struct npc_key_field *input = &mcam->rx_key_fields[type];
@@ -165,13 +175,17 @@ static void npc_set_layer_mdata(struct npc_mcam *mcam, enum key_fields type,
 
 	input->layer_mdata.hdr = FIELD_GET(NPC_HDR_OFFSET, cfg);
 	input->layer_mdata.key = FIELD_GET(NPC_KEY_OFFSET, cfg);
-	input->layer_mdata.len = FIELD_GET(NPC_BYTESM, cfg) + 1;
+	if (is_cn20k(rvu->pdev))
+		input->layer_mdata.len = FIELD_GET(NPC_CN20K_BYTESM, cfg) + 1;
+	else
+		input->layer_mdata.len = FIELD_GET(NPC_BYTESM, cfg) + 1;
 	input->layer_mdata.ltype = lt;
 	input->layer_mdata.lid = lid;
 }
 
 static bool npc_check_overlap_fields(struct npc_key_field *input1,
-				     struct npc_key_field *input2)
+				     struct npc_key_field *input2,
+				     int max_kw)
 {
 	int kwi;
 
@@ -182,7 +196,7 @@ static bool npc_check_overlap_fields(struct npc_key_field *input1,
 	    input1->layer_mdata.ltype != input2->layer_mdata.ltype)
 		return false;
 
-	for (kwi = 0; kwi < NPC_MAX_KWS_IN_KEY; kwi++) {
+	for (kwi = 0; kwi < max_kw; kwi++) {
 		if (input1->kw_mask[kwi] & input2->kw_mask[kwi])
 			return true;
 	}
@@ -202,6 +216,7 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 	struct npc_key_field *dummy, *input;
 	int start_kwi, offset;
 	u8 nr_bits, lid, lt, ld;
+	int extr, kws;
 	u64 cfg;
 
 	dummy = &mcam->rx_key_fields[NPC_UNKNOWN];
@@ -212,6 +227,10 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 		input = &mcam->tx_key_fields[type];
 	}
 
+	if (is_cn20k(rvu->pdev))
+		goto skip_cn10k_config;
+
+	kws = NPC_MAX_KWS_IN_KEY - 1;
 	for (lid = start_lid; lid < NPC_MAX_LID; lid++) {
 		for (lt = 0; lt < NPC_MAX_LT; lt++) {
 			for (ld = 0; ld < NPC_MAX_LD; ld++) {
@@ -221,8 +240,8 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				if (!FIELD_GET(NPC_LDATA_EN, cfg))
 					continue;
 				memset(dummy, 0, sizeof(struct npc_key_field));
-				npc_set_layer_mdata(mcam, NPC_UNKNOWN, cfg,
-						    lid, lt, intf);
+				npc_set_layer_mdata(rvu, mcam, NPC_UNKNOWN,
+						    cfg, lid, lt, intf);
 				/* exclude input */
 				if (npc_is_same(input, dummy))
 					continue;
@@ -230,14 +249,48 @@ static bool npc_check_overlap(struct rvu *rvu, int blkaddr,
 				offset = (dummy->layer_mdata.key * 8) % 64;
 				nr_bits = dummy->layer_mdata.len * 8;
 				/* form KW masks */
-				npc_set_kw_masks(mcam, NPC_UNKNOWN, nr_bits,
-						 start_kwi, offset, intf);
+				npc_set_kw_masks(rvu, mcam, NPC_UNKNOWN,
+						 nr_bits, start_kwi,
+						 offset, intf);
 				/* check any input field bits falls in any
 				 * other field bits.
 				 */
-				if (npc_check_overlap_fields(dummy, input))
+				if (npc_check_overlap_fields(dummy, input,
+							     kws))
 					return true;
 			}
+		}
+	}
+	return false;
+
+skip_cn10k_config:
+	for (extr = 0 ; extr < rvu->hw->npc_kex_extr; extr++) {
+		lid = CN20K_GET_EXTR_LID(intf, extr);
+		if (lid < start_lid)
+			continue;
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			cfg = CN20K_GET_EXTR_LT(intf, extr, lt);
+			if (!FIELD_GET(NPC_LDATA_EN, cfg))
+				continue;
+
+			memset(dummy, 0, sizeof(struct npc_key_field));
+			npc_set_layer_mdata(rvu, mcam, NPC_UNKNOWN, cfg,
+					    lid, lt, intf);
+			/* exclude input */
+			if (npc_is_same(input, dummy))
+				continue;
+			start_kwi = dummy->layer_mdata.key / 8;
+			offset = (dummy->layer_mdata.key * 8) % 64;
+			nr_bits = dummy->layer_mdata.len * 8;
+			/* form KW masks */
+			npc_set_kw_masks(rvu, mcam, NPC_UNKNOWN, nr_bits,
+					 start_kwi, offset, intf);
+			/* check any input field bits falls in any other
+			 * field bits
+			 */
+			if (npc_check_overlap_fields(dummy, input,
+						     NPC_MAX_KWS_IN_KEY))
+				return true;
 		}
 	}
 
@@ -253,7 +306,8 @@ static bool npc_check_field(struct rvu *rvu, int blkaddr, enum key_fields type,
 	return true;
 }
 
-static void npc_scan_exact_result(struct npc_mcam *mcam, u8 bit_number,
+static void npc_scan_exact_result(struct rvu *rvu,
+				  struct npc_mcam *mcam, u8 bit_number,
 				  u8 key_nibble, u8 intf)
 {
 	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
@@ -269,16 +323,75 @@ static void npc_scan_exact_result(struct npc_mcam *mcam, u8 bit_number,
 	default:
 		return;
 	}
-	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
 }
 
-static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
+static void npc_cn20k_scan_parse_result(struct rvu *rvu, struct npc_mcam *mcam,
+					u8 bit_number, u8 key_nibble, u8 intf)
+{
+	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
+	u8 kwi = (key_nibble * 4) / 64; /* which word in key */
+	u8 nr_bits = 4; /* bits in a nibble */
+	u8 type;
+
+	switch (bit_number) {
+	case 0 ... 2:
+		type = NPC_CHAN;
+		break;
+	case 3:
+		type = NPC_ERRLEV;
+		break;
+	case 4 ... 5:
+		type = NPC_ERRCODE;
+		break;
+	case 6:
+		type = NPC_LXMB;
+		break;
+	case 8:
+		type = NPC_LA;
+		break;
+	case 10:
+		type = NPC_LB;
+		break;
+	case 12:
+		type = NPC_LC;
+		break;
+	case 14:
+		type = NPC_LD;
+		break;
+	case 16:
+		type = NPC_LE;
+		break;
+	case 18:
+		type = NPC_LF;
+		break;
+	case 20:
+		type = NPC_LG;
+		break;
+	case 22:
+		type = NPC_LH;
+		break;
+	default:
+		return;
+	}
+
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
+}
+
+static void npc_scan_parse_result(struct rvu *rvu,
+				  struct npc_mcam *mcam, u8 bit_number,
 				  u8 key_nibble, u8 intf)
 {
 	u8 offset = (key_nibble * 4) % 64; /* offset within key word */
 	u8 kwi = (key_nibble * 4) / 64; /* which word in key */
 	u8 nr_bits = 4; /* bits in a nibble */
 	u8 type;
+
+	if (is_cn20k(rvu->pdev)) {
+		npc_cn20k_scan_parse_result(rvu, mcam, bit_number,
+					    key_nibble, intf);
+		return;
+	}
 
 	switch (bit_number) {
 	case 0 ... 2:
@@ -322,7 +435,7 @@ static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
 		return;
 	}
 
-	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
+	npc_set_kw_masks(rvu, mcam, type, nr_bits, kwi, offset, intf);
 }
 
 static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
@@ -343,8 +456,13 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 	/* Inner VLAN TCI for double tagged frames */
 	struct npc_key_field *vlan_tag3;
 	u64 *features;
+	int i, max_kw;
 	u8 start_lid;
-	int i;
+
+	if (is_cn20k(rvu->pdev))
+		max_kw = NPC_MAX_KWS_IN_KEY;
+	else
+		max_kw = NPC_MAX_KWS_IN_KEY - 1;
 
 	key_fields = mcam->rx_key_fields;
 	features = &mcam->rx_features;
@@ -382,7 +500,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 
 	/* if key profile programmed extracts Ethertype from multiple layers */
 	if (etype_ether->nr_kws && etype_tag1->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_ether->kw_mask[i] != etype_tag1->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for untagged and tagged pkts.\n");
 				goto vlan_tci;
@@ -391,7 +509,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 		key_fields[NPC_ETYPE] = *etype_tag1;
 	}
 	if (etype_ether->nr_kws && etype_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_ether->kw_mask[i] != etype_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for untagged and double tagged pkts.\n");
 				goto vlan_tci;
@@ -400,7 +518,7 @@ static void npc_handle_multi_layer_fields(struct rvu *rvu, int blkaddr, u8 intf)
 		key_fields[NPC_ETYPE] = *etype_tag2;
 	}
 	if (etype_tag1->nr_kws && etype_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (etype_tag1->kw_mask[i] != etype_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Etype pos is different for tagged and double tagged pkts.\n");
 				goto vlan_tci;
@@ -431,7 +549,7 @@ vlan_tci:
 
 	/* if key profile extracts outer vlan tci from multiple layers */
 	if (vlan_tag1->nr_kws && vlan_tag2->nr_kws) {
-		for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+		for (i = 0; i < max_kw; i++) {
 			if (vlan_tag1->kw_mask[i] != vlan_tag2->kw_mask[i]) {
 				dev_err(rvu->dev, "mkex: Out vlan tci pos is different for tagged and double tagged pkts.\n");
 				goto done;
@@ -466,7 +584,11 @@ static void npc_scan_ldata(struct rvu *rvu, int blkaddr, u8 lid,
 	/* starting KW index and starting bit position */
 	int start_kwi, offset;
 
-	nr_bytes = FIELD_GET(NPC_BYTESM, cfg) + 1;
+	if (is_cn20k(rvu->pdev))
+		nr_bytes = FIELD_GET(NPC_CN20K_BYTESM, cfg) + 1;
+	else
+		nr_bytes = FIELD_GET(NPC_BYTESM, cfg) + 1;
+
 	hdr = FIELD_GET(NPC_HDR_OFFSET, cfg);
 	key = FIELD_GET(NPC_KEY_OFFSET, cfg);
 
@@ -489,11 +611,12 @@ do {									       \
 		if ((hstart) >= hdr &&					       \
 		    ((hstart) + (hlen)) <= (hdr + nr_bytes)) {	               \
 			bit_offset = (hdr + nr_bytes - (hstart) - (hlen)) * 8; \
-			npc_set_layer_mdata(mcam, (name), cfg, lid, lt, intf); \
+			npc_set_layer_mdata(rvu, mcam, (name), cfg, lid, lt,   \
+									intf); \
 			offset += bit_offset;				       \
 			start_kwi += offset / 64;			       \
 			offset %= 64;					       \
-			npc_set_kw_masks(mcam, (name), (hlen) * 8,	       \
+			npc_set_kw_masks(rvu, mcam, (name), (hlen) * 8,	       \
 					 start_kwi, offset, intf);	       \
 		}							       \
 	}								       \
@@ -636,6 +759,7 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	u8 lid, lt, ld, bitnr;
 	u64 cfg, masked_cfg;
 	u8 key_nibble = 0;
+	int extr;
 
 	/* Scan and note how parse result is going to be in key.
 	 * A bit set in PARSE_NIBBLE_ENA corresponds to a nibble from
@@ -643,10 +767,22 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	 * will be concatenated in key.
 	 */
 	cfg = rvu_read64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(intf));
-	masked_cfg = cfg & NPC_PARSE_NIBBLE;
-	for_each_set_bit(bitnr, (unsigned long *)&masked_cfg, 31) {
-		npc_scan_parse_result(mcam, bitnr, key_nibble, intf);
-		key_nibble++;
+	if (is_cn20k(rvu->pdev)) {
+		masked_cfg = cfg & NPC_CN20K_PARSE_NIBBLE;
+		for_each_set_bit(bitnr, (unsigned long *)&masked_cfg,
+				 NPC_CN20K_TOTAL_NIBBLE) {
+			npc_scan_parse_result(rvu, mcam, bitnr,
+					      key_nibble, intf);
+			key_nibble++;
+		}
+	} else {
+		masked_cfg = cfg & NPC_PARSE_NIBBLE;
+		for_each_set_bit(bitnr, (unsigned long *)&masked_cfg,
+				 NPC_TOTAL_NIBBLE) {
+			npc_scan_parse_result(rvu, mcam, bitnr,
+					      key_nibble, intf);
+			key_nibble++;
+		}
 	}
 
 	/* Ignore exact match bits for mcam entries except the first rule
@@ -656,9 +792,12 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 	masked_cfg = cfg & NPC_EXACT_NIBBLE;
 	bitnr = NPC_EXACT_NIBBLE_START;
 	for_each_set_bit_from(bitnr, (unsigned long *)&masked_cfg, NPC_EXACT_NIBBLE_END + 1) {
-		npc_scan_exact_result(mcam, bitnr, key_nibble, intf);
+		npc_scan_exact_result(rvu, mcam, bitnr, key_nibble, intf);
 		key_nibble++;
 	}
+
+	if (is_cn20k(rvu->pdev))
+		goto skip_cn10k_config;
 
 	/* Scan and note how layer data is going to be in key */
 	for (lid = 0; lid < NPC_MAX_LID; lid++) {
@@ -675,6 +814,19 @@ static int npc_scan_kex(struct rvu *rvu, int blkaddr, u8 intf)
 		}
 	}
 
+	return 0;
+
+skip_cn10k_config:
+	for (extr = 0 ; extr < rvu->hw->npc_kex_extr; extr++) {
+		lid = CN20K_GET_EXTR_LID(intf, extr);
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			cfg = CN20K_GET_EXTR_LT(intf, extr, lt);
+			if (!FIELD_GET(NPC_LDATA_EN, cfg))
+				continue;
+			npc_scan_ldata(rvu, blkaddr, lid, lt, cfg,
+				       intf);
+		}
+	}
 	return 0;
 }
 
@@ -758,8 +910,8 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 	struct mcam_entry dummy = { {0} };
 	struct npc_key_field *field;
 	u64 kw1, kw2, kw3;
+	int i, max_kw;
 	u8 shift;
-	int i;
 
 	field = &mcam->rx_key_fields[type];
 	if (is_npc_intf_tx(intf))
@@ -768,7 +920,12 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 	if (!field->nr_kws)
 		return;
 
-	for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+	if (is_cn20k(rvu->pdev))
+		max_kw = NPC_MAX_KWS_IN_KEY;
+	else
+		max_kw = NPC_MAX_KWS_IN_KEY - 1;
+
+	for (i = 0; i < max_kw; i++) {
 		if (!field->kw_mask[i])
 			continue;
 		/* place key value in kw[x] */
@@ -820,7 +977,7 @@ void npc_update_entry(struct rvu *rvu, enum key_fields type,
 	/* dummy is ready with values and masks for given key
 	 * field now clear and update input entry with those
 	 */
-	for (i = 0; i < NPC_MAX_KWS_IN_KEY; i++) {
+	for (i = 0; i < max_kw; i++) {
 		if (!field->kw_mask[i])
 			continue;
 		entry->kw[i] &= ~field->kw_mask[i];

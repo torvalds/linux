@@ -29,19 +29,21 @@ static const char *npc_kw_name[NPC_MCAM_KEY_MAX] = {
 		     (((bytesm1) << 16) | ((hdr_ofs) << 8) | ((ena) << 7) | \
 		     ((key_ofs) & 0x3F))
 
+static const char cn20k_def_pfl_name[] = "default";
+
 static struct npc_mcam_kex_extr npc_mkex_extr_default = {
-	.mkex_sign = MKEX_SIGN,
+	.mkex_sign = MKEX_CN20K_SIGN,
 	.name = "default",
 	.kpu_version = NPC_KPU_PROFILE_VER,
 	.keyx_cfg = {
 		/* nibble: LA..LE (ltype only) + Error code + Channel */
 		[NIX_INTF_RX] = ((u64)NPC_MCAM_KEY_DYN << 32) |
 			NPC_PARSE_NIBBLE_INTF_RX |
-				 NPC_PARSE_NIBBLE_ERRCODE,
+				 NPC_CN20K_PARSE_NIBBLE_ERRCODE,
 
 		/* nibble: LA..LE (ltype only) */
 		[NIX_INTF_TX] = ((u64)NPC_MCAM_KEY_X2 << 32) |
-			NPC_PARSE_NIBBLE_INTF_TX,
+			NPC_CN20K_PARSE_NIBBLE_INTF_TX,
 	},
 	.intf_extr_lid = {
 	/* Default RX MCAM KEX profile */
@@ -305,9 +307,9 @@ npc_enable_kpm_entry(struct rvu *rvu, int blkaddr, int kpm, int num_entries)
 	u64 entry_mask;
 
 	entry_mask = npc_enable_mask(num_entries);
-	/* Disable first KPU_MAX_CST_ENT entries for built-in profile */
+	/* Disable first KPU_CN20K_MAX_CST_ENT entries for built-in profile */
 	if (!rvu->kpu.custom)
-		entry_mask |= GENMASK_ULL(KPU_MAX_CST_ENT - 1, 0);
+		entry_mask |= GENMASK_ULL(KPU_CN20K_MAX_CST_ENT - 1, 0);
 	rvu_write64(rvu, blkaddr,
 		    NPC_AF_KPMX_ENTRY_DISX(kpm, 0), entry_mask);
 	if (num_entries <= 64) {
@@ -426,6 +428,299 @@ void npc_cn20k_parser_profile_init(struct rvu *rvu, int blkaddr)
 struct npc_priv_t *npc_priv_get(void)
 {
 	return &npc_priv;
+}
+
+static void npc_program_mkex_rx(struct rvu *rvu, int blkaddr,
+				struct npc_mcam_kex_extr *mkex_extr,
+				u8 intf)
+{
+	u8 num_extr = rvu->hw->npc_kex_extr;
+	int extr, lt;
+	u64 val;
+
+	if (is_npc_intf_tx(intf))
+		return;
+
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(intf),
+		    mkex_extr->keyx_cfg[NIX_INTF_RX]);
+
+	/* Program EXTRACTOR */
+	for (extr = 0; extr < num_extr; extr++)
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_INTFX_EXTRACTORX_CFG(intf, extr),
+			    mkex_extr->intf_extr_lid[intf][extr]);
+
+	/* Program EXTRACTOR_LTYPE */
+	for (extr = 0; extr < num_extr; extr++) {
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			val = mkex_extr->intf_extr_lt[intf][extr][lt];
+			CN20K_SET_EXTR_LT(intf, extr, lt, val);
+		}
+	}
+}
+
+static void npc_program_mkex_tx(struct rvu *rvu, int blkaddr,
+				struct npc_mcam_kex_extr *mkex_extr,
+				u8 intf)
+{
+	u8 num_extr = rvu->hw->npc_kex_extr;
+	int extr, lt;
+	u64 val;
+
+	if (is_npc_intf_rx(intf))
+		return;
+
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(intf),
+		    mkex_extr->keyx_cfg[NIX_INTF_TX]);
+
+	/* Program EXTRACTOR */
+	for (extr = 0; extr < num_extr; extr++)
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_INTFX_EXTRACTORX_CFG(intf, extr),
+			    mkex_extr->intf_extr_lid[intf][extr]);
+
+	/* Program EXTRACTOR_LTYPE */
+	for (extr = 0; extr < num_extr; extr++) {
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			val = mkex_extr->intf_extr_lt[intf][extr][lt];
+			CN20K_SET_EXTR_LT(intf, extr, lt, val);
+		}
+	}
+}
+
+static void npc_program_mkex_profile(struct rvu *rvu, int blkaddr,
+				     struct npc_mcam_kex_extr *mkex_extr)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+	u8 intf;
+
+	for (intf = 0; intf < hw->npc_intfs; intf++) {
+		npc_program_mkex_rx(rvu, blkaddr, mkex_extr, intf);
+		npc_program_mkex_tx(rvu, blkaddr, mkex_extr, intf);
+	}
+
+	/* Programme mkex hash profile */
+	npc_program_mkex_hash(rvu, blkaddr);
+}
+
+void npc_cn20k_load_mkex_profile(struct rvu *rvu, int blkaddr,
+				 const char *mkex_profile)
+{
+	struct npc_mcam_kex_extr *mcam_kex_extr;
+	struct device *dev = &rvu->pdev->dev;
+	void __iomem *mkex_prfl_addr = NULL;
+	u64 prfl_sz;
+	int ret;
+
+	/* If user not selected mkex profile */
+	if (rvu->kpu_fwdata_sz ||
+	    !strncmp(mkex_profile, cn20k_def_pfl_name, MKEX_NAME_LEN))
+		goto program_mkex_extr;
+
+	/* Setting up the mapping for mkex profile image */
+	ret = npc_fwdb_prfl_img_map(rvu, &mkex_prfl_addr, &prfl_sz);
+	if (ret < 0)
+		goto program_mkex_extr;
+
+	mcam_kex_extr = (struct npc_mcam_kex_extr __force *)mkex_prfl_addr;
+
+	while (((s64)prfl_sz > 0) &&
+	       (mcam_kex_extr->mkex_sign != MKEX_END_SIGN)) {
+		/* Compare with mkex mod_param name string */
+		if (mcam_kex_extr->mkex_sign == MKEX_CN20K_SIGN &&
+		    !strncmp(mcam_kex_extr->name, mkex_profile,
+			     MKEX_NAME_LEN)) {
+			rvu->kpu.mcam_kex_prfl.mkex_extr = mcam_kex_extr;
+			goto program_mkex_extr;
+		}
+
+		mcam_kex_extr++;
+		prfl_sz -= sizeof(struct npc_mcam_kex_extr);
+	}
+	dev_warn(dev, "Failed to load requested profile: %s\n", mkex_profile);
+	rvu->kpu.mcam_kex_prfl.mkex_extr = npc_mkex_extr_default_get();
+
+program_mkex_extr:
+	dev_info(rvu->dev, "Using %s mkex profile\n",
+		 rvu->kpu.mcam_kex_prfl.mkex_extr->name);
+	/* Program selected mkex profile */
+	npc_program_mkex_profile(rvu, blkaddr,
+				 rvu->kpu.mcam_kex_prfl.mkex_extr);
+	if (mkex_prfl_addr)
+		iounmap(mkex_prfl_addr);
+}
+
+static u8 npc_map2cn20k_flag(u8 flag)
+{
+	switch (flag) {
+	case NPC_F_LC_U_IP_FRAG:
+		return NPC_CN20K_F_LC_L_IP_FRAG;
+
+	case NPC_F_LC_U_IP6_FRAG:
+		return NPC_CN20K_F_LC_L_IP6_FRAG;
+
+	case NPC_F_LC_L_6TO4:
+		return NPC_CN20K_F_LC_L_6TO4;
+
+	case NPC_F_LC_L_MPLS_IN_IP:
+		return NPC_CN20K_F_LC_U_MPLS_IN_IP;
+
+	case NPC_F_LC_L_IP6_TUN_IP6:
+		return NPC_CN20K_F_LC_U_IP6_TUN_IP6;
+
+	case NPC_F_LC_L_IP6_MPLS_IN_IP:
+		return NPC_CN20K_F_LC_U_IP6_MPLS_IN_IP;
+
+	default:
+		break;
+	}
+
+	WARN(1, "%s: Invalid flag=%u\n", __func__, flag);
+	return 0xff;
+}
+
+void
+npc_cn20k_update_action_entries_n_flags(struct rvu *rvu,
+					struct npc_kpu_profile_adapter *pfl)
+{
+	struct npc_kpu_profile_action *action;
+	int entries, ltype;
+	u8 flags, val;
+
+	for (int i = 0; i < pfl->kpus; i++) {
+		action = pfl->kpu[i].action;
+		entries = pfl->kpu[i].action_entries;
+
+		for (int j = 0; j < entries; j++) {
+			if (action[j].lid != NPC_LID_LC)
+				continue;
+
+			ltype = action[j].ltype;
+
+			if (ltype != NPC_LT_LC_IP &&
+			    ltype != NPC_LT_LC_IP6 &&
+			    ltype != NPC_LT_LC_IP_OPT &&
+			    ltype != NPC_LT_LC_IP6_EXT)
+				continue;
+
+			flags = action[j].flags;
+
+			switch (flags) {
+			case NPC_F_LC_U_IP_FRAG:
+			case NPC_F_LC_U_IP6_FRAG:
+			case NPC_F_LC_L_6TO4:
+			case NPC_F_LC_L_MPLS_IN_IP:
+			case NPC_F_LC_L_IP6_TUN_IP6:
+			case NPC_F_LC_L_IP6_MPLS_IN_IP:
+				val = npc_map2cn20k_flag(flags);
+				if (val == 0xFF) {
+					dev_err(rvu->dev,
+						"%s: Error to get flag value\n",
+						__func__);
+					return;
+				}
+
+				action[j].flags = val;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+}
+
+int npc_cn20k_apply_custom_kpu(struct rvu *rvu,
+			       struct npc_kpu_profile_adapter *profile)
+{
+	struct npc_cn20k_kpu_profile_fwdata *fw = rvu->kpu_fwdata;
+	struct npc_kpu_profile_action *action;
+	struct npc_kpu_profile_cam *cam;
+	struct npc_kpu_fwdata *fw_kpu;
+	size_t hdr_sz, offset = 0;
+	u16 kpu, entry;
+	int entries;
+
+	hdr_sz = sizeof(struct npc_cn20k_kpu_profile_fwdata);
+
+	if (rvu->kpu_fwdata_sz < hdr_sz) {
+		dev_warn(rvu->dev, "Invalid KPU profile size\n");
+		return -EINVAL;
+	}
+
+	if (le64_to_cpu(fw->signature) != KPU_SIGN) {
+		dev_warn(rvu->dev, "Invalid KPU profile signature %llx\n",
+			 fw->signature);
+		return -EINVAL;
+	}
+
+	/* Verify if the using known profile structure */
+	if (NPC_KPU_VER_MAJ(profile->version) >
+	    NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER)) {
+		dev_warn(rvu->dev, "Not supported Major version: %d > %d\n",
+			 NPC_KPU_VER_MAJ(profile->version),
+			 NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER));
+		return -EINVAL;
+	}
+
+	/* Verify if profile is aligned with the required kernel changes */
+	if (NPC_KPU_VER_MIN(profile->version) <
+	    NPC_KPU_VER_MIN(NPC_KPU_PROFILE_VER)) {
+		dev_warn(rvu->dev,
+			 "Invalid KPU profile version: %d.%d.%d expected version <= %d.%d.%d\n",
+			 NPC_KPU_VER_MAJ(profile->version),
+			 NPC_KPU_VER_MIN(profile->version),
+			 NPC_KPU_VER_PATCH(profile->version),
+			 NPC_KPU_VER_MAJ(NPC_KPU_PROFILE_VER),
+			 NPC_KPU_VER_MIN(NPC_KPU_PROFILE_VER),
+			 NPC_KPU_VER_PATCH(NPC_KPU_PROFILE_VER));
+		return -EINVAL;
+	}
+
+	/* Verify if profile fits the HW */
+	if (fw->kpus > profile->kpus) {
+		dev_warn(rvu->dev, "Not enough KPUs: %d > %ld\n", fw->kpus,
+			 profile->kpus);
+		return -EINVAL;
+	}
+
+	profile->mcam_kex_prfl.mkex_extr = &fw->mkex;
+	if (profile->mcam_kex_prfl.mkex_extr->mkex_sign != MKEX_CN20K_SIGN) {
+		dev_warn(rvu->dev, "Invalid MKEX profile signature:%llx\n",
+			 profile->mcam_kex_prfl.mkex_extr->mkex_sign);
+		return -EINVAL;
+	}
+
+	profile->custom = 1;
+	profile->name = fw->name;
+	profile->version = le64_to_cpu(fw->version);
+	profile->lt_def = &fw->lt_def;
+
+	for (kpu = 0; kpu < fw->kpus; kpu++) {
+		fw_kpu = (struct npc_kpu_fwdata *)(fw->data + offset);
+		if (fw_kpu->entries > KPU_CN20K_MAX_CST_ENT)
+			dev_warn(rvu->dev,
+				 "Too many custom entries on KPU%d: %d > %d\n",
+				 kpu, fw_kpu->entries, KPU_CN20K_MAX_CST_ENT);
+		entries = min(fw_kpu->entries, KPU_CN20K_MAX_CST_ENT);
+		cam = (struct npc_kpu_profile_cam *)fw_kpu->data;
+		offset += sizeof(*fw_kpu) + fw_kpu->entries * sizeof(*cam);
+		action = (struct npc_kpu_profile_action *)(fw->data + offset);
+		offset += fw_kpu->entries * sizeof(*action);
+		if (rvu->kpu_fwdata_sz < hdr_sz + offset) {
+			dev_warn(rvu->dev,
+				 "Profile size mismatch on KPU%i parsing.\n",
+				 kpu + 1);
+			return -EINVAL;
+		}
+
+		for (entry = 0; entry < entries; entry++) {
+			profile->kpu[kpu].cam[entry] = cam[entry];
+			profile->kpu[kpu].action[entry] = action[entry];
+		}
+	}
+	npc_cn20k_update_action_entries_n_flags(rvu, profile);
+
+	return 0;
 }
 
 static int npc_subbank_idx_2_mcam_idx(struct rvu *rvu, struct npc_subbank *sb,
@@ -1960,6 +2255,38 @@ rvu_mbox_handler_npc_cn20k_get_fcnt(struct rvu *rvu,
 	return 0;
 }
 
+int
+rvu_mbox_handler_npc_cn20k_get_kex_cfg(struct rvu *rvu,
+				       struct msg_req *req,
+				       struct npc_cn20k_get_kex_cfg_rsp *rsp)
+{
+	int extr, lt;
+
+	rsp->rx_keyx_cfg = CN20K_GET_KEX_CFG(NIX_INTF_RX);
+	rsp->tx_keyx_cfg = CN20K_GET_KEX_CFG(NIX_INTF_TX);
+
+	/* Get EXTRACTOR LID */
+	for (extr = 0; extr < NPC_MAX_EXTRACTOR; extr++) {
+		rsp->intf_extr_lid[NIX_INTF_RX][extr] =
+			CN20K_GET_EXTR_LID(NIX_INTF_RX, extr);
+		rsp->intf_extr_lid[NIX_INTF_TX][extr] =
+			CN20K_GET_EXTR_LID(NIX_INTF_TX, extr);
+	}
+
+	/* Get EXTRACTOR LTYPE */
+	for (extr = 0; extr < NPC_MAX_EXTRACTOR; extr++) {
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			rsp->intf_extr_lt[NIX_INTF_RX][extr][lt] =
+				CN20K_GET_EXTR_LT(NIX_INTF_RX, extr, lt);
+			rsp->intf_extr_lt[NIX_INTF_TX][extr][lt] =
+				CN20K_GET_EXTR_LT(NIX_INTF_TX, extr, lt);
+		}
+	}
+
+	memcpy(rsp->mkex_pfl_name, rvu->mkex_pfl_name, MKEX_NAME_LEN);
+	return 0;
+}
+
 static int *subbank_srch_order;
 
 static void npc_populate_restricted_idxs(int num_subbanks)
@@ -2172,6 +2499,23 @@ void npc_cn20k_deinit(struct rvu *rvu)
 	kfree(subbank_srch_order);
 }
 
+static int npc_setup_mcam_section(struct rvu *rvu, int key_type)
+{
+	int blkaddr, sec;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0) {
+		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		return -ENODEV;
+	}
+
+	for (sec = 0; sec < npc_priv.num_subbanks; sec++)
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_MCAM_SECTIONX_CFG_EXT(sec), key_type);
+
+	return 0;
+}
+
 int npc_cn20k_init(struct rvu *rvu)
 {
 	int err;
@@ -2179,6 +2523,13 @@ int npc_cn20k_init(struct rvu *rvu)
 	err = npc_priv_init(rvu);
 	if (err) {
 		dev_err(rvu->dev, "%s: Error to init\n",
+			__func__);
+		return err;
+	}
+
+	err = npc_setup_mcam_section(rvu, NPC_MCAM_KEY_X2);
+	if (err) {
+		dev_err(rvu->dev, "%s: mcam section configuration failure\n",
 			__func__);
 		return err;
 	}

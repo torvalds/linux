@@ -125,6 +125,9 @@ static void npc_program_mkex_hash_rx(struct rvu *rvu, int blkaddr,
 	struct npc_mcam_kex_hash *mkex_hash = rvu->kpu.mkex_hash;
 	int lid, lt, ld, hash_cnt = 0;
 
+	if (is_cn20k(rvu->pdev))
+		return;
+
 	if (is_npc_intf_tx(intf))
 		return;
 
@@ -164,6 +167,9 @@ static void npc_program_mkex_hash_tx(struct rvu *rvu, int blkaddr,
 {
 	struct npc_mcam_kex_hash *mkex_hash = rvu->kpu.mkex_hash;
 	int lid, lt, ld, hash_cnt = 0;
+
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	if (is_npc_intf_rx(intf))
 		return;
@@ -223,6 +229,9 @@ void npc_program_mkex_hash(struct rvu *rvu, int blkaddr)
 	u8 intf, ld, hdr_offset, byte_len;
 	struct rvu_hwinfo *hw = rvu->hw;
 	u64 cfg;
+
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	/* Check if hardware supports hash extraction */
 	if (!hwcap->npc_hash_extract)
@@ -287,6 +296,9 @@ void npc_update_field_hash(struct rvu *rvu, u8 intf,
 	u64 ldata[2], cfg;
 	u32 field_hash;
 	u8 hash_idx;
+
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	if (!rvu->hw->cap.npc_hash_extract) {
 		dev_dbg(rvu->dev, "%s: Field hash extract feature is not supported\n", __func__);
@@ -1873,6 +1885,9 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	int err, i;
 	u64 cfg;
 	bool rc;
+
+	if (is_cn20k(rvu->pdev))
+		return 0;
 
 	/* Read NPC_AF_CONST3 and check for have exact
 	 * match functionality is present

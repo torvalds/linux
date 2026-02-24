@@ -8,9 +8,76 @@
 #ifndef NPC_CN20K_H
 #define NPC_CN20K_H
 
+#define MKEX_CN20K_SIGN	0x19bbfdbd160
+
 #define MAX_NUM_BANKS 2
 #define MAX_NUM_SUB_BANKS 32
 #define MAX_SUBBANK_DEPTH 256
+
+/* strtoull of "mkexprof" with base:36 */
+#define MKEX_END_SIGN  0xdeadbeef
+
+#define NPC_CN20K_BYTESM GENMASK_ULL(18, 16)
+#define NPC_CN20K_PARSE_NIBBLE GENMASK_ULL(22, 0)
+#define NPC_CN20K_TOTAL_NIBBLE 23
+
+#define CN20K_SET_EXTR_LT(intf, extr, ltype, cfg)	\
+	rvu_write64(rvu, BLKADDR_NPC,	\
+		    NPC_AF_INTFX_EXTRACTORX_LTX_CFG(intf, extr, ltype), cfg)
+
+#define CN20K_GET_KEX_CFG(intf)	\
+	rvu_read64(rvu, BLKADDR_NPC, NPC_AF_INTFX_KEX_CFG(intf))
+
+#define CN20K_GET_EXTR_LID(intf, extr)	\
+	rvu_read64(rvu, BLKADDR_NPC,	\
+		   NPC_AF_INTFX_EXTRACTORX_CFG(intf, extr))
+
+#define CN20K_SET_EXTR_LT(intf, extr, ltype, cfg)	\
+	rvu_write64(rvu, BLKADDR_NPC,	\
+		    NPC_AF_INTFX_EXTRACTORX_LTX_CFG(intf, extr, ltype), cfg)
+
+#define CN20K_GET_EXTR_LT(intf, extr, ltype)	\
+	rvu_read64(rvu, BLKADDR_NPC,	\
+		   NPC_AF_INTFX_EXTRACTORX_LTX_CFG(intf, extr, ltype))
+
+/* NPC_PARSE_KEX_S nibble definitions for each field */
+#define NPC_CN20K_PARSE_NIBBLE_CHAN GENMASK_ULL(2, 0)
+#define NPC_CN20K_PARSE_NIBBLE_ERRLEV BIT_ULL(3)
+#define NPC_CN20K_PARSE_NIBBLE_ERRCODE GENMASK_ULL(5, 4)
+#define NPC_CN20K_PARSE_NIBBLE_L2L3_BCAST BIT_ULL(6)
+#define NPC_CN20K_PARSE_NIBBLE_LA_FLAGS BIT_ULL(7)
+#define NPC_CN20K_PARSE_NIBBLE_LA_LTYPE BIT_ULL(8)
+#define NPC_CN20K_PARSE_NIBBLE_LB_FLAGS BIT_ULL(9)
+#define NPC_CN20K_PARSE_NIBBLE_LB_LTYPE BIT_ULL(10)
+#define NPC_CN20K_PARSE_NIBBLE_LC_FLAGS BIT_ULL(11)
+#define NPC_CN20K_PARSE_NIBBLE_LC_LTYPE BIT_ULL(12)
+#define NPC_CN20K_PARSE_NIBBLE_LD_FLAGS BIT_ULL(13)
+#define NPC_CN20K_PARSE_NIBBLE_LD_LTYPE BIT_ULL(14)
+#define NPC_CN20K_PARSE_NIBBLE_LE_FLAGS BIT_ULL(15)
+#define NPC_CN20K_PARSE_NIBBLE_LE_LTYPE BIT_ULL(16)
+#define NPC_CN20K_PARSE_NIBBLE_LF_FLAGS BIT_ULL(17)
+#define NPC_CN20K_PARSE_NIBBLE_LF_LTYPE BIT_ULL(18)
+#define NPC_CN20K_PARSE_NIBBLE_LG_FLAGS BIT_ULL(19)
+#define NPC_CN20K_PARSE_NIBBLE_LG_LTYPE BIT_ULL(20)
+#define NPC_CN20K_PARSE_NIBBLE_LH_FLAGS BIT_ULL(21)
+#define NPC_CN20K_PARSE_NIBBLE_LH_LTYPE BIT_ULL(22)
+
+/* Rx parse key extract nibble enable */
+#define NPC_CN20K_PARSE_NIBBLE_INTF_RX  (NPC_CN20K_PARSE_NIBBLE_CHAN | \
+					 NPC_CN20K_PARSE_NIBBLE_L2L3_BCAST | \
+					 NPC_CN20K_PARSE_NIBBLE_LA_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LB_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LC_FLAGS | \
+					 NPC_CN20K_PARSE_NIBBLE_LC_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LD_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LE_LTYPE)
+
+/* Tx parse key extract nibble enable */
+#define NPC_CN20K_PARSE_NIBBLE_INTF_TX	(NPC_CN20K_PARSE_NIBBLE_LA_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LB_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LC_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LD_LTYPE | \
+					 NPC_CN20K_PARSE_NIBBLE_LE_LTYPE)
 
 /**
  * enum npc_subbank_flag - NPC subbank status
@@ -147,6 +214,34 @@ struct npc_mcam_kex_extr {
 	u64 intf_extr_lt[NPC_MAX_INTF][NPC_MAX_EXTRACTOR][NPC_MAX_LT];
 } __packed;
 
+struct npc_cn20k_kpu_profile_fwdata {
+#define KPU_SIGN	0x00666f727075706b
+#define KPU_NAME_LEN	32
+	/* Maximum number of custom KPU entries supported by
+	 * the built-in profile.
+	 */
+#define KPU_CN20K_MAX_CST_ENT	6
+	/* KPU Profle Header */
+	__le64	signature; /* "kpuprof\0" (8 bytes/ASCII characters) */
+	u8	name[KPU_NAME_LEN]; /* KPU Profile name */
+	__le64	version; /* KPU profile version */
+	u8	kpus;
+	u8	reserved[7];
+
+	/* Default MKEX profile to be used with this KPU profile. May be
+	 * overridden with mkex_profile module parameter.
+	 * Format is same as for the MKEX profile to streamline processing.
+	 */
+	struct npc_mcam_kex_extr	mkex;
+	/* LTYPE values for specific HW offloaded protocols. */
+	struct npc_lt_def_cfg		lt_def;
+	/* Dynamically sized data:
+	 *  Custom KPU CAM and ACTION configuration entries.
+	 * struct npc_kpu_fwdata kpu[kpus];
+	 */
+	u8	data[];
+} __packed;
+
 struct rvu;
 
 struct npc_priv_t *npc_priv_get(void);
@@ -162,4 +257,12 @@ int npc_cn20k_ref_idx_alloc(struct rvu *rvu, int pcifunc, int key_type,
 int npc_cn20k_idx_free(struct rvu *rvu, u16 *mcam_idx, int count);
 void npc_cn20k_parser_profile_init(struct rvu *rvu, int blkaddr);
 struct npc_mcam_kex_extr *npc_mkex_extr_default_get(void);
+void npc_cn20k_load_mkex_profile(struct rvu *rvu, int blkaddr,
+				 const char *mkex_profile);
+int npc_cn20k_apply_custom_kpu(struct rvu *rvu,
+			       struct npc_kpu_profile_adapter *profile);
+
+void
+npc_cn20k_update_action_entries_n_flags(struct rvu *rvu,
+					struct npc_kpu_profile_adapter *pfl);
 #endif /* NPC_CN20K_H */
