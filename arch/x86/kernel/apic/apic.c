@@ -412,22 +412,20 @@ EXPORT_SYMBOL_GPL(setup_APIC_eilvt);
 /*
  * Program the next event, relative to now
  */
-static int lapic_next_event(unsigned long delta,
-			    struct clock_event_device *evt)
+static int lapic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	apic_write(APIC_TMICT, delta);
 	return 0;
 }
 
-static int lapic_next_deadline(unsigned long delta,
-			       struct clock_event_device *evt)
+static int lapic_next_deadline(unsigned long delta, struct clock_event_device *evt)
 {
-	u64 tsc;
+	/*
+	 * There is no weak_wrmsr_fence() required here as all of this is purely
+	 * CPU local. Avoid the [ml]fence overhead.
+	 */
+	u64 tsc = rdtsc();
 
-	/* This MSR is special and need a special fence: */
-	weak_wrmsr_fence();
-
-	tsc = rdtsc();
 	wrmsrq(MSR_IA32_TSC_DEADLINE, tsc + (((u64) delta) * TSC_DIVISOR));
 	return 0;
 }
