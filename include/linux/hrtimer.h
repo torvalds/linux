@@ -153,17 +153,22 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 }
 
 #ifdef CONFIG_HIGH_RES_TIMERS
+extern unsigned int hrtimer_resolution;
 struct clock_event_device;
 
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
-extern unsigned int hrtimer_resolution;
+extern struct static_key_false hrtimer_highres_enabled_key;
 
-#else
+static inline bool hrtimer_highres_enabled(void)
+{
+	return static_branch_likely(&hrtimer_highres_enabled_key);
+}
 
+#else  /* CONFIG_HIGH_RES_TIMERS */
 #define hrtimer_resolution	(unsigned int)LOW_RES_NSEC
-
-#endif
+static inline bool hrtimer_highres_enabled(void) { return false; }
+#endif  /* !CONFIG_HIGH_RES_TIMERS */
 
 static inline ktime_t
 __hrtimer_expires_remaining_adjusted(const struct hrtimer *timer, ktime_t now)

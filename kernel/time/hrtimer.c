@@ -126,6 +126,25 @@ static inline bool hrtimer_base_is_online(struct hrtimer_cpu_base *base)
 		return likely(base->online);
 }
 
+#ifdef CONFIG_HIGH_RES_TIMERS
+DEFINE_STATIC_KEY_FALSE(hrtimer_highres_enabled_key);
+
+static void hrtimer_hres_workfn(struct work_struct *work)
+{
+	static_branch_enable(&hrtimer_highres_enabled_key);
+}
+
+static DECLARE_WORK(hrtimer_hres_work, hrtimer_hres_workfn);
+
+static inline void hrtimer_schedule_hres_work(void)
+{
+	if (!hrtimer_highres_enabled())
+		schedule_work(&hrtimer_hres_work);
+}
+#else
+static inline void hrtimer_schedule_hres_work(void) { }
+#endif
+
 /*
  * Functions and macros which are different for UP/SMP systems are kept in a
  * single place
@@ -649,7 +668,9 @@ static inline ktime_t hrtimer_update_base(struct hrtimer_cpu_base *base)
 }
 
 /*
- * Is the high resolution mode active ?
+ * Is the high resolution mode active in the CPU base. This cannot use the
+ * static key as the CPUs are switched to high resolution mode
+ * asynchronously.
  */
 static inline int hrtimer_hres_active(struct hrtimer_cpu_base *cpu_base)
 {
@@ -750,6 +771,7 @@ static void hrtimer_switch_to_hres(void)
 	tick_setup_sched_timer(true);
 	/* "Retrigger" the interrupt to get things going */
 	retrigger_next_event(NULL);
+	hrtimer_schedule_hres_work();
 }
 
 #else
@@ -947,11 +969,10 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
  */
 void clock_was_set(unsigned int bases)
 {
-	struct hrtimer_cpu_base *cpu_base = raw_cpu_ptr(&hrtimer_bases);
 	cpumask_var_t mask;
 	int cpu;
 
-	if (!hrtimer_hres_active(cpu_base) && !tick_nohz_is_active())
+	if (!hrtimer_highres_enabled() && !tick_nohz_is_active())
 		goto out_timerfd;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
@@ -962,6 +983,7 @@ void clock_was_set(unsigned int bases)
 	/* Avoid interrupting CPUs if possible */
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
+		struct hrtimer_cpu_base *cpu_base;
 		unsigned long flags;
 
 		cpu_base = &per_cpu(hrtimer_bases, cpu);
