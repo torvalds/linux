@@ -406,17 +406,11 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 #ifdef CONFIG_X86
 	switch (caching) {
 	case ttm_write_combined:
-		if (pool->nid != NUMA_NO_NODE)
-			return &pool->caching[caching].orders[order];
-
 		if (ttm_pool_uses_dma32(pool))
 			return &global_dma32_write_combined[order];
 
 		return &global_write_combined[order];
 	case ttm_uncached:
-		if (pool->nid != NUMA_NO_NODE)
-			return &pool->caching[caching].orders[order];
-
 		if (ttm_pool_uses_dma32(pool))
 			return &global_dma32_uncached[order];
 
@@ -1294,7 +1288,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 {
 	unsigned int i;
 
-	if (!ttm_pool_uses_dma_alloc(pool) && pool->nid == NUMA_NO_NODE) {
+	if (!ttm_pool_uses_dma_alloc(pool)) {
 		seq_puts(m, "unused\n");
 		return 0;
 	}
@@ -1305,10 +1299,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
 		if (!ttm_pool_select_type(pool, i, 0))
 			continue;
-		if (ttm_pool_uses_dma_alloc(pool))
-			seq_puts(m, "DMA ");
-		else
-			seq_printf(m, "N%d ", pool->nid);
+		seq_puts(m, "DMA ");
 		switch (i) {
 		case ttm_cached:
 			seq_puts(m, "\t:");
