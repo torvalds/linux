@@ -1933,6 +1933,13 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_cloc
 	base->running = NULL;
 }
 
+static __always_inline struct hrtimer *clock_base_next_timer_safe(struct hrtimer_clock_base *base)
+{
+	struct timerqueue_node *next = timerqueue_getnext(&base->active);
+
+	return next ? container_of(next, struct hrtimer, node) : NULL;
+}
+
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 				 unsigned long flags, unsigned int active_mask)
 {
@@ -1940,16 +1947,10 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 	struct hrtimer_clock_base *base;
 
 	for_each_active_base(base, cpu_base, active) {
-		struct timerqueue_node *node;
-		ktime_t basenow;
+		ktime_t basenow = ktime_add(now, base->offset);
+		struct hrtimer *timer;
 
-		basenow = ktime_add(now, base->offset);
-
-		while ((node = timerqueue_getnext(&base->active))) {
-			struct hrtimer *timer;
-
-			timer = container_of(node, struct hrtimer, node);
-
+		while ((timer = clock_base_next_timer(base))) {
 			/*
 			 * The immediate goal for using the softexpires is
 			 * minimizing wakeups, not running timers at the
