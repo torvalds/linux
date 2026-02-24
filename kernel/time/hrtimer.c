@@ -838,13 +838,12 @@ static void retrigger_next_event(void *arg)
 	 * In periodic low resolution mode, the next softirq expiration
 	 * must also be updated.
 	 */
-	raw_spin_lock(&base->lock);
+	guard(raw_spinlock)(&base->lock);
 	hrtimer_update_base(base);
 	if (hrtimer_hres_active(base))
 		hrtimer_force_reprogram(base, 0);
 	else
 		hrtimer_update_next_event(base);
-	raw_spin_unlock(&base->lock);
 }
 
 /*
@@ -994,7 +993,6 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base,
 void clock_was_set(unsigned int bases)
 {
 	cpumask_var_t mask;
-	int cpu;
 
 	if (!hrtimer_highres_enabled() && !tick_nohz_is_active())
 		goto out_timerfd;
@@ -1005,24 +1003,19 @@ void clock_was_set(unsigned int bases)
 	}
 
 	/* Avoid interrupting CPUs if possible */
-	cpus_read_lock();
-	for_each_online_cpu(cpu) {
-		struct hrtimer_cpu_base *cpu_base;
-		unsigned long flags;
+	scoped_guard(cpus_read_lock) {
+		int cpu;
 
-		cpu_base = &per_cpu(hrtimer_bases, cpu);
-		raw_spin_lock_irqsave(&cpu_base->lock, flags);
+		for_each_online_cpu(cpu) {
+			struct hrtimer_cpu_base *cpu_base = &per_cpu(hrtimer_bases, cpu);
 
-		if (update_needs_ipi(cpu_base, bases))
-			cpumask_set_cpu(cpu, mask);
-
-		raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
+			guard(raw_spinlock_irqsave)(&cpu_base->lock);
+			if (update_needs_ipi(cpu_base, bases))
+				cpumask_set_cpu(cpu, mask);
+		}
+		scoped_guard(preempt)
+			smp_call_function_many(mask, retrigger_next_event, NULL, 1);
 	}
-
-	preempt_disable();
-	smp_call_function_many(mask, retrigger_next_event, NULL, 1);
-	preempt_enable();
-	cpus_read_unlock();
 	free_cpumask_var(mask);
 
 out_timerfd:
@@ -1600,14 +1593,10 @@ u64 hrtimer_get_next_event(void)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	u64 expires = KTIME_MAX;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&cpu_base->lock, flags);
-
+	guard(raw_spinlock_irqsave)(&cpu_base->lock);
 	if (!hrtimer_hres_active(cpu_base))
 		expires = __hrtimer_get_next_event(cpu_base, HRTIMER_ACTIVE_ALL);
-
-	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 
 	return expires;
 }
@@ -1623,25 +1612,18 @@ u64 hrtimer_next_event_without(const struct hrtimer *exclude)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
 	u64 expires = KTIME_MAX;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&cpu_base->lock, flags);
-
+	guard(raw_spinlock_irqsave)(&cpu_base->lock);
 	if (hrtimer_hres_active(cpu_base)) {
 		unsigned int active;
 
 		if (!cpu_base->softirq_activated) {
 			active = cpu_base->active_bases & HRTIMER_ACTIVE_SOFT;
-			expires = __hrtimer_next_event_base(cpu_base, exclude,
-							    active, KTIME_MAX);
+			expires = __hrtimer_next_event_base(cpu_base, exclude, active, KTIME_MAX);
 		}
 		active = cpu_base->active_bases & HRTIMER_ACTIVE_HARD;
-		expires = __hrtimer_next_event_base(cpu_base, exclude, active,
-						    expires);
+		expires = __hrtimer_next_event_base(cpu_base, exclude, active, expires);
 	}
-
-	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
-
 	return expires;
 }
 #endif
