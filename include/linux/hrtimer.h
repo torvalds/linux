@@ -13,6 +13,7 @@
 #define _LINUX_HRTIMER_H
 
 #include <linux/hrtimer_defs.h>
+#include <linux/hrtimer_rearm.h>
 #include <linux/hrtimer_types.h>
 #include <linux/init.h>
 #include <linux/list.h>
