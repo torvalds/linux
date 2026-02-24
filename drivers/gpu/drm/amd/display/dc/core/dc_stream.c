@@ -42,6 +42,13 @@
 #define MAX(x, y) ((x > y) ? x : y)
 #endif
 
+#include "dc_fpu.h"
+
+#if !defined(DC_RUN_WITH_PREEMPTION_ENABLED)
+#define DC_RUN_WITH_PREEMPTION_ENABLED(code) code
+#endif // !DC_RUN_WITH_PREEMPTION_ENABLED
+
+
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
@@ -170,12 +177,14 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	if (sink == NULL)
 		goto fail;
 
-	stream = kzalloc_obj(struct dc_stream_state, GFP_ATOMIC);
+	DC_RUN_WITH_PREEMPTION_ENABLED(stream = kzalloc_obj(struct dc_stream_state, GFP_ATOMIC));
 
 	if (stream == NULL)
 		goto fail;
 
-	stream->update_scratch = kzalloc((int32_t) dc_update_scratch_space_size(), GFP_ATOMIC);
+	DC_RUN_WITH_PREEMPTION_ENABLED(stream->update_scratch =
+					kzalloc((int32_t) dc_update_scratch_space_size(),
+						GFP_ATOMIC));
 
 	if (stream->update_scratch == NULL)
 		goto fail;

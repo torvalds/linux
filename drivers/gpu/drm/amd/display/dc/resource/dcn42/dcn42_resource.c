@@ -1696,37 +1696,50 @@ static void dcn42_destroy_resource_pool(struct resource_pool **pool)
 static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap};
 
+static void dcn42_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params)
+{
+	dc_assert_fp_enabled();
+
+	if (dc->current_state && dc->current_state->bw_ctx.dml2)
+		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
+}
+
 static void dcn42_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	DC_FP_START();
-	if (dc->current_state && dc->current_state->bw_ctx.dml2)
-		dml2_reinit(dc, &dc->dml2_options, &dc->current_state->bw_ctx.dml2);
+	dcn42_update_bw_bounding_box_fpu(dc, bw_params);
 	DC_FP_END();
 }
-
 enum dc_status dcn42_validate_bandwidth(struct dc *dc,
 							  struct dc_state *context,
 							  enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
+	DC_FP_START();
+
 	out = dml2_validate(dc, context, context->bw_ctx.dml2,
 						validate_mode);
-	DC_FP_START();
+
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		/*not required for mode enumeration*/
 		dcn42_decide_zstate_support(dc, context);
 	}
+
 	DC_FP_END();
+
 	return out ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 void dcn42_prepare_mcache_programming(struct dc *dc,
 									  struct dc_state *context)
 {
-	if (dc->debug.using_dml21)
+	if (dc->debug.using_dml21) {
+		DC_FP_START();
 		dml2_prepare_mcache_programming(dc, context,
 			context->power_source == DC_POWER_SOURCE_DC ?
-				context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+			context->bw_ctx.dml2_dc_power_source : context->bw_ctx.dml2);
+		DC_FP_END();
+	}
 }
 /* Create a minimal link encoder object not associated with a particular
  * physical connector.
