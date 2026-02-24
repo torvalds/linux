@@ -66,10 +66,9 @@ void ovl_tempname(char name[OVL_TEMPNAME_SIZE])
 }
 
 static struct dentry *ovl_start_creating_temp(struct ovl_fs *ofs,
-					      struct dentry *workdir)
+					      struct dentry *workdir,
+					      char name[OVL_TEMPNAME_SIZE])
 {
-	char name[OVL_TEMPNAME_SIZE];
-
 	ovl_tempname(name);
 	return start_creating(ovl_upper_mnt_idmap(ofs), workdir,
 			      &QSTR(name));
@@ -81,11 +80,12 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 	struct dentry *whiteout, *link;
 	struct dentry *workdir = ofs->workdir;
 	struct inode *wdir = workdir->d_inode;
+	char name[OVL_TEMPNAME_SIZE];
 
 	guard(mutex)(&ofs->whiteout_lock);
 
 	if (!ofs->whiteout) {
-		whiteout = ovl_start_creating_temp(ofs, workdir);
+		whiteout = ovl_start_creating_temp(ofs, workdir, name);
 		if (IS_ERR(whiteout))
 			return whiteout;
 		err = ovl_do_whiteout(ofs, wdir, whiteout);
@@ -97,7 +97,7 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 	}
 
 	if (!ofs->no_shared_whiteout) {
-		link = ovl_start_creating_temp(ofs, workdir);
+		link = ovl_start_creating_temp(ofs, workdir, name);
 		if (IS_ERR(link))
 			return link;
 		err = ovl_do_link(ofs, ofs->whiteout, wdir, link);
@@ -247,7 +247,9 @@ struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 			       struct ovl_cattr *attr)
 {
 	struct dentry *ret;
-	ret = ovl_start_creating_temp(ofs, workdir);
+	char name[OVL_TEMPNAME_SIZE];
+
+	ret = ovl_start_creating_temp(ofs, workdir, name);
 	if (IS_ERR(ret))
 		return ret;
 	ret = ovl_create_real(ofs, workdir, ret, attr);
