@@ -526,11 +526,9 @@ quiet_cmd_rustc_procmacrolibrary = $(RUSTC_OR_CLIPPY_QUIET) PL $@
       cmd_rustc_procmacrolibrary = \
 	$(if $(skip_clippy),$(RUSTC),$(RUSTC_OR_CLIPPY)) \
 		$(filter-out $(skip_flags),$(rust_common_flags) $(rustc_target_flags)) \
-		--emit=dep-info,link --crate-type rlib -O \
+		--emit=dep-info=$(depfile) --emit=link=$@ --crate-type rlib -O \
 		--out-dir $(objtree)/$(obj) -L$(objtree)/$(obj) \
-		--crate-name $(patsubst lib%.rlib,%,$(notdir $@)) $<; \
-	mv $(objtree)/$(obj)/$(patsubst lib%.rlib,%,$(notdir $@)).d $(depfile); \
-	sed -i '/^\#/d' $(depfile)
+		--crate-name $(patsubst lib%.rlib,%,$(notdir $@)) $<
 
 $(obj)/libproc_macro2.rlib: private skip_clippy = 1
 $(obj)/libproc_macro2.rlib: private rustc_target_flags = $(proc_macro2-flags)
