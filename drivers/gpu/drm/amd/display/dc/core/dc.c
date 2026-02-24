@@ -7295,6 +7295,23 @@ static bool update_planes_and_stream_prepare_v3(
 	ASSERT(scratch->flow == UPDATE_V3_FLOW_INVALID);
 	dc_exit_ips_for_hw_access(scratch->dc);
 
+	/* HWSS path determination needs to be done prior to updating the surface and stream states. */
+	struct dc_fast_update fast_update[MAX_SURFACES] = { 0 };
+
+	populate_fast_updates(fast_update,
+			      scratch->surface_updates,
+			      scratch->surface_count,
+			      scratch->stream_update);
+
+	const bool is_hwss_fast_path_only =
+		fast_update_only(scratch->dc,
+				 fast_update,
+				 scratch->surface_updates,
+				 scratch->surface_count,
+				 scratch->stream_update,
+				 scratch->stream) &&
+		!scratch->dc->check_config.enable_legacy_fast_update;
+
 	if (!update_planes_and_stream_state(
 			scratch->dc,
 			scratch->surface_updates,
@@ -7310,26 +7327,7 @@ static bool update_planes_and_stream_prepare_v3(
 	if (scratch->new_context == scratch->dc->current_state) {
 		ASSERT(scratch->update_type < UPDATE_TYPE_FULL);
 
-		// TODO: Do we need this to be alive in execute?
-		struct dc_fast_update fast_update[MAX_SURFACES] = { 0 };
-
-		populate_fast_updates(
-				fast_update,
-				scratch->surface_updates,
-				scratch->surface_count,
-				scratch->stream_update
-		);
-		const bool fast = fast_update_only(
-				scratch->dc,
-				fast_update,
-				scratch->surface_updates,
-				scratch->surface_count,
-				scratch->stream_update,
-				scratch->stream
-		)
-		// TODO: Can this be used to skip `populate_fast_updates`?
-				&& !scratch->dc->check_config.enable_legacy_fast_update;
-		scratch->flow = fast
+		scratch->flow = is_hwss_fast_path_only
 				? UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST
 				: UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL;
 		return true;
