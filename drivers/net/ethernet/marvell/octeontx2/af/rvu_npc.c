@@ -2690,6 +2690,10 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 	if (!is_cn20k(rvu->pdev))
 		goto not_cn20k;
 
+	/* Only x2 or x4 key types are accepted */
+	if (req->kw_type != NPC_MCAM_KEY_X2 && req->kw_type != NPC_MCAM_KEY_X4)
+		return NPC_MCAM_INVALID_REQ;
+
 	/* The below table is being followed during allocation,
 	 *
 	 * 1. ref_entry == 0 && prio == HIGH && count == 1 : user wants to
