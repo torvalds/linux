@@ -925,7 +925,6 @@ static void __hrtick_start(void *arg)
  */
 void hrtick_start(struct rq *rq, u64 delay)
 {
-	struct hrtimer *timer = &rq->hrtick_timer;
 	s64 delta;
 
 	/*
@@ -933,7 +932,7 @@ void hrtick_start(struct rq *rq, u64 delay)
 	 * doesn't make sense and can cause timer DoS.
 	 */
 	delta = max_t(s64, delay, 10000LL);
-	rq->hrtick_time = ktime_add_ns(hrtimer_cb_get_time(timer), delta);
+	rq->hrtick_time = ktime_add_ns(ktime_get(), delta);
 
 	if (rq == this_rq())
 		__hrtick_restart(rq);
