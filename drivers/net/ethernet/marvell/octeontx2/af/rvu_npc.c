@@ -16,6 +16,7 @@
 #include "cgx.h"
 #include "npc_profile.h"
 #include "rvu_npc_hash.h"
+#include "cn20k/npc.h"
 
 #define RSVD_MCAM_ENTRIES_PER_PF	3 /* Broadcast, Promisc and AllMulticast */
 #define RSVD_MCAM_ENTRIES_PER_NIXLF	1 /* Ucast for LFs */
@@ -2162,6 +2163,9 @@ int rvu_npc_init(struct rvu *rvu)
 		npc_load_mkex_profile(rvu, blkaddr, def_pfl_name);
 	}
 
+	if (is_cn20k(rvu->pdev))
+		return npc_cn20k_init(rvu);
+
 	return 0;
 }
 
@@ -2177,6 +2181,9 @@ void rvu_npc_freemem(struct rvu *rvu)
 	else
 		kfree(rvu->kpu_fwdata);
 	mutex_destroy(&mcam->lock);
+
+	if (is_cn20k(rvu->pdev))
+		npc_cn20k_deinit(rvu);
 }
 
 void rvu_npc_get_mcam_entry_alloc_info(struct rvu *rvu, u16 pcifunc,
@@ -3031,7 +3038,6 @@ static int __npc_mcam_alloc_counter(struct rvu *rvu,
 	 */
 	if (!req->contig && req->count > NPC_MAX_NONCONTIG_COUNTERS)
 		return NPC_MCAM_INVALID_REQ;
-
 
 	/* Check if unused counters are available or not */
 	if (!rvu_rsrc_free_count(&mcam->counters)) {

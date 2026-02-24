@@ -53,6 +53,14 @@
 #define MBOX_DIR_VFPF_UP	7  /* VF replies to PF */
 
 enum {
+	NPC_MCAM_KEY_X1 = 0,
+	NPC_MCAM_KEY_DYN = NPC_MCAM_KEY_X1,
+	NPC_MCAM_KEY_X2,
+	NPC_MCAM_KEY_X4,
+	NPC_MCAM_KEY_MAX,
+};
+
+enum {
 	TYPE_AFVF,
 	TYPE_AFPF,
 };
@@ -275,6 +283,8 @@ M(NPC_GET_FIELD_HASH_INFO, 0x6013, npc_get_field_hash_info,                     
 M(NPC_GET_FIELD_STATUS, 0x6014, npc_get_field_status,                     \
 				   npc_get_field_status_req,              \
 				   npc_get_field_status_rsp)              \
+M(NPC_CN20K_MCAM_GET_FREE_COUNT, 0x6015, npc_cn20k_get_fcnt,		\
+				 msg_req, npc_cn20k_get_fcnt_rsp)	\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -1795,6 +1805,14 @@ struct npc_mcam_read_entry_rsp {
 	struct mcam_entry entry_data;
 	u8 intf;
 	u8 enable;
+};
+
+/* Available entries to use */
+struct npc_cn20k_get_fcnt_rsp {
+	struct mbox_msghdr hdr;
+	int free_x2;
+	int free_x4;
+	int free_subbanks;
 };
 
 struct npc_mcam_read_base_rule_rsp {

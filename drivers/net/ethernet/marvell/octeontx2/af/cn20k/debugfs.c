@@ -11,7 +11,19 @@
 #include <linux/pci.h>
 
 #include "struct.h"
+#include "rvu.h"
 #include "debugfs.h"
+#include "cn20k/npc.h"
+
+int npc_cn20k_debugfs_init(struct rvu *rvu)
+{
+	return 0;
+}
+
+void npc_cn20k_debugfs_deinit(struct rvu *rvu)
+{
+	debugfs_remove_recursive(rvu->rvu_dbg.npc);
+}
 
 void print_nix_cn20k_sq_ctx(struct seq_file *m,
 			    struct nix_cn20k_sq_ctx_s *sq_ctx)
