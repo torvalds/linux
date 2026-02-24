@@ -27,6 +27,19 @@
 		stdout-path = "serial0:1500000n8";
 	};
 
+	dp-con {
+		compatible = "dp-connector";
+		dp-pwr-supply = <&vcc3v3_dp_port>;
+		label = "DP OUT";
+		type = "full-size";
+
+		port {
+			dp0_con_in: endpoint {
+				remote-endpoint = <&dp0_out_con>;
+			};
+		};
+	};
+
 	hdmi-con {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -310,6 +323,24 @@
 
 &combphy1_psu {
 	status = "okay";
+};
+
+&dp {
+	pinctrl-0 = <&dpm0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&dp0_in {
+	dp0_in_vp1: endpoint {
+		remote-endpoint = <&vp1_out_dp0>;
+	};
+};
+
+&dp0_out {
+	dp0_out_con: endpoint {
+		remote-endpoint = <&dp0_con_in>;
+	};
 };
 
 &gmac0 {
@@ -1007,6 +1038,17 @@
 };
 
 &vop {
+	/*
+	 * If no dedicated PLL was specified, the GPLL would be automatically
+	 * assigned as the PLL source for dclk_vp1_src. As the frequency of GPLL
+	 * is 1188 MHz, we can only get typical clock frequencies such as
+	 * 74.25MHz, 148.5MHz, 297MHz, 594MHz.
+	 *
+	 * So here we set the parent clock of VP1 to VPLL so that we can get
+	 * any frequency.
+	 */
+	assigned-clocks = <&cru DCLK_VP1_SRC>;
+	assigned-clock-parents = <&cru PLL_VPLL>;
 	status = "okay";
 };
 
@@ -1018,5 +1060,12 @@
 	vp0_out_hdmi: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
 		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
 		remote-endpoint = <&hdmi_in_vp0>;
+	};
+};
+
+&vp1 {
+	vp1_out_dp0: endpoint@a {
+		reg = <ROCKCHIP_VOP2_EP_DP0>;
+		remote-endpoint = <&dp0_in_vp1>;
 	};
 };
