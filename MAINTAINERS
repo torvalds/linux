@@ -21692,7 +21692,7 @@ S:	Maintained
 F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
-M:	Vinod Koul <vkoul@kernel.org>
+M:	Mohd Ayaan Anwar <mohd.anwar@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
