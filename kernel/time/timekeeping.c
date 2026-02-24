@@ -391,6 +391,20 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 	tk->tkr_raw.mult = clock->mult;
 	tk->ntp_err_mult = 0;
 	tk->skip_second_overflow = 0;
+
+	tk->cs_id = clock->id;
+
+	/* Coupled clockevent data */
+	if (IS_ENABLED(CONFIG_GENERIC_CLOCKEVENTS_COUPLED) &&
+	    clock->flags & CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT) {
+		/*
+		 * Aim for an one hour maximum delta and use KHz to handle
+		 * clocksources with a frequency above 4GHz correctly as
+		 * the frequency argument of clocks_calc_mult_shift() is u32.
+		 */
+		clocks_calc_mult_shift(&tk->cs_ns_to_cyc_mult, &tk->cs_ns_to_cyc_shift,
+				       NSEC_PER_MSEC, clock->freq_khz, 3600 * 1000);
+	}
 }
 
 /* Timekeeper helper functions. */
@@ -720,6 +734,36 @@ static inline void tk_update_ktime_data(struct timekeeper *tk)
 	tk->tkr_raw.base = ns_to_ktime(tk->raw_sec * NSEC_PER_SEC);
 }
 
+static inline void tk_update_ns_to_cyc(struct timekeeper *tks, struct timekeeper *tkc)
+{
+	struct tk_read_base *tkrs = &tks->tkr_mono;
+	struct tk_read_base *tkrc = &tkc->tkr_mono;
+	unsigned int shift;
+
+	if (!IS_ENABLED(CONFIG_GENERIC_CLOCKEVENTS_COUPLED) ||
+	    !(tkrs->clock->flags & CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT))
+		return;
+
+	if (tkrs->mult == tkrc->mult && tkrs->shift == tkrc->shift)
+		return;
+	/*
+	 * The conversion math is simple:
+	 *
+	 *      CS::MULT       (1 << NS_TO_CYC_SHIFT)
+	 *   --------------- = ----------------------
+	 *   (1 << CS:SHIFT)       NS_TO_CYC_MULT
+	 *
+	 * Ergo:
+	 *
+	 *   NS_TO_CYC_MULT = (1 << (CS::SHIFT + NS_TO_CYC_SHIFT)) / CS::MULT
+	 *
+	 * NS_TO_CYC_SHIFT has been set up in tk_setup_internals()
+	 */
+	shift = tkrs->shift + tks->cs_ns_to_cyc_shift;
+	tks->cs_ns_to_cyc_mult = (u32)div_u64(1ULL << shift, tkrs->mult);
+	tks->cs_ns_to_cyc_maxns = div_u64(tkrs->clock->mask, tks->cs_ns_to_cyc_mult);
+}
+
 /*
  * Restore the shadow timekeeper from the real timekeeper.
  */
@@ -754,6 +798,7 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 	tk->tkr_mono.base_real = tk->tkr_mono.base + tk->offs_real;
 
 	if (tk->id == TIMEKEEPER_CORE) {
+		tk_update_ns_to_cyc(tk, &tkd->timekeeper);
 		update_vsyscall(tk);
 		update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
@@ -806,6 +851,71 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 		delta -= incr;
 	}
 	tk_update_coarse_nsecs(tk);
+}
+
+/*
+ * ktime_expiry_to_cycles - Convert a expiry time to clocksource cycles
+ * @id:		Clocksource ID which is required for validity
+ * @expires_ns:	Absolute CLOCK_MONOTONIC expiry time (nsecs) to be converted
+ * @cycles:	Pointer to storage for corresponding absolute cycles value
+ *
+ * Convert a CLOCK_MONOTONIC based absolute expiry time to a cycles value
+ * based on the correlated clocksource of the clockevent device by using
+ * the base nanoseconds and cycles values of the last timekeeper update and
+ * converting the delta between @expires_ns and base nanoseconds to cycles.
+ *
+ * This only works for clockevent devices which are using a less than or
+ * equal comparator against the clocksource.
+ *
+ * Utilizing this avoids two clocksource reads for such devices, the
+ * ktime_get() in clockevents_program_event() to calculate the delta expiry
+ * value and the readout in the device::set_next_event() callback to
+ * convert the delta back to a absolute comparator value.
+ *
+ * Returns: True if @id matches the current clocksource ID, false otherwise
+ */
+bool ktime_expiry_to_cycles(enum clocksource_ids id, ktime_t expires_ns, u64 *cycles)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	struct tk_read_base *tkrm = &tk->tkr_mono;
+	ktime_t base_ns, delta_ns, max_ns;
+	u64 base_cycles, delta_cycles;
+	unsigned int seq;
+	u32 mult, shift;
+
+	/*
+	 * Racy check to avoid the seqcount overhead when ID does not match. If
+	 * the relevant clocksource is installed concurrently, then this will
+	 * just delay the switch over to this mechanism until the next event is
+	 * programmed. If the ID is not matching the clock events code will use
+	 * the regular relative set_next_event() callback as before.
+	 */
+	if (data_race(tk->cs_id) != id)
+		return false;
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+
+		if (tk->cs_id != id)
+			return false;
+
+		base_cycles = tkrm->cycle_last;
+		base_ns = tkrm->base + (tkrm->xtime_nsec >> tkrm->shift);
+
+		mult = tk->cs_ns_to_cyc_mult;
+		shift = tk->cs_ns_to_cyc_shift;
+		max_ns = tk->cs_ns_to_cyc_maxns;
+
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	/* Prevent negative deltas and multiplication overflows */
+	delta_ns = min(expires_ns - base_ns, max_ns);
+	delta_ns = max(delta_ns, 0);
+
+	/* Convert to cycles */
+	delta_cycles = ((u64)delta_ns * mult) >> shift;
+	*cycles = base_cycles + delta_cycles;
+	return true;
 }
 
 /**

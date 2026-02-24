@@ -150,6 +150,7 @@ struct clocksource {
 #define CLOCK_SOURCE_RESELECT			0x100
 #define CLOCK_SOURCE_VERIFY_PERCPU		0x200
 #define CLOCK_SOURCE_CAN_INLINE_READ		0x400
+#define CLOCK_SOURCE_HAS_COUPLED_CLOCK_EVENT	0x800
 
 /* simplify initialization of mask field */
 #define CLOCKSOURCE_MASK(bits) GENMASK_ULL((bits) - 1, 0)
