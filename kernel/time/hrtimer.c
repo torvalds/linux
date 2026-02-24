@@ -557,10 +557,10 @@ static ktime_t hrtimer_bases_next_event_without(struct hrtimer_cpu_base *cpu_bas
 		 * If the excluded timer is the first on this base evaluate the
 		 * next timer.
 		 */
-		struct timerqueue_node *node = timerqueue_getnext(&base->active);
+		struct timerqueue_linked_node *node = timerqueue_linked_first(&base->active);
 
 		if (unlikely(&exclude->node == node)) {
-			node = timerqueue_iterate_next(node);
+			node = timerqueue_linked_next(node);
 			if (!node)
 				continue;
 			expires = ktime_sub(node->expires, base->offset);
@@ -576,7 +576,7 @@ static ktime_t hrtimer_bases_next_event_without(struct hrtimer_cpu_base *cpu_bas
 
 static __always_inline struct hrtimer *clock_base_next_timer(struct hrtimer_clock_base *base)
 {
-	struct timerqueue_node *next = timerqueue_getnext(&base->active);
+	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
 
 	return container_of(next, struct hrtimer, node);
 }
@@ -938,9 +938,9 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base, unsigned int act
 	active &= cpu_base->active_bases;
 
 	for_each_active_base(base, cpu_base, active) {
-		struct timerqueue_node *next;
+		struct timerqueue_linked_node *next;
 
-		next = timerqueue_getnext(&base->active);
+		next = timerqueue_linked_first(&base->active);
 		expires = ktime_sub(next->expires, base->offset);
 		if (expires < cpu_base->expires_next)
 			return true;
@@ -1112,7 +1112,7 @@ static bool enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *ba
 	/* Pairs with the lockless read in hrtimer_is_queued() */
 	WRITE_ONCE(timer->is_queued, HRTIMER_STATE_ENQUEUED);
 
-	if (!timerqueue_add(&base->active, &timer->node))
+	if (!timerqueue_linked_add(&base->active, &timer->node))
 		return false;
 
 	base->expires_next = hrtimer_get_expires(timer);
@@ -1121,7 +1121,7 @@ static bool enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *ba
 
 static inline void base_update_next_timer(struct hrtimer_clock_base *base)
 {
-	struct timerqueue_node *next = timerqueue_getnext(&base->active);
+	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
 
 	base->expires_next = next ? next->expires : KTIME_MAX;
 }
@@ -1148,9 +1148,9 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 	/* Pairs with the lockless read in hrtimer_is_queued() */
 	WRITE_ONCE(timer->is_queued, newstate);
 
-	was_first = &timer->node == timerqueue_getnext(&base->active);
+	was_first = !timerqueue_linked_prev(&timer->node);
 
-	if (!timerqueue_del(&base->active, &timer->node))
+	if (!timerqueue_linked_del(&base->active, &timer->node))
 		cpu_base->active_bases &= ~(1 << base->index);
 
 	/* Nothing to update if this was not the first timer in the base */
@@ -1212,8 +1212,8 @@ remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *b
 	/* Remove it from the timer queue if active */
 	if (timer->is_queued) {
 		debug_hrtimer_deactivate(timer);
-		was_first = &timer->node == timerqueue_getnext(&base->active);
-		timerqueue_del(&base->active, &timer->node);
+		was_first = !timerqueue_linked_prev(&timer->node);
+		timerqueue_linked_del(&base->active, &timer->node);
 	}
 
 	/* Set the new expiry time */
@@ -1226,7 +1226,7 @@ remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *b
 	WRITE_ONCE(timer->is_queued, HRTIMER_STATE_ENQUEUED);
 
 	/* If it's the first expiring timer now or again, update base */
-	if (timerqueue_add(&base->active, &timer->node)) {
+	if (timerqueue_linked_add(&base->active, &timer->node)) {
 		base->expires_next = expires;
 		return true;
 	}
@@ -1758,7 +1758,7 @@ static void __hrtimer_setup(struct hrtimer *timer, enum hrtimer_restart (*fn)(st
 	timer->is_hard = !!(mode & HRTIMER_MODE_HARD);
 	timer->is_lazy = !!(mode & HRTIMER_MODE_LAZY_REARM);
 	timer->base = &cpu_base->clock_base[base];
-	timerqueue_init(&timer->node);
+	timerqueue_linked_init(&timer->node);
 
 	if (WARN_ON_ONCE(!fn))
 		ACCESS_PRIVATE(timer, function) = hrtimer_dummy_timeout;
@@ -1923,7 +1923,7 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base, struct hrtimer_cloc
 
 static __always_inline struct hrtimer *clock_base_next_timer_safe(struct hrtimer_clock_base *base)
 {
-	struct timerqueue_node *next = timerqueue_getnext(&base->active);
+	struct timerqueue_linked_node *next = timerqueue_linked_first(&base->active);
 
 	return next ? container_of(next, struct hrtimer, node) : NULL;
 }
@@ -2369,7 +2369,7 @@ int hrtimers_prepare_cpu(unsigned int cpu)
 
 		clock_b->cpu_base = cpu_base;
 		seqcount_raw_spinlock_init(&clock_b->seq, &cpu_base->lock);
-		timerqueue_init_head(&clock_b->active);
+		timerqueue_linked_init_head(&clock_b->active);
 	}
 
 	cpu_base->cpu = cpu;
@@ -2399,10 +2399,10 @@ int hrtimers_cpu_starting(unsigned int cpu)
 static void migrate_hrtimer_list(struct hrtimer_clock_base *old_base,
 				struct hrtimer_clock_base *new_base)
 {
-	struct timerqueue_node *node;
+	struct timerqueue_linked_node *node;
 	struct hrtimer *timer;
 
-	while ((node = timerqueue_getnext(&old_base->active))) {
+	while ((node = timerqueue_linked_first(&old_base->active))) {
 		timer = container_of(node, struct hrtimer, node);
 		BUG_ON(hrtimer_callback_running(timer));
 		debug_hrtimer_deactivate(timer);

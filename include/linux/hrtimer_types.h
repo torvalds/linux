@@ -17,7 +17,7 @@ enum hrtimer_restart {
 
 /**
  * struct hrtimer - the basic hrtimer structure
- * @node:	timerqueue node, which also manages node.expires,
+ * @node:	Linked timerqueue node, which also manages node.expires,
  *		the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
  *		which the timer is based. Is setup by adding
@@ -39,15 +39,15 @@ enum hrtimer_restart {
  * The hrtimer structure must be initialized by hrtimer_setup()
  */
 struct hrtimer {
-	struct timerqueue_node		node;
-	ktime_t				_softexpires;
-	enum hrtimer_restart		(*__private function)(struct hrtimer *);
+	struct timerqueue_linked_node	node;
 	struct hrtimer_clock_base	*base;
 	bool				is_queued;
 	bool				is_rel;
 	bool				is_soft;
 	bool				is_hard;
 	bool				is_lazy;
+	ktime_t				_softexpires;
+	enum hrtimer_restart		(*__private function)(struct hrtimer *);
 };
 
 #endif /* _LINUX_HRTIMER_TYPES_H */

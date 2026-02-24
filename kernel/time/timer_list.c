@@ -56,13 +56,11 @@ print_timer(struct seq_file *m, struct hrtimer *taddr, struct hrtimer *timer,
 		(long long)(ktime_to_ns(hrtimer_get_expires(timer)) - now));
 }
 
-static void
-print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
-		    u64 now)
+static void print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
 {
+	struct timerqueue_linked_node *curr;
 	struct hrtimer *timer, tmp;
 	unsigned long next = 0, i;
-	struct timerqueue_node *curr;
 	unsigned long flags;
 
 next_one:
@@ -72,13 +70,13 @@ next_one:
 
 	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
-	curr = timerqueue_getnext(&base->active);
+	curr = timerqueue_linked_first(&base->active);
 	/*
 	 * Crude but we have to do this O(N*N) thing, because
 	 * we have to unlock the base when printing:
 	 */
 	while (curr && i < next) {
-		curr = timerqueue_iterate_next(curr);
+		curr = timerqueue_linked_next(curr);
 		i++;
 	}
 
