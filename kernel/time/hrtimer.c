@@ -1107,7 +1107,18 @@ static bool enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *ba
 	/* Pairs with the lockless read in hrtimer_is_queued() */
 	WRITE_ONCE(timer->is_queued, HRTIMER_STATE_ENQUEUED);
 
-	return timerqueue_add(&base->active, &timer->node);
+	if (!timerqueue_add(&base->active, &timer->node))
+		return false;
+
+	base->expires_next = hrtimer_get_expires(timer);
+	return true;
+}
+
+static inline void base_update_next_timer(struct hrtimer_clock_base *base)
+{
+	struct timerqueue_node *next = timerqueue_getnext(&base->active);
+
+	base->expires_next = next ? next->expires : KTIME_MAX;
 }
 
 /*
@@ -1122,6 +1133,7 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 			     bool newstate, bool reprogram)
 {
 	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
+	bool was_first;
 
 	lockdep_assert_held(&cpu_base->lock);
 
@@ -1131,8 +1143,16 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 	/* Pairs with the lockless read in hrtimer_is_queued() */
 	WRITE_ONCE(timer->is_queued, newstate);
 
+	was_first = &timer->node == timerqueue_getnext(&base->active);
+
 	if (!timerqueue_del(&base->active, &timer->node))
 		cpu_base->active_bases &= ~(1 << base->index);
+
+	/* Nothing to update if this was not the first timer in the base */
+	if (!was_first)
+		return;
+
+	base_update_next_timer(base);
 
 	/*
 	 * If reprogram is false don't update cpu_base->next_timer and do not
@@ -1182,9 +1202,12 @@ static inline bool
 remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
 			     const enum hrtimer_mode mode, ktime_t expires, u64 delta_ns)
 {
+	bool was_first = false;
+
 	/* Remove it from the timer queue if active */
 	if (timer->is_queued) {
 		debug_hrtimer_deactivate(timer);
+		was_first = &timer->node == timerqueue_getnext(&base->active);
 		timerqueue_del(&base->active, &timer->node);
 	}
 
@@ -1197,8 +1220,16 @@ remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *b
 	/* Pairs with the lockless read in hrtimer_is_queued() */
 	WRITE_ONCE(timer->is_queued, HRTIMER_STATE_ENQUEUED);
 
-	/* Returns true if this is the first expiring timer */
-	return timerqueue_add(&base->active, &timer->node);
+	/* If it's the first expiring timer now or again, update base */
+	if (timerqueue_add(&base->active, &timer->node)) {
+		base->expires_next = expires;
+		return true;
+	}
+
+	if (was_first)
+		base_update_next_timer(base);
+
+	return false;
 }
 
 static inline ktime_t hrtimer_update_lowres(struct hrtimer *timer, ktime_t tim,

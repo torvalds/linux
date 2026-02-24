@@ -19,6 +19,7 @@
  *			timer to a base on another cpu.
  * @clockid:		clock id for per_cpu support
  * @seq:		seqcount around __run_hrtimer
+ * @expires_next:	Absolute time of the next event in this clock base
  * @running:		pointer to the currently running hrtimer
  * @active:		red black tree root node for the active timers
  * @offset:		offset of this clock to the monotonic base
@@ -28,6 +29,7 @@ struct hrtimer_clock_base {
 	unsigned int		index;
 	clockid_t		clockid;
 	seqcount_raw_spinlock_t	seq;
+	ktime_t			expires_next;
 	struct hrtimer		*running;
 	struct timerqueue_head	active;
 	ktime_t			offset;
