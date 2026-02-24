@@ -2646,6 +2646,19 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 
 			if (unlikely(shorter) && child != source_mnt)
 				mp = shorter;
+			/*
+			 * If @q was locked it was meant to hide
+			 * whatever was under it. Let @child take over
+			 * that job and lock it, then we can unlock @q.
+			 * That'll allow another namespace to shed @q
+			 * and reveal @child. Clearly, that mounter
+			 * consented to this by not severing the mount
+			 * relationship. Otherwise, what's the point.
+			 */
+			if (IS_MNT_LOCKED(q)) {
+				child->mnt.mnt_flags |= MNT_LOCKED;
+				q->mnt.mnt_flags &= ~MNT_LOCKED;
+			}
 			mnt_change_mountpoint(r, mp, q);
 		}
 	}
@@ -3533,9 +3546,6 @@ static int can_move_mount_beneath(const struct mount *mnt_from,
 				  const struct mountpoint *mp)
 {
 	struct mount *parent_mnt_to = mnt_to->mnt_parent;
-
-	if (IS_MNT_LOCKED(mnt_to))
-		return -EINVAL;
 
 	/* Avoid creating shadow mounts during mount propagation. */
 	if (mnt_from->overmount)
