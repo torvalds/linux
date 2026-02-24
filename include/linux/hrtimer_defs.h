@@ -53,7 +53,7 @@ enum  hrtimer_base_type {
  * @active_bases:	Bitfield to mark bases with active timers
  * @clock_was_set_seq:	Sequence counter of clock was set events
  * @hres_active:	State of high resolution mode
- * @in_hrtirq:		hrtimer_interrupt() is currently executing
+ * @deferred_rearm:	A deferred rearm is pending
  * @hang_detected:	The last hrtimer interrupt detected a hang
  * @softirq_activated:	displays, if the softirq is raised - update of softirq
  *			related settings is not required then.
@@ -84,7 +84,7 @@ struct hrtimer_cpu_base {
 	unsigned int			active_bases;
 	unsigned int			clock_was_set_seq;
 	bool				hres_active;
-	bool				in_hrtirq;
+	bool				deferred_rearm;
 	bool				hang_detected;
 	bool				softirq_activated;
 	bool				online;

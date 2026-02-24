@@ -883,11 +883,8 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 	if (expires >= cpu_base->expires_next)
 		return;
 
-	/*
-	 * If the hrtimer interrupt is running, then it will reevaluate the
-	 * clock bases and reprogram the clock event device.
-	 */
-	if (cpu_base->in_hrtirq)
+	/* If a deferred rearm is pending skip reprogramming the device */
+	if (cpu_base->deferred_rearm)
 		return;
 
 	cpu_base->next_timer = timer;
@@ -921,12 +918,8 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base, unsigned int act
 	if (seq == cpu_base->clock_was_set_seq)
 		return false;
 
-	/*
-	 * If the remote CPU is currently handling an hrtimer interrupt, it
-	 * will reevaluate the first expiring timer of all clock bases
-	 * before reprogramming. Nothing to do here.
-	 */
-	if (cpu_base->in_hrtirq)
+	/* If a deferred rearm is pending the remote CPU will take care of it */
+	if (cpu_base->deferred_rearm)
 		return false;
 
 	/*
@@ -1334,11 +1327,8 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		first = enqueue_hrtimer(timer, base, mode, was_armed);
 	}
 
-	/*
-	 * If the hrtimer interrupt is running, then it will reevaluate the
-	 * clock bases and reprogram the clock event device.
-	 */
-	if (cpu_base->in_hrtirq)
+	/* If a deferred rearm is pending skip reprogramming the device */
+	if (cpu_base->deferred_rearm)
 		return false;
 
 	if (!was_first || cpu_base != this_cpu_base) {
@@ -1947,14 +1937,14 @@ static __latent_entropy void hrtimer_run_softirq(void)
 
 /*
  * Very similar to hrtimer_force_reprogram(), except it deals with
- * in_hrtirq and hang_detected.
+ * deferred_rearm and hang_detected.
  */
 static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now)
 {
 	ktime_t expires_next = hrtimer_update_next_event(cpu_base);
 
 	cpu_base->expires_next = expires_next;
-	cpu_base->in_hrtirq = false;
+	cpu_base->deferred_rearm = false;
 
 	if (unlikely(cpu_base->hang_detected)) {
 		/*
@@ -1985,7 +1975,7 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 	raw_spin_lock_irqsave(&cpu_base->lock, flags);
 	entry_time = now = hrtimer_update_base(cpu_base);
 retry:
-	cpu_base->in_hrtirq = true;
+	cpu_base->deferred_rearm = true;
 	/*
 	 * Set expires_next to KTIME_MAX, which prevents that remote CPUs queue
 	 * timers while __hrtimer_run_queues() is expiring the clock bases.
