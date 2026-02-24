@@ -292,6 +292,38 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 
 #endif /* CONFIG_GENERIC_CLOCKEVENTS_MIN_ADJUST */
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_COUPLED
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_COUPLED_INLINE
+#include <asm/clock_inlined.h>
+#else
+static __always_inline void
+arch_inlined_clockevent_set_next_coupled(u64 u64 cycles, struct clock_event_device *dev) { }
+#endif
+
+static inline bool clockevent_set_next_coupled(struct clock_event_device *dev, ktime_t expires)
+{
+	u64 cycles;
+
+	if (unlikely(!(dev->features & CLOCK_EVT_FEAT_CLOCKSOURCE_COUPLED)))
+		return false;
+
+	if (unlikely(!ktime_expiry_to_cycles(dev->cs_id, expires, &cycles)))
+		return false;
+
+	if (IS_ENABLED(CONFIG_GENERIC_CLOCKEVENTS_COUPLED_INLINE))
+		arch_inlined_clockevent_set_next_coupled(cycles, dev);
+	else
+		dev->set_next_coupled(cycles, dev);
+	return true;
+}
+
+#else
+static inline bool clockevent_set_next_coupled(struct clock_event_device *dev, ktime_t expires)
+{
+	return false;
+}
+#endif
+
 /**
  * clockevents_program_event - Reprogram the clock event device.
  * @dev:	device to program
@@ -300,11 +332,10 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
  *
  * Returns 0 on success, -ETIME when the event is in the past.
  */
-int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
-			      bool force)
+int clockevents_program_event(struct clock_event_device *dev, ktime_t expires, bool force)
 {
-	unsigned long long clc;
 	int64_t delta;
+	u64 cycles;
 	int rc;
 
 	if (WARN_ON_ONCE(expires < 0))
@@ -323,6 +354,9 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	if (unlikely(dev->features & CLOCK_EVT_FEAT_HRTIMER))
 		return dev->set_next_ktime(expires, dev);
 
+	if (likely(clockevent_set_next_coupled(dev, expires)))
+		return 0;
+
 	delta = ktime_to_ns(ktime_sub(expires, ktime_get()));
 	if (delta <= 0)
 		return force ? clockevents_program_min_delta(dev) : -ETIME;
@@ -330,8 +364,8 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	delta = min(delta, (int64_t) dev->max_delta_ns);
 	delta = max(delta, (int64_t) dev->min_delta_ns);
 
-	clc = ((unsigned long long) delta * dev->mult) >> dev->shift;
-	rc = dev->set_next_event((unsigned long) clc, dev);
+	cycles = ((u64)delta * dev->mult) >> dev->shift;
+	rc = dev->set_next_event((unsigned long) cycles, dev);
 
 	return (rc && force) ? clockevents_program_min_delta(dev) : rc;
 }
