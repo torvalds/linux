@@ -876,6 +876,7 @@ enum {
 	HRTICK_SCHED_NONE		= 0,
 	HRTICK_SCHED_DEFER		= BIT(1),
 	HRTICK_SCHED_START		= BIT(2),
+	HRTICK_SCHED_REARM_HRTIMER	= BIT(3)
 };
 
 static void hrtick_clear(struct rq *rq)
@@ -974,6 +975,8 @@ void hrtick_start(struct rq *rq, u64 delay)
 static inline void hrtick_schedule_enter(struct rq *rq)
 {
 	rq->hrtick_sched = HRTICK_SCHED_DEFER;
+	if (hrtimer_test_and_clear_rearm_deferred())
+		rq->hrtick_sched |= HRTICK_SCHED_REARM_HRTIMER;
 }
 
 static inline void hrtick_schedule_exit(struct rq *rq)
@@ -990,6 +993,9 @@ static inline void hrtick_schedule_exit(struct rq *rq)
 		if (hrtimer_is_queued(&rq->hrtick_timer))
 			hrtimer_cancel(&rq->hrtick_timer);
 	}
+
+	if (rq->hrtick_sched & HRTICK_SCHED_REARM_HRTIMER)
+		__hrtimer_rearm_deferred();
 
 	rq->hrtick_sched = HRTICK_SCHED_NONE;
 }
