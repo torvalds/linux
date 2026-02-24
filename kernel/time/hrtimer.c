@@ -919,8 +919,10 @@ static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base, unsigned int act
 		return false;
 
 	/* If a deferred rearm is pending the remote CPU will take care of it */
-	if (cpu_base->deferred_rearm)
+	if (cpu_base->deferred_rearm) {
+		cpu_base->deferred_needs_update = true;
 		return false;
+	}
 
 	/*
 	 * Walk the affected clock bases and check whether the first expiring
@@ -1141,7 +1143,12 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 	 * a local timer is removed to be immediately restarted. That's handled
 	 * at the call site.
 	 */
-	if (reprogram && timer == cpu_base->next_timer && !timer->is_lazy)
+	if (!reprogram || timer != cpu_base->next_timer || timer->is_lazy)
+		return;
+
+	if (cpu_base->deferred_rearm)
+		cpu_base->deferred_needs_update = true;
+	else
 		hrtimer_force_reprogram(cpu_base, /* skip_equal */ true);
 }
 
@@ -1328,8 +1335,10 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	}
 
 	/* If a deferred rearm is pending skip reprogramming the device */
-	if (cpu_base->deferred_rearm)
+	if (cpu_base->deferred_rearm) {
+		cpu_base->deferred_needs_update = true;
 		return false;
+	}
 
 	if (!was_first || cpu_base != this_cpu_base) {
 		/*
@@ -1939,8 +1948,7 @@ static __latent_entropy void hrtimer_run_softirq(void)
  * Very similar to hrtimer_force_reprogram(), except it deals with
  * deferred_rearm and hang_detected.
  */
-static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now,
-			  ktime_t expires_next, bool deferred)
+static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t expires_next, bool deferred)
 {
 	cpu_base->expires_next = expires_next;
 	cpu_base->deferred_rearm = false;
@@ -1950,7 +1958,7 @@ static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 		 * Give the system a chance to do something else than looping
 		 * on hrtimer interrupts.
 		 */
-		expires_next = ktime_add_ns(now, 100 * NSEC_PER_MSEC);
+		expires_next = ktime_add_ns(ktime_get(), 100 * NSEC_PER_MSEC);
 		cpu_base->hang_detected = false;
 	}
 	hrtimer_rearm_event(expires_next, deferred);
@@ -1960,27 +1968,36 @@ static void hrtimer_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 void __hrtimer_rearm_deferred(void)
 {
 	struct hrtimer_cpu_base *cpu_base = this_cpu_ptr(&hrtimer_bases);
-	ktime_t now, expires_next;
+	ktime_t expires_next;
 
 	if (!cpu_base->deferred_rearm)
 		return;
 
 	guard(raw_spinlock)(&cpu_base->lock);
-	now = hrtimer_update_base(cpu_base);
-	expires_next = hrtimer_update_next_event(cpu_base);
-	hrtimer_rearm(cpu_base, now, expires_next, true);
+	if (cpu_base->deferred_needs_update) {
+		hrtimer_update_base(cpu_base);
+		expires_next = hrtimer_update_next_event(cpu_base);
+	} else {
+		/* No timer added/removed. Use the cached value */
+		expires_next = cpu_base->deferred_expires_next;
+	}
+	hrtimer_rearm(cpu_base, expires_next, true);
 }
 
 static __always_inline void
-hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now, ktime_t expires_next)
+hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t expires_next)
 {
+	/* hrtimer_interrupt() just re-evaluated the first expiring timer */
+	cpu_base->deferred_needs_update = false;
+	/* Cache the expiry time */
+	cpu_base->deferred_expires_next = expires_next;
 	set_thread_flag(TIF_HRTIMER_REARM);
 }
 #else  /* CONFIG_HRTIMER_REARM_DEFERRED */
 static __always_inline void
-hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t now, ktime_t expires_next)
+hrtimer_interrupt_rearm(struct hrtimer_cpu_base *cpu_base, ktime_t expires_next)
 {
-	hrtimer_rearm(cpu_base, now, expires_next, false);
+	hrtimer_rearm(cpu_base, expires_next, false);
 }
 #endif  /* !CONFIG_HRTIMER_REARM_DEFERRED */
 
@@ -2041,7 +2058,7 @@ retry:
 		cpu_base->hang_detected = true;
 	}
 
-	hrtimer_interrupt_rearm(cpu_base, now, expires_next);
+	hrtimer_interrupt_rearm(cpu_base, expires_next);
 	raw_spin_unlock_irqrestore(&cpu_base->lock, flags);
 }
 
