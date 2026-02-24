@@ -207,6 +207,7 @@
 #define OCP_EEE_LPABLE		0xa5d2
 #define OCP_10GBT_CTRL		0xa5d4
 #define OCP_10GBT_STAT		0xa5d6
+#define OCP_EEE_LPABLE2		0xa6d0
 #define OCP_EEE_ADV2		0xa6d4
 #define OCP_PHY_STATE		0xa708		/* nway state for 8153 */
 #define OCP_PHY_PATCH_STAT	0xb800
@@ -948,6 +949,7 @@ struct r8152 {
 	u16 ocp_base;
 	u16 speed;
 	u16 eee_adv;
+	u16 eee_adv2;
 	u8 *intr_buff;
 	u8 version;
 	u8 duplex;
@@ -5393,7 +5395,7 @@ static void r8156_eee_en(struct r8152 *tp, bool enable)
 
 	config = ocp_reg_read(tp, OCP_EEE_ADV2);
 
-	if (enable)
+	if (enable && (tp->eee_adv2 & MDIO_EEE_2_5GT))
 		config |= MDIO_EEE_2_5GT;
 	else
 		config &= ~MDIO_EEE_2_5GT;
@@ -8922,7 +8924,8 @@ static void rtl8152_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 static int r8152_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common) = {};
+	u16 speed = rtl8152_get_speed(tp);
 	u16 val;
 
 	val = r8152_mmd_read(tp, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
@@ -8936,8 +8939,14 @@ static int r8152_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 
 	eee->eee_enabled = tp->eee_en;
 
-	linkmode_and(common, eee->advertised, eee->lp_advertised);
-	eee->eee_active = phy_check_valid(tp->speed, tp->duplex, common);
+	if (speed & _1000bps)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, common);
+	if (speed & _100bps)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, common);
+
+	linkmode_and(common, common, eee->advertised);
+	linkmode_and(common, common, eee->lp_advertised);
+	eee->eee_active = !linkmode_empty(common);
 
 	return 0;
 }
@@ -8948,7 +8957,10 @@ static int r8152_set_eee(struct r8152 *tp, struct ethtool_keee *eee)
 
 	tp->eee_en = eee->eee_enabled;
 	tp->eee_adv = val;
-
+	if (tp->support_2500full) {
+		val = linkmode_to_mii_eee_cap2_t(eee->advertised);
+		tp->eee_adv2 = val;
+	}
 	rtl_eee_enable(tp, tp->eee_en);
 
 	return 0;
@@ -8956,7 +8968,8 @@ static int r8152_set_eee(struct r8152 *tp, struct ethtool_keee *eee)
 
 static int r8153_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common) = {};
+	u16 speed = rtl8152_get_speed(tp);
 	u16 val;
 
 	val = ocp_reg_read(tp, OCP_EEE_ABLE);
@@ -8968,10 +8981,29 @@ static int r8153_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 	val = ocp_reg_read(tp, OCP_EEE_LPABLE);
 	mii_eee_cap1_mod_linkmode_t(eee->lp_advertised, val);
 
+	if (tp->support_2500full) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, eee->supported);
+
+		val = ocp_reg_read(tp, OCP_EEE_ADV2);
+		mii_eee_cap2_mod_linkmode_adv_t(eee->advertised, val);
+
+		val = ocp_reg_read(tp, OCP_EEE_LPABLE2);
+		mii_eee_cap2_mod_linkmode_adv_t(eee->lp_advertised, val);
+
+		if (speed & _2500bps)
+			linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, common);
+	}
+
 	eee->eee_enabled = tp->eee_en;
 
-	linkmode_and(common, eee->advertised, eee->lp_advertised);
-	eee->eee_active = phy_check_valid(tp->speed, tp->duplex, common);
+	if (speed & _1000bps)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, common);
+	if (speed & _100bps)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, common);
+
+	linkmode_and(common, common, eee->advertised);
+	linkmode_and(common, common, eee->lp_advertised);
+	eee->eee_active = !linkmode_empty(common);
 
 	return 0;
 }
@@ -9512,6 +9544,7 @@ static int rtl_ops_init(struct r8152 *tp)
 	case RTL_VER_11:
 		tp->eee_en		= true;
 		tp->eee_adv		= MDIO_EEE_1000T | MDIO_EEE_100TX;
+		tp->eee_adv2		= MDIO_EEE_2_5GT;
 		fallthrough;
 	case RTL_VER_10:
 		ops->init		= r8156_init;
@@ -9537,6 +9570,7 @@ static int rtl_ops_init(struct r8152 *tp)
 	case RTL_VER_15:
 		tp->eee_en		= true;
 		tp->eee_adv		= MDIO_EEE_1000T | MDIO_EEE_100TX;
+		tp->eee_adv2		= MDIO_EEE_2_5GT;
 		ops->init		= r8156b_init;
 		ops->enable		= rtl8156b_enable;
 		ops->disable		= rtl8153_disable;
