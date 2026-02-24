@@ -960,7 +960,7 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 
 	mlx5_pci_vsc_init(dev);
 
-	pci_enable_ptm(pdev, NULL);
+	pci_enable_ptm(pdev);
 
 	return 0;
 

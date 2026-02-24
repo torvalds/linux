@@ -88,7 +88,7 @@ void pci_ptm_init(struct pci_dev *dev)
 
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
 	    pci_pcie_type(dev) == PCI_EXP_TYPE_UPSTREAM)
-		pci_enable_ptm(dev, NULL);
+		pci_enable_ptm(dev);
 }
 
 void pci_save_ptm_state(struct pci_dev *dev)
@@ -182,15 +182,13 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 /**
  * pci_enable_ptm() - Enable Precision Time Measurement
  * @dev: PCI device
- * @granularity: pointer to return granularity
  *
- * Enable Precision Time Measurement for @dev.  If successful and
- * @granularity is non-NULL, return the Effective Granularity.
+ * Enable Precision Time Measurement for @dev.
  *
  * Return: zero if successful, or -EINVAL if @dev lacks a PTM Capability or
  * is not a PTM Root and lacks an upstream path of PTM-enabled devices.
  */
-int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
+int pci_enable_ptm(struct pci_dev *dev)
 {
 	int rc;
 	char clock_desc[8];
@@ -200,9 +198,6 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 		return rc;
 
 	dev->ptm_enabled = 1;
-
-	if (granularity)
-		*granularity = dev->ptm_granularity;
 
 	switch (dev->ptm_granularity) {
 	case 0:
