@@ -3,34 +3,30 @@
  *  Kernel timekeeping code and accessor functions. Based on code from
  *  timer.c, moved in commit 8524070b7982.
  */
-#include <linux/timekeeper_internal.h>
-#include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/kobject.h>
-#include <linux/percpu.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/nmi.h>
-#include <linux/sched.h>
-#include <linux/sched/loadavg.h>
-#include <linux/sched/clock.h>
-#include <linux/syscore_ops.h>
+#include <linux/audit.h>
 #include <linux/clocksource.h>
+#include <linux/compiler.h>
 #include <linux/jiffies.h>
+#include <linux/kobject.h>
+#include <linux/module.h>
+#include <linux/nmi.h>
+#include <linux/pvclock_gtod.h>
+#include <linux/random.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/loadavg.h>
+#include <linux/static_key.h>
+#include <linux/stop_machine.h>
+#include <linux/syscore_ops.h>
+#include <linux/tick.h>
 #include <linux/time.h>
 #include <linux/timex.h>
-#include <linux/tick.h>
-#include <linux/stop_machine.h>
-#include <linux/pvclock_gtod.h>
-#include <linux/compiler.h>
-#include <linux/audit.h>
-#include <linux/random.h>
+#include <linux/timekeeper_internal.h>
 
 #include <vdso/auxclock.h>
 
 #include "tick-internal.h"
-#include "ntp_internal.h"
 #include "timekeeping_internal.h"
+#include "ntp_internal.h"
 
 #define TK_CLEAR_NTP		(1 << 0)
 #define TK_CLOCK_WAS_SET	(1 << 1)
@@ -275,6 +271,11 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 	tk->monotonic_to_boot = ktime_to_timespec64(tk->offs_boot);
 }
 
+#ifdef CONFIG_ARCH_WANTS_CLOCKSOURCE_READ_INLINE
+#include <asm/clock_inlined.h>
+
+static DEFINE_STATIC_KEY_FALSE(clocksource_read_inlined);
+
 /*
  * tk_clock_read - atomic clocksource read() helper
  *
@@ -288,12 +289,35 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
  * a read of the fast-timekeeper tkrs (which is protected by its own locking
  * and update logic).
  */
-static inline u64 tk_clock_read(const struct tk_read_base *tkr)
+static __always_inline u64 tk_clock_read(const struct tk_read_base *tkr)
+{
+	struct clocksource *clock = READ_ONCE(tkr->clock);
+
+	if (static_branch_likely(&clocksource_read_inlined))
+		return arch_inlined_clocksource_read(clock);
+
+	return clock->read(clock);
+}
+
+static inline void clocksource_disable_inline_read(void)
+{
+	static_branch_disable(&clocksource_read_inlined);
+}
+
+static inline void clocksource_enable_inline_read(void)
+{
+	static_branch_enable(&clocksource_read_inlined);
+}
+#else
+static __always_inline u64 tk_clock_read(const struct tk_read_base *tkr)
 {
 	struct clocksource *clock = READ_ONCE(tkr->clock);
 
 	return clock->read(clock);
 }
+static inline void clocksource_disable_inline_read(void) { }
+static inline void clocksource_enable_inline_read(void) { }
+#endif
 
 /**
  * tk_setup_internals - Set up internals to use clocksource clock.
@@ -375,7 +399,7 @@ static noinline u64 delta_to_ns_safe(const struct tk_read_base *tkr, u64 delta)
 	return mul_u64_u32_add_u64_shr(delta, tkr->mult, tkr->xtime_nsec, tkr->shift);
 }
 
-static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
+static __always_inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
 {
 	/* Calculate the delta since the last update_wall_time() */
 	u64 mask = tkr->mask, delta = (cycles - tkr->cycle_last) & mask;
@@ -1631,7 +1655,19 @@ int timekeeping_notify(struct clocksource *clock)
 
 	if (tk->tkr_mono.clock == clock)
 		return 0;
+
+	/* Disable inlined reads accross the clocksource switch */
+	clocksource_disable_inline_read();
+
 	stop_machine(change_clocksource, clock, NULL);
+
+	/*
+	 * If the clocksource has been selected and supports inlined reads
+	 * enable the branch.
+	 */
+	if (tk->tkr_mono.clock == clock && clock->flags & CLOCK_SOURCE_CAN_INLINE_READ)
+		clocksource_enable_inline_read();
+
 	tick_clock_notify();
 	return tk->tkr_mono.clock == clock ? 0 : -1;
 }
