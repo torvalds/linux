@@ -1152,7 +1152,7 @@ static void __remove_hrtimer(struct hrtimer *timer,
 	 * an superfluous call to hrtimer_force_reprogram() on the
 	 * remote cpu later on if the same timer gets enqueued again.
 	 */
-	if (reprogram && timer == cpu_base->next_timer)
+	if (reprogram && timer == cpu_base->next_timer && !timer->is_lazy)
 		hrtimer_force_reprogram(cpu_base, 1);
 }
 
@@ -1319,6 +1319,20 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 			smp_call_function_single_async(new_cpu_base->cpu, &new_cpu_base->csd);
 		}
 		return 0;
+	}
+
+	/*
+	 * Special case for the HRTICK timer. It is frequently rearmed and most
+	 * of the time moves the expiry into the future. That's expensive in
+	 * virtual machines and it's better to take the pointless already armed
+	 * interrupt than reprogramming the hardware on every context switch.
+	 *
+	 * If the new expiry is before the armed time, then reprogramming is
+	 * required.
+	 */
+	if (timer->is_lazy) {
+		if (new_base->cpu_base->expires_next <= hrtimer_get_expires(timer))
+			return 0;
 	}
 
 	/*
@@ -1675,6 +1689,7 @@ static void __hrtimer_setup(struct hrtimer *timer,
 	base += hrtimer_clockid_to_base(clock_id);
 	timer->is_soft = softtimer;
 	timer->is_hard = !!(mode & HRTIMER_MODE_HARD);
+	timer->is_lazy = !!(mode & HRTIMER_MODE_LAZY_REARM);
 	timer->base = &cpu_base->clock_base[base];
 	timerqueue_init(&timer->node);
 
