@@ -28,7 +28,7 @@ enum hrtimer_restart {
  *		was armed.
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
- * @state:	state information (See bit values above)
+ * @is_queued:	Indicates whether a timer is enqueued or not
  * @is_rel:	Set if the timer was armed relative
  * @is_soft:	Set if hrtimer will be expired in soft interrupt context.
  * @is_hard:	Set if hrtimer will be expired in hard interrupt context
@@ -43,11 +43,11 @@ struct hrtimer {
 	ktime_t				_softexpires;
 	enum hrtimer_restart		(*__private function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
-	u8				state;
-	u8				is_rel;
-	u8				is_soft;
-	u8				is_hard;
-	u8				is_lazy;
+	bool				is_queued;
+	bool				is_rel;
+	bool				is_soft;
+	bool				is_hard;
+	bool				is_lazy;
 };
 
 #endif /* _LINUX_HRTIMER_TYPES_H */

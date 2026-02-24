@@ -63,33 +63,6 @@ enum hrtimer_mode {
 	HRTIMER_MODE_REL_PINNED_HARD = HRTIMER_MODE_REL_PINNED | HRTIMER_MODE_HARD,
 };
 
-/*
- * Values to track state of the timer
- *
- * Possible states:
- *
- * 0x00		inactive
- * 0x01		enqueued into rbtree
- *
- * The callback state is not part of the timer->state because clearing it would
- * mean touching the timer after the callback, this makes it impossible to free
- * the timer from the callback function.
- *
- * Therefore we track the callback state in:
- *
- *	timer->base->cpu_base->running == timer
- *
- * On SMP it is possible to have a "callback function running and enqueued"
- * status. It happens for example when a posix timer expired and the callback
- * queued a signal. Between dropping the lock which protects the posix timer
- * and reacquiring the base lock of the hrtimer, another CPU can deliver the
- * signal and rearm the timer.
- *
- * All state transitions are protected by cpu_base->lock.
- */
-#define HRTIMER_STATE_INACTIVE	0x00
-#define HRTIMER_STATE_ENQUEUED	0x01
-
 /**
  * struct hrtimer_sleeper - simple sleeper structure
  * @timer:	embedded timer structure
@@ -300,8 +273,8 @@ extern bool hrtimer_active(const struct hrtimer *timer);
  */
 static inline bool hrtimer_is_queued(struct hrtimer *timer)
 {
-	/* The READ_ONCE pairs with the update functions of timer->state */
-	return !!(READ_ONCE(timer->state) & HRTIMER_STATE_ENQUEUED);
+	/* The READ_ONCE pairs with the update functions of timer->is_queued */
+	return READ_ONCE(timer->is_queued);
 }
 
 /*
