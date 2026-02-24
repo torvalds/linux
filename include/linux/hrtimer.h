@@ -146,12 +146,6 @@ static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
 	return ktime_sub(timer->node.expires, hrtimer_cb_get_time(timer));
 }
 
-static inline int hrtimer_is_hres_active(struct hrtimer *timer)
-{
-	return IS_ENABLED(CONFIG_HIGH_RES_TIMERS) ?
-		timer->base->cpu_base->hres_active : 0;
-}
-
 #ifdef CONFIG_HIGH_RES_TIMERS
 extern unsigned int hrtimer_resolution;
 struct clock_event_device;

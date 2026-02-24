@@ -3019,25 +3019,19 @@ extern unsigned int sysctl_numa_balancing_hot_threshold;
  *  - enabled by features
  *  - hrtimer is actually high res
  */
-static inline int hrtick_enabled(struct rq *rq)
+static inline bool hrtick_enabled(struct rq *rq)
 {
-	if (!cpu_active(cpu_of(rq)))
-		return 0;
-	return hrtimer_is_hres_active(&rq->hrtick_timer);
+	return cpu_active(cpu_of(rq)) && hrtimer_highres_enabled();
 }
 
-static inline int hrtick_enabled_fair(struct rq *rq)
+static inline bool hrtick_enabled_fair(struct rq *rq)
 {
-	if (!sched_feat(HRTICK))
-		return 0;
-	return hrtick_enabled(rq);
+	return sched_feat(HRTICK) && hrtick_enabled(rq);
 }
 
-static inline int hrtick_enabled_dl(struct rq *rq)
+static inline bool hrtick_enabled_dl(struct rq *rq)
 {
-	if (!sched_feat(HRTICK_DL))
-		return 0;
-	return hrtick_enabled(rq);
+	return sched_feat(HRTICK_DL) && hrtick_enabled(rq);
 }
 
 extern void hrtick_start(struct rq *rq, u64 delay);
@@ -3047,22 +3041,9 @@ static inline bool hrtick_active(struct rq *rq)
 }
 
 #else /* !CONFIG_SCHED_HRTICK: */
-
-static inline int hrtick_enabled_fair(struct rq *rq)
-{
-	return 0;
-}
-
-static inline int hrtick_enabled_dl(struct rq *rq)
-{
-	return 0;
-}
-
-static inline int hrtick_enabled(struct rq *rq)
-{
-	return 0;
-}
-
+static inline bool hrtick_enabled_fair(struct rq *rq) { return false; }
+static inline bool hrtick_enabled_dl(struct rq *rq) { return false; }
+static inline bool hrtick_enabled(struct rq *rq) { return false; }
 #endif /* !CONFIG_SCHED_HRTICK */
 
 #ifndef arch_scale_freq_tick
