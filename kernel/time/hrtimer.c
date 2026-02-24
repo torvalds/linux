@@ -441,12 +441,37 @@ static bool hrtimer_fixup_free(void *addr, enum debug_obj_state state)
 	}
 }
 
+/* Stub timer callback for improperly used timers. */
+static enum hrtimer_restart stub_timer(struct hrtimer *unused)
+{
+	WARN_ON_ONCE(1);
+	return HRTIMER_NORESTART;
+}
+
+/*
+ * hrtimer_fixup_assert_init is called when:
+ * - an untracked/uninit-ed object is found
+ */
+static bool hrtimer_fixup_assert_init(void *addr, enum debug_obj_state state)
+{
+	struct hrtimer *timer = addr;
+
+	switch (state) {
+	case ODEBUG_STATE_NOTAVAILABLE:
+		hrtimer_setup(timer, stub_timer, CLOCK_MONOTONIC, 0);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct debug_obj_descr hrtimer_debug_descr = {
-	.name		= "hrtimer",
-	.debug_hint	= hrtimer_debug_hint,
-	.fixup_init	= hrtimer_fixup_init,
-	.fixup_activate	= hrtimer_fixup_activate,
-	.fixup_free	= hrtimer_fixup_free,
+	.name			= "hrtimer",
+	.debug_hint		= hrtimer_debug_hint,
+	.fixup_init		= hrtimer_fixup_init,
+	.fixup_activate		= hrtimer_fixup_activate,
+	.fixup_free		= hrtimer_fixup_free,
+	.fixup_assert_init	= hrtimer_fixup_assert_init,
 };
 
 static inline void debug_hrtimer_init(struct hrtimer *timer)
@@ -470,6 +495,11 @@ static inline void debug_hrtimer_deactivate(struct hrtimer *timer)
 	debug_object_deactivate(timer, &hrtimer_debug_descr);
 }
 
+static inline void debug_hrtimer_assert_init(struct hrtimer *timer)
+{
+	debug_object_assert_init(timer, &hrtimer_debug_descr);
+}
+
 void destroy_hrtimer_on_stack(struct hrtimer *timer)
 {
 	debug_object_free(timer, &hrtimer_debug_descr);
@@ -483,6 +513,7 @@ static inline void debug_hrtimer_init_on_stack(struct hrtimer *timer) { }
 static inline void debug_hrtimer_activate(struct hrtimer *timer,
 					  enum hrtimer_mode mode) { }
 static inline void debug_hrtimer_deactivate(struct hrtimer *timer) { }
+static inline void debug_hrtimer_assert_init(struct hrtimer *timer) { }
 #endif
 
 static inline void debug_setup(struct hrtimer *timer, clockid_t clockid, enum hrtimer_mode mode)
@@ -1358,6 +1389,8 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 {
 	struct hrtimer_clock_base *base;
 	unsigned long flags;
+
+	debug_hrtimer_assert_init(timer);
 
 	/*
 	 * Check whether the HRTIMER_MODE_SOFT bit and hrtimer.is_soft
