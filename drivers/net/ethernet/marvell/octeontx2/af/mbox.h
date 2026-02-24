@@ -1561,6 +1561,14 @@ struct npc_mcam_free_entry_req {
 	u8  all;   /* If all entries allocated to this PFVF to be freed */
 };
 
+struct mcam_entry_mdata {
+	u64 *kw;
+	u64 *kw_mask;
+	u64 *action;
+	u64 *vtag_action;
+	u8 max_kw;
+};
+
 struct mcam_entry {
 #define NPC_MAX_KWS_IN_KEY	8 /* Number of keywords in max keywidth */
 	u64	kw[NPC_MAX_KWS_IN_KEY];
