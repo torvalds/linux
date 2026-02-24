@@ -346,8 +346,7 @@ static void test_task_sleepable(void)
 		close(finish_pipe[1]);
 
 		test_data = malloc(sizeof(char) * 10);
-		strncpy(test_data, "test_data", 10);
-		test_data[9] = '\0';
+		strscpy(test_data, "test_data", 10);
 
 		test_data_long = malloc(sizeof(char) * 5000);
 		for (int i = 0; i < 5000; ++i) {
