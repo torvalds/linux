@@ -252,15 +252,22 @@ static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 	return rt->rt6i_flags & RTF_LOCAL;
 }
 
+static inline bool __ipv6_anycast_destination(const struct rt6key *rt6i_dst,
+					      u32 rt6i_flags,
+					      const struct in6_addr *daddr)
+{
+	return rt6i_flags & RTF_ANYCAST ||
+	       (rt6i_dst->plen < 127 &&
+	       !(rt6i_flags & (RTF_GATEWAY | RTF_NONEXTHOP)) &&
+	       ipv6_addr_equal(&rt6i_dst->addr, daddr));
+}
+
 static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 					    const struct in6_addr *daddr)
 {
 	const struct rt6_info *rt = dst_rt6_info(dst);
 
-	return rt->rt6i_flags & RTF_ANYCAST ||
-		(rt->rt6i_dst.plen < 127 &&
-		 !(rt->rt6i_flags & (RTF_GATEWAY | RTF_NONEXTHOP)) &&
-		 ipv6_addr_equal(&rt->rt6i_dst.addr, daddr));
+	return __ipv6_anycast_destination(&rt->rt6i_dst, rt->rt6i_flags, daddr);
 }
 
 int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
