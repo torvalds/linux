@@ -433,11 +433,6 @@ static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
 	vmcb->control.clean &= ~(1 << bit);
 }
 
-static inline bool vmcb_is_dirty(struct vmcb *vmcb, int bit)
-{
-        return !test_bit(bit, (unsigned long *)&vmcb->control.clean);
-}
-
 static inline bool vmcb12_is_dirty(struct vmcb_ctrl_area_cached *control, int bit)
 {
 	return !test_bit(bit, (unsigned long *)&control->clean);
