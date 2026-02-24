@@ -298,6 +298,9 @@ M(NPC_CN20K_MCAM_READ_ENTRY,	0x6019, npc_cn20k_mcam_read_entry,	\
 				  npc_cn20k_mcam_read_entry_rsp)	\
 M(NPC_CN20K_MCAM_READ_BASE_RULE, 0x601a, npc_cn20k_read_base_steer_rule,       \
 				   msg_req, npc_cn20k_mcam_read_base_rule_rsp) \
+M(NPC_MCAM_DEFRAG,	     0x601b,	npc_defrag,			\
+					msg_req,			\
+					msg_rsp)			\
 /* NIX mbox IDs (range 0x8000 - 0xFFFF) */				\
 M(NIX_LF_ALLOC,		0x8000, nix_lf_alloc,				\
 				 nix_lf_alloc_req, nix_lf_alloc_rsp)	\
@@ -1554,6 +1557,7 @@ struct npc_mcam_alloc_entry_req {
 	u16 ref_entry;
 	u16 count;    /* Number of entries requested */
 	u8 kw_type; /* entry key type, valid for cn20k */
+	u8 virt;    /* Request virtual index */
 };
 
 struct npc_mcam_alloc_entry_rsp {
@@ -1689,6 +1693,7 @@ struct npc_cn20k_mcam_alloc_and_write_entry_req {
 	u8  intf;	 /* Rx or Tx interface */
 	u8  enable_entry;/* Enable this MCAM entry ? */
 	u8  hw_prio;	 /* hardware priority, valid for cn20k */
+	u8  virt;	 /* Allocate virtual index */
 	u16 reserved[4]; /* reserved for future use */
 };
 

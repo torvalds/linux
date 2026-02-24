@@ -16,4 +16,6 @@ void npc_config_kpuaction(struct rvu *rvu, int blkaddr,
 int npc_fwdb_prfl_img_map(struct rvu *rvu, void __iomem **prfl_img_addr,
 			  u64 *size);
 
+void npc_mcam_clear_bit(struct npc_mcam *mcam, u16 index);
+void npc_mcam_set_bit(struct npc_mcam *mcam, u16 index);
 #endif /* RVU_NPC_H */

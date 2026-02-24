@@ -215,6 +215,235 @@ struct npc_mcam_kex_extr *npc_mkex_extr_default_get(void)
 	return &npc_mkex_extr_default;
 }
 
+static u16 npc_idx2vidx(u16 idx)
+{
+	unsigned long index;
+	void *map;
+	u16 vidx;
+	int val;
+
+	vidx = idx;
+	index = idx;
+
+	map = xa_load(&npc_priv.xa_idx2vidx_map, index);
+	if (!map)
+		goto done;
+
+	val = xa_to_value(map);
+	if (val == -1)
+		goto done;
+
+	vidx = val;
+
+done:
+	return vidx;
+}
+
+static bool npc_is_vidx(u16 vidx)
+{
+	return vidx >= npc_priv.bank_depth * 2;
+}
+
+static u16 npc_vidx2idx(u16 vidx)
+{
+	unsigned long sentinel = (unsigned long)-1;
+	unsigned long index;
+	void *map;
+	int val;
+	u16 idx;
+
+	idx = vidx;
+	index = vidx;
+
+	map = xa_load(&npc_priv.xa_vidx2idx_map, index);
+	if (!map)
+		goto done;
+
+	val = xa_to_value(map);
+	if (val == sentinel)
+		goto done;
+
+	idx = val;
+
+done:
+	return idx;
+}
+
+u16 npc_cn20k_vidx2idx(u16 idx)
+{
+	if (!npc_priv.init_done)
+		return idx;
+
+	if (!npc_is_vidx(idx))
+		return idx;
+
+	return npc_vidx2idx(idx);
+}
+
+u16 npc_cn20k_idx2vidx(u16 idx)
+{
+	if (!npc_priv.init_done)
+		return idx;
+
+	if (npc_is_vidx(idx))
+		return idx;
+
+	return npc_idx2vidx(idx);
+}
+
+static int npc_vidx_maps_del_entry(struct rvu *rvu, u16 vidx, u16 *old_midx)
+{
+	u16 mcam_idx;
+	void *map;
+
+	if (!npc_is_vidx(vidx)) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) does not map to proper mcam idx\n",
+			__func__, vidx);
+		return -ESRCH;
+	}
+
+	mcam_idx = npc_vidx2idx(vidx);
+
+	map = xa_erase(&npc_priv.xa_vidx2idx_map, vidx);
+	if (!map) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) does not map to proper mcam idx\n",
+			__func__, vidx);
+		return -ESRCH;
+	}
+
+	map = xa_erase(&npc_priv.xa_idx2vidx_map, mcam_idx);
+	if (!map) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) is not valid\n",
+			__func__, vidx);
+		return -ESRCH;
+	}
+
+	if (old_midx)
+		*old_midx = mcam_idx;
+
+	return 0;
+}
+
+static int npc_vidx_maps_modify(struct rvu *rvu, u16 vidx, u16 new_midx)
+{
+	u16 old_midx;
+	void *map;
+	int rc;
+
+	if (!npc_is_vidx(vidx)) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) does not map to proper mcam idx\n",
+			__func__, vidx);
+		return -ESRCH;
+	}
+
+	map = xa_erase(&npc_priv.xa_vidx2idx_map, vidx);
+	if (!map) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) could not be deleted from vidx2idx map\n",
+			__func__, vidx);
+		return -ESRCH;
+	}
+
+	old_midx = xa_to_value(map);
+
+	rc = xa_insert(&npc_priv.xa_vidx2idx_map, vidx,
+		       xa_mk_value(new_midx), GFP_KERNEL);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: vidx(%u) cannot be added to vidx2idx map\n",
+			__func__, vidx);
+		goto fail1;
+	}
+
+	map = xa_erase(&npc_priv.xa_idx2vidx_map, old_midx);
+	if (!map) {
+		dev_err(rvu->dev,
+			"%s: old_midx(%u, vidx(%u)) cannot be added to idx2vidx map\n",
+			__func__, old_midx, vidx);
+		rc = -ESRCH;
+		goto fail2;
+	}
+
+	rc = xa_insert(&npc_priv.xa_idx2vidx_map, new_midx,
+		       xa_mk_value(vidx), GFP_KERNEL);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: new_midx(%u, vidx(%u)) cannot be added to idx2vidx map\n",
+			__func__, new_midx, vidx);
+		goto fail3;
+	}
+
+	return 0;
+
+fail3:
+	/* Restore vidx at old_midx location */
+	if (xa_insert(&npc_priv.xa_idx2vidx_map, old_midx,
+		      xa_mk_value(vidx), GFP_KERNEL))
+		dev_err(rvu->dev,
+			"%s: Error to roll back idx2vidx old_midx=%u vidx=%u\n",
+			__func__, old_midx, vidx);
+fail2:
+	/* Erase new_midx inserted at vidx */
+	if (!xa_erase(&npc_priv.xa_vidx2idx_map, vidx))
+		dev_err(rvu->dev,
+			"%s: Failed to roll back vidx2idx vidx=%u\n",
+			__func__, vidx);
+
+fail1:
+	/* Restore old_midx at vidx location */
+	if (xa_insert(&npc_priv.xa_vidx2idx_map, vidx,
+		      xa_mk_value(old_midx), GFP_KERNEL))
+		dev_err(rvu->dev,
+			"%s: Failed to roll back vidx2idx to old_midx=%u, vidx=%u\n",
+			__func__, old_midx, vidx);
+
+	return rc;
+}
+
+static int npc_vidx_maps_add_entry(struct rvu *rvu, u16 mcam_idx, int pcifunc,
+				   u16 *vidx)
+{
+	int rc, max, min;
+	u32 id;
+
+	/* Virtual index start from maximum mcam index + 1 */
+	max = npc_priv.bank_depth * 2 * 2 - 1;
+	min = npc_priv.bank_depth * 2;
+
+	rc = xa_alloc(&npc_priv.xa_vidx2idx_map, &id,
+		      xa_mk_value(mcam_idx),
+		      XA_LIMIT(min, max), GFP_KERNEL);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to add to vidx2idx map (%u)\n",
+			__func__, mcam_idx);
+		goto fail1;
+	}
+
+	rc = xa_insert(&npc_priv.xa_idx2vidx_map, mcam_idx,
+		       xa_mk_value(id), GFP_KERNEL);
+	if (rc) {
+		dev_err(rvu->dev,
+			"%s: Failed to add to idx2vidx map (%u)\n",
+			__func__, mcam_idx);
+		goto fail2;
+	}
+
+	if (vidx)
+		*vidx = id;
+
+	return 0;
+
+fail2:
+	xa_erase(&npc_priv.xa_vidx2idx_map, id);
+fail1:
+	return rc;
+}
+
 static void npc_config_kpmcam(struct rvu *rvu, int blkaddr,
 			      const struct npc_kpu_profile_cam *kpucam,
 			      int kpm, int entry)
@@ -1049,6 +1278,8 @@ int rvu_mbox_handler_npc_cn20k_mcam_write_entry(struct rvu *rvu,
 	int blkaddr, rc;
 	u8 nix_intf;
 
+	req->entry = npc_cn20k_vidx2idx(req->entry);
+
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
@@ -1090,6 +1321,8 @@ int rvu_mbox_handler_npc_cn20k_mcam_read_entry(struct rvu *rvu,
 	u16 pcifunc = req->hdr.pcifunc;
 	int blkaddr, rc;
 
+	req->entry = npc_cn20k_vidx2idx(req->entry);
+
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
@@ -1130,6 +1363,7 @@ int rvu_mbox_handler_npc_cn20k_mcam_alloc_and_write_entry(struct rvu *rvu,
 	entry_req.ref_prio = req->ref_prio;
 	entry_req.ref_entry = req->ref_entry;
 	entry_req.count = 1;
+	entry_req.virt = req->virt;
 
 	rc = rvu_mbox_handler_npc_mcam_alloc_entry(rvu,
 						   &entry_req, &entry_rsp);
@@ -1140,7 +1374,8 @@ int rvu_mbox_handler_npc_cn20k_mcam_alloc_and_write_entry(struct rvu *rvu,
 		return NPC_MCAM_ALLOC_FAILED;
 
 	/* entry_req.count is 1, so single entry is allocated */
-	entry = entry_rsp.entry;
+	entry = npc_cn20k_vidx2idx(entry_rsp.entry);
+
 	mutex_lock(&mcam->lock);
 
 	if (is_npc_intf_tx(req->intf))
@@ -1154,7 +1389,7 @@ int rvu_mbox_handler_npc_cn20k_mcam_alloc_and_write_entry(struct rvu *rvu,
 
 	mutex_unlock(&mcam->lock);
 
-	rsp->entry = entry;
+	rsp->entry = entry_rsp.entry;
 	return 0;
 }
 
@@ -1386,8 +1621,8 @@ int npc_mcam_idx_2_key_type(struct rvu *rvu, u16 mcam_idx, u8 *key_type)
 
 	/* mcam_idx should be less than (2 * bank depth) */
 	if (mcam_idx >= npc_priv.bank_depth * 2) {
-		dev_err(rvu->dev, "%s:%d bad params\n",
-			__func__, __LINE__);
+		dev_err(rvu->dev, "%s: bad params\n",
+			__func__);
 		return -EINVAL;
 	}
 
@@ -1401,8 +1636,8 @@ int npc_mcam_idx_2_key_type(struct rvu *rvu, u16 mcam_idx, u8 *key_type)
 	 * number of subbanks available
 	 */
 	if (sb_id >= npc_priv.num_subbanks) {
-		dev_err(rvu->dev, "%s:%d invalid subbank %d\n",
-			__func__, __LINE__, sb_id);
+		dev_err(rvu->dev, "%s: invalid subbank %d\n",
+			__func__, sb_id);
 		return -EINVAL;
 	}
 
@@ -2259,14 +2494,15 @@ static int npc_idx_free(struct rvu *rvu, u16 *mcam_idx, int count,
 			bool maps_del)
 {
 	struct npc_subbank *sb;
-	int idx, i;
+	u16 vidx, midx;
+	int sb_off, i;
 	bool ret;
 	int rc;
 
 	/* Check if we can dealloc indexes properly ? */
 	for (i = 0; i < count; i++) {
-		rc =  npc_mcam_idx_2_subbank_idx(rvu, mcam_idx[i],
-						 &sb, &idx);
+		rc =  npc_mcam_idx_2_subbank_idx(rvu, npc_vidx2idx(mcam_idx[i]),
+						 &sb, &sb_off);
 		if (rc) {
 			dev_err(rvu->dev,
 				"Failed to free mcam idx=%u\n", mcam_idx[i]);
@@ -2275,19 +2511,50 @@ static int npc_idx_free(struct rvu *rvu, u16 *mcam_idx, int count,
 	}
 
 	for (i = 0; i < count; i++) {
-		rc =  npc_mcam_idx_2_subbank_idx(rvu, mcam_idx[i],
-						 &sb, &idx);
-		if (rc)
-			return rc;
+		if (npc_is_vidx(mcam_idx[i])) {
+			vidx = mcam_idx[i];
+			midx = npc_vidx2idx(vidx);
+		} else {
+			midx = mcam_idx[i];
+			vidx = npc_idx2vidx(midx);
+		}
 
-		ret = npc_subbank_free(rvu, sb, idx);
-		if (ret)
+		if (midx >= npc_priv.bank_depth * npc_priv.num_banks) {
+			dev_err(rvu->dev,
+				"%s: Invalid mcam_idx=%u cannot be deleted\n",
+				__func__, mcam_idx[i]);
 			return -EINVAL;
+		}
+
+		rc =  npc_mcam_idx_2_subbank_idx(rvu, midx,
+						 &sb, &sb_off);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: Failed to find subbank info for vidx=%u\n",
+				__func__, vidx);
+			return rc;
+		}
+
+		ret = npc_subbank_free(rvu, sb, sb_off);
+		if (ret) {
+			dev_err(rvu->dev,
+				"%s: Failed to find subbank info for vidx=%u\n",
+				__func__, vidx);
+			return -EINVAL;
+		}
 
 		if (!maps_del)
 			continue;
 
-		rc = npc_del_from_pf_maps(rvu, mcam_idx[i]);
+		rc = npc_del_from_pf_maps(rvu, midx);
+		if (rc)
+			return rc;
+
+		/* If there is no vidx mapping; continue */
+		if (vidx == midx)
+			continue;
+
+		rc = npc_vidx_maps_del_entry(rvu, vidx, NULL);
 		if (rc)
 			return rc;
 	}
@@ -2803,10 +3070,12 @@ int npc_cn20k_idx_free(struct rvu *rvu, u16 *mcam_idx, int count)
 
 int npc_cn20k_ref_idx_alloc(struct rvu *rvu, int pcifunc, int key_type,
 			    int prio, u16 *mcam_idx, int ref, int limit,
-			    bool contig, int count)
+			    bool contig, int count, bool virt)
 {
+	bool defrag_candidate = false;
 	int i, eidx, rc, bd;
 	bool ref_valid;
+	u16 vidx;
 
 	bd = npc_priv.bank_depth;
 
@@ -2824,6 +3093,7 @@ int npc_cn20k_ref_idx_alloc(struct rvu *rvu, int pcifunc, int key_type,
 	}
 
 	ref_valid = !!(limit || ref);
+	defrag_candidate = !ref_valid && !contig && virt;
 	if (!ref_valid) {
 		if (contig && count > npc_priv.subbank_depth)
 			goto try_noref_multi_subbank;
@@ -2890,15 +3160,35 @@ try_ref_multi_subbank:
 add2map:
 	for (i = 0; i < count; i++) {
 		rc = npc_add_to_pf_maps(rvu, mcam_idx[i], pcifunc);
-		if (rc) {
-			for (int j = 0; j < i; j++)
-				npc_del_from_pf_maps(rvu, mcam_idx[j]);
+		if (rc)
+			goto err;
 
-			return rc;
+		if (!defrag_candidate)
+			continue;
+
+		rc = npc_vidx_maps_add_entry(rvu, mcam_idx[i], pcifunc, &vidx);
+		if (rc) {
+			npc_del_from_pf_maps(rvu, mcam_idx[i]);
+			goto err;
 		}
+
+		/* Return vidx to caller */
+		mcam_idx[i] = vidx;
 	}
 
 	return 0;
+err:
+	for (int j = 0; j < i; j++) {
+		npc_del_from_pf_maps(rvu, npc_vidx2idx(mcam_idx[j]));
+
+		if (!defrag_candidate)
+			continue;
+
+		npc_vidx_maps_del_entry(rvu, mcam_idx[j], NULL);
+	}
+
+	return rc;
+
 }
 
 void npc_cn20k_subbank_calc_free(struct rvu *rvu, int *x2_free,
@@ -3068,6 +3358,524 @@ chk_vfs:
 	}
 
 	return cnt;
+}
+
+struct npc_defrag_node {
+	u8 idx;
+	u8 key_type;
+	bool valid;
+	bool refs;
+	u16 free_cnt;
+	u16 vidx_cnt;
+	u16 *vidx;
+	struct list_head list;
+};
+
+static bool npc_defrag_skip_restricted_sb(int sb_id)
+{
+	int i;
+
+	if (!restrict_valid)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(npc_subbank_restricted_idxs); i++)
+		if (sb_id == npc_subbank_restricted_idxs[i])
+			return true;
+	return false;
+}
+
+/* Find subbank with minimum number of virtual indexes */
+static struct npc_defrag_node *npc_subbank_min_vidx(struct list_head *lh)
+{
+	struct npc_defrag_node *node, *tnode = NULL;
+	int min = INT_MAX;
+
+	list_for_each_entry(node, lh, list) {
+		if (!node->valid)
+			continue;
+
+		/* if subbank has ref allocated mcam indexes, that subbank
+		 * is not a good candidate to move out indexes.
+		 */
+		if (node->refs)
+			continue;
+
+		if (min > node->vidx_cnt) {
+			min = node->vidx_cnt;
+			tnode = node;
+		}
+	}
+
+	return tnode;
+}
+
+/* Find subbank with maximum number of free spaces */
+static struct npc_defrag_node *npc_subbank_max_free(struct list_head *lh)
+{
+	struct npc_defrag_node *node, *tnode = NULL;
+	int max = INT_MIN;
+
+	list_for_each_entry(node, lh, list) {
+		if (!node->valid)
+			continue;
+
+		if (max < node->free_cnt) {
+			max = node->free_cnt;
+			tnode = node;
+		}
+	}
+
+	return tnode;
+}
+
+static int npc_defrag_alloc_free_slots(struct rvu *rvu,
+				       struct npc_defrag_node *f,
+				       int cnt, u16 *save)
+{
+	int alloc_cnt1, alloc_cnt2;
+	struct npc_subbank *sb;
+	int rc, sb_off, i;
+	bool deleted;
+
+	sb = &npc_priv.sb[f->idx];
+
+	alloc_cnt1 = 0;
+	alloc_cnt2 = 0;
+
+	rc = __npc_subbank_alloc(rvu, sb,
+				 NPC_MCAM_KEY_X2, sb->b0b,
+				 sb->b0t,
+				 NPC_MCAM_LOWER_PRIO,
+				 false, cnt, save, cnt, true,
+				 &alloc_cnt1);
+	if (alloc_cnt1 < cnt) {
+		rc = __npc_subbank_alloc(rvu, sb,
+					 NPC_MCAM_KEY_X2, sb->b1b,
+					 sb->b1t,
+					 NPC_MCAM_LOWER_PRIO,
+					 false, cnt - alloc_cnt1,
+					 save + alloc_cnt1,
+					 cnt - alloc_cnt1,
+					 true, &alloc_cnt2);
+	}
+
+	if (alloc_cnt1 + alloc_cnt2 != cnt) {
+		dev_err(rvu->dev,
+			"%s: Failed to alloc cnt=%u alloc_cnt1=%u alloc_cnt2=%u\n",
+			__func__, cnt, alloc_cnt1, alloc_cnt2);
+		goto fail_free_alloc;
+	}
+	return 0;
+
+fail_free_alloc:
+	for (i = 0; i < alloc_cnt1 + alloc_cnt2; i++) {
+		rc =  npc_mcam_idx_2_subbank_idx(rvu, save[i],
+						 &sb, &sb_off);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: Error to find subbank for mcam idx=%u\n",
+				__func__, save[i]);
+			break;
+		}
+
+		deleted = __npc_subbank_free(rvu, sb, sb_off);
+		if (!deleted) {
+			dev_err(rvu->dev,
+				"%s: Error to free mcam idx=%u\n",
+				__func__, save[i]);
+			break;
+		}
+	}
+
+	return rc;
+}
+
+static int npc_defrag_add_2_show_list(struct rvu *rvu, u16 old_midx,
+				      u16 new_midx, u16 vidx)
+{
+	struct npc_defrag_show_node *node;
+
+	node = kcalloc(1, sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	node->old_midx = old_midx;
+	node->new_midx = new_midx;
+	node->vidx = vidx;
+	INIT_LIST_HEAD(&node->list);
+
+	mutex_lock(&npc_priv.lock);
+	list_add_tail(&node->list, &npc_priv.defrag_lh);
+	mutex_unlock(&npc_priv.lock);
+
+	return 0;
+}
+
+static
+int npc_defrag_move_vdx_to_free(struct rvu *rvu,
+				struct npc_defrag_node *f,
+				struct npc_defrag_node *v,
+				int cnt, u16 *save)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int i, vidx_cnt, rc, sb_off;
+	u16 new_midx, old_midx, vidx;
+	struct npc_subbank *sb;
+	bool deleted;
+	u16 pcifunc;
+	int blkaddr;
+	void *map;
+	u8 bank;
+	u16 midx;
+	u64 stats;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+
+	vidx_cnt = v->vidx_cnt;
+	for (i = 0; i < cnt; i++) {
+		vidx = v->vidx[vidx_cnt - i - 1];
+		old_midx = npc_vidx2idx(vidx);
+		new_midx = save[cnt - i - 1];
+
+		dev_dbg(rvu->dev,
+			"%s: Moving %u ---> %u  (vidx=%u)\n",
+			__func__,
+			old_midx, new_midx, vidx);
+
+		rc = npc_defrag_add_2_show_list(rvu, old_midx, new_midx, vidx);
+		if (rc)
+			dev_err(rvu->dev,
+				"%s: Error happened to add to show list vidx=%u\n",
+				__func__, vidx);
+
+		/* Modify vidx to point to new mcam idx */
+		rc = npc_vidx_maps_modify(rvu, vidx, new_midx);
+		if (rc)
+			return rc;
+
+		midx = old_midx % mcam->banksize;
+		bank = old_midx / mcam->banksize;
+		stats = rvu_read64(rvu, blkaddr,
+				   NPC_AF_CN20K_MCAMEX_BANKX_STAT_EXT(midx,
+								      bank));
+
+		npc_cn20k_enable_mcam_entry(rvu, blkaddr, old_midx, false);
+		npc_cn20k_copy_mcam_entry(rvu, blkaddr, old_midx, new_midx);
+		npc_cn20k_enable_mcam_entry(rvu, blkaddr, new_midx, true);
+
+		midx = new_midx % mcam->banksize;
+		bank = new_midx / mcam->banksize;
+		rvu_write64(rvu, blkaddr,
+			    NPC_AF_CN20K_MCAMEX_BANKX_STAT_EXT(midx, bank),
+			    stats);
+
+		/* Free the old mcam idx */
+		rc =  npc_mcam_idx_2_subbank_idx(rvu, old_midx,
+						 &sb, &sb_off);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: Unable to calculate subbank off for mcamidx=%u\n",
+				__func__, old_midx);
+			return rc;
+		}
+
+		deleted = __npc_subbank_free(rvu, sb, sb_off);
+		if (!deleted) {
+			dev_err(rvu->dev,
+				"%s:  Failed to free mcamidx=%u sb=%u sb_off=%u\n",
+				__func__, old_midx, sb->idx, sb_off);
+			return -EFAULT;
+		}
+
+		/* save pcifunc */
+		map = xa_load(&npc_priv.xa_idx2pf_map, old_midx);
+		pcifunc = xa_to_value(map);
+
+		/* delete from pf maps */
+		rc =  npc_del_from_pf_maps(rvu, old_midx);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s:  Failed to delete pf maps for mcamidx=%u\n",
+				__func__, old_midx);
+			return rc;
+		}
+
+		/* add new mcam_idx to pf map */
+		rc = npc_add_to_pf_maps(rvu, new_midx, pcifunc);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s:  Failed to add pf maps for mcamidx=%u\n",
+				__func__, new_midx);
+			return rc;
+		}
+
+		/* Remove from mcam maps */
+		mcam->entry2pfvf_map[old_midx] = NPC_MCAM_INVALID_MAP;
+		mcam->entry2cntr_map[old_midx] = NPC_MCAM_INVALID_MAP;
+		npc_mcam_clear_bit(mcam, old_midx);
+
+		mcam->entry2pfvf_map[new_midx] = pcifunc;
+		/* Counter is not preserved */
+		mcam->entry2cntr_map[new_midx] = new_midx;
+		npc_mcam_set_bit(mcam, new_midx);
+
+		/* Mark as invalid */
+		v->vidx[vidx_cnt - i - 1] = -1;
+		save[cnt - i - 1] = -1;
+
+		f->free_cnt--;
+		v->vidx_cnt--;
+	}
+
+	return 0;
+}
+
+static int npc_defrag_process(struct rvu *rvu, struct list_head *lh)
+{
+	struct npc_defrag_node *v = NULL;
+	struct npc_defrag_node *f = NULL;
+	int rc = 0, cnt;
+	u16 *save;
+
+	while (1) {
+		/* Find subbank with minimum vidx */
+		if (!v) {
+			v = npc_subbank_min_vidx(lh);
+			if (!v)
+				break;
+		}
+
+		/* Find subbank with maximum free slots */
+		if (!f) {
+			f = npc_subbank_max_free(lh);
+			if (!f)
+				break;
+		}
+
+		if (!v->vidx_cnt) {
+			list_del_init(&v->list);
+			v = NULL;
+			continue;
+		}
+
+		if (!f->free_cnt) {
+			list_del_init(&f->list);
+			f = NULL;
+			continue;
+		}
+
+		/* If both subbanks are same, choose vidx and
+		 * search for free list again
+		 */
+		if (f == v) {
+			list_del_init(&f->list);
+			f = NULL;
+			continue;
+		}
+
+		/* Calculate minimum free slots needs to be allocated */
+		cnt = f->free_cnt > v->vidx_cnt ? v->vidx_cnt :
+			f->free_cnt;
+
+		dev_dbg(rvu->dev,
+			"%s: cnt=%u free_cnt=%u(sb=%u) vidx_cnt=%u(sb=%u)\n",
+			__func__, cnt, f->free_cnt, f->idx,
+			v->vidx_cnt, v->idx);
+
+		/* Allocate an array to store newly allocated
+		 * free slots (mcam indexes)
+		 */
+		save = kcalloc(cnt, sizeof(*save), GFP_KERNEL);
+		if (!save) {
+			rc = -ENOMEM;
+			goto err;
+		}
+
+		/* Alloc free slots for existing vidx */
+		rc = npc_defrag_alloc_free_slots(rvu, f, cnt, save);
+		if (rc) {
+			kfree(save);
+			goto err;
+		}
+
+		/* Move vidx to free slots; update pf_map and vidx maps,
+		 * and free existing vidx mcam slots
+		 */
+		rc = npc_defrag_move_vdx_to_free(rvu, f, v, cnt, save);
+		if (rc) {
+			kfree(save);
+			goto err;
+		}
+
+		kfree(save);
+
+		if (!f->free_cnt) {
+			list_del_init(&f->list);
+			f = NULL;
+		}
+
+		if (!v->vidx_cnt) {
+			list_del_init(&v->list);
+			v = NULL;
+		}
+	}
+
+err:
+	/* Whole defragmentation process is done within locks. if there
+	 * is an error, it would be hard to roll back as index remove/add
+	 * can fail again if it failed before. This would mean that there
+	 * is bug in the index management algorithm.
+	 * Return from here than rolling back.
+	 */
+	return rc;
+}
+
+static void npc_defrag_list_clear(void)
+{
+	struct npc_defrag_show_node *node, *next;
+
+	mutex_lock(&npc_priv.lock);
+	list_for_each_entry_safe(node, next, &npc_priv.defrag_lh, list) {
+		list_del_init(&node->list);
+		kfree(node);
+	}
+
+	mutex_unlock(&npc_priv.lock);
+}
+
+static void npc_lock_all_subbank(void)
+{
+	int i;
+
+	for (i = 0; i < npc_priv.num_subbanks; i++)
+		mutex_lock(&npc_priv.sb[i].lock);
+}
+
+static void npc_unlock_all_subbank(void)
+{
+	int i;
+
+	for (i = npc_priv.num_subbanks - 1; i >= 0; i--)
+		mutex_unlock(&npc_priv.sb[i].lock);
+}
+
+/* Only non-ref non-contigous mcam indexes
+ * are picked for defrag process
+ */
+int npc_cn20k_defrag(struct rvu *rvu)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct npc_defrag_node *node, *tnode;
+	struct list_head x4lh, x2lh, *lh;
+	int rc = 0, i, sb_off, tot;
+	struct npc_subbank *sb;
+	unsigned long index;
+	void *map;
+	u16 midx;
+
+	/* Free previous show list */
+	npc_defrag_list_clear();
+
+	INIT_LIST_HEAD(&x4lh);
+	INIT_LIST_HEAD(&x2lh);
+
+	node = kcalloc(npc_priv.num_subbanks, sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	/* Lock mcam */
+	mutex_lock(&mcam->lock);
+	npc_lock_all_subbank();
+
+	/* Fill in node with subbank properties */
+	for (i = 0; i < npc_priv.num_subbanks; i++) {
+		sb = &npc_priv.sb[i];
+
+		node[i].idx = i;
+		node[i].key_type = sb->key_type;
+		node[i].free_cnt = sb->free_cnt;
+		node[i].vidx = kcalloc(npc_priv.subbank_depth * 2,
+				       sizeof(*node[i].vidx),
+				       GFP_KERNEL);
+		if (!node[i].vidx) {
+			rc = -ENOMEM;
+			goto free_vidx;
+		}
+
+		/* If subbank is empty, dont include it in defrag
+		 * process
+		 */
+		if (sb->flags & NPC_SUBBANK_FLAG_FREE) {
+			node[i].valid = false;
+			continue;
+		}
+
+		if (npc_defrag_skip_restricted_sb(i)) {
+			node[i].valid = false;
+			continue;
+		}
+
+		node[i].valid = true;
+		INIT_LIST_HEAD(&node[i].list);
+
+		/* Add node to x2 or x4 list */
+		lh = sb->key_type == NPC_MCAM_KEY_X2 ? &x2lh : &x4lh;
+		list_add_tail(&node[i].list, lh);
+	}
+
+	/* Filling vidx[] array with all vidx in that subbank */
+	xa_for_each_start(&npc_priv.xa_vidx2idx_map, index, map,
+			  npc_priv.bank_depth * 2) {
+		midx = xa_to_value(map);
+		rc =  npc_mcam_idx_2_subbank_idx(rvu, midx,
+						 &sb, &sb_off);
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: Error to get mcam_idx for vidx=%lu\n",
+				__func__, index);
+			goto free_vidx;
+		}
+
+		tnode = &node[sb->idx];
+		tnode->vidx[tnode->vidx_cnt] = index;
+		tnode->vidx_cnt++;
+	}
+
+	/* Mark all subbank which has ref allocation */
+	for (i = 0; i < npc_priv.num_subbanks; i++) {
+		tnode = &node[i];
+
+		if (!tnode->valid)
+			continue;
+
+		tot = (tnode->key_type == NPC_MCAM_KEY_X2) ?
+			npc_priv.subbank_depth * 2 : npc_priv.subbank_depth;
+
+		if (node[i].vidx_cnt != tot - tnode->free_cnt)
+			tnode->refs = true;
+	}
+
+	rc =  npc_defrag_process(rvu, &x2lh);
+	if (rc)
+		goto free_vidx;
+
+	rc =  npc_defrag_process(rvu, &x4lh);
+	if (rc)
+		goto free_vidx;
+
+free_vidx:
+	npc_unlock_all_subbank();
+	mutex_unlock(&mcam->lock);
+	for (i = 0; i < npc_priv.num_subbanks; i++)
+		kfree(node[i].vidx);
+	kfree(node);
+	return rc;
+}
+
+int rvu_mbox_handler_npc_defrag(struct rvu *rvu, struct msg_req *req,
+				struct msg_rsp *rsp)
+{
+	return npc_cn20k_defrag(rvu);
 }
 
 int npc_cn20k_dft_rules_idx_get(struct rvu *rvu, u16 pcifunc, u16 *bcast,
@@ -3473,6 +4281,8 @@ static int npc_priv_init(struct rvu *rvu)
 	xa_init_flags(&npc_priv.xa_idx2pf_map, XA_FLAGS_ALLOC);
 	xa_init_flags(&npc_priv.xa_pf_map, XA_FLAGS_ALLOC);
 	xa_init_flags(&npc_priv.xa_pf2dfl_rmap, XA_FLAGS_ALLOC);
+	xa_init_flags(&npc_priv.xa_idx2vidx_map, XA_FLAGS_ALLOC);
+	xa_init_flags(&npc_priv.xa_vidx2idx_map, XA_FLAGS_ALLOC);
 
 	if (npc_create_srch_order(num_subbanks))
 		goto fail1;
@@ -3494,6 +4304,9 @@ static int npc_priv_init(struct rvu *rvu)
 	for (i = 0; i < npc_priv.pf_cnt; i++)
 		xa_init_flags(&npc_priv.xa_pf2idx_map[i], XA_FLAGS_ALLOC);
 
+	INIT_LIST_HEAD(&npc_priv.defrag_lh);
+	mutex_init(&npc_priv.lock);
+
 	return 0;
 
 fail2:
@@ -3506,6 +4319,8 @@ fail1:
 	xa_destroy(&npc_priv.xa_idx2pf_map);
 	xa_destroy(&npc_priv.xa_pf_map);
 	xa_destroy(&npc_priv.xa_pf2dfl_rmap);
+	xa_destroy(&npc_priv.xa_idx2vidx_map);
+	xa_destroy(&npc_priv.xa_vidx2idx_map);
 	kfree(npc_priv.sb);
 	npc_priv.sb = NULL;
 	return -ENOMEM;
@@ -3520,6 +4335,8 @@ void npc_cn20k_deinit(struct rvu *rvu)
 	xa_destroy(&npc_priv.xa_idx2pf_map);
 	xa_destroy(&npc_priv.xa_pf_map);
 	xa_destroy(&npc_priv.xa_pf2dfl_rmap);
+	xa_destroy(&npc_priv.xa_idx2vidx_map);
+	xa_destroy(&npc_priv.xa_vidx2idx_map);
 
 	for (i = 0; i < npc_priv.pf_cnt; i++)
 		xa_destroy(&npc_priv.xa_pf2idx_map[i]);

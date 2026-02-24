@@ -148,6 +148,23 @@ struct npc_subbank {
 };
 
 /**
+ * struct npc_defrag_show_node - Defragmentation show node
+ * @old_midx:	Old mcam index.
+ * @new_midx:	New mcam index.
+ * @vidx:	Virtual index
+ * @list:	Linked list of these nodes
+ *
+ * This structure holds information on last defragmentation
+ * executed on mcam resource.
+ */
+struct npc_defrag_show_node {
+	u16 old_midx;
+	u16 new_midx;
+	u16 vidx;
+	struct list_head list;
+};
+
+/**
  * struct npc_priv_t - NPC private structure.
  * @bank_depth:		Total entries in each bank.
  * @num_banks:		Number of banks.
@@ -163,6 +180,10 @@ struct npc_subbank {
  * @pf_cnt:		Number of PFs.
  * @init_done:		Indicates MCAM initialization is done.
  * @xa_pf2dfl_rmap:	PF to default rule index map.
+ * @xa_idx2vidx_map:	Mcam index to virtual index map.
+ * @xa_vidx2idx_map:	virtual index to mcam index map.
+ * @defrag_lh:		Defrag list head.
+ * @lock:		Lock for defrag list
  *
  * This structure is populated during probing time by reading
  * HW csr registers.
@@ -180,6 +201,10 @@ struct npc_priv_t {
 	struct xarray xa_idx2pf_map;
 	struct xarray xa_pf_map;
 	struct xarray xa_pf2dfl_rmap;
+	struct xarray xa_idx2vidx_map;
+	struct xarray xa_vidx2idx_map;
+	struct list_head defrag_lh;
+	struct mutex lock; /* protect defrag nodes */
 	int pf_cnt;
 	bool init_done;
 };
@@ -276,7 +301,7 @@ void npc_cn20k_subbank_calc_free(struct rvu *rvu, int *x2_free,
 
 int npc_cn20k_ref_idx_alloc(struct rvu *rvu, int pcifunc, int key_type,
 			    int prio, u16 *mcam_idx, int ref, int limit,
-			    bool contig, int count);
+			    bool contig, int count, bool virt);
 int npc_cn20k_idx_free(struct rvu *rvu, u16 *mcam_idx, int count);
 void npc_cn20k_parser_profile_init(struct rvu *rvu, int blkaddr);
 struct npc_mcam_kex_extr *npc_mkex_extr_default_get(void);
@@ -309,5 +334,8 @@ void npc_cn20k_read_mcam_entry(struct rvu *rvu, int blkaddr, u16 index,
 void npc_cn20k_clear_mcam_entry(struct rvu *rvu, int blkaddr,
 				int bank, int index);
 int npc_mcam_idx_2_key_type(struct rvu *rvu, u16 mcam_idx, u8 *key_type);
+u16 npc_cn20k_vidx2idx(u16 index);
+u16 npc_cn20k_idx2vidx(u16 idx);
+int npc_cn20k_defrag(struct rvu *rvu);
 
 #endif /* NPC_CN20K_H */
