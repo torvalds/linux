@@ -349,69 +349,64 @@ static struct dentry *ovl_dentry_real_at(struct dentry *dentry, int idx)
 	return NULL;
 }
 
-/*
- * Lookup a child overlay dentry to get a connected overlay dentry whose real
- * dentry is @real. If @real is on upper layer, we lookup a child overlay
- * dentry with the same name as the real dentry. Otherwise, we need to consult
- * index for lookup.
+/**
+ * ovl_lookup_real_one -  Lookup a child overlay dentry to get an overlay dentry whose real dentry is given
+ * @connected: parent overlay dentry
+ * @real: given child real dentry
+ * @layer: layer in which @real exists
+ *
+ *
+ * Lookup a child overlay dentry in @connected with the same name as the @real
+ * dentry.  Then check that the parent of the result is the real dentry for
+ * @connected, and @real is the real dentry for the result.
+ *
+ * Returns:
+ *   %-ECHILD if the parent of @real is no longer the real dentry for @connected.
+ *   %-ESTALE if @real is not the real dentry of the found dentry.
+ *   Otherwise the found dentry is returned.
  */
 static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 					  struct dentry *real,
 					  const struct ovl_layer *layer)
 {
-	struct inode *dir = d_inode(connected);
-	struct dentry *this, *parent = NULL;
+	struct dentry *this;
 	struct name_snapshot name;
 	int err;
 
 	/*
-	 * Lookup child overlay dentry by real name. The dir mutex protects us
-	 * from racing with overlay rename. If the overlay dentry that is above
-	 * real has already been moved to a parent that is not under the
-	 * connected overlay dir, we return -ECHILD and restart the lookup of
-	 * connected real path from the top.
-	 */
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	err = -ECHILD;
-	parent = dget_parent(real);
-	if (ovl_dentry_real_at(connected, layer->idx) != parent)
-		goto fail;
-
-	/*
-	 * We also need to take a snapshot of real dentry name to protect us
+	 * We need to take a snapshot of real dentry name to protect us
 	 * from racing with underlying layer rename. In this case, we don't
 	 * care about returning ESTALE, only from dereferencing a free name
 	 * pointer because we hold no lock on the real dentry.
 	 */
 	take_dentry_name_snapshot(&name, real);
-	/*
-	 * No idmap handling here: it's an internal lookup.
-	 */
-	this = lookup_noperm(&name.name, connected);
+	this = lookup_noperm_unlocked(&name.name, connected);
 	release_dentry_name_snapshot(&name);
-	err = PTR_ERR(this);
-	if (IS_ERR(this)) {
-		goto fail;
-	} else if (!this || !this->d_inode) {
-		dput(this);
-		err = -ENOENT;
-		goto fail;
-	} else if (ovl_dentry_real_at(this, layer->idx) != real) {
-		dput(this);
-		err = -ESTALE;
-		goto fail;
-	}
 
-out:
-	dput(parent);
-	inode_unlock(dir);
+	err = -ECHILD;
+	if (ovl_dentry_real_at(connected, layer->idx) != real->d_parent)
+		goto fail;
+
+	err = PTR_ERR(this);
+	if (IS_ERR(this))
+		goto fail;
+
+	err = -ENOENT;
+	if (!this || !this->d_inode)
+		goto fail;
+
+	err = -ESTALE;
+	if (ovl_dentry_real_at(this, layer->idx) != real)
+		goto fail;
+
 	return this;
 
 fail:
 	pr_warn_ratelimited("failed to lookup one by real (%pd2, layer=%d, connected=%pd2, err=%i)\n",
 			    real, layer->idx, connected, err);
-	this = ERR_PTR(err);
-	goto out;
+	if (!IS_ERR(this))
+		dput(this);
+	return ERR_PTR(err);
 }
 
 static struct dentry *ovl_lookup_real(struct super_block *sb,
