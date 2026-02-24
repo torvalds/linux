@@ -79,7 +79,7 @@ static void rawdata_f_data_free(struct rawdata_f_data *private)
 	if (!private)
 		return;
 
-	aa_put_loaddata(private->loaddata);
+	aa_put_i_loaddata(private->loaddata);
 	kvfree(private);
 }
 
@@ -409,7 +409,8 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 
 	data->size = copy_size;
 	if (copy_from_user(data->data, userbuf, copy_size)) {
-		aa_put_loaddata(data);
+		/* trigger free - don't need to put pcount */
+		aa_put_i_loaddata(data);
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -437,7 +438,10 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 	error = PTR_ERR(data);
 	if (!IS_ERR(data)) {
 		error = aa_replace_profiles(ns, label, mask, data);
-		aa_put_loaddata(data);
+		/* put pcount, which will put count and free if no
+		 * profiles referencing it.
+		 */
+		aa_put_profile_loaddata(data);
 	}
 end_section:
 	end_current_label_crit_section(label);
@@ -508,7 +512,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	if (!IS_ERR(data)) {
 		data->data[size] = 0;
 		error = aa_remove_profiles(ns, label, data->data, size);
-		aa_put_loaddata(data);
+		aa_put_profile_loaddata(data);
 	}
  out:
 	end_current_label_crit_section(label);
@@ -1255,18 +1259,17 @@ static const struct file_operations seq_rawdata_ ##NAME ##_fops = {	      \
 static int seq_rawdata_open(struct inode *inode, struct file *file,
 			    int (*show)(struct seq_file *, void *))
 {
-	struct aa_loaddata *data = __aa_get_loaddata(inode->i_private);
+	struct aa_loaddata *data = aa_get_i_loaddata(inode->i_private);
 	int error;
 
 	if (!data)
-		/* lost race this ent is being reaped */
 		return -ENOENT;
 
 	error = single_open(file, show, data);
 	if (error) {
 		AA_BUG(file->private_data &&
 		       ((struct seq_file *)file->private_data)->private);
-		aa_put_loaddata(data);
+		aa_put_i_loaddata(data);
 	}
 
 	return error;
@@ -1277,7 +1280,7 @@ static int seq_rawdata_release(struct inode *inode, struct file *file)
 	struct seq_file *seq = (struct seq_file *) file->private_data;
 
 	if (seq)
-		aa_put_loaddata(seq->private);
+		aa_put_i_loaddata(seq->private);
 
 	return single_release(inode, file);
 }
@@ -1389,9 +1392,8 @@ static int rawdata_open(struct inode *inode, struct file *file)
 	if (!aa_current_policy_view_capable(NULL))
 		return -EACCES;
 
-	loaddata = __aa_get_loaddata(inode->i_private);
+	loaddata = aa_get_i_loaddata(inode->i_private);
 	if (!loaddata)
-		/* lost race: this entry is being reaped */
 		return -ENOENT;
 
 	private = rawdata_f_data_alloc(loaddata->size);
@@ -1416,7 +1418,7 @@ fail_decompress:
 	return error;
 
 fail_private_alloc:
-	aa_put_loaddata(loaddata);
+	aa_put_i_loaddata(loaddata);
 	return error;
 }
 
@@ -1433,9 +1435,9 @@ static void remove_rawdata_dents(struct aa_loaddata *rawdata)
 
 	for (i = 0; i < AAFS_LOADDATA_NDENTS; i++) {
 		if (!IS_ERR_OR_NULL(rawdata->dents[i])) {
-			/* no refcounts on i_private */
 			aafs_remove(rawdata->dents[i]);
 			rawdata->dents[i] = NULL;
+			aa_put_i_loaddata(rawdata);
 		}
 	}
 }
@@ -1474,18 +1476,21 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 	if (IS_ERR(dir))
 		/* ->name freed when rawdata freed */
 		return PTR_ERR(dir);
+	aa_get_i_loaddata(rawdata);
 	rawdata->dents[AAFS_LOADDATA_DIR] = dir;
 
 	dent = aafs_create_file("abi", S_IFREG | 0444, dir, rawdata,
 				      &seq_rawdata_abi_fops);
 	if (IS_ERR(dent))
 		goto fail;
+	aa_get_i_loaddata(rawdata);
 	rawdata->dents[AAFS_LOADDATA_ABI] = dent;
 
 	dent = aafs_create_file("revision", S_IFREG | 0444, dir, rawdata,
 				      &seq_rawdata_revision_fops);
 	if (IS_ERR(dent))
 		goto fail;
+	aa_get_i_loaddata(rawdata);
 	rawdata->dents[AAFS_LOADDATA_REVISION] = dent;
 
 	if (aa_g_hash_policy) {
@@ -1493,6 +1498,7 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 					      rawdata, &seq_rawdata_hash_fops);
 		if (IS_ERR(dent))
 			goto fail;
+		aa_get_i_loaddata(rawdata);
 		rawdata->dents[AAFS_LOADDATA_HASH] = dent;
 	}
 
@@ -1501,24 +1507,25 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 				&seq_rawdata_compressed_size_fops);
 	if (IS_ERR(dent))
 		goto fail;
+	aa_get_i_loaddata(rawdata);
 	rawdata->dents[AAFS_LOADDATA_COMPRESSED_SIZE] = dent;
 
 	dent = aafs_create_file("raw_data", S_IFREG | 0444,
 				      dir, rawdata, &rawdata_fops);
 	if (IS_ERR(dent))
 		goto fail;
+	aa_get_i_loaddata(rawdata);
 	rawdata->dents[AAFS_LOADDATA_DATA] = dent;
 	d_inode(dent)->i_size = rawdata->size;
 
 	rawdata->ns = aa_get_ns(ns);
 	list_add(&rawdata->list, &ns->rawdata_list);
-	/* no refcount on inode rawdata */
 
 	return 0;
 
 fail:
 	remove_rawdata_dents(rawdata);
-
+	aa_put_i_loaddata(rawdata);
 	return PTR_ERR(dent);
 }
 #endif /* CONFIG_SECURITY_APPARMOR_EXPORT_BINARY */
