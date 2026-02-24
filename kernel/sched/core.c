@@ -998,7 +998,8 @@ static void hrtick_rq_init(struct rq *rq)
 {
 	INIT_CSD(&rq->hrtick_csd, __hrtick_start, rq);
 	rq->hrtick_sched = HRTICK_SCHED_NONE;
-	hrtimer_setup(&rq->hrtick_timer, hrtick, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
+	hrtimer_setup(&rq->hrtick_timer, hrtick, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL_HARD | HRTIMER_MODE_LAZY_REARM);
 }
 #else /* !CONFIG_SCHED_HRTICK: */
 static inline void hrtick_clear(struct rq *rq) { }
