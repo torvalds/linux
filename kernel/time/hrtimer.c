@@ -529,22 +529,10 @@ static inline void debug_activate(struct hrtimer *timer, enum hrtimer_mode mode,
 	trace_hrtimer_start(timer, mode, was_armed);
 }
 
-static struct hrtimer_clock_base *
-__next_base(struct hrtimer_cpu_base *cpu_base, unsigned int *active)
-{
-	unsigned int idx;
-
-	if (!*active)
-		return NULL;
-
-	idx = __ffs(*active);
-	*active &= ~(1U << idx);
-
-	return &cpu_base->clock_base[idx];
-}
-
-#define for_each_active_base(base, cpu_base, active)		\
-	while ((base = __next_base((cpu_base), &(active))))
+#define for_each_active_base(base, cpu_base, active)					\
+	for (unsigned int idx = ffs(active); idx--; idx = ffs((active)))		\
+		for (bool done = false; !done; active &= ~(1U << idx))			\
+			for (base = &cpu_base->clock_base[idx]; !done; done = true)
 
 #if defined(CONFIG_NO_HZ_COMMON)
 /*
