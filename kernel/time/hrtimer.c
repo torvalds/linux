@@ -1147,13 +1147,11 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *b
 }
 
 static inline bool remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_base *base,
-				 bool restart, bool keep_base)
+				  bool newstate)
 {
-	bool queued_state = timer->is_queued;
-
 	lockdep_assert_held(&base->cpu_base->lock);
 
-	if (queued_state) {
+	if (timer->is_queued) {
 		bool reprogram;
 
 		debug_hrtimer_deactivate(timer);
@@ -1168,21 +1166,33 @@ static inline bool remove_hrtimer(struct hrtimer *timer, struct hrtimer_clock_ba
 		 */
 		reprogram = base->cpu_base == this_cpu_ptr(&hrtimer_bases);
 
-		/*
-		 * If the timer is not restarted then reprogramming is
-		 * required if the timer is local. If it is local and about
-		 * to be restarted, avoid programming it twice (on removal
-		 * and a moment later when it's requeued).
-		 */
-		if (!restart)
-			queued_state = HRTIMER_STATE_INACTIVE;
-		else
-			reprogram &= !keep_base;
-
-		__remove_hrtimer(timer, base, queued_state, reprogram);
+		__remove_hrtimer(timer, base, newstate, reprogram);
 		return true;
 	}
 	return false;
+}
+
+static inline bool
+remove_and_enqueue_same_base(struct hrtimer *timer, struct hrtimer_clock_base *base,
+			     const enum hrtimer_mode mode, ktime_t expires, u64 delta_ns)
+{
+	/* Remove it from the timer queue if active */
+	if (timer->is_queued) {
+		debug_hrtimer_deactivate(timer);
+		timerqueue_del(&base->active, &timer->node);
+	}
+
+	/* Set the new expiry time */
+	hrtimer_set_expires_range_ns(timer, expires, delta_ns);
+
+	debug_activate(timer, mode, timer->is_queued);
+	base->cpu_base->active_bases |= 1 << base->index;
+
+	/* Pairs with the lockless read in hrtimer_is_queued() */
+	WRITE_ONCE(timer->is_queued, HRTIMER_STATE_ENQUEUED);
+
+	/* Returns true if this is the first expiring timer */
+	return timerqueue_add(&base->active, &timer->node);
 }
 
 static inline ktime_t hrtimer_update_lowres(struct hrtimer *timer, ktime_t tim,
@@ -1267,7 +1277,7 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 				     const enum hrtimer_mode mode, struct hrtimer_clock_base *base)
 {
 	struct hrtimer_cpu_base *this_cpu_base = this_cpu_ptr(&hrtimer_bases);
-	bool is_pinned, first, was_first, was_armed, keep_base = false;
+	bool is_pinned, first, was_first, keep_base = false;
 	struct hrtimer_cpu_base *cpu_base = base->cpu_base;
 
 	was_first = cpu_base->next_timer == timer;
@@ -1283,6 +1293,12 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 		keep_base = hrtimer_keep_base(timer, is_local, was_first, is_pinned);
 	}
 
+	/* Calculate absolute expiry time for relative timers */
+	if (mode & HRTIMER_MODE_REL)
+		tim = ktime_add_safe(tim, __hrtimer_cb_get_time(base->clockid));
+	/* Compensate for low resolution granularity */
+	tim = hrtimer_update_lowres(timer, tim, mode);
+
 	/*
 	 * Remove an active timer from the queue. In case it is not queued
 	 * on the current CPU, make sure that remove_hrtimer() updates the
@@ -1297,22 +1313,20 @@ static bool __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim, u64 del
 	 * @keep_base is also true if the timer callback is running on a
 	 * remote CPU and for local pinned timers.
 	 */
-	was_armed = remove_hrtimer(timer, base, true, keep_base);
+	if (likely(keep_base)) {
+		first = remove_and_enqueue_same_base(timer, base, mode, tim, delta_ns);
+	} else {
+		/* Keep the ENQUEUED state in case it is queued */
+		bool was_armed = remove_hrtimer(timer, base, HRTIMER_STATE_ENQUEUED);
 
-	if (mode & HRTIMER_MODE_REL)
-		tim = ktime_add_safe(tim, __hrtimer_cb_get_time(base->clockid));
+		hrtimer_set_expires_range_ns(timer, tim, delta_ns);
 
-	tim = hrtimer_update_lowres(timer, tim, mode);
-
-	hrtimer_set_expires_range_ns(timer, tim, delta_ns);
-
-	/* Switch the timer base, if necessary: */
-	if (!keep_base) {
+		/* Switch the timer base, if necessary: */
 		base = switch_hrtimer_base(timer, base, is_pinned);
 		cpu_base = base->cpu_base;
-	}
 
-	first = enqueue_hrtimer(timer, base, mode, was_armed);
+		first = enqueue_hrtimer(timer, base, mode, was_armed);
+	}
 
 	/*
 	 * If the hrtimer interrupt is running, then it will reevaluate the
@@ -1432,7 +1446,7 @@ int hrtimer_try_to_cancel(struct hrtimer *timer)
 	base = lock_hrtimer_base(timer, &flags);
 
 	if (!hrtimer_callback_running(timer)) {
-		ret = remove_hrtimer(timer, base, false, false);
+		ret = remove_hrtimer(timer, base, HRTIMER_STATE_INACTIVE);
 		if (ret)
 			trace_hrtimer_cancel(timer);
 	}
