@@ -5508,8 +5508,7 @@ static int calc_one_profile_avail(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	devices_info = kcalloc(fs_devices->rw_devices, sizeof(*devices_info),
-			       GFP_NOFS);
+	devices_info = kzalloc_objs(*devices_info, fs_devices->rw_devices, GFP_NOFS);
 	if (!devices_info) {
 		ret = -ENOMEM;
 		goto out;
@@ -6076,8 +6075,7 @@ struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
 	ctl.space_info = space_info;
 	init_alloc_chunk_ctl(fs_devices, &ctl);
 
-	devices_info = kcalloc(fs_devices->rw_devices, sizeof(*devices_info),
-			       GFP_NOFS);
+	devices_info = kzalloc_objs(*devices_info, fs_devices->rw_devices, GFP_NOFS);
 	if (!devices_info)
 		return ERR_PTR(-ENOMEM);
 

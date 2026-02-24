@@ -58,7 +58,7 @@ static int test_load_zone_info(struct btrfs_fs_info *fs_info,
 		return -ENOMEM;
 	}
 
-	zone_info = kcalloc(test->num_stripes, sizeof(*zone_info), GFP_KERNEL);
+	zone_info = kzalloc_objs(*zone_info, test->num_stripes, GFP_KERNEL);
 	if (!zone_info) {
 		test_err("cannot allocate zone info");
 		return -ENOMEM;
