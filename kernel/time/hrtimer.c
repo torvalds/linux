@@ -1231,7 +1231,18 @@ static __always_inline bool hrtimer_prefer_local(bool is_local, bool is_first, b
 		 */
 		if (!is_local)
 			return false;
-		return is_first || is_pinned;
+		if (is_first || is_pinned)
+			return true;
+
+		/* Honour the NOHZ full restrictions */
+		if (!housekeeping_cpu(smp_processor_id(), HK_TYPE_KERNEL_NOISE))
+			return false;
+
+		/*
+		 * If the tick is not stopped or need_resched() is set, then
+		 * there is no point in moving the timer somewhere else.
+		 */
+		return !tick_nohz_tick_stopped() || need_resched();
 	}
 	return is_local;
 }
