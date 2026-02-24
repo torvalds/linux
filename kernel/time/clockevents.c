@@ -319,8 +319,8 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	WARN_ONCE(!clockevent_state_oneshot(dev), "Current state: %d\n",
 		  clockevent_get_state(dev));
 
-	/* Shortcut for clockevent devices that can deal with ktime. */
-	if (dev->features & CLOCK_EVT_FEAT_KTIME)
+	/* ktime_t based reprogramming for the broadcast hrtimer device */
+	if (unlikely(dev->features & CLOCK_EVT_FEAT_HRTIMER))
 		return dev->set_next_ktime(expires, dev);
 
 	delta = ktime_to_ns(ktime_sub(expires, ktime_get()));

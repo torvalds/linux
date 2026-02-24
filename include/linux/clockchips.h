@@ -45,7 +45,6 @@ enum clock_event_state {
  */
 # define CLOCK_EVT_FEAT_PERIODIC	0x000001
 # define CLOCK_EVT_FEAT_ONESHOT		0x000002
-# define CLOCK_EVT_FEAT_KTIME		0x000004
 
 /*
  * x86(64) specific (mis)features:
