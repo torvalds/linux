@@ -287,9 +287,12 @@
 #endif
 
 #ifdef CONFIG_ARM64_VA_BITS_52
+#define PTRS_PER_PGD_52_VA (UL(1) << (52 - PGDIR_SHIFT))
+#define PTRS_PER_PGD_48_VA (UL(1) << (48 - PGDIR_SHIFT))
+#define PTRS_PER_PGD_EXTRA (PTRS_PER_PGD_52_VA - PTRS_PER_PGD_48_VA)
+
 /* Must be at least 64-byte aligned to prevent corruption of the TTBR */
-#define TTBR1_BADDR_4852_OFFSET	(((UL(1) << (52 - PGDIR_SHIFT)) - \
-				 (UL(1) << (48 - PGDIR_SHIFT))) * 8)
+#define TTBR1_BADDR_4852_OFFSET (PTRS_PER_PGD_EXTRA << PTDESC_ORDER)
 #endif
 
 #endif
