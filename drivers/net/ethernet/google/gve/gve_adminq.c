@@ -989,12 +989,10 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 	if (dev_op_modify_ring &&
 	    (supported_features_mask & GVE_SUP_MODIFY_RING_MASK)) {
 		priv->modify_ring_size_enabled = true;
-
-		/* max ring size for DQO QPL should not be overwritten because of device limit */
-		if (priv->queue_format != GVE_DQO_QPL_FORMAT) {
-			priv->max_rx_desc_cnt = be16_to_cpu(dev_op_modify_ring->max_rx_ring_size);
-			priv->max_tx_desc_cnt = be16_to_cpu(dev_op_modify_ring->max_tx_ring_size);
-		}
+		priv->max_rx_desc_cnt =
+			be16_to_cpu(dev_op_modify_ring->max_rx_ring_size);
+		priv->max_tx_desc_cnt =
+			be16_to_cpu(dev_op_modify_ring->max_tx_ring_size);
 		if (priv->default_min_ring_size) {
 			/* If device hasn't provided minimums, use default minimums */
 			priv->min_tx_desc_cnt = GVE_DEFAULT_MIN_TX_RING_SIZE;
