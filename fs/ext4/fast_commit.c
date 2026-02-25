@@ -975,13 +975,13 @@ static int ext4_fc_flush_data(journal_t *journal)
 	int ret = 0;
 
 	list_for_each_entry(ei, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
-		ret = jbd2_submit_inode_data(journal, ei->jinode);
+		ret = jbd2_submit_inode_data(journal, READ_ONCE(ei->jinode));
 		if (ret)
 			return ret;
 	}
 
 	list_for_each_entry(ei, &sbi->s_fc_q[FC_Q_MAIN], i_fc_list) {
-		ret = jbd2_wait_inode_data(journal, ei->jinode);
+		ret = jbd2_wait_inode_data(journal, READ_ONCE(ei->jinode));
 		if (ret)
 			return ret;
 	}
