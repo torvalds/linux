@@ -4937,6 +4937,16 @@ intel_dp_mst_disconnect(struct intel_dp *intel_dp)
 						 DP_DOWN_REP_MSG_RDY | \
 						 DP_UP_REQ_MSG_RDY)
 
+#define INTEL_DP_LINK_SERVICE_IRQ_MASK_SST	(RX_CAP_CHANGED | \
+						 LINK_STATUS_CHANGED | \
+						 HDMI_LINK_STATUS_CHANGED | \
+						 CONNECTED_OFF_ENTRY_REQUESTED | \
+						 DP_TUNNELING_IRQ)
+
+#define INTEL_DP_LINK_SERVICE_IRQ_MASK_MST	(RX_CAP_CHANGED | \
+						 LINK_STATUS_CHANGED | \
+						 DP_TUNNELING_IRQ)
+
 static bool
 intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *esi)
 {
@@ -5035,6 +5045,7 @@ static bool intel_dp_get_and_ack_sink_irq_esi_sst(struct intel_dp *intel_dp, u8 
 		    esi);
 
 	esi[1] &= INTEL_DP_DEVICE_SERVICE_IRQ_MASK_SST;
+	esi[3] &= INTEL_DP_LINK_SERVICE_IRQ_MASK_SST;
 
 	if (mem_is_zero(&esi[1], 3))
 		return true;
@@ -5573,7 +5584,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		ack[3] |= esi[3] & (RX_CAP_CHANGED | LINK_STATUS_CHANGED | DP_TUNNELING_IRQ);
+		ack[3] |= esi[3] & INTEL_DP_LINK_SERVICE_IRQ_MASK_MST;
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
 
@@ -5581,6 +5592,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			break;
 
 		drm_WARN_ON(display->drm, ack[1] & ~INTEL_DP_DEVICE_SERVICE_IRQ_MASK_MST);
+		drm_WARN_ON(display->drm, ack[3] & ~INTEL_DP_LINK_SERVICE_IRQ_MASK_MST);
 
 		if (!intel_dp_ack_sink_irq_esi(intel_dp, ack))
 			drm_dbg_kms(display->drm, "Failed to ack ESI\n");
@@ -5889,6 +5901,9 @@ static bool intel_dp_handle_link_service_irq(struct intel_dp *intel_dp, u8 irq_m
 	struct intel_connector *connector = intel_dp->attached_connector;
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool reprobe_needed = false;
+
+	drm_WARN_ON(display->drm, irq_mask & ~(INTEL_DP_LINK_SERVICE_IRQ_MASK_SST |
+					       INTEL_DP_LINK_SERVICE_IRQ_MASK_MST));
 
 	if (irq_mask & RX_CAP_CHANGED)
 		reprobe_needed = true;
