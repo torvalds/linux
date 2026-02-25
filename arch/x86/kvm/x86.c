@@ -9709,7 +9709,8 @@ static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
 	unsigned long val;
 
 	/* We should only ever be called with arch.pio.count equal to 1 */
-	BUG_ON(vcpu->arch.pio.count != 1);
+	if (KVM_BUG_ON(vcpu->arch.pio.count != 1, vcpu->kvm))
+		return -EIO;
 
 	if (unlikely(!kvm_is_linear_rip(vcpu, vcpu->arch.cui_linear_rip))) {
 		vcpu->arch.pio.count = 0;
@@ -11819,7 +11820,8 @@ static inline int complete_emulated_io(struct kvm_vcpu *vcpu)
 
 static int complete_emulated_pio(struct kvm_vcpu *vcpu)
 {
-	BUG_ON(!vcpu->arch.pio.count);
+	if (KVM_BUG_ON(!vcpu->arch.pio.count, vcpu->kvm))
+		return -EIO;
 
 	return complete_emulated_io(vcpu);
 }
@@ -11848,7 +11850,8 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 	struct kvm_mmio_fragment *frag;
 	unsigned len;
 
-	BUG_ON(!vcpu->mmio_needed);
+	if (KVM_BUG_ON(!vcpu->mmio_needed, vcpu->kvm))
+		return -EIO;
 
 	/* Complete previous fragment */
 	frag = &vcpu->mmio_fragments[vcpu->mmio_cur_fragment];
@@ -14261,7 +14264,8 @@ static int complete_sev_es_emulated_mmio(struct kvm_vcpu *vcpu)
 	struct kvm_mmio_fragment *frag;
 	unsigned int len;
 
-	BUG_ON(!vcpu->mmio_needed);
+	if (KVM_BUG_ON(!vcpu->mmio_needed, vcpu->kvm))
+		return -EIO;
 
 	/* Complete previous fragment */
 	frag = &vcpu->mmio_fragments[vcpu->mmio_cur_fragment];
