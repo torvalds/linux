@@ -5856,9 +5856,7 @@ static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 static bool
 intel_dp_short_pulse(struct intel_dp *intel_dp)
 {
-	u8 old_sink_count = intel_dp->sink_count;
 	bool reprobe_needed = false;
-	bool ret;
 
 	intel_dp_test_reset(intel_dp);
 
@@ -5868,12 +5866,10 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	 * the value that was stored earlier or dpcd read failed
 	 * we need to do full detection
 	 */
-	ret = intel_dp_get_dpcd(intel_dp);
-
-	if ((old_sink_count != intel_dp->sink_count) || !ret) {
+	if (intel_dp_has_sink_count(intel_dp) &&
+	    drm_dp_read_sink_count(&intel_dp->aux) != intel_dp->sink_count)
 		/* No need to proceed if we are going to do full detect */
 		return false;
-	}
 
 	intel_dp_check_device_service_irq(intel_dp);
 	reprobe_needed = intel_dp_check_link_service_irq(intel_dp);
