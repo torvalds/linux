@@ -4929,6 +4929,14 @@ intel_dp_mst_disconnect(struct intel_dp *intel_dp)
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, intel_dp->is_mst);
 }
 
+#define INTEL_DP_DEVICE_SERVICE_IRQ_MASK_SST	(DP_AUTOMATED_TEST_REQUEST | \
+						 DP_CP_IRQ | \
+						 DP_SINK_SPECIFIC_IRQ)
+
+#define INTEL_DP_DEVICE_SERVICE_IRQ_MASK_MST	(DP_CP_IRQ | \
+						 DP_DOWN_REP_MSG_RDY | \
+						 DP_UP_REQ_MSG_RDY)
+
 static bool
 intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *esi)
 {
@@ -5025,6 +5033,8 @@ static bool intel_dp_get_and_ack_sink_irq_esi_sst(struct intel_dp *intel_dp, u8 
 		    connector->base.base.id, connector->base.name,
 		    encoder->base.base.id, encoder->base.name,
 		    esi);
+
+	esi[1] &= INTEL_DP_DEVICE_SERVICE_IRQ_MASK_SST;
 
 	if (mem_is_zero(&esi[1], 3))
 		return true;
@@ -5570,6 +5580,8 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		if (mem_is_zero(ack, sizeof(ack)))
 			break;
 
+		drm_WARN_ON(display->drm, ack[1] & ~INTEL_DP_DEVICE_SERVICE_IRQ_MASK_MST);
+
 		if (!intel_dp_ack_sink_irq_esi(intel_dp, ack))
 			drm_dbg_kms(display->drm, "Failed to ack ESI\n");
 
@@ -5853,6 +5865,8 @@ void intel_dp_check_link_state(struct intel_dp *intel_dp)
 static void intel_dp_handle_device_service_irq(struct intel_dp *intel_dp, u8 irq_mask)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+
+	drm_WARN_ON(display->drm, irq_mask & ~INTEL_DP_DEVICE_SERVICE_IRQ_MASK_SST);
 
 	if (irq_mask & DP_AUTOMATED_TEST_REQUEST)
 		intel_dp_test_request(intel_dp);
