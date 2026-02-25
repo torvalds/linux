@@ -8209,7 +8209,6 @@ static int emulator_read_write(struct x86_emulate_ctxt *ctxt,
 			const struct read_write_emulator_ops *ops)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
-	struct kvm_mmio_fragment *frag;
 	int rc;
 
 	if (WARN_ON_ONCE((bytes > 8u || !ops->write) && object_is_on_stack(val)))
@@ -8267,12 +8266,9 @@ static int emulator_read_write(struct x86_emulate_ctxt *ctxt,
 
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_cur_fragment = 0;
+	vcpu->mmio_is_write = ops->write;
 
-	frag = &vcpu->mmio_fragments[0];
-	vcpu->run->mmio.len = min(8u, frag->len);
-	vcpu->run->mmio.is_write = vcpu->mmio_is_write = ops->write;
-	vcpu->run->exit_reason = KVM_EXIT_MMIO;
-	vcpu->run->mmio.phys_addr = frag->gpa;
+	kvm_prepare_emulated_mmio_exit(vcpu, &vcpu->mmio_fragments[0]);
 
 	/*
 	 * For MMIO reads, stop emulating and immediately exit to userspace, as
@@ -8282,11 +8278,7 @@ static int emulator_read_write(struct x86_emulate_ctxt *ctxt,
 	 * after completing emulation (see the check on vcpu->mmio_needed in
 	 * x86_emulate_instruction()).
 	 */
-	if (!ops->write)
-		return X86EMUL_IO_NEEDED;
-
-	memcpy(vcpu->run->mmio.data, frag->data, min(8u, frag->len));
-	return X86EMUL_CONTINUE;
+	return ops->write ? X86EMUL_CONTINUE : X86EMUL_IO_NEEDED;
 }
 
 static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
@@ -11883,12 +11875,7 @@ static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 		return complete_emulated_io(vcpu);
 	}
 
-	run->exit_reason = KVM_EXIT_MMIO;
-	run->mmio.phys_addr = frag->gpa;
-	if (vcpu->mmio_is_write)
-		memcpy(run->mmio.data, frag->data, min(8u, frag->len));
-	run->mmio.len = min(8u, frag->len);
-	run->mmio.is_write = vcpu->mmio_is_write;
+	kvm_prepare_emulated_mmio_exit(vcpu, frag);
 	vcpu->arch.complete_userspace_io = complete_emulated_mmio;
 	return 0;
 }
@@ -14295,15 +14282,8 @@ static int complete_sev_es_emulated_mmio(struct kvm_vcpu *vcpu)
 	}
 
 	// More MMIO is needed
-	run->mmio.phys_addr = frag->gpa;
-	run->mmio.len = min(8u, frag->len);
-	run->mmio.is_write = vcpu->mmio_is_write;
-	if (run->mmio.is_write)
-		memcpy(run->mmio.data, frag->data, min(8u, frag->len));
-	run->exit_reason = KVM_EXIT_MMIO;
-
+	kvm_prepare_emulated_mmio_exit(vcpu, frag);
 	vcpu->arch.complete_userspace_io = complete_sev_es_emulated_mmio;
-
 	return 0;
 }
 
@@ -14332,23 +14312,17 @@ int kvm_sev_es_mmio(struct kvm_vcpu *vcpu, bool is_write, gpa_t gpa,
 	 *       requests that split a page boundary.
 	 */
 	frag = vcpu->mmio_fragments;
-	vcpu->mmio_nr_fragments = 1;
 	frag->len = bytes;
 	frag->gpa = gpa;
 	frag->data = data;
 
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_cur_fragment = 0;
+	vcpu->mmio_nr_fragments = 1;
+	vcpu->mmio_is_write = is_write;
 
-	vcpu->run->mmio.phys_addr = gpa;
-	vcpu->run->mmio.len = min(8u, frag->len);
-	vcpu->run->mmio.is_write = is_write;
-	if (is_write)
-		memcpy(vcpu->run->mmio.data, frag->data, min(8u, frag->len));
-	vcpu->run->exit_reason = KVM_EXIT_MMIO;
-
+	kvm_prepare_emulated_mmio_exit(vcpu, frag);
 	vcpu->arch.complete_userspace_io = complete_sev_es_emulated_mmio;
-
 	return 0;
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_sev_es_mmio);
