@@ -236,6 +236,17 @@ void svm_check_nested_state(int stage, struct kvm_x86_state *state)
 		if (stage == 6)
 			TEST_ASSERT_EQ(!!(vmcb->control.int_ctl & V_GIF_MASK), 0);
 	}
+
+	if (kvm_cpu_has(X86_FEATURE_NRIPS)) {
+		/*
+		 * GUEST_SYNC() causes IO emulation in KVM, in which case the
+		 * RIP is advanced before exiting to userspace. Hence, the RIP
+		 * in the saved state should be the same as nRIP saved by the
+		 * CPU in the VMCB.
+		 */
+		if (stage == 6)
+			TEST_ASSERT_EQ(vmcb->control.next_rip, state->regs.rip);
+	}
 }
 
 void check_nested_state(int stage, struct kvm_x86_state *state)
