@@ -5457,24 +5457,6 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 	}
 }
 
-static bool intel_dp_mst_link_status(struct intel_dp *intel_dp)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	u8 link_status[DP_LINK_STATUS_SIZE] = {};
-	const size_t esi_link_status_size = DP_LINK_STATUS_SIZE - 2;
-
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_LANE0_1_STATUS_ESI, link_status,
-			     esi_link_status_size) != esi_link_status_size) {
-		drm_err(display->drm,
-			"[ENCODER:%d:%s] Failed to read link status\n",
-			encoder->base.base.id, encoder->base.name);
-		return false;
-	}
-
-	return intel_dp_link_ok(intel_dp, link_status);
-}
-
 /**
  * intel_dp_check_mst_status - service any pending MST interrupts, check link status
  * @intel_dp: Intel DP struct
@@ -5493,9 +5475,6 @@ static bool
 intel_dp_check_mst_status(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *encoder = &dig_port->base;
-	bool link_ok = true;
 	bool reprobe_needed = false;
 
 	for (;;) {
@@ -5512,12 +5491,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		if (intel_dp_mst_active_streams(intel_dp) > 0 && link_ok &&
-		    esi[3] & LINK_STATUS_CHANGED) {
-			if (!intel_dp_mst_link_status(intel_dp))
-				link_ok = false;
-			ack[3] |= LINK_STATUS_CHANGED;
-		}
+		ack[3] |= esi[3] & LINK_STATUS_CHANGED;
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
 
@@ -5536,10 +5510,10 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
 			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst.mgr);
-	}
 
-	if (!link_ok || intel_dp->link.force_retrain)
-		intel_encoder_link_check_queue_work(encoder, 0);
+		if ((ack[3] & LINK_STATUS_CHANGED) || intel_dp->link.force_retrain)
+			intel_dp_check_link_state(intel_dp);
+	}
 
 	return !reprobe_needed;
 }
