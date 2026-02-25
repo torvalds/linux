@@ -114,6 +114,7 @@ struct vendor_data {
 	bool			cts_event_workaround;
 	bool			always_enabled;
 	bool			fixed_options;
+	bool			skip_ibrd_fbrd;
 
 	unsigned int (*get_fifosize)(struct amba_device *dev);
 };
@@ -2115,11 +2116,6 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 		uap->dmarx.poll_rate = DIV_ROUND_UP(10000000, baud);
 #endif
 
-	if (baud > port->uartclk / 16)
-		quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
-	else
-		quot = DIV_ROUND_CLOSEST(port->uartclk * 4, baud);
-
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 		lcr_h = UART01x_LCRH_WLEN_5;
@@ -2190,21 +2186,28 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 			old_cr &= ~ST_UART011_CR_OVSFACT;
 	}
 
-	/*
-	 * Workaround for the ST Micro oversampling variants to
-	 * increase the bitrate slightly, by lowering the divisor,
-	 * to avoid delayed sampling of start bit at high speeds,
-	 * else we see data corruption.
-	 */
-	if (uap->vendor->oversampling) {
-		if (baud >= 3000000 && baud < 3250000 && quot > 1)
-			quot -= 1;
-		else if (baud > 3250000 && quot > 2)
-			quot -= 2;
+	if (!uap->vendor->skip_ibrd_fbrd) {
+		if (baud > port->uartclk / 16)
+			quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
+		else
+			quot = DIV_ROUND_CLOSEST(port->uartclk * 4, baud);
+
+		/*
+		 * Workaround for the ST Micro oversampling variants to
+		 * increase the bitrate slightly, by lowering the divisor,
+		 * to avoid delayed sampling of start bit at high speeds,
+		 * else we see data corruption.
+		 */
+		if (uap->vendor->oversampling) {
+			if (baud >= 3000000 && baud < 3250000 && quot > 1)
+				quot -= 1;
+			else if (baud > 3250000 && quot > 2)
+				quot -= 2;
+		}
+		/* Set baud rate */
+		pl011_write(quot & 0x3f, uap, REG_FBRD);
+		pl011_write(quot >> 6, uap, REG_IBRD);
 	}
-	/* Set baud rate */
-	pl011_write(quot & 0x3f, uap, REG_FBRD);
-	pl011_write(quot >> 6, uap, REG_IBRD);
 
 	/*
 	 * ----------v----------v----------v----------v-----
@@ -2374,6 +2377,7 @@ static void pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 				      int *parity, int *bits)
 {
 	unsigned int lcr_h, ibrd, fbrd;
+	unsigned int clkdiv;
 
 	if (!(pl011_read(uap, REG_CR) & UART01x_CR_UARTEN))
 		return;
@@ -2393,10 +2397,15 @@ static void pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 	else
 		*bits = 8;
 
-	ibrd = pl011_read(uap, REG_IBRD);
-	fbrd = pl011_read(uap, REG_FBRD);
+	if (uap->vendor->skip_ibrd_fbrd) {
+		clkdiv = 64;
+	} else {
+		ibrd = pl011_read(uap, REG_IBRD);
+		fbrd = pl011_read(uap, REG_FBRD);
+		clkdiv = 64 * ibrd + fbrd;
+	}
 
-	*baud = uap->port.uartclk * 4 / (64 * ibrd + fbrd);
+	*baud = uap->port.uartclk * 4 / clkdiv;
 
 	if (uap->vendor->oversampling &&
 	    (pl011_read(uap, REG_CR) & ST_UART011_CR_OVSFACT))
