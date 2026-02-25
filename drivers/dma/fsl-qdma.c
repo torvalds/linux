@@ -1127,22 +1127,19 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 
 	ret = of_property_read_u32(np, "dma-channels", &chans);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get dma-channels.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Can't get dma-channels.\n");
 
 	ret = of_property_read_u32(np, "block-offset", &blk_off);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get block-offset.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Can't get block-offset.\n");
 
 	ret = of_property_read_u32(np, "block-number", &blk_num);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get block-number.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Can't get block-number.\n");
 
 	blk_num = min_t(int, blk_num, num_online_cpus());
 
@@ -1167,10 +1164,8 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = of_property_read_u32(np, "fsl,dma-queues", &queues);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get queues.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Can't get queues.\n");
 
 	fsl_qdma->desc_allocated = 0;
 	fsl_qdma->n_chans = chans;
@@ -1231,28 +1226,24 @@ static int fsl_qdma_probe(struct platform_device *pdev)
 	fsl_qdma->dma_dev.device_terminate_all = fsl_qdma_terminate_all;
 
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(40));
-	if (ret) {
-		dev_err(&pdev->dev, "dma_set_mask failure.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "dma_set_mask failure.\n");
 
 	platform_set_drvdata(pdev, fsl_qdma);
 
 	ret = fsl_qdma_reg_init(fsl_qdma);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't Initialize the qDMA engine.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Can't Initialize the qDMA engine.\n");
 
 	ret = fsl_qdma_irq_init(pdev, fsl_qdma);
 	if (ret)
 		return ret;
 
 	ret = dma_async_device_register(&fsl_qdma->dma_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't register NXP Layerscape qDMA engine.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Can't register NXP Layerscape qDMA engine.\n");
 
 	return 0;
 }
