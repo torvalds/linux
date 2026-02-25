@@ -6337,8 +6337,6 @@ intel_dp_detect(struct drm_connector *_connector,
 	if (intel_dp_is_edp(intel_dp) || connector->detect_edid)
 		status = connector_status_connected;
 
-	intel_dp_check_device_service_irq(intel_dp);
-
 out_unset_edid:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
