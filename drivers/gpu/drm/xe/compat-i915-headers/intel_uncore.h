@@ -6,6 +6,7 @@
 #ifndef __INTEL_UNCORE_H__
 #define __INTEL_UNCORE_H__
 
+#include "i915_reg_defs.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_mmio.h"
