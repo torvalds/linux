@@ -505,7 +505,7 @@ config MV_XOR_V2
 	  platforms.
 
 config MXS_DMA
-	bool "MXS DMA support"
+	tristate "MXS DMA support"
 	depends on ARCH_MXS || ARCH_MXC || COMPILE_TEST
 	select STMP_DEVICE
 	select DMA_ENGINE
