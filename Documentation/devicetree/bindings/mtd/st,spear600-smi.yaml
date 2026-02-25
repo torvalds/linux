@@ -60,6 +60,8 @@ required:
   - compatible
   - reg
   - clock-rate
+  - "#address-cells"
+  - "#size-cells"
 
 unevaluatedProperties: false
 
