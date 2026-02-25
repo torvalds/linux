@@ -753,10 +753,8 @@ static int mxs_dma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = of_property_read_u32(np, "dma-channels", &mxs_dma->nr_channels);
-	if (ret) {
-		dev_err(dev, "failed to read dma-channels\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to read dma-channels\n");
 
 	dma_type = (struct mxs_dma_type *)of_device_get_match_data(dev);
 	mxs_dma->type = dma_type->type;
@@ -816,17 +814,13 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	mxs_dma->dma_device.device_issue_pending = mxs_dma_enable_chan;
 
 	ret = dmaenginem_async_device_register(&mxs_dma->dma_device);
-	if (ret) {
-		dev_err(dev, "unable to register\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to register\n");
 
 	ret = of_dma_controller_register(np, mxs_dma_xlate, mxs_dma);
-	if (ret) {
-		dev_err(dev,
-			"failed to register controller\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register controller\n");
 
 	dev_info(dev, "initialized\n");
 
