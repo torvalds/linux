@@ -1389,6 +1389,26 @@ struct mlx5_ifc_virtio_emulation_cap_bits {
 	u8         reserved_at_1c0[0x640];
 };
 
+struct mlx5_ifc_tlp_dev_emu_capabilities_bits {
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x13];
+	u8         log_tlp_rsp_gw_page_stride[0x5];
+	u8         reserved_at_38[0x8];
+
+	u8         reserved_at_40[0xc0];
+
+	u8         reserved_at_100[0xc];
+	u8         tlp_rsp_gw_num_pages[0x4];
+	u8         reserved_at_110[0x10];
+
+	u8         reserved_at_120[0xa0];
+
+	u8         tlp_rsp_gw_pages_bar_offset[0x40];
+
+	u8         reserved_at_200[0x600];
+};
+
 enum {
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_1_BYTE     = 0x0,
 	MLX5_ATOMIC_CAPS_ATOMIC_SIZE_QP_2_BYTES    = 0x2,
@@ -1961,7 +1981,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_rqt[0x5];
 	u8         reserved_at_390[0x3];
 	u8         log_max_rqt_size[0x5];
-	u8         reserved_at_398[0x1];
+	u8         tlp_device_emulation_manager[0x1];
 	u8	   vnic_env_cnt_bar_uar_access[0x1];
 	u8	   vnic_env_cnt_odp_page_fault[0x1];
 	u8         log_max_tis_per_sq[0x5];
@@ -3830,6 +3850,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_tls_cap_bits tls_cap;
 	struct mlx5_ifc_device_mem_cap_bits device_mem_cap;
 	struct mlx5_ifc_virtio_emulation_cap_bits virtio_emulation_cap;
+	struct mlx5_ifc_tlp_dev_emu_capabilities_bits tlp_dev_emu_capabilities;
 	struct mlx5_ifc_macsec_cap_bits macsec_cap;
 	struct mlx5_ifc_crypto_cap_bits crypto_cap;
 	struct mlx5_ifc_ipsec_cap_bits ipsec_cap;
