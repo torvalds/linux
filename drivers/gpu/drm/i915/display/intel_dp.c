@@ -5527,6 +5527,8 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 	}
 }
 
+static bool intel_dp_handle_link_service_irq(struct intel_dp *intel_dp, u8 irq_mask);
+
 /**
  * intel_dp_check_mst_status - service any pending MST interrupts, check link status
  * @intel_dp: Intel DP struct
@@ -5574,14 +5576,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
 			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst.mgr);
 
-		if (ack[3] & RX_CAP_CHANGED)
-			reprobe_needed = true;
-
-		if ((ack[3] & LINK_STATUS_CHANGED) || intel_dp->link.force_retrain)
-			intel_dp_check_link_state(intel_dp);
-
-		if ((ack[3] & DP_TUNNELING_IRQ) &&
-		    drm_dp_tunnel_handle_irq(display->dp_tunnel_mgr, &intel_dp->aux))
+		if (intel_dp_handle_link_service_irq(intel_dp, ack[3]))
 			reprobe_needed = true;
 	}
 
@@ -5884,7 +5879,7 @@ static bool intel_dp_handle_link_service_irq(struct intel_dp *intel_dp, u8 irq_m
 	if (irq_mask & RX_CAP_CHANGED)
 		reprobe_needed = true;
 
-	if (irq_mask & LINK_STATUS_CHANGED)
+	if ((irq_mask & LINK_STATUS_CHANGED) || intel_dp->link.force_retrain)
 		intel_dp_check_link_state(intel_dp);
 
 	if (irq_mask & HDMI_LINK_STATUS_CHANGED)
