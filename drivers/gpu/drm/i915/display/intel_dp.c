@@ -5505,7 +5505,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		if (!intel_dp_get_sink_irq_esi(intel_dp, esi)) {
 			drm_dbg_kms(display->drm,
 				    "failed to get ESI - device may have failed\n");
-			link_ok = false;
+			reprobe_needed = true;
 
 			break;
 		}
