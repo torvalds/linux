@@ -600,7 +600,9 @@ void __init efi_mem_reserve(phys_addr_t addr, u64 size)
 		return;
 
 	if (!memblock_is_region_reserved(addr, size))
-		memblock_reserve(addr, size);
+		memblock_reserve_kern(addr, size);
+	else
+		memblock_reserved_mark_kern(addr, size);
 
 	/*
 	 * Some architectures (x86) reserve all boot services ranges
