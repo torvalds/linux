@@ -672,6 +672,25 @@
 				#mbox-cells = <2>;
 				status = "disabled";
 			};
+
+			xspi1: spi@42400000 {
+				compatible = "nxp,imx952-xspi", "nxp,imx94-xspi";
+				reg = <0x42400000 0x50000>, <0x28000000 0x8000000>;
+				reg-names = "base", "mmap";
+				interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 401 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 402 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 403 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX952_CLK_XSPI1>;
+				clock-names = "per";
+				assigned-clocks = <&scmi_clk IMX952_CLK_XSPI1>;
+				assigned-clock-parents = <&scmi_clk IMX952_CLK_SYSPLL1_PFD1>;
+				assigned-clock-rates = <200000000>;
+				status = "disabled";
+			};
 		};
 
 		aips3: bus@42800000 {
