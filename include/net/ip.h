@@ -101,7 +101,7 @@ static inline void ipcm_init_sk(struct ipcm_cookie *ipcm,
 
 	ipcm->oif = READ_ONCE(inet->sk.sk_bound_dev_if);
 	ipcm->addr = inet->inet_saddr;
-	ipcm->protocol = inet->inet_num;
+	ipcm->protocol = READ_ONCE(inet->inet_num);
 }
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
