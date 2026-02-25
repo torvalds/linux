@@ -218,6 +218,28 @@ static struct vendor_data vendor_st = {
 	.get_fifosize		= get_fifosize_st,
 };
 
+static unsigned int get_fifosize_nvidia(struct amba_device *dev)
+{
+	return 32;
+}
+
+static struct vendor_data vendor_nvidia = {
+	.reg_offset		= pl011_std_offsets,
+	.ifls			= UART011_IFLS_RX4_8 | UART011_IFLS_TX4_8,
+	.fr_busy		= UART01x_FR_BUSY,
+	.fr_dsr			= UART01x_FR_DSR,
+	.fr_cts			= UART01x_FR_CTS,
+	.fr_ri			= UART011_FR_RI,
+	.oversampling		= false,
+	.dma_threshold		= false,
+	.cts_event_workaround	= false,
+	.always_enabled		= false,
+	.fixed_options		= false,
+	.skip_ibrd_fbrd		= true,
+	.set_uartclk_rate	= true,
+	.get_fifosize		= get_fifosize_nvidia,
+};
+
 /* Deals with DMA transactions */
 
 struct pl011_dmabuf {
@@ -3143,6 +3165,11 @@ static const struct amba_id pl011_ids[] = {
 		.id	= 0x00380802,
 		.mask	= 0x00ffffff,
 		.data	= &vendor_st,
+	},
+	{
+		.id	= 0x0006b011,
+		.mask	= 0x000fffff,
+		.data	= &vendor_nvidia,
 	},
 	{ 0, 0 },
 };
