@@ -218,7 +218,6 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 {
 	struct device *hdev = &priv->pdev->dev;
 	struct page_pool *pool;
-	int qpl_page_cnt;
 	size_t size;
 	u32 qpl_id;
 
@@ -246,7 +245,7 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 	XSK_CHECK_PRIV_TYPE(struct gve_xdp_buff);
 
 	rx->dqo.num_buf_states = cfg->raw_addressing ? buffer_queue_slots :
-		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
+		cfg->pages_per_qpl;
 	rx->dqo.buf_states = kvcalloc_node(rx->dqo.num_buf_states,
 					   sizeof(rx->dqo.buf_states[0]),
 					   GFP_KERNEL, priv->numa_node);
@@ -281,10 +280,9 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 		rx->dqo.page_pool = pool;
 	} else {
 		qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
-		qpl_page_cnt = gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
 
 		rx->dqo.qpl = gve_alloc_queue_page_list(priv, qpl_id,
-							qpl_page_cnt);
+							cfg->pages_per_qpl);
 		if (!rx->dqo.qpl)
 			goto err;
 		rx->dqo.next_qpl_page_idx = 0;
