@@ -30,10 +30,10 @@ do {								\
 
 #ifdef CONFIG_DEBUG_SPINLOCK
  extern void do_raw_read_lock(rwlock_t *lock) __acquires_shared(lock);
- extern int do_raw_read_trylock(rwlock_t *lock);
+ extern int do_raw_read_trylock(rwlock_t *lock) __cond_acquires_shared(true, lock);
  extern void do_raw_read_unlock(rwlock_t *lock) __releases_shared(lock);
  extern void do_raw_write_lock(rwlock_t *lock) __acquires(lock);
- extern int do_raw_write_trylock(rwlock_t *lock);
+extern int do_raw_write_trylock(rwlock_t *lock) __cond_acquires(true, lock);
  extern void do_raw_write_unlock(rwlock_t *lock) __releases(lock);
 #else
 # define do_raw_read_lock(rwlock)	do {__acquire_shared(lock); arch_read_lock(&(rwlock)->raw_lock); } while (0)
