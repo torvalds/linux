@@ -4914,12 +4914,8 @@ static int pci_reset_bus_function(struct pci_dev *dev, bool probe)
 	 * If "dev" is below a CXL port that has SBR control masked, SBR
 	 * won't do anything, so return error.
 	 */
-	if (bridge && cxl_sbr_masked(bridge)) {
-		if (probe)
-			return 0;
-
+	if (bridge && pcie_is_cxl(bridge) && cxl_sbr_masked(bridge))
 		return -ENOTTY;
-	}
 
 	rc = pci_dev_reset_iommu_prepare(dev);
 	if (rc) {
