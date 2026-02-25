@@ -40,6 +40,7 @@ struct cs42xx8_priv {
 	struct clk *clk;
 
 	bool slave_mode;
+	bool is_tdm_mode;
 	unsigned long sysclk;
 	u32 tx_channels;
 	struct gpio_desc *gpiod_reset;
@@ -214,6 +215,8 @@ static int cs42xx8_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct cs42xx8_priv *cs42xx8 = snd_soc_component_get_drvdata(component);
 	u32 val;
 
+	cs42xx8->is_tdm_mode = false;
+
 	/* Set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -227,6 +230,7 @@ static int cs42xx8_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		val = CS42XX8_INTF_DAC_DIF_TDM | CS42XX8_INTF_ADC_DIF_TDM;
+		cs42xx8->is_tdm_mode = true;
 		break;
 	default:
 		dev_err(component->dev, "unsupported dai format\n");
@@ -247,6 +251,11 @@ static int cs42xx8_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	default:
 		dev_err(component->dev, "unsupported master/slave mode\n");
+		return -EINVAL;
+	}
+
+	if (cs42xx8->is_tdm_mode && !cs42xx8->slave_mode) {
+		dev_err(component->dev, "TDM mode is supported only in slave mode\n");
 		return -EINVAL;
 	}
 
@@ -331,6 +340,19 @@ static int cs42xx8_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	cs42xx8->rate[tx] = params_rate(params);
+
+	if (cs42xx8->is_tdm_mode) {
+		if (cs42xx8->sysclk < 256 * cs42xx8->rate[tx]) {
+			dev_err(component->dev, "Unsupported sysclk in TDM mode\n");
+			return -EINVAL;
+		}
+
+		if (!tx && cs42xx8->rate[tx] > 100000) {
+			dev_err(component->dev,
+				"ADC does not support Quad-Speed Mode in TDM mode\n");
+			return -EINVAL;
+		}
+	}
 
 	mask = CS42XX8_FUNCMOD_MFREQ_MASK;
 	val = cs42xx8_ratios[i].mfreq;
