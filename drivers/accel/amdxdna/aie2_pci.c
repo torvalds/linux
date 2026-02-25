@@ -32,6 +32,11 @@ static int aie2_max_col = XRS_MAX_COL;
 module_param(aie2_max_col, uint, 0600);
 MODULE_PARM_DESC(aie2_max_col, "Maximum column could be used");
 
+static char *npu_fw[] = {
+	"npu_7.sbin",
+	"npu.sbin"
+};
+
 /*
  * The management mailbox channel is allocated by firmware.
  * The related register and ring buffer information is on SRAM BAR.
@@ -489,6 +494,7 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	struct psp_config psp_conf;
 	const struct firmware *fw;
 	unsigned long bars = 0;
+	char *fw_full_path;
 	int i, nvec, ret;
 
 	if (!hypervisor_is_type(X86_HYPER_NATIVE)) {
@@ -503,7 +509,19 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	ndev->priv = xdna->dev_info->dev_priv;
 	ndev->xdna = xdna;
 
-	ret = request_firmware(&fw, ndev->priv->fw_path, &pdev->dev);
+	for (i = 0; i < ARRAY_SIZE(npu_fw); i++) {
+		fw_full_path = kasprintf(GFP_KERNEL, "%s%s", ndev->priv->fw_path, npu_fw[i]);
+		if (!fw_full_path)
+			return -ENOMEM;
+
+		ret = firmware_request_nowarn(&fw, fw_full_path, &pdev->dev);
+		kfree(fw_full_path);
+		if (!ret) {
+			XDNA_INFO(xdna, "Load firmware %s%s", ndev->priv->fw_path, npu_fw[i]);
+			break;
+		}
+	}
+
 	if (ret) {
 		XDNA_ERR(xdna, "failed to request_firmware %s, ret %d",
 			 ndev->priv->fw_path, ret);
