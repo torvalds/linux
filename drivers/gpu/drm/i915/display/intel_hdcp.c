@@ -2231,7 +2231,7 @@ static void intel_hdcp_check_work(struct work_struct *work)
 	if (drm_connector_is_unregistered(&connector->base))
 		return;
 
-	if (!intel_hdcp2_check_link(connector))
+	if (!hdcp->force_hdcp14 && !intel_hdcp2_check_link(connector))
 		queue_delayed_work(display->wq.unordered, &hdcp->check_work,
 				   DRM_HDCP2_CHECK_PERIOD_MS);
 	else if (!intel_hdcp_check_link(connector))
