@@ -300,39 +300,39 @@ wa_mcr_write_clr(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 clr)
 static void
 wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
-	wa_add(wal, reg, 0, _MASKED_BIT_ENABLE(val), val, true);
+	wa_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
 }
 
 static void
 wa_mcr_masked_en(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 val)
 {
-	wa_mcr_add(wal, reg, 0, _MASKED_BIT_ENABLE(val), val, true);
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_ENABLE(val), val, true);
 }
 
 static void
 wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
-	wa_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val, true);
+	wa_add(wal, reg, 0, REG_MASKED_FIELD_DISABLE(val), val, true);
 }
 
 static void
 wa_mcr_masked_dis(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 val)
 {
-	wa_mcr_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val, true);
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD_DISABLE(val), val, true);
 }
 
 static void
 wa_masked_field_set(struct i915_wa_list *wal, i915_reg_t reg,
 		    u32 mask, u32 val)
 {
-	wa_add(wal, reg, 0, _MASKED_FIELD(mask, val), mask, true);
+	wa_add(wal, reg, 0, REG_MASKED_FIELD(mask, val), mask, true);
 }
 
 static void
 wa_mcr_masked_field_set(struct i915_wa_list *wal, i915_mcr_reg_t reg,
 			u32 mask, u32 val)
 {
-	wa_mcr_add(wal, reg, 0, _MASKED_FIELD(mask, val), mask, true);
+	wa_mcr_add(wal, reg, 0, REG_MASKED_FIELD(mask, val), mask, true);
 }
 
 static void gen6_ctx_workarounds_init(struct intel_engine_cs *engine,
@@ -666,7 +666,7 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* WaEnableFloatBlendOptimization:icl */
 	wa_mcr_add(wal, GEN10_CACHE_MODE_SS, 0,
-		   _MASKED_BIT_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE),
+		   REG_MASKED_FIELD_ENABLE(FLOAT_BLEND_OPTIMIZATION_ENABLE),
 		   0 /* write-only, so skip validation */,
 		   true);
 
@@ -1131,7 +1131,7 @@ hsw_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	wa_add(wal,
 	       HSW_ROW_CHICKEN3, 0,
-	       _MASKED_BIT_ENABLE(HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE),
+	       REG_MASKED_FIELD_ENABLE(HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE),
 	       0 /* XXX does this reg exist? */, true);
 
 	/* WaVSRefCountFullforceMissDisable:hsw */
@@ -2272,7 +2272,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	    IS_DG2(i915)) {
 		/* Wa_14015150844 */
 		wa_mcr_add(wal, XEHP_HDC_CHICKEN0, 0,
-			   _MASKED_BIT_ENABLE(DIS_ATOMIC_CHAINING_TYPED_WRITES),
+			   REG_MASKED_FIELD_ENABLE(DIS_ATOMIC_CHAINING_TYPED_WRITES),
 			   0, true);
 	}
 
@@ -2663,7 +2663,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	if (IS_GRAPHICS_VER(i915, 4, 6))
 		/* WaTimedSingleVertexDispatch:cl,bw,ctg,elk,ilk,snb */
 		wa_add(wal, RING_MI_MODE(RENDER_RING_BASE),
-		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
+		       0, REG_MASKED_FIELD_ENABLE(VS_TIMER_DISPATCH),
 		       /* XXX bit doesn't stick on Broadwater */
 		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH, true);
 
@@ -2679,7 +2679,7 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * enabled.
 		 */
 		wa_add(wal, ECOSKPD(RENDER_RING_BASE),
-		       0, _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE),
+		       0, REG_MASKED_FIELD_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE),
 		       0 /* XXX bit doesn't stick on Broadwater */,
 		       true);
 }
@@ -2879,7 +2879,7 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 		 * we need to explicitly skip the readback.
 		 */
 		wa_mcr_add(wal, GEN10_CACHE_MODE_SS, 0,
-			   _MASKED_BIT_ENABLE(ENABLE_PREFETCH_INTO_IC),
+			   REG_MASKED_FIELD_ENABLE(ENABLE_PREFETCH_INTO_IC),
 			   0 /* write-only, so skip validation */,
 			   true);
 	}

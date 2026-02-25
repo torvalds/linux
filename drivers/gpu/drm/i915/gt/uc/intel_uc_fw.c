@@ -1065,7 +1065,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 
 	/* Start the DMA */
 	intel_uncore_write_fw(uncore, DMA_CTRL,
-			      _MASKED_BIT_ENABLE(dma_flags | START_DMA));
+			      REG_MASKED_FIELD_ENABLE(dma_flags | START_DMA));
 
 	/* Wait for DMA to finish */
 	ret = intel_wait_for_register_fw(uncore, DMA_CTRL, START_DMA, 0, 100, NULL);
@@ -1075,7 +1075,7 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 		       intel_uncore_read_fw(uncore, DMA_CTRL));
 
 	/* Disable the bits once DMA is over */
-	intel_uncore_write_fw(uncore, DMA_CTRL, _MASKED_BIT_DISABLE(dma_flags));
+	intel_uncore_write_fw(uncore, DMA_CTRL, REG_MASKED_FIELD_DISABLE(dma_flags));
 
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 

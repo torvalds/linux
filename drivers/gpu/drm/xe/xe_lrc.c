@@ -637,12 +637,12 @@ static const u8 *reg_offsets(struct xe_device *xe, enum xe_engine_class class)
 
 static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 {
-	regs[CTX_CONTEXT_CONTROL] = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
-						       CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
+	regs[CTX_CONTEXT_CONTROL] = REG_MASKED_FIELD_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH |
+							    CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
 
 	if (xe_gt_has_indirect_ring_state(hwe->gt))
 		regs[CTX_CONTEXT_CONTROL] |=
-			_MASKED_BIT_ENABLE(CTX_CTRL_INDIRECT_RING_STATE_ENABLE);
+			REG_MASKED_FIELD_ENABLE(CTX_CTRL_INDIRECT_RING_STATE_ENABLE);
 }
 
 static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
@@ -1204,7 +1204,7 @@ static ssize_t setup_invalidate_state_cache_wa(struct xe_lrc *lrc,
 
 	*cmd++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(1);
 	*cmd++ = CS_DEBUG_MODE2(0).addr;
-	*cmd++ = _MASKED_BIT_ENABLE(INSTRUCTION_STATE_CACHE_INVALIDATE);
+	*cmd++ = REG_MASKED_FIELD_ENABLE(INSTRUCTION_STATE_CACHE_INVALIDATE);
 
 	return cmd - batch;
 }
@@ -1542,12 +1542,12 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	if (init_flags & XE_LRC_CREATE_RUNALONE)
 		xe_lrc_write_ctx_reg(lrc, CTX_CONTEXT_CONTROL,
 				     xe_lrc_read_ctx_reg(lrc, CTX_CONTEXT_CONTROL) |
-				     _MASKED_BIT_ENABLE(CTX_CTRL_RUN_ALONE));
+				     REG_MASKED_FIELD_ENABLE(CTX_CTRL_RUN_ALONE));
 
 	if (init_flags & XE_LRC_CREATE_PXP)
 		xe_lrc_write_ctx_reg(lrc, CTX_CONTEXT_CONTROL,
 				     xe_lrc_read_ctx_reg(lrc, CTX_CONTEXT_CONTROL) |
-				     _MASKED_BIT_ENABLE(CTX_CTRL_PXP_ENABLE));
+				     REG_MASKED_FIELD_ENABLE(CTX_CTRL_PXP_ENABLE));
 
 	lrc->ctx_timestamp = 0;
 	xe_lrc_write_ctx_reg(lrc, CTX_TIMESTAMP, 0);

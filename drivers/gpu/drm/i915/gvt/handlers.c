@@ -2047,10 +2047,10 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	bool enable_execlist;
 	int ret;
 
-	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
+	(*(u32 *)p_data) &= ~REG_MASKED_FIELD_ENABLE(1);
 	if (IS_COFFEELAKE(vgpu->gvt->gt->i915) ||
 	    IS_COMETLAKE(vgpu->gvt->gt->i915))
-		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
+		(*(u32 *)p_data) &= ~REG_MASKED_FIELD_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
 
 	if (IS_MASKED_BITS_ENABLED(data, 1)) {
@@ -2139,7 +2139,7 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 
 	if (IS_MASKED_BITS_ENABLED(data, RESET_CTL_REQUEST_RESET))
 		data |= RESET_CTL_READY_TO_RESET;
-	else if (data & _MASKED_BIT_DISABLE(RESET_CTL_REQUEST_RESET))
+	else if (data & REG_MASKED_FIELD_DISABLE(RESET_CTL_REQUEST_RESET))
 		data &= ~RESET_CTL_READY_TO_RESET;
 
 	vgpu_vreg(vgpu, offset) = data;
@@ -2152,7 +2152,7 @@ static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
 {
 	u32 data = *(u32 *)p_data;
 
-	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(0x18);
+	(*(u32 *)p_data) &= ~REG_MASKED_FIELD_ENABLE(0x18);
 	write_vreg(vgpu, offset, p_data, bytes);
 
 	if (IS_MASKED_BITS_ENABLED(data, 0x10) ||
@@ -2534,7 +2534,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 
 #define RING_REG(base) _MMIO((base) + 0xd0)
 	MMIO_RING_F(RING_REG, 4, F_RO, 0,
-		~_MASKED_BIT_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
+		~REG_MASKED_FIELD_ENABLE(RESET_CTL_REQUEST_RESET), D_BDW_PLUS, NULL,
 		ring_reset_ctl_write);
 #undef RING_REG
 

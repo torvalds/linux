@@ -105,17 +105,17 @@
 	       BUILD_BUG_ON_ZERO(!IS_POWER_OF_2((__mask) + (1ULL << __bf_shf(__mask)))) + \
 	       BUILD_BUG_ON_ZERO(__builtin_choose_expr(__is_constexpr(__val), (~((__mask) >> __bf_shf(__mask)) & (__val)), 0))))
 
-#define _MASKED_FIELD(mask, value) \
+#define REG_MASKED_FIELD(mask, value) \
 	(BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask), (mask) & 0xffff0000, 0)) + \
 	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(value), (value) & 0xffff0000, 0)) + \
 	 BUILD_BUG_ON_ZERO(__builtin_choose_expr(__builtin_constant_p(mask) && __builtin_constant_p(value), (value) & ~(mask), 0)) + \
 	 ((mask) << 16 | (value)))
 
-#define _MASKED_BIT_ENABLE(a) \
-	(__builtin_choose_expr(__builtin_constant_p(a), _MASKED_FIELD((a), (a)), ({ typeof(a) _a = (a); _MASKED_FIELD(_a, _a); })))
+#define REG_MASKED_FIELD_ENABLE(a) \
+	(__builtin_choose_expr(__builtin_constant_p(a), REG_MASKED_FIELD((a), (a)), ({ typeof(a) _a = (a); REG_MASKED_FIELD(_a, _a); })))
 
-#define _MASKED_BIT_DISABLE(a) \
-	(_MASKED_FIELD((a), 0))
+#define REG_MASKED_FIELD_DISABLE(a) \
+	(REG_MASKED_FIELD((a), 0))
 
 /*
  * Given the first two numbers __a and __b of arbitrarily many evenly spaced

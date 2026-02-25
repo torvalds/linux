@@ -24,7 +24,7 @@ static void intel_gsc_idle_msg_enable(struct intel_engine_cs *engine)
 	if (MEDIA_VER(i915) >= 13 && engine->id == GSC0) {
 		intel_uncore_write(engine->gt->uncore,
 				   RC_PSMI_CTRL_GSCCS,
-				   _MASKED_BIT_DISABLE(IDLE_MSG_DISABLE));
+				   REG_MASKED_FIELD_DISABLE(IDLE_MSG_DISABLE));
 		/* hysteresis 0xA=5us as recommended in spec*/
 		intel_uncore_write(engine->gt->uncore,
 				   PWRCTX_MAXCNT_GSCCS,

@@ -2934,12 +2934,12 @@ static void enable_execlists(struct intel_engine_cs *engine)
 	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
 	if (GRAPHICS_VER(engine->i915) >= 11)
-		mode = _MASKED_BIT_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
+		mode = REG_MASKED_FIELD_ENABLE(GEN11_GFX_DISABLE_LEGACY_MODE);
 	else
-		mode = _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE);
+		mode = REG_MASKED_FIELD_ENABLE(GFX_RUN_LIST_ENABLE);
 	ENGINE_WRITE_FW(engine, RING_MODE_GEN7, mode);
 
-	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
+	ENGINE_WRITE_FW(engine, RING_MI_MODE, REG_MASKED_FIELD_DISABLE(STOP_RING));
 
 	ENGINE_WRITE_FW(engine,
 			RING_HWS_PGA,

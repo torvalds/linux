@@ -442,9 +442,9 @@ static void clear_dropped_eviction_line_bit(struct xe_gt *gt, u16 group, u16 ins
 	 * On Xe2 and later GPUs, the bit has to be cleared by writing 0 to it.
 	 */
 	if (GRAPHICS_VER(xe) >= 20)
-		write_ptr_reg = _MASKED_BIT_DISABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
+		write_ptr_reg = REG_MASKED_FIELD_DISABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
 	else
-		write_ptr_reg = _MASKED_BIT_ENABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
+		write_ptr_reg = REG_MASKED_FIELD_ENABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
 
 	xe_gt_mcr_unicast_write(gt, XEHPC_EUSTALL_REPORT, write_ptr_reg, group, instance);
 }
@@ -504,7 +504,7 @@ static int xe_eu_stall_data_buf_read(struct xe_eu_stall_data_stream *stream,
 	/* Read pointer can overflow into one additional bit */
 	read_ptr &= (buf_size << 1) - 1;
 	read_ptr_reg = REG_FIELD_PREP(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, (read_ptr >> 6));
-	read_ptr_reg = _MASKED_FIELD(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, read_ptr_reg);
+	read_ptr_reg = REG_MASKED_FIELD(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, read_ptr_reg);
 	xe_gt_mcr_unicast_write(gt, XEHPC_EUSTALL_REPORT1, read_ptr_reg, group, instance);
 	xecore_buf->read = read_ptr;
 	trace_xe_eu_stall_data_read(group, instance, read_ptr, write_ptr,
@@ -674,7 +674,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 
 	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
-					  _MASKED_BIT_ENABLE(DISABLE_DOP_GATING));
+					  REG_MASKED_FIELD_ENABLE(DISABLE_DOP_GATING));
 
 	for_each_dss_steering(xecore, gt, group, instance) {
 		write_ptr_reg = xe_gt_mcr_unicast_read(gt, XEHPC_EUSTALL_REPORT, group, instance);
@@ -683,7 +683,7 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 			clear_dropped_eviction_line_bit(gt, group, instance);
 		write_ptr = REG_FIELD_GET(XEHPC_EUSTALL_REPORT_WRITE_PTR_MASK, write_ptr_reg);
 		read_ptr_reg = REG_FIELD_PREP(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, write_ptr);
-		read_ptr_reg = _MASKED_FIELD(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, read_ptr_reg);
+		read_ptr_reg = REG_MASKED_FIELD(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, read_ptr_reg);
 		/* Initialize the read pointer to the write pointer */
 		xe_gt_mcr_unicast_write(gt, XEHPC_EUSTALL_REPORT1, read_ptr_reg, group, instance);
 		write_ptr <<= 6;
@@ -695,10 +695,10 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 	stream->data_drop.reported_to_user = false;
 	bitmap_zero(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS);
 
-	reg_value = _MASKED_FIELD(EUSTALL_MOCS | EUSTALL_SAMPLE_RATE,
-				  REG_FIELD_PREP(EUSTALL_MOCS, gt->mocs.uc_index << 1) |
-				  REG_FIELD_PREP(EUSTALL_SAMPLE_RATE,
-						 stream->sampling_rate_mult));
+	reg_value = REG_MASKED_FIELD(EUSTALL_MOCS | EUSTALL_SAMPLE_RATE,
+				     REG_FIELD_PREP(EUSTALL_MOCS, gt->mocs.uc_index << 1) |
+				     REG_FIELD_PREP(EUSTALL_SAMPLE_RATE,
+						    stream->sampling_rate_mult));
 	xe_gt_mcr_multicast_write(gt, XEHPC_EUSTALL_CTRL, reg_value);
 	/* GGTT addresses can never be > 32 bits */
 	xe_gt_mcr_multicast_write(gt, XEHPC_EUSTALL_BASE_UPPER, 0);
@@ -830,7 +830,7 @@ static int xe_eu_stall_disable_locked(struct xe_eu_stall_data_stream *stream)
 
 	if (XE_GT_WA(gt, 22016596838))
 		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
-					  _MASKED_BIT_DISABLE(DISABLE_DOP_GATING));
+					  REG_MASKED_FIELD_DISABLE(DISABLE_DOP_GATING));
 
 	xe_force_wake_put(gt_to_fw(gt), stream->fw_ref);
 	xe_pm_runtime_put(gt_to_xe(gt));

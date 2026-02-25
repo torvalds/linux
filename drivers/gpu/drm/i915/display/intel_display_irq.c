@@ -1619,7 +1619,7 @@ static void i915gm_irq_cstate_wa_enable(struct intel_display *display)
 	 */
 	if (display->irq.vblank_enabled++ == 0)
 		intel_de_write(display, SCPD0,
-			       _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+			       REG_MASKED_FIELD_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 static void i915gm_irq_cstate_wa_disable(struct intel_display *display)
@@ -1628,7 +1628,7 @@ static void i915gm_irq_cstate_wa_disable(struct intel_display *display)
 
 	if (--display->irq.vblank_enabled == 0)
 		intel_de_write(display, SCPD0,
-			       _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+			       REG_MASKED_FIELD_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 void i915gm_irq_cstate_wa(struct intel_display *display, bool enable)
