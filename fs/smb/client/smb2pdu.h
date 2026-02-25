@@ -224,7 +224,7 @@ struct smb2_file_reparse_point_info {
 	__le32 Tag;
 } __packed;
 
-/* See MS-FSCC 2.4.21 */
+/* See MS-FSCC 2.4.26 */
 struct smb2_file_id_information {
 	__le64	VolumeSerialNumber;
 	__u64  PersistentFileId; /* opaque endianness */
@@ -251,7 +251,10 @@ struct smb2_file_id_extd_directory_info {
 
 extern char smb2_padding[7];
 
-/* equivalent of the contents of SMB3.1.1 POSIX open context response */
+/*
+ * See POSIX-SMB2 2.2.14.2.16
+ * Link: https://gitlab.com/samba-team/smb3-posix-spec/-/blob/master/smb3_posix_extensions.md
+ */
 struct create_posix_rsp {
 	u32 nlink;
 	u32 reparse_tag;
