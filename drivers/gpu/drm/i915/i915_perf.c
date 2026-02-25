@@ -2635,10 +2635,9 @@ static int gen12_configure_oar_context(struct i915_perf_stream *stream,
 		{
 			RING_CONTEXT_CONTROL(ce->engine->mmio_base),
 			CTX_CONTEXT_CONTROL,
-			REG_MASKED_FIELD(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE,
-					 active ?
-					 GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE :
-					 0)
+			active ?
+			REG_MASKED_FIELD_ENABLE(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE) :
+			REG_MASKED_FIELD_DISABLE(GEN12_CTX_CTRL_OAR_CONTEXT_ENABLE),
 		},
 	};
 
@@ -2847,9 +2846,10 @@ gen8_enable_metric_set(struct i915_perf_stream *stream,
 
 static u32 oag_report_ctx_switches(const struct i915_perf_stream *stream)
 {
-	return REG_MASKED_FIELD(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS,
-				(stream->sample_flags & SAMPLE_OA_REPORT) ?
-				0 : GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	if (stream->sample_flags & SAMPLE_OA_REPORT)
+		return REG_MASKED_FIELD_DISABLE(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
+	else
+		return REG_MASKED_FIELD_ENABLE(GEN12_OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
 static int
