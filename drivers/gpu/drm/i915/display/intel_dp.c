@@ -5556,7 +5556,14 @@ intel_dp_read_link_status(struct intel_dp *intel_dp, u8 link_status[DP_LINK_STAT
 		err = drm_dp_dpcd_read_phy_link_status(&intel_dp->aux, DP_PHY_DPRX,
 						       link_status);
 
-	return err;
+	if (err)
+		return err;
+
+	if (link_status[DP_LANE_ALIGN_STATUS_UPDATED - DP_LANE0_1_STATUS] &
+	    DP_DOWNSTREAM_PORT_STATUS_CHANGED)
+		WRITE_ONCE(intel_dp->downstream_port_changed, true);
+
+	return 0;
 }
 
 static bool
@@ -5876,6 +5883,11 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 
 	intel_dp_check_link_state(intel_dp);
 
+	if (READ_ONCE(intel_dp->downstream_port_changed)) {
+		WRITE_ONCE(intel_dp->downstream_port_changed, false);
+		reprobe_needed = true;
+	}
+
 	intel_psr_short_pulse(intel_dp);
 
 	if (intel_alpm_get_error(intel_dp)) {
@@ -5900,6 +5912,8 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 
 	if (drm_WARN_ON(display->drm, intel_dp_is_edp(intel_dp)))
 		return connector_status_connected;
+
+	WRITE_ONCE(intel_dp->downstream_port_changed, false);
 
 	intel_lspcon_resume(dig_port);
 

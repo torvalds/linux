@@ -1796,6 +1796,7 @@ struct intel_dp {
 	int link_rate;
 	u8 lane_count;
 	u8 sink_count;
+	bool downstream_port_changed;
 	bool needs_modeset_retry;
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
