@@ -115,6 +115,7 @@ struct vendor_data {
 	bool			always_enabled;
 	bool			fixed_options;
 	bool			skip_ibrd_fbrd;
+	bool			set_uartclk_rate;
 
 	unsigned int (*get_fifosize)(struct amba_device *dev);
 };
@@ -2096,6 +2097,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;
 	unsigned int baud, quot, clkdiv;
+	unsigned int max_baud;
 	unsigned int bits;
 
 	if (uap->vendor->oversampling)
@@ -2103,11 +2105,34 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		clkdiv = 16;
 
+	max_baud = port->uartclk / clkdiv;
+
+	if (uap->vendor->set_uartclk_rate) {
+		long max_clkrate = clk_round_rate(uap->clk, UINT_MAX);
+
+		/*
+		 * Clock is reprogrammable - determine max baud from the clock's
+		 * maximum rate, not the current uartclk.
+		 */
+		if (max_clkrate > 0)
+			max_baud = max_clkrate / clkdiv;
+	}
+
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0,
-				  port->uartclk / clkdiv);
+	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
+
+	if (uap->vendor->set_uartclk_rate) {
+		int err;
+
+		err = clk_set_rate(uap->clk, baud * clkdiv);
+		if (err) {
+			dev_err(port->dev, "Failed to set clock rate: %d\n", err);
+			return;
+		}
+	}
+
 #ifdef CONFIG_DMA_ENGINE
 	/*
 	 * Adjust RX DMA polling rate with baud rate if not specified.
