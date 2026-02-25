@@ -88,7 +88,7 @@ EXPORT_SYMBOL(of_graph_is_present);
  * Search for a property in a device node and count the number of elements of
  * size elem_size in it.
  *
- * Return: The number of elements on sucess, -EINVAL if the property does not
+ * Return: The number of elements on success, -EINVAL if the property does not
  * exist or its length does not match a multiple of elem_size and -ENODATA if
  * the property does not have a value.
  */
