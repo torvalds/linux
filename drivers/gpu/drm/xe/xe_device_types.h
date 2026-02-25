@@ -153,6 +153,8 @@ struct xe_device {
 
 		/** @info.force_execlist: Forced execlist submission */
 		u8 force_execlist:1;
+		/** @info.has_access_counter: Device supports access counter */
+		u8 has_access_counter:1;
 		/** @info.has_asid: Has address space ID */
 		u8 has_asid:1;
 		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
