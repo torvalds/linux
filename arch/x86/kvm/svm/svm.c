@@ -3738,6 +3738,29 @@ static void svm_inject_irq(struct kvm_vcpu *vcpu, bool reinjected)
 	svm->vmcb->control.event_inj = intr->nr | SVM_EVTINJ_VALID | type;
 }
 
+static void svm_fixup_nested_rips(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (!is_guest_mode(vcpu) || !svm->nested.nested_run_pending)
+		return;
+
+	/*
+	 * If nrips is supported in hardware but not exposed to L1, stuff the
+	 * actual L2 RIP to emulate what a nrips=0 CPU would do (L1 is
+	 * responsible for advancing RIP prior to injecting the event). Once L2
+	 * runs after L1 executes VMRUN, NextRIP is updated by the CPU and/or
+	 * KVM, and this is no longer needed.
+	 *
+	 * This is done here (as opposed to when preparing vmcb02) to use the
+	 * most up-to-date value of RIP regardless of the order of restoring
+	 * registers and nested state in the vCPU save+restore path.
+	 */
+	if (boot_cpu_has(X86_FEATURE_NRIPS) &&
+	    !guest_cpu_cap_has(vcpu, X86_FEATURE_NRIPS))
+		svm->vmcb->control.next_rip = kvm_rip_read(vcpu);
+}
+
 void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
 				     int trig_mode, int vector)
 {
@@ -4333,6 +4356,8 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_ERAPS) &&
 	    kvm_register_is_dirty(vcpu, VCPU_EXREG_ERAPS))
 		svm->vmcb->control.erap_ctl |= ERAP_CONTROL_CLEAR_RAP;
+
+	svm_fixup_nested_rips(vcpu);
 
 	svm_hv_update_vp_id(svm->vmcb, vcpu);
 
