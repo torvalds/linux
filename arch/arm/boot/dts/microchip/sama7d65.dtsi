@@ -304,6 +304,15 @@
 			};
 		};
 
+		lvdsc: lvds-controller@e1408000 {
+			compatible = "microchip,sama7d65-lvds", "microchip,sam9x75-lvds";
+			reg = <0xe1408000 0x100>;
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 104>;
+			clock-names = "pclk";
+			status = "disabled";
+		};
+
 		aes: crypto@e1600000 {
 			compatible = "microchip,sama7d65-aes", "atmel,at91sam9g46-aes";
 			reg = <0xe1600000 0x100>;
