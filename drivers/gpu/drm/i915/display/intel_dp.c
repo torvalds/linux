@@ -5812,7 +5812,7 @@ static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 	bool reprobe_needed = false;
 	u8 val;
 
-	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+	if (intel_dp->dpcd[DP_DPCD_REV] < DP_DPCD_REV_12)
 		return false;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
