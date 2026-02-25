@@ -955,8 +955,6 @@ static int mcp47feb02_parse_fw(struct iio_dev *indio_dev,
 	u32 num_channels;
 	u8 chan_idx = 0;
 
-	guard(mutex)(&data->lock);
-
 	num_channels = device_get_child_node_count(dev);
 	if (num_channels > chip_features->phys_channels)
 		return dev_err_probe(dev, -EINVAL, "More channels than the chip supports\n");
