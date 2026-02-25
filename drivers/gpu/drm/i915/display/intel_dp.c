@@ -5790,9 +5790,6 @@ static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	u8 val;
 
-	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
-		return;
-
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			      DP_DEVICE_SERVICE_IRQ_VECTOR, &val) != 1 || !val)
 		return;
