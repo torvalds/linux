@@ -729,7 +729,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dais = {
 			{
 				.direction = {true, false},
-				.codec_name = "snd_soc_sdca.UAJ.1",
+				.codec_name = "snd_soc_sdca.UAJ",
 				.dai_name = "IT 41",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
@@ -745,7 +745,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 			},
 			{
 				.direction = {false, true},
-				.codec_name = "snd_soc_sdca.UAJ.1",
+				.codec_name = "snd_soc_sdca.UAJ",
 				.dai_name = "OT 36",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
@@ -754,7 +754,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dai_num = 3,
 		.auxs = {
 			{
-				.codec_name = "snd_soc_sdca.HID.2",
+				.codec_name = "snd_soc_sdca.HID",
 			},
 		},
 		.aux_num = 1,
