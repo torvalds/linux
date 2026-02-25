@@ -817,7 +817,7 @@ static int mxs_dma_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "unable to register\n");
 
-	ret = of_dma_controller_register(np, mxs_dma_xlate, mxs_dma);
+	ret = devm_of_dma_controller_register(dev, np, mxs_dma_xlate, mxs_dma);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "failed to register controller\n");
