@@ -5816,6 +5816,11 @@ static bool intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 	return false;
 }
 
+/*
+ * Return %true if a full connector reprobe is required due to a failure while
+ * reading or acking the link service IRQs or if the reprobing is required
+ * after handling a link service IRQ event.
+ */
 static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
@@ -5826,12 +5831,15 @@ static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 		return false;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
-			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1 || !val)
+			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1)
+		return true;
+
+	if (!val)
 		return false;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1)
-		return false;
+		return true;
 
 	if (val & RX_CAP_CHANGED)
 		reprobe_needed = true;
