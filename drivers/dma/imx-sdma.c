@@ -2323,11 +2323,11 @@ static int sdma_probe(struct platform_device *pdev)
 
 	ret = sdma_init(sdma);
 	if (ret)
-		goto err_init;
+		return ret;
 
 	ret = sdma_event_remap(sdma);
 	if (ret)
-		goto err_init;
+		return ret;
 
 	if (sdma->drvdata->script_addrs)
 		sdma_add_scripts(sdma, sdma->drvdata->script_addrs);
@@ -2353,17 +2353,18 @@ static int sdma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sdma);
 
-	ret = dma_async_device_register(&sdma->dma_device);
+	ret = dmaenginem_async_device_register(&sdma->dma_device);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to register\n");
-		goto err_init;
+		return ret;
 	}
 
 	if (np) {
-		ret = of_dma_controller_register(np, sdma_xlate, sdma);
+		ret = devm_of_dma_controller_register(&pdev->dev, np,
+						      sdma_xlate, sdma);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to register controller\n");
-			goto err_register;
+			return ret;
 		}
 
 		spba_bus = of_find_compatible_node(NULL, NULL, "fsl,spba-bus");
@@ -2391,12 +2392,6 @@ static int sdma_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-err_register:
-	dma_async_device_unregister(&sdma->dma_device);
-err_init:
-	kfree(sdma->script_addrs);
-	return ret;
 }
 
 static void sdma_remove(struct platform_device *pdev)
@@ -2405,8 +2400,6 @@ static void sdma_remove(struct platform_device *pdev)
 	int i;
 
 	devm_free_irq(&pdev->dev, sdma->irq, sdma);
-	dma_async_device_unregister(&sdma->dma_device);
-	kfree(sdma->script_addrs);
 	/* Kill the tasklet */
 	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
 		struct sdma_channel *sdmac = &sdma->channel[i];
