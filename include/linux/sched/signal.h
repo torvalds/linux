@@ -739,7 +739,7 @@ static inline int thread_group_empty(struct task_struct *p)
 
 extern struct sighand_struct *lock_task_sighand(struct task_struct *task,
 						unsigned long *flags)
-	__acquires(&task->sighand->siglock);
+	__cond_acquires(nonnull, &task->sighand->siglock);
 
 static inline void unlock_task_sighand(struct task_struct *task,
 						unsigned long *flags)
