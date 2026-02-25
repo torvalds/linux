@@ -76,7 +76,7 @@ examples:
         interrupts = <12>;
         clock-rate = <50000000>;  /* 50 MHz */
 
-        flash@f8000000 {
+        flash@fc000000 {
             reg = <0xfc000000 0x1000>;
             st,smi-fast-mode;
         };
