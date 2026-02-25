@@ -5491,16 +5491,9 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		ack[3] |= esi[3] & LINK_STATUS_CHANGED;
+		ack[3] |= esi[3] & (LINK_STATUS_CHANGED | DP_TUNNELING_IRQ);
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
-
-		if (esi[3] & DP_TUNNELING_IRQ) {
-			if (drm_dp_tunnel_handle_irq(display->dp_tunnel_mgr,
-						     &intel_dp->aux))
-				reprobe_needed = true;
-			ack[3] |= DP_TUNNELING_IRQ;
-		}
 
 		if (mem_is_zero(ack, sizeof(ack)))
 			break;
@@ -5513,6 +5506,10 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		if ((ack[3] & LINK_STATUS_CHANGED) || intel_dp->link.force_retrain)
 			intel_dp_check_link_state(intel_dp);
+
+		if ((ack[3] & DP_TUNNELING_IRQ) &&
+		    drm_dp_tunnel_handle_irq(display->dp_tunnel_mgr, &intel_dp->aux))
+			reprobe_needed = true;
 	}
 
 	return !reprobe_needed;
@@ -5815,17 +5812,17 @@ static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1 || !val)
 		return false;
 
+	if (drm_dp_dpcd_writeb(&intel_dp->aux,
+			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1)
+		return false;
+
+	if (val & HDMI_LINK_STATUS_CHANGED)
+		intel_dp_handle_hdmi_link_status_change(intel_dp);
+
 	if ((val & DP_TUNNELING_IRQ) &&
 	    drm_dp_tunnel_handle_irq(display->dp_tunnel_mgr,
 				     &intel_dp->aux))
 		reprobe_needed = true;
-
-	if (drm_dp_dpcd_writeb(&intel_dp->aux,
-			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1)
-		return reprobe_needed;
-
-	if (val & HDMI_LINK_STATUS_CHANGED)
-		intel_dp_handle_hdmi_link_status_change(intel_dp);
 
 	return reprobe_needed;
 }
