@@ -1184,6 +1184,11 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		if (XE_IOCTL_DBG(xe, !hwe))
 			return -EINVAL;
 
+		/* multi-lrc is only supported on select engine classes */
+		if (XE_IOCTL_DBG(xe, args->width > 1 &&
+				 !(xe->info.multi_lrc_mask & BIT(hwe->class))))
+			return -EOPNOTSUPP;
+
 		vm = xe_vm_lookup(xef, args->vm_id);
 		if (XE_IOCTL_DBG(xe, !vm))
 			return -ENOENT;

@@ -138,6 +138,8 @@ struct xe_device {
 		u8 tile_count;
 		/** @info.max_gt_per_tile: Number of GT IDs allocated to each tile */
 		u8 max_gt_per_tile;
+		/** @info.multi_lrc_mask: bitmask of engine classes which support multi-lrc */
+		u8 multi_lrc_mask;
 		/** @info.gt_count: Total number of GTs for entire device */
 		u8 gt_count;
 		/** @info.vm_max_level: Max VM level */
