@@ -649,6 +649,15 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 		count = PL011_DMA_BUFFER_SIZE;
 
 	count = kfifo_out_peek(&tport->xmit_fifo, dmatx->buf, count);
+
+	/*
+	 * Align the TX buffer length to the DMA controller's copy_align
+	 * requirements. Some DMA controllers (e.g., Tegra GPC DMA) require
+	 * word-aligned transfers. Unaligned bytes will be sent via PIO.
+	 */
+	if (chan->device->copy_align)
+		count = ALIGN_DOWN(count, 1 << chan->device->copy_align);
+
 	dmatx->len = count;
 	dmatx->dma = dma_map_single(dma_dev->dev, dmatx->buf, count,
 				    DMA_TO_DEVICE);
