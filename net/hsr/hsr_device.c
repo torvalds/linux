@@ -742,7 +742,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 		hsr->proto_ops = &hsr_ops;
 	}
 
-	/* Make sure we recognize frames from ourselves in hsr_rcv() */
+	/* Make sure we recognize frames from ourselves in hsr_handle_frame() */
 	res = hsr_create_self_node(hsr, hsr_dev->dev_addr,
 				   slave[1]->dev_addr);
 	if (res < 0)

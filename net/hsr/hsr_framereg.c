@@ -71,8 +71,8 @@ bool hsr_is_node_in_db(struct list_head *node_db,
 	return !!find_node_by_addr_A(node_db, addr);
 }
 
-/* Helper for device init; the self_node is used in hsr_rcv() to recognize
- * frames from self that's been looped over the HSR ring.
+/* Helper for device init; the self_node is used in hsr_handle_frame() to
+ * recognize frames from self that's been looped over the HSR ring.
  */
 int hsr_create_self_node(struct hsr_priv *hsr,
 			 const unsigned char addr_a[ETH_ALEN],
