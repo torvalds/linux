@@ -5785,16 +5785,24 @@ void intel_dp_check_link_state(struct intel_dp *intel_dp)
 	intel_encoder_link_check_queue_work(encoder, 0);
 }
 
-static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
+/*
+ * Return %true if a full connector reprobe is required due to a failure while
+ * reading or acking the device service IRQs.
+ */
+static bool intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u8 val;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
-			      DP_DEVICE_SERVICE_IRQ_VECTOR, &val) != 1 || !val)
-		return;
+			      DP_DEVICE_SERVICE_IRQ_VECTOR, &val) != 1)
+		return true;
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, val);
+	if (!val)
+		return false;
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_DEVICE_SERVICE_IRQ_VECTOR, val) != 1)
+		return true;
 
 	if (val & DP_AUTOMATED_TEST_REQUEST)
 		intel_dp_test_request(intel_dp);
@@ -5804,6 +5812,8 @@ static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 
 	if (val & DP_SINK_SPECIFIC_IRQ)
 		drm_dbg_kms(display->drm, "Sink specific irq unhandled\n");
+
+	return false;
 }
 
 static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
@@ -5868,8 +5878,11 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 		/* No need to proceed if we are going to do full detect */
 		return false;
 
-	intel_dp_check_device_service_irq(intel_dp);
-	reprobe_needed = intel_dp_check_link_service_irq(intel_dp);
+	if (intel_dp_check_device_service_irq(intel_dp))
+		reprobe_needed = true;
+
+	if (intel_dp_check_link_service_irq(intel_dp))
+		reprobe_needed = true;
 
 	/* Handle CEC interrupts, if any */
 	drm_dp_cec_irq(&intel_dp->aux);
