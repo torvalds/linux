@@ -891,17 +891,6 @@ skb_fail:
 }
 EXPORT_SYMBOL(napi_alloc_skb);
 
-void skb_add_rx_frag_netmem(struct sk_buff *skb, int i, netmem_ref netmem,
-			    int off, int size, unsigned int truesize)
-{
-	DEBUG_NET_WARN_ON_ONCE(size > truesize);
-
-	skb_fill_netmem_desc(skb, i, netmem, off, size);
-	skb->len += size;
-	skb->data_len += size;
-	skb->truesize += truesize;
-}
-EXPORT_SYMBOL(skb_add_rx_frag_netmem);
 
 void skb_coalesce_rx_frag(struct sk_buff *skb, int i, int size,
 			  unsigned int truesize)
