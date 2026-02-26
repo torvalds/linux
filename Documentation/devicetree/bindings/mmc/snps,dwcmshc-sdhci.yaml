@@ -50,9 +50,11 @@ properties:
     maxItems: 1
 
   resets:
+    minItems: 4
     maxItems: 5
 
   reset-names:
+    minItems: 4
     maxItems: 5
 
   rockchip,txclk-tapnum:
@@ -146,6 +148,7 @@ allOf:
     else:
       properties:
         resets:
+          minItems: 5
           maxItems: 5
         reset-names:
           items:
