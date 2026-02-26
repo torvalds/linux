@@ -91,14 +91,12 @@
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 			regulator-name = "vdd10_lcd";
-			regulator-suspend-mem-disabled;
 		};
 
 		vcc18_hdmi: SWITCH_REG2 {
 			regulator-always-on;
 			regulator-boot-on;
 			regulator-name = "vcc18_hdmi";
-			regulator-suspend-mem-disabled;
 		};
 	};
 };
