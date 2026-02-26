@@ -18,7 +18,6 @@
 #define OG01A1B_SCLK			120000000LL
 #define OG01A1B_MCLK			19200000
 #define OG01A1B_DATA_LANES		2
-#define OG01A1B_RGB_DEPTH		10
 
 #define OG01A1B_REG_CHIP_ID		CCI_REG24(0x300a)
 #define OG01A1B_CHIP_ID			0x470141
@@ -98,6 +97,11 @@ struct og01a1b_mode {
 	const struct og01a1b_reg_list reg_list;
 };
 
+static const u32 og01a1b_mbus_formats[] = {
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_Y8_1X8,
+};
+
 static const struct cci_reg_sequence mipi_data_rate_1000mbps[] = {
 	{ CCI_REG8(0x0103), 0x01 },
 	{ CCI_REG8(0x0303), 0x02 },
@@ -173,7 +177,6 @@ static const struct cci_reg_sequence mode_1280x1024_regs[] = {
 	{ CCI_REG8(0x3639), 0x38 },
 	{ CCI_REG8(0x363f), 0x09 },
 	{ CCI_REG8(0x3640), 0x17 },
-	{ CCI_REG8(0x3662), 0x04 },
 	{ CCI_REG8(0x3665), 0x80 },
 	{ CCI_REG8(0x3670), 0x68 },
 	{ CCI_REG8(0x3674), 0x00 },
@@ -427,20 +430,23 @@ struct og01a1b {
 
 	/* Current mode */
 	const struct og01a1b_mode *cur_mode;
+
+	/* Selected media bus format output */
+	u32 code;
 };
 
-static u64 to_pixel_rate(u32 f_index)
+static u64 to_pixel_rate(u32 f_index, u32 bpp)
 {
 	u64 pixel_rate = link_freq_menu_items[f_index] * 2 * OG01A1B_DATA_LANES;
 
-	do_div(pixel_rate, OG01A1B_RGB_DEPTH);
+	do_div(pixel_rate, bpp);
 
 	return pixel_rate;
 }
 
-static u64 to_pixels_per_line(u32 hts, u32 f_index)
+static u64 to_pixels_per_line(u32 hts, u32 f_index, u32 bpp)
 {
-	u64 ppl = hts * to_pixel_rate(f_index);
+	u64 ppl = hts * to_pixel_rate(f_index, bpp);
 
 	do_div(ppl, OG01A1B_SCLK);
 
@@ -522,6 +528,7 @@ static int og01a1b_init_controls(struct og01a1b *og01a1b)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	s64 exposure_max, h_blank;
+	u32 bpp;
 	int ret;
 
 	ctrl_hdlr = &og01a1b->ctrl_handler;
@@ -538,13 +545,12 @@ static int og01a1b_init_controls(struct og01a1b *og01a1b)
 	if (og01a1b->link_freq)
 		og01a1b->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	bpp = (og01a1b->code == MEDIA_BUS_FMT_Y10_1X10 ? 10 : 8);
 	og01a1b->pixel_rate = v4l2_ctrl_new_std(ctrl_hdlr, &og01a1b_ctrl_ops,
-						V4L2_CID_PIXEL_RATE, 0,
-						to_pixel_rate
-						(OG01A1B_LINK_FREQ_1000MBPS),
-						1,
-						to_pixel_rate
-						(OG01A1B_LINK_FREQ_1000MBPS));
+				V4L2_CID_PIXEL_RATE, 0,
+				to_pixel_rate(OG01A1B_LINK_FREQ_1000MBPS, bpp),
+				1,
+				to_pixel_rate(OG01A1B_LINK_FREQ_1000MBPS, bpp));
 	og01a1b->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &og01a1b_ctrl_ops,
 					    V4L2_CID_VBLANK,
 					    og01a1b->cur_mode->vts_min -
@@ -554,7 +560,7 @@ static int og01a1b_init_controls(struct og01a1b *og01a1b)
 					    og01a1b->cur_mode->vts_def -
 					    og01a1b->cur_mode->height);
 	h_blank = to_pixels_per_line(og01a1b->cur_mode->hts,
-				     og01a1b->cur_mode->link_freq_index) -
+				     og01a1b->cur_mode->link_freq_index, bpp) -
 				     og01a1b->cur_mode->width;
 	og01a1b->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &og01a1b_ctrl_ops,
 					    V4L2_CID_HBLANK, h_blank, h_blank,
@@ -594,7 +600,6 @@ static void og01a1b_update_pad_format(const struct og01a1b_mode *mode,
 {
 	fmt->width = mode->width;
 	fmt->height = mode->height;
-	fmt->code = MEDIA_BUS_FMT_Y10_1X10;
 	fmt->field = V4L2_FIELD_NONE;
 }
 
@@ -624,6 +629,14 @@ static int og01a1b_enable_streams(struct v4l2_subdev *sd,
 				  reg_list->num_of_regs, NULL);
 	if (ret) {
 		dev_err(og01a1b->dev, "failed to set mode: %d\n", ret);
+		goto error;
+	}
+
+	ret = cci_write(og01a1b->regmap, CCI_REG8(0x3662),
+			(og01a1b->code == MEDIA_BUS_FMT_Y10_1X10 ? 0x4 : 0x6),
+			NULL);
+	if (ret) {
+		dev_err(og01a1b->dev, "failed to set output format: %d\n", ret);
 		goto error;
 	}
 
@@ -669,7 +682,7 @@ static int og01a1b_set_format(struct v4l2_subdev *sd,
 {
 	struct og01a1b *og01a1b = to_og01a1b(sd);
 	const struct og01a1b_mode *mode;
-	s32 vblank_def, h_blank;
+	s32 vblank_def, h_blank, bpp;
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes), width,
@@ -677,26 +690,30 @@ static int og01a1b_set_format(struct v4l2_subdev *sd,
 				      fmt->format.height);
 
 	og01a1b_update_pad_format(mode, &fmt->format);
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
-	} else {
-		og01a1b->cur_mode = mode;
-		__v4l2_ctrl_s_ctrl(og01a1b->link_freq, mode->link_freq_index);
-		__v4l2_ctrl_s_ctrl_int64(og01a1b->pixel_rate,
-					 to_pixel_rate(mode->link_freq_index));
 
-		/* Update limits and set FPS to default */
-		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(og01a1b->vblank,
-					 mode->vts_min - mode->height,
-					 OG01A1B_VTS_MAX - mode->height, 1,
-					 vblank_def);
-		__v4l2_ctrl_s_ctrl(og01a1b->vblank, vblank_def);
-		h_blank = to_pixels_per_line(mode->hts, mode->link_freq_index) -
-			  mode->width;
-		__v4l2_ctrl_modify_range(og01a1b->hblank, h_blank, h_blank, 1,
-					 h_blank);
-	}
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
+		goto set_format;
+
+	bpp = (fmt->format.code == MEDIA_BUS_FMT_Y10_1X10 ? 10 : 8);
+	__v4l2_ctrl_s_ctrl(og01a1b->link_freq, mode->link_freq_index);
+	__v4l2_ctrl_s_ctrl_int64(og01a1b->pixel_rate,
+				 to_pixel_rate(mode->link_freq_index, bpp));
+
+	/* Update limits and set FPS to default */
+	vblank_def = mode->vts_def - mode->height;
+	__v4l2_ctrl_modify_range(og01a1b->vblank,
+				 mode->vts_min - mode->height,
+				 OG01A1B_VTS_MAX - mode->height, 1, vblank_def);
+	__v4l2_ctrl_s_ctrl(og01a1b->vblank, vblank_def);
+	h_blank = to_pixels_per_line(mode->hts, mode->link_freq_index,
+				     bpp) - mode->width;
+	__v4l2_ctrl_modify_range(og01a1b->hblank, h_blank, h_blank, 1, h_blank);
+
+	og01a1b->cur_mode = mode;
+	og01a1b->code = fmt->format.code;
+
+set_format:
+	*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 
 	return 0;
 }
@@ -705,10 +722,10 @@ static int og01a1b_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index > 0)
+	if (code->index > ARRAY_SIZE(og01a1b_mbus_formats) - 1)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_Y10_1X10;
+	code->code = og01a1b_mbus_formats[code->index];
 
 	return 0;
 }
@@ -720,7 +737,8 @@ static int og01a1b_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
-	if (fse->code != MEDIA_BUS_FMT_Y10_1X10)
+	if (fse->code != MEDIA_BUS_FMT_Y10_1X10 &&
+	    fse->code != MEDIA_BUS_FMT_Y8_1X8)
 		return -EINVAL;
 
 	fse->min_width = supported_modes[fse->index].width;
@@ -741,7 +759,7 @@ static int og01a1b_init_state(struct v4l2_subdev *sd,
 		.format = {
 			.width = og01a1b->cur_mode->width,
 			.height = og01a1b->cur_mode->height,
-			.code = MEDIA_BUS_FMT_Y10_1X10,
+			.code = og01a1b->code,
 		},
 	};
 
@@ -1032,6 +1050,7 @@ static int og01a1b_probe(struct i2c_client *client)
 	}
 
 	og01a1b->cur_mode = &supported_modes[0];
+	og01a1b->code = og01a1b_mbus_formats[0];
 	ret = og01a1b_init_controls(og01a1b);
 	if (ret) {
 		dev_err(og01a1b->dev, "failed to init controls: %d", ret);
