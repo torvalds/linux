@@ -205,6 +205,7 @@ struct intel_overlay {
 	struct drm_i915_gem_object *reg_bo;
 	struct overlay_registers __iomem *regs;
 	u32 flip_addr;
+	u32 frontbuffer_bits;
 	/* flip handling */
 	struct i915_active last_flip;
 	void (*flip_complete)(struct intel_overlay *ovl);
@@ -255,7 +256,8 @@ alloc_request(struct intel_overlay *overlay, void (*fn)(struct intel_overlay *))
 }
 
 /* overlay needs to be disable in OCMD reg */
-static int intel_overlay_on(struct intel_overlay *overlay)
+static int intel_overlay_on(struct intel_overlay *overlay,
+			    u32 frontbuffer_bits)
 {
 	struct intel_display *display = overlay->display;
 	struct i915_request *rq;
@@ -274,6 +276,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	}
 
 	overlay->active = true;
+	overlay->frontbuffer_bits = frontbuffer_bits;
 
 	if (display->platform.i830)
 		i830_overlay_clock_gating(display, false);
@@ -293,7 +296,6 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 				       struct i915_vma *vma)
 {
 	struct intel_display *display = overlay->display;
-	enum pipe pipe = overlay->crtc->pipe;
 	struct intel_frontbuffer *frontbuffer = NULL;
 
 	drm_WARN_ON(display->drm, overlay->old_vma);
@@ -302,7 +304,7 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 		frontbuffer = intel_frontbuffer_get(intel_bo_to_drm_bo(vma->obj));
 
 	intel_frontbuffer_track(overlay->frontbuffer, frontbuffer,
-				INTEL_FRONTBUFFER_OVERLAY(pipe));
+				overlay->frontbuffer_bits);
 
 	if (overlay->frontbuffer)
 		intel_frontbuffer_put(overlay->frontbuffer);
@@ -364,7 +366,7 @@ static void intel_overlay_release_old_vma(struct intel_overlay *overlay)
 	if (drm_WARN_ON(display->drm, !vma))
 		return;
 
-	intel_frontbuffer_flip(display, INTEL_FRONTBUFFER_OVERLAY(overlay->crtc->pipe));
+	intel_frontbuffer_flip(display, overlay->frontbuffer_bits);
 
 	i915_vma_unpin(vma);
 	i915_vma_put(vma);
@@ -382,9 +384,8 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 
 	intel_overlay_release_old_vma(overlay);
 
-	overlay->crtc->overlay = NULL;
-	overlay->crtc = NULL;
 	overlay->active = false;
+	overlay->frontbuffer_bits = 0;
 
 	if (display->platform.i830)
 		i830_overlay_clock_gating(display, true);
@@ -506,6 +507,7 @@ void intel_overlay_reset(struct intel_display *display)
 	overlay->old_yscale = 0;
 	overlay->crtc = NULL;
 	overlay->active = false;
+	overlay->frontbuffer_bits = 0;
 }
 
 static int packed_depth_bytes(u32 format)
@@ -836,7 +838,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			OCONF_PIPE_A : OCONF_PIPE_B;
 		iowrite32(oconfig, &regs->OCONFIG);
 
-		ret = intel_overlay_on(overlay);
+		ret = intel_overlay_on(overlay, INTEL_FRONTBUFFER_OVERLAY(pipe));
 		if (ret != 0)
 			goto out_unpin;
 	}
@@ -923,6 +925,9 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 		return ret;
 
 	iowrite32(0, &overlay->regs->OCMD);
+
+	overlay->crtc->overlay = NULL;
+	overlay->crtc = NULL;
 
 	return intel_overlay_off(overlay);
 }
