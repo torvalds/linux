@@ -963,7 +963,6 @@ config CRYPTO_SHA256
 	  10118-3), including HMAC support.
 
 	  This is required for IPsec AH (XFRM_AH) and IPsec ESP (XFRM_ESP).
-	  Used by the btrfs filesystem, Ceph, NFS, and SMB.
 
 config CRYPTO_SHA512
 	tristate "SHA-384 and SHA-512"
