@@ -1430,38 +1430,48 @@ err_put_bo:
 	return err;
 }
 
-void intel_overlay_setup(struct intel_display *display)
+static int i915_overlay_setup(struct drm_device *drm,
+			      struct intel_overlay *overlay,
+			      bool needs_physical)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	struct intel_overlay *overlay;
+	struct drm_i915_private *dev_priv = to_i915(drm);
 	struct intel_engine_cs *engine;
-	int ret;
-
-	if (!HAS_OVERLAY(display))
-		return;
 
 	engine = to_gt(dev_priv)->engine[RCS0];
 	if (!engine || !engine->kernel_context)
+		return -ENOENT;
+
+	overlay->context = engine->kernel_context;
+
+	i915_active_init(&overlay->last_flip,
+			 NULL, intel_overlay_last_flip_retire, 0);
+
+	return get_registers(overlay, needs_physical);
+}
+
+void intel_overlay_setup(struct intel_display *display)
+{
+	struct intel_overlay *overlay;
+	int ret;
+
+	if (!HAS_OVERLAY(display))
 		return;
 
 	overlay = kzalloc_obj(*overlay);
 	if (!overlay)
 		return;
 
+	ret = i915_overlay_setup(display->drm, overlay,
+				 OVERLAY_NEEDS_PHYSICAL(display));
+	if (ret)
+		goto out_free;
+
 	overlay->display = display;
-	overlay->context = engine->kernel_context;
 	overlay->color_key = 0x0101fe;
 	overlay->color_key_enabled = true;
 	overlay->brightness = -19;
 	overlay->contrast = 75;
 	overlay->saturation = 146;
-
-	i915_active_init(&overlay->last_flip,
-			 NULL, intel_overlay_last_flip_retire, 0);
-
-	ret = get_registers(overlay, OVERLAY_NEEDS_PHYSICAL(display));
-	if (ret)
-		goto out_free;
 
 	memset_io(overlay->regs, 0, sizeof(struct overlay_registers));
 	update_polyphase_filter(overlay->regs);
