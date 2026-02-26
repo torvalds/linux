@@ -876,8 +876,6 @@ config CRYPTO_BLAKE2B
 	  - blake2b-384
 	  - blake2b-512
 
-	  Used by the btrfs filesystem.
-
 	  See https://blake2.net for further information.
 
 config CRYPTO_CMAC
