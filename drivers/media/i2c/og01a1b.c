@@ -701,21 +701,6 @@ static int og01a1b_set_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int og01a1b_get_format(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_state *sd_state,
-			      struct v4l2_subdev_format *fmt)
-{
-	struct og01a1b *og01a1b = to_og01a1b(sd);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_state_get_format(sd_state,
-							    fmt->pad);
-	else
-		og01a1b_update_pad_format(og01a1b->cur_mode, &fmt->format);
-
-	return 0;
-}
-
 static int og01a1b_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
@@ -771,7 +756,7 @@ static const struct v4l2_subdev_video_ops og01a1b_video_ops = {
 
 static const struct v4l2_subdev_pad_ops og01a1b_pad_ops = {
 	.set_fmt = og01a1b_set_format,
-	.get_fmt = og01a1b_get_format,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.enum_mbus_code = og01a1b_enum_mbus_code,
 	.enum_frame_size = og01a1b_enum_frame_size,
 	.enable_streams = og01a1b_enable_streams,
