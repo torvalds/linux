@@ -1277,6 +1277,8 @@ static int vf_post_migration_fixups(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	atomic_inc(&gt->sriov.vf.migration.fixups_complete_count);
+
 	return 0;
 }
 
@@ -1516,19 +1518,49 @@ static bool vf_valid_ggtt(struct xe_gt *gt)
 }
 
 /**
- * xe_gt_sriov_vf_wait_valid_ggtt() - wait for valid GGTT nodes and address refs
- * @gt: the &xe_gt
+ * xe_vf_migration_fixups_complete_count() - Get count of VF fixups completions.
+ * @gt: the &xe_gt instance which contains affected Global GTT
+ *
+ * Return: number of times VF fixups were completed since driver
+ * probe, or 0 if migration is not available, or -1 if fixups are
+ * pending or being applied right now.
  */
-void xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt)
+int xe_vf_migration_fixups_complete_count(struct xe_gt *gt)
+{
+	if (!IS_SRIOV_VF(gt_to_xe(gt)) ||
+	    !xe_sriov_vf_migration_supported(gt_to_xe(gt)))
+		return 0;
+
+	/* should never match fixups_complete_count value */
+	if (!vf_valid_ggtt(gt))
+		return -1;
+
+	return atomic_read(&gt->sriov.vf.migration.fixups_complete_count);
+}
+
+/**
+ * xe_gt_sriov_vf_wait_valid_ggtt() - wait for valid GGTT nodes and address refs
+ * @gt: the &xe_gt instance which contains affected Global GTT
+ *
+ * Return: number of times VF fixups were completed since driver
+ * probe, or 0 if migration is not available.
+ */
+int xe_gt_sriov_vf_wait_valid_ggtt(struct xe_gt *gt)
 {
 	int ret;
 
+	/*
+	 * this condition needs to be identical to one in
+	 * xe_vf_migration_fixups_complete_count()
+	 */
 	if (!IS_SRIOV_VF(gt_to_xe(gt)) ||
 	    !xe_sriov_vf_migration_supported(gt_to_xe(gt)))
-		return;
+		return 0;
 
 	ret = wait_event_interruptible_timeout(gt->sriov.vf.migration.wq,
 					       vf_valid_ggtt(gt),
 					       HZ * 5);
 	xe_gt_WARN_ON(gt, !ret);
+
+	return atomic_read(&gt->sriov.vf.migration.fixups_complete_count);
 }

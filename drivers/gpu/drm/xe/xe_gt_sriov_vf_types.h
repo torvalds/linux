@@ -54,6 +54,8 @@ struct xe_gt_sriov_vf_migration {
 	wait_queue_head_t wq;
 	/** @scratch: Scratch memory for VF recovery */
 	void *scratch;
+	/** @fixups_complete_count: Counts completed fixups stages */
+	atomic_t fixups_complete_count;
 	/** @debug: Debug hooks for delaying migration */
 	struct {
 		/**
