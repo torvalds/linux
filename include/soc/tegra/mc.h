@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014 NVIDIA Corporation
+ * Copyright (C) 2014-2026 NVIDIA Corporation
  */
 
 #ifndef __SOC_TEGRA_MC_H__
@@ -168,6 +168,23 @@ struct tegra_mc_ops {
 	int (*probe_device)(struct tegra_mc *mc, struct device *dev);
 };
 
+struct tegra_mc_regs {
+	unsigned int cfg_channel_enable;
+	unsigned int err_status;
+	unsigned int err_add;
+	unsigned int err_add_hi;
+	unsigned int err_vpr_status;
+	unsigned int err_vpr_add;
+	unsigned int err_sec_status;
+	unsigned int err_sec_add;
+	unsigned int err_mts_status;
+	unsigned int err_mts_add;
+	unsigned int err_gen_co_status;
+	unsigned int err_gen_co_add;
+	unsigned int err_route_status;
+	unsigned int err_route_add;
+};
+
 struct tegra_mc_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
@@ -196,6 +213,7 @@ struct tegra_mc_soc {
 
 	const struct tegra_mc_icc_ops *icc_ops;
 	const struct tegra_mc_ops *ops;
+	const struct tegra_mc_regs *regs;
 };
 
 struct tegra_mc {
@@ -255,5 +273,7 @@ tegra_mc_get_carveout_info(struct tegra_mc *mc, unsigned int id,
 	return -ENODEV;
 }
 #endif
+
+extern const struct tegra_mc_regs tegra20_mc_regs;
 
 #endif /* __SOC_TEGRA_MC_H__ */

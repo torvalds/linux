@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017-2025 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2017-2026 NVIDIA CORPORATION.  All rights reserved.
  */
 
 #include <linux/io.h>
@@ -914,5 +914,6 @@ const struct tegra_mc_soc tegra186_mc_soc = {
 	.ops = &tegra186_mc_ops,
 	.ch_intmask = 0x0000000f,
 	.global_intstatus_channel_shift = 0,
+	.regs = &tegra20_mc_regs,
 };
 #endif
