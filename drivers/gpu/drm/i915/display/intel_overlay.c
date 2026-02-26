@@ -1490,6 +1490,20 @@ bool intel_overlay_available(struct intel_display *display)
 	return display->overlay;
 }
 
+static void i915_overlay_cleanup(struct drm_device *drm,
+				 struct intel_overlay *overlay)
+{
+	/*
+	 * The bo's should be free'd by the generic code already.
+	 * Furthermore modesetting teardown happens beforehand so the
+	 * hardware should be off already.
+	 */
+	drm_WARN_ON(drm, i915_overlay_is_active(drm));
+
+	i915_gem_object_put(overlay->reg_bo);
+	i915_active_fini(&overlay->last_flip);
+}
+
 void intel_overlay_cleanup(struct intel_display *display)
 {
 	struct intel_overlay *overlay;
@@ -1498,15 +1512,7 @@ void intel_overlay_cleanup(struct intel_display *display)
 	if (!overlay)
 		return;
 
-	/*
-	 * The bo's should be free'd by the generic code already.
-	 * Furthermore modesetting teardown happens beforehand so the
-	 * hardware should be off already.
-	 */
-	drm_WARN_ON(display->drm, i915_overlay_is_active(display->drm));
-
-	i915_gem_object_put(overlay->reg_bo);
-	i915_active_fini(&overlay->last_flip);
+	i915_overlay_cleanup(display->drm, overlay);
 
 	kfree(overlay);
 }
