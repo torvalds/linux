@@ -55,7 +55,7 @@
  *	(it sends %NFC_ATTR_DEVICE_INDEX)
  * @NFC_EVENT_TM_ACTIVATED: event emitted when the adapter is activated in
  *      target mode.
- * @NFC_EVENT_DEVICE_DEACTIVATED: event emitted when the adapter is deactivated
+ * @NFC_EVENT_TM_DEACTIVATED: event emitted when the adapter is deactivated
  *      from target mode.
  * @NFC_CMD_LLC_GET_PARAMS: request LTO, RW, and MIUX parameters for a device
  * @NFC_CMD_LLC_SET_PARAMS: set one or more of LTO, RW, and MIUX parameters for
@@ -156,7 +156,7 @@ enum nfc_commands {
  * @NFC_ATTR_SE_INDEX: Secure element index
  * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
  * @NFC_ATTR_FIRMWARE_DOWNLOAD_STATUS: Firmware download operation status
- * @NFC_ATTR_APDU: Secure element APDU
+ * @NFC_ATTR_SE_APDU: Secure element APDU
  * @NFC_ATTR_TARGET_ISO15693_DSFID: ISO 15693 Data Storage Format Identifier
  * @NFC_ATTR_TARGET_ISO15693_UID: ISO 15693 Unique Identifier
  * @NFC_ATTR_SE_PARAMS: Parameters data from an evt_transaction
@@ -291,7 +291,7 @@ struct sockaddr_nfc_llcp {
 
 #define NFC_HEADER_SIZE 1
 
-/**
+/*
  * Pseudo-header info for raw socket packets
  * First byte is the adapter index
  * Second byte contains flags
