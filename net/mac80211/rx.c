@@ -5127,6 +5127,11 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 		hdr = (struct ieee80211_hdr *)rx->skb->data;
 	}
 
+	/* Store a copy of the pre-translated link addresses for SW crypto */
+	if (unlikely(is_unicast_ether_addr(hdr->addr1) &&
+		     !ieee80211_is_data(hdr->frame_control)))
+		memcpy(rx->link_addrs, &hdr->addrs, 3 * ETH_ALEN);
+
 	if (unlikely(rx->sta && rx->sta->sta.mlo) &&
 	    is_unicast_ether_addr(hdr->addr1) &&
 	    !ieee80211_is_probe_resp(hdr->frame_control) &&

@@ -256,6 +256,8 @@ struct ieee80211_rx_data {
 			u8 pn[IEEE80211_CCMP_PN_LEN];
 		} ccm_gcm;
 	};
+
+	u8 link_addrs[3 * ETH_ALEN];
 };
 
 struct ieee80211_csa_settings {

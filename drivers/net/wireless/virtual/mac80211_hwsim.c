@@ -1992,6 +1992,25 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 	return NULL;
 }
 
+static int mac80211_hwsim_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  struct ieee80211_key_conf *key)
+{
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_CCMP:
+	case WLAN_CIPHER_SUITE_CCMP_256:
+	case WLAN_CIPHER_SUITE_GCMP:
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		break;
+	default:
+		return 1;
+	}
+
+	key->flags |= IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
+	return 0;
+}
+
 static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_control *control,
 			      struct sk_buff *skb)
@@ -2002,7 +2021,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *channel;
 	struct ieee80211_vif *vif = txi->control.vif;
-	bool ack;
+	bool ack, unicast_data;
 	enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
 	u32 _portid, i;
 
@@ -2011,6 +2030,16 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		ieee80211_free_txskb(hw, skb);
 		return;
 	}
+
+	unicast_data = is_unicast_ether_addr(hdr->addr1) &&
+		       ieee80211_is_data(hdr->frame_control);
+
+	if (unicast_data && ieee80211_encrypt_tx_skb(skb) < 0) {
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+	/* re-assign hdr since skb data may have shifted after encryption */
+	hdr = (void *)skb->data;
 
 	if (vif && vif->type == NL80211_IFTYPE_NAN && !data->tmp_chan) {
 		/* For NAN Device simulation purposes, assume that NAN is always
@@ -2096,6 +2125,13 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			channel = NULL;
 		}
 	}
+
+	if (!unicast_data && ieee80211_encrypt_tx_skb(skb) < 0) {
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+	/* re-assign hdr since skb data may have shifted after encryption */
+	hdr = (void *)skb->data;
 
 	if (WARN(!channel, "TX w/o channel - queue = %d\n", txi->hw_queue)) {
 		ieee80211_free_txskb(hw, skb);
@@ -4245,6 +4281,7 @@ static int mac80211_hwsim_set_radar_background(struct ieee80211_hw *hw,
 	.stop_nan = mac80211_hwsim_stop_nan,                    \
 	.nan_change_conf = mac80211_hwsim_change_nan_config,    \
 	.set_radar_background = mac80211_hwsim_set_radar_background, \
+	.set_key = mac80211_hwsim_set_key,			\
 	HWSIM_DEBUGFS_OPS
 
 #define HWSIM_NON_MLO_OPS					\
@@ -5684,6 +5721,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 			    WIPHY_FLAG_AP_UAPSD |
 			    WIPHY_FLAG_SUPPORTS_5_10_MHZ |
 			    WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
 			       NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
 			       NL80211_FEATURE_STATIC_SMPS |
@@ -5702,6 +5740,12 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 			      NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT);
 	wiphy_ext_feature_set(hw->wiphy,
 			      NL80211_EXT_FEATURE_BSS_COLOR);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
+	wiphy_ext_feature_set(hw->wiphy,
+			      NL80211_EXT_FEATURE_EXT_KEY_ID);
 
 	hw->wiphy->interface_modes = param->iftypes;
 

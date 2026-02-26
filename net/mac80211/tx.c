@@ -5315,6 +5315,38 @@ static int ieee80211_beacon_protect(struct sk_buff *skb,
 	return 0;
 }
 
+int ieee80211_encrypt_tx_skb(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_sub_if_data *sdata;
+	struct sk_buff *check_skb;
+	struct ieee80211_tx_data tx;
+	ieee80211_tx_result res;
+
+	if (!info->control.hw_key)
+		return 0;
+
+	memset(&tx, 0, sizeof(tx));
+	tx.key = container_of(info->control.hw_key, struct ieee80211_key, conf);
+	/* NULL it out now so we do full SW crypto */
+	info->control.hw_key = NULL;
+	__skb_queue_head_init(&tx.skbs);
+	__skb_queue_tail(&tx.skbs, skb);
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(skb->dev);
+	tx.sdata = sdata;
+	tx.local = sdata->local;
+	res = ieee80211_tx_h_encrypt(&tx);
+	check_skb = __skb_dequeue(&tx.skbs);
+	/* we may crash after this, but it'd be a bug in crypto */
+	WARN_ON(check_skb != skb);
+	if (WARN_ON_ONCE(res != TX_CONTINUE))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ieee80211_encrypt_tx_skb);
+
 static void
 ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,

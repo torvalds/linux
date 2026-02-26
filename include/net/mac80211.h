@@ -7966,4 +7966,11 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
  * Return: %true iff the vif is a NAN interface and NAN is started
  */
 bool ieee80211_vif_nan_started(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_encrypt_tx_skb - Encrypt the transmit skb
+ * @skb: the skb
+ * Return: 0 if success and non-zero on error
+ */
+int ieee80211_encrypt_tx_skb(struct sk_buff *skb);
 #endif /* MAC80211_H */
