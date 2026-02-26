@@ -75,7 +75,8 @@ static inline struct xe_lrc *xe_lrc_get(struct xe_lrc *lrc)
  */
 static inline void xe_lrc_put(struct xe_lrc *lrc)
 {
-	kref_put(&lrc->refcount, xe_lrc_destroy);
+	if (lrc)
+		kref_put(&lrc->refcount, xe_lrc_destroy);
 }
 
 /**
