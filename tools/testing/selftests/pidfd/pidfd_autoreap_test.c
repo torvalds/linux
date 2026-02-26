@@ -26,6 +26,10 @@
 #define CLONE_AUTOREAP (1ULL << 34)
 #endif
 
+#ifndef CLONE_NNP
+#define CLONE_NNP (1ULL << 35)
+#endif
+
 static pid_t create_autoreap_child(int *pidfd)
 {
 	struct __clone_args args = {
@@ -489,6 +493,128 @@ TEST(autoreap_no_inherit)
 	ret = waitpid(pid, NULL, WNOHANG);
 	ASSERT_EQ(ret, -1);
 	ASSERT_EQ(errno, ECHILD);
+
+	close(pidfd);
+}
+
+/*
+ * Test that CLONE_NNP sets no_new_privs on the child.
+ * The child checks via prctl(PR_GET_NO_NEW_PRIVS) and reports back.
+ * The parent must NOT have no_new_privs set afterwards.
+ */
+TEST(nnp_sets_no_new_privs)
+{
+	struct __clone_args args = {
+		.flags		= CLONE_PIDFD | CLONE_AUTOREAP | CLONE_NNP,
+		.exit_signal	= 0,
+	};
+	struct pidfd_info info = { .mask = PIDFD_INFO_EXIT };
+	int pidfd = -1, ret;
+	struct pollfd pfd;
+	pid_t pid;
+
+	/* Ensure parent does not already have no_new_privs. */
+	ret = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+	ASSERT_EQ(ret, 0) {
+		TH_LOG("Parent already has no_new_privs set, cannot run test");
+	}
+
+	args.pidfd = ptr_to_u64(&pidfd);
+
+	pid = sys_clone3(&args, sizeof(args));
+	if (pid < 0 && errno == EINVAL)
+		SKIP(return, "CLONE_NNP not supported");
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/*
+		 * Child: check no_new_privs. Exit 0 if set, 1 if not.
+		 */
+		ret = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+		_exit(ret == 1 ? 0 : 1);
+	}
+
+	ASSERT_GE(pidfd, 0);
+
+	/* Parent must still NOT have no_new_privs. */
+	ret = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+	ASSERT_EQ(ret, 0) {
+		TH_LOG("Parent got no_new_privs after creating CLONE_NNP child");
+	}
+
+	/* Wait for child to exit. */
+	pfd.fd = pidfd;
+	pfd.events = POLLIN;
+	ret = poll(&pfd, 1, 5000);
+	ASSERT_EQ(ret, 1);
+
+	/* Verify child exited with 0 (no_new_privs was set). */
+	ret = ioctl(pidfd, PIDFD_GET_INFO, &info);
+	ASSERT_EQ(ret, 0);
+	ASSERT_TRUE(info.mask & PIDFD_INFO_EXIT);
+	ASSERT_TRUE(WIFEXITED(info.exit_code));
+	ASSERT_EQ(WEXITSTATUS(info.exit_code), 0) {
+		TH_LOG("Child did not have no_new_privs set");
+	}
+
+	close(pidfd);
+}
+
+/*
+ * Test that CLONE_NNP with CLONE_THREAD fails with EINVAL.
+ */
+TEST(nnp_rejects_thread)
+{
+	struct __clone_args args = {
+		.flags		= CLONE_NNP | CLONE_THREAD |
+				  CLONE_SIGHAND | CLONE_VM,
+		.exit_signal	= 0,
+	};
+	pid_t pid;
+
+	pid = sys_clone3(&args, sizeof(args));
+	ASSERT_EQ(pid, -1);
+	ASSERT_EQ(errno, EINVAL);
+}
+
+/*
+ * Test that a plain CLONE_AUTOREAP child does NOT get no_new_privs.
+ * Only CLONE_NNP should set it.
+ */
+TEST(autoreap_no_new_privs_unset)
+{
+	struct pidfd_info info = { .mask = PIDFD_INFO_EXIT };
+	int pidfd = -1, ret;
+	struct pollfd pfd;
+	pid_t pid;
+
+	pid = create_autoreap_child(&pidfd);
+	if (pid < 0 && errno == EINVAL)
+		SKIP(return, "CLONE_AUTOREAP not supported");
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		/*
+		 * Child: check no_new_privs. Exit 0 if NOT set, 1 if set.
+		 */
+		ret = prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0);
+		_exit(ret == 0 ? 0 : 1);
+	}
+
+	ASSERT_GE(pidfd, 0);
+
+	pfd.fd = pidfd;
+	pfd.events = POLLIN;
+	ret = poll(&pfd, 1, 5000);
+	ASSERT_EQ(ret, 1);
+
+	ret = ioctl(pidfd, PIDFD_GET_INFO, &info);
+	ASSERT_EQ(ret, 0);
+	ASSERT_TRUE(info.mask & PIDFD_INFO_EXIT);
+	ASSERT_TRUE(WIFEXITED(info.exit_code));
+	ASSERT_EQ(WEXITSTATUS(info.exit_code), 0) {
+		TH_LOG("Plain autoreap child unexpectedly has no_new_privs");
+	}
 
 	close(pidfd);
 }
