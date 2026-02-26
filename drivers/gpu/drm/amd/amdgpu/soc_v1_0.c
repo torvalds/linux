@@ -57,7 +57,7 @@ static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_end = AMDGPU_SOC_V1_0_DOORBELL_USERQUEUE_END;
 	adev->doorbell_index.xcc_doorbell_range = AMDGPU_SOC_V1_0_DOORBELL_XCC_RANGE;
 
-	adev->doorbell_index.sdma_doorbell_range = 20;
+	adev->doorbell_index.sdma_doorbell_range = 14;
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		adev->doorbell_index.sdma_engine[i] =
 			AMDGPU_SOC_V1_0_DOORBELL_sDMA_ENGINE_START +
