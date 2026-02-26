@@ -5124,8 +5124,10 @@ int ntfs_non_resident_attr_collapse_range(struct ntfs_inode *ni, s64 start_vcn, 
 
 	down_write(&ni->runlist.lock);
 	ret = ntfs_attr_map_whole_runlist(ni);
-	if (ret)
+	if (ret) {
+		up_write(&ni->runlist.lock);
 		return ret;
+	}
 
 	len = min(len, end_vcn - start_vcn);
 	for (rl = ni->runlist.rl, dst_cnt = 0; rl && rl->length; rl++)
