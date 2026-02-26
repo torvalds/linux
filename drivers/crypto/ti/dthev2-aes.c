@@ -63,6 +63,7 @@
 enum aes_ctrl_mode_masks {
 	AES_CTRL_ECB_MASK = 0x00,
 	AES_CTRL_CBC_MASK = BIT(5),
+	AES_CTRL_CTR_MASK = BIT(6),
 	AES_CTRL_XTS_MASK = BIT(12) | BIT(11),
 };
 
@@ -73,6 +74,8 @@ enum aes_ctrl_mode_masks {
 #define DTHE_AES_CTRL_KEYSIZE_16B		BIT(3)
 #define DTHE_AES_CTRL_KEYSIZE_24B		BIT(4)
 #define DTHE_AES_CTRL_KEYSIZE_32B		(BIT(3) | BIT(4))
+
+#define DTHE_AES_CTRL_CTR_WIDTH_128B		(BIT(7) | BIT(8))
 
 #define DTHE_AES_CTRL_SAVE_CTX_SET		BIT(29)
 
@@ -100,25 +103,27 @@ static int dthe_cipher_init_tfm(struct crypto_skcipher *tfm)
 	return 0;
 }
 
-static int dthe_cipher_xts_init_tfm(struct crypto_skcipher *tfm)
+static int dthe_cipher_init_tfm_fallback(struct crypto_skcipher *tfm)
 {
 	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct dthe_data *dev_data = dthe_get_dev(ctx);
+	const char *alg_name = crypto_tfm_alg_name(crypto_skcipher_tfm(tfm));
 
 	ctx->dev_data = dev_data;
 	ctx->keylen = 0;
 
-	ctx->skcipher_fb = crypto_alloc_sync_skcipher("xts(aes)", 0,
+	ctx->skcipher_fb = crypto_alloc_sync_skcipher(alg_name, 0,
 						      CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(ctx->skcipher_fb)) {
-		dev_err(dev_data->dev, "fallback driver xts(aes) couldn't be loaded\n");
+		dev_err(dev_data->dev, "fallback driver %s couldn't be loaded\n",
+			alg_name);
 		return PTR_ERR(ctx->skcipher_fb);
 	}
 
 	return 0;
 }
 
-static void dthe_cipher_xts_exit_tfm(struct crypto_skcipher *tfm)
+static void dthe_cipher_exit_tfm(struct crypto_skcipher *tfm)
 {
 	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
 
@@ -156,6 +161,24 @@ static int dthe_aes_cbc_setkey(struct crypto_skcipher *tfm, const u8 *key, unsig
 	return dthe_aes_setkey(tfm, key, keylen);
 }
 
+static int dthe_aes_ctr_setkey(struct crypto_skcipher *tfm, const u8 *key, unsigned int keylen)
+{
+	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int ret = dthe_aes_setkey(tfm, key, keylen);
+
+	if (ret)
+		return ret;
+
+	ctx->aes_mode = DTHE_AES_CTR;
+
+	crypto_sync_skcipher_clear_flags(ctx->skcipher_fb, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(ctx->skcipher_fb,
+				       crypto_skcipher_get_flags(tfm) &
+				       CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(ctx->skcipher_fb, key, keylen);
+}
+
 static int dthe_aes_xts_setkey(struct crypto_skcipher *tfm, const u8 *key, unsigned int keylen)
 {
 	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -171,8 +194,8 @@ static int dthe_aes_xts_setkey(struct crypto_skcipher *tfm, const u8 *key, unsig
 
 	crypto_sync_skcipher_clear_flags(ctx->skcipher_fb, CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(ctx->skcipher_fb,
-				  crypto_skcipher_get_flags(tfm) &
-				  CRYPTO_TFM_REQ_MASK);
+				       crypto_skcipher_get_flags(tfm) &
+				       CRYPTO_TFM_REQ_MASK);
 
 	return crypto_sync_skcipher_setkey(ctx->skcipher_fb, key, keylen);
 }
@@ -236,6 +259,10 @@ static void dthe_aes_set_ctrl_key(struct dthe_tfm_ctx *ctx,
 	case DTHE_AES_CBC:
 		ctrl_val |= AES_CTRL_CBC_MASK;
 		break;
+	case DTHE_AES_CTR:
+		ctrl_val |= AES_CTRL_CTR_MASK;
+		ctrl_val |= DTHE_AES_CTRL_CTR_WIDTH_128B;
+		break;
 	case DTHE_AES_XTS:
 		ctrl_val |= AES_CTRL_XTS_MASK;
 		break;
@@ -249,6 +276,22 @@ static void dthe_aes_set_ctrl_key(struct dthe_tfm_ctx *ctx,
 	}
 
 	writel_relaxed(ctrl_val, aes_base_reg + DTHE_P_AES_CTRL);
+}
+
+static int dthe_aes_do_fallback(struct skcipher_request *req)
+{
+	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	struct dthe_aes_req_ctx *rctx = skcipher_request_ctx(req);
+
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->skcipher_fb);
+
+	skcipher_request_set_callback(subreq, skcipher_request_flags(req),
+				      req->base.complete, req->base.data);
+	skcipher_request_set_crypt(subreq, req->src, req->dst,
+				   req->cryptlen, req->iv);
+
+	return rctx->enc ? crypto_skcipher_encrypt(subreq) :
+		crypto_skcipher_decrypt(subreq);
 }
 
 static void dthe_aes_dma_in_callback(void *data)
@@ -271,7 +314,7 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 	struct scatterlist *dst = req->dst;
 
 	int src_nents = sg_nents_for_len(src, len);
-	int dst_nents;
+	int dst_nents = sg_nents_for_len(dst, len);
 
 	int src_mapped_nents;
 	int dst_mapped_nents;
@@ -305,25 +348,62 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 		dst_dir  = DMA_FROM_DEVICE;
 	}
 
+	/*
+	 * CTR mode can operate on any input length, but the hardware
+	 * requires input length to be a multiple of the block size.
+	 * We need to handle the padding in the driver.
+	 */
+	if (ctx->aes_mode == DTHE_AES_CTR && req->cryptlen % AES_BLOCK_SIZE) {
+		unsigned int pad_size = AES_BLOCK_SIZE - (req->cryptlen % AES_BLOCK_SIZE);
+		u8 *pad_buf = rctx->padding;
+		struct scatterlist *sg;
+
+		len += pad_size;
+		src_nents++;
+		dst_nents++;
+
+		src = kmalloc_array(src_nents, sizeof(*src), GFP_ATOMIC);
+		if (!src) {
+			ret = -ENOMEM;
+			goto aes_ctr_src_alloc_err;
+		}
+
+		sg_init_table(src, src_nents);
+		sg = dthe_copy_sg(src, req->src, req->cryptlen);
+		memzero_explicit(pad_buf, AES_BLOCK_SIZE);
+		sg_set_buf(sg, pad_buf, pad_size);
+
+		if (diff_dst) {
+			dst = kmalloc_array(dst_nents, sizeof(*dst), GFP_ATOMIC);
+			if (!dst) {
+				ret = -ENOMEM;
+				goto aes_ctr_dst_alloc_err;
+			}
+
+			sg_init_table(dst, dst_nents);
+			sg = dthe_copy_sg(dst, req->dst, req->cryptlen);
+			sg_set_buf(sg, pad_buf, pad_size);
+		} else {
+			dst = src;
+		}
+	}
+
 	tx_dev = dmaengine_get_dma_device(dev_data->dma_aes_tx);
 	rx_dev = dmaengine_get_dma_device(dev_data->dma_aes_rx);
 
 	src_mapped_nents = dma_map_sg(tx_dev, src, src_nents, src_dir);
 	if (src_mapped_nents == 0) {
 		ret = -EINVAL;
-		goto aes_err;
+		goto aes_map_src_err;
 	}
 
 	if (!diff_dst) {
-		dst_nents = src_nents;
 		dst_mapped_nents = src_mapped_nents;
 	} else {
-		dst_nents = sg_nents_for_len(dst, len);
 		dst_mapped_nents = dma_map_sg(rx_dev, dst, dst_nents, dst_dir);
 		if (dst_mapped_nents == 0) {
-			dma_unmap_sg(tx_dev, src, src_nents, src_dir);
 			ret = -EINVAL;
-			goto aes_err;
+			goto aes_map_dst_err;
 		}
 	}
 
@@ -353,8 +433,8 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 	else
 		dthe_aes_set_ctrl_key(ctx, rctx, (u32 *)req->iv);
 
-	writel_relaxed(lower_32_bits(req->cryptlen), aes_base_reg + DTHE_P_AES_C_LENGTH_0);
-	writel_relaxed(upper_32_bits(req->cryptlen), aes_base_reg + DTHE_P_AES_C_LENGTH_1);
+	writel_relaxed(lower_32_bits(len), aes_base_reg + DTHE_P_AES_C_LENGTH_0);
+	writel_relaxed(upper_32_bits(len), aes_base_reg + DTHE_P_AES_C_LENGTH_1);
 
 	dmaengine_submit(desc_in);
 	dmaengine_submit(desc_out);
@@ -386,11 +466,26 @@ static int dthe_aes_run(struct crypto_engine *engine, void *areq)
 	}
 
 aes_prep_err:
-	dma_unmap_sg(tx_dev, src, src_nents, src_dir);
 	if (dst_dir != DMA_BIDIRECTIONAL)
 		dma_unmap_sg(rx_dev, dst, dst_nents, dst_dir);
+aes_map_dst_err:
+	dma_unmap_sg(tx_dev, src, src_nents, src_dir);
 
-aes_err:
+aes_map_src_err:
+	if (ctx->aes_mode == DTHE_AES_CTR && req->cryptlen % AES_BLOCK_SIZE) {
+		memzero_explicit(rctx->padding, AES_BLOCK_SIZE);
+		if (diff_dst)
+			kfree(dst);
+aes_ctr_dst_alloc_err:
+		kfree(src);
+aes_ctr_src_alloc_err:
+		/*
+		 * Fallback to software if ENOMEM
+		 */
+		if (ret == -ENOMEM)
+			ret = dthe_aes_do_fallback(req);
+	}
+
 	local_bh_disable();
 	crypto_finalize_skcipher_request(dev_data->engine, req, ret);
 	local_bh_enable();
@@ -400,7 +495,6 @@ aes_err:
 static int dthe_aes_crypt(struct skcipher_request *req)
 {
 	struct dthe_tfm_ctx *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
-	struct dthe_aes_req_ctx *rctx = skcipher_request_ctx(req);
 	struct dthe_data *dev_data = dthe_get_dev(ctx);
 	struct crypto_engine *engine;
 
@@ -408,20 +502,14 @@ static int dthe_aes_crypt(struct skcipher_request *req)
 	 * If data is not a multiple of AES_BLOCK_SIZE:
 	 * - need to return -EINVAL for ECB, CBC as they are block ciphers
 	 * - need to fallback to software as H/W doesn't support Ciphertext Stealing for XTS
+	 * - do nothing for CTR
 	 */
 	if (req->cryptlen % AES_BLOCK_SIZE) {
-		if (ctx->aes_mode == DTHE_AES_XTS) {
-			SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->skcipher_fb);
+		if (ctx->aes_mode == DTHE_AES_XTS)
+			return dthe_aes_do_fallback(req);
 
-			skcipher_request_set_callback(subreq, skcipher_request_flags(req),
-						      req->base.complete, req->base.data);
-			skcipher_request_set_crypt(subreq, req->src, req->dst,
-						   req->cryptlen, req->iv);
-
-			return rctx->enc ? crypto_skcipher_encrypt(subreq) :
-				crypto_skcipher_decrypt(subreq);
-		}
-		return -EINVAL;
+		if (ctx->aes_mode != DTHE_AES_CTR)
+			return -EINVAL;
 	}
 
 	/*
@@ -501,8 +589,33 @@ static struct skcipher_engine_alg cipher_algs[] = {
 		.op.do_one_request = dthe_aes_run,
 	}, /* CBC AES */
 	{
-		.base.init			= dthe_cipher_xts_init_tfm,
-		.base.exit			= dthe_cipher_xts_exit_tfm,
+		.base.init			= dthe_cipher_init_tfm_fallback,
+		.base.exit			= dthe_cipher_exit_tfm,
+		.base.setkey			= dthe_aes_ctr_setkey,
+		.base.encrypt			= dthe_aes_encrypt,
+		.base.decrypt			= dthe_aes_decrypt,
+		.base.min_keysize		= AES_MIN_KEY_SIZE,
+		.base.max_keysize		= AES_MAX_KEY_SIZE,
+		.base.ivsize			= AES_IV_SIZE,
+		.base.chunksize			= AES_BLOCK_SIZE,
+		.base.base = {
+			.cra_name		= "ctr(aes)",
+			.cra_driver_name	= "ctr-aes-dthev2",
+			.cra_priority		= 299,
+			.cra_flags		= CRYPTO_ALG_TYPE_SKCIPHER |
+						  CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_KERN_DRIVER_ONLY |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= 1,
+			.cra_ctxsize		= sizeof(struct dthe_tfm_ctx),
+			.cra_reqsize		= sizeof(struct dthe_aes_req_ctx),
+			.cra_module		= THIS_MODULE,
+		},
+		.op.do_one_request = dthe_aes_run,
+	}, /* CTR AES */
+	{
+		.base.init			= dthe_cipher_init_tfm_fallback,
+		.base.exit			= dthe_cipher_exit_tfm,
 		.base.setkey			= dthe_aes_xts_setkey,
 		.base.encrypt			= dthe_aes_encrypt,
 		.base.decrypt			= dthe_aes_decrypt,
