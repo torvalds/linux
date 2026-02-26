@@ -1450,7 +1450,7 @@ static void iopt_revoke_notify(struct dma_buf_attachment *attach)
 	pages->dmabuf.phys.len = 0;
 }
 
-static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
+static const struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
 	.allow_peer2peer = true,
 	.move_notify = iopt_revoke_notify,
 };
