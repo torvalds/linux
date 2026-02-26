@@ -1053,8 +1053,6 @@ config CRYPTO_CRC32C
 	  on Communications, Vol. 41, No. 6, June 1993, selected for use with
 	  iSCSI.
 
-	  Used by btrfs, ext4, jbd2, NVMeoF/TCP, and iSCSI.
-
 config CRYPTO_CRC32
 	tristate "CRC32"
 	select CRYPTO_HASH
