@@ -59,30 +59,12 @@ void rds_tcp_keepalive(struct socket *sock)
 static int
 rds_tcp_get_peer_sport(struct socket *sock)
 {
-	union {
-		struct sockaddr_storage storage;
-		struct sockaddr addr;
-		struct sockaddr_in sin;
-		struct sockaddr_in6 sin6;
-	} saddr;
-	int sport;
+	struct sock *sk = sock->sk;
 
-	if (kernel_getpeername(sock, &saddr.addr) >= 0) {
-		switch (saddr.addr.sa_family) {
-		case AF_INET:
-			sport = ntohs(saddr.sin.sin_port);
-			break;
-		case AF_INET6:
-			sport = ntohs(saddr.sin6.sin6_port);
-			break;
-		default:
-			sport = -1;
-		}
-	} else {
-		sport = -1;
-	}
+	if (!sk)
+		return -1;
 
-	return sport;
+	return ntohs(READ_ONCE(inet_sk(sk)->inet_dport));
 }
 
 /* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the

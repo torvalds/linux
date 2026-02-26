@@ -3757,7 +3757,9 @@ void mana_rdma_remove(struct gdma_dev *gd)
 	}
 
 	WRITE_ONCE(gd->rdma_teardown, true);
-	flush_workqueue(gc->service_wq);
+
+	if (gc->service_wq)
+		flush_workqueue(gc->service_wq);
 
 	if (gd->adev)
 		remove_adev(gd);

@@ -2278,6 +2278,12 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	 * change it through the dynamic interface later.
 	 */
 	dsa_switch_for_each_available_port(dp, ds) {
+		/* May be called during unbind when we unoffload a VLAN-aware
+		 * bridge from port 1 while port 0 was already torn down
+		 */
+		if (!dp->pl)
+			continue;
+
 		phylink_replay_link_begin(dp->pl);
 		mac[dp->index].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 	}
@@ -2334,7 +2340,8 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	}
 
 	dsa_switch_for_each_available_port(dp, ds)
-		phylink_replay_link_end(dp->pl);
+		if (dp->pl)
+			phylink_replay_link_end(dp->pl);
 
 	rc = sja1105_reload_cbs(priv);
 	if (rc < 0)

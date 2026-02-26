@@ -1292,7 +1292,6 @@ F:	include/trace/events/amdxdna.h
 F:	include/uapi/drm/amdxdna_accel.h
 
 AMD XGBE DRIVER
-M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 M:	Raju Rangoju <Raju.Rangoju@amd.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -6219,14 +6218,13 @@ S:	Supported
 F:	drivers/scsi/snic/
 
 CISCO VIC ETHERNET NIC DRIVER
-M:	Christian Benvenuti <benve@cisco.com>
 M:	Satish Kharat <satishkh@cisco.com>
 S:	Maintained
 F:	drivers/net/ethernet/cisco/enic/
 
 CISCO VIC LOW LATENCY NIC DRIVER
-M:	Christian Benvenuti <benve@cisco.com>
 M:	Nelson Escobar <neescoba@cisco.com>
+M:	Satish Kharat <satishkh@cisco.com>
 S:	Supported
 F:	drivers/infiniband/hw/usnic/
 
@@ -14412,9 +14410,9 @@ LANTIQ PEF2256 DRIVER
 M:	Herve Codina <herve.codina@bootlin.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/lantiq,pef2256.yaml
-F:	drivers/net/wan/framer/pef2256/
+F:	drivers/net/wan/framer/
 F:	drivers/pinctrl/pinctrl-pef2256.c
-F:	include/linux/framer/pef2256.h
+F:	include/linux/framer/
 
 LASI 53c700 driver for PARISC
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
@@ -21695,7 +21693,7 @@ S:	Maintained
 F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
-M:	Vinod Koul <vkoul@kernel.org>
+M:	Mohd Ayaan Anwar <mohd.anwar@oss.qualcomm.com>
 L:	netdev@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
