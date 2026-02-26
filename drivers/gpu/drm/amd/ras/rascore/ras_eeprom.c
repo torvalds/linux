@@ -829,8 +829,8 @@ Out:
 }
 
 /**
- * ras_core_eeprom_append -- append records to the EEPROM RAS table
- * @control: pointer to control structure
+ * ras_eeprom_append -- append records to the EEPROM RAS table
+ * @ras_core: pointer to ras core context
  * @record: array of records to append
  * @num: number of records in @record array
  *
