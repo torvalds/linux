@@ -263,14 +263,15 @@ static bool i915_overlay_is_active(struct drm_device *drm)
 }
 
 /* overlay needs to be disable in OCMD reg */
-static int intel_overlay_on(struct intel_overlay *overlay,
-			    u32 frontbuffer_bits)
+static int i915_overlay_on(struct drm_device *drm,
+			   u32 frontbuffer_bits)
 {
-	struct intel_display *display = overlay->display;
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
 	struct i915_request *rq;
 	u32 *cs;
 
-	drm_WARN_ON(display->drm, i915_overlay_is_active(display->drm));
+	drm_WARN_ON(drm, i915_overlay_is_active(drm));
 
 	rq = alloc_request(overlay, NULL);
 	if (IS_ERR(rq))
@@ -324,16 +325,17 @@ static void i915_overlay_flip_prepare(struct intel_overlay *overlay,
 }
 
 /* overlay needs to be enabled in OCMD reg */
-static int intel_overlay_continue(struct intel_overlay *overlay,
-				  struct i915_vma *vma,
-				  bool load_polyphase_filter)
+static int i915_overlay_continue(struct drm_device *drm,
+				 struct i915_vma *vma,
+				 bool load_polyphase_filter)
 {
-	struct intel_display *display = overlay->display;
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
 	struct i915_request *rq;
 	u32 flip_addr = overlay->flip_addr;
 	u32 *cs;
 
-	drm_WARN_ON(display->drm, !i915_overlay_is_active(display->drm));
+	drm_WARN_ON(drm, !i915_overlay_is_active(drm));
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
@@ -400,13 +402,14 @@ static void i915_overlay_last_flip_retire(struct i915_active *active)
 }
 
 /* overlay needs to be disabled in OCMD reg */
-static int intel_overlay_off(struct intel_overlay *overlay)
+static int i915_overlay_off(struct drm_device *drm)
 {
-	struct intel_display *display = overlay->display;
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
 	struct i915_request *rq;
 	u32 *cs, flip_addr = overlay->flip_addr;
 
-	drm_WARN_ON(display->drm, !i915_overlay_is_active(display->drm));
+	drm_WARN_ON(drm, !i915_overlay_is_active(drm));
 
 	/*
 	 * According to intel docs the overlay hw may hang (when switching
@@ -448,8 +451,11 @@ static int intel_overlay_off(struct intel_overlay *overlay)
  * Recover from an interruption due to a signal.
  * We have to be careful not to repeat work forever an make forward progress.
  */
-static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
+static int i915_overlay_recover_from_interrupt(struct drm_device *drm)
 {
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
+
 	return i915_active_wait(&overlay->last_flip);
 }
 
@@ -458,9 +464,10 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
  * Needs to be called before the overlay register are changed
  * via intel_overlay_(un)map_regs.
  */
-static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
+static int i915_overlay_release_old_vid(struct drm_device *drm)
 {
-	struct intel_display *display = overlay->display;
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
 	struct i915_request *rq;
 	u32 *cs;
 
@@ -832,7 +839,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
 
-	ret = intel_overlay_release_old_vid(overlay);
+	ret = i915_overlay_release_old_vid(display->drm);
 	if (ret != 0)
 		return ret;
 
@@ -860,7 +867,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			OCONF_PIPE_A : OCONF_PIPE_B;
 		iowrite32(oconfig, &regs->OCONFIG);
 
-		ret = intel_overlay_on(overlay, INTEL_FRONTBUFFER_OVERLAY(pipe));
+		ret = i915_overlay_on(display->drm, INTEL_FRONTBUFFER_OVERLAY(pipe));
 		if (ret != 0)
 			goto out_unpin;
 	}
@@ -918,7 +925,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		drm_dbg(display->drm, "overlay underrun, DOVSTA: %x\n", tmp);
 
-	ret = intel_overlay_continue(overlay, vma, scale_changed);
+	ret = i915_overlay_continue(display->drm, vma, scale_changed);
 	if (ret)
 		goto out_unpin;
 
@@ -940,14 +947,14 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
 
-	ret = intel_overlay_recover_from_interrupt(overlay);
+	ret = i915_overlay_recover_from_interrupt(display->drm);
 	if (ret != 0)
 		return ret;
 
 	if (!i915_overlay_is_active(display->drm))
 		return 0;
 
-	ret = intel_overlay_release_old_vid(overlay);
+	ret = i915_overlay_release_old_vid(display->drm);
 	if (ret != 0)
 		return ret;
 
@@ -956,7 +963,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
 
-	return intel_overlay_off(overlay);
+	return i915_overlay_off(display->drm);
 }
 
 static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
@@ -1203,7 +1210,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_lock_all(dev);
 
-	ret = intel_overlay_recover_from_interrupt(overlay);
+	ret = i915_overlay_recover_from_interrupt(dev);
 	if (ret != 0)
 		goto out_unlock;
 
