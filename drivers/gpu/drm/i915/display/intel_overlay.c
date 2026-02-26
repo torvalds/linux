@@ -1456,10 +1456,10 @@ static int i915_overlay_setup(struct drm_device *drm,
 			      struct intel_overlay *overlay,
 			      bool needs_physical)
 {
-	struct drm_i915_private *dev_priv = to_i915(drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_engine_cs *engine;
 
-	engine = to_gt(dev_priv)->engine[RCS0];
+	engine = to_gt(i915)->engine[RCS0];
 	if (!engine || !engine->kernel_context)
 		return -ENOENT;
 
