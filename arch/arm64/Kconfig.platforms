@@ -188,16 +188,15 @@ config ARCH_MESON
 	  This enables support for the arm64 based Amlogic SoCs
 	  such as the s905, S905X/D, S912, A113X/D or S905X/D2
 
-menu "Microchip SoC support"
+menuconfig ARCH_MICROCHIP
+	bool "Microchip SoC support"
 
-config ARCH_MICROCHIP
-	bool
+if ARCH_MICROCHIP
 
 config ARCH_LAN969X
 	bool "Microchip LAN969X SoC family"
 	select PINCTRL
 	select DW_APB_TIMER_OF
-	select ARCH_MICROCHIP
 	help
 	  This enables support for the Microchip LAN969X ARMv8-based
 	  SoC family of TSN-capable gigabit switches.
@@ -212,7 +211,6 @@ config ARCH_SPARX5
 	bool "Microchip Sparx5 SoC family"
 	select PINCTRL
 	select DW_APB_TIMER_OF
-	select ARCH_MICROCHIP
 	help
 	  This enables support for the Microchip Sparx5 ARMv8-based
 	  SoC family of TSN-capable gigabit switches.
@@ -223,7 +221,7 @@ config ARCH_SPARX5
 	  security through TCAM-based frame processing using versatile
 	  content aware processor (VCAP).
 
-endmenu
+endif
 
 config ARCH_MMP
 	bool "Marvell MMP SoC Family"
