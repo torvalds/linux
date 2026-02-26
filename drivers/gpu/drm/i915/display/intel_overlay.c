@@ -331,17 +331,12 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	struct intel_display *display = overlay->display;
 	struct i915_request *rq;
 	u32 flip_addr = overlay->flip_addr;
-	u32 tmp, *cs;
+	u32 *cs;
 
 	drm_WARN_ON(display->drm, !i915_overlay_is_active(display->drm));
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
-
-	/* check for underruns */
-	tmp = intel_de_read(display, DOVSTA);
-	if (tmp & (1 << 17))
-		drm_dbg(display->drm, "overlay underrun, DOVSTA: %x\n", tmp);
 
 	rq = alloc_request(overlay, NULL);
 	if (IS_ERR(rq))
@@ -810,6 +805,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	bool scale_changed = false;
 	struct i915_vma *vma;
 	int ret, tmp_width;
+	u32 tmp;
 
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
@@ -894,6 +890,11 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	update_colorkey(overlay, regs);
 
 	iowrite32(overlay_cmd_reg(params), &regs->OCMD);
+
+	/* check for underruns */
+	tmp = intel_de_read(display, DOVSTA);
+	if (tmp & (1 << 17))
+		drm_dbg(display->drm, "overlay underrun, DOVSTA: %x\n", tmp);
 
 	ret = intel_overlay_continue(overlay, vma, scale_changed);
 	if (ret)
