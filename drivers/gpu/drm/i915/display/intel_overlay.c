@@ -210,17 +210,21 @@ struct intel_overlay {
 	void (*flip_complete)(struct intel_overlay *ovl);
 };
 
-static void i830_overlay_clock_gating(struct intel_display *display,
+static void i830_overlay_clock_gating(struct drm_i915_private *i915,
 				      bool enable)
 {
-	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	u8 val;
 
-	/* WA_OVERLAY_CLKGATE:alm */
+	/*
+	 * WA_OVERLAY_CLKGATE:alm
+	 *
+	 * FIXME should perhaps be done on the display side?
+	 */
 	if (enable)
-		intel_de_write(display, DSPCLK_GATE_D, 0);
+		intel_uncore_write(&i915->uncore, DSPCLK_GATE_D, 0);
 	else
-		intel_de_write(display, DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
+		intel_uncore_write(&i915->uncore, DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 
 	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
 	pci_bus_read_config_byte(pdev->bus,
@@ -266,6 +270,7 @@ static bool i915_overlay_is_active(struct drm_device *drm)
 static int i915_overlay_on(struct drm_device *drm,
 			   u32 frontbuffer_bits)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_display *display = to_intel_display(drm);
 	struct intel_overlay *overlay = display->overlay;
 	struct i915_request *rq;
@@ -285,8 +290,8 @@ static int i915_overlay_on(struct drm_device *drm,
 
 	overlay->frontbuffer_bits = frontbuffer_bits;
 
-	if (display->platform.i830)
-		i830_overlay_clock_gating(display, false);
+	if (IS_I830(i915))
+		i830_overlay_clock_gating(i915, false);
 
 	*cs++ = MI_OVERLAY_FLIP | MI_OVERLAY_ON;
 	*cs++ = overlay->flip_addr | OFC_UPDATE;
@@ -383,13 +388,14 @@ static void i915_overlay_release_old_vid_tail(struct intel_overlay *overlay)
 static void i915_overlay_off_tail(struct intel_overlay *overlay)
 {
 	struct intel_display *display = overlay->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	i915_overlay_release_old_vma(overlay);
 
 	overlay->frontbuffer_bits = 0;
 
-	if (display->platform.i830)
-		i830_overlay_clock_gating(display, true);
+	if (IS_I830(i915))
+		i830_overlay_clock_gating(i915, true);
 }
 
 static void i915_overlay_last_flip_retire(struct i915_active *active)
