@@ -471,26 +471,24 @@ static inline void *erofs_vm_map_ram(struct page **pages, unsigned int count)
 	return NULL;
 }
 
-static inline int erofs_inode_set_aops(struct inode *inode,
-				       struct inode *realinode, bool no_fscache)
+static inline const struct address_space_operations *
+erofs_get_aops(struct inode *realinode, bool no_fscache)
 {
 	if (erofs_inode_is_data_compressed(EROFS_I(realinode)->datalayout)) {
 		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
-			return -EOPNOTSUPP;
+			return ERR_PTR(-EOPNOTSUPP);
 		DO_ONCE_LITE_IF(realinode->i_blkbits != PAGE_SHIFT,
 			  erofs_info, realinode->i_sb,
 			  "EXPERIMENTAL EROFS subpage compressed block support in use. Use at your own risk!");
-		inode->i_mapping->a_ops = &z_erofs_aops;
-		return 0;
+		return &z_erofs_aops;
 	}
-	inode->i_mapping->a_ops = &erofs_aops;
 	if (IS_ENABLED(CONFIG_EROFS_FS_ONDEMAND) && !no_fscache &&
 	    erofs_is_fscache_mode(realinode->i_sb))
-		inode->i_mapping->a_ops = &erofs_fscache_access_aops;
+		return &erofs_fscache_access_aops;
 	if (IS_ENABLED(CONFIG_EROFS_FS_BACKED_BY_FILE) &&
 	    erofs_is_fileio_mode(EROFS_SB(realinode->i_sb)))
-		inode->i_mapping->a_ops = &erofs_fileio_aops;
-	return 0;
+		return &erofs_fileio_aops;
+	return &erofs_aops;
 }
 
 int erofs_register_sysfs(struct super_block *sb);
