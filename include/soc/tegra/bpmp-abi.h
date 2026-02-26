@@ -1020,9 +1020,9 @@ struct cmd_i2c_xfer_request {
 	/**
 	 * @brief Tegra PWR_I2C bus identifier
 	 *
-	 * @cond (bpmp_t234 || bpmp_t239 || bpmp_t194)
+	 * @cond (bpmp_t234 || bpmp_t238 || bpmp_t194)
 	 * Must be set to 5.
-	 * @endcond (bpmp_t234 || bpmp_t239 || bpmp_t194)
+	 * @endcond (bpmp_t234 || bpmp_t238 || bpmp_t194)
 	 * @cond bpmp_th500
 	 * Must be set to 1.
 	 * @endcond bpmp_th500
@@ -2108,7 +2108,7 @@ struct mrq_emc_dvfs_latency_response {
  * @brief Query EMC HUB frequencies
  *
  * * Platforms: T234 onwards
- * @cond (bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: N/A
@@ -2139,7 +2139,7 @@ struct mrq_emc_dvfs_emchub_response {
 } BPMP_ABI_PACKED;
 
 /** @} EMC */
-/** @endcond (bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2147,7 +2147,7 @@ struct mrq_emc_dvfs_emchub_response {
  * @brief Set EMC display RFL handshake mode of operations
  *
  * * Platforms: T234 onwards
- * @cond (bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_emc_disp_rfl_request
@@ -2184,7 +2184,7 @@ struct mrq_emc_disp_rfl_request {
 } BPMP_ABI_PACKED;
 
 /** @} EMC */
-/** @endcond (bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2192,7 +2192,7 @@ struct mrq_emc_disp_rfl_request {
  * @brief bwmgr requests
  *
  * * Platforms: T234 onwards
- * @cond (bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_bwmgr_request
@@ -2299,7 +2299,7 @@ struct mrq_bwmgr_response {
 } BPMP_ABI_PACKED;
 
 /** @} BWMGR */
-/** @endcond (bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2307,7 +2307,7 @@ struct mrq_bwmgr_response {
  * @brief bpmp-integrated bwmgr requests
  *
  * * Platforms: T234 onwards
- * @cond (bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_bwmgr_int_request
@@ -2445,7 +2445,7 @@ struct mrq_bwmgr_int_response {
 } BPMP_ABI_PACKED;
 
 /** @} BWMGR_INT */
-/** @endcond (bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2453,7 +2453,7 @@ struct mrq_bwmgr_int_response {
  * @brief ISO client requests
  *
  * * Platforms: T234 onwards
- * @cond (bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_iso_client_request
@@ -2636,7 +2636,7 @@ struct mrq_iso_client_response {
 } BPMP_ABI_PACKED;
 
 /** @} ISO_CLIENT */
-/** @endcond (bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2644,7 +2644,7 @@ struct mrq_iso_client_response {
  * @brief CPU freq. limits in ndiv
  *
  * * Platforms: T194 onwards
- * @cond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_cpu_ndiv_limits_request
@@ -2678,7 +2678,7 @@ struct mrq_cpu_ndiv_limits_response {
 } BPMP_ABI_PACKED;
 
 /** @} CPU */
-/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2911,7 +2911,7 @@ union mrq_ringbuf_console_bpmp_to_host_response {
  * @brief Set a strap value controlled by BPMP
  *
  * * Platforms: T194 onwards
- * @cond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_strap_request
@@ -2949,7 +2949,7 @@ struct mrq_strap_request {
 } BPMP_ABI_PACKED;
 
 /** @} Strap */
-/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -2957,7 +2957,7 @@ struct mrq_strap_request {
  * @brief Perform a UPHY operation
  *
  * * Platforms: T194 onwards
- * @cond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_uphy_request
@@ -2997,23 +2997,23 @@ struct cmd_uphy_margin_status_response {
 } BPMP_ABI_PACKED;
 
 struct cmd_uphy_ep_controller_pll_init_request {
-	/** @brief EP controller number, T194 valid: 0, 4, 5; T234 valid: 5, 6, 7, 10; T239 valid: 0 */
+	/** @brief EP controller number, T194 valid: 0, 4, 5; T234 valid: 5, 6, 7, 10; T238 valid: 0 */
 	uint8_t ep_controller;
 } BPMP_ABI_PACKED;
 
 struct cmd_uphy_pcie_controller_state_request {
-	/** @brief PCIE controller number, T194 valid: 0-4; T234 valid: 0-10; T239 valid: 0-3 */
+	/** @brief PCIE controller number, T194 valid: 0-4; T234 valid: 0-10; T238 valid: 0-3 */
 	uint8_t pcie_controller;
 	uint8_t enable;
 } BPMP_ABI_PACKED;
 
 struct cmd_uphy_ep_controller_pll_off_request {
-	/** @brief EP controller number, T194 valid: 0, 4, 5; T234 valid: 5, 6, 7, 10; T239 valid: 0 */
+	/** @brief EP controller number, T194 valid: 0, 4, 5; T234 valid: 5, 6, 7, 10; T238 valid: 0 */
 	uint8_t ep_controller;
 } BPMP_ABI_PACKED;
 
 struct cmd_uphy_display_port_init_request {
-	/** @brief DisplayPort link rate, T239 valid: 1620, 2700, 5400, 8100, 2160, 2430, 3240, 4320, 6750 */
+	/** @brief DisplayPort link rate, T238 valid: 1620, 2700, 5400, 8100, 2160, 2430, 3240, 4320, 6750 */
 	uint16_t link_rate;
 	/** @brief 1: lane 0; 2: lane 1; 3: lane 0 and 1 */
 	uint16_t lanes_bitmap;
@@ -3084,7 +3084,7 @@ struct mrq_uphy_response {
 } BPMP_ABI_PACKED;
 
 /** @} UPHY */
-/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500) */
+/** @endcond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500) */
 
 /**
  * @ingroup MRQ_Codes
@@ -3092,12 +3092,12 @@ struct mrq_uphy_response {
  * @brief Perform a frequency monitor configuration operations
  *
  * * Platforms: T194 onwards
- * @cond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @cond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500)
  * * Initiators: CCPLEX
  * * Targets: BPMP
  * * Request Payload: @ref mrq_fmon_request
  * * Response Payload: @ref mrq_fmon_response
- * @endcond (bpmp_t194 || bpmp_t234 || bpmp_t239 || bpmp_th500)
+ * @endcond (bpmp_t194 || bpmp_t234 || bpmp_t238 || bpmp_th500)
  *
  * @addtogroup FMON
  * @{
