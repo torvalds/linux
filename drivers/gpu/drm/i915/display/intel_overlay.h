@@ -13,7 +13,6 @@ struct drm_file;
 struct drm_printer;
 struct intel_display;
 struct intel_overlay;
-struct intel_overlay_snapshot;
 
 #ifdef I915
 void intel_overlay_setup(struct intel_display *display);
@@ -51,23 +50,6 @@ static inline int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 static inline void intel_overlay_reset(struct intel_display *display)
-{
-}
-#endif
-
-#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR) && defined(I915)
-struct intel_overlay_snapshot *
-intel_overlay_snapshot_capture(struct intel_display *display);
-void intel_overlay_snapshot_print(const struct intel_overlay_snapshot *error,
-				  struct drm_printer *p);
-#else
-static inline struct intel_overlay_snapshot *
-intel_overlay_snapshot_capture(struct intel_display *display)
-{
-	return NULL;
-}
-static inline void intel_overlay_snapshot_print(const struct intel_overlay_snapshot *error,
-						struct drm_printer *p)
 {
 }
 #endif
