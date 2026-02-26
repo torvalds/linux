@@ -1113,6 +1113,9 @@ KBUILD_CFLAGS += -fno-builtin-wcslen
 # change __FILE__ to the relative path to the source directory
 ifdef building_out_of_srctree
 KBUILD_CPPFLAGS += -fmacro-prefix-map=$(srcroot)/=
+ifeq ($(call rustc-option-yn, --remap-path-scope=macro),y)
+KBUILD_RUSTFLAGS += --remap-path-prefix=$(srcroot)/= --remap-path-scope=macro
+endif
 endif
 
 # include additional Makefiles when needed
