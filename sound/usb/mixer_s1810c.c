@@ -71,7 +71,7 @@
  *   * e I guess the same as with mixer
  *
  */
-/** struct s1810c_ctl_packet - basic vendor request
+/* struct s1810c_ctl_packet - basic vendor request
  * @selector: device/mixer/output
  * @b: request-dependant field b
  * @tag: fixed value identifying type of request
@@ -94,14 +94,14 @@ struct s1810c_ctl_packet {
 	__le32 e;
 };
 
-/** selectors for CMD request
+/* selectors for CMD request
  */
 #define SC1810C_SEL_DEVICE 0
 #define SC1810C_SEL_MIXER 0x64
 #define SC1810C_SEL_OUTPUT 0x65
 
 
-/** control ids */
+/* control ids */
 #define SC1810C_CTL_LINE_SW	0
 #define SC1810C_CTL_MUTE_SW	1
 #define SC1824C_CTL_MONO_SW	2
@@ -127,7 +127,7 @@ struct s1810c_ctl_packet {
 #define SC1810C_GET_STATE_TAG	SC1810C_SET_STATE_TAG
 #define SC1810C_GET_STATE_LEN	SC1810C_SET_STATE_LEN
 
-/** Mixer levels normally range from 0 (off) to 0x0100 0000 (0 dB).
+/* Mixer levels normally range from 0 (off) to 0x0100 0000 (0 dB).
  * raw_level = 2^24 * 10^(db_level / 20), thus
  * -3dB = 0xb53bf0 (technically, half-power -3.01...dB would be 0xb504f3)
  * -96dB = 0x109
@@ -145,7 +145,7 @@ struct s1810c_ctl_packet {
 #define MIXER_LEVEL_N3DB 0xb53bf0
 #define MIXER_LEVEL_0DB 0x1000000
 
-/**
+/*
  * This packet includes mixer volumes and
  * various other fields, it's an extended
  * version of ctl_packet, with a and b
@@ -155,7 +155,7 @@ struct s1810c_state_packet {
 	__le32 fields[63];
 };
 
-/** indices into s1810c_state_packet.fields[]
+/* indices into s1810c_state_packet.fields[]
  */
 #define SC1810C_STATE_TAG_IDX	2
 #define SC1810C_STATE_LEN_IDX	3
