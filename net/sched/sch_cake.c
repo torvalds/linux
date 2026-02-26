@@ -391,8 +391,8 @@ static const u32 inv_sqrt_cache[REC_INV_SQRT_CACHE] = {
 	1239850263, 1191209601, 1147878294, 1108955788
 };
 
-static void cake_set_rate(struct cake_tin_data *b, u64 rate, u32 mtu,
-			  u64 target_ns, u64 rtt_est_ns);
+static void cake_configure_rates(struct Qdisc *sch, u64 rate, bool rate_adjust);
+
 /* http://en.wikipedia.org/wiki/Methods_of_computing_square_roots
  * new_invsqrt = (invsqrt / 2) * (3 - count * invsqrt^2)
  *
@@ -2040,12 +2040,9 @@ static struct sk_buff *cake_dequeue(struct Qdisc *sch)
 		if (num_active_qs > 1)
 			new_rate = div64_u64(q->config->rate_bps, num_active_qs);
 
-		/* mtu = 0 is used to only update the rate and not mess with cobalt params */
-		cake_set_rate(b, new_rate, 0, 0, 0);
+		cake_configure_rates(sch, new_rate, true);
 		q->last_checked_active = now;
 		q->active_queues = num_active_qs;
-		q->rate_ns = b->tin_rate_ns;
-		q->rate_shft = b->tin_rate_shft;
 	}
 
 begin:
@@ -2362,12 +2359,10 @@ static void cake_set_rate(struct cake_tin_data *b, u64 rate, u32 mtu,
 	b->cparams.p_dec = 1 << 20; /* 1/4096 */
 }
 
-static int cake_config_besteffort(struct Qdisc *sch)
+static int cake_config_besteffort(struct Qdisc *sch, u64 rate, u32 mtu)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct cake_tin_data *b = &q->tins[0];
-	u32 mtu = psched_mtu(qdisc_dev(sch));
-	u64 rate = q->config->rate_bps;
 
 	q->tin_cnt = 1;
 
@@ -2381,12 +2376,10 @@ static int cake_config_besteffort(struct Qdisc *sch)
 	return 0;
 }
 
-static int cake_config_precedence(struct Qdisc *sch)
+static int cake_config_precedence(struct Qdisc *sch, u64 rate, u32 mtu)
 {
 	/* convert high-level (user visible) parameters into internal format */
 	struct cake_sched_data *q = qdisc_priv(sch);
-	u32 mtu = psched_mtu(qdisc_dev(sch));
-	u64 rate = q->config->rate_bps;
 	u32 quantum = 256;
 	u32 i;
 
@@ -2457,7 +2450,7 @@ static int cake_config_precedence(struct Qdisc *sch)
  *	Total 12 traffic classes.
  */
 
-static int cake_config_diffserv8(struct Qdisc *sch)
+static int cake_config_diffserv8(struct Qdisc *sch, u64 rate, u32 mtu)
 {
 /*	Pruned list of traffic classes for typical applications:
  *
@@ -2474,8 +2467,6 @@ static int cake_config_diffserv8(struct Qdisc *sch)
  */
 
 	struct cake_sched_data *q = qdisc_priv(sch);
-	u32 mtu = psched_mtu(qdisc_dev(sch));
-	u64 rate = q->config->rate_bps;
 	u32 quantum = 256;
 	u32 i;
 
@@ -2505,7 +2496,7 @@ static int cake_config_diffserv8(struct Qdisc *sch)
 	return 0;
 }
 
-static int cake_config_diffserv4(struct Qdisc *sch)
+static int cake_config_diffserv4(struct Qdisc *sch, u64 rate, u32 mtu)
 {
 /*  Further pruned list of traffic classes for four-class system:
  *
@@ -2518,8 +2509,6 @@ static int cake_config_diffserv4(struct Qdisc *sch)
  */
 
 	struct cake_sched_data *q = qdisc_priv(sch);
-	u32 mtu = psched_mtu(qdisc_dev(sch));
-	u64 rate = q->config->rate_bps;
 	u32 quantum = 1024;
 
 	q->tin_cnt = 4;
@@ -2547,7 +2536,7 @@ static int cake_config_diffserv4(struct Qdisc *sch)
 	return 0;
 }
 
-static int cake_config_diffserv3(struct Qdisc *sch)
+static int cake_config_diffserv3(struct Qdisc *sch, u64 rate, u32 mtu)
 {
 /*  Simplified Diffserv structure with 3 tins.
  *		Latency Sensitive	(CS7, CS6, EF, VA, TOS4)
@@ -2555,8 +2544,6 @@ static int cake_config_diffserv3(struct Qdisc *sch)
  *		Low Priority		(LE, CS1)
  */
 	struct cake_sched_data *q = qdisc_priv(sch);
-	u32 mtu = psched_mtu(qdisc_dev(sch));
-	u64 rate = q->config->rate_bps;
 	u32 quantum = 1024;
 
 	q->tin_cnt = 3;
@@ -2581,32 +2568,33 @@ static int cake_config_diffserv3(struct Qdisc *sch)
 	return 0;
 }
 
-static void cake_reconfigure(struct Qdisc *sch)
+static void cake_configure_rates(struct Qdisc *sch, u64 rate, bool rate_adjust)
 {
+	u32 mtu = likely(rate_adjust) ? 0 : psched_mtu(qdisc_dev(sch));
 	struct cake_sched_data *qd = qdisc_priv(sch);
 	struct cake_sched_config *q = qd->config;
 	int c, ft;
 
 	switch (q->tin_mode) {
 	case CAKE_DIFFSERV_BESTEFFORT:
-		ft = cake_config_besteffort(sch);
+		ft = cake_config_besteffort(sch, rate, mtu);
 		break;
 
 	case CAKE_DIFFSERV_PRECEDENCE:
-		ft = cake_config_precedence(sch);
+		ft = cake_config_precedence(sch, rate, mtu);
 		break;
 
 	case CAKE_DIFFSERV_DIFFSERV8:
-		ft = cake_config_diffserv8(sch);
+		ft = cake_config_diffserv8(sch, rate, mtu);
 		break;
 
 	case CAKE_DIFFSERV_DIFFSERV4:
-		ft = cake_config_diffserv4(sch);
+		ft = cake_config_diffserv4(sch, rate, mtu);
 		break;
 
 	case CAKE_DIFFSERV_DIFFSERV3:
 	default:
-		ft = cake_config_diffserv3(sch);
+		ft = cake_config_diffserv3(sch, rate, mtu);
 		break;
 	}
 
@@ -2617,6 +2605,14 @@ static void cake_reconfigure(struct Qdisc *sch)
 
 	qd->rate_ns   = qd->tins[ft].tin_rate_ns;
 	qd->rate_shft = qd->tins[ft].tin_rate_shft;
+}
+
+static void cake_reconfigure(struct Qdisc *sch)
+{
+	struct cake_sched_data *qd = qdisc_priv(sch);
+	struct cake_sched_config *q = qd->config;
+
+	cake_configure_rates(sch, qd->config->rate_bps, false);
 
 	if (q->buffer_config_limit) {
 		qd->buffer_limit = q->buffer_config_limit;
