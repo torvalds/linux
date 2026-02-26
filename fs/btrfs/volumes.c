@@ -694,7 +694,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 			set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	}
 
-	if (!bdev_nonrot(file_bdev(bdev_file)))
+	if (bdev_rot(file_bdev(bdev_file)))
 		fs_devices->rotating = true;
 
 	if (bdev_max_discard_sectors(file_bdev(bdev_file)))
@@ -2919,7 +2919,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 
 	atomic64_add(device->total_bytes, &fs_info->free_chunk_space);
 
-	if (!bdev_nonrot(device->bdev))
+	if (bdev_rot(device->bdev))
 		fs_devices->rotating = true;
 
 	orig_super_total_bytes = btrfs_super_total_bytes(fs_info->super_copy);

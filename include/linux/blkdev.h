@@ -1475,11 +1475,6 @@ static inline bool bdev_rot(struct block_device *bdev)
 	return blk_queue_rot(bdev_get_queue(bdev));
 }
 
-static inline bool bdev_nonrot(struct block_device *bdev)
-{
-	return !bdev_rot(bdev);
-}
-
 static inline bool bdev_synchronous(struct block_device *bdev)
 {
 	return bdev->bd_disk->queue->limits.features & BLK_FEAT_SYNCHRONOUS;

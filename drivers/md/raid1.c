@@ -1878,7 +1878,7 @@ static bool raid1_add_conf(struct r1conf *conf, struct md_rdev *rdev, int disk,
 	if (info->rdev)
 		return false;
 
-	if (bdev_nonrot(rdev->bdev)) {
+	if (!bdev_rot(rdev->bdev)) {
 		set_bit(Nonrot, &rdev->flags);
 		WRITE_ONCE(conf->nonrot_disks, conf->nonrot_disks + 1);
 	}

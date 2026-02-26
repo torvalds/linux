@@ -7541,7 +7541,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	rdev_for_each(rdev, mddev) {
 		if (test_bit(Journal, &rdev->flags))
 			continue;
-		if (bdev_nonrot(rdev->bdev)) {
+		if (!bdev_rot(rdev->bdev)) {
 			conf->batch_bio_dispatch = false;
 			break;
 		}

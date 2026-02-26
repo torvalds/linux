@@ -3460,7 +3460,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	if (si->bdev && bdev_synchronous(si->bdev))
 		si->flags |= SWP_SYNCHRONOUS_IO;
 
-	if (si->bdev && bdev_nonrot(si->bdev)) {
+	if (si->bdev && !bdev_rot(si->bdev)) {
 		si->flags |= SWP_SOLIDSTATE;
 	} else {
 		atomic_inc(&nr_rotate_swap);
