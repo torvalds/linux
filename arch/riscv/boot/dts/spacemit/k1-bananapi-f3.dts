@@ -33,7 +33,7 @@
 		};
 	};
 
-	pcie_vcc_3v3: pcie-vcc3v3 {
+	pcie_vcc_3v3: regulator-pcie-vcc3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "PCIE_VCC3V3";
 		regulator-min-microvolt = <3300000>;
@@ -41,7 +41,7 @@
 		regulator-always-on;
 	};
 
-	reg_dc_in: dc-in-12v {
+	reg_dc_in: regulator-dc-in-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_in_12v";
 		regulator-min-microvolt = <12000000>;
@@ -50,7 +50,7 @@
 		regulator-always-on;
 	};
 
-	reg_vcc_4v: vcc-4v {
+	reg_vcc_4v: regulator-vcc-4v {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_4v";
 		regulator-min-microvolt = <4000000>;
@@ -60,7 +60,7 @@
 		vin-supply = <&reg_dc_in>;
 	};
 
-	usb3-vbus-5v {
+	regulator-usb3-vbus-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "USB30_VBUS";
 		regulator-min-microvolt = <5000000>;
@@ -70,7 +70,7 @@
 		enable-active-high;
 	};
 
-	usb3_hub_5v: usb3-hub-5v {
+	usb3_hub_5v: regulator-usb3-hub-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "USB30_HUB";
 		regulator-min-microvolt = <5000000>;
