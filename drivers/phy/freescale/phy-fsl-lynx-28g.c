@@ -1069,6 +1069,8 @@ static void lynx_28g_cdr_lock_check(struct work_struct *work)
 
 	for (i = 0; i < LYNX_28G_NUM_LANE; i++) {
 		lane = &priv->lane[i];
+		if (!lane->phy)
+			continue;
 
 		mutex_lock(&lane->phy->mutex);
 
