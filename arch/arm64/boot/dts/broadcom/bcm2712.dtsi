@@ -648,6 +648,13 @@
 			brcm,msi-offset = <8>;
 		};
 
+		isp: isp@1000880000  {
+		     compatible = "brcm,bcm2712-pispbe", "raspberrypi,pispbe";
+		     reg = <0x10 0x00880000 0x0 0x4000>;
+		     interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		     clocks = <&firmware_clocks 7>;
+		};
+
 		v3d: gpu@1002000000 {
 			compatible = "brcm,2712-v3d";
 			reg = <0x10 0x02000000 0x00 0x4000>,
