@@ -68,6 +68,30 @@
 		function = "vbus1";
 		groups = "vbus1";
 	};
+
+	rp1_i2c4_default_state: rp1-i2c4-default-state {
+		function = "i2c4";
+		groups = "i2c4_2";
+		drive-strength = <12>;
+		bias-pull-up;
+	};
+
+	rp1_i2c6_default_state: rp1-i2c6-default-state {
+		function = "i2c6";
+		groups = "i2c6_0";
+		drive-strength = <12>;
+		bias-pull-up;
+	};
+};
+
+&rp1_i2c4 {
+	pinctrl-0 = <&rp1_i2c4_default_state>;
+	pinctrl-names = "default";
+};
+
+&rp1_i2c6 {
+	pinctrl-0 = <&rp1_i2c6_default_state>;
+	pinctrl-names = "default";
 };
 
 &rp1_usb0 {
