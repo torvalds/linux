@@ -2045,6 +2045,24 @@ __latent_entropy struct task_struct *copy_process(
 			return ERR_PTR(-EINVAL);
 	}
 
+	if (clone_flags & CLONE_PIDFD_AUTOKILL) {
+		if (!(clone_flags & CLONE_PIDFD))
+			return ERR_PTR(-EINVAL);
+		if (!(clone_flags & CLONE_AUTOREAP))
+			return ERR_PTR(-EINVAL);
+		if (clone_flags & CLONE_THREAD)
+			return ERR_PTR(-EINVAL);
+		/*
+		 * Without CLONE_NNP the child could escalate privileges
+		 * after being spawned, so require CAP_SYS_ADMIN.
+		 * With CLONE_NNP the child can't gain new privileges,
+		 * so allow unprivileged usage.
+		 */
+		if (!(clone_flags & CLONE_NNP) &&
+		    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
+			return ERR_PTR(-EPERM);
+	}
+
 	/*
 	 * Force any signals received before this point to be delivered
 	 * before the fork happens.  Collect up signals sent to multiple
@@ -2267,13 +2285,18 @@ __latent_entropy struct task_struct *copy_process(
 	 * if the fd table isn't shared).
 	 */
 	if (clone_flags & CLONE_PIDFD) {
-		int flags = (clone_flags & CLONE_THREAD) ? PIDFD_THREAD : 0;
+		unsigned flags = PIDFD_STALE;
+
+		if (clone_flags & CLONE_THREAD)
+			flags |= PIDFD_THREAD;
+		if (clone_flags & CLONE_PIDFD_AUTOKILL)
+			flags |= PIDFD_AUTOKILL;
 
 		/*
 		 * Note that no task has been attached to @pid yet indicate
 		 * that via CLONE_PIDFD.
 		 */
-		retval = pidfd_prepare(pid, flags | PIDFD_STALE, &pidfile);
+		retval = pidfd_prepare(pid, flags, &pidfile);
 		if (retval < 0)
 			goto bad_fork_free_pid;
 		pidfd = retval;
@@ -2920,7 +2943,7 @@ static bool clone3_args_valid(struct kernel_clone_args *kargs)
 	/* Verify that no unknown flags are passed along. */
 	if (kargs->flags &
 	    ~(CLONE_LEGACY_FLAGS | CLONE_CLEAR_SIGHAND | CLONE_INTO_CGROUP |
-	      CLONE_AUTOREAP | CLONE_NNP))
+	      CLONE_AUTOREAP | CLONE_NNP | CLONE_PIDFD_AUTOKILL))
 		return false;
 
 	/*
