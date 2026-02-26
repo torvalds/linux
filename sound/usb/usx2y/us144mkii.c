@@ -10,8 +10,8 @@ MODULE_AUTHOR("Šerif Rami <ramiserifpersia@gmail.com>");
 MODULE_DESCRIPTION("ALSA Driver for TASCAM US-144MKII");
 MODULE_LICENSE("GPL");
 
-/**
- * @brief Module parameters for ALSA card instantiation.
+/*
+ * Module parameters for ALSA card instantiation.
  *
  * These parameters allow users to configure how the ALSA sound card
  * for the TASCAM US-144MKII is instantiated.
@@ -269,7 +269,7 @@ void tascam_stop_work_handler(struct work_struct *work)
 	atomic_set(&tascam->active_urbs, 0);
 }
 
-/**
+/*
  * tascam_card_private_free() - Frees private data associated with the sound
  * card.
  * @card: Pointer to the ALSA sound card instance.
@@ -291,7 +291,7 @@ static void tascam_card_private_free(struct snd_card *card)
 	}
 }
 
-/**
+/*
  * tascam_suspend() - Handles device suspension.
  * @intf: The USB interface being suspended.
  * @message: Power management message.
@@ -332,7 +332,7 @@ static int tascam_suspend(struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-/**
+/*
  * tascam_resume() - Handles device resumption from suspend.
  * @intf: The USB interface being resumed.
  *
@@ -390,7 +390,7 @@ static void tascam_error_timer(struct timer_list *t)
 		schedule_work(&tascam->midi_out_work);
 }
 
-/**
+/*
  * tascam_probe() - Probes for the TASCAM US-144MKII device.
  * @intf: The USB interface being probed.
  * @usb_id: The USB device ID.
@@ -565,7 +565,7 @@ free_card:
 	return err;
 }
 
-/**
+/*
  * tascam_disconnect() - Disconnects the TASCAM US-144MKII device.
  * @intf: The USB interface being disconnected.
  *
