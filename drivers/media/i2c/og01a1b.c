@@ -746,10 +746,21 @@ static int og01a1b_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int og01a1b_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int og01a1b_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
 {
-	og01a1b_update_pad_format(&supported_modes[0],
-				  v4l2_subdev_state_get_format(fh->state, 0));
+	struct og01a1b *og01a1b = to_og01a1b(sd);
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+		.pad = 0,
+		.format = {
+			.width = og01a1b->cur_mode->width,
+			.height = og01a1b->cur_mode->height,
+			.code = MEDIA_BUS_FMT_Y10_1X10,
+		},
+	};
+
+	og01a1b_set_format(sd, state, &fmt);
 
 	return 0;
 }
@@ -777,7 +788,7 @@ static const struct media_entity_operations og01a1b_subdev_entity_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops og01a1b_internal_ops = {
-	.open = og01a1b_open,
+	.init_state = og01a1b_init_state,
 };
 
 static int og01a1b_identify_module(struct og01a1b *og01a1b)
