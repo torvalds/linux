@@ -768,8 +768,9 @@ static u32 overlay_cmd_reg(struct drm_intel_overlay_put_image *params)
 	return cmd;
 }
 
-static struct i915_vma *intel_overlay_pin_fb(struct drm_i915_gem_object *new_bo)
+static struct i915_vma *intel_overlay_pin_fb(struct drm_gem_object *obj)
 {
+	struct drm_i915_gem_object *new_bo = to_intel_bo(obj);
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	int ret;
@@ -795,7 +796,7 @@ retry:
 }
 
 static int intel_overlay_do_put_image(struct intel_overlay *overlay,
-				      struct drm_i915_gem_object *new_bo,
+				      struct drm_gem_object *obj,
 				      struct drm_intel_overlay_put_image *params)
 {
 	struct intel_display *display = overlay->display;
@@ -816,7 +817,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	atomic_inc(&display->restore.pending_fb_pin);
 
-	vma = intel_overlay_pin_fb(new_bo);
+	vma = intel_overlay_pin_fb(obj);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
@@ -1016,7 +1017,7 @@ static int check_overlay_scaling(struct drm_intel_overlay_put_image *rec)
 
 static int check_overlay_src(struct intel_display *display,
 			     struct drm_intel_overlay_put_image *rec,
-			     struct drm_i915_gem_object *new_bo)
+			     struct drm_gem_object *obj)
 {
 	int uv_hscale = uv_hsubsampling(rec->flags);
 	int uv_vscale = uv_vsubsampling(rec->flags);
@@ -1101,7 +1102,7 @@ static int check_overlay_src(struct intel_display *display,
 			return -EINVAL;
 
 		tmp = rec->stride_Y*rec->src_height;
-		if (rec->offset_Y + tmp > new_bo->base.size)
+		if (rec->offset_Y + tmp > obj->size)
 			return -EINVAL;
 		break;
 
@@ -1112,12 +1113,12 @@ static int check_overlay_src(struct intel_display *display,
 			return -EINVAL;
 
 		tmp = rec->stride_Y * rec->src_height;
-		if (rec->offset_Y + tmp > new_bo->base.size)
+		if (rec->offset_Y + tmp > obj->size)
 			return -EINVAL;
 
 		tmp = rec->stride_UV * (rec->src_height / uv_vscale);
-		if (rec->offset_U + tmp > new_bo->base.size ||
-		    rec->offset_V + tmp > new_bo->base.size)
+		if (rec->offset_U + tmp > obj->size ||
+		    rec->offset_V + tmp > obj->size)
 			return -EINVAL;
 		break;
 	}
@@ -1125,7 +1126,7 @@ static int check_overlay_src(struct intel_display *display,
 	return 0;
 }
 
-static struct drm_i915_gem_object *
+static struct drm_gem_object *
 i915_overlay_obj_lookup(struct drm_device *drm,
 			struct drm_file *file_priv,
 			u32 handle)
@@ -1142,7 +1143,7 @@ i915_overlay_obj_lookup(struct drm_device *drm,
 		return ERR_PTR(-EINVAL);
 	}
 
-	return bo;
+	return intel_bo_to_drm_bo(bo);
 }
 
 int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
@@ -1152,8 +1153,8 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	struct drm_intel_overlay_put_image *params = data;
 	struct intel_overlay *overlay;
 	struct drm_crtc *drmmode_crtc;
+	struct drm_gem_object *obj;
 	struct intel_crtc *crtc;
-	struct drm_i915_gem_object *new_bo;
 	int ret;
 
 	overlay = display->overlay;
@@ -1175,9 +1176,9 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	crtc = to_intel_crtc(drmmode_crtc);
 
-	new_bo = i915_overlay_obj_lookup(dev, file_priv, params->bo_handle);
-	if (IS_ERR(new_bo))
-		return PTR_ERR(new_bo);
+	obj = i915_overlay_obj_lookup(dev, file_priv, params->bo_handle);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
 
 	drm_modeset_lock_all(dev);
 
@@ -1224,7 +1225,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = check_overlay_src(display, params, new_bo);
+	ret = check_overlay_src(display, params, obj);
 	if (ret != 0)
 		goto out_unlock;
 
@@ -1233,18 +1234,18 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	if (ret != 0)
 		goto out_unlock;
 
-	ret = intel_overlay_do_put_image(overlay, new_bo, params);
+	ret = intel_overlay_do_put_image(overlay, obj, params);
 	if (ret != 0)
 		goto out_unlock;
 
 	drm_modeset_unlock_all(dev);
-	i915_gem_object_put(new_bo);
+	drm_gem_object_put(obj);
 
 	return 0;
 
 out_unlock:
 	drm_modeset_unlock_all(dev);
-	i915_gem_object_put(new_bo);
+	drm_gem_object_put(obj);
 
 	return ret;
 }
