@@ -695,7 +695,7 @@ static irqreturn_t tegra20_mc_handle_irq(int irq, void *data)
 	unsigned int bit;
 
 	/* mask all interrupts to avoid flooding */
-	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
+	status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmasks[0].mask;
 	if (!status)
 		return IRQ_NONE;
 
@@ -769,13 +769,21 @@ static const struct tegra_mc_ops tegra20_mc_ops = {
 	.probe = tegra20_mc_probe,
 };
 
+static const struct tegra_mc_intmask tegra20_mc_intmasks[] = {
+	{
+		.reg = MC_INTMASK,
+		.mask = MC_INT_SECURITY_VIOLATION | MC_INT_INVALID_GART_PAGE |
+			MC_INT_DECERR_EMEM,
+	},
+};
+
 const struct tegra_mc_soc tegra20_mc_soc = {
 	.clients = tegra20_mc_clients,
 	.num_clients = ARRAY_SIZE(tegra20_mc_clients),
 	.num_address_bits = 32,
 	.client_id_mask = 0x3f,
-	.intmask = MC_INT_SECURITY_VIOLATION | MC_INT_INVALID_GART_PAGE |
-		   MC_INT_DECERR_EMEM,
+	.intmasks = tegra20_mc_intmasks,
+	.num_intmasks = ARRAY_SIZE(tegra20_mc_intmasks),
 	.reset_ops = &tegra20_mc_reset_ops,
 	.resets = tegra20_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra20_mc_resets),

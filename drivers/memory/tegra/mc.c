@@ -586,9 +586,9 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 		}
 
 		/* mask all interrupts to avoid flooding */
-		status = mc_ch_readl(mc, channel, MC_INTSTATUS) & mc->soc->intmask;
+		status = mc_ch_readl(mc, channel, MC_INTSTATUS) & mc->soc->intmasks[0].mask;
 	} else {
-		status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmask;
+		status = mc_readl(mc, MC_INTSTATUS) & mc->soc->intmasks[0].mask;
 	}
 
 	if (!status)
@@ -969,11 +969,13 @@ static int tegra_mc_probe(struct platform_device *pdev)
 			}
 		}
 
-		if (mc->soc->num_channels)
-			mc_ch_writel(mc, MC_BROADCAST_CHANNEL, mc->soc->intmask,
-				     MC_INTMASK);
-		else
-			mc_writel(mc, mc->soc->intmask, MC_INTMASK);
+		for (i = 0; i < mc->soc->num_intmasks; i++) {
+			if (mc->soc->num_channels)
+				mc_ch_writel(mc, MC_BROADCAST_CHANNEL, mc->soc->intmasks[i].mask,
+					     mc->soc->intmasks[i].reg);
+			else
+				mc_writel(mc, mc->soc->intmasks[i].mask, mc->soc->intmasks[i].reg);
+		}
 	}
 
 	if (mc->soc->reset_ops) {
