@@ -24,6 +24,7 @@ properties:
     enum:
       - nvidia,tegra186-ccplex-cluster
       - nvidia,tegra234-ccplex-cluster
+      - nvidia,tegra238-ccplex-cluster
 
   reg:
     maxItems: 1
