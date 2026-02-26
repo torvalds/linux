@@ -7,8 +7,10 @@
 #include <linux/types.h>
 
 struct dma_fence;
+struct drm_file;
 struct drm_gem_object;
 struct drm_scanout_buffer;
+struct i915_vma;
 struct intel_display;
 struct intel_dpt;
 struct intel_hdcp_gsc_context;
@@ -35,6 +37,29 @@ void intel_parent_hdcp_gsc_context_free(struct intel_display *display,
 /* irq */
 bool intel_parent_irq_enabled(struct intel_display *display);
 void intel_parent_irq_synchronize(struct intel_display *display);
+
+/* overlay */
+bool intel_parent_overlay_is_active(struct intel_display *display);
+int intel_parent_overlay_on(struct intel_display *display,
+			    u32 frontbuffer_bits);
+int intel_parent_overlay_continue(struct intel_display *display,
+				  struct i915_vma *vma,
+				  bool load_polyphase_filter);
+int intel_parent_overlay_off(struct intel_display *display);
+int intel_parent_overlay_recover_from_interrupt(struct intel_display *display);
+int intel_parent_overlay_release_old_vid(struct intel_display *display);
+void intel_parent_overlay_reset(struct intel_display *display);
+struct i915_vma *intel_parent_overlay_pin_fb(struct intel_display *display,
+					     struct drm_gem_object *obj,
+					     u32 *offset);
+void intel_parent_overlay_unpin_fb(struct intel_display *display,
+				   struct i915_vma *vma);
+struct drm_gem_object *intel_parent_overlay_obj_lookup(struct intel_display *display,
+						       struct drm_file *filp,
+						       u32 handle);
+void __iomem *intel_parent_overlay_setup(struct intel_display *display,
+					 bool needs_physical);
+void intel_parent_overlay_cleanup(struct intel_display *display);
 
 /* panic */
 struct intel_panic *intel_parent_panic_alloc(struct intel_display *display);

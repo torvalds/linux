@@ -87,6 +87,82 @@ void intel_parent_irq_synchronize(struct intel_display *display)
 	display->parent->irq->synchronize(display->drm);
 }
 
+/* overlay */
+bool intel_parent_overlay_is_active(struct intel_display *display)
+{
+	return display->parent->overlay->is_active(display->drm);
+}
+
+int intel_parent_overlay_on(struct intel_display *display,
+			    u32 frontbuffer_bits)
+{
+	return display->parent->overlay->overlay_on(display->drm,
+						    frontbuffer_bits);
+}
+
+int intel_parent_overlay_continue(struct intel_display *display,
+				  struct i915_vma *vma,
+				  bool load_polyphase_filter)
+{
+	return display->parent->overlay->overlay_continue(display->drm, vma,
+							  load_polyphase_filter);
+}
+
+int intel_parent_overlay_off(struct intel_display *display)
+{
+	return display->parent->overlay->overlay_off(display->drm);
+}
+
+int intel_parent_overlay_recover_from_interrupt(struct intel_display *display)
+{
+	return display->parent->overlay->recover_from_interrupt(display->drm);
+}
+
+int intel_parent_overlay_release_old_vid(struct intel_display *display)
+{
+	return display->parent->overlay->release_old_vid(display->drm);
+}
+
+void intel_parent_overlay_reset(struct intel_display *display)
+{
+	display->parent->overlay->reset(display->drm);
+}
+
+struct i915_vma *intel_parent_overlay_pin_fb(struct intel_display *display,
+					     struct drm_gem_object *obj,
+					     u32 *offset)
+{
+	return display->parent->overlay->pin_fb(display->drm, obj, offset);
+}
+
+void intel_parent_overlay_unpin_fb(struct intel_display *display,
+				   struct i915_vma *vma)
+{
+	return display->parent->overlay->unpin_fb(display->drm, vma);
+}
+
+struct drm_gem_object *intel_parent_overlay_obj_lookup(struct intel_display *display,
+						       struct drm_file *filp,
+						       u32 handle)
+{
+	return display->parent->overlay->obj_lookup(display->drm,
+						    filp, handle);
+}
+
+void __iomem *intel_parent_overlay_setup(struct intel_display *display,
+					 bool needs_physical)
+{
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->overlay))
+		return ERR_PTR(-ENODEV);
+
+	return display->parent->overlay->setup(display->drm, needs_physical);
+}
+
+void intel_parent_overlay_cleanup(struct intel_display *display)
+{
+	display->parent->overlay->cleanup(display->drm);
+}
+
 /* panic */
 struct intel_panic *intel_parent_panic_alloc(struct intel_display *display)
 {

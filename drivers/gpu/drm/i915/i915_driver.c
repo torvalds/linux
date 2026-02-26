@@ -107,6 +107,7 @@
 #include "i915_ioctl.h"
 #include "i915_irq.h"
 #include "i915_memcpy.h"
+#include "i915_overlay.h"
 #include "i915_panic.h"
 #include "i915_perf.h"
 #include "i915_query.h"
@@ -767,6 +768,7 @@ static const struct intel_display_parent_interface parent = {
 	.hdcp = &i915_display_hdcp_interface,
 	.initial_plane = &i915_display_initial_plane_interface,
 	.irq = &i915_display_irq_interface,
+	.overlay = &i915_display_overlay_interface,
 	.panic = &i915_display_panic_interface,
 	.pc8 = &i915_display_pc8_interface,
 	.pcode = &i915_display_pcode_interface,

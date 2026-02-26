@@ -30,13 +30,13 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 
-#include "i915_overlay.h"
 #include "intel_color_regs.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
+#include "intel_parent.h"
 #include "intel_pfit_regs.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
@@ -199,7 +199,7 @@ void intel_overlay_reset(struct intel_display *display)
 	overlay->old_yscale = 0;
 	overlay->crtc = NULL;
 
-	i915_overlay_reset(display->drm);
+	intel_parent_overlay_reset(display);
 }
 
 static int packed_depth_bytes(u32 format)
@@ -477,19 +477,19 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
 
-	ret = i915_overlay_release_old_vid(display->drm);
+	ret = intel_parent_overlay_release_old_vid(display);
 	if (ret != 0)
 		return ret;
 
 	atomic_inc(&display->restore.pending_fb_pin);
 
-	vma = i915_overlay_pin_fb(display->drm, obj, &offset);
+	vma = intel_parent_overlay_pin_fb(display, obj, &offset);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
 	}
 
-	if (!i915_overlay_is_active(display->drm)) {
+	if (!intel_parent_overlay_is_active(display)) {
 		const struct intel_crtc_state *crtc_state =
 			overlay->crtc->config;
 		u32 oconfig = 0;
@@ -505,7 +505,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 			OCONF_PIPE_A : OCONF_PIPE_B;
 		iowrite32(oconfig, &regs->OCONFIG);
 
-		ret = i915_overlay_on(display->drm, INTEL_FRONTBUFFER_OVERLAY(pipe));
+		ret = intel_parent_overlay_on(display, INTEL_FRONTBUFFER_OVERLAY(pipe));
 		if (ret != 0)
 			goto out_unpin;
 	}
@@ -563,14 +563,14 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		drm_dbg(display->drm, "overlay underrun, DOVSTA: %x\n", tmp);
 
-	ret = i915_overlay_continue(display->drm, vma, scale_changed);
+	ret = intel_parent_overlay_continue(display, vma, scale_changed);
 	if (ret)
 		goto out_unpin;
 
 	return 0;
 
 out_unpin:
-	i915_overlay_unpin_fb(display->drm, vma);
+	intel_parent_overlay_unpin_fb(display, vma);
 out_pin_section:
 	atomic_dec(&display->restore.pending_fb_pin);
 
@@ -585,14 +585,14 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
 
-	ret = i915_overlay_recover_from_interrupt(display->drm);
+	ret = intel_parent_overlay_recover_from_interrupt(display);
 	if (ret != 0)
 		return ret;
 
-	if (!i915_overlay_is_active(display->drm))
+	if (!intel_parent_overlay_is_active(display))
 		return 0;
 
-	ret = i915_overlay_release_old_vid(display->drm);
+	ret = intel_parent_overlay_release_old_vid(display);
 	if (ret != 0)
 		return ret;
 
@@ -601,7 +601,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
 
-	return i915_overlay_off(display->drm);
+	return intel_parent_overlay_off(display);
 }
 
 static int check_overlay_possible_on_crtc(struct intel_overlay *overlay,
@@ -822,13 +822,13 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	crtc = to_intel_crtc(drmmode_crtc);
 
-	obj = i915_overlay_obj_lookup(dev, file_priv, params->bo_handle);
+	obj = intel_parent_overlay_obj_lookup(display, file_priv, params->bo_handle);
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
 	drm_modeset_lock_all(dev);
 
-	ret = i915_overlay_recover_from_interrupt(dev);
+	ret = intel_parent_overlay_recover_from_interrupt(display);
 	if (ret != 0)
 		goto out_unlock;
 
@@ -998,7 +998,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			if (DISPLAY_VER(display) == 2)
 				goto out_unlock;
 
-			if (i915_overlay_is_active(display->drm)) {
+			if (intel_parent_overlay_is_active(display)) {
 				ret = -EBUSY;
 				goto out_unlock;
 			}
@@ -1036,8 +1036,8 @@ void intel_overlay_setup(struct intel_display *display)
 	if (!overlay)
 		return;
 
-	regs = i915_overlay_setup(display->drm,
-				  OVERLAY_NEEDS_PHYSICAL(display));
+	regs = intel_parent_overlay_setup(display,
+					  OVERLAY_NEEDS_PHYSICAL(display));
 	if (IS_ERR(regs))
 		goto out_free;
 
@@ -1071,7 +1071,7 @@ void intel_overlay_cleanup(struct intel_display *display)
 	if (!display->overlay)
 		return;
 
-	i915_overlay_cleanup(display->drm);
+	intel_parent_overlay_cleanup(display);
 
 	kfree(display->overlay);
 	display->overlay = NULL;

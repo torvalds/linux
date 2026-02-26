@@ -303,6 +303,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_modeset_lock.o \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
+	i915-display/intel_overlay.o \
 	i915-display/intel_panel.o \
 	i915-display/intel_parent.o \
 	i915-display/intel_pch.o \

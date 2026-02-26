@@ -9,6 +9,7 @@
 struct dma_fence;
 struct drm_crtc;
 struct drm_device;
+struct drm_file;
 struct drm_framebuffer;
 struct drm_gem_object;
 struct drm_plane_state;
@@ -61,6 +62,35 @@ struct intel_display_initial_plane_interface {
 struct intel_display_irq_interface {
 	bool (*enabled)(struct drm_device *drm);
 	void (*synchronize)(struct drm_device *drm);
+};
+
+struct intel_display_overlay_interface {
+	bool (*is_active)(struct drm_device *drm);
+
+	int (*overlay_on)(struct drm_device *drm,
+			  u32 frontbuffer_bits);
+	int (*overlay_continue)(struct drm_device *drm,
+				struct i915_vma *vma,
+				bool load_polyphase_filter);
+	int (*overlay_off)(struct drm_device *drm);
+	int (*recover_from_interrupt)(struct drm_device *drm);
+	int (*release_old_vid)(struct drm_device *drm);
+
+	void (*reset)(struct drm_device *drm);
+
+	struct i915_vma *(*pin_fb)(struct drm_device *drm,
+				   struct drm_gem_object *obj,
+				   u32 *offset);
+	void (*unpin_fb)(struct drm_device *drm,
+			 struct i915_vma *vma);
+
+	struct drm_gem_object *(*obj_lookup)(struct drm_device *drm,
+					     struct drm_file *filp,
+					     u32 handle);
+
+	void __iomem *(*setup)(struct drm_device *drm,
+			       bool needs_physical);
+	void (*cleanup)(struct drm_device *drm);
 };
 
 struct intel_display_panic_interface {
@@ -149,6 +179,9 @@ struct intel_display_parent_interface {
 
 	/** @panic: Panic interface */
 	const struct intel_display_panic_interface *panic;
+
+	/** @overlay: Overlay. Optional. */
+	const struct intel_display_overlay_interface *overlay;
 
 	/** @pc8: PC8 interface. Optional. */
 	const struct intel_display_pc8_interface *pc8;

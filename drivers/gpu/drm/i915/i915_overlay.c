@@ -5,6 +5,7 @@
 
 #include <drm/drm_print.h>
 
+#include <drm/intel/display_parent_interface.h>
 #include <drm/intel/intel_gmd_interrupt_regs.h>
 
 #include "gem/i915_gem_internal.h"
@@ -88,7 +89,7 @@ alloc_request(struct i915_overlay *overlay, void (*fn)(struct i915_overlay *))
 	return rq;
 }
 
-bool i915_overlay_is_active(struct drm_device *drm)
+static bool i915_overlay_is_active(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -97,8 +98,8 @@ bool i915_overlay_is_active(struct drm_device *drm)
 }
 
 /* overlay needs to be disable in OCMD reg */
-int i915_overlay_on(struct drm_device *drm,
-		    u32 frontbuffer_bits)
+static int i915_overlay_on(struct drm_device *drm,
+			   u32 frontbuffer_bits)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -159,9 +160,9 @@ static void i915_overlay_flip_prepare(struct i915_overlay *overlay,
 }
 
 /* overlay needs to be enabled in OCMD reg */
-int i915_overlay_continue(struct drm_device *drm,
-			  struct i915_vma *vma,
-			  bool load_polyphase_filter)
+static int i915_overlay_continue(struct drm_device *drm,
+				 struct i915_vma *vma,
+				 bool load_polyphase_filter)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -210,7 +211,8 @@ static void i915_overlay_release_old_vma(struct i915_overlay *overlay)
 	i915_vma_put(vma);
 }
 
-static void i915_overlay_release_old_vid_tail(struct i915_overlay *overlay)
+static void
+i915_overlay_release_old_vid_tail(struct i915_overlay *overlay)
 {
 	i915_overlay_release_old_vma(overlay);
 }
@@ -237,7 +239,7 @@ static void i915_overlay_last_flip_retire(struct i915_active *active)
 }
 
 /* overlay needs to be disabled in OCMD reg */
-int i915_overlay_off(struct drm_device *drm)
+static int i915_overlay_off(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -286,7 +288,7 @@ int i915_overlay_off(struct drm_device *drm)
  * Recover from an interruption due to a signal.
  * We have to be careful not to repeat work forever an make forward progress.
  */
-int i915_overlay_recover_from_interrupt(struct drm_device *drm)
+static int i915_overlay_recover_from_interrupt(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -299,7 +301,7 @@ int i915_overlay_recover_from_interrupt(struct drm_device *drm)
  * Needs to be called before the overlay register are changed
  * via intel_overlay_(un)map_regs.
  */
-int i915_overlay_release_old_vid(struct drm_device *drm)
+static int i915_overlay_release_old_vid(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -337,7 +339,7 @@ int i915_overlay_release_old_vid(struct drm_device *drm)
 	return i915_active_wait(&overlay->last_flip);
 }
 
-void i915_overlay_reset(struct drm_device *drm)
+static void i915_overlay_reset(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay = i915->overlay;
@@ -348,9 +350,9 @@ void i915_overlay_reset(struct drm_device *drm)
 	overlay->frontbuffer_bits = 0;
 }
 
-struct i915_vma *i915_overlay_pin_fb(struct drm_device *drm,
-				     struct drm_gem_object *obj,
-				     u32 *offset)
+static struct i915_vma *i915_overlay_pin_fb(struct drm_device *drm,
+					    struct drm_gem_object *obj,
+					    u32 *offset)
 {
 	struct drm_i915_gem_object *new_bo = to_intel_bo(obj);
 	struct i915_gem_ww_ctx ww;
@@ -379,13 +381,13 @@ retry:
 	return vma;
 }
 
-void i915_overlay_unpin_fb(struct drm_device *drm,
-			   struct i915_vma *vma)
+static void i915_overlay_unpin_fb(struct drm_device *drm,
+				  struct i915_vma *vma)
 {
 	i915_vma_unpin(vma);
 }
 
-struct drm_gem_object *
+static struct drm_gem_object *
 i915_overlay_obj_lookup(struct drm_device *drm,
 			struct drm_file *file_priv,
 			u32 handle)
@@ -444,8 +446,8 @@ err_put_bo:
 	return err;
 }
 
-void __iomem *i915_overlay_setup(struct drm_device *drm,
-				 bool needs_physical)
+static void __iomem *i915_overlay_setup(struct drm_device *drm,
+					bool needs_physical)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_engine_cs *engine;
@@ -477,7 +479,7 @@ void __iomem *i915_overlay_setup(struct drm_device *drm,
 	return overlay->regs;
 }
 
-void i915_overlay_cleanup(struct drm_device *drm)
+static void i915_overlay_cleanup(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct i915_overlay *overlay;
@@ -498,3 +500,18 @@ void i915_overlay_cleanup(struct drm_device *drm)
 
 	kfree(overlay);
 }
+
+const struct intel_display_overlay_interface i915_display_overlay_interface = {
+	.is_active = i915_overlay_is_active,
+	.overlay_on = i915_overlay_on,
+	.overlay_continue = i915_overlay_continue,
+	.overlay_off = i915_overlay_off,
+	.recover_from_interrupt = i915_overlay_recover_from_interrupt,
+	.release_old_vid = i915_overlay_release_old_vid,
+	.reset = i915_overlay_reset,
+	.obj_lookup = i915_overlay_obj_lookup,
+	.pin_fb = i915_overlay_pin_fb,
+	.unpin_fb = i915_overlay_unpin_fb,
+	.setup = i915_overlay_setup,
+	.cleanup = i915_overlay_cleanup,
+};
