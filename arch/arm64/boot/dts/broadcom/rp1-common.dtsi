@@ -133,6 +133,34 @@ pci_ep_bus: pci-ep-bus@1 {
 		#size-cells = <0>;
 	};
 
+	rp1_csi0: csi@40110000 {
+		compatible = "raspberrypi,rp1-cfe";
+		reg = <0x0 0x40110000  0x0 0x100>, // CSI2 DMA address
+		      <0x0 0x40114000  0x0 0x100>, // PHY/CSI Host address
+		      <0x0 0x40120000  0x0 0x100>, // MIPI CFG address
+		      <0x0 0x40124000  0x0 0x1000>; // PiSP FE address
+		interrupts = <47 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_MIPI0_CFG>;
+		assigned-clocks = <&rp1_clocks RP1_CLK_MIPI0_CFG>;
+		assigned-clock-rates = <25000000>;
+
+		status = "disabled";
+	};
+
+	rp1_csi1: csi@40128000 {
+		compatible = "raspberrypi,rp1-cfe";
+		reg = <0x0 0x40128000  0x0 0x100>, // CSI2 DMA address
+		      <0x0 0x4012c000  0x0 0x100>, // PHY/CSI Host address
+		      <0x0 0x40138000  0x0 0x100>, // MIPI CFG address
+		      <0x0 0x4013c000  0x0 0x1000>; // PiSP FE address
+		interrupts = <48 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_MIPI1_CFG>;
+		assigned-clocks = <&rp1_clocks RP1_CLK_MIPI1_CFG>;
+		assigned-clock-rates = <25000000>;
+
+		status = "disabled";
+	};
+
 	rp1_usb0: usb@40200000 {
 		compatible = "snps,dwc3";
 		reg = <0x00 0x40200000  0x0 0x100000>;
