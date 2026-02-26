@@ -257,6 +257,11 @@ struct xe_exec_queue {
 	u64 tlb_flush_seqno;
 	/** @hw_engine_group_link: link into exec queues in the same hw engine group */
 	struct list_head hw_engine_group_link;
+	/**
+	 * @lrc_lookup_lock: Lock for protecting lrc array access. Only used when
+	 * running in parallel to queue creation is possible.
+	 */
+	spinlock_t lrc_lookup_lock;
 	/** @lrc: logical ring context for this exec queue */
 	struct xe_lrc *lrc[] __counted_by(width);
 };

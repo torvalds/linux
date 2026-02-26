@@ -231,6 +231,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	INIT_LIST_HEAD(&q->hw_engine_group_link);
 	INIT_LIST_HEAD(&q->pxp.link);
 	spin_lock_init(&q->multi_queue.lock);
+	spin_lock_init(&q->lrc_lookup_lock);
 	q->multi_queue.priority = XE_MULTI_QUEUE_PRIORITY_NORMAL;
 
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
@@ -268,6 +269,56 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	}
 
 	return q;
+}
+
+static void xe_exec_queue_set_lrc(struct xe_exec_queue *q, struct xe_lrc *lrc, u16 idx)
+{
+	xe_assert(gt_to_xe(q->gt), idx < q->width);
+
+	scoped_guard(spinlock, &q->lrc_lookup_lock)
+		q->lrc[idx] = lrc;
+}
+
+/**
+ * xe_exec_queue_get_lrc() - Get the LRC from exec queue.
+ * @q: The exec queue instance.
+ * @idx: Index within multi-LRC array.
+ *
+ * Retrieves LRC of given index for the exec queue under lock
+ * and takes reference.
+ *
+ * Return: Pointer to LRC on success, error on failure, NULL on
+ * lookup failure.
+ */
+struct xe_lrc *xe_exec_queue_get_lrc(struct xe_exec_queue *q, u16 idx)
+{
+	struct xe_lrc *lrc;
+
+	xe_assert(gt_to_xe(q->gt), idx < q->width);
+
+	scoped_guard(spinlock, &q->lrc_lookup_lock) {
+		lrc = q->lrc[idx];
+		if (lrc)
+			xe_lrc_get(lrc);
+	}
+
+	return lrc;
+}
+
+/**
+ * xe_exec_queue_lrc() - Get the LRC from exec queue.
+ * @q: The exec queue instance.
+ *
+ * Retrieves the primary LRC for the exec queue. Note that this function
+ * returns only the first LRC instance, even when multiple parallel LRCs
+ * are configured. This function does not increment reference count,
+ * so the reference can be just forgotten after use.
+ *
+ * Return: Pointer to LRC on success, error on failure
+ */
+struct xe_lrc *xe_exec_queue_lrc(struct xe_exec_queue *q)
+{
+	return q->lrc[0];
 }
 
 static void __xe_exec_queue_fini(struct xe_exec_queue *q)
@@ -327,8 +378,7 @@ static int __xe_exec_queue_init(struct xe_exec_queue *q, u32 exec_queue_flags)
 			goto err_lrc;
 		}
 
-		/* Pairs with READ_ONCE to xe_exec_queue_contexts_hwsp_rebase */
-		WRITE_ONCE(q->lrc[i], lrc);
+		xe_exec_queue_set_lrc(q, lrc, i);
 	}
 
 	return 0;
@@ -1294,21 +1344,6 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * xe_exec_queue_lrc() - Get the LRC from exec queue.
- * @q: The exec_queue.
- *
- * Retrieves the primary LRC for the exec queue. Note that this function
- * returns only the first LRC instance, even when multiple parallel LRCs
- * are configured.
- *
- * Return: Pointer to LRC on success, error on failure
- */
-struct xe_lrc *xe_exec_queue_lrc(struct xe_exec_queue *q)
-{
-	return q->lrc[0];
-}
-
-/**
  * xe_exec_queue_is_lr() - Whether an exec_queue is long-running
  * @q: The exec_queue
  *
@@ -1667,14 +1702,14 @@ int xe_exec_queue_contexts_hwsp_rebase(struct xe_exec_queue *q, void *scratch)
 	for (i = 0; i < q->width; ++i) {
 		struct xe_lrc *lrc;
 
-		/* Pairs with WRITE_ONCE in __xe_exec_queue_init  */
-		lrc = READ_ONCE(q->lrc[i]);
+		lrc = xe_exec_queue_get_lrc(q, i);
 		if (!lrc)
 			continue;
 
 		xe_lrc_update_memirq_regs_with_address(lrc, q->hwe, scratch);
 		xe_lrc_update_hwctx_regs_with_address(lrc);
 		err = xe_lrc_setup_wa_bb_with_scratch(lrc, q->hwe, scratch);
+		xe_lrc_put(lrc);
 		if (err)
 			break;
 	}
