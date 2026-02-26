@@ -55,6 +55,8 @@ static __always_inline bool is_ns_init_id(const struct ns_common *ns)
 
 #define ns_common_free(__ns) __ns_common_free(to_ns_common((__ns)))
 
+bool may_see_all_namespaces(void);
+
 static __always_inline __must_check int __ns_ref_active_read(const struct ns_common *ns)
 {
 	return atomic_read(&ns->__ns_ref_active);
