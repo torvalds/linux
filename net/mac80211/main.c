@@ -915,6 +915,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_TXQS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_RRM);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_IEEE8021X_AUTH);
 
 	wiphy->bss_priv_size = sizeof(struct ieee80211_bss);
 
