@@ -1909,7 +1909,7 @@ static void amdgpu_ttm_pools_fini(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_ttm_mmio_remap_bo_init - Allocate the singleton MMIO_REMAP BO
+ * amdgpu_ttm_alloc_mmio_remap_bo - Allocate the singleton MMIO_REMAP BO
  * @adev: amdgpu device
  *
  * Allocates a global BO with backing AMDGPU_PL_MMIO_REMAP when the
