@@ -187,27 +187,32 @@ struct overlay_registers {
 	u16 RESERVEDG[0x100 / 2 - N_HORIZ_UV_TAPS * N_PHASES];
 };
 
-struct intel_overlay {
-	struct intel_display *display;
+struct i915_overlay {
+	struct drm_i915_private *i915;
 	struct intel_context *context;
-	struct intel_crtc *crtc;
 	struct i915_vma *vma;
 	struct i915_vma *old_vma;
 	struct intel_frontbuffer *frontbuffer;
+	/* register access */
+	struct drm_i915_gem_object *reg_bo;
+	void __iomem *regs;
+	u32 flip_addr;
+	u32 frontbuffer_bits;
+	/* flip handling */
+	struct i915_active last_flip;
+	void (*flip_complete)(struct i915_overlay *overlay);
+};
+
+struct intel_overlay {
+	struct intel_display *display;
+	struct intel_crtc *crtc;
 	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
 	u32 color_key:24;
 	u32 color_key_enabled:1;
 	u32 brightness, contrast, saturation;
 	u32 old_xscale, old_yscale;
-	/* register access */
-	struct drm_i915_gem_object *reg_bo;
 	struct overlay_registers __iomem *regs;
-	u32 flip_addr;
-	u32 frontbuffer_bits;
-	/* flip handling */
-	struct i915_active last_flip;
-	void (*flip_complete)(struct intel_overlay *ovl);
 };
 
 static void i830_overlay_clock_gating(struct drm_i915_private *i915,
@@ -238,7 +243,7 @@ static void i830_overlay_clock_gating(struct drm_i915_private *i915,
 }
 
 static struct i915_request *
-alloc_request(struct intel_overlay *overlay, void (*fn)(struct intel_overlay *))
+alloc_request(struct i915_overlay *overlay, void (*fn)(struct i915_overlay *))
 {
 	struct i915_request *rq;
 	int err;
@@ -260,8 +265,8 @@ alloc_request(struct intel_overlay *overlay, void (*fn)(struct intel_overlay *))
 
 static bool i915_overlay_is_active(struct drm_device *drm)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 
 	return overlay->frontbuffer_bits;
 }
@@ -271,8 +276,7 @@ static int i915_overlay_on(struct drm_device *drm,
 			   u32 frontbuffer_bits)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct i915_overlay *overlay = i915->overlay;
 	struct i915_request *rq;
 	u32 *cs;
 
@@ -304,13 +308,13 @@ static int i915_overlay_on(struct drm_device *drm,
 	return i915_active_wait(&overlay->last_flip);
 }
 
-static void i915_overlay_flip_prepare(struct intel_overlay *overlay,
+static void i915_overlay_flip_prepare(struct i915_overlay *overlay,
 				      struct i915_vma *vma)
 {
-	struct intel_display *display = overlay->display;
+	struct drm_i915_private *i915 = overlay->i915;
 	struct intel_frontbuffer *frontbuffer = NULL;
 
-	drm_WARN_ON(display->drm, overlay->old_vma);
+	drm_WARN_ON(&i915->drm, overlay->old_vma);
 
 	if (vma)
 		frontbuffer = intel_frontbuffer_get(intel_bo_to_drm_bo(vma->obj));
@@ -334,8 +338,8 @@ static int i915_overlay_continue(struct drm_device *drm,
 				 struct i915_vma *vma,
 				 bool load_polyphase_filter)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 	struct i915_request *rq;
 	u32 flip_addr = overlay->flip_addr;
 	u32 *cs;
@@ -365,13 +369,14 @@ static int i915_overlay_continue(struct drm_device *drm,
 	return 0;
 }
 
-static void i915_overlay_release_old_vma(struct intel_overlay *overlay)
+static void i915_overlay_release_old_vma(struct i915_overlay *overlay)
 {
-	struct intel_display *display = overlay->display;
+	struct drm_i915_private *i915 = overlay->i915;
+	struct intel_display *display = i915->display;
 	struct i915_vma *vma;
 
 	vma = fetch_and_zero(&overlay->old_vma);
-	if (drm_WARN_ON(display->drm, !vma))
+	if (drm_WARN_ON(&i915->drm, !vma))
 		return;
 
 	intel_frontbuffer_flip(display, overlay->frontbuffer_bits);
@@ -380,15 +385,14 @@ static void i915_overlay_release_old_vma(struct intel_overlay *overlay)
 	i915_vma_put(vma);
 }
 
-static void i915_overlay_release_old_vid_tail(struct intel_overlay *overlay)
+static void i915_overlay_release_old_vid_tail(struct i915_overlay *overlay)
 {
 	i915_overlay_release_old_vma(overlay);
 }
 
-static void i915_overlay_off_tail(struct intel_overlay *overlay)
+static void i915_overlay_off_tail(struct i915_overlay *overlay)
 {
-	struct intel_display *display = overlay->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = overlay->i915;
 
 	i915_overlay_release_old_vma(overlay);
 
@@ -400,7 +404,7 @@ static void i915_overlay_off_tail(struct intel_overlay *overlay)
 
 static void i915_overlay_last_flip_retire(struct i915_active *active)
 {
-	struct intel_overlay *overlay =
+	struct i915_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
 
 	if (overlay->flip_complete)
@@ -410,8 +414,8 @@ static void i915_overlay_last_flip_retire(struct i915_active *active)
 /* overlay needs to be disabled in OCMD reg */
 static int i915_overlay_off(struct drm_device *drm)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 	struct i915_request *rq;
 	u32 *cs, flip_addr = overlay->flip_addr;
 
@@ -459,8 +463,8 @@ static int i915_overlay_off(struct drm_device *drm)
  */
 static int i915_overlay_recover_from_interrupt(struct drm_device *drm)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 
 	return i915_active_wait(&overlay->last_flip);
 }
@@ -472,8 +476,8 @@ static int i915_overlay_recover_from_interrupt(struct drm_device *drm)
  */
 static int i915_overlay_release_old_vid(struct drm_device *drm)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 	struct i915_request *rq;
 	u32 *cs;
 
@@ -484,7 +488,7 @@ static int i915_overlay_release_old_vid(struct drm_device *drm)
 	if (!overlay->old_vma)
 		return 0;
 
-	if (!(intel_de_read(display, GEN2_ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT)) {
+	if (!(intel_uncore_read(&i915->uncore, GEN2_ISR) & I915_OVERLAY_PLANE_FLIP_PENDING_INTERRUPT)) {
 		i915_overlay_release_old_vid_tail(overlay);
 		return 0;
 	}
@@ -510,8 +514,8 @@ static int i915_overlay_release_old_vid(struct drm_device *drm)
 
 static void i915_overlay_reset(struct drm_device *drm)
 {
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_overlay *overlay = display->overlay;
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay = i915->overlay;
 
 	if (!overlay)
 		return;
@@ -1412,10 +1416,9 @@ out_unlock:
 	return ret;
 }
 
-static int get_registers(struct intel_overlay *overlay, bool use_phys)
+static int get_registers(struct i915_overlay *overlay, bool use_phys)
 {
-	struct intel_display *display = overlay->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_i915_private *i915 = overlay->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	int err;
@@ -1452,29 +1455,43 @@ err_put_bo:
 	return err;
 }
 
-static int i915_overlay_setup(struct drm_device *drm,
-			      struct intel_overlay *overlay,
-			      bool needs_physical)
+static void __iomem *i915_overlay_setup(struct drm_device *drm,
+					bool needs_physical)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_engine_cs *engine;
+	struct i915_overlay *overlay;
+	int ret;
 
 	engine = to_gt(i915)->engine[RCS0];
 	if (!engine || !engine->kernel_context)
-		return -ENOENT;
+		return ERR_PTR(-ENOENT);
 
+	overlay = kzalloc_obj(*overlay);
+	if (!overlay)
+		return ERR_PTR(-ENOMEM);
+
+	overlay->i915 = i915;
 	overlay->context = engine->kernel_context;
 
 	i915_active_init(&overlay->last_flip,
 			 NULL, i915_overlay_last_flip_retire, 0);
 
-	return get_registers(overlay, needs_physical);
+	ret = get_registers(overlay, needs_physical);
+	if (ret) {
+		kfree(overlay);
+		return ERR_PTR(ret);
+	}
+
+	i915->overlay = overlay;
+
+	return overlay->regs;
 }
 
 void intel_overlay_setup(struct intel_display *display)
 {
 	struct intel_overlay *overlay;
-	int ret;
+	void __iomem *regs;
 
 	if (!HAS_OVERLAY(display))
 		return;
@@ -1483,12 +1500,13 @@ void intel_overlay_setup(struct intel_display *display)
 	if (!overlay)
 		return;
 
-	ret = i915_overlay_setup(display->drm, overlay,
-				 OVERLAY_NEEDS_PHYSICAL(display));
-	if (ret)
+	regs = i915_overlay_setup(display->drm,
+				  OVERLAY_NEEDS_PHYSICAL(display));
+	if (IS_ERR(regs))
 		goto out_free;
 
 	overlay->display = display;
+	overlay->regs = regs;
 	overlay->color_key = 0x0101fe;
 	overlay->color_key_enabled = true;
 	overlay->brightness = -19;
@@ -1512,9 +1530,15 @@ bool intel_overlay_available(struct intel_display *display)
 	return display->overlay;
 }
 
-static void i915_overlay_cleanup(struct drm_device *drm,
-				 struct intel_overlay *overlay)
+static void i915_overlay_cleanup(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+	struct i915_overlay *overlay;
+
+	overlay = fetch_and_zero(&i915->overlay);
+	if (!overlay)
+		return;
+
 	/*
 	 * The bo's should be free'd by the generic code already.
 	 * Furthermore modesetting teardown happens beforehand so the
@@ -1524,6 +1548,8 @@ static void i915_overlay_cleanup(struct drm_device *drm,
 
 	i915_gem_object_put(overlay->reg_bo);
 	i915_active_fini(&overlay->last_flip);
+
+	kfree(overlay);
 }
 
 void intel_overlay_cleanup(struct intel_display *display)
@@ -1534,7 +1560,7 @@ void intel_overlay_cleanup(struct intel_display *display)
 	if (!overlay)
 		return;
 
-	i915_overlay_cleanup(display->drm, overlay);
+	i915_overlay_cleanup(display->drm);
 
 	kfree(overlay);
 }
