@@ -3640,14 +3640,10 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			 * or the gpio driver hasn't probed yet.
 			 */
 			scoped_guard(mutex, &bank->deferred_lock) {
-				if (!gpio || !gpio->direction_output) {
-					rc = rockchip_pinconf_defer_pin(bank,
-									pin - bank->pin_base,
-									param, arg);
-					if (rc)
-						return rc;
-					break;
-				}
+				if (!gpio || !gpio->direction_output)
+					return rockchip_pinconf_defer_pin(bank,
+									  pin - bank->pin_base,
+									  param, arg);
 			}
 		}
 

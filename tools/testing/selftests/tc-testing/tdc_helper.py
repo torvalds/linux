@@ -38,10 +38,14 @@ def list_test_cases(testlist):
 
 
 def list_categories(testlist):
-    """ Show all categories that are present in a test case file. """
-    categories = set(map(lambda x: x['category'], testlist))
+    """Show all unique categories present in the test cases."""
+    categories = set()
+    for t in testlist:
+        if 'category' in t:
+            categories.update(t['category'])
+
     print("Available categories:")
-    print(", ".join(str(s) for s in categories))
+    print(", ".join(sorted(categories)))
     print("")
 
 

@@ -16,22 +16,26 @@
  */
 #define INDIRECT_CALL_1(f, f1, ...)					\
 	({								\
-		likely(f == f1) ? f1(__VA_ARGS__) : f(__VA_ARGS__);	\
+		typeof(f) __f1 = (f);					\
+		likely(__f1 == f1) ? f1(__VA_ARGS__) : __f1(__VA_ARGS__);	\
 	})
 #define INDIRECT_CALL_2(f, f2, f1, ...)					\
 	({								\
-		likely(f == f2) ? f2(__VA_ARGS__) :			\
-				  INDIRECT_CALL_1(f, f1, __VA_ARGS__);	\
+		typeof(f) __f2 = (f);					\
+		likely(__f2 == f2) ? f2(__VA_ARGS__) :			\
+				  INDIRECT_CALL_1(__f2, f1, __VA_ARGS__);	\
 	})
 #define INDIRECT_CALL_3(f, f3, f2, f1, ...)					\
 	({									\
-		likely(f == f3) ? f3(__VA_ARGS__) :				\
-				  INDIRECT_CALL_2(f, f2, f1, __VA_ARGS__);	\
+		typeof(f) __f3 = (f);						\
+		likely(__f3 == f3) ? f3(__VA_ARGS__) :				\
+				  INDIRECT_CALL_2(__f3, f2, f1, __VA_ARGS__);	\
 	})
 #define INDIRECT_CALL_4(f, f4, f3, f2, f1, ...)					\
 	({									\
-		likely(f == f4) ? f4(__VA_ARGS__) :				\
-				  INDIRECT_CALL_3(f, f3, f2, f1, __VA_ARGS__);	\
+		typeof(f) __f4 = (f);						\
+		likely(__f4 == f4) ? f4(__VA_ARGS__) :				\
+				  INDIRECT_CALL_3(__f4, f3, f2, f1, __VA_ARGS__);	\
 	})
 
 #define INDIRECT_CALLABLE_DECLARE(f)	f
