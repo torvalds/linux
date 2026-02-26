@@ -26,6 +26,83 @@ pci_ep_bus: pci-ep-bus@1 {
 				       <200000000>;  // RP1_CLK_SYS
 	};
 
+	rp1_i2c0: i2c@40070000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40070000  0x0 0x1000>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c1: i2c@40074000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40074000  0x0 0x1000>;
+		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c2: i2c@40078000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40078000  0x0 0x1000>;
+		interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c3: i2c@4007c000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x4007c000  0x0 0x1000>;
+		interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c4: i2c@40080000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40080000  0x0 0x1000>;
+		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c5: i2c@40084000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40084000  0x0 0x1000>;
+		interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
+	rp1_i2c6: i2c@40088000 {
+		compatible = "snps,designware-i2c";
+		reg = <0x0 0x40088000  0x0 0x1000>;
+		interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rp1_clocks RP1_CLK_SYS>;
+		i2c-scl-rising-time-ns = <65>;
+		i2c-scl-falling-time-ns = <100>;
+
+		status = "disabled";
+	};
+
 	rp1_gpio: pinctrl@400d0000 {
 		compatible = "raspberrypi,rp1-gpio";
 		reg = <0x00 0x400d0000  0x0 0xc000>,
