@@ -447,7 +447,7 @@ static int amdgpu_userq_wait_for_last_fence(struct amdgpu_usermode_queue *queue)
 }
 
 static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue,
-				 int queue_id)
+				 u32 queue_id)
 {
 	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
@@ -461,7 +461,7 @@ static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue,
 	uq_funcs->mqd_destroy(queue);
 	amdgpu_userq_fence_driver_free(queue);
 	/* Use interrupt-safe locking since IRQ handlers may access these XArrays */
-	xa_erase_irq(&uq_mgr->userq_xa, (unsigned long)queue_id);
+	xa_erase_irq(&uq_mgr->userq_xa, queue_id);
 	xa_erase_irq(&adev->userq_doorbell_xa, queue->doorbell_index);
 	queue->userq_mgr = NULL;
 	list_del(&queue->userq_va_list);
@@ -471,7 +471,7 @@ static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue,
 }
 
 static struct amdgpu_usermode_queue *
-amdgpu_userq_find(struct amdgpu_userq_mgr *uq_mgr, int qid)
+amdgpu_userq_find(struct amdgpu_userq_mgr *uq_mgr, u32 qid)
 {
 	return xa_load(&uq_mgr->userq_xa, qid);
 }
@@ -625,7 +625,7 @@ unref_bo:
 }
 
 static int
-amdgpu_userq_destroy(struct drm_file *filp, int queue_id)
+amdgpu_userq_destroy(struct drm_file *filp, u32 queue_id)
 {
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_userq_mgr *uq_mgr = &fpriv->userq_mgr;
