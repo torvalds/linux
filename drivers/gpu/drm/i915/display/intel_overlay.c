@@ -1125,6 +1125,26 @@ static int check_overlay_src(struct intel_display *display,
 	return 0;
 }
 
+static struct drm_i915_gem_object *
+i915_overlay_obj_lookup(struct drm_device *drm,
+			struct drm_file *file_priv,
+			u32 handle)
+{
+	struct drm_i915_gem_object *bo;
+
+	bo = i915_gem_object_lookup(file_priv, handle);
+	if (!bo)
+		return ERR_PTR(-ENOENT);
+
+	if (i915_gem_object_is_tiled(bo)) {
+		drm_dbg(drm, "buffer used for overlay image can not be tiled\n");
+		i915_gem_object_put(bo);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return bo;
+}
+
 int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
@@ -1155,18 +1175,11 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	crtc = to_intel_crtc(drmmode_crtc);
 
-	new_bo = i915_gem_object_lookup(file_priv, params->bo_handle);
-	if (!new_bo)
-		return -ENOENT;
+	new_bo = i915_overlay_obj_lookup(dev, file_priv, params->bo_handle);
+	if (IS_ERR(new_bo))
+		return PTR_ERR(new_bo);
 
 	drm_modeset_lock_all(dev);
-
-	if (i915_gem_object_is_tiled(new_bo)) {
-		drm_dbg_kms(display->drm,
-			    "buffer used for overlay image can not be tiled\n");
-		ret = -EINVAL;
-		goto out_unlock;
-	}
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
