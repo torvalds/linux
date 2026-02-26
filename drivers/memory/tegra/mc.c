@@ -690,7 +690,7 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 
 		type = (value & mc->soc->mc_err_status_type_mask) >>
 		       MC_ERR_STATUS_TYPE_SHIFT;
-		desc = tegra_mc_error_names[type];
+		desc = tegra20_mc_error_names[type];
 
 		switch (value & mc->soc->mc_err_status_type_mask) {
 		case MC_ERR_STATUS_TYPE_INVALID_SMMU_PAGE:
@@ -758,9 +758,10 @@ const char *const tegra_mc_status_names[32] = {
 	[16] = "MTS carveout violation",
 	[17] = "Generalized carveout violation",
 	[20] = "Route Sanity error",
+	[21] = "GIC_MSI error",
 };
 
-const char *const tegra_mc_error_names[8] = {
+const char *const tegra20_mc_error_names[8] = {
 	[2] = "EMEM decode error",
 	[3] = "TrustZone violation",
 	[4] = "Carveout violation",
