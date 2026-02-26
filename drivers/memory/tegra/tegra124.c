@@ -1276,6 +1276,8 @@ const struct tegra_mc_soc tegra124_mc_soc = {
 	.icc_ops = &tegra124_mc_icc_ops,
 	.ops = &tegra30_mc_ops,
 	.regs = &tegra20_mc_regs,
+	.handle_irq = tegra30_mc_irq_handlers,
+	.num_interrupts = ARRAY_SIZE(tegra30_mc_irq_handlers),
 };
 #endif /* CONFIG_ARCH_TEGRA_124_SOC */
 
@@ -1309,5 +1311,7 @@ const struct tegra_mc_soc tegra132_mc_soc = {
 	.icc_ops = &tegra124_mc_icc_ops,
 	.ops = &tegra30_mc_ops,
 	.regs = &tegra20_mc_regs,
+	.handle_irq = tegra30_mc_irq_handlers,
+	.num_interrupts = ARRAY_SIZE(tegra30_mc_irq_handlers),
 };
 #endif /* CONFIG_ARCH_TEGRA_132_SOC */
