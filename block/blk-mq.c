@@ -3439,6 +3439,8 @@ void blk_steal_bios(struct bio_list *list, struct request *rq)
 		 * the flag to avoid spurious EAGAIN I/O failures.
 		 */
 		bio->bi_opf &= ~REQ_NOWAIT;
+		bio_clear_flag(bio, BIO_QOS_THROTTLED);
+		bio_clear_flag(bio, BIO_QOS_MERGED);
 	}
 
 	if (rq->bio) {
