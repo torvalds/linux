@@ -539,7 +539,7 @@ int kvm_riscv_mmu_map(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 		goto out_unlock;
 
 	/* Check if we are backed by a THP and thus use block mapping if possible */
-	if (vma_pagesize == PAGE_SIZE)
+	if (!logging && (vma_pagesize == PAGE_SIZE))
 		vma_pagesize = transparent_hugepage_adjust(kvm, memslot, hva, &hfn, &gpa);
 
 	if (writable) {
