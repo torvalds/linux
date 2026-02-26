@@ -780,7 +780,9 @@ static u32 overlay_cmd_reg(struct drm_intel_overlay_put_image *params)
 	return cmd;
 }
 
-static struct i915_vma *intel_overlay_pin_fb(struct drm_gem_object *obj)
+static struct i915_vma *i915_overlay_pin_fb(struct drm_device *drm,
+					    struct drm_gem_object *obj,
+					    u32 *offset)
 {
 	struct drm_i915_gem_object *new_bo = to_intel_bo(obj);
 	struct i915_gem_ww_ctx ww;
@@ -804,7 +806,15 @@ retry:
 	if (ret)
 		return ERR_PTR(ret);
 
+	*offset = i915_ggtt_offset(vma);
+
 	return vma;
+}
+
+static void i915_overlay_unpin_fb(struct drm_device *drm,
+				  struct i915_vma *vma)
+{
+	i915_vma_unpin(vma);
 }
 
 static int intel_overlay_do_put_image(struct intel_overlay *overlay,
@@ -818,7 +828,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	bool scale_changed = false;
 	struct i915_vma *vma;
 	int ret, tmp_width;
-	u32 tmp;
+	u32 tmp, offset;
 
 	drm_WARN_ON(display->drm,
 		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
@@ -829,7 +839,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 
 	atomic_inc(&display->restore.pending_fb_pin);
 
-	vma = intel_overlay_pin_fb(obj);
+	vma = i915_overlay_pin_fb(display->drm, obj, &offset);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
@@ -868,7 +878,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	swidth = params->src_width;
 	swidthsw = calc_swidthsw(display, params->offset_Y, tmp_width);
 	sheight = params->src_height;
-	iowrite32(i915_ggtt_offset(vma) + params->offset_Y, &regs->OBUF_0Y);
+	iowrite32(offset + params->offset_Y, &regs->OBUF_0Y);
 	ostride = params->stride_Y;
 
 	if (params->flags & I915_OVERLAY_YUV_PLANAR) {
@@ -885,9 +895,9 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      params->src_width / uv_hscale);
 		swidthsw |= max(tmp_U, tmp_V) << 16;
 
-		iowrite32(i915_ggtt_offset(vma) + params->offset_U,
+		iowrite32(offset + params->offset_U,
 			  &regs->OBUF_0U);
-		iowrite32(i915_ggtt_offset(vma) + params->offset_V,
+		iowrite32(offset + params->offset_V,
 			  &regs->OBUF_0V);
 
 		ostride |= params->stride_UV << 16;
@@ -916,7 +926,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	return 0;
 
 out_unpin:
-	i915_vma_unpin(vma);
+	i915_overlay_unpin_fb(display->drm, vma);
 out_pin_section:
 	atomic_dec(&display->restore.pending_fb_pin);
 
