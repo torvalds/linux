@@ -507,10 +507,9 @@ int tegra30_mc_probe(struct tegra_mc *mc)
 	int err;
 
 	mc->clk = devm_clk_get_optional(mc->dev, "mc");
-	if (IS_ERR(mc->clk)) {
-		dev_err(mc->dev, "failed to get MC clock: %ld\n", PTR_ERR(mc->clk));
-		return PTR_ERR(mc->clk);
-	}
+	if (IS_ERR(mc->clk))
+		return dev_err_probe(mc->dev, PTR_ERR(mc->clk),
+				     "failed to get MC clock\n");
 
 	/* ensure that debug features are disabled */
 	mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
@@ -518,10 +517,8 @@ int tegra30_mc_probe(struct tegra_mc *mc)
 	tegra_mc_setup_latency_allowance(mc);
 
 	err = tegra_mc_setup_timings(mc);
-	if (err < 0) {
-		dev_err(mc->dev, "failed to setup timings: %d\n", err);
-		return err;
-	}
+	if (err < 0)
+		return dev_err_probe(mc->dev, err, "failed to setup timings\n");
 
 	return 0;
 }
