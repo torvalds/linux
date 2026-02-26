@@ -634,7 +634,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles.",
+        "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles. [This event is alias to CPU_CLK_UNHALTED.THREAD]",
         "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.CORE",
         "SampleAfterValue": "2000003",
@@ -725,7 +725,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles.",
+        "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles. [This event is alias to CPU_CLK_UNHALTED.CORE]",
         "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
@@ -1530,8 +1530,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of accesses to KeyLocker cache.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
         "EventCode": "0xe1",
         "EventName": "MISC_RETIRED2.KEYLOCKER_ACCESS",
         "SampleAfterValue": "1000003",
@@ -1539,8 +1540,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of misses to KeyLocker cache.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
         "EventCode": "0xe1",
         "EventName": "MISC_RETIRED2.KEYLOCKER_MISS",
         "SampleAfterValue": "1000003",
