@@ -68,13 +68,6 @@ static int pwrseq_pwrctrl_power_off(struct pci_pwrctrl *pwrctrl)
 	return pwrseq_power_off(pwrseq->pwrseq);
 }
 
-static void devm_pwrseq_pwrctrl_power_off(void *data)
-{
-	struct pwrseq_pwrctrl *pwrseq = data;
-
-	pwrseq_pwrctrl_power_off(&pwrseq->pwrctrl);
-}
-
 static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
 {
 	const struct pwrseq_pwrctrl_pdata *pdata;
@@ -100,11 +93,6 @@ static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pwrseq->pwrseq))
 		return dev_err_probe(dev, PTR_ERR(pwrseq->pwrseq),
 				     "Failed to get the power sequencer\n");
-
-	ret = devm_add_action_or_reset(dev, devm_pwrseq_pwrctrl_power_off,
-				       pwrseq);
-	if (ret)
-		return ret;
 
 	pwrseq->pwrctrl.power_on = pwrseq_pwrctrl_power_on;
 	pwrseq->pwrctrl.power_off = pwrseq_pwrctrl_power_off;
