@@ -21,6 +21,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "extent-tree.h"
+#include "extent_io.h"
 #include "relocation.h"
 #include "file-item.h"
 
@@ -590,6 +591,9 @@ int btrfs_force_cow_block(struct btrfs_trans_handle *trans,
 		btrfs_tree_unlock(buf);
 	free_extent_buffer_stale(buf);
 	btrfs_mark_buffer_dirty(trans, cow);
+
+	btrfs_inhibit_eb_writeback(trans, cow);
+
 	*cow_ret = cow;
 	return 0;
 
@@ -599,9 +603,9 @@ error_unlock_cow:
 	return ret;
 }
 
-static inline bool should_cow_block(const struct btrfs_trans_handle *trans,
+static inline bool should_cow_block(struct btrfs_trans_handle *trans,
 				    const struct btrfs_root *root,
-				    const struct extent_buffer *buf)
+				    struct extent_buffer *buf)
 {
 	if (btrfs_is_testing(root->fs_info))
 		return false;
@@ -635,6 +639,7 @@ static inline bool should_cow_block(const struct btrfs_trans_handle *trans,
 	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC))
 		return true;
 
+	btrfs_inhibit_eb_writeback(trans, buf);
 	return false;
 }
 

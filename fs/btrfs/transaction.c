@@ -15,6 +15,7 @@
 #include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
+#include "extent_io.h"
 #include "transaction.h"
 #include "locking.h"
 #include "tree-log.h"
@@ -696,6 +697,8 @@ again:
 		goto alloc_fail;
 	}
 
+	xa_init(&h->writeback_inhibited_ebs);
+
 	/*
 	 * If we are JOIN_NOLOCK we're already committing a transaction and
 	 * waiting on this guy, so we don't need to do the sb_start_intwrite
@@ -1091,6 +1094,13 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (trans->type & __TRANS_FREEZABLE)
 		sb_end_intwrite(info->sb);
+
+	/*
+	 * Uninhibit extent buffer writeback before decrementing num_writers,
+	 * since the decrement wakes the committing thread which needs all
+	 * buffers uninhibited to write them to disk.
+	 */
+	btrfs_uninhibit_all_eb_writeback(trans);
 
 	WARN_ON(cur_trans != info->running_transaction);
 	WARN_ON(atomic_read(&cur_trans->num_writers) < 1);
@@ -2124,6 +2134,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 	if (!test_bit(BTRFS_FS_RELOC_RUNNING, &fs_info->flags))
 		btrfs_scrub_cancel(fs_info);
 
+	btrfs_uninhibit_all_eb_writeback(trans);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 }
 
@@ -2562,6 +2573,14 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (test_bit(BTRFS_FS_FEATURE_CHANGED, &fs_info->flags) &&
 	    fs_info->cleaner_kthread)
 		wake_up_process(fs_info->cleaner_kthread);
+
+	/*
+	 * Uninhibit writeback on all extent buffers inhibited during this
+	 * transaction before writing them to disk. Inhibiting prevented
+	 * writeback while the transaction was building, but now we need
+	 * them written.
+	 */
+	btrfs_uninhibit_all_eb_writeback(trans);
 
 	ret = btrfs_write_and_wait_transaction(trans);
 	if (unlikely(ret)) {
