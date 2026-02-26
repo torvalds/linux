@@ -391,34 +391,35 @@ supported:
 
 static void sld_state_show(void)
 {
-	if (!boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT) &&
-	    !boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT))
+	const char *action = "warning";
+
+	if ((!boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT) &&
+	     !boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT)) ||
+	    (sld_state == sld_off))
 		return;
 
-	switch (sld_state) {
-	case sld_off:
-		pr_info("disabled\n");
-		break;
-	case sld_warn:
-		if (boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT)) {
-			pr_info("#AC: crashing the kernel on kernel split_locks and warning on user-space split_locks\n");
-			if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-					      "x86/splitlock", NULL, splitlock_cpu_offline) < 0)
-				pr_warn("No splitlock CPU offline handler\n");
-		} else if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT)) {
-			pr_info("#DB: warning on user-space bus_locks\n");
-		}
-		break;
-	case sld_fatal:
-		if (boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT))
-			pr_info("#AC: crashing the kernel on kernel split_locks and sending SIGBUS on user-space split_locks\n");
-		else if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
-			pr_info("#DB: sending SIGBUS on user-space bus_locks\n");
-		break;
-	case sld_ratelimit:
+	if (sld_state == sld_ratelimit) {
 		if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT))
 			pr_info("#DB: setting system wide bus lock rate limit to %u/sec\n", bld_ratelimit.burst);
-		break;
+		return;
+	} else if (sld_state == sld_fatal) {
+		action = "sending SIGBUS";
+	}
+
+	if (boot_cpu_has(X86_FEATURE_SPLIT_LOCK_DETECT)) {
+		pr_info("#AC: crashing the kernel on kernel split_locks and %s on user-space split_locks\n", action);
+
+		/*
+		 * This is handling the case where a CPU goes offline at the
+		 * moment where split lock detection is disabled in the warn
+		 * setting, see split_lock_warn(). It doesn't have any effect
+		 * in the fatal case.
+		 */
+		if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/splitlock", NULL, splitlock_cpu_offline) < 0)
+			pr_warn("No splitlock CPU offline handler\n");
+
+	} else if (boot_cpu_has(X86_FEATURE_BUS_LOCK_DETECT)) {
+		pr_info("#DB: %s on user-space bus_locks\n", action);
 	}
 }
 
