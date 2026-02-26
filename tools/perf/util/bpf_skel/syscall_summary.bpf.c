@@ -118,13 +118,11 @@ int sys_enter(u64 *ctx)
 	return 0;
 }
 
-SEC("tp_btf/sys_exit")
-int sys_exit(u64 *ctx)
+static int do_exit(long ret)
 {
 	int tid;
 	int key = 0;
 	u64 cgroup = 0;
-	long ret = ctx[1]; /* return value of the syscall */
 	struct syscall_trace *st;
 	s64 delta;
 
@@ -148,6 +146,20 @@ int sys_exit(u64 *ctx)
 
 	bpf_map_delete_elem(&syscall_trace_map, &tid);
 	return 0;
+}
+
+SEC("tp_btf/sys_exit")
+int sys_exit(u64 *ctx)
+{
+	long ret = ctx[1]; /* return value of the syscall */
+
+	return do_exit(ret);
+}
+
+SEC("tp_btf/sched_process_exit")
+int process_exit(u64 *ctx)
+{
+	return do_exit(0);
 }
 
 char _license[] SEC("license") = "GPL";
