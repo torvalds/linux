@@ -1625,9 +1625,9 @@ static int cs35l56_process_xu_onchip_speaker_id(struct cs35l56_private *cs35l56,
 	if (num_pulls < 0)
 		return num_pulls;
 
-	if (num_pulls != num_gpios) {
+	if (num_pulls && (num_pulls != num_gpios)) {
 		dev_warn(cs35l56->base.dev, "%s count(%d) != %s count(%d)\n",
-			pull_name, num_pulls, gpio_name, num_gpios);
+			 pull_name, num_pulls, gpio_name, num_gpios);
 	}
 
 	ret = cs35l56_check_and_save_onchip_spkid_gpios(&cs35l56->base,
