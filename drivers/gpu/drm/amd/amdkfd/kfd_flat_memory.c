@@ -342,21 +342,34 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 
 static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 {
-	if (KFD_GC_VERSION(pdd->dev) >= IP_VERSION(12, 1, 0))
-		pdd->lds_base = pdd->dev->adev->gmc.shared_aperture_start;
-	else
-		pdd->lds_base = MAKE_LDS_APP_BASE_V9();
+	pdd->lds_base = MAKE_LDS_APP_BASE_V9();
 	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
 
 	pdd->gpuvm_base = AMDGPU_VA_RESERVED_BOTTOM;
 	pdd->gpuvm_limit =
 		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
 
-	if (KFD_GC_VERSION(pdd->dev) >= IP_VERSION(12, 1, 0))
-		pdd->scratch_base = pdd->dev->adev->gmc.private_aperture_start;
-	else
-		pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
+	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
 	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+
+	/*
+	 * Place TBA/TMA on opposite side of VM hole to prevent
+	 * stray faults from triggering SVM on these pages.
+	 */
+	pdd->qpd.cwsr_base = AMDGPU_VA_RESERVED_TRAP_START(pdd->dev->adev);
+}
+
+static void kfd_init_apertures_v12(struct kfd_process_device *pdd, uint8_t id)
+{
+	pdd->lds_base = pdd->dev->adev->gmc.shared_aperture_start;
+	pdd->lds_limit = pdd->dev->adev->gmc.shared_aperture_end;
+
+	pdd->gpuvm_base = AMDGPU_VA_RESERVED_BOTTOM;
+	pdd->gpuvm_limit =
+		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
+
+	pdd->scratch_base = pdd->dev->adev->gmc.private_aperture_start;
+	pdd->scratch_limit = pdd->dev->adev->gmc.private_aperture_end;
 
 	/*
 	 * Place TBA/TMA on opposite side of VM hole to prevent
@@ -412,9 +425,11 @@ int kfd_init_apertures(struct kfd_process *process)
 				kfd_init_apertures_vi(pdd, id);
 				break;
 			default:
-				if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1))
+				if (KFD_GC_VERSION(dev) >= IP_VERSION(12, 1, 0)) {
+					kfd_init_apertures_v12(pdd, id);
+				} else if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1)) {
 					kfd_init_apertures_v9(pdd, id);
-				else {
+				} else {
 					WARN(1, "Unexpected ASIC family %u",
 					     dev->adev->asic_type);
 					return -EINVAL;
