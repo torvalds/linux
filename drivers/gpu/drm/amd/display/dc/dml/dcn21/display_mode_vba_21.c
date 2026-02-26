@@ -5304,7 +5304,7 @@ static void CalculateWatermarksAndDRAMSpeedChangeSupport(
 	double LinesInDETC;
 	unsigned int LinesInDETYRoundedDownToSwath[DC__NUM_DPP__MAX];
 	unsigned int LinesInDETCRoundedDownToSwath;
-	double FullDETBufferingTimeY[DC__NUM_DPP__MAX];
+	double FullDETBufferingTimeY[DC__NUM_DPP__MAX] = { 0 };
 	double FullDETBufferingTimeC;
 	double ActiveDRAMClockChangeLatencyMarginY;
 	double ActiveDRAMClockChangeLatencyMarginC;
