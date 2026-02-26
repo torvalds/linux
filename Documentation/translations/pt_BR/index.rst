@@ -68,3 +68,4 @@ kernel e sobre como ver seu trabalho integrado.
 
    Como começar <process/howto>
    Requisitos mínimos <process/changes>
+   Manuais dos mantenedores <process/maintainer-handbooks>
