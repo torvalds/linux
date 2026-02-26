@@ -405,7 +405,7 @@ static int __smu_msg_v1_ras_filter(struct smu_msg_ctl *ctl,
 }
 
 /**
- * smu_msg_proto_v1_send_msg - Complete V1 protocol with all filtering
+ * smu_msg_v1_send_msg - Complete V1 protocol with all filtering
  * @ctl: Message control block
  * @args: Message arguments
  *
