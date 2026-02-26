@@ -120,6 +120,7 @@ TEST_PROGS := \
 	vrf_route_leaking.sh \
 	vrf_strict_mode_test.sh \
 	xfrm_policy.sh \
+	xfrm_state.sh \
 # end of TEST_PROGS
 
 TEST_PROGS_EXTENDED := \
