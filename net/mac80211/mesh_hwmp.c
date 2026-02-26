@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019, 2021-2023, 2025 Intel Corporation
+ * Copyright (C) 2019, 2021-2023, 2025-2026 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 
@@ -105,12 +105,11 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 				  u32 lifetime, u32 metric, u32 preq_id,
 				  struct ieee80211_sub_if_data *sdata)
 {
+	int hdr_len = IEEE80211_MIN_ACTION_SIZE(mesh_action);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, ie_len;
-	int hdr_len = offsetofend(struct ieee80211_mgmt,
-				  u.action.u.mesh_action);
 
 	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
@@ -127,8 +126,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	/* BSSID == SA */
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
-	mgmt->u.action.u.mesh_action.action_code =
-					WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
+	mgmt->u.action.action_code = WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
 
 	switch (action) {
 	case MPATH_PREQ:
@@ -237,13 +235,12 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 		       u8 ttl, const u8 *target, u32 target_sn,
 		       u16 target_rcode, const u8 *ra)
 {
+	int hdr_len = IEEE80211_MIN_ACTION_SIZE(mesh_action);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, ie_len;
-	int hdr_len = offsetofend(struct ieee80211_mgmt,
-				  u.action.u.mesh_action);
 
 	if (time_before(jiffies, ifmsh->next_perr))
 		return -EAGAIN;
@@ -265,8 +262,7 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 	/* BSSID == SA */
 	memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	mgmt->u.action.category = WLAN_CATEGORY_MESH_ACTION;
-	mgmt->u.action.u.mesh_action.action_code =
-					WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
+	mgmt->u.action.action_code = WLAN_MESH_ACTION_HWMP_PATH_SELECTION;
 	ie_len = 15;
 	pos = skb_put(skb, 2 + ie_len);
 	*pos++ = WLAN_EID_PERR;
@@ -938,7 +934,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	/* need action_code */
-	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+	if (len < IEEE80211_MIN_ACTION_SIZE(mesh_action))
 		return;
 
 	rcu_read_lock();
@@ -949,8 +945,8 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 	}
 	rcu_read_unlock();
 
-	baselen = (u8 *) mgmt->u.action.u.mesh_action.variable - (u8 *) mgmt;
-	elems = ieee802_11_parse_elems(mgmt->u.action.u.mesh_action.variable,
+	baselen = mgmt->u.action.mesh_action.variable - (u8 *)mgmt;
+	elems = ieee802_11_parse_elems(mgmt->u.action.mesh_action.variable,
 				       len - baselen,
 				       IEEE80211_FTYPE_MGMT |
 				       IEEE80211_STYPE_ACTION,

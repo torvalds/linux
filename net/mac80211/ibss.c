@@ -9,7 +9,7 @@
  * Copyright 2009, Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2016 Intel Deutschland GmbH
- * Copyright(c) 2018-2025 Intel Corporation
+ * Copyright(c) 2018-2026 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -888,19 +888,11 @@ ieee80211_rx_mgmt_spectrum_mgmt(struct ieee80211_sub_if_data *sdata,
 				struct ieee80211_rx_status *rx_status,
 				struct ieee802_11_elems *elems)
 {
-	int required_len;
-
-	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+	if (len < IEEE80211_MIN_ACTION_SIZE(chan_switch))
 		return;
 
 	/* CSA is the only action we handle for now */
-	if (mgmt->u.action.u.measurement.action_code !=
-	    WLAN_ACTION_SPCT_CHL_SWITCH)
-		return;
-
-	required_len = IEEE80211_MIN_ACTION_SIZE +
-		       sizeof(mgmt->u.action.u.chan_switch);
-	if (len < required_len)
+	if (mgmt->u.action.action_code != WLAN_ACTION_SPCT_CHL_SWITCH)
 		return;
 
 	if (!sdata->vif.bss_conf.csa_active)
@@ -1613,12 +1605,12 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		case WLAN_CATEGORY_SPECTRUM_MGMT:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
-					   u.action.u.chan_switch.variable);
+					   u.action.chan_switch.variable);
 
 			if (ies_len < 0)
 				break;
 
-			elems = ieee802_11_parse_elems(mgmt->u.action.u.chan_switch.variable,
+			elems = ieee802_11_parse_elems(mgmt->u.action.chan_switch.variable,
 						       ies_len,
 						       IEEE80211_FTYPE_MGMT |
 						       IEEE80211_STYPE_ACTION,

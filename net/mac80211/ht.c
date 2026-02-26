@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2025 Intel Corporation
+ * Copyright(c) 2020-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -462,22 +462,23 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u16 params;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(delba) +
+			    local->hw.extra_tx_headroom);
 	if (!skb)
 		return;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	mgmt = ieee80211_mgmt_ba(skb, da, sdata);
 
-	skb_put(skb, 1 + sizeof(mgmt->u.action.u.delba));
+	skb_put(skb, 2 + sizeof(mgmt->u.action.delba));
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
+	mgmt->u.action.action_code = WLAN_ACTION_DELBA;
 	params = (u16)(initiator << 11); 	/* bit 11 initiator */
 	params |= (u16)(tid << 12); 		/* bit 15:12 TID number */
 
-	mgmt->u.action.u.delba.params = cpu_to_le16(params);
-	mgmt->u.action.u.delba.reason_code = cpu_to_le16(reason_code);
+	mgmt->u.action.delba.params = cpu_to_le16(params);
+	mgmt->u.action.delba.reason_code = cpu_to_le16(reason_code);
 
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -489,14 +490,14 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 	u16 tid, params;
 	u16 initiator;
 
-	params = le16_to_cpu(mgmt->u.action.u.delba.params);
+	params = le16_to_cpu(mgmt->u.action.delba.params);
 	tid = (params & IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
 	initiator = (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) >> 11;
 
 	ht_dbg_ratelimited(sdata, "delba from %pM (%s) tid %d reason code %d\n",
 			   mgmt->sa, initiator ? "initiator" : "recipient",
 			   tid,
-			   le16_to_cpu(mgmt->u.action.u.delba.reason_code));
+			   le16_to_cpu(mgmt->u.action.delba.reason_code));
 
 	if (initiator == WLAN_BACK_INITIATOR)
 		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
@@ -530,20 +531,20 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_info *info;
 	u8 status_link_id = link_id < 0 ? 0 : link_id;
 
-	/* 27 = header + category + action + smps mode */
-	skb = dev_alloc_skb(27 + local->hw.extra_tx_headroom);
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(ht_smps) +
+			    local->hw.extra_tx_headroom);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	action_frame = skb_put(skb, 27);
+	action_frame = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(ht_smps));
 	memcpy(action_frame->da, da, ETH_ALEN);
 	memcpy(action_frame->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(action_frame->bssid, bssid, ETH_ALEN);
 	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ACTION);
 	action_frame->u.action.category = WLAN_CATEGORY_HT;
-	action_frame->u.action.u.ht_smps.action = WLAN_HT_ACTION_SMPS;
+	action_frame->u.action.action_code = WLAN_HT_ACTION_SMPS;
 	switch (smps) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
@@ -551,15 +552,15 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 		smps = IEEE80211_SMPS_OFF;
 		fallthrough;
 	case IEEE80211_SMPS_OFF:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;
 		break;
 	case IEEE80211_SMPS_STATIC:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_STATIC;
 		break;
 	case IEEE80211_SMPS_DYNAMIC:
-		action_frame->u.action.u.ht_smps.smps_control =
+		action_frame->u.action.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DYNAMIC;
 		break;
 	}

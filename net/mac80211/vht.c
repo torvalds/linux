@@ -4,7 +4,7 @@
  *
  * Portions of this file
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -723,17 +723,17 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 	if (!link_conf->mu_mimo_owner)
 		return;
 
-	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
+	if (!memcmp(mgmt->u.action.vht_group_notif.position,
 		    link_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
-	    !memcmp(mgmt->u.action.u.vht_group_notif.membership,
+	    !memcmp(mgmt->u.action.vht_group_notif.membership,
 		    link_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
 		return;
 
 	memcpy(link_conf->mu_group.membership,
-	       mgmt->u.action.u.vht_group_notif.membership,
+	       mgmt->u.action.vht_group_notif.membership,
 	       WLAN_MEMBERSHIP_LEN);
 	memcpy(link_conf->mu_group.position,
-	       mgmt->u.action.u.vht_group_notif.position,
+	       mgmt->u.action.vht_group_notif.position,
 	       WLAN_USER_POSITION_LEN);
 
 	ieee80211_link_info_change_notify(sdata, link,

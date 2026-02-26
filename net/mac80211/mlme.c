@@ -7957,7 +7957,7 @@ ieee80211_send_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
-	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.ttlm_req);
+	int hdr_len = IEEE80211_MIN_ACTION_SIZE(ttlm_req);
 	int ttlm_max_len = 2 + 1 + sizeof(struct ieee80211_ttlm_elem) + 1 +
 		2 * 2 * IEEE80211_TTLM_NUM_TIDS;
 
@@ -7974,9 +7974,8 @@ ieee80211_send_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
 
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
-	mgmt->u.action.u.ttlm_req.action_code =
-		WLAN_PROTECTED_EHT_ACTION_TTLM_REQ;
-	mgmt->u.action.u.ttlm_req.dialog_token = dialog_token;
+	mgmt->u.action.action_code = WLAN_PROTECTED_EHT_ACTION_TTLM_REQ;
+	mgmt->u.action.ttlm_req.dialog_token = dialog_token;
 	ieee80211_neg_ttlm_add_suggested_map(skb, neg_ttlm);
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -8026,7 +8025,7 @@ ieee80211_send_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
-	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.ttlm_res);
+	int hdr_len = IEEE80211_MIN_ACTION_SIZE(ttlm_res);
 	int ttlm_max_len = 2 + 1 + sizeof(struct ieee80211_ttlm_elem) + 1 +
 		2 * 2 * IEEE80211_TTLM_NUM_TIDS;
 	u16 status_code;
@@ -8044,9 +8043,8 @@ ieee80211_send_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
 
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
-	mgmt->u.action.u.ttlm_res.action_code =
-		WLAN_PROTECTED_EHT_ACTION_TTLM_RES;
-	mgmt->u.action.u.ttlm_res.dialog_token = dialog_token;
+	mgmt->u.action.action_code = WLAN_PROTECTED_EHT_ACTION_TTLM_RES;
+	mgmt->u.action.ttlm_res.dialog_token = dialog_token;
 	switch (ttlm_res) {
 	default:
 		WARN_ON(1);
@@ -8063,7 +8061,7 @@ ieee80211_send_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	mgmt->u.action.u.ttlm_res.status_code = cpu_to_le16(status_code);
+	mgmt->u.action.ttlm_res.status_code = cpu_to_le16(status_code);
 	ieee80211_tx_skb(sdata, skb);
 }
 
@@ -8163,10 +8161,9 @@ void ieee80211_process_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_vif_is_mld(&sdata->vif))
 		return;
 
-	dialog_token = mgmt->u.action.u.ttlm_req.dialog_token;
-	ies_len  = len - offsetof(struct ieee80211_mgmt,
-				  u.action.u.ttlm_req.variable);
-	elems = ieee802_11_parse_elems(mgmt->u.action.u.ttlm_req.variable,
+	dialog_token = mgmt->u.action.ttlm_req.dialog_token;
+	ies_len  = len - IEEE80211_MIN_ACTION_SIZE(ttlm_req);
+	elems = ieee802_11_parse_elems(mgmt->u.action.ttlm_req.variable,
 				       ies_len,
 				       IEEE80211_FTYPE_MGMT |
 				       IEEE80211_STYPE_ACTION,
@@ -8217,8 +8214,7 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt, size_t len)
 {
 	if (!ieee80211_vif_is_mld(&sdata->vif) ||
-	    mgmt->u.action.u.ttlm_req.dialog_token !=
-	    sdata->u.mgd.dialog_token_alloc)
+	    mgmt->u.action.ttlm_res.dialog_token != sdata->u.mgd.dialog_token_alloc)
 		return;
 
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
@@ -8232,7 +8228,7 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 	 * This can be better implemented in the future, to handle request
 	 * rejections.
 	 */
-	if (le16_to_cpu(mgmt->u.action.u.ttlm_res.status_code) != WLAN_STATUS_SUCCESS)
+	if (le16_to_cpu(mgmt->u.action.ttlm_res.status_code) != WLAN_STATUS_SUCCESS)
 		__ieee80211_disconnect(sdata);
 }
 
@@ -8265,12 +8261,11 @@ static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
 
 void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif)
 {
+	int frame_len = IEEE80211_MIN_ACTION_SIZE(ttlm_tear_down);
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
-	int frame_len = offsetofend(struct ieee80211_mgmt,
-				  u.action.u.ttlm_tear_down);
 	struct ieee80211_tx_info *info;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + frame_len);
@@ -8286,8 +8281,7 @@ void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif)
 	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
 
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
-	mgmt->u.action.u.ttlm_tear_down.action_code =
-		WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN;
+	mgmt->u.action.action_code = WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN;
 
 	info = IEEE80211_SKB_CB(skb);
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
@@ -8370,13 +8364,13 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		case WLAN_CATEGORY_SPECTRUM_MGMT:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
-					   u.action.u.chan_switch.variable);
+					   u.action.chan_switch.variable);
 
 			if (ies_len < 0)
 				break;
 
 			/* CSA IE cannot be overridden, no need for BSSID */
-			elems = ieee802_11_parse_elems(mgmt->u.action.u.chan_switch.variable,
+			elems = ieee802_11_parse_elems(mgmt->u.action.chan_switch.variable,
 						       ies_len,
 						       IEEE80211_FTYPE_MGMT |
 						       IEEE80211_STYPE_ACTION,
@@ -8398,7 +8392,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
-					   u.action.u.ext_chan_switch.variable);
+					   u.action.ext_chan_switch.variable);
 
 			if (ies_len < 0)
 				break;
@@ -8407,7 +8401,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			 * extended CSA IE can't be overridden, no need for
 			 * BSSID
 			 */
-			elems = ieee802_11_parse_elems(mgmt->u.action.u.ext_chan_switch.variable,
+			elems = ieee802_11_parse_elems(mgmt->u.action.ext_chan_switch.variable,
 						       ies_len,
 						       IEEE80211_FTYPE_MGMT |
 						       IEEE80211_STYPE_ACTION,
@@ -8424,7 +8418,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 				/* for the handling code pretend it was an IE */
 				elems->ext_chansw_ie =
-					&mgmt->u.action.u.ext_chan_switch.data;
+					&mgmt->u.action.ext_chan_switch.data;
 
 				ieee80211_sta_process_chanswitch(link,
 								 rx_status->mactime,
@@ -10426,25 +10420,25 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 
 	if (!ieee80211_vif_is_mld(&sdata->vif) ||
-	    len < offsetofend(typeof(*mgmt), u.action.u.ml_reconf_resp) ||
-	    mgmt->u.action.u.ml_reconf_resp.dialog_token !=
-	    sdata->u.mgd.reconf.dialog_token ||
+	    len < IEEE80211_MIN_ACTION_SIZE(ml_reconf_resp) ||
+	    mgmt->u.action.ml_reconf_resp.dialog_token !=
+		sdata->u.mgd.reconf.dialog_token ||
 	    !sta_changed_links)
 		return;
 
-	pos = mgmt->u.action.u.ml_reconf_resp.variable;
-	len -= offsetofend(typeof(*mgmt), u.action.u.ml_reconf_resp);
+	pos = mgmt->u.action.ml_reconf_resp.variable;
+	len -= offsetofend(typeof(*mgmt), u.action.ml_reconf_resp);
 
 	/* each status duple is 3 octets */
-	if (len < mgmt->u.action.u.ml_reconf_resp.count * 3) {
+	if (len < mgmt->u.action.ml_reconf_resp.count * 3) {
 		sdata_info(sdata,
 			   "mlo: reconf: unexpected len=%zu, count=%u\n",
-			   len, mgmt->u.action.u.ml_reconf_resp.count);
+			   len, mgmt->u.action.ml_reconf_resp.count);
 		goto disconnect;
 	}
 
 	link_mask = sta_changed_links;
-	for (i = 0; i < mgmt->u.action.u.ml_reconf_resp.count; i++) {
+	for (i = 0; i < mgmt->u.action.ml_reconf_resp.count; i++) {
 		u16 status = get_unaligned_le16(pos + 1);
 
 		link_id = *pos;
@@ -10729,8 +10723,7 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
-	mgmt = skb_put_zero(skb, offsetofend(struct ieee80211_mgmt,
-					     u.action.u.ml_reconf_req));
+	mgmt = skb_put_zero(skb, IEEE80211_MIN_ACTION_SIZE(ml_reconf_req));
 
 	/* Add the MAC header */
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
@@ -10741,12 +10734,11 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 
 	/* Add the action frame fixed fields */
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
-	mgmt->u.action.u.ml_reconf_req.action_code =
-		WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_REQ;
+	mgmt->u.action.action_code = WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_REQ;
 
 	/* allocate a dialog token and store it */
 	sdata->u.mgd.reconf.dialog_token = ++sdata->u.mgd.dialog_token_alloc;
-	mgmt->u.action.u.ml_reconf_req.dialog_token =
+	mgmt->u.action.ml_reconf_req.dialog_token =
 		sdata->u.mgd.reconf.dialog_token;
 
 	/* Add the ML reconfiguration element and the common information  */
@@ -11116,11 +11108,10 @@ static bool ieee80211_mgd_epcs_supp(struct ieee80211_sub_if_data *sdata)
 
 int ieee80211_mgd_set_epcs(struct ieee80211_sub_if_data *sdata, bool enable)
 {
+	int frame_len = IEEE80211_MIN_ACTION_SIZE(epcs) + (enable ? 1 : 0);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct sk_buff *skb;
-	int frame_len = offsetofend(struct ieee80211_mgmt,
-				    u.action.u.epcs) + (enable ? 1 : 0);
 
 	if (!ieee80211_mgd_epcs_supp(sdata))
 		return -EINVAL;
@@ -11149,15 +11140,15 @@ int ieee80211_mgd_set_epcs(struct ieee80211_sub_if_data *sdata, bool enable)
 
 	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
 	if (enable) {
-		u8 *pos = mgmt->u.action.u.epcs.variable;
+		u8 *pos = mgmt->u.action.epcs.variable;
 
-		mgmt->u.action.u.epcs.action_code =
+		mgmt->u.action.action_code =
 			WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_REQ;
 
 		*pos = ++sdata->u.mgd.dialog_token_alloc;
 		sdata->u.mgd.epcs.dialog_token = *pos;
 	} else {
-		mgmt->u.action.u.epcs.action_code =
+		mgmt->u.action.action_code =
 			WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN;
 
 		ieee80211_epcs_teardown(sdata);
@@ -11246,7 +11237,7 @@ void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	/* Handle dialog token and status code */
-	pos = mgmt->u.action.u.epcs.variable;
+	pos = mgmt->u.action.epcs.variable;
 	dialog_token = *pos;
 	status_code = get_unaligned_le16(pos + 1);
 
@@ -11268,8 +11259,7 @@ void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	pos += IEEE80211_EPCS_ENA_RESP_BODY_LEN;
-	ies_len = len - offsetof(struct ieee80211_mgmt,
-				 u.action.u.epcs.variable) -
+	ies_len = len - IEEE80211_MIN_ACTION_SIZE(epcs) -
 		IEEE80211_EPCS_ENA_RESP_BODY_LEN;
 
 	elems = ieee802_11_parse_elems(pos, ies_len,

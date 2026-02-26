@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -68,7 +68,7 @@ static void ieee80211_send_addba_request(struct sta_info *sta, u16 tid,
 	struct ieee80211_mgmt *mgmt;
 	u16 capab;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) +
+	skb = dev_alloc_skb(IEEE80211_MIN_ACTION_SIZE(addba_req) +
 			    2 + sizeof(struct ieee80211_addba_ext_ie) +
 			    local->hw.extra_tx_headroom);
 	if (!skb)
@@ -77,21 +77,21 @@ static void ieee80211_send_addba_request(struct sta_info *sta, u16 tid,
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	mgmt = ieee80211_mgmt_ba(skb, sta->sta.addr, sdata);
 
-	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_req));
+	skb_put(skb, 2 + sizeof(mgmt->u.action.addba_req));
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.u.addba_req.action_code = WLAN_ACTION_ADDBA_REQ;
+	mgmt->u.action.action_code = WLAN_ACTION_ADDBA_REQ;
 
-	mgmt->u.action.u.addba_req.dialog_token = dialog_token;
+	mgmt->u.action.addba_req.dialog_token = dialog_token;
 	capab = IEEE80211_ADDBA_PARAM_AMSDU_MASK;
 	capab |= IEEE80211_ADDBA_PARAM_POLICY_MASK;
 	capab |= u16_encode_bits(tid, IEEE80211_ADDBA_PARAM_TID_MASK);
 	capab |= u16_encode_bits(agg_size, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 
-	mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
+	mgmt->u.action.addba_req.capab = cpu_to_le16(capab);
 
-	mgmt->u.action.u.addba_req.timeout = cpu_to_le16(timeout);
-	mgmt->u.action.u.addba_req.start_seq_num =
+	mgmt->u.action.addba_req.timeout = cpu_to_le16(timeout);
+	mgmt->u.action.addba_req.start_seq_num =
 					cpu_to_le16(start_seq_num << 4);
 
 	if (sta->sta.deflink.he_cap.has_he)
@@ -978,15 +978,15 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(sta->local->hw.wiphy);
 
-	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
+	capab = le16_to_cpu(mgmt->u.action.addba_resp.capab);
 	amsdu = capab & IEEE80211_ADDBA_PARAM_AMSDU_MASK;
 	tid = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_TID_MASK);
 	buf_size = u16_get_bits(capab, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 
 	ieee80211_retrieve_addba_ext_data(sta,
-					  mgmt->u.action.u.addba_resp.variable,
+					  mgmt->u.action.addba_resp.variable,
 					  len - offsetof(typeof(*mgmt),
-							 u.action.u.addba_resp.variable),
+							 u.action.addba_resp.variable),
 					  &buf_size);
 
 	buf_size = min(buf_size, local->hw.max_tx_aggregation_subframes);
@@ -999,7 +999,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	if (!tid_tx)
 		return;
 
-	if (mgmt->u.action.u.addba_resp.dialog_token != tid_tx->dialog_token) {
+	if (mgmt->u.action.addba_resp.dialog_token != tid_tx->dialog_token) {
 		ht_dbg(sta->sdata, "wrong addBA response token, %pM tid %d\n",
 		       sta->sta.addr, tid);
 		return;
@@ -1029,7 +1029,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 	 * is set to 0, the Buffer Size subfield is set to a value
 	 * of at least 1.
 	 */
-	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)
+	if (le16_to_cpu(mgmt->u.action.addba_resp.status)
 			== WLAN_STATUS_SUCCESS && buf_size) {
 		if (test_and_set_bit(HT_AGG_STATE_RESPONSE_RECEIVED,
 				     &tid_tx->state)) {
@@ -1046,7 +1046,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
 
 		tid_tx->timeout =
-			le16_to_cpu(mgmt->u.action.u.addba_resp.timeout);
+			le16_to_cpu(mgmt->u.action.addba_resp.timeout);
 
 		if (tid_tx->timeout) {
 			mod_timer(&tid_tx->session_timer,

@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 /**
@@ -251,19 +251,20 @@ static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 	mgmt = ieee80211_mgmt_ba(skb, da, sdata);
 
-	skb_put(skb, 1 + sizeof(mgmt->u.action.u.addba_resp));
+	skb_put(skb, 2 + sizeof(mgmt->u.action.addba_resp));
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
-	mgmt->u.action.u.addba_resp.dialog_token = dialog_token;
+	mgmt->u.action.action_code = WLAN_ACTION_ADDBA_RESP;
+
+	mgmt->u.action.addba_resp.dialog_token = dialog_token;
 
 	capab = u16_encode_bits(amsdu, IEEE80211_ADDBA_PARAM_AMSDU_MASK);
 	capab |= u16_encode_bits(policy, IEEE80211_ADDBA_PARAM_POLICY_MASK);
 	capab |= u16_encode_bits(tid, IEEE80211_ADDBA_PARAM_TID_MASK);
 	capab |= u16_encode_bits(buf_size, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 
-	mgmt->u.action.u.addba_resp.capab = cpu_to_le16(capab);
-	mgmt->u.action.u.addba_resp.timeout = cpu_to_le16(timeout);
-	mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
+	mgmt->u.action.addba_resp.capab = cpu_to_le16(capab);
+	mgmt->u.action.addba_resp.timeout = cpu_to_le16(timeout);
+	mgmt->u.action.addba_resp.status = cpu_to_le16(status);
 
 	if (sta->sta.valid_links || sta->sta.deflink.he_cap.has_he)
 		ieee80211_add_addbaext(skb, req_addba_ext_data, buf_size);
@@ -477,22 +478,22 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	u8 dialog_token, addba_ext_data;
 
 	/* extract session parameters from addba request frame */
-	dialog_token = mgmt->u.action.u.addba_req.dialog_token;
-	timeout = le16_to_cpu(mgmt->u.action.u.addba_req.timeout);
+	dialog_token = mgmt->u.action.addba_req.dialog_token;
+	timeout = le16_to_cpu(mgmt->u.action.addba_req.timeout);
 	start_seq_num =
-		le16_to_cpu(mgmt->u.action.u.addba_req.start_seq_num) >> 4;
+		le16_to_cpu(mgmt->u.action.addba_req.start_seq_num) >> 4;
 
-	capab = le16_to_cpu(mgmt->u.action.u.addba_req.capab);
+	capab = le16_to_cpu(mgmt->u.action.addba_req.capab);
 	ba_policy = (capab & IEEE80211_ADDBA_PARAM_POLICY_MASK) >> 1;
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
 
 	addba_ext_data =
 		ieee80211_retrieve_addba_ext_data(sta,
-						  mgmt->u.action.u.addba_req.variable,
+						  mgmt->u.action.addba_req.variable,
 						  len -
 						  offsetof(typeof(*mgmt),
-							   u.action.u.addba_req.variable),
+							   u.action.addba_req.variable),
 						  &buf_size);
 
 	__ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
