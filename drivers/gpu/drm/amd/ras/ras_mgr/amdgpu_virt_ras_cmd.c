@@ -63,7 +63,7 @@ static int amdgpu_virt_ras_get_cmd_shared_mem(struct ras_core_context *ras_core,
 				ras_telemetry_offset);
 
 	if (cmd == RAS_CMD__GET_ALL_BLOCK_ECC_STATUS) {
-		if (mem_size > PAGE_SIZE)
+		if (mem_size > AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE)
 			return -ENOMEM;
 
 		shared_mem->cpu_addr = ras_telemetry_cpu->uniras_shared_mem.blocks_ecc_buf;
@@ -504,7 +504,7 @@ int amdgpu_virt_ras_hw_init(struct amdgpu_device *adev)
 	memset(blks_ecc, 0, sizeof(*blks_ecc));
 	if (amdgpu_virt_ras_get_cmd_shared_mem(ras_mgr->ras_core,
 			RAS_CMD__GET_ALL_BLOCK_ECC_STATUS,
-			PAGE_SIZE, &blks_ecc->shared_mem))
+			AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE, &blks_ecc->shared_mem))
 		return -ENOMEM;
 
 	return 0;

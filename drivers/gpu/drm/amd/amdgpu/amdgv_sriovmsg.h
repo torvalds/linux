@@ -476,9 +476,10 @@ union amd_sriov_ras_host_push {
 	struct amd_sriov_ras_chk_criti chk_criti;
 };
 
-#define AMD_SRIOV_UNIRAS_CMD_MAX_SIZE (PAGE_SIZE * 13)
+#define AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE 4096
+#define AMD_SRIOV_UNIRAS_CMD_MAX_SIZE (4096 * 13)
 struct amd_sriov_uniras_shared_mem {
-	uint8_t blocks_ecc_buf[PAGE_SIZE];
+	uint8_t blocks_ecc_buf[AMD_SRIOV_UNIRAS_BLOCKS_BUF_SIZE];
 	uint8_t cmd_buf[AMD_SRIOV_UNIRAS_CMD_MAX_SIZE];
 };
 
