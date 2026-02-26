@@ -355,6 +355,7 @@ config VIDEO_MT9V111
 
 config VIDEO_OG01A1B
 	tristate "OmniVision OG01A1B sensor support"
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OG01A1B camera.
