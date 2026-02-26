@@ -11,8 +11,8 @@
 	FN(CONGESTED)			\
 	FN(MAXFLOWS)			\
 	FN(CAKE_FLOOD)			\
-	FN(FQ_BAND_LIMIT)		\
-	FN(FQ_HORIZON_LIMIT)		\
+	FN(BAND_LIMIT)		\
+	FN(HORIZON_LIMIT)		\
 	FN(FLOW_LIMIT)			\
 	FNe(MAX)
 
@@ -74,16 +74,17 @@ enum qdisc_drop_reason {
 	 */
 	QDISC_DROP_CAKE_FLOOD,
 	/**
-	 * @QDISC_DROP_FQ_BAND_LIMIT: FQ (Fair Queue) dropped packet because
-	 * the priority band's packet limit was reached. Each priority band
-	 * in FQ has its own limit.
+	 * @QDISC_DROP_BAND_LIMIT: packet dropped because the priority band's
+	 * limit was reached. Used by qdiscs with priority bands that have
+	 * per-band packet limits (e.g., FQ).
 	 */
-	QDISC_DROP_FQ_BAND_LIMIT,
+	QDISC_DROP_BAND_LIMIT,
 	/**
-	 * @QDISC_DROP_FQ_HORIZON_LIMIT: FQ dropped packet because its
-	 * timestamp is too far in the future (beyond the configured horizon).
+	 * @QDISC_DROP_HORIZON_LIMIT: packet dropped because its timestamp
+	 * is too far in the future (beyond the configured horizon).
+	 * Used by qdiscs with time-based scheduling (e.g., FQ).
 	 */
-	QDISC_DROP_FQ_HORIZON_LIMIT,
+	QDISC_DROP_HORIZON_LIMIT,
 	/**
 	 * @QDISC_DROP_FLOW_LIMIT: packet dropped because an individual flow
 	 * exceeded its per-flow packet/depth limit. Used by FQ and SFQ qdiscs
