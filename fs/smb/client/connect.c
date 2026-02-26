@@ -2167,9 +2167,6 @@ void __cifs_put_smb_ses(struct cifs_ses *ses)
 
 #ifdef CONFIG_KEYS
 
-/* strlen("cifs:a:") + CIFS_MAX_DOMAINNAME_LEN + 1 */
-#define CIFSCREDS_DESC_SIZE (7 + CIFS_MAX_DOMAINNAME_LEN + 1)
-
 /* Populate username and pw fields from keyring if possible */
 static int
 cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
@@ -2177,6 +2174,7 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 	int rc = 0;
 	int is_domain = 0;
 	const char *delim, *payload;
+	size_t desc_sz;
 	char *desc;
 	ssize_t len;
 	struct key *key;
@@ -2185,7 +2183,9 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 	struct sockaddr_in6 *sa6;
 	const struct user_key_payload *upayload;
 
-	desc = kmalloc(CIFSCREDS_DESC_SIZE, GFP_KERNEL);
+	/* "cifs:a:" and "cifs:d:" are the same length; +1 for NUL terminator */
+	desc_sz = strlen("cifs:a:") + CIFS_MAX_DOMAINNAME_LEN + 1;
+	desc = kmalloc(desc_sz, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
@@ -2193,11 +2193,11 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 	switch (server->dstaddr.ss_family) {
 	case AF_INET:
 		sa = (struct sockaddr_in *)&server->dstaddr;
-		sprintf(desc, "cifs:a:%pI4", &sa->sin_addr.s_addr);
+		snprintf(desc, desc_sz, "cifs:a:%pI4", &sa->sin_addr.s_addr);
 		break;
 	case AF_INET6:
 		sa6 = (struct sockaddr_in6 *)&server->dstaddr;
-		sprintf(desc, "cifs:a:%pI6c", &sa6->sin6_addr.s6_addr);
+		snprintf(desc, desc_sz, "cifs:a:%pI6c", &sa6->sin6_addr.s6_addr);
 		break;
 	default:
 		cifs_dbg(FYI, "Bad ss_family (%hu)\n",
@@ -2216,7 +2216,7 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 		}
 
 		/* didn't work, try to find a domain key */
-		sprintf(desc, "cifs:d:%s", ses->domainName);
+		snprintf(desc, desc_sz, "cifs:d:%s", ses->domainName);
 		cifs_dbg(FYI, "%s: desc=%s\n", __func__, desc);
 		key = request_key(&key_type_logon, desc, "");
 		if (IS_ERR(key)) {
