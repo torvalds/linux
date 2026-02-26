@@ -658,9 +658,12 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 					addr = mc_ch_readl(mc, channel, addr_hi_reg);
 				else
 					addr = mc_readl(mc, addr_hi_reg);
-			} else {
+			} else if (mc->soc->mc_addr_hi_mask) {
 				addr = ((value >> MC_ERR_STATUS_ADR_HI_SHIFT) &
-					MC_ERR_STATUS_ADR_HI_MASK);
+					mc->soc->mc_addr_hi_mask);
+			} else {
+				dev_err_ratelimited(mc->dev, "Unable to determine high address!");
+				return IRQ_NONE;
 			}
 			addr <<= 32;
 		}
@@ -685,11 +688,11 @@ irqreturn_t tegra30_mc_handle_irq(int irq, void *data)
 			}
 		}
 
-		type = (value & MC_ERR_STATUS_TYPE_MASK) >>
+		type = (value & mc->soc->mc_err_status_type_mask) >>
 		       MC_ERR_STATUS_TYPE_SHIFT;
 		desc = tegra_mc_error_names[type];
 
-		switch (value & MC_ERR_STATUS_TYPE_MASK) {
+		switch (value & mc->soc->mc_err_status_type_mask) {
 		case MC_ERR_STATUS_TYPE_INVALID_SMMU_PAGE:
 			perm[0] = ' ';
 			perm[1] = '[';

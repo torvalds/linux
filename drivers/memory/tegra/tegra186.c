@@ -916,5 +916,7 @@ const struct tegra_mc_soc tegra186_mc_soc = {
 	.regs = &tegra20_mc_regs,
 	.handle_irq = tegra30_mc_irq_handlers,
 	.num_interrupts = ARRAY_SIZE(tegra30_mc_irq_handlers),
+	.mc_addr_hi_mask = 0x3,
+	.mc_err_status_type_mask = (0x7 << 28),
 };
 #endif

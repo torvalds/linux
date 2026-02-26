@@ -217,6 +217,8 @@ struct tegra_mc_soc {
 
 	const irq_handler_t *handle_irq;
 	unsigned int num_interrupts;
+	unsigned int mc_addr_hi_mask;
+	unsigned int mc_err_status_type_mask;
 };
 
 struct tegra_mc {
