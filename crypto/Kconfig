@@ -1060,8 +1060,6 @@ config CRYPTO_CRC32
 	help
 	  CRC32 CRC algorithm (IEEE 802.3)
 
-	  Used by RoCEv2 and f2fs.
-
 endmenu
 
 menu "Compression"
