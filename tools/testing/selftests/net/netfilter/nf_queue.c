@@ -18,6 +18,7 @@
 struct options {
 	bool count_packets;
 	bool gso_enabled;
+	bool failopen;
 	int verbose;
 	unsigned int queue_num;
 	unsigned int timeout;
@@ -30,7 +31,7 @@ static struct options opts;
 
 static void help(const char *p)
 {
-	printf("Usage: %s [-c|-v [-vv] ] [-t timeout] [-q queue_num] [-Qdst_queue ] [ -d ms_delay ] [-G]\n", p);
+	printf("Usage: %s [-c|-v [-vv] ] [-o] [-t timeout] [-q queue_num] [-Qdst_queue ] [ -d ms_delay ] [-G]\n", p);
 }
 
 static int parse_attr_cb(const struct nlattr *attr, void *data)
@@ -236,6 +237,8 @@ struct mnl_socket *open_queue(void)
 
 	flags = opts.gso_enabled ? NFQA_CFG_F_GSO : 0;
 	flags |= NFQA_CFG_F_UID_GID;
+	if (opts.failopen)
+		flags |= NFQA_CFG_F_FAIL_OPEN;
 	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(flags));
 	mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(flags));
 
@@ -329,7 +332,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "chvt:q:Q:d:G")) != -1) {
+	while ((c = getopt(argc, argv, "chvot:q:Q:d:G")) != -1) {
 		switch (c) {
 		case 'c':
 			opts.count_packets = true;
@@ -365,6 +368,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'G':
 			opts.gso_enabled = false;
+			break;
+		case 'o':
+			opts.failopen = true;
 			break;
 		case 'v':
 			opts.verbose++;
