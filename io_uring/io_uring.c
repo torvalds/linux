@@ -95,6 +95,7 @@
 #include "eventfd.h"
 #include "wait.h"
 #include "bpf_filter.h"
+#include "loop.h"
 
 #define SQE_COMMON_FLAGS (IOSQE_FIXED_FILE | IOSQE_IO_LINK | \
 			  IOSQE_IO_HARDLINK | IOSQE_ASYNC)
@@ -586,6 +587,11 @@ void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
 	mutex_lock(&ctx->uring_lock);
 	__io_cqring_overflow_flush(ctx, false);
 	mutex_unlock(&ctx->uring_lock);
+}
+
+void io_cqring_overflow_flush_locked(struct io_ring_ctx *ctx)
+{
+	__io_cqring_overflow_flush(ctx, false);
 }
 
 /* must to be called somewhat shortly after putting a request */
@@ -2570,6 +2576,11 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	 */
 	if (unlikely(smp_load_acquire(&ctx->flags) & IORING_SETUP_R_DISABLED))
 		goto out;
+
+	if (io_has_loop_ops(ctx)) {
+		ret = io_run_loop(ctx);
+		goto out;
+	}
 
 	/*
 	 * For SQ polling, the thread will do all submissions and completions.

@@ -41,6 +41,8 @@ enum io_uring_cmd_flags {
 	IO_URING_F_COMPAT		= (1 << 12),
 };
 
+struct iou_loop_params;
+
 struct io_wq_work_node {
 	struct io_wq_work_node *next;
 };
@@ -360,6 +362,9 @@ struct io_ring_ctx {
 		struct io_alloc_cache	netmsg_cache;
 		struct io_alloc_cache	rw_cache;
 		struct io_alloc_cache	cmd_cache;
+
+		int (*loop_step)(struct io_ring_ctx *ctx,
+				 struct iou_loop_params *);
 
 		/*
 		 * Any cancelable uring_cmd is added to this list in
