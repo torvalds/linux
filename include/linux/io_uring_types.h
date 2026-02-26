@@ -8,6 +8,9 @@
 #include <linux/llist.h>
 #include <uapi/linux/io_uring.h>
 
+struct iou_loop_params;
+struct io_uring_bpf_ops;
+
 enum {
 	/*
 	 * A hint to not wake right away but delay until there are enough of
@@ -487,6 +490,8 @@ struct io_ring_ctx {
 
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
+
+	struct io_uring_bpf_ops		*bpf_ops;
 
 	/*
 	 * Protection for resize vs mmap races - both the mmap and resize
