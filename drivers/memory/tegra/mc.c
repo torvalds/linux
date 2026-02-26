@@ -386,7 +386,7 @@ EXPORT_SYMBOL_GPL(tegra_mc_get_emem_device_count);
     defined(CONFIG_ARCH_TEGRA_124_SOC) || \
     defined(CONFIG_ARCH_TEGRA_132_SOC) || \
     defined(CONFIG_ARCH_TEGRA_210_SOC)
-static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
+static void tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 {
 	unsigned long long tick;
 	unsigned int i;
@@ -414,8 +414,6 @@ static int tegra_mc_setup_latency_allowance(struct tegra_mc *mc)
 
 	/* latch new values */
 	mc_writel(mc, MC_TIMING_UPDATE, MC_TIMING_CONTROL);
-
-	return 0;
 }
 
 static int load_one_timing(struct tegra_mc *mc,
@@ -517,11 +515,7 @@ int tegra30_mc_probe(struct tegra_mc *mc)
 	/* ensure that debug features are disabled */
 	mc_writel(mc, 0x00000000, MC_TIMING_CONTROL_DBG);
 
-	err = tegra_mc_setup_latency_allowance(mc);
-	if (err < 0) {
-		dev_err(mc->dev, "failed to setup latency allowance: %d\n", err);
-		return err;
-	}
+	tegra_mc_setup_latency_allowance(mc);
 
 	err = tegra_mc_setup_timings(mc);
 	if (err < 0) {
