@@ -117,8 +117,6 @@
 #define   VLV_ERROR_PAGE_TABLE				(1 << 4)
 #define   VLV_ERROR_CLAIM				(1 << 0)
 
-#define GEN2_ISR	_MMIO(0x20ac)
-
 #define VLV_ERROR_REGS		I915_ERROR_REGS(VLV_EMR, VLV_EIR)
 
 #define _MBUS_ABOX0_CTL			0x45038

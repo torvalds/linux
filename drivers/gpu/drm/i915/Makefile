@@ -81,6 +81,7 @@ i915-y += \
 	i915_dsb_buffer.o \
 	i915_hdcp_gsc.o \
 	i915_initial_plane.o \
+	i915_overlay.o \
 	i915_panic.o
 
 # "Graphics Technology" (aka we talk to the gpu)

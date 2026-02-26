@@ -338,6 +338,7 @@
 #define GEN2_IER	_MMIO(0x20a0)
 #define GEN2_IIR	_MMIO(0x20a4)
 #define GEN2_IMR	_MMIO(0x20a8)
+#define GEN2_ISR	_MMIO(0x20ac)
 
 #define GEN2_IRQ_REGS		I915_IRQ_REGS(GEN2_IMR, \
 					      GEN2_IER, \
@@ -776,5 +777,8 @@
 #define   SGR_DIS			REG_BIT(13)
 
 #define MTL_MEDIA_GSI_BASE		0x380000
+
+#define DSPCLK_GATE_D			_MMIO(0x6200)
+# define OVRUNIT_CLOCK_GATE_DISABLE		(1 << 3)
 
 #endif /* _I915_REG_H_ */
