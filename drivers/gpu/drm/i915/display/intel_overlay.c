@@ -194,7 +194,6 @@ struct intel_overlay {
 	struct i915_vma *vma;
 	struct i915_vma *old_vma;
 	struct intel_frontbuffer *frontbuffer;
-	bool active;
 	bool pfit_active;
 	u32 pfit_vscale_ratio; /* shifted-point number, (1<<12) == 1.0 */
 	u32 color_key:24;
@@ -260,7 +259,7 @@ static bool i915_overlay_is_active(struct drm_device *drm)
 	struct intel_display *display = to_intel_display(drm);
 	struct intel_overlay *overlay = display->overlay;
 
-	return overlay->active;
+	return overlay->frontbuffer_bits;
 }
 
 /* overlay needs to be disable in OCMD reg */
@@ -283,7 +282,6 @@ static int intel_overlay_on(struct intel_overlay *overlay,
 		return PTR_ERR(cs);
 	}
 
-	overlay->active = true;
 	overlay->frontbuffer_bits = frontbuffer_bits;
 
 	if (display->platform.i830)
@@ -392,7 +390,6 @@ static void intel_overlay_off_tail(struct intel_overlay *overlay)
 
 	intel_overlay_release_old_vma(overlay);
 
-	overlay->active = false;
 	overlay->frontbuffer_bits = 0;
 
 	if (display->platform.i830)
@@ -514,7 +511,6 @@ void intel_overlay_reset(struct intel_display *display)
 	overlay->old_xscale = 0;
 	overlay->old_yscale = 0;
 	overlay->crtc = NULL;
-	overlay->active = false;
 	overlay->frontbuffer_bits = 0;
 }
 
