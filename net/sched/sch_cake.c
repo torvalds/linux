@@ -573,7 +573,7 @@ static enum qdisc_drop_reason cobalt_should_drop(struct cobalt_vars *vars,
 	/* Simple BLUE implementation.  Lack of ECN is deliberate. */
 	if (vars->p_drop && reason == QDISC_DROP_UNSPEC &&
 	    get_random_u32() < vars->p_drop)
-		reason = QDISC_DROP_CAKE_FLOOD;
+		reason = QDISC_DROP_FLOOD_PROTECTION;
 
 	/* Overload the drop_next field as an activity timeout */
 	if (!vars->count)
