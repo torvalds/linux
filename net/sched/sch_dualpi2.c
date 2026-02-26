@@ -393,13 +393,11 @@ static int dualpi2_enqueue_skb(struct sk_buff *skb, struct Qdisc *sch,
 		qdisc_qstats_overlimit(sch);
 		if (skb_in_l_queue(skb))
 			qdisc_qstats_overlimit(q->l_queue);
-		return qdisc_drop_reason(skb, sch, to_free,
-					 SKB_DROP_REASON_QDISC_OVERLIMIT);
+		return qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_OVERLIMIT);
 	}
 
 	if (q->drop_early && must_drop(sch, q, skb)) {
-		qdisc_drop_reason(skb, sch, to_free,
-				  SKB_DROP_REASON_QDISC_CONGESTED);
+		qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_CONGESTED);
 		return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	}
 
@@ -593,7 +591,7 @@ static struct sk_buff *dualpi2_qdisc_dequeue(struct Qdisc *sch)
 	while ((skb = dequeue_packet(sch, q, &credit_change, now))) {
 		if (!q->drop_early && must_drop(sch, q, skb)) {
 			drop_and_retry(q, skb, sch,
-				       SKB_DROP_REASON_QDISC_CONGESTED);
+				       SKB_DROP_REASON_QDISC_DROP);
 			continue;
 		}
 

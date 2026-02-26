@@ -25,17 +25,42 @@
 #include <linux/skb_array.h>
 #include <linux/if_macvlan.h>
 #include <linux/bpf.h>
+#include <trace/events/qdisc.h>
 #include <net/sch_generic.h>
 #include <net/pkt_sched.h>
 #include <net/dst.h>
 #include <net/hotdata.h>
-#include <trace/events/qdisc.h>
 #include <trace/events/net.h>
 #include <net/xfrm.h>
 
 /* Qdisc to use by default */
 const struct Qdisc_ops *default_qdisc_ops = &pfifo_fast_ops;
 EXPORT_SYMBOL(default_qdisc_ops);
+
+void __tcf_kfree_skb_list(struct sk_buff *skb, struct Qdisc *q,
+			  struct netdev_queue *txq, struct net_device *dev)
+{
+	while (skb) {
+		u32 reason = tc_skb_cb(skb)->drop_reason;
+		struct sk_buff *next = skb->next;
+		enum skb_drop_reason skb_reason;
+
+		prefetch(next);
+		/* TC classifier and qdisc share drop_reason storage.
+		 * Check subsystem mask to identify qdisc drop reasons,
+		 * else pass through skb_drop_reason set by TC classifier.
+		 */
+		if ((reason & SKB_DROP_REASON_SUBSYS_MASK) == __QDISC_DROP_REASON) {
+			trace_qdisc_drop(q, txq, dev, skb, (enum qdisc_drop_reason)reason);
+			skb_reason = SKB_DROP_REASON_QDISC_DROP;
+		} else {
+			skb_reason = (enum skb_drop_reason)reason;
+		}
+		kfree_skb_reason(skb, skb_reason);
+		skb = next;
+	}
+}
+EXPORT_SYMBOL(__tcf_kfree_skb_list);
 
 static void qdisc_maybe_clear_missed(struct Qdisc *q,
 				     const struct netdev_queue *txq)
@@ -741,7 +766,7 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 	err = skb_array_produce(q, skb);
 
 	if (unlikely(err)) {
-		tcf_set_drop_reason(skb, SKB_DROP_REASON_QDISC_OVERLIMIT);
+		tcf_set_qdisc_drop_reason(skb, QDISC_DROP_OVERLIMIT);
 
 		if (qdisc_is_percpu_stats(qdisc))
 			return qdisc_drop_cpu(skb, qdisc, to_free);

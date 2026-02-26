@@ -20,12 +20,15 @@
 #include <net/rtnetlink.h>
 #include <net/flow_offload.h>
 #include <linux/xarray.h>
+#include <net/dropreason-qdisc.h>
 
 struct Qdisc_ops;
 struct qdisc_walker;
 struct tcf_walker;
 struct module;
 struct bpf_flow_keys;
+struct Qdisc;
+struct netdev_queue;
 
 struct qdisc_rate_table {
 	struct tc_ratespec rate;
@@ -1106,36 +1109,50 @@ static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)
 	return cb;
 }
 
+/* TC classifier accessors - use enum skb_drop_reason */
 static inline enum skb_drop_reason
 tcf_get_drop_reason(const struct sk_buff *skb)
 {
-	return tc_skb_cb(skb)->drop_reason;
+	return (enum skb_drop_reason)tc_skb_cb(skb)->drop_reason;
 }
 
 static inline void tcf_set_drop_reason(const struct sk_buff *skb,
 				       enum skb_drop_reason reason)
 {
+	tc_skb_cb(skb)->drop_reason = (enum qdisc_drop_reason)reason;
+}
+
+/* Qdisc accessors - use enum qdisc_drop_reason */
+static inline enum qdisc_drop_reason
+tcf_get_qdisc_drop_reason(const struct sk_buff *skb)
+{
+	return tc_skb_cb(skb)->drop_reason;
+}
+
+static inline void tcf_set_qdisc_drop_reason(const struct sk_buff *skb,
+					     enum qdisc_drop_reason reason)
+{
 	tc_skb_cb(skb)->drop_reason = reason;
 }
 
-static inline void tcf_kfree_skb_list(struct sk_buff *skb)
-{
-	while (unlikely(skb)) {
-		struct sk_buff *next = skb->next;
+void __tcf_kfree_skb_list(struct sk_buff *skb, struct Qdisc *q,
+			  struct netdev_queue *txq, struct net_device *dev);
 
-		prefetch(next);
-		kfree_skb_reason(skb, tcf_get_drop_reason(skb));
-		skb = next;
-	}
+static inline void tcf_kfree_skb_list(struct sk_buff *skb, struct Qdisc *q,
+				      struct netdev_queue *txq,
+				      struct net_device *dev)
+{
+	if (unlikely(skb))
+		__tcf_kfree_skb_list(skb, q, txq, dev);
 }
 
 static inline void qdisc_dequeue_drop(struct Qdisc *q, struct sk_buff *skb,
-				      enum skb_drop_reason reason)
+				      enum qdisc_drop_reason reason)
 {
 	DEBUG_NET_WARN_ON_ONCE(!(q->flags & TCQ_F_DEQUEUE_DROPS));
 	DEBUG_NET_WARN_ON_ONCE(q->flags & TCQ_F_NOLOCK);
 
-	tcf_set_drop_reason(skb, reason);
+	tcf_set_qdisc_drop_reason(skb, reason);
 	skb->next = q->to_free;
 	q->to_free = skb;
 }
@@ -1312,9 +1329,9 @@ static inline int qdisc_drop(struct sk_buff *skb, struct Qdisc *sch,
 
 static inline int qdisc_drop_reason(struct sk_buff *skb, struct Qdisc *sch,
 				    struct sk_buff **to_free,
-				    enum skb_drop_reason reason)
+				    enum qdisc_drop_reason reason)
 {
-	tcf_set_drop_reason(skb, reason);
+	tcf_set_qdisc_drop_reason(skb, reason);
 	return qdisc_drop(skb, sch, to_free);
 }
 

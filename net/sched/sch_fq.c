@@ -539,7 +539,7 @@ static bool fq_packet_beyond_horizon(const struct sk_buff *skb,
 	return unlikely((s64)skb->tstamp > (s64)(now + q->horizon));
 }
 
-#define FQDR(reason) SKB_DROP_REASON_FQ_##reason
+#define FQDR(reason) QDISC_DROP_FQ_##reason
 
 static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		      struct sk_buff **to_free)
@@ -552,8 +552,7 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	band = fq_prio2band(q->prio2band, skb->priority & TC_PRIO_MAX);
 	if (unlikely(q->band_pkt_count[band] >= sch->limit)) {
 		q->stat_band_drops[band]++;
-		return qdisc_drop_reason(skb, sch, to_free,
-					 FQDR(BAND_LIMIT));
+		return qdisc_drop_reason(skb, sch, to_free, FQDR(BAND_LIMIT));
 	}
 
 	now = ktime_get_ns();
@@ -579,7 +578,7 @@ static int fq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		if (unlikely(f->qlen >= q->flow_plimit)) {
 			q->stat_flows_plimit++;
 			return qdisc_drop_reason(skb, sch, to_free,
-						 FQDR(FLOW_LIMIT));
+						 QDISC_DROP_FQ_FLOW_LIMIT);
 		}
 
 		if (fq_flow_is_detached(f)) {
