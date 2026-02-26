@@ -215,7 +215,7 @@ store_result:
 	kdebug("store result");
 	prep->quotalen = result_len;
 
-	upayload = kmalloc(sizeof(*upayload) + result_len + 1, GFP_KERNEL);
+	upayload = kmalloc_flex(*upayload, data, result_len + 1);
 	if (!upayload) {
 		kleave(" = -ENOMEM");
 		return -ENOMEM;
