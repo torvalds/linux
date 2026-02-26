@@ -1573,7 +1573,7 @@ static void delete_syscall_stats(struct hashmap *syscall_stats)
 	struct hashmap_entry *pos;
 	size_t bkt;
 
-	if (syscall_stats == NULL)
+	if (IS_ERR(syscall_stats))
 		return;
 
 	hashmap__for_each_entry(syscall_stats, pos, bkt)
