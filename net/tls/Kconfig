@@ -8,7 +8,6 @@ config TLS
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_GCM
-	select STREAM_PARSER
 	select NET_SOCK_MSG
 	default n
 	help
