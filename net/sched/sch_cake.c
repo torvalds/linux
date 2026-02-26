@@ -2013,7 +2013,8 @@ static struct sk_buff *cake_dequeue(struct Qdisc *sch)
 	u64 delay;
 	u32 len;
 
-	if (q->config->is_shared && now - q->last_checked_active >= q->config->sync_time) {
+	if (q->config->is_shared && q->rate_ns &&
+	    now - q->last_checked_active >= q->config->sync_time) {
 		struct net_device *dev = qdisc_dev(sch);
 		struct cake_sched_data *other_priv;
 		u64 new_rate = q->config->rate_bps;
