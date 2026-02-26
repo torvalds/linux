@@ -255,6 +255,14 @@ alloc_request(struct intel_overlay *overlay, void (*fn)(struct intel_overlay *))
 	return rq;
 }
 
+static bool i915_overlay_is_active(struct drm_device *drm)
+{
+	struct intel_display *display = to_intel_display(drm);
+	struct intel_overlay *overlay = display->overlay;
+
+	return overlay->active;
+}
+
 /* overlay needs to be disable in OCMD reg */
 static int intel_overlay_on(struct intel_overlay *overlay,
 			    u32 frontbuffer_bits)
@@ -263,7 +271,7 @@ static int intel_overlay_on(struct intel_overlay *overlay,
 	struct i915_request *rq;
 	u32 *cs;
 
-	drm_WARN_ON(display->drm, overlay->active);
+	drm_WARN_ON(display->drm, i915_overlay_is_active(display->drm));
 
 	rq = alloc_request(overlay, NULL);
 	if (IS_ERR(rq))
@@ -327,7 +335,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp, *cs;
 
-	drm_WARN_ON(display->drm, !overlay->active);
+	drm_WARN_ON(display->drm, !i915_overlay_is_active(display->drm));
 
 	if (load_polyphase_filter)
 		flip_addr |= OFC_UPDATE;
@@ -407,7 +415,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	struct i915_request *rq;
 	u32 *cs, flip_addr = overlay->flip_addr;
 
-	drm_WARN_ON(display->drm, !overlay->active);
+	drm_WARN_ON(display->drm, !i915_overlay_is_active(display->drm));
 
 	/*
 	 * According to intel docs the overlay hw may hang (when switching
@@ -822,7 +830,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		goto out_pin_section;
 	}
 
-	if (!overlay->active) {
+	if (!i915_overlay_is_active(display->drm)) {
 		const struct intel_crtc_state *crtc_state =
 			overlay->crtc->config;
 		u32 oconfig = 0;
@@ -917,7 +925,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 	if (ret != 0)
 		return ret;
 
-	if (!overlay->active)
+	if (!i915_overlay_is_active(display->drm))
 		return 0;
 
 	ret = intel_overlay_release_old_vid(overlay);
@@ -1333,7 +1341,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 			if (DISPLAY_VER(display) == 2)
 				goto out_unlock;
 
-			if (overlay->active) {
+			if (i915_overlay_is_active(display->drm)) {
 				ret = -EBUSY;
 				goto out_unlock;
 			}
@@ -1462,7 +1470,7 @@ void intel_overlay_cleanup(struct intel_display *display)
 	 * Furthermore modesetting teardown happens beforehand so the
 	 * hardware should be off already.
 	 */
-	drm_WARN_ON(display->drm, overlay->active);
+	drm_WARN_ON(display->drm, i915_overlay_is_active(display->drm));
 
 	i915_gem_object_put(overlay->reg_bo);
 	i915_active_fini(&overlay->last_flip);
