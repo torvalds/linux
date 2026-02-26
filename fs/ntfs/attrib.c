@@ -2108,12 +2108,12 @@ int ntfs_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	int err, offset;
 	struct ntfs_inode *base_ni;
 
+	if (!ni || (!name && name_len))
+		return -EINVAL;
+
 	ntfs_debug("Entering for inode 0x%llx, attr 0x%x, flags 0x%x.\n",
 			(long long) ni->mft_no, (unsigned int) le32_to_cpu(type),
 			(unsigned int) le16_to_cpu(flags));
-
-	if (!ni || (!name && name_len))
-		return -EINVAL;
 
 	err = ntfs_attr_can_be_resident(ni->vol, type);
 	if (err) {
@@ -2229,13 +2229,13 @@ static int ntfs_non_resident_attr_record_add(struct ntfs_inode *ni, __le32 type,
 	struct ntfs_inode *base_ni;
 	int err, offset;
 
+	if (!ni || dataruns_size <= 0 || (!name && name_len))
+		return -EINVAL;
+
 	ntfs_debug("Entering for inode 0x%llx, attr 0x%x, lowest_vcn %lld, dataruns_size %d, flags 0x%x.\n",
 			(long long) ni->mft_no, (unsigned int) le32_to_cpu(type),
 			(long long) lowest_vcn, dataruns_size,
 			(unsigned int) le16_to_cpu(flags));
-
-	if (!ni || dataruns_size <= 0 || (!name && name_len))
-		return -EINVAL;
 
 	err = ntfs_attr_can_be_non_resident(ni->vol, type);
 	if (err) {
