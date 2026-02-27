@@ -2356,7 +2356,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	}
 	lbaf = nvme_lbaf_index(id->flbas);
 
-	if (ns->ctrl->ctratt & NVME_CTRL_ATTR_ELBAS) {
+	if (nvme_id_cns_ok(ns->ctrl, NVME_ID_CNS_CS_NS)) {
 		ret = nvme_identify_ns_nvm(ns->ctrl, info->nsid, &nvm);
 		if (ret < 0)
 			goto out;
