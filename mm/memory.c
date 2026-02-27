@@ -2239,13 +2239,13 @@ void zap_vma_range(struct vm_area_struct *vma, unsigned long address,
  * @size: number of bytes to zap
  *
  * This function does nothing when the provided address range is not fully
- * contained in @vma, or when the @vma is not VM_PFNMAP.
+ * contained in @vma, or when the @vma is not VM_PFNMAP or VM_MIXEDMAP.
  */
 void zap_special_vma_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size)
 {
 	if (!range_in_vma(vma, address, address + size) ||
-	    		!(vma->vm_flags & VM_PFNMAP))
+	   !(vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)))
 		return;
 
 	zap_vma_range(vma, address, size);
