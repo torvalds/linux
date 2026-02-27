@@ -524,7 +524,6 @@ struct dpu_intf_cfg  {
 /**
  * struct dpu_wb_cfg - information of writeback blocks
  * @DPU_HW_BLK_INFO:    refer to the description above for DPU_HW_BLK_INFO
- * @vbif_idx:           vbif client index
  * @maxlinewidth:       max line width supported by writeback block
  * @xin_id:             bus client identifier
  * @intr_wb_done:       interrupt index for WB_DONE
@@ -535,7 +534,6 @@ struct dpu_intf_cfg  {
 struct dpu_wb_cfg {
 	DPU_HW_BLK_INFO;
 	unsigned long features;
-	u8 vbif_idx;
 	u32 maxlinewidth;
 	u32 xin_id;
 	unsigned int intr_wb_done;
