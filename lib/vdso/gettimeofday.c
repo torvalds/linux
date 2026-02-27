@@ -158,24 +158,8 @@ bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 		return false;
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCKMODE_TIMENS. Time namespace enabled tasks have a
-		 * special VVAR page installed which has vc->seq set to 1 and
-		 * vc->clock_mode set to VDSO_CLOCKMODE_TIMENS. For non time
-		 * namespace affected tasks this does not affect performance
-		 * because if vc->seq is odd, i.e. a concurrent update is in
-		 * progress the extra check for vc->clock_mode is just a few
-		 * extra instructions while spin waiting for vc->seq to become
-		 * even again.
-		 */
-		while (unlikely((seq = READ_ONCE(vc->seq)) & 1)) {
-			if (IS_ENABLED(CONFIG_TIME_NS) &&
-			    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
-				return do_hres_timens(vd, vc, clk, ts);
-			cpu_relax();
-		}
-		smp_rmb();
+		if (vdso_read_begin_timens(vc, &seq))
+			return do_hres_timens(vd, vc, clk, ts);
 
 		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
@@ -223,17 +207,8 @@ bool do_coarse(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 	u32 seq;
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
-		 */
-		while ((seq = READ_ONCE(vc->seq)) & 1) {
-			if (IS_ENABLED(CONFIG_TIME_NS) &&
-			    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
-				return do_coarse_timens(vd, vc, clk, ts);
-			cpu_relax();
-		}
-		smp_rmb();
+		if (vdso_read_begin_timens(vc, &seq))
+			return do_coarse_timens(vd, vc, clk, ts);
 
 		ts->tv_sec = vdso_ts->sec;
 		ts->tv_nsec = vdso_ts->nsec;
@@ -256,20 +231,12 @@ bool do_aux(const struct vdso_time_data *vd, clockid_t clock, struct __kernel_ti
 	vc = &vd->aux_clock_data[idx];
 
 	do {
-		/*
-		 * Open coded function vdso_read_begin() to handle
-		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
-		 */
-		while ((seq = READ_ONCE(vc->seq)) & 1) {
-			if (IS_ENABLED(CONFIG_TIME_NS) && vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
-				vd = __arch_get_vdso_u_timens_data(vd);
-				vc = &vd->aux_clock_data[idx];
-				/* Re-read from the real time data page */
-				continue;
-			}
-			cpu_relax();
+		if (vdso_read_begin_timens(vc, &seq)) {
+			vd = __arch_get_vdso_u_timens_data(vd);
+			vc = &vd->aux_clock_data[idx];
+			/* Re-read from the real time data page */
+			continue;
 		}
-		smp_rmb();
 
 		/* Auxclock disabled? */
 		if (vc->clock_mode == VDSO_CLOCKMODE_NONE)
