@@ -31,7 +31,7 @@ int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 {
 	int ret;
 
-	ret = amdxdna_pm_resume_get(ndev->xdna);
+	ret = amdxdna_pm_resume_get_locked(ndev->xdna);
 	if (ret)
 		return ret;
 
