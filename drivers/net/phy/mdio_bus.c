@@ -310,16 +310,12 @@ static const struct attribute_group mdio_bus_statistics_group = {
 	.name		= "statistics",
 	.attrs_const	= mdio_bus_statistics_attrs,
 };
-
-static const struct attribute_group *mdio_bus_groups[] = {
-	&mdio_bus_statistics_group,
-	NULL,
-};
+__ATTRIBUTE_GROUPS(mdio_bus_statistics);
 
 const struct class mdio_bus_class = {
 	.name		= "mdio_bus",
 	.dev_release	= mdiobus_release,
-	.dev_groups	= mdio_bus_groups,
+	.dev_groups	= mdio_bus_statistics_groups,
 };
 EXPORT_SYMBOL_GPL(mdio_bus_class);
 
@@ -986,15 +982,11 @@ static const struct attribute_group mdio_bus_device_statistics_group = {
 	.name		= "statistics",
 	.attrs_const	= mdio_bus_device_statistics_attrs,
 };
-
-static const struct attribute_group *mdio_bus_dev_groups[] = {
-	&mdio_bus_device_statistics_group,
-	NULL,
-};
+__ATTRIBUTE_GROUPS(mdio_bus_device_statistics);
 
 const struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
-	.dev_groups	= mdio_bus_dev_groups,
+	.dev_groups	= mdio_bus_device_statistics_groups,
 	.match		= mdio_bus_match,
 	.uevent		= mdio_uevent,
 };
