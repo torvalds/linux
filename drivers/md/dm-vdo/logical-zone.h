@@ -60,7 +60,7 @@ struct logical_zones {
 	/* The number of zones */
 	zone_count_t zone_count;
 	/* The logical zones themselves */
-	struct logical_zone zones[];
+	struct logical_zone zones[] __counted_by(zone_count);
 };
 
 int __must_check vdo_make_logical_zones(struct vdo *vdo,

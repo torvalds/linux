@@ -296,7 +296,7 @@ struct hash_zones {
 	/* The number of zones */
 	zone_count_t zone_count;
 	/* The hash zones themselves */
-	struct hash_zone zones[];
+	struct hash_zone zones[] __counted_by(zone_count);
 };
 
 /* These are in milliseconds. */

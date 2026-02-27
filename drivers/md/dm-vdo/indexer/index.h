@@ -53,7 +53,7 @@ struct uds_index {
 
 	index_callback_fn callback;
 	struct uds_request_queue *triage_queue;
-	struct uds_request_queue *zone_queues[];
+	struct uds_request_queue *zone_queues[] __counted_by(zone_count);
 };
 
 enum request_stage {

@@ -127,7 +127,7 @@ struct repair_completion {
 	 * The page completions used for playing the journal into the block map, and, during
 	 * read-only rebuild, for rebuilding the reference counts from the block map.
 	 */
-	struct vdo_page_completion page_completions[];
+	struct vdo_page_completion page_completions[] __counted_by(page_count);
 };
 
 /*

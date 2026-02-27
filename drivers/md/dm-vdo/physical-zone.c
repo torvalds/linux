@@ -200,7 +200,7 @@ struct pbn_lock_pool {
 	/** @idle_list: A list containing all idle PBN lock instances. */
 	struct list_head idle_list;
 	/** @locks: The memory for all the locks allocated by this pool. */
-	idle_pbn_lock locks[];
+	idle_pbn_lock locks[] __counted_by(capacity);
 };
 
 /**

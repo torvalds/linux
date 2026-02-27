@@ -509,7 +509,7 @@ struct slab_depot {
 	struct slab_summary_entry *summary_entries;
 
 	/* The block allocators for this depot */
-	struct block_allocator allocators[];
+	struct block_allocator allocators[] __counted_by(zone_count);
 };
 
 struct reference_updater;
