@@ -192,12 +192,12 @@ static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
 }
 
 #define MDIO_BUS_STATS_ATTR(field)					\
-static struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {		\
+static const struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {	\
 	.attr = __ATTR(field, 0444, mdio_bus_stat_field_show, NULL),	\
 	.address = -1,							\
 	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 };									\
-static struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = {	\
+static const struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = { \
 	.attr = __ATTR(field, 0444, mdio_bus_device_stat_field_show, NULL), \
 	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 }
@@ -208,7 +208,8 @@ MDIO_BUS_STATS_ATTR(writes);
 MDIO_BUS_STATS_ATTR(reads);
 
 #define MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr, file)		\
-static struct mdio_bus_stat_attr dev_attr_mdio_bus_addr_##field##_##addr = { \
+static const struct mdio_bus_stat_attr					\
+dev_attr_mdio_bus_addr_##field##_##addr = {				\
 	.attr = { .attr = { .name = file, .mode = 0444 },		\
 		     .show = mdio_bus_stat_field_show,			\
 	},								\
@@ -265,7 +266,7 @@ MDIO_BUS_STATS_ADDR_ATTR_GROUP_DECL(31);
 	&dev_attr_mdio_bus_addr_writes_##addr.attr.attr,		\
 	&dev_attr_mdio_bus_addr_reads_##addr.attr.attr			\
 
-static struct attribute *mdio_bus_statistics_attrs[] = {
+static const struct attribute *const mdio_bus_statistics_attrs[] = {
 	&dev_attr_mdio_bus_transfers.attr.attr,
 	&dev_attr_mdio_bus_errors.attr.attr,
 	&dev_attr_mdio_bus_writes.attr.attr,
@@ -306,8 +307,8 @@ static struct attribute *mdio_bus_statistics_attrs[] = {
 };
 
 static const struct attribute_group mdio_bus_statistics_group = {
-	.name	= "statistics",
-	.attrs	= mdio_bus_statistics_attrs,
+	.name		= "statistics",
+	.attrs_const	= mdio_bus_statistics_attrs,
 };
 
 static const struct attribute_group *mdio_bus_groups[] = {
@@ -973,7 +974,7 @@ static int mdio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static struct attribute *mdio_bus_device_statistics_attrs[] = {
+static const struct attribute *const mdio_bus_device_statistics_attrs[] = {
 	&dev_attr_mdio_bus_device_transfers.attr.attr,
 	&dev_attr_mdio_bus_device_errors.attr.attr,
 	&dev_attr_mdio_bus_device_writes.attr.attr,
@@ -982,8 +983,8 @@ static struct attribute *mdio_bus_device_statistics_attrs[] = {
 };
 
 static const struct attribute_group mdio_bus_device_statistics_group = {
-	.name	= "statistics",
-	.attrs	= mdio_bus_device_statistics_attrs,
+	.name		= "statistics",
+	.attrs_const	= mdio_bus_device_statistics_attrs,
 };
 
 static const struct attribute_group *mdio_bus_dev_groups[] = {
