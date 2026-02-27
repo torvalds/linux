@@ -668,14 +668,16 @@ void pvr_power_domains_fini(struct pvr_device *pvr_dev)
 {
 	struct pvr_device_power *pvr_power = &pvr_dev->power;
 
-	int i = (int)pvr_power->domains->num_pds - 1;
+	if (!pvr_power->domains)
+		goto out;
 
-	while (--i >= 0)
+	for (int i = (int)pvr_power->domains->num_pds - 2; i >= 0; --i)
 		device_link_del(pvr_power->domain_links[i]);
 
 	dev_pm_domain_detach_list(pvr_power->domains);
 
 	kfree(pvr_power->domain_links);
 
+out:
 	*pvr_power = (struct pvr_device_power){ 0 };
 }
