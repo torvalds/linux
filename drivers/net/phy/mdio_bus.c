@@ -358,22 +358,17 @@ EXPORT_SYMBOL(of_mdio_find_bus);
 
 static void mdiobus_stats_acct(struct mdio_bus_stats *stats, bool op, int ret)
 {
-	preempt_disable();
 	u64_stats_update_begin(&stats->syncp);
 
 	u64_stats_inc(&stats->transfers);
-	if (ret < 0) {
+	if (ret < 0)
 		u64_stats_inc(&stats->errors);
-		goto out;
-	}
-
-	if (op)
+	else if (op)
 		u64_stats_inc(&stats->reads);
 	else
 		u64_stats_inc(&stats->writes);
-out:
+
 	u64_stats_update_end(&stats->syncp);
-	preempt_enable();
 }
 
 /**
