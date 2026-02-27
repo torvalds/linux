@@ -124,9 +124,15 @@ static void mdiobus_release(struct device *d)
 }
 
 struct mdio_bus_stat_attr {
-	int addr;
+	struct device_attribute attr;
+	int address;
 	unsigned int field_offset;
 };
+
+static struct mdio_bus_stat_attr *to_sattr(struct device_attribute *attr)
+{
+	return container_of(attr, struct mdio_bus_stat_attr, attr);
+}
 
 static u64 mdio_bus_get_stat(struct mdio_bus_stats *s, unsigned int offset)
 {
@@ -157,18 +163,14 @@ static ssize_t mdio_bus_stat_field_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
+	struct mdio_bus_stat_attr *sattr = to_sattr(attr);
 	struct mii_bus *bus = to_mii_bus(dev);
-	struct mdio_bus_stat_attr *sattr;
-	struct dev_ext_attribute *eattr;
 	u64 val;
 
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	sattr = eattr->var;
-
-	if (sattr->addr < 0)
+	if (sattr->address < 0)
 		val = mdio_bus_get_global_stat(bus, sattr->field_offset);
 	else
-		val = mdio_bus_get_stat(&bus->stats[sattr->addr],
+		val = mdio_bus_get_stat(&bus->stats[sattr->address],
 					sattr->field_offset);
 
 	return sysfs_emit(buf, "%llu\n", val);
@@ -178,15 +180,11 @@ static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
 {
+	struct mdio_bus_stat_attr *sattr = to_sattr(attr);
 	struct mdio_device *mdiodev = to_mdio_device(dev);
 	struct mii_bus *bus = mdiodev->bus;
-	struct mdio_bus_stat_attr *sattr;
-	struct dev_ext_attribute *eattr;
 	int addr = mdiodev->addr;
 	u64 val;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-	sattr = eattr->var;
 
 	val = mdio_bus_get_stat(&bus->stats[addr], sattr->field_offset);
 
@@ -194,21 +192,19 @@ static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
 }
 
 #define MDIO_BUS_STATS_ATTR_DECL(field, file)				\
-static struct dev_ext_attribute dev_attr_mdio_bus_##field = {		\
+static struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {		\
 	.attr = { .attr = { .name = file, .mode = 0444 },		\
 		     .show = mdio_bus_stat_field_show,			\
 	},								\
-	.var = &((struct mdio_bus_stat_attr) {				\
-		-1, offsetof(struct mdio_bus_stats, field)		\
-	}),								\
+	.address = -1,							\
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 };									\
-static struct dev_ext_attribute dev_attr_mdio_bus_device_##field = {	\
+static struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = {	\
 	.attr = { .attr = { .name = file, .mode = 0444 },		\
 		     .show = mdio_bus_device_stat_field_show,		\
 	},								\
-	.var = &((struct mdio_bus_stat_attr) {				\
-		-1, offsetof(struct mdio_bus_stats, field)		\
-	}),								\
+	.address = -1,							\
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 };
 
 #define MDIO_BUS_STATS_ATTR(field)					\
@@ -220,13 +216,12 @@ MDIO_BUS_STATS_ATTR(writes);
 MDIO_BUS_STATS_ATTR(reads);
 
 #define MDIO_BUS_STATS_ADDR_ATTR_DECL(field, addr, file)		\
-static struct dev_ext_attribute dev_attr_mdio_bus_addr_##field##_##addr = { \
+static struct mdio_bus_stat_attr dev_attr_mdio_bus_addr_##field##_##addr = { \
 	.attr = { .attr = { .name = file, .mode = 0444 },		\
 		     .show = mdio_bus_stat_field_show,			\
 	},								\
-	.var = &((struct mdio_bus_stat_attr) {				\
-		addr, offsetof(struct mdio_bus_stats, field)		\
-	}),								\
+	.address = addr,						\
+	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 }
 
 #define MDIO_BUS_STATS_ADDR_ATTR(field, addr)				\
