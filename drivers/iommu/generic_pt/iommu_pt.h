@@ -477,6 +477,7 @@ struct pt_iommu_map_args {
 	pt_oaddr_t oa;
 	unsigned int leaf_pgsize_lg2;
 	unsigned int leaf_level;
+	pt_vaddr_t num_leaves;
 };
 
 /*
@@ -529,11 +530,15 @@ static int clear_contig(const struct pt_state *start_pts,
 static int __map_range_leaf(struct pt_range *range, void *arg,
 			    unsigned int level, struct pt_table_p *table)
 {
+	struct pt_iommu *iommu_table = iommu_from_common(range->common);
 	struct pt_state pts = pt_init(range, level, table);
 	struct pt_iommu_map_args *map = arg;
 	unsigned int leaf_pgsize_lg2 = map->leaf_pgsize_lg2;
 	unsigned int start_index;
 	pt_oaddr_t oa = map->oa;
+	unsigned int num_leaves;
+	unsigned int orig_end;
+	pt_vaddr_t last_va;
 	unsigned int step;
 	bool need_contig;
 	int ret = 0;
@@ -547,6 +552,15 @@ static int __map_range_leaf(struct pt_range *range, void *arg,
 
 	_pt_iter_first(&pts);
 	start_index = pts.index;
+	orig_end = pts.end_index;
+	if (pts.index + map->num_leaves < pts.end_index) {
+		/* Need to stop in the middle of the table to change sizes */
+		pts.end_index = pts.index + map->num_leaves;
+		num_leaves = 0;
+	} else {
+		num_leaves = map->num_leaves - (pts.end_index - pts.index);
+	}
+
 	do {
 		pts.type = pt_load_entry_raw(&pts);
 		if (pts.type != PT_ENTRY_EMPTY || need_contig) {
@@ -572,7 +586,40 @@ static int __map_range_leaf(struct pt_range *range, void *arg,
 	flush_writes_range(&pts, start_index, pts.index);
 
 	map->oa = oa;
-	return ret;
+	map->num_leaves = num_leaves;
+	if (ret || num_leaves)
+		return ret;
+
+	/* range->va is not valid if we reached the end of the table */
+	pts.index -= step;
+	pt_index_to_va(&pts);
+	pts.index += step;
+	last_va = range->va + log2_to_int(leaf_pgsize_lg2);
+
+	if (last_va - 1 == range->last_va) {
+		PT_WARN_ON(pts.index != orig_end);
+		return 0;
+	}
+
+	/*
+	 * Reached a point where the page size changed, compute the new
+	 * parameters.
+	 */
+	map->leaf_pgsize_lg2 = pt_compute_best_pgsize(
+		iommu_table->domain.pgsize_bitmap, last_va, range->last_va, oa);
+	map->leaf_level =
+		pt_pgsz_lg2_to_level(range->common, map->leaf_pgsize_lg2);
+	map->num_leaves = pt_pgsz_count(iommu_table->domain.pgsize_bitmap,
+					last_va, range->last_va, oa,
+					map->leaf_pgsize_lg2);
+
+	/* Didn't finish this table level, caller will repeat it */
+	if (pts.index != orig_end) {
+		if (pts.index != start_index)
+			pt_index_to_va(&pts);
+		return -EAGAIN;
+	}
+	return 0;
 }
 
 static int __map_range(struct pt_range *range, void *arg, unsigned int level,
@@ -595,14 +642,9 @@ static int __map_range(struct pt_range *range, void *arg, unsigned int level,
 			if (pts.type != PT_ENTRY_EMPTY)
 				return -EADDRINUSE;
 			ret = pt_iommu_new_table(&pts, &map->attrs);
-			if (ret) {
-				/*
-				 * Racing with another thread installing a table
-				 */
-				if (ret == -EAGAIN)
-					continue;
+			/* EAGAIN on a race will loop again */
+			if (ret)
 				return ret;
-			}
 		} else {
 			pts.table_lower = pt_table_ptr(&pts);
 			/*
@@ -626,10 +668,12 @@ static int __map_range(struct pt_range *range, void *arg, unsigned int level,
 		 * The already present table can possibly be shared with another
 		 * concurrent map.
 		 */
-		if (map->leaf_level == level - 1)
-			ret = pt_descend(&pts, arg, __map_range_leaf);
-		else
-			ret = pt_descend(&pts, arg, __map_range);
+		do {
+			if (map->leaf_level == level - 1)
+				ret = pt_descend(&pts, arg, __map_range_leaf);
+			else
+				ret = pt_descend(&pts, arg, __map_range);
+		} while (ret == -EAGAIN);
 		if (ret)
 			return ret;
 
@@ -637,6 +681,14 @@ static int __map_range(struct pt_range *range, void *arg, unsigned int level,
 		pt_index_to_va(&pts);
 		if (pts.index >= pts.end_index)
 			break;
+
+		/*
+		 * This level is currently running __map_range_leaf() which is
+		 * not correct if the target level has been updated to this
+		 * level. Have the caller invoke __map_range_leaf.
+		 */
+		if (map->leaf_level == level)
+			return -EAGAIN;
 	} while (true);
 	return 0;
 }
@@ -808,12 +860,13 @@ static int check_map_range(struct pt_iommu *iommu_table, struct pt_range *range,
 static int do_map(struct pt_range *range, struct pt_common *common,
 		  bool single_page, struct pt_iommu_map_args *map)
 {
+	int ret;
+
 	/*
 	 * The __map_single_page() fast path does not support DMA_INCOHERENT
 	 * flushing to keep its .text small.
 	 */
 	if (single_page && !pt_feature(common, PT_FEAT_DMA_INCOHERENT)) {
-		int ret;
 
 		ret = pt_walk_range(range, __map_single_page, map);
 		if (ret != -EAGAIN)
@@ -821,50 +874,25 @@ static int do_map(struct pt_range *range, struct pt_common *common,
 		/* EAGAIN falls through to the full path */
 	}
 
-	if (map->leaf_level == range->top_level)
-		return pt_walk_range(range, __map_range_leaf, map);
-	return pt_walk_range(range, __map_range, map);
+	do {
+		if (map->leaf_level == range->top_level)
+			ret = pt_walk_range(range, __map_range_leaf, map);
+		else
+			ret = pt_walk_range(range, __map_range, map);
+	} while (ret == -EAGAIN);
+	return ret;
 }
 
-/**
- * map_pages() - Install translation for an IOVA range
- * @domain: Domain to manipulate
- * @iova: IO virtual address to start
- * @paddr: Physical/Output address to start
- * @pgsize: Length of each page
- * @pgcount: Length of the range in pgsize units starting from @iova
- * @prot: A bitmap of IOMMU_READ/WRITE/CACHE/NOEXEC/MMIO
- * @gfp: GFP flags for any memory allocations
- * @mapped: Total bytes successfully mapped
- *
- * The range starting at IOVA will have paddr installed into it. The caller
- * must specify a valid pgsize and pgcount to segment the range into compatible
- * blocks.
- *
- * On error the caller will probably want to invoke unmap on the range from iova
- * up to the amount indicated by @mapped to return the table back to an
- * unchanged state.
- *
- * Context: The caller must hold a write range lock that includes the whole
- * range.
- *
- * Returns: -ERRNO on failure, 0 on success. The number of bytes of VA that were
- * mapped are added to @mapped, @mapped is not zerod first.
- */
-int DOMAIN_NS(map_pages)(struct iommu_domain *domain, unsigned long iova,
-			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
-			 int prot, gfp_t gfp, size_t *mapped)
+static int NS(map_range)(struct pt_iommu *iommu_table, dma_addr_t iova,
+			 phys_addr_t paddr, dma_addr_t len, unsigned int prot,
+			 gfp_t gfp, size_t *mapped)
 {
-	struct pt_iommu *iommu_table =
-		container_of(domain, struct pt_iommu, domain);
 	pt_vaddr_t pgsize_bitmap = iommu_table->domain.pgsize_bitmap;
 	struct pt_common *common = common_from_iommu(iommu_table);
 	struct iommu_iotlb_gather iotlb_gather;
-	pt_vaddr_t len = pgsize * pgcount;
 	struct pt_iommu_map_args map = {
 		.iotlb_gather = &iotlb_gather,
 		.oa = paddr,
-		.leaf_pgsize_lg2 = vaffs(pgsize),
 	};
 	bool single_page = false;
 	struct pt_range range;
@@ -892,13 +920,13 @@ int DOMAIN_NS(map_pages)(struct iommu_domain *domain, unsigned long iova,
 		return ret;
 
 	/* Calculate target page size and level for the leaves */
-	if (pt_has_system_page_size(common) && pgsize == PAGE_SIZE &&
-	    pgcount == 1) {
+	if (pt_has_system_page_size(common) && len == PAGE_SIZE) {
 		PT_WARN_ON(!(pgsize_bitmap & PAGE_SIZE));
 		if (log2_mod(iova | paddr, PAGE_SHIFT))
 			return -ENXIO;
 		map.leaf_pgsize_lg2 = PAGE_SHIFT;
 		map.leaf_level = 0;
+		map.num_leaves = 1;
 		single_page = true;
 	} else {
 		map.leaf_pgsize_lg2 = pt_compute_best_pgsize(
@@ -907,6 +935,9 @@ int DOMAIN_NS(map_pages)(struct iommu_domain *domain, unsigned long iova,
 			return -ENXIO;
 		map.leaf_level =
 			pt_pgsz_lg2_to_level(common, map.leaf_pgsize_lg2);
+		map.num_leaves = pt_pgsz_count(pgsize_bitmap, range.va,
+					       range.last_va, paddr,
+					       map.leaf_pgsize_lg2);
 	}
 
 	ret = check_map_range(iommu_table, &range, &map);
@@ -929,7 +960,6 @@ int DOMAIN_NS(map_pages)(struct iommu_domain *domain, unsigned long iova,
 	*mapped += map.oa - paddr;
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(DOMAIN_NS(map_pages), "GENERIC_PT_IOMMU");
 
 struct pt_unmap_args {
 	struct iommu_pages_list free_list;
@@ -1098,6 +1128,7 @@ static void NS(deinit)(struct pt_iommu *iommu_table)
 }
 
 static const struct pt_iommu_ops NS(ops) = {
+	.map_range = NS(map_range),
 	.unmap_range = NS(unmap_range),
 #if IS_ENABLED(CONFIG_IOMMUFD_DRIVER) && defined(pt_entry_is_write_dirty) && \
 	IS_ENABLED(CONFIG_IOMMUFD_TEST) && defined(pt_entry_make_write_dirty)
