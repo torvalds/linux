@@ -631,23 +631,20 @@ static void disk_mark_zone_wplug_dead(struct blk_zone_wplug *zwplug)
 static void blk_zone_wplug_bio_work(struct work_struct *work);
 
 /*
- * Get a reference on the write plug for the zone containing @sector.
- * If the plug does not exist, it is allocated and hashed.
- * Return a pointer to the zone write plug with the plug spinlock held.
+ * Get a zone write plug for the zone containing @sector.
+ * If the plug does not exist, it is allocated and inserted in the disk hash
+ * table.
  */
-static struct blk_zone_wplug *disk_get_and_lock_zone_wplug(struct gendisk *disk,
-					sector_t sector, gfp_t gfp_mask,
-					unsigned long *flags)
+static struct blk_zone_wplug *disk_get_or_alloc_zone_wplug(struct gendisk *disk,
+					sector_t sector, gfp_t gfp_mask)
 {
 	unsigned int zno = disk_zone_no(disk, sector);
 	struct blk_zone_wplug *zwplug;
 
 again:
 	zwplug = disk_get_zone_wplug(disk, sector);
-	if (zwplug) {
-		spin_lock_irqsave(&zwplug->lock, *flags);
+	if (zwplug)
 		return zwplug;
-	}
 
 	/*
 	 * Allocate and initialize a zone write plug with an extra reference
@@ -668,15 +665,12 @@ again:
 	INIT_WORK(&zwplug->bio_work, blk_zone_wplug_bio_work);
 	zwplug->disk = disk;
 
-	spin_lock_irqsave(&zwplug->lock, *flags);
-
 	/*
 	 * Insert the new zone write plug in the hash table. This can fail only
 	 * if another context already inserted a plug. Retry from the beginning
 	 * in such case.
 	 */
 	if (!disk_insert_zone_wplug(disk, zwplug)) {
-		spin_unlock_irqrestore(&zwplug->lock, *flags);
 		mempool_free(zwplug, disk->zone_wplugs_pool);
 		goto again;
 	}
@@ -1398,7 +1392,7 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 	if (bio->bi_opf & REQ_NOWAIT)
 		gfp_mask = GFP_NOWAIT;
 
-	zwplug = disk_get_and_lock_zone_wplug(disk, sector, gfp_mask, &flags);
+	zwplug = disk_get_or_alloc_zone_wplug(disk, sector, gfp_mask);
 	if (!zwplug) {
 		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
@@ -1406,6 +1400,8 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 			bio_io_error(bio);
 		return true;
 	}
+
+	spin_lock_irqsave(&zwplug->lock, flags);
 
 	/*
 	 * If we got a zone write plug marked as dead, then the user is issuing
@@ -2045,7 +2041,6 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	struct gendisk *disk = args->disk;
 	struct blk_zone_wplug *zwplug;
 	unsigned int wp_offset;
-	unsigned long flags;
 
 	/*
 	 * Remember the capacity of the first sequential zone and check
@@ -2075,10 +2070,9 @@ static int blk_revalidate_seq_zone(struct blk_zone *zone, unsigned int idx,
 	if (!wp_offset || wp_offset >= zone->capacity)
 		return 0;
 
-	zwplug = disk_get_and_lock_zone_wplug(disk, zone->wp, GFP_NOIO, &flags);
+	zwplug = disk_get_or_alloc_zone_wplug(disk, zone->wp, GFP_NOIO);
 	if (!zwplug)
 		return -ENOMEM;
-	spin_unlock_irqrestore(&zwplug->lock, flags);
 	disk_put_zone_wplug(zwplug);
 
 	return 0;
