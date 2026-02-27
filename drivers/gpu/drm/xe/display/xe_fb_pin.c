@@ -5,7 +5,6 @@
 
 #include <drm/ttm/ttm_bo.h>
 
-#include "i915_vma.h"
 #include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -13,6 +12,7 @@
 #include "intel_fbdev.h"
 #include "xe_bo.h"
 #include "xe_device.h"
+#include "xe_display_vma.h"
 #include "xe_ggtt.h"
 #include "xe_pm.h"
 #include "xe_vram_types.h"
@@ -409,7 +409,7 @@ found:
 	refcount_inc(&vma->ref);
 	new_plane_state->ggtt_vma = vma;
 
-	new_plane_state->surf = i915_ggtt_offset(new_plane_state->ggtt_vma) +
+	new_plane_state->surf = xe_ggtt_node_addr(new_plane_state->ggtt_vma->node) +
 		plane->surf_offset(new_plane_state);
 
 	return true;
@@ -439,7 +439,7 @@ int intel_plane_pin_fb(struct intel_plane_state *new_plane_state,
 
 	new_plane_state->ggtt_vma = vma;
 
-	new_plane_state->surf = i915_ggtt_offset(new_plane_state->ggtt_vma) +
+	new_plane_state->surf = xe_ggtt_node_addr(new_plane_state->ggtt_vma->node) +
 		plane->surf_offset(new_plane_state);
 
 	return 0;

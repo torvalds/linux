@@ -12,7 +12,6 @@
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
 
-#include "i915_vma.h"
 #include "intel_crtc.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
@@ -20,6 +19,7 @@
 #include "intel_fbdev_fb.h"
 #include "intel_fb_pin.h"
 #include "xe_bo.h"
+#include "xe_display_vma.h"
 #include "xe_vram_types.h"
 #include "xe_wa.h"
 
@@ -165,7 +165,7 @@ xe_initial_plane_setup(struct drm_plane_state *_plane_state,
 
 	plane_state->ggtt_vma = vma;
 
-	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
+	plane_state->surf = xe_ggtt_node_addr(plane_state->ggtt_vma->node);
 
 	plane_config->vma = vma;
 
