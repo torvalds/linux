@@ -797,7 +797,7 @@ int bpf_local_storage_map_alloc_check(union bpf_attr *attr)
 	return 0;
 }
 
-int bpf_local_storage_map_check_btf(const struct bpf_map *map,
+int bpf_local_storage_map_check_btf(struct bpf_map *map,
 				    const struct btf *btf,
 				    const struct btf_type *key_type,
 				    const struct btf_type *value_type)

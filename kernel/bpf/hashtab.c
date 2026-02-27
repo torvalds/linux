@@ -496,10 +496,10 @@ static void htab_dtor_ctx_free(void *ctx)
 	kfree(ctx);
 }
 
-static int htab_set_dtor(const struct bpf_htab *htab, void (*dtor)(void *, void *))
+static int htab_set_dtor(struct bpf_htab *htab, void (*dtor)(void *, void *))
 {
 	u32 key_size = htab->map.key_size;
-	const struct bpf_mem_alloc *ma;
+	struct bpf_mem_alloc *ma;
 	struct htab_btf_record *hrec;
 	int err;
 
@@ -518,12 +518,11 @@ static int htab_set_dtor(const struct bpf_htab *htab, void (*dtor)(void *, void 
 		return err;
 	}
 	ma = htab_is_percpu(htab) ? &htab->pcpu_ma : &htab->ma;
-	/* Kinda sad, but cast away const-ness since we change ma->dtor. */
-	bpf_mem_alloc_set_dtor((struct bpf_mem_alloc *)ma, dtor, htab_dtor_ctx_free, hrec);
+	bpf_mem_alloc_set_dtor(ma, dtor, htab_dtor_ctx_free, hrec);
 	return 0;
 }
 
-static int htab_map_check_btf(const struct bpf_map *map, const struct btf *btf,
+static int htab_map_check_btf(struct bpf_map *map, const struct btf *btf,
 			      const struct btf_type *key_type, const struct btf_type *value_type)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
