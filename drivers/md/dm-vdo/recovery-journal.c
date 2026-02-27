@@ -593,32 +593,29 @@ static int __must_check initialize_lock_counter(struct recovery_journal *journal
 	struct thread_config *config = &vdo->thread_config;
 	struct lock_counter *counter = &journal->lock_counter;
 
-	result = vdo_allocate(journal->size, u16, __func__, &counter->journal_counters);
+	result = vdo_allocate(journal->size, __func__, &counter->journal_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(journal->size, atomic_t, __func__,
-			      &counter->journal_decrement_counts);
+	result = vdo_allocate(journal->size, __func__, &counter->journal_decrement_counts);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(journal->size * config->logical_zone_count, u16, __func__,
+	result = vdo_allocate(journal->size * config->logical_zone_count, __func__,
 			      &counter->logical_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(journal->size, atomic_t, __func__,
-			      &counter->logical_zone_counts);
+	result = vdo_allocate(journal->size, __func__, &counter->logical_zone_counts);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(journal->size * config->physical_zone_count, u16, __func__,
+	result = vdo_allocate(journal->size * config->physical_zone_count, __func__,
 			      &counter->physical_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(journal->size, atomic_t, __func__,
-			      &counter->physical_zone_counts);
+	result = vdo_allocate(journal->size, __func__, &counter->physical_zone_counts);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -672,7 +669,7 @@ static int initialize_recovery_block(struct vdo *vdo, struct recovery_journal *j
 	 * Allocate a full block for the journal block even though not all of the space is used
 	 * since the VIO needs to write a full disk block.
 	 */
-	result = vdo_allocate(VDO_BLOCK_SIZE, char, __func__, &data);
+	result = vdo_allocate(VDO_BLOCK_SIZE, __func__, &data);
 	if (result != VDO_SUCCESS)
 		return result;
 

@@ -2364,8 +2364,7 @@ static int __must_check initialize_zone(struct vdo *vdo, struct hash_zones *zone
 	vdo_set_completion_callback(&zone->completion, timeout_index_operations_callback,
 				    zone->thread_id);
 	INIT_LIST_HEAD(&zone->lock_pool);
-	result = vdo_allocate(LOCK_POOL_CAPACITY, struct hash_lock, "hash_lock array",
-			      &zone->lock_array);
+	result = vdo_allocate(LOCK_POOL_CAPACITY, "hash_lock array", &zone->lock_array);
 	if (result != VDO_SUCCESS)
 		return result;
 

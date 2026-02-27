@@ -164,8 +164,7 @@ static int allocate_buckets(struct int_map *map, size_t capacity)
 	 * without have to wrap back around to element zero.
 	 */
 	map->bucket_count = capacity + (NEIGHBORHOOD - 1);
-	return vdo_allocate(map->bucket_count, struct bucket,
-			    "struct int_map buckets", &map->buckets);
+	return vdo_allocate(map->bucket_count, "struct int_map buckets", &map->buckets);
 }
 
 /**
@@ -182,7 +181,7 @@ int vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr)
 	int result;
 	size_t capacity;
 
-	result = vdo_allocate(1, struct int_map, "struct int_map", &map);
+	result = vdo_allocate(1, "struct int_map", &map);
 	if (result != VDO_SUCCESS)
 		return result;
 

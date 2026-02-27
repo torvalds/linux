@@ -14,7 +14,7 @@ int vdo_make_funnel_queue(struct funnel_queue **queue_ptr)
 	int result;
 	struct funnel_queue *queue;
 
-	result = vdo_allocate(1, struct funnel_queue, "funnel queue", &queue);
+	result = vdo_allocate(1, "funnel queue", &queue);
 	if (result != VDO_SUCCESS)
 		return result;
 

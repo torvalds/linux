@@ -207,29 +207,28 @@ static int __must_check initialize_thread_config(struct thread_count_config coun
 		config->hash_zone_count = counts.hash_zones;
 	}
 
-	result = vdo_allocate(config->logical_zone_count, thread_id_t,
-			      "logical thread array", &config->logical_threads);
+	result = vdo_allocate(config->logical_zone_count, "logical thread array",
+			      &config->logical_threads);
 	if (result != VDO_SUCCESS) {
 		uninitialize_thread_config(config);
 		return result;
 	}
 
-	result = vdo_allocate(config->physical_zone_count, thread_id_t,
-			      "physical thread array", &config->physical_threads);
+	result = vdo_allocate(config->physical_zone_count, "physical thread array",
+			      &config->physical_threads);
 	if (result != VDO_SUCCESS) {
 		uninitialize_thread_config(config);
 		return result;
 	}
 
-	result = vdo_allocate(config->hash_zone_count, thread_id_t,
-			      "hash thread array", &config->hash_zone_threads);
+	result = vdo_allocate(config->hash_zone_count, "hash thread array",
+			      &config->hash_zone_threads);
 	if (result != VDO_SUCCESS) {
 		uninitialize_thread_config(config);
 		return result;
 	}
 
-	result = vdo_allocate(config->bio_thread_count, thread_id_t,
-			      "bio thread array", &config->bio_threads);
+	result = vdo_allocate(config->bio_thread_count, "bio thread array", &config->bio_threads);
 	if (result != VDO_SUCCESS) {
 		uninitialize_thread_config(config);
 		return result;
@@ -269,7 +268,7 @@ static int __must_check read_geometry_block(struct vdo *vdo)
 	char *block;
 	int result;
 
-	result = vdo_allocate(VDO_BLOCK_SIZE, u8, __func__, &block);
+	result = vdo_allocate(VDO_BLOCK_SIZE, __func__, &block);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -493,7 +492,7 @@ static int initialize_vdo(struct vdo *vdo, struct device_config *config,
 		     config->thread_counts.hash_zones, vdo->thread_config.thread_count);
 
 	/* Compression context storage */
-	result = vdo_allocate(config->thread_counts.cpu_threads, char *, "LZ4 context",
+	result = vdo_allocate(config->thread_counts.cpu_threads, "LZ4 context",
 			      &vdo->compression_context);
 	if (result != VDO_SUCCESS) {
 		*reason = "cannot allocate LZ4 context";
@@ -501,7 +500,7 @@ static int initialize_vdo(struct vdo *vdo, struct device_config *config,
 	}
 
 	for (i = 0; i < config->thread_counts.cpu_threads; i++) {
-		result = vdo_allocate(LZ4_MEM_COMPRESS, char, "LZ4 context",
+		result = vdo_allocate(LZ4_MEM_COMPRESS, "LZ4 context",
 				      &vdo->compression_context[i]);
 		if (result != VDO_SUCCESS) {
 			*reason = "cannot allocate LZ4 context";
@@ -537,7 +536,7 @@ int vdo_make(unsigned int instance, struct device_config *config, char **reason,
 	/* Initialize with a generic failure reason to prevent returning garbage. */
 	*reason = "Unspecified error";
 
-	result = vdo_allocate(1, struct vdo, __func__, &vdo);
+	result = vdo_allocate(1, __func__, &vdo);
 	if (result != VDO_SUCCESS) {
 		*reason = "Cannot allocate VDO";
 		return result;
@@ -554,8 +553,7 @@ int vdo_make(unsigned int instance, struct device_config *config, char **reason,
 
 	snprintf(vdo->thread_name_prefix, sizeof(vdo->thread_name_prefix),
 		 "vdo%u", instance);
-	result = vdo_allocate(vdo->thread_config.thread_count,
-			      struct vdo_thread, __func__, &vdo->threads);
+	result = vdo_allocate(vdo->thread_config.thread_count, __func__, &vdo->threads);
 	if (result != VDO_SUCCESS) {
 		*reason = "Cannot allocate thread structures";
 		return result;
@@ -724,8 +722,7 @@ static int initialize_super_block(struct vdo *vdo, struct vdo_super_block *super
 {
 	int result;
 
-	result = vdo_allocate(VDO_BLOCK_SIZE, char, "encoded super block",
-			      (char **) &vdo->super_block.buffer);
+	result = vdo_allocate(VDO_BLOCK_SIZE, "encoded super block", &vdo->super_block.buffer);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -997,8 +994,7 @@ int vdo_register_read_only_listener(struct vdo *vdo, void *listener,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = vdo_allocate(1, struct read_only_listener, __func__,
-			      &read_only_listener);
+	result = vdo_allocate(1, __func__, &read_only_listener);
 	if (result != VDO_SUCCESS)
 		return result;
 

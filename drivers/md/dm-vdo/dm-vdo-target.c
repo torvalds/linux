@@ -273,8 +273,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 			substring_count++;
 	}
 
-	result = vdo_allocate(substring_count + 1, char *, "string-splitting array",
-			      &substrings);
+	result = vdo_allocate(substring_count + 1, "string-splitting array", &substrings);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -282,7 +281,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 		if (*s == separator) {
 			ptrdiff_t length = s - string;
 
-			result = vdo_allocate(length + 1, char, "split string",
+			result = vdo_allocate(length + 1, "split string",
 					      &substrings[current_substring]);
 			if (result != VDO_SUCCESS) {
 				free_string_array(substrings);
@@ -303,8 +302,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 	BUG_ON(current_substring != (substring_count - 1));
 	length = strlen(string);
 
-	result = vdo_allocate(length + 1, char, "split string",
-			      &substrings[current_substring]);
+	result = vdo_allocate(length + 1, "split string", &substrings[current_substring]);
 	if (result != VDO_SUCCESS) {
 		free_string_array(substrings);
 		return result;
@@ -332,7 +330,7 @@ static int join_strings(char **substring_array, size_t array_length, char separa
 	for (i = 0; (i < array_length) && (substring_array[i] != NULL); i++)
 		string_length += strlen(substring_array[i]) + 1;
 
-	result = vdo_allocate(string_length, char, __func__, &output);
+	result = vdo_allocate(string_length, __func__, &output);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -726,7 +724,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 		return VDO_BAD_CONFIGURATION;
 	}
 
-	result = vdo_allocate(1, struct device_config, "device_config", &config);
+	result = vdo_allocate(1, "device_config", &config);
 	if (result != VDO_SUCCESS) {
 		handle_parse_error(config, error_ptr,
 				   "Could not allocate config structure");

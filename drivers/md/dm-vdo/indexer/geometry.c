@@ -61,7 +61,7 @@ int uds_make_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
 	int result;
 	struct index_geometry *geometry;
 
-	result = vdo_allocate(1, struct index_geometry, "geometry", &geometry);
+	result = vdo_allocate(1, "geometry", &geometry);
 	if (result != VDO_SUCCESS)
 		return result;
 

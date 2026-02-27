@@ -798,7 +798,7 @@ static int allocate_partition(struct layout *layout, u8 id,
 	struct partition *partition;
 	int result;
 
-	result = vdo_allocate(1, struct partition, __func__, &partition);
+	result = vdo_allocate(1, __func__, &partition);
 	if (result != VDO_SUCCESS)
 		return result;
 

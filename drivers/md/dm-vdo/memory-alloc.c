@@ -245,7 +245,7 @@ int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 	} else {
 		struct vmalloc_block_info *block;
 
-		if (vdo_allocate(1, struct vmalloc_block_info, __func__, &block) == VDO_SUCCESS) {
+		if (vdo_allocate(1, __func__, &block) == VDO_SUCCESS) {
 			/*
 			 * It is possible for __vmalloc to fail to allocate memory because there
 			 * are no pages available. A short sleep may allow the page reclaimer
@@ -341,6 +341,7 @@ int vdo_reallocate_memory(void *ptr, size_t old_size, size_t size, const char *w
 			  void *new_ptr)
 {
 	int result;
+	char *temp_ptr;
 
 	if (size == 0) {
 		vdo_free(ptr);
@@ -348,9 +349,10 @@ int vdo_reallocate_memory(void *ptr, size_t old_size, size_t size, const char *w
 		return VDO_SUCCESS;
 	}
 
-	result = vdo_allocate(size, char, what, new_ptr);
+	result = vdo_allocate(size, what, &temp_ptr);
 	if (result != VDO_SUCCESS)
 		return result;
+	*(void **) new_ptr = temp_ptr;
 
 	if (ptr != NULL) {
 		if (old_size < size)
@@ -368,7 +370,7 @@ int vdo_duplicate_string(const char *string, const char *what, char **new_string
 	int result;
 	u8 *dup;
 
-	result = vdo_allocate(strlen(string) + 1, u8, what, &dup);
+	result = vdo_allocate(strlen(string) + 1, what, &dup);
 	if (result != VDO_SUCCESS)
 		return result;
 
