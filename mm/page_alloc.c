@@ -94,23 +94,6 @@ typedef int __bitwise fpi_t;
 static DEFINE_MUTEX(pcp_batch_high_lock);
 #define MIN_PERCPU_PAGELIST_HIGH_FRACTION (8)
 
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
-/*
- * On SMP, spin_trylock is sufficient protection.
- * On PREEMPT_RT, spin_trylock is equivalent on both SMP and UP.
- * Pass flags to a no-op inline function to typecheck and silence the unused
- * variable warning.
- */
-static inline void __pcp_trylock_noop(unsigned long *flags) { }
-#define pcp_trylock_prepare(flags)	__pcp_trylock_noop(&(flags))
-#define pcp_trylock_finish(flags)	__pcp_trylock_noop(&(flags))
-#else
-
-/* UP spin_trylock always succeeds so disable IRQs to prevent re-entrancy. */
-#define pcp_trylock_prepare(flags)	local_irq_save(flags)
-#define pcp_trylock_finish(flags)	local_irq_restore(flags)
-#endif
-
 /*
  * Locking a pcp requires a PCP lookup followed by a spinlock. To avoid
  * a migration causing the wrong PCP to be locked and remote memory being
@@ -149,31 +132,28 @@ static inline void __pcp_trylock_noop(unsigned long *flags) { }
 	pcpu_task_unpin();						\
 })
 
-/* struct per_cpu_pages specific helpers. */
-#define pcp_spin_trylock(ptr, UP_flags)					\
-({									\
-	struct per_cpu_pages *__ret;					\
-	pcp_trylock_prepare(UP_flags);					\
-	__ret = pcpu_spin_trylock(struct per_cpu_pages, lock, ptr);	\
-	if (!__ret)							\
-		pcp_trylock_finish(UP_flags);				\
-	__ret;								\
-})
+/* struct per_cpu_pages specific helpers.*/
+#ifdef CONFIG_SMP
+#define pcp_spin_trylock(ptr)						\
+		pcpu_spin_trylock(struct per_cpu_pages, lock, ptr)
 
-#define pcp_spin_unlock(ptr, UP_flags)					\
-({									\
-	pcpu_spin_unlock(lock, ptr);					\
-	pcp_trylock_finish(UP_flags);					\
-})
+#define pcp_spin_unlock(ptr)						\
+		pcpu_spin_unlock(lock, ptr)
 
 /*
- * With the UP spinlock implementation, when we spin_lock(&pcp->lock) (for i.e.
- * a potentially remote cpu drain) and get interrupted by an operation that
- * attempts pcp_spin_trylock(), we can't rely on the trylock failure due to UP
- * spinlock assumptions making the trylock a no-op. So we have to turn that
- * spin_lock() to a spin_lock_irqsave(). This works because on UP there are no
- * remote cpu's so we can only be locking the only existing local one.
+ * On CONFIG_SMP=n the UP implementation of spin_trylock() never fails and thus
+ * is not compatible with our locking scheme. However we do not need pcp for
+ * scalability in the first place, so just make all the trylocks fail and take
+ * the slow path unconditionally.
  */
+#else
+#define pcp_spin_trylock(ptr)		\
+		NULL
+
+#define pcp_spin_unlock(ptr)		\
+		BUG_ON(1)
+#endif
+
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
 static inline void __flags_noop(unsigned long *flags) { }
 #define pcp_spin_lock_maybe_irqsave(ptr, flags)		\
@@ -2858,7 +2838,7 @@ static int nr_pcp_high(struct per_cpu_pages *pcp, struct zone *zone,
  */
 static bool free_frozen_page_commit(struct zone *zone,
 		struct per_cpu_pages *pcp, struct page *page, int migratetype,
-		unsigned int order, fpi_t fpi_flags, unsigned long *UP_flags)
+		unsigned int order, fpi_t fpi_flags)
 {
 	int high, batch;
 	int to_free, to_free_batched;
@@ -2918,9 +2898,9 @@ static bool free_frozen_page_commit(struct zone *zone,
 		if (to_free == 0 || pcp->count == 0)
 			break;
 
-		pcp_spin_unlock(pcp, *UP_flags);
+		pcp_spin_unlock(pcp);
 
-		pcp = pcp_spin_trylock(zone->per_cpu_pageset, *UP_flags);
+		pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 		if (!pcp) {
 			ret = false;
 			break;
@@ -2932,7 +2912,7 @@ static bool free_frozen_page_commit(struct zone *zone,
 		 * returned in an unlocked state.
 		 */
 		if (smp_processor_id() != cpu) {
-			pcp_spin_unlock(pcp, *UP_flags);
+			pcp_spin_unlock(pcp);
 			ret = false;
 			break;
 		}
@@ -2964,7 +2944,6 @@ static bool free_frozen_page_commit(struct zone *zone,
 static void __free_frozen_pages(struct page *page, unsigned int order,
 				fpi_t fpi_flags)
 {
-	unsigned long UP_flags;
 	struct per_cpu_pages *pcp;
 	struct zone *zone;
 	unsigned long pfn = page_to_pfn(page);
@@ -3000,12 +2979,12 @@ static void __free_frozen_pages(struct page *page, unsigned int order,
 		add_page_to_zone_llist(zone, page, order);
 		return;
 	}
-	pcp = pcp_spin_trylock(zone->per_cpu_pageset, UP_flags);
+	pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 	if (pcp) {
 		if (!free_frozen_page_commit(zone, pcp, page, migratetype,
-						order, fpi_flags, &UP_flags))
+						order, fpi_flags))
 			return;
-		pcp_spin_unlock(pcp, UP_flags);
+		pcp_spin_unlock(pcp);
 	} else {
 		free_one_page(zone, page, pfn, order, fpi_flags);
 	}
@@ -3026,7 +3005,6 @@ void free_frozen_pages_nolock(struct page *page, unsigned int order)
  */
 void free_unref_folios(struct folio_batch *folios)
 {
-	unsigned long UP_flags;
 	struct per_cpu_pages *pcp = NULL;
 	struct zone *locked_zone = NULL;
 	int i, j;
@@ -3069,7 +3047,7 @@ void free_unref_folios(struct folio_batch *folios)
 		if (zone != locked_zone ||
 		    is_migrate_isolate(migratetype)) {
 			if (pcp) {
-				pcp_spin_unlock(pcp, UP_flags);
+				pcp_spin_unlock(pcp);
 				locked_zone = NULL;
 				pcp = NULL;
 			}
@@ -3088,7 +3066,7 @@ void free_unref_folios(struct folio_batch *folios)
 			 * trylock is necessary as folios may be getting freed
 			 * from IRQ or SoftIRQ context after an IO completion.
 			 */
-			pcp = pcp_spin_trylock(zone->per_cpu_pageset, UP_flags);
+			pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 			if (unlikely(!pcp)) {
 				free_one_page(zone, &folio->page, pfn,
 					      order, FPI_NONE);
@@ -3106,14 +3084,14 @@ void free_unref_folios(struct folio_batch *folios)
 
 		trace_mm_page_free_batched(&folio->page);
 		if (!free_frozen_page_commit(zone, pcp, &folio->page,
-				migratetype, order, FPI_NONE, &UP_flags)) {
+				migratetype, order, FPI_NONE)) {
 			pcp = NULL;
 			locked_zone = NULL;
 		}
 	}
 
 	if (pcp)
-		pcp_spin_unlock(pcp, UP_flags);
+		pcp_spin_unlock(pcp);
 	folio_batch_reinit(folios);
 }
 
@@ -3371,10 +3349,9 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 	struct per_cpu_pages *pcp;
 	struct list_head *list;
 	struct page *page;
-	unsigned long UP_flags;
 
 	/* spin_trylock may fail due to a parallel drain or IRQ reentrancy. */
-	pcp = pcp_spin_trylock(zone->per_cpu_pageset, UP_flags);
+	pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 	if (!pcp)
 		return NULL;
 
@@ -3386,7 +3363,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 	pcp->free_count >>= 1;
 	list = &pcp->lists[order_to_pindex(migratetype, order)];
 	page = __rmqueue_pcplist(zone, order, migratetype, alloc_flags, pcp, list);
-	pcp_spin_unlock(pcp, UP_flags);
+	pcp_spin_unlock(pcp);
 	if (page) {
 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 		zone_statistics(preferred_zone, zone, 1);
@@ -5067,7 +5044,6 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
 			struct page **page_array)
 {
 	struct page *page;
-	unsigned long UP_flags;
 	struct zone *zone;
 	struct zoneref *z;
 	struct per_cpu_pages *pcp;
@@ -5161,7 +5137,7 @@ retry_this_zone:
 		goto failed;
 
 	/* spin_trylock may fail due to a parallel drain or IRQ reentrancy. */
-	pcp = pcp_spin_trylock(zone->per_cpu_pageset, UP_flags);
+	pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 	if (!pcp)
 		goto failed;
 
@@ -5180,7 +5156,7 @@ retry_this_zone:
 		if (unlikely(!page)) {
 			/* Try and allocate at least one page */
 			if (!nr_account) {
-				pcp_spin_unlock(pcp, UP_flags);
+				pcp_spin_unlock(pcp);
 				goto failed;
 			}
 			break;
@@ -5192,7 +5168,7 @@ retry_this_zone:
 		page_array[nr_populated++] = page;
 	}
 
-	pcp_spin_unlock(pcp, UP_flags);
+	pcp_spin_unlock(pcp);
 
 	__count_zid_vm_events(PGALLOC, zone_idx(zone), nr_account);
 	zone_statistics(zonelist_zone(ac.preferred_zoneref), zone, nr_account);
