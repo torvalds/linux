@@ -199,7 +199,6 @@ static struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {		\
 };									\
 static struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = {	\
 	.attr = __ATTR(field, 0444, mdio_bus_device_stat_field_show, NULL), \
-	.address = -1,							\
 	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 }
 
