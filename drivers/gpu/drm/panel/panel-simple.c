@@ -5641,6 +5641,9 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "tianma,p0700wxf1mbaa",
 		.data = &tianma_p0700wxf1mbaa,
 	}, {
+		.compatible = "tianma,tm050rdh03",
+		.data = &ontat_kd50g21_40nt_a1,
+	}, {
 		.compatible = "tianma,tm070jdhg30",
 		.data = &tianma_tm070jdhg30,
 	}, {
