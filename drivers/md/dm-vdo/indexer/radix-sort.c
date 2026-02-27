@@ -211,8 +211,7 @@ int uds_make_radix_sorter(unsigned int count, struct radix_sorter **sorter)
 	unsigned int stack_size = count / INSERTION_SORT_THRESHOLD;
 	struct radix_sorter *radix_sorter;
 
-	result = vdo_allocate_extended(struct radix_sorter, stack_size, struct task,
-				       __func__, &radix_sorter);
+	result = vdo_allocate_extended(stack_size, stack, __func__, &radix_sorter);
 	if (result != VDO_SUCCESS)
 		return result;
 

@@ -2418,8 +2418,7 @@ int vdo_make_hash_zones(struct vdo *vdo, struct hash_zones **zones_ptr)
 	if (zone_count == 0)
 		return VDO_SUCCESS;
 
-	result = vdo_allocate_extended(struct hash_zones, zone_count, struct hash_zone,
-				       __func__, &zones);
+	result = vdo_allocate_extended(zone_count, zones, __func__, &zones);
 	if (result != VDO_SUCCESS)
 		return result;
 

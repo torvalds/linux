@@ -842,8 +842,7 @@ int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 	struct data_vio_pool *pool;
 	data_vio_count_t i;
 
-	result = vdo_allocate_extended(struct data_vio_pool, pool_size, struct data_vio,
-				       __func__, &pool);
+	result = vdo_allocate_extended(pool_size, data_vios, __func__, &pool);
 	if (result != VDO_SUCCESS)
 		return result;
 

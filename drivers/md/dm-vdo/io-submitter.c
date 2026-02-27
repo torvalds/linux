@@ -383,8 +383,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 	struct io_submitter *io_submitter;
 	int result;
 
-	result = vdo_allocate_extended(struct io_submitter, thread_count,
-				       struct bio_queue_data, "bio submission data",
+	result = vdo_allocate_extended(thread_count, bio_queue_data, "bio submission data",
 				       &io_submitter);
 	if (result != VDO_SUCCESS)
 		return result;

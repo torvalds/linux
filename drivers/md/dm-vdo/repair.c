@@ -1715,9 +1715,7 @@ void vdo_repair(struct vdo_completion *parent)
 		vdo_log_warning("Device was dirty, rebuilding reference counts");
 	}
 
-	result = vdo_allocate_extended(struct repair_completion, page_count,
-				       struct vdo_page_completion, __func__,
-				       &repair);
+	result = vdo_allocate_extended(page_count, page_completions, __func__, &repair);
 	if (result != VDO_SUCCESS) {
 		vdo_fail_completion(parent, result);
 		return;

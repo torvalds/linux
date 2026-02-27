@@ -459,8 +459,7 @@ static int __must_check make_index_save_region_table(struct index_save_layout *i
 		type = RH_TYPE_UNSAVED;
 	}
 
-	result = vdo_allocate_extended(struct region_table, region_count,
-				       struct layout_region,
+	result = vdo_allocate_extended(region_count, regions,
 				       "layout region table for ISL", &table);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -642,9 +641,8 @@ static int __must_check make_layout_region_table(struct index_layout *layout,
 	struct region_table *table;
 	struct layout_region *lr;
 
-	result = vdo_allocate_extended(struct region_table, region_count,
-				       struct layout_region, "layout region table",
-				       &table);
+	result = vdo_allocate_extended(region_count, regions,
+				       "layout region table", &table);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1138,8 +1136,7 @@ static int __must_check load_region_table(struct buffered_reader *reader,
 					      header.version);
 	}
 
-	result = vdo_allocate_extended(struct region_table, header.region_count,
-				       struct layout_region,
+	result = vdo_allocate_extended(header.region_count, regions,
 				       "single file layout region table", &table);
 	if (result != VDO_SUCCESS)
 		return result;

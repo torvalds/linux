@@ -8,6 +8,7 @@
 
 #include <linux/cache.h>
 #include <linux/io.h> /* for PAGE_SIZE */
+#include <linux/overflow.h>
 
 #include "permassert.h"
 #include "thread-registry.h"
@@ -71,31 +72,21 @@ static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
 	__vdo_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
 
 /*
- * Allocate one object of an indicated type, followed by one or more elements of a second type,
- * logging an error if the allocation fails. The memory will be zeroed.
+ * Allocate a structure with a flexible array member, with a specified number of elements, logging
+ * an error if the allocation fails. The memory will be zeroed.
  *
- * @TYPE1: The type of the primary object to allocate. This type determines the alignment of the
- *         allocated memory.
  * @COUNT: The number of objects to allocate
- * @TYPE2: The type of array objects to allocate
+ * @FIELD: The flexible array field at the end of the structure
  * @WHAT: What is being allocated (for error logging)
  * @PTR: A pointer to hold the allocated memory
  *
  * Return: VDO_SUCCESS or an error code
  */
-#define vdo_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)		\
-	__extension__({							\
-		int _result;						\
-		TYPE1 **_ptr = (PTR);					\
-		BUILD_BUG_ON(__alignof__(TYPE1) < __alignof__(TYPE2));	\
-		_result = __vdo_do_allocation(COUNT,			\
-					      sizeof(TYPE2),		\
-					      sizeof(TYPE1),		\
-					      __alignof__(TYPE1),	\
-					      WHAT,			\
-					      _ptr);			\
-		_result;						\
-	})
+#define vdo_allocate_extended(COUNT, FIELD, WHAT, PTR)			\
+	vdo_allocate_memory(struct_size(*(PTR), FIELD, (COUNT)),	\
+			    __alignof__(typeof(**(PTR))),		\
+			    WHAT,					\
+			    (PTR))
 
 /*
  * Allocate memory starting on a cache line boundary, logging an error if the allocation fails. The

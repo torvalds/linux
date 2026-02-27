@@ -764,9 +764,7 @@ static int make_chapter_writer(struct uds_index *index,
 	size_t collated_records_size =
 		(sizeof(struct uds_volume_record) * index->volume->geometry->records_per_chapter);
 
-	result = vdo_allocate_extended(struct chapter_writer, index->zone_count,
-				       struct open_chapter_zone *, "Chapter Writer",
-				       &writer);
+	result = vdo_allocate_extended(index->zone_count, chapters, "Chapter Writer", &writer);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1160,8 +1158,7 @@ int uds_make_index(struct uds_configuration *config, enum uds_open_index_type op
 	u64 nonce;
 	unsigned int z;
 
-	result = vdo_allocate_extended(struct uds_index, config->zone_count,
-				       struct uds_request_queue *, "index", &index);
+	result = vdo_allocate_extended(config->zone_count, zone_queues, "index", &index);
 	if (result != VDO_SUCCESS)
 		return result;
 
