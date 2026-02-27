@@ -8,6 +8,7 @@
 #include <hal_btcoex.h>
 #include <linux/jiffies.h>
 #include <linux/align.h>
+#include <linux/delay.h>
 
 static struct _cmd_callback rtw_cmd_callback[] = {
 	{GEN_CMD_CODE(_Read_MACREG), NULL}, /*0*/
@@ -214,7 +215,7 @@ void _rtw_free_evt_priv(struct	evt_priv *pevtpriv)
 {
 	_cancel_workitem_sync(&pevtpriv->c2h_wk);
 	while (pevtpriv->c2h_wk_alive)
-		msleep(10);
+		fsleep(10 * USEC_PER_MSEC);
 
 	while (!rtw_cbuf_empty(pevtpriv->c2h_queue)) {
 		void *c2h = rtw_cbuf_pop(pevtpriv->c2h_queue);
@@ -1502,7 +1503,7 @@ static void rtw_chk_hi_queue_hdl(struct adapter *padapter)
 	rtw_hal_get_hwreg(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &empty);
 
 	while (!empty && jiffies_to_msecs(jiffies - start) < g_wait_hiq_empty) {
-		msleep(100);
+		fsleep(100 * USEC_PER_MSEC);
 		rtw_hal_get_hwreg(padapter, HW_VAR_CHK_HI_QUEUE_EMPTY, &empty);
 	}
 
