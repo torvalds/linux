@@ -24,8 +24,6 @@ static const char *dpu_vbif_name(enum dpu_vbif idx)
 	switch (idx) {
 	case VBIF_RT:
 		return "VBIF_RT";
-	case VBIF_NRT:
-		return "VBIF_NRT";
 	default:
 		return "??";
 	}

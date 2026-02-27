@@ -1357,14 +1357,6 @@ static int dpu_kms_mmap_mdp5(struct dpu_kms *dpu_kms)
 		return ret;
 	}
 
-	dpu_kms->vbif[VBIF_NRT] = msm_ioremap_mdss(mdss_dev,
-						   dpu_kms->pdev,
-						   "vbif_nrt_phys");
-	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
-		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
-	}
-
 	return 0;
 }
 
@@ -1388,12 +1380,6 @@ static int dpu_kms_mmap_dpu(struct dpu_kms *dpu_kms)
 		DPU_ERROR("vbif register memory map failed: %d\n", ret);
 		dpu_kms->vbif[VBIF_RT] = NULL;
 		return ret;
-	}
-
-	dpu_kms->vbif[VBIF_NRT] = msm_ioremap_quiet(pdev, "vbif_nrt");
-	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
-		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
 	}
 
 	return 0;
