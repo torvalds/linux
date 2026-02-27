@@ -3,27 +3,21 @@
  * Copyright © 2021 Intel Corporation
  */
 
-/* for ioread64 */
-#include <linux/io-64-nonatomic-lo-hi.h>
-
 #include <drm/intel/display_parent_interface.h>
 
 #include "regs/xe_gtt_defs.h"
-#include "xe_ggtt.h"
-#include "xe_mmio.h"
 
 #include "intel_crtc.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
-#include "intel_fbdev_fb.h"
 #include "intel_fb_pin.h"
+#include "intel_fbdev_fb.h"
 #include "xe_bo.h"
 #include "xe_display_vma.h"
+#include "xe_ggtt.h"
+#include "xe_mmio.h"
 #include "xe_vram_types.h"
-#include "xe_wa.h"
-
-#include <generated/xe_device_wa_oob.h>
 
 /* Early xe has no irq */
 static void xe_initial_plane_vblank_wait(struct drm_crtc *_crtc)
