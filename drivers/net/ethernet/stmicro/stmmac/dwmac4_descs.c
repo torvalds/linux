@@ -171,11 +171,6 @@ static int dwmac4_wrback_get_rx_status(struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int dwmac4_rd_get_tx_len(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des2) & TDES2_BUFFER1_SIZE_MASK);
-}
-
 static void dwmac4_set_tx_owner(struct dma_desc *p)
 {
 	p->des3 |= cpu_to_le32(TDES3_OWN);
@@ -540,7 +535,6 @@ static void dwmac4_set_tbs(struct dma_edesc *p, u32 sec, u32 nsec)
 const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.tx_status = dwmac4_wrback_get_tx_status,
 	.rx_status = dwmac4_wrback_get_rx_status,
-	.get_tx_len = dwmac4_rd_get_tx_len,
 	.set_tx_owner = dwmac4_set_tx_owner,
 	.set_rx_owner = dwmac4_set_rx_owner,
 	.get_rx_vlan_tci = dwmac4_wrback_get_rx_vlan_tci,

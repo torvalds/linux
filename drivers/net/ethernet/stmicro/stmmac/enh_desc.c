@@ -76,11 +76,6 @@ static int enh_desc_get_tx_status(struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int enh_desc_get_tx_len(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des1) & ETDES1_BUFFER1_SIZE_MASK);
-}
-
 static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 {
 	int ret = good_frame;
@@ -435,7 +430,6 @@ static void enh_desc_clear(struct dma_desc *p)
 const struct stmmac_desc_ops enh_desc_ops = {
 	.tx_status = enh_desc_get_tx_status,
 	.rx_status = enh_desc_get_rx_status,
-	.get_tx_len = enh_desc_get_tx_len,
 	.init_rx_desc = enh_desc_init_rx_desc,
 	.init_tx_desc = enh_desc_init_tx_desc,
 	.release_tx_desc = enh_desc_release_tx_desc,

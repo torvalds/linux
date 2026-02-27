@@ -55,11 +55,6 @@ static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int ndesc_get_tx_len(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des1) & RDES1_BUFFER1_SIZE_MASK);
-}
-
 /* This function verifies if each incoming frame has some errors
  * and, if required, updates the multicast statistics.
  * In case of success, it returns good_frame because the GMAC device
@@ -281,7 +276,6 @@ static void ndesc_clear(struct dma_desc *p)
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
-	.get_tx_len = ndesc_get_tx_len,
 	.init_rx_desc = ndesc_init_rx_desc,
 	.init_tx_desc = ndesc_init_tx_desc,
 	.release_tx_desc = ndesc_release_tx_desc,
