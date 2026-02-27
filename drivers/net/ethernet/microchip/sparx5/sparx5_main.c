@@ -658,6 +658,58 @@ static int sparx5_qlim_set(struct sparx5 *sparx5)
 	return 0;
 }
 
+static int sparx5_frame_io_init(struct sparx5 *sparx5)
+{
+	const struct sparx5_ops *ops = sparx5->data->ops;
+	int err = -ENXIO;
+
+	/* Start Frame DMA with fallback to register based INJ/XTR */
+	if (sparx5->fdma_irq >= 0) {
+		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0 ||
+		    !is_sparx5(sparx5))
+			err = devm_request_irq(sparx5->dev,
+					       sparx5->fdma_irq,
+					       sparx5_fdma_handler,
+					       0,
+					       "sparx5-fdma", sparx5);
+		if (!err) {
+			err = ops->fdma_init(sparx5);
+			if (!err)
+				sparx5_fdma_start(sparx5);
+		}
+		if (err)
+			sparx5->fdma_irq = -ENXIO;
+	} else {
+		sparx5->fdma_irq = -ENXIO;
+	}
+	if (err && sparx5->xtr_irq >= 0) {
+		err = devm_request_irq(sparx5->dev, sparx5->xtr_irq,
+				       sparx5_xtr_handler, IRQF_SHARED,
+				       "sparx5-xtr", sparx5);
+		if (!err)
+			err = sparx5_manual_injection_mode(sparx5);
+		if (err)
+			sparx5->xtr_irq = -ENXIO;
+	} else {
+		sparx5->xtr_irq = -ENXIO;
+	}
+
+	return err;
+}
+
+static void sparx5_frame_io_deinit(struct sparx5 *sparx5)
+{
+	if (sparx5->xtr_irq >= 0) {
+		disable_irq(sparx5->xtr_irq);
+		sparx5->xtr_irq = -ENXIO;
+	}
+	if (sparx5->fdma_irq >= 0) {
+		disable_irq(sparx5->fdma_irq);
+		sparx5->data->ops->fdma_deinit(sparx5);
+		sparx5->fdma_irq = -ENXIO;
+	}
+}
+
 /* Some boards needs to map the SGPIO for signal detect explicitly to the
  * port module
  */
@@ -686,9 +738,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 static int sparx5_start(struct sparx5 *sparx5)
 {
 	const struct sparx5_consts *consts = sparx5->data->consts;
-	const struct sparx5_ops *ops = sparx5->data->ops;
 	u32 idx;
-	int err;
 
 	/* Setup own UPSIDs */
 	for (idx = 0; idx < consts->n_own_upsids; idx++) {
@@ -729,39 +779,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
-	/* Start Frame DMA with fallback to register based INJ/XTR */
-	err = -ENXIO;
-	if (sparx5->fdma_irq >= 0) {
-		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0 ||
-		    !is_sparx5(sparx5))
-			err = devm_request_irq(sparx5->dev,
-					       sparx5->fdma_irq,
-					       sparx5_fdma_handler,
-					       0,
-					       "sparx5-fdma", sparx5);
-		if (!err) {
-			err = ops->fdma_init(sparx5);
-			if (!err)
-				sparx5_fdma_start(sparx5);
-		}
-		if (err)
-			sparx5->fdma_irq = -ENXIO;
-	} else {
-		sparx5->fdma_irq = -ENXIO;
-	}
-	if (err && sparx5->xtr_irq >= 0) {
-		err = devm_request_irq(sparx5->dev, sparx5->xtr_irq,
-				       sparx5_xtr_handler, IRQF_SHARED,
-				       "sparx5-xtr", sparx5);
-		if (!err)
-			err = sparx5_manual_injection_mode(sparx5);
-		if (err)
-			sparx5->xtr_irq = -ENXIO;
-	} else {
-		sparx5->xtr_irq = -ENXIO;
-	}
-
-	return err;
+	return 0;
 }
 
 static int mchp_sparx5_probe(struct platform_device *pdev)
@@ -964,10 +982,16 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&sparx5->mall_entries);
 
+	err = sparx5_frame_io_init(sparx5);
+	if (err) {
+		dev_err(sparx5->dev, "Failed to initialize frame I/O\n");
+		goto cleanup_stats;
+	}
+
 	err = sparx5_ptp_init(sparx5);
 	if (err) {
 		dev_err(sparx5->dev, "Failed to initialize PTP\n");
-		goto cleanup_stats;
+		goto cleanup_frame_io;
 	}
 
 	err = sparx5_register_netdevs(sparx5);
@@ -988,6 +1012,8 @@ cleanup_netdevs:
 	sparx5_unregister_netdevs(sparx5);
 cleanup_ptp:
 	sparx5_ptp_deinit(sparx5);
+cleanup_frame_io:
+	sparx5_frame_io_deinit(sparx5);
 cleanup_stats:
 	sparx5_stats_deinit(sparx5);
 cleanup_mact:
@@ -1006,24 +1032,15 @@ cleanup_pnode:
 static void mchp_sparx5_remove(struct platform_device *pdev)
 {
 	struct sparx5 *sparx5 = platform_get_drvdata(pdev);
-	const struct sparx5_ops *ops = sparx5->data->ops;
 
 	debugfs_remove_recursive(sparx5->debugfs_root);
-	if (sparx5->xtr_irq) {
-		disable_irq(sparx5->xtr_irq);
-		sparx5->xtr_irq = -ENXIO;
-	}
-	if (sparx5->fdma_irq) {
-		disable_irq(sparx5->fdma_irq);
-		sparx5->fdma_irq = -ENXIO;
-	}
 	sparx5_unregister_notifier_blocks(sparx5);
 	sparx5_unregister_netdevs(sparx5);
 	sparx5_ptp_deinit(sparx5);
+	sparx5_frame_io_deinit(sparx5);
 	sparx5_stats_deinit(sparx5);
 	sparx5_mact_deinit(sparx5);
 	sparx5_vcap_deinit(sparx5);
-	ops->fdma_deinit(sparx5);
 	sparx5_destroy_netdevs(sparx5);
 }
 
