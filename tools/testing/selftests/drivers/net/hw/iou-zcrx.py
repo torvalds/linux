@@ -2,13 +2,26 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import re
+import time
 from os import path
 from lib.py import ksft_run, ksft_exit, KsftSkipEx, ksft_variants, KsftNamedVariant
 from lib.py import NetDrvEpEnv
 from lib.py import bkg, cmd, defer, ethtool, rand_port, wait_port_listen
-from lib.py import EthtoolFamily
+from lib.py import EthtoolFamily, NetdevFamily
 
 SKIP_CODE = 42
+
+
+def mp_clear_wait(cfg):
+    """Wait for io_uring memory providers to clear from all device queues."""
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        queues = cfg.netnl.queue_get({'ifindex': cfg.ifindex}, dump=True)
+        if not any('io-uring' in q for q in queues):
+            return
+        time.sleep(0.1)
+    raise TimeoutError("Timed out waiting for memory provider to clear")
+
 
 def create_rss_ctx(cfg):
     output = ethtool(f"-X {cfg.ifname} context new start {cfg.target} equal 1").stdout
@@ -46,6 +59,7 @@ def single(cfg):
                                 'tcp-data-split': 'unknown',
                                 'hds-thresh': hds_thresh,
                                 'rx': rx_rings})
+    defer(mp_clear_wait, cfg)
 
     cfg.target = channels - 1
     ethtool(f"-X {cfg.ifname} equal {cfg.target}")
@@ -73,6 +87,7 @@ def rss(cfg):
                                 'tcp-data-split': 'unknown',
                                 'hds-thresh': hds_thresh,
                                 'rx': rx_rings})
+    defer(mp_clear_wait, cfg)
 
     cfg.target = channels - 1
     ethtool(f"-X {cfg.ifname} equal {cfg.target}")
@@ -159,6 +174,7 @@ def main() -> None:
         cfg.bin_remote = cfg.remote.deploy(cfg.bin_local)
 
         cfg.ethnl = EthtoolFamily()
+        cfg.netnl = NetdevFamily()
         cfg.port = rand_port()
         ksft_run(globs=globals(), cases=[test_zcrx, test_zcrx_oneshot], args=(cfg, ))
     ksft_exit()
