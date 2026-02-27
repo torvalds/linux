@@ -51,16 +51,27 @@ static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
 		iommu_pages_stop_incoherent_list(free_list,
 						 iommu_table->iommu_device);
 
-	if (pt_feature(common, PT_FEAT_FLUSH_RANGE_NO_GAPS) &&
-	    iommu_iotlb_gather_is_disjoint(iotlb_gather, iova, len)) {
-		iommu_iotlb_sync(&iommu_table->domain, iotlb_gather);
-		/*
-		 * Note that the sync frees the gather's free list, so we must
-		 * not have any pages on that list that are covered by iova/len
-		 */
+	/*
+	 * If running in DMA-FQ mode then the unmap will be followed by an IOTLB
+	 * flush all so we need to optimize by never flushing the IOTLB here.
+	 *
+	 * For NO_GAPS the user gets to pick if flushing all or doing micro
+	 * flushes is better for their work load by choosing DMA vs DMA-FQ
+	 * operation. Drivers should also see shadow_on_flush.
+	 */
+	if (!iommu_iotlb_gather_queued(iotlb_gather)) {
+		if (pt_feature(common, PT_FEAT_FLUSH_RANGE_NO_GAPS) &&
+		    iommu_iotlb_gather_is_disjoint(iotlb_gather, iova, len)) {
+			iommu_iotlb_sync(&iommu_table->domain, iotlb_gather);
+			/*
+			 * Note that the sync frees the gather's free list, so
+			 * we must not have any pages on that list that are
+			 * covered by iova/len
+			 */
+		}
+		iommu_iotlb_gather_add_range(iotlb_gather, iova, len);
 	}
 
-	iommu_iotlb_gather_add_range(iotlb_gather, iova, len);
 	iommu_pages_list_splice(free_list, &iotlb_gather->freelist);
 }
 
