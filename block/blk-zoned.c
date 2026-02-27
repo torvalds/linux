@@ -514,10 +514,11 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 	 * are racing with other submission context, so we may already have a
 	 * zone write plug for the same zone.
 	 */
-	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	spin_lock_irqsave(&disk->zone_wplugs_hash_lock, flags);
 	hlist_for_each_entry_rcu(zwplg, &disk->zone_wplugs_hash[idx], node) {
 		if (zwplg->zone_no == zwplug->zone_no) {
-			spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+			spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock,
+					       flags);
 			return false;
 		}
 	}
@@ -529,7 +530,7 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 	 * necessarilly in the active condition.
 	 */
 	zones_cond = rcu_dereference_check(disk->zones_cond,
-				lockdep_is_held(&disk->zone_wplugs_lock));
+				lockdep_is_held(&disk->zone_wplugs_hash_lock));
 	if (zones_cond)
 		zwplug->cond = zones_cond[zwplug->zone_no];
 	else
@@ -537,7 +538,7 @@ static bool disk_insert_zone_wplug(struct gendisk *disk,
 
 	hlist_add_head_rcu(&zwplug->node, &disk->zone_wplugs_hash[idx]);
 	atomic_inc(&disk->nr_zone_wplugs);
-	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+	spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock, flags);
 
 	return true;
 }
@@ -590,13 +591,13 @@ static void disk_free_zone_wplug(struct blk_zone_wplug *zwplug)
 	WARN_ON_ONCE(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED);
 	WARN_ON_ONCE(!bio_list_empty(&zwplug->bio_list));
 
-	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	spin_lock_irqsave(&disk->zone_wplugs_hash_lock, flags);
 	blk_zone_set_cond(rcu_dereference_check(disk->zones_cond,
-				lockdep_is_held(&disk->zone_wplugs_lock)),
+				lockdep_is_held(&disk->zone_wplugs_hash_lock)),
 			  zwplug->zone_no, zwplug->cond);
 	hlist_del_init_rcu(&zwplug->node);
 	atomic_dec(&disk->nr_zone_wplugs);
-	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+	spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock, flags);
 
 	call_rcu(&zwplug->rcu_head, disk_free_zone_wplug_rcu);
 }
@@ -1739,7 +1740,7 @@ put_zwplug:
 
 void disk_init_zone_resources(struct gendisk *disk)
 {
-	spin_lock_init(&disk->zone_wplugs_lock);
+	spin_lock_init(&disk->zone_wplugs_hash_lock);
 }
 
 /*
@@ -1829,10 +1830,10 @@ static void disk_set_zones_cond_array(struct gendisk *disk, u8 *zones_cond)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
+	spin_lock_irqsave(&disk->zone_wplugs_hash_lock, flags);
 	zones_cond = rcu_replace_pointer(disk->zones_cond, zones_cond,
-				lockdep_is_held(&disk->zone_wplugs_lock));
-	spin_unlock_irqrestore(&disk->zone_wplugs_lock, flags);
+				lockdep_is_held(&disk->zone_wplugs_hash_lock));
+	spin_unlock_irqrestore(&disk->zone_wplugs_hash_lock, flags);
 
 	kfree_rcu_mightsleep(zones_cond);
 }
