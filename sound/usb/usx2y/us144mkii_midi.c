@@ -3,7 +3,7 @@
 
 #include "us144mkii.h"
 
-/**
+/*
  * tascam_midi_in_work_handler() - Deferred work for processing MIDI input.
  * @work: The work_struct instance.
  *
@@ -75,7 +75,7 @@ out:
 	usb_put_urb(urb);
 }
 
-/**
+/*
  * tascam_midi_in_open() - Opens the MIDI input substream.
  * @substream: The ALSA rawmidi substream to open.
  *
@@ -92,7 +92,7 @@ static int tascam_midi_in_open(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_midi_in_close() - Closes the MIDI input substream.
  * @substream: The ALSA rawmidi substream to close.
  *
@@ -103,7 +103,7 @@ static int tascam_midi_in_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_midi_in_trigger() - Triggers MIDI input stream activity.
  * @substream: The ALSA rawmidi substream.
  * @up: Boolean indicating whether to start (1) or stop (0) the stream.
@@ -150,7 +150,7 @@ static void tascam_midi_in_trigger(struct snd_rawmidi_substream *substream,
 	}
 }
 
-/**
+/*
  * tascam_midi_in_ops - ALSA rawmidi operations for MIDI input.
  *
  * This structure defines the callback functions for MIDI input stream
@@ -205,7 +205,7 @@ out:
 	usb_put_urb(urb);
 }
 
-/**
+/*
  * tascam_midi_out_work_handler() - Deferred work for sending MIDI data
  * @work: The work_struct instance.
  *
@@ -282,7 +282,7 @@ static void tascam_midi_out_work_handler(struct work_struct *work)
 	}
 }
 
-/**
+/*
  * tascam_midi_out_open() - Opens the MIDI output substream.
  * @substream: The ALSA rawmidi substream to open.
  *
@@ -301,7 +301,7 @@ static int tascam_midi_out_open(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_midi_out_close() - Closes the MIDI output substream.
  * @substream: The ALSA rawmidi substream to close.
  *
@@ -312,7 +312,7 @@ static int tascam_midi_out_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-/**
+/*
  * tascam_midi_out_drain() - Drains the MIDI output stream.
  * @substream: The ALSA rawmidi substream.
  *
@@ -340,7 +340,7 @@ static void tascam_midi_out_drain(struct snd_rawmidi_substream *substream)
 	usb_kill_anchored_urbs(&tascam->midi_out_anchor);
 }
 
-/**
+/*
  * tascam_midi_out_trigger() - Triggers MIDI output stream activity.
  * @substream: The ALSA rawmidi substream.
  * @up: Boolean indicating whether to start (1) or stop (0) the stream.
@@ -361,7 +361,7 @@ static void tascam_midi_out_trigger(struct snd_rawmidi_substream *substream,
 	}
 }
 
-/**
+/*
  * tascam_midi_out_ops - ALSA rawmidi operations for MIDI output.
  *
  * This structure defines the callback functions for MIDI output stream

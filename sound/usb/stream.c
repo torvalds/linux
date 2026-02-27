@@ -1259,6 +1259,9 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			set_iface_first = true;
 
 		/* try to set the interface... */
+		if (chip->quirk_flags & QUIRK_FLAG_SKIP_IFACE_SETUP)
+			continue;
+
 		usb_set_interface(chip->dev, iface_no, 0);
 		if (set_iface_first)
 			usb_set_interface(chip->dev, iface_no, altno);
