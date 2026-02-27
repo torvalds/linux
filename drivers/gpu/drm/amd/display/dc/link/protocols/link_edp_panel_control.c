@@ -1094,8 +1094,6 @@ bool edp_send_replay_cmd(struct dc_link *link,
 	if (!replay)
 		return false;
 
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	if (dp_pr_get_panel_inst(dc, link, &panel_inst))
 		cmd_data->panel_inst = panel_inst;
 	else {

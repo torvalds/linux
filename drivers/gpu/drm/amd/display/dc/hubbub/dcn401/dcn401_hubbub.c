@@ -1151,8 +1151,6 @@ void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned compbuf_siz
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
-	unsigned int cur_compbuf_size_seg = 0;
-
 	if (safe_to_increase || compbuf_size_seg <= hubbub2->compbuf_size_segments) {
 		if (compbuf_size_seg > hubbub2->compbuf_size_segments) {
 			REG_WAIT(DCHUBBUB_DET0_CTRL, DET0_SIZE_CURRENT, hubbub2->det0_size, 1, 100);
@@ -1165,8 +1163,6 @@ void dcn401_program_compbuf_segments(struct hubbub *hubbub, unsigned compbuf_siz
 				+ hubbub2->det3_size + compbuf_size_seg <= hubbub2->crb_size_segs);
 		REG_UPDATE(DCHUBBUB_COMPBUF_CTRL, COMPBUF_SIZE, compbuf_size_seg);
 		hubbub2->compbuf_size_segments = compbuf_size_seg;
-
-		ASSERT(REG_GET(DCHUBBUB_COMPBUF_CTRL, CONFIG_ERROR, &cur_compbuf_size_seg) && !cur_compbuf_size_seg);
 	}
 }
 

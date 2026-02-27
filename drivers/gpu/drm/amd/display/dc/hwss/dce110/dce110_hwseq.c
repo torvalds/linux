@@ -86,9 +86,9 @@
 	hws->ctx
 
 #define DC_LOGGER \
-	ctx->logger
-#define DC_LOGGER_INIT() \
-	struct dc_context *ctx = dc->ctx
+	dc_ctx->logger
+#define DC_LOGGER_INIT(ctx) \
+	struct dc_context *dc_ctx = ctx
 
 #define REG(reg)\
 	hws->regs->reg
@@ -687,7 +687,7 @@ dce110_external_encoder_control(enum bp_external_encoder_control_action action,
 		.pixel_clock = timing ? timing->pix_clk_100hz / 10 : 300000,
 		.color_depth = timing ? timing->display_color_depth : COLOR_DEPTH_888,
 	};
-	DC_LOGGER_INIT();
+	DC_LOGGER_INIT(dc->ctx);
 
 	bp_result = bios->funcs->external_encoder_control(bios, &ext_cntl);
 
@@ -767,12 +767,13 @@ void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up)
 {
-	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
 		PANEL_POWER_UP_TIMEOUT : PANEL_POWER_DOWN_TIMEOUT;
+
+	DC_LOGGER_INIT(link->ctx);
 
 	if (dal_graphics_object_id_get_connector_id(connector)
 			!= CONNECTOR_ID_EDP) {
@@ -825,6 +826,7 @@ void dce110_edp_power_control(
 	enum bp_result bp_result;
 	uint8_t pwrseq_instance;
 
+	DC_LOGGER_INIT(ctx);
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 			!= CONNECTOR_ID_EDP) {
@@ -992,6 +994,8 @@ void dce110_edp_backlight_control(
 	uint8_t pwrseq_instance = 0;
 	unsigned int pre_T11_delay = (link->dpcd_sink_ext_caps.bits.oled ? OLED_PRE_T11_DELAY : 0);
 	unsigned int post_T7_delay = (link->dpcd_sink_ext_caps.bits.oled ? OLED_POST_T7_DELAY : 0);
+
+	DC_LOGGER_INIT(ctx);
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1969,8 +1973,7 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 	bool keep_edp_vdd_on = false;
 	bool should_clean_dsc_block = true;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
-	DC_LOGGER_INIT();
-
+	DC_LOGGER_INIT(dc->ctx);
 
 	get_edp_links_with_sink(dc, edp_links_with_sink, &edp_with_sink_num);
 	dc_get_edp_links(dc, edp_links, &edp_num);
@@ -2736,7 +2739,6 @@ static bool wait_for_reset_trigger_to_occur(
 	struct dc_context *dc_ctx,
 	struct timing_generator *tg)
 {
-	struct dc_context *ctx = dc_ctx;
 	bool rc = false;
 
 	/* To avoid endless loop we wait at most
@@ -2778,10 +2780,9 @@ static void dce110_enable_timing_synchronization(
 		int group_size,
 		struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	struct dcp_gsl_params gsl_params = { 0 };
 	int i;
-	DC_LOGGER_INIT();
+	DC_LOGGER_INIT(dc->ctx);
 
 	DC_SYNC_INFO("GSL: Setting-up...\n");
 
@@ -2824,10 +2825,9 @@ static void dce110_enable_per_frame_crtc_position_reset(
 		int group_size,
 		struct pipe_ctx *grouped_pipes[])
 {
-	struct dc_context *dc_ctx = dc->ctx;
 	struct dcp_gsl_params gsl_params = { 0 };
 	int i;
-	DC_LOGGER_INIT();
+	DC_LOGGER_INIT(dc->ctx);
 
 	gsl_params.gsl_group = 0;
 	gsl_params.gsl_master = 0;

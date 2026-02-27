@@ -2431,7 +2431,6 @@ static void resource_log_pipe_for_stream(struct dc *dc, struct dc_state *state,
 
 	int slice_idx, dpp_idx, plane_idx, slice_count, dpp_count;
 	bool is_primary;
-	DC_LOGGER_INIT(dc->ctx->logger);
 
 	slice_count = resource_get_opp_heads_for_otg_master(otg_master,
 			&state->res_ctx, opp_heads);

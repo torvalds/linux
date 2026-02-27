@@ -2341,8 +2341,6 @@ static bool init_soc_bounding_box(struct dc *dc,
 	struct _vcs_dpi_ip_params_st *loaded_ip =
 			get_asic_rev_ip_params(dc->ctx->asic_id.hw_internal_rev);
 
-	DC_LOGGER_INIT(dc->ctx->logger);
-
 	if (pool->base.pp_smu) {
 		struct pp_smu_nv_clock_table max_clocks = {0};
 		unsigned int uclk_states[8] = {0};

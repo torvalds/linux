@@ -513,7 +513,6 @@ static void dcn31_reset_back_end_for_pipe(
 {
 	struct dc_link *link;
 
-	DC_LOGGER_INIT(dc->ctx->logger);
 	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
 		return;

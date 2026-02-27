@@ -352,7 +352,7 @@ static void query_dp_dual_mode_adaptor(
 			*dongle = DISPLAY_DONGLE_DP_DVI_DONGLE;
 			sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
-			CONN_DATA_DETECT(ddc->link, type2_dongle_buf, sizeof(type2_dongle_buf),
+			CONN_DATA_DETECT(link, type2_dongle_buf, sizeof(type2_dongle_buf),
 					"DP-DVI passive dongle %dMhz: ",
 					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
 			return;
@@ -657,8 +657,6 @@ static bool wait_for_entering_dp_alt_mode(struct dc_link *link)
 	unsigned long long time_taken_in_ns;
 	int tries_taken;
 
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	/**
 	 * this function will only exist if we are on dcn21 (is_in_alt_mode is a
 	 *  function pointer, so checking to see if it is equal to 0 is the same
@@ -729,8 +727,6 @@ static void revert_dpia_mst_dsc_always_on_wa(struct dc_link *link)
 
 static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason reason)
 {
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	LINK_INFO("link=%d, mst branch is now Connected\n",
 		  link->link_index);
 
@@ -750,8 +746,6 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 
 bool link_reset_cur_dp_mst_topology(struct dc_link *link)
 {
-	DC_LOGGER_INIT(link->ctx->logger);
-
 	LINK_INFO("link=%d, mst branch is now Disconnected\n",
 		  link->link_index);
 
@@ -976,8 +970,6 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 	struct dpcd_caps prev_dpcd_caps;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	const uint32_t post_oui_delay = 30; // 30ms
-
-	DC_LOGGER_INIT(link->ctx->logger);
 
 	if (dc_is_virtual_signal(link->connector_signal))
 		return false;
@@ -1458,8 +1450,6 @@ bool link_detect(struct dc_link *link, enum dc_detect_reason reason)
 	bool is_local_sink_detect_success;
 	bool is_delegated_to_mst_top_mgr = false;
 	enum dc_connection_type pre_link_type = link->type;
-
-	DC_LOGGER_INIT(link->ctx->logger);
 
 	is_local_sink_detect_success = detect_link_and_local_sink(link, reason);
 
