@@ -886,6 +886,21 @@ Description:
 		zone commands, they will be treated as regular block devices and
 		zoned will report "none".
 
+What:		/sys/block/<disk>/queue/zoned_qd1_writes
+Date:		January 2026
+Contact:	Damien Le Moal <dlemoal@kernel.org>
+Description:
+		[RW] zoned_qd1_writes indicates if write operations to a zoned
+		block device are being handled using a single issuer context (a
+		kernel thread) operating at a maximum queue depth of 1. This
+		attribute is visible only for zoned block devices. The default
+		value for zoned block devices that are not rotational devices
+		(e.g. ZNS SSDs or zoned UFS devices) is 0. For rotational zoned
+		block devices (e.g. SMR HDDs) the default value is 1. Since
+		this default may not be appropriate for some devices, e.g.
+		remotely connected devices over high latency networks, the user
+		can disable this feature by setting this attribute to 0.
+
 
 What:		/sys/block/<disk>/hidden
 Date:		March 2023
