@@ -374,7 +374,6 @@ static void _dpu_plane_set_ot_limit(struct drm_plane *plane,
 	ot_params.height = drm_rect_height(&pipe_cfg->src_rect);
 	ot_params.is_wfd = !pdpu->is_rt_pipe;
 	ot_params.frame_rate = frame_rate;
-	ot_params.vbif_idx = VBIF_RT;
 	ot_params.rd = true;
 
 	if (!_dpu_plane_sspp_clk_force_ctrl(pipe->sspp, dpu_kms->hw_mdp,
@@ -402,14 +401,12 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane,
 	bool forced_on = false;
 
 	memset(&qos_params, 0, sizeof(qos_params));
-	qos_params.vbif_idx = VBIF_RT;
 	qos_params.xin_id = pipe->sspp->cap->xin_id;
 	qos_params.num = pipe->sspp->idx - SSPP_VIG0;
 	qos_params.is_rt = pdpu->is_rt_pipe;
 
-	DPU_DEBUG_PLANE(pdpu, "pipe:%d vbif:%d xin:%d rt:%d\n",
+	DPU_DEBUG_PLANE(pdpu, "pipe:%d xin:%d rt:%d\n",
 			qos_params.num,
-			qos_params.vbif_idx,
 			qos_params.xin_id, qos_params.is_rt);
 
 	if (!_dpu_plane_sspp_clk_force_ctrl(pipe->sspp, dpu_kms->hw_mdp,

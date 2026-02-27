@@ -180,8 +180,7 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	if (ot_lim == 0)
 		return;
 
-	trace_dpu_perf_set_ot(params->num, params->xin_id, ot_lim,
-		params->vbif_idx);
+	trace_dpu_perf_set_ot(params->num, params->xin_id, ot_lim);
 
 	vbif->ops.set_limit_conf(vbif, params->xin_id, params->rd, ot_lim);
 
@@ -189,7 +188,7 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 
 	ret = _dpu_vbif_wait_for_xin_halt(vbif, params->xin_id);
 	if (ret)
-		trace_dpu_vbif_wait_xin_halt_fail(vbif->idx, params->xin_id);
+		trace_dpu_vbif_wait_xin_halt_fail(params->xin_id);
 
 	vbif->ops.set_halt_ctrl(vbif, params->xin_id, false);
 }
@@ -214,7 +213,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	vbif = dpu_kms->hw_vbif;
 
 	if (!vbif || !vbif->cap) {
-		DPU_ERROR("invalid vbif %d\n", params->vbif_idx);
+		DPU_ERROR("invalid vbif\n");
 		return;
 	}
 
@@ -232,8 +231,8 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	}
 
 	for (i = 0; i < qos_tbl->npriority_lvl; i++) {
-		DRM_DEBUG_ATOMIC("%s xin:%d lvl:%d/%d\n",
-				dpu_vbif_name(params->vbif_idx), params->xin_id, i,
+		DRM_DEBUG_ATOMIC("VBIF xin:%d lvl:%d/%d\n",
+				params->xin_id, i,
 				qos_tbl->priority_lvl[i]);
 		vbif->ops.set_qos_remap(vbif, params->xin_id, i,
 				qos_tbl->priority_lvl[i]);
