@@ -238,7 +238,7 @@ static int liteeth_probe(struct platform_device *pdev)
 	struct liteeth *priv;
 	int irq, err;
 
-	netdev = devm_alloc_etherdev(&pdev->dev, sizeof(*priv));
+	netdev = devm_alloc_etherdev(dev, sizeof(*priv));
 	if (!netdev)
 		return -ENOMEM;
 
@@ -247,9 +247,9 @@ static int liteeth_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
-	priv->dev = &pdev->dev;
+	priv->dev = dev;
 
-	netdev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
+	netdev->tstats = devm_netdev_alloc_pcpu_stats(dev,
 						      struct pcpu_sw_netstats);
 	if (!netdev->tstats)
 		return -ENOMEM;
@@ -277,7 +277,7 @@ static int liteeth_probe(struct platform_device *pdev)
 	priv->tx_base = buf_base + priv->num_rx_slots * priv->slot_size;
 	priv->tx_slot = 0;
 
-	err = of_get_ethdev_address(pdev->dev.of_node, netdev);
+	err = of_get_ethdev_address(dev->of_node, netdev);
 	if (err)
 		eth_hw_addr_random(netdev);
 
@@ -285,7 +285,7 @@ static int liteeth_probe(struct platform_device *pdev)
 
 	err = devm_register_netdev(dev, netdev);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to register netdev %d\n", err);
+		dev_err(dev, "Failed to register netdev %d\n", err);
 		return err;
 	}
 
