@@ -1215,13 +1215,8 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 					ip_hw_instance->num_instance);
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
-			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++) {
-				if (reg_base_64)
-					ip_hw_instance->base_addr[kk] =
-						lower_32_bits(le64_to_cpu(ip->base_address_64[kk])) & 0x3FFFFFFF;
-				else
-					ip_hw_instance->base_addr[kk] = ip->base_address[kk];
-			}
+			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++)
+				ip_hw_instance->base_addr[kk] = ip->base_address[kk];
 
 			kobject_init(&ip_hw_instance->kobj, &ip_hw_instance_ktype);
 			ip_hw_instance->kobj.kset = &ip_hw_id->hw_id_kset;
