@@ -7176,7 +7176,26 @@ static struct attribute *wq_sysfs_attrs[] = {
 	&dev_attr_max_active.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(wq_sysfs);
+
+static umode_t wq_sysfs_is_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct workqueue_struct *wq = dev_to_wq(dev);
+
+	/*
+	 * Adjusting max_active breaks ordering guarantee. Changing it has no
+	 * effect on BH worker. Limit max_active to RO in such case.
+	 */
+	if (wq->flags & (WQ_BH | __WQ_ORDERED))
+		return 0444;
+	return a->mode;
+}
+
+static const struct attribute_group wq_sysfs_group = {
+	.is_visible = wq_sysfs_is_visible,
+	.attrs = wq_sysfs_attrs,
+};
+__ATTRIBUTE_GROUPS(wq_sysfs);
 
 static ssize_t wq_nice_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -7478,13 +7497,6 @@ int workqueue_sysfs_register(struct workqueue_struct *wq)
 {
 	struct wq_device *wq_dev;
 	int ret;
-
-	/*
-	 * Adjusting max_active breaks ordering guarantee.  Disallow exposing
-	 * ordered workqueues.
-	 */
-	if (WARN_ON(wq->flags & __WQ_ORDERED))
-		return -EINVAL;
 
 	wq->wq_dev = wq_dev = kzalloc_obj(*wq_dev);
 	if (!wq_dev)
