@@ -91,8 +91,9 @@ __XCHG_GEN(_mb)
 #define __xchg_wrapper(sfx, ptr, x)					\
 ({									\
 	__typeof__(*(ptr)) __ret;					\
-	__ret = (__typeof__(*(ptr)))					\
-		__arch_xchg##sfx((unsigned long)(x), (ptr), sizeof(*(ptr))); \
+	__ret = (__force __typeof__(*(ptr)))				\
+		__arch_xchg##sfx((__force unsigned long)(x), (ptr),	\
+				  sizeof(*(ptr)));			\
 	__ret;								\
 })
 
@@ -175,9 +176,10 @@ __CMPXCHG_GEN(_mb)
 #define __cmpxchg_wrapper(sfx, ptr, o, n)				\
 ({									\
 	__typeof__(*(ptr)) __ret;					\
-	__ret = (__typeof__(*(ptr)))					\
-		__cmpxchg##sfx((ptr), (unsigned long)(o),		\
-				(unsigned long)(n), sizeof(*(ptr)));	\
+	__ret = (__force __typeof__(*(ptr)))				\
+		__cmpxchg##sfx((ptr), (__force unsigned long)(o),	\
+				(__force unsigned long)(n),		\
+				sizeof(*(ptr)));			\
 	__ret;								\
 })
 
