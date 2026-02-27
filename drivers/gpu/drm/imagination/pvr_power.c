@@ -661,6 +661,8 @@ err_unlink:
 	while (--i >= 0)
 		device_link_del(domain_links[i]);
 
+	dev_pm_domain_detach_list(domains);
+
 	return err;
 }
 
