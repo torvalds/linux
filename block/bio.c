@@ -897,10 +897,11 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
  * @gfp: allocation priority
  * @bs: bio_set to allocate from
  *
- * Allocate a new bio that is a clone of @bio_src. The caller owns the returned
- * bio, but not the actual data it points to.
- *
- * The caller must ensure that the return bio is not freed before @bio_src.
+ * Allocate a new bio that is a clone of @bio_src. This reuses the bio_vecs
+ * pointed to by @bio_src->bi_io_vec, and clones the iterator pointing to
+ * the current position in it.  The caller owns the returned bio, but not
+ * the bio_vecs, and must ensure the bio is freed before the memory
+ * pointed to by @bio_Src->bi_io_vecs.
  */
 struct bio *bio_alloc_clone(struct block_device *bdev, struct bio *bio_src,
 		gfp_t gfp, struct bio_set *bs)
@@ -929,9 +930,7 @@ EXPORT_SYMBOL(bio_alloc_clone);
  * @gfp: allocation priority
  *
  * Initialize a new bio in caller provided memory that is a clone of @bio_src.
- * The caller owns the returned bio, but not the actual data it points to.
- *
- * The caller must ensure that @bio_src is not freed before @bio.
+ * The same bio_vecs reuse and bio lifetime rules as bio_alloc_clone() apply.
  */
 int bio_init_clone(struct block_device *bdev, struct bio *bio,
 		struct bio *bio_src, gfp_t gfp)
