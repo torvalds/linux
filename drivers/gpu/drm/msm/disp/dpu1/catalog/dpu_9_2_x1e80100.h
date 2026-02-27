@@ -441,8 +441,7 @@ const struct dpu_mdss_cfg dpu_x1e80100_cfg = {
 	.wb = x1e80100_wb,
 	.intf_count = ARRAY_SIZE(x1e80100_intf),
 	.intf = x1e80100_intf,
-	.vbif_count = ARRAY_SIZE(sm8550_vbif),
-	.vbif = sm8550_vbif,
+	.vbif = &sm8550_vbif,
 	.perf = &x1e80100_perf_data,
 };
 

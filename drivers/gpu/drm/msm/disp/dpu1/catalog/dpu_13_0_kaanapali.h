@@ -484,8 +484,7 @@ const struct dpu_mdss_cfg dpu_kaanapali_cfg = {
 	.cwb = sm8650_cwb,
 	.intf_count = ARRAY_SIZE(kaanapali_intf),
 	.intf = kaanapali_intf,
-	.vbif_count = ARRAY_SIZE(sm8650_vbif),
-	.vbif = sm8650_vbif,
+	.vbif = &sm8650_vbif,
 	.perf = &kaanapali_perf_data,
 };
 

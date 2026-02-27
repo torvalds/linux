@@ -743,7 +743,6 @@ struct dpu_mdss_cfg {
 	u32 intf_count;
 	const struct dpu_intf_cfg *intf;
 
-	u32 vbif_count;
 	const struct dpu_vbif_cfg *vbif;
 
 	u32 wb_count;

@@ -357,8 +357,7 @@ const struct dpu_mdss_cfg dpu_eliza_cfg = {
 	.cwb = sm8650_cwb,
 	.intf_count = ARRAY_SIZE(eliza_intf),
 	.intf = eliza_intf,
-	.vbif_count = ARRAY_SIZE(sm8650_vbif),
-	.vbif = sm8650_vbif,
+	.vbif = &sm8650_vbif,
 	.perf = &eliza_perf_data,
 };
 

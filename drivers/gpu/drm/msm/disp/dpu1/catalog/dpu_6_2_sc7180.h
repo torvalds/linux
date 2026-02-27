@@ -211,8 +211,7 @@ const struct dpu_mdss_cfg dpu_sc7180_cfg = {
 	.intf = sc7180_intf,
 	.wb_count = ARRAY_SIZE(sc7180_wb),
 	.wb = sc7180_wb,
-	.vbif_count = ARRAY_SIZE(sdm845_vbif),
-	.vbif = sdm845_vbif,
+	.vbif = &sdm845_vbif,
 	.perf = &sc7180_perf_data,
 };
 

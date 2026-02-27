@@ -445,8 +445,7 @@ const struct dpu_mdss_cfg dpu_sa8775p_cfg = {
 	.wb = sa8775p_wb,
 	.intf_count = ARRAY_SIZE(sa8775p_intf),
 	.intf = sa8775p_intf,
-	.vbif_count = ARRAY_SIZE(sdm845_vbif),
-	.vbif = sdm845_vbif,
+	.vbif = &sdm845_vbif,
 	.perf = &sa8775p_perf_data,
 };
 

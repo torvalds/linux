@@ -1059,13 +1059,11 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 					    dpu_kms->mmio + cat->cdm->base,
 					    "%s", cat->cdm->name);
 
-	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+	const struct dpu_vbif_cfg *vbif = dpu_kms->catalog->vbif;
 
-		msm_disp_snapshot_add_block(disp_state, vbif->len,
-					    dpu_kms->vbif[vbif->id] + vbif->base,
-					    "%s", vbif->name);
-	}
+	msm_disp_snapshot_add_block(disp_state, vbif->len,
+				    dpu_kms->vbif,
+				    "vbif");
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
@@ -1143,7 +1141,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 {
 	struct dpu_kms *dpu_kms;
 	struct drm_device *dev;
-	int i, rc = -EINVAL;
+	int rc = -EINVAL;
 	unsigned long max_core_clk_rate;
 	u32 core_rev;
 
@@ -1219,19 +1217,17 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto err_pm_put;
 	}
 
-	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
-		struct dpu_hw_vbif *hw;
-		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+	struct dpu_hw_vbif *hw;
+	const struct dpu_vbif_cfg *vbif = dpu_kms->catalog->vbif;
 
-		hw = dpu_hw_vbif_init(dev, vbif, dpu_kms->vbif[vbif->id]);
-		if (IS_ERR(hw)) {
-			rc = PTR_ERR(hw);
-			DPU_ERROR("failed to init vbif %d: %d\n", vbif->id, rc);
-			goto err_pm_put;
-		}
-
-		dpu_kms->hw_vbif[vbif->id] = hw;
+	hw = dpu_hw_vbif_init(dev, vbif, dpu_kms->vbif[vbif->id]);
+	if (IS_ERR(hw)) {
+		rc = PTR_ERR(hw);
+		DPU_ERROR("failed to init vbif: %d\n", rc);
+		goto err_pm_put;
 	}
+
+	dpu_kms->hw_vbif[vbif->id] = hw;
 
 	/* TODO: use the same max_freq as in dpu_kms_hw_init */
 	max_core_clk_rate = dpu_kms_get_clk_rate(dpu_kms, "core");

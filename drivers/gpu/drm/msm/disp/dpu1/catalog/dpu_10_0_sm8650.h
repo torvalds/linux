@@ -445,8 +445,7 @@ const struct dpu_mdss_cfg dpu_sm8650_cfg = {
 	.cwb = sm8650_cwb,
 	.intf_count = ARRAY_SIZE(sm8650_intf),
 	.intf = sm8650_intf,
-	.vbif_count = ARRAY_SIZE(sm8650_vbif),
-	.vbif = sm8650_vbif,
+	.vbif = &sm8650_vbif,
 	.perf = &sm8650_perf_data,
 };
 

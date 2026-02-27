@@ -246,8 +246,7 @@ const struct dpu_mdss_cfg dpu_sm6150_cfg = {
 	.wb = sm6150_wb,
 	.intf_count = ARRAY_SIZE(sm6150_intf),
 	.intf = sm6150_intf,
-	.vbif_count = ARRAY_SIZE(sdm845_vbif),
-	.vbif = sdm845_vbif,
+	.vbif = &sdm845_vbif,
 	.perf = &sm6150_perf_data,
 };
 
