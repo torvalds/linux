@@ -27,7 +27,7 @@
 #define FT1_DA0_MASK	0x8
 #define FT1_DA1_MASK	0xc
 
-#define FT1_N_REG(slize, n, reg)	\
+#define FT1_N_REG(slice, n, reg)	\
 	(offs[slice].ft1_slot_base + FT1_SLOT_SIZE * (n) + (reg))
 
 #define FT1_LEN_MASK		GENMASK(19, 16)
@@ -62,7 +62,7 @@ enum ft1_cfg_type {
 #define FT3_T			0x18
 #define FT3_T_MASK		0x1c
 
-#define FT3_N_REG(slize, n, reg)	\
+#define FT3_N_REG(slice, n, reg)	\
 	(offs[slice].ft3_slot_base + FT3_SLOT_SIZE * (n) + (reg))
 
 /* offsets from rx_class n's base */
@@ -73,6 +73,9 @@ enum ft1_cfg_type {
 
 #define RX_CLASS_N_REG(slice, n, reg)	\
 	(offs[slice].rx_class_base + RX_CLASS_EN_SIZE * (n) + (reg))
+
+#define RX_CLASS_OR_REG(slice, n, reg)	\
+	(offs[slice].rx_class_or_base + RX_CLASS_EN_SIZE * (n) + (reg))
 
 /* RX Class Gates */
 #define RX_CLASS_GATES_SIZE	0x4	/* bytes */
@@ -101,6 +104,22 @@ enum ft1_cfg_type {
 #define RX_CLASS_FT_FT1_MATCH(slot)	\
 	((BIT(slot) << RX_CLASS_FT_FT1_MATCH_SHIFT) & \
 	RX_CLASS_FT_FT1_MATCH_MASK)
+
+/* HSR/PRP protocol frame filtering */
+#define HSR_PTP_ETHERTYPE_OFFSET	0x12
+#define PRP_PTP_ETHERTYPE_OFFSET	0x0C
+#define FT3_PTP_PATTERN			0xF788
+#define FT3_ETHERTYPE_MASK		0xFFFF0000U
+#define FT3_VLAN_MODE_BOTH		0x1
+#define RX_CLASS_OR_DUP_PTP		0x4200
+#define RX_CLASS_OR_HSR_TAG		0x4000
+#define RX_CLASS_GATE_PTP		0x50
+#define RX_CLASS_DISABLE		0x0
+
+/* HSR/PRP classifier indices */
+#define CLASSIFIER_PTP_DUP		10
+#define CLASSIFIER_HSR_TAG		11
+#define FT3_PTP_SLOT			14
 
 /* RX class type */
 enum rx_class_sel_type {
@@ -133,6 +152,7 @@ struct miig_rt_offsets {
 	u32 ft3_p_base;
 	u32 ft_rx_ptr;
 	u32 rx_class_base;
+	u32 rx_class_or_base;
 	u32 rx_class_cfg1;
 	u32 rx_class_cfg2;
 	u32 rx_class_gates_base;
@@ -161,6 +181,7 @@ static const struct miig_rt_offsets offs[] = {
 		0x308,
 		0x408,
 		0x40c,
+		0x410,
 		0x48c,
 		0x490,
 		0x494,
@@ -186,6 +207,7 @@ static const struct miig_rt_offsets offs[] = {
 		0x8d4,
 		0x9d4,
 		0x9d8,
+		0x9dc,
 		0xa58,
 		0xa5c,
 		0xa60,
@@ -467,3 +489,46 @@ void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr)
 	rx_class_ft1_cfg_set_type(miig_rt, slice, 0, FT1_CFG_TYPE_EQ);
 }
 EXPORT_SYMBOL_GPL(icssg_ft1_set_mac_addr);
+
+/**
+ * icssg_ft3_hsr_configurations - Configure filter table for HSR/PRP protocol frames
+ * @miig_rt: Pointer to the MII-G register map
+ * @slice: ICSSG slice number (0 or 1)
+ * @prueth: Pointer to prueth structure to determine HSR/PRP mode
+ *
+ * Configures FT3 to detect PTP frames (EtherType 0x88F7) in HSR/PRP tagged packets.
+ * HSR frames have a 6-byte tag, while PRP has no tag offset for EtherType detection.
+ */
+void icssg_ft3_hsr_configurations(struct regmap *miig_rt, int slice,
+				  struct prueth *prueth)
+{
+	u8 offset = (prueth->hsr_prp_version == PRP_V1) ?
+		    PRP_PTP_ETHERTYPE_OFFSET : HSR_PTP_ETHERTYPE_OFFSET;
+
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_START), offset);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_START_AUTO), 0);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_START_OFFSET), 0);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_JUMP_OFFSET), 0);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_LEN), 0);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_CFG), FT3_VLAN_MODE_BOTH);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_T), FT3_PTP_PATTERN);
+	regmap_write(miig_rt, FT3_N_REG(slice, FT3_PTP_SLOT, FT3_T_MASK),
+		     FT3_ETHERTYPE_MASK);
+
+	regmap_write(miig_rt, RX_CLASS_N_REG(slice, CLASSIFIER_PTP_DUP, RX_CLASS_AND_EN),
+		     RX_CLASS_DISABLE);
+	regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_PTP_DUP, RX_CLASS_OR_EN),
+		     RX_CLASS_OR_DUP_PTP);
+	regmap_write(miig_rt, RX_CLASS_GATES_N_REG(slice, CLASSIFIER_PTP_DUP),
+		     RX_CLASS_GATE_PTP);
+
+	if (prueth->hsr_prp_version != PRP_V1) {
+		regmap_write(miig_rt, RX_CLASS_N_REG(slice, CLASSIFIER_HSR_TAG, RX_CLASS_AND_EN),
+			     RX_CLASS_DISABLE);
+		regmap_write(miig_rt, RX_CLASS_OR_REG(slice, CLASSIFIER_HSR_TAG, RX_CLASS_OR_EN),
+			     RX_CLASS_OR_HSR_TAG);
+		regmap_write(miig_rt, RX_CLASS_GATES_N_REG(slice, CLASSIFIER_HSR_TAG),
+			     RX_CLASS_GATE_PTP);
+	}
+}
+EXPORT_SYMBOL_GPL(icssg_ft3_hsr_configurations);

@@ -260,6 +260,12 @@ static int prueth_emac_common_start(struct prueth *prueth)
 	icssg_class_default(prueth->miig_rt, ICSS_SLICE0, 0, false);
 	icssg_class_default(prueth->miig_rt, ICSS_SLICE1, 0, false);
 
+	/* Configure HSR/PRP protocol filtering if in HSR offload mode */
+	if (prueth->is_hsr_offload_mode) {
+		icssg_ft3_hsr_configurations(prueth->miig_rt, ICSS_SLICE0, prueth);
+		icssg_ft3_hsr_configurations(prueth->miig_rt, ICSS_SLICE1, prueth);
+	}
+
 	if (prueth->is_switch_mode || prueth->is_hsr_offload_mode)
 		icssg_init_fw_offload_mode(prueth);
 	else
