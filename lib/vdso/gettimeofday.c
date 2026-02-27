@@ -313,7 +313,7 @@ __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 	return do_hres(vd, vc, clock, ts);
 }
 
-static __maybe_unused int
+static int
 __cvdso_clock_gettime_data(const struct vdso_time_data *vd, clockid_t clock,
 			   struct __kernel_timespec *ts)
 {
@@ -333,7 +333,7 @@ __cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
 }
 
 #ifdef BUILD_VDSO32
-static __maybe_unused int
+static int
 __cvdso_clock_gettime32_data(const struct vdso_time_data *vd, clockid_t clock,
 			     struct old_timespec32 *res)
 {
@@ -359,7 +359,7 @@ __cvdso_clock_gettime32(clockid_t clock, struct old_timespec32 *res)
 }
 #endif /* BUILD_VDSO32 */
 
-static __maybe_unused int
+static int
 __cvdso_gettimeofday_data(const struct vdso_time_data *vd,
 			  struct __kernel_old_timeval *tv, struct timezone *tz)
 {
@@ -394,7 +394,7 @@ __cvdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 }
 
 #ifdef VDSO_HAS_TIME
-static __maybe_unused __kernel_old_time_t
+static __kernel_old_time_t
 __cvdso_time_data(const struct vdso_time_data *vd, __kernel_old_time_t *time)
 {
 	const struct vdso_clock *vc = vd->clock_data;
@@ -464,7 +464,7 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 	return true;
 }
 
-static __maybe_unused
+static
 int __cvdso_clock_getres_data(const struct vdso_time_data *vd, clockid_t clock,
 			      struct __kernel_timespec *res)
 {
@@ -484,7 +484,7 @@ int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
 }
 
 #ifdef BUILD_VDSO32
-static __maybe_unused int
+static int
 __cvdso_clock_getres_time32_data(const struct vdso_time_data *vd, clockid_t clock,
 				 struct old_timespec32 *res)
 {
