@@ -135,13 +135,21 @@ def test_zcrx_large_chunks(cfg) -> None:
 
     cfg.require_ipver('6')
 
+    hp_file = "/proc/sys/vm/nr_hugepages"
+    with open(hp_file, 'r+', encoding='utf-8') as f:
+        nr_hugepages = int(f.read().strip())
+        if nr_hugepages < 64:
+            f.seek(0)
+            f.write("64")
+            defer(lambda: open(hp_file, 'w', encoding='utf-8').write(str(nr_hugepages)))
+
     single(cfg)
     rx_cmd = f"{cfg.bin_local} -s -p {cfg.port} -i {cfg.ifname} -q {cfg.target} -x 2"
     tx_cmd = f"{cfg.bin_remote} -c -h {cfg.addr_v['6']} -p {cfg.port} -l 12840"
 
     probe = cmd(rx_cmd + " -d", fail=False)
     if probe.ret == SKIP_CODE:
-        raise KsftSkipEx(probe.stdout)
+        raise KsftSkipEx(probe.stdout.strip())
 
     with bkg(rx_cmd, exit_wait=True):
         wait_port_listen(cfg.port, proto="tcp")
