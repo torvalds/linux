@@ -106,7 +106,7 @@ xfs_inode_alloc(
 	mapping_set_folio_min_order(VFS_I(ip)->i_mapping,
 				    M_IGEO(mp)->min_folio_order);
 
-	XFS_STATS_INC(mp, vn_active);
+	XFS_STATS_INC(mp, xs_inodes_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(ip->i_ino == 0);
 
@@ -172,7 +172,10 @@ __xfs_inode_free(
 	/* asserts to verify all state is correct here */
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!ip->i_itemp || list_empty(&ip->i_itemp->ili_item.li_bio_list));
-	XFS_STATS_DEC(ip->i_mount, vn_active);
+	if (xfs_is_metadir_inode(ip))
+		XFS_STATS_DEC(ip->i_mount, xs_inodes_meta);
+	else
+		XFS_STATS_DEC(ip->i_mount, xs_inodes_active);
 
 	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
 }
@@ -636,6 +639,14 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return -ENOMEM;
 
+	/*
+	 * Set XFS_INEW as early as possible so that the health code won't pass
+	 * the inode to the fserror code if the ondisk inode cannot be loaded.
+	 * We're going to free the xfs_inode immediately if that happens, which
+	 * would lead to UAF problems.
+	 */
+	xfs_iflags_set(ip, XFS_INEW);
+
 	error = xfs_imap(pag, tp, ip->i_ino, &ip->i_imap, flags);
 	if (error)
 		goto out_destroy;
@@ -713,7 +724,6 @@ xfs_iget_cache_miss(
 	ip->i_udquot = NULL;
 	ip->i_gdquot = NULL;
 	ip->i_pdquot = NULL;
-	xfs_iflags_set(ip, XFS_INEW);
 
 	/* insert the new inode */
 	spin_lock(&pag->pag_ici_lock);
@@ -2234,7 +2244,7 @@ xfs_inode_mark_reclaimable(
 	struct xfs_mount	*mp = ip->i_mount;
 	bool			need_inactive;
 
-	XFS_STATS_INC(mp, vn_reclaim);
+	XFS_STATS_INC(mp, xs_inode_mark_reclaimable);
 
 	/*
 	 * We should never get here with any of the reclaim flags already set.

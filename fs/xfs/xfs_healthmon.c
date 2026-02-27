@@ -69,7 +69,7 @@ xfs_healthmon_get(
 	struct xfs_healthmon		*hm;
 
 	rcu_read_lock();
-	hm = mp->m_healthmon;
+	hm = rcu_dereference(mp->m_healthmon);
 	if (hm && !refcount_inc_not_zero(&hm->ref))
 		hm = NULL;
 	rcu_read_unlock();
@@ -110,13 +110,13 @@ xfs_healthmon_attach(
 	struct xfs_healthmon	*hm)
 {
 	spin_lock(&xfs_healthmon_lock);
-	if (mp->m_healthmon != NULL) {
+	if (rcu_access_pointer(mp->m_healthmon) != NULL) {
 		spin_unlock(&xfs_healthmon_lock);
 		return -EEXIST;
 	}
 
 	refcount_inc(&hm->ref);
-	mp->m_healthmon = hm;
+	rcu_assign_pointer(mp->m_healthmon, hm);
 	hm->mount_cookie = (uintptr_t)mp->m_super;
 	spin_unlock(&xfs_healthmon_lock);
 
@@ -128,13 +128,16 @@ STATIC void
 xfs_healthmon_detach(
 	struct xfs_healthmon	*hm)
 {
+	struct xfs_mount	*mp;
+
 	spin_lock(&xfs_healthmon_lock);
 	if (hm->mount_cookie == DETACHED_MOUNT_COOKIE) {
 		spin_unlock(&xfs_healthmon_lock);
 		return;
 	}
 
-	XFS_M((struct super_block *)hm->mount_cookie)->m_healthmon = NULL;
+	mp = XFS_M((struct super_block *)hm->mount_cookie);
+	rcu_assign_pointer(mp->m_healthmon, NULL);
 	hm->mount_cookie = DETACHED_MOUNT_COOKIE;
 	spin_unlock(&xfs_healthmon_lock);
 
