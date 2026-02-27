@@ -6,6 +6,7 @@
 
 #include <asm/barrier.h>
 #include <vdso/datapage.h>
+#include <vdso/processor.h>
 #include <vdso/clocksource.h>
 
 static __always_inline bool vdso_is_timens_clock(const struct vdso_clock *vc)
