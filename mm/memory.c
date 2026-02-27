@@ -2215,14 +2215,14 @@ void zap_vma_range_batched(struct mmu_gather *tlb,
 }
 
 /**
- * zap_page_range_single - remove user pages in a given range
- * @vma: vm_area_struct holding the applicable pages
- * @address: starting address of pages to zap
+ * zap_vma_range - zap all page table entries in a vma range
+ * @vma: the vma covering the range to zap
+ * @address: starting address of the range to zap
  * @size: number of bytes to zap
  *
- * The range must fit into one VMA.
+ * The provided address range must be fully contained within @vma.
  */
-void zap_page_range_single(struct vm_area_struct *vma, unsigned long address,
+void zap_vma_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size)
 {
 	struct mmu_gather tlb;
@@ -2250,7 +2250,7 @@ void zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	    		!(vma->vm_flags & VM_PFNMAP))
 		return;
 
-	zap_page_range_single(vma, address, size);
+	zap_vma_range(vma, address, size);
 }
 EXPORT_SYMBOL_GPL(zap_vma_ptes);
 
@@ -3018,7 +3018,7 @@ static int remap_pfn_range_notrack(struct vm_area_struct *vma, unsigned long add
 	 * maintain page reference counts, and callers may free
 	 * pages due to the error. So zap it early.
 	 */
-	zap_page_range_single(vma, addr, size);
+	zap_vma_range(vma, addr, size);
 	return error;
 }
 

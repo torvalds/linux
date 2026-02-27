@@ -2804,7 +2804,7 @@ struct page *vm_normal_page_pud(struct vm_area_struct *vma, unsigned long addr,
 
 void zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 		  unsigned long size);
-void zap_page_range_single(struct vm_area_struct *vma, unsigned long address,
+void zap_vma_range(struct vm_area_struct *vma, unsigned long address,
 			   unsigned long size);
 /**
  * zap_vma - zap all page table entries in a vma
@@ -2812,7 +2812,7 @@ void zap_page_range_single(struct vm_area_struct *vma, unsigned long address,
  */
 static inline void zap_vma(struct vm_area_struct *vma)
 {
-	zap_page_range_single(vma, vma->vm_start, vma->vm_end - vma->vm_start);
+	zap_vma_range(vma, vma->vm_start, vma->vm_end - vma->vm_start);
 }
 struct mmu_notifier_range;
 
