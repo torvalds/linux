@@ -232,6 +232,7 @@ static void liteeth_setup_slots(struct liteeth *priv)
 
 static int liteeth_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	void __iomem *buf_base;
 	struct liteeth *priv;
@@ -282,7 +283,7 @@ static int liteeth_probe(struct platform_device *pdev)
 
 	netdev->netdev_ops = &liteeth_netdev_ops;
 
-	err = register_netdev(netdev);
+	err = devm_register_netdev(dev, netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to register netdev %d\n", err);
 		return err;
@@ -294,13 +295,6 @@ static int liteeth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void liteeth_remove(struct platform_device *pdev)
-{
-	struct net_device *netdev = platform_get_drvdata(pdev);
-
-	unregister_netdev(netdev);
-}
-
 static const struct of_device_id liteeth_of_match[] = {
 	{ .compatible = "litex,liteeth" },
 	{ }
@@ -309,7 +303,6 @@ MODULE_DEVICE_TABLE(of, liteeth_of_match);
 
 static struct platform_driver liteeth_driver = {
 	.probe = liteeth_probe,
-	.remove = liteeth_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = liteeth_of_match,
