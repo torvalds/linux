@@ -48,21 +48,13 @@ no-header-test += xen/privcmd.h
 
 # More headers are broken in some architectures
 
-ifeq ($(SRCARCH),arc)
-no-header-test += linux/bpf_perf_event.h
-endif
-
-ifeq ($(SRCARCH),openrisc)
+ifneq ($(filter arc openrisc xtensa, $(SRCARCH)),)
 no-header-test += linux/bpf_perf_event.h
 endif
 
 ifeq ($(SRCARCH),sparc)
 no-header-test += asm/uctx.h
 no-header-test += asm/fbio.h
-endif
-
-ifeq ($(SRCARCH),xtensa)
-no-header-test += linux/bpf_perf_event.h
 endif
 
 # asm-generic/*.h is used by asm/*.h, and should not be included directly
