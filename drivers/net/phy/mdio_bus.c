@@ -191,24 +191,17 @@ static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
 	return sysfs_emit(buf, "%llu\n", val);
 }
 
-#define MDIO_BUS_STATS_ATTR_DECL(field, file)				\
+#define MDIO_BUS_STATS_ATTR(field)					\
 static struct mdio_bus_stat_attr dev_attr_mdio_bus_##field = {		\
-	.attr = { .attr = { .name = file, .mode = 0444 },		\
-		     .show = mdio_bus_stat_field_show,			\
-	},								\
+	.attr = __ATTR(field, 0444, mdio_bus_stat_field_show, NULL),	\
 	.address = -1,							\
 	.field_offset = offsetof(struct mdio_bus_stats, field),		\
 };									\
 static struct mdio_bus_stat_attr dev_attr_mdio_bus_device_##field = {	\
-	.attr = { .attr = { .name = file, .mode = 0444 },		\
-		     .show = mdio_bus_device_stat_field_show,		\
-	},								\
+	.attr = __ATTR(field, 0444, mdio_bus_device_stat_field_show, NULL), \
 	.address = -1,							\
 	.field_offset = offsetof(struct mdio_bus_stats, field),		\
-};
-
-#define MDIO_BUS_STATS_ATTR(field)					\
-	MDIO_BUS_STATS_ATTR_DECL(field, __stringify(field))
+}
 
 MDIO_BUS_STATS_ATTR(transfers);
 MDIO_BUS_STATS_ATTR(errors);
