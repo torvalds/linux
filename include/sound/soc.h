@@ -422,11 +422,6 @@ struct snd_soc_jack_pin;
 #include <sound/soc-dpcm.h>
 #include <sound/soc-topology.h>
 
-enum snd_soc_pcm_subclass {
-	SND_SOC_PCM_CLASS_PCM	= 0,
-	SND_SOC_PCM_CLASS_BE	= 1,
-};
-
 int snd_soc_register_card(struct snd_soc_card *card);
 void snd_soc_unregister_card(struct snd_soc_card *card);
 int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card);
@@ -999,7 +994,6 @@ struct snd_soc_card {
 
 	/* Mutex for PCM operations */
 	struct mutex pcm_mutex;
-	enum snd_soc_pcm_subclass pcm_subclass;
 
 	int (*probe)(struct snd_soc_card *card);
 	int (*late_probe)(struct snd_soc_card *card);
@@ -1519,7 +1513,7 @@ static inline void _snd_soc_dapm_mutex_assert_held_d(struct snd_soc_dapm_context
  */
 static inline void _snd_soc_dpcm_mutex_lock_c(struct snd_soc_card *card)
 {
-	mutex_lock_nested(&card->pcm_mutex, card->pcm_subclass);
+	mutex_lock(&card->pcm_mutex);
 }
 
 static inline void _snd_soc_dpcm_mutex_unlock_c(struct snd_soc_card *card)
