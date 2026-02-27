@@ -905,6 +905,19 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 	 * supported, so we avoid reprogramming the region on every MSI,
 	 * specifically unmapping immediately after writel().
 	 */
+	if (ep->msi_iatu_mapped && (ep->msi_msg_addr != msg_addr ||
+				    ep->msi_map_size != map_size)) {
+		/*
+		 * The host changed the MSI target address or the required
+		 * mapping size changed. Reprogramming the iATU when there are
+		 * operations in flight is unsafe on this controller. However,
+		 * there is no unified way to check if we have operations in
+		 * flight, thus we don't know if we should WARN() or not.
+		 */
+		dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
+		ep->msi_iatu_mapped = false;
+	}
+
 	if (!ep->msi_iatu_mapped) {
 		ret = dw_pcie_ep_map_addr(epc, func_no, 0,
 					  ep->msi_mem_phys, msg_addr,
@@ -915,15 +928,6 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 		ep->msi_iatu_mapped = true;
 		ep->msi_msg_addr = msg_addr;
 		ep->msi_map_size = map_size;
-	} else if (WARN_ON_ONCE(ep->msi_msg_addr != msg_addr ||
-				ep->msi_map_size != map_size)) {
-		/*
-		 * The host changed the MSI target address or the required
-		 * mapping size changed. Reprogramming the iATU at runtime is
-		 * unsafe on this controller, so bail out instead of trying to
-		 * update the existing region.
-		 */
-		return -EINVAL;
 	}
 
 	writel(msg_data | (interrupt_num - 1), ep->msi_mem + offset);
@@ -1009,6 +1013,9 @@ int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
 		return ret;
 
 	writel(msg_data, ep->msi_mem + offset);
+
+	/* flush posted write before unmap */
+	readl(ep->msi_mem + offset);
 
 	dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
 
