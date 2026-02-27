@@ -403,6 +403,13 @@ struct jfs_log {
 };
 
 /*
+ * log read/write serialization (per log)
+ */
+#define LOG_LOCK_INIT(log)	mutex_init(&(log)->loglock)
+#define LOG_LOCK(log)		mutex_lock(&((log)->loglock))
+#define LOG_UNLOCK(log)		mutex_unlock(&((log)->loglock))
+
+/*
  * Log flag
  */
 #define log_INLINELOG	1
