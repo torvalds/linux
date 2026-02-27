@@ -11,7 +11,7 @@
 #include "xe_pci_test.h"
 
 #define TEST_MAX_VFS	63
-#define TEST_VRAM	0x37a800000ull
+#define TEST_VRAM	0x7a800000ull	/* random size that works on 32-bit */
 
 static void pf_set_admin_mode(struct xe_device *xe, bool enable)
 {
