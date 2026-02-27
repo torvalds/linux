@@ -277,11 +277,6 @@ static void enh_desc_init_tx_desc(struct dma_desc *p, int mode, int end)
 		enh_desc_end_tx_desc_on_ring(p, end);
 }
 
-static int enh_desc_get_tx_owner(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des0) & ETDES0_OWN) >> 31;
-}
-
 static void enh_desc_set_tx_owner(struct dma_desc *p)
 {
 	p->des0 |= cpu_to_le32(ETDES0_OWN);
@@ -448,7 +443,6 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.get_tx_len = enh_desc_get_tx_len,
 	.init_rx_desc = enh_desc_init_rx_desc,
 	.init_tx_desc = enh_desc_init_tx_desc,
-	.get_tx_owner = enh_desc_get_tx_owner,
 	.release_tx_desc = enh_desc_release_tx_desc,
 	.prepare_tx_desc = enh_desc_prepare_tx_desc,
 	.set_tx_ic = enh_desc_set_tx_ic,

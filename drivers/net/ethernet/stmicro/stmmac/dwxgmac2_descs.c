@@ -45,11 +45,6 @@ static int dwxgmac2_get_tx_len(struct dma_desc *p)
 	return (le32_to_cpu(p->des2) & XGMAC_TDES2_B1L);
 }
 
-static int dwxgmac2_get_tx_owner(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des3) & XGMAC_TDES3_OWN) > 0;
-}
-
 static void dwxgmac2_set_tx_owner(struct dma_desc *p)
 {
 	p->des3 |= cpu_to_le32(XGMAC_TDES3_OWN);
@@ -356,7 +351,6 @@ const struct stmmac_desc_ops dwxgmac210_desc_ops = {
 	.tx_status = dwxgmac2_get_tx_status,
 	.rx_status = dwxgmac2_get_rx_status,
 	.get_tx_len = dwxgmac2_get_tx_len,
-	.get_tx_owner = dwxgmac2_get_tx_owner,
 	.set_tx_owner = dwxgmac2_set_tx_owner,
 	.set_rx_owner = dwxgmac2_set_rx_owner,
 	.get_tx_ls = dwxgmac2_get_tx_ls,

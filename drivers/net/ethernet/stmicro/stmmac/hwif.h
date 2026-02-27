@@ -51,7 +51,6 @@ struct stmmac_desc_ops {
 			unsigned int tcppayloadlen);
 	/* Set/get the owner of the descriptor */
 	void (*set_tx_owner)(struct dma_desc *p);
-	int (*get_tx_owner)(struct dma_desc *p);
 	/* Clean the tx descriptor as soon as the tx irq is received */
 	void (*release_tx_desc)(struct dma_desc *p, int mode);
 	/* Clear interrupt on tx frame completion. When this bit is
@@ -116,8 +115,6 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, prepare_tso_tx_desc, __args)
 #define stmmac_set_tx_owner(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, set_tx_owner, __args)
-#define stmmac_get_tx_owner(__priv, __args...) \
-	stmmac_do_callback(__priv, desc, get_tx_owner, __args)
 #define stmmac_release_tx_desc(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, release_tx_desc, __args)
 #define stmmac_set_tx_ic(__priv, __args...) \
