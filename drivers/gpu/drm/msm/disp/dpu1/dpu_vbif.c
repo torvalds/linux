@@ -11,14 +11,6 @@
 #include "dpu_hw_vbif.h"
 #include "dpu_trace.h"
 
-static struct dpu_hw_vbif *dpu_get_vbif(struct dpu_kms *dpu_kms, enum dpu_vbif vbif_idx)
-{
-	if (vbif_idx < ARRAY_SIZE(dpu_kms->hw_vbif))
-		return dpu_kms->hw_vbif[vbif_idx];
-
-	return NULL;
-}
-
 static const char *dpu_vbif_name(enum dpu_vbif idx)
 {
 	switch (idx) {
@@ -170,7 +162,7 @@ void dpu_vbif_set_ot_limit(struct dpu_kms *dpu_kms,
 	u32 ot_lim;
 	int ret;
 
-	vbif = dpu_get_vbif(dpu_kms, params->vbif_idx);
+	vbif = dpu_kms->hw_vbif;
 	if (!vbif) {
 		DRM_DEBUG_ATOMIC("invalid arguments vbif %d\n", vbif != NULL);
 		return;
@@ -219,7 +211,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 		return;
 	}
 
-	vbif = dpu_get_vbif(dpu_kms, params->vbif_idx);
+	vbif = dpu_kms->hw_vbif;
 
 	if (!vbif || !vbif->cap) {
 		DPU_ERROR("invalid vbif %d\n", params->vbif_idx);
@@ -255,16 +247,14 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms)
 {
 	struct dpu_hw_vbif *vbif;
-	u32 i, pnd, src;
+	u32 pnd, src;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_kms->hw_vbif); i++) {
-		vbif = dpu_kms->hw_vbif[i];
-		if (vbif && vbif->ops.clear_errors) {
-			vbif->ops.clear_errors(vbif, &pnd, &src);
-			if (pnd || src) {
-				DRM_DEBUG_KMS("%s: pnd 0x%X, src 0x%X\n",
-					      dpu_vbif_name(vbif->idx), pnd, src);
-			}
+	vbif = dpu_kms->hw_vbif;
+	if (vbif && vbif->ops.clear_errors) {
+		vbif->ops.clear_errors(vbif, &pnd, &src);
+		if (pnd || src) {
+			DRM_DEBUG_KMS("%s: pnd 0x%X, src 0x%X\n",
+				      dpu_vbif_name(vbif->idx), pnd, src);
 		}
 	}
 }
@@ -276,15 +266,12 @@ void dpu_vbif_clear_errors(struct dpu_kms *dpu_kms)
 void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms)
 {
 	struct dpu_hw_vbif *vbif;
-	int i, j;
+	int j;
 
-	for (i = 0; i < ARRAY_SIZE(dpu_kms->hw_vbif); i++) {
-		vbif = dpu_kms->hw_vbif[i];
-		if (vbif && vbif->cap && vbif->ops.set_mem_type) {
-			for (j = 0; j < vbif->cap->memtype_count; j++)
-				vbif->ops.set_mem_type(
-						vbif, j, vbif->cap->memtype[j]);
-		}
+	vbif = dpu_kms->hw_vbif;
+	if (vbif && vbif->cap && vbif->ops.set_mem_type) {
+		for (j = 0; j < vbif->cap->memtype_count; j++)
+			vbif->ops.set_mem_type(vbif, j, vbif->cap->memtype[j]);
 	}
 }
 
