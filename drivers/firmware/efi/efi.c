@@ -423,7 +423,7 @@ static int __init efisubsys_init(void)
 		 * ordered workqueue (which creates only one execution context)
 		 * should suffice for all our needs.
 		 */
-		efi_rts_wq = alloc_ordered_workqueue("efi_rts_wq", 0);
+		efi_rts_wq = alloc_ordered_workqueue("efi_runtime", WQ_SYSFS);
 		if (!efi_rts_wq) {
 			pr_err("Creating efi_rts_wq failed, EFI runtime services disabled.\n");
 			clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
