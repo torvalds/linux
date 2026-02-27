@@ -321,7 +321,7 @@ static ssize_t cap_rem_show(struct device *dev, struct device_attribute *attr,
 {
 	struct adf_rl_interface_data *data;
 	struct adf_accel_dev *accel_dev;
-	int ret, rem_cap;
+	int rem_cap;
 
 	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
 	if (!accel_dev)
@@ -336,23 +336,19 @@ static ssize_t cap_rem_show(struct device *dev, struct device_attribute *attr,
 	if (rem_cap < 0)
 		return rem_cap;
 
-	ret = sysfs_emit(buf, "%u\n", rem_cap);
-
-	return ret;
+	return sysfs_emit(buf, "%u\n", rem_cap);
 }
 
 static ssize_t cap_rem_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
-	unsigned int val;
 	int ret;
 
 	ret = sysfs_match_string(rl_services, buf);
 	if (ret < 0)
 		return ret;
 
-	val = ret;
-	ret = set_param_u(dev, CAP_REM_SRV, val);
+	ret = set_param_u(dev, CAP_REM_SRV, ret);
 	if (ret)
 		return ret;
 
