@@ -236,7 +236,6 @@ struct dpu_hw_vbif *dpu_hw_vbif_init(struct drm_device *dev,
 	/*
 	 * Assign ops
 	 */
-	c->idx = VBIF_RT;
 	c->cap = cfg;
 	_setup_vbif_ops(&c->ops, c->cap->features);
 
