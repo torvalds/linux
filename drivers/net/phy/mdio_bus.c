@@ -148,30 +148,23 @@ static u64 mdio_bus_get_stat(struct mdio_bus_stats *s, unsigned int offset)
 	return val;
 }
 
-static u64 mdio_bus_get_global_stat(struct mii_bus *bus, unsigned int offset)
-{
-	unsigned int i;
-	u64 val = 0;
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		val += mdio_bus_get_stat(&bus->stats[i], offset);
-
-	return val;
-}
-
 static ssize_t mdio_bus_stat_field_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
 	struct mdio_bus_stat_attr *sattr = to_sattr(attr);
 	struct mii_bus *bus = to_mii_bus(dev);
-	u64 val;
+	u64 val = 0;
 
-	if (sattr->address < 0)
-		val = mdio_bus_get_global_stat(bus, sattr->field_offset);
-	else
+	if (sattr->address < 0) {
+		/* get global stats */
+		for (int i = 0; i < PHY_MAX_ADDR; i++)
+			val += mdio_bus_get_stat(&bus->stats[i],
+						 sattr->field_offset);
+	} else {
 		val = mdio_bus_get_stat(&bus->stats[sattr->address],
 					sattr->field_offset);
+	}
 
 	return sysfs_emit(buf, "%llu\n", val);
 }
