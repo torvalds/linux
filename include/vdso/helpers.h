@@ -53,7 +53,7 @@ static __always_inline u32 vdso_read_retry(const struct vdso_clock *vc,
 
 	smp_rmb();
 	seq = READ_ONCE(vc->seq);
-	return seq != start;
+	return unlikely(seq != start);
 }
 
 static __always_inline void vdso_write_seq_begin(struct vdso_clock *vc)

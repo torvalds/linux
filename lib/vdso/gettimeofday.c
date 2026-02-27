@@ -135,7 +135,7 @@ bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *
 
 		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	/* Add the namespace offset */
 	sec += offs->sec;
@@ -163,7 +163,7 @@ bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 
 		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	vdso_set_timespec(ts, sec, ns);
 
@@ -188,7 +188,7 @@ bool do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock
 		seq = vdso_read_begin(vc);
 		sec = vdso_ts->sec;
 		nsec = vdso_ts->nsec;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	/* Add the namespace offset */
 	sec += offs->sec;
@@ -212,7 +212,7 @@ bool do_coarse(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 
 		ts->tv_sec = vdso_ts->sec;
 		ts->tv_nsec = vdso_ts->nsec;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	return true;
 }
@@ -244,7 +244,7 @@ bool do_aux(const struct vdso_time_data *vd, clockid_t clock, struct __kernel_ti
 
 		if (!vdso_get_timestamp(vd, vc, VDSO_BASE_AUX, &sec, &ns))
 			return false;
-	} while (unlikely(vdso_read_retry(vc, seq)));
+	} while (vdso_read_retry(vc, seq));
 
 	vdso_set_timespec(ts, sec, ns);
 
