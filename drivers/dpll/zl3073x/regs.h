@@ -78,6 +78,8 @@
 #define ZL_REG_RESET_STATUS			ZL_REG(0, 0x18, 1)
 #define ZL_REG_RESET_STATUS_RESET		BIT(0)
 
+#define ZL_REG_DIE_TEMP_STATUS			ZL_REG(0, 0x44, 2)
+
 /*************************
  * Register Page 2, Status
  *************************/
