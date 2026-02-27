@@ -148,14 +148,8 @@ int walk_page_mapping(struct address_space *mapping, pgoff_t first_index,
 
 typedef int __bitwise folio_walk_flags_t;
 
-/*
- * Walk migration entries as well. Careful: a large folio might get split
- * concurrently.
- */
-#define FW_MIGRATION			((__force folio_walk_flags_t)BIT(0))
-
 /* Walk shared zeropages (small + huge) as well. */
-#define FW_ZEROPAGE			((__force folio_walk_flags_t)BIT(1))
+#define FW_ZEROPAGE			((__force folio_walk_flags_t)BIT(0))
 
 enum folio_walk_level {
 	FW_LEVEL_PTE,
