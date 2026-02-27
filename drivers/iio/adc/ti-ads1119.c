@@ -274,7 +274,7 @@ static int ads1119_single_conversion(struct ads1119_state *st,
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
-		goto pdown;
+		return ret;
 
 	ret = ads1119_configure_channel(st, mux, gain, datarate);
 	if (ret)
