@@ -138,14 +138,13 @@ endif
 always-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
 
 target-no-libc = $(filter-out $(uses-libc), $*.h)
-target-can-compile = $(and $(filter-out $(no-header-test), $*.h), \
-                           $(or $(CONFIG_CC_CAN_LINK), $(target-no-libc)))
+target-can-compile = $(filter-out $(no-header-test), $*.h)
 
 # Include the header twice to detect missing include guard.
 quiet_cmd_hdrtest = HDRTEST $<
       cmd_hdrtest = \
 		$(CC) $(c_flags) -fsyntax-only -Werror -x c /dev/null \
-			$(if $(target-no-libc), -nostdinc, -I $(srctree)/usr/dummy-include) \
+			-nostdinc $(if $(target-no-libc), , -I $(srctree)/usr/dummy-include) \
 			$(if $(target-can-compile), -include $< -include $<); \
 		$(PERL) $(src)/headers_check.pl $(obj) $<; \
 		touch $@
