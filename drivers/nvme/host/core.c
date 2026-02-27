@@ -2066,6 +2066,7 @@ static bool nvme_update_disk_info(struct nvme_ns *ns, struct nvme_id_ns *id,
 	u32 bs = 1U << head->lba_shift;
 	u32 atomic_bs, phys_bs, io_opt = 0;
 	bool valid = true;
+	u8 optperf;
 
 	/*
 	 * The block layer can't support LBA sizes larger than the page size
@@ -2080,7 +2081,12 @@ static bool nvme_update_disk_info(struct nvme_ns *ns, struct nvme_id_ns *id,
 	phys_bs = bs;
 	atomic_bs = nvme_configure_atomic_write(ns, id, lim, bs);
 
-	if (id->nsfeat & NVME_NS_FEAT_IO_OPT) {
+	optperf = id->nsfeat >> NVME_NS_FEAT_OPTPERF_SHIFT;
+	if (ctrl->vs >= NVME_VS(2, 1, 0))
+		optperf &= NVME_NS_FEAT_OPTPERF_MASK_2_1;
+	else
+		optperf &= NVME_NS_FEAT_OPTPERF_MASK;
+	if (optperf) {
 		/* NPWG = Namespace Preferred Write Granularity */
 		phys_bs = bs * (1 + le16_to_cpu(id->npwg));
 		/* NOWS = Namespace Optimal Write Size */

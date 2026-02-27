@@ -597,7 +597,11 @@ enum {
 enum {
 	NVME_NS_FEAT_THIN	= 1 << 0,
 	NVME_NS_FEAT_ATOMICS	= 1 << 1,
-	NVME_NS_FEAT_IO_OPT	= 1 << 4,
+	NVME_NS_FEAT_OPTPERF_SHIFT = 4,
+	/* In NVMe version 2.0 and below, OPTPERF is only bit 4 of NSFEAT */
+	NVME_NS_FEAT_OPTPERF_MASK = 0x1,
+	/* Since version 2.1, OPTPERF is bits 4 and 5 of NSFEAT */
+	NVME_NS_FEAT_OPTPERF_MASK_2_1 = 0x3,
 	NVME_NS_ATTR_RO		= 1 << 0,
 	NVME_NS_FLBAS_LBA_MASK	= 0xf,
 	NVME_NS_FLBAS_LBA_UMASK	= 0x60,
