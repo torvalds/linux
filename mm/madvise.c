@@ -1193,8 +1193,7 @@ static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 		 * OK some of the range have non-guard pages mapped, zap
 		 * them. This leaves existing guard pages in place.
 		 */
-		zap_page_range_single(vma, range->start,
-				range->end - range->start, NULL);
+		zap_page_range_single(vma, range->start, range->end - range->start);
 	}
 
 	/*
