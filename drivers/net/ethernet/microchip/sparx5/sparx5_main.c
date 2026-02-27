@@ -735,7 +735,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 					GCB_HW_SGPIO_TO_SD_MAP_CFG(idx));
 }
 
-static int sparx5_start(struct sparx5 *sparx5)
+static void sparx5_forwarding_init(struct sparx5 *sparx5)
 {
 	const struct sparx5_consts *consts = sparx5->data->consts;
 	u32 idx;
@@ -779,7 +779,6 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
-	return 0;
 }
 
 static int mchp_sparx5_probe(struct platform_device *pdev)
@@ -943,12 +942,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	sparx5_pgid_init(sparx5);
 	sparx5_vlan_init(sparx5);
 	sparx5_board_init(sparx5);
-
-	err = sparx5_start(sparx5);
-	if (err) {
-		dev_err(sparx5->dev, "Start failed\n");
-		goto cleanup_ports;
-	}
+	sparx5_forwarding_init(sparx5);
 
 	err = sparx5_calendar_init(sparx5);
 	if (err) {
