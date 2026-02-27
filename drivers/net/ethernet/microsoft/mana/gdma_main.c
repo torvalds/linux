@@ -490,14 +490,8 @@ static void mana_serv_reset(struct pci_dev *pdev)
 		dev_info(&pdev->dev, "MANA reset cycle completed\n");
 
 out:
-	gc->in_service = false;
+	clear_bit(GC_IN_SERVICE, &gc->flags);
 }
-
-struct mana_serv_work {
-	struct work_struct serv_work;
-	struct pci_dev *pdev;
-	enum gdma_eqe_type type;
-};
 
 static void mana_do_service(enum gdma_eqe_type type, struct pci_dev *pdev)
 {
@@ -558,12 +552,42 @@ static void mana_serv_func(struct work_struct *w)
 	module_put(THIS_MODULE);
 }
 
+int mana_schedule_serv_work(struct gdma_context *gc, enum gdma_eqe_type type)
+{
+	struct mana_serv_work *mns_wk;
+
+	if (test_and_set_bit(GC_IN_SERVICE, &gc->flags)) {
+		dev_info(gc->dev, "Already in service\n");
+		return -EBUSY;
+	}
+
+	if (!try_module_get(THIS_MODULE)) {
+		dev_info(gc->dev, "Module is unloading\n");
+		clear_bit(GC_IN_SERVICE, &gc->flags);
+		return -ENODEV;
+	}
+
+	mns_wk = kzalloc(sizeof(*mns_wk), GFP_ATOMIC);
+	if (!mns_wk) {
+		module_put(THIS_MODULE);
+		clear_bit(GC_IN_SERVICE, &gc->flags);
+		return -ENOMEM;
+	}
+
+	dev_info(gc->dev, "Start MANA service type:%d\n", type);
+	mns_wk->pdev = to_pci_dev(gc->dev);
+	mns_wk->type = type;
+	pci_dev_get(mns_wk->pdev);
+	INIT_WORK(&mns_wk->serv_work, mana_serv_func);
+	schedule_work(&mns_wk->serv_work);
+	return 0;
+}
+
 static void mana_gd_process_eqe(struct gdma_queue *eq)
 {
 	u32 head = eq->head % (eq->queue_size / GDMA_EQE_SIZE);
 	struct gdma_context *gc = eq->gdma_dev->gdma_context;
 	struct gdma_eqe *eq_eqe_ptr = eq->queue_mem_ptr;
-	struct mana_serv_work *mns_wk;
 	union gdma_eqe_info eqe_info;
 	enum gdma_eqe_type type;
 	struct gdma_event event;
@@ -623,30 +647,7 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 				 "Service is to be processed in probe\n");
 			break;
 		}
-
-		if (gc->in_service) {
-			dev_info(gc->dev, "Already in service\n");
-			break;
-		}
-
-		if (!try_module_get(THIS_MODULE)) {
-			dev_info(gc->dev, "Module is unloading\n");
-			break;
-		}
-
-		mns_wk = kzalloc_obj(*mns_wk, GFP_ATOMIC);
-		if (!mns_wk) {
-			module_put(THIS_MODULE);
-			break;
-		}
-
-		dev_info(gc->dev, "Start MANA service type:%d\n", type);
-		gc->in_service = true;
-		mns_wk->pdev = to_pci_dev(gc->dev);
-		mns_wk->type = type;
-		pci_dev_get(mns_wk->pdev);
-		INIT_WORK(&mns_wk->serv_work, mana_serv_func);
-		schedule_work(&mns_wk->serv_work);
+		mana_schedule_serv_work(gc, type);
 		break;
 
 	default:

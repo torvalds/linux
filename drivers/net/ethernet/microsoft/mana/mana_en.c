@@ -875,7 +875,7 @@ static void mana_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	struct gdma_context *gc = ac->gdma_dev->gdma_context;
 
 	/* Already in service, hence tx queue reset is not required.*/
-	if (gc->in_service)
+	if (test_bit(GC_IN_SERVICE, &gc->flags))
 		return;
 
 	/* Note: If there are pending queue reset work for this port(apc),
@@ -3525,6 +3525,7 @@ static void mana_gf_stats_work_handler(struct work_struct *work)
 {
 	struct mana_context *ac =
 		container_of(to_delayed_work(work), struct mana_context, gf_stats_work);
+	struct gdma_context *gc = ac->gdma_dev->gdma_context;
 	int err;
 
 	err = mana_query_gf_stats(ac);
@@ -3532,6 +3533,12 @@ static void mana_gf_stats_work_handler(struct work_struct *work)
 		/* HWC timeout detected - reset stats and stop rescheduling */
 		ac->hwc_timeout_occurred = true;
 		memset(&ac->hc_stats, 0, sizeof(ac->hc_stats));
+		dev_warn(gc->dev,
+			 "Gf stats wk handler: gf stats query timed out.\n");
+		/* As HWC timed out, indicating a faulty HW state and needs a
+		 * reset.
+		 */
+		mana_schedule_serv_work(gc, GDMA_EQE_HWC_RESET_REQUEST);
 		return;
 	}
 	schedule_delayed_work(&ac->gf_stats_work, MANA_GF_STATS_PERIOD);
