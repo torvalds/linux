@@ -136,13 +136,13 @@ static struct mdio_bus_stat_attr *to_sattr(struct device_attribute *attr)
 
 static u64 mdio_bus_get_stat(struct mdio_bus_stats *s, unsigned int offset)
 {
-	const char *p = (const char *)s + offset;
+	const u64_stats_t *stats = (const void *)s + offset;
 	unsigned int start;
 	u64 val = 0;
 
 	do {
 		start = u64_stats_fetch_begin(&s->syncp);
-		val = u64_stats_read((const u64_stats_t *)p);
+		val = u64_stats_read(stats);
 	} while (u64_stats_fetch_retry(&s->syncp, start));
 
 	return val;
