@@ -97,8 +97,8 @@ struct stmmac_dma_cfg {
 	int txpbl;
 	int rxpbl;
 	bool pblx8;
-	int fixed_burst;
-	int mixed_burst;
+	bool fixed_burst;
+	bool mixed_burst;
 	bool aal;
 	bool eame;
 	bool multi_msi_en;
