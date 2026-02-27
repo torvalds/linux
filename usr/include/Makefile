@@ -48,7 +48,7 @@ no-header-test += xen/privcmd.h
 
 # More headers are broken in some architectures
 
-ifneq ($(filter arc openrisc xtensa, $(SRCARCH)),)
+ifneq ($(filter arc openrisc xtensa nios2, $(SRCARCH)),)
 no-header-test += linux/bpf_perf_event.h
 endif
 
@@ -128,7 +128,6 @@ endif
 
 ifeq ($(SRCARCH),nios2)
 uses-libc += asm/ptrace.h
-uses-libc += linux/bpf_perf_event.h
 endif
 
 ifeq ($(SRCARCH),s390)
