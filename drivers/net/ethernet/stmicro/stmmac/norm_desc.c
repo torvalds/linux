@@ -151,11 +151,6 @@ static void ndesc_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 	p->des0 |= cpu_to_le32(RDES0_OWN);
 }
 
-static int ndesc_get_tx_ls(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des1) & TDES1_LAST_SEGMENT) >> 30;
-}
-
 static void ndesc_release_tx_desc(struct dma_desc *p, int mode)
 {
 	int ter = (le32_to_cpu(p->des1) & TDES1_END_RING) >> 25;
@@ -292,7 +287,6 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.release_tx_desc = ndesc_release_tx_desc,
 	.prepare_tx_desc = ndesc_prepare_tx_desc,
 	.set_tx_ic = ndesc_set_tx_ic,
-	.get_tx_ls = ndesc_get_tx_ls,
 	.set_tx_owner = ndesc_set_tx_owner,
 	.set_rx_owner = ndesc_set_rx_owner,
 	.get_rx_frame_len = ndesc_get_rx_frame_len,

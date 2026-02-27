@@ -56,8 +56,6 @@ struct stmmac_desc_ops {
 	/* Clear interrupt on tx frame completion. When this bit is
 	 * set an interrupt happens as soon as the frame is transmitted */
 	void (*set_tx_ic)(struct dma_desc *p);
-	/* Last tx segment reports the transmit status */
-	int (*get_tx_ls)(struct dma_desc *p);
 	/* Get the tag of the descriptor */
 	u16 (*get_rx_vlan_tci)(struct dma_desc *p);
 	/* Get the valid status of descriptor */
@@ -119,8 +117,6 @@ struct stmmac_desc_ops {
 	stmmac_do_void_callback(__priv, desc, release_tx_desc, __args)
 #define stmmac_set_tx_ic(__priv, __args...) \
 	stmmac_do_void_callback(__priv, desc, set_tx_ic, __args)
-#define stmmac_get_tx_ls(__priv, __args...) \
-	stmmac_do_callback(__priv, desc, get_tx_ls, __args)
 #define stmmac_get_rx_vlan_tci(__priv, __args...) \
 	stmmac_do_callback(__priv, desc, get_rx_vlan_tci, __args)
 #define stmmac_get_rx_vlan_valid(__priv, __args...) \

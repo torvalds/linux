@@ -191,12 +191,6 @@ static void dwmac4_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 	p->des3 |= cpu_to_le32(flags);
 }
 
-static int dwmac4_get_tx_ls(struct dma_desc *p)
-{
-	return (le32_to_cpu(p->des3) & TDES3_LAST_DESCRIPTOR)
-		>> TDES3_LAST_DESCRIPTOR_SHIFT;
-}
-
 static u16 dwmac4_wrback_get_rx_vlan_tci(struct dma_desc *p)
 {
 	return (le32_to_cpu(p->des0) & RDES0_VLAN_TAG_MASK);
@@ -549,7 +543,6 @@ const struct stmmac_desc_ops dwmac4_desc_ops = {
 	.get_tx_len = dwmac4_rd_get_tx_len,
 	.set_tx_owner = dwmac4_set_tx_owner,
 	.set_rx_owner = dwmac4_set_rx_owner,
-	.get_tx_ls = dwmac4_get_tx_ls,
 	.get_rx_vlan_tci = dwmac4_wrback_get_rx_vlan_tci,
 	.get_rx_vlan_valid = dwmac4_wrback_get_rx_vlan_valid,
 	.get_rx_frame_len = dwmac4_wrback_get_rx_frame_len,
