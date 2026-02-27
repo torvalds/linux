@@ -325,16 +325,54 @@ void vmemmap_wrprotect_hvo(unsigned long addr, unsigned long end,
 	}
 }
 
-/*
- * Populate vmemmap pages HVO-style. The first page contains the head
- * page and needed tail pages, the other ones are mirrors of the first
- * page.
- */
-int __meminit vmemmap_populate_hvo(unsigned long addr, unsigned long end,
-				       int node, unsigned long headsize)
+#ifdef CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+static __meminit struct page *vmemmap_get_tail(unsigned int order, struct zone *zone)
 {
-	pte_t *pte;
+	struct page *p, *tail;
+	unsigned int idx;
+	int node = zone_to_nid(zone);
+
+	if (WARN_ON_ONCE(order < VMEMMAP_TAIL_MIN_ORDER))
+		return NULL;
+	if (WARN_ON_ONCE(order > MAX_FOLIO_ORDER))
+		return NULL;
+
+	idx = order - VMEMMAP_TAIL_MIN_ORDER;
+	tail = zone->vmemmap_tails[idx];
+	if (tail)
+		return tail;
+
+	/*
+	 * Only allocate the page, but do not initialize it.
+	 *
+	 * Any initialization done here will be overwritten by memmap_init().
+	 *
+	 * hugetlb_vmemmap_init() will take care of initialization after
+	 * memmap_init().
+	 */
+
+	p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
+	if (!p)
+		return NULL;
+
+	tail = virt_to_page(p);
+	zone->vmemmap_tails[idx] = tail;
+
+	return tail;
+}
+
+int __meminit vmemmap_populate_hvo(unsigned long addr, unsigned long end,
+				       unsigned int order, struct zone *zone,
+				       unsigned long headsize)
+{
 	unsigned long maddr;
+	struct page *tail;
+	pte_t *pte;
+	int node = zone_to_nid(zone);
+
+	tail = vmemmap_get_tail(order, zone);
+	if (!tail)
+		return -ENOMEM;
 
 	for (maddr = addr; maddr < addr + headsize; maddr += PAGE_SIZE) {
 		pte = vmemmap_populate_address(maddr, node, NULL, -1, 0);
@@ -346,8 +384,9 @@ int __meminit vmemmap_populate_hvo(unsigned long addr, unsigned long end,
 	 * Reuse the last page struct page mapped above for the rest.
 	 */
 	return vmemmap_populate_range(maddr, end, node, NULL,
-					pte_pfn(ptep_get(pte)), 0);
+				      page_to_pfn(tail), 0);
 }
+#endif
 
 void __weak __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
 				      unsigned long addr, unsigned long next)
