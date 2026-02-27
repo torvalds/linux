@@ -307,8 +307,9 @@ struct stmmac_priv {
 	 *  when set, struct dma_extended_desc
 	 */
 	bool extend_desc;
+	/* chain_mode: requested descriptor mode */
+	bool chain_mode;
 	unsigned int mode;
-	unsigned int chain_mode;
 	struct kernel_hwtstamp_config tstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;

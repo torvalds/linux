@@ -7339,7 +7339,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	/* dwmac-sun8i only work in chain mode */
 	if (priv->plat->flags & STMMAC_FLAG_HAS_SUN8I)
 		chain_mode = 1;
-	priv->chain_mode = chain_mode;
+	priv->chain_mode = !!chain_mode;
 
 	/* Initialize HW Interface */
 	ret = stmmac_hwif_init(priv);
