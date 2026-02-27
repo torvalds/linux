@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
@@ -17,6 +18,8 @@
 #include <linux/string_choices.h>
 #include <sound/soc.h>
 #include "bus.h"
+
+#define SDW_PORT_PREP_POLL_USEC	1000
 
 /*
  * Array of supported rows and columns as per MIPI SoundWire Specification 1.1
@@ -443,7 +446,6 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 				       struct sdw_port_runtime *p_rt,
 				       bool prep)
 {
-	struct completion *port_ready;
 	struct sdw_dpn_prop *dpn_prop;
 	struct sdw_prepare_ch prep_ch;
 	u32 imp_def_interrupts;
@@ -518,14 +520,18 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 			return ret;
 		}
 
-		/* Wait for completion on port ready */
-		port_ready = &s_rt->slave->port_ready[prep_ch.num];
-		wait_for_completion_timeout(port_ready,
-			msecs_to_jiffies(ch_prep_timeout));
+		/*
+		 * Poll for NOT_PREPARED==0. Cannot use the interrupt because
+		 * this code holds bus_lock which blocks interrupt handling.
+		 */
+		ret = read_poll_timeout(sdw_read_no_pm, val,
+					(val < 0) || ((val & p_rt->ch_mask) == 0),
+					SDW_PORT_PREP_POLL_USEC, ch_prep_timeout * USEC_PER_MSEC,
+					false, s_rt->slave, SDW_DPN_PREPARESTATUS(p_rt->num));
+		if (ret || (val < 0)) {
+			if (val < 0)
+				ret = val;
 
-		val = sdw_read_no_pm(s_rt->slave, SDW_DPN_PREPARESTATUS(p_rt->num));
-		if ((val < 0) || (val & p_rt->ch_mask)) {
-			ret = (val < 0) ? val : -ETIMEDOUT;
 			dev_err(&s_rt->slave->dev,
 				"Chn prep failed for port %d: %d\n", prep_ch.num, ret);
 			return ret;
