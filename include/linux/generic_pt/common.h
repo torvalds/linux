@@ -175,6 +175,22 @@ enum {
 	PT_FEAT_VTDSS_FORCE_WRITEABLE,
 };
 
+struct pt_riscv_32 {
+	struct pt_common common;
+};
+
+struct pt_riscv_64 {
+	struct pt_common common;
+};
+
+enum {
+	/*
+	 * Support the 64k contiguous page size following the Svnapot extension.
+	 */
+	PT_FEAT_RISCV_SVNAPOT_64K = PT_FEAT_FMT_START,
+
+};
+
 struct pt_x86_64 {
 	struct pt_common common;
 };

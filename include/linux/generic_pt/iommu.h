@@ -275,6 +275,17 @@ struct pt_iommu_vtdss_hw_info {
 
 IOMMU_FORMAT(vtdss, vtdss_pt);
 
+struct pt_iommu_riscv_64_cfg {
+	struct pt_iommu_cfg common;
+};
+
+struct pt_iommu_riscv_64_hw_info {
+	u64 ppn;
+	u8 fsc_iosatp_mode;
+};
+
+IOMMU_FORMAT(riscv_64, riscv_64pt);
+
 struct pt_iommu_x86_64_cfg {
 	struct pt_iommu_cfg common;
 	/* 4 is a 57 bit 5 level table */
