@@ -3249,9 +3249,6 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return -EINVAL;
 	}
 
-	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
-		priv->plat->dma_cfg->atds = 1;
-
 	ret = stmmac_prereset_configure(priv);
 	if (ret)
 		return ret;
@@ -7443,6 +7440,13 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		if (ret)
 			return ret;
 	}
+
+	/* Set alternate descriptor size (which tells the hardware that
+	 * descriptors are 8 32-bit words) when using extended descriptors
+	 * with ring mode. Only applicable for pre-v4.0 cores.
+	 */
+	if (priv->extend_desc && priv->mode == STMMAC_RING_MODE)
+		priv->plat->dma_cfg->atds = 1;
 
 	/* Rx Watchdog is available in the COREs newer than the 3.40.
 	 * In some case, for example on bugged HW this feature
