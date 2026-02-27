@@ -109,6 +109,7 @@ static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
 
 int __init ima_init_crypto(void)
 {
+	unsigned int digest_size;
 	enum hash_algo algo;
 	long rc;
 	int i;
@@ -147,7 +148,9 @@ int __init ima_init_crypto(void)
 
 	for (i = 0; i < NR_BANKS(ima_tpm_chip); i++) {
 		algo = ima_tpm_chip->allocated_banks[i].crypto_id;
+		digest_size = ima_tpm_chip->allocated_banks[i].digest_size;
 		ima_algo_array[i].algo = algo;
+		ima_algo_array[i].digest_size = digest_size;
 
 		/* unknown TPM algorithm */
 		if (algo == HASH_ALGO__LAST)
@@ -183,12 +186,15 @@ int __init ima_init_crypto(void)
 		}
 
 		ima_algo_array[ima_sha1_idx].algo = HASH_ALGO_SHA1;
+		ima_algo_array[ima_sha1_idx].digest_size = SHA1_DIGEST_SIZE;
 	}
 
 	if (ima_hash_algo_idx >= NR_BANKS(ima_tpm_chip) &&
 	    ima_hash_algo_idx != ima_sha1_idx) {
+		digest_size = hash_digest_size[ima_hash_algo];
 		ima_algo_array[ima_hash_algo_idx].tfm = ima_shash_tfm;
 		ima_algo_array[ima_hash_algo_idx].algo = ima_hash_algo;
+		ima_algo_array[ima_hash_algo_idx].digest_size = digest_size;
 	}
 
 	return 0;

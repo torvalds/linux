@@ -53,6 +53,7 @@ extern atomic_t ima_setxattr_allowed_hash_algorithms;
 struct ima_algo_desc {
 	struct crypto_shash *tfm;
 	enum hash_algo algo;
+	unsigned int digest_size;
 };
 
 /* set during initialization */
