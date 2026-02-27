@@ -107,14 +107,12 @@ static void __bpf_local_storage_free_trace_rcu(struct rcu_head *rcu)
 {
 	struct bpf_local_storage *local_storage;
 
-	/* If RCU Tasks Trace grace period implies RCU grace period, do
-	 * kfree(), else do kfree_rcu().
+	/*
+	 * RCU Tasks Trace grace period implies RCU grace period, do
+	 * kfree() directly.
 	 */
 	local_storage = container_of(rcu, struct bpf_local_storage, rcu);
-	if (rcu_trace_implies_rcu_gp())
-		kfree(local_storage);
-	else
-		kfree_rcu(local_storage, rcu);
+	kfree(local_storage);
 }
 
 /* Handle use_kmalloc_nolock == false */
@@ -138,10 +136,11 @@ static void bpf_local_storage_free_rcu(struct rcu_head *rcu)
 
 static void bpf_local_storage_free_trace_rcu(struct rcu_head *rcu)
 {
-	if (rcu_trace_implies_rcu_gp())
-		bpf_local_storage_free_rcu(rcu);
-	else
-		call_rcu(rcu, bpf_local_storage_free_rcu);
+	/*
+	 * RCU Tasks Trace grace period implies RCU grace period, do
+	 * kfree() directly.
+	 */
+	bpf_local_storage_free_rcu(rcu);
 }
 
 static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
@@ -182,10 +181,11 @@ static void __bpf_selem_free_rcu(struct rcu_head *rcu)
 /* rcu tasks trace callback for use_kmalloc_nolock == false */
 static void __bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 {
-	if (rcu_trace_implies_rcu_gp())
-		__bpf_selem_free_rcu(rcu);
-	else
-		call_rcu(rcu, __bpf_selem_free_rcu);
+	/*
+	 * RCU Tasks Trace grace period implies RCU grace period, do
+	 * kfree() directly.
+	 */
+	__bpf_selem_free_rcu(rcu);
 }
 
 /* Handle use_kmalloc_nolock == false */
@@ -214,10 +214,11 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
 
 static void bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 {
-	if (rcu_trace_implies_rcu_gp())
-		bpf_selem_free_rcu(rcu);
-	else
-		call_rcu(rcu, bpf_selem_free_rcu);
+	/*
+	 * RCU Tasks Trace grace period implies RCU grace period, do
+	 * kfree() directly.
+	 */
+	bpf_selem_free_rcu(rcu);
 }
 
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
