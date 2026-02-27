@@ -2423,7 +2423,6 @@ static long btrfs_free_cached_objects(struct super_block *sb, struct shrink_cont
 	return 0;
 }
 
-#ifdef CONFIG_BTRFS_EXPERIMENTAL
 static int btrfs_remove_bdev(struct super_block *sb, struct block_device *bdev)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
@@ -2481,7 +2480,6 @@ static void btrfs_shutdown(struct super_block *sb)
 
 	btrfs_force_shutdown(fs_info);
 }
-#endif
 
 static int btrfs_show_stats(struct seq_file *seq, struct dentry *root)
 {
@@ -2511,10 +2509,8 @@ static const struct super_operations btrfs_super_ops = {
 	.nr_cached_objects = btrfs_nr_cached_objects,
 	.free_cached_objects = btrfs_free_cached_objects,
 	.show_stats	= btrfs_show_stats,
-#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	.remove_bdev	= btrfs_remove_bdev,
 	.shutdown	= btrfs_shutdown,
-#endif
 };
 
 static const struct file_operations btrfs_ctl_fops = {
