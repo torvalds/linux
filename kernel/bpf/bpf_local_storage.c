@@ -164,16 +164,28 @@ static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
 			     bpf_local_storage_free_trace_rcu);
 }
 
+/* rcu callback for use_kmalloc_nolock == false */
+static void __bpf_selem_free_rcu(struct rcu_head *rcu)
+{
+	struct bpf_local_storage_elem *selem;
+	struct bpf_local_storage_map *smap;
+
+	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
+	/* bpf_selem_unlink_nofail may have already cleared smap and freed fields. */
+	smap = rcu_dereference_check(SDATA(selem)->smap, 1);
+
+	if (smap)
+		bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+	kfree(selem);
+}
+
 /* rcu tasks trace callback for use_kmalloc_nolock == false */
 static void __bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 {
-	struct bpf_local_storage_elem *selem;
-
-	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
 	if (rcu_trace_implies_rcu_gp())
-		kfree(selem);
+		__bpf_selem_free_rcu(rcu);
 	else
-		kfree_rcu(selem, rcu);
+		call_rcu(rcu, __bpf_selem_free_rcu);
 }
 
 /* Handle use_kmalloc_nolock == false */
@@ -181,7 +193,7 @@ static void __bpf_selem_free(struct bpf_local_storage_elem *selem,
 			     bool vanilla_rcu)
 {
 	if (vanilla_rcu)
-		kfree_rcu(selem, rcu);
+		call_rcu(&selem->rcu, __bpf_selem_free_rcu);
 	else
 		call_rcu_tasks_trace(&selem->rcu, __bpf_selem_free_trace_rcu);
 }
@@ -195,11 +207,8 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
 	/* The bpf_local_storage_map_free will wait for rcu_barrier */
 	smap = rcu_dereference_check(SDATA(selem)->smap, 1);
 
-	if (smap) {
-		migrate_disable();
+	if (smap)
 		bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
-		migrate_enable();
-	}
 	kfree_nolock(selem);
 }
 
@@ -214,18 +223,12 @@ static void bpf_selem_free_trace_rcu(struct rcu_head *rcu)
 void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		    bool reuse_now)
 {
-	struct bpf_local_storage_map *smap;
-
-	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
-
 	if (!selem->use_kmalloc_nolock) {
 		/*
 		 * No uptr will be unpin even when reuse_now == false since uptr
 		 * is only supported in task local storage, where
 		 * smap->use_kmalloc_nolock == true.
 		 */
-		if (smap)
-			bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
 		__bpf_selem_free(selem, reuse_now);
 		return;
 	}
@@ -958,10 +961,9 @@ restart:
 	 */
 	synchronize_rcu();
 
-	if (smap->use_kmalloc_nolock) {
-		rcu_barrier_tasks_trace();
-		rcu_barrier();
-	}
+	/* smap remains in use regardless of kmalloc_nolock, so wait unconditionally. */
+	rcu_barrier_tasks_trace();
+	rcu_barrier();
 	kvfree(smap->buckets);
 	bpf_map_area_free(smap);
 }
