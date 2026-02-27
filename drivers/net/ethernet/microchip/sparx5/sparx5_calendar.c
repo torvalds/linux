@@ -151,7 +151,7 @@ enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5, u32 portno)
 }
 
 /* Auto configure the QSYS calendar based on port configuration */
-int sparx5_config_auto_calendar(struct sparx5 *sparx5)
+static int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 {
 	const struct sparx5_consts *consts = sparx5->data->consts;
 	u32 cal[7], value, idx, portno;
@@ -578,7 +578,7 @@ update_err:
 }
 
 /* Configure the DSM calendar based on port configuration */
-int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
+static int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 {
 	const struct sparx5_ops *ops = sparx5->data->ops;
 	int taxi;
@@ -609,4 +609,15 @@ int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 cal_out:
 	kfree(data);
 	return err;
+}
+
+int sparx5_calendar_init(struct sparx5 *sparx5)
+{
+	int err;
+
+	err = sparx5_config_auto_calendar(sparx5);
+	if (err)
+		return err;
+
+	return sparx5_config_dsm_calendar(sparx5);
 }

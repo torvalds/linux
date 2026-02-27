@@ -735,14 +735,6 @@ static int sparx5_start(struct sparx5 *sparx5)
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
 
-	err = sparx5_config_auto_calendar(sparx5);
-	if (err)
-		return err;
-
-	err = sparx5_config_dsm_calendar(sparx5);
-	if (err)
-		return err;
-
 	sparx5_board_init(sparx5);
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
@@ -953,6 +945,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	err = sparx5_start(sparx5);
 	if (err) {
 		dev_err(sparx5->dev, "Start failed\n");
+		goto cleanup_ports;
+	}
+
+	err = sparx5_calendar_init(sparx5);
+	if (err) {
+		dev_err(sparx5->dev, "Failed to initialize calendar\n");
 		goto cleanup_ports;
 	}
 

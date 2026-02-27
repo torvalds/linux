@@ -504,8 +504,7 @@ int sparx5_vlan_vid_del(struct sparx5_port *port, u16 vid);
 void sparx5_vlan_port_apply(struct sparx5 *sparx5, struct sparx5_port *port);
 
 /* sparx5_calendar.c */
-int sparx5_config_auto_calendar(struct sparx5 *sparx5);
-int sparx5_config_dsm_calendar(struct sparx5 *sparx5);
+int sparx5_calendar_init(struct sparx5 *sparx5);
 int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 			     struct sparx5_calendar_data *data);
 u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed);
