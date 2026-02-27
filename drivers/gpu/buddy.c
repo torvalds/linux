@@ -3,14 +3,35 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <kunit/test-bug.h>
-
+#include <linux/bug.h>
 #include <linux/export.h>
 #include <linux/kmemleak.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
 
 #include <linux/gpu_buddy.h>
+
+/**
+ * gpu_buddy_assert - assert a condition in the buddy allocator
+ * @condition: condition expected to be true
+ *
+ * When CONFIG_KUNIT is enabled, evaluates @condition and, if false, triggers
+ * a WARN_ON() and also calls kunit_fail_current_test() so that any running
+ * kunit test is properly marked as failed. The stringified condition is
+ * included in the failure message for easy identification.
+ *
+ * When CONFIG_KUNIT is not enabled, this reduces to WARN_ON() so production
+ * builds retain the same warning semantics as before.
+ */
+#if IS_ENABLED(CONFIG_KUNIT)
+#include <kunit/test-bug.h>
+#define gpu_buddy_assert(condition) do {						\
+	if (WARN_ON(!(condition)))						\
+		kunit_fail_current_test("gpu_buddy_assert(" #condition ")");	\
+} while (0)
+#else
+#define gpu_buddy_assert(condition) WARN_ON(!(condition))
+#endif
 
 static struct kmem_cache *slab_blocks;
 
@@ -268,8 +289,8 @@ static int __force_merge(struct gpu_buddy *mm,
 				if (!gpu_buddy_block_is_free(buddy))
 					continue;
 
-				WARN_ON(gpu_buddy_block_is_clear(block) ==
-					gpu_buddy_block_is_clear(buddy));
+				gpu_buddy_assert(gpu_buddy_block_is_clear(block) !=
+						 gpu_buddy_block_is_clear(buddy));
 
 				/*
 				 * Advance to the next node when the current node is the buddy,
@@ -415,8 +436,7 @@ void gpu_buddy_fini(struct gpu_buddy *mm)
 		start = gpu_buddy_block_offset(mm->roots[i]);
 		__force_merge(mm, start, start + size, order);
 
-		if (WARN_ON(!gpu_buddy_block_is_free(mm->roots[i])))
-			kunit_fail_current_test("buddy_fini() root");
+		gpu_buddy_assert(gpu_buddy_block_is_free(mm->roots[i]));
 
 		gpu_block_free(mm, mm->roots[i]);
 
@@ -424,7 +444,7 @@ void gpu_buddy_fini(struct gpu_buddy *mm)
 		size -= root_size;
 	}
 
-	WARN_ON(mm->avail != mm->size);
+	gpu_buddy_assert(mm->avail == mm->size);
 
 	for_each_free_tree(i)
 		kfree(mm->free_trees[i]);
@@ -541,7 +561,7 @@ static void __gpu_buddy_free_list(struct gpu_buddy *mm,
 {
 	struct gpu_buddy_block *block, *on;
 
-	WARN_ON(mark_dirty && mark_clear);
+	gpu_buddy_assert(!(mark_dirty && mark_clear));
 
 	list_for_each_entry_safe(block, on, objects, link) {
 		if (mark_clear)
