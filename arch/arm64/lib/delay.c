@@ -32,7 +32,11 @@ static inline unsigned long xloops_to_cycles(unsigned long xloops)
  * Note that userspace cannot change the offset behind our back either,
  * as the vcpu mutex is held as long as KVM_RUN is in progress.
  */
-#define __delay_cycles()	__arch_counter_get_cntvct_stable()
+static cycles_t notrace __delay_cycles(void)
+{
+	guard(preempt_notrace)();
+	return __arch_counter_get_cntvct_stable();
+}
 
 void __delay(unsigned long cycles)
 {
