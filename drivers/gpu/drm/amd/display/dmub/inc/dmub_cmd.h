@@ -1893,6 +1893,11 @@ enum dmub_cmd_type {
 	DMUB_CMD__IHC = 95,
 
 	/**
+	 * Command type use for boot time crc commands.
+	 */
+	DMUB_CMD__BOOT_TIME_CRC = 96,
+
+	/**
 	 * Command type use for VBIOS shared commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -6839,6 +6844,29 @@ struct dmub_rb_cmd_pr_general_cmd {
 };
 
 /**
+ * Command type of a DMUB_CMD__BOOT_TIME_CRC command
+ */
+enum dmub_cmd_boot_time_crc_type {
+	DMUB_CMD__BOOT_TIME_CRC_INIT_MEM = 0
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__BOOT_TIME_CRC_INIT command.
+ */
+struct dmub_cmd_boot_time_crc_init_data {
+	union dmub_addr buffer_addr;
+	uint32_t buffer_size;
+};
+
+/**
+ * Definition of a DMUB_CMD__BOOT_TIME_CRC_INIT command.
+ */
+struct dmub_rb_cmd_boot_time_crc_init {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_boot_time_crc_init_data data;
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -7199,6 +7227,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__IHC command.
 	 */
 	struct dmub_rb_cmd_ihc ihc;
+	/**
+	 * Definition of a DMUB_CMD__BOOT_TIME_CRC_INIT command.
+	 */
+	struct dmub_rb_cmd_boot_time_crc_init boot_time_crc_init;
 };
 
 /**
