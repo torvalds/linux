@@ -11,9 +11,15 @@
 #include <linux/unaligned.h>
 
 enum rtl9300_bus_freq {
-	RTL9300_I2C_STD_FREQ,
-	RTL9300_I2C_FAST_FREQ,
+	RTL9300_I2C_STD_FREQ,			// 100kHz
+	RTL9300_I2C_FAST_FREQ,			// 400kHz
+	RTL9300_I2C_SUPER_FAST_FREQ,		// 2.5MHz
+	RTL9300_I2C_SLOW_FREQ,			// 50kHz
 };
+
+#define RTL9300_I2C_MAX_SUPER_FAST_FREQ		2500000
+#define RTL9300_I2C_MAX_SLOW_FREQ		50000
+
 
 struct rtl9300_i2c;
 
@@ -432,6 +438,12 @@ static int rtl9300_i2c_probe(struct platform_device *pdev)
 			break;
 		case I2C_MAX_FAST_MODE_FREQ:
 			chan->bus_freq = RTL9300_I2C_FAST_FREQ;
+			break;
+		case RTL9300_I2C_MAX_SUPER_FAST_FREQ:
+			chan->bus_freq = RTL9300_I2C_SUPER_FAST_FREQ;
+			break;
+		case RTL9300_I2C_MAX_SLOW_FREQ:
+			chan->bus_freq = RTL9300_I2C_SLOW_FREQ;
 			break;
 		default:
 			dev_warn(i2c->dev, "SDA%d clock-frequency %d not supported using default\n",
