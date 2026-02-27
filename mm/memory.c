@@ -1554,11 +1554,13 @@ copy_page_range(struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma)
 static inline bool should_zap_cows(struct zap_details *details)
 {
 	/* By default, zap all pages */
-	if (!details || details->reclaim_pt)
+	if (!details)
 		return true;
 
+	VM_WARN_ON_ONCE(details->skip_cows && details->reclaim_pt);
+
 	/* Or, we zap COWed pages only if the caller wants to */
-	return details->even_cows;
+	return !details->skip_cows;
 }
 
 /* Decides whether we should zap this folio with the folio pointer specified */
@@ -2149,8 +2151,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct unmap_desc *unmap)
 	struct mmu_notifier_range range;
 	struct zap_details details = {
 		.zap_flags = ZAP_FLAG_DROP_MARKER | ZAP_FLAG_UNMAP,
-		/* Careful - we need to zap private pages too! */
-		.even_cows = true,
 	};
 
 	vma = unmap->first;
@@ -4282,7 +4282,7 @@ void unmap_mapping_folio(struct folio *folio)
 	first_index = folio->index;
 	last_index = folio_next_index(folio) - 1;
 
-	details.even_cows = false;
+	details.skip_cows = true;
 	details.single_folio = folio;
 	details.zap_flags = ZAP_FLAG_DROP_MARKER;
 
@@ -4312,7 +4312,7 @@ void unmap_mapping_pages(struct address_space *mapping, pgoff_t start,
 	pgoff_t	first_index = start;
 	pgoff_t	last_index = start + nr - 1;
 
-	details.even_cows = even_cows;
+	details.skip_cows = !even_cows;
 	if (last_index < first_index)
 		last_index = ULONG_MAX;
 
