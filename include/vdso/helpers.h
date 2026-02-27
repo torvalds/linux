@@ -6,6 +6,12 @@
 
 #include <asm/barrier.h>
 #include <vdso/datapage.h>
+#include <vdso/clocksource.h>
+
+static __always_inline bool vdso_is_timens_clock(const struct vdso_clock *vc)
+{
+	return IS_ENABLED(CONFIG_TIME_NS) && vc->clock_mode == VDSO_CLOCKMODE_TIMENS;
+}
 
 static __always_inline u32 vdso_read_begin(const struct vdso_clock *vc)
 {
@@ -31,7 +37,7 @@ static __always_inline u32 vdso_read_begin(const struct vdso_clock *vc)
 static __always_inline bool vdso_read_begin_timens(const struct vdso_clock *vc, u32 *seq)
 {
 	while (unlikely((*seq = READ_ONCE(vc->seq)) & 1)) {
-		if (IS_ENABLED(CONFIG_TIME_NS) && vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
+		if (vdso_is_timens_clock(vc))
 			return true;
 		cpu_relax();
 	}

@@ -343,8 +343,7 @@ __cvdso_gettimeofday_data(const struct vdso_time_data *vd,
 	}
 
 	if (unlikely(tz != NULL)) {
-		if (IS_ENABLED(CONFIG_TIME_NS) &&
-		    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
+		if (vdso_is_timens_clock(vc))
 			vd = __arch_get_vdso_u_timens_data(vd);
 
 		tz->tz_minuteswest = vd[CS_HRES_COARSE].tz_minuteswest;
@@ -367,8 +366,7 @@ __cvdso_time_data(const struct vdso_time_data *vd, __kernel_old_time_t *time)
 	const struct vdso_clock *vc = vd->clock_data;
 	__kernel_old_time_t t;
 
-	if (IS_ENABLED(CONFIG_TIME_NS) &&
-	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
+	if (vdso_is_timens_clock(vc)) {
 		vd = __arch_get_vdso_u_timens_data(vd);
 		vc = vd->clock_data;
 	}
@@ -399,8 +397,7 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 	if (!vdso_clockid_valid(clock))
 		return false;
 
-	if (IS_ENABLED(CONFIG_TIME_NS) &&
-	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
+	if (vdso_is_timens_clock(vc))
 		vd = __arch_get_vdso_u_timens_data(vd);
 
 	/*
