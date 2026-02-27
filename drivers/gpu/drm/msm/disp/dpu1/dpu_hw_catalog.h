@@ -587,8 +587,7 @@ struct dpu_vbif_qos_tbl {
 
 /**
  * struct dpu_vbif_cfg - information of VBIF blocks
- * @id                 enum identifying this block
- * @base               register offset of this block
+ * @len:               length of hardware block
  * @features           bit mask identifying sub-blocks/features
  * @ot_rd_limit        default OT read limit
  * @ot_wr_limit        default OT write limit
@@ -602,7 +601,7 @@ struct dpu_vbif_qos_tbl {
  * @memtype            array of xin memtype definitions
  */
 struct dpu_vbif_cfg {
-	DPU_HW_BLK_INFO;
+	u32 len;
 	unsigned long features;
 	u32 default_ot_rd_limit;
 	u32 default_ot_wr_limit;
