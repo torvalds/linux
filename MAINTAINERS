@@ -20494,6 +20494,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	drivers/pci/controller/pci-thunder-*
 
+PCIE DRIVER FOR ESWIN
+M:	Senchuan Zhang <zhangsenchuan@eswincomputing.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/eswin,pcie.yaml
+F:	drivers/pci/controller/dwc/pcie-eswin.c
+
 PCIE DRIVER FOR HISILICON
 M:	Zhou Wang <wangzhou1@hisilicon.com>
 L:	linux-pci@vger.kernel.org
