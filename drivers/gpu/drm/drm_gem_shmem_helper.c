@@ -584,7 +584,7 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 	/* Offset to faulty address in the VMA. */
 	page_offset = vmf->pgoff - vma->vm_pgoff;
 
-	dma_resv_lock(shmem->base.resv, NULL);
+	dma_resv_lock(obj->resv, NULL);
 
 	if (page_offset >= num_pages ||
 	    drm_WARN_ON_ONCE(obj->dev, !shmem->pages) ||
@@ -602,7 +602,7 @@ static vm_fault_t drm_gem_shmem_fault(struct vm_fault *vmf)
 	ret = vmf_insert_pfn(vma, vmf->address, pfn);
 
  out:
-	dma_resv_unlock(shmem->base.resv);
+	dma_resv_unlock(obj->resv);
 
 	return ret;
 }
