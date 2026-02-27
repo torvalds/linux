@@ -36,6 +36,9 @@ struct btrfs_ordered_extent;
 #define BTRFS_MAX_COMPRESSED_PAGES	(BTRFS_MAX_COMPRESSED / PAGE_SIZE)
 static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
 
+/* The max size for a single worker to compress. */
+#define BTRFS_COMPRESSION_CHUNK_SIZE	(SZ_512K)
+
 /* Maximum size of data before compression */
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 

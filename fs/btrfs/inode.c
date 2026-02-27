@@ -1691,7 +1691,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 	struct async_cow *ctx;
 	struct async_chunk *async_chunk;
 	unsigned long nr_pages;
-	u64 num_chunks = DIV_ROUND_UP(end - start, SZ_512K);
+	u64 num_chunks = DIV_ROUND_UP(end - start, BTRFS_COMPRESSION_CHUNK_SIZE);
 	int i;
 	unsigned nofs_flag;
 	const blk_opf_t write_flags = wbc_to_write_flags(wbc);
@@ -1708,7 +1708,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 	atomic_set(&ctx->num_chunks, num_chunks);
 
 	for (i = 0; i < num_chunks; i++) {
-		u64 cur_end = min(end, start + SZ_512K - 1);
+		u64 cur_end = min(end, start + BTRFS_COMPRESSION_CHUNK_SIZE - 1);
 
 		/*
 		 * igrab is called higher up in the call chain, take only the
