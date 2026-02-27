@@ -624,8 +624,8 @@ static struct config_group *pci_epf_make(struct config_group *group,
 
 	epf = pci_epf_create(epf_name);
 	if (IS_ERR(epf)) {
-		pr_err("failed to create endpoint function device\n");
-		err = -EINVAL;
+		err = PTR_ERR(epf);
+		pr_err("failed to create endpoint function device: %d\n", err);
 		goto free_name;
 	}
 
