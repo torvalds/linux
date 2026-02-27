@@ -149,6 +149,10 @@ struct intel_display_stolen_interface {
 	void (*node_free)(const struct intel_stolen_node *node);
 };
 
+struct intel_display_vma_interface {
+	int (*fence_id)(const struct i915_vma *vma);
+};
+
 /**
  * struct intel_display_parent_interface - services parent driver provides to display
  *
@@ -197,6 +201,9 @@ struct intel_display_parent_interface {
 
 	/** @stolen: Stolen memory. */
 	const struct intel_display_stolen_interface *stolen;
+
+	/** @vma: VMA interface. Optional. */
+	const struct intel_display_vma_interface *vma;
 
 	/* Generic independent functions */
 	struct {

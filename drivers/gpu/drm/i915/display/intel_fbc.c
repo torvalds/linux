@@ -45,7 +45,6 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
 
-#include "i915_vma.h"
 #include "i9xx_plane_regs.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
@@ -1463,7 +1462,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 		    !intel_fbc_has_fences(display));
 
 	if (plane_state->flags & PLANE_HAS_FENCE)
-		fbc_state->fence_id =  i915_vma_fence_id(plane_state->ggtt_vma);
+		fbc_state->fence_id = intel_parent_vma_fence_id(display, plane_state->ggtt_vma);
 	else
 		fbc_state->fence_id = -1;
 
@@ -1490,7 +1489,7 @@ static bool intel_fbc_is_fence_ok(const struct intel_plane_state *plane_state)
 	 */
 	return DISPLAY_VER(display) >= 9 ||
 		(plane_state->flags & PLANE_HAS_FENCE &&
-		 i915_vma_fence_id(plane_state->ggtt_vma) != -1);
+		 intel_parent_vma_fence_id(display, plane_state->ggtt_vma) != -1);
 }
 
 static bool intel_fbc_is_cfb_ok(const struct intel_plane_state *plane_state)

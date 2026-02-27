@@ -317,6 +317,15 @@ void intel_parent_stolen_node_free(struct intel_display *display, const struct i
 	display->parent->stolen->node_free(node);
 }
 
+/* vma */
+int intel_parent_vma_fence_id(struct intel_display *display, const struct i915_vma *vma)
+{
+	if (!display->parent->vma)
+		return -1;
+
+	return display->parent->vma->fence_id(vma);
+}
+
 /* generic */
 void intel_parent_fence_priority_display(struct intel_display *display, struct dma_fence *fence)
 {
