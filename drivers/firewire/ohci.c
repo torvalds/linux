@@ -848,7 +848,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 {
 	struct device *dev = ohci->card.device;
 	unsigned int i;
-	struct page *pages[AR_BUFFERS + AR_WRAPAROUND_PAGES];
+	struct page *pages[AR_BUFFERS + AR_WRAPAROUND_PAGES] = { NULL };
 	dma_addr_t dma_addrs[AR_BUFFERS];
 	void *vaddr;
 	struct descriptor *d;
