@@ -26,21 +26,6 @@ allOf:
       properties:
         compatible:
           contains:
-            enum:
-              - baikal,bt1-sys-ssi
-    then:
-      properties:
-        mux-controls:
-          maxItems: 1
-      required:
-        - mux-controls
-    else:
-      required:
-        - interrupts
-  - if:
-      properties:
-        compatible:
-          contains:
             const: amd,pensando-elba-spi
     then:
       required:
@@ -75,10 +60,6 @@ properties:
         const: intel,mountevans-imc-ssi
       - description: AMD Pensando Elba SoC SPI Controller
         const: amd,pensando-elba-spi
-      - description: Baikal-T1 SPI Controller
-        const: baikal,bt1-ssi
-      - description: Baikal-T1 System Boot SPI Controller
-        const: baikal,bt1-sys-ssi
       - description: Canaan Kendryte K210 SoS SPI Controller
         const: canaan,k210-spi
       - description: Renesas RZ/N1 SPI Controller
@@ -170,6 +151,7 @@ required:
   - "#address-cells"
   - "#size-cells"
   - clocks
+  - interrupts
 
 examples:
   - |
@@ -189,16 +171,5 @@ examples:
         reg = <1>;
         rx-sample-delay-ns = <7>;
       };
-    };
-  - |
-    spi@1f040100 {
-      compatible = "baikal,bt1-sys-ssi";
-      reg = <0x1f040100 0x900>,
-            <0x1c000000 0x1000000>;
-      #address-cells = <1>;
-      #size-cells = <0>;
-      mux-controls = <&boot_mux>;
-      clocks = <&ccu_sys>;
-      clock-names = "ssi_clk";
     };
 ...
