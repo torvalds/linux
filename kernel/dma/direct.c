@@ -406,6 +406,8 @@ void dma_direct_sync_sg_for_device(struct device *dev,
 			arch_sync_dma_for_device(paddr, sg->length,
 					dir);
 	}
+	if (!dev_is_dma_coherent(dev))
+		arch_sync_dma_flush();
 }
 #endif
 
@@ -427,8 +429,10 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 		swiotlb_sync_single_for_cpu(dev, paddr, sg->length, dir);
 	}
 
-	if (!dev_is_dma_coherent(dev))
+	if (!dev_is_dma_coherent(dev)) {
+		arch_sync_dma_flush();
 		arch_sync_dma_for_cpu_all();
+	}
 }
 
 /*

@@ -867,6 +867,9 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 	if (orig_addr == INVALID_PHYS_ADDR)
 		return;
 
+	if (dir == DMA_FROM_DEVICE && !dev_is_dma_coherent(dev))
+		arch_sync_dma_flush();
+
 	/*
 	 * It's valid for tlb_offset to be negative. This can happen when the
 	 * "offset" returned by swiotlb_align_offset() is non-zero, and the
@@ -1595,8 +1598,10 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 		return DMA_MAPPING_ERROR;
 	}
 
-	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC)) {
 		arch_sync_dma_for_device(swiotlb_addr, size, dir);
+		arch_sync_dma_flush();
+	}
 	return dma_addr;
 }
 
