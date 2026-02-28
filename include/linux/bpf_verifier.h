@@ -265,6 +265,7 @@ struct bpf_reference_state {
 struct bpf_retval_range {
 	s32 minval;
 	s32 maxval;
+	bool return_32bit;
 };
 
 /* state of the program:
