@@ -54,11 +54,12 @@ struct intel_tlv {
 
 #define BTINTEL_HCI_OP_RESET	0xfc01
 
-#define BTINTEL_CNVI_BLAZARI		0x900
-#define BTINTEL_CNVI_BLAZARIW		0x901
-#define BTINTEL_CNVI_GAP		0x910
-#define BTINTEL_CNVI_BLAZARU		0x930
-#define BTINTEL_CNVI_SCP		0xA00
+#define BTINTEL_CNVI_BLAZARI		0x900	/* BlazarI - Lunar Lake */
+#define BTINTEL_CNVI_BLAZARIW		0x901	/* BlazarIW - Wildcat Lake */
+#define BTINTEL_CNVI_GAP		0x910	/* Gale Peak2 - Meteor Lake */
+#define BTINTEL_CNVI_BLAZARU		0x930	/* BlazarU - Meteor Lake */
+#define BTINTEL_CNVI_SCP		0xA00	/* Scorpius Peak - Panther Lake */
+#define BTINTEL_CNVI_SCP2		0xA10	/* Scorpius Peak2 - Nova Lake */
 
 /* CNVR */
 #define BTINTEL_CNVR_FMP2		0x910

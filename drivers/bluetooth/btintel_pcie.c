@@ -74,6 +74,9 @@ struct btintel_pcie_dev_recovery {
 #define BTINTEL_PCIE_SCP_HWEXP_SIZE		4096
 #define BTINTEL_PCIE_SCP_HWEXP_DMP_ADDR		0xB030F800
 
+#define BTINTEL_PCIE_SCP2_HWEXP_SIZE		4096
+#define BTINTEL_PCIE_SCP2_HWEXP_DMP_ADDR	0xB031D000
+
 #define BTINTEL_PCIE_MAGIC_NUM	0xA5A5A5A5
 
 #define BTINTEL_PCIE_TRIGGER_REASON_USER_TRIGGER	0x17A2
@@ -1230,6 +1233,10 @@ static void btintel_pcie_read_hwexp(struct btintel_pcie_data *data)
 	case BTINTEL_CNVI_SCP:
 		len = BTINTEL_PCIE_SCP_HWEXP_SIZE;
 		addr = BTINTEL_PCIE_SCP_HWEXP_DMP_ADDR;
+	break;
+	case BTINTEL_CNVI_SCP2:
+		len = BTINTEL_PCIE_SCP2_HWEXP_SIZE;
+		addr = BTINTEL_PCIE_SCP2_HWEXP_DMP_ADDR;
 	break;
 	default:
 		bt_dev_err(data->hdev, "Unsupported cnvi 0x%8.8x", data->dmp_hdr.cnvi_top);
