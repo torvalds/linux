@@ -393,13 +393,11 @@ static int dualpi2_enqueue_skb(struct sk_buff *skb, struct Qdisc *sch,
 		qdisc_qstats_overlimit(sch);
 		if (skb_in_l_queue(skb))
 			qdisc_qstats_overlimit(q->l_queue);
-		return qdisc_drop_reason(skb, sch, to_free,
-					 SKB_DROP_REASON_QDISC_OVERLIMIT);
+		return qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_OVERLIMIT);
 	}
 
 	if (q->drop_early && must_drop(sch, q, skb)) {
-		qdisc_drop_reason(skb, sch, to_free,
-				  SKB_DROP_REASON_QDISC_CONGESTED);
+		qdisc_drop_reason(skb, sch, to_free, QDISC_DROP_CONGESTED);
 		return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	}
 
@@ -573,11 +571,11 @@ static int do_step_aqm(struct dualpi2_sched_data *q, struct sk_buff *skb,
 }
 
 static void drop_and_retry(struct dualpi2_sched_data *q, struct sk_buff *skb,
-			   struct Qdisc *sch, enum skb_drop_reason reason)
+			   struct Qdisc *sch, enum qdisc_drop_reason reason)
 {
 	++q->deferred_drops_cnt;
 	q->deferred_drops_len += qdisc_pkt_len(skb);
-	kfree_skb_reason(skb, reason);
+	qdisc_dequeue_drop(sch, skb, reason);
 	qdisc_qstats_drop(sch);
 }
 
@@ -592,15 +590,13 @@ static struct sk_buff *dualpi2_qdisc_dequeue(struct Qdisc *sch)
 
 	while ((skb = dequeue_packet(sch, q, &credit_change, now))) {
 		if (!q->drop_early && must_drop(sch, q, skb)) {
-			drop_and_retry(q, skb, sch,
-				       SKB_DROP_REASON_QDISC_CONGESTED);
+			drop_and_retry(q, skb, sch, QDISC_DROP_CONGESTED);
 			continue;
 		}
 
 		if (skb_in_l_queue(skb) && do_step_aqm(q, skb, now)) {
 			qdisc_qstats_drop(q->l_queue);
-			drop_and_retry(q, skb, sch,
-				       SKB_DROP_REASON_DUALPI2_STEP_DROP);
+			drop_and_retry(q, skb, sch, QDISC_DROP_L4S_STEP_NON_ECN);
 			continue;
 		}
 
@@ -916,6 +912,8 @@ static int dualpi2_init(struct Qdisc *sch, struct nlattr *opt,
 {
 	struct dualpi2_sched_data *q = qdisc_priv(sch);
 	int err;
+
+	sch->flags |= TCQ_F_DEQUEUE_DROPS;
 
 	q->l_queue = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 				       TC_H_MAKE(sch->handle, 1), extack);

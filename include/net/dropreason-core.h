@@ -68,12 +68,6 @@
 	FN(SECURITY_HOOK)		\
 	FN(QDISC_DROP)			\
 	FN(QDISC_BURST_DROP)		\
-	FN(QDISC_OVERLIMIT)		\
-	FN(QDISC_CONGESTED)		\
-	FN(CAKE_FLOOD)			\
-	FN(FQ_BAND_LIMIT)		\
-	FN(FQ_HORIZON_LIMIT)		\
-	FN(FQ_FLOW_LIMIT)		\
 	FN(CPU_BACKLOG)			\
 	FN(XDP)				\
 	FN(TC_INGRESS)			\
@@ -127,7 +121,6 @@
 	FN(CANFD_RX_INVALID_FRAME)	\
 	FN(CANXL_RX_INVALID_FRAME)	\
 	FN(PFMEMALLOC)	\
-	FN(DUALPI2_STEP_DROP)		\
 	FN(PSP_INPUT)			\
 	FN(PSP_OUTPUT)			\
 	FNe(MAX)
@@ -371,8 +364,10 @@ enum skb_drop_reason {
 	/** @SKB_DROP_REASON_SECURITY_HOOK: dropped due to security HOOK */
 	SKB_DROP_REASON_SECURITY_HOOK,
 	/**
-	 * @SKB_DROP_REASON_QDISC_DROP: dropped by qdisc when packet outputting (
-	 * failed to enqueue to current qdisc)
+	 * @SKB_DROP_REASON_QDISC_DROP: dropped by qdisc during enqueue or
+	 * dequeue. More specific drop reasons are available via the
+	 * qdisc:qdisc_drop tracepoint, which also provides qdisc handle
+	 * and name for identifying the source.
 	 */
 	SKB_DROP_REASON_QDISC_DROP,
 	/**
@@ -380,36 +375,6 @@ enum skb_drop_reason {
 	 * limit is hit.
 	 */
 	SKB_DROP_REASON_QDISC_BURST_DROP,
-	/**
-	 * @SKB_DROP_REASON_QDISC_OVERLIMIT: dropped by qdisc when a qdisc
-	 * instance exceeds its total buffer size limit.
-	 */
-	SKB_DROP_REASON_QDISC_OVERLIMIT,
-	/**
-	 * @SKB_DROP_REASON_QDISC_CONGESTED: dropped by a qdisc AQM algorithm
-	 * due to congestion.
-	 */
-	SKB_DROP_REASON_QDISC_CONGESTED,
-	/**
-	 * @SKB_DROP_REASON_CAKE_FLOOD: dropped by the flood protection part of
-	 * CAKE qdisc AQM algorithm (BLUE).
-	 */
-	SKB_DROP_REASON_CAKE_FLOOD,
-	/**
-	 * @SKB_DROP_REASON_FQ_BAND_LIMIT: dropped by fq qdisc when per band
-	 * limit is reached.
-	 */
-	SKB_DROP_REASON_FQ_BAND_LIMIT,
-	/**
-	 * @SKB_DROP_REASON_FQ_HORIZON_LIMIT: dropped by fq qdisc when packet
-	 * timestamp is too far in the future.
-	 */
-	SKB_DROP_REASON_FQ_HORIZON_LIMIT,
-	/**
-	 * @SKB_DROP_REASON_FQ_FLOW_LIMIT: dropped by fq qdisc when a flow
-	 * exceeds its limits.
-	 */
-	SKB_DROP_REASON_FQ_FLOW_LIMIT,
 	/**
 	 * @SKB_DROP_REASON_CPU_BACKLOG: failed to enqueue the skb to the per CPU
 	 * backlog queue. This can be caused by backlog queue full (see
@@ -613,11 +578,6 @@ enum skb_drop_reason {
 	 * reached a path or socket not eligible for use of memory reserves
 	 */
 	SKB_DROP_REASON_PFMEMALLOC,
-	/**
-	 * @SKB_DROP_REASON_DUALPI2_STEP_DROP: dropped by the step drop
-	 * threshold of DualPI2 qdisc.
-	 */
-	SKB_DROP_REASON_DUALPI2_STEP_DROP,
 	/** @SKB_DROP_REASON_PSP_INPUT: PSP input checks failed */
 	SKB_DROP_REASON_PSP_INPUT,
 	/** @SKB_DROP_REASON_PSP_OUTPUT: PSP output checks failed */

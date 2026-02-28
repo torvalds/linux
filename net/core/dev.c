@@ -4166,7 +4166,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 
 	qdisc_calculate_pkt_len(skb, q);
 
-	tcf_set_drop_reason(skb, SKB_DROP_REASON_QDISC_DROP);
+	tcf_set_qdisc_drop_reason(skb, QDISC_DROP_GENERIC);
 
 	if (q->flags & TCQ_F_NOLOCK) {
 		if (q->flags & TCQ_F_CAN_BYPASS && nolock_qdisc_is_empty(q) &&
@@ -4274,8 +4274,8 @@ unlock:
 	spin_unlock(root_lock);
 
 free_skbs:
-	tcf_kfree_skb_list(to_free);
-	tcf_kfree_skb_list(to_free2);
+	tcf_kfree_skb_list(to_free, q, txq, dev);
+	tcf_kfree_skb_list(to_free2, q, txq, dev);
 	return rc;
 }
 
@@ -5811,7 +5811,7 @@ static __latent_entropy void net_tx_action(void)
 			to_free = qdisc_run(q);
 			if (root_lock)
 				spin_unlock(root_lock);
-			tcf_kfree_skb_list(to_free);
+			tcf_kfree_skb_list(to_free, q, NULL, qdisc_dev(q));
 		}
 
 		rcu_read_unlock();
