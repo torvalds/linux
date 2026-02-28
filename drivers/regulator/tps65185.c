@@ -332,6 +332,9 @@ static int tps65185_probe(struct i2c_client *client)
 	int i;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	data->regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(data->regmap))
 		return dev_err_probe(&client->dev, PTR_ERR(data->regmap),
