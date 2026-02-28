@@ -17984,17 +17984,14 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 	struct bpf_retval_range range = retval_range(0, 1);
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
 	struct bpf_func_state *frame = env->cur_state->frame[0];
-	const bool is_subprog = frame->subprogno;
 	const struct btf_type *reg_type, *ret_type = NULL;
 	int err;
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
-	if (!is_subprog || frame->in_exception_callback_fn) {
-		if (program_returns_void(env))
-			return 0;
-	}
+	if (!frame->in_async_callback_fn && program_returns_void(env))
+		return 0;
 
-	if (!is_subprog && prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
+	if (prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
 		/* Allow a struct_ops program to return a referenced kptr if it
 		 * matches the operator's return type and is in its unmodified
 		 * form. A scalar zero (i.e., a null pointer) is also allowed.
@@ -18028,15 +18025,6 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 		goto enforce_retval;
 	}
 
-	if (is_subprog && !frame->in_exception_callback_fn) {
-		if (reg->type != SCALAR_VALUE) {
-			verbose(env, "At subprogram exit the register R%d is not a scalar value (%s)\n",
-				regno, reg_type_str(env, reg->type));
-			return -EINVAL;
-		}
-		return 0;
-	}
-
 	if (prog_type == BPF_PROG_TYPE_STRUCT_OPS && !ret_type)
 		return 0;
 
@@ -18059,8 +18047,7 @@ enforce_retval:
 
 	if (!retval_range_within(range, reg)) {
 		verbose_invalid_scalar(env, reg, range, exit_ctx, reg_name);
-		if (!is_subprog &&
-		    prog->expected_attach_type == BPF_LSM_CGROUP &&
+		if (prog->expected_attach_type == BPF_LSM_CGROUP &&
 		    prog_type == BPF_PROG_TYPE_LSM &&
 		    !prog->aux->attach_func_proto->type)
 			verbose(env, "Note, BPF_LSM_CGROUP that attach to void LSM hooks can't modify return value!\n");
@@ -18070,6 +18057,29 @@ enforce_retval:
 	if (!tnum_is_unknown(enforce_attach_type_range) &&
 	    tnum_in(enforce_attach_type_range, reg->var_off))
 		env->prog->enforce_expected_attach_type = 1;
+	return 0;
+}
+
+static int check_global_subprog_return_code(struct bpf_verifier_env *env)
+{
+	struct bpf_reg_state *reg = reg_state(env, BPF_REG_0);
+	int err;
+
+	err = check_reg_arg(env, BPF_REG_0, SRC_OP);
+	if (err)
+		return err;
+
+	if (is_pointer_value(env, BPF_REG_0)) {
+		verbose(env, "R%d leaks addr as return value\n", BPF_REG_0);
+		return -EACCES;
+	}
+
+	if (reg->type != SCALAR_VALUE) {
+		verbose(env, "At subprogram exit the register R0 is not a scalar value (%s)\n",
+			reg_type_str(env, reg->type));
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -20866,6 +20876,8 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 				 bool *do_print_state,
 				 bool exception_exit)
 {
+	struct bpf_func_state *cur_frame = cur_func(env);
+
 	/* We must do check_reference_leak here before
 	 * prepare_func_exit to handle the case when
 	 * state->curframe > 0, it may be a callback function,
@@ -20899,7 +20911,21 @@ static int process_bpf_exit_full(struct bpf_verifier_env *env,
 		return 0;
 	}
 
-	err = check_return_code(env, BPF_REG_0, "R0");
+	/*
+	 * Return from a regular global subprogram differs from return
+	 * from the main program or async/exception callback.
+	 * Main program exit implies return code restrictions
+	 * that depend on program type.
+	 * Exit from exception callback is equivalent to main program exit.
+	 * Exit from async callback implies return code restrictions
+	 * that depend on async scheduling mechanism.
+	 */
+	if (cur_frame->subprogno &&
+	    !cur_frame->in_async_callback_fn &&
+	    !cur_frame->in_exception_callback_fn)
+		err = check_global_subprog_return_code(env);
+	else
+		err = check_return_code(env, BPF_REG_0, "R0");
 	if (err)
 		return err;
 	return PROCESS_BPF_EXIT;
