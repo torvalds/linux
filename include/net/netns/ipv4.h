@@ -281,6 +281,7 @@ struct netns_ipv4 {
 #endif
 	struct fib_notifier_ops	*ipmr_notifier_ops;
 	atomic_t		ipmr_seq;
+	struct mutex		mfc_mutex;
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	struct sysctl_fib_multipath_hash_seed sysctl_fib_multipath_hash_seed;

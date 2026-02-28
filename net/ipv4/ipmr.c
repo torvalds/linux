@@ -1329,6 +1329,8 @@ static void mroute_clean_tables(struct mr_table *mrt, int flags,
 
 	/* Wipe the cache */
 	if (flags & (MRT_FLUSH_MFC | MRT_FLUSH_MFC_STATIC)) {
+		mutex_lock(&net->ipv4.mfc_mutex);
+
 		list_for_each_entry_safe(c, tmp, &mrt->mfc_cache_list, list) {
 			if (((c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC_STATIC)) ||
 			    (!(c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC)))
@@ -1341,6 +1343,8 @@ static void mroute_clean_tables(struct mr_table *mrt, int flags,
 			mroute_netlink_event(mrt, cache, RTM_DELROUTE);
 			mr_cache_put(c);
 		}
+
+		mutex_unlock(&net->ipv4.mfc_mutex);
 	}
 
 	if (flags & MRT_FLUSH_MFC) {
@@ -1498,12 +1502,17 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 		}
 		if (parent == 0)
 			parent = mfc.mfcc_parent;
+
+		mutex_lock(&net->ipv4.mfc_mutex);
+
 		if (optname == MRT_DEL_MFC || optname == MRT_DEL_MFC_PROXY)
 			ret = ipmr_mfc_delete(mrt, &mfc, parent);
 		else
 			ret = ipmr_mfc_add(net, mrt, &mfc,
 					   sk == rtnl_dereference(mrt->mroute_sk),
 					   parent);
+
+		mutex_unlock(&net->ipv4.mfc_mutex);
 		break;
 	case MRT_FLUSH: {
 		LIST_HEAD(dev_kill_list);
@@ -2913,21 +2922,26 @@ static int ipmr_rtm_route(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
-	int ret, mrtsock, parent;
-	struct mr_table *tbl;
+	int ret, mrtsock = 0, parent;
+	struct mr_table *tbl = NULL;
 	struct mfcctl mfcc;
 
-	mrtsock = 0;
-	tbl = NULL;
 	ret = rtm_to_ipmr_mfcc(net, nlh, &mfcc, &mrtsock, &tbl, extack);
 	if (ret < 0)
 		return ret;
 
 	parent = ret ? mfcc.mfcc_parent : -1;
+
+	mutex_lock(&net->ipv4.mfc_mutex);
+
 	if (nlh->nlmsg_type == RTM_NEWROUTE)
-		return ipmr_mfc_add(net, tbl, &mfcc, mrtsock, parent);
+		ret = ipmr_mfc_add(net, tbl, &mfcc, mrtsock, parent);
 	else
-		return ipmr_mfc_delete(tbl, &mfcc, parent);
+		ret = ipmr_mfc_delete(tbl, &mfcc, parent);
+
+	mutex_unlock(&net->ipv4.mfc_mutex);
+
+	return ret;
 }
 
 static bool ipmr_fill_table(struct mr_table *mrt, struct sk_buff *skb)
@@ -3268,6 +3282,8 @@ static int __net_init ipmr_net_init(struct net *net)
 {
 	LIST_HEAD(dev_kill_list);
 	int err;
+
+	mutex_init(&net->ipv4.mfc_mutex);
 
 	err = ipmr_notifier_init(net);
 	if (err)
