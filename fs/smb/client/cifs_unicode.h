@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/nls.h>
 #include "../../nls/nls_ucs2_utils.h"
+#include "cifsglob.h"
 
 /*
  * Macs use an older "SFM" mapping of the symbols above. Fortunately it does
@@ -65,10 +66,21 @@ char *cifs_strndup_from_utf16(const char *src, const int maxlen,
 			      const struct nls_table *codepage);
 int cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 		       const struct nls_table *cp, int map_chars);
-int cifs_remap(struct cifs_sb_info *cifs_sb);
 __le16 *cifs_strndup_to_utf16(const char *src, const int maxlen,
 			      int *utf16_len, const struct nls_table *cp,
 			      int remap);
 wchar_t cifs_toupper(wchar_t in);
+
+static inline int cifs_remap(const struct cifs_sb_info *cifs_sb)
+{
+	unsigned int sbflags = cifs_sb_flags(cifs_sb);
+
+	if (sbflags & CIFS_MOUNT_MAP_SFM_CHR)
+		return SFM_MAP_UNI_RSVD;
+	if (sbflags & CIFS_MOUNT_MAP_SPECIAL_CHR)
+		return SFU_MAP_UNI_RSVD;
+
+	return NO_MAP_UNI_RSVD;
+}
 
 #endif /* _CIFS_UNICODE_H */
