@@ -20,9 +20,6 @@
  *  Copyright (c) 2016 Frederik Wenigwieser <frederik.wenigwieser@gmail.com>
  */
 
-/*
- */
-
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/hid.h>
@@ -359,7 +356,7 @@ static int asus_event(struct hid_device *hdev, struct hid_field *field,
 		      struct hid_usage *usage, __s32 value)
 {
 	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
-	
+
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_ASUSVENDOR &&
 	    (usage->hid & HID_USAGE) != 0x00 &&
 	    (usage->hid & HID_USAGE) != 0xff && !usage->type) {
@@ -448,21 +445,18 @@ static int asus_raw_event(struct hid_device *hdev,
 		/*
 		 * G713 and G733 send these codes on some keypresses, depending on
 		 * the key pressed it can trigger a shutdown event if not caught.
-		*/
-		if (data[0] == 0x02 && data[1] == 0x30) {
+		 */
+		if (data[0] == 0x02 && data[1] == 0x30)
 			return -1;
-		}
 	}
 
 	if (drvdata->quirks & QUIRK_ROG_CLAYMORE_II_KEYBOARD) {
 		/*
 		 * CLAYMORE II keyboard sends this packet when it goes to sleep
 		 * this causes the whole system to go into suspend.
-		*/
-
-		if(size == 2 && data[0] == 0x02 && data[1] == 0x00) {
+		 */
+		if (size == 2 && data[0] == 0x02 && data[1] == 0x00)
 			return -1;
-		}
 	}
 
 	return 0;
