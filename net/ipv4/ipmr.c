@@ -3226,7 +3226,7 @@ static const struct net_protocol pim_protocol = {
 
 static unsigned int ipmr_seq_read(const struct net *net)
 {
-	return READ_ONCE(net->ipv4.ipmr_seq) + ipmr_rules_seq_read(net);
+	return atomic_read(&net->ipv4.ipmr_seq) + ipmr_rules_seq_read(net);
 }
 
 static int ipmr_dump(struct net *net, struct notifier_block *nb,
@@ -3247,7 +3247,7 @@ static int __net_init ipmr_notifier_init(struct net *net)
 {
 	struct fib_notifier_ops *ops;
 
-	net->ipv4.ipmr_seq = 0;
+	atomic_set(&net->ipv4.ipmr_seq, 0);
 
 	ops = fib_notifier_ops_register(&ipmr_notifier_ops_template, net);
 	if (IS_ERR(ops))
