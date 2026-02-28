@@ -125,6 +125,9 @@ static void npc_program_mkex_hash_rx(struct rvu *rvu, int blkaddr,
 	struct npc_mcam_kex_hash *mkex_hash = rvu->kpu.mkex_hash;
 	int lid, lt, ld, hash_cnt = 0;
 
+	if (is_cn20k(rvu->pdev))
+		return;
+
 	if (is_npc_intf_tx(intf))
 		return;
 
@@ -164,6 +167,9 @@ static void npc_program_mkex_hash_tx(struct rvu *rvu, int blkaddr,
 {
 	struct npc_mcam_kex_hash *mkex_hash = rvu->kpu.mkex_hash;
 	int lid, lt, ld, hash_cnt = 0;
+
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	if (is_npc_intf_rx(intf))
 		return;
@@ -224,6 +230,9 @@ void npc_program_mkex_hash(struct rvu *rvu, int blkaddr)
 	struct rvu_hwinfo *hw = rvu->hw;
 	u64 cfg;
 
+	if (is_cn20k(rvu->pdev))
+		return;
+
 	/* Check if hardware supports hash extraction */
 	if (!hwcap->npc_hash_extract)
 		return;
@@ -273,7 +282,7 @@ void npc_program_mkex_hash(struct rvu *rvu, int blkaddr)
 }
 
 void npc_update_field_hash(struct rvu *rvu, u8 intf,
-			   struct mcam_entry *entry,
+			   struct mcam_entry_mdata *mdata,
 			   int blkaddr,
 			   u64 features,
 			   struct flow_msg *pkt,
@@ -284,9 +293,13 @@ void npc_update_field_hash(struct rvu *rvu, u8 intf,
 	struct npc_mcam_kex_hash *mkex_hash = rvu->kpu.mkex_hash;
 	struct npc_get_field_hash_info_req req;
 	struct npc_get_field_hash_info_rsp rsp;
+	u8 hash_idx, lid, ltype, ltype_mask;
 	u64 ldata[2], cfg;
 	u32 field_hash;
-	u8 hash_idx;
+	bool en;
+
+	if (is_cn20k(rvu->pdev))
+		return;
 
 	if (!rvu->hw->cap.npc_hash_extract) {
 		dev_dbg(rvu->dev, "%s: Field hash extract feature is not supported\n", __func__);
@@ -298,60 +311,60 @@ void npc_update_field_hash(struct rvu *rvu, u8 intf,
 
 	for (hash_idx = 0; hash_idx < NPC_MAX_HASH; hash_idx++) {
 		cfg = rvu_read64(rvu, blkaddr, NPC_AF_INTFX_HASHX_CFG(intf, hash_idx));
-		if ((cfg & BIT_ULL(11)) && (cfg & BIT_ULL(12))) {
-			u8 lid = (cfg & GENMASK_ULL(10, 8)) >> 8;
-			u8 ltype = (cfg & GENMASK_ULL(7, 4)) >> 4;
-			u8 ltype_mask = cfg & GENMASK_ULL(3, 0);
+		en = !!(cfg & BIT_ULL(11)) && (cfg & BIT_ULL(12));
+		if (!en)
+			continue;
 
-			if (mkex_hash->lid_lt_ld_hash_en[intf][lid][ltype][hash_idx]) {
-				switch (ltype & ltype_mask) {
-				/* If hash extract enabled is supported for IPv6 then
-				 * 128 bit IPv6 source and destination addressed
-				 * is hashed to 32 bit value.
-				 */
-				case NPC_LT_LC_IP6:
-					/* ld[0] == hash_idx[0] == Source IPv6
-					 * ld[1] == hash_idx[1] == Destination IPv6
-					 */
-					if ((features & BIT_ULL(NPC_SIP_IPV6)) && !hash_idx) {
-						u32 src_ip[IPV6_WORDS];
+		lid = (cfg & GENMASK_ULL(10, 8)) >> 8;
+		ltype = (cfg & GENMASK_ULL(7, 4)) >> 4;
+		ltype_mask = cfg & GENMASK_ULL(3, 0);
 
-						be32_to_cpu_array(src_ip, pkt->ip6src, IPV6_WORDS);
-						ldata[1] = (u64)src_ip[0] << 32 | src_ip[1];
-						ldata[0] = (u64)src_ip[2] << 32 | src_ip[3];
-						field_hash = npc_field_hash_calc(ldata,
-										 rsp,
-										 intf,
-										 hash_idx);
-						npc_update_entry(rvu, NPC_SIP_IPV6, entry,
-								 field_hash, 0,
-								 GENMASK(31, 0), 0, intf);
-						memcpy(&opkt->ip6src, &pkt->ip6src,
-						       sizeof(pkt->ip6src));
-						memcpy(&omask->ip6src, &mask->ip6src,
-						       sizeof(mask->ip6src));
-					} else if ((features & BIT_ULL(NPC_DIP_IPV6)) && hash_idx) {
-						u32 dst_ip[IPV6_WORDS];
+		if (!mkex_hash->lid_lt_ld_hash_en[intf][lid][ltype][hash_idx])
+			continue;
 
-						be32_to_cpu_array(dst_ip, pkt->ip6dst, IPV6_WORDS);
-						ldata[1] = (u64)dst_ip[0] << 32 | dst_ip[1];
-						ldata[0] = (u64)dst_ip[2] << 32 | dst_ip[3];
-						field_hash = npc_field_hash_calc(ldata,
-										 rsp,
-										 intf,
-										 hash_idx);
-						npc_update_entry(rvu, NPC_DIP_IPV6, entry,
-								 field_hash, 0,
-								 GENMASK(31, 0), 0, intf);
-						memcpy(&opkt->ip6dst, &pkt->ip6dst,
-						       sizeof(pkt->ip6dst));
-						memcpy(&omask->ip6dst, &mask->ip6dst,
-						       sizeof(mask->ip6dst));
-					}
+		/* If hash extract enabled is supported for IPv6 then
+		 * 128 bit IPv6 source and destination addressed
+		 * is hashed to 32 bit value.
+		 */
+		if ((ltype & ltype_mask) != NPC_LT_LC_IP6)
+			continue;
 
-					break;
-				}
-			}
+		/* ld[0] == hash_idx[0] == Source IPv6
+		 * ld[1] == hash_idx[1] == Destination IPv6
+		 */
+		if ((features & BIT_ULL(NPC_SIP_IPV6)) && !hash_idx) {
+			u32 src_ip[IPV6_WORDS];
+
+			be32_to_cpu_array(src_ip, pkt->ip6src, IPV6_WORDS);
+			ldata[1] = (u64)src_ip[0] << 32 | src_ip[1];
+			ldata[0] = (u64)src_ip[2] << 32 | src_ip[3];
+			field_hash = npc_field_hash_calc(ldata, rsp, intf,
+							 hash_idx);
+			npc_update_entry(rvu, NPC_SIP_IPV6, mdata, field_hash,
+					 0, GENMASK(31, 0), 0, intf);
+			memcpy(&opkt->ip6src, &pkt->ip6src,
+			       sizeof(pkt->ip6src));
+			memcpy(&omask->ip6src, &mask->ip6src,
+			       sizeof(mask->ip6src));
+			continue;
+		}
+
+		if ((features & BIT_ULL(NPC_DIP_IPV6)) && hash_idx) {
+			u32 dst_ip[IPV6_WORDS];
+
+			be32_to_cpu_array(dst_ip, pkt->ip6dst, IPV6_WORDS);
+			ldata[1] = (u64)dst_ip[0] << 32 | dst_ip[1];
+			ldata[0] = (u64)dst_ip[2] << 32 | dst_ip[3];
+			field_hash = npc_field_hash_calc(ldata, rsp, intf,
+							 hash_idx);
+			npc_update_entry(rvu, NPC_DIP_IPV6, mdata,
+					 field_hash, 0, GENMASK(31, 0),
+					 0, intf);
+			memcpy(&opkt->ip6dst, &pkt->ip6dst,
+			       sizeof(pkt->ip6dst));
+			memcpy(&omask->ip6dst, &mask->ip6dst,
+			       sizeof(mask->ip6dst));
+			continue;
 		}
 	}
 }
@@ -1873,6 +1886,9 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	int err, i;
 	u64 cfg;
 	bool rc;
+
+	if (is_cn20k(rvu->pdev))
+		return 0;
 
 	/* Read NPC_AF_CONST3 and check for have exact
 	 * match functionality is present
