@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) "SCMI Notifications BASE - " fmt
 
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/scmi_protocol.h>
 
@@ -219,8 +220,7 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		}
 
 		real_list_sz = t->rx.len - sizeof(u32);
-		calc_list_sz = (1 + (loop_num_ret - 1) / sizeof(u32)) *
-				sizeof(u32);
+		calc_list_sz = round_up(loop_num_ret, sizeof(u32));
 		if (calc_list_sz != real_list_sz) {
 			dev_warn(dev,
 				 "Malformed reply - real_sz:%zd  calc_sz:%u  (loop_num_ret:%d)\n",
