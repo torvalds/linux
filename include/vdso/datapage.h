@@ -80,8 +80,8 @@ struct vdso_timestamp {
  * @mask:		clocksource mask
  * @mult:		clocksource multiplier
  * @shift:		clocksource shift
- * @basetime[clock_id]:	basetime per clock_id
- * @offset[clock_id]:	time namespace offset per clock_id
+ * @basetime:		basetime per clock_id
+ * @offset:		time namespace offset per clock_id
  *
  * See also struct vdso_time_data for basic access and ordering information as
  * struct vdso_clock is used there.
