@@ -738,10 +738,6 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 	unsigned char kbd_func;
 	int ret;
 
-	/* Laptops keyboard backlight is always at 0x5a */
-	if (asus_has_report_id(hdev, FEATURE_KBD_REPORT_ID))
-		return -ENODEV;
-
 	/* Get keyboard functions */
 	ret = asus_kbd_get_functions(hdev, &kbd_func, FEATURE_KBD_REPORT_ID);
 	if (ret < 0)
@@ -1307,8 +1303,10 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		}
 	}
 
+	/* Laptops keyboard backlight is always at 0x5a */
 	if (is_vendor && (drvdata->quirks & QUIRK_USE_KBD_BACKLIGHT) &&
-	    asus_kbd_register_leds(hdev))
+	    (asus_has_report_id(hdev, FEATURE_KBD_REPORT_ID)) &&
+		(asus_kbd_register_leds(hdev)))
 		hid_warn(hdev, "Failed to initialize backlight.\n");
 
 	/*
