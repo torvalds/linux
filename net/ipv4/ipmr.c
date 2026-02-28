@@ -2510,7 +2510,7 @@ static int _ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 				cmd, flags);
 }
 
-static size_t mroute_msgsize(bool unresolved, int maxvif)
+static size_t mroute_msgsize(bool unresolved)
 {
 	size_t len =
 		NLMSG_ALIGN(sizeof(struct rtmsg))
@@ -2523,7 +2523,7 @@ static size_t mroute_msgsize(bool unresolved, int maxvif)
 		len = len
 		      + nla_total_size(4)	/* RTA_IIF */
 		      + nla_total_size(0)	/* RTA_MULTIPATH */
-		      + maxvif * NLA_ALIGN(sizeof(struct rtnexthop))
+		      + MAXVIFS * NLA_ALIGN(sizeof(struct rtnexthop))
 						/* RTA_MFC_STATS */
 		      + nla_total_size_64bit(sizeof(struct rta_mfc_stats))
 		;
@@ -2538,8 +2538,7 @@ static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	skb = nlmsg_new(mroute_msgsize(mfc->_c.mfc_parent >= MAXVIFS,
-				       mrt->maxvif),
+	skb = nlmsg_new(mroute_msgsize(mfc->_c.mfc_parent >= MAXVIFS),
 			GFP_ATOMIC);
 	if (!skb)
 		goto errout;
@@ -2711,7 +2710,7 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		goto errout_free;
 	}
 
-	skb = nlmsg_new(mroute_msgsize(false, mrt->maxvif), GFP_KERNEL);
+	skb = nlmsg_new(mroute_msgsize(false), GFP_KERNEL);
 	if (!skb) {
 		err = -ENOBUFS;
 		goto errout_free;
