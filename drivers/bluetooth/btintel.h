@@ -74,6 +74,7 @@ struct intel_tlv {
 #define BTINTEL_HWID_BZRI	0x1e	/* BlazarI - Lunar Lake */
 #define BTINTEL_HWID_BZRU	0x1d	/* BlazarU - Meteor Lake */
 #define BTINTEL_HWID_SCP	0x1f	/* Scorpius Peak - Panther Lake */
+#define BTINTEL_HWID_SCP2	0x20	/* Scorpius Peak2 - Nova Lake */
 #define BTINTEL_HWID_BZRIW	0x22	/* BlazarIW - Wildcat Lake */
 
 struct intel_version_tlv {
