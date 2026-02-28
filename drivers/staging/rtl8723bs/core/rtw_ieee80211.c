@@ -94,7 +94,7 @@ bool rtw_is_cckratesonly_included(u8 *rate)
 	return true;
 }
 
-int rtw_check_network_type(unsigned char *rate, int ratelen, int channel)
+int rtw_check_network_type(unsigned char *rate, int channel)
 {
 	if (channel > 14)
 		return WIRELESS_INVALID;
