@@ -6,6 +6,7 @@
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <linux/compiler.h>
 #include <test_progs.h>
 #include <network_helpers.h>
 #include <bpf/btf.h>
@@ -431,11 +432,12 @@ cleanup:
 	bpf_link__destroy(link3);
 }
 
-static void burn_cpu(void)
+static void burn_cpu(long loops)
 {
-	volatile int j = 0;
+	long j = 0;
 	cpu_set_t cpu_set;
-	int i, err;
+	long i;
+	int err;
 
 	/* generate some branches on cpu 0 */
 	CPU_ZERO(&cpu_set);
@@ -443,9 +445,10 @@ static void burn_cpu(void)
 	err = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set);
 	ASSERT_OK(err, "set_thread_affinity");
 
-	/* spin the loop for a while (random high number) */
-	for (i = 0; i < 1000000; ++i)
+	for (i = 0; i < loops; ++i) {
 		++j;
+		barrier();
+	}
 }
 
 static void pe_subtest(struct test_bpf_cookie *skel)
@@ -461,7 +464,7 @@ static void pe_subtest(struct test_bpf_cookie *skel)
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.config = PERF_COUNT_SW_CPU_CLOCK;
 	attr.sample_period = 100000;
-	pfd = syscall(__NR_perf_event_open, &attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
+	pfd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
 	if (!ASSERT_GE(pfd, 0, "perf_fd"))
 		goto cleanup;
 
@@ -470,7 +473,7 @@ static void pe_subtest(struct test_bpf_cookie *skel)
 	if (!ASSERT_OK_PTR(link, "link1"))
 		goto cleanup;
 
-	burn_cpu(); /* trigger BPF prog */
+	burn_cpu(100000000L); /* trigger BPF prog */
 
 	ASSERT_EQ(skel->bss->pe_res, 0x100000, "pe_res1");
 
@@ -489,7 +492,7 @@ static void pe_subtest(struct test_bpf_cookie *skel)
 	if (!ASSERT_OK_PTR(link, "link2"))
 		goto cleanup;
 
-	burn_cpu(); /* trigger BPF prog */
+	burn_cpu(100000000L); /* trigger BPF prog */
 
 	ASSERT_EQ(skel->bss->pe_res, 0x200000, "pe_res2");
 
