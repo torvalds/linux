@@ -17953,6 +17953,28 @@ static bool return_retval_range(struct bpf_verifier_env *env, struct bpf_retval_
 	return true;
 }
 
+static bool program_returns_void(struct bpf_verifier_env *env)
+{
+	const struct bpf_prog *prog = env->prog;
+	enum bpf_prog_type prog_type = resolve_prog_type(prog);
+
+	switch (prog_type) {
+	case BPF_PROG_TYPE_LSM:
+		/* See return_retval_range, for BPF_LSM_CGROUP can be 0 or 0-1 depending on hook. */
+		if (prog->expected_attach_type != BPF_LSM_CGROUP &&
+		    !prog->aux->attach_func_proto->type)
+			return true;
+		break;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		if (!prog->aux->attach_func_proto->type)
+			return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}
+
 static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name)
 {
 	const char *exit_ctx = "At program exit";
@@ -17968,35 +17990,21 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
 	if (!is_subprog || frame->in_exception_callback_fn) {
-		switch (prog_type) {
-		case BPF_PROG_TYPE_LSM:
-			if (prog->expected_attach_type == BPF_LSM_CGROUP)
-				/* See return_retval_range, can be 0 or 0-1 depending on hook. */
-				break;
-			if (!prog->aux->attach_func_proto->type)
-				return 0;
-			break;
-		case BPF_PROG_TYPE_STRUCT_OPS:
-			if (!prog->aux->attach_func_proto->type)
-				return 0;
+		if (program_returns_void(env))
+			return 0;
+	}
 
-			if (frame->in_exception_callback_fn)
-				break;
-
-			/* Allow a struct_ops program to return a referenced kptr if it
-			 * matches the operator's return type and is in its unmodified
-			 * form. A scalar zero (i.e., a null pointer) is also allowed.
-			 */
-			reg_type = reg->btf ? btf_type_by_id(reg->btf, reg->btf_id) : NULL;
-			ret_type = btf_type_resolve_ptr(prog->aux->attach_btf,
-							prog->aux->attach_func_proto->type,
-							NULL);
-			if (ret_type && ret_type == reg_type && reg->ref_obj_id)
-				return __check_ptr_off_reg(env, reg, regno, false);
-			break;
-		default:
-			break;
-		}
+	if (!is_subprog && prog_type == BPF_PROG_TYPE_STRUCT_OPS) {
+		/* Allow a struct_ops program to return a referenced kptr if it
+		 * matches the operator's return type and is in its unmodified
+		 * form. A scalar zero (i.e., a null pointer) is also allowed.
+		 */
+		reg_type = reg->btf ? btf_type_by_id(reg->btf, reg->btf_id) : NULL;
+		ret_type = btf_type_resolve_ptr(prog->aux->attach_btf,
+						prog->aux->attach_func_proto->type,
+						NULL);
+		if (ret_type && ret_type == reg_type && reg->ref_obj_id)
+			return __check_ptr_off_reg(env, reg, regno, false);
 	}
 
 	/* eBPF calling convention is such that R0 is used
