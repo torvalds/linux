@@ -990,8 +990,6 @@ int gpiochip_sysfs_register(struct gpio_chip *gc)
 	struct device *parent;
 	int err;
 
-	lockdep_assert_held(&gdev->srcu);
-
 	/*
 	 * Many systems add gpio chips for SOC support very early,
 	 * before driver model support is available.  In those cases we

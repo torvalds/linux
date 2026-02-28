@@ -2732,8 +2732,6 @@ int gpiolib_cdev_register(struct gpio_chip *gc, dev_t devt)
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
 
-	lockdep_assert_held(&gdev->srcu);
-
 	cdev_init(&gdev->chrdev, &gpio_fileops);
 	gdev->chrdev.owner = THIS_MODULE;
 	gdev->dev.devt = MKDEV(MAJOR(devt), gdev->id);
