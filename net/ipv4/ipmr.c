@@ -282,6 +282,11 @@ err1:
 	return err;
 }
 
+static void __net_exit ipmr_rules_exit(struct net *net)
+{
+	fib_rules_unregister(net->ipv4.mr_rules_ops);
+}
+
 static void __net_exit ipmr_rules_exit_rtnl(struct net *net,
 					    struct list_head *dev_kill_list)
 {
@@ -291,8 +296,6 @@ static void __net_exit ipmr_rules_exit_rtnl(struct net *net,
 		list_del(&mrt->list);
 		ipmr_free_table(mrt, dev_kill_list);
 	}
-
-	fib_rules_unregister(net->ipv4.mr_rules_ops);
 }
 
 static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
@@ -346,6 +349,10 @@ static int __net_init ipmr_rules_init(struct net *net)
 		return PTR_ERR(mrt);
 	net->ipv4.mrt = mrt;
 	return 0;
+}
+
+static void __net_exit ipmr_rules_exit(struct net *net)
+{
 }
 
 static void __net_exit ipmr_rules_exit_rtnl(struct net *net,
@@ -3286,6 +3293,7 @@ proc_cache_fail:
 	remove_proc_entry("ip_mr_vif", net->proc_net);
 proc_vif_fail:
 	ipmr_rules_exit_rtnl(net, &dev_kill_list);
+	ipmr_rules_exit(net);
 #endif
 ipmr_rules_fail:
 	ipmr_notifier_exit(net);
@@ -3299,6 +3307,7 @@ static void __net_exit ipmr_net_exit(struct net *net)
 	remove_proc_entry("ip_mr_cache", net->proc_net);
 	remove_proc_entry("ip_mr_vif", net->proc_net);
 #endif
+	ipmr_rules_exit(net);
 	ipmr_notifier_exit(net);
 }
 
