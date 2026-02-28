@@ -13,6 +13,7 @@
 #include <linux/msdos_fs.h>
 #include <linux/writeback.h>
 #include <linux/filelock.h>
+#include <linux/falloc.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -88,6 +89,45 @@ out:
 free_clu:
 	exfat_free_cluster(inode, &clu);
 	return -EIO;
+}
+
+/*
+ * Preallocate space for a file. This implements exfat's fallocate file
+ * operation, which gets called from sys_fallocate system call. User space
+ * requests len bytes at offset. In contrary to fat, we only support
+ * FALLOC_FL_ALLOCATE_RANGE because by leaving the valid data length(VDL)
+ * field, it is unnecessary to zero out the newly allocated clusters.
+ */
+static long exfat_fallocate(struct file *file, int mode,
+			  loff_t offset, loff_t len)
+{
+	struct inode *inode = file->f_mapping->host;
+	loff_t newsize = offset + len;
+	int err = 0;
+
+	/* No support for other modes */
+	if (mode != FALLOC_FL_ALLOCATE_RANGE)
+		return -EOPNOTSUPP;
+
+	/* No support for dir */
+	if (!S_ISREG(inode->i_mode))
+		return -EOPNOTSUPP;
+
+	if (unlikely(exfat_forced_shutdown(inode->i_sb)))
+		return -EIO;
+
+	inode_lock(inode);
+
+	if (newsize <= i_size_read(inode))
+		goto error;
+
+	/* This is just an expanding truncate */
+	err = exfat_cont_expand(inode, newsize);
+
+error:
+	inode_unlock(inode);
+
+	return err;
 }
 
 static bool exfat_allow_set_time(struct mnt_idmap *idmap,
@@ -771,6 +811,7 @@ const struct file_operations exfat_file_operations = {
 	.fsync		= exfat_file_fsync,
 	.splice_read	= exfat_splice_read,
 	.splice_write	= iter_file_splice_write,
+	.fallocate	= exfat_fallocate,
 	.setlease	= generic_setlease,
 };
 
