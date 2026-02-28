@@ -69,6 +69,13 @@ struct intel_tlv {
 
 #define BTINTEL_FWID_MAXLEN 64
 
+/* CNVi Hardware variant */
+#define BTINTEL_HWID_GAP	0x1c	/* Gale Peak2 - Meteor Lake */
+#define BTINTEL_HWID_BZRI	0x1e	/* BlazarI - Lunar Lake */
+#define BTINTEL_HWID_BZRU	0x1d	/* BlazarU - Meteor Lake */
+#define BTINTEL_HWID_SCP	0x1f	/* Scorpius Peak - Panther Lake */
+#define BTINTEL_HWID_BZRIW	0x22	/* BlazarIW - Wildcat Lake */
+
 struct intel_version_tlv {
 	u32	cnvi_top;
 	u32	cnvr_top;
