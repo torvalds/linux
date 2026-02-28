@@ -3782,12 +3782,15 @@ void noinline lock_sock_nested(struct sock *sk, int subclass)
 	might_sleep();
 #ifdef CONFIG_64BIT
 	if (sizeof(struct slock_owned) == sizeof(long)) {
-		socket_lock_t tmp, old;
+		socket_lock_t tmp = {
+			.slock = __SPIN_LOCK_UNLOCKED(tmp.slock),
+			.owned = 1,
+		};
+		socket_lock_t old = {
+			.slock = __SPIN_LOCK_UNLOCKED(old.slock),
+			.owned = 0,
+		};
 
-		tmp.slock = __SPIN_LOCK_UNLOCKED(tmp.slock);
-		tmp.owned = 1;
-		old.slock = __SPIN_LOCK_UNLOCKED(old.slock);
-		old.owned = 0;
 		if (likely(try_cmpxchg(&sk->sk_lock.combined,
 				       &old.combined, tmp.combined)))
 			return;
