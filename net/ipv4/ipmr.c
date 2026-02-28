@@ -2680,9 +2680,9 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct nlattr *tb[RTA_MAX + 1];
-	struct sk_buff *skb = NULL;
 	struct mfc_cache *cache;
 	struct mr_table *mrt;
+	struct sk_buff *skb;
 	__be32 src, grp;
 	u32 tableid;
 	int err;
@@ -2695,39 +2695,40 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	grp = nla_get_in_addr_default(tb[RTA_DST], 0);
 	tableid = nla_get_u32_default(tb[RTA_TABLE], 0);
 
-	mrt = __ipmr_get_table(net, tableid ? tableid : RT_TABLE_DEFAULT);
-	if (!mrt) {
-		err = -ENOENT;
-		goto errout_free;
-	}
-
-	/* entries are added/deleted only under RTNL */
-	rcu_read_lock();
-	cache = ipmr_cache_find(mrt, src, grp);
-	rcu_read_unlock();
-	if (!cache) {
-		err = -ENOENT;
-		goto errout_free;
-	}
-
 	skb = nlmsg_new(mroute_msgsize(false), GFP_KERNEL);
 	if (!skb) {
 		err = -ENOBUFS;
-		goto errout_free;
+		goto errout;
+	}
+
+	rcu_read_lock();
+
+	mrt = __ipmr_get_table(net, tableid ? tableid : RT_TABLE_DEFAULT);
+	if (!mrt) {
+		err = -ENOENT;
+		goto errout_unlock;
+	}
+
+	cache = ipmr_cache_find(mrt, src, grp);
+	if (!cache) {
+		err = -ENOENT;
+		goto errout_unlock;
 	}
 
 	err = ipmr_fill_mroute(mrt, skb, NETLINK_CB(in_skb).portid,
 			       nlh->nlmsg_seq, cache,
 			       RTM_NEWROUTE, 0);
 	if (err < 0)
-		goto errout_free;
+		goto errout_unlock;
+
+	rcu_read_unlock();
 
 	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
-
 errout:
 	return err;
 
-errout_free:
+errout_unlock:
+	rcu_read_unlock();
 	kfree_skb(skb);
 	goto errout;
 }
@@ -3297,7 +3298,8 @@ static const struct rtnl_msg_handler ipmr_rtnl_msg_handlers[] __initconst = {
 	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_DELROUTE,
 	 .doit = ipmr_rtm_route},
 	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_GETROUTE,
-	 .doit = ipmr_rtm_getroute, .dumpit = ipmr_rtm_dumproute},
+	 .doit = ipmr_rtm_getroute, .dumpit = ipmr_rtm_dumproute,
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED},
 };
 
 int __init ip_mr_init(void)
