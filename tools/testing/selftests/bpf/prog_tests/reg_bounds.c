@@ -2091,7 +2091,7 @@ static struct subtest_case crafted_cases[] = {
 	{U64, S64, {0, 0xffffffffULL}, {0x7fffffff, 0x7fffffff}},
 
 	{U64, U32, {0, 0x100000000}, {0, 0}},
-	{U64, U32, {0xfffffffe, 0x100000000}, {0x80000000, 0x80000000}},
+	{U64, U32, {0xfffffffe, 0x300000000}, {0x80000000, 0x80000000}},
 
 	{U64, S32, {0, 0xffffffff00000000ULL}, {0, 0}},
 	/* these are tricky cases where lower 32 bits allow to tighten 64
