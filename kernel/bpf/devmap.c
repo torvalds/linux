@@ -45,6 +45,7 @@
  * types of devmap; only the lookup and insertion is different.
  */
 #include <linux/bpf.h>
+#include <linux/local_lock.h>
 #include <net/xdp.h>
 #include <linux/filter.h>
 #include <trace/events/xdp.h>
@@ -60,6 +61,7 @@ struct xdp_dev_bulk_queue {
 	struct net_device *dev_rx;
 	struct bpf_prog *xdp_prog;
 	unsigned int count;
+	local_lock_t bq_lock;
 };
 
 struct bpf_dtab_netdev {
@@ -381,6 +383,8 @@ static void bq_xmit_all(struct xdp_dev_bulk_queue *bq, u32 flags)
 	int to_send = cnt;
 	int i;
 
+	lockdep_assert_held(&bq->bq_lock);
+
 	if (unlikely(!cnt))
 		return;
 
@@ -425,10 +429,12 @@ void __dev_flush(struct list_head *flush_list)
 	struct xdp_dev_bulk_queue *bq, *tmp;
 
 	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
+		local_lock_nested_bh(&bq->dev->xdp_bulkq->bq_lock);
 		bq_xmit_all(bq, XDP_XMIT_FLUSH);
 		bq->dev_rx = NULL;
 		bq->xdp_prog = NULL;
 		__list_del_clearprev(&bq->flush_node);
+		local_unlock_nested_bh(&bq->dev->xdp_bulkq->bq_lock);
 	}
 }
 
@@ -451,12 +457,16 @@ static void *__dev_map_lookup_elem(struct bpf_map *map, u32 key)
 
 /* Runs in NAPI, i.e., softirq under local_bh_disable(). Thus, safe percpu
  * variable access, and map elements stick around. See comment above
- * xdp_do_flush() in filter.c.
+ * xdp_do_flush() in filter.c. PREEMPT_RT relies on local_lock_nested_bh()
+ * to serialise access to the per-CPU bq.
  */
 static void bq_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 		       struct net_device *dev_rx, struct bpf_prog *xdp_prog)
 {
-	struct xdp_dev_bulk_queue *bq = this_cpu_ptr(dev->xdp_bulkq);
+	struct xdp_dev_bulk_queue *bq;
+
+	local_lock_nested_bh(&dev->xdp_bulkq->bq_lock);
+	bq = this_cpu_ptr(dev->xdp_bulkq);
 
 	if (unlikely(bq->count == DEV_MAP_BULK_SIZE))
 		bq_xmit_all(bq, 0);
@@ -477,6 +487,8 @@ static void bq_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 	}
 
 	bq->q[bq->count++] = xdpf;
+
+	local_unlock_nested_bh(&dev->xdp_bulkq->bq_lock);
 }
 
 static inline int __xdp_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
@@ -1127,8 +1139,13 @@ static int dev_map_notification(struct notifier_block *notifier,
 		if (!netdev->xdp_bulkq)
 			return NOTIFY_BAD;
 
-		for_each_possible_cpu(cpu)
-			per_cpu_ptr(netdev->xdp_bulkq, cpu)->dev = netdev;
+		for_each_possible_cpu(cpu) {
+			struct xdp_dev_bulk_queue *bq;
+
+			bq = per_cpu_ptr(netdev->xdp_bulkq, cpu);
+			bq->dev = netdev;
+			local_lock_init(&bq->bq_lock);
+		}
 		break;
 	case NETDEV_UNREGISTER:
 		/* This rcu_read_lock/unlock pair is needed because
