@@ -388,4 +388,23 @@ int arg_tag_dynptr(struct xdp_md *ctx)
 	return subprog_dynptr(&dptr);
 }
 
+__weak
+void foo(void)
+{
+}
+
+SEC("?tc")
+__failure __msg("R0 !read_ok")
+int return_from_void_global(struct __sk_buff *skb)
+{
+	foo();
+
+	asm volatile(
+		"r1 = r0;"
+		:::
+	);
+
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
