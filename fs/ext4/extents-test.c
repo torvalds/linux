@@ -142,8 +142,10 @@ static struct file_system_type ext_fs_type = {
 
 static void extents_kunit_exit(struct kunit *test)
 {
-	struct ext4_sb_info *sbi = k_ctx.k_ei->vfs_inode.i_sb->s_fs_info;
+	struct super_block *sb = k_ctx.k_ei->vfs_inode.i_sb;
+	struct ext4_sb_info *sbi = sb->s_fs_info;
 
+	ext4_es_unregister_shrinker(sbi);
 	kfree(sbi);
 	kfree(k_ctx.k_ei);
 	kfree(k_ctx.k_data);
