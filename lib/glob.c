@@ -73,7 +73,7 @@ bool __pure glob_match(char const *pat, char const *str)
 			if (c == '\0')	/* No possible match */
 				return false;
 			bool match = false, inverted = (*pat == '!');
-			char const *class = pat + inverted;
+			char const *class = inverted ? pat + 1 : pat;
 			unsigned char a = *class++;
 
 			/*
