@@ -1246,22 +1246,13 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 				   __inet_check_established);
 }
 
-static void init_hashinfo_lhash2(struct inet_hashinfo *h)
-{
-	int i;
-
-	for (i = 0; i <= h->lhash2_mask; i++) {
-		spin_lock_init(&h->lhash2[i].lock);
-		INIT_HLIST_NULLS_HEAD(&h->lhash2[i].nulls_head,
-				      i + LISTENING_NULLS_BASE);
-	}
-}
-
 void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 				unsigned long numentries, int scale,
 				unsigned long low_limit,
 				unsigned long high_limit)
 {
+	unsigned int i;
+
 	h->lhash2 = alloc_large_system_hash(name,
 					    sizeof(*h->lhash2),
 					    numentries,
@@ -1271,7 +1262,12 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 					    &h->lhash2_mask,
 					    low_limit,
 					    high_limit);
-	init_hashinfo_lhash2(h);
+
+	for (i = 0; i <= h->lhash2_mask; i++) {
+		spin_lock_init(&h->lhash2[i].lock);
+		INIT_HLIST_NULLS_HEAD(&h->lhash2[i].nulls_head,
+				      i + LISTENING_NULLS_BASE);
+	}
 
 	/* this one is used for source ports of outgoing connections */
 	table_perturb = alloc_large_system_hash("Table-perturb",
@@ -1280,20 +1276,6 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 						0, 0, NULL, NULL,
 						INET_TABLE_PERTURB_SIZE,
 						INET_TABLE_PERTURB_SIZE);
-}
-
-int inet_hashinfo2_init_mod(struct inet_hashinfo *h)
-{
-	h->lhash2 = kmalloc_objs(*h->lhash2, INET_LHTABLE_SIZE);
-	if (!h->lhash2)
-		return -ENOMEM;
-
-	h->lhash2_mask = INET_LHTABLE_SIZE - 1;
-	/* INET_LHTABLE_SIZE must be a power of 2 */
-	BUG_ON(INET_LHTABLE_SIZE & h->lhash2_mask);
-
-	init_hashinfo_lhash2(h);
-	return 0;
 }
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
