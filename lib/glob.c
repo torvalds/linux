@@ -21,7 +21,7 @@ MODULE_LICENSE("Dual MIT/GPL");
  * Pattern metacharacters are ?, *, [ and \.
  * (And, inside character classes, !, - and ].)
  *
- * This is small and simple implementation intended for device blacklists
+ * This is a small and simple implementation intended for device denylists
  * where a string is matched against a number of patterns.  Thus, it
  * does not preprocess the patterns.  It is non-recursive, and run-time
  * is at most quadratic: strlen(@str)*strlen(@pat).
