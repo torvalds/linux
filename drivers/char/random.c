@@ -96,8 +96,7 @@ static ATOMIC_NOTIFIER_HEAD(random_ready_notifier);
 /* Control how we warn userspace. */
 static struct ratelimit_state urandom_warning =
 	RATELIMIT_STATE_INIT_FLAGS("urandom_warning", HZ, 3, RATELIMIT_MSG_ON_RELEASE);
-static int ratelimit_disable __read_mostly =
-	IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM);
+static int ratelimit_disable __read_mostly = 0;
 module_param_named(ratelimit_disable, ratelimit_disable, int, 0644);
 MODULE_PARM_DESC(ratelimit_disable, "Disable random ratelimit suppression");
 
@@ -167,12 +166,6 @@ int __cold execute_with_initialized_rng(struct notifier_block *nb)
 	spin_unlock_irqrestore(&random_ready_notifier.lock, flags);
 	return ret;
 }
-
-#define warn_unseeded_randomness() \
-	if (IS_ENABLED(CONFIG_WARN_ALL_UNSEEDED_RANDOM) && !crng_ready()) \
-		printk_deferred(KERN_NOTICE "random: %s called from %pS with crng_init=%d\n", \
-				__func__, (void *)_RET_IP_, crng_init)
-
 
 /*********************************************************************
  *
@@ -434,7 +427,6 @@ static void _get_random_bytes(void *buf, size_t len)
  */
 void get_random_bytes(void *buf, size_t len)
 {
-	warn_unseeded_randomness();
 	_get_random_bytes(buf, len);
 }
 EXPORT_SYMBOL(get_random_bytes);
@@ -522,8 +514,6 @@ type get_random_ ##type(void)							\
 	unsigned long flags;							\
 	struct batch_ ##type *batch;						\
 	unsigned long next_gen;							\
-										\
-	warn_unseeded_randomness();						\
 										\
 	if  (!crng_ready()) {							\
 		_get_random_bytes(&ret, sizeof(ret));				\

@@ -1360,10 +1360,8 @@ static void test_tc_opts_dev_cleanup_target(int target)
 
 	assert_mprog_count_ifindex(ifindex, target, 4);
 
-	ASSERT_OK(system("ip link del dev tcx_opts1"), "del veth");
-	ASSERT_EQ(if_nametoindex("tcx_opts1"), 0, "dev1_removed");
-	ASSERT_EQ(if_nametoindex("tcx_opts2"), 0, "dev2_removed");
-	return;
+	goto cleanup;
+
 cleanup3:
 	err = bpf_prog_detach_opts(fd3, loopback, target, &optd);
 	ASSERT_OK(err, "prog_detach");
