@@ -211,7 +211,7 @@ int nxp_nci_fw_download(struct nci_dev *ndev, const char *firmware_name)
 		goto fw_download_exit;
 	}
 
-	strcpy(fw_info->name, firmware_name);
+	strscpy(fw_info->name, firmware_name);
 
 	r = request_firmware(&fw_info->fw, firmware_name,
 			     ndev->nfc_dev->dev.parent);
