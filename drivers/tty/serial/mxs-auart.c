@@ -1318,7 +1318,8 @@ auart_console_write(struct console *co, const char *str, unsigned int count)
 	s = auart_port[co->index];
 	port = &s->port;
 
-	clk_enable(s->clk);
+	if (clk_enable(s->clk))
+		return;
 
 	/* First save the CR then disable the interrupts */
 	old_ctrl2 = mxs_read(s, REG_CTRL2);
