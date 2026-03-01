@@ -993,10 +993,8 @@ F:	Documentation/devicetree/bindings/thermal/amazon,al-thermal.yaml
 F:	drivers/thermal/thermal_mmio.c
 
 AMAZON ETHERNET DRIVERS
-M:	Shay Agroskin <shayagr@amazon.com>
 M:	Arthur Kiyanovski <akiyano@amazon.com>
-R:	David Arinzon <darinzon@amazon.com>
-R:	Saeed Bishara <saeedb@amazon.com>
+M:	David Arinzon <darinzon@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/amazon/ena.rst
