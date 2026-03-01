@@ -6,6 +6,7 @@
 #include <linux/cc_platform.h>
 #include <linux/configfs.h>
 #include <linux/module.h>
+#include <linux/sysfs.h>
 
 #define KEY_NUM_MAX 128	/* maximum dm crypt keys */
 #define KEY_SIZE_MAX 256	/* maximum dm crypt key size */
@@ -189,7 +190,7 @@ static inline struct config_key *to_config_key(struct config_item *item)
 
 static ssize_t config_key_description_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%s\n", to_config_key(item)->description);
+	return sysfs_emit(page, "%s\n", to_config_key(item)->description);
 }
 
 static ssize_t config_key_description_store(struct config_item *item,
@@ -265,7 +266,7 @@ static struct config_item *config_keys_make_item(struct config_group *group,
 
 static ssize_t config_keys_count_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", key_count);
+	return sysfs_emit(page, "%d\n", key_count);
 }
 
 CONFIGFS_ATTR_RO(config_keys_, count);
@@ -274,7 +275,7 @@ static bool is_dm_key_reused;
 
 static ssize_t config_keys_reuse_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", is_dm_key_reused);
+	return sysfs_emit(page, "%d\n", is_dm_key_reused);
 }
 
 static ssize_t config_keys_reuse_store(struct config_item *item,
@@ -321,7 +322,7 @@ static bool restore;
 
 static ssize_t config_keys_restore_show(struct config_item *item, char *page)
 {
-	return sprintf(page, "%d\n", restore);
+	return sysfs_emit(page, "%d\n", restore);
 }
 
 static ssize_t config_keys_restore_store(struct config_item *item,
