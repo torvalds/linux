@@ -25,11 +25,6 @@ struct hvm_start_info __initdata pvh_start_info;
 
 const unsigned int __initconst pvh_start_info_sz = sizeof(pvh_start_info);
 
-static u64 __init pvh_get_root_pointer(void)
-{
-	return pvh_start_info.rsdp_paddr;
-}
-
 /*
  * Xen guests are able to obtain the memory map from the hypervisor via the
  * HYPERVISOR_memory_op hypercall.
@@ -95,7 +90,7 @@ static void __init init_pvh_bootparams(bool xen_guest)
 	pvh_bootparams.hdr.version = (2 << 8) | 12;
 	pvh_bootparams.hdr.type_of_loader = ((xen_guest ? 0x9 : 0xb) << 4) | 0;
 
-	x86_init.acpi.get_root_pointer = pvh_get_root_pointer;
+	pvh_bootparams.acpi_rsdp_addr = pvh_start_info.rsdp_paddr;
 }
 
 /*
