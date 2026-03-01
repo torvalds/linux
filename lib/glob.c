@@ -96,7 +96,8 @@ bool __pure glob_match(char const *pat, char const *str)
 					class += 2;
 					/* Any special action if a > b? */
 				}
-				match |= (a <= c && c <= b);
+				if (a <= c && c <= b)
+					match = true;
 			} while ((a = *class++) != ']');
 
 			if (match == inverted)
