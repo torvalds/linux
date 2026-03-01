@@ -358,5 +358,6 @@ static struct pci_driver amdxdna_pci_driver = {
 module_pci_driver(amdxdna_pci_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("AMD_PMF");
 MODULE_AUTHOR("XRT Team <runtimeca39d@amd.com>");
 MODULE_DESCRIPTION("amdxdna driver");
