@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 #include <linux/module.h>
 #include <linux/glob.h>
+#include <linux/export.h>
 
 /*
  * The only reason this code can be compiled as a module is because the
