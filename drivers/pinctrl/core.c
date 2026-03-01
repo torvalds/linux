@@ -1350,7 +1350,8 @@ unapply_mux_setting:
 	goto restore_old_state;
 
 unapply_new_state:
-	dev_err(p->dev, "Error applying setting, reverse things back\n");
+	dev_err_probe(p->dev, ret,
+		      "Error applying setting, reverse things back\n");
 
 	/*
 	 * All we can do here is pinmux_disable_setting.
