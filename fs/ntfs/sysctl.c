@@ -27,7 +27,6 @@ static const struct ctl_table ntfs_sysctls[] = {
 		.mode		= 0644,			/* Mode, proc handler. */
 		.proc_handler	= proc_dointvec
 	},
-	{}
 };
 
 /* Storage for the sysctls header. */
@@ -42,7 +41,7 @@ static struct ctl_table_header *sysctls_root_table;
 int ntfs_sysctl(int add)
 {
 	if (add) {
-		sysctls_root_table = register_sysctl("fs", ntfs_sysctls);
+		sysctls_root_table = register_sysctl("fs/ntfs", ntfs_sysctls);
 		if (!sysctls_root_table)
 			return -ENOMEM;
 	} else {
