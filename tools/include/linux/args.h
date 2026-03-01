@@ -22,7 +22,11 @@
 #define COUNT_ARGS(X...) __COUNT_ARGS(, ##X, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 /* Concatenate two parameters, but allow them to be expanded beforehand. */
+#ifndef __CONCAT
 #define __CONCAT(a, b) a ## b
+#endif
+#ifndef CONCATENATE
 #define CONCATENATE(a, b) __CONCAT(a, b)
+#endif
 
 #endif	/* _LINUX_ARGS_H */

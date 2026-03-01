@@ -34,7 +34,7 @@ void test_skc_to_unix_sock(void)
 
 	memset(&sockaddr, 0, sizeof(sockaddr));
 	sockaddr.sun_family = AF_UNIX;
-	strncpy(sockaddr.sun_path, sock_path, strlen(sock_path));
+	strscpy(sockaddr.sun_path, sock_path);
 	sockaddr.sun_path[0] = '\0';
 
 	err = bind(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));

@@ -137,11 +137,14 @@ static void verify_success(const char *prog_name, enum test_setup_type setup_typ
 		);
 
 		link = bpf_program__attach(prog);
-		if (!ASSERT_OK_PTR(link, "bpf_program__attach"))
+		if (!ASSERT_OK_PTR(link, "bpf_program__attach")) {
+			bpf_object__close(obj);
 			goto cleanup;
+		}
 
 		err = bpf_prog_test_run_opts(aux_prog_fd, &topts);
 		bpf_link__destroy(link);
+		bpf_object__close(obj);
 
 		if (!ASSERT_OK(err, "test_run"))
 			goto cleanup;
