@@ -3641,6 +3641,7 @@ static void vip_remove(struct platform_device *pdev)
 	}
 
 	v4l2_ctrl_handler_free(&shared->ctrl_handler);
+	v4l2_device_unregister(&shared->v4l2_dev);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
