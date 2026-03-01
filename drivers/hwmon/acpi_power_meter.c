@@ -816,13 +816,8 @@ end:
 /* Handle ACPI event notifications */
 static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_power_meter_resource *resource;
+	struct acpi_power_meter_resource *resource = acpi_driver_data(device);
 	int res;
-
-	if (!device || !acpi_driver_data(device))
-		return;
-
-	resource = acpi_driver_data(device);
 
 	guard(mutex)(&acpi_notify_lock);
 
@@ -956,12 +951,8 @@ exit:
 
 static void acpi_power_meter_remove(struct acpi_device *device)
 {
-	struct acpi_power_meter_resource *resource;
+	struct acpi_power_meter_resource *resource = acpi_driver_data(device);
 
-	if (!device || !acpi_driver_data(device))
-		return;
-
-	resource = acpi_driver_data(device);
 	if (!IS_ERR(resource->hwmon_dev))
 		hwmon_device_unregister(resource->hwmon_dev);
 
@@ -975,12 +966,7 @@ static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource;
 
-	if (!dev)
-		return -EINVAL;
-
 	resource = acpi_driver_data(to_acpi_device(dev));
-	if (!resource)
-		return -EINVAL;
 
 	free_capabilities(resource);
 	read_capabilities(resource);
