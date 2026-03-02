@@ -21,7 +21,6 @@ const char *nvme_auth_dhgroup_kpp(u8 dhgroup_id);
 u8 nvme_auth_dhgroup_id(const char *dhgroup_name);
 
 const char *nvme_auth_hmac_name(u8 hmac_id);
-const char *nvme_auth_digest_name(u8 hmac_id);
 size_t nvme_auth_hmac_hash_len(u8 hmac_id);
 u8 nvme_auth_hmac_id(const char *hmac_name);
 struct nvme_auth_hmac_ctx {

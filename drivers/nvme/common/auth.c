@@ -89,22 +89,18 @@ EXPORT_SYMBOL_GPL(nvme_auth_dhgroup_id);
 static const struct nvme_dhchap_hash_map {
 	int len;
 	char hmac[15];
-	char digest[8];
 } hash_map[] = {
 	[NVME_AUTH_HASH_SHA256] = {
 		.len = 32,
 		.hmac = "hmac(sha256)",
-		.digest = "sha256",
 	},
 	[NVME_AUTH_HASH_SHA384] = {
 		.len = 48,
 		.hmac = "hmac(sha384)",
-		.digest = "sha384",
 	},
 	[NVME_AUTH_HASH_SHA512] = {
 		.len = 64,
 		.hmac = "hmac(sha512)",
-		.digest = "sha512",
 	},
 };
 
@@ -115,14 +111,6 @@ const char *nvme_auth_hmac_name(u8 hmac_id)
 	return hash_map[hmac_id].hmac;
 }
 EXPORT_SYMBOL_GPL(nvme_auth_hmac_name);
-
-const char *nvme_auth_digest_name(u8 hmac_id)
-{
-	if (hmac_id >= ARRAY_SIZE(hash_map))
-		return NULL;
-	return hash_map[hmac_id].digest;
-}
-EXPORT_SYMBOL_GPL(nvme_auth_digest_name);
 
 u8 nvme_auth_hmac_id(const char *hmac_name)
 {
