@@ -36,9 +36,9 @@ u32 nvme_auth_get_seqnum(void)
 }
 EXPORT_SYMBOL_GPL(nvme_auth_get_seqnum);
 
-static struct nvme_auth_dhgroup_map {
-	const char name[16];
-	const char kpp[16];
+static const struct nvme_auth_dhgroup_map {
+	char name[16];
+	char kpp[16];
 } dhgroup_map[] = {
 	[NVME_AUTH_DHGROUP_NULL] = {
 		.name = "null", .kpp = "null" },
@@ -87,10 +87,10 @@ u8 nvme_auth_dhgroup_id(const char *dhgroup_name)
 }
 EXPORT_SYMBOL_GPL(nvme_auth_dhgroup_id);
 
-static struct nvme_dhchap_hash_map {
+static const struct nvme_dhchap_hash_map {
 	int len;
-	const char hmac[15];
-	const char digest[8];
+	char hmac[15];
+	char digest[8];
 } hash_map[] = {
 	[NVME_AUTH_HASH_SHA256] = {
 		.len = 32,
