@@ -96,7 +96,6 @@ static void xor_xc_5(unsigned long bytes, unsigned long * __restrict p1,
 		     const unsigned long * __restrict p5)
 {
 	asm volatile(
-		"	larl	1,2f\n"
 		"	aghi	%0,-1\n"
 		"	jm	6f\n"
 		"	srlg	0,%0,8\n"
