@@ -427,9 +427,8 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 	 * __GFP_DIRECT_RECLAIM is set, see comments for bio_alloc_bioset().
 	 */
 	bio = bio_alloc(bh->b_bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_NOIO);
-	fscrypt_set_bio_crypt_ctx(bio, inode,
-			(folio_pos(folio) + bh_offset(bh)) >> inode->i_blkbits,
-			GFP_NOIO);
+	fscrypt_set_bio_crypt_ctx(bio, inode, folio_pos(folio) + bh_offset(bh),
+				  GFP_NOIO);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);

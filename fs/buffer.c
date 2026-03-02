@@ -2778,8 +2778,6 @@ static void buffer_set_crypto_ctx(struct bio *bio, const struct buffer_head *bh,
 				  gfp_t gfp_mask)
 {
 	const struct address_space *mapping = folio_mapping(bh->b_folio);
-	const struct inode *inode;
-	u64 lblk;
 
 	/*
 	 * The ext4 journal (jbd2) can submit a buffer_head it directly created
@@ -2787,9 +2785,8 @@ static void buffer_set_crypto_ctx(struct bio *bio, const struct buffer_head *bh,
 	 */
 	if (!mapping)
 		return;
-	inode = mapping->host;
-	lblk = (folio_pos(bh->b_folio) + bh_offset(bh)) >> inode->i_blkbits;
-	fscrypt_set_bio_crypt_ctx(bio, inode, lblk, gfp_mask);
+	fscrypt_set_bio_crypt_ctx(bio, mapping->host,
+			folio_pos(bh->b_folio) + bh_offset(bh), gfp_mask);
 }
 
 static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
