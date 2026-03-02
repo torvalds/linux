@@ -7,7 +7,10 @@ use kernel::{
     uapi, //
 };
 
-use crate::driver::TyrDrmDriver;
+use crate::driver::{
+    TyrDrmDevice,
+    TyrDrmDriver, //
+};
 
 #[pin_data]
 pub(crate) struct TyrDrmFileData {}
@@ -25,7 +28,7 @@ impl drm::file::DriverFile for TyrDrmFileData {
 
 impl TyrDrmFileData {
     pub(crate) fn dev_query(
-        ddev: &drm::Device<TyrDrmDriver>,
+        ddev: &TyrDrmDevice,
         devquery: &mut uapi::drm_panthor_dev_query,
         _file: &TyrDrmFile,
     ) -> Result<u32> {
