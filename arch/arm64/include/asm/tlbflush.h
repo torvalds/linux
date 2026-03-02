@@ -186,19 +186,6 @@ static inline void __tlbi_level(tlbi_op op, u64 addr, u32 level)
 #define TLBIR_TTL_MASK		GENMASK_ULL(38, 37)
 #define TLBIR_BADDR_MASK	GENMASK_ULL(36,  0)
 
-#define __TLBI_VADDR_RANGE(baddr, asid, scale, num, ttl)		\
-	({								\
-		unsigned long __ta = 0;					\
-		unsigned long __ttl = (ttl >= 1 && ttl <= 3) ? ttl : 0;	\
-		__ta |= FIELD_PREP(TLBIR_BADDR_MASK, baddr);		\
-		__ta |= FIELD_PREP(TLBIR_TTL_MASK, __ttl);		\
-		__ta |= FIELD_PREP(TLBIR_NUM_MASK, num);		\
-		__ta |= FIELD_PREP(TLBIR_SCALE_MASK, scale);		\
-		__ta |= FIELD_PREP(TLBIR_TG_MASK, get_trans_granule());	\
-		__ta |= FIELD_PREP(TLBIR_ASID_MASK, asid);		\
-		__ta;							\
-	})
-
 /* These macros are used by the TLBI RANGE feature. */
 #define __TLBI_RANGE_PAGES(num, scale)	\
 	((unsigned long)((num) + 1) << (5 * (scale) + 1))
@@ -498,8 +485,19 @@ static __always_inline void ripas2e1is(u64 arg)
 	__tlbi(ripas2e1is, arg);
 }
 
-static __always_inline void __tlbi_range(tlbi_op op, u64 arg)
+static __always_inline void __tlbi_range(tlbi_op op, u64 addr,
+					 u16 asid, int scale, int num,
+					 u32 level, bool lpa2)
 {
+	u64 arg = 0;
+
+	arg |= FIELD_PREP(TLBIR_BADDR_MASK, addr >> (lpa2 ? 16 : PAGE_SHIFT));
+	arg |= FIELD_PREP(TLBIR_TTL_MASK, level > 3 ? 0 : level);
+	arg |= FIELD_PREP(TLBIR_NUM_MASK, num);
+	arg |= FIELD_PREP(TLBIR_SCALE_MASK, scale);
+	arg |= FIELD_PREP(TLBIR_TG_MASK, get_trans_granule());
+	arg |= FIELD_PREP(TLBIR_ASID_MASK, asid);
+
 	op(arg);
 }
 
@@ -510,8 +508,6 @@ do {									\
 	typeof(pages) __flush_pages = pages;				\
 	int num = 0;							\
 	int scale = 3;							\
-	int shift = lpa2 ? 16 : PAGE_SHIFT;				\
-	unsigned long addr;						\
 									\
 	while (__flush_pages > 0) {					\
 		if (!system_supports_tlb_range() ||			\
@@ -525,9 +521,7 @@ do {									\
 									\
 		num = __TLBI_RANGE_NUM(__flush_pages, scale);		\
 		if (num >= 0) {						\
-			addr = __TLBI_VADDR_RANGE(__flush_start >> shift, asid, \
-						scale, num, tlb_level);	\
-			__tlbi_range(r##op, addr);			\
+			__tlbi_range(r##op, __flush_start, asid, scale, num, tlb_level, lpa2); \
 			__flush_start += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT; \
 			__flush_pages -= __TLBI_RANGE_PAGES(num, scale);\
 		}							\
