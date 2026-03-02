@@ -425,8 +425,10 @@ static int sdhci_bst_alloc_bounce_buffer(struct sdhci_host *host)
 
 	host->bounce_buffer = dma_alloc_coherent(mmc_dev(mmc), bounce_size,
 						 &host->bounce_addr, GFP_KERNEL);
-	if (!host->bounce_buffer)
+	if (!host->bounce_buffer) {
+		of_reserved_mem_device_release(mmc_dev(mmc));
 		return -ENOMEM;
+	}
 
 	host->bounce_buffer_size = bounce_size;
 
