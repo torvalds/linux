@@ -14,7 +14,6 @@
 static const struct drm_plane_funcs tilcdc_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_plane_cleanup,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -37,7 +36,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	if (new_state->crtc_x || new_state->crtc_y) {
-		dev_err(plane->dev->dev, "%s: crtc position must be zero.",
+		drm_err(plane->dev, "%s: crtc position must be zero.",
 			__func__);
 		return -EINVAL;
 	}
@@ -49,7 +48,7 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 
 	if (crtc_state->mode.hdisplay != new_state->crtc_w ||
 	    crtc_state->mode.vdisplay != new_state->crtc_h) {
-		dev_err(plane->dev->dev,
+		drm_err(plane->dev,
 			"%s: Size must match mode (%dx%d == %dx%d)", __func__,
 			crtc_state->mode.hdisplay, crtc_state->mode.vdisplay,
 			new_state->crtc_w, new_state->crtc_h);
@@ -59,13 +58,13 @@ static int tilcdc_plane_atomic_check(struct drm_plane *plane,
 	pitch = crtc_state->mode.hdisplay *
 		new_state->fb->format->cpp[0];
 	if (new_state->fb->pitches[0] != pitch) {
-		dev_err(plane->dev->dev,
+		drm_err(plane->dev,
 			"Invalid pitch: fb and crtc widths must be the same");
 		return -EINVAL;
 	}
 
 	if (old_state->fb && new_state->fb->format != old_state->fb->format) {
-		dev_dbg(plane->dev->dev,
+		drm_dbg(plane->dev,
 			"%s(): pixel format change requires mode_change\n",
 			__func__);
 		crtc_state->mode_changed = true;
@@ -98,22 +97,20 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_update = tilcdc_plane_atomic_update,
 };
 
-int tilcdc_plane_init(struct drm_device *dev,
-		      struct drm_plane *plane)
+struct tilcdc_plane *tilcdc_plane_init(struct drm_device *dev)
 {
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	int ret;
+	struct tilcdc_drm_private *priv = ddev_to_tilcdc_priv(dev);
+	struct tilcdc_plane *plane;
 
-	ret = drm_universal_plane_init(dev, plane, 1, &tilcdc_plane_funcs,
-				       priv->pixelformats,
-				       priv->num_pixelformats,
-				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		dev_err(dev->dev, "Failed to initialize plane: %d\n", ret);
-		return ret;
-	}
+	plane = drmm_universal_plane_alloc(dev, struct tilcdc_plane, base,
+					   1, &tilcdc_plane_funcs,
+					   priv->pixelformats,
+					   priv->num_pixelformats,
+					   NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (IS_ERR(plane))
+		return plane;
 
-	drm_plane_helper_add(plane, &plane_helper_funcs);
+	drm_plane_helper_add(&plane->base, &plane_helper_funcs);
 
-	return 0;
+	return plane;
 }

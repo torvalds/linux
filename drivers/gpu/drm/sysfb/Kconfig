@@ -7,6 +7,22 @@ config DRM_SYSFB_HELPER
 	tristate
 	depends on DRM
 
+config DRM_COREBOOTDRM
+	tristate "Coreboot framebuffer driver"
+	depends on DRM && MMU
+	depends on GOOGLE_FRAMEBUFFER_COREBOOT
+	select APERTURE_HELPERS
+	select DRM_CLIENT_SELECTION
+	select DRM_GEM_SHMEM_HELPER
+	select DRM_KMS_HELPER
+	select DRM_SYSFB_HELPER
+	help
+	  DRM driver for coreboot-provided framebuffers.
+
+	  This driver assumes that the display hardware has been initialized
+	  by coreboot firmware before the kernel boots. Scanout buffer, size,
+	  and display format must be provided via coreboot framebuffer device.
+
 config DRM_EFIDRM
 	tristate "EFI framebuffer driver"
 	depends on DRM && MMU && EFI && (!SYSFB_SIMPLEFB || COMPILE_TEST)

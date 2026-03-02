@@ -1045,9 +1045,10 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	 * nesting rules for the fence->lock; the inner lock is always the
 	 * older lock.
 	 */
-	spin_lock_irqsave(fence->lock, flags);
+	dma_fence_lock_irqsave(fence, flags);
 	if (prev)
-		spin_lock_nested(prev->lock, SINGLE_DEPTH_NESTING);
+		spin_lock_nested(dma_fence_spinlock(prev),
+				 SINGLE_DEPTH_NESTING);
 
 	/*
 	 * A does the cmpxchg first, and so it sees C or NULL, as before, or
@@ -1061,17 +1062,18 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	 */
 	while (cmpxchg(__active_fence_slot(active), prev, fence) != prev) {
 		if (prev) {
-			spin_unlock(prev->lock);
+			spin_unlock(dma_fence_spinlock(prev));
 			dma_fence_put(prev);
 		}
-		spin_unlock_irqrestore(fence->lock, flags);
+		dma_fence_unlock_irqrestore(fence, flags);
 
 		prev = i915_active_fence_get(active);
 		GEM_BUG_ON(prev == fence);
 
-		spin_lock_irqsave(fence->lock, flags);
+		dma_fence_lock_irqsave(fence, flags);
 		if (prev)
-			spin_lock_nested(prev->lock, SINGLE_DEPTH_NESTING);
+			spin_lock_nested(dma_fence_spinlock(prev),
+					 SINGLE_DEPTH_NESTING);
 	}
 
 	/*
@@ -1088,10 +1090,11 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	 */
 	if (prev) {
 		__list_del_entry(&active->cb.node);
-		spin_unlock(prev->lock); /* serialise with prev->cb_list */
+		/* serialise with prev->cb_list */
+		spin_unlock(dma_fence_spinlock(prev));
 	}
 	list_add_tail(&active->cb.node, &fence->cb_list);
-	spin_unlock_irqrestore(fence->lock, flags);
+	dma_fence_unlock_irqrestore(fence, flags);
 
 	return prev;
 }

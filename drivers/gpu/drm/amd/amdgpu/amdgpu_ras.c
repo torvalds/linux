@@ -5665,7 +5665,7 @@ int amdgpu_ras_add_critical_region(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_vram_mgr_resource *vres;
 	struct ras_critical_region *region;
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 	int ret = 0;
 
 	if (!bo || !bo->tbo.resource)

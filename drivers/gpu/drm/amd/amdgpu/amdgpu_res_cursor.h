@@ -55,7 +55,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 				    uint64_t start, uint64_t size,
 				    struct amdgpu_res_cursor *cur)
 {
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 	struct list_head *head, *next;
 	struct drm_mm_node *node;
 
@@ -71,7 +71,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 		head = &to_amdgpu_vram_mgr_resource(res)->blocks;
 
 		block = list_first_entry_or_null(head,
-						 struct drm_buddy_block,
+						 struct gpu_buddy_block,
 						 link);
 		if (!block)
 			goto fallback;
@@ -81,7 +81,7 @@ static inline void amdgpu_res_first(struct ttm_resource *res,
 
 			next = block->link.next;
 			if (next != head)
-				block = list_entry(next, struct drm_buddy_block, link);
+				block = list_entry(next, struct gpu_buddy_block, link);
 		}
 
 		cur->start = amdgpu_vram_mgr_block_start(block) + start;
@@ -125,7 +125,7 @@ fallback:
  */
 static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 {
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 	struct drm_mm_node *node;
 	struct list_head *next;
 
@@ -146,7 +146,7 @@ static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
 		block = cur->node;
 
 		next = block->link.next;
-		block = list_entry(next, struct drm_buddy_block, link);
+		block = list_entry(next, struct gpu_buddy_block, link);
 
 		cur->node = block;
 		cur->start = amdgpu_vram_mgr_block_start(block);
@@ -175,7 +175,7 @@ static inline void amdgpu_res_next(struct amdgpu_res_cursor *cur, uint64_t size)
  */
 static inline bool amdgpu_res_cleared(struct amdgpu_res_cursor *cur)
 {
-	struct drm_buddy_block *block;
+	struct gpu_buddy_block *block;
 
 	switch (cur->mem_type) {
 	case TTM_PL_VRAM:

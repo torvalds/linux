@@ -91,6 +91,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
+#include <drm/drm_mode.h>
 #include <drm/drm_utils.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_audio_component.h>
@@ -3764,6 +3765,10 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	caps = &adev->dm.backlight_caps[aconnector->bl_idx];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
 	caps->aux_support = false;
+
+	drm_object_property_set_value(&conn_base->base,
+				      adev_to_drm(adev)->mode_config.panel_type_property,
+				      caps->ext_caps->bits.oled ? DRM_MODE_PANEL_TYPE_OLED : DRM_MODE_PANEL_TYPE_UNKNOWN);
 
 	if (caps->ext_caps->bits.oled == 1
 	    /*
@@ -9072,6 +9077,8 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 
 	if (connector_type == DRM_MODE_CONNECTOR_eDP) {
 		struct drm_privacy_screen *privacy_screen;
+
+		drm_connector_attach_panel_type_property(&aconnector->base);
 
 		privacy_screen = drm_privacy_screen_get(adev_to_drm(adev)->dev, NULL);
 		if (!IS_ERR(privacy_screen)) {

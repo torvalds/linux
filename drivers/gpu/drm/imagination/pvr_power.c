@@ -593,14 +593,16 @@ pvr_watchdog_fini(struct pvr_device *pvr_dev)
 
 int pvr_power_domains_init(struct pvr_device *pvr_dev)
 {
-	struct device *dev = from_pvr_device(pvr_dev)->dev;
+	static const char *const ROGUE_PD_NAMES[] = { "a", "b", "c", "d", "e" };
+
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+	struct device *dev = drm_dev->dev;
 
 	struct device_link **domain_links __free(kfree) = NULL;
-	struct device **domain_devs __free(kfree) = NULL;
+	struct dev_pm_domain_list *domains = NULL;
 	int domain_count;
 	int link_count;
 
-	char dev_name[2] = "a";
 	int err;
 	int i;
 
@@ -612,46 +614,33 @@ int pvr_power_domains_init(struct pvr_device *pvr_dev)
 	if (domain_count <= 1)
 		return 0;
 
-	link_count = domain_count + (domain_count - 1);
+	if (domain_count > ARRAY_SIZE(ROGUE_PD_NAMES)) {
+		drm_err(drm_dev, "%s() only supports %zu domains on Rogue",
+			__func__, ARRAY_SIZE(ROGUE_PD_NAMES));
+		return -EOPNOTSUPP;
+	}
 
-	domain_devs = kzalloc_objs(*domain_devs, domain_count);
-	if (!domain_devs)
-		return -ENOMEM;
+	link_count = domain_count - 1;
 
 	domain_links = kzalloc_objs(*domain_links, link_count);
 	if (!domain_links)
 		return -ENOMEM;
 
-	for (i = 0; i < domain_count; i++) {
-		struct device *domain_dev;
+	const struct dev_pm_domain_attach_data pd_attach_data = {
+		.pd_names = ROGUE_PD_NAMES,
+		.num_pd_names = domain_count,
+		.pd_flags = 0,
+	};
 
-		dev_name[0] = 'a' + i;
-		domain_dev = dev_pm_domain_attach_by_name(dev, dev_name);
-		if (IS_ERR_OR_NULL(domain_dev)) {
-			err = domain_dev ? PTR_ERR(domain_dev) : -ENODEV;
-			goto err_detach;
-		}
+	err = dev_pm_domain_attach_list(dev, &pd_attach_data, &domains);
+	if (err < 0)
+		return err;
 
-		domain_devs[i] = domain_dev;
-	}
-
-	for (i = 0; i < domain_count; i++) {
+	for (i = 0; i < link_count; i++) {
 		struct device_link *link;
 
-		link = device_link_add(dev, domain_devs[i], DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME);
-		if (!link) {
-			err = -ENODEV;
-			goto err_unlink;
-		}
-
-		domain_links[i] = link;
-	}
-
-	for (i = domain_count; i < link_count; i++) {
-		struct device_link *link;
-
-		link = device_link_add(domain_devs[i - domain_count + 1],
-				       domain_devs[i - domain_count],
+		link = device_link_add(domains->pd_devs[i + 1],
+				       domains->pd_devs[i],
 				       DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME);
 		if (!link) {
 			err = -ENODEV;
@@ -662,9 +651,8 @@ int pvr_power_domains_init(struct pvr_device *pvr_dev)
 	}
 
 	pvr_dev->power = (struct pvr_device_power){
-		.domain_devs = no_free_ptr(domain_devs),
+		.domains = domains,
 		.domain_links = no_free_ptr(domain_links),
-		.domain_count = domain_count,
 	};
 
 	return 0;
@@ -673,31 +661,21 @@ err_unlink:
 	while (--i >= 0)
 		device_link_del(domain_links[i]);
 
-	i = domain_count;
-
-err_detach:
-	while (--i >= 0)
-		dev_pm_domain_detach(domain_devs[i], true);
-
 	return err;
 }
 
 void pvr_power_domains_fini(struct pvr_device *pvr_dev)
 {
-	const int domain_count = pvr_dev->power.domain_count;
+	struct pvr_device_power *pvr_power = &pvr_dev->power;
 
-	int i = domain_count + (domain_count - 1);
-
-	while (--i >= 0)
-		device_link_del(pvr_dev->power.domain_links[i]);
-
-	i = domain_count;
+	int i = (int)pvr_power->domains->num_pds - 1;
 
 	while (--i >= 0)
-		dev_pm_domain_detach(pvr_dev->power.domain_devs[i], true);
+		device_link_del(pvr_power->domain_links[i]);
 
-	kfree(pvr_dev->power.domain_links);
-	kfree(pvr_dev->power.domain_devs);
+	dev_pm_domain_detach_list(pvr_power->domains);
 
-	pvr_dev->power = (struct pvr_device_power){ 0 };
+	kfree(pvr_power->domain_links);
+
+	*pvr_power = (struct pvr_device_power){ 0 };
 }

@@ -35,3 +35,9 @@ struct intel_colorop *intel_colorop_create(enum intel_color_block id)
 
 	return colorop;
 }
+
+void intel_colorop_destroy(struct drm_colorop *colorop)
+{
+	drm_colorop_cleanup(colorop);
+	kfree(to_intel_colorop(colorop));
+}

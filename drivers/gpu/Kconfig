@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config GPU_BUDDY
+       bool
+       help
+         A page based buddy allocator for GPU memory.
+
+config GPU_BUDDY_KUNIT_TEST
+       tristate "KUnit tests for GPU buddy allocator" if !KUNIT_ALL_TESTS
+       depends on GPU_BUDDY && KUNIT
+       default KUNIT_ALL_TESTS
+       help
+         KUnit tests for the GPU buddy allocator.

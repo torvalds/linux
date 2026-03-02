@@ -796,7 +796,8 @@ r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
 	struct acpi_object_list input = { 1, &mux_arg };
 	acpi_handle iter = NULL, handle_mux = NULL;
 	acpi_status status;
-	unsigned long long value;
+	u64 value;
+	int ret;
 
 	mode->status = 0xffff;
 	part->status = 0xffff;
@@ -806,8 +807,8 @@ r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
 		if (ACPI_FAILURE(status) || !iter)
 			return;
 
-		status = acpi_evaluate_integer(iter, "_ADR", NULL, &value);
-		if (ACPI_FAILURE(status) || value != id)
+		ret = acpi_get_local_u64_address(iter, &value);
+		if (ret || value != id)
 			continue;
 
 		handle_mux = iter;

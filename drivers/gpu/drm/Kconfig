@@ -55,7 +55,7 @@ config DRM_DRAW
 
 config DRM_PANIC
 	bool "Display a user-friendly message when a kernel panic occurs"
-	depends on DRM
+	depends on DRM && PRINTK
 	select FONT_SUPPORT
 	select DRM_DRAW
 	help
@@ -220,6 +220,7 @@ config DRM_GPUSVM
 config DRM_BUDDY
 	tristate
 	depends on DRM
+	select GPU_BUDDY
 	help
 	  A page based buddy allocator
 
@@ -268,10 +269,6 @@ config DRM_SCHED
 # Separate option as not all DRM drivers use it
 config DRM_PANEL_BACKLIGHT_QUIRKS
 	tristate
-
-config DRM_LIB_RANDOM
-	bool
-	default n
 
 config DRM_PRIVACY_SCREEN
 	bool
@@ -335,6 +332,7 @@ source "drivers/gpu/drm/udl/Kconfig"
 source "drivers/gpu/drm/v3d/Kconfig"
 source "drivers/gpu/drm/vboxvideo/Kconfig"
 source "drivers/gpu/drm/vc4/Kconfig"
+source "drivers/gpu/drm/verisilicon/Kconfig"
 source "drivers/gpu/drm/vgem/Kconfig"
 source "drivers/gpu/drm/virtio/Kconfig"
 source "drivers/gpu/drm/vkms/Kconfig"

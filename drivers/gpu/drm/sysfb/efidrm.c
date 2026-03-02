@@ -44,8 +44,14 @@ static const struct drm_format_info *efidrm_get_format_si(struct drm_device *dev
 		{ PIXEL_FORMAT_XBGR8888, DRM_FORMAT_XBGR8888, },
 		{ PIXEL_FORMAT_XRGB2101010, DRM_FORMAT_XRGB2101010, },
 	};
+	struct pixel_format pixel;
+	int ret;
 
-	return drm_sysfb_get_format_si(dev, formats, ARRAY_SIZE(formats), si);
+	ret = screen_info_pixel_format(si, &pixel);
+	if (ret)
+		return NULL;
+
+	return drm_sysfb_get_format(dev, formats, ARRAY_SIZE(formats), &pixel);
 }
 
 static u64 efidrm_get_mem_flags(struct drm_device *dev, resource_size_t start,

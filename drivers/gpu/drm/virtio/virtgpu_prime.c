@@ -286,7 +286,7 @@ static void virtgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 
 static const struct dma_buf_attach_ops virtgpu_dma_buf_attach_ops = {
 	.allow_peer2peer = true,
-	.move_notify = virtgpu_dma_buf_move_notify
+	.invalidate_mappings = virtgpu_dma_buf_move_notify
 };
 
 struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
@@ -310,7 +310,7 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 		}
 	}
 
-	if (!vgdev->has_resource_blob || vgdev->has_virgl_3d)
+	if (!vgdev->has_resource_blob)
 		return drm_gem_prime_import(dev, buf);
 
 	bo = kzalloc_obj(*bo);

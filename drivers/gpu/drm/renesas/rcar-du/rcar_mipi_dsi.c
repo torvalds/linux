@@ -84,7 +84,6 @@ struct dsi_setup_info {
 	unsigned long fout;
 	u16 m;
 	u16 n;
-	u16 vclk_divider;
 	const struct dsi_clk_config *clkset;
 };
 
@@ -335,10 +334,24 @@ rcar_mipi_dsi_post_init_phtw_v4h(struct rcar_mipi_dsi *dsi,
  * Hardware Setup
  */
 
+static unsigned int rcar_mipi_dsi_vclk_divider(struct rcar_mipi_dsi *dsi,
+					       struct dsi_setup_info *setup_info)
+{
+	switch (dsi->info->model) {
+	case RCAR_DSI_V3U:
+	default:
+		return (setup_info->clkset->vco_cntrl >> 4) & 0x3;
+
+	case RCAR_DSI_V4H:
+		return (setup_info->clkset->vco_cntrl >> 3) & 0x7;
+	}
+}
+
 static void rcar_mipi_dsi_pll_calc(struct rcar_mipi_dsi *dsi,
 				   unsigned long fin_rate,
 				   unsigned long fout_target,
-				   struct dsi_setup_info *setup_info)
+				   struct dsi_setup_info *setup_info,
+				   u16 vclk_divider)
 {
 	unsigned int best_err = -1;
 	const struct rcar_mipi_dsi_device_info *info = dsi->info;
@@ -360,7 +373,7 @@ static void rcar_mipi_dsi_pll_calc(struct rcar_mipi_dsi *dsi,
 			if (fout < info->fout_min || fout > info->fout_max)
 				continue;
 
-			fout = div64_u64(fout, setup_info->vclk_divider);
+			fout = div64_u64(fout, vclk_divider);
 
 			if (fout < setup_info->clkset->min_freq ||
 			    fout > setup_info->clkset->max_freq)
@@ -390,7 +403,9 @@ static void rcar_mipi_dsi_parameters_calc(struct rcar_mipi_dsi *dsi,
 	unsigned long fout_target;
 	unsigned long fin_rate;
 	unsigned int i;
+	unsigned int div;
 	unsigned int err;
+	u16 vclk_divider;
 
 	/*
 	 * Calculate Fout = dot clock * ColorDepth / (2 * Lane Count)
@@ -412,18 +427,20 @@ static void rcar_mipi_dsi_parameters_calc(struct rcar_mipi_dsi *dsi,
 
 	fin_rate = clk_get_rate(clk);
 
+	div = rcar_mipi_dsi_vclk_divider(dsi, setup_info);
+
 	switch (dsi->info->model) {
 	case RCAR_DSI_V3U:
 	default:
-		setup_info->vclk_divider = 1 << ((clk_cfg->vco_cntrl >> 4) & 0x3);
+		vclk_divider = BIT_U16(div);
 		break;
 
 	case RCAR_DSI_V4H:
-		setup_info->vclk_divider = 1 << (((clk_cfg->vco_cntrl >> 3) & 0x7) + 1);
+		vclk_divider = BIT_U16(div + 1);
 		break;
 	}
 
-	rcar_mipi_dsi_pll_calc(dsi, fin_rate, fout_target, setup_info);
+	rcar_mipi_dsi_pll_calc(dsi, fin_rate, fout_target, setup_info, vclk_divider);
 
 	/* Find hsfreqrange */
 	setup_info->hsfreq = setup_info->fout * 2;
@@ -439,7 +456,7 @@ static void rcar_mipi_dsi_parameters_calc(struct rcar_mipi_dsi *dsi,
 	dev_dbg(dsi->dev,
 		"Fout = %u * %lu / (%u * %u * %u) = %lu (target %lu Hz, error %d.%02u%%)\n",
 		setup_info->m, fin_rate, dsi->info->n_mul, setup_info->n,
-		setup_info->vclk_divider, setup_info->fout, fout_target,
+		vclk_divider, setup_info->fout, fout_target,
 		err / 100, err % 100);
 
 	dev_dbg(dsi->dev,
@@ -653,11 +670,11 @@ static int rcar_mipi_dsi_startup(struct rcar_mipi_dsi *dsi,
 	switch (dsi->info->model) {
 	case RCAR_DSI_V3U:
 	default:
-		vclkset |= VCLKSET_DIV_V3U(__ffs(setup_info.vclk_divider));
+		vclkset |= VCLKSET_DIV_V3U(rcar_mipi_dsi_vclk_divider(dsi, &setup_info));
 		break;
 
 	case RCAR_DSI_V4H:
-		vclkset |= VCLKSET_DIV_V4H(__ffs(setup_info.vclk_divider) - 1);
+		vclkset |= VCLKSET_DIV_V4H(rcar_mipi_dsi_vclk_divider(dsi, &setup_info));
 		break;
 	}
 

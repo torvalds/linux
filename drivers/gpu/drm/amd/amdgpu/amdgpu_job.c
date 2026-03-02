@@ -289,9 +289,10 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 	unsigned i;
 
 	/* Check if any fences were initialized */
-	if (job->base.s_fence && job->base.s_fence->finished.ops)
+	if (job->base.s_fence &&
+	    dma_fence_was_initialized(&job->base.s_fence->finished))
 		f = &job->base.s_fence->finished;
-	else if (job->hw_fence && job->hw_fence->base.ops)
+	else if (dma_fence_was_initialized(&job->hw_fence->base))
 		f = &job->hw_fence->base;
 	else
 		f = NULL;
@@ -308,11 +309,11 @@ static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 
 	amdgpu_sync_free(&job->explicit_sync);
 
-	if (job->hw_fence->base.ops)
+	if (dma_fence_was_initialized(&job->hw_fence->base))
 		dma_fence_put(&job->hw_fence->base);
 	else
 		kfree(job->hw_fence);
-	if (job->hw_vm_fence->base.ops)
+	if (dma_fence_was_initialized(&job->hw_vm_fence->base))
 		dma_fence_put(&job->hw_vm_fence->base);
 	else
 		kfree(job->hw_vm_fence);
@@ -346,11 +347,11 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	if (job->gang_submit != &job->base.s_fence->scheduled)
 		dma_fence_put(job->gang_submit);
 
-	if (job->hw_fence->base.ops)
+	if (dma_fence_was_initialized(&job->hw_fence->base))
 		dma_fence_put(&job->hw_fence->base);
 	else
 		kfree(job->hw_fence);
-	if (job->hw_vm_fence->base.ops)
+	if (dma_fence_was_initialized(&job->hw_vm_fence->base))
 		dma_fence_put(&job->hw_vm_fence->base);
 	else
 		kfree(job->hw_vm_fence);

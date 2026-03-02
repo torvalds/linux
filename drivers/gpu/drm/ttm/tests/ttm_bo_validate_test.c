@@ -251,7 +251,7 @@ static void ttm_bo_validate_basic(struct kunit *test)
 				   NULL, &dummy_ttm_bo_destroy);
 	KUNIT_EXPECT_EQ(test, err, 0);
 
-	snd_place = ttm_place_kunit_init(test, snd_mem, DRM_BUDDY_TOPDOWN_ALLOCATION);
+	snd_place = ttm_place_kunit_init(test, snd_mem, GPU_BUDDY_TOPDOWN_ALLOCATION);
 	snd_placement = ttm_placement_kunit_init(test, snd_place, 1);
 
 	err = ttm_bo_validate(bo, snd_placement, &ctx_val);
@@ -263,7 +263,7 @@ static void ttm_bo_validate_basic(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, ttm_tt_is_populated(bo->ttm));
 	KUNIT_EXPECT_EQ(test, bo->resource->mem_type, snd_mem);
 	KUNIT_EXPECT_EQ(test, bo->resource->placement,
-			DRM_BUDDY_TOPDOWN_ALLOCATION);
+			GPU_BUDDY_TOPDOWN_ALLOCATION);
 
 	ttm_bo_fini(bo);
 	ttm_mock_manager_fini(priv->ttm_dev, snd_mem);

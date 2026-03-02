@@ -26,6 +26,7 @@
 #include "panthor_mmu.h"
 #include "panthor_regs.h"
 #include "panthor_sched.h"
+#include "panthor_trace.h"
 
 #define CSF_FW_NAME "mali_csffw.bin"
 
@@ -1060,6 +1061,12 @@ static void panthor_fw_init_global_iface(struct panthor_device *ptdev)
 
 static void panthor_job_irq_handler(struct panthor_device *ptdev, u32 status)
 {
+	u32 duration;
+	u64 start = 0;
+
+	if (tracepoint_enabled(gpu_job_irq))
+		start = ktime_get_ns();
+
 	gpu_write(ptdev, JOB_INT_CLEAR, status);
 
 	if (!ptdev->fw->booted && (status & JOB_INT_GLOBAL_IF))
@@ -1072,6 +1079,12 @@ static void panthor_job_irq_handler(struct panthor_device *ptdev, u32 status)
 		return;
 
 	panthor_sched_report_fw_events(ptdev, status);
+
+	if (tracepoint_enabled(gpu_job_irq) && start) {
+		if (check_sub_overflow(ktime_get_ns(), start, &duration))
+			duration = U32_MAX;
+		trace_gpu_job_irq(ptdev->base.dev, status, duration);
+	}
 }
 PANTHOR_IRQ_HANDLER(job, JOB, panthor_job_irq_handler);
 
@@ -1080,7 +1093,8 @@ static int panthor_fw_start(struct panthor_device *ptdev)
 	bool timedout = false;
 
 	ptdev->fw->booted = false;
-	panthor_job_irq_resume(&ptdev->fw->irq, ~0);
+	panthor_job_irq_enable_events(&ptdev->fw->irq, ~0);
+	panthor_job_irq_resume(&ptdev->fw->irq);
 	gpu_write(ptdev, MCU_CONTROL, MCU_CONTROL_AUTO);
 
 	if (!wait_event_timeout(ptdev->fw->req_waitqueue,

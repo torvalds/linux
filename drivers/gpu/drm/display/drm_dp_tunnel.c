@@ -1497,7 +1497,22 @@ static void tunnel_group_destroy_state(struct drm_private_obj *obj, struct drm_p
 	free_group_state(to_group_state(state));
 }
 
+static struct drm_private_state *tunnel_group_atomic_create_state(struct drm_private_obj *obj)
+{
+	struct drm_dp_tunnel_group_state *group_state;
+
+	group_state = kzalloc_obj(*group_state);
+	if (!group_state)
+		return ERR_PTR(-ENOMEM);
+
+	__drm_atomic_helper_private_obj_create_state(obj, &group_state->base);
+	INIT_LIST_HEAD(&group_state->tunnel_states);
+
+	return &group_state->base;
+}
+
 static const struct drm_private_state_funcs tunnel_group_funcs = {
+	.atomic_create_state = tunnel_group_atomic_create_state,
 	.atomic_duplicate_state = tunnel_group_duplicate_state,
 	.atomic_destroy_state = tunnel_group_destroy_state,
 };
@@ -1581,19 +1596,11 @@ EXPORT_SYMBOL(drm_dp_tunnel_atomic_get_new_state);
 
 static bool init_group(struct drm_dp_tunnel_mgr *mgr, struct drm_dp_tunnel_group *group)
 {
-	struct drm_dp_tunnel_group_state *group_state;
-
-	group_state = kzalloc_obj(*group_state);
-	if (!group_state)
-		return false;
-
-	INIT_LIST_HEAD(&group_state->tunnel_states);
-
 	group->mgr = mgr;
 	group->available_bw = -1;
 	INIT_LIST_HEAD(&group->tunnels);
 
-	drm_atomic_private_obj_init(mgr->dev, &group->base, &group_state->base,
+	drm_atomic_private_obj_init(mgr->dev, &group->base, NULL,
 				    &tunnel_group_funcs);
 
 	return true;

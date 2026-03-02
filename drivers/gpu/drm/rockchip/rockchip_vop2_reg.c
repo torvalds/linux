@@ -2106,8 +2106,8 @@ static void rk3568_vop2_wait_for_port_mux_done(struct vop2 *vop2)
 	ret = readx_poll_timeout_atomic(rk3568_vop2_read_port_mux, vop2, port_mux_sel,
 					port_mux_sel == vop2->old_port_sel, 10, 50 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait port_mux done timeout: 0x%x--0x%x\n",
-			      port_mux_sel, vop2->old_port_sel);
+		drm_err_ratelimited(vop2->drm, "wait port_mux done timeout: 0x%x--0x%x\n",
+				    port_mux_sel, vop2->old_port_sel);
 }
 
 static u32 rk3568_vop2_read_layer_cfg(struct vop2 *vop2)
@@ -2126,8 +2126,8 @@ static void rk3568_vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
 	ret = readx_poll_timeout_atomic(rk3568_vop2_read_layer_cfg, vop2, atv_layer_cfg,
 					atv_layer_cfg == cfg, 10, 50 * 1000);
 	if (ret)
-		DRM_DEV_ERROR(vop2->dev, "wait layer cfg done timeout: 0x%x--0x%x\n",
-			      atv_layer_cfg, cfg);
+		drm_err_ratelimited(vop2->drm, "wait layer cfg done timeout: 0x%x--0x%x\n",
+				    atv_layer_cfg, cfg);
 }
 
 static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)

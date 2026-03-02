@@ -6,6 +6,8 @@ config DRM_TILCDC
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_BRIDGE
+	select DRM_DISPLAY_HELPER
+	select DRM_BRIDGE_CONNECTOR
 	select DRM_PANEL_BRIDGE
 	select VIDEOMODE_HELPERS
 	select BACKLIGHT_CLASS_DEVICE
@@ -14,3 +16,19 @@ config DRM_TILCDC
 	  controller, for example AM33xx in beagle-bone, DA8xx, or
 	  OMAP-L1xx.  This driver replaces the FB_DA8XX fbdev driver.
 
+config DRM_TILCDC_PANEL_LEGACY
+	bool "Support device tree blobs using TI LCDC Panel binding"
+	default y
+	depends on DRM_TILCDC
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on PM
+	select OF_OVERLAY
+	select DRM_PANEL_SIMPLE
+	help
+	  Modifies the live device tree at early boot to convert the legacy
+	  "ti,tilcdc,panel" devicetree node to the standard panel-dpi node.
+	  This allows to maintain backward compatibility for boards which
+	  were using the deprecated tilcdc_panel driver.
+	  If you find "ti,tilcdc,panel"-string from your DTB, you probably
+	  need this. Otherwise you do not.

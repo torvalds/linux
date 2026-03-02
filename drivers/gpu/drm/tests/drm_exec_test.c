@@ -16,8 +16,6 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_kunit_helpers.h>
 
-#include "../lib/drm_random.h"
-
 struct drm_exec_priv {
 	struct device *dev;
 	struct drm_device *drm;

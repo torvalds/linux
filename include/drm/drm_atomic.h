@@ -262,6 +262,19 @@ struct drm_private_state;
  */
 struct drm_private_state_funcs {
 	/**
+	 * @atomic_create_state:
+	 *
+	 * Allocates a pristine, initialized, state for the private
+	 * object and returns it.
+	 *
+	 * RETURNS:
+	 *
+	 * A new, pristine, private state instance or an error pointer
+	 * on failure.
+	 */
+	struct drm_private_state *(*atomic_create_state)(struct drm_private_obj *obj);
+
+	/**
 	 * @atomic_duplicate_state:
 	 *
 	 * Duplicate the current state of the private object and return it. It
@@ -723,10 +736,10 @@ struct drm_connector_state * __must_check
 drm_atomic_get_connector_state(struct drm_atomic_state *state,
 			       struct drm_connector *connector);
 
-void drm_atomic_private_obj_init(struct drm_device *dev,
-				 struct drm_private_obj *obj,
-				 struct drm_private_state *state,
-				 const struct drm_private_state_funcs *funcs);
+int drm_atomic_private_obj_init(struct drm_device *dev,
+				struct drm_private_obj *obj,
+				struct drm_private_state *state,
+				const struct drm_private_state_funcs *funcs);
 void drm_atomic_private_obj_fini(struct drm_private_obj *obj);
 
 struct drm_private_state * __must_check
