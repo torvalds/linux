@@ -277,7 +277,7 @@ struct sev_user_data_snp_wrapped_vlek_hashstick {
  * struct sev_issue_cmd - SEV ioctl parameters
  *
  * @cmd: SEV commands to execute
- * @opaque: pointer to the command structure
+ * @data: pointer to the command structure
  * @error: SEV FW return code on failure
  */
 struct sev_issue_cmd {
