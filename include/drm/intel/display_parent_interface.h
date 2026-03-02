@@ -166,7 +166,7 @@ struct intel_display_vma_interface {
  * check the optional pointers.
  */
 struct intel_display_parent_interface {
-	/** @dsb: DPT interface. Optional. */
+	/** @dpt: DPT interface. Optional. */
 	const struct intel_display_dpt_interface *dpt;
 
 	/** @dsb: DSB buffer interface */
