@@ -44,7 +44,6 @@ struct rps_dev_flow {
  */
 struct rps_dev_flow_table {
 	u8			log;
-	struct rcu_head		rcu;
 	struct rps_dev_flow	flows[];
 };
 #define RPS_DEV_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_dev_flow_table) + \
