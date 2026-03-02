@@ -788,6 +788,11 @@ int nvme_auth_derive_tls_psk(int hmac_id, const u8 *psk, size_t psk_len,
 		return -EINVAL;
 	}
 
+	if (psk_len != nvme_auth_hmac_hash_len(hmac_id)) {
+		pr_warn("%s: unexpected psk_len %zu\n", __func__, psk_len);
+		return -EINVAL;
+	}
+
 	hmac_tfm = crypto_alloc_shash(hmac_name, 0, 0);
 	if (IS_ERR(hmac_tfm))
 		return PTR_ERR(hmac_tfm);
