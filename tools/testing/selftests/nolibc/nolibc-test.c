@@ -1679,6 +1679,10 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 	va_list args;
 	ssize_t w, expected_len;
 
+	/* Fill and terminate buf[] to check for overlong/absent writes */
+	memset(buf, 0xa5, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = 0;
+
 	va_start(args, fmt);
 	/* Limit buffer length to test truncation */
 	w = vsnprintf(buf, VFPRINTF_LEN + 1, fmt, args);
@@ -1708,6 +1712,15 @@ static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
 		llen += printf(" written(%d) != %d", (int)w, (int)expected_len);
 		result(llen, FAIL);
 		return 1;
+	}
+
+	/* Check for any overwrites after the actual data. */
+	while (++cmp_len < sizeof(buf) - 1) {
+		if ((unsigned char)buf[cmp_len] != 0xa5) {
+			llen += printf(" overwrote buf[%d] with 0x%x", cmp_len, buf[cmp_len]);
+			result(llen, FAIL);
+			return 1;
+		}
 	}
 
 	result(llen, OK);
