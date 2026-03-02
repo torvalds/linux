@@ -503,6 +503,38 @@ static void hubbub42_set_request_limit(struct hubbub *hubbub, int memory_channel
 	REG_UPDATE(SDPIF_REQUEST_RATE_LIMIT, SDPIF_REQUEST_RATE_LIMIT, request_limit);
 }
 
+static bool dcn42_program_arbiter(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs,
+				  bool safe_to_lower)
+{
+	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
+
+	bool wm_pending = false;
+	uint32_t temp;
+
+	/* request backpressure and outstanding return threshold (unused)*/
+	//REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL1, DCHUBBUB_TIMEOUT_REQ_STALL_THRESHOLD, arb_regs->req_stall_threshold);
+
+	/* 401 delta: do not update P-State stall threshold (handled by fw) */
+	// REG_UPDATE(DCHUBBUB_TIMEOUT_DETECTION_CTRL2, DCHUBBUB_TIMEOUT_PSTATE_STALL_THRESHOLD, arb_regs->pstate_stall_threshold);
+
+	if (safe_to_lower || arb_regs->allow_sdpif_rate_limit_when_cstate_req > hubbub2->allow_sdpif_rate_limit_when_cstate_req) {
+		hubbub2->allow_sdpif_rate_limit_when_cstate_req = arb_regs->allow_sdpif_rate_limit_when_cstate_req;
+
+		/* only update the required bits */
+		REG_GET(DCHUBBUB_CTRL_STATUS, DCHUBBUB_HW_DEBUG, &temp);
+		if (hubbub2->allow_sdpif_rate_limit_when_cstate_req) {
+			temp |= (1 << 5);
+		} else {
+			temp &= ~(1 << 5);
+		}
+		REG_UPDATE(DCHUBBUB_CTRL_STATUS, DCHUBBUB_HW_DEBUG, temp);
+	} else {
+		wm_pending = true;
+	}
+
+	return wm_pending;
+}
+
 static const struct hubbub_funcs hubbub42_funcs = {
 	.update_dchub = hubbub2_update_dchub,
 	.init_dchub_sys_ctx = hubbub31_init_dchub_sys_ctx,
@@ -526,7 +558,7 @@ static const struct hubbub_funcs hubbub42_funcs = {
 	.program_det_segments = dcn401_program_det_segments,
 	.program_compbuf_segments = dcn401_program_compbuf_segments,
 	.wait_for_det_update = dcn401_wait_for_det_update,
-	.program_arbiter = dcn401_program_arbiter,
+	.program_arbiter = dcn42_program_arbiter,
 	.hubbub_read_reg_state = hubbub3_read_reg_state
 };
 
