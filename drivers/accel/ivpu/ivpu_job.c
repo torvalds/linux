@@ -173,7 +173,7 @@ static struct ivpu_cmdq *ivpu_cmdq_create(struct ivpu_file_priv *file_priv, u8 p
 	ret = xa_alloc_cyclic(&file_priv->cmdq_xa, &cmdq->id, cmdq, file_priv->cmdq_limit,
 			      &file_priv->cmdq_id_next, GFP_KERNEL);
 	if (ret < 0) {
-		ivpu_err(vdev, "Failed to allocate command queue ID: %d\n", ret);
+		ivpu_dbg(vdev, IOCTL, "Failed to allocate command queue ID: %d\n", ret);
 		goto err_free_cmdq;
 	}
 
@@ -215,14 +215,22 @@ static int ivpu_hws_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq
 
 static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
+	struct ivpu_user_limits *limits = file_priv->user_limits;
 	struct ivpu_device *vdev = file_priv->vdev;
 	int ret;
+
+	if (atomic_inc_return(&limits->db_count) > limits->max_db_count) {
+		ivpu_dbg(vdev, IOCTL, "Maximum number of %u doorbells for uid %u reached\n",
+			 limits->max_db_count, limits->uid);
+		ret = -EBUSY;
+		goto err_dec_db_count;
+	}
 
 	ret = xa_alloc_cyclic(&vdev->db_xa, &cmdq->db_id, NULL, vdev->db_limit, &vdev->db_next,
 			      GFP_KERNEL);
 	if (ret < 0) {
-		ivpu_err(vdev, "Failed to allocate doorbell ID: %d\n", ret);
-		return ret;
+		ivpu_dbg(vdev, IOCTL, "Failed to allocate doorbell ID: %d\n", ret);
+		goto err_dec_db_count;
 	}
 
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
@@ -231,15 +239,18 @@ static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *
 	else
 		ret = ivpu_jsm_register_db(vdev, file_priv->ctx.id, cmdq->db_id,
 					   cmdq->mem->vpu_addr, ivpu_bo_size(cmdq->mem));
-
-	if (!ret) {
-		ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d priority %d\n",
-			 cmdq->db_id, cmdq->id, file_priv->ctx.id, cmdq->priority);
-	} else {
+	if (ret) {
 		xa_erase(&vdev->db_xa, cmdq->db_id);
 		cmdq->db_id = 0;
+		goto err_dec_db_count;
 	}
 
+	ivpu_dbg(vdev, JOB, "DB %d registered to cmdq %d ctx %d priority %d\n",
+		 cmdq->db_id, cmdq->id, file_priv->ctx.id, cmdq->priority);
+	return 0;
+
+err_dec_db_count:
+	atomic_dec(&limits->db_count);
 	return ret;
 }
 
@@ -298,6 +309,7 @@ static int ivpu_cmdq_unregister(struct ivpu_file_priv *file_priv, struct ivpu_cm
 	}
 
 	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
+	atomic_dec(&file_priv->user_limits->db_count);
 	cmdq->db_id = 0;
 
 	return 0;
@@ -313,6 +325,7 @@ static inline u8 ivpu_job_to_jsm_priority(u8 priority)
 
 static void ivpu_cmdq_destroy(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
 {
+	lockdep_assert_held(&file_priv->lock);
 	ivpu_cmdq_unregister(file_priv, cmdq);
 	xa_erase(&file_priv->cmdq_xa, cmdq->id);
 	ivpu_cmdq_free(file_priv, cmdq);
@@ -380,8 +393,11 @@ static void ivpu_cmdq_reset(struct ivpu_file_priv *file_priv)
 	mutex_lock(&file_priv->lock);
 
 	xa_for_each(&file_priv->cmdq_xa, cmdq_id, cmdq) {
-		xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
-		cmdq->db_id = 0;
+		if (cmdq->db_id) {
+			xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
+			atomic_dec(&file_priv->user_limits->db_count);
+			cmdq->db_id = 0;
+		}
 	}
 
 	mutex_unlock(&file_priv->lock);
