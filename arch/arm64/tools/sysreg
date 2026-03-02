@@ -1978,6 +1978,7 @@ EndEnum
 UnsignedEnum	59:56	LUT
 	0b0000	NI
 	0b0001	IMP
+	0b0010	LUT6
 EndEnum
 UnsignedEnum	55:52	CSSC
 	0b0000	NI
