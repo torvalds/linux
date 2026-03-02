@@ -16,16 +16,13 @@
 #include <linux/polynomial.h>
 
 /*
- * Originally this was part of drivers/hwmon/bt1-pvt.c.
- * There the following conversion is used and should serve as an example here:
+ * The following conversion is an example:
  *
  * The original translation formulae of the temperature (in degrees of Celsius)
  * to PVT data and vice-versa are following:
  *
- * N = 1.8322e-8*(T^4) + 2.343e-5*(T^3) + 8.7018e-3*(T^2) + 3.9269*(T^1) +
- *     1.7204e2
- * T = -1.6743e-11*(N^4) + 8.1542e-8*(N^3) + -1.8201e-4*(N^2) +
- *     3.1020e-1*(N^1) - 4.838e1
+ * N = 1.8322e-8*(T^4) + 2.343e-5*(T^3) + 8.7018e-3*(T^2) + 3.9269*(T^1) + 1.7204e2
+ * T = -1.6743e-11*(N^4) + 8.1542e-8*(N^3) + -1.8201e-4*(N^2) + 3.1020e-1*(N^1) - 4.838e1
  *
  * where T = [-48.380, 147.438]C and N = [0, 1023].
  *
@@ -36,10 +33,9 @@
  * formulae to accept millidegrees of Celsius. Here what they look like after
  * the alterations:
  *
- * N = (18322e-20*(T^4) + 2343e-13*(T^3) + 87018e-9*(T^2) + 39269e-3*T +
- *     17204e2) / 1e4
- * T = -16743e-12*(D^4) + 81542e-9*(D^3) - 182010e-6*(D^2) + 310200e-3*D -
- *     48380
+ * N = (18322e-20*(T^4) + 2343e-13*(T^3) + 87018e-9*(T^2) + 39269e-3*T + 17204e2) / 1e4
+ * T = -16743e-12*(D^4) + 81542e-9*(D^3) - 182010e-6*(D^2) + 310200e-3*D - 48380
+ *
  * where T = [-48380, 147438] mC and N = [0, 1023].
  *
  * static const struct polynomial poly_temp_to_N = {
@@ -69,13 +65,13 @@
  * polynomial_calc - calculate a polynomial using integer arithmetic
  *
  * @poly: pointer to the descriptor of the polynomial
- * @data: input value of the polynimal
+ * @data: input value of the polynomial
  *
  * Calculate the result of a polynomial using only integer arithmetic. For
  * this to work without too much loss of precision the coefficients has to
  * be altered. This is called factor redistribution.
  *
- * Returns the result of the polynomial calculation.
+ * Return: the result of the polynomial calculation.
  */
 long polynomial_calc(const struct polynomial *poly, long data)
 {
