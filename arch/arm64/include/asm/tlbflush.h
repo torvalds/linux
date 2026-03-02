@@ -346,12 +346,8 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void __local_flush_tlb_page_nonotify_nosync(struct mm_struct *mm,
 							  unsigned long uaddr)
 {
-	unsigned long addr;
-
 	dsb(nshst);
-	addr = __TLBI_VADDR(uaddr, ASID(mm));
-	__tlbi(vale1, addr);
-	__tlbi_user(vale1, addr);
+	__tlbi_level_asid(vale1, uaddr, TLBI_TTL_UNKNOWN, ASID(mm));
 }
 
 static inline void local_flush_tlb_page_nonotify(struct vm_area_struct *vma,
@@ -373,12 +369,8 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 static inline void __flush_tlb_page_nosync(struct mm_struct *mm,
 					   unsigned long uaddr)
 {
-	unsigned long addr;
-
 	dsb(ishst);
-	addr = __TLBI_VADDR(uaddr, ASID(mm));
-	__tlbi(vale1is, addr);
-	__tlbi_user(vale1is, addr);
+	__tlbi_level_asid(vale1is, uaddr, TLBI_TTL_UNKNOWN, ASID(mm));
 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, uaddr & PAGE_MASK,
 						(uaddr & PAGE_MASK) + PAGE_SIZE);
 }
