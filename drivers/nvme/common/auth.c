@@ -15,8 +15,6 @@
 #include <linux/nvme.h>
 #include <linux/nvme-auth.h>
 
-#define HKDF_MAX_HASHLEN 64
-
 static u32 nvme_dhchap_seqnum;
 static DEFINE_MUTEX(nvme_dhchap_mutex);
 
@@ -769,7 +767,7 @@ int nvme_auth_derive_tls_psk(int hmac_id, u8 *psk, size_t psk_len,
 	struct crypto_shash *hmac_tfm;
 	const char *hmac_name;
 	const char *label = "nvme-tls-psk";
-	static const char default_salt[HKDF_MAX_HASHLEN];
+	static const char default_salt[NVME_AUTH_MAX_DIGEST_SIZE];
 	size_t prk_len;
 	const char *ctx;
 	unsigned char *prk, *tls_key;
@@ -798,7 +796,7 @@ int nvme_auth_derive_tls_psk(int hmac_id, u8 *psk, size_t psk_len,
 		goto out_free_shash;
 	}
 
-	if (WARN_ON(prk_len > HKDF_MAX_HASHLEN)) {
+	if (WARN_ON(prk_len > NVME_AUTH_MAX_DIGEST_SIZE)) {
 		ret = -EINVAL;
 		goto out_free_prk;
 	}

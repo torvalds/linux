@@ -1837,6 +1837,11 @@ enum {
 	NVME_AUTH_HASH_INVALID	= 0xff,
 };
 
+/* Maximum digest size for any NVME_AUTH_HASH_* value */
+enum {
+	NVME_AUTH_MAX_DIGEST_SIZE = 64,
+};
+
 /* Defined Diffie-Hellman group identifiers for DH-HMAC-CHAP authentication */
 enum {
 	NVME_AUTH_DHGROUP_NULL		= 0x00,
