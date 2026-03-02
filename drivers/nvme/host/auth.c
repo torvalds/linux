@@ -7,7 +7,6 @@
 #include <linux/base64.h>
 #include <linux/prandom.h>
 #include <linux/unaligned.h>
-#include <crypto/hash.h>
 #include <crypto/dh.h>
 #include "nvme.h"
 #include "fabrics.h"
@@ -22,7 +21,6 @@ struct nvme_dhchap_queue_context {
 	struct list_head entry;
 	struct work_struct auth_work;
 	struct nvme_ctrl *ctrl;
-	struct crypto_shash *shash_tfm;
 	struct crypto_kpp *dh_tfm;
 	struct nvme_dhchap_key *transformed_key;
 	void *buf;
@@ -183,38 +181,17 @@ static int nvme_auth_process_dhchap_challenge(struct nvme_ctrl *ctrl,
 		return -EPROTO;
 	}
 
-	if (chap->hash_id == data->hashid && chap->shash_tfm &&
-	    !strcmp(crypto_shash_alg_name(chap->shash_tfm), hmac_name) &&
-	    crypto_shash_digestsize(chap->shash_tfm) == data->hl) {
+	if (chap->hash_id == data->hashid && chap->hash_len == data->hl) {
 		dev_dbg(ctrl->device,
 			"qid %d: reuse existing hash %s\n",
 			chap->qid, hmac_name);
 		goto select_kpp;
 	}
 
-	/* Reset if hash cannot be reused */
-	if (chap->shash_tfm) {
-		crypto_free_shash(chap->shash_tfm);
-		chap->hash_id = 0;
-		chap->hash_len = 0;
-	}
-	chap->shash_tfm = crypto_alloc_shash(hmac_name, 0,
-					     CRYPTO_ALG_ALLOCATES_MEMORY);
-	if (IS_ERR(chap->shash_tfm)) {
-		dev_warn(ctrl->device,
-			 "qid %d: failed to allocate hash %s, error %ld\n",
-			 chap->qid, hmac_name, PTR_ERR(chap->shash_tfm));
-		chap->shash_tfm = NULL;
-		chap->status = NVME_AUTH_DHCHAP_FAILURE_FAILED;
-		return -ENOMEM;
-	}
-
-	if (crypto_shash_digestsize(chap->shash_tfm) != data->hl) {
+	if (nvme_auth_hmac_hash_len(data->hashid) != data->hl) {
 		dev_warn(ctrl->device,
 			 "qid %d: invalid hash length %d\n",
 			 chap->qid, data->hl);
-		crypto_free_shash(chap->shash_tfm);
-		chap->shash_tfm = NULL;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_HASH_UNUSABLE;
 		return -EPROTO;
 	}
@@ -658,8 +635,6 @@ static void nvme_auth_free_dhchap(struct nvme_dhchap_queue_context *chap)
 {
 	nvme_auth_reset_dhchap(chap);
 	chap->authenticated = false;
-	if (chap->shash_tfm)
-		crypto_free_shash(chap->shash_tfm);
 	if (chap->dh_tfm)
 		crypto_free_kpp(chap->dh_tfm);
 }
