@@ -159,11 +159,10 @@ u32 nvme_auth_key_struct_size(u32 key_len)
 }
 EXPORT_SYMBOL_GPL(nvme_auth_key_struct_size);
 
-struct nvme_dhchap_key *nvme_auth_extract_key(unsigned char *secret,
-					      u8 key_hash)
+struct nvme_dhchap_key *nvme_auth_extract_key(const char *secret, u8 key_hash)
 {
 	struct nvme_dhchap_key *key;
-	unsigned char *p;
+	const char *p;
 	u32 crc;
 	int ret, key_len;
 	size_t allocated_len = strlen(secret);
@@ -181,14 +180,14 @@ struct nvme_dhchap_key *nvme_auth_extract_key(unsigned char *secret,
 		pr_debug("base64 key decoding error %d\n",
 			 key_len);
 		ret = key_len;
-		goto out_free_secret;
+		goto out_free_key;
 	}
 
 	if (key_len != 36 && key_len != 52 &&
 	    key_len != 68) {
 		pr_err("Invalid key len %d\n", key_len);
 		ret = -EINVAL;
-		goto out_free_secret;
+		goto out_free_key;
 	}
 
 	/* The last four bytes is the CRC in little-endian format */
@@ -203,12 +202,12 @@ struct nvme_dhchap_key *nvme_auth_extract_key(unsigned char *secret,
 		pr_err("key crc mismatch (key %08x, crc %08x)\n",
 		       get_unaligned_le32(key->key + key_len), crc);
 		ret = -EKEYREJECTED;
-		goto out_free_secret;
+		goto out_free_key;
 	}
 	key->len = key_len;
 	key->hash = key_hash;
 	return key;
-out_free_secret:
+out_free_key:
 	nvme_auth_free_key(key);
 	return ERR_PTR(ret);
 }
@@ -236,7 +235,7 @@ void nvme_auth_free_key(struct nvme_dhchap_key *key)
 EXPORT_SYMBOL_GPL(nvme_auth_free_key);
 
 struct nvme_dhchap_key *nvme_auth_transform_key(
-		struct nvme_dhchap_key *key, char *nqn)
+		const struct nvme_dhchap_key *key, const char *nqn)
 {
 	const char *hmac_name;
 	struct crypto_shash *key_tfm;
@@ -302,7 +301,8 @@ out_free_key:
 }
 EXPORT_SYMBOL_GPL(nvme_auth_transform_key);
 
-static int nvme_auth_hash_skey(int hmac_id, u8 *skey, size_t skey_len, u8 *hkey)
+static int nvme_auth_hash_skey(int hmac_id, const u8 *skey, size_t skey_len,
+			       u8 *hkey)
 {
 	const char *digest_name;
 	struct crypto_shash *tfm;
@@ -327,8 +327,8 @@ static int nvme_auth_hash_skey(int hmac_id, u8 *skey, size_t skey_len, u8 *hkey)
 	return ret;
 }
 
-int nvme_auth_augmented_challenge(u8 hmac_id, u8 *skey, size_t skey_len,
-		u8 *challenge, u8 *aug, size_t hlen)
+int nvme_auth_augmented_challenge(u8 hmac_id, const u8 *skey, size_t skey_len,
+				  const u8 *challenge, u8 *aug, size_t hlen)
 {
 	struct crypto_shash *tfm;
 	u8 *hashed_key;
@@ -409,7 +409,7 @@ int nvme_auth_gen_pubkey(struct crypto_kpp *dh_tfm,
 EXPORT_SYMBOL_GPL(nvme_auth_gen_pubkey);
 
 int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
-		u8 *ctrl_key, size_t ctrl_key_len,
+		const u8 *ctrl_key, size_t ctrl_key_len,
 		u8 *sess_key, size_t sess_key_len)
 {
 	struct kpp_request *req;
@@ -436,7 +436,7 @@ int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
 }
 EXPORT_SYMBOL_GPL(nvme_auth_gen_shared_secret);
 
-int nvme_auth_generate_key(u8 *secret, struct nvme_dhchap_key **ret_key)
+int nvme_auth_generate_key(const char *secret, struct nvme_dhchap_key **ret_key)
 {
 	struct nvme_dhchap_key *key;
 	u8 key_hash;
@@ -484,8 +484,9 @@ EXPORT_SYMBOL_GPL(nvme_auth_generate_key);
  * Returns 0 on success with a valid generated PSK pointer in @ret_psk and
  * the length of @ret_psk in @ret_len, or a negative error number otherwise.
  */
-int nvme_auth_generate_psk(u8 hmac_id, u8 *skey, size_t skey_len,
-		u8 *c1, u8 *c2, size_t hash_len, u8 **ret_psk, size_t *ret_len)
+int nvme_auth_generate_psk(u8 hmac_id, const u8 *skey, size_t skey_len,
+			   const u8 *c1, const u8 *c2, size_t hash_len,
+			   u8 **ret_psk, size_t *ret_len)
 {
 	struct crypto_shash *tfm;
 	SHASH_DESC_ON_STACK(shash, tfm);
@@ -582,12 +583,14 @@ EXPORT_SYMBOL_GPL(nvme_auth_generate_psk);
  * Returns 0 on success with a valid digest pointer in @ret_digest, or a
  * negative error number on failure.
  */
-int nvme_auth_generate_digest(u8 hmac_id, u8 *psk, size_t psk_len,
-		char *subsysnqn, char *hostnqn, u8 **ret_digest)
+int nvme_auth_generate_digest(u8 hmac_id, const u8 *psk, size_t psk_len,
+			      const char *subsysnqn, const char *hostnqn,
+			      char **ret_digest)
 {
 	struct crypto_shash *tfm;
 	SHASH_DESC_ON_STACK(shash, tfm);
-	u8 *digest, *enc;
+	u8 *digest;
+	char *enc;
 	const char *hmac_name;
 	size_t digest_len, hmac_len;
 	int ret;
@@ -761,16 +764,16 @@ static int hkdf_expand_label(struct crypto_shash *hmac_tfm,
  * Returns 0 on success with a valid psk pointer in @ret_psk or a negative
  * error number otherwise.
  */
-int nvme_auth_derive_tls_psk(int hmac_id, u8 *psk, size_t psk_len,
-		u8 *psk_digest, u8 **ret_psk)
+int nvme_auth_derive_tls_psk(int hmac_id, const u8 *psk, size_t psk_len,
+			     const char *psk_digest, u8 **ret_psk)
 {
 	struct crypto_shash *hmac_tfm;
 	const char *hmac_name;
 	const char *label = "nvme-tls-psk";
-	static const char default_salt[NVME_AUTH_MAX_DIGEST_SIZE];
+	static const u8 default_salt[NVME_AUTH_MAX_DIGEST_SIZE];
 	size_t prk_len;
 	const char *ctx;
-	unsigned char *prk, *tls_key;
+	u8 *prk, *tls_key;
 	int ret;
 
 	hmac_name = nvme_auth_hmac_name(hmac_id);

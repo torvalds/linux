@@ -531,7 +531,7 @@ int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
 }
 
 int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
-			    u8 *pkey, int pkey_size)
+			    const u8 *pkey, int pkey_size)
 {
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	int ret;
@@ -557,7 +557,8 @@ int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
 void nvmet_auth_insert_psk(struct nvmet_sq *sq)
 {
 	int hash_len = nvme_auth_hmac_hash_len(sq->ctrl->shash_id);
-	u8 *psk, *digest, *tls_psk;
+	u8 *psk, *tls_psk;
+	char *digest;
 	size_t psk_len;
 	int ret;
 #ifdef CONFIG_NVME_TARGET_TCP_TLS

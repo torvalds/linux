@@ -708,7 +708,8 @@ EXPORT_SYMBOL_GPL(nvme_auth_revoke_tls_key);
 static int nvme_auth_secure_concat(struct nvme_ctrl *ctrl,
 				   struct nvme_dhchap_queue_context *chap)
 {
-	u8 *psk, *digest, *tls_psk;
+	u8 *psk, *tls_psk;
+	char *digest;
 	struct key *tls_key;
 	size_t psk_len;
 	int ret = 0;
