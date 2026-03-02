@@ -3159,7 +3159,7 @@ out:
 static int obj_cgroup_charge_account(struct obj_cgroup *objcg, gfp_t gfp, size_t size,
 				     struct pglist_data *pgdat, enum node_stat_item idx)
 {
-	unsigned int nr_pages, nr_bytes;
+	size_t charge_size, remainder;
 	int ret;
 
 	if (likely(consume_obj_stock(objcg, size, pgdat, idx)))
@@ -3188,16 +3188,12 @@ static int obj_cgroup_charge_account(struct obj_cgroup *objcg, gfp_t gfp, size_t
 	 * bytes is (sizeof(object) + PAGE_SIZE - 2) if there is no data
 	 * race.
 	 */
-	nr_pages = size >> PAGE_SHIFT;
-	nr_bytes = size & (PAGE_SIZE - 1);
+	charge_size = PAGE_ALIGN(size);
+	remainder = charge_size - size;
 
-	if (nr_bytes)
-		nr_pages += 1;
-
-	ret = obj_cgroup_charge_pages(objcg, gfp, nr_pages);
-	if (!ret && (nr_bytes || pgdat))
-		refill_obj_stock(objcg, nr_bytes ? PAGE_SIZE - nr_bytes : 0,
-					 false, size, pgdat, idx);
+	ret = obj_cgroup_charge_pages(objcg, gfp, charge_size >> PAGE_SHIFT);
+	if (!ret && (remainder || pgdat))
+		refill_obj_stock(objcg, remainder, false, size, pgdat, idx);
 
 	return ret;
 }
