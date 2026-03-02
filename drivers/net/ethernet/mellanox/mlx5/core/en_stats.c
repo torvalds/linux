@@ -916,11 +916,30 @@ static int mlx5e_stats_get_ieee(struct mlx5_core_dev *mdev,
 				    sz, MLX5_REG_PPCNT, 0, 0);
 }
 
+static int mlx5e_stats_get_per_prio(struct mlx5_core_dev *mdev,
+				    u32 *ppcnt_per_prio, int prio)
+{
+	u32 in[MLX5_ST_SZ_DW(ppcnt_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(ppcnt_reg);
+
+	if (!(MLX5_CAP_PCAM_FEATURE(mdev, pfcc_mask) &&
+	      MLX5_CAP_DEBUG(mdev, stall_detect)))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(ppcnt_reg, in, local_port, 1);
+	MLX5_SET(ppcnt_reg, in, grp, MLX5_PER_PRIORITY_COUNTERS_GROUP);
+	MLX5_SET(ppcnt_reg, in, prio_tc, prio);
+	return mlx5_core_access_reg(mdev, in, sz, ppcnt_per_prio, sz,
+				    MLX5_REG_PPCNT, 0, 0);
+}
+
 void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 			   struct ethtool_pause_stats *pause_stats)
 {
 	u32 ppcnt_ieee_802_3[MLX5_ST_SZ_DW(ppcnt_reg)];
 	struct mlx5_core_dev *mdev = priv->mdev;
+	u64 ps_stats = 0;
+	int prio;
 
 	if (mlx5e_stats_get_ieee(mdev, ppcnt_ieee_802_3))
 		return;
@@ -933,6 +952,17 @@ void mlx5e_stats_pause_get(struct mlx5e_priv *priv,
 		MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
 				      eth_802_3_cntrs_grp_data_layout,
 				      a_pause_mac_ctrl_frames_received);
+
+	for (prio = 0; prio < NUM_PPORT_PRIO; prio++) {
+		if (mlx5e_stats_get_per_prio(mdev, ppcnt_ieee_802_3, prio))
+			return;
+
+		ps_stats += MLX5E_READ_CTR64_BE_F(ppcnt_ieee_802_3,
+						  eth_per_prio_grp_data_layout,
+						  device_stall_critical_watermark_cnt);
+	}
+
+	pause_stats->tx_pause_storm_events = ps_stats;
 }
 
 void mlx5e_stats_eth_phy_get(struct mlx5e_priv *priv,
