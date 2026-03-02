@@ -806,7 +806,7 @@ for (bool done = false; !done; done = true)						\
 
 /**
  * scoped_user_rw_access_size - Start a scoped user read/write access with given size
- * @uptr	Pointer to the user space address to read from and write to
+ * @uptr:	Pointer to the user space address to read from and write to
  * @size:	Size of the access starting from @uptr
  * @elbl:	Error label to goto when the access region is rejected
  *
@@ -817,7 +817,7 @@ for (bool done = false; !done; done = true)						\
 
 /**
  * scoped_user_rw_access - Start a scoped user read/write access
- * @uptr	Pointer to the user space address to read from and write to
+ * @uptr:	Pointer to the user space address to read from and write to
  * @elbl:	Error label to goto when the access region is rejected
  *
  * The size of the access starting from @uptr is determined via sizeof(*@uptr)).
