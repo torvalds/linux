@@ -62,8 +62,10 @@ static void release_child(struct child *child)
 		return;
 	close(child->go[1]);
 	close(child->go[0]);
-	if (child->thread)
+	if (child->thread) {
 		pthread_join(child->thread, NULL);
+		child->thread = 0;
+	}
 	close(child->c2p[0]);
 	close(child->c2p[1]);
 	if (child->pid > 0)
@@ -330,6 +332,8 @@ static void
 test_attach_api(const char *binary, const char *pattern, struct bpf_uprobe_multi_opts *opts)
 {
 	static struct child child;
+
+	memset(&child, 0, sizeof(child));
 
 	/* no pid filter */
 	__test_attach_api(binary, pattern, opts, NULL);

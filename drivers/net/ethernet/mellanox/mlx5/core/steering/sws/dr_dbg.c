@@ -1051,8 +1051,8 @@ static int dr_dump_domain_all(struct seq_file *file, struct mlx5dr_domain *dmn)
 	struct mlx5dr_table *tbl;
 	int ret;
 
-	mutex_lock(&dmn->dump_info.dbg_mutex);
 	mlx5dr_domain_lock(dmn);
+	mutex_lock(&dmn->dump_info.dbg_mutex);
 
 	ret = dr_dump_domain(file, dmn);
 	if (ret < 0)
@@ -1065,8 +1065,8 @@ static int dr_dump_domain_all(struct seq_file *file, struct mlx5dr_domain *dmn)
 	}
 
 unlock_mutex:
-	mlx5dr_domain_unlock(dmn);
 	mutex_unlock(&dmn->dump_info.dbg_mutex);
+	mlx5dr_domain_unlock(dmn);
 	return ret;
 }
 

@@ -1182,7 +1182,7 @@ void __init_or_module noinline apply_seal_endbr(s32 *start, s32 *end)
 
 		poison_endbr(addr);
 		if (IS_ENABLED(CONFIG_FINEIBT))
-			poison_cfi(addr - 16);
+			poison_cfi(addr - CFI_OFFSET);
 	}
 }
 
@@ -1388,6 +1388,8 @@ extern u8 fineibt_preamble_end[];
 #define fineibt_preamble_bhi  (fineibt_preamble_bhi - fineibt_preamble_start)
 #define fineibt_preamble_ud   0x13
 #define fineibt_preamble_hash 5
+
+#define fineibt_prefix_size (fineibt_preamble_size - ENDBR_INSN_SIZE)
 
 /*
  * <fineibt_caller_start>:
@@ -1634,13 +1636,22 @@ static int cfi_rewrite_preamble(s32 *start, s32 *end)
 		 * have determined there are no indirect calls to it and we
 		 * don't need no CFI either.
 		 */
-		if (!is_endbr(addr + 16))
+		if (!is_endbr(addr + CFI_OFFSET))
 			continue;
 
 		hash = decode_preamble_hash(addr, &arity);
 		if (WARN(!hash, "no CFI hash found at: %pS %px %*ph\n",
 			 addr, addr, 5, addr))
 			return -EINVAL;
+
+		/*
+		 * FineIBT relies on being at func-16, so if the preamble is
+		 * actually larger than that, place it the tail end.
+		 *
+		 * NOTE: this is possible with things like DEBUG_CALL_THUNKS
+		 * and DEBUG_FORCE_FUNCTION_ALIGN_64B.
+		 */
+		addr += CFI_OFFSET - fineibt_prefix_size;
 
 		text_poke_early(addr, fineibt_preamble_start, fineibt_preamble_size);
 		WARN_ON(*(u32 *)(addr + fineibt_preamble_hash) != 0x12345678);
@@ -1664,10 +1675,10 @@ static void cfi_rewrite_endbr(s32 *start, s32 *end)
 	for (s = start; s < end; s++) {
 		void *addr = (void *)s + *s;
 
-		if (!exact_endbr(addr + 16))
+		if (!exact_endbr(addr + CFI_OFFSET))
 			continue;
 
-		poison_endbr(addr + 16);
+		poison_endbr(addr + CFI_OFFSET);
 	}
 }
 
@@ -1772,7 +1783,8 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 	if (FINEIBT_WARN(fineibt_preamble_size, 20)			||
 	    FINEIBT_WARN(fineibt_preamble_bhi + fineibt_bhi1_size, 20)	||
 	    FINEIBT_WARN(fineibt_caller_size, 14)			||
-	    FINEIBT_WARN(fineibt_paranoid_size, 20))
+	    FINEIBT_WARN(fineibt_paranoid_size, 20)			||
+	    WARN_ON_ONCE(CFI_OFFSET < fineibt_prefix_size))
 		return;
 
 	if (cfi_mode == CFI_AUTO) {
@@ -1886,6 +1898,11 @@ static void poison_cfi(void *addr)
 	switch (cfi_mode) {
 	case CFI_FINEIBT:
 		/*
+		 * FineIBT preamble is at func-16.
+		 */
+		addr += CFI_OFFSET - fineibt_prefix_size;
+
+		/*
 		 * FineIBT prefix should start with an ENDBR.
 		 */
 		if (!is_endbr(addr))
@@ -1922,8 +1939,6 @@ static void poison_cfi(void *addr)
 		break;
 	}
 }
-
-#define fineibt_prefix_size (fineibt_preamble_size - ENDBR_INSN_SIZE)
 
 /*
  * When regs->ip points to a 0xD6 byte in the FineIBT preamble,
