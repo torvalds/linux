@@ -35,6 +35,18 @@ struct io_timeout_rem {
 	bool				ltimeout;
 };
 
+static int io_parse_user_time(struct timespec64 *ts_out, u64 arg)
+{
+	struct timespec64 ts;
+
+	if (get_timespec64(&ts, u64_to_user_ptr(arg)))
+		return -EFAULT;
+	if (ts.tv_sec < 0 || ts.tv_nsec < 0)
+		return -EINVAL;
+	*ts_out = ts;
+	return 0;
+}
+
 static struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
 						   struct io_kiocb *link);
 
@@ -446,6 +458,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_timeout_rem *tr = io_kiocb_to_cmd(req, struct io_timeout_rem);
+	int ret;
 
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
@@ -464,10 +477,9 @@ int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			tr->ltimeout = true;
 		if (tr->flags & ~(IORING_TIMEOUT_UPDATE_MASK|IORING_TIMEOUT_ABS))
 			return -EINVAL;
-		if (get_timespec64(&tr->ts, u64_to_user_ptr(READ_ONCE(sqe->addr2))))
-			return -EFAULT;
-		if (tr->ts.tv_sec < 0 || tr->ts.tv_nsec < 0)
-			return -EINVAL;
+		ret = io_parse_user_time(&tr->ts, READ_ONCE(sqe->addr2));
+		if (ret)
+			return ret;
 	} else if (tr->flags) {
 		/* timeout removal doesn't support flags */
 		return -EINVAL;
@@ -522,6 +534,7 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	struct io_timeout_data *data;
 	unsigned flags;
 	u32 off = READ_ONCE(sqe->off);
+	int ret;
 
 	if (sqe->addr3 || sqe->__pad2[0])
 		return -EINVAL;
@@ -561,11 +574,9 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	data->req = req;
 	data->flags = flags;
 
-	if (get_timespec64(&data->ts, u64_to_user_ptr(READ_ONCE(sqe->addr))))
-		return -EFAULT;
-
-	if (data->ts.tv_sec < 0 || data->ts.tv_nsec < 0)
-		return -EINVAL;
+	ret = io_parse_user_time(&data->ts, READ_ONCE(sqe->addr));
+	if (ret)
+		return ret;
 
 	data->mode = io_translate_timeout_mode(flags);
 
