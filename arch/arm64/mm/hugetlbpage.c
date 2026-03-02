@@ -181,7 +181,7 @@ static pte_t get_clear_contig_flush(struct mm_struct *mm,
 	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 	unsigned long end = addr + (pgsize * ncontig);
 
-	__flush_hugetlb_tlb_range(&vma, addr, end, pgsize, true);
+	__flush_hugetlb_tlb_range(&vma, addr, end, pgsize, TLBF_NOWALKCACHE);
 	return orig_pte;
 }
 
@@ -209,7 +209,7 @@ static void clear_flush(struct mm_struct *mm,
 	if (mm == &init_mm)
 		flush_tlb_kernel_range(saddr, addr);
 	else
-		__flush_hugetlb_tlb_range(&vma, saddr, addr, pgsize, true);
+		__flush_hugetlb_tlb_range(&vma, saddr, addr, pgsize, TLBF_NOWALKCACHE);
 }
 
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,

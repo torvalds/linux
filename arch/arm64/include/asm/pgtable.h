@@ -89,9 +89,9 @@ static inline void arch_leave_lazy_mmu_mode(void)
 
 /* Set stride and tlb_level in flush_*_tlb_range */
 #define flush_pmd_tlb_range(vma, addr, end)	\
-	__flush_tlb_range(vma, addr, end, PMD_SIZE, false, 2)
+	__flush_tlb_range(vma, addr, end, PMD_SIZE, 2, TLBF_NONE)
 #define flush_pud_tlb_range(vma, addr, end)	\
-	__flush_tlb_range(vma, addr, end, PUD_SIZE, false, 1)
+	__flush_tlb_range(vma, addr, end, PUD_SIZE, 1, TLBF_NONE)
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
