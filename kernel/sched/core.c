@@ -879,7 +879,7 @@ enum {
 	HRTICK_SCHED_REARM_HRTIMER	= BIT(3)
 };
 
-static void hrtick_clear(struct rq *rq)
+static void __used hrtick_clear(struct rq *rq)
 {
 	if (hrtimer_active(&rq->hrtick_timer))
 		hrtimer_cancel(&rq->hrtick_timer);
