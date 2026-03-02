@@ -48,6 +48,8 @@
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_ADDRESS_LOW, HUBP_3DLUT_ADDRESS_LOW, mask_sh),\
 	HUBP_SF(CURSOR0_0_HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, mask_sh)
 
+struct dml2_display_rq_regs;
+
 bool hubp42_construct(
 	struct dcn20_hubp *hubp2,
 	struct dc_context *ctx,
@@ -63,6 +65,10 @@ void hubp42_program_3dlut_fl_config(struct hubp *hubp,
 		const struct dc_3dlut_dma *config);
 
 void hubp42_read_state(struct hubp *hubp);
+
+void hubp42_program_requestor(
+		struct hubp *hubp,
+		struct dml2_display_rq_regs *rq_regs);
 
 void hubp42_setup(
 		struct hubp *hubp,

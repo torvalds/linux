@@ -245,6 +245,39 @@ static void hubp42_program_deadline(
 			REFCYC_PER_VM_DMDATA, dlg_attr->refcyc_per_vm_dmdata);
 }
 
+void hubp42_program_requestor(
+		struct hubp *hubp,
+		struct dml2_display_rq_regs *rq_regs)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_UPDATE(HUBPRET_CONTROL,
+			DET_BUF_PLANE1_BASE_ADDRESS, rq_regs->plane1_base_address);
+	REG_SET_4(DCN_EXPANSION_MODE, 0,
+			DRQ_EXPANSION_MODE, rq_regs->drq_expansion_mode,
+			PRQ_EXPANSION_MODE, rq_regs->prq_expansion_mode,
+			MRQ_EXPANSION_MODE, rq_regs->mrq_expansion_mode,
+			CRQ_EXPANSION_MODE, rq_regs->crq_expansion_mode);
+	REG_SET_8(DCHUBP_REQ_SIZE_CONFIG, 0,
+		CHUNK_SIZE, rq_regs->rq_regs_l.chunk_size,
+		MIN_CHUNK_SIZE, rq_regs->rq_regs_l.min_chunk_size,
+		META_CHUNK_SIZE, rq_regs->rq_regs_l.meta_chunk_size,
+		MIN_META_CHUNK_SIZE, rq_regs->rq_regs_l.min_meta_chunk_size,
+		DPTE_GROUP_SIZE, rq_regs->rq_regs_l.dpte_group_size,
+		VM_GROUP_SIZE, rq_regs->rq_regs_l.mpte_group_size,
+		SWATH_HEIGHT, rq_regs->rq_regs_l.swath_height,
+		PTE_ROW_HEIGHT_LINEAR, rq_regs->rq_regs_l.pte_row_height_linear);
+	REG_SET_7(DCHUBP_REQ_SIZE_CONFIG_C, 0,
+		CHUNK_SIZE_C, rq_regs->rq_regs_c.chunk_size,
+		MIN_CHUNK_SIZE_C, rq_regs->rq_regs_c.min_chunk_size,
+		META_CHUNK_SIZE_C, rq_regs->rq_regs_c.meta_chunk_size,
+		MIN_META_CHUNK_SIZE_C, rq_regs->rq_regs_c.min_meta_chunk_size,
+		DPTE_GROUP_SIZE_C, rq_regs->rq_regs_c.dpte_group_size,
+		SWATH_HEIGHT_C, rq_regs->rq_regs_c.swath_height,
+		PTE_ROW_HEIGHT_LINEAR_C, rq_regs->rq_regs_c.pte_row_height_linear);
+}
+
+
 void hubp42_setup(
 		struct hubp *hubp,
 	    struct dml2_dchub_per_pipe_register_set *pipe_regs,
@@ -255,7 +288,7 @@ void hubp42_setup(
 	 * disable the requestors is not needed
 	 */
 	hubp401_vready_at_or_After_vsync(hubp, pipe_global_sync, timing);
-	hubp401_program_requestor(hubp, &pipe_regs->rq_regs);
+	hubp42_program_requestor(hubp, &pipe_regs->rq_regs);
 	hubp42_program_deadline(hubp, &pipe_regs->dlg_regs, &pipe_regs->ttu_regs);
 }
 static void hubp42_program_surface_config(
