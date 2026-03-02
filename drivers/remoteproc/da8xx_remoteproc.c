@@ -57,11 +57,10 @@ struct da8xx_rproc_mem {
  * @mem: internal memory regions data
  * @num_mems: number of internal memory regions
  * @dsp_clk: placeholder for platform's DSP clk
- * @ack_fxn: chip-specific ack function for ack'ing irq
+ * @dsp_reset: control for local reset
  * @irq_data: ack_fxn function parameter
  * @chipsig: virt ptr to DSP interrupt registers (CHIPSIG & CHIPSIG_CLR)
  * @bootreg: virt ptr to DSP boot address register (HOST1CFG)
- * @irq: irq # used by this instance
  */
 struct da8xx_rproc {
 	struct rproc *rproc;
@@ -69,11 +68,9 @@ struct da8xx_rproc {
 	int num_mems;
 	struct clk *dsp_clk;
 	struct reset_control *dsp_reset;
-	void (*ack_fxn)(struct irq_data *data);
 	struct irq_data *irq_data;
 	void __iomem *chipsig;
 	void __iomem *bootreg;
-	int irq;
 };
 
 /**
@@ -122,7 +119,7 @@ static irqreturn_t da8xx_rproc_callback(int irq, void *p)
 		 * we need to ack it after taking down the level else we'll
 		 * be called again immediately after returning.
 		 */
-		drproc->ack_fxn(drproc->irq_data);
+		drproc->irq_data->chip->irq_ack(drproc->irq_data);
 
 		return IRQ_WAKE_THREAD;
 	}
@@ -320,9 +317,7 @@ static int da8xx_rproc_probe(struct platform_device *pdev)
 
 	drproc->chipsig = chipsig;
 	drproc->bootreg = bootreg;
-	drproc->ack_fxn = irq_data->chip->irq_ack;
 	drproc->irq_data = irq_data;
-	drproc->irq = irq;
 
 	ret = devm_rproc_add(dev, rproc);
 	if (ret)
