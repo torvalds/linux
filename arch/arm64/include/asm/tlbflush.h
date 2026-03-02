@@ -468,6 +468,36 @@ static inline void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
  *    operations can only span an even number of pages. We save this for last to
  *    ensure 64KB start alignment is maintained for the LPA2 case.
  */
+static __always_inline void rvae1is(u64 arg)
+{
+	__tlbi(rvae1is, arg);
+}
+
+static __always_inline void rvale1(u64 arg)
+{
+	__tlbi(rvale1, arg);
+}
+
+static __always_inline void rvale1is(u64 arg)
+{
+	__tlbi(rvale1is, arg);
+}
+
+static __always_inline void rvaale1is(u64 arg)
+{
+	__tlbi(rvaale1is, arg);
+}
+
+static __always_inline void ripas2e1is(u64 arg)
+{
+	__tlbi(ripas2e1is, arg);
+}
+
+static __always_inline void __tlbi_range(tlbi_op op, u64 arg)
+{
+	op(arg);
+}
+
 #define __flush_tlb_range_op(op, start, pages, stride,			\
 				asid, tlb_level, tlbi_user, lpa2)	\
 do {									\
@@ -495,7 +525,7 @@ do {									\
 		if (num >= 0) {						\
 			addr = __TLBI_VADDR_RANGE(__flush_start >> shift, asid, \
 						scale, num, tlb_level);	\
-			__tlbi(r##op, addr);				\
+			__tlbi_range(r##op, addr);			\
 			if (tlbi_user)					\
 				__tlbi_user(r##op, addr);		\
 			__flush_start += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT; \
