@@ -1003,11 +1003,9 @@ static int pru_rproc_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENODEV;
 
-	ret = of_property_read_string(np, "firmware-name", &fw_name);
-	if (ret) {
-		dev_err(dev, "unable to retrieve firmware-name %d\n", ret);
-		return ret;
-	}
+	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to retrieve firmware-name\n");
 
 	rproc = devm_rproc_alloc(dev, pdev->name, &pru_rproc_ops, fw_name,
 				 sizeof(*pru));
