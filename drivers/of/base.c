@@ -464,15 +464,8 @@ EXPORT_SYMBOL(of_machine_get_match);
 const void *of_machine_get_match_data(const struct of_device_id *matches)
 {
 	const struct of_device_id *match;
-	struct device_node *root;
 
-	root = of_find_node_by_path("/");
-	if (!root)
-		return NULL;
-
-	match = of_match_node(matches, root);
-	of_node_put(root);
-
+	match = of_machine_get_match(matches);
 	if (!match)
 		return NULL;
 
