@@ -2808,6 +2808,11 @@ static int __init tcrypt_mod_init(void)
 			goto err_free_tv;
 	}
 
+	if (!num_mb) {
+		pr_warn("num_mb must be at least 1; forcing to 1\n");
+		num_mb = 1;
+	}
+
 	err = do_test(alg, type, mask, mode, num_mb);
 
 	if (err) {
