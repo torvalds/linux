@@ -1691,7 +1691,7 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 	}
 
 	llen += printf(" \"%s\" = \"%s\"", expected, buf);
-	ret = strncmp(expected, buf, c);
+	ret = strncmp(expected, buf, c) != 0;
 
 	result(llen, ret ? FAIL : OK);
 	return ret;
