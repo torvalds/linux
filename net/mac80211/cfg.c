@@ -330,7 +330,6 @@ static void ieee80211_stop_p2p_device(struct wiphy *wiphy,
 
 static void ieee80211_nan_conf_free(struct cfg80211_nan_conf *conf)
 {
-	kfree(conf->cluster_id);
 	kfree(conf->extra_nan_attrs);
 	kfree(conf->vendor_elems);
 	memset(conf, 0, sizeof(*conf));
@@ -372,9 +371,6 @@ static int ieee80211_nan_conf_copy(struct cfg80211_nan_conf *dst,
 		memcpy(&dst->band_cfgs, &src->band_cfgs,
 		       sizeof(dst->band_cfgs));
 
-		kfree(dst->cluster_id);
-		dst->cluster_id = NULL;
-
 		kfree(dst->extra_nan_attrs);
 		dst->extra_nan_attrs = NULL;
 		dst->extra_nan_attrs_len = 0;
@@ -383,12 +379,8 @@ static int ieee80211_nan_conf_copy(struct cfg80211_nan_conf *dst,
 		dst->vendor_elems = NULL;
 		dst->vendor_elems_len = 0;
 
-		if (src->cluster_id) {
-			dst->cluster_id = kmemdup(src->cluster_id, ETH_ALEN,
-						  GFP_KERNEL);
-			if (!dst->cluster_id)
-				goto no_mem;
-		}
+		if (is_zero_ether_addr(dst->cluster_id))
+			ether_addr_copy(dst->cluster_id, src->cluster_id);
 
 		if (src->extra_nan_attrs && src->extra_nan_attrs_len) {
 			dst->extra_nan_attrs = kmemdup(src->extra_nan_attrs,

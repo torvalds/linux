@@ -4151,7 +4151,7 @@ static int mac80211_hwsim_start_nan(struct ieee80211_hw *hw,
 		      ns_to_ktime(until_dw * NSEC_PER_USEC),
 		      HRTIMER_MODE_REL_SOFT);
 
-	if (conf->cluster_id && !is_zero_ether_addr(conf->cluster_id) &&
+	if (!is_zero_ether_addr(conf->cluster_id) &&
 	    is_zero_ether_addr(hwsim_nan_cluster_id)) {
 		memcpy(hwsim_nan_cluster_id, conf->cluster_id, ETH_ALEN);
 	} else if (is_zero_ether_addr(hwsim_nan_cluster_id)) {

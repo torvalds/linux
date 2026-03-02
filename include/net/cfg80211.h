@@ -4023,7 +4023,6 @@ struct cfg80211_nan_band_config {
  *	(i.e. BIT(NL80211_BAND_2GHZ)).
  * @cluster_id: cluster ID used for NAN synchronization. This is a MAC address
  *	that can take a value from 50-6F-9A-01-00-00 to 50-6F-9A-01-FF-FF.
- *	If NULL, the device will pick a random Cluster ID.
  * @scan_period: period (in seconds) between NAN scans.
  * @scan_dwell_time: dwell time (in milliseconds) for NAN scans.
  * @discovery_beacon_interval: interval (in TUs) for discovery beacons.
@@ -4039,7 +4038,7 @@ struct cfg80211_nan_band_config {
 struct cfg80211_nan_conf {
 	u8 master_pref;
 	u8 bands;
-	const u8 *cluster_id;
+	u8 cluster_id[ETH_ALEN] __aligned(2);
 	u16 scan_period;
 	u16 scan_dwell_time;
 	u8 discovery_beacon_interval;
