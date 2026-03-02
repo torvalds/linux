@@ -62,7 +62,6 @@ impl InitializerKind {
 
 enum InitializerAttribute {
     DefaultError(DefaultErrorAttribute),
-    DisableInitializedFieldAccess,
 }
 
 struct DefaultErrorAttribute {
@@ -86,6 +85,7 @@ pub(crate) fn expand(
     let error = error.map_or_else(
         || {
             if let Some(default_error) = attrs.iter().fold(None, |acc, attr| {
+                #[expect(irrefutable_let_patterns)]
                 if let InitializerAttribute::DefaultError(DefaultErrorAttribute { ty }) = attr {
                     Some(ty.clone())
                 } else {
@@ -145,15 +145,7 @@ pub(crate) fn expand(
     };
     // `mixed_site` ensures that the data is not accessible to the user-controlled code.
     let data = Ident::new("__data", Span::mixed_site());
-    let init_fields = init_fields(
-        &fields,
-        pinned,
-        !attrs
-            .iter()
-            .any(|attr| matches!(attr, InitializerAttribute::DisableInitializedFieldAccess)),
-        &data,
-        &slot,
-    );
+    let init_fields = init_fields(&fields, pinned, &data, &slot);
     let field_check = make_field_check(&fields, init_kind, &path);
     Ok(quote! {{
         // We do not want to allow arbitrary returns, so we declare this type as the `Ok` return
@@ -236,7 +228,6 @@ fn get_init_kind(rest: Option<(Token![..], Expr)>, dcx: &mut DiagCtxt) -> InitKi
 fn init_fields(
     fields: &Punctuated<InitializerField, Token![,]>,
     pinned: bool,
-    generate_initialized_accessors: bool,
     data: &Ident,
     slot: &Ident,
 ) -> TokenStream {
@@ -272,13 +263,6 @@ fn init_fields(
                         unsafe { &mut (*#slot).#ident }
                     }
                 };
-                let accessor = generate_initialized_accessors.then(|| {
-                    quote! {
-                        #(#cfgs)*
-                        #[allow(unused_variables)]
-                        let #ident = #accessor;
-                    }
-                });
                 quote! {
                     #(#attrs)*
                     {
@@ -286,7 +270,9 @@ fn init_fields(
                         // SAFETY: TODO
                         unsafe { #write(::core::ptr::addr_of_mut!((*#slot).#ident), #value_ident) };
                     }
-                    #accessor
+                    #(#cfgs)*
+                    #[allow(unused_variables)]
+                    let #ident = #accessor;
                 }
             }
             InitializerKind::Init { ident, value, .. } => {
@@ -326,20 +312,15 @@ fn init_fields(
                         },
                     )
                 };
-                let accessor = generate_initialized_accessors.then(|| {
-                    quote! {
-                        #(#cfgs)*
-                        #[allow(unused_variables)]
-                        let #ident = #accessor;
-                    }
-                });
                 quote! {
                     #(#attrs)*
                     {
                         let #init = #value;
                         #value_init
                     }
-                    #accessor
+                    #(#cfgs)*
+                    #[allow(unused_variables)]
+                    let #ident = #accessor;
                 }
             }
             InitializerKind::Code { block: value, .. } => quote! {
@@ -466,10 +447,6 @@ impl Parse for Initializer {
                 if a.path().is_ident("default_error") {
                     a.parse_args::<DefaultErrorAttribute>()
                         .map(InitializerAttribute::DefaultError)
-                } else if a.path().is_ident("disable_initialized_field_access") {
-                    a.meta
-                        .require_path_only()
-                        .map(|_| InitializerAttribute::DisableInitializedFieldAccess)
                 } else {
                     Err(syn::Error::new_spanned(a, "unknown initializer attribute"))
                 }
