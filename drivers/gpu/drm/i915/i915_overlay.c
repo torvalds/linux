@@ -30,7 +30,7 @@ struct i915_overlay {
 	struct intel_context *context;
 	struct i915_vma *vma;
 	struct i915_vma *old_vma;
-	struct intel_frontbuffer *frontbuffer;
+	struct i915_frontbuffer *frontbuffer;
 	/* register access */
 	struct drm_i915_gem_object *reg_bo;
 	void __iomem *regs;
@@ -138,18 +138,18 @@ static void i915_overlay_flip_prepare(struct i915_overlay *overlay,
 				      struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = overlay->i915;
-	struct intel_frontbuffer *frontbuffer = NULL;
+	struct i915_frontbuffer *frontbuffer = NULL;
 
 	drm_WARN_ON(&i915->drm, overlay->old_vma);
 
 	if (vma)
-		frontbuffer = intel_frontbuffer_get(intel_bo_to_drm_bo(vma->obj));
+		frontbuffer = i915_gem_object_frontbuffer_get(vma->obj);
 
-	intel_frontbuffer_track(overlay->frontbuffer, frontbuffer,
-				overlay->frontbuffer_bits);
+	i915_gem_object_frontbuffer_track(overlay->frontbuffer, frontbuffer,
+					  overlay->frontbuffer_bits);
 
 	if (overlay->frontbuffer)
-		intel_frontbuffer_put(overlay->frontbuffer);
+		i915_gem_object_frontbuffer_put(overlay->frontbuffer);
 	overlay->frontbuffer = frontbuffer;
 
 	overlay->old_vma = overlay->vma;

@@ -45,6 +45,16 @@ struct i915_frontbuffer *i915_gem_object_frontbuffer_get(struct drm_i915_gem_obj
 void i915_gem_object_frontbuffer_ref(struct i915_frontbuffer *front);
 void i915_gem_object_frontbuffer_put(struct i915_frontbuffer *front);
 
+static inline void i915_gem_object_frontbuffer_track(struct i915_frontbuffer *_old,
+						     struct i915_frontbuffer *_new,
+						     unsigned int frontbuffer_bits)
+{
+	struct intel_frontbuffer *old = _old ? &_old->base : NULL;
+	struct intel_frontbuffer *new = _new ? &_new->base : NULL;
+
+	intel_frontbuffer_track(old, new, frontbuffer_bits);
+}
+
 /**
  * i915_gem_object_frontbuffer_lookup - Look up the object's frontbuffer
  * @obj: The object whose frontbuffer to look up.
