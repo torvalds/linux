@@ -40,16 +40,6 @@ struct rps_dev_flow {
 #define RPS_NO_FILTER 0xffff
 
 /*
- * The rps_dev_flow_table structure contains a table of flow mappings.
- */
-struct rps_dev_flow_table {
-	u8			log;
-	struct rps_dev_flow	flows[];
-};
-#define RPS_DEV_FLOW_TABLE_SIZE(_num) (sizeof(struct rps_dev_flow_table) + \
-    ((_num) * sizeof(struct rps_dev_flow)))
-
-/*
  * The rps_sock_flow_table contains mappings of flows to the last CPU
  * on which they were processed by the application (set in recvmsg).
  * Each entry is a 32bit value. Upper part is the high-order bits
