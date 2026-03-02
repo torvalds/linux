@@ -112,7 +112,7 @@ static int regcache_hw_init(struct regmap *map, int count)
 			ret = regmap_read(map, reg, &val);
 			map->cache_bypass = cache_bypass;
 			if (ret != 0) {
-				dev_err(map->dev, "Failed to read %d: %d\n",
+				dev_err(map->dev, "Failed to read %x: %d\n",
 					reg, ret);
 				goto err_free;
 			}
@@ -508,7 +508,7 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 	bypass = map->cache_bypass;
 
 	name = map->cache_ops->name;
-	dev_dbg(map->dev, "Syncing %s cache from %d-%d\n", name, min, max);
+	dev_dbg(map->dev, "Syncing %s cache from %#x-%#x\n", name, min, max);
 
 	trace_regcache_sync(map, name, "start region");
 
