@@ -51,6 +51,27 @@ void intel_parent_dpt_resume(struct intel_display *display, struct intel_dpt *dp
 		display->parent->dpt->resume(dpt);
 }
 
+/* frontbuffer */
+struct intel_frontbuffer *intel_parent_frontbuffer_get(struct intel_display *display, struct drm_gem_object *obj)
+{
+	return display->parent->frontbuffer->get(obj);
+}
+
+void intel_parent_frontbuffer_ref(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->ref(front);
+}
+
+void intel_parent_frontbuffer_put(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->put(front);
+}
+
+void intel_parent_frontbuffer_flush_for_display(struct intel_display *display, struct intel_frontbuffer *front)
+{
+	display->parent->frontbuffer->flush_for_display(front);
+}
+
 /* hdcp */
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,
 				       struct intel_hdcp_gsc_context *gsc_context,

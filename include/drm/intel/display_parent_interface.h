@@ -17,6 +17,7 @@ struct drm_scanout_buffer;
 struct i915_vma;
 struct intel_dpt;
 struct intel_dsb_buffer;
+struct intel_frontbuffer;
 struct intel_hdcp_gsc_context;
 struct intel_initial_plane_config;
 struct intel_panic;
@@ -40,6 +41,13 @@ struct intel_display_dsb_interface {
 	struct intel_dsb_buffer *(*create)(struct drm_device *drm, size_t size);
 	void (*cleanup)(struct intel_dsb_buffer *dsb_buf);
 	void (*flush_map)(struct intel_dsb_buffer *dsb_buf);
+};
+
+struct intel_display_frontbuffer_interface {
+	struct intel_frontbuffer *(*get)(struct drm_gem_object *obj);
+	void (*ref)(struct intel_frontbuffer *front);
+	void (*put)(struct intel_frontbuffer *front);
+	void (*flush_for_display)(struct intel_frontbuffer *front);
 };
 
 struct intel_display_hdcp_interface {
@@ -171,6 +179,9 @@ struct intel_display_parent_interface {
 
 	/** @dsb: DSB buffer interface */
 	const struct intel_display_dsb_interface *dsb;
+
+	/** @frontbuffer: Frontbuffer interface */
+	const struct intel_display_frontbuffer_interface *frontbuffer;
 
 	/** @hdcp: HDCP GSC interface */
 	const struct intel_display_hdcp_interface *hdcp;

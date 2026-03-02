@@ -13,6 +13,7 @@ struct drm_scanout_buffer;
 struct i915_vma;
 struct intel_display;
 struct intel_dpt;
+struct intel_frontbuffer;
 struct intel_hdcp_gsc_context;
 struct intel_panic;
 struct intel_stolen_node;
@@ -23,6 +24,12 @@ struct intel_dpt *intel_parent_dpt_create(struct intel_display *display,
 void intel_parent_dpt_destroy(struct intel_display *display, struct intel_dpt *dpt);
 void intel_parent_dpt_suspend(struct intel_display *display, struct intel_dpt *dpt);
 void intel_parent_dpt_resume(struct intel_display *display, struct intel_dpt *dpt);
+
+/* frontbuffer */
+struct intel_frontbuffer *intel_parent_frontbuffer_get(struct intel_display *display, struct drm_gem_object *obj);
+void intel_parent_frontbuffer_ref(struct intel_display *display, struct intel_frontbuffer *front);
+void intel_parent_frontbuffer_put(struct intel_display *display, struct intel_frontbuffer *front);
+void intel_parent_frontbuffer_flush_for_display(struct intel_display *display, struct intel_frontbuffer *front);
 
 /* hdcp */
 ssize_t intel_parent_hdcp_gsc_msg_send(struct intel_display *display,

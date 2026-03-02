@@ -91,4 +91,6 @@ i915_gem_object_frontbuffer_lookup(const struct drm_i915_gem_object *obj)
 	return front;
 }
 
+extern const struct intel_display_frontbuffer_interface i915_display_frontbuffer_interface;
+
 #endif

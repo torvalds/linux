@@ -45,42 +45,6 @@ int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, i
 	return i915_gem_object_read_from_page(to_intel_bo(obj), offset, dst, size);
 }
 
-struct intel_frontbuffer *intel_bo_frontbuffer_get(struct drm_gem_object *_obj)
-{
-	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
-	struct i915_frontbuffer *front;
-
-	front = i915_gem_object_frontbuffer_get(obj);
-	if (!front)
-		return NULL;
-
-	return &front->base;
-}
-
-void intel_bo_frontbuffer_ref(struct intel_frontbuffer *_front)
-{
-	struct i915_frontbuffer *front =
-		container_of(_front, typeof(*front), base);
-
-	i915_gem_object_frontbuffer_ref(front);
-}
-
-void intel_bo_frontbuffer_put(struct intel_frontbuffer *_front)
-{
-	struct i915_frontbuffer *front =
-		container_of(_front, typeof(*front), base);
-
-	return i915_gem_object_frontbuffer_put(front);
-}
-
-void intel_bo_frontbuffer_flush_for_display(struct intel_frontbuffer *_front)
-{
-	struct i915_frontbuffer *front =
-		container_of(_front, typeof(*front), base);
-
-	i915_gem_object_flush_if_display(front->obj);
-}
-
 void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
 {
 	i915_debugfs_describe_obj(m, to_intel_bo(obj));

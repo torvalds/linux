@@ -20,11 +20,6 @@ int intel_bo_key_check(struct drm_gem_object *obj);
 int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, int size);
 
-struct intel_frontbuffer *intel_bo_frontbuffer_get(struct drm_gem_object *obj);
-void intel_bo_frontbuffer_ref(struct intel_frontbuffer *front);
-void intel_bo_frontbuffer_put(struct intel_frontbuffer *front);
-void intel_bo_frontbuffer_flush_for_display(struct intel_frontbuffer *front);
-
 void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj);
 
 #endif /* __INTEL_BO__ */
