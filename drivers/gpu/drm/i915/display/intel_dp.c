@@ -2419,6 +2419,17 @@ bool intel_dp_needs_8b10b_fec(const struct intel_crtc_state *crtc_state,
 	return dsc_enabled_on_crtc || intel_dsc_enabled_on_link(crtc_state);
 }
 
+void intel_dp_dsc_reset_config(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->fec_enable = false;
+
+	crtc_state->dsc.compression_enable = false;
+	crtc_state->dsc.compressed_bpp_x16 = 0;
+
+	memset(&crtc_state->dsc.slice_config, 0, sizeof(crtc_state->dsc.slice_config));
+	memset(&crtc_state->dsc.config, 0, sizeof(crtc_state->dsc.config));
+}
+
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
@@ -2849,6 +2860,8 @@ intel_dp_compute_link_for_joined_pipes(struct intel_encoder *encoder,
 	struct link_config_limits limits;
 	bool dsc_needed, joiner_needs_dsc;
 	int ret = 0;
+
+	intel_dp_dsc_reset_config(pipe_config);
 
 	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 

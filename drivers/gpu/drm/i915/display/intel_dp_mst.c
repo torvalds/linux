@@ -610,6 +610,8 @@ static int mst_stream_compute_link_for_joined_pipes(struct intel_encoder *encode
 	bool dsc_needed, joiner_needs_dsc;
 	int ret = 0;
 
+	intel_dp_dsc_reset_config(pipe_config);
+
 	joiner_needs_dsc = intel_dp_joiner_needs_dsc(display, num_joined_pipes);
 
 	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
