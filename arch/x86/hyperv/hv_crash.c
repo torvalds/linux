@@ -107,14 +107,12 @@ static void __noreturn hv_panic_timeout_reboot(void)
 		cpu_relax();
 }
 
-/* This cannot be inlined as it needs stack */
-static noinline __noclone void hv_crash_restore_tss(void)
+static void hv_crash_restore_tss(void)
 {
 	load_TR_desc();
 }
 
-/* This cannot be inlined as it needs stack */
-static noinline void hv_crash_clear_kernpt(void)
+static void hv_crash_clear_kernpt(void)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -125,50 +123,9 @@ static noinline void hv_crash_clear_kernpt(void)
 	native_p4d_clear(p4d);
 }
 
-/*
- * This is the C entry point from the asm glue code after the disable hypercall.
- * We enter here in IA32-e long mode, ie, full 64bit mode running on kernel
- * page tables with our below 4G page identity mapped, but using a temporary
- * GDT. ds/fs/gs/es are null. ss is not usable. bp is null. stack is not
- * available. We restore kernel GDT, and rest of the context, and continue
- * to kexec.
- */
-static asmlinkage void __noreturn hv_crash_c_entry(void)
+
+static void __noreturn hv_crash_handle(void)
 {
-	struct hv_crash_ctxt *ctxt = &hv_crash_ctxt;
-
-	/* first thing, restore kernel gdt */
-	native_load_gdt(&ctxt->gdtr);
-
-	asm volatile("movw %%ax, %%ss" : : "a"(ctxt->ss));
-	asm volatile("movq %0, %%rsp" : : "m"(ctxt->rsp));
-
-	asm volatile("movw %%ax, %%ds" : : "a"(ctxt->ds));
-	asm volatile("movw %%ax, %%es" : : "a"(ctxt->es));
-	asm volatile("movw %%ax, %%fs" : : "a"(ctxt->fs));
-	asm volatile("movw %%ax, %%gs" : : "a"(ctxt->gs));
-
-	native_wrmsrq(MSR_IA32_CR_PAT, ctxt->pat);
-	asm volatile("movq %0, %%cr0" : : "r"(ctxt->cr0));
-
-	asm volatile("movq %0, %%cr8" : : "r"(ctxt->cr8));
-	asm volatile("movq %0, %%cr4" : : "r"(ctxt->cr4));
-	asm volatile("movq %0, %%cr2" : : "r"(ctxt->cr4));
-
-	native_load_idt(&ctxt->idtr);
-	native_wrmsrq(MSR_GS_BASE, ctxt->gsbase);
-	native_wrmsrq(MSR_EFER, ctxt->efer);
-
-	/* restore the original kernel CS now via far return */
-	asm volatile("movzwq %0, %%rax\n\t"
-		     "pushq %%rax\n\t"
-		     "pushq $1f\n\t"
-		     "lretq\n\t"
-		     "1:nop\n\t" : : "m"(ctxt->cs) : "rax");
-
-	/* We are in asmlinkage without stack frame, hence make C function
-	 * calls which will buy stack frames.
-	 */
 	hv_crash_restore_tss();
 	hv_crash_clear_kernpt();
 
@@ -177,7 +134,54 @@ static asmlinkage void __noreturn hv_crash_c_entry(void)
 
 	hv_panic_timeout_reboot();
 }
-/* Tell gcc we are using lretq long jump in the above function intentionally */
+
+/*
+ * __naked functions do not permit function calls, not even to __always_inline
+ * functions that only contain asm() blocks themselves. So use a macro instead.
+ */
+#define hv_wrmsr(msr, val) \
+	asm volatile("wrmsr" :: "c"(msr), "a"((u32)val), "d"((u32)(val >> 32)) : "memory")
+
+/*
+ * This is the C entry point from the asm glue code after the disable hypercall.
+ * We enter here in IA32-e long mode, ie, full 64bit mode running on kernel
+ * page tables with our below 4G page identity mapped, but using a temporary
+ * GDT. ds/fs/gs/es are null. ss is not usable. bp is null. stack is not
+ * available. We restore kernel GDT, and rest of the context, and continue
+ * to kexec.
+ */
+static void __naked hv_crash_c_entry(void)
+{
+	/* first thing, restore kernel gdt */
+	asm volatile("lgdt %0" : : "m" (hv_crash_ctxt.gdtr));
+
+	asm volatile("movw %0, %%ss\n\t"
+		     "movq %1, %%rsp"
+		     :: "m"(hv_crash_ctxt.ss), "m"(hv_crash_ctxt.rsp));
+
+	asm volatile("movw %0, %%ds" : : "m"(hv_crash_ctxt.ds));
+	asm volatile("movw %0, %%es" : : "m"(hv_crash_ctxt.es));
+	asm volatile("movw %0, %%fs" : : "m"(hv_crash_ctxt.fs));
+	asm volatile("movw %0, %%gs" : : "m"(hv_crash_ctxt.gs));
+
+	hv_wrmsr(MSR_IA32_CR_PAT, hv_crash_ctxt.pat);
+	asm volatile("movq %0, %%cr0" : : "r"(hv_crash_ctxt.cr0));
+
+	asm volatile("movq %0, %%cr8" : : "r"(hv_crash_ctxt.cr8));
+	asm volatile("movq %0, %%cr4" : : "r"(hv_crash_ctxt.cr4));
+	asm volatile("movq %0, %%cr2" : : "r"(hv_crash_ctxt.cr2));
+
+	asm volatile("lidt %0" : : "m" (hv_crash_ctxt.idtr));
+	hv_wrmsr(MSR_GS_BASE, hv_crash_ctxt.gsbase);
+	hv_wrmsr(MSR_EFER, hv_crash_ctxt.efer);
+
+	/* restore the original kernel CS now via far return */
+	asm volatile("pushq %q0\n\t"
+		     "pushq %q1\n\t"
+		     "lretq"
+		     :: "r"(hv_crash_ctxt.cs), "r"(hv_crash_handle));
+}
+/* Tell objtool we are using lretq long jump in the above function intentionally */
 STACK_FRAME_NON_STANDARD(hv_crash_c_entry);
 
 static void hv_mark_tss_not_busy(void)
