@@ -4805,7 +4805,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #endif
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
-	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_USER_NMI:
 	case KVM_CAP_IRQ_INJECT_STATUS:
 	case KVM_CAP_IOEVENTFD:

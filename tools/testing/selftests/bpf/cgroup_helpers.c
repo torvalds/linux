@@ -86,7 +86,7 @@ static int __enable_controllers(const char *cgroup_path, const char *controllers
 		enable[len] = 0;
 		close(fd);
 	} else {
-		bpf_strlcpy(enable, controllers, sizeof(enable));
+		strscpy(enable, controllers);
 	}
 
 	snprintf(path, sizeof(path), "%s/cgroup.subtree_control", cgroup_path);

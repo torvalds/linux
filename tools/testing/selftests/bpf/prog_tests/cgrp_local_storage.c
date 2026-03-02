@@ -202,7 +202,7 @@ static void test_cgroup_iter_sleepable(int cgroup_fd, __u64 cgroup_id)
 
 	iter_fd = bpf_iter_create(bpf_link__fd(link));
 	if (!ASSERT_GE(iter_fd, 0, "iter_create"))
-		goto out;
+		goto out_link;
 
 	/* trigger the program run */
 	(void)read(iter_fd, buf, sizeof(buf));
@@ -210,6 +210,8 @@ static void test_cgroup_iter_sleepable(int cgroup_fd, __u64 cgroup_id)
 	ASSERT_EQ(skel->bss->cgroup_id, cgroup_id, "cgroup_id");
 
 	close(iter_fd);
+out_link:
+	bpf_link__destroy(link);
 out:
 	cgrp_ls_sleepable__destroy(skel);
 }

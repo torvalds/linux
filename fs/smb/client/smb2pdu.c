@@ -1714,19 +1714,17 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	is_binding = (ses->ses_status == SES_GOOD);
 	spin_unlock(&ses->ses_lock);
 
-	/* keep session key if binding */
-	if (!is_binding) {
-		kfree_sensitive(ses->auth_key.response);
-		ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
-						 GFP_KERNEL);
-		if (!ses->auth_key.response) {
-			cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory\n",
-				 msg->sesskey_len);
-			rc = -ENOMEM;
-			goto out_put_spnego_key;
-		}
-		ses->auth_key.len = msg->sesskey_len;
+	kfree_sensitive(ses->auth_key.response);
+	ses->auth_key.response = kmemdup(msg->data,
+					 msg->sesskey_len,
+					 GFP_KERNEL);
+	if (!ses->auth_key.response) {
+		cifs_dbg(VFS, "%s: can't allocate (%u bytes) memory\n",
+			 __func__, msg->sesskey_len);
+		rc = -ENOMEM;
+		goto out_put_spnego_key;
 	}
+	ses->auth_key.len = msg->sesskey_len;
 
 	sess_data->iov[1].iov_base = msg->data + msg->sesskey_len;
 	sess_data->iov[1].iov_len = msg->secblob_len;
@@ -3182,22 +3180,19 @@ SMB2_open_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 	}
 
 	if ((oparms->disposition != FILE_OPEN) && (oparms->cifs_sb)) {
+		unsigned int sbflags = cifs_sb_flags(oparms->cifs_sb);
 		bool set_mode;
 		bool set_owner;
 
-		if ((oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) &&
-		    (oparms->mode != ACL_NO_MODE))
+		if ((sbflags & CIFS_MOUNT_MODE_FROM_SID) &&
+		    oparms->mode != ACL_NO_MODE) {
 			set_mode = true;
-		else {
+		} else {
 			set_mode = false;
 			oparms->mode = ACL_NO_MODE;
 		}
 
-		if (oparms->cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL)
-			set_owner = true;
-		else
-			set_owner = false;
-
+		set_owner = sbflags & CIFS_MOUNT_UID_FROM_ACL;
 		if (set_owner | set_mode) {
 			cifs_dbg(FYI, "add sd with mode 0x%x\n", oparms->mode);
 			rc = add_sd_context(iov, &n_iov, oparms->mode, set_owner);

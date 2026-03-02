@@ -1661,7 +1661,7 @@ static struct efa_mr *efa_alloc_mr(struct ib_pd *ibpd, int access_flags,
 	struct efa_mr *mr;
 
 	if (udata && udata->inlen &&
-	    !ib_is_udata_cleared(udata, 0, sizeof(udata->inlen))) {
+	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, udata not cleared\n");
 		return ERR_PTR(-EINVAL);
