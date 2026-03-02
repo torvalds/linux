@@ -147,6 +147,7 @@ static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 	};
 	struct rps_sock_flow_table *orig_sock_table, *sock_table;
 	static DEFINE_MUTEX(sock_flow_mutex);
+	void *tofree = NULL;
 
 	mutex_lock(&sock_flow_mutex);
 
@@ -193,13 +194,14 @@ static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 			if (orig_sock_table) {
 				static_branch_dec(&rps_needed);
 				static_branch_dec(&rfs_needed);
-				kvfree_rcu(orig_sock_table, rcu);
+				tofree = orig_sock_table;
 			}
 		}
 	}
 
 	mutex_unlock(&sock_flow_mutex);
 
+	kvfree_rcu_mightsleep(tofree);
 	return ret;
 }
 #endif /* CONFIG_RPS */
