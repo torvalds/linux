@@ -303,9 +303,7 @@ EXPORT_SYMBOL_GPL(nvme_auth_hmac_final);
 struct nvme_dhchap_key *nvme_auth_transform_key(
 		const struct nvme_dhchap_key *key, const char *nqn)
 {
-	const char *hmac_name;
-	struct crypto_shash *key_tfm;
-	SHASH_DESC_ON_STACK(shash, key_tfm);
+	struct nvme_auth_hmac_ctx hmac;
 	struct nvme_dhchap_key *transformed_key;
 	int ret, key_len;
 
@@ -320,50 +318,19 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 			return ERR_PTR(-ENOMEM);
 		return transformed_key;
 	}
-	hmac_name = nvme_auth_hmac_name(key->hash);
-	if (!hmac_name) {
-		pr_warn("Invalid key hash id %d\n", key->hash);
-		return ERR_PTR(-EINVAL);
-	}
-
-	key_tfm = crypto_alloc_shash(hmac_name, 0, 0);
-	if (IS_ERR(key_tfm))
-		return ERR_CAST(key_tfm);
-
-	key_len = crypto_shash_digestsize(key_tfm);
+	ret = nvme_auth_hmac_init(&hmac, key->hash, key->key, key->len);
+	if (ret)
+		return ERR_PTR(ret);
+	key_len = nvme_auth_hmac_hash_len(key->hash);
 	transformed_key = nvme_auth_alloc_key(key_len, key->hash);
 	if (!transformed_key) {
-		ret = -ENOMEM;
-		goto out_free_key;
+		memzero_explicit(&hmac, sizeof(hmac));
+		return ERR_PTR(-ENOMEM);
 	}
-
-	shash->tfm = key_tfm;
-	ret = crypto_shash_setkey(key_tfm, key->key, key->len);
-	if (ret < 0)
-		goto out_free_transformed_key;
-	ret = crypto_shash_init(shash);
-	if (ret < 0)
-		goto out_free_transformed_key;
-	ret = crypto_shash_update(shash, nqn, strlen(nqn));
-	if (ret < 0)
-		goto out_free_transformed_key;
-	ret = crypto_shash_update(shash, "NVMe-over-Fabrics", 17);
-	if (ret < 0)
-		goto out_free_transformed_key;
-	ret = crypto_shash_final(shash, transformed_key->key);
-	if (ret < 0)
-		goto out_free_transformed_key;
-
-	crypto_free_shash(key_tfm);
-
+	nvme_auth_hmac_update(&hmac, nqn, strlen(nqn));
+	nvme_auth_hmac_update(&hmac, "NVMe-over-Fabrics", 17);
+	nvme_auth_hmac_final(&hmac, transformed_key->key);
 	return transformed_key;
-
-out_free_transformed_key:
-	nvme_auth_free_key(transformed_key);
-out_free_key:
-	crypto_free_shash(key_tfm);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(nvme_auth_transform_key);
 
