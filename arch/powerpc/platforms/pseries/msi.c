@@ -605,7 +605,7 @@ static int pseries_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 					      &pseries_msi_irq_chip, pseries_dev);
 	}
 
-	pseries_dev->msi_used++;
+	pseries_dev->msi_used += nr_irqs;
 	return 0;
 
 out:
