@@ -5,6 +5,9 @@ config CORDIC
 	  This option provides an implementation of the CORDIC algorithm;
 	  calculations are in fixed point. Module will be called cordic.
 
+config POLYNOMIAL
+       tristate
+
 config PRIME_NUMBERS
 	tristate "Simple prime number generator for testing"
 	help

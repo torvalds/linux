@@ -625,9 +625,6 @@ config PLDMFW
 config ASN1_ENCODER
        tristate
 
-config POLYNOMIAL
-       tristate
-
 config FIRMWARE_TABLE
 	bool
 
