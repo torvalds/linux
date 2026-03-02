@@ -295,7 +295,10 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *		no invalidation may take place. In the case where the level
  *		cannot be easily determined, the value TLBI_TTL_UNKNOWN will
  *		perform a non-hinted invalidation. flags may be TLBF_NONE (0) or
- *		TLBF_NOWALKCACHE (elide eviction of walk cache entries).
+ *		any combination of TLBF_NOWALKCACHE (elide eviction of walk
+ *		cache entries), TLBF_NONOTIFY (don't call mmu notifiers),
+ *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
+ *		(only perform the invalidation for the local cpu).
  *
  *	local_flush_tlb_page(vma, addr)
  *		Local variant of flush_tlb_page().  Stale TLB entries may
@@ -304,12 +307,6 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *	local_flush_tlb_page_nonotify(vma, addr)
  *		Same as local_flush_tlb_page() except MMU notifier will not be
  *		called.
- *
- *	local_flush_tlb_contpte(vma, addr)
- *		Invalidate the virtual-address range
- *		'[addr, addr+CONT_PTE_SIZE)' mapped with contpte on local CPU
- *		for the user address space corresponding to 'vma->mm'.  Stale
- *		TLB entries may remain in remote CPUs.
  *
  *	Finally, take a look at asm/tlb.h to see how tlb_flush() is implemented
  *	on top of these routines, since that is our interface to the mmu_gather
@@ -552,15 +549,23 @@ typedef unsigned __bitwise tlbf_t;
 /* Invalidate tlb entries only, leaving the page table walk cache intact. */
 #define TLBF_NOWALKCACHE	((__force tlbf_t)BIT(0))
 
-static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
-				     unsigned long start, unsigned long end,
-				     unsigned long stride, int tlb_level,
-				     tlbf_t flags)
+/* Skip the trailing dsb after issuing tlbi. */
+#define TLBF_NOSYNC		((__force tlbf_t)BIT(1))
+
+/* Suppress tlb notifier callbacks for this flush operation. */
+#define TLBF_NONOTIFY		((__force tlbf_t)BIT(2))
+
+/* Perform the tlbi locally without broadcasting to other CPUs. */
+#define TLBF_NOBROADCAST	((__force tlbf_t)BIT(3))
+
+static __always_inline void __do_flush_tlb_range(struct vm_area_struct *vma,
+					unsigned long start, unsigned long end,
+					unsigned long stride, int tlb_level,
+					tlbf_t flags)
 {
+	struct mm_struct *mm = vma->vm_mm;
 	unsigned long asid, pages;
 
-	start = round_down(start, stride);
-	end = round_up(end, stride);
 	pages = (end - start) >> PAGE_SHIFT;
 
 	if (__flush_tlb_range_limit_excess(pages, stride)) {
@@ -568,17 +573,41 @@ static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
 		return;
 	}
 
-	dsb(ishst);
+	if (!(flags & TLBF_NOBROADCAST))
+		dsb(ishst);
+	else
+		dsb(nshst);
+
 	asid = ASID(mm);
 
-	if (flags & TLBF_NOWALKCACHE)
-		__flush_s1_tlb_range_op(vale1is, start, pages, stride,
-				     asid, tlb_level);
-	else
+	switch (flags & (TLBF_NOWALKCACHE | TLBF_NOBROADCAST)) {
+	case TLBF_NONE:
 		__flush_s1_tlb_range_op(vae1is, start, pages, stride,
-				     asid, tlb_level);
+					asid, tlb_level);
+		break;
+	case TLBF_NOWALKCACHE:
+		__flush_s1_tlb_range_op(vale1is, start, pages, stride,
+					asid, tlb_level);
+		break;
+	case TLBF_NOBROADCAST:
+		/* Combination unused */
+		BUG();
+		break;
+	case TLBF_NOWALKCACHE | TLBF_NOBROADCAST:
+		__flush_s1_tlb_range_op(vale1, start, pages, stride,
+					asid, tlb_level);
+		break;
+	}
 
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+	if (!(flags & TLBF_NONOTIFY))
+		mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+
+	if (!(flags & TLBF_NOSYNC)) {
+		if (!(flags & TLBF_NOBROADCAST))
+			__tlbi_sync_s1ish();
+		else
+			dsb(nsh);
+	}
 }
 
 static inline void __flush_tlb_range(struct vm_area_struct *vma,
@@ -586,24 +615,9 @@ static inline void __flush_tlb_range(struct vm_area_struct *vma,
 				     unsigned long stride, int tlb_level,
 				     tlbf_t flags)
 {
-	__flush_tlb_range_nosync(vma->vm_mm, start, end, stride,
-				 tlb_level, flags);
-	__tlbi_sync_s1ish();
-}
-
-static inline void local_flush_tlb_contpte(struct vm_area_struct *vma,
-					   unsigned long addr)
-{
-	unsigned long asid;
-
-	addr = round_down(addr, CONT_PTE_SIZE);
-
-	dsb(nshst);
-	asid = ASID(vma->vm_mm);
-	__flush_s1_tlb_range_op(vale1, addr, CONT_PTES, PAGE_SIZE, asid, 3);
-	mmu_notifier_arch_invalidate_secondary_tlbs(vma->vm_mm, addr,
-						    addr + CONT_PTE_SIZE);
-	dsb(nsh);
+	start = round_down(start, stride);
+	end = round_up(end, stride);
+	__do_flush_tlb_range(vma, start, end, stride, tlb_level, flags);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
@@ -656,7 +670,10 @@ static inline void __flush_tlb_kernel_pgtable(unsigned long kaddr)
 static inline void arch_tlbbatch_add_pending(struct arch_tlbflush_unmap_batch *batch,
 		struct mm_struct *mm, unsigned long start, unsigned long end)
 {
-	__flush_tlb_range_nosync(mm, start, end, PAGE_SIZE, 3, TLBF_NOWALKCACHE);
+	struct vm_area_struct vma = { .vm_mm = mm, .vm_flags = 0 };
+
+	__flush_tlb_range(&vma, start, end, PAGE_SIZE, 3,
+			  TLBF_NOWALKCACHE | TLBF_NOSYNC);
 }
 
 static inline bool __pte_flags_need_flush(ptdesc_t oldval, ptdesc_t newval)
