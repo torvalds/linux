@@ -1496,6 +1496,7 @@ UnsignedEnum	27:24	B16B16
 	0b0000	NI
 	0b0001	IMP
 	0b0010	BFSCALE
+	0b0011	B16MM
 EndEnum
 UnsignedEnum	23:20	BF16
 	0b0000	NI
@@ -1522,6 +1523,7 @@ UnsignedEnum	3:0	SVEver
 	0b0001	SVE2
 	0b0010	SVE2p1
 	0b0011	SVE2p2
+	0b0100	SVE2p3
 EndEnum
 EndSysreg
 
