@@ -417,6 +417,7 @@ void ext4_io_submit_init(struct ext4_io_submit *io,
 
 static void io_submit_init_bio(struct ext4_io_submit *io,
 			       struct inode *inode,
+			       struct folio *folio,
 			       struct buffer_head *bh)
 {
 	struct bio *bio;
@@ -426,7 +427,9 @@ static void io_submit_init_bio(struct ext4_io_submit *io,
 	 * __GFP_DIRECT_RECLAIM is set, see comments for bio_alloc_bioset().
 	 */
 	bio = bio_alloc(bh->b_bdev, BIO_MAX_VECS, REQ_OP_WRITE, GFP_NOIO);
-	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
+	fscrypt_set_bio_crypt_ctx(bio, inode,
+			(folio_pos(folio) + bh_offset(bh)) >> inode->i_blkbits,
+			GFP_NOIO);
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_end_io = ext4_end_bio;
 	bio->bi_private = ext4_get_io_end(io->io_end);
@@ -448,7 +451,7 @@ submit_and_retry:
 		ext4_io_submit(io);
 	}
 	if (io->io_bio == NULL)
-		io_submit_init_bio(io, inode, bh);
+		io_submit_init_bio(io, inode, folio, bh);
 	if (!bio_add_folio(io->io_bio, io_folio, bh->b_size, bh_offset(bh)))
 		goto submit_and_retry;
 	wbc_account_cgroup_owner(io->io_wbc, folio, bh->b_size);
