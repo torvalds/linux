@@ -179,6 +179,7 @@ struct cs_dsp {
 
 	bool booted;
 	bool running;
+	bool hibernating;
 
 	struct list_head ctl_list;
 
@@ -353,5 +354,7 @@ static inline bool cs_dsp_chunk_valid_addr(struct cs_dsp_chunk *ch, void *addr)
 int cs_dsp_chunk_write(struct cs_dsp_chunk *ch, int nbits, u32 val);
 int cs_dsp_chunk_flush(struct cs_dsp_chunk *ch);
 int cs_dsp_chunk_read(struct cs_dsp_chunk *ch, int nbits);
+
+void cs_dsp_hibernate(struct cs_dsp *dsp, bool hibernating);
 
 #endif

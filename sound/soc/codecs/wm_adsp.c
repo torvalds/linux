@@ -1100,6 +1100,12 @@ void wm_adsp_stop(struct wm_adsp *dsp)
 }
 EXPORT_SYMBOL_GPL(wm_adsp_stop);
 
+void wm_adsp_hibernate(struct wm_adsp *dsp, bool hibernate)
+{
+	cs_dsp_hibernate(&dsp->cs_dsp, hibernate);
+}
+EXPORT_SYMBOL_GPL(wm_adsp_hibernate);
+
 int wm_adsp_event(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event)
 {
