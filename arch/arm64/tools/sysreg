@@ -1654,7 +1654,13 @@ UnsignedEnum	26	F8MM4
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	25:2
+Res0	25:16
+UnsignedEnum	15	F16MM2
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	14:8
+Raz	7:2
 UnsignedEnum	1	F8E4M3
 	0b0	NI
 	0b1	IMP
