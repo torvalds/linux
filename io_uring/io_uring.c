@@ -1186,7 +1186,6 @@ __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 
 static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 {
-	unsigned int nr_events = 0;
 	unsigned long check_cq;
 
 	min_events = min(min_events, ctx->cq_entries);
@@ -1229,8 +1228,6 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 		 * very same mutex.
 		 */
 		if (list_empty(&ctx->iopoll_list) || io_task_work_pending(ctx)) {
-			u32 tail = ctx->cached_cq_tail;
-
 			(void) io_run_local_work_locked(ctx, min_events);
 
 			if (task_work_pending(current) || list_empty(&ctx->iopoll_list)) {
@@ -1239,7 +1236,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 				mutex_lock(&ctx->uring_lock);
 			}
 			/* some requests don't go through iopoll_list */
-			if (tail != ctx->cached_cq_tail || list_empty(&ctx->iopoll_list))
+			if (list_empty(&ctx->iopoll_list))
 				break;
 		}
 		ret = io_do_iopoll(ctx, !min_events);
@@ -1250,9 +1247,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
 			return -EINTR;
 		if (need_resched())
 			break;
-
-		nr_events += ret;
-	} while (nr_events < min_events);
+	} while (io_cqring_events(ctx) < min_events);
 
 	return 0;
 }
