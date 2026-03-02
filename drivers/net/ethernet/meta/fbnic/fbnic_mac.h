@@ -8,6 +8,30 @@
 
 struct fbnic_dev;
 
+/* The RXB clock runs at 600 MHZ in the ASIC and the PAUSE_STORM_UNIT_WR
+ * is 10us granularity, so set the clock to 6000 (0x1770)
+ */
+#define FBNIC_RXB_PS_CLK_DIV		0x1770
+
+/* Convert milliseconds to pause storm timeout units (10us granularity) */
+#define FBNIC_MAC_RXB_PS_TO(ms)		((ms) * 100)
+
+/* Convert pause storm timeout units (10us granularity) to milliseconds */
+#define FBNIC_MAC_RXB_PS_TO_MS(ps)	((ps) / 100)
+
+/* Set the default timer to 500ms, which should be longer than any
+ * reasonable period of continuous pausing. The service task, which runs
+ * once per second, periodically resets the pause storm trigger.
+ *
+ * As a result, on a functioning system, if pause continues, we enforce
+ * a duty cycle determined by the configured pause storm timeout (50%
+ * default). A crashed system will not have the service task and therefore
+ * pause will remain disabled until reboot recovery.
+ */
+#define FBNIC_MAC_PS_TO_DEFAULT_MS	500
+#define FBNIC_MAC_PS_TO_MAX_MS	\
+	FBNIC_MAC_RXB_PS_TO_MS(FIELD_MAX(FBNIC_RXB_PAUSE_STORM_THLD_TIME))
+
 #define FBNIC_MAX_JUMBO_FRAME_SIZE	9742
 
 /* States loosely based on section 136.8.11.7.5 of IEEE 802.3-2022 Ethernet
@@ -119,4 +143,7 @@ struct fbnic_mac {
 
 int fbnic_mac_init(struct fbnic_dev *fbd);
 void fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *aui, u8 *fec);
+int fbnic_mac_ps_protect_to_config(struct fbnic_dev *fbd, u16 timeout);
+void fbnic_mac_ps_protect_handler(struct fbnic_dev *fbd);
+bool fbnic_mac_check_tx_pause(struct fbnic_dev *fbd);
 #endif /* _FBNIC_MAC_H_ */

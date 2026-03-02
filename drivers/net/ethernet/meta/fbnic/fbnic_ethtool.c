@@ -1641,6 +1641,47 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	}
 }
 
+static int fbnic_get_tunable(struct net_device *netdev,
+			     const struct ethtool_tunable *tun,
+			     void *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int err = 0;
+
+	switch (tun->id) {
+	case ETHTOOL_PFC_PREVENTION_TOUT:
+		*(u16 *)data = fbn->fbd->ps_timeout;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int fbnic_set_tunable(struct net_device *netdev,
+			     const struct ethtool_tunable *tun,
+			     const void *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int err;
+
+	switch (tun->id) {
+	case ETHTOOL_PFC_PREVENTION_TOUT: {
+		u16 ps_timeout = *(u16 *)data;
+
+		err = fbnic_mac_ps_protect_to_config(fbn->fbd, ps_timeout);
+		break;
+	}
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 static int
 fbnic_get_module_eeprom_by_page(struct net_device *netdev,
 				const struct ethtool_module_eeprom *page_data,
@@ -1915,6 +1956,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.set_channels			= fbnic_set_channels,
 	.get_ts_info			= fbnic_get_ts_info,
 	.get_ts_stats			= fbnic_get_ts_stats,
+	.get_tunable			= fbnic_get_tunable,
+	.set_tunable			= fbnic_set_tunable,
 	.get_link_ksettings		= fbnic_phylink_ethtool_ksettings_get,
 	.get_fec_stats			= fbnic_get_fec_stats,
 	.get_fecparam			= fbnic_phylink_get_fecparam,

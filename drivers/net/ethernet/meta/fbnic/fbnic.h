@@ -98,6 +98,9 @@ struct fbnic_dev {
 
 	/* MDIO bus for PHYs */
 	struct mii_bus *mdio_bus;
+
+	/* In units of ms since API supports values in ms */
+	u16 ps_timeout;
 };
 
 /* Reserve entry 0 in the MSI-X "others" array until we have filled all

@@ -220,6 +220,9 @@ static void fbnic_service_task(struct work_struct *work)
 
 	fbnic_get_hw_stats32(fbd);
 
+	if (fbd->ps_timeout && fbnic_mac_check_tx_pause(fbd))
+		fbnic_mac_ps_protect_handler(fbd);
+
 	fbnic_fw_check_heartbeat(fbd);
 
 	fbnic_health_check(fbd);
@@ -295,6 +298,8 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Populate driver with hardware-specific info and handlers */
 	fbd->max_num_queues = info->max_num_queues;
+
+	fbd->ps_timeout = FBNIC_MAC_PS_TO_DEFAULT_MS;
 
 	pci_set_master(pdev);
 	pci_save_state(pdev);
