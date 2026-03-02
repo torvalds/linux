@@ -126,66 +126,53 @@
 	};
 };
 
-&pcie0 {
-	#address-cells = <3>;
-	#size-cells = <2>;
-
-	bridge@0,0,0 {
+&pcie_bridge0 {
+	wifi@0,0 {
+		compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
 		reg = <0x0000 0 0 0 0>;
-
-		#address-cells = <3>;
-		#size-cells = <2>;
-
-		wifi@0,1,0 {
-			compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
-			reg = <0x0000 0 0 0 0>;
-			ieee80211-freq-limit = <5735000 5835000>;
-			brcm,ccode-map = "JP-JP-78", "US-Q2-86";
-		};
+		ieee80211-freq-limit = <5735000 5835000>;
+		brcm,ccode-map = "JP-JP-78", "US-Q2-86";
 	};
 };
 
-&pcie1 {
-	#address-cells = <3>;
-	#size-cells = <2>;
-
-	bridge@1,0,0 {
+&pcie_bridge1 {
+	pcie@0,0 {
+		device_type = "pci";
 		reg = <0x0000 0 0 0 0>;
+		bus-range = <0x01 0xff>;
 
 		#address-cells = <3>;
 		#size-cells = <2>;
+		ranges;
 
-		bridge@1,1,0 {
-			reg = <0x0000 0 0 0 0>;
+		pcie@1,0 {
+			device_type = "pci";
+			reg = <0x800 0 0 0 0>;
 
 			#address-cells = <3>;
 			#size-cells = <2>;
+			ranges;
 
-			bridge@1,0 {
-				reg = <0x800 0 0 0 0>;
-
-				#address-cells = <3>;
-				#size-cells = <2>;
-
-				wifi@0,0 {
-					compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
-					reg = <0x0000 0 0 0 0>;
-					brcm,ccode-map = "JP-JP-78", "US-Q2-86";
-				};
+			wifi@0,0 {
+				compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
+				reg = <0x0000 0 0 0 0>;
+				brcm,ccode-map = "JP-JP-78", "US-Q2-86";
 			};
+		};
 
-			bridge@1,2,2 {
-				reg = <0x1000 0 0 0 0>;
+		pcie@2,0 {
+			device_type = "pci";
+			reg = <0x1000 0 0 0 0>;
 
-				#address-cells = <3>;
-				#size-cells = <2>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
 
-				wifi@1,4,0 {
-					compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
-					reg = <0x0000 0 0 0 0>;
-					ieee80211-freq-limit = <5170000 5730000>;
-					brcm,ccode-map = "JP-JP-78", "US-Q2-86";
-				};
+			wifi@0,0 {
+				compatible = "brcm,bcm4366-fmac", "brcm,bcm4329-fmac";
+				reg = <0x0000 0 0 0 0>;
+				ieee80211-freq-limit = <5170000 5730000>;
+				brcm,ccode-map = "JP-JP-78", "US-Q2-86";
 			};
 		};
 	};

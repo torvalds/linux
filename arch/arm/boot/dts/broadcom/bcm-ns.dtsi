@@ -196,6 +196,16 @@
 			#interrupt-cells = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			pcie_bridge0: pcie@0 {
+				device_type = "pci";
+				reg = <0x0000 0 0 0 0>;
+				bus-range = <0x00 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		pcie1: pcie@13000 {
@@ -210,6 +220,16 @@
 			#interrupt-cells = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			pcie_bridge1: pcie@0 {
+				device_type = "pci";
+				reg = <0x0000 0 0 0 0>;
+				bus-range = <0x00 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		pcie2: pcie@14000 {
@@ -224,6 +244,16 @@
 			#interrupt-cells = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			pcie_bridge2: pcie@0 {
+				device_type = "pci";
+				reg = <0x0000 0 0 0 0>;
+				bus-range = <0x00 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		usb2: usb2@21000 {
