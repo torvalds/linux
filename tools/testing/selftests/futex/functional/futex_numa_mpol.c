@@ -10,8 +10,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#ifdef LIBNUMA_VER_SUFFICIENT
 #include <numa.h>
 #include <numaif.h>
+#endif
 
 #include <linux/futex.h>
 #include <sys/mman.h>
