@@ -1438,64 +1438,15 @@ void xe_lrc_set_multi_queue_priority(struct xe_lrc *lrc, enum xe_multi_queue_pri
 	lrc->desc |= FIELD_PREP(LRC_PRIORITY, xe_multi_queue_prio_to_lrc(lrc, priority));
 }
 
-static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-		       struct xe_vm *vm, void *replay_state, u32 ring_size,
-		       u16 msix_vec,
-		       u32 init_flags)
+static int xe_lrc_ctx_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct xe_vm *vm,
+			   void *replay_state, u16 msix_vec, u32 init_flags)
 {
 	struct xe_gt *gt = hwe->gt;
-	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
-	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_bo *seqno_bo;
 	struct iosys_map map;
 	u32 arb_enable;
-	u32 bo_flags;
 	int err;
-
-	kref_init(&lrc->refcount);
-	lrc->gt = gt;
-	lrc->replay_size = xe_gt_lrc_hang_replay_size(gt, hwe->class);
-	lrc->size = lrc_size;
-	lrc->flags = 0;
-	lrc->ring.size = ring_size;
-	lrc->ring.tail = 0;
-
-	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
-		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
-		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
-	}
-
-	if (xe_gt_has_indirect_ring_state(gt))
-		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
-
-	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
-		   XE_BO_FLAG_GGTT_INVALIDATE;
-
-	if ((vm && vm->xef) || init_flags & XE_LRC_CREATE_USER_CTX) /* userspace */
-		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
-
-	lrc->bo = xe_bo_create_pin_map_novm(xe, tile,
-					    bo_size,
-					    ttm_bo_type_kernel,
-					    bo_flags, false);
-	if (IS_ERR(lrc->bo))
-		return PTR_ERR(lrc->bo);
-
-	seqno_bo = xe_bo_create_pin_map_novm(xe, tile, PAGE_SIZE,
-					     ttm_bo_type_kernel,
-					     XE_BO_FLAG_GGTT |
-					     XE_BO_FLAG_GGTT_INVALIDATE |
-					     XE_BO_FLAG_SYSTEM, false);
-	if (IS_ERR(seqno_bo)) {
-		err = PTR_ERR(seqno_bo);
-		goto err_lrc_finish;
-	}
-	lrc->seqno_bo = seqno_bo;
-
-	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
-			     hwe->fence_irq, hwe->name);
 
 	/*
 	 * Init Per-Process of HW status Page, LRC / context state to known
@@ -1508,7 +1459,7 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_map_memset(xe, &map, 0, 0, LRC_PPHWSP_SIZE);	/* PPHWSP */
 		xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 				 gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE,
-				 lrc_size - LRC_PPHWSP_SIZE);
+				 lrc->size - LRC_PPHWSP_SIZE);
 		if (replay_state)
 			xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 					 replay_state, lrc->replay_size);
@@ -1516,20 +1467,15 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		void *init_data = empty_lrc_data(hwe);
 
 		if (!init_data) {
-			err = -ENOMEM;
-			goto err_lrc_finish;
+			return -ENOMEM;
 		}
 
-		xe_map_memcpy_to(xe, &map, 0, init_data, lrc_size);
+		xe_map_memcpy_to(xe, &map, 0, init_data, lrc->size);
 		kfree(init_data);
 	}
 
-	if (vm) {
+	if (vm)
 		xe_lrc_set_ppgtt(lrc, vm);
-
-		if (vm->xef)
-			xe_drm_client_add_bo(vm->xef->client, lrc->bo);
-	}
 
 	if (xe_device_has_msix(xe)) {
 		xe_lrc_write_ctx_reg(lrc, CTX_INT_STATUS_REPORT_PTR,
@@ -1546,14 +1492,20 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START,
 					      __xe_lrc_ring_ggtt_addr(lrc));
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_START_UDW, 0);
-		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, 0);
+
+		/* Match head and tail pointers */
+		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_HEAD, lrc->ring.tail);
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_TAIL, lrc->ring.tail);
+
 		xe_lrc_write_indirect_ctx_reg(lrc, INDIRECT_CTX_RING_CTL,
 					      RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	} else {
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_START, __xe_lrc_ring_ggtt_addr(lrc));
-		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, 0);
+
+		/* Match head and tail pointers */
+		xe_lrc_write_ctx_reg(lrc, CTX_RING_HEAD, lrc->ring.tail);
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_TAIL, lrc->ring.tail);
+
 		xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
 				     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	}
@@ -1602,11 +1554,75 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 
 	err = setup_wa_bb(lrc, hwe);
 	if (err)
-		goto err_lrc_finish;
+		return err;
 
 	err = setup_indirect_ctx(lrc, hwe);
+
+	return err;
+}
+
+static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe, struct xe_vm *vm,
+		       void *replay_state, u32 ring_size, u16 msix_vec, u32 init_flags)
+{
+	struct xe_gt *gt = hwe->gt;
+	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
+	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_bo *bo;
+	u32 bo_flags;
+	int err;
+
+	kref_init(&lrc->refcount);
+	lrc->gt = gt;
+	lrc->replay_size = xe_gt_lrc_hang_replay_size(gt, hwe->class);
+	lrc->size = lrc_size;
+	lrc->flags = 0;
+	lrc->ring.size = ring_size;
+	lrc->ring.tail = 0;
+
+	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
+		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
+	}
+
+	if (xe_gt_has_indirect_ring_state(gt))
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
+
+	bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile) | XE_BO_FLAG_GGTT |
+		   XE_BO_FLAG_GGTT_INVALIDATE;
+
+	if ((vm && vm->xef) || init_flags & XE_LRC_CREATE_USER_CTX) /* userspace */
+		bo_flags |= XE_BO_FLAG_PINNED_LATE_RESTORE | XE_BO_FLAG_FORCE_USER_VRAM;
+
+	bo = xe_bo_create_pin_map_novm(xe, tile, bo_size,
+				       ttm_bo_type_kernel,
+				       bo_flags, false);
+	if (IS_ERR(lrc->bo))
+		return PTR_ERR(lrc->bo);
+
+	lrc->bo = bo;
+
+	bo = xe_bo_create_pin_map_novm(xe, tile, PAGE_SIZE,
+				       ttm_bo_type_kernel,
+				       XE_BO_FLAG_GGTT |
+				       XE_BO_FLAG_GGTT_INVALIDATE |
+				       XE_BO_FLAG_SYSTEM, false);
+	if (IS_ERR(bo)) {
+		err = PTR_ERR(bo);
+		goto err_lrc_finish;
+	}
+	lrc->seqno_bo = bo;
+
+	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
+			     hwe->fence_irq, hwe->name);
+
+	err = xe_lrc_ctx_init(lrc, hwe, vm, replay_state, msix_vec, init_flags);
 	if (err)
 		goto err_lrc_finish;
+
+	if (vm && vm->xef)
+		xe_drm_client_add_bo(vm->xef->client, lrc->bo);
 
 	return 0;
 
