@@ -300,7 +300,7 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *	__flush_tlb_page(vma, addr, flags)
  *		Invalidate a single user mapping for address 'addr' in the
  *		address space corresponding to 'vma->mm'.  Note that this
- *		operation only invalidates a single, last-level page-table entry
+ *		operation only invalidates a single level 3 page-table entry
  *		and therefore does not affect any walk-caches. flags may contain
  *		any combination of TLBF_NONOTIFY (don't call mmu notifiers),
  *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
@@ -591,7 +591,7 @@ static inline void __flush_tlb_page(struct vm_area_struct *vma,
 	unsigned long start = round_down(uaddr, PAGE_SIZE);
 	unsigned long end = start + PAGE_SIZE;
 
-	__do_flush_tlb_range(vma, start, end, PAGE_SIZE, TLBI_TTL_UNKNOWN,
+	__do_flush_tlb_range(vma, start, end, PAGE_SIZE, 3,
 			     TLBF_NOWALKCACHE | flags);
 }
 

@@ -103,8 +103,9 @@ static inline void arch_leave_lazy_mmu_mode(void)
 #define flush_tlb_fix_spurious_fault(vma, address, ptep)	\
 	__flush_tlb_page(vma, address, TLBF_NOBROADCAST | TLBF_NONOTIFY)
 
-#define flush_tlb_fix_spurious_fault_pmd(vma, address, pmdp)	\
-	__flush_tlb_page(vma, address, TLBF_NOBROADCAST | TLBF_NONOTIFY)
+#define flush_tlb_fix_spurious_fault_pmd(vma, address, pmdp)			\
+	__flush_tlb_range(vma, address, address + PMD_SIZE, PMD_SIZE, 2,	\
+			  TLBF_NOBROADCAST | TLBF_NONOTIFY | TLBF_NOWALKCACHE)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
