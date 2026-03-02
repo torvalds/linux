@@ -1532,7 +1532,11 @@ UnsignedEnum	63	FA64
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	62:61
+Res0	62
+UnsignedEnum	61	LUT6
+	0b0	NI
+	0b1	IMP
+EndEnum
 UnsignedEnum	60	LUTv2
 	0b0	NI
 	0b1	IMP
@@ -1542,6 +1546,7 @@ UnsignedEnum	59:56	SMEver
 	0b0001	SME2
 	0b0010	SME2p1
 	0b0011	SME2p2
+	0b0100	SME2p3
 EndEnum
 UnsignedEnum	55:52	I16I64
 	0b0000	NI
