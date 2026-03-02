@@ -2264,6 +2264,93 @@
 			};
 		};
 
+		/* cluster0 */
+		bwmon_cluster0: pmu@100c400 {
+			compatible = "qcom,glymur-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0x0 0x0100c400 0x0 0x600>;
+
+			interrupts = <GIC_SPI 903 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&hsc_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <800000>;
+				};
+
+				opp-1 {
+					opp-peak-kBps = <2188800>;
+				};
+
+				opp-2 {
+					opp-peak-kBps = <5414400>;
+				};
+
+				opp-3 {
+					opp-peak-kBps = <6220800>;
+				};
+
+				opp-4 {
+					opp-peak-kBps = <6835200>;
+				};
+
+				opp-5 {
+					opp-peak-kBps = <8371200>;
+				};
+
+				opp-6 {
+					opp-peak-kBps = <10944000>;
+				};
+
+				opp-7 {
+					opp-peak-kBps = <12748800>;
+				};
+
+				opp-8 {
+					opp-peak-kBps = <14745600>;
+				};
+
+				opp-9 {
+					opp-peak-kBps = <16896000>;
+				};
+
+				opp-10 {
+					opp-peak-kBps = <19046400>;
+				};
+			};
+		};
+
+		/* cluster1 */
+		bwmon_cluster1: pmu@100d400 {
+			compatible = "qcom,glymur-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0x0 0x0100d400 0x0 0x600>;
+
+			interrupts = <GIC_SPI 901 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&hsc_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+		};
+
+		/* cluster2 */
+		bwmon_cluster2: pmu@100e400 {
+			compatible = "qcom,glymur-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0x0 0x0100e400 0x0 0x600>;
+
+			interrupts = <GIC_SPI 902 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&hsc_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+		};
+
 		cnoc_main: interconnect@1500000 {
 			compatible = "qcom,glymur-cnoc-main";
 			reg = <0x0 0x01500000 0x0 0x17080>;
