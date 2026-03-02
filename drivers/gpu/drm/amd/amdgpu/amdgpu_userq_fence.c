@@ -469,7 +469,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object **gobj_write, **gobj_read;
 	u32 *syncobj_handles, num_syncobj_handles;
 	struct amdgpu_userq_fence *userq_fence;
-	struct amdgpu_usermode_queue *queue;
+	struct amdgpu_usermode_queue *queue = NULL;
 	struct drm_syncobj **syncobj = NULL;
 	struct dma_fence *fence;
 	struct drm_exec exec;
@@ -519,7 +519,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		goto put_gobj_read;
 
 	/* Retrieve the user queue */
-	queue = xa_load(&userq_mgr->userq_xa, args->queue_id);
+	queue = amdgpu_userq_get(userq_mgr, args->queue_id);
 	if (!queue) {
 		r = -ENOENT;
 		goto put_gobj_write;
@@ -610,6 +610,9 @@ free_syncobj:
 free_syncobj_handles:
 	kfree(syncobj_handles);
 
+	if (queue)
+		amdgpu_userq_put(queue);
+
 	return r;
 }
 
@@ -624,7 +627,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
 	struct drm_gem_object **gobj_write, **gobj_read;
 	u32 *timeline_points, *timeline_handles;
-	struct amdgpu_usermode_queue *waitq;
+	struct amdgpu_usermode_queue *waitq = NULL;
 	u32 *syncobj_handles, num_syncobj;
 	struct dma_fence **fences = NULL;
 	u16 num_points, num_fences = 0;
@@ -860,7 +863,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		 */
 		num_fences = dma_fence_dedup_array(fences, num_fences);
 
-		waitq = xa_load(&userq_mgr->userq_xa, wait_info->waitq_id);
+		waitq = amdgpu_userq_get(userq_mgr, wait_info->waitq_id);
 		if (!waitq) {
 			r = -EINVAL;
 			goto free_fences;
@@ -943,6 +946,9 @@ free_timeline_handles:
 	kfree(timeline_handles);
 free_syncobj_handles:
 	kfree(syncobj_handles);
+
+	if (waitq)
+		amdgpu_userq_put(waitq);
 
 	return r;
 }
