@@ -1072,12 +1072,11 @@ int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 	INIT_WORK(&ctrl->dhchap_auth_work, nvme_ctrl_auth_work);
 	if (!ctrl->opts)
 		return 0;
-	ret = nvme_auth_generate_key(ctrl->opts->dhchap_secret,
-			&ctrl->host_key);
+	ret = nvme_auth_parse_key(ctrl->opts->dhchap_secret, &ctrl->host_key);
 	if (ret)
 		return ret;
-	ret = nvme_auth_generate_key(ctrl->opts->dhchap_ctrl_secret,
-			&ctrl->ctrl_key);
+	ret = nvme_auth_parse_key(ctrl->opts->dhchap_ctrl_secret,
+				  &ctrl->ctrl_key);
 	if (ret)
 		goto err_free_dhchap_secret;
 

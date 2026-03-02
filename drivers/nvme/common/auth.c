@@ -436,7 +436,7 @@ int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
 }
 EXPORT_SYMBOL_GPL(nvme_auth_gen_shared_secret);
 
-int nvme_auth_generate_key(const char *secret, struct nvme_dhchap_key **ret_key)
+int nvme_auth_parse_key(const char *secret, struct nvme_dhchap_key **ret_key)
 {
 	struct nvme_dhchap_key *key;
 	u8 key_hash;
@@ -459,7 +459,7 @@ int nvme_auth_generate_key(const char *secret, struct nvme_dhchap_key **ret_key)
 	*ret_key = key;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nvme_auth_generate_key);
+EXPORT_SYMBOL_GPL(nvme_auth_parse_key);
 
 /**
  * nvme_auth_generate_psk - Generate a PSK for TLS
