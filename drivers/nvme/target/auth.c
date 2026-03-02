@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <crypto/hash.h>
 #include <linux/crc32.h>
 #include <linux/base64.h>
 #include <linux/ctype.h>
@@ -356,46 +355,29 @@ out_free_response:
 int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 			 unsigned int shash_len)
 {
-	struct crypto_shash *shash_tfm;
-	struct shash_desc *shash;
+	struct nvme_auth_hmac_ctx hmac;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
-	const char *hash_name;
 	u8 *challenge = req->sq->dhchap_c2;
 	struct nvme_dhchap_key *transformed_key;
 	u8 buf[4];
 	int ret;
 
-	hash_name = nvme_auth_hmac_name(ctrl->shash_id);
-	if (!hash_name) {
-		pr_warn("Hash ID %d invalid\n", ctrl->shash_id);
-		return -EINVAL;
-	}
-
-	shash_tfm = crypto_alloc_shash(hash_name, 0, 0);
-	if (IS_ERR(shash_tfm)) {
-		pr_err("failed to allocate shash %s\n", hash_name);
-		return PTR_ERR(shash_tfm);
-	}
-
-	if (shash_len != crypto_shash_digestsize(shash_tfm)) {
-		pr_debug("%s: hash len mismatch (len %d digest %d)\n",
-			 __func__, shash_len,
-			 crypto_shash_digestsize(shash_tfm));
-		ret = -EINVAL;
-		goto out_free_tfm;
-	}
-
 	transformed_key = nvme_auth_transform_key(ctrl->ctrl_key,
 						ctrl->subsys->subsysnqn);
-	if (IS_ERR(transformed_key)) {
-		ret = PTR_ERR(transformed_key);
-		goto out_free_tfm;
-	}
+	if (IS_ERR(transformed_key))
+		return PTR_ERR(transformed_key);
 
-	ret = crypto_shash_setkey(shash_tfm, transformed_key->key,
+	ret = nvme_auth_hmac_init(&hmac, ctrl->shash_id, transformed_key->key,
 				  transformed_key->len);
 	if (ret)
 		goto out_free_response;
+
+	if (shash_len != nvme_auth_hmac_hash_len(ctrl->shash_id)) {
+		pr_err("%s: hash len mismatch (len %u digest %zu)\n", __func__,
+		       shash_len, nvme_auth_hmac_hash_len(ctrl->shash_id));
+		ret = -EINVAL;
+		goto out_free_response;
+	}
 
 	if (ctrl->dh_gid != NVME_AUTH_DHGROUP_NULL) {
 		challenge = kmalloc(shash_len, GFP_KERNEL);
@@ -412,55 +394,29 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 			goto out_free_challenge;
 	}
 
-	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(shash_tfm),
-			GFP_KERNEL);
-	if (!shash) {
-		ret = -ENOMEM;
-		goto out_free_challenge;
-	}
-	shash->tfm = shash_tfm;
+	nvme_auth_hmac_update(&hmac, challenge, shash_len);
 
-	ret = crypto_shash_init(shash);
-	if (ret)
-		goto out;
-	ret = crypto_shash_update(shash, challenge, shash_len);
-	if (ret)
-		goto out;
 	put_unaligned_le32(req->sq->dhchap_s2, buf);
-	ret = crypto_shash_update(shash, buf, 4);
-	if (ret)
-		goto out;
+	nvme_auth_hmac_update(&hmac, buf, 4);
+
 	put_unaligned_le16(req->sq->dhchap_tid, buf);
-	ret = crypto_shash_update(shash, buf, 2);
-	if (ret)
-		goto out;
+	nvme_auth_hmac_update(&hmac, buf, 2);
+
 	memset(buf, 0, 4);
-	ret = crypto_shash_update(shash, buf, 1);
-	if (ret)
-		goto out;
-	ret = crypto_shash_update(shash, "Controller", 10);
-	if (ret)
-		goto out;
-	ret = crypto_shash_update(shash, ctrl->subsys->subsysnqn,
-			    strlen(ctrl->subsys->subsysnqn));
-	if (ret)
-		goto out;
-	ret = crypto_shash_update(shash, buf, 1);
-	if (ret)
-		goto out;
-	ret = crypto_shash_update(shash, ctrl->hostnqn, strlen(ctrl->hostnqn));
-	if (ret)
-		goto out;
-	ret = crypto_shash_final(shash, response);
-out:
-	kfree(shash);
+	nvme_auth_hmac_update(&hmac, buf, 1);
+	nvme_auth_hmac_update(&hmac, "Controller", 10);
+	nvme_auth_hmac_update(&hmac, ctrl->subsys->subsysnqn,
+			      strlen(ctrl->subsys->subsysnqn));
+	nvme_auth_hmac_update(&hmac, buf, 1);
+	nvme_auth_hmac_update(&hmac, ctrl->hostnqn, strlen(ctrl->hostnqn));
+	nvme_auth_hmac_final(&hmac, response);
+	ret = 0;
 out_free_challenge:
 	if (challenge != req->sq->dhchap_c2)
 		kfree(challenge);
 out_free_response:
+	memzero_explicit(&hmac, sizeof(hmac));
 	nvme_auth_free_key(transformed_key);
-out_free_tfm:
-	crypto_free_shash(shash_tfm);
 	return ret;
 }
 
