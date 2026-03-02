@@ -10736,12 +10736,10 @@ static int kvm_check_and_inject_events(struct kvm_vcpu *vcpu,
 			__kvm_set_rflags(vcpu, kvm_get_rflags(vcpu) |
 					     X86_EFLAGS_RF);
 
-		if (vcpu->arch.exception.vector == DB_VECTOR) {
-			kvm_deliver_exception_payload(vcpu, &vcpu->arch.exception);
-			if (vcpu->arch.dr7 & DR7_GD) {
-				vcpu->arch.dr7 &= ~DR7_GD;
-				kvm_update_dr7(vcpu);
-			}
+		if (vcpu->arch.exception.vector == DB_VECTOR &&
+		    vcpu->arch.dr7 & DR7_GD) {
+			vcpu->arch.dr7 &= ~DR7_GD;
+			kvm_update_dr7(vcpu);
 		}
 
 		kvm_inject_exception(vcpu);
