@@ -1078,14 +1078,6 @@ static int pru_rproc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void pru_rproc_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct rproc *rproc = platform_get_drvdata(pdev);
-
-	dev_dbg(dev, "%s: removing rproc %s\n", __func__, rproc->name);
-}
-
 static const struct pru_private_data pru_data = {
 	.type = PRU_TYPE_PRU,
 };
@@ -1131,7 +1123,6 @@ static struct platform_driver pru_rproc_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe  = pru_rproc_probe,
-	.remove = pru_rproc_remove,
 };
 module_platform_driver(pru_rproc_driver);
 
