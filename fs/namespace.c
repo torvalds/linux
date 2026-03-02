@@ -2646,6 +2646,19 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 
 			if (unlikely(shorter) && child != source_mnt)
 				mp = shorter;
+			/*
+			 * If @q was locked it was meant to hide
+			 * whatever was under it. Let @child take over
+			 * that job and lock it, then we can unlock @q.
+			 * That'll allow another namespace to shed @q
+			 * and reveal @child. Clearly, that mounter
+			 * consented to this by not severing the mount
+			 * relationship. Otherwise, what's the point.
+			 */
+			if (IS_MNT_LOCKED(q)) {
+				child->mnt.mnt_flags |= MNT_LOCKED;
+				q->mnt.mnt_flags &= ~MNT_LOCKED;
+			}
 			mnt_change_mountpoint(r, mp, q);
 		}
 	}
@@ -2722,7 +2735,7 @@ static inline struct mount *where_to_mount(const struct path *path,
  * In all cases the location must not have been unmounted and the
  * chosen mountpoint must be allowed to be mounted on.  For "beneath"
  * case we also require the location to be at the root of a mount
- * that has a parent (i.e. is not a root of some namespace).
+ * that has something mounted on top of it (i.e. has an overmount).
  */
 static void do_lock_mount(const struct path *path,
 			  struct pinned_mountpoint *res,
@@ -3515,8 +3528,6 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  * @mnt_to:   mount under which to mount
  * @mp:   mountpoint of @mnt_to
  *
- * - Make sure that nothing can be mounted beneath the caller's current
- *   root or the rootfs of the namespace.
  * - Make sure that the caller can unmount the topmost mount ensuring
  *   that the caller could reveal the underlying mountpoint.
  * - Ensure that nothing has been mounted on top of @mnt_from before we
@@ -3530,24 +3541,12 @@ static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
  */
 static int can_move_mount_beneath(const struct mount *mnt_from,
 				  const struct mount *mnt_to,
-				  const struct mountpoint *mp)
+				  struct pinned_mountpoint *mp)
 {
 	struct mount *parent_mnt_to = mnt_to->mnt_parent;
 
-	if (IS_MNT_LOCKED(mnt_to))
-		return -EINVAL;
-
 	/* Avoid creating shadow mounts during mount propagation. */
 	if (mnt_from->overmount)
-		return -EINVAL;
-
-	/*
-	 * Mounting beneath the rootfs only makes sense when the
-	 * semantics of pivot_root(".", ".") are used.
-	 */
-	if (&mnt_to->mnt == current->fs->root.mnt)
-		return -EINVAL;
-	if (parent_mnt_to == current->nsproxy->mnt_ns->root)
 		return -EINVAL;
 
 	if (mount_is_ancestor(mnt_to, mnt_from))
@@ -3559,7 +3558,7 @@ static int can_move_mount_beneath(const struct mount *mnt_from,
 	 * propagating a copy @c of @mnt_from on top of @mnt_to. This
 	 * defeats the whole purpose of mounting beneath another mount.
 	 */
-	if (propagation_would_overmount(parent_mnt_to, mnt_to, mp))
+	if (propagation_would_overmount(parent_mnt_to, mnt_to, mp->mp))
 		return -EINVAL;
 
 	/*
@@ -3575,7 +3574,7 @@ static int can_move_mount_beneath(const struct mount *mnt_from,
 	 * @mnt_from beneath @mnt_to.
 	 */
 	if (check_mnt(mnt_from) &&
-	    propagation_would_overmount(parent_mnt_to, mnt_from, mp))
+	    propagation_would_overmount(parent_mnt_to, mnt_from, mp->mp))
 		return -EINVAL;
 
 	return 0;
@@ -3684,7 +3683,7 @@ static int do_move_mount(const struct path *old_path,
 
 		if (mp.parent != over->mnt_parent)
 			over = mp.parent->overmount;
-		err = can_move_mount_beneath(old, over, mp.mp);
+		err = can_move_mount_beneath(old, over, &mp);
 		if (err)
 			return err;
 	}
