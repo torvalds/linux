@@ -168,6 +168,14 @@ static int xgbe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (rdev && rdev->vendor == PCI_VENDOR_ID_AMD) {
 		switch (rdev->device) {
+		case XGBE_P100a_PCI_DEVICE_ID:
+			pdata->xpcs_window_def_reg = PCS_P100a_WINDOW_DEF;
+			pdata->xpcs_window_sel_reg = PCS_P100a_WINDOW_SELECT;
+
+			/* P100a devices do not need rrc and cdr workaround */
+			pdata->vdata->an_cdr_workaround = 0;
+			pdata->vdata->enable_rrc = 0;
+			break;
 		case XGBE_RV_PCI_DEVICE_ID:
 			pdata->xpcs_window_def_reg = PCS_V2_RV_WINDOW_DEF;
 			pdata->xpcs_window_sel_reg = PCS_V2_RV_WINDOW_SELECT;

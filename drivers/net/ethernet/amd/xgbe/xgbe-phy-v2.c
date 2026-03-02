@@ -2132,7 +2132,11 @@ static bool enable_rx_adap(struct xgbe_prv_data *pdata, enum xgbe_mode mode)
 
 	/* Rx-Adaptation is not supported on older platforms(< 0x30H) */
 	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
-	if (ver < 0x30)
+	if (ver < XGBE_MAC_VER_30)
+		return false;
+
+	/* Rx adaptation not yet supported on P100a */
+	if (ver == XGBE_MAC_VER_33)
 		return false;
 
 	/* Re-driver models 4223 && 4227 do not support Rx-Adaptation */
@@ -2258,12 +2262,24 @@ static void xgbe_phy_kr_mode(struct xgbe_prv_data *pdata)
 
 static void xgbe_phy_kx_2500_mode(struct xgbe_prv_data *pdata)
 {
+	unsigned int ver;
+
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	xgbe_phy_set_redrv_mode(pdata);
 
-	/* 2.5G/KX */
-	xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_2_5G, XGBE_MB_SUBCMD_NONE);
+	ver = XGMAC_GET_BITS(pdata->hw_feat.version, MAC_VR, SNPSVER);
+
+	/*
+	 * P100a uses XGMII mode for 2.5G which requires the 2.5G_KX subcommand.
+	 * Older platforms use GMII mode.
+	 */
+	if (ver == XGBE_MAC_VER_33)
+		xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_2_5G,
+					    XGBE_MB_SUBCMD_2_5G_KX);
+	else
+		xgbe_phy_perform_ratechange(pdata, XGBE_MB_CMD_SET_2_5G,
+					    XGBE_MB_SUBCMD_NONE);
 
 	phy_data->cur_mode = XGBE_MODE_KX_2500;
 
