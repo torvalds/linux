@@ -1233,16 +1233,16 @@ static void btintel_pcie_read_hwexp(struct btintel_pcie_data *data)
 			return;
 		len = BTINTEL_PCIE_BLZR_HWEXP_SIZE; /* exception data length */
 		addr = BTINTEL_PCIE_BLZR_HWEXP_DMP_ADDR;
-	break;
+		break;
 	case BTINTEL_CNVI_SCP:
 		len = BTINTEL_PCIE_SCP_HWEXP_SIZE;
 		addr = BTINTEL_PCIE_SCP_HWEXP_DMP_ADDR;
-	break;
+		break;
 	case BTINTEL_CNVI_SCP2:
 	case BTINTEL_CNVI_SCP2F:
 		len = BTINTEL_PCIE_SCP2_HWEXP_SIZE;
 		addr = BTINTEL_PCIE_SCP2_HWEXP_DMP_ADDR;
-	break;
+		break;
 	default:
 		bt_dev_err(data->hdev, "Unsupported cnvi 0x%8.8x", data->dmp_hdr.cnvi_top);
 		return;
