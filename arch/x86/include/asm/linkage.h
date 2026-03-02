@@ -68,7 +68,7 @@
  * Depending on -fpatchable-function-entry=N,N usage (CONFIG_CALL_PADDING) the
  * CFI symbol layout changes.
  *
- * Without CALL_THUNKS:
+ * Without CALL_PADDING:
  *
  * 	.align	FUNCTION_ALIGNMENT
  * __cfi_##name:
@@ -77,7 +77,7 @@
  * 	.long	__kcfi_typeid_##name
  * name:
  *
- * With CALL_THUNKS:
+ * With CALL_PADDING:
  *
  * 	.align FUNCTION_ALIGNMENT
  * __cfi_##name:

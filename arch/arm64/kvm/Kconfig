@@ -21,7 +21,6 @@ menuconfig KVM
 	bool "Kernel-based Virtual Machine (KVM) support"
 	select KVM_COMMON
 	select KVM_GENERIC_HARDWARE_ENABLING
-	select KVM_GENERIC_MMU_NOTIFIER
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select KVM_MMIO
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT

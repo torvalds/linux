@@ -180,7 +180,7 @@ static long bloom_map_update_elem(struct bpf_map *map, void *key,
 	return -EINVAL;
 }
 
-static int bloom_map_check_btf(const struct bpf_map *map,
+static int bloom_map_check_btf(struct bpf_map *map,
 			       const struct btf *btf,
 			       const struct btf_type *key_type,
 			       const struct btf_type *value_type)
