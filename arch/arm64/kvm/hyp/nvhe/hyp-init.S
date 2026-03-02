@@ -130,7 +130,7 @@ SYM_CODE_START_LOCAL(___kvm_hyp_init)
 	ldr	x1, [x0, #NVHE_INIT_PGD_PA]
 	phys_to_ttbr x2, x1
 alternative_if ARM64_HAS_CNP
-	orr	x2, x2, #TTBR_CNP_BIT
+	orr	x2, x2, #TTBRx_EL1_CnP
 alternative_else_nop_endif
 	msr	ttbr0_el2, x2
 
@@ -291,7 +291,7 @@ SYM_TYPED_FUNC_START(__pkvm_init_switch_pgd)
 	/* Install the new pgtables */
 	phys_to_ttbr x5, x0
 alternative_if ARM64_HAS_CNP
-	orr	x5, x5, #TTBR_CNP_BIT
+	orr	x5, x5, #TTBRx_EL1_CnP
 alternative_else_nop_endif
 	msr	ttbr0_el2, x5
 

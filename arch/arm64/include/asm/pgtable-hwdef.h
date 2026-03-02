@@ -223,8 +223,6 @@
  */
 #define S1_TABLE_AP		(_AT(pmdval_t, 3) << 61)
 
-#define TTBR_CNP_BIT		(UL(1) << 0)
-
 /*
  * TCR flags.
  */
