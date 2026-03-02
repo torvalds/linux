@@ -27,7 +27,7 @@
 #include "regs/xe_i2c_regs.h"
 #include "regs/xe_irq_regs.h"
 
-#include "xe_device_types.h"
+#include "xe_device.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"

@@ -75,7 +75,8 @@ static inline struct xe_lrc *xe_lrc_get(struct xe_lrc *lrc)
  */
 static inline void xe_lrc_put(struct xe_lrc *lrc)
 {
-	kref_put(&lrc->refcount, xe_lrc_destroy);
+	if (lrc)
+		kref_put(&lrc->refcount, xe_lrc_destroy);
 }
 
 /**
@@ -133,6 +134,10 @@ size_t xe_lrc_skip_size(struct xe_device *xe);
 void xe_lrc_dump_default(struct drm_printer *p,
 			 struct xe_gt *gt,
 			 enum xe_engine_class);
+int xe_lrc_lookup_default_reg_value(struct xe_gt *gt,
+				    enum xe_engine_class hwe_class,
+				    u32 offset,
+				    u32 *value);
 
 u32 *xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, u32 *cs);
 

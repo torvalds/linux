@@ -7,6 +7,7 @@
 #include "xe_device.h"
 #include "xe_gt_sriov_pf_config.h"
 #include "xe_gt_sriov_pf_policy.h"
+#include "xe_lmtt.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_provision.h"
@@ -32,17 +33,6 @@ static bool pf_auto_provisioning_mode(struct xe_device *xe)
 	return xe->sriov.pf.provision.mode == XE_SRIOV_PROVISIONING_MODE_AUTO;
 }
 
-static bool pf_needs_provisioning(struct xe_gt *gt, unsigned int num_vfs)
-{
-	unsigned int n;
-
-	for (n = 1; n <= num_vfs; n++)
-		if (!xe_gt_sriov_pf_config_is_empty(gt, n))
-			return false;
-
-	return true;
-}
-
 static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
 	struct xe_gt *gt;
@@ -51,8 +41,6 @@ static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 	int err;
 
 	for_each_gt(gt, xe, id) {
-		if (!pf_needs_provisioning(gt, num_vfs))
-			return -EUCLEAN;
 		err = xe_gt_sriov_pf_config_set_fair(gt, VFID(1), num_vfs);
 		result = result ?: err;
 	}
@@ -435,4 +423,109 @@ int xe_sriov_pf_provision_query_vf_priority(struct xe_device *xe, unsigned int v
 	}
 
 	return !count ? -ENODATA : 0;
+}
+
+static u64 vram_per_tile(struct xe_tile *tile, u64 total)
+{
+	struct xe_device *xe = tile->xe;
+	unsigned int tcount = xe->info.tile_count;
+	u64 alignment = xe_lmtt_page_size(&tile->sriov.pf.lmtt);
+
+	total = round_up(total, tcount * alignment);
+	return div_u64(total, tcount);
+}
+
+/**
+ * xe_sriov_pf_provision_bulk_apply_vram() - Change VRAM provisioning for all VFs.
+ * @xe: the PF &xe_device
+ * @size: the VRAM size in [bytes] to set
+ *
+ * Change all VFs VRAM (LMEM) provisioning on all tiles.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_vram(struct xe_device *xe, u64 size)
+{
+	unsigned int num_vfs = xe_sriov_pf_get_totalvfs(xe);
+	struct xe_tile *tile;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	xe_assert(xe, xe_device_has_lmtt(xe));
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_tile(tile, xe, id) {
+		err = xe_gt_sriov_pf_config_bulk_set_lmem_locked(tile->primary_gt,
+								 VFID(1), num_vfs,
+								 vram_per_tile(tile, size));
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_apply_vf_vram() - Change single VF VRAM allocation.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier (can't be 0 == PFID)
+ * @size: VRAM size to set
+ *
+ * Change VF's VRAM provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_vram(struct xe_device *xe, unsigned int vfid, u64 size)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	xe_assert(xe, vfid);
+	xe_assert(xe, xe_device_has_lmtt(xe));
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_tile(tile, xe, id) {
+		err = xe_gt_sriov_pf_config_set_lmem_locked(tile->primary_gt, vfid,
+							    vram_per_tile(tile, size));
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_vram() - Query VF's VRAM allocation.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier (can't be 0 == PFID)
+ * @size: placeholder for the returned VRAM size
+ *
+ * Query VF's VRAM provisioning from all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_vram(struct xe_device *xe, unsigned int vfid, u64 *size)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+	u64 total = 0;
+
+	xe_assert(xe, vfid);
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_tile(tile, xe, id)
+		total += xe_gt_sriov_pf_config_get_lmem_locked(tile->primary_gt, vfid);
+
+	*size = total;
+	return 0;
 }

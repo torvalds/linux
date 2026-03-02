@@ -15,6 +15,7 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "xe_configfs.h"
+#include "xe_defaults.h"
 #include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_module.h"
@@ -263,6 +264,7 @@ struct xe_config_group_device {
 		bool enable_psmi;
 		struct {
 			unsigned int max_vfs;
+			bool admin_only_pf;
 		} sriov;
 	} config;
 
@@ -280,7 +282,8 @@ static const struct xe_config_device device_defaults = {
 	.survivability_mode = false,
 	.enable_psmi = false,
 	.sriov = {
-		.max_vfs = UINT_MAX,
+		.max_vfs = XE_DEFAULT_MAX_VFS,
+		.admin_only_pf = XE_DEFAULT_ADMIN_ONLY_PF,
 	},
 };
 
@@ -830,6 +833,7 @@ static void xe_config_device_release(struct config_item *item)
 
 	mutex_destroy(&dev->lock);
 
+	kfree(dev->config.ctx_restore_mid_bb[0].cs);
 	kfree(dev->config.ctx_restore_post_bb[0].cs);
 	kfree(dev);
 }
@@ -896,10 +900,40 @@ static ssize_t sriov_max_vfs_store(struct config_item *item, const char *page, s
 	return len;
 }
 
+static ssize_t sriov_admin_only_pf_show(struct config_item *item, char *page)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
+
+	guard(mutex)(&dev->lock);
+
+	return sprintf(page, "%s\n", str_yes_no(dev->config.sriov.admin_only_pf));
+}
+
+static ssize_t sriov_admin_only_pf_store(struct config_item *item, const char *page, size_t len)
+{
+	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
+	bool admin_only_pf;
+	int ret;
+
+	guard(mutex)(&dev->lock);
+
+	if (is_bound(dev))
+		return -EBUSY;
+
+	ret = kstrtobool(page, &admin_only_pf);
+	if (ret)
+		return ret;
+
+	dev->config.sriov.admin_only_pf = admin_only_pf;
+	return len;
+}
+
 CONFIGFS_ATTR(sriov_, max_vfs);
+CONFIGFS_ATTR(sriov_, admin_only_pf);
 
 static struct configfs_attribute *xe_config_sriov_attrs[] = {
 	&sriov_attr_max_vfs,
+	&sriov_attr_admin_only_pf,
 	NULL,
 };
 
@@ -909,6 +943,8 @@ static bool xe_config_sriov_is_visible(struct config_item *item,
 	struct xe_config_group_device *dev = to_xe_config_group_device(item->ci_parent);
 
 	if (attr == &sriov_attr_max_vfs && dev->mode != XE_SRIOV_MODE_PF)
+		return false;
+	if (attr == &sriov_attr_admin_only_pf && dev->mode != XE_SRIOV_MODE_PF)
 		return false;
 
 	return true;
@@ -1063,6 +1099,7 @@ static void dump_custom_dev_config(struct pci_dev *pdev,
 	PRI_CUSTOM_ATTR("%llx", engines_allowed);
 	PRI_CUSTOM_ATTR("%d", enable_psmi);
 	PRI_CUSTOM_ATTR("%d", survivability_mode);
+	PRI_CUSTOM_ATTR("%u", sriov.admin_only_pf);
 
 #undef PRI_CUSTOM_ATTR
 }
@@ -1241,6 +1278,32 @@ u32 xe_configfs_get_ctx_restore_post_bb(struct pci_dev *pdev,
 }
 
 #ifdef CONFIG_PCI_IOV
+/**
+ * xe_configfs_admin_only_pf() - Get PF's operational mode.
+ * @pdev: the &pci_dev device
+ *
+ * Find the configfs group that belongs to the PCI device and return a flag
+ * whether the PF driver should be dedicated for VFs management only.
+ *
+ * If configfs group is not present, use driver's default value.
+ *
+ * Return: true if PF driver is dedicated for VFs administration only.
+ */
+bool xe_configfs_admin_only_pf(struct pci_dev *pdev)
+{
+	struct xe_config_group_device *dev = find_xe_config_group_device(pdev);
+	bool admin_only_pf;
+
+	if (!dev)
+		return XE_DEFAULT_ADMIN_ONLY_PF;
+
+	scoped_guard(mutex, &dev->lock)
+		admin_only_pf = dev->config.sriov.admin_only_pf;
+
+	config_group_put(&dev->group);
+
+	return admin_only_pf;
+}
 /**
  * xe_configfs_get_max_vfs() - Get number of VFs that could be managed
  * @pdev: the &pci_dev device
