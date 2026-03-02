@@ -15372,10 +15372,8 @@ F:	drivers/crypto/marvell/
 F:	include/linux/soc/marvell/octeontx2/
 
 MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
-M:	Mirko Lindner <mlindner@marvell.com>
-M:	Stephen Hemminger <stephen@networkplumber.org>
 L:	netdev@vger.kernel.org
-S:	Odd fixes
+S:	Orphan
 F:	drivers/net/ethernet/marvell/sk*
 
 MARVELL LIBERTAS WIRELESS DRIVER
