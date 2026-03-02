@@ -199,11 +199,7 @@ static inline void __tlbi_level(tlbi_op op, u64 addr, u32 level)
  * range.
  */
 #define __TLBI_RANGE_NUM(pages, scale)					\
-	({								\
-		int __pages = min((pages),				\
-				  __TLBI_RANGE_PAGES(31, (scale)));	\
-		(__pages >> (5 * (scale) + 1)) - 1;			\
-	})
+	(((pages) >> (5 * (scale) + 1)) - 1)
 
 #define __repeat_tlbi_sync(op, arg...)						\
 do {										\
