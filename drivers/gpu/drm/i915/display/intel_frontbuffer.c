@@ -123,9 +123,9 @@ void intel_frontbuffer_flip(struct intel_display *display,
 	frontbuffer_flush(display, frontbuffer_bits, ORIGIN_FLIP);
 }
 
-void __intel_fb_invalidate(struct intel_frontbuffer *front,
-			   enum fb_op_origin origin,
-			   unsigned int frontbuffer_bits)
+void __intel_frontbuffer_invalidate(struct intel_frontbuffer *front,
+				    enum fb_op_origin origin,
+				    unsigned int frontbuffer_bits)
 {
 	struct intel_display *display = front->display;
 
@@ -143,9 +143,9 @@ void __intel_fb_invalidate(struct intel_frontbuffer *front,
 	intel_fbc_invalidate(display, frontbuffer_bits, origin);
 }
 
-void __intel_fb_flush(struct intel_frontbuffer *front,
-		      enum fb_op_origin origin,
-		      unsigned int frontbuffer_bits)
+void __intel_frontbuffer_flush(struct intel_frontbuffer *front,
+			       enum fb_op_origin origin,
+			       unsigned int frontbuffer_bits)
 {
 	struct intel_display *display = front->display;
 
