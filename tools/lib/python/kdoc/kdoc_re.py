@@ -188,7 +188,7 @@ class NestedMatch:
     # except that the content inside the match group is delimiter-aligned.
     #
     # The content inside parentheses is converted into a single replace
-    # group (e.g. r`\1').
+    # group (e.g. r`\0').
     #
     # It would be nice to change such definition to support multiple
     # match groups, allowing a regex equivalent to:
@@ -291,7 +291,7 @@ class NestedMatch:
 
         if the sub argument contains::
 
-            r'\1'
+            r'\0'
 
         it will work just like re: it places there the matched paired data
         with the delimiter stripped.
@@ -310,9 +310,9 @@ class NestedMatch:
             # Value, ignoring start/end delimiters
             value = line[end:pos - 1]
 
-            # replaces \1 at the sub string, if \1 is used there
+            # replaces \0 at the sub string, if \0 is used there
             new_sub = sub
-            new_sub = new_sub.replace(r'\1', value)
+            new_sub = new_sub.replace(r'\0', value)
 
             out += new_sub
 

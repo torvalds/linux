@@ -85,7 +85,7 @@ struct_nested_prefixes = [
     (re.compile(r"__cond_acquires_shared\s*\("), ""),
     (re.compile(r"__acquires_shared\s*\("), ""),
     (re.compile(r"__releases_shared\s*\("), ""),
-    (re.compile(r'\bSTRUCT_GROUP\('), r'\1'),
+    (re.compile(r'\bSTRUCT_GROUP\('), r'\0'),
 ]
 
 #
