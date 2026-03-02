@@ -976,8 +976,12 @@ static bool scx_dsq_priq_less(struct rb_node *node_a,
 
 static void dsq_mod_nr(struct scx_dispatch_q *dsq, s32 delta)
 {
-	/* scx_bpf_dsq_nr_queued() reads ->nr without locking, use WRITE_ONCE() */
-	WRITE_ONCE(dsq->nr, dsq->nr + delta);
+	/*
+	 * scx_bpf_dsq_nr_queued() reads ->nr without locking. Use READ_ONCE()
+	 * on the read side and WRITE_ONCE() on the write side to properly
+	 * annotate the concurrent lockless access and avoid KCSAN warnings.
+	 */
+	WRITE_ONCE(dsq->nr, READ_ONCE(dsq->nr) + delta);
 }
 
 static void refill_task_slice_dfl(struct scx_sched *sch, struct task_struct *p)
