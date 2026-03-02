@@ -101,10 +101,10 @@ static inline void arch_leave_lazy_mmu_mode(void)
  * entries exist.
  */
 #define flush_tlb_fix_spurious_fault(vma, address, ptep)	\
-	local_flush_tlb_page_nonotify(vma, address)
+	__flush_tlb_page(vma, address, TLBF_NOBROADCAST | TLBF_NONOTIFY)
 
 #define flush_tlb_fix_spurious_fault_pmd(vma, address, pmdp)	\
-	local_flush_tlb_page_nonotify(vma, address)
+	__flush_tlb_page(vma, address, TLBF_NOBROADCAST | TLBF_NONOTIFY)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
@@ -1320,7 +1320,7 @@ static inline int __ptep_clear_flush_young(struct vm_area_struct *vma,
 		 * context-switch, which provides a DSB to complete the TLB
 		 * invalidation.
 		 */
-		flush_tlb_page_nosync(vma, address);
+		__flush_tlb_page(vma, address, TLBF_NOSYNC);
 	}
 
 	return young;

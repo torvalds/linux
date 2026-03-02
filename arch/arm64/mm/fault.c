@@ -239,7 +239,7 @@ int __ptep_set_access_flags(struct vm_area_struct *vma,
 	 * flush_tlb_fix_spurious_fault().
 	 */
 	if (dirty)
-		local_flush_tlb_page(vma, address);
+		__flush_tlb_page(vma, address, TLBF_NOBROADCAST);
 	return 1;
 }
 

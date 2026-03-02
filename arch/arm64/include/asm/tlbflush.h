@@ -269,10 +269,7 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *		unmapping pages from vmalloc/io space.
  *
  *	flush_tlb_page(vma, addr)
- *		Invalidate a single user mapping for address 'addr' in the
- *		address space corresponding to 'vma->mm'.  Note that this
- *		operation only invalidates a single, last-level page-table
- *		entry and therefore does not affect any walk-caches.
+ *		Equivalent to __flush_tlb_page(..., flags=TLBF_NONE)
  *
  *
  *	Next, we have some undocumented invalidation routines that you probably
@@ -300,13 +297,14 @@ static inline void __tlbi_sync_s1ish_hyp(void)
  *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
  *		(only perform the invalidation for the local cpu).
  *
- *	local_flush_tlb_page(vma, addr)
- *		Local variant of flush_tlb_page().  Stale TLB entries may
- *		remain in remote CPUs.
- *
- *	local_flush_tlb_page_nonotify(vma, addr)
- *		Same as local_flush_tlb_page() except MMU notifier will not be
- *		called.
+ *	__flush_tlb_page(vma, addr, flags)
+ *		Invalidate a single user mapping for address 'addr' in the
+ *		address space corresponding to 'vma->mm'.  Note that this
+ *		operation only invalidates a single, last-level page-table entry
+ *		and therefore does not affect any walk-caches. flags may contain
+ *		any combination of TLBF_NONOTIFY (don't call mmu notifiers),
+ *		TLBF_NOSYNC (don't issue trailing dsb) and TLBF_NOBROADCAST
+ *		(only perform the invalidation for the local cpu).
  *
  *	Finally, take a look at asm/tlb.h to see how tlb_flush() is implemented
  *	on top of these routines, since that is our interface to the mmu_gather
@@ -338,51 +336,6 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	__tlbi_user(aside1is, asid);
 	__tlbi_sync_s1ish();
 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
-}
-
-static inline void __local_flush_tlb_page_nonotify_nosync(struct mm_struct *mm,
-							  unsigned long uaddr)
-{
-	dsb(nshst);
-	__tlbi_level_asid(vale1, uaddr, TLBI_TTL_UNKNOWN, ASID(mm));
-}
-
-static inline void local_flush_tlb_page_nonotify(struct vm_area_struct *vma,
-						 unsigned long uaddr)
-{
-	__local_flush_tlb_page_nonotify_nosync(vma->vm_mm, uaddr);
-	dsb(nsh);
-}
-
-static inline void local_flush_tlb_page(struct vm_area_struct *vma,
-					unsigned long uaddr)
-{
-	__local_flush_tlb_page_nonotify_nosync(vma->vm_mm, uaddr);
-	mmu_notifier_arch_invalidate_secondary_tlbs(vma->vm_mm, uaddr & PAGE_MASK,
-						(uaddr & PAGE_MASK) + PAGE_SIZE);
-	dsb(nsh);
-}
-
-static inline void __flush_tlb_page_nosync(struct mm_struct *mm,
-					   unsigned long uaddr)
-{
-	dsb(ishst);
-	__tlbi_level_asid(vale1is, uaddr, TLBI_TTL_UNKNOWN, ASID(mm));
-	mmu_notifier_arch_invalidate_secondary_tlbs(mm, uaddr & PAGE_MASK,
-						(uaddr & PAGE_MASK) + PAGE_SIZE);
-}
-
-static inline void flush_tlb_page_nosync(struct vm_area_struct *vma,
-					 unsigned long uaddr)
-{
-	return __flush_tlb_page_nosync(vma->vm_mm, uaddr);
-}
-
-static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long uaddr)
-{
-	flush_tlb_page_nosync(vma, uaddr);
-	__tlbi_sync_s1ish();
 }
 
 static inline bool arch_tlbbatch_should_defer(struct mm_struct *mm)
@@ -630,6 +583,22 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	 * information here.
 	 */
 	__flush_tlb_range(vma, start, end, PAGE_SIZE, TLBI_TTL_UNKNOWN, TLBF_NONE);
+}
+
+static inline void __flush_tlb_page(struct vm_area_struct *vma,
+				    unsigned long uaddr, tlbf_t flags)
+{
+	unsigned long start = round_down(uaddr, PAGE_SIZE);
+	unsigned long end = start + PAGE_SIZE;
+
+	__do_flush_tlb_range(vma, start, end, PAGE_SIZE, TLBI_TTL_UNKNOWN,
+			     TLBF_NOWALKCACHE | flags);
+}
+
+static inline void flush_tlb_page(struct vm_area_struct *vma,
+				  unsigned long uaddr)
+{
+	__flush_tlb_page(vma, uaddr, TLBF_NONE);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
