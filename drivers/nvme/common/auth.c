@@ -497,63 +497,28 @@ int nvme_auth_generate_psk(u8 hmac_id, const u8 *skey, size_t skey_len,
 			   const u8 *c1, const u8 *c2, size_t hash_len,
 			   u8 **ret_psk, size_t *ret_len)
 {
-	struct crypto_shash *tfm;
-	SHASH_DESC_ON_STACK(shash, tfm);
+	size_t psk_len = nvme_auth_hmac_hash_len(hmac_id);
+	struct nvme_auth_hmac_ctx hmac;
 	u8 *psk;
-	const char *hmac_name;
-	int ret, psk_len;
+	int ret;
 
 	if (!c1 || !c2)
 		return -EINVAL;
 
-	hmac_name = nvme_auth_hmac_name(hmac_id);
-	if (!hmac_name) {
-		pr_warn("%s: invalid hash algorithm %d\n",
-			__func__, hmac_id);
-		return -EINVAL;
-	}
-
-	tfm = crypto_alloc_shash(hmac_name, 0, 0);
-	if (IS_ERR(tfm))
-		return PTR_ERR(tfm);
-
-	psk_len = crypto_shash_digestsize(tfm);
+	ret = nvme_auth_hmac_init(&hmac, hmac_id, skey, skey_len);
+	if (ret)
+		return ret;
 	psk = kzalloc(psk_len, GFP_KERNEL);
 	if (!psk) {
-		ret = -ENOMEM;
-		goto out_free_tfm;
+		memzero_explicit(&hmac, sizeof(hmac));
+		return -ENOMEM;
 	}
-
-	shash->tfm = tfm;
-	ret = crypto_shash_setkey(tfm, skey, skey_len);
-	if (ret)
-		goto out_free_psk;
-
-	ret = crypto_shash_init(shash);
-	if (ret)
-		goto out_free_psk;
-
-	ret = crypto_shash_update(shash, c1, hash_len);
-	if (ret)
-		goto out_free_psk;
-
-	ret = crypto_shash_update(shash, c2, hash_len);
-	if (ret)
-		goto out_free_psk;
-
-	ret = crypto_shash_final(shash, psk);
-	if (!ret) {
-		*ret_psk = psk;
-		*ret_len = psk_len;
-	}
-
-out_free_psk:
-	if (ret)
-		kfree_sensitive(psk);
-out_free_tfm:
-	crypto_free_shash(tfm);
-
-	return ret;
+	nvme_auth_hmac_update(&hmac, c1, hash_len);
+	nvme_auth_hmac_update(&hmac, c2, hash_len);
+	nvme_auth_hmac_final(&hmac, psk);
+	*ret_psk = psk;
+	*ret_len = psk_len;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nvme_auth_generate_psk);
 
