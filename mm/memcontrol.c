@@ -2950,6 +2950,19 @@ void __memcg_kmem_uncharge_page(struct page *page, int order)
 	obj_cgroup_put(objcg);
 }
 
+static struct obj_stock_pcp *trylock_stock(void)
+{
+	if (local_trylock(&obj_stock.lock))
+		return this_cpu_ptr(&obj_stock);
+
+	return NULL;
+}
+
+static void unlock_stock(struct obj_stock_pcp *stock)
+{
+	local_unlock(&obj_stock.lock);
+}
+
 static void __account_obj_stock(struct obj_cgroup *objcg,
 				struct obj_stock_pcp *stock, int nr,
 				struct pglist_data *pgdat, enum node_stat_item idx)
@@ -3005,10 +3018,10 @@ static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 	struct obj_stock_pcp *stock;
 	bool ret = false;
 
-	if (!local_trylock(&obj_stock.lock))
+	stock = trylock_stock();
+	if (!stock)
 		return ret;
 
-	stock = this_cpu_ptr(&obj_stock);
 	if (objcg == READ_ONCE(stock->cached_objcg) && stock->nr_bytes >= nr_bytes) {
 		stock->nr_bytes -= nr_bytes;
 		ret = true;
@@ -3017,7 +3030,7 @@ static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 			__account_obj_stock(objcg, stock, nr_bytes, pgdat, idx);
 	}
 
-	local_unlock(&obj_stock.lock);
+	unlock_stock(stock);
 
 	return ret;
 }
@@ -3108,7 +3121,8 @@ static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 	struct obj_stock_pcp *stock;
 	unsigned int nr_pages = 0;
 
-	if (!local_trylock(&obj_stock.lock)) {
+	stock = trylock_stock();
+	if (!stock) {
 		if (pgdat)
 			mod_objcg_mlstate(objcg, pgdat, idx, nr_acct);
 		nr_pages = nr_bytes >> PAGE_SHIFT;
@@ -3117,7 +3131,6 @@ static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 		goto out;
 	}
 
-	stock = this_cpu_ptr(&obj_stock);
 	if (READ_ONCE(stock->cached_objcg) != objcg) { /* reset if necessary */
 		drain_obj_stock(stock);
 		obj_cgroup_get(objcg);
@@ -3137,7 +3150,7 @@ static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 		stock->nr_bytes &= (PAGE_SIZE - 1);
 	}
 
-	local_unlock(&obj_stock.lock);
+	unlock_stock(stock);
 out:
 	if (nr_pages)
 		obj_cgroup_uncharge_pages(objcg, nr_pages);
