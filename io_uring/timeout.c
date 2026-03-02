@@ -35,9 +35,16 @@ struct io_timeout_rem {
 	bool				ltimeout;
 };
 
-static int io_parse_user_time(ktime_t *time, u64 arg)
+static int io_parse_user_time(ktime_t *time, u64 arg, unsigned flags)
 {
 	struct timespec64 ts;
+
+	if (flags & IORING_TIMEOUT_IMMEDIATE_ARG) {
+		*time = ns_to_ktime(arg);
+		if (*time < 0)
+			return -EINVAL;
+		return 0;
+	}
 
 	if (get_timespec64(&ts, u64_to_user_ptr(arg)))
 		return -EFAULT;
@@ -475,9 +482,11 @@ int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 			return -EINVAL;
 		if (tr->flags & IORING_LINK_TIMEOUT_UPDATE)
 			tr->ltimeout = true;
-		if (tr->flags & ~(IORING_TIMEOUT_UPDATE_MASK|IORING_TIMEOUT_ABS))
+		if (tr->flags & ~(IORING_TIMEOUT_UPDATE_MASK |
+				  IORING_TIMEOUT_ABS |
+				  IORING_TIMEOUT_IMMEDIATE_ARG))
 			return -EINVAL;
-		ret = io_parse_user_time(&tr->time, READ_ONCE(sqe->addr2));
+		ret = io_parse_user_time(&tr->time, READ_ONCE(sqe->addr2), tr->flags);
 		if (ret)
 			return ret;
 	} else if (tr->flags) {
@@ -545,7 +554,8 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	flags = READ_ONCE(sqe->timeout_flags);
 	if (flags & ~(IORING_TIMEOUT_ABS | IORING_TIMEOUT_CLOCK_MASK |
 		      IORING_TIMEOUT_ETIME_SUCCESS |
-		      IORING_TIMEOUT_MULTISHOT))
+		      IORING_TIMEOUT_MULTISHOT |
+		      IORING_TIMEOUT_IMMEDIATE_ARG))
 		return -EINVAL;
 	/* more than one clock specified is invalid, obviously */
 	if (hweight32(flags & IORING_TIMEOUT_CLOCK_MASK) > 1)
@@ -574,7 +584,7 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	data->req = req;
 	data->flags = flags;
 
-	ret = io_parse_user_time(&data->time, READ_ONCE(sqe->addr));
+	ret = io_parse_user_time(&data->time, READ_ONCE(sqe->addr), flags);
 	if (ret)
 		return ret;
 
