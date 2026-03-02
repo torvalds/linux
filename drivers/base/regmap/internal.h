@@ -162,7 +162,7 @@ struct regmap {
 	bool no_sync_defaults;
 
 	struct reg_sequence *patch;
-	int patch_regs;
+	unsigned int patch_regs;
 
 	/* if set, the regmap core can sleep */
 	bool can_sleep;

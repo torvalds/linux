@@ -44,11 +44,11 @@ EXPORT_SYMBOL_GPL(regcache_sort_defaults);
 
 static int regcache_count_cacheable_registers(struct regmap *map)
 {
-	int count;
-	int i;
+	unsigned int count;
 
 	/* calculate the size of reg_defaults */
-	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++)
+	count = 0;
+	for (unsigned int i = 0; i < map->num_reg_defaults_raw; i++)
 		if (regmap_readable(map, i * map->reg_stride) &&
 		    !regmap_volatile(map, i * map->reg_stride))
 			count++;
@@ -62,7 +62,6 @@ static int regcache_count_cacheable_registers(struct regmap *map)
 
 static int regcache_hw_init(struct regmap *map, int count)
 {
-	int i, j;
 	int ret;
 	unsigned int reg, val;
 	void *tmp_buf;
@@ -95,7 +94,7 @@ static int regcache_hw_init(struct regmap *map, int count)
 	}
 
 	/* fill the reg_defaults */
-	for (i = 0, j = 0; i < map->num_reg_defaults_raw; i++) {
+	for (unsigned int i = 0, j = 0; i < map->num_reg_defaults_raw; i++) {
 		reg = i * map->reg_stride;
 
 		if (!regmap_readable(map, reg))
@@ -840,13 +839,13 @@ static int regcache_sync_block_raw(struct regmap *map, void *block,
 			    unsigned int block_base, unsigned int start,
 			    unsigned int end)
 {
-	unsigned int i, val;
 	unsigned int regtmp = 0;
 	unsigned int base = 0;
 	const void *data = NULL;
+	unsigned int val;
 	int ret;
 
-	for (i = start; i < end; i++) {
+	for (unsigned int i = start; i < end; i++) {
 		regtmp = block_base + (i * map->reg_stride);
 
 		if (!regcache_reg_present(cache_present, i) ||
