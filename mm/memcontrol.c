@@ -2960,16 +2960,18 @@ static struct obj_stock_pcp *trylock_stock(void)
 
 static void unlock_stock(struct obj_stock_pcp *stock)
 {
-	local_unlock(&obj_stock.lock);
+	if (stock)
+		local_unlock(&obj_stock.lock);
 }
 
+/* Call after __refill_obj_stock() to ensure stock->cached_objg == objcg */
 static void __account_obj_stock(struct obj_cgroup *objcg,
 				struct obj_stock_pcp *stock, int nr,
 				struct pglist_data *pgdat, enum node_stat_item idx)
 {
 	int *bytes;
 
-	if (!stock)
+	if (!stock || READ_ONCE(stock->cached_objcg) != objcg)
 		goto direct;
 
 	/*
@@ -3016,8 +3018,20 @@ direct:
 		mod_objcg_mlstate(objcg, pgdat, idx, nr);
 }
 
-static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
-			      struct pglist_data *pgdat, enum node_stat_item idx)
+static bool __consume_obj_stock(struct obj_cgroup *objcg,
+				struct obj_stock_pcp *stock,
+				unsigned int nr_bytes)
+{
+	if (objcg == READ_ONCE(stock->cached_objcg) &&
+	    stock->nr_bytes >= nr_bytes) {
+		stock->nr_bytes -= nr_bytes;
+		return true;
+	}
+
+	return false;
+}
+
+static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes)
 {
 	struct obj_stock_pcp *stock;
 	bool ret = false;
@@ -3026,14 +3040,7 @@ static bool consume_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 	if (!stock)
 		return ret;
 
-	if (objcg == READ_ONCE(stock->cached_objcg) && stock->nr_bytes >= nr_bytes) {
-		stock->nr_bytes -= nr_bytes;
-		ret = true;
-
-		if (pgdat)
-			__account_obj_stock(objcg, stock, nr_bytes, pgdat, idx);
-	}
-
+	ret = __consume_obj_stock(objcg, stock, nr_bytes);
 	unlock_stock(stock);
 
 	return ret;
@@ -3118,17 +3125,14 @@ static bool obj_stock_flush_required(struct obj_stock_pcp *stock,
 	return flush;
 }
 
-static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
-		bool allow_uncharge, int nr_acct, struct pglist_data *pgdat,
-		enum node_stat_item idx)
+static void __refill_obj_stock(struct obj_cgroup *objcg,
+			       struct obj_stock_pcp *stock,
+			       unsigned int nr_bytes,
+			       bool allow_uncharge)
 {
-	struct obj_stock_pcp *stock;
 	unsigned int nr_pages = 0;
 
-	stock = trylock_stock();
 	if (!stock) {
-		if (pgdat)
-			__account_obj_stock(objcg, NULL, nr_acct, pgdat, idx);
 		nr_pages = nr_bytes >> PAGE_SHIFT;
 		nr_bytes = nr_bytes & (PAGE_SIZE - 1);
 		atomic_add(nr_bytes, &objcg->nr_charged_bytes);
@@ -3146,18 +3150,23 @@ static void refill_obj_stock(struct obj_cgroup *objcg, unsigned int nr_bytes,
 	}
 	stock->nr_bytes += nr_bytes;
 
-	if (pgdat)
-		__account_obj_stock(objcg, stock, nr_acct, pgdat, idx);
-
 	if (allow_uncharge && (stock->nr_bytes > PAGE_SIZE)) {
 		nr_pages = stock->nr_bytes >> PAGE_SHIFT;
 		stock->nr_bytes &= (PAGE_SIZE - 1);
 	}
 
-	unlock_stock(stock);
 out:
 	if (nr_pages)
 		obj_cgroup_uncharge_pages(objcg, nr_pages);
+}
+
+static void refill_obj_stock(struct obj_cgroup *objcg,
+			     unsigned int nr_bytes,
+			     bool allow_uncharge)
+{
+	struct obj_stock_pcp *stock = trylock_stock();
+	__refill_obj_stock(objcg, stock, nr_bytes, allow_uncharge);
+	unlock_stock(stock);
 }
 
 static int __obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp,
@@ -3174,13 +3183,12 @@ static int __obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp,
 	return ret;
 }
 
-static int obj_cgroup_charge_account(struct obj_cgroup *objcg, gfp_t gfp, size_t size,
-				     struct pglist_data *pgdat, enum node_stat_item idx)
+int obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp, size_t size)
 {
 	size_t remainder;
 	int ret;
 
-	if (likely(consume_obj_stock(objcg, size, pgdat, idx)))
+	if (likely(consume_obj_stock(objcg, size)))
 		return 0;
 
 	/*
@@ -3207,20 +3215,15 @@ static int obj_cgroup_charge_account(struct obj_cgroup *objcg, gfp_t gfp, size_t
 	 * race.
 	 */
 	ret = __obj_cgroup_charge(objcg, gfp, size, &remainder);
-	if (!ret && (remainder || pgdat))
-		refill_obj_stock(objcg, remainder, false, size, pgdat, idx);
+	if (!ret && remainder)
+		refill_obj_stock(objcg, remainder, false);
 
 	return ret;
 }
 
-int obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp, size_t size)
-{
-	return obj_cgroup_charge_account(objcg, gfp, size, NULL, 0);
-}
-
 void obj_cgroup_uncharge(struct obj_cgroup *objcg, size_t size)
 {
-	refill_obj_stock(objcg, size, true, 0, NULL, 0);
+	refill_obj_stock(objcg, size, true);
 }
 
 static inline size_t obj_full_size(struct kmem_cache *s)
@@ -3235,6 +3238,7 @@ static inline size_t obj_full_size(struct kmem_cache *s)
 bool __memcg_slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 				  gfp_t flags, size_t size, void **p)
 {
+	size_t obj_size = obj_full_size(s);
 	struct obj_cgroup *objcg;
 	struct slab *slab;
 	unsigned long off;
@@ -3275,6 +3279,7 @@ bool __memcg_slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 	for (i = 0; i < size; i++) {
 		unsigned long obj_exts;
 		struct slabobj_ext *obj_ext;
+		struct obj_stock_pcp *stock;
 
 		slab = virt_to_slab(p[i]);
 
@@ -3294,9 +3299,20 @@ bool __memcg_slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 		 * TODO: we could batch this until slab_pgdat(slab) changes
 		 * between iterations, with a more complicated undo
 		 */
-		if (obj_cgroup_charge_account(objcg, flags, obj_full_size(s),
-					slab_pgdat(slab), cache_vmstat_idx(s)))
-			return false;
+		stock = trylock_stock();
+		if (!stock || !__consume_obj_stock(objcg, stock, obj_size)) {
+			size_t remainder;
+
+			unlock_stock(stock);
+			if (__obj_cgroup_charge(objcg, flags, obj_size, &remainder))
+				return false;
+			stock = trylock_stock();
+			if (remainder)
+				__refill_obj_stock(objcg, stock, remainder, false);
+		}
+		__account_obj_stock(objcg, stock, obj_size,
+				    slab_pgdat(slab), cache_vmstat_idx(s));
+		unlock_stock(stock);
 
 		obj_exts = slab_obj_exts(slab);
 		get_slab_obj_exts(obj_exts);
@@ -3318,6 +3334,7 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 	for (int i = 0; i < objects; i++) {
 		struct obj_cgroup *objcg;
 		struct slabobj_ext *obj_ext;
+		struct obj_stock_pcp *stock;
 		unsigned int off;
 
 		off = obj_to_index(s, slab, p[i]);
@@ -3327,8 +3344,13 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 			continue;
 
 		obj_ext->objcg = NULL;
-		refill_obj_stock(objcg, obj_size, true, -obj_size,
-				 slab_pgdat(slab), cache_vmstat_idx(s));
+
+		stock = trylock_stock();
+		__refill_obj_stock(objcg, stock, obj_size, true);
+		__account_obj_stock(objcg, stock, -obj_size,
+				    slab_pgdat(slab), cache_vmstat_idx(s));
+		unlock_stock(stock);
+
 		obj_cgroup_put(objcg);
 	}
 }
