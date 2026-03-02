@@ -300,6 +300,37 @@ void nvme_auth_hmac_final(struct nvme_auth_hmac_ctx *hmac, u8 *out)
 }
 EXPORT_SYMBOL_GPL(nvme_auth_hmac_final);
 
+static int nvme_auth_hmac(u8 hmac_id, const u8 *key, size_t key_len,
+			  const u8 *data, size_t data_len, u8 *out)
+{
+	struct nvme_auth_hmac_ctx hmac;
+	int ret;
+
+	ret = nvme_auth_hmac_init(&hmac, hmac_id, key, key_len);
+	if (ret == 0) {
+		nvme_auth_hmac_update(&hmac, data, data_len);
+		nvme_auth_hmac_final(&hmac, out);
+	}
+	return ret;
+}
+
+static int nvme_auth_hash(u8 hmac_id, const u8 *data, size_t data_len, u8 *out)
+{
+	switch (hmac_id) {
+	case NVME_AUTH_HASH_SHA256:
+		sha256(data, data_len, out);
+		return 0;
+	case NVME_AUTH_HASH_SHA384:
+		sha384(data, data_len, out);
+		return 0;
+	case NVME_AUTH_HASH_SHA512:
+		sha512(data, data_len, out);
+		return 0;
+	}
+	pr_warn("%s: invalid hash algorithm %d\n", __func__, hmac_id);
+	return -EINVAL;
+}
+
 struct nvme_dhchap_key *nvme_auth_transform_key(
 		const struct nvme_dhchap_key *key, const char *nqn)
 {
@@ -334,72 +365,17 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 }
 EXPORT_SYMBOL_GPL(nvme_auth_transform_key);
 
-static int nvme_auth_hash_skey(int hmac_id, const u8 *skey, size_t skey_len,
-			       u8 *hkey)
-{
-	const char *digest_name;
-	struct crypto_shash *tfm;
-	int ret;
-
-	digest_name = nvme_auth_digest_name(hmac_id);
-	if (!digest_name) {
-		pr_debug("%s: failed to get digest for %d\n", __func__,
-			 hmac_id);
-		return -EINVAL;
-	}
-	tfm = crypto_alloc_shash(digest_name, 0, 0);
-	if (IS_ERR(tfm))
-		return -ENOMEM;
-
-	ret = crypto_shash_tfm_digest(tfm, skey, skey_len, hkey);
-	if (ret < 0)
-		pr_debug("%s: Failed to hash digest len %zu\n", __func__,
-			 skey_len);
-
-	crypto_free_shash(tfm);
-	return ret;
-}
-
 int nvme_auth_augmented_challenge(u8 hmac_id, const u8 *skey, size_t skey_len,
 				  const u8 *challenge, u8 *aug, size_t hlen)
 {
-	struct crypto_shash *tfm;
-	u8 *hashed_key;
-	const char *hmac_name;
+	u8 hashed_key[NVME_AUTH_MAX_DIGEST_SIZE];
 	int ret;
 
-	hashed_key = kmalloc(hlen, GFP_KERNEL);
-	if (!hashed_key)
-		return -ENOMEM;
-
-	ret = nvme_auth_hash_skey(hmac_id, skey,
-				  skey_len, hashed_key);
-	if (ret < 0)
-		goto out_free_key;
-
-	hmac_name = nvme_auth_hmac_name(hmac_id);
-	if (!hmac_name) {
-		pr_warn("%s: invalid hash algorithm %d\n",
-			__func__, hmac_id);
-		ret = -EINVAL;
-		goto out_free_key;
-	}
-
-	tfm = crypto_alloc_shash(hmac_name, 0, 0);
-	if (IS_ERR(tfm)) {
-		ret = PTR_ERR(tfm);
-		goto out_free_key;
-	}
-
-	ret = crypto_shash_setkey(tfm, hashed_key, hlen);
+	ret = nvme_auth_hash(hmac_id, skey, skey_len, hashed_key);
 	if (ret)
-		goto out_free_hash;
-
-	ret = crypto_shash_tfm_digest(tfm, challenge, hlen, aug);
-out_free_hash:
-	crypto_free_shash(tfm);
-out_free_key:
-	kfree_sensitive(hashed_key);
+		return ret;
+	ret = nvme_auth_hmac(hmac_id, hashed_key, hlen, challenge, hlen, aug);
+	memzero_explicit(hashed_key, sizeof(hashed_key));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_auth_augmented_challenge);
