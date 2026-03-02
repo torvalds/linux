@@ -8,7 +8,7 @@ set -e
 # data type profiling manifestation
 
 # Values in testtypes and testprogs should match
-testtypes=("# data-type: struct Buf" "# data-type: struct _buf")
+testtypes=("# data-type: struct Buf" "# data-type: struct buf")
 testprogs=("perf test -w code_with_type" "perf test -w datasym")
 
 err=0

@@ -4,14 +4,14 @@
 #include <linux/compiler.h>
 #include "../tests.h"
 
-typedef struct _buf {
+struct buf {
 	char data1;
 	char reserved[55];
 	char data2;
-} buf __attribute__((aligned(64)));
+} __attribute__((aligned(64)));
 
 /* volatile to try to avoid the compiler seeing reserved as unused. */
-static volatile buf workload_datasym_buf1 = {
+static volatile struct buf workload_datasym_buf1 = {
 	/* to have this in the data section */
 	.reserved[0] = 1,
 };
