@@ -729,8 +729,8 @@ static void validate_mcu_fw_version(struct hid_device *hdev, int idProduct)
 
 static bool asus_has_report_id(struct hid_device *hdev, u16 report_id)
 {
-	int t, f, u, err = 0;
 	struct hid_report *report;
+	int t;
 
 	for (t = HID_INPUT_REPORT; t <= HID_FEATURE_REPORT; t++) {
 		list_for_each_entry(report, &hdev->report_enum[t].report_list, list) {
