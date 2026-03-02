@@ -1089,10 +1089,8 @@ static int cxlmd_add(struct cxl_memdev *cxlmd, struct cxl_dev_state *cxlds)
 DEFINE_FREE(put_cxlmd, struct cxl_memdev *,
 	    if (!IS_ERR_OR_NULL(_T)) put_device(&_T->dev))
 
-static struct cxl_memdev *cxl_memdev_autoremove(struct cxl_memdev *cxlmd)
+static bool cxl_memdev_attach_failed(struct cxl_memdev *cxlmd)
 {
-	int rc;
-
 	/*
 	 * If @attach is provided fail if the driver is not attached upon
 	 * return. Note that failure here could be the result of a race to
@@ -1100,7 +1098,14 @@ static struct cxl_memdev *cxl_memdev_autoremove(struct cxl_memdev *cxlmd)
 	 * succeeded and then cxl_mem unbound before the lock is acquired.
 	 */
 	guard(device)(&cxlmd->dev);
-	if (cxlmd->attach && !cxlmd->dev.driver) {
+	return (cxlmd->attach && !cxlmd->dev.driver);
+}
+
+static struct cxl_memdev *cxl_memdev_autoremove(struct cxl_memdev *cxlmd)
+{
+	int rc;
+
+	if (cxl_memdev_attach_failed(cxlmd)) {
 		cxl_memdev_unregister(cxlmd);
 		return ERR_PTR(-ENXIO);
 	}

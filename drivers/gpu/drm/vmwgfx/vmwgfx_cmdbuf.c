@@ -105,6 +105,7 @@ struct vmw_cmdbuf_context {
  * @handle: DMA address handle for the command buffer space if @using_mob is
  * false. Immutable.
  * @size: The size of the command buffer space. Immutable.
+ * @id: Monotonically increasing ID of the last cmdbuf submitted.
  * @num_contexts: Number of contexts actually enabled.
  */
 struct vmw_cmdbuf_man {
@@ -132,6 +133,7 @@ struct vmw_cmdbuf_man {
 	bool has_pool;
 	dma_addr_t handle;
 	size_t size;
+	u64 id;
 	u32 num_contexts;
 };
 
@@ -302,6 +304,8 @@ static int vmw_cmdbuf_header_submit(struct vmw_cmdbuf_header *header)
 {
 	struct vmw_cmdbuf_man *man = header->man;
 	u32 val;
+
+	header->cb_header->id = man->id++;
 
 	val = upper_32_bits(header->handle);
 	vmw_write(man->dev_priv, SVGA_REG_COMMAND_HIGH, val);

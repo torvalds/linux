@@ -729,7 +729,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dais = {
 			{
 				.direction = {true, false},
-				.codec_name = "snd_soc_sdca.UAJ.1",
+				.codec_name = "snd_soc_sdca.UAJ",
 				.dai_name = "IT 41",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
@@ -745,7 +745,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 			},
 			{
 				.direction = {false, true},
-				.codec_name = "snd_soc_sdca.UAJ.1",
+				.codec_name = "snd_soc_sdca.UAJ",
 				.dai_name = "OT 36",
 				.dai_type = SOC_SDW_DAI_TYPE_JACK,
 				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
@@ -754,7 +754,7 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dai_num = 3,
 		.auxs = {
 			{
-				.codec_name = "snd_soc_sdca.HID.2",
+				.codec_name = "snd_soc_sdca.HID",
 			},
 		},
 		.aux_num = 1,
@@ -1251,8 +1251,18 @@ const char *asoc_sdw_get_codec_name(struct device *dev,
 				    const struct snd_soc_acpi_link_adr *adr_link,
 				    int adr_index)
 {
-	if (dai_info->codec_name)
-		return devm_kstrdup(dev, dai_info->codec_name, GFP_KERNEL);
+	if (dai_info->codec_name) {
+		struct snd_soc_component *component;
+
+		component = snd_soc_lookup_component_by_name(dai_info->codec_name);
+		if (component) {
+			dev_dbg(dev, "%s found component %s for codec_name %s\n",
+				__func__, component->name, dai_info->codec_name);
+			return devm_kstrdup(dev, component->name, GFP_KERNEL);
+		} else {
+			return devm_kstrdup(dev, dai_info->codec_name, GFP_KERNEL);
+		}
+	}
 
 	return _asoc_sdw_get_codec_name(dev, adr_link, adr_index);
 }
@@ -1564,7 +1574,17 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 				return -EINVAL;
 
 			for (j = 0; j < codec_info->aux_num; j++) {
-				soc_aux->dlc.name = codec_info->auxs[j].codec_name;
+				struct snd_soc_component *component;
+
+				component = snd_soc_lookup_component_by_name(codec_info->auxs[j].codec_name);
+				if (component) {
+					dev_dbg(dev, "%s found component %s for aux name %s\n",
+						__func__, component->name,
+						codec_info->auxs[j].codec_name);
+					soc_aux->dlc.name = component->name;
+				} else {
+					soc_aux->dlc.name = codec_info->auxs[j].codec_name;
+				}
 				soc_aux++;
 			}
 

@@ -627,7 +627,7 @@ xfs_zone_gc_alloc_blocks(
 	if (!*count_fsb)
 		return NULL;
 
-	*daddr = xfs_gbno_to_daddr(&oz->oz_rtg->rtg_group, 0);
+	*daddr = xfs_gbno_to_daddr(rtg_group(oz->oz_rtg), 0);
 	*is_seq = bdev_zone_is_seq(mp->m_rtdev_targp->bt_bdev, *daddr);
 	if (!*is_seq)
 		*daddr += XFS_FSB_TO_BB(mp, oz->oz_allocated);
@@ -702,7 +702,7 @@ xfs_zone_gc_start_chunk(
 	chunk->data = data;
 	chunk->oz = oz;
 	chunk->victim_rtg = iter->victim_rtg;
-	atomic_inc(&chunk->victim_rtg->rtg_group.xg_active_ref);
+	atomic_inc(&rtg_group(chunk->victim_rtg)->xg_active_ref);
 	atomic_inc(&chunk->victim_rtg->rtg_gccount);
 
 	bio->bi_iter.bi_sector = xfs_rtb_to_daddr(mp, chunk->old_startblock);
@@ -788,7 +788,7 @@ xfs_zone_gc_split_write(
 	atomic_inc(&chunk->oz->oz_ref);
 
 	split_chunk->victim_rtg = chunk->victim_rtg;
-	atomic_inc(&chunk->victim_rtg->rtg_group.xg_active_ref);
+	atomic_inc(&rtg_group(chunk->victim_rtg)->xg_active_ref);
 	atomic_inc(&chunk->victim_rtg->rtg_gccount);
 
 	chunk->offset += split_len;
@@ -888,7 +888,7 @@ xfs_zone_gc_finish_reset(
 		goto out;
 	}
 
-	xfs_group_set_mark(&rtg->rtg_group, XFS_RTG_FREE);
+	xfs_group_set_mark(rtg_group(rtg), XFS_RTG_FREE);
 	atomic_inc(&zi->zi_nr_free_zones);
 
 	xfs_zoned_add_available(mp, rtg_blocks(rtg));
@@ -917,7 +917,7 @@ xfs_submit_zone_reset_bio(
 
 	XFS_STATS_INC(mp, xs_gc_zone_reset_calls);
 
-	bio->bi_iter.bi_sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
+	bio->bi_iter.bi_sector = xfs_gbno_to_daddr(rtg_group(rtg), 0);
 	if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
 		/*
 		 * Also use the bio to drive the state machine when neither

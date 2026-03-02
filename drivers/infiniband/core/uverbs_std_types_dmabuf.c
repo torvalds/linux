@@ -10,6 +10,8 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
+MODULE_IMPORT_NS("DMA_BUF");
+
 static int uverbs_dmabuf_attach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *attachment)
 {
