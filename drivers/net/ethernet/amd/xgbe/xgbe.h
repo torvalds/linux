@@ -267,6 +267,25 @@
 #define XGBE_GEN_HI_MASK	GENMASK(31, 16)
 #define XGBE_GEN_LO_MASK	GENMASK(15, 0)
 
+/* MAC hardware version numbers (SNPSVER field in MAC_VR register) */
+#define XGBE_MAC_VER_30		0x30	/* Baseline Rx adaptation support */
+#define XGBE_MAC_VER_33		0x33	/* P100a platform */
+
+/* MAC Speed Select (SS) values for MAC_TCR register
+ * These values are written to the SS field to configure link speed.
+ * Note: P100a uses XGMII mode (0x06) for 2.5G instead of GMII (0x02)
+ */
+/* Note: 100M and 2.5G GMII share the same value (0x02) but are
+ * differentiated by the mode/interface type at the PHY level
+ */
+
+#define XGBE_MAC_SS_10G		0x00	/* 10Gbps - XGMII mode */
+#define XGBE_MAC_SS_2_5G_GMII	0x02	/* 2.5Gbps - GMII mode (YC) */
+#define XGBE_MAC_SS_2_5G_XGMII	0x06	/* 2.5Gbps - XGMII mode (P100a) */
+#define XGBE_MAC_SS_1G		0x03	/* 1Gbps */
+#define XGBE_MAC_SS_100M	0x02	/* 100Mbps */
+#define XGBE_MAC_SS_10M		0x07	/* 10Mbps */
+
 struct xgbe_prv_data;
 
 struct xgbe_packet_data {

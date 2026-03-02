@@ -722,16 +722,16 @@ static int xgbe_set_speed(struct xgbe_prv_data *pdata, int speed)
 
 	switch (speed) {
 	case SPEED_10:
-		ss = 0x07;
+		ss = XGBE_MAC_SS_10M;
 		break;
 	case SPEED_1000:
-		ss = 0x03;
+		ss = XGBE_MAC_SS_1G;
 		break;
 	case SPEED_2500:
-		ss = 0x02;
+		ss = XGBE_MAC_SS_2_5G_GMII;
 		break;
 	case SPEED_10000:
-		ss = 0x00;
+		ss = XGBE_MAC_SS_10G;
 		break;
 	default:
 		return -EINVAL;
