@@ -66,11 +66,6 @@ struct intel_frontbuffer {
 void intel_frontbuffer_flip(struct intel_display *display,
 			    unsigned frontbuffer_bits);
 
-void intel_frontbuffer_put(struct intel_frontbuffer *front);
-
-struct intel_frontbuffer *
-intel_frontbuffer_get(struct drm_gem_object *obj);
-
 void __intel_fb_invalidate(struct intel_frontbuffer *front,
 			   enum fb_op_origin origin,
 			   unsigned int frontbuffer_bits);

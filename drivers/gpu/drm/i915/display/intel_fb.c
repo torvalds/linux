@@ -2113,7 +2113,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	intel_fb_bo_framebuffer_fini(intel_fb_bo(fb));
 
-	intel_frontbuffer_put(intel_fb->frontbuffer);
+	intel_parent_frontbuffer_put(display, intel_fb->frontbuffer);
 
 	kfree(intel_fb->panic);
 	kfree(intel_fb);
@@ -2221,10 +2221,10 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		return -ENOMEM;
 
 	/*
-	 * intel_frontbuffer_get() must be done before
+	 * intel_parent_frontbuffer_get() must be done before
 	 * intel_fb_bo_framebuffer_init() to avoid set_tiling vs. addfb race.
 	 */
-	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
+	intel_fb->frontbuffer = intel_parent_frontbuffer_get(display, obj);
 	if (!intel_fb->frontbuffer) {
 		ret = -ENOMEM;
 		goto err_free_panic;
@@ -2335,7 +2335,7 @@ err_free_dpt:
 err_bo_framebuffer_fini:
 	intel_fb_bo_framebuffer_fini(obj);
 err_frontbuffer_put:
-	intel_frontbuffer_put(intel_fb->frontbuffer);
+	intel_parent_frontbuffer_put(display, intel_fb->frontbuffer);
 err_free_panic:
 	kfree(intel_fb->panic);
 

@@ -164,18 +164,13 @@ void __intel_fb_flush(struct intel_frontbuffer *front,
 		frontbuffer_flush(display, frontbuffer_bits, origin);
 }
 
-static void intel_frontbuffer_ref(struct intel_frontbuffer *front)
-{
-	intel_parent_frontbuffer_ref(front->display, front);
-}
-
 static void intel_frontbuffer_flush_work(struct work_struct *work)
 {
 	struct intel_frontbuffer *front =
 		container_of(work, struct intel_frontbuffer, flush_work);
 
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
-	intel_frontbuffer_put(front);
+	intel_parent_frontbuffer_put(front->display, front);
 }
 
 /**
@@ -190,9 +185,9 @@ void intel_frontbuffer_queue_flush(struct intel_frontbuffer *front)
 	if (!front)
 		return;
 
-	intel_frontbuffer_ref(front);
+	intel_parent_frontbuffer_ref(front->display, front);
 	if (!schedule_work(&front->flush_work))
-		intel_frontbuffer_put(front);
+		intel_parent_frontbuffer_put(front->display, front);
 }
 
 void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *drm)
@@ -205,18 +200,6 @@ void intel_frontbuffer_init(struct intel_frontbuffer *front, struct drm_device *
 void intel_frontbuffer_fini(struct intel_frontbuffer *front)
 {
 	drm_WARN_ON(front->display->drm, atomic_read(&front->bits));
-}
-
-struct intel_frontbuffer *intel_frontbuffer_get(struct drm_gem_object *obj)
-{
-	struct intel_display *display = to_intel_display(obj->dev);
-
-	return intel_parent_frontbuffer_get(display, obj);
-}
-
-void intel_frontbuffer_put(struct intel_frontbuffer *front)
-{
-	intel_parent_frontbuffer_put(front->display, front);
 }
 
 /**
