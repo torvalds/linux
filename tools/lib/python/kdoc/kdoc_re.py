@@ -216,6 +216,8 @@ class NestedMatch:
         for match_re in regex.finditer(line):
             start = match_re.start()
             offset = match_re.end()
+            string_char = None
+            escape = False
 
             d = line[offset - 1]
             if d not in self.DELIMITER_PAIRS:
@@ -228,6 +230,22 @@ class NestedMatch:
                 pos = match.start() + offset
 
                 d = line[pos]
+
+                if escape:
+                    escape = False
+                    continue
+
+                if string_char:
+                    if d == '\\':
+                        escape = True
+                    elif d == string_char:
+                        string_char = None
+
+                    continue
+
+                if d in ('"', "'"):
+                    string_char = d
+                    continue
 
                 if d in self.DELIMITER_PAIRS:
                     end = self.DELIMITER_PAIRS[d]
