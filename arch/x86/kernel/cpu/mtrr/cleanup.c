@@ -437,9 +437,10 @@ static unsigned long nr_mtrr_spare_reg __initdata =
 
 static int __init parse_mtrr_spare_reg(char *arg)
 {
-	if (arg)
-		nr_mtrr_spare_reg = simple_strtoul(arg, NULL, 0);
-	return 0;
+	if (!arg)
+		return -EINVAL;
+
+	return kstrtoul(arg, 0, &nr_mtrr_spare_reg);
 }
 early_param("mtrr_spare_reg_nr", parse_mtrr_spare_reg);
 
