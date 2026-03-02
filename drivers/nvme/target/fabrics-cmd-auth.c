@@ -8,7 +8,6 @@
 #include <linux/blkdev.h>
 #include <linux/random.h>
 #include <linux/nvme-auth.h>
-#include <crypto/hash.h>
 #include <crypto/kpp.h>
 #include "nvmet.h"
 
@@ -75,8 +74,7 @@ static u8 nvmet_auth_negotiate(struct nvmet_req *req, void *d)
 	for (i = 0; i < data->auth_protocol[0].dhchap.halen; i++) {
 		u8 host_hmac_id = data->auth_protocol[0].dhchap.idlist[i];
 
-		if (!fallback_hash_id &&
-		    crypto_has_shash(nvme_auth_hmac_name(host_hmac_id), 0, 0))
+		if (!fallback_hash_id && nvme_auth_hmac_hash_len(host_hmac_id))
 			fallback_hash_id = host_hmac_id;
 		if (ctrl->shash_id != host_hmac_id)
 			continue;

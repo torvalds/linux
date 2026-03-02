@@ -45,15 +45,6 @@ int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 			 key_hash);
 		return -EINVAL;
 	}
-	if (key_hash > 0) {
-		/* Validate selected hash algorithm */
-		const char *hmac = nvme_auth_hmac_name(key_hash);
-
-		if (!crypto_has_shash(hmac, 0, 0)) {
-			pr_err("DH-HMAC-CHAP hash %s unsupported\n", hmac);
-			return -ENOTSUPP;
-		}
-	}
 	dhchap_secret = kstrdup(secret, GFP_KERNEL);
 	if (!dhchap_secret)
 		return -ENOMEM;
