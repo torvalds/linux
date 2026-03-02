@@ -35,6 +35,7 @@ Descriptions of section entries and preferred order
 	   F:	drivers/net/	all files in and below drivers/net
 	   F:	drivers/net/*	all files in drivers/net, but not below
 	   F:	*/net/*		all files in "any top level directory"/net
+	   F:	fs/**/*foo*.c	all *foo*.c files in any subdirectory of fs
 	   One pattern per line.  Multiple F: lines acceptable.
 	X: *Excluded* files and directories that are NOT maintained, same
 	   rules as F:. Files exclusions are tested before file matches.

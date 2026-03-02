@@ -375,8 +375,10 @@ sub read_maintainer_file {
 	    ##Filename pattern matching
 	    if ($type eq "F" || $type eq "X") {
 		$value =~ s@\.@\\\.@g;       ##Convert . to \.
+		$value =~ s/\*\*/\x00/g;     ##Convert ** to placeholder
 		$value =~ s/\*/\.\*/g;       ##Convert * to .*
 		$value =~ s/\?/\./g;         ##Convert ? to .
+		$value =~ s/\x00/(?:.*)/g;   ##Convert placeholder to (?:.*)
 		##if pattern is a directory and it lacks a trailing slash, add one
 		if ((-d $value)) {
 		    $value =~ s@([^/])$@$1/@;
@@ -746,8 +748,10 @@ sub self_test {
 	if (($type eq "F" || $type eq "X") &&
 	    ($self_test eq "" || $self_test =~ /\bpatterns\b/)) {
 	    $value =~ s@\.@\\\.@g;       ##Convert . to \.
+	    $value =~ s/\*\*/\x00/g;     ##Convert ** to placeholder
 	    $value =~ s/\*/\.\*/g;       ##Convert * to .*
 	    $value =~ s/\?/\./g;         ##Convert ? to .
+	    $value =~ s/\x00/(?:.*)/g;   ##Convert placeholder to (?:.*)
 	    ##if pattern is a directory and it lacks a trailing slash, add one
 	    if ((-d $value)) {
 		$value =~ s@([^/])$@$1/@;
@@ -921,7 +925,7 @@ sub get_maintainers {
 				my $value_pd = ($value =~ tr@/@@);
 				my $file_pd = ($file  =~ tr@/@@);
 				$value_pd++ if (substr($value,-1,1) ne "/");
-				$value_pd = -1 if ($value =~ /^\.\*/);
+				$value_pd = -1 if ($value =~ /^(\.\*|\(\?:\.\*\))/);
 				if ($value_pd >= $file_pd &&
 				    range_is_maintained($start, $end) &&
 				    range_has_maintainer($start, $end)) {
@@ -955,6 +959,7 @@ sub get_maintainers {
 			$line =~ s/([^\\])\.([^\*])/$1\?$2/g;
 			$line =~ s/([^\\])\.$/$1\?/g;	##Convert . back to ?
 			$line =~ s/\\\./\./g;       	##Convert \. to .
+			$line =~ s/\(\?:\.\*\)/\*\*/g;	##Convert (?:.*) to **
 			$line =~ s/\.\*/\*/g;       	##Convert .* to *
 		    }
 		    my $count = $line =~ s/^([A-Z]):/$1:\t/g;
@@ -1048,7 +1053,7 @@ sub file_match_pattern {
 	if ($file =~ m@^$pattern@) {
 	    my $s1 = ($file =~ tr@/@@);
 	    my $s2 = ($pattern =~ tr@/@@);
-	    if ($s1 == $s2) {
+	    if ($s1 == $s2 || $pattern =~ /\(\?:/) {
 		return 1;
 	    }
 	}
