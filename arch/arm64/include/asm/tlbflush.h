@@ -429,12 +429,13 @@ static inline void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
 /*
  * __flush_tlb_range_op - Perform TLBI operation upon a range
  *
- * @op:	TLBI instruction that operates on a range (has 'r' prefix)
+ * @lop:	TLBI level operation to perform
+ * @rop:	TLBI range operation to perform
  * @start:	The start address of the range
  * @pages:	Range as the number of pages from 'start'
  * @stride:	Flush granularity
  * @asid:	The ASID of the task (0 for IPA instructions)
- * @tlb_level:	Translation Table level hint, if known
+ * @level:	Translation Table level hint, if known
  * @lpa2:	If 'true', the lpa2 scheme is used as set out below
  *
  * When the CPU does not support TLB range operations, flush the TLB
@@ -501,36 +502,44 @@ static __always_inline void __tlbi_range(tlbi_op op, u64 addr,
 	op(arg);
 }
 
-#define __flush_tlb_range_op(op, start, pages, stride,			\
-				asid, tlb_level, lpa2)			\
-do {									\
-	typeof(start) __flush_start = start;				\
-	typeof(pages) __flush_pages = pages;				\
-	int num = 0;							\
-	int scale = 3;							\
-									\
-	while (__flush_pages > 0) {					\
-		if (!system_supports_tlb_range() ||			\
-		    __flush_pages == 1 ||				\
-		    (lpa2 && __flush_start != ALIGN(__flush_start, SZ_64K))) {	\
-			__tlbi_level_asid(op, __flush_start, tlb_level, asid);	\
-			__flush_start += stride;			\
-			__flush_pages -= stride >> PAGE_SHIFT;		\
-			continue;					\
-		}							\
-									\
-		num = __TLBI_RANGE_NUM(__flush_pages, scale);		\
-		if (num >= 0) {						\
-			__tlbi_range(r##op, __flush_start, asid, scale, num, tlb_level, lpa2); \
-			__flush_start += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT; \
-			__flush_pages -= __TLBI_RANGE_PAGES(num, scale);\
-		}							\
-		scale--;						\
-	}								\
-} while (0)
+static __always_inline void __flush_tlb_range_op(tlbi_op lop, tlbi_op rop,
+						 u64 start, size_t pages,
+						 u64 stride, u16 asid,
+						 u32 level, bool lpa2)
+{
+	u64 addr = start, end = start + pages * PAGE_SIZE;
+	int scale = 3;
+
+	while (addr != end) {
+		int num;
+
+		pages = (end - addr) >> PAGE_SHIFT;
+
+		if (!system_supports_tlb_range() || pages == 1)
+			goto invalidate_one;
+
+		if (lpa2 && !IS_ALIGNED(addr, SZ_64K))
+			goto invalidate_one;
+
+		num = __TLBI_RANGE_NUM(pages, scale);
+		if (num >= 0) {
+			__tlbi_range(rop, addr, asid, scale, num, level, lpa2);
+			addr += __TLBI_RANGE_PAGES(num, scale) << PAGE_SHIFT;
+		}
+
+		scale--;
+		continue;
+invalidate_one:
+		__tlbi_level_asid(lop, addr, level, asid);
+		addr += stride;
+	}
+}
+
+#define __flush_s1_tlb_range_op(op, start, pages, stride, asid, tlb_level) \
+	__flush_tlb_range_op(op, r##op, start, pages, stride, asid, tlb_level, lpa2_is_enabled())
 
 #define __flush_s2_tlb_range_op(op, start, pages, stride, tlb_level) \
-	__flush_tlb_range_op(op, start, pages, stride, 0, tlb_level, kvm_lpa2_is_enabled());
+	__flush_tlb_range_op(op, r##op, start, pages, stride, 0, tlb_level, kvm_lpa2_is_enabled())
 
 static inline bool __flush_tlb_range_limit_excess(unsigned long start,
 		unsigned long end, unsigned long pages, unsigned long stride)
@@ -569,11 +578,11 @@ static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
 	asid = ASID(mm);
 
 	if (last_level)
-		__flush_tlb_range_op(vale1is, start, pages, stride, asid,
-				     tlb_level, lpa2_is_enabled());
+		__flush_s1_tlb_range_op(vale1is, start, pages, stride,
+				     asid, tlb_level);
 	else
-		__flush_tlb_range_op(vae1is, start, pages, stride, asid,
-				     tlb_level, lpa2_is_enabled());
+		__flush_s1_tlb_range_op(vae1is, start, pages, stride,
+				     asid, tlb_level);
 
 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
 }
@@ -597,8 +606,7 @@ static inline void local_flush_tlb_contpte(struct vm_area_struct *vma,
 
 	dsb(nshst);
 	asid = ASID(vma->vm_mm);
-	__flush_tlb_range_op(vale1, addr, CONT_PTES, PAGE_SIZE, asid,
-			     3, lpa2_is_enabled());
+	__flush_s1_tlb_range_op(vale1, addr, CONT_PTES, PAGE_SIZE, asid, 3);
 	mmu_notifier_arch_invalidate_secondary_tlbs(vma->vm_mm, addr,
 						    addr + CONT_PTE_SIZE);
 	dsb(nsh);
@@ -631,8 +639,8 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 	}
 
 	dsb(ishst);
-	__flush_tlb_range_op(vaale1is, start, pages, stride, 0,
-			     TLBI_TTL_UNKNOWN, lpa2_is_enabled());
+	__flush_s1_tlb_range_op(vaale1is, start, pages, stride, 0,
+				TLBI_TTL_UNKNOWN);
 	__tlbi_sync_s1ish();
 	isb();
 }
