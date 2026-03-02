@@ -145,16 +145,17 @@ static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 		.maxlen = sizeof(size),
 		.mode = table->mode
 	};
-	struct rps_sock_flow_table *orig_sock_table, *sock_table;
+	struct rps_sock_flow_table *o_sock_table, *sock_table;
 	static DEFINE_MUTEX(sock_flow_mutex);
 	void *tofree = NULL;
 
 	mutex_lock(&sock_flow_mutex);
 
-	orig_sock_table = rcu_dereference_protected(
+	o_sock_table = rcu_dereference_protected(
 					net_hotdata.rps_sock_flow_table,
 					lockdep_is_held(&sock_flow_mutex));
-	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
+	size = o_sock_table ? rps_sock_flow_table_mask(o_sock_table) + 1 : 0;
+	orig_size = size;
 
 	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 
@@ -165,6 +166,7 @@ static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 				mutex_unlock(&sock_flow_mutex);
 				return -EINVAL;
 			}
+			sock_table = o_sock_table;
 			size = roundup_pow_of_two(size);
 			if (size != orig_size) {
 				sock_table =
@@ -175,26 +177,25 @@ static int rps_sock_flow_sysctl(const struct ctl_table *table, int write,
 				}
 				net_hotdata.rps_cpu_mask =
 					roundup_pow_of_two(nr_cpu_ids) - 1;
-				sock_table->mask = size - 1;
-			} else
-				sock_table = orig_sock_table;
+				sock_table->_mask = size - 1;
+			}
 
 			for (i = 0; i < size; i++)
 				sock_table->ents[i] = RPS_NO_CPU;
 		} else
 			sock_table = NULL;
 
-		if (sock_table != orig_sock_table) {
+		if (sock_table != o_sock_table) {
 			rcu_assign_pointer(net_hotdata.rps_sock_flow_table,
 					   sock_table);
 			if (sock_table) {
 				static_branch_inc(&rps_needed);
 				static_branch_inc(&rfs_needed);
 			}
-			if (orig_sock_table) {
+			if (o_sock_table) {
 				static_branch_dec(&rps_needed);
 				static_branch_dec(&rfs_needed);
-				tofree = orig_sock_table;
+				tofree = o_sock_table;
 			}
 		}
 	}

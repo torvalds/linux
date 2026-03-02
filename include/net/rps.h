@@ -60,18 +60,23 @@ struct rps_dev_flow_table {
  * meaning we use 32-6=26 bits for the hash.
  */
 struct rps_sock_flow_table {
-	u32		mask;
+	u32		_mask;
 
 	u32		ents[] ____cacheline_aligned_in_smp;
 };
 #define	RPS_SOCK_FLOW_TABLE_SIZE(_num) (offsetof(struct rps_sock_flow_table, ents[_num]))
+
+static inline u32 rps_sock_flow_table_mask(const struct rps_sock_flow_table *table)
+{
+	return table->_mask;
+}
 
 #define RPS_NO_CPU 0xffff
 
 static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
 					u32 hash)
 {
-	unsigned int index = hash & table->mask;
+	unsigned int index = hash & rps_sock_flow_table_mask(table);
 	u32 val = hash & ~net_hotdata.rps_cpu_mask;
 
 	/* We only give a hint, preemption can change CPU under us */
@@ -129,7 +134,7 @@ static inline void _sock_rps_delete_flow(const struct sock *sk)
 	rcu_read_lock();
 	table = rcu_dereference(net_hotdata.rps_sock_flow_table);
 	if (table) {
-		index = hash & table->mask;
+		index = hash & rps_sock_flow_table_mask(table);
 		if (READ_ONCE(table->ents[index]) != RPS_NO_CPU)
 			WRITE_ONCE(table->ents[index], RPS_NO_CPU);
 	}
