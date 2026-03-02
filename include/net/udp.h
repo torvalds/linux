@@ -29,6 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/indirect_call_wrapper.h>
+#include <linux/math.h>
 
 /**
  *	struct udp_skb_cb  -  UDP(-Lite) private variables
@@ -376,7 +377,7 @@ static inline __be16 udp_flow_src_port(struct net *net, struct sk_buff *skb,
 	 */
 	hash ^= hash << 16;
 
-	return htons((((u64) hash * (max - min)) >> 32) + min);
+	return htons(reciprocal_scale(hash, max - min + 1) + min);
 }
 
 static inline int udp_rqueue_get(struct sock *sk)
