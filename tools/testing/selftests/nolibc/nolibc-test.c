@@ -1668,8 +1668,8 @@ int run_stdlib(int min, int max)
 	return ret;
 }
 
-#define EXPECT_VFPRINTF(expected, fmt, ...)				\
-	ret += expect_vfprintf(llen, expected, fmt, ##__VA_ARGS__)
+#define EXPECT_VFPRINTF(cond, expected, fmt, ...)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_vfprintf(llen, expected, fmt, ##__VA_ARGS__); } while (0)
 
 #define VFPRINTF_LEN 20
 static int expect_vfprintf(int llen, const char *expected, const char *fmt, ...)
@@ -1845,21 +1845,21 @@ static int run_printf(int min, int max)
 		 * test numbers.
 		 */
 		switch (test + __LINE__ + 1) {
-		CASE_TEST(empty);        EXPECT_VFPRINTF("", ""); break;
-		CASE_TEST(simple);       EXPECT_VFPRINTF("foo", "foo"); break;
-		CASE_TEST(string);       EXPECT_VFPRINTF("foo", "%s", "foo"); break;
-		CASE_TEST(number);       EXPECT_VFPRINTF("1234", "%d", 1234); break;
-		CASE_TEST(negnumber);    EXPECT_VFPRINTF("-1234", "%d", -1234); break;
-		CASE_TEST(unsigned);     EXPECT_VFPRINTF("12345", "%u", 12345); break;
-		CASE_TEST(char);         EXPECT_VFPRINTF("c", "%c", 'c'); break;
-		CASE_TEST(hex);          EXPECT_VFPRINTF("f", "%x", 0xf); break;
-		CASE_TEST(pointer);      EXPECT_VFPRINTF("0x1", "%p", (void *) 0x1); break;
-		CASE_TEST(uintmax_t);    EXPECT_VFPRINTF("18446744073709551615", "%ju", 0xffffffffffffffffULL); break;
-		CASE_TEST(intmax_t);     EXPECT_VFPRINTF("-9223372036854775807", "%jd", 0x8000000000000001LL); break;
-		CASE_TEST(truncation);   EXPECT_VFPRINTF("0123456789012345678901234", "%s", "0123456789012345678901234"); break;
-		CASE_TEST(string_width); EXPECT_VFPRINTF("         1", "%10s", "1"); break;
-		CASE_TEST(number_width); EXPECT_VFPRINTF("         1", "%10d", 1); break;
-		CASE_TEST(width_trunc);  EXPECT_VFPRINTF("                        1", "%25d", 1); break;
+		CASE_TEST(empty);        EXPECT_VFPRINTF(1, "", ""); break;
+		CASE_TEST(simple);       EXPECT_VFPRINTF(1, "foo", "foo"); break;
+		CASE_TEST(string);       EXPECT_VFPRINTF(1, "foo", "%s", "foo"); break;
+		CASE_TEST(number);       EXPECT_VFPRINTF(1, "1234", "%d", 1234); break;
+		CASE_TEST(negnumber);    EXPECT_VFPRINTF(1, "-1234", "%d", -1234); break;
+		CASE_TEST(unsigned);     EXPECT_VFPRINTF(1, "12345", "%u", 12345); break;
+		CASE_TEST(char);         EXPECT_VFPRINTF(1, "c", "%c", 'c'); break;
+		CASE_TEST(hex);          EXPECT_VFPRINTF(1, "f", "%x", 0xf); break;
+		CASE_TEST(pointer);      EXPECT_VFPRINTF(1, "0x1", "%p", (void *) 0x1); break;
+		CASE_TEST(uintmax_t);    EXPECT_VFPRINTF(1, "18446744073709551615", "%ju", 0xffffffffffffffffULL); break;
+		CASE_TEST(intmax_t);     EXPECT_VFPRINTF(1, "-9223372036854775807", "%jd", 0x8000000000000001LL); break;
+		CASE_TEST(truncation);   EXPECT_VFPRINTF(1, "0123456789012345678901234", "%s", "0123456789012345678901234"); break;
+		CASE_TEST(string_width); EXPECT_VFPRINTF(1, "         1", "%10s", "1"); break;
+		CASE_TEST(number_width); EXPECT_VFPRINTF(1, "         1", "%10d", 1); break;
+		CASE_TEST(width_trunc);  EXPECT_VFPRINTF(1, "                        1", "%25d", 1); break;
 		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
 		CASE_TEST(strerror);     EXPECT_ZR(1, test_strerror()); break;
 		CASE_TEST(printf_error); EXPECT_ZR(1, test_printf_error()); break;
