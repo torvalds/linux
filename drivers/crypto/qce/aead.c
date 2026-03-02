@@ -36,7 +36,6 @@ static void qce_aead_done(void *data)
 	u32 status;
 	unsigned int totallen;
 	unsigned char tag[SHA256_DIGEST_SIZE] = {0};
-	int ret = 0;
 
 	diff_dst = (req->src != req->dst) ? true : false;
 	dir_src = diff_dst ? DMA_TO_DEVICE : DMA_BIDIRECTIONAL;
@@ -80,8 +79,7 @@ static void qce_aead_done(void *data)
 	} else if (!IS_CCM(rctx->flags)) {
 		totallen = req->cryptlen + req->assoclen - ctx->authsize;
 		scatterwalk_map_and_copy(tag, req->src, totallen, ctx->authsize, 0);
-		ret = memcmp(result_buf->auth_iv, tag, ctx->authsize);
-		if (ret) {
+		if (memcmp(result_buf->auth_iv, tag, ctx->authsize)) {
 			pr_err("Bad message error\n");
 			error = -EBADMSG;
 		}
@@ -145,16 +143,12 @@ qce_aead_prepare_dst_buf(struct aead_request *req)
 
 		sg = qce_sgtable_add(&rctx->dst_tbl, &rctx->adata_sg,
 				     rctx->assoclen);
-		if (IS_ERR(sg)) {
-			ret = PTR_ERR(sg);
+		if (IS_ERR(sg))
 			goto dst_tbl_free;
-		}
 		/* dst buffer */
 		sg = qce_sgtable_add(&rctx->dst_tbl, msg_sg, rctx->cryptlen);
-		if (IS_ERR(sg)) {
-			ret = PTR_ERR(sg);
+		if (IS_ERR(sg))
 			goto dst_tbl_free;
-		}
 		totallen = rctx->cryptlen + rctx->assoclen;
 	} else {
 		if (totallen) {
