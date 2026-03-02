@@ -314,51 +314,6 @@ void fscrypt_set_bio_crypt_ctx(struct bio *bio, const struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(fscrypt_set_bio_crypt_ctx);
 
-/* Extract the inode and logical block number from a buffer_head. */
-static bool bh_get_inode_and_lblk_num(const struct buffer_head *bh,
-				      const struct inode **inode_ret,
-				      u64 *lblk_num_ret)
-{
-	struct folio *folio = bh->b_folio;
-	const struct address_space *mapping;
-	const struct inode *inode;
-
-	/*
-	 * The ext4 journal (jbd2) can submit a buffer_head it directly created
-	 * for a non-pagecache page.  fscrypt doesn't care about these.
-	 */
-	mapping = folio_mapping(folio);
-	if (!mapping)
-		return false;
-	inode = mapping->host;
-
-	*inode_ret = inode;
-	*lblk_num_ret = (folio_pos(folio) + bh_offset(bh)) >> inode->i_blkbits;
-	return true;
-}
-
-/**
- * fscrypt_set_bio_crypt_ctx_bh() - prepare a file contents bio for inline
- *				    crypto
- * @bio: a bio which will eventually be submitted to the file
- * @first_bh: the first buffer_head for which I/O will be submitted
- * @gfp_mask: memory allocation flags
- *
- * Same as fscrypt_set_bio_crypt_ctx(), except this takes a buffer_head instead
- * of an inode and block number directly.
- */
-void fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
-				  const struct buffer_head *first_bh,
-				  gfp_t gfp_mask)
-{
-	const struct inode *inode;
-	u64 first_lblk;
-
-	if (bh_get_inode_and_lblk_num(first_bh, &inode, &first_lblk))
-		fscrypt_set_bio_crypt_ctx(bio, inode, first_lblk, gfp_mask);
-}
-EXPORT_SYMBOL_GPL(fscrypt_set_bio_crypt_ctx_bh);
-
 /**
  * fscrypt_mergeable_bio() - test whether data can be added to a bio
  * @bio: the bio being built up
