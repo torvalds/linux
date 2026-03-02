@@ -476,4 +476,15 @@ static inline int ksft_min_kernel_version(unsigned int min_major,
 	return major > min_major || (major == min_major && minor >= min_minor);
 }
 
+static inline void ksft_reset_state(void)
+{
+	ksft_cnt.ksft_pass = 0;
+	ksft_cnt.ksft_fail = 0;
+	ksft_cnt.ksft_xfail = 0;
+	ksft_cnt.ksft_xpass = 0;
+	ksft_cnt.ksft_xskip = 0;
+	ksft_cnt.ksft_error = 0;
+	ksft_plan = 0;
+}
+
 #endif /* __KSELFTEST_H */
