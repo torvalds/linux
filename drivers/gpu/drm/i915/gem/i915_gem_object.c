@@ -474,30 +474,6 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		queue_work(i915->wq, &i915->mm.free_work);
 }
 
-void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
-					 enum fb_op_origin origin)
-{
-	struct i915_frontbuffer *front;
-
-	front = i915_gem_object_frontbuffer_lookup(obj);
-	if (front) {
-		intel_frontbuffer_flush(&front->base, origin);
-		i915_gem_object_frontbuffer_put(front);
-	}
-}
-
-void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
-					      enum fb_op_origin origin)
-{
-	struct i915_frontbuffer *front;
-
-	front = i915_gem_object_frontbuffer_lookup(obj);
-	if (front) {
-		intel_frontbuffer_invalidate(&front->base, origin);
-		i915_gem_object_frontbuffer_put(front);
-	}
-}
-
 static void
 i915_gem_object_read_from_page_kmap(struct drm_i915_gem_object *obj, u64 offset, void *dst, int size)
 {

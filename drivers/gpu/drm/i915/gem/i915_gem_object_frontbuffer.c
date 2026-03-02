@@ -101,3 +101,27 @@ void i915_gem_object_frontbuffer_put(struct i915_frontbuffer *front)
 	kref_put_lock(&front->ref, frontbuffer_release,
 		      &i915->frontbuffer_lock);
 }
+
+void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
+					 enum fb_op_origin origin)
+{
+	struct i915_frontbuffer *front;
+
+	front = i915_gem_object_frontbuffer_lookup(obj);
+	if (front) {
+		intel_frontbuffer_flush(&front->base, origin);
+		i915_gem_object_frontbuffer_put(front);
+	}
+}
+
+void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
+					      enum fb_op_origin origin)
+{
+	struct i915_frontbuffer *front;
+
+	front = i915_gem_object_frontbuffer_lookup(obj);
+	if (front) {
+		intel_frontbuffer_invalidate(&front->base, origin);
+		i915_gem_object_frontbuffer_put(front);
+	}
+}
