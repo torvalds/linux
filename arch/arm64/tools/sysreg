@@ -1835,6 +1835,8 @@ EndEnum
 UnsignedEnum	51:48	FHM
 	0b0000	NI
 	0b0001	IMP
+	0b0010	F16F32DOT
+	0b0011	F16F32MM
 EndEnum
 UnsignedEnum	47:44	DP
 	0b0000	NI
