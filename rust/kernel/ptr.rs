@@ -2,6 +2,9 @@
 
 //! Types and functions to work with pointers and addresses.
 
+pub mod projection;
+pub use crate::project_pointer as project;
+
 use core::mem::{
     align_of,
     size_of, //
