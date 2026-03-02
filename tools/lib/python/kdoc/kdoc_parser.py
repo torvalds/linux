@@ -70,25 +70,6 @@ doc_begin_func = KernRe(str(doc_com) +			# initial " * '
                         cache = False)
 
 #
-# Regexes here are guaranteed to have the end delimiter matching
-# the start delimiter. Yet, right now, only one replace group
-# is allowed.
-#
-struct_nested_prefixes = [
-    (NestedMatch(r"__cond_acquires\s*\("), ""),
-    (NestedMatch(r"__cond_releases\s*\("), ""),
-    (NestedMatch(r"__acquires\s*\("), ""),
-    (NestedMatch(r"__releases\s*\("), ""),
-    (NestedMatch(r"__must_hold\s*\("), ""),
-    (NestedMatch(r"__must_not_hold\s*\("), ""),
-    (NestedMatch(r"__must_hold_shared\s*\("), ""),
-    (NestedMatch(r"__cond_acquires_shared\s*\("), ""),
-    (NestedMatch(r"__acquires_shared\s*\("), ""),
-    (NestedMatch(r"__releases_shared\s*\("), ""),
-    (NestedMatch(r'\bSTRUCT_GROUP\('), r'\0'),
-]
-
-#
 # Ancillary functions
 #
 
@@ -761,8 +742,6 @@ class KernelDoc:
         members = trim_private_members(members)
         members = self.xforms.apply("struct", members)
 
-        for search, sub in struct_nested_prefixes:
-            members = search.sub(search, sub, members)
         #
         # Deal with embedded struct and union members, and drop enums entirely.
         #
