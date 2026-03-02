@@ -93,6 +93,10 @@ static void dcn42_convert_dc_clock_table_to_soc_bb_clock_table(
 			}
 		}
 		vmin_limit->dispclk_khz = min(dc_clk_table->entries[0].dispclk_mhz * 1000, vmin_limit->dispclk_khz);
+		/* dispclk is always fine-grain */
+		dml_clk_table->dispclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dispclk_levels >= 2 ? 2 : 1;
+		dml_clk_table->dispclk.clk_values_khz[0] = 0;
+		dml_clk_table->dispclk.clk_values_khz[1] = dc_clk_table->entries[dc_clk_table->num_entries_per_clk.num_dispclk_levels - 1].dispclk_mhz * 1000;
 	}
 
 	/* dppclk */
@@ -105,6 +109,10 @@ static void dcn42_convert_dc_clock_table_to_soc_bb_clock_table(
 				dml_clk_table->dppclk.clk_values_khz[i] = 0;
 			}
 		}
+		/* dppclk is always fine-grain */
+		dml_clk_table->dppclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dppclk_levels >= 2 ? 2 : 1;
+		dml_clk_table->dppclk.clk_values_khz[0] = 0;
+		dml_clk_table->dppclk.clk_values_khz[1] = dc_clk_table->entries[dc_clk_table->num_entries_per_clk.num_dppclk_levels - 1].dppclk_mhz * 1000;
 	}
 
 	/* dtbclk */
