@@ -399,6 +399,7 @@ static inline __noreturn void ksft_exit_fail(void)
 #define ksft_finished()			\
 	ksft_exit(ksft_plan ==		\
 		  ksft_cnt.ksft_pass +	\
+		  ksft_cnt.ksft_xpass +	\
 		  ksft_cnt.ksft_xfail +	\
 		  ksft_cnt.ksft_xskip)
 
